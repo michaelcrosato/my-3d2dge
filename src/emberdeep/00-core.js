@@ -40,7 +40,7 @@ const INPUT = {
 const SLOT_KEYS = ['LMB', 'RMB', '1', '2', '3', '4'], SLOT_ACTS = ['s0', 's1', 's2', 's3', 's4', 's5'];
 const game = new E.Game(Object.assign({ canvas, view: qs.get('view') || 'iso', bg: '#05040a', input: INPUT }, BASE));
 const P = game.particles, L = game.lights, A = game.audio;
-L.enabled = true; L.ambient = .14; P.max = 1600;
+L.enabled = true; L.ambient = .14;
 game.fadeTime = .3;
 
 /* ---------- shared state: one object every module reads ---------- */
@@ -68,7 +68,7 @@ const DIFF = Object.assign({}, DIFF_DEFAULT, E.store.get('ed:diff', {}));
 const OPT = Object.assign({}, OPT_DEFAULT, E.store.get('ed:opt', {}));
 const saveOpts = () => { E.store.set('ed:diff', DIFF); E.store.set('ed:opt', OPT); };
 const applyAudioOpts = () => { A.musicVolume = OPT.music; A.sfxVolume = OPT.sfx; A._levels(); };
-applyAudioOpts();
+applyAudioOpts(); P.max = [500, 1000, 1600][OPT.fx === undefined ? 2 : OPT.fx];
 
 /* ---------- registries: the parts of the language ---------- */
 const REG = {

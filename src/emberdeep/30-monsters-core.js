@@ -67,6 +67,7 @@ function spawnMonster(id, x, y, o = {}) {
   m.pal = o.pal || foePalette(arch, R, depth, el);
   makeBody(m, o);
   m.react = foeReact; m.onDie = foeDie;
+  if (!elite && o.affixes) for (const id2 of o.affixes) addAffix(m, id2);   // deep packs: normal monsters that share an affix
   if (elite) {
     m.name = o.name || (elite === 2 ? eliteName(R) : arch.name);
     const pool = Object.values(REG.affixes).filter(a => (a.minDepth || 1) <= depth && (!a.ok || a.ok(arch)));
@@ -128,7 +129,15 @@ const AI = {
   /** walk direction toward a point around walls (the level's flow field toward the hero, straight when close) */
   steer(m, tx, ty) { const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1, fl = ED.L && ED.L.flow; if (d < 64 || !fl) return [dx / d, dy / d]; return fl.dir(m.x, m.y, tx, ty); },
   /** is the hero close enough (and seen) for this monster to wake and chase? */
-  aware(m, rad = 150) { const h = ED.hero; if (!h || !h.alive) return false; if (m.ai.aware) return true; const d = Math.hypot(h.x - m.x, h.y - m.y); if (d < rad && (d < 60 || !ED.L || !ED.L.map || ED.L.map.los(m.x, m.y, h.x, h.y))) { m.ai.aware = true; for (const o of ED.foes) if (o.pack === m.pack && m.pack) o.ai.aware = true; } return m.ai.aware; },
+  aware(m, rad = 150) {
+    const h = ED.hero; if (!h || !h.alive) return false; if (m.ai.aware) return true;
+    const d = Math.hypot(h.x - m.x, h.y - m.y);
+    if (d < rad && (d < 60 || !ED.L || !ED.L.map || ED.L.map.los(m.x, m.y, h.x, h.y))) {   // it sees him: the whole pack wakes, and says so
+      m.ai.aware = true; for (const o of ED.foes) if (o.pack === m.pack && m.pack) o.ai.aware = true;
+      if (game.time - (AI.alertT || -9) > .6) { AI.alertT = game.time; P.text(m.x, m.y, (m.z || 0) + (m.head || 24) * (m.scale || 1) + 8, '!', m.elite ? '#ffd36a' : '#ff6a5a', { scale: 2 }); sfx('blip', { vol: .5, pitch: .7 }); }
+    }
+    return m.ai.aware;
+  },
   face(m, a, dt, k = 6) { m.facing = E.approachAng(m.facing, a, dt * k); },
   move(m, dir, dt, k = 1) { const sp = m.speed * k * statusSpeed(m) * (m.st.fear ? -1 : 1) * (m.speedK === undefined ? 1 : m.speedK), acc = (m.stunT > 0 || m.kbT > 0 ? 120 : 500) * dt * (m.traction === undefined ? 1 : m.traction); m.vx = approach(m.vx, dir[0] * sp, acc); m.vy = approach(m.vy, dir[1] * sp, acc); },
   /** idle wander near home until the hero comes */
@@ -233,6 +242,12 @@ function updateFoes(dt) {
       m.vz -= 520 * dt; m.z += m.vz * dt; m.x += m.vx * dt; m.y += m.vy * dt;
       if (m.z <= 0) { m.z = 0; m.air = false; if (m.vz < -140) { m.vz = -m.vz * .25; m.air = true; } else m.vz = 0; P.dust(m.x, m.y, 0, 5); if (m.rig) m.rig.kick(-4); m.stunT = Math.max(m.stunT, .35); }
       collideUnit(m); animFoe(m, dt); continue;
+    }
+    // over a pit with nothing under the feet: it falls (the chasm mechanic stages its own fall when it runs the level)
+    if (!m.canFly && m.z <= 0 && !m.air && !m.boss && ED.L && ED.L.map.floorTags && ED.L.map.floorAt(m.x, m.y) === 'pit' && !(ED.L.mechs || []).includes('chasm')) {
+      m.fallT = (m.fallT || 0) + dt; m.z = -m.fallT * m.fallT * 260; m.fade = clamp(1 - m.fallT * 2, 0, 1); m.vx *= .9; m.vy *= .9;
+      if (m.fallT > .5) { m.noLoot = false; killUnit(m, { src: m.hitBy && m.hitBy.team === 'hero' ? m.hitBy : ED.hero, amount: m.hp, el: 'phys', tags: ['fall'] }); m.gone = true; }
+      continue;
     }
     const frozen = m.st.freeze || m.st.stun;
     if (!frozen) {
@@ -351,11 +366,12 @@ function spawnPack(x, y, o = {}) {
   const n = o.n || Math.round((4 + R.int(0, 4)) * DIFF.density), out = [], rad = o.radius || 26;
   const place = () => { for (let k = 0; k < 12; k++) { const a = R() * TAU, d = R() * rad, px0 = x + Math.cos(a) * d, py0 = y + Math.sin(a) * d; if (ED.L && ED.L.map && !ED.L.map.walkable(Math.floor(px0 / 16), Math.floor(py0 / 16))) continue; return [px0, py0]; } return [x, y]; };
   const affixes = o.elite === 1 ? R.shuffle(Object.values(REG.affixes).filter(a => (a.minDepth || 1) <= depth && (!a.ok || a.ok(REG.archetypes[main])))).slice(0, 1).map(a => a.id) : null;
+  const mod = o.mod || {};   // pack variants from deep recipes: { scale, hpMul, dmgMul, speedMul, prefix, affix }
   if (o.elite === 2) { const [px0, py0] = place(); const m = spawnMonster(main, px0, py0, { elite: 2, rng: R, instant: o.instant, el: o.el }); if (m) { m.pack = packId; out.push(m); } }
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < n * (mod.count || 1); i++) {
     const [px0, py0] = place(), champ = o.elite === 1 && i < 3 + (R() * 2 | 0);
-    const m = spawnMonster(i % 3 === 2 ? second : main, px0, py0, { elite: champ ? 1 : 0, affixes: champ ? affixes : null, rng: R, instant: o.instant, el: o.el });
-    if (m) { m.pack = packId; m.homeX = px0; m.homeY = py0; out.push(m); if (champ && !out.some(q => q.packLead)) m.packLead = true; }
+    const m = spawnMonster(i % 3 === 2 ? second : main, px0, py0, { elite: champ ? 1 : 0, affixes: champ ? affixes : !champ && mod.affix ? [mod.affix] : null, rng: R, instant: o.instant, el: o.el, scale: mod.scale, hpMul: mod.hpMul, dmgMul: mod.dmgMul });
+    if (m) { m.pack = packId; m.homeX = px0; m.homeY = py0; out.push(m); if (champ && !out.some(q => q.packLead)) m.packLead = true; if (mod.speedMul) m.speed *= mod.speedMul; if (mod.prefix && !champ) m.name = mod.prefix + ' ' + m.name; if (mod.scale && mod.scale > 1) m.mass *= mod.scale * mod.scale; }
   }
   return out;
 }

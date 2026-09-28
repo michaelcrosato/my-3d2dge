@@ -253,9 +253,17 @@ function randomFloor(L0, R, o = {}) {
   return [L0.start.x + 20, L0.start.y];
 }
 /** spawn the level's packs (called when the level starts; the rare at the exit last) */
+/** the deeper, the stranger the packs: an element (recolor + status), a shared affix, giants and swarms */
+function packVariant(depth, R) {
+  const v = {};
+  if (depth > 4 && R.chance(Math.min(.55, (depth - 4) * .05))) v.el = R.pick(['fire', 'frost', 'storm', 'void', 'venom']);
+  if (depth > 11 && R.chance(Math.min(.45, (depth - 11) * .03))) { const aff = Object.values(REG.affixes).filter(a => (a.minDepth || 1) <= depth); if (aff.length) v.affix = R.pick(aff).id; }
+  if (depth > 17) { const k = R(); if (k < .14) Object.assign(v, { scale: 1.32, hpMul: 1.9, dmgMul: 1.3, speedMul: .82, prefix: 'Giant' }); else if (k < .24) Object.assign(v, { scale: .78, hpMul: .45, dmgMul: .7, speedMul: 1.25, count: 2, prefix: 'Swarming' }); }
+  return v;
+}
 function populate(L0) {
   const R = RNG(L0.rec.seed + 99);
-  for (const p of L0.packs) spawnPack(p.x, p.y, { pool: L0.rec.pool, elite: p.elite, rng: R, instant: true, n: p.elite === 2 ? 3 + R.int(0, 2) : undefined });
+  for (const p of L0.packs) { const v = packVariant(L0.rec.depth, R); spawnPack(p.x, p.y, { pool: L0.rec.pool, elite: p.elite, rng: R, instant: true, n: p.elite === 2 ? 3 + R.int(0, 2) : undefined, el: v.el, mod: v }); }
   if (L0.rec.boss) { const B = spawnBoss(L0.rec.boss, L0.exit.x, L0.exit.y - 10, { hue: L0.hue }); if (B) { B.ai.aware = false; B.introT = 0; B.dormant = true; } }
 }
 
