@@ -43,10 +43,31 @@ The model copies the closest slice and replaces the code between `GAME START` an
 | File | What it shows |
 |---|---|
 | `dist/my-3d2dge.html` | Title menu plus the five vertical slices and the animation lab. Arrows and Enter; `V` changes the view, `-` / `=` or the mouse wheel zoom, `[` / `]` turn the camera where a scene allows it, `0` resets it, `M` mutes. |
+| **`examples/emberdeep.html`** | **Emberdeep**, the engine's signature game: a hack-and-slash that goes down forever (see below). Deep links: `#town`, `#depth-7`, `#gallery`, `#proving`. |
 | `examples/arena.html` | **Emberwell**, an action-RPG arena with WebGPU lighting. One game in four views: isometric (Diablo, Bastion), three-quarter (Zelda, Stardew Valley), top-down and brawler. Keys `1`-`4` or `V` switch, or open `arena.html#threequarter`. |
 | `examples/perspective-lab.html` | One room in every view, with lighting and skeleton toggles |
 | `examples/stress-test.html` | Up to 5,000 monsters in stick, HD, skeleton or knight rigs that attack with telegraphed moves and fall when beaten; 30 shadow-casting torches, particle storms, camera distance, zoom and turn, a benchmark and a copyable report |
 | `examples/scarfrunner-side.html` | The standalone side-scrolling prototype that came before the engine |
+
+## Emberdeep, the signature game
+
+`examples/emberdeep.html` is a Diablo IV / Path of Exile II style hack-and-slash built on the engine, and it's the showcase for everything above. It grew out of the stress test: the same swordsman (teal tunic, red cape), the same rune hall and the same crowds.
+
+- **Fluid, fast combat.** A slash > backslash > spin combo, a forward dodge roll (a new animation layered on the rig), lunges out of the roll, perfect dodges that slow time, and a potion drunk with an IK-driven arm while you keep fighting. Hit-stop, shake and sparks on every blow, and slow-motion finishers.
+- **Skills and a passive tree.** Active skills with ranks and runes on six slots (LMB, RMB, 1-4), and a large procedurally laid-out passive constellation with notables and build-defining keystones.
+- **Loot.** Common to legendary and unique items with rolled affixes and legendary powers. Gear visibly changes the hero: colors, helms, armor, capes, blades and their elemental trails.
+- **Emberhold.** The last lit town, with animated townsfolk: the smith hammers, the mystic floats, the merchant sweeps. There are shops, crafting and the waystone down.
+- **One new element per depth.** Each planned depth brings exactly one new mechanic and is named after it: powder kegs (The Powder Vaults), rune wards, chasms, gale vents, ice, brood nests, storm pylons, time wells, darkness, blood rush, launch runes, floods. A boss waits every fifth depth. You can ignore each element and hack through; speedrunners and power-levelers exploit it.
+- **It never ends.** Past the planned depths every level is composed from the same parts:
+  - themes recolored by depth;
+  - mechanics mixed two or three at a time and named after the mix ("The Howling Powder Vaults");
+  - packs with elements, shared affixes, giants and swarms;
+  - bosses built from a body, an element and a set of attack patterns;
+  - item levels that keep scaling.
+- **A gallery.** `#gallery` plays every skill on straw training dummies, every monster's moveset, and the hero's full pose vocabulary, in any view and in slow motion.
+- **For playtesting.** Settings has difficulty sliders for hero damage, life and speed, the same for monsters, plus density, experience and loot. `__ed.botRun({ to: 10 })` lets an autopilot play depth after depth, and the title screen runs it as a demo when left idle.
+
+The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIGN.md` explains the modular "language" (registries for elements, skills, monsters, affixes, bosses, patterns, items, powers, mechanics, themes and layouts). `tools/ed-play.mjs` (scripted headless playtests) and `tools/ed-smoke.mjs` (every scene and depth) test it.
 
 ## What's in the engine
 

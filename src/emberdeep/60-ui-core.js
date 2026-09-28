@@ -133,7 +133,7 @@ function drawHUD(r) {
       E.font.text(g, (L0.kind === 'town' ? 'EMBERHOLD' : 'DEPTH ' + L0.depth) , 5, 4, GOLD, { shadow: '#05040a', outline: false });
       E.font.text(g, L0.kind === 'town' ? 'the last lit town' : L0.name, 5, 13, '#c8c0d8', { shadow: '#05040a', outline: false });
       if (L0.kind === 'level') {   // the speedrunner's clock: this depth's time, and the best
-        const tm = ED.t, best = h.best && h.best[L0.depth], ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0');
+        const tm = L0.t || 0, best = h.best && h.best[L0.depth], ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0');
         E.font.text(g, ft(tm) + (best ? '  best ' + ft(best) : ''), E.font.width(L0.kind === 'town' ? 'EMBERHOLD' : 'DEPTH ' + L0.depth) + 10, 4, best && tm > best ? '#9a90b0' : '#8fe3ff', { font: 'tiny', shadow: '#05040a', outline: false });
       }
       let mx = 5;
@@ -172,7 +172,7 @@ function drawHUD(r) {
         const y = Math.round(H * .18);
         E.font.text(g, c.sub, cx, y - 12, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
         E.font.title(g, c.title.toUpperCase(), cx, y, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
-        if (c.mech) { const M = c.mech; E.font.text(g, 'NEW: ' + M.name.toUpperCase(), cx, y + 22, M.color || GOLD, { align: 'center', shadow: '#05040a', outline: '#0c0818' }); const lines = E.font.wrap(M.tip || '', 280); lines.forEach((l, i) => E.font.text(g, l, cx, y + 32 + i * 9, '#e8e0f8', { align: 'center', shadow: '#05040a', outline: false })); }
+        if (c.mech) { const M = c.mech; E.font.text(g, (M.combo ? 'NEW COMBINATION: ' : 'NEW: ') + M.name.toUpperCase(), cx, y + 22, M.color || GOLD, { align: 'center', shadow: '#05040a', outline: '#0c0818' }); const lines = E.font.wrap(M.tip || '', Math.min(300, W - 30)).slice(0, 4); lines.forEach((l, i) => E.font.text(g, l, cx, y + 32 + i * 9, '#e8e0f8', { align: 'center', shadow: '#05040a', outline: false })); }
       });
     }
   });

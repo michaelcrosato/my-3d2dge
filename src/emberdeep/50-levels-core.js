@@ -42,11 +42,12 @@ function recipe(depth, visit = 0) {
   } else {
     // composed depths: a known theme (recolored further the deeper you go), one mechanic new to this combination
     // plus one or two from before, and a composed boss every fifth depth
-    const themes = Object.keys(REG.themes), mechs = Object.keys(REG.mechanics).filter(id => !REG.mechanics[id].bossOnly);
+    const themes = Object.keys(REG.themes);
     rec.theme = R.pick(themes); rec.layout = R.pick(Object.keys(REG.layouts).filter(id => !REG.layouts[id].bossOnly));
     rec.hue = ((depth - PLANNED) * 37 + R.int(-20, 20)) % 360;
-    const n = depth > 40 ? 3 : 2, pick = R.shuffle(mechs.slice()).slice(0, n);
-    rec.mechs = pick; rec.newMech = pick[0];
+    // every composed depth brings one NEW combination: all pairs of mechanics first (older mechanics sooner), then triples
+    const combo = comboFor(depth - PLANNED - 1);
+    rec.mechs = combo; rec.newMech = combo[0]; rec.combo = true;
     if (depth % 5 === 0) { rec.boss = composeBoss(depth, R); rec.layout = REG.layouts.arena ? 'arena' : rec.layout; }
   }
   rec.pool = levelPool(rec.theme, depth);
@@ -61,6 +62,21 @@ function levelPool(theme, depth) {
   const th = REG.themes[theme]; if (th && th.pool) pool = pool.concat(th.pool.map(id => REG.archetypes[id]).filter(a => a && !pool.includes(a)));
   const ids = pool.map(a => a.id);
   return ids.length ? ids : ['husk', 'skeleton', 'slime'];
+}
+/** the n-th new combination of mechanics (0-based): pairs ordered by when their newer member arrived, then triples */
+let _combos = null;
+function comboFor(n) {
+  if (!_combos) {
+    const intro = id => { const i = PLAN.findIndex(p => p && p.mech === id); return i > 0 ? i : 50 + (REG.mechanics[id].depth || 0); };
+    const ids = Object.keys(REG.mechanics).filter(id => !REG.mechanics[id].bossOnly).sort((a, b) => intro(a) - intro(b)), R = RNG('emberdeep:combos'), pairs = [], triples = [];
+    for (let j = 1; j < ids.length; j++) { const tier = []; for (let i = 0; i < j; i++) tier.push([ids[j], ids[i]]); pairs.push(...R.shuffle(tier)); }
+    for (let k = 2; k < ids.length; k++) { const tier = []; for (let j = 1; j < k; j++) for (let i = 0; i < j; i++) tier.push([ids[k], ids[j], ids[i]]); triples.push(...R.shuffle(tier)); }
+    _combos = pairs.concat(triples);
+    if (!_combos.length) _combos = [ids.slice(0, 1)];
+  }
+  if (n < _combos.length) return _combos[n].slice();
+  const R = RNG('emberdeep:combo:' + n), ids = Object.keys(REG.mechanics).filter(id => !REG.mechanics[id].bossOnly);   // past every triple: random quads
+  return R.shuffle(ids.slice()).slice(0, Math.min(4, ids.length));
 }
 function levelName(rec, R) {
   if (rec.boss && REG.bosses[rec.boss] && REG.bosses[rec.boss].levelName) return REG.bosses[rec.boss].levelName;
