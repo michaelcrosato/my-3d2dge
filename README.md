@@ -2,6 +2,10 @@
 
 A tiny, dependency-free JavaScript engine for pixel-art games where every character is a procedural rig instead of a sprite sheet. The rigs are recalculated from math every step, so the motion is fluid. Because the world is 3D and the camera is a swappable projection, the same game renders in isometric, three-quarter, top-down, brawler or side view without redrawing anything.
 
+## Share it with an AI model
+
+**`dist/co55-engine.html` is the one file to hand over.** It contains the compact API card, the full engine and a small starter game with every feature wired up. Attach or paste it into any chat and ask for a game. The model reads the card first, then replaces only the section between `GAME START` and `GAME END`. Opened in a browser, the same file is a playable demo; press `?` to read the guide.
+
 ## Try it
 
 Open any file in `examples/` in a browser. Each one is a single standalone HTML file.
@@ -46,17 +50,25 @@ For a custom view, use `new CO55.View(id, label, yaw, pitch, scale, zBoost)`.
 - **3D particles** (dust, sparks, bouncing bits, embers, ground rings, damage numbers) and a **3×5 pixel font**.
 - **Built for crowds.** Off-screen characters are skipped, a direct drawing path skips outline compositing, wall blocks and shadows are cached, per-frame timing stats are built in, and the internal resolution can change at runtime.
 
-## Build
+## Build and check
 
-The source of truth is `engine/co55.js` plus the game scripts and templates in `src/`. To regenerate the standalone examples, run:
+The source of truth is `engine/co55.js` plus the game scripts and templates in `src/`. To regenerate the standalone examples and `dist/co55-engine.html`, run:
 
 ```
 node tools/build.mjs
 ```
 
-## Using it with AI models
+To test any game file in a headless browser, run the checker. It plays the game briefly, switches through every view, and reports errors, frame rate and screenshots, failing with exit code 1 on any error:
 
-Hand a model any single file from `examples/`. The engine script inside it starts with a short "read this first" block. For the full API, rules and recipes, give the model `AI_GUIDE.md` as well.
+```
+npm install && npx playwright install chromium   # once
+node tools/check.mjs dist/co55-engine.html
+```
+
+## Docs
+
+- `API.md`: the compact API card, about 2,000 tokens. It's also embedded in `dist/co55-engine.html`.
+- `AI_GUIDE.md`: the full guide, with frame order, every system, GPU lighting, recipes and a pre-handoff checklist.
 
 ## License
 

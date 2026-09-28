@@ -98,7 +98,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <script>
 /* ---- inlined from engine/co55.js ---- */
 /*!
- * CO55 2D Engine v0.3.0
+ * CO55 2D Engine v0.4.0
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/2D-co55-engine  (MIT License)
  *
@@ -126,13 +126,14 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
  * 7. GPU LIGHTING is optional: game.enableGPU({ map }). Mark glowing things with
  *    px.glow(g, 1) inside queue callbacks, pass { color, shadow } to lights.add, and
  *    register shadow casters with game.lights.caster(). Falls back to Canvas lighting.
- * See AI_GUIDE.md in the repo for the full API and recipes.
+ * The compact API card is API.md (also embedded in the single-file edition).
+ * See AI_GUIDE.md in the repo for the full guide and recipes.
  */
 (function (root) {
 'use strict';
 
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.3.0', TAU, DEG };
+const E = { version: '0.4.0', TAU, DEG, current: null };
 
 /* =============================================================================
  * 1. MATH
@@ -861,6 +862,7 @@ class Game {
     this.fps = 60; this.viewListeners = []; this.gpu = null;
     /** per-frame timings (ms) and counts, for profiling overlays */
     this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
+    E.current = this;   // handy for tools and tests: CO55.current is the latest game
   }
   /** turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... } */
   enableGPU(o = {}) { this.gpu = new E.GPULighting(this, o); return this.gpu; }

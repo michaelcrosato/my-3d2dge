@@ -1,6 +1,6 @@
 # CO55 engine guide for AI models
 
-This file is written for an AI (or a person) who has been handed a CO55 game and asked to change it or build a new one. Read it once before editing. Everything here matches `engine/co55.js` v0.3.0.
+This file is written for an AI (or a person) who has been handed a CO55 game and asked to change it or build a new one. Read it once before editing. Everything here matches `engine/co55.js` v0.4.0. For a compact version, see `API.md`, which is also embedded at the top of `dist/co55-engine.html`, the single file to share with other models.
 
 ## The mental model
 
@@ -16,7 +16,8 @@ The second idea is that the world is 3D and the camera is swappable. Game logic 
 4. **Anything that can overlap anything else goes through the queue**, with `r.queue(x, y, z, fn)` or `r.actor(...)`. The renderer sorts by depth for the current view. Drawing straight to `r.ctx` inside `draw()` is only for the floor.
 5. **Animate with continuous values.** Drive poses from phases, velocities and eased timers (`CO55.ease`), never from frame lists. Smooth state changes with `approach`, `lerp` or springs.
 6. **Use `dt` everywhere in update.** The loop calls `update(dt)` in fixed substeps of about 1/120 s. Never assume 60 fps.
-7. **Keep each example a single HTML file.** Edit `engine/co55.js` and `src/*.js`, then run `node tools/build.mjs` to regenerate `examples/`. When working inside one standalone HTML file with no repo, edit the inlined scripts directly.
+7. **Keep each example a single HTML file.** Edit `engine/co55.js` and `src/*.js`, then run `node tools/build.mjs` to regenerate `examples/` and `dist/`. When working inside one standalone HTML file with no repo, edit the inlined scripts directly, and in `dist/co55-engine.html` only replace the section between `GAME START` and `GAME END`.
+8. **Verify before handing back.** If you can run commands, `node tools/check.mjs your-game.html` plays the game in a headless browser, switches every view, and fails on any error. `CO55.current` always points at the running game, which is how the checker drives it.
 
 ## Frame order
 
@@ -209,3 +210,4 @@ Read `gpu.status()` (`'loading'`, `'on'`, `'off'` or `'unavailable'`), `gpu.fail
 - Turn on the skeleton (`R`) and slow motion (`T`) to confirm the animation reads well.
 - If the game uses GPU lighting, toggle it (`G` in the examples) to confirm both lighting paths look right.
 - `node tools/build.mjs` has been run, if you are working in the repo.
+- `node tools/check.mjs` passes with no errors, if you can run commands.

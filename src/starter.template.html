@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!--
+  CO55 ENGINE, single-file edition v0.4.0
+  https://github.com/michaelcrosato/2D-co55-engine (MIT License)
+
+  AI MODELS: this one file is the whole engine, its documentation and a working game.
+    1. Read the API card in <script type="text/markdown" id="co55-api"> below.
+    2. The engine is the script marked "inlined from engine/co55.js". Do not change it
+       unless asked to extend the engine itself.
+    3. The game lives between GAME START and GAME END. To make a new game, replace
+       that section and keep everything else.
+  HUMANS: open this file in a browser to play the starter game. Press ? for the guide.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CO55 engine · single-file edition</title>
+<script type="text/markdown" id="co55-api">
+<!-- @inline-raw API.md -->
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f0e6d6; --panel:rgba(250,242,228,.92); --ink:#2a2140; --muted:#63557a; --accent:#b8612a; --accent-ink:#fff6e6; --line:rgba(42,33,64,.2); --key:rgba(42,33,64,.1);
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#06050b; --panel:rgba(18,14,30,.84); --ink:#f1e4c8; --muted:#ab9dc0; --accent:#f0a23a; --accent-ink:#1c1428; --line:rgba(241,228,200,.16); --key:rgba(241,228,200,.12); } }
+:root[data-theme="dark"]{ --bg:#06050b; --panel:rgba(18,14,30,.84); --ink:#f1e4c8; --muted:#ab9dc0; --accent:#f0a23a; --accent-ink:#1c1428; --line:rgba(241,228,200,.16); --key:rgba(241,228,200,.12); }
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Pixelify Sans','Trebuchet MS',system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#stage{position:relative;width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
+#screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;cursor:crosshair}
+.hud{position:absolute;z-index:2;pointer-events:none}.hud>*{pointer-events:auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.top{top:12px;left:12px;right:12px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:flex-start}
+.brand{padding:8px 12px}.brand h1{margin:0;font-size:19px;font-weight:600}.brand p{margin:3px 0 0;font-size:13px;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;gap:3px;padding:3px}
+button{font:inherit;font-size:13.5px;color:var(--ink);background:transparent;border:0;border-radius:4px;padding:6px 9px;min-height:32px;cursor:pointer}
+button:hover{background:var(--key)}button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+button:disabled{opacity:.45;cursor:default}button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.keys{left:12px;bottom:12px;margin:0;padding:7px 11px;font-size:13px;color:var(--muted);max-width:min(640px,calc(100% - 24px))}.keys b{color:var(--ink)}
+#guide{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55)}
+#guide[hidden]{display:none}
+#guide .panel{width:min(820px,100%);max-height:100%;display:flex;flex-direction:column}
+#guide header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+#guide pre{margin:0;padding:14px;overflow:auto;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;-webkit-user-select:text;user-select:text;color:var(--ink)}
+.touch{display:none;right:14px;bottom:14px;gap:10px}.touch button{width:60px;height:60px;border-radius:50%;background:var(--panel);border:1px solid var(--line)}
+@media (pointer:coarse){.touch{display:flex}.keys{display:none}}
+@media (max-width:640px){.brand p{display:none}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="screen" role="img" aria-label="CO55 starter game: a torch-lit hall with a hero, husks and slimes"></canvas>
+  <div class="hud top">
+    <div class="brand panel"><h1>CO55 engine</h1><p>Single-file edition. Everything here is drawn by code, every frame.</p></div>
+    <div class="seg panel" role="group" aria-label="View and tools">
+      <button type="button" data-view="iso">Isometric</button>
+      <button type="button" data-view="threequarter">Three-quarter</button>
+      <button type="button" data-view="topdown">Top-down</button>
+      <button type="button" data-view="brawler">Brawler</button>
+      <button type="button" data-view="side">Side</button>
+      <button type="button" id="gpuBtn" aria-pressed="false">GPU lighting</button>
+      <button type="button" id="rigBtn" aria-pressed="false">Skeleton</button>
+      <button type="button" id="guideBtn">Guide</button>
+    </div>
+  </div>
+  <p class="hud keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> or <b>J</b> slashes, <b>Space</b> dashes. <b>V</b> cycles views, <b>G</b> GPU lighting, <b>R</b> skeleton, <b>T</b> slow motion, <b>?</b> guide.</p>
+  <div class="hud touch" aria-hidden="true"><button data-act="dash">Dash</button><button data-act="attack">Slash</button></div>
+  <div id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <div class="panel">
+      <header><strong id="guideTitle">API card</strong><button type="button" id="guideClose">Close</button></header>
+      <pre id="guideText"></pre>
+    </div>
+  </div>
+</div>
+<script>
+// in-page guide viewer (reads the API card at the top of this file)
+(() => {
+  const g = document.getElementById('guide'), open = v => { g.hidden = !v; if (v) document.getElementById('guideClose').focus(); };
+  document.getElementById('guideText').textContent = document.getElementById('co55-api').textContent.trim();
+  document.getElementById('guideBtn').addEventListener('click', () => open(true));
+  document.getElementById('guideClose').addEventListener('click', () => open(false));
+  addEventListener('keydown', e => { if (e.key === '?') open(g.hidden); else if (e.key === 'Escape') open(false); });
+})();
+</script>
+<!-- @inline engine/co55.js -->
+<!-- @inline src/starter.game.js -->
+</body>
+</html>

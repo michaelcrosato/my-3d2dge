@@ -1,10 +1,16 @@
 {
   "name": "2d-co55-engine",
-  "version": "0.3.0",
-  "description": "Procedural pixel-puppet engine for every 2D perspective: isometric, three-quarter, top-down, brawler and side view.",
+  "version": "0.4.0",
+  "description": "Procedural pixel-puppet game engine for every 2D perspective: isometric, three-quarter, top-down, brawler and side view, with optional WebGPU lighting.",
   "type": "module",
   "license": "MIT",
+  "main": "engine/co55.js",
+  "files": ["engine/co55.js", "API.md", "AI_GUIDE.md", "dist/co55-engine.html"],
   "scripts": {
-    "build": "node tools/build.mjs"
+    "build": "node tools/build.mjs",
+    "check": "node tools/check.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
   }
 }
