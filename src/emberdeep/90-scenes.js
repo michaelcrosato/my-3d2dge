@@ -8,7 +8,7 @@ function setupGPU(map) {
   gpu.map = map;
 }
 /* ---------- save / load ---------- */
-const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best'];
+const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
 function saveGame() { const h = ED.hero; if (!h || ED.demo) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
 function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); itemUid = mx + 1; return s; }
 function newHero() {
@@ -237,7 +237,8 @@ const levelScene = {
     dropIn(h);
     const M = rec.newMech && REG.mechanics[rec.newMech];
     const first = M && !(h.seenMech || []).includes(M.id + (depth > PLANNED ? ':' + rec.mechs.join('+') : ''));
-    showCard(rec.name, 'DEPTH ' + depth, M ? Object.assign({}, M, { name: depth > PLANNED ? rec.mechs.map(id => REG.mechanics[id] && REG.mechanics[id].name).filter(Boolean).join(' + ') : M.name }) : null, first ? 6 : 4);
+    const comboName = rec.mechs.map(id => REG.mechanics[id] && REG.mechanics[id].name).filter(Boolean).join(' + ');
+    showCard(rec.name, 'DEPTH ' + depth, M ? Object.assign({}, M, depth > PLANNED ? { name: comboName, combo: true, tip: 'A new combination. ' + rec.mechs.map(id => REG.mechanics[id] && REG.mechanics[id].tip).filter(Boolean).slice(0, 2).join(' ') } : {}) : null, first ? 6 : 4);
     if (M) { h.seenMech = h.seenMech || []; h.seenMech.push(M.id + (depth > PLANNED ? ':' + rec.mechs.join('+') : '')); }
     if (depth > h.maxDepth) h.maxDepth = depth;
     playSong(L0.theme.music || 'deep'); game.cam.snap = true; saveGame();
@@ -272,7 +273,7 @@ const levelScene = {
 
 /** a depth is done: record the time (best times per depth for speedrunners) and say how it went */
 function levelCleared(h, L0) {
-  const tm = ED.t; h.best = h.best || {}; const pb = !h.best[L0.depth] || tm < h.best[L0.depth];
+  const tm = L0.t || 0; h.best = h.best || {}; const pb = !h.best[L0.depth] || tm < h.best[L0.depth];
   if (pb && !ED.demo) h.best[L0.depth] = +tm.toFixed(2);
   const ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0');
   notify('DEPTH ' + L0.depth + ' CLEARED  ' + ft(tm) + (pb ? '  NEW BEST' : '') + '  •  ' + ED.stats.kills + ' KILLS', pb ? '#8fe3ff' : '#c8c0d8', 4);
