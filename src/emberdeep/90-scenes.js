@@ -142,7 +142,7 @@ const titleScene = {
     if (inp.repeat('down')) { TITLE.menu = (TITLE.menu + 1) % items.length; sfx('select'); UI.keyNav = true; }
     if (inp.pressed('confirm') || inp.pressed('start')) { inp.consumeAll(); sfx('confirm'); items[clamp(TITLE.menu, 0, items.length - 1)][1](); }
     if (Math.random() < dt * 8) { const b = rnd.pick(ED.L.torches); P.add({ kind: 'ember', x: b.x + (Math.random() - .5) * 6, y: b.y + (Math.random() - .5) * 6, z: 14, vx: (Math.random() - .5) * 14, vy: (Math.random() - .5) * 14, vz: 20 + Math.random() * 40, max: 1.2, color: '#ff8a3a' }); }
-    game.focus(h.x, h.y - 10, 20);
+    game.focus(h.x, h.y + 26, 16);   // the hero stands above the menu
   },
   draw(r) {
     const L0 = ED.L, h = ED.titleHero;
@@ -156,11 +156,12 @@ const titleScene = {
       px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
       E.font.title(g, 'EMBERDEEP', cx, 14, { scale: 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
       E.font.text(g, 'a my-3D2dge game  •  the deep goes on forever', cx, 50, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
-      const items = titleItems(), bw = 118, by = Math.round(H * .56);
+      const items = titleItems(), bw = 118, by = Math.round(H * .6);
       items.forEach(([label, fn], i) => button(g, cx - bw / 2, by + i * 19, bw, 15, label, () => { TITLE.menu = i; fn(); }, { focus: TITLE.menu === i }));
       const h2 = ED.titleHero; if (E.store.get('ed:save', null)) E.font.text(g, 'Level ' + h2.level + ' • deepest ' + h2.maxDepth, cx, by - 11, '#9a90b0', { align: 'center', font: 'tiny', outline: false });
-      E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#8a80a8', { align: 'center', font: 'tiny', outline: false });
-      E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#8a80a8', { align: 'center', font: 'tiny', outline: false });
+      px.blend(g, .7, 'normal', () => px.rect(g, 0, H - 21, W, 21, '#05040a'));
+      E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
+      E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
     });
     drawPanels(r);
   }

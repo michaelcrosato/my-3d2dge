@@ -11,11 +11,12 @@
 //   aimfoe              point the mouse at the nearest living monster;  aimat:<js returning [x, y]> at a world point
 //   shot:name           save a screenshot as <out>/<name>.png
 //   eval:<js>           run JavaScript in the page (window.__ed has the game: ED, REG, UI, spawnMonster...)
+//   evalfile:<path>     run a JavaScript file in the page
 //   log:<js>            evaluate and print the result
 // --god makes the hero very hard to kill (monster damage x0.05) so long scripts do not end in death.
 // Exit code 1 if the page threw.
 import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -58,6 +59,7 @@ for (const step of steps) {
   }
   else if (kind === 'shot') await page.screenshot({ path: join(out, arg + '.png') });
   else if (kind === 'eval') await page.evaluate(arg);
+  else if (kind === 'evalfile') await page.evaluate(readFileSync(resolve(arg), 'utf8'));
   else if (kind === 'log') console.log('  log', arg.slice(0, 60), '=>', JSON.stringify(await page.evaluate(arg)));
   else console.warn('unknown step', step);
 }

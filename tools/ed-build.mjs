@@ -12,7 +12,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..'), dir = join(roo
 const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i + 1] : d; };
 const out = opt('out', null); if (!out) { console.error('Usage: node tools/ed-build.mjs --out <page.html> [--mine a.js,b.js] [--all]'); process.exit(2); }
 // the spine every part relies on (written first; content files plug into its registries)
-const CORE = ['00-core.js', '05-elements.js', '10-combat.js', '15-stats.js', '20-hero.js', '25-skills-core.js', '30-monsters-core.js', '35-bosses-core.js', '40-loot-core.js', '45-mechanics-core.js', '50-levels-core.js', '55-town-core.js', '60-ui-core.js', '70-audio.js', '90-scenes.js', '92-gallery.js', '93-autopilot.js', '94-tips.js', '99-start.js'];
+const CORE = ['00-core.js', '05-elements.js', '10-combat.js', '15-stats.js', '20-hero.js', '25-skills-core.js', '30-monsters-core.js', '35-bosses-core.js', '40-loot-core.js', '45-mechanics-core.js', '50-levels-core.js', '55-town-core.js', '60-ui-core.js', '70-audio.js', '90-scenes.js', '92-gallery.js', '93-autopilot.js', '94-tips.js', '95-perf.js', '99-start.js'];
 const mine = (opt('mine', '') || '').split(',').map(s => s.trim()).filter(Boolean);
 const files = readdirSync(dir).filter(f => f.endsWith('.js')).sort().filter(f => args.includes('--all') || CORE.includes(f) || mine.includes(f));
 for (const f of mine) if (!files.includes(f)) console.warn('warning: ' + f + ' is not in src/emberdeep');

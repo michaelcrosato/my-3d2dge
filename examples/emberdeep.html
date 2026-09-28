@@ -4514,7 +4514,7 @@ root.My3D2dge = E;
 
 </script>
 <script>
-/* ---- inlined from src/emberdeep (00-core.js, 05-elements.js, 10-combat.js, 15-stats.js, 20-hero.js, 25-skills-core.js, 26-skills-melee.js, 27-skills-spells.js, 28-progression.js, 30-monsters-core.js, 31-monsters.js, 33-beasts.js, 35-bosses-core.js, 36-bosses.js, 40-loot-core.js, 41-loot.js, 42-inventory.js, 45-mechanics-core.js, 46-mechanics-a.js, 47-mechanics-b.js, 50-levels-core.js, 51-themes.js, 52-layouts.js, 55-town-core.js, 56-town.js, 60-ui-core.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 94-tips.js, 99-start.js) ---- */
+/* ---- inlined from src/emberdeep (00-core.js, 05-elements.js, 10-combat.js, 15-stats.js, 20-hero.js, 25-skills-core.js, 26-skills-melee.js, 27-skills-spells.js, 28-progression.js, 30-monsters-core.js, 31-monsters.js, 33-beasts.js, 35-bosses-core.js, 36-bosses.js, 40-loot-core.js, 41-loot.js, 42-inventory.js, 45-mechanics-core.js, 46-mechanics-a.js, 47-mechanics-b.js, 50-levels-core.js, 51-themes.js, 52-layouts.js, 55-town-core.js, 56-town.js, 60-ui-core.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 94-tips.js, 95-perf.js, 99-start.js) ---- */
 /* =============================================================================
  * EMBERDEEP  the signature game of my-3D2dge
  * A hack-and-slash that goes down forever. The hero from the stress test (teal tunic, red cape) climbs out of
@@ -8534,7 +8534,7 @@ function drawFoe(m, r) {
   const view = r.view, alpha = foeAlpha(m), s = m.scale || 1;
   if (!r.visible(m.x, m.y, m.z, 60 * s, 40 * s, 110 * s)) { r.game.stats.culled++; return; }
   if (m.arch.draw) { m.arch.draw(m, r, alpha); return; }
-  const tint = m.flash > 0 ? [FLASH, .3] : m.alive ? statusTint(m) : null, outline = OPT.outlines !== false;
+  const tint = m.flash > 0 ? [FLASH, .3] : m.alive ? statusTint(m) : null, outline = OPT.outlines !== false && !(PERF.low && !m.elite && !m.boss);   // the governor drops ordinary outlines when frames run long
   const fl = tint && tint[0], fm = tint ? tint[1] : 0, oc = m.flash > 0 ? FLASH_LINE : m.elite && m.alive ? (m.elite === 2 ? '#5a3a10' : '#18204a') : undefined;
   r.shadow(m.x, m.y, (m.r + 1) * s * (m.z > 0 ? Math.max(.4, 1 - m.z * .02) : 1), .5 * alpha);
   if (m.alive && m.elite) r.decal(() => { const c = m.elite === 2 ? '#ffc040' : m.elite === 3 ? '#ff5a3a' : '#6a9aff'; r.groundRing(m.x, m.y, m.r * s + 4, c, .6 + .3 * Math.sin(game.time * 5)); }, { emissive: .6 });
@@ -20914,7 +20914,7 @@ const titleScene = {
     if (inp.repeat('down')) { TITLE.menu = (TITLE.menu + 1) % items.length; sfx('select'); UI.keyNav = true; }
     if (inp.pressed('confirm') || inp.pressed('start')) { inp.consumeAll(); sfx('confirm'); items[clamp(TITLE.menu, 0, items.length - 1)][1](); }
     if (Math.random() < dt * 8) { const b = rnd.pick(ED.L.torches); P.add({ kind: 'ember', x: b.x + (Math.random() - .5) * 6, y: b.y + (Math.random() - .5) * 6, z: 14, vx: (Math.random() - .5) * 14, vy: (Math.random() - .5) * 14, vz: 20 + Math.random() * 40, max: 1.2, color: '#ff8a3a' }); }
-    game.focus(h.x, h.y - 10, 20);
+    game.focus(h.x, h.y + 26, 16);   // the hero stands above the menu
   },
   draw(r) {
     const L0 = ED.L, h = ED.titleHero;
@@ -20928,11 +20928,12 @@ const titleScene = {
       px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
       E.font.title(g, 'EMBERDEEP', cx, 14, { scale: 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
       E.font.text(g, 'a my-3D2dge game  •  the deep goes on forever', cx, 50, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
-      const items = titleItems(), bw = 118, by = Math.round(H * .56);
+      const items = titleItems(), bw = 118, by = Math.round(H * .6);
       items.forEach(([label, fn], i) => button(g, cx - bw / 2, by + i * 19, bw, 15, label, () => { TITLE.menu = i; fn(); }, { focus: TITLE.menu === i }));
       const h2 = ED.titleHero; if (E.store.get('ed:save', null)) E.font.text(g, 'Level ' + h2.level + ' • deepest ' + h2.maxDepth, cx, by - 11, '#9a90b0', { align: 'center', font: 'tiny', outline: false });
-      E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#8a80a8', { align: 'center', font: 'tiny', outline: false });
-      E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#8a80a8', { align: 'center', font: 'tiny', outline: false });
+      px.blend(g, .7, 'normal', () => px.rect(g, 0, H - 21, W, 21, '#05040a'));
+      E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
+      E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
     });
     drawPanels(r);
   }
@@ -21355,6 +21356,19 @@ BUS.on('heroLevel', () => tip('points', 'LEVEL UP!  K SPENDS SKILL POINTS  •  
 BUS.on('pickup', e => { if (e.item.rarity >= 2) tip('bag', 'I OPENS THE BAG  •  CLICK AN ITEM TO WEAR IT', RARITY[e.item.rarity].color); if (e.item.rarity >= 3) tip('legend', 'LEGENDARY POWERS CHANGE HOW YOUR SKILLS WORK', '#ff8a2a'); });
 BUS.on('spawn', e => { if (e.m.elite === 2 && ED.mode === 'level') game.after(1, () => tip('elite', 'GOLD NAMES ARE RARE ELITES: EXTRA AFFIXES, EXTRA LOOT', '#ffd36a')); });
 BUS.on('perfectDodge', () => tip('perfect', 'PERFECT DODGE: A ROLL THROUGH A STRIKE SLOWS TIME', '#8fe3ff'));
+
+/* =============================================================================
+ * PERFORMANCE GOVERNOR: keeps the game fluid on slower machines. When the frame rate stays low it drops the
+ * outlines on ordinary monsters and caps particles; when there is headroom again it brings them back.
+ * PERF.low is read by drawFoe (30-monsters-core.js). Settings > Particles still sets the ceiling.
+ * ============================================================================= */
+const PERF = { low: false, bad: 0, good: 0, t: 0 };
+BUS.on('step', e => {
+  PERF.t += e.dt; if (PERF.t < .5) return; PERF.t = 0;
+  const fps = game.fps, cap = [500, 1000, 1600][OPT.fx === undefined ? 2 : OPT.fx];
+  if (!PERF.low) { PERF.bad = fps < 45 ? PERF.bad + 1 : 0; if (PERF.bad >= 6) { PERF.low = true; PERF.good = 0; P.max = Math.min(cap, 700); } }
+  else { PERF.good = fps >= 57 ? PERF.good + 1 : 0; if (PERF.good >= 20) { PERF.low = false; PERF.bad = 0; P.max = cap; } }
+});
 
 /* ---------- START: powers listen, the title (or a deep link: #town, #depth-7, #proving) ---------- */
 installPowers();
