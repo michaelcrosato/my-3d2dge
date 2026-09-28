@@ -105,9 +105,9 @@ function drawHudInner(g, r, h) {
     const OR = 17;
     orb(g, 22, H - 22, OR, h.hp / h.maxHp, h.st.poison ? '#6ac03a' : '#d8303a', '#2a0c14');
     orb(g, W - 22, H - 22, OR, h.ember / h.maxEmber, '#ff8a2a', '#2a1408');
-    if (hot(22 - OR, H - 22 - OR, OR * 2, OR * 2, { tip: [{ t: 'Life ' + Math.ceil(h.hp) + ' / ' + h.maxHp, c: '#ff8a8a' }, { t: (h.stats.lifeRegen || 0).toFixed(1) + ' per second', c: '#c8c0d8' }] })) {}
+    if (hot(22 - OR, H - 22 - OR, OR * 2, OR * 2, { tip: [{ t: 'Life ' + fmt(Math.ceil(h.hp)) + ' / ' + fmt(h.maxHp), c: '#ff8a8a' }, { t: (h.stats.lifeRegen || 0).toFixed(1) + ' per second', c: '#c8c0d8' }] })) {}
     if (hot(W - 22 - OR, H - 22 - OR, OR * 2, OR * 2, { tip: [{ t: 'Ember ' + Math.floor(h.ember) + ' / ' + h.maxEmber, c: '#ffb070' }, { t: 'Skills spend it; Blade Dance and other basic skills make it.', c: '#c8c0d8' }] })) {}
-    E.font.text(g, String(Math.ceil(h.hp)), 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
+    E.font.text(g, fmt(Math.ceil(h.hp)), 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
     E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
     // potions (Q) beside the life orb
     for (let i = 0; i < h.maxPotions; i++) { const x = 44 + i * 7, y = H - 12, full = i < h.potions; px.rect(g, x + 1, y - 7, 2, 2, full ? '#c8b890' : '#4a4050'); px.disc(g, x + 2, y - 2, 2.6, full ? '#e03a4a' : '#2a2030'); if (full) px.dot(g, x + 1, y - 3, '#ffc0c8'); }

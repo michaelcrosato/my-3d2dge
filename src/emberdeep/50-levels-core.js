@@ -297,7 +297,7 @@ function buildLevel(rec) {
   const depth = rec.depth, rooms = G0.rooms.slice(1);
   L0.packs = [];
   for (const r0 of rooms) {
-    const area = r0.w * r0.h, packs = Math.max(1, Math.round(area / 55 * DIFF.density * (1 + depth * .02)));
+    const area = r0.w * r0.h, packs = Math.max(1, Math.round(area / 55 * DIFF.density * (1 + Math.min(depth, 60) * .02)));   // (crowds thicken to depth 60, then the stats carry the climb)
     for (let k = 0; k < packs; k++) L0.packs.push({ x: (r0.x + 1 + R() * (r0.w - 2)) * T16, y: (r0.y + 1 + R() * (r0.h - 2)) * T16, elite: 0 });
   }
   R.shuffle(L0.packs);

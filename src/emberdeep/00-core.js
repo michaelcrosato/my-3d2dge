@@ -117,7 +117,17 @@ const wpick = (list, w) => rnd.weighted(list, w);
 const dist2 = (a, b) => { const dx = a.x - b.x, dy = a.y - b.y; return dx * dx + dy * dy; };
 const d2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
 const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
-const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n));
+/** big numbers for a game that never ends: 12.3K, 4.5M, 6.7B, 8.9T, then Qa Qi Sx Sp Oc No Dc, then aa, ab... (1e36, 1e39...) */
+const FMT_U = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+const fmt = n => {
+  if (!isFinite(n)) return n < 0 ? '-MAX' : 'MAX';
+  if (n < 0) return '-' + fmt(-n);
+  if (n < 1e4) return String(Math.round(n));
+  let e = Math.floor(Math.log10(n) / 3), v = n / Math.pow(1000, e);
+  if (v < 1) { e--; v *= 1000; } else if (v >= 999.95) { e++; v /= 1000; }   // (float edges: 1e15, 999999)
+  const k = e - FMT_U.length, u = k < 0 ? FMT_U[e] : String.fromCharCode(97 + Math.floor(k / 26) % 26) + String.fromCharCode(97 + k % 26);
+  return v.toFixed(1) + u;
+};
 const pct = v => Math.round(v) + '%';
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 /** rotate a hex color's hue by deg (deep levels recolor their themes and monsters with this) */
@@ -157,7 +167,9 @@ const SCALE = {
   foeXp: d => Math.pow(1.11, d - 1) * (1 + d * .05),
   gold: d => Math.pow(1.08, d - 1) * (1 + d * .1),
   /** xp to go from hero level l to l + 1 */
-  xpNeed: l => Math.round(90 * Math.pow(l, 1.75) + 30 * l),
+  // polynomial for the first 20 levels, then exponential too: monster experience grows as 1.11^depth, so a polynomial
+  // curve alone would hand out thousands of levels a kill deep down. This keeps about 1.35 levels per depth forever
+  xpNeed: l => Math.round((90 * Math.pow(l, 1.75) + 30 * l) * Math.pow(1.07, Math.max(0, l - 20))),
   /** item power grows with item level: flat stats and weapon damage (percent affixes grow gently on their own) */
   ilvl: il => Math.pow(1.08, il - 1) * (1 + (il - 1) * .015)
 };

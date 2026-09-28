@@ -1061,7 +1061,7 @@ townNPC('cobb', {
     'Gold spends the same down there as up here. That is to say, not at all. Spend it here!',
     'My prices are fair! Fair as in fairly high, but fair!',
     'If a monster offers you a better deal, it is a trap. Probably. Come back and tell me.'],
-  extra: (n, h) => h && h.gold > 500 ? 'Is that ' + Math.floor(h.gold) + ' gold I hear jingling? Music to my ears. Pure music.' : null
+  extra: (n, h) => h && h.gold > 500 ? 'Is that ' + fmt(Math.floor(h.gold)) + ' gold I hear jingling? Music to my ears. Pure music.' : null
 });
 const COBB_CALLS = ['Potions! Fresh potions!', 'Bargains, delver!', 'Rope! Never too much rope!', 'Best prices in Emberhold!', 'Only prices in Emberhold!', 'Psst! Shiny things!'];
 
