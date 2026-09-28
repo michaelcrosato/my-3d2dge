@@ -1,6 +1,6 @@
 # CO55 engine guide for AI models
 
-This file is written for an AI (or a person) who has been handed a CO55 game and asked to change it or build a new one. Read it once before editing. Everything here matches `engine/co55.js` v0.1.0.
+This file is written for an AI (or a person) who has been handed a CO55 game and asked to change it or build a new one. Read it once before editing. Everything here matches `engine/co55.js` v0.2.0.
 
 ## The mental model
 
@@ -26,6 +26,7 @@ The second idea is that the world is 3D and the camera is swappable. Game logic 
 2. `r.begin()` clears the buffer and positions the camera.
 3. Your `draw(r)`: call `map.drawFloor(r)` first, then register decals, queue items, overlays and lights.
 4. `r.finish()` runs, in order: particles and afterimages get queued, decals draw (ground marks, shadows, telegraphs), the queue sorts and draws (walls, props, actors, projectiles, particles), lighting darkens the frame, overlays draw on top (health bars, damage numbers, debug), then the frame is presented with a sub-pixel camera offset.
+5. With GPU lighting active, step 4 changes. Every queue item is drawn a second time into a hidden info image. Overlays go to their own unlit image, and WebGPU does the lighting and presentation instead of the Canvas lighting.
 
 ## API reference
 
@@ -133,6 +134,42 @@ Methods: `drawFloor(r)`, `queueWalls(r)`, `collide(body)` (pushes a `{x, y, r}` 
 ### Lighting (`game.lights`)
 Set `enabled`, `ambient` (0 to 1), `dark` (RGB), `levels` (darkness steps) and `glow`, then call `add(x, y, z, radius, intensity)` every frame inside `draw`. Light is measured on the ground, so pools stay correctly shaped in every view.
 
+### GPU lighting (`game.enableGPU(options)`, optional WebGPU)
+Turn it on with `const gpu = game.enableGPU({ map })`. If WebGPU is missing or fails, the game silently keeps the Canvas lighting, so you never need a separate code path.
+
+**How it works.** The Canvas renderer still draws every color. Alongside it, the engine writes a hidden info image that records each pixel's height, surface type (floor, wall top, wall face, character) and glow. The GPU then rebuilds each pixel's 3D position and lights it:
+- Colored point lights, with soft shadows marched through a heightmap of the level.
+- Light that wraps around characters, using normals estimated from their silhouettes.
+- Glow that spills onto nearby surfaces, plus a tight pixel bloom.
+- Light snapped into dithered bands, so it stays pixel art.
+- Heat shimmer in the final pass.
+
+**What game code provides:**
+- `game.lights.add(x, y, z, radius, intensity, { color: '#ff9a4a', shadow: true })`. Up to 32 lights. Keep shadow-casting lights to about 10.
+- `game.lights.caster(x, y, radius, top)` every frame for anything that should block light but isn't a wall: characters, pedestals, crates. Walls come from the map automatically.
+- `game.lights.heat(x, y, z, width, strength)` for shimmer above fires. Up to 8.
+- `px.glow(g, 0..1)` inside a queue callback marks what follows as glowing (flames, projectiles, pickups). It does nothing in Canvas mode, so call it freely.
+- `r.decal(fn, { emissive: 0.5 })` makes a ground mark glow (telegraphs, magic circles).
+- `r.actor(..., { emissive: 1 })` makes a whole character glow (wisps, spirits).
+- `floorTex` may return `[r, g, b, glow]` to bake glowing floor details such as runes, lava cracks or crystals.
+
+**Settings on `gpu`:**
+- `enabled`: toggle at runtime.
+- `bands`: number of light steps (default 6).
+- `ambient`: RGB, 0 to 1.
+- `wrap`: how far light wraps around surfaces (0 to 1).
+- `spill`: how strongly glowing pixels light their surroundings.
+- `glow`: bloom strength.
+- `shadows`: true or false.
+
+Read `gpu.status()` (`'loading'`, `'on'`, `'off'` or `'unavailable'`), `gpu.failed` (the reason) and `gpu.onStatus = fn` for UI.
+
+**Limits.** Side view has no ground to light, so it uses Canvas lighting. The heightmap assumes things stand on the floor, so floating casters cast shadows as if they were solid pillars. Characters are lit as if every pixel sat on their vertical center line, which is convincing at this scale.
+
+**Tuning rule.** Change the settings and light parameters, not the WGSL. If you must edit the shaders, keep the info encoding (red = height × 3, green = class × 20, blue = glow × 255) in sync with `Renderer._infoCol`.
+
+**Testing.** Headless browsers often can't present a WebGPU canvas. Create the GPU with `offscreen: true` and call `await gpu.snapshot()` to get the last lit frame as a PNG data URL.
+
 ### Pixel font (`CO55.font`)
 `text(g, 'WAVE 3', x, y, color, outlineColor)` and `width(str)`. Glyphs are 3×5 and cover A to Z, 0 to 9 and `+ - ! . : /`.
 
@@ -148,6 +185,8 @@ Set `enabled`, `ambient` (0 to 1), `dark` (RGB), `levels` (darkness steps) and `
 
 **Make a platformer (side view).** Use `view: 'side'`. Keep `y` constant (or use it for depth lanes) and treat `z` as height with gravity. For solid platforms, keep a 2D grid over (x, z) in your own code and collide against it. `examples/scarfrunner-side.html` is a standalone side-view reference, built before the engine, that shows jumping, dashing, a physics scarf and parallax.
 
+**Add a light source that looks right with GPU lighting.** Draw the object in a queue callback with `px.glow(g, 1)` before its bright parts, add `lights.add(..., { color, shadow: true })`, add `lights.heat(...)` if it's hot, and add `lights.caster(...)` for its base if it's solid.
+
 **Performance.** Each light scans the pixels inside its radius, so keep lights under about 20 and radii under about 120. Floor textures bake once per view. Rigs are cheap; aim for fewer than about 40 on screen. Keep particles under the 900 cap.
 
 ## Checklist before handing a change back
@@ -157,4 +196,5 @@ Set `enabled`, `ambient` (0 to 1), `dark` (RGB), `levels` (darkness steps) and `
 - Anything that overlaps goes through `r.queue` or `r.actor`.
 - Switch through every view with `V` and confirm nothing breaks.
 - Turn on the skeleton (`R`) and slow motion (`T`) to confirm the animation reads well.
+- If the game uses GPU lighting, toggle it (`G` in the examples) to confirm both lighting paths look right.
 - `node tools/build.mjs` has been run, if you are working in the repo.

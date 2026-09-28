@@ -13,7 +13,7 @@ Open any file in `examples/` in a browser. Each one is a single standalone HTML 
 | `examples/perspective-lab.html` | One room in all five views, with lighting and skeleton toggles. Also the starter template. |
 | `examples/scarfrunner-side.html` | A standalone side-scrolling prototype that came before the engine: platforming, physics scarf, parallax |
 
-Arena controls: **WASD** moves, the **mouse** aims, **left click** or **J** runs a three-hit combo, **right click** or **E** throws an ember, and **Space** dashes. **V** cycles cameras, **R** shows skeletons, **T** toggles slow motion. Gamepads and touch are supported.
+Arena controls: **WASD** moves, the **mouse** aims, **left click** or **J** runs a three-hit combo, **right click** or **E** throws an ember, and **Space** dashes. **V** cycles cameras, **G** switches between GPU and standard lighting, **R** shows skeletons, **T** toggles slow motion. Gamepads and touch are supported. GPU lighting needs a browser with WebGPU (current Chrome, Edge, Safari, and Firefox on supported platforms).
 
 ## Views
 
@@ -29,7 +29,7 @@ For a custom view, use `new CO55.View(id, label, yaw, pitch, scale, zBoost)`.
 
 ## What's in the engine
 
-`engine/co55.js` (about 1,200 lines, no dependencies) provides:
+`engine/co55.js` (about 1,600 lines, no dependencies) provides:
 
 - **Pixel primitives** that snap to whole pixels (lines, discs, ellipses, polygons), with world-anchored ordered dithering for fades.
 - **A screen** with a low-resolution buffer, whole-number upscaling and sub-pixel camera scrolling.
@@ -40,6 +40,7 @@ For a custom view, use `new CO55.View(id, label, yaw, pitch, scale, zBoost)`.
 - **A Blob rig** for slimes, with squash and eyes that track a target.
 - **A TileMap** with a procedural floor texture baked per view, extruded brick walls with face culling, automatic cutaway of walls that block the camera, and circle collision.
 - **Per-pixel lighting** with dithered darkness bands; light pools stay correctly shaped in every view.
+- **Optional WebGPU lighting.** Colored lights, soft shadows cast by walls and characters, light that wraps around characters, glow that spills onto nearby surfaces, pixel bloom and heat shimmer, all snapped to dithered bands so it stays pixel art. It falls back to the Canvas lighting automatically.
 - **A flow field** for cheap crowd pathfinding.
 - **3D particles** (dust, sparks, bouncing bits, embers, ground rings, damage numbers) and a **3×5 pixel font**.
 

@@ -1,5 +1,5 @@
 /*!
- * CO55 2D Engine v0.1.0
+ * CO55 2D Engine v0.2.0
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/2D-co55-engine  (MIT License)
  *
@@ -24,13 +24,16 @@
  * 6. TIME. game.start({ update(dt), draw(r) }). update runs in fixed ~1/120 s
  *    substeps, so motion is identical at 60, 120 or 144 Hz. game.freeze(s) = hit-stop,
  *    game.shake(n) = screen shake, game.timeScale = slow motion.
+ * 7. GPU LIGHTING is optional: game.enableGPU({ map }). Mark glowing things with
+ *    px.glow(g, 1) inside queue callbacks, pass { color, shadow } to lights.add, and
+ *    register shadow casters with game.lights.caster(). Falls back to Canvas lighting.
  * See AI_GUIDE.md in the repo for the full API and recipes.
  */
 (function (root) {
 'use strict';
 
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.1.0', TAU, DEG };
+const E = { version: '0.2.0', TAU, DEG };
 
 /* =============================================================================
  * 1. MATH
@@ -97,7 +100,9 @@ Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, r
  *    g = CanvasRenderingContext2D, coordinates in buffer pixels.
  * ============================================================================= */
 const px = {};
-px.col = (g, c) => { if (g._c !== c) { g.fillStyle = c; g._c = c; } };
+px.col = (g, c) => { const s = g._info ? g._mat : c; if (g._c !== s) { g.fillStyle = s; g._c = s; } };
+/** GPU lighting: what follows glows (0..1). No effect in Canvas mode, so call it freely. */
+px.glow = (g, e = 1) => { if (g._info && g._r) { g._mat = g._r._infoCol(g._z || 0, 10, e); g._c = null; } };
 px.reset = g => { g._c = null; };
 px.rect = (g, x, y, w, h, c) => { px.col(g, c); g.fillRect(Math.round(x), Math.round(y), w, h); };
 px.dot = (g, x, y, c) => { px.col(g, c); g.fillRect(Math.round(x), Math.round(y), 1, 1); };
@@ -160,6 +165,8 @@ px.ddisc = (g, cx, cy, r, c, a, wx = 0, wy = 0) => {
   }
 };
 E.px = px;
+/** GPU surface class for a vertical face normal: 5 +x, 6 -x, 7 +y, 8 -y */
+E.faceClass = (nx, ny) => nx > 0 ? 5 : nx < 0 ? 6 : ny > 0 ? 7 : 8;
 
 /* =============================================================================
  * 3. VIEWS (projections)
@@ -393,6 +400,7 @@ class Lighting {
   constructor(game) {
     this.game = game; this.enabled = false; this.ambient = .15; this.list = [];
     this.dark = [7, 5, 16]; this.levels = [.9, .7, .48, .26, .08, 0]; this.glow = [255, 176, 96, 16]; this.glowAt = 1.7;
+    this.casters = []; this.heats = [];
     this.cv = mkCanvas(8, 8); this.g = this.cv.getContext('2d'); this._build();
   }
   _build() {
@@ -401,9 +409,13 @@ class Lighting {
     L.forEach((a, i) => { this.cols[i] = ((Math.round(a * 255) << 24) | (d[2] << 16) | (d[1] << 8) | d[0]) >>> 0; });
     const gl = this.glow; this.cols[L.length] = ((gl[3] << 24) | (gl[2] << 16) | (gl[1] << 8) | gl[0]) >>> 0;
   }
-  clear() { this.list.length = 0; }
-  /** radius in world units; intensity ~0.5..1.5 */
-  add(x, y, z, radius, intensity = 1) { this.list.push({ x, y, z, r: radius, i: intensity }); }
+  clear() { this.list.length = 0; this.casters.length = 0; this.heats.length = 0; }
+  /** radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true } */
+  add(x, y, z, radius, intensity = 1, o) { this.list.push({ x, y, z, r: radius, i: intensity, color: o && o.color, shadow: !!(o && o.shadow) }); }
+  /** something that blocks light (GPU shadows): a cylinder of radius r from the floor up to height top */
+  caster(x, y, r, top) { this.casters.push({ x, y, r, top }); }
+  /** heat shimmer above a point (GPU only). width in world units, strength ~0.5..1.5 */
+  heat(x, y, z, width, strength = 1) { this.heats.push({ x, y, z, w: width, s: strength }); }
   render(r) {
     const W = r.bw, H = r.bh, n = W * H;
     if (!this.I || this.I.length !== n) {
@@ -476,12 +488,13 @@ class Particles {
       switch (p.kind) {
         case 'dust': r.queue(p.x, p.y, p.z, g => { const [x, y] = r.w(p.x, p.y, p.z); px.ddisc(g, x, y, p.size * s * (1 + u * 1.4), p.color, (1 - u) * .9, r.ix, r.iy); }); break;
         case 'spark': r.queue(p.x, p.y, p.z, g => {
+          px.glow(g, .8);
           const [x, y] = r.w(p.x, p.y, p.z), [x2, y2] = r.w(p.x - p.vx * .025, p.y - p.vy * .025, p.z - p.vz * .025);
           px.line(g, x, y, x2, y2, u < .5 ? (p.hot || '#fff5cf') : p.color);
         }); break;
         case 'bit': r.queue(p.x, p.y, p.z, g => { const [x, y] = r.w(p.x, p.y, p.z); px.rect(g, x, y, p.size, p.size, p.color); }); break;
-        case 'ember': r.queue(p.x, p.y, p.z, g => { const [x, y] = r.w(p.x, p.y, p.z); if ((1 - u) > bayer(Math.round(x) + r.ix, Math.round(y) + r.iy) * .7) px.dot(g, x, y, u < .4 ? '#fff0b0' : p.color); }); break;
-        case 'ring': r.decal(g => r.groundRing(p.x, p.y, lerp(p.r0, p.r1, ease.outQuad(u)), p.color, 1 - u, p.z)); break;
+        case 'ember': r.queue(p.x, p.y, p.z, g => { px.glow(g, .4); const [x, y] = r.w(p.x, p.y, p.z); if ((1 - u) > bayer(Math.round(x) + r.ix, Math.round(y) + r.iy) * .7) px.dot(g, x, y, u < .4 ? '#fff0b0' : p.color); }); break;
+        case 'ring': r.decal(g => r.groundRing(p.x, p.y, lerp(p.r0, p.r1, ease.outQuad(u)), p.color, 1 - u, p.z), { emissive: .8 * (1 - u) }); break;
         case 'text': r.overlay(g => { const [x, y] = r.w(p.x, p.y, p.z); if (u < .75 || Math.floor(p.life * 20) % 2) E.font.text(g, p.text, x - E.font.width(p.text) / 2, y, p.color); }); break;
       }
     }
@@ -511,7 +524,12 @@ class Renderer {
     const ck = mkCanvas(2, 2), cg = ck.getContext('2d'); cg.fillStyle = '#000'; cg.fillRect(0, 0, 1, 1); cg.fillRect(1, 1, 1, 1);
     this.checker = ck;
     this.outline = '#110c1b'; this.rim = '#ffc98a'; this.rimAlpha = .55; this.xrayColor = '#8fe3ff';
+    // GPU mode: a hidden "info" image (height, surface type, glow) and an unlit overlay image
+    this.iCv = mkCanvas(8, 8); this.iG = this.iCv.getContext('2d'); this.iG._info = true; this.iG._r = this; this.iG._mat = '#000';
+    this.vCv = mkCanvas(8, 8); this.vG = ctx2d(this.vCv); this.gpu = false; this._tg = null;
   }
+  /** current draw target for ground helpers (switches during GPU info and overlay passes) */
+  get tgt() { return this._tg || this.ctx; }
   get ctx() { return this.game.screen.ctx; }
   get view() { return this.game.view; }
   get W() { return this.game.screen.W; }
@@ -524,21 +542,30 @@ class Renderer {
     this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this.decals.length = 0; this.overlays.length = 0;
     if (this.xCv.width !== this.bw || this.xCv.height !== this.bh) { this.xCv.width = this.oCv.width = this.bw; this.xCv.height = this.oCv.height = this.bh; }
     this.xrayUsed = false;
+    const gpu = this.game.gpu;
+    this.gpu = !!(gpu && gpu.active(this.view));
+    if (gpu) gpu.show(this.gpu);
+    if (this.gpu) {
+      if (this.iCv.width !== this.bw || this.iCv.height !== this.bh) { this.iCv.width = this.vCv.width = this.bw; this.iCv.height = this.vCv.height = this.bh; }
+      const iG = this.iG; iG.globalCompositeOperation = 'source-over'; iG.globalAlpha = 1; iG.fillStyle = '#000'; iG.fillRect(0, 0, this.bw, this.bh); iG._c = null; iG._mat = '#000';
+      this.vG.clearRect(0, 0, this.bw, this.bh); this.vG._c = null;
+    }
   }
   /** world -> buffer pixel coords */
   w(x, y, z = 0) { const v = this.game.view; return [v.ax * x + v.ay * y - this.ix, v.bx * x + v.by * y + v.bz * z - this.iy]; }
   /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, xray} */
-  queue(x, y, z, fn, o) { this.items.push({ k: this.game.view.order(x, y, z) + (o && o.bias || 0), fn, occ: o && o.occluder, xray: o && o.xray }); }
-  decal(fn) { this.decals.push(fn); }
+  queue(x, y, z, fn, o) { this.items.push({ k: this.game.view.order(x, y, z) + (o && o.bias || 0), fn, occ: o && o.occluder, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo }); }
+  /** draw on the floor before the queue. opts.emissive (0..1) makes it glow under GPU lighting */
+  decal(fn, o) { this.decals.push({ fn, e: o && o.emissive || 0 }); }
   overlay(fn) { this.overlays.push(fn); }
   /** ground helpers (all dithered, correct in every view) */
   groundPts(x, y, rad, n = 18, z = 0) { const pts = []; for (let i = 0; i < n; i++) { const a = i / n * TAU; pts.push(this.w(x + Math.cos(a) * rad, y + Math.sin(a) * rad, z)); } return pts; }
-  groundDisc(x, y, rad, color, alpha = 1, z = 0) { px.polyDither(this.ctx, this.groundPts(x, y, rad, 18, z), color, alpha, this.ix, this.iy); }
+  groundDisc(x, y, rad, color, alpha = 1, z = 0) { px.polyDither(this.tgt, this.groundPts(x, y, rad, 18, z), color, alpha, this.ix, this.iy); }
   groundRing(x, y, rad, color, alpha = 1, z = 0) {
-    const g = this.ctx, n = Math.max(16, Math.round(rad * this.view.scale * 5)); px.col(g, color);
+    const g = this.tgt, n = Math.max(16, Math.round(rad * this.view.scale * 5)); px.col(g, color);
     for (let i = 0; i < n; i++) { const a = i / n * TAU, [sx, sy] = this.w(x + Math.cos(a) * rad, y + Math.sin(a) * rad, z), X = Math.round(sx), Y = Math.round(sy); if (alpha > bayer(X + this.ix, Y + this.iy)) g.fillRect(X, Y, 1, 1); }
   }
-  groundArc(x, y, r0, r1, a0, a1, color, alpha = 1, z = 0, g = this.ctx) {
+  groundArc(x, y, r0, r1, a0, a1, color, alpha = 1, z = 0, g = this.tgt) {
     const n = Math.max(3, Math.ceil(Math.abs(a1 - a0) / .18)), pts = [];
     for (let i = 0; i <= n; i++) { const a = lerp(a0, a1, i / n); pts.push(this.w(x + Math.cos(a) * r1, y + Math.sin(a) * r1, z)); }
     for (let i = n; i >= 0; i--) { const a = lerp(a0, a1, i / n); pts.push(this.w(x + Math.cos(a) * r0, y + Math.sin(a) * r0, z)); }
@@ -546,15 +573,40 @@ class Renderer {
   }
   /** extruded box prop (crate, pedestal, table). Call inside a queue fn with its g. */
   box(g, x0, y0, z0, x1, y1, z1, top, side) {
-    const view = this.view, P = (x, y, z) => this.w(x, y, z);
+    const view = this.view, P = (x, y, z) => this.w(x, y, z), inf = g._info, prev = g._mat;
     if (!view.isTop) {
       for (const [nx, ny, A, B] of [[0, -1, [x1, y0], [x0, y0]], [0, 1, [x0, y1], [x1, y1]], [-1, 0, [x0, y0], [x0, y1]], [1, 0, [x1, y1], [x1, y0]]]) {
         if (nx * view.fx + ny * view.fy <= .02) continue;
+        if (inf) { g._mat = this._faceMat(g, A, B, z0, z1, E.faceClass(nx, ny)); g._c = null; }
         const lit = .6 * nx + .8 * ny, col = lit < -.2 ? shade(side, .12) : lit > .5 ? shade(side, -.25) : side;
         px.poly(g, [P(A[0], A[1], z0), P(B[0], B[1], z0), P(B[0], B[1], z1), P(A[0], A[1], z1)], col);
       }
     }
+    if (inf) { g._mat = this._infoCol(z1, 4, 0); g._c = null; }
     px.poly(g, [P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], top);
+    if (inf) { g._mat = prev; g._c = null; }
+  }
+  /* ---- GPU info encoding: R = height * 3, G = surface class * 20, B = glow * 255 ---- */
+  _infoCol(z, cls, e) { return 'rgb(' + clamp(Math.round(z * 3), 0, 255) + ',' + cls * 20 + ',' + clamp(Math.round(e * 255), 0, 255) + ')'; }
+  _infoVert(g, x, y, z, cls, e, oy) {
+    const v = this.view, span = Math.max(1, Math.min(50, 85 - z));
+    if (e > 0 || Math.abs(v.bz) < .05) return this._infoCol(z, cls, e);
+    const sy = oy !== undefined ? oy : this.w(x, y, z)[1], gr = g.createLinearGradient(0, sy, 0, sy + v.bz * span);
+    gr.addColorStop(0, this._infoCol(z, cls, 0)); gr.addColorStop(1, this._infoCol(z + span, cls, 0));
+    return gr;
+  }
+  /** height gradient across a vertical face whose bottom edge runs A -> B (ground points) */
+  _faceMat(g, A, B, z0, z1, cls) {
+    const P0 = this.w(A[0], A[1], z0), P1 = this.w(B[0], B[1], z0), Ex = P1[0] - P0[0], Ey = P1[1] - P0[1], c = Ex * this.view.bz;
+    if (Math.abs(c) < 1e-6) return this._infoCol(z0, cls, 0);
+    const nx = -Ey, ny = Ex, k = (z1 - z0) * c / (nx * nx + ny * ny), gr = g.createLinearGradient(P0[0], P0[1], P0[0] + nx * k, P0[1] + ny * k);
+    gr.addColorStop(0, this._infoCol(z0, cls, 0)); gr.addColorStop(1, this._infoCol(z1, cls, 0));
+    return gr;
+  }
+  _actorInfo(gI, x, y, z, o) {
+    const [sx, sy] = this.w(x, y, z), bx = Math.round(sx) - AOX, by = Math.round(sy) - AOY;
+    this._tint(this.mG, this.aCv, this._infoVert(this.mG, 0, 0, z, 10, o.emissive || 0, AOY));
+    gI.drawImage(this.mCv, bx, by);
   }
   /**
    * Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected
@@ -563,7 +615,7 @@ class Renderer {
    * opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life}, bias}
    */
   actor(x, y, z, drawFn, o = {}) {
-    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray });
+    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o) });
   }
   _tint(dst, src, color) {
     dst.globalCompositeOperation = 'source-over'; dst.clearRect(0, 0, AS, AS); dst.drawImage(src, 0, 0);
@@ -579,7 +631,7 @@ class Renderer {
     if (o.flash) { this._tint(this.mG, this.aCv, typeof o.flash === 'string' ? o.flash : '#fff6ea'); g.drawImage(this.mCv, bx, by); }
     else {
       g.drawImage(this.aCv, bx, by);
-      if (o.rim !== false) {
+      if (o.rim !== false && !this.gpu) {
         const rG = this.rG; rG.globalCompositeOperation = 'source-over'; rG.clearRect(0, 0, AS, AS); rG.drawImage(this.aCv, 0, 0);
         rG.globalCompositeOperation = 'destination-out'; rG.drawImage(this.aCv, -1, 0);
         rG.globalCompositeOperation = 'source-in'; rG.fillStyle = o.rimColor || this.rim; rG._c = null; rG.fillRect(0, 0, AS, AS); rG.globalCompositeOperation = 'source-over';
@@ -601,15 +653,20 @@ class Renderer {
     for (const q of this.ghosts) this.queue(q.x, q.y, q.z, g => {
       const [sx, sy] = this.w(q.x, q.y, q.z);
       g.globalAlpha = .5 * (1 - (t - q.t) / q.life); g.drawImage(q.gp.cv, Math.round(sx) - AOX, Math.round(sy) - AOY); g.globalAlpha = 1;
-    }, { bias: -.05 });
+    }, { bias: -.05, noInfo: true });
   }
   flush() {
     const g = this.ctx, items = this.items;
     items.sort((a, b) => a.k - b.k);
     this.xG.clearRect(0, 0, this.bw, this.bh); this.oG.clearRect(0, 0, this.bw, this.bh); this.oG._c = null;
     let xr = false;
+    const gpu = this.gpu, iG = this.iG;
     for (const it of items) {
       it.fn(g);
+      if (gpu && !it.noInfo) {
+        if (it.info) it.info(iG);
+        else { iG._mat = this._infoVert(iG, it.x, it.y, it.z, 10, 0); iG._z = it.z; iG._c = null; it.fn(iG); }
+      }
       if (it.xray) xr = true;
       else if (xr && it.occ) it.fn(this.oG);
     }
@@ -619,17 +676,26 @@ class Renderer {
       xG.fillStyle = xG.createPattern(this.checker, 'repeat'); xG._c = null;
       xG.save(); xG.translate((this.ix + this.iy) & 1, 0); xG.fillRect(-2, 0, this.bw + 2, this.bh); xG.restore();
       xG.globalCompositeOperation = 'source-over';
-      g.drawImage(this.xCv, 0, 0);
+      (gpu ? this.vG : g).drawImage(this.xCv, 0, 0);
     }
   }
   finish() {
-    const game = this.game, g = this.ctx;
+    const game = this.game, g = this.ctx, gpu = this.gpu, iG = this.iG;
     game.particles.draw(this); this._drawGhosts();
-    for (const f of this.decals) f(g);
+    for (const d of this.decals) {
+      this._tg = null; d.fn(g);
+      if (gpu && d.e > 0) { iG._mat = this._infoCol(0, 2, d.e); iG._c = null; this._tg = iG; d.fn(iG); }
+    }
+    this._tg = null;
     this.flush();
-    if (game.lights.enabled) game.lights.render(this);
-    for (const f of this.overlays) f(g);
-    game.screen.present();
+    if (gpu) {
+      this._tg = this.vG; for (const f of this.overlays) f(this.vG); this._tg = null;
+      try { game.gpu.render(this); } catch (e) { game.gpu.fail(e); game.screen.present(); }
+    } else {
+      if (game.lights.enabled) game.lights.render(this);
+      for (const f of this.overlays) f(g);
+      game.screen.present();
+    }
   }
 }
 E.Renderer = Renderer;
@@ -646,8 +712,10 @@ class Game {
     this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this.shakeAmt = 0; this.reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
     this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true };
     this.particles = new Particles(this); this.lights = new Lighting(this); this.r = new Renderer(this);
-    this.fps = 60; this.viewListeners = [];
+    this.fps = 60; this.viewListeners = []; this.gpu = null;
   }
+  /** turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... } */
+  enableGPU(o = {}) { this.gpu = new E.GPULighting(this, o); return this.gpu; }
   setView(v) {
     this.view = typeof v === 'string' ? E.VIEWS[v] : v;
     this.cam.snap = true;
@@ -923,6 +991,7 @@ class Humanoid {
     const x = this.x, y = this.y, z = this.z + s.z, span = s.a1 - s.a0;
     if (Math.abs(span) < .05) return;
     r.queue(x, y, this.z + 1, g => {
+      px.glow(g, .85);
       const n = Math.max(4, Math.ceil(Math.abs(span) / .16));
       for (let i = 0; i < n; i++) {
         const u0 = i / n, u1 = (i + 1) / n, a0 = s.a0 + span * u0, a1 = s.a0 + span * u1;
@@ -935,7 +1004,7 @@ class Humanoid {
   }
   /** skeleton overlay for debugging, draws straight into the buffer */
   debug(r) {
-    const J = this.J, g = r.ctx, [ox, oy] = r.w(this.x, this.y, this.z);
+    const J = this.J, g = r.tgt, [ox, oy] = r.w(this.x, this.y, this.z);
     const P = p => { const w = this._w(p), s = r.view.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1]]; };
     const L = (a, b, c) => { const A = P(a), B = P(b); px.line(g, A[0], A[1], B[0], B[1], c); };
     L(J.hipL, J.kneeL, '#2aa6c0'); L(J.kneeL, J.footL, '#2aa6c0'); L(J.hipR, J.kneeR, '#46f0ff'); L(J.kneeR, J.footR, '#46f0ff');
@@ -999,10 +1068,10 @@ class TileMap {
   constructor(o) {
     this.w = o.w; this.h = o.h; this.T = o.tile || 16; this.cells = o.cells; this.types = o.types || {};
     this.floorTex = o.floorTex || (() => [60, 56, 72]); this.cutaway = o.cutaway !== false; this.floors = {};
-    this.light = V3.norm([-.6, -.8, 0]);
+    this.light = V3.norm([-.6, -.8, 0]); this.version = 0;
   }
   cell(cx, cy) { return cx < 0 || cy < 0 || cx >= this.w || cy >= this.h ? -1 : this.cells[cy * this.w + cx]; }
-  set(cx, cy, v) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) { this.cells[cy * this.w + cx] = v; this.floors = {}; } }
+  set(cx, cy, v) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) { this.cells[cy * this.w + cx] = v; this.floors = {}; this.version++; } }
   solidCell(cx, cy) { const c = this.cell(cx, cy); return c !== 0; }
   solidAt(x, y) { return this.solidCell(Math.floor(x / this.T), Math.floor(y / this.T)); }
   height(cx, cy) { const c = this.cell(cx, cy); return c > 0 ? this.types[c].h : 0; }
@@ -1039,6 +1108,7 @@ class TileMap {
     let cw = Math.ceil(x1) - x0 + 1, ch = Math.ceil(y1) - y0 + 1;
     if (!view.inv) ch = 24;
     const cv = mkCanvas(cw, ch), g = cv.getContext('2d'), img = g.createImageData(cw, ch), d = img.data;
+    const icv = view.inv ? mkCanvas(cw, ch) : null, ig = icv && icv.getContext('2d'), iimg = ig && ig.createImageData(cw, ch), id = iimg && iimg.data;
     for (let py = 0; py < ch; py++) for (let pxx = 0; pxx < cw; pxx++) {
       let gx, gy;
       if (view.inv) { const q = view.toGround(pxx + x0 + .5, py + y0 + .5); gx = q[0]; gy = q[1]; }
@@ -1048,11 +1118,13 @@ class TileMap {
       let c = this.floorTex(gx, gy); if (!c) continue;
       if (!view.inv) c = c.map(v => v * (py < 2 ? 1.1 : .55 - py * .01));
       const k = (py * cw + pxx) * 4; d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
+      if (id) { id[k] = 0; id[k + 1] = 40; id[k + 2] = Math.round(clamp(c[3] || 0, 0, 1) * 255); id[k + 3] = 255; }
     }
     g.putImageData(img, 0, 0);
-    return (this.floors[key] = { cv, x0, y0 });
+    if (ig) ig.putImageData(iimg, 0, 0);
+    return (this.floors[key] = { cv, info: icv, x0, y0 });
   }
-  drawFloor(r) { const f = this._floor(r.view); r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); }
+  drawFloor(r) { const f = this._floor(r.view); r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); if (r.gpu && f.info) r.iG.drawImage(f.info, f.x0 - r.ix, f.y0 - r.iy); }
   _isFront(cx, cy, view) {
     if (!this.cutaway || view.isTop || view.pitchDeg > 75) return false;
     const t = this.types[this.cell(cx, cy)]; if (!t || !t.cut) return false;
@@ -1079,6 +1151,7 @@ class TileMap {
         if (nx * view.fx + ny * view.fy <= .02) continue;
         const nh = this.cell(cx + nx, cy + ny) > 0 ? (this._isFront(cx + nx, cy + ny, view) ? (this.types[this.cell(cx + nx, cy + ny)].cutH || 6) : this.height(cx + nx, cy + ny)) : 0;
         if (nh >= h) continue;
+        if (g._info) { g._mat = r._faceMat(g, A, B, nh, h, E.faceClass(nx, ny)); g._c = null; }
         const lit = -(nx * this.light[0] + ny * this.light[1]);
         const col = lit > .2 ? t.sideLt || shade(t.side, .12) : lit < -.2 ? t.sideDk || shade(t.side, -.25) : t.side;
         px.poly(g, [P(A[0], A[1], nh), P(B[0], B[1], nh), P(B[0], B[1], h), P(A[0], A[1], h)], col);
@@ -1091,6 +1164,7 @@ class TileMap {
       }
     }
     const top = [P(x0, y0, h), P(x1, y0, h), P(x1, y1, h), P(x0, y1, h)];
+    if (g._info) { g._mat = r._infoCol(h, 4, 0); g._c = null; }
     px.poly(g, top, t.top);
     const edge = t.edge || shade(t.top, .22);
     for (const [ax, ay, bx, by, nx, ny] of [[x0, y0, x1, y0, 0, -1], [x0, y1, x0, y0, -1, 0]]) {
@@ -1151,6 +1225,328 @@ E.tex = {
     return c;
   }
 };
+
+/* =============================================================================
+ * 16. GPU LIGHTING (WebGPU)  optional. game.enableGPU({ map }) turns it on.
+ *    The Canvas renderer still draws every color. Alongside it, it writes an
+ *    "info" image (height, surface type, glow per pixel). The GPU then lights each
+ *    pixel: colored point lights, soft shadows marched through a heightmap of the
+ *    level, light wrapping around characters (normals from their silhouettes),
+ *    glow spilling onto nearby surfaces, dithered light bands, and heat shimmer.
+ *    If WebGPU is missing or fails, the game keeps the Canvas lighting.
+ * ============================================================================= */
+const WGSL_COMMON = /* wgsl */`
+struct Params {
+  a: vec4f, b: vec4f, c: vec4f, camv: vec4f,
+  right: vec4f, up: vec4f, amb: vec4f, fx: vec4f,
+  mapd: vec4f, scr: vec4f, scr2: vec4f, bufd: vec4f,
+  nheat: vec4f, p0: vec4f, p1: vec4f, p2: vec4f,
+  lights: array<vec4f, 64>,
+  heat: array<vec4f, 8>,
+};
+@group(0) @binding(0) var<uniform> U: Params;
+@vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+  var p = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
+  return vec4f(p[i], 0.0, 1.0);
+}
+fn bayer(p: vec2i) -> f32 {
+  var m = array<f32, 16>(0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+  let x = ((p.x % 4) + 4) % 4;
+  let y = ((p.y % 4) + 4) % 4;
+  return (m[y * 4 + x] + 0.5) / 16.0;
+}
+`;
+const WGSL_LIGHT = /* wgsl */`
+@group(0) @binding(1) var albedoT: texture_2d<f32>;
+@group(0) @binding(2) var infoT: texture_2d<f32>;
+@group(0) @binding(3) var hmT: texture_2d<f32>;
+fn clsOf(v: vec4f) -> i32 { return i32(round(v.g * 12.75)); }
+fn zOf(v: vec4f) -> f32 { return v.r * 85.0; }
+fn hmAt(q: vec2f) -> f32 {
+  let d = vec2i(U.mapd.xy);
+  let t = clamp(vec2i(floor(q * U.fx.w)), vec2i(0, 0), d - vec2i(1, 1));
+  return textureLoad(hmT, t, 0).r * 85.0;
+}
+fn shadowAt(p: vec3f, l: vec3f) -> f32 {
+  let d = l.xy - p.xy;
+  let D = length(d);
+  if (D < 2.0) { return 1.0; }
+  let n = clamp(i32(D * 0.5), 4, 48);
+  let t0 = min(0.9, 4.5 / D);
+  var s = 1.0;
+  for (var k = 0; k < n; k++) {
+    let t = mix(t0, 0.97, (f32(k) + 0.5) / f32(n));
+    let rz = mix(p.z, l.z, t);
+    let h = hmAt(p.xy + d * t);
+    let occ = clamp((h - rz) / (0.8 + t * D * 0.05), 0.0, 1.0);
+    s = min(s, 1.0 - occ);
+    if (s <= 0.0) { break; }
+  }
+  return s;
+}
+@fragment fn fsLight(@builtin(position) fc: vec4f) -> @location(0) vec4f {
+  let pix = vec2i(floor(fc.xy));
+  let dims = vec2i(U.bufd.xy);
+  let alb = textureLoad(albedoT, pix, 0);
+  let inf = textureLoad(infoT, pix, 0);
+  let cl = clsOf(inf);
+  let wpx = pix + vec2i(i32(U.c.z), i32(U.c.w));
+  let dth = bayer(wpx);
+  let bands = U.up.w;
+
+  // glow from nearby emissive pixels: lights neighbours and adds a pixel bloom
+  var spill = vec3f(0.0);
+  var near = vec3f(0.0);
+  var rad = array<f32, 5>(3.0, 7.0, 12.0, 19.0, 28.0);
+  var wt = array<f32, 5>(0.28, 0.2, 0.14, 0.09, 0.06);
+  for (var ri = 0; ri < 5; ri++) {
+    for (var k = 0; k < 8; k++) {
+      let a = f32(k) * 0.7853982 + f32(ri) * 0.39;
+      let q = clamp(pix + vec2i(round(vec2f(cos(a), sin(a)) * rad[ri])), vec2i(0, 0), dims - vec2i(1, 1));
+      let e = textureLoad(infoT, q, 0).b;
+      if (e > 0.02) { let c = textureLoad(albedoT, q, 0).rgb * e * wt[ri]; spill += c; if (ri < 2) { near += c; } }
+    }
+  }
+  // bloom only from the closest rings, so glows stay tight and pixel-crisp
+  let glow = floor(near * U.fx.y * bands + dth) / bands;
+  if (cl == 0) { return vec4f(min(alb.rgb + glow, vec3f(1.0)), 1.0); }
+
+  // rebuild the world position of this pixel from its height
+  let z = zOf(inf);
+  let sx = f32(wpx.x) + 0.5;
+  let sy = f32(wpx.y) + 0.5 - U.b.x * z;
+  let wp = vec3f(U.b.y * sx + U.b.z * sy, U.b.w * sx + U.c.x * sy, z);
+
+  // surface normal: floors and tops face up, wall faces by class, characters from their silhouette
+  var n = vec3f(0.0, 0.0, 1.0);
+  if (cl == 5) { n = vec3f(1.0, 0.0, 0.0); }
+  else if (cl == 6) { n = vec3f(-1.0, 0.0, 0.0); }
+  else if (cl == 7) { n = vec3f(0.0, 1.0, 0.0); }
+  else if (cl == 8) { n = vec3f(0.0, -1.0, 0.0); }
+  else if (cl == 10) {
+    var gs = vec2f(0.0);
+    for (var dy = -3; dy <= 3; dy++) {
+      for (var dx = -3; dx <= 3; dx++) {
+        if (dx == 0 && dy == 0) { continue; }
+        let q = clamp(pix + vec2i(dx, dy), vec2i(0, 0), dims - vec2i(1, 1));
+        if (clsOf(textureLoad(infoT, q, 0)) != 10) { gs += vec2f(f32(dx), f32(dy)) / f32(dx * dx + dy * dy); }
+      }
+    }
+    let gl = length(gs);
+    var ns = vec3f(0.0, 0.0, 1.0);
+    if (gl > 0.001) { let e = clamp(gl * 0.5, 0.0, 0.92); let dd = gs / gl; ns = vec3f(dd.x * e, -dd.y * e, sqrt(1.0 - e * e)); }
+    n = normalize(U.right.xyz * ns.x + U.up.xyz * ns.y + U.camv.xyz * ns.z);
+  }
+
+  // soft sky ambient: up-facing surfaces catch a little more than walls.
+  // characters get extra fill and wrap so they stay readable when backlit.
+  let actor = cl == 10;
+  let wrap = select(U.amb.w, 0.85, actor);
+  var light = U.amb.rgb * (0.8 + 0.4 * max(n.z, 0.0)) * select(1.0, 1.7, actor);
+  let nl = i32(U.right.w);
+  for (var i = 0; i < nl; i++) {
+    let lp = U.lights[i * 2];
+    let lc = U.lights[i * 2 + 1];
+    let d = lp.xyz - wp;
+    let dist = length(d);
+    if (dist >= lp.w) { continue; }
+    let att = 1.0 - dist * dist / (lp.w * lp.w);
+    let ndl = dot(n, d / max(dist, 0.001));
+    let diff = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0);
+    var sh = 1.0;
+    if (lc.w > 0.0 && U.fx.z > 0.5) { sh = shadowAt(wp, lp.xyz); }
+    light += lc.rgb * abs(lc.w) * att * diff * sh;
+  }
+  light += spill * U.fx.x;
+
+  // snap light to dithered bands so it stays pixel art
+  let lum = max(light.r, max(light.g, light.b));
+  let q = floor(lum * bands + dth) / bands;
+  let lq = light * (q / max(lum, 0.0001));
+  let col = alb.rgb * max(lq, vec3f(inf.b * 1.15)) + glow;
+  return vec4f(min(col, vec3f(1.0)), 1.0);
+}
+`;
+const WGSL_FINAL = /* wgsl */`
+@group(0) @binding(1) var litT: texture_2d<f32>;
+@group(0) @binding(2) var ovT: texture_2d<f32>;
+@fragment fn fsFinal(@builtin(position) fc: vec4f) -> @location(0) vec4f {
+  let p = fc.xy;
+  if (p.x < U.scr2.x || p.y < U.scr2.y || p.x >= U.scr2.z || p.y >= U.scr2.w) { return vec4f(0.0, 0.0, 0.0, 1.0); }
+  let b = floor((p - U.scr.yz) / U.scr.x);
+  let dims = vec2i(U.bufd.xy);
+  var t = vec2i(b);
+  // heat shimmer: whole-pixel sideways offsets above hot things
+  var off = 0.0;
+  let nh = i32(U.nheat.x);
+  for (var i = 0; i < nh; i++) {
+    let h = U.heat[i];
+    let dy = h.y - b.y;
+    let dx = b.x - h.x;
+    if (dy > -2.0 && dy < h.z * 1.8 && abs(dx) < h.z) {
+      let f = (1.0 - abs(dx) / h.z) * clamp((dy + 2.0) / 5.0, 0.0, 1.0) * (1.0 - dy / (h.z * 1.8));
+      off += sin((b.y + U.c.w) * 0.85 + U.camv.w * 10.0 + h.x * 0.37) * h.w * f;
+    }
+  }
+  let wpx = t + vec2i(i32(U.c.z), i32(U.c.w));
+  t.x += i32(floor(off + bayer(wpx)));
+  t = clamp(t, vec2i(0, 0), dims - vec2i(1, 1));
+  let lit = textureLoad(litT, t, 0).rgb;
+  let ov = textureLoad(ovT, clamp(vec2i(b), vec2i(0, 0), dims - vec2i(1, 1)), 0);
+  return vec4f(mix(lit, ov.rgb, ov.a), 1.0);
+}
+`;
+class GPULighting {
+  constructor(game, o = {}) {
+    // offscreen: render into a texture instead of the page (automated tests; read it with snapshot())
+    Object.assign(this, { enabled: true, ready: false, failed: null, bands: 6, wrap: .45, ambient: [.07, .07, .12], spill: 1.1, glow: .22, shadows: true, map: null, onStatus: null, offscreen: false }, o);
+    this.game = game; this.u = new Float32Array(352); this._colors = {};
+    this.cv = document.createElement('canvas');
+    this.cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;image-rendering:pixelated';
+    game.screen.canvas.insertAdjacentElement('afterend', this.cv);
+    this.loading = true;
+    this._init();
+  }
+  static supported() { return typeof navigator !== 'undefined' && !!navigator.gpu; }
+  /** 'loading' | 'on' | 'off' | 'unavailable' */
+  status() { return this.failed ? 'unavailable' : this.loading ? 'loading' : this.enabled ? 'on' : 'off'; }
+  active(view) { return this.ready && this.enabled && !!view.inv; }
+  show(on) { const d = on && !this.offscreen ? 'block' : 'none'; if (this.cv.style.display !== d) this.cv.style.display = d; }
+  /** offscreen mode only: read the last frame back as a PNG data URL */
+  async snapshot() {
+    const t = this.outT; if (!t) return null;
+    const w = t.width, h = t.height, bpr = Math.ceil(w * 4 / 256) * 256, dev = this.dev;
+    const buf = dev.createBuffer({ size: bpr * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+    const enc = dev.createCommandEncoder(); enc.copyTextureToBuffer({ texture: t }, { buffer: buf, bytesPerRow: bpr }, [w, h]); dev.queue.submit([enc.finish()]);
+    await buf.mapAsync(GPUMapMode.READ);
+    const src = new Uint8Array(buf.getMappedRange()), c = mkCanvas(w, h), g = c.getContext('2d'), img = g.createImageData(w, h);
+    for (let y = 0; y < h; y++) img.data.set(src.subarray(y * bpr, y * bpr + w * 4), y * w * 4);
+    buf.unmap(); buf.destroy(); g.putImageData(img, 0, 0);
+    return c.toDataURL('image/png');
+  }
+  fail(e) { this.failed = (e && e.message) || String(e); this.ready = false; this.loading = false; this.show(false); if (this.onStatus) this.onStatus(this); console.warn('CO55 GPU lighting disabled:', this.failed); }
+  async _init() {
+    try {
+      if (!navigator.gpu) throw new Error('WebGPU is not available in this browser');
+      const ad = await navigator.gpu.requestAdapter();
+      if (!ad) throw new Error('No compatible GPU was found');
+      this.adapter = ad;
+      const dev = await ad.requestDevice(); this.dev = dev;
+      dev.lost.then(i => { if (!this.failed) this.fail(new Error('GPU device lost: ' + i.message)); });
+      dev.addEventListener('uncapturederror', ev => this.fail(ev.error));
+      if (this.offscreen) this.fmt = 'rgba8unorm';
+      else { this.gctx = this.cv.getContext('webgpu'); this.fmt = navigator.gpu.getPreferredCanvasFormat(); this.gctx.configure({ device: dev, format: this.fmt, alphaMode: 'opaque' }); }
+      this.ubuf = dev.createBuffer({ size: this.u.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+      dev.pushErrorScope('validation');
+      const m1 = dev.createShaderModule({ code: WGSL_COMMON + WGSL_LIGHT }), m2 = dev.createShaderModule({ code: WGSL_COMMON + WGSL_FINAL });
+      for (const m of [m1, m2]) { const info = await m.getCompilationInfo(); const err = info.messages.find(x => x.type === 'error'); if (err) throw new Error('Shader: ' + err.message + ' (line ' + err.lineNum + ')'); }
+      const pipe = (m, fs, format) => dev.createRenderPipeline({ layout: 'auto', vertex: { module: m, entryPoint: 'vs' }, fragment: { module: m, entryPoint: fs, targets: [{ format }] }, primitive: { topology: 'triangle-list' } });
+      this.pLight = pipe(m1, 'fsLight', 'rgba8unorm'); this.pFinal = pipe(m2, 'fsFinal', this.fmt);
+      const err = await dev.popErrorScope(); if (err) throw new Error(err.message);
+      this.ready = true;
+    } catch (e) { this.failed = e.message || String(e); console.warn('CO55 GPU lighting unavailable:', this.failed); }
+    this.loading = false;
+    if (this.onStatus) this.onStatus(this);
+  }
+  _tex(w, h, format, usage) { return this.dev.createTexture({ size: [w, h], format, usage }); }
+  _ensure(bw, bh, hmW, hmH) {
+    const U = GPUTextureUsage;
+    if (this.bw !== bw || this.bh !== bh) {
+      for (const t of [this.albedoT, this.infoT, this.ovT, this.litT]) if (t) t.destroy();
+      const up = U.TEXTURE_BINDING | U.COPY_DST | U.RENDER_ATTACHMENT;
+      this.albedoT = this._tex(bw, bh, 'rgba8unorm', up); this.infoT = this._tex(bw, bh, 'rgba8unorm', up); this.ovT = this._tex(bw, bh, 'rgba8unorm', up);
+      this.litT = this._tex(bw, bh, 'rgba8unorm', U.TEXTURE_BINDING | U.RENDER_ATTACHMENT);
+      this.bw = bw; this.bh = bh; this.bgL = null;
+    }
+    if (this.hmW !== hmW || this.hmH !== hmH) {
+      if (this.hmT) this.hmT.destroy();
+      this.hmT = this._tex(hmW, hmH, 'r8unorm', U.TEXTURE_BINDING | U.COPY_DST);
+      this.hmData = new Uint8Array(hmW * hmH); this.hmW = hmW; this.hmH = hmH; this.hmKey = null; this.bgL = null;
+    }
+    if (!this.bgL) {
+      const d = this.dev, B = (t) => t.createView();
+      this.bgL = d.createBindGroup({ layout: this.pLight.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this.ubuf } }, { binding: 1, resource: B(this.albedoT) }, { binding: 2, resource: B(this.infoT) }, { binding: 3, resource: B(this.hmT) }] });
+      this.bgF = d.createBindGroup({ layout: this.pFinal.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this.ubuf } }, { binding: 1, resource: B(this.litT) }, { binding: 2, resource: B(this.ovT) }] });
+    }
+  }
+  /** heightmap of the level (1 texel per world unit): walls from the map plus this frame's casters */
+  _heightmap(view) {
+    const m = this.map, W = this.hmW, H = this.hmH, key = view.id + ':' + (m ? m.version : 0);
+    if (this.hmKey !== key) {
+      this.hmStatic = new Uint8Array(W * H);
+      if (m) for (let cy = 0; cy < m.h; cy++) for (let cx = 0; cx < m.w; cx++) {
+        const id = m.cell(cx, cy); if (id <= 0) continue;
+        const t = m.types[id], h = m._isFront(cx, cy, view) ? (t.cutH || 6) : t.h, v = Math.min(255, Math.round(h * 3));
+        for (let y = cy * m.T; y < (cy + 1) * m.T; y++) this.hmStatic.fill(v, y * W + cx * m.T, y * W + (cx + 1) * m.T);
+      }
+      this.hmKey = key;
+    }
+    const d = this.hmData; d.set(this.hmStatic);
+    for (const c of this.game.lights.casters) {
+      const v = Math.min(255, Math.round(c.top * 3)), r2 = c.r * c.r;
+      const x0 = Math.max(0, Math.floor(c.x - c.r)), x1 = Math.min(W - 1, Math.ceil(c.x + c.r)), y0 = Math.max(0, Math.floor(c.y - c.r)), y1 = Math.min(H - 1, Math.ceil(c.y + c.r));
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const dx = x + .5 - c.x, dy = y + .5 - c.y; if (dx * dx + dy * dy <= r2) { const k = y * W + x; if (d[k] < v) d[k] = v; } }
+    }
+    this.dev.queue.writeTexture({ texture: this.hmT }, d, { bytesPerRow: W }, [W, H]);
+  }
+  _color(c) {
+    if (!c) return [1, .9, .75];
+    if (typeof c !== 'string') return c;
+    return this._colors[c] || (this._colors[c] = hex(c).map(v => v / 255));
+  }
+  render(r) {
+    // never queue more than two frames: a slow GPU drops frames instead of building up lag
+    if ((this.inflight || 0) >= 2) { this.skipped = (this.skipped || 0) + 1; return; }
+    const game = this.game, sc = game.screen, view = r.view, dev = this.dev, bw = r.bw, bh = r.bh, m = this.map;
+    if (this.cv.width !== sc.canvas.width || this.cv.height !== sc.canvas.height) { this.cv.width = sc.canvas.width; this.cv.height = sc.canvas.height; }
+    this._ensure(bw, bh, m ? m.w * m.T : 1, m ? m.h * m.T : 1);
+    this._heightmap(view);
+    dev.queue.copyExternalImageToTexture({ source: sc.buf }, { texture: this.albedoT }, [bw, bh]);
+    dev.queue.copyExternalImageToTexture({ source: r.iCv }, { texture: this.infoT }, [bw, bh]);
+    dev.queue.copyExternalImageToTexture({ source: r.vCv }, { texture: this.ovT, premultipliedAlpha: false }, [bw, bh]);
+    const u = this.u, inv = view.inv, S = sc.S, sc_ = view.scale;
+    const Rw = [view.ax / sc_, view.ay / sc_, 0], Cw = [view.dx, view.dy, view.dz];
+    const Uw = [Rw[1] * Cw[2] - Rw[2] * Cw[1], Rw[2] * Cw[0] - Rw[0] * Cw[2], Rw[0] * Cw[1] - Rw[1] * Cw[0]];
+    u.fill(0);
+    const L = game.lights.list; let n = 0;
+    for (const l of L) {
+      if (n >= 32) break; if (!(l.i > 0)) continue;
+      const c = this._color(l.color), b = 64 + n * 8;
+      u[b] = l.x; u[b + 1] = l.y; u[b + 2] = l.z; u[b + 3] = l.r; u[b + 4] = c[0]; u[b + 5] = c[1]; u[b + 6] = c[2]; u[b + 7] = l.shadow ? l.i : -l.i; n++;
+    }
+    let nh = 0;
+    for (const h of game.lights.heats) { if (nh >= 8) break; const [x, y] = r.w(h.x, h.y, h.z), b = 320 + nh * 4; u[b] = x; u[b + 1] = y; u[b + 2] = h.w * sc_; u[b + 3] = h.s; nh++; }
+    u.set([view.ax, view.ay, view.bx, view.by], 0);
+    u.set([view.bz, inv[0], inv[1], inv[2]], 4);
+    u.set([inv[3], sc_, r.ix, r.iy], 8);
+    u.set([Cw[0], Cw[1], Cw[2], game.time], 12);
+    u.set([Rw[0], Rw[1], Rw[2], n], 16);
+    u.set([Uw[0], Uw[1], Uw[2], this.bands], 20);
+    u.set([this.ambient[0], this.ambient[1], this.ambient[2], this.wrap], 24);
+    u.set([this.spill, this.glow, this.shadows ? 1 : 0, 1], 28);
+    u.set([this.hmW, this.hmH, 0, 0], 32);
+    u.set([S, sc.OX - Math.round(sc.fx * S), sc.OY - Math.round(sc.fy * S), 0], 36);
+    u.set([sc.OX, sc.OY, sc.OX + sc.W * S, sc.OY + sc.H * S], 40);
+    u.set([bw, bh, sc.W, sc.H], 44);
+    u.set([nh, 0, 0, 0], 48);
+    dev.queue.writeBuffer(this.ubuf, 0, u);
+    const enc = dev.createCommandEncoder();
+    let pass = enc.beginRenderPass({ colorAttachments: [{ view: this.litT.createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }] });
+    pass.setPipeline(this.pLight); pass.setBindGroup(0, this.bgL); pass.draw(3); pass.end();
+    let target;
+    if (this.offscreen) {
+      const w = this.cv.width, h = this.cv.height;
+      if (!this.outT || this.outT.width !== w || this.outT.height !== h) { if (this.outT) this.outT.destroy(); this.outT = this._tex(w, h, 'rgba8unorm', GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC); }
+      target = this.outT.createView();
+    } else target = this.gctx.getCurrentTexture().createView();
+    pass = enc.beginRenderPass({ colorAttachments: [{ view: target, loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }] });
+    pass.setPipeline(this.pFinal); pass.setBindGroup(0, this.bgF); pass.draw(3); pass.end();
+    dev.queue.submit([enc.finish()]);
+    this.inflight = (this.inflight || 0) + 1; this.frames = (this.frames || 0) + 1;
+    dev.queue.onSubmittedWorkDone().then(() => { this.inflight--; });
+  }
+}
+E.GPULighting = GPULighting;
 
 root.CO55 = E;
 })(typeof window !== 'undefined' ? window : globalThis);

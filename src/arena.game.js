@@ -29,7 +29,8 @@ const PAL = {
   stones: ['#4b4559', '#554f64', '#433e51', '#5d566c'].map(E.hex), mortar: E.hex('#221e2b'),
   hi: E.hex('#6f6782'), lo: E.hex('#322d3e'), speck: E.hex('#2a2634')
 };
-const RUNE = E.hex('#2f7f82'), RUNE_HI = E.hex('#6fd6cc'), MOSS = [E.hex('#3f5a44'), E.hex('#4d6b4b')];
+// runes carry a 4th value: how strongly they glow under GPU lighting
+const RUNE = [...E.hex('#2f7f82'), .45], RUNE_HI = [...E.hex('#6fd6cc'), 1], MOSS = [E.hex('#3f5a44'), E.hex('#4d6b4b')];
 function floorTex(x, y) {
   const dx = x - CX, dy = y - CY, d = Math.hypot(dx, dy);
   if (Math.abs(d - 54) < .8 || Math.abs(d - 43) < .6) return RUNE;
@@ -54,6 +55,9 @@ const map = new E.TileMap({
 });
 game.cam.bounds = v => map.bounds(v);
 const flow = new E.FlowField(map);
+// WebGPU lighting: torch shadows, light that wraps around characters, glow, heat shimmer.
+// Falls back to the Canvas lighting when WebGPU is missing.
+const gpu = game.enableGPU({ map, ambient: [.15, .14, .24], wrap: .5, bands: 6, offscreen: qs.has('gpu-offscreen') });
 
 /* ---------- props ---------- */
 const braziers = [[9.5, 8], [20.5, 8], [9.5, 14], [20.5, 14]].map(([x, y]) => ({ x: x * T, y: y * T, r: 5, t: Math.random() * 9 }));
@@ -404,6 +408,7 @@ function update(dt) {
 const flicker = t => .9 + Math.sin(t * 13) * .05 + Math.sin(t * 29) * .04 + Math.sin(t * 7.3) * .04;
 function drawFlame(g, r, x, y, z, t, s = 1) {
   const sc = r.view.scale;
+  px.glow(g, 1);
   for (let k = 0; k < 3; k++) {
     const a = k * 2.1 + t * .6, bx = x + Math.cos(a) * 1.6 * s, by = y + Math.sin(a) * 1.6 * s;
     const h = (7 + Math.sin(t * 9 + k * 2) * 2.2 + Math.sin(t * 17 + k) * 1.2) * s, sw = Math.sin(t * 6 + k * 1.7) * 1.4;
@@ -418,7 +423,7 @@ function drawBrazier(g, r, b) {
   r.box(g, b.x - 3, b.y - 3, 0, b.x + 3, b.y + 3, 8, '#5d566f', '#433d55');
   px.poly(g, r.groundPts(b.x, b.y, 5.5, 14, 11), '#2b2430');
   px.poly(g, r.groundPts(b.x, b.y, 5.5, 14, 9), '#3a3036');
-  px.poly(g, r.groundPts(b.x, b.y, 4, 12, 11.2), '#ff8a3c');
+  px.glow(g, .9); px.poly(g, r.groundPts(b.x, b.y, 4, 12, 11.2), '#ff8a3c');
   drawFlame(g, r, b.x, b.y, 11, b.t);
 }
 function drawSconce(g, r, s) {
@@ -444,20 +449,31 @@ function draw(r) {
     shadow(e.x, e.y, e.type === 'wisp' ? 3.5 : e.type === 'slime' ? 6 - Math.min(3, e.z * .1) : 5.5);
     if (e.type === 'husk' && e.state === 'wind' && e.stun <= 0) {
       const u = clamp(e.t / HUSK.wind, 0, 1);
-      r.decal(() => r.groundArc(e.x, e.y, 4, 4 + 20 * u, e.facing - 1.05, e.facing + 1.05, '#ff4a3a', .25 + .45 * u));
+      r.decal(() => r.groundArc(e.x, e.y, 4, 4 + 20 * u, e.facing - 1.05, e.facing + 1.05, '#ff4a3a', .25 + .45 * u), { emissive: .2 + .35 * u });
     }
   }
   for (const o of orbs) shadow(o.x, o.y, 2.5);
   map.queueWalls(r);
-  for (const b of braziers) { r.queue(b.x, b.y, 0, g => drawBrazier(g, r, b)); L.add(b.x, b.y, 14, 100, 1.05 * flicker(b.t)); }
-  for (const s of sconces) { r.queue(s.x, s.y + 4, 0, g => drawSconce(g, r, s)); L.add(s.x, s.y + 8, s.z, 74, .85 * flicker(s.t + 3)); }
+  for (const b of braziers) {
+    r.queue(b.x, b.y, 0, g => drawBrazier(g, r, b));
+    L.add(b.x, b.y, 16, 124, 1.25 * flicker(b.t), { color: '#ff9a4a', shadow: true });
+    L.caster(b.x, b.y, 4.5, 11); L.heat(b.x, b.y, 17, 7, 1.1);
+  }
+  for (const s of sconces) {
+    r.queue(s.x, s.y + 4, 0, g => drawSconce(g, r, s));
+    L.add(s.x, s.y + 7, s.z, 92, 1.05 * flicker(s.t + 3), { color: '#ffb465', shadow: true });
+    L.heat(s.x, s.y + 1.5, s.z - 1, 5, .8);
+  }
+  // the rune circle breathes a cold light that also casts shadows
+  L.add(CX, CY, 3, 78, .5 + .12 * Math.sin(t * 1.7), { color: '#4fe0cc', shadow: true });
   // enemies
   for (const e of enemies) {
     if (!e.alive) continue;
+    if (e.spawnT <= 0) { if (e.type === 'husk') L.caster(e.x, e.y, 3.2, 22); else if (e.type === 'slime') L.caster(e.x, e.y, 5, e.z + 11); }
     const alpha = e.spawnT > 0 ? clamp(1 - e.spawnT / .7, .05, 1) : 1, flash = e.flash > 0;
     if (e.type === 'husk') r.actor(e.x, e.y, 0, (g, ox, oy) => e.rig.draw(g, ox, oy, view), { flash, alpha });
     else if (e.type === 'slime') r.actor(e.x, e.y, e.z, (g, ox, oy) => e.blob.draw(g, ox, oy, view), { flash, alpha });
-    else { r.actor(e.x, e.y, e.z, (g, ox, oy) => drawWisp(g, ox, oy, e), { rim: false, alpha }); L.add(e.x, e.y, e.z, 46, .75); }
+    else { r.actor(e.x, e.y, e.z, (g, ox, oy) => drawWisp(g, ox, oy, e), { rim: false, alpha, emissive: 1 }); L.add(e.x, e.y, e.z, 52, .8, { color: '#b78bff' }); }
   }
   // hero
   if (!hero.dead) {
@@ -466,16 +482,17 @@ function draw(r) {
     const blink = h.inv > 0 && h.hurtT <= 0 && Math.floor(game.real * 16) % 2 === 0;
     r.actor(h.x, h.y, 0, (g, ox, oy) => h.rig.draw(g, ox, oy, view), { xray: true, flash: h.flash > 0 ? '#ffb0a0' : false, alpha: blink ? .45 : 1, ghost: ghost ? { color: '#62d8ff', life: .22 } : null });
     h.rig.drawSmear(r);
-    L.add(h.x, h.y, 10, 82, .8);
+    if (r.gpu) { L.add(h.x, h.y, 18, 84, .6, { color: '#c9c2ec' }); L.caster(h.x, h.y, 3.2, 24); }
+    else L.add(h.x, h.y, 10, 82, .8);
   }
   // projectiles and pickups
   for (const s of shots) {
-    r.queue(s.x, s.y, s.z, g => { const [x, y] = r.w(s.x, s.y, s.z); px.ddisc(g, x, y, 5, s.color, .5, r.ix, r.iy); px.disc(g, x, y, 2, s.color); px.dot(g, x, y, s.core); });
-    L.add(s.x, s.y, s.z, s.from === 'hero' ? 38 : 30, .8);
+    r.queue(s.x, s.y, s.z, g => { px.glow(g, 1); const [x, y] = r.w(s.x, s.y, s.z); px.ddisc(g, x, y, 5, s.color, .5, r.ix, r.iy); px.disc(g, x, y, 2, s.color); px.dot(g, x, y, s.core); });
+    L.add(s.x, s.y, s.z, s.from === 'hero' ? 44 : 34, .85, { color: s.color });
   }
   for (const o of orbs) {
-    r.queue(o.x, o.y, o.z, g => { const [x, y] = r.w(o.x, o.y, o.z + 3 + Math.sin(t * 5) * .8); px.disc(g, x, y, 2.4, '#8a1f2e'); px.disc(g, x, y, 1.6, '#e8475a'); px.dot(g, x - 1, y - 1, '#ffd0d6'); });
-    L.add(o.x, o.y, 4, 20, .45);
+    r.queue(o.x, o.y, o.z, g => { px.glow(g, .7); const [x, y] = r.w(o.x, o.y, o.z + 3 + Math.sin(t * 5) * .8); px.disc(g, x, y, 2.4, '#8a1f2e'); px.disc(g, x, y, 1.6, '#e8475a'); px.dot(g, x - 1, y - 1, '#ffd0d6'); });
+    L.add(o.x, o.y, 4, 22, .45, { color: '#ff5a6a' });
   }
   // overlays: health bars and debug skeletons
   r.overlay(g => {
@@ -504,12 +521,29 @@ const VIEWS = ['iso', 'threequarter', 'topdown', 'brawler'];
 let showRig = false, bannerT = 0;
 const viewBtns = [...document.querySelectorAll('[data-view]')];
 function syncView() {
+  if (typeof gpuBtn !== "undefined") syncGPU();
   viewBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === game.view.id)));
   $('note').textContent = NOTES[game.view.id] || '';
 }
 function setView(id) { game.setView(id); syncView(); }
 viewBtns.forEach(b => b.addEventListener('click', () => { setView(b.dataset.view); b.blur(); }));
-const slowBtn = $('slowBtn'), rigBtn = $('rigBtn');
+const slowBtn = $('slowBtn'), rigBtn = $('rigBtn'), gpuBtn = $('gpuBtn');
+const GPU_NOTES = {
+  loading: 'Starting GPU lighting...',
+  on: 'GPU lighting is on: torch shadows, light that wraps around characters, glowing runes and heat shimmer.',
+  off: 'Standard lighting. Press G to switch GPU lighting back on.',
+  unavailable: 'WebGPU is not available here, so the standard lighting is shown.'
+};
+function syncGPU() {
+  const st = gpu.status();
+  gpuBtn.setAttribute('aria-pressed', String(st === 'on'));
+  gpuBtn.disabled = st === 'unavailable' || st === 'loading';
+  gpuBtn.title = st === 'unavailable' ? gpu.failed : '';
+  $('gpuNote').textContent = game.view.inv ? GPU_NOTES[st] : '';
+}
+gpu.onStatus = syncGPU;
+function setGPU(v) { if (gpu.status() === 'unavailable') return; gpu.enabled = v; syncGPU(); }
+gpuBtn.addEventListener('click', () => { setGPU(!gpu.enabled); gpuBtn.blur(); });
 const setSlow = v => { game.timeScale = v ? .25 : 1; slowBtn.setAttribute('aria-pressed', String(v)); };
 const setRig = v => { showRig = v; rigBtn.setAttribute('aria-pressed', String(v)); };
 slowBtn.addEventListener('click', () => { setSlow(game.timeScale === 1); slowBtn.blur(); });
@@ -520,6 +554,7 @@ addEventListener('keydown', e => {
   else if (/^Digit[1-4]$/.test(e.code)) setView(VIEWS[+e.code.slice(5) - 1]);
   else if (e.code === 'KeyT') setSlow(game.timeScale === 1);
   else if (e.code === 'KeyR') setRig(!showRig);
+  else if (e.code === 'KeyG') setGPU(!gpu.enabled);
 });
 game.input.bindButtons(document);
 function banner(title, sub) { $('bannerTitle').textContent = title; $('bannerSub').textContent = sub; $('banner').classList.add('show'); bannerT = 2.2; }
@@ -531,7 +566,7 @@ function hud() {
   if (bannerT > 0) { bannerT -= 1 / 60; if (bannerT <= 0 && !hero.dead) $('banner').classList.remove('show'); }
 }
 
-syncView();
+syncView(); syncGPU();
 game.start({ update, draw: r => { draw(r); hud(); } });
-window.__game = { game, hero, enemies, setView, map };
+window.__game = { game, hero, enemies, setView, map, gpu, setGPU };
 })();

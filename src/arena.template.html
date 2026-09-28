@@ -34,6 +34,9 @@ body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Pix
 .brand{padding:9px 13px 10px;max-width:min(400px,100%)}
 .brand h1{margin:0;font-size:21px;font-weight:600;line-height:1.1}
 .brand p{margin:5px 0 0;font-size:13.5px;line-height:1.4;color:var(--muted)}
+.brand .gpu-note{color:var(--ink);opacity:.85}
+button:disabled{opacity:.45;cursor:default}
+button:disabled:hover{background:transparent}
 .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .seg{display:flex;gap:3px;padding:3px;align-items:center}
 button{font:inherit;font-size:14px;color:var(--ink);background:transparent;border:0;border-radius:4px;padding:6px 10px;min-height:34px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
@@ -70,6 +73,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
     <div class="brand panel">
       <h1>Emberwell</h1>
       <p id="note"></p>
+      <p id="gpuNote" class="gpu-note"></p>
     </div>
     <div class="controls">
       <div class="seg panel" role="group" aria-label="Camera view">
@@ -79,6 +83,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
         <button type="button" data-view="brawler" aria-pressed="false"><kbd>4</kbd>Brawler</button>
       </div>
       <div class="seg panel" role="group" aria-label="Inspection tools">
+        <button type="button" id="gpuBtn" aria-pressed="false"><kbd>G</kbd>GPU lighting</button>
         <button type="button" id="rigBtn" aria-pressed="false"><kbd>R</kbd>Skeleton</button>
         <button type="button" id="slowBtn" aria-pressed="false"><kbd>T</kbd>Slow motion</button>
         <span class="fps" id="fps">60 fps</span>
@@ -92,7 +97,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
       <div class="hpbar"><div id="hpFill"></div></div>
       <div class="row"><span id="waveText">Wave 1</span></div>
     </div>
-    <p class="keys panel"><b>WASD</b> move, <b>mouse</b> aims. <b>Left click</b> or <b>J</b> slashes (three-hit combo), <b>right click</b> or <b>E</b> throws an ember, <b>Space</b> dashes. <b>V</b> cycles the camera.</p>
+    <p class="keys panel"><b>WASD</b> move, <b>mouse</b> aims. <b>Left click</b> or <b>J</b> slashes (three-hit combo), <b>right click</b> or <b>E</b> throws an ember, <b>Space</b> dashes. <b>V</b> cycles the camera, <b>G</b> compares GPU and standard lighting.</p>
   </div>
   <div class="hud touch" aria-hidden="true">
     <button data-act="dash">Dash</button><button data-act="skill">Ember</button><button data-act="attack">Slash</button>
