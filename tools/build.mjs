@@ -14,11 +14,11 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
 const STARTER = 'src/starter';
-const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', rpg: 'RPG BATTLE (turn-based battle)' };
+const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', rpg: 'RPG BATTLE (turn-based battle)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
 const ALL = {
-  GAMES: 'five working games',
-  CONTENTS: "a title menu plus five vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE).",
-  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter or #rpg to the address to start a slice.'
+  GAMES: 'five working games and an animation lab',
+  CONTENTS: "a title menu plus five vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
+  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg or #animlab to the address to start a slice.'
 };
 const kit = id => ({
   EDITION: id + ' kit', GAMES: 'one working game to copy',
@@ -26,8 +26,8 @@ const kit = id => ({
   LINKS: 'Deep link: add #' + id + ' to the address to start the slice.'
 });
 const builds = [
-  { template: 'src/arena.template.html', out: 'examples/arena-iso.html', vars: { VIEW: 'iso', TITLE: 'Emberwell (isometric) · my-3D2dge' } },
-  { template: 'src/arena.template.html', out: 'examples/arena-topdown.html', vars: { VIEW: 'threequarter', TITLE: 'Emberwell (top-down) · my-3D2dge' } },
+  // one arena page for every view: iso by default, arena.html#threequarter (or keys 1-4, V) for the others
+  { template: 'src/arena.template.html', out: 'examples/arena.html', vars: { VIEW: 'iso', TITLE: 'Emberwell · my-3D2dge' } },
   { template: 'src/lab.template.html', out: 'examples/perspective-lab.html', vars: {} },
   { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} },
   // the files to share with AI models: API card + engine + starter slices

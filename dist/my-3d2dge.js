@@ -314,6 +314,14 @@ px.sprite = (g, spr, x, y, flip = false) => {
   g.drawImage(flip ? spr.fl : spr.cv, x, y);
 };
 E.px = px;
+/** a nearest-neighbour scaled copy of a sprite (cached per factor), used by the camera zoom */
+function scaleSprite(spr, z) {
+  const c = spr._zc || (spr._zc = {}); if (c[z]) return c[z];
+  const w = Math.max(1, Math.round(spr.w * z)), h = Math.max(1, Math.round(spr.h * z)), cv = mkCanvas(w, h), fl = mkCanvas(w, h);
+  ctx2d(cv).drawImage(spr.cv, 0, 0, w, h); ctx2d(fl).drawImage(spr.fl || spr.cv, 0, 0, w, h);
+  const runs = spr.runs.map(([rx, ry, rw, rh]) => [Math.round(rx * z), Math.round(ry * z), Math.max(1, Math.round(rw * z)), Math.max(1, Math.round(rh * z))]);
+  return (c[z] = Object.assign({}, spr, { w, h, cv, fl, runs, _zc: null, mx: (spr.mx || 0) * z, my: (spr.my || 0) * z }));
+}
 /** GPU surface class for a vertical face normal: 5 +x, 6 -x, 7 +y, 8 -y */
 E.faceClass = (nx, ny) => nx > 0 ? 5 : nx < 0 ? 6 : ny > 0 ? 7 : 8;
 
@@ -374,10 +382,12 @@ E.VIEW_ORDER = ['iso', 'threequarter', 'topdown', 'brawler', 'side'];   // 'over
 const _cviews = new Map();
 function charView(view) {
   const P = E.style.charPitch;
-  if (P === false || view.pitchDeg < 40 || view.pitchDeg > 70) return view;
+  if (P === false || view.pitchDeg < 40 || view.pitchDeg >= 89) return view;
   const cp = P || 30, key = view.yawDeg + ':' + view.pitchDeg + ':' + view.scale + ':' + view.zBoost + ':' + cp;
   let v = _cviews.get(key);
-  if (!v) { v = new View(view.id, view.label, view.yawDeg, cp, view.scale, view.zBoost * Math.cos(view.pitchDeg * DEG) / Math.cos(cp * DEG)); _cviews.set(key, v); }
+  // height on screen: kept as the view has it up to 70 degrees; steeper (top-down) views draw upright sprites as tall as three-quarter ones
+  const h = view.pitchDeg <= 70 ? view.zBoost * Math.cos(view.pitchDeg * DEG) : .78;
+  if (!v) { v = new View(view.id, view.label, view.yawDeg, cp, view.scale, h / Math.cos(cp * DEG)); _cviews.set(key, v); }
   return v;
 }
 E.charView = charView;
@@ -1079,6 +1089,7 @@ class Renderer {
    */
   sprite(x, y, z, spr, o = {}) {
     if (!spr || !spr.isSprite) { warn('r.sprite', 'r.sprite(x, y, z, spr) needs a sprite made with E.sprite(rows, colors)'); return; }
+    if (this.view.zoom && this.view.zoom !== 1) spr = scaleSprite(spr, this.view.zoom);   // camera zoom: whole-pixel nearest-neighbour copy
     const ax = Math.floor(spr.w / 2), ay = o.anchor === 'center' ? Math.floor(spr.h / 2) : o.anchor === 'top' ? 0 : spr.h, flip = !!o.flip, gl = o.glow || 0;
     if (o.flash || o.outline || o.xray || o.ghost || (o.alpha !== undefined && o.alpha < 1)) {
       this.actor(x, y, z, (g, ox, oy) => { if (gl) px.glow(g, gl); px.sprite(g, spr, ox - ax, oy - ay, flip); }, Object.assign({ outline: false, rim: false, emissive: gl }, o));
@@ -1092,7 +1103,7 @@ class Renderer {
    * feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights.
    */
   prop(name, x, y, z, o = {}) {
-    const p = E.prop(name, o); if (!p) return;
+    const zm = this.view.zoom || 1, p = E.prop(name, zm !== 1 ? Object.assign({}, o, { size: (o.size || 1) * zm }) : o); if (!p) return;
     const spr = p.frames[0], ax = Math.floor(spr.w / 2), ay = o.anchor === 'top' ? 0 : spr.h, flip = !!o.flip, t = this.game.real;
     if (!this.visible(x, y, z, spr.w + 20, spr.h + 20, spr.h + 20)) return;
     const gf = p.glow ? p.glow[Math.floor((t * 9 + x * .37) % p.glow.length)] : null;
@@ -1239,7 +1250,7 @@ class Renderer {
     g.globalAlpha = al;
     if (o.outline !== false) { this._tint(this.mG, this.aCv, o.outlineColor || this.outline, R); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(this.mCv, dx, dy); }
     if (o.flash) {   // palette flash: the tint over the sprite, so its shading still shows (flashMix: 1 = solid)
-      const fm = o.flashMix === undefined ? .75 : o.flashMix;
+      const fm = o.flashMix === undefined ? .5 : o.flashMix;
       if (fm < 1) put(this.aCv, 0, 0);
       this._tint(this.mG, this.aCv, typeof o.flash === 'string' ? o.flash : '#fff6ea', R); g.globalAlpha = al * fm; put(this.mCv, 0, 0);
     } else {
@@ -1345,7 +1356,8 @@ class Game {
     this.o = Object.assign({ view: 'iso', minH: 190, minW: 300, maxW: 560, maxH: 330, bg: '#07060d', step: 1 / 120, input: Input.DEFAULT }, o);
     this.screen = new Screen(this.o.canvas, this.o);
     this.input = new Input(this.screen, this.o.input);
-    this.view = this._view(this.o.view) || E.VIEWS.iso;
+    this.view = this.baseView = this._view(this.o.view) || E.VIEWS.iso;
+    this.zoom = 1; this.yaw = 0;   // camera zoom and turn on top of the chosen view (setZoom, rotateView)
     /** views this game is designed for (view cycling and the checker use it). null = every view */
     this.views = this.o.views || null;
     this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this.shakeAmt = 0; this.reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -1381,12 +1393,32 @@ class Game {
   }
   setView(v) {
     const w = this._view(v); if (!w) return;
-    this.view = w;
+    this.baseView = w; this._applyView();
+  }
+  /**
+   * camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3). Characters, maps, props, particles and lights are drawn
+   * by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
+   */
+  setZoom(z) { this.zoom = clamp(+z || 1, .5, 3); this._applyView(); }
+  /** turn the camera around the vertical axis in ground views: game.rotateView(45) (degrees). Side views never turn */
+  rotateView(deg) { this.yaw = (((this.yaw || 0) + deg) % 360 + 360) % 360; this._applyView(); }
+  resetCamera() { this.zoom = 1; this.yaw = 0; this._applyView(); }
+  /** a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1) */
+  note(text, seconds = 1.2) { this._note = { text: String(text), end: this.real + seconds }; }
+  _applyView() {
+    const b = this.baseView, z = this.zoom || 1, y = b.pitchDeg < 5 ? 0 : (this.yaw || 0);
+    if (z === 1 && !y) this.view = b;
+    else {
+      const key = b.id + ':' + b.yawDeg + ':' + b.pitchDeg + ':' + b.scale + ':' + b.zBoost + ':' + z + ':' + y, vc = this._vc || (this._vc = new Map());
+      let v = vc.get(key);
+      if (!v) { v = new View(b.id, b.label, b.yawDeg + y, b.pitchDeg, b.scale * z, b.zBoost); v.zoom = z; vc.set(key, v); }
+      this.view = v;
+    }
     this.cam.snap = true;
     for (const f of this.viewListeners) f(this.view);
   }
   /** cycle through game.views (or every view): bind it to a key for players who like to switch */
-  nextView(dir = 1) { const list = this.views || E.VIEW_ORDER, i = list.indexOf(this.view.id); this.setView(list[((i + dir) % list.length + list.length) % list.length]); }
+  nextView(dir = 1) { const list = this.views || E.VIEW_ORDER, i = list.indexOf(this.baseView.id); this.setView(list[((i + dir) % list.length + list.length) % list.length]); }
   onView(f) { this.viewListeners.push(f); }
   shake(a) { if (!this.reduceMotion) this.shakeAmt = Math.min(10, this.shakeAmt + a); }
   /**
@@ -1545,6 +1577,7 @@ class Game {
     this.r.begin(c.x + shx, c.y + shy);
     const sc = this.scene;
     if (sc && sc.draw) sc.draw(this.r);
+    if (this._note && this.real < this._note.end) { const n = this._note; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
     if (this.paused && this.pauseOverlay) this.r.overlay(g => {
       const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r.checker, 'repeat'); else { g.fillStyle = '#05030c'; g.globalAlpha = .55; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
       E.font.text(g, 'PAUSED', r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });
@@ -1624,10 +1657,11 @@ class Humanoid {
    */
   update(dt, s = {}) {
     const o = this.o;
-    this.t += dt; this.x = s.x; this.y = s.y; this.z = s.z || 0; this.facing = s.facing || 0;
-    const speed = Math.hypot(s.vx || 0, s.vy || 0);
+    if (this.t > 0 && Math.hypot((s.x || 0) - this.x, (s.y || 0) - this.y, (s.z || 0) - this.z) > 24 * o.size) { this.capeL = null; this.hairPts = null; this.trail.length = 0; }   // teleported: cloth and hair start fresh
+    this.t += dt; this.x = s.x; this.y = s.y; this.z = s.z || 0; this.facing = s.facing || 0; this.expr = s.expr || null;
+    const speed = s.run ? s.run * o.speedRef : Math.hypot(s.vx || 0, s.vy || 0);   // run: 0..1 runs in place (an RPG 'run away', a treadmill)
     this.spW = approach(this.spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
-    if (speed > 3) {
+    if (speed > 3 && !s.run) {
       const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
       this.mv[0] = lerp(this.mv[0], (s.vx * c + s.vy * sn) / speed, k); this.mv[1] = lerp(this.mv[1], (-s.vx * sn + s.vy * c) / speed, k);
     }
@@ -1636,28 +1670,56 @@ class Humanoid {
     this.hurtW = approach(this.hurtW, s.hurt ? 1 : 0, dt * 14);
     this.atkW = approach(this.atkW, s.attack ? 1 : 0, dt * (s.attack ? 30 : 7));
     this.airW = approach(this.airW, s.air ? 1 : 0, dt * (s.air ? 10 : 18));
-    // held poses: 'cheer' (item get, victory), 'cast' (both hands forward), 'guard' (fists up), 'kneel', and down: 0..1 (knocked flat)
-    const pk = this.poseW || (this.poseW = { cheer: 0, cast: 0, guard: 0, kneel: 0 });
+    // held poses: 'cheer' (item get, victory), 'cast' (both hands forward), 'guard' (fists up), 'kneel', 'crouch', 'wave', 'hips'
+    // (hands on hips), and down: 0..1 (knocked flat). stance: 'guard' (fists up while moving) | 'ready' (weapon held forward)
+    const pk = this.poseW || (this.poseW = { cheer: 0, cast: 0, guard: 0, kneel: 0, crouch: 0, wave: 0, hips: 0, block: 0 });
     for (const k in pk) pk[k] = approach(pk[k], s.pose === k ? 1 : 0, dt * 9);
-    this.downW = approach(this.downW || 0, s.down !== undefined ? clamp(+s.down, 0, 1) : s.pose === 'down' ? 1 : 0, dt * 6);
+    this.stW = approach(this.stW || 0, s.stance === 'guard' ? 1 : 0, dt * 10); this.rdW = approach(this.rdW || 0, s.stance === 'ready' ? 1 : 0, dt * 10);
+    this.climbW = approach(this.climbW || 0, s.climb ? 1 : 0, dt * 12); if (s.climb) this.climbP = (this.climbP || 0) + dt * Math.abs(s.vz || 0) / (.4 * (o.armUpper + o.armLower) * o.size) * Math.PI;   // hands keep pace with the climb   // climb: hand over hand on a ladder
+    this.dieT = s.pose === 'die' ? (this.dieT || 0) + dt : 0;   // pose 'die': a stagger, the knees give, then the body topples
+    const dT = s.down !== undefined ? clamp(+s.down, 0, 1) : s.pose === 'down' || this.dieT > .45 ? 1 : 0;
+    this.downW = approach(this.downW || 0, dT, dt * (dT > (this.downW || 0) ? 2.5 + 10 * (this.downW || 0) : 3.2));   // falls faster and faster, gets up steadily
+    if (this.dieT > 0) { this.hurtW = approach(this.hurtW, this.dieT < .25 ? 1 : 0, dt * 14); pk.kneel = approach(pk.kneel, this.dieT > .2 && this.dieT < .6 ? 1 : 0, dt * 10); }
     this.pointW = approach(this.pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
     this.aimA = approach(this.aimA || 0, s.aim || 0, dt * 14);   // aim: radians above (+) or below (-) level while pointing
     if (s.attack) this.kicking = !!s.attack.spec.kick;
     this.blink -= dt; if (this.blink < -.12) this.blink = 2 + Math.random() * 3;
     this.sqV += (-260 * this.sq - 15 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.3, .3);
 
-    const A = s.attack; let tLean = 0, tTwist = 0;
+    const A = s.attack; let tLean = 0, tTwist = 0, tLunge = 0, tHop = 0, tCrouch = 0, armT = A ? 1 : 0;
     this.spin = 0;
     // side views swing weapons in the screen plane (an overhead chop), ground views in the ground plane.
     // spec.plane or the rig option swingPlane ('side' | 'ground') choose it yourself.
-    this.sidePlane = !!A && !A.spec.kick && (A.spec.plane ? A.spec.plane === 'side' : o.swingPlane ? o.swingPlane === 'side' : this._pitch !== undefined && this._pitch < 15);
+    this.sidePlane = !!A && !A.spec.kick && (A.spec.plane ? A.spec.plane === 'side' : o.swingPlane ? o.swingPlane === 'side' : this._pitch !== undefined && this._pitch < 15 && !!o.weapon && A.spec.blade !== 0 && A.spec.hand !== 'L');
     if (A) {
-      const sp = A.spec, rest = 1.1;
-      if (A.phase === 'wind') { this.theta = lerp(rest, sp.a0, ease.outQuad(A.u)); this.atkZ = lerp(9, sp.z0, A.u); tLean = -.12; }
-      else if (A.phase === 'active') { const k = ease.outCubic(A.u); this.theta = sp.spin ? sp.a0 : lerp(sp.a0, sp.a1, k); this.atkZ = lerp(sp.z0, sp.z1, k); tLean = .3; if (sp.spin) this.spin = -TAU * k; }
-      else { const k = ease.inOut(A.u); this.theta = sp.spin ? sp.a0 : lerp(sp.a1, rest, k); this.atkZ = lerp(sp.z1, 9, k); tLean = .3 * (1 - k); }
-      this.reach = sp.reach || 7.5;
-      tTwist = sp.spin ? 0 : clamp(this.theta * (this.sidePlane ? .08 : .32), -.6, .6);
+      // wind: anticipation (pull back, crouch). active: the strike, with a lunge, lead-foot step, lean, twist and hop.
+      // recover: follow through, hold the end pose, then blend back to the stance by position (never swing backwards)
+      const sp = A.spec, side = this.sidePlane, rest = side ? -.9 : 1.1, RS = sp.rel ? (o.armUpper + o.armLower) / 9.2 : 1, R = (sp.reach || 7.5) * RS, r0 = sp.r0 === undefined ? R : sp.r0 * RS, r1 = sp.r1 === undefined ? R : sp.r1 * RS;
+      this.atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9;
+      // lunge / hop / crouch are body motion in local units, clamped so a game's own 'lunge' speed field can't stretch the rig
+      const hold = sp.hold === undefined ? .3 : sp.hold, lean = sp.lean === undefined ? (sp.kick ? -.22 : .3) : clamp(sp.lean, -.8, .8), lunge = sp.lunge === undefined ? (sp.kick ? .4 : 1.2) : clamp(sp.lunge, -4, 5);
+      if (A.phase === 'wind' && (this._aPh !== 'wind' || this._aSp !== sp)) {   // a chained hit starts where the arm is
+        const chain = (this.armW || 0) > .3 && this.theta !== undefined, fists = !o.weapon || sp.hand === 'L' || sp.blade === 0;
+        this._th0 = chain ? this.theta : rest; this._z0 = chain && this.atkRel === !!sp.rel ? this.atkZ : fists ? sp.z0 : zRest; this._r0 = chain ? this.reach : R * .75;
+        const J = this.J; if (J.handR) this._from = { R: J.handR.slice(), L: J.handL.slice(), bd: J.bladeDir.slice() };   // the wind blends from the real pose: no snaps
+      }
+      this._aPh = A.phase; this._aSp = sp; this.atkHand = sp.hand || 'R'; if (A.phase !== 'wind') this._windK = 1;
+      if (A.phase === 'wind') {
+        const k = ease.outQuad(A.u);
+        this.theta = lerp(this._th0, sp.a0, k); this.atkZ = lerp(this._z0, sp.z0, A.u); this.reach = lerp(this._r0, r0, k); this._windK = k;
+        tLean = -Math.abs(lean) * .45; tLunge = -lunge * .3 * k; tCrouch = clamp(sp.crouch === undefined ? (sp.kick ? 0 : .15) : sp.crouch, 0, 1) * k;   // coil: lean back, draw back, dip
+      } else if (A.phase === 'active') {
+        const k = ease.outCubic(A.u);
+        this.theta = sp.spin ? sp.a0 : lerp(sp.a0, sp.a1, k); this.atkZ = lerp(sp.z0, sp.z1, k); this.reach = lerp(r0, r1, k);
+        tLean = lean; tLunge = lunge * k; tHop = clamp(sp.hop || 0, 0, 12) * Math.sin(k * Math.PI); tCrouch = clamp(sp.crouch === undefined ? (sp.kick ? 0 : .15) : sp.crouch, 0, 1) * (1 - k);
+        if (sp.spin) { if (side) this.theta = sp.a0 - TAU * k; else this.spin = -TAU * k; }   // side views: the blade loops a full circle in front (a windmill) instead of a turn the camera sees edge-on
+      } else {
+        const k = ease.outQuad(clamp(A.u / hold, 0, 1)), span = sp.spin ? 0 : sp.a1 - sp.a0;
+        this.theta = (sp.spin ? sp.a0 : sp.a1) + span * .08 * k; this.atkZ = sp.z1; this.reach = r1;
+        armT = A.u < hold ? 1 : 1 - ease.inOut((A.u - hold) / (1 - hold));
+        tLean = lean * armT; tLunge = lunge * armT;
+      }
+      tTwist = sp.spin ? 0 : clamp(this.theta * (side ? .08 : .32) * (sp.twist === undefined ? 1 : sp.twist) * (this.atkHand === 'L' ? -1 : 1), -.7, .7);
       // smear arc in absolute ground angles
       if (this.sidePlane) this.smear = null;
       else if (sp.blade !== 0) {
@@ -1666,7 +1728,9 @@ class Humanoid {
         else if (A.phase === 'recover' && this.smear) { const u = clamp(A.u / .5, 0, 1); const end = base + (sp.spin ? sp.a0 - TAU : sp.a1); this.smear.a0 = lerp(base + sp.a0, end, ease.inQuad(u)); this.smear.a1 = end; this.smear.fade = 1 - u; if (u >= 1) this.smear = null; }
         else if (A.phase === 'wind') this.smear = null;
       }
-    } else this.smear = null;
+    } else { this.smear = null; this._windK = 1; this._aPh = null; }
+    this.armW = approach(this.armW || 0, armT, dt * (armT > (this.armW || 0) ? 30 : 12));
+    this.lunge = lerp(this.lunge || 0, tLunge, Math.min(1, dt * 22)); this.hop = lerp(this.hop || 0, tHop, Math.min(1, dt * 25)); this.crouchA = lerp(this.crouchA || 0, tCrouch, Math.min(1, dt * 20));
     this.atkLean = lerp(this.atkLean, tLean, Math.min(1, dt * 25));
     this.twist = lerp(this.twist, tTwist, Math.min(1, dt * 25));
     this._pose();
@@ -1675,12 +1739,14 @@ class Humanoid {
     // weapon trail: remember where the blade (or fist, or foot) really went, so the smear works in every view
     const T = this.trail;
     for (const p of T) p.age += dt;
-    while (T.length && T[0].age > .14) T.shift();
-    const atk = s.attack, swinging = atk && (atk.phase === 'active' || (atk.phase === 'recover' && atk.u < .35));
-    if (swinging && (atk.spec.blade !== 0 || atk.spec.kick || !o.weapon)) {
-      const J = this.J, kick = atk.spec.kick, sword = o.weapon === 'sword' && !kick;
-      const b = kick ? J.kneeR : sword ? V3.add(J.handR, V3.mul(J.bladeDir, 2)) : J.elbowR, t = kick ? J.footR : sword ? V3.add(J.handR, V3.mul(J.bladeDir, o.bladeLen)) : J.handR;
-      const wb = this._w(b), wt = this._w(t);
+    const maxAge = s.attack && s.attack.phase === 'active' ? .14 : .07;   // after the strike the ribbon clears quickly: no ghost slivers
+    while (T.length && T[0].age > maxAge) T.shift();
+    const atk = s.attack, swinging = atk && (atk.phase === 'active' || (atk.phase === 'recover' && atk.u < .12));
+    if (swinging && (atk.spec.blade !== 0 || atk.spec.kick || !o.weapon || atk.spec.hand === 'L')) {
+      const J = this.J, kick = atk.spec.kick, left = atk.spec.hand === 'L', sword = o.weapon === 'sword' && !kick && !left;
+      const b = kick ? J.kneeR : sword ? V3.add(J.handR, V3.mul(J.bladeDir, 2)) : left ? J.elbowL : J.elbowR, t = kick ? J.footR : sword ? V3.add(J.handR, V3.mul(J.bladeDir, o.bladeLen)) : left ? J.handL : J.handR;
+      const wb = this._w(b), wt = this._w(t), last = T[T.length - 1];
+      if (last && Math.hypot(this.x + wt[0] - last.t[0], this.y + wt[1] - last.t[1], this.z + wt[2] - last.t[2]) > 14 * o.size) T.length = 0;   // a jump (teleport, respawn): start a new ribbon
       T.push({ b: [this.x + wb[0], this.y + wb[1], this.z + wb[2]], t: [this.x + wt[0], this.y + wt[1], this.z + wt[2]], o: [this.x, this.y, this.z], age: 0, w: sword ? 1 : .6 });
       if (T.length > 12) T.shift();
     }
@@ -1689,7 +1755,7 @@ class Humanoid {
   _hair(dt) {
     const o = this.o, long = o.hair.style === 'long', N = o.hair.len || (long ? 6 : 4), seg = (long ? 1.9 : 1.6) * o.size;
     const J = this.J, anchor = () => { const w = this._w([J.head[0] - o.headR * .8, 0, J.head[2] + (long ? o.headR * .1 : o.headR * .55)]); return [this.x + w[0], this.y + w[1], this.z + w[2]]; };
-    if (!this.hairPts) { const a = anchor(); this.hairPts = Array.from({ length: N }, (_, i) => ({ x: a[0], y: a[1], z: a[2] - i * seg, px: a[0], py: a[1], pz: a[2] - i * seg })); }
+    if (!this.hairPts) { const a = anchor(), hx = -Math.cos(this.facing) * .8 * o.size, hy = -Math.sin(this.facing) * .8 * o.size; this.hairPts = Array.from({ length: N }, (_, i) => ({ x: a[0] + hx * i * .3, y: a[1] + hy * i * .3, z: a[2] - i * seg, px: a[0] + hx * i * .3, py: a[1] + hy * i * .3, pz: a[2] - i * seg })); }
     const P = this.hairPts, a = anchor(), damp = Math.pow(.97, dt * 120), fx = Math.cos(this.facing), fy = Math.sin(this.facing), dt2 = dt * dt;
     Object.assign(P[0], { x: a[0], y: a[1], z: a[2], px: a[0], py: a[1], pz: a[2] });
     for (let i = 1; i < P.length; i++) { const n = P[i], vx = (n.x - n.px) * damp, vy = (n.y - n.py) * damp, vz = (n.z - n.pz) * damp; n.px = n.x; n.py = n.y; n.pz = n.z; n.x += vx - fx * 20 * dt2; n.y += vy - fy * 20 * dt2; n.z += vz - 200 * dt2; }
@@ -1707,8 +1773,10 @@ class Humanoid {
     const o = this.o, J = this.J, sp = Math.min(1, this.spW), mf = this.mv[0], mr = this.mv[1], ph = this.phase, dash = this.dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
     const breathe = Math.sin(this.t * 2.3) * (1 - sp);
     const bob = (.5 - Math.abs(Math.cos(ph)) * 1.3) * sp;
-    const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel;
-    const hipC = [mf * .4 * sp - .4 * hurt, mr * .3 * sp, o.hipZ + bob + breathe * .3 - dash * 2.2 - hurt * .6 - kn * o.hipZ * .42 - PW.guard * .9];
+    const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel, lg = this.lunge || 0, cw = this.climbW || 0;
+    const cr = Math.max(PW.crouch || 0, this.crouchA || 0, Math.sin(clamp(this.downW || 0, 0, 1) * Math.PI) * .85);   // falling (and getting up) buckles the knees
+    const sway = Math.sin(this.t * 1.15) * .3 * (1 - sp) * (1 - this.atkW);   // idle weight shift from foot to foot
+    const hipC = [mf * .4 * sp - .4 * hurt + lg * .55, mr * .3 * sp + sway, o.hipZ + bob + breathe * .3 - dash * 2.2 - hurt * .6 - kn * o.hipZ * .42 - PW.guard * .9 - cr * o.hipZ * .32 + (this.hop || 0)];
     J.hipL = add(hipC, rz([0, -o.hipHalf, 0], this.twist * .4)); J.hipR = add(hipC, rz([0, o.hipHalf, 0], this.twist * .4));
     for (const s of [-1, 1]) {
       const p = ph + (s > 0 ? Math.PI : 0), along = Math.sin(p) * o.stride * sp;
@@ -1717,37 +1785,62 @@ class Humanoid {
       if (this.airW > 0) foot = V3.lerp(foot, [s > 0 ? 3.2 : -2.6, s * 1.9, s > 0 ? 6 : 3.6], this.airW);
       if (kn > 0) foot = V3.lerp(foot, [s > 0 ? 3.4 : -4.2, s * 2, s > 0 ? 0 : 0], kn);
       if (PW.guard > 0) foot = V3.lerp(foot, [s > 0 ? 2.6 : -2.8, s * 2.6, 0], PW.guard * (1 - sp));
-      if (s > 0 && this.kicking && this.atkW > 0) foot = V3.lerp(foot, [Math.cos(this.theta) * (this.reach + 3), Math.sin(this.theta) * (this.reach + 3), this.atkZ], this.atkW);
+      if (cr > 0) foot = V3.lerp(foot, [s > 0 ? 1.6 : -1.4, s * (o.footSpread + .7), foot[2] * (1 - cr)], cr * (1 - sp * .5));
+      if (lg > 0) foot[0] += (s === (this.atkHand === 'L' ? 1 : -1) ? lg * 1.3 : -lg * .15) * (1 - sp);   // the lead foot steps into the strike
+      if (this.hop) foot[2] += this.hop;
+      if (cw > 0) foot = V3.lerp(foot, [.6, s * 1.5, Math.max(0, Math.sin(this.climbP + (s > 0 ? Math.PI : 0))) * 3.4], cw);
+      if (s > 0 && this.kicking && this.atkW > 0) foot = V3.lerp(foot, [Math.cos(this.theta) * (this.reach + 3), Math.sin(this.theta) * (this.reach + 3), (this.atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this.armW || 0);
       const hip = s > 0 ? J.hipR : J.hipL;
       const [knee, f2] = ik3(hip, foot, o.legUpper, o.legLower, [1, s * .15, .1]);
       J[s > 0 ? 'kneeR' : 'kneeL'] = knee; J[s > 0 ? 'footR' : 'footL'] = f2;
     }
-    const leanF = o.lean + .16 * sp * mf + .45 * dash + this.atkLean - .35 * hurt, leanR = .1 * sp * mr;
+    const leanF = o.lean + .16 * sp * mf + .45 * dash + this.atkLean - .35 * hurt + cr * .22, leanR = .1 * sp * mr;
     const dir = V3.norm([Math.sin(leanF), Math.sin(leanR), Math.cos(leanF)]);
     const shC = add(hipC, V3.mul(dir, o.torso));
     J.hipC = hipC; J.shC = shC;
     J.shL = add(shC, rz([0, -o.shoulderHalf, 0], this.twist)); J.shR = add(shC, rz([0, o.shoulderHalf, 0], this.twist));
     J.head = add(shC, V3.mul(V3.norm([dir[0] + o.hunch * .9, dir[1], dir[2]]), o.neck + o.headR));
-    const armLen = o.armUpper + o.armLower;
+    const armLen = o.armUpper + o.armLower, aw = this.armW || 0, sA = this.atkHand === 'L' ? -1 : 1, two = this.atkHand === 'both', fists = !o.weapon || this.stW > .5;
+    // where the striking hand goes, and the weapon's direction, for the current attack angle
+    const aT = this.sidePlane ? add(shC, [Math.cos(this.theta) * this.reach, sA * .8, Math.sin(this.theta) * this.reach]) : add(shC, [Math.cos(this.theta) * this.reach, Math.sin(this.theta) * this.reach, this.atkRel ? this.atkZ : this.atkZ - shC[2]]);
+    const aDir = this.sidePlane ? V3.norm([Math.cos(this.theta), .05, Math.sin(this.theta)]) : V3.norm([Math.cos(this.theta), Math.sin(this.theta), -.12]);
     for (const s of [-1, 1]) {
       const sh = s > 0 ? J.shR : J.shL, q = ph + (s > 0 ? 0 : Math.PI), along = -Math.sin(q) * o.swing * sp;
       let hand = add(sh, [mf * along + .5 * (1 - sp) + o.hunch * 3, s * .9 + mr * along, -armLen * .86 + Math.abs(Math.sin(q)) * 1.2 * sp]);
       hand = V3.lerp(hand, add(sh, [-4.5, s * 1.6, -5]), dash);
-      hand = V3.lerp(hand, add(sh, [-1, s * 2.8, 1.5]), hurt);
+      hand = V3.lerp(hand, add(sh, s > 0 ? [1.4, -.6, .6] : [-1.6, s * 2.2, -3.2]), hurt);   // a flinch: one arm up to shield the face, the other flung back
       if (this.airW > 0) hand = V3.lerp(hand, add(sh, [1.2, s * 2.6, -1.2]), this.airW * .7);
       if (s > 0 && this.pointW > 0) { const aa = this.aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this.pointW); }
-      if (PW.cheer > 0) hand = V3.lerp(hand, add(sh, [.6, s * 1.4, armLen * .88]), PW.cheer);
+      if (PW.cheer > 0) hand = V3.lerp(hand, add(sh, [.6, s * 1.4, armLen * (.74 + .12 * Math.sin(this.t * 9 + (s > 0 ? 0 : .7)))]), PW.cheer);   // fists pump
       if (PW.cast > 0) hand = V3.lerp(hand, add(shC, [armLen * .82, s * 1.3, -1.2]), PW.cast);
-      if (PW.guard > 0) hand = V3.lerp(hand, add(shC, s < 0 ? [3.8, -1, .4] : [2.3, 1.5, -.6]), PW.guard);   // boxer's guard: lead fist out at chin height, face stays visible
-      if (s > 0 && this.atkW > 0 && !this.kicking) hand = V3.lerp(hand, this.sidePlane ? add(shC, [Math.cos(this.theta) * this.reach, .8, Math.sin(this.theta) * this.reach]) : add(shC, [Math.cos(this.theta) * this.reach, Math.sin(this.theta) * this.reach, this.atkZ - shC[2]]), this.atkW);
+      const guardAt = add(shC, s < 0 ? [3.8, -1, .4] : [2.3, 1.5, -.6]);   // boxer's guard: lead fist out at chin height, face stays visible
+      if (PW.guard > 0) hand = V3.lerp(hand, guardAt, PW.guard);
+      if (this.stW > 0) hand = V3.lerp(hand, guardAt, this.stW * (1 - dash));
+      if (this.rdW > 0 && o.weapon) hand = V3.lerp(hand, s > 0 ? add(shC, [2.8, .9, -3]) : add(shC, [2.2, .2, -3.6]), this.rdW * (1 - dash));   // ready: weapon held forward in both hands
+      if (PW.wave > 0 && s === (o.weapon ? -1 : (this._camSide || 1))) { const w = Math.sin(this.t * 11); hand = V3.lerp(hand, add(sh, [.8 + w * 1.7, s * (2 + Math.max(0, w) * 1.4), armLen * .8]), PW.wave); }   // the free hand waves (the camera-side one when both are free)
+      if (PW.hips > 0) hand = V3.lerp(hand, add(s > 0 ? J.hipR : J.hipL, [-.2, s * 1.5, 1.5]), PW.hips);
+      if (PW.block > 0) hand = V3.lerp(hand, add(shC, s > 0 ? [2.6, .6, -2.4] : [2.4, -.2, -3.4]), PW.block);   // block: weapon upright across the body, both hands on it
+      if (cw > 0) hand = V3.lerp(hand, add(sh, [1.7, s * .5, armLen * (.08 + .8 * (.5 + .5 * Math.sin(this.climbP + (s > 0 ? 0 : Math.PI))))]), cw);   // hands on the rails, one reaching high above the head while the other pulls down
+      const wk = this._from && this._windK < 1 ? this._windK : 1, from = wk < 1 ? this._from[s > 0 ? 'R' : 'L'] : null;
+      if (aw > 0 && !this.kicking) {
+        if (s === sA) hand = V3.lerp(hand, from ? V3.lerp(from, aT, wk) : aT, aw);                // the striking hand
+        else if (two) hand = V3.lerp(hand, add(aT, V3.mul(aDir, -1.7)), aw);                      // two-handed grip below it
+        else { const offT = fists ? guardAt : add(shC, [1.6, s * 1.6, -1.6]); hand = V3.lerp(hand, from ? V3.lerp(from, offT, wk) : offT, from ? aw : aw * .85); }   // the other hand guards the chin (fists) or pulls back
+      }
+      if (this.kicking && aw > 0) hand = V3.lerp(hand, add(shC, [1.8, s * 2.2, .6 - (s > 0 ? 1.5 : 0)]), aw * .85);   // arms up for balance during a kick
       const [elbow, h2] = ik3(sh, hand, o.armUpper, o.armLower, [-1, s * .7, -.2]);
       J[s > 0 ? 'elbowR' : 'elbowL'] = elbow; J[s > 0 ? 'handR' : 'handL'] = h2;
     }
-    const wp = o.weapon, rest = V3.norm(wp === 'staff' ? [.3, .15, 1] : wp === 'gun' ? [.8, 0, -.6] : [.55, .35, -.75]), atk = this.sidePlane ? V3.norm([Math.cos(this.theta), .05, Math.sin(this.theta)]) : V3.norm([Math.cos(this.theta), Math.sin(this.theta), -.12]);
-    let bd = V3.lerp(rest, atk, this.kicking ? 0 : this.atkW);
+    const wp = o.weapon, rest = V3.norm(wp === 'staff' ? [.3, .15, 1] : wp === 'gun' ? [.8, 0, -.6] : [.55, .35, -.75]), atk = aDir;
+    let bd = V3.lerp(rest, atk, this.kicking || sA < 0 ? 0 : aw);
+    if (this._from && this._windK < 1 && !this.kicking && sA > 0) bd = V3.lerp(this._from.bd, bd, this._windK);   // the weapon turns from where it was
+    if (PW.cheer > 0) bd = V3.lerp(bd, [.15, .05, 1], PW.cheer);   // raised in triumph, point up
+    if (PW.block > 0) bd = V3.lerp(bd, [.35, -.3, .9], PW.block);   // held upright across the body
+    if (this.rdW > 0) bd = V3.lerp(bd, [.62, .08, .78], this.rdW * (1 - aw));
     if (this.pointW > 0) bd = V3.lerp(bd, [Math.cos(this.aimA || 0), 0, Math.sin(this.aimA || 0)], this.pointW);
     J.bladeDir = V3.norm(bd);
     const dw = this.downW || 0;
+    if (dw > 0) J.bladeDir = V3.norm(V3.lerp(J.bladeDir, [0, .9, -.4], dw));   // a dropped weapon lies flat once the body is down
     if (dw > 0) {   // knocked down: rotate the whole skeleton backward so it lies flat, face up, centred on the rig's position
       const a = dw * Math.PI / 2 * .96, ca = Math.cos(a), sa = Math.sin(a), lift = dw * 1.4, shift = dw * (o.hipZ + o.torso) * .5;
       for (const k in J) { if (k === 'bladeDir') continue; const p = J[k]; J[k] = [p[0] * ca - p[2] * sa + shift, p[1], p[0] * sa + p[2] * ca + lift]; }
@@ -1797,7 +1890,8 @@ class Humanoid {
     const anchor = s => { const J = this.J, sh = s > 0 ? J.shR : J.shL, w = this._w(V3.add(sh, [-1.3, -s * .6, -.6])); return [this.x + w[0], this.y + w[1], this.z + w[2]]; };
     if (!this.capeL) {
       this.capeL = []; this.capeR = [];
-      for (const s of [-1, 1]) { const a = anchor(s), ch = s < 0 ? this.capeL : this.capeR; for (let i = 0; i < N; i++) ch.push({ x: a[0], y: a[1], z: a[2] - i * seg, px: a[0], py: a[1], pz: a[2] - i * seg }); }
+      const bx = -Math.cos(this.facing) * (c.body || 3.4) * sz, by = -Math.sin(this.facing) * (c.body || 3.4) * sz;   // start hanging behind the back, not inside the body
+      for (const s of [-1, 1]) { const a = anchor(s), ch = s < 0 ? this.capeL : this.capeR; for (let i = 0; i < N; i++) { const k = Math.min(1, i / 2); ch.push({ x: a[0] + bx * k, y: a[1] + by * k, z: a[2] - i * seg, px: a[0] + bx * k, py: a[1] + by * k, pz: a[2] - i * seg }); } }
     }
     const damp = Math.pow(.982, dt * 120), dt2 = dt * dt, fx = Math.cos(this.facing), fy = Math.sin(this.facing);
     for (const [ch, s] of [[this.capeL, -1], [this.capeR, 1]]) {
@@ -1821,8 +1915,9 @@ class Humanoid {
       }
       for (const ch of [L, R]) for (let i = 1; i < N; i++) {
         const n = ch[i]; if (n.z < this.z + .4) n.z = this.z + .4; if (n.z > shZ + seg * .6) n.z = shZ + seg * .6;   // never whips up over the head
-        const rx = n.x - this.x, ry = n.y - this.y, d = Math.hypot(rx, ry);
-        if (n.z < shZ + 1 && d < bodyR) { const ux = d > .01 ? rx / d : -fx, uy = d > .01 ? ry / d : -fy; n.x = this.x + ux * bodyR; n.y = this.y + uy * bodyR; }
+        const rx = n.x - this.x, ry = n.y - this.y, d = Math.hypot(rx, ry), fwd = rx * fx + ry * fy;
+        if (n.z < shZ + 1 && fwd > -bodyR * .35) { n.x -= fx * (fwd + bodyR * .35); n.y -= fy * (fwd + bodyR * .35); }   // cloth stays behind the back plane, never across the chest
+        else if (n.z < shZ + 1 && d < bodyR) { const ux = d > .01 ? rx / d : -fx, uy = d > .01 ? ry / d : -fy; n.x = this.x + ux * bodyR; n.y = this.y + uy * bodyR; }
       }
     }
   }
@@ -1830,8 +1925,10 @@ class Humanoid {
   draw(g, ox, oy, view) {
     this._pitch = view.pitchDeg;
     if (this.o.charView !== false) view = charView(view);
+    if (view.id !== 'portrait') this._lastView = view;   // drawSmear projects the trail with the same view
     // cheated 3/4 pose: in side-ish views turn the body partly toward the camera, like hand-drawn sprites
     const st = clamp(1 - view.pitchDeg / 45, 0, 1), camA = Math.atan2(view.fy, view.fx);
+    this._camSide = Math.cos(camA - this.facing - Math.PI / 2) >= 0 ? 1 : -1;   // which hand the camera sees
     this._cheat = st > 0 && this.o.cheat ? clamp(angDiff(this.facing, camA), -this.o.cheat, this.o.cheat) * st : 0;
     if (this.o.style === 'classic') this._drawClassic(g, ox, oy, view); else this._drawHD(g, ox, oy, view);
   }
@@ -1924,11 +2021,11 @@ class Humanoid {
     } });
     // ---- cape: cloth strip with folds ----
     if (this.capeL) {
-      const L = this.capeL, R = this.capeR, x0 = this.x, y0 = this.y, z0 = this.z, ct = tones(C.cape), it = tones(C.capeIn);
+      const L = this.capeL, R = this.capeR, x0 = this.x, y0 = this.y, z0 = this.z, ct = tones(C.cape), it = tones(C.capeIn), capeAway = Math.cos(an - Math.atan2(view.fy, view.fx)) < -.3;
       const PW = n => { const wx = n.x - x0, wy = n.y - y0, wz = n.z - z0; return [ox + vax * wx + vay * wy, oy + vbx * wx + vby * wy + vbz * wz, vdx * wx + vdy * wy + vdz * wz]; };
       for (let i = 0; i < L.length - 1; i++) {
         const q = [PW(L[i]), PW(R[i]), PW(R[i + 1]), PW(L[i + 1])], last = i === L.length - 2;
-        ops.push({ d: (q[0][2] + q[2][2]) / 2 - .6, f: () => {
+        ops.push({ d: capeAway ? (q[0][2] + q[2][2]) / 2 - .6 : Math.min((q[0][2] + q[2][2]) / 2 - .6, dC - .05), f: () => {
           let ar = 0; for (let m = 0; m < 4; m++) { const A = q[m], B = q[(m + 1) % 4]; ar += A[0] * B[1] - B[0] * A[1]; }
           const front = ar > 0, t = front ? ct : it;
           px.poly(g, q, front ? (i % 2 ? t.base : t.lt) : (i % 2 ? t.sh : t.deep));
@@ -1950,7 +2047,7 @@ class Humanoid {
     ops.push({ d: Q.head[2], f: () => {
       // head in layers: hair mass behind, a face set slightly forward, a hair cap with bangs, then eyes, brows and mouth
       const R = o.headR, r = R * u * .93, st = tones(C.skin), ht = tones(C.hair), hs = o.hair.style;
-      const H = Sp(J.head, R * .1, 0, -R * .05), back = Sp(J.head, -R * .42, 0, R * .18), cap = Sp(J.head, -R * .12, 0, R * .6);
+      const H = Sp(J.head, R * .1, 0, -R * .05), back = Sp(J.head, -R * .42, 0, R * .18), cap = Sp(J.head, -R * .2, 0, R * .74);
       const disc2 = (P0, rad, t, far) => { px.disc(g, P0[0], P0[1], rad, far ? t.deep : t.sh); px.disc(g, P0[0] - .6, P0[1] - .6, Math.max(.5, rad - 1), far ? t.sh : t.base); };
       if (o.skeleton) {   // skull: cranium, jaw, dark sockets with glowing eyes, nose hole and teeth
         const bt = tones(C.skin), jaw = Sp(J.head, R * .45, 0, -R * .78), gap = '#1a1018';
@@ -1977,9 +2074,9 @@ class Humanoid {
       if (hs !== 'long' && !o.hood && r > 2) for (const sd of [-1, 1]) { const ear = Sp(J.head, -R * .05, sd * R * .92, -R * .1); if (ear[2] > H[2] - R * .2) { px.disc(g, ear[0], ear[1], Math.max(.6, r * .2), st.sh); } }
       if (!bald) {
         if (!hairBehind) disc2(back, r * .98, ht, false);
-        disc2(cap, r * .74, ht, false);
-        const bangs = o.face && o.face.bangs !== undefined ? o.face.bangs : .7, fringe = Sp(J.head, R * .62, 0, R * .42);   // bangs over the forehead (face.bangs 0..1)
-        if (bangs > 0 && fringe[2] > H[2]) { const fr = r * .5 * bangs; px.disc(g, fringe[0], fringe[1], fr, ht.sh); px.disc(g, fringe[0] - .5, fringe[1] - .5, Math.max(.4, fr - .8), ht.base); }
+        disc2(cap, r * .7, ht, false);   // the cap stops above the eyes; the fringe (bangs) covers the forehead
+        const bangs = o.face && o.face.bangs !== undefined ? o.face.bangs : .7, fringe = Sp(J.head, R * .6, 0, R * .56);   // bangs over the forehead (face.bangs 0..1), clear of the eyes
+        if (bangs > 0 && fringe[2] > H[2]) { const fr = r * .42 * bangs; px.disc(g, fringe[0], fringe[1], fr, ht.sh); px.disc(g, fringe[0] - .5, fringe[1] - .5, Math.max(.4, fr - .8), ht.base); }
         if (hs === 'spiky') for (const [df, dr, dz] of [[-1, 0, .7], [-.6, .7, .75], [-.6, -.7, .75], [-.25, .42, 1.02], [-.25, -.42, 1.02], [-1.1, 0, .05]]) {   // spikes sweep up and back
           const root = Sp(J.head, df * R * .6, dr * R * .6, dz * R * .6), tip = Sp(J.head, df * R * 1.55, dr * R * 1.55, dz * R * 1.55);
           const vx = tip[0] - root[0], vy = tip[1] - root[1], l = Math.hypot(vx, vy) || 1, nx = -vy / l * r * .42, ny = vx / l * r * .42;
@@ -1995,14 +2092,22 @@ class Humanoid {
         const E2 = Sp(J.head, R * .9, sd * R * .36, -R * .02);
         if (E2[2] <= H[2] + .15) continue;
         if (o.eyeGlow) { px.glow(g, 1); px.rect(g, E2[0], E2[1], Math.max(1, ew + (u > 1.6 ? 1 : 0)), Math.max(1, eh - 1), o.eyeGlow); continue; }
-        if (this.blink > 0 && this.hurtW < .5) {
+        if (this.blink > 0 && this.hurtW < .5 && this.expr !== 'wince') {
           const top = E2[1] - eh + 1;
           if (eh >= 2 && u > 1.7) { px.rect(g, E2[0], top, ew, 1, C.eye); px.rect(g, E2[0], top + 1, ew, eh - 1, C.iris || '#3a4a8a'); px.dot(g, E2[0], top + 1, C.eyeWhite || '#ffffff'); }   // lash line, iris, catch-light
           else { px.rect(g, E2[0], top, ew, eh, C.eye); if (u > 1.7) px.dot(g, E2[0] + (ew > 1 ? 1 : 0), top, C.eyeWhite || '#ffffff'); }
         } else px.rect(g, E2[0] - (ew > 1 ? 1 : 0), E2[1], ew + 1, 1, C.eye);
-        if (u > 1.4 && !bald) { const b0 = Sp(J.head, R * .9, sd * R * .22, R * .42), b1 = Sp(J.head, R * .86, sd * R * .52, R * .38); px.line(g, b0[0], b0[1] - 2, b1[0], b1[1] - 2, ht.sh); }   // brows sit clear of the eyes
+        if (u > 2.2 && !bald) { const b0 = Sp(J.head, R * .9, sd * R * .22, R * .42), b1 = Sp(J.head, R * .86, sd * R * .52, R * .38); px.line(g, b0[0], b0[1] - 2, b1[0], b1[1] - 2, ht.sh); }   // brows on bigger heads, clear of the eyes
       }
-      if (u > 1.9) { const m = Sp(J.head, R * .95, 0, -R * .5); if (m[2] > H[2]) px.rect(g, m[0] - (u > 2.6 ? 1 : 0), m[1], u > 2.6 ? 2 : 1, 1, this.hurtW > .3 ? '#6a1a1a' : st.deep); }
+      if (u > 1.9) {   // mouth: expr 'smile' | 'shout' | 'angry' | 'wince', and it moves while the rig talks (Dialog portraits)
+        const m = Sp(J.head, R * .95, 0, -R * .5), ex = this.expr, open = ex === 'shout' || (this._talk && Math.floor(this.t * 9) % 2 === 0), w = u > 2.6 ? 2 : 1;
+        if (m[2] > H[2]) {
+          if (open) px.rect(g, m[0] - (w > 1 ? 1 : 0), m[1] - (ex === 'shout' ? 1 : 0), w + (ex === 'shout' ? 1 : 0), ex === 'shout' ? 3 : 2, '#4a1418');
+          else if (ex === 'smile') { px.rect(g, m[0] - w, m[1], w * 2 + 1, 1, st.deep); px.dot(g, m[0] - w, m[1] - 1, st.deep); px.dot(g, m[0] + w, m[1] - 1, st.deep); }
+          else px.rect(g, m[0] - (w > 1 ? 1 : 0), m[1], w, 1, this.hurtW > .3 || ex === 'wince' ? '#6a1a1a' : st.deep);
+        }
+        if (ex === 'angry' && u > 1.7) for (const sd of [-1, 1]) { const b0 = Sp(J.head, R * .9, sd * R * .15, R * .3), b1 = Sp(J.head, R * .86, sd * R * .55, R * .45); if (b0[2] > H[2]) px.line(g, b0[0], b0[1] - 1, b1[0], b1[1] - 1, ht.deep); }
+      }
     } });
     // ---- arms, hands, shoulder pads ----
     for (const s of [-1, 1]) {
@@ -2142,9 +2247,9 @@ class Humanoid {
   drawSmear(r, colors = ['#ffffff', '#dff8ff', '#8fe0f2', '#4bb1d4']) {
     const T = this.trail;
     if (T.length >= 2) {   // ribbon along the real blade path: correct in side, top-down and every other view
-      const cv = this.o.charView !== false ? charView(r.view) : r.view;   // the same angle the rig is drawn from
-      const W = cv === r.view ? (p, w) => r.w(w[0], w[1], w[2]) : (p, w) => { const s = r.w(p.o[0], p.o[1], p.o[2]), q = cv.p(w[0] - p.o[0], w[1] - p.o[1], w[2] - p.o[2]); return [s[0] + q[0], s[1] + q[1]]; };
       r.queue(this.x, this.y, this.z + 1, g => {
+        const lv = this._lastView, cv = lv && lv.id === r.view.id ? lv : this.o.charView !== false ? charView(r.view) : r.view;   // the angle the rig was drawn from
+        const W = cv === r.view ? (p, w) => r.w(w[0], w[1], w[2]) : (p, w) => { const s = r.w(p.o[0], p.o[1], p.o[2]), q = cv.p(w[0] - p.o[0], w[1] - p.o[1], w[2] - p.o[2]); return [s[0] + q[0], s[1] + q[1]]; };
         px.glow(g, .85);
         const n = T.length - 1, taper = (p, u) => V3.lerp(p.t, p.b, .25 + .75 * u);   // older samples are narrower
         for (let i = 0; i < n; i++) {
@@ -2153,8 +2258,11 @@ class Humanoid {
           px.polyDither(g, pts, colors[u1 > .85 ? 1 : u1 > .55 ? 2 : 3], (.35 + .65 * u1) * f, r.ix, r.iy);
         }
         // hot core: a bright line along the tip path, strongest at the newest end
-        for (let i = Math.max(0, n - 5); i < n; i++) { const [ax, ay] = W(T[i], T[i].t), [bx, by] = W(T[i + 1], T[i + 1].t); px.line(g, ax, ay, bx, by, i >= n - 2 ? colors[0] : colors[1], i >= n - 1 ? 2 : 1); }
-        const last = T[n], [tx, ty] = W(last, last.t); px.dot(g, tx, ty, '#ffffff');
+        const last = T[n];
+        if (last.w >= 1) {   // blades get a hot core line and a glint at the tip while the swing is fresh; fists and feet just the ribbon
+          for (let i = Math.max(0, n - 5); i < n; i++) { const [ax, ay] = W(T[i], T[i].t), [bx, by] = W(T[i + 1], T[i + 1].t); px.line(g, ax, ay, bx, by, i >= n - 2 ? colors[0] : colors[1], i >= n - 1 ? 2 : 1); }
+          if (last.age < .06) { const [tx, ty] = W(last, last.t); px.dot(g, tx, ty, '#ffffff'); }
+        }
       }, { bias: .6, emissive: true });
       return;
     }
@@ -2198,7 +2306,12 @@ E.Humanoid = Humanoid;
  * spec durations are in seconds; the rest of the spec is the Humanoid attack spec.
  */
 class Attack {
-  constructor(spec = {}) { this.spec = Object.assign({ wind: .06, active: .1, recover: .18 }, spec); this.phase = null; this.t = 0; this.hit = new Set(); }
+  /** new E.Attack(spec) or new E.Attack('slash', { reach: 9 }): a name from E.MOVES plus overrides */
+  constructor(spec = {}, over) {
+    if (typeof spec === 'string') { const m = E.MOVES[spec]; if (!m) warn('move:' + spec, 'unknown move "' + spec + '". Moves: ' + Object.keys(E.MOVES).join(', ')); spec = Object.assign({ name: spec, hitAt: .35 }, m || E.MOVES.slash, over); }
+    else if (over) spec = Object.assign({}, spec, over);
+    this.spec = Object.assign({ wind: .06, active: .1, recover: .18 }, spec); this.phase = null; this.t = 0; this.hit = new Set();
+  }
   /** begin a swing if idle (or when canCancel and already recovering). Returns true if it started */
   start(canCancel = false) {
     if (this.phase && !(canCancel && this.phase === 'recover')) return false;
@@ -2223,7 +2336,7 @@ class Attack {
   }
   /** during 'active', call fn(target) once per swing for each target where test(target) is true. Returns how many were hit */
   hits(targets, test, fn) {
-    if (this.phase !== 'active') return 0;
+    if (this.phase !== 'active' || this.u < (this.spec.hitAt || 0)) return 0;   // hitAt: share of the swing before it can connect
     let n = 0;
     for (const t of targets) { if (!t || t.dead || this.hit.has(t) || !test(t)) continue; this.hit.add(t); n++; fn(t); }
     return n;
@@ -2241,7 +2354,7 @@ E.Attack = Attack;
  *   combo.step = index of the current hit (0, 1, 2), combo.current = its Attack
  */
 class Combo {
-  constructor(specs, o = {}) { this.moves = specs.map(sp => sp instanceof Attack ? sp : new Attack(sp)); this.window = o.window === undefined ? .3 : o.window; this.step = -1; this.idle = 99; }
+  constructor(specs, o = {}) { this.moves = specs.map(sp => sp instanceof Attack ? sp : new Attack(sp)); this.window = o.window === undefined ? .3 : o.window; this.step = -1; this.idle = 99; }   // items: specs, Attacks or move names
   get current() { return this.moves[Math.max(0, this.step)]; }
   get busy() { return this.step >= 0 && this.current.busy; }
   get active() { return this.busy && this.current.active; }
@@ -2259,6 +2372,48 @@ class Combo {
   cancel() { if (this.step >= 0) this.current.cancel(); this.step = -1; this.idle = 99; }
 }
 E.Combo = Combo;
+/**
+ * E.MOVES: a library of named attacks with timing and body motion (anticipation, lunge, step, twist, hop).
+ *   new E.Attack('overhead'), new E.Attack('thrust', { reach: 10 }), new E.Combo(['jab', 'cross', 'hook', 'uppercut'])
+ *   rig.update(dt, { ..., attack: E.move('roundhouse', .5) })   // any move at any moment, for previews and cutscenes
+ * The same move works on every build and in every view: heights are relative to the shoulders (rel: true), reaches scale
+ * with arm length, and horizontal swings turn into screen-plane swings in side views. Spec fields: a0 / a1 angles (+ = the
+ * right side, or up in the screen plane), z0 / z1 heights, reach or r0 / r1 (an extending thrust), hand: 'R' | 'L' | 'both',
+ * plane: 'side' (always vertical), kick, spin, lunge, hop, crouch, lean, twist, hold, blade: 0 (no trail), wind / active / recover.
+ */
+E.MOVES = {
+  // blades, staves and clubs (the right hand)
+  slash:      { rel: true, a0: 1.7, a1: -1.7, z0: -6, z1: -9, reach: 7.5, wind: .08, active: .1, recover: .22 },
+  backslash:  { rel: true, a0: -1.5, a1: 1.6, z0: -8, z1: -5, reach: 7.5, wind: .07, active: .1, recover: .2, lunge: .8 },
+  overhead:   { rel: true, plane: 'side', a0: 2.4, a1: -1.25, reach: 7, wind: .16, active: .09, recover: .26, lunge: 2, crouch: .35, lean: .4 },
+  rising:     { rel: true, plane: 'side', a0: -1.35, a1: 2.1, reach: 7, wind: .09, active: .11, recover: .24, hop: 3.5, lunge: .8, crouch: .4 },
+  thrust:     { rel: true, a0: .12, a1: 0, z0: -5, z1: -4, r0: 3, r1: 10, wind: .11, active: .07, recover: .22, lunge: 3, lean: .5 },
+  spin:       { rel: true, a0: 1.3, a1: 1.3, spin: true, z0: -6, z1: -6, reach: 8, wind: .09, active: .3, recover: .18, lunge: 0, lean: .1 },
+  plunge:     { rel: true, plane: 'side', a0: -1.45, a1: -1.5, r0: 5, r1: 9, wind: .06, active: .25, recover: .15, lunge: 0, lean: .1 },
+  twohand:    { rel: true, hand: 'both', plane: 'side', a0: 2.5, a1: -1.4, reach: 6.5, wind: .2, active: .1, recover: .3, lunge: 2.4, crouch: .5, lean: .5 },
+  // fists (jab leads with the left)
+  jab:        { rel: true, hand: 'L', a0: .05, a1: 0, z0: -1, z1: -.5, r0: 3, r1: 8.6, wind: .035, active: .06, recover: .13, lunge: .9, lean: .22, blade: 0 },
+  cross:      { rel: true, a0: .25, a1: 0, z0: -1, z1: -.5, r0: 2.5, r1: 8.8, wind: .06, active: .07, recover: .17, lunge: 1.8, lean: .38, twist: 1.8, blade: 0 },
+  hook:       { rel: true, a0: 1.45, a1: -.4, z0: -.5, z1: 0, reach: 6.8, wind: .08, active: .09, recover: .2, lunge: 1.3, lean: .3, twist: 1.5, blade: 0 },
+  uppercut:   { rel: true, plane: 'side', a0: -1.15, a1: .95, reach: 7.2, wind: .11, active: .09, recover: .26, crouch: .6, hop: 2.5, lunge: 1.2, lean: .2, blade: 0 },
+  haymaker:   { rel: true, a0: 2.1, a1: -.5, z0: 1, z1: -1, reach: 7.8, wind: .22, active: .1, recover: .3, lunge: 2.6, lean: .5, twist: 1.6, blade: 0 },
+  elbow:      { rel: true, a0: .9, a1: -.3, z0: -.5, z1: 0, reach: 3.5, wind: .05, active: .07, recover: .16, lunge: 1, twist: 1.4, blade: 0 },
+  // kicks (the right foot; heights are shares of hip height)
+  kick:       { rel: true, kick: true, a0: .1, a1: 0, z0: .35, z1: .8, reach: 6.5, wind: .07, active: .09, recover: .2 },
+  roundhouse: { rel: true, kick: true, a0: 1.7, a1: -.45, z0: 1, z1: 1.55, reach: 7, wind: .1, active: .13, recover: .24, twist: 1.3, lean: -.3 },
+  sweep:      { rel: true, kick: true, a0: 1.9, a1: -1.7, z0: .08, z1: .08, reach: 7.5, wind: .08, active: .16, recover: .24, crouch: .9, lean: .3 },
+  flyingkick: { rel: true, kick: true, a0: .1, a1: 0, z0: .5, z1: .75, reach: 7.5, wind: .1, active: .22, recover: .24, hop: 7, lunge: 3.5, lean: -.35 },
+  knee:       { rel: true, kick: true, a0: 0, a1: 0, z0: .45, z1: .85, reach: 2, wind: .06, active: .08, recover: .18, lean: .2, lunge: 1 },
+  axekick:    { rel: true, kick: true, a0: .2, a1: 0, z0: 2, z1: .5, reach: 4.8, wind: .14, active: .08, recover: .24, lean: -.2 },
+  // magic, throws and shoves
+  cast:       { rel: true, hand: 'both', plane: 'side', a0: 1.4, a1: .1, reach: 8, wind: .22, active: .12, recover: .32, lunge: .6, lean: .15, blade: 0 },
+  throw:      { rel: true, plane: 'side', a0: 2.5, a1: -.25, reach: 7.5, wind: .16, active: .08, recover: .24, lunge: 1.8, lean: .45, blade: 0 },
+  bash:       { rel: true, hand: 'both', plane: 'side', a0: 1, a1: -.35, reach: 5, wind: .12, active: .07, recover: .24, lunge: 3, hop: 1.2, crouch: .45, lean: .55, blade: 0 },   // a short, heavy shove (pommel, shield or shoulder)
+  claw:       { rel: true, a0: 1.2, a1: -1, z0: 1, z1: -4, reach: 7, wind: .12, active: .08, recover: .24, lunge: 1.8, lean: .4, blade: 0 }
+};
+/** the attack state of any move at a moment, for previews: rig.update(dt, { attack: E.move('uppercut', .4, 'active') }) */
+const _moveSpecs = {};
+E.move = (name, u = .5, phase = 'active') => ({ spec: _moveSpecs[name] || (_moveSpecs[name] = Object.assign({ name, wind: .06, active: .1, recover: .18 }, E.MOVES[name] || E.MOVES.slash)), phase, u });
 /** push a target away from a point (attacker): uses target.push (E.Body) or its vx / vy. up = upward speed (knock into the air) */
 E.knockback = (from, target, speed = 160, up = 0) => {
   const dx = target.x - from.x, dy = (target.y || 0) - (from.y || 0), d = Math.hypot(dx, dy) || 1, ix = dx / d * speed, iy = dy / d * speed;
@@ -2284,7 +2439,7 @@ class Blob {
     this.sqV += (-(this.sq - target) * 320 - 14 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.45, .45);
     if (s.look) { const l = Math.hypot(s.look[0], s.look[1]); if (l > .01) { this.look[0] = lerp(this.look[0], s.look[0] / l, Math.min(1, dt * 8)); this.look[1] = lerp(this.look[1], s.look[1] / l, Math.min(1, dt * 8)); } }
     this.squint = !!s.squint; this.walk = s.walk || 0;
-    this.flap = s.flap === undefined ? 1 : s.flap; this.flapP = (this.flapP || 0) + dt * 14 * this.flap; this.hang = !!s.hang;   // wings: flap speed 0..1 (0 folds them); hang: roost upside down
+    this.flap = approach(this.flap === undefined ? 1 : this.flap, s.flap === undefined ? 1 : s.flap, dt * 6); this.flapP = (this.flapP || 0) + dt * 14 * this.flap; this.hang = !!s.hang;   // wings: flap speed 0..1 (0 folds them); hang: roost upside down
   }
   /**
    * draw(g, ox, oy, view). Creature features from the constructor options:
@@ -2339,8 +2494,8 @@ class Blob {
       if (front) { X = Math.round(cx + lxs * rx * .25 + s * rx * .36); Y = Math.round(cy - ry * .12); }
       else {
         const ea = la + s * .42, e = [Math.cos(ea) * R * a * .82, Math.sin(ea) * R * a * .82, R * b * 1.25];
-        if (view.depth(e[0], e[1], e[2]) < dc - R * .2 && !view.isTop && view.pitchDeg < 70) continue;
-        const [ex, ey] = view.p(e[0], e[1], e[2]); X = Math.round(ox + ex); Y = Math.round(oy + ey);
+        if (view.depth(e[0], e[1], e[2]) < dc && !view.isTop && view.pitchDeg < 70) continue;
+        const [ex, ey] = view.p(e[0], e[1], e[2]); X = Math.round(clamp(ox + ex, cx - rx + 2, cx + rx - 3)); Y = Math.round(clamp(oy + ey, cy - ry + 2, cy + ry - 3));
       }
       shown++; eyeY = Y;
       if (this.squint) { px.rect(g, X - 1, Y, 2, 1, C.pupil); continue; }
@@ -2498,6 +2653,7 @@ class TileMap {
   _floor(view) {
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale;
     if (this.floors[key]) return this.floors[key];
+    if (Object.keys(this.floors).length > 6) this.floors = {};
     const T = this.T, W = this.w * T, H = this.h * T;
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const s = view.p(x, y, 0); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
@@ -3138,7 +3294,7 @@ class Platformer {
   /** push the body (getting hit): dir = -1 / 1 */
   knock(dir, speed = 130, up = 170, stun = .3) { this.vx = dir * speed; this.vz = up; this.stun = stun; this.climbing = false; this.dashing = 0; }
   /** state for Humanoid.update: rig.update(dt, hero.rigState({ attack })) */
-  rigState(extra) { return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: 0, facing: this.facing > 0 ? 0 : Math.PI, air: this.air, hurt: this.stun > 0, dash: this.dashing > 0 }, extra); }
+  rigState(extra) { return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: 0, vz: this.vz, facing: this.facing > 0 ? 0 : Math.PI, air: this.air && !this.climbing, climb: !!this.climbing, hurt: this.stun > 0, dash: this.dashing > 0 }, extra); }
   update(dt, level, ctl = {}, solids) {
     let ix, jumpHeld, jumpPressed, up, down, dashPressed, consume = () => {};
     if (ctl && typeof ctl.move === 'function') {   // an E.Input
@@ -3895,7 +4051,8 @@ class Dialog {
   }
   _dims() {
     const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this.pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
-    return { x: Math.round((W - w) / 2), y: this.place === 'top' ? 12 : this.place === 'middle' ? Math.round((H - h) / 2) : H - h - 6, w, h, lh, tx, P };
+    const pl = this._place || this.place, y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
+    return { x: Math.round((W - w) / 2), y, w, h, lh, tx, P };
   }
   /**
    * open with one string or a list of strings (each starts a new page).
@@ -3904,6 +4061,7 @@ class Dialog {
    */
   say(text, o = {}) {
     this.portrait = o.portrait || null; this.pSize = o.portraitSize || 40; this.pOpts = o.portraitOpts || {};
+    this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
     const d = this._dims(), pages = [];
     for (const t of Array.isArray(text) ? text : [text]) { const L = E.font.wrap(String(t), d.w - d.tx - 5); for (let k = 0; k < L.length; k += this.lines) pages.push(L.slice(k, k + this.lines)); }
     this.pages = pages.length ? pages : [['']]; this.i = 0; this.shown = 0; this.open = true; this.choice = 0;
@@ -3942,11 +4100,11 @@ class Dialog {
     if (!this.open) return;
     r.overlay(g => {
       const d = this._dims(), ui = E.ui;
-      ui.box(g, d.x, d.y, d.w, d.h, { bg: this.bg, border: this.border });
+      ui.box(g, d.x, d.y, d.w, d.h, { bg: this.bg, border: this.border, alpha: this._alpha });
       if (this.portrait) {
         const px0 = d.x + 5, py0 = d.y + Math.round((d.h - d.P) / 2);
         if (typeof this.portrait === 'function') this.portrait(g, px0, py0, d.P);
-        else this.portrait.drawPortrait(g, px0, py0, d.P, Object.assign({ bg: shade(Array.isArray(this.bg) ? this.bg[0] : this.bg, .12), border: this.border, shadow: false }, this.pOpts));
+        else { this.portrait._talk = this.typing; this.portrait.drawPortrait(g, px0, py0, d.P, Object.assign({ bg: shade(Array.isArray(this.bg) ? this.bg[0] : this.bg, .12), border: this.border, shadow: false }, this.pOpts)); this.portrait._talk = false; }   // the mouth moves while the text types
       }
       if (this.name) { const nw = E.font.width(this.name) + 12, nx = d.x + (this.portrait ? d.tx - 6 : 4); ui.box(g, nx, d.y - 12, nw, 14, { bg: this.bg, border: this.border }); E.font.text(g, this.name, nx + 6, d.y - 9, this.nameColor, { outline: false, shadow: '#05040a' }); }
       let left = Math.floor(this.shown);

@@ -12,7 +12,8 @@ const qs = new URLSearchParams(location.search);
 
 /* ---------- setup ---------- */
 const canvas = document.getElementById('screen');
-const game = new E.Game({ canvas, view: qs.get('view') || CFG.view || 'iso', minH: 200, maxW: 540, bg: '#06050b' });
+const hashView = location.hash.slice(1), startView = qs.get('view') || (E.VIEWS[hashView] ? hashView : null) || CFG.view || 'iso';   // arena.html#threequarter
+const game = new E.Game({ canvas, view: startView, minH: 200, maxW: 540, bg: '#06050b' });
 const P = game.particles;
 game.lights.enabled = true;
 game.lights.ambient = .1;
@@ -70,10 +71,12 @@ function collideWorld(a) { map.collide(a); for (const b of braziers) pushFromCir
 
 /* ---------- hero ---------- */
 const SPEED = 78;
+// a three-hit combo from the engine's move library: each move winds up, strikes with a step and a lean, follows through
+// and settles back. range / half / dmg / kb / push are this game's own fields (push = forward speed as the strike starts)
 const SWINGS = [
-  { a0: 1.75, a1: -1.95, z0: 13, z1: 10, reach: 7.5, wind: .07, active: .1, recover: .2, range: 27, half: 1.35, dmg: 12, kb: 130, lunge: 70 },
-  { a0: -1.9, a1: 1.8, z0: 10, z1: 12, reach: 7.5, wind: .07, active: .1, recover: .2, range: 27, half: 1.35, dmg: 12, kb: 130, lunge: 70 },
-  { a0: 1.3, a1: 1.3, spin: true, z0: 11, z1: 11, reach: 8, wind: .12, active: .24, recover: .3, range: 31, half: Math.PI, dmg: 22, kb: 230, lunge: 40 }
+  Object.assign({}, E.MOVES.slash, { range: 27, half: 1.35, dmg: 12, kb: 130, push: 70 }),
+  Object.assign({}, E.MOVES.backslash, { range: 27, half: 1.35, dmg: 12, kb: 130, push: 70 }),
+  Object.assign({}, E.MOVES.spin, { wind: .12, active: .24, recover: .3, range: 31, half: Math.PI, dmg: 22, kb: 230, push: 40 })
 ];
 const hero = {
   x: CX, y: CY + 40, z: 0, vx: 0, vy: 0, r: 4.5, facing: -Math.PI / 2, aim: undefined, hp: 100, max: 100,
@@ -122,7 +125,7 @@ function updateHero(dt) {
     const A = h.atk, sp = A.spec; A.t += dt;
     if (A.phase === 'wind' && A.t >= sp.wind) {
       A.phase = 'active'; A.t -= sp.wind;
-      h.vx += Math.cos(h.facing) * sp.lunge; h.vy += Math.sin(h.facing) * sp.lunge;
+      h.vx += Math.cos(h.facing) * sp.push; h.vy += Math.sin(h.facing) * sp.push;
       if (sp.spin) P.ring(h.x, h.y, 6, 30, '#dff8ff', .3);
     } else if (A.phase === 'active') { swingHits(); if (A.t >= sp.active) { A.phase = 'recover'; A.t -= sp.active; } }
     else if (A.phase === 'recover' && A.t >= sp.recover) { h.lastN = A.n; h.comboT = .3; h.atk = null; }

@@ -113,11 +113,20 @@ summary{cursor:pointer;color:var(--muted)}
       </div>
       <label class="field" for="mix"><span>Mix</span></label>
       <select id="mix">
-        <option value="balanced">Balanced (half husks)</option>
-        <option value="husks">Husks only (full skeletons, heaviest)</option>
+        <option value="balanced">Balanced (half humanoids)</option>
+        <option value="humanoids">Humanoids only (heaviest)</option>
         <option value="slimes">Slimes only (lightest)</option>
         <option value="wisps">Wisps only (glowing orbs)</option>
       </select>
+      <label class="field" for="skin"><span>Humanoid rig</span></label>
+      <select id="skin">
+        <option value="classic">Classic stick husks (cheapest)</option>
+        <option value="hd">HD husks</option>
+        <option value="skeleton">HD skeletons with swords</option>
+        <option value="knight">HD knights in armor (heaviest)</option>
+        <option value="mixed">HD mix: husks, skeletons, knights</option>
+      </select>
+      <p class="note">Drawing time per humanoid with outlines off: sticks 1×, skeletons 2×, HD husks 3×, knights 4× (outlines narrow the gap). Slimes grow horns, ears or wings.</p>
       <label class="field" for="behavior"><span>Behavior</span></label>
       <select id="behavior">
         <option value="swarm">Swarm the hero</option>
@@ -125,19 +134,19 @@ summary{cursor:pointer;color:var(--muted)}
         <option value="hold">Stand in place</option>
         <option value="freeze">Freeze (measures drawing only)</option>
       </select>
+      <p class="note">Swarming monsters take turns: up to three attack at once, each after a wind-up with a red warning arc. Kills stay down until the whole wave is cleared. Then the hero cheers and the wave returns.</p>
     </section>
 
     <section>
-      <h2>Scene</h2>
+      <h2>Camera</h2>
       <label class="field" for="distance"><span>Camera distance</span><output id="distanceOut">1×</output></label>
       <input type="range" id="distance" min="1" max="6" step=".25" value="1">
       <p class="note">Pulls back by rendering more pixels at the same pixel size, so more of the hall and more monsters are on screen.</p>
-      <label class="field" for="lights"><span>Torches</span><output id="lightsOut">12</output></label>
-      <input type="range" id="lights" min="0" max="30" step="1" value="12">
-      <label class="field" for="rate"><span>Particle storm</span><output id="rateOut">0/s</output></label>
-      <input type="range" id="rate" min="0" max="3000" step="50" value="0">
-      <label class="field" for="pcap"><span>Particle cap</span><output id="pcapOut">2,000</output></label>
-      <input type="range" id="pcap" min="900" max="10000" step="100" value="2000">
+      <label class="field"><span>Zoom <kbd>-</kbd> <kbd>=</kbd></span><output id="zoomOut">1×</output></label>
+      <div class="btnrow" role="group" aria-label="Zoom"><button type="button" data-zoom="-1">Zoom out</button><button type="button" data-zoom="1">Zoom in</button></div>
+      <label class="field"><span>Turn <kbd>[</kbd> <kbd>]</kbd></span><output id="turnOut">0°</output></label>
+      <div class="btnrow" role="group" aria-label="Turn"><button type="button" data-turn="-45">Turn left</button><button type="button" data-turn="45">Turn right</button><button type="button" id="camReset">Reset <kbd>0</kbd></button></div>
+      <p class="note">Zoom redraws everything larger or smaller at the same resolution: zooming out fits more monsters on screen without adding pixels. Each new turn angle bakes the floor once.</p>
       <label class="field"><span>View</span></label>
       <div class="views" role="group" aria-label="Camera view">
         <button type="button" data-view="iso">Isometric</button>
@@ -148,12 +157,22 @@ summary{cursor:pointer;color:var(--muted)}
     </section>
 
     <section>
+      <h2>Scene</h2>
+      <label class="field" for="lights"><span>Torches</span><output id="lightsOut">12</output></label>
+      <input type="range" id="lights" min="0" max="30" step="1" value="12">
+      <label class="field" for="rate"><span>Particle storm</span><output id="rateOut">0/s</output></label>
+      <input type="range" id="rate" min="0" max="3000" step="50" value="0">
+      <label class="field" for="pcap"><span>Particle cap</span><output id="pcapOut">2,000</output></label>
+      <input type="range" id="pcap" min="900" max="10000" step="100" value="2000">
+    </section>
+
+    <section>
       <h2>Rendering</h2>
       <label class="check" id="gpuLabel"><input type="checkbox" id="gpuOn"><span>GPU lighting <kbd>G</kbd><small>WebGPU shadows, glow and heat shimmer</small></span></label>
       <label class="check"><input type="checkbox" id="shadows"><span>GPU shadows<small>Every torch marches shadows through the level</small></span></label>
       <label class="check"><input type="checkbox" id="canvasLight"><span>Canvas lighting<small>Used when GPU lighting is off</small></span></label>
       <label class="check"><input type="checkbox" id="outlines"><span>Outlines and rim light<small>Off draws monsters directly, skipping per-character compositing</small></span></label>
-      <label class="check"><input type="checkbox" id="capes"><span>Monster capes<small>Adds a cloth simulation to every husk</small></span></label>
+      <label class="check"><input type="checkbox" id="capes"><span>Monster capes<small>Adds a cloth simulation to every humanoid</small></span></label>
       <label class="check"><input type="checkbox" id="mlights"><span>Monster lights<small>Visible wisps become light sources (up to 16)</small></span></label>
       <label class="check"><input type="checkbox" id="lod"><span>Skip off-screen animation<small>Monsters outside the view still move but don't pose</small></span></label>
       <label class="check"><input type="checkbox" id="god"><span>Invincible hero</span></label>
@@ -202,7 +221,7 @@ summary{cursor:pointer;color:var(--muted)}
     <details><summary>This device</summary><p id="hw">Detecting...</p></details>
   </div>
 
-  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes, <b>E</b> throws, <b>Space</b> dashes. <b>V</b> cycles the view, <b>G</b> toggles GPU lighting, <b>R</b> shows skeletons, <b>H</b> hides the panel.</p>
+  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>G</b> toggles GPU lighting, <b>R</b> shows skeletons, <b>H</b> hides the panel.</p>
   <div class="touch" aria-hidden="true"><button data-act="dash">Dash</button><button data-act="skill">Ember</button><button data-act="attack">Slash</button></div>
 </div>
 <!-- @inline engine/my-3d2dge.js -->

@@ -4,6 +4,10 @@
  * particle storms, a pull-back camera that multiplies the pixel count, and toggles
  * for every expensive feature. Live metrics show where each frame's time goes, and
  * the benchmark ramps the crowd up step by step to rate this device.
+ * The crowd also shows off the animation kit: monsters take turns (a few attack tokens), walk in
+ * to contact distance, fight with their own moves from E.MOVES behind a telegraphed wind-up,
+ * flinch when hit and fall down when killed; slimes pounce and wisps pop. The hero chains slash,
+ * backslash and spin, thrusts out of a dash, flinches when struck and cheers each cleared wave.
  * ============================================================================= */
 (() => {
 'use strict';
@@ -17,7 +21,7 @@ const game = new E.Game(Object.assign({ canvas, view: qs.get('view') || 'iso', b
 const P = game.particles;
 game.lights.enabled = true; game.lights.ambient = .12;
 
-const S = { monsters: 0, mix: 'balanced', behavior: 'swarm', lights: 12, rate: 0, pcap: 2000, distance: 1, god: true, outlines: true, capes: false, lod: false, monsterLights: false };
+const S = { monsters: 0, mix: 'balanced', skin: 'hd', behavior: 'swarm', lights: 12, rate: 0, pcap: 2000, distance: 1, god: true, outlines: true, capes: false, lod: false, monsterLights: false };
 
 /* ---------- map: a large hall with a grid of pillars ---------- */
 const MW = 64, MH = 44, T = 16, CX = MW * T / 2, CY = MH * T / 2;
@@ -82,57 +86,98 @@ function pushFromCircle(a, b, rad) { const dx = a.x - b.x, dy = a.y - b.y, d = M
 function collideWorld(a) { map.collide(a); for (let i = 0; i < S.lights; i++) pushFromCircle(a, TORCHES[i], TORCHES[i].r); }
 
 /* ---------- hero ---------- */
+// The hero's own moveset from E.MOVES: clicks chain slash > backslash > spin (E.Combo), and attacking during a
+// dash is a lunging thrust. HIT gives each move its hit cone (range, half angle), damage, knockback and push (forward speed as the strike starts;
+// the rig's own lunge, step and lean come from the move itself).
 const SPEED = 80;
-const SWINGS = [
-  { a0: 1.75, a1: -1.95, z0: 13, z1: 10, reach: 7.5, wind: .07, active: .1, recover: .2, range: 27, half: 1.35, dmg: 12, kb: 130, lunge: 70 },
-  { a0: -1.9, a1: 1.8, z0: 10, z1: 12, reach: 7.5, wind: .07, active: .1, recover: .2, range: 27, half: 1.35, dmg: 12, kb: 130, lunge: 70 },
-  { a0: 1.3, a1: 1.3, spin: true, z0: 11, z1: 11, reach: 8, wind: .12, active: .24, recover: .3, range: 34, half: Math.PI, dmg: 22, kb: 230, lunge: 40 }
-];
+const HIT = {
+  slash: { range: 27, half: 1.35, dmg: 12, kb: 130, push: 70 },
+  backslash: { range: 27, half: 1.35, dmg: 12, kb: 130, push: 70 },
+  spin: { range: 34, half: Math.PI, dmg: 22, kb: 230, push: 40, big: true },
+  thrust: { range: 38, half: .45, dmg: 20, kb: 220, push: 130, big: true }
+};
+const CAPE = { len: 6, width: 5, seg: 2.5 };
 const hero = {
   x: CX, y: CY + 40, z: 0, vx: 0, vy: 0, r: 4.5, facing: -Math.PI / 2, aim: undefined, hp: 100, max: 100, inv: 0, hurtT: 0, flash: 0,
-  dashT: 0, dashCD: 0, dashDir: 0, boltCD: 0, atk: null, lastN: -1, comboT: 0, dead: false, deadT: 0, lastGhost: 0,
-  rig: new E.Humanoid({ cape: { len: 6, width: 5, seg: 2.5 }, colors: { cloth: '#2f8f86', cape: '#c8452f', capeIn: '#7a2622', hair: '#2e2230' } })
+  dashT: 0, dashCD: 0, dashDir: 0, boltCD: 0, castT: 0, cheer: 0, dead: false, deadT: 0, lastGhost: 0,
+  // the backslash ends out to the side (not tip-down in front of the legs), the spin sweeps at the waist so the face stays clear
+  combo: new E.Combo(['slash', new E.Attack('backslash', { a1: 2.2, z1: -3 }), new E.Attack('spin', { z0: -12, z1: -12 })], { window: .3 }),
+  thrust: new E.Attack('thrust', { reach: 10 }),
+  rig: new E.Humanoid({ cape: CAPE, colors: { cloth: '#2f8f86', cape: '#c8452f', capeIn: '#7a2622', hair: '#2e2230' } })
 };
-const phaseDur = A => A.phase === 'wind' ? A.spec.wind : A.phase === 'active' ? A.spec.active : A.spec.recover;
+let wave = 0;
 function updateHero(dt) {
   const h = hero, inp = game.input, view = game.view;
-  h.inv -= dt; h.hurtT -= dt; h.dashCD -= dt; h.boltCD -= dt; h.comboT -= dt; h.flash -= dt;
-  if (h.dead) { h.deadT += dt; if (h.deadT > 2) Object.assign(h, { dead: false, hp: h.max, inv: 1.5, x: CX, y: CY + 40, vx: 0, vy: 0 }); return; }
-  const mv = inp.move(), md = view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
+  h.inv -= dt; h.hurtT -= dt; h.dashCD -= dt; h.boltCD -= dt; h.flash -= dt; h.castT -= dt; h.z = 0;
+  if (h.cheer > 0 && (h.cheer -= dt) <= 0) setMonsters(S.monsters);   // the next wave marches in after the cheer
+  if (h.dead) {   // he topples ('die'), fades, and gets up again in the middle of the hall
+    h.deadT += dt; h.rig.update(dt, { x: h.x, y: h.y, facing: h.facing, pose: 'die' });
+    if (h.deadT > 2) Object.assign(h, { dead: false, hp: h.max, inv: 1.5, x: CX, y: CY + 40, vx: 0, vy: 0 });
+    return;
+  }
+  const free = h.cheer <= 0, mv = free ? inp.move() : [0, 0], md = view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
   let aimA = null;
   if (inp.aimSource === 'mouse') { const m = game.mouseGround(); if (m && Math.hypot(m[0] - h.x, m[1] - h.y) > 3) aimA = Math.atan2(m[1] - h.y, m[0] - h.x); }
   else if (inp.aimSource === 'pad' && inp.padAim) { const d = view.screenDirToGround(inp.padAim[0], inp.padAim[1]); aimA = Math.atan2(d[1], d[0]); }
   if (aimA === null && mlen > .1) aimA = Math.atan2(md[1], md[0]);
   if (aimA !== null) h.aim = aimA;
-  if (inp.buffered('dash', .12) && h.dashCD <= 0 && h.dashT <= 0) {
+  if (free && inp.buffered('dash', .12) && h.dashCD <= 0 && h.dashT <= 0) {
     inp.consume('dash'); const a = mlen > .1 ? Math.atan2(md[1], md[0]) : h.facing;
-    Object.assign(h, { dashDir: a, dashT: .2, dashCD: .45, atk: null, facing: a }); h.inv = Math.max(h.inv, .24);
+    Object.assign(h, { dashDir: a, dashT: .2, dashCD: .45, facing: a }); h.inv = Math.max(h.inv, .24); h.combo.cancel(); h.thrust.cancel();
     P.dust(h.x, h.y, 0, 6, { speed: 40 }); P.ring(h.x, h.y, 3, 14, '#bff6ff', .25); h.rig.kick(-3);
   }
+  // attack: out of a dash it is the thrust (keeping the dash direction), otherwise the next hit of the combo
+  if (free && inp.buffered('attack', .18)) {
+    const dashing = h.dashT > 0;
+    if (dashing ? h.thrust.start() : !h.thrust.busy && h.combo.press()) {
+      inp.consume('attack'); h.dashT = 0;
+      if (!dashing && h.aim !== undefined) h.facing = h.aim;
+    }
+  }
+  const A = h.thrust.busy ? h.thrust : h.combo;
   if (h.dashT > 0) { h.dashT -= dt; const u = 1 - h.dashT / .2, sp = 260 * (1 - .5 * u * u); h.vx = Math.cos(h.dashDir) * sp; h.vy = Math.sin(h.dashDir) * sp; }
-  else { const slow = h.atk ? .25 : 1, acc = 900 * dt; h.vx = approach(h.vx, md[0] * SPEED * slow, acc); h.vy = approach(h.vy, md[1] * SPEED * slow, acc); }
-  if (inp.buffered('attack', .18) && h.dashT <= 0 && (!h.atk || (h.atk.phase === 'recover' && h.atk.t > .04))) {
-    inp.consume('attack');
-    const n = h.atk ? (h.atk.n + 1) % 3 : (h.comboT > 0 ? (h.lastN + 1) % 3 : 0);
-    h.atk = { n, spec: SWINGS[n], phase: 'wind', t: 0, hit: new Set() }; if (h.aim !== undefined) h.facing = h.aim;
-  }
-  if (h.atk) {
-    const A = h.atk, sp = A.spec; A.t += dt;
-    if (A.phase === 'wind' && A.t >= sp.wind) { A.phase = 'active'; A.t -= sp.wind; h.vx += Math.cos(h.facing) * sp.lunge; h.vy += Math.sin(h.facing) * sp.lunge; }
-    else if (A.phase === 'active') { swingHits(); if (A.t >= sp.active) { A.phase = 'recover'; A.t -= sp.active; } }
-    else if (A.phase === 'recover' && A.t >= sp.recover) { h.lastN = A.n; h.comboT = .3; h.atk = null; }
-  }
-  if (inp.buffered('skill', .15) && h.boltCD <= 0) { inp.consume('skill'); fireBolt(); h.boltCD = .3; }
-  if (!h.atk && h.dashT <= 0 && h.aim !== undefined) h.facing = E.approachAng(h.facing, h.aim, dt * 16);
+  else { const slow = A.busy ? .25 : 1, acc = 900 * dt; h.vx = approach(h.vx, md[0] * SPEED * slow, acc); h.vy = approach(h.vy, md[1] * SPEED * slow, acc); }
+  // the move plays out: the body lunges on the strike, and each monster in the cone is hit once per swing
+  const began = A.update(dt), st = A.state, hit = st && HIT[st.spec.name];
+  if (began === 'active') { h.vx += Math.cos(h.facing) * hit.push; h.vy += Math.sin(h.facing) * hit.push; }
+  if (hit) A.hits(near(h.x, h.y, 4), e => e.alive && e.spawnT <= 0 && E.inArc(h, h.facing, e, hit.range, hit.half),
+    e => damageEnemy(e, hit.dmg, Math.atan2(e.y - h.y, e.x - h.x), hit.kb, hit.big));
+  if (free && inp.buffered('skill', .15) && h.boltCD <= 0) { inp.consume('skill'); fireBolt(); h.boltCD = .3; h.castT = .18; }
+  // victory (1.6 s): turn to the camera in the guard, cheer (fists pump, sword point up) with little hops, and for the last
+  // .4 s drop back into the guard while turning back to the aim, so no pose change and turn happen at once
+  const cheering = h.cheer > .4 && h.cheer < 1.35;
+  if (cheering) h.z = Math.abs(Math.sin(h.cheer * 4.5)) * 2.5;
+  if (!free) h.facing = E.approachAng(h.facing, h.cheer > .4 ? Math.atan2(view.fy, view.fx) : h.aim ?? h.facing, dt * 8);
+  else if (!A.busy && h.hurtT > 0) h.facing = E.approachAng(h.facing, h.hitA, dt * 30);   // flinch: a quick turn toward the hit
+  else if (!A.busy && h.dashT <= 0 && h.aim !== undefined) h.facing = E.approachAng(h.facing, h.aim, dt * 16);
   h.x += h.vx * dt; h.y += h.vy * dt; collideWorld(h);
-  h.rig.update(dt, { x: h.x, y: h.y, z: 0, vx: h.vx, vy: h.vy, facing: h.facing, dash: h.dashT > 0, hurt: h.hurtT > 0,
-    attack: h.atk ? { spec: h.atk.spec, phase: h.atk.phase, u: clamp(h.atk.t / phaseDur(h.atk), 0, 1) } : null });
+  h.rig.update(dt, { x: h.x, y: h.y, z: h.z, vx: h.vx, vy: h.vy, facing: h.facing, dash: h.dashT > 0, hurt: h.hurtT > 0 && !A.busy, attack: A.state,
+    pose: cheering ? 'cheer' : !free ? 'guard' : h.castT > 0 ? 'cast' : null, expr: h.hurtT > 0 ? 'wince' : cheering ? 'shout' : null });
+  if (h.dashT <= 0 && !(A.active && A.state.u < .6)) settleCape(h.rig, dt, h.hurtT > 0 ? 1 : clamp(1 - Math.hypot(h.vx, h.vy) / 60, 0, 1));
 }
+// The cape is verlet cloth (x, y, z and the previous px, py, pz). The engine keeps it behind the back and under the shoulders,
+// but after a spin, a lunge or a knockback it keeps its swing and floats out like a flag for a moment. So once the strike
+// has mostly played out, while the body is slow or staggered (w 0..1), the cloth is drawn toward its hanging shape (straight
+// down, a little behind the shoulders) and loses its swing; walking and dashing leave it to trail freely.
+function settleCape(rig, dt, w) {
+  const k = Math.min(1, dt * 16 * w), fx = Math.cos(rig.facing), fy = Math.sin(rig.facing);
+  for (const ch of [rig.capeL, rig.capeR]) ch.forEach((n, i) => {
+    n.x = lerp(n.x, ch[0].x - fx * i * .5, k); n.y = lerp(n.y, ch[0].y - fy * i * .5, k); n.z = lerp(n.z, ch[0].z - i * CAPE.seg, k);
+    n.px = lerp(n.px, n.x, k); n.py = lerp(n.py, n.y, k); n.pz = lerp(n.pz, n.z, k);
+  });
+}
+// Every hit shows on the hero: a flash, a wince and a stagger. Invincible (the default) skips the damage and keeps the
+// combo going; otherwise the hit costs health, cancels the swing and knocks him back further. Returns whether it landed.
 function hurtHero(dmg, ang) {
-  const h = hero; if (S.god || h.inv > 0 || h.dead) return;
-  h.hp -= dmg; h.inv = .8; h.hurtT = .25; h.flash = .12; h.atk = null; h.vx += Math.cos(ang) * 170; h.vy += Math.sin(ang) * 170;
-  game.freeze(.05); game.shake(3); P.text(h.x, h.y, 30, '-' + dmg, '#ff7a6a');
+  const h = hero; if (h.inv > 0 || h.dead) return false;
+  h.inv = S.god ? .25 : .8; h.hurtT = .22; h.flash = .05; const kb = S.god ? 110 : 170;   // even invincible, a hit staggers him back
+  h.hitA = ang + Math.PI;   // he turns to face the hit, so the hurt pose recoils away from it
+  h.vx += Math.cos(ang) * kb; h.vy += Math.sin(ang) * kb;
+  game.freeze(.05); game.shake(3); P.sparks(h.x, h.y, 12, 6, ang + Math.PI);
+  if (S.god) return true;
+  h.hp -= dmg; h.combo.cancel(); h.thrust.cancel(); P.text(h.x, h.y, 30, '-' + dmg, '#ff7a6a');
   if (h.hp <= 0) { h.hp = 0; h.dead = true; h.deadT = 0; P.bits(h.x, h.y, 8, 20, ['#2f8f86', '#c8452f', '#f1c7a0']); }
+  return true;
 }
 
 /* ---------- projectiles ---------- */
@@ -152,31 +197,77 @@ function updateShots(dt) {
 }
 
 /* ---------- monsters ---------- */
-const enemies = [];
-const HUSK = { wind: .45, active: .14, recover: .5 };
-const HUSK_SWING = { a0: 1.5, a1: -.8, z0: 16, z1: 7, reach: 6.5, blade: 0 };
+const enemies = [], corpses = [];   // the living crowd, and the fallen until they fade
 const MONSTER_CAPE = { len: 5, width: 4, seg: 2.3 };
 const HUSK_COLORS = [
   { skin: '#8fa38a', hair: '#3a3f38', cloth: '#5b4a3c', pants: '#3d3530', boot: '#2c2622', belt: '#7a6a4a', cape: '#4a3a5a', capeIn: '#2c2236' },
   { skin: '#9a9a7a', hair: '#403a30', cloth: '#4a5a4c', pants: '#35302c', boot: '#2a2420', belt: '#6a5a3a', cape: '#5a3a30', capeIn: '#32201a' },
   { skin: '#7f9a9a', hair: '#303a3f', cloth: '#5a4a5a', pants: '#302a36', boot: '#221e26', belt: '#6a6a7a', cape: '#3a4a5a', capeIn: '#202a36' }
 ];
-function makeHusk(x, y) {
-  const c = HUSK_COLORS[(Math.random() * 3) | 0];
-  return { type: 'husk', x, y, z: 0, vx: 0, vy: 0, r: 5, hp: 32, max: 32, facing: Math.random() * TAU, state: 'move', t: 0, stun: 0, flash: 0, spawnT: .6, alive: true, head: 30,
-    speed: 28 + Math.random() * 12,
-    rig: new E.Humanoid({ weapon: null, hunch: .4, lean: .18, stride: 5, swing: 2.5, speedRef: 40, armLower: 5.6, headR: 3.2, eyeGlow: '#ff6a3d', colors: c, cape: S.capes ? MONSTER_CAPE : null }) };
+const BONE_COLORS = [
+  { bone: '#d8cfb4', cloth: '#2c2434', belt: '#5a4a38', metal: '#b3b8c0', metalDk: '#636872', hilt: '#6a5038', cape: '#3a3040', capeIn: '#1e1826' },
+  { bone: '#c2c7ae', cloth: '#26303a', belt: '#4a4034', metal: '#8f9a96', metalDk: '#525a58', hilt: '#5a4430', cape: '#2a3a3a', capeIn: '#161e20' }
+];
+const KNIGHT_COLORS = ['#7a2e34', '#2e4a78', '#3f5a3a'].map(tabard => ({ cloth: tabard, pants: '#34303c', boot: '#2a2630', belt: '#6a5030', trim: '#d0a85a',
+  metal: '#b9c1cf', metalDk: '#687488', skin: '#d6a58a', hair: '#3a2a22', cape: E.shade(tabard, -.2), capeIn: E.shade(tabard, -.45) }));
+// Humanoid skins for the walking monsters. One AI drives them all; each skin has its own look, stats and moves from
+// E.MOVES. 'classic' draws stick figures, the cheapest rig for huge crowds; the rest are HD rigs (the default style).
+const HUSK = { weapon: null, hunch: .4, lean: .18, stride: 5, swing: 2.5, speedRef: 40, armLower: 5.6, headR: 3.2, eyeGlow: '#ff6a3d' };
+const SKINS = {
+  classic: { rig: Object.assign({ style: 'classic' }, HUSK), colors: HUSK_COLORS, moves: ['claw', 'haymaker'], hp: 32, speed: 28, dmg: 10 },
+  hd: { rig: HUSK, colors: HUSK_COLORS, moves: ['claw', 'haymaker', 'hook'], hp: 32, speed: 28, dmg: 10 },
+  skeleton: { rig: { build: 'skeleton', bladeLen: 9 }, colors: BONE_COLORS, moves: ['slash', 'overhead', 'thrust'], hp: 24, speed: 34, dmg: 10 },
+  knight: { rig: { build: 'bulky', armor: true, sleeves: 'long', hat: { style: 'helmet', color: '#737c90' }, speedRef: 45 }, colors: KNIGHT_COLORS,
+    moves: ['overhead', 'bash', 'thrust'], hp: 56, speed: 22, dmg: 14, r: 6, stance: 'ready' }
+};
+// The monsters' takes on E.MOVES, so each ends in its own silhouette at game size: the claw rakes down in front, the hook
+// wraps sideways across the body, the bash drops the shoulder and shoves in with a hop (a knight keeps his blade up: a pommel
+// shove), the haymaker overbalances and the slash cocks the blade up over the shoulder while the torso winds. The overhead's
+// angles sit a full turn back, so its wind-up swings the blade down past the leg and up over the shoulder instead of through
+// the line to the target.
+const MOVE = {
+  claw: { plane: 'side', a0: 1.5, a1: -1.2, reach: 7, crouch: .5, lean: .45, hold: .45 },
+  slash: { a0: 2.1, z0: 1, twist: 1.8, crouch: .4 },
+  hook: { a1: -1, reach: 6.6, lunge: .8, lean: .1, twist: 2.4, hold: .12 },
+  haymaker: { hold: .55 },
+  bash: { reach: 6, hop: 1.8, lean: .6, crouch: .5 },
+  overhead: { a0: 2.4 - TAU, a1: -1.25 - TAU, twist: 0 }
+};
+// Monsters telegraph: twice the hero's wind-up (a red arc grows on the floor meanwhile) and a longer recovery. Each move is
+// measured once on a spare rig: its reach (fist or blade tip at full stretch) and how far the head travels forward (lunge and
+// lean). Its contact distance k.stand lets the strike meet the hero's body while the heads and bodies stay apart.
+const strikePt = (rig, spec) => rig.o.weapon && spec.blade !== 0 ? rig.tip() : rig.hand();   // where a move connects
+for (const k of Object.values(SKINS)) {
+  k.specs = k.moves.map(m => { const sp = new E.Attack(m, MOVE[m]).spec; return Object.assign(sp, { wind: Math.max(.34, sp.wind * 2), recover: sp.recover + .12 }); });
+  k.reach = []; k.stand = k.specs.map(spec => {
+    const rig = new E.Humanoid(k.rig); let far = 0, head = 0;
+    for (let u = 0; u <= 1; u += .1) {
+      rig.update(1, { x: 0, y: 0, stance: k.stance, attack: { spec, phase: 'active', u } });
+      far = Math.max(far, strikePt(rig, spec)[0]); head = Math.max(head, rig.head()[0]);
+    }
+    k.reach.push(far);
+    return Math.max(far + hero.r - 1.5, head + 8.5);
+  });
 }
+function makeWalker(x, y) {
+  const k = SKINS[S.skin === 'mixed' ? E.pick(['hd', 'skeleton', 'knight']) : S.skin];
+  return { type: 'walker', kind: k, x, y, z: 0, vx: 0, vy: 0, r: k.r || 5, hp: k.hp, max: k.hp, facing: Math.random() * TAU, atk: null, cool: Math.random(),
+    stun: 0, flash: 0, spawnT: .6, alive: true, head: 30, speed: k.speed + Math.random() * 12, next: (Math.random() * k.specs.length) | 0, ph: Math.random() * TAU,
+    rig: new E.Humanoid(Object.assign({ colors: E.pick(k.colors), cape: S.capes ? MONSTER_CAPE : null }, k.rig)) };
+}
+// Blob parts turn one slime into a small bestiary: plain, horned, cat-eared and bat-winged (the wings open in the air)
+const SLIME_PARTS = [{}, {}, { horns: true }, { ears: 'cat' }, { wings: true }];
 function makeSlime(x, y) {
-  return { type: 'slime', x, y, z: 0, vx: 0, vy: 0, vz: 0, r: 6, hp: 20, max: 20, state: 'idle', t: Math.random(), stun: 0, flash: 0, spawnT: .6, alive: true, head: 16, blob: new E.Blob({ R: 6.2 }) };
+  return { type: 'slime', x, y, z: 0, vx: 0, vy: 0, vz: 0, r: 6, hp: 20, max: 20, state: 'idle', t: Math.random(), stun: 0, flash: 0, spawnT: .6, alive: true, head: 16, flap: 0,
+    blob: new E.Blob(Object.assign({ R: 6.2, face: 'front' }, E.pick(SLIME_PARTS))) };   // face: 'front' keeps both eyes on the camera side
 }
 function makeWisp(x, y) {
   return { type: 'wisp', x, y, z: 20, vx: 0, vy: 0, r: 5, hp: 14, max: 14, t: Math.random() * 9, fire: 2 + Math.random() * 2, charge: 0, stun: 0, flash: 0, spawnT: .6, alive: true, orbit: Math.random() < .5 ? 1 : -1, head: 10 };
 }
-const MAKERS = { husk: makeHusk, slime: makeSlime, wisp: makeWisp };
+const MAKERS = { walker: makeWalker, slime: makeSlime, wisp: makeWisp }, MIXES = { humanoids: 'walker', slimes: 'slime', wisps: 'wisp' };
 function pickType() {
-  if (S.mix === 'husks') return 'husk'; if (S.mix === 'slimes') return 'slime'; if (S.mix === 'wisps') return 'wisp';
-  const r = Math.random(); return r < .5 ? 'husk' : r < .8 ? 'slime' : 'wisp';
+  if (MIXES[S.mix]) return MIXES[S.mix];
+  const r = Math.random(); return r < .5 ? 'walker' : r < .8 ? 'slime' : 'wisp';
 }
 function randomFloor(minDist) {
   for (let k = 0; k < 30; k++) {
@@ -216,7 +307,7 @@ function separate() {
       const a = grid.get(cx + ox + (cy + oy) * 8192); if (!a) continue;
       for (const b of a) {
         if (b === e) continue;
-        const dx = e.x - b.x, dy = e.y - b.y, d = Math.hypot(dx, dy), m = e.r + b.r;
+        const dx = e.x - b.x, dy = e.y - b.y, d = Math.hypot(dx, dy), m = e.r + b.r + 2;   // a small gap keeps bodies readable
         if (d < m && d > .01) { const k = (m - d) / d * .5; e.x += dx * k; e.y += dy * k; }
       }
     }
@@ -240,55 +331,114 @@ function onScreen(e) {
   const s = game.view.p(e.x, e.y, 0), vx = s[0] - game.cam.x, vy = s[1] - game.cam.y;
   return vx > -80 && vx < game.screen.W + 80 && vy > -60 && vy < game.screen.H + 140;
 }
+// Attack tokens: at most MAX_ATTACKERS monsters attack at once and each new wind-up waits TURN_GAP after the last one, so
+// telegraphs never merge and every hit has a readable author. The rest wait in a ring just outside striking distance.
+const MAX_ATTACKERS = 3, TURN_GAP = .25;
+let tokens = 0, nextTurn = 0;
+function takeTurn() {
+  if (tokens >= MAX_ATTACKERS || game.time < nextTurn || hero.dead) return false;
+  tokens++; nextTurn = game.time + TURN_GAP * (.8 + Math.random() * .6); return true;
+}
 function updateEnemies(dt) {
+  for (let i = enemies.length - 1; i >= 0; i--) if (!enemies[i].alive) corpses.push(enemies.splice(i, 1)[0]);
+  // waves: kills are not replaced; once the whole crowd is down (the last body has landed) the hero cheers, then the next wave comes
+  if (!enemies.length && S.monsters && hero.cheer <= 0 && corpses.every(c => c.deadT > .8)) { hero.cheer = 1.6; game.note('WAVE ' + ++wave + ' CLEARED'); P.glints(hero.x, hero.y, 26, 14, '#ffd36a'); }
   if (S.behavior === 'freeze') { rebuildGrid(); return; }
   if (S.behavior === 'swarm') flow.update(hero.x, hero.y);
   rebuildGrid();
+  tokens = 0; for (const e of enemies) if (e.atk || e.state === 'wind' || e.state === 'pounce') tokens++;
   for (const e of enemies) {
-    if (!e.alive) continue;
     e.flash -= dt; e.stun -= dt;
     if (e.spawnT > 0) { e.spawnT -= dt; continue; }
     const vis = !S.lod || onScreen(e);
-    if (e.type === 'husk') updateHusk(e, dt, vis); else if (e.type === 'slime') updateSlime(e, dt, vis); else updateWisp(e, dt, vis);
+    if (e.type === 'walker') updateWalker(e, dt, vis); else if (e.type === 'slime') updateSlime(e, dt, vis); else updateWisp(e, dt, vis);
   }
   separate();
-  for (let i = enemies.length - 1; i >= 0; i--) if (!enemies[i].alive) enemies.splice(i, 1);
-  for (let k = 0; k < 40 && enemies.length < S.monsters; k++) spawnOne(false);
 }
-function updateHusk(e, dt, vis) {
-  const h = hero, dx = h.x - e.x, dy = h.y - e.y, d = Math.hypot(dx, dy) || 1, toH = Math.atan2(dy, dx);
+function updateWalker(e, dt, vis) {
+  const h = hero, k = e.kind, dx = h.x - e.x, dy = h.y - e.y, d = Math.hypot(dx, dy) || 1, toH = Math.atan2(dy, dx), A = e.atk;
+  const stand = Math.max(k.stand[e.next], e.r + h.r + 5);   // contact distance for the next move
   let mv = [0, 0];
+  e.cool -= dt;
   if (e.stun <= 0) {
-    if (e.state === 'move') {
-      mv = steer(e, dt);
-      if (mv[0] || mv[1]) e.facing = E.approachAng(e.facing, Math.atan2(mv[1], mv[0]), dt * 5);
-      if (S.behavior === 'swarm' && d < 21 && !h.dead) { e.state = 'wind'; e.t = 0; }
-    } else if (e.state === 'wind') { e.t += dt; e.facing = E.approachAng(e.facing, toH, dt * 2.5); if (e.t >= HUSK.wind) { e.state = 'active'; e.t = 0; e.hitDone = false; e.vx += Math.cos(e.facing) * 90; e.vy += Math.sin(e.facing) * 90; } }
-    else if (e.state === 'active') { e.t += dt; if (!e.hitDone && d < 26 && Math.abs(E.angDiff(e.facing, toH)) < 1.1) { e.hitDone = true; hurtHero(10, toH); } if (e.t >= HUSK.active) { e.state = 'recover'; e.t = 0; } }
-    else if (e.state === 'recover') { e.t += dt; if (e.t >= HUSK.recover) e.state = 'move'; }
+    if (A) {
+      // wind-up: step to contact distance while tracking the hero (dodge the strike), then commit with a lunge that ends there
+      if (A.phase === 'wind') { e.facing = E.approachAng(e.facing, toH, dt * 2.5); if (Math.abs(d - stand) > 1) { const s = Math.sign(d - stand); mv = [dx / d * s, dy / d * s]; } }
+      if (A.update(dt) === 'active' && d > stand) { const v = Math.min(70, Math.sqrt(1000 * (d - stand))); e.vx += Math.cos(e.facing) * v; e.vy += Math.sin(e.facing) * v; }
+      A.hits([h], t => E.inArc(e, e.facing, t, stand - h.r + 1, 1.1), () => hurtHero(k.dmg, toH) && P.impact(...strikePt(e.rig, A.spec), 6, '#ffb08a'));   // an impact star where it lands
+      if (!A.busy) { e.atk = null; e.cool = .8 + Math.random(); e.next = (Math.random() * k.specs.length) | 0; }
+    } else if (S.behavior === 'swarm' && !h.dead) {
+      // no token: wait in a ring outside contact distance, facing the hero; take a turn when one is free. Waiters on the
+      // camera side of the hero stand further back and wait longer, so he stays in sight (view.fx, fy points at the camera;
+      // the lower the camera, the more a body in front hides him: none from straight above)
+      const v = game.view, front = Math.max(0, -(dx * v.fx + dy * v.fy) / d) * Math.cos(v.pitch), ring = stand + 10 + 20 * front;
+      // in the ring nobody stands still: a slow sidestep drifts back and forth and the body sways around the hero (own phase each)
+      const sway = Math.sin(game.time * .9 + e.ph);
+      mv = d > ring + 3 ? steer(e, dt) : d < ring - 3 ? [-dx / d * .5, -dy / d * .5] : [-dy / d * .4 * sway, dx / d * .4 * sway];
+      e.facing = E.approachAng(e.facing, d > ring + 3 ? Math.atan2(mv[1], mv[0]) : toH + sway * .25, dt * 5);
+      // the Attack is made when needed, so idle crowds cost nothing
+      if (d < ring + 6 && e.cool <= -2 * front && takeTurn()) { e.atk = new E.Attack(k.specs[e.next]); e.atk.start(); }
+    } else { mv = steer(e, dt); if (mv[0] || mv[1]) e.facing = E.approachAng(e.facing, Math.atan2(mv[1], mv[0]), dt * 5); }
   }
   const acc = (e.stun > 0 ? 160 : 500) * dt;
   e.vx = approach(e.vx, mv[0] * e.speed, acc); e.vy = approach(e.vy, mv[1] * e.speed, acc);
   e.x += e.vx * dt; e.y += e.vy * dt; collideWorld(e);
-  if (!vis) return;
-  const ph = e.state !== 'move' && e.stun <= 0 ? e.state : null;
-  e.rig.update(dt, { x: e.x, y: e.y, z: 0, vx: e.vx, vy: e.vy, facing: e.facing, hurt: e.stun > 0, attack: ph ? { spec: HUSK_SWING, phase: ph, u: clamp(e.t / HUSK[ph], 0, 1) } : null });
+  if (!h.dead) pushFromCircle(e, h, e.atk && e.atk.phase !== 'wind' ? stand - e.r : h.r + 3);   // strikes stop at contact, bodies a step off
+  // a knight's bash (blade: 0) keeps his sword pointing up: point + aim hold the blade while the hands drive in
+  const pommel = !!(e.atk && e.atk.spec.blade === 0 && e.rig.o.weapon);
+  if (vis) e.rig.update(dt, { x: e.x, y: e.y, z: 0, vx: e.vx, vy: e.vy, facing: e.facing, hurt: e.stun > 0, attack: e.atk && e.atk.state, stance: k.stance, point: pommel, aim: 1.2,
+    expr: e.stun > 0 ? 'wince' : e.atk ? 'angry' : null });
 }
+// the fallen: humanoids play the 'die' pose (a stagger, the knees give, a topple; a sword ends flat beside them), slimes melt,
+// then all fade out; wisps pop instead (see drawWisp)
+const DEAD_T = 1.6, POP_T = .35;
+function updateCorpses(dt) {
+  while (corpses.length > 300) corpses.shift();
+  for (let i = corpses.length - 1; i >= 0; i--) {
+    const e = corpses[i]; e.deadT += dt; e.flash -= dt;
+    if (e.deadT > (e.type === 'wisp' ? POP_T : DEAD_T)) { corpses.splice(i, 1); continue; }
+    e.vx = approach(e.vx, 0, 300 * dt); e.vy = approach(e.vy, 0, 300 * dt); e.x += e.vx * dt; e.y += e.vy * dt; collideWorld(e);
+    if (e.rig) e.rig.update(dt, { x: e.x, y: e.y, z: 0, facing: e.facing, pose: 'die' });
+    else if (e.blob) { e.z = Math.max(0, e.z - 80 * dt); e.flap = approach(e.flap, 0, dt * 5); e.blob.update(dt, { squash: -.42, squint: true, flap: e.flap }); }
+  }
+}
+// Slimes hop in but land in a ring outside the hero's reach. With an attack token a slime winds up (squashes flat and shivers
+// while a red arc grows toward the hero), then pounces: a low, fast leap that lands at contact, bumps him and bounces off.
+const SLIME_G = 480, HOP = { vz: 150, air: 2 * 150 / SLIME_G }, POUNCE = { vz: 85, air: 2 * 85 / SLIME_G }, SLIME_RING = 34;
 function updateSlime(e, dt, vis) {
-  const h = hero;
+  const h = hero, swarm = S.behavior === 'swarm';
+  let dx = h.x - e.x, dy = h.y - e.y, d = Math.hypot(dx, dy) || 1;
   if (e.z <= 0 && e.vz <= 0) {
     e.vx = approach(e.vx, 0, 400 * dt); e.vy = approach(e.vy, 0, 400 * dt);
     if (e.stun <= 0 && S.behavior !== 'hold') {
       e.t -= dt;
-      if (e.state === 'idle' && e.t <= 0) { e.state = 'crouch'; e.t = .28; }
-      else if (e.state === 'crouch' && e.t <= 0) { const dir = steer(e, dt), l = Math.hypot(dir[0], dir[1]) || 1; e.state = 'air'; e.vz = 150; e.vx = dir[0] / l * 70; e.vy = dir[1] / l * 70; e.blob.kick(4.5); }
+      if (e.state === 'wind') { e.blob.kick((Math.random() - .5) * 3); e.facing = Math.atan2(dy, dx); }   // shiver and track the hero
+      if (e.state === 'idle' && e.t <= 0) {
+        const turn = swarm && Math.abs(d - SLIME_RING) < 8 && takeTurn();   // pounces start from the ring
+        e.state = turn ? 'wind' : 'crouch'; e.t = turn ? .5 : .28; e.facing = Math.atan2(dy, dx);
+      } else if ((e.state === 'crouch' || e.state === 'wind') && e.t <= 0) {
+        // pounces land at contact; hops land on the ring, back out again after a pounce, and stop there to wait and watch
+        const pounce = e.state === 'wind', jump = pounce ? POUNCE : HOP, out = swarm && !pounce && d < SLIME_RING;
+        const dir = pounce ? [dx, dy] : out ? [-dx, -dy] : steer(e, dt), l = Math.hypot(dir[0], dir[1]) || 1;
+        const len = pounce ? d - e.r - h.r + 3 : swarm ? Math.min(Math.abs(d - SLIME_RING), 44) : 44;
+        if (len < 4) { e.state = 'idle'; e.t = .3; }
+        else { e.state = pounce ? 'pounce' : 'air'; e.vz = jump.vz; e.vx = dir[0] / l * len / jump.air; e.vy = dir[1] / l * len / jump.air; e.blob.kick(pounce ? 6 : 4.5); }
+      }
     }
   }
-  if (e.state === 'air' || e.z > 0) { e.vz -= 480 * dt; e.z += e.vz * dt; if (e.z <= 0) { e.z = 0; e.vz = 0; e.state = 'idle'; e.t = .45 + Math.random() * .6; e.blob.kick(-5); } }
+  if (e.z > 0 || e.vz > 0) {
+    e.vz -= SLIME_G * dt; e.z += e.vz * dt;
+    if (e.z <= 0) { e.z = 0; e.vz = 0; const rest = e.state === 'pounce' ? 1.1 : .45; e.state = 'idle'; e.t = rest + Math.random() * .6; e.blob.kick(-5); }
+  }
   e.x += e.vx * dt; e.y += e.vy * dt; collideWorld(e);
-  const dx = h.x - e.x, dy = h.y - e.y;
-  if (!h.dead && e.z < 5 && Math.hypot(dx, dy) < e.r + h.r) hurtHero(6, Math.atan2(dy, dx));
-  if (vis) e.blob.update(dt, { squash: e.state === 'crouch' ? -.32 : e.z > 0 ? clamp(e.vz / 600, -.2, .28) : 0, look: [dx, dy], squint: e.state === 'crouch' });
+  dx = h.x - e.x; dy = h.y - e.y; d = Math.hypot(dx, dy) || 1;
+  if (!h.dead && e.z < 6 && d < e.r + h.r + 1) {
+    if (e.state === 'pounce') { hurtHero(6, Math.atan2(dy, dx)); e.state = 'air'; e.vx *= -.7; e.vy *= -.7; e.vz = Math.max(e.vz, 90); }   // bump and bounce back
+    pushFromCircle(e, h, h.r);
+  }
+  e.flap = approach(e.flap, e.z > 0 ? 1 : 0, dt * 5);   // wings (if any) spread on the hop and fold on landing
+  const low = e.state === 'crouch' || e.state === 'wind';
+  if (vis) e.blob.update(dt, { squash: e.state === 'wind' ? -.42 : low ? -.32 : e.z > 0 ? clamp(e.vz / 600, -.2, .28) : 0, look: [dx, dy], squint: low, flap: e.flap });
 }
 function updateWisp(e, dt) {
   const h = hero, dx = h.x - e.x, dy = h.y - e.y, d = Math.hypot(dx, dy) || 1; e.t += dt;
@@ -306,24 +456,27 @@ function updateWisp(e, dt) {
 }
 
 /* ---------- combat ---------- */
-function swingHits() {
-  const A = hero.atk, sp = A.spec;
-  for (const e of near(hero.x, hero.y, 3)) {
-    if (!e.alive || e.spawnT > 0 || A.hit.has(e)) continue;
-    const dx = e.x - hero.x, dy = e.y - hero.y, d = Math.hypot(dx, dy);
-    if (d > sp.range + e.r) continue;
-    if (!sp.spin && Math.abs(E.angDiff(hero.facing, Math.atan2(dy, dx))) > sp.half) continue;
-    A.hit.add(e); damageEnemy(e, sp.dmg, Math.atan2(dy, dx), sp.kb, sp.spin);
-  }
+// Damage numbers born together close by (one swing through a crowd) stack in a column over the first one instead of
+// printing over each other
+let numCol = null;
+function damageNumber(e, dmg, color) {
+  const t = game.time, c = numCol && t - numCol.t < .12 && Math.hypot(e.x - numCol.x, e.y - numCol.y) < 28 ? numCol : numCol = { x: e.x, y: e.y, z: (e.z || 0) + e.head + 4, n: 0 };
+  c.t = t; P.text(c.x, c.y, c.z + (c.n++ % 5) * 8, dmg, color);
 }
-const BITS = { husk: ['#8fa38a', '#5b4a3c', '#3d3530'], slime: ['#c95f9a', '#f5a3cc', '#6d2658'], wisp: ['#c78bff', '#f4e6ff', '#7a4ac0'] };
+const BITS = { slime: ['#c95f9a', '#f5a3cc', '#6d2658'], wisp: ['#c78bff', '#f4e6ff', '#7a4ac0'] };
 function damageEnemy(e, dmg, ang, kb, big) {
-  e.hp -= dmg; e.flash = .1; e.stun = .22; e.vx += Math.cos(ang) * kb; e.vy += Math.sin(ang) * kb;
-  if (e.type === 'husk') { e.state = 'move'; e.rig.kick(2.5); } else if (e.type === 'slime') { e.blob.kick(5); e.state = 'idle'; e.t = .5; } else e.charge = 0;
+  e.hp -= dmg; e.flash = big ? .04 : .07; e.stun = .22; e.vx += Math.cos(ang) * kb; e.vy += Math.sin(ang) * kb;   // a short tint flash, so crowds hit at once stay apart
+  if (e.rig) { e.atk = null; e.rig.kick(2.5); }   // a hit interrupts the swing (and frees its token): the rig flinches (hurt) instead
+  else if (e.type === 'slime') { e.blob.kick(5); e.state = 'idle'; e.t = .5; } else e.charge = 0;
   game.freeze(big ? .06 : .045); game.shake(big ? 3 : 2);
   P.sparks(lerp(hero.x, e.x, .6), lerp(hero.y, e.y, .6), e.type === 'wisp' ? e.z : 10, 7, ang);
-  P.text(e.x, e.y, (e.z || 0) + e.head + 4, dmg, big ? '#ffd36a' : '#fff2c4');
-  if (e.hp <= 0) { e.alive = false; P.bits(e.x, e.y, (e.z || 0) + 6, 12, BITS[e.type]); P.ring(e.x, e.y, 3, 22, BITS[e.type][1], .3); }
+  damageNumber(e, dmg, big ? '#ffd36a' : '#fff2c4');
+  if (e.hp <= 0) {
+    e.alive = false; e.deadT = 0;
+    if (e.rig) P.bits(e.x, e.y, 8, 6, [e.rig.C.skin, e.rig.C.cloth, e.rig.C.boot]);
+    else { P.bits(e.x, e.y, e.z + 6, 12, BITS[e.type]); P.ring(e.x, e.y, 3, 22, BITS[e.type][1], .3); }
+    if (e.type === 'wisp') { e.vx = e.vy = 0; P.glints(e.x, e.y, e.z, 10, '#e3c8ff'); }   // a wisp has no body to leave: it pops where it was hit
+  }
 }
 
 /* ---------- particle storm ---------- */
@@ -349,6 +502,7 @@ function storm(dt) {
 function update(dt) {
   updateHero(dt);
   updateEnemies(dt);
+  updateCorpses(dt);
   updateShots(dt);
   storm(dt);
   for (const b of TORCHES) b.t += dt;
@@ -358,6 +512,10 @@ function update(dt) {
 
 /* ---------- draw ---------- */
 const flicker = t => .9 + Math.sin(t * 13) * .05 + Math.sin(t * 29) * .04 + Math.sin(t * 7.3) * .04;
+const CLAW_SMEAR = ['#ffffff', '#ffd6c8', '#ff7a5a', '#b8302a'];   // monster strikes trail red, the hero's blade the default blue
+// the hit flash (hero and monsters) is a light tint and a bright outline, not a solid fill: the body stays readable, and a crowd
+// hit at once doesn't merge into one blob
+const FLASH = '#ffe6d8', FLASH_LINE = '#fff4e6';
 function drawFlame(g, r, x, y, z, t) {
   px.glow(g, 1);
   const sc = r.view.scale;
@@ -374,11 +532,15 @@ function drawBrazier(g, r, b) {
   px.glow(g, .9); px.poly(g, r.groundPts(b.x, b.y, 4, 12, 11.2), '#ff8a3c');
   drawFlame(g, r, b.x, b.y, 11, b.t);
 }
-function drawWisp(g, ox, oy, e) {
-  const k = e.charge > 0 ? 1 + (1 - e.charge / .6) * .8 : 1;
+function drawWisp(g, ox, oy, e) {   // charging swells the orb; dying pops it (it swells fast as it fades)
+  const k = !e.alive ? 1 + e.deadT / POP_T * 1.8 : e.charge > 0 ? 1 + (1 - e.charge / .6) * .8 : 1;
   game.r.glowDisc(g, ox, oy, 7 * k, '#7a4ac0', .55);
   px.disc(g, ox, oy, 3.2 * k, e.flash > 0 ? '#ffffff' : '#c78bff'); px.disc(g, ox - .5, oy - .5, 1.8 * k, '#f4e6ff');
-  for (let i = 0; i < 3; i++) { const a = e.t * 4 + i * TAU / 3; px.dot(g, ox + Math.cos(a) * 6, oy + Math.sin(a) * 3, '#e3c8ff'); }
+  for (let i = 0; i < 3; i++) { const a = e.t * 4 + i * TAU / 3; px.dot(g, ox + Math.cos(a) * 6 * k, oy + Math.sin(a) * 3 * k, '#e3c8ff'); }
+}
+// the telegraph: a red arc on the floor that grows toward the target as the wind-up (u 0..1) runs, out to the strike's reach
+function telegraph(r, e, u, reach) {
+  r.decal(() => r.groundArc(e.x, e.y, e.r * .6, e.r * .6 + (reach - e.r * .6) * u, e.facing - .8, e.facing + .8, '#ff4a3a', .25 + .45 * u), { emissive: .2 + .35 * u });
 }
 function draw(r) {
   const view = r.view, L = game.lights, t = game.time;
@@ -395,28 +557,31 @@ function draw(r) {
   L.add(CX, CY, 3, 78, .5 + .12 * Math.sin(t * 1.7), { color: '#4fe0cc', shadow: true });
   let monsterLights = 0;
   const outline = S.outlines;
-  for (const e of enemies) {
-    if (!e.alive) continue;
-    const alpha = e.spawnT > 0 ? clamp(1 - e.spawnT / .6, .05, 1) : 1, flash = e.flash > 0;
-    if (e.type === 'husk') {
+  for (const list of [enemies, corpses]) for (const e of list) {
+    const alpha = !e.alive ? clamp(e.type === 'wisp' ? 1 - e.deadT / POP_T : (DEAD_T - e.deadT) * 2, 0, 1) : e.spawnT > 0 ? clamp(1 - e.spawnT / .6, .05, 1) : 1;
+    const flash = e.flash > 0 && FLASH, flashMix = .3, outlineColor = flash ? FLASH_LINE : undefined;
+    if (e.type === 'walker') {
       if (!r.visible(e.x, e.y, 0)) { r.game.stats.culled++; continue; }
-      r.shadow(e.x, e.y, 5, .5);
-      if (e.state === 'wind' && e.stun <= 0) { const u = clamp(e.t / HUSK.wind, 0, 1); r.decal(() => r.groundArc(e.x, e.y, 4, 4 + 20 * u, e.facing - 1.05, e.facing + 1.05, '#ff4a3a', .25 + .45 * u), { emissive: .2 + .35 * u }); }
+      r.shadow(e.x, e.y, 5, .5 * alpha);
+      const A = e.alive && e.atk && e.atk.busy ? e.atk : null;
+      if (A && A.phase === 'wind') telegraph(r, e, A.u, e.kind.reach[e.next]);
       if (r.gpu) L.caster(e.x, e.y, 3.2, 22);
-      r.actor(e.x, e.y, 0, (g, ox, oy) => e.rig.draw(g, ox, oy, view), { flash, alpha, outline, rim: outline });
+      r.actor(e.x, e.y, 0, (g, ox, oy) => e.rig.draw(g, ox, oy, view), { flash, flashMix, alpha, outline: outline || flash, outlineColor, rim: outline });
+      if (A) e.rig.drawSmear(r, CLAW_SMEAR);
     } else if (e.type === 'slime') {
       if (!r.visible(e.x, e.y, e.z)) { r.game.stats.culled++; continue; }
-      r.shadow(e.x, e.y, 6 - Math.min(3, e.z * .1), .5);
+      r.shadow(e.x, e.y, 6 - Math.min(3, e.z * .1), .5 * alpha);
+      if (e.state === 'wind') telegraph(r, e, 1 - e.t / .5, Math.hypot(hero.x - e.x, hero.y - e.y) - hero.r);
       if (r.gpu) L.caster(e.x, e.y, 5, e.z + 11);
-      r.actor(e.x, e.y, e.z, (g, ox, oy) => e.blob.draw(g, ox, oy, view), { flash, alpha, outline, rim: outline });
+      r.actor(e.x, e.y, e.z, (g, ox, oy) => e.blob.draw(g, ox, oy, view), { flash, flashMix, alpha, outline: outline || flash, outlineColor, rim: outline });
     } else {
       r.actor(e.x, e.y, e.z, (g, ox, oy) => drawWisp(g, ox, oy, e), { rim: false, alpha, emissive: 1, outline });
-      if (S.monsterLights && monsterLights < 16 && r.visible(e.x, e.y, e.z)) { monsterLights++; L.add(e.x, e.y, e.z, 52, .8, { color: '#b78bff' }); }
+      if (S.monsterLights && e.alive && monsterLights < 16 && r.visible(e.x, e.y, e.z)) { monsterLights++; L.add(e.x, e.y, e.z, 52, .8, { color: '#b78bff' }); }
     }
   }
-  if (!hero.dead) {
+  {
     const h = hero, ghost = h.dashT > 0 && t - h.lastGhost > .03; if (ghost) h.lastGhost = t;
-    r.actor(h.x, h.y, 0, (g, ox, oy) => h.rig.draw(g, ox, oy, view), { xray: true, flash: h.flash > 0 ? '#ffb0a0' : false, ghost: ghost ? { color: '#62d8ff', life: .22 } : null });
+    r.actor(h.x, h.y, h.z, (g, ox, oy) => h.rig.draw(g, ox, oy, view), { xray: true, alpha: h.dead ? clamp(4 - h.deadT * 2, 0, 1) : 1, flash: h.flash > 0 && FLASH, flashMix: .3, outlineColor: h.flash > 0 ? FLASH_LINE : undefined, ghost: ghost ? { color: '#62d8ff', life: .22 } : null });
     h.rig.drawSmear(r);
     if (r.gpu) { L.add(h.x, h.y, 18, 84, .6, { color: '#c9c2ec' }); L.caster(h.x, h.y, 3.2, 24); } else L.add(h.x, h.y, 10, 82, .8);
   }
@@ -515,9 +680,15 @@ function setDistance(d) {
   game.screen.setOptions({ minH: BASE.minH * d, minW: BASE.minW * d, maxW: Math.round(BASE.maxW * d), maxH: Math.round(BASE.maxH * d) });
   game.cam.snap = true;
 }
+// camera: distance (above) renders more pixels, zoom scales the drawing at the same resolution, turn spins the view
+const ZOOMS = [.5, .75, 1, 1.25, 1.5, 2, 2.5, 3];
+function zoomStep(d) { const i = ZOOMS.findIndex(z => z >= game.zoom - 1e-6); game.setZoom(ZOOMS[clamp(i + d, 0, ZOOMS.length - 1)]); game.note('ZOOM ' + game.zoom + 'x'); syncUI(); }
+function turn(deg) { game.rotateView(deg); game.note('TURN ' + game.yaw + ' DEG'); syncUI(); }   // (the pixel font has no degree sign)
+function resetCam() { game.resetCamera(); game.note('CAMERA RESET'); syncUI(); }
 function syncUI() {
   $('monsters').value = Math.min(5000, S.monsters); $('monstersOut').textContent = S.monsters.toLocaleString();
-  $('mix').value = S.mix; $('behavior').value = S.behavior;
+  $('mix').value = S.mix; $('skin').value = S.skin; $('behavior').value = S.behavior;
+  $('zoomOut').textContent = game.zoom + '×'; $('turnOut').textContent = game.yaw + '°';
   $('lights').value = S.lights; $('lightsOut').textContent = S.lights;
   $('rate').value = S.rate; $('rateOut').textContent = S.rate.toLocaleString() + '/s';
   $('pcap').value = S.pcap; $('pcapOut').textContent = S.pcap.toLocaleString();
@@ -534,7 +705,9 @@ gpu.onStatus = syncUI;
 const on = (id, ev, f) => $(id).addEventListener(ev, e => { f(e); syncUI(); });
 on('monsters', 'input', e => setMonsters(+e.target.value));
 document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => { setMonsters(b.hasAttribute('data-clear') ? 0 : Math.max(0, Math.min(10000, S.monsters + +b.dataset.add))); syncUI(); b.blur(); }));
-on('mix', 'change', e => { S.mix = e.target.value; const n = S.monsters; setMonsters(0); setMonsters(n, true); e.target.blur(); });
+const respawn = () => { const n = S.monsters; setMonsters(0); setMonsters(n, true); };
+on('mix', 'change', e => { S.mix = e.target.value; respawn(); e.target.blur(); });
+on('skin', 'change', e => { S.skin = e.target.value; respawn(); e.target.blur(); });
 on('behavior', 'change', e => { S.behavior = e.target.value; e.target.blur(); });
 on('lights', 'input', e => { S.lights = +e.target.value; });
 on('rate', 'input', e => { S.rate = +e.target.value; });
@@ -550,6 +723,11 @@ on('shadows', 'change', e => { gpu.shadows = e.target.checked; e.target.blur(); 
 on('canvasLight', 'change', e => { game.lights.enabled = e.target.checked; e.target.blur(); });
 document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('pointerup', () => el.blur()));
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { game.setView(b.dataset.view); syncUI(); b.blur(); }));
+document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => { zoomStep(+b.dataset.zoom); b.blur(); }));
+document.querySelectorAll('[data-turn]').forEach(b => b.addEventListener('click', () => { turn(+b.dataset.turn); b.blur(); }));
+$('camReset').addEventListener('click', e => { resetCam(); e.target.blur(); });
+let wheelT = 0;   // the mouse wheel zooms over the game (the panel keeps scrolling)
+canvas.addEventListener('wheel', e => { const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
 const PRESETS = {
   light: { monsters: 100, lights: 8, rate: 100, pcap: 2000, distance: 1, capes: false, monsterLights: false, outlines: true },
   medium: { monsters: 400, lights: 16, rate: 400, pcap: 3000, distance: 1.5, capes: false, monsterLights: false, outlines: true },
@@ -560,7 +738,7 @@ const PRESETS = {
 document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
   const p = PRESETS[b.dataset.preset];
   Object.assign(S, { lights: p.lights, rate: p.rate, pcap: p.pcap, capes: p.capes, monsterLights: p.monsterLights, outlines: p.outlines });
-  setDistance(p.distance); setMonsters(p.monsters); applyCapes(); syncUI(); b.blur();
+  setDistance(p.distance); setMonsters(p.monsters); applyCapes(); if (b.dataset.preset === 'reset') game.resetCamera(); syncUI(); b.blur();
 }));
 function setPanel(open) { $('panel').hidden = !open; $('showPanel').hidden = open; }
 $('hidePanel').addEventListener('click', () => setPanel(false));
@@ -568,7 +746,11 @@ $('showPanel').addEventListener('click', () => setPanel(true));
 addEventListener('keydown', e => {
   if (e.repeat || (e.target && ['SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
   if (e.code === 'KeyH') setPanel($('panel').hidden);
-  else if (e.code === 'KeyV') { game.setView(VIEWS[(VIEWS.indexOf(game.view.id) + 1) % VIEWS.length]); syncUI(); }
+  else if (e.code === 'KeyV') { game.setView(VIEWS[(VIEWS.indexOf(game.view.id) + 1) % VIEWS.length]); game.note(game.view.label.toUpperCase() + ' VIEW'); syncUI(); }
+  else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomStep(-1);
+  else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomStep(1);
+  else if (e.code === 'BracketLeft' || e.code === 'BracketRight') turn(e.code === 'BracketLeft' ? -45 : 45);
+  else if (e.code === 'Digit0') resetCam();
   else if (e.code === 'KeyG' && gpu.status() !== 'unavailable' && gpu.status() !== 'loading') { gpu.enabled = !gpu.enabled; syncUI(); }
   else if (e.code === 'KeyR') showRig = !showRig;
 });
@@ -620,8 +802,8 @@ function benchReport() {
   lastReport = [
     'my-3D2dge stress test',
     'Result: ' + summary,
-    'Settings: ' + v.label + ' view, camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
-      ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on'),
+    'Settings: ' + v.label + ' view, camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), zoom ' + game.zoom + 'x, turn ' + game.yaw + '°, ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
+      ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on'),
     ...(hwLines || hwInfo()),
     '',
     'Monsters | avg fps | 1% low | CPU ms',
@@ -638,5 +820,5 @@ $('copyBtn').addEventListener('click', async () => {
 
 syncUI();
 game.start({ update, draw: r => { draw(r); hud(); } });
-window.__game = { game, hero, enemies, S, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; } };
+window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; } };
 })();
