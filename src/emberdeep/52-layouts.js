@@ -68,7 +68,7 @@ function WLD_farthest(cells, tags, w, h, nodes, ok = () => true) {
  * Everything between them is 'pit' (void): no outer walls, the void blocks walkers (monsters knocked back fly
  * over it and fall). A margin of void on every side leaves room for the rock the islands hang from. */
 def('layouts', 'islands', { name: 'Islands', gen(R, o) {
-  const w = 60, h = 60, M = 7, cells = new Array(w * h).fill(0), tags = new Array(w * h).fill('pit'), isl = [];
+  const w = 56, h = 56, M = 6, cells = new Array(w * h).fill(0), tags = new Array(w * h).fill('pit'), isl = [];
   const set = (x, y, v) => { if (x >= 1 && y >= 1 && x < w - 1 && y < h - 1) tags[y * w + x] = v; };
   // islands: the first (the start) is broad enough for the landing rune; the rest spread with void gaps between
   for (let tries = 0; tries < 900 && isl.length < 12; tries++) {
@@ -232,7 +232,7 @@ def('layouts', 'ring', { name: 'Ring', gen(R, o) {
     rect(x, y, rw, rh); chs.push({ x, y, w: rw, h: rh, cx: x + rw / 2, cy: y + rh / 2, a });
   }
   for (const c of chs) path([c.cx, c.cy], [cx + Math.cos(c.a) * (Rg - 1), cy + Math.sin(c.a) * (Rg - 1)], 3);
-  chs.sort((p, q) => p.a - q.a);
+  const first = chs[0]; chs.sort((p, q) => p.a - q.a);
   for (let k = 0; k < chs.length; k++) if (R.chance(.4)) { const p = chs[k], q = chs[(k + 1) % chs.length]; path([p.cx, p.cy], [q.cx, q.cy], 2); }
   // a narrow bridge across the well, through a tiny platform in the middle
   if (R.chance(.5)) {
@@ -240,11 +240,11 @@ def('layouts', 'ring', { name: 'Ring', gen(R, o) {
     for (let t = -Rg; t <= Rg; t += .25) for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const x = Math.floor(cx + Math.cos(a) * t - .5) + ox, y = Math.floor(cy + Math.sin(a) * t - .5) + oy, i = y * w + x; if (tags[i] === 'pit') tags[i] = 'bridge'; }
     for (let y = Math.floor(cy - 2); y <= cy + 2; y++) for (let x = Math.floor(cx - 2); x <= cx + 2; x++) if (Math.hypot(x + .5 - cx, y + .5 - cy) <= 1.7) tags[y * w + x] = null;
   }
-  const rooms = chs.map(c => Object.assign({}, c, { kind: 'chamber' }));
+  const rooms = [first].concat(chs.filter(c => c !== first)).map(c => Object.assign({}, c, { kind: 'chamber' }));   // the start chamber first
   // the gallery itself is open ground too: four stretches of it as rooms (north, east, south, west)
   for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) { const rc = WLD_rect(cells, tags, w, h, Math.floor(cx + dx * (Rw + Rg) / 2), Math.floor(cy + dy * (Rw + Rg) / 2), 12); if (rc && rc.w >= 2 && rc.h >= 2) rooms.push(Object.assign(rc, { kind: 'ring' })); }
   // pillars in the bigger chambers' corners
-  for (const c of chs) if (c.w >= 9 && c.h >= 8 && R.chance(.6)) for (const [px0, py0] of [[c.x + 2, c.y + 2], [c.x + c.w - 3, c.y + 2], [c.x + 2, c.y + c.h - 3], [c.x + c.w - 3, c.y + c.h - 3]]) cells[py0 * w + px0] = 2;
+  for (const c of chs) if (c !== first && c.w >= 9 && c.h >= 8 && R.chance(.6)) for (const [px0, py0] of [[c.x + 2, c.y + 2], [c.x + c.w - 3, c.y + 2], [c.x + 2, c.y + c.h - 3], [c.x + c.w - 3, c.y + c.h - 3]]) cells[py0 * w + px0] = 2;
   const exit = WLD_farthest(cells, tags, w, h, rooms, rm => rm.kind === 'chamber');
   return { w, h, cells, tags, rooms, start: [Math.floor(rooms[0].cx), Math.floor(rooms[0].cy)], exit: [Math.floor(exit.cx), Math.floor(exit.cy)], exitRoom: exit };
 } });

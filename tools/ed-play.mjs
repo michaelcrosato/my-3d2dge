@@ -32,7 +32,8 @@ const errors = [], warns = [];
 page.on('pageerror', e => errors.push(String(e && e.stack || e)));
 page.on('console', m => { const t = m.text(); if (m.type() === 'error') errors.push(t); else if (m.type() === 'warning') warns.push(t); });
 await page.goto(pathToFileURL(resolve(file)).href + (hash ? '#' + hash : ''));
-await page.waitForFunction(() => window.__ed && window.__ed.game, null, { timeout: 15000 });
+try { await page.waitForFunction(() => window.__ed && window.__ed.game, null, { timeout: 60000 }); }
+catch (e) { console.log('ed-play: the game never started.' + (errors.length ? '\n  ERRORS:\n    ' + errors.join('\n    ') : ' (no page errors: too slow?)')); await browser.close(); process.exit(1); }
 if (args.includes('--god')) await page.evaluate(() => { window.__ed.DIFF.foeDmg = .05; });
 let mx = 640, my = 360;
 await page.mouse.move(mx, my);

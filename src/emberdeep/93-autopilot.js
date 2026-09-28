@@ -75,7 +75,7 @@ function botThink(h, dt) {
   for (let i = 5; i >= 1; i--) {
     const id = h.slots[i]; if (!id) continue; const S = REG.skills[id]; if (!S || h.cds[id] > 0 || h.ember < skillCost(h, S)) continue;
     const want = (S.tags || []).includes('aoe') || S.kind === 'ultimate' ? crowd >= 3 || big : S.kind === 'mobility' ? fd > 60 : true;
-    if (want && fd < (S.range || (S.tags || []).includes('melee') ? 40 : 150)) { I.press(SLOT_ACTS[i]); I._d[SLOT_ACTS[i]] = true; break; }
+    if (want && fd < (S.range || ((S.tags || []).includes('melee') ? 40 : 150))) { I.press(SLOT_ACTS[i]); I._d[SLOT_ACTS[i]] = true; break; }
   }
   if (fd < foe.r + 22) { I.press('s0'); I._d.s0 = true; }
 }

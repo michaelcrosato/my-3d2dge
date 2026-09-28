@@ -18,12 +18,21 @@ function spawnBoss(id, x, y, o = {}) {
   m.arch = Object.assign(Object.create(arch), { ai: 'boss', stagger: false });
   if (B.intro) B.intro(m);
   ED.boss = m; m.introT = 2.2;
-  notify(m.name.toUpperCase() + (m.title ? ', ' + m.title.toUpperCase() : ''), '#ff8a5a', 3);
-  A.music(B.music || 'boss');
+  if (o.dormant) { m.dormant = true; m.introT = 0; m.ai.aware = false; return m; }   // it wakes (name, music) when the hero comes: see wakeBoss
+  wakeBoss(m, true);
   return m;
 }
+/** the boss wakes: its name, its music, the roar */
+function wakeBoss(m, quiet) {
+  m.dormant = false; m.ai.aware = true; m.introT = 2.2;
+  if (!quiet) { sfx('roar'); shake(4); }
+  bossMusic(m); BUS.emit('bossWake', { m });
+}
+/** its music starts once, however it woke (walked up to, struck, spawned awake) */
+function bossMusic(m) { if (m.woke) return; m.woke = true; A.music((m.bossDef && m.bossDef.music) || 'boss'); }
 def('ai', 'boss', { update(m, dt) {
-  const B = m.bossDef, h = ED.hero; if (!h) return;
+  const B = m.bossDef, h = ED.hero; if (!h || m.dormant) { if (m.dormant) { AI.move(m, [0, 0], dt); m.rigState = m.pat && m.pat.rig || m.rigState; } return; }   // asleep on its throne until the hero comes
+  bossMusic(m);
   if (m.introT > 0) { m.introT -= dt; AI.face(m, angTo(m, h), dt, 3); m.rigState = { pose: m.introT > .8 ? 'cheer' : null, expr: 'shout' }; if (m.introT > 1 && Math.random() < .2) shake(1); return; }
   // phases at health thresholds: a roar, a flash, new patterns
   const phases = B.phases || [{ at: 1, patterns: m.patterns || ['slam', 'charge'] }];

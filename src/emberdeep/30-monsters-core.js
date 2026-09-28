@@ -59,7 +59,7 @@ function spawnMonster(id, x, y, o = {}) {
     team: 'foe', arch, kind: id, name: arch.name, x, y, z: 0, vx: 0, vy: 0, vz: 0, r: arch.r || 5, alive: true, spawnT: o.instant ? 0 : .6, facing: R() * TAU,
     st: {}, res: Object.assign({}, arch.res || {}), armor: (arch.armor || 0) * (1 + depth * .15), head: arch.head || 28, mass: arch.mass || 1,
     level: depth, el, elite, affixes: [], dmg: arch.dmg * dmgK, speed: (arch.speed || 30) * (1 + Math.min(.35, depth * .012)) * DIFF.foeSpeed * (.9 + R() * .2),
-    xp: (arch.xp || 10) * SCALE.foeXp(depth) * [1, 3, 6, 25][elite], ai: {}, atk: null, cool: R() * 1.5, next: 0, flash: 0, ph: R() * TAU, tok: false, kbT: 0,
+    xp: (arch.xp || 10) * SCALE.foeXp(depth) * [1, 3, 6, 25][elite], ai: {}, atk: null, cool: R() * 1.5, next: 0, flash: 0, ph: R() * TAU, tok: false, kbT: 0, stunT: 0,
     canFly: !!arch.flies, scale: o.scale || (elite === 2 ? 1.12 : 1)
   };
   m.maxHp = m.hp = Math.round(arch.hp * hpK);
@@ -71,7 +71,7 @@ function spawnMonster(id, x, y, o = {}) {
   if (elite) {
     m.name = o.name || (elite === 2 ? eliteName(R) : arch.name);
     const pool = Object.values(REG.affixes).filter(a => (a.minDepth || 1) <= depth && (!a.ok || a.ok(arch)));
-    const ids = o.affixes || R.shuffle(pool.slice()).slice(0, elite === 2 ? Math.min(3, 1 + Math.floor(depth / 6)) : 1).map(a => a.id);
+    const ids = o.affixes || (elite === 3 ? [] : R.shuffle(pool.slice()).slice(0, elite === 2 ? Math.min(3, 1 + Math.floor(depth / 6)) : 1).map(a => a.id));   // bosses bring their own tricks
     for (const id2 of ids) addAffix(m, id2);
     if (elite === 1) m.name = REG.affixes[m.affixes[0]] ? REG.affixes[m.affixes[0]].name + ' ' + arch.name : arch.name;
   }
@@ -111,7 +111,8 @@ function foeDie(hit) {
   m.deadT = 0; m.atk = null;
   // an overkill (a hit far bigger than the life left) throws the body: it flies back, spinning into its fall
   if (hit && hit.dmg > m.maxHp * .45 && !m.boss && !m.canFly && hit.ang !== undefined) { const k = Math.min(220, 80 + hit.dmg / m.maxHp * 60) / (m.mass || 1); m.vx += Math.cos(hit.ang) * k; m.vy += Math.sin(hit.ang) * k; m.vz = Math.max(m.vz || 0, 70 + Math.random() * 50); m.z = Math.max(m.z, .5); }
-  if (m.rig) P.bits(m.x, m.y, 8, 6, [m.rig.C.skin, m.rig.C.cloth, m.rig.C.boot]);
+  if (hit && hit.noGore || m.noGore) {}
+  else if (m.rig) P.bits(m.x, m.y, 8, 6, [m.rig.C.skin, m.rig.C.cloth, m.rig.C.boot]);
   else if (m.blob) { const c = m.blob.C; P.bits(m.x, m.y, m.z + 6, 12, [c.base, c.lt, c.dk]); P.ring(m.x, m.y, 3, 22, c.lt, .3); }
   for (const id of m.affixes) { const a = REG.affixes[id]; if (a && a.onDie) a.onDie(m, hit); }
   if (m.arch.onDie) m.arch.onDie(m, hit);
@@ -139,7 +140,7 @@ const AI = {
     return m.ai.aware;
   },
   face(m, a, dt, k = 6) { m.facing = E.approachAng(m.facing, a, dt * k); },
-  move(m, dir, dt, k = 1) { const sp = m.speed * k * statusSpeed(m) * (m.st.fear ? -1 : 1) * (m.speedK === undefined ? 1 : m.speedK), acc = (m.stunT > 0 || m.kbT > 0 ? 120 : 500) * dt * (m.traction === undefined ? 1 : m.traction); m.vx = approach(m.vx, dir[0] * sp, acc); m.vy = approach(m.vy, dir[1] * sp, acc); },
+  move(m, dir, dt, k = 1) { const sp = m.speed * k * statusSpeed(m) * (m.speedK === undefined ? 1 : m.speedK), acc = (m.stunT > 0 || m.kbT > 0 ? 120 : 500) * dt * (m.traction === undefined ? 1 : m.traction); m.vx = approach(m.vx, dir[0] * sp, acc); m.vy = approach(m.vy, dir[1] * sp, acc); },
   /** idle wander near home until the hero comes */
   idle(m, dt) {
     const a = m.ai; a.wt = (a.wt || 0) - dt;
@@ -238,7 +239,7 @@ function updateFoes(dt) {
     if (m.spawnT > 0) { m.spawnT -= dt; continue; }
     tickStatus(m, dt); if (!m.alive) continue;
     // launched into the air (uppercuts, explosions): a ballistic arc, no thinking until it lands
-    if (m.air || (m.z > 0 && !m.canFly && m.arch.ai !== 'pouncer')) {
+    if (m.air || (m.z > 0 && !m.canFly && m.arch.ai !== 'pouncer' && !(m.boss && m.pat) && !m.leaping)) {
       m.vz -= 520 * dt; m.z += m.vz * dt; m.x += m.vx * dt; m.y += m.vy * dt;
       if (m.z <= 0) { m.z = 0; m.air = false; if (m.vz < -140) { m.vz = -m.vz * .25; m.air = true; } else m.vz = 0; P.dust(m.x, m.y, 0, 5); if (m.rig) m.rig.kick(-4); m.stunT = Math.max(m.stunT, .35); }
       collideUnit(m); animFoe(m, dt); continue;
@@ -255,7 +256,7 @@ function updateFoes(dt) {
       else { const ai = typeof m.arch.ai === 'function' ? { update: m.arch.ai } : REG.ai[m.arch.ai || 'melee']; if (ai) ai.update(m, dt); }
       if (m.arch.update) m.arch.update(m, dt);
       for (const id of m.affixes) { const a = REG.affixes[id]; if (a && a.update) a.update(m, dt); }
-    } else { m.vx *= Math.exp(-6 * dt); m.vy *= Math.exp(-6 * dt); }
+    } else { const dmp = Math.exp(-6 * dt * (m.traction === undefined ? 1 : m.traction)); m.vx *= dmp; m.vy *= dmp; }   // frozen on ice: it glides
     m.x += m.vx * dt; m.y += m.vy * dt;
     if (m.drift) { m.x += m.drift[0] * dt; m.y += m.drift[1] * dt; }
     m.traction = undefined; m.speedK = undefined; m.drift = null;   // set by mechanics every step (ice, mud, wind)
@@ -322,7 +323,7 @@ function drawFoe(m, r) {
   if (A0 && A0.phase === 'wind' && m.arch.attacks) { const at = m.arch.attacks[m.next] || m.arch.attacks[0]; telegraphArc(r, m, A0.u, (at.reach || 12) * s + (at.extraReach || 0), at.half || .8); }
   if (r.gpu) L.caster(m.x, m.y, 3.2 * s, 22 * s);
   if (m.rig) r.actor(m.x, m.y, m.z, (g, ox, oy) => { m.rig.draw(g, ox, oy, view); if (m.drawExtra) m.drawExtra(g, ox, oy, view); }, { flash: fl, flashMix: fm, alpha, outline: outline || !!fl, outlineColor: oc, rim: outline });
-  else if (m.blob) r.actor(m.x, m.y, m.z, (g, ox, oy) => m.blob.draw(g, ox, oy, view), { flash: fl, flashMix: fm, alpha, outline: outline || !!fl, outlineColor: oc, rim: outline });
+  else if (m.blob) r.actor(m.x, m.y, m.z, (g, ox, oy) => { m.blob.draw(g, ox, oy, view); if (m.drawExtra) m.drawExtra(g, ox, oy, view); }, { flash: fl, flashMix: fm, alpha, outline: outline || !!fl, outlineColor: oc, rim: outline });
   else if (m.arch.body === 'wisp') r.actor(m.x, m.y, m.z, (g, ox, oy) => drawWisp(g, ox, oy, m, r), { rim: false, alpha, emissive: 1, outline });
   else if (m.body) r.actor(m.x, m.y, m.z, (g, ox, oy) => m.body.draw(g, ox, oy, view, m), { flash: fl, flashMix: fm, alpha, outline: outline || !!fl, outlineColor: oc, rim: outline });
   if (A0 && m.rig) m.rig.drawSmear(r, m.el !== 'phys' ? EL(m.el).smear.slice().reverse() : CLAW_SMEAR);
@@ -346,7 +347,7 @@ function drawFoeBars(r) {
     for (const m of ED.foes) {
       if (!m.alive || m.spawnT > 0 || m.boss || (!m.elite && m.hp >= m.maxHp)) continue;
       if (!r.visible(m.x, m.y, m.z, 20, 20, 40)) continue;
-      const [x, y] = r.w(m.x, m.y, m.z + (m.head || 28) * (m.scale || 1) * (r.view.zoom || 1) + 4), w = m.elite ? 26 : 16;
+      const [x, y] = r.w(m.x, m.y, m.z + (m.head || 28) * (m.scale || 1) + 4), w = m.elite ? 26 : 16;
       px.rect(g, x - w / 2 - 1, y - 1, w + 2, 4, '#0c0818'); px.rect(g, x - w / 2, y, w, 2, '#3a1a26'); px.rect(g, x - w / 2, y, Math.max(0, Math.round(w * m.hp / m.maxHp)), 2, m.elite === 2 ? '#ffb040' : m.elite ? '#6a9aff' : '#e0463c');
       if (m.elite === 2 || (m.elite === 1 && m.packLead)) E.font.text(g, m.name, x, y - 9, m.elite === 2 ? '#ffd36a' : '#9ab8ff', { align: 'center', font: 'tiny', outline: '#0c0818' });
     }
@@ -370,7 +371,7 @@ function spawnPack(x, y, o = {}) {
   if (o.elite === 2) { const [px0, py0] = place(); const m = spawnMonster(main, px0, py0, { elite: 2, rng: R, instant: o.instant, el: o.el }); if (m) { m.pack = packId; out.push(m); } }
   for (let i = 0; i < n * (mod.count || 1); i++) {
     const [px0, py0] = place(), champ = o.elite === 1 && i < 3 + (R() * 2 | 0);
-    const m = spawnMonster(i % 3 === 2 ? second : main, px0, py0, { elite: champ ? 1 : 0, affixes: champ ? affixes : !champ && mod.affix ? [mod.affix] : null, rng: R, instant: o.instant, el: o.el, scale: mod.scale, hpMul: mod.hpMul, dmgMul: mod.dmgMul });
+    const m = spawnMonster(i % 3 === 2 ? second : main, px0, py0, { elite: champ ? 1 : 0, affixes: champ ? affixes : !champ && mod.affix && (!REG.affixes[mod.affix].ok || REG.affixes[mod.affix].ok(REG.archetypes[i % 3 === 2 ? second : main])) ? [mod.affix] : null, rng: R, instant: o.instant, el: o.el, scale: mod.scale, hpMul: mod.hpMul, dmgMul: mod.dmgMul });
     if (m) { m.pack = packId; m.homeX = px0; m.homeY = py0; out.push(m); if (champ && !out.some(q => q.packLead)) m.packLead = true; if (mod.speedMul) m.speed *= mod.speedMul; if (mod.prefix && !champ) m.name = mod.prefix + ' ' + m.name; if (mod.scale && mod.scale > 1) m.mass *= mod.scale * mod.scale; }
   }
   return out;

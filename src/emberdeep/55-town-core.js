@@ -52,7 +52,7 @@ function updateNPC(n, dt) {
     if (stp.fx) stp.fx(n, u, dt);
     if (n.st >= stp.dur && (!stp.go || Math.hypot(stp.go[0] - n.x, stp.go[1] - n.y) <= 2)) { n.st = 0; n.step++; }
   } else { n.vx = n.vy = 0; }
-  if (n.near && h) { n.facing = E.approachAng(n.facing, angTo(n, h), dt * 5); if (n.waveT > 0) rs.pose = 'wave'; rs.expr = n.talking ? null : 'smile'; }
+  if (n.near && h && !S.keepFacing) { n.facing = E.approachAng(n.facing, angTo(n, h), dt * 5); if (n.waveT > 0) rs.pose = 'wave'; rs.expr = n.talking ? null : 'smile'; }
   n.x += n.vx * dt; n.y += n.vy * dt; if (ED.L && ED.L.map) ED.L.map.collide(n);
   rs.x = n.x; rs.y = n.y; rs.vx = n.vx; rs.vy = n.vy; rs.facing = n.facing;
   n.rig.update(dt, rs);
@@ -71,7 +71,7 @@ function drawNPC(n, r) {
   if (S.after) S.after(n, r);
   // name tag when the hero is near; a speech bubble if there is one
   if (n.near || n.bubble) r.overlay(g => {
-    const [x, y] = r.w(n.x, n.y, (n.rig.o.size || 1) * 34 * (r.view.zoom || 1));
+    const [x, y] = r.w(n.x, n.y, (n.z || 0) + (n.rig.o.size || 1) * 34);
     if (n.bubble) { const t = n.bubble.text, w = E.font.width(t, { font: 'tiny' }) + 8; E.ui.box(g, x - w / 2, y - 18, w, 11, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false }); E.font.text(g, t, x, y - 15, '#2a1a2a', { align: 'center', font: 'tiny', outline: false }); }
     else { E.font.text(g, S.name, x, y - 12, '#ffd36a', { align: 'center', font: 'tiny', outline: '#0c0818' }); if (S.title) E.font.text(g, S.title, x, y - 6, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#0c0818' }); }
   });

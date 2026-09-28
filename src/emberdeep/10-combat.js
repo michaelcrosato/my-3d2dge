@@ -83,9 +83,9 @@ function dealDamage(tgt, hit) {
 }
 function killUnit(u, hit) {
   if (!u.alive) return;
-  u.alive = false; u.hp = 0; u.deadT = 0; u.st = {};
+  const st = u.st; u.alive = false; u.hp = 0; u.deadT = 0; u.st = {};
   if (u.onDie) u.onDie(hit || {});
-  BUS.emit('kill', { src: hit && hit.src, tgt: u, hit: hit || {} });
+  BUS.emit('kill', { src: hit && hit.src, tgt: u, hit: hit || {}, st });   // st: what it was afflicted with when it died
   // the last of a pack falls: a heartbeat of slow motion (a finisher)
   if (u.pack && u.team === 'foe' && game.timeScale === 1 && !ED.demo && ED.mode === 'level' && !ED.foes.some(o => o.alive && o.pack === u.pack)) {
     const n = ED.corpses.filter(o => o.pack === u.pack).length + 1;
@@ -212,7 +212,7 @@ FX.nova = o => {
   const e = EL(f.el || 'phys'), col = f.color || e.color;
   f.update = dt => {
     f.t += dt; const u = Math.min(1, f.t / f.dur), R = lerp(f.r0, f.r1, E.ease.outQuad(u));
-    hitCircle(f.team, f.x, f.y, R, v => mkHit(f, { ang: Math.atan2(v.y - f.y, v.x - f.x), tags: f.tags || ['aoe'] }), f.set);
+    hitCircle(f.team, f.x, f.y, R, v => { if (f.onHit) f.onHit(v, f); return mkHit(f, { ang: Math.atan2(v.y - f.y, v.x - f.x), tags: f.tags || ['aoe'] }); }, f.set);
     if (f.onTick) f.onTick(f, R);
     return f.t < f.dur + .15;
   };
@@ -287,7 +287,7 @@ FX.strike = o => {
       r.queue(f.x, f.y, 0, g => { const [x0, y0] = r.w(f.x, f.y, 150), [x1, y1] = r.w(f.x, f.y, 0); px.glow(g, 1); zig(g, x0, y0, x1, y1, EL(f.el).color, 3, 7, f.x | 0); zig(g, x0, y0, x1, y1, '#ffffff', 1, 7, f.x | 0); }, { emissive: true, bias: .5 });
       L.add(f.x, f.y, 20, 90, 1.4 * (1 - b.t / .18), { color: EL(f.el).glow });
     } });
-    hitCircle(f.team, f.x, f.y, f.r, u => mkHit(f, { ang: Math.atan2(u.y - f.y, u.x - f.x), tags: f.tags || ['aoe', 'spell'] }));
+    hitCircle(f.team, f.x, f.y, f.r, u => { if (f.onHit) f.onHit(u, f); return mkHit(f, { ang: Math.atan2(u.y - f.y, u.x - f.x), tags: f.tags || ['aoe', 'spell'] }); });
     elBurst(f.x, f.y, 2, f.el, 12); P.ring(f.x, f.y, 2, f.r + 6, EL(f.el).light, .3); shake(2.5); sfx('zap');
     if (f.then) f.then(f);
   } });
@@ -305,7 +305,7 @@ FX.meteor = o => {
   } });
   FX.telegraph({ shape: 'circle', x: f.x, y: f.y, r: f.r, dur: f.delay, color: f.team === 'hero' ? EL(f.el).color : '#ff4a3a' });
   function land() {
-    hitCircle(f.team, f.x, f.y, f.r, u => mkHit(f, { ang: Math.atan2(u.y - f.y, u.x - f.x), kb: 160, up: 90, tags: ['aoe', 'spell'] }));
+    hitCircle(f.team, f.x, f.y, f.r, u => { if (f.onHit) f.onHit(u, f); return mkHit(f, { ang: Math.atan2(u.y - f.y, u.x - f.x), kb: 160, up: 90, tags: ['aoe', 'spell'] }); });
     if (f.el === 'fire') P.explosion(f.x, f.y, 4, 1.2 * f.size, { flash: false }); else { elBurst(f.x, f.y, 4, f.el, 20); sfx('explode'); }
     P.ring(f.x, f.y, 4, f.r + 10, EL(f.el).light, .4); shake(4);
     if (f.burn) FX.area({ team: f.team, src: f.src, x: f.x, y: f.y, r: f.r * .8, dur: f.burn, el: f.el, tick: .5, hit: { amount: (f.hit && f.hit.amount || 10) * .15, statusChance: .5 } });
@@ -377,7 +377,7 @@ FX.wave = o => {
     f.t += dt; const d = Math.min(f.len, f.t * f.speed), map = ED.L && ED.L.map;
     const hx = f.x + Math.cos(f.ang) * d, hy = f.y + Math.sin(f.ang) * d;
     if (map && map.solidAt(hx, hy)) f.len = Math.min(f.len, d);
-    hitCircle(f.team, hx, hy, f.w / 2, u => mkHit(f, { ang: f.ang, up: f.up || 0, tags: ['aoe', 'wave'] }), f.set);
+    hitCircle(f.team, hx, hy, f.w / 2, u => { if (f.onHit) f.onHit(u, f); return mkHit(f, { ang: f.ang, up: f.up || 0, tags: ['aoe', 'wave'] }); }, f.set);
     if (!f.last || d - f.last > 7) { f.last = d; f.marks.push({ x: hx + (Math.random() - .5) * 6, y: hy + (Math.random() - .5) * 6, t: game.time }); elBurst(hx, hy, 2, f.el, 3); }
     return f.t * f.speed < f.len + 60 || game.time - (f.marks.length ? f.marks[f.marks.length - 1].t : 0) < .6;
   };

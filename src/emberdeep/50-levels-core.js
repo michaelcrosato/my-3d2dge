@@ -184,7 +184,7 @@ function floorEffects(u, dt) {
   if (tag === 'water') { u.speedK = (u.speedK === undefined ? 1 : u.speedK) * .78; if (Math.random() < dt * Math.hypot(u.vx || 0, u.vy || 0) * .08) P.ring(u.x, u.y, 2, 9, '#bfe8ff', .3); }
   else if (tag === 'ice') u.traction = Math.min(u.traction === undefined ? 1 : u.traction, .12);
   else if (tag === 'web') u.speedK = (u.speedK === undefined ? 1 : u.speedK) * .45;
-  else if (tag === 'lava' && !(u.res && u.res.fire >= .75)) { u.lavaT = (u.lavaT || 0) - dt; if (u.lavaT <= 0) { u.lavaT = .5; dealDamage(u, { src: null, amount: (u.team === 'hero' ? u.maxHp * .06 : u.maxHp * .08) + 2, el: 'fire', kb: 0, statusChance: 1, noNumber: u.team !== 'hero', tags: ['floor'] }); } }
+  else if (tag === 'lava' && !(u.res && u.res.fire >= .75)) { u.lavaT = (u.lavaT || 0) - dt; if (u.lavaT <= 0) { u.lavaT = .5; dealDamage(u, { src: null, amount: (u.team === 'hero' ? u.maxHp * .06 : u.boss ? u.maxHp * .008 : u.maxHp * .08) + 2, el: 'fire', kb: 0, statusChance: 1, noNumber: u.team !== 'hero', tags: ['floor'] }); } }
 }
 /** flagstones with rune circles around every rune point (L.runes), moss creeping in from the walls */
 function cryptFloor(L0, x, y, tag, pal) {
@@ -280,14 +280,17 @@ function packVariant(depth, R) {
 function populate(L0) {
   const R = RNG(L0.rec.seed + 99);
   for (const p of L0.packs) { const v = packVariant(L0.rec.depth, R); spawnPack(p.x, p.y, { pool: L0.rec.pool, elite: p.elite, rng: R, instant: true, n: p.elite === 2 ? 3 + R.int(0, 2) : undefined, el: v.el, mod: v }); }
-  if (L0.rec.boss) { const B = spawnBoss(L0.rec.boss, L0.exit.x, L0.exit.y - 10, { hue: L0.hue }); if (B) { B.ai.aware = false; B.introT = 0; B.dormant = true; } }
+  if (L0.rec.boss) spawnBoss(L0.rec.boss, L0.exit.x, L0.exit.y - 10, { hue: L0.hue, dormant: true });
 }
 
 /* ---------- drawing a level: floor, walls, torches, props, things ---------- */
 const flicker = t => .9 + Math.sin(t * 13) * .05 + Math.sin(t * 29) * .04 + Math.sin(t * 7.3) * .04;
-function drawBrazier(g, r, b) {
+function drawBrazier(g, r, b) { drawBrazierBase(g, r, b); drawBrazierFlame(g, r, b); }
+function drawBrazierBase(g, r, b) {
   r.box(g, b.x - 3, b.y - 3, 0, b.x + 3, b.y + 3, 8, '#5d566f', '#433d55');
   px.poly(g, r.groundPts(b.x, b.y, 5.5, 14, 11), '#2b2430'); px.poly(g, r.groundPts(b.x, b.y, 5.5, 14, 9), '#3a3036');
+}
+function drawBrazierFlame(g, r, b) {
   px.glow(g, .9); px.poly(g, r.groundPts(b.x, b.y, 4, 12, 11.2), b.color === '#ff9a4a' ? '#ff8a3c' : b.color);
   const sc = r.view.scale, t = b.t, hot = b.color === '#ff9a4a' ? ['#ff7a2a', '#ffd36a'] : [b.color, E.tones(b.color).hi];
   for (let k = 0; k < 3; k++) {
@@ -301,7 +304,7 @@ function drawTorches(L0, r) {
   let heats = 0;
   for (const b of L0.torches) {
     b.t += 1 / 60;
-    if (b.kind === 'brazier') { if (r.visible(b.x, b.y, 0)) { r.queue(b.x, b.y, 0, g => drawBrazier(g, r, b), { emissive: true }); if (heats++ < 6) L.heat(b.x, b.y, 17, 7, 1.1); } }
+    if (b.kind === 'brazier') { if (r.visible(b.x, b.y, 0)) { r.queue(b.x, b.y, 0, g => drawBrazierBase(g, r, b)); r.queue(b.x, b.y, 11, g => drawBrazierFlame(g, r, b), { emissive: true, bias: .002 }); if (heats++ < 6) L.heat(b.x, b.y, 17, 7, 1.1); } }
     else r.prop(b.kind, b.x, b.y, 0, { size: b.size || 1.2, halo: true });
     if (r.visible(b.x, b.y, 0, 200, 200, 200)) L.add(b.x, b.y, 16, b.radius || 124, (b.i || 1.25) * flicker(b.t), { color: b.color, shadow: true });
     L.caster(b.x, b.y, 4.5, 11);

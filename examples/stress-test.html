@@ -1336,7 +1336,7 @@ class Renderer {
     if (!this.visible(x, y, z, spr.w + 20, spr.h + 20, spr.h + 20)) return;
     const gf = p.glow ? p.glow[Math.floor((t * 9 + x * .37) % p.glow.length)] : null;
     const at = () => { const [sx, sy] = this.w(x, y, z); return [Math.round(sx) - ax, Math.round(sy) - ay]; };
-    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, emissive: p.emissive });
+    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias });
     if (p.glowAt && o.halo !== false) this.queue(x, y, z, g => {   // lamps, lanterns and crystals glow even with lighting off; cone: true adds a light cone below
       if (g._info) return;
       const [X, Y] = at(), gx = X + spr.w * p.glowAt[0], gy = Y + spr.h * p.glowAt[1], R = o.haloR || Math.max(6, spr.w * .9), c = o.haloColor || p.glowAt[2];
@@ -1923,27 +1923,27 @@ class Humanoid {
       // wind: anticipation (pull back, crouch). active: the strike, with a lunge, lead-foot step, lean, twist and hop.
       // recover: follow through, hold the end pose, then blend back to the stance by position (never swing backwards)
       const sp = A.spec, side = this.sidePlane, rest = side ? -.9 : 1.1, RS = sp.rel ? (o.armUpper + o.armLower) / 9.2 : 1, R = (sp.reach || 7.5) * RS, r0 = sp.r0 === undefined ? R : sp.r0 * RS, r1 = sp.r1 === undefined ? R : sp.r1 * RS;
-      this.atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9;
+      this.atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9, z0 = sp.z0 === undefined ? zRest : sp.z0, z1 = sp.z1 === undefined ? z0 : sp.z1;   // side-plane moves have no heights
       // lunge / hop / crouch are body motion in local units, clamped so a game's own 'lunge' speed field can't stretch the rig
       const hold = sp.hold === undefined ? .3 : sp.hold, lean = sp.lean === undefined ? (sp.kick ? -.22 : .3) : clamp(sp.lean, -.8, .8), lunge = sp.lunge === undefined ? (sp.kick ? .4 : 1.2) : clamp(sp.lunge, -4, 5);
       if (A.phase === 'wind' && (this._aPh !== 'wind' || this._aSp !== sp)) {   // a chained hit starts where the arm is
         const chain = (this.armW || 0) > .3 && this.theta !== undefined, fists = !o.weapon || sp.hand === 'L' || sp.blade === 0;
-        this._th0 = chain ? this.theta : rest; this._z0 = chain && this.atkRel === !!sp.rel ? this.atkZ : fists ? sp.z0 : zRest; this._r0 = chain ? this.reach : R * .75;
+        this._th0 = chain ? this.theta : rest; this._z0 = chain && this.atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
         const J = this.J; if (J.handR) this._from = { R: J.handR.slice(), L: J.handL.slice(), bd: J.bladeDir.slice() };   // the wind blends from the real pose: no snaps
       }
       this._aPh = A.phase; this._aSp = sp; this.atkHand = sp.hand || 'R'; if (A.phase !== 'wind') this._windK = 1;
       if (A.phase === 'wind') {
         const k = ease.outQuad(A.u);
-        this.theta = lerp(this._th0, sp.a0, k); this.atkZ = lerp(this._z0, sp.z0, A.u); this.reach = lerp(this._r0, r0, k); this._windK = k;
+        this.theta = lerp(this._th0, sp.a0, k); this.atkZ = lerp(this._z0, z0, A.u); this.reach = lerp(this._r0, r0, k); this._windK = k;
         tLean = -Math.abs(lean) * .45; tLunge = -lunge * .3 * k; tCrouch = clamp(sp.crouch === undefined ? (sp.kick ? 0 : .15) : sp.crouch, 0, 1) * k;   // coil: lean back, draw back, dip
       } else if (A.phase === 'active') {
         const k = ease.outCubic(A.u);
-        this.theta = sp.spin ? sp.a0 : lerp(sp.a0, sp.a1, k); this.atkZ = lerp(sp.z0, sp.z1, k); this.reach = lerp(r0, r1, k);
+        this.theta = sp.spin ? sp.a0 : lerp(sp.a0, sp.a1, k); this.atkZ = lerp(z0, z1, k); this.reach = lerp(r0, r1, k);
         tLean = lean; tLunge = lunge * k; tHop = clamp(sp.hop || 0, 0, 12) * Math.sin(k * Math.PI); tCrouch = clamp(sp.crouch === undefined ? (sp.kick ? 0 : .15) : sp.crouch, 0, 1) * (1 - k);
         if (sp.spin) { if (side) this.theta = sp.a0 - TAU * k; else this.spin = -TAU * k; }   // side views: the blade loops a full circle in front (a windmill) instead of a turn the camera sees edge-on
       } else {
         const k = ease.outQuad(clamp(A.u / hold, 0, 1)), span = sp.spin ? 0 : sp.a1 - sp.a0;
-        this.theta = (sp.spin ? sp.a0 : sp.a1) + span * .08 * k; this.atkZ = sp.z1; this.reach = r1;
+        this.theta = (sp.spin ? sp.a0 : sp.a1) + span * .08 * k; this.atkZ = z1; this.reach = r1;
         armT = A.u < hold ? 1 : 1 - ease.inOut((A.u - hold) / (1 - hold));
         tLean = lean * armT; tLunge = lunge * armT;
       }
@@ -2245,7 +2245,7 @@ class Humanoid {
       const bl = Sp(J.hipL, 0, -.3, .7), br = Sp(J.hipR, 0, .3, .7), bt = tones(C.belt);
       px.line(g, bl[0], bl[1], br[0], br[1], bt.sh, Math.max(1, Math.round(u * .7))); px.line(g, bl[0], bl[1] - 1, br[0], br[1] - 1, bt.base);
       if (facingCam) { const bk = Sp(J.hipC, 1.1, 0, .7); px.rect(g, bk[0] - 1, bk[1] - 1, 2, 2, bt.hi); }
-      if (o.armor) { const m = tones(C.metal); const p0 = Sp(J.shC, .5, 0, -1), p1 = Sp(J.hipC, .5, 0, 3.2); cap(p0, p1, o.torsoW * .5 * u, o.torsoW * .4 * u, m.sh); cap(p0, p1, o.torsoW * .5 * u - 1, o.torsoW * .4 * u - 1, m.base, -.6, -.6); px.dot(g, p0[0] - 1, p0[1] + 1, m.hi); }
+      if (o.armor) { const m = tones(C.plate || C.metal); const p0 = Sp(J.shC, .5, 0, -1), p1 = Sp(J.hipC, .5, 0, 3.2); cap(p0, p1, o.torsoW * .5 * u, o.torsoW * .4 * u, m.sh); cap(p0, p1, o.torsoW * .5 * u - 1, o.torsoW * .4 * u - 1, m.base, -.6, -.6); px.dot(g, p0[0] - 1, p0[1] + 1, m.hi); }
     } });
     // ---- cape: cloth strip with folds ----
     if (this.capeL) {
@@ -2345,7 +2345,7 @@ class Humanoid {
       limb(el, hd, 1.0 * u * lw, .9 * u * lw, lower, far, .001);
       const hc = C.glove || C.skin, ht = tones(hc);
       ops.push({ d: hd[2] + .02, f: () => { px.disc(g, hd[0], hd[1], Math.max(.6, .82 * u * lw - .35), far ? ht.deep : ht.sh); px.disc(g, hd[0] - .5, hd[1] - .5, Math.max(.4, .58 * u * lw - .35), far ? ht.sh : ht.base); } });
-      if (o.armor) { const pad = Sp(s > 0 ? J.shR : J.shL, -.1, s * .3, .5), m = tones(C.metal); ops.push({ d: sh[2] + .03, f: () => { px.disc(g, pad[0], pad[1], 1.55 * u, far ? m.deep : m.sh); px.disc(g, pad[0] - .6, pad[1] - .6, Math.max(.5, 1.55 * u - 1), far ? m.sh : m.base); px.dot(g, pad[0] - u * .8, pad[1] - u * .8, m.hi); } }); }
+      if (o.armor) { const pad = Sp(s > 0 ? J.shR : J.shL, -.1, s * .3, .5), m = tones(C.plate || C.metal); ops.push({ d: sh[2] + .03, f: () => { px.disc(g, pad[0], pad[1], 1.55 * u, far ? m.deep : m.sh); px.disc(g, pad[0] - .6, pad[1] - .6, Math.max(.5, 1.55 * u - 1), far ? m.sh : m.base); px.dot(g, pad[0] - u * .8, pad[1] - u * .8, m.hi); } }); }
     }
     // ---- weapons ----
     if (o.weapon === 'gun') {
@@ -2774,7 +2774,7 @@ class TileMap {
    * Walls standing on a floor (top-down, isometric, brawler). Either
    *   { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex }   (recommended)
    * or { w, h, cells: [ids...], types, floorTex }.
-   * types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag) -> [r, g, b] or [r, g, b, glow]
+   * types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow]
    *   face: wall pattern 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none'
    *   roof: top pattern 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass'
    * block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
@@ -2866,8 +2866,8 @@ class TileMap {
   }
   /** renderer hook: something standing on a wall block sorts after that block */
   _liftOrder(view, x, y, z, k) {
-    const T = this.T, cx = Math.floor(x / T), cy = Math.floor(y / T), c = this.cell(cx, cy);
-    if (c <= 0 || z < this.types[c].h - 1) return k;
+    const T = this.T, cx = Math.floor(x / T), cy = Math.floor(y / T), c = this.cell(cx, cy), t = c > 0 ? this.types[c] : null;
+    if (!t || z < t.h - 1) return k;
     return Math.max(k, view.order((cx + .5) * T, (cy + .5) * T, 0) + .002 + z * 1e-5);
   }
   /** line of sight across the ground (true if nothing solid in between) */
@@ -2896,7 +2896,7 @@ class TileMap {
       else { gx = (pxx + x0 + .5) / view.ax; gy = H * .5 + py * 2; }
       if (gx < 0 || gy < 0 || gx >= W || gy >= H) continue;
       if (view.inv && this.cell(Math.floor(gx / T), Math.floor(gy / T)) !== 0) continue;
-      let c = this.floorTex(gx, gy, this.floorTags ? this.floorTags[Math.floor(gy / T) * this.w + Math.floor(gx / T)] : null); if (!c) continue;
+      let c = this.floorTex(gx, gy, this.floorTags ? this.floorTags[Math.floor(gy / T) * this.w + Math.floor(gx / T)] : null, view); if (!c) continue;
       if (this.ao) {   // soft contact shadow where the floor meets a wall
         const fcx = Math.floor(gx / T), fcy = Math.floor(gy / T), lx = gx - fcx * T, ly = gy - fcy * T, R = this.ao;
         let ao = 0;

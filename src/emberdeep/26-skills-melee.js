@@ -22,7 +22,7 @@ A.define('skmCatch', [{ wave: 'square', freq: 1480, to: 1400, dur: .07, vol: .1 
 A.define('skmBowl', [{ wave: 'sine', freq: 150, to: 55, dur: .16, vol: .5 }, { wave: 'noise', freq: 900, to: 200, dur: .1, vol: .3, filter: 'lowpass' }]);
 
 /* ---------- the shared kit ---------- */
-const SKM_JUGGLE = 1.3, SKM_ROCK = ['#6a5a52', '#4a4050', '#8a7a6a', '#2e2834', '#9a8a78'];
+const SKM_JUGGLE = 1.3, SKM_LIGHT = ['#ffffff', '#eafcff', '#a8e8ff', '#4a9ad4'], SKM_ROCK = ['#6a5a52', '#4a4050', '#8a7a6a', '#2e2834', '#9a8a78'];
 /** a move spec: an E.MOVES entry plus overrides. The rig keys its wind-up on the spec object, so one object drives a whole swing */
 const SKM_spec = (name, over) => Object.assign({ name, hitAt: .35, wind: .06, active: .1, recover: .18 }, E.MOVES[name] || {}, over || {});
 /** the attack state the rig wants for a spec at a moment (skills that time their own phases) */
@@ -36,20 +36,27 @@ function SKM_open(x, y, r = 4.5) {
   for (const [dx, dy] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (!m.walkable(Math.floor((x + dx) / m.T), Math.floor((y + dy) / m.T))) return false;
   return true;
 }
-/** the hit a melee skill lands on u: ctx.hit plus an angle, launch, stun and status; airborne foes take the juggle bonus */
+/** the hit a melee skill lands on u: ctx.hit plus an angle, launch, stun and status. Airborne foes take the juggle bonus
+ *  and are lifted again (o.lift: false for blows that should not: whirlwind ticks, bodies colliding, slams) */
 function SKM_hit(ctx, u, scale, o = {}) {
   const h = ED.hero, x = { ang: o.ang !== undefined ? o.ang : Math.atan2(u.y - h.y, u.x - h.x) };
   if (o.up) x.up = o.up; if (o.stun) x.stun = o.stun; if (o.status) x.status = o.status; if (o.statusChance !== undefined) x.statusChance = o.statusChance;
   const q = { kb: o.kb || 0, extra: x }; if (o.el && o.el !== ctx.S.el) q.el = o.el; if (o.tags) q.tags = o.tags;
-  const air = SKM_air(u) && u.team === 'foe';
-  if (air && game.time - (u.skmJug || 0) > .6) { u.skmJug = game.time; P.text(u.x, u.y, (u.z || 0) + (u.head || 20) + 12, 'JUGGLE', '#ffd23a'); }
+  const air = SKM_air(u) && u.team === 'foe' && !o.nojug;
+  if (air && !o.up && o.lift !== false && !u.boss) {   // the juggle: a blow on an airborne foe keeps it up, hanging just in front of him
+    x.up = Math.max(40, Math.sqrt(1040 * Math.max(0, 26 - (u.z || 0))) * Math.sqrt(u.mass || 1)); q.kb = 21;   // just enough to float back up to ~26: it hangs there
+    const fx = h.x + Math.cos(h.facing) * 9, fy = h.y + Math.sin(h.facing) * 9;
+    if (Math.hypot(u.x - h.x, u.y - h.y) < 40) { u.vx = (fx - u.x) * 2.5; u.vy = (fy - u.y) * 2.5; } else { u.vx *= .3; u.vy *= .3; }
+  }
+  if (air && game.time - (u.skmJug || 0) > .6 && game.time - SKM_hit.pop > .35) { u.skmJug = SKM_hit.pop = game.time; P.text(u.x, u.y, (u.z || 0) + (u.head || 20) + 12, 'JUGGLE', '#ffd23a'); }
   return ctx.hit(scale * (air ? SKM_JUGGLE : 1), q);
 }
+SKM_hit.pop = -1;   // the JUGGLE popup, at most every .35 s
 /** the punch of a landed blow: hit-stop, shake, an impact star, sparks along the blow, element bits, a sound */
 function SKM_impact(u, ang, p = 1, el = 'phys', snd = 'hit') {
   const e = EL(el), z = (u.z || 0) + (u.head || 20) * .5, r0 = (u.r || 4) * .6, x = u.x - Math.cos(ang) * r0, y = u.y - Math.sin(ang) * r0;
   game.freeze(clamp(.022 + .018 * p, .02, .085)); shake(.8 + p * 1.1);
-  P.impact(x, y, z, 4.5 + p * 2, el === 'phys' ? '#ffe070' : e.light);
+  P.impact(x, y, z, 2.6 + p * 1.7, el === 'phys' ? '#ffe070' : e.light);
   P.sparks(x, y, z, Math.round(3 + p * 4), ang, el === 'phys' ? undefined : { color: e.color, hot: e.light });
   if (el !== 'phys') elBurst(x, y, z, el, Math.round(3 + p * 2), ang);
   if (snd) sfx(snd, { vol: .35 + .12 * p });
@@ -87,7 +94,7 @@ function SKM_crack(x, y, o = {}) {
   });
 }
 /** dust thrown out in a ring (landings, stomps) */
-function SKM_dustRing(x, y, n, sp, color) { for (let i = 0; i < n; i++) { const a = i / n * TAU + Math.random() * .3, v = sp * (.7 + Math.random() * .5); P.add({ kind: 'dust', x: x + Math.cos(a) * 4, y: y + Math.sin(a) * 4, z: 1, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 10 + Math.random() * 18, g: -4, drag: 4, max: .45 + Math.random() * .3, size: 1.6 + Math.random(), color: color || '#b9a88f' }); } }
+function SKM_dustRing(x, y, n, sp, color) { for (let i = 0; i < n; i++) { const a = i / n * TAU + Math.random() * .3, v = sp * (.8 + Math.random() * .5); P.add({ kind: 'dust', x: x + Math.cos(a) * 4, y: y + Math.sin(a) * 4, z: 1, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 6 + Math.random() * 10, g: -2, drag: 6, max: .28 + Math.random() * .2, size: .8 + Math.random() * .5, color: color || '#b9a88f' }); } }
 /** speed lines streaming back from a point (dashes, kicks) */
 function SKM_streak(x, y, z, ang, n = 2, c = '#e8f4ff') { for (let i = 0; i < n; i++) { const o = (Math.random() - .5) * 10; P.add({ kind: 'spark', x: x - Math.sin(ang) * o, y: y + Math.cos(ang) * o, z: z + (Math.random() - .5) * 10, vx: -Math.cos(ang) * 240, vy: -Math.sin(ang) * 240, vz: 0, g: 0, drag: 7, max: .12, color: c, hot: '#ffffff' }); } }
 
@@ -104,7 +111,8 @@ function SKM_act(h, o) {
   return act;
 }
 /* the guard: whatever cut an action short (a scene change sets h.act = null, death, a new level), the sword comes back */
-BUS.on('step', () => { const h = ED.hero; if (!h || !h.rig || (h.act && h.act.skm)) return; if (h.skmHidden) SKM_giveSword(h); if (h.skmSmear) SKM_unsmear(h); }, 'global');
+BUS.on('step', e => { const h = ED.hero; if (!h || !h.rig) return; if (h.dead && h.z > 0) h.z = Math.max(0, h.z - 240 * e.dt);   // killed mid-leap: he falls
+  if (h.act && h.act.skm) return; if (h.skmHidden) SKM_giveSword(h); if (h.skmSmear) SKM_unsmear(h); }, 'global');
 BUS.on('levelEnd', () => { const h = ED.hero; if (h && h.rig) { SKM_giveSword(h); SKM_unsmear(h); } }, 'global');
 
 /* ---------- pixel icons (16 x 16 at size s) ---------- */
@@ -132,11 +140,12 @@ def('skills', 'cleave', {
   name: 'Overhead Cleave', kind: 'core', tags: ['melee', 'attack', 'aoe'], el: 'phys', cost: 14, unlock: 2, color: '#7a3a2e',
   runes: [{ id: 'sunder', name: 'Sundering Cleave', desc: 'The blow splits the floor: three fissures race out and throw enemies into the air.' },
     { id: 'molten', name: 'Molten Cleave', desc: 'The blade burns white-hot: Fire damage that ignites, and the cleft burns on.' }],
-  desc: (rank, rune) => 'Raise the sword in both hands and bring it down in a crushing chop: ' + SKM_pct(2.6, rank) + ' weapon damage in a long arc. Everything struck is staggered and bounced off the floor.' +
+  desc: (rank, rune) => 'A two-handed overhead chop: ' + SKM_pct(2.6, rank) + ' weapon damage in a long arc that staggers everything and bounces it off the floor.' +
     (rune === 'sunder' ? ' Three fissures race out from the blow.' : rune === 'molten' ? ' Deals Fire damage and leaves the cleft burning.' : ''),
   icon: (g, x, y, s) => {
     const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s));
     SKM_iconArc(g, x, y, s, 9, 10, 7, -2.9, -1.75, '#ffe8b0', 6);
+    px.rect(g, ...P(1, 13.5), 14 * s, 2 * s, '#8a6a58'); px.rect(g, ...P(1, 13.5), 14 * s, Math.max(1, s * .6), '#b0907a');   // the floor, split by the blow
     px.line(g, ...P(9, 13.5), ...P(3, 15), '#1a0e10', W); px.line(g, ...P(9, 13.5), ...P(14, 15), '#1a0e10', W); px.line(g, ...P(9, 13.5), ...P(8, 15.5), '#1a0e10', W);
     SKM_iconSword(g, x, y, s, 13.5, 1.5, 9, 13, { wide: true, guard: 3 });
     px.dot(g, ...P(8, 13), '#ffe070'); px.dot(g, ...P(10, 12), '#ffe070'); px.dot(g, ...P(7, 12), '#fff8d0'); px.dot(g, ...P(11, 14), '#ff9a3a');
@@ -147,7 +156,7 @@ def('skills', 'cleave', {
       update(dt) {
         const began = atk.update(dt), st = atk.state; this.rig.attack = st; this.t += dt;
         if (fire) SKM_smear(h, 'fire');
-        if (st && st.phase === 'wind' && st.u > .72 && !this.gleam) { this.gleam = true; const [tx, ty, tz] = h.rig.tip(); P.glints(tx, ty, tz, 3, fire ? '#ffe070' : '#ffffff', 4); if (fire) P.fire(tx, ty, tz, 3, { size: 2.5 }); }
+        if (st && st.phase === 'wind' && st.u > .72 && !this.gleam) { this.gleam = true; const [tx, ty, tz] = h.rig.tip(); P.add({ kind: 'glint', x: tx, y: ty, z: tz, vz: 0, max: .22, size: 2.2, color: fire ? '#ffe070' : '#ffffff' }); }
         if (began === 'active') { sfx('skmChop', { vol: .9 }); this.rig.expr = 'shout'; h.vx += Math.cos(h.facing) * 80; h.vy += Math.sin(h.facing) * 80; }
         if (st && st.phase === 'active' && st.u >= SKM_CLEAVE.hitAt && !this.struck) { this.struck = true; strike(); }
         if (st && st.phase === 'recover' && st.u > .5) this.rig.expr = null;
@@ -162,7 +171,7 @@ def('skills', 'cleave', {
       game.freeze(.075); shake(5.5); sfx('skmSlam'); sfx('slash2', { vol: .8 }); h.rig.kick(-5);
       SKM_crack(ix, iy, { ang: a, spread: 1.9, n: 7, r: 30 * ctx.area, el });
       SKM_dustRing(ix, iy, 14, 70); P.bits(ix, iy, 2, 12, SKM_ROCK); P.ring(ix, iy, 3, 24 * ctx.area, fire ? '#ffb050' : '#fff2c4', .32);
-      P.impact(ix, iy, 3, 11, fire ? '#ffb050' : '#fff2c4'); SKM_upSparks(ix, iy, 2, 8, fire ? '#ff9a3a' : '#ffe8b0', fire ? '#fff0a0' : '#ffffff');
+      P.impact(ix, iy, 3, 7, fire ? '#ffb050' : '#fff2c4'); SKM_upSparks(ix, iy, 2, 8, fire ? '#ff9a3a' : '#ffe8b0', fire ? '#fff0a0' : '#ffffff');
       SKM_flare(ix, iy, 8, 80, fire ? '#ff9a3a' : '#fff0d0', .3, 1.4);
       if (ctx.rune === 'sunder') { const n = 3 + ctx.proj; for (let i = 0; i < n; i++) FX.wave({ team: 'hero', src: h, x: ix, y: iy, ang: a + (i / (n - 1) - .5) * .8, speed: 240, len: 100 * ctx.area, w: 14, el: 'phys', up: 120, hit: ctx.hit(.8, { kb: 90 }) }); }
       if (fire) { for (let i = 0; i < 3; i++) FX.area({ team: 'hero', src: h, x: ix + Math.cos(a) * i * 13, y: iy + Math.sin(a) * i * 13, r: 11 * ctx.area, dur: 3.2, tick: .5, el: 'fire', hit: ctx.hit(.2, { el: 'fire', tags: ['aoe', 'dot'], extra: { statusChance: .5 } }) }); P.fire(ix, iy, 3, 12, { size: 4, speed: 50 }); }
@@ -182,7 +191,7 @@ def('skills', 'whirlwind', {
   name: 'Whirlwind', kind: 'core', tags: ['melee', 'attack', 'aoe', 'channel'], el: 'phys', cost: 6, unlock: 12, color: '#3a5a6a', drain: 16,
   runes: [{ id: 'vortex', name: 'Vortex', desc: 'The spin drags nearby enemies in toward the blade.' },
     { id: 'glacial', name: 'Glacial Whirl', desc: 'Frost damage: every cut chills, and a freezing gale spins off the blade.' }],
-  desc: (rank, rune) => 'Hold to spin with the blade held out, cutting everything around you for ' + SKM_pct(.42, rank) + ' weapon damage six times a second while you drift. Drains 16 Ember per second.' +
+  desc: (rank, rune) => 'Hold to spin with the blade held out, cutting all around you for ' + SKM_pct(.42, rank) + ' weapon damage six times a second. Drains Ember.' +
     (rune === 'vortex' ? ' Enemies are dragged into the spin.' : rune === 'glacial' ? ' Frost damage that chills and freezes.' : ''),
   icon: (g, x, y, s) => {
     const P = SKM_P(x, y, s);
@@ -205,7 +214,7 @@ def('skills', 'whirlwind', {
         }
         if (phase === 'spin') {
           turns += dt * SKM_WHIRL_RATE;
-          if (stopAt < 0 && (this.release || h.ember <= 0) && this.t > .55) stopAt = Math.floor(turns) + 1;   // finish the turn: no snap back
+          if (stopAt < 0 && (this.release || h.ember <= 0) && this.t > (ED.mode === 'gallery' ? 1.9 : .55)) stopAt = Math.floor(turns) + 1;   // finish the turn: no snap back
           if (stopAt > 0 && turns >= stopAt) { phase = 'recover'; pt = 0; this.rig.expr = null; this.rig.attack = SKM_st(SKM_WHIRL, 'recover', 0); h.rig.kick(-3); return true; }
           const s = turns % 1; this.rig.attack = SKM_st(SKM_WHIRL, 'active', 1 - Math.cbrt(1 - s));   // outCubic(u) = s: a steady turn
           if (stopAt < 0) h.ember = Math.max(0, h.ember - drain * dt);
@@ -213,15 +222,16 @@ def('skills', 'whirlwind', {
           // cuts: a fresh set every tick, swept along the spin (and outward, unless the vortex holds them in)
           if ((tick -= dt) <= 0) {
             tick = 1 / 6; let n = 0;
-            hitCircle('hero', h.x, h.y, R, u => { const a = angTo(h, u) - (vortex ? 1.35 : .85); n++; P.sparks(u.x, u.y, (u.z || 0) + 10, 3, a, glacial ? { color: '#bfefff', hot: '#ffffff' } : undefined); if (glacial) elBurst(u.x, u.y, 10, 'frost', 3); return SKM_hit(ctx, u, .42, { kb: vortex ? 40 : 75, ang: a, el, statusChance: glacial ? .55 : undefined }); }, new Set());
+            hitCircle('hero', h.x, h.y, R, u => { const a = angTo(h, u) - (vortex ? 1.35 : .85); n++; P.sparks(u.x, u.y, (u.z || 0) + 10, 3, a, glacial ? { color: '#bfefff', hot: '#ffffff' } : undefined); if (glacial) elBurst(u.x, u.y, 10, 'frost', 3); return SKM_hit(ctx, u, .42, { kb: vortex ? 40 : 75, ang: a, el, statusChance: glacial ? .55 : undefined, lift: false }); }, new Set());
             if (n) { game.freeze(.018); shake(1.2); sfx('hit', { vol: .35, pitch: 1.1 + Math.random() * .2 }); }
           }
           if (vortex) eachEnemy('hero', h.x, h.y, R * 2.4, u => { if (u.boss || SKM_air(u)) return; const d = Math.hypot(h.x - u.x, h.y - u.y); if (d < R * .55) return; const a = angTo(u, h), k = 95 * dt * Math.min(1, d / 24) / (u.mass || 1); u.x += Math.cos(a) * k + Math.cos(a + 1.57) * k * .5; u.y += Math.sin(a) * k + Math.sin(a + 1.57) * k * .5; });
           // the gale: dust (or frost) whipped around the blade's circle
           const k0 = -turns * TAU;
-          for (let i = 0; i < 2; i++) { if (Math.random() > .75) continue; const a = h.facing + k0 + 1.35 - Math.random() * 1.2, d = R * (.55 + Math.random() * .45), v = 150 + Math.random() * 60;
-            P.add({ kind: glacial && Math.random() < .5 ? 'glint' : 'dust', x: h.x + Math.cos(a) * d, y: h.y + Math.sin(a) * d, z: 2 + Math.random() * 12, vx: Math.cos(a - 1.57) * v, vy: Math.sin(a - 1.57) * v, vz: 6, g: -4, drag: 5, max: .35, size: 1.3, color: dust }); }
-          if (Math.random() < dt * 14) P.dust(h.x, h.y, 0, 1, { speed: 30, color: dust });
+          if (Math.random() < dt * 40) { const a = h.facing + k0 + 1.35 - Math.random() * .8, d = R * (.6 + Math.random() * .4), v = 170 + Math.random() * 80;   // wind streaks thrown off the blade's edge
+            P.add({ kind: 'spark', x: h.x + Math.cos(a) * d, y: h.y + Math.sin(a) * d, z: 4 + Math.random() * 10, vx: Math.cos(a - 1.4) * v, vy: Math.sin(a - 1.4) * v, vz: 0, g: 0, drag: 5, max: .16, color: glacial ? '#bfefff' : '#e8e0d0', hot: '#ffffff' }); }
+          if (glacial && Math.random() < dt * 12) P.glints(h.x + (Math.random() - .5) * R, h.y + (Math.random() - .5) * R, 4 + Math.random() * 8, 1, '#e8fbff', 2);
+          if (Math.random() < dt * 10) { const a = Math.random() * TAU; P.add({ kind: 'dust', x: h.x + Math.cos(a) * 5, y: h.y + Math.sin(a) * 5, z: 1, vx: Math.cos(a - 1.4) * 50, vy: Math.sin(a - 1.4) * 50, vz: 6, g: -2, drag: 5, max: .3, size: .9, color: dust }); }
           return true;
         }
         this.rig.attack = SKM_st(SKM_WHIRL, 'recover', pt / SKM_WHIRL.recover); this.free = pt > .08;
@@ -241,12 +251,12 @@ def('skills', 'whirlwind', {
  * PIERCING LUNGE: coil low with the blade drawn back, then a flat-out dash-thrust through a whole line of
  * enemies, afterimages streaming behind; he skids to a stop in a spray of dust.
  * ============================================================================= */
-const SKM_LUNGE = SKM_spec('thrust', { wind: .13, active: .16, recover: .3, hold: .5, r0: 2.2, r1: 11.5, lunge: 4.5, lean: .7, crouch: .6, z0: -5.5, z1: -4.5 });
+const SKM_LUNGE = SKM_spec('thrust', { wind: .13, active: .16, recover: .3, hold: .5, r0: 2.2, r1: 11.5, lunge: 4.5, lean: .42, crouch: .6, z0: -5.5, z1: -4.5 });
 def('skills', 'lunge', {
   name: 'Piercing Lunge', kind: 'mobility', tags: ['melee', 'attack', 'movement'], el: 'phys', cost: 8, cd: 3, unlock: 3, color: '#3a4a7a',
   runes: [{ id: 'impale', name: 'Impaling Lunge', desc: 'Enemies are skewered and carried along the dash, then flung off the blade.' },
     { id: 'viper', name: 'Viper Lunge', desc: 'Venom damage that poisons, and the dash leaves a trail of venom behind.' }],
-  desc: (rank, rune) => 'Dash-thrust through a line of enemies for ' + SKM_pct(1.8, rank) + ' weapon damage each, throwing them aside.' +
+  desc: (rank, rune) => 'A dash-thrust through a whole line of enemies: ' + SKM_pct(1.8, rank) + ' weapon damage each, and they are thrown aside.' +
     (rune === 'impale' ? ' Skewers and carries them, then flings them off the blade.' : rune === 'viper' ? ' Poisons, and leaves a venom trail.' : ''),
   icon: (g, x, y, s) => {
     const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s));
@@ -261,14 +271,14 @@ def('skills', 'lunge', {
     const set = new Set(), carried = [], ca = Math.cos(a), sa = Math.sin(a);
     let phase = 'wind', pt = 0, sx = h.x, sy = h.y, lx = 0, ly = 0, step = 0;
     h.facing = a;
-    const fling = () => { for (const u of carried) { if (!u.alive) continue; u.skmCarried = false; dealDamage(u, SKM_hit(ctx, u, 1, { kb: 250, up: 150, ang: a, el, stun: .4 })); SKM_impact(u, a, 1.6, el, 'kick'); SKM_upSparks(u.x, u.y, 8, 5); } carried.length = 0; };
+    const fling = () => { for (const u of carried) { if (!u.alive) continue; u.skmCarried = false; dealDamage(u, SKM_hit(ctx, u, 1, { kb: 250, up: 150, ang: a, el, stun: .4, nojug: true })); SKM_impact(u, a, 1.6, el, 'kick'); SKM_upSparks(u.x, u.y, 8, 5); } carried.length = 0; };
     const act = SKM_act(h, { name: 'lunge', moveK: 0, face: a, speed: h.atkMul, rig: { attack: null, expr: 'angry' },
       update(dt) {
         pt += dt; this.t += dt;
         if (viper) SKM_smear(h, 'venom');
         if (phase === 'wind') {
           this.rig.attack = SKM_st(SKM_LUNGE, 'wind', pt / SKM_LUNGE.wind);
-          if (pt >= SKM_LUNGE.wind) { phase = 'dash'; pt = 0; sx = h.x; sy = h.y; lx = h.x; ly = h.y; this.cancel = false; this.ghost = col; this.rig.dash = true; this.rig.expr = 'shout'; sfx('skmDash'); h.rig.kick(3); P.dust(h.x, h.y, 0, 8, { speed: 60 }); P.ring(h.x, h.y, 2, 12, col, .2); }
+          if (pt >= SKM_LUNGE.wind) { phase = 'dash'; pt = 0; sx = h.x; sy = h.y; lx = h.x; ly = h.y; this.cancel = false; this.ghost = col; this.rig.expr = 'shout'; sfx('skmDash'); h.rig.kick(3); P.dust(h.x, h.y, 0, 8, { speed: 60 }); P.ring(h.x, h.y, 2, 12, col, .2); }
           return true;
         }
         if (phase === 'dash') {
@@ -279,7 +289,7 @@ def('skills', 'lunge', {
           lx = h.x; ly = h.y; step = V * dt; h.x += ca * step; h.y += sa * step; h.vx = h.vy = 0;
           this.rig.attack = SKM_st(SKM_LUNGE, 'active', pt / SKM_LUNGE.active);
           SKM_streak(h.x, h.y, 12, a, 2, col);
-          if (viper && Math.random() < .6) P.add({ kind: 'dust', x: h.x, y: h.y, z: 2, vz: 8, g: -4, drag: 3, max: .7, size: 2, color: '#8ae04a' });
+          if (viper && Math.random() < .35) P.add({ kind: 'dust', x: h.x + (Math.random() - .5) * 6, y: h.y + (Math.random() - .5) * 6, z: 2, vz: 10, g: -4, drag: 3, max: .45, size: 1.1, color: Math.random() < .5 ? '#8ae04a' : '#c8f090' });
           // everything on the line: a swept circle at the blade's point, each foe once
           hitCircle('hero', h.x + ca * 9, h.y + sa * 9, 11, u => {
             const side = Math.sign(-sa * (u.x - h.x) + ca * (u.y - h.y)) || 1, ka = a + side * 1.25, grab = impale && !u.boss && (u.mass || 1) < 3 && u.team === 'foe';
@@ -289,7 +299,7 @@ def('skills', 'lunge', {
           }, set);
           carried.forEach((u, i) => { if (!u.alive) return; u.x = h.x + ca * (12 + i * 5); u.y = h.y + sa * (12 + i * 5); u.z = 5; u.vx = u.vy = u.vz = 0; u.stunT = Math.max(u.stunT || 0, .3); });
           if (pt >= SKM_LUNGE.active) {
-            phase = 'skid'; pt = 0; this.cancel = true; this.rig.dash = false; fling();
+            phase = 'skid'; pt = 0; this.cancel = true; fling();
             if (viper) { const d0 = Math.hypot(h.x - sx, h.y - sy); for (let d = 6; d < d0; d += 15) FX.area({ team: 'hero', src: h, x: sx + ca * d, y: sy + sa * d, r: 9 * ctx.area, dur: 2.8, tick: .5, el: 'venom', hit: ctx.hit(.14, { el: 'venom', tags: ['aoe', 'dot'], extra: { statusChance: .6 } }) }); }
           }
           return true;
@@ -318,7 +328,7 @@ def('skills', 'leap', {
   name: 'Leap Slam', kind: 'mobility', tags: ['melee', 'attack', 'aoe', 'movement'], el: 'phys', cost: 12, cd: 6, unlock: 8, color: '#5a4a2a',
   runes: [{ id: 'meteor', name: 'Meteor Slam', desc: 'He comes down like a falling star: a fire blast on landing that leaves the ground burning.' },
     { id: 'quake', name: 'Aftershock', desc: 'Two more shockwaves roll out after the landing, each wider than the last.' }],
-  desc: (rank, rune) => 'Leap to the cursor and plunge the sword into the floor: ' + SKM_pct(2.3, rank) + ' weapon damage where you land and a shockwave that throws enemies into the air. Untouchable in the air.' +
+  desc: (rank, rune) => 'Leap to the cursor and plunge the sword into the floor: ' + SKM_pct(2.3, rank) + ' weapon damage and a shockwave that launches. Untouchable in the air.' +
     (rune === 'meteor' ? ' Lands in a fire blast and burning ground.' : rune === 'quake' ? ' Two aftershocks follow.' : ''),
   icon: (g, x, y, s) => {
     const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s));
@@ -333,16 +343,16 @@ def('skills', 'leap', {
     let d = clamp(Math.hypot(ctx.tx - h.x, ctx.ty - h.y), 0, maxD);
     while (d > 0 && !SKM_open(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d)) d -= 4;   // land on open floor, never in a pit
     d = Math.max(0, d);
-    const F = .44 + d / 380, H = 22 + d * .17, CROUCH = .14, LAND = .44, set = new Set();
+    const F = .42 + d / 400, H = 18 + d * .15, CROUCH = .14, LAND = .44, set = new Set();
     let phase = 'crouch', pt = 0, sx = 0, sy = 0, px0 = 0, py0 = 0;
     h.facing = a;
     const land = () => {
       const R = 22 * ctx.area;
-      hitCircle('hero', h.x, h.y, R, u => { const ang = angTo(h, u); SKM_impact(u, ang, 2, el, null); return SKM_hit(ctx, u, 2.3, { kb: 150, up: 190, stun: .5, ang, el, statusChance: meteor ? .8 : undefined }); }, set);
-      FX.nova({ team: 'hero', src: h, x: h.x, y: h.y, r0: R, r1: 50 * ctx.area, dur: .32, el, color: col, set, hit: ctx.hit(.9, { kb: 170, el, extra: { up: 100, stun: .3 } }) });
+      hitCircle('hero', h.x, h.y, R, u => { const ang = angTo(h, u); SKM_impact(u, ang, 2, el, null); return SKM_hit(ctx, u, 2.3, { kb: 130, up: 150, stun: .5, ang, el, statusChance: meteor ? .8 : undefined }); }, set);
+      FX.nova({ team: 'hero', src: h, x: h.x, y: h.y, r0: R, r1: 50 * ctx.area, dur: .32, el, color: col, set, hit: ctx.hit(.9, { kb: 160, el, extra: { up: 80, stun: .3 } }) });
       game.freeze(.085); shake(6.5); sfx('skmSlam'); sfx('thud'); h.rig.kick(-7);
       SKM_crack(h.x, h.y, { n: 9, r: 34 * ctx.area, el }); SKM_dustRing(h.x, h.y, 22, 110); P.bits(h.x, h.y, 2, 16, SKM_ROCK);
-      P.ring(h.x, h.y, 4, 30 * ctx.area, '#ffffff', .22); P.ring(h.x, h.y, 6, 54 * ctx.area, col, .45); P.impact(h.x + Math.cos(a) * 10, h.y + Math.sin(a) * 10, 2, 13, col);
+      P.ring(h.x, h.y, 4, 30 * ctx.area, '#ffffff', .22); P.ring(h.x, h.y, 6, 54 * ctx.area, col, .45); P.impact(h.x + Math.cos(a) * 10, h.y + Math.sin(a) * 10, 2, 8, col);
       SKM_upSparks(h.x + Math.cos(a) * 10, h.y + Math.sin(a) * 10, 2, 10, col); SKM_flare(h.x, h.y, 10, 110, meteor ? '#ff8a3a' : '#fff0d0', .35, 1.6); FX.scorch(h.x, h.y, 16, '#1a1016', 3);
       if (meteor) { P.explosion(h.x, h.y, 4, 1.4, { flash: false, shake: 0, freeze: false }); FX.area({ team: 'hero', src: h, x: h.x, y: h.y, r: 26 * ctx.area, dur: 3.5, tick: .5, el: 'fire', hit: ctx.hit(.22, { el: 'fire', tags: ['aoe', 'dot'], extra: { statusChance: .6 } }) }); }
       if (ctx.rune === 'quake') { const x0 = h.x, y0 = h.y; let n = 0; addFx({ kind: 'skmQuake', t: 0, update(dt2) { this.t += dt2; if (this.t > .3 * (n + 1)) { n++;
@@ -359,13 +369,13 @@ def('skills', 'leap', {
           return true;
         }
         if (phase === 'fly') {
-          const u = Math.min(1, pt / F), s = u + .45 * Math.sin(TAU * u) / TAU;   // hang at the top of the arc
+          const u = Math.min(1, pt / F), s = u + .3 * Math.sin(TAU * u) / TAU;   // hang at the top of the arc
           const tx = sx + Math.cos(a) * d * s, ty = sy + Math.sin(a) * d * s;
           h.x += tx - px0; h.y += ty - py0; px0 = tx; py0 = ty; h.vx = h.vy = 0;   // moved by the delta, so walls still stop him
           this.z = 4 * H * s * (1 - s) + 1; h.inv = Math.max(h.inv, .12);
           this.rig.attack = s < .5 ? SKM_st(SKM_LEAP, 'wind', .25 + .75 * s / .5) : SKM_st(SKM_LEAP, 'active', (s - .5) / .5);
-          if (s > .5) { this.ghost = meteor ? '#ff8a3a' : '#bff6ff'; if (!this.chop) { this.chop = true; sfx('skmChop', { vol: .7, pitch: 1.2 }); } }
-          if (meteor && s > .35) { P.fire(h.x, h.y, this.z + 8, 2, { size: 3, speed: 20 }); if (Math.random() < .5) P.add({ kind: 'ember', x: h.x, y: h.y, z: this.z + 10, vx: (Math.random() - .5) * 40, vy: (Math.random() - .5) * 40, vz: 30, max: .5, color: '#ff8a3a' }); }
+          if (s > .5) { if (s > .68) this.ghost = meteor ? '#ff8a3a' : '#bff6ff'; if (!this.chop) { this.chop = true; sfx('skmChop', { vol: .7, pitch: 1.2 }); } }
+          if (meteor && s > .35) { if (Math.random() < .5) P.fire(h.x, h.y, this.z + 8, 1, { size: 2.4, speed: 16 }); if (Math.random() < .5) P.add({ kind: 'ember', x: h.x, y: h.y, z: this.z + 10, vx: (Math.random() - .5) * 40, vy: (Math.random() - .5) * 40, vz: 30, max: .5, color: '#ff8a3a' }); }
           if (u >= 1) { phase = 'land'; pt = 0; this.z = 0; this.ghost = null; this.rig.air = false; this.rig.pose = 'crouch'; this.cancel = true; land(); }
           return true;
         }
@@ -395,7 +405,7 @@ def('skills', 'uppercut', {
   name: 'Rising Blade', kind: 'core', tags: ['melee', 'attack'], el: 'phys', cost: 10, unlock: 6, color: '#3a6a5a',
   runes: [{ id: 'skyward', name: 'Skyward Crescent', desc: 'The swing looses a crescent of light that flies on, launching everything in its path.' },
     { id: 'thunder', name: 'Thunderclap', desc: 'Storm damage. At the top of their flight, lightning smashes the launched back down onto their friends.' }],
-  desc: (rank, rune) => 'Spring up with a rising cut: ' + SKM_pct(1.5, rank) + ' weapon damage that launches enemies into the air. Airborne enemies take 30% more damage from melee skills.' +
+  desc: (rank, rune) => 'A rising cut that launches enemies: ' + SKM_pct(1.5, rank) + ' weapon damage. Airborne enemies take 30% more from melee skills.' +
     (rune === 'skyward' ? ' Looses a flying crescent.' : rune === 'thunder' ? ' Lightning slams the launched back down.' : ''),
   icon: (g, x, y, s) => {
     const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s));
@@ -406,7 +416,7 @@ def('skills', 'uppercut', {
   },
   cast(h, ctx) {
     const thunder = ctx.rune === 'thunder', el = thunder ? 'storm' : 'phys', atk = new E.Attack(SKM_RISE), set = new Set(); atk.start(); h.facing = h.aim;
-    const cols = EL(thunder ? 'storm' : h.look && h.look.el || 'phys').smear;
+    const wel = thunder ? 'storm' : h.look && h.look.el || 'phys', cols = wel === 'phys' ? SKM_LIGHT : EL(wel).smear;   // a plain blade looses white sword-light
     const act = SKM_act(h, { name: 'uppercut', moveK: .1, face: h.aim, speed: h.atkMul, rig: { attack: null, expr: 'angry' },
       update(dt) {
         const began = atk.update(dt), st = atk.state; this.rig.attack = st; this.t += dt;
@@ -415,7 +425,7 @@ def('skills', 'uppercut', {
           sfx('skmRise'); this.rig.expr = 'shout'; h.vx += Math.cos(h.facing) * 70; h.vy += Math.sin(h.facing) * 70; SKM_dustRing(h.x, h.y, 8, 50); h.rig.kick(4);
           if (ctx.rune === 'skyward') { const n = 1 + ctx.proj; for (let i = 0; i < n; i++) { const an = h.facing + (n > 1 ? (i / (n - 1) - .5) * .5 : 0);
             FX.bolt({ team: 'hero', src: h, x: h.x + Math.cos(an) * 10, y: h.y + Math.sin(an) * 10, z: 11, ang: an, speed: 215, life: .5, r: 9 * ctx.area, pierce: 99, el, tags: ['melee', 'proj'], light: 34,
-              hit: ctx.hit(.85, { kb: 40, el, extra: { up: 220 } }), onHit: (p, u) => SKM_upSparks(u.x, u.y, 8, 4, cols[1]), look: { kind: 'skmCrescent', color: cols[2], core: cols[0], trail: false, draw: (g, x, y, p, r) => { p.sz = ctx.area; SKM_drawCrescent(g, r, p, cols); } } }); } }
+              hit: ctx.hit(.85, { kb: 30, el, extra: { up: 175 } }), onHit: (p, u) => SKM_upSparks(u.x, u.y, 8, 4, cols[1]), look: { kind: 'skmCrescent', color: cols[2], core: cols[0], trail: false, draw: (g, x, y, p, r) => { p.sz = ctx.area; SKM_drawCrescent(g, r, p, cols); } } }); } }
         }
         if (st && st.phase === 'active' && st.u >= SKM_RISE.hitAt && !this.struck) {
           this.struck = true; const a = h.facing;
@@ -423,7 +433,7 @@ def('skills', 'uppercut', {
             const ang = a, air = SKM_air(u); SKM_impact(u, ang, 1.6, el, 'hit'); sfx('kick', { vol: .5 }); SKM_upSparks(u.x, u.y, (u.z || 0) + 6, 6, cols[1], cols[0]);
             for (let i = 0; i < 3; i++) P.add({ kind: 'dust', x: u.x + (Math.random() - .5) * 8, y: u.y + (Math.random() - .5) * 8, z: 2, vz: 60 + Math.random() * 40, g: 20, drag: 2, max: .45, size: 1.6, color: '#e8e0d0' });
             if (thunder && u.team === 'foe' && !u.boss && !u.canFly) SKM_thunder(h, ctx, u);
-            return SKM_hit(ctx, u, 1.5, { kb: air ? 30 : 55, up: air ? 230 : 250, ang, el, stun: .3, statusChance: thunder ? .7 : undefined });
+            return SKM_hit(ctx, u, 1.5, { kb: air ? 12 : 26, up: air ? 175 : 190, ang, el, stun: .3, statusChance: thunder ? .7 : undefined });
           }, set);
         }
         if (st && st.phase === 'recover' && st.u > .45) this.rig.expr = null;
@@ -441,7 +451,7 @@ function SKM_thunder(h, ctx, m) {
     t += dt; if (bolt >= 0) bolt += dt;
     if (state === 'rise' && t > .06 && ((m.vz || 0) <= 20 || t > .7)) {
       state = 'fall'; bolt = 0; m.vz = -420; m.air = true;
-      if (m.alive) dealDamage(m, SKM_hit(ctx, m, .9, { kb: 0, el: 'storm', statusChance: 1, ang: 0 }));
+      if (m.alive) dealDamage(m, SKM_hit(ctx, m, .9, { kb: 0, el: 'storm', statusChance: 1, ang: 0, lift: false }));
       elBurst(m.x, m.y, (m.z || 0) + 10, 'storm', 10); sfx('zap'); shake(2.5); game.freeze(.04); SKM_flare(m.x, m.y, (m.z || 0) + 20, 90, '#fff0a0', .2, 1.6);
     } else if (state === 'fall' && (m.z || 0) <= .5) {
       state = 'done'; m.skmBolt = false;
@@ -465,7 +475,7 @@ const SKM_KICK = SKM_spec('roundhouse', { wind: .2, active: .13, recover: .3, ho
 /** a kicked body: tumbles through the air, bowls over whoever it hits (who may fly on, with Domino), slams into walls */
 function SKM_bowl(h, ctx, m, o) {
   if (!m || m.boss || m.canFly || (m.mass || 1) >= 4 || m.skmBowl) return;
-  const set = new Set([m]); let left = 3 + ctx.pierce, t = 0, hitAny = false;
+  const set = new Set([m]); let left = 3 + ctx.pierce, t = 0;
   const f = addFx({ kind: 'skmBowl', update(dt) {
     t += dt; const sp = Math.hypot(m.vx || 0, m.vy || 0), fa = Math.atan2(m.vy || 0, m.vx || 0), air = SKM_air(m);
     if (t > 1.3 || (t > .12 && sp < 55 && !air)) { m.skmBowl = null; return false; }
@@ -475,7 +485,7 @@ function SKM_bowl(h, ctx, m, o) {
     // a wall in the way: the body is slammed against it
     const map = ED.L && ED.L.map, ah = (m.r || 5) + 2.5;
     if (map && sp > 110 && map.heightAt(m.x + Math.cos(fa) * ah, m.y + Math.sin(fa) * ah) > (m.z || 0) + 4) {
-      if (m.alive) { dealDamage(m, SKM_hit(ctx, m, .6 * o.pow, { kb: 0, ang: fa + Math.PI, el: o.el, stun: .9 })); P.glints(m.x, m.y, (m.head || 20) + 4, 4, '#fff2c4', 8); }
+      if (m.alive) { dealDamage(m, SKM_hit(ctx, m, .6 * o.pow, { kb: 0, ang: fa + Math.PI, el: o.el, stun: .9, nojug: true, lift: false })); P.glints(m.x, m.y, (m.head || 20) + 4, 4, '#fff2c4', 8); }
       const wx = m.x + Math.cos(fa) * ah, wy = m.y + Math.sin(fa) * ah;
       P.dust(wx, wy, 8, 10, { speed: 50 }); P.bits(wx, wy, 10, 8, SKM_ROCK); P.impact(wx, wy, 10, 9, '#fff2c4'); shake(3.5); game.freeze(.05); sfx('thud'); sfx('crack', { vol: .6 });
       if (o.blaze) FX.nova({ team: 'hero', src: h, x: m.x, y: m.y, r0: 4, r1: 22 * ctx.area, dur: .2, el: 'fire', hit: ctx.hit(.45, { el: 'fire', kb: 80 }) });
@@ -486,8 +496,8 @@ function SKM_bowl(h, ctx, m, o) {
       if (set.has(u) || left <= 0 || Math.abs((u.z || 0) - (m.z || 0)) > 22) return; set.add(u); left--;
       const ang = E.lerpAng(fa, Math.atan2(u.y - m.y, u.x - m.x), .55), pw = o.pow;
       dealDamage(u, SKM_hit(ctx, u, .9 * pw, { kb: 215 * pw, up: 85 * pw, ang, stun: .5, el: o.el, statusChance: o.blaze ? .8 : undefined }));
-      if (m.alive) dealDamage(m, SKM_hit(ctx, m, .3 * pw, { kb: 0, ang: fa + Math.PI, el: o.el }));
-      m.vx *= .72; m.vy *= .72; hitAny = true;
+      if (m.alive) dealDamage(m, SKM_hit(ctx, m, .3 * pw, { kb: 0, ang: fa + Math.PI, el: o.el, nojug: true, lift: false }));
+      m.vx *= .72; m.vy *= .72;
       SKM_impact(u, ang, 1.3 * pw, o.el, null); sfx('skmBowl', { vol: .8 }); sfx('punch', { vol: .5 }); P.dust((m.x + u.x) / 2, (m.y + u.y) / 2, 4, 6, { speed: 40 });
       if (o.blaze) FX.nova({ team: 'hero', src: h, x: u.x, y: u.y, r0: 4, r1: 20 * ctx.area, dur: .2, el: 'fire', hit: ctx.hit(.4, { el: 'fire', kb: 60 }) });
       if (o.domino && o.gen < 2) SKM_bowl(h, ctx, u, Object.assign({}, o, { gen: o.gen + 1, pow: pw * .8 }));
@@ -498,20 +508,22 @@ function SKM_bowl(h, ctx, m, o) {
     const fa = Math.atan2(m.vy, m.vx), z = (m.z || 0) + 10, len = Math.min(26, sp * .07), c = o.blaze ? '#ffb050' : '#f0ecf8';
     r.queue(m.x, m.y, z, g => { px.blend(g, .55, 'normal', () => { for (const off of [-4, 0, 4]) { const bx = m.x - Math.sin(fa) * off, by = m.y + Math.cos(fa) * off, [x0, y0] = r.w(bx - Math.cos(fa) * 5, by - Math.sin(fa) * 5, z + off * .6), [x1, y1] = r.w(bx - Math.cos(fa) * (5 + len), by - Math.sin(fa) * (5 + len), z + off * .6); px.line(g, x0, y0, x1, y1, c); } }); }, { bias: -.3, emissive: !!o.blaze });
   } });
-  m.skmBowl = f; void hitAny;
+  m.skmBowl = f;
 }
 def('skills', 'kick', {
   name: 'Spinning Kick', kind: 'core', tags: ['melee', 'attack'], el: 'phys', cost: 9, unlock: 5, color: '#6a4a2a',
   runes: [{ id: 'domino', name: 'Domino Kick', desc: 'Enemies bowled over fly on themselves, knocking down whoever they hit in turn.' },
     { id: 'blaze', name: 'Blazing Kick', desc: 'Fire damage: kicked enemies burn and burst into flame on every impact.' }],
-  desc: (rank, rune) => 'Whip around into a roundhouse kick: ' + SKM_pct(1.3, rank) + ' weapon damage that sends enemies flying. Every enemy they crash into takes ' + SKM_pct(.9, rank) + ' and is bowled over; a wall slams them.' +
+  desc: (rank, rune) => 'A spinning roundhouse: ' + SKM_pct(1.3, rank) + ' weapon damage. Kicked enemies bowl over their friends (' + SKM_pct(.9, rank) + ') and slam into walls.' +
     (rune === 'domino' ? ' Bowled enemies fly on in a chain.' : rune === 'blaze' ? ' Kicked enemies burn and burst on impact.' : ''),
-  icon: (g, x, y, s) => {
-    const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s)), b = E.tones('#8a5a32');
-    SKM_iconArc(g, x, y, s, 8, 9, 6.5, 2.4, .2, '#ffe8b0', 8);
-    px.poly(g, [P(2, 8), P(8, 6), P(10, 8.5), P(9, 10.5), P(3, 10.5)], b.sh); px.poly(g, [P(2.5, 8), P(8, 6.4), P(9, 8.2), P(3, 9.5)], b.base); px.line(g, ...P(3, 8), ...P(7.5, 6.8), b.lt, W);
-    px.disc(g, ...P(13, 4), 2 * s, '#c95f9a'); px.dot(g, ...P(12, 3), '#f5a3cc');
-    px.line(g, ...P(9, 6.5), ...P(11, 5.5), '#ffffff', W); px.line(g, ...P(10, 9), ...P(12.5, 7.5), '#ffffff', W);
+  icon: (g, x, y, s) => {   // a leg lashing out in a roundhouse, the arc behind it, a foe knocked flying off the boot
+    const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s)), pt = E.tones('#3b3552'), bt = E.tones('#8a5a32'), ft = E.tones('#c95f9a');
+    SKM_iconArc(g, x, y, s, 4, 13, 9, -.25, -1.35, '#ffe8b0', 7);
+    px.poly(g, [P(1, 15), P(3.5, 12.5), P(8, 8.5), P(9.5, 10), P(4, 15)], pt.sh); px.poly(g, [P(1.6, 14.6), P(3.8, 12.6), P(8, 9), P(8.6, 9.8), P(3.2, 14.2)], pt.base);
+    px.poly(g, [P(7.2, 8.2), P(9.6, 6), P(11, 7.4), P(13.4, 7.2), P(13.2, 9), P(10, 9.6), P(9, 10.4)], bt.deep); px.poly(g, [P(7.8, 8.4), P(9.6, 6.6), P(10.8, 7.8), P(12.8, 7.8), P(12.6, 8.6), P(9.8, 9.2)], bt.base);
+    px.line(g, ...P(8.2, 8.2), ...P(9.6, 6.9), bt.hi, W); px.line(g, ...P(10.6, 9.4), ...P(13.2, 9), '#2a1a12', W);   // the boot: shaft, toe cap and a dark sole
+    for (const [dx, dy] of [[1.5, -1.5], [2, .5], [0, -2]]) px.line(g, ...P(12.5, 5.5), ...P(12.5 + dx, 5.5 + dy), '#ffe070', W);
+    px.disc(g, ...P(13.5, 2.6), 1.7 * s, ft.sh); px.disc(g, ...P(13.2, 2.3), 1.1 * s, ft.base); px.dot(g, ...P(12.8, 1.9), ft.hi);
   },
   cast(h, ctx) {
     const blaze = ctx.rune === 'blaze', el = blaze ? 'fire' : 'phys', atk = new E.Attack(SKM_KICK), set = new Set(); atk.start(); h.facing = h.aim;
@@ -550,20 +562,26 @@ const SKM_FLURRY = [
   SKM_spec('uppercut', { hand: 'L', wind: .09, active: .09, recover: .26, hop: 4, crouch: .7, hold: .4 })
 ];
 const SKM_HAYMAKER = SKM_spec('haymaker', { hand: 'L', wind: .15, active: .1, recover: .3, hold: .45 });
-const SKM_FLURRY_HIT = [{ r: 19, half: .6, dmg: .5, kb: 45, snd: 'punch', p: .9 }, { r: 16, half: .85, dmg: .55, kb: 70, snd: 'punch', p: 1.1 }, { r: 16, half: .75, dmg: .65, kb: 90, up: 70, snd: 'kick', p: 1.3 },
-  { r: 19, half: .75, dmg: 1, kb: 60, up: 220, snd: 'kick', p: 1.8, big: true }];
+const SKM_FLURRY_HIT = [{ r: 19, half: .6, dmg: .5, kb: 22, snd: 'punch', p: .8, push: 55 }, { r: 17, half: .85, dmg: .55, kb: 30, snd: 'punch', p: 1, push: 60 }, { r: 17, half: .75, dmg: .65, kb: 45, up: 60, snd: 'kick', p: 1.2, push: 70 },
+  { r: 20, half: .75, dmg: 1, kb: 28, up: 180, snd: 'kick', p: 1.8, push: 80, big: true }];   // light pushes so the chain stays in reach; he steps in with every blow
 def('skills', 'flurry', {
   name: 'Brawler\'s Flurry', kind: 'basic', tags: ['melee', 'attack'], el: 'phys', cost: 0, gen: 5, unlock: 1, color: '#6a3a4a',
   runes: [{ id: 'thunder', name: 'Thunder Fists', desc: 'Storm damage: every blow arcs lightning to the enemies beside the target.' },
     { id: 'iron', name: 'Iron Knuckles', desc: 'Every blow stuns, and the finisher is a crushing haymaker that hurls enemies away.' }],
-  desc: (rank, rune) => 'Jab, elbow, a jumping knee and an uppercut from the free hand (' + SKM_pct(.5, rank) + ' to ' + SKM_pct(1, rank) + ' weapon damage); the uppercut launches. Press or hold to chain. Generates Ember.' +
+  desc: (rank, rune) => 'Jab, elbow, knee and a launching uppercut from the free hand (' + SKM_pct(.5, rank) + ' to ' + SKM_pct(1, rank) + '). Press or hold to chain. Generates Ember.' +
     (rune === 'thunder' ? ' Blows arc lightning.' : rune === 'iron' ? ' Blows stun; the finisher hurls.' : ''),
-  icon: (g, x, y, s) => {
-    const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s)), sk = E.tones('#f1c7a0');
-    for (const [fx, fy, a] of [[2, 10, .45], [5, 7, .7], [8, 4, 1]]) px.blend(g, a, 'normal', () => { px.rect(g, ...P(fx, fy), 5 * s, 4 * s, sk.sh); px.rect(g, ...P(fx, fy), 4 * s, 3 * s, sk.base); px.dot(g, ...P(fx + 1, fy), sk.hi); });
-    for (const [x0, y0] of [[0, 13], [3, 10.5], [6, 8.5]]) px.line(g, ...P(x0, y0), ...P(x0 + 2, y0 - 1), '#ffffff', W);
-    for (const [dx, dy] of [[2, -2], [3, 0], [2, 2], [0, -3]]) px.line(g, ...P(13.5, 5), ...P(13.5 + dx, 5 + dy), '#ffe070', W);
-    px.dot(g, ...P(13.5, 5), '#ffffff');
+  icon: (g, x, y, s) => {   // a shaded fist driving in, two fading blows behind it, the impact star it lands
+    const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s)), sk = E.tones('#f1c7a0'), sl = E.tones('#2f8f86');
+    const fist = (fx, fy, a) => px.blend(g, a, 'normal', () => {
+      px.rect(g, ...P(fx - 3, fy + .5), 3 * s, 3 * s, sl.sh); px.rect(g, ...P(fx - 3, fy + .5), 3 * s, 1.2 * s, sl.base);
+      px.rect(g, ...P(fx, fy - .5), 4.5 * s, 5 * s, sk.deep); px.rect(g, ...P(fx, fy - .5), 4 * s, 4.4 * s, sk.sh); px.rect(g, ...P(fx + .5, fy), 3.4 * s, 3 * s, sk.base);
+      for (let k = 0; k < 3; k++) px.dot(g, ...P(fx + 3.4, fy + .4 + k * 1.3), sk.deep);
+      px.rect(g, ...P(fx + .8, fy + .2), 2.4 * s, Math.max(1, s * .8), sk.hi);
+    });
+    fist(4, 11, .35); fist(5.5, 8, .6); fist(7.5, 5, 1);
+    for (const [x0, y0] of [[1, 10], [2, 7], [3, 4]]) px.line(g, ...P(x0, y0), ...P(x0 + 2.5, y0 - 1), '#ffffff', W);
+    for (const [dx, dy] of [[2.2, -2], [2.8, .4], [1.6, 2.2], [0, -2.8]]) px.line(g, ...P(13, 6), ...P(13 + dx, 6 + dy), '#ffe070', W);
+    px.dot(g, ...P(13, 6), '#ffffff');
   },
   cast(h, ctx) {
     const iron = ctx.rune === 'iron', thunder = ctx.rune === 'thunder', el = thunder ? 'storm' : 'phys', set = new Set();
@@ -574,7 +592,7 @@ def('skills', 'flurry', {
         const began = combo.update(dt), st = combo.state, i = combo.step, H = SKM_FLURRY_HIT[i] || SKM_FLURRY_HIT[0], fin = i === 3; this.rig.attack = st; this.t += dt;
         if (thunder) SKM_smear(h, 'storm');
         this.rig.expr = st && st.phase !== 'recover' ? (fin ? 'shout' : 'angry') : null;
-        if (began === 'active') { set.clear(); sfx('whoosh', { vol: .35, pitch: 1.5 + i * .1 }); const p = fin ? 70 : 45; h.vx += Math.cos(h.facing) * p; h.vy += Math.sin(h.facing) * p; if (fin && !iron) h.rig.kick(3); }
+        if (began === 'active') { set.clear(); sfx('whoosh', { vol: .35, pitch: 1.5 + i * .1 }); const p = H.push; h.vx += Math.cos(h.facing) * p; h.vy += Math.sin(h.facing) * p; if (fin && !iron) h.rig.kick(3); }
         if (st && st.phase === 'active' && st.u >= .3) hitCone('hero', h.x, h.y, h.facing, H.r * (fin ? ctx.area : 1), H.half, u => {
           const ang = h.facing, hay = fin && iron;
           SKM_impact(u, ang, H.p * (hay ? 1.3 : 1), el, H.snd); if (fin) { sfx('hit', { vol: .5 }); if (!iron) SKM_upSparks(u.x, u.y, (u.z || 0) + 8, 5); }
@@ -619,8 +637,8 @@ function SKM_blade(h, ctx, o) {
       } else if (b.phase === 'hang') {   // Reaping Orbit: it hangs spinning, dragging enemies into its edge
         const R = 46 * ctx.area;
         eachEnemy('hero', b.x, b.y, R, u2 => { if (u2.boss || SKM_air(u2)) return; const d = Math.hypot(b.x - u2.x, b.y - u2.y); if (d < 6) return; const a = Math.atan2(b.y - u2.y, b.x - u2.x), k = 110 * dt * Math.min(1, d / 18) / (u2.mass || 1); u2.x += Math.cos(a) * k; u2.y += Math.sin(a) * k; });
-        if ((b.tick -= dt) <= 0) { b.tick = .14; hitCircle('hero', b.x, b.y, hitR * 1.3, u2 => { P.sparks(u2.x, u2.y, 10, 3, Math.random() * TAU); sfx('slash2', { vol: .35 }); return SKM_hit(ctx, u2, .32, { kb: 20, el }); }, new Set()); }
-        if (Math.random() < .7) { const a = Math.random() * TAU, d = R * (.5 + Math.random() * .5); P.add({ kind: 'dust', x: b.x + Math.cos(a) * d, y: b.y + Math.sin(a) * d, z: 3 + Math.random() * 8, vx: -Math.cos(a) * d * 2 + Math.cos(a + 1.57) * 60, vy: -Math.sin(a) * d * 2 + Math.sin(a + 1.57) * 60, drag: 2, max: .4, size: 1.2, color: '#e8e0f0' }); }
+        if ((b.tick -= dt) <= 0) { b.tick = .14; hitCircle('hero', b.x, b.y, hitR * 1.3, u2 => { P.sparks(u2.x, u2.y, 10, 3, Math.random() * TAU); sfx('slash2', { vol: .35 }); return SKM_hit(ctx, u2, .32, { kb: 20, el, lift: false }); }, new Set()); }
+        if (Math.random() < .5) { const a = Math.random() * TAU, d = R * (.4 + Math.random() * .6); P.add({ kind: 'spark', x: b.x + Math.cos(a) * d, y: b.y + Math.sin(a) * d, z: 3 + Math.random() * 8, vx: -Math.cos(a) * 90 + Math.cos(a + 1.57) * 120, vy: -Math.sin(a) * 90 + Math.sin(a + 1.57) * 120, vz: 0, g: 0, drag: 4, max: .18, color: '#e8e0f0', hot: '#ffffff' }); }   // the air spiralling in
         if (b.t > .8) { b.phase = 'back'; b.t = 0; }
       } else {   // home to the hand: it speeds up as it comes
         const [hx, hy, hz] = h.rig.hand('R'), dx = hx - b.x, dy = hy - b.y, dz = hz - b.z, d = Math.hypot(dx, dy) || 1;
@@ -637,17 +655,17 @@ function SKM_blade(h, ctx, o) {
       if (!b.phantom) r.shadow(b.x, b.y, 3.5, .35);
       const C = h.rig.C, cols = o.cols, m = E.tones(b.phantom ? '#c890ff' : C.metal), ht = E.tones(b.phantom ? '#8a50e0' : C.hilt || '#e8b04e');
       r.queue(b.x, b.y, b.z, g => {
-        const zm = r.view.zoom || 1, W = Math.max(1, Math.round(zm)), sp = b.spin, P0 = (d, off, a = sp) => r.w(b.x + Math.cos(a) * d - Math.sin(a) * off, b.y + Math.sin(a) * d + Math.cos(a) * off, b.z);
+        const zm = r.view.zoom || 1, W = Math.max(1, Math.round(zm)), sp = b.spin, P0 = (d, off, a = sp) => r.w(b.x + Math.cos(a) * d - Math.sin(a) * off, b.y + Math.sin(a) * d + Math.cos(a) * off, b.z + Math.sin(a) * d * .28);   // spins on a slightly tilted plane, like a thrown boomerang
         px.glow(g, 1);
-        // motion blur: the disc the blade sweeps, and two fading afterimages
-        px.blend(g, b.phantom ? .25 : .3, 'add', () => px.poly(g, r.groundPts(b.x, b.y, 9.5, 18, b.z), cols[3]));
-        for (const [k, al] of [[.9, .35], [.45, .6]]) px.blend(g, al * (b.phantom ? .6 : 1), 'normal', () => { const [x0, y0] = P0(-3, 0, sp - k), [x1, y1] = P0(9.5, 0, sp - k); px.line(g, x0, y0, x1, y1, cols[k > .5 ? 2 : 1], W); });
+        // propeller blur: three fading copies of the blade behind the real one, and a faint disc
+        px.blend(g, .14, 'add', () => px.poly(g, r.groundPts(b.x, b.y, 12, 16, b.z), cols[2]));
+        for (const [k, al, c] of [[1.5, .22, 3], [1, .38, 2], [.5, .6, 1]]) px.blend(g, al * (b.phantom ? .6 : 1), 'normal', () => { const [x0, y0] = P0(1.8, 0, sp - k), [x1, y1] = P0(12, 0, sp - k); px.line(g, x0, y0, x1, y1, cols[c], W + (zm > 1.4 && k < 1 ? 1 : 0)); });
         const draw = () => {
-          const [ax, ay] = P0(1.6, 1.3), [bx2, by2] = P0(1.6, -1.3), [tx, ty] = P0(9.8, 0), [c0x, c0y] = P0(1.6, .35);
-          px.poly(g, [[ax, ay], [tx, ty], [bx2, by2]], m.sh); px.line(g, c0x, c0y, tx, ty, m.hi, W);
-          const [g0x, g0y] = P0(1.2, -2.6), [g1x, g1y] = P0(1.2, 2.6); px.line(g, g0x, g0y, g1x, g1y, ht.base, W + (zm > 1.3 ? 1 : 0));
-          const [p0x, p0y] = P0(1, 0), [p1x, p1y] = P0(-2.6, 0); px.line(g, p0x, p0y, p1x, p1y, '#5a3620', W);
-          const [qx, qy] = P0(-3.2, 0); px.disc(g, qx, qy, Math.max(.6, .9 * zm), ht.lt); px.dot(g, tx, ty, '#ffffff');
+          const [ax, ay] = P0(1.8, 1.5), [bx2, by2] = P0(1.8, -1.5), [tx, ty] = P0(12.2, 0), [c0x, c0y] = P0(1.8, .45), [m0x, m0y] = P0(9, .5);
+          px.poly(g, [[ax, ay], [m0x, m0y], [tx, ty], [bx2, by2]], m.sh); px.line(g, c0x, c0y, tx, ty, m.base, W); px.line(g, c0x, c0y, m0x, m0y, m.hi);
+          const [g0x, g0y] = P0(1.4, -3), [g1x, g1y] = P0(1.4, 3); px.line(g, g0x, g0y, g1x, g1y, ht.sh, W + (zm > 1.3 ? 1 : 0)); px.line(g, g0x, g0y - 1, g1x, g1y - 1, ht.lt);
+          const [p0x, p0y] = P0(1.1, 0), [p1x, p1y] = P0(-2.8, 0); px.line(g, p0x, p0y, p1x, p1y, '#5a3620', W + (zm > 1.3 ? 1 : 0));
+          const [qx, qy] = P0(-3.4, 0); px.disc(g, qx, qy, Math.max(.6, zm), ht.base); px.dot(g, qx - 1, qy - 1, ht.hi); px.dot(g, tx, ty, '#ffffff');
         };
         if (b.phantom) px.blend(g, .7, 'normal', draw); else draw();
       }, { emissive: true, bias: .4 });
@@ -660,7 +678,7 @@ def('skills', 'bladethrow', {
   name: 'Returning Blade', kind: 'core', tags: ['melee', 'attack', 'proj'], el: 'phys', cost: 12, unlock: 10, color: '#4a3a6a',
   runes: [{ id: 'echo', name: 'Phantom Blades', desc: 'Two spectral blades fly out beside the sword and return with it.' },
     { id: 'reap', name: 'Reaping Orbit', desc: 'At the far end the sword hangs spinning, dragging enemies into its edge, before it comes back.' }],
-  desc: (rank, rune) => 'Throw your sword: it spins out to the cursor and whirls back to your hand, cutting through everything for ' + SKM_pct(1.3, rank) + ' weapon damage going out and ' + SKM_pct(1, rank) + ' coming back.' +
+  desc: (rank, rune) => 'Throw your sword: it spins out and whirls back to your hand, cutting for ' + SKM_pct(1.3, rank) + ' going out and ' + SKM_pct(1, rank) + ' coming back.' +
     (rune === 'echo' ? ' Two phantom blades fly beside it.' : rune === 'reap' ? ' It hangs at the far end, reaping.' : ''),
   icon: (g, x, y, s) => {
     const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s));

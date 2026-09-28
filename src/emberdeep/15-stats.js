@@ -37,9 +37,11 @@ function statText(key, v) {
   if (d.f === 'plus') return sg + n + ' ' + d.name;
   return sg + n + ' ' + d.name;
 }
-const STAT_SOURCES = [];
+const STAT_SOURCES = [], STAT_FINAL = [];
 /** register where stats come from: statSource((h, add) => { add('life', 20); }) */
 function statSource(fn) { STAT_SOURCES.push(fn); }
+/** rules that read the summed stats and change them (conversions like 'evasion becomes armor'): statFinal((h, s) => {...}) */
+function statFinal(fn) { STAT_FINAL.push(fn); }
 /** base stats at a hero level */
 function baseStats(lvl) {
   return { life: 70 + lvl * 12, ember: 100, emberRegen: 5, lifeRegen: .4 + lvl * .08, crit: 5, critDmg: 50, armor: 4 + lvl * 3, dmgFlat: 0, potionCharges: 3, dodgeCharges: 2 };
@@ -49,6 +51,7 @@ function computeStats(h) {
   const add = (k, v) => { if (!v) return; s[k] = (s[k] || 0) + v; };
   for (const src of STAT_SOURCES) { try { src(h, add); } catch (e) { game._fail('stat source', e); } }
   for (const b of h.buffs) if (b.stats) for (const k in b.stats) add(k, b.stats[k]);
+  for (const fn of STAT_FINAL) { try { fn(h, s); } catch (e) { game._fail('stat final', e); } }
   h.stats = s;
   // derived values the combat code reads directly
   const ra = s.resAll || 0;

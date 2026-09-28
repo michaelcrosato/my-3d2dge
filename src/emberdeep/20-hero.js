@@ -29,7 +29,7 @@ function heroLook(h) {
   for (const slot of ['legs', 'boots', 'gloves', 'chest', 'cloak', 'helm', 'weapon']) {
     const it = h.gear[slot]; if (!it || !it.look) continue;
     const lk = it.look;
-    for (const k in lk) if (k === 'colors') Object.assign(L0.colors, lk.colors); else if (k !== 'glow' && k !== 'smear') L0[k] = lk[k];
+    for (const k in lk) if (k === 'colors') { const c = Object.assign({}, lk.colors); if (slot !== 'weapon' && c.metal) { c.plate = c.plate || c.metal; delete c.metal; delete c.metalDk; } Object.assign(L0.colors, c); } else if (k !== 'glow' && k !== 'smear') L0[k] = lk[k];
   }
   const w = h.gear.weapon; L0.el = w && w.el || 'phys';
   return L0;
@@ -39,7 +39,7 @@ function dressHero(h) {
   h.look = lk;
   h.rig = new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
   if (old) { h.rig.update(0, { x: h.x, y: h.y, z: h.z, facing: h.facing }); }
-  h.smear = EL(lk.el).smear;
+  const w = h.gear.weapon; h.smear = (w && w.look && w.look.smear) || EL(lk.el).smear;
 }
 
 /* ---------- actions ---------- */
@@ -93,7 +93,7 @@ function knockDown(h, t = 1) {
 }
 function heroDie(hit) {
   const h = this;
-  h.dead = true; h.deadT = 0; h.act = null;
+  if (h.act) endAction(h); h.dead = true; h.deadT = 0; h.act = null; h.z = 0; h.vz = 0;
   P.bits(h.x, h.y, 8, 20, [h.look.colors.cloth, h.look.colors.cape, h.look.colors.skin]);
   sfx('die'); A.music(null);
   BUS.emit('heroDie', { h, hit });
@@ -250,6 +250,7 @@ function drinkPotion(h) {
   const heal = h.maxHp * .45 * (1 + (h.stats.potionHeal || 0) / 100);
   h.hp = Math.min(h.maxHp, h.hp + heal * .35); h.healT = 1.5; h.healRate = heal * .65 / 1.5;
   sfx('heal'); P.glints(h.x, h.y, 14, 10, '#ff6a7a', 14); P.ring(h.x, h.y, 2, 16, '#ff8a9a', .35);
+  BUS.emit('potion', { h, heal });
 }
 /** is the hero standing still and free (for pickups, talk prompts) */
 const heroFree = h => h.alive && !h.act && h.dodgeT <= 0;
@@ -268,7 +269,8 @@ function drawHero(h, r) {
   const tint = statusTint(h), fl = h.flash > 0 ? ['#ffe6d8', .3] : tint;
   r.actor(h.x, h.y, h.z, (g, ox, oy) => { h.rig.draw(g, ox, oy, view); drawFlask(h, g, ox, oy, view); if (h.drawExtra) h.drawExtra(g, ox, oy, view); },
     { xray: true, alpha: h.dead ? clamp(4 - h.deadT * 1.2, 0, 1) : h.fade !== undefined ? h.fade : 1, flash: fl && fl[0], flashMix: fl && fl[1], outlineColor: h.flash > 0 ? '#fff4e6' : undefined, ghost: actGhost(h, ghost) });
-  h.rig.drawSmear(r, h.smear);
+  h.rig.drawSmear(r, (h.act && h.act.smear) || h.smear);
   if (h.act && h.act.draw) h.act.draw(r);
-  if (r.gpu) { L.add(h.x, h.y, 18, 84, .6, { color: '#c9c2ec' }); L.caster(h.x, h.y, 3.2, 24); } else L.add(h.x, h.y, 10, 92, .85, { color: '#fff0d8' });
+  // his own light: h.lightR / h.lightI let mechanics (the dark) and gear change it
+  if (r.gpu) { L.add(h.x, h.y, 18, h.lightR || 84, h.lightI === undefined ? .6 : h.lightI * .7, { color: '#c9c2ec' }); L.caster(h.x, h.y, 3.2, 24); } else L.add(h.x, h.y, 10, h.lightR || 92, h.lightI === undefined ? .85 : h.lightI, { color: '#fff0d8' });
 }

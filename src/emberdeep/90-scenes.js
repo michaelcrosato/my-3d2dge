@@ -61,12 +61,14 @@ function worldStep(dt, o = {}) {
   if (L0.theme && L0.theme.ambience) L0.theme.ambience(L0, dt);
   BUS.emit('step', { dt, L: L0 });
   reveal(L0, h);
+  if (L0.flow && h.alive) L0.flow.update(h.x, h.y);   // the level's paths lead to the hero (cached per cell)
   const a = h.aim;
-  game.focus(h.x + Math.cos(a) * 16, h.y + Math.sin(a) * 16, 8);
+  game.focus(h.x + Math.cos(a) * 16, h.y + Math.sin(a) * 16, 8 + (h.z || 0) * .7);   // the camera rises with leaps and flights
 }
 function worldDraw(r) {
   const L0 = ED.L, h = ED.hero;
   if (L0.sky) r.sky(L0.sky);
+  if (L0.drawBack) L0.drawBack(r);   // behind the floor: backdrops, the abyss under chasms
   L0.map.drawFloor(r);
   if (L0.drawUnder) L0.drawUnder(r);
   L0.map.queueWalls(r);
@@ -184,7 +186,7 @@ const townScene = {
     const L0 = (TOWN.build || TOWN.fallback)();
     L0.mechs = []; enterWorld(L0);
     const h = ED.hero; reviveIfDead(h);
-    const at = o.arrive === 'portal' && L0.portalSpot ? L0.portalSpot : L0.start;
+    const at = o.arrive === 'portal' && L0.portalSpot ? { x: L0.portalSpot.x, y: L0.portalSpot.y + 22 } : L0.start;   // step off the portal, not onto it
     h.x = at.x; h.y = at.y; h.vx = h.vy = 0; h.act = null; h.potions = h.maxPotions; h.hp = h.maxHp;
     if (ED.savedLevel) L0.portal = Object.assign({}, L0.portalSpot || { x: L0.waystone.x + 30, y: L0.waystone.y + 10 }, { t: 0 });
     if (o.arrive === 'intro' || o.arrive === 'waystone') dropIn(h, o.arrive === 'intro' ? 180 : 90);
@@ -253,9 +255,10 @@ const levelScene = {
     worldStep(dt);
     if (h.dead) { if (h.deadT > 2.2 && !UI.isOpen('death')) UI.open('death'); return; }
     if (inp.pressed('portal')) openTownPortal(h);
+    if ((L0.saveT = (L0.saveT || 0) + dt) > 30) { L0.saveT = 0; saveGame(); }   // autosave: a closed tab loses half a minute at most
     // wake the boss when the hero reaches its arena; open the exit when it falls
     const B = ED.boss;
-    if (B && B.dormant && Math.hypot(B.x - h.x, B.y - h.y) < 130) { B.dormant = false; B.ai.aware = true; B.introT = 2.2; sfx('roar'); shake(4); }
+    if (B && B.dormant && Math.hypot(B.x - h.x, B.y - h.y) < 130) wakeBoss(B);
     if (L0.exit && !L0.exit.open && (!B || !B.alive)) { L0.exit.open = true; notify('THE WAYSTONE WAKES', '#6fd6cc', 3); sfx('chime'); }
     // the exit: stand on it for a moment and it takes you down
     if (L0.exit && L0.exit.open && Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) < 12 && h.alive) {
