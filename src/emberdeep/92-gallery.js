@@ -117,7 +117,7 @@ const galleryScene = {
     const L0 = galStage(); enterWorld(L0); ED.depth = 3; L.ambient = .16;
     GAL.i = 0; galReset(); game.cam.snap = true;
   },
-  exit() { game.timeScale = 1; ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
+  exit() { slowMoReset(1); ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
   update(dt) {
     const inp = game.input, h = ED.hero, L0 = ED.L, cx = L0.w * 8, cy = L0.h * 8;
     if (updateUI(dt)) return;
@@ -156,7 +156,7 @@ const galleryScene = {
     const c = GAL.cam || (GAL.cam = tgt.slice()), k = Math.min(1, dt * 3); for (let i = 0; i < 3; i++) c[i] += (tgt[i] - c[i]) * k;
     game.focus(c[0], c[1], c[2]);
     if (inp.pressed('labels')) { GAL.slow = !GAL.slow; }
-    game.timeScale = GAL.slow ? .3 : 1;
+    if (SLOW.base !== (GAL.slow ? .3 : 1)) slowMoReset(GAL.slow ? .3 : 1);
   },
   draw(r) {
     const L0 = ED.L;
@@ -164,7 +164,8 @@ const galleryScene = {
     for (const m of ED.corpses) drawFoe(m, r);
     for (const m of ED.foes) drawFoe(m, r);
     for (const a of ED.allies) if (a.draw) a.draw(r);
-    drawHero(ED.hero, r); drawFx(r);
+    drawHero(ED.hero, r); drawFx(r); drawThings(L0, r);
+    BUS.emit('draw', { r, L: L0 });   // what skills leave behind (blades, rifts, totems) and the powers' own light
     L.add(L0.w * 8, L0.h * 8, 3, 70, .5, { color: '#4fe0cc' });
     r.overlay(g => {
       const W = r.W, H = r.H, cx = W / 2, items = galItems();

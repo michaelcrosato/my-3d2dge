@@ -354,6 +354,7 @@ const useAlpha = g => E.style.trans !== 'dither' && !g._info;
 const BLEND = { normal: 'source-over', add: 'lighter', multiply: 'multiply', screen: 'screen', sub: 'difference', overlay: 'overlay' };
 px.blend = (g, a, mode, fn) => {
   if (g._info) { if (mode === 'normal' || !mode) fn(); return; }
+  if (g._cover) { fn(); return; }   // (the renderer's glow cut mask: every pixel a glow touches counts, whatever its blend)
   const ga = g.globalAlpha, gc = g.globalCompositeOperation;
   g.globalAlpha = ga * qa(a); g.globalCompositeOperation = BLEND[mode] || mode || 'source-over';
   try { fn(); } finally { g.globalAlpha = ga; g.globalCompositeOperation = gc; }
@@ -1095,6 +1096,7 @@ class Renderer {
     this.rCv = mkCanvas(AS, AS); this.rG = ctx2d(this.rCv);
     this.xCv = mkCanvas(8, 8); this.xG = ctx2d(this.xCv);
     this.oCv = mkCanvas(8, 8); this.oG = ctx2d(this.oCv);
+    this.eCv = mkCanvas(8, 8); this.eG = ctx2d(this.eCv); this.sCv = mkCanvas(8, 8); this.sG = ctx2d(this.sCv);   // canvas lighting: the glow mask, a scratch layer
     this.ghostPool = Array.from({ length: 10 }, () => { const c = mkCanvas(AS, AS); return { cv: c, g: ctx2d(c) }; });
     this.ghostIdx = 0; this.ghosts = [];
     const ck = mkCanvas(2, 2), cg = ck.getContext('2d'); cg.fillStyle = '#000'; cg.fillRect(0, 0, 1, 1); cg.fillRect(1, 1, 1, 1);
@@ -1117,8 +1119,8 @@ class Renderer {
     sc.begin(cx, cy, this.game.o.bg);
     this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this.decals.length = 0; this.overlays.length = 0; this._map = null; (this.emis || (this.emis = [])).length = 0;
     const st = this.game.stats; st.actors = 0; st.culled = 0;
-    if (this.xCv.width !== this.bw || this.xCv.height !== this.bh) { this.xCv.width = this.oCv.width = this.bw; this.xCv.height = this.oCv.height = this.bh; }
-    this.xrayUsed = false;
+    if (this.xCv.width !== this.bw || this.xCv.height !== this.bh) { this.xCv.width = this.oCv.width = this.eCv.width = this.sCv.width = this.bw; this.xCv.height = this.oCv.height = this.eCv.height = this.sCv.height = this.bh; }
+    this.xrayUsed = false; this.emOn = false;
     const gpu = this.game.gpu;
     this.gpu = !!(gpu && gpu.active(this.view));
     if (gpu) gpu.show(this.gpu);
@@ -1130,14 +1132,14 @@ class Renderer {
   }
   /** world -> buffer pixel coords */
   w(x, y, z = 0) { const v = this.game.view; return [v.ax * x + v.ay * y - this.ix, v.bx * x + v.by * y + v.bz * z - this.iy]; }
-  /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, xray} */
+  /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, xray, emissive, solid (hides a glow behind it)} */
   queue(x, y, z, fn, o) {
     let k = this.game.view.order(x, y, z) + (o && o.bias || 0);
     // things standing on top of a TileMap wall block must sort after that block
     if (z > .5 && this._map && !(o && o.occluder)) k = this._map._liftOrder(this.game.view, x, y, z, k);
-    const it = { k, fn, occ: o && o.occluder, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo };
+    const it = { k, fn, occ: o && o.occluder, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
     this.items.push(it);
-    if (o && o.emissive) this.emis.push(it);   // glowing things are drawn again after lighting, so darkness never dims them
+    if (it.em) this.emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
   }
   /** draw on the floor before the queue. opts.emissive (0..1) makes it glow under GPU lighting */
   decal(fn, o) { this.decals.push({ fn, e: o && o.emissive || 0 }); }
@@ -1263,6 +1265,7 @@ class Renderer {
   /** glow halo from a cache: additive light rings (alpha style) or a dithered disc (dither style). a = 0..1 strength */
   glowDisc(g, cx, cy, rad, color, a) {
     if (g._info) return px.ddisc(g, cx, cy, rad, color, a, 0, 0);
+    if (g._cover) return px.disc(g, cx, cy, rad * .7, '#fff');   // (the glow cut mask: its bright core is in front)
     const R = Math.round(rad * 2) / 2, A = Math.round(a * 20) / 20, n = Math.ceil(R) + 1, al = E.style.trans !== 'dither';
     const st = this._stamp('d' + R + ':' + A + color + al, () => { const c = mkCanvas(n * 2 + 1, n * 2 + 1), cg = ctx2d(c); px.ddisc(cg, n, n, R, color, al ? Math.min(1, A * 1.6) : A, 0, 0); return c; });
     if (al) px.blend(g, 1, 'add', () => g.drawImage(st, Math.round(cx) - n, Math.round(cy) - n));
@@ -1322,10 +1325,10 @@ class Renderer {
     // fast path: nothing needs the offscreen composite, so draw straight into the frame
     if (o.outline === false && !o.flash && !o.ghost && !o.xray && (o.rim === false || this.gpu) && (o.alpha === undefined || o.alpha >= 1)) {
       const info = o.emissive ? gI => { gI._mat = this._infoCol(z, 10, o.emissive); gI._c = null; const [a, b] = this.w(x, y, z); drawFn(gI, Math.round(a), Math.round(b)); } : undefined;
-      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info });
+      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info, solid: true });
       return;
     }
-    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o) });
+    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5 });
   }
   _tint(dst, src, color, R = [0, 0, AS, AS]) {
     const [x0, y0, w, h] = R;
@@ -1342,6 +1345,7 @@ class Renderer {
     if (x1 <= x0 || y1 <= y0) { this._R = [0, 0, 0, 0]; return; }
     const R = this._R = [x0, y0, x1 - x0, y1 - y0], w = R[2], h = R[3];
     const [sx, sy] = this.w(x, y, z), bx = Math.round(sx) - AOX, by = Math.round(sy) - AOY, al = o.alpha === undefined ? 1 : o.alpha;
+    if (g === this.ctx) this._comp = { x0, y0, w, h, bx, by, ol: o.outline !== false };
     const put = (cv, dx, dy) => g.drawImage(cv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h);
     g.globalAlpha = al;
     if (o.outline !== false) { this._tint(this.mG, this.aCv, o.outlineColor || this.outline, R); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(this.mCv, dx, dy); }
@@ -1367,6 +1371,17 @@ class Renderer {
     }
     if (o.xray) { this._tint(this.mG, this.aCv, this.xrayColor, R); this.xG.drawImage(this.mCv, x0, y0, w, h, bx + x0, by + y0, w, h); this.xrayUsed = true; }
   }
+  /** add a solid item's shape to the cut mask: a body from its composite (with its outline), a wall by drawing it again */
+  _emCut(eG, it) {
+    const c = this._comp;
+    if (c) { const cut = (dx, dy) => eG.drawImage(this.aCv, c.x0, c.y0, c.w, c.h, c.bx + c.x0 + dx, c.by + c.y0 + dy, c.w, c.h); cut(0, 0); if (c.ol) { cut(-1, 0); cut(1, 0); cut(0, -1); cut(0, 1); } }
+    else if (it.occ) { this._tg = eG; try { it.fn(eG); } finally { this._tg = null; } eG.globalAlpha = 1; }
+    else {   // anything else solid (a body drawn straight into the frame): drawn again on a scratch layer, in a body-sized box
+      const [sx, sy] = this.w(it.x, it.y, it.z), x0 = Math.max(0, Math.round(sx) - AOX), y0 = Math.max(0, Math.round(sy) - AOY), w = Math.min(this.bw, x0 + AS) - x0, h = Math.min(this.bh, y0 + AS) - y0;
+      if (w > 0 && h > 0) { const sG = this.sG; sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(x0, y0, w, h); sG._c = null; this._tg = sG; try { it.fn(sG); } finally { this._tg = null; } eG.drawImage(this.sCv, x0, y0, w, h, x0, y0, w, h); }
+    }
+    eG.globalAlpha = 1; eG._c = null;
+  }
   _drawGhosts() {
     const t = this.game.time;
     this.ghosts = this.ghosts.filter(q => t - q.t < q.life);
@@ -1382,8 +1397,35 @@ class Renderer {
     this.xG.clearRect(0, 0, this.bw, this.bh); this.oG.clearRect(0, 0, this.bw, this.bh); this.oG._c = null;
     let xr = false;
     const gpu = this.gpu, iG = this.iG;
+    // canvas lighting draws the glows again after the darkness (so it never dims them). The cut mask K keeps that redraw
+    // behind what stands in front: in depth order, a wall or a body drawn after a glow adds its shape to K, and a glow
+    // drawn later still (in front of that) takes its whole footprint back out. finish() then restores K's lit pixels
+    // (a coarse grid of where glows have been drawn so far lets the walls and bodies nowhere near one skip the mask)
+    const em = this.glowMask !== false && !gpu && this.game.lights.enabled && this.emis.length > 0, eG = this.eG;   // (r.glowMask = false: glows over everything, cheaper)
+    let eOn = false, kOn = false, eg = null, gw = 0;
+    if (em) {
+      eG.globalCompositeOperation = 'source-over'; eG.globalAlpha = 1; eG.clearRect(0, 0, this.bw, this.bh); eG._c = null;
+      gw = (this.bw >> 5) + 1; const n = gw * ((this.bh >> 5) + 1); eg = this._eGrid && this._eGrid.length === n ? this._eGrid.fill(0) : (this._eGrid = new Uint8Array(n));
+    }
+    const gh = em ? (this.bh >> 5) + 1 : 0, cell = (x0, y0, x1, y1, mark) => {   // screen box -> grid cells: mark them, or test them
+      const a = clamp(x0 >> 5, 0, gw - 1), b = clamp(x1 >> 5, 0, gw - 1), c = clamp(y0 >> 5, 0, gh - 1), d = clamp(y1 >> 5, 0, gh - 1);
+      for (let y = c; y <= d; y++) for (let x = a; x <= b; x++) { if (mark) eg[y * gw + x] = 1; else if (eg[y * gw + x]) return true; }
+      return false;
+    };
     for (const it of items) {
+      this._comp = null;
       it.fn(g);
+      if (em) {
+        if (it.em) {
+          eOn = true; const [sx, sy] = this.w(it.x, it.y, it.z); cell(sx - 56 | 0, sy - 96 | 0, sx + 56 | 0, sy + 40 | 0, true);
+          if (kOn) { eG._cover = true; eG.globalCompositeOperation = 'destination-out'; this._tg = eG; try { it.fn(eG); } finally { this._tg = null; eG._cover = false; eG.globalCompositeOperation = 'source-over'; eG.globalAlpha = 1; eG._c = null; } }
+        } else if (eOn && it.solid) {
+          const c = this._comp; let hit;
+          if (c) hit = cell(c.bx + c.x0, c.by + c.y0, c.bx + c.x0 + c.w, c.by + c.y0 + c.h, false);
+          else { const [sx, sy] = this.w(it.x, it.y, it.z), s = this.view.scale || 1; hit = cell(sx - 24 * s | 0, sy - 72 * s | 0, sx + 24 * s | 0, sy + 16 * s | 0, false); }
+          if (hit) { this._emCut(eG, it); kOn = true; }
+        }
+      }
       if (gpu && !it.noInfo) {
         if (it.info) it.info(iG);
         else { iG._mat = this._infoVert(iG, it.x, it.y, it.z, 10, 0); iG._z = it.z; iG._c = null; it.fn(iG); }
@@ -1391,6 +1433,7 @@ class Renderer {
       if (it.xray) xr = true;
       else if (xr && it.occ) it.fn(this.oG);
     }
+    this.emOn = kOn;
     if (this.xrayUsed) {
       const xG = this.xG;
       xG.globalCompositeOperation = 'destination-in'; xG.drawImage(this.oCv, 0, 0);
@@ -1413,7 +1456,15 @@ class Renderer {
       this._tg = this.vG; for (const f of this.overlays) f(this.vG); this._tg = null;
       try { game.gpu.render(this); } catch (e) { game.gpu.fail(e); game.screen.present(); }
     } else {
-      if (game.lights.enabled) { game.lights.render(this); if (this.emis.length) { this.emis.sort((a, b) => a.k - b.k); for (const it of this.emis) it.fn(g); } }
+      if (game.lights.enabled) {
+        game.lights.render(this);
+        if (this.emis.length) {
+          const sG = this.sG, cv = g.canvas;
+          if (this.emOn) { sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(0, 0, this.bw, this.bh); sG.drawImage(cv, 0, 0); sG.globalCompositeOperation = 'destination-in'; sG.drawImage(this.eCv, 0, 0); sG.globalCompositeOperation = 'source-over'; }
+          this.emis.sort((a, b) => a.k - b.k); for (const it of this.emis) it.fn(g);
+          if (this.emOn) g.drawImage(this.sCv, 0, 0);   // walls and bodies in front of a glow keep their lit pixels
+        }
+      }
       for (const f of this.overlays) f(g);
       game.screen.present();
     }

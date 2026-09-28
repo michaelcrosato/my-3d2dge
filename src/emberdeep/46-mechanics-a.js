@@ -26,9 +26,10 @@ const MKA_cc = c => (c + .5) * 16;   // a cell's world center
 const MKA_mass = u => Math.pow(Math.max(1, u.mass || 1), .8);
 /** a hit from the hero's side: mechanics credit him with what they kill */
 const MKA_hit = (amount, el, o) => Object.assign({ src: ED.hero, amount, el, kb: 0, tags: ['mechanic'] }, o || {});
-/** can a mechanic take this cell: open floor (untagged unless tagOk), clear of the start, exit, torches, props, things, runes */
+/** can a mechanic take this cell: open floor (untagged unless tagOk; never a rail, a bridge or lava), clear of the start, exit, torches, props, things, runes */
 function MKA_free(L0, cx, cy, o = {}) {
-  if (!MKA_open(L0, cx, cy) || (!o.tagOk && MKA_tag(L0, cx, cy))) return false;
+  const tg = MKA_tag(L0, cx, cy);
+  if (!MKA_open(L0, cx, cy) || (tg && (!o.tagOk || tg === 'rail' || tg === 'bridge' || tg === 'lava'))) return false;
   const x = MKA_cc(cx), y = MKA_cc(cy), near = (p, d) => Math.abs(p.x - x) < d && Math.abs(p.y - y) < d;
   if (Math.hypot(x - L0.start.x, y - L0.start.y) < (o.start === undefined ? 64 : o.start)) return false;
   if (Math.hypot(x - L0.exit.x, y - L0.exit.y) < (o.exit === undefined ? 48 : o.exit)) return false;

@@ -50,7 +50,7 @@ function drawPortal(pt, r, home) {
 /* ---------- the shared world step ---------- */
 function worldStep(dt, o = {}) {
   const h = ED.hero, L0 = ED.L;
-  ED.t += dt; L0.t = (L0.t || 0) + dt;
+  ED.t += dt; L0.t = (L0.t || 0) + dt; slowMoStep();
   UI.prompt = null;
   floorEffects(h, dt); for (const m of ED.foes) if (m.alive && m.spawnT <= 0) floorEffects(m, dt);
   updateHero(h, dt, o);
@@ -281,7 +281,7 @@ const levelScene = {
     playSong(L0.theme.music || 'deep'); game.cam.snap = true; saveGame();
     BUS.emit('levelStart', { L: L0 });
   },
-  exit() { BUS.emit('levelEnd', { L: ED.L }); game.timeScale = 1; },
+  exit() { BUS.emit('levelEnd', { L: ED.L }); slowMoReset(SLOW.base); },
   update(dt) {
     if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
     if (talkStep(dt)) return;

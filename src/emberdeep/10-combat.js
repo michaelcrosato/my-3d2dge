@@ -121,9 +121,9 @@ function killUnit(u, hit) {
   if (u.onDie) u.onDie(hit || {});
   BUS.emit('kill', { src: hit && hit.src, tgt: u, hit: hit || {}, st });   // st: what it was afflicted with when it died
   // the last of a pack falls: a heartbeat of slow motion (a finisher)
-  if (u.pack && u.team === 'foe' && game.timeScale === 1 && !ED.demo && ED.mode === 'level' && !ED.foes.some(o => o.alive && o.pack === u.pack)) {
+  if (u.pack && u.team === 'foe' && !SLOW.live && !ED.demo && ED.mode === 'level' && !ED.foes.some(o => o.alive && o.pack === u.pack)) {
     const n = ED.corpses.filter(o => o.pack === u.pack).length + 1;
-    if (n >= 4) { game.timeScale = .4; game.after(.12, () => { if (game.timeScale === .4) game.timeScale = 1; }); }
+    if (n >= 4) slowMo(.4, .3, 'finisher');
   }
 }
 /** push a unit away from (x, y) (or along ang) with speed kb; heavy units (mass) move less. up launches it */

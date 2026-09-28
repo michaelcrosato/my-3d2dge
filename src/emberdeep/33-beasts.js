@@ -1367,7 +1367,10 @@ def('mechanics', 'webs', { name: 'Webs', title: 'The Webbed Nests', adj: 'Webbed
       const n = Math.max(1, Math.round(rm.w * rm.h / 75)) + (R.chance(.3) ? 1 : 0);
       for (let k = 0; k < n; k++) {
         const [x, y] = L0.randomFloor(R, { room: rm, minStart: 70 }), rad = 16 + R() * 22; BST_webPatch(x, y, rad, true, L0);
-        if (R.chance(.45)) for (let e = 0, ne = R.int(1, 3); e < ne; e++) BST_egg(x + (R() - .5) * 12, y + (R() - .5) * 12, { L: L0, n: 2 + R.int(0, 1), size: .9 + R() * .3 });
+        // eggs keep apart (each its own pop), and away from the landing and the exit (no hatchling ambush on arrival)
+        const eggOk = (ex, ey) => Math.hypot(ex - L0.start.x, ey - L0.start.y) > 40 && (!L0.exit || Math.hypot(ex - L0.exit.x, ey - L0.exit.y) > 40) && L0.map.walkable(Math.floor(ex / 16), Math.floor(ey / 16))
+          && !L0.things.some(t => t.kind === 'bst_egg' && Math.hypot(t.x - ex, t.y - ey) < 8);
+        if (R.chance(.45)) for (let e = 0, ne = R.int(1, 3); e < ne; e++) { const ex = x + (R() - .5) * 14, ey = y + (R() - .5) * 14; if (eggOk(ex, ey)) BST_egg(ex, ey, { L: L0, n: 2 + R.int(0, 1), size: .9 + R() * .3 }); }
         else if (R.chance(.35)) BST_cocoon(L0, x + (R() - .5) * rad, y + (R() - .5) * rad, R);
       }
     }

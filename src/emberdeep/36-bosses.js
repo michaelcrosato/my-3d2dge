@@ -685,7 +685,7 @@ function BOS_drawCard(r) {
   const a = clamp(Math.min(t / .35, (dur - t) / .6), 0, 1), bars = E.ease.outQuad(clamp(Math.min(t / .4, (dur - t) / .5), 0, 1)), e = EL(C.el), c = BOS_tones(C.el);
   r.overlay(g => {
     const W = r.W, H = r.H, cx = Math.round(W / 2), bh = Math.round(20 * bars), y = Math.round(H * (C.low ? .62 : .22)) + Math.round(6 * (1 - a));
-    px.blend(g, .92, 'normal', () => { px.rect(g, 0, 0, W, bh, '#05030a'); px.rect(g, 0, H - bh, W, bh, '#05030a'); });
+    px.blend(g, .92, 'normal', () => { px.rect(g, 0, 0, W, bh, '#05030a'); px.rect(g, 0, H - Math.round(bh * .5), W, Math.round(bh * .5), '#05030a'); });
     px.blend(g, a, 'normal', () => {
       px.blend(g, .5, 'normal', () => px.rect(g, 0, y - 12, W, 50, '#05030a'));
       const sc = E.font.width(C.name, { scale: 3 }) <= W - 30 ? 3 : 2, rw = Math.round(Math.min(W * .38, 160) * E.ease.outQuad(clamp(t / .7, 0, 1)));
@@ -1089,7 +1089,7 @@ function BOS_kingDeath(b) {
   sfx('bos_roar', { pitch: .75 }); if (T) T.flare = 1;
   const f = addFx({ kind: 'bosKingDeath', t: 0, update: dt => {
     const real = dt / Math.max(.05, game.timeScale); rt += real;
-    game.timeScale = rt < 1.1 ? .3 : rt < 3 ? lerp(.3, 1, (rt - 1.1) / 1.9) : 1;
+    if (rt < 3) slowMo(rt < 1.1 ? .3 : lerp(.3, 1, (rt - 1.1) / 1.9), .05, 'bossdown');   // the core's slowdown, reshaped into his long fall
     const rig = b.rig;
     if (rig && !gone) {
       if (rt < 1.1) { rig.dieT = .08; rig.expr = 'shout'; }                                  // the stagger: head thrown back
@@ -1105,7 +1105,7 @@ function BOS_kingDeath(b) {
   void f;
 }
 
-def('bosses', 'cinderking', { name: 'The Cinder King', title: 'Sovereign of Ash', arch: 'cinderking', size: 2.3, hp: 13, dmg: 1.3, el: 'fire', levelName: 'The Cinder Throne', music: 'boss', minDepth: 5,
+def('bosses', 'cinderking', { name: 'The Cinder King', title: 'Sovereign of Ash', arch: 'cinderking', size: 2.3, hp: 11, dmg: 1.3, el: 'fire', levelName: 'The Cinder Throne', music: 'boss', minDepth: 5,
   pal: BOS_KING_PAL,
   phases: [
     { at: 1, patterns: ['kingcombo', 'slam', 'firewave'], gap: 1.25 },
@@ -1124,7 +1124,7 @@ def('bosses', 'cinderking', { name: 'The Cinder King', title: 'Sovereign of Ash'
   bosRoar(b, kind) {
     BOS_burstRings(b.x, b.y, 'fire', kind === 'wake' ? 3 : 2, { r0: b.r + 14, step: 20 }); game.flash('#ff8a3a', .12, .4);
     const T = ED.L.things.find(q => q.kind === 'throne'); if (T) T.flare = 1;
-    if (kind === 'wake') for (const v of ED.L.things) if (v.kind === 'vent' && Math.hypot(v.x - b.x, v.y - b.y) < 240) game.after(.35 + Math.hypot(v.x - b.x, v.y - b.y) / 300, () => v.prime(null));
+    if (kind === 'wake') for (const v of ED.L.things) if (v.kind === 'vent' && v.prime && Math.hypot(v.x - b.x, v.y - b.y) < 240) game.after(.35 + Math.hypot(v.x - b.x, v.y - b.y) / 300, () => v.prime(null));
   },
   update(b, dt) {
     if (b.bosForce && !b.pat && !b.dormant) { const id = b.bosForce; b.bosForce = null; if (REG.patterns[id]) { b.pat = REG.patterns[id].start(b, (b.bossDef.phases || [])[b.phase]); b.lastPat = id; } }
@@ -1228,7 +1228,9 @@ function BOS_placeMagma(L0, R) {
   const m = L0.map, W = L0.w, tags = m.floorTags, start = L0.start, ex = L0.exit, lava = L0.bosLava = L0.bosLava || [];
   const ok = (cx, cy) => {
     if (cx < 1 || cy < 1 || cx >= W - 1 || cy >= L0.h - 1) return false; const i = cy * W + cx; if (m.cell(cx, cy) !== 0 || tags[i] || m.blocked[i]) return false;
-    const x = (cx + .5) * 16, y = (cy + .5) * 16; return Math.hypot(x - start.x, y - start.y) > 56 && (!ex || Math.hypot(x - ex.x, y - ex.y) > 26);
+    const x = (cx + .5) * 16, y = (cy + .5) * 16; if (Math.hypot(x - start.x, y - start.y) <= 56 || (ex && Math.hypot(x - ex.x, y - ex.y) <= 40)) return false;
+    // nothing stands in the magma: kegs, pylons and chests keep their feet cool, and so do the braziers
+    return !(L0.things || []).some(t => Math.hypot(t.x - x, t.y - y) < (t.r || 6) + 12) && !(L0.torches || []).some(b => Math.hypot(b.x - x, b.y - y) < 12);
   };
   const tag = (cx, cy) => { if (ok(cx, cy)) { tags[cy * W + cx] = 'lava'; lava.push(cy * W + cx); } };
   const boss = L0.rec && L0.rec.boss, bossRoom = boss && ex ? BOS_roomAt(L0, ex.x, ex.y) : null, spot = boss === 'cinderking' && ex ? BOS_throneSpot(L0) : null;
