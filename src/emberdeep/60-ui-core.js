@@ -132,12 +132,25 @@ function drawHUD(r) {
     if (L0) {
       E.font.text(g, (L0.kind === 'town' ? 'EMBERHOLD' : 'DEPTH ' + L0.depth) , 5, 4, GOLD, { shadow: '#05040a', outline: false });
       E.font.text(g, L0.kind === 'town' ? 'the last lit town' : L0.name, 5, 13, '#c8c0d8', { shadow: '#05040a', outline: false });
+      if (L0.kind === 'level') {   // the speedrunner's clock: this depth's time, and the best
+        const tm = ED.t, best = h.best && h.best[L0.depth], ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0');
+        E.font.text(g, ft(tm) + (best ? '  best ' + ft(best) : ''), E.font.width(L0.kind === 'town' ? 'EMBERHOLD' : 'DEPTH ' + L0.depth) + 10, 4, best && tm > best ? '#9a90b0' : '#8fe3ff', { font: 'tiny', shadow: '#05040a', outline: false });
+      }
       let mx = 5;
       for (const id of L0.mechs || []) { const M = REG.mechanics[id]; if (!M) continue; E.ui.box(g, mx, 24, 14, 14, { bg: '#1a1428', border: M.color || '#8a7aa8', shadow: false, gradient: false }); if (M.icon) M.icon(g, mx + 1, 25, .75); hot(mx, 24, 14, 14, { tip: [{ t: M.name, c: M.color || GOLD }, { t: M.tip || '', c: '#c8c0d8' }] }); mx += 16; }
       let bxx = 5; const byy = L0.mechs && L0.mechs.length ? 42 : 26;
       for (const b of h.buffs) { E.ui.box(g, bxx, byy, 10, 10, { bg: '#141020', border: b.color || '#8affc8', shadow: false, gradient: false }); E.font.text(g, (b.name || '?')[0], bxx + 5, byy + 2, b.color || '#8affc8', { align: 'center', font: 'tiny', outline: false }); hot(bxx, byy, 10, 10, { tip: [{ t: b.name, c: b.color }, { t: Math.ceil(b.t) + 's', c: '#c8c0d8' }].concat(Object.keys(b.stats || {}).map(k => ({ t: statText(k, b.stats[k]), c: '#8ab4ff' }))) }); bxx += 12; }
       for (const id in h.st) { const S = REG.statuses[id]; if (!S) continue; E.ui.box(g, bxx, byy, 10, 10, { bg: '#1a0c14', border: S.color, shadow: false, gradient: false }); E.font.text(g, S.name[0], bxx + 5, byy + 2, S.color, { align: 'center', font: 'tiny', outline: false }); bxx += 12; }
       drawMinimap(g, r, L0, h);
+    }
+    // an arrow at the screen edge toward the exit once it has been seen (and is off screen)
+    if (L0 && L0.exit && L0.kind === 'level' && L0.seen[Math.floor(L0.exit.y / T16) * L0.w + Math.floor(L0.exit.x / T16)]) {
+      const [ex, ey] = r.w(L0.exit.x, L0.exit.y, 10), m = 14;
+      if (ex < m || ex > W - m || ey < m || ey > H - m) {
+        const dx = ex - cx, dy = ey - H / 2, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-3), (H / 2 - m) / Math.abs(dy || 1e-3)), ax = cx + dx * k, ay = H / 2 + dy * k, a = Math.atan2(dy, dx), c = L0.exit.open ? '#6fd6cc' : '#8a7a9a';
+        px.poly(g, [[ax + Math.cos(a) * 6, ay + Math.sin(a) * 6], [ax + Math.cos(a + 2.4) * 5, ay + Math.sin(a + 2.4) * 5], [ax + Math.cos(a - 2.4) * 5, ay + Math.sin(a - 2.4) * 5]], c);
+        const dd = Math.round(Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) / T16); E.font.text(g, dd + 'm', ax - Math.cos(a) * 9, ay - Math.sin(a) * 9 - 2, c, { align: 'center', font: 'tiny', outline: '#0c0818' });
+      }
     }
     // boss bar
     const B = ED.boss;
@@ -172,29 +185,38 @@ function skillTip(h, id) {
   if (rune) out.push({ t: rune.name + ': ' + rune.desc, c: '#ff9a4a' });
   return out;
 }
-/** the minimap: explored floor, walls, the exit, monsters nearby, the hero */
+/** the minimap: explored floor, walls, the exit, monsters nearby, the hero. It is drawn through the camera's own
+ *  projection (flattened to the ground), so it turns and tilts with the view like Diablo's automap */
 function drawMinimap(g, r, L0, h) {
-  const big = game.input.down('map'), S = big ? 3 : 1.5, W0 = big ? Math.min(L0.w * S, r.W - 40) : 74, H0 = big ? Math.min(L0.h * S, r.H - 40) : 54;
-  const x0 = big ? Math.round((r.W - W0) / 2) : r.W - W0 - 4, y0 = big ? Math.round((r.H - H0) / 2) : 4;
-  const hcx = h.x / T16, hcy = h.y / T16, ox = big ? (L0.w * S > W0 ? clamp(hcx * S - W0 / 2, 0, L0.w * S - W0) : (L0.w * S - W0) / 2) : hcx * S - W0 / 2, oy = big ? (L0.h * S > H0 ? clamp(hcy * S - H0 / 2, 0, L0.h * S - H0) : (L0.h * S - H0) / 2) : hcy * S - H0 / 2;
+  const big = game.input.down('map'), W0 = big ? r.W - 60 : 74, H0 = big ? r.H - 50 : 54;
+  const x0 = big ? 30 : r.W - W0 - 4, y0 = big ? 25 : 4, v = r.view, k = (big ? 3.2 : 1.3) / (T16 * v.scale / (v.zoom || 1)) * T16 / T16;
+  const hp0 = v.p(h.x, h.y, 0), cxm = x0 + W0 / 2, cym = y0 + H0 / 2;
+  const M = (wx, wy) => { const q = v.p(wx, wy, 0); return [cxm + (q[0] - hp0[0]) * k, cym + (q[1] - hp0[1]) * k]; };
+  const inside = ([sx, sy]) => sx >= x0 && sy >= y0 && sx < x0 + W0 - 1 && sy < y0 + H0 - 1;
   px.blend(g, big ? .85 : .7, 'normal', () => px.rect(g, x0, y0, W0, H0, '#08060e'));
-  const c0 = Math.max(0, Math.floor(ox / S)), c1 = Math.min(L0.w - 1, Math.ceil((ox + W0) / S)), r0 = Math.max(0, Math.floor(oy / S)), r1 = Math.min(L0.h - 1, Math.ceil((oy + H0) / S));
-  // the view rotates with the camera: north-up minimap in screen orientation for iso is confusing, so draw it as the view sees the ground
-  for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) {
+  const reach = (big ? Math.max(W0, H0) : 60) / (k * T16) + 2, hcx = Math.floor(h.x / T16), hcy = Math.floor(h.y / T16), map = L0.map;
+  const floorAt = (cx, cy) => { const c = map.cell(cx, cy); return c === 0 && !(map.floorTags && map.floorTags[cy * L0.w + cx] === 'pit'); };
+  g.save(); g.beginPath(); g.rect(x0 + 1, y0 + 1, W0 - 2, H0 - 2); g.clip();
+  for (let cy = Math.max(0, hcy - reach | 0); cy <= Math.min(L0.h - 1, hcy + reach | 0); cy++) for (let cx = Math.max(0, hcx - reach | 0); cx <= Math.min(L0.w - 1, hcx + reach | 0); cx++) {
     const i = cy * L0.w + cx; if (!L0.seen[i]) continue;
-    const cell = L0.cells[i], sx = x0 + cx * S - ox, sy = y0 + cy * S - oy, tag = L0.map.floorTags && L0.map.floorTags[i];
-    if (sx < x0 || sy < y0 || sx + S > x0 + W0 || sy + S > y0 + H0) continue;
-    const c = cell ? (cell === 1 ? '#6a5a88' : '#4a4060') : tag === 'pit' ? '#05040a' : tag === 'water' ? '#2a4a7a' : tag === 'ice' ? '#6a8aa8' : '#2a2238';
-    px.rect(g, sx, sy, Math.ceil(S), Math.ceil(S), c);
+    const cell = L0.cells[i], tag = map.floorTags && map.floorTags[i];
+    let col;
+    if (cell) { if (!(floorAt(cx + 1, cy) || floorAt(cx - 1, cy) || floorAt(cx, cy + 1) || floorAt(cx, cy - 1))) continue; col = cell === 1 ? '#9a8ab8' : '#7a6a98'; }   // only walls that face a floor
+    else if (tag === 'pit') continue;
+    else col = tag === 'water' || tag === 'deep' ? '#3a6aa8' : tag === 'ice' ? '#8ab0d0' : tag === 'lava' ? '#b84a1a' : '#3e3458';
+    const a0 = M(cx * T16, cy * T16), a1 = M(cx * T16 + T16, cy * T16), a2 = M(cx * T16 + T16, cy * T16 + T16), a3 = M(cx * T16, cy * T16 + T16);
+    if (!inside(a0) && !inside(a2) && !inside(a1) && !inside(a3)) continue;
+    px.poly(g, [a0, a1, a2, a3], col);
   }
-  const P0 = (wx, wy) => [x0 + wx / T16 * S - ox, y0 + wy / T16 * S - oy], inside = ([sx, sy]) => sx >= x0 && sy >= y0 && sx < x0 + W0 && sy < y0 + H0;
-  if (L0.exit && L0.seen[Math.floor(L0.exit.y / T16) * L0.w + Math.floor(L0.exit.x / T16)]) { const q = P0(L0.exit.x, L0.exit.y); if (inside(q)) { px.rect(g, q[0] - 1, q[1] - 1, 3, 3, L0.exit.open ? '#6fd6cc' : '#8a7a9a'); } }
-  if (L0.waystone) { const q = P0(L0.waystone.x, L0.waystone.y); if (inside(q)) px.rect(g, q[0] - 1, q[1] - 1, 3, 3, '#6fd6cc'); }
-  if (L0.portal) { const q = P0(L0.portal.x, L0.portal.y); if (inside(q)) px.rect(g, q[0] - 1, q[1] - 1, 3, 3, '#8ab4ff'); }
-  for (const t of L0.things) if (t.mapColor && !t.dead) { const q = P0(t.x, t.y); if (inside(q) && L0.seen[Math.floor(t.y / T16) * L0.w + Math.floor(t.x / T16)]) px.dot(g, q[0], q[1], t.mapColor); }
-  for (const m of ED.foes) { if (!m.alive) continue; const q = P0(m.x, m.y); if (inside(q) && Math.hypot(m.x - h.x, m.y - h.y) < 200) px.dot(g, q[0], q[1], m.boss ? '#ff5a3a' : m.elite ? '#ffd36a' : '#d8303a'); }
-  if (L0.npcs) for (const n of L0.npcs) { const q = P0(n.x, n.y); if (inside(q)) px.dot(g, q[0], q[1], '#ffd36a'); }
-  const q = P0(h.x, h.y); px.rect(g, q[0] - 1, q[1] - 1, 3, 3, '#ffffff'); px.dot(g, q[0], q[1], '#2f8f86');
+  g.restore(); g._c = null;
+  const seenAt = (x, y) => L0.seen[Math.floor(y / T16) * L0.w + Math.floor(x / T16)];
+  if (L0.exit && seenAt(L0.exit.x, L0.exit.y)) { const q = M(L0.exit.x, L0.exit.y); if (inside(q)) px.rect(g, q[0] - 1, q[1] - 1, 3, 3, L0.exit.open ? '#6fd6cc' : '#8a7a9a'); }
+  if (L0.waystone) { const q = M(L0.waystone.x, L0.waystone.y); if (inside(q)) px.rect(g, q[0] - 1, q[1] - 1, 3, 3, '#6fd6cc'); }
+  if (L0.portal) { const q = M(L0.portal.x, L0.portal.y); if (inside(q)) px.rect(g, q[0] - 1, q[1] - 1, 3, 3, '#8ab4ff'); }
+  for (const t of L0.things) if (t.mapColor && !t.dead && seenAt(t.x, t.y)) { const q = M(t.x, t.y); if (inside(q)) px.dot(g, q[0], q[1], t.mapColor); }
+  for (const m of ED.foes) { if (!m.alive || Math.hypot(m.x - h.x, m.y - h.y) > 200) continue; const q = M(m.x, m.y); if (inside(q)) px.dot(g, q[0], q[1], m.boss ? '#ff5a3a' : m.elite ? '#ffd36a' : '#d8303a'); }
+  if (L0.npcs) for (const n of L0.npcs) { const q = M(n.x, n.y); if (inside(q)) px.dot(g, q[0], q[1], '#ffd36a'); }
+  px.rect(g, cxm - 1, cym - 1, 3, 3, '#ffffff'); px.dot(g, cxm, cym, '#2f8f86');
   px.rect(g, x0, y0, W0, 1, '#5a4a70'); px.rect(g, x0, y0 + H0 - 1, W0, 1, '#5a4a70'); px.rect(g, x0, y0, 1, H0, '#5a4a70'); px.rect(g, x0 + W0 - 1, y0, 1, H0, '#5a4a70');
   hot(x0, y0, W0, H0, { tip: [{ t: 'Map', c: GOLD }, { t: 'Hold Tab for the full map.', c: '#c8c0d8' }] });
 }
@@ -244,8 +266,9 @@ UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H
   rows.forEach(([k, label], i) => {
     const yy = y + 30 + i * lh, v = DIFF[k], foc = UI.keyNav && UI.focus === i;
     E.font.text(g, label, x + 10, yy, foc ? GOLD : '#e8e0f8', { outline: false, shadow: '#05040a' });
-    slider(g, sx, yy + 1, sw, v, .25, 4, .25, nv => { DIFF[k] = nv; saveOpts(); if (ED.hero && (k === 'heroHp' || k === 'heroSpeed')) computeStats(ED.hero); }, { mark: 1, color: k.startsWith('hero') ? '#6fd6cc' : k.startsWith('foe') || k === 'density' ? '#ff8a6a' : GOLD, focus: foc });
-    E.font.text(g, v.toFixed(2).replace(/0$/, '') + 'x', x + w - 10, yy, v === 1 ? '#9a90b0' : '#ffffff', { align: 'right', outline: false });
+    // a log scale: 1x in the middle, 0.25x and 4x at the ends, steps of the square root of 2
+    slider(g, sx, yy + 1, sw, Math.log2(v), -2, 2, .5, nv => { DIFF[k] = +Math.pow(2, nv).toFixed(3); saveOpts(); if (ED.hero && (k === 'heroHp' || k === 'heroSpeed')) computeStats(ED.hero); }, { mark: 0, color: k.startsWith('hero') ? '#6fd6cc' : k.startsWith('foe') || k === 'density' ? '#ff8a6a' : GOLD, focus: foc });
+    E.font.text(g, (v >= 1 ? v.toFixed(v % 1 ? 1 : 0) : v.toFixed(2)) + 'x', x + w - 10, yy, v === 1 ? '#9a90b0' : '#ffffff', { align: 'right', outline: false });
   });
   const oy = y + 30 + rows.length * lh + 4;
   E.font.text(g, 'OPTIONS', x + 10, oy, '#9a90b0', { font: 'tiny', outline: false });
@@ -261,7 +284,7 @@ UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H
   const inp = game.input, n = DIFF_ROWS.length;
   if (inp.repeat('up')) { UI.focus = (UI.focus + n - 1) % n; UI.keyNav = true; }
   if (inp.repeat('down')) { UI.focus = (UI.focus + 1) % n; UI.keyNav = true; }
-  if (UI.keyNav && (inp.repeat('left') || inp.repeat('right'))) { const k = DIFF_ROWS[UI.focus][0]; DIFF[k] = clamp(DIFF[k] + (inp.down('left') ? -.25 : .25), .25, 4); saveOpts(); if (ED.hero) computeStats(ED.hero); sfx('select', { vol: .3 }); }
+  if (UI.keyNav && (inp.repeat('left') || inp.repeat('right'))) { const k = DIFF_ROWS[UI.focus][0]; DIFF[k] = +Math.pow(2, clamp(Math.round(Math.log2(DIFF[k]) * 2) / 2 + (inp.down('left') ? -.5 : .5), -2, 2)).toFixed(3); saveOpts(); if (ED.hero) computeStats(ED.hero); sfx('select', { vol: .3 }); }
 } });
 UI.def('death', { title: 'YOU DIED', w: 200, h: 96, draw(g, x, y, w) {
   const h = ED.hero;

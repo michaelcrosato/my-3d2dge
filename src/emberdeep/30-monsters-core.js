@@ -108,6 +108,8 @@ function foeReact(hit) {
 function foeDie(hit) {
   const m = this;
   m.deadT = 0; m.atk = null;
+  // an overkill (a hit far bigger than the life left) throws the body: it flies back, spinning into its fall
+  if (hit && hit.dmg > m.maxHp * .45 && !m.boss && !m.canFly && hit.ang !== undefined) { const k = Math.min(220, 80 + hit.dmg / m.maxHp * 60) / (m.mass || 1); m.vx += Math.cos(hit.ang) * k; m.vy += Math.sin(hit.ang) * k; m.vz = Math.max(m.vz || 0, 70 + Math.random() * 50); m.z = Math.max(m.z, .5); }
   if (m.rig) P.bits(m.x, m.y, 8, 6, [m.rig.C.skin, m.rig.C.cloth, m.rig.C.boot]);
   else if (m.blob) { const c = m.blob.C; P.bits(m.x, m.y, m.z + 6, 12, [c.base, c.lt, c.dk]); P.ring(m.x, m.y, 3, 22, c.lt, .3); }
   for (const id of m.affixes) { const a = REG.affixes[id]; if (a && a.onDie) a.onDie(m, hit); }
@@ -279,8 +281,10 @@ function updateCorpses(dt) {
     const m = C[i]; m.deadT += dt; m.flash -= dt;
     const life = m.arch.body === 'wisp' ? POP_T : m.arch.corpseT || DEAD_T;
     if (m.deadT > life || m.gone) { C.splice(i, 1); continue; }
-    m.vx = approach(m.vx, 0, 300 * dt); m.vy = approach(m.vy, 0, 300 * dt); m.x += m.vx * dt; m.y += m.vy * dt;
-    if (m.z > 0) { m.vz = (m.vz || 0) - 520 * dt; m.z = Math.max(0, m.z + m.vz * dt); }
+    const airborne = m.z > 0;
+    if (!airborne) { m.vx = approach(m.vx, 0, 300 * dt); m.vy = approach(m.vy, 0, 300 * dt); }
+    m.x += m.vx * dt; m.y += m.vy * dt;
+    if (airborne) { m.vz = (m.vz || 0) - 520 * dt; m.z = Math.max(0, m.z + m.vz * dt); if (m.z === 0) { P.dust(m.x, m.y, 0, 5); if (m.rig) m.rig.kick(-4); } }
     collideUnit(m);
     if (m.rig) m.rig.update(dt, { x: m.x, y: m.y, z: m.z, facing: m.facing, pose: 'die' });
     else if (m.blob) { m.z = Math.max(0, m.z - 80 * dt); m.blob.update(dt, { squash: -.42, squint: true, flap: 0 }); }
