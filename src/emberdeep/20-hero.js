@@ -204,6 +204,7 @@ function updateHero(h, dt, o = {}) {
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
   if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / DODGE_T);
+  else if (h.potionT > 0) heroDrinkPose(h, 1 - h.potionT / .8);
   // footsteps on the gait: one soft step each time a foot comes down
   const ph = Math.floor(h.rig.phase / Math.PI); if (ph !== h.stepPh) { h.stepPh = ph; if (Math.hypot(h.vx, h.vy) > 30 && h.z < 1) sfx('step', { vol: .35 }); }
   if (h.dodgeT <= 0 && !(act && act.rig && act.rig.attack && act.rig.attack.phase === 'active')) settleCape(h.rig, dt, h.hurtT > 0 ? 1 : clamp(1 - Math.hypot(h.vx, h.vy) / 60, 0, 1));
@@ -225,6 +226,23 @@ function settleCape(rig, dt, w) {
     n.x = lerp(n.x, ch[0].x - fx * i * .5, k); n.y = lerp(n.y, ch[0].y - fy * i * .5, k); n.z = lerp(n.z, ch[0].z - i * seg * rig.o.size, k);
     n.px = lerp(n.px, n.x, k); n.py = lerp(n.py, n.y, k); n.pz = lerp(n.pz, n.z, k);
   });
+}
+/**
+ * Drinking, layered on any other animation: the free (left) arm is re-solved with the engine's two-bone IK so the
+ * hand brings a flask up to the mouth, holds it while he drinks, and lowers it; he can keep moving and fighting.
+ */
+function heroDrinkPose(h, u) {
+  const J = h.rig.J, o = h.rig.o; if (!J.shL || !J.head || (h.act && h.act.rig && h.act.rig.attack && h.act.rig.attack.spec.hand === 'L')) return;
+  const k = u < .25 ? E.ease.outQuad(u / .25) : u > .8 ? 1 - E.ease.inQuad((u - .8) / .2) : 1;
+  const mouth = [J.head[0] + o.headR * .9, J.head[1] - .6, J.head[2] - o.headR * .45], tgt = E.V3.lerp(J.handL, mouth, k);
+  const [el, hd] = E.ik3(J.shL, tgt, o.armUpper, o.armLower, [-.2, -1, -.4]); J.elbowL = el; J.handL = hd;
+  h.drinkK = k;
+}
+function drawFlask(h, g, ox, oy, view) {
+  if (!(h.potionT > 0) || !h.drinkK) return;
+  const [x, y, dep] = rigScreen(h.rig, h.rig.J.handL, ox, oy, view), hd = rigScreen(h.rig, h.rig.J.head, ox, oy, view)[2], z = view.zoom || 1, tilt = h.drinkK;
+  if (dep < hd - .5 && Math.hypot(x - rigScreen(h.rig, h.rig.J.head, ox, oy, view)[0], 0) < 4 * z) return;   // hidden behind his head when he faces away
+  px.rect(g, x - 1 * z, y - (4 + tilt) * z, 2 * z, 2 * z, '#c8b890'); px.disc(g, x, y - 1 * z, 2.4 * z, '#6a1a2a'); px.disc(g, x, y - 1 * z, 1.8 * z, '#e03a4a'); px.dot(g, x - 1, y - 2 * z, '#ffc0c8');
 }
 function drinkPotion(h) {
   if (h.potions <= 0 || h.potionT > 0 || h.dead) { if (h.potions <= 0) notify('NO POTIONS', '#ff8a7a', 1.2); return; }
@@ -248,7 +266,7 @@ function drawHero(h, r) {
   if (!h.dead) r.shadow(h.x, h.y, 5.5, .55, undefined, ED.L && ED.L.map ? ED.L.map.groundAt(h.x, h.y, h.r, h.z) : 0);
   const ghost = h.dodgeT > 0 && t - h.lastGhost > .03; if (ghost) h.lastGhost = t;
   const tint = statusTint(h), fl = h.flash > 0 ? ['#ffe6d8', .3] : tint;
-  r.actor(h.x, h.y, h.z, (g, ox, oy) => { h.rig.draw(g, ox, oy, view); if (h.drawExtra) h.drawExtra(g, ox, oy, view); },
+  r.actor(h.x, h.y, h.z, (g, ox, oy) => { h.rig.draw(g, ox, oy, view); drawFlask(h, g, ox, oy, view); if (h.drawExtra) h.drawExtra(g, ox, oy, view); },
     { xray: true, alpha: h.dead ? clamp(4 - h.deadT * 1.2, 0, 1) : h.fade !== undefined ? h.fade : 1, flash: fl && fl[0], flashMix: fl && fl[1], outlineColor: h.flash > 0 ? '#fff4e6' : undefined, ghost: actGhost(h, ghost) });
   h.rig.drawSmear(r, h.smear);
   if (h.act && h.act.draw) h.act.draw(r);

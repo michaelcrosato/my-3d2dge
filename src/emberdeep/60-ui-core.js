@@ -194,21 +194,31 @@ function drawMinimap(g, r, L0, h) {
   const M = (wx, wy) => { const q = v.p(wx, wy, 0); return [cxm + (q[0] - hp0[0]) * k, cym + (q[1] - hp0[1]) * k]; };
   const inside = ([sx, sy]) => sx >= x0 && sy >= y0 && sx < x0 + W0 - 1 && sy < y0 + H0 - 1;
   px.blend(g, big ? .85 : .7, 'normal', () => px.rect(g, x0, y0, W0, H0, '#08060e'));
-  const reach = (big ? Math.max(W0, H0) : 60) / (k * T16) + 2, hcx = Math.floor(h.x / T16), hcy = Math.floor(h.y / T16), map = L0.map;
-  const floorAt = (cx, cy) => { const c = map.cell(cx, cy); return c === 0 && !(map.floorTags && map.floorTags[cy * L0.w + cx] === 'pit'); };
-  g.save(); g.beginPath(); g.rect(x0 + 1, y0 + 1, W0 - 2, H0 - 2); g.clip();
-  for (let cy = Math.max(0, hcy - reach | 0); cy <= Math.min(L0.h - 1, hcy + reach | 0); cy++) for (let cx = Math.max(0, hcx - reach | 0); cx <= Math.min(L0.w - 1, hcx + reach | 0); cx++) {
-    const i = cy * L0.w + cx; if (!L0.seen[i]) continue;
-    const cell = L0.cells[i], tag = map.floorTags && map.floorTags[i];
-    let col;
-    if (cell) { if (!(floorAt(cx + 1, cy) || floorAt(cx - 1, cy) || floorAt(cx, cy + 1) || floorAt(cx, cy - 1))) continue; col = cell === 1 ? '#9a8ab8' : '#7a6a98'; }   // only walls that face a floor
-    else if (tag === 'pit') continue;
-    else col = tag === 'water' || tag === 'deep' ? '#3a6aa8' : tag === 'ice' ? '#8ab0d0' : tag === 'lava' ? '#b84a1a' : '#3e3458';
-    const a0 = M(cx * T16, cy * T16), a1 = M(cx * T16 + T16, cy * T16), a2 = M(cx * T16 + T16, cy * T16 + T16), a3 = M(cx * T16, cy * T16 + T16);
-    if (!inside(a0) && !inside(a2) && !inside(a1) && !inside(a3)) continue;
-    px.poly(g, [a0, a1, a2, a3], col);
+  // the explored map is rendered once into a cached image in minimap space (rebuilt when new ground is seen or the
+  // camera turns), then blitted around the hero: a few hundred polygons once, not every frame
+  const key = v.id + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + k.toFixed(4), c = L0._mm || (L0._mm = {});
+  if (c.key !== key || (c.v !== L0.seenV && game.real - (c.t || 0) > .3)) {
+    const map = L0.map, W = L0.w * T16, H = L0.h * T16; let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+    for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const q = v.p(x, y, 0); bx0 = Math.min(bx0, q[0] * k); bx1 = Math.max(bx1, q[0] * k); by0 = Math.min(by0, q[1] * k); by1 = Math.max(by1, q[1] * k); }
+    const cw = Math.ceil(bx1 - bx0) + 4, ch = Math.ceil(by1 - by0) + 4;
+    if (!c.cv || c.cv.width !== cw || c.cv.height !== ch) { c.cv = E.mkCanvas(cw, ch); c.g = E.ctx2d(c.cv); }
+    const cg = c.g; cg.clearRect(0, 0, cw, ch); cg._c = null;
+    const P0 = (x, y) => { const q = v.p(x, y, 0); return [q[0] * k - bx0 + 2, q[1] * k - by0 + 2]; };
+    const floorAt = (cx, cy) => map.cell(cx, cy) === 0 && !(map.floorTags && map.floorTags[cy * L0.w + cx] === 'pit');
+    for (let cy = 0; cy < L0.h; cy++) for (let cx = 0; cx < L0.w; cx++) {
+      const i = cy * L0.w + cx; if (!L0.seen[i]) continue;
+      const cell = L0.cells[i], tag = map.floorTags && map.floorTags[i]; let col;
+      if (cell) { if (!(floorAt(cx + 1, cy) || floorAt(cx - 1, cy) || floorAt(cx, cy + 1) || floorAt(cx, cy - 1))) continue; col = cell === 1 ? '#9a8ab8' : '#7a6a98'; }   // only walls that face a floor
+      else if (tag === 'pit') continue;
+      else col = tag === 'water' || tag === 'deep' ? '#3a6aa8' : tag === 'ice' ? '#8ab0d0' : tag === 'lava' ? '#b84a1a' : '#3e3458';
+      px.poly(cg, [P0(cx * T16, cy * T16), P0(cx * T16 + T16, cy * T16), P0(cx * T16 + T16, cy * T16 + T16), P0(cx * T16, cy * T16 + T16)], col);
+    }
+    Object.assign(c, { key, v: L0.seenV, t: game.real, ox: bx0 - 2, oy: by0 - 2 });
   }
-  g.restore(); g._c = null;
+  // blit: the hero's minimap position at the panel center, clipped to the panel
+  const hx = hp0[0] * k - c.ox, hy = hp0[1] * k - c.oy, sx0 = Math.max(0, Math.round(hx - W0 / 2 + 1)), sy0 = Math.max(0, Math.round(hy - H0 / 2 + 1));
+  const dx0 = Math.round(cxm - (hx - sx0)), dy0 = Math.round(cym - (hy - sy0)), bw = Math.min(c.cv.width - sx0, x0 + W0 - 1 - dx0), bh = Math.min(c.cv.height - sy0, y0 + H0 - 1 - dy0);
+  if (bw > 0 && bh > 0) g.drawImage(c.cv, sx0, sy0, bw, bh, dx0, dy0, bw, bh);
   const seenAt = (x, y) => L0.seen[Math.floor(y / T16) * L0.w + Math.floor(x / T16)];
   if (L0.exit && seenAt(L0.exit.x, L0.exit.y)) { const q = M(L0.exit.x, L0.exit.y); if (inside(q)) px.rect(g, q[0] - 1, q[1] - 1, 3, 3, L0.exit.open ? '#6fd6cc' : '#8a7a9a'); }
   if (L0.waystone) { const q = M(L0.waystone.x, L0.waystone.y); if (inside(q)) px.rect(g, q[0] - 1, q[1] - 1, 3, 3, '#6fd6cc'); }
@@ -223,7 +233,8 @@ function drawMinimap(g, r, L0, h) {
 /** mark what the hero has seen (a radius around him) */
 function reveal(L0, h, rad = 9) {
   const cx = Math.floor(h.x / T16), cy = Math.floor(h.y / T16);
-  for (let y = cy - rad; y <= cy + rad; y++) for (let x = cx - rad; x <= cx + rad; x++) if (x >= 0 && y >= 0 && x < L0.w && y < L0.h && (x - cx) * (x - cx) + (y - cy) * (y - cy) <= rad * rad) L0.seen[y * L0.w + x] = 1;
+  if (cx === L0._rvx && cy === L0._rvy) return; L0._rvx = cx; L0._rvy = cy;
+  for (let y = cy - rad; y <= cy + rad; y++) for (let x = cx - rad; x <= cx + rad; x++) if (x >= 0 && y >= 0 && x < L0.w && y < L0.h && (x - cx) * (x - cx) + (y - cy) * (y - cy) <= rad * rad) { const i = y * L0.w + x; if (!L0.seen[i]) { L0.seen[i] = 1; L0.seenV = (L0.seenV || 0) + 1; } }
 }
 /** draw the open panels and the tooltip (after the HUD) */
 function drawPanels(r) {
@@ -260,7 +271,7 @@ function menuKeys(n, pick) {
   if (UI.keyNav && inp.pressed('confirm')) { inp.consumeAll(); pick(UI.focus); }
 }
 const DIFF_ROWS = [['heroDmg', 'Hero damage'], ['heroHp', 'Hero life'], ['heroSpeed', 'Hero speed'], ['foeDmg', 'Monster damage'], ['foeHp', 'Monster life'], ['foeSpeed', 'Monster speed'], ['density', 'Monster density'], ['xp', 'Experience gain'], ['loot', 'Loot drops']];
-UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H) => Math.min(226, H - 6), draw(g, x, y, w, h) {
+UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H) => Math.min(240, H - 6), draw(g, x, y, w, h) {
   const rows = DIFF_ROWS, lh = 12, sx = x + 104, sw = w - 150;
   E.font.text(g, 'DIFFICULTY  (for playtesting: 0.25x to 4x)', x + 10, y + 20, '#9a90b0', { font: 'tiny', outline: false });
   rows.forEach(([k, label], i) => {
@@ -279,6 +290,9 @@ UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H
   tog(3, ['Loot: all', 'Loot: magic+', 'Loot: rare+'][OPT.labels] || 'Loot', null, () => { OPT.labels = (OPT.labels + 1) % 3; saveOpts(); });
   tog(4, 'Music ' + Math.round(OPT.music * 10), null, () => { OPT.music = OPT.music >= 1 ? 0 : Math.round((OPT.music + .1) * 10) / 10; saveOpts(); applyAudioOpts(); });
   tog(5, 'GPU light', !!(game.gpu && game.gpu.enabled && game.gpu.status() === 'on'), () => { if (game.gpu && game.gpu.status() !== 'unavailable') { game.gpu.enabled = !game.gpu.enabled; OPT.gpu = game.gpu.enabled; saveOpts(); } else notify('WEBGPU IS NOT AVAILABLE HERE', '#ff9a7a'); });
+  tog(6, 'Outlines', OPT.outlines !== false, () => { OPT.outlines = OPT.outlines === false; saveOpts(); });
+  tog(7, 'Particles ' + ['low', 'mid', 'high'][OPT.fx === undefined ? 2 : OPT.fx], null, () => { OPT.fx = ((OPT.fx === undefined ? 2 : OPT.fx) + 1) % 3; P.max = [500, 1000, 1600][OPT.fx]; saveOpts(); });
+  tog(8, 'Sound ' + Math.round(OPT.sfx * 10), null, () => { OPT.sfx = OPT.sfx >= 1 ? 0 : Math.round((OPT.sfx + .2) * 10) / 10; saveOpts(); applyAudioOpts(); sfx('coin'); });
   button(g, x + w / 2 - 50, y + h - 18, 100, 13, 'RESET DEFAULTS', () => { Object.assign(DIFF, DIFF_DEFAULT); saveOpts(); if (ED.hero) computeStats(ED.hero); });
 }, update() {
   const inp = game.input, n = DIFF_ROWS.length;

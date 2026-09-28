@@ -76,6 +76,7 @@ function dealDamage(tgt, hit) {
   if (hit.stun) applyStatus(tgt, 'stun', 0); if (hit.stun && tgt.st.stun) tgt.st.stun.t = Math.max(tgt.st.stun.t, hit.stun);
   if (tgt.react) tgt.react(hit);
   if (!hit.noNumber) damageNumber(tgt, amt, crit, el);
+  if (crit && tgt.team === 'foe') P.impact(tgt.x, tgt.y, (tgt.z || 0) + (tgt.head || 20) * .55, 9, '#ffd23a');
   BUS.emit('hit', { src, tgt, hit, dmg: amt });
   if (tgt.hp <= 0 && tgt.alive) killUnit(tgt, hit);
   return amt;
@@ -85,6 +86,11 @@ function killUnit(u, hit) {
   u.alive = false; u.hp = 0; u.deadT = 0; u.st = {};
   if (u.onDie) u.onDie(hit || {});
   BUS.emit('kill', { src: hit && hit.src, tgt: u, hit: hit || {} });
+  // the last of a pack falls: a heartbeat of slow motion (a finisher)
+  if (u.pack && u.team === 'foe' && game.timeScale === 1 && !ED.demo && ED.mode === 'level' && !ED.foes.some(o => o.alive && o.pack === u.pack)) {
+    const n = ED.corpses.filter(o => o.pack === u.pack).length + 1;
+    if (n >= 4) { game.timeScale = .4; game.after(.12, () => { if (game.timeScale === .4) game.timeScale = 1; }); }
+  }
 }
 /** push a unit away from (x, y) (or along ang) with speed kb; heavy units (mass) move less. up launches it */
 function knock(u, ang, kb, up = 0) {

@@ -262,7 +262,7 @@ function updateDrops(dt) {
     if (!d.rest) {
       d.vz -= 420 * dt; d.z += d.vz * dt; const nx = d.x + d.vx * dt, ny = d.y + d.vy * dt;
       if (map && map.solidAt(nx, ny)) { d.vx *= -.5; d.vy *= -.5; } else { d.x = nx; d.y = ny; }
-      if (d.z <= 0) { d.z = 0; if (d.bounces++ < 2 && d.vz < -40) { d.vz = -d.vz * .35; d.vx *= .5; d.vy *= .5; if (d.kind === 'gold') sfx('coin', { vol: .15, pitch: 1.5 }); } else { d.rest = true; d.vx = d.vy = d.vz = 0; } }
+      if (d.z <= 0) { d.z = 0; if (d.bounces++ < 2 && d.vz < -40) { d.vz = -d.vz * .35; d.vx *= .5; d.vy *= .5; if (d.kind === 'gold') sfx('coin', { vol: .15, pitch: 1.5 }); } else { d.rest = true; d.vx = d.vy = d.vz = 0; if (map) lootToGround(d, map); } }
     }
     if (!h || !h.alive) continue;
     const dd = Math.hypot(h.x - d.x, h.y - d.y);
@@ -279,6 +279,13 @@ function updateDrops(dt) {
       if (d.item.rarity >= 1) notify(d.item.name, RARITY[d.item.rarity].color, 2.2);
     }
   }
+}
+/** loot that lands over a pit, deep water or a wall slides to the nearest ground a hero can reach */
+function lootToGround(d, map) {
+  const cx = Math.floor(d.x / T16), cy = Math.floor(d.y / T16); if (map.walkable(cx, cy)) return;
+  let best = null, bd = 1e9;
+  for (let y = cy - 4; y <= cy + 4; y++) for (let x = cx - 4; x <= cx + 4; x++) if (map.walkable(x, y)) { const dd = (x - cx) * (x - cx) + (y - cy) * (y - cy); if (dd < bd) { bd = dd; best = [x, y]; } }
+  if (best) { d.x = (best[0] + .3 + Math.random() * .4) * T16; d.y = (best[1] + .3 + Math.random() * .4) * T16; }
 }
 /** the loot filter: 0 shows everything, 1 hides commons, 2 shows rares and better (Z shows all) */
 const labelShown = d => d.kind !== 'item' || d.item.rarity >= OPT.labels || game.input.down('labels');
