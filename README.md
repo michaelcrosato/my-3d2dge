@@ -54,7 +54,15 @@ The model copies the closest slice and replaces the code between `GAME START` an
 `examples/emberdeep.html` is a Diablo IV / Path of Exile II style hack-and-slash built on the engine, and it's the showcase for everything above. It grew out of the stress test: the same swordsman (teal tunic, red cape), the same rune hall and the same crowds.
 
 - **Fluid, fast combat.** A slash > backslash > spin combo, a forward dodge roll (a new animation layered on the rig), lunges out of the roll, perfect dodges that slow time, and a potion drunk with an IK-driven arm while you keep fighting. Hit-stop, shake and sparks on every blow, and slow-motion finishers.
-- **Skills and a passive tree.** Active skills with ranks and runes on six slots (LMB, RMB, 1-4), and a large procedurally laid-out passive constellation with notables and build-defining keystones.
+- **Skills and a passive tree.** 18 active skills with five ranks and two runes each, on six slots (LMB, RMB, 1-4):
+  - melee: cleaves, a whirlwind, lunges, leap slams, launchers that juggle, kicks that bowl bodies into packs, a brawler's flurry, and a thrown sword that returns to his hand;
+  - spells: frost nova, chain lightning, meteor, void rift, orbiting spectral blades, a war cry that sends monsters fleeing, a shadow step, and an Echo, a ghostly double of the hero that fights beside him.
+  A 196-star passive constellation adds notables and eight build-defining keystones (Blood Magic, Glass Cannon, Juggernaut...).
+- **Monsters and bosses.**
+  - Husks, skeletons, bone throwers, cultists who raise the dead from the floor, brutes, duelists that sidestep, monks who guard, shield bulwarks you must flank, roosting bats, imps, bloaters, and slimes that split.
+  - New procedural rigs: IK-legged crawlers, a burrowing serpent that surfaces in arcs, and a floating Watcher with a sweeping beam.
+  - Ten elite affixes.
+  - Bosses: the Cinder King on his throne, the Brood Mother, the Deep Wyrm, then composed bosses built from a body, an element and a pattern library.
 - **Loot.** Common to legendary and unique items with rolled affixes and legendary powers. Gear visibly changes the hero: colors, helms, armor, capes, blades and their elemental trails.
 - **Emberhold.** The last lit town, with animated townsfolk: the smith hammers, the mystic floats, the merchant sweeps. There are shops, crafting and the waystone down.
 - **One new element per depth.** Each planned depth brings exactly one new mechanic and is named after it: powder kegs (The Powder Vaults), rune wards, chasms, gale vents, ice, brood nests, storm pylons, time wells, darkness, blood rush, launch runes, floods. A boss waits every fifth depth. You can ignore each element and hack through; speedrunners and power-levelers exploit it.

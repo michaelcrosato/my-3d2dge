@@ -315,7 +315,7 @@ function drawFoe(m, r) {
   const view = r.view, alpha = foeAlpha(m), s = m.scale || 1;
   if (!r.visible(m.x, m.y, m.z, 60 * s, 40 * s, 110 * s)) { r.game.stats.culled++; return; }
   if (m.arch.draw) { m.arch.draw(m, r, alpha); return; }
-  const tint = m.flash > 0 ? [FLASH, .3] : m.alive ? statusTint(m) : null, outline = OPT.outlines !== false;
+  const tint = m.flash > 0 ? [FLASH, .3] : m.alive ? statusTint(m) : null, outline = OPT.outlines !== false && !(PERF.low && !m.elite && !m.boss);   // the governor drops ordinary outlines when frames run long
   const fl = tint && tint[0], fm = tint ? tint[1] : 0, oc = m.flash > 0 ? FLASH_LINE : m.elite && m.alive ? (m.elite === 2 ? '#5a3a10' : '#18204a') : undefined;
   r.shadow(m.x, m.y, (m.r + 1) * s * (m.z > 0 ? Math.max(.4, 1 - m.z * .02) : 1), .5 * alpha);
   if (m.alive && m.elite) r.decal(() => { const c = m.elite === 2 ? '#ffc040' : m.elite === 3 ? '#ff5a3a' : '#6a9aff'; r.groundRing(m.x, m.y, m.r * s + 4, c, .6 + .3 * Math.sin(game.time * 5)); }, { emissive: .6 });
