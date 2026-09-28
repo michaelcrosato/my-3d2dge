@@ -98,7 +98,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <script>
 /* ---- inlined from engine/co55.js ---- */
 /*!
- * CO55 2D Engine v0.2.0
+ * CO55 2D Engine v0.3.0
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/2D-co55-engine  (MIT License)
  *
@@ -132,7 +132,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 'use strict';
 
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.2.0', TAU, DEG };
+const E = { version: '0.3.0', TAU, DEG };
 
 /* =============================================================================
  * 1. MATH
@@ -339,6 +339,8 @@ class Screen {
     this.ctx = ctx2d(this.buf); this.ctx._c = null;
     for (const f of this.listeners) f();
   }
+  /** change sizing at runtime, e.g. { minH: 400, maxW: 1080, maxH: 660 } to pull the camera back */
+  setOptions(o) { Object.assign(this.o, o); this.resize(); }
   begin(cx, cy, bg) {
     this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
     const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
@@ -376,7 +378,11 @@ class Input {
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this.padPrev = []; this.aimSource = 'move';
     const el = screen.canvas;
-    const typing = e => e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+    const typing = e => {
+      const t = e.target; if (!t || !t.tagName) return false;
+      if (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) return true;
+      return t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(t.type);
+    };
     addEventListener('keydown', e => {
       if (typing(e)) return;
       if (this.codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); }
@@ -583,6 +589,7 @@ class Particles {
   draw(r) {
     const view = r.view, s = view.scale;
     for (const p of this.list) {
+      if (p.kind !== 'ring' && !r.visible(p.x, p.y, p.z, 12, 12, 12)) continue;
       const u = p.life / p.max;
       switch (p.kind) {
         case 'dust': r.queue(p.x, p.y, p.z, g => { const [x, y] = r.w(p.x, p.y, p.z); px.ddisc(g, x, y, p.size * s * (1 + u * 1.4), p.color, (1 - u) * .9, r.ix, r.iy); }); break;
@@ -609,7 +616,7 @@ E.Particles = Particles;
 /* =============================================================================
  * 9. RENDERER  per-frame drawing API handed to your draw(r) function
  * ============================================================================= */
-const AS = 160, AOX = 80, AOY = 112;
+const AS = 112, AOX = 56, AOY = 84;   // scratch image per character (fits a 2:1 iso hero with sword and cape)
 class Renderer {
   constructor(game) {
     this.game = game; this.items = []; this.decals = []; this.overlays = [];
@@ -639,6 +646,7 @@ class Renderer {
     const sc = this.game.screen;
     sc.begin(cx, cy, this.game.o.bg);
     this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this.decals.length = 0; this.overlays.length = 0;
+    const st = this.game.stats; st.actors = 0; st.culled = 0;
     if (this.xCv.width !== this.bw || this.xCv.height !== this.bh) { this.xCv.width = this.oCv.width = this.bw; this.xCv.height = this.oCv.height = this.bh; }
     this.xrayUsed = false;
     const gpu = this.game.gpu;
@@ -669,6 +677,33 @@ class Renderer {
     for (let i = 0; i <= n; i++) { const a = lerp(a0, a1, i / n); pts.push(this.w(x + Math.cos(a) * r1, y + Math.sin(a) * r1, z)); }
     for (let i = n; i >= 0; i--) { const a = lerp(a0, a1, i / n); pts.push(this.w(x + Math.cos(a) * r0, y + Math.sin(a) * r0, z)); }
     px.polyDither(g, pts, color, alpha, this.ix, this.iy);
+  }
+  _stamp(key, make) {
+    const m = this._stamps || (this._stamps = new Map());
+    let st = m.get(key); if (st) return st;
+    if (m.size > 400) m.clear();
+    st = make(); m.set(key, st); return st;
+  }
+  /** soft contact shadow under a character: a cached dithered ellipse, correct for the current view */
+  shadow(x, y, rad, alpha = .5, color = '#000000', z = 0) {
+    this.decal(() => {
+      const v = this.view, R = Math.round(rad * 2) / 2, A = Math.round(alpha * 20) / 20;
+      const st = this._stamp('s' + v.id + v.pitchDeg + v.yawDeg + v.scale + ':' + R + ':' + A + color, () => {
+        const pts = []; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        for (let i = 0; i < 18; i++) { const a = i / 18 * TAU, q = v.p(Math.cos(a) * R, Math.sin(a) * R, 0); pts.push(q); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+        const ox = Math.floor(x0) - 1, oy = Math.floor(y0) - 1, c = mkCanvas(Math.ceil(x1) - ox + 2, Math.ceil(y1) - oy + 2), g = ctx2d(c);
+        px.polyDither(g, pts.map(q => [q[0] - ox, q[1] - oy]), color, A, 0, 0);
+        return { c, ox, oy };
+      });
+      const [sx, sy] = this.w(x, y, z); this.tgt.drawImage(st.c, Math.round(sx) + st.ox, Math.round(sy) + st.oy);
+    });
+  }
+  /** dithered glow disc from a cache (falls back to per-pixel in the GPU info pass) */
+  glowDisc(g, cx, cy, rad, color, a) {
+    if (g._info) return px.ddisc(g, cx, cy, rad, color, a, 0, 0);
+    const R = Math.round(rad * 2) / 2, A = Math.round(a * 20) / 20, n = Math.ceil(R) + 1;
+    const st = this._stamp('d' + R + ':' + A + color, () => { const c = mkCanvas(n * 2 + 1, n * 2 + 1), cg = ctx2d(c); px.ddisc(cg, n, n, R, color, A, 0, 0); return c; });
+    g.drawImage(st, Math.round(cx) - n, Math.round(cy) - n);
   }
   /** extruded box prop (crate, pedestal, table). Call inside a queue fn with its g. */
   box(g, x0, y0, z0, x1, y1, z1, top, side) {
@@ -713,7 +748,18 @@ class Renderer {
    * afterimages and x-ray silhouettes.
    * opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life}, bias}
    */
+  /** is a world point near the visible area? margins in pixels (characters extend upward from their feet) */
+  visible(x, y, z = 0, mx = 60, up = 30, down = 90) { const [sx, sy] = this.w(x, y, z); return sx > -mx && sx < this.bw + mx && sy > -up && sy < this.bh + down; }
   actor(x, y, z, drawFn, o = {}) {
+    const st = this.game.stats;
+    if (!this.visible(x, y, z, o.margin || 60)) { st.culled++; return; }
+    st.actors++;
+    // fast path: nothing needs the offscreen composite, so draw straight into the frame
+    if (o.outline === false && !o.flash && !o.ghost && !o.xray && (o.rim === false || this.gpu) && (o.alpha === undefined || o.alpha >= 1)) {
+      const info = o.emissive ? gI => { gI._mat = this._infoCol(z, 10, o.emissive); gI._c = null; const [a, b] = this.w(x, y, z); drawFn(gI, Math.round(a), Math.round(b)); } : undefined;
+      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info });
+      return;
+    }
     this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o) });
   }
   _tint(dst, src, color) {
@@ -756,6 +802,7 @@ class Renderer {
   }
   flush() {
     const g = this.ctx, items = this.items;
+    this.game.stats.items = items.length;
     items.sort((a, b) => a.k - b.k);
     this.xG.clearRect(0, 0, this.bw, this.bh); this.oG.clearRect(0, 0, this.bw, this.bh); this.oG._c = null;
     let xr = false;
@@ -812,6 +859,8 @@ class Game {
     this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true };
     this.particles = new Particles(this); this.lights = new Lighting(this); this.r = new Renderer(this);
     this.fps = 60; this.viewListeners = []; this.gpu = null;
+    /** per-frame timings (ms) and counts, for profiling overlays */
+    this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
   }
   /** turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... } */
   enableGPU(o = {}) { this.gpu = new E.GPULighting(this, o); return this.gpu; }
@@ -847,8 +896,11 @@ class Game {
       const dt = Math.min(.05, Math.max(0, (now - last) / 1000)); last = now;
       acc += dt; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }
       const sdt = dt * this.timeScale, steps = Math.max(1, Math.ceil(sdt / this.o.step - 1e-6)), h = sdt / steps;
+      const t0 = performance.now();
       for (let i = 0; i < steps; i++) this._step(h);
+      const t1 = performance.now();
       this._frame();
+      const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = dt * 1000; st.steps = steps;
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
@@ -885,6 +937,7 @@ const HUMAN_COLORS = {
   skin: '#f1c7a0', hair: '#3b2a2f', cloth: '#2f8f86', pants: '#3b3552', boot: '#6a4128', belt: '#e0a84a',
   cape: '#c8452f', capeIn: '#7a2622', metal: '#dce8f1', metalDk: '#7f93ab', hilt: '#e8b04e', eye: '#1a1320'
 };
+const JOINT_KEYS = ['hipL', 'hipR', 'kneeL', 'kneeR', 'footL', 'footR', 'hipC', 'shC', 'shL', 'shR', 'head', 'elbowL', 'elbowR', 'handL', 'handR'];
 class Humanoid {
   constructor(o = {}) {
     this.o = Object.assign({
@@ -1015,69 +1068,68 @@ class Humanoid {
   }
   /** draw into g with (ox, oy) = projected position of the rig's root */
   draw(g, ox, oy, view) {
-    const o = this.o, C = this.C, J = this.J, ops = [], sc = view.scale;
-    const Wp = p => this._w(p);
-    const P = p => { const w = Wp(p), s = view.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1]]; };
-    const D = p => { const w = Wp(p); return view.depth(w[0], w[1], w[2]); };
-    const PW = n => { const s = view.p(n.x - this.x, n.y - this.y, n.z - this.z); return [ox + s[0], oy + s[1]]; };
-    const DW = n => view.depth(n.x - this.x, n.y - this.y, n.z - this.z);
-    const mid = (a, b) => V3.lerp(a, b, .5);
+    const o = this.o, C = this.C, J = this.J, sc = view.scale, ops = this._ops || (this._ops = []);
+    ops.length = 0;
+    // local (f, r, z) -> [screen x, screen y, depth], with facing, spin and squash applied
+    const an = this.facing + this.spin, ca = Math.cos(an), sa = Math.sin(an), k = 1 - this.sq * .4, kz = 1 + this.sq;
+    const vax = view.ax, vay = view.ay, vbx = view.bx, vby = view.by, vbz = view.bz, vdx = view.dx, vdy = view.dy, vdz = view.dz;
+    const S = (f, r, z) => { const wx = (f * ca - r * sa) * k, wy = (f * sa + r * ca) * k, wz = z * kz; return [ox + vax * wx + vay * wy, oy + vbx * wx + vby * wy + vbz * wz, vdx * wx + vdy * wy + vdz * wz]; };
+    const Sp = (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
+    const Q = {};
+    for (const key of JOINT_KEYS) Q[key] = Sp(J[key]);
+    const lq = (A, B, t) => [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t];
     const lw = Math.max(1, Math.round(o.limbW * sc * .75)), tw = Math.max(2, Math.round(o.torsoW * sc * .9));
-    const dC = D(J.hipC) * .5 + D(J.shC) * .5;
-    const seg = (a, b, c, w) => ops.push({ d: D(mid(a, b)), f: () => { const A = P(a), B = P(b); px.line(g, A[0], A[1], B[0], B[1], c, w); } });
+    const dC = (Q.hipC[2] + Q.shC[2]) * .5;
+    const seg = (A, B, c, w) => ops.push({ d: (A[2] + B[2]) * .5, f: () => px.line(g, A[0], A[1], B[0], B[1], c, w) });
     for (const s of [-1, 1]) {
-      const hip = s > 0 ? J.hipR : J.hipL, knee = s > 0 ? J.kneeR : J.kneeL, foot = s > 0 ? J.footR : J.footL;
-      const far = D(knee) < dC, pc = far ? C.pantsDk : C.pants, bc = far ? C.bootDk : C.boot, ank = V3.lerp(knee, foot, .55);
+      const hip = s > 0 ? Q.hipR : Q.hipL, knee = s > 0 ? Q.kneeR : Q.kneeL, foot = s > 0 ? Q.footR : Q.footL;
+      const far = knee[2] < dC, pc = far ? C.pantsDk : C.pants, bc = far ? C.bootDk : C.boot, ank = lq(knee, foot, .55), toe = Sp(s > 0 ? J.footR : J.footL, .8, 0, 0);
       seg(hip, knee, pc, lw); seg(knee, ank, pc, lw); seg(ank, foot, bc, lw);
-      ops.push({ d: D(foot) + .01, f: () => { const F = P(V3.add(foot, [.8, 0, 0])); px.rect(g, F[0] - 1, F[1] - 1, 2, 2, bc); } });
+      ops.push({ d: foot[2] + .01, f: () => px.rect(g, toe[0] - 1, toe[1] - 1, 2, 2, bc) });
     }
     ops.push({
       d: dC, f: () => {
-        const a = P(J.shL), b = P(J.shR), c = P(J.hipR), d = P(J.hipL), h = P(J.hipC), s = P(J.shC);
-        px.poly(g, [a, b, c, d], C.cloth);
-        px.line(g, h[0], h[1], s[0], s[1], C.cloth, tw);
+        const a = Q.shL, b = Q.shR, h = Q.hipC, sh = Q.shC;
+        px.poly(g, [a, b, Q.hipR, Q.hipL], C.cloth);
+        px.line(g, h[0], h[1], sh[0], sh[1], C.cloth, tw);
         px.line(g, a[0], a[1], b[0], b[1], C.cloth, 2);
-        const bl = P(V3.add(J.hipL, [0, 0, .6])), br = P(V3.add(J.hipR, [0, 0, .6])); px.line(g, bl[0], bl[1], br[0], br[1], C.belt);
-        const n0 = P(V3.add(J.shC, [.6, 0, -.3])), n1 = P(V3.add(J.hipC, [.9, 0, 2]));
-        if (D([2, 0, 6]) > D([0, 0, 6])) px.line(g, n0[0], n0[1], n1[0], n1[1], C.clothLt);
+        const bl = Sp(J.hipL, 0, 0, .6), br = Sp(J.hipR, 0, 0, .6); px.line(g, bl[0], bl[1], br[0], br[1], C.belt);
+        if (S(2, 0, 6)[2] > S(0, 0, 6)[2]) { const n0 = Sp(J.shC, .6, 0, -.3), n1 = Sp(J.hipC, .9, 0, 2); px.line(g, n0[0], n0[1], n1[0], n1[1], C.clothLt); }
       }
     });
     if (this.capeL) {
-      const L = this.capeL, R = this.capeR;
+      const L = this.capeL, R = this.capeR, x0 = this.x, y0 = this.y, z0 = this.z;
+      const PW = n => { const wx = n.x - x0, wy = n.y - y0, wz = n.z - z0; return [ox + vax * wx + vay * wy, oy + vbx * wx + vby * wy + vbz * wz, vdx * wx + vdy * wy + vdz * wz]; };
       for (let i = 0; i < L.length - 1; i++) {
-        const q = [L[i], R[i], R[i + 1], L[i + 1]], d = (DW(L[i]) + DW(R[i + 1])) / 2 - .6;
-        ops.push({ d, f: () => { const pts = q.map(PW); let ar = 0; for (let k = 0; k < 4; k++) { const A = pts[k], B = pts[(k + 1) % 4]; ar += A[0] * B[1] - B[0] * A[1]; } px.poly(g, pts, ar > 0 ? C.cape : C.capeIn); } });
+        const q = [PW(L[i]), PW(R[i]), PW(R[i + 1]), PW(L[i + 1])];
+        ops.push({ d: (q[0][2] + q[2][2]) / 2 - .6, f: () => { let ar = 0; for (let m = 0; m < 4; m++) { const A = q[m], B = q[(m + 1) % 4]; ar += A[0] * B[1] - B[0] * A[1]; } px.poly(g, q, ar > 0 ? C.cape : C.capeIn); } });
       }
     }
     ops.push({
-      d: D(J.head), f: () => {
-        const H = P(J.head), r = o.headR * sc * .9;
+      d: Q.head[2], f: () => {
+        const H = Q.head, r = o.headR * sc * .9;
         px.disc(g, H[0], H[1], r, C.skin);
-        const hc = P(V3.add(J.head, [-.95, 0, .95])); px.disc(g, hc[0], hc[1], r * (o.hood ? 1.05 : .95), C.hair);
-        if (o.hood) { const tp = P(V3.add(J.head, [-o.headR * 1.1, 0, o.headR * .9])); px.disc(g, tp[0], tp[1], r * .45, C.hair); }
-        const dh = D(J.head);
+        const hc = Sp(J.head, -.95, 0, .95); px.disc(g, hc[0], hc[1], r * (o.hood ? 1.05 : .95), C.hair);
+        if (o.hood) { const tp = Sp(J.head, -o.headR * 1.1, 0, o.headR * .9); px.disc(g, tp[0], tp[1], r * .45, C.hair); }
         for (const s of [-1, 1]) {
-          const e = V3.add(J.head, [o.headR * .82, s * 1.25, .2]);
-          if (D(e) > dh + .3) { const E2 = P(e); if (o.eyeGlow) px.rect(g, E2[0], E2[1], 1, 1, o.eyeGlow); else if (this.blink > 0 && this.hurtW < .5) px.rect(g, E2[0], E2[1] - (sc > 1.45 ? 1 : 0), 1, sc > 1.45 ? 2 : 1, C.eye); else px.dot(g, E2[0], E2[1], C.eye); }
+          const E2 = Sp(J.head, o.headR * .82, s * 1.25, .2);
+          if (E2[2] > H[2] + .3) { if (o.eyeGlow) px.rect(g, E2[0], E2[1], 1, 1, o.eyeGlow); else if (this.blink > 0 && this.hurtW < .5) px.rect(g, E2[0], E2[1] - (sc > 1.45 ? 1 : 0), 1, sc > 1.45 ? 2 : 1, C.eye); else px.dot(g, E2[0], E2[1], C.eye); }
         }
       }
     });
     for (const s of [-1, 1]) {
-      const sh = s > 0 ? J.shR : J.shL, el = s > 0 ? J.elbowR : J.elbowL, hd = s > 0 ? J.handR : J.handL, far = D(el) < dC;
+      const sh = s > 0 ? Q.shR : Q.shL, el = s > 0 ? Q.elbowR : Q.elbowL, hd = s > 0 ? Q.handR : Q.handL, far = el[2] < dC;
       seg(sh, el, far ? C.clothDk : C.cloth, lw); seg(el, hd, far ? C.skinDk : C.skin, lw);
-      ops.push({ d: D(hd) + .02, f: () => { const Hh = P(hd); px.rect(g, Hh[0] - 1, Hh[1] - 1, 2, 2, far ? C.skinDk : C.skin); } });
+      ops.push({ d: hd[2] + .02, f: () => px.rect(g, hd[0] - 1, hd[1] - 1, 2, 2, far ? C.skinDk : C.skin) });
     }
     if (o.weapon === 'sword') {
-      const hd = J.handR, bd = J.bladeDir, tip = V3.add(hd, V3.mul(bd, o.bladeLen)), b0 = V3.add(hd, V3.mul(bd, 1.4));
+      const hd = J.handR, bd = J.bladeDir, L = o.bladeLen, Hn = Q.handR, sl = Math.hypot(bd[0], bd[1]) || 1, sx = -bd[1] / sl * 1.6, sy = bd[0] / sl * 1.6;
+      const tip = Sp(hd, bd[0] * L, bd[1] * L, bd[2] * L), b0 = Sp(hd, bd[0] * 1.4, bd[1] * 1.4, bd[2] * 1.4), pom = Sp(hd, -bd[0] * 1.2, -bd[1] * 1.2, -bd[2] * 1.2);
+      const g0 = Sp(hd, bd[0] * 1.4 + sx, bd[1] * 1.4 + sy, bd[2] * 1.4), g1 = Sp(hd, bd[0] * 1.4 - sx, bd[1] * 1.4 - sy, bd[2] * 1.4);
       ops.push({
-        d: D(mid(hd, tip)), f: () => {
-          const A = P(b0), B = P(tip), H = P(V3.sub(hd, V3.mul(bd, 1.2))), Hn = P(hd);
-          px.line(g, H[0], H[1], Hn[0], Hn[1], '#5a3620');
-          const side = V3.norm([-bd[1], bd[0], 0]), g0 = P(V3.add(b0, V3.mul(side, 1.6))), g1 = P(V3.sub(b0, V3.mul(side, 1.6)));
-          px.line(g, g0[0], g0[1], g1[0], g1[1], C.hilt);
-          px.line(g, A[0] + 1, A[1], B[0], B[1], C.metalDk);
-          px.line(g, A[0], A[1], B[0], B[1], C.metal);
-          px.dot(g, B[0], B[1], '#ffffff');
+        d: (Hn[2] + tip[2]) / 2, f: () => {
+          px.line(g, pom[0], pom[1], Hn[0], Hn[1], '#5a3620'); px.line(g, g0[0], g0[1], g1[0], g1[1], C.hilt);
+          px.line(g, b0[0] + 1, b0[1], tip[0], tip[1], C.metalDk); px.line(g, b0[0], b0[1], tip[0], tip[1], C.metal); px.dot(g, tip[0], tip[1], '#ffffff');
         }
       });
     }
@@ -1239,8 +1291,29 @@ class TileMap {
       const t = this.types[id], h = this._isFront(cx, cy, view) ? (t.cutH || 6) : t.h;
       const [sx, sy] = r.w(cx * T + T / 2, cy * T + T / 2, 0);
       if (sx < -40 || sx > r.W + 40 || sy < -20 || sy > r.H + 90) continue;
-      r.queue(cx * T + T / 2, cy * T + T / 2, 0, g => this._box(g, r, cx, cy, t, h), { occluder: true });
+      r.queue(cx * T + T / 2, cy * T + T / 2, 0, g => this._boxCached(g, r, cx, cy, t, h), { occluder: true });
     }
+  }
+  /** each wall block is baked once per view into a small image (pixel-identical: camera offsets are whole pixels) */
+  _boxCached(g, r, cx, cy, t, h) {
+    const view = r.view, key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale + ':' + this.version;
+    if (!this._wc || this._wc.key !== key) this._wc = { key, m: new Map() };
+    const idx = cy * this.w + cx; let e = this._wc.m.get(idx);
+    if (!e || e.h !== h) {
+      const T = this.T; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (const z of [0, h]) for (const [x, y] of [[cx * T, cy * T], [cx * T + T, cy * T], [cx * T, cy * T + T], [cx * T + T, cy * T + T]]) { const q = view.p(x, y, z); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+      e = { h, x0: Math.floor(x0) - 2, y0: Math.floor(y0) - 2, w: Math.ceil(x1) - Math.floor(x0) + 5, hh: Math.ceil(y1) - Math.floor(y0) + 5, cv: null, info: null };
+      this._wc.m.set(idx, e);
+    }
+    const bake = info => {
+      const c = mkCanvas(e.w, e.hh), cg = info ? c.getContext('2d') : ctx2d(c);
+      if (info) { cg._info = true; cg._r = r; cg._mat = '#000'; }
+      const sx = r.ix, sy = r.iy; r.ix = e.x0; r.iy = e.y0;
+      try { this._box(cg, r, cx, cy, t, h); } finally { r.ix = sx; r.iy = sy; }
+      return c;
+    };
+    if (g._info) { if (!e.info) e.info = bake(true); g.drawImage(e.info, e.x0 - r.ix, e.y0 - r.iy); }
+    else { if (!e.cv) e.cv = bake(false); g.drawImage(e.cv, e.x0 - r.ix, e.y0 - r.iy); }
   }
   _box(g, r, cx, cy, t, h) {
     const view = r.view, T = this.T, x0 = cx * T, y0 = cy * T, x1 = x0 + T, y1 = y0 + T, P = (x, y, z) => r.w(x, y, z);
@@ -1529,7 +1602,7 @@ class GPULighting {
       if (!navigator.gpu) throw new Error('WebGPU is not available in this browser');
       const ad = await navigator.gpu.requestAdapter();
       if (!ad) throw new Error('No compatible GPU was found');
-      this.adapter = ad;
+      this.adapter = ad; this.adapterInfo = ad.info || null;
       const dev = await ad.requestDevice(); this.dev = dev;
       dev.lost.then(i => { if (!this.failed) this.fail(new Error('GPU device lost: ' + i.message)); });
       dev.addEventListener('uncapturederror', ev => this.fail(ev.error));
@@ -1725,8 +1798,8 @@ function update(dt) {
 function draw(r) {
   const view = r.view;
   map.drawFloor(r);
-  for (const a of [hero, walker]) r.decal(() => r.groundDisc(a.x, a.y, 5.5, '#000000', .45));
-  r.decal(() => r.groundDisc(slime.x, slime.y, 6, '#000000', .45));
+  for (const a of [hero, walker]) r.shadow(a.x, a.y, 5.5, .45);
+  r.shadow(slime.x, slime.y, 6, .45);
   map.queueWalls(r);
   r.queue(10.5 * T, 7 * T, 0, g => { r.box(g, 10 * T, 6.6 * T, 0, 11 * T, 7.4 * T, 10, '#b08a58', '#7a5a36'); });
   r.actor(hero.x, hero.y, 0, (g, ox, oy) => hero.rig.draw(g, ox, oy, view), { xray: true, ghost: hero.dashT > 0 ? { color: '#62d8ff' } : null });

@@ -1,6 +1,6 @@
 # CO55 engine guide for AI models
 
-This file is written for an AI (or a person) who has been handed a CO55 game and asked to change it or build a new one. Read it once before editing. Everything here matches `engine/co55.js` v0.2.0.
+This file is written for an AI (or a person) who has been handed a CO55 game and asked to change it or build a new one. Read it once before editing. Everything here matches `engine/co55.js` v0.3.0.
 
 ## The mental model
 
@@ -61,6 +61,8 @@ Options: `canvas` (required), `view` (preset id or View), `minH` (smallest inter
 Members:
 - `screen`, `input`, `view`, `particles`, `lights`, `r` (renderer), `time` (game time, pauses in hit-stop), `real`, `fps`, `timeScale` (0.25 = slow motion).
 - `cam` has `smooth` (seconds of lag) and `bounds(view)`, which returns `{x0, y0, x1, y1}` in projected pixels (use `map.bounds`).
+- `stats` holds this frame's `updateMs`, `renderMs`, `frameMs`, `steps`, `items` (queued draws), `actors` (characters drawn) and `culled` (characters skipped because they were off screen). Use it for profiling overlays.
+- `screen.setOptions({ minH, minW, maxW, maxH })` changes the internal resolution at runtime. Multiplying all four by N pulls the camera back N times at the same pixel size.
 
 Methods:
 - `start({ update, draw })` starts the loop.
@@ -83,8 +85,12 @@ Actions are names mapped to codes. Codes are `KeyboardEvent.code` values, `Mouse
 - `r.w(x, y, z)` gives buffer pixel coordinates.
 - `r.ctx` is the buffer context. `r.W` and `r.H` are the view size. `r.ix` and `r.iy` are the integer camera offset, which you pass to dither functions.
 - `r.queue(x, y, z, g => {...}, { bias, occluder })` adds a depth-sorted draw. `bias` nudges ordering (for example `+0.5` to draw in front of an actor at the same spot).
-- `r.actor(x, y, z, (g, ox, oy) => {...}, opts)` adds a character. Draw with `(ox, oy)` as the projected root. The engine adds a 1-pixel outline, a rim light, hit flash (`flash: true` or a color), `alpha`, dash afterimages (`ghost: { color, life }`), and an x-ray silhouette where walls cover it (`xray: true`).
+- `r.visible(x, y, z, marginX, up, down)`: is a world point near the screen? Use it to skip work for things you can't see.
+- `r.actor(x, y, z, (g, ox, oy) => {...}, opts)` adds a character. Off-screen characters are skipped automatically. Draw with `(ox, oy)` as the projected root. The engine adds a 1-pixel outline, a rim light, hit flash (`flash: true` or a color), `alpha`, dash afterimages (`ghost: { color, life }`), and an x-ray silhouette where walls cover it (`xray: true`).
 - `r.decal(fn)` draws on the ground before the queue. `r.overlay(fn)` draws after lighting.
+- When `outline: false` and nothing needs compositing (no flash, afterimage, x-ray, or alpha below 1), the character is drawn straight into the frame. That fast path is much cheaper for crowds.
+- `r.shadow(x, y, radius, alpha)` is a cheap contact shadow from a cached dithered stamp. Prefer it to `groundDisc` for anything drawn many times.
+- `r.glowDisc(g, x, y, radius, color, alpha)` is a cached dithered glow disc, much cheaper than `px.ddisc` in hot paths.
 - Ground helpers, all correct in every view: `r.groundDisc(x, y, radius, color, alpha, z)`, `r.groundRing(...)`, `r.groundArc(x, y, r0, r1, a0, a1, color, alpha)`, `r.groundPts(x, y, radius, n, z)` (a projected circle polygon).
 - `r.box(g, x0, y0, z0, x1, y1, z1, topColor, sideColor)` draws an extruded box prop inside a queue callback.
 
@@ -187,7 +193,12 @@ Read `gpu.status()` (`'loading'`, `'on'`, `'off'` or `'unavailable'`), `gpu.fail
 
 **Add a light source that looks right with GPU lighting.** Draw the object in a queue callback with `px.glow(g, 1)` before its bright parts, add `lights.add(..., { color, shadow: true })`, add `lights.heat(...)` if it's hot, and add `lights.caster(...)` for its base if it's solid.
 
-**Performance.** Each light scans the pixels inside its radius, so keep lights under about 20 and radii under about 120. Floor textures bake once per view. Rigs are cheap; aim for fewer than about 40 on screen. Keep particles under the 900 cap.
+**Performance.** `examples/stress-test.html` measures all of this on real hardware. Its benchmark report is the fastest way to size a game for a target device.
+- **Rigs:** projecting a skeleton costs microseconds. The outline composite (four silhouette passes plus rim light per character) costs more, so turn `outline` off for large crowds.
+- **Walls:** each wall block is baked once per view into a small cached image, so walls are nearly free after the first frame.
+- **Canvas lighting:** each light scans the pixels inside its radius, so large radii and high internal resolutions add up. GPU lighting moves that work to the graphics card.
+- **Particles:** the default cap is 900; raise `game.particles.max` deliberately.
+- **Crowds:** use a spatial hash for crowd separation (see the stress test), not all-pairs checks.
 
 ## Checklist before handing a change back
 

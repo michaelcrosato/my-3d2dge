@@ -10,7 +10,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const builds = [
   { template: 'src/arena.template.html', out: 'examples/arena-iso.html', vars: { VIEW: 'iso', TITLE: 'Emberwell (isometric) · CO55 engine' } },
   { template: 'src/arena.template.html', out: 'examples/arena-topdown.html', vars: { VIEW: 'threequarter', TITLE: 'Emberwell (top-down) · CO55 engine' } },
-  { template: 'src/lab.template.html', out: 'examples/perspective-lab.html', vars: {} }
+  { template: 'src/lab.template.html', out: 'examples/perspective-lab.html', vars: {} },
+  { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} }
 ];
 
 for (const b of builds) {

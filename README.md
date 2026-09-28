@@ -11,6 +11,7 @@ Open any file in `examples/` in a browser. Each one is a single standalone HTML 
 | `examples/arena-iso.html` | **Emberwell**, a small action-RPG arena in isometric view (Diablo, Bastion) |
 | `examples/arena-topdown.html` | The same game, starting in the three-quarter top-down view (Zelda, Stardew Valley) |
 | `examples/perspective-lab.html` | One room in all five views, with lighting and skeleton toggles. Also the starter template. |
+| `examples/stress-test.html` | Pushes the engine to its limits: up to 5,000 monsters, 30 shadow-casting torches, particle storms, camera pull-back and a toggle for each expensive feature. Live frame-time metrics, plus a benchmark that rates a device and produces a copyable report. |
 | `examples/scarfrunner-side.html` | A standalone side-scrolling prototype that came before the engine: platforming, physics scarf, parallax |
 
 Arena controls: **WASD** moves, the **mouse** aims, **left click** or **J** runs a three-hit combo, **right click** or **E** throws an ember, and **Space** dashes. **V** cycles cameras, **G** switches between GPU and standard lighting, **R** shows skeletons, **T** toggles slow motion. Gamepads and touch are supported. GPU lighting needs a browser with WebGPU (current Chrome, Edge, Safari, and Firefox on supported platforms).
@@ -29,7 +30,7 @@ For a custom view, use `new CO55.View(id, label, yaw, pitch, scale, zBoost)`.
 
 ## What's in the engine
 
-`engine/co55.js` (about 1,600 lines, no dependencies) provides:
+`engine/co55.js` (about 1,700 lines, no dependencies) provides:
 
 - **Pixel primitives** that snap to whole pixels (lines, discs, ellipses, polygons), with world-anchored ordered dithering for fades.
 - **A screen** with a low-resolution buffer, whole-number upscaling and sub-pixel camera scrolling.
@@ -43,6 +44,7 @@ For a custom view, use `new CO55.View(id, label, yaw, pitch, scale, zBoost)`.
 - **Optional WebGPU lighting.** Colored lights, soft shadows cast by walls and characters, light that wraps around characters, glow that spills onto nearby surfaces, pixel bloom and heat shimmer, all snapped to dithered bands so it stays pixel art. It falls back to the Canvas lighting automatically.
 - **A flow field** for cheap crowd pathfinding.
 - **3D particles** (dust, sparks, bouncing bits, embers, ground rings, damage numbers) and a **3×5 pixel font**.
+- **Built for crowds.** Off-screen characters are skipped, a direct drawing path skips outline compositing, wall blocks and shadows are cached, per-frame timing stats are built in, and the internal resolution can change at runtime.
 
 ## Build
 

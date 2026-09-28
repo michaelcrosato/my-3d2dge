@@ -432,7 +432,7 @@ function drawSconce(g, r, s) {
 }
 function drawWisp(g, ox, oy, e) {
   const k = e.charge > 0 ? 1 + (1 - e.charge / .6) * .8 : 1, f = e.flash > 0;
-  px.ddisc(g, ox, oy, 7 * k, '#7a4ac0', .55, 0, 0);
+  game.r.glowDisc(g, ox, oy, 7 * k, '#7a4ac0', .55);
   px.disc(g, ox, oy, 3.2 * k, f ? '#ffffff' : '#c78bff');
   px.disc(g, ox - .5, oy - .5, 1.8 * k, '#f4e6ff');
   for (let i = 0; i < 3; i++) { const a = e.t * 4 + i * TAU / 3; px.dot(g, ox + Math.cos(a) * 6, oy + Math.sin(a) * 3, '#e3c8ff'); }
@@ -442,7 +442,7 @@ function draw(r) {
   const view = r.view, L = game.lights, t = game.time;
   map.drawFloor(r);
   // ground decals: shadows and telegraphs
-  const shadow = (x, y, rad) => r.decal(() => r.groundDisc(x, y, rad, '#000000', .55));
+  const shadow = (x, y, rad) => r.shadow(x, y, rad, .55);
   if (!hero.dead) shadow(hero.x, hero.y, 5.5);
   for (const e of enemies) {
     if (!e.alive) continue;

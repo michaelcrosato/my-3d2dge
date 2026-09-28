@@ -70,8 +70,8 @@ function update(dt) {
 function draw(r) {
   const view = r.view;
   map.drawFloor(r);
-  for (const a of [hero, walker]) r.decal(() => r.groundDisc(a.x, a.y, 5.5, '#000000', .45));
-  r.decal(() => r.groundDisc(slime.x, slime.y, 6, '#000000', .45));
+  for (const a of [hero, walker]) r.shadow(a.x, a.y, 5.5, .45);
+  r.shadow(slime.x, slime.y, 6, .45);
   map.queueWalls(r);
   r.queue(10.5 * T, 7 * T, 0, g => { r.box(g, 10 * T, 6.6 * T, 0, 11 * T, 7.4 * T, 10, '#b08a58', '#7a5a36'); });
   r.actor(hero.x, hero.y, 0, (g, ox, oy) => hero.rig.draw(g, ox, oy, view), { xray: true, ghost: hero.dashT > 0 ? { color: '#62d8ff' } : null });
