@@ -6695,10 +6695,61 @@ def('themes', 'crypt', { name: 'Crypt', nouns: ['Vaults', 'Crypts', 'Halls', 'Ca
   floor: (L0, x, y, tag) => cryptFloor(L0, x, y, tag, L0.pal),
   decorate(L0, R) { for (const r0 of L0.rooms) { if (R.chance(.5)) L0.props.push({ name: R.pick(['bones', 'skull', 'crate', 'pot', 'barrel']), x: (r0.x + 1 + R() * (r0.w - 2)) * T16, y: (r0.y + 1 + R() * (r0.h - 2)) * T16 }); if (R.chance(.35)) L0.props.push({ name: 'cobweb', x: (r0.x + .5) * T16, y: (r0.y + .5) * T16, o: { size: 1.2 } }); } }
 });
+/* ---------- standard floor tags: every theme renders them, the core applies their effects ----------
+ * pit (nothing: the void shows; blocked for walkers), water (shallow: slows), deep (deep water: blocked), ice (no
+ * traction), lava (burns), web (slows, fire clears it), blood, snow. A theme's floor() calls standardFloor first:
+ *   const s = standardFloor(L, x, y, tag, base); if (s !== undefined) return s;   // base(x, y) = the theme's own floor */
+const STD_TAGS = ['pit', 'water', 'deep', 'ice', 'lava', 'web', 'blood', 'snow'];
+function standardFloor(L0, x, y, tag, base) {
+  if (!tag || !STD_TAGS.includes(tag)) return undefined;
+  if (tag === 'pit') {   // the edge of a chasm: a lip of darker stone, then nothing
+    const cx = Math.floor(x / T16), cy = Math.floor(y / T16), lx = x - cx * T16, ly = y - cy * T16, m = L0.map, tg = (a, b) => m && m.floorTags ? m.floorTags[b * L0.w + a] : null;
+    const lip = (tg(cx, cy - 1) !== 'pit' && ly < 3) || (tg(cx - 1, cy) !== 'pit' && lx < 3);
+    if (lip && m && m.cell(cx, cy - (ly < 3 ? 1 : 0)) === 0) { const b = base(x, y); return b ? b.map((v, i) => i < 3 ? v * (.45 + (ly < 3 ? ly : lx) * .08) : v) : null; }
+    return null;
+  }
+  const hs = E.hash2(Math.floor(x), Math.floor(y)), n = E.noise2(x * .06, y * .06);
+  if (tag === 'water' || tag === 'deep') {
+    const deep = tag === 'deep', w = Math.sin(x * .3 + Math.sin(y * .15) * 2 + y * .04);
+    const c = deep ? (n > .5 ? [26, 58, 110] : [20, 46, 92]) : (n > .5 ? [52, 110, 160] : [42, 92, 140]);
+    if (w > .94) return deep ? [70, 120, 180] : [150, 205, 235];
+    if (!deep) { const b = base(x, y); if (b && hs < .06) return b.map((v, i) => i < 3 ? v * .6 + c[i] * .4 : v); }
+    return c;
+  }
+  if (tag === 'ice') {
+    const crack = Math.abs(E.noise2(x * .08, y * .08) - .5) < .02 || Math.abs(E.noise2(x * .05 + 9, y * .05) - .5) < .012;
+    if (crack) return [150, 190, 220];
+    const streak = ((x + y * .6) % 23 + 23) % 23 < 1.2 && n > .45;
+    return streak ? [236, 250, 255] : n > .55 ? [196, 228, 246] : [176, 214, 238];
+  }
+  if (tag === 'lava') {
+    const crust = E.noise2(x * .09, y * .09) * .7 + E.noise2(x * .3, y * .3) * .3;
+    if (crust > .62) return crust > .72 ? [58, 30, 26] : [96, 40, 26];
+    return crust > .5 ? [220, 90, 30, .8] : crust > .35 ? [255, 150, 50, 1] : [255, 214, 110, 1];
+  }
+  const b = base(x, y) || [40, 36, 48];
+  if (tag === 'web') {
+    const u = x / T16, v = y / T16, fu = u - Math.floor(u), fv = v - Math.floor(v), ring = Math.hypot(fu - .5, fv - .5);
+    const strand = Math.abs(fu - fv) < .03 || Math.abs(fu + fv - 1) < .03 || Math.abs(fu - .5) < .025 || Math.abs(fv - .5) < .025 || Math.abs(ring - .3) < .02 || Math.abs(ring - .45) < .02;
+    return strand ? [230, 230, 236] : b.map((v2, i) => i < 3 ? v2 * .8 + 30 : v2);
+  }
+  if (tag === 'blood') return n > .45 ? (hs < .1 ? [150, 40, 50] : [110, 20, 30]) : b.map((v2, i) => i < 3 ? v2 * .7 + (i === 0 ? 30 : 0) : v2);
+  if (tag === 'snow') return hs < .04 ? [200, 214, 236] : n > .6 ? [236, 242, 250] : [220, 230, 244];
+  return undefined;
+}
+/** what standing on a tag does (hero and monsters alike): the core rules every theme and mechanic share */
+function floorEffects(u, dt) {
+  const m = ED.L && ED.L.map; if (!m || !m.floorTags || u.canFly || (u.z || 0) > 2) return;
+  const tag = m.floorAt(u.x, u.y); if (!tag) return;
+  if (tag === 'water') { u.speedK = (u.speedK === undefined ? 1 : u.speedK) * .78; if (Math.random() < dt * Math.hypot(u.vx || 0, u.vy || 0) * .08) P.ring(u.x, u.y, 2, 9, '#bfe8ff', .3); }
+  else if (tag === 'ice') u.traction = Math.min(u.traction === undefined ? 1 : u.traction, .12);
+  else if (tag === 'web') u.speedK = (u.speedK === undefined ? 1 : u.speedK) * .45;
+  else if (tag === 'lava' && !(u.res && u.res.fire >= .75)) { u.lavaT = (u.lavaT || 0) - dt; if (u.lavaT <= 0) { u.lavaT = .5; dealDamage(u, { src: null, amount: (u.team === 'hero' ? u.maxHp * .06 : u.maxHp * .08) + 2, el: 'fire', kb: 0, statusChance: 1, noNumber: u.team !== 'hero', tags: ['floor'] }); } }
+}
 /** flagstones with rune circles around every rune point (L.runes), moss creeping in from the walls */
 function cryptFloor(L0, x, y, tag, pal) {
   const P0 = L0._pal || (L0._pal = { stones: pal.stones.map(E.hex), mortar: E.hex(pal.mortar), hi: E.hex(pal.hi), lo: E.hex(pal.lo), speck: E.hex(pal.speck), moss: pal.moss.map(E.hex), rune: [...E.hex(pal.rune), .45], runeHi: [...E.hex(pal.runeHi), 1] });
-  if (tag === 'pit') return null;
+  if (tag) { const sf = standardFloor(L0, x, y, tag, (a, b) => cryptFloor(L0, a, b, null, pal)); if (sf !== undefined) return sf; }
   for (const rc of L0.runes || []) {
     const dx = x - rc.x, dy = y - rc.y, d = Math.hypot(dx, dy), R0 = rc.r;
     if (d > R0 + 2) continue;
@@ -6728,7 +6779,7 @@ function buildLevel(rec) {
   const floorTag = G0.tags.slice();
   L0.map = new E.TileMap({ w: G0.w, h: G0.h, tile: T16, cells: G0.cells, types, floorTex: (x, y, tag) => th.floor(L0, x, y, tag) });
   L0.map.floorTags = floorTag; L0.map.blocked = new Uint8Array(G0.w * G0.h);
-  floorTag.forEach((t, i) => { if (t === 'pit' || t === 'deep') L0.map.blocked[i] = 1; });
+  L0.map.floorTags.forEach((t, i) => { if (t === 'pit' || t === 'deep') L0.map.blocked[i] = 1; });
   deepCutaway(L0.map);
   L0.flow = new E.FlowField(L0.map);
   L0.randomFloor = (Rr, o = {}) => randomFloor(L0, Rr, o);
@@ -7295,6 +7346,7 @@ function worldStep(dt, o = {}) {
   const h = ED.hero, L0 = ED.L;
   ED.t += dt; L0.t = (L0.t || 0) + dt;
   UI.prompt = null;
+  floorEffects(h, dt); for (const m of ED.foes) if (m.alive && m.spawnT <= 0) floorEffects(m, dt);
   updateHero(h, dt, o);
   updateFoes(dt); updateCorpses(dt); updateFx(dt); updateThings(L0, dt); updateDrops(dt);
   for (let i = ED.allies.length - 1; i >= 0; i--) { const a = ED.allies[i]; if (a.update && a.update(dt) === false) ED.allies.splice(i, 1); }
