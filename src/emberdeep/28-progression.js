@@ -7,7 +7,8 @@
  *   RIME  (frost, area, chill)                        VOID  (void, leech, curses, statuses)
  * plus a small FORTUNE pocket (gold, item rarity, experience, pickup). Every region has a trunk to a hub, a long
  * middle road through its first notable to its KEYSTONE, and two WHEELS (an orbit of small stars around a notable)
- * that lead on to an outer notable each. Bridges join neighbouring regions; two more keystones sit on borders.
+ * that lead on to an outer notable each. Bridges join neighbouring regions; three more keystones sit on borders
+ * (Glass Cannon, Vampiric Blade, and Iron Reflexes: a conversion rule run through statFinal).
  * Node types: small (one STATS key), notable (named, 2-3 stats), keystone (a rule change: REG.passives, wired
  * through BUS hooks that check the allocation at run time). Allocation spends h.pts.passive and needs a neighbour
  * that is allocated (or the start); clicking a far star buys the whole shortest road to it.
@@ -35,6 +36,11 @@ PRG_keystone('vampiric', { name: 'Vampiric Blade', icon: 'fang', stats: { potion
   rules: ['Melee hits heal you for 4% of the damage they deal.', 'You have no natural Life Regeneration.'] });
 PRG_keystone('glasscannon', { name: 'Glass Cannon', icon: 'glass', stats: { moreDmg: 40, lifePct: -30 },
   rules: ['Everything you do hits harder; everything that hits you hurts more.'] });
+PRG_keystone('ironreflexes', { name: 'Iron Reflexes', icon: 'reflex', stats: { armorPct: 15 },
+  rules: ['You can no longer evade hits.', 'Every 1% chance to evade you have becomes 5% increased Armor.'] });
+// a conversion runs after every stat source (statFinal), so evasion from gear, the tree and buffs all turns to armor
+// (it asks the allocation directly, not PRG_on, so the loot panels' what-if copies of the hero convert too)
+statFinal((h, s) => { if (!h.tree || !h.tree.length || !PRG_set(h).has('ks_ironreflexes') || !(s.dodge > 0)) return; s.armorPct = (s.armorPct || 0) + s.dodge * 5; s.dodge = 0; });
 
 /* ---------- the regions: ring stat, trunk and road stats, and five notables each ---------- */
 // nt[0] sits on the middle road, nt[1] / nt[2] in the left / right wheel, nt[3] / nt[4] beyond them.
@@ -150,6 +156,10 @@ const PRG_T = (() => {
       link(near, notable(pos, 'fortune', spec).id);
     }
   }
+  // Iron Reflexes on the Might | Grace border, out past their bridge (built last, so no older star's jitter moves)
+  { const a = PRG_REGIONS[0].ang + 30; let prev = 'br0';
+    [[P(202, a), ['armor', 15]], [P(228, a), ['dodge', 2]]].forEach(([p, st], i) => { const n = small('bk0_' + i, p, 'might', st); link(prev, n.id); prev = n.id; });
+    link(prev, keystone('ironreflexes', P(256, a), 'might').id); }
   // depth from the start (lit roads flow outward), edges as objects, bounds, draw order (big stars on top)
   const q = ['start']; N.start.depth = 0;
   for (let i = 0; i < q.length; i++) for (const l of N[q[i]].links) if (N[l].depth === undefined) { N[l].depth = N[q[i]].depth + 1; q.push(l); }
@@ -209,11 +219,7 @@ BUS.on('skill', e => {
   const pay = Math.min(cost, Math.max(0, h.hp - 1)); h.hp -= pay;
   P.bits(h.x, h.y, 16, 5, ['#d8303a', '#8a1a2a', '#ff6a7a']); P.text(h.x + 4, h.y, 30, '-' + Math.round(pay), '#ff4a5a'); P.ring(h.x, h.y, 2, 12, '#c8303a', .25);
 });
-BUS.on('step', () => {
-  const h = ED.hero; if (!h || !h.tree || !h.tree.length) return;
-  if (PRG_on(h, 'bloodmagic') && h.alive) h.ember = h.maxEmber;
-  if (PRG_on(h, 'conflagration')) for (const m of ED.foes) if (m.alive) m._prgBurn = !!m.st.burn;
-});
+BUS.on('step', () => { const h = ED.hero; if (h && h.alive && PRG_on(h, 'bloodmagic')) h.ember = h.maxEmber; });
 // Juggernaut: the shove is mostly refused, the stagger cut short, a knockdown undone on the spot
 BUS.on('hurt', e => {
   const h = e.tgt; if (!PRG_on(h, 'juggernaut')) return;
@@ -230,7 +236,7 @@ BUS.on('dodge', e => {
   for (let i = 0; i < 14; i++) { const a = i / 14 * TAU + Math.random() * .3, sp = 80 + Math.random() * 50; P.add({ kind: i % 3 ? 'dust' : 'bit', x: x + Math.cos(a) * 6, y: y + Math.sin(a) * 6, z: 2 + Math.random() * 4, vx: Math.cos(a + 1.2) * sp, vy: Math.sin(a + 1.2) * sp, vz: 20 + Math.random() * 30, g: i % 3 ? -4 : 200, drag: 3, max: .5, size: 2.2, color: i % 3 ? '#b8dce8' : '#5a8a9a' }); }
   P.ring(x, y, 4, 44 * area, '#e8fcff', .28); sfx('whoosh', { vol: .6, pitch: .7 });
 });
-// Elemental Overload, Absolute Zero, Vampiric Blade (and the burn mark Conflagration reads)
+// Elemental Overload, Absolute Zero, Vampiric Blade
 BUS.on('hit', e => {
   const h = ED.hero; if (!h || e.src !== h || !h.tree || !h.tree.length) return;
   const hit = e.hit, t = e.tgt, el = hit.el || 'phys';
@@ -243,7 +249,6 @@ BUS.on('hit', e => {
     h.hp = Math.min(h.maxHp, h.hp + e.dmg * .04);
     if (Math.random() < .6) { const a = Math.atan2(h.y - t.y, h.x - t.x), d = Math.hypot(h.x - t.x, h.y - t.y); P.add({ kind: 'ember', x: t.x, y: t.y, z: (t.head || 20) * .6, vx: Math.cos(a) * d * 3.2, vy: Math.sin(a) * d * 3.2, vz: 8, drag: .4, max: .3, color: '#ff4a5a' }); }
   }
-  if (t.st.burn) t._prgBurn = true;
 });
 /** the gust's wind: four spiral streaks on the ground that swing outward, outlined dark so they read on pale floors */
 function PRG_gust(r, x, y, a0, area, u) {
@@ -260,11 +265,11 @@ function PRG_overload(h) {
   h.buffs.push({ id: 'overload', name: 'Overload', color: '#ffe45a', t: 4, stats: { moreDmg: 40 } }); computeStats(h);
   P.sparks(h.x, h.y, 16, 14, null, { color: '#ffe45a', hot: '#ffffff' }); P.ring(h.x, h.y, 4, 28, '#ffe45a', .3); P.glints(h.x, h.y, 22, 6, '#fffbd0', 14); sfx('zap', { vol: .45 });
 }
-// Conflagration: a burning foe bursts into a fire nova that sets its neighbours alight (chains through packs)
+// Conflagration: a burning foe bursts into a fire nova that sets its neighbours alight (chains through packs).
+// The kill event carries the statuses the foe died with (e.st), so any killer counts: a hit, a burn tick, a mechanic
 let PRG_boomT = 0, PRG_boomN = 0;
 BUS.on('kill', e => {
-  const h = ED.hero, t = e.tgt; if (!t || t.team !== 'foe' || !t._prgBurn || !PRG_on(h, 'conflagration')) return;
-  t._prgBurn = false;
+  const h = ED.hero, t = e.tgt; if (!t || t.team !== 'foe' || !(e.st && e.st.burn) || !PRG_on(h, 'conflagration')) return;
   if (game.time - PRG_boomT > .25) { PRG_boomT = game.time; PRG_boomN = 0; } if (++PRG_boomN > 10) return;   // a cap per quarter second
   const area = 1 + (h.stats.area || 0) / 100;
   FX.nova({ team: 'hero', src: h, x: t.x, y: t.y, r0: 4, r1: 34 * area, dur: .22, el: 'fire', tags: ['aoe', 'proc'], hit: heroHit(h, .5, { el: 'fire', tags: ['aoe', 'proc'], extra: { statusChance: 1 } }) });
@@ -343,6 +348,11 @@ const PRG_EMB = {
   flake(g, x, y, s, T) { for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 - Math.PI / 2, c = Math.cos(a), d = Math.sin(a); px.line(g, x, y, x + c * 5.5 * s, y + d * 5.5 * s, T.lt); const bx = x + c * 3.2 * s, by = y + d * 3.2 * s; px.line(g, bx, by, bx + Math.cos(a + .8) * 1.8 * s, by + Math.sin(a + .8) * 1.8 * s, T.base); px.line(g, bx, by, bx + Math.cos(a - .8) * 1.8 * s, by + Math.sin(a - .8) * 1.8 * s, T.base); } px.dot(g, x, y, T.hi); },
   drop(g, x, y, s, T, on) { const R0 = on ? PRG_RED : T, p = (a, b) => [x + a * s, y + b * s]; px.poly(g, [p(0, -6), p(2, -2), p(4, 1), p(3, 4), p(0, 5), p(-3, 4), p(-4, 1), p(-2, -2)], R0.sh); px.poly(g, [p(0, -5), p(2, -1), p(3, 2), p(0, 4), p(-2, 2), p(-2, -1)], R0.base); px.dot(g, x - 1.5 * s, y + .5 * s, R0.hi); },
   fang(g, x, y, s, T, on) { const R0 = on ? PRG_RED : T; px.line(g, x - 4 * s, y + 4 * s, x + 4 * s, y - 5 * s, T.lt, Math.max(1, Math.round(s * 1.2))); px.line(g, x - 5 * s, y + 1 * s, x - 1 * s, y + 5 * s, T.base); px.disc(g, x + 3 * s, y + 3 * s, 1.6 * s, R0.base); px.dot(g, x + 3 * s, y + 1 * s, R0.base); px.dot(g, x + 2.5 * s, y + 2.5 * s, R0.hi); },
+  reflex(g, x, y, s, T) {   // a shield, and an arrow glancing off its face
+    const p = (a, b) => [x + a * s, y + b * s];
+    px.poly(g, [p(-3, -5), p(5, -5), p(5, 0), p(1, 6), p(-3, 0)], T.deep); px.poly(g, [p(-2, -4), p(4, -4), p(4, 0), p(1, 5), p(-2, 0)], T.base); px.poly(g, [p(-2, -4), p(1, -4), p(1, 5), p(-2, 0)], T.lt);
+    px.line(g, x - 7 * s, y - 5 * s, x - 3 * s, y - 1 * s, T.hi); px.line(g, x - 3 * s, y - 1 * s, x - 7 * s, y + 3 * s, T.sh); px.line(g, x - 7 * s, y + 3 * s, x - 5 * s, y + 3 * s, T.sh); px.dot(g, x - 3 * s, y - 1 * s, '#ffffff');
+  },
   glass(g, x, y, s, T) { const p = (a, b) => [x + a * s, y + b * s]; px.poly(g, [p(0, -6), p(5, -1), p(0, 6), p(-5, -1)], T.sh); px.poly(g, [p(0, -6), p(5, -1), p(0, 0)], T.lt); px.poly(g, [p(-5, -1), p(0, -6), p(0, 0)], T.base); px.line(g, x - 1 * s, y - 4 * s, x + 1 * s, y - 1 * s, T.hi); px.line(g, x + 1 * s, y - 1 * s, x - 1 * s, y + 2 * s, T.hi); px.line(g, x - 1 * s, y + 2 * s, x + 1 * s, y + 4 * s, T.hi); }
 };
 
@@ -469,17 +479,20 @@ function PRG_treeDraw(g, x0, y0, W, H) {
   const z = V.z * (.86 + .14 * open); V.W = W; V.H = H; V.ox = x0 + Math.round(W / 2); V.oy = y0 + Math.round(H / 2) + 3;
   const zv = V.z; V.z = z; PRG_space(g, x0, y0, W, H, V, t); V.z = zv;
   for (const n of T.list) { n.sx = Math.round(V.ox + (n.x - V.cx) * z); n.sy = Math.round(V.oy + (n.y - V.cy) * z); }
-  // region names far out on their axes
-  for (const G of PRG_REGIONS) {
-    const a = G.ang * Math.PI / 180, lr = 262 + 14 / z, C = E.tones(G.color), big = z > .75;
-    let sx = V.ox + (Math.cos(a) * lr - V.cx) * z, sy = V.oy + (Math.sin(a) * lr - V.cy) * z;
-    if (sx < x0 - 110 || sx > x0 + W + 110 || sy < y0 - 40 || sy > y0 + H + 40) continue;
-    sy = clamp(sy, y0 + 30, y0 + H - 26);   // the names at the top and bottom stay clear of the bars
-    px.blend(g, .8, 'normal', () => E.font.title(g, G.name, sx, sy - (big ? 8 : 3), { scale: big ? 2 : 1, colors: [C.hi, C.lt, C.base], depth: 1, depthColor: C.deep, align: 'center' }));
-    if (big) PRG_txt(g, G.about.toUpperCase(), sx, sy + 10, C.sh, { font: 'tiny', align: 'center' });
-  }
   // chrome rects (the tree gives way to them for hover and clicks)
   const mini = Math.min(64, Math.round(H * .27)), miniR = [x0 + W - mini - 5, y0 + H - mini - 14, mini, mini], sumR = [x0 + 4, y0 + 22, Math.min(178, Math.round(W * .45)), H - 38];
+  // region names far out on their axes
+  for (const G of PRG_REGIONS) {
+    const a = G.ang * Math.PI / 180, lr = 268 + 14 / z, C = E.tones(G.color), big = z > .75;
+    let sx = V.ox + (Math.cos(a) * lr - V.cx) * z, sy = V.oy + (Math.sin(a) * lr - V.cy) * z;
+    if (sx < x0 - 110 || sx > x0 + W + 110 || sy < y0 - 40 || sy > y0 + H + 40) continue;
+    const up = big && Math.sin(a) < -.2;   // in the upper half the line under the name would cross the keystone: it goes above (outward) instead
+    sy = clamp(sy, y0 + (up ? 38 : 30), y0 + H - 26);   // the names at the top and bottom stay clear of the bars, and slide along the sides rather than being cut
+    const tw = E.font.width(G.name, { scale: big ? 2 : 1 }), ab = G.about.toUpperCase(), aw = E.font.width(ab, { font: 'tiny' }), kx = (w0, v) => clamp(v, x0 + w0 / 2 + 3, x0 + W - w0 / 2 - 3);
+    if (Math.max(kx(tw, sx) + tw / 2, big ? kx(aw, sx) + aw / 2 : 0) > miniR[0] - 4 && sy + 16 > miniR[1]) sy = miniR[1] - 18;   // and never under the overview
+    px.blend(g, .8, 'normal', () => E.font.title(g, G.name, kx(tw, sx), sy - (big ? 8 : 3), { scale: big ? 2 : 1, colors: [C.hi, C.lt, C.base], depth: 1, depthColor: C.deep, align: 'center' }));
+    if (big) PRG_txt(g, ab, kx(aw, sx), up ? sy - 17 : sy + 10, C.sh, { font: 'tiny', align: 'center' });
+  }
   const overChrome = m.y < y0 + 18 || m.y >= y0 + H - 11 || PRG_inR(m, miniR) || (V.sum && PRG_inR(m, sumR));
   // hover: the star under the cursor, or under the reticle when steering with keys
   let hov = null;
@@ -534,13 +547,14 @@ function PRG_treeDraw(g, x0, y0, W, H) {
     px.blend(g, a * .8, 'normal', () => px.rect(g, x0, cy - 4, W, 26, '#06040c'));
     px.blend(g, a, 'normal', () => { E.font.title(g, b.text, V.ox, cy, { scale: 1, colors: [C.hi, C.lt, C.base], depth: 1, depthColor: C.deep, align: 'center' }); PRG_txt(g, b.sub, V.ox, cy + 11, '#d8d0ec', { font: 'tiny', align: 'center' }); });
   }
-  PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t);
-  // the tree itself: drag to pan, click to buy (on release, so a drag never buys), right click to undo; its tip last
+  // the tree itself: drag to pan, click to buy (on release, so a drag never buys), right click to undo. It registers before
+  // the chrome, so the bars, the overview and the totals (drawn over it, topmost) take their own clicks
   hot(x0, y0 + 18, W, H - 29, { drag: (mx, my) => {
     if (!V.drag) { V.drag = { x: mx, y: my, cx: V.cx, cy: V.cy, moved: 0, node: UI.keyNav ? V.hover : PRG_pick(mx, my) }; return; }
     const d = V.drag; d.moved = Math.max(d.moved, Math.abs(mx - d.x) + Math.abs(my - d.y));
     if (d.moved > 3) { V.cx = d.cx - (mx - d.x) / V.z; V.cy = d.cy - (my - d.y) / V.z; V.anchor = null; V.go = null; }
   }, rclick: () => { const id = PRG_pick(UI.mouse.x, UI.mouse.y) || V.hover; if (id) PRG_undo(h, id); }, tip: hov && !UI.keyNav ? () => PRG_treeTip(h, hov) : undefined, tipBorder: hov ? (hov.type === 'keystone' ? '#ff9a4a' : hov.type === 'notable' ? GOLD : undefined) : undefined });
+  PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t);
   if (hov && UI.keyNav) tipBox(g, PRG_treeTip(h, hov), V.ox + 8, V.oy + 8, { border: '#8a7aa8' });
 }
 function PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t) {
@@ -562,7 +576,7 @@ function PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t) {
   PRG_txt(g, hint, x0 + W / 2, y0 + H - 8, '#8a80a8', { font: 'tiny', align: 'center' });
   // the overview: every star, the lit ones in colour, the view as a frame; drag in it to fly there
   const [mx, my, ms] = miniR, k = (ms - 6) / (2 * PRG_T.span), mcx = mx + ms / 2, mcy = my + ms / 2;
-  E.ui.box(g, mx, my, ms, ms, { bg: ['#0e0b1c', '#06050c'], border: '#4a3a66', shadow: false, alpha: .92 });
+  px.rect(g, mx, my, ms, ms, '#06050c'); E.ui.box(g, mx, my, ms, ms, { bg: ['#0e0b1c', '#06050c'], border: '#4a3a66', shadow: false });
   for (const e of PRG_T.E) if ((e.a.id === 'start' || set.has(e.a.id)) && (e.b.id === 'start' || set.has(e.b.id))) px.line(g, mcx + e.a.x * k, mcy + e.a.y * k, mcx + e.b.x * k, mcy + e.b.y * k, PRG_tones(e.far.region).sh);
   for (const n of PRG_T.list) { const on = n.id === 'start' || set.has(n.id), c = on ? PRG_tones(n.region).lt : n.type === 'small' ? '#2a2442' : '#4a4264', X = mcx + n.x * k, Y = mcy + n.y * k; if (n.type === 'keystone' || n.type === 'start') px.rect(g, X - 1, Y - 1, 2, 2, on ? PRG_tones(n.region).hi : c); else px.dot(g, X, Y, c); }
   const vw = V.W / V.z * k, vh = (V.H - 30) / V.z * k, vx = clamp(mcx + V.cx * k - vw / 2, mx + 1, mx + ms - 2), vy = clamp(mcy + V.cy * k - vh / 2, my + 1, my + ms - 2), vx1 = clamp(mcx + V.cx * k + vw / 2, mx + 1, mx + ms - 2), vy1 = clamp(mcy + V.cy * k + vh / 2, my + 1, my + ms - 2);
@@ -572,7 +586,7 @@ function PRG_treeChrome(g, x0, y0, W, H, h, set, pts, miniR, sumR, t) {
 }
 function PRG_drawTotals(g, [bx, by, bw, bh], h) {
   const V = PRG_V, tot = PRG_totals(h), lines = [];
-  E.ui.box(g, bx, by, bw, bh, { bg: ['#161028', '#0a0814'], border: '#6a5a88', alpha: .93 });
+  px.rect(g, bx, by, bw, bh, '#0a0814'); E.ui.box(g, bx, by, bw, bh, { bg: ['#161028', '#0a0814'], border: '#6a5a88' });
   PRG_txt(g, 'TOTALS', bx + bw / 2, by + 4, GOLD, { align: 'center' }); px.rect(g, bx + 6, by + 13, bw - 12, 1, '#3a3050');
   for (const id of h.tree) { const n = PRG_T.N[id]; if (n && n.type === 'keystone') { lines.push({ t: n.name.toUpperCase(), c: '#ff9a4a' }); for (const l of PRG_KS[n.ks].rules) for (const w of E.font.wrap(l, bw - 14, { font: 'tiny' })) lines.push({ t: w, c: '#c8a888' }); } }
   for (const k in STATS) if (tot[k]) for (const w of E.font.wrap(statText(k, +tot[k].toFixed(2)), bw - 14, { font: 'tiny' })) lines.push({ t: w, c: tot[k] < 0 ? '#ff8a8a' : '#8ab4ff' });
@@ -719,7 +733,7 @@ function PRG_skillRow(g, h, id, rx, ry, rw, t, m) {
   if (!base) px.blend(g, .62, 'normal', () => px.rect(g, rx + 2, ry + 2, 16, 16, '#08060e'));
   if (locked) PRG_lock(g, rx + 10, ry + 10);
   if (K.pulse && K.pulse.id === id && K.pulse.t < .5) px.blend(g, 1 - K.pulse.t * 2, 'add', () => px.rect(g, rx + 2, ry + 2, 16, 16, '#fff0c0'));
-  const maxName = rw - 22 - (slot >= 0 ? 22 : 0) - (cr.ok ? 14 : 0) - (locked ? 24 : 0); let nm = S.name; while (nm.length > 3 && E.font.width(nm) > maxName) nm = nm.slice(0, -1); if (nm !== S.name) nm = nm.slice(0, -1) + '.';
+  const maxName = rw - 22 - (slot >= 0 ? 22 : 0) - (cr.ok ? 14 : 0) - (locked ? 24 : 0); let nm = S.name; while (nm.length > 3 && E.font.width(nm) > maxName) nm = nm.slice(0, -1); if (nm !== S.name) nm = nm.slice(0, -1).trimEnd() + '.';
   PRG_txt(g, nm, rx + 22, ry + 2, base ? (sel ? '#fff6d8' : '#e8e0f8') : locked ? '#5a5478' : '#a8a0c0');
   for (let i = 0; i < 5; i++) PRG_pip(g, rx + 22 + i * 6, ry + 12, i < base ? (i === base - 1 && K.pulse && K.pulse.id === id && K.pulse.t < .4 ? '#fff6d8' : '#ffc040') : i < eff ? '#6a9aff' : null, i < base ? '#6a3a0a' : i < eff ? '#1a2a6a' : '#3a3252');
   if (eff > 5) PRG_txt(g, '+' + (eff - 5), rx + 53, ry + 12, '#8ab4ff', { font: 'tiny' });
@@ -755,7 +769,7 @@ function PRG_skillPage(g, h, id, dx, dy, dw, dh, t) {
   // the description fills what the bottom rows leave
   const bottom = dy + dh - 84, descY = iy + 40, desc = typeof S.desc === 'function' ? S.desc(Math.max(1, eff), k.rune || null) : S.desc || '';
   const lines = E.font.wrap(desc, dw - 14), maxL = Math.max(1, Math.floor((bottom - descY) / 9));
-  lines.slice(0, maxL).forEach((l, i) => PRG_txt(g, i === maxL - 1 && lines.length > maxL ? l.replace(/.{0,2}$/, '..') : l, dx + 7, descY + i * 9, '#d8d0ec'));
+  lines.slice(0, maxL).forEach((l, i) => PRG_txt(g, i === maxL - 1 && lines.length > maxL ? l.replace(/.{0,2}$/, '').trimEnd() + '..' : l, dx + 7, descY + i * 9, '#d8d0ec'));
   if (lines.length > maxL) hot(dx + 4, descY, dw - 8, maxL * 9, { tip: [{ t: S.name, c: GOLD }, { t: desc, c: '#e8e0f8' }] });
   // rank up
   const ry = dy + dh - 80; px.rect(g, dx + 6, ry - 4, dw - 12, 1, '#2e2644');
@@ -770,17 +784,17 @@ function PRG_skillPage(g, h, id, dx, dy, dw, dh, t) {
     const gx = cx + 7, gy = cy + 8, rc = on ? E.tones('#ff9a4a') : open ? E.tones('#8a7aa8') : E.tones('#4a4060');
     px.poly(g, [[gx, gy - 5], [gx + 4, gy], [gx, gy + 5], [gx - 4, gy]], rc.deep); px.poly(g, [[gx, gy - 4], [gx + 3, gy], [gx, gy + 4], [gx - 3, gy]], rc.base); px.line(g, gx, gy - 2, gx, gy + 2, rc.hi); px.dot(g, gx - 1, gy - 1, rc.lt);
     if (on) PRG_glow(g, gx, gy, 8, '#ff8a3a', .25);
-    let nm = ru.name; if (E.font.width(nm) > cw - 18) { while (nm.length > 3 && E.font.width(nm + '.') > cw - 18) nm = nm.slice(0, -1); nm += '.'; }
+    let nm = ru.name; if (E.font.width(nm) > cw - 18) { while (nm.length > 3 && E.font.width(nm + '.') > cw - 18) nm = nm.slice(0, -1); nm = nm.trimEnd() + '.'; }
     PRG_txt(g, nm, cx + 14, cy + 3, on ? '#ffd0a0' : open ? '#e8e0f8' : '#6a6488');
-    const dl = E.font.wrap(ru.desc || '', cw - 17, { font: 'tiny' }); if (dl.length > 3) dl[2] = dl[2].replace(/.{0,2}$/, '..');
+    const dl = E.font.wrap(ru.desc || '', cw - 17, { font: 'tiny' }); if (dl.length > 3) dl[2] = dl[2].replace(/.{0,2}$/, '').trimEnd() + '..';
     dl.slice(0, 3).forEach((l, j) => PRG_txt(g, l, cx + 14, cy + 12 + j * 6, on ? '#e8c0a0' : open ? '#a8a0c0' : '#5a5478', { font: 'tiny' }));
     hot(cx, cy, cw, 32, { click: () => PRG_setRune(h, id, ru.id), tip: [{ t: ru.name, c: '#ff9a4a' }, { t: ru.desc || '', c: '#e8e0f8' }, { t: '', sep: true }, { t: !open ? 'Reach rank 2 to choose a rune.' : on ? 'Chosen. Click to clear it.' : 'Click to choose this rune.', c: open ? GOLD : '#ff8a7a' }] });
   });
   if (!runes.length) PRG_txt(g, 'THIS SKILL HAS NO RUNES', dx + dw / 2, cy + 12, '#5a5478', { font: 'tiny', align: 'center' });
   // assign
-  const ay = dy + dh - 15; PRG_txt(g, 'ASSIGN', dx + 7, ay + 3, '#c8b8e8', { font: 'tiny' });
-  const aw = Math.min(22, Math.floor((dw - 44) / 6) - 2);
-  for (let i = 0; i < 6; i++) { const ax = dx + 36 + i * (aw + 2) + (i >= 2 ? 3 : 0); button(g, ax, ay, aw, 11, SLOT_KEYS[i], () => PRG_assign(h, i, id), { disabled: !base, active: h.slots[i] === id, color: h.slots[i] === id ? '#3a5a6a' : '#2e2648', tip: [{ t: base ? 'Put ' + S.name + ' in slot ' + SLOT_KEYS[i] : 'Learn it first', c: base ? GOLD : '#ff8a7a' }].concat(h.slots[i] && h.slots[i] !== id && REG.skills[h.slots[i]] ? [{ t: 'Replaces ' + REG.skills[h.slots[i]].name, c: '#9a90b0' }] : []) }); }
+  const ay = dy + dh - 15, lab = dw >= 170; if (lab) PRG_txt(g, 'ASSIGN', dx + 7, ay + 3, '#c8b8e8', { font: 'tiny' });   // a narrow page drops the word so LMB and RMB keep their room
+  const aw = Math.min(22, Math.floor((dw - (lab ? 44 : 14)) / 6) - 2);
+  for (let i = 0; i < 6; i++) { const ax = dx + (lab ? 36 : 6) + i * (aw + 2) + (i >= 2 ? 3 : 0); button(g, ax, ay, aw, 11, SLOT_KEYS[i], () => PRG_assign(h, i, id), { disabled: !base, active: h.slots[i] === id, color: h.slots[i] === id ? '#3a5a6a' : '#2e2648', tip: [{ t: base ? 'Put ' + S.name + ' in slot ' + SLOT_KEYS[i] : 'Learn it first', c: base ? GOLD : '#ff8a7a' }].concat(h.slots[i] && h.slots[i] !== id && REG.skills[h.slots[i]] ? [{ t: 'Replaces ' + REG.skills[h.slots[i]].name, c: '#9a90b0' }] : []) }); }
 }
 function PRG_skillsUpdate(dt) {
   const h = ED.hero, K = PRG_K, inp = game.input; if (!h) return;

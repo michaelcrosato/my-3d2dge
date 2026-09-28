@@ -32,11 +32,22 @@ def('mechanics', 'powder', { name: 'Powder Kegs', title: 'The Powder Vaults', ad
   place(L0, R) {
     const n = Math.round(L0.rooms.length * 1.6);
     for (let i = 0; i < n; i++) {
-      const [cx, cy] = L0.randomFloor(R, { minStart: 40, edge: 1 }); const k = R.int(2, 5);
-      for (let j = 0; j < k; j++) { const a = R() * TAU, d = j ? 7 + R() * 9 : 0, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d; if (L0.map.walkable(Math.floor(x / 16), Math.floor(y / 16))) addThing(L0, makeKeg(x, y)); }
+      const [cx, cy] = L0.randomFloor(R, { minStart: 56, minExit: 48, edge: 1 }); const k = R.int(2, 5);
+      for (let j = 0; j < k; j++) { const a = R() * TAU, d = j ? 9 + R() * 7 : 0, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d; if (kegRoom(L0, x, y)) addThing(L0, makeKeg(x, y)); }
     }
   }
 });
+/** a keg may stand here: open floor off the start and exit runes, clear of other kegs (they touch, never overlap),
+ *  torches, big props and whatever other mechanics placed (a keg in a ward's pillar or on a well's hub reads as clutter) */
+function kegRoom(L0, x, y) {
+  if (!L0.map.walkable(Math.floor(x / 16), Math.floor(y / 16)) || L0.map.floorAt(x, y) === 'lava') return false;
+  for (const rc of L0.runes || []) if (Math.hypot(rc.x - x, rc.y - y) < rc.r + 8) return false;
+  if (L0.exit && Math.hypot(L0.exit.x - x, L0.exit.y - y) < 36) return false;
+  for (const t of L0.things) if (!t.dead && !t.mark && Math.hypot(t.x - x, t.y - y) < (t.kind === 'keg' ? 9.5 : t.MKB_big ? t.r * .45 : Math.min(t.r || 5, 30) + 9)) return false;
+  for (const b of L0.torches) if (Math.hypot(b.x - x, b.y - y) < 13) return false;
+  for (const p of L0.props) if (Math.hypot(p.x - x, p.y - y) < ((p.o && p.o.size) || 1) * 8) return false;
+  return true;
+}
 function makeKeg(x, y) {
   const k = { kind: 'keg', x, y, r: 5, solid: true, hittable: true, fuse: -1, v: (Math.random() * 3) | 0, src: null,
     onHit(hit) { if (this.fuse < 0) { this.fuse = hit.tags && hit.tags.includes('blast') ? .12 + Math.random() * .12 : .35; this.src = hit.src && hit.src.team === 'hero' ? hit.src : ED.hero; sfx('charge', { vol: .25, pitch: 2.5 }); } },

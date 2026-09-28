@@ -273,6 +273,7 @@ def('mechanics', 'wards', { name: 'Warding Circles', title: 'The Warded Halls', 
       for (let k = 0; k < 14; k++) {
         const cx = r0.x + 2 + R.int(0, Math.max(0, r0.w - 5)), cy = r0.y + 2 + R.int(0, Math.max(0, r0.h - 5)), rad = R.range(24, 30), x = MKA_cc(cx), y = MKA_cc(cy);
         if (!MKA_room(L0, cx, cy, 1) || !MKA_free(L0, cx, cy, { tagOk: true, start: 84, exit: 64, rune: rad + 8 }) || wards.some(w => Math.hypot(w.x - x, w.y - y) < 90)) continue;
+        if (L0.torches.some(b => Math.hypot(b.x - x, b.y - y) < rad - 3)) continue;   // no brazier standing in the circle
         L0.runes.push({ x, y, r: rad });   // the theme's floor bakes its rune rings (the crypt does)
         wards.push(addThing(L0, { kind: 'ward', x, y, r: rad, on: 0, rot: R() * TAU, ph: R() * TAU, n: 0, mapColor: MKA_WC.base, draw(r) { MKA_wardDraw(this, r); } }));
         break;
@@ -350,24 +351,30 @@ function MKA_wardDraw(w, r) {
     r.groundDisc(w.x, w.y, 3.5 + 2 * pul, C.lt, .45 + .45 * on);
   }, { emissive: .6 + .4 * on });
   // the pillar of light: a cylinder of nested shells (faint and wide outside, bright and narrow inside) in curved bands
-  // that fade and narrow upward, a brighter band flowing up it, motes rising through
-  r.queue(w.x, w.y, 0, g => {
-    const view = r.view, fa0 = Math.atan2(view.fy, view.fx), top = 60 + 30 * on, st = 9, flow = (t * (.35 + .5 * on) + w.ph) % 1;
-    const arc = (rad, z) => { const pts = []; for (let i = 0; i <= 10; i++) { const a = fa0 - Math.PI / 2 + i / 10 * Math.PI; pts.push(r.w(w.x + Math.cos(a) * rad, w.y + Math.sin(a) * rad, z)); } return pts; };
-    const shells = [[.46, .07 * on, C.sh], [.34, .07 + .06 * on, C.base], [.21, .08 + .05 * on, C.lt], [.07, .08 + .08 * on, C.hi]];   // (alpha steps are eighths)
-    px.glow(g, 1);
-    for (const [k0, a0, c] of shells) {
-      const rad = R0 * k0;
-      px.blend(g, a0 * 1.1, 'add', () => px.poly(g, r.groundPts(w.x, w.y, rad * 1.15, 16, 0), c));   // the foot of the beam on the floor
-      for (let k = 0; k < st; k++) {
-        const z0 = top * k / st, z1 = top * (k + 1) / st, fade = Math.pow(1 - k / st, 1.4), band = Math.abs((k + .5) / st - flow) < .12 ? 1.8 : 1;
+  // that fade and narrow upward, a brighter band flowing up it, motes rising through. It is a beacon: bright while the
+  // circle waits, it thins to a veil while the hero fights in it (the power is in him now, and the foes inside must
+  // read). Only the part above head height glows through the dark (emissive items are drawn again after lighting,
+  // over whatever stood in front of them: a glowing trunk would bleach every body in the circle)
+  const view = r.view, fa0 = Math.atan2(view.fy, view.fx), top = 60 + 30 * on, st = 9, flow = (t * (.35 + .5 * on) + w.ph) % 1, veil = 1 - .55 * on, HEAD = 4;   // bands below HEAD are the trunk
+  const arc = (rad, z) => { const pts = []; for (let i = 0; i <= 10; i++) { const a = fa0 - Math.PI / 2 + i / 10 * Math.PI; pts.push(r.w(w.x + Math.cos(a) * rad, w.y + Math.sin(a) * rad, z)); } return pts; };
+  const shells = [[.46, .06 * on, C.sh], [.34, (.1 + .04 * pul) * veil, C.base], [.21, .13 * veil, C.lt], [.07, .15 * veil, C.hi]];   // (alpha steps are eighths)
+  const pillar = (k0, k1) => g => {
+    px.glow(g, 1); const lift = k0 ? 1 : 1.35;   // the trunk is drawn once and lit by the room; the glowing top twice
+    for (const [s0, a1, c] of shells) {
+      const a0 = a1 * lift;
+      const rad = R0 * s0;
+      if (!k0) px.blend(g, a0 * 1.1, 'add', () => px.poly(g, r.groundPts(w.x, w.y, rad * 1.15, 16, 0), c));   // the foot of the beam on the floor
+      for (let k = k0; k < k1; k++) {
+        const z0 = top * k / st, z1 = top * (k + 1) / st, fade = Math.pow(1 - k / st, 1.15), band = Math.abs((k + .5) / st - flow) < .12 ? 1.8 : 1;
         const pts = arc(rad * (1 - .25 * k / st), z0).concat(arc(rad * (1 - .25 * (k + 1) / st), z1).reverse());
         px.blend(g, a0 * fade * band, 'add', () => px.poly(g, pts, c));
       }
     }
     const [x, y] = r.w(w.x, w.y, 0), [, ty] = r.w(w.x, w.y, top), hgt = y - ty, hw = R0 * .3 * view.scale;
-    for (let i = 0; i < 6; i++) { const u = (t * (.3 + .25 * on) + i / 6 + w.ph) % 1, mx = x + Math.sin(i * 2.3 + t * 1.3) * hw, my = y - hgt * u; px.blend(g, Math.sin(u * Math.PI) * (.45 + .55 * on), 'add', () => px.rect(g, mx, my, 1, 2, C.hi)); }
-  }, { emissive: true, bias: -.2 });
+    for (let i = 0; i < 6; i++) { const u = (t * (.3 + .25 * on) + i / 6 + w.ph) % 1; if ((u * st >= HEAD) !== (k0 >= HEAD)) continue; const mx = x + Math.sin(i * 2.3 + t * 1.3) * hw, my = y - hgt * u; px.blend(g, Math.sin(u * Math.PI) * (.45 + .55 * on), 'add', () => px.rect(g, mx, my, 1, 2, C.hi)); }
+  };
+  r.queue(w.x, w.y, 0, pillar(0, HEAD), { bias: -.2 });
+  r.queue(w.x, w.y, 0, pillar(HEAD, st), { emissive: true, bias: -.19 });
   L.add(w.x, w.y, 8, 66 + 30 * on, .5 + .2 * pul + .5 * on, { color: C.base });
 }
 /** a spark from a foe slain in a lit circle: it arcs to the hero and becomes ember */
@@ -486,15 +493,16 @@ def('mechanics', 'chasm', { name: 'Chasms', title: 'The Sundered Bridges', adj: 
         for (const [u0, k0] of [[-10, 0], [-4, 1], [gap + 2, 2]]) {   // two on this side, one where you land
           const pulse = .45 + .55 * Math.max(0, Math.sin(t * 7 - k0 * 1.3)), c0 = sx + ca * u0, c1 = sy + sa * u0;
           const P1 = r.w(c0 - ca * 2.5 - sa * 4, c1 - sa * 2.5 + ca * 4, 0), P2 = r.w(c0 + ca * 2, c1 + sa * 2, 0), P3 = r.w(c0 - ca * 2.5 + sa * 4, c1 - sa * 2.5 - ca * 4, 0);
+          px.blend(g, a * pulse * .6, 'normal', () => { px.line(g, P1[0], P1[1] + 1, P2[0], P2[1] + 1, '#10202a', w2); px.line(g, P2[0], P2[1] + 1, P3[0], P3[1] + 1, '#10202a', w2); });   // a dark twin: it reads on pale stone
           px.blend(g, a * pulse, 'normal', () => { px.line(g, P1[0], P1[1], P2[0], P2[1], '#bff6ff', w2); px.line(g, P2[0], P2[1], P3[0], P3[1], '#bff6ff', w2); });
         }
       }, { emissive: .7 });
       r.queue(q.mx, q.my, 6, g => {
-        const zm = r.view.zoom || 1, n = 12, head = (t * 1.4) % 1, sz = Math.max(1, Math.round(zm * 1.3));
+        const zm = r.view.zoom || 1, n = 14, head = (t * 1.4) % 1, sz = Math.max(2, Math.round(zm * 1.5));   // the leap's arc: bold dots with a travelling head
         for (let i = 1; i < n; i++) {
-          const u = i / n, [X, Y] = r.w(lerp(sx, ex, u), lerp(sy, ey, u), Math.sin(u * Math.PI) * 13 + 3), near = Math.abs(u - head) < .12;
+          const u = i / n, [X, Y] = r.w(lerp(sx, ex, u), lerp(sy, ey, u), Math.sin(u * Math.PI) * 13 + 3), near = Math.abs(u - head) < .1;
           if (i % 2 && !near) continue;
-          px.blend(g, a * (near ? 1 : .55), 'normal', () => px.rect(g, X, Y, sz, sz, near ? '#ffffff' : '#bff6ff'));
+          px.blend(g, a * (near ? 1 : .75), 'normal', () => { px.rect(g, X, Y + 1, sz, sz, '#10202a'); px.rect(g, X, Y, sz, sz, near ? '#ffffff' : '#bff6ff'); });
         }
       }, { emissive: true, bias: .4 });
     }
@@ -530,7 +538,8 @@ function MKA_lane(L0, c, R) {
   const ln = { dir: [dx, dy], ax: -dy, ay: dx, x: wx + dx * 13, y: wy + dy * 13, len: len * 16 - 13, gust: 0, ph: R(), spin: R() * TAU, howl: false, streaks: [] };
   for (let i = 0; i < 12; i++) ln.streaks.push({ u: R() * ln.len, o: R.range(-1, 1), z: R.range(3, 24), l: R.range(8, 20), k: R.range(.8, 1.3), ph: R() * 9 });
   L0.mkaLanes.push(ln);
-  addThing(L0, { kind: 'vent', x: wx + dx * 7, y: wy + dy * 7, r: 6, solid: true, lane: ln, mapColor: '#dff0ff', draw(r) { MKA_ventDraw(this, r); } });
+  // (kind 'galevent', never 'vent': the Cinder King wakes every 'vent' thing, meaning the magma vents)
+  addThing(L0, { kind: 'galevent', x: wx + dx * 7, y: wy + dy * 7, r: 6, solid: true, lane: ln, mapColor: '#dff0ff', draw(r) { MKA_ventDraw(this, r); } });
   for (let k = 2; k < len; k += 2) addThing(L0, { kind: 'windmark', mark: true, hidden: true, x: midX + dx * k * 16, y: midY + dy * k * 16, mapColor: '#3a5a6a' });   // the lane on the minimap
   return true;
 }
@@ -605,13 +614,16 @@ def('mechanics', 'gale', { name: 'Gale Vents', title: 'The Howling Galleries', a
       const ex = ln.x + ln.dir[0] * ln.len, ey = ln.y + ln.dir[1] * ln.len;
       if (!r.visible(ln.x, ln.y, 0, 160, 120, 160) && !r.visible(ex, ey, 0, 160, 120, 160) && !r.visible((ln.x + ex) / 2, (ln.y + ey) / 2, 0, 160, 120, 160)) continue;
       const [dx, dy] = ln.dir, ax = ln.ax, ay = ln.ay, gu = ln.gust;
-      r.decal(g => {   // the lane on the floor: chevrons swept downwind, faint dashed rails at its edges
-        const off = (t * (26 + 70 * gu)) % 24;
+      r.decal(g => {   // the lane on the floor: a cool sheen over its two cells, chevrons swept downwind, dashed rails at its edges
+        // (every mark has a dark twin a pixel below it, so the lane reads on pale stone as well as dark, in every view)
+        const off = (t * (26 + 70 * gu)) % 24, L0p = (u, o) => r.w(ln.x + dx * u + ax * o, ln.y + dy * u + ay * o, 0);
+        px.blend(g, .05 + .07 * gu, 'add', () => px.poly(g, [L0p(0, -16), L0p(ln.len, -16), L0p(ln.len, 16), L0p(0, 16)], '#7a9ab8'));
+        const mark = (A0, B0, c, a) => { px.blend(g, a * .55, 'normal', () => px.line(g, A0[0], A0[1] + 1, B0[0], B0[1] + 1, '#1a2230')); px.blend(g, a, 'normal', () => px.line(g, A0[0], A0[1], B0[0], B0[1], c)); };
         for (let u = off; u < ln.len; u += 24) {
-          const fade = Math.min(1, u / 18, (ln.len - u) / 18), a = (.2 + .3 * gu) * fade; if (a < .06) continue;
+          const fade = Math.min(1, u / 18, (ln.len - u) / 18), a = (.32 + .4 * gu) * fade; if (a < .08) continue;
           const cx = ln.x + dx * u, cy = ln.y + dy * u;
-          for (const o of [-7, 7]) { const P1 = r.w(cx + ax * (o - 3.5) - dx * 3, cy + ay * (o - 3.5) - dy * 3, 0), P2 = r.w(cx + ax * o + dx, cy + ay * o + dy, 0), P3 = r.w(cx + ax * (o + 3.5) - dx * 3, cy + ay * (o + 3.5) - dy * 3, 0); px.blend(g, a, 'normal', () => { px.line(g, P1[0], P1[1], P2[0], P2[1], '#d8ecff'); px.line(g, P2[0], P2[1], P3[0], P3[1], '#d8ecff'); }); }
-          for (const o of [-15, 15]) { const A0 = r.w(cx + ax * o, cy + ay * o, 0), B0 = r.w(cx + ax * o + dx * 8, cy + ay * o + dy * 8, 0); px.blend(g, a * .7, 'normal', () => px.line(g, A0[0], A0[1], B0[0], B0[1], '#a8c8e0')); }
+          for (const o of [-7, 7]) { const P1 = r.w(cx + ax * (o - 3.5) - dx * 3, cy + ay * (o - 3.5) - dy * 3, 0), P2 = r.w(cx + ax * o + dx, cy + ay * o + dy, 0), P3 = r.w(cx + ax * (o + 3.5) - dx * 3, cy + ay * (o + 3.5) - dy * 3, 0); mark(P1, P2, '#e4f2ff', a); mark(P2, P3, '#e4f2ff', a); }
+          for (const o of [-15, 15]) mark(r.w(cx + ax * o, cy + ay * o, 0), r.w(cx + ax * o + dx * 8, cy + ay * o + dy * 8, 0), '#b8d4ea', a * .75);
         }
       }, { emissive: .3 });
       for (const s of ln.streaks) {   // streaks of wind at every height, a little wavy, brightest at the head
@@ -670,7 +682,7 @@ function MKA_ventDraw(v, r) {
  * ============================================================================= */
 const MKA_ICE = { deep: '#2f6ab0', sh: '#5aa8d8', base: '#9fdfff', lt: '#dff8ff', hi: '#ffffff' };
 def('mechanics', 'ice', { name: 'Rime Ice', title: 'The Rime Deep', adj: 'Frozen', noun: 'Rime Halls', color: '#8fd8ff', depth: 6, weight: 10,
-  tip: 'Foes knocked on ice slide far and slam into walls. Shatter a rime crystal to freeze a pack, then break them: the frozen shatter.',
+  tip: 'Foes knocked on ice slide far and slam into walls. Strike a rime crystal to freeze a pack, then break one: the frozen shatter, one into the next.',
   icon(g, x, y, s) {
     const R = MKA_ir(g, x, y, s);
     px.poly(g, [[x + 8 * s, y + 1 * s], [x + 12 * s, y + 6 * s], [x + 10.5 * s, y + 15 * s], [x + 5.5 * s, y + 15 * s], [x + 4 * s, y + 6 * s]], MKA_ICE.sh);
@@ -801,7 +813,8 @@ function MKA_rimeBurst(c) {
   sfx('freeze', { vol: 1 }); sfx('crack', { vol: .9 }); sfx('explode', { vol: .3, pitch: 1.8 }); game.freeze(.07); shake(4); game.flash('#bfefff', .12, .4);
   P.bits(x, y, 10, 28, ['#ffffff', '#dff8ff', '#9fdfff', '#5aa8d8']); P.glints(x, y, 12, 14, '#e8fbff', 30); P.ring(x, y, 4, 60, '#bfefff', .45); P.ring(x, y, 2, 36, '#ffffff', .3);
   eachEnemy('hero', x, y, 62, u => applyStatus(u, 'chill', u.boss ? 1 : 4, h));   // five stacks: frozen solid
-  FX.nova({ team: 'hero', src: h, x, y, r0: 6, r1: 62, dur: .32, el: 'frost', color: '#bfefff', hit: MKA_hit(heroHitAmount(1.2), 'frost', { kb: 110, statusChance: 0, tags: ['aoe', 'mechanic'] }) });
+  // (no knockback: the pack freezes where it stood, bunched, so that breaking one shatters the rest)
+  FX.nova({ team: 'hero', src: h, x, y, r0: 6, r1: 62, dur: .32, el: 'frost', color: '#bfefff', hit: MKA_hit(heroHitAmount(1.2), 'frost', { kb: 0, statusChance: 0, tags: ['aoe', 'mechanic'] }) });
   FX.scorch(x, y, 24, '#a8d8f0', 7);
   MKA_chunks(ED.L, x, y, 10);
 }
@@ -835,14 +848,21 @@ function MKA_slam(L0, m, sp, ux, uy, thing) {
   game.freeze(.05); shake(3); sfx('thud', { vol: .9 }); sfx('crack', { vol: .45 });
   if (m.rig) m.rig.kick(4); else if (m.blob) m.blob.kick(7);
 }
-/** a frozen foe breaks apart: shards fly, the body is gone, and the burst chills (and hurts) its neighbours */
+/** a frozen foe breaks apart: shards fly, the body is gone, and the burst chills (and hurts) its neighbours. Frozen
+ *  neighbours are brittle: the shards take a third of their life, so a frozen pack breaks in a chain, one into the next */
 function MKA_shatter(L0, m) {
   const x = m.x, y = m.y, z = (m.head || 20) * .5 * (m.scale || 1);
   m.gone = true;
   sfx('crack', { vol: 1 }); sfx('freeze', { vol: .7, pitch: .7 }); game.freeze(.05); shake(3);
   P.bits(x, y, z, 24, ['#ffffff', '#dff8ff', '#9fdfff', m.rig ? m.rig.C.cloth : m.blob ? m.blob.C.base : '#7fd8ff']); P.glints(x, y, z, 9, '#e8fbff', 16); P.ring(x, y, 3, 36, '#bfefff', .35); P.impact(x, y, z, 11, '#bfefff');
   MKA_chunks(L0, x, y, 7);
-  hitCircle('hero', x, y, 30, u => u === m ? null : MKA_hit(heroHitAmount(.7), 'frost', { kb: 110, ang: Math.atan2(u.y - y, u.x - x), statusChance: 1, statusPower: 1.2, tags: ['aoe', 'shatter', 'mechanic'] }));
+  const set = new Set([m]), n = (L0 && (L0._mkaShN = (L0._mkaShN || 0) + 1)) || 1;
+  game.after(.06, () => { if (L0) L0._mkaShN = Math.max(0, (L0._mkaShN || 1) - 1); });
+  eachEnemy('hero', x, y, 34, u => {   // (the brittle ones a beat later, nearest first: the chain reads as a ripple of cracks)
+    if (set.has(u)) return; set.add(u); const brittle = !!u.st.freeze && !u.boss, d = Math.hypot(u.x - x, u.y - y);
+    const hit = () => { if (!u.alive) return; if (brittle) u._mkaFrz = game.time; dealDamage(u, MKA_hit(heroHitAmount(brittle ? 1.4 : .7) + (brittle ? u.maxHp * .34 : 0), 'frost', { kb: brittle ? 0 : 110, ang: Math.atan2(u.y - y, u.x - x), statusChance: brittle ? 0 : 1, statusPower: 1.2, tags: ['aoe', 'shatter', 'mechanic'] })); };
+    if (brittle && n < 40) game.after(.05 + d / 400, hit); else hit();
+  });
 }
 
 /* =============================================================================
@@ -916,7 +936,7 @@ function MKA_vein(a, b, R) {
   return { a, b, pts, ph: R() };
 }
 function MKA_nest(L0, x, y, R) {
-  return { kind: 'nest', x, y, r: 9, R: 9 + R() * 2, H: 11 + R() * 3, solid: true, hittable: true, keep: true, hp: 0, maxHp: 0, depth: L0.depth || ED.depth || 1, ph: R() * TAU, rate: .85 + R() * .3, cd: 1 + R() * 2, birth: 0, open: 0, sq: 0, sqV: 0, flash: 0, kids: [], seed: R() * 99, mapColor: '#d8506a',
+  return { kind: 'nest', x, y, r: 9, R: 9 + R() * 2, H: 11 + R() * 3, solid: true, hittable: true, keep: true, hp: 0, maxHp: 0, depth: L0.depth || ED.depth || 1, ph: R() * TAU, rate: .85 + R() * .3, cd: .6 + R() * 1.4, birth: 0, open: 0, sq: 0, sqV: 0, flash: 0, kids: [], seed: R() * 99, mapColor: '#d8506a',
     onHit(hit) { MKA_nestHit(this, hit); }, update(dt) { MKA_nestStep(L0, this, dt); }, draw(r) { MKA_nestDraw(this, r); } };
 }
 function MKA_nestHp(n) { if (!n.maxHp) n.maxHp = n.hp = Math.round(75 * SCALE.foeHp(n.depth) * DIFF.foeHp); }
@@ -955,7 +975,7 @@ function MKA_nestStep(L0, n, dt) {
   if (n.birth > 0) { n.sqV += Math.sin(game.time * 45) * 60 * dt; if (Math.random() < dt * 20) P.add({ kind: 'bit', x: n.x, y: n.y, z: n.H, vx: (Math.random() - .5) * 30, vy: (Math.random() - .5) * 30, vz: 40, g: 300, max: .5, color: MKA_FLESH.hi }); if ((n.birth -= dt) <= 0) MKA_birth(L0, n); return; }
   const h = ED.hero; if (!h || !h.alive || Math.hypot(h.x - n.x, h.y - n.y) > 170 || n.kids.length >= 4) return;
   let all = 0; for (const q of L0.mkaNests) all += q.kids.length; if (all >= 26) return;
-  if ((n.cd -= dt * (1 + Math.min(1, (n.depth - 1) * .03))) <= 0) { n.cd = 2.6 + Math.random() * 1.6; n.birth = .55; sfx({ wave: 'sine', freq: 140, to: 90, dur: .5, vol: .18, vib: [9, .2] }); }
+  if ((n.cd -= dt * (1 + Math.min(1, (n.depth - 1) * .03))) <= 0) { n.cd = 2 + Math.random() * 1.2; n.birth = .55; sfx({ wave: 'sine', freq: 140, to: 90, dur: .5, vol: .18, vib: [9, .2] }); }
 }
 function MKA_birth(L0, n) {
   const id = REG.archetypes.broodling ? 'broodling' : REG.archetypes.crawler ? 'crawler' : 'slime', h = ED.hero;

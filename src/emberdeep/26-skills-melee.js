@@ -43,12 +43,19 @@ function SKM_hit(ctx, u, scale, o = {}) {
   if (o.up) x.up = o.up; if (o.stun) x.stun = o.stun; if (o.status) x.status = o.status; if (o.statusChance !== undefined) x.statusChance = o.statusChance;
   const q = { kb: o.kb || 0, extra: x }; if (o.el && o.el !== ctx.S.el) q.el = o.el; if (o.tags) q.tags = o.tags;
   const air = SKM_air(u) && u.team === 'foe' && !o.nojug;
+  if (!air) u.skmJugN = 0;   // back on its feet: the next juggle starts fresh
+  // juggle decay (as in fighting games): every blow that lifts a foe already in the air lifts it less (x0.8 each), the
+  // flurry's knee and uppercut included, so a string ends with the foe on the floor after six or seven blows instead
+  // of an endless, helpless float (the flurry alone used to keep one foe up for good)
+  const dk = air && !u.boss && (o.up || o.lift !== false) ? Math.pow(.8, u.skmJugN = (u.skmJugN || 0) + 1) : 1;
+  if (o.up) x.up = o.up * dk;
   if (air && !o.up && o.lift !== false && !u.boss) {   // the juggle: a blow on an airborne foe keeps it up, hanging just in front of him
-    x.up = Math.max(40, Math.sqrt(1040 * Math.max(0, 26 - (u.z || 0))) * Math.sqrt(u.mass || 1)); q.kb = 21;   // just enough to float back up to ~26: it hangs there
+    const top = 26 * dk;   // 21, 17, 13...
+    x.up = Math.max(28, Math.sqrt(1040 * Math.max(0, top - (u.z || 0))) * Math.sqrt(u.mass || 1)); q.kb = 21;   // just enough to float back up to the top: it hangs there
     const fx = h.x + Math.cos(h.facing) * 9, fy = h.y + Math.sin(h.facing) * 9;
     if (Math.hypot(u.x - h.x, u.y - h.y) < 40) { u.vx = (fx - u.x) * 2.5; u.vy = (fy - u.y) * 2.5; } else { u.vx *= .3; u.vy *= .3; }
   }
-  if (air && game.time - (u.skmJug || 0) > .6 && game.time - SKM_hit.pop > .35) { u.skmJug = SKM_hit.pop = game.time; P.text(u.x, u.y, (u.z || 0) + (u.head || 20) + 12, 'JUGGLE', '#ffd23a'); }
+  if (air && game.time - (u.skmJug || 0) > .6 && game.time - SKM_hit.pop > .35) { u.skmJug = SKM_hit.pop = game.time; P.text(u.x, u.y, (u.z || 0) + (u.head || 20) + 12, u.skmJugN > 1 ? 'JUGGLE x' + u.skmJugN : 'JUGGLE', '#ffd23a'); }
   return ctx.hit(scale * (air ? SKM_JUGGLE : 1), q);
 }
 SKM_hit.pop = -1;   // the JUGGLE popup, at most every .35 s
@@ -99,8 +106,10 @@ function SKM_dustRing(x, y, n, sp, color) { for (let i = 0; i < n; i++) { const 
 function SKM_streak(x, y, z, ang, n = 2, c = '#e8f4ff') { for (let i = 0; i < n; i++) { const o = (Math.random() - .5) * 10; P.add({ kind: 'spark', x: x - Math.sin(ang) * o, y: y + Math.cos(ang) * o, z: z + (Math.random() - .5) * 10, vx: -Math.cos(ang) * 240, vy: -Math.sin(ang) * 240, vz: 0, g: 0, drag: 7, max: .12, color: c, hot: '#ffffff' }); } }
 
 /* ---------- the hero's weapon: smears colored by the skill's element, the sword hidden while it flies ---------- */
-function SKM_smear(h, el) { if (el && el !== 'phys') { h.smear = EL(el).smear; h.skmSmear = true; } }
-function SKM_unsmear(h) { if (h.skmSmear) { h.smear = EL(h.look && h.look.el || 'phys').smear; h.skmSmear = false; } }
+// a rune's element colors the swing ribbon through the ACTION (drawHero prefers act.smear), so the hero's own smear
+// (his weapon's, a unique's, a mechanic's) is never overwritten and nothing has to be put back
+function SKM_smear(h, el) { if (el && el !== 'phys' && h.act) h.act.smear = EL(el).smear; }
+function SKM_unsmear(h) { if (h.skmSmear) { h.smear = EL(h.look && h.look.el || 'phys').smear; h.skmSmear = false; } }   // (old saves mid-skill)
 /** hide the rig's sword (Returning Blade): remembers the weapon kind; runs every step so a rig rebuilt by new gear hides it too */
 function SKM_takeSword(h) { if (h.rig.o.weapon) { h.skmHidden = h.rig.o.weapon; h.rig.o.weapon = null; } }
 function SKM_giveSword(h) { if (h.skmHidden) { if (!h.rig.o.weapon) h.rig.o.weapon = h.skmHidden; h.skmHidden = null; } }
@@ -111,7 +120,7 @@ function SKM_act(h, o) {
   return act;
 }
 /* the guard: whatever cut an action short (a scene change sets h.act = null, death, a new level), the sword comes back */
-BUS.on('step', e => { const h = ED.hero; if (!h || !h.rig) return; if (h.dead && h.z > 0) h.z = Math.max(0, h.z - 240 * e.dt);   // killed mid-leap: he falls
+BUS.on('step', () => { const h = ED.hero; if (!h || !h.rig) return;   // (killed mid-leap, he falls: updateHero drops him)
   if (h.act && h.act.skm) return; if (h.skmHidden) SKM_giveSword(h); if (h.skmSmear) SKM_unsmear(h); }, 'global');
 BUS.on('levelEnd', () => { const h = ED.hero; if (h && h.rig) { SKM_giveSword(h); SKM_unsmear(h); } }, 'global');
 
@@ -151,7 +160,7 @@ def('skills', 'cleave', {
     px.dot(g, ...P(8, 13), '#ffe070'); px.dot(g, ...P(10, 12), '#ffe070'); px.dot(g, ...P(7, 12), '#fff8d0'); px.dot(g, ...P(11, 14), '#ff9a3a');
   },
   cast(h, ctx) {
-    const fire = ctx.rune === 'molten', el = fire ? 'fire' : 'phys', atk = new E.Attack(SKM_CLEAVE), set = new Set(); atk.start(); h.facing = h.aim;
+    const fire = ctx.rune === 'molten', el = fire ? 'fire' : ctx.el, atk = new E.Attack(SKM_CLEAVE), set = new Set(); atk.start(); h.facing = h.aim;
     const act = SKM_act(h, { name: 'cleave', moveK: .12, speed: h.atkMul, face: h.aim, rig: { attack: null, expr: 'angry' },
       update(dt) {
         const began = atk.update(dt), st = atk.state; this.rig.attack = st; this.t += dt;
@@ -200,7 +209,7 @@ def('skills', 'whirlwind', {
     px.dot(g, ...P(8, 8.5), '#ffe070');
   },
   cast(h, ctx) {
-    const glacial = ctx.rune === 'glacial', vortex = ctx.rune === 'vortex', el = glacial ? 'frost' : 'phys', R = (27 + ctx.rank * .6) * ctx.area;
+    const glacial = ctx.rune === 'glacial', vortex = ctx.rune === 'vortex', el = glacial ? 'frost' : ctx.el, R = (27 + ctx.rank * .6) * ctx.area;
     const drain = 16 * (1 - clamp((h.stats.costRed || 0) / 100, 0, .6)), dust = glacial ? '#d8f4ff' : '#d8ccb4';
     let phase = 'wind', pt = 0, turns = 0, tick = 0, half = 0, stopAt = -1;
     const act = SKM_act(h, { name: 'whirlwind', hold: true, moveK: .5, face: null, interrupt: false, speed: h.atkMul, rig: { attack: null, pose: 'crouch', expr: 'angry' },
@@ -222,7 +231,7 @@ def('skills', 'whirlwind', {
           // cuts: a fresh set every tick, swept along the spin (and outward, unless the vortex holds them in)
           if ((tick -= dt) <= 0) {
             tick = 1 / 6; let n = 0;
-            hitCircle('hero', h.x, h.y, R, u => { const a = angTo(h, u) - (vortex ? 1.35 : .85); n++; P.sparks(u.x, u.y, (u.z || 0) + 10, 3, a, glacial ? { color: '#bfefff', hot: '#ffffff' } : undefined); if (glacial) elBurst(u.x, u.y, 10, 'frost', 3); return SKM_hit(ctx, u, .42, { kb: vortex ? 40 : 75, ang: a, el, statusChance: glacial ? .55 : undefined, lift: false }); }, new Set());
+            hitCircle('hero', h.x, h.y, R, u => { const a = angTo(h, u) - (vortex ? 1.35 : .85); n++; P.sparks(u.x, u.y, (u.z || 0) + 10, 3, a, glacial ? { color: '#bfefff', hot: '#ffffff' } : undefined); if (glacial) elBurst(u.x, u.y, 10, 'frost', 3); return SKM_hit(ctx, u, .42, { kb: vortex ? 30 : 45, ang: a, el, statusChance: glacial ? .55 : undefined, lift: false }); }, new Set());   // light shoves: the pack stays in the blade (at kb 75 one cut threw a husk out of reach)
             if (n) { game.freeze(.018); shake(1.2); sfx('hit', { vol: .35, pitch: 1.1 + Math.random() * .2 }); }
           }
           if (vortex) eachEnemy('hero', h.x, h.y, R * 2.4, u => { if (u.boss || SKM_air(u)) return; const d = Math.hypot(h.x - u.x, h.y - u.y); if (d < R * .55) return; const a = angTo(u, h), k = 95 * dt * Math.min(1, d / 24) / (u.mass || 1); u.x += Math.cos(a) * k + Math.cos(a + 1.57) * k * .5; u.y += Math.sin(a) * k + Math.sin(a + 1.57) * k * .5; });
@@ -266,7 +275,7 @@ def('skills', 'lunge', {
     px.dot(g, ...P(15, 7), '#ffffff'); px.dot(g, ...P(15, 9), '#bfefff');
   },
   cast(h, ctx) {
-    const a = h.aim, impale = ctx.rune === 'impale', viper = ctx.rune === 'viper', el = viper ? 'venom' : 'phys', col = viper ? '#8ae04a' : '#bff6ff';
+    const a = h.aim, impale = ctx.rune === 'impale', viper = ctx.rune === 'viper', el = viper ? 'venom' : ctx.el, col = viper ? '#8ae04a' : '#bff6ff';
     const want = Math.hypot(ctx.tx - h.x, ctx.ty - h.y), D = clamp(want + 14, 48, 84 + ctx.rank * 2 + ctx.pierce * 8), V = D / SKM_LUNGE.active;
     const set = new Set(), carried = [], ca = Math.cos(a), sa = Math.sin(a);
     let phase = 'wind', pt = 0, sx = h.x, sy = h.y, lx = 0, ly = 0, step = 0;
@@ -339,7 +348,7 @@ def('skills', 'leap', {
     px.dot(g, ...P(12, 13), '#ffffff');
   },
   cast(h, ctx) {
-    const meteor = ctx.rune === 'meteor', el = meteor ? 'fire' : 'phys', col = meteor ? '#ffb050' : '#fff2c4', maxD = 96 + ctx.rank * 3, a = Math.atan2(ctx.ty - h.y, ctx.tx - h.x);
+    const meteor = ctx.rune === 'meteor', el = meteor ? 'fire' : ctx.el, col = meteor ? '#ffb050' : '#fff2c4', maxD = 96 + ctx.rank * 3, a = Math.atan2(ctx.ty - h.y, ctx.tx - h.x);
     let d = clamp(Math.hypot(ctx.tx - h.x, ctx.ty - h.y), 0, maxD);
     while (d > 0 && !SKM_open(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d)) d -= 4;   // land on open floor, never in a pit
     d = Math.max(0, d);
@@ -415,7 +424,7 @@ def('skills', 'uppercut', {
     px.line(g, ...P(1, 15), ...P(8, 15), '#6a5a4a', W);
   },
   cast(h, ctx) {
-    const thunder = ctx.rune === 'thunder', el = thunder ? 'storm' : 'phys', atk = new E.Attack(SKM_RISE), set = new Set(); atk.start(); h.facing = h.aim;
+    const thunder = ctx.rune === 'thunder', el = thunder ? 'storm' : ctx.el, atk = new E.Attack(SKM_RISE), set = new Set(); atk.start(); h.facing = h.aim;
     const wel = thunder ? 'storm' : h.look && h.look.el || 'phys', cols = wel === 'phys' ? SKM_LIGHT : EL(wel).smear;   // a plain blade looses white sword-light
     const act = SKM_act(h, { name: 'uppercut', moveK: .1, face: h.aim, speed: h.atkMul, rig: { attack: null, expr: 'angry' },
       update(dt) {
@@ -526,7 +535,7 @@ def('skills', 'kick', {
     px.disc(g, ...P(13.5, 2.6), 1.7 * s, ft.sh); px.disc(g, ...P(13.2, 2.3), 1.1 * s, ft.base); px.dot(g, ...P(12.8, 1.9), ft.hi);
   },
   cast(h, ctx) {
-    const blaze = ctx.rune === 'blaze', el = blaze ? 'fire' : 'phys', atk = new E.Attack(SKM_KICK), set = new Set(); atk.start(); h.facing = h.aim;
+    const blaze = ctx.rune === 'blaze', el = blaze ? 'fire' : ctx.el, atk = new E.Attack(SKM_KICK), set = new Set(); atk.start(); h.facing = h.aim;
     const act = SKM_act(h, { name: 'kick', moveK: .15, face: h.aim, speed: h.atkMul, rig: { attack: null, facing: h.facing, expr: 'angry' },
       update(dt) {
         const began = atk.update(dt), st = atk.state; this.rig.attack = st; this.t += dt;
@@ -584,7 +593,7 @@ def('skills', 'flurry', {
     px.dot(g, ...P(13, 6), '#ffffff');
   },
   cast(h, ctx) {
-    const iron = ctx.rune === 'iron', thunder = ctx.rune === 'thunder', el = thunder ? 'storm' : 'phys', set = new Set();
+    const iron = ctx.rune === 'iron', thunder = ctx.rune === 'thunder', el = thunder ? 'storm' : ctx.el, set = new Set();
     const specs = SKM_FLURRY.slice(); if (iron) specs[3] = SKM_HAYMAKER;
     const combo = new E.Combo(specs, { window: .32 }); combo.press(); h.facing = h.aim;
     const act = SKM_act(h, { name: 'flurry', moveK: .35, face: h.aim, speed: h.atkMul, combo, rig: { attack: null },
@@ -599,8 +608,7 @@ def('skills', 'flurry', {
           if (thunder && u.team === 'foe') FX.chain({ team: 'hero', src: h, from: u, hops: fin ? 3 : 1, range: 60, el: 'storm', set: new Set([u]), hit: ctx.hit(.3, { el: 'storm', kb: 30 }) });
           return SKM_hit(ctx, u, H.dmg * (hay ? 1.3 : 1), { kb: hay ? 330 : H.kb, up: hay ? 60 : H.up, ang, el, stun: iron ? (hay ? .9 : .45) : undefined, statusChance: thunder ? .35 : undefined });
         }, set);
-        // holding the key keeps the blows coming
-        if (st && st.phase === 'recover' && st.u > .2 && this.slot !== undefined && game.input.down(SLOT_ACTS[this.slot]) && combo.press()) { this.face = h.aim; if (combo.step === 0) this.gained = 0; }
+        // (holding the key keeps the blows coming: updateHero repeats a held slot through again())
         this.free = !st || st.phase === 'recover';
         return combo.busy;
       } });
@@ -615,7 +623,8 @@ def('skills', 'flurry', {
 
 /* =============================================================================
  * RETURNING BLADE: he throws his own sword. It spins out flat toward the cursor, slows, turns and whirls back
- * to his hand, cutting everything on both passes; he catches it with a twirl. While it flies his hand is empty.
+ * to his hand, cutting everything on both passes; he catches it with a twirl. While it flies his hand is empty, but
+ * he is free: a skill or a dodge snaps the sword back to him and a spectral copy finishes the flight.
  * ============================================================================= */
 const SKM_THROW = SKM_spec('throw', { wind: .17, active: .08, recover: .24, hold: .35, lunge: 2.2, lean: .5, blade: 0 });
 const SKM_TWIRL = { name: 'twirl', rel: true, plane: 'side', a0: 1.2, a1: 1.2 - TAU, reach: 3.2, z0: 0, z1: 0, wind: .03, active: .22, recover: .26, hold: .3, lunge: -.3, lean: -.12, twist: .4, crouch: 0 };
@@ -688,10 +697,18 @@ def('skills', 'bladethrow', {
     for (const [dx, dy] of [[-1, -1], [1, 1]]) px.dot(g, ...P(8 + dx * 4, 7 + dy * 4), '#ffffff');
   },
   cast(h, ctx) {
-    const a = h.aim, echo = ctx.rune === 'echo', reap = ctx.rune === 'reap', el = 'phys', atk = new E.Attack(SKM_THROW); atk.start(); h.facing = a;
+    const a = h.aim, echo = ctx.rune === 'echo', reap = ctx.rune === 'reap', el = ctx.el, atk = new E.Attack(SKM_THROW); atk.start(); h.facing = a;
     const D = clamp(Math.hypot(ctx.tx - h.x, ctx.ty - h.y), 44, 112 + ctx.rank * 3), cols = EL(h.look && h.look.el || 'phys').smear;
     let phase = 'throw', pt = 0, blade = null;
     const recall = () => { if (blade && !blade.caught) { blade.gone = true; P.glints(blade.x, blade.y, blade.z, 6, '#ffffff', 8); P.glints(h.x, h.y, 14, 4, '#ffffff', 6); } };
+    // cut short while the sword flies (another skill, a dodge, a knock-down): the sword snaps back into his hand in a
+    // flash and a spectral copy finishes the flight at a phantom's damage, so the throw is never a trap. Dead, it just goes
+    const release = () => {
+      if (!blade || blade.caught || blade.gone || blade.phantom) return;
+      if (h.dead || !h.alive) { recall(); return; }
+      blade.phantom = true; P.glints(blade.x, blade.y, blade.z, 5, '#c890ff', 8);
+      const [hx, hy, hz] = h.rig.hand('R'); P.glints(hx, hy, hz, 5, '#ffffff', 6); sfx('skmCatch', { vol: .45, pitch: 1.2 });
+    };
     const act = SKM_act(h, { name: 'bladethrow', moveK: .2, face: a, speed: h.atkMul, rig: { attack: null, expr: 'angry' },
       update(dt) {
         pt += dt; this.t += dt;
@@ -710,7 +727,7 @@ def('skills', 'bladethrow', {
         if (!blade) { SKM_giveSword(h); return false; }
         if (!blade.caught && !blade.gone) SKM_takeSword(h);   // keep his hand empty (a rig rebuilt by new gear too)
         if (phase === 'wait') {
-          this.rig.attack = null;
+          this.rig.attack = null; this.free = true;   // an empty hand, not an idle hero: any skill or a dodge may follow
           const d = Math.hypot(blade.x - h.x, blade.y - h.y), back = blade.phase === 'back';
           this.face = back || blade.phase === 'hang' ? Math.atan2(blade.y - h.y, blade.x - h.x) : a;
           this.rig.point = back && d < 60; this.rig.aim = .2;   // the hand goes out to meet it
@@ -727,7 +744,7 @@ def('skills', 'bladethrow', {
         this.free = pt > tw.wind + tw.active;
         return pt < tw.wind + tw.active + tw.recover;
       },
-      end(interrupted) { if (interrupted || phase !== 'catch') recall(); SKM_giveSword(h); this.rig.point = false; } });
+      end() { if (phase !== 'catch') release(); SKM_giveSword(h); this.rig.point = false; } });
     return act;
   }
 });

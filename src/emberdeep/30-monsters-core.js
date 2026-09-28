@@ -20,10 +20,11 @@ const MOVE_FIX = {   // monster takes on E.MOVES (from the stress test), so each
   bash: { reach: 6, hop: 1.8, lean: .6, crouch: .5 },
   overhead: { a0: 2.4 - TAU, a1: -1.25 - TAU, twist: 0 }
 };
-/** a monster attack spec: the move with the monster's fixes, a slower telegraphed wind-up and a longer recovery */
-function foeSpec(a) {
+/** a monster attack spec: the move with the monster's fixes, a slower telegraphed wind-up and a longer recovery. The
+ *  wind-up never drops under .36 s (.42 s for heavy bodies, mass 2+): long enough to see the red arc grow and roll */
+function foeSpec(a, arch) {
   const sp = new E.Attack(a.move, Object.assign({}, MOVE_FIX[a.move] || {}, a.over || {})).spec;
-  return Object.assign(sp, { wind: Math.max(.3, sp.wind * (a.wind || 2.2)), recover: sp.recover + (a.recover === undefined ? .14 : a.recover) });
+  return Object.assign(sp, { wind: Math.max(arch && (arch.mass || 1) >= 2 ? .42 : .36, sp.wind * (a.wind || 2.2)), recover: sp.recover + (a.recover === undefined ? .14 : a.recover) });
 }
 const strikePt = (rig, spec) => rig.o.weapon && spec.blade !== 0 && spec.hand !== 'L' ? rig.tip() : rig.hand(spec.hand === 'L' ? 'L' : 'R');
 /** measure each attack once on a spare rig: how far its strike reaches and where the monster should stand for it */
@@ -31,7 +32,7 @@ function measureAttacks(arch) {
   if (arch._measured || !arch.attacks) return; arch._measured = true;
   const size = (arch.rig && arch.rig.size) || 1;
   for (const a of arch.attacks) {
-    a.spec = foeSpec(a);
+    a.spec = foeSpec(a, arch);
     if (arch.body !== 'humanoid' && arch.body !== undefined) { a.reach = a.reach || 14; a.stand = a.stand || 12; continue; }
     const rig = new E.Humanoid(arch.rig || {}); let far = 0, head = 0;
     for (let u = 0; u <= 1; u += .1) { rig.update(1, { x: 0, y: 0, stance: arch.stance, attack: { spec: a.spec, phase: 'active', u } }); far = Math.max(far, strikePt(rig, a.spec)[0]); head = Math.max(head, rig.head()[0]); }
@@ -109,8 +110,15 @@ function foeReact(hit) {
 function foeDie(hit) {
   const m = this;
   m.deadT = 0; m.atk = null;
-  // an overkill (a hit far bigger than the life left) throws the body: it flies back, spinning into its fall
-  if (hit && hit.dmg > m.maxHp * .45 && !m.boss && !m.canFly && hit.ang !== undefined) { const k = Math.min(220, 80 + hit.dmg / m.maxHp * 60) / (m.mass || 1); m.vx += Math.cos(hit.ang) * k; m.vy += Math.sin(hit.ang) * k; m.vz = Math.max(m.vz || 0, 70 + Math.random() * 50); m.z = Math.max(m.z, .5); }
+  // an overkill (a hit far bigger than the life left) throws the body: it flies back, spinning into its fall. The throw
+  // sets the speed along the blow (the hit's own knockback is already in vx, vy: it is topped up, never stacked), and a
+  // corpse never flies faster than 150 (a few tiles, so the fall happens on screen, not off it)
+  if (hit && hit.dmg > m.maxHp * .45 && !m.boss && !m.canFly && hit.ang !== undefined) {
+    const c = Math.cos(hit.ang), s = Math.sin(hit.ang), k = Math.min(150, 90 + hit.dmg / m.maxHp * 25) / Math.sqrt(Math.max(1, m.mass || 1)), along = m.vx * c + m.vy * s;
+    if (along < k) { m.vx += c * (k - along); m.vy += s * (k - along); }
+    m.vz = Math.max(m.vz || 0, 55 + Math.random() * 35); m.z = Math.max(m.z, .5);
+  }
+  if (!m.boss) { const v = Math.hypot(m.vx, m.vy), cap = (m.canFly ? 80 : 150) / Math.sqrt(Math.max(1, m.mass || 1)); if (v > cap) { m.vx *= cap / v; m.vy *= cap / v; } }   // a flyer drops out of the air (it is not thrown)
   if (hit && hit.noGore || m.noGore) {}
   else if (m.rig) P.bits(m.x, m.y, 8, 6, [m.rig.C.skin, m.rig.C.cloth, m.rig.C.boot]);
   else if (m.blob) { const c = m.blob.C; P.bits(m.x, m.y, m.z + 6, 12, [c.base, c.lt, c.dk]); P.ring(m.x, m.y, 3, 22, c.lt, .3); }
@@ -123,12 +131,15 @@ function foeDie(hit) {
 
 /* ---------- shared AI helpers ---------- */
 const AI = {
-  tokens: 0, nextTurn: 0,
+  tokens: 0, nextTurn: 0, shotNext: 0,
   maxAttackers: () => Math.min(8, 3 + Math.floor((ED.depth || 1) / 4)),
   /** attack turns: a few monsters attack at once, each new wind-up a moment after the last, so every hit has a readable author */
   takeTurn(m) { if (AI.tokens >= AI.maxAttackers() || game.time < AI.nextTurn || !ED.hero || !ED.hero.alive) return false; AI.tokens++; AI.nextTurn = game.time + .22 * (.7 + Math.random() * .6); return true; },
-  /** walk direction toward a point around walls (the level's flow field toward the hero, straight when close) */
-  steer(m, tx, ty) { const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1, fl = ED.L && ED.L.flow; if (d < 64 || !fl) return [dx / d, dy / d]; return fl.dir(m.x, m.y, tx, ty); },
+  /** walk direction toward a point around walls (the level's flow field toward the hero; straight when close and in the
+   *  open, so a monster round a corner follows the field instead of pressing into the wall) */
+  steer(m, tx, ty) { const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1, fl = ED.L && ED.L.flow; if (!fl || d < 20 || (d < 64 && AI.clear(m, tx, ty))) return [dx / d, dy / d]; return fl.dir(m.x, m.y, tx, ty); },
+  /** an open line from a monster to a point (cached a moment per monster: map.los walks the line) */
+  clear(m, tx, ty) { const a = m.ai || (m.ai = {}); if (game.time < (a.clrT || 0) && Math.abs(tx - a.clrX) + Math.abs(ty - a.clrY) < 12) return a.clr; a.clrT = game.time + .2 + Math.random() * .1; a.clrX = tx; a.clrY = ty; const map = ED.L && ED.L.map; return (a.clr = !map || map.los(m.x, m.y, tx, ty)); },
   /** is the hero close enough (and seen) for this monster to wake and chase? */
   aware(m, rad = 150) {
     const h = ED.hero; if (!h || !h.alive) return false; if (m.ai.aware) return true;
@@ -213,13 +224,17 @@ def('ai', 'orb', { update(m, dt) {
   const h = ED.hero, a = m.ai, dx = h.x - m.x, dy = h.y - m.y, d = Math.hypot(dx, dy) || 1, sh = m.arch.shot || {};
   a.t = (a.t || Math.random() * 9) + dt; if (a.orbit === undefined) { a.orbit = Math.random() < .5 ? 1 : -1; a.fire = 1 + Math.random() * 2; }
   let ax = 0, ay = 0;
-  if (AI.aware(m, 170) && m.stunT <= 0) { const want = d > (sh.far || 110) ? 1 : d < (sh.near || 70) ? -1 : 0; ax = dx / d * want * 60 + (-dy / d) * a.orbit * 34; ay = dy / d * want * 60 + (dx / d) * a.orbit * 34; }
+  const see = AI.clear(m, h.x, h.y);
+  if (AI.aware(m, 170) && m.stunT <= 0) {
+    if (!see && ED.L && ED.L.flow) { const s = ED.L.flow.dir(m.x, m.y, h.x, h.y); ax = s[0] * 60; ay = s[1] * 60; }   // a wall between: float round it (the level's flow field), never hover pinned behind it
+    else { const want = d > (sh.far || 110) ? 1 : d < (sh.near || 70) ? -1 : 0; ax = dx / d * want * 60 + (-dy / d) * a.orbit * 34; ay = dy / d * want * 60 + (dx / d) * a.orbit * 34; }
+  }
   const k = statusSpeed(m) * m.speed / 30;
   m.vx += (ax * k - m.vx * 1.6) * dt; m.vy += (ay * k - m.vy * 1.6) * dt;
   m.z = (m.arch.hover || 20) + Math.sin(a.t * 2) * 3;
-  if (m.ai.aware && h.alive && m.stunT <= 0 && d < 180 && statusSpeed(m) > 0) {
+  if (m.ai.aware && h.alive && m.stunT <= 0 && d < 180 && statusSpeed(m) > 0 && (see || a.charge > 0)) {
     if (a.charge > 0) { a.charge -= dt; if (a.charge <= 0) { const n = sh.n || 1; for (let i = 0; i < n; i++) { const an = Math.atan2(dy, dx) + (n > 1 ? (i / (n - 1) - .5) * (sh.spread || .5) : 0); FX.bolt({ team: 'foe', src: m, x: m.x, y: m.y, z: m.z, ang: an, speed: sh.speed || 95, life: 3, r: 3, el: m.el === 'phys' ? 'void' : m.el, hit: { amount: m.dmg * (sh.dmg || .8), kb: 60 }, look: Object.assign({ kind: 'orb', size: 1.6 }, sh.look || {}), light: 30 }); } sfx('shoot', { vol: .35, pitch: .7 }); a.fire = (sh.every || 2.5) + Math.random() * 2; } }
-    else { a.fire -= dt; if (a.fire <= 0) a.charge = .6; }
+    else { a.fire -= dt; if (a.fire <= 0 && game.time >= AI.shotNext) { a.charge = .6; AI.shotNext = game.time + .14 + Math.random() * .1; } }   // a swarm's shots come one after another, never as one volley
   }
 } });
 
@@ -298,11 +313,14 @@ function updateCorpses(dt) {
     const life = m.arch.body === 'wisp' ? POP_T : m.arch.corpseT || DEAD_T;
     if (m.deadT > life || m.gone) { C.splice(i, 1); continue; }
     const airborne = m.z > 0;
-    if (!airborne) { m.vx = approach(m.vx, 0, 300 * dt); m.vy = approach(m.vy, 0, 300 * dt); }
+    if (!airborne) { const k = 480 * dt / (Math.hypot(m.vx, m.vy) || 1); m.vx = approach(m.vx, 0, Math.abs(m.vx) * k); m.vy = approach(m.vy, 0, Math.abs(m.vy) * k); }   // a body skids to a stop along its line
     m.x += m.vx * dt; m.y += m.vy * dt;
     if (airborne) { m.vz = (m.vz || 0) - 520 * dt; m.z = Math.max(0, m.z + m.vz * dt); if (m.z === 0) { P.dust(m.x, m.y, 0, 5); if (m.rig) m.rig.kick(-4); } }
     collideUnit(m);
-    if (m.rig) m.rig.update(dt, { x: m.x, y: m.y, z: m.z, facing: m.facing, pose: 'die' });
+    // the topple: the rig's own 'die' drops the body flat in a sixth of a second once the knees give (.45 s), a snap on a
+    // big body. It falls like a tree instead (slow, then faster), the heavier the slower: 'down' eases in over T seconds
+    // (the rig's own die clock, so a death that holds a boss on its knees keeps it there)
+    if (m.rig) { const T = .26 * Math.sqrt(m.rig.o.size || 1), u = ((m.rig.dieT || 0) + dt - .45) / T; m.rig.update(dt, { x: m.x, y: m.y, z: m.z, facing: m.facing, pose: 'die', down: u <= 0 ? 0 : Math.min(1, u * u) }); }
     else if (m.blob) { m.z = Math.max(0, m.z - 80 * dt); m.blob.update(dt, { squash: -.42, squint: true, flap: 0 }); }
     else if (m.body && m.body.update) m.body.update(dt, m);
   }
@@ -330,6 +348,26 @@ function drawFoe(m, r) {
   for (const id of m.affixes) { const a = REG.affixes[id]; if (a && a.draw && m.alive) a.draw(m, r); }
   if (m.glow && m.alive) L.add(m.x, m.y, m.z + 10, m.glow[1] || 50, .7, { color: m.glow[0] });
 }
+/**
+ * is a glow at world (x, y, z) in the open, or hidden behind a wall standing in front of it on screen? The emissive
+ * pass draws glowing items again after the lighting, over everything (walls too), so eyes and orbs would shine through
+ * rock. Glows use { emissive: foeGlowSeen(...) }: hidden ones stay in the depth-sorted pass, where the wall covers them.
+ * It walks the floor toward the camera along the glow's own screen column (a few cells at most) and asks whether a
+ * wall's top (at its drawn height: walls in front of a floor are cut down to stubs) rises over the glow.
+ */
+function foeGlowSeen(x, y, z) {
+  const map = ED.L && ED.L.map, v = game.view; if (!map || !map.types || v.isTop) return true;
+  let ux = -v.ay, uy = v.ax; const l = Math.hypot(ux, uy) || 1; ux /= l; uy /= l;
+  let g = v.bx * ux + v.by * uy; if (g < 0) { ux = -ux; uy = -uy; g = -g; }   // the floor direction that runs down the screen
+  if (g < .05 || v.bz >= 0) return true;
+  const reach = Math.min(90, -v.bz * Math.max(0, 50 - z) / g), T = map.T || 16;
+  for (let s = 5; s <= reach; s += 5) {
+    const cx = Math.floor((x + ux * s) / T), cy = Math.floor((y + uy * s) / T), c = map.cell(cx, cy); if (c === 0) continue; if (c < 0 || !map.types[c]) return true;
+    const h = map._isFront && map._isFront(cx, cy, v) ? (map.types[c].cutH || 6) : map.types[c].h;
+    if (g * s < -v.bz * (h - z)) return false;
+  }
+  return true;
+}
 /** the red wind-up arc on the floor that grows toward the target */
 function telegraphArc(r, m, u, reach, half = .8) {
   r.decal(() => r.groundArc(m.x, m.y, m.r * .6, m.r * .6 + (reach - m.r * .6) * u, m.facing - half, m.facing + half, '#ff4a3a', .25 + .45 * u), { emissive: .2 + .35 * u });
@@ -344,12 +382,23 @@ function drawWisp(g, ox, oy, m, r) {
 function drawFoeBars(r) {
   if (!OPT.bars) return;
   r.overlay(g => {
+    const names = [];
     for (const m of ED.foes) {
       if (!m.alive || m.spawnT > 0 || m.boss || (!m.elite && m.hp >= m.maxHp)) continue;
       if (!r.visible(m.x, m.y, m.z, 20, 20, 40)) continue;
       const [x, y] = r.w(m.x, m.y, m.z + (m.head || 28) * (m.scale || 1) + 4), w = m.elite ? 26 : 16;
       px.rect(g, x - w / 2 - 1, y - 1, w + 2, 4, '#0c0818'); px.rect(g, x - w / 2, y, w, 2, '#3a1a26'); px.rect(g, x - w / 2, y, Math.max(0, Math.round(w * m.hp / m.maxHp)), 2, m.elite === 2 ? '#ffb040' : m.elite ? '#6a9aff' : '#e0463c');
-      if (m.elite === 2 || (m.elite === 1 && m.packLead)) E.font.text(g, m.name, x, y - 9, m.elite === 2 ? '#ffd36a' : '#9ab8ff', { align: 'center', font: 'tiny', outline: '#0c0818' });
+      if (m.elite === 2 || (m.elite === 1 && m.packLead)) names.push({ m, x, y: y - 9 });
+    }
+    // names never pile up: bottom to top on screen, a name that would overlap one already placed moves up a line (a few
+    // at most), and a copy of a name already shown there (an illusionist's decoys) is left out: one name per group
+    names.sort((a, b) => b.y - a.y); const placed = [];
+    for (const n of names) {
+      const hw = E.font.width(n.m.name, { font: 'tiny' }) / 2 + 2, hit = y => placed.find(p => Math.abs(p.x - n.x) < p.hw + hw && Math.abs(p.y - y) < 8);
+      let y = n.y, p = hit(y); if (p && p.name === n.m.name) continue;
+      for (let k = 0; k < 3 && p; k++) { y = p.y - 8; p = hit(y); }
+      placed.push({ x: n.x, y, hw, name: n.m.name });
+      E.font.text(g, n.m.name, n.x, y, n.m.elite === 2 ? '#ffd36a' : '#9ab8ff', { align: 'center', font: 'tiny', outline: '#0c0818' });
     }
   });
 }

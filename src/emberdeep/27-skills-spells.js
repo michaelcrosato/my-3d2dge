@@ -288,9 +288,9 @@ def('skills', 'frostnova', {
     (rune === 'shatter' ? ' Frozen enemies then shatter for ' + SKS_pc(1.3, rank) + '.' : rune === 'rime' ? ' A rime field lingers for 4 seconds.' : ''),
   icon: (g, x, y, s) => SKS_ICON.frost(g, x, y, s),
   cast(h, ctx) {
-    const atk = new E.Attack(Object.assign({}, SKS_SLAM)); atk.start(); h.facing = h.aim; h.smear = SKS_SMEAR.frost; sfx('sks_gather');
+    const atk = new E.Attack(Object.assign({}, SKS_SLAM)); atk.start(); h.facing = h.aim; sfx('sks_gather');
     const R = 50 * ctx.area * (1 + .03 * (ctx.rank - 1));
-    return { name: 'frostnova', atk, moveK: .12, face: h.aim, cancel: true, speed: h.castMul, rig: { attack: null, expr: 'angry' }, free: false,
+    return { name: 'frostnova', atk, moveK: .12, face: h.aim, cancel: true, speed: h.castMul, rig: { attack: null, expr: 'angry' }, free: false, smear: SKS_SMEAR.frost,   // the ribbon rides on the action: the hero's own smear is never touched
       update(dt) {
         this.t += dt; const began = atk.update(dt), st = atk.state; this.rig.attack = st;
         if (st && st.phase === 'wind' && Math.random() < .8) { const [bx, by, bz] = h.rig.tip(), a = Math.random() * TAU, d = 7 + Math.random() * 7; P.add({ kind: 'dust', x: bx + Math.cos(a) * d, y: by + Math.sin(a) * d, z: bz + (Math.random() - .5) * 8, vx: -Math.cos(a) * d * 6, vy: -Math.sin(a) * d * 6, drag: 3, max: .2, size: 1.1, color: '#dff8ff' }); }
@@ -304,8 +304,7 @@ def('skills', 'frostnova', {
         const [bx, by, bz] = h.rig.tip(), k = st.u;
         r.queue(bx, by, bz, g => { const [x, y] = r.w(bx, by, bz), zm = r.view.zoom || 1; px.glow(g, 1); r.glowDisc(g, x, y, (4 + 6 * k) * zm, '#7fd8ff', .55); px.disc(g, x, y, (1 + 1.6 * k) * zm, '#e8fbff'); if (k > .5) { px.rect(g, x - 3 * k * zm, y, SKS_I(6 * k * zm) + 1, 1, '#ffffff'); px.rect(g, x, y - 3 * k * zm, 1, SKS_I(6 * k * zm) + 1, '#ffffff'); } }, { emissive: true, bias: .7 });
         L.add(bx, by, bz, 30 + 30 * k, .9 * k, { color: '#a8ecff' });
-      },
-      end() { h.smear = EL(h.look.el).smear; } };
+      } };
   }
 });
 
@@ -430,7 +429,7 @@ function SKS_rockDraw(mfx, x, y, delay, size, el) {
 /** where the rock lands: crater, flying stones, a column of flame or frost, and the light of it */
 function SKS_crater(x, y, R, el, size) {
   const e = EL(el), frost = el === 'frost';
-  FX.scorch(x, y, R * .85, frost ? '#bfe6f6' : '#140c10', 6); game.freeze(.07); shake(2 + 2 * size); game.flash(frost ? '#dff8ff' : '#ffd080', .1, .45 * size);
+  FX.scorch(x, y, R * .85, frost ? '#bfe6f6' : '#140c10', 6); game.freeze(.07 * Math.min(1, size * size)); shake(2 + 2 * size); game.flash(frost ? '#dff8ff' : '#ffd080', .1, .45 * size);   // (a shower's small rocks barely stop time)
   P.bits(x, y, 6, Math.round(12 * size), frost ? SKS_ICEBITS : ['#3a2a24', '#5a3a2e', '#8a5a3a', '#ffb040']);
   if (frost) { SKS_spikeRing(x, y, R * 1.05, .18, 1.2); SKS_iceBurst(x, y, 6, 2 * size); sfx('sks_frost'); }
   for (let i = 0; i < (frost ? 8 : 14) * size; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 120; P.add({ kind: frost ? 'dust' : 'fire', x, y, z: 4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 90 + Math.random() * 120, g: 220, drag: 1.5, max: .5 + Math.random() * .4, size: (frost ? 1.4 : 3) * size, color: '#cfeaf6' }); }
@@ -931,7 +930,7 @@ def('skills', 'blink', {
         if (!this.spin) {   // back: out of the smoke with a spinning cut
           h.x = ex; h.y = ey; this.z = 0; this.rig.dash = false; this.face = face; h.facing = face; this.cancel = true;
           P.smoke(ex, ey, 4, 8, SKS_SMOKE); elBurst(ex, ey, 10, 'void', 12); P.ring(ex, ey, 3, 30 * ctx.area, '#c890ff', .3); sfx('sks_appear');
-          this.spin = new E.Attack('spin', { wind: .02, active: .2, recover: .22, lunge: 0, z0: -10, z1: -10 }); this.spin.start(); this.rig.expr = 'shout'; h.smear = SKS_SMEAR.shadow; this.back = t;
+          this.spin = new E.Attack('spin', { wind: .02, active: .2, recover: .22, lunge: 0, z0: -10, z1: -10 }); this.spin.start(); this.rig.expr = 'shout'; this.smear = SKS_SMEAR.shadow; this.back = t;
         }
         h.fade = Math.min(1, (t - this.back) / .07); if (h.fade >= 1) { h.fade = undefined; h.sksFaded = false; }
         this.spin.update(dt); const st = this.spin.state; this.rig.attack = st;
@@ -949,12 +948,12 @@ def('skills', 'blink', {
           r.actor(q.x, q.y, 0, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view), { alpha: a * .75, flash: '#1c0e30', flashMix: 1, outlineColor: '#a060e0', rim: false });
         });
       },
-      end() { if (h.sksFaded) { h.fade = undefined; h.sksFaded = false; } this.z = 0; h.smear = EL(h.look.el).smear; } };
+      end() { if (h.sksFaded) { h.fade = undefined; h.sksFaded = false; } this.z = 0; } };
   }
 });
 // a safety net: whatever ends the step (death, a level change), he is never left invisible
 BUS.on('step', () => {
   const h = ED.hero; if (!h) return;
-  if (h.sksFaded && !(h.act && h.act.sksBlink)) { h.fade = undefined; h.sksFaded = false; h.smear = EL(h.look.el).smear; }
+  if (h.sksFaded && !(h.act && h.act.sksBlink)) { h.fade = undefined; h.sksFaded = false; }
   if (!h.dead) for (const b of h.buffs) if (b.sksMake && !ED.fx.includes(b.sksFx)) b.sksFx = b.sksMake();   // a new level cleared the effects, not the buffs: the blades and the aura come back
 });

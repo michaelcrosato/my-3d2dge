@@ -113,6 +113,21 @@ function titleItems() {
 }
 function loadHeroOrNew() { const s = loadSave(); if (s) { const h = makeHero(s); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(); }
 function startGame(fresh) { if (fresh) { E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
+/** the title menu's top and row step: stacked up from the key legend at the bottom (5 rows fit at 240 px) */
+function titleMenu(n) { const step = 16, y = game.H - 29 - n * step; return { y, step }; }
+/** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
+const KATA = ['slash', 'backslash', 'spin', 'thrust'];
+function titleKata(t) {
+  const k = t % 12;
+  if (k >= 3.2 && k < 5.6) {   // each move stretched to 0.6 s so the eye can follow it
+    const j = Math.floor((k - 3.2) / .6), S = E.move(KATA[j]).spec, tot = S.wind + S.active + S.recover, x = ((k - 3.2) % .6) / .6 * tot;
+    const st = x < S.wind ? { spec: S, phase: 'wind', u: x / S.wind } : x < S.wind + S.active ? { spec: S, phase: 'active', u: (x - S.wind) / S.active } : { spec: S, phase: 'recover', u: (x - S.wind - S.active) / S.recover };
+    return { attack: st, expr: st.phase === 'active' ? 'shout' : null };
+  }
+  if (k >= 5.6 && k < 7.6) return { stance: 'ready' };
+  if (k >= 10) return { pose: 'cheer', expr: k < 11 ? 'shout' : 'smile' };
+  return {};
+}
 const titleScene = {
   enter() {
     ED.mode = 'title'; UI.closeAll(); TITLE.t = 0; TITLE.confirmNew = false;
@@ -123,18 +138,20 @@ const titleScene = {
     const L0 = { kind: 'title', rec, depth: 0, name: rec.name, theme: REG.themes.crypt, hue: 0, w, h: hh, cells, tags: new Array(w * hh).fill(null), rooms: [{ x: 1, y: 1, w: w - 2, h: hh - 2, cx: w / 2, cy: hh / 2 }], things: [], props: [], torches: [], runes: [{ x: w * 8, y: hh * 8, r: 54 }], mechs: [], seen: new Uint8Array(w * hh), npcs: [] };
     L0.pal = CRYPT; L0.map = new E.TileMap({ w, h: hh, tile: T16, cells, types: REG.themes.crypt.walls, floorTex: (x, y, tag) => cryptFloor(L0, x, y, tag, CRYPT) }); L0.flow = new E.FlowField(L0.map);
     for (const [x, y] of [[10, 8], [20, 8], [10, 16], [20, 16]]) L0.torches.push({ x: x * T16, y: y * T16, t: Math.random() * 9, kind: 'brazier', color: '#ff9a4a', r: 4.5, solid: true });
-    L0.start = { x: w * 8, y: hh * 8 + 20 };
+    L0.start = { x: w * 8, y: hh * 8 };   // the centre of the rune circle
     enterWorld(L0); L.ambient = .1;
+    if (ED.demo) { ED.demo = false; ED.hero = ED.realHero || null; ED.realHero = null; }   // back from the attract mode (swapped here, not before the fade: the demo depth still draws while it fades out)
     const h = ED.hero || loadHeroOrNew(); ED.titleHero = h; h.x = L0.start.x; h.y = L0.start.y; h.facing = Math.PI / 2 * .9; h.aim = h.facing; h.act = null; h.z = 0;
-    game.cam.snap = true; game.setZoom(1.5); playSong('title');
+    game.cam.snap = true; game.setZoom(1.75); playSong('title');
   },
   update(dt) {
     TITLE.t += dt;
     if (updateUI(dt)) return;
     const h = ED.titleHero, items = titleItems();
-    if (game.input.anyPressed() || UI.mouse.down) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
+    const mm = UI.mouse.cx + ',' + UI.mouse.cy, moved = mm !== TITLE.mm; TITLE.mm = mm;   // a hand on the mouse is not idle either
+    if (game.input.anyPressed() || UI.mouse.down || moved) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
     if (TITLE.idle > 28 && !UI.stack.length) { TITLE.idle = 0; startDemo(); return; }
-    h.rig.update(dt, { x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02), pose: TITLE.t % 9 > 7.2 ? 'cheer' : null });
+    h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, titleKata(TITLE.t)));
     h.facing = h.rig.facing;
     for (const b of ED.L.torches) b.t += dt;
     const inp = game.input;
@@ -142,23 +159,26 @@ const titleScene = {
     if (inp.repeat('down')) { TITLE.menu = (TITLE.menu + 1) % items.length; sfx('select'); UI.keyNav = true; }
     if (inp.pressed('confirm') || inp.pressed('start')) { inp.consumeAll(); sfx('confirm'); items[clamp(TITLE.menu, 0, items.length - 1)][1](); }
     if (Math.random() < dt * 8) { const b = rnd.pick(ED.L.torches); P.add({ kind: 'ember', x: b.x + (Math.random() - .5) * 6, y: b.y + (Math.random() - .5) * 6, z: 14, vx: (Math.random() - .5) * 14, vy: (Math.random() - .5) * 14, vz: 20 + Math.random() * 40, max: 1.2, color: '#ff8a3a' }); }
-    game.focus(h.x, h.y + 26, 16);   // the hero stands above the menu
+    // the hero stands just above the menu: slide the look point toward (or away from) the camera until his feet sit there
+    const v = game.view, fl = Math.hypot(v.fx || 0, v.fy === undefined ? 1 : v.fy) || 1, fx = (v.fx || 0) / fl, fy = (v.fy === undefined ? 1 : v.fy) / fl;
+    const a = v.p(h.x, h.y, 0), b = v.p(h.x + fx * 10, h.y + fy * 10, 0), s = (b[1] - a[1]) / 10, k = Math.abs(s) > .05 ? clamp((game.H / 2 - titleMenu(items.length).y + 3) / s, -150, 150) : 0;
+    game.focus(h.x + fx * k, h.y + fy * k, 0);
   },
   draw(r) {
     const L0 = ED.L, h = ED.titleHero;
     L0.map.drawFloor(r); L0.map.queueWalls(r); drawTorches(L0, r);
     r.shadow(h.x, h.y, 5.5, .55);
     r.actor(h.x, h.y, 0, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view), {});
-    h.rig.drawSmear(r, h.smear);
+    h.rig.drawSmear(r, h.smear || undefined);   // the kata's swings leave the same ribbon as in play
     L.add(L0.w * 8, L0.h * 8, 3, 78, .55 + .12 * Math.sin(game.time * 1.7), { color: '#4fe0cc', shadow: true });
     r.overlay(g => {
       const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1);
       px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
       E.font.title(g, 'EMBERDEEP', cx, 14, { scale: 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
       E.font.text(g, 'a my-3D2dge game  •  the deep goes on forever', cx, 50, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
-      const items = titleItems(), bw = 118, by = Math.round(H * .6);
-      items.forEach(([label, fn], i) => button(g, cx - bw / 2, by + i * 19, bw, 15, label, () => { TITLE.menu = i; fn(); }, { focus: TITLE.menu === i }));
-      const h2 = ED.titleHero; if (E.store.get('ed:save', null)) E.font.text(g, 'Level ' + h2.level + ' • deepest ' + h2.maxDepth, cx, by - 11, '#9a90b0', { align: 'center', font: 'tiny', outline: false });
+      const items = titleItems(), M = titleMenu(items.length), bw = 118;   // laid out up from the key legend, so every item shows
+      items.forEach(([label, fn], i) => button(g, cx - bw / 2, M.y + i * M.step, bw, 13, label, () => { TITLE.menu = i; fn(); }, { focus: TITLE.menu === i }));
+      const h2 = ED.titleHero; if (E.store.get('ed:save', null)) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
       px.blend(g, .7, 'normal', () => px.rect(g, 0, H - 21, W, 21, '#05040a'));
       E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
       E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
@@ -169,7 +189,7 @@ const titleScene = {
 
 /* ---------- ATTRACT MODE: a demo hero, played by the autopilot on a random depth; any key returns to the title ---------- */
 function startDemo() {
-  ED.demo = true; ED.realHero = ED.hero;
+  ED.demo = true; ED.demoEnding = false; ED.realHero = ED.hero;
   const h = newHero(), depth = 1 + Math.floor(Math.random() * Math.min(15, PLANNED)), R = RNG(depth * 7 + 1);
   h.level = 3 + depth * 2; h.pts.skill = h.level; h.pts.passive = 0;
   for (const s of ['weapon', 'helm', 'chest', 'gloves', 'boots', 'cloak', 'legs']) if (R() < .8) h.gear[s] = makeItem({ slot: s, ilvl: depth + 2, rarity: R.int(1, 3), R });
@@ -177,7 +197,7 @@ function startDemo() {
   ED.hero = h; botOn(h, true); botManage(h);
   game.go('level', { depth, demo: true });
 }
-function endDemo() { ED.demo = false; ED.hero = ED.realHero || null; ED.realHero = null; game.go('title'); }
+function endDemo() { if (!ED.demoEnding) { ED.demoEnding = true; game.go('title'); } }   // titleScene.enter swaps the real hero back
 
 /* ---------- TOWN ---------- */
 const talk = new E.Dialog(game, { bg: ['#2a2040', '#141024'], border: '#c8b8e8' });
@@ -191,25 +211,39 @@ const townScene = {
     h.x = at.x; h.y = at.y; h.vx = h.vy = 0; h.act = null; h.potions = h.maxPotions; h.hp = h.maxHp;
     if (ED.savedLevel) L0.portal = Object.assign({}, L0.portalSpot || { x: L0.waystone.x + 30, y: L0.waystone.y + 10 }, { t: 0 });
     if (o.arrive === 'intro' || o.arrive === 'waystone') dropIn(h, o.arrive === 'intro' ? 180 : 90);
+    if (o.arrive === 'portal') { h.facing = h.aim = Math.PI / 2; h.inv = 1; P.ring(at.x, at.y - 22, 3, 22, '#8ab4ff', .45); P.dust(h.x, h.y, 0, 8, { speed: 34 }); P.glints(h.x, h.y, 12, 10, '#bff6ff', 16); }   // he steps out of the portal
     game.cam.snap = true; playSong(L0.music || 'town'); saveGame();
     if (o.arrive === 'intro') { showCard('Emberhold', 'THE LAST LIT TOWN', null, 4); game.after(4.5, () => notify('THE WAYSTONE IN THE SQUARE LEADS DOWN.  (E TO USE)', '#bff6ff', 5)); }
   },
   update(dt) {
-    if (talk.update(dt)) { if (UI.modal) updateUI(dt); townLife(dt); return; }
+    if (talkStep(dt)) { if (UI.modal) updateUI(dt); townLife(dt); return; }
     const waiting = updateUI(dt);
     const L0 = ED.L, h = ED.hero, inp = game.input;
     if (waiting) { townLife(dt); return; }
+    if ((L0.saveT = (L0.saveT || 0) + dt) > 20) { L0.saveT = 0; saveGame(); }   // purchases, crafting and gambling are kept even if the tab closes
     worldStep(dt, { town: true, canAct: true });
     for (const n of L0.npcs) updateNPC(n, dt);
     // who is close enough to talk to, the waystone, the portal back
     const near = L0.npcs.filter(n => Math.hypot(n.x - h.x, n.y - h.y) < (n.S.talkR || 26)).sort((a, b) => dist2(a, h) - dist2(b, h))[0];
-    const onStone = L0.waystone && Math.hypot(L0.waystone.x - h.x, L0.waystone.y - h.y) < 16;
+    const onStone = L0.waystone && Math.hypot(L0.waystone.x - h.x, L0.waystone.y - h.y) < 22;   // the stone is solid: close enough to touch is close enough
     if (near) { UI.prompt = '[E] Talk to ' + near.S.name; if (inp.pressed('interact')) talkTo(near); }
-    else if (onStone) { UI.prompt = '[E] Use the waystone'; if (inp.pressed('interact')) UI.open('waystone'); }
+    else if (onStone) { UI.prompt = '[E] Use the waystone'; if (inp.pressed('interact')) { UI.open('waystone'); UI.keyNav = true; } }   // opened by key: Enter picks the highlighted depth
     if (L0.portal && ED.savedLevel && Math.hypot(L0.portal.x - h.x, L0.portal.y - h.y) < 10) returnThroughPortal();
   },
   draw(r) { worldDraw(r); talk.draw(r); }
 };
+/** the talk dialog: E (the key that opened it) and a left click turn its pages too, not only Space / Enter */
+function talkStep(dt) {
+  if (!talk.open) return false;
+  const inp = game.input;
+  if ((inp.pressed('interact') && !inp.pressed('confirm')) || inp.pressed('click')) {
+    const byKey = !inp.pressed('click'); inp.consume('interact'); inp.consume('click'); inp.consume('s0');
+    if (talk.typing) talk.shown = talk.pageLen;
+    else if (talk.i < talk.pages.length - 1) { talk.i++; talk.shown = 0; }
+    else { talk.close(); sfx('confirm'); if (talk.onDone) talk.onDone(); if (byKey) UI.keyNav = true; return true; }   // a service panel opened by key is driven by keys
+  }
+  return talk.update(dt);
+}
 function townLife(dt) { const L0 = ED.L; for (const n of L0.npcs) updateNPC(n, dt); for (const b of L0.torches) b.t += dt; if (L0.theme && L0.theme.ambience) L0.theme.ambience(L0, dt); ED.hero.rig.update(dt, { x: ED.hero.x, y: ED.hero.y, facing: ED.hero.facing, pose: UI.modal ? null : 'hips' }); }
 function reviveIfDead(h) { if (h.dead || !h.alive) reviveHero(h); }
 function talkTo(n) {
@@ -227,7 +261,7 @@ const levelScene = {
     if (o.resume) {   // back through the portal: the level exactly as it was
       const S = o.resume; ED.savedLevel = null;
       enterWorld(S.L); ED.depth = S.L.depth; ED.foes.push(...S.foes); ED.drops.push(...S.drops); ED.boss = S.boss;
-      h.x = S.L.portal.x; h.y = S.L.portal.y + 8; S.L.portal = null;
+      h.x = S.L.portal.x; h.y = S.L.portal.y + 8; h.inv = 1; P.ring(S.L.portal.x, S.L.portal.y, 3, 20, '#8ab4ff', .45); P.dust(h.x, h.y, 0, 8, { speed: 34 }); S.L.portal = null;
       for (const id of S.L.mechs) { const M = REG.mechanics[id]; if (M && M.start) M.start(S.L); }
       playSong(S.L.theme.music || 'deep'); game.cam.snap = true; return;
     }
@@ -250,7 +284,7 @@ const levelScene = {
   exit() { BUS.emit('levelEnd', { L: ED.L }); game.timeScale = 1; },
   update(dt) {
     if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
-    if (talk.update(dt)) return;
+    if (talkStep(dt)) return;
     if (updateUI(dt)) return;
     const L0 = ED.L, h = ED.hero, inp = game.input;
     worldStep(dt);
@@ -272,7 +306,7 @@ const levelScene = {
       sfx('portal'); goTown({ arrive: 'portal' });
     }
   },
-  draw(r) { worldDraw(r); talk.draw(r); if (ED.demo) r.overlay(g => { const a = .6 + .4 * Math.sin(game.real * 3); px.blend(g, a, 'normal', () => E.font.text(g, 'DEMO  -  PRESS ANY KEY', r.W / 2, 30, '#ffd36a', { align: 'center', shadow: '#05040a', outline: '#0c0818' })); }); }
+  draw(r) { worldDraw(r); talk.draw(r); if (ED.demo) r.overlay(g => { const a = .6 + .4 * Math.sin(game.real * 3), y = r.H - 58; px.blend(g, .55, 'normal', () => px.rect(g, 0, y - 3, r.W, 13, '#05040a')); px.blend(g, a, 'normal', () => E.font.text(g, 'DEMO  •  PRESS ANY KEY', r.W / 2, y, '#ffd36a', { align: 'center', shadow: '#05040a', outline: '#0c0818' })); }); }   // above the hotbar, clear of the boss bar and item labels
 };
 
 /** a depth is done: record the time (best times per depth for speedrunners) and say how it went */
@@ -285,10 +319,13 @@ function levelCleared(h, L0) {
 
 /* ---------- THE PROVING GROUNDS: the stress test lives on as an endless horde in the rune hall ---------- */
 const PROVE = { wave: 0, next: 0 };
+const PROVE_CORE = ['husk', 'skeleton', 'knight', 'slime', 'wisp'];
+/** every other monster that can come in a pack, easiest first (their minDepth), for the Proving Grounds' widening waves */
+function proveExtras() { return Object.keys(REG.archetypes).filter(id => { const A0 = REG.archetypes[id], t = A0.tags || []; return !PROVE_CORE.includes(id) && !A0.bossBody && !A0.noPack && !t.includes('boss') && !t.includes('object') && (A0.minDepth || 1) < 900; }).sort((a, b) => (REG.archetypes[a].minDepth || 1) - (REG.archetypes[b].minDepth || 1)); }
 const provingScene = {
   enter() {
     ED.mode = 'proving'; ED.depth = Math.max(1, Math.min(ED.hero.maxDepth, 20)); UI.closeAll(); BUS.clear('level');
-    const rec = { depth: ED.depth, seed: 77, name: 'The Proving Grounds', theme: 'crypt', hue: 0, layout: 'halls', mechs: ['powder'], pool: ['husk', 'skeleton', 'knight', 'slime', 'wisp'], size: [64, 44] };
+    const rec = { depth: ED.depth, seed: 77, name: 'The Proving Grounds', theme: 'crypt', hue: 0, layout: 'halls', mechs: ['powder'], pool: PROVE_CORE.slice(), size: [64, 44] };
     // the stress test's hall: a grid of pillars, low walls, torches, the rune circle in the middle
     const w = 64, hh = 44, cells = new Array(w * hh).fill(0), R = RNG(5);
     for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) if (!x || !y || x === w - 1 || y === hh - 1) cells[y * w + x] = 1;
@@ -310,10 +347,19 @@ const provingScene = {
     worldStep(dt);
     if (h.dead) { if (h.deadT > 2.2 && !UI.isOpen('death')) UI.open('death'); return; }
     if (!ED.foes.length && (PROVE.next -= dt) <= 0) {
-      PROVE.wave++; PROVE.next = 2.5; const n = Math.round((12 + PROVE.wave * 10) * DIFF.density);
-      notify('WAVE ' + PROVE.wave + ' • ' + n + ' MONSTERS', '#ff9a3a', 2.5);
-      const R = RNG(PROVE.wave * 31);
-      for (let i = 0; i < Math.ceil(n / 8); i++) { const [x, y] = randomFloor(ED.L, R, {}); if (Math.hypot(x - h.x, y - h.y) < 80) continue; const pk = spawnPack(x, y, { pool: ED.L.rec.pool, n: 8, elite: i === 0 && PROVE.wave % 3 === 0 ? 2 : i % 4 === 1 ? 1 : 0, rng: R }); for (const m of pk) m.ai.aware = true; }
+      PROVE.wave++; PROVE.next = 2.5; const w = PROVE.wave, n = Math.round((12 + w * 10) * DIFF.density), boss = w % 10 === 0;
+      // the horde grows and widens: the stress test's five, then one more kind of monster each wave (the whole bestiary by
+      // wave ~17), a composed boss every tenth wave. Packs never land on top of the hero (a spot too close is re-rolled)
+      const extras = proveExtras(), kinds = PROVE_CORE.concat(extras.slice(0, Math.max(0, w - 2))), fresh = w > 2 && w - 2 <= extras.length ? extras[w - 3] : null;
+      notify('WAVE ' + w + ' • ' + n + ' MONSTERS' + (boss ? ' • AND A BOSS' : fresh ? ' • NEW: ' + (REG.archetypes[fresh].name || fresh).toUpperCase() : ''), '#ff9a3a', 2.5);
+      const R = RNG(w * 31); let packs = 0, tries = 0;
+      while (packs < Math.ceil(n / 8) && tries++ < 80) {
+        const [x, y] = randomFloor(ED.L, R, {}); if (Math.hypot(x - h.x, y - h.y) < 80) continue;
+        const newest = fresh && packs === 0 ? fresh : R.pick(kinds);   // the newcomer always gets a pack
+        const pk = spawnPack(x, y, { pool: kinds, kind: newest, n: 8, elite: packs === 0 && w % 3 === 0 ? 2 : packs % 4 === 1 ? 1 : 0, rng: R }); for (const m of pk) m.ai.aware = true; packs++;
+      }
+      if (boss) for (let k = 0; k < 40; k++) { const [x, y] = randomFloor(ED.L, R, {}); if (Math.hypot(x - h.x, y - h.y) < 140) continue; const m = spawnBoss(composeBoss(100 + w, RNG(w * 97)), x, y, { level: ED.depth }); if (m) { ED.boss = m; wakeBoss(m); } break; }
+      playSong('deep2');   // (a fallen boss played its victory tune)
     }
     if (game.input.pressed('portal')) goTown();
   },

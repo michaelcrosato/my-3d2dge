@@ -188,7 +188,7 @@ def('layouts', 'caves', { name: 'Caves', gen(R, o) {
 /* ---------- ARENA: a boss arena (round or octagonal) behind an antechamber with two side vaults ----------
  * The hero lands in the antechamber (south), the side vaults hold the level's packs, a gate leads north into the
  * arena. A ring of pillars stands inside the wall (cover, and something for charges to hit). The exit waystone
- * sits at the far side, and the boss waits over it. rooms[0] is the arena, so no packs clutter the fight. */
+ * sits toward the far side, and the boss waits over it. rooms[0] is the arena, so no packs clutter the fight. */
 def('layouts', 'arena', { name: 'Arena', bossOnly: true, gen(R, o) {
   const w = 52, h = 50, cells = new Array(w * h).fill(1), tags = new Array(w * h).fill(null);
   const cx = 26, cy = 20, Ra = R.int(12, 14), oct = R.chance(.5);
@@ -202,13 +202,15 @@ def('layouts', 'arena', { name: 'Arena', bossOnly: true, gen(R, o) {
   const arena = WLD_rect(cells, tags, w, h, cx, cy, 99), rooms = [Object.assign(arena, { kind: 'arena', ix: cx + .5, iy: cy + .5, ir: Ra, oct })];
   for (const v of [vW, vE]) rooms.push(Object.assign({ cx: v.x + v.w / 2, cy: v.y + v.h / 2, kind: 'vault' }, v));
   // the pillared ring (none on the north-south axis: the way in and the boss's spot stay clear)
-  const n = oct ? 8 : R.pick([10, 12]), rp = Ra - 3.2;
+  const n = oct ? 8 : R.pick([10, 12]), rp = Ra - 3.2; rooms[0].pillars = n;   // (the braziers stand in the gaps between them)
   for (let k = 0; k < n; k++) { const a = -Math.PI / 2 + (k + .5) / n * TAU, x = Math.floor(cx + .5 + Math.cos(a) * rp), y = Math.floor(cy + .5 + Math.sin(a) * rp); cells[y * w + x] = 2; if (Ra >= 14) cells[y * w + x + (Math.cos(a) > 0 ? 1 : -1)] = 2; }
   // the gate's flanking pillars and a pair of low walls in each vault (cover)
   cells[ante.y * w + ante.x + 1] = 2; cells[ante.y * w + ante.x + ante.w - 2] = 2;
   for (const v of [vW, vE]) if (R.chance(.7)) { const lx = v.x + 3 + R.int(0, 2), ly = v.y + 2 + R.int(0, 3); for (let k = 0; k < 3; k++) cells[ly * w + lx + k] = 3; }
   rooms.extra = [Object.assign({ cx: ante.x + ante.w / 2, cy: ante.y + ante.h / 2, kind: 'ante' }, ante)];
-  const ex = cx, ey = cy - Ra + 5;
+  // the waystone: toward the far wall but well out in front of it (a throne or a dais at the wall must not swallow it),
+  // and clear of the centre sigil
+  const ex = cx, ey = cy - Ra + 7;
   return { w, h, cells, tags, rooms, start: [cx, ante.y + 5], exit: [ex, ey], exitRoom: rooms[0] };
 } });
 
@@ -241,8 +243,14 @@ def('layouts', 'ring', { name: 'Ring', gen(R, o) {
     for (let y = Math.floor(cy - 2); y <= cy + 2; y++) for (let x = Math.floor(cx - 2); x <= cx + 2; x++) if (Math.hypot(x + .5 - cx, y + .5 - cy) <= 1.7) tags[y * w + x] = null;
   }
   const rooms = [first].concat(chs.filter(c => c !== first)).map(c => Object.assign({}, c, { kind: 'chamber' }));   // the start chamber first
-  // the gallery itself is open ground too: four stretches of it as rooms (north, east, south, west)
-  for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) { const rc = WLD_rect(cells, tags, w, h, Math.floor(cx + dx * (Rw + Rg) / 2), Math.floor(cy + dy * (Rw + Rg) / 2), 12); if (rc && rc.w >= 2 && rc.h >= 2) rooms.push(Object.assign(rc, { kind: 'ring' })); }
+  // the gallery itself is open ground too: six stretches of it as rooms, all the way round (four sparse slivers left
+  // most of the ring empty and squeezed its packs into strips two cells deep); each keeps clear of the others
+  const gal = [];
+  for (let k = 0; k < 6; k++) {
+    const a = a0 + (k + .5) / 6 * TAU, rc = WLD_rect(cells, tags, w, h, Math.floor(cx + Math.cos(a) * (Rw + Rg) / 2), Math.floor(cy + Math.sin(a) * (Rw + Rg) / 2), 7);
+    if (rc && rc.w >= 3 && rc.h >= 3 && !gal.some(q => rc.x < q.x + q.w && rc.x + rc.w > q.x && rc.y < q.y + q.h && rc.y + rc.h > q.y)) gal.push(Object.assign(rc, { kind: 'ring' }));
+  }
+  rooms.push(...gal);
   // pillars in the bigger chambers' corners
   for (const c of chs) if (c !== first && c.w >= 9 && c.h >= 8 && R.chance(.6)) for (const [px0, py0] of [[c.x + 2, c.y + 2], [c.x + c.w - 3, c.y + 2], [c.x + 2, c.y + c.h - 3], [c.x + c.w - 3, c.y + c.h - 3]]) cells[py0 * w + px0] = 2;
   const exit = WLD_farthest(cells, tags, w, h, rooms, rm => rm.kind === 'chamber');

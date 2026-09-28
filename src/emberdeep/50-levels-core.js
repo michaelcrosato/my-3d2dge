@@ -129,11 +129,37 @@ function farthestRoom(cells, w, h, rooms, i) {
 }
 
 /* ---------- the stress test's rune hall as a theme: flagstones, teal runes, moss at the edges ---------- */
-const CRYPT = { stones: ['#4b4559', '#554f64', '#433e51', '#5d566c'], mortar: '#221e2b', hi: '#6f6782', lo: '#322d3e', speck: '#3e384b', moss: ['#3f5a44', '#4d6b4b'], rune: '#2f7f82', runeHi: '#6fd6cc' };
+const CRYPT = { stones: ['#4b4559', '#554f64', '#433e51', '#5d566c'], mortar: '#221e2b', hi: '#6f6782', lo: '#322d3e', speck: '#3e384b', moss: ['#3f5a44', '#4d6b4b'], rune: '#2f7f82', runeHi: '#6fd6cc',
+  cliff: '#3e3850', lip: '#4d6b4b', plank: '#5a4a3a', void: '#07060e' };   // (the rock under a chasm, its mossy lip, bridge planks: 51-themes.js reads these)
 def('themes', 'crypt', { name: 'Crypt', nouns: ['Vaults', 'Crypts', 'Halls', 'Catacombs'], pal: CRYPT, torch: 'brazier', light: '#ff9a4a', ambient: .12, music: 'deep',
-  walls: { 1: { h: 38, cut: true, cutH: 6, top: '#57506a', side: '#3d3750', line: '#2a2538', course: 8 }, 2: { h: 36, top: '#6a6280', side: '#4a4360', line: '#302a40', course: 10 }, 3: { h: 12, top: '#5d566f', side: '#433d55', line: '#2e2940', course: 6 } },
-  floor: (L0, x, y, tag) => cryptFloor(L0, x, y, tag, L0.pal),
-  decorate(L0, R) { for (const r0 of L0.rooms) { if (R.chance(.5)) L0.props.push({ name: R.pick(['bones', 'skull', 'crate', 'pot', 'barrel']), x: (r0.x + 1 + R() * (r0.w - 2)) * T16, y: (r0.y + 1 + R() * (r0.h - 2)) * T16 }); if (R.chance(.35)) L0.props.push({ name: 'cobweb', x: (r0.x + .5) * T16, y: (r0.y + .5) * T16, o: { size: 1.2 } }); } }
+  // wall tops: broken rock over the solid mass, paving on pillars and low walls (the engine's default speckle read as
+  // static). 'rubble' comes with the themes' masonry (51-themes.js); without it the tops stay plain
+  walls: { 1: { h: 38, cut: true, cutH: 6, top: '#57506a', side: '#3d3750', line: '#2a2538', course: 8, roof: 'rubble' }, 2: { h: 36, top: '#6a6280', side: '#4a4360', line: '#302a40', course: 10, roof: 'slab' }, 3: { h: 12, top: '#5d566f', side: '#433d55', line: '#2e2940', course: 6, roof: 'slab' } },
+  // the void under a chasm (composed depths put the crypt on islands and rings): rock hangs into it (51-themes.js)
+  floor: (L0, x, y, tag) => { const c = cryptFloor(L0, x, y, tag, L0.pal); return c === null && tag === 'pit' && typeof WLD_cliff === 'function' ? WLD_cliff(L0, x, y) : c; },
+  back: { sky: ['#04030a', '#0c0a18', '#16122a', '#221a30'], layers: [{ kind: 'fog', color: '#2a2440', y: .6, height: .24, parallax: .1, drift: 2 }, { kind: 'fog', color: '#2f7f82', y: .95, height: .18, parallax: .22, drift: 4 }] },
+  decorate(L0, R) {
+    if (typeof WLD_dress !== 'function') {   // the core alone: a prop in half the rooms, a cobweb in some corners
+      for (const r0 of L0.rooms) { if (R.chance(.5)) L0.props.push({ name: R.pick(['bones', 'skull', 'crate', 'pot', 'barrel']), x: (r0.x + 1 + R() * (r0.w - 2)) * T16, y: (r0.y + 1 + R() * (r0.h - 2)) * T16 }); if (R.chance(.35)) L0.props.push({ name: 'cobweb', x: (r0.x + .5) * T16, y: (r0.y + .5) * T16, o: { size: 1.2 } }); }
+      return;
+    }
+    // a burial vault: stores stacked against the walls, sarcophagi, bones where they fell, candles left burning
+    WLD_setup(L0, this);
+    const store = (L1, R1, x, y, nx, ny) => { const ax = ny ? 1 : 0, ay = nx ? 1 : 0; for (let k = R1.int(1, 3), o = 0; k > 0; k--, o += R1.range(9, 12)) WLD_prop(L1, R1.pick(['barrel', 'barrel', 'crate']), x + ax * o - nx * R1.range(0, 3), y + ay * o - ny * R1.range(0, 3), { color: R1.pick(['#7a5a3a', '#6a4a32', '#5a4a3e']), size: R1.range(1, 1.2) }); };
+    WLD_dress(L0, R, [
+      { w: 2.2, edge: 1, gap: 26, f: store },
+      { w: 2.2, f: WLD_pp('bones', R1 => ({ color: '#d8d0c0', size: R1.range(1, 1.3), flip: R1.chance(.5) })) }, { w: 1.5, f: WLD_pp('skull', { color: '#d8d0c0' }) },
+      { w: 1.3, edge: 1, f: WLD_pp('pot', R1 => ({ color: R1.pick(['#8a5a3a', '#7a6a5a']), size: R1.range(.9, 1.2) })) },
+      { w: 1.2, open: 1, gap: 22, f: WLD_dd('coffin', R1 => ({ solid: true, alongY: R1.chance(.5), color: '#5d566f' })) },
+      { w: .8, edge: 1, f: WLD_pp('statue', R1 => ({ color: '#6a6280', size: R1.range(1.1, 1.3), flip: R1.chance(.5) })) },
+      { w: .9, edge: 1, f: WLD_pp('pillar', R1 => ({ broken: true, color: '#6a6280', size: R1.range(1, 1.25), flip: R1.chance(.5) })) },
+      { w: 1.3, edge: 1, f: WLD_pp('candle', R1 => ({ size: R1.range(1, 1.3) })) },
+      { w: .5, f: WLD_dd('chain', R1 => ({ cage: R1.chance(.5), len: R1.range(30, 48) })) },
+      { w: .5, edge: 1, inset: 6, f: WLD_dd('skullpile', { solid: true }) }
+    ], 16, 3, 7);
+    for (const r0 of L0.rooms) if (R.chance(.45)) WLD_prop(L0, 'cobweb', (r0.x + .5) * T16, (r0.y + .5) * T16, { size: R.range(1.1, 1.4) });
+  },
+  ambience(L0, dt) { if (typeof WLD_mood !== 'function') return; WLD_mood(this); WLD_motes(dt, 3, (x, y) => ({ kind: 'dust', x, y, z: 30 + Math.random() * 30, vx: 1.5, vy: 1, vz: -3, max: 5, size: .8, color: '#8a809a' })); }
 });
 /* ---------- standard floor tags: every theme renders them, the core applies their effects ----------
  * pit (nothing: the void shows; blocked for walkers), water (shallow: slows), deep (deep water: blocked), ice (no
@@ -148,19 +174,20 @@ function standardFloor(L0, x, y, tag, base) {
     if (lip && m && m.cell(cx, cy - (ly < 3 ? 1 : 0)) === 0) { const b = base(x, y); return b ? b.map((v, i) => i < 3 ? v * (.45 + (ly < 3 ? ly : lx) * .08) : v) : null; }
     return null;
   }
-  const hs = E.hash2(Math.floor(x), Math.floor(y)), n = E.noise2(x * .06, y * .06);
-  if (tag === 'water' || tag === 'deep') {
-    const deep = tag === 'deep', w = Math.sin(x * .3 + Math.sin(y * .15) * 2 + y * .04);
+  const n = E.noise2(x * .06, y * .06);
+  if (tag === 'water' || tag === 'deep') {   // bands of depth, a caustic net of light, wind crests in patches, shallows (no per-pixel speckle)
+    const deep = tag === 'deep', w = Math.sin(x * .3 + Math.sin(y * .15) * 2 + y * .04), n2 = E.noise2(x * .1 + 3, y * .1 - 7);
     const c = deep ? (n > .5 ? [26, 58, 110] : [20, 46, 92]) : (n > .5 ? [52, 110, 160] : [42, 92, 140]);
-    if (w > .94) return deep ? [70, 120, 180] : [150, 205, 235];
-    if (!deep) { const b = base(x, y); if (b && hs < .06) return b.map((v, i) => i < 3 ? v * .6 + c[i] * .4 : v); }
+    if (w > .95 && n2 > .56) return deep ? [70, 120, 180] : [150, 205, 235];
+    if (Math.abs(n2 - .5) < .016) return deep ? [34, 72, 128] : [72, 136, 186];
+    if (!deep && n < .3) { const b = base(x, y); if (b) return b.map((v, i) => i < 3 ? v * .4 + c[i] * .6 : v); }   // the floor shows through the shallows
     return c;
   }
   if (tag === 'ice') {
     const crack = Math.abs(E.noise2(x * .08, y * .08) - .5) < .02 || Math.abs(E.noise2(x * .05 + 9, y * .05) - .5) < .012;
-    if (crack) return [150, 190, 220];
+    if (crack) return [118, 158, 196];   // (kept below white: the lights add their colour on top, and pale ice bleached out)
     const streak = ((x + y * .6) % 23 + 23) % 23 < 1.2 && n > .45;
-    return streak ? [236, 250, 255] : n > .55 ? [196, 228, 246] : [176, 214, 238];
+    return streak ? [212, 236, 250] : n > .55 ? [166, 200, 226] : [146, 184, 216];
   }
   if (tag === 'lava') {
     const crust = E.noise2(x * .09, y * .09) * .7 + E.noise2(x * .3, y * .3) * .3;
@@ -173,8 +200,11 @@ function standardFloor(L0, x, y, tag, base) {
     const strand = Math.abs(fu - fv) < .03 || Math.abs(fu + fv - 1) < .03 || Math.abs(fu - .5) < .025 || Math.abs(fv - .5) < .025 || Math.abs(ring - .3) < .02 || Math.abs(ring - .45) < .02;
     return strand ? [230, 230, 236] : b.map((v2, i) => i < 3 ? v2 * .8 + 30 : v2);
   }
-  if (tag === 'blood') return n > .45 ? (hs < .1 ? [150, 40, 50] : [110, 20, 30]) : b.map((v2, i) => i < 3 ? v2 * .7 + (i === 0 ? 30 : 0) : v2);
-  if (tag === 'snow') return hs < .04 ? [200, 214, 236] : n > .6 ? [236, 242, 250] : [220, 230, 244];
+  if (tag === 'blood') {   // pools with a dark rim and a glossy sheen (blotches, not per-pixel speckle), a stain around them
+    if (n > .45) return n < .47 ? [70, 12, 20] : E.noise2(x * .18 + 5, y * .18) > .63 ? [146, 36, 46] : [106, 18, 28];
+    return b.map((v2, i) => i < 3 ? v2 * .7 + (i === 0 ? 30 : 0) : v2);
+  }
+  if (tag === 'snow') return E.hash2(Math.floor(x / 2), Math.floor(y / 2)) > .985 ? [226, 234, 246] : n > .6 ? [206, 214, 230] : n < .32 ? [176, 188, 210] : [190, 200, 220];
   return undefined;
 }
 /** what standing on a tag does (hero and monsters alike): the core rules every theme and mechanic share */
@@ -205,15 +235,31 @@ function cryptFloor(L0, x, y, tag, pal) {
 }
 
 /* ---------- building a level from a recipe ---------- */
+/** past the plan every level turns its theme's hue, but materials stay near their own: wood, brass, bone and sand
+ *  (warm and not vivid) turn at most 20 degrees, so brass never goes lime, bone never green, wood never violet;
+ *  stone, moss, ice, glows and skies turn freely. levelPal is shiftPal with that rule (51-themes.js uses levelHue) */
+const LVL_HUE = new Map();   // memo: decorations ask for their colours every frame
+function levelHue(c, deg) {
+  if (!deg || typeof c !== 'string' || c[0] !== '#') return c;
+  const key = c + '|' + deg; let v = LVL_HUE.get(key); if (v) return v;
+  const [h, s] = E.toHsl(c); let d = ((deg % 360) + 540) % 360 - 180;
+  if (h >= 16 && h <= 62 && s > .12 && s < .7) d = clamp(d, -20, 20);
+  if (LVL_HUE.size > 4000) LVL_HUE.clear();
+  LVL_HUE.set(key, v = hueShift(c, d)); return v;
+}
+const levelPal = (pal, deg) => { const o = {}; for (const k in pal) o[k] = levelHue(pal[k], deg); return o; };
 function buildLevel(rec) {
   const R = RNG(rec.seed), th = REG.themes[rec.theme] || REG.themes.crypt, lay = REG.layouts[rec.layout] || REG.layouts.halls;
   const G0 = lay.gen(R, { w: rec.size[0], h: rec.size[1], depth: rec.depth });
   const L0 = { kind: 'level', rec, depth: rec.depth, name: rec.name, theme: th, hue: rec.hue || 0, w: G0.w, h: G0.h, cells: G0.cells, tags: G0.tags, rooms: G0.rooms,
     things: [], props: [], torches: [], runes: [], mechs: rec.mechs.slice(), seen: new Uint8Array(G0.w * G0.h), t: 0 };
-  L0.pal = shiftPal(th.pal || CRYPT, L0.hue);
+  L0.pal = levelPal(th.pal || CRYPT, L0.hue);
   // walls: the theme's types, recolored for deep levels; the exit gets a rune circle
-  const types = {}; for (const k in th.walls) types[k] = shiftPal(th.walls[k], L0.hue);
+  const types = {}; for (const k in th.walls) types[k] = levelPal(th.walls[k], L0.hue);
   const [sx, sy] = G0.start, [ex, ey] = G0.exit;
+  // the landing and the waystone stand on open floor, whatever the layout: no pillar or low wall inside their rune
+  // circles (a halls low wall across the exit cell once left the waystone out of reach)
+  for (const [qx, qy] of [G0.start, G0.exit]) for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const k = (qy + j) * G0.w + qx + i, c = G0.cells[k]; if ((c === 2 || c === 3) && i * i + j * j <= 5) G0.cells[k] = 0; }
   L0.start = { x: (sx + .5) * T16, y: (sy + .5) * T16 }; L0.exit = { x: (ex + .5) * T16, y: (ey + .5) * T16, open: !rec.boss };
   L0.runes.push({ x: L0.start.x, y: L0.start.y, r: 30 }, { x: L0.exit.x, y: L0.exit.y, r: 26 });
   const floorTag = G0.tags.slice();
@@ -224,13 +270,29 @@ function buildLevel(rec) {
   L0.flow = new E.FlowField(L0.map);
   L0.randomFloor = (Rr, o = {}) => randomFloor(L0, Rr, o);
   // light sources along the rooms (braziers stand in the room, sconces on walls)
+  const torch = (x, y) => L0.torches.push({ x, y, t: R() * 9, kind: th.torch || 'brazier', color: th.light || '#ff9a4a', r: 4.5, solid: true });
   for (const r0 of G0.rooms) {
+    if (r0.kind === 'arena' && r0.ir) {   // a boss arena: braziers by its wall, in the gaps of the pillar ring, frame the fight; none stand in it
+      const n = r0.pillars || 8;          // the pillars stand at (k + .5) / n of the way round from north, the gaps at k / n
+      for (let k = 1; k < n; k++) {
+        if (k === n / 2 || (n > 8 && !(k & 1))) continue;   // not across the gate; every other gap in the bigger rings
+        const a = -Math.PI / 2 + k / n * TAU;
+        for (const rr of [1.8, 2.4, 1.2]) { const cx = r0.ix + Math.cos(a) * (r0.ir - rr), cy = r0.iy + Math.sin(a) * (r0.ir - rr); if (L0.map.walkable(Math.floor(cx), Math.floor(cy))) { torch(cx * T16, cy * T16); break; } }
+      }
+      continue;
+    }
     const n = Math.max(1, Math.round((r0.w * r0.h) / 60 * (th.lights || 1)));
-    for (let i = 0; i < n; i++) { const x = (r0.x + 1.5 + R() * (r0.w - 3)) * T16, y = (r0.y + 1.5 + R() * (r0.h - 3)) * T16; if (L0.map.walkable(Math.floor(x / T16), Math.floor(y / T16)) && Math.hypot(x - L0.start.x, y - L0.start.y) > 40) L0.torches.push({ x, y, t: R() * 9, kind: th.torch || 'brazier', color: th.light || '#ff9a4a', r: 4.5, solid: true }); }
+    for (let i = 0; i < n; i++) { const x = (r0.x + 1.5 + R() * (r0.w - 3)) * T16, y = (r0.y + 1.5 + R() * (r0.h - 3)) * T16; if (L0.map.walkable(Math.floor(x / T16), Math.floor(y / T16)) && Math.hypot(x - L0.start.x, y - L0.start.y) > 40 && Math.hypot(x - L0.exit.x, y - L0.exit.y) > 34) torch(x, y); }
   }
   if (th.decorate) th.decorate(L0, R);
   // the mechanics place their things (a missing mechanic is skipped: the level still plays)
   for (const id of L0.mechs) { const M = REG.mechanics[id]; if (M && M.place) M.place(L0, R); }
+  // the mechanics reshape the floor after the theme dressed it (a flood's canals, chasms, lava): set dressing left
+  // standing in deep water, lava, the void or a wall goes (hanging things, z > 0, and decorations meant to float over
+  // the void, overVoid, stay)
+  const sunk = (x, y) => { const cx = Math.floor(x / T16), cy = Math.floor(y / T16), t = L0.map.floorTags[cy * L0.w + cx]; return L0.map.cell(cx, cy) !== 0 || t === 'deep' || t === 'pit' || t === 'lava'; };
+  L0.props = L0.props.filter(p => (p.z || 0) > 0 || !sunk(p.x, p.y)); L0.torches = L0.torches.filter(b => !sunk(b.x, b.y));
+  L0.things = L0.things.filter(t => t.kind !== 'deco' || t.overVoid || !sunk(t.x, t.y));
   // monsters: packs in every room but the first, a rare pack guarding the exit room, champions here and there
   const depth = rec.depth, rooms = G0.rooms.slice(1);
   L0.packs = [];
@@ -311,15 +373,34 @@ function drawTorches(L0, r) {
   }
 }
 function drawProps(L0, r) { for (const p of L0.props) r.prop(p.name, p.x, p.y, p.z || 0, p.o || {}); }
-/** the exit waystone: a floating crystal over its rune circle, dark until the level's boss falls */
+/** the exit waystone: a crystal floating over its rune circle, a faint beam of light rising from it so it can be found
+ *  across a room. While the level's boss lives it lies dormant, sunk in the floor (dark, small, no glow: the boss
+ *  stands over it); when the boss falls it rises out of the floor and wakes */
 function drawExit(L0, r) {
-  const e = L0.exit, t = game.time, open = e.open, c = open ? '#6fd6cc' : '#5a4a6a', bob = Math.sin(t * 2) * 2;
-  r.decal(() => { r.groundRing(e.x, e.y, 14 + Math.sin(t * 3) * 1.5, c, open ? .8 : .4); if (open) r.groundDisc(e.x, e.y, 12, '#2f7f82', .3); }, { emissive: open ? .8 : 0 });
+  const e = L0.exit, t = game.time, open = e.open;
+  if (!open) e.shut = true; else if (e.shut) { e.shut = false; e.openAt = t; P.ring(e.x, e.y, 2, 34, '#6fd6cc', .5); P.glints(e.x, e.y, 6, 10, '#bff6ff', 16); }
+  const u = open ? (e.openAt === undefined ? 1 : clamp((t - e.openAt) / 1.4, 0, 1)) : 0, k = E.ease.outBack(u);
+  const bob = Math.sin(t * 2) * 2 * u, z = lerp(3, 18, k) + bob, sz = lerp(.7, 1, k);
+  r.decal(() => { if (open) { r.groundRing(e.x, e.y, 14 + Math.sin(t * 3) * 1.5, '#6fd6cc', .8 * u); r.groundDisc(e.x, e.y, 12, '#2f7f82', .3 * u); } else r.groundDisc(e.x, e.y, 6, '#1a1422', .5); }, { emissive: open ? .8 * u : 0 });
+  if (!r.visible(e.x, e.y, 0, 60, 90)) return;
   r.queue(e.x, e.y, 0, g => {
-    const [x, y] = r.w(e.x, e.y, 18 + bob), s = (r.view.zoom || 1);
-    if (open) { px.glow(g, 1); r.glowDisc(g, x, y, 12 * s, '#6fd6cc', .4); }
-    px.poly(g, [[x, y - 9 * s], [x + 4 * s, y], [x, y + 7 * s], [x - 4 * s, y]], open ? '#8ff0e0' : '#6a5a7a');
-    px.poly(g, [[x, y - 9 * s], [x, y + 7 * s], [x - 4 * s, y]], open ? '#e0fff8' : '#8a7a9a');
+    const [x, y] = r.w(e.x, e.y, z), s = (r.view.zoom || 1) * sz;
+    if (open) {
+      px.glow(g, 1); r.glowDisc(g, x, y, 12 * s, '#6fd6cc', .4 * u);
+      // the beacon: a thin shaft of light over the crystal, breathing, a pulse of light climbing it now and then (thinner
+      // and taller than a ward's column, and additive, so it never hides what is behind it)
+      const [, yt] = r.w(e.x, e.y, z + 96), a = (.16 + .08 * Math.sin(t * 2.6)) * u, zm = r.view.zoom || 1, bw = Math.max(1, Math.round(zm));
+      if (yt < y - 12 * s) {
+        px.blend(g, a, 'add', () => { px.rect(g, Math.round(x) - bw, yt, bw * 2, y - 9 * s - yt, '#6fd6cc'); px.rect(g, Math.round(x) - (bw >> 1), yt, Math.max(1, bw), y - 9 * s - yt, '#e0fff8'); });
+        const ph = (t * .55) % 1, [, yp] = r.w(e.x, e.y, z + 10 + ph * 80);
+        px.blend(g, (1 - ph) * .55 * u, 'add', () => px.ell(g, x, yp, (4 - ph * 2) * zm, 1.3 * zm, '#bff6ff'));
+      }
+    }
+    const hi = open ? '#e0fff8' : '#5a4e6c', base = open ? '#8ff0e0' : '#3a3048', sh = open ? '#4fb8b0' : '#261e32';
+    px.poly(g, [[x, y - 9 * s], [x + 4 * s, y], [x, y + 7 * s], [x - 4 * s, y]], base);
+    px.poly(g, [[x, y - 9 * s], [x, y + 7 * s], [x - 4 * s, y]], hi);
+    px.poly(g, [[x + 4 * s, y], [x, y + 7 * s], [x + 1 * s, y + 1 * s]], sh);
+    if (!open) px.dot(g, x - 1 * s, y - 3 * s, '#8a6ab8');   // one cold spark left in it
   }, { emissive: open });
-  if (open) { L.add(e.x, e.y, 20, 90, .9 + .2 * Math.sin(t * 4), { color: '#6fd6cc' }); if (Math.random() < .2) P.glints(e.x, e.y, 20, 1, '#bff6ff', 14); }
+  if (open) { L.add(e.x, e.y, 20, 90, (.9 + .2 * Math.sin(t * 4)) * (.3 + .7 * u), { color: '#6fd6cc' }); if (Math.random() < (u < 1 ? .8 : .2)) P.glints(e.x, e.y, z, 1, '#bff6ff', 14); }
 }

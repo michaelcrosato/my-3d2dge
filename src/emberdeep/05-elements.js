@@ -18,8 +18,15 @@ def('statuses', 'burn', { name: 'Burning', color: '#ff8a3a', dur: 3,
   apply(u, p) { const s = u.st.burn; if (s) { s.t = 3; s.p = Math.max(s.p, p); } else u.st.burn = { t: 3, p }; },
   tick(u, s, dt) { dot(u, s.p * dt, 'fire', s); if (Math.random() < dt * 9) P.add({ kind: 'fire', x: u.x + (Math.random() - .5) * u.r * 2, y: u.y + (Math.random() - .5) * u.r * 2, z: (u.z || 0) + 4 + Math.random() * (u.head || 20) * .6, vz: 20, g: -10, drag: 3, max: .3, size: 2.2 }); } });
 def('statuses', 'chill', { name: 'Chilled', color: '#7fd8ff', dur: 2.5,
-  // each application adds a stack (slower); at 5 stacks the unit freezes solid for a moment
-  apply(u, p) { const s = u.st.chill || (u.st.chill = { t: 0, p: 0, n: 0 }); s.t = 2.5; s.n = Math.min(5, s.n + (p > 0 ? 1 + Math.floor(p) : 1)); if (s.n >= 5 && !u.st.freeze && !u.boss) { delete u.st.chill; u.st.freeze = { t: 1.2 + (u.team === 'hero' ? -.6 : 0) }; P.glints(u.x, u.y, (u.head || 20) * .5, 6, '#e8fbff'); sfx('freeze'); } },
+  // each application adds a stack (slower); at 5 stacks the unit freezes solid for a moment. A monster takes
+  // 1 + power stacks (the hero's frost skills freeze in one blow). The HERO takes one or two per chilling hit and
+  // thaws with two seconds' grace: the default power is 40% of the hit, so any frost blow over ~10 used to freeze
+  // him outright, and a frost pack could lock him in ice again the moment he thawed
+  apply(u, p) {
+    const s = u.st.chill || (u.st.chill = { t: 0, p: 0, n: 0 }), hero = u.team === 'hero'; s.t = 2.5;
+    s.n = Math.min(5, s.n + (hero ? (p >= 2 ? 2 : 1) : p > 0 ? 1 + Math.floor(p) : 1));
+    if (s.n >= 5 && !u.st.freeze && !u.boss && !(hero && game.time < (u.thawT || 0))) { delete u.st.chill; u.st.freeze = { t: hero ? .6 : 1.2 }; if (hero) u.thawT = game.time + 2.6; P.glints(u.x, u.y, (u.head || 20) * .5, 6, '#e8fbff'); sfx('freeze'); }
+  },
   tick(u, s) { if (Math.random() < .02) P.glints(u.x, u.y, (u.z || 0) + 6 + Math.random() * 10, 1, '#dff8ff', 6); } });
 def('statuses', 'freeze', { name: 'Frozen', color: '#bfefff', dur: 1.2, tick() {} });
 def('statuses', 'shock', { name: 'Shocked', color: '#ffe45a', dur: 3,

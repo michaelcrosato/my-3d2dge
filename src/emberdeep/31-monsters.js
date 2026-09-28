@@ -368,7 +368,7 @@ def('archetypes', 'cultist', { name: 'Ember Cultist', tags: ['human', 'caster', 
     if (!m.alive || !m.rig) return;
     const A = m.atk, k = A && A.phase === 'wind' ? A.u : m.ai.rite && m.ai.rite.t < 1.1 ? .5 + .3 * Math.sin(game.time * 20) : 0; if (!k) return;
     const tp = m.rig.tip(), e = EL(m.el === 'phys' ? 'fire' : m.el);
-    r.queue(tp[0], tp[1], tp[2], g => { const [x, y] = r.w(tp[0], tp[1], tp[2]), zm = r.view.zoom || 1; px.glow(g, 1); r.glowDisc(g, x, y, (3 + 3.5 * k) * zm, e.glow, .45); px.disc(g, x, y, (1.2 + 1.1 * k) * zm, e.color); px.disc(g, x - .5, y - .5, (.6 + .7 * k) * zm, e.light); if (k > .6) px.dot(g, x - 1, y - 1, '#ffffff'); }, { emissive: true, bias: .5 });
+    r.queue(tp[0], tp[1], tp[2], g => { const [x, y] = r.w(tp[0], tp[1], tp[2]), zm = r.view.zoom || 1; px.glow(g, 1); r.glowDisc(g, x, y, (3 + 3.5 * k) * zm, e.glow, .45); px.disc(g, x, y, (1.2 + 1.1 * k) * zm, e.color); px.disc(g, x - .5, y - .5, (.6 + .7 * k) * zm, e.light); if (k > .6) px.dot(g, x - 1, y - 1, '#ffffff'); }, { emissive: foeGlowSeen(tp[0], tp[1], tp[2]), bias: .5 });
     L.add(tp[0], tp[1], tp[2], 40 + 30 * k, .9, { color: e.glow });
   } });
 
@@ -481,7 +481,7 @@ function MON_charge(m, h) {
 /** the brute's dressing, drawn on its rig: an iron collar with a hanging chain, cuffs with chain on both wrists, tusks,
  *  stitched seams on the arms and over the skull (where it was put back together). Parts on the far side are skipped */
 function MON_bruteExtras(g, m, ox, oy, view) {
-  const rig = m.rig, J = rig.J; if (!J.handL || (rig.downW || 0) > .5) return;
+  const rig = m.rig, J = rig.J; if (!J.handL || (rig.downW || 0) > .92) return;   // (drawn from the joints, so they ride the topple down)
   const Q = p => rigScreen(rig, p, ox, oy, view), mt = E.tones('#6a6a78'), u = view.scale * rig.o.size, sk = E.tones(m.pal.skin || '#8a9a78'), seam = sk.deep, lw = Math.max(1, Math.round(u * .45));
   const mid = z => Q([(J.hipC[0] + J.shC[0]) / 2, 0, z])[2];   // the body's depth at a height: what is behind it is hidden
   // stitched seams down the near upper arms
@@ -723,17 +723,20 @@ function MON_roost(m) {
   let best = null;
   for (let i = 0; i < 8; i++) {
     const a = i / 8 * TAU;
-    for (let s = 6; s <= 42; s += 4) { const x = m.x + Math.cos(a) * s, y = m.y + Math.sin(a) * s, hh = map.heightAt(x, y); if (hh > 0) { if (hh >= 24 && (!best || s < best.s)) best = { s, a, hh }; break; } }
+    for (let s = 6; s <= 42; s += 4) { const x = m.x + Math.cos(a) * s, y = m.y + Math.sin(a) * s, hh = map.heightAt(x, y); if (hh > 0) { const c = [Math.floor(x / T16), Math.floor(y / T16)]; if (hh >= 24 && !MON_cutWall(map, c) && (!best || s < best.s)) best = { s, a, hh, c }; break; } }
   }
   if (!best) return;
   const d = best.s - 6, x = m.x + Math.cos(best.a) * d, y = m.y + Math.sin(best.a) * d; if (!MON_open(x, y)) return;
-  m.x = m.homeX = x; m.y = m.homeY = y; m.z = Math.min(best.hh - 7, 32); m.MON_roost = true; m.facing = best.a + Math.PI;
+  m.x = m.homeX = x; m.y = m.homeY = y; m.z = Math.min(best.hh - 7, 32); m.MON_roost = true; m.MON_roostCell = best.c; m.facing = best.a + Math.PI;
 }
+/** is a wall cell drawn cut down to a stub in this view (a wall in front of the floor)? A bat can't hang from one */
+const MON_cutWall = (map, c) => !!(map.cutaway && map._isFront && map._isFront(c[0], c[1], game.view));
 def('ai', 'bat', { update(m, dt) {
   const h = ED.hero, a = m.ai, dx = h.x - m.x, dy = h.y - m.y, d = Math.hypot(dx, dy) || 1, k = statusSpeed(m);
   a.t = (a.t || Math.random() * 9) + dt;
   if (!a.s) a.s = m.MON_roost ? 'roost' : 'fly';
   if (a.s === 'roost') {   // asleep: wings folded, a slow breath; wakes to him, to its pack, or to a hit
+    if (m.MON_roostCell && ED.L && MON_cutWall(ED.L.map, m.MON_roostCell)) { a.s = 'fly'; m.MON_roost = false; return; }   // the view turned and cut its wall down: it lets go and hovers
     m.vx = m.vy = 0; m.blobState = { hang: true, flap: 0, squint: true, squash: .06 * Math.sin(a.t * 2.2), look: [dx, dy] };
     if ((d < 80 && h.alive) || a.aware || m.hp < m.maxHp) { a.s = 'drop'; a.st = 0; a.aware = true; AI.aware(m, 999); sfx('monScreech', { vol: .4 }); P.dust(m.x, m.y, m.z + 4, 4, { color: '#5a4a5a', speed: 20 }); }
     return;
@@ -789,7 +792,7 @@ def('archetypes', 'bat', { name: 'Cave Bat', tags: ['beast', 'flying'], minDepth
       const [ox, oy] = r.w(m.x, m.y, zz), f = MON_blobFrame(b, Math.round(ox), Math.round(oy), r.view), pv = Math.round(oy - b.o.R * b.scale * r.view.scale), lx = clamp(r.view.p(b.look[0], b.look[1], 0)[0], -1, 1);
       px.glow(g, 1);
       for (const sd of [-1, 1]) { const X = Math.round(f.cx + lx * f.rx * .25 + sd * f.rx * .36), Y0 = Math.round(f.cy - f.ry * .12), Y = b.hang ? 2 * pv - Y0 : Y0; if (b.squint) px.rect(g, X - 1, Y, 2, 1, b.C.eye); else { px.rect(g, X - 1, Y - 1, 2, 2, b.C.eye); px.dot(g, X - 1, Y - 1, '#ffffff'); } }
-    }, { emissive: true, bias: .05 });
+    }, { emissive: foeGlowSeen(m.x, m.y, zz), bias: .05 });
   },
   onSpawn(m, o) { if (!o.MON_decoy && o.roost !== false && (o.roost || Math.random() < .5)) MON_roost(m); if (!m.MON_roost) m.z = 14; } });
 
@@ -845,7 +848,7 @@ def('archetypes', 'imp', { name: 'Imp', tags: ['demon', 'ranged'], themes: ['for
   post(m, r) {   // the fireball forming over its head
     const c = m.alive && m.ai.cast; if (!c) return;
     const u = clamp(c.t / .6, 0, 1), e = EL(m.el === 'phys' ? 'fire' : m.el), z = m.z + (16 + 4 * u) * m.scale;
-    r.queue(m.x, m.y, z, g => { const [x, y] = r.w(m.x, m.y, z), zm = r.view.zoom || 1, s = (1 + u * 1.4) * zm, fl = Math.sin(game.time * 40) * .4; px.glow(g, 1); r.glowDisc(g, x, y, (3 + 2.5 * u) * zm, e.glow, .45); px.disc(g, x, y, (.9 + .9 * u) * zm + fl, e.color); px.disc(g, x - .5, y - .5, (.5 + .5 * u) * zm, e.light); if (u > .5) px.dot(g, x - 1, y - 1, '#ffffff'); }, { emissive: true, bias: .4 });
+    r.queue(m.x, m.y, z, g => { const [x, y] = r.w(m.x, m.y, z), zm = r.view.zoom || 1, s = (1 + u * 1.4) * zm, fl = Math.sin(game.time * 40) * .4; px.glow(g, 1); r.glowDisc(g, x, y, (3 + 2.5 * u) * zm, e.glow, .45); px.disc(g, x, y, (.9 + .9 * u) * zm + fl, e.color); px.disc(g, x - .5, y - .5, (.5 + .5 * u) * zm, e.light); if (u > .5) px.dot(g, x - 1, y - 1, '#ffffff'); }, { emissive: foeGlowSeen(m.x, m.y, z), bias: .4 });
     L.add(m.x, m.y, z, 30 + 30 * u, .9, { color: e.glow });
   } });
 
@@ -1007,7 +1010,7 @@ def('affixes', 'frozen', { name: 'Frozen', color: '#9fe8ff', minDepth: 3,
     r.decal(() => { r.groundRing(m.x, m.y, m.r * s + 5, '#bfefff', .55); r.groundDisc(m.x, m.y, m.r * s + 4, '#7fd8ff', .16); }, { emissive: .5 });
     for (let i = 0; i < 3; i++) {   // ice shards orbiting it
       const a = t * 1.8 + i * TAU / 3 + m.ph, x = m.x + Math.cos(a) * (m.r * s + 6), y = m.y + Math.sin(a) * (m.r * s + 6), z = m.z + H * .55 + Math.sin(t * 3 + i) * 3;
-      r.queue(x, y, z, g => { const [sx, sy] = r.w(x, y, z), k = (r.view.zoom || 1); px.glow(g, 1); px.poly(g, [[sx, sy - 3 * k], [sx + 1.6 * k, sy], [sx, sy + 3 * k], [sx - 1.6 * k, sy]], '#9fe8ff'); px.line(g, sx, sy - 3 * k, sx, sy + 2 * k, '#ffffff'); }, { emissive: true });
+      r.queue(x, y, z, g => { const [sx, sy] = r.w(x, y, z), k = (r.view.zoom || 1); px.glow(g, 1); px.poly(g, [[sx, sy - 3 * k], [sx + 1.6 * k, sy], [sx, sy + 3 * k], [sx - 1.6 * k, sy]], '#9fe8ff'); px.line(g, sx, sy - 3 * k, sx, sy + 2 * k, '#ffffff'); }, { emissive: foeGlowSeen(x, y, z) });
     }
     L.add(m.x, m.y, 12, 44, .5, { color: '#9fe8ff' });
   } });
@@ -1024,7 +1027,7 @@ def('affixes', 'shocking', { name: 'Shocking', color: '#ffe45a', minDepth: 2,
     if ((seed + (m.ph * 10 | 0)) % 3 === 0) r.queue(m.x, m.y, m.z + H * .5, g => {   // little arcs crawl over it
       const [x0, y0] = r.w(m.x - 4 * s, m.y, m.z + H * (.3 + E.hash2(seed, 1) * .5)), [x1, y1] = r.w(m.x + 4 * s, m.y, m.z + H * (.3 + E.hash2(seed, 2) * .5));
       px.glow(g, 1); zig(g, x0, y0, x1, y1, '#ffe45a', 1, 3, seed); px.dot(g, x1, y1, '#ffffff');
-    }, { emissive: true, bias: .5 });
+    }, { emissive: foeGlowSeen(m.x, m.y, m.z + H * .5), bias: .5 });
     L.add(m.x, m.y, 12, 40, .4 + .3 * Math.random(), { color: '#ffe45a' });
   } });
 
@@ -1039,7 +1042,7 @@ def('affixes', 'teleporter', { name: 'Teleporting', color: '#c890ff', minDepth: 
   },
   draw(m, r) {
     const s = m.scale || 1, t = game.time, H = (m.head || 20) * s;
-    r.queue(m.x, m.y, m.z + H * .5, g => { px.glow(g, 1); for (let i = 0; i < 4; i++) { const a = t * 3 + i * TAU / 4 + m.ph, [x, y] = r.w(m.x + Math.cos(a) * (m.r * s + 5), m.y + Math.sin(a) * (m.r * s + 5), m.z + H * (.3 + .4 * ((i % 2) ? Math.sin(t * 2) * .5 + .5 : Math.cos(t * 2) * .5 + .5))); px.dot(g, x, y, i % 2 ? '#e8d0ff' : '#b070ff'); } }, { emissive: true });
+    r.queue(m.x, m.y, m.z + H * .5, g => { px.glow(g, 1); for (let i = 0; i < 4; i++) { const a = t * 3 + i * TAU / 4 + m.ph, [x, y] = r.w(m.x + Math.cos(a) * (m.r * s + 5), m.y + Math.sin(a) * (m.r * s + 5), m.z + H * (.3 + .4 * ((i % 2) ? Math.sin(t * 2) * .5 + .5 : Math.cos(t * 2) * .5 + .5))); px.dot(g, x, y, i % 2 ? '#e8d0ff' : '#b070ff'); } }, { emissive: foeGlowSeen(m.x, m.y, m.z + H * .5) });
     r.decal(() => r.groundRing(m.x, m.y, m.r * s + 4, '#b070ff', .4 + .2 * Math.sin(t * 4)), { emissive: .5 });
   } });
 
@@ -1080,7 +1083,7 @@ def('affixes', 'molten', { name: 'Molten', color: '#ff6a2a', minDepth: 5, ok: A0
   onDie(m) {   // it cracks open: a warning ring, then it blows
     if (m.arch.id === 'bloater' || m.MON_decoy) return;
     const x = m.x, y = m.y, R = 40 * (m.scale || 1), dmg = m.dmg * MON_dose(m); sfx('charge', { vol: .35, pitch: .7 });
-    FX.visual(1, (r, u) => { r.queue(x, y, 6, g => { const [sx, sy] = r.w(x, y, 6), k = (r.view.zoom || 1) * (1 + u * .8), fl = Math.sin(u * u * 90) > 0; px.glow(g, 1); r.glowDisc(g, sx, sy, 5 * k, '#ff6a2a', .4 + .3 * u); px.disc(g, sx, sy, 1.3 * k, fl ? '#ffffff' : '#ffd36a'); for (let i = 0; i < 5; i++) { const a = i * 1.26 + x; px.line(g, sx, sy, sx + Math.cos(a) * 4 * k * u, sy + Math.sin(a) * 2.4 * k * u, '#ffb040'); } }, { emissive: true, bias: .6 }); L.add(x, y, 8, 40 + 50 * u, 1, { color: '#ff7a2a' }); if (Math.random() < .5) P.add({ kind: 'ember', x, y, z: 6, vx: (Math.random() - .5) * 40, vy: (Math.random() - .5) * 40, vz: 40, max: .5, color: '#ff8a3a' }); });   // a glowing core with cracks of light spreading out of it
+    FX.visual(1, (r, u) => { r.queue(x, y, 6, g => { const [sx, sy] = r.w(x, y, 6), k = (r.view.zoom || 1) * (1 + u * .8), fl = Math.sin(u * u * 90) > 0; px.glow(g, 1); r.glowDisc(g, sx, sy, 5 * k, '#ff6a2a', .4 + .3 * u); px.disc(g, sx, sy, 1.3 * k, fl ? '#ffffff' : '#ffd36a'); for (let i = 0; i < 5; i++) { const a = i * 1.26 + x; px.line(g, sx, sy, sx + Math.cos(a) * 4 * k * u, sy + Math.sin(a) * 2.4 * k * u, '#ffb040'); } }, { emissive: foeGlowSeen(x, y, 6), bias: .6 }); L.add(x, y, 8, 40 + 50 * u, 1, { color: '#ff7a2a' }); if (Math.random() < .5) P.add({ kind: 'ember', x, y, z: 6, vx: (Math.random() - .5) * 40, vy: (Math.random() - .5) * 40, vz: 40, max: .5, color: '#ff8a3a' }); });   // a glowing core with cracks of light spreading out of it
     FX.telegraph({ shape: 'circle', x, y, r: R, dur: 1, then() {
       FX.nova({ team: 'foe', src: null, x, y, r0: 6, r1: R, dur: .3, el: 'fire', hit: { amount: dmg * 1.8, kb: 200, statusChance: .8 } });
       P.explosion(x, y, 6, 1.5, { flash: false }); FX.scorch(x, y, R * .6); FX.area({ team: 'foe', src: null, x, y, r: R * .5, dur: 2.5, tick: .5, el: 'fire', hit: { amount: dmg * .2 } }); shake(6);
@@ -1088,7 +1091,7 @@ def('affixes', 'molten', { name: 'Molten', color: '#ff6a2a', minDepth: 5, ok: A0
   },
   draw(m, r) {
     const s = m.scale || 1, H = (m.head || 20) * s, p = .5 + .5 * Math.sin(game.time * 5 + m.ph);
-    r.queue(m.x, m.y, m.z + H * .45, g => { const [x, y] = r.w(m.x, m.y, m.z + H * .45), k = r.view.zoom || 1; px.glow(g, 1); r.glowDisc(g, x, y, (3.5 + 1.5 * p) * k * s, '#ff5a1a', .25 + .15 * p); px.blend(g, .5 + .3 * p, 'add', () => { px.dot(g, x - 1, y, '#ffd36a'); px.dot(g, x + 1, y - 2, '#ff8a3a'); px.dot(g, x, y + 2, '#ff8a3a'); }); }, { emissive: true, bias: .5 });
+    r.queue(m.x, m.y, m.z + H * .45, g => { const [x, y] = r.w(m.x, m.y, m.z + H * .45), k = r.view.zoom || 1; px.glow(g, 1); r.glowDisc(g, x, y, (3.5 + 1.5 * p) * k * s, '#ff5a1a', .25 + .15 * p); px.blend(g, .5 + .3 * p, 'add', () => { px.dot(g, x - 1, y, '#ffd36a'); px.dot(g, x + 1, y - 2, '#ff8a3a'); px.dot(g, x, y + 2, '#ff8a3a'); }); }, { emissive: foeGlowSeen(m.x, m.y, m.z + H * .45), bias: .5 });
     r.decal(() => r.groundDisc(m.x, m.y, m.r * s + 3, '#ff3a0a', .18 + .12 * p), { emissive: .7 });
     L.add(m.x, m.y, 10, 50, .6 + .3 * p, { color: '#ff6a2a' });
   } });
@@ -1116,7 +1119,7 @@ def('affixes', 'shielded', { name: 'Shielded', color: '#8ad8ff', minDepth: 3,
       px.blend(g, (hit ? .2 : .06) + .06 * k, 'add', () => px.ell(g, x, y, rad, ry, '#2a70b0'));
       px.blend(g, .5 + .4 * k, 'add', () => { MON_circle(g, x, y, rad, ry, hit ? '#ffffff' : '#8ad8ff', Math.round(rad * 3)); MON_circle(g, x, y, rad * .96, ry * .4, '#4ab8ff', Math.round(rad * 2), t % TAU, Math.PI); });
       for (let i = 0; i < 3; i++) { const a = -2.3 + i * .18; px.dot(g, x + Math.cos(a) * rad * .8, y + Math.sin(a) * ry * .8, '#ffffff'); }   // a highlight up on the lit side
-    }, { emissive: true, bias: .5 });
+    }, { emissive: foeGlowSeen(m.x, m.y, z), bias: .5 });
   } });
 
 def('affixes', 'plagued', { name: 'Plagued', color: '#8ae04a', minDepth: 2,

@@ -1,5 +1,5 @@
 /* =============================================================================
- * COMBAT: units, the one damage pipeline, the crowd grid and the FX verbs
+ * COMBAT: units, the one damage pipeline, the crowd grid, the hit-stop governor and the FX verbs
  * A UNIT is any object with { team: 'hero' | 'foe', x, y, z, vx, vy, r, hp, maxHp, alive, st: {}, res: {}, armor,
  * head (height for numbers), mass (knockback resistance, 1 = normal) } and optional react(hit), onDie(hit),
  * onBeforeHit(hit, amount) -> amount (blocks, shields). The hero, monsters, allies and bosses all qualify.
@@ -42,14 +42,48 @@ function eachThing(x, y, rad, fn) {
 }
 function hitThing(t, hit) { if (t.dead || !t.onHit) return; t.onHit(hit); BUS.emit('thingHit', { thing: t, hit }); }
 
+/* ---------- the hit-stop and impact governors ----------
+ * Every game.freeze() (from any file, and the engine's own explosions) goes through a leaky budget: the first blow
+ * of a burst stops time in full, blows that follow within a moment stop it less and less (a dash through a pack, a
+ * blade thrown down a line, a meteor shower, a chain of kegs, a swarm hitting the hero), so a crowd stutters once
+ * instead of once per foe. Several calls in one step never add up (freeze keeps the longest). A steady rhythm (a
+ * combo, a whirlwind) refills the budget between blows and keeps its full stops. Measured on a lunge through six
+ * foes: 0.30 s of stop before, 0.12 s after.
+ * Impact stars are budgeted per step the same way: a pack struck at once shows two full stars and smaller ones
+ * after, so the foes stay readable under the flash. */
+const HITSTOP = { debt: 0, t: 0, soft: .07, refill: .22, impT: -1, impN: 0 };
+{
+  const freeze0 = game.freeze.bind(game), impact0 = P.impact.bind(P);
+  game.freeze = s => {
+    const H = HITSTOP, now = game.real; H.debt = Math.max(0, H.debt - (now - H.t) * H.refill); H.t = now;
+    const want = s * clamp(1 - H.debt / H.soft, .18, 1);
+    H.debt += Math.max(0, want - Math.max(0, game.hitstop)); freeze0(want);
+  };
+  P.impact = (x, y, z, size = 6, color) => {
+    const H = HITSTOP; if (game.time !== H.impT) { H.impT = game.time; H.impN = 0; }
+    if (++H.impN > 8) return;
+    impact0(x, y, z, H.impN > 2 ? size * Math.max(.4, 1 - (H.impN - 2) * .18) : size, color);
+  };
+}
+
 /* ---------- the damage pipeline ---------- */
+/* damage numbers: hits landing together near one spot stack in a short column (a crit takes a double row, so the
+ * big numbers never overprint each other); a quick string of small hits on ONE target (whirlwind cuts, orbiting
+ * blades, a flurry) rolls up into a single growing number instead of a spray of 5s. Crits always stand alone. */
 let numCol = null;
 function damageNumber(u, amt, crit, el) {
   if (!OPT.numbers) return;
-  const t = game.time, c = numCol && t - numCol.t < .12 && d2(u.x, u.y, numCol.x, numCol.y) < 28 * 28 ? numCol : numCol = { x: u.x, y: u.y, z: (u.z || 0) + (u.head || 20) + 4, n: 0 };
-  c.t = t;
-  const hero = u.team === 'hero', col = hero ? '#ff6a5a' : crit ? '#ffd23a' : el && el !== 'phys' ? EL(el).light : '#fff2c4';
-  P.text(c.x + (hero ? 0 : (Math.random() - .5) * 6), c.y, c.z + (c.n++ % 5) * 8, (crit ? fmt(amt) + '!' : fmt(amt)), col, { scale: crit ? 2 : 1, bounce: crit });
+  const t = game.time, hero = u.team === 'hero', col = hero ? '#ff6a5a' : crit ? '#ffd23a' : el && el !== 'phys' ? EL(el).light : '#fff2c4', q = u.numQ;
+  if (!crit && q && q.col === col && t - q.t < .35 && t - q.t0 < 1.6 && q.p.life < q.p.max * .75) {
+    q.sum += amt; q.t = t; q.p.text = fmt(q.sum); q.p.life = Math.min(q.p.life, .1); return;
+  }
+  const c = numCol && t - numCol.t < .12 && d2(u.x, u.y, numCol.x, numCol.y) < 28 * 28 ? numCol : numCol = { x: u.x, y: u.y, z: (u.z || 0) + (u.head || 20) + 4, n: 0 };
+  c.t = t; const row = c.n % 6; c.n += crit ? 2 : 1;
+  // the text is screen-sized but the column is stacked in world height: a top-down view flattens height (4 px per 10
+  // units against iso's 15) and a close zoom stretches it, so the rows and the rise scale to stay ~10 px apart
+  const zk = clamp(1.5 / Math.max(.1, Math.abs(game.view.p(0, 0, 10)[1] - game.view.p(0, 0, 0)[1]) / 10), .6, 4), z0 = c.z + row * 7 * zk;
+  const p = P.add({ kind: 'text', x: c.x + (hero ? 0 : (Math.random() - .5) * 6), y: c.y, z: z0, vz: (crit ? 70 : 38) * zk, g: (crit ? 260 : 40) * zk, bounce: crit ? .35 : 0, floor: crit ? z0 : undefined, text: crit ? fmt(amt) + '!' : fmt(amt), color: col, max: crit ? 1.1 : .8, scale: crit ? 2 : 1 });
+  u.numQ = p && !crit ? { p, col, sum: amt, t, t0: t } : null;
 }
 /** run a hit on a unit. Returns the damage dealt (0 if it missed or was ignored) */
 function dealDamage(tgt, hit) {
@@ -153,7 +187,10 @@ FX.bolt = o => {
   const lk = p.look, e = EL(p.el || 'phys'); lk.color = lk.color || e.color; lk.core = lk.core || e.light; lk.size = lk.size || 2;
   p.update = dt => {
     p.t += dt; if (p.t >= p.life) { end(); return false; }
-    if (p.home && p.t > .08) { const tg = nearestEnemy(p.team, p.x, p.y, 110, p.hitSet); if (tg) { const a = Math.atan2(tg.y - p.y, tg.x - p.x), cur = Math.atan2(p.vy, p.vx), na = E.approachAng(cur, a, p.home * dt), sp = Math.hypot(p.vx, p.vy); p.vx = Math.cos(na) * sp; p.vy = Math.sin(na) * sp; } }
+    if (p.home && p.t > .08) {   // homing: the target is looked up ten times a second (a 110 search is ~200 grid cells), not every step
+      if (!p.tg || !p.tg.alive || p.hitSet.has(p.tg) || (p.rt = (p.rt || 0) - dt) <= 0) { p.rt = .1; p.tg = nearestEnemy(p.team, p.x, p.y, 110, p.hitSet); }
+      const tg = p.tg; if (tg) { const a = Math.atan2(tg.y - p.y, tg.x - p.x), cur = Math.atan2(p.vy, p.vx), na = E.approachAng(cur, a, p.home * dt), sp = Math.hypot(p.vx, p.vy); p.vx = Math.cos(na) * sp; p.vy = Math.sin(na) * sp; }
+    }
     if (p.grav) { p.vz -= p.grav * dt; p.z += p.vz * dt; if (p.z <= 0) { p.z = 0; end(); return false; } }
     const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt, map = ED.L && ED.L.map;
     if (map && map.heightAt(nx, ny) > p.z) {

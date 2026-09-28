@@ -19,18 +19,22 @@ const MKB_N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 /** a share of the hero's hit in one element: what these mechanics deal, so they keep pace with his gear at any depth */
 const MKB_hit = (scale, el = 'phys') => ED.hero ? heroHit(ED.hero, scale, { el, tags: ['aoe'] }).amount : heroHitAmount(scale);
 const MKB_idx = (L0, x, y) => { const cx = Math.floor(x / T16), cy = Math.floor(y / T16); return cx < 0 || cy < 0 || cx >= L0.w || cy >= L0.h ? -1 : cy * L0.w + cx; };
-/** a free spot on a room's floor: clear of the start rune, the exit, torches and other things (o.big: honour big things' radii) */
+/** a free spot on a room's floor: clear of the start rune, the exit, torches, big props and other things (o.big: honour
+ *  big things' radii). o.near [x, y]: of the free spots found, the one nearest that point */
 function MKB_spot(L0, R, o = {}) {
   const ms = o.minStart || 56, mx = o.minExit || 34, rr = o.r || 5, gap = o.gap === undefined ? 8 : o.gap;
-  for (let k = 0; k < 24; k++) {
+  let best = null, bd = 1e9;
+  for (let k = 0, found = 0; k < 24 && found < (o.near ? 6 : 1); k++) {
     const p = L0.randomFloor(R, { room: o.room, edge: o.edge === undefined ? 1 : o.edge, minStart: ms, minExit: mx });
     if (Math.hypot(p[0] - L0.start.x, p[1] - L0.start.y) < ms || (L0.exit && Math.hypot(p[0] - L0.exit.x, p[1] - L0.exit.y) < mx)) continue;   // randomFloor's fallback
-    // big things (time wells) keep clear of each other; small things only keep off a big thing's hub, and big ones off theirs
-    if (L0.things.some(t => { if (t.dead) return false; const d = Math.hypot(t.x - p[0], t.y - p[1]); return t.MKB_big ? d < (o.big ? t.r : 0) + rr + gap : d < (o.big ? 16 : (t.r || 5) + rr + gap); })) continue;
-    if (L0.torches.some(t => Math.hypot(t.x - p[0], t.y - p[1]) < (o.big ? 16 : rr + 10))) continue;
-    return p;
+    // big things (time wells) keep clear of each other and of ward circles; small things keep off a big thing's hub, and a
+    // big one keeps its hub clear of them (a nest or a pylon may stand under a dome, never on its clock face's centre)
+    if (L0.things.some(t => { if (t.dead || t.mark) return false; const d = Math.hypot(t.x - p[0], t.y - p[1]); return t.MKB_big ? d < (o.big ? t.r : 0) + rr + gap : t.kind === 'ward' ? d < t.r + rr + gap : d < (o.big ? (t.r || 5) + 16 : (t.r || 5) + rr + gap); })) continue;
+    if (L0.torches.some(t => Math.hypot(t.x - p[0], t.y - p[1]) < (o.big ? 22 : rr + 10))) continue;
+    if (L0.props.some(q => Math.hypot(q.x - p[0], q.y - p[1]) < (o.big ? 12 : rr + 4) + ((q.o && q.o.size) || 1) * 5)) continue;
+    found++; const d = o.near ? Math.hypot(p[0] - o.near[0], p[1] - o.near[1]) : 0; if (d < bd) { bd = d; best = p; }
   }
-  return null;
+  return best;
 }
 /** walking steps from a world point over open ground (walls, pits and deep water block); -1 where it cannot reach */
 function MKB_bfs(L0, x, y) {
@@ -109,18 +113,25 @@ def('mechanics', 'timewell', { name: 'Time Wells', title: 'The Stilled Clockwork
   draw(L0, r) {
     for (const w of L0.MKB_wells || []) if (r.visible(w.x, w.y, 0, w.rad * 2 + 30, w.rad + 70, w.rad + 50)) { MKB_wellFloor(w, r); MKB_dome(w, r); L.add(w.x, w.y, 12, w.rad + 26, .42, { color: '#6ab8f0' }); }
     // slowed monsters: a turning tick ring at the feet and grey afterimages that trail their slow motion
-    let budget = 10;
+    // (an echo is a full tinted body draw, the costliest thing here: the few slowed monsters nearest the hero get
+    // them, two for the nearest two, one for the next, five at most; a crowd in a dome stays cheap)
+    const echo = [], h = ED.hero;
     for (const m of ED.foes) {
       if (!m.MKB_tw || !m.alive || !r.visible(m.x, m.y, m.z, 40, 70, 40)) continue;
       const a = game.time * 1.3 + m.ph, rr = (m.r || 5) * (m.scale || 1);
       r.decal(() => { for (const o of [0, Math.PI]) r.groundArc(m.x, m.y, rr + 2, rr + 3.3, a + o, a + o + 1.1, '#9ad8ff', .65); }, { emissive: .5 });
-      const H = m.MKB_hist; if (!H) continue;
-      for (const [back, al] of [[4, .34], [8, .18]]) {
+      if (m.MKB_hist) echo.push(m);
+    }
+    if (h && echo.length > 1) echo.sort((p, q) => dist2(p, h) - dist2(q, h));
+    let budget = 5;
+    echo.forEach((m, n) => {
+      const H = m.MKB_hist;
+      for (const [back, al] of n < 2 ? [[4, .34], [8, .18]] : [[6, .28]]) {
         const q = H[H.length - 1 - back]; if (!q || budget <= 0) break;
-        if (Math.hypot(q[0] - m.x, q[1] - m.y) < 2.5 && Math.abs(q[2] - m.z) < 1.5) continue;   // only when it really moved: an echo costs a full body draw
+        if (Math.hypot(q[0] - m.x, q[1] - m.y) < 2.5 && Math.abs(q[2] - m.z) < 1.5) continue;   // only when it really moved
         budget--; MKB_echo(r, m, q, al * (m.fade === undefined ? 1 : m.fade));
       }
-    }
+    });
     // crawling shots leave a pale wake
     for (const f of ED.fx) if (f.MKB_k && f.MKB_k < .9 && f.vx !== undefined && r.visible(f.x, f.y, f.z, 20, 20, 20)) {
       const sp = Math.hypot(f.vx, f.vy) || 1, ux = f.vx / sp, uy = f.vy / sp;
@@ -177,7 +188,7 @@ function MKB_dome(w, r) {
     if (back) px.blend(g, .1, 'add', () => px.poly(g, rim.concat(base), '#4a90c8'));   // the glass
     px.blend(g, .42, 'add', () => {
       for (let k = 0; k < 5; k++) {
-        const hot = k === 4, lat = hot ? band * Math.PI / 2 * .96 : (k + .5) / 4 * Math.PI / 2 * .9, rr = R0 * Math.cos(lat), z = Hd * Math.sin(lat), n = Math.max(18, Math.round(rr * (hot ? 1.4 : .7)));
+        const hot = k === 4, lat = hot ? band * Math.PI / 2 * .96 : (k + .5) / 4 * Math.PI / 2 * .9, rr = R0 * Math.cos(lat), z = Hd * Math.sin(lat), n = Math.max(14, Math.round(rr * (hot ? 1.2 : .5)));   // (sparse: every dot is an additive fill)
         if (hot && band > .92) continue;
         for (let i = 0; i < n; i++) {
           const a = i / n * TAU + t * .06 * (k % 2 ? 1 : -1) + w.ph, ca = Math.cos(a), sa = Math.sin(a);
@@ -185,9 +196,9 @@ function MKB_dome(w, r) {
           const [sx, sy] = r.w(w.x + ca * rr, w.y + sa * rr, z); px.dot(g, sx, sy, hot ? MKB_TW.domeHi : MKB_TW.dome);
         }
       }
-      for (let j = 0; j < 12; j++) {   // ribs, slowly turning
-        const a = j / 12 * TAU + t * .05 + w.ph, ca = Math.cos(a), sa = Math.sin(a); if ((ca * fx + sa * fy < 0) !== back) continue;
-        for (let s2 = 1; s2 < 12; s2++) if ((s2 + Math.floor(t * 5 + j)) % 4) { const lat = s2 / 12 * Math.PI / 2, [sx, sy] = r.w(w.x + ca * R0 * Math.cos(lat), w.y + sa * R0 * Math.cos(lat), Hd * Math.sin(lat)); px.dot(g, sx, sy, '#3a6a98'); }
+      for (let j = 0; j < 10; j++) {   // ribs, slowly turning
+        const a = j / 10 * TAU + t * .05 + w.ph, ca = Math.cos(a), sa = Math.sin(a); if ((ca * fx + sa * fy < 0) !== back) continue;
+        for (let s2 = 1; s2 < 9; s2++) if ((s2 + Math.floor(t * 5 + j)) % 4) { const lat = s2 / 9 * Math.PI / 2, [sx, sy] = r.w(w.x + ca * R0 * Math.cos(lat), w.y + sa * R0 * Math.cos(lat), Hd * Math.sin(lat)); px.dot(g, sx, sy, '#3a6a98'); }
       }
     });
     if (!back) px.blend(g, .5, 'add', () => { for (let i = 1; i < rim.length; i++) if ((i + Math.floor(t * 8)) % 7) px.line(g, rim[i - 1][0], rim[i - 1][1], rim[i][0], rim[i][1], i % 5 ? MKB_TW.dome : MKB_TW.domeHi); });   // the silhouette
@@ -215,7 +226,12 @@ def('mechanics', 'dark', { name: 'Darkness', title: 'The Lightless Maw', adj: 'L
     px.poly(g, [[cx - 4 * s, y + 12 * s], [cx + 4 * s, y + 12 * s], [cx + 2.5 * s, y + 14 * s], [cx - 2.5 * s, y + 14 * s]], I.sh);
   },
   place(L0, R) {
-    for (const b of L0.torches.splice(0)) addThing(L0, MKB_lantern(b.x, b.y, R, 0));   // the snuffed braziers
+    for (const b of L0.torches.splice(0)) {   // the snuffed braziers (one that stood on the exit's rune steps off it)
+      let x = b.x, y = b.y; const e = L0.exit, d = e ? Math.hypot(x - e.x, y - e.y) : 99;
+      if (d < 34) { const a = d > .5 ? Math.atan2(y - e.y, x - e.x) : R() * TAU; x = e.x + Math.cos(a) * 36; y = e.y + Math.sin(a) * 36; }
+      if (!L0.map.walkable(Math.floor(x / T16), Math.floor(y / T16)) || L0.things.some(t => !t.dead && !t.mark && Math.hypot(t.x - x, t.y - y) < Math.min(t.r || 5, 30) + 6)) continue;
+      addThing(L0, MKB_lantern(x, y, R, 0));
+    }
     const n = Math.round(L0.rooms.length * 1.1);
     for (let i = 0; i < n; i++) { const p = MKB_spot(L0, R, { edge: 1, gap: 28 }); if (p) addThing(L0, MKB_lantern(p[0], p[1], R, 0)); }
     // one still burns beside the start rune: the first thing the hero sees is what light does
@@ -225,9 +241,14 @@ def('mechanics', 'dark', { name: 'Darkness', title: 'The Lightless Maw', adj: 'L
     MKB_hook(); L0.MKB_lanterns = L0.things.filter(t => t.kind === 'MKB_lantern');
     const gp = game.gpu; L0.MKB_dkWas = L.darkness; L.ambient = MKB_DK.amb; L.darkness = MKB_DK.dark;
     if (gp && gp.ambient && !L0.MKB_gpuWas) { L0.MKB_gpuWas = gp.ambient.slice(); gp.ambient = gp.ambient.map(v => v * .1); }
-    BUS.on('levelEnd', () => { L.darkness = L0.MKB_dkWas; if (gp && L0.MKB_gpuWas) { gp.ambient = L0.MKB_gpuWas; L0.MKB_gpuWas = null; } }, 'level');
+    const h = ED.hero; if (h && !L0.MKB_hl) L0.MKB_hl = { h, r: h.lightR, i: h.lightI };   // his own glow shrinks while the dark runs (set every step)
+    BUS.on('levelEnd', () => {
+      L.darkness = L0.MKB_dkWas; if (gp && L0.MKB_gpuWas) { gp.ambient = L0.MKB_gpuWas; L0.MKB_gpuWas = null; }
+      const s = L0.MKB_hl; if (s) { s.h.lightR = s.r; s.h.lightI = s.i; L0.MKB_hl = null; }
+    }, 'level');
   },
   update(L0, dt) {
+    const h = ED.hero; if (h) { h.lightR = MKB_DK.heroR; h.lightI = MKB_DK.heroI; }
     if (L0.MKB_dkF !== MKB.frame) {   // a new frame's lights are in: measure every monster once
       L0.MKB_dkF = MKB.frame;
       for (const m of ED.foes) if (m.alive) { const [a, b] = MKB_lightAt(m.x, m.y); m.MKB_lv = a; m.MKB_lx = b; }
@@ -244,8 +265,8 @@ def('mechanics', 'dark', { name: 'Darkness', title: 'The Lightless Maw', adj: 'L
   },
   draw(L0, r) {
     MKB.frame++;
-    const h = ED.hero;   // keep the hero's own glow small (drawHero added it this frame)
-    if (h) for (const q of L.list) if (q.x === h.x && q.y === h.y && q.r > 60 && !q.MKB_hero) { q.r = MKB_DK.heroR; q.i = MKB_DK.heroI; q.MKB_hero = 1; }
+    const h = ED.hero;   // find the hero's own glow (drawHero added it this frame at h.lightR): it shows him, it exposes nothing
+    if (h) for (const q of L.list) if (q.x === h.x && q.y === h.y && q.r === MKB_DK.heroR) { q.MKB_hero = 1; break; }
     MKB_eyes(r);
     // Exposed monsters stand in a broken ring of gold, so the player reads where the light pays
     for (const m of ED.foes) if (m.alive && m.st.vuln && m.MKB_lx >= MKB_DK.lit && r.visible(m.x, m.y, 0, 30, 30, 30)) { const a = -game.time * 2 + m.ph, rr = (m.r || 5) * (m.scale || 1) + 3; r.decal(() => { for (let i = 0; i < 3; i++) r.groundArc(m.x, m.y, rr, rr + 1.2, a + i * 2.1, a + i * 2.1 + 1.2, '#ffd36a', .75); }, { emissive: .6 }); }
@@ -502,7 +523,7 @@ const MKB_LP = { cols: ['#6affd0', '#ffb04a', '#c890ff', '#6ab8ff', '#ff6a9a', '
 /** the flight between two pads: distance, time in the air, apex height */
 const MKB_arc = (p, q) => { const D = Math.hypot(q.x - p.x, q.y - p.y); return { D, T: clamp(.5 + D / 400, .75, 1.7), H: clamp(26 + D * .12, 44, 72) }; };   // (the core camera looks at z 8, so the apex stays on screen)
 def('mechanics', 'launch', { name: 'Launch Runes', title: 'The Leaping Spires', adj: 'Leaping', noun: 'Spires', color: '#6affd0', depth: 13, weight: 7,
-  tip: 'Step on a rune pad to be thrown to its twin; the landing slams everything around it. Monsters that step on one crash down. The pads chain toward the exit.',
+  tip: 'Stand on a rune pad to be thrown to its twin; the landing slams everything around it. Monsters that wander onto one crash down. The pads chain toward the exit.',
   icon(g, x, y, s) {
     px.ell(g, x + 5 * s, y + 13 * s, 4 * s, 1.8 * s, '#1a5a4a'); px.ell(g, x + 5 * s, y + 13 * s, 3 * s, 1.1 * s, '#6affd0');
     px.ell(g, x + 12.5 * s, y + 13.5 * s, 3 * s, 1.4 * s, '#1a5a4a'); px.ell(g, x + 12.5 * s, y + 13.5 * s, 2 * s, .8 * s, '#6affd0');
@@ -521,7 +542,11 @@ def('mechanics', 'launch', { name: 'Launch Runes', title: 'The Leaping Spires', 
       p.flash = Math.max(0, p.flash - dt * 2.2);
       const d = Math.hypot(h.x - p.x, h.y - p.y), flying = h.act && h.act.name === 'MKB_launch';
       if (p.hold && d > p.r + 5 && !flying) p.hold = false;   // re-armed once he has stepped off (never mid-flight)
-      if (!p.hold && d < p.r - 2.5 && h.alive && !h.dead && (h.z || 0) < 1 && h.dodgeT <= 0 && !(h.act && h.act.cancel === false)) MKB_launchHero(h, p);
+      // it catches him when he stands on it (a beat, or a stop): walking straight over a pad on the way somewhere
+      // else never throws him back where he came from, so the pads can be ignored
+      const on = !p.hold && d < p.r - 2.5 && h.alive && !h.dead && (h.z || 0) < 1 && h.dodgeT <= 0 && !(h.act && h.act.cancel === false);
+      p.dwell = on ? (p.dwell || 0) + dt : 0;
+      if (on && (p.dwell >= .2 || (p.dwell >= .06 && Math.hypot(h.vx, h.vy) < 25))) { p.dwell = 0; MKB_launchHero(h, p); }
       GRID.each(p.x, p.y, p.r - 4, m => { if (!m.boss && !m.canFly && !m.air && (m.z || 0) < 1 && !(m.spawnT > 0) && !((m.MKB_lt || 0) > game.time) && !m.fallT) MKB_launchFoe(m, p, L0); });
     }
     // thrown monsters: the crash when they come down
@@ -543,12 +568,17 @@ function MKB_padPairs(L0, R) {
   const rooms = L0.rooms.map(r0 => ({ r0, d: at(r0) })).filter(q => q.d >= 0).sort((a, b) => a.d - b.d);
   if (rooms.length < 2) return [];
   const used = [], pairs = [], ex = L0.exit, inRoom = (r0, p) => p[0] >= r0.x * T16 && p[0] < (r0.x + r0.w) * T16 && p[1] >= r0.y * T16 && p[1] < (r0.y + r0.h) * T16;
-  const spot = r0 => { for (let k = 0; k < 10; k++) { const p = MKB_spot(L0, R, { room: r0, edge: 2, gap: 14, r: 9, minStart: 60, minExit: 42 }); if (p && !used.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 44)) return p; } return null; };
-  const add = (ra, rb) => { if (!ra || !rb || ra === rb) return false; const a = spot(ra); if (!a) return false; used.push(a); const b = spot(rb); const D = b ? Math.hypot(a[0] - b[0], a[1] - b[1]) : 0; if (!b || D < 96 || D > MKB_LP.max) { used.pop(); return false; } used.push(b); pairs.push([a, b]); return true; };
+  // a free spot in a room (near: of a dozen, the one nearest that point: the route's pads sit where the runner already is)
+  // (route pads may stand a cell from a wall and just off the start rune: the islands' rooms are small)
+  const spot = (r0, near) => { let best = null, bd = 1e9; for (let k = 0; k < (near ? 14 : 10); k++) { const p = MKB_spot(L0, R, { room: r0, edge: near || k > 5 ? 1 : 2, gap: 14, r: 9, minStart: near ? 46 : 60, minExit: 42 }); if (!p || used.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 40)) continue; if (!near) return p; const d = Math.hypot(p[0] - near[0], p[1] - near[1]); if (d < bd) { bd = d; best = p; } } return best; };
+  const add = (ra, rb, na, nb) => { if (!ra || !rb || ra === rb) return false; const a = spot(ra, na); if (!a) return false; used.push(a); const b = spot(rb, nb); const D = b ? Math.hypot(a[0] - b[0], a[1] - b[1]) : 0; if (!b || D < 96 || D > MKB_LP.max) { used.pop(); return false; } used.push(b); pairs.push([a, b]); return true; };
   const eq = ex && rooms.find(q => inRoom(q.r0, [ex.x, ex.y])), exitRoom = (eq || rooms[rooms.length - 1]).r0, n = rooms.length;
-  const mid = rooms[Math.max(1, Math.floor(n / 2))].r0, first = rooms[0].r0;
-  if (!add(first, mid)) add(rooms[Math.min(1, n - 1)].r0, mid);
-  if (!add(mid, exitRoom)) add(rooms[Math.min(n - 1, Math.floor(n / 2) + 1)].r0, exitRoom);
+  const mid = rooms[Math.max(1, Math.floor(n / 2))].r0, first = rooms[0].r0, st = [L0.start.x, L0.start.y];
+  // the route: a pad by the start rune, its twin in the middle of the level; the next pad a few steps from where that
+  // one lands, its twin as near the exit as the room allows
+  if (!add(first, mid, st)) add(rooms[Math.min(1, n - 1)].r0, mid, st);
+  const land = pairs.length ? pairs[pairs.length - 1][1] : null, to = ex ? [ex.x, ex.y] : null;
+  if (!add(mid, exitRoom, land, to)) add(rooms[Math.min(n - 1, Math.floor(n / 2) + 1)].r0, exitRoom, land, to);
   for (let k = 0; k < 14 && pairs.length < clamp(Math.round(n / 3), 2, 5); k++) { const a = R.pick(rooms), b = R.pick(rooms); if (Math.abs(a.d - b.d) > 12) add(a.r0, b.r0); }
   return pairs;
 }
@@ -618,7 +648,8 @@ function MKB_drawPad(p, r) {
     r.groundDisc(p.x, p.y, 9, '#221c2a', 1); r.groundDisc(p.x, p.y, 7.6, T0.deep, 1);
     r.groundRing(p.x, p.y, 11, '#6a6278', .9); r.groundRing(p.x, p.y, 8.3, c, .5 + .3 * fl);
     for (let i = 0; i < 8; i++) { const a = t * .7 * p.spin + i / 8 * TAU; r.groundArc(p.x, p.y, 7.8, 8.8, a, a + .38, i % 2 ? T0.hi : c, .95); }
-    r.groundDisc(p.x, p.y, 5.6, c, .3 + .12 * Math.sin(t * 3 + p.ph) + .5 * fl); r.groundRing(p.x, p.y, 5.6, T0.hi, .7);
+    const dw = clamp((p.dwell || 0) / .2, 0, 1);   // it gathers itself under his feet before it throws
+    r.groundDisc(p.x, p.y, 5.6, c, .3 + .12 * Math.sin(t * 3 + p.ph) + .5 * fl + .4 * dw); r.groundRing(p.x, p.y, 5.6, T0.hi, .7); if (dw > 0) r.groundRing(p.x, p.y, 8.3 - 4 * dw, T0.hi, .9);
     for (let k = 0; k < 3; k++) {   // chevrons flow outward toward the twin
       const u = (t * 1.3 + k / 3) % 1, d = u * 6 - 3.5, a = Math.sin(u * Math.PI), tip = W(d + 2.2, 0), l = W(d, 2.2), rr = W(d, -2.2);
       px.blend(g, a, 'normal', () => { px.line(g, l[0], l[1], tip[0], tip[1], T0.hi); px.line(g, rr[0], rr[1], tip[0], tip[1], T0.hi); });
@@ -684,13 +715,17 @@ function MKB_floodPlace(L0, R) {
   const S = L0.MKB_fl = { v: new Float32Array(n).fill(9), own: new Uint8Array(n), vis: new Float32Array(n), wet: new Float32Array(n), band: [], deep: [], lab: null, labT: -9, dirty: true, arcs: [], bolts: [], zaps: [], clouds: [], phase: R() * MKB_FL.per * .5, level: 0, tick: 0, bodyT: {} };
   const dry = i => cells[i] === 0 && !tags[i];
   const nearRune = i => { const x = (i % w + .5) * T16, y = ((i / w) | 0) * T16 + 8; return Math.hypot(x - L0.start.x, y - L0.start.y) < 46 || (L0.exit && Math.hypot(x - L0.exit.x, y - L0.exit.y) < 38); };
+  // a canal never swallows what other mechanics placed (a launch pad in deep water would land the hero in it): it keeps
+  // off small things, off ward circles, and off a time well's clock face
+  const held = L0.things.filter(t => !t.dead && !t.mark && (t.r || t.solid || t.hittable)).concat(L0.torches);
+  const nearThing = i => { const x = (i % w + .5) * T16, y = ((i / w) | 0) * T16 + 8; return held.some(t => Math.hypot(t.x - x, t.y - y) < (t.MKB_big ? t.r * .6 : Math.min(t.r || 5, 32)) + 14); };
   // deep canals: two cells wide across a room with a ford left in them; kept only when nothing gets cut off
   let reach = MKB_reach(L0);
   for (const r0 of R.shuffle(L0.rooms.filter(q => q.w >= 8 && q.h >= 8)).slice(0, clamp(Math.round(L0.rooms.length * .3), 1, 3))) {
     const hor = r0.w >= r0.h ? R.chance(.7) : R.chance(.3), cs = [];
     if (hor) { const y0 = r0.y + R.int(2, r0.h - 4), gap = r0.x + R.int(1, r0.w - 3); for (let x = r0.x - 1; x <= r0.x + r0.w; x++) if (x < gap || x > gap + 1) cs.push(y0 * w + x, (y0 + 1) * w + x); }
     else { const x0 = r0.x + R.int(2, r0.w - 4), gap = r0.y + R.int(1, r0.h - 3); for (let y = r0.y - 1; y <= r0.y + r0.h; y++) if (y < gap || y > gap + 1) cs.push(y * w + x0, y * w + x0 + 1); }
-    const ok = cs.filter(i => i >= 0 && i < n && dry(i) && !nearRune(i)); if (ok.length < 6) continue;
+    const ok = cs.filter(i => i >= 0 && i < n && dry(i) && !nearRune(i) && !nearThing(i)); if (ok.length < 6) continue;
     for (const i of ok) { tags[i] = 'deep'; m.blocked[i] = 1; }
     const now = MKB_reach(L0);
     if (now < reach - ok.length) { for (const i of ok) { tags[i] = null; m.blocked[i] = 0; } continue; }
@@ -713,6 +748,22 @@ function MKB_floodPlace(L0, R) {
   const orig = m.MKB_tex0 || (m.MKB_tex0 = m.floorTex);
   m.floorTex = (x, y, tag) => MKB_floodTex(L0, orig, x, y, tag);
   m.floors = {}; if (L0.flow) L0.flow.tx = -1;
+  MKB_tideAtlas(L0);
+}
+/** the theme's own water, painted once into a 16 x 16 tile per tide-band cell: the live tide is drawn from these, so
+ *  the water that floods in is the same water the pools were baked with (not a flat tint over the stones) */
+function MKB_tideAtlas(L0) {
+  const S = L0.MKB_fl, orig = L0.map.MKB_tex0, w = L0.w, n = S.band.length; S.atlas = null; if (!orig || !n) return;
+  const cols = Math.ceil(Math.sqrt(n)), cv = E.mkCanvas(cols * 16, Math.ceil(n / cols) * 16), g = E.ctx2d(cv), img = g.createImageData(cv.width, cv.height), d = img.data, at = new Map();
+  S.band.forEach((i, k) => {
+    const tx = (k % cols) * 16, ty = ((k / cols) | 0) * 16, x0 = (i % w) * T16, y0 = ((i / w) | 0) * T16; at.set(i, [tx, ty]);
+    for (let py = 0; py < 16; py++) for (let qx = 0; qx < 16; qx++) {
+      let c = null; try { c = orig(x0 + qx + .5, y0 + py + .5, 'water'); } catch (e) { c = null; }
+      if (!c) c = [42, 92, 140];
+      const o = ((ty + py) * cv.width + tx + qx) * 4; d[o] = clamp(c[0], 0, 255); d[o + 1] = clamp(c[1], 0, 255); d[o + 2] = clamp(c[2], 0, 255); d[o + 3] = 255;
+    }
+  });
+  g.putImageData(img, 0, 0); S.atlas = { cv, at };
 }
 function MKB_edge(L0, cx, cy, lx, ly, other) {   // how far a point in cell (cx, cy) is from the nearest side that borders `other`
   const w = L0.w, i = cy * w + cx; let e = 99;
@@ -778,7 +829,9 @@ function MKB_conduct(L0, e) {
   const amt = Math.max(1, (e.dmg || 0) * MKB_FL.arcK);
   list.forEach((u, k) => S.arcs.push({ at: game.time + .04 + k * .03, x: tgt.x, y: tgt.y, u, amt, src: e.src }));
   const cells = []; for (let j = 0; j < lab.length; j++) if (lab[j] === id) cells.push(j);
-  S.zaps.push({ t0: game.time, cells, x: tgt.x, y: tgt.y, seed: (rnd() * 999) | 0 }); if (S.zaps.length > 4) S.zaps.shift();
+  // one flash per body of water: a pool that conducts again (charged pylons keep a pool humming) restarts its flash
+  const z0 = S.zaps.find(z => z.id === id); if (z0) Object.assign(z0, { t0: game.time, cells, x: tgt.x, y: tgt.y, seed: (rnd() * 999) | 0 });
+  else { S.zaps.push({ id, t0: game.time, cells, x: tgt.x, y: tgt.y, seed: (rnd() * 999) | 0 }); if (S.zaps.length > 3) S.zaps.shift(); }
   sfx('zap', { vol: .55, pitch: .8 }); elBurst(tgt.x, tgt.y, 2, 'storm', 8); if (list.length) { shake(2 + Math.min(3, list.length * .3)); game.freeze(.04); game.flash('#fff4a0', .06, .2); }
 }
 /** steam where fire meets water: a cloud that swells, drifts, veils monsters and scalds everyone inside */
@@ -840,17 +893,20 @@ function MKB_drawTide(L0, r) {
       if (vis >= .06) { groups[Math.max(1, Math.min(7, Math.round(vis * 7)))].push(i); if (vis > .4) for (const [dx, dy, a, b] of [[0, -1, 0, 1], [1, 0, 1, 2], [0, 1, 2, 3], [-1, 0, 3, 0]]) { const j = i + dy * w + dx; if (cells[j] === 0 && tags[j] !== 'water' && tags[j] !== 'deep') foam.push([i, a, b]); } }
       else groups[8 + Math.max(1, Math.min(7, Math.round(wet * 7)))].push(i);
     }
-    const alpha = E.style.trans !== 'dither';
+    const alpha = E.style.trans !== 'dither', A = S.atlas;
     const cv = MKB_FL.cv || (MKB_FL.cv = E.mkCanvas(bw, bh)), cg = MKB_FL.cg || (MKB_FL.cg = E.ctx2d(cv));
     if (alpha && (cv.width !== bw || cv.height !== bh)) { cv.width = bw; cv.height = bh; cg._c = null; }
+    // a band cell's water tile, laid on the floor by an affine map (exact for these orthographic views), a hair
+    // oversized so neighbours overlap instead of leaving seams (they overlap on the scratch canvas, never in alpha)
+    const tile = i => { const t = A && A.at.get(i); if (!t) { px.poly(cg, quad(i), MKB_FL.water); return; } const x0 = (i % w) * T16 - .5, y0 = ((i / w) | 0) * T16 - .5, p0 = r.w(x0, y0), p1 = r.w(x0 + 17, y0), p3 = r.w(x0, y0 + 17); cg.save(); cg.imageSmoothingEnabled = false; cg.transform((p1[0] - p0[0]) / 16, (p1[1] - p0[1]) / 16, (p3[0] - p0[0]) / 16, (p3[1] - p0[1]) / 16, p0[0], p0[1]); cg.drawImage(A.cv, t[0], t[1], 16, 16, 0, 0, 16, 16); cg.restore(); };
     for (let k = 1; k < 16; k++) {
       const list = groups[k]; if (!list.length || k === 8) continue;
-      const water = k < 8, col = water ? MKB_FL.water : MKB_FL.wet, a = water ? k / 7 * .72 : (k - 8) / 7 * .34;
+      const water = k < 8, col = water ? MKB_FL.water : MKB_FL.wet, a = water ? (A ? k / 7 * .96 : k / 7 * .72) : (k - 8) / 7 * .34;
       if (!alpha) { for (const i of list) px.polyDither(g, quad(i), col, a, r.ix, r.iy); continue; }
       let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;   // only the group's own rectangle is cleared and copied
       for (const i of list) for (const [qx, qy] of quad(i)) { if (qx < x0) x0 = qx; if (qx > x1) x1 = qx; if (qy < y0) y0 = qy; if (qy > y1) y1 = qy; }
-      x0 = clamp(Math.floor(x0) - 1, 0, bw); y0 = clamp(Math.floor(y0) - 1, 0, bh); x1 = clamp(Math.ceil(x1) + 2, 0, bw); y1 = clamp(Math.ceil(y1) + 2, 0, bh); if (x1 <= x0 || y1 <= y0) continue;
-      cg.clearRect(x0, y0, x1 - x0, y1 - y0); for (const i of list) px.poly(cg, quad(i), col);
+      x0 = clamp(Math.floor(x0) - 2, 0, bw); y0 = clamp(Math.floor(y0) - 2, 0, bh); x1 = clamp(Math.ceil(x1) + 3, 0, bw); y1 = clamp(Math.ceil(y1) + 3, 0, bh); if (x1 <= x0 || y1 <= y0) continue;
+      cg.clearRect(x0, y0, x1 - x0, y1 - y0); for (const i of list) { if (water) tile(i); else px.poly(cg, quad(i), col); }
       px.blend(g, a, 'normal', () => g.drawImage(cv, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0));
     }
     if (foam.length) px.blend(g, .6 + .25 * Math.sin(t * 3), 'normal', () => { for (const [i, a, b] of foam) { const q = quad(i), [x0, y0] = q[a], [x1, y1] = q[b]; px.line(g, x0, y0, x1, y1, MKB_FL.foam); const n = 4, ph = t * 2 + i; for (let k = 0; k < n; k++) { const u = (k + .5) / n, o = Math.sin(ph + k * 1.7) > .3 ? 1 : 0; if (o) px.dot(g, lerp(x0, x1, u), lerp(y0, y1, u) + 1, '#ffffff'); } } });   // the water's front, frothing
@@ -868,15 +924,16 @@ function MKB_drawFloodFx(L0, r) {
   // a conducting pool lights up: the whole body flashes and crackles
   for (const z of S.zaps) {
     const u = (t - z.t0) / .38; if (u >= 1 || u < 0) continue;
-    const vis = z.cells.filter(i => { const [sx, sy] = r.w((i % w + .5) * T16, (((i / w) | 0) + .5) * T16); return sx > -20 && sy > -20 && sx < r.bw + 20 && sy < r.bh + 20; }).slice(0, 220);
+    const vis = z.cells.filter(i => { const [sx, sy] = r.w((i % w + .5) * T16, (((i / w) | 0) + .5) * T16); return sx > -20 && sy > -20 && sx < r.bw + 20 && sy < r.bh + 20; }).slice(0, 170);
     r.decal(() => { const g = r.tgt; px.blend(g, .5 * (1 - u), 'add', () => { for (const i of vis) { const x0 = (i % w) * T16, y0 = ((i / w) | 0) * T16; px.poly(g, [r.w(x0, y0), r.w(x0 + T16, y0), r.w(x0 + T16, y0 + T16), r.w(x0, y0 + T16)], '#fff09a'); } }); }, { emissive: 1 - u });
-    r.queue(z.x, z.y, 1, g => { px.glow(g, 1); for (let k = 0; k < vis.length; k += 3) { const i = vis[k], x0 = (i % w) * T16, y0 = ((i / w) | 0) * T16, hs = E.hash2(i, z.seed + Math.floor(t * 20)); if (hs > .6) continue; const a = r.w(x0 + hs * 16, y0 + 2, .5), b = r.w(x0 + 14 - hs * 10, y0 + 14, .5); zig(g, a[0], a[1], b[0], b[1], u < .5 ? '#ffffff' : '#ffe45a', 1, 3, i); } }, { emissive: true, bias: -2 });
+    r.queue(z.x, z.y, 1, g => { px.glow(g, 1); for (let k = 0, n = 0; k < vis.length && n < 26; k += 3) { const i = vis[k], x0 = (i % w) * T16, y0 = ((i / w) | 0) * T16, hs = E.hash2(i, z.seed + Math.floor(t * 20)); if (hs > .6) continue; n++; const a = r.w(x0 + hs * 16, y0 + 2, .5), b = r.w(x0 + 14 - hs * 10, y0 + 14, .5); zig(g, a[0], a[1], b[0], b[1], u < .5 ? '#ffffff' : '#ffe45a', 1, 3, i); } }, { emissive: true, bias: -2 });
     L.add(z.x, z.y, 4, 110, 1.3 * (1 - u), { color: '#ffe890' });
   }
+  let lit = 0;   // (a few of the arcs light the water: a light per arc would cost more than it shows)
   for (const b of S.bolts) {
-    const u = (t - b.t0) / .26; if (u >= 1) continue;
+    const u = (t - b.t0) / .26; if (u >= 1 || !r.visible((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, 2, 90, 90, 90)) continue;
     r.queue((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, 2, g => { const [x0, y0] = r.w(b.x0, b.y0, 2), [x1, y1] = r.w(b.x1, b.y1, 6); px.glow(g, 1); if (u < .6) zig(g, x0, y0, x1, y1, '#ffe45a', 2, 5, b.seed); zig(g, x0, y0, x1, y1, '#ffffff', 1, 5, b.seed); }, { emissive: true, bias: 1 });
-    L.add(b.x1, b.y1, 6, 40, .8 * (1 - u), { color: '#fff0a0' });
+    if (lit++ < 6) L.add(b.x1, b.y1, 6, 40, .8 * (1 - u), { color: '#fff0a0' });
   }
   // steam: soft puffs in three flat tones that rise, swell and fade (queued above the floor so they cover what is inside)
   for (const c of S.clouds) {

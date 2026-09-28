@@ -40,8 +40,7 @@ function LOT_tabBtn(g, x, y, w, label, on, fn, key) {
 }
 function LOT_begin(P, x, y, w, h) {
   LOT_UI.active = UI.top() === P; if (!LOT_UI.active) return;
-  LOT_UI.targets = []; LOT_UI.nav = []; LOT_UI.tip = null; LOT_UI.panelRect = [x, y, w, h];
-  UI.nextHot = UI.nextHot.filter(q => q.x >= x + w || q.x + q.w <= x || q.y >= y + h || q.y + q.h <= y);   // the HUD under the panel neither shows tips nor takes clicks
+  LOT_UI.targets = []; LOT_UI.nav = []; LOT_UI.tip = null; LOT_UI.panelRect = [x, y, w, h];   // (the core keeps the HUD and the panels below display only)
 }
 /** after a panel draws: the dragged item under the mouse, sparkles and coins, and the tooltip (drawn last, over everything) */
 function LOT_end(g) {
@@ -146,11 +145,11 @@ function LOT_sell(h, it, at, verb = 'sell') {
 function LOT_sort(h) { h.bag.sort((a, b) => SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot) || b.rarity - a.rarity || b.ilvl - a.ilvl || b.value - a.value); sfx('select'); }
 
 /* ---------- item cells (bag, slots, stock), with hover, focus, drag, drop highlights and the tooltip ---------- */
-/** o: { key, target, click, alt(it), drop(T), accept(it), cmp, sel, dim, tipO, price } */
+/** o: { key, target, click, alt(it), drop(T), accept(it), cmp, sel, dim, tipO, price, seam (1: the cell also owns the 1 px seam to its right and below) } */
 function LOT_itemCell(g, x, y, S, it, o = {}) {
-  const P = LOT_UI.press, dragging = !!(P && P.moved && it && P.it === it);
-  if (LOT_UI.active && o.target) LOT_UI.targets.push(Object.assign({ x, y, w: S, h: S }, o.target));
-  const over = LOT_hot(x, y, S, S, it ? { drag: LOT_pressFn({ key: o.key, it, click: o.click, drop: o.drop }), rclick: o.alt ? () => o.alt(it) : null } : {});
+  const P = LOT_UI.press, dragging = !!(P && P.moved && it && P.it === it), HS = S + (o.seam || 0);
+  if (LOT_UI.active && o.target) LOT_UI.targets.push(Object.assign({ x, y, w: HS, h: HS }, o.target));
+  const over = LOT_hot(x, y, HS, HS, it ? { drag: LOT_pressFn({ key: o.key, it, click: o.click, drop: o.drop }), rclick: o.alt ? () => o.alt(it) : null } : {});
   const focus = LOT_nav(o.key, x, y, S, S, { it, act: it ? o.click : null, alt: it && o.alt ? () => o.alt(it) : null });
   const hov = over && !UI.keyNav, dropping = P && P.moved && hov && P.it !== it, ok = dropping && (!o.accept || o.accept(P.it));
   LOT_cell(g, x, y, S, dragging ? null : it, { hover: hov, focus, sel: o.sel, dim: o.dim, good: dropping && ok, bad: dropping && !ok });
@@ -177,7 +176,7 @@ function LOT_bagGrid(g, x, y, cols, rows, S, h, mode) {
   if (LOT_UI.active) LOT_UI.targets.push({ x, y, w: cols * S, h: rows * S, kind: 'bag', i: h.bag.length });   // anywhere on the grid: the end of the bag
   for (let i = 0; i < cols * rows; i++) {
     const it = h.bag[i], cx = x + (i % cols) * S, cy = y + Math.floor(i / cols) * S;
-    LOT_itemCell(g, cx, cy, S - 1, it, { key: 'bag:' + i, target: { kind: 'bag', i }, cmp: true, sel: mode.sel && mode.sel === it,
+    LOT_itemCell(g, cx, cy, S - 1, it, { key: 'bag:' + i, target: { kind: 'bag', i }, cmp: true, sel: mode.sel && mode.sel === it, seam: 1,
       click: () => mode.select ? mode.select(it) : LOT_equip(h, it), alt: q => LOT_itemAlt(h, q, [cx, cy], mode), drop: T => LOT_dropBag(h, it, T, mode), tipO: { hint: LOT_hints(h, mode.kind) } });
   }
 }
@@ -482,13 +481,16 @@ function LOT_npcHeader(g, x, y, w, svc) {
   lines.forEach((l, i) => { const s = l.slice(0, Math.max(0, left)); left -= l.length + 1; if (s) E.font.text(g, s, bx + 4, by + 3 + i * 9, '#2a1a2a', { outline: false }); });
   if (!typing && text && Math.floor(performance.now() / 400) % 2) px.rect(g, bx + bw - 7, by + bh - 5, 3, 2, '#6a5a6a');
 }
+/* prices follow the items' own value curve (itemValue), so no service turns a profit when the result is sold:
+   tempering always costs more than the sell value it adds, and a gamble costs more than a gamble is worth on average
+   (about 4x a common's value: 43% common, 35% magic, 17% rare, 5% legendary or unique) */
 const LOT_COST = {
   buy: it => Math.round(it.value * 4),
   reforge: it => Math.round(it.value * 1.5 + 25 * SCALE.gold(it.ilvl)),
-  temper: (it, to) => Math.round((to - it.ilvl) * (8 + it.value * .12) * Math.sqrt(SCALE.gold(to))),
+  temper: (it, to) => Math.round(Math.max((to - it.ilvl) * (8 + it.value * .12) * Math.sqrt(SCALE.gold(to)), (itemValue(to, it.rarity) - it.value) * 1.1)),
   enchant: it => Math.round((20 * SCALE.gold(it.ilvl) + it.value * .6) * (1 + (it.enchants || 0) * .35)),
   transmute: it => Math.round(it.rarity === 0 ? 10 + it.value * 3 : 60 * SCALE.gold(it.ilvl) + it.value * 4),
-  gamble: (slot, d) => Math.round((slot === 'weapon' ? 70 : slot === 'amulet' ? 60 : slot === 'ring' ? 50 : 40) * SCALE.gold(d)),
+  gamble: (slot, d) => Math.round((slot === 'weapon' ? 9 : slot === 'amulet' ? 8 : slot === 'ring' ? 7 : 6) * itemValue(d, 0)),
   respec: h => Math.round(15 * h.level * (1 + h.level * .08))
 };
 /** pay or complain: true if the gold was taken */
@@ -500,7 +502,7 @@ function LOT_shopBag(g, x, y, w, bottom, h, mode, worn) {
   let gy = y + 9;
   if (worn) {
     const WS = clamp(Math.floor(w / 10), 14, 19);
-    SLOTS.forEach((s, i) => { const it = h.gear[s], cx = x + i * WS; LOT_itemCell(g, cx, gy, WS - 1, it, { key: 'worn:' + s, sel: mode.sel && mode.sel === it, click: () => mode.select(it), alt: null, drop: T => { if (T && T.kind === 'anvil') mode.select(it); }, tipO: { equipped: true, hint: [{ t: 'CLICK: ' + (mode.kind === 'smith' ? 'PUT ON THE ANVIL' : 'PLACE ON THE ALTAR'), c: '#8a80a8' }] } }); if (!it) drawItemIconEx(g, LOT_ghost(s), cx + Math.floor((WS - 17) / 2), gy + Math.floor((WS - 17) / 2), 1, { alpha: .35, anim: false }); });
+    SLOTS.forEach((s, i) => { const it = h.gear[s], cx = x + i * WS; LOT_itemCell(g, cx, gy, WS - 1, it, { key: 'worn:' + s, sel: mode.sel && mode.sel === it, seam: 1, click: () => mode.select(it), alt: null, drop: T => { if (T && T.kind === 'anvil') mode.select(it); }, tipO: { equipped: true, hint: [{ t: 'CLICK: ' + (mode.kind === 'smith' ? 'PUT ON THE ANVIL' : 'PLACE ON THE ALTAR'), c: '#8a80a8' }] } }); if (!it) drawItemIconEx(g, LOT_ghost(s), cx + Math.floor((WS - 17) / 2), gy + Math.floor((WS - 17) / 2), 1, { alpha: .35, anim: false }); });
     E.font.text(g, 'WORN', x, gy + WS + 1, '#6a6488', { font: 'tiny', outline: false }); gy += WS + 9;
   }
   const cols = 8, rows = 5, CS = clamp(Math.min(Math.floor(w / cols), Math.floor((bottom - gy) / rows)), 14, 24);
@@ -615,7 +617,7 @@ function LOT_temper(h, it, to) {
     const A = REG.itemAffixes[a.id], sc = A ? A.scale : STATS[a.stat] && STATS[a.stat].f === 'flat' ? 'flat' : 'none', k = sc === 'flat' ? kf : sc === 'pct' ? kp : 1;
     if (k !== 1) { const v = a.v * k; a.v = Math.abs(v) < 10 ? Math.round(v * 10) / 10 : Math.round(v); }
   }
-  it.ilvl = to; it.value = Math.round(4 * (1 + to * .35) * RARITY[it.rarity].value);
+  it.ilvl = to; it.value = itemValue(to, it.rarity);   // the same gold curve as a fresh drop of that level
   LOT_refit(h, it);
 }
 LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => Math.min(H - 8, 262),
@@ -713,7 +715,7 @@ function LOT_transmute(h, it) {
     const kind = it.affixes.length % 2 ? 'suffix' : 'prefix', opts = Object.values(REG.itemAffixes).filter(A => !taken.has(A.stat) && (A.minIlvl || 1) <= it.ilvl && A.slots.includes(slot) && (to < 2 || A.kind === kind || rnd() < .3));
     if (!opts.length) break; const A = rnd.weighted(opts, a => a.weight || 10); taken.add(A.stat); it.affixes.push(rollAffix(A, it.ilvl, rnd));
   }
-  it.rarity = to; it.name = itemName(it, rnd); it.value = Math.round(4 * (1 + it.ilvl * .35) * RARITY[to].value);
+  it.rarity = to; it.name = itemName(it, rnd); it.value = itemValue(it.ilvl, to);
   if (to >= 2 && it.slot === 'weapon' && it.el === 'phys') { const ea = it.affixes.find(a => /^inc(Fire|Frost|Storm|Void|Venom)$/.test(a.stat)); if (ea) it.el = ea.stat.slice(3).toLowerCase(); }
   if (to >= 2 && it.look) tintLegend(it, rnd);
   LOT_refit(h, it);
@@ -783,7 +785,7 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
       if (!it) return LOT_say('mystic', 'pick'); if (it.rarity >= 2 || LOT_MYST.ench) return; if (!LOT_pay(h, tcost, 'mystic')) return;
       LOT_transmute(h, it); LOT_burst(ox, oy, RARITY[it.rarity].color, 18); sfx('powerup', { vol: .5 }); LOT_say('mystic', 'transmute');
     }, { key: 'transmute', disabled: !it || it.rarity >= 2 || !!LOT_MYST.ench, color: '#3a2458', tip: [{ t: 'Transmute', c: '#c890ff' }, { t: 'Common becomes magic, magic becomes rare: new affixes are woven in.', c: '#c8c0d8' }] });
-    const pts = typeof respecHero === 'function' ? 1 : Object.values(h.skills).reduce((a, k) => a + (k.rank || 0), 0) - 2 + (Array.isArray(h.tree) ? h.tree.length : 0);
+    const pts = Object.entries(h.skills).reduce((a, [id, k]) => a + Math.max(0, (k.rank || 0) - (id === 'blade' || id === 'ember' ? 1 : 0)), 0) + (Array.isArray(h.tree) ? h.tree.length : 0);   // what a respec would give back (nothing: no charge)
     LOT_btn(g, ax, by + BH + 3, lw, BH, LOT_MYST.respecT > 0 ? 'CONFIRM RESPEC  ' + fmt(rcost) : 'RESPEC ALL POINTS  ' + fmt(rcost), () => {
       if (pts <= 0) return; if (LOT_MYST.respecT <= 0) { LOT_MYST.respecT = 3; LOT_say('mystic', 'confirm'); return; }
       if (!LOT_pay(h, rcost, 'mystic')) return; LOT_MYST.respecT = 0; LOT_respec(h); LOT_burst(ox, oy, '#ecd8ff', 20); sfx('warp', { vol: .6 }); LOT_say('mystic', 'respec');
