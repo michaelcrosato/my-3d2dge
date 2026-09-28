@@ -148,6 +148,30 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
   - tooltip lines are `[{ t: 'text', c: '#color', big, sep }]`;
   - text: `notify(text, color, dur)` for the feed, `showCard(title, sub, mechLike, dur)`.
 
+## Core features added after the first build wave
+- `92-gallery.js`: the Gallery scene (`#gallery`, and on the title menu).
+  - SKILLS plays every `REG.skills` entry on straw training dummies (the `dummy` archetype).
+  - BESTIARY plays every archetype except bossBody ones: it walks in, attacks the hero and dies.
+  - POSES is the hero's pose vocabulary.
+  - Your content shows up there automatically, so make it look good there too.
+- `93-autopilot.js`: `botOn(h)` or `__ed.bot(true)` lets an autopilot drive the hero through a virtual input (`h.bot.input`). `__ed.botRun({ to: N, speed: 3 })` plays depth after depth and logs time, level, deaths and kills in `__ed.BOT_RUN.log`. The title screen uses it as an attract-mode demo (`ED.demo`: nothing is saved).
+  - The bot reads `S.kind`, `S.tags` ('aoe') and `S.range` to decide when to use a skill.
+  - It spends passive points through `autoAllocatePassives(h)` when that function exists.
+- `94-tips.js`: `tip(id, text, color)` shows a one-time hint per save. Tips wait for the level card to fade.
+- Composed depths (after 15) each introduce a NEW combination: all pairs of mechanics in the order they were introduced, then triples (`comboFor(n)`). The level card says "NEW COMBINATION".
+- Deep packs vary (`packVariant`): an element (recolor + status), a shared affix on normal monsters, and Giant and Swarming packs.
+- The hero:
+  - the dodge is a forward roll (`heroRoll` post-rotates the rig's joints);
+  - drinking re-solves the left arm with IK;
+  - a wounded hero hunches.
+- Monsters knocked over a pit fall and die (credited to the hero) when no `chasm` mechanic runs the level.
+- HUD:
+  - a camera-projected cached automap (Tab shows the big map);
+  - a level clock with best times per depth (`h.best`);
+  - an edge arrow to a discovered exit;
+  - '!' alerts when a pack notices the hero;
+  - slow-motion finishers on the last kill of a pack.
+
 ## Quality bar (read this)
 
 - **Look:** PS1 / N64-era 2D (Symphony of the Night, Legend of Mana), not NES.

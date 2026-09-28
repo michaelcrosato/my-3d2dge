@@ -24,14 +24,15 @@ addEventListener('pointerup', e => { if (e.button === 0) { UI.mouse.down = false
 canvas.addEventListener('wheel', e => { UI.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
 function mouseHUD() { const sc = game.screen, p = sc.clientToScreen(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p[0] - sc.ix; UI.mouse.y = p[1] - sc.iy; return UI.mouse; }
 /** register a hot rectangle (inside draw). o: { click, rclick, tip: lines | () => lines, drag(mx, my), key } */
-function hot(x, y, w, h, o) { UI.nextHot.push(Object.assign({ x, y, w, h }, o)); const m = UI.mouse; return m.x >= x && m.x < x + w && m.y >= y && m.y < y + h; }
+function hot(x, y, w, h, o) { if (UI.hudPass && UI.modal) return false;   // under a modal panel the HUD is display only
+  UI.nextHot.push(Object.assign({ x, y, w, h }, o)); const m = UI.mouse; return m.x >= x && m.x < x + w && m.y >= y && m.y < y + h; }
 const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y < r0.y + r0.h;
 /** run every step before the world: clicks, drags, Esc, the panel's own update. Returns true when the world should wait */
 function updateUI(dt) {
   const inp = game.input, m = mouseHUD();
   UI.cardT -= dt;
   for (const n of notes) n.t += dt; while (notes.length && notes[0].t > notes[0].dur) notes.shift();
-  const over = UI.hot.find(r0 => inRect(m, r0));
+  let over = null; for (let i = UI.hot.length - 1; i >= 0; i--) if (inRect(m, UI.hot[i])) { over = UI.hot[i]; break; }   // the topmost rect (panels draw after the HUD)
   if (UI.drag && UI.mouse.down) UI.drag(m.x, m.y);
   if (inp.pressed('click')) { if (over) { if (over.drag) UI.drag = over.drag, over.drag(m.x, m.y); if (over.click) over.click(); inp.consume('s0'); } else if (UI.modal) inp.consume('s0'); }
   if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.consume('s1'); } else if (UI.modal || over) inp.consume('s1'); }
@@ -91,7 +92,10 @@ function orb(g, cx, cy, R, frac, col, dark) {
 }
 function drawHUD(r) {
   const h = ED.hero; if (!h) return;
-  r.overlay(g => {
+  r.overlay(g => { UI.hudPass = true; try { drawHudInner(g, r, h); } finally { UI.hudPass = false; } });
+}
+function drawHudInner(g, r, h) {
+  {
     const W = r.W, H = r.H, cx = Math.round(W / 2), by = H - 24;
     // orbs
     const OR = 17;
@@ -175,8 +179,9 @@ function drawHUD(r) {
         if (c.mech) { const M = c.mech; E.font.text(g, (M.combo ? 'NEW COMBINATION: ' : 'NEW: ') + M.name.toUpperCase(), cx, y + 22, M.color || GOLD, { align: 'center', shadow: '#05040a', outline: '#0c0818' }); const lines = E.font.wrap(M.tip || '', Math.min(300, W - 30)).slice(0, 4); lines.forEach((l, i) => E.font.text(g, l, cx, y + 32 + i * 9, '#e8e0f8', { align: 'center', shadow: '#05040a', outline: false })); }
       });
     }
-  });
+  }
 }
+
 function skillTip(h, id) {
   const S = REG.skills[id], k = h.skills[id] || {}, rank = skillRank(h, id), rune = k.rune && S.runes && S.runes.find(q => q.id === k.rune);
   const out = [{ t: S.name + '  •  rank ' + rank, c: GOLD, big: true }, { t: (S.tags || []).join(', ') + (S.el && S.el !== 'phys' ? ', ' + EL(S.el).name : ''), c: '#9a90b0' }];

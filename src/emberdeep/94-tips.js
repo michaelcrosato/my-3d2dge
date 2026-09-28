@@ -4,6 +4,7 @@
 function tip(id, text, color = '#bff6ff', dur = 5) {
   const h = ED.hero; if (!h || ED.demo || (h.bot && !ED.demo && BOT_RUN.on)) return;
   h.tips = h.tips || []; if (h.tips.includes(id)) return;
+  if (UI.cardT > 0) { game.after(UI.cardT + .6, () => tip(id, text, color, dur)); return; }   // never over the level card
   h.tips.push(id); notify(text, color, dur);
 }
 BUS.on('levelStart', e => { if (e.L.depth === 1) game.after(6.5, () => tip('roll', 'SPACE ROLLS THROUGH ATTACKS  •  ROLL JUST AS A BLOW LANDS AND TIME SLOWS')); if (e.L.depth === 1) game.after(14, () => tip('exit', 'THE WAYSTONE AT THE FAR END TAKES YOU DEEPER  •  T OPENS A PORTAL HOME')); });

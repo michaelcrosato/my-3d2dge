@@ -3,7 +3,7 @@
 // broken animation; a strip shows it.
 //
 // Usage:  node tools/filmstrip.mjs game.html[#scene] --steps "<steps>" [--out strip.png] [--cols 8] [--scale 2] [--crop x,y,w,h]
-// Steps run in order, separated by spaces:
+// Steps run in order, separated by spaces (or by ' | ' when eval: code needs spaces):
 //   wait:600          wait 600 ms
 //   press:Enter       tap a key (KeyboardEvent.code, e.g. KeyJ, Space, ArrowRight)
 //   down:ArrowRight   hold a key down            up:ArrowRight   release it
@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const file = args.find(a => !a.startsWith('--') && !args[args.indexOf(a) - 1]?.startsWith('--'));
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : def; };
 if (!file) { console.error('Usage: node tools/filmstrip.mjs game.html[#scene] --steps "wait:1000 rec:16:2 press:KeyJ" [--out strip.png] [--cols 8] [--scale 2] [--crop x,y,w,h]'); process.exit(2); }
-const steps = (opt('steps', 'wait:1000 rec:16:2') || '').trim().split(/\s+/);
+const rawSteps = (opt('steps', 'wait:1000 rec:16:2') || '').trim(), steps = rawSteps.includes(' | ') ? rawSteps.split(' | ').map(x => x.trim()).filter(Boolean) : rawSteps.split(/\s+/);   // ' | ' separates steps whose eval: code has spaces
 const out = resolve(opt('out', 'filmstrip.png')), cols = +opt('cols', 8), scale = +opt('scale', 2), crop = opt('crop', null);
 
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
