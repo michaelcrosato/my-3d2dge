@@ -130,6 +130,22 @@ const notes = [];
 function notify(text, color = '#fff2c4', dur = 3) { notes.push({ text, color, t: 0, dur }); if (notes.length > 6) notes.shift(); }
 /** screen shake that respects the option */
 const shake = n => { if (OPT.shake) game.shake(n); };
+/** slow motion that stacks: a perfect dodge, a pack finisher and a boss's death may overlap. The slowest live one wins
+ *  and time returns to SLOW.base (1, or a balance run's speed) when the last runs out. Durations are wall-clock seconds
+ *  (game.real runs at the game's speed), so a slowdown never stretches itself; an id replaces that slowdown */
+const SLOW = { base: 1, list: [], live: false };
+const wallClock = () => performance.now() / 1000;
+function slowMo(k, dur, id) {
+  const o = id && SLOW.list.find(q => q.id === id), now = wallClock();
+  if (o) { o.k = k; o.until = now + dur; } else SLOW.list.push({ k, until: now + dur, id });
+  slowMoStep();
+}
+function slowMoStep() {
+  const l = SLOW.list; if (!l.length && !SLOW.live) return;
+  const now = wallClock(); for (let i = l.length; i--;) if (now >= l[i].until) l.splice(i, 1);
+  game.timeScale = SLOW.base * l.reduce((a, q) => Math.min(a, q.k), 1); SLOW.live = l.length > 0;
+}
+function slowMoReset(base = 1) { SLOW.list.length = 0; SLOW.live = false; SLOW.base = base; game.timeScale = base; }
 
 /* ---------- scaling: the curves that let depth go on forever ---------- */
 // Both sides grow exponentially and the monsters' base is a little higher, so every depth is a touch harder than the

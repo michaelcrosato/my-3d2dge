@@ -99,7 +99,7 @@ function heroReact(hit) {
   h.hurtT = .22; h.flash = .06; h.inv = Math.max(h.inv, .35);
   const ang = hit.ang !== undefined ? hit.ang : (hit.src ? angTo(hit.src, h) : 0);
   h.hitA = ang + Math.PI;
-  knock(h, ang, Math.min(260, (hit.kb || 60) + 60), 0);
+  if (hit.ang !== undefined || hit.src) knock(h, ang, hit.kb === 0 ? 0 : Math.min(260, (hit.kb || 60) + 60), 0);   // a sourceless hit (lava, a trap tick) has no direction to shove him in
   game.freeze(.05); shake(3); P.sparks(h.x, h.y, 12, 10, ang + Math.PI, { color: '#ff7a6a' });
   sfx('hurt', { vol: .6 });
   if ((hit.kb || 0) >= 200 || hit.knockdown) knockDown(h, 1);
@@ -132,7 +132,7 @@ function heroBeforeHit(hit, amt) {
 function heroDodgedHit(hit) {
   const h = this;
   if (h.dodgeT > 0 && h.dodgeT > .1 && !h.perfectT && hit.src && hit.src.team === 'foe') {   // dodged right through a strike: time slows for everyone else
-    h.perfectT = 1.1; game.timeScale = .35; sfx('warp', { vol: .6 }); notify('PERFECT DODGE', '#8fe3ff', 1.5);
+    h.perfectT = 1.1; slowMo(.35, 1.1, 'perfect'); sfx('warp', { vol: .6 }); notify('PERFECT DODGE', '#8fe3ff', 1.5);
     P.ring(h.x, h.y, 4, 40, '#8fe3ff', .4); game.flash('#8fe3ff', .15, .5);
     BUS.emit('perfectDodge', { h, hit });
   }
@@ -169,7 +169,7 @@ function heroAim(h) {
 }
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
-  if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) { h.perfectT = 0; game.timeScale = 1; }
+  if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) h.perfectT = 0;
   // witch time: after a perfect dodge the world crawls but he keeps close to his own pace (his clock runs fast)
   if (h.perfectT > 0 && game.timeScale < 1 && !h.dead) dt *= Math.min(3, .85 / Math.max(.2, game.timeScale));
   h.inv -= dt; h.hurtT -= dt; h.flash -= dt; h.cheerT -= dt; h.potionT -= dt;
@@ -212,6 +212,10 @@ function updateHero(h, dt, o = {}) {
   if (inp.pressed('potion')) drinkPotion(h);
   // the current action
   if (h.act) { const k = h.act.speed || 1; if (!h.act.update(dt * k * sp, h)) endAction(h); }
+  // 'strike': any action whose rig attack enters its active phase (a combo swing, a skill's own attack), once per swing
+  { const act = h.act, st = act && act.rig && act.rig.attack, ph = st ? st.phase : null;
+    if (act && h.alive && ph === 'active' && act._strikePh !== 'active') BUS.emit('strike', { h, act, spec: st.spec });
+    if (act) act._strikePh = ph; }
   const act = h.act;
   // movement
   if (h.dodgeT > 0) {

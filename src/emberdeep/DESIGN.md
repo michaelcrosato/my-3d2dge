@@ -118,6 +118,9 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
 - **Units and hits** (10-combat.js):
   - `dealDamage(unit, hit)` with hit fields `{ src, amount, el, kb, ang, up, stun, status, statusChance, statusPower, tags, knockdown }`.
   - Enemy queries: `eachEnemy(team, x, y, r, fn)`, `nearestEnemy(team, x, y, r, skipSet)`.
+  - Monsters stagger on hits with `kb > 20` or a `stun`, at most 3 times a second (2 for elites): poise, so light multi-hits can't pin them. An archetype with `stagger: false` never staggers.
+  - Archetype flag `ownEntrance`: a boss body that stages its own waking (the Brood Mother's drop, the Wyrm's eruption) keeps it; the generic boss intro only adds the card and the music.
+- **Time:** never write `game.timeScale` directly. `slowMo(k, realSeconds, id)` stacks with the others (the slowest wins) and `slowMoReset(base)` clears them on a scene change. The hero emits `'strike'` on the bus whenever any action's rig attack enters its active phase.
   - Area hits: `hitCircle(team, x, y, r, u => hit, set)` and `hitCone(team, x, y, facing, range, half, u => hit, set)`. Both also strike the level's hittable things for team 'hero'.
   - Movement: `knock(u, ang, kb, up)` (`up` launches a unit into the air, a juggle).
 - **FX verbs** (10-combat.js): `FX.bolt`, `FX.nova`, `FX.area`, `FX.telegraph`, `FX.strike`, `FX.meteor`, `FX.chain`, `FX.beam`, `FX.wave`, `FX.pull`, `FX.scorch`, and `FX.visual(dur, (r, u, f) => draw, update)`.
@@ -178,6 +181,7 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
   - Shade everything you draw with `E.tones(c)` (deep / sh / base / lt / hi), use 3-5 tones per material, and give everything outlines and depth.
   - Draw only with engine primitives: `px.*`, `r.*`, `E.ui`, `E.font`, props and sprites. Never `ctx.arc` / `fillText` / gradients on the game buffer.
   - Anything that overlaps goes through `r.queue` / `r.actor`. Glowing things use `{ emissive: true }` and `px.glow(g, 1)`.
+  - A glow on a monster or a thing that a wall may hide uses `{ emissive: foeGlowSeen(x, y, z) }`: it stays in the depth-sorted pass (where walls cover it) when a wall stands in front of it.
 - **Animation is the showcase:**
   - Use the rigs' full vocabulary: every `E.MOVES` move, poses (cheer cast guard kneel crouch wave hips block die down), `expr`, stances, `air`, `run`, `climb`, `hurt`, capes, hair.
   - Invent NEW procedural animation where it helps: new rigs built with `E.ik3`, `E.tones`, `px`; held items with `heldItem()`; new move specs, squash and stretch, secondary motion.

@@ -113,7 +113,7 @@ game.start({ scene: 'title', scenes: {
 - Floor marks: `r.shadow(x, y, radius, alpha, color, surfaceZ)`, `r.decal(g => r.groundArc(...))`, `r.groundDisc`, `r.groundRing`, `r.groundPts(x, y, rad, n, z)`.
 - On top, unlit, screen pixels: `r.text(str, x, y, color, { align, scale, outline })`, `r.textAt(x, y, z, str, color)`, `r.overlay(g => {...})`.
 - `r.w(x, y, z)` = buffer pixel of a world point. `r.W`, `r.H`, `r.ix`, `r.iy` (pass to dither functions), `r.view`, `r.visible(x, y, z)`.
-- Glowing things you draw yourself: `r.queue(x, y, z, fn, { emissive: true })` is drawn again after lighting so darkness never dims it (flames, lasers, magic, neon).
+- Glowing things you draw yourself: `r.queue(x, y, z, fn, { emissive: true })` is drawn again after lighting so darkness never dims it (flames, lasers, magic, neon). It still hides behind whatever stands in front of it: walls and `r.actor` bodies do this on their own, and any other queued draw can join them with `{ solid: true }`. (Canvas lighting builds a depth-ordered mask for this; `game.r.glowMask = false` skips it on slow machines.)
 
 ## Pixels, sprites, text, UI
 - `px.rect(g, x, y, w, h, c)`, `dot`, `line(g, x0, y0, x1, y1, c, width)`, `disc(g, x, y, r, c)`, `ell`, `poly(g, pts, c)`, `polyDither(g, pts, c, 0..1, r.ix, r.iy)`, `ddisc`, `sprite(g, spr, x, y, flip)`, `glow(g, 0..1)` (GPU glow for what follows).

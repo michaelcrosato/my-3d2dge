@@ -65,8 +65,8 @@ function LOT_rigPt(r, h, p) {
 const LOT_joint = (h, k) => { const rig = h.rig, J = rig.J[k]; if (!J) return [h.x, h.y, h.z + 12]; const w = rig._w(J); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
 const LOT_town = () => !!(ED.L && ED.L.kind === 'town');
 
-/* the hero's strikes: any action whose rig attack enters its 'active' phase (a Blade Dance combo press emits no 'skill'
-   event, so this is how powers see every swing). LOT_strike(id, fn(h, act, spec)) runs while power id is worn */
+/* the hero's strikes: the hero emits 'strike' as any action's rig attack enters its 'active' phase (a Blade Dance combo
+   press emits no 'skill' event, so this is how powers see every swing). LOT_strike(id, fn(h, act, spec)) runs while power id is worn */
 const LOT_STRIKE = [], LOT_TICK = [], LOT_DRAW = [];
 const LOT_strike = (id, fn) => LOT_STRIKE.push({ id, fn });
 /** per-step and per-draw hooks for a power (fn(h, dt) / fn(h, r)) */
@@ -74,14 +74,12 @@ const LOT_tick = (id, fn) => LOT_TICK.push({ id, fn }), LOT_drawFx = (id, fn) =>
 const LOT_isMelee = act => { const S = act && act.skill && REG.skills[act.skill]; return !!(S && S.tags && S.tags.includes('melee')); };
 BUS.on('step', e => {
   const h = ED.hero; if (!h || !h.rig) return;
-  const act = h.act, st = act && act.rig && act.rig.attack, ph = st ? st.phase : null;
-  if (act && h.alive && ph === 'active' && act._lotPh !== 'active') for (const s of LOT_STRIKE) if (hasPower(h, s.id)) s.fn(h, act, st.spec);
-  if (act) act._lotPh = ph;
   for (const s of LOT_TICK) if (hasPower(h, s.id)) s.fn(h, e.dt);
   // uniques recolor the swing ribbon (look.smear) and some burn at the feet
-  const w = h.gear.weapon; if (w && w.look && w.look.smear) h.smear = w.look.smear;
+  const w = h.gear.weapon; if (w && w.look && w.look.smear && !h._mkaWard) h.smear = w.look.smear;   // (a ward's empowered trail wins while he stands in it)
   const bt = h.gear.boots; if (bt && bt.unique === 'ashwalker' && Math.hypot(h.vx, h.vy) > 25 && Math.random() < e.dt * 26) { const f = LOT_joint(h, Math.random() < .5 ? 'footL' : 'footR'); P.add({ kind: Math.random() < .4 ? 'fire' : 'ember', x: f[0], y: f[1], z: f[2] + 1, vz: 16, g: -8, drag: 3, max: .4, size: 1.6, color: '#ff8a3a' }); }
 });
+BUS.on('strike', e => { for (const s of LOT_STRIKE) if (hasPower(e.h, s.id)) s.fn(e.h, e.act, e.spec || {}); });
 BUS.on('draw', e => {
   const h = ED.hero, r = e.r; if (!h || !h.rig || !h.alive || h.dead) return;
   for (const s of LOT_DRAW) if (hasPower(h, s.id)) s.fn(h, r);

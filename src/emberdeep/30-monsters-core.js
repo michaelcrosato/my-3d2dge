@@ -100,8 +100,15 @@ function foeReact(hit) {
   const stag = m.boss ? 0 : m.arch.stagger === false ? 0 : 1;
   if (stag && (hit.kb || 0) > 20) { knock(m, hit.ang !== undefined ? hit.ang : angTo(hit.src || m, m), hit.kb, hit.up || 0); m.kbT = .25; }
   if (stag && !m.st.freeze) {
-    m.stunT = Math.max(m.stunT || 0, hit.kb > 150 ? .3 : .18);
-    if (m.atk && m.atk.phase === 'wind' && (hit.kb || 0) > 60) { m.atk = null; m.cool = .4; }   // a solid hit interrupts a wind-up (and frees its turn)
+    // poise: a hit with weight (or a stun) staggers, but at most 3 times a second (2 for an elite), so a flurry of
+    // light hits can't pin a monster forever; every hit still makes it flinch
+    if ((hit.kb || 0) > 20 || hit.stun) {
+      if (game.time - (m.stagT0 || -9) > 1) { m.stagT0 = game.time; m.stagN = 0; }
+      if (m.stagN++ < (m.elite ? 2 : 3)) {
+        m.stunT = Math.max(m.stunT || 0, hit.kb > 150 ? .3 : .18);
+        if (m.atk && m.atk.phase === 'wind' && (hit.kb || 0) > 60) { m.atk = null; m.cool = .4; }   // a solid hit interrupts a wind-up (and frees its turn)
+      }
+    }
     if (m.rig) m.rig.kick(2.5); else if (m.blob) m.blob.kick(5); else if (m.body && m.body.kick) m.body.kick(3);
   }
   if (m.arch.react) m.arch.react(m, hit);

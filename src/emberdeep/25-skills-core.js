@@ -80,7 +80,6 @@ function swingAction(h, atk, o) {
       if (began === 'active') {
         const push = o.push === undefined ? 70 : o.push; h.vx += Math.cos(h.facing) * push; h.vy += Math.sin(h.facing) * push;
         sfx(o.sound || 'swing', { vol: .6 }); if (o.onStrike) o.onStrike(this);
-        BUS.emit('strike', { h, act: this, spec: st && st.spec });   // every swing that begins its strike (combos too)
       }
       if (st && st.phase === 'active' && st.u >= (st.spec.hitAt === undefined ? .3 : st.spec.hitAt)) {
         const range = typeof o.range === 'function' ? o.range(st.spec) : o.range, half = typeof o.half === 'function' ? o.half(st.spec) : o.half;

@@ -56,7 +56,7 @@ def('ai', 'boss', { update(m, dt) {
 BUS.on('kill', e => {
   const m = e.tgt; if (!m.boss) return;
   if (ED.boss === m) ED.boss = null;
-  game.flash('#fff4d0', .3); shake(8); game.timeScale = .3; game.after(.6, () => { game.timeScale = 1; });
+  game.flash('#fff4d0', .3); shake(8); slowMo(.3, 2, 'bossdown');
   P.explosion(m.x, m.y, 10, 2, { flash: false }); sfx('boom');
   if (m.bossDef.onDie) m.bossDef.onDie(m);
   BUS.emit('bossDown', { m });

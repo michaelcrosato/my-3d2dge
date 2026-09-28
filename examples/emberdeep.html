@@ -278,6 +278,7 @@ const useAlpha = g => E.style.trans !== 'dither' && !g._info;
 const BLEND = { normal: 'source-over', add: 'lighter', multiply: 'multiply', screen: 'screen', sub: 'difference', overlay: 'overlay' };
 px.blend = (g, a, mode, fn) => {
   if (g._info) { if (mode === 'normal' || !mode) fn(); return; }
+  if (g._cover) { fn(); return; }   // (the renderer's glow cut mask: every pixel a glow touches counts, whatever its blend)
   const ga = g.globalAlpha, gc = g.globalCompositeOperation;
   g.globalAlpha = ga * qa(a); g.globalCompositeOperation = BLEND[mode] || mode || 'source-over';
   try { fn(); } finally { g.globalAlpha = ga; g.globalCompositeOperation = gc; }
@@ -1019,6 +1020,7 @@ class Renderer {
     this.rCv = mkCanvas(AS, AS); this.rG = ctx2d(this.rCv);
     this.xCv = mkCanvas(8, 8); this.xG = ctx2d(this.xCv);
     this.oCv = mkCanvas(8, 8); this.oG = ctx2d(this.oCv);
+    this.eCv = mkCanvas(8, 8); this.eG = ctx2d(this.eCv); this.sCv = mkCanvas(8, 8); this.sG = ctx2d(this.sCv);   // canvas lighting: the glow mask, a scratch layer
     this.ghostPool = Array.from({ length: 10 }, () => { const c = mkCanvas(AS, AS); return { cv: c, g: ctx2d(c) }; });
     this.ghostIdx = 0; this.ghosts = [];
     const ck = mkCanvas(2, 2), cg = ck.getContext('2d'); cg.fillStyle = '#000'; cg.fillRect(0, 0, 1, 1); cg.fillRect(1, 1, 1, 1);
@@ -1041,8 +1043,8 @@ class Renderer {
     sc.begin(cx, cy, this.game.o.bg);
     this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this.decals.length = 0; this.overlays.length = 0; this._map = null; (this.emis || (this.emis = [])).length = 0;
     const st = this.game.stats; st.actors = 0; st.culled = 0;
-    if (this.xCv.width !== this.bw || this.xCv.height !== this.bh) { this.xCv.width = this.oCv.width = this.bw; this.xCv.height = this.oCv.height = this.bh; }
-    this.xrayUsed = false;
+    if (this.xCv.width !== this.bw || this.xCv.height !== this.bh) { this.xCv.width = this.oCv.width = this.eCv.width = this.sCv.width = this.bw; this.xCv.height = this.oCv.height = this.eCv.height = this.sCv.height = this.bh; }
+    this.xrayUsed = false; this.emOn = false;
     const gpu = this.game.gpu;
     this.gpu = !!(gpu && gpu.active(this.view));
     if (gpu) gpu.show(this.gpu);
@@ -1054,14 +1056,14 @@ class Renderer {
   }
   /** world -> buffer pixel coords */
   w(x, y, z = 0) { const v = this.game.view; return [v.ax * x + v.ay * y - this.ix, v.bx * x + v.by * y + v.bz * z - this.iy]; }
-  /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, xray} */
+  /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, xray, emissive, solid (hides a glow behind it)} */
   queue(x, y, z, fn, o) {
     let k = this.game.view.order(x, y, z) + (o && o.bias || 0);
     // things standing on top of a TileMap wall block must sort after that block
     if (z > .5 && this._map && !(o && o.occluder)) k = this._map._liftOrder(this.game.view, x, y, z, k);
-    const it = { k, fn, occ: o && o.occluder, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo };
+    const it = { k, fn, occ: o && o.occluder, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
     this.items.push(it);
-    if (o && o.emissive) this.emis.push(it);   // glowing things are drawn again after lighting, so darkness never dims them
+    if (it.em) this.emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
   }
   /** draw on the floor before the queue. opts.emissive (0..1) makes it glow under GPU lighting */
   decal(fn, o) { this.decals.push({ fn, e: o && o.emissive || 0 }); }
@@ -1187,6 +1189,7 @@ class Renderer {
   /** glow halo from a cache: additive light rings (alpha style) or a dithered disc (dither style). a = 0..1 strength */
   glowDisc(g, cx, cy, rad, color, a) {
     if (g._info) return px.ddisc(g, cx, cy, rad, color, a, 0, 0);
+    if (g._cover) return px.disc(g, cx, cy, rad * .7, '#fff');   // (the glow cut mask: its bright core is in front)
     const R = Math.round(rad * 2) / 2, A = Math.round(a * 20) / 20, n = Math.ceil(R) + 1, al = E.style.trans !== 'dither';
     const st = this._stamp('d' + R + ':' + A + color + al, () => { const c = mkCanvas(n * 2 + 1, n * 2 + 1), cg = ctx2d(c); px.ddisc(cg, n, n, R, color, al ? Math.min(1, A * 1.6) : A, 0, 0); return c; });
     if (al) px.blend(g, 1, 'add', () => g.drawImage(st, Math.round(cx) - n, Math.round(cy) - n));
@@ -1246,10 +1249,10 @@ class Renderer {
     // fast path: nothing needs the offscreen composite, so draw straight into the frame
     if (o.outline === false && !o.flash && !o.ghost && !o.xray && (o.rim === false || this.gpu) && (o.alpha === undefined || o.alpha >= 1)) {
       const info = o.emissive ? gI => { gI._mat = this._infoCol(z, 10, o.emissive); gI._c = null; const [a, b] = this.w(x, y, z); drawFn(gI, Math.round(a), Math.round(b)); } : undefined;
-      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info });
+      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info, solid: true });
       return;
     }
-    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o) });
+    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5 });
   }
   _tint(dst, src, color, R = [0, 0, AS, AS]) {
     const [x0, y0, w, h] = R;
@@ -1266,6 +1269,7 @@ class Renderer {
     if (x1 <= x0 || y1 <= y0) { this._R = [0, 0, 0, 0]; return; }
     const R = this._R = [x0, y0, x1 - x0, y1 - y0], w = R[2], h = R[3];
     const [sx, sy] = this.w(x, y, z), bx = Math.round(sx) - AOX, by = Math.round(sy) - AOY, al = o.alpha === undefined ? 1 : o.alpha;
+    if (g === this.ctx) this._comp = { x0, y0, w, h, bx, by, ol: o.outline !== false };
     const put = (cv, dx, dy) => g.drawImage(cv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h);
     g.globalAlpha = al;
     if (o.outline !== false) { this._tint(this.mG, this.aCv, o.outlineColor || this.outline, R); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(this.mCv, dx, dy); }
@@ -1291,6 +1295,17 @@ class Renderer {
     }
     if (o.xray) { this._tint(this.mG, this.aCv, this.xrayColor, R); this.xG.drawImage(this.mCv, x0, y0, w, h, bx + x0, by + y0, w, h); this.xrayUsed = true; }
   }
+  /** add a solid item's shape to the cut mask: a body from its composite (with its outline), a wall by drawing it again */
+  _emCut(eG, it) {
+    const c = this._comp;
+    if (c) { const cut = (dx, dy) => eG.drawImage(this.aCv, c.x0, c.y0, c.w, c.h, c.bx + c.x0 + dx, c.by + c.y0 + dy, c.w, c.h); cut(0, 0); if (c.ol) { cut(-1, 0); cut(1, 0); cut(0, -1); cut(0, 1); } }
+    else if (it.occ) { this._tg = eG; try { it.fn(eG); } finally { this._tg = null; } eG.globalAlpha = 1; }
+    else {   // anything else solid (a body drawn straight into the frame): drawn again on a scratch layer, in a body-sized box
+      const [sx, sy] = this.w(it.x, it.y, it.z), x0 = Math.max(0, Math.round(sx) - AOX), y0 = Math.max(0, Math.round(sy) - AOY), w = Math.min(this.bw, x0 + AS) - x0, h = Math.min(this.bh, y0 + AS) - y0;
+      if (w > 0 && h > 0) { const sG = this.sG; sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(x0, y0, w, h); sG._c = null; this._tg = sG; try { it.fn(sG); } finally { this._tg = null; } eG.drawImage(this.sCv, x0, y0, w, h, x0, y0, w, h); }
+    }
+    eG.globalAlpha = 1; eG._c = null;
+  }
   _drawGhosts() {
     const t = this.game.time;
     this.ghosts = this.ghosts.filter(q => t - q.t < q.life);
@@ -1306,8 +1321,35 @@ class Renderer {
     this.xG.clearRect(0, 0, this.bw, this.bh); this.oG.clearRect(0, 0, this.bw, this.bh); this.oG._c = null;
     let xr = false;
     const gpu = this.gpu, iG = this.iG;
+    // canvas lighting draws the glows again after the darkness (so it never dims them). The cut mask K keeps that redraw
+    // behind what stands in front: in depth order, a wall or a body drawn after a glow adds its shape to K, and a glow
+    // drawn later still (in front of that) takes its whole footprint back out. finish() then restores K's lit pixels
+    // (a coarse grid of where glows have been drawn so far lets the walls and bodies nowhere near one skip the mask)
+    const em = this.glowMask !== false && !gpu && this.game.lights.enabled && this.emis.length > 0, eG = this.eG;   // (r.glowMask = false: glows over everything, cheaper)
+    let eOn = false, kOn = false, eg = null, gw = 0;
+    if (em) {
+      eG.globalCompositeOperation = 'source-over'; eG.globalAlpha = 1; eG.clearRect(0, 0, this.bw, this.bh); eG._c = null;
+      gw = (this.bw >> 5) + 1; const n = gw * ((this.bh >> 5) + 1); eg = this._eGrid && this._eGrid.length === n ? this._eGrid.fill(0) : (this._eGrid = new Uint8Array(n));
+    }
+    const gh = em ? (this.bh >> 5) + 1 : 0, cell = (x0, y0, x1, y1, mark) => {   // screen box -> grid cells: mark them, or test them
+      const a = clamp(x0 >> 5, 0, gw - 1), b = clamp(x1 >> 5, 0, gw - 1), c = clamp(y0 >> 5, 0, gh - 1), d = clamp(y1 >> 5, 0, gh - 1);
+      for (let y = c; y <= d; y++) for (let x = a; x <= b; x++) { if (mark) eg[y * gw + x] = 1; else if (eg[y * gw + x]) return true; }
+      return false;
+    };
     for (const it of items) {
+      this._comp = null;
       it.fn(g);
+      if (em) {
+        if (it.em) {
+          eOn = true; const [sx, sy] = this.w(it.x, it.y, it.z); cell(sx - 56 | 0, sy - 96 | 0, sx + 56 | 0, sy + 40 | 0, true);
+          if (kOn) { eG._cover = true; eG.globalCompositeOperation = 'destination-out'; this._tg = eG; try { it.fn(eG); } finally { this._tg = null; eG._cover = false; eG.globalCompositeOperation = 'source-over'; eG.globalAlpha = 1; eG._c = null; } }
+        } else if (eOn && it.solid) {
+          const c = this._comp; let hit;
+          if (c) hit = cell(c.bx + c.x0, c.by + c.y0, c.bx + c.x0 + c.w, c.by + c.y0 + c.h, false);
+          else { const [sx, sy] = this.w(it.x, it.y, it.z), s = this.view.scale || 1; hit = cell(sx - 24 * s | 0, sy - 72 * s | 0, sx + 24 * s | 0, sy + 16 * s | 0, false); }
+          if (hit) { this._emCut(eG, it); kOn = true; }
+        }
+      }
       if (gpu && !it.noInfo) {
         if (it.info) it.info(iG);
         else { iG._mat = this._infoVert(iG, it.x, it.y, it.z, 10, 0); iG._z = it.z; iG._c = null; it.fn(iG); }
@@ -1315,6 +1357,7 @@ class Renderer {
       if (it.xray) xr = true;
       else if (xr && it.occ) it.fn(this.oG);
     }
+    this.emOn = kOn;
     if (this.xrayUsed) {
       const xG = this.xG;
       xG.globalCompositeOperation = 'destination-in'; xG.drawImage(this.oCv, 0, 0);
@@ -1337,7 +1380,15 @@ class Renderer {
       this._tg = this.vG; for (const f of this.overlays) f(this.vG); this._tg = null;
       try { game.gpu.render(this); } catch (e) { game.gpu.fail(e); game.screen.present(); }
     } else {
-      if (game.lights.enabled) { game.lights.render(this); if (this.emis.length) { this.emis.sort((a, b) => a.k - b.k); for (const it of this.emis) it.fn(g); } }
+      if (game.lights.enabled) {
+        game.lights.render(this);
+        if (this.emis.length) {
+          const sG = this.sG, cv = g.canvas;
+          if (this.emOn) { sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(0, 0, this.bw, this.bh); sG.drawImage(cv, 0, 0); sG.globalCompositeOperation = 'destination-in'; sG.drawImage(this.eCv, 0, 0); sG.globalCompositeOperation = 'source-over'; }
+          this.emis.sort((a, b) => a.k - b.k); for (const it of this.emis) it.fn(g);
+          if (this.emOn) g.drawImage(this.sCv, 0, 0);   // walls and bodies in front of a glow keep their lit pixels
+        }
+      }
       for (const f of this.overlays) f(g);
       game.screen.present();
     }
@@ -4647,6 +4698,22 @@ const notes = [];
 function notify(text, color = '#fff2c4', dur = 3) { notes.push({ text, color, t: 0, dur }); if (notes.length > 6) notes.shift(); }
 /** screen shake that respects the option */
 const shake = n => { if (OPT.shake) game.shake(n); };
+/** slow motion that stacks: a perfect dodge, a pack finisher and a boss's death may overlap. The slowest live one wins
+ *  and time returns to SLOW.base (1, or a balance run's speed) when the last runs out. Durations are wall-clock seconds
+ *  (game.real runs at the game's speed), so a slowdown never stretches itself; an id replaces that slowdown */
+const SLOW = { base: 1, list: [], live: false };
+const wallClock = () => performance.now() / 1000;
+function slowMo(k, dur, id) {
+  const o = id && SLOW.list.find(q => q.id === id), now = wallClock();
+  if (o) { o.k = k; o.until = now + dur; } else SLOW.list.push({ k, until: now + dur, id });
+  slowMoStep();
+}
+function slowMoStep() {
+  const l = SLOW.list; if (!l.length && !SLOW.live) return;
+  const now = wallClock(); for (let i = l.length; i--;) if (now >= l[i].until) l.splice(i, 1);
+  game.timeScale = SLOW.base * l.reduce((a, q) => Math.min(a, q.k), 1); SLOW.live = l.length > 0;
+}
+function slowMoReset(base = 1) { SLOW.list.length = 0; SLOW.live = false; SLOW.base = base; game.timeScale = base; }
 
 /* ---------- scaling: the curves that let depth go on forever ---------- */
 // Both sides grow exponentially and the monsters' base is a little higher, so every depth is a touch harder than the
@@ -4879,9 +4946,9 @@ function killUnit(u, hit) {
   if (u.onDie) u.onDie(hit || {});
   BUS.emit('kill', { src: hit && hit.src, tgt: u, hit: hit || {}, st });   // st: what it was afflicted with when it died
   // the last of a pack falls: a heartbeat of slow motion (a finisher)
-  if (u.pack && u.team === 'foe' && game.timeScale === 1 && !ED.demo && ED.mode === 'level' && !ED.foes.some(o => o.alive && o.pack === u.pack)) {
+  if (u.pack && u.team === 'foe' && !SLOW.live && !ED.demo && ED.mode === 'level' && !ED.foes.some(o => o.alive && o.pack === u.pack)) {
     const n = ED.corpses.filter(o => o.pack === u.pack).length + 1;
-    if (n >= 4) { game.timeScale = .4; game.after(.12, () => { if (game.timeScale === .4) game.timeScale = 1; }); }
+    if (n >= 4) slowMo(.4, .3, 'finisher');
   }
 }
 /** push a unit away from (x, y) (or along ang) with speed kb; heavy units (mass) move less. up launches it */
@@ -5413,7 +5480,7 @@ function heroReact(hit) {
   h.hurtT = .22; h.flash = .06; h.inv = Math.max(h.inv, .35);
   const ang = hit.ang !== undefined ? hit.ang : (hit.src ? angTo(hit.src, h) : 0);
   h.hitA = ang + Math.PI;
-  knock(h, ang, Math.min(260, (hit.kb || 60) + 60), 0);
+  if (hit.ang !== undefined || hit.src) knock(h, ang, hit.kb === 0 ? 0 : Math.min(260, (hit.kb || 60) + 60), 0);   // a sourceless hit (lava, a trap tick) has no direction to shove him in
   game.freeze(.05); shake(3); P.sparks(h.x, h.y, 12, 10, ang + Math.PI, { color: '#ff7a6a' });
   sfx('hurt', { vol: .6 });
   if ((hit.kb || 0) >= 200 || hit.knockdown) knockDown(h, 1);
@@ -5446,7 +5513,7 @@ function heroBeforeHit(hit, amt) {
 function heroDodgedHit(hit) {
   const h = this;
   if (h.dodgeT > 0 && h.dodgeT > .1 && !h.perfectT && hit.src && hit.src.team === 'foe') {   // dodged right through a strike: time slows for everyone else
-    h.perfectT = 1.1; game.timeScale = .35; sfx('warp', { vol: .6 }); notify('PERFECT DODGE', '#8fe3ff', 1.5);
+    h.perfectT = 1.1; slowMo(.35, 1.1, 'perfect'); sfx('warp', { vol: .6 }); notify('PERFECT DODGE', '#8fe3ff', 1.5);
     P.ring(h.x, h.y, 4, 40, '#8fe3ff', .4); game.flash('#8fe3ff', .15, .5);
     BUS.emit('perfectDodge', { h, hit });
   }
@@ -5483,7 +5550,7 @@ function heroAim(h) {
 }
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
-  if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) { h.perfectT = 0; game.timeScale = 1; }
+  if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) h.perfectT = 0;
   // witch time: after a perfect dodge the world crawls but he keeps close to his own pace (his clock runs fast)
   if (h.perfectT > 0 && game.timeScale < 1 && !h.dead) dt *= Math.min(3, .85 / Math.max(.2, game.timeScale));
   h.inv -= dt; h.hurtT -= dt; h.flash -= dt; h.cheerT -= dt; h.potionT -= dt;
@@ -5526,6 +5593,10 @@ function updateHero(h, dt, o = {}) {
   if (inp.pressed('potion')) drinkPotion(h);
   // the current action
   if (h.act) { const k = h.act.speed || 1; if (!h.act.update(dt * k * sp, h)) endAction(h); }
+  // 'strike': any action whose rig attack enters its active phase (a combo swing, a skill's own attack), once per swing
+  { const act = h.act, st = act && act.rig && act.rig.attack, ph = st ? st.phase : null;
+    if (act && h.alive && ph === 'active' && act._strikePh !== 'active') BUS.emit('strike', { h, act, spec: st.spec });
+    if (act) act._strikePh = ph; }
   const act = h.act;
   // movement
   if (h.dodgeT > 0) {
@@ -5728,7 +5799,6 @@ function swingAction(h, atk, o) {
       if (began === 'active') {
         const push = o.push === undefined ? 70 : o.push; h.vx += Math.cos(h.facing) * push; h.vy += Math.sin(h.facing) * push;
         sfx(o.sound || 'swing', { vol: .6 }); if (o.onStrike) o.onStrike(this);
-        BUS.emit('strike', { h, act: this, spec: st && st.spec });   // every swing that begins its strike (combos too)
       }
       if (st && st.phase === 'active' && st.u >= (st.spec.hitAt === undefined ? .3 : st.spec.hitAt)) {
         const range = typeof o.range === 'function' ? o.range(st.spec) : o.range, half = typeof o.half === 'function' ? o.half(st.spec) : o.half;
@@ -8475,8 +8545,15 @@ function foeReact(hit) {
   const stag = m.boss ? 0 : m.arch.stagger === false ? 0 : 1;
   if (stag && (hit.kb || 0) > 20) { knock(m, hit.ang !== undefined ? hit.ang : angTo(hit.src || m, m), hit.kb, hit.up || 0); m.kbT = .25; }
   if (stag && !m.st.freeze) {
-    m.stunT = Math.max(m.stunT || 0, hit.kb > 150 ? .3 : .18);
-    if (m.atk && m.atk.phase === 'wind' && (hit.kb || 0) > 60) { m.atk = null; m.cool = .4; }   // a solid hit interrupts a wind-up (and frees its turn)
+    // poise: a hit with weight (or a stun) staggers, but at most 3 times a second (2 for an elite), so a flurry of
+    // light hits can't pin a monster forever; every hit still makes it flinch
+    if ((hit.kb || 0) > 20 || hit.stun) {
+      if (game.time - (m.stagT0 || -9) > 1) { m.stagT0 = game.time; m.stagN = 0; }
+      if (m.stagN++ < (m.elite ? 2 : 3)) {
+        m.stunT = Math.max(m.stunT || 0, hit.kb > 150 ? .3 : .18);
+        if (m.atk && m.atk.phase === 'wind' && (hit.kb || 0) > 60) { m.atk = null; m.cool = .4; }   // a solid hit interrupts a wind-up (and frees its turn)
+      }
+    }
     if (m.rig) m.rig.kick(2.5); else if (m.blob) m.blob.kick(5); else if (m.body && m.body.kick) m.body.kick(3);
   }
   if (m.arch.react) m.arch.react(m, hit);
@@ -11389,7 +11466,10 @@ def('mechanics', 'webs', { name: 'Webs', title: 'The Webbed Nests', adj: 'Webbed
       const n = Math.max(1, Math.round(rm.w * rm.h / 75)) + (R.chance(.3) ? 1 : 0);
       for (let k = 0; k < n; k++) {
         const [x, y] = L0.randomFloor(R, { room: rm, minStart: 70 }), rad = 16 + R() * 22; BST_webPatch(x, y, rad, true, L0);
-        if (R.chance(.45)) for (let e = 0, ne = R.int(1, 3); e < ne; e++) BST_egg(x + (R() - .5) * 12, y + (R() - .5) * 12, { L: L0, n: 2 + R.int(0, 1), size: .9 + R() * .3 });
+        // eggs keep apart (each its own pop), and away from the landing and the exit (no hatchling ambush on arrival)
+        const eggOk = (ex, ey) => Math.hypot(ex - L0.start.x, ey - L0.start.y) > 40 && (!L0.exit || Math.hypot(ex - L0.exit.x, ey - L0.exit.y) > 40) && L0.map.walkable(Math.floor(ex / 16), Math.floor(ey / 16))
+          && !L0.things.some(t => t.kind === 'bst_egg' && Math.hypot(t.x - ex, t.y - ey) < 8);
+        if (R.chance(.45)) for (let e = 0, ne = R.int(1, 3); e < ne; e++) { const ex = x + (R() - .5) * 14, ey = y + (R() - .5) * 14; if (eggOk(ex, ey)) BST_egg(ex, ey, { L: L0, n: 2 + R.int(0, 1), size: .9 + R() * .3 }); }
         else if (R.chance(.35)) BST_cocoon(L0, x + (R() - .5) * rad, y + (R() - .5) * rad, R);
       }
     }
@@ -11516,7 +11596,7 @@ def('ai', 'boss', { update(m, dt) {
 BUS.on('kill', e => {
   const m = e.tgt; if (!m.boss) return;
   if (ED.boss === m) ED.boss = null;
-  game.flash('#fff4d0', .3); shake(8); game.timeScale = .3; game.after(.6, () => { game.timeScale = 1; });
+  game.flash('#fff4d0', .3); shake(8); slowMo(.3, 2, 'bossdown');
   P.explosion(m.x, m.y, 10, 2, { flash: false }); sfx('boom');
   if (m.bossDef.onDie) m.bossDef.onDie(m);
   BUS.emit('bossDown', { m });
@@ -12284,7 +12364,7 @@ function BOS_drawCard(r) {
   const a = clamp(Math.min(t / .35, (dur - t) / .6), 0, 1), bars = E.ease.outQuad(clamp(Math.min(t / .4, (dur - t) / .5), 0, 1)), e = EL(C.el), c = BOS_tones(C.el);
   r.overlay(g => {
     const W = r.W, H = r.H, cx = Math.round(W / 2), bh = Math.round(20 * bars), y = Math.round(H * (C.low ? .62 : .22)) + Math.round(6 * (1 - a));
-    px.blend(g, .92, 'normal', () => { px.rect(g, 0, 0, W, bh, '#05030a'); px.rect(g, 0, H - bh, W, bh, '#05030a'); });
+    px.blend(g, .92, 'normal', () => { px.rect(g, 0, 0, W, bh, '#05030a'); px.rect(g, 0, H - Math.round(bh * .5), W, Math.round(bh * .5), '#05030a'); });
     px.blend(g, a, 'normal', () => {
       px.blend(g, .5, 'normal', () => px.rect(g, 0, y - 12, W, 50, '#05030a'));
       const sc = E.font.width(C.name, { scale: 3 }) <= W - 30 ? 3 : 2, rw = Math.round(Math.min(W * .38, 160) * E.ease.outQuad(clamp(t / .7, 0, 1)));
@@ -12688,7 +12768,7 @@ function BOS_kingDeath(b) {
   sfx('bos_roar', { pitch: .75 }); if (T) T.flare = 1;
   const f = addFx({ kind: 'bosKingDeath', t: 0, update: dt => {
     const real = dt / Math.max(.05, game.timeScale); rt += real;
-    game.timeScale = rt < 1.1 ? .3 : rt < 3 ? lerp(.3, 1, (rt - 1.1) / 1.9) : 1;
+    if (rt < 3) slowMo(rt < 1.1 ? .3 : lerp(.3, 1, (rt - 1.1) / 1.9), .05, 'bossdown');   // the core's slowdown, reshaped into his long fall
     const rig = b.rig;
     if (rig && !gone) {
       if (rt < 1.1) { rig.dieT = .08; rig.expr = 'shout'; }                                  // the stagger: head thrown back
@@ -12704,7 +12784,7 @@ function BOS_kingDeath(b) {
   void f;
 }
 
-def('bosses', 'cinderking', { name: 'The Cinder King', title: 'Sovereign of Ash', arch: 'cinderking', size: 2.3, hp: 13, dmg: 1.3, el: 'fire', levelName: 'The Cinder Throne', music: 'boss', minDepth: 5,
+def('bosses', 'cinderking', { name: 'The Cinder King', title: 'Sovereign of Ash', arch: 'cinderking', size: 2.3, hp: 11, dmg: 1.3, el: 'fire', levelName: 'The Cinder Throne', music: 'boss', minDepth: 5,
   pal: BOS_KING_PAL,
   phases: [
     { at: 1, patterns: ['kingcombo', 'slam', 'firewave'], gap: 1.25 },
@@ -12723,7 +12803,7 @@ def('bosses', 'cinderking', { name: 'The Cinder King', title: 'Sovereign of Ash'
   bosRoar(b, kind) {
     BOS_burstRings(b.x, b.y, 'fire', kind === 'wake' ? 3 : 2, { r0: b.r + 14, step: 20 }); game.flash('#ff8a3a', .12, .4);
     const T = ED.L.things.find(q => q.kind === 'throne'); if (T) T.flare = 1;
-    if (kind === 'wake') for (const v of ED.L.things) if (v.kind === 'vent' && Math.hypot(v.x - b.x, v.y - b.y) < 240) game.after(.35 + Math.hypot(v.x - b.x, v.y - b.y) / 300, () => v.prime(null));
+    if (kind === 'wake') for (const v of ED.L.things) if (v.kind === 'vent' && v.prime && Math.hypot(v.x - b.x, v.y - b.y) < 240) game.after(.35 + Math.hypot(v.x - b.x, v.y - b.y) / 300, () => v.prime(null));
   },
   update(b, dt) {
     if (b.bosForce && !b.pat && !b.dormant) { const id = b.bosForce; b.bosForce = null; if (REG.patterns[id]) { b.pat = REG.patterns[id].start(b, (b.bossDef.phases || [])[b.phase]); b.lastPat = id; } }
@@ -12827,7 +12907,9 @@ function BOS_placeMagma(L0, R) {
   const m = L0.map, W = L0.w, tags = m.floorTags, start = L0.start, ex = L0.exit, lava = L0.bosLava = L0.bosLava || [];
   const ok = (cx, cy) => {
     if (cx < 1 || cy < 1 || cx >= W - 1 || cy >= L0.h - 1) return false; const i = cy * W + cx; if (m.cell(cx, cy) !== 0 || tags[i] || m.blocked[i]) return false;
-    const x = (cx + .5) * 16, y = (cy + .5) * 16; return Math.hypot(x - start.x, y - start.y) > 56 && (!ex || Math.hypot(x - ex.x, y - ex.y) > 26);
+    const x = (cx + .5) * 16, y = (cy + .5) * 16; if (Math.hypot(x - start.x, y - start.y) <= 56 || (ex && Math.hypot(x - ex.x, y - ex.y) <= 40)) return false;
+    // nothing stands in the magma: kegs, pylons and chests keep their feet cool, and so do the braziers
+    return !(L0.things || []).some(t => Math.hypot(t.x - x, t.y - y) < (t.r || 6) + 12) && !(L0.torches || []).some(b => Math.hypot(b.x - x, b.y - y) < 12);
   };
   const tag = (cx, cy) => { if (ok(cx, cy)) { tags[cy * W + cx] = 'lava'; lava.push(cy * W + cx); } };
   const boss = L0.rec && L0.rec.boss, bossRoom = boss && ex ? BOS_roomAt(L0, ex.x, ex.y) : null, spot = boss === 'cinderking' && ex ? BOS_throneSpot(L0) : null;
@@ -13324,8 +13406,8 @@ function LOT_rigPt(r, h, p) {
 const LOT_joint = (h, k) => { const rig = h.rig, J = rig.J[k]; if (!J) return [h.x, h.y, h.z + 12]; const w = rig._w(J); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
 const LOT_town = () => !!(ED.L && ED.L.kind === 'town');
 
-/* the hero's strikes: any action whose rig attack enters its 'active' phase (a Blade Dance combo press emits no 'skill'
-   event, so this is how powers see every swing). LOT_strike(id, fn(h, act, spec)) runs while power id is worn */
+/* the hero's strikes: the hero emits 'strike' as any action's rig attack enters its 'active' phase (a Blade Dance combo
+   press emits no 'skill' event, so this is how powers see every swing). LOT_strike(id, fn(h, act, spec)) runs while power id is worn */
 const LOT_STRIKE = [], LOT_TICK = [], LOT_DRAW = [];
 const LOT_strike = (id, fn) => LOT_STRIKE.push({ id, fn });
 /** per-step and per-draw hooks for a power (fn(h, dt) / fn(h, r)) */
@@ -13333,14 +13415,12 @@ const LOT_tick = (id, fn) => LOT_TICK.push({ id, fn }), LOT_drawFx = (id, fn) =>
 const LOT_isMelee = act => { const S = act && act.skill && REG.skills[act.skill]; return !!(S && S.tags && S.tags.includes('melee')); };
 BUS.on('step', e => {
   const h = ED.hero; if (!h || !h.rig) return;
-  const act = h.act, st = act && act.rig && act.rig.attack, ph = st ? st.phase : null;
-  if (act && h.alive && ph === 'active' && act._lotPh !== 'active') for (const s of LOT_STRIKE) if (hasPower(h, s.id)) s.fn(h, act, st.spec);
-  if (act) act._lotPh = ph;
   for (const s of LOT_TICK) if (hasPower(h, s.id)) s.fn(h, e.dt);
   // uniques recolor the swing ribbon (look.smear) and some burn at the feet
-  const w = h.gear.weapon; if (w && w.look && w.look.smear) h.smear = w.look.smear;
+  const w = h.gear.weapon; if (w && w.look && w.look.smear && !h._mkaWard) h.smear = w.look.smear;   // (a ward's empowered trail wins while he stands in it)
   const bt = h.gear.boots; if (bt && bt.unique === 'ashwalker' && Math.hypot(h.vx, h.vy) > 25 && Math.random() < e.dt * 26) { const f = LOT_joint(h, Math.random() < .5 ? 'footL' : 'footR'); P.add({ kind: Math.random() < .4 ? 'fire' : 'ember', x: f[0], y: f[1], z: f[2] + 1, vz: 16, g: -8, drag: 3, max: .4, size: 1.6, color: '#ff8a3a' }); }
 });
+BUS.on('strike', e => { for (const s of LOT_STRIKE) if (hasPower(e.h, s.id)) s.fn(e.h, e.act, e.spec || {}); });
 BUS.on('draw', e => {
   const h = ED.hero, r = e.r; if (!h || !h.rig || !h.alive || h.dead) return;
   for (const s of LOT_DRAW) if (hasPower(h, s.id)) s.fn(h, r);
@@ -15068,9 +15148,10 @@ const MKA_cc = c => (c + .5) * 16;   // a cell's world center
 const MKA_mass = u => Math.pow(Math.max(1, u.mass || 1), .8);
 /** a hit from the hero's side: mechanics credit him with what they kill */
 const MKA_hit = (amount, el, o) => Object.assign({ src: ED.hero, amount, el, kb: 0, tags: ['mechanic'] }, o || {});
-/** can a mechanic take this cell: open floor (untagged unless tagOk), clear of the start, exit, torches, props, things, runes */
+/** can a mechanic take this cell: open floor (untagged unless tagOk; never a rail, a bridge or lava), clear of the start, exit, torches, props, things, runes */
 function MKA_free(L0, cx, cy, o = {}) {
-  if (!MKA_open(L0, cx, cy) || (!o.tagOk && MKA_tag(L0, cx, cy))) return false;
+  const tg = MKA_tag(L0, cx, cy);
+  if (!MKA_open(L0, cx, cy) || (tg && (!o.tagOk || tg === 'rail' || tg === 'bridge' || tg === 'lava'))) return false;
   const x = MKA_cc(cx), y = MKA_cc(cy), near = (p, d) => Math.abs(p.x - x) < d && Math.abs(p.y - y) < d;
   if (Math.hypot(x - L0.start.x, y - L0.start.y) < (o.start === undefined ? 64 : o.start)) return false;
   if (Math.hypot(x - L0.exit.x, y - L0.exit.y) < (o.exit === undefined ? 48 : o.exit)) return false;
@@ -16916,8 +16997,8 @@ function MKB_floodPlace(L0, R) {
   const dry = i => cells[i] === 0 && !tags[i];
   const nearRune = i => { const x = (i % w + .5) * T16, y = ((i / w) | 0) * T16 + 8; return Math.hypot(x - L0.start.x, y - L0.start.y) < 46 || (L0.exit && Math.hypot(x - L0.exit.x, y - L0.exit.y) < 38); };
   // a canal never swallows what other mechanics placed (a launch pad in deep water would land the hero in it): it keeps
-  // off small things, off ward circles, and off a time well's clock face
-  const held = L0.things.filter(t => !t.dead && !t.mark && (t.r || t.solid || t.hittable)).concat(L0.torches);
+  // off small things, off ward circles, off a time well's clock face, and off the props on the floor (no barrel afloat)
+  const held = L0.things.filter(t => !t.dead && !t.mark && (t.r || t.solid || t.hittable)).concat(L0.torches, (L0.props || []).filter(p => !((p.z || 0) > 0)));
   const nearThing = i => { const x = (i % w + .5) * T16, y = ((i / w) | 0) * T16 + 8; return held.some(t => Math.hypot(t.x - x, t.y - y) < (t.MKB_big ? t.r * .6 : Math.min(t.r || 5, 32)) + 14); };
   // deep canals: two cells wide across a room with a ford left in them; kept only when nothing gets cut off
   let reach = MKB_reach(L0);
@@ -20934,17 +21015,18 @@ TOWN.build = buildTown;
  * ============================================================================= */
 const UI = {
   mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0 },
-  panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, hotItem: null, focus: 0, keyNav: false, cardT: 0, card: null,
+  panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
   def(id, spec) { spec.id = id; this.panels[id] = spec; return spec; },
   top() { return this.stack.length ? this.panels[this.stack[this.stack.length - 1].id] : null; },
   isOpen(id) { return this.stack.some(s => s.id === id); },
   get modal() { return this.stack.some(s => this.panels[s.id] && this.panels[s.id].modal !== false); },
-  open(id, data) { const P0 = this.panels[id]; if (!P0) return; if (this.isOpen(id)) return this.close(id); this.stack.push({ id, data }); this.focus = 0; if (P0.open) P0.open(data); sfx('select'); game.input.consumeAll(); },
+  open(id, data) { const P0 = this.panels[id]; if (!P0) return; if (this.isOpen(id)) return this.close(id); this.stack.push({ id, data }); this.focus = 0; this.keyNav = performance.now() - this.keyT < 250; if (P0.open) P0.open(data); sfx('select'); game.input.consumeAll(); },
   close(id) { const i = id ? this.stack.findIndex(s => s.id === id) : this.stack.length - 1; if (i < 0) return; const s = this.stack.splice(i, 1)[0], P0 = this.panels[s.id]; if (P0 && P0.close) P0.close(s.data); sfx('cancel', { vol: .5 }); game.input.consumeAll(); },
   closeAll() { while (this.stack.length) this.close(); },
   data(id) { const s = this.stack.find(q => q.id === id); return s && s.data; }
 };
-/* the mouse in screen pixels (the canvas scale and letterbox undone) */
+/* the mouse in screen pixels (the canvas scale and letterbox undone). A panel opened from the keyboard starts in key navigation */
+addEventListener('keydown', () => { UI.keyT = performance.now(); });
 canvas.addEventListener('pointermove', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.active = true; UI.keyNav = false; });
 canvas.addEventListener('pointerdown', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; if (e.button === 0) UI.mouse.down = true; });
 addEventListener('pointerup', e => { if (e.button === 0) { UI.mouse.down = false; UI.drag = null; } });
@@ -21407,7 +21489,7 @@ function drawPortal(pt, r, home) {
 /* ---------- the shared world step ---------- */
 function worldStep(dt, o = {}) {
   const h = ED.hero, L0 = ED.L;
-  ED.t += dt; L0.t = (L0.t || 0) + dt;
+  ED.t += dt; L0.t = (L0.t || 0) + dt; slowMoStep();
   UI.prompt = null;
   floorEffects(h, dt); for (const m of ED.foes) if (m.alive && m.spawnT <= 0) floorEffects(m, dt);
   updateHero(h, dt, o);
@@ -21638,7 +21720,7 @@ const levelScene = {
     playSong(L0.theme.music || 'deep'); game.cam.snap = true; saveGame();
     BUS.emit('levelStart', { L: L0 });
   },
-  exit() { BUS.emit('levelEnd', { L: ED.L }); game.timeScale = 1; },
+  exit() { BUS.emit('levelEnd', { L: ED.L }); slowMoReset(SLOW.base); },
   update(dt) {
     if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
     if (talkStep(dt)) return;
@@ -21859,7 +21941,7 @@ const galleryScene = {
     const L0 = galStage(); enterWorld(L0); ED.depth = 3; L.ambient = .16;
     GAL.i = 0; galReset(); game.cam.snap = true;
   },
-  exit() { game.timeScale = 1; ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
+  exit() { slowMoReset(1); ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
   update(dt) {
     const inp = game.input, h = ED.hero, L0 = ED.L, cx = L0.w * 8, cy = L0.h * 8;
     if (updateUI(dt)) return;
@@ -21898,7 +21980,7 @@ const galleryScene = {
     const c = GAL.cam || (GAL.cam = tgt.slice()), k = Math.min(1, dt * 3); for (let i = 0; i < 3; i++) c[i] += (tgt[i] - c[i]) * k;
     game.focus(c[0], c[1], c[2]);
     if (inp.pressed('labels')) { GAL.slow = !GAL.slow; }
-    game.timeScale = GAL.slow ? .3 : 1;
+    if (SLOW.base !== (GAL.slow ? .3 : 1)) slowMoReset(GAL.slow ? .3 : 1);
   },
   draw(r) {
     const L0 = ED.L;
@@ -21906,7 +21988,8 @@ const galleryScene = {
     for (const m of ED.corpses) drawFoe(m, r);
     for (const m of ED.foes) drawFoe(m, r);
     for (const a of ED.allies) if (a.draw) a.draw(r);
-    drawHero(ED.hero, r); drawFx(r);
+    drawHero(ED.hero, r); drawFx(r); drawThings(L0, r);
+    BUS.emit('draw', { r, L: L0 });   // what skills leave behind (blades, rifts, totems) and the powers' own light
     L.add(L0.w * 8, L0.h * 8, 3, 70, .5, { color: '#4fe0cc' });
     r.overlay(g => {
       const W = r.W, H = r.H, cx = W / 2, items = galItems();
@@ -22106,15 +22189,15 @@ function botThink(h, dt) {
 BUS.on('hit', e => { const h = ED.hero; if (h && h.bot && e.src === h) h.bot.lastHit = h.bot.t; });   // the target is still worth chasing
 BUS.on('step', e => {
   const h = ED.hero; if (h && h.bot && !h.bot.manual) botThink(h, e.dt);   // manual: a scene drives the virtual input itself (the Gallery)
-  // balance runs keep their speed (a level change, a perfect dodge or a slow-motion finisher resets the clock to 1)
-  if (BOT_RUN.on && ED.mode === 'level' && !(h && h.perfectT > 0) && game.timeScale !== BOT_RUN.speed) game.timeScale = BOT_RUN.speed;
+  // balance runs keep their speed (as the base clock: a perfect dodge or a finisher slows it by its own factor)
+  if (BOT_RUN.on && ED.mode === 'level' && SLOW.base !== BOT_RUN.speed) slowMoReset(BOT_RUN.speed);
 });
 /* a soak / balance run: the bot plays depth after depth and logs how it went (time, level, deaths, potions) */
 const BOT_RUN = { on: false, to: 0, log: [], speed: 3 };
 function botRun(o = {}) {
   BOT_RUN.on = true; BOT_RUN.to = o.to || 10; BOT_RUN.log = []; BOT_RUN.start = ED.t; BOT_RUN.deaths = 0; BOT_RUN.speed = o.speed || 3; BOT_RUN.maxDeaths = o.maxDeaths || 10;
   if (!ED.hero) ED.hero = newHero();
-  botOn(ED.hero, true); game.timeScale = BOT_RUN.speed;
+  botOn(ED.hero, true); slowMoReset(BOT_RUN.speed);
   descend(o.from || 1);
 }
 BUS.on('levelStart', e => { const h = ED.hero; if (BOT_RUN.on && h) { botOn(h, true); BOT_RUN.t0 = ED.t; BOT_RUN.deaths0 = BOT_RUN.deaths || 0; } });
@@ -22122,7 +22205,7 @@ BUS.on('levelEnd', e => {
   const h = ED.hero; if (!BOT_RUN.on || !h || !e.L || !e.L.depth) return;
   const died = (BOT_RUN.deaths || 0) > (BOT_RUN.deaths0 || 0);
   BOT_RUN.log.push({ depth: e.L.depth, name: e.L.name, time: +(ED.t).toFixed(1), level: h.level, hp: Math.round(h.hp / h.maxHp * 100), gold: h.gold, kills: ED.stats.kills, deaths: BOT_RUN.deaths || 0, cleared: !died });
-  if ((e.L.depth >= BOT_RUN.to && !died) || (BOT_RUN.deaths || 0) >= BOT_RUN.maxDeaths) { BOT_RUN.on = false; game.timeScale = 1; botOn(h, false); }
+  if ((e.L.depth >= BOT_RUN.to && !died) || (BOT_RUN.deaths || 0) >= BOT_RUN.maxDeaths) { BOT_RUN.on = false; slowMoReset(1); botOn(h, false); }
 });
 BUS.on('heroDie', () => { if (!BOT_RUN.on) return; BOT_RUN.deaths = (BOT_RUN.deaths || 0) + 1; game.after(2.5, () => { UI.closeAll(); reviveHero(ED.hero); descend(ED.depth || 1); }); });
 
@@ -22152,21 +22235,22 @@ BUS.on('perfectDodge', () => tip('perfect', 'PERFECT DODGE: A ROLL THROUGH A STR
 
 /* =============================================================================
  * PERFORMANCE GOVERNOR: keeps the game fluid on slower machines. When the frame rate stays low it drops the
- * outlines on ordinary monsters and caps particles; when there is headroom again it brings them back.
+ * outlines on ordinary monsters, caps particles and lets glows draw over what stands in front of them (the renderer's
+ * glow mask, canvas lighting only); when there is headroom again it brings them back.
  * PERF.low is read by drawFoe (30-monsters-core.js). Settings > Particles still sets the ceiling.
- * It samples on the REAL clock (slow motion, perfect dodges and 3x bot runs must not skew it): low after 3 s under
+ * It samples on the wall clock (slow motion, perfect dodges and 3x bot runs must not skew it): low after 3 s under
  * 45 fps, back after `need` samples at 57+. A machine that drops straight back (within 25 s) waits twice as long next
  * time, so a borderline one settles instead of flickering its outlines on and off. ED.perf exposes it for tools.
  * ============================================================================= */
 const PERF = { low: false, bad: 0, good: 0, t: 0, need: 20, since: -99, n: 0 };
 ED.perf = PERF;
 BUS.on('step', () => {
-  const now = game.real; if (now - PERF.t < .5) return; PERF.t = now;
+  const now = wallClock(); if (now - PERF.t < .5) return; PERF.t = now;
   const fps = game.fps, cap = [500, 1000, 1600][OPT.fx === undefined ? 2 : OPT.fx];
   if (!PERF.low) {
     PERF.bad = fps < 45 ? PERF.bad + 1 : 0;
-    if (PERF.bad >= 6) { PERF.low = true; PERF.good = 0; PERF.n++; P.max = Math.min(cap, 700); if (now - PERF.since < 25) PERF.need = Math.min(160, PERF.need * 2); }
-  } else { PERF.good = fps >= 57 ? PERF.good + 1 : 0; if (PERF.good >= PERF.need) { PERF.low = false; PERF.bad = 0; P.max = cap; PERF.since = now; } }
+    if (PERF.bad >= 6) { PERF.low = true; PERF.good = 0; PERF.n++; P.max = Math.min(cap, 700); game.r.glowMask = false; if (now - PERF.since < 25) PERF.need = Math.min(160, PERF.need * 2); }
+  } else { PERF.good = fps >= 57 ? PERF.good + 1 : 0; if (PERF.good >= PERF.need) { PERF.low = false; PERF.bad = 0; P.max = cap; game.r.glowMask = true; PERF.since = now; } }
 });
 
 /* ---------- START: powers listen, the title (or a deep link: #town, #depth-7, #proving) ---------- */
@@ -22177,7 +22261,7 @@ const link = (location.hash || '').slice(1), dm = /^depth-(\d+)$/.exec(link);
 if (link === 'town' || dm || link === 'proving' || link === 'gallery') { ED.hero = loadHeroOrNew(); }
 game.start({ scenes, scene: link === 'town' ? 'town' : dm ? 'level' : link === 'proving' ? 'proving' : link === 'gallery' ? 'gallery' : 'title', data: dm ? { depth: +dm[1] } : link === 'town' ? { arrive: 'waystone' } : undefined });
 /* a handle for tools, tests and the curious: window.__ed */
-window.__ed = { game, ED, REG, UI, DIFF, OPT, BUS, FX, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
+window.__ed = { game, ED, REG, UI, DIFF, OPT, BUS, FX, SLOW, slowMo, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
 })();
 
 </script>

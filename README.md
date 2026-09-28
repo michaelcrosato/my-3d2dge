@@ -72,8 +72,10 @@ The model copies the closest slice and replaces the code between `GAME START` an
   - packs with elements, shared affixes, giants and swarms;
   - bosses built from a body, an element and a set of attack patterns;
   - item levels that keep scaling.
-- **A gallery.** `#gallery` plays every skill on straw training dummies, every monster's moveset, and the hero's full pose vocabulary, in any view and in slow motion.
+- **A gallery.** `#gallery` plays every skill on straw training dummies, every monster's moveset, every boss's entrance, and the hero's full pose vocabulary, in any view and in slow motion.
 - **For playtesting.** Settings has difficulty sliders for hero damage, life and speed, the same for monsters, plus density, experience and loot. `__ed.botRun({ to: 10 })` lets an autopilot play depth after depth, and the title screen runs it as a demo when left idle.
+
+**Controls:** WASD or the arrows to move, the mouse to aim; LMB, RMB and 1-4 fire the six skill slots; Space or Shift dodges; Q drinks a potion, E talks or picks up, T opens a portal home; I the bag, K the skills, P the passive tree, Tab the map, Z the loot labels, Esc pauses (Settings has the difficulty sliders). A gamepad works too.
 
 The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIGN.md` explains the modular "language" (registries for elements, skills, monsters, affixes, bosses, patterns, items, powers, mechanics, themes and layouts). `tools/ed-play.mjs` (scripted headless playtests) and `tools/ed-smoke.mjs` (every scene and depth) test it.
 

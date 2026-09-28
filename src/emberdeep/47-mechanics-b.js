@@ -716,8 +716,8 @@ function MKB_floodPlace(L0, R) {
   const dry = i => cells[i] === 0 && !tags[i];
   const nearRune = i => { const x = (i % w + .5) * T16, y = ((i / w) | 0) * T16 + 8; return Math.hypot(x - L0.start.x, y - L0.start.y) < 46 || (L0.exit && Math.hypot(x - L0.exit.x, y - L0.exit.y) < 38); };
   // a canal never swallows what other mechanics placed (a launch pad in deep water would land the hero in it): it keeps
-  // off small things, off ward circles, and off a time well's clock face
-  const held = L0.things.filter(t => !t.dead && !t.mark && (t.r || t.solid || t.hittable)).concat(L0.torches);
+  // off small things, off ward circles, off a time well's clock face, and off the props on the floor (no barrel afloat)
+  const held = L0.things.filter(t => !t.dead && !t.mark && (t.r || t.solid || t.hittable)).concat(L0.torches, (L0.props || []).filter(p => !((p.z || 0) > 0)));
   const nearThing = i => { const x = (i % w + .5) * T16, y = ((i / w) | 0) * T16 + 8; return held.some(t => Math.hypot(t.x - x, t.y - y) < (t.MKB_big ? t.r * .6 : Math.min(t.r || 5, 32)) + 14); };
   // deep canals: two cells wide across a room with a ford left in them; kept only when nothing gets cut off
   let reach = MKB_reach(L0);

@@ -178,15 +178,15 @@ function botThink(h, dt) {
 BUS.on('hit', e => { const h = ED.hero; if (h && h.bot && e.src === h) h.bot.lastHit = h.bot.t; });   // the target is still worth chasing
 BUS.on('step', e => {
   const h = ED.hero; if (h && h.bot && !h.bot.manual) botThink(h, e.dt);   // manual: a scene drives the virtual input itself (the Gallery)
-  // balance runs keep their speed (a level change, a perfect dodge or a slow-motion finisher resets the clock to 1)
-  if (BOT_RUN.on && ED.mode === 'level' && !(h && h.perfectT > 0) && game.timeScale !== BOT_RUN.speed) game.timeScale = BOT_RUN.speed;
+  // balance runs keep their speed (as the base clock: a perfect dodge or a finisher slows it by its own factor)
+  if (BOT_RUN.on && ED.mode === 'level' && SLOW.base !== BOT_RUN.speed) slowMoReset(BOT_RUN.speed);
 });
 /* a soak / balance run: the bot plays depth after depth and logs how it went (time, level, deaths, potions) */
 const BOT_RUN = { on: false, to: 0, log: [], speed: 3 };
 function botRun(o = {}) {
   BOT_RUN.on = true; BOT_RUN.to = o.to || 10; BOT_RUN.log = []; BOT_RUN.start = ED.t; BOT_RUN.deaths = 0; BOT_RUN.speed = o.speed || 3; BOT_RUN.maxDeaths = o.maxDeaths || 10;
   if (!ED.hero) ED.hero = newHero();
-  botOn(ED.hero, true); game.timeScale = BOT_RUN.speed;
+  botOn(ED.hero, true); slowMoReset(BOT_RUN.speed);
   descend(o.from || 1);
 }
 BUS.on('levelStart', e => { const h = ED.hero; if (BOT_RUN.on && h) { botOn(h, true); BOT_RUN.t0 = ED.t; BOT_RUN.deaths0 = BOT_RUN.deaths || 0; } });
@@ -194,6 +194,6 @@ BUS.on('levelEnd', e => {
   const h = ED.hero; if (!BOT_RUN.on || !h || !e.L || !e.L.depth) return;
   const died = (BOT_RUN.deaths || 0) > (BOT_RUN.deaths0 || 0);
   BOT_RUN.log.push({ depth: e.L.depth, name: e.L.name, time: +(ED.t).toFixed(1), level: h.level, hp: Math.round(h.hp / h.maxHp * 100), gold: h.gold, kills: ED.stats.kills, deaths: BOT_RUN.deaths || 0, cleared: !died });
-  if ((e.L.depth >= BOT_RUN.to && !died) || (BOT_RUN.deaths || 0) >= BOT_RUN.maxDeaths) { BOT_RUN.on = false; game.timeScale = 1; botOn(h, false); }
+  if ((e.L.depth >= BOT_RUN.to && !died) || (BOT_RUN.deaths || 0) >= BOT_RUN.maxDeaths) { BOT_RUN.on = false; slowMoReset(1); botOn(h, false); }
 });
 BUS.on('heroDie', () => { if (!BOT_RUN.on) return; BOT_RUN.deaths = (BOT_RUN.deaths || 0) + 1; game.after(2.5, () => { UI.closeAll(); reviveHero(ED.hero); descend(ED.depth || 1); }); });
