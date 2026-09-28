@@ -30,6 +30,8 @@ const builds = [
   { template: 'src/arena.template.html', out: 'examples/arena.html', vars: { VIEW: 'iso', TITLE: 'Emberwell · my-3D2dge' } },
   { template: 'src/lab.template.html', out: 'examples/perspective-lab.html', vars: {} },
   { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} },
+  // the signature game: src/emberdeep/*.js (one script, joined in name order)
+  { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {} },
   // the files to share with AI models: API card + engine + starter slices
   { template: 'src/starter.template.html', out: 'dist/my-3d2dge.html', vars: Object.assign({ EDITION: 'single-file edition' }, ALL) },
   { template: 'src/starter.template.html', out: 'dist/my-3d2dge-compact.html', vars: Object.assign({ EDITION: 'compact edition (engine minified)' }, ALL), compact: true },
