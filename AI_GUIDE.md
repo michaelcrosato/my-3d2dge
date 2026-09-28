@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.5.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.6.0.
 
 ## North star
 
@@ -39,10 +39,30 @@ It aims for **consistent quality**: the engine carries the hard parts (feel, phy
 6. **Tune the feel** with the feel numbers in `API.md`, then check the game with the skeleton overlay (`rig.debug(r)`) and in slow motion (`game.timeScale = .25`).
 7. **Verify** with the checker and look at the screenshots (see the checklist at the end).
 
+## Visual craft: aim for PS1 / N64 era 2D, not NES
+Players judge a remake in the first screenshot. The engine's defaults reach SNES quality by themselves; games reach the PS1/N64 bar (Symphony of the Night, Metal Slug, Legend of Mana, Klonoa) when they use every layer of the look kit.
+
+**Why games look cheap, and the fix for each:**
+- *Tiny stick characters.* Use the HD Humanoid (the default) at `size: 1.2-1.4` on a 320x240 `res`, pick a `build` (`'heroic'` for tall heroes, `'bulky'` for brawlers and bosses, `'chibi'` for Mana-style RPGs), and dress every character: outfit, hair, hat, armor, sleeves, cape, and a palette of 4-6 colors per character (skin, hair, cloth, pants, boot, trim). Give enemies different silhouettes (hunch, bulky, blobs with `ears`, `horns`, `wings`, `feet`, `tail`, `mouth: 'fangs'`). Use poses (`pose: 'cheer'` on victory, `'cast'` for spells, `'guard'`, `'kneel'`, `'down'` for the defeated) instead of leaving everyone in the idle stance.
+- *Empty backgrounds.* Side views get an `E.Backdrop` (a preset or custom layers of mountains, castle, forest, city, clouds, fog) with parallax. Ground views get textured floors from `E.tex.*` with floor tags (water, lava shimmer), and walls with a material: `face: 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge'` and `roof: 'tiles' | 'slab' | 'leaves' | 'grass'`. Never leave every wall the same brick.
+- *Flat colors.* Shade everything with `E.tones(hex)`: `deep` and `sh` on the shadow side, `base`, `lt` on lit edges, a `hi` sparkle. Shadows lean cool, highlights warm; never shade by only darkening.
+- *Bare rooms.* Put 3-8 props on every screen with `r.prop`: candles, chandeliers and stained-glass windows in castles; crates, barrels, signs and lamps in towns; trees, bushes, flowers, rocks and grass outdoors; crystals, bones, skulls, cobwebs and vines in caves; awnings, lanterns, streetlamps, hydrants, trash cans and fire drums on streets; sandbags, cactus and palms in deserts; mushrooms in forests. Tint props with `color` so they match the palette, and set `E.style.propSize = 1.4` when heroes are size 1.2+ so a door is taller than the hero.
+- *Weak hits.* Every hit gets hit-stop (`game.freeze(.04-.08)`), shake, sparks and a sound. Every death and explosion gets `particles.explosion(x, y, z, size)` and, for big ones, `game.flash`. Pickups get `particles.glints`.
+- *NES typography.* Use the default 5x7 font with a drop shadow for HUD text, `E.ui.box` gradient panels and bars, and `E.font.title` with a 3-4 color gradient and extrusion for logos.
+- *Faceless dialog.* Every talking character gets a portrait: `talk.say(lines, { name, portrait: rig })`, and `rig.drawPortrait(g, x, y, 40)` on HUDs and RPG party and status screens.
+- *Muddy lighting.* Use lights for mood, not darkness: a few warm lights (`r.prop(..., { light: true })`) over an ambient of .4-.6; GPU lighting in top-down dungeons.
+
+**Art recipes by classic** (combine with the genre recipes below):
+- *Symphony of the Night:* `res: 'ps1'`, the `'castle-night'` backdrop, PlatformMap `stone` tiles with `moss` and `brick` walls, `'back'` tiles for the rear wall, candles and candelabras every few tiles, chandeliers, stained-glass `window` props, banners and statues. The hero is `build: 'heroic'`, `outfit: 'coat'`, `hair: 'long'`, `cape`, pale skin and silver hair, and the sword chops in the screen plane by itself in the side view; enemies are skeletons (`build: 'skeleton'`, add `outfit: 'robe'` and a staff for a lich), bats (`Blob` with `wings: true, mouth: 'fangs'`), cobwebs and vines on the walls.
+- *Metal Slug:* the `'desert'` backdrop, `ground` and `metal` tiles, crates, barrels, sandbags, palms and cactus, `broken` pillars, `particles.explosion` everywhere (with `particles.ground` set so debris bounces on platforms), `bulky` soldiers with `weapon: 'gun'`, `point: true` while firing, and screen shake on every blast.
+- *Legend of Mana / Secret of Mana:* the `threequarter` view, `E.tex.grass` / `dirt` / `water` floors by floor tag (a river with `block: true` and a plank bridge), houses of `timber` or `plaster` walls under `tiles` roofs, `hedge` walls with `leaves` tops and `rock` cliffs with `grass` tops, trees, bushes, flowers, fences and mushrooms as props, `chibi` characters with `face: { eyes: 'big' }` and bright palettes, rabbites (`Blob` with `ears: 'rabbit', feet: true`), and dialog boxes with portraits.
+- *Klonoa and 2.5D platformers:* PlatformMap in the `brawler` view (tiles show their top faces), a bright `'day'` or `'forest'` backdrop, props in front of and behind the play plane (`y` of -12 and +12), and a soft camera `lead`.
+- *Final Fight / Streets of Rage:* the `brawler` view, a long street TileMap with brick and `plaster` building walls, awnings, streetlamps, hydrants, trash cans and burning fire drums along the sidewalk, `bulky` heroes and thugs with varied palettes, and big impacts.
+
 ## Hard rules
 
 1. **Game logic in world units, `dt` everywhere.** Never store screen pixels. Convert only when drawing (`r.w(x, y, z)`) or reading the mouse (`game.mouseGround()`). `update(dt)` runs in fixed steps of about 1/120 s.
-2. **Draw only with engine primitives** (`E.px.*`, `E.font`, `E.ui`, sprites, `r.*` helpers). `ctx.arc`, `ctx.stroke`, `ctx.fillText`, gradients and scaled `drawImage` anti-alias and break the pixel look. Fade with dithering (`px.polyDither`, `px.ddisc`, `r.glowDisc`), not alpha.
+2. **Draw only with engine primitives** (`E.px.*`, `E.font`, `E.ui`, sprites, props, `r.*` helpers). `ctx.arc`, `ctx.stroke`, `ctx.fillText`, canvas gradients and scaled `drawImage` anti-alias and break the pixel look. Translucency goes through the engine helpers (`px.blend`, `px.polyDither`, `px.ddisc`, `r.glowDisc`, `r.shadow`): stepped alpha with blend modes by default (PS1 / N64 / SNES color math), or ordered dithering with `E.style.trans = 'dither'` for NES, Game Boy and Genesis looks.
 3. **Anything that overlaps goes through the queue**: `r.actor`, `r.sprite` or `r.queue`. Only backgrounds are drawn directly (`r.sky`, `map.drawFloor`, `level.draw`, parallax shapes).
 4. **Animate with continuous values** (phases, velocities, eased timers), never frame lists.
 5. **Read input in `update`**: `pressed` for one-shot actions, `down` for held, `buffered` + `consume` for combat.
@@ -157,7 +177,7 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
 - Built-in songs: `title`, `adventure`, `dungeon`, `boss`, `victory` (plays once).
 
 ### Text and UI
-- `E.font` is a 3x5 upper-case pixel font with `scale`, `align`, `wrap` and outline.
+- `E.font` is a 5x7 proportional pixel font with lower case (the old 3x5 font is `font: 'tiny'`), with `scale`, `align`, `wrap`, outline, drop `shadow` and `gradient`; `E.font.title` draws extruded gradient logos.
 - `E.ui.box/bar/hearts` draw classic windows and meters inside `r.overlay`.
 - `Dialog` does typewriter text with blips, pages, speaker names and choices; `update` returns true while it is open, so the world waits.
 - `Menu` handles up and down with key repeat, confirm, cancel and disabled items.

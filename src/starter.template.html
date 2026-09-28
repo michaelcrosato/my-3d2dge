@@ -1,24 +1,23 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.5.0
+  my-3D2dge (My "3D" 2D Game Engine), {{EDITION}} v0.6.0
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and five working games.
+  AI MODELS: this one file is the whole engine, its documentation and {{GAMES}}.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below. It is short.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". Do not change it
        unless you are asked to extend the engine itself.
-    3. The games live between GAME START and GAME END: a title menu plus five vertical slices
-       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE).
+    3. The games live between GAME START and GAME END: {{CONTENTS}}
        To make a new game, copy the slice closest to your genre, then replace everything between
        GAME START and GAME END with only your game. Keep everything else in this file as it is.
   HUMANS: open this file in a browser and play. Press ? for the API card.
-  Deep links: add #adventure, #platformer, #brawler, #shooter or #rpg to the address to start a slice.
+  {{LINKS}}
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>my-3D2dge · single-file edition</title>
+<title>my-3D2dge · {{EDITION}}</title>
 <script type="text/markdown" id="my3d2dge-api">
 <!-- @inline-raw API.md -->
 </script>
@@ -28,6 +27,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 #screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated}
 #guideBtn{position:absolute;top:8px;right:8px;z-index:5;font:600 12px/1 ui-monospace,Menlo,Consolas,monospace;color:#d8d0f0;background:rgba(20,16,40,.6);border:1px solid rgba(216,208,240,.3);border-radius:4px;padding:5px 7px;cursor:pointer;opacity:.55}
 #guideBtn:hover,#guideBtn:focus-visible{opacity:1}
+#guideBtn.away{opacity:0;transition:opacity .4s}
 #guide{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}
 #guide[hidden]{display:none}
 #guide .panel{width:min(860px,100%);max-height:100%;display:flex;flex-direction:column;background:#141226;color:#eee8ff;border:1px solid #4a4470;border-radius:6px}
@@ -55,9 +55,13 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
   document.getElementById('guideBtn').addEventListener('click', e => { open(true); e.currentTarget.blur(); });
   document.getElementById('guideClose').addEventListener('click', () => open(false));
   addEventListener('keydown', e => { if (e.key === '?') open(g.hidden); else if (e.key === 'Escape' && !g.hidden) open(false); });
+  // the button steps aside while you play and comes back when the mouse moves
+  const btn = document.getElementById('guideBtn'); let hide = 0;
+  addEventListener('keydown', () => btn.classList.add('away'));
+  addEventListener('pointermove', () => { btn.classList.remove('away'); clearTimeout(hide); hide = setTimeout(() => btn.classList.add('away'), 3000); });
 })();
 </script>
 <!-- @inline engine/my-3d2dge.js -->
-<!-- @inline src/starter.game.js -->
+<!-- @inline-parts src/starter -->
 </body>
 </html>

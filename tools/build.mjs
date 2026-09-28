@@ -2,24 +2,42 @@
 // Usage: node tools/build.mjs
 // Every output is a single self-contained HTML file (no network, no other files) that
 // you can open, host, or hand to another AI model.
-//   dist/my-3d2dge.html          readable engine + API card + starter slices (the one to share)
-//   dist/my-3d2dge-compact.html  same, with the engine minified (about 25% fewer tokens, for
-//                                models with smaller context windows)
+//   dist/my-3d2dge.html          readable engine + API card + all five starter slices (the reference)
+//   dist/my-3d2dge-compact.html  same, with the engine minified (fewer tokens)
+//   dist/kits/my-3d2dge-<genre>.html  minified engine + API card + ONE slice: the smallest file to
+//                                hand a model that is making a game in that genre
 //   dist/my-3d2dge.js / .min.js  the engine alone, for multi-file projects
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
+const STARTER = 'src/starter';
+const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', rpg: 'RPG BATTLE (turn-based battle)' };
+const ALL = {
+  GAMES: 'five working games',
+  CONTENTS: "a title menu plus five vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE).",
+  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter or #rpg to the address to start a slice.'
+};
+const kit = id => ({
+  EDITION: id + ' kit', GAMES: 'one working game to copy',
+  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with all five slices is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.',
+  LINKS: 'Deep link: add #' + id + ' to the address to start the slice.'
+});
 const builds = [
   { template: 'src/arena.template.html', out: 'examples/arena-iso.html', vars: { VIEW: 'iso', TITLE: 'Emberwell (isometric) · my-3D2dge' } },
   { template: 'src/arena.template.html', out: 'examples/arena-topdown.html', vars: { VIEW: 'threequarter', TITLE: 'Emberwell (top-down) · my-3D2dge' } },
   { template: 'src/lab.template.html', out: 'examples/perspective-lab.html', vars: {} },
   { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} },
   // the files to share with AI models: API card + engine + starter slices
-  { template: 'src/starter.template.html', out: 'dist/my-3d2dge.html', vars: {} },
-  { template: 'src/starter.template.html', out: 'dist/my-3d2dge-compact.html', vars: {}, compact: true }
+  { template: 'src/starter.template.html', out: 'dist/my-3d2dge.html', vars: Object.assign({ EDITION: 'single-file edition' }, ALL) },
+  { template: 'src/starter.template.html', out: 'dist/my-3d2dge-compact.html', vars: Object.assign({ EDITION: 'compact edition (engine minified)' }, ALL), compact: true },
+  // genre kits: the shell, one slice and the start code
+  ...readdirSync(join(root, STARTER)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
+    const id = f.replace(/^\d+-|\.js$/g, '');
+    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id), compact: true, parts: p => /^(0|9)/.test(p) || p === f };
+  })
 ];
 
 let minified = null;
@@ -40,6 +58,11 @@ for (const b of builds) {
   let html = readFileSync(join(root, b.template), 'utf8');
   for (const [k, v] of Object.entries(b.vars)) html = html.replaceAll(`{{${k}}}`, v);
   html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => read(file));
+  // a folder of script parts joined in name order into one <script> (the starter game: shell + one file per slice)
+  html = html.replace(/<!-- @inline-parts (\S+) -->/g, (_, dir) => {
+    const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort();
+    return `<script>\n/* ---- inlined from ${dir} (${parts.join(', ')}) ---- */\n${parts.map(f => read(join(dir, f))).join('\n')}\n</script>`;
+  });
   html = html.replace(/<!-- @inline (\S+) -->/g, (_, file) => {
     const src = file === ENGINE && min ? min.replaceAll('</script', '<\\/script') : read(file);
     return `<script>\n/* ---- inlined from ${file}${file === ENGINE && min ? ' (minified; the readable engine is in the repo)' : ''} ---- */\n${src}\n</script>`;

@@ -18,14 +18,17 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 
 | File | For | Size |
 |---|---|---|
-| **`dist/my-3d2dge.html`** | Models with large context windows (200k+ tokens). Readable engine. | ~104k tokens |
-| **`dist/my-3d2dge-compact.html`** | Older or smaller models (128k context). Same file with the engine minified. | ~79k tokens |
+| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `shooter`, `rpg`). Fits a 200k context with room to work. | ~116k-122k tokens |
+| **`dist/my-3d2dge-compact.html`** | All five slices, engine minified. | ~196k tokens |
+| **`dist/my-3d2dge.html`** | The complete reference: readable engine and all five slices. For 1M-token contexts, or for a model that reads the file in parts. | ~238k tokens |
 
-Attach the file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-like with three dungeons", "a spiritual successor to Gradius"). Each file contains:
+Token counts are approximate (measured with the cl100k tokenizer).
+
+Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-like with three dungeons", "a spiritual successor to Gradius"). Each file contains:
 
 1. **The API card**: a quick-start game, a table of coordinates per view, rules, common mistakes, the full API and a genre playbook.
 2. **The engine** (no dependencies, no network).
-3. **A starter game** with five vertical slices to copy from:
+3. **A starter game** with five vertical slices to copy from (a genre kit holds one):
    - ADVENTURE (Zelda-style top-down)
    - PLATFORMER (Mario / Mega Man side-scroller with a 2.5D view)
    - BRAWLER (Final Fight / Streets of Rage beat-'em-up)
@@ -56,17 +59,46 @@ The model copies the closest slice and replaces the code between `GAME START` an
 - Depth-sorted rendering with outlines, rim light, hit flash, afterimages and x-ray silhouettes.
 - Dithered skies and parallax starfields.
 
+**The look kit (v0.6: aimed at PS1 / N64 era 2D, not NES)**
+- HD characters: volumetric, shaded limbs, a shaped torso, hands and boots.
+  - Faces: eyes with catch-lights, brows, mouth, ears.
+  - Side views get a cheated 3/4 turn so bodies read in profile, and swords chop in the screen plane.
+  - Steep top-down views draw characters from a lower, sprite-like angle so faces show, like SNES RPG sprites.
+  - Weapon trails follow the real blade, fist or foot path in every view.
+  - Builds: `chibi`, `heroic`, `bulky`, `skeleton`.
+  - Poses: cheer, cast, guard, kneel, and knocked down.
+  - Outfits: tunic, robe, coat. Plus armor, sleeves and hats.
+  - Hair: short, spiky, long, ponytail. Long hair and ponytails flow like cloth.
+  - `size` for 40-60 px heroes.
+- Hue-shifted shading everywhere (`E.tones`, `E.ramp`): shadows lean cool, highlights warm.
+- `E.Backdrop`: parallax scenery with atmospheric haze.
+  - Layers: mountains, hills, forest, city, castle, clouds, sea, fog, stalactites; sun or moon, stars.
+  - Presets: `day`, `dusk`, `night`, `castle-night`, `city-night`, `desert`, `forest`, `ocean`, `cave`, `space`.
+- Textured tiles: stone with moss, bricks, wood, riveted metal, grass-topped ground, with carved edges. Floors get contact shadows and water/lava shimmer.
+- Wall materials for top-down, iso and brawler maps: brick, stone, rock cliff, planks, Tudor timber, plaster and hedge, with tiled roofs, paving, leafy or grassy tops.
+- 39 procedural props (`r.prop`):
+  - lights with animated, glowing flames: torches, candles, chandeliers, lanterns, street lamps, fire drums;
+  - stained-glass windows, banners, pillars (whole or broken), statues;
+  - chests and doors (shut or open), crates, barrels, sandbags;
+  - trees, palms, cactus, mushrooms, vines, cobwebs;
+  - awnings, hydrants, trash cans and more.
+- Character close-ups: `talk.say(lines, { portrait: rig })` puts a live face beside every dialog line; `rig.drawPortrait` draws one on HUDs and menus. Radio chatter (`auto`, `modal: false`) keeps talking while you play.
+- Effects: `particles.explosion` (fireball, smoke, sparks, debris, shockwave, shake, sound), fire, smoke, glints, and screen `flash`. Smoke and fire are hard-edged puffs in flat tones, not soft blurs. `game.hitFx` adds hit-stop, an impact star, sparks, a bouncing damage number and a sound in one call, and hit flashes keep the sprite's shading.
+- Typography: a 5x7 proportional pixel font with lower case, drop shadows and gradients, plus `E.font.title` for extruded gradient logos.
+
 **Characters**
 - `Humanoid`, with:
   - weapons: sword, gun, staff
-  - hats: cap, pointed, helmet, band, crown
   - capes, jump pose, aiming, kicks
   - squash and stretch, and skeleton debug view
-- `Blob` for slimes. Pixel sprites from strings.
+  - `style: 'classic'` stick figures for huge crowds
+- `Blob` for slimes and round monsters, with optional ears, horns, bat wings, feet, a tail and fangs.
+- Pixel sprites from strings.
 
 **Levels and physics**
 - `TileMap` for top-down, isometric and brawler levels:
   - ASCII levels with spawn tags and floor tags, extruded walls and camera cutaway
+  - floor tags that block walking (deep water, lava), which pathfinding avoids
   - height-aware collision, so bodies can jump onto blocks
   - flow-field pathfinding, and procedural floor textures (stone, grass, dirt, water, planks, checker)
 - `PlatformMap` for side-scrollers:
@@ -92,7 +124,7 @@ The model copies the closest slice and replaces the code between `GAME START` an
 - `pressed`, `repeat` and buffered presses.
 
 **Text and UI**
-- A 3x5 pixel font with scale, alignment and word wrap.
+- A 5x7 proportional pixel font (plus the old 3x5 as `font: 'tiny'`) with scale, alignment, word wrap, shadows and gradients.
 - Window boxes, bars and hearts.
 - Typewriter `Dialog` boxes with names and choices, and `Menu` with a cursor.
 
@@ -101,9 +133,12 @@ The model copies the closest slice and replaces the code between `GAME START` an
 - About 30 preset sound effects and a step sequencer.
 - Five built-in original songs: title, adventure, dungeon, boss and victory.
 
-**Lighting**
-- Canvas lighting with dithered bands.
-- Optional WebGPU lighting: colored lights, soft shadows, light wrap, glow, bloom and heat shimmer. It falls back to Canvas lighting automatically.
+**Lighting and translucency**
+- Colored lighting that works everywhere, no WebGPU needed:
+  - dark areas take a smooth cool tint and each light adds its own color;
+  - flames, sparks, bullets and anything marked `emissive` stay bright.
+- Real translucency in 1/8 steps with add, multiply and screen blending, like PS1 and SNES hardware. Shadows, glows, fog, skies, fades and flashes use it. `E.style.trans = 'dither'` switches to NES, Game Boy or Genesis-style dithering.
+- Optional WebGPU lighting: soft shadows cast by walls, light wrap, glow, bloom and heat shimmer. It falls back to the Canvas lighting automatically.
 
 **Built for models**
 - Clear errors in an on-screen box, with one-time warnings for common mistakes (unknown view, action, sound, legend character or wall type, or a bad color).
@@ -130,7 +165,11 @@ npm install                  # once: Playwright (checker) and terser (compact bu
 node tools/build.mjs
 ```
 
-This writes the `examples/`, `dist/my-3d2dge.html`, `dist/my-3d2dge-compact.html`, and the engine alone as `dist/my-3d2dge.js` and `dist/my-3d2dge.min.js` (for multi-file projects).
+This writes:
+- the `examples/`;
+- `dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`;
+- the genre kits in `dist/kits/`;
+- the engine alone as `dist/my-3d2dge.js` and `dist/my-3d2dge.min.js`, for multi-file projects.
 
 To test any game file in a headless browser, run the checker:
 
@@ -139,11 +178,11 @@ npx playwright install chromium   # once
 node tools/check.mjs dist/my-3d2dge.html#platformer
 ```
 
-It presses start and plays the game (move, jump, attack, fire), then cycles the game's views. It reports errors, engine warnings, frame times and how much of each screenshot is filled. It fails (exit code 1) on any error, or when gameplay leaves the screen blank.
+It presses start and plays the game (move, jump, attack, fire), then cycles the game's views. It reports errors, engine warnings, frame times, how much of each screenshot is filled, and look notes that flag cheap-looking frames (a thin palette, large flat areas, checkerboard dithering, low contrast). It fails (exit code 1) on any error, or when gameplay leaves the screen blank.
 
 ## Docs
 
-- `API.md`: the API card, about 7,300 tokens. It is embedded in both single files.
+- `API.md`: the API card, about 10,181 tokens. It is embedded in every single-file edition.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 
 ## License
