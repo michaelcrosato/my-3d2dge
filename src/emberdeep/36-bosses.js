@@ -19,7 +19,8 @@
  *   would drop a boss that leaves the ground like a knocked-back body), lava does not burn it, a pattern cut short by a
  *   phase change never leaves it invisible. Boss spec fields this file reads (all optional): sleepRig (its slumber pose),
  *   bosRoar(b, kind) (its own roar effect: kind 'wake' | 'spawn' | 'phase'), arena: false (skip the waking, card, death
- *   burst and chest: a boss that stages its own).
+ *   burst and chest: a boss that stages its own). An archetype with ownEntrance (a body that stages its own waking and
+ *   enrages) gets only the name card and its bosRoar visuals from the arena, so every boss has one entrance.
  * Private names start with BOS_. Everything here plugs in through def(), spec hooks, rig wrappers and BUS events.
  * ============================================================================= */
 
@@ -466,7 +467,10 @@ function BOS_clone(b, x, y) {
   if (!m) return null;
   Object.assign(m, { hp: 1, maxHp: 1, xp: 0, noLoot: true, bosCloneOf: b, mass: 99, r: b.r, head: b.head, bosCloneT: 7 + rnd() * 2, shotT: 1.1 + rnd() * .9, facing: angTo({ x, y }, ED.hero) });
   m.ai.aware = true;
-  m.arch = Object.assign(Object.create(m.arch), { ai: BOS_cloneAI, stagger: false, onDie: BOS_clonePop, corpseT: .05 });
+  // a serpent body's own step would take the illusion underground (unhittable while it shoots): it stays reared instead
+  const worm = m.hz !== undefined && m.body && m.body.rig, up = worm ? m.body.rig.o.headR * m.body.rig.o.size * 3 : 0;
+  m.arch = Object.assign(Object.create(m.arch), { ai: BOS_cloneAI, stagger: false, onDie: BOS_clonePop, corpseT: .05 }, worm ? { update: c => { c.hz = approach(c.hz, up, 3); c.bstJaw = .4; c.untargetable = false; } } : {});
+  if (worm) m.hz = up * .5;
   return m;
 }
 // mirror: the boss flickers out and the ring around the hero fills with it: illusions and the real one, all casting
@@ -536,7 +540,7 @@ def('archetypes', 'boneking', { name: 'Bone King', tags: ['undead'], bossBody: t
       for (let k = 0; k < 3; k++) { const a = t * 2.1 + k * TAU / 3, p = rigScreen(rig, [hd[0] + Math.cos(a) * 6, hd[1] + Math.sin(a) * 6, hd[2] + 2 + Math.sin(t * 3 + k) * 1.5], ox, oy, r.view); r.glowDisc(g, p[0], p[1], 3 * zm, c, .45); px.disc(g, p[0], p[1], 1.1 * zm, c); px.dot(g, p[0], p[1], '#ffffff'); }
       const q = rigScreen(rig, E.V3.add(J.handR, E.V3.mul(J.bladeDir, 10)), ox, oy, r.view); r.glowDisc(g, q[0], q[1], 7 * zm, c, .4);
       if (Math.random() < .15) P.add({ kind: 'ember', x: m.x, y: m.y, z: (m.head || 30) * .9, vx: (rnd() - .5) * 20, vy: (rnd() - .5) * 20, vz: 16, max: .6, color: c });
-    }), { emissive: true, bias: .05 });
+    }), { emissive: foeGlowSeen(m.x, m.y, (m.head || 30) * (m.scale || 1) * .8), bias: .05 });
   } });
 
 /** the Colossus's full helm: a visor bar and nose guard over its steel face, and horns (the far one behind the head) */
@@ -638,9 +642,15 @@ function BOS_bossStep(m, dt) {
     BOS_intro(m, m.bosIntro, dt);
   } else m.bosIntro = null;
 }
-/** the waking (kneel, rise, roar), a phase change (a stagger, a roar) or a boss that arrives awake (a roar) */
+/** the waking (kneel, rise, roar), a phase change (a stagger, a roar) or a boss that arrives awake (a roar).
+ *  A body that stages its own entrance (arch.ownEntrance: the Brood Mother's drop, the Wyrm's eruption) keeps it: the
+ *  arena adds only its name card at the entrance's climax (1.05 s in) and the body's bosRoar visuals, no second roar */
 function BOS_intro(m, I, dt) {
-  const B = m.bossDef || {}, rig = m.rig, pw = rig && rig.poseW; I.t += dt; const t = I.t;
+  const B = m.bossDef || {}, rig = m.rig, pw = rig && rig.poseW, own = !!m.arch.ownEntrance; I.t += dt; const t = I.t;
+  if (own) {
+    const at = I.kind === 'wake' ? 1.05 : 0; if (t < at || I.roared) return;
+    I.roared = true; if (B.bosRoar) B.bosRoar(m, I.kind); if (I.kind !== 'phase') BOS_showCard(m); return;
+  }
   m.vx *= .8; m.vy *= .8;
   let roarT = -1;
   if (I.kind === 'wake') {
@@ -662,13 +672,19 @@ function BOS_intro(m, I, dt) {
 
 /* ---- the name card: letterbox bars, the name in the boss's element colors over a flared rule, its title under it ---- */
 let BOS_card = null;
-function BOS_showCard(m) { BOS_card = { name: String(m.name || 'The Nameless').toUpperCase(), title: m.title || '', el: m.el || 'fire', t0: game.real }; }
+/** one name on screen at a time: the level's card (it names the depth) gives way to the boss's, and the boss's card
+ *  takes the half of the screen the boss is not in, so its entrance plays in the open */
+function BOS_showCard(m) {
+  if (UI.card && UI.cardT > .35) UI.cardT = .35;
+  const s = game.view.p(m.x, m.y, (m.z || 0) + (m.head || 28) * (m.scale || 1) * .5), sy = s[1] - game.cam.y;
+  BOS_card = { name: String(m.name || 'The Nameless').toUpperCase(), title: m.title || '', el: m.el || 'fire', t0: game.real, low: sy < game.screen.H * .52 };
+}
 function BOS_drawCard(r) {
   const C = BOS_card; if (!C) return;
   const t = game.real - C.t0, dur = 3.8; if (t > dur || t < 0) { BOS_card = null; return; }
   const a = clamp(Math.min(t / .35, (dur - t) / .6), 0, 1), bars = E.ease.outQuad(clamp(Math.min(t / .4, (dur - t) / .5), 0, 1)), e = EL(C.el), c = BOS_tones(C.el);
   r.overlay(g => {
-    const W = r.W, H = r.H, cx = Math.round(W / 2), bh = Math.round(20 * bars), y = Math.round(H * .27) + Math.round(6 * (1 - a));
+    const W = r.W, H = r.H, cx = Math.round(W / 2), bh = Math.round(20 * bars), y = Math.round(H * (C.low ? .62 : .22)) + Math.round(6 * (1 - a));
     px.blend(g, .92, 'normal', () => { px.rect(g, 0, 0, W, bh, '#05030a'); px.rect(g, 0, H - bh, W, bh, '#05030a'); });
     px.blend(g, a, 'normal', () => {
       px.blend(g, .5, 'normal', () => px.rect(g, 0, y - 12, W, 50, '#05030a'));
@@ -765,7 +781,7 @@ function BOS_drawChest(r, C) {
 
 /* ---- the step and draw hooks every boss shares ---- */
 BUS.on('step', ({ dt }) => {
-  if (ED.mode !== 'level' && ED.mode !== 'proving') return;
+  if (ED.mode !== 'level' && ED.mode !== 'proving' && ED.mode !== 'gallery') return;   // (the Gallery's boss reel too)
   for (const m of ED.foes) {
     if (!m.alive) continue;
     if ((m.boss || m.bosCloneOf) && m.rig && !isFinite(m.rig.atkZ)) m.rig.atkZ = -7;   // see BOS_mv
@@ -775,7 +791,7 @@ BUS.on('step', ({ dt }) => {
   BOS_ambience(dt);
 });
 BUS.on('draw', ({ r }) => {
-  if (ED.mode !== 'level' && ED.mode !== 'proving') return;
+  if (ED.mode !== 'level' && ED.mode !== 'proving' && ED.mode !== 'gallery') return;   // (the Gallery's boss reel too)
   for (const m of ED.foes) {
     if (!m.alive) continue;
     if (m.arch.bosDraw) m.arch.bosDraw(m, r);
@@ -786,14 +802,16 @@ BUS.on('draw', ({ r }) => {
   BOS_drawCard(r);
 });
 // a boss struck while it slumbers wakes (no sniping it in its sleep)
-BUS.on('hit', e => { const m = e.tgt; if (m && m.boss && m.dormant && m.alive) { m.dormant = false; m.ai.aware = true; m.introT = 2.2; sfx('roar'); shake(4); } });
+BUS.on('hit', e => { const m = e.tgt; if (m && m.boss && m.dormant && m.alive) wakeBoss(m); });
 // every boss death: its illusions burst, its element rises in a column, a chest falls (the Cinder King stages his own)
 BUS.on('bossDown', ({ m }) => {
   for (const c of ED.foes) if (c.bosCloneOf === m) BOS_cloneVanish(c);
+  // the dead a boss called up (the Cinder King's burning husks) crumble to ash with it, one after another: the fight is over
+  ED.foes.filter(c => c.alive && c.bosBurning).forEach((c, i) => game.after(.5 + i * .2, () => { if (c.alive) killUnit(c, { src: null, amount: c.hp, el: 'fire', tags: ['collapse'] }); }));
   if (m.bosOwnDeath || (m.bossDef && m.bossDef.arena === false)) return;
   BOS_column(m.x, m.y, { h: 110, w: 11, dur: 1.6, el: m.el, sparks: 50 }); BOS_burstRings(m.x, m.y, m.el, 2, { r0: m.r + 8 });
   const h = ED.hero, a = h ? angTo(m, h) : 0, x = m.x + Math.cos(a) * 26, y = m.y + Math.sin(a) * 26, depth = m.level || ED.depth || 1;
-  game.after(1.2, () => BOS_chestDrop(x, y, { depth }));
+  if (!m.noLoot) game.after(1.2, () => BOS_chestDrop(x, y, { depth }));   // (a boss that drops nothing, like the Gallery's, gets no chest)
 });
 BUS.on('kill', e => { const m = e.tgt; if (m && m.bosBurning) { P.fire(m.x, m.y, 10, 6, { size: 3.5 }); P.smoke(m.x, m.y, 14, 3, { size: 3 }); } });
 BUS.on('levelStart', () => { BOS_card = null; });
@@ -880,7 +898,7 @@ function BOS_kingGlow(m, r) {
       const q = q0, p = .7 + .3 * Math.sin(t * 7);
       r.glowDisc(g, q[0], q[1], 7 * zm * s0, '#ff7a2a', .45 * p); px.ell(g, q[0], q[1], 4 * zm * s0, 1.3 * zm * s0, '#ff8a3a'); px.ell(g, q[0], q[1], 2.2 * zm * s0, .7 * zm * s0, '#fff0b0');
     }
-  }, { emissive: !BOS_coveredAt(r, m.x, m.y, m.z || 0, 28 * (m.scale || 1) * (r.view.zoom || 1), 60 * (m.scale || 1) * (r.view.zoom || 1)), bias: .05 });
+  }, { emissive: !BOS_coveredAt(r, m.x, m.y, m.z || 0, 28 * (m.scale || 1) * (r.view.zoom || 1), 60 * (m.scale || 1) * (r.view.zoom || 1)) && foeGlowSeen(m.x, m.y, (m.head || 30) * (m.scale || 1) * .6), bias: .05 });
   const w = rig._w(V.add(J.handR, V.mul(J.bladeDir, Lb * .5)));
   L.add(m.x + w[0], m.y + w[1], m.z + w[2], hot ? 90 : 64, .75, { color: '#ff8a3a' });
   if (alive) L.add(m.x + 6, m.y + 10, (m.head || 60) * .8, 70, .55, { color: '#ffc890' });   // the fire he carries lights his own armor
@@ -1059,12 +1077,14 @@ def('patterns', 'inferno', { name: 'Spinning Inferno', unique: true, range: [0, 
 
 /* ---- his death: slow motion, a stagger, his knees, a column of fire that eats him, a fountain of loot, a chest ---- */
 function BOS_kingDeath(b) {
+  const bare = !!b.noLoot;   // spawned to drop nothing (the Gallery): the same death, no fountain and no chest
   b.noLoot = true; b.bosOwnDeath = true; b.arch = Object.assign(Object.create(b.arch), { corpseT: 99 });   // the corpse stays until the fire takes it (b.gone)
   const x = b.x, y = b.y, depth = b.level || ED.depth || 5, h = ED.hero, mf = (h && h.stats.magicFind) || 0, gf = (h && h.stats.goldFind) || 0, T = ED.L && ED.L.things && ED.L.things.find(q => q.kind === 'throne');
   const loot = [];   // the fountain: what the core would drop for a boss (a legendary first), plus a potion
   const nItems = 5 + rnd.int(0, 3); for (let i = 0; i < nItems; i++) loot.push(['item', { item: makeItem({ ilvl: depth + 1, rarity: i === 0 ? 3 : rollRarity(depth, rnd, mf, .6) }) }]);
   const gold = Math.max(1, Math.round((3 + rnd() * 7) * SCALE.gold(depth) * (1 + gf / 100) * 24)); for (let i = 0; i < 6; i++) loot.splice(1 + i * 2, 0, ['gold', { n: Math.ceil(gold / 6) }]);
   if (h && h.potions < h.maxPotions) loot.push(['potion', {}]);
+  if (bare) loot.length = 0;
   let rt = 0, knees = false, col = false, gone = false, chest = false, spray = 0, nt = 0;
   sfx('bos_roar', { pitch: .75 }); if (T) T.flare = 1;
   const f = addFx({ kind: 'bosKingDeath', t: 0, update: dt => {
@@ -1079,7 +1099,7 @@ function BOS_kingDeath(b) {
     if (rt > 2.0 && !col) { col = true; BOS_column(x, y, { h: 170, w: 17, dur: 2.8, sparks: 90, bias: .2 }); BOS_burstRings(x, y, 'fire', 3, { r0: 26, step: 20 }); game.flash('#ffb050', .25, .7); shake(8); sfx('boom'); if (T) T.flare = 1.5; }
     if (col && spray < loot.length && rt > 2.35) { nt -= real; if (nt <= 0) { nt = .11; const [kind, o] = loot[spray++], a = spray * 2.4 + rnd() * .6, sp = 40 + rnd() * 45; dropLoot(kind, x, y, Object.assign({ z: 50 + rnd() * 20, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 170 + rnd() * 70 }, o)); if (kind === 'gold') sfx('coin', { vol: .3 }); } }
     if (rt > 3.3 && !gone) { gone = true; b.gone = true; P.smoke(x, y, 20, 10, { size: 6, color: '#4a4048', dark: '#1a1418', light: '#6a6068' }); for (let i = 0; i < 24; i++) P.add({ kind: 'dust', x: x + (rnd() - .5) * 20, y: y + (rnd() - .5) * 20, z: rnd() * 50, vx: (rnd() - .5) * 30, vy: (rnd() - .5) * 30, vz: 20 + rnd() * 30, g: -4, drag: 1, max: 1.5 + rnd(), size: 1.4, color: rnd() < .5 ? '#5a5058' : '#8a7a78' }); }
-    if (rt > 3.9 && !chest) { chest = true; const cx = T ? T.x : x, cy = T ? T.y + 40 : y; BOS_chestDrop(cx, cy, { depth, big: true }); }
+    if (rt > 3.9 && !chest) { chest = true; if (bare) return rt < 4.3; const cx = T ? T.x : x, cy = T ? T.y + 40 : y; BOS_chestDrop(cx, cy, { depth, big: true }); }
     return rt < 4.3;
   } });
   void f;
@@ -1199,7 +1219,7 @@ function BOS_drawVent(r, v) {
     px.glow(g, 1);
     px.poly(g, r.groundPts(v.x, v.y, 3.3, 12, 5.6), hot); if (gl > .45) px.poly(g, r.groundPts(v.x - .3, v.y - .3, 1.8, 10, 5.7), '#fff4c0');
     if (gl > .35) for (const a of [v.ph, v.ph + 2.4]) { const p0 = r.w(v.x + Math.cos(a) * 4, v.y + Math.sin(a) * 4, 5), p1 = r.w(v.x + Math.cos(a) * 7.5, v.y + Math.sin(a) * 7.5, 1); px.line(g, p0[0], p0[1], p1[0], p1[1], crack, Math.max(1, Math.round(zm))); }
-  }, { emissive: true, bias: .001 });
+  }, { emissive: foeGlowSeen(v.x, v.y, 5), bias: .001 });
   if (v.st !== 'idle') L.add(v.x, v.y, 8, 26 + 60 * gl, .25 + .8 * gl, { color: '#ff7a2a' });   // idle vents lean on the cracks' light
 }
 /** the room a point is in (or the nearest room) */

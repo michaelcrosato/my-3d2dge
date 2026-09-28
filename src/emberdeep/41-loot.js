@@ -224,9 +224,8 @@ def('powers', 'shatterglass', { name: 'Shatterglass', slots: ['weapon', 'helm', 
     LOT_on('shatterglass', 'skill', (e, h) => { if (e.id !== 'frostnova') return; game.after(.2, () => eachEnemy('hero', h.x, h.y, 120, m => {
       const fr = m.st.freeze, ch = m.st.chill && m.st.chill.n >= 3; if (!fr && !ch) return;
       dealDamage(m, LOT_hit(h, fr ? 2.4 : 1.3, { el: 'frost', tags: ['aoe', 'spell'], kb: 90, extra: { ang: angTo(h, m), statusChance: 0 } })); LOT_iceBurst(m.x, m.y, 12, 12); if (fr) { delete m.st.freeze; game.freeze(.04); } })); });
-    // a kill on a frozen enemy: the hit sees it still frozen (the kill clears statuses)
-    LOT_on('shatterglass', 'hit', (e, h) => { if (e.src === h && e.tgt.hp <= 0 && e.tgt.st.freeze) e.tgt._lotIce = true; });
-    LOT_on('shatterglass', 'kill', (e, h) => { const m = e.tgt; if (!m._lotIce) return; m._lotIce = false; LOT_iceBurst(m.x, m.y, 12, 16);
+    // a kill on a frozen enemy (the kill event carries the statuses it died with)
+    LOT_on('shatterglass', 'kill', (e, h) => { const m = e.tgt; if (e.src !== h || m.team !== 'foe' || !(e.st && e.st.freeze)) return; LOT_iceBurst(m.x, m.y, 12, 16);
       for (let i = 0; i < 6; i++) FX.bolt({ team: 'hero', src: h, x: m.x, y: m.y, z: 10, ang: i / 6 * TAU + Math.random() * .4, speed: 190, life: .45, r: 3, el: 'frost', pierce: 1, tags: ['proj', 'proc'], hit: LOT_hit(h, .5, { el: 'frost', kb: 60, extra: { statusChance: .6 } }), look: LOT_SHARD, light: 16 }); });
   } });
 def('powers', 'resonant', { name: 'Resonant', slots: ['helm', 'amulet', 'ring'], desc: 'Echo and every other summon last 60% longer and shed embers that burn enemies near them.',
@@ -307,16 +306,13 @@ def('powers', 'bramble', { name: 'Bramblewoven', slots: ['chest', 'legs', 'cloak
   }); } });
 def('powers', 'phoenix', { name: 'Phoenix', slots: ['amulet', 'ring', 'chest'], desc: 'Drinking a potion bursts into flame around you and grants 25% more damage and 15% movement speed for 8 seconds.',
   install() {
-    LOT_tick('phoenix', h => {
-      const drank = h._lotPotN !== undefined && h.potions < h._lotPotN && h.potionT > .7; h._lotPotN = h.potions;
-      if (drank) {
-        LOT_buff(h, 'phoenix', 'Phoenix', '#ff8a3a', 8, { moreDmg: 25, moveSpeed: 15 });
-        FX.nova({ team: 'hero', src: h, x: h.x, y: h.y, r0: 6, r1: 48, dur: .3, el: 'fire', tags: ['aoe', 'proc'], hit: LOT_hit(h, 1.1, { el: 'fire', kb: 160, extra: { statusChance: .8 } }) });
-        for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; P.fire(h.x + Math.cos(a) * 14, h.y + Math.sin(a) * 14, 4, 1, { size: 4, speed: 30 }); }
-        game.flash('#ffb050', .12, .3); sfx('explode', { vol: .5 }); shake(3);
-      }
-      if (h.buffs.some(b => b.id === 'phoenix') && Math.random() < .35) P.add({ kind: 'ember', x: h.x + (Math.random() - .5) * 10, y: h.y + (Math.random() - .5) * 10, z: 4 + Math.random() * 18, vz: 30, max: .7, color: '#ff8a3a' });
+    LOT_on('phoenix', 'potion', (e, h) => {   // drinkPotion's own event
+      LOT_buff(h, 'phoenix', 'Phoenix', '#ff8a3a', 8, { moreDmg: 25, moveSpeed: 15 });
+      FX.nova({ team: 'hero', src: h, x: h.x, y: h.y, r0: 6, r1: 48, dur: .3, el: 'fire', tags: ['aoe', 'proc'], hit: LOT_hit(h, 1.1, { el: 'fire', kb: 160, extra: { statusChance: .8 } }) });
+      for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; P.fire(h.x + Math.cos(a) * 14, h.y + Math.sin(a) * 14, 4, 1, { size: 4, speed: 30 }); }
+      game.flash('#ffb050', .12, .3); sfx('explode', { vol: .5 }); shake(3);
     });
+    LOT_tick('phoenix', h => { if (h.buffs.some(b => b.id === 'phoenix') && Math.random() < .35) P.add({ kind: 'ember', x: h.x + (Math.random() - .5) * 10, y: h.y + (Math.random() - .5) * 10, z: 4 + Math.random() * 18, vz: 30, max: .7, color: '#ff8a3a' }); });
   } });
 def('powers', 'dancer', { name: "Dancer's", slots: ['boots', 'cloak', 'gloves'], desc: 'Dodging throws a fan of five spinning blades where you aim.',
   install() { LOT_on('dancer', 'dodge', (e, h) => { const a = h.aim; LOT_blades(h, h.x, h.y, 10, [-.5, -.25, 0, .25, .5].map(k => a + k), { scale: .5, speed: 270, life: .55 }); sfx('slash2', { vol: .45 }); }); } });
@@ -472,9 +468,8 @@ def('powers', 'stormglass', { name: 'Stormglass', noun: true, slots: [], desc: '
   }); } });
 def('powers', 'broodfang', { name: "The Broodmother's Bite", noun: true, slots: [], desc: 'Poisoned enemies you kill burst into a venom cloud and spit three seeking globs.',
   install() {
-    LOT_on('broodfang', 'hit', (e, h) => { if (e.src === h && e.tgt.hp <= 0 && e.tgt.st.poison) e.tgt._lotVenom = true; });
-    LOT_on('broodfang', 'kill', (e, h) => {
-      const m = e.tgt; if (m.team !== 'foe' || !(m._lotVenom || (e.hit && e.hit.el === 'venom' && e.src === h))) return; m._lotVenom = false;
+    LOT_on('broodfang', 'kill', (e, h) => {   // poisoned when it died (e.st), or killed by his venom
+      const m = e.tgt; if (m.team !== 'foe' || e.src !== h || !((e.st && e.st.poison) || (e.hit && e.hit.el === 'venom'))) return;
       FX.area({ team: 'hero', src: h, x: m.x, y: m.y, r: 22, dur: 3, el: 'venom', tick: .5, tags: ['aoe', 'dot', 'proc'], hit: LOT_hit(h, .25, { el: 'venom', extra: { statusChance: .6, kb: 0 } }) });
       for (let i = 0; i < 3; i++) FX.bolt({ team: 'hero', src: h, x: m.x, y: m.y, z: 8, ang: i / 3 * TAU + Math.random(), speed: 120, life: 1.6, r: 3, el: 'venom', home: 6, tags: ['proj', 'proc'], hit: LOT_hit(h, .45, { el: 'venom', extra: { statusChance: .7 } }), look: { kind: 'spit', color: '#8ae04a', core: '#e0ffc0', size: 2 }, light: 16 });
       elBurst(m.x, m.y, 8, 'venom', 12); sfx('bloop', { vol: .5 });
@@ -832,15 +827,30 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   const foot = []; for (const l of [].concat(o.price ? [o.price] : [{ t: 'Sells for ' + fmt(it.value) + ' gold', c: '#8a8070' }], o.hint || [])) for (const t of E.font.wrap(l.t, WT - 12, { font: 'tiny' })) foot.push({ t, c: l.c });
   // measure: header (icon + name), body, compare, footer
   const nameL = E.font.wrap(it.name, WT - 48), hdH = Math.max(44, nameL.length * 9 + 24), bodyH = body.reduce((a, l) => a + (l.sep ? 5 : lh), 0);
+  while (foot.length > 1 && hdH + bodyH + foot.length * 8 + 10 > SH - 4) foot.pop();   // a very long item on a short screen gives up its hint lines first
   const cmpH = cmp.length ? cmp.length * lh + 6 : 0, footH = foot.length * 8 + 4;
   let HT = hdH + bodyH + footH + 6, side = false;
   if (HT + cmpH > SH - 4 && cmp.length) side = true; else HT += cmpH;
   if (side && WT * 2 + 4 > SW - 4 && !WT0) return LOT_drawTip(g, it, ax, ay, o, Math.floor((SW - 8) / 2));   // too narrow for two boxes: make both slimmer
-  const totalW = side ? WT * 2 + 4 : WT;
-  let bx, by;
+  const totalW = side ? WT * 2 + 4 : WT, ch = cmp.length * lh + 10;
+  let bx, by, cbx = 0, cby = 0;
   if (o.anchor) { const [rx, ry, rw] = o.anchor, right = rx + rw / 2 < SW * .45; bx = right ? rx + rw + 4 : rx - totalW - 4; if (bx < 2) bx = rx + rw + 4; if (bx + totalW > SW - 2) bx = rx - totalW - 4; by = ry - 6; }
   else { bx = ax + 12; if (bx + totalW > SW - 2) bx = ax - totalW - 8; by = ay - 8; }
-  bx = clamp(Math.round(bx), 2, Math.max(2, SW - totalW - 2)); by = clamp(Math.round(by), 2, Math.max(2, SH - HT - 2));
+  bx = clamp(Math.round(bx), 2, Math.max(2, SW - totalW - 2)); by = clamp(Math.round(by), 2, Math.max(2, SH - HT - 2)); cbx = bx + WT + 4; cby = by;
+  if (side) {   // two boxes: keep what is pointed at (the focused cell, the cursor) in sight. The item box goes beside it (or out
+    // at that screen edge), the comparison beside the item box, or under or over the anchor: the first spot that covers neither
+    const A = o.anchor || [ax - 3, ay - 3, 6, 6], hit = (p, q) => p[0] < q[0] + q[2] && q[0] < p[0] + p[2] && p[1] < q[1] + q[3] && q[1] < p[1] + p[3];
+    const fit = (x, y, h0) => [clamp(Math.round(x), 2, Math.max(2, SW - WT - 2)), clamp(Math.round(y), 2, Math.max(2, SH - h0 - 2)), WT, h0], right = A[0] + A[2] / 2 < SW * .45;
+    let done = false;
+    for (const ix of right ? [A[0] + A[2] + 4, SW - WT - 2] : [A[0] - WT - 4, 2]) {
+      const ib = fit(ix, A[1] - 6, HT); if (hit(ib, A)) continue;
+      for (const [x, y] of [[ib[0] + WT + 4, ib[1]], [ib[0] - WT - 4, ib[1]], [ib[0] + WT + 4, A[1] + A[3] + 4], [ib[0] - WT - 4, A[1] + A[3] + 4], [ib[0] + WT + 4, A[1] - ch - 4], [ib[0] - WT - 4, A[1] - ch - 4], [A[0] + A[2] + 4, A[1] - 6], [A[0] - WT - 4, A[1] - 6]]) {
+        const cb = fit(x, y, ch); if (hit(cb, ib) || hit(cb, A)) continue;
+        bx = ib[0]; by = ib[1]; cbx = cb[0]; cby = cb[1]; done = true; break;
+      }
+      if (done) break;
+    }
+  }
   const bd = LOT_RAR[it.rarity] ? LOT_RAR[it.rarity].bd : '#6a5a88';
   E.ui.box(g, bx, by, WT, HT, { bg: ['#1c1630', '#0a0812'], border: bd, shadow: '#000000' });
   if (it.rarity >= 1) px.blend(g, it.rarity >= 3 ? .3 : .18, 'normal', () => { for (let i = 0; i < hdH - 4; i++) px.rect(g, bx + 2, by + 2 + i, WT - 4, 1, E.mix(LOT_RAR[it.rarity].tint, '#0a0812', i / (hdH - 4))); });
@@ -861,7 +871,7 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   if (cmp.length && !side) { drawCmp(bx, yy + 2); yy += cmpH; }
   px.rect(g, bx + 8, yy + 2, WT - 16, 1, '#2e2644'); yy += 5;
   for (const l of foot) { E.font.text(g, l.t, bx + 6, yy, l.c, { font: 'tiny', outline: false }); yy += 8; }
-  if (side) { const cx = bx + WT + 4, ch = cmp.length * lh + 10; E.ui.box(g, cx, by, WT, ch, { bg: ['#1a1428', '#0c0818'], border: '#6a5a88', shadow: '#000000' }); drawCmp(cx, by + 2); }
+  if (side) { E.ui.box(g, cbx, cby, WT, ch, { bg: ['#1a1428', '#0c0818'], border: '#6a5a88', shadow: '#000000' }); drawCmp(cbx, cby + 2); }
 }
 
 /* =============================================================================
@@ -893,7 +903,7 @@ BUS.on('draw', e => {
   r.overlay(() => {
     for (const d of ED.drops) if (d.kind === 'item' && d.lab) { const [x, y, w, hh] = d.lab; hot(x, y, w, hh, { click: () => LOT_pickup(d) }); }
     const d = UI.hotItem;
-    if (d && d.item) r.overlay(g => { LOT_drawTip(g, d.item, UI.mouse.x, UI.mouse.y, { hint: [{ t: Math.hypot(ED.hero.x - d.x, ED.hero.y - d.y) <= LOT_PICK_R ? 'CLICK TO PICK UP' : 'CLICK TO PICK UP (COME CLOSER)', c: '#c8c0d8' }] }); });
+    if (d && d.item) r.overlay(g => { LOT_drawTip(g, d.item, UI.mouse.x, UI.mouse.y, { anchor: d.lab, hint: [{ t: Math.hypot(ED.hero.x - d.x, ED.hero.y - d.y) <= LOT_PICK_R ? 'CLICK TO PICK UP' : 'CLICK TO PICK UP (COME CLOSER)', c: '#c8c0d8' }] }); });
   });
 });
 

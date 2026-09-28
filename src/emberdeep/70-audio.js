@@ -13,15 +13,23 @@ A.define('roar', [{ wave: 'saw', freq: 110, to: 70, dur: .8, vol: .2, vib: [14, 
 A.define('chime', { wave: 'triangle', freq: 1320, arp: [0, 7, 12], step: .06, dur: .4, vol: .2 });
 A.define('slash2', { wave: 'noise', freq: 3200, to: 900, dur: .1, vol: .22 });
 
-/* songs: steps are sixteenth notes; every track loops on its own length */
+/* stings: a short phrase over the music when a depth begins (a low bell and a falling minor arpeggio: down we go) and
+ * when a boss wakes (a brass stab, a timpani hit and a rising cry). Both are ordinary sfx, so the sfx volume governs them */
+A.define('stingDepth', [{ wave: 'triangle', freq: 'A4', arp: [0, -5, -9, -12], step: .11, dur: .5, vol: .16 }, { wave: 'sine', freq: 110, to: 104, dur: .9, vol: .22, vib: [5, .01] }, { wave: 'triangle', freq: 220, dur: .6, vol: .08 }]);
+A.define('stingBoss', [{ wave: 'saw', freq: 'D3', dur: .5, vol: .1, vib: [6, .02] }, { wave: 'square', freq: 'A3', dur: .5, vol: .05 }, { wave: 'saw', freq: 'D4', to: 'F4', dur: .45, vol: .06 }, { wave: 'sine', freq: 70, to: 44, dur: .5, vol: .45 }, { wave: 'noise', freq: 900, to: 200, dur: .35, vol: .18, filter: 'lowpass' }]);
+BUS.on('levelStart', e => { if (e.L && e.L.depth) game.after(.35, () => sfx('stingDepth')); });   // after the fade-in, before the drop-in thud
+BUS.on('bossWake', () => sfx('stingBoss'));
+
+/* songs: steps are sixteenth notes; every track loops on its own length, so each track's length must divide the song's
+ * (an 8-step arpeggio under 16-step bars drifts a half bar and clashes: every chord below is written out for its bar) */
 def('songs', 'town', { bpm: 88, steps: 4, tracks: [
-  { wave: 'pulse', vol: .1, notes: 'D5 - - - F#5 - A5 - G5 - F#5 - E5 - - - | D5 - - - B4 - D5 - E5 - - - - - . . | F#5 - - - A5 - D6 - C#6 - A5 - B5 - - - | A5 - G5 - F#5 - E5 - D5 - - - - - . .' },
+  { wave: 'pulse', vol: .1, notes: 'D5 - - - F#5 - A5 - G5 - F#5 - E5 - - - | D5 - - - B4 - D5 - E5 - - - - - . . | F#5 - - - A5 - D6 - B5 - A5 - B5 - - - | A5 - G5 - F#5 - E5 - D5 - - - - - . .' },
   { wave: 'triangle', vol: .28, notes: 'D3 - . . A2 - . . D3 - . . A2 - . . | B2 - . . F#2 - . . B2 - . . F#2 - . . | G2 - . . D3 - . . G2 - . . D3 - . . | A2 - . . E3 - . . A2 - . . C#3 - . .' },
-  { wave: 'square', vol: .04, notes: 'F#4 A4 D5 A4 F#4 A4 D5 A4 | D4 F#4 B4 F#4 D4 F#4 B4 F#4 | D4 G4 B4 G4 D4 G4 B4 G4 | C#4 E4 A4 E4 C#4 E4 A4 E4' },
+  { wave: 'square', vol: .04, notes: 'F#4 A4 D5 A4 F#4 A4 D5 A4 F#4 A4 D5 A4 F#4 A4 D5 A4 | D4 F#4 B4 F#4 D4 F#4 B4 F#4 D4 F#4 B4 F#4 D4 F#4 B4 F#4 | D4 G4 B4 G4 D4 G4 B4 G4 D4 G4 B4 G4 D4 G4 B4 G4 | C#4 E4 A4 E4 C#4 E4 A4 E4 C#4 E4 A4 E4 C#4 E4 A4 E4' },
   { wave: 'drums', vol: .06, notes: 'k . . . h . . . s . . . h . h .' } ] });
 def('songs', 'deep', { bpm: 80, steps: 4, tracks: [
   { wave: 'pulse12', vol: .1, notes: 'A4 - - - - - C5 - B4 - - - E4 - - - | . . . . F4 - - - E4 - D4 - E4 - - - | A4 - - - - - C5 - D5 - - - E5 - - - | F5 - E5 - D5 - C5 - B4 - - - - - . .' },
-  { wave: 'triangle', vol: .3, notes: 'A1 - - - A1 - - - A1 - - - A1 - . . | F1 - - - F1 - - - E1 - - - E1 - . . | A1 - - - A1 - - - G1 - - - G1 - . . | F1 - - - F1 - - - E1 - - - E1 - . .' },
+  { wave: 'triangle', vol: .3, notes: 'A2 - - - A2 - - - A2 - - - A2 - . . | F2 - - - F2 - - - E2 - - - E2 - . . | A2 - - - A2 - - - G2 - - - G2 - . . | F2 - - - F2 - - - E2 - - - E2 - . .' },
   { wave: 'saw', vol: .025, notes: 'E4 - - - - - - - - - - - - - - - | C4 - - - - - - - B3 - - - - - - - | E4 - - - - - - - D4 - - - - - - - | C4 - - - - - - - B3 - - - - - - -' },
   { wave: 'drums', vol: .09, notes: 'k . . . . . h . k . k . . . h . | k . . . . . h . k . . . t . t t' } ] });
 def('songs', 'deep2', { bpm: 104, steps: 4, tracks: [
@@ -31,6 +39,6 @@ def('songs', 'deep2', { bpm: 104, steps: 4, tracks: [
 def('songs', 'title', { bpm: 70, steps: 4, tracks: [
   { wave: 'pulse', vol: .09, notes: 'A4 - - - - - - - E5 - - - - - D5 - | C5 - - - - - B4 - A4 - - - - - - - | F4 - - - - - - - C5 - - - - - B4 - | A4 - - - G#4 - - - A4 - - - - - - -' },
   { wave: 'triangle', vol: .3, notes: 'A2 - - - - - - - A2 - - - - - - - | F2 - - - - - - - F2 - - - - - - - | D2 - - - - - - - D2 - - - - - - - | E2 - - - - - - - E2 - - - - - - -' },
-  { wave: 'square', vol: .03, notes: 'A3 C4 E4 A4 E4 C4 A3 C4 | F3 A3 C4 F4 C4 A3 F3 A3 | D3 F3 A3 D4 A3 F3 D3 F3 | E3 G#3 B3 E4 B3 G#3 E3 G#3' } ] });
+  { wave: 'square', vol: .03, notes: 'A3 C4 E4 A4 E4 C4 A3 C4 A3 C4 E4 A4 E4 C4 A3 C4 | F3 A3 C4 F4 C4 A3 F3 A3 F3 A3 C4 F4 C4 A3 F3 A3 | D3 F3 A3 D4 A3 F3 D3 F3 D3 F3 A3 D4 A3 F3 D3 F3 | E3 G#3 B3 E4 B3 G#3 E3 G#3 E3 G#3 B3 E4 B3 G#3 E3 G#3' } ] });
 /** play a song by name: the game's own first, then the engine's */
 function playSong(id) { const s = REG.songs[id]; A.music(s || (E.songs[id] ? id : 'dungeon')); }

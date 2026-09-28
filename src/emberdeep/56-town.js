@@ -759,9 +759,9 @@ function paintItem(g, rig, ox, oy, view, it, n) {
     px.rect(g, lx - 2.2 * z, ly + 2.4 * z, 4.4 * z, 1.2 * z, '#2a2430'); px.rect(g, lx - .4 * z, ly - 1.8 * z, Math.max(1, .8 * z), 4.2 * z, '#3a3440');
   } else if (it.kind === 'lute') {   // a pear-shaped body at the belly, the neck across the chest to the left hand
     const B = it.rel === 'sh' ? V3.add(J.shC, it.body) : it.body, N = it.rel === 'sh' ? V3.add(J.shC, it.neck) : it.neck, nd = V3.norm(V3.sub(N, B)), wd = V3.norm([-nd[1], nd[0], .15]), pts = [];
-    for (let i = 0; i < 16; i++) { const a = i / 16 * TAU, k = Math.cos(a) < 0 ? 1.15 : .8, w = Math.cos(a) < 0 ? 1 : .85; pts.push(S(V3.add(B, V3.add(V3.mul(nd, Math.cos(a) * 4.4 * k), V3.mul(wd, Math.sin(a) * 3.6 * w))))); }
-    const wt = E.tones(it.color || '#c8883a'); px.poly(g, pts, wt.sh); px.poly(g, pts.map(p => [p[0] - .5, p[1] - .5]), wt.base);
-    const hole = S(V3.add(B, V3.mul(nd, 1.1))); px.disc(g, hole[0], hole[1], Math.max(1, .9 * z), '#2a1a10');
+    for (let i = 0; i < 16; i++) { const a = i / 16 * TAU, k = Math.cos(a) < 0 ? 1.35 : .9, w = Math.cos(a) < 0 ? 1.15 : .9; pts.push(S(V3.add(B, V3.add(V3.mul(nd, Math.cos(a) * 4.4 * k), V3.mul(wd, Math.sin(a) * 3.8 * w))))); }
+    const wt = E.tones(it.color || '#c8883a'); px.poly(g, pts, wt.deep); px.poly(g, pts.map(p => [p[0] - .5, p[1] - .5]), wt.sh); px.poly(g, pts.map(p => [p[0] * .8 + (pts[4][0] + pts[12][0]) * .1 - .8, p[1] * .8 + (pts[4][1] + pts[12][1]) * .1 - .8]), wt.base);   // a rounded belly: rim, body, lit bowl
+    const hole = S(V3.add(B, V3.mul(nd, 1.1))); px.disc(g, hole[0], hole[1], Math.max(1.4, 1.3 * z), wt.lt); px.disc(g, hole[0], hole[1], Math.max(1, .9 * z), '#2a1a10');   // the rosette
     const n0 = S(V3.add(B, V3.mul(nd, 3))), n1 = S(N), pg = S(V3.add(N, V3.add(V3.mul(nd, 1.6), [0, 0, -1.2])));
     px.line(g, n0[0], n0[1], n1[0], n1[1], '#5a3418', lw + 1); px.line(g, n1[0], n1[1], pg[0], pg[1], '#3a2010', lw + 1);
     const br = S(V3.add(B, V3.mul(nd, -2))); px.line(g, br[0], br[1], n1[0], n1[1], '#e8e0c8');
@@ -875,6 +875,7 @@ townNPC('harrow', {
   items: () => [{ kind: 'hammer', hand: 'R' }, { kind: 'tongs', hand: 'L', to: null, flip: 0 }],
   face: harrowBeard,
   talk: ['hips', null, 'hips', 'guard'],
+  idle(n, dt) { const B = ED.L.bellows; if (B && (n.talking || n.greetT > 0)) { B.handle = null; B.open = approach(B.open, 1, dt * 2); } },   // he lets go of the bellows lever to greet or talk (it springs back open)
   steps: [
     { d: .1, go: FORGE.F, sp: 30, enter: n => { n.items[1].to = null; } },
     { d: 3.6, face: -Math.PI / 2, turn: 9,   // heat: the blade in the coals, the right hand pumps the bellows lever
@@ -1464,13 +1465,6 @@ function drawStars(r) {
     px.dot(g, sx, sy, tw ? '#ffffff' : c); if (tw && hs(i, 11) < .3) { px.dot(g, sx - 1, sy, c); px.dot(g, sx + 1, sy, c); px.dot(g, sx, sy - 1, c); px.dot(g, sx, sy + 1, c); }
   }
 }
-/* the town portal home: the core puts the hero ON L.portalSpot, where the portal opens too, so he would be sent straight
- * back down on the first frame. Step him out of it (toward the plaza) before the scene checks it */
-BUS.on('step', () => {
-  const Lv = ED.L, h = ED.hero; if (ED.mode !== 'town' || !Lv || !Lv.emberhold || Lv._portalOut || !h) return;
-  Lv._portalOut = true;
-  if (Lv.portal && Math.hypot(h.x - Lv.portal.x, h.y - Lv.portal.y) < 14) { h.x = Lv.portal.x + 4; h.y = Lv.portal.y + 22; h.facing = h.aim = Math.PI / 2; P.dust(h.x, h.y, 0, 6, { speed: 30 }); P.ring(Lv.portal.x, Lv.portal.y, 3, 18, '#8ab4ff', .4); }
-}, 'global');
 /* ---------- set dressing: where every piece stands ---------- */
 function dressTown(Lv) {
   const T = Lv.things, add = t => { T.push(t); t.dead = false; return t; }, prop = (name, x, y, o = {}, z = 0) => Lv.props.push({ name, x, y, z, o });

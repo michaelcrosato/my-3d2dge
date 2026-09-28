@@ -13,22 +13,29 @@
  * ============================================================================= */
 function skillCtx(h, id, slot) {
   const S = REG.skills[id], s = h.stats, k = h.skills[id] || {};
-  return { id, S, slot, rank: skillRank(h, id), rune: k.rune || null, aim: h.aim, tx: h.tx, ty: h.ty,
-    hit: (scale, o = {}) => heroHit(h, scale, Object.assign({ el: S.el, tags: S.tags, skill: id }, o)),
+  // a physical ATTACK strikes with the weapon, so it takes the weapon's element (a fire sword's Blade Dance burns, as its
+  // tooltip promises, and Increased Fire Damage counts); a rune's own element (o.el) and spells keep theirs. The
+  // weapon's status comes at 12% a hit (not an element's usual 30%) and a frost blade chills two stacks at a time: at
+  // five hits a second the full rate kept a whole pack frozen solid
+  const w = h.gear && h.gear.weapon, wel = S.el === 'phys' && (S.tags || []).includes('attack') && w && w.el && w.el !== 'phys' ? w.el : null, el = wel || S.el;
+  return { id, S, slot, el, rank: skillRank(h, id), rune: k.rune || null, aim: h.aim, tx: h.tx, ty: h.ty,
+    hit: (scale, o = {}) => { const x = heroHit(h, scale, Object.assign({ el, tags: S.tags, skill: id }, o)); if (wel && x.el === wel && x.statusChance === undefined && !x.status) { x.statusChance = .12; if (wel === 'frost') x.statusPower = 1; } return x; },
     area: 1 + (s.area || 0) / 100, proj: Math.round(s.projectiles || 0), pierce: Math.round(s.pierce || 0), chains: Math.round(s.chains || 0) };
 }
 const skillCost = (h, S) => Math.round((S.cost || 0) * (1 - clamp((h.stats.costRed || 0) / 100, 0, .6)));
 const skillCd = (h, S) => (S.cd || 0) * (1 - clamp((h.stats.cdr || 0) / 100, 0, .6));
-/** press slot i: continue the running action (combo), or start the skill if it is ready */
-function useSlot(h, i) {
+/** press slot i: continue the running action (combo), or start the skill if it is ready.
+ *  held: the key is only being held down (repeat): nothing to warn about, and nothing is consumed */
+function useSlot(h, i, held) {
   const id = h.slots[i]; if (!id || h.dead) return false;
   const S = REG.skills[id]; if (!S || skillRank(h, id) <= 0) return false;
+  if (held && (h.act ? !(h.act.skill === id && S.again) && !(h.act.free || h.act.cancel === 'skill') : h.cds[id] > 0 || h.ember < skillCost(h, S))) return false;   // cheap early out: nothing a held key could start
   const ctx = skillCtx(h, id, i);
   if (h.act && h.act.skill === id && S.again) return S.again(h, h.act, ctx);
   if (h.act && !(h.act.free || h.act.cancel === 'skill')) return false;
-  if (h.cds[id] > 0) return h.act ? false : (h.cdWarn = { slot: i, t: .3 }, true);
+  if (h.cds[id] > 0) return h.act || held ? false : (h.cdWarn = { slot: i, t: .3 }, true);
   const cost = skillCost(h, S);
-  if (h.ember < cost) { if (!h.act) { notify('NOT ENOUGH EMBER', '#ff9a7a', 1); sfx('cancel', { vol: .5 }); } return !h.act; }
+  if (h.ember < cost) { if (!h.act && !held) { notify('NOT ENOUGH EMBER', '#ff9a7a', 1); sfx('cancel', { vol: .5 }); } return !h.act && !held; }
   const act = S.cast(h, ctx);
   if (!act) return false;
   h.ember -= cost; if (S.cd) h.cds[id] = skillCd(h, S);
@@ -60,6 +67,16 @@ function swingAction(h, atk, o) {
     update(dt) {
       const began = atk.update(dt), st = atk.state;
       this.rig.attack = st;
+      if (st && st.phase === 'wind' && this.stepSpec !== st.spec) {
+        // the step-in, as each swing winds up: a foe just beyond the blade, ahead of him, draws him toward it (the body
+        // slides the gap shut: a push v carries v^2 / 2000), so a combo keeps connecting on a staggered, backing foe
+        this.stepSpec = st.spec;
+        const range = typeof o.range === 'function' ? o.range(st.spec) : o.range, fx = Math.cos(h.facing), fy = Math.sin(h.facing), tg = nearestEnemy('hero', h.x + fx * range * .7, h.y + fy * range * .7, range * .7 + 24);
+        if (tg && tg.team === 'foe' && !tg.boss && !(tg.arch && (tg.arch.tags || []).includes('object'))) {
+          const dx = tg.x - h.x, dy = tg.y - h.y, gap = Math.hypot(dx, dy) - tg.r - range * .55;
+          if (gap > 0 && (dx * fx + dy * fy) > 0) { const v = Math.min(220, Math.sqrt(2000 * Math.min(gap, 24))); h.vx += fx * v; h.vy += fy * v; }
+        }
+      }
       if (began === 'active') {
         const push = o.push === undefined ? 70 : o.push; h.vx += Math.cos(h.facing) * push; h.vy += Math.sin(h.facing) * push;
         sfx(o.sound || 'swing', { vol: .6 }); if (o.onStrike) o.onStrike(this);
@@ -96,9 +113,12 @@ function drawSkillIcon(g, id, x, y, s = 1) {
   if (S.icon) S.icon(g, x, y, s); else E.font.text(g, S.name[0], x + 8 * s, y + 4 * s, '#ffffff', { align: 'center', scale: s });
 }
 
-/* ---------- BLADE DANCE (LMB): slash > backslash > spin, from the stress test; out of a dodge, a lunging thrust ---------- */
-const BLADE_HIT = { slash: { range: 27, half: 1.35, dmg: 1, kb: 130, push: 70 }, backslash: { range: 27, half: 1.35, dmg: 1, kb: 130, push: 70 },
-  spin: { range: 34, half: Math.PI, dmg: 1.7, kb: 230, push: 40, big: true }, thrust: { range: 38, half: .45, dmg: 1.6, kb: 220, push: 150, big: true } };
+/* ---------- BLADE DANCE (LMB): slash > backslash > spin, from the stress test; out of a dodge, a lunging thrust ----------
+ * The first two cuts only rock a foe back (kb 70: still enough to break its wind-up) so the spin finisher lands on
+ * it; the spin and the thrust throw it away. (At kb 130 a staggered husk slid ~50 units, out of the blade's reach,
+ * and the finisher cut air; the spin at 230 threw the pack ~120 away, too far to flow into the next combo.) */
+const BLADE_HIT = { slash: { range: 27, half: 1.35, dmg: 1, kb: 70, push: 70 }, backslash: { range: 27, half: 1.35, dmg: 1, kb: 70, push: 70 },
+  spin: { range: 34, half: Math.PI, dmg: 1.7, kb: 180, push: 40, big: true }, thrust: { range: 38, half: .45, dmg: 1.6, kb: 220, push: 150, big: true } };
 def('skills', 'blade', {
   name: 'Blade Dance', kind: 'basic', tags: ['melee', 'attack'], el: 'phys', cost: 0, gen: 6, unlock: 1, color: '#6a5a4a',
   runes: [{ id: 'rend', name: 'Rending Dance', desc: 'Every hit makes the enemy bleed.' }, { id: 'tempest', name: 'Tempest Dance', desc: 'The spin throws out a ring of cutting wind.' }],
@@ -107,7 +127,9 @@ def('skills', 'blade', {
   combo: null,
   cast(h, ctx) {
     const self = this, hitFor = (u, spec) => { const b = BLADE_HIT[spec.name] || BLADE_HIT.slash; return ctx.hit(b.dmg, { kb: b.kb, extra: { ang: angTo(h, u), status: ctx.rune === 'rend' ? 'bleed' : undefined, statusChance: ctx.rune === 'rend' ? 1 : undefined } }); };
-    const onHit = (u, act) => { const big = act.atk.state && BLADE_HIT[act.atk.state.spec.name] && BLADE_HIT[act.atk.state.spec.name].big; game.freeze(big ? .06 : .04); shake(big ? 3 : 2); P.sparks(lerp(h.x, u.x, .6), lerp(h.y, u.y, .6), 10, 7, angTo(h, u)); P.impact(lerp(h.x, u.x, .7), lerp(h.y, u.y, .7), 12, big ? 8 : 6); sfx('hit', { vol: .5 }); };
+    const E0 = ctx.el !== 'phys' ? EL(ctx.el) : null;   // an elemental weapon's cuts spark and burst in its colors
+    const onHit = (u, act) => { const big = act.atk.state && BLADE_HIT[act.atk.state.spec.name] && BLADE_HIT[act.atk.state.spec.name].big, x = lerp(h.x, u.x, .65), y = lerp(h.y, u.y, .65), a = angTo(h, u); game.freeze(big ? .06 : .04); shake(big ? 3 : 2);
+      P.sparks(x, y, 10, 7, a, E0 ? { color: E0.color, hot: E0.light } : undefined); P.impact(x, y, 12, big ? 8 : 6, E0 ? E0.light : undefined); if (E0 && (big || Math.random() < .3)) elBurst(x, y, 11, ctx.el, big ? 4 : 2, a); sfx('hit', { vol: .5 }); };   // (a burst on every cut of a pack was a fireball cloud over it)
     if (h.dodgeT > 0) {   // the lunge: keeps the dodge's direction, pierces the line
       h.dodgeT = 0; const atk = new E.Attack('thrust', { reach: 10 }); atk.start();
       const act = swingAction(h, atk, { name: 'thrust', range: BLADE_HIT.thrust.range, half: BLADE_HIT.thrust.half, push: BLADE_HIT.thrust.push, hit: hitFor, onHit, moveK: .1 });

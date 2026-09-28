@@ -54,18 +54,40 @@ function gainXp(h, n) {
   if (!h.alive) return;
   n *= (1 + (h.stats.xpGain || 0) / 100) * DIFF.xp;
   h.xp += n;
+  let up = 0;
   while (h.xp >= SCALE.xpNeed(h.level)) {
-    h.xp -= SCALE.xpNeed(h.level); h.level++; h.pts.skill++; h.pts.passive++;
+    h.xp -= SCALE.xpNeed(h.level); h.level++; h.pts.skill++; h.pts.passive++; up++;
     computeStats(h); h.hp = h.maxHp; h.ember = h.maxEmber;
-    levelUpFx(h); BUS.emit('heroLevel', { lvl: h.level });
+    BUS.emit('heroLevel', { lvl: h.level });
   }
+  if (up) levelUpFx(h, up);   // one flourish, however many levels a big kill gave
 }
-function levelUpFx(h) {
-  sfx('powerup'); notify('LEVEL ' + h.level + '  •  +1 SKILL POINT  +1 PASSIVE POINT', '#ffe070', 4);
-  h.cheerT = 1; P.glints(h.x, h.y, 16, 20, '#ffe070', 22); P.ring(h.x, h.y, 4, 34, '#ffe070', .5);
-  FX.visual(1.2, (r, u) => {
-    r.queue(h.x, h.y, 0, g => { const [x, y] = r.w(h.x, h.y, 0), [, ty] = r.w(h.x, h.y, 80), a = 1 - u; px.glow(g, 1); px.blend(g, .5 * a, 'add', () => { px.rect(g, x - 6, ty, 12, y - ty, '#ffd36a'); px.rect(g, x - 2, ty, 4, y - ty, '#fffbe0'); }); }, { emissive: true, bias: -.1 });
-    L.add(h.x, h.y, 20, 110, 1.2 * (1 - u), { color: '#ffd36a' });
+/**
+ * The level-up: he throws his arms up (cheer, shouting) inside a column of golden light that shoots up from his feet
+ * and thins toward the top, motes spiral up around him, two rings roll out and "LEVEL n" pops over his head.
+ * The column is three faint additive shafts (never a solid bar: he must stay visible inside it), sized by the zoom.
+ */
+function levelUpFx(h, up = 1) {
+  const pts = up > 1 ? up + ' SKILL POINTS  +' + up + ' PASSIVE POINTS' : '1 SKILL POINT  +1 PASSIVE POINT';
+  sfx('powerup'); notify('LEVEL ' + h.level + '  •  +' + pts, '#ffe070', 4);
+  h.cheerT = 1.1; P.glints(h.x, h.y, 16, 14, '#ffe070', 22); P.ring(h.x, h.y, 4, 34, '#ffe070', .5);
+  P.text(h.x, h.y, (h.head || 26) + 12, 'LEVEL ' + h.level, '#ffe070', { scale: 2, bounce: true });
+  let ring2 = false;
+  FX.visual(1.4, (r, u) => {
+    const zm = r.view.zoom || 1, grow = E.ease.outCubic(Math.min(1, u * 7)), a = u < .2 ? 1 : 1 - (u - .2) / .8, x0 = h.x, y0 = h.y;
+    r.queue(x0, y0, 0, g => {
+      const [x, y] = r.w(x0, y0, 0), [, ty] = r.w(x0, y0, 96 * grow), H = y - ty; if (H < 1) return;
+      px.glow(g, 1);
+      for (const [w, c, k] of [[5.5, '#ff9a3a', .1], [3.2, '#ffd36a', .16], [1.1, '#fff6d0', .3]]) {   // wide and faint to narrow and bright
+        const W = Math.max(1, Math.round(w * zm));
+        for (let i = 0; i < 5; i++) { const b0 = Math.round(ty + H * i / 5), b1 = Math.round(ty + H * (i + 1) / 5); px.blend(g, a * k * (.25 + .75 * i / 4), 'add', () => px.rect(g, x - W, b0, 2 * W, b1 - b0, c)); }   // it thins toward the top
+      }
+      r.glowDisc(g, x, y, 6 * zm * grow, '#ffd36a', .2 * a * a);
+    }, { emissive: true, bias: -.6 });
+    L.add(x0, y0, 20, 110, 1.3 * a, { color: '#ffd36a' });
+  }, (f, dt) => {
+    if (f.t < .9 && Math.random() < dt * 40) { const an = f.t * 9 + Math.random() * .6, rr = 7 + Math.random() * 3; P.add({ kind: 'ember', x: h.x + Math.cos(an) * rr, y: h.y + Math.sin(an) * rr, z: 2 + Math.random() * 6, vx: -Math.sin(an) * 18, vy: Math.cos(an) * 18, vz: 45 + Math.random() * 25, drag: 1.2, max: .8, color: Math.random() < .5 ? '#ffe070' : '#fff6d0' }); }   // motes spiral up around him
+    if (!ring2 && f.t > .18) { ring2 = true; P.ring(h.x, h.y, 3, 50, '#fff0b0', .45); P.glints(h.x, h.y, 30, 8, '#fff6d0', 14); }
   });
 }
 function gainGold(h, n) { h.gold += n; BUS.emit('gold', { n }); }
@@ -84,16 +106,19 @@ function heroReact(hit) {
   else if (h.act && h.act.cancel !== false && h.act.interrupt !== false && (hit.dmg || 0) > h.maxHp * .12) endAction(h);
   BUS.emit('hurt', { tgt: h, hit, dmg: hit.dmg });
 }
-/** knocked flat: the rig falls ('down'), lies a moment, gets up (invulnerable while down) */
+/** knocked flat: he turns to the blow and falls back from it ('down'), lies a moment, gets up (invulnerable while
+ *  down). The body holds that facing on the floor (it no longer swings round after the cursor), and a dodge may cut
+ *  the getting-up short: a recovery roll */
 function knockDown(h, t = 1) {
-  startAction(h, { name: 'down', cancel: false, moveK: 0, dur: t + .6, rig: { down: 1 }, update(dt) {
-    this.rig.down = this.t < t ? 1 : 0; h.inv = Math.max(h.inv, .2);
+  const f = h.hitA !== undefined ? h.hitA : h.facing; h.facing = f;
+  startAction(h, { name: 'down', cancel: false, moveK: 0, face: f, dur: t + .6, rig: { down: 1 }, update(dt) {
+    this.rig.down = this.t < t ? 1 : 0; this.cancel = this.t >= t; h.inv = Math.max(h.inv, .2);
     return (this.t += dt) < this.dur;
   } });
 }
 function heroDie(hit) {
   const h = this;
-  if (h.act) endAction(h); h.dead = true; h.deadT = 0; h.act = null; h.z = 0; h.vz = 0;
+  if (h.act) endAction(h); h.dead = true; h.deadT = 0; h.act = null; h.vz = Math.min(0, h.vz || 0); h.dodgeT = 0;   // killed in the air (a leap, a roll): he falls from there
   P.bits(h.x, h.y, 8, 20, [h.look.colors.cloth, h.look.colors.cape, h.look.colors.skin]);
   sfx('die'); A.music(null);
   BUS.emit('heroDie', { h, hit });
@@ -144,29 +169,44 @@ function heroAim(h) {
 }
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
-  h.inv -= dt; h.hurtT -= dt; h.flash -= dt; h.cheerT -= dt; h.potionT -= dt;
   if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) { h.perfectT = 0; game.timeScale = 1; }
+  // witch time: after a perfect dodge the world crawls but he keeps close to his own pace (his clock runs fast)
+  if (h.perfectT > 0 && game.timeScale < 1 && !h.dead) dt *= Math.min(3, .85 / Math.max(.2, game.timeScale));
+  h.inv -= dt; h.hurtT -= dt; h.flash -= dt; h.cheerT -= dt; h.potionT -= dt;
   for (const k in h.cds) if ((h.cds[k] -= dt) <= 0) delete h.cds[k];
   for (let i = h.buffs.length - 1; i >= 0; i--) if ((h.buffs[i].t -= dt) <= 0) { h.buffs.splice(i, 1); computeStats(h); }
   tickStatus(h, dt);
-  if (h.dead) { h.deadT += dt; h.vx *= .9; h.vy *= .9; h.rig.update(dt, { x: h.x, y: h.y, z: 0, facing: h.facing, pose: 'die' }); return; }
+  if (h.dead) {   // he falls from wherever death found him (mid-leap, mid-roll), then crumples
+    h.deadT += dt;
+    if (h.z > 0) { h.vz -= 520 * dt; h.z = Math.max(0, h.z + h.vz * dt); if (!h.z) { h.vz = 0; P.dust(h.x, h.y, 0, 6, { speed: 40 }); sfx('thud', { vol: .5 }); } }
+    h.rig.update(dt, { x: h.x, y: h.y, z: h.z, facing: h.facing, pose: h.z > 1 ? null : 'die', air: h.z > 1, hurt: h.z > 1, expr: 'wince' }); return;
+  }
   // regeneration, heal over time (potions)
   const s = h.stats;
   h.hp = Math.min(h.maxHp, h.hp + (s.lifeRegen || 0) * dt + (h.healT > 0 ? h.healRate * dt : 0)); h.healT -= dt;
   h.ember = Math.min(h.maxEmber, h.ember + (s.emberRegen || 0) * dt);
   if (h.dodges < h.maxDodge && (h.dodgeRe -= dt * (1 + (s.dodgeCd || 0) / 100)) <= 0) { h.dodges++; h.dodgeRe = 1.4; }
   const { md, mlen } = heroAim(h), sp = statusSpeed(h);
-  // dodge: a quick low dash with invulnerability; it carries him over chasms (he is briefly airborne)
-  if (inp.buffered('dodge', .12) && h.dodges > 0 && h.dodgeT <= 0 && sp > 0 && (!h.act || h.act.cancel !== false)) {
-    inp.consume('dodge');
+  // dodge: a quick low dash with invulnerability; it carries him over chasms (he is briefly airborne). A press he cannot
+  // honour yet (mid-roll, mid-leap, mid-dash) is kept for a moment and rolls the instant he can: nothing is swallowed
+  const canDodge = h.dodges > 0 && h.dodgeT <= 0 && sp > 0 && (!h.act || h.act.cancel !== false);
+  if (inp.buffered('dodge', .12) && !canDodge && h.dodges > 0) { inp.consume('dodge'); h.dodgeQ = .35; h.dodgeQT = game.time; }   // (a roll pressed mid-roll chains)
+  if (!(h.act && h.act.cancel === false) || game.time - (h.dodgeQT || 0) > 1.2) h.dodgeQ = (h.dodgeQ || 0) - dt;   // it waits out a leap or a fall
+  if ((inp.buffered('dodge', .12) || h.dodgeQ > 0) && canDodge) {
+    inp.consume('dodge'); h.dodgeQ = 0;
     const a = mlen > .1 ? Math.atan2(md[1], md[0]) : h.aim;
     if (h.act) endAction(h);
     h.dodgeDir = a; h.dodgeT = DODGE_T; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = 1.4; h.inv = Math.max(h.inv, DODGE_T + .04);
     P.dust(h.x, h.y, 0, 6, { speed: 40 }); P.ring(h.x, h.y, 3, 14, '#bff6ff', .25); h.rig.kick(-3); sfx('whoosh', { vol: .7 });
     BUS.emit('dodge', { h });
   }
-  // skills: the six slots (in town the swing is harmless, and E / click on a person talks instead)
-  if (!town || o.canAct) for (let i = 0; i < 6; i++) if (inp.buffered(SLOT_ACTS[i], .16)) { if (useSlot(h, i)) inp.consume(SLOT_ACTS[i]); }
+  // skills: the six slots (in town the swing is harmless, and E / click on a person talks instead). A press is
+  // buffered; a key HELD keeps the skill going (Diablo style: hold to keep attacking or casting), quietly (no
+  // 'not enough ember' spam), and never restarts a channel (its own hold logic runs it)
+  if (!town || o.canAct) for (let i = 0; i < 6; i++) {
+    if (inp.buffered(SLOT_ACTS[i], .16)) { if (useSlot(h, i)) inp.consume(SLOT_ACTS[i]); }
+    else if (inp.down(SLOT_ACTS[i]) && !(h.act && h.act.hold) && h.dodgeT <= 0) useSlot(h, i, true);
+  }
   // hold-to-channel skills keep running while the key is down
   if (h.act && h.act.hold && !inp.down(SLOT_ACTS[h.act.slot])) h.act.release = true;
   if (inp.pressed('potion')) drinkPotion(h);
@@ -194,17 +234,19 @@ function updateHero(h, dt, o = {}) {
   collideUnit(h);
   h.idleT = Math.hypot(h.x - wasX, h.y - wasY) > .05 || act ? 0 : h.idleT + dt;
   // the rig: the action's fields over the locomotion state
-  const rs = { x: h.x, y: h.y, z: h.z, vx: h.vx, vy: h.vy, facing: h.facing, dash: h.dodgeT > 0, hurt: h.hurtT > 0 && !(act && act.rig && act.rig.attack), expr: h.hurtT > 0 ? 'wince' : h.cheerT > 0 ? 'shout' : null };
+  const low = clamp(1 - h.hp / h.maxHp / .35, 0, 1);   // how badly hurt he is (0 above a third of his life)
+  const rs = { x: h.x, y: h.y, z: h.z, vx: h.vx, vy: h.vy, facing: h.facing, dash: h.dodgeT > 0, hurt: h.hurtT > 0 && !(act && act.rig && act.rig.attack), expr: h.hurtT > 0 ? 'wince' : h.cheerT > 0 ? 'shout' : low > .4 && (game.time + h.x * .01) % 2.8 < .5 ? 'wince' : null };
   if (act && act.rig) Object.assign(rs, act.rig);
   if (!act && h.cheerT > .3 && mlen < .1) rs.pose = 'cheer';
   else if (!act && town && h.idleT > 6) rs.pose = 'hips';   // waiting in town: hands on hips
   // wounded: he hunches and leans as life runs low; idle in a level, he checks his blade now and then
-  const low = clamp(1 - h.hp / h.maxHp / .35, 0, 1); h.rig.o.hunch = low * .3; h.rig.o.lean = low * .12;
+  h.rig.o.hunch = low * .3; h.rig.o.lean = low * .12;
   if (!act && !town && h.idleT > 5 && h.idleT % 9 < 1.4 && !rs.pose) { rs.pose = 'block'; rs.expr = null; }
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
   if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / DODGE_T);
   else if (h.potionT > 0) heroDrinkPose(h, 1 - h.potionT / .8);
+  if (!(sp === 0 && h.st.freeze)) heroWoundPose(h, dt, rs.pose || h.hurtT > 0 ? 0 : low);   // (a pose or a flinch has the hand; frozen solid, the rig keeps last step's joints and nothing may be added twice)
   // footsteps on the gait: one soft step each time a foot comes down
   const ph = Math.floor(h.rig.phase / Math.PI); if (ph !== h.stepPh) { h.stepPh = ph; if (Math.hypot(h.vx, h.vy) > 30 && h.z < 1) sfx('step', { vol: .35 }); }
   if (h.dodgeT <= 0 && !(act && act.rig && act.rig.attack && act.rig.attack.phase === 'active')) settleCape(h.rig, dt, h.hurtT > 0 ? 1 : clamp(1 - Math.hypot(h.vx, h.vy) / 60, 0, 1));
@@ -237,6 +279,21 @@ function heroDrinkPose(h, u) {
   const mouth = [J.head[0] + o.headR * .9, J.head[1] - .6, J.head[2] - o.headR * .45], tgt = E.V3.lerp(J.handL, mouth, k);
   const [el, hd] = E.ik3(J.shL, tgt, o.armUpper, o.armLower, [-.2, -1, -.4]); J.elbowL = el; J.handL = hd;
   h.drinkK = k;
+}
+/**
+ * Wounded, layered on the rig like the drink: below about a third of his life his free hand presses his side (two-bone
+ * IK to the left flank) and his shoulders and head heave with quick, ragged breaths, deeper the closer he is to death.
+ * It eases in and out; any action, the roll or the flask takes the hand back (the layer runs while he walks or stands).
+ */
+const HERO_HEAVE = { shL: 1, shR: 1, shC: 1, head: 1.2, elbowR: .8, handR: .6 };
+function heroWoundPose(h, dt, low) {
+  const want = !h.act && h.dodgeT <= 0 && !(h.potionT > 0) && !h.dead && low > .1 ? 1 : 0;
+  h.woundK = approach(h.woundK || 0, want, dt * (want ? 2.5 : 6)); const k = E.ease.inOut(h.woundK);
+  const J = h.rig.J, o = h.rig.o; if (k < .01 || !J.shL || !J.hipC || h.act || h.dodgeT > 0 || h.potionT > 0) return;
+  const heave = Math.sin(game.time * (5 + 2 * low)) * (.25 + .35 * low) * k;   // ragged breathing: the upper body rises and sinks
+  for (const n in HERO_HEAVE) if (J[n]) J[n] = [J[n][0], J[n][1], J[n][2] + heave * HERO_HEAVE[n]];
+  const side = [J.hipC[0] + .9, J.hipC[1] - o.hipHalf * 1.3, J.hipC[2] + o.torso * .36], tgt = E.V3.lerp(J.handL, side, k);
+  const [el, hd] = E.ik3(J.shL, tgt, o.armUpper, o.armLower, [-.5, -1, -.3]); J.elbowL = el; J.handL = hd;
 }
 function drawFlask(h, g, ox, oy, view) {
   if (!(h.potionT > 0) || !h.drinkK) return;

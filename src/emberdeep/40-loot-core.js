@@ -127,9 +127,12 @@ function pickBase(slot, ilvl, R) {
   const opts = Object.values(REG.itemBases).filter(b => (b.minIlvl || 1) <= ilvl + 1 && (!slot || b.slot === slot || (slot === 'ring2' && b.slot === 'ring')));
   return R.weighted(opts, b => (b.weight || 10) * (1 + Math.max(0, (b.minIlvl || 1) - ilvl * .5) * 0));
 }
+/** a rarity for an item level: about half common, a third magic, one in ten rare, one in a hundred legendary. mf is item
+ *  rarity (%), boost shifts the odds up (elites, bosses, gambles). Commons are hidden by the default loot filter, so this
+ *  is what sets how often a pack leaves something worth a look */
 function rollRarity(ilvl, R, mf = 0, boost = 0) {
   const k = 1 + mf / 100;
-  const w = [60, 30 * k, (7 + boost * 20) * k, (1 + boost * 6) * k * (ilvl >= 3 ? 1 : 0), (.35 + boost * 2) * k * (ilvl >= 5 ? 1 : 0)];
+  const w = [52, 32 * k, (8.5 + boost * 20) * k, (1.1 + boost * 6) * k * (ilvl >= 3 ? 1 : 0), (.35 + boost * 2) * k * (ilvl >= 5 ? 1 : 0)];
   let s = w.reduce((a, b) => a + b, 0), x = R() * s;
   for (let i = 0; i < w.length; i++) { x -= w[i]; if (x <= 0) return i; }
   return 0;
@@ -251,7 +254,7 @@ function dropLoot(kind, x, y, o = {}) {
 BUS.on('kill', e => {
   const m = e.tgt; if (m.team !== 'foe' || m.noLoot) return;
   const h = ED.hero, mf = (h && h.stats.magicFind) || 0, gf = (h && h.stats.goldFind) || 0, depth = m.level || ED.depth || 1, lk = DIFF.loot;
-  const nItems = m.boss ? 5 + rnd.int(0, 3) : m.elite === 2 ? 2 + rnd.int(0, 1) : m.elite === 1 ? (rnd.chance(.6) ? 1 : 0) : rnd.chance(.085 * lk) ? 1 : 0;
+  const nItems = m.boss ? 5 + rnd.int(0, 3) : m.elite === 2 ? 2 + rnd.int(0, 1) : m.elite === 1 ? (rnd.chance(.6) ? 1 : 0) : rnd.chance(.1 * lk) ? 1 : 0;
   for (let i = 0; i < nItems; i++) dropLoot('item', m.x, m.y, { item: makeItem({ ilvl: depth + (m.elite ? 1 : 0), rarity: m.boss && i === 0 ? 3 : rollRarity(depth, rnd, mf, m.boss ? .6 : m.elite === 2 ? .35 : m.elite ? .15 : 0) }) });
   if (rnd.chance(m.elite ? .9 : .32 * lk)) { const n = Math.max(1, Math.round((3 + rnd() * 7) * SCALE.gold(depth) * (1 + gf / 100) * (m.elite ? 3 : 1) * (m.boss ? 8 : 1))); const piles = m.boss ? 6 : m.elite ? 3 : 1; for (let i = 0; i < piles; i++) dropLoot('gold', m.x, m.y, { n: Math.ceil(n / piles) }); }
   if (h && rnd.chance(m.elite ? .35 : .035) && h.potions + ED.drops.filter(d => d.kind === 'potion').length < h.maxPotions) dropLoot('potion', m.x, m.y);
@@ -301,7 +304,7 @@ function drawDrops(r) {
     else {
       const it = d.item, rc = RARITY[it.rarity];
       if (!labelShown(d)) continue;
-      r.queue(d.x, d.y, d.z, g => { const [x, y] = r.w(d.x, d.y, d.z); drawItemIcon(g, it, x - 6, y - 11, .75); }, {});
+      r.queue(d.x, d.y, d.z, g => { const [x, y] = r.w(d.x, d.y, d.z); if (typeof drawItemIconEx === 'function') drawItemIconEx(g, it, x - 6, y - 11, .75); else drawItemIcon(g, it, x - 6, y - 11, .75); }, {});   // the loot file's shaded, outlined icon when it is there
       if (rc.beam && d.rest) {   // a loot beam: a column of light in the rarity's color
         const tall = it.rarity >= 3 ? 90 : 55, pulse = .7 + .3 * Math.sin(game.time * 4 + d.x);
         r.queue(d.x, d.y, 0, g => { const [x, y] = r.w(d.x, d.y, 0), [, ty] = r.w(d.x, d.y, tall); px.glow(g, 1); px.blend(g, .35 * pulse, 'add', () => { px.rect(g, x - 2, ty, 4, y - ty, rc.beam); px.rect(g, x - 1, ty, 2, y - ty, '#ffffff'); }); }, { emissive: true, bias: -.1 });

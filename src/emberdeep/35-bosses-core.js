@@ -22,10 +22,11 @@ function spawnBoss(id, x, y, o = {}) {
   wakeBoss(m, true);
   return m;
 }
-/** the boss wakes: its name, its music, the roar */
+/** the boss wakes: its name, its music, a heavy stir (the roar itself comes with its entrance: the arena's rise and roar,
+ *  or a body's own drop or eruption, so a waking boss roars once) */
 function wakeBoss(m, quiet) {
   m.dormant = false; m.ai.aware = true; m.introT = 2.2;
-  if (!quiet) { sfx('roar'); shake(4); }
+  if (!quiet) { sfx('thud', { vol: .7, pitch: .6 }); shake(4); }
   bossMusic(m); BUS.emit('bossWake', { m });
 }
 /** its music starts once, however it woke (walked up to, struck, spawned awake) */
@@ -47,7 +48,8 @@ def('ai', 'boss', { update(m, dt) {
   if (m.patT <= 0) {
     const ids = (m.patterns && m.phase === 0 ? m.patterns : ph.patterns || m.patterns || ['slam']).filter(id => REG.patterns[id]);
     const fit = ids.filter(id => { const rg = REG.patterns[id].range || [0, 999]; return d >= rg[0] && d <= rg[1]; });
-    const id = rnd.pick(fit.length ? fit : ids); if (!id) return;
+    const pool = fit.length ? fit : ids, fresh = pool.length > 1 ? pool.filter(q => q !== m.lastPat) : pool;   // never the same verb twice running when it has another
+    const id = rnd.pick(fresh); if (!id) return;
     m.pat = REG.patterns[id].start(m, ph) || null; m.lastPat = id;
   }
 } });
@@ -103,7 +105,10 @@ def('patterns', 'nova', { name: 'Nova', range: [0, 200], start(b) {
 def('patterns', 'summon', { name: 'Summon', range: [0, 400], start(b) {
   return { t: 0, rig: { pose: 'cheer' }, update(dt) {
     this.t += dt;
-    if (this.t > .6 && !this.done) { this.done = true; const pool = (ED.L && ED.L.rec && ED.L.rec.pool) || ['husk']; for (let i = 0; i < 3 + b.phase; i++) { const a = i / (3 + b.phase) * TAU, x = b.x + Math.cos(a) * 40, y = b.y + Math.sin(a) * 40; if (ED.L.map.walkable(Math.floor(x / 16), Math.floor(y / 16))) { const m = spawnMonster(rnd.pick(pool), x, y, {}); if (m) { m.ai.aware = true; P.ring(x, y, 2, 16, '#ff8a5a', .4); } } } sfx('warp'); }
+    if (this.t > .6 && !this.done) {   // (never more than 8 of its callers alive at once: a long fight must not drown in them)
+      this.done = true; const pool = (ED.L && ED.L.rec && ED.L.rec.pool) || ['husk'], n = Math.min(3 + b.phase, 8 - ED.foes.filter(q => q.alive && q.calledBy === b).length);
+      for (let i = 0; i < n; i++) { const a = i / n * TAU, x = b.x + Math.cos(a) * 40, y = b.y + Math.sin(a) * 40; if (ED.L.map.walkable(Math.floor(x / 16), Math.floor(y / 16))) { const m = spawnMonster(rnd.pick(pool), x, y, {}); if (m) { m.ai.aware = true; m.calledBy = b; P.ring(x, y, 2, 16, '#ff8a5a', .4); } } }
+      sfx('warp'); }
     this.rig = { pose: 'cheer', expr: 'shout' }; return this.t < 1.2;
   } };
 } });
@@ -120,13 +125,14 @@ def('patterns', 'cleave', { name: 'Cleave', range: [0, 60], start(b) {
 } });
 
 /* a boss at every fifth depth: the planned ones by name, then composed ones (a body, an element, patterns, a name) */
-const BOSS_BODIES = ['knight', 'husk', 'skeleton'];
-const BOSS_NAMES = { a: ['Vor', 'Mal', 'Gor', 'Ser', 'Kha', 'Ul', 'Dre', 'Az', 'Mor', 'Thes'], b: ['gath', 'akar', 'eth', 'uun', 'orix', 'avel', 'grim', 'oth', 'ira', 'eon'], t: ['the Deep King', 'Warden of the Stair', 'the Hungering', 'Who Waits Below', 'the Last Flame', 'the Unmade', 'Heart of the Pit', 'the Hollow Crown'] };
+const BOSS_BODIES = ['knight', 'skeleton'];   // the plain bodies; the bespoke boss bodies (bossBody) come up twice as often
+const BOSS_NAMES = { a: ['Vor', 'Mal', 'Gor', 'Ser', 'Kha', 'Ul', 'Dre', 'Az', 'Mor', 'Thes'], b: ['gath', 'akar', 'eth', 'uun', 'orix', 'avel', 'grim', 'oth', 'ira', 'eon'], t: ['the Deep King', 'Warden of the Stair', 'the Hungering', 'Who Waits Below', 'the Unmade', 'Heart of the Pit', 'the Hollow Crown'],
+  el: { fire: ['the Last Flame', 'the Cinderborn'], frost: ['the Pale Winter', 'Who Never Thaws'], storm: ['the Thunder Below', 'Stormcaller'], void: ['the Starless', 'Eater of Light'], venom: ['the Rot Queen', 'the Bloom of Plague'], phys: ['the Unbroken', 'Iron Hunger'] } };
 function composeBoss(depth, R) {
-  const el = R.pick(ELEMENT_IDS), arch = R.pick(BOSS_BODIES.filter(id => REG.archetypes[id]).concat(Object.keys(REG.archetypes).filter(id => REG.archetypes[id].bossBody)));
+  const el = R.pick(ELEMENT_IDS), own = Object.keys(REG.archetypes).filter(id => REG.archetypes[id].bossBody), arch = R.pick(BOSS_BODIES.filter(id => REG.archetypes[id]).concat(own, own));
   const pats = R.shuffle(Object.keys(REG.patterns).filter(id => !REG.patterns[id].unique)).slice(0, 3 + (depth > 40 ? 1 : 0));
   const id = 'composed' + depth; if (REG.bosses[id]) return id;
-  def('bosses', id, { name: R.pick(BOSS_NAMES.a) + R.pick(BOSS_NAMES.b), title: R.pick(BOSS_NAMES.t), arch, el, size: 1.9 + R() * .5, hp: 16, dmg: 1.4,
+  def('bosses', id, { name: R.pick(BOSS_NAMES.a) + R.pick(BOSS_NAMES.b), title: R.pick(BOSS_NAMES.t.concat(BOSS_NAMES.el[el] || [], BOSS_NAMES.el[el] || [])), arch, el, size: 1.9 + R() * .5, hp: 16, dmg: 1.4,
     phases: [{ at: 1, patterns: pats.slice(0, 2) }, { at: .6, patterns: pats.slice(0, 3), gap: .9 }, { at: .3, patterns: pats, gap: .7 }] });
   return id;
 }

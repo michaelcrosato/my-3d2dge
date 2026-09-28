@@ -258,11 +258,14 @@ function BST_drawBeast(m, r, alpha) {
   if (r.gpu) L.caster(m.x, m.y, 3.2 * s, 12 * s);
   if (B.drawWith) B.drawWith(m, r, alpha, tint);
   else if (big) rig.draw(null, 0, 0, view, { r, alpha, flash: tint && tint[0], mix: tint ? tint[1] : 0 });
-  else r.actor(m.x, m.y, m.z, (g, ox, oy) => rig.draw(g, ox, oy, view), { flash: tint && tint[0], flashMix: tint ? tint[1] : 0, alpha, outline: true, outlineColor: m.flash > 0 ? '#fff4e6' : m.elite && m.alive ? (m.elite === 2 ? '#5a3a10' : '#18204a') : undefined, rim: true });
-  if (m.alive && rig.drawGlow && alpha > .3) r.queue(m.x, m.y, m.z, g => rig.drawGlow(g, r), { emissive: true, bias: .02 });
+  else {   // the outline and rim passes are most of an actor's cost: like drawFoe, the governor drops them from ordinary beasts when frames run long
+    const ol = OPT.outlines !== false && !(PERF.low && !m.elite && !m.boss);
+    r.actor(m.x, m.y, m.z, (g, ox, oy) => rig.draw(g, ox, oy, view), { flash: tint && tint[0], flashMix: tint ? tint[1] : 0, alpha, outline: ol || !!(tint && tint[0]), outlineColor: m.flash > 0 ? '#fff4e6' : m.elite && m.alive ? (m.elite === 2 ? '#5a3a10' : '#18204a') : undefined, rim: ol });
+  }
+  if (m.alive && rig.drawGlow && alpha > .3) r.queue(m.x, m.y, m.z, g => rig.drawGlow(g, r), { emissive: foeGlowSeen(m.x, m.y, (m.z || 0) + 3), bias: .02 });   // (a wall in front hides it: then it is drawn in depth order)
   else if (m.alive && !B.drawWith && rig.glow && rig.glow.length && alpha > .3) {
     const col = rig.C.eye, gl = rig.glow, gx = rig.x, gy = rig.y, gz = rig.rootZ;
-    r.queue(m.x, m.y, m.z, g => { px.glow(g, 1); for (const e of gl) { const [x, y] = r.w(gx + e[0], gy + e[1], gz + e[2]); if (e[3] > 1.4) r.glowDisc(g, x, y, e[3] * 3, col, .3); px.disc(g, x, y, e[3], col); if (e[3] > .8) px.dot(g, x - .5, y - .6, '#ffffff'); } }, { emissive: true, bias: .02 });
+    r.queue(m.x, m.y, m.z, g => { px.glow(g, 1); for (const e of gl) { const [x, y] = r.w(gx + e[0], gy + e[1], gz + e[2]); if (e[3] > 1.4) r.glowDisc(g, x, y, e[3] * 3, col, .3); px.disc(g, x, y, e[3], col); if (e[3] > .8) px.dot(g, x - .5, y - .6, '#ffffff'); } }, { emissive: foeGlowSeen(m.x, m.y, (m.z || 0) + (m.bstLift || 0) + 4), bias: .02 });
   }
   for (const id of m.affixes) { const a = REG.affixes[id]; if (a && a.draw && m.alive) a.draw(m, r); }
   if (m.glow && m.alive) L.add(m.x, m.y, m.z + 10, m.glow[1] || 50, .7, { color: m.glow[0] });
@@ -549,7 +552,10 @@ function BST_spinnerAI(m, dt) {
   }
   // keep the range, circle, move in dashes
   a.burst -= dt; if (a.burst <= 0) { a.go = !a.go; a.burst = a.go ? BST_rnd(.4, .9) : BST_rnd(.1, .35); if (Math.random() < .2) a.orbit *= -1; }
-  const want = d > 110 ? 1 : d < 64 ? -1.3 : 0, mv = [dx / d * want - dy / d * a.orbit * .8, dy / d * want + dx / d * a.orbit * .8], ml = Math.hypot(mv[0], mv[1]) || 1;
+  const want = d > 110 ? 1 : d < 64 ? -1.3 : 0, see = AI.clear(m, h.x, h.y); let mv = [dx / d * want - dy / d * a.orbit * .8, dy / d * want + dx / d * a.orbit * .8]; const ml0 = Math.hypot(mv[0], mv[1]) || 1;
+  if (!see) mv = AI.steer(m, h.x, h.y);   // a wall between: go round it to find a line
+  else if (ED.L.map.solidAt(m.x + mv[0] / ml0 * 14, m.y + mv[1] / ml0 * 14)) a.orbit *= -1;   // circling into a wall: the other way
+  const ml = Math.hypot(mv[0], mv[1]) || 1;
   AI.move(m, a.go ? [mv[0] / ml, mv[1] / ml] : [0, 0], dt, .9); AI.face(m, a.go && want !== 0 ? Math.atan2(mv[1], mv[0]) : toH, dt, 8);
   if ((a.fire -= dt) <= 0 && d < 170 && ED.L.map.los(m.x, m.y, h.x, h.y) && AI.takeTurn(m)) { a.spit = .6; m.tok = true; sfx('bst_hiss', { vol: .3, pitch: 1.1 }); }
 }
@@ -693,7 +699,7 @@ class BST_Serpent {
     // glowing eyes and magma seams burn through the darkness
     if (!this.dead || this.crumble < .5) r.queue(this.seg[0].x, this.seg[0].y, Math.max(0, this.seg[0].z), g => {
       if (this.eyes) for (const e of this.eyes) { px.glow(g, 1); if (e[2] > 1.4) r.glowDisc(g, e[0], e[1], e[2] * 2.2, this.C.eye, .25); px.disc(g, e[0], e[1], e[2], this.dead ? '#6a5a4a' : this.C.eye); if (e[2] > 1) px.dot(g, e[0] - .5, e[1] - .6, '#ffffff'); }
-    }, { emissive: true, bias: .02 });
+    }, { emissive: foeGlowSeen(this.seg[0].x, this.seg[0].y, Math.max(0, this.seg[0].z)), bias: .02 });
     if (o.magma) for (const k of glow) { const q = this.seg[k]; if (k % 4 === 0) L.add(q.x, q.y, q.z + q.r, q.r * 4, .35, { color: this.C.glow }); }
   }
   /** screen helpers for a segment: centre, radius, the tangent / up / side directions on screen */
@@ -968,13 +974,15 @@ function BST_eyeAI(m, dt) {
     return;
   }
   // keep the range, circle, bob
-  const want = d > 125 ? 1 : d < 78 ? -1 : 0, ax = dx / d * want * 55 - dy / d * a.orbit * 30, ay = dy / d * want * 55 + dx / d * a.orbit * 30;
+  const want = d > 125 ? 1 : d < 78 ? -1 : 0, see = AI.clear(m, h.x, h.y); let ax = dx / d * want * 55 - dy / d * a.orbit * 30, ay = dy / d * want * 55 + dx / d * a.orbit * 30;
+  if (!see && ED.L.flow) { const s = ED.L.flow.dir(m.x, m.y, h.x, h.y); ax = s[0] * 55; ay = s[1] * 55; }   // a wall between: drift round it
+  else if (ED.L.map.solidAt(m.x + ax * .4, m.y + ay * .4)) a.orbit *= -1;   // circling into a wall: circle the other way
   if (!(m.stunT > 0)) { m.vx += (ax * k - m.vx * 1.6) * dt; m.vy += (ay * k - m.vy * 1.6) * dt; }
   if (Math.random() < dt * .3) a.orbit *= -1;
   if ((a.fire -= dt) <= 0 && d < 165 && !(m.stunT > 0) && ED.L.map.los(m.x, m.y, h.x, h.y) && AI.takeTurn(m)) { a.charge = .001; m.tok = true; sfx('bst_charge', { vol: .5 }); }
 }
 def('archetypes', 'eye', { name: 'Watcher', tags: ['aberration', 'ranged', 'flying'], themes: ['abyss', 'cavern', 'clockwork', 'crypt', 'ossuary', 'fungal'], minDepth: 8, weight: 6,
-  hp: 24, dmg: 11, speed: 30, r: 5.5, xp: 14, head: 32, mass: .9, el: 'fire', flies: true, hover: 22, corpseT: 2, stagger: true,
+  hp: 24, dmg: 11, speed: 30, r: 5.5, xp: 14, head: 12, mass: .9, el: 'fire', flies: true, hover: 22, corpseT: 2, stagger: true,   // head: the orb's top above its hover height (bars, numbers and auras sit on it)
   body: BST_eyeBody({}), elKeys: ['iris'],
   palettes: [{ flesh: '#8a4a6a', iris: '#ffb03a', sclera: '#f0e2d4', vein: '#c84a5a', pupil: '#1a0a10', tendril: '#6a3a5a' }, { flesh: '#4a5a80', iris: '#ff6a4a', sclera: '#e8ecf0', vein: '#8a5ac8', pupil: '#0a0a1a', tendril: '#3a4a6a' },
     { flesh: '#7a6446', iris: '#ffe05a', sclera: '#f4ecd8', vein: '#b84a3a', pupil: '#1a1008', tendril: '#5a4a32' }],
@@ -1066,7 +1074,7 @@ function BST_drawThread(m, r) {
   const lift = m.bstLift || 0; if (lift < 3 || !m.alive) return;
   r.queue(m.x, m.y, lift, g => { const [x0, y0] = r.w(m.x, m.y, lift + 10 * (m.scale || 1)), [x1, y1] = r.w(m.x, m.y, lift + 420); px.blend(g, .8, 'normal', () => { px.line(g, x0, y0, x1, y1, '#e8e4f0'); px.line(g, x0 + 1, y0, x1 + 1, y1, '#8a86a0'); }); }, { bias: -.1 });
 }
-def('archetypes', 'broodmother', { name: 'Brood Mother', tags: ['beast', 'spider', 'boss'], bossBody: true, noPack: true, minDepth: 999, weight: 0,
+def('archetypes', 'broodmother', { name: 'Brood Mother', tags: ['beast', 'spider', 'boss'], bossBody: true, noPack: true, minDepth: 999, weight: 0, ownEntrance: true,   // her drop is her waking (the arena adds only the name card)
   hp: 42, dmg: 12, speed: 38, r: 7, xp: 40, head: 17, mass: 99, el: 'venom', corpseT: 5, stagger: false,
   body: BST_crawlerBody({ pattern: 'hourglass', egg: 1, big: true, flip: false, abd: 1.1, ceph: 1.1, thick: 1.1 }),
   palettes: [{ base: '#3e2c42', leg: '#322636', belly: '#1e1822', mark: '#e0405a', eye: '#ff3a3a', fang: '#ecdcc4', joint: '#7a5a7e', sac: '#b8a07e', vein: '#9a3a4a' }], elKeys: ['mark', 'eye'],
@@ -1091,7 +1099,7 @@ def('patterns', 'leapslam', { name: 'Leap Slam', range: [30, 200], start(b) {
     this.t += dt; const t = this.t;
     if (t < .55) { this.rig = { pose: 'crouch', expr: 'angry', bst: { crouch: 1, fang: .8 } }; AI.face(b, Math.atan2(ty - b.y, tx - b.x), dt, 8); b.vx = b.vy = 0; if (Math.random() < dt * 25 && b.body) b.body.kick((Math.random() - .5) * 2); return true; }
     if (t < 1.15) { const u = (t - .55) / .6; b.x = lerp(sx, tx, u); b.y = lerp(sy, ty, u); b.z = Math.sin(u * Math.PI) * 78; b.vx = b.vy = 0; this.rig = { air: true, bst: { fang: .5 } }; return true; }
-    if (!this.landed) { this.landed = true; b.x = tx; b.y = ty; shake(8); game.freeze(.05); sfx('boom'); P.dust(b.x, b.y, 0, 22, { speed: 90, size: 2.2 }); FX.scorch(b.x, b.y, R * .8);
+    if (!this.landed) { this.landed = true; b.x = tx; b.y = ty; b.z = 0; shake(8); game.freeze(.05); sfx('boom'); P.dust(b.x, b.y, 0, 22, { speed: 90, size: 2.2 }); FX.scorch(b.x, b.y, R * .8);
       FX.nova({ team: 'foe', src: b, x: b.x, y: b.y, r0: 8, r1: R + 8, dur: .25, el: b.el, hit: { amount: b.dmg * 1.6, kb: 230, knockdown: true } });
       if (b.body && b.body.rig && b.body.rig.o && b.body.rig.o.egg !== undefined) BST_webPatch(b.x, b.y, R); }
     this.rig = { pose: 'crouch', bst: { crouch: .7 } }; return t < 1.75;
@@ -1108,7 +1116,7 @@ def('patterns', 'webspray', { name: 'Web Spray', range: [0, 170], start(b) {
   } };
 } });
 // the scuttling charge: legs drum in place behind a red lane, then a zig-zag rush that bowls the hero over (a wall stuns her)
-def('patterns', 'scuttle', { name: 'Scuttling Charge', range: [60, 280], start(b) {
+def('patterns', 'scuttle', { name: 'Scuttling Charge', range: [28, 280], start(b) {   // (from close in too: bosses stalk to 40, so a far-only charge was almost never picked)
   const h = ED.hero, ang = angTo(b, h), len = BST_ray(b.x, b.y, ang, Math.min(250, Math.hypot(h.x - b.x, h.y - b.y) + 80)), sp = 320;
   FX.telegraph({ shape: 'line', x: b.x, y: b.y, ang, len, w: 12 + 10 * Math.sqrt(b.scale || 1), dur: .75, owner: b }); sfx('bst_hiss', { vol: .5 });
   return { t: 0, rig: {}, update(dt) {
@@ -1192,7 +1200,7 @@ function BST_wyrmTick(m, dt) {
   m.untargetable = m.hz < -R0 * .5 || !!m.dormant;
   BST_coils(m);
 }
-def('archetypes', 'wyrm', { name: 'Deep Wyrm', tags: ['beast', 'burrower', 'boss'], bossBody: true, noPack: true, minDepth: 999, weight: 0,
+def('archetypes', 'wyrm', { name: 'Deep Wyrm', tags: ['beast', 'burrower', 'boss'], bossBody: true, noPack: true, minDepth: 999, weight: 0, ownEntrance: true,   // its eruption is its waking
   hp: 46, dmg: 13, speed: 66, r: 13, xp: 50, head: 24, mass: 99, el: 'fire', corpseT: 5.5, stagger: false, flies: true,
   body: BST_serpentBody({ n: 24, gap: 6.3, headR: 12.5, bodyR: 9.2, tailR: 2.6, fins: 3, spines: true, magma: true, horns: true, maxScale: 1.15 }),
   palettes: [{ base: '#4e3c38', belly: '#a06a48', spine: '#e0d0b4', fin: '#c8402a', eye: '#ffd040', glow: '#ff7a2a', dirt: '#4a3a32', mouth: '#5a1410', tooth: '#f4ecd8' }], elKeys: ['glow', 'eye'],
@@ -1232,7 +1240,10 @@ def('patterns', 'wyrmdive', { name: 'Burrowing Dive', unique: true, range: [0, 9
       if (s >= this.len) { b.vx = b.vy = 0; this.runs--; this.done = true; if (this.runs > 0) { this.S = [b.x, b.y]; this.stage = 'go'; this.t = 1.3; } else { this.stage = 'end'; this.te = 0; } }
       return true;
     }
-    this.hz = approach(this.hz, -D, dt * 90); b.vx *= .9; b.vy *= .9; this.te += dt; return this.te < .35;
+    // the end of the lane: it breaches and hangs there a breath, spent (the moment to punish the dive), then sinks
+    this.te += dt; b.vx *= .9; b.vy *= .9;
+    if (this.te < .95) { this.hz = approach(this.hz, R0 * 2.4, dt * 170); this.jaw = .35 + .15 * Math.sin(this.te * 9); this.sway = [0, 0, Math.sin(this.te * 6) * R0 * .25]; if (!this.spent && this.hz > 0) { this.spent = true; P.bits(b.x, b.y, 2, 10, ['#6a5a4a', '#8a7a64', '#4a3a2a']); P.dust(b.x, b.y, 0, 8, { speed: 50, color: '#8a7a64' }); } return true; }
+    this.sway = null; this.hz = approach(this.hz, -D, dt * 110); return this.te < 1.3;
   } };
 } });
 // burst: a circle chases the hero, locks; it erupts straight up through it, towers, then crashes down on him
@@ -1261,7 +1272,7 @@ def('patterns', 'wyrmburst', { name: 'Eruption', unique: true, range: [0, 999], 
 } });
 // tail sweep: it surfaces beside the hero, rears, and swings its whole body round like a scythe (standing by the head is safest)
 def('patterns', 'tailsweep', { name: 'Tail Sweep', unique: true, range: [0, 170], start(b) {
-  const h = ED.hero, R0 = BST_R0(b), rig = b.body && b.body.rig, dir0 = Math.random() < .5 ? 1 : -1;
+  const h = ED.hero, R0 = BST_R0(b), rig = BST_isWorm(b) ? b.body.rig : null, dir0 = Math.random() < .5 ? 1 : -1;   // (a body with no coils only rears and lingers)
   return { t: 0, hz: b.hz, jaw: .3, stage: 'rise', update(dt) {
     this.t += dt; const t = this.t;
     if (this.stage === 'rise') {   // out of the ground, slithering round the hero along the surface
@@ -1278,6 +1289,7 @@ def('patterns', 'tailsweep', { name: 'Tail Sweep', unique: true, range: [0, 170]
         this.dir = Math.sign(E.angDiff(bodyA, heroA)) || 1; this.total = this.dir * 3; this.bodyA = bodyA;
         this.tel = FX.telegraph({ shape: 'arc', x: b.x, y: b.y, r: rig.len * .85, ang: bodyA + this.total / 2, half: Math.abs(this.total) / 2 + .25, dur: .75, owner: b }); sfx('bst_roar', { vol: .6, pitch: 1.2 });
       }
+      if (!rig && this.tt > .6) { this.stage = 'hold'; this.tt = .6; return true; }
       if (this.tel && this.tt > 1.05) { this.stage = 'sweep'; this.tt = 0; this.done = 0; this.hit = false; sfx('whoosh', { vol: .9, pitch: .5 }); }
       else if (this.tel && rig) { const k = -this.dir * .05 * dt / .75; rig.rotatePath(b.x, b.y, k); }   // anticipation: it coils back a little
       return true;
