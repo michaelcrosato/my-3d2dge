@@ -47,7 +47,7 @@ function dot(u, amount, el, s) {
   const k = u.team === 'foe' ? DIFF.heroDmg : DIFF.foeDmg;
   u.hp -= amount * (1 - res) * k;
   s.acc = (s.acc || 0) + amount; s.nt = (s.nt || 0) - 1 / 120;
-  if (s.nt <= 0 && OPT.numbers && u.team === 'foe') { s.nt = .5; P.text(u.x + (Math.random() - .5) * 8, u.y, (u.z || 0) + (u.head || 20), fmt(s.acc), EL(el).color); s.acc = 0; }
+  if (s.nt <= 0 && OPT.numbers && u.team === 'foe' && s.acc >= 1) { s.nt = .5; P.text(u.x + (Math.random() - .5) * 8, u.y, (u.z || 0) + (u.head || 20), fmt(s.acc), EL(el).color); s.acc = 0; }
   if (u.hp <= 0) killUnit(u, { src: s.src || null, el, amount, tags: ['dot'] });
 }
 /** apply a status by id with a power; bosses and the hero shrug off some */

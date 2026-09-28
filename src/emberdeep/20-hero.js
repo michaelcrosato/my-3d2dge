@@ -116,10 +116,11 @@ function heroDodgedHit(hit) {
 /* ---------- the per-step controller ---------- */
 const HERO_SPEED = 84, DODGE_T = .22, DODGE_SPEED = 270;
 function heroAim(h) {
-  const inp = game.input, view = game.view;
-  const mv = inp.move(), md = view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
+  const inp = h.bot ? h.bot.input : game.input, view = game.view;   // h.bot: the autopilot drives a virtual input (93-autopilot.js)
+  const mv = inp.move(), md = inp.worldMove ? inp.worldMove.slice() : view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
   let aimA = null, tgt = null;
-  if (inp.aimSource === 'mouse') { const m = game.mouseGround(); if (m) { tgt = m; if (Math.hypot(m[0] - h.x, m[1] - h.y) > 3) aimA = Math.atan2(m[1] - h.y, m[0] - h.x); } }
+  if (inp.aimSource === 'bot' && inp.aimAt) { tgt = inp.aimAt; aimA = Math.atan2(tgt[1] - h.y, tgt[0] - h.x); }
+  else if (inp.aimSource === 'mouse') { const m = game.mouseGround(); if (m) { tgt = m; if (Math.hypot(m[0] - h.x, m[1] - h.y) > 3) aimA = Math.atan2(m[1] - h.y, m[0] - h.x); } }
   else if (inp.aimSource === 'pad' && inp.padAim) { const d = view.screenDirToGround(inp.padAim[0], inp.padAim[1]); aimA = Math.atan2(d[1], d[0]); }
   if (aimA === null && mlen > .1) aimA = Math.atan2(md[1], md[0]);
   if (aimA !== null) h.aim = aimA;
@@ -128,7 +129,7 @@ function heroAim(h) {
   return { md, mlen };
 }
 function updateHero(h, dt, o = {}) {
-  const inp = game.input, town = !!o.town;
+  const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
   h.inv -= dt; h.hurtT -= dt; h.flash -= dt; h.cheerT -= dt; h.potionT -= dt;
   if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) { h.perfectT = 0; game.timeScale = 1; }
   for (const k in h.cds) if ((h.cds[k] -= dt) <= 0) delete h.cds[k];
@@ -185,6 +186,8 @@ function updateHero(h, dt, o = {}) {
   else if (!act && town && h.idleT > 6) rs.pose = 'hips';   // waiting in town: hands on hips
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
+  // footsteps on the gait: one soft step each time a foot comes down
+  const ph = Math.floor(h.rig.phase / Math.PI); if (ph !== h.stepPh) { h.stepPh = ph; if (Math.hypot(h.vx, h.vy) > 30 && h.z < 1) sfx('step', { vol: .35 }); }
   if (h.dodgeT <= 0 && !(act && act.rig && act.rig.attack && act.rig.attack.phase === 'active')) settleCape(h.rig, dt, h.hurtT > 0 ? 1 : clamp(1 - Math.hypot(h.vx, h.vy) / 60, 0, 1));
 }
 /** push a unit out of walls and solid things (braziers, pylons, kegs). A unit that is knocked back, airborne or
