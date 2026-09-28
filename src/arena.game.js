@@ -1,13 +1,13 @@
 /* =============================================================================
- * EMBERWELL  a small action-RPG arena built on CO55
- * One game, every view: set window.CO55_CONFIG = { view: 'iso' } (or
+ * EMBERWELL  a small action-RPG arena built on my-3D2dge
+ * One game, every view: set window.MY3D2DGE_CONFIG = { view: 'iso' } (or
  * 'threequarter', 'topdown', 'brawler') before this script, or use ?view= in the URL.
  * Sections: setup, map, props, hero, enemies, combat, waves, draw, HUD.
  * ============================================================================= */
 (() => {
 'use strict';
-const E = CO55, { px, clamp, lerp, approach, TAU } = E;
-const CFG = window.CO55_CONFIG || {};
+const E = My3D2dge, { px, clamp, lerp, approach, TAU } = E;
+const CFG = window.MY3D2DGE_CONFIG || {};
 const qs = new URLSearchParams(location.search);
 
 /* ---------- setup ---------- */

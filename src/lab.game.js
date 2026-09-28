@@ -1,10 +1,10 @@
 /* =============================================================================
- * PERSPECTIVE LAB  the smallest complete CO55 game. Copy this file to start a new one.
+ * PERSPECTIVE LAB  the smallest complete my-3D2dge game. Copy this file to start a new one.
  * One room, one hero, two creatures, every camera view the engine ships with.
  * ============================================================================= */
 (() => {
 'use strict';
-const E = CO55, { px, clamp, approach, TAU } = E;
+const E = My3D2dge, { px, clamp, approach, TAU } = E;
 
 /* 1. Game: canvas + starting view. Everything else hangs off `game`. */
 const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 200, maxW: 520, bg: '#0d0b14' });

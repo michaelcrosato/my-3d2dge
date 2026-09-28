@@ -1,5 +1,5 @@
 /* =============================================================================
- * CO55 STRESS TEST
+ * MY-3D2DGE STRESS TEST
  * Push the engine: thousands of animated monsters, up to 30 shadow-casting torches,
  * particle storms, a pull-back camera that multiplies the pixel count, and toggles
  * for every expensive feature. Live metrics show where each frame's time goes, and
@@ -7,7 +7,7 @@
  * ============================================================================= */
 (() => {
 'use strict';
-const E = CO55, { px, clamp, lerp, approach, TAU } = E;
+const E = My3D2dge, { px, clamp, lerp, approach, TAU } = E;
 const qs = new URLSearchParams(location.search);
 
 /* ---------- setup ---------- */
@@ -618,7 +618,7 @@ function benchReport() {
   $('benchSummary').textContent = summary; $('benchStatus').textContent = 'Done.';
   const v = game.view, sc = game.screen;
   lastReport = [
-    'CO55 engine stress test',
+    'my-3D2dge stress test',
     'Result: ' + summary,
     'Settings: ' + v.label + ' view, camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
       ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on'),
