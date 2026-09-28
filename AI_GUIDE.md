@@ -266,6 +266,31 @@ const s = level.find('hero'), hero = new E.Platformer({ x: s.x, z: s.z }), rig =
 - a brawler with bullet-hell bosses: `Bullets` with the `'ground'` plane;
 - a puzzle game with dialog cutscenes: `Dialog`.
 
+## Building a big game: lessons from Emberdeep
+`examples/emberdeep.html` is the engine's signature game: an endless Diablo-style hack-and-slash of about 1.8 MB of code, built from 30+ source files. Its structure (`src/emberdeep/DESIGN.md`) scales to any large game.
+
+- **A spine, then content.** A small core defines:
+  - the shared state;
+  - one damage pipeline for every unit;
+  - a handful of effect verbs (projectile, nova, ground area, telegraph, strike, meteor, chain, beam, wave, pull);
+  - the hero's action model;
+  - the monster runtime;
+  - the level builder;
+  - the UI kit.
+  Content never edits the core.
+- **Registries make a language.** Every part is registered: `def('skills' | 'archetypes' | 'affixes' | 'bosses' | 'patterns' | 'itemBases' | 'powers' | 'mechanics' | 'themes' | 'layouts' | 'npcs', id, spec)`. Parts refer to each other by id and combine freely. A monster is an archetype × an element × affixes × depth scaling × a palette. A level is a layout × a theme × mechanics × a monster pool. A boss is a body × an element × patterns.
+- **An event bus instead of hooks everywhere.** Legendary powers, passive keystones, mechanics and tips listen to `hit`, `kill`, `skill`, `dodge`, `step` and `draw` events and check whether they apply. Adding a power never touches the combat code.
+- **Procedural forever.** A recipe per depth draws from the registries. Past the hand-planned depths it composes new combinations in a fixed order (every pair of mechanics, then every triple), recolors themes by depth, varies packs (elements, shared affixes, giants, swarms) and assembles bosses from a pattern library. Both sides of the power curve grow exponentially, the monsters' a little faster.
+- **New animation on the rigs.** Post-process the Humanoid's joints after `rig.update`:
+  - a dodge roll turns every joint around the hips;
+  - drinking re-solves one arm with `E.ik3`;
+  - held tools are drawn from the hand and elbow joints.
+  New creature rigs (IK-legged spiders, a path-following serpent) are posed in 3D and projected with `view.p`.
+- **Test like a player.**
+  - An autopilot drives the hero through a virtual input for balance runs and an attract-mode demo.
+  - Scripted headless playtests (`tools/ed-play.mjs`) and a smoke test over every scene and depth (`tools/ed-smoke.mjs`) keep a big game honest.
+  - A Gallery scene plays every skill and monster for visual review.
+
 ## Performance
 - **Rigs:** projection costs microseconds. The outline composite is the expensive part, so crowds should use `outline: false`.
 - **Walls, floors and PlatformMap chunks** are baked once per view.
