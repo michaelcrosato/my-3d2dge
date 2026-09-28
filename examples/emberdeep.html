@@ -4514,7 +4514,7 @@ root.My3D2dge = E;
 
 </script>
 <script>
-/* ---- inlined from src/emberdeep (00-core.js, 05-elements.js, 10-combat.js, 15-stats.js, 20-hero.js, 25-skills-core.js, 30-monsters-core.js, 35-bosses-core.js, 40-loot-core.js, 45-mechanics-core.js, 50-levels-core.js, 55-town-core.js, 60-ui-core.js, 70-audio.js, 90-scenes.js, 99-start.js) ---- */
+/* ---- inlined from src/emberdeep (00-core.js, 05-elements.js, 10-combat.js, 15-stats.js, 20-hero.js, 25-skills-core.js, 30-monsters-core.js, 35-bosses-core.js, 40-loot-core.js, 45-mechanics-core.js, 50-levels-core.js, 55-town-core.js, 60-ui-core.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 99-start.js) ---- */
 /* =============================================================================
  * EMBERDEEP  the signature game of my-3D2dge
  * A hack-and-slash that goes down forever. The hero from the stress test (teal tunic, red cape) climbs out of
@@ -4709,7 +4709,7 @@ function dot(u, amount, el, s) {
   const k = u.team === 'foe' ? DIFF.heroDmg : DIFF.foeDmg;
   u.hp -= amount * (1 - res) * k;
   s.acc = (s.acc || 0) + amount; s.nt = (s.nt || 0) - 1 / 120;
-  if (s.nt <= 0 && OPT.numbers && u.team === 'foe') { s.nt = .5; P.text(u.x + (Math.random() - .5) * 8, u.y, (u.z || 0) + (u.head || 20), fmt(s.acc), EL(el).color); s.acc = 0; }
+  if (s.nt <= 0 && OPT.numbers && u.team === 'foe' && s.acc >= 1) { s.nt = .5; P.text(u.x + (Math.random() - .5) * 8, u.y, (u.z || 0) + (u.head || 20), fmt(s.acc), EL(el).color); s.acc = 0; }
   if (u.hp <= 0) killUnit(u, { src: s.src || null, el, amount, tags: ['dot'] });
 }
 /** apply a status by id with a power; bosses and the hero shrug off some */
@@ -5374,10 +5374,11 @@ function heroDodgedHit(hit) {
 /* ---------- the per-step controller ---------- */
 const HERO_SPEED = 84, DODGE_T = .22, DODGE_SPEED = 270;
 function heroAim(h) {
-  const inp = game.input, view = game.view;
-  const mv = inp.move(), md = view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
+  const inp = h.bot ? h.bot.input : game.input, view = game.view;   // h.bot: the autopilot drives a virtual input (93-autopilot.js)
+  const mv = inp.move(), md = inp.worldMove ? inp.worldMove.slice() : view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
   let aimA = null, tgt = null;
-  if (inp.aimSource === 'mouse') { const m = game.mouseGround(); if (m) { tgt = m; if (Math.hypot(m[0] - h.x, m[1] - h.y) > 3) aimA = Math.atan2(m[1] - h.y, m[0] - h.x); } }
+  if (inp.aimSource === 'bot' && inp.aimAt) { tgt = inp.aimAt; aimA = Math.atan2(tgt[1] - h.y, tgt[0] - h.x); }
+  else if (inp.aimSource === 'mouse') { const m = game.mouseGround(); if (m) { tgt = m; if (Math.hypot(m[0] - h.x, m[1] - h.y) > 3) aimA = Math.atan2(m[1] - h.y, m[0] - h.x); } }
   else if (inp.aimSource === 'pad' && inp.padAim) { const d = view.screenDirToGround(inp.padAim[0], inp.padAim[1]); aimA = Math.atan2(d[1], d[0]); }
   if (aimA === null && mlen > .1) aimA = Math.atan2(md[1], md[0]);
   if (aimA !== null) h.aim = aimA;
@@ -5386,7 +5387,7 @@ function heroAim(h) {
   return { md, mlen };
 }
 function updateHero(h, dt, o = {}) {
-  const inp = game.input, town = !!o.town;
+  const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
   h.inv -= dt; h.hurtT -= dt; h.flash -= dt; h.cheerT -= dt; h.potionT -= dt;
   if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) { h.perfectT = 0; game.timeScale = 1; }
   for (const k in h.cds) if ((h.cds[k] -= dt) <= 0) delete h.cds[k];
@@ -5443,6 +5444,8 @@ function updateHero(h, dt, o = {}) {
   else if (!act && town && h.idleT > 6) rs.pose = 'hips';   // waiting in town: hands on hips
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
+  // footsteps on the gait: one soft step each time a foot comes down
+  const ph = Math.floor(h.rig.phase / Math.PI); if (ph !== h.stepPh) { h.stepPh = ph; if (Math.hypot(h.vx, h.vy) > 30 && h.z < 1) sfx('step', { vol: .35 }); }
   if (h.dodgeT <= 0 && !(act && act.rig && act.rig.attack && act.rig.attack.phase === 'active')) settleCape(h.rig, dt, h.hurtT > 0 ? 1 : clamp(1 - Math.hypot(h.vx, h.vy) / 60, 0, 1));
 }
 /** push a unit out of walls and solid things (braziers, pylons, kegs). A unit that is knocked back, airborne or
@@ -7303,7 +7306,7 @@ function setupGPU(map) {
 }
 /* ---------- save / load ---------- */
 const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash'];
-function saveGame() { const h = ED.hero; if (!h) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
+function saveGame() { const h = ED.hero; if (!h || ED.demo) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
 function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); itemUid = mx + 1; return s; }
 function newHero() {
   const h = makeHero(null);
@@ -7401,7 +7404,7 @@ function dropIn(h, from = 150) {
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
   const save = E.store.get('ed:save', null);
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['SETTINGS', () => UI.open('settings')]].filter(Boolean);
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')]].filter(Boolean);
 }
 function loadHeroOrNew() { const s = loadSave(); if (s) { const h = makeHero(s); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(); }
 function startGame(fresh) { if (fresh) { E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
@@ -7424,6 +7427,8 @@ const titleScene = {
     TITLE.t += dt;
     if (updateUI(dt)) return;
     const h = ED.titleHero, items = titleItems();
+    if (game.input.anyPressed() || UI.mouse.down) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
+    if (TITLE.idle > 28 && !UI.stack.length) { TITLE.idle = 0; startDemo(); return; }
     h.rig.update(dt, { x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02), pose: TITLE.t % 9 > 7.2 ? 'cheer' : null });
     h.facing = h.rig.facing;
     for (const b of ED.L.torches) b.t += dt;
@@ -7455,6 +7460,18 @@ const titleScene = {
     drawPanels(r);
   }
 };
+
+/* ---------- ATTRACT MODE: a demo hero, played by the autopilot on a random depth; any key returns to the title ---------- */
+function startDemo() {
+  ED.demo = true; ED.realHero = ED.hero;
+  const h = newHero(), depth = 1 + Math.floor(Math.random() * Math.min(15, PLANNED)), R = RNG(depth * 7 + 1);
+  h.level = 3 + depth * 2; h.pts.skill = h.level; h.pts.passive = 0;
+  for (const s of ['weapon', 'helm', 'chest', 'gloves', 'boots', 'cloak', 'legs']) if (R() < .8) h.gear[s] = makeItem({ slot: s, ilvl: depth + 2, rarity: R.int(1, 3), R });
+  refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h);
+  ED.hero = h; botOn(h, true); botManage(h);
+  game.go('level', { depth, demo: true });
+}
+function endDemo() { ED.demo = false; ED.hero = ED.realHero || null; ED.realHero = null; game.go('title'); }
 
 /* ---------- TOWN ---------- */
 const talk = new E.Dialog(game, { bg: ['#2a2040', '#141024'], border: '#c8b8e8' });
@@ -7525,6 +7542,7 @@ const levelScene = {
   },
   exit() { BUS.emit('levelEnd', { L: ED.L }); game.timeScale = 1; },
   update(dt) {
+    if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
     if (talk.update(dt)) return;
     if (updateUI(dt)) return;
     const L0 = ED.L, h = ED.hero, inp = game.input;
@@ -7546,7 +7564,7 @@ const levelScene = {
       sfx('portal'); goTown({ arrive: 'portal' });
     }
   },
-  draw(r) { worldDraw(r); talk.draw(r); }
+  draw(r) { worldDraw(r); talk.draw(r); if (ED.demo) r.overlay(g => { const a = .6 + .4 * Math.sin(game.real * 3); px.blend(g, a, 'normal', () => E.font.text(g, 'DEMO  -  PRESS ANY KEY', r.W / 2, 30, '#ffd36a', { align: 'center', shadow: '#05040a', outline: '#0c0818' })); }); }
 };
 
 /* ---------- THE PROVING GROUNDS: the stress test lives on as an endless horde in the rune hall ---------- */
@@ -7603,15 +7621,247 @@ let wheelT = 0;
 canvas.addEventListener('wheel', e => { const P0 = UI.top(); if (P0 && P0.wheel) return; const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
 BUS.on('heroDie', () => {});
 
+/* =============================================================================
+ * THE GALLERY: the animation showcase (title menu > GALLERY, or #gallery)
+ *   SKILLS   the hero performs every registered skill on straw training dummies
+ *   BESTIARY every monster walks in, attacks, flinches and falls, one at a time
+ *   POSES    the hero's whole pose vocabulary, and his reactions
+ * Left / Right pick, Up / Down change the reel, Space replays, S toggles slow motion, V view, [ ] turn, Esc leaves.
+ * ============================================================================= */
+/* ---- a straw training dummy: a post, a stuffed body and a sack head on a damped spring, so every hit shows ---- */
+def('archetypes', 'dummy', { name: 'Training Dummy', tags: ['object'], minDepth: 999, weight: 0, noPack: true, hp: 1e9, dmg: 0, speed: 0, r: 5, xp: 0, head: 26, mass: 3, stagger: false,
+  ai: m => { m.vx *= .8; m.vy *= .8; m.x = lerp(m.x, m.homeX, .1); m.y = lerp(m.y, m.homeY, .1); },
+  body: m => ({ ax: 0, ay: 0, vx: 0, vy: 0, kick(v) { this.vx += (Math.random() - .5) * v * 30; },
+    hit(ang, k) { this.vx += Math.cos(ang) * k; this.vy += Math.sin(ang) * k; },
+    update(dt) { this.vx += (-this.ax * 90 - this.vx * 7) * dt; this.vy += (-this.ay * 90 - this.vy * 7) * dt; this.ax += this.vx * dt; this.ay += this.vy * dt; this.ax = clamp(this.ax, -1.2, 1.2); this.ay = clamp(this.ay, -1.2, 1.2); },
+    draw(g, ox, oy, view) {
+      const s = (view.zoom || 1), P0 = (x, y, z) => { const q = view.p(x, y, z); return [ox + q[0], oy + q[1]]; };
+      const lean = (z, k = 1) => [this.ax * z * .35 * k, this.ay * z * .35 * k];
+      const wood = E.tones('#7a5634'), straw = E.tones('#d8b25a'), sack = E.tones('#c8a878');
+      const [b0x, b0y] = P0(0, 0, 0), [l1x, l1y] = lean(10), [b1x, b1y] = P0(l1x, l1y, 10);
+      px.line(g, b0x, b0y, b1x, b1y, wood.sh, Math.max(2, Math.round(2 * s))); px.line(g, b0x - 1, b0y, b1x - 1, b1y, wood.lt);
+      px.rect(g, b0x - 3 * s, b0y - 1, 6 * s, 2, wood.deep);
+      const [tx, ty] = lean(17), [c0x, c0y] = P0(l1x, l1y, 10), [c1x, c1y] = P0(tx, ty, 18);
+      px.poly(g, [[c0x - 3.5 * s, c0y], [c1x - 4 * s, c1y], [c1x + 4 * s, c1y], [c0x + 3.5 * s, c0y]], straw.sh);
+      px.poly(g, [[c0x - 2.5 * s, c0y - 1], [c1x - 3 * s, c1y + 1], [c1x + 1 * s, c1y + 1], [c0x + .5 * s, c0y - 1]], straw.base);
+      for (let i = 0; i < 4; i++) px.line(g, c0x - 3 + i * 2 * s, c0y, c0x - 4 + i * 2.2 * s, c0y + 2 * s, straw.lt);
+      const [ax1, ay1] = lean(16, 1.2), [armL, armLy] = P0(ax1 - 1, ay1 - 6, 16), [armR, armRy] = P0(ax1 - 1, ay1 + 6, 16);
+      px.line(g, armL, armLy, armR, armRy, wood.base, Math.max(1, Math.round(1.5 * s)));
+      const [hx0, hy0] = lean(23, 1.3), [hx, hy] = P0(hx0, hy0, 23);
+      px.disc(g, hx, hy, 3.6 * s, sack.sh); px.disc(g, hx - .6, hy - .6, 2.9 * s, sack.base);
+      px.rect(g, hx - 2 * s, hy - 1 * s, 1, 1, '#3a2a1a'); px.rect(g, hx + 1 * s, hy - 1 * s, 1, 1, '#3a2a1a'); px.line(g, hx - 1.5 * s, hy + 1.5 * s, hx + 1.5 * s, hy + 1.5 * s, '#8a3a2a');
+      px.line(g, hx - 1, hy - 3.6 * s, hx + 2, hy - 4.6 * s, straw.lt);
+    } }),
+  react(m, hit) { if (m.body) m.body.hit(hit.ang || 0, 3 + (hit.kb || 0) * .02); m.hp = m.maxHp; P.add({ kind: 'bit', x: m.x, y: m.y, z: 16, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, vz: 60, g: 300, max: .8, color: '#d8b25a' }); }
+});
+
+const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'POSES'] };
+addEventListener('keydown', e => { if (ED.mode === 'gallery' && !e.repeat && /^(Arrow|Enter)/.test(e.code)) GAL.key = e.code; });
+const GAL_POSES = [
+  ['Idle', {}, 'He breathes and shifts his weight.'], ['Walk', { run: .55 }, 'A gait driven by velocity, not frames.'], ['Run', { run: 1.1 }, 'The cape streams behind.'],
+  ['Guard', { pose: 'guard' }, 'A boxer\'s guard.'], ['Block', { pose: 'block' }, 'Blade upright across the body.'], ['Ready', { stance: 'ready' }, 'Weapon held forward.'],
+  ['Cast', { pose: 'cast' }, 'Both hands forward.'], ['Cheer', { pose: 'cheer', expr: 'shout' }, 'Victory: fists pump, the blade points up.'], ['Wave', { pose: 'wave', expr: 'smile' }, 'A greeting.'],
+  ['Hands on hips', { pose: 'hips', expr: 'smile' }, 'A cocky idle.'], ['Kneel', { pose: 'kneel' }, 'Resting, or wounded.'], ['Crouch', { pose: 'crouch' }, 'Ducking low.'],
+  ['Airborne', { air: true }, 'Legs tuck in a jump.'], ['Dash', { dash: true }, 'Leaning into a dash.'], ['Hurt', { hurt: true, expr: 'wince' }, 'A flinch: one arm shields the face.'],
+  ['Knocked down', { down: 1 }, 'Flat on his back, then up again.'], ['Fall', { pose: 'die' }, 'A stagger, the knees give, a topple.'], ['Climb', { climb: true, vz: 30 }, 'Hand over hand.']
+];
+function galItems() {
+  if (GAL.reel === 0) return Object.keys(REG.skills);
+  if (GAL.reel === 1) return Object.keys(REG.archetypes).filter(id => id !== 'dummy' && !REG.archetypes[id].bossBody);
+  return GAL_POSES.map((p, i) => i);
+}
+function galStage() {
+  const w = 26, hh = 20, cells = new Array(w * hh).fill(0);
+  for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) if (!x || !y || x === w - 1 || y === hh - 1) cells[y * w + x] = 1;
+  const L0 = { kind: 'gallery', rec: { depth: 3, seed: 3, pool: [] }, depth: 3, name: 'The Gallery', theme: REG.themes.crypt, hue: 0, w, h: hh, cells, tags: new Array(w * hh).fill(null), rooms: [{ x: 1, y: 1, w: w - 2, h: hh - 2, cx: w / 2, cy: hh / 2 }], things: [], props: [], torches: [], runes: [{ x: w * 8, y: hh * 8, r: 44 }], mechs: [], seen: new Uint8Array(w * hh).fill(1), t: 0 };
+  L0.pal = CRYPT; L0.map = new E.TileMap({ w, h: hh, tile: T16, cells, types: REG.themes.crypt.walls, floorTex: (x, y, tag) => cryptFloor(L0, x, y, tag, CRYPT) }); deepCutaway(L0.map); L0.flow = new E.FlowField(L0.map);
+  for (const [x, y] of [[5, 5], [21, 5], [5, 15], [21, 15]]) L0.torches.push({ x: x * T16, y: y * T16, t: Math.random() * 9, kind: 'brazier', color: '#ff9a4a', r: 4.5, solid: true });
+  L0.randomFloor = (R, o) => randomFloor(L0, R, o); L0.start = { x: w * 8 - 30, y: hh * 8 };
+  return L0;
+}
+function galReset() {
+  const h = ED.hero, L0 = ED.L, cx = L0.w * 8, cy = L0.h * 8;
+  ED.foes.length = 0; ED.corpses.length = 0; ED.fx.length = 0; ED.allies.length = 0; ED.drops.length = 0; P.list.length = 0;
+  endAction(h); h.x = cx - 34; h.y = cy; h.vx = h.vy = 0; h.z = 0; h.facing = h.aim = 0; h.hp = h.maxHp; h.st = {}; h.inv = 0; h.dead = false; h.alive = true; h.ember = h.maxEmber; h.cds = {}; h.buffs = []; computeStats(h);
+  GAL.t = 0; GAL.fired = 0;
+  const items = galItems(); GAL.i = (GAL.i + items.length) % Math.max(1, items.length); GAL.cur = items[GAL.i];
+  if (GAL.reel === 0) {   // a ring of dummies to strike
+    for (const [dx, dy] of [[40, 0], [58, -18], [58, 18], [76, 0], [34, -30], [34, 30]]) { const m = spawnMonster('dummy', cx + dx - 20, cy + dy, { instant: true }); if (m) { m.homeX = m.x; m.homeY = m.y; m.noLoot = true; m.facing = Math.PI; } }
+    const id = GAL.cur; h.skills[id] = Object.assign({}, h.skills[id] || {}, { rank: Math.max(3, (h.skills[id] && h.skills[id].rank) || 0) }); h.slots[5] = id;
+  } else if (GAL.reel === 1) {
+    const m = spawnMonster(GAL.cur, cx + 30, cy, { instant: true, level: 3 }); if (m) { m.noLoot = true; m.ai.aware = true; m.facing = Math.PI; GAL.mon = m; }
+  }
+}
+const galleryScene = {
+  enter() {
+    ED.mode = 'gallery'; UI.closeAll(); BUS.clear('level');
+    if (!ED.hero) ED.hero = loadHeroOrNew();
+    const L0 = galStage(); enterWorld(L0); ED.depth = 3; L.ambient = .16;
+    GAL.i = 0; galReset(); game.setZoom(1.75); playSong('title');
+  },
+  exit() { game.timeScale = 1; ED.foes.length = 0; },
+  update(dt) {
+    const inp = game.input, h = ED.hero, items = galItems();
+    if (updateUI(dt)) return;
+    if (inp.pressed('cancel')) { game.go('title'); return; }
+    if (GAL.key) { const k = GAL.key; GAL.key = null;
+      if (k === 'ArrowRight' || k === 'ArrowLeft') { GAL.i += k === 'ArrowRight' ? 1 : -1; galReset(); sfx('select'); }
+      else if (k === 'ArrowUp' || k === 'ArrowDown') { GAL.reel = (GAL.reel + (k === 'ArrowDown' ? 1 : GAL.reels.length - 1)) % GAL.reels.length; GAL.i = 0; galReset(); sfx('confirm'); }
+      else if (k === 'Enter') galReset(); }
+    GAL.t += dt; h.speedK = 0;   // the arrow keys browse here, so the hero stays put
+    h.inv = 99; h.hp = h.maxHp; h.ember = h.maxEmber;
+    if (GAL.reel === 0) {
+      // the hero repeats the skill every few seconds, aimed at the dummies
+      const id = GAL.cur, S = REG.skills[id];
+      h.aim = 0; h.tx = h.x + 60; h.ty = h.y;
+      if (S && !h.act && GAL.t > .8 + GAL.fired * 2.6 && GAL.fired < 4) { h.cds = {}; h.ember = h.maxEmber; if (useSlot(h, 5)) GAL.fired++; }
+      if (S && S.again && h.act && h.act.skill === id && h.act.free) useSlot(h, 5);   // play whole combos
+      if (GAL.t > 11) galReset();
+    } else if (GAL.reel === 1) {
+      const m = GAL.mon;
+      if (m && m.alive && GAL.t > 7) { m.st = {}; dealDamage(m, { src: h, amount: m.hp + 1, el: 'phys', kb: 160, ang: 0, noNumber: false }); }
+      if (GAL.t > 10) galReset();
+      if (h.act === null) { h.facing = E.approachAng(h.facing, m ? angTo(h, m) : 0, dt * 6); h.aim = h.facing; }
+    }
+    if (GAL.reel === 2) {   // poses: the rig alone
+      const p = GAL_POSES[GAL.cur] || GAL_POSES[0], st = Object.assign({ x: h.x, y: h.y, z: 0, vx: 0, vy: 0, facing: Math.PI / 2 + Math.sin(GAL.t * .5) * .8 }, p[1]);
+      if (p[1].down) st.down = GAL.t % 4 < 2.2 ? 1 : 0;
+      if (p[1].pose === 'die' && GAL.t > 3.5) galReset();
+      h.rig.update(dt, st); h.facing = st.facing; settleCape(h.rig, dt, .3);
+      for (const b of ED.L.torches) b.t += dt;
+    } else worldStep(dt, { canAct: false, gallery: true });
+    h.x = clamp(h.x, ED.L.w * 8 - 60, ED.L.w * 8); h.y = clamp(h.y, ED.L.h * 8 - 30, ED.L.h * 8 + 30);
+    game.focus(ED.L.w * 8, ED.L.h * 8, 10);
+    if (inp.pressed('labels')) { GAL.slow = !GAL.slow; }
+    game.timeScale = GAL.slow ? .3 : 1;
+  },
+  draw(r) {
+    const L0 = ED.L;
+    L0.map.drawFloor(r); L0.map.queueWalls(r); drawTorches(L0, r);
+    for (const m of ED.corpses) drawFoe(m, r);
+    for (const m of ED.foes) drawFoe(m, r);
+    for (const a of ED.allies) if (a.draw) a.draw(r);
+    drawHero(ED.hero, r); drawFx(r);
+    L.add(L0.w * 8, L0.h * 8, 3, 70, .5, { color: '#4fe0cc' });
+    r.overlay(g => {
+      const W = r.W, H = r.H, cx = W / 2, items = galItems();
+      E.font.title(g, 'GALLERY', cx, 5, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
+      GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - 1) * 64, 24, i === GAL.reel ? GOLD : '#7a7098', { align: 'center', font: 'tiny', outline: '#0c0818' }));
+      let title = '', sub = '';
+      if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { title = S.name; sub = typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 30, 1); } }
+      else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
+      else { const p = GAL_POSES[GAL.cur] || GAL_POSES[0]; title = p[0]; sub = p[2]; }
+      E.font.text(g, title.toUpperCase(), cx, H - 34, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
+      E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 24 + i * 9, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false }));
+      E.font.text(g, (GAL.i + 1) + ' / ' + items.length + '   ← → pick   ↑ ↓ reel   ENTER replay   Z slow' + (GAL.slow ? ' (ON)' : '') + '   V view   ESC back', cx, H - 6, '#8a80a8', { align: 'center', font: 'tiny', outline: false });
+    });
+    drawPanels(r);
+  }
+};
+
+/* =============================================================================
+ * AUTOPILOT: a bot that plays the hero (balance runs, soak tests, and the title screen's attract mode)
+ * It drives a virtual input (h.bot.input) the hero controller reads instead of the keyboard: a world move
+ * direction, an aim point, and the slot / dodge / potion presses. It fights the nearest pack, dodges wind-ups
+ * and warnings, drinks when low, loots, spends points, equips upgrades and heads for the exit.
+ *   window.__ed.bot(true)   take over the current hero        __ed.botRun({ to: 10 }) play depths down to 10
+ * ============================================================================= */
+function makeBotInput() {
+  return { aimSource: 'bot', aimAt: null, worldMove: [0, 0], padAim: null, _p: {}, _d: {},
+    move() { return [0, 0]; }, buffered(a) { return !!this._p[a]; }, consume(a) { this._p[a] = false; }, pressed(a) { return !!this._p[a]; }, released() { return false; },
+    down(a) { return !!this._d[a]; }, repeat() { return false; }, press(a) { this._p[a] = true; }, clear() { this._p = {}; } };
+}
+function botOn(h, on = true) { if (!h) return; if (on) h.bot = { input: makeBotInput(), flow: null, ft: [-1, -1], t: 0, stuck: 0, lx: h.x, ly: h.y, goal: null, think: 0, log: [] }; else h.bot = null; }
+/** is the hero standing where something is about to land? (enemy wind-ups, boss telegraphs, charging monsters) */
+function botDanger(h) {
+  for (const f of ED.fx) if (f.kind === 'tele' && !f.cancelled && f.t > f.dur * .25) {
+    if (f.shape === 'circle' && Math.hypot(h.x - f.x, h.y - f.y) < f.r + h.r + 2) return [f.x, f.y];
+    if (f.shape === 'arc' && E.inArc(f, f.ang, h, f.r, f.half)) return [f.x, f.y];
+    if (f.shape === 'line') { const ca = Math.cos(f.ang), sa = Math.sin(f.ang), dx = h.x - f.x, dy = h.y - f.y, al = dx * ca + dy * sa, sd = Math.abs(-dx * sa + dy * ca); if (al > 0 && al < f.len && sd < f.w / 2 + h.r + 2) return [h.x - sa * 10, h.y + ca * 10]; }
+  }
+  for (const m of ED.foes) if (m.alive && m.atk && m.atk.phase === 'wind' && m.atk.u > .45 && Math.hypot(m.x - h.x, m.y - h.y) < 30) return [m.x, m.y];
+  return null;
+}
+function botScore(it) { if (!it) return -1; const w = it.dmg ? (it.dmg[0] + it.dmg[1]) * 1.5 : 0; return it.rarity * 12 + it.ilvl * 3 + w + it.affixes.length * 3 + (it.armor || 0) * .3; }
+function botManage(h) {
+  // equip upgrades from the bag
+  for (const it of h.bag.slice()) { const slot = it.slot === 'ring' ? (!h.gear.ring ? 'ring' : !h.gear.ring2 ? 'ring2' : botScore(h.gear.ring) < botScore(h.gear.ring2) ? 'ring' : 'ring2') : it.slot; if (botScore(it) > botScore(h.gear[slot]) + 2) equip(h, it, slot); }
+  while (h.bag.length > 30) { const it = h.bag.shift(); gainGold(h, it.value); }   // sells the rest (the bot has no patience for shops)
+  // learn skills: fill empty slots with unlocked skills, then rank up what is slotted
+  const known = Object.keys(REG.skills).filter(id => (REG.skills[id].unlock || 1) <= h.level);
+  let guard = 20;
+  while (h.pts.skill > 0 && guard-- > 0) {
+    const empty = h.slots.findIndex((s, i) => !s && i > 0), fresh = known.filter(id => !(h.skills[id] && h.skills[id].rank) && !REG.skills[id].noAuto);
+    if (empty > 0 && fresh.length) { const id = rnd.pick(fresh); h.skills[id] = { rank: 1 }; h.slots[empty] = id; h.pts.skill--; continue; }
+    const up = h.slots.filter(Boolean).filter(id => h.skills[id] && h.skills[id].rank < 5);
+    if (!up.length) break; const id = rnd.pick(up); h.skills[id].rank++; h.pts.skill--;
+    if (h.skills[id].rank >= 2 && !h.skills[id].rune && REG.skills[id].runes) h.skills[id].rune = rnd.pick(REG.skills[id].runes).id;
+  }
+  if (h.pts.passive > 0 && typeof autoAllocatePassives === 'function') autoAllocatePassives(h);
+  computeStats(h);
+}
+/** one bot decision per step: returns nothing, fills h.bot.input */
+function botThink(h, dt) {
+  const B = h.bot, I = B.input, L0 = ED.L; I.clear(); I._d = {};
+  if (!L0 || !h.alive) return;
+  B.t += dt; B.think -= dt;
+  if (B.think <= 0) { B.think = .5; botManage(h); }
+  const moved = Math.hypot(h.x - B.lx, h.y - B.ly); B.lx = h.x; B.ly = h.y; B.stuck = moved < .15 ? B.stuck + dt : Math.max(0, B.stuck - dt * 2);
+  // drink when low
+  if (h.hp < h.maxHp * .38 && h.potions > 0 && h.potionT <= 0) I.press('potion');
+  // dodge out of danger (a perpendicular hop away from the threat)
+  const dz = botDanger(h);
+  if (dz && h.dodges > 0 && h.dodgeT <= 0) { const a = Math.atan2(h.y - dz[1], h.x - dz[0]) + (Math.random() < .5 ? .6 : -.6); I.worldMove = [Math.cos(a), Math.sin(a)]; I.press('dodge'); I.aimAt = [h.x + Math.cos(a) * 30, h.y + Math.sin(a) * 30]; return; }
+  // the target: the nearest living monster within sight, else loot, else the exit
+  let foe = null, fd = 1e9;
+  for (const m of ED.foes) { if (!m.alive || m.spawnT > 0 || m.untargetable || (m.fade !== undefined && m.fade < .2 && !m.boss)) continue; const d = Math.hypot(m.x - h.x, m.y - h.y); if (d < fd) { fd = d; foe = m; } }
+  const near = foe && fd < 170;
+  let goal = null;
+  if (near) goal = [foe.x, foe.y];
+  else { const d0 = ED.drops.filter(d => d.kind === 'item' && d.rest && labelShown(d)).sort((a, b) => dist2(a, h) - dist2(b, h))[0]; if (d0 && Math.hypot(d0.x - h.x, d0.y - h.y) < 120 && h.bag.length < BAG_MAX) goal = [d0.x, d0.y]; }
+  if (!goal) { const left = ED.foes.filter(m => m.alive).length, total = (L0.packs && L0.packs.length * 6) || 60; goal = foe && (left > total * .35 || (L0.exit && !L0.exit.open)) ? [foe.x, foe.y] : L0.exit && L0.exit.open ? [L0.exit.x, L0.exit.y] : foe ? [foe.x, foe.y] : [L0.start.x, L0.start.y]; }
+  B.goal = goal;
+  // walk there around walls (a flow field toward the goal cell)
+  const cell = [Math.floor(goal[0] / T16), Math.floor(goal[1] / T16)];
+  if (!B.flow || B.flow.map !== L0.map) B.flow = new E.FlowField(L0.map);
+  if (cell[0] !== B.ft[0] || cell[1] !== B.ft[1]) { B.flow.update(goal[0], goal[1]); B.ft = cell; }
+  const gd = Math.hypot(goal[0] - h.x, goal[1] - h.y), reach = near ? (foe.r + 14) : 4;
+  let mv = [0, 0];
+  if (gd > reach) mv = gd < 48 ? [(goal[0] - h.x) / gd, (goal[1] - h.y) / gd] : B.flow.dir(h.x, h.y, goal[0], goal[1]);
+  if (B.stuck > .8) { const a = Math.random() * TAU; mv = [Math.cos(a), Math.sin(a)]; if (B.stuck > 1.6) { I.press('dodge'); B.stuck = 0; } }
+  I.worldMove = mv; I.aimAt = near ? [foe.x, foe.y] : [h.x + mv[0] * 30 + .01, h.y + mv[1] * 30];
+  if (!near) return;
+  // fight: spenders and cooldowns when there is a crowd or an elite, the basic attack otherwise
+  const crowd = GRID.near(h.x, h.y, 50).length, big = foe.elite || foe.boss;
+  for (let i = 5; i >= 1; i--) {
+    const id = h.slots[i]; if (!id) continue; const S = REG.skills[id]; if (!S || h.cds[id] > 0 || h.ember < skillCost(h, S)) continue;
+    const want = (S.tags || []).includes('aoe') || S.kind === 'ultimate' ? crowd >= 3 || big : S.kind === 'mobility' ? fd > 60 : true;
+    if (want && fd < (S.range || (S.tags || []).includes('melee') ? 40 : 150)) { I.press(SLOT_ACTS[i]); I._d[SLOT_ACTS[i]] = true; break; }
+  }
+  if (fd < foe.r + 22) { I.press('s0'); I._d.s0 = true; }
+}
+BUS.on('step', () => { const h = ED.hero; if (h && h.bot) botThink(h, 1 / 120); });
+/* a soak / balance run: the bot plays depth after depth and logs how it went (time, level, deaths, potions) */
+const BOT_RUN = { on: false, to: 0, log: [] };
+function botRun(o = {}) {
+  BOT_RUN.on = true; BOT_RUN.to = o.to || 10; BOT_RUN.log = []; BOT_RUN.start = ED.t;
+  if (!ED.hero) ED.hero = newHero();
+  botOn(ED.hero, true); game.timeScale = o.speed || 3;
+  descend(o.from || 1);
+}
+BUS.on('levelStart', e => { const h = ED.hero; if (BOT_RUN.on && h) { botOn(h, true); BOT_RUN.t0 = ED.t; BOT_RUN.deaths0 = BOT_RUN.deaths || 0; } });
+BUS.on('levelEnd', e => { const h = ED.hero; if (!BOT_RUN.on || !h || !e.L || !e.L.depth) return; BOT_RUN.log.push({ depth: e.L.depth, name: e.L.name, time: +(ED.t).toFixed(1), level: h.level, hp: Math.round(h.hp / h.maxHp * 100), gold: h.gold, kills: ED.stats.kills, deaths: BOT_RUN.deaths || 0 }); if (e.L.depth >= BOT_RUN.to) { BOT_RUN.on = false; game.timeScale = 1; botOn(h, false); } });
+BUS.on('heroDie', () => { if (!BOT_RUN.on) return; BOT_RUN.deaths = (BOT_RUN.deaths || 0) + 1; game.after(2.5, () => { UI.closeAll(); reviveHero(ED.hero); descend(ED.depth || 1); }); });
+
 /* ---------- START: powers listen, the title (or a deep link: #town, #depth-7, #proving) ---------- */
 installPowers();
-const scenes = { title: titleScene, town: townScene, level: levelScene, proving: provingScene };
+const scenes = { title: titleScene, town: townScene, level: levelScene, proving: provingScene, gallery: galleryScene };
 game.views = ['iso', 'threequarter', 'topdown', 'brawler'];
 const link = (location.hash || '').slice(1), dm = /^depth-(\d+)$/.exec(link);
-if (link === 'town' || dm || link === 'proving') { ED.hero = loadHeroOrNew(); }
-game.start({ scenes, scene: link === 'town' ? 'town' : dm ? 'level' : link === 'proving' ? 'proving' : 'title', data: dm ? { depth: +dm[1] } : link === 'town' ? { arrive: 'waystone' } : undefined });
+if (link === 'town' || dm || link === 'proving' || link === 'gallery') { ED.hero = loadHeroOrNew(); }
+game.start({ scenes, scene: link === 'town' ? 'town' : dm ? 'level' : link === 'proving' ? 'proving' : link === 'gallery' ? 'gallery' : 'title', data: dm ? { depth: +dm[1] } : link === 'town' ? { arrive: 'waystone' } : undefined });
 /* a handle for tools, tests and the curious: window.__ed */
-window.__ed = { game, ED, REG, UI, DIFF, OPT, BUS, FX, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG };
+window.__ed = { game, ED, REG, UI, DIFF, OPT, BUS, FX, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
 })();
 
 </script>

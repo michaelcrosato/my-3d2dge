@@ -9,7 +9,7 @@ function setupGPU(map) {
 }
 /* ---------- save / load ---------- */
 const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash'];
-function saveGame() { const h = ED.hero; if (!h) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
+function saveGame() { const h = ED.hero; if (!h || ED.demo) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
 function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); itemUid = mx + 1; return s; }
 function newHero() {
   const h = makeHero(null);
@@ -107,7 +107,7 @@ function dropIn(h, from = 150) {
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
   const save = E.store.get('ed:save', null);
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['SETTINGS', () => UI.open('settings')]].filter(Boolean);
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')]].filter(Boolean);
 }
 function loadHeroOrNew() { const s = loadSave(); if (s) { const h = makeHero(s); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(); }
 function startGame(fresh) { if (fresh) { E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
@@ -130,6 +130,8 @@ const titleScene = {
     TITLE.t += dt;
     if (updateUI(dt)) return;
     const h = ED.titleHero, items = titleItems();
+    if (game.input.anyPressed() || UI.mouse.down) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
+    if (TITLE.idle > 28 && !UI.stack.length) { TITLE.idle = 0; startDemo(); return; }
     h.rig.update(dt, { x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02), pose: TITLE.t % 9 > 7.2 ? 'cheer' : null });
     h.facing = h.rig.facing;
     for (const b of ED.L.torches) b.t += dt;
@@ -161,6 +163,18 @@ const titleScene = {
     drawPanels(r);
   }
 };
+
+/* ---------- ATTRACT MODE: a demo hero, played by the autopilot on a random depth; any key returns to the title ---------- */
+function startDemo() {
+  ED.demo = true; ED.realHero = ED.hero;
+  const h = newHero(), depth = 1 + Math.floor(Math.random() * Math.min(15, PLANNED)), R = RNG(depth * 7 + 1);
+  h.level = 3 + depth * 2; h.pts.skill = h.level; h.pts.passive = 0;
+  for (const s of ['weapon', 'helm', 'chest', 'gloves', 'boots', 'cloak', 'legs']) if (R() < .8) h.gear[s] = makeItem({ slot: s, ilvl: depth + 2, rarity: R.int(1, 3), R });
+  refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h);
+  ED.hero = h; botOn(h, true); botManage(h);
+  game.go('level', { depth, demo: true });
+}
+function endDemo() { ED.demo = false; ED.hero = ED.realHero || null; ED.realHero = null; game.go('title'); }
 
 /* ---------- TOWN ---------- */
 const talk = new E.Dialog(game, { bg: ['#2a2040', '#141024'], border: '#c8b8e8' });
@@ -231,6 +245,7 @@ const levelScene = {
   },
   exit() { BUS.emit('levelEnd', { L: ED.L }); game.timeScale = 1; },
   update(dt) {
+    if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
     if (talk.update(dt)) return;
     if (updateUI(dt)) return;
     const L0 = ED.L, h = ED.hero, inp = game.input;
@@ -252,7 +267,7 @@ const levelScene = {
       sfx('portal'); goTown({ arrive: 'portal' });
     }
   },
-  draw(r) { worldDraw(r); talk.draw(r); }
+  draw(r) { worldDraw(r); talk.draw(r); if (ED.demo) r.overlay(g => { const a = .6 + .4 * Math.sin(game.real * 3); px.blend(g, a, 'normal', () => E.font.text(g, 'DEMO  -  PRESS ANY KEY', r.W / 2, 30, '#ffd36a', { align: 'center', shadow: '#05040a', outline: '#0c0818' })); }); }
 };
 
 /* ---------- THE PROVING GROUNDS: the stress test lives on as an endless horde in the rune hall ---------- */
