@@ -132,13 +132,16 @@ function notify(text, color = '#fff2c4', dur = 3) { notes.push({ text, color, t:
 const shake = n => { if (OPT.shake) game.shake(n); };
 
 /* ---------- scaling: the curves that let depth go on forever ---------- */
+// Both sides grow exponentially and the monsters' base is a little higher, so every depth is a touch harder than the
+// last for the same player skill: item power x1.08 per item level (weapon damage, flat life, armor), monster life x1.10
+// and damage x1.075 per depth. Levels, passives, ranks and percent affixes are the hero's edge; past ~100 the deep wins.
 const SCALE = {
-  foeHp: d => Math.pow(1.14, d - 1) * (1 + d * .04),
-  foeDmg: d => Math.pow(1.09, d - 1) * (1 + d * .03),
+  foeHp: d => Math.pow(1.1, d - 1) * (1 + d * .02),
+  foeDmg: d => Math.pow(1.075, d - 1) * (1 + d * .02),
   foeXp: d => Math.pow(1.11, d - 1) * (1 + d * .05),
-  gold: d => Math.pow(1.1, d - 1) * (1 + d * .1),
+  gold: d => Math.pow(1.08, d - 1) * (1 + d * .1),
   /** xp to go from hero level l to l + 1 */
   xpNeed: l => Math.round(90 * Math.pow(l, 1.75) + 30 * l),
-  /** item affix values grow with item level (tiers pick the band, this stretches it) */
-  ilvl: il => 1 + (il - 1) * .09 + Math.pow(Math.max(0, il - 20), 1.25) * .02
+  /** item power grows with item level: flat stats and weapon damage (percent affixes grow gently on their own) */
+  ilvl: il => Math.pow(1.08, il - 1) * (1 + (il - 1) * .015)
 };

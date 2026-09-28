@@ -82,7 +82,7 @@ AF('hale', 'life', 'prefix', ARM.concat(JWL), [8, 20], TIERS('Hale', 'Stout', 'R
 AF('vital', 'lifePct', 'prefix', ['chest', 'amulet'], [4, 9], TIERS('Vital', 'Hardy', 'Enduring', 'Undying', 'Eternal'), { weight: 7 });
 AF('plated', 'armor', 'prefix', ARM, [6, 14], TIERS('Studded', 'Plated', 'Fortified', 'Bulwark', 'Adamant'), { scale: 'flat', weight: 12 });
 AF('warded', 'armorPct', 'prefix', ARM, [10, 25], TIERS('Warded', 'Reinforced', 'Bastion', 'Citadel', 'Unbreaking'));
-AF('glowing', 'ember', 'prefix', ['helm', 'amulet', 'ring', 'chest'], [8, 16], TIERS('Glowing', 'Radiant', 'Luminous', 'Blazing', 'Sunlit'), { scale: 'flat' });
+AF('glowing', 'ember', 'prefix', ['helm', 'amulet', 'ring', 'chest'], [8, 16], TIERS('Glowing', 'Radiant', 'Luminous', 'Blazing', 'Sunlit'), { scale: 'pct' });   // ember stays a resource: it never scales with item power
 AF('deadly', 'critDmg', 'prefix', WPN.concat(['amulet', 'gloves']), [12, 26], TIERS('Deadly', 'Lethal', 'Murderous', 'Executioner\'s', 'Fatal'));
 AF('precise', 'crit', 'prefix', WPN.concat(['gloves', 'ring', 'helm']), [1.5, 4], TIERS('Precise', 'Keen-eyed', 'Unerring', 'Sniper\'s', 'Fateful'), { scale: 'none' });
 AF('swift', 'atkSpeed', 'prefix', WPN.concat(['gloves', 'ring']), [4, 9], TIERS('Swift', 'Quick', 'Rapid', 'Blurring', 'Lightning'), { scale: 'none' });
@@ -172,7 +172,7 @@ function makeItem(o = {}) {
   // legendary power
   if (rarity === 3) { const pw = o.power ? REG.powers[o.power] : R.pick(Object.values(REG.powers).filter(p => !p.slots || p.slots.includes(it.slot)) || []); if (pw) { it.power = pw.id; } else it.rarity = 2; }
   it.name = itemName(it, R);
-  it.value = Math.round(4 * (1 + ilvl * .35) * RARITY[it.rarity].value);
+  it.value = itemValue(ilvl, it.rarity);
   if (it.rarity >= 2 && it.look) tintLegend(it, R);
   return it;
 }
@@ -184,9 +184,11 @@ function makeUnique(id, ilvl, R) {
   if (base.armor) { it.armor = Math.round(base.armor * SCALE.ilvl(ilvl) * 1.2); it.implicit.push({ stat: 'armor', v: it.armor }); }
   for (const [stat, v] of U.stats || []) { const k = STATS[stat] && STATS[stat].f === 'flat' ? SCALE.ilvl(ilvl) : 1; it.affixes.push({ id: 'u', stat, v: Math.round(v * k * 10) / 10, tier: 4 }); }
   if (base.gems) it.gem = U.gem || base.gems[0];
-  it.value = Math.round(4 * (1 + ilvl * .35) * 30);
+  it.value = itemValue(ilvl, 4);
   return it;
 }
+/** what an item sells for: it follows the gold curve, so shops stay meaningful at any depth */
+function itemValue(ilvl, rarity) { return Math.round(4 * SCALE.gold(ilvl) * (1 + ilvl * .2) * RARITY[rarity].value); }
 /** rares and legendaries get a matching trim and a richer finish */
 function tintLegend(it, R) {
   const c = it.look.colors || (it.look.colors = {});
