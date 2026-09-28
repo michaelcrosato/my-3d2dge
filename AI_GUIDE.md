@@ -28,7 +28,7 @@ It aims for **consistent quality**: the engine carries the hard parts (feel, phy
 
 1. **Name the core loop.** Mega Man: run, jump, shoot, reach the boss. Zelda: explore rooms, fight, find keys, open doors. 1942: dodge, shoot, survive waves, beat the boss. Write it as one sentence at the top of the game.
 2. **Pick the view and the kit.** Use the genre playbook in `API.md`. A side-scroller is `PlatformMap` + `Platformer` in `'side'`; a top-down game is `TileMap` + `Body`. Pick a console resolution (`res: 'nes'` or `'snes'`) so HUD pixel positions are stable.
-3. **Copy the closest starter slice.** The four slices in the single file are complete games (title, gameplay, HUD, win and lose, music). Start from one and change it. Do not start from an empty file.
+3. **Copy the closest starter slice.** The five slices in the single file (adventure, platformer, brawler, shooter, RPG battle) are complete games with gameplay, HUD, win and lose, and music. Start from one and change it, and ship only your game with its own title and game-over scenes. Do not start from an empty file.
 4. **Rebuild the content.** Levels are ASCII rows with a legend, enemies are small factories, items are sprites. Keep the original's layout ideas but make your own maps; for a remix, change the rules on purpose.
 5. **Modernize.** The engine gives you most of it for free:
    - forgiving controls: coyote time, jump buffering, variable jump height, input buffering;
@@ -81,7 +81,7 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
 - `pausable: true` lets `pause` (Escape, P, Start) toggle `game.paused`; a PAUSED overlay is drawn and the music is ducked.
 
 ### Camera
-- `game.focus(x, y, z)` every update.
+- `game.follow(hero, { z, lead })` once, or `game.focus(x, y, z)` every update.
 - `cam.bounds = v => map.bounds(v)` (or `level.bounds`) keeps it inside the level.
 - `cam.room = [w, h]` snaps the target to the center of the current room; the camera then slides, so Zelda- and Metroid-style room transitions come for free. Freeze gameplay while `cam.moving` is true.
 - Screen shake respects the player's reduced-motion setting.
@@ -98,6 +98,7 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
 - Tiles live on the x/z plane; the ASCII top row is the highest.
 - Kinds:
   - `solid`;
+  - `slope`: `dir: 1` rises to the right, `-1` to the left, `from` / `to` (0..1) for gentle slopes; bodies walk up and down them and step up onto low ledges;
   - `oneway`: you stand on it and jump up through it, and down + jump drops through;
   - `ladder`: climbable, and you can stand on its top;
   - `hazard`: not solid; test it with `touching(body, 'hazard')`;
@@ -130,6 +131,7 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
 - `new E.Attack(spec)` owns the wind-up, active and recover timers of one move; the spec is also the Humanoid attack spec.
 - `start()` begins a swing (pass `true` to chain from recover into a combo); `update(dt)` returns the phase that just began, which is where swing sounds go.
 - `hits(targets, test, fn)` calls `fn` once per target per swing while active. `state` feeds `rig.update({ attack })`.
+- `E.Combo([spec1, spec2, spec3], { window })` chains attacks: `press()` flows into the next hit during recover (or shortly after), otherwise restarts. `E.knockback(from, target, speed, up)` pushes the target away.
 
 ### Bullets and patterns
 - A pool on the `'ground'` plane (top-down) or the `'side'` plane.
@@ -201,7 +203,7 @@ const s = level.find('hero'), hero = new E.Platformer({ x: s.x, z: s.z }), rig =
 - The hero is a `Body` moved by `screenDirToGround(input.move())`. A sword swing is an `E.Attack` with `hits(foes, f => E.inArc(...), ...)`.
 - Talk with `Dialog`, and open a locked door with `map.set(cx, cy, 0)` after checking a key count. Only run enemies in the hero's room, and freeze everything while `cam.moving`.
 
-**Beat-'em-up (Final Fight, Streets of Rage).**
+**Beat-'em-up (Final Fight, Streets of Rage).** Start from the BRAWLER slice.
 - Use the `brawler` view with a long `TileMap` floor strip (walls along the top edge only) and `cam.bounds` that scroll right.
 - Heroes and thugs are `Body` + `Humanoid` with `weapon: null`. Punches are attack specs with `blade: 0`; kicks use `kick: true, z0: 6, z1: 9`.
 - Hits need `E.inArc` plus a small y difference (same lane). Knock down with `body.push(dx, dy, 120)` and let gravity drop them.

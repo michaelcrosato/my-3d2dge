@@ -18,26 +18,27 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 
 | File | For | Size |
 |---|---|---|
-| **`dist/my-3d2dge.html`** | Models with large context windows (200k+ tokens). Readable engine. | ~98k tokens |
-| **`dist/my-3d2dge-compact.html`** | Older or smaller models (128k context). Same file with the engine minified. | ~74k tokens |
+| **`dist/my-3d2dge.html`** | Models with large context windows (200k+ tokens). Readable engine. | ~104k tokens |
+| **`dist/my-3d2dge-compact.html`** | Older or smaller models (128k context). Same file with the engine minified. | ~79k tokens |
 
 Attach the file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-like with three dungeons", "a spiritual successor to Gradius"). Each file contains:
 
 1. **The API card**: a quick-start game, a table of coordinates per view, rules, common mistakes, the full API and a genre playbook.
 2. **The engine** (no dependencies, no network).
-3. **A starter game** with four vertical slices to copy from:
+3. **A starter game** with five vertical slices to copy from:
    - ADVENTURE (Zelda-style top-down)
    - PLATFORMER (Mario / Mega Man side-scroller with a 2.5D view)
+   - BRAWLER (Final Fight / Streets of Rage beat-'em-up)
    - SHOOTER (1942-style vertical shmup)
    - RPG BATTLE (Dragon Quest / Final Fantasy turn-based)
 
-The model copies the closest slice and replaces the code between `GAME START` and `GAME END`. Opened in a browser, the same file is playable. Press `?` for the API card, and add `#adventure`, `#platformer`, `#shooter` or `#rpg` to the address to jump straight into a slice.
+The model copies the closest slice and replaces the code between `GAME START` and `GAME END`. Opened in a browser, the same file is playable. Press `?` for the API card, and add `#adventure`, `#platformer`, `#brawler`, `#shooter` or `#rpg` to the address to jump straight into a slice.
 
 ## Try it
 
 | File | What it shows |
 |---|---|
-| `dist/my-3d2dge.html` | Title menu plus the four vertical slices. Arrows and Enter; `V` changes the view, `M` mutes. |
+| `dist/my-3d2dge.html` | Title menu plus the five vertical slices. Arrows and Enter; `V` changes the view, `M` mutes. |
 | `examples/arena-iso.html` | **Emberwell**, an action-RPG arena in isometric view (Diablo, Bastion) with WebGPU lighting |
 | `examples/arena-topdown.html` | The same game in the three-quarter view (Zelda, Stardew Valley) |
 | `examples/perspective-lab.html` | One room in every view, with lighting and skeleton toggles |
@@ -142,7 +143,7 @@ It presses start and plays the game (move, jump, attack, fire), then cycles the 
 
 ## Docs
 
-- `API.md`: the API card, about 7,100 tokens. It is embedded in both single files.
+- `API.md`: the API card, about 7,300 tokens. It is embedded in both single files.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 
 ## License

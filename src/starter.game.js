@@ -7,6 +7,8 @@
  *                        stomp and shoot, ? blocks, ladder, moving platform, 2.5D view (V)
  *   SLICE 3  SHOOTER     vertical shoot-'em-up (1942, Xevious): E.Bullets, waves, boss
  *   SLICE 4  RPG BATTLE  turn-based battle (Dragon Quest, Final Fantasy): E.Menu, turns
+ *   SLICE 5  BRAWLER     beat-'em-up (Final Fight, Streets of Rage): E.Combo punches, kicks,
+ *                        knockback, depth lanes, waves that lock the screen, a boss
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
  * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.).
@@ -24,6 +26,7 @@ const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE' },
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER' },
+  { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP' },
   { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE' }
 ];
@@ -269,11 +272,11 @@ const PLAT = (() => {
     '                               BB?BB          H            c    c        XXXX       ',
     '                                              H           ===  ===      XXXXX       ',
     '   c c              m       PP        PP      H                        XXXXXX   c   ',
-    ' @          g               PP   g    PP g    H     t                 XXXXXXX     F ',
+    ' @  /#\\     g               PP   g    PP g    H     t                 XXXXXXX     F ',
     '################          ################################^^^^^^^^##################',
     '################          ##########################################################'
   ];
-  const LEGEND = { '#': 1, 'X': 2, 'B': 3, '?': 4, 'U': 5, '=': 6, 'H': 7, '^': 8, 'P': 9, '@': 'hero', 'c': 'coin', 'g': 'walker', 't': 'turret', 'm': 'lift', 'F': 'flag' };
+  const LEGEND = { '#': 1, 'X': 2, 'B': 3, '?': 4, 'U': 5, '=': 6, 'H': 7, '^': 8, 'P': 9, '/': 10, '\\': 11, '@': 'hero', 'c': 'coin', 'g': 'walker', 't': 'turret', 'm': 'lift', 'F': 'flag' };
   const TYPES = {
     1: { style: 'ground', side: '#8a5a32', top: '#5fbf4a' },
     2: { style: 'block', side: '#b07a48' },
@@ -283,7 +286,9 @@ const PLAT = (() => {
     6: { kind: 'oneway', side: '#b07a40' },
     7: { kind: 'ladder', side: '#d8a048' },
     8: { kind: 'hazard', style: 'spikes', side: '#c8d0e0' },
-    9: { style: 'pipe', side: '#3aa050' }
+    9: { style: 'pipe', side: '#3aa050' },
+    10: { kind: 'slope', dir: 1, side: '#8a5a32', top: '#5fbf4a' },   // '/' ramp up
+    11: { kind: 'slope', dir: -1, side: '#8a5a32', top: '#5fbf4a' }   // '\\' ramp down
   };
   const COIN = E.sprite(['.yy.', 'yYyy', 'yYyy', 'yYyy', '.yy.'], { y: '#f0b020', Y: '#fff0a0' });
   const FLAG = E.sprite(['wRRRRR', 'wRRRR.', 'wRRR..', 'w.....', 'w.....', 'w.....', 'w.....', 'w.....', 'w.....', 'w.....', 'w.....', 'w.....'], { w: '#e8e8e8', R: '#e83838' }, 2);
@@ -299,6 +304,7 @@ const PLAT = (() => {
     hero = new E.Platformer({ x: spawn.x, z: spawn.z, w: 8, h: 22 });
     rig = rig || new E.Humanoid({ weapon: 'gun', hat: { style: 'cap', color: '#d83a2a' }, colors: { cloth: '#d83a2a', pants: '#2f5fd0', hair: '#3a2418' } });
     hp = 3; inv = 1.5;
+    game.follow(hero, { z: 30, lead: 20 });            // the camera tracks the hero (looking ahead of it) from now on
     shots = shots || new E.Bullets(game, { plane: 'side' }); shots.clear();
   }
   function hurt(dir) {
@@ -362,7 +368,6 @@ const PLAT = (() => {
     const f = level.find('flag');
     if (!clear && Math.abs(hero.x - f.x) < 10) { clear = true; score += 1000; A.music('victory'); game.after(5, () => game.go('title')); }
     rig.update(dt, hero.rigState({ point: inp.down('attack') }));
-    game.focus(hero.x + hero.facing * 20, 0, hero.z + 30);
   }
   function drawBack(r) {
     r.sky(['#3a78d8', '#78b8f0', '#b8e0f8']);
@@ -621,6 +626,123 @@ const RPG = (() => {
     enter() { start(); game.focus(122, 100, 0); }, update(dt) { update(dt); game.focus(122, 100, 0); }, draw };
 })();
 scenes.rpg = RPG;
+
+/* =====================================================================================
+ * SLICE 5  BRAWLER  (side-scrolling beat-'em-up)
+ * A long TileMap street seen from the 'brawler' camera: buildings along the back, a curb
+ * at the front, and depth lanes you walk up and down. J throws a 3-hit E.Combo, K kicks.
+ * Each wave locks the screen until it is cleared ("GO!"), then the street scrolls on.
+ * ===================================================================================== */
+const BRAWL = (() => {
+  const T = 16, LEN = 56;
+  const ROWS = ['#'.repeat(LEN), 's'.repeat(LEN), ...Array(4).fill('.'.repeat(LEN)), '_'.repeat(LEN), 's'.repeat(LEN), 's'.repeat(LEN)];   // buildings, sidewalk, 4 lanes, curb, front sidewalk
+  const LEGEND = { '#': 1, '_': 2, 's': { floor: 'walk' } };
+  const TYPES = { 1: { h: 56, top: '#4a4458', side: '#6a4a5a', line: '#3a2a3a', course: 7 }, 2: { h: 4, cut: true, cutH: 4, top: '#8a8494', side: '#5a5464' } };
+  const floorTex = (x, y, tag) => {
+    if (tag === 'walk') return E.tex.checker(x, y, { a: '#8a8290', b: '#7a7282', size: 8 });
+    if (Math.abs(y - 4 * T) < 1 && (Math.floor(x / 12) & 1)) return E.hex('#d8c050');   // lane stripe
+    return E.tex.plain(x, y, { base: '#3e3a46', amount: .18 });
+  };
+  const WAVES = [{ x: 14, foes: 2 }, { x: 28, foes: 3 }, { x: 42, foes: 4 }, { x: 52, boss: true }];
+  const JAB = { a0: .15, a1: -.1, z0: 14, z1: 14, reach: 9, blade: 0, wind: .04, active: .07, recover: .1 };
+  let map, hero, foes, wave, lockX, go, score, won;
+  const mkRig = o => new E.Humanoid(Object.assign({ weapon: null }, o));   // weapon: null = fists (the default is a sword)
+  function start() {
+    map = new E.TileMap({ rows: ROWS, legend: LEGEND, types: TYPES, floorTex });
+    game.cam.bounds = v => map.bounds(v);
+    hero = new E.Body({ x: 3 * T, y: 3.5 * T, r: 5 });
+    Object.assign(hero, { hp: 30, max: 30, facing: 0, inv: 0, hurt: 0,
+      combo: new E.Combo([JAB, Object.assign({}, JAB, { a0: -.1, a1: .1 }), Object.assign({}, JAB, { a0: .6, a1: -.4, z0: 10, z1: 18, active: .1, recover: .2 })], { window: .3 }),
+      kick: new E.Attack({ a0: .1, a1: 0, z0: 5, z1: 10, reach: 8, blade: 0, kick: true, wind: .08, active: .1, recover: .2 }),
+      rig: mkRig({ hat: { style: 'band', color: '#e03a3a' }, colors: { cloth: '#f0f0f0', pants: '#2f5fd0', hair: '#3a2418' } }) });
+    game.follow(hero, { z: 12, lead: 24 });
+    foes = []; wave = 0; lockX = WAVES[0].x * T; go = 0; score = 0; won = false;
+    A.music('boss'); L.enabled = false;
+  }
+  function spawnWave(w) {
+    const n = w.boss ? 1 : w.foes;
+    for (let i = 0; i < n; i++) {
+      const side = i % 2 ? -1 : 1, x = w.x * T + side * (90 + i * 12), y = (1.8 + (i * 1.3) % 4) * T;
+      const f = new E.Body({ x, y, r: w.boss ? 7 : 5, friction: 5 });
+      Object.assign(f, { hp: w.boss ? 40 : 8, max: w.boss ? 40 : 8, boss: !!w.boss, facing: Math.PI, t: 1 + Math.random(), stun: 0, flash: 0,
+        punch: new E.Attack({ a0: .3, a1: -.2, z0: 13, z1: 13, reach: 9, blade: 0, wind: w.boss ? .3 : .4, active: .08, recover: .35 }),
+        rig: mkRig(w.boss ? { hat: 'crown', hunch: .15, colors: { cloth: '#7a2a8a', pants: '#2a2a2a', skin: '#c89070' } }
+          : { hat: i % 2 ? 'cap' : null, hunch: .25, colors: { cloth: ['#3a8a4a', '#8a6a2a', '#2a6a8a'][i % 3], pants: '#3a3440', hair: '#2a1a14' } }) });
+      foes.push(f);
+    }
+  }
+  function hitFoe(f, dmg, force, up) {
+    f.hp -= dmg; f.flash = .1; f.stun = .35; f.punch.cancel(); f.rig.kick(2);
+    E.knockback(hero, f, force, up); score += dmg * 10;
+    game.freeze(up ? .08 : .045); game.shake(up ? 3 : 1.5); A.sfx(up ? 'kick' : 'punch');
+    P.sparks(lerp(hero.x, f.x, .5), lerp(hero.y, f.y, .5), 14, 6, Math.atan2(f.y - hero.y, f.x - hero.x));
+    if (f.hp <= 0) { f.dead = 1.2; f.push(0, 0, 160); score += f.boss ? 2000 : 200; }
+  }
+  function update(dt) {
+    const inp = game.input, h = hero;
+    h.inv -= dt; h.hurt -= dt; go -= dt;
+    if (h.hp <= 0) return;
+    // spawn the next wave when the hero reaches it; it locks the screen until cleared
+    const w = WAVES[wave];
+    if (w && !w.spawned && h.x > w.x * T - 60) { w.spawned = true; spawnWave(w); lockX = (w.x + 6) * T; }
+    if (w && w.spawned && !foes.some(f => !f.dead)) { wave++; go = 2.5; lockX = WAVES[wave] ? (WAVES[wave].x + 6) * T : LEN * T; if (!WAVES[wave]) { won = true; A.music('victory'); game.after(5, () => game.go('title')); } else A.sfx('confirm'); }
+    // move on the street (left / right and up / down the lanes)
+    const mv = inp.move(), md = game.view.screenDirToGround(mv[0], mv[1]), busy = h.combo.busy || h.kick.busy;
+    if (h.hurt <= 0) { h.vx = approach(h.vx, busy ? 0 : md[0] * 70, 800 * dt); h.vy = approach(h.vy, busy ? 0 : md[1] * 45, 800 * dt); }
+    if (!busy && Math.abs(md[0]) > .2) h.facing = md[0] > 0 ? 0 : Math.PI;
+    if (inp.buffered('attack') && !h.kick.busy && h.combo.press()) { inp.consume('attack'); A.sfx('whoosh'); }
+    if (inp.buffered('kick') && !h.combo.busy && h.kick.start()) { inp.consume('kick'); A.sfx('whoosh', { pitch: .8 }); }
+    h.combo.update(dt); h.kick.update(dt);
+    const inReach = f => !f.dead && Math.abs(f.y - h.y) < 9 && E.inArc(h, h.facing, f, 20, 1.1);
+    h.combo.hits(foes, inReach, f => hitFoe(f, h.combo.step === 2 ? 4 : 2, h.combo.step === 2 ? 190 : 60, h.combo.step === 2 ? 120 : 0));
+    h.kick.hits(foes, inReach, f => hitFoe(f, 3, 170, 90));
+    h.update(dt, map);
+    h.x = clamp(h.x, 8, Math.min(lockX, LEN * T - 8));
+    // thugs: walk to the hero's lane, wind up, punch
+    for (const f of foes) {
+      f.flash -= dt; f.stun -= dt;
+      if (f.dead) { f.dead -= dt; f.update(dt, map); continue; }
+      const dx = h.x - f.x, dy = h.y - f.y, want = dx > 0 ? -16 : 16;
+      if (f.stun <= 0 && !f.punch.busy) {
+        const tx = h.x + want - f.x; f.facing = dx > 0 ? 0 : Math.PI;
+        f.vx = approach(f.vx, Math.abs(tx) > 4 ? Math.sign(tx) * (f.boss ? 40 : 34) : 0, 300 * dt); f.vy = approach(f.vy, Math.abs(dy) > 2 ? Math.sign(dy) * 26 : 0, 300 * dt);
+        f.t -= dt; if (Math.abs(tx) < 8 && Math.abs(dy) < 6 && f.t <= 0) { f.punch.start(); f.t = f.boss ? .6 : 1.2 + Math.random(); }
+      }
+      f.punch.update(dt);
+      f.punch.hits([h], t => h.inv <= 0 && Math.abs(t.y - f.y) < 9 && E.inArc(f, f.facing, t, 20, 1), () => {
+        h.hp -= f.boss ? 4 : 2; h.inv = .6; h.hurt = .25; h.combo.cancel(); E.knockback(f, h, 150); game.shake(3); A.sfx('hurt');
+        if (h.hp <= 0) { h.hp = 0; h.push(0, 0, 150); game.after(1.2, () => game.go('over', { from: 'brawler' })); }
+      });
+      f.update(dt, map);
+      f.rig.update(dt, { x: f.x, y: f.y, z: f.z, vx: f.vx, vy: f.vy, facing: f.facing, hurt: f.stun > 0, attack: f.punch.state });
+    }
+    E.prune(foes, f => f.dead !== undefined && f.dead !== false && f.dead <= 0);
+    h.rig.update(dt, { x: h.x, y: h.y, z: h.z, vx: h.vx, vy: h.vy, facing: h.facing, hurt: h.hurt > 0, attack: h.kick.busy ? h.kick.state : h.combo.state, air: !h.onGround });
+  }
+  function draw(r) {
+    const view = r.view;
+    r.sky(['#1a1030', '#4a2a5a', '#c86a5a']);
+    px.rect(r.ctx, 0, Math.round(r.H * .55), r.W + 2, r.H, '#7a7282');   // pavement behind the bottom edge of the street
+    map.drawFloor(r);
+    for (const c of [hero, ...foes]) r.shadow(c.x, c.y, c.boss ? 7 : 5.5, .5);
+    map.queueWalls(r);
+    for (const f of foes) r.actor(f.x, f.y, f.z, (g, ox, oy) => f.rig.draw(g, ox, oy, view), { flash: f.flash > 0, alpha: f.dead ? (Math.floor(game.real * 20) % 2 ? .3 : 1) : 1 });
+    const blink = hero.inv > 0 && Math.floor(game.real * 16) % 2 === 0;
+    r.actor(hero.x, hero.y, hero.z, (g, ox, oy) => hero.rig.draw(g, ox, oy, view), { alpha: blink ? .45 : 1, flash: hero.hurt > .15 ? '#ffb0a0' : false });
+    r.overlay(g => {
+      E.font.text(g, 'PLAYER', 6, 5, '#ffffff'); E.ui.bar(g, 32, 5, 70, 6, hero.hp / hero.max, '#f0d040');
+      E.font.text(g, String(score).padStart(6, '0'), r.W - 6, 5, '#ffffff', { align: 'right' });
+      const b = foes.find(f => f.boss && !f.dead); if (b) { E.font.text(g, 'BOSS', 6, 15, '#ff8a8a'); E.ui.bar(g, 32, 15, 70, 6, b.hp / b.max, '#e0463c'); }
+      if (go > 0 && Math.floor(game.real * 3) % 2 === 0) E.font.text(g, 'GO! →', r.W - 10, r.H / 2 - 10, '#ffd36a', { align: 'right', scale: 2 });
+      E.font.text(g, 'J PUNCH  K KICK  ARROWS MOVE', r.W / 2, r.H - 9, '#ffffff', { align: 'center' });
+      if (won) { E.ui.box(g, r.W / 2 - 70, r.H / 2 - 16, 140, 30); E.font.text(g, 'STREETS CLEARED!', r.W / 2, r.H / 2 - 8, '#ffd36a', { align: 'center', outline: false }); E.font.text(g, 'SCORE ' + score + '  BEST ' + best('brawler', score), r.W / 2, r.H / 2 + 2, '#ffffff', { align: 'center', outline: false }); }
+    });
+  }
+  return { view: 'brawler', views: ['brawler', 'threequarter'], res: 'snes', pausable: true, touch: ['attack', 'kick'],
+    input: Object.assign({}, E.Input.DEFAULT, { kick: ['KeyK', 'KeyL', 'Mouse2', 'Pad2'] }),
+    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw };
+})();
+scenes.brawler = BRAWL;
 
 /* ---- START: the title menu, or a slice named in the address (#platformer) ---- */
 const first = (location.hash || '').slice(1);

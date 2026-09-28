@@ -1105,6 +1105,11 @@ class Game {
   freeze(s) { this.hitstop = Math.max(this.hitstop, s); }
   /** camera follows this world point. Side-scrollers: game.focus(x, 0, z) */
   focus(x, y, z = 0) { this.cam.tx = x; this.cam.ty = y; this.cam.tz = z; }
+  /**
+   * keep the camera on an object automatically (instead of calling focus every update).
+   * opts: { z: extra height to look at (default 16), lead: look ahead in the facing / moving direction }. follow(null) stops.
+   */
+  follow(target, o = {}) { this._follow = target ? { target, z: o.z === undefined ? 16 : o.z, lead: o.lead || 0 } : null; this.cam.snap = true; }
   /** mouse position on the ground (world units), or null */
   mouseGround() { const m = this.input.mouseScreen(); return m ? this.view.toGround(m[0], m[1]) : null; }
   /** run fn once after `seconds` of game time. Cleared on scene change. Returns { cancel() } */
@@ -1184,7 +1189,7 @@ class Game {
     const old = this.scene;
     if (old && old.exit) old.exit();
     this.scene = s; this.sceneName = name; this.paused = false; this.timers.length = 0; this.hitstop = 0;
-    this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false);
+    this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null;
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
     if (s.input) this.input.use(s.input);
@@ -1217,6 +1222,11 @@ class Game {
       prune(T, t => t.dead);
     }
     if (s && s.update) s.update(dt);
+    const f = this._follow;
+    if (f && f.target) {
+      const t = f.target, sp = Math.hypot(t.vx || 0, t.vy || 0), dir = typeof t.facing === 'number' && Math.abs(t.facing) === 1 && !t.vy ? [t.facing, 0] : sp > 1 ? [(t.vx || 0) / sp, (t.vy || 0) / sp] : [0, 0];
+      this.focus(t.x + dir[0] * f.lead, (t.y || 0) + dir[1] * f.lead, (t.z || 0) + f.z);
+    }
     this.particles.update(dt);
     this._camStep(dt);
   }
@@ -1577,6 +1587,41 @@ class Attack {
 }
 E.Attack = Attack;
 
+/**
+ * Combo: a chain of attacks (a 3-hit punch string, a sword combo). Press again during the recover of one
+ * hit (or within `window` seconds after it ends) to flow into the next; otherwise it starts over.
+ *   const combo = new E.Combo([jab, jab2, uppercut], { window: .3 });   // each item is an Attack spec
+ *   if (input.buffered('attack') && combo.press()) input.consume('attack');
+ *   combo.update(dt); combo.hits(enemies, test, e => {...}); rig.update(dt, { ..., attack: combo.state });
+ *   combo.step = index of the current hit (0, 1, 2), combo.current = its Attack
+ */
+class Combo {
+  constructor(specs, o = {}) { this.moves = specs.map(sp => sp instanceof Attack ? sp : new Attack(sp)); this.window = o.window === undefined ? .3 : o.window; this.step = -1; this.idle = 99; }
+  get current() { return this.moves[Math.max(0, this.step)]; }
+  get busy() { return this.step >= 0 && this.current.busy; }
+  get active() { return this.busy && this.current.active; }
+  get state() { return this.busy ? this.current.state : null; }
+  /** start or continue the chain. Returns true if a hit started */
+  press() {
+    const cur = this.step >= 0 ? this.current : null;
+    if (cur && cur.busy && cur.phase !== 'recover') return false;
+    const next = (cur && (cur.busy || this.idle <= this.window) && this.step + 1 < this.moves.length) ? this.step + 1 : 0;
+    if (cur && cur.busy) cur.cancel();
+    this.step = next; this.idle = 0; return this.moves[next].start();
+  }
+  update(dt) { if (this.step < 0) return null; const r = this.current.update(dt); if (!this.current.busy) this.idle += dt; return r; }
+  hits(targets, test, fn) { return this.step >= 0 ? this.current.hits(targets, test, fn) : 0; }
+  cancel() { if (this.step >= 0) this.current.cancel(); this.step = -1; this.idle = 99; }
+}
+E.Combo = Combo;
+/** push a target away from a point (attacker): uses target.push (E.Body) or its vx / vy. up = upward speed (knock into the air) */
+E.knockback = (from, target, speed = 160, up = 0) => {
+  const dx = target.x - from.x, dy = (target.y || 0) - (from.y || 0), d = Math.hypot(dx, dy) || 1, ix = dx / d * speed, iy = dy / d * speed;
+  if (typeof target.push === 'function') target.push(ix, iy, up);
+  else { target.vx = (target.vx || 0) + ix; target.vy = (target.vy || 0) + iy; if (up) target.vz = (target.vz || 0) + up; }
+  return target;
+};
+
 /* =============================================================================
  * 12. BLOB RIG  (slimes, jellies) squash-and-stretch sphere that looks at a target
  * ============================================================================= */
@@ -1912,12 +1957,13 @@ E.tex = {
  *    View with yaw 0) looks like a 2.5D N64/PS1 remake. The play plane is y = 0.
  *    types[id] = { kind, style, side, top, line }
  *      kind:  'solid' (default) | 'oneway' (jump up through, stand on top) | 'ladder'
+ *             | 'slope' (dir: 1 rises to the right, -1 to the left; or from/to heights 0..1 for gentle slopes)
  *             | 'hazard' (spikes, lava: not solid, test with level.touching(body, 'hazard'))
  *             | 'deco' (drawn in the play plane, not solid) | 'back' (background wall, not solid)
  *      style: 'block' | 'brick' | 'ground' | 'plank' | 'spikes' | 'ladder' | 'pipe' | 'bonus' | 'liquid' | 'plain'
  * ============================================================================= */
 const PT_DEFAULT = { kind: 'solid', style: 'block', side: '#8a7a9a' };
-const PT_STYLE_FOR_KIND = { oneway: 'plank', ladder: 'ladder', hazard: 'spikes' };
+const PT_STYLE_FOR_KIND = { oneway: 'plank', ladder: 'ladder', hazard: 'spikes', slope: 'ground' };
 class PlatformMap {
   /** { rows: [...ASCII, top row first...], legend: { '#': 1, '@': 'hero' }, types: { 1: {...} }, tile: 16, depth: 16 } */
   constructor(o = {}) {
@@ -1954,8 +2000,32 @@ class PlatformMap {
   /** top of the highest solid or one-way tile at or below height z in this column, or null over a pit */
   groundBelow(x, z) {
     const T = this.T, cx = Math.floor(x / T);
-    for (let cz = Math.min(this.h - 1, Math.floor((z + .5) / T) - 1); cz >= 0; cz--) { const k = this.kind(cx, cz); if (k === 'solid' || k === 'oneway') return (cz + 1) * T; }
+    for (let cz = Math.min(this.h - 1, Math.floor((z + .5) / T)); cz >= 0; cz--) {
+      const k = this.kind(cx, cz);
+      if (k === 'slope') { const sz = this.slopeZ(cx, cz, x); if (sz <= z + .5) return sz; }
+      else if ((k === 'solid' || k === 'oneway') && (cz + 1) * T <= z + .5) return (cz + 1) * T;
+    }
     return null;
+  }
+  /** surface height of a slope tile at world x */
+  slopeZ(cx, cz, x) {
+    const t = this.types[this.cell(cx, cz)] || {}, T = this.T, u = clamp((x - cx * T) / T, 0, 1);
+    const a = t.from !== undefined ? t.from : (t.dir < 0 ? 1 : 0), b = t.to !== undefined ? t.to : (t.dir < 0 ? 0 : 1);
+    return cz * T + lerp(a, b, u) * T;
+  }
+  /** highest surface (tile top or slope) under the body within maxDrop below its feet, or null */
+  _surfaceBelow(b, maxDrop) {
+    const T = this.T, hw = b.w / 2 - .01, sc = Math.floor(b.x / T); let best = null;
+    for (let cz = Math.floor((b.z + .01) / T); cz >= Math.floor((b.z - maxDrop) / T) - 1; cz--) {
+      for (let cx = Math.floor((b.x - hw) / T); cx <= Math.floor((b.x + hw) / T); cx++) {
+        const k = this.kind(cx, cz), top = (cz + 1) * T;
+        let sz = null;
+        if (k === 'slope') { if (cx === sc) sz = this.slopeZ(cx, cz, b.x); }
+        else if (k === 'solid' || ((k === 'oneway') && !(b.drop > 0))) sz = top;
+        if (sz !== null && sz <= b.z + .01 && sz >= b.z - maxDrop && (best === null || sz > best)) best = sz;
+      }
+    }
+    return best;
   }
   /** tiles overlapped by a body box { x, z, w, h }: [{ cx, cz, id, kind }] (optionally only one kind or id) */
   cellsTouching(b, what) {
@@ -1976,14 +2046,17 @@ class PlatformMap {
    * { x, z, w, h, vx, vz, oneway } (moving platforms, elevators, crates) that also carry what stands on them.
    */
   move(b, dt, solids) {
-    const gr = b.ground;
+    const gr = b.ground, wasGround = !!b.onGround;
     if (gr && solids && solids.includes(gr)) { b.x += (gr.vx || 0) * dt; b.z += (gr.vz || 0) * dt; }
+    b._grounded = wasGround;
     b.hitWall = 0; b.hitCeiling = false; b.bumped = null; b.onGround = false; b.onOneWay = false; b.ground = null;
     let dx = (b.vx || 0) * dt, dz = (b.vz || 0) * dt;
     const n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) / (this.T * .4)));
     dx /= n; dz /= n;
     for (let i = 0; i < n; i++) { if (dx && this._mx(b, dx, solids)) dx = 0; if (this._mz(b, dz, solids) && dz > 0) dz = 0; }
     if (!b.onGround && (b.vz || 0) <= 0) this._probe(b, solids);
+    // stick to the ground when walking down slopes or small steps (never while jumping or climbing)
+    if (!b.onGround && wasGround && (b.vz || 0) <= 0 && !b.climbing) { const sz = this._surfaceBelow(b, Math.max(b.w / 2 + 3, Math.abs(b.vx || 0) * dt * 1.5 + 2)); if (sz !== null) { b.z = sz; b.vz = 0; b.onGround = true; } }
     return b;
   }
   _stands(k, cx, cz, prevZ, top, b) {
@@ -1994,8 +2067,14 @@ class PlatformMap {
   }
   _mx(b, dx, solids) {
     const T = this.T, hw = b.w / 2; b.x += dx;
-    const z0 = Math.floor((b.z + .01) / T), z1 = Math.floor((b.z + b.h - .01) / T), cx = Math.floor((dx > 0 ? b.x + hw : b.x - hw) / T);
-    for (let cz = z0; cz <= z1; cz++) if (this.kind(cx, cz) === 'solid') { b.x = dx > 0 ? cx * T - hw - .001 : (cx + 1) * T + hw + .001; b.vx = 0; b.hitWall = dx > 0 ? 1 : -1; return true; }
+    const cx = Math.floor((dx > 0 ? b.x + hw : b.x - hw) / T);
+    const blocked = () => { for (let cz = Math.floor((b.z + .01) / T); cz <= Math.floor((b.z + b.h - .01) / T); cz++) if (this.kind(cx, cz) === 'solid') return cz; return null; };
+    let hit = blocked();
+    if (hit !== null && b._grounded) {   // step up onto a low ledge (the top of a slope, a small step)
+      const top = (hit + 1) * T, up = top - b.z;
+      if (up > 0 && up <= (b.stepUp === undefined ? 5 : b.stepUp)) { const oz = b.z; b.z = top; if (blocked() === null) hit = null; else b.z = oz; }
+    }
+    if (hit !== null) { b.x = dx > 0 ? cx * T - hw - .001 : (cx + 1) * T + hw + .001; b.vx = 0; b.hitWall = dx > 0 ? 1 : -1; return true; }
     if (solids) for (const s of solids) {
       if (s.oneway || s.solid === false || s === b) continue;
       if (Math.abs(b.x - s.x) * 2 < b.w + s.w && b.z < s.z + s.h - .01 && s.z < b.z + b.h - .01) { b.x = dx > 0 ? s.x - (s.w + b.w) / 2 - .001 : s.x + (s.w + b.w) / 2 + .001; b.vx = s.vx || 0; b.hitWall = dx > 0 ? 1 : -1; return true; }
@@ -2006,7 +2085,12 @@ class PlatformMap {
     const T = this.T, prev = b.z; b.z += dz;
     const hw = b.w / 2 - .01, c0 = Math.floor((b.x - hw) / T), c1 = Math.floor((b.x + hw) / T);
     if (dz <= 0) {
-      const cz = Math.floor(b.z / T), top = (cz + 1) * T;
+      const cz = Math.floor(b.z / T), top = (cz + 1) * T, sc = Math.floor(b.x / T);
+      // slopes first: they hold the body at their surface under its center (check the row of the feet and the one above)
+      for (const rz of [cz + 1, cz]) if (this.kind(sc, rz) === 'slope') {
+        const sz = this.slopeZ(sc, rz, b.x);
+        if (b.z <= sz && prev >= sz - T * .5) { b.z = sz; if (b.vz < 0) b.vz = 0; b.onGround = true; b.onOneWay = false; return true; }
+      }
       let land = false, one = true;
       for (let cx = c0; cx <= c1; cx++) { const k = this.kind(cx, cz); if (k && this._stands(k, cx, cz, prev, top, b)) { land = true; if (k === 'solid') one = false; } }
       if (land) { b.z = top; if (b.vz < 0) b.vz = 0; b.onGround = true; b.onOneWay = one; return true; }
@@ -2029,6 +2113,8 @@ class PlatformMap {
   /** standing still exactly on a surface: detect it without needing gravity */
   _probe(b, solids) {
     const T = this.T, hw = b.w / 2 - .01, cz = Math.floor((b.z - .25) / T), top = (cz + 1) * T;
+    const sc = Math.floor(b.x / T), zc = Math.floor((b.z - .01) / T);
+    if (this.kind(sc, zc) === 'slope' && Math.abs(b.z - this.slopeZ(sc, zc, b.x)) < .5) { b.onGround = true; b.onOneWay = false; return; }
     if (Math.abs(b.z - top) < .3) for (let cx = Math.floor((b.x - hw) / T); cx <= Math.floor((b.x + hw) / T); cx++) { const k = this.kind(cx, cz); if (k && this._stands(k, cx, cz, b.z, top, b)) { b.onGround = true; b.onOneWay = k !== 'solid'; return; } }
     if (solids) for (const s of solids) if (s.solid !== false && s !== b && Math.abs(b.x - s.x) * 2 < b.w + s.w && Math.abs(b.z - (s.z + s.h)) < .3) { b.onGround = true; b.ground = s; b.onOneWay = !!s.oneway; return; }
   }
@@ -2072,12 +2158,21 @@ class PlatformMap {
     const T = this.T, d = this.depth / 2, x0 = cx * T, x1 = x0 + T, z0 = cz * T, z1 = z0 + T, st = t.style, side = t.side;
     const back = t.kind === 'back', flat = back || t.kind === 'ladder' || t.kind === 'deco' || st === 'spikes';
     const yf = back ? -d : flat ? 0 : d, P = (x, y, z) => r.w(x, y, z);
-    const above = this.cell(cx, cz + 1), aboveT = above > 0 ? this.types[above] : null, openTop = !aboveT || (aboveT.kind !== 'solid' && aboveT.kind !== 'back') || above < 0;
+    const above = this.cell(cx, cz + 1), aboveT = above > 0 ? this.types[above] : null, openTop = !aboveT || (aboveT.kind !== 'solid' && aboveT.kind !== 'back' && aboveT.kind !== 'slope');
     const col = back ? shade(side, -.38) : side, hi = shade(col, .28), lo = shade(col, -.32), line = t.line || shade(col, -.3);
     // front face as a screen rectangle (exact for yaw-0 views)
     const tl = P(x0, yf, z1), br = P(x1, yf, z0), X0 = Math.round(tl[0]), Y0 = Math.round(tl[1]), X1 = Math.round(br[0]), Y1 = Math.round(br[1]), W = X1 - X0, H = Y1 - Y0;
     if (W <= 0 || H <= 0) return;
     const topFace = (zt, c) => { if (view.pitchDeg > 1 && !flat) px.poly(g, [P(x0, -d, zt), P(x1, -d, zt), P(x1, d, zt), P(x0, d, zt)], c); };
+    if (t.kind === 'slope') {
+      const zl = this.slopeZ(cx, cz, x0), zr = this.slopeZ(cx, cz, x1), grass = t.top || (st === 'ground' ? '#5fbf4a' : hi);
+      if (view.pitchDeg > 1) px.poly(g, [P(x0, -d, zl), P(x1, -d, zr), P(x1, d, zr), P(x0, d, zl)], grass);
+      const a = P(x0, d, zl), b2 = P(x1, d, zr);
+      px.poly(g, [P(x0, d, z0), P(x1, d, z0), b2, a], col);
+      if (st === 'ground') { px.line(g, a[0], a[1] + 1, b2[0], b2[1] + 1, grass, 3); px.line(g, a[0], a[1], b2[0], b2[1], shade(grass, .3)); }
+      else px.line(g, a[0], a[1], b2[0], b2[1], hi);
+      return;
+    }
     switch (st) {
       case 'plank': {
         const pz = Math.max(3, Math.round(4 * H / T)); topFace(z1, t.top || hi);
@@ -2376,6 +2471,9 @@ const SFX = {
   stomp: { wave: 'square', freq: 400, to: 820, dur: .08, vol: .28 },
   bump: { wave: 'triangle', freq: 150, to: 90, dur: .08, vol: .45 },
   swing: { wave: 'noise', freq: 2400, to: 700, dur: .12, vol: .2 },
+  whoosh: { wave: 'noise', freq: 1600, to: 400, dur: .16, vol: .18 },
+  punch: [{ wave: 'noise', freq: 900, to: 300, dur: .08, vol: .45, filter: 'lowpass' }, { wave: 'sine', freq: 140, to: 60, dur: .09, vol: .5 }],
+  kick: [{ wave: 'noise', freq: 600, to: 200, dur: .11, vol: .45, filter: 'lowpass' }, { wave: 'sine', freq: 110, to: 45, dur: .12, vol: .55 }],
   shoot: { wave: 'pulse12', freq: 900, to: 260, dur: .1, vol: .2 },
   laser: { wave: 'saw', freq: 1500, to: 280, dur: .18, vol: .18 },
   charge: { wave: 'saw', freq: 200, to: 900, dur: .6, vol: .12 },

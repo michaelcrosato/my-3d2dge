@@ -2,7 +2,7 @@
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
-**In the single file:** this card, the engine script (do not edit it), and a starter game between `GAME START` and `GAME END`. The starter has a title menu and four vertical slices: ADVENTURE (Zelda-like), PLATFORMER (Mario / Mega Man), SHOOTER (1942 / Xevious) and RPG BATTLE (Dragon Quest / Final Fantasy). **To make a game, copy the slice closest to your genre, then replace everything between `GAME START` and `GAME END` with only your game: its own title scene, play scene(s) and game-over scene. Delete the starter's menu and the slices you do not use.**
+**In the single file:** this card, the engine script (do not edit it), and a starter game between `GAME START` and `GAME END`. The starter has a title menu and five vertical slices: ADVENTURE (Zelda-like), PLATFORMER (Mario / Mega Man), BRAWLER (Final Fight / Streets of Rage), SHOOTER (1942 / Xevious) and RPG BATTLE (Dragon Quest / Final Fantasy). **To make a game, copy the slice closest to your genre, then replace everything between `GAME START` and `GAME END` with only your game: its own title scene, play scene(s) and game-over scene. Delete the starter's menu and the slices you do not use.**
 
 ## Quick start (a complete game)
 ```js
@@ -61,7 +61,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 7. Put the whole game in one IIFE `(() => { ... })();` between the markers, and start it with `game.start(...)`.
 
 ## Common mistakes (check these first)
-- Nothing on screen: the camera looks at the wrong place. Call `game.focus(...)` every update. In side view focus `(x, 0, z)`.
+- Nothing on screen: the camera looks at the wrong place. Use `game.follow(hero)` once (in the scene's `enter`), or call `game.focus(...)` every update. In side view the hero has y = 0.
 - Walls or level missing: you forgot `map.drawFloor(r)` + `map.queueWalls(r)` (TileMap) or `level.draw(r)` (PlatformMap).
 - Using a TileMap for a side-scroller. Side-scrollers use `E.PlatformMap` + `E.Platformer`.
 - HUD drawn in world coordinates. Use `r.text(...)` or `r.overlay(g => ...)` with screen pixels (`r.W`, `r.H`).
@@ -74,7 +74,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - `input`: `'DEFAULT'` (top-down action), `'PLATFORMER'`, `'SHMUP'`, or your own `{ action: ['KeyQ', 'Pad0'] }`.
 - `views`: the views your game supports; `game.nextView()` cycles them (bind it to a key).
 - Start: `game.start({ update(dt), draw(r) })`, or with scenes (below).
-- Methods: `focus(x, y, z)`, `setView(id)`, `nextView()`, `freeze(s)` (hit-stop), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
+- Methods: `follow(obj, { z: 16, lead: 20 })` (camera tracks it automatically), `focus(x, y, z)` (or aim it yourself every update), `setView(id)`, `nextView()`, `freeze(s)` (hit-stop), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
 - Fields: `W`, `H` (screen pixels), `time`, `real`, `timeScale` (0.25 = slow motion), `paused`, `input`, `audio`, `particles`, `lights`, `view`, `errors`, `cam`.
 - Camera: `cam.bounds = v => map.bounds(v)` keeps it inside the level; `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds.
 
@@ -110,7 +110,7 @@ game.start({ scene: 'title', scenes: {
 - Menu: `const menu = new E.Menu(game, ['START', { label: 'LOAD', disabled: true }], { x: 'center', y: 100, title, onPick(i, item), onCancel })`; `menu.update(dt)`; `menu.draw(r)`.
 
 ## Sound: `game.audio` (chip synth, no files, starts after the first key press)
-- `sfx(name, { vol, pitch })`. Presets: `jump jump2 land step coin pickup key powerup oneup heal hit hurt stomp bump swing shoot laser charge explode boom door secret warp die select confirm cancel pause text blip`.
+- `sfx(name, { vol, pitch })`. Presets: `jump jump2 land step coin pickup key powerup oneup heal hit hurt stomp bump swing whoosh punch kick shoot laser charge explode boom door secret warp die select confirm cancel pause text blip`.
 - Custom: `sfx({ wave: 'square' | 'pulse' | 'pulse12' | 'triangle' | 'saw' | 'sine' | 'noise', freq: 440 or 'A4', to: 880, dur: .2, vol: .3, arp: [0, 4, 7], step: .05, vib: [8, .03] })`, or `audio.define('zap', voice)`.
 - Music: `music('title' | 'adventure' | 'dungeon' | 'boss' | 'victory')` (built in), or your own `{ bpm: 120, steps: 4, tracks: [{ wave: 'square', vol: .15, notes: 'C5 - E5 - G5 . . . | ...' }, { wave: 'triangle', notes: '...' }, { wave: 'drums', notes: 'k . h . s . h .' }] }`. Tokens: a note (`C4`, `F#3`, `Bb2`), `-` holds, `.` rests, `|` is ignored; drums `k s h o c t`. `music(null)` stops. `mute()`, `setVolume(0..1)`.
 
@@ -121,26 +121,26 @@ game.start({ scene: 'title', scenes: {
 - `find(tag)` / `findAll(tag)` give `{ x, y, z, cx, cy }`. Also `cell(cx, cy)`, `set(cx, cy, id)` (open doors), `toCell(x, y)`, `center(cx, cy)`, `heightAt(x, y)`, `floorAt(x, y)`, `groundAt(x, y, r, z)`, `collide(body)`, `los(x0, y0, x1, y1)`, `bounds(view)`, `drawFloor(r)`, `queueWalls(r)`.
 
 **PlatformMap** (side-scrollers; 2.5D in tilted views): tiles on the x/z plane, top row first.
-- `new E.PlatformMap({ rows, legend, types })`. `types[id] = { kind, style, side, top, line }`. Example: `rows: ['      ?    ', '   ===     ', '@  g   ^^  ', '###########']`, `legend: { '#': 1, '=': 2, '?': 3, '^': 4, '@': 'hero', 'g': 'walker' }`, `types: { 1: { style: 'ground', side: '#8a5a32' }, 2: { kind: 'oneway' }, 3: { style: 'bonus', side: '#e8a830' }, 4: { kind: 'hazard' } }`. Kinds: `'solid'` (default), `'oneway'` (jump up through), `'ladder'`, `'hazard'` (spikes, lava), `'deco'`, `'back'` (background wall). Styles: `'block' 'brick' 'ground' 'plank' 'spikes' 'ladder' 'pipe' 'bonus' 'liquid' 'plain'`.
-- Spawns: `find(tag)` gives `{ x, z }` with z = the bottom of that cell (feet). `cell(cx, cz)` / `set(cx, cz, id)` count cz from the bottom row. `touching(body, 'hazard')`, `cellsTouching(body, kind)`, `groundBelow(x, z)`, `solidAt(x, z)`, `move(body, dt, solids)`, `bounds(view)`, `draw(r)` (call first, after `r.sky`), `width`, `height`.
+- `new E.PlatformMap({ rows, legend, types })`. `types[id] = { kind, style, side, top, line }`. Example: `rows: ['      ?    ', '   ===     ', '@  g   ^^  ', '###########']`, `legend: { '#': 1, '=': 2, '?': 3, '^': 4, '@': 'hero', 'g': 'walker' }`, `types: { 1: { style: 'ground', side: '#8a5a32' }, 2: { kind: 'oneway' }, 3: { style: 'bonus', side: '#e8a830' }, 4: { kind: 'hazard' } }`. Kinds: `'solid'` (default), `'oneway'` (jump up through), `'ladder'`, `'slope'` (`dir: 1` rises to the right, `-1` to the left; `from` / `to` heights 0..1 for gentle slopes), `'hazard'` (spikes, lava), `'deco'`, `'back'` (background wall). Styles: `'block' 'brick' 'ground' 'plank' 'spikes' 'ladder' 'pipe' 'bonus' 'liquid' 'plain'`.
+- Spawns: `find(tag)` gives `{ x, z }` with z = the bottom of that cell (feet). `cell(cx, cz)` / `set(cx, cz, id)` count cz from the bottom row. `slopeZ(cx, cz, x)`, `touching(body, 'hazard')`, `cellsTouching(body, kind)`, `groundBelow(x, z)`, `solidAt(x, z)`, `move(body, dt, solids)`, `bounds(view)`, `draw(r)` (call first, after `r.sky`), `width`, `height`.
 
 ## Movement and physics
 **Platformer** (side-scroller character): `const hero = new E.Platformer({ x, z, w: 8, h: 22, run: 95, jump: 285, gravity: 800, airJumps: 0, wallJump: false, dash: 0 })`.
 - Each update: `hero.update(dt, level, game.input, movingPlatforms)`. For enemies pass `{ x: -1..1, jump, jumpPressed, up, down, dash }` instead of the input.
 - Read: `onGround`, `jumped`, `landed`, `facing` (1 or -1), `air`, `climbing`, `hitWall`, `hitCeiling`, `bumped` (`{ cx, cz, id }` of a block hit from below). Methods: `knock(dir)`, `rigState(extra)` (feed it to `rig.update`).
-- Built in: coyote time, jump buffering, variable jump height (let go early for a short hop), ladders (up / down), drop through one-way tiles (down + jump), optional double jump, wall jump and dash.
+- Built in: coyote time, jump buffering, variable jump height (let go early for a short hop), slopes and small steps (sticks to the ground going down), ladders (up / down), drop through one-way tiles (down + jump), optional double jump, wall jump and dash.
 - Moving platforms: `{ x, z, w, h, vx, vz }` boxes you move yourself and pass as `solids`; riders are carried.
 
 **Body** (top-down / isometric / brawler): `new E.Body({ x, y, r: 5, friction: 0, bounce: 0, gravity: 700 })`. Set `vx`, `vy`, then `body.update(dt, map)`. Also `push(ix, iy, iz)` (knockback), `jump(v)`, and `onGround`, `z`, `groundZ`, `hitWall`, `landed`. Walls lower than your feet are walkable, so bodies can jump onto blocks.
 
-**Attack** (melee timing for swords, punches, kicks): `const slash = new E.Attack({ a0: 1.6, a1: -1.7, z0: 12, z1: 9, reach: 7.5, wind: .06, active: .1, recover: .18 })`. `if (input.buffered('attack') && slash.start()) input.consume('attack')`; `slash.update(dt)` (returns the phase that just began); `slash.hits(enemies, e => E.inArc(hero, facing, e, 22, 1.4), e => {...})` hits each target once per swing during `'active'`; `rig.update(dt, { ..., attack: slash.state })`. Also `busy`, `active`, `cancel()`, `start(true)` to chain combos during recover.
+**Attack** (melee timing for swords, punches, kicks): `const slash = new E.Attack({ a0: 1.6, a1: -1.7, z0: 12, z1: 9, reach: 7.5, wind: .06, active: .1, recover: .18 })`. `if (input.buffered('attack') && slash.start()) input.consume('attack')`; `slash.update(dt)` (returns the phase that just began); `slash.hits(enemies, e => E.inArc(hero, facing, e, 22, 1.4), e => {...})` hits each target once per swing during `'active'`; `rig.update(dt, { ..., attack: slash.state })`. Also `busy`, `active`, `cancel()`. **Combo**: `const combo = new E.Combo([jabSpec, jab2Spec, upperSpec], { window: .3 })`; `combo.press()` starts or chains the next hit; `update`, `hits`, `state`, `step` work the same. **Knockback**: `E.knockback(attacker, target, 160, up)` pushes a Body (or anything with vx / vy) away.
 
 **Bullets**: `const shots = new E.Bullets(game, { plane: 'ground' | 'side' })`; `shots.fire({ x, y, z, vx, vy, vz, r: 2, team: 'player', color, life, dmg, pierce, sprite })`; `shots.burst(base, E.pattern.spread(angle, n, arc, speed))`; `shots.update(dt, map)`; `shots.hit(targets, (b, t) => {...}, 'player')`; `shots.draw(r)`; `shots.clear(team)`. Patterns: `E.pattern.dir(angle, speed)`, `aim(a, b, speed)`, `aimSide(a, b, speed)`, `spread(angle, n, arc, speed)`, `ring(n, speed, offset)`. In side view the second number of a pattern velocity is vz.
 
 **Helpers**: `E.dist(a, b)`, `E.angleTo(a, b)`, `E.overlap(a, b)` (circles x, y, r), `E.overlapBox(a, b)` (side boxes x center, z feet, w, h), `E.inArc(a, facing, b, range, halfAngle)` (melee cone), `E.rand(a, b)`, `E.randInt(a, b)`, `E.pick(list)`, `E.chance(p)`, `E.prune(list, fn)`, `E.store.get(key, fallback)` / `set(key, value)` (save data), `new E.SpatialHash(32)` (`build(list)`, `near(x, y, r, fn)`), `new E.FlowField(map)` (`update(tx, ty)`, `dir(x, y, tx, ty)` walks around walls), math `clamp lerp approach ease.* angDiff approachAng smoothDamp rng(seed) noise2 hex shade mix`.
 
 ## Characters
-**Humanoid** (knights, heroes, soldiers, zombies): `new E.Humanoid({ weapon: 'sword' | 'gun' | 'staff' | null, hat: 'cap' | 'pointed' | 'helmet' | 'band' | 'crown' (or { style, color }), hood, cape: { len: 6, width: 5, seg: 2.5 }, eyeGlow, hunch, lean, colors: { skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye } })`.
+**Humanoid** (knights, heroes, soldiers, zombies): `new E.Humanoid({ weapon: 'sword' (the default) | 'gun' | 'staff' | null (fists), hat: 'cap' | 'pointed' | 'helmet' | 'band' | 'crown' (or { style, color }), hood, cape: { len: 6, width: 5, seg: 2.5 }, eyeGlow, hunch, lean, colors: { skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye } })`.
 - `rig.update(dt, { x, y, z, vx, vy, facing, dash, hurt, air, point, attack })`. `facing` is an angle (side view: 0 = right, `Math.PI` = left). `air: true` tucks the legs for jumps; `point: true` holds a gun forward.
 - `attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }`, spec `{ a0, a1, z0, z1, reach, blade, spin, kick }`. Angles are relative to facing (+ = right hand side): a slash is `a0: 1.6, a1: -1.7`. `kick: true` swings the foot (use z0/z1 around 4..10). You time the phases.
 - `rig.draw(g, ox, oy, view)` inside `r.actor`, `rig.drawSmear(r)` (sword trail), `rig.debug(r)` (skeleton), `rig.kick(v)` (squash and stretch), `rig.hand()` and `rig.tip()` (world points to spawn bullets from).
@@ -158,8 +158,8 @@ game.start({ scene: 'title', scenes: {
 | Metroidvania (Metroid, Symphony of the Night) | `side` | PlatformMap per room, `cam.room`, Platformer with `dash`, `wallJump` | PLATFORMER |
 | Action adventure (Zelda, Secret of Mana) | `threequarter` or `topdown` | TileMap rows, `cam.room`, Body, Humanoid + `E.Attack` sword, Dialog, `E.ui.hearts` | ADVENTURE |
 | Action RPG / dungeon (Diablo, Landstalker) | `iso` | TileMap, FlowField, Body (jump onto blocks), GPU lighting | ADVENTURE |
-| Beat-'em-up (Final Fight, Streets of Rage, TMNT) | `brawler` | TileMap floor strip, Body, Humanoid + `E.Attack` punches and `kick: true` kicks, `inArc` | ADVENTURE |
-| Fighting (Street Fighter II) | `side` | PlatformMap floor, two Platformers, Humanoid + `E.Attack` moves, `overlapBox` hitboxes | PLATFORMER |
+| Beat-'em-up (Final Fight, Streets of Rage, TMNT) | `brawler` | TileMap street strip, Body, Humanoid (`weapon: null`) + `E.Combo` punches and `kick: true` kicks, `E.knockback`, waves that lock the screen | BRAWLER |
+| Fighting (Street Fighter II) | `side` | PlatformMap floor, two Platformers, Humanoid + `E.Attack` moves, `overlapBox` hitboxes | BRAWLER + PLATFORMER |
 | Shoot-'em-up (1942, Gradius, R-Type) | `overhead` (vertical) or `side` (horizontal) | sprites, Bullets, `E.pattern`, `r.starfield`, a timeline of waves | SHOOTER |
 | Twin-stick / run-and-gun (Smash TV, Contra) | `topdown` / `side` | Body or Platformer, Bullets, `weapon: 'gun'`, `point: true` | SHOOTER + ADVENTURE |
 | JRPG (Dragon Quest, Final Fantasy, EarthBound) | `threequarter` town, `brawler` battles | TileMap towns, Dialog, Menu, scenes, `E.store` saves | RPG BATTLE + ADVENTURE |
