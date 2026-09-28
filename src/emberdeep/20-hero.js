@@ -114,7 +114,21 @@ function heroDodgedHit(hit) {
 }
 
 /* ---------- the per-step controller ---------- */
-const HERO_SPEED = 84, DODGE_T = .22, DODGE_SPEED = 270;
+const HERO_SPEED = 84, DODGE_T = .27, DODGE_SPEED = 255;
+/**
+ * The dodge roll, a new animation on top of the rig: after the rig poses itself, every joint turns a full forward
+ * somersault around the hips while the body curls into a tuck (limbs pulled in, the whole thing lowered). The cape
+ * and hair are cloth, so they whip around it; the afterimages trace the roll.
+ */
+function heroRoll(h, u) {
+  const J = h.rig.J, o = h.rig.o, a = -E.ease.inOut(clamp(u, 0, 1)) * TAU, c = Math.cos(a), s = Math.sin(a), cz = o.hipZ * .55, tuck = Math.sin(clamp(u, 0, 1) * Math.PI);
+  for (const k in J) {
+    const p = J[k]; if (!p || k === 'bladeDir') continue;
+    const f = p[0] * (1 - .35 * tuck), z = (p[2] - cz) * (1 - .45 * tuck);
+    J[k] = [f * c - z * s, p[1] * (1 - .25 * tuck), f * s + z * c + cz * (1 - .55 * tuck)];
+  }
+  const b = J.bladeDir; if (b) J.bladeDir = [b[0] * c - b[2] * s, b[1], b[0] * s + b[2] * c];
+}
 function heroAim(h) {
   const inp = h.bot ? h.bot.input : game.input, view = game.view;   // h.bot: the autopilot drives a virtual input (93-autopilot.js)
   const mv = inp.move(), md = inp.worldMove ? inp.worldMove.slice() : view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
@@ -162,7 +176,7 @@ function updateHero(h, dt, o = {}) {
   // movement
   if (h.dodgeT > 0) {
     h.dodgeT -= dt; const u = 1 - h.dodgeT / DODGE_T, v = DODGE_SPEED * h.speedMul * (1 - .5 * u * u);
-    h.vx = Math.cos(h.dodgeDir) * v; h.vy = Math.sin(h.dodgeDir) * v; h.z = Math.sin(Math.min(1, u) * Math.PI) * 4 + 2.1;
+    h.vx = Math.cos(h.dodgeDir) * v; h.vy = Math.sin(h.dodgeDir) * v; h.z = Math.sin(Math.min(1, u) * Math.PI) * 3 + 2.1;
   } else {
     const slow = act ? (act.moveK === undefined ? .3 : act.moveK) : 1, acc = (h.hurtT > 0 ? 300 : 1000) * dt * (h.traction === undefined ? 1 : h.traction), top = HERO_SPEED * h.speedMul * sp * (h.speedK === undefined ? 1 : h.speedK);
     h.vx = approach(h.vx, md[0] * top * slow, acc); h.vy = approach(h.vy, md[1] * top * slow, acc);
@@ -184,8 +198,12 @@ function updateHero(h, dt, o = {}) {
   if (act && act.rig) Object.assign(rs, act.rig);
   if (!act && h.cheerT > .3 && mlen < .1) rs.pose = 'cheer';
   else if (!act && town && h.idleT > 6) rs.pose = 'hips';   // waiting in town: hands on hips
+  // wounded: he hunches and leans as life runs low; idle in a level, he checks his blade now and then
+  const low = clamp(1 - h.hp / h.maxHp / .35, 0, 1); h.rig.o.hunch = low * .3; h.rig.o.lean = low * .12;
+  if (!act && !town && h.idleT > 5 && h.idleT % 9 < 1.4 && !rs.pose) { rs.pose = 'block'; rs.expr = null; }
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
+  if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / DODGE_T);
   // footsteps on the gait: one soft step each time a foot comes down
   const ph = Math.floor(h.rig.phase / Math.PI); if (ph !== h.stepPh) { h.stepPh = ph; if (Math.hypot(h.vx, h.vy) > 30 && h.z < 1) sfx('step', { vol: .35 }); }
   if (h.dodgeT <= 0 && !(act && act.rig && act.rig.attack && act.rig.attack.phase === 'active')) settleCape(h.rig, dt, h.hurtT > 0 ? 1 : clamp(1 - Math.hypot(h.vx, h.vy) / 60, 0, 1));

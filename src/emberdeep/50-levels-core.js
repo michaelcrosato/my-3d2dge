@@ -113,7 +113,7 @@ function farthestRoom(cells, w, h, rooms, i) {
 }
 
 /* ---------- the stress test's rune hall as a theme: flagstones, teal runes, moss at the edges ---------- */
-const CRYPT = { stones: ['#4b4559', '#554f64', '#433e51', '#5d566c'], mortar: '#221e2b', hi: '#6f6782', lo: '#322d3e', speck: '#2a2634', moss: ['#3f5a44', '#4d6b4b'], rune: '#2f7f82', runeHi: '#6fd6cc' };
+const CRYPT = { stones: ['#4b4559', '#554f64', '#433e51', '#5d566c'], mortar: '#221e2b', hi: '#6f6782', lo: '#322d3e', speck: '#3e384b', moss: ['#3f5a44', '#4d6b4b'], rune: '#2f7f82', runeHi: '#6fd6cc' };
 def('themes', 'crypt', { name: 'Crypt', nouns: ['Vaults', 'Crypts', 'Halls', 'Catacombs'], pal: CRYPT, torch: 'brazier', light: '#ff9a4a', ambient: .12, music: 'deep',
   walls: { 1: { h: 38, cut: true, cutH: 6, top: '#57506a', side: '#3d3750', line: '#2a2538', course: 8 }, 2: { h: 36, top: '#6a6280', side: '#4a4360', line: '#302a40', course: 10 }, 3: { h: 12, top: '#5d566f', side: '#433d55', line: '#2e2940', course: 6 } },
   floor: (L0, x, y, tag) => cryptFloor(L0, x, y, tag, L0.pal),

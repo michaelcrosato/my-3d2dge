@@ -8,7 +8,7 @@ function setupGPU(map) {
   gpu.map = map;
 }
 /* ---------- save / load ---------- */
-const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash'];
+const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best'];
 function saveGame() { const h = ED.hero; if (!h || ED.demo) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
 function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); itemUid = mx + 1; return s; }
 function newHero() {
@@ -259,7 +259,7 @@ const levelScene = {
     // the exit: stand on it for a moment and it takes you down
     if (L0.exit && L0.exit.open && Math.hypot(L0.exit.x - h.x, L0.exit.y - h.y) < 12 && h.alive) {
       L0.exitT = (L0.exitT || 0) + dt; UI.prompt = 'DESCENDING...';
-      if (L0.exitT > .7 && !L0.leaving) { L0.leaving = true; sfx('portal'); startAction(h, { name: 'ascend', cancel: false, moveK: 0, rig: { pose: 'cheer' }, update(dt2) { this.t += dt2; P.glints(h.x, h.y, 10 + this.t * 30, 1, '#bff6ff', 14); return this.t < .8; } }); game.after(.7, () => descend(ED.depth + 1)); }
+      if (L0.exitT > .7 && !L0.leaving) { L0.leaving = true; sfx('portal'); levelCleared(h, L0); startAction(h, { name: 'ascend', cancel: false, moveK: 0, rig: { pose: 'cheer' }, update(dt2) { this.t += dt2; P.glints(h.x, h.y, 10 + this.t * 30, 1, '#bff6ff', 14); return this.t < .8; } }); game.after(.7, () => descend(ED.depth + 1)); }
     } else if (L0.exit) L0.exitT = 0;
     // the town portal: walk in to go home (the level is kept until you come back or go down elsewhere)
     if (L0.portal && L0.portal.t > .6 && Math.hypot(L0.portal.x - h.x, L0.portal.y - h.y) < 9) {
@@ -269,6 +269,14 @@ const levelScene = {
   },
   draw(r) { worldDraw(r); talk.draw(r); if (ED.demo) r.overlay(g => { const a = .6 + .4 * Math.sin(game.real * 3); px.blend(g, a, 'normal', () => E.font.text(g, 'DEMO  -  PRESS ANY KEY', r.W / 2, 30, '#ffd36a', { align: 'center', shadow: '#05040a', outline: '#0c0818' })); }); }
 };
+
+/** a depth is done: record the time (best times per depth for speedrunners) and say how it went */
+function levelCleared(h, L0) {
+  const tm = ED.t; h.best = h.best || {}; const pb = !h.best[L0.depth] || tm < h.best[L0.depth];
+  if (pb && !ED.demo) h.best[L0.depth] = +tm.toFixed(2);
+  const ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0');
+  notify('DEPTH ' + L0.depth + ' CLEARED  ' + ft(tm) + (pb ? '  NEW BEST' : '') + '  •  ' + ED.stats.kills + ' KILLS', pb ? '#8fe3ff' : '#c8c0d8', 4);
+}
 
 /* ---------- THE PROVING GROUNDS: the stress test lives on as an endless horde in the rune hall ---------- */
 const PROVE = { wave: 0, next: 0 };
