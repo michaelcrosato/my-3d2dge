@@ -305,7 +305,7 @@ function LOT_readout(g, x, y, w, h) {
   E.font.text(g, '♥', x, y2 - 1, '#ff5a6a', { outline: false }); E.font.text(g, fmt(h.maxHp), x + 8, y2, '#ffb0b0', tiny);
   const sx = x + third; px.line(g, sx, y2 + 5, sx + 5, y2, '#dce8f1'); px.line(g, sx, y2 + 3, sx + 2, y2 + 5, '#e8b04e'); E.font.text(g, fmt(pw), sx + 8, y2, '#fff2c4', tiny);
   const ax = x + third * 2; px.poly(g, [[ax, y2], [ax + 5, y2], [ax + 5, y2 + 3], [ax + 2.5, y2 + 5.5], [ax, y2 + 3]], '#8a94a8'); px.rect(g, ax + 1, y2 + 1, 2, 2, '#c8d0e0'); E.font.text(g, fmt(h.armor), ax + 8, y2, '#c8d0e0', tiny);
-  LOT_hot(x, y2 - 1, third - 2, 8, { tip: [{ t: 'Life ' + Math.ceil(h.hp) + ' / ' + h.maxHp, c: '#ff8a8a' }, { t: (h.stats.lifeRegen || 0).toFixed(1) + ' per second', c: '#c8c0d8' }] });
+  LOT_hot(x, y2 - 1, third - 2, 8, { tip: [{ t: 'Life ' + fmt(Math.ceil(h.hp)) + ' / ' + fmt(h.maxHp), c: '#ff8a8a' }, { t: (h.stats.lifeRegen || 0).toFixed(1) + ' per second', c: '#c8c0d8' }] });
   LOT_hot(sx, y2 - 1, third - 2, 8, { tip: [{ t: 'Damage ' + pw.toFixed(1), c: '#fff2c4' }, { t: 'An average swing of your weapon with every increase, attack speed and critical strikes folded in.', c: '#c8c0d8' }] });
   LOT_hot(ax, y2 - 1, third - 2, 8, { tip: [{ t: 'Armor ' + Math.round(h.armor), c: '#c8d0e0' }, { t: 'Armor soaks physical hits; big hits get through more.', c: '#c8c0d8' }] });
   // resistances: five chips in their element colors
@@ -336,7 +336,7 @@ function LOT_statRows(h) {
   add('Status chance', sgn((h.statusMul - 1) * 100)); add('Area of effect', sgn(s.area || 0));
   if (s.projectiles) add('Extra projectiles', '+' + Math.round(s.projectiles)); if (s.cdr) add('Cooldown reduction', Math.round(s.cdr) + '%');
   head('DEFENSE');
-  add('Life', Math.ceil(h.hp) + ' / ' + h.maxHp, '#ffb0b0'); add('Life per second', (s.lifeRegen || 0).toFixed(1), '#ffb0b0');
+  add('Life', fmt(Math.ceil(h.hp)) + ' / ' + fmt(h.maxHp), '#ffb0b0'); add('Life per second', (s.lifeRegen || 0).toFixed(1), '#ffb0b0');
   const ref = 10 * SCALE.foeDmg(Math.max(1, h.maxDepth || 1)), red = clamp(h.armor / (h.armor + 5 * ref + 30), 0, .75);
   add('Armor', Math.round(h.armor) + ' (-' + Math.round(red * 100) + '%)', '#c8d0e0');
   for (const e of ['fire', 'frost', 'storm', 'void', 'venom']) add(EL(e).name + ' resistance', Math.round(h.res[e] * 100) + '%', EL(e).light);

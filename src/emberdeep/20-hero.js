@@ -56,6 +56,7 @@ function gainXp(h, n) {
   h.xp += n;
   let up = 0;
   while (h.xp >= SCALE.xpNeed(h.level)) {
+    if (up >= 50) { h.xp = SCALE.xpNeed(h.level) - 1; break; }   // (a safety net: no kill is worth more than 50 levels)
     h.xp -= SCALE.xpNeed(h.level); h.level++; h.pts.skill++; h.pts.passive++; up++;
     computeStats(h); h.hp = h.maxHp; h.ember = h.maxEmber;
     BUS.emit('heroLevel', { lvl: h.level });

@@ -32,7 +32,7 @@ const STATS = {
 function statText(key, v) {
   if (key.startsWith('rank:')) { const s = REG.skills[key.slice(5)]; return '+' + v + ' to ' + (s ? s.name : key.slice(5)); }
   const d = STATS[key]; if (!d) return key + ' ' + v;
-  const n = Math.abs(v) < 10 && v % 1 ? v.toFixed(1) : Math.round(v), sg = v < 0 ? '' : '+';
+  const n = Math.abs(v) < 10 && v % 1 ? v.toFixed(1) : Math.abs(v) >= 1e4 ? fmt(v) : Math.round(v), sg = v < 0 ? '' : '+';
   if (d.f === 'pct' || d.f === 'pctd') return sg + n + '% ' + d.name;
   if (d.f === 'plus') return sg + n + ' ' + d.name;
   return sg + n + ' ' + d.name;
