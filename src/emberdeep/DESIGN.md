@@ -95,6 +95,15 @@ Past depth 15, `recipe()` composes each depth:
 
 Mechanics, themes, archetypes, affixes, patterns and powers must therefore work in ANY combination: with each other, in any theme, at any depth and in any layout. Missing ids fall back gracefully.
 
+### Standard floor tags (50-levels-core.js)
+Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for walkers; knocked-back, airborne and flying monsters cross it), `water` (slows), `deep` (blocked), `ice` (no traction), `lava` (burns), `web` (slows; fire should clear it), `blood`, `snow`.
+- **Every theme's `floor(L, x, y, tag)` must start with** `const s = standardFloor(L, x, y, tag, (a, b) => <this theme's floor at a, b with no tag>); if (s !== undefined) return s;`. The theme may then render its own tags too.
+- Their effects are applied by the core for every unit (`floorEffects`), so mechanics that add ice, water, lava or webs get the behaviour for free. Add only what is special.
+- To add blocked tags at runtime, also set `L.map.blocked[i] = 1`, and reset `L.map.floors = {}` to re-bake the floor.
+
+### Skill ids (contract, so powers, passives and the skills panel can refer to them)
+`blade`, `ember` (core); melee: `cleave whirlwind lunge leap uppercut kick flurry bladethrow`; spells: `frostnova chainlightning meteor voidrift bladestorm echo warcry blink`.
+
 ## Core concepts you will use
 
 - **ED** (shared state): `ED.hero`, `ED.L` (the current level or town), `ED.foes`, `ED.allies`, `ED.corpses`, `ED.fx`, `ED.drops`, `ED.boss`, `ED.depth`, `ED.mode`.

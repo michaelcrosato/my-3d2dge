@@ -52,6 +52,7 @@ function worldStep(dt, o = {}) {
   const h = ED.hero, L0 = ED.L;
   ED.t += dt; L0.t = (L0.t || 0) + dt;
   UI.prompt = null;
+  floorEffects(h, dt); for (const m of ED.foes) if (m.alive && m.spawnT <= 0) floorEffects(m, dt);
   updateHero(h, dt, o);
   updateFoes(dt); updateCorpses(dt); updateFx(dt); updateThings(L0, dt); updateDrops(dt);
   for (let i = ED.allies.length - 1; i >= 0; i--) { const a = ED.allies[i]; if (a.update && a.update(dt) === false) ED.allies.splice(i, 1); }
