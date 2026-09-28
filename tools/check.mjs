@@ -37,12 +37,16 @@ const hasEngine = await page.evaluate(() => !!(window.My3D2dge && My3D2dge.curre
 const report = { file, engine: hasEngine ? await page.evaluate(() => My3D2dge.version) : null, scenes: [], views: [], errors, warnings, engineWarnings, external: [] };
 
 // how much of the frame is not background: share of pixels that differ from the most common color
+// how much of the frame is not background, plus a quick look lint: palette depth, flat areas, dither checkerboards, contrast
 const coverage = () => page.evaluate(() => {
-  const g = My3D2dge.current, c = g.screen.buf, ctx = c.getContext('2d'), W = g.screen.W, H = g.screen.H;
-  const d = ctx.getImageData(0, 0, W, H).data, counts = new Map();
-  for (let i = 0; i < d.length; i += 4) { const k = (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | (d[i + 2] >> 3); counts.set(k, (counts.get(k) || 0) + 1); }
-  let top = 0; for (const v of counts.values()) top = Math.max(top, v);
-  return { filled: +(1 - top / (W * H)).toFixed(3), colors: counts.size };
+  const g = My3D2dge.current, c = g.screen.buf, ctx = c.getContext('2d'), W = g.screen.W, H = g.screen.H, N = W * H;
+  const d = ctx.getImageData(0, 0, W, H).data, counts = new Map(), luma = new Uint8Array(N), key = new Int32Array(N);
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) { const k = (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | (d[i + 2] >> 3); key[p] = k; counts.set(k, (counts.get(k) || 0) + 1); luma[p] = (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10; }
+  let top = 0, colors = 0; for (const v of counts.values()) { top = Math.max(top, v); if (v >= N * .001) colors++; }
+  let checker = 0, wins = 0;
+  for (let y = 0; y < H - 1; y += 2) for (let x = 0; x < W - 1; x += 2) { const a = key[y * W + x], b = key[y * W + x + 1], c2 = key[(y + 1) * W + x], e = key[(y + 1) * W + x + 1]; wins++; if (a !== b && a === e && b === c2) checker++; }
+  const sorted = Array.from(luma).sort((p, q) => p - q), spread = sorted[Math.floor(N * .95)] - sorted[Math.floor(N * .05)];
+  return { filled: +(1 - top / N).toFixed(3), colors, flat: +(top / N).toFixed(3), checker: +(checker / Math.max(1, wins)).toFixed(3), spread };
 });
 const snap = async (tag) => {
   const s = await page.evaluate(() => { const g = My3D2dge.current; return { scene: g.sceneName, fps: g.fps, updateMs: +g.stats.updateMs.toFixed(2), renderMs: +g.stats.renderMs.toFixed(2), items: g.stats.items, actors: g.stats.actors, resolution: g.screen.W + 'x' + g.screen.H, errorBox: !!document.getElementById('my3d2dge-error') }; });
@@ -85,10 +89,19 @@ if (blank) errors.push('After pressing start, the screen stayed one flat color t
 if (all.some(v => v.errorBox)) errors.push('The on-screen error box was showing (see the errors above).');
 
 console.log('my-3D2dge check: ' + file + (report.engine ? ' (engine ' + report.engine + ')' : ''));
-for (const v of report.scenes) console.log(`  ${v.at.padEnd(13)} scene ${String(v.scene).padEnd(10)} ${String(v.fps).padStart(3)} fps  ${v.actors} characters  ${v.items} draws  ${Math.round(v.filled * 100)}% filled  ${v.resolution}`);
+for (const v of report.scenes) console.log(`  ${v.at.padEnd(13)} scene ${String(v.scene).padEnd(10)} ${String(v.fps).padStart(3)} fps  ${v.actors} characters  ${v.items} draws  ${Math.round(v.filled * 100)}% filled  ${v.colors} colors  ${v.resolution}`);
 for (const v of report.views) console.log(`  view ${v.view.padEnd(13)} ${String(v.fps).padStart(3)} fps  update ${v.updateMs} ms  draw ${v.renderMs} ms  ${v.actors} characters  ${Math.round(v.filled * 100)}% filled`);
 const sparse = all.filter(v => v.filled < .06);
 if (!blank && sparse.length) console.log(`  note: ${sparse.length} screenshot(s) are almost empty (under 6% of pixels differ from the background). Check the camera (game.focus) and the screenshots.`);
+// look lint: the gameplay screenshots only (the title may be sparse on purpose)
+const lookNotes = new Set();
+for (const v of played) {
+  if (v.colors < 40) lookNotes.add(`only ${v.colors} distinct colors on screen (PS1-era scenes use 100+) in "${v.at || 'view ' + v.view}": shade with E.tones, add a backdrop, textured tiles and props`);
+  if (v.flat > .4) lookNotes.add(`${Math.round(v.flat * 100)}% of the screen is one flat color in "${v.at || 'view ' + v.view}": fill it with an E.Backdrop, textured tiles or props`);
+  if (v.checker > .06) lookNotes.add(`${Math.round(v.checker * 100)}% of the screen is 1-pixel checkerboard dithering in "${v.at || 'view ' + v.view}": use the stepped-alpha helpers (E.style.trans = 'alpha')`);
+  if (v.spread < 70) lookNotes.add(`low contrast in "${v.at || 'view ' + v.view}" (luma spread ${v.spread}): darker shadows, brighter highlights`);
+}
+if (lookNotes.size) console.log('  look notes (aim for PS1 / N64 era 2D):\n    ' + [...lookNotes].slice(0, 6).join('\n    '));
 if (engineWarnings.length) console.log(`  ${engineWarnings.length} engine warning(s):\n    ` + engineWarnings.join('\n    '));
 if (report.external.length) console.log(`  not self-contained: the page loaded ${report.external.length} file(s) from the internet:\n    ` + report.external.join('\n    '));
 console.log(errors.length ? `  ${errors.length} error(s):\n    ` + errors.join('\n    ') : '  no errors');
