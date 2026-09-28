@@ -59,6 +59,14 @@ Players judge a remake in the first screenshot. The engine's defaults reach SNES
 - *Klonoa and 2.5D platformers:* PlatformMap in the `brawler` view (tiles show their top faces), a bright `'day'` or `'forest'` backdrop, props in front of and behind the play plane (`y` of -12 and +12), and a soft camera `lead`.
 - *Final Fight / Streets of Rage:* the `brawler` view, a long street TileMap with brick and `plaster` building walls, awnings, streetlamps, hydrants, trash cans and burning fire drums along the sidewalk, `bulky` heroes and thugs with varied palettes, and big impacts.
 
+## Animation: fluid, varied, readable
+Broken animation ruins a good-looking game faster than flat art. The Humanoid rig animates procedurally, so use its vocabulary instead of moving joints by hand:
+- **Moves, not raw specs.** `new E.Attack('overhead')`, `new E.Combo(['jab', 'cross', 'hook', 'uppercut'])`. Every move in `E.MOVES` winds up, strikes with a lunge, step, lean and twist, follows through, holds, and eases back to the stance. It never sweeps backwards through its own arc.
+- **A move set per character.** A knight gets `overhead`, `thrust` and `spin`; a mage `cast`; a rogue `jab`, `thrust` and `backslash`; a monk `jab`, `cross`, `roundhouse` and `flyingkick`; a brute `haymaker`, `bash` and `sweep`; a beast `claw`. Two heroes must never share one swing.
+- **Stances and poses between attacks.** Brawlers walk with `stance: 'guard'`, knights with `stance: 'ready'`. Win with `pose: 'cheer'`, cast with `'cast'`, block with `'block'` (weapons) or `'guard'` (fists), duck with `'crouch'`, taunt with `'hips'` or `'wave'`, fall with `down`, die with `'die'` (stagger, knees, topple), and climb ladders with `climb: true`. Faces act too: `expr: 'smile' | 'shout' | 'angry' | 'wince'`, and a Dialog portrait's mouth moves while its line types.
+- **Enemies telegraph.** Give enemy attacks a longer `wind` (.2-.35 s) than the hero's, so players can read and dodge them. Flash and knock back on hit, lie `down` on death.
+- **Check the motion.** `node tools/filmstrip.mjs game.html#scene --steps "... rec:16:2 press:KeyJ" --crop x,y,w,h` records the swing frame by frame. Look for the wind-up, the strike and a clean settle.
+
 ## Hard rules
 
 1. **Game logic in world units, `dt` everywhere.** Never store screen pixels. Convert only when drawing (`r.w(x, y, z)`) or reading the mouse (`game.mouseGround()`). `update(dt)` runs in fixed steps of about 1/120 s.

@@ -18,9 +18,9 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 
 | File | For | Size |
 |---|---|---|
-| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `shooter`, `rpg`). Fits a 200k context with room to work. | ~116k-122k tokens |
-| **`dist/my-3d2dge-compact.html`** | All five slices, engine minified. | ~196k tokens |
-| **`dist/my-3d2dge.html`** | The complete reference: readable engine and all five slices. For 1M-token contexts, or for a model that reads the file in parts. | ~238k tokens |
+| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `shooter`, `rpg`), or `animlab` to explore the animation system. Fits a 200k context with room to work. | ~119k-130k tokens |
+| **`dist/my-3d2dge-compact.html`** | All five slices and the animation lab, engine minified. | ~229k tokens |
+| **`dist/my-3d2dge.html`** | The complete reference: readable engine, all five slices and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~275k tokens |
 
 Token counts are approximate (measured with the cl100k tokenizer).
 
@@ -34,18 +34,18 @@ Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-li
    - BRAWLER (Final Fight / Streets of Rage beat-'em-up)
    - SHOOTER (1942-style vertical shmup)
    - RPG BATTLE (Dragon Quest / Final Fantasy turn-based)
+   - ANIMATION LAB: every move, pose and reaction on every skin, in every view, with zoom, rotation, slow motion and frame stepping
 
-The model copies the closest slice and replaces the code between `GAME START` and `GAME END`. Opened in a browser, the same file is playable. Press `?` for the API card, and add `#adventure`, `#platformer`, `#brawler`, `#shooter` or `#rpg` to the address to jump straight into a slice.
+The model copies the closest slice and replaces the code between `GAME START` and `GAME END`. Opened in a browser, the same file is playable. Press `?` for the API card, and add `#adventure`, `#platformer`, `#brawler`, `#shooter`, `#rpg` or `#animlab` to the address to jump straight into a slice.
 
 ## Try it
 
 | File | What it shows |
 |---|---|
-| `dist/my-3d2dge.html` | Title menu plus the five vertical slices. Arrows and Enter; `V` changes the view, `M` mutes. |
-| `examples/arena-iso.html` | **Emberwell**, an action-RPG arena in isometric view (Diablo, Bastion) with WebGPU lighting |
-| `examples/arena-topdown.html` | The same game in the three-quarter view (Zelda, Stardew Valley) |
+| `dist/my-3d2dge.html` | Title menu plus the five vertical slices and the animation lab. Arrows and Enter; `V` changes the view, `-` / `=` or the mouse wheel zoom, `[` / `]` turn the camera where a scene allows it, `0` resets it, `M` mutes. |
+| `examples/arena.html` | **Emberwell**, an action-RPG arena with WebGPU lighting. One game in four views: isometric (Diablo, Bastion), three-quarter (Zelda, Stardew Valley), top-down and brawler. Keys `1`-`4` or `V` switch, or open `arena.html#threequarter`. |
 | `examples/perspective-lab.html` | One room in every view, with lighting and skeleton toggles |
-| `examples/stress-test.html` | Up to 5,000 monsters, 30 shadow-casting torches, particle storms, a benchmark and a copyable report |
+| `examples/stress-test.html` | Up to 5,000 monsters in stick, HD, skeleton or knight rigs that attack with telegraphed moves and fall when beaten; 30 shadow-casting torches, particle storms, camera distance, zoom and turn, a benchmark and a copyable report |
 | `examples/scarfrunner-side.html` | The standalone side-scrolling prototype that came before the engine |
 
 ## What's in the engine
@@ -86,12 +86,19 @@ The model copies the closest slice and replaces the code between `GAME START` an
 - Effects: `particles.explosion` (fireball, smoke, sparks, debris, shockwave, shake, sound), fire, smoke, glints, and screen `flash`. Smoke and fire are hard-edged puffs in flat tones, not soft blurs. `game.hitFx` adds hit-stop, an impact star, sparks, a bouncing damage number and a sound in one call, and hit flashes keep the sprite's shading.
 - Typography: a 5x7 proportional pixel font with lower case, drop shadows and gradients, plus `E.font.title` for extruded gradient logos.
 
-**Characters**
+**Characters and animation**
 - `Humanoid`, with:
   - weapons: sword, gun, staff
-  - capes, jump pose, aiming, kicks
+  - capes, jump pose, aiming up and down, ladder climbing
   - squash and stretch, and skeleton debug view
   - `style: 'classic'` stick figures for huge crowds
+- A move library, `E.MOVES`:
+  - blades and clubs: slash, backslash, overhead, rising, thrust, spin, plunge, two-handed;
+  - fists: jab, cross, hook, uppercut, haymaker, elbow;
+  - kicks: front kick, roundhouse, sweep, flying kick, knee, axe kick;
+  - other: cast, throw, bash, claw.
+- Every move has anticipation, a committed strike (lunge, step, lean, torso twist), follow-through and a clean return to the stance. The same move fits every build and view, and horizontal swings become screen-plane chops in side views. `E.Combo(['jab', 'cross', 'hook', 'uppercut'])` chains them.
+- Stances (`guard`, `ready`) and poses: cheer, cast, guard, kneel, crouch, wave, hands on hips, knocked down. Idle rigs breathe and shift their weight.
 - `Blob` for slimes and round monsters, with optional ears, horns, bat wings, feet, a tail and fangs.
 - Pixel sprites from strings.
 
@@ -115,7 +122,7 @@ The model copies the closest slice and replaces the code between `GAME START` an
 **Game structure**
 - Scenes (title, play, game over) with per-scene view, keys and resolution.
 - Pause, timers (`after`, `every`), hit-stop, screen shake and slow motion.
-- A camera with bounds and room-by-room movement.
+- A camera with bounds and room-by-room movement, plus zoom and rotation (`game.setZoom`, `game.rotateView`): the world re-rasterizes crisply at any size while the HUD stays put.
 - Save data (`E.store`).
 
 **Input**
@@ -178,11 +185,17 @@ npx playwright install chromium   # once
 node tools/check.mjs dist/my-3d2dge.html#platformer
 ```
 
-It presses start and plays the game (move, jump, attack, fire), then cycles the game's views. It reports errors, engine warnings, frame times, how much of each screenshot is filled, and look notes that flag cheap-looking frames (a thin palette, large flat areas, checkerboard dithering, low contrast). It fails (exit code 1) on any error, or when gameplay leaves the screen blank.
+To check an animation frame by frame, record a contact sheet:
+
+```
+node tools/filmstrip.mjs dist/my-3d2dge.html#brawler --steps "wait:1500 press:Enter wait:800 rec:16:2 press:KeyJ" --crop 20,60,150,140
+```
+
+The checker presses start and plays the game (move, jump, attack, fire), then cycles the game's views. It reports errors, engine warnings, frame times, how much of each screenshot is filled, and look notes that flag cheap-looking frames (a thin palette, large flat areas, checkerboard dithering, low contrast). It fails (exit code 1) on any error, or when gameplay leaves the screen blank.
 
 ## Docs
 
-- `API.md`: the API card, about 10,181 tokens. It is embedded in every single-file edition.
+- `API.md`: the API card, about 11,019 tokens. It is embedded in every single-file edition.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 
 ## License

@@ -1,5 +1,5 @@
 /* ============================== GAME START ==============================
- * MY-3D2DGE STARTER: a title menu and five vertical slices (a genre kit file holds one). Each slice is a complete
+ * MY-3D2DGE STARTER: a title menu, five vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
  *   SLICE 1  ADVENTURE   top-down action adventure (Zelda, Secret of Mana): rooms, sword,
  *                        key and locked door, NPC dialog, hearts, rupees, torch lighting
@@ -28,15 +28,30 @@ const SLICES = [
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER' },
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP' },
-  { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE' }
+  { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE' },
+  { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW' }
 ];
-/* keys every slice shares: V changes the camera view, G toggles GPU lighting, M mutes */
+/* keys every slice shares: V changes the camera view, - and = (or the mouse wheel) zoom, [ and ] turn the camera,
+   0 resets it, G toggles GPU lighting, M mutes. A scene limits the camera with camera: { zoom: [min, max] | false, rotate: true } */
+const ZOOMS = [.5, .75, 1, 1.25, 1.5, 2, 2.5, 3];
+const camOpt = () => (game.scene && game.scene.camera) || {};
+const zoomStep = d => {
+  const lim = camOpt().zoom; if (lim === false) return;
+  const [lo, hi] = lim || [.75, 2], i = ZOOMS.findIndex(z => z >= game.zoom - 1e-6), z = clamp(ZOOMS[clamp(i + d, 0, ZOOMS.length - 1)], lo, hi);
+  game.setZoom(z); game.note('ZOOM ' + z + 'x');
+};
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  if (e.code === 'KeyV') game.nextView();
+  if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
+  else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomStep(-1);
+  else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomStep(1);
+  else if (e.code === 'Digit0') { game.resetCamera(); game.note('CAMERA RESET'); }
+  else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
+let wheelT = 0;
+addEventListener('wheel', e => { const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
 
 /* ---- TITLE: a lineup of HD heroes on a torch-lit castle ledge under a dusk sky ---- */
 const stage = new E.PlatformMap({ rows: ['SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS', 'SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS'], legend: { S: 1 },
@@ -52,7 +67,7 @@ const HEROES = [   // one hero per genre slice, each dressed with the HD rig opt
 const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
 scenes.title = {
   view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
-  enter() { A.music('title'); game.follow(null); game.focus(240, 0, 84); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
+  enter() { A.music('title'); game.resetCamera(); game.follow(null); game.focus(240, 0, 84); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     titleMenu.update(dt);
     const t = game.time;
@@ -73,7 +88,7 @@ scenes.title = {
       E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    r.text('Arrows + Enter   V view   M mute   ? API', r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    r.text('Arrows + Enter   V view   - = zoom   M mute   ? API', r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
