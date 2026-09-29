@@ -59,7 +59,7 @@ function spawnMonster(id, x, y, o = {}) {
   const m = {
     team: 'foe', arch, kind: id, name: arch.name, x, y, z: 0, vx: 0, vy: 0, vz: 0, r: arch.r || 5, alive: true, spawnT: o.instant ? 0 : .6, facing: R() * TAU,
     st: {}, res: Object.assign({}, arch.res || {}), armor: (arch.armor || 0) * (1 + depth * .15), head: arch.head || 28, mass: arch.mass || 1,
-    level: depth, el, elite, affixes: [], dmg: arch.dmg * dmgK, speed: (arch.speed || 30) * (1 + Math.min(.35, depth * .012)) * DIFF.foeSpeed * (.9 + R() * .2),
+    level: depth, el, elite, affixes: [], dmg: arch.dmg * dmgK, speed: (arch.speed || 30) * (1 + Math.min(.35, depth * .012)) * (.9 + R() * .2),   // (DIFF.foeSpeed runs its whole clock: updateFoes)
     xp: (arch.xp || 10) * SCALE.foeXp(depth) * [1, 3, 6, 25][elite], ai: {}, atk: null, cool: R() * 1.5, next: 0, flash: 0, ph: R() * TAU, tok: false, kbT: 0, stunT: 0,
     canFly: !!arch.flies, scale: o.scale || (elite === 2 ? 1.12 : 1)
   };
@@ -96,7 +96,11 @@ function makeBody(m, o) {
 /* ---------- reactions and death ---------- */
 function foeReact(hit) {
   const m = this;
-  m.flash = hit.crit ? .09 : .06;
+  // the hit flash. A boss or an elite takes many light hits a second, and a full-body flash on each hid its palette under a
+  // white strobe: every hit flares only its outline (rimT), and the whole body flashes (briefly) only on a crit or a blow
+  // worth 3% of its life, at most every .22 s
+  if (m.boss || m.elite) { m.rimT = .08; if ((hit.crit || (hit.dmg || 0) > m.maxHp * .03) && game.time - (m.flashAt || -9) > .22) { m.flashAt = game.time; m.flash = hit.crit ? .07 : .05; } }
+  else m.flash = hit.crit ? .09 : .06;
   const stag = m.boss ? 0 : m.arch.stagger === false ? 0 : 1;
   if (stag && (hit.kb || 0) > 20) { knock(m, hit.ang !== undefined ? hit.ang : angTo(hit.src || m, m), hit.kb, hit.up || 0); m.kbT = .25; }
   if (stag && !m.st.freeze) {
@@ -141,7 +145,7 @@ const AI = {
   tokens: 0, nextTurn: 0, shotNext: 0,
   maxAttackers: () => Math.min(8, 3 + Math.floor((ED.depth || 1) / 4)),
   /** attack turns: a few monsters attack at once, each new wind-up a moment after the last, so every hit has a readable author */
-  takeTurn(m) { if (AI.tokens >= AI.maxAttackers() || game.time < AI.nextTurn || !ED.hero || !ED.hero.alive) return false; AI.tokens++; AI.nextTurn = game.time + .22 * (.7 + Math.random() * .6); return true; },
+  takeTurn(m) { if (AI.tokens >= AI.maxAttackers() || game.time < AI.nextTurn || !ED.hero || !ED.hero.alive) return false; AI.tokens++; AI.nextTurn = game.time + .22 * (.7 + Math.random() * .6) / DIFF.foeSpeed; return true; },
   /** walk direction toward a point around walls (the level's flow field toward the hero; straight when close and in the
    *  open, so a monster round a corner follows the field instead of pressing into the wall) */
   steer(m, tx, ty) { const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1, fl = ED.L && ED.L.flow; if (!fl || d < 20 || (d < 64 && AI.clear(m, tx, ty))) return [dx / d, dy / d]; return fl.dir(m.x, m.y, tx, ty); },
@@ -241,7 +245,7 @@ def('ai', 'orb', { update(m, dt) {
   m.z = (m.arch.hover || 20) + Math.sin(a.t * 2) * 3;
   if (m.ai.aware && h.alive && m.stunT <= 0 && d < 180 && statusSpeed(m) > 0 && (see || a.charge > 0)) {
     if (a.charge > 0) { a.charge -= dt; if (a.charge <= 0) { const n = sh.n || 1; for (let i = 0; i < n; i++) { const an = Math.atan2(dy, dx) + (n > 1 ? (i / (n - 1) - .5) * (sh.spread || .5) : 0); FX.bolt({ team: 'foe', src: m, x: m.x, y: m.y, z: m.z, ang: an, speed: sh.speed || 95, life: 3, r: 3, el: m.el === 'phys' ? 'void' : m.el, hit: { amount: m.dmg * (sh.dmg || .8), kb: 60 }, look: Object.assign({ kind: 'orb', size: 1.6 }, sh.look || {}), light: 30 }); } sfx('shoot', { vol: .35, pitch: .7 }); a.fire = (sh.every || 2.5) + Math.random() * 2; } }
-    else { a.fire -= dt; if (a.fire <= 0 && game.time >= AI.shotNext) { a.charge = .6; AI.shotNext = game.time + .14 + Math.random() * .1; } }   // a swarm's shots come one after another, never as one volley
+    else { a.fire -= dt; if (a.fire <= 0 && game.time >= AI.shotNext) { a.charge = .6; AI.shotNext = game.time + (.14 + Math.random() * .1) / DIFF.foeSpeed; } }   // a swarm's shots come one after another, never as one volley
   }
 } });
 
@@ -256,10 +260,12 @@ function updateFoes(dt) {
   AI.tokens = 0; for (const m of list) if (m.atk || m.tok || (m.ai && m.ai.state === 'wind')) AI.tokens++;
   const dt0 = dt;
   for (const m of list) {
-    dt = dt0 * (m.timeK === undefined ? 1 : m.timeK);   // a mechanic may slow one monster's clock (time wells)
-    m.flash -= dt; m.stunT -= dt; m.kbT -= dt;
+    // the monster's clock (foeClock): a mechanic may slow it (time wells), the Monster speed slider runs every monster
+    // faster or slower: its walk, wind-ups, swings, cooldowns and boss patterns. Its statuses and flashes keep world time
+    const tk = m.timeK === undefined ? 1 : m.timeK; dt = dt0 * foeClock(m);
+    m.flash -= dt0; m.rimT = (m.rimT || 0) - dt0; m.stunT -= dt; m.kbT -= dt;
     if (m.spawnT > 0) { m.spawnT -= dt; continue; }
-    tickStatus(m, dt); if (!m.alive) continue;
+    tickStatus(m, dt0 * tk); if (!m.alive) continue;
     // launched into the air (uppercuts, explosions): a ballistic arc, no thinking until it lands
     if (m.air || (m.z > 0 && !m.canFly && m.arch.ai !== 'pouncer' && !(m.boss && m.pat) && !m.leaping)) {
       m.vz -= 520 * dt; m.z += m.vz * dt; m.x += m.vx * dt; m.y += m.vy * dt;
@@ -288,6 +294,9 @@ function updateFoes(dt) {
   }
   separate(list, dt0);
 }
+/** how fast a unit's clock runs against the world's: a monster's (time wells, the Monster speed slider), 1 for the rest.
+ *  Effects a monster owns (its telegraphs, its shots) can run on it, so a warning always fills as its wind-up does */
+const foeClock = u => u && u.team === 'foe' ? (u.timeK === undefined ? 1 : u.timeK) * DIFF.foeSpeed : 1;
 /** pose the body from the monster's state (skipped while frozen solid) */
 function animFoe(m, dt) {
   if (m.st.freeze) return;
@@ -336,21 +345,28 @@ function updateCorpses(dt) {
 /* ---------- drawing ---------- */
 const FLASH = '#ffe6d8', FLASH_LINE = '#fff4e6', CLAW_SMEAR = ['#ffffff', '#ffd6c8', '#ff7a5a', '#b8302a'];
 function foeAlpha(m) { return !m.alive ? clamp(m.arch.body === 'wisp' ? 1 - m.deadT / POP_T : ((m.arch.corpseT || DEAD_T) - m.deadT) * 2, 0, 1) : m.spawnT > 0 ? clamp(1 - m.spawnT / .6, .05, 1) : m.fade !== undefined ? m.fade : 1; }
+/** what a monster's body shows this frame: [flash color, mix, outline color]. The hit flash (brief, and throttled on bosses
+ *  and elites: see foeReact), else its strongest status as a gentle tint (statusTint); a boss or an elite struck by a light
+ *  blow flares only its outline, so its own colors always show. Custom bodies (33-beasts) draw with it too */
+function foeTint(m) {
+  const t = m.flash > 0 ? [FLASH, m.boss ? .26 : .3] : m.alive ? statusTint(m) : null;
+  const oc = m.flash > 0 || (m.alive && m.rimT > 0) ? FLASH_LINE : m.elite && m.alive ? (m.elite === 2 ? '#5a3a10' : '#18204a') : undefined;
+  return [t && t[0], t ? t[1] : 0, oc];
+}
 function drawFoe(m, r) {
   const view = r.view, alpha = foeAlpha(m), s = m.scale || 1;
   if (!r.visible(m.x, m.y, m.z, 60 * s, 40 * s, 110 * s)) { r.game.stats.culled++; return; }
   if (m.arch.draw) { m.arch.draw(m, r, alpha); return; }
-  const tint = m.flash > 0 ? [FLASH, .3] : m.alive ? statusTint(m) : null, outline = OPT.outlines !== false && !(PERF.low && !m.elite && !m.boss);   // the governor drops ordinary outlines when frames run long
-  const fl = tint && tint[0], fm = tint ? tint[1] : 0, oc = m.flash > 0 ? FLASH_LINE : m.elite && m.alive ? (m.elite === 2 ? '#5a3a10' : '#18204a') : undefined;
+  const [fl, fm, oc] = foeTint(m), outline = OPT.outlines !== false && !(PERF.low && !m.elite && !m.boss);   // the governor drops ordinary outlines when frames run long
   r.shadow(m.x, m.y, (m.r + 1) * s * (m.z > 0 ? Math.max(.4, 1 - m.z * .02) : 1), .5 * alpha);
   if (m.alive && m.elite) r.decal(() => { const c = m.elite === 2 ? '#ffc040' : m.elite === 3 ? '#ff5a3a' : '#6a9aff'; r.groundRing(m.x, m.y, m.r * s + 4, c, .6 + .3 * Math.sin(game.time * 5)); }, { emissive: .6 });
   const A0 = m.alive && m.atk && m.atk.busy ? m.atk : null;
   if (A0 && A0.phase === 'wind' && m.arch.attacks) { const at = m.arch.attacks[m.next] || m.arch.attacks[0]; telegraphArc(r, m, A0.u, (at.reach || 12) * s + (at.extraReach || 0), at.half || .8); }
   if (r.gpu) L.caster(m.x, m.y, 3.2 * s, 22 * s);
-  if (m.rig) r.actor(m.x, m.y, m.z, (g, ox, oy) => { m.rig.draw(g, ox, oy, view); if (m.drawExtra) m.drawExtra(g, ox, oy, view); }, { flash: fl, flashMix: fm, alpha, outline: outline || !!fl, outlineColor: oc, rim: outline });
-  else if (m.blob) r.actor(m.x, m.y, m.z, (g, ox, oy) => { m.blob.draw(g, ox, oy, view); if (m.drawExtra) m.drawExtra(g, ox, oy, view); }, { flash: fl, flashMix: fm, alpha, outline: outline || !!fl, outlineColor: oc, rim: outline });
+  if (m.rig) r.actor(m.x, m.y, m.z, (g, ox, oy) => { m.rig.draw(g, ox, oy, view); if (m.drawExtra) m.drawExtra(g, ox, oy, view); }, { flash: fl, flashMix: fm, alpha, outline: outline || !!fl || oc === FLASH_LINE, outlineColor: oc, rim: outline });
+  else if (m.blob) r.actor(m.x, m.y, m.z, (g, ox, oy) => { m.blob.draw(g, ox, oy, view); if (m.drawExtra) m.drawExtra(g, ox, oy, view); }, { flash: fl, flashMix: fm, alpha, outline: outline || !!fl || oc === FLASH_LINE, outlineColor: oc, rim: outline });
   else if (m.arch.body === 'wisp') r.actor(m.x, m.y, m.z, (g, ox, oy) => drawWisp(g, ox, oy, m, r), { rim: false, alpha, emissive: 1, outline });
-  else if (m.body) r.actor(m.x, m.y, m.z, (g, ox, oy) => m.body.draw(g, ox, oy, view, m), { flash: fl, flashMix: fm, alpha, outline: outline || !!fl, outlineColor: oc, rim: outline });
+  else if (m.body) r.actor(m.x, m.y, m.z, (g, ox, oy) => m.body.draw(g, ox, oy, view, m), { flash: fl, flashMix: fm, alpha, outline: outline || !!fl || oc === FLASH_LINE, outlineColor: oc, rim: outline });
   if (A0 && m.rig) m.rig.drawSmear(r, m.el !== 'phys' ? EL(m.el).smear.slice().reverse() : CLAW_SMEAR);
   for (const id of m.affixes) { const a = REG.affixes[id]; if (a && a.draw && m.alive) a.draw(m, r); }
   if (m.glow && m.alive) L.add(m.x, m.y, m.z + 10, m.glow[1] || 50, .7, { color: m.glow[0] });
@@ -395,7 +411,7 @@ function drawFoeBars(r) {
       if (!r.visible(m.x, m.y, m.z, 20, 20, 40)) continue;
       const [x, y] = r.w(m.x, m.y, m.z + (m.head || 28) * (m.scale || 1) + 4), w = m.elite ? 26 : 16;
       px.rect(g, x - w / 2 - 1, y - 1, w + 2, 4, '#0c0818'); px.rect(g, x - w / 2, y, w, 2, '#3a1a26'); px.rect(g, x - w / 2, y, Math.max(0, Math.round(w * m.hp / m.maxHp)), 2, m.elite === 2 ? '#ffb040' : m.elite ? '#6a9aff' : '#e0463c');
-      if (m.elite === 2 || (m.elite === 1 && m.packLead)) names.push({ m, x, y: y - 9 });
+      if (m.elite === 2) names.push({ m, x, y: y - 9 });   // rares only (a champion pack reads by its blue bars; its names crowded the fight)
     }
     // names never pile up: bottom to top on screen, a name that would overlap one already placed moves up a line (a few
     // at most), and a copy of a name already shown there (an illusionist's decoys) is left out: one name per group

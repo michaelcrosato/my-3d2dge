@@ -72,6 +72,7 @@ function MKB_hook() { const l = BUS.L.step; if (!l || !l.some(x => x.fn === MKB_
 const MKB_TW = { k: .3, boss: .55, edge: 8, brass: E.tones('#c8963a'), dome: '#7ec8f0', domeHi: '#e0f6ff' };
 def('mechanics', 'timewell', { name: 'Time Wells', title: 'The Stilled Clockworks', adj: 'Stilled', noun: 'Clockworks', color: '#8ad8ff', depth: 9, weight: 8,
   tip: 'Inside a clockwork dome monsters move, strike and shoot at a third of their speed. You keep your own time: fight inside.',
+  brief: 'Monsters in the domes move at a third speed.', lure: 'into a time well', act: 'fight inside the dome', zone: 'time wells',
   icon(g, x, y, s) {
     const cx = x + 8 * s, cy = y + 8 * s, B = MKB_TW.brass;
     px.disc(g, cx, cy, 7 * s, B.deep); px.disc(g, cx, cy, 6.3 * s, B.base); px.disc(g, cx - .5 * s, cy - .5 * s, 5.6 * s, B.lt); px.disc(g, cx, cy, 5 * s, '#15304a');
@@ -217,6 +218,7 @@ function MKB_dome(w, r) {
 const MKB_DK = { amb: .015, dark: .965, heroR: 54, heroI: .75, burn: 32, lit: .5, hide: .3, iron: E.tones('#3e3446'), flame: E.tones('#ff9a3a') };
 def('mechanics', 'dark', { name: 'Darkness', title: 'The Lightless Maw', adj: 'Lightless', noun: 'Maw', color: '#ffb050', depth: 11, weight: 7,
   tip: 'Only eyes shine in the dark, and unseen monsters shrug off blows. Strike a lantern: in its light they are Exposed and take far more.',
+  brief: 'Unseen foes resist; lanterns expose them.', lure: 'into lantern light', act: 'strike them while they are Exposed', zone: 'lantern light',
   icon(g, x, y, s) {
     const I = MKB_DK.iron, F = MKB_DK.flame, cx = x + 8 * s;
     px.rect(g, cx - .5 * s, y + s, s, 2 * s, I.lt); px.poly(g, [[cx - 4 * s, y + 5 * s], [cx + 4 * s, y + 5 * s], [cx + 2 * s, y + 3 * s], [cx - 2 * s, y + 3 * s]], I.base);
@@ -249,14 +251,18 @@ def('mechanics', 'dark', { name: 'Darkness', title: 'The Lightless Maw', adj: 'L
   },
   update(L0, dt) {
     const h = ED.hero; if (h) { h.lightR = MKB_DK.heroR; h.lightI = MKB_DK.heroI; }
+    const Q = L0.MKB_wakeQ; if (Q && Q.length && game.time >= Q[0].at) MKB_flare(Q.shift().t, !Q.length);   // the arena's lanterns, one after another
     if (L0.MKB_dkF !== MKB.frame) {   // a new frame's lights are in: measure every monster once
       L0.MKB_dkF = MKB.frame;
       for (const m of ED.foes) if (m.alive) { const [a, b] = MKB_lightAt(m.x, m.y); m.MKB_lv = a; m.MKB_lx = b; }
     }
     for (const m of ED.foes) {
       if (!m.alive || m.spawnT > 0 || m.MKB_lv === undefined) continue;
-      const v = m.MKB_lv, x = m.MKB_lx;
-      MKB_fade(m, .05 + .95 * E.ease.inOut(clamp((v - .12) / .5, 0, 1)));
+      const v = m.MKB_lv, x = m.MKB_lx; let f = .05 + .95 * E.ease.inOut(clamp((v - .12) / .5, 0, 1));
+      // a boss is too big for the dark to swallow once it is up: whole while it wakes and roars (its name card is up),
+      // never under .6 after; and its waking lights the arena (asleep it is only a pair of eyes, which is the point)
+      if (m.boss && !m.dormant) { f = Math.max(f, m.introT > 0 ? 1 : .6); if (!m.MKB_woke) { m.MKB_woke = 1; MKB_wake(L0, m); } }
+      MKB_fade(m, f);
       if (x >= MKB_DK.lit) {
         if (!m.st.vuln) { P.glints(m.x, m.y, (m.z || 0) + (m.head || 20) * (m.scale || 1), 3, '#ffd36a', 8); }
         applyStatus(m, 'vuln', 0); MKB_taken(m, 1.2);
@@ -268,6 +274,8 @@ def('mechanics', 'dark', { name: 'Darkness', title: 'The Lightless Maw', adj: 'L
     const h = ED.hero;   // find the hero's own glow (drawHero added it this frame at h.lightR): it shows him, it exposes nothing
     if (h) for (const q of L.list) if (q.x === h.x && q.y === h.y && q.r === MKB_DK.heroR) { q.MKB_hero = 1; break; }
     MKB_eyes(r);
+    // a waking boss is lit by its own fury (its element's colour) until the lanterns round it have caught
+    const B = ED.boss; if (B && B.alive && !B.dormant && B.MKB_woke && B.introT > 0) L.add(B.x, B.y, 26, 150, 1.2 * clamp(B.introT / .6, 0, 1), { color: EL(B.el || 'fire').light || '#ffb060' });
     // Exposed monsters stand in a broken ring of gold, so the player reads where the light pays
     for (const m of ED.foes) if (m.alive && m.st.vuln && m.MKB_lx >= MKB_DK.lit && r.visible(m.x, m.y, 0, 30, 30, 30)) { const a = -game.time * 2 + m.ph, rr = (m.r || 5) * (m.scale || 1) + 3; r.decal(() => { for (let i = 0; i < 3; i++) r.groundArc(m.x, m.y, rr, rr + 1.2, a + i * 2.1, a + i * 2.1 + 1.2, '#ffd36a', .75); }, { emissive: .6 }); }
   }
@@ -316,6 +324,22 @@ function MKB_lantern(x, y, R, fuel) {
       this.mapColor = this.fuel > 0 ? '#ffc060' : '#5a4a40';
     },
     draw(r) { MKB_drawLantern(this, r); } };
+}
+/** a boss wakes in the dark: every lantern round its arena flares, nearest first, a beat apart, so the fight has light to
+ *  be read by (and to Expose the boss in). Cold ones catch too. Outside an arena: the lanterns within 200 of it */
+function MKB_wake(L0, m) {
+  const ar = L0.rooms && L0.rooms[0] && L0.rooms[0].kind === 'arena' && L0.rooms[0].ir ? L0.rooms[0] : null;
+  const cx = ar ? ar.ix * T16 : m.x, cy = ar ? ar.iy * T16 : m.y, R0 = ar ? ar.ir * T16 + 24 : 200, d = t => Math.hypot(t.x - m.x, t.y - m.y);
+  const ls = (L0.MKB_lanterns || L0.things.filter(t => t.kind === 'MKB_lantern')).filter(t => !t.dead && Math.hypot(t.x - cx, t.y - cy) < R0).sort((a, b) => d(a) - d(b));
+  L0.MKB_wakeQ = ls.map((t, i) => ({ t, at: game.time + .3 + i * .16 }));
+}
+/** one lantern of the cascade: a gentler catch than a struck one (no flash or shake per lantern), the last one chimes */
+function MKB_flare(t, last) {
+  if (t.fuel >= .85) return;
+  t.fuel = 1; t.flare = 1; t.swv += (Math.random() < .5 ? -1 : 1) * 3;
+  const hx = t.x + Math.cos(t.arm) * 6, hy = t.y + Math.sin(t.arm) * 6;
+  P.fire(hx, hy, 22, 4, { size: 2.4, speed: 18 }); P.glints(hx, hy, 24, 4, '#fff0b0', 10); P.ring(t.x, t.y, 4, 30, '#ffd070', .4);
+  sfx(MKB_SND.ignite, { vol: .6, pitch: .9 + Math.random() * .3 }); if (last) sfx('chime', { vol: .2, pitch: .7 });
 }
 function MKB_ignite(t, cold) {
   const hx = t.x + Math.cos(t.arm) * 6, hy = t.y + Math.sin(t.arm) * 6;
@@ -367,6 +391,7 @@ function MKB_drawLantern(t, r) {
 const MKB_BR = { win: 2.5, cap: 3, per: .04, stacks: 30, mv: 1, as: 1.5, cd: 14, feed: 110, touch: 17 };
 def('mechanics', 'bloodrush', { name: 'Blood Rush', title: 'The Crimson Rush', adj: 'Crimson', noun: 'Killing Floors', color: '#ff3a4a', depth: 12, weight: 8,
   tip: 'Kills within 2.5 seconds chain into a streak: faster steps, faster blows, up to triple experience. Blood altars refill the timer and burst.',
+  brief: 'Fast kills chain a streak: speed and 3x XP.', act: 'keep the streak alive',
   icon(g, x, y, s) {
     const cx = x + 8 * s;
     px.poly(g, [[cx, y + 1.5 * s], [cx + 5 * s, y + 9 * s], [cx + 4 * s, y + 12.5 * s], [cx, y + 14.5 * s], [cx - 4 * s, y + 12.5 * s], [cx - 5 * s, y + 9 * s]], '#6a0612');
@@ -524,6 +549,7 @@ const MKB_LP = { cols: ['#6affd0', '#ffb04a', '#c890ff', '#6ab8ff', '#ff6a9a', '
 const MKB_arc = (p, q) => { const D = Math.hypot(q.x - p.x, q.y - p.y); return { D, T: clamp(.5 + D / 400, .75, 1.7), H: clamp(26 + D * .12, 44, 72) }; };   // (the core camera looks at z 8, so the apex stays on screen)
 def('mechanics', 'launch', { name: 'Launch Runes', title: 'The Leaping Spires', adj: 'Leaping', noun: 'Spires', color: '#6affd0', depth: 13, weight: 7,
   tip: 'Stand on a rune pad to be thrown to its twin; the landing slams everything around it. Monsters that wander onto one crash down. The pads chain toward the exit.',
+  brief: 'Pads throw you to a twin; landings slam.', lure: 'to a landing pad', act: 'slam down on them from a pad',
   icon(g, x, y, s) {
     px.ell(g, x + 5 * s, y + 13 * s, 4 * s, 1.8 * s, '#1a5a4a'); px.ell(g, x + 5 * s, y + 13 * s, 3 * s, 1.1 * s, '#6affd0');
     px.ell(g, x + 12.5 * s, y + 13.5 * s, 3 * s, 1.4 * s, '#1a5a4a'); px.ell(g, x + 12.5 * s, y + 13.5 * s, 2 * s, .8 * s, '#6affd0');
@@ -699,6 +725,7 @@ function MKB_arcPreview(p, r, a) {
 const MKB_FL = { low: .52, high: .95, per: 28, arcK: .65, arcCap: 14, clouds: 26, dry: 5, surge: 1.8, water: '#3a7cb4', wet: '#0a1422', foam: '#e0f4ff' };
 def('mechanics', 'flood', { name: 'Floodwater', title: 'The Drowned Aqueduct', adj: 'Drowned', noun: 'Aqueduct', color: '#5ab0e8', depth: 14, weight: 7,
   tip: 'The tide breathes through the halls. A storm hit on anything in the water arcs through the whole pool; fire on water raises scalding steam.',
+  brief: 'Storm arcs through water; fire makes steam.', lure: 'into the water', act: 'strike the water with storm', zone: 'the water',
   icon(g, x, y, s) {
     px.rect(g, x + s, y + 9 * s, 14 * s, 6 * s, '#1a3a6a'); px.rect(g, x + s, y + 9 * s, 14 * s, 2 * s, '#2c6496');
     for (let k = 0; k < 2; k++) for (let i = 0; i < 7; i++) px.dot(g, x + (1.5 + i * 2 + k) * s, y + (9 + k * 3 + (i % 2)) * s, '#bfe8ff');

@@ -35,6 +35,15 @@ function botSafeDir(h, a, reach = 38) {
   }
   return a;
 }
+/** out of burning ground (lava): the nearest safe footing, favouring the way it was going. It used to step straight back
+ *  the way it came, then walk on into the same fissure, and burned to death wading to and fro across it */
+function botLavaOut(h, goalA) {
+  const L0 = ED.L; let best = null, bs = 1e9;
+  for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; for (let d = 6; d <= 54; d += 6) if (botWalkable(L0, h.x + Math.cos(a) * d, h.y + Math.sin(a) * d)) { const sc = d - 14 * Math.cos(E.angDiff(a, goalA)); if (sc < bs) { bs = sc; best = { a, d }; } break; } }
+  return best;
+}
+/** lava a step ahead along a, and safe ground past it within a roll: a fissure a player rolls over instead of wading in */
+function botFissure(h, a) { const L0 = ED.L, c = Math.cos(a), s = Math.sin(a); if (L0.map.floorAt(h.x + c * 9, h.y + s * 9) !== 'lava') return false; for (let d = 14; d <= 34; d += 4) if (botWalkable(L0, h.x + c * d, h.y + s * d)) return true; return false; }
 /** is something about to land on the hero? { from: [x, y], kind: 'tele' | 'swing' | 'shot' | 'ground', perfect } or null */
 function botDanger(h) {
   for (const f of ED.fx) {
@@ -73,6 +82,7 @@ function botManage(h) {
     if (!up.length) break; const id = rnd.pick(up); h.skills[id].rank++; h.pts.skill--;
     if (h.skills[id].rank >= 2 && !h.skills[id].rune && REG.skills[id].runes) h.skills[id].rune = rnd.pick(REG.skills[id].runes).id;
   }
+  if (h.pts.skill > 0 && typeof autoAllocateMastery === 'function') autoAllocateMastery(h);   // every slotted skill at rank 5: mastery
   if (h.pts.passive > 0 && typeof autoAllocatePassives === 'function') autoAllocatePassives(h);
   computeStats(h);
 }
@@ -85,8 +95,9 @@ function botThink(h, dt) {
   B.t += dt; B.think -= dt;
   if (B.L !== L0) { B.L = L0; B.total = Math.max(1, ED.foes.filter(m => m.alive).length); B.ignore.clear(); B.flow = null; B.ft = [-1, -1]; B.tgt = null; B.stuckSum = 0; }
   if (B.think <= 0) { B.think = .5; botManage(h); }
-  // drink when low
-  if (h.hp < h.maxHp * .38 && h.potions > 0 && h.potionT <= 0) I.press('potion');
+  // drink when low (sooner facing a boss, whose blows come in pairs: at a third of his life one combo was his last)
+  const B0 = ED.boss, bossNear = B0 && B0.alive && !B0.dormant && Math.hypot(B0.x - h.x, B0.y - h.y) < 160;
+  if (h.hp < h.maxHp * (bossNear ? .5 : .38) && h.potions > 0 && h.potionT <= 0) I.press('potion');
   // danger: roll out of telegraphs, swings and shots (sometimes through a swing, for the perfect dodge); walk out of burning ground
   let dodge = false, avoid = null;
   const dz = botDanger(h);
@@ -143,10 +154,14 @@ function botThink(h, dt) {
   // out of potions and nearly dead next to something big: back off (still casting) until the life comes back or a potion drops
   if (h.hp < h.maxHp * .3 && h.potions <= 0 && near && (foe.elite || foe.boss || botCrowd(h.x, h.y, 40).n >= 3)) B.retreat = 5;
   if (B.retreat > 0) { B.retreat = h.hp > h.maxHp * .55 || h.potions > 0 ? 0 : B.retreat - dt; if (near && fd < 90) { const a = botSafeDir(h, Math.atan2(h.y - foe.y, h.x - foe.x), 30); mv = [Math.cos(a), Math.sin(a)]; } }
-  if (avoid) {   // burning ground underfoot: step off it toward the nearest safe side, still facing the fight
-    const a = botSafeDir(h, Math.atan2(h.y - avoid.from[1], h.x - avoid.from[0]) + (avoid.lava ? Math.atan2(mv[1], mv[0]) + Math.PI : 0), 24);
+  const canRoll = h.dodges > 0 && h.dodgeT <= 0 && (!h.act || h.act.cancel !== false);
+  if (avoid && avoid.lava) {   // standing in lava: out by the nearest safe side (the far one when it is as close), rolling when it is a stride away
+    const out = botLavaOut(h, Math.atan2(mv[1], mv[0]));
+    if (out) { mv = [Math.cos(out.a), Math.sin(out.a)]; if (out.d > 12 && canRoll) { I.worldMove = mv; I.press('dodge'); I.aimAt = [h.x + mv[0] * 30, h.y + mv[1] * 30]; return; } }
+  } else if (avoid) {   // burning ground underfoot: step off it toward the nearest safe side, still facing the fight
+    const a = botSafeDir(h, Math.atan2(h.y - avoid.from[1], h.x - avoid.from[0]), 24);
     mv = [Math.cos(a), Math.sin(a)];
-  }
+  } else if ((mv[0] || mv[1]) && canRoll && !h.act && botFissure(h, Math.atan2(mv[1], mv[0]))) { I.worldMove = mv; I.press('dodge'); I.aimAt = [h.x + mv[0] * 30, h.y + mv[1] * 30]; return; }   // a fissure across the way: roll over it
   // stuck (wanted to move, did not, and not busy swinging): sidestep one way, then the other, then roll free, then give up the target
   const moved = Math.hypot(h.x - B.lx, h.y - B.ly); B.lx = h.x; B.ly = h.y;
   const trying = (mv[0] || mv[1]) && !h.act && h.dodgeT <= 0;

@@ -75,25 +75,38 @@ UI panels are registered with `UI.def(id, spec)`. Contractual panel ids:
 | 2 | `wards` | The Warded Halls | crypt | halls | |
 | 3 | `chasm` | The Sundered Bridges | ruins | islands | |
 | 4 | `gale` | The Howling Galleries | ruins | halls | |
-| 5 | `magma` | (the boss names it) | forge | arena | cinderking |
+| 5 | `magma` | The Molten Throne | forge | arena | cinderking |
 | 6 | `ice` | The Rime Deep | frost | caves | |
 | 7 | `brood` | The Brood Warrens | fungal | caves | |
 | 8 | `pylons` | The Stormglass Mines | mine | halls | |
 | 9 | `timewell` | The Stilled Clockworks | clockwork | halls | |
-| 10 | `webs` | (the boss names it) | fungal | arena | broodmother |
+| 10 | `webs` | The Webbed Lair | fungal | arena | broodmother |
 | 11 | `dark` | The Lightless Maw | abyss | caves | |
 | 12 | `bloodrush` | The Crimson Rush | ossuary | halls | |
 | 13 | `launch` | The Leaping Spires | sky | islands | |
 | 14 | `flood` | The Drowned Aqueduct | aqueduct | halls | |
-| 15 | `quake` | (the boss names it) | cavern | arena | wyrm |
+| 15 | `quake` | The Shuddering Descent | cavern | arena | wyrm |
+
+**Level names** (`levelName`, 50-levels-core.js) always name the new element. A planned depth takes its mechanic's `title`. A boss depth weaves the element into the boss's lair: the mechanic's `adj` + the last word of the boss's `levelName` ('The Brood Mother's Lair' + webs = 'The Webbed Lair'); the boss's own name is on its wake card.
 
 Past depth 15, `recipe()` composes each depth:
-- a random theme, recolored by `L.hue`;
+- a random theme, recolored by `L.hue` (a recolor never brightens a material; a theme with `pale: k` also dims by k when it turns);
 - a random layout;
-- 2 mechanics (3 past depth 40), named `'The ' + adj + ' ' + noun`;
+- a NEW combination of mechanics (`comboAt(depth)`), at this pace:
+  - depths 16-30: pairs;
+  - 31-60: a triple one depth in three; 61-100: two in three;
+  - 101-200: a quad one depth in three; 201 on: two in three;
+  - a boss depth keeps one element fewer than its neighbours (never under two), so the boss is the show;
+  - within a size every combination comes once, and each depth takes the one whose elements were seen least recently, so all fifteen keep turning up. A size that runs dry (quads, past depth ~2000) draws random ones;
+  - why this pace: every element is freshly learned at 15, so pairs come first while each is still being mastered; each bigger size then arrives as an occasional spike before it becomes the norm, so the climb in complexity is felt every few depths without a wall (the old order, every pair before any triple, kept it flat at two until depth 120 and left the last elements out of play until then);
+- the name: every element's `adj`, newest first, on a place noun from the theme's `nouns`: 'The Molten, Howling Crypts' (a noun holding any mechanic's adjective, like 'Sundered Halls', is skipped);
 - a composed boss every 5th depth, built from patterns.
 
 Mechanics, themes, archetypes, affixes, patterns and powers must therefore work in ANY combination: with each other, in any theme, at any depth and in any layout. Missing ids fall back gracefully.
+
+### Words a mechanic and a theme carry
+- A mechanic: `name`, `title` (its level name when introduced), `adj` + `noun` (composed names), `tip` (the rule and the exploit: its card and HUD icon), and for combination cards `brief` (its rule in about 40 characters), `lure` ('into a rune circle': where to bring a pack), `act` ('strike a keg': how to finish it there), `move` ('Knock packs down a wind lane': a mechanic that carries foes), `zone` ('rune circles': a place to fight inside).
+- A theme: `nouns` (the place in composed names), `pale: .9` (a pale theme dims when a deep level recolors it), `lightR` / `lightI` (its braziers' light radius and intensity, default 124 and 1.25: a pale theme keeps them lower, or fights bleach its floor white).
 
 ### Standard floor tags (50-levels-core.js)
 Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for walkers; knocked-back, airborne and flying monsters cross it), `water` (slows), `deep` (blocked), `ice` (no traction), `lava` (burns), `web` (slows; fire should clear it), `blood`, `snow`.
@@ -161,7 +174,8 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
   - The bot reads `S.kind`, `S.tags` ('aoe') and `S.range` to decide when to use a skill.
   - It spends passive points through `autoAllocatePassives(h)` when that function exists.
 - `94-tips.js`: `tip(id, text, color)` shows a one-time hint per save. Tips wait for the level card to fade.
-- Composed depths (after 15) each introduce a NEW combination: all pairs of mechanics in the order they were introduced, then triples (`comboFor(n)`). The level card says "NEW COMBINATION".
+- Composed depths (after 15) each introduce a NEW combination (`comboAt(depth)`, pace above). The level card says "NEW COMBINATION".
+- **The level card** comes from `levelCardInfo(L)` (50-levels-core.js): `{ title, sub: 'DEPTH n', mech }`. On a planned depth `mech` is the mechanic (its `tip` is the card's text). On a combination it is `{ name: 'A + B', combo: true, ids, lines, tip: '' }`: one line per element, `'Magma Vents: ' + brief`, then `'Together: ...'`, a line on how they play off each other (a hand-written pair in `LVL_SYNERGY` where their systems touch in code, else built from the mechanics' `lure` / `act` / `move` / `zone` words).
 - Deep packs vary (`packVariant`): an element (recolor + status), a shared affix on normal monsters, and Giant and Swarming packs.
 - The hero:
   - the dodge is a forward roll (`heroRoll` post-rotates the rig's joints);
@@ -174,6 +188,13 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
   - an edge arrow to a discovered exit;
   - '!' alerts when a pack notices the hero;
   - slow-motion finishers on the last kill of a pack.
+- **Notices** (60-ui-core.js): `notify(text, color, dur)` with `dur <= 1.6` goes to the quick line over the skill bar. An item name notified right after BUS `'pickup'` goes to the pickup log. Level-up lines merge. Everything else goes to the top column, which waits for level and boss cards. Buffs may carry `icon(g, x, y, s)`, a `glyph` ('sword', 'shield', 'flame', 'bolt', 'up', 'right', 'heart', 'drop', 'stars'...) or `mech` for their HUD icon.
+- **Stash and crafting** (42-inventory.js): `UI.open('stash')` (the chest in Emberhold). `h.stash = { tabs: [4 x 40], mats: { scrap, dust, core }, ess: { powerId: n } }`. Crafting costs gold plus materials (salvage gives materials, not gold), and Seren imprints essences.
+- **Endless loot** (40-loot-core.js): affix tiers keep coming past the hand-written ones, with `affixInfo` / `affixText` (roll quality, tier, range) and `rescaleItem(it, ilvl)` (temper). Item grades rise with depth. Legendary powers can be composed from their id (`powerSpec(id)`, `powerFits(id, slot)`, open word registries `cxTrigger` / `cxEffect`), so deep legendaries keep inventing new powers.
+- **Endless progression** (28-progression.js): past rank 5 a skill point buys a mastery rank (`h.skills[id].mastery`, diminishing more damage; rune tiers at mastery 5, 15, 30, 50... add +1 rank). Once the 199-star core is complete, seeded rings of deep stars (ids `dp<ring>_<j>`) wake one after another. `PRG_canSpend(h) -> { skill, passive }` says whether an unspent point can buy anything.
+- **Bosses** (35-bosses-core.js): a pattern spec carries `role: 'close' | 'zone' | 'aid'`; composed bosses pick 2 close + 2 zone + 1 aid (plus a zone past depth 40). Composed bosses use only `bossBody` archetypes (bone king, colossus, flesh titan, the Six-Armed Reaver; the planned set pieces only past depth 100, recolored). A boss that kills the hero keeps a scar (15% life per defeat at that depth, at most 3), cleared by the win.
+- **Monster clock**: `foeClock(u)` is a monster's time rate (time wells times the Monster speed slider); its moves, telegraphs and shots follow it. `foeTint(m)` is the one place a monster's hit flash and status tint are decided.
+- **Hero**: a one-deep skill queue (`h.slotQ`), moving cancels an action's follow-through (opt out with `moveCancel: false`), near-miss perfect dodges (`heroNearMiss`, and BUS `'foeStrike' { src, x, y, r }` for custom attacks), short knockdowns with a tech roll, and a death with weight (hard stop, slow motion, camera push-in).
 
 ## Quality bar (read this)
 

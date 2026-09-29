@@ -92,6 +92,17 @@ function swingAction(h, atk, o) {
   return act;
 }
 
+/** a combo skill's chain outlives its action: moving out of a recovery (or a dodge, a knock) ends the action, and the next
+ *  press picks the chain up where it stopped, inside the combo's own window, instead of starting over at the first hit.
+ *  make() builds a fresh combo; key (the rune) keeps a chain from carrying over into a different set of moves.
+ *  The action must call comboLeft(S) when it ends */
+function comboResume(S, key, make) {
+  const c = S.combo, t = S.comboEnd === undefined ? -9 : S.comboEnd;
+  if (c && c.key === key && c.step >= 0 && c.step + 1 < c.moves.length && game.time - t <= c.window + .05 && !(ED.hero && ED.hero.dodgeT > 0)) return c;
+  const n = make(); n.key = key; return (S.combo = n);
+}
+const comboLeft = S => { S.comboEnd = game.time; };
+
 /* ---------- small pictograms for skill icons (16x16 at size 1) ---------- */
 const ICON = {
   frame(g, x, y, s, c) { const t = E.tones(c); px.rect(g, x, y, 16 * s, 16 * s, t.deep); px.rect(g, x + s, y + s, 14 * s, 14 * s, t.sh); px.rect(g, x + s, y + s, 14 * s, 6 * s, t.base); px.rect(g, x + s, y + s, 14 * s, s, t.lt); },
@@ -135,12 +146,12 @@ def('skills', 'blade', {
       act.face = h.dodgeDir; act.ghost = '#8fe0f2'; return act;
     }
     h.facing = h.aim;
-    const combo = new E.Combo(['slash', new E.Attack('backslash', { a1: 2.2, z1: -3 }), new E.Attack('spin', { z0: -12, z1: -12 })], { window: .3 });
+    const combo = comboResume(self, ctx.rune || '', () => new E.Combo(['slash', new E.Attack('backslash', { a1: 2.2, z1: -3 }), new E.Attack('spin', { z0: -12, z1: -12 })], { window: .3 }));
     combo.press();
     const act = swingAction(h, combo, { name: 'blade', range: spec => (BLADE_HIT[spec.name] || BLADE_HIT.slash).range * (spec.name === 'spin' ? ctx.area : 1), half: spec => (BLADE_HIT[spec.name] || BLADE_HIT.slash).half, push: 70, hit: hitFor, onHit,
       onStrike(a) { const n = combo.current.spec.name; a.set.clear(); if (BLADE_HIT[n]) { const p = BLADE_HIT[n].push - 70; h.vx += Math.cos(h.facing) * p; h.vy += Math.sin(h.facing) * p; }
         if (n === 'spin') { P.ring(h.x, h.y, 6, 30 * ctx.area, '#dff8ff', .3); if (ctx.rune === 'tempest') FX.nova({ team: 'hero', src: h, x: h.x, y: h.y, r0: 10, r1: 70 * ctx.area, dur: .4, el: 'phys', color: '#bff6ff', hit: ctx.hit(.6, { kb: 160 }) }); } } });
-    act.combo = combo; self.combo = combo;
+    act.combo = combo; act.end = () => comboLeft(self);
     return act;
   },
   again(h, act, ctx) {

@@ -161,9 +161,12 @@ function slowMoReset(base = 1) { SLOW.list.length = 0; SLOW.live = false; SLOW.b
 // Both sides grow exponentially and the monsters' base is a little higher, so every depth is a touch harder than the
 // last for the same player skill: item power x1.08 per item level (weapon damage, flat life, armor), monster life x1.10
 // and damage x1.075 per depth. Levels, passives, ranks and percent affixes are the hero's edge; past ~100 the deep wins.
+// On top, monster damage climbs 60% and life 40% over the first twenty depths, then holds (a constant share after that,
+// so the deep's slope is unchanged): the hero's first levels, ranks and gear outran the monsters, and a careless player
+// walked through depths 6 to 16 above two thirds of his life
 const SCALE = {
-  foeHp: d => Math.pow(1.1, d - 1) * (1 + d * .02),
-  foeDmg: d => Math.pow(1.075, d - 1) * (1 + d * .02),
+  foeHp: d => Math.pow(1.1, d - 1) * (1 + d * .02) * (1 + .4 * (1 - Math.exp(-(d - 1) / 8))),
+  foeDmg: d => Math.pow(1.075, d - 1) * (1 + d * .02) * (1 + .6 * (1 - Math.exp(-(d - 1) / 8))),
   foeXp: d => Math.pow(1.11, d - 1) * (1 + d * .05),
   gold: d => Math.pow(1.08, d - 1) * (1 + d * .1),
   /** xp to go from hero level l to l + 1 */

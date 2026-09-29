@@ -2,7 +2,9 @@
  * THE HERO  (the stress test's swordsman: teal tunic, red cape, dark hair)
  * One action at a time (a skill's swing, a leap, a cast, a stagger). An ACTION is
  *   { name, t, update(dt) -> keep going?, rig: { fields merged into rig.update }, moveK (movement while busy, 0..1),
- *     cancel: true (a dodge may cut it short), face: angle | null (hold this facing), z (lift for leaps), ghost }
+ *     cancel: true (a dodge may cut it short), face: angle | null (hold this facing), z (lift for leaps), ghost,
+ *     free: true in the follow-through (a skill may start; moving ends it unless moveCancel: false), hold (a channel) }
+ * A skill press that finds him busy waits in a one-deep queue (h.slotQ) for half a second.
  * Skills return actions (see 25-skills-core.js). Gear changes the rig: colors, helm, armor, cape, blade.
  * ============================================================================= */
 const HERO_LOOK = {   // the classic look: every piece of gear may override parts of it
@@ -58,26 +60,30 @@ function gainXp(h, n) {
   while (h.xp >= SCALE.xpNeed(h.level)) {
     if (up >= 50) { h.xp = SCALE.xpNeed(h.level) - 1; break; }   // (a safety net: no kill is worth more than 50 levels)
     h.xp -= SCALE.xpNeed(h.level); h.level++; h.pts.skill++; h.pts.passive++; up++;
-    computeStats(h); h.hp = h.maxHp; h.ember = h.maxEmber;
+    computeStats(h);
     BUS.emit('heroLevel', { lvl: h.level });
   }
-  if (up) levelUpFx(h, up);   // one flourish, however many levels a big kill gave
+  // a level-up is a second wind, not a free full heal (every boss gave two or three levels, so the depth after it began
+  // at full life): a third of his life back and a full ember pool, once however many levels the kill gave
+  if (up) { h.hp = Math.min(h.maxHp, h.hp + h.maxHp * .35); h.ember = h.maxEmber; levelUpFx(h, up); }
 }
 /**
  * The level-up: he throws his arms up (cheer, shouting) inside a column of golden light that shoots up from his feet
- * and thins toward the top, motes spiral up around him, two rings roll out and "LEVEL n" pops over his head.
+ * and thins toward the top, motes spiral up around him, two rings roll out and "LEVEL n" pops out BESIDE him (over his
+ * head it sat on the notice feed and hid him). It is short (under a second): fights go on through it.
  * The column is three faint additive shafts (never a solid bar: he must stay visible inside it), sized by the zoom.
  */
 function levelUpFx(h, up = 1) {
   const pts = up > 1 ? up + ' SKILL POINTS  +' + up + ' PASSIVE POINTS' : '1 SKILL POINT  +1 PASSIVE POINT';
-  sfx('powerup'); notify('LEVEL ' + h.level + '  •  +' + pts, '#ffe070', 4);
-  h.cheerT = 1.1; P.glints(h.x, h.y, 16, 14, '#ffe070', 22); P.ring(h.x, h.y, 4, 34, '#ffe070', .5);
-  P.text(h.x, h.y, (h.head || 26) + 12, 'LEVEL ' + h.level, '#ffe070', { scale: 2, bounce: true });
+  sfx('powerup'); notify('LEVEL ' + h.level + '  •  +' + pts, '#ffe070', 3);
+  h.cheerT = .75; P.glints(h.x, h.y, 16, 10, '#ffe070', 18); P.ring(h.x, h.y, 4, 34, '#ffe070', .4);
+  const sd = game.view.screenDirToGround(1, 0), sl = Math.hypot(sd[0], sd[1]) || 1;   // the ground direction that reads as screen-right
+  P.text(h.x + sd[0] / sl * 20, h.y + sd[1] / sl * 20, (h.head || 26) * .7, 'LEVEL ' + h.level, '#ffe070', { bounce: true });
   let ring2 = false;
-  FX.visual(1.4, (r, u) => {
-    const zm = r.view.zoom || 1, grow = E.ease.outCubic(Math.min(1, u * 7)), a = u < .2 ? 1 : 1 - (u - .2) / .8, x0 = h.x, y0 = h.y;
+  FX.visual(.85, (r, u) => {
+    const zm = r.view.zoom || 1, grow = E.ease.outCubic(Math.min(1, u * 6)), a = u < .15 ? 1 : 1 - (u - .15) / .85, x0 = h.x, y0 = h.y;
     r.queue(x0, y0, 0, g => {
-      const [x, y] = r.w(x0, y0, 0), [, ty] = r.w(x0, y0, 96 * grow), H = y - ty; if (H < 1) return;
+      const [x, y] = r.w(x0, y0, 0), [, ty] = r.w(x0, y0, 70 * grow), H = y - ty; if (H < 1) return;
       px.glow(g, 1);
       for (const [w, c, k] of [[5.5, '#ff9a3a', .1], [3.2, '#ffd36a', .16], [1.1, '#fff6d0', .3]]) {   // wide and faint to narrow and bright
         const W = Math.max(1, Math.round(w * zm));
@@ -87,7 +93,7 @@ function levelUpFx(h, up = 1) {
     }, { emissive: true, bias: -.6 });
     L.add(x0, y0, 20, 110, 1.3 * a, { color: '#ffd36a' });
   }, (f, dt) => {
-    if (f.t < .9 && Math.random() < dt * 40) { const an = f.t * 9 + Math.random() * .6, rr = 7 + Math.random() * 3; P.add({ kind: 'ember', x: h.x + Math.cos(an) * rr, y: h.y + Math.sin(an) * rr, z: 2 + Math.random() * 6, vx: -Math.sin(an) * 18, vy: Math.cos(an) * 18, vz: 45 + Math.random() * 25, drag: 1.2, max: .8, color: Math.random() < .5 ? '#ffe070' : '#fff6d0' }); }   // motes spiral up around him
+    if (f.t < .55 && Math.random() < dt * 40) { const an = f.t * 9 + Math.random() * .6, rr = 7 + Math.random() * 3; P.add({ kind: 'ember', x: h.x + Math.cos(an) * rr, y: h.y + Math.sin(an) * rr, z: 2 + Math.random() * 6, vx: -Math.sin(an) * 18, vy: Math.cos(an) * 18, vz: 45 + Math.random() * 25, drag: 1.2, max: .8, color: Math.random() < .5 ? '#ffe070' : '#fff6d0' }); }   // motes spiral up around him
     if (!ring2 && f.t > .18) { ring2 = true; P.ring(h.x, h.y, 3, 50, '#fff0b0', .45); P.glints(h.x, h.y, 30, 8, '#fff6d0', 14); }
   });
 }
@@ -103,25 +109,35 @@ function heroReact(hit) {
   if (hit.ang !== undefined || hit.src) knock(h, ang, hit.kb === 0 ? 0 : Math.min(260, (hit.kb || 60) + 60), 0);   // a sourceless hit (lava, a trap tick) has no direction to shove him in
   game.freeze(.05); shake(3); P.sparks(h.x, h.y, 12, 10, ang + Math.PI, { color: '#ff7a6a' });
   sfx('hurt', { vol: .6 });
-  if ((hit.kb || 0) >= 200 || hit.knockdown) knockDown(h, 1);
+  if ((hit.kb || 0) >= 200 || hit.knockdown) knockDown(h, hit.knockdown === 'long' || (hit.src && hit.src.boss) ? .9 : .45);   // a quick fall from trash, a long one from bosses
   else if (h.act && h.act.cancel !== false && h.act.interrupt !== false && (hit.dmg || 0) > h.maxHp * .12) endAction(h);
   BUS.emit('hurt', { tgt: h, hit, dmg: hit.dmg });
 }
 /** knocked flat: he turns to the blow and falls back from it ('down'), lies a moment, gets up (invulnerable while
- *  down). The body holds that facing on the floor (it no longer swings round after the cursor), and a dodge may cut
- *  the getting-up short: a recovery roll */
-function knockDown(h, t = 1) {
+ *  down). The body holds that facing on the floor (it no longer swings round after the cursor). A quick fall: the body
+ *  hits the floor in ~0.16 s, lies until t and is up ~0.35 s later (the rig rises at a steady rate), and from 60% of t a
+ *  dodge cuts it short: a tech roll straight off the floor. (A full second flat from a trash monster read as sluggish) */
+function knockDown(h, t = .45) {
   const f = h.hitA !== undefined ? h.hitA : h.facing; h.facing = f;
-  startAction(h, { name: 'down', cancel: false, moveK: 0, face: f, dur: t + .6, rig: { down: 1 }, update(dt) {
-    this.rig.down = this.t < t ? 1 : 0; this.cancel = this.t >= t; h.inv = Math.max(h.inv, .2);
+  startAction(h, { name: 'down', cancel: false, moveK: 0, face: f, dur: t + .35, rig: { down: 1 }, update(dt) {
+    this.rig.down = this.t < t ? 1 : 0; this.cancel = this.t >= t * .6; h.inv = Math.max(h.inv, .2);
     return (this.t += dt) < this.dur;
   } });
 }
+/** the killing blow has weight: a long hard stop, a red flash, a heavy shake, then the world crawls (slow motion for a
+ *  second) while the camera pushes in on him as he staggers, his knees give and he topples. The body stays in view
+ *  (drawHero no longer fades it) under the YOU DIED panel */
 function heroDie(hit) {
   const h = this;
-  if (h.act) endAction(h); h.dead = true; h.deadT = 0; h.act = null; h.vz = Math.min(0, h.vz || 0); h.dodgeT = 0;   // killed in the air (a leap, a roll): he falls from there
+  if (h.act) endAction(h); h.dead = true; h.deadT = 0; h.deadAt = wallClock(); h.act = null; h.vz = Math.min(0, h.vz || 0); h.dodgeT = 0; h.slotQ = null;   // killed in the air (a leap, a roll): he falls from there
   P.bits(h.x, h.y, 8, 20, [h.look.colors.cloth, h.look.colors.cape, h.look.colors.skin]);
-  sfx('die'); A.music(null);
+  P.sparks(h.x, h.y, 14, 18, h.hitA !== undefined ? h.hitA + Math.PI : null, { color: '#ff6a5a', hot: '#fff0d0' }); P.ring(h.x, h.y, 3, 30, '#ff6a5a', .45);
+  sfx('die'); sfx('thud', { vol: .7, pitch: .6 }); A.music(null);
+  h.deathZ = 0;
+  if (!ED.demo) {
+    HITSTOP.hard(.07); shake(7); game.flash('#ff3a2a', .22, .55); slowMo(.3, 1.4, 'death');   // (the stop is game time: under the slow motion it holds ~0.25 s)
+    h.deathZ = game.zoom;   // the push-in starts from wherever the player had the camera
+  }
   BUS.emit('heroDie', { h, hit });
 }
 /** evasion: a chance to sidestep a hit entirely */
@@ -138,6 +154,28 @@ function heroDodgedHit(hit) {
     BUS.emit('perfectDodge', { h, hit });
   }
 }
+/**
+ * The near miss: a blow that goes off in the first moments of a roll, where he stood when he rolled (or within ~16
+ * units of it, or of where he is now), is a perfect dodge too, though it never touches him: rolling AWAY from a blow is
+ * what most players do, and it used to count for nothing. gap(x, y) = how far a point is outside the blow's reach
+ * (<= 0: inside it). Called for monster swings (the melee AI's m.atk, from the hero's own step), every hostile telegraph
+ * as it fires and hostile bolts that fly past (10-combat.js), and any module's BUS.emit('foeStrike', { src, x, y, r })
+ * for attacks of its own.
+ */
+function heroNearMiss(src, gap) {
+  const h = ED.hero; if (!h || !h.alive || !(h.dodgeT > .1) || h.perfectT) return;
+  if (Math.min(gap(h.x, h.y), h.dodgeX === undefined ? 99 : gap(h.dodgeX, h.dodgeY)) - h.r > 16) return;
+  heroDodgedHit.call(h, { src: src && src.team ? src : { team: 'foe' }, near: true });
+}
+BUS.on('foeStrike', e => { if (ED.hero && e) heroNearMiss(e.src, (x, y) => Math.hypot(e.x - x, e.y - y) - (e.r || 0)); }, 'global');
+/** the melee AI's swings (m.atk, an E.Attack) that turn active near him while he rolls: a blow's reach is its body plus
+ *  a dozen units, within its swing arc */
+function heroNearSwings(h) {
+  eachEnemy('hero', h.x, h.y, 90, m => {
+    const A = m.atk; if (!A || A.phase !== 'active' || A.t > .12 || A._near) return; A._near = true;
+    heroNearMiss(m, (x, y) => Math.abs(E.angDiff(m.facing, Math.atan2(y - m.y, x - m.x))) < 1.5 ? Math.hypot(x - m.x, y - m.y) - m.r - 12 * (m.scale || 1) : 99);
+  });
+}
 
 /* ---------- the per-step controller ---------- */
 const HERO_SPEED = 84, DODGE_T = .27, DODGE_SPEED = 255;
@@ -147,14 +185,24 @@ const HERO_SPEED = 84, DODGE_T = .27, DODGE_SPEED = 255;
  * and hair are cloth, so they whip around it; the afterimages trace the roll.
  */
 function heroRoll(h, u) {
-  const J = h.rig.J, o = h.rig.o, a = -E.ease.inOut(clamp(u, 0, 1)) * TAU, c = Math.cos(a), s = Math.sin(a), cz = o.hipZ * .55, tuck = Math.sin(clamp(u, 0, 1) * Math.PI);
-  for (const k in J) {
-    const p = J[k]; if (!p || k === 'bladeDir') continue;
-    const f = p[0] * (1 - .35 * tuck), z = (p[2] - cz) * (1 - .45 * tuck);
-    J[k] = [f * c - z * s, p[1] * (1 - .25 * tuck), f * s + z * c + cz * (1 - .55 * tuck)];
-  }
+  const rig = h.rig, J = rig.J, o = rig.o, a = -E.ease.inOut(clamp(u, 0, 1)) * TAU, c = Math.cos(a), s = Math.sin(a), cz = o.hipZ * .55, tuck = Math.sin(clamp(u, 0, 1) * Math.PI);
+  const T = p => { const f = p[0] * (1 - .35 * tuck), z = (p[2] - cz) * (1 - .45 * tuck); return [f * c - z * s, p[1] * (1 - .25 * tuck), f * s + z * c + cz * (1 - .55 * tuck)]; };
+  for (const k in J) { const p = J[k]; if (p && k !== 'bladeDir') J[k] = T(p); }
   const b = J.bladeDir; if (b) J.bladeDir = [b[0] * c - b[2] * s, b[1], b[0] * s + b[2] * c];
+  // the cape and hair were solved on the upright body (rig.update anchors them to the unturned shoulders), so on their
+  // own they hung in the air above the somersault like a flag. Turn every cloth node with the body, through the rig's
+  // own local frame (world -> facing/size -> the same roll -> world). It is for this frame's drawing only: the next
+  // step puts them back (heroUnroll) before the cloth simulates again, so the sim never sees a jump or gains velocity,
+  // and at the end of the roll (a whole turn, no tuck) the two agree exactly
+  const an = rig.facing + rig.spin + (rig._cheat || 0), ca = Math.cos(an), sa = Math.sin(an), k = (1 - rig.sq * .4) * o.size, kz = (1 + rig.sq) * o.size, keep = h._rollCloth = [];
+  for (const ch of [rig.capeL, rig.capeR, rig.hairPts]) if (ch) for (const n of ch) {
+    keep.push(n, n.x, n.y, n.z);
+    const dx = n.x - rig.x, dy = n.y - rig.y, q = T([(dx * ca + dy * sa) / k, (-dx * sa + dy * ca) / k, (n.z - rig.z) / kz]);
+    n.x = rig.x + (q[0] * ca - q[1] * sa) * k; n.y = rig.y + (q[0] * sa + q[1] * ca) * k; n.z = rig.z + q[2] * kz;
+  }
 }
+/** undo heroRoll's turn of the cloth (the rig simulates it upright) */
+function heroUnroll(h) { const s = h._rollCloth; if (!s) return; h._rollCloth = null; for (let i = 0; i < s.length; i += 4) { s[i].x = s[i + 1]; s[i].y = s[i + 2]; s[i].z = s[i + 3]; } }
 function heroAim(h) {
   const inp = h.bot ? h.bot.input : game.input, view = game.view;   // h.bot: the autopilot drives a virtual input (93-autopilot.js)
   const mv = inp.move(), md = inp.worldMove ? inp.worldMove.slice() : view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
@@ -170,6 +218,7 @@ function heroAim(h) {
 }
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
+  heroUnroll(h);   // the roll's cloth goes back upright before anything simulates it
   if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) h.perfectT = 0;
   // witch time: after a perfect dodge the world crawls but he keeps close to his own pace (his clock runs fast)
   if (h.perfectT > 0 && game.timeScale < 1 && !h.dead) dt *= Math.min(3, .85 / Math.max(.2, game.timeScale));
@@ -179,6 +228,7 @@ function updateHero(h, dt, o = {}) {
   tickStatus(h, dt);
   if (h.dead) {   // he falls from wherever death found him (mid-leap, mid-roll), then crumples
     h.deadT += dt;
+    if (h.deathZ) game.setZoom(h.deathZ * (1 + .3 * E.ease.outCubic(Math.min(1, h.deadT / 1.3))));   // the camera leans in on the fall (a new world entry resets the zoom)
     if (h.z > 0) { h.vz -= 520 * dt; h.z = Math.max(0, h.z + h.vz * dt); if (!h.z) { h.vz = 0; P.dust(h.x, h.y, 0, 6, { speed: 40 }); sfx('thud', { vol: .5 }); } }
     h.rig.update(dt, { x: h.x, y: h.y, z: h.z, facing: h.facing, pose: h.z > 1 ? null : 'die', air: h.z > 1, hurt: h.z > 1, expr: 'wince' }); return;
   }
@@ -194,30 +244,41 @@ function updateHero(h, dt, o = {}) {
   if (inp.buffered('dodge', .12) && !canDodge && h.dodges > 0) { inp.consume('dodge'); h.dodgeQ = .35; h.dodgeQT = game.time; }   // (a roll pressed mid-roll chains)
   if (!(h.act && h.act.cancel === false) || game.time - (h.dodgeQT || 0) > 1.2) h.dodgeQ = (h.dodgeQ || 0) - dt;   // it waits out a leap or a fall
   if ((inp.buffered('dodge', .12) || h.dodgeQ > 0) && canDodge) {
-    inp.consume('dodge'); h.dodgeQ = 0;
+    inp.consume('dodge'); h.dodgeQ = 0; h.slotQ = null;   // (a skill still waiting in the queue gives way to the roll)
     const a = mlen > .1 ? Math.atan2(md[1], md[0]) : h.aim;
     if (h.act) endAction(h);
-    h.dodgeDir = a; h.dodgeT = DODGE_T; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = 1.4; h.inv = Math.max(h.inv, DODGE_T + .04);
+    h.dodgeDir = a; h.dodgeT = DODGE_T; h.dodgeX = h.x; h.dodgeY = h.y; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = 1.4; h.inv = Math.max(h.inv, DODGE_T + .04);
     P.dust(h.x, h.y, 0, 6, { speed: 40 }); P.ring(h.x, h.y, 3, 14, '#bff6ff', .25); h.rig.kick(-3); sfx('whoosh', { vol: .7 });
     BUS.emit('dodge', { h });
   }
   // skills: the six slots (in town the swing is harmless, and E / click on a person talks instead). A press is
   // buffered; a key HELD keeps the skill going (Diablo style: hold to keep attacking or casting), quietly (no
   // 'not enough ember' spam), and never restarts a channel (its own hold logic runs it)
-  if (!town || o.canAct) for (let i = 0; i < 6; i++) {
-    if (inp.buffered(SLOT_ACTS[i], .16)) { if (useSlot(h, i)) inp.consume(SLOT_ACTS[i]); }
-    else if (inp.down(SLOT_ACTS[i]) && !(h.act && h.act.hold) && h.dodgeT <= 0) useSlot(h, i, true);
-  }
+  // A tap that lands while a longer swing is still busy (a spin, a cleave's wind-up, a leap) is not dropped: it waits in
+  // a one-deep queue (the newest press wins) and goes off the moment the action is free, for up to half a second
+  if (!town || o.canAct) {
+    const fresh = [];
+    for (let i = 0; i < 6; i++) if (inp.buffered(SLOT_ACTS[i], .16)) { fresh[i] = true; if (useSlot(h, i)) { inp.consume(SLOT_ACTS[i]); h.slotQ = null; } else if (h.act) { inp.consume(SLOT_ACTS[i]); h.slotQ = { i, t: .5, at: game.time }; } }
+    // (it waits out a locked action, a leap in the air, like the dodge's queue, for up to 1.2 s; and it runs before the
+    // held keys: a held attack must not starve a tapped skill)
+    const q = h.slotQ; if (q && ((h.act && h.act.cancel === false ? 0 : q.t -= dt) < 0 || game.time - q.at > 1.2 || useSlot(h, q.i) || !h.act)) h.slotQ = null;
+    for (let i = 0; i < 6; i++) if (!fresh[i] && inp.down(SLOT_ACTS[i]) && !(h.act && h.act.hold) && h.dodgeT <= 0) useSlot(h, i, true);
+  } else h.slotQ = null;
   // hold-to-channel skills keep running while the key is down
   if (h.act && h.act.hold && !inp.down(SLOT_ACTS[h.act.slot])) h.act.release = true;
   if (inp.pressed('potion')) drinkPotion(h);
   // the current action
   if (h.act) { const k = h.act.speed || 1; if (!h.act.update(dt * k * sp, h)) endAction(h); }
+  // moving cuts a recovery short: once an action is free (its follow-through), a push on the stick ends it and he runs
+  // at once (combo skills pick their chain up again on the next press). Not a channel, not a locked action, and not an
+  // action that says moveCancel: false (a thrown sword still in flight)
+  if (h.act && h.act.free && mlen > .1 && h.act.cancel !== false && !h.act.hold && h.act.moveCancel !== false && h.dodgeT <= 0) endAction(h);
   // 'strike': any action whose rig attack enters its active phase (a combo swing, a skill's own attack), once per swing
   { const act = h.act, st = act && act.rig && act.rig.attack, ph = st ? st.phase : null;
     if (act && h.alive && ph === 'active' && act._strikePh !== 'active') BUS.emit('strike', { h, act, spec: st.spec });
     if (act) act._strikePh = ph; }
   const act = h.act;
+  if (h.dodgeT > .1 && !h.perfectT) heroNearSwings(h);
   // movement
   if (h.dodgeT > 0) {
     h.dodgeT -= dt; const u = 1 - h.dodgeT / DODGE_T, v = DODGE_SPEED * h.speedMul * (1 - .5 * u * u);
@@ -236,7 +297,11 @@ function updateHero(h, dt, o = {}) {
   h.x += h.vx * dt * (sp || 0); h.y += h.vy * dt * (sp || 0);
   if (h.drift) { h.x += h.drift[0] * dt; h.y += h.drift[1] * dt; }
   h.traction = undefined; h.speedK = undefined; h.drift = null;   // mechanics set these every step (ice, mud, wind)
-  collideUnit(h);
+  const bx = h.x, by = h.y; collideUnit(h);
+  // a wall or a solid thing pushed him back: drop the part of his velocity that points into it, so running into a wall
+  // stands him still (no sprint in place, no footsteps) and running along one slides him with a walking gait
+  const cx = h.x - bx, cy = h.y - by, cl = Math.hypot(cx, cy);
+  if (cl > 1e-3 && h.dodgeT <= 0) { const nx = cx / cl, ny = cy / cl, vn = h.vx * nx + h.vy * ny; if (vn < 0) { h.vx -= vn * nx; h.vy -= vn * ny; } }
   h.idleT = Math.hypot(h.x - wasX, h.y - wasY) > .05 || act ? 0 : h.idleT + dt;
   // the rig: the action's fields over the locomotion state
   const low = clamp(1 - h.hp / h.maxHp / .35, 0, 1);   // how badly hurt he is (0 above a third of his life)
@@ -317,20 +382,24 @@ function drinkPotion(h) {
 /** is the hero standing still and free (for pickups, talk prompts) */
 const heroFree = h => h.alive && !h.act && h.dodgeT <= 0;
 
-/** afterimages: the dodge leaves blue ones; an action with a ghost color (a lunge, a leap) leaves its own */
+/** his x-ray: behind a wall, a pillar, a statue, a brazier or a body in the crowd, a checkered cyan silhouette with a solid
+ *  pale outline shows where he is (the checker alone read as a faint dither on busy timber and in packs) */
+const HERO_XRAY = { color: '#8fe3ff', outline: '#e8fdff', actors: true };
+/** afterimages: the dodge leaves blue ones; an action with a ghost color (a lunge, a leap) leaves its own. owner: h keeps
+ *  every copy sorted behind the live body (a roll away from the camera left its trail in front of him: a cyan blob) */
 function actGhost(h, dodging) {
-  if (dodging) return { color: '#62d8ff', life: .22 };
-  if (h.act && h.act.ghost && game.time - h.lastGhost > .04) { h.lastGhost = game.time; return { color: h.act.ghost, life: .25 }; }
+  if (dodging) return { color: '#62d8ff', life: .2, alpha: .42, owner: h };
+  if (h.act && h.act.ghost && game.time - h.lastGhost > .04) { h.lastGhost = game.time; return { color: h.act.ghost, life: .25, owner: h }; }
   return null;
 }
 function drawHero(h, r) {
   if (!h.rig) return;
   const t = game.time, view = r.view;
   if (!h.dead) r.shadow(h.x, h.y, 5.5, .55, undefined, ED.L && ED.L.map ? ED.L.map.groundAt(h.x, h.y, h.r, h.z) : 0);
-  const ghost = h.dodgeT > 0 && t - h.lastGhost > .03; if (ghost) h.lastGhost = t;
+  const ghost = h.dodgeT > 0 && t - h.lastGhost > .04; if (ghost) h.lastGhost = t;
   const tint = statusTint(h), fl = h.flash > 0 ? ['#ffe6d8', .3] : tint;
   r.actor(h.x, h.y, h.z, (g, ox, oy) => { h.rig.draw(g, ox, oy, view); drawFlask(h, g, ox, oy, view); if (h.drawExtra) h.drawExtra(g, ox, oy, view); },
-    { xray: true, alpha: h.dead ? clamp(4 - h.deadT * 1.2, 0, 1) : h.fade !== undefined ? h.fade : 1, flash: fl && fl[0], flashMix: fl && fl[1], outlineColor: h.flash > 0 ? '#fff4e6' : undefined, ghost: actGhost(h, ghost) });
+    { xray: HERO_XRAY, alpha: h.dead ? 1 : h.fade !== undefined ? h.fade : 1, flash: fl && fl[0], flashMix: fl && fl[1], outlineColor: h.flash > 0 ? '#fff4e6' : undefined, ghost: actGhost(h, ghost) });
   h.rig.drawSmear(r, (h.act && h.act.smear) || h.smear);
   if (h.act && h.act.draw) h.act.draw(r);
   // his own light: h.lightR / h.lightI let mechanics (the dark) and gear change it

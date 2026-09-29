@@ -3,7 +3,11 @@
  * A MECHANIC is def('mechanics', id, {
  *   name: 'Powder Kegs', title: 'The Powder Vaults' (the level name when it is introduced),
  *   adj: 'Blasted', noun: 'Powder Vaults' (for composed names: 'The Blasted Brood Warrens'), color, icon(g, x, y, s),
- *   tip: 'one line shown on the level card: what it does and how to exploit it',
+ *   tip: 'the rule and the exploit, shown on the level card where it is introduced and on its HUD icon',
+ *   brief: 'its rule in about 40 characters' (its row on a combination's card, after its name), and the words the card
+ *   builds a combination's 'Together:' line from (levelCardInfo, 50-levels-core.js): lure: 'into a rune circle' (where
+ *   to bring a pack), act: 'strike a keg' (how to finish it there), move: 'Knock packs down a wind lane' (a mechanic
+ *   that carries foes), zone: 'rune circles' (a place to fight inside),
  *   place(L, R) (put its things in the level), start(L) (BUS.on(..., 'level') listeners), update(L, dt), draw(L, r),
  *   themes: ['crypt'] (themes it suits), weight
  * })
@@ -28,6 +32,7 @@ function blast(x, y, rad, amount, o = {}) {
 // setting off kegs nearby. A speedrunner drags a whole pack into a cluster and takes one swing.
 def('mechanics', 'powder', { name: 'Powder Kegs', title: 'The Powder Vaults', adj: 'Blasted', noun: 'Powder Vaults', color: '#ff9a3a', depth: 1, weight: 10,
   tip: 'Kegs explode when struck and set off their neighbours. Pull a pack into a cluster, then strike once.',
+  brief: 'Struck kegs explode and set off the next.', lure: 'into a keg cluster', act: 'strike a keg',
   icon: (g, x, y, s) => { px.ell(g, x + 8 * s, y + 9 * s, 5 * s, 6 * s, '#8a5a32'); px.rect(g, x + 3 * s, y + 6 * s, 10 * s, s, '#5a5a6a'); px.rect(g, x + 3 * s, y + 11 * s, 10 * s, s, '#5a5a6a'); px.line(g, x + 8 * s, y + 3 * s, x + 11 * s, y + s, '#e8d8a0'); px.dot(g, x + 11 * s, y + s, '#ffd36a'); },
   place(L0, R) {
     const n = Math.round(L0.rooms.length * 1.6);

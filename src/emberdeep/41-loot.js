@@ -7,7 +7,12 @@
  * UNIQUES have fixed stats, a power, flavor and a look that changes the hero's rig (colors, hats, blades, capes,
  * glowing eyes); look.smear recolors the swing ribbon and look.glow makes the weapon shine (both read here).
  * drawItemIconEx(g, it, x, y, s) is the rich icon: shaded with E.tones, outlined, cached per item and size.
- * Private names start with LOT_. Everything the inventory and shop panels (42-inventory.js) share lives here too.
+ * Deep content: bases that keep arriving to item level 50, powers with a minIlvl (Riftrending 22, Stormcrowned 32) and
+ * uniques whose powers are composed words ('cx.slay.vortex.void', ranked by the depth they drop at).
+ * Tooltips show every rolled line's pip (how close its tier is to the best that item level rolls; a star when greater),
+ * a hybrid's second stat, and with Alt (or Shift) held each line's tier, tier name and the range that tier rolls.
+ * Private names start with LOT_. Everything the inventory and shop panels (42-inventory.js) share lives here too
+ * (LOT_drawTip, LOT_cell, LOT_pip and LOT_rangeText for any list of lines, LOT_compare).
  * ============================================================================= */
 
 /* ---------- more bases (the core's W / AR helpers and palettes) ---------- */
@@ -35,10 +40,27 @@ AR('shroud', 'cloak', 'Shroud', 8, 3, { cape: { len: 9, width: 5, seg: 2.6 } }, 
 AR('warcloak', 'cloak', 'War Cloak', 11, 6, { cape: { len: 7, width: 7, seg: 2.5 } }, { colors: CAPES, lookKey: 'cape', implicit: { life: 12 } });
 def('itemBases', 'talisman', { slot: 'amulet', name: 'Talisman', minIlvl: 6, weight: 6, shape: 'talisman', gems: ['#e04a4a', '#4a8ae0', '#b070ff', '#ffb040'], implicit: { resAll: 3 } });
 def('itemBases', 'signet', { slot: 'ring', name: 'Signet', minIlvl: 5, weight: 6, shape: 'signet', gems: ['#c8a040', '#b9c1cf', '#d88a5a'], implicit: { incDmg: 3 } });
+/* ---------- deep bases: new shapes keep arriving past the planned depths (grades then carry every base deeper) ---------- */
+W('moonblade', 'Moonblade', 18, [11, 19], { bladeLen: 12, colors: { metal: '#dfe8ff', metalDk: '#5a6a9a', hilt: '#c8c8e0' } }, { implicit: { crit: 3, critDmg: 15 }, weight: 12 });
+W('headsman', "Headsman's Blade", 24, [19, 31], { bladeLen: 16, colors: { metal: '#b8b0a8', metalDk: '#4a3a3a', hilt: '#3a1a1a' } }, { implicit: { incElite: 20, knockback: 30, atkSpeed: -12 }, weight: 12 });
+W('starstaff', 'Starfall Staff', 28, [11, 22], { weapon: 'staff', colors: { staff: '#2a2a4a', orb: '#fff4d0' } }, { implicit: { incSpell: 25, area: 10 }, weight: 12 });
+W('wyrmfang', 'Wyrmfang', 36, [13, 24], { bladeLen: 13, colors: { metal: '#f0e0c0', metalDk: '#8a6a4a', hilt: '#3a2a1a' } }, { implicit: { incFire: 15, incVenom: 15 }, el: 'fire', weight: 12 });
+W('glacierrod', 'Glacial Scepter', 42, [12, 23], { weapon: 'staff', colors: { staff: '#5a7aa0', orb: '#dff8ff' } }, { implicit: { incFrost: 25, statusChance: 15 }, el: 'frost', weight: 12 });
+W('sunsword', 'Sunsword', 50, [14, 26], { bladeLen: 13, colors: { metal: '#fff0b0', metalDk: '#b08a2a', hilt: '#8a2a1a' } }, { implicit: { incFire: 20, incDmg: 8 }, el: 'fire', weight: 12 });
+AR('dragonhelm', 'helm', 'Dragon Helm', 22, 14, { hat: { style: 'helmet', color: '#6a8a5a' } }, { implicit: { resAll: 6 }, weight: 12 });
+AR('hornedcrown', 'helm', 'Horned Crown', 34, 8, { hat: { style: 'crown', color: '#b890e0' } }, { implicit: { incDmg: 8, magicFind: 10 }, weight: 12 });
+AR('shadowweave', 'chest', 'Shadowweave', 26, 8, { outfit: 'robe', sleeves: 'long' }, { colors: ['#2a1a3a', '#1a2a3a', '#3a1a2a', '#1e1e2a'], implicit: { dodge: 5, incVoid: 12 }, weight: 12 });
+AR('sunplate', 'chest', 'Sunplate', 32, 34, { outfit: 'tunic', armor: true, sleeves: 'long', colors: { trim: '#ffd060' } }, { colors: CLOTH, implicit: { lifePct: 8, resFire: 10 }, weight: 12 });
+AR('scalegreaves', 'legs', 'Scaled Greaves', 28, 16, {}, { colors: METAL, lookKey: 'pants', implicit: { resAll: 5, life: 15 }, weight: 12 });
+AR('stormcloak', 'cloak', 'Stormcloak', 30, 6, { cape: { len: 9, width: 6.5, seg: 2.6 } }, { colors: ['#2a3a5a', '#3a3a4a', '#4a4a6a', '#1a2a3a'], lookKey: 'cape', implicit: { resStorm: 15, moveSpeed: 4 }, weight: 12 });
+AR('titangrips', 'gloves', 'Titan Grips', 38, 14, {}, { colors: METAL, lookKey: 'glove', implicit: { knockback: 25, armorPct: 12 }, weight: 12 });
+AR('phasewalkers', 'boots', 'Phasewalkers', 44, 9, {}, { colors: ['#3a2a5a', '#1a3a4a', '#4a2a3a'], lookKey: 'boot', implicit: { moveSpeed: 8, dodgeCd: 15 }, weight: 12 });
+def('itemBases', 'oculus', { slot: 'amulet', name: 'Oculus', minIlvl: 24, weight: 8, gems: ['#e8f0ff', '#ff4a6a', '#4affc8'], implicit: { critDmg: 15 } });
+def('itemBases', 'agesband', { slot: 'ring', name: 'Band of Ages', minIlvl: 38, weight: 8, shape: 'signet', gems: ['#e8e8f0', '#ffd84a', '#9fe8ff'], implicit: { cdr: 4 } });
 
 /* ---------- helpers every power uses ---------- */
-/** a hit that came from a proc, a chain, thorns or a dot: procs never trigger procs (no feedback loops) */
-const LOT_isProc = hit => !!hit && (hit.proc || (hit.tags && (hit.tags.includes('proc') || hit.tags.includes('chain') || hit.tags.includes('thorns') || hit.tags.includes('dot'))));
+/** a hit that came from a proc, a chain, thorns, a dot or a composed power: procs never trigger procs (no feedback loops) */
+const LOT_isProc = isProcHit;
 /** listen to a BUS event only while the hero wears power id: fn(e, h) */
 const LOT_on = (id, ev, fn) => BUS.on(ev, e => { const h = ED.hero; if (h && h.alive && hasPower(h, id)) fn(e, h); });
 /** a per-hero cooldown: true (and restarts it) when key is ready */
@@ -409,6 +431,63 @@ def('powers', 'galeblade', { name: 'Galeblade', slots: ['weapon', 'gloves'], des
     sfx('whoosh', { vol: .35, pitch: 1.4 });
   }); } });
 
+/* ---- deep powers: legendaries only roll these past their item level ---- */
+/** a rift torn in the air: a dark slit standing upright with a bright violet edge that opens, holds, and snaps shut */
+function LOT_rift(x, y, dur) {
+  const seed = (Math.random() * 999) | 0, H = 30;
+  FX.visual(dur, (r, u) => {
+    if (!r.visible(x, y, 16, 30, 30, 30)) return;
+    const open = u < .2 ? E.ease.outQuad(u / .2) : u < .74 ? 1 + .08 * Math.sin(u * 60) : Math.max(0, 1 - (u - .74) / .12);
+    r.queue(x, y, 14, g => {
+      const zm = r.view.zoom || 1, w = 5.5 * open * zm, Lp = [], Rp = [];
+      for (let i = 0; i <= 10; i++) { const k = i / 10, [sx, sy] = r.w(x, y, 2 + H * k), b = Math.sin(k * Math.PI) * w * (.75 + .5 * E.hash2(i, seed)); Lp.push([sx - b, sy]); Rp.unshift([sx + b * .85, sy]); }
+      px.glow(g, 1);
+      px.blend(g, .35 * Math.min(1, open), 'add', () => px.poly(g, Lp.map(q => [q[0] - 2 * zm, q[1]]).concat(Rp.map(q => [q[0] + 2 * zm, q[1]])), '#8a4ad0'));
+      if (w > .6) {
+        px.poly(g, Lp.concat(Rp), '#0a0414');
+        for (let i = 0; i < 3; i++) { const q = Lp[2 + i * 3]; if (E.hash2(i + seed, Math.floor(game.time * 8)) > .4) px.dot(g, q[0] + w * .6, q[1], '#c890ff'); }
+      }
+      for (let i = 0; i < Lp.length - 1; i++) { px.line(g, Lp[i][0], Lp[i][1], Lp[i + 1][0], Lp[i + 1][1], i > 3 && i < 7 ? '#ffffff' : '#d8b0ff'); px.line(g, Rp[i][0], Rp[i][1], Rp[i + 1][0], Rp[i + 1][1], '#b070ff'); }
+    }, { emissive: true, bias: .4 });
+    L.add(x, y, 16, 50, .7 * Math.min(1, open), { color: '#b070ff' });
+  });
+}
+def('powers', 'riftblade', { name: 'Riftrending', slots: ['weapon', 'gloves'], minIlvl: 22, desc: 'Every fifth strike tears a rift in the air ahead of you: it drags enemies in, then snaps shut for 250% weapon damage as void.',
+  install() { LOT_strike('riftblade', (h, act) => {
+    if ((h._lotRift = (h._lotRift || 0) + 1) % 5 || LOT_town()) return;
+    const a = h.facing, x = h.x + Math.cos(a) * 26, y = h.y + Math.sin(a) * 26, L0 = ED.L;
+    LOT_rift(x, y, .75); const f = FX.pull({ team: 'hero', src: h, x, y, r: 48, force: 300, dur: .55, el: 'void' }); f.draw = null; sfx('whoosh', { vol: .5, pitch: .5 });
+    game.after(.55, () => { if (ED.L !== L0 || !h.alive) return; FX.nova({ team: 'hero', src: h, x, y, r0: 3, r1: 30, dur: .2, el: 'void', tags: ['aoe', 'proc'], hit: LOT_hit(h, 2.5, { el: 'void', kb: 170, tags: ['aoe'] }) }); elBurst(x, y, 14, 'void', 18); P.ring(x, y, 12, 28, '#ecd8ff', .3); game.freeze(.04); shake(3); sfx('explode', { vol: .45, pitch: 1.5 }); });
+  }); } });
+def('powers', 'tempest', { name: 'Stormcrowned', slots: ['helm', 'amulet'], minIlvl: 32, desc: 'A storm cloud follows you. While your Ember is above half, it strikes an enemy near you with lightning every 0.8 seconds for 120% weapon damage.',
+  install() {
+    const cloud = h => [h.x - 2, h.y - 2, h.z + 38 + Math.sin(game.time * 1.7) * 1.2];   // bobbing a hand above his head
+    LOT_tick('tempest', (h, dt) => {
+      if (LOT_town() || h.ember < h.maxEmber * .5 || (h._lotStorm = (h._lotStorm || 0) - dt) > 0) return;
+      const near = []; eachEnemy('hero', h.x, h.y, 100, m => { if (!m.dormant) near.push(m); }); if (!near.length) return;
+      h._lotStorm = .8; const m = near[(Math.random() * near.length) | 0], c = cloud(h), tz = (m.z || 0) + (m.head || 20) * .5, seed = (Math.random() * 99) | 0; h._lotZap = game.time + .15;
+      dealDamage(m, LOT_hit(h, 1.2, { el: 'storm', tags: ['spell', 'aoe'], kb: 30, extra: { ang: angTo(h, m), statusChance: .4 } }));
+      FX.visual(.16, (r, u) => r.queue(m.x, m.y, tz, g => { const [x0, y0] = r.w(c[0], c[1], c[2]), [x1, y1] = r.w(m.x, m.y, tz); px.glow(g, 1); if (u < .6) zig(g, x0, y0, x1, y1, '#ffe45a', 2, 5, seed); zig(g, x0, y0, x1, y1, '#ffffff', 1, 5, seed); }, { emissive: true, bias: 1 }));
+      L.add(m.x, m.y, tz, 60, 1, { color: '#fff0a0' }); P.sparks(m.x, m.y, tz, 6, null, { color: '#ffe45a', hot: '#ffffff' }); sfx('zap', { vol: .35, pitch: 1.2 });
+    });
+    LOT_drawFx('tempest', (h, r) => {
+      if (LOT_town()) return;
+      const c = cloud(h), t = game.time, lit = (h._lotZap || 0) > t, t0 = E.tones(lit ? '#9a9ac8' : '#3e3e5c');
+      r.queue(c[0], c[1], c[2], g => {
+        const [x, y] = r.w(c[0], c[1], c[2]), zm = r.view.zoom || 1;
+        const puffs = [[-8, 1.5, 4.2], [-3, -2, 5.2], [3.5, -1.5, 4.6], [8.5, 1.5, 3.6], [0, 2, 4.4], [-5, 3, 3.4], [5, 3, 3.2]];
+        for (const [dx, dy, R] of puffs) px.disc(g, x + (dx + Math.sin(t * 1.3 + dx) * .6) * zm, y + (dy + 1) * zm, R * zm, t0.deep);
+        for (const [dx, dy, R] of puffs) px.disc(g, x + (dx + Math.sin(t * 1.3 + dx) * .6) * zm, y + dy * zm, R * .92 * zm, t0.base);
+        for (const [dx, dy, R] of puffs.slice(0, 4)) px.disc(g, x + (dx - .8 + Math.sin(t * 1.3 + dx) * .6) * zm, y + (dy - 1.4) * zm, R * .55 * zm, t0.lt);
+        for (const [dx, dy, R] of puffs.slice(1, 3)) px.disc(g, x + (dx - 1.4 + Math.sin(t * 1.3 + dx) * .6) * zm, y + (dy - 2.4) * zm, R * .25 * zm, t0.hi);
+        px.rect(g, x - 9 * zm, y + 4.5 * zm, 18 * zm, Math.max(1, zm), t0.deep);   // the flat dark belly of a storm cloud
+        if (lit || Math.sin(t * 17) > .97) { px.glow(g, 1); px.blend(g, .7, 'add', () => px.disc(g, x, y, 3 * zm, '#fff4c0')); }
+        for (let i = 0; i < 3; i++) { const k = (t * 1.6 + i / 3) % 1, rx = x + (i * 5 - 5) * zm; px.blend(g, .6 * (1 - k), 'normal', () => px.line(g, rx, y + (3 + k * 12) * zm, rx - zm, y + (5 + k * 12) * zm, '#9ab8d8')); }
+      }, { emissive: lit, bias: .8 });
+      if (lit) L.add(c[0], c[1], c[2], 60, .8, { color: '#fff0a0' });
+    });
+  } });
+
 /* ---- unique-only powers (slots: [] keeps them off random legendaries) ---- */
 def('powers', 'firstblade', { name: 'The First Blade', noun: true, slots: [], desc: "Blade Dance's spin looses the Proving Grounds' ring of cutting steel, and every Blade Dance kill restores 4 Ember.",
   install() {
@@ -530,6 +609,19 @@ def('uniques', 'frostbrand', { name: 'Frostbrand', base: 'runeblade', power: 'sh
   stats: [['incFrost', 40], ['statusChance', 25], ['dmgPct', 30], ['crit', 3]],
   look: { bladeLen: 12, colors: { metal: '#e8fbff', metalDk: '#4bb1d4', hilt: '#9ab8d8' }, smear: ['#ffffff', '#dff8ff', '#8fe0f2', '#4bb1d4'], glow: '#9fe8ff' },
   flavor: '"Rime grows on the blade faster than you can wipe it off."' });
+/* deep uniques: their powers are words of the composed language, ranked by the depth they drop at */
+def('uniques', 'starless', { name: 'The Starless Hour', base: 'voidblade', power: 'cx.slay.vortex.void', minIlvl: 20, el: 'void',
+  stats: [['incVoid', 45], ['area', 15], ['cdr', 8], ['critDmg', 25]],
+  look: { bladeLen: 13, colors: { metal: '#4a3a6a', metalDk: '#120a20', hilt: '#c8a0ff' }, smear: ['#f4e8ff', '#b070ff', '#6a2a9a', '#1a0a2a'], glow: '#b070ff' },
+  flavor: '"Forged in the hour after the last star went out. Somewhere in the blade, it is still that hour."' });
+def('uniques', 'wyrmheart', { name: 'Wyrmheart Hauberk', base: 'warplate', power: 'cx.struck.nova.fire', minIlvl: 30,
+  stats: [['life', 60], ['resFire', 30], ['armorPct', 40], ['thorns', 12]],
+  look: { outfit: 'tunic', armor: true, sleeves: 'long', colors: { cloth: '#5a1a1a', metal: '#a8683a', trim: '#ffb040' } },
+  flavor: '"Scaled from the Wyrm of the Quaking Deep. The scales still turn toward heat."' });
+def('uniques', 'cometstride', { name: 'Cometstriders', base: 'treads', power: 'cx.dodge.strikes.storm', minIlvl: 40,
+  stats: [['moveSpeed', 18], ['dodge', 6], ['dodgeCharges', 1], ['resStorm', 20]],
+  look: { colors: { boot: '#2a2a4a' } },
+  flavor: '"They leave no footprints. Only scorch marks, very far apart."' });
 def('uniques', 'spire', { name: 'Greaves of the Leaping Spire', base: 'greaves', power: 'skyfall', minIlvl: 12,
   stats: [['knockback', 30], ['life', 25], ['dodge', 3], ['moveSpeed', 6]],
   look: { colors: { pants: '#8a90b8' } },
@@ -741,6 +833,7 @@ function LOT_cell(g, x, y, S, it, st = {}) {
   if (R && R.glow && it.rarity >= 3) { const k = .5 + .5 * Math.sin(game.real * 3 + (typeof it.uid === 'number' ? it.uid : 0)); px.blend(g, .15 + .15 * k, 'add', () => { px.rect(g, x + 1, y + S - 3, S - 2, 2, R.glow); }); }
   if (it && it.rarity === 4) for (const [cx, cy] of [[x + 1, y + 1], [x + S - 3, y + 1], [x + 1, y + S - 3], [x + S - 3, y + S - 3]]) { px.rect(g, cx, cy, 2, 2, '#fff0c8'); px.dot(g, cx + (cx > x + 2 ? 0 : 1), cy + (cy > y + 2 ? 0 : 1), '#a8804a'); }
   if (it) drawItemIconEx(g, it, x + Math.floor((S - 16) / 2), y + Math.floor((S - 16) / 2), 1, { alpha: st.dim ? .35 : 1 });
+  if (it && it.affixes && it.affixes.some(a => a.g)) LOT_star(g, x + 4, y + 4, LOT_GREAT);   // a greater line inside: worth a second look
   if (st.focus) { const t = Math.floor(game.real * 4) % 2; for (const [cx, cy, sx, sy] of [[x - 1 - t, y - 1 - t, 1, 1], [x + S - t, y - 1 - t, -1, 1], [x - 1 - t, y + S - t, 1, -1], [x + S - t, y + S - t, -1, -1]]) { px.rect(g, cx + (sx < 0 ? -2 : 0) + t, cy, 3, 1, '#fff6d8'); px.rect(g, cx + t, cy + (sy < 0 ? -2 : 0), 1, 3, '#fff6d8'); } }
 }
 /** empty paper-doll slots show a dark silhouette of what goes there */
@@ -781,34 +874,76 @@ function LOT_compare(h, it) {
   const key = it.uid + '#' + LOT_gearSig(h); let c = LOT_CMP.get(key); if (c) return c;
   if (LOT_CMP.size > 300) LOT_CMP.clear();
   const slot = LOT_slotFor(h, it), other = h.gear[slot] || null, f0 = LOT_sim(h, slot, other), f1 = LOT_sim(h, slot, it);
-  const G = '#8aff8a', Rd = '#ff7a6a', head = [], lines = [], sg = v => (v > 0 ? '+' : ''), p0 = LOT_power(f0), p1 = LOT_power(f1);
+  const G = '#8aff8a', Rd = '#ff7a6a', head = [], lines = [], sg = v => (v > 0 ? '+' : ''), sgf = v => sg(v) + fmt(v), p0 = LOT_power(f0), p1 = LOT_power(f1);
   const dp = p0 > 0 ? (p1 / p0 - 1) * 100 : 0, dl = f1.maxHp - f0.maxHp, da = f1.armor - f0.armor;
-  if (Math.abs(dp) >= .5) head.push({ t: sg(dp) + dp.toFixed(1) + '% damage', c: dp > 0 ? G : Rd });
-  if (Math.abs(dl) >= 1) head.push({ t: sg(dl) + Math.round(dl) + ' life', c: dl > 0 ? G : Rd });
-  if (Math.abs(da) >= 1) head.push({ t: sg(da) + Math.round(da) + ' armor', c: da > 0 ? G : Rd });
+  // a deep weapon can be a thousand times the one he holds: past +1000% the gain reads as a multiplier (x25.5, x1.2K)
+  if (Math.abs(dp) >= .5) { const x = p1 / p0; head.push({ t: dp >= 1000 ? '×' + (x < 100 ? x.toFixed(1) : fmt(x)) + ' damage' : sg(dp) + dp.toFixed(Math.abs(dp) >= 100 ? 0 : 1) + '% damage', c: dp > 0 ? G : Rd }); }
+  if (Math.abs(dl) >= 1) head.push({ t: sgf(dl) + ' life', c: dl > 0 ? G : Rd });
+  if (Math.abs(da) >= 1) head.push({ t: sgf(da) + ' armor', c: da > 0 ? G : Rd });
   const skip = { life: 1, lifePct: 1, armor: 1, armorPct: 1, dmgFlat: 1, dmgPct: 1 }, keys = Object.keys(STATS).concat(Object.keys(f1.stats).concat(Object.keys(f0.stats)).filter(k => !STATS[k]));
   const seen = new Set();
   for (const k of keys) { if (seen.has(k) || skip[k]) continue; seen.add(k); const d = (f1.stats[k] || 0) - (f0.stats[k] || 0); if (Math.abs(d) < .05) continue; const v = Math.round(d * 10) / 10; lines.push({ t: k.startsWith('rank:') && v < 0 ? v + statText(k, 1).slice(2) : statText(k, v), c: d > 0 ? G : Rd }); }
-  for (const p of f1.powers) if (!f0.powers.includes(p) && REG.powers[p]) lines.push({ t: 'Gain ' + REG.powers[p].name, c: '#ff9a4a' });
-  for (const p of f0.powers) if (!f1.powers.includes(p) && REG.powers[p]) lines.push({ t: 'Lose ' + REG.powers[p].name, c: Rd });
+  for (const p of f1.powers) if (!f0.powers.includes(p) && powerSpec(p)) lines.push({ t: 'Gain ' + powerSpec(p).name, c: '#ff9a4a' });
+  for (const p of f0.powers) if (!f1.powers.includes(p) && powerSpec(p)) lines.push({ t: 'Lose ' + powerSpec(p).name, c: Rd });
   const s0 = LOT_score(f0), s1 = LOT_score(f1), up = !other ? 1 : s1 > s0 * 1.005 ? 1 : s1 < s0 * .995 ? -1 : 0;
   c = { slot, other, up, head, lines }; LOT_CMP.set(key, c); return c;
 }
 
 /* ---------- the rich tooltip: a big icon, rarity header, tier pips, the power, flavor, a comparison and hints ---------- */
+/** the pips: how close a line's tier is to the best its item level rolls (orange: the best, then one color per tier below) */
+const LOT_PIP = ['#6a6488', '#7a9ae0', '#8ab4ff', '#ffd84a', '#ff8a2a'], LOT_GREAT = '#ffe070';
+/** the advanced readout (every line's tier, its name and its tier's range) shows while Alt (or Shift) is held */
+const LOT_KEYS = { alt: false };
+addEventListener('keydown', e => { if (e.key === 'Alt') { LOT_KEYS.alt = true; e.preventDefault(); } });   // (a lone Alt would wake the browser's menu bar)
+addEventListener('keyup', e => { if (e.key === 'Alt') { LOT_KEYS.alt = false; e.preventDefault(); } });
+addEventListener('blur', () => { LOT_KEYS.alt = false; });
+const LOT_adv = () => LOT_KEYS.alt || !!(game.input.held && (game.input.held.has('ShiftLeft') || game.input.held.has('ShiftRight')));
+/** a greater line's pip: a small four-point star */
+function LOT_star(g, cx, cy, c) { px.rect(g, cx - 2, cy, 5, 1, c); px.rect(g, cx, cy - 2, 1, 5, c); const d = E.shade(c, -.35); for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) px.dot(g, cx + dx, cy + dy, d); px.dot(g, cx, cy, '#ffffff'); }
+/** a line's pip with its top-left at (x, y) in a 5x5 room: its quality color, a star when greater, gold on a unique (the
+ *  mystic's enchant choices and any other list of lines use it, so a choice between lines shows their quality) */
+function LOT_pip(g, x, y, it, a) {
+  if (a.g) return LOT_star(g, x + 2, y + 2, LOT_GREAT);
+  const inf = a.id === 'u' || it.rarity === 4 ? null : affixInfo(it, a); px.rect(g, x + 1, y + 1, 3, 3, inf ? LOT_PIP[inf.pos] : '#e8c890'); px.dot(g, x + 2, y + 1, '#ffffff');
+}
+/** a line's tier and its tier's range as short text: 'T6 43-47' ('' for a unique's fixed line) */
+function LOT_rangeText(it, a) { const inf = a.id === 'u' || it.rarity === 4 ? null : affixInfo(it, a); return !inf ? '' : inf.fixed ? 'FIXED' : 'T' + (inf.t + 1) + ' ' + fmtV(inf.lo) + '-' + fmtV(inf.hi); }
+/** the pip legend under a tooltip's lines: the five pip colors, what they mean, and how to see more */
+function LOT_legend(g, x, y, w, great, adv) {
+  if (adv) { E.font.text(g, 'T# TIER, ITS NAME, ITS RANGE', x, y, '#8a80a8', { font: 'tiny', outline: false }); return; }
+  LOT_PIP.forEach((c, i) => { px.rect(g, x + i * 4, y + 1, 3, 3, c); px.dot(g, x + i * 4 + 1, y + 1, '#ffffff'); });
+  let tx = x + 22; const put = (t, c) => { E.font.text(g, t, tx, y, c, { font: 'tiny', outline: false }); tx += E.font.width(t, { font: 'tiny' }) + 6; };
+  put(great ? 'QUALITY' : 'ROLL QUALITY', '#8a80a8');
+  if (great) { LOT_star(g, tx + 2, y + 2, LOT_GREAT); tx += 7; put('GREATER', '#c8b060'); }
+  if (tx + E.font.width('ALT: TIERS', { font: 'tiny' }) <= x + w) put('ALT: TIERS', '#6a6488');
+}
 /**
  * LOT_drawTip(g, it, ax, ay, o): o { equipped: true, compare: true, hint: [{ t, c }], price: { t, c }, anchor: [x, y, w, h] (place beside it) }
  * Drawn wherever it is called (panels call it last, through game.r.overlay, so nothing covers it).
  */
 function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   const h = ED.hero, SW = game.W, SH = game.H, WT = WT0 || Math.min(176, SW - 8), rc = RARITY[it.rarity], base = REG.itemBases[it.base];
-  const lh = 9, body = [], wrapW = WT - 12;
-  const push = (t, c, x = 0, pip = null) => { for (const l of E.font.wrap(t, wrapW - x)) { body.push({ t: l, c, x, pip }); pip = null; } };
-  if (it.dmg) push(it.dmg[0] + '-' + it.dmg[1] + ' ' + (it.el && it.el !== 'phys' ? EL(it.el).name + ' ' : '') + 'Damage', it.el && it.el !== 'phys' ? EL(it.el).light : '#ffffff');
+  const lh = 9, body = [], wrapW = WT - 12, adv = LOT_adv(), G = gradeInfo(it.grade);
+  const push = (t, c, x = 0, pip = null, q = {}) => { for (const l of E.font.wrap(q.tiny ? t.toUpperCase() : t, wrapW - x, q.tiny ? { font: 'tiny' } : undefined)) { body.push({ t: l, c, x, pip, star: q.star, tiny: q.tiny }); pip = null; } };
+  if (it.dmg) push(dmgText(it), it.el && it.el !== 'phys' ? EL(it.el).light : '#ffffff');
   for (const a of it.implicit) push(statText(a.stat, a.v), '#c8c0d8');
   if (it.implicit.length || it.dmg) body.push({ sep: true });
-  it.affixes.forEach((a, i) => push(statText(a.stat, a.v), it.rarity === 4 ? '#e8c890' : i === it.enchIdx ? '#c890ff' : '#8ab4ff', 6, it.rarity === 4 ? '#e8c890' : ['#6a6488', '#7a9ae0', '#8ab4ff', '#ffd84a', '#ff8a2a'][clamp(a.tier || 0, 0, 4)]));
-  if (it.power && REG.powers[it.power]) { const pw = REG.powers[it.power]; body.push({ sep: true }); push(pw.name.toUpperCase(), '#ffb070', 6, '#ff8a2a'); push(pw.desc, '#ff9a4a', 6); }
+  // every rolled line: a pip for its roll (a star when greater), a hybrid's second stat under it, and with Alt its tier
+  // number, its tier's name and the range that tier rolls at this item level
+  let rolled = false, great = false;
+  it.affixes.forEach((a, i) => {
+    const uq = it.rarity === 4 || a.id === 'u', inf = uq ? null : affixInfo(it, a), c = uq ? '#e8c890' : a.g ? LOT_GREAT : i === it.enchIdx ? '#c890ff' : '#8ab4ff';
+    if (inf) rolled = true; if (a.g) great = true;
+    push(statText(a.stat, a.v), c, 6, uq ? '#e8c890' : a.g ? LOT_GREAT : LOT_PIP[inf ? inf.pos : 0], { star: !!a.g });
+    for (const b of a.also || []) push('& ' + statText(b.stat, b.v), c, 12);
+    if (adv && inf) push((inf.fixed ? '' : 'T' + (inf.t + 1) + ' ') + inf.name + '  ' + (inf.fixed ? 'fixed' : fmtV(inf.lo) + '-' + fmtV(inf.hi) + inf.also.map(r => ' & ' + fmtV(r.lo) + '-' + fmtV(r.hi)).join('')) + (a.g ? ' x1.5' : ''), a.g ? '#c8b060' : inf.pos >= 3 ? E.mix(LOT_PIP[inf.pos], '#8a80a8', .45) : '#8a80a8', 12, null, { tiny: true });
+  });
+  const pw = powerSpec(it.power);
+  if (pw) {
+    body.push({ sep: true }); push(pw.name.toUpperCase() + (pw.rank ? '  RANK ' + fmt(pw.rank) : ''), '#ffb070', 6, '#ff8a2a');
+    const c0 = pw.composed && cxParse(pw.id); if (c0) push('composed: ' + c0.t + ' + ' + c0.e + ' + ' + c0.el, '#a8704a', 6, null, { tiny: true });   // the language shows its grammar
+    push(pw.desc, '#ff9a4a', 6);
+  }
   if (it.flavor) { body.push({ sep: true }); push(it.flavor, '#a89878'); }
   // the comparison block
   const cmp = [];
@@ -822,9 +957,12 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
     if (!C.head.length && !C.lines.length) cmp.push({ t: 'No difference', c: '#9a90b0' });
   }
   for (let i = cmp.length - 1; i >= 0; i--) { const l = cmp[i]; if (l.head) continue; const ws = E.font.wrap(l.t, WT - 12); if (ws.length > 1) cmp.splice(i, 1, ...ws.map((t, k) => ({ t: (k ? '  ' : '') + t, c: l.c }))); }
-  const foot = []; for (const l of [].concat(o.price ? [o.price] : [{ t: 'Sells for ' + fmt(it.value) + ' gold', c: '#8a8070' }], o.hint || [])) for (const t of E.font.wrap(l.t, WT - 12, { font: 'tiny' })) foot.push({ t, c: l.c });
+  const foot = [], addF = l => { for (const t of E.font.wrap(l.t, WT - 12, { font: 'tiny' })) foot.push({ t, c: l.c }); };
+  addF(o.price || { t: 'Sells for ' + fmt(it.value) + ' gold', c: '#8a8070' });
+  if (rolled) foot.push({ legend: true });
+  for (const l of o.hint || []) addF(l);
   // measure: header (icon + name), body, compare, footer
-  const nameL = E.font.wrap(it.name, WT - 48), hdH = Math.max(44, nameL.length * 9 + 24), bodyH = body.reduce((a, l) => a + (l.sep ? 5 : lh), 0);
+  const nameL = E.font.wrap(it.name, WT - 48), hdH = Math.max(44, nameL.length * 9 + 24 + (G ? 7 : 0)), bodyH = body.reduce((a, l) => a + (l.sep ? 5 : l.tiny ? 7 : lh), 0);
   while (foot.length > 1 && hdH + bodyH + foot.length * 8 + 10 > SH - 4) foot.pop();   // a very long item on a short screen gives up its hint lines first
   const cmpH = cmp.length ? cmp.length * lh + 6 : 0, footH = foot.length * 8 + 4;
   let HT = hdH + bodyH + footH + 6, side = false;
@@ -858,17 +996,20 @@ function LOT_drawTip(g, it, ax, ay, o = {}, WT0) {
   nameL.forEach((l, i) => E.font.text(g, l, bx + 45, by + 5 + i * 9, rc.color, { outline: false, shadow: '#05040a' }));
   const sub = (it.rarity === 4 ? 'Unique ' : rc.name + ' ') + (base ? base.name : '');
   E.font.text(g, sub.length > 26 ? sub.slice(0, 25) + '.' : sub, bx + 45, by + 7 + nameL.length * 9, '#9a90b0', { font: 'tiny', outline: false });
-  E.font.text(g, 'ITEM LEVEL ' + it.ilvl + (it.enchants ? '  •  ENCHANTED' : ''), bx + 45, by + 14 + nameL.length * 9, '#6a6488', { font: 'tiny', outline: false });
+  const ilv = 'ITEM LEVEL ' + fmt(it.ilvl) + (it.enchants ? '  •  ENCHANTED' : ''), room = WT - 50;
+  E.font.text(g, E.font.width(ilv, { font: 'tiny' }) <= room ? ilv : ilv.replace('ITEM LEVEL', 'ILVL').replace('ENCHANTED', 'ENCH.'), bx + 45, by + 14 + nameL.length * 9, '#6a6488', { font: 'tiny', outline: false });
+  if (G) { const gt = G.name.toUpperCase() + (it.dmg || it.armor ? '  +' + Math.round((G.k - 1) * 100) + '% BASE' : ''); E.font.text(g, E.font.width(gt, { font: 'tiny' }) <= room ? gt : G.name.toUpperCase(), bx + 45, by + 21 + nameL.length * 9, G.c, { font: 'tiny', outline: false }); }   // the grade: deeper bases hit harder
   let yy = by + hdH;
   for (const l of body) {
     if (l.sep) { px.rect(g, bx + 8, yy + 2, WT - 16, 1, '#2e2644'); yy += 5; continue; }
-    if (l.pip) { px.rect(g, bx + 7, yy + 3, 3, 3, l.pip); px.dot(g, bx + 8, yy + 3, '#ffffff'); }
+    if (l.pip) { if (l.star) LOT_star(g, bx + 8, yy + 4, l.pip); else { px.rect(g, bx + 7, yy + 3, 3, 3, l.pip); px.dot(g, bx + 8, yy + 3, '#ffffff'); } }
+    if (l.tiny) { E.font.text(g, l.t, bx + 6 + l.x, yy, l.c, { font: 'tiny', outline: false }); yy += 7; continue; }
     E.font.text(g, l.t, bx + 6 + l.x, yy, l.c, { outline: false, shadow: '#05040a' }); yy += lh;
   }
   const drawCmp = (cx, cy) => { for (const l of cmp) { if (l.head) { px.rect(g, cx + 6, cy + 1, WT - 12, 1, '#2e2644'); E.font.text(g, l.t, cx + 6, cy + 3, l.c, { font: 'tiny', outline: false }); cy += lh; continue; } E.font.text(g, l.t, cx + 6, cy, l.c, { outline: false, shadow: '#05040a' }); cy += lh; } };
   if (cmp.length && !side) { drawCmp(bx, yy + 2); yy += cmpH; }
   px.rect(g, bx + 8, yy + 2, WT - 16, 1, '#2e2644'); yy += 5;
-  for (const l of foot) { E.font.text(g, l.t, bx + 6, yy, l.c, { font: 'tiny', outline: false }); yy += 8; }
+  for (const l of foot) { if (l.legend) LOT_legend(g, bx + 6, yy, WT - 12, great, adv); else E.font.text(g, l.t, bx + 6, yy, l.c, { font: 'tiny', outline: false }); yy += 8; }
   if (side) { E.ui.box(g, cbx, cby, WT, ch, { bg: ['#1a1428', '#0c0818'], border: '#6a5a88', shadow: '#000000' }); drawCmp(cbx, cby + 2); }
 }
 
@@ -906,4 +1047,4 @@ BUS.on('draw', e => {
 });
 
 /* a handle for tests and tools (window.__ed is set up by 99-start.js) */
-window.__edLoot = { drawItemIconEx, LOT_drawTip: (g, it, x, y, o) => LOT_drawTip(g, it, x, y, o), LOT_compare, LOT_pickup };
+window.__edLoot = { drawItemIconEx, LOT_drawTip: (g, it, x, y, o) => LOT_drawTip(g, it, x, y, o), LOT_compare, LOT_pickup, makeItem, affixInfo, powerSpec, rescaleItem, tierTop, gradeInfo, keys: LOT_KEYS, cx: { T: CX_T, E: CX_E } };

@@ -251,7 +251,10 @@ function BST_dust(x, y, n) { P.dust(x, y, 0, Math.round(clamp(n / 3, 1, 8)), { s
  *  redrawn after the lighting pass so they burn in the dark, affixes */
 function BST_drawBeast(m, r, alpha) {
   const B = m.body; if (!B || !B.rig) return;
-  const s = m.scale || 1, view = r.view, big = B.big, tint = m.flash > 0 ? [FLASH, .3] : m.alive ? statusTint(m) : null, rig = B.rig;
+  const s = m.scale || 1, view = r.view, big = B.big, [fc, fm, oc] = foeTint(m), rig = B.rig;   // (the flash is throttled on bosses: foeReact)
+  // a light blow on a boss or an elite flares only the outline (foeTint); a body drawn part by part has no outline pass, so
+  // it takes the faintest warm tint instead, and its own colors still read
+  const tint = fc ? [fc, fm] : big && m.alive && m.rimT > 0 ? [FLASH, .07] : null;
   const lift = (m.z || 0) + (m.bstLift || 0);
   if (!B.noShadow) r.shadow(m.x, m.y, (B.shadow || m.r + 2) * (lift > 0 ? Math.max(.4, 1 - lift * .015) : 1), .5 * alpha);
   if (m.alive && m.elite && !m.untargetable) r.decal(() => { const c = m.elite === 2 ? '#ffc040' : m.elite === 3 ? '#ff5a3a' : '#6a9aff'; r.groundRing(m.x, m.y, (B.shadow || m.r) + 4, c, .6 + .3 * Math.sin(game.time * 5)); }, { emissive: .6 });
@@ -260,7 +263,7 @@ function BST_drawBeast(m, r, alpha) {
   else if (big) rig.draw(null, 0, 0, view, { r, alpha, flash: tint && tint[0], mix: tint ? tint[1] : 0 });
   else {   // the outline and rim passes are most of an actor's cost: like drawFoe, the governor drops them from ordinary beasts when frames run long
     const ol = OPT.outlines !== false && !(PERF.low && !m.elite && !m.boss);
-    r.actor(m.x, m.y, m.z, (g, ox, oy) => rig.draw(g, ox, oy, view), { flash: tint && tint[0], flashMix: tint ? tint[1] : 0, alpha, outline: ol || !!(tint && tint[0]), outlineColor: m.flash > 0 ? '#fff4e6' : m.elite && m.alive ? (m.elite === 2 ? '#5a3a10' : '#18204a') : undefined, rim: ol });
+    r.actor(m.x, m.y, m.z, (g, ox, oy) => rig.draw(g, ox, oy, view), { flash: tint && tint[0], flashMix: tint ? tint[1] : 0, alpha, outline: ol || !!(tint && tint[0]) || oc === FLASH_LINE, outlineColor: oc, rim: ol });
   }
   if (m.alive && rig.drawGlow && alpha > .3) r.queue(m.x, m.y, m.z, g => rig.drawGlow(g, r), { emissive: foeGlowSeen(m.x, m.y, (m.z || 0) + 3), bias: .02 });   // (a wall in front hides it: then it is drawn in depth order)
   else if (m.alive && !B.drawWith && rig.glow && rig.glow.length && alpha > .3) {
@@ -1081,8 +1084,8 @@ def('archetypes', 'broodmother', { name: 'Brood Mother', tags: ['beast', 'spider
   ai: BST_crawlerAI, update: BST_broodTick,
   draw(m, r, a) { BST_drawBeast(m, r, a); BST_drawThread(m, r); },
   onDie(m) { BST_ichor(m, '#9ad84a', 30); P.bits(m.x, m.y, 12, 26, ['#f0e8c8', '#dccca4', '#9ad84a']); sfx('bst_screech', { vol: .9, pitch: .6 }); P.ring(m.x, m.y, 6, 60, '#9ad84a', .6); BST_webPatch(m.x, m.y, 30); } });
-def('bosses', 'broodmother', { name: 'The Brood Mother', title: 'Queen of the Nests', levelName: "The Brood Mother's Lair", arch: 'broodmother', size: 3.2, hp: 15, dmg: 1.3, el: 'venom', music: BST_SONG_BROOD,
-  phases: [{ at: 1, patterns: ['leapslam', 'webspray', 'scuttle'], gap: 1.25 }, { at: .66, patterns: ['leapslam', 'webspray', 'scuttle', 'broodeggs', 'venompools'], gap: 1 }, { at: .33, patterns: ['leapslam', 'webspray', 'scuttle', 'broodeggs', 'venompools'], gap: .7 }],
+def('bosses', 'broodmother', { name: 'The Brood Mother', title: 'Queen of the Nests', levelName: "The Brood Mother's Lair", arch: 'broodmother', size: 3.2, hp: 70, dmg: 1.9, el: 'venom', music: BST_SONG_BROOD,
+  phases: [{ at: 1, patterns: ['leapslam', 'webspray', 'scuttle'], gap: .85 }, { at: .66, patterns: ['leapslam', 'webspray', 'scuttle', 'broodeggs', 'venompools'], gap: .7 }, { at: .33, patterns: ['leapslam', 'webspray', 'scuttle', 'broodeggs', 'venompools'], gap: .5 }],
   intro(m) { m.bst = { t: 0, intro: -1, rage: 0 }; },
   // (a shared arena module, when present, calls this instead of its element burst when she wakes or enrages)
   bosRoar(m, kind) { P.ring(m.x, m.y, 10, 80, '#f0eef8', .6); for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; P.add({ kind: 'bit', x: m.x + Math.cos(a) * 20, y: m.y + Math.sin(a) * 20, z: 6, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90, vz: 60, g: 200, max: .8, color: '#f0eef8' }); } if (kind !== 'phase') BST_webPatch(m.x, m.y, 30, true); },
@@ -1092,7 +1095,7 @@ def('bosses', 'broodmother', { name: 'The Brood Mother', title: 'Queen of the Ne
 
 /* ---------- her patterns (any boss may use the generic ones: web spray, venom pools, the scuttling charge) ---------- */
 // leap slam: a crouch, a leap in a high arc with the legs tucked, a landing that shakes the arena and webs the floor
-def('patterns', 'leapslam', { name: 'Leap Slam', range: [30, 200], start(b) {
+def('patterns', 'leapslam', { name: 'Leap Slam', role: 'close', range: [30, 200], start(b) {
   const h = ED.hero, sx = b.x, sy = b.y, [tx, ty] = BST_walkPt(h.x, h.y, sx, sy), R = 24 + 6 * Math.sqrt(b.scale || 1);
   FX.telegraph({ shape: 'circle', x: tx, y: ty, r: R, dur: 1.15, owner: b }); sfx('bst_hiss', { vol: .5, pitch: .6 });
   return { t: 0, rig: {}, update(dt) {
@@ -1106,7 +1109,7 @@ def('patterns', 'leapslam', { name: 'Leap Slam', range: [30, 200], start(b) {
   } };
 } });
 // web spray: rears up, a cone on the floor, then a fan of silk globs that slow and web the ground where they land
-def('patterns', 'webspray', { name: 'Web Spray', range: [0, 170], start(b) {
+def('patterns', 'webspray', { name: 'Web Spray', role: 'zone', range: [0, 170], start(b) {
   const h = ED.hero, ang = angTo(b, h), n = 9 + b.phase * 3, waves = b.phase >= 2 ? 2 : 1;
   FX.telegraph({ shape: 'arc', x: b.x, y: b.y, r: 125, ang, half: .6, dur: .75, owner: b }); sfx('bst_hiss', { vol: .6, pitch: .7 });
   return { t: 0, fired: 0, rig: {}, update(dt) {
@@ -1116,7 +1119,7 @@ def('patterns', 'webspray', { name: 'Web Spray', range: [0, 170], start(b) {
   } };
 } });
 // the scuttling charge: legs drum in place behind a red lane, then a zig-zag rush that bowls the hero over (a wall stuns her)
-def('patterns', 'scuttle', { name: 'Scuttling Charge', range: [28, 280], start(b) {   // (from close in too: bosses stalk to 40, so a far-only charge was almost never picked)
+def('patterns', 'scuttle', { name: 'Scuttling Charge', role: 'close', range: [28, 280], start(b) {   // (from close in too: bosses stalk to 40, so a far-only charge was almost never picked)
   const h = ED.hero, ang = angTo(b, h), len = BST_ray(b.x, b.y, ang, Math.min(250, Math.hypot(h.x - b.x, h.y - b.y) + 80)), sp = 320;
   FX.telegraph({ shape: 'line', x: b.x, y: b.y, ang, len, w: 12 + 10 * Math.sqrt(b.scale || 1), dur: .75, owner: b }); sfx('bst_hiss', { vol: .5 });
   return { t: 0, rig: {}, update(dt) {
@@ -1149,7 +1152,7 @@ def('patterns', 'broodeggs', { name: 'Brood', unique: true, range: [0, 400], sta
   } };
 } });
 // venom pools: lobbed globs that splash into lingering pools of poison (each landing is marked first)
-def('patterns', 'venompools', { name: 'Venom Pools', range: [30, 240], start(b) {
+def('patterns', 'venompools', { name: 'Venom Pools', role: 'zone', range: [30, 240], start(b) {
   const h = ED.hero, n = 3 + b.phase, el = b.el === 'phys' ? 'venom' : b.el, targets = [];
   for (let i = 0; i < n; i++) { const a = Math.random() * TAU, d = i ? 18 + Math.random() * 40 : 0; targets.push(BST_walkPt(h.x + Math.cos(a) * d + h.vx * .4, h.y + Math.sin(a) * d + h.vy * .4, h.x, h.y)); }
   return { t: 0, fired: 0, rig: {}, update(dt) {
@@ -1206,8 +1209,8 @@ def('archetypes', 'wyrm', { name: 'Deep Wyrm', tags: ['beast', 'burrower', 'boss
   palettes: [{ base: '#4e3c38', belly: '#a06a48', spine: '#e0d0b4', fin: '#c8402a', eye: '#ffd040', glow: '#ff7a2a', dirt: '#4a3a32', mouth: '#5a1410', tooth: '#f4ecd8' }], elKeys: ['glow', 'eye'],
   ai: BST_burrowAI, update: BST_wyrmTick, draw: (m, r, a) => BST_drawBeast(m, r, a),
   onDie(m) { shake(10); sfx('bst_roar', { vol: 1, pitch: .7 }); P.bits(m.x, m.y, 20, 30, ['#4e3c38', '#6a5a4a', '#ff7a2a']); for (let i = 0; i < 6; i++) { const a = Math.random() * TAU, d = 30 + Math.random() * 80; BST_rock({ team: 'hero', x: m.x + Math.cos(a) * d, y: m.y + Math.sin(a) * d, delay: .8 + i * .25, amount: 0 }); } } });
-def('bosses', 'wyrm', { name: 'The Deep Wyrm', title: 'That Which Bores Below', levelName: "The Wyrm's Descent", arch: 'wyrm', size: 1, hp: 13, dmg: 1.35, el: 'fire', music: BST_SONG_WYRM,
-  phases: [{ at: 1, patterns: ['wyrmdive', 'wyrmburst', 'spitring'], gap: 1.2 }, { at: .66, patterns: ['wyrmdive', 'wyrmburst', 'spitring', 'tailsweep', 'cavein'], gap: 1 }, { at: .33, patterns: ['wyrmdive', 'wyrmburst', 'spitring', 'tailsweep', 'cavein'], gap: .7 }],
+def('bosses', 'wyrm', { name: 'The Deep Wyrm', title: 'That Which Bores Below', levelName: "The Wyrm's Descent", arch: 'wyrm', size: 1, hp: 52, dmg: 1.7, el: 'fire', music: BST_SONG_WYRM,
+  phases: [{ at: 1, patterns: ['wyrmdive', 'wyrmburst', 'spitring'], gap: 1 }, { at: .66, patterns: ['wyrmdive', 'wyrmburst', 'spitring', 'tailsweep', 'cavein'], gap: .85 }, { at: .33, patterns: ['wyrmdive', 'wyrmburst', 'spitring', 'tailsweep', 'cavein'], gap: .6 }],
   intro(m) { m.bst = { t: 0, intro: -1, rage: 0 }; m.hz = -BST_R0(m) * 3; m.body.rig.reset(m.x, m.y, m.hz, m.facing, 'column'); },
   bosRoar(m) { P.bits(m.x, m.y, 4, 26, ['#6a5a4a', '#8a7a64', '#4a3a2a', '#ff7a2a']); P.ring(m.x, m.y, 10, 70, '#c8a070', .5); P.dust(m.x, m.y, 0, 14, { speed: 90, size: 2.4, color: '#8a7a64' }); },
   update(m) { if (m.dormant) m.patT = Math.max(m.patT, 1); },
@@ -1306,7 +1309,7 @@ def('patterns', 'tailsweep', { name: 'Tail Sweep', unique: true, range: [0, 170]
   } };
 } });
 // spit ring: rears high and spits rings of burning globs that rain down all around (rotated waves in later phases)
-def('patterns', 'spitring', { name: 'Spit Ring', range: [0, 230], start(b) {
+def('patterns', 'spitring', { name: 'Spit Ring', role: 'zone', range: [0, 230], start(b) {
   const worm = BST_isWorm(b), R0 = BST_R0(b), H = R0 * 4.6, waves = 1 + Math.min(2, b.phase), el = b.el === 'phys' ? 'fire' : b.el;
   return { t: 0, fired: 0, hz: worm ? b.hz : undefined, jaw: .4, rig: { pose: 'cast' }, update(dt) {
     this.t += dt; b.vx = b.vy = 0; this.rig = { pose: 'cast', expr: 'shout', bst: { rear: 1, fang: 1 } };
@@ -1322,7 +1325,7 @@ def('patterns', 'spitring', { name: 'Spit Ring', range: [0, 230], start(b) {
   } };
 } });
 // cave-in: a roar that shakes the arena; the ceiling comes down in boulders (marked on the floor), a few aimed at the hero
-def('patterns', 'cavein', { name: 'Cave-in', range: [0, 999], start(b) {
+def('patterns', 'cavein', { name: 'Cave-in', role: 'zone', range: [0, 999], start(b) {
   const h = ED.hero, worm = BST_isWorm(b), R0 = BST_R0(b), n = 7 + 3 * b.phase;
   return { t: 0, hz: worm ? b.hz : undefined, jaw: .5, rig: { pose: 'cheer', expr: 'shout' }, update(dt) {
     this.t += dt; b.vx = b.vy = 0; this.rig = { pose: 'cheer', expr: 'shout', bst: { rear: 1, fang: 1 } };

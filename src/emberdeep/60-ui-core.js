@@ -31,8 +31,10 @@ const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y
 /** run every step before the world: clicks, drags, Esc, the panel's own update. Returns true when the world should wait */
 function updateUI(dt) {
   const inp = game.input, m = mouseHUD();
-  UI.cardT -= dt;
-  for (const n of notes) n.t += dt; while (notes.length && notes[0].t > notes[0].dur) notes.shift();
+  UI.cardT -= dt; UI.updAt = performance.now();
+  NT_pull(); NT_age(dt); RUN_step(dt);
+  // a hero's stash is fitted once (an old save's, or none): its items' uids stay above every new item's (42-inventory)
+  const h0 = ED.hero; if (h0 && h0.stash !== UI.stashSeen && typeof LOT_stash === 'function' && !ED.demo) { LOT_stash(h0); UI.stashSeen = h0.stash; }
   let over = null; for (let i = UI.hot.length - 1; i >= 0; i--) if (inRect(m, UI.hot[i])) { over = UI.hot[i]; break; }   // the topmost rect (panels draw after the HUD)
   if (UI.drag && UI.mouse.down) UI.drag(m.x, m.y);
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
@@ -59,7 +61,7 @@ function panelBox(g, x, y, w, h, title) {
 }
 function button(g, x, y, w, h, label, onClick, o = {}) {
   const m = UI.mouse, focusMe = o.focus, over = hot(x, y, w, h, { click: o.disabled ? null : () => { sfx('confirm', { vol: .6 }); onClick(); }, tip: o.tip });
-  const lit = !o.disabled && (over || focusMe), c = o.color || '#3a3058';
+  const lit = !o.disabled && ((over && !UI.keyNav) || focusMe), c = o.color || '#3a3058';   // under key navigation a resting mouse lights nothing: one highlight
   E.ui.box(g, x, y, w, h, { bg: o.disabled ? '#242030' : lit ? E.shade(c, .25) : c, border: lit ? GOLD : o.active ? '#bff6ff' : '#6a5a88', shadow: false });
   E.font.text(g, label, x + w / 2, y + Math.round((h - 7) / 2), o.disabled ? '#6a6488' : lit ? '#fff6d8' : '#e8e0f8', { align: 'center', outline: false, shadow: '#05040a' });
   void m; return over;
@@ -93,6 +95,62 @@ function orb(g, cx, cy, R, frac, col, dark) {
   for (let y = Math.max(cy - R, Math.floor(top + wob)); y <= cy + R; y++) { const hw = Math.floor(Math.sqrt(Math.max(0, R * R - (y - cy) * (y - cy)))); px.rect(g, cx - hw, y, hw * 2 + 1, 1, y < top + wob + 1.5 ? t.hi : y > cy + R * .4 ? t.sh : t.base); }
   px.blend(g, .5, 'add', () => { px.disc(g, cx - R * .35, cy - R * .4, R * .28, '#ffffff'); });
   px.dot(g, cx - R * .45, cy - R * .5, '#ffffff');
+}
+/* ---------- small painted glyphs for buffs and statuses ----------
+ * 8 x 8 pixel art, one digit per pixel: 1 deep (outline), 2 shade, 3 base, 4 light, 5 highlight (the tones of the
+ * buff's or the status's own color). Baked once per color into a tiny canvas. */
+const UI_GLYPHS = {
+  sword: ['......45', '.....453', '....453.', '.1.453..', '..143...', '..31....', '.3.21...', '3.......'],
+  shield: ['.111111.', '14444441', '14355341', '14355341', '14333341', '.143341.', '..1431..', '...11...'],
+  crack: ['.111111.', '14441441', '14414341', '14143341', '14413341', '.141341.', '..1431..', '...11...'],
+  heart: ['.11.11..', '1451331.', '1433331.', '1333321.', '.13321..', '..121...', '...1....', '........'],
+  up: ['...44...', '..4554..', '.45..54.', '45.44.54', '..4554..', '.45..54.', '45....54', '........'],
+  right: ['4...4...', '54..54..', '.54..54.', '..55..55', '.54..54.', '54..54..', '4...4...', '........'],
+  down: ['...44...', '...44...', '...44...', '4..44..4', '54.44.45', '.544445.', '..5445..', '...55...'],
+  flame: ['...4....', '...44...', '..434.4.', '.4334.4.', '.435434.', '43355334', '.325523.', '..2222..'],
+  flake: ['...4....', '.4.5.4..', '..454...', '4455544.', '..454...', '.4.5.4..', '...4....', '........'],
+  bolt: ['....445.', '...453..', '..453...', '.4555554', '...3554.', '...454..', '..454...', '..4.....'],
+  eye: ['........', '..1111..', '.144441.', '14311341', '14311341', '.144441.', '..1111..', '........'],
+  drop: ['...1....', '..141...', '..1431..', '.145331.', '.143331.', '.133321.', '..1221..', '...11...'],
+  stars: ['.4......', '454..4..', '.4..454.', '.....4..', '..4.....', '.454....', '..4..4..', '....454.'],
+  skull: ['..1111..', '.144441.', '14444441', '14144141', '14444441', '.144441.', '.141141.', '..1111..']
+};
+const UI_STATUS_GLYPH = { burn: 'flame', chill: 'flake', freeze: 'flake', shock: 'bolt', curse: 'eye', poison: 'drop', bleed: 'drop', stun: 'stars', fear: 'skull', slow: 'down', haste: 'up', vuln: 'crack' };
+const UI_STATUS_TIP = { burn: 'Fire burns you each second.', chill: 'Slowed. Five stacks freeze you.', freeze: 'Frozen solid.', shock: 'You take more damage.', curse: 'Cursed.', poison: 'Venom each second; it stacks.', bleed: 'Bleeding: moving makes it worse.', stun: 'Stunned.', fear: 'Afraid.', slow: 'Slowed.', haste: 'Hasted.', vuln: 'Exposed: you take more damage.' };
+// buffs that name their own look (a legendary power's, a keystone's) and the mechanics that grant one
+const UI_BUFF_GLYPH = { overload: 'bolt', phoenix: 'flame', frenzy: 'drop', ward: 'shield', rally: 'up' }, UI_BUFF_MECH = { MKB_rush: 'bloodrush', 'mka-ward': 'wards' };
+const UI_glyphCv = new Map();
+function UI_glyph(g, id, x, y, c, s = 1) {
+  const G = UI_GLYPHS[id]; if (!G) return;
+  const key = id + c; let cv = UI_glyphCv.get(key);
+  if (!cv) {
+    cv = E.mkCanvas(8, 8); const cg = E.ctx2d(cv), t = E.tones(c), P = [null, t.deep, t.sh, t.base, t.lt, t.hi];
+    G.forEach((row, j) => { for (let i = 0; i < row.length; i++) { const k = row.charCodeAt(i) - 48; if (k > 0 && k < 6) px.rect(cg, i, j, 1, 1, P[k]); } });
+    if (UI_glyphCv.size > 200) UI_glyphCv.clear(); UI_glyphCv.set(key, cv);
+  }
+  if (s === 1) g.drawImage(cv, Math.round(x), Math.round(y)); else g.drawImage(cv, Math.round(x), Math.round(y), 8 * s, 8 * s);
+}
+/** a buff's picture: its own icon(g, x, y, s), its skill's icon, its mechanic's icon, or a glyph for what it gives */
+function buffGlyph(b) {
+  if (b.glyph && UI_GLYPHS[b.glyph]) return b.glyph; if (UI_BUFF_GLYPH[b.id]) return UI_BUFF_GLYPH[b.id];
+  const s = b.stats || {}, has = (...k) => k.some(q => s[q]);
+  return has('moreDmg', 'incDmg', 'dmgPct', 'dmgFlat', 'crit', 'critDmg') ? 'sword' : has('atkSpeed', 'castSpeed') ? 'up' : has('moveSpeed') ? 'right' : has('armor', 'armorPct', 'resAll', 'dodge') ? 'shield' : has('lifeRegen', 'life', 'lifePct', 'leech') ? 'heart' : 'stars';
+}
+function buffPaint(g, b, x, y) {
+  if (typeof b.icon === 'function') return b.icon(g, x + 1, y + 1, .75);
+  if (REG.skills[b.id] && typeof drawSkillIcon === 'function') return drawSkillIcon(g, b.id, x + 1, y + 1, .75);
+  const M = REG.mechanics[b.mech || UI_BUFF_MECH[b.id]]; if (M && M.icon) return M.icon(g, x + 1, y + 1, .75);
+  UI_glyph(g, buffGlyph(b), x + 3, y + 3, b.color || '#8affc8');
+}
+/** a 14 px icon with a timer: the dark sweep of the skill bar grows down from the top as the time runs out (a refresh
+ *  starts it over), the frame blinks in the last second and a half, stacks show at the corner */
+function drawTimedIcon(g, x, y, c, bg, o, stacks, paint) {
+  const S = 14, T = o.t || 0; if (!(o._uiMax > 0) || T > (o._uiLast || 0) + .02) o._uiMax = T; o._uiLast = T;
+  const blink = T < 1.5 && T < 999 && Math.floor(game.real * 8) % 2;
+  E.ui.box(g, x, y, S, S, { bg, border: blink ? '#ffffff' : c, shadow: false, gradient: false });
+  paint();
+  if (T < 999 && o._uiMax > 0) { const k = Math.round((S - 2) * (1 - clamp(T / o._uiMax, 0, 1))); if (k > 0) px.blend(g, .62, 'normal', () => px.rect(g, x + 1, y + 1, S - 2, k, '#05040a')); }
+  if (stacks > 1) E.font.text(g, String(stacks), x + S, y + S - 5, '#ffffff', { align: 'right', font: 'tiny', outline: '#0c0818' });
 }
 function drawHUD(r) {
   const h = ED.hero; if (!h) return;
@@ -135,8 +193,12 @@ function drawHudInner(g, r, h) {
     for (let q = 1; q < 4; q++) px.dot(g, bx + 1 + Math.round((xw - 2) * q / 4), H - 2, '#0c0818');
     hot(bx, H - 5, xw, 5, { tip: [{ t: 'Level ' + h.level, c: GOLD }, { t: fmt(h.xp) + ' / ' + fmt(need) + ' experience', c: '#c8b0ff' }] });
     E.font.text(g, 'LV ' + h.level, bx - 4, H - 8, '#c8b0ff', { align: 'right', font: 'tiny', outline: '#0c0818' });
-    if (h.pts.skill + h.pts.passive > 0) {   // '2 SKILL POINTS (K)', '1 PASSIVE POINT (P)', '2 SKILL + 1 PASSIVE POINTS (K / P)'
-      const blink = Math.floor(game.real * 2) % 2, sk = h.pts.skill, pa = h.pts.passive;
+    // the reminder only names a pool that can still buy something (every skill at max rank, or the whole tree taken,
+    // and the points just wait): PRG_canSpend (28-progression) answers, asked again when the points or the level change
+    const ck = h.pts.skill + ':' + h.pts.passive + ':' + h.level, cs = typeof PRG_canSpend !== 'function' ? null : UI.csKey === ck && game.real - UI.csT < 2 ? UI.cs : (UI.csKey = ck, UI.csT = game.real, UI.cs = PRG_canSpend(h));
+    const skN = cs && !cs.skill ? 0 : h.pts.skill, paN = cs && !cs.passive ? 0 : h.pts.passive;
+    if (skN + paN > 0) {   // '2 SKILL POINTS (K)', '1 PASSIVE POINT (P)', '2 SKILL + 1 PASSIVE POINTS (K / P)'
+      const blink = Math.floor(game.real * 2) % 2, sk = skN, pa = paN;
       const s = (sk ? sk + ' SKILL' : '') + (sk && pa ? ' + ' : '') + (pa ? pa + ' PASSIVE' : '') + ' POINT' + (sk + pa > 1 ? 'S' : '') + (sk && pa ? ' (K / P)' : sk ? ' (K)' : ' (P)');
       E.font.text(g, s, cx, by - 15, blink ? GOLD : '#e0a040', { align: 'center', font: 'tiny', outline: '#0c0818' });
     }
@@ -155,9 +217,13 @@ function drawHudInner(g, r, h) {
       }
       let mx = 5;
       for (const id of L0.mechs || []) { const M = REG.mechanics[id]; if (!M) continue; E.ui.box(g, mx, 24, 14, 14, { bg: '#1a1428', border: M.color || '#8a7aa8', shadow: false, gradient: false }); if (M.icon) M.icon(g, mx + 1, 25, .75); hot(mx, 24, 14, 14, { tip: [{ t: M.name, c: M.color || GOLD }, { t: M.tip || '', c: '#c8c0d8' }] }); mx += 16; }
+      // buffs, then what afflicts him: painted icons with the skill bar's dark sweep for the time that has run out
       let bxx = 5; const byy = L0.mechs && L0.mechs.length ? 42 : 26;
-      for (const b of h.buffs) { E.ui.box(g, bxx, byy, 10, 10, { bg: '#141020', border: b.color || '#8affc8', shadow: false, gradient: false }); E.font.text(g, (b.name || '?')[0], bxx + 5, byy + 2, b.color || '#8affc8', { align: 'center', font: 'tiny', outline: false }); hot(bxx, byy, 10, 10, { tip: [{ t: b.name, c: b.color }, { t: Math.ceil(b.t) + 's', c: '#c8c0d8' }].concat(Object.keys(b.stats || {}).map(k => ({ t: statText(k, b.stats[k]), c: '#8ab4ff' }))) }); bxx += 12; }
-      for (const id in h.st) { const S = REG.statuses[id]; if (!S) continue; E.ui.box(g, bxx, byy, 10, 10, { bg: '#1a0c14', border: S.color, shadow: false, gradient: false }); E.font.text(g, S.name[0], bxx + 5, byy + 2, S.color, { align: 'center', font: 'tiny', outline: false }); bxx += 12; }
+      for (const b of h.buffs) { drawTimedIcon(g, bxx, byy, b.color || '#8affc8', '#141020', b, b.n, () => buffPaint(g, b, bxx, byy)); hot(bxx, byy, 14, 14, { tip: () => [{ t: b.name, c: b.color }, { t: b.t > 999 ? 'while it lasts' : Math.ceil(b.t) + 's', c: '#c8c0d8' }].concat(Object.keys(b.stats || {}).map(k => ({ t: statText(k, b.stats[k]), c: '#8ab4ff' }))) }); bxx += 16; }
+      for (const id in h.st) { const S = REG.statuses[id], s = h.st[id]; if (!S) continue; drawTimedIcon(g, bxx, byy, S.color, '#1a0c14', s, s.n, () => UI_glyph(g, UI_STATUS_GLYPH[id] || 'skull', bxx + 3, byy + 3, S.color)); hot(bxx, byy, 14, 14, { tip: () => [{ t: S.name, c: S.color }, { t: (s.t > 0 ? s.t.toFixed(1) + 's' : '') + (s.n > 1 ? '  •  ' + s.n + ' stacks' : ''), c: '#c8c0d8' }].concat(UI_STATUS_TIP[id] ? [{ t: UI_STATUS_TIP[id], c: '#ff9a9a' }] : []) }); bxx += 16; }
+      // the pickup log under that row; the notice column keeps clear of all of it (and of the minimap)
+      const pw = NT_drawPicks(g, 6, byy + (bxx > 5 ? 19 : 2), 110);
+      UI.feedL = Math.max(mx, bxx, pw ? pw + 10 : 0, 118);
       drawMinimap(g, r, L0, h);
     }
     // an arrow at the screen edge toward the exit once it has been seen (and is off screen)
@@ -179,39 +245,172 @@ function drawHudInner(g, r, h) {
       E.ui.bar(g, x, y + 10, w, 6, B.hp / B.maxHp, '#d8303a');
       const ph = (B.bossDef.phases || []).slice(1); for (const p of ph) px.rect(g, x + Math.round(w * p.at), y + 10, 1, 6, '#ffd36a');
     }
-    // notices (over the panels instead while one is open: see drawPanels)
-    if (!UI.modal) drawNotes(g, W, H, false);
-    // interaction prompt
-    if (UI.prompt) { const t = UI.prompt; E.font.text(g, t, cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' }); }
+    // the notices are drawn after the panels (drawNoticeFeed); the HUD tells it where the left column ends
+    UI.hudDrawn = true;
+    // interaction prompt (not under a panel or a conversation: '[E] Talk to ILSA' while Ilsa is talking reads as a bug)
+    UI.promptShown = !!UI.prompt && !UI.modal && !(typeof talk !== 'undefined' && talk.open);
+    if (UI.promptShown) E.font.text(g, UI.prompt, cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });
     // the level card: name, depth, the new element
-    if (UI.card && UI.cardT > 0) {
-      const c = UI.card, a = clamp(Math.min(UI.cardT, (c.dur - UI.cardT) * 3), 0, 1);
-      px.blend(g, a, 'normal', () => {
-        const y = Math.round(H * .18);
-        E.font.text(g, c.sub, cx, y - 12, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
-        const T0 = c.title.toUpperCase(), sc = E.font.width(T0, { scale: 2 }) <= W - 16 ? 2 : 1;   // long composed names drop to one scale on narrow screens
-        E.font.title(g, T0, cx, y + (sc === 1 ? 5 : 0), { scale: sc, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: sc, align: 'center' });
-        if (c.mech) {
-          const M = c.mech, ww = Math.min(300, W - 30); let lines = E.font.wrap(M.tip || '', ww);
-          if (lines.length > 4) { const cut = lines.slice(0, 4).join(' '), dot = cut.lastIndexOf('. '); lines = E.font.wrap(dot > cut.length * .5 ? cut.slice(0, dot + 1) : cut.replace(/\s*\S*$/, '') + '...', ww).slice(0, 4); }   // whole sentences (the icon's tooltip has the rest)
-          px.blend(g, .5, 'normal', () => px.rect(g, cx - ww / 2 - 8, y + 30, ww + 16, lines.length * 9 + 3, '#05030c'));   // a dark band: the rule reads over any floor
-          E.font.text(g, (M.combo ? 'NEW COMBINATION: ' : 'NEW: ') + M.name.toUpperCase(), cx, y + 22, M.color || GOLD, { align: 'center', shadow: '#05040a', outline: '#0c0818' });
-          lines.forEach((l, i) => E.font.text(g, l, cx, y + 32 + i * 9, '#e8e0f8', { align: 'center', shadow: '#05040a', outline: false }));
-        }
-      });
-    }
+    if (UI.card && UI.cardT > 0) drawLevelCard(g, W, H, cx, UI.card);
   }
 }
 
-/** the notice feed: fading lines at a third of the height. Over a panel each line gets a dark band, so a shop's
- *  'again to confirm' or 'bag full' reads over whatever the panel draws there */
-function drawNotes(g, W, H, band) {
-  let ny = Math.round(H * .3); const cx = Math.round(W / 2);
-  for (const n of notes) {
-    const a = n.t < .2 ? n.t / .2 : n.t > n.dur - .5 ? (n.dur - n.t) / .5 : 1; if (a <= 0) continue;
-    if (band) { const tw = Math.min(W, E.font.width(n.text) + 16); px.blend(g, .8 * a, 'normal', () => px.rect(g, cx - tw / 2, ny - 2, tw, 11, '#05030c')); }
-    px.blend(g, a, 'normal', () => E.font.text(g, n.text, cx, ny, n.color, { align: 'center', shadow: '#05040a', outline: '#0c0818' })); ny += band ? 11 : 10;
+/** the level card: the depth, the name, the new element and its rule. A composed depth's mech may carry lines (one
+ *  rule per element and how they combine: levelCardInfo in 50-levels-core writes them), strings or { t, c }. Each
+ *  gets its own rows, an element's name before a ':' picked out in that element's color, whole sentences only; at
+ *  most seven rows, so the band ends near the top of the hero's head. The elements' icons lead the heading */
+function drawLevelCard(g, W, H, cx, c) {
+  const a = clamp(Math.min(UI.cardT, (c.dur - UI.cardT) * 3), 0, 1);
+  px.blend(g, a, 'normal', () => {
+    const y = Math.round(H * .16);
+    E.font.text(g, c.sub || '', cx, y - 12, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
+    const T0 = String(c.title || '').toUpperCase(), sc = E.font.width(T0, { scale: 2 }) <= W - 16 ? 2 : 1;   // long composed names drop to one scale on narrow screens
+    E.font.title(g, T0, cx, y + (sc === 1 ? 5 : 0), { scale: sc, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: sc, align: 'center' });
+    if (!c.mech) return;
+    const M = c.mech, ww = Math.min(M.lines ? 340 : 300, W - 30), rows = c._rows && c._rowsW === W ? c._rows : [];
+    // rows wrap to balanced widths (no word left alone on a row), cut at whole sentences; worked out once per card
+    const bal = s => { const L = E.font.wrap(s, ww); if (L.length < 2) return L; let lo = ww * .4, hi = ww; while (hi - lo > 3) { const mid = (lo + hi) / 2; if (E.font.wrap(s, mid).length <= L.length) hi = mid; else lo = mid; } return E.font.wrap(s, Math.ceil(hi)); };
+    const sentences = (s, n) => { let L = bal(s); if (L.length > n) { const cut = L.slice(0, n).join(' '), dot = cut.lastIndexOf('. '); L = bal(dot > cut.length * .5 ? cut.slice(0, dot + 1) : cut.replace(/\s*\S*$/, '') + '...').slice(0, n); } return L; };
+    if (!rows.length) {
+    const byName = n => Object.values(REG.mechanics).find(q => q.name && q.name.toUpperCase() === n.trim().toUpperCase());
+    const lines = Array.isArray(M.lines) ? M.lines.filter(Boolean) : null;
+    if (lines && lines.length) {
+      const body = [];
+      for (const l of lines) {
+        const s = typeof l === 'string' ? l : l.t || '', k = s.indexOf(':'), head = k > 0 && k < 28 ? s.slice(0, k + 1) : '', q = head && byName(head.slice(0, -1));
+        sentences(s, 2).forEach((t, i) => body.push({ t, c: '#e8e0f8', head: i === 0 && head && t.startsWith(head) ? head : '', hc: (typeof l === 'object' && l.c) || (q && q.color) || GOLD }));
+      }
+      if (M.tip && body.length < 7) for (const t of sentences(M.tip, 1)) rows.push({ t, c: '#b8b0d0' });
+      rows.push(...body.slice(0, 7 - rows.length));
+    } else for (const t of sentences(M.tip || '', 4)) rows.push({ t, c: '#e8e0f8' });
+    c._rows = rows; c._rowsW = W;
+    }
+    px.blend(g, .5, 'normal', () => px.rect(g, cx - ww / 2 - 8, y + 30, ww + 16, rows.length * 9 + 3, '#05030c'));   // a dark band: the rules read over any floor
+    // the heading, led by the elements' icons (all of a combination's)
+    let hd = (M.combo ? 'NEW COMBINATION: ' : 'NEW: ') + String(M.name || '').toUpperCase(); if (E.font.width(hd) > W - 40) hd = String(M.name || '').toUpperCase();
+    const ids = (M.ids || (M.combo && ED.L && ED.L.mechs) || [M.id]).filter(id => REG.mechanics[id] && REG.mechanics[id].icon), iw = ids.length ? ids.length * 14 + 2 : 0, hw = E.font.width(hd, E.font.width(hd) > W - 40 - iw ? { font: 'tiny' } : undefined), x0 = Math.round(cx - (hw + iw) / 2);
+    ids.forEach((id, i) => { const Q = REG.mechanics[id]; E.ui.box(g, x0 + i * 14, y + 18, 13, 13, { bg: '#1a1428', border: Q.color || PANEL_BORDER, shadow: false, gradient: false }); Q.icon(g, x0 + i * 14 + 1, y + 19, .7); });
+    E.font.text(g, hd, x0 + iw, y + 22, M.color || GOLD, { shadow: '#05040a', outline: '#0c0818', font: hw < E.font.width(hd) ? 'tiny' : undefined });
+    rows.forEach((l, i) => {
+      const yy = y + 32 + i * 9;
+      if (!l.head) return E.font.text(g, l.t, cx, yy, l.c, { align: 'center', shadow: '#05040a', outline: false });
+      const lx = Math.round(cx - E.font.width(l.t) / 2), rest = l.t.slice(l.head.length);
+      E.font.text(g, l.head, lx, yy, l.hc, { shadow: '#05040a', outline: false }); E.font.text(g, rest, lx + E.font.width(l.head) + 1, yy, l.c, { shadow: '#05040a', outline: false });
+    });
+  });
+}
+/* ---------- the notice feed ----------
+ * notify() (00-core) pushes lines onto `notes`; the UI takes each one as it is pushed and sorts it, so no line ever
+ * sits on the fight, a title, a panel's body or a tooltip:
+ *  - PICKUPS (the item names BUS 'pickup' has just named) go to a small log at the left, under the buff row;
+ *  - QUICK feedback (1.6 s or less: NOT ENOUGH EMBER, NO POTIONS, BAG FULL) sits just over the skill bar, where the
+ *    eye already is when a skill fails;
+ *  - everything else (level-ups, legendary drops, a boss slain, tips) is a column of at most four lines at the top,
+ *    under the boss bar, well clear of the hero. It holds (its lines wait, their clocks stopped) while a level card or
+ *    a boss's name card is up, so no title is ever talked over; a queue past four lines hurries the oldest out;
+ *  - a line that repeats merges with the live one ('BAG FULL  x3'), and level-ups fold into one line;
+ *  - over a panel every line moves to a band above the panel (over its title strip when there is no room), never
+ *    over its body and always under its tooltips; the death screen shows none.
+ * Long lines wrap to the column; the column ghosts while the mouse is over it (a loot label under it stays readable). */
+const NT = { top: [], quick: [], picks: [], named: [], holdT: 0, drawAt: 0 };
+const NT_TOP = 4;
+BUS.on('pickup', e => { if (e && e.item) NT.named.push({ name: e.item.name, it: e.item, t: game.real }); });
+BUS.on('bossWake', () => { NT.holdT = game.real + 3.9; });   // the boss's name card (36-bosses draws it for 3.8 s)
+BUS.on('heroDie', () => { NT.top.length = 0; NT.quick.length = 0; });   // nothing stale greets him in town
+/** 'LEVEL 7  •  +2 SKILL POINTS  +2 PASSIVE POINTS' -> { lvl, sk, pa } (points may be missing: the text is the hero's) */
+function NT_level(s) { const m = /^LEVEL (\d+)/.exec(s); if (!m) return null; const sk = /\+(\d+) SKILL/.exec(s), pa = /\+(\d+) PASSIVE/.exec(s); return { lvl: +m[1], sk: sk ? +sk[1] : 0, pa: pa ? +pa[1] : 0 }; }
+/** sort one new line into the feed. notify() pushes onto the core's `notes`, which keeps only six: the feed takes each
+ *  line the moment it is pushed instead (a boss kill's burst of level-ups, drops and pickups loses nothing) */
+notes.push = function (...a) { for (const n of a) NT_route(n); return this.length; };
+function NT_pull() { while (notes.length) NT_route(notes.shift()); if (NT.named.length) NT.named = NT.named.filter(q => game.real - q.t < 1); }
+function NT_route(n) {
+  if (!n || UI.isOpen('death')) return;
+  {
+    const e = { text: String(n.text), color: n.color, t: 0, dur: n.dur || 3, n: 1 };
+    const k = NT.named.findIndex(q => q.name === e.text);
+    if (k >= 0) {   // an item he just picked up: the pickup log (the same name twice counts)
+      const it = NT.named.splice(k, 1)[0].it, same = NT.picks.find(q => q.text === e.text && q.t < q.dur - .6);
+      if (same) { same.n++; same.t = Math.min(same.t, .2); } else { NT.picks.push({ text: e.text, color: e.color, t: 0, dur: 3.4, n: 1, it }); if (NT.picks.length > 6) NT.picks.shift(); }
+      return;
+    }
+    const same = NT.top.find(q => q.text === e.text) || NT.quick.find(q => q.text === e.text);
+    if (same) { same.n++; same.t = Math.min(same.t, .2); same.dur = Math.max(same.dur, e.dur); return; }
+    const lv = NT_level(e.text), prev = lv && NT.top.find(q => q.lv);
+    if (prev) {   // level-ups fold: one line with the newest level and every point they gave
+      const L0 = prev.lv; L0.lvl = lv.lvl; L0.sk += lv.sk; L0.pa += lv.pa;
+      prev.text = L0.sk || L0.pa ? 'LEVEL ' + L0.lvl + '  •  +' + L0.sk + ' SKILL POINT' + (L0.sk > 1 ? 'S' : '') + '  +' + L0.pa + ' PASSIVE POINT' + (L0.pa > 1 ? 'S' : '') : e.text;
+      prev.t = Math.min(prev.t, .2); prev.dur = Math.max(prev.dur, e.dur); return;
+    }
+    if (lv) e.lv = lv;
+    if (e.dur <= 1.6) { NT.quick.push(e); if (NT.quick.length > 2) NT.quick.shift(); }
+    else { NT.top.push(e); if (NT.top.length > 12) NT.top.shift(); }
   }
+}
+/** a level card or a boss's name card is up (and no panel: over a panel the band shows everything) */
+const NT_held = () => !UI.modal && (UI.cardT > 0 || game.real < NT.holdT);
+function NT_age(dt) {
+  const held = NT_held(), tick = (list, n) => { for (let i = 0; i < list.length; i++) if (i < n) list[i].t += dt; for (let i = list.length - 1; i >= 0; i--) if (list[i].t > list[i].dur) list.splice(i, 1); };
+  if (UI.modal) tick(NT.top, NT.top.length);   // over a panel only the newest shows: the rest runs out unseen
+  else if (!held) { const n = NT.shown || 1, q = NT.top[0]; if (q && NT.top.length - n > 3) q.dur = Math.min(q.dur, Math.max(q.t + .5, 1.5)); tick(NT.top, n); }   // a long queue hurries the oldest line out
+  tick(NT.quick, 2); tick(NT.picks, 6);
+}
+const NT_alpha = n => n.t < .15 ? n.t / .15 : n.t > n.dur - .5 ? (n.dur - n.t) / .5 : 1;
+/** the feed, drawn after the panels and before every tooltip. rect: the top modal panel's [x, y, w, h], or null */
+function drawNoticeFeed(g, W, H, rect, hud) {
+  NT_pull();
+  const now = performance.now(); if (now - (UI.updAt || 0) > 120) { const dt = clamp((now - (NT.drawAt || now)) / 1000, 0, .1); UI.cardT -= dt; NT_age(dt); }   // a scene without updateUI (the attract mode) still ages its lines
+  NT.drawAt = now;
+  if (UI.isOpen('death')) return;
+  const cx = Math.round(W / 2), line = (s, x, y, c, a, band, bw) => {
+    if (band) px.blend(g, .82 * a, 'normal', () => px.rect(g, Math.round(x - bw / 2), y - 2, bw, 11, '#05030c'));
+    px.blend(g, a, 'normal', () => E.font.text(g, s, x, y, c, { align: 'center', shadow: '#05040a', outline: '#0c0818' }));
+  };
+  const label = n => n.text + (n.n > 1 ? '  x' + n.n : '');
+  if (rect) {   // over a panel: a band above it, or (no room) the newest line over its title strip
+    const list = NT.top.concat(NT.quick).filter(n => NT_alpha(n) > 0).sort((a, b) => b.t - a.t), ww = Math.min(W - 16, 320), rows = [];   // oldest first: the newest is last
+    for (const n of list) for (const s of E.font.wrap(label(n), ww)) rows.push({ s, n });
+    if (!rows.length) return;
+    const full = rect[1] <= 1 && rect[3] >= H - 2;   // a full-screen panel (the passive tree): its footer hint line, not its header
+    const room = Math.floor((rect[1] - 3) / 11), keep = room >= 1 ? rows.slice(-room) : rows.slice(-1), y0 = room >= 1 ? rect[1] - 2 - keep.length * 11 : full ? H - 12 : rect[1] + 4;
+    const bw = r0 => Math.min(room >= 1 ? W : rect[2] - 34, E.font.width(r0.s) + 16);
+    keep.forEach((r0, i) => line(r0.s, cx, y0 + i * 11, r0.n.color, NT_alpha(r0.n), true, bw(r0)));
+    return;
+  }
+  if (!hud) {   // a scene without the HUD (the title, the gallery): the old place, a third of the way down
+    let y = Math.round(H * .3);
+    for (const n of NT.top.slice(0, NT_TOP).concat(NT.quick)) for (const s of E.font.wrap(label(n), W - 20)) { line(s, cx, y, n.color, NT_alpha(n), false); y += 10; }
+    return;
+  }
+  // the column at the top: between the left column (place, elements, buffs, pickups) and the minimap
+  if (!NT_held()) {
+    const L0 = UI.feedL || 118, R0 = 82, ww = clamp(W - L0 - R0 - 8, 110, 300), fx = Math.round(clamp((L0 + W - R0) / 2, ww / 2 + 4, W - ww / 2 - 4)), m = UI.mouse, rows = [];
+    let shown = 0;   // whole lines from the oldest, at most five rows (the first always shows); the rest wait their turn
+    for (const n of NT.top.slice(0, NT_TOP)) { const L = E.font.wrap(label(n), ww); if (shown && rows.length + L.length > 5) break; shown++; const a = NT_alpha(n); for (const s of L) rows.push({ s, n, a }); }
+    NT.shown = shown;
+    const y0 = 28, ghost = rows.length && m.x > fx - ww / 2 - 4 && m.x < fx + ww / 2 + 4 && m.y > y0 - 3 && m.y < y0 + rows.length * 10 + 2 ? .3 : 1;
+    rows.forEach((r0, i) => { if (r0.a > 0) line(r0.s, fx, y0 + i * 10, r0.n.color, r0.a * ghost, false); });
+  }
+  // quick feedback over the skill bar (above the interaction prompt when one shows)
+  let qy = H - 24 - 26 - (UI.promptShown ? 11 : 0);
+  for (let i = NT.quick.length - 1; i >= 0; i--) { const n = NT.quick[i], a = NT_alpha(n); if (a <= 0) continue; line(label(n), cx, qy, n.color, a, false); qy -= 10; }
+}
+/** the pickup log: the items he just picked up, under the buff row. They slide in from the left in their rarity's
+ *  color and fade out; names are cut to the column */
+function NT_drawPicks(g, x, y, maxW) {
+  let yy = y, w = 0;
+  for (const q of NT.picks.slice(-5)) {
+    const a = NT_alpha(q); if (a <= 0) continue;
+    const sx = x - Math.round((1 - E.ease.outCubic(Math.min(1, q.t / .22))) * 12), c = q.color || '#e8e0f8', dk = E.shade(c, -.55);
+    let s = q.text.toUpperCase(); const tail = q.n > 1 ? ' x' + q.n : '';
+    while (s.length > 3 && E.font.width(s + tail, { font: 'tiny' }) > maxW - 8) s = s.slice(0, -1);
+    if (s.length < q.text.length) s = s.replace(/\s+$/, '') + '.';
+    px.blend(g, a, 'normal', () => {
+      px.rect(g, sx + 1, yy, 3, 5, '#0c0818'); px.rect(g, sx, yy + 1, 5, 3, '#0c0818'); px.rect(g, sx + 2, yy + 1, 1, 3, c); px.rect(g, sx + 1, yy + 2, 3, 1, c); px.dot(g, sx + 2, yy + 2, q.it && q.it.rarity >= 3 ? '#ffffff' : dk);   // a rarity gem
+      E.font.text(g, s + tail, sx + 7, yy, c, { font: 'tiny', outline: '#0c0818' });
+    });
+    w = Math.max(w, 7 + E.font.width(s + tail, { font: 'tiny' })); yy += 8;
+  }
+  return w;
 }
 function skillTip(h, id) {
   const S = REG.skills[id], k = h.skills[id] || {}, rank = skillRank(h, id), rune = k.rune && S.runes && S.runes.find(q => q.id === k.rune);
@@ -219,6 +418,7 @@ function skillTip(h, id) {
   const cost = skillCost(h, S); if (cost) out.push({ t: 'Costs ' + cost + ' Ember', c: '#ffb070' }); if (S.gen) out.push({ t: 'Generates ' + S.gen + ' Ember per hit', c: '#ffb070' }); if (S.cd) out.push({ t: 'Cooldown ' + skillCd(h, S).toFixed(1) + 's', c: '#8fe3ff' });
   out.push({ t: typeof S.desc === 'function' ? S.desc(rank, k.rune) : S.desc || '', c: '#e8e0f8' });
   if (rune) out.push({ t: rune.name + ': ' + rune.desc, c: '#ff9a4a' });
+  if (typeof PRG_skillExtra === 'function') out.push(...PRG_skillExtra(h, id));   // mastery and rune tiers past rank 5
   return out;
 }
 /** the minimap: explored floor, walls, the exit, monsters nearby, the hero. It is drawn through the camera's own
@@ -275,6 +475,7 @@ function reveal(L0, h, rad = 9) {
 /** draw the open panels and the tooltip (after the HUD) */
 function drawPanels(r) {
   r.overlay(g => {
+    let rect = null;   // the top modal panel's rectangle: the notices keep off it
     for (const s of UI.stack) {
       const P0 = UI.panels[s.id]; if (!P0) continue;
       const top = s === UI.stack[UI.stack.length - 1];
@@ -282,13 +483,16 @@ function drawPanels(r) {
       const w = typeof P0.w === 'function' ? P0.w(r.W, r.H) : Math.min(P0.w || 240, r.W - 8), h = typeof P0.h === 'function' ? P0.h(r.W, r.H) : Math.min(P0.h || 180, r.H - 8);
       const x = P0.x !== undefined ? (typeof P0.x === 'function' ? P0.x(r.W, w) : P0.x) : Math.round((r.W - w) / 2), y = P0.y !== undefined ? P0.y : Math.round((r.H - h) / 2);
       UI.underPass = !top;   // a panel under the top one takes no clicks (a click in a gap of the top panel must not reach the one below)
+      if (P0.modal !== false) rect = [x, y, w, h];
       try {
         if (P0.box !== false) panelBox(g, x, y, w, h, P0.title);
         P0.draw(g, x, y, w, h, s.data);
         if (P0.box !== false) button(g, x + w - 14, y + 3, 11, 11, 'x', () => UI.close(s.id), { color: '#4a2a3a' });
       } finally { UI.underPass = false; }
     }
-    if (UI.modal && notes.length) r.overlay(g2 => drawNotes(g2, r.W, r.H, true));   // queued last: over the panels and their item tooltips
+    // the notices: over the panels (never on their bodies) and under every tooltip, which draws after them (an
+    // item's tooltip is queued by its panel, the core tooltip comes next)
+    if (rect || !UI.hideHud) drawNoticeFeed(g, r.W, r.H, rect, UI.hudDrawn); UI.hudDrawn = false;
     // tooltip: the hovered hot rect's tip (last registered wins: the topmost)
     const m = UI.mouse; let tipR = null;
     for (const r0 of UI.nextHot) if (r0.tip && inRect(m, r0)) tipR = r0;
@@ -312,15 +516,14 @@ function menuKeys(n, pick) {
   if (UI.keyNav && inp.pressed('confirm')) { inp.consumeAll(); pick(UI.focus); }
 }
 // [key, label, what it does, which way is easier: +1 when more is easier (hero, xp, loot), -1 for the monsters]
-const DIFF_ROWS = [['heroDmg', 'Hero damage', 'Every hit you deal.', 1], ['heroHp', 'Hero life', 'Your maximum life.', 1], ['heroSpeed', 'Hero speed', 'How fast you run.', 1],
-  ['foeDmg', 'Monster damage', 'Every hit a monster deals.', -1], ['foeHp', 'Monster life', 'Monster and boss life (the living ones change too).', -1], ['foeSpeed', 'Monster speed', 'How fast monsters move (the living ones change too).', -1],
+const DIFF_ROWS = [['heroDmg', 'Hero damage', 'Every hit you deal.', 1], ['heroHp', 'Hero life', 'Your maximum life.', 1], ['heroSpeed', 'Hero speed', 'How fast you move, strike and cast.', 1],
+  ['foeDmg', 'Monster damage', 'Every hit a monster deals.', -1], ['foeHp', 'Monster life', 'Monster and boss life (the living ones change too).', -1], ['foeSpeed', 'Monster speed', 'How fast monsters and bosses move, wind up, strike and shoot (the living ones change too).', -1],
   ['density', 'Monster density', 'Packs per room. Takes hold from the next depth.', -1], ['xp', 'Experience gain', 'Experience from every kill.', 1], ['loot', 'Loot drops', 'How often monsters drop items and gold.', 1]];
 /** set one difficulty value and make it felt at once: stats recompute, living monsters take the new life and speed */
 function setDiff(k, v) {
   const was = DIFF[k] || 1; v = +clamp(v, .25, 4).toFixed(3); if (v === was) return; DIFF[k] = v; saveOpts();
   const q = v / was;
   if (k === 'foeHp') for (const m of ED.foes) if (m.alive && m.maxHp) { m.maxHp *= q; m.hp *= q; }
-  if (k === 'foeSpeed') for (const m of ED.foes) if (m.speed) m.speed *= q;
   if (ED.hero) computeStats(ED.hero);
 }
 /* the settings' option buttons: [label, on (true / false, or null for a cycling button), action] */
@@ -367,19 +570,116 @@ UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H
   }
   if (UI.keyNav && f >= SET_N && inp.pressed('confirm')) { inp.consumeAll(); sfx('confirm', { vol: .6 }); if (f === SET_RESET) settingsReset(); else settingsToggles()[f - SET_N][2](); }
 } });
-UI.def('death', { title: 'YOU DIED', w: 200, h: 100, draw(g, x, y, w) {
-  const h = ED.hero;
-  E.font.text(g, 'Depth ' + ED.depth + ' • ' + ED.stats.kills + ' kills this descent', x + w / 2, y + 22, '#c8c0d8', { align: 'center', outline: false });
-  E.font.wrap('The waystone carries you home. You drop ' + fmt(Math.floor(h.gold * .1)) + ' gold.', w - 20, { font: 'tiny' }).slice(0, 2).forEach((l, i) => E.font.text(g, l, x + w / 2, y + 34 + i * 8, '#9a90b0', { align: 'center', font: 'tiny', outline: false }));
-  button(g, x + 30, y + 56, w - 60, 18, 'RETURN TO EMBERHOLD', () => { UI.closeAll(); h.gold = Math.floor(h.gold * .9); reviveHero(h); goTown(); }, { focus: true });
-}, update() { if (game.input.pressed('confirm')) { const h = ED.hero; UI.closeAll(); h.gold = Math.floor(h.gold * .9); reviveHero(h); goTown(); } } });
-/* the waystone's list: the panel is as tall as its depths need (it scrolls past ten) */
-UI.def('waystone', { title: 'THE WAYSTONE', w: 220, h: (W, H) => Math.min(H - 8, 200, 52 + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * 17), draw(g, x, y, w, h) {
+/* ---------- the descent's record, for the death screen: from leaving town (or entering the Proving Grounds) ----------
+ * the last hits he took (who, which element, how hard), the killing blow, and the run: time, kills, loot, gold, levels */
+const RUN = { mode: null, stale: true, t: 0, kills: 0, items: 0, legends: 0, gold: 0, levels: 0, depths: 0, hits: [], killer: null, focus: 0, anim: 0, cv: null, view: null };
+function RUN_reset(mode) { Object.assign(RUN, { mode, stale: false, t: 0, kills: 0, items: 0, legends: 0, gold: 0, levels: 0, depths: 0, hits: [], killer: null }); }
+function RUN_step(dt) {
+  const md = ED.mode; if (ED.demo) return;
+  if (md === 'level' || md === 'proving') { if (RUN.stale || RUN.mode !== md) RUN_reset(md); const h = ED.hero; if (h && h.alive && !UI.modal) RUN.t += dt; }
+  else RUN.stale = true;
+}
+/** who dealt a hit: a monster's full name (a rare's own name, a champion's affix), a status for damage over time */
+function RUN_who(hit) {
+  const s = hit.src;
+  if (s && s.team === 'hero') return 'Yourself';
+  if (s && s.name) return s.name; if (hit.srcName) return hit.srcName;
+  if (hit.tags && hit.tags.includes('dot')) { const st = REG.statuses[EL(hit.el).status]; return st ? st.name : EL(hit.el).name; }
+  return s && s.kind ? cap(String(s.kind)) : 'The deep itself';
+}
+BUS.on('levelStart', () => { if (ED.demo) return; if (RUN.stale || RUN.mode !== 'level') RUN_reset('level'); RUN.depths++; });
+BUS.on('kill', e => { if (!ED.demo && e.tgt && e.tgt.team === 'foe') RUN.kills++; });
+BUS.on('pickup', e => { if (!ED.demo && e && e.item) { RUN.items++; if (e.item.rarity >= 3) RUN.legends++; } });
+BUS.on('gold', e => { if (!ED.demo && e && e.n > 0) RUN.gold += e.n; });
+BUS.on('heroLevel', () => { if (!ED.demo) RUN.levels++; });
+BUS.on('hurt', e => { if (ED.demo || !e.hit) return; RUN.hits.push({ name: RUN_who(e.hit), el: e.hit.el || 'phys', dmg: e.dmg || e.hit.dmg || e.hit.amount || 0, hit: e.hit }); if (RUN.hits.length > 5) RUN.hits.shift(); });
+BUS.on('heroDie', e => {
+  if (ED.demo) return; const hit = (e && e.hit) || {}, s = hit.src;
+  RUN.killer = { name: RUN_who(hit), el: hit.el || 'phys', dmg: hit.dmg || hit.amount || 0, m: s && s.team === 'foe' ? s : null, dot: !!(hit.tags && hit.tags.includes('dot')) };
+  RUN.hits = RUN.hits.filter(q => q.hit !== e.hit);   // the killing blow may have been felt first: it is not 'before'
+  RUN.anim = 0;
+});
+/** the killer's likeness: its own rig (or blob, or body) drawn into a small canvas with the in-game outline, in the
+ *  glow of the element that killed him. It turns to the camera and gloats (a humanoid cheers); anything else gets a skull */
+function RUN_portrait(g, x, y, S, K) {
+  const e = EL(K ? K.el : 'phys'), m = K && K.m;
+  E.ui.box(g, x, y, S, S, { bg: ['#2a1422', '#0a0610'], border: '#8a3a4a', shadow: false });
+  px.blend(g, .22 + .06 * Math.sin(game.real * 2.5), 'add', () => { px.disc(g, x + S / 2, y + S * .66, S * .34, e.color); px.disc(g, x + S / 2, y + S * .66, S * .2, e.light); });
+  px.blend(g, .6, 'normal', () => px.ell(g, x + S / 2, y + S - 6, S * .26, 2.5, '#05030a'));
+  const body = m && (m.rig || m.blob || m.body);
+  if (!body) { UI_glyph(g, 'skull', x + S / 2 - 12, y + S / 2 - 13, e.light, 3); return; }
+  const w = S - 2; if (!RUN.cv || RUN.cv.w !== w) { const cv = E.mkCanvas(w, w), out = E.mkCanvas(w, w); RUN.cv = { w, cv, g: E.ctx2d(cv), out, og: E.ctx2d(out) }; }
+  const C = RUN.cv, V = RUN.view || (RUN.view = new E.View('portrait', 'Killer', 0, 16, 1, 1)), tall = (m.head || 28) * (m.scale || 1) + 10;
+  V.set(0, 16, clamp((S - 8) / tall, .35, 2), 1);
+  C.g.clearRect(0, 0, w, w);
+  try { if (m.rig) m.rig.draw(C.g, w / 2, w - 5, V); else if (m.blob) m.blob.draw(C.g, w / 2, w - 5, V); else m.body.draw(C.g, w / 2, w - 5, V, m); } catch (err) { void err; }
+  C.og.clearRect(0, 0, w, w); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) C.og.drawImage(C.cv, dx, dy);
+  C.og.globalCompositeOperation = 'source-in'; C.og.fillStyle = '#0c0818'; C.og.fillRect(0, 0, w, w); C.og.globalCompositeOperation = 'source-over'; C.og.drawImage(C.cv, 0, 0);
+  g.drawImage(C.out, x + 1, y + 1);
+}
+/** where the second button goes: the depth itself if the waystone remembers it, else the nearest remembered one above */
+const RUN_retryDepth = h => { const L = waystoneDepths(h).filter(d => d <= Math.max(1, ED.depth || 1)); return L.length ? Math.max(...L) : 1; };
+function RUN_leave(retry) {
+  const h = ED.hero; UI.closeAll(); h.gold = Math.floor(h.gold * .9); reviveHero(h);
+  if (!retry) goTown(); else if (ED.mode === 'proving') game.go('proving'); else descend(RUN_retryDepth(h));
+}
+UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, 290), h: (W, H) => Math.min(H - 8, 160),
+  open() { RUN.focus = 0; },
+  update(dt) {
+    const inp = game.input, K = RUN.killer, m = K && K.m;
+    if (inp.repeat('left') || inp.repeat('right') || inp.repeat('up') || inp.repeat('down')) { RUN.focus = 1 - RUN.focus; UI.keyNav = true; sfx('select', { vol: .4 }); }
+    if (inp.pressed('confirm')) { inp.consumeAll(); RUN_leave(RUN.focus === 1); return; }
+    // the killer turns to the camera and gloats over him (the level itself stands still behind the panel)
+    RUN.anim += dt; if (m && m.rig && m.rig.update && m.rig.J) m.rig.update(dt, { x: m.x, y: m.y, z: 0, vx: 0, vy: 0, facing: E.approachAng(m.rig.facing || 0, Math.PI / 2 + .45, dt * 5), pose: RUN.anim % 4 < 1.6 ? 'cheer' : 'hips', expr: RUN.anim % 4 < 1.6 ? 'shout' : 'smile' });
+  },
+  draw(g, x, y, w, hh) {
+    const h = ED.hero, K = RUN.killer || { name: 'The deep itself', el: 'phys', dmg: 0 }, e = EL(K.el), tiny = { font: 'tiny', outline: false }, m = K.m;
+    // who: the portrait, the name (in its rank's color), a champion's or a rare's affixes, and the blow
+    const PS = 46, px0 = x + 10, tx = px0 + PS + 8, tw = x + w - 10 - tx;
+    RUN_portrait(g, px0, y + 20, PS, K);
+    E.font.text(g, 'SLAIN BY', tx, y + 21, '#9a7080', tiny);
+    const nc = m ? (m.boss ? '#ff9a6a' : m.elite === 2 ? GOLD : m.elite ? '#9ab8ff' : '#f0e8f8') : e.light, nm = String(K.name);
+    E.font.text(g, nm, tx, y + 29, nc, { shadow: '#05040a', outline: false, font: E.font.width(nm) > tw ? 'tiny' : undefined });
+    const aff = m && (m.affixes || []).map(id => REG.affixes[id] && REG.affixes[id].name).filter(Boolean);
+    let ly = y + 40; if (aff && aff.length) { E.font.text(g, aff.join('  •  ').toUpperCase(), tx, ly, '#c8a8d8', tiny); ly += 8; }
+    px.rect(g, tx, ly + 1, 5, 5, e.dark); px.rect(g, tx, ly + 1, 5, 1, e.light); px.rect(g, tx + 1, ly + 2, 3, 3, e.color);   // the element chip
+    const pct = h && h.maxHp ? Math.round(K.dmg / h.maxHp * 100) : 0;
+    E.font.text(g, K.dot ? 'WORN DOWN BY ' + String(K.name).toUpperCase() : 'A ' + fmt(Math.round(K.dmg)) + ' ' + e.name.toUpperCase() + ' BLOW' + (pct >= 100 ? '  (MORE THAN ALL YOUR LIFE)' : pct >= 40 ? '  (' + pct + '% OF YOUR LIFE)' : ''), tx + 8, ly + 1, e.light, tiny);
+    ly += 9;
+    const prev = RUN.hits.slice(-3).reverse();
+    if (prev.length && ly < y + 66) { let hx = tx; E.font.text(g, 'BEFORE:', hx, ly, '#6a6488', tiny); hx += 30; for (const q of prev) { const s = fmt(Math.round(q.dmg)) + ' ' + EL(q.el).short, sw = E.font.width(s, { font: 'tiny' }); if (hx + sw > x + w - 8) break; E.font.text(g, s, hx, ly, EL(q.el).color, tiny); hx += sw + 7; } }
+    // the descent in numbers
+    const sy = y + 72; px.rect(g, x + 8, sy - 3, w - 16, 1, '#4a3a60');
+    const ft = v => Math.floor(v / 60) + ':' + String(Math.floor(v % 60)).padStart(2, '0'), cw = Math.floor((w - 16) / 3);
+    const cells = [['DEPTH', ED.mode === 'proving' ? 'PROVING' : String(ED.depth), h && h.maxDepth > ED.depth ? 'deepest ' + h.maxDepth : 'your deepest'], ['TIME', ft(RUN.t), RUN.depths > 1 ? RUN.depths + ' depths' : ''], ['KILLS', fmt(RUN.kills), ''],
+      ['LOOT', fmt(RUN.items), RUN.legends ? RUN.legends + ' legendary' : ''], ['GOLD', '+' + fmt(RUN.gold), ''], ['LEVELS', '+' + RUN.levels, h ? 'now ' + h.level : '']];
+    cells.forEach(([k, v, sub], i) => {
+      const cx0 = x + 10 + (i % 3) * cw, cy0 = sy + 2 + Math.floor(i / 3) * 21;
+      E.font.text(g, k, cx0, cy0, '#8a80a8', tiny); E.font.text(g, v, cx0, cy0 + 7, '#fff6d8', { shadow: '#05040a', outline: false });
+      if (sub) E.font.text(g, sub.toUpperCase(), cx0 + E.font.width(v) + 4, cy0 + 9, '#6a6488', tiny);
+    });
+    // the price, and the way back
+    const by = y + hh - 22;
+    E.font.text(g, 'THE WAYSTONE CARRIES YOU OUT. YOU DROP ' + fmt(Math.floor((h ? h.gold : 0) * .1)) + ' GOLD.', x + w / 2, by - 10, '#9a90b0', { align: 'center', font: 'tiny', outline: false });
+    const bw = Math.floor((w - 26) / 2), rd = h ? RUN_retryDepth(h) : 1;
+    [['RETURN TO EMBERHOLD', false], [ED.mode === 'proving' ? 'TRY AGAIN' : 'WAYSTONE TO DEPTH ' + rd, true]].forEach(([label, retry], i) => {
+      const over = button(g, x + 10 + i * (bw + 6), by, bw, 15, label, () => RUN_leave(retry), { focus: RUN.focus === i, color: i ? '#3a2a4a' : undefined,
+        tip: i ? [{ t: ED.mode === 'proving' ? 'Try again' : 'Straight back down', c: GOLD }, { t: ED.mode === 'proving' ? 'The waves start over.' : 'Revive and walk into depth ' + rd + ' again (a fresh one), without the walk through town.', c: '#c8c0d8' }] : null });
+      if (over && !UI.keyNav) RUN.focus = i;   // the mouse moves the one highlight, the keys move it back
+    });
+  } });
+/* the waystone's list: the panel is as tall as its depths need (it scrolls past ten). ONE row is lit: the focus, which
+   the keys move and the mouse moves too (hovering a row makes it the focus), and the list scrolls only to keep it in view */
+const WAY = { top: 0 };
+UI.def('waystone', { title: 'THE WAYSTONE', w: 220, h: (W, H) => Math.min(H - 8, 200, 52 + Math.min(10, ED.hero ? waystoneDepths(ED.hero).length : 4) * 17), open() { WAY.top = 0; }, draw(g, x, y, w, h) {
   const hero = ED.hero, list = waystoneDepths(hero), sub = E.font.wrap('Choose where to descend. Every fifth depth is remembered.', w - 16, { font: 'tiny' }).slice(0, 2);
   sub.forEach((l, i) => E.font.text(g, l, x + w / 2, y + 19 + i * 7, '#9a90b0', { align: 'center', font: 'tiny', outline: false }));
-  const top = y + 21 + sub.length * 7, rows = Math.max(1, Math.floor((y + h - 6 - top) / 17)), start = clamp((UI.focus || 0) - rows + 1, 0, Math.max(0, list.length - rows));
-  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name; button(g, x + 12, top + i * 17, w - 24, 14, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { UI.closeAll(); descend(d); }, { focus: UI.keyNav && UI.focus === k, active: d === hero.maxDepth }); });
+  const top = y + 21 + sub.length * 7, rows = Math.max(1, Math.floor((y + h - 6 - top) / 17)), f = clamp(UI.focus || 0, 0, list.length - 1);
+  WAY.top = clamp(f < WAY.top ? f : f > WAY.top + rows - 1 ? f - rows + 1 : WAY.top, 0, Math.max(0, list.length - rows)); const start = WAY.top;
+  list.slice(start, start + rows).forEach((d, i) => { const k = start + i, rec = recipe(d, 0), label = 'DEPTH ' + d + ' • ' + rec.name; if (button(g, x + 12, top + i * 17, w - 24, 14, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { UI.closeAll(); descend(d); }, { focus: f === k, active: d === hero.maxDepth }) && !UI.keyNav) UI.focus = k; });
   if (list.length > rows) { const th = Math.max(6, Math.round((rows * 17 - 3) * rows / list.length)), ty = top + Math.round((rows * 17 - 3 - th) * start / Math.max(1, list.length - rows)); px.rect(g, x + w - 8, top, 2, rows * 17 - 3, '#1c1830'); px.rect(g, x + w - 8, ty, 2, th, '#8a7aa8'); }
 }, update() { const list = waystoneDepths(ED.hero); menuKeys(list.length, i => { UI.closeAll(); descend(list[i]); }); },
   wheel(d) { const n = waystoneDepths(ED.hero).length; UI.focus = clamp((UI.focus || 0) + Math.sign(d), 0, n - 1); UI.keyNav = true; } });
 function waystoneDepths(h) { const s = new Set([1]); for (let d = 5; d <= h.maxDepth; d += 5) s.add(d); s.add(h.maxDepth); if (ED.savedLevel) s.delete(0); return [...s].sort((a, b) => b - a); }
+/* the UI's state for tests and tools: window.__edUI.notify('TEXT', '#fff', 3), .feed (the sorted notices), .run */
+window.__edUI = { notify: (t, c, d) => notify(t, c, d), showCard: (a, b, c, d) => showCard(a, b, c, d), feed: NT, run: RUN, glyphs: UI_GLYPHS };
