@@ -12,14 +12,14 @@ const UI = {
   top() { return this.stack.length ? this.panels[this.stack[this.stack.length - 1].id] : null; },
   isOpen(id) { return this.stack.some(s => s.id === id); },
   get modal() { return this.stack.some(s => this.panels[s.id] && this.panels[s.id].modal !== false); },
-  open(id, data) { const P0 = this.panels[id]; if (!P0) return; if (this.isOpen(id)) return this.close(id); this.stack.push({ id, data }); this.focus = 0; this.keyNav = performance.now() - this.keyT < 250; if (P0.open) P0.open(data); sfx('select'); game.input.consumeAll(); },
-  close(id) { const i = id ? this.stack.findIndex(s => s.id === id) : this.stack.length - 1; if (i < 0) return; const s = this.stack.splice(i, 1)[0], P0 = this.panels[s.id]; if (P0 && P0.close) P0.close(s.data); sfx('cancel', { vol: .5 }); game.input.consumeAll(); },
+  open(id, data) { const P0 = this.panels[id]; if (!P0) return; if (this.isOpen(id)) return this.close(id); this.stack.push({ id, data }); this.focus = 0; this.keyNav = game.input.lastDevice === 'gamepad' || performance.now() - this.keyT < 250; if (P0.open) P0.open(data); sfx('select'); game.input.clear(); },
+  close(id) { const i = id ? this.stack.findIndex(s => s.id === id) : this.stack.length - 1; if (i < 0) return; const s = this.stack.splice(i, 1)[0], P0 = this.panels[s.id]; if (P0 && P0.close) P0.close(s.data); this.focus = 0; sfx('cancel', { vol: .5 }); game.input.clear(); },
   closeAll() { while (this.stack.length) this.close(); },
   data(id) { const s = this.stack.find(q => q.id === id); return s && s.data; }
 };
 /* the mouse in screen pixels (the canvas scale and letterbox undone). A panel opened from the keyboard starts in key navigation */
 addEventListener('keydown', () => { UI.keyT = performance.now(); });
-canvas.addEventListener('pointermove', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.active = true; UI.keyNav = false; });
+canvas.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' && game.input.stickOn && e.pointerId === game.input.stickId) return; UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.active = true; UI.keyNav = false; });
 canvas.addEventListener('pointerdown', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; if (e.button === 0) UI.mouse.down = true; });
 addEventListener('pointerup', e => { if (e.button === 0) { UI.mouse.down = false; UI.drag = null; } });
 canvas.addEventListener('wheel', e => { UI.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
@@ -31,6 +31,8 @@ const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y
 /** run every step before the world: clicks, drags, Esc, the panel's own update. Returns true when the world should wait */
 function updateUI(dt) {
   const inp = game.input, m = mouseHUD();
+  syncTouchControls();
+  if (UI.top() && UI.top().dom) { UI.top().update(dt); return true; }
   UI.cardT -= dt; UI.updAt = performance.now();
   NT_pull(); NT_age(dt); RUN_step(dt);
   // a hero's stash is fitted once (an old save's, or none): its items' uids stay above every new item's (42-inventory)
@@ -40,17 +42,18 @@ function updateUI(dt) {
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
   const acts = !!over && !!(over.click || over.drag || over.rclick);
-  if (inp.pressed('click')) { if (acts) { if (over.drag) UI.drag = over.drag, over.drag(m.x, m.y); if (over.click) over.click(); inp.consume('s0'); } else if (UI.modal) inp.consume('s0'); }
-  if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.consume('s1'); } else if (UI.modal || acts) inp.consume('s1'); }
-  if (acts || (over && UI.modal)) { inp.consume('s0'); inp.consume('s1'); }
+  if (inp.pressed('click')) { if (acts) { if (over.drag) UI.drag = over.drag, over.drag(m.x, m.y); if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
+  if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
   const P0 = UI.top();
-  if (inp.pressed('pause')) { if (P0) UI.close(); else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); }
+  if (inp.pressed('pause')) { if (P0) UI.close(); else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); else if (ED.mode === 'gallery') game.go('title'); }
+  else if (P0 && inp.pressed('cancel') && !['inventory', 'skills', 'tree', 'vendor', 'smith', 'mystic', 'stash'].includes(P0.id)) UI.close();
   else if (P0 && P0.update) P0.update(dt, UI.stack[UI.stack.length - 1].data);
   // panel hotkeys (toggle)
   if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') for (const [act, id] of [['bag', 'inventory'], ['skills', 'skills'], ['tree', 'tree']]) if (inp.pressed(act) && UI.panels[id] && !(P0 && P0.captureKeys)) { if (UI.isOpen(id)) UI.close(id); else { if (P0 && P0.modal !== false && !P0.hotkeyPanel) UI.closeAll(); UI.open(id); } }
   if (UI.mouse.wheel && P0 && P0.wheel) P0.wheel(UI.mouse.wheel);
   UI.mouse.wheel = 0;
-  return UI.modal;
+  return UI.modal || (DEV.enabled && DEV.paused && !DEV.steps);
 }
 /* ---------- widgets (call inside an overlay) ---------- */
 const PANEL_BG = ['#1c1830', '#100c1c'], PANEL_BORDER = '#8a7aa8', GOLD = '#ffd36a';
@@ -60,7 +63,7 @@ function panelBox(g, x, y, w, h, title) {
   if (title) { E.font.title(g, title, x + w / 2, y + 5, { scale: 1, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 1, align: 'center' }); px.rect(g, x + 8, y + 15, w - 16, 1, '#4a3a60'); }
 }
 function button(g, x, y, w, h, label, onClick, o = {}) {
-  const m = UI.mouse, focusMe = o.focus, over = hot(x, y, w, h, { click: o.disabled ? null : () => { sfx('confirm', { vol: .6 }); onClick(); }, tip: o.tip });
+  const m = UI.mouse, focusMe = o.focus, over = hot(x, y, w, h, { label, click: o.disabled ? null : () => { sfx('confirm', { vol: .6 }); onClick(); }, tip: o.tip });
   const lit = !o.disabled && ((over && !UI.keyNav) || focusMe), c = o.color || '#3a3058';   // under key navigation a resting mouse lights nothing: one highlight
   E.ui.box(g, x, y, w, h, { bg: o.disabled ? '#242030' : lit ? E.shade(c, .25) : c, border: lit ? GOLD : o.active ? '#bff6ff' : '#6a5a88', shadow: false });
   E.font.text(g, label, x + w / 2, y + Math.round((h - 7) / 2), o.disabled ? '#6a6488' : lit ? '#fff6d8' : '#e8e0f8', { align: 'center', outline: false, shadow: '#05040a' });
@@ -169,7 +172,7 @@ function drawHudInner(g, r, h) {
     E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
     // potions (Q) beside the life orb
     for (let i = 0; i < h.maxPotions; i++) { const x = 44 + i * 7, y = H - 12, full = i < h.potions; px.rect(g, x + 1, y - 7, 2, 2, full ? '#c8b890' : '#4a4050'); px.disc(g, x + 2, y - 2, 2.6, full ? '#e03a4a' : '#2a2030'); if (full) px.dot(g, x + 1, y - 3, '#ffc0c8'); }
-    E.font.text(g, 'Q', 44 + h.maxPotions * 7 + 2, H - 13, '#9a90b0', { font: 'tiny', outline: '#0c0818' });
+    E.font.text(g, actionLabel('potion'), 44 + h.maxPotions * 7 + 2, H - 13, '#9a90b0', { font: 'tiny', outline: '#0c0818' });
     // skill bar
     const SW = 18, gap = 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);
     for (let i = 0; i < n; i++) {
@@ -181,7 +184,7 @@ function drawHudInner(g, r, h) {
         if (cd > 0 && full) { const k = Math.round(16 * cd / full); px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), x + 9, y + 6, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' }); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
-      const kw = E.font.width(SLOT_KEYS[i], { font: 'tiny' }) + 3; px.rect(g, x + SW - kw, y + SW - 6, kw + 1, 7, '#0c0818'); E.font.text(g, SLOT_KEYS[i], x + SW - kw + 2, y + SW - 5, '#c8c0d8', { font: 'tiny', outline: false });
+      const slotLabel = actionLabel(SLOT_ACTS[i], true), kw = E.font.width(slotLabel, { font: 'tiny' }) + 3; px.rect(g, x + SW - kw, y + SW - 6, kw + 1, 7, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - 5, '#c8c0d8', { font: 'tiny', outline: false });
       hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel (K).', c: '#c8c0d8' }], click: () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
     }
     if (h.cdWarn) h.cdWarn.t -= 1 / 60;
@@ -249,7 +252,7 @@ function drawHudInner(g, r, h) {
     UI.hudDrawn = true;
     // interaction prompt (not under a panel or a conversation: '[E] Talk to ILSA' while Ilsa is talking reads as a bug)
     UI.promptShown = !!UI.prompt && !UI.modal && !(typeof talk !== 'undefined' && talk.open);
-    if (UI.promptShown) E.font.text(g, UI.prompt, cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });
+    if (UI.promptShown) E.font.text(g, UI.prompt.replace('[E]', '[' + actionLabel('interact') + ']'), cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });
     // the level card: name, depth, the new element
     if (UI.card && UI.cardT > 0) drawLevelCard(g, W, H, cx, UI.card);
   }
@@ -477,7 +480,7 @@ function drawPanels(r) {
   r.overlay(g => {
     let rect = null;   // the top modal panel's rectangle: the notices keep off it
     for (const s of UI.stack) {
-      const P0 = UI.panels[s.id]; if (!P0) continue;
+      const P0 = UI.panels[s.id]; if (!P0 || P0.dom) continue;
       const top = s === UI.stack[UI.stack.length - 1];
       if (P0.modal !== false && top && P0.dim !== false) px.blend(g, .45, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#05030c'));
       const w = typeof P0.w === 'function' ? P0.w(r.W, r.H) : Math.min(P0.w || 240, r.W - 8), h = typeof P0.h === 'function' ? P0.h(r.W, r.H) : Math.min(P0.h || 180, r.H - 8);
@@ -503,16 +506,20 @@ function drawPanels(r) {
 function showCard(title, sub, mech, dur = 5) { UI.card = { title, sub, mech, dur }; UI.cardT = dur; }
 
 /* ---------- panels: pause, settings, death, waystone ---------- */
-UI.def('pause', { title: 'PAUSED', w: 150, h: 128, draw(g, x, y, w) {
-  const items = [['RESUME', () => UI.close('pause')], ['SETTINGS', () => UI.open('settings')], ED.mode === 'level' ? ['TOWN PORTAL', () => { UI.closeAll(); openTownPortal(ED.hero); }] : null, ['SAVE AND QUIT', () => { UI.closeAll(); saveGame(); game.go('title'); }]].filter(Boolean);
-  items.forEach(([label, fn], i) => button(g, x + 15, y + 22 + i * 24, w - 30, 18, label, fn, { focus: UI.keyNav && UI.focus === i }));
-  E.font.text(g, 'Esc closes • the deep waits', x + w / 2, y + 22 + items.length * 24 + 2, '#6a6488', { align: 'center', font: 'tiny', outline: false });
-}, update() { menuKeys(ED.mode === 'level' ? 4 : 3, i => [() => UI.close('pause'), () => UI.open('settings'), ED.mode === 'level' ? () => { UI.closeAll(); openTownPortal(ED.hero); } : () => { UI.closeAll(); saveGame(); game.go('title'); }, () => { UI.closeAll(); saveGame(); game.go('title'); }][i]()); } });
+function pauseItems() {
+  return [['RESUME', () => UI.close('pause')], ['INVENTORY', () => UI.open('inventory')], ['SKILLS', () => UI.open('skills')], ['PASSIVES', () => UI.open('tree')],
+    ['CONTROLS', () => UI.open('controls')], ['SETTINGS', () => UI.open('settings')], ['DEVELOPER', () => UI.open('developer')],
+    ED.mode === 'level' ? ['TOWN PORTAL', () => { UI.closeAll(); openTownPortal(ED.hero); }] : null,
+    DEV.enabled ? ['LEAVE SANDBOX', devDisable] : ['SAVE AND QUIT', () => { UI.closeAll(); saveGame(); game.go('title'); }]].filter(Boolean);
+}
+UI.def('pause', { title: 'PAUSED', w: 180, h: 198, draw(g, x, y, w) {
+  pauseItems().forEach(([label, fn], i) => button(g, x + 12, y + 20 + i * 18, w - 24, 16, label, fn, { focus: UI.keyNav && UI.focus === i }));
+}, update() { const items = pauseItems(); menuKeys(items.length, i => items[i][1]()); } });
 /** up / down / confirm over a panel's list of n entries */
 function menuKeys(n, pick) {
   const inp = game.input;
-  if (inp.repeat('up')) { UI.focus = (UI.focus + n - 1) % n; UI.keyNav = true; sfx('select', { vol: .4 }); }
-  if (inp.repeat('down')) { UI.focus = (UI.focus + 1) % n; UI.keyNav = true; sfx('select', { vol: .4 }); }
+  if (inp.repeat('menuUp')) { UI.focus = (UI.focus + n - 1) % n; UI.keyNav = true; sfx('select', { vol: .4 }); }
+  if (inp.repeat('menuDown')) { UI.focus = (UI.focus + 1) % n; UI.keyNav = true; sfx('select', { vol: .4 }); }
   if (UI.keyNav && inp.pressed('confirm')) { inp.consumeAll(); pick(UI.focus); }
 }
 // [key, label, what it does, which way is easier: +1 when more is easier (hero, xp, loot), -1 for the monsters]
@@ -539,6 +546,7 @@ function settingsToggles() {
 const settingsReset = () => { for (const k in DIFF_DEFAULT) setDiff(k, DIFF_DEFAULT[k]); };
 /* keyboard focus in settings: 0-8 the sliders, 9-17 the option buttons (a 3 x 3 grid), 18 RESET */
 const SET_N = DIFF_ROWS.length, SET_RESET = SET_N + 9;
+const settingsFooter = () => [['RESET', settingsReset], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]];
 UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H) => Math.min(240, H - 6), draw(g, x, y, w, h) {
   const rows = DIFF_ROWS, lh = 12, sx = x + 104, sw = w - 150;
   E.font.text(g, 'DIFFICULTY  (for playtesting: 0.25x to 4x)', x + 10, y + 20, '#9a90b0', { font: 'tiny', outline: false });
@@ -556,19 +564,18 @@ UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H
   const oy = y + 30 + rows.length * lh + 4;
   E.font.text(g, 'OPTIONS', x + 10, oy, '#9a90b0', { font: 'tiny', outline: false });
   settingsToggles().forEach(([label, on, fn], i) => button(g, x + 10 + (i % 3) * Math.floor((w - 20) / 3), oy + 8 + Math.floor(i / 3) * 16, Math.floor((w - 20) / 3) - 3, 13, label + (on === null ? '' : on ? ': ON' : ': OFF'), fn, { active: !!on, focus: UI.keyNav && UI.focus === SET_N + i }));
-  button(g, x + w / 2 - 50, y + h - 18, 100, 13, 'RESET DEFAULTS', settingsReset, { focus: UI.keyNav && UI.focus === SET_RESET, tip: [{ t: 'Reset the difficulty', c: GOLD }, { t: 'Every slider back to 1x.', c: '#c8c0d8' }] });
+  settingsFooter().forEach(([label, fn], i) => button(g, x + 10 + i * (w - 20) / 3, y + h - 18, (w - 20) / 3 - 3, 13, label, fn, { focus: UI.keyNav && UI.focus === SET_RESET + i }));
 }, update() {
-  // up / down walk the sliders, the option grid and RESET; left / right change a slider or move along a row; Enter presses
-  const inp = game.input, f = UI.focus || 0, nav = nf => { UI.focus = nf; UI.keyNav = true; sfx('select', { vol: .3 }); };
-  const tg = f - SET_N, col = tg % 3, row = Math.floor(tg / 3);
-  if (inp.repeat('up')) nav(f === 0 ? SET_RESET : f < SET_N ? f - 1 : f === SET_RESET ? SET_N + 7 : row === 0 ? SET_N - 1 : f - 3);
-  else if (inp.repeat('down')) nav(f < SET_N - 1 ? f + 1 : f === SET_N - 1 ? SET_N : f === SET_RESET ? 0 : row === 2 ? SET_RESET : f + 3);
-  else if (UI.keyNav && (inp.repeat('left') || inp.repeat('right'))) {
-    const d = inp.down('left') ? -1 : 1;
-    if (f < SET_N) { const k = DIFF_ROWS[f][0]; setDiff(k, Math.pow(2, clamp(Math.round(Math.log2(DIFF[k]) * 2) / 2 + d * .5, -2, 2))); sfx('select', { vol: .3 }); }
-    else if (f < SET_RESET) nav(SET_N + row * 3 + (col + d + 3) % 3);
+  const inp = game.input, f = UI.focus || 0, nav = nf => { UI.focus = nf; UI.keyNav = true; };
+  if (inp.repeat('menuUp')) nav(f === 0 ? SET_RESET : f < SET_N ? f - 1 : f < SET_N + 3 ? SET_N - 1 : f - 3);
+  else if (inp.repeat('menuDown')) nav(f < SET_N - 1 ? f + 1 : f === SET_N - 1 ? SET_N : f >= SET_RESET ? 0 : f + 3);
+  else if (inp.repeat('menuLeft') || inp.repeat('menuRight')) {
+    const d = inp.down('menuLeft') ? -1 : 1;
+    if (f < SET_N) { const k = DIFF_ROWS[f][0]; setDiff(k, Math.pow(2, clamp(Math.round(Math.log2(DIFF[k]) * 2) / 2 + d * .5, -2, 2))); UI.keyNav = true; }
+    else { const base = SET_N + Math.floor((f - SET_N) / 3) * 3; nav(base + (f - base + d + 3) % 3); }
   }
-  if (UI.keyNav && f >= SET_N && inp.pressed('confirm')) { inp.consumeAll(); sfx('confirm', { vol: .6 }); if (f === SET_RESET) settingsReset(); else settingsToggles()[f - SET_N][2](); }
+  if (inp.pressed('confirm') && f >= SET_N) { inp.consumeAll(); if (f >= SET_RESET) settingsFooter()[f - SET_RESET][1](); else settingsToggles()[f - SET_N][2](); }
+
 } });
 /* ---------- the descent's record, for the death screen: from leaving town (or entering the Proving Grounds) ----------
  * the last hits he took (who, which element, how hard), the killing blow, and the run: time, kills, loot, gold, levels */
@@ -627,7 +634,7 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, 290), h: (W, H) => 
   open() { RUN.focus = 0; },
   update(dt) {
     const inp = game.input, K = RUN.killer, m = K && K.m;
-    if (inp.repeat('left') || inp.repeat('right') || inp.repeat('up') || inp.repeat('down')) { RUN.focus = 1 - RUN.focus; UI.keyNav = true; sfx('select', { vol: .4 }); }
+    if (inp.repeat('menuLeft') || inp.repeat('menuRight') || inp.repeat('menuUp') || inp.repeat('menuDown')) { RUN.focus = 1 - RUN.focus; UI.keyNav = true; sfx('select', { vol: .4 }); }
     if (inp.pressed('confirm')) { inp.consumeAll(); RUN_leave(RUN.focus === 1); return; }
     // the killer turns to the camera and gloats over him (the level itself stands still behind the panel)
     RUN.anim += dt; if (m && m.rig && m.rig.update && m.rig.J) m.rig.update(dt, { x: m.x, y: m.y, z: 0, vx: 0, vy: 0, facing: E.approachAng(m.rig.facing || 0, Math.PI / 2 + .45, dt * 5), pose: RUN.anim % 4 < 1.6 ? 'cheer' : 'hips', expr: RUN.anim % 4 < 1.6 ? 'shout' : 'smile' });

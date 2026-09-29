@@ -32,8 +32,10 @@ const BASE = { minH: 220, minW: 320, maxW: 560, maxH: 330 };
 const INPUT = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
   s0: ['Mouse0', 'KeyJ', 'Pad2'], s1: ['Mouse2', 'KeyL', 'Pad3'], s2: ['Digit1', 'Pad1'], s3: ['Digit2', 'Pad4'], s4: ['Digit3', 'Pad5'], s5: ['Digit4', 'Pad7'],
-  dodge: ['Space', 'ShiftLeft', 'ShiftRight', 'Pad0'], potion: ['KeyQ', 'Pad6'], interact: ['KeyE', 'Enter', 'NumpadEnter'], portal: ['KeyT'],
-  bag: ['KeyI', 'KeyB'], skills: ['KeyK'], tree: ['KeyP'], map: ['Tab'], labels: ['KeyZ'],
+  dodge: ['Space', 'ShiftLeft', 'ShiftRight', 'Pad0'], potion: ['KeyQ', 'Pad6'], interact: ['KeyE', 'Enter', 'NumpadEnter', 'Pad10'], portal: ['KeyT', 'Pad11'],
+  bag: ['KeyI', 'KeyB', 'Pad8'], skills: ['KeyK'], tree: ['KeyP'], map: ['Tab'], labels: ['KeyZ'],
+  menuUp: ['ArrowUp', 'KeyW', 'Pad12', 'PadAxisUp'], menuDown: ['ArrowDown', 'KeyS', 'Pad13', 'PadAxisDown'],
+  menuLeft: ['ArrowLeft', 'KeyA', 'Pad14', 'PadAxisLeft'], menuRight: ['ArrowRight', 'KeyD', 'Pad15', 'PadAxisRight'],
   click: ['Mouse0'], rclick: ['Mouse2'],
   start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyJ', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1']
 };
@@ -66,7 +68,7 @@ const DIFF_DEFAULT = { heroDmg: 1, heroHp: 1, heroSpeed: 1, foeDmg: 1, foeHp: 1,
 const OPT_DEFAULT = { numbers: true, shake: true, labels: 1, music: .5, sfx: 1, gpu: false, view: 'iso', zoom: 1.25, bars: true };
 const DIFF = Object.assign({}, DIFF_DEFAULT, E.store.get('ed:diff', {}));
 const OPT = Object.assign({}, OPT_DEFAULT, E.store.get('ed:opt', {}));
-const saveOpts = () => { E.store.set('ed:diff', DIFF); E.store.set('ed:opt', OPT); };
+const saveOpts = () => { if (!DEV.enabled) E.store.set('ed:diff', DIFF); E.store.set('ed:opt', OPT); };
 const applyAudioOpts = () => { A.musicVolume = OPT.music; A.sfxVolume = OPT.sfx; A._levels(); };
 applyAudioOpts(); P.max = [500, 1000, 1600][OPT.fx === undefined ? 2 : OPT.fx];
 

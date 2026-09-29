@@ -77,7 +77,13 @@ The model copies the closest slice and replaces the code between `GAME START` an
 - **A gallery.** `#gallery` plays every skill on straw training dummies, every monster's moveset, every boss's entrance, and the hero's full pose vocabulary, in any view and in slow motion.
 - **Challenging.** Bosses usually take a real fight and sometimes a second try, and a level-up heals only part of your life. **For playtesting**, Settings has difficulty sliders for hero damage, life and speed (movement, attacks and casting), the same for monsters, plus density, experience and loot. `__ed.botRun({ to: 10 })` lets an autopilot play depth after depth, and the title screen runs it as a demo when left idle.
 
-**Controls:** WASD or the arrows to move, the mouse to aim; LMB, RMB and 1-4 fire the six skill slots; Space or Shift dodges; Q drinks a potion, E talks or picks up, T opens a portal home; I the bag, K the skills, P the passive tree, Tab the map, Z the loot labels, Esc pauses (Settings has the difficulty sliders). A gamepad works too.
+**Controls:** WASD or the arrows to move, the mouse to aim; LMB, RMB and 1-4 fire the six skill slots; Space or Shift dodges; Q drinks a potion, E talks or picks up, T opens a portal home; I the bag, K the skills, P the passive tree, Tab the map, Z the loot labels, Esc pauses. Open **Controls** from the title, pause menu, or Settings to rebind keyboard, mouse, and controller buttons. Bindings and controller/touch preferences save automatically; conflicts are reported and defaults can be restored. Menu navigation remains available even after movement is rebound.
+
+- **Gamepad:** left stick moves, right stick aims; X/Y/B/LB/RB/RT fire the six slots, A dodges, LT drinks a potion, L3 interacts, R3 opens a portal, View opens inventory, Menu pauses. D-pad or left stick navigates menus, A selects, and Menu goes back. The pause menu also opens Skills and Passives. Controls includes deadzone, aim assist, inverted aim, and a live controller monitor.
+- **Touch:** drag the movement side of the screen while pressing an action button with another finger. The overlay provides all six skills, dodge, potion, interaction, map, inventory, portal, and menu. Adjust handedness, size, opacity, and automatic/always/hidden display in Controls. Menus respond to taps; the gallery has Previous/Next, Reel, Replay, and Slow buttons.
+- **Developer sandbox:** open **Developer** from the title, pause menu, or Settings. Enabling it makes a disposable copy of your hero; leaving restores the normal hero in town. Experiment with invulnerability, unlimited resources, cooldowns, enemy freeze, simulation pause/frame stepping and speed, lighting, collision circles, performance stats, autopilot, travel to depths 1–500, monster/boss spawning, map reveal, loot, skill unlocks, points, and gold. Sandbox progress and difficulty changes never overwrite your normal save. Reloading abandons the sandbox; returning to town refills the restored hero normally.
+
+The game pauses on focus loss, clears cancelled touch/held inputs, and remembers the selected camera view.
 
 The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIGN.md` explains the modular "language" (registries for elements, skills, monsters, affixes, bosses, patterns, items, powers, mechanics, themes and layouts). `tools/ed-play.mjs` (scripted headless playtests) and `tools/ed-smoke.mjs` (every scene and depth) test it.
 
@@ -216,6 +222,8 @@ To test any game file in a headless browser, run the checker:
 ```
 npx playwright install chromium   # once
 node tools/check.mjs dist/my-3d2dge.html#platformer
+npm test                         # rebuild, syntax, controls + developer browser regressions
+npm run test:smoke -- --secs 2    # title, town, gallery, proving, depths 1–20
 ```
 
 To check an animation frame by frame, record a contact sheet:

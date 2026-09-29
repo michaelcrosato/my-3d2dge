@@ -794,7 +794,7 @@ function PRG_treeUpdate(dt) {
   V.openT += dt; if (V.deny) V.deny.t += dt; if (V.banner) V.banner.t += dt; if (V.reveal) V.reveal.t += dt;
   for (let i = V.fx.length - 1; i >= 0; i--) if ((V.fx[i].t += dt) > V.fx[i].dur) V.fx.splice(i, 1);
   if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; if (d.moved <= 3 && d.node) PRG_click(h, d.node); }
-  const mx = (inp.down('right') ? 1 : 0) - (inp.down('left') ? 1 : 0), my = (inp.down('down') ? 1 : 0) - (inp.down('up') ? 1 : 0);
+  const mx = (inp.down('menuRight') ? 1 : 0) - (inp.down('menuLeft') ? 1 : 0), my = (inp.down('menuDown') ? 1 : 0) - (inp.down('menuUp') ? 1 : 0);
   if (mx || my) { const sp = 250 * dt / V.z; V.cx += mx * sp; V.cy += my * sp; UI.keyNav = true; V.anchor = null; V.go = null; }
   if (inp.pressed('map')) { V.sum = !V.sum; sfx('select', { vol: .4 }); }
   if (UI.keyNav && inp.pressed('confirm') && V.hover) PRG_click(h, V.hover);
@@ -1058,12 +1058,12 @@ function PRG_skillsUpdate(dt) {
   for (let i = K.fx.length - 1; i >= 0; i--) if ((K.fx[i].t += dt) > K.fx[i].dur) K.fx.splice(i, 1);
   const ids = K.rows.filter(r => r.id).map(r => r.id); if (!ids.length) return;
   let i = Math.max(0, ids.indexOf(K.sel));
-  if (inp.repeat('up')) { K.sel = ids[(i + ids.length - 1) % ids.length]; K.follow = true; UI.keyNav = true; sfx('select', { vol: .3 }); }
-  if (inp.repeat('down')) { K.sel = ids[(i + 1) % ids.length]; K.follow = true; UI.keyNav = true; sfx('select', { vol: .3 }); }
+  if (inp.repeat('menuUp')) { K.sel = ids[(i + ids.length - 1) % ids.length]; K.follow = true; UI.keyNav = true; sfx('select', { vol: .3 }); }
+  if (inp.repeat('menuDown')) { K.sel = ids[(i + 1) % ids.length]; K.follow = true; UI.keyNav = true; sfx('select', { vol: .3 }); }
   const S = REG.skills[K.sel], runes = (S && S.runes) || [], k = h.skills[K.sel];
-  if ((inp.pressed('left') || inp.pressed('right')) && runes.length && k && skillRank(h, K.sel) >= 2) { const cur = runes.findIndex(r => r.id === k.rune), n = runes.length, nx = inp.pressed('left') ? (cur <= 0 ? n - 1 : cur - 1) : (cur + 1) % n; PRG_setRune(h, K.sel, runes[nx].id); }
+  if ((inp.pressed('menuLeft') || inp.pressed('menuRight')) && runes.length && k && skillRank(h, K.sel) >= 2) { const cur = runes.findIndex(r => r.id === k.rune), n = runes.length, nx = inp.pressed('menuLeft') ? (cur <= 0 ? n - 1 : cur - 1) : (cur + 1) % n; PRG_setRune(h, K.sel, runes[nx].id); }
   if (inp.pressed('confirm')) { if (K.armed !== null) { if (PRG_assign(h, K.armed, K.sel)) K.armed = null; } else PRG_rankUp(h, K.sel); }
-  for (let s = 2; s < 6; s++) if (inp.pressed(SLOT_ACTS[s])) PRG_assign(h, s, K.sel);
+  for (let s = 0; s < 6; s++) if (inp.pressed(SLOT_ACTS[s]) && (s >= 2 || !inp.pressed('click') && !inp.pressed('rclick'))) PRG_assign(h, s, K.sel);
   if (inp.pressed('cancel')) K.armed = null;
 }
 
