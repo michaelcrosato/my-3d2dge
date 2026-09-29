@@ -236,9 +236,10 @@ const LOT_JOINT = { helm: 'head', amulet: 'shC', chest: 'shC', cloak: 'shC', glo
 function LOT_dollRig(h) {
   const D = LOT_UI.doll || (LOT_UI.doll = { rig: null, sig: '', face: Math.PI / 2 + .5, t: 0, anim: null, spin: 0, user: 0, parts: [], ox: 0, oy: 0 });
   const sig = SLOTS.map(s => h.gear[s] ? h.gear[s].uid : 0).join(',');
-  if (D.sig !== sig) {
+  if (D.sig !== sig || D.character !== h.character) {
     const lk = heroLook(h), was = D.sig ? D.sig.split(',') : null, now = sig.split(',');
-    D.rig = new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
+    D.rig = h.character === 'codex' ? new CodexRig(h) : new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
+    D.character = h.character;
     D.rig.update(0, { x: 0, y: 0, z: 0, facing: D.face });
     const w = h.gear.weapon; D.smear = (w && w.look && w.look.smear) || EL(lk.el).smear;
     if (was) { const i = SLOTS.findIndex((s, k) => was[k] !== now[k]); if (i >= 0) LOT_dollReact(D, SLOTS[i], h.gear[SLOTS[i]]); }
@@ -280,7 +281,7 @@ function LOT_canvas(key, w, h) {
   return c;
 }
 function LOT_dollDraw(g, x, y, w, h, hero) {
-  const D = LOT_dollRig(hero), rig = D.rig, sc = clamp((h - 18) / 31, 1.6, 3.3), V = LOT_UI.dollView || (LOT_UI.dollView = new E.View('portrait', 'Doll', 0, 16, 2, 1));
+  const D = LOT_dollRig(hero), rig = D.rig, sc = clamp((h - 18) / (hero.character === 'codex' ? 43 : 31), 1.2, 3.3), V = LOT_UI.dollView || (LOT_UI.dollView = new E.View('portrait', 'Doll', 0, 16, 2, 1));
   V.set(0, 16, sc, 1);
   // the alcove: a dark niche, a shaft of light, a rune circle on the floor
   E.ui.box(g, x, y, w, h, { bg: ['#1c1634', '#07050c'], border: '#3a3050', shadow: false });
@@ -832,7 +833,7 @@ function LOT_transmute(h, it) {
 /** give back every skill and passive point (respecHero from the skills module when it exists) */
 function LOT_respec(h) {
   if (typeof respecHero === 'function') { respecHero(h); computeStats(h); return true; }
-  let sk = 0; for (const id in h.skills) { const k = h.skills[id], keep = id === 'blade' || id === 'ember' ? 1 : 0; sk += Math.max(0, (k.rank || 0) - keep); k.rank = Math.min(k.rank || 0, keep); k.rune = null; }
+  let sk = 0; for (const id in h.skills) { const k = h.skills[id], keep = characterOf(h).skills.includes(id) ? 1 : 0; sk += Math.max(0, (k.rank || 0) - keep); k.rank = Math.min(k.rank || 0, keep); k.rune = null; }
   h.slots = h.slots.map(id => id && h.skills[id] && h.skills[id].rank > 0 ? id : null);
   h.pts.skill += sk; if (Array.isArray(h.tree)) { h.pts.passive += h.tree.length; h.tree = []; }
   computeStats(h); notify('SKILLS AND PASSIVES RESET', '#c890ff', 2.5);
@@ -912,7 +913,7 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
       if (!it) return LOT_say('mystic', 'pick'); if (it.rarity === 4) return LOT_say('mystic', 'unique'); if (it.rarity < 2) return LOT_say('mystic', 'rare'); if (LOT_MYST.ench) return;
       if (!nEss) return LOT_say('mystic', 'noess'); LOT_MYST.imp = !LOT_MYST.imp; sfx('warp', { vol: .35 });
     }, { key: 'imprint', disabled: !canImp, color: '#3a2430', active: LOT_MYST.imp, tip: [{ t: 'Imprint', c: '#ffb070' }, { t: 'Bind a salvaged power (an essence) to a rare or legendary item of a slot it fits. Costs gold and two Ember Cores.', c: '#c8c0d8' }] });
-    const pts = Object.entries(h.skills).reduce((a, [id, k]) => a + Math.max(0, (k.rank || 0) - (id === 'blade' || id === 'ember' ? 1 : 0)), 0) + (Array.isArray(h.tree) ? h.tree.length : 0);   // what a respec would give back (nothing: no charge)
+    const pts = Object.entries(h.skills).reduce((a, [id, k]) => a + Math.max(0, (k.rank || 0) - (characterOf(h).skills.includes(id) ? 1 : 0)), 0) + (Array.isArray(h.tree) ? h.tree.length : 0);   // what a respec would give back (nothing: no charge)
     LOT_btn(g, ax, by + 2 * (BH + 3), lw, BH, LOT_MYST.respecT > 0 ? 'CONFIRM RESPEC  ' + fmt(rcost) : 'RESPEC ALL POINTS  ' + fmt(rcost), () => {
       if (pts <= 0) return; if (LOT_MYST.respecT <= 0) { LOT_MYST.respecT = 3; LOT_say('mystic', 'confirm'); return; }
       if (!LOT_pay(h, rcost, 'mystic')) return; LOT_MYST.respecT = 0; LOT_respec(h); LOT_burst(ox, oy, '#ecd8ff', 20); sfx('warp', { vol: .6 }); LOT_say('mystic', 'respec');

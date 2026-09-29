@@ -28,7 +28,7 @@ const skillCd = (h, S) => DEV.enabled && DEV.cooldowns && h === ED.hero ? 0 : (S
  *  held: the key is only being held down (repeat): nothing to warn about, and nothing is consumed */
 function useSlot(h, i, held) {
   const id = h.slots[i]; if (!id || h.dead) return false;
-  const S = REG.skills[id]; if (!S || skillRank(h, id) <= 0) return false;
+  const S = REG.skills[id]; if (!skillAvailable(h, S) || skillRank(h, id) <= 0) return false;
   if (held && (h.act ? !(h.act.skill === id && S.again) && !(h.act.free || h.act.cancel === 'skill') : h.cds[id] > 0 || h.ember < skillCost(h, S))) return false;   // cheap early out: nothing a held key could start
   const ctx = skillCtx(h, id, i);
   if (h.act && h.act.skill === id && S.again) return S.again(h, h.act, ctx);
@@ -48,7 +48,8 @@ function useSlot(h, i, held) {
 BUS.on('hit', e => {
   const h = ED.hero; if (!h || e.src !== h) return;
   const s = h.stats, S = e.hit.skill && REG.skills[e.hit.skill], act = h.act;
-  if (S && S.gen && act && act.skill === S.id && act.gained < S.gen * 3) { h.ember = Math.min(h.maxEmber, h.ember + S.gen); act.gained += S.gen; }
+  if (S && S.gen && S.genOnHit && !e.hit.proc) h.ember = Math.min(h.maxEmber, h.ember + S.gen);
+  else if (S && S.gen && act && act.skill === S.id && act.gained < S.gen * 3) { h.ember = Math.min(h.maxEmber, h.ember + S.gen); act.gained += S.gen; }
   if (s.emberOnHit) h.ember = Math.min(h.maxEmber, h.ember + s.emberOnHit);
   const heal = (s.lifeOnHit || 0) + e.dmg * (s.leech || 0) / 100;
   if (heal > 0 && h.alive) h.hp = Math.min(h.maxHp, h.hp + heal);

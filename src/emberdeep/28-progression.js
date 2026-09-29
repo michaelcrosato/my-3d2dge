@@ -349,13 +349,13 @@ BUS.on('kill', e => {
 });
 
 /* ---------- respec (the mystic calls respecHero if it exists) and the autopilot's allocator ---------- */
-const PRG_FREE = { blade: 1, ember: 1 };   // the ranks every hero starts with are not refunded
+const PRG_FREE = (h, id) => characterOf(h).skills.includes(id) ? 1 : 0;   // the ranks every hero starts with are not refunded
 function PRG_respec(h, what = 'all', o = {}) {
   h = h || ED.hero; if (!h) return null;
   const out = { skill: 0, passive: 0 }; h.pts = h.pts || { skill: 0, passive: 0 };
   if (what !== 'skill') { PRG_sanitize(h); out.passive = h.tree.length; h.pts.passive = (h.pts.passive || 0) + out.passive; h.tree = []; }
   if (what !== 'passive') {
-    for (const id in h.skills) { const k = h.skills[id], keep = Math.min(k.rank || 0, PRG_FREE[id] || 0); out.skill += (k.rank || 0) - keep + (k.mastery || 0); k.rank = keep; delete k.rune; delete k.mastery; if (!keep) delete h.skills[id]; }
+    for (const id in h.skills) { const k = h.skills[id], keep = Math.min(k.rank || 0, PRG_FREE(h, id)); out.skill += (k.rank || 0) - keep + (k.mastery || 0); k.rank = keep; delete k.rune; delete k.mastery; if (!keep) delete h.skills[id]; }
     h.pts.skill = (h.pts.skill || 0) + out.skill;
     h.slots = h.slots.map(id => id && h.skills[id] && h.skills[id].rank > 0 ? id : null);
   }
@@ -824,13 +824,14 @@ const PRG_KIND_ORDER = ['basic', 'core', 'mobility', 'ultimate'];
 const PRG_K = { sel: null, armed: null, scroll: 0, follow: false, rows: [], flash: [0, 0, 0, 0, 0, 0], fx: [], pulse: null, runeShow: null, dirty: false, hud: false };
 /** the list rows: a header per kind, then its skills (by unlock level, then name). Works with any registered set */
 function PRG_skillRows() {
-  const groups = {}; for (const id in REG.skills) { const k = REG.skills[id].kind || 'core'; (groups[k] || (groups[k] = [])).push(id); }
+  const groups = {}; for (const id in REG.skills) { if (!skillAvailable(ED.hero, REG.skills[id])) continue; const k = REG.skills[id].kind || 'core'; (groups[k] || (groups[k] = [])).push(id); }
   const kinds = PRG_KIND_ORDER.filter(k => groups[k]).concat(Object.keys(groups).filter(k => !PRG_KIND_ORDER.includes(k)).sort()), rows = [];
   for (const k of kinds) { rows.push({ head: k }); groups[k].sort((a, b) => (REG.skills[a].unlock || 1) - (REG.skills[b].unlock || 1) || REG.skills[a].name.localeCompare(REG.skills[b].name)); for (const id of groups[k]) rows.push({ id }); }
   return rows;
 }
 const PRG_base = (h, id) => (h.skills[id] && h.skills[id].rank) || 0;
 function PRG_canRank(h, id) {
+  if (!skillAvailable(h, REG.skills[id])) return { ok: false, why: 'Codex signature skill' };
   const S = REG.skills[id], r = PRG_base(h, id), lv = S.unlock || 1;
   if (!r && h.level < lv) return { ok: false, why: 'Unlocks at level ' + lv };
   if ((h.pts.skill || 0) < 1) return { ok: false, why: 'No skill points (one per level)', mastery: r >= 5 };
@@ -858,7 +859,7 @@ function PRG_setRune(h, id, rune) {
 }
 /** put a learned skill in slot i (a skill already slotted elsewhere swaps places with what was there) */
 function PRG_assign(h, i, id) {
-  if (!id || !PRG_base(h, id)) { sfx('cancel', { vol: .5 }); return false; }
+  if (!id || !skillAvailable(h, REG.skills[id]) || !PRG_base(h, id)) { sfx('cancel', { vol: .5 }); return false; }
   const was = h.slots.indexOf(id); if (was === i) return true;
   if (was >= 0) { h.slots[was] = h.slots[i] || null; PRG_K.flash[was] = .5; }
   h.slots[i] = id; PRG_K.flash[i] = .6; PRG_K.dirty = true; sfx('confirm', { vol: .6 });

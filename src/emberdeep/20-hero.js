@@ -11,14 +11,18 @@ const HERO_LOOK = {   // the classic look: every piece of gear may override part
   outfit: 'tunic', hair: 'short', sleeves: 'short', armor: false, hat: null, weapon: 'sword', bladeLen: 11, cape: { len: 6, width: 5, seg: 2.5 },
   colors: { skin: '#f1c7a0', hair: '#2e2230', cloth: '#2f8f86', pants: '#3b3552', boot: '#6a4128', belt: '#e0a84a', cape: '#c8452f', capeIn: '#7a2622', metal: '#dce8f1', metalDk: '#7f93ab', hilt: '#e8b04e', glove: null, trim: null }
 };
-function makeHero(save) {
+function makeHero(save, identity = CHAR.selected) {
+  const character = characterId(save ? save.character || identity : identity), profile = CHARACTERS[character];
   const h = {
+    character, manuscript: 0,
     team: 'hero', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 4.5, facing: -Math.PI / 2, aim: -Math.PI / 2, alive: true, st: {}, res: {}, armor: 0, head: 26, mass: 1.6,
     level: 1, xp: 0, gold: 0, pts: { skill: 1, passive: 0 }, gear: {}, bag: [], skills: { blade: { rank: 1 }, ember: { rank: 1 } }, slots: ['blade', 'ember', null, null, null, null],
     tree: [], potions: 3, potionT: 0, healT: 0, healRate: 0, act: null, cds: {}, inv: 0, hurtT: 0, flash: 0, dodges: 2, dodgeT: 0, dodgeRe: 0, dodgeDir: 0, buffs: [], powers: [],
     dead: false, deadT: 0, lastGhost: 0, idleT: 0, cheerT: 0, stats: {}, maxDepth: 1, unlocked: [1], seenMech: [], kills: 0
   };
+  if (character === 'codex') { h.skills = Object.fromEntries(profile.skills.map(id => [id, { rank: 1 }])); h.slots = profile.skills.slice(); h.head = 32; h.r = 5; }
   if (save) Object.assign(h, save, { st: {}, act: null, cds: {}, buffs: [], alive: true, dead: false });
+  h.character = character;
   h.react = heroReact; h.onDie = heroDie; h.onDodgedHit = heroDodgedHit; h.onBeforeHit = heroBeforeHit;
   h.hp = undefined; h.ember = undefined;
   computeStats(h); h.hp = h.maxHp; h.ember = h.maxEmber; h.potions = Math.min(h.potions, h.maxPotions); h.dodges = h.maxDodge;
@@ -39,7 +43,7 @@ function heroLook(h) {
 function dressHero(h) {
   const lk = heroLook(h), old = h.rig;
   h.look = lk;
-  h.rig = new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
+  h.rig = h.character === 'codex' ? new CodexRig(h) : new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
   if (old) { h.rig.update(0, { x: h.x, y: h.y, z: h.z, facing: h.facing }); }
   const w = h.gear.weapon; h.smear = (w && w.look && w.look.smear) || EL(lk.el).smear;
 }
@@ -178,7 +182,7 @@ function heroNearSwings(h) {
 }
 
 /* ---------- the per-step controller ---------- */
-const HERO_SPEED = 84, DODGE_T = .27, DODGE_SPEED = 255;
+// Each playable identity supplies movement and dodge timing (18-characters.js).
 /**
  * The dodge roll, a new animation on top of the rig: after the rig poses itself, every joint turns a full forward
  * somersault around the hips while the body curls into a tuck (limbs pulled in, the whole thing lowered). The cape
@@ -219,6 +223,7 @@ function heroAim(h) {
 }
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
+  const profile = characterOf(h), dodgeTime = profile.dodgeTime;
   heroUnroll(h);   // the roll's cloth goes back upright before anything simulates it
   if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) h.perfectT = 0;
   // witch time: after a perfect dodge the world crawls but he keeps close to his own pace (his clock runs fast)
@@ -248,7 +253,7 @@ function updateHero(h, dt, o = {}) {
     inp.consume('dodge'); h.dodgeQ = 0; h.slotQ = null;   // (a skill still waiting in the queue gives way to the roll)
     const a = mlen > .1 ? Math.atan2(md[1], md[0]) : h.aim;
     if (h.act) endAction(h);
-    h.dodgeDir = a; h.dodgeT = DODGE_T; h.dodgeX = h.x; h.dodgeY = h.y; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = 1.4; h.inv = Math.max(h.inv, DODGE_T + .04);
+    h.dodgeDir = a; h.dodgeT = dodgeTime; h.dodgeX = h.x; h.dodgeY = h.y; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = 1.4; h.inv = Math.max(h.inv, dodgeTime + .04);
     P.dust(h.x, h.y, 0, 6, { speed: 40 }); P.ring(h.x, h.y, 3, 14, '#bff6ff', .25); h.rig.kick(-3); sfx('whoosh', { vol: .7 });
     BUS.emit('dodge', { h });
   }
@@ -282,10 +287,10 @@ function updateHero(h, dt, o = {}) {
   if (h.dodgeT > .1 && !h.perfectT) heroNearSwings(h);
   // movement
   if (h.dodgeT > 0) {
-    h.dodgeT -= dt; const u = 1 - h.dodgeT / DODGE_T, v = DODGE_SPEED * h.speedMul * (1 - .5 * u * u);
+    h.dodgeT -= dt; const u = 1 - h.dodgeT / dodgeTime, v = profile.dodgeSpeed * h.speedMul * (1 - .5 * u * u);
     h.vx = Math.cos(h.dodgeDir) * v; h.vy = Math.sin(h.dodgeDir) * v; h.z = Math.sin(Math.min(1, u) * Math.PI) * 3 + 2.1;
   } else {
-    const slow = act ? (act.moveK === undefined ? .3 : act.moveK) : 1, acc = (h.hurtT > 0 ? 300 : 1000) * dt * (h.traction === undefined ? 1 : h.traction), top = HERO_SPEED * h.speedMul * sp * (h.speedK === undefined ? 1 : h.speedK);
+    const slow = act ? (act.moveK === undefined ? .3 : act.moveK) : 1, acc = (h.hurtT > 0 ? 300 : profile.acceleration) * dt * (h.traction === undefined ? 1 : h.traction), top = profile.speed * h.speedMul * sp * (h.speedK === undefined ? 1 : h.speedK);
     h.vx = approach(h.vx, md[0] * top * slow, acc); h.vy = approach(h.vy, md[1] * top * slow, acc);
     h.z = act && act.z !== undefined ? act.z : 0;
   }
@@ -315,7 +320,8 @@ function updateHero(h, dt, o = {}) {
   if (!act && !town && h.idleT > 5 && h.idleT % 9 < 1.4 && !rs.pose) { rs.pose = 'block'; rs.expr = null; }
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
-  if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / DODGE_T);
+  if (h.character === 'codex') return; // Codex's rig owns its foldstep, potion, wounded and hover layers.
+  if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / dodgeTime);
   else if (h.potionT > 0) heroDrinkPose(h, 1 - h.potionT / .8);
   if (!(sp === 0 && h.st.freeze)) heroWoundPose(h, dt, rs.pose || h.hurtT > 0 ? 0 : low);   // (a pose or a flinch has the hand; frozen solid, the rig keeps last step's joints and nothing may be added twice)
   // footsteps on the gait: one soft step each time a foot comes down
@@ -367,6 +373,7 @@ function heroWoundPose(h, dt, low) {
   const [el, hd] = E.ik3(J.shL, tgt, o.armUpper, o.armLower, [-.5, -1, -.3]); J.elbowL = el; J.handL = hd;
 }
 function drawFlask(h, g, ox, oy, view) {
+  if (h.character === 'codex') return;
   if (!(h.potionT > 0) || !h.drinkK) return;
   const [x, y, dep] = rigScreen(h.rig, h.rig.J.handL, ox, oy, view), hd = rigScreen(h.rig, h.rig.J.head, ox, oy, view)[2], z = view.zoom || 1, tilt = h.drinkK;
   if (dep < hd - .5 && Math.hypot(x - rigScreen(h.rig, h.rig.J.head, ox, oy, view)[0], 0) < 4 * z) return;   // hidden behind his head when he faces away

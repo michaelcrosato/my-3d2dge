@@ -45,7 +45,7 @@ const GAL_POSES = [
   ['Knocked down', { down: 1 }, 'Flat on his back, then up again.'], ['Fall', { pose: 'die' }, 'A stagger, the knees give, a topple.'], ['Climb', { climb: true, vz: 30 }, 'Hand over hand.']
 ];
 function galItems() {
-  if (GAL.reel === 0) return Object.keys(REG.skills);
+  if (GAL.reel === 0) return Object.keys(REG.skills).filter(id => skillAvailable(ED.hero, REG.skills[id])).sort((a, b) => Number(!!REG.skills[b].character) - Number(!!REG.skills[a].character));
   if (GAL.reel === 1) return Object.keys(REG.archetypes).filter(id => { const A0 = REG.archetypes[id]; return id !== 'dummy' && !A0.bossBody && !(A0.tags || []).includes('boss'); });   // bosses have their own reel
   if (GAL.reel === 2) return galBosses();
   return GAL_POSES.map((p, i) => i);

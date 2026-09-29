@@ -693,7 +693,7 @@ const SKS_ECHO_COMBO = ['slash', { move: 'backslash', over: { a1: 2.2, z1: -3 } 
 /** spectral colors: every part keeps its value but drifts into cold cyan */
 function SKS_spectral(colors) { const out = {}; for (const k in colors) { const c = colors[k]; if (typeof c === 'string' && c[0] === '#') out[k] = E.mix(E.mix(c, '#6fdcff', .55), '#ffffff', .1); } out.skin = '#5ab4d8'; out.hair = '#1c4a6a'; out.eye = '#0c2a48'; return out; }   // a deeper face so the glowing eyes read
 function SKS_echo(h, ctx, side, life, scale) {
-  const lk = h.look, rig = new E.Humanoid(Object.assign({}, lk, { colors: SKS_spectral(lk.colors), eyeGlow: '#e8ffff' }));
+  const lk = h.look, rig = h.character === 'codex' ? new CodexRig(h) : new E.Humanoid(Object.assign({}, lk, { colors: SKS_spectral(lk.colors), eyeGlow: '#e8ffff' }));
   const e = { kind: 'echo', team: 'hero', alive: true, targetable: false, x: h.x, y: h.y, z: 0, vx: 0, vy: 0, r: 4.5, facing: h.facing, rig, t: 0, life, side, scale, ctx, owner: h,
     atk: null, combo: 0, set: new Set(), cool: 0, mirror: [], mcur: null, mspec: null, mph: null, dash: 0, dashDir: 0, pose: null, poseT: 0, lastGhost: 0, alpha: 0, tgt: null,
     update(dt) { return SKS_echoStep(this, dt); }, draw(r) { SKS_echoDraw(this, r); } };

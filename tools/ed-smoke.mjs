@@ -1,6 +1,6 @@
 // Emberdeep smoke test: loads every scene and a range of depths in a headless browser, lets each run for a few
 // seconds with the autopilot fighting, screenshots it, and reports errors and frame times per page.
-// Usage: node tools/ed-smoke.mjs [page.html] [--from 1] [--to 20] [--out dir] [--secs 6]
+// Usage: node tools/ed-smoke.mjs [page.html] [--from 1] [--to 20] [--out dir] [--secs 6] [--character codex]
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
@@ -8,6 +8,8 @@ import { pathToFileURL } from 'node:url';
 const args = process.argv.slice(2), opt = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i + 1] : d; };
 const file = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--'))) || 'examples/emberdeep.html';
 const out = resolve(opt('out', 'check-output/smoke')), from = +opt('from', 1), to = +opt('to', 20), secs = +opt('secs', 6);
+const character = opt('character', null);
+if (character && !['wanderer', 'codex'].includes(character)) throw new Error('Unknown character: ' + character);
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const targets = ['title', 'town', 'gallery', 'proving', ...Array.from({ length: to - from + 1 }, (_, i) => 'depth-' + (from + i))];
@@ -16,7 +18,7 @@ for (const t of targets) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } }), errors = [];
   page.on('pageerror', e => errors.push(String(e && e.message || e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto(pathToFileURL(resolve(file)).href + (t === 'title' ? '' : '#' + t));
+  await page.goto(pathToFileURL(resolve(file)).href + (character ? '?character=' + character : '') + (t === 'title' ? '' : '#' + t));
   try { await page.waitForFunction(() => window.__ed && window.__ed.game, null, { timeout: 15000 }); } catch (e) { errors.push('never started'); }
   await page.waitForTimeout(1500);
   // let the autopilot fight on depths (invulnerable-ish), so combat, drops and mechanics all run
