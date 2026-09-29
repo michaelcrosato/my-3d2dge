@@ -230,6 +230,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 - `API.md`: the API card, about 11,019 tokens. It is embedded in every single-file edition.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
+- `docs/ANIMATION-RESEARCH.md`: famous animations for every view and genre the engine covers, what the engine can already draw, and a ranked list of animations to ship ready-made.
 
 ## License
 
