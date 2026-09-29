@@ -8,13 +8,19 @@ function setupGPU(map) {
   gpu.map = map;
 }
 /* ---------- save / load ---------- */
-const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
-function saveGame() { const h = ED.hero; if (!h || ED.demo || DEV.enabled || ED.mode === 'gallery') return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
-function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); const st = s.stash; (st && Array.isArray(st.tabs) ? st.tabs.flat() : Array.isArray(st) ? st : []).forEach(scan); itemUid = mx + 1; return s; }
-function newHero() {
-  const h = makeHero(null);
+const SAVE_KEYS = ['character', 'level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
+function saveGame() { const h = ED.hero; if (!h || ED.demo || DEV.enabled || ED.mode === 'gallery') return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set(characterSaveKey(h.character), o); }
+function loadSave(identity = CHAR.selected) { const s = characterSave(identity); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); const st = s.stash; (st && Array.isArray(st.tabs) ? st.tabs.flat() : Array.isArray(st) ? st : []).forEach(scan); itemUid = Math.max(itemUid, mx + 1); return s; }
+function newHero(identity = CHAR.selected) {
+  const h = makeHero(null, identity);
   // a starting kit: the classic look, plain gear
   for (const [slot, base] of [['weapon', 'longsword'], ['chest', 'tunic'], ['boots', 'shoes'], ['cloak', 'cape']]) { const it = makeItem({ base, rarity: 0, ilvl: 1, R: RNG(slot) }); it.look.colors = Object.assign(it.look.colors || {}, slot === 'chest' ? { cloth: '#2f8f86' } : slot === 'cloak' ? { cape: '#c8452f', capeIn: '#7a2622' } : slot === 'boots' ? { boot: '#6a4128' } : {}); h.gear[slot] = it; }
+  if (h.character === 'codex') {
+    h.gear.weapon = makeItem({ base: 'staff', rarity: 0, ilvl: 1, R: RNG('codex-quill') });
+    h.gear.weapon.name = 'The First Quill'; h.gear.weapon.el = 'storm';
+    h.gear.chest.name = 'Archive Bindings'; h.gear.chest.look.colors.cloth = '#30263f';
+    h.gear.cloak.name = 'Unwritten Pages'; h.gear.cloak.look.colors = { cape: '#eee2b9', capeIn: '#83d7cf' };
+  }
   refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h);
   return h;
 }
@@ -103,6 +109,12 @@ function enterWorld(L0) {
 /** the hero drops in from above: a fall in the jump pose, a crouched landing, dust and a thud */
 function dropIn(h, from = 150) {
   h.z = from; h.vz = 0; h.inv = 1.4;
+  if (h.character === 'codex') return startAction(h, { name: 'dropin', cancel: false, moveK: 0, rig: { dash: true }, update(dt) {
+    this.t += dt; const u = Math.min(1, this.t / .9); this.z = from * Math.pow(1 - u, 3);
+    this.rig = { dash: u < .55, codexPose: u > .55 ? 'orbit' : null };
+    if (u === 1 && !this.landed) { this.landed = true; cxBurst(h.x, h.y, 24, '#83f4df', .6); sfx('cx_fold', { pitch: 1.4, vol: .45 }); }
+    return this.t < 1.15;
+  } });
   startAction(h, { name: 'dropin', cancel: false, moveK: 0, rig: { air: true }, zz: from, vz: 0, update(dt) {
     if (this.zz > 0) { this.vz -= 520 * dt; this.zz = Math.max(0, this.zz + this.vz * dt); this.z = this.zz; this.rig = { air: true, expr: 'shout' }; if (this.zz <= 0) { this.land = .35; P.dust(h.x, h.y, 0, 14, { speed: 70 }); P.ring(h.x, h.y, 4, 30, '#bff6ff', .35); shake(4); sfx('thud'); h.rig.kick(-6); } return true; }
     this.z = 0; this.rig = { pose: 'crouch' }; return (this.land -= dt) > 0;
@@ -112,13 +124,13 @@ function dropIn(h, from = 150) {
 /* ---------- TITLE ---------- */
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
-  const save = E.store.get('ed:save', null);
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]].filter(Boolean);
+  const save = characterSave();
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS AGAIN TO RESTART ' + CHARACTERS[CHAR.selected].name.toUpperCase() + ' (THIS CHARACTER SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['CHARACTER', () => UI.open('characters')], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]].filter(Boolean);
 }
-function loadHeroOrNew() { const s = loadSave(); if (s) { const h = makeHero(s); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(); }
-function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
-/** the title menu's top and row step: stacked up from the key legend at the bottom (5 rows fit at 240 px) */
-function titleMenu(n) { const step = 16, y = game.H - 29 - n * step; return { y, step }; }
+function loadHeroOrNew(identity = CHAR.selected) { const s = loadSave(identity); if (s) { const h = makeHero(s, identity); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(identity); }
+function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove(characterSaveKey()); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
+/** The title menu grows upward from the key legend; shorter windows use tighter rows. */
+function titleMenu(n) { const step = game.H < 260 ? 14 : 16, y = game.H - 29 - n * step; return { y, step }; }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
 const KATA = ['slash', 'backslash', 'spin', 'thrust'];
 function titleKata(t) {
@@ -152,10 +164,13 @@ const titleScene = {
     TITLE.t += dt;
     if (updateUI(dt)) return;
     const h = ED.titleHero, items = titleItems();
+    const titleZoom = game.H < 260 ? (h.character === 'codex' ? .85 : 1.05) : (h.character === 'codex' ? 1.4 : 1.75);
+    if (game.zoom !== titleZoom) game.setZoom(titleZoom);
     const mm = UI.mouse.cx + ',' + UI.mouse.cy, moved = mm !== TITLE.mm; TITLE.mm = mm;   // a hand on the mouse is not idle either
     if (game.input.anyPressed() || UI.mouse.down || moved) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
     if (TITLE.idle > 28 && !UI.stack.length && !DEV.enabled) { TITLE.idle = 0; startDemo(); return; }
-    h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, titleKata(TITLE.t)));
+    const ct = TITLE.t % 12, pose = h.character === 'codex' ? { codexPose: ct > 3 && ct < 5 ? 'seal' : ct > 9 ? 'finale' : null, codexStroke: Math.sin(TITLE.t * 4), dash: ct > 6 && ct < 6.35, run: ct > 7 && ct < 9 ? .6 : 0 } : titleKata(TITLE.t);
+    h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, pose));
     h.facing = h.rig.facing;
     for (const b of ED.L.torches) b.t += dt;
     const inp = game.input;
@@ -178,11 +193,11 @@ const titleScene = {
     r.overlay(g => {
       const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1);
       px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
-      E.font.title(g, 'EMBERDEEP', cx, 14, { scale: 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
-      E.font.text(g, 'a my-3D2dge game  •  the deep goes on forever', cx, 50, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
+      E.font.title(g, 'EMBERDEEP', cx, H < 260 ? 5 : 14, { scale: H < 260 ? 3 : 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
+      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, H < 260 ? 34 : 50, characterOf(h).color, { align: 'center', font: 'tiny', shadow: '#05040a', outline: false });
       const items = titleItems(), M = titleMenu(items.length), bw = 118;   // laid out up from the key legend, so every item shows
       items.forEach(([label, fn], i) => button(g, cx - bw / 2, M.y + i * M.step, bw, 13, label, () => { TITLE.menu = i; fn(); }, { focus: TITLE.menu === i }));
-      const h2 = ED.titleHero; if (E.store.get('ed:save', null)) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
+      const h2 = ED.titleHero; if (characterSave()) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
       px.blend(g, .7, 'normal', () => px.rect(g, 0, H - 21, W, 21, '#05040a'));
       E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
       E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });

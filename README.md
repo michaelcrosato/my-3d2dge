@@ -85,6 +85,14 @@ The model copies the closest slice and replaces the code between `GAME START` an
 
 The game pauses on focus loss, clears cancelled touch/held inputs, and remembers the selected camera view.
 
+**A second playable character: Codex, the Unwritten.** Choose **CHARACTER → Codex → PLAY AS CODEX** on the title screen, or [start as Codex](https://my-3d2dge.vercel.app/?character=codex). A separate save keeps your Wanderer intact. Codex is a living archive with a porcelain mask, hinged folio body, detached hands, a writing quill, orbiting leaves and trailing bookmarks. A custom procedural rig glides and banks, folds into a sigil to dodge, writes spells, drinks, reacts, falls apart and reforms; inventory, echoes, gallery and every camera view use that identity.
+
+Codex starts with six signature spells. **Quillshot** charges three manuscript pages; the next signature spell becomes **Illuminated**. **Margin Seal** traps a pack, **Razor Folio** throws returning pages, **Revision** restores life and a dodge, **Living Index** orbits cutting leaves, and **The Last Word** draws foes into an exploding book. Upgrade ranks and runes, mix in shared skills, equip loot, craft, and spend passive points as usual. The hover is visual: terrain and hazards still apply.
+
+![Codex's in-game animation poses](docs/assets/codex-showcase.png)
+
+[Watch the animated rig](docs/assets/codex-motion.gif) · [Character design and verification](docs/CODEX.md)
+
 The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIGN.md` explains the modular "language" (registries for elements, skills, monsters, affixes, bosses, patterns, items, powers, mechanics, themes and layouts). `tools/ed-play.mjs` (scripted headless playtests) and `tools/ed-smoke.mjs` (every scene and depth) test it.
 
 ## What's in the engine
@@ -224,6 +232,8 @@ npx playwright install chromium   # once
 node tools/check.mjs dist/my-3d2dge.html#platformer
 npm test                         # rebuild, syntax, controls + developer browser regressions
 npm run test:smoke -- --secs 2    # title, town, gallery, proving, depths 1–20
+npm run test:smoke -- --character codex --secs 2 --out check-output/codex-smoke
+npm run test:codex                # character, spells, progression, saves and device checks
 ```
 
 To check an animation frame by frame, record a contact sheet:

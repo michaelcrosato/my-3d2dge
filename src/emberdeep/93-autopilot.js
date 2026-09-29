@@ -73,7 +73,7 @@ function botManage(h) {
   for (const it of h.bag.slice()) { const slot = it.slot === 'ring' ? (!h.gear.ring ? 'ring' : !h.gear.ring2 ? 'ring2' : botScore(h.gear.ring) < botScore(h.gear.ring2) ? 'ring' : 'ring2') : it.slot; if (botScore(it) > botScore(h.gear[slot]) + 2) equip(h, it, slot); }
   while (h.bag.length > 30) { const it = h.bag.shift(); gainGold(h, it.value); }   // sells the rest (the bot has no patience for shops)
   // learn skills: fill empty slots with unlocked skills, then rank up what is slotted
-  const known = Object.keys(REG.skills).filter(id => (REG.skills[id].unlock || 1) <= h.level);
+  const known = Object.keys(REG.skills).filter(id => skillAvailable(h, REG.skills[id]) && (REG.skills[id].unlock || 1) <= h.level);
   let guard = 20;
   while (h.pts.skill > 0 && guard-- > 0) {
     const empty = h.slots.findIndex((s, i) => !s && i > 0), fresh = known.filter(id => !(h.skills[id] && h.skills[id].rank) && !REG.skills[id].noAuto);
@@ -148,7 +148,8 @@ function botThink(h, dt) {
     if (walk(gx, gy)) best = [gx, gy]; else for (let r = 1; r <= 2 && !best; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (!walk(gx + dx, gy + dy)) continue; const d = Math.hypot((gx + dx + .5) * T16 - h.x, (gy + dy + .5) * T16 - h.y); if (d < bd) { bd = d; best = [gx + dx, gy + dy]; } }
     if (best) B.flow.update((best[0] + .5) * T16, (best[1] + .5) * T16);
   }
-  const gd = Math.hypot(goal[0] - h.x, goal[1] - h.y), reach = near ? (foe.r + 14) : 4;
+  const basic = REG.skills[h.slots[0]], rangedBasic = basic && (basic.tags || []).includes('proj');
+  const gd = Math.hypot(goal[0] - h.x, goal[1] - h.y), reach = near ? (rangedBasic ? 74 : foe.r + 14) : 4;
   let mv = [0, 0];
   if (gd > reach) mv = gd < 22 ? [(goal[0] - h.x) / gd, (goal[1] - h.y) / gd] : B.flow.dir(h.x, h.y, goal[0], goal[1]);
   // out of potions and nearly dead next to something big: back off (still casting) until the life comes back or a potion drops
@@ -178,7 +179,8 @@ function botThink(h, dt) {
   // fight: AoE on crowds, mobility to close gaps, ultimates on elites and big packs, spenders otherwise; the basic attack in reach
   const big = foe.elite || foe.boss, here = botCrowd(h.x, h.y, 50);
   for (let i = 5; i >= 1; i--) {
-    const id = h.slots[i]; if (!id) continue; const S = REG.skills[id]; if (!S || h.cds[id] > 0 || h.ember < skillCost(h, S)) continue;
+    const id = h.slots[i]; if (!id) continue; const S = REG.skills[id]; if (!skillAvailable(h, S) || h.cds[id] > 0 || h.ember < skillCost(h, S)) continue;
+    if (id === 'cx_revision') { if (h.hp < h.maxHp * .65) I.press(SLOT_ACTS[i]); continue; }
     const tags = S.tags || [], melee = tags.includes('melee'), mob = S.kind === 'mobility' || tags.includes('movement'), ult = S.kind === 'ultimate', aoe = tags.includes('aoe') || tags.includes('channel'), range = S.range || (melee ? 40 : 150);
     let want, at = [foe.x, foe.y];
     if (mob) want = fd > 55 && fd < 150 && (pathD(foe) === null || pathD(foe) < 1e9);                 // close the gap (never leap at what cannot be reached)
@@ -188,7 +190,7 @@ function botThink(h, dt) {
     if (B.retreat > 0 && (melee || mob)) want = false;
     if (want && (mob || fd < range)) { I.aimAt = at; I.press(SLOT_ACTS[i]); I._d[SLOT_ACTS[i]] = true; if (tags.includes('channel')) B.holdT = 1.4; break; }
   }
-  if (fd < foe.r + 22 && !(B.retreat > 0)) { I.press('s0'); I._d.s0 = true; }
+  if (fd < (rangedBasic ? basic.range || 140 : foe.r + 22) && (!(B.retreat > 0) || rangedBasic)) { I.press('s0'); I._d.s0 = true; }
 }
 BUS.on('hit', e => { const h = ED.hero; if (h && h.bot && e.src === h) h.bot.lastHit = h.bot.t; });   // the target is still worth chasing
 BUS.on('step', e => {

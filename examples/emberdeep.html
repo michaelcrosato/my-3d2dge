@@ -15,6 +15,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 .ed-touch{position:absolute;inset:0;pointer-events:none;z-index:5;opacity:var(--touch-opacity)}.ed-touch button{pointer-events:auto;touch-action:none;user-select:none;min-width:44px;min-height:44px;border:1px solid #b3a0cc80;background:#160f28cc;color:#fff;font:600 11px system-ui,sans-serif;border-radius:12px}.ed-touch button.on{background:#665185;border-color:#ffd36a}.ed-touch-actions{position:absolute;right:max(8px,env(safe-area-inset-right));bottom:max(76px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(3,var(--touch-size));gap:5px}.ed-touch-actions button{width:var(--touch-size);height:var(--touch-size)}.ed-touch-bar{position:absolute;right:max(8px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 16px);gap:5px}.ed-left .ed-touch-actions,.ed-left .ed-touch-bar{left:max(8px,env(safe-area-inset-left));right:auto}
 @media(max-width:480px){.ed-dialog{padding:14px;font-size:14px}.ed-binding{grid-template-columns:1fr 1fr}.ed-binding strong{grid-column:1/-1}.ed-status{top:-14px}.ed-touch-actions{bottom:max(94px,env(safe-area-inset-bottom))}}
 @media(max-height:480px){.ed-touch-actions{bottom:48px;grid-template-columns:repeat(3,min(var(--touch-size),48px))}.ed-touch-actions button{width:min(var(--touch-size),48px);height:min(var(--touch-size),48px)}}
+.ed-character-choices{display:flex;gap:8px}.ed-character-choices button{flex:1;font-weight:700}.ed-character-choices [aria-pressed=true]{border-color:#83f4df;background:#284447}.ed-character-preview{box-sizing:border-box;display:block;width:min(100%,480px);height:auto;margin:16px auto;image-rendering:pixelated;border:1px solid #625174;border-radius:8px}
 </style>
 </head>
 <body>
@@ -4648,7 +4649,7 @@ root.My3D2dge = E;
 
 </script>
 <script>
-/* ---- inlined from src/emberdeep (00-core.js, 05-elements.js, 10-combat.js, 15-stats.js, 20-hero.js, 25-skills-core.js, 26-skills-melee.js, 27-skills-spells.js, 28-progression.js, 30-monsters-core.js, 31-monsters.js, 33-beasts.js, 35-bosses-core.js, 36-bosses.js, 40-loot-core.js, 41-loot.js, 42-inventory.js, 45-mechanics-core.js, 46-mechanics-a.js, 47-mechanics-b.js, 50-levels-core.js, 51-themes.js, 52-layouts.js, 55-town-core.js, 56-town.js, 60-ui-core.js, 61-controls.js, 62-developer.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 94-tips.js, 95-perf.js, 99-start.js) ---- */
+/* ---- inlined from src/emberdeep (00-core.js, 05-elements.js, 10-combat.js, 15-stats.js, 18-characters.js, 20-hero.js, 21-codex.js, 25-skills-core.js, 26-skills-melee.js, 27-skills-spells.js, 28-progression.js, 29-codex-skills.js, 30-monsters-core.js, 31-monsters.js, 33-beasts.js, 35-bosses-core.js, 36-bosses.js, 40-loot-core.js, 41-loot.js, 42-inventory.js, 45-mechanics-core.js, 46-mechanics-a.js, 47-mechanics-b.js, 50-levels-core.js, 51-themes.js, 52-layouts.js, 55-town-core.js, 56-town.js, 60-ui-core.js, 61-controls.js, 62-developer.js, 63-character-menu.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 94-tips.js, 95-perf.js, 99-start.js) ---- */
 /* =============================================================================
  * EMBERDEEP  the signature game of my-3D2dge
  * A hack-and-slash that goes down forever. The hero from the stress test (teal tunic, red cape) climbs out of
@@ -5516,6 +5517,63 @@ function heroHit(h, scale, o = {}) {
   return Object.assign({ src: h, amount, el, tags, kb: (o.kb || 0) * (1 + (s.knockback || 0) / 100), statusPower: amount * .45 * (1 + (s.statusDmg || 0) / 100), skill: o.skill }, o.extra || {});
 }
 
+/* Playable identities. The original save stays at ed:save; each new character has its own slot. */
+const CHARACTERS = {
+	wanderer: {
+		id: "wanderer",
+		name: "Wanderer",
+		title: "The emberbound swordsman",
+		color: "#6fd6cc",
+		desc: "Steel, fire, and a stubborn heart. Chain sword strikes and tumble through danger.",
+		style: "Grounded footwork · sword combos · somersault dodge",
+		skills: ["blade", "ember"],
+		speed: 84,
+		acceleration: 1000,
+		dodgeTime: 0.27,
+		dodgeSpeed: 255,
+	},
+	codex: {
+		id: "codex",
+		name: "Codex",
+		title: "The Unwritten",
+		color: "#9cebdd",
+		desc: "A lost archive that wrote itself a soul. An ivory mask, a brass-bound folio, and pages that refuse to fall.",
+		style: "Inertial glide · written magic · foldstep dodge",
+		skills: [
+			"cx_quill",
+			"cx_seal",
+			"cx_folio",
+			"cx_revision",
+			"cx_orbit",
+			"cx_finale",
+		],
+		speed: 90,
+		acceleration: 620,
+		dodgeTime: 0.32,
+		dodgeSpeed: 245,
+	},
+};
+const characterId = (id) => (Object.hasOwn(CHARACTERS, id) ? id : "wanderer");
+const CHAR = {
+	selected: characterId(
+		qs.get("character") || E.store.get("ed:character", "wanderer"),
+	),
+	preview: null,
+};
+const characterOf = (h) => CHARACTERS[characterId(h && h.character)];
+const characterSaveKey = (id = CHAR.selected) =>
+	characterId(id) === "codex" ? "ed:save:codex" : "ed:save";
+const characterSave = (id = CHAR.selected) =>
+	E.store.get(characterSaveKey(id), null);
+const skillAvailable = (h, S) =>
+	!!S && (!S.character || S.character === characterOf(h).id);
+statSource((h, add) => {
+	if (h.character !== "codex") return;
+	add("ember", 25);
+	add("emberRegen", 2);
+	add("castSpeed", 10);
+});
+
 /* =============================================================================
  * THE HERO  (the stress test's swordsman: teal tunic, red cape, dark hair)
  * One action at a time (a skill's swing, a leap, a cast, a stagger). An ACTION is
@@ -5529,14 +5587,18 @@ const HERO_LOOK = {   // the classic look: every piece of gear may override part
   outfit: 'tunic', hair: 'short', sleeves: 'short', armor: false, hat: null, weapon: 'sword', bladeLen: 11, cape: { len: 6, width: 5, seg: 2.5 },
   colors: { skin: '#f1c7a0', hair: '#2e2230', cloth: '#2f8f86', pants: '#3b3552', boot: '#6a4128', belt: '#e0a84a', cape: '#c8452f', capeIn: '#7a2622', metal: '#dce8f1', metalDk: '#7f93ab', hilt: '#e8b04e', glove: null, trim: null }
 };
-function makeHero(save) {
+function makeHero(save, identity = CHAR.selected) {
+  const character = characterId(save ? save.character || identity : identity), profile = CHARACTERS[character];
   const h = {
+    character, manuscript: 0,
     team: 'hero', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 4.5, facing: -Math.PI / 2, aim: -Math.PI / 2, alive: true, st: {}, res: {}, armor: 0, head: 26, mass: 1.6,
     level: 1, xp: 0, gold: 0, pts: { skill: 1, passive: 0 }, gear: {}, bag: [], skills: { blade: { rank: 1 }, ember: { rank: 1 } }, slots: ['blade', 'ember', null, null, null, null],
     tree: [], potions: 3, potionT: 0, healT: 0, healRate: 0, act: null, cds: {}, inv: 0, hurtT: 0, flash: 0, dodges: 2, dodgeT: 0, dodgeRe: 0, dodgeDir: 0, buffs: [], powers: [],
     dead: false, deadT: 0, lastGhost: 0, idleT: 0, cheerT: 0, stats: {}, maxDepth: 1, unlocked: [1], seenMech: [], kills: 0
   };
+  if (character === 'codex') { h.skills = Object.fromEntries(profile.skills.map(id => [id, { rank: 1 }])); h.slots = profile.skills.slice(); h.head = 32; h.r = 5; }
   if (save) Object.assign(h, save, { st: {}, act: null, cds: {}, buffs: [], alive: true, dead: false });
+  h.character = character;
   h.react = heroReact; h.onDie = heroDie; h.onDodgedHit = heroDodgedHit; h.onBeforeHit = heroBeforeHit;
   h.hp = undefined; h.ember = undefined;
   computeStats(h); h.hp = h.maxHp; h.ember = h.maxEmber; h.potions = Math.min(h.potions, h.maxPotions); h.dodges = h.maxDodge;
@@ -5557,7 +5619,7 @@ function heroLook(h) {
 function dressHero(h) {
   const lk = heroLook(h), old = h.rig;
   h.look = lk;
-  h.rig = new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
+  h.rig = h.character === 'codex' ? new CodexRig(h) : new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
   if (old) { h.rig.update(0, { x: h.x, y: h.y, z: h.z, facing: h.facing }); }
   const w = h.gear.weapon; h.smear = (w && w.look && w.look.smear) || EL(lk.el).smear;
 }
@@ -5696,7 +5758,7 @@ function heroNearSwings(h) {
 }
 
 /* ---------- the per-step controller ---------- */
-const HERO_SPEED = 84, DODGE_T = .27, DODGE_SPEED = 255;
+// Each playable identity supplies movement and dodge timing (18-characters.js).
 /**
  * The dodge roll, a new animation on top of the rig: after the rig poses itself, every joint turns a full forward
  * somersault around the hips while the body curls into a tuck (limbs pulled in, the whole thing lowered). The cape
@@ -5737,6 +5799,7 @@ function heroAim(h) {
 }
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
+  const profile = characterOf(h), dodgeTime = profile.dodgeTime;
   heroUnroll(h);   // the roll's cloth goes back upright before anything simulates it
   if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) h.perfectT = 0;
   // witch time: after a perfect dodge the world crawls but he keeps close to his own pace (his clock runs fast)
@@ -5766,7 +5829,7 @@ function updateHero(h, dt, o = {}) {
     inp.consume('dodge'); h.dodgeQ = 0; h.slotQ = null;   // (a skill still waiting in the queue gives way to the roll)
     const a = mlen > .1 ? Math.atan2(md[1], md[0]) : h.aim;
     if (h.act) endAction(h);
-    h.dodgeDir = a; h.dodgeT = DODGE_T; h.dodgeX = h.x; h.dodgeY = h.y; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = 1.4; h.inv = Math.max(h.inv, DODGE_T + .04);
+    h.dodgeDir = a; h.dodgeT = dodgeTime; h.dodgeX = h.x; h.dodgeY = h.y; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = 1.4; h.inv = Math.max(h.inv, dodgeTime + .04);
     P.dust(h.x, h.y, 0, 6, { speed: 40 }); P.ring(h.x, h.y, 3, 14, '#bff6ff', .25); h.rig.kick(-3); sfx('whoosh', { vol: .7 });
     BUS.emit('dodge', { h });
   }
@@ -5800,10 +5863,10 @@ function updateHero(h, dt, o = {}) {
   if (h.dodgeT > .1 && !h.perfectT) heroNearSwings(h);
   // movement
   if (h.dodgeT > 0) {
-    h.dodgeT -= dt; const u = 1 - h.dodgeT / DODGE_T, v = DODGE_SPEED * h.speedMul * (1 - .5 * u * u);
+    h.dodgeT -= dt; const u = 1 - h.dodgeT / dodgeTime, v = profile.dodgeSpeed * h.speedMul * (1 - .5 * u * u);
     h.vx = Math.cos(h.dodgeDir) * v; h.vy = Math.sin(h.dodgeDir) * v; h.z = Math.sin(Math.min(1, u) * Math.PI) * 3 + 2.1;
   } else {
-    const slow = act ? (act.moveK === undefined ? .3 : act.moveK) : 1, acc = (h.hurtT > 0 ? 300 : 1000) * dt * (h.traction === undefined ? 1 : h.traction), top = HERO_SPEED * h.speedMul * sp * (h.speedK === undefined ? 1 : h.speedK);
+    const slow = act ? (act.moveK === undefined ? .3 : act.moveK) : 1, acc = (h.hurtT > 0 ? 300 : profile.acceleration) * dt * (h.traction === undefined ? 1 : h.traction), top = profile.speed * h.speedMul * sp * (h.speedK === undefined ? 1 : h.speedK);
     h.vx = approach(h.vx, md[0] * top * slow, acc); h.vy = approach(h.vy, md[1] * top * slow, acc);
     h.z = act && act.z !== undefined ? act.z : 0;
   }
@@ -5833,7 +5896,8 @@ function updateHero(h, dt, o = {}) {
   if (!act && !town && h.idleT > 5 && h.idleT % 9 < 1.4 && !rs.pose) { rs.pose = 'block'; rs.expr = null; }
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
-  if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / DODGE_T);
+  if (h.character === 'codex') return; // Codex's rig owns its foldstep, potion, wounded and hover layers.
+  if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / dodgeTime);
   else if (h.potionT > 0) heroDrinkPose(h, 1 - h.potionT / .8);
   if (!(sp === 0 && h.st.freeze)) heroWoundPose(h, dt, rs.pose || h.hurtT > 0 ? 0 : low);   // (a pose or a flinch has the hand; frozen solid, the rig keeps last step's joints and nothing may be added twice)
   // footsteps on the gait: one soft step each time a foot comes down
@@ -5885,6 +5949,7 @@ function heroWoundPose(h, dt, low) {
   const [el, hd] = E.ik3(J.shL, tgt, o.armUpper, o.armLower, [-.5, -1, -.3]); J.elbowL = el; J.handL = hd;
 }
 function drawFlask(h, g, ox, oy, view) {
+  if (h.character === 'codex') return;
   if (!(h.potionT > 0) || !h.drinkK) return;
   const [x, y, dep] = rigScreen(h.rig, h.rig.J.handL, ox, oy, view), hd = rigScreen(h.rig, h.rig.J.head, ox, oy, view)[2], z = view.zoom || 1, tilt = h.drinkK;
   if (dep < hd - .5 && Math.hypot(x - rigScreen(h.rig, h.rig.J.head, ox, oy, view)[0], 0) < 4 * z) return;   // hidden behind his head when he faces away
@@ -5925,6 +5990,445 @@ function drawHero(h, r) {
   if (r.gpu) { L.add(h.x, h.y, 18, h.lightR || 84, h.lightI === undefined ? .6 : h.lightI * .7, { color: '#c9c2ec' }); L.caster(h.x, h.y, 3.2, 24); } else L.add(h.x, h.y, 10, h.lightR || 92, h.lightI === undefined ? .85 : h.lightI, { color: '#fff0d8' });
 }
 
+/* Codex is a separate procedural rig, not a Humanoid skin. Local coordinates: forward, right, up.
+ * A floating folio, detached gauntlets, porcelain mask, brass astrolabe and three loose leaves.
+ * It implements the small rig interface shared skills need, without borrowing the swordsman's gait. */
+class CodexRig {
+	constructor(hero) {
+		this.hero = hero;
+		this.o = { size: 1, weapon: "staff", bladeLen: 13, hunch: 0, lean: 0 };
+		this.C = {
+			metal: "#eee2b9",
+			metalDk: "#bdae88",
+			hilt: "#d2a353",
+			cloth: "#30263f",
+			skin: "#fff5da",
+		};
+		this.t = 0;
+		this.phase = 0;
+		this.facing = 0;
+		this.x = this.y = this.z = 0;
+		this.fold = this.fall = this.flare = this.bank = this.recoil = 0;
+		this.J = {};
+		this.state = {};
+		this.trail = [];
+		this.update(0, {});
+	}
+	kick(v) {
+		this.recoil = clamp(this.recoil + v * 0.15, -2, 2);
+	}
+	_w(p) {
+		const c = Math.cos(this.facing),
+			s = Math.sin(this.facing),
+			k = this.o.size;
+		return [(p[0] * c - p[1] * s) * k, (p[0] * s + p[1] * c) * k, p[2] * k];
+	}
+	hand(side = "R") {
+		const p = this._w(this.J["hand" + side]);
+		return [this.x + p[0], this.y + p[1], this.z + p[2]];
+	}
+	head() {
+		const p = this._w(this.J.head);
+		return [this.x + p[0], this.y + p[1], this.z + p[2]];
+	}
+	tip() {
+		const p = this._w(E.V3.add(this.J.handR, E.V3.mul(this.J.bladeDir, 13)));
+		return [this.x + p[0], this.y + p[1], this.z + p[2]];
+	}
+	update(dt, s = {}) {
+		this.t += dt;
+		this.phase = this.t;
+		this.state = s;
+		this.x = s.x || 0;
+		this.y = s.y || 0;
+		this.z = s.z || 0;
+		this.facing = s.facing || 0;
+		const h = this.hero,
+			speed = Math.hypot(s.vx || 0, s.vy || 0) / 90;
+		this.run = approach(this.run || 0, s.run || Math.min(1, speed), dt * 4);
+		this.bank = approach(
+			this.bank,
+			(-(s.vx || 0) * Math.sin(this.facing) +
+				(s.vy || 0) * Math.cos(this.facing)) /
+				110,
+			dt * 4,
+		);
+		this.fold = approach(
+			this.fold,
+			s.dash ? 1 : s.pose === "crouch" || s.pose === "kneel" ? 0.35 : 0,
+			dt * (s.dash ? 15 : 9),
+		);
+		this.fall = approach(
+			this.fall,
+			s.pose === "die" || s.down ? 1 : 0,
+			dt * 2.4,
+		);
+		const st = s.attack,
+			cast =
+				s.codexPose || (st ? "quill" : s.pose === "cast" ? "seal" : s.pose);
+		this.cast = cast;
+		const stroke = st
+			? st.phase === "wind"
+				? -0.45 * st.u
+				: st.phase === "active"
+					? Math.sin(st.u * Math.PI)
+					: 0.3 * (1 - st.u)
+			: s.codexStroke || 0;
+		this.flare = approach(
+			this.flare,
+			cast === "finale" || cast === "cheer" ? 1 : cast ? 0.4 : 0,
+			dt * 6,
+		);
+		this.recoil *= Math.exp(-dt * 10);
+		this.hover =
+			(4 + Math.sin(this.t * 2.8) * 0.7 + this.run * 1.2 + this.recoil) *
+			(1 - this.fall);
+		const z = this.hover,
+			fold = this.fold,
+			hurt = s.hurt ? -2 : 0;
+		this.J = {
+			hipC: [0, 0, 9 + z],
+			shC: [0, 0, 20 + z],
+			head: [1, 0, 29 + z + hurt],
+			handL: [
+				4 + Math.sin(this.t * 1.7),
+				-9 - this.flare * 5,
+				17 + z + this.flare * 8,
+			],
+			handR: [4 + stroke * 9, 9 - stroke * 4, 17 + z + stroke * 5],
+			bladeDir: E.V3.norm([0.7 + stroke, 0.2, 0.6 - stroke * 0.5]),
+		};
+		if (cast === "orbit" || cast === "finale") {
+			this.J.handR = [2, 11, 26 + z];
+			this.J.handL = [2, -11, 26 + z];
+		}
+		if (cast === "seal")
+			this.J.handR = [
+				8,
+				4 + Math.sin(stroke * 5) * 5,
+				22 + z + Math.cos(stroke * 5) * 3,
+			];
+		if (cast === "folio") {
+			this.J.handR = [6, 11 + stroke * 5, 19 + z];
+			this.J.handL = [6, -11 - stroke * 5, 19 + z];
+		}
+		if (cast === "revision") this.J.handL = [5, -1, 18 + z];
+		if (s.pose === "wave")
+			this.J.handL = [2, -10, 28 + z + Math.sin(this.t * 8) * 2];
+		if (h.potionT > 0) this.J.handL = [7, -2, 23 + z];
+		for (const key of ["handL", "handR"]) {
+			this.J[key][1] *= 1 - fold * 0.75;
+			this.J[key][2] = lerp(this.J[key][2], 12, fold);
+		}
+		this.stroke = stroke;
+	}
+	draw(g, ox, oy, sourceView) {
+		// Keep the face readable from a high camera, as the engine does for its other characters.
+		const view = E.charView ? E.charView(sourceView) : sourceView;
+		this._lastView = view;
+		const q = [],
+			h = this.hero,
+			t = this.t,
+			fold = this.fold,
+			fall = this.fall;
+		const C = {
+			ink: "#181629",
+			shade: "#353048",
+			paper: "#eee2b9",
+			light: "#fff5da",
+			gold: "#d2a353",
+			darkGold: "#765235",
+			mint: "#83f4df",
+			purple: "#bc9bea",
+		};
+		const charge = (h.manuscript || 0) / 3,
+			glow = charge >= 1 ? "#ffe08b" : C.mint;
+		const weapon = h.gear && h.gear.weapon,
+			accent =
+				weapon && weapon.el && weapon.el !== "phys"
+					? EL(weapon.el).light
+					: glow;
+		const armor = h.gear && h.gear.chest,
+			edging = armor && armor.rarity >= 2 ? "#f2cd79" : C.gold;
+		const transform = (p) => {
+			let [f, r, z] = p;
+			f -= this.run * (z - 10) * 0.14;
+			r -= this.bank * (z - 10) * 0.14;
+			f *= 1 - fold * 0.35;
+			r *= 1 - fold * 0.65;
+			z = lerp(z, 12 + (z - 18) * 0.24, fold);
+			const a = fall * 1.4,
+				cf = Math.cos(a),
+				sf = Math.sin(a);
+			return this._w([
+				f * cf + (z - 3) * sf,
+				r,
+				Math.max(1, (z - 3) * cf - f * sf + 3),
+			]);
+		};
+		const project = (p) => {
+			const w = transform(p),
+				a = view.p(...w);
+			return [ox + a[0], oy + a[1]];
+		};
+		const depth = (p) => view.depth(...transform(p));
+		const face = (pts, color, edge = C.ink) => {
+			const d = pts.reduce((n, p) => n + depth(p), 0) / pts.length;
+			q.push({
+				d,
+				draw() {
+					const ps = pts.map(project);
+					px.poly(g, ps, color);
+					if (edge)
+						for (let i = 0; i < ps.length; i++)
+							px.line(g, ...ps[i], ...ps[(i + 1) % ps.length], edge);
+				},
+			});
+		};
+		const line = (a, b, color, width = 1, bias = 0.05) =>
+			q.push({
+				d: (depth(a) + depth(b)) / 2 + bias,
+				draw() {
+					px.line(g, ...project(a), ...project(b), color, width);
+				},
+			});
+		const gem = (at, radius, color, tall = radius) => {
+			const [f, r, z] = at,
+				top = [f, r, z + tall],
+				bottom = [f, r, z - tall];
+			const ring = [
+				[f + radius, r, z],
+				[f, r + radius, z],
+				[f - radius, r, z],
+				[f, r - radius, z],
+			];
+			ring.forEach((p, i) => {
+				face([top, p, ring[(i + 1) % 4]], i % 2 ? color : E.shade(color, 0.2));
+				face([bottom, ring[(i + 1) % 4], p], E.shade(color, -0.25));
+			});
+		};
+		const z = this.hover;
+		// Two ribbons of bookmark silk. Their travelling bend trails the glide, never a walking cycle.
+		for (const side of [-1, 1])
+			for (let i = 0; i < 4; i++) {
+				const tail = (n) => [
+					-3 - n * (0.7 + this.run * 1.5),
+					side * (2 + Math.sin(t * 4 - n * 0.8) * 0.8),
+					11 + z - n * 2.7,
+				];
+				const a = tail(i),
+					b = tail(i + 1);
+				face(
+					[
+						[a[0], a[1] - 1, a[2]],
+						[a[0], a[1] + 1, a[2]],
+						[b[0], b[1] + 0.6, b[2]],
+						[b[0], b[1] - 0.6, b[2]],
+					],
+					side < 0 ? C.purple : C.mint,
+					C.shade,
+				);
+			}
+		// The book is the body: a faceted spine, two hinged covers, visible stacks of paper.
+		gem([-1, 0, 16 + z], 4.5, C.shade, 8);
+		for (const side of [-1, 1]) {
+			const spread = 7.5 + this.flare * 4,
+				flutter = Math.sin(t * 3 + side) * 0.6;
+			face(
+				[
+					[-2, side, 24 + z],
+					[-3, side * spread, 22 + z + flutter],
+					[-3, side * (spread + 1), 10 + z],
+					[-1, side * 2, 9 + z],
+				],
+				C.ink,
+				edging,
+			);
+			for (let leaf = 0; leaf < 3; leaf++) {
+				const offset = leaf * 0.35,
+					r = side * (spread - 0.9 + offset),
+					base = 11 + z + leaf * 0.5;
+				face(
+					[
+						[0.3 + offset, side * 1.7, 23 + z],
+						[-1 + offset, r, 21.7 + z + flutter],
+						[-1 + offset, r, base],
+						[0.3 + offset, side * 1.7, 10.5 + z],
+					],
+					leaf === 2 ? C.paper : "#bdae88",
+					null,
+				);
+			}
+			for (let row = 0; row < 5; row++)
+				line(
+					[1.1, side * 2.5, 13 + z + row * 1.6],
+					[-0.2, side * (spread - 1.7 - (row % 2)), 13 + z + row * 1.6],
+					"#706453",
+				);
+		}
+		gem([3.3, 0, 18 + z], 2.3, fall > 0.7 ? C.darkGold : glow, 3.4);
+		// A mechanical halo, behind the detached mask. Gaps make the orbit's rotation legible.
+		for (let i = 0; i < 12; i++) {
+			const a = (i / 12) * TAU + t * 0.22,
+				b = a + 0.32,
+				R = 8 + this.flare * 2;
+			line(
+				[-3, Math.cos(a) * R, 29 + z + Math.sin(a) * R],
+				[-3, Math.cos(b) * R, 29 + z + Math.sin(b) * R],
+				i % 3 ? C.gold : glow,
+			);
+		}
+		// Porcelain face, split into asymmetrical folds. Eye slits are geometry on its forward plane.
+		const hz = 29 + z + (this.state.hurt ? -2 : 0);
+		face(
+			[
+				[2, -4, hz + 4],
+				[4.5, 0, hz + 5],
+				[5, 0, hz - 5],
+				[2.5, -3, hz - 2],
+			],
+			C.light,
+		);
+		face(
+			[
+				[4.5, 0, hz + 5],
+				[2, 4, hz + 3],
+				[2.5, 3, hz - 2],
+				[5, 0, hz - 5],
+			],
+			"#c7bd9b",
+		);
+		face(
+			[
+				[-1, -3.5, hz + 3],
+				[2, -4, hz + 4],
+				[2.5, -3, hz - 2],
+				[0, 0, hz - 4],
+			],
+			C.shade,
+		);
+		face(
+			[
+				[2, 4, hz + 3],
+				[-1, 3.5, hz + 3],
+				[0, 0, hz - 4],
+				[2.5, 3, hz - 2],
+			],
+			C.ink,
+		);
+		if (Math.cos(this.facing) * view.fx + Math.sin(this.facing) * view.fy > 0) {
+			const width = Math.max(1, Math.round(view.scale * 0.4));
+			for (const side of [-1, 1]) {
+				const a = [3.8, side * 3, hz + 0.8],
+					b = [5.2, side * 0.7, hz];
+				line(a, b, C.ink, width + 2, 2);
+				if (fall < 0.7) line(a, b, glow, width, 2.1);
+			}
+		}
+		line([5.1, 0, hz - 1.3], [5.1, 0, hz - 3.3], C.darkGold, 1, 2);
+		// Detached gauntlets articulate independently; no elbows or human arm swing.
+		for (const side of ["L", "R"]) {
+			const p = this.J["hand" + side];
+			gem(p, 1.6, C.light, 2.6);
+			for (let finger = -1; finger <= 1; finger++)
+				line(
+					[p[0] + 1, p[1] + finger * 0.75, p[2]],
+					[p[0] + 3.5, p[1] + finger, p[2] - 1.6],
+					C.gold,
+				);
+		}
+		if (this.o.weapon) {
+			const a = this.J.handR,
+				b = E.V3.add(a, E.V3.mul(this.J.bladeDir, 13)),
+				back = E.V3.add(a, E.V3.mul(this.J.bladeDir, -6));
+			line(back, b, C.gold, 2);
+			line(a, b, accent);
+			const wing = [back[0] - 2, back[1] + 3, back[2] + 3];
+			face([back, wing, E.V3.lerp(a, b, 0.2), a], C.light, C.darkGold);
+			gem(b, 0.9, accent, 1.6);
+		}
+		// Three manuscript leaves orbit the silhouette and fill with ink as the passive charges.
+		for (let i = 0; i < 3; i++) {
+			const a = t * (this.state.dash ? 9 : 0.9) + (i * TAU) / 3,
+				R = 12 + this.flare * 6;
+			const f = Math.cos(a) * R,
+				r = Math.sin(a) * R,
+				az = 17 + z + Math.sin(a * 1.5 + i) * 3;
+			face(
+				[
+					[f - 1.5, r - 2, az - 2],
+					[f + 1.5, r - 2, az - 2],
+					[f + 1.5, r + 2, az + 2],
+					[f - 1.5, r + 2, az + 2],
+				],
+				i < (h.manuscript || 0) ? "#ffe5a0" : C.paper,
+				C.darkGold,
+			);
+			line(
+				[f, r - 1, az - 1],
+				[f, r + 1, az + 1],
+				i < (h.manuscript || 0) ? "#a06535" : C.shade,
+				1,
+				0.1,
+			);
+		}
+		if (h.potionT > 0) {
+			const p = this.J.handL;
+			gem([p[0] + 2, p[1], p[2] + 2], 2, "#f5779d", 3);
+		}
+		q.sort((a, b) => a.d - b.d);
+		for (const part of q) part.draw();
+		if (fold > 0.2) {
+			const center = project([0, 0, 12]),
+				radius = (5 + fold * 5) * (view.zoom || 1);
+			for (let i = 0; i < 6; i++) {
+				const a = t * 9 + (i * TAU) / 6,
+					b = a + 0.7;
+				px.line(
+					g,
+					center[0] + Math.cos(a) * radius,
+					center[1] + Math.sin(a) * radius * 0.45,
+					center[0] + Math.cos(b) * radius,
+					center[1] + Math.sin(b) * radius * 0.45,
+					glow,
+				);
+			}
+		}
+	}
+	drawSmear(r) {
+		const s = this.state;
+		if (!s.codexPose && !(s.attack && s.attack.phase === "active")) {
+			this.trail.length = 0;
+			return;
+		}
+		const p = this.tip();
+		if (
+			this.trail.length &&
+			Math.hypot(p[0] - this.trail[0][0], p[1] - this.trail[0][1]) > 40
+		)
+			this.trail.length = 0;
+		this.trail.unshift(p);
+		this.trail.length = Math.min(5, this.trail.length);
+		for (let i = 1; i < this.trail.length; i++) {
+			const a = this.trail[i - 1],
+				b = this.trail[i];
+			r.queue(
+				a[0],
+				a[1],
+				a[2],
+				(g) => {
+					px.line(g, ...r.w(...a), ...r.w(...b), i < 2 ? "#f9f1c9" : "#83d7cf");
+				},
+				{ emissive: true },
+			);
+		}
+	}
+	drawPortrait(g, x, y, size = 40) {
+		const v = new E.View("portrait", "Codex", 0, 15, size / 27);
+		this.draw(g, x + size / 2, y + size * 1.2, v);
+	}
+}
+
 /* =============================================================================
  * SKILLS: the runtime for the six slots, plus the two starting skills (Blade Dance, Ember Bolt)
  * A SKILL is def('skills', id, {
@@ -5955,7 +6459,7 @@ const skillCd = (h, S) => DEV.enabled && DEV.cooldowns && h === ED.hero ? 0 : (S
  *  held: the key is only being held down (repeat): nothing to warn about, and nothing is consumed */
 function useSlot(h, i, held) {
   const id = h.slots[i]; if (!id || h.dead) return false;
-  const S = REG.skills[id]; if (!S || skillRank(h, id) <= 0) return false;
+  const S = REG.skills[id]; if (!skillAvailable(h, S) || skillRank(h, id) <= 0) return false;
   if (held && (h.act ? !(h.act.skill === id && S.again) && !(h.act.free || h.act.cancel === 'skill') : h.cds[id] > 0 || h.ember < skillCost(h, S))) return false;   // cheap early out: nothing a held key could start
   const ctx = skillCtx(h, id, i);
   if (h.act && h.act.skill === id && S.again) return S.again(h, h.act, ctx);
@@ -5975,7 +6479,8 @@ function useSlot(h, i, held) {
 BUS.on('hit', e => {
   const h = ED.hero; if (!h || e.src !== h) return;
   const s = h.stats, S = e.hit.skill && REG.skills[e.hit.skill], act = h.act;
-  if (S && S.gen && act && act.skill === S.id && act.gained < S.gen * 3) { h.ember = Math.min(h.maxEmber, h.ember + S.gen); act.gained += S.gen; }
+  if (S && S.gen && S.genOnHit && !e.hit.proc) h.ember = Math.min(h.maxEmber, h.ember + S.gen);
+  else if (S && S.gen && act && act.skill === S.id && act.gained < S.gen * 3) { h.ember = Math.min(h.maxEmber, h.ember + S.gen); act.gained += S.gen; }
   if (s.emberOnHit) h.ember = Math.min(h.maxEmber, h.ember + s.emberOnHit);
   const heal = (s.lifeOnHit || 0) + e.dmg * (s.leech || 0) / 100;
   if (heal > 0 && h.alive) h.hp = Math.min(h.maxHp, h.hp + heal);
@@ -7582,7 +8087,7 @@ const SKS_ECHO_COMBO = ['slash', { move: 'backslash', over: { a1: 2.2, z1: -3 } 
 /** spectral colors: every part keeps its value but drifts into cold cyan */
 function SKS_spectral(colors) { const out = {}; for (const k in colors) { const c = colors[k]; if (typeof c === 'string' && c[0] === '#') out[k] = E.mix(E.mix(c, '#6fdcff', .55), '#ffffff', .1); } out.skin = '#5ab4d8'; out.hair = '#1c4a6a'; out.eye = '#0c2a48'; return out; }   // a deeper face so the glowing eyes read
 function SKS_echo(h, ctx, side, life, scale) {
-  const lk = h.look, rig = new E.Humanoid(Object.assign({}, lk, { colors: SKS_spectral(lk.colors), eyeGlow: '#e8ffff' }));
+  const lk = h.look, rig = h.character === 'codex' ? new CodexRig(h) : new E.Humanoid(Object.assign({}, lk, { colors: SKS_spectral(lk.colors), eyeGlow: '#e8ffff' }));
   const e = { kind: 'echo', team: 'hero', alive: true, targetable: false, x: h.x, y: h.y, z: 0, vx: 0, vy: 0, r: 4.5, facing: h.facing, rig, t: 0, life, side, scale, ctx, owner: h,
     atk: null, combo: 0, set: new Set(), cool: 0, mirror: [], mcur: null, mspec: null, mph: null, dash: 0, dashDir: 0, pose: null, poseT: 0, lastGhost: 0, alpha: 0, tgt: null,
     update(dt) { return SKS_echoStep(this, dt); }, draw(r) { SKS_echoDraw(this, r); } };
@@ -8198,13 +8703,13 @@ BUS.on('kill', e => {
 });
 
 /* ---------- respec (the mystic calls respecHero if it exists) and the autopilot's allocator ---------- */
-const PRG_FREE = { blade: 1, ember: 1 };   // the ranks every hero starts with are not refunded
+const PRG_FREE = (h, id) => characterOf(h).skills.includes(id) ? 1 : 0;   // the ranks every hero starts with are not refunded
 function PRG_respec(h, what = 'all', o = {}) {
   h = h || ED.hero; if (!h) return null;
   const out = { skill: 0, passive: 0 }; h.pts = h.pts || { skill: 0, passive: 0 };
   if (what !== 'skill') { PRG_sanitize(h); out.passive = h.tree.length; h.pts.passive = (h.pts.passive || 0) + out.passive; h.tree = []; }
   if (what !== 'passive') {
-    for (const id in h.skills) { const k = h.skills[id], keep = Math.min(k.rank || 0, PRG_FREE[id] || 0); out.skill += (k.rank || 0) - keep + (k.mastery || 0); k.rank = keep; delete k.rune; delete k.mastery; if (!keep) delete h.skills[id]; }
+    for (const id in h.skills) { const k = h.skills[id], keep = Math.min(k.rank || 0, PRG_FREE(h, id)); out.skill += (k.rank || 0) - keep + (k.mastery || 0); k.rank = keep; delete k.rune; delete k.mastery; if (!keep) delete h.skills[id]; }
     h.pts.skill = (h.pts.skill || 0) + out.skill;
     h.slots = h.slots.map(id => id && h.skills[id] && h.skills[id].rank > 0 ? id : null);
   }
@@ -8673,13 +9178,14 @@ const PRG_KIND_ORDER = ['basic', 'core', 'mobility', 'ultimate'];
 const PRG_K = { sel: null, armed: null, scroll: 0, follow: false, rows: [], flash: [0, 0, 0, 0, 0, 0], fx: [], pulse: null, runeShow: null, dirty: false, hud: false };
 /** the list rows: a header per kind, then its skills (by unlock level, then name). Works with any registered set */
 function PRG_skillRows() {
-  const groups = {}; for (const id in REG.skills) { const k = REG.skills[id].kind || 'core'; (groups[k] || (groups[k] = [])).push(id); }
+  const groups = {}; for (const id in REG.skills) { if (!skillAvailable(ED.hero, REG.skills[id])) continue; const k = REG.skills[id].kind || 'core'; (groups[k] || (groups[k] = [])).push(id); }
   const kinds = PRG_KIND_ORDER.filter(k => groups[k]).concat(Object.keys(groups).filter(k => !PRG_KIND_ORDER.includes(k)).sort()), rows = [];
   for (const k of kinds) { rows.push({ head: k }); groups[k].sort((a, b) => (REG.skills[a].unlock || 1) - (REG.skills[b].unlock || 1) || REG.skills[a].name.localeCompare(REG.skills[b].name)); for (const id of groups[k]) rows.push({ id }); }
   return rows;
 }
 const PRG_base = (h, id) => (h.skills[id] && h.skills[id].rank) || 0;
 function PRG_canRank(h, id) {
+  if (!skillAvailable(h, REG.skills[id])) return { ok: false, why: 'Codex signature skill' };
   const S = REG.skills[id], r = PRG_base(h, id), lv = S.unlock || 1;
   if (!r && h.level < lv) return { ok: false, why: 'Unlocks at level ' + lv };
   if ((h.pts.skill || 0) < 1) return { ok: false, why: 'No skill points (one per level)', mastery: r >= 5 };
@@ -8707,7 +9213,7 @@ function PRG_setRune(h, id, rune) {
 }
 /** put a learned skill in slot i (a skill already slotted elsewhere swaps places with what was there) */
 function PRG_assign(h, i, id) {
-  if (!id || !PRG_base(h, id)) { sfx('cancel', { vol: .5 }); return false; }
+  if (!id || !skillAvailable(h, REG.skills[id]) || !PRG_base(h, id)) { sfx('cancel', { vol: .5 }); return false; }
   const was = h.slots.indexOf(id); if (was === i) return true;
   if (was >= 0) { h.slots[was] = h.slots[i] || null; PRG_K.flash[was] = .5; }
   h.slots[i] = id; PRG_K.flash[i] = .6; PRG_K.dirty = true; sfx('confirm', { vol: .6 });
@@ -8938,6 +9444,709 @@ function PRG_install() {
       mastery: () => autoAllocateMastery(ED.hero), tier: id => PRG_tier(ED.hero, id), canSpend: () => PRG_canSpend(ED.hero) } });
 }
 queueMicrotask(() => { try { PRG_install(); } catch (e) { game._fail('28-progression install', e); } });
+
+/* Codex's six written spells. They share damage, loot, ranks, runes and status rules with the game. */
+const CX = {
+	mint: "#83f4df",
+	paper: "#fff0c9",
+	gold: "#ffd782",
+	ink: "#625092",
+	purple: "#bc9bea",
+};
+A.define("cx_write", [
+	{
+		wave: "noise",
+		freq: 4200,
+		to: 1500,
+		dur: 0.07,
+		vol: 0.12,
+		filter: "highpass",
+	},
+	{ wave: "triangle", freq: 880, to: 1320, dur: 0.13, vol: 0.13 },
+]);
+A.define("cx_fold", [
+	{
+		wave: "noise",
+		freq: 900,
+		to: 3800,
+		dur: 0.19,
+		vol: 0.13,
+		filter: "bandpass",
+	},
+	{ wave: "sine", freq: 440, to: 220, dur: 0.25, vol: 0.2 },
+]);
+A.define("cx_seal", [
+	{
+		wave: "triangle",
+		freq: 660,
+		arp: [0, 7, 12],
+		step: 0.05,
+		dur: 0.35,
+		vol: 0.22,
+	},
+	{ wave: "sine", freq: 160, to: 80, dur: 0.25, vol: 0.23 },
+]);
+
+function cxGlyph(r, x, y, radius, color, turn = 0, alpha = 1) {
+	r.groundRing(x, y, radius, color, alpha);
+	const points = Array.from({ length: 6 }, (_, i) => {
+		const a = turn + (i * TAU) / 6;
+		return [x + Math.cos(a) * radius * 0.8, y + Math.sin(a) * radius * 0.8];
+	});
+	const g = r.tgt;
+	px.blend(g, alpha, "normal", () => {
+		for (let i = 0; i < 6; i++)
+			px.line(
+				g,
+				...r.w(...points[i], 0.3),
+				...r.w(...points[(i + 2) % 6], 0.3),
+				color,
+			);
+	});
+}
+function cxBurst(x, y, radius, color = CX.mint, dur = 0.6) {
+	FX.visual(dur, (r, u) =>
+		r.decal(
+			() =>
+				cxGlyph(
+					r,
+					x,
+					y,
+					radius * (0.7 + 0.3 * u),
+					color,
+					u * 0.5,
+					(1 - u) * 0.8,
+				),
+			{ emissive: true },
+		),
+	);
+}
+function cxTarget(h, ctx, reach = 125) {
+	const dx = ctx.tx - h.x,
+		dy = ctx.ty - h.y,
+		d = Math.hypot(dx, dy),
+		a = d > 1 ? Math.atan2(dy, dx) : h.aim;
+	let x = h.x,
+		y = h.y;
+	for (let n = 4; n <= Math.min(reach, Math.max(8, d)); n += 4) {
+		const nx = h.x + Math.cos(a) * n,
+			ny = h.y + Math.sin(a) * n;
+		if (ED.L.map.heightAt(nx, ny) > 8) break;
+		x = nx;
+		y = ny;
+	}
+	return [x, y];
+}
+function cxCast(h, ctx, pose, wind, recovery, fire) {
+	return {
+		name: ctx.id,
+		moveK: 0.65,
+		face: ctx.aim,
+		cancel: true,
+		speed: h.castMul,
+		rig: { codexPose: pose, codexStroke: 0 },
+		update(dt) {
+			this.t += dt;
+			this.rig.codexStroke =
+				this.t < wind
+					? (-this.t / wind) * 0.5
+					: Math.max(0, 1 - (this.t - wind) / recovery);
+			if (!this.fired && this.t >= wind) {
+				this.fired = true;
+				const empowered = ctx.id !== "cx_quill" && h.manuscript >= 3;
+				if (empowered) {
+					h.manuscript = 0;
+					h.illuminatedT = 1;
+					cxBurst(h.x, h.y, 22, CX.gold);
+				}
+				fire(empowered ? 1.5 : 1, empowered);
+				sfx(pose === "quill" ? "cx_write" : "cx_seal", { vol: 0.6 });
+			}
+			this.free = this.fired && this.t > wind + recovery * 0.55;
+			return this.t < wind + recovery;
+		},
+	};
+}
+function cxQuill(h, ctx, a, scale = 1, options = {}) {
+	const p = h.rig.hand("R");
+	// Aim from the detached hand, rather than firing a parallel ray from beside the target line.
+	const angle = Math.atan2(ctx.ty - p[1], ctx.tx - p[0]) + a - ctx.aim;
+	return FX.bolt({
+		team: "hero",
+		src: h,
+		x: p[0],
+		y: p[1],
+		z: 12,
+		ang: angle,
+		speed: 330,
+		life: 0.65,
+		r: 3,
+		el: "storm",
+		pierce: ctx.pierce,
+		chain: ctx.chains,
+		hit: ctx.hit(scale, { kb: 25, extra: { statusChance: 0.12 } }),
+		...options,
+		look: {
+			trail: false,
+			draw(g, x, y, bolt, r) {
+				const a0 = r.w(
+						bolt.x - Math.cos(bolt.ang) * 10,
+						bolt.y - Math.sin(bolt.ang) * 10,
+						bolt.z,
+					),
+					dx = x - a0[0],
+					dy = y - a0[1],
+					d = Math.hypot(dx, dy) || 1,
+					nx = (-dy / d) * 2,
+					ny = (dx / d) * 2;
+				px.poly(
+					g,
+					[
+						[x, y],
+						[x - dx * 0.6 + nx, y - dy * 0.6 + ny],
+						a0,
+						[x - dx * 0.6 - nx, y - dy * 0.6 - ny],
+					],
+					CX.paper,
+				);
+				px.line(g, ...a0, x, y, CX.mint);
+			},
+		},
+	});
+}
+function cxIcon(kind) {
+	return (g, x, y, s) => {
+		const p = (a, b) => [x + a * s, y + b * s];
+		if (kind === "quill") {
+			px.poly(g, [p(3, 13), p(6, 4), p(12, 2), p(11, 9)], CX.paper);
+			px.line(g, ...p(3, 13), ...p(11, 4), CX.mint);
+		} else if (kind === "seal") {
+			ICON.ring(g, x, y, s, CX.mint);
+			px.line(g, ...p(4, 11), ...p(8, 4), CX.paper);
+			px.line(g, ...p(8, 4), ...p(12, 11), CX.paper);
+		} else if (kind === "folio") {
+			for (let i = 0; i < 3; i++)
+				px.poly(
+					g,
+					[p(3 + i * 3, 4 - i), p(7 + i * 3, 5), p(9 - i, 13), p(3 - i, 11)],
+					i === 1 ? CX.mint : CX.paper,
+				);
+		} else if (kind === "revision") {
+			ICON.arc(g, x, y, s, CX.purple);
+			px.line(g, ...p(5, 8), ...p(11, 8), CX.paper, s);
+			px.line(g, ...p(8, 5), ...p(8, 11), CX.paper, s);
+		} else if (kind === "orbit") {
+			ICON.ring(g, x, y, s, CX.gold);
+			for (let i = 0; i < 3; i++)
+				px.rect(
+					g,
+					x + (3 + i * 4) * s,
+					y + (i === 1 ? 3 : 9) * s,
+					3 * s,
+					4 * s,
+					CX.paper,
+				);
+		} else {
+			px.poly(
+				g,
+				[p(2, 3), p(8, 5), p(14, 3), p(13, 12), p(8, 14), p(3, 12)],
+				CX.paper,
+			);
+			px.line(g, ...p(8, 5), ...p(8, 14), CX.gold);
+			ICON.star(g, x, y - 3 * s, s * 0.7, CX.mint);
+		}
+	};
+}
+function cxSkill(id, spec) {
+	return def("skills", "cx_" + id, {
+		character: "codex",
+		unlock: 1,
+		el: "storm",
+		color: "#254f54",
+		icon: cxIcon(id),
+		...spec,
+	});
+}
+
+cxSkill("quill", {
+	name: "Quillshot",
+	kind: "basic",
+	tags: ["spell", "proj"],
+	cost: 0,
+	gen: 9,
+	genOnHit: true,
+	range: 145,
+	desc: () =>
+		"Flick a luminous quill. Hits generate Ember and inscribe a page. At three pages, your next Codex spell is Illuminated: 50% stronger.",
+	runes: [
+		{
+			id: "fork",
+			name: "Double Script",
+			desc: "Two quills fan out, each dealing 70% damage.",
+		},
+		{
+			id: "seek",
+			name: "True Name",
+			desc: "Quills seek nearby enemies and pierce one extra target.",
+		},
+	],
+	cast(h, ctx) {
+		return cxCast(h, ctx, "quill", 0.08, 0.27, () => {
+			const n = 1 + ctx.proj + (ctx.rune === "fork" ? 1 : 0);
+			for (let i = 0; i < n; i++)
+				cxQuill(
+					h,
+					ctx,
+					ctx.aim + (i - (n - 1) / 2) * 0.13,
+					ctx.rune === "fork" ? 0.77 : 1.1,
+					{
+						home: ctx.rune === "seek" ? 3 : 0,
+						pierce: ctx.pierce + (ctx.rune === "seek" ? 1 : 0),
+					},
+				);
+		});
+	},
+});
+cxSkill("seal", {
+	name: "Margin Seal",
+	kind: "core",
+	tags: ["spell", "aoe"],
+	el: "frost",
+	cost: 18,
+	cd: 2.8,
+	desc: () =>
+		"Write a seal at your aim point. After a short warning it snaps shut, damaging and slowing the pack. Illuminated: 50% more damage and a wider seal.",
+	runes: [
+		{
+			id: "bind",
+			name: "Binding Clause",
+			desc: "The seal also stuns for 0.6 seconds.",
+		},
+		{
+			id: "echo",
+			name: "Postscript",
+			desc: "A second, weaker seal follows the first.",
+		},
+	],
+	cast(h, ctx) {
+		return cxCast(h, ctx, "seal", 0.24, 0.28, (power, lit) => {
+			const [x, y] = cxTarget(h, ctx),
+				radius = 29 * ctx.area * (lit ? 1.2 : 1),
+				col = lit ? CX.gold : CX.mint;
+			const burst = (scale) => {
+				FX.nova({
+					team: "hero",
+					src: h,
+					x,
+					y,
+					r0: 2,
+					r1: radius,
+					dur: 0.22,
+					color: col,
+					el: "frost",
+					hit: ctx.hit(2.1 * power * scale, {
+						kb: 55,
+						extra: {
+							el: "frost",
+							status: "chill",
+							statusChance: 1,
+							statusPower: 2,
+							stun: ctx.rune === "bind" ? 0.6 : 0,
+						},
+					}),
+				});
+				cxBurst(x, y, radius, col);
+			};
+			let fired = false,
+				echo = false;
+			FX.visual(
+				0.9,
+				(r, u) =>
+					r.decal(
+						() => cxGlyph(r, x, y, radius, col, -u, u < 0.4 ? 0.6 : 0.15),
+						{ emissive: true },
+					),
+				(f) => {
+					if (!fired && f.t >= 0.28) {
+						fired = true;
+						burst(1);
+					}
+					if (!echo && ctx.rune === "echo" && f.t >= 0.65) {
+						echo = true;
+						burst(0.5);
+					}
+				},
+			);
+		});
+	},
+});
+cxSkill("folio", {
+	name: "Razor Folio",
+	kind: "core",
+	tags: ["spell", "proj"],
+	cost: 22,
+	cd: 4,
+	range: 120,
+	el: "phys",
+	desc: () =>
+		"Unfurl a fan of five cutting pages. They pierce enemies, reach their edge, and return to your hands. Illuminated: 50% more damage.",
+	runes: [
+		{ id: "wide", name: "Loose Leaves", desc: "Seven pages in a wider fan." },
+		{
+			id: "rend",
+			name: "Paper Cuts",
+			desc: "Pages inflict bleeding.",
+		},
+	],
+	cast(h, ctx) {
+		return cxCast(h, ctx, "folio", 0.18, 0.36, (power) => {
+			const n = (ctx.rune === "wide" ? 7 : 5) + ctx.proj;
+			for (let i = 0; i < n; i++) {
+				const a = ctx.aim + (i - (n - 1) / 2) * 0.16;
+				const bolt = cxQuill(h, ctx, a, 0.7 * power, {
+					pierce: 20 + ctx.pierce,
+					life: 1.25,
+					speed: 170,
+					el: "phys",
+					hit: ctx.hit(0.7 * power, {
+						kb: 15,
+						extra: {
+							el: "phys",
+							status: ctx.rune === "rend" ? "bleed" : undefined,
+							statusChance: ctx.rune === "rend" ? 1 : 0,
+						},
+					}),
+				});
+				const update = bolt.update;
+				bolt.look.draw = (g, x, y, p, r) => {
+					const z = r.view.zoom || 1,
+						a = p.t * 9,
+						c = Math.cos(a),
+						s = Math.sin(a),
+						pt = (u, v) => [x + (u * c - v * s) * z, y + (u * s + v * c) * z];
+					px.poly(g, [pt(-2, -4), pt(2, -4), pt(2, 4), pt(-2, 4)], CX.paper);
+					px.line(g, ...pt(-1, -2), ...pt(1, -2), CX.ink);
+					px.line(g, ...pt(-1, 0), ...pt(1, 0), CX.ink);
+				};
+				bolt.update = (dt) => {
+					if (bolt.t > 0.4) {
+						if (!bolt.returning) {
+							bolt.returning = true;
+							bolt.hitSet.clear();
+						}
+						const a = Math.atan2(h.y - bolt.y, h.x - bolt.x);
+						bolt.vx = Math.cos(a) * 220;
+						bolt.vy = Math.sin(a) * 220;
+						if (Math.hypot(h.x - bolt.x, h.y - bolt.y) < 8) return false;
+					}
+					return h.alive && update(dt);
+				};
+			}
+		});
+	},
+});
+cxSkill("revision", {
+	name: "Revision",
+	kind: "core",
+	tags: ["spell"],
+	cost: 24,
+	cd: 10,
+	noAuto: true,
+	desc: (rank = 1) => {
+		const heal = 18 + Math.min(5, Math.max(0, rank - 1));
+		return `Redraw your bindings: recover ${heal}% life, cleanse damaging ailments, and restore one foldstep. Illuminated: heal ${heal * 1.5}% instead.`;
+	},
+	runes: [
+		{
+			id: "ward",
+			name: "Hardcover",
+			desc: "Gain 50% increased armor for four seconds.",
+		},
+		{
+			id: "flow",
+			name: "Free Verse",
+			desc: "Gain 20% movement speed for four seconds.",
+		},
+	],
+	cast(h, ctx) {
+		return cxCast(h, ctx, "revision", 0.26, 0.35, (power) => {
+			h.hp = Math.min(
+				h.maxHp,
+				h.hp + h.maxHp * (0.18 + 0.01 * Math.min(5, ctx.rank - 1)) * power,
+			);
+			for (const id of ["burn", "poison", "bleed", "curse"]) delete h.st[id];
+			h.dodges = Math.min(h.maxDodge, h.dodges + 1);
+			h.buffs = h.buffs.filter((b) => b.id !== "cx_revision");
+			h.buffs.push({
+				id: "cx_revision",
+				name: "Revised",
+				t: 4,
+				color: CX.mint,
+				stats:
+					ctx.rune === "ward"
+						? { armorPct: 50 }
+						: ctx.rune === "flow"
+							? { moveSpeed: 20 }
+							: {},
+			});
+			computeStats(h);
+			cxBurst(h.x, h.y, 30, CX.mint, 1);
+			P.glints(h.x, h.y, 20, 8, CX.paper, 15);
+			sfx("heal", { vol: 0.45 });
+		});
+	},
+});
+cxSkill("orbit", {
+	name: "Living Index",
+	kind: "core",
+	tags: ["spell", "aoe"],
+	cost: 28,
+	cd: 10,
+	range: 58,
+	desc: () =>
+		"Release three orbiting leaves for four seconds. They cut nearby foes as you glide. Illuminated: 50% more damage.",
+	runes: [
+		{
+			id: "reach",
+			name: "Wide Margins",
+			desc: "Leaves orbit farther out and last one second longer.",
+		},
+		{
+			id: "guard",
+			name: "Book Ward",
+			desc: "Gain 20% all resistances while the leaves orbit.",
+		},
+	],
+	cast(h, ctx) {
+		return cxCast(h, ctx, "orbit", 0.3, 0.35, (power) => {
+			const dur = ctx.rune === "reach" ? 5 : 4,
+				R = (ctx.rune === "reach" ? 44 : 30) * ctx.area;
+			if (ctx.rune === "guard") {
+				h.buffs = h.buffs.filter((b) => b.id !== "cx_index");
+				h.buffs.push({
+					id: "cx_index",
+					name: "Book Ward",
+					color: CX.gold,
+					t: dur,
+					stats: { resAll: 20 },
+				});
+				computeStats(h);
+			}
+			const f = addFx({
+				kind: "cx_index",
+				t: 0,
+				nt: 0,
+				update(dt) {
+					this.t += dt;
+					this.nt -= dt;
+					if (this.nt <= 0) {
+						this.nt = 0.28;
+						for (let i = 0; i < 3; i++) {
+							const a = this.t * 3.4 + (i * TAU) / 3;
+							hitCircle(
+								"hero",
+								h.x + Math.cos(a) * R,
+								h.y + Math.sin(a) * R,
+								10,
+								() => ctx.hit(0.65 * power, { kb: 10 }),
+							);
+						}
+					}
+					return h.alive && this.t < dur;
+				},
+				draw(r) {
+					for (let i = 0; i < 3; i++) {
+						const a = this.t * 3.4 + (i * TAU) / 3,
+							x = h.x + Math.cos(a) * R,
+							y = h.y + Math.sin(a) * R;
+						r.queue(
+							x,
+							y,
+							12,
+							(g) => {
+								const p = r.w(x, y, 12),
+									z = r.view.zoom || 1;
+								px.poly(
+									g,
+									[
+										[p[0], p[1] - 5 * z],
+										[p[0] + 3 * z, p[1]],
+										[p[0], p[1] + 5 * z],
+										[p[0] - 3 * z, p[1]],
+									],
+									CX.paper,
+								);
+								px.line(g, p[0], p[1] - 3 * z, p[0], p[1] + 3 * z, CX.mint);
+							},
+							{ emissive: true },
+						);
+					}
+				},
+			});
+			f.owner = h;
+		});
+	},
+});
+cxSkill("finale", {
+	name: "The Last Word",
+	kind: "ultimate",
+	tags: ["spell", "aoe"],
+	cost: 45,
+	cd: 18,
+	el: "void",
+	desc: () =>
+		"Open the archive at your aim point: draw the pack inward, then close the book in a radiant blast. Illuminated: 50% more damage and a larger finale.",
+	runes: [
+		{
+			id: "silence",
+			name: "Full Stop",
+			desc: "The final blast stuns for one second.",
+		},
+		{
+			id: "after",
+			name: "Afterword",
+			desc: "The blast leaves a damaging field for two seconds.",
+		},
+	],
+	cast(h, ctx) {
+		return cxCast(h, ctx, "finale", 0.55, 0.5, (power, lit) => {
+			const [x, y] = cxTarget(h, ctx),
+				R = 48 * ctx.area * (lit ? 1.2 : 1);
+			FX.pull({ team: "hero", src: h, x, y, r: R, force: 270, dur: 0.8 });
+			let fired = false;
+			FX.visual(
+				1.35,
+				(r, u) => {
+					r.decal(
+						() =>
+							cxGlyph(
+								r,
+								x,
+								y,
+								R * (u < 0.6 ? 1 - u * 0.3 : 1),
+								u < 0.6 ? CX.purple : CX.gold,
+								-u * 2,
+								1 - u,
+							),
+						{ emissive: true },
+					);
+					r.queue(
+						x,
+						y,
+						22,
+						(g) => {
+							const [sx, sy] = r.w(x, y, 22 + Math.sin(u * Math.PI) * 10),
+								z = (r.view.zoom || 1) * Math.sin(u * Math.PI),
+								w = 13 * z;
+							px.poly(
+								g,
+								[
+									[sx - w, sy - 7 * z],
+									[sx, sy - 3 * z],
+									[sx + w, sy - 7 * z],
+									[sx + w, sy + 7 * z],
+									[sx, sy + 10 * z],
+									[sx - w, sy + 7 * z],
+								],
+								CX.paper,
+							);
+							px.line(g, sx, sy - 3 * z, sx, sy + 10 * z, CX.gold, 2);
+						},
+						{ emissive: true },
+					);
+				},
+				(f) => {
+					if (!fired && f.t > 0.8) {
+						fired = true;
+						FX.nova({
+							team: "hero",
+							src: h,
+							x,
+							y,
+							r0: 2,
+							r1: R,
+							dur: 0.32,
+							el: "void",
+							color: CX.gold,
+							hit: ctx.hit(5 * power, {
+								kb: 130,
+								extra: { stun: ctx.rune === "silence" ? 1 : 0 },
+							}),
+						});
+						if (ctx.rune === "after")
+							FX.area({
+								team: "hero",
+								src: h,
+								x,
+								y,
+								r: R * 0.65,
+								dur: 2,
+								tick: 0.5,
+								el: "void",
+								hit: ctx.hit(0.55 * power),
+							});
+						sfx("cx_seal", { pitch: 0.65, vol: 0.9 });
+						shake(4);
+						game.freeze(0.045);
+					}
+				},
+			);
+		});
+	},
+});
+BUS.on("hit", (e) => {
+	const h = e.src;
+	if (
+		!h ||
+		h !== ED.hero ||
+		h.character !== "codex" ||
+		e.hit.skill !== "cx_quill" ||
+		e.hit.proc ||
+		e.tgt.team !== "foe"
+	)
+		return;
+	const was = h.manuscript || 0;
+	h.manuscript = Math.min(3, was + 1);
+	if (was < 3 && h.manuscript === 3) {
+		sfx("chime", { pitch: 1.4, vol: 0.35 });
+		P.text(h.x, h.y, 39, "ILLUMINATED", CX.gold);
+	}
+});
+BUS.on("dodge", ({ h }) => {
+	if (h.character === "codex") {
+		sfx("cx_fold", { vol: 0.7 });
+		cxBurst(h.x, h.y, 15, CX.purple, 0.4);
+	}
+});
+BUS.on("heroDie", ({ h }) => {
+	if (h.character === "codex") h.manuscript = 0;
+});
+BUS.on("draw", ({ r }) => {
+	const h = ED.hero;
+	if (!h || h.character !== "codex" || UI.hideHud || ED.mode === "gallery")
+		return;
+	r.overlay((g) => {
+		const x = r.W - 89,
+			y = r.H - 45;
+		for (let i = 0; i < 3; i++) {
+			const c = i < h.manuscript ? CX.gold : "#40384d";
+			px.poly(
+				g,
+				[
+					[x + i * 9, y],
+					[x + 4 + i * 9, y - 4],
+					[x + 8 + i * 9, y],
+					[x + 4 + i * 9, y + 4],
+				],
+				c,
+			);
+		}
+		E.font.text(g, "SCRIPT", x + 13, y + 7, CX.paper, {
+			font: "tiny",
+			align: "center",
+		});
+	});
+});
 
 /* =============================================================================
  * MONSTERS: the runtime, the shared AI, elite affixes, packs, and the stress test's crowd
@@ -15662,9 +16871,10 @@ const LOT_JOINT = { helm: 'head', amulet: 'shC', chest: 'shC', cloak: 'shC', glo
 function LOT_dollRig(h) {
   const D = LOT_UI.doll || (LOT_UI.doll = { rig: null, sig: '', face: Math.PI / 2 + .5, t: 0, anim: null, spin: 0, user: 0, parts: [], ox: 0, oy: 0 });
   const sig = SLOTS.map(s => h.gear[s] ? h.gear[s].uid : 0).join(',');
-  if (D.sig !== sig) {
+  if (D.sig !== sig || D.character !== h.character) {
     const lk = heroLook(h), was = D.sig ? D.sig.split(',') : null, now = sig.split(',');
-    D.rig = new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
+    D.rig = h.character === 'codex' ? new CodexRig(h) : new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
+    D.character = h.character;
     D.rig.update(0, { x: 0, y: 0, z: 0, facing: D.face });
     const w = h.gear.weapon; D.smear = (w && w.look && w.look.smear) || EL(lk.el).smear;
     if (was) { const i = SLOTS.findIndex((s, k) => was[k] !== now[k]); if (i >= 0) LOT_dollReact(D, SLOTS[i], h.gear[SLOTS[i]]); }
@@ -15706,7 +16916,7 @@ function LOT_canvas(key, w, h) {
   return c;
 }
 function LOT_dollDraw(g, x, y, w, h, hero) {
-  const D = LOT_dollRig(hero), rig = D.rig, sc = clamp((h - 18) / 31, 1.6, 3.3), V = LOT_UI.dollView || (LOT_UI.dollView = new E.View('portrait', 'Doll', 0, 16, 2, 1));
+  const D = LOT_dollRig(hero), rig = D.rig, sc = clamp((h - 18) / (hero.character === 'codex' ? 43 : 31), 1.2, 3.3), V = LOT_UI.dollView || (LOT_UI.dollView = new E.View('portrait', 'Doll', 0, 16, 2, 1));
   V.set(0, 16, sc, 1);
   // the alcove: a dark niche, a shaft of light, a rune circle on the floor
   E.ui.box(g, x, y, w, h, { bg: ['#1c1634', '#07050c'], border: '#3a3050', shadow: false });
@@ -16258,7 +17468,7 @@ function LOT_transmute(h, it) {
 /** give back every skill and passive point (respecHero from the skills module when it exists) */
 function LOT_respec(h) {
   if (typeof respecHero === 'function') { respecHero(h); computeStats(h); return true; }
-  let sk = 0; for (const id in h.skills) { const k = h.skills[id], keep = id === 'blade' || id === 'ember' ? 1 : 0; sk += Math.max(0, (k.rank || 0) - keep); k.rank = Math.min(k.rank || 0, keep); k.rune = null; }
+  let sk = 0; for (const id in h.skills) { const k = h.skills[id], keep = characterOf(h).skills.includes(id) ? 1 : 0; sk += Math.max(0, (k.rank || 0) - keep); k.rank = Math.min(k.rank || 0, keep); k.rune = null; }
   h.slots = h.slots.map(id => id && h.skills[id] && h.skills[id].rank > 0 ? id : null);
   h.pts.skill += sk; if (Array.isArray(h.tree)) { h.pts.passive += h.tree.length; h.tree = []; }
   computeStats(h); notify('SKILLS AND PASSIVES RESET', '#c890ff', 2.5);
@@ -16338,7 +17548,7 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
       if (!it) return LOT_say('mystic', 'pick'); if (it.rarity === 4) return LOT_say('mystic', 'unique'); if (it.rarity < 2) return LOT_say('mystic', 'rare'); if (LOT_MYST.ench) return;
       if (!nEss) return LOT_say('mystic', 'noess'); LOT_MYST.imp = !LOT_MYST.imp; sfx('warp', { vol: .35 });
     }, { key: 'imprint', disabled: !canImp, color: '#3a2430', active: LOT_MYST.imp, tip: [{ t: 'Imprint', c: '#ffb070' }, { t: 'Bind a salvaged power (an essence) to a rare or legendary item of a slot it fits. Costs gold and two Ember Cores.', c: '#c8c0d8' }] });
-    const pts = Object.entries(h.skills).reduce((a, [id, k]) => a + Math.max(0, (k.rank || 0) - (id === 'blade' || id === 'ember' ? 1 : 0)), 0) + (Array.isArray(h.tree) ? h.tree.length : 0);   // what a respec would give back (nothing: no charge)
+    const pts = Object.entries(h.skills).reduce((a, [id, k]) => a + Math.max(0, (k.rank || 0) - (characterOf(h).skills.includes(id) ? 1 : 0)), 0) + (Array.isArray(h.tree) ? h.tree.length : 0);   // what a respec would give back (nothing: no charge)
     LOT_btn(g, ax, by + 2 * (BH + 3), lw, BH, LOT_MYST.respecT > 0 ? 'CONFIRM RESPEC  ' + fmt(rcost) : 'RESPEC ALL POINTS  ' + fmt(rcost), () => {
       if (pts <= 0) return; if (LOT_MYST.respecT <= 0) { LOT_MYST.respecT = 3; LOT_say('mystic', 'confirm'); return; }
       if (!LOT_pay(h, rcost, 'mystic')) return; LOT_MYST.respecT = 0; LOT_respec(h); LOT_burst(ox, oy, '#ecd8ff', 20); sfx('warp', { vol: .6 }); LOT_say('mystic', 'respec');
@@ -24573,6 +25783,135 @@ function devDraw(r) {
 	});
 }
 
+/* Character choice is a native, scrollable dialog for mouse, keyboard, touch and gamepad. */
+function selectCharacter(id) {
+	if (DEV.enabled) return false;
+	CHAR.selected = characterId(id);
+	E.store.set("ed:character", CHAR.selected);
+	ED.hero = loadHeroOrNew(CHAR.selected);
+	ED.savedLevel = null;
+	TITLE.confirmNew = false;
+	return true;
+}
+function renderCharacters() {
+	const id = CHAR.preview || CHAR.selected,
+		C = CHARACTERS[id],
+		saved = characterSave(id);
+	CHAR.preview = id;
+	CHAR.previewHero = newHero(id);
+	CHAR.previewTime = 0;
+	openForm("Choose your character", (el) => {
+		formElement(
+			"p",
+			"Each character has a separate save. Your existing Wanderer is kept.",
+			el,
+		);
+		const choices = formElement("div", "", el, {
+			class: "ed-character-choices",
+		});
+		for (const profile of Object.values(CHARACTERS)) {
+			const b = formButton(choices, profile.name, () => {
+				CHAR.preview = profile.id;
+				renderCharacters();
+			});
+			b.setAttribute("aria-pressed", String(profile.id === id));
+		}
+		const cv = formElement("canvas", "", el, {
+			width: 320,
+			height: 210,
+			class: "ed-character-preview",
+			"aria-label": C.name + " animated character preview",
+		});
+		CHAR.previewCanvas = cv;
+		formElement("h3", C.name + " · " + C.title, el);
+		formElement("p", C.desc, el);
+		formElement("p", C.style, el);
+		if (id === "codex") {
+			formElement(
+				"p",
+				"Manuscript: land three Quillshot hits to illuminate your next Codex spell. Orbiting pages and three gold pips show the charge. Hovering is visual: walls, hazards and chasms still matter.",
+				el,
+			);
+			formElement(
+				"p",
+				"Starts with all six signature spells. Upgrade their ranks and choose runes in Skills; all shared skills, gear, crafting and passives remain available.",
+				el,
+			);
+			const list = formElement("ul", "", el);
+			for (const skill of C.skills) {
+				const S = REG.skills[skill];
+				if (S) formElement("li", S.name + " — " + S.desc(), list);
+			}
+		}
+		formElement(
+			"p",
+			saved
+				? "Saved: level " + saved.level + " · deepest floor " + saved.maxDepth
+				: "A new journey at level 1.",
+			el,
+		);
+		formButton(el, "PLAY AS " + C.name.toUpperCase(), () => {
+			if (!selectCharacter(id)) return;
+			UI.closeAll();
+			startGame(false);
+		});
+		formButton(el, "VIEW IN GALLERY", () => {
+			if (!selectCharacter(id)) return;
+			UI.closeAll();
+			game.go("gallery");
+		});
+	});
+}
+function updateCharacterPreview(dt) {
+	updateForm();
+	const cv = CHAR.previewCanvas,
+		h = CHAR.previewHero;
+	if (!cv || !cv.isConnected || !h) return;
+	CHAR.previewTime += dt;
+	const g = cv.getContext("2d"),
+		t = CHAR.previewTime,
+		part = Math.floor(t / 2.5) % 4;
+	g.imageSmoothingEnabled = false;
+	const s = {
+		x: 0,
+		y: 0,
+		z: 0,
+		facing: 0.8 + Math.sin(t * 0.45) * 0.55,
+		run: part === 1 ? 1 : 0,
+		vx: part === 1 ? 65 : 0,
+		vy: 0,
+		dash: part === 2 && t % 2.5 < 0.7,
+		pose: part === 3 ? "cast" : null,
+		codexPose: part === 3 ? "finale" : null,
+	};
+	h.rig.update(dt, s);
+	if (h.character !== "codex" && s.dash) heroRoll(h, (t % 2.5) / 0.7);
+	h.manuscript = part === 3 ? 3 : 0;
+	g.fillStyle = "#110e1e";
+	g.fillRect(0, 0, cv.width, cv.height);
+	px.ell(g, 160, 181, 56, 14, "#282338");
+	const V = new E.View("character", "Preview", 0, 20, 3.6);
+	h.rig.draw(g, 160, 181, V);
+	E.font.text(
+		g,
+		["IDLE", "GLIDE / RUN", "DODGE", "CAST"][part],
+		160,
+		197,
+		"#83f4df",
+		{ align: "center", font: "tiny" },
+	);
+}
+UI.def("characters", {
+	dom: true,
+	captureKeys: true,
+	open() {
+		CHAR.preview = CHAR.selected;
+		renderCharacters();
+	},
+	close: closeForm,
+	update: updateCharacterPreview,
+});
+
 /* =============================================================================
  * SOUND: extra effects and the game's songs (chip synth, no files). Themes pick a song by name: REG.songs[id]
  * (falling back to the engine's built-in songs: title, adventure, dungeon, boss, victory).
@@ -24628,13 +25967,19 @@ function setupGPU(map) {
   gpu.map = map;
 }
 /* ---------- save / load ---------- */
-const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
-function saveGame() { const h = ED.hero; if (!h || ED.demo || DEV.enabled || ED.mode === 'gallery') return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
-function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); const st = s.stash; (st && Array.isArray(st.tabs) ? st.tabs.flat() : Array.isArray(st) ? st : []).forEach(scan); itemUid = mx + 1; return s; }
-function newHero() {
-  const h = makeHero(null);
+const SAVE_KEYS = ['character', 'level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
+function saveGame() { const h = ED.hero; if (!h || ED.demo || DEV.enabled || ED.mode === 'gallery') return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set(characterSaveKey(h.character), o); }
+function loadSave(identity = CHAR.selected) { const s = characterSave(identity); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); const st = s.stash; (st && Array.isArray(st.tabs) ? st.tabs.flat() : Array.isArray(st) ? st : []).forEach(scan); itemUid = Math.max(itemUid, mx + 1); return s; }
+function newHero(identity = CHAR.selected) {
+  const h = makeHero(null, identity);
   // a starting kit: the classic look, plain gear
   for (const [slot, base] of [['weapon', 'longsword'], ['chest', 'tunic'], ['boots', 'shoes'], ['cloak', 'cape']]) { const it = makeItem({ base, rarity: 0, ilvl: 1, R: RNG(slot) }); it.look.colors = Object.assign(it.look.colors || {}, slot === 'chest' ? { cloth: '#2f8f86' } : slot === 'cloak' ? { cape: '#c8452f', capeIn: '#7a2622' } : slot === 'boots' ? { boot: '#6a4128' } : {}); h.gear[slot] = it; }
+  if (h.character === 'codex') {
+    h.gear.weapon = makeItem({ base: 'staff', rarity: 0, ilvl: 1, R: RNG('codex-quill') });
+    h.gear.weapon.name = 'The First Quill'; h.gear.weapon.el = 'storm';
+    h.gear.chest.name = 'Archive Bindings'; h.gear.chest.look.colors.cloth = '#30263f';
+    h.gear.cloak.name = 'Unwritten Pages'; h.gear.cloak.look.colors = { cape: '#eee2b9', capeIn: '#83d7cf' };
+  }
   refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h);
   return h;
 }
@@ -24723,6 +26068,12 @@ function enterWorld(L0) {
 /** the hero drops in from above: a fall in the jump pose, a crouched landing, dust and a thud */
 function dropIn(h, from = 150) {
   h.z = from; h.vz = 0; h.inv = 1.4;
+  if (h.character === 'codex') return startAction(h, { name: 'dropin', cancel: false, moveK: 0, rig: { dash: true }, update(dt) {
+    this.t += dt; const u = Math.min(1, this.t / .9); this.z = from * Math.pow(1 - u, 3);
+    this.rig = { dash: u < .55, codexPose: u > .55 ? 'orbit' : null };
+    if (u === 1 && !this.landed) { this.landed = true; cxBurst(h.x, h.y, 24, '#83f4df', .6); sfx('cx_fold', { pitch: 1.4, vol: .45 }); }
+    return this.t < 1.15;
+  } });
   startAction(h, { name: 'dropin', cancel: false, moveK: 0, rig: { air: true }, zz: from, vz: 0, update(dt) {
     if (this.zz > 0) { this.vz -= 520 * dt; this.zz = Math.max(0, this.zz + this.vz * dt); this.z = this.zz; this.rig = { air: true, expr: 'shout' }; if (this.zz <= 0) { this.land = .35; P.dust(h.x, h.y, 0, 14, { speed: 70 }); P.ring(h.x, h.y, 4, 30, '#bff6ff', .35); shake(4); sfx('thud'); h.rig.kick(-6); } return true; }
     this.z = 0; this.rig = { pose: 'crouch' }; return (this.land -= dt) > 0;
@@ -24732,13 +26083,13 @@ function dropIn(h, from = 150) {
 /* ---------- TITLE ---------- */
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
-  const save = E.store.get('ed:save', null);
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]].filter(Boolean);
+  const save = characterSave();
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS AGAIN TO RESTART ' + CHARACTERS[CHAR.selected].name.toUpperCase() + ' (THIS CHARACTER SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['CHARACTER', () => UI.open('characters')], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]].filter(Boolean);
 }
-function loadHeroOrNew() { const s = loadSave(); if (s) { const h = makeHero(s); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(); }
-function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
-/** the title menu's top and row step: stacked up from the key legend at the bottom (5 rows fit at 240 px) */
-function titleMenu(n) { const step = 16, y = game.H - 29 - n * step; return { y, step }; }
+function loadHeroOrNew(identity = CHAR.selected) { const s = loadSave(identity); if (s) { const h = makeHero(s, identity); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(identity); }
+function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove(characterSaveKey()); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
+/** The title menu grows upward from the key legend; shorter windows use tighter rows. */
+function titleMenu(n) { const step = game.H < 260 ? 14 : 16, y = game.H - 29 - n * step; return { y, step }; }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
 const KATA = ['slash', 'backslash', 'spin', 'thrust'];
 function titleKata(t) {
@@ -24772,10 +26123,13 @@ const titleScene = {
     TITLE.t += dt;
     if (updateUI(dt)) return;
     const h = ED.titleHero, items = titleItems();
+    const titleZoom = game.H < 260 ? (h.character === 'codex' ? .85 : 1.05) : (h.character === 'codex' ? 1.4 : 1.75);
+    if (game.zoom !== titleZoom) game.setZoom(titleZoom);
     const mm = UI.mouse.cx + ',' + UI.mouse.cy, moved = mm !== TITLE.mm; TITLE.mm = mm;   // a hand on the mouse is not idle either
     if (game.input.anyPressed() || UI.mouse.down || moved) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
     if (TITLE.idle > 28 && !UI.stack.length && !DEV.enabled) { TITLE.idle = 0; startDemo(); return; }
-    h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, titleKata(TITLE.t)));
+    const ct = TITLE.t % 12, pose = h.character === 'codex' ? { codexPose: ct > 3 && ct < 5 ? 'seal' : ct > 9 ? 'finale' : null, codexStroke: Math.sin(TITLE.t * 4), dash: ct > 6 && ct < 6.35, run: ct > 7 && ct < 9 ? .6 : 0 } : titleKata(TITLE.t);
+    h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, pose));
     h.facing = h.rig.facing;
     for (const b of ED.L.torches) b.t += dt;
     const inp = game.input;
@@ -24798,11 +26152,11 @@ const titleScene = {
     r.overlay(g => {
       const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1);
       px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
-      E.font.title(g, 'EMBERDEEP', cx, 14, { scale: 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
-      E.font.text(g, 'a my-3D2dge game  •  the deep goes on forever', cx, 50, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
+      E.font.title(g, 'EMBERDEEP', cx, H < 260 ? 5 : 14, { scale: H < 260 ? 3 : 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
+      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, H < 260 ? 34 : 50, characterOf(h).color, { align: 'center', font: 'tiny', shadow: '#05040a', outline: false });
       const items = titleItems(), M = titleMenu(items.length), bw = 118;   // laid out up from the key legend, so every item shows
       items.forEach(([label, fn], i) => button(g, cx - bw / 2, M.y + i * M.step, bw, 13, label, () => { TITLE.menu = i; fn(); }, { focus: TITLE.menu === i }));
-      const h2 = ED.titleHero; if (E.store.get('ed:save', null)) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
+      const h2 = ED.titleHero; if (characterSave()) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
       px.blend(g, .7, 'normal', () => px.rect(g, 0, H - 21, W, 21, '#05040a'));
       E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
       E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
@@ -25108,7 +26462,7 @@ const GAL_POSES = [
   ['Knocked down', { down: 1 }, 'Flat on his back, then up again.'], ['Fall', { pose: 'die' }, 'A stagger, the knees give, a topple.'], ['Climb', { climb: true, vz: 30 }, 'Hand over hand.']
 ];
 function galItems() {
-  if (GAL.reel === 0) return Object.keys(REG.skills);
+  if (GAL.reel === 0) return Object.keys(REG.skills).filter(id => skillAvailable(ED.hero, REG.skills[id])).sort((a, b) => Number(!!REG.skills[b].character) - Number(!!REG.skills[a].character));
   if (GAL.reel === 1) return Object.keys(REG.archetypes).filter(id => { const A0 = REG.archetypes[id]; return id !== 'dummy' && !A0.bossBody && !(A0.tags || []).includes('boss'); });   // bosses have their own reel
   if (GAL.reel === 2) return galBosses();
   return GAL_POSES.map((p, i) => i);
@@ -25340,7 +26694,7 @@ function botManage(h) {
   for (const it of h.bag.slice()) { const slot = it.slot === 'ring' ? (!h.gear.ring ? 'ring' : !h.gear.ring2 ? 'ring2' : botScore(h.gear.ring) < botScore(h.gear.ring2) ? 'ring' : 'ring2') : it.slot; if (botScore(it) > botScore(h.gear[slot]) + 2) equip(h, it, slot); }
   while (h.bag.length > 30) { const it = h.bag.shift(); gainGold(h, it.value); }   // sells the rest (the bot has no patience for shops)
   // learn skills: fill empty slots with unlocked skills, then rank up what is slotted
-  const known = Object.keys(REG.skills).filter(id => (REG.skills[id].unlock || 1) <= h.level);
+  const known = Object.keys(REG.skills).filter(id => skillAvailable(h, REG.skills[id]) && (REG.skills[id].unlock || 1) <= h.level);
   let guard = 20;
   while (h.pts.skill > 0 && guard-- > 0) {
     const empty = h.slots.findIndex((s, i) => !s && i > 0), fresh = known.filter(id => !(h.skills[id] && h.skills[id].rank) && !REG.skills[id].noAuto);
@@ -25415,7 +26769,8 @@ function botThink(h, dt) {
     if (walk(gx, gy)) best = [gx, gy]; else for (let r = 1; r <= 2 && !best; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (!walk(gx + dx, gy + dy)) continue; const d = Math.hypot((gx + dx + .5) * T16 - h.x, (gy + dy + .5) * T16 - h.y); if (d < bd) { bd = d; best = [gx + dx, gy + dy]; } }
     if (best) B.flow.update((best[0] + .5) * T16, (best[1] + .5) * T16);
   }
-  const gd = Math.hypot(goal[0] - h.x, goal[1] - h.y), reach = near ? (foe.r + 14) : 4;
+  const basic = REG.skills[h.slots[0]], rangedBasic = basic && (basic.tags || []).includes('proj');
+  const gd = Math.hypot(goal[0] - h.x, goal[1] - h.y), reach = near ? (rangedBasic ? 74 : foe.r + 14) : 4;
   let mv = [0, 0];
   if (gd > reach) mv = gd < 22 ? [(goal[0] - h.x) / gd, (goal[1] - h.y) / gd] : B.flow.dir(h.x, h.y, goal[0], goal[1]);
   // out of potions and nearly dead next to something big: back off (still casting) until the life comes back or a potion drops
@@ -25445,7 +26800,8 @@ function botThink(h, dt) {
   // fight: AoE on crowds, mobility to close gaps, ultimates on elites and big packs, spenders otherwise; the basic attack in reach
   const big = foe.elite || foe.boss, here = botCrowd(h.x, h.y, 50);
   for (let i = 5; i >= 1; i--) {
-    const id = h.slots[i]; if (!id) continue; const S = REG.skills[id]; if (!S || h.cds[id] > 0 || h.ember < skillCost(h, S)) continue;
+    const id = h.slots[i]; if (!id) continue; const S = REG.skills[id]; if (!skillAvailable(h, S) || h.cds[id] > 0 || h.ember < skillCost(h, S)) continue;
+    if (id === 'cx_revision') { if (h.hp < h.maxHp * .65) I.press(SLOT_ACTS[i]); continue; }
     const tags = S.tags || [], melee = tags.includes('melee'), mob = S.kind === 'mobility' || tags.includes('movement'), ult = S.kind === 'ultimate', aoe = tags.includes('aoe') || tags.includes('channel'), range = S.range || (melee ? 40 : 150);
     let want, at = [foe.x, foe.y];
     if (mob) want = fd > 55 && fd < 150 && (pathD(foe) === null || pathD(foe) < 1e9);                 // close the gap (never leap at what cannot be reached)
@@ -25455,7 +26811,7 @@ function botThink(h, dt) {
     if (B.retreat > 0 && (melee || mob)) want = false;
     if (want && (mob || fd < range)) { I.aimAt = at; I.press(SLOT_ACTS[i]); I._d[SLOT_ACTS[i]] = true; if (tags.includes('channel')) B.holdT = 1.4; break; }
   }
-  if (fd < foe.r + 22 && !(B.retreat > 0)) { I.press('s0'); I._d.s0 = true; }
+  if (fd < (rangedBasic ? basic.range || 140 : foe.r + 22) && (!(B.retreat > 0) || rangedBasic)) { I.press('s0'); I._d.s0 = true; }
 }
 BUS.on('hit', e => { const h = ED.hero; if (h && h.bot && e.src === h) h.bot.lastHit = h.bot.t; });   // the target is still worth chasing
 BUS.on('step', e => {
@@ -25538,7 +26894,7 @@ if (link === 'town' || dm || link === 'proving' || link === 'gallery') { ED.hero
 if (!qs.has('view') && ['iso', 'threequarter', 'topdown', 'brawler'].includes(OPT.view)) game.setView(OPT.view);
 game.start({ scenes, scene: link === 'town' ? 'town' : dm ? 'level' : link === 'proving' ? 'proving' : link === 'gallery' ? 'gallery' : 'title', data: dm ? { depth: +dm[1] } : link === 'town' ? { arrive: 'waystone' } : undefined });
 /* a handle for tools, tests and the curious: window.__ed */
-window.__ed = { game, ED, REG, UI, DIFF, OPT, CONTROL, DEV, actionLabel, applyControls, devEnable, devDisable, devTravel, devStep, devSpawn, BUS, FX, SLOW, slowMo, levelCardInfo, comboAt, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
+window.__ed = { CHAR, CHARACTERS, CodexRig, characterSaveKey, characterOf, selectCharacter, useSlot, skillCtx, skillRank, startGame, loadHeroOrNew, dressHero, reviveHero, game, ED, REG, UI, DIFF, OPT, CONTROL, DEV, actionLabel, applyControls, devEnable, devDisable, devTravel, devStep, devSpawn, BUS, FX, SLOW, slowMo, levelCardInfo, comboAt, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
 })();
 
 </script>
