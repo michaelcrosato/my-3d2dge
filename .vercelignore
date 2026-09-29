@@ -1,0 +1,6 @@
+# The site is the prebuilt pages (examples/, dist/), the engine and its docs; the sources and dev tools stay out
+src/
+tools/
+node_modules/
+check-output/
+*:Zone.Identifier
