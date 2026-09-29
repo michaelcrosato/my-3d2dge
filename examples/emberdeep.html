@@ -10,6 +10,11 @@
 html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #stage{position:relative;width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
 #screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;cursor:crosshair}
+.ed-dialog{box-sizing:border-box;width:min(720px,96vw);max-height:92dvh;margin:auto;padding:20px;color:#eee5ff;background:linear-gradient(145deg,#211931,#100c1c);border:1px solid #8a7aa8;border-radius:12px;font:15px/1.5 system-ui,sans-serif;box-shadow:0 24px 80px #000a;touch-action:pan-y;color-scheme:dark}
+.ed-dialog::backdrop{background:#05030cc4}.ed-dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}.ed-dialog h2{margin:0;color:#ffd36a;font-size:24px}.ed-dialog h3{color:#b5eaff;margin:20px 0 8px}.ed-dialog p{color:#c8c0d8}.ed-dialog button,.ed-dialog select,.ed-dialog input{font:inherit;min-height:44px;border:1px solid #6a5a88;border-radius:6px;background:#302542;color:#fff;padding:6px 10px;max-width:100%;box-sizing:border-box}.ed-dialog button{cursor:pointer;margin:3px}.ed-dialog button:hover{background:#49375e}.ed-dialog :focus-visible{outline:3px solid #ffd36a;outline-offset:2px}.ed-field{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:50px;border-bottom:1px solid #ffffff12}.ed-field input[type=range]{width:45%;padding:0}.ed-field input[type=checkbox]{width:24px;accent-color:#6fd6cc}.ed-field select{max-width:55%}.ed-field input[type=number]{width:100px}.ed-meter{font:12px/1.5 monospace;overflow-wrap:anywhere;background:#0004;padding:10px;border-radius:6px}.ed-status{color:#ffd36a!important;position:sticky;top:-20px;z-index:1;background:#211931;padding:10px;min-height:24px}.ed-binding{display:grid;grid-template-columns:100px 1fr 1fr;align-items:center;gap:5px;border-top:1px solid #ffffff12;padding:8px 0}.ed-binding strong{font-size:13px}.ed-binding>div{display:flex;flex-wrap:wrap;gap:2px}.ed-binding button{font-size:12px;margin:0}.ed-binding button:first-child{flex:1}.ed-binding button+button{color:#b8adc9}
+.ed-touch{position:absolute;inset:0;pointer-events:none;z-index:5;opacity:var(--touch-opacity)}.ed-touch button{pointer-events:auto;touch-action:none;user-select:none;min-width:44px;min-height:44px;border:1px solid #b3a0cc80;background:#160f28cc;color:#fff;font:600 11px system-ui,sans-serif;border-radius:12px}.ed-touch button.on{background:#665185;border-color:#ffd36a}.ed-touch-actions{position:absolute;right:max(8px,env(safe-area-inset-right));bottom:max(76px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(3,var(--touch-size));gap:5px}.ed-touch-actions button{width:var(--touch-size);height:var(--touch-size)}.ed-touch-bar{position:absolute;right:max(8px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 16px);gap:5px}.ed-left .ed-touch-actions,.ed-left .ed-touch-bar{left:max(8px,env(safe-area-inset-left));right:auto}
+@media(max-width:480px){.ed-dialog{padding:14px;font-size:14px}.ed-binding{grid-template-columns:1fr 1fr}.ed-binding strong{grid-column:1/-1}.ed-status{top:-14px}.ed-touch-actions{bottom:max(94px,env(safe-area-inset-bottom))}}
+@media(max-height:480px){.ed-touch-actions{bottom:48px;grid-template-columns:repeat(3,min(var(--touch-size),48px))}.ed-touch-actions button{width:min(var(--touch-size),48px);height:min(var(--touch-size),48px)}}
 </style>
 </head>
 <body>
@@ -490,8 +495,11 @@ class Input {
     this.use(map);
     this.held = new Set(); this.clock = 0; this.pt = {}; this.used = {};
     this.fresh = new Set(); this.now = new Set(); this.freshUp = new Set(); this.nowUp = new Set(); this.rk = {};
+    this.suppressed = new Set();
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this.padPrev = []; this.aimSource = 'move';
+    this.deadzone = .18; this.padIndex = null; this.padId = ''; this.lastDevice = 'keyboard';
+    this.touchEnabled = true; this.stickSide = 'left'; this.stickRadius = 44; this.padAxes = [];
     const el = screen.canvas;
     const typing = e => {
       const t = e.target; if (!t || !t.tagName) return false;
@@ -503,18 +511,21 @@ class Input {
       if (this.codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); }
     });
     addEventListener('keyup', e => this.release(e.code));
-    addEventListener('blur', () => this.held.clear());
+    addEventListener('blur', () => this.clear());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); });
     el.addEventListener('contextmenu', e => e.preventDefault());
     el.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else this._stickMove(e); });
     el.addEventListener('pointerdown', e => {
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
-      else this._stickStart(e);
+      else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
     });
     addEventListener('pointerup', e => { if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else this._stickEnd(e); });
     addEventListener('pointercancel', e => this._stickEnd(e));
+    el.addEventListener('lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP') */
   use(map) {
+    if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
     this.map = {}; for (const a in map) this.map[a] = [...map[a], 'Act:' + a];
     this.codes = {}; for (const a in this.map) for (const c of this.map[a]) (this.codes[c] = this.codes[c] || []).push(a);
@@ -545,6 +556,9 @@ class Input {
   }
   press(code) {
     if (this.held.has(code)) return; this.held.add(code);
+    if (code.startsWith('Pad')) { this.lastDevice = 'gamepad'; this.aimSource = 'pad'; }
+    else if (code.startsWith('Act:')) this.lastDevice = 'touch';
+    else this.lastDevice = code.startsWith('Mouse') ? 'mouse' : 'keyboard';
     for (const a of this.codes[code] || []) { this.pt[a] = this.clock; this.used[a] = false; this.rk[a] = -1; this.fresh.add(a); }
   }
   release(code) {
@@ -553,9 +567,9 @@ class Input {
   }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
   /** is the action held right now? */
-  down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } for (const c of m) if (this.held.has(c)) return true; return false; }
+  down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } if (this.suppressed.has(a)) return false; for (const c of m) if (this.held.has(c)) return true; return false; }
   /** true only during the first update step after the press (menus, jumps, one-shot actions) */
-  pressed(a) { if (!this.map[a]) this._check(a); return this.now.has(a); }
+  pressed(a) { if (!this.map[a]) this._check(a); return !this.suppressed.has(a) && this.now.has(a); }
   /** true only during the first update step after the action was let go */
   released(a) { return this.nowUp.has(a); }
   /** pressed, then repeats while held (after `delay` s, every `rate` s): menu cursors, puzzle pieces */
@@ -567,34 +581,59 @@ class Input {
     return false;
   }
   /** was it pressed within the last `win` seconds and not yet consumed? (input buffering) */
-  buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this.pt[a]; return t !== undefined && !this.used[a] && this.clock - t <= win; }
+  buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this.pt[a]; return !this.suppressed.has(a) && t !== undefined && !this.used[a] && this.clock - t <= win; }
   consume(a) { this.used[a] = true; }
+  /** Suppress a held action until the next tick (a HUD widget owns the pointer this step). */
+  suppress(a) { this.consume(a); this.suppressed.add(a); }
+  /** A widget owns this button; other devices bound to the same action still work. */
+  suppressCode(code) {
+    for (const a of this.codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
+  }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
   consumeAll() { for (const a in this.map) this.used[a] = true; this.now.clear(); this.fresh.clear(); }
+  /** Release all devices and discard buffered input on focus loss or a modal transition. */
+  clear() {
+    this.held.clear(); this.consumeAll(); this.nowUp.clear(); this.freshUp.clear(); this.pt = {}; this.rk = {};
+    this.padMove = [0, 0]; this.padAim = null;
+    this._stickEnd({ pointerId: this.stickId });
+    for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
+  }
   /** any action pressed this step (title screens: "press any button") */
   anyPressed() { return this.now.size > 0; }
   /** movement intent in screen directions: x right, y down, length <= 1 */
   move() {
     let x = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), y = (this.down('down') ? 1 : 0) - (this.down('up') ? 1 : 0);
     if (this.stickOn) { x = this.stick[0]; y = this.stick[1]; }
-    if (Math.hypot(this.padMove[0], this.padMove[1]) > .2) { x = this.padMove[0]; y = this.padMove[1]; }
+    if (Math.hypot(this.padMove[0], this.padMove[1]) > 0) { x = this.padMove[0]; y = this.padMove[1]; }
     const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
     return [x, y];
   }
   /** mouse position in projected screen pixels, or null */
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
   tick(dt) {
+    this.suppressed.clear();
     this.clock += dt;
     let pads = [];
     try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { /* gamepads blocked */ }
-    const p = pads && pads[0];
+    const p = Array.from(pads || []).find(p => p && p.connected !== false && p.index === this.padIndex)
+      || Array.from(pads || []).find(p => p && p.connected !== false);
+    if (!p || p.index !== this.padIndex || p.id !== this.padId) {
+      this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); });
+      for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c);
+      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
+      this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
+      if (this.aimSource === 'pad') this.aimSource = 'move';
+    }
     if (p) {
-      const dz = v => Math.abs(v) < .18 ? 0 : v;
-      this.padMove = [dz(p.axes[0] || 0), dz(p.axes[1] || 0)];
-      const ax = dz(p.axes[2] || 0), ay = dz(p.axes[3] || 0);
-      this.padAim = Math.hypot(ax, ay) > .3 ? [ax, ay] : null;
-      if (this.padAim) this.aimSource = 'pad';
+      const dz = (x, y) => { const l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8); return l <= d ? [0, 0] : [x / l * Math.min(1, (l - d) / (1 - d)), y / l * Math.min(1, (l - d) / (1 - d))]; };
+      this.padAxes = Array.from(p.axes);
+      this.padMove = dz(p.axes[0] || 0, p.axes[1] || 0);
+      const aim = dz(p.axes[2] || 0, p.axes[3] || 0);
+      this.padAim = Math.hypot(...aim) > 0 ? [aim[0], aim[1] * (this.invertAimY ? -1 : 1)] : null;
+      if (this.padAim || Math.hypot(...this.padMove) > 0) { this.aimSource = 'pad'; this.lastDevice = 'gamepad'; }
       p.buttons.forEach((b, i) => { const on = b.pressed; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });
+      const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
+      ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
     // presses since the last step become this step's pressed()/released()
     const n = this.now; n.clear(); this.now = this.fresh; this.fresh = n;
@@ -602,16 +641,21 @@ class Input {
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {
+    this._boundButtons = (this._boundButtons || []).filter(b => b.isConnected);
     root.querySelectorAll('[data-act]').forEach(b => {
+      if (b._inputPointers) return;
       const code = 'Act:' + b.dataset.act;
-      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); this.press(code); b.classList.add('on'); });
-      const off = () => { this.release(code); b.classList.remove('on'); };
-      b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+      b._inputPointers = new Set(); this._boundButtons.push(b);
+      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); b._inputPointers.add(e.pointerId); b.setPointerCapture(e.pointerId); this.press(code); b.classList.add('on'); });
+      const off = e => { b._inputPointers.delete(e.pointerId); if (!b._inputPointers.size) { this.release(code); b.classList.remove('on'); } };
+      b.addEventListener('pointerup', off); b.addEventListener('lostpointercapture', off); b.addEventListener('pointercancel', off);
     });
   }
   _stickStart(e) {
+    if (!this.touchEnabled || this.stickOn) return;
     const rc = this.screen.canvas.getBoundingClientRect();
-    if (e.clientX - rc.left > rc.width * .5) return;
+    if (this.stickSide === 'right' ? e.clientX - rc.left < rc.width * .5 : e.clientX - rc.left > rc.width * .5) return;
+    this.screen.canvas.setPointerCapture(e.pointerId); this.aimSource = 'move'; this.lastDevice = 'touch';
     this.stickId = e.pointerId; this.stickOn = true; this.stickO = [e.clientX, e.clientY]; this.stick = [0, 0];
     if (!this.stickEl) {
       const mkEl = (s, css) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;pointer-events:none;border-radius:50%;z-index:3;' + css; d.style.width = d.style.height = s + 'px'; this.screen.canvas.parentElement.appendChild(d); return d; };
@@ -622,7 +666,7 @@ class Input {
   }
   _stickMove(e) {
     if (!this.stickOn || e.pointerId !== this.stickId) return;
-    let dx = (e.clientX - this.stickO[0]) / 44, dy = (e.clientY - this.stickO[1]) / 44;
+    let dx = (e.clientX - this.stickO[0]) / this.stickRadius, dy = (e.clientY - this.stickO[1]) / this.stickRadius;
     const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
     this.stick = [dx, dy]; this._stickDraw();
   }
@@ -4604,7 +4648,7 @@ root.My3D2dge = E;
 
 </script>
 <script>
-/* ---- inlined from src/emberdeep (00-core.js, 05-elements.js, 10-combat.js, 15-stats.js, 20-hero.js, 25-skills-core.js, 26-skills-melee.js, 27-skills-spells.js, 28-progression.js, 30-monsters-core.js, 31-monsters.js, 33-beasts.js, 35-bosses-core.js, 36-bosses.js, 40-loot-core.js, 41-loot.js, 42-inventory.js, 45-mechanics-core.js, 46-mechanics-a.js, 47-mechanics-b.js, 50-levels-core.js, 51-themes.js, 52-layouts.js, 55-town-core.js, 56-town.js, 60-ui-core.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 94-tips.js, 95-perf.js, 99-start.js) ---- */
+/* ---- inlined from src/emberdeep (00-core.js, 05-elements.js, 10-combat.js, 15-stats.js, 20-hero.js, 25-skills-core.js, 26-skills-melee.js, 27-skills-spells.js, 28-progression.js, 30-monsters-core.js, 31-monsters.js, 33-beasts.js, 35-bosses-core.js, 36-bosses.js, 40-loot-core.js, 41-loot.js, 42-inventory.js, 45-mechanics-core.js, 46-mechanics-a.js, 47-mechanics-b.js, 50-levels-core.js, 51-themes.js, 52-layouts.js, 55-town-core.js, 56-town.js, 60-ui-core.js, 61-controls.js, 62-developer.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 94-tips.js, 95-perf.js, 99-start.js) ---- */
 /* =============================================================================
  * EMBERDEEP  the signature game of my-3D2dge
  * A hack-and-slash that goes down forever. The hero from the stress test (teal tunic, red cape) climbs out of
@@ -4639,8 +4683,10 @@ const BASE = { minH: 220, minW: 320, maxW: 560, maxH: 330 };
 const INPUT = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
   s0: ['Mouse0', 'KeyJ', 'Pad2'], s1: ['Mouse2', 'KeyL', 'Pad3'], s2: ['Digit1', 'Pad1'], s3: ['Digit2', 'Pad4'], s4: ['Digit3', 'Pad5'], s5: ['Digit4', 'Pad7'],
-  dodge: ['Space', 'ShiftLeft', 'ShiftRight', 'Pad0'], potion: ['KeyQ', 'Pad6'], interact: ['KeyE', 'Enter', 'NumpadEnter'], portal: ['KeyT'],
-  bag: ['KeyI', 'KeyB'], skills: ['KeyK'], tree: ['KeyP'], map: ['Tab'], labels: ['KeyZ'],
+  dodge: ['Space', 'ShiftLeft', 'ShiftRight', 'Pad0'], potion: ['KeyQ', 'Pad6'], interact: ['KeyE', 'Enter', 'NumpadEnter', 'Pad10'], portal: ['KeyT', 'Pad11'],
+  bag: ['KeyI', 'KeyB', 'Pad8'], skills: ['KeyK'], tree: ['KeyP'], map: ['Tab'], labels: ['KeyZ'],
+  menuUp: ['ArrowUp', 'KeyW', 'Pad12', 'PadAxisUp'], menuDown: ['ArrowDown', 'KeyS', 'Pad13', 'PadAxisDown'],
+  menuLeft: ['ArrowLeft', 'KeyA', 'Pad14', 'PadAxisLeft'], menuRight: ['ArrowRight', 'KeyD', 'Pad15', 'PadAxisRight'],
   click: ['Mouse0'], rclick: ['Mouse2'],
   start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyJ', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1']
 };
@@ -4673,7 +4719,7 @@ const DIFF_DEFAULT = { heroDmg: 1, heroHp: 1, heroSpeed: 1, foeDmg: 1, foeHp: 1,
 const OPT_DEFAULT = { numbers: true, shake: true, labels: 1, music: .5, sfx: 1, gpu: false, view: 'iso', zoom: 1.25, bars: true };
 const DIFF = Object.assign({}, DIFF_DEFAULT, E.store.get('ed:diff', {}));
 const OPT = Object.assign({}, OPT_DEFAULT, E.store.get('ed:opt', {}));
-const saveOpts = () => { E.store.set('ed:diff', DIFF); E.store.set('ed:opt', OPT); };
+const saveOpts = () => { if (!DEV.enabled) E.store.set('ed:diff', DIFF); E.store.set('ed:opt', OPT); };
 const applyAudioOpts = () => { A.musicVolume = OPT.music; A.sfxVolume = OPT.sfx; A._levels(); };
 applyAudioOpts(); P.max = [500, 1000, 1600][OPT.fx === undefined ? 2 : OPT.fx];
 
@@ -4984,6 +5030,7 @@ function damageNumber(u, amt, crit, el) {
 /** run a hit on a unit. Returns the damage dealt (0 if it missed or was ignored) */
 function dealDamage(tgt, hit) {
   if (!tgt || !tgt.alive || tgt.spawnT > 0) return 0;
+  if (DEV.enabled && DEV.god && tgt === ED.hero) return 0;
   if (tgt.team === 'hero' && (tgt.inv > 0 || tgt.ghost)) { if (tgt.onDodgedHit) tgt.onDodgedHit(hit); return 0; }
   const src = hit.src || null, el = hit.el || 'phys';
   let amt = hit.amount * (hit.var === 0 ? 1 : 1 + (Math.random() * 2 - 1) * (hit.var || .12));
@@ -5683,7 +5730,8 @@ function heroAim(h) {
   else if (inp.aimSource === 'pad' && inp.padAim) { const d = view.screenDirToGround(inp.padAim[0], inp.padAim[1]); aimA = Math.atan2(d[1], d[0]); }
   if (aimA === null && mlen > .1) aimA = Math.atan2(md[1], md[0]);
   if (aimA !== null) h.aim = aimA;
-  if (!tgt) { const nearest = nearestEnemy('hero', h.x + Math.cos(h.aim) * 40, h.y + Math.sin(h.aim) * 40, 70); tgt = nearest ? [nearest.x, nearest.y] : [h.x + Math.cos(h.aim) * 60, h.y + Math.sin(h.aim) * 60]; }
+  if (!tgt) { const nearest = (!h.bot && !CONTROL.aimAssist) ? null : nearestEnemy('hero', h.x + Math.cos(h.aim) * 40, h.y + Math.sin(h.aim) * 40, 70); tgt = nearest ? [nearest.x, nearest.y] : [h.x + Math.cos(h.aim) * 60, h.y + Math.sin(h.aim) * 60]; }
+  if (!h.bot && CONTROL.aimAssist && inp.aimSource !== 'mouse' && !inp.padAim && mlen < .1) h.aim = Math.atan2(tgt[1] - h.y, tgt[0] - h.x);
   h.tx = tgt[0]; h.ty = tgt[1];
   return { md, mlen };
 }
@@ -5901,8 +5949,8 @@ function skillCtx(h, id, slot) {
     hit: (scale, o = {}) => { const x = heroHit(h, scale, Object.assign({ el, tags: S.tags, skill: id }, o)); if (wel && x.el === wel && x.statusChance === undefined && !x.status) { x.statusChance = .12; if (wel === 'frost') x.statusPower = 1; } return x; },
     area: 1 + (s.area || 0) / 100, proj: Math.round(s.projectiles || 0), pierce: Math.round(s.pierce || 0), chains: Math.round(s.chains || 0) };
 }
-const skillCost = (h, S) => Math.round((S.cost || 0) * (1 - clamp((h.stats.costRed || 0) / 100, 0, .6)));
-const skillCd = (h, S) => (S.cd || 0) * (1 - clamp((h.stats.cdr || 0) / 100, 0, .6));
+const skillCost = (h, S) => DEV.enabled && DEV.resources && h === ED.hero ? 0 : Math.round((S.cost || 0) * (1 - clamp((h.stats.costRed || 0) / 100, 0, .6)));
+const skillCd = (h, S) => DEV.enabled && DEV.cooldowns && h === ED.hero ? 0 : (S.cd || 0) * (1 - clamp((h.stats.cdr || 0) / 100, 0, .6));
 /** press slot i: continue the running action (combo), or start the skill if it is ready.
  *  held: the key is only being held down (repeat): nothing to warn about, and nothing is consumed */
 function useSlot(h, i, held) {
@@ -8595,7 +8643,7 @@ function PRG_treeUpdate(dt) {
   V.openT += dt; if (V.deny) V.deny.t += dt; if (V.banner) V.banner.t += dt; if (V.reveal) V.reveal.t += dt;
   for (let i = V.fx.length - 1; i >= 0; i--) if ((V.fx[i].t += dt) > V.fx[i].dur) V.fx.splice(i, 1);
   if (V.drag && !UI.mouse.down) { const d = V.drag; V.drag = null; if (d.moved <= 3 && d.node) PRG_click(h, d.node); }
-  const mx = (inp.down('right') ? 1 : 0) - (inp.down('left') ? 1 : 0), my = (inp.down('down') ? 1 : 0) - (inp.down('up') ? 1 : 0);
+  const mx = (inp.down('menuRight') ? 1 : 0) - (inp.down('menuLeft') ? 1 : 0), my = (inp.down('menuDown') ? 1 : 0) - (inp.down('menuUp') ? 1 : 0);
   if (mx || my) { const sp = 250 * dt / V.z; V.cx += mx * sp; V.cy += my * sp; UI.keyNav = true; V.anchor = null; V.go = null; }
   if (inp.pressed('map')) { V.sum = !V.sum; sfx('select', { vol: .4 }); }
   if (UI.keyNav && inp.pressed('confirm') && V.hover) PRG_click(h, V.hover);
@@ -8859,12 +8907,12 @@ function PRG_skillsUpdate(dt) {
   for (let i = K.fx.length - 1; i >= 0; i--) if ((K.fx[i].t += dt) > K.fx[i].dur) K.fx.splice(i, 1);
   const ids = K.rows.filter(r => r.id).map(r => r.id); if (!ids.length) return;
   let i = Math.max(0, ids.indexOf(K.sel));
-  if (inp.repeat('up')) { K.sel = ids[(i + ids.length - 1) % ids.length]; K.follow = true; UI.keyNav = true; sfx('select', { vol: .3 }); }
-  if (inp.repeat('down')) { K.sel = ids[(i + 1) % ids.length]; K.follow = true; UI.keyNav = true; sfx('select', { vol: .3 }); }
+  if (inp.repeat('menuUp')) { K.sel = ids[(i + ids.length - 1) % ids.length]; K.follow = true; UI.keyNav = true; sfx('select', { vol: .3 }); }
+  if (inp.repeat('menuDown')) { K.sel = ids[(i + 1) % ids.length]; K.follow = true; UI.keyNav = true; sfx('select', { vol: .3 }); }
   const S = REG.skills[K.sel], runes = (S && S.runes) || [], k = h.skills[K.sel];
-  if ((inp.pressed('left') || inp.pressed('right')) && runes.length && k && skillRank(h, K.sel) >= 2) { const cur = runes.findIndex(r => r.id === k.rune), n = runes.length, nx = inp.pressed('left') ? (cur <= 0 ? n - 1 : cur - 1) : (cur + 1) % n; PRG_setRune(h, K.sel, runes[nx].id); }
+  if ((inp.pressed('menuLeft') || inp.pressed('menuRight')) && runes.length && k && skillRank(h, K.sel) >= 2) { const cur = runes.findIndex(r => r.id === k.rune), n = runes.length, nx = inp.pressed('menuLeft') ? (cur <= 0 ? n - 1 : cur - 1) : (cur + 1) % n; PRG_setRune(h, K.sel, runes[nx].id); }
   if (inp.pressed('confirm')) { if (K.armed !== null) { if (PRG_assign(h, K.armed, K.sel)) K.armed = null; } else PRG_rankUp(h, K.sel); }
-  for (let s = 2; s < 6; s++) if (inp.pressed(SLOT_ACTS[s])) PRG_assign(h, s, K.sel);
+  for (let s = 0; s < 6; s++) if (inp.pressed(SLOT_ACTS[s]) && (s >= 2 || !inp.pressed('click') && !inp.pressed('rclick'))) PRG_assign(h, s, K.sel);
   if (inp.pressed('cancel')) K.armed = null;
 }
 
@@ -15479,7 +15527,7 @@ function LOT_navUpdate(o = {}) {
   const inp = game.input, N = LOT_UI.navLast; if (!N.length) return;
   let cur = N.find(n => n.key === LOT_UI.focus);
   for (const [a, dx, dy] of [['left', -1, 0], ['right', 1, 0], ['up', 0, -1], ['down', 0, 1]]) {
-    if (!inp.repeat(a) || (o.noVertical && dy)) continue;
+    if (!inp.repeat('menu' + cap(a)) || (o.noVertical && dy)) continue;
     if (!cur || !UI.keyNav) { UI.keyNav = true; cur = cur || N.find(n => n.it) || N[0]; LOT_UI.focus = cur.key; continue; }
     const cx = cur.x + cur.w / 2, cy = cur.y + cur.h / 2; let best = null, bd = 1e9;
     for (const n of N) { if (n === cur) continue; const nx = n.x + n.w / 2 - cx, ny = n.y + n.h / 2 - cy, along = nx * dx + ny * dy; if (along <= 2) continue; const d = along + Math.abs(nx * dy - ny * dx) * 2.4; if (d < bd) { bd = d; best = n; } }
@@ -15773,7 +15821,7 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
     LOT_update({ noVertical: LOT_UI.tab === 'stats' && UI.keyNav && (LOT_UI.focus || '').startsWith('tab:') });
     const inp = game.input;
     if (inp.pressed('map')) { LOT_UI.tab = LOT_UI.tab === 'bag' ? 'stats' : 'bag'; sfx('select', { vol: .4 }); }
-    if (LOT_UI.tab === 'stats' && UI.keyNav && (LOT_UI.focus || '').startsWith('tab:')) { if (inp.repeat('down')) LOT_UI.scroll = Math.min(LOT_UI.maxScroll, LOT_UI.scroll + 9); if (inp.repeat('up')) LOT_UI.scroll = Math.max(0, LOT_UI.scroll - 9); }
+    if (LOT_UI.tab === 'stats' && UI.keyNav && (LOT_UI.focus || '').startsWith('tab:')) { if (inp.repeat('menuDown')) LOT_UI.scroll = Math.min(LOT_UI.maxScroll, LOT_UI.scroll + 9); if (inp.repeat('menuUp')) LOT_UI.scroll = Math.max(0, LOT_UI.scroll - 9); }
   },
   wheel(d) { if (LOT_UI.tab === 'stats') LOT_UI.scroll = clamp(LOT_UI.scroll + d * 18, 0, LOT_UI.maxScroll); },
   draw(g, x, y, w, hh) {
@@ -22870,14 +22918,14 @@ const UI = {
   top() { return this.stack.length ? this.panels[this.stack[this.stack.length - 1].id] : null; },
   isOpen(id) { return this.stack.some(s => s.id === id); },
   get modal() { return this.stack.some(s => this.panels[s.id] && this.panels[s.id].modal !== false); },
-  open(id, data) { const P0 = this.panels[id]; if (!P0) return; if (this.isOpen(id)) return this.close(id); this.stack.push({ id, data }); this.focus = 0; this.keyNav = performance.now() - this.keyT < 250; if (P0.open) P0.open(data); sfx('select'); game.input.consumeAll(); },
-  close(id) { const i = id ? this.stack.findIndex(s => s.id === id) : this.stack.length - 1; if (i < 0) return; const s = this.stack.splice(i, 1)[0], P0 = this.panels[s.id]; if (P0 && P0.close) P0.close(s.data); sfx('cancel', { vol: .5 }); game.input.consumeAll(); },
+  open(id, data) { const P0 = this.panels[id]; if (!P0) return; if (this.isOpen(id)) return this.close(id); this.stack.push({ id, data }); this.focus = 0; this.keyNav = game.input.lastDevice === 'gamepad' || performance.now() - this.keyT < 250; if (P0.open) P0.open(data); sfx('select'); game.input.clear(); },
+  close(id) { const i = id ? this.stack.findIndex(s => s.id === id) : this.stack.length - 1; if (i < 0) return; const s = this.stack.splice(i, 1)[0], P0 = this.panels[s.id]; if (P0 && P0.close) P0.close(s.data); this.focus = 0; sfx('cancel', { vol: .5 }); game.input.clear(); },
   closeAll() { while (this.stack.length) this.close(); },
   data(id) { const s = this.stack.find(q => q.id === id); return s && s.data; }
 };
 /* the mouse in screen pixels (the canvas scale and letterbox undone). A panel opened from the keyboard starts in key navigation */
 addEventListener('keydown', () => { UI.keyT = performance.now(); });
-canvas.addEventListener('pointermove', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.active = true; UI.keyNav = false; });
+canvas.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' && game.input.stickOn && e.pointerId === game.input.stickId) return; UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; UI.mouse.active = true; UI.keyNav = false; });
 canvas.addEventListener('pointerdown', e => { UI.mouse.cx = e.clientX; UI.mouse.cy = e.clientY; if (e.button === 0) UI.mouse.down = true; });
 addEventListener('pointerup', e => { if (e.button === 0) { UI.mouse.down = false; UI.drag = null; } });
 canvas.addEventListener('wheel', e => { UI.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
@@ -22889,6 +22937,8 @@ const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y
 /** run every step before the world: clicks, drags, Esc, the panel's own update. Returns true when the world should wait */
 function updateUI(dt) {
   const inp = game.input, m = mouseHUD();
+  syncTouchControls();
+  if (UI.top() && UI.top().dom) { UI.top().update(dt); return true; }
   UI.cardT -= dt; UI.updAt = performance.now();
   NT_pull(); NT_age(dt); RUN_step(dt);
   // a hero's stash is fitted once (an old save's, or none): its items' uids stay above every new item's (42-inventory)
@@ -22898,17 +22948,18 @@ function updateUI(dt) {
   // a rect that acts (click, drag, right click) takes the mouse buttons; one that only shows a tooltip (the orbs, the minimap,
   // buff and element icons) lets the swing through, so aiming at a monster behind the HUD still attacks
   const acts = !!over && !!(over.click || over.drag || over.rclick);
-  if (inp.pressed('click')) { if (acts) { if (over.drag) UI.drag = over.drag, over.drag(m.x, m.y); if (over.click) over.click(); inp.consume('s0'); } else if (UI.modal) inp.consume('s0'); }
-  if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.consume('s1'); } else if (UI.modal || acts) inp.consume('s1'); }
-  if (acts || (over && UI.modal)) { inp.consume('s0'); inp.consume('s1'); }
+  if (inp.pressed('click')) { if (acts) { if (over.drag) UI.drag = over.drag, over.drag(m.x, m.y); if (over.click) over.click(); inp.suppressCode('Mouse0'); } else if (UI.modal) inp.suppressCode('Mouse0'); }
+  if (inp.pressed('rclick')) { if (over && over.rclick) { over.rclick(); inp.suppressCode('Mouse2'); } else if (UI.modal || acts) inp.suppressCode('Mouse2'); }
+  if (acts || (over && UI.modal)) { inp.suppressCode('Mouse0'); inp.suppressCode('Mouse2'); }
   const P0 = UI.top();
-  if (inp.pressed('pause')) { if (P0) UI.close(); else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); }
+  if (inp.pressed('pause')) { if (P0) UI.close(); else if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') UI.open('pause'); else if (ED.mode === 'gallery') game.go('title'); }
+  else if (P0 && inp.pressed('cancel') && !['inventory', 'skills', 'tree', 'vendor', 'smith', 'mystic', 'stash'].includes(P0.id)) UI.close();
   else if (P0 && P0.update) P0.update(dt, UI.stack[UI.stack.length - 1].data);
   // panel hotkeys (toggle)
   if (ED.mode === 'level' || ED.mode === 'town' || ED.mode === 'proving') for (const [act, id] of [['bag', 'inventory'], ['skills', 'skills'], ['tree', 'tree']]) if (inp.pressed(act) && UI.panels[id] && !(P0 && P0.captureKeys)) { if (UI.isOpen(id)) UI.close(id); else { if (P0 && P0.modal !== false && !P0.hotkeyPanel) UI.closeAll(); UI.open(id); } }
   if (UI.mouse.wheel && P0 && P0.wheel) P0.wheel(UI.mouse.wheel);
   UI.mouse.wheel = 0;
-  return UI.modal;
+  return UI.modal || (DEV.enabled && DEV.paused && !DEV.steps);
 }
 /* ---------- widgets (call inside an overlay) ---------- */
 const PANEL_BG = ['#1c1830', '#100c1c'], PANEL_BORDER = '#8a7aa8', GOLD = '#ffd36a';
@@ -22918,7 +22969,7 @@ function panelBox(g, x, y, w, h, title) {
   if (title) { E.font.title(g, title, x + w / 2, y + 5, { scale: 1, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 1, align: 'center' }); px.rect(g, x + 8, y + 15, w - 16, 1, '#4a3a60'); }
 }
 function button(g, x, y, w, h, label, onClick, o = {}) {
-  const m = UI.mouse, focusMe = o.focus, over = hot(x, y, w, h, { click: o.disabled ? null : () => { sfx('confirm', { vol: .6 }); onClick(); }, tip: o.tip });
+  const m = UI.mouse, focusMe = o.focus, over = hot(x, y, w, h, { label, click: o.disabled ? null : () => { sfx('confirm', { vol: .6 }); onClick(); }, tip: o.tip });
   const lit = !o.disabled && ((over && !UI.keyNav) || focusMe), c = o.color || '#3a3058';   // under key navigation a resting mouse lights nothing: one highlight
   E.ui.box(g, x, y, w, h, { bg: o.disabled ? '#242030' : lit ? E.shade(c, .25) : c, border: lit ? GOLD : o.active ? '#bff6ff' : '#6a5a88', shadow: false });
   E.font.text(g, label, x + w / 2, y + Math.round((h - 7) / 2), o.disabled ? '#6a6488' : lit ? '#fff6d8' : '#e8e0f8', { align: 'center', outline: false, shadow: '#05040a' });
@@ -23027,7 +23078,7 @@ function drawHudInner(g, r, h) {
     E.font.text(g, String(Math.floor(h.ember)), W - 22, H - 25, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' });
     // potions (Q) beside the life orb
     for (let i = 0; i < h.maxPotions; i++) { const x = 44 + i * 7, y = H - 12, full = i < h.potions; px.rect(g, x + 1, y - 7, 2, 2, full ? '#c8b890' : '#4a4050'); px.disc(g, x + 2, y - 2, 2.6, full ? '#e03a4a' : '#2a2030'); if (full) px.dot(g, x + 1, y - 3, '#ffc0c8'); }
-    E.font.text(g, 'Q', 44 + h.maxPotions * 7 + 2, H - 13, '#9a90b0', { font: 'tiny', outline: '#0c0818' });
+    E.font.text(g, actionLabel('potion'), 44 + h.maxPotions * 7 + 2, H - 13, '#9a90b0', { font: 'tiny', outline: '#0c0818' });
     // skill bar
     const SW = 18, gap = 2, n = 6, bw = n * SW + (n - 1) * gap + 4, bx = cx - Math.round(bw / 2);
     for (let i = 0; i < n; i++) {
@@ -23039,7 +23090,7 @@ function drawHudInner(g, r, h) {
         if (cd > 0 && full) { const k = Math.round(16 * cd / full); px.blend(g, .7, 'normal', () => px.rect(g, x + 1, y + 1, 16, k, '#05040a')); E.font.text(g, cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), x + 9, y + 6, '#ffffff', { align: 'center', font: 'tiny', outline: '#0c0818' }); }
         else if (h.ember < skillCost(h, S)) px.blend(g, .5, 'normal', () => px.rect(g, x + 1, y + 1, 16, 16, '#101848'));
       }
-      const kw = E.font.width(SLOT_KEYS[i], { font: 'tiny' }) + 3; px.rect(g, x + SW - kw, y + SW - 6, kw + 1, 7, '#0c0818'); E.font.text(g, SLOT_KEYS[i], x + SW - kw + 2, y + SW - 5, '#c8c0d8', { font: 'tiny', outline: false });
+      const slotLabel = actionLabel(SLOT_ACTS[i], true), kw = E.font.width(slotLabel, { font: 'tiny' }) + 3; px.rect(g, x + SW - kw, y + SW - 6, kw + 1, 7, '#0c0818'); E.font.text(g, slotLabel, x + SW - kw + 2, y + SW - 5, '#c8c0d8', { font: 'tiny', outline: false });
       hot(x, y, SW, SW, { tip: S ? () => skillTip(h, id) : [{ t: 'Empty slot', c: '#9a90b0' }, { t: 'Assign a skill in the Skills panel (K).', c: '#c8c0d8' }], click: () => { if (UI.panels.skills) UI.open('skills', { slot: i }); } });
     }
     if (h.cdWarn) h.cdWarn.t -= 1 / 60;
@@ -23107,7 +23158,7 @@ function drawHudInner(g, r, h) {
     UI.hudDrawn = true;
     // interaction prompt (not under a panel or a conversation: '[E] Talk to ILSA' while Ilsa is talking reads as a bug)
     UI.promptShown = !!UI.prompt && !UI.modal && !(typeof talk !== 'undefined' && talk.open);
-    if (UI.promptShown) E.font.text(g, UI.prompt, cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });
+    if (UI.promptShown) E.font.text(g, UI.prompt.replace('[E]', '[' + actionLabel('interact') + ']'), cx, by - 26, '#ffffff', { align: 'center', shadow: '#05040a', outline: '#0c0818' });
     // the level card: name, depth, the new element
     if (UI.card && UI.cardT > 0) drawLevelCard(g, W, H, cx, UI.card);
   }
@@ -23335,7 +23386,7 @@ function drawPanels(r) {
   r.overlay(g => {
     let rect = null;   // the top modal panel's rectangle: the notices keep off it
     for (const s of UI.stack) {
-      const P0 = UI.panels[s.id]; if (!P0) continue;
+      const P0 = UI.panels[s.id]; if (!P0 || P0.dom) continue;
       const top = s === UI.stack[UI.stack.length - 1];
       if (P0.modal !== false && top && P0.dim !== false) px.blend(g, .45, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#05030c'));
       const w = typeof P0.w === 'function' ? P0.w(r.W, r.H) : Math.min(P0.w || 240, r.W - 8), h = typeof P0.h === 'function' ? P0.h(r.W, r.H) : Math.min(P0.h || 180, r.H - 8);
@@ -23361,16 +23412,20 @@ function drawPanels(r) {
 function showCard(title, sub, mech, dur = 5) { UI.card = { title, sub, mech, dur }; UI.cardT = dur; }
 
 /* ---------- panels: pause, settings, death, waystone ---------- */
-UI.def('pause', { title: 'PAUSED', w: 150, h: 128, draw(g, x, y, w) {
-  const items = [['RESUME', () => UI.close('pause')], ['SETTINGS', () => UI.open('settings')], ED.mode === 'level' ? ['TOWN PORTAL', () => { UI.closeAll(); openTownPortal(ED.hero); }] : null, ['SAVE AND QUIT', () => { UI.closeAll(); saveGame(); game.go('title'); }]].filter(Boolean);
-  items.forEach(([label, fn], i) => button(g, x + 15, y + 22 + i * 24, w - 30, 18, label, fn, { focus: UI.keyNav && UI.focus === i }));
-  E.font.text(g, 'Esc closes • the deep waits', x + w / 2, y + 22 + items.length * 24 + 2, '#6a6488', { align: 'center', font: 'tiny', outline: false });
-}, update() { menuKeys(ED.mode === 'level' ? 4 : 3, i => [() => UI.close('pause'), () => UI.open('settings'), ED.mode === 'level' ? () => { UI.closeAll(); openTownPortal(ED.hero); } : () => { UI.closeAll(); saveGame(); game.go('title'); }, () => { UI.closeAll(); saveGame(); game.go('title'); }][i]()); } });
+function pauseItems() {
+  return [['RESUME', () => UI.close('pause')], ['INVENTORY', () => UI.open('inventory')], ['SKILLS', () => UI.open('skills')], ['PASSIVES', () => UI.open('tree')],
+    ['CONTROLS', () => UI.open('controls')], ['SETTINGS', () => UI.open('settings')], ['DEVELOPER', () => UI.open('developer')],
+    ED.mode === 'level' ? ['TOWN PORTAL', () => { UI.closeAll(); openTownPortal(ED.hero); }] : null,
+    DEV.enabled ? ['LEAVE SANDBOX', devDisable] : ['SAVE AND QUIT', () => { UI.closeAll(); saveGame(); game.go('title'); }]].filter(Boolean);
+}
+UI.def('pause', { title: 'PAUSED', w: 180, h: 198, draw(g, x, y, w) {
+  pauseItems().forEach(([label, fn], i) => button(g, x + 12, y + 20 + i * 18, w - 24, 16, label, fn, { focus: UI.keyNav && UI.focus === i }));
+}, update() { const items = pauseItems(); menuKeys(items.length, i => items[i][1]()); } });
 /** up / down / confirm over a panel's list of n entries */
 function menuKeys(n, pick) {
   const inp = game.input;
-  if (inp.repeat('up')) { UI.focus = (UI.focus + n - 1) % n; UI.keyNav = true; sfx('select', { vol: .4 }); }
-  if (inp.repeat('down')) { UI.focus = (UI.focus + 1) % n; UI.keyNav = true; sfx('select', { vol: .4 }); }
+  if (inp.repeat('menuUp')) { UI.focus = (UI.focus + n - 1) % n; UI.keyNav = true; sfx('select', { vol: .4 }); }
+  if (inp.repeat('menuDown')) { UI.focus = (UI.focus + 1) % n; UI.keyNav = true; sfx('select', { vol: .4 }); }
   if (UI.keyNav && inp.pressed('confirm')) { inp.consumeAll(); pick(UI.focus); }
 }
 // [key, label, what it does, which way is easier: +1 when more is easier (hero, xp, loot), -1 for the monsters]
@@ -23397,6 +23452,7 @@ function settingsToggles() {
 const settingsReset = () => { for (const k in DIFF_DEFAULT) setDiff(k, DIFF_DEFAULT[k]); };
 /* keyboard focus in settings: 0-8 the sliders, 9-17 the option buttons (a 3 x 3 grid), 18 RESET */
 const SET_N = DIFF_ROWS.length, SET_RESET = SET_N + 9;
+const settingsFooter = () => [['RESET', settingsReset], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]];
 UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H) => Math.min(240, H - 6), draw(g, x, y, w, h) {
   const rows = DIFF_ROWS, lh = 12, sx = x + 104, sw = w - 150;
   E.font.text(g, 'DIFFICULTY  (for playtesting: 0.25x to 4x)', x + 10, y + 20, '#9a90b0', { font: 'tiny', outline: false });
@@ -23414,19 +23470,18 @@ UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H
   const oy = y + 30 + rows.length * lh + 4;
   E.font.text(g, 'OPTIONS', x + 10, oy, '#9a90b0', { font: 'tiny', outline: false });
   settingsToggles().forEach(([label, on, fn], i) => button(g, x + 10 + (i % 3) * Math.floor((w - 20) / 3), oy + 8 + Math.floor(i / 3) * 16, Math.floor((w - 20) / 3) - 3, 13, label + (on === null ? '' : on ? ': ON' : ': OFF'), fn, { active: !!on, focus: UI.keyNav && UI.focus === SET_N + i }));
-  button(g, x + w / 2 - 50, y + h - 18, 100, 13, 'RESET DEFAULTS', settingsReset, { focus: UI.keyNav && UI.focus === SET_RESET, tip: [{ t: 'Reset the difficulty', c: GOLD }, { t: 'Every slider back to 1x.', c: '#c8c0d8' }] });
+  settingsFooter().forEach(([label, fn], i) => button(g, x + 10 + i * (w - 20) / 3, y + h - 18, (w - 20) / 3 - 3, 13, label, fn, { focus: UI.keyNav && UI.focus === SET_RESET + i }));
 }, update() {
-  // up / down walk the sliders, the option grid and RESET; left / right change a slider or move along a row; Enter presses
-  const inp = game.input, f = UI.focus || 0, nav = nf => { UI.focus = nf; UI.keyNav = true; sfx('select', { vol: .3 }); };
-  const tg = f - SET_N, col = tg % 3, row = Math.floor(tg / 3);
-  if (inp.repeat('up')) nav(f === 0 ? SET_RESET : f < SET_N ? f - 1 : f === SET_RESET ? SET_N + 7 : row === 0 ? SET_N - 1 : f - 3);
-  else if (inp.repeat('down')) nav(f < SET_N - 1 ? f + 1 : f === SET_N - 1 ? SET_N : f === SET_RESET ? 0 : row === 2 ? SET_RESET : f + 3);
-  else if (UI.keyNav && (inp.repeat('left') || inp.repeat('right'))) {
-    const d = inp.down('left') ? -1 : 1;
-    if (f < SET_N) { const k = DIFF_ROWS[f][0]; setDiff(k, Math.pow(2, clamp(Math.round(Math.log2(DIFF[k]) * 2) / 2 + d * .5, -2, 2))); sfx('select', { vol: .3 }); }
-    else if (f < SET_RESET) nav(SET_N + row * 3 + (col + d + 3) % 3);
+  const inp = game.input, f = UI.focus || 0, nav = nf => { UI.focus = nf; UI.keyNav = true; };
+  if (inp.repeat('menuUp')) nav(f === 0 ? SET_RESET : f < SET_N ? f - 1 : f < SET_N + 3 ? SET_N - 1 : f - 3);
+  else if (inp.repeat('menuDown')) nav(f < SET_N - 1 ? f + 1 : f === SET_N - 1 ? SET_N : f >= SET_RESET ? 0 : f + 3);
+  else if (inp.repeat('menuLeft') || inp.repeat('menuRight')) {
+    const d = inp.down('menuLeft') ? -1 : 1;
+    if (f < SET_N) { const k = DIFF_ROWS[f][0]; setDiff(k, Math.pow(2, clamp(Math.round(Math.log2(DIFF[k]) * 2) / 2 + d * .5, -2, 2))); UI.keyNav = true; }
+    else { const base = SET_N + Math.floor((f - SET_N) / 3) * 3; nav(base + (f - base + d + 3) % 3); }
   }
-  if (UI.keyNav && f >= SET_N && inp.pressed('confirm')) { inp.consumeAll(); sfx('confirm', { vol: .6 }); if (f === SET_RESET) settingsReset(); else settingsToggles()[f - SET_N][2](); }
+  if (inp.pressed('confirm') && f >= SET_N) { inp.consumeAll(); if (f >= SET_RESET) settingsFooter()[f - SET_RESET][1](); else settingsToggles()[f - SET_N][2](); }
+
 } });
 /* ---------- the descent's record, for the death screen: from leaving town (or entering the Proving Grounds) ----------
  * the last hits he took (who, which element, how hard), the killing blow, and the run: time, kills, loot, gold, levels */
@@ -23485,7 +23540,7 @@ UI.def('death', { title: 'YOU DIED', w: W => Math.min(W - 8, 290), h: (W, H) => 
   open() { RUN.focus = 0; },
   update(dt) {
     const inp = game.input, K = RUN.killer, m = K && K.m;
-    if (inp.repeat('left') || inp.repeat('right') || inp.repeat('up') || inp.repeat('down')) { RUN.focus = 1 - RUN.focus; UI.keyNav = true; sfx('select', { vol: .4 }); }
+    if (inp.repeat('menuLeft') || inp.repeat('menuRight') || inp.repeat('menuUp') || inp.repeat('menuDown')) { RUN.focus = 1 - RUN.focus; UI.keyNav = true; sfx('select', { vol: .4 }); }
     if (inp.pressed('confirm')) { inp.consumeAll(); RUN_leave(RUN.focus === 1); return; }
     // the killer turns to the camera and gloats over him (the level itself stands still behind the panel)
     RUN.anim += dt; if (m && m.rig && m.rig.update && m.rig.J) m.rig.update(dt, { x: m.x, y: m.y, z: 0, vx: 0, vy: 0, facing: E.approachAng(m.rig.facing || 0, Math.PI / 2 + .45, dt * 5), pose: RUN.anim % 4 < 1.6 ? 'cheer' : 'hips', expr: RUN.anim % 4 < 1.6 ? 'shout' : 'smile' });
@@ -23541,6 +23596,982 @@ UI.def('waystone', { title: 'THE WAYSTONE', w: 220, h: (W, H) => Math.min(H - 8,
 function waystoneDepths(h) { const s = new Set([1]); for (let d = 5; d <= h.maxDepth; d += 5) s.add(d); s.add(h.maxDepth); if (ED.savedLevel) s.delete(0); return [...s].sort((a, b) => b - a); }
 /* the UI's state for tests and tools: window.__edUI.notify('TEXT', '#fff', 3), .feed (the sorted notices), .run */
 window.__edUI = { notify: (t, c, d) => notify(t, c, d), showCard: (a, b, c, d) => showCard(a, b, c, d), feed: NT, run: RUN, glyphs: UI_GLYPHS };
+
+/* Saved bindings, native settings dialogs, and multi-touch controls. */
+const CONTROL_ACTIONS = [
+	["up", "Move up"],
+	["down", "Move down"],
+	["left", "Move left"],
+	["right", "Move right"],
+	...SLOT_ACTS.map((a, i) => [a, "Skill " + (i + 1)]),
+	["dodge", "Dodge"],
+	["potion", "Potion"],
+	["interact", "Interact"],
+	["portal", "Town portal"],
+	["bag", "Inventory"],
+	["skills", "Skills"],
+	["tree", "Passives"],
+	["map", "Map (hold)"],
+	["labels", "Loot labels"],
+];
+const CONTROL_DEFAULT = {
+	deadzone: 0.18,
+	invertAimY: false,
+	aimAssist: true,
+	touch: "auto",
+	handed: "right",
+	size: 54,
+	opacity: 0.8,
+};
+const CONTROL = { bindings: {}, ...CONTROL_DEFAULT };
+const storedControls = E.store.get("ed:controls", {});
+const bindingCode = (c) =>
+	typeof c === "string" &&
+	/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Enter|NumpadEnter|Backspace|Mouse[0-4]|Pad([0-9]|1[0-5]))$/.test(
+		c,
+	);
+const RESERVED_KEYS = new Set(["KeyV", "KeyM", "KeyH", "Digit0", "Pad9"]);
+if (storedControls && typeof storedControls === "object") {
+	for (const key of ["deadzone", "size", "opacity"])
+		if (Number.isFinite(storedControls[key]))
+			CONTROL[key] = storedControls[key];
+	for (const key of ["invertAimY", "aimAssist"])
+		if (typeof storedControls[key] === "boolean")
+			CONTROL[key] = storedControls[key];
+	if (["auto", "on", "off"].includes(storedControls.touch))
+		CONTROL.touch = storedControls.touch;
+	if (["left", "right"].includes(storedControls.handed))
+		CONTROL.handed = storedControls.handed;
+	for (const [a] of CONTROL_ACTIONS) {
+		const codes = storedControls.bindings && storedControls.bindings[a];
+		if (
+			Array.isArray(codes) &&
+			codes.length <= 12 &&
+			codes.every((c) => bindingCode(c) && !RESERVED_KEYS.has(c))
+		)
+			CONTROL.bindings[a] = [...new Set(codes)];
+	}
+}
+CONTROL.deadzone = clamp(CONTROL.deadzone, 0.05, 0.5);
+CONTROL.size = clamp(CONTROL.size, 44, 72);
+CONTROL.opacity = clamp(CONTROL.opacity, 0.3, 1);
+const PAD_LABELS = [
+	"A / Cross",
+	"B / Circle",
+	"X / Square",
+	"Y / Triangle",
+	"LB / L1",
+	"RB / R1",
+	"LT / L2",
+	"RT / R2",
+	"View / Share",
+	"Menu / Options",
+	"L stick",
+	"R stick",
+	"D-pad up",
+	"D-pad down",
+	"D-pad left",
+	"D-pad right",
+];
+function codeLabel(code) {
+	if (/^Pad\d+$/.test(code)) return PAD_LABELS[+code.slice(3)] || code;
+	return (
+		{
+			Mouse0: "LMB",
+			Mouse1: "MMB",
+			Mouse2: "RMB",
+			Mouse3: "Mouse 4",
+			Mouse4: "Mouse 5",
+			Space: "Space",
+			ShiftLeft: "L Shift",
+			ShiftRight: "R Shift",
+		}[code] || code.replace(/^Key|^Digit/, "").replace(/^Arrow/, "")
+	);
+}
+function actionCodes(a) {
+	return CONTROL.bindings[a] || INPUT[a] || [];
+}
+function actionLabel(a, compact = false) {
+	const codes = actionCodes(a),
+		pad = game.input.lastDevice === "gamepad";
+	const code = codes.find((c) => c.startsWith("Pad") === pad) || codes[0];
+	if (compact && code && /^Pad\d+$/.test(code))
+		return [
+			"A",
+			"B",
+			"X",
+			"Y",
+			"LB",
+			"RB",
+			"LT",
+			"RT",
+			"View",
+			"Menu",
+			"L3",
+			"R3",
+			"Up",
+			"Down",
+			"Left",
+			"Right",
+		][+code.slice(3)];
+	return code ? codeLabel(code) : "—";
+}
+function applyControls(save = true) {
+	const map = { ...INPUT };
+	for (const [a] of CONTROL_ACTIONS) map[a] = actionCodes(a);
+	game.input.use(map);
+	game.input.deadzone = CONTROL.deadzone;
+	game.input.invertAimY = CONTROL.invertAimY;
+	game.input.stickSide = CONTROL.handed === "right" ? "left" : "right";
+	game.input.stickRadius = CONTROL.size * 0.82;
+	if (save) E.store.set("ed:controls", CONTROL);
+	syncTouchControls(true);
+}
+
+/* Native dialogs remain legible on portrait phones and support browser focus/scrolling. */
+const FORM = { el: null, capture: null, message: "" };
+function formElement(tag, text, parent, attrs = {}) {
+	const el = document.createElement(tag);
+	if (text) el.textContent = text;
+	for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+	if (parent) parent.appendChild(el);
+	return el;
+}
+function formButton(parent, text, fn) {
+	const el = formElement("button", text, parent, { type: "button" });
+	el.onclick = fn;
+	return el;
+}
+function formField(parent, label, type, value, change, extra = {}) {
+	const row = formElement("label", "", parent, { class: "ed-field" });
+	formElement("span", label, row);
+	const el = formElement(
+		type === "select" ? "select" : "input",
+		"",
+		row,
+		type === "select" ? {} : { type, ...extra },
+	);
+	if (type === "select")
+		for (const [v, t] of extra.options)
+			formElement("option", t, el, { value: v });
+	if (type === "checkbox") el.checked = value;
+	else el.value = value;
+	el.onchange = () =>
+		change(
+			type === "checkbox"
+				? el.checked
+				: type === "select"
+					? el.value
+					: Number(el.value),
+		);
+	return el;
+}
+function openForm(title, build) {
+	closeForm();
+	const el = formElement("dialog", "", document.body, {
+		class: "ed-dialog",
+		"aria-labelledby": "ed-dialog-title",
+	});
+	FORM.el = el;
+	const head = formElement("header", "", el);
+	formElement("h2", title, head, { id: "ed-dialog-title" });
+	formButton(head, "Back", () => UI.close());
+	el.addEventListener("cancel", (e) => {
+		e.preventDefault();
+		if (FORM.capture) cancelBinding();
+		else UI.close();
+	});
+	el.addEventListener("keydown", (e) => e.stopPropagation());
+	el.addEventListener("contextmenu", (e) => e.preventDefault());
+	build(el);
+	el.showModal();
+	el.querySelector("button").focus();
+}
+function closeForm() {
+	FORM.capture = null;
+	if (FORM.el) {
+		FORM.el.close();
+		FORM.el.remove();
+		FORM.el = null;
+	}
+	game.input.clear();
+}
+function formStatus(message) {
+	FORM.message = message;
+	const el = FORM.el && FORM.el.querySelector("[data-status]");
+	if (el) el.textContent = message;
+}
+function cancelBinding() {
+	FORM.capture = null;
+	formStatus("Binding cancelled.");
+	game.input.clear();
+}
+function beginBinding(a, kind) {
+	FORM.capture = { a, kind, prev: game.input.padPrev.slice() };
+	formStatus(
+		"Press " +
+			(kind === "pad" ? "a controller button" : "a key or mouse button") +
+			" for " +
+			CONTROL_ACTIONS.find((x) => x[0] === a)[1] +
+			". Escape cancels.",
+	);
+}
+function setBinding(code) {
+	const c = FORM.capture;
+	if (!c) return;
+	if (!bindingCode(code) || RESERVED_KEYS.has(code)) {
+		formStatus("That input is reserved. Choose another; Escape cancels.");
+		return;
+	}
+	const conflict = CONTROL_ACTIONS.find(
+		([a]) => a !== c.a && actionCodes(a).includes(code),
+	);
+	if (conflict) {
+		formStatus(
+			codeLabel(code) +
+				" is used by " +
+				conflict[1] +
+				". Clear that binding first, or choose another.",
+		);
+		return;
+	}
+	CONTROL.bindings[c.a] = actionCodes(c.a)
+		.filter((k) => k.startsWith("Pad") !== (c.kind === "pad"))
+		.concat(code);
+	FORM.capture = null;
+	applyControls();
+	renderControls();
+	formStatus("Saved " + codeLabel(code) + ".");
+}
+addEventListener(
+	"keydown",
+	(e) => {
+		if (!FORM.capture) return;
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		if (e.code === "Escape") cancelBinding();
+		else if (FORM.capture.kind === "key" && !e.repeat) setBinding(e.code);
+	},
+	true,
+);
+addEventListener(
+	"pointerdown",
+	(e) => {
+		if (
+			!FORM.capture ||
+			FORM.capture.kind !== "key" ||
+			e.pointerType !== "mouse"
+		)
+			return;
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		setBinding("Mouse" + e.button);
+	},
+	true,
+);
+function updateForm() {
+	const inp = game.input,
+		el = FORM.el;
+	if (!el) return;
+	const meter = el.querySelector("[data-pad]");
+	if (meter)
+		meter.textContent = inp.padId
+			? inp.padId +
+				" · sticks " +
+				inp.padAxes.map((v) => v.toFixed(2)).join(", ") +
+				" · buttons " +
+				inp.padPrev
+					.map((v, i) => (v ? i : null))
+					.filter((v) => v !== null)
+					.join(", ")
+			: "No controller detected. Press a button to connect.";
+	if (FORM.capture) {
+		const c = FORM.capture;
+		const i = inp.padPrev.findIndex((v, i) => v && !c.prev[i]);
+		c.prev = inp.padPrev.slice();
+		if (i === 9) cancelBinding();
+		else if (i >= 0 && c.kind === "pad") setBinding("Pad" + i);
+		return;
+	}
+	if (inp.pressed("pause") || inp.pressed("cancel")) {
+		UI.close();
+		return;
+	}
+	const all = [...el.querySelectorAll("button, input, select")].filter(
+			(e) => !e.disabled,
+		),
+		cur = document.activeElement;
+	let ix = Math.max(0, all.indexOf(cur));
+	const focus = (d) => {
+		ix = (ix + d + all.length) % all.length;
+		all[ix].focus();
+		all[ix].scrollIntoView({ block: "nearest" });
+	};
+	if (inp.repeat("menuUp")) focus(-1);
+	else if (inp.repeat("menuDown")) focus(1);
+	const dir = inp.repeat("menuLeft") ? -1 : inp.repeat("menuRight") ? 1 : 0;
+	if (dir) {
+		if (cur && cur.tagName === "SELECT") {
+			cur.selectedIndex =
+				(cur.selectedIndex + dir + cur.options.length) % cur.options.length;
+			cur.dispatchEvent(new Event("change"));
+		} else if (cur && ["range", "number"].includes(cur.type)) {
+			dir > 0 ? cur.stepUp() : cur.stepDown();
+			cur.dispatchEvent(new Event("change"));
+		} else focus(dir);
+	}
+	if (inp.pressed("confirm") && all[ix]) {
+		inp.consumeAll();
+		all[ix].click();
+	}
+}
+function renderControls() {
+	openForm("Controls", (el) => {
+		formElement(
+			"p",
+			"Rebind keyboard, mouse, and controller buttons. Menu navigation always works with arrows / D-pad / left stick, Enter / A, and Escape / Menu. Backspace / B performs secondary actions in inventory and skill panels.",
+			el,
+		);
+		formElement(
+			"p",
+			"Mouse aims; left stick moves; right stick aims. Click either stick to interact or open a portal. View / Share opens inventory. Skills and passives are also in the pause menu.",
+			el,
+		);
+		formElement("p", "", el, { "data-pad": "", class: "ed-meter" });
+		formElement(
+			"p",
+			"Choose a binding to change it. Changes save automatically.",
+			el,
+			{ "data-status": "", role: "status", class: "ed-status" },
+		);
+		const table = formElement("div", "", el, { class: "ed-bindings" });
+		for (const [a, label] of CONTROL_ACTIONS) {
+			const row = formElement("div", "", table, { class: "ed-binding" });
+			formElement("strong", label, row);
+			for (const kind of ["key", "pad"]) {
+				const group = formElement("div", "", row);
+				const codes = actionCodes(a).filter(
+					(c) => c.startsWith("Pad") === (kind === "pad"),
+				);
+				const b = formButton(
+					group,
+					codes.map(codeLabel).join(" / ") || "Unbound",
+					() => beginBinding(a, kind),
+				);
+				b.setAttribute(
+					"aria-label",
+					label + (kind === "key" ? " keyboard / mouse" : " gamepad"),
+				);
+				b.dataset.bind = a + ":" + kind;
+				const clear = formButton(group, "Clear", () => {
+					CONTROL.bindings[a] = actionCodes(a).filter(
+						(c) => c.startsWith("Pad") !== (kind === "pad"),
+					);
+					applyControls();
+					renderControls();
+				});
+				clear.setAttribute("aria-label", "Clear " + label + " " + kind);
+			}
+		}
+		formElement("h3", "Controller & touch", el);
+		formField(
+			el,
+			"Stick deadzone",
+			"range",
+			CONTROL.deadzone,
+			(v) => {
+				CONTROL.deadzone = v;
+				applyControls();
+			},
+			{ min: 0.05, max: 0.5, step: 0.01 },
+		);
+		formField(
+			el,
+			"Invert right-stick Y",
+			"checkbox",
+			CONTROL.invertAimY,
+			(v) => {
+				CONTROL.invertAimY = v;
+				applyControls();
+			},
+		);
+		formField(
+			el,
+			"Aim assist for sticks / touch",
+			"checkbox",
+			CONTROL.aimAssist,
+			(v) => {
+				CONTROL.aimAssist = v;
+				applyControls();
+			},
+		);
+		formField(
+			el,
+			"Touch controls",
+			"select",
+			CONTROL.touch,
+			(v) => {
+				CONTROL.touch = v;
+				applyControls();
+			},
+			{
+				options: [
+					["auto", "Automatic"],
+					["on", "Always show"],
+					["off", "Hidden"],
+				],
+			},
+		);
+		formField(
+			el,
+			"Action buttons on",
+			"select",
+			CONTROL.handed,
+			(v) => {
+				CONTROL.handed = v;
+				applyControls();
+			},
+			{
+				options: [
+					["right", "Right"],
+					["left", "Left"],
+				],
+			},
+		);
+		formField(
+			el,
+			"Touch button size",
+			"range",
+			CONTROL.size,
+			(v) => {
+				CONTROL.size = v;
+				applyControls();
+			},
+			{ min: 44, max: 72, step: 2 },
+		);
+		formField(
+			el,
+			"Touch opacity",
+			"range",
+			CONTROL.opacity,
+			(v) => {
+				CONTROL.opacity = v;
+				applyControls();
+			},
+			{ min: 0.3, max: 1, step: 0.05 },
+		);
+		formButton(el, "Reset all controls", () => {
+			Object.assign(CONTROL, CONTROL_DEFAULT, { bindings: {} });
+			applyControls();
+			renderControls();
+		});
+	});
+}
+UI.def("controls", {
+	dom: true,
+	captureKeys: true,
+	open: renderControls,
+	close: closeForm,
+	update: updateForm,
+});
+
+/* Touch taps hit the same canvas widgets as a mouse. Only open world space starts a stick. */
+game.input.touchFilter = (e) => {
+	const sc = game.screen,
+		pt = sc.clientToScreen(e.clientX, e.clientY),
+		m = { x: pt[0] - sc.ix, y: pt[1] - sc.iy };
+	return (
+		!UI.modal &&
+		ED.mode !== "title" &&
+		ED.mode !== "gallery" &&
+		!UI.hot.some((h) => (h.click || h.drag) && inRect(m, h))
+	);
+};
+canvas.addEventListener("pointerdown", (e) => {
+	if (
+		e.pointerType === "mouse" ||
+		(game.input.stickId === e.pointerId && game.input.stickOn)
+	)
+		return;
+	UI.mouse.cx = e.clientX;
+	UI.mouse.cy = e.clientY;
+	UI.mouse.active = true;
+	UI.mouse.down = true;
+	game.input.press("Act:click");
+	canvas.setPointerCapture(e.pointerId);
+});
+const endTouch = (e) => {
+	if (e.pointerType !== "mouse") {
+		game.input.release("Act:click");
+		UI.mouse.down = false;
+		UI.drag = null;
+	}
+};
+addEventListener("pointerup", endTouch);
+addEventListener("pointercancel", endTouch);
+function pauseOnFocusLoss() {
+	UI.mouse.down = false;
+	UI.drag = null;
+	if (!UI.modal && ["town", "level", "proving"].includes(ED.mode) && !ED.demo)
+		UI.open("pause");
+}
+addEventListener("blur", pauseOnFocusLoss);
+document.addEventListener("visibilitychange", () => {
+	if (document.hidden) pauseOnFocusLoss();
+});
+const TOUCH = { el: null, key: "" };
+function syncTouchControls(force = false) {
+	const show =
+		!UI.top()?.dom &&
+		(CONTROL.touch === "on" ||
+			(CONTROL.touch === "auto" &&
+				matchMedia("(any-pointer: coarse)").matches));
+	const panel = UI.modal || ED.mode === "title" || ED.mode === "gallery";
+	const key = [
+		show,
+		panel,
+		ED.mode,
+		CONTROL.size,
+		CONTROL.handed,
+		CONTROL.opacity,
+	].join(":");
+	if (!force && key === TOUCH.key) return;
+	TOUCH.key = key;
+	if (TOUCH.el) {
+		for (const b of TOUCH.el.querySelectorAll("[data-act]"))
+			game.input.release("Act:" + b.dataset.act);
+		TOUCH.el.remove();
+	}
+	game.input.touchEnabled = show && !panel;
+	if (!show) {
+		TOUCH.el = null;
+		return;
+	}
+	const root = formElement("div", "", document.getElementById("stage"), {
+		class: "ed-touch " + (CONTROL.handed === "left" ? "ed-left" : ""),
+	});
+	TOUCH.el = root;
+	root.style.setProperty("--touch-size", CONTROL.size + "px");
+	root.style.setProperty("--touch-opacity", CONTROL.opacity);
+	if (!panel) {
+		const actions = formElement("div", "", root, { class: "ed-touch-actions" });
+		for (const [a, label] of [
+			...SLOT_ACTS.map((a, i) => [a, "Skill " + (i + 1)]),
+			["dodge", "Dodge"],
+			["potion", "Potion"],
+			["interact", "Use"],
+		])
+			formElement("button", label, actions, { type: "button", "data-act": a });
+	}
+	const bar = formElement("div", "", root, { class: "ed-touch-bar" });
+	for (const [a, label] of ED.mode === "gallery" && !UI.modal
+		? [
+				["menuLeft", "Previous"],
+				["menuRight", "Next"],
+				["menuDown", "Reel"],
+				["confirm", "Replay"],
+				["labels", "Slow"],
+				["pause", "Back"],
+			]
+		: panel
+			? [["pause", "Back"]]
+			: [
+					["pause", "Menu"],
+					["bag", "Bag"],
+					["map", "Map"],
+					["portal", "Portal"],
+				])
+		formElement("button", label, bar, { type: "button", "data-act": a });
+	game.input.bindButtons(root);
+}
+applyControls(false);
+
+/* Developer mode uses a disposable hero; autosaves never write this session. */
+const DEV_DEFAULT = {
+	god: false,
+	resources: false,
+	cooldowns: false,
+	freezeFoes: false,
+	paused: false,
+	speed: 1,
+	bright: false,
+	hitboxes: false,
+	stats: true,
+};
+const DEV = {
+	enabled: false,
+	...DEV_DEFAULT,
+	steps: 0,
+	depth: 1,
+	monster: "husk",
+	count: 1,
+	elite: 0,
+	rarity: 3,
+	itemLevel: 1,
+	boss: null,
+};
+function devEnable() {
+	if (DEV.enabled) return;
+	const source = ED.hero || loadHeroOrNew(),
+		data = {};
+	for (const k of SAVE_KEYS) if (source[k] !== undefined) data[k] = source[k];
+	DEV.original = source;
+	DEV.diff = { ...DIFF };
+	DEV.savedLevel = ED.savedLevel;
+	DEV.enabled = true;
+	ED.hero = makeHero(JSON.parse(JSON.stringify(data)));
+	refreshPowers(ED.hero);
+	computeStats(ED.hero);
+	ED.savedLevel = null;
+	UI.closeAll();
+	goTown();
+	notify("DEVELOPER SANDBOX • NORMAL SAVE KEPT", "#8fe3ff", 5);
+}
+function devDisable() {
+	if (!DEV.enabled) return;
+	UI.closeAll();
+	BOT_RUN.on = false;
+	ED.hero = DEV.original;
+	ED.savedLevel = DEV.savedLevel;
+	Object.assign(DIFF, DEV.diff);
+	Object.assign(DEV, DEV_DEFAULT, {
+		enabled: false,
+		steps: 0,
+		original: null,
+		diff: null,
+		savedLevel: null,
+	});
+	slowMoReset(1);
+	UI.hideHud = false;
+	computeStats(ED.hero);
+	goTown();
+	notify("NORMAL GAME RESTORED", "#8affb0");
+}
+function devRestore() {
+	if (!DEV.enabled || !ED.hero) return;
+	reviveHero(ED.hero);
+	ED.hero.cds = {};
+	ED.hero.dodges = ED.hero.maxDodge;
+	ED.hero.inv = 1;
+}
+function devStep() {
+	if (
+		!DEV.enabled ||
+		!DEV.paused ||
+		!["town", "level", "proving"].includes(ED.mode)
+	)
+		return;
+	// Step the same scene update used by live play, with panels temporarily detached.
+	const stack = UI.stack;
+	UI.stack = [];
+	DEV.steps = 1;
+	try {
+		game.scene.update(1 / 60);
+	} finally {
+		DEV.steps = 0;
+		UI.stack = stack;
+		syncTouchControls(true);
+	}
+}
+function devTravel(depth) {
+	if (!DEV.enabled || !Number.isFinite(depth)) return;
+	DEV.depth = clamp(Math.round(depth), 1, 500);
+	ED.savedLevel = null;
+	devRestore();
+	UI.closeAll();
+	descend(DEV.depth);
+}
+function devSpawn(boss = false) {
+	if (!DEV.enabled || !ED.L || !["town", "level", "proving"].includes(ED.mode))
+		return;
+	if (ED.foes.length >= 300) {
+		formStatus("Spawn limit reached (300). Clear enemies first.");
+		return;
+	}
+	const h = ED.hero;
+	const count = Math.min(boss ? 1 : DEV.count, 300 - ED.foes.length);
+	for (let i = 0; i < count; i++) {
+		const a = h.facing + (i - (DEV.count - 1) / 2) * 0.4,
+			pt = {
+				x: h.x + Math.cos(a) * 52,
+				y: h.y + Math.sin(a) * 52,
+				z: 0,
+				r: 8,
+				step: 2,
+			};
+		ED.L.map.collide(pt);
+		const m = boss
+			? spawnBoss(DEV.boss || Object.keys(REG.bosses)[0], pt.x, pt.y, {
+					level: Math.max(1, ED.depth),
+				})
+			: spawnMonster(DEV.monster, pt.x, pt.y, {
+					level: Math.max(1, ED.depth),
+					elite: DEV.elite,
+				});
+		if (m && boss) {
+			ED.boss = m;
+			wakeBoss(m);
+		}
+	}
+	formStatus(
+		"Spawned " + (boss ? "boss" : count + " enemies") + ". Back to resume.",
+	);
+}
+function renderDeveloper() {
+	openForm("Developer sandbox", (el) => {
+		formElement(
+			"p",
+			DEV.enabled
+				? "Sandbox active. Hero progress, loot, and difficulty experiments stay in this session. Leave to restore your normal hero in town."
+				: "Try builds, enemies, and depths with a disposable copy of your hero. Your normal save is kept.",
+			el,
+		);
+		formButton(
+			el,
+			DEV.enabled ? "Leave sandbox" : "Enable developer mode",
+			() => (DEV.enabled ? devDisable() : devEnable()),
+		);
+		if (!DEV.enabled) return;
+		formElement("p", "", el, {
+			"data-status": "",
+			role: "status",
+			class: "ed-status",
+		});
+		formElement("h3", "Simulation", el);
+		for (const [key, label] of [
+			["god", "Invulnerable"],
+			["resources", "Unlimited ember, potions & dodges"],
+			["cooldowns", "No skill cooldowns"],
+			["freezeFoes", "Freeze enemy AI"],
+			["paused", "Pause simulation"],
+			["bright", "Full lighting"],
+			["hitboxes", "Collision circles"],
+			["stats", "Performance overlay"],
+		]) {
+			formField(el, label, "checkbox", DEV[key], (v) => {
+				DEV[key] = v;
+				if (key === "cooldowns" && v) ED.hero.cds = {};
+			});
+		}
+		formField(
+			el,
+			"Simulation speed",
+			"select",
+			DEV.speed,
+			(v) => {
+				DEV.speed = +v;
+				slowMoReset(DEV.speed);
+			},
+			{ options: [0.25, 0.5, 1, 2, 4].map((v) => [v, v + "×"]) },
+		);
+		formButton(el, "Step 1 frame (while paused)", devStep);
+		formButton(el, "Restore life & resources", () => {
+			devRestore();
+			formStatus("Life, ember, potions, dodges and cooldowns restored.");
+		});
+		formButton(el, ED.hero.bot ? "Stop autopilot" : "Start autopilot", () => {
+			botOn(ED.hero, !ED.hero.bot);
+			renderDeveloper();
+		});
+		formElement("h3", "Travel & encounters", el);
+		formField(
+			el,
+			"Depth (1–500)",
+			"number",
+			DEV.depth,
+			(v) => {
+				if (Number.isFinite(v)) DEV.depth = clamp(Math.round(v), 1, 500);
+			},
+			{ min: 1, max: 500, step: 1 },
+		);
+		formButton(el, "Travel to depth", () => devTravel(DEV.depth));
+		formButton(el, "Return to town", () => {
+			UI.closeAll();
+			devRestore();
+			goTown();
+		});
+		formButton(el, "Proving grounds", () => {
+			UI.closeAll();
+			devRestore();
+			game.go("proving");
+		});
+		formField(
+			el,
+			"Monster",
+			"select",
+			DEV.monster,
+			(v) => {
+				DEV.monster = v;
+			},
+			{
+				options: Object.values(REG.archetypes).map((m) => [
+					m.id,
+					m.name || m.id,
+				]),
+			},
+		);
+		formField(
+			el,
+			"Count",
+			"select",
+			DEV.count,
+			(v) => {
+				DEV.count = +v;
+			},
+			{ options: [1, 5, 10, 25].map((n) => [n, n]) },
+		);
+		formField(
+			el,
+			"Monster tier",
+			"select",
+			DEV.elite,
+			(v) => {
+				DEV.elite = +v;
+			},
+			{
+				options: [
+					[0, "Normal"],
+					[1, "Champion"],
+					[2, "Rare"],
+				],
+			},
+		);
+		formButton(el, "Spawn monsters", () => devSpawn());
+		formField(
+			el,
+			"Boss",
+			"select",
+			DEV.boss || Object.keys(REG.bosses)[0],
+			(v) => {
+				DEV.boss = v;
+			},
+			{ options: Object.values(REG.bosses).map((b) => [b.id, b.name || b.id]) },
+		);
+		formButton(el, "Spawn boss", () => devSpawn(true));
+		formButton(el, "Clear enemies & projectiles", () => {
+			ED.foes.length = 0;
+			ED.boss = null;
+			ED.fx.length = 0;
+			GRID.build([]);
+			formStatus("Enemies cleared without kill rewards.");
+		});
+		formButton(el, "Reveal map", () => {
+			ED.L.seen.fill(1);
+			ED.L.seenV = (ED.L.seenV || 0) + 1;
+			formStatus("Map revealed.");
+		});
+		formElement("h3", "Build experiments", el);
+		formButton(el, "Grant 10 skill & passive points", () => {
+			ED.hero.pts.skill += 10;
+			ED.hero.pts.passive += 10;
+			formStatus("Granted 10 points of each type.");
+		});
+		formButton(el, "Unlock all skills", () => {
+			for (const id in REG.skills)
+				if (!ED.hero.skills[id]) ED.hero.skills[id] = { rank: 1 };
+			formStatus("All skills unlocked. Assign them in Skills.");
+		});
+		formButton(el, "Grant 10,000 gold", () => {
+			ED.hero.gold += 10000;
+			formStatus("Granted 10,000 gold.");
+		});
+		formField(
+			el,
+			"Item level",
+			"number",
+			DEV.itemLevel,
+			(v) => {
+				if (Number.isFinite(v)) DEV.itemLevel = clamp(Math.round(v), 1, 500);
+			},
+			{ min: 1, max: 500, step: 1 },
+		);
+		formField(
+			el,
+			"Item rarity",
+			"select",
+			DEV.rarity,
+			(v) => {
+				DEV.rarity = +v;
+			},
+			{
+				options: [
+					[0, "Common"],
+					[1, "Magic"],
+					[2, "Rare"],
+					[3, "Legendary"],
+				],
+			},
+		);
+		formButton(el, "Create item in bag", () => {
+			if (ED.hero.bag.length >= BAG_MAX)
+				return formStatus("Bag full. Make room first.");
+			ED.hero.bag.push(makeItem({ ilvl: DEV.itemLevel, rarity: DEV.rarity }));
+			formStatus("Item added to inventory.");
+		});
+		formButton(el, "Difficulty sliders", () => {
+			UI.close("developer");
+			UI.open("settings");
+		});
+	});
+}
+UI.def("developer", {
+	dom: true,
+	captureKeys: true,
+	open: renderDeveloper,
+	close: closeForm,
+	update: updateForm,
+});
+function devBeforeWorld() {
+	if (!DEV.enabled) return;
+	const h = ED.hero;
+	if (DEV.resources && h && h.alive) {
+		h.ember = h.maxEmber;
+		h.potions = h.maxPotions;
+		h.dodges = h.maxDodge;
+	}
+	if (DEV.cooldowns && h) h.cds = {};
+}
+function devDraw(r) {
+	if (!DEV.enabled) return;
+	if (DEV.hitboxes)
+		for (const u of [ED.hero, ...ED.foes])
+			if (u && u.alive)
+				r.decal(
+					() =>
+						r.groundRing(
+							u.x,
+							u.y,
+							u.r,
+							u === ED.hero ? "#8fe3ff" : "#ff8a6a",
+							0.9,
+						),
+					{ emissive: true },
+				);
+	r.overlay((g) => {
+		const label =
+			"SANDBOX" + (DEV.paused ? " • PAUSED" : "") + " • " + DEV.speed + "x";
+		E.font.text(g, label, r.W / 2, 15, "#8fe3ff", {
+			align: "center",
+			font: "tiny",
+		});
+		if (DEV.stats)
+			E.font.text(
+				g,
+				Math.round(game.fps) +
+					" FPS • " +
+					game.stats.updateMs.toFixed(1) +
+					"ms UPDATE • " +
+					game.stats.renderMs.toFixed(1) +
+					"ms DRAW • " +
+					ED.foes.length +
+					" FOES",
+				r.W / 2,
+				24,
+				"#e8e0f8",
+				{ align: "center", font: "tiny" },
+			);
+	});
+}
 
 /* =============================================================================
  * SOUND: extra effects and the game's songs (chip synth, no files). Themes pick a song by name: REG.songs[id]
@@ -23598,7 +24629,7 @@ function setupGPU(map) {
 }
 /* ---------- save / load ---------- */
 const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
-function saveGame() { const h = ED.hero; if (!h || ED.demo) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
+function saveGame() { const h = ED.hero; if (!h || ED.demo || DEV.enabled || ED.mode === 'gallery') return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
 function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); const st = s.stash; (st && Array.isArray(st.tabs) ? st.tabs.flat() : Array.isArray(st) ? st : []).forEach(scan); itemUid = mx + 1; return s; }
 function newHero() {
   const h = makeHero(null);
@@ -23639,11 +24670,13 @@ function drawPortal(pt, r, home) {
 /* ---------- the shared world step ---------- */
 function worldStep(dt, o = {}) {
   const h = ED.hero, L0 = ED.L;
+  devBeforeWorld();
   ED.t += dt; L0.t = (L0.t || 0) + dt; slowMoStep();
   UI.prompt = null;
   floorEffects(h, dt); for (const m of ED.foes) if (m.alive && m.spawnT <= 0) floorEffects(m, dt);
   updateHero(h, dt, o);
-  updateFoes(dt); updateCorpses(dt); updateFx(dt); updateThings(L0, dt); updateDrops(dt);
+  if (!(DEV.enabled && DEV.freezeFoes)) updateFoes(dt); else GRID.build(ED.foes);
+  updateCorpses(dt); updateFx(dt); updateThings(L0, dt); updateDrops(dt);
   for (let i = ED.allies.length - 1; i >= 0; i--) { const a = ED.allies[i]; if (a.update && a.update(dt) === false) ED.allies.splice(i, 1); }
   for (const id of L0.mechs || []) { const M = REG.mechanics[id]; if (M && M.update) M.update(L0, dt); }
   for (const b of L0.torches) b.t += dt;
@@ -23655,6 +24688,7 @@ function worldStep(dt, o = {}) {
   game.focus(h.x + Math.cos(a) * 16, h.y + Math.sin(a) * 16, 8 + (h.z || 0) * .7);   // the camera rises with leaps and flights
 }
 function worldDraw(r) {
+  L.enabled = !(DEV.enabled && DEV.bright); if (gpu) gpu.enabled = OPT.gpu && L.enabled;
   const L0 = ED.L, h = ED.hero;
   if (L0.sky) r.sky(L0.sky);
   if (L0.drawBack) L0.drawBack(r);   // behind the floor: backdrops, the abyss under chasms
@@ -23676,6 +24710,7 @@ function worldDraw(r) {
   if (L0.drawOver) L0.drawOver(r);
   BUS.emit('draw', { r, L: L0 });
   if (!UI.hideHud) { drawFoeBars(r); drawHUD(r); }
+  devDraw(r);
   drawPanels(r);
 }
 function enterWorld(L0) {
@@ -23698,10 +24733,10 @@ function dropIn(h, from = 150) {
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
   const save = E.store.get('ed:save', null);
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')]].filter(Boolean);
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]].filter(Boolean);
 }
 function loadHeroOrNew() { const s = loadSave(); if (s) { const h = makeHero(s); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(); }
-function startGame(fresh) { if (fresh) { E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
+function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
 /** the title menu's top and row step: stacked up from the key legend at the bottom (5 rows fit at 240 px) */
 function titleMenu(n) { const step = 16, y = game.H - 29 - n * step; return { y, step }; }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
@@ -23719,7 +24754,7 @@ function titleKata(t) {
 }
 const titleScene = {
   enter() {
-    ED.mode = 'title'; UI.closeAll(); TITLE.t = 0; TITLE.confirmNew = false;
+    ED.mode = 'title'; UI.closeAll(); L.enabled = true; TITLE.t = 0; TITLE.confirmNew = false;
     // the rune hall of the stress test, torch-lit, the hero waiting in its circle
     const rec = { depth: 1, seed: 5, name: 'The Rune Hall', theme: 'crypt', hue: 0, layout: 'halls', mechs: [], pool: [], size: [30, 24] };
     const w = 30, hh = 24, cells = new Array(w * hh).fill(0); for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) if (!x || !y || x === w - 1 || y === hh - 1) cells[y * w + x] = 1;
@@ -23739,13 +24774,13 @@ const titleScene = {
     const h = ED.titleHero, items = titleItems();
     const mm = UI.mouse.cx + ',' + UI.mouse.cy, moved = mm !== TITLE.mm; TITLE.mm = mm;   // a hand on the mouse is not idle either
     if (game.input.anyPressed() || UI.mouse.down || moved) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
-    if (TITLE.idle > 28 && !UI.stack.length) { TITLE.idle = 0; startDemo(); return; }
+    if (TITLE.idle > 28 && !UI.stack.length && !DEV.enabled) { TITLE.idle = 0; startDemo(); return; }
     h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, titleKata(TITLE.t)));
     h.facing = h.rig.facing;
     for (const b of ED.L.torches) b.t += dt;
     const inp = game.input;
-    if (inp.repeat('up')) { TITLE.menu = (TITLE.menu + items.length - 1) % items.length; sfx('select'); UI.keyNav = true; }
-    if (inp.repeat('down')) { TITLE.menu = (TITLE.menu + 1) % items.length; sfx('select'); UI.keyNav = true; }
+    if (inp.repeat('menuUp')) { TITLE.menu = (TITLE.menu + items.length - 1) % items.length; sfx('select'); UI.keyNav = true; }
+    if (inp.repeat('menuDown')) { TITLE.menu = (TITLE.menu + 1) % items.length; sfx('select'); UI.keyNav = true; }
     if (inp.pressed('confirm') || inp.pressed('start')) { inp.consumeAll(); sfx('confirm'); items[clamp(TITLE.menu, 0, items.length - 1)][1](); }
     if (Math.random() < dt * 8) { const b = rnd.pick(ED.L.torches); P.add({ kind: 'ember', x: b.x + (Math.random() - .5) * 6, y: b.y + (Math.random() - .5) * 6, z: 14, vx: (Math.random() - .5) * 14, vy: (Math.random() - .5) * 14, vz: 20 + Math.random() * 40, max: 1.2, color: '#ff8a3a' }); }
     // the hero stands just above the menu: slide the look point toward (or away from) the camera until his feet sit there
@@ -23791,6 +24826,7 @@ function endDemo() { if (!ED.demoEnding) { ED.demoEnding = true; game.go('title'
 /* ---------- TOWN ---------- */
 const talk = new E.Dialog(game, { bg: ['#2a2040', '#141024'], border: '#c8b8e8' });
 const townScene = {
+  exit() { talk.close(); },
   enter(o = {}) {
     ED.mode = 'town'; ED.depth = 0; UI.closeAll(); BUS.clear('level');
     const L0 = (TOWN.build || TOWN.fallback)();
@@ -23805,10 +24841,12 @@ const townScene = {
     if (o.arrive === 'intro') { showCard('Emberhold', 'THE LAST LIT TOWN', null, 4); game.after(4.5, () => notify('THE WAYSTONE IN THE SQUARE LEADS DOWN.  (E TO USE)', '#bff6ff', 5)); }
   },
   update(dt) {
+    if (talk.open && game.input.pressed('pause') && !UI.modal) UI.open('pause');
+    if (talk.open && UI.modal) { updateUI(dt); if (!(DEV.enabled && DEV.paused)) townLife(dt); return; }
     if (talkStep(dt)) { UI.prompt = null; if (UI.modal) updateUI(dt); townLife(dt); return; }   // (worldStep, which clears the prompt, does not run: clear it here, or it draws under the box)
     const waiting = updateUI(dt);
     const L0 = ED.L, h = ED.hero, inp = game.input;
-    if (waiting) { UI.prompt = null; townLife(dt); townServed(L0); return; }
+    if (waiting) { UI.prompt = null; if (!(DEV.enabled && DEV.paused)) { townLife(dt); townServed(L0); } return; }
     if ((L0.saveT = (L0.saveT || 0) + dt) > 20) { L0.saveT = 0; saveGame(); }   // purchases, crafting and gambling are kept even if the tab closes
     // a click on a person in reach starts a chat (the way to talk to the shopkeepers, whose E opens the shop at once).
     // Checked before the world step, so the same click does not also swing the sword
@@ -24010,8 +25048,8 @@ const provingScene = {
 const ZOOMS = [.75, 1, 1.25, 1.5, 2, 2.5];
 function zoomStep(d) { const i = ZOOMS.findIndex(z => z >= game.zoom - 1e-6), z = ZOOMS[clamp((i < 0 ? 2 : i) + d, 0, ZOOMS.length - 1)]; game.setZoom(z); OPT.zoom = z; saveOpts(); game.note('ZOOM ' + z + 'x'); }
 addEventListener('keydown', e => {
-  if (e.repeat || ED.mode === 'title' && UI.stack.length) return;
-  if (e.code === 'KeyV') { const V = ['iso', 'threequarter', 'topdown', 'brawler']; game.setView(V[(V.indexOf(game.baseView.id) + 1) % V.length]); game.note(game.view.label.toUpperCase() + ' VIEW'); }
+  if (e.repeat || UI.modal) return;
+  if (e.code === 'KeyV') { const V = ['iso', 'threequarter', 'topdown', 'brawler']; game.setView(V[(V.indexOf(game.baseView.id) + 1) % V.length]); OPT.view = game.baseView.id; saveOpts(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
   else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomStep(-1);
   else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomStep(1);
   else if (e.code === 'BracketLeft' || e.code === 'BracketRight') { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
@@ -24020,7 +25058,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyH') UI.hideHud = !UI.hideHud;
 });
 let wheelT = 0;
-canvas.addEventListener('wheel', e => { const P0 = UI.top(); if (P0 && P0.wheel) return; const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
+canvas.addEventListener('wheel', e => { if (UI.modal) return; const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
 BUS.on('heroDie', () => {});
 
 /* =============================================================================
@@ -24060,7 +25098,7 @@ def('archetypes', 'dummy', { name: 'Training Dummy', tags: ['object'], minDepth:
 });
 
 const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES'], cam: null };
-addEventListener('keydown', e => { if (ED.mode === 'gallery' && !e.repeat && /^(Arrow|Enter)/.test(e.code)) GAL.key = e.code; });
+
 const GAL_POSES = [
   ['Idle', {}, 'He breathes and shifts his weight.'], ['Walk', { run: .55 }, 'A gait driven by velocity, not frames.'], ['Run', { run: 1.1 }, 'The cape streams behind.'],
   ['Guard', { pose: 'guard' }, 'A boxer\'s guard.'], ['Block', { pose: 'block' }, 'Blade upright across the body.'], ['Ready', { stance: 'ready' }, 'Weapon held forward.'],
@@ -24159,9 +25197,10 @@ const galleryScene = {
   exit() { slowMoReset(1); ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
   update(dt) {
     const inp = game.input, h = ED.hero, L0 = ED.L, cx = L0.w * 8, cy = L0.h * 8;
-    if (updateUI(dt)) return;
+    if (updateUI(dt) || ED.mode !== 'gallery') return;
     if (inp.pressed('cancel')) { game.go('title'); return; }
-    if (GAL.key) { const k = GAL.key; GAL.key = null;
+    const galKey = inp.repeat('menuRight') ? 'ArrowRight' : inp.repeat('menuLeft') ? 'ArrowLeft' : inp.repeat('menuUp') ? 'ArrowUp' : inp.repeat('menuDown') ? 'ArrowDown' : inp.pressed('confirm') ? 'Enter' : null;
+    if (galKey) { const k = galKey;
       if (k === 'ArrowRight' || k === 'ArrowLeft') { GAL.i += k === 'ArrowRight' ? 1 : -1; galReset(); sfx('select'); }
       else if (k === 'ArrowUp' || k === 'ArrowDown') { GAL.reel = (GAL.reel + (k === 'ArrowDown' ? 1 : GAL.reels.length - 1)) % GAL.reels.length; GAL.i = 0; galReset(); sfx('confirm'); }
       else if (k === 'Enter') galReset(); }
@@ -24496,9 +25535,10 @@ const scenes = { title: titleScene, town: townScene, level: levelScene, proving:
 game.views = ['iso', 'threequarter', 'topdown', 'brawler'];
 const link = (location.hash || '').slice(1), dm = /^depth-(\d+)$/.exec(link);
 if (link === 'town' || dm || link === 'proving' || link === 'gallery') { ED.hero = loadHeroOrNew(); }
+if (!qs.has('view') && ['iso', 'threequarter', 'topdown', 'brawler'].includes(OPT.view)) game.setView(OPT.view);
 game.start({ scenes, scene: link === 'town' ? 'town' : dm ? 'level' : link === 'proving' ? 'proving' : link === 'gallery' ? 'gallery' : 'title', data: dm ? { depth: +dm[1] } : link === 'town' ? { arrive: 'waystone' } : undefined });
 /* a handle for tools, tests and the curious: window.__ed */
-window.__ed = { game, ED, REG, UI, DIFF, OPT, BUS, FX, SLOW, slowMo, levelCardInfo, comboAt, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
+window.__ed = { game, ED, REG, UI, DIFF, OPT, CONTROL, DEV, actionLabel, applyControls, devEnable, devDisable, devTravel, devStep, devSpawn, BUS, FX, SLOW, slowMo, levelCardInfo, comboAt, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
 })();
 
 </script>

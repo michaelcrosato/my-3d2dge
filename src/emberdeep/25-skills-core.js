@@ -22,8 +22,8 @@ function skillCtx(h, id, slot) {
     hit: (scale, o = {}) => { const x = heroHit(h, scale, Object.assign({ el, tags: S.tags, skill: id }, o)); if (wel && x.el === wel && x.statusChance === undefined && !x.status) { x.statusChance = .12; if (wel === 'frost') x.statusPower = 1; } return x; },
     area: 1 + (s.area || 0) / 100, proj: Math.round(s.projectiles || 0), pierce: Math.round(s.pierce || 0), chains: Math.round(s.chains || 0) };
 }
-const skillCost = (h, S) => Math.round((S.cost || 0) * (1 - clamp((h.stats.costRed || 0) / 100, 0, .6)));
-const skillCd = (h, S) => (S.cd || 0) * (1 - clamp((h.stats.cdr || 0) / 100, 0, .6));
+const skillCost = (h, S) => DEV.enabled && DEV.resources && h === ED.hero ? 0 : Math.round((S.cost || 0) * (1 - clamp((h.stats.costRed || 0) / 100, 0, .6)));
+const skillCd = (h, S) => DEV.enabled && DEV.cooldowns && h === ED.hero ? 0 : (S.cd || 0) * (1 - clamp((h.stats.cdr || 0) / 100, 0, .6));
 /** press slot i: continue the running action (combo), or start the skill if it is ready.
  *  held: the key is only being held down (repeat): nothing to warn about, and nothing is consumed */
 function useSlot(h, i, held) {

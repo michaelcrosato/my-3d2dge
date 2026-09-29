@@ -9,7 +9,7 @@ function setupGPU(map) {
 }
 /* ---------- save / load ---------- */
 const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
-function saveGame() { const h = ED.hero; if (!h || ED.demo) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
+function saveGame() { const h = ED.hero; if (!h || ED.demo || DEV.enabled || ED.mode === 'gallery') return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
 function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); const st = s.stash; (st && Array.isArray(st.tabs) ? st.tabs.flat() : Array.isArray(st) ? st : []).forEach(scan); itemUid = mx + 1; return s; }
 function newHero() {
   const h = makeHero(null);
@@ -50,11 +50,13 @@ function drawPortal(pt, r, home) {
 /* ---------- the shared world step ---------- */
 function worldStep(dt, o = {}) {
   const h = ED.hero, L0 = ED.L;
+  devBeforeWorld();
   ED.t += dt; L0.t = (L0.t || 0) + dt; slowMoStep();
   UI.prompt = null;
   floorEffects(h, dt); for (const m of ED.foes) if (m.alive && m.spawnT <= 0) floorEffects(m, dt);
   updateHero(h, dt, o);
-  updateFoes(dt); updateCorpses(dt); updateFx(dt); updateThings(L0, dt); updateDrops(dt);
+  if (!(DEV.enabled && DEV.freezeFoes)) updateFoes(dt); else GRID.build(ED.foes);
+  updateCorpses(dt); updateFx(dt); updateThings(L0, dt); updateDrops(dt);
   for (let i = ED.allies.length - 1; i >= 0; i--) { const a = ED.allies[i]; if (a.update && a.update(dt) === false) ED.allies.splice(i, 1); }
   for (const id of L0.mechs || []) { const M = REG.mechanics[id]; if (M && M.update) M.update(L0, dt); }
   for (const b of L0.torches) b.t += dt;
@@ -66,6 +68,7 @@ function worldStep(dt, o = {}) {
   game.focus(h.x + Math.cos(a) * 16, h.y + Math.sin(a) * 16, 8 + (h.z || 0) * .7);   // the camera rises with leaps and flights
 }
 function worldDraw(r) {
+  L.enabled = !(DEV.enabled && DEV.bright); if (gpu) gpu.enabled = OPT.gpu && L.enabled;
   const L0 = ED.L, h = ED.hero;
   if (L0.sky) r.sky(L0.sky);
   if (L0.drawBack) L0.drawBack(r);   // behind the floor: backdrops, the abyss under chasms
@@ -87,6 +90,7 @@ function worldDraw(r) {
   if (L0.drawOver) L0.drawOver(r);
   BUS.emit('draw', { r, L: L0 });
   if (!UI.hideHud) { drawFoeBars(r); drawHUD(r); }
+  devDraw(r);
   drawPanels(r);
 }
 function enterWorld(L0) {
@@ -109,10 +113,10 @@ function dropIn(h, from = 150) {
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
   const save = E.store.get('ed:save', null);
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')]].filter(Boolean);
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS NEW GAME AGAIN TO START OVER (THE SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]].filter(Boolean);
 }
 function loadHeroOrNew() { const s = loadSave(); if (s) { const h = makeHero(s); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(); }
-function startGame(fresh) { if (fresh) { E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
+function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove('ed:save'); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
 /** the title menu's top and row step: stacked up from the key legend at the bottom (5 rows fit at 240 px) */
 function titleMenu(n) { const step = 16, y = game.H - 29 - n * step; return { y, step }; }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
@@ -130,7 +134,7 @@ function titleKata(t) {
 }
 const titleScene = {
   enter() {
-    ED.mode = 'title'; UI.closeAll(); TITLE.t = 0; TITLE.confirmNew = false;
+    ED.mode = 'title'; UI.closeAll(); L.enabled = true; TITLE.t = 0; TITLE.confirmNew = false;
     // the rune hall of the stress test, torch-lit, the hero waiting in its circle
     const rec = { depth: 1, seed: 5, name: 'The Rune Hall', theme: 'crypt', hue: 0, layout: 'halls', mechs: [], pool: [], size: [30, 24] };
     const w = 30, hh = 24, cells = new Array(w * hh).fill(0); for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) if (!x || !y || x === w - 1 || y === hh - 1) cells[y * w + x] = 1;
@@ -150,13 +154,13 @@ const titleScene = {
     const h = ED.titleHero, items = titleItems();
     const mm = UI.mouse.cx + ',' + UI.mouse.cy, moved = mm !== TITLE.mm; TITLE.mm = mm;   // a hand on the mouse is not idle either
     if (game.input.anyPressed() || UI.mouse.down || moved) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
-    if (TITLE.idle > 28 && !UI.stack.length) { TITLE.idle = 0; startDemo(); return; }
+    if (TITLE.idle > 28 && !UI.stack.length && !DEV.enabled) { TITLE.idle = 0; startDemo(); return; }
     h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, titleKata(TITLE.t)));
     h.facing = h.rig.facing;
     for (const b of ED.L.torches) b.t += dt;
     const inp = game.input;
-    if (inp.repeat('up')) { TITLE.menu = (TITLE.menu + items.length - 1) % items.length; sfx('select'); UI.keyNav = true; }
-    if (inp.repeat('down')) { TITLE.menu = (TITLE.menu + 1) % items.length; sfx('select'); UI.keyNav = true; }
+    if (inp.repeat('menuUp')) { TITLE.menu = (TITLE.menu + items.length - 1) % items.length; sfx('select'); UI.keyNav = true; }
+    if (inp.repeat('menuDown')) { TITLE.menu = (TITLE.menu + 1) % items.length; sfx('select'); UI.keyNav = true; }
     if (inp.pressed('confirm') || inp.pressed('start')) { inp.consumeAll(); sfx('confirm'); items[clamp(TITLE.menu, 0, items.length - 1)][1](); }
     if (Math.random() < dt * 8) { const b = rnd.pick(ED.L.torches); P.add({ kind: 'ember', x: b.x + (Math.random() - .5) * 6, y: b.y + (Math.random() - .5) * 6, z: 14, vx: (Math.random() - .5) * 14, vy: (Math.random() - .5) * 14, vz: 20 + Math.random() * 40, max: 1.2, color: '#ff8a3a' }); }
     // the hero stands just above the menu: slide the look point toward (or away from) the camera until his feet sit there
@@ -202,6 +206,7 @@ function endDemo() { if (!ED.demoEnding) { ED.demoEnding = true; game.go('title'
 /* ---------- TOWN ---------- */
 const talk = new E.Dialog(game, { bg: ['#2a2040', '#141024'], border: '#c8b8e8' });
 const townScene = {
+  exit() { talk.close(); },
   enter(o = {}) {
     ED.mode = 'town'; ED.depth = 0; UI.closeAll(); BUS.clear('level');
     const L0 = (TOWN.build || TOWN.fallback)();
@@ -216,10 +221,12 @@ const townScene = {
     if (o.arrive === 'intro') { showCard('Emberhold', 'THE LAST LIT TOWN', null, 4); game.after(4.5, () => notify('THE WAYSTONE IN THE SQUARE LEADS DOWN.  (E TO USE)', '#bff6ff', 5)); }
   },
   update(dt) {
+    if (talk.open && game.input.pressed('pause') && !UI.modal) UI.open('pause');
+    if (talk.open && UI.modal) { updateUI(dt); if (!(DEV.enabled && DEV.paused)) townLife(dt); return; }
     if (talkStep(dt)) { UI.prompt = null; if (UI.modal) updateUI(dt); townLife(dt); return; }   // (worldStep, which clears the prompt, does not run: clear it here, or it draws under the box)
     const waiting = updateUI(dt);
     const L0 = ED.L, h = ED.hero, inp = game.input;
-    if (waiting) { UI.prompt = null; townLife(dt); townServed(L0); return; }
+    if (waiting) { UI.prompt = null; if (!(DEV.enabled && DEV.paused)) { townLife(dt); townServed(L0); } return; }
     if ((L0.saveT = (L0.saveT || 0) + dt) > 20) { L0.saveT = 0; saveGame(); }   // purchases, crafting and gambling are kept even if the tab closes
     // a click on a person in reach starts a chat (the way to talk to the shopkeepers, whose E opens the shop at once).
     // Checked before the world step, so the same click does not also swing the sword
@@ -421,8 +428,8 @@ const provingScene = {
 const ZOOMS = [.75, 1, 1.25, 1.5, 2, 2.5];
 function zoomStep(d) { const i = ZOOMS.findIndex(z => z >= game.zoom - 1e-6), z = ZOOMS[clamp((i < 0 ? 2 : i) + d, 0, ZOOMS.length - 1)]; game.setZoom(z); OPT.zoom = z; saveOpts(); game.note('ZOOM ' + z + 'x'); }
 addEventListener('keydown', e => {
-  if (e.repeat || ED.mode === 'title' && UI.stack.length) return;
-  if (e.code === 'KeyV') { const V = ['iso', 'threequarter', 'topdown', 'brawler']; game.setView(V[(V.indexOf(game.baseView.id) + 1) % V.length]); game.note(game.view.label.toUpperCase() + ' VIEW'); }
+  if (e.repeat || UI.modal) return;
+  if (e.code === 'KeyV') { const V = ['iso', 'threequarter', 'topdown', 'brawler']; game.setView(V[(V.indexOf(game.baseView.id) + 1) % V.length]); OPT.view = game.baseView.id; saveOpts(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
   else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomStep(-1);
   else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomStep(1);
   else if (e.code === 'BracketLeft' || e.code === 'BracketRight') { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
@@ -431,5 +438,5 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyH') UI.hideHud = !UI.hideHud;
 });
 let wheelT = 0;
-canvas.addEventListener('wheel', e => { const P0 = UI.top(); if (P0 && P0.wheel) return; const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
+canvas.addEventListener('wheel', e => { if (UI.modal) return; const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
 BUS.on('heroDie', () => {});

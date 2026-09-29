@@ -35,7 +35,7 @@ def('archetypes', 'dummy', { name: 'Training Dummy', tags: ['object'], minDepth:
 });
 
 const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES'], cam: null };
-addEventListener('keydown', e => { if (ED.mode === 'gallery' && !e.repeat && /^(Arrow|Enter)/.test(e.code)) GAL.key = e.code; });
+
 const GAL_POSES = [
   ['Idle', {}, 'He breathes and shifts his weight.'], ['Walk', { run: .55 }, 'A gait driven by velocity, not frames.'], ['Run', { run: 1.1 }, 'The cape streams behind.'],
   ['Guard', { pose: 'guard' }, 'A boxer\'s guard.'], ['Block', { pose: 'block' }, 'Blade upright across the body.'], ['Ready', { stance: 'ready' }, 'Weapon held forward.'],
@@ -134,9 +134,10 @@ const galleryScene = {
   exit() { slowMoReset(1); ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
   update(dt) {
     const inp = game.input, h = ED.hero, L0 = ED.L, cx = L0.w * 8, cy = L0.h * 8;
-    if (updateUI(dt)) return;
+    if (updateUI(dt) || ED.mode !== 'gallery') return;
     if (inp.pressed('cancel')) { game.go('title'); return; }
-    if (GAL.key) { const k = GAL.key; GAL.key = null;
+    const galKey = inp.repeat('menuRight') ? 'ArrowRight' : inp.repeat('menuLeft') ? 'ArrowLeft' : inp.repeat('menuUp') ? 'ArrowUp' : inp.repeat('menuDown') ? 'ArrowDown' : inp.pressed('confirm') ? 'Enter' : null;
+    if (galKey) { const k = galKey;
       if (k === 'ArrowRight' || k === 'ArrowLeft') { GAL.i += k === 'ArrowRight' ? 1 : -1; galReset(); sfx('select'); }
       else if (k === 'ArrowUp' || k === 'ArrowDown') { GAL.reel = (GAL.reel + (k === 'ArrowDown' ? 1 : GAL.reels.length - 1)) % GAL.reels.length; GAL.i = 0; galReset(); sfx('confirm'); }
       else if (k === 'Enter') galReset(); }

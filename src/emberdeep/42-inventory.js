@@ -101,7 +101,7 @@ function LOT_navUpdate(o = {}) {
   const inp = game.input, N = LOT_UI.navLast; if (!N.length) return;
   let cur = N.find(n => n.key === LOT_UI.focus);
   for (const [a, dx, dy] of [['left', -1, 0], ['right', 1, 0], ['up', 0, -1], ['down', 0, 1]]) {
-    if (!inp.repeat(a) || (o.noVertical && dy)) continue;
+    if (!inp.repeat('menu' + cap(a)) || (o.noVertical && dy)) continue;
     if (!cur || !UI.keyNav) { UI.keyNav = true; cur = cur || N.find(n => n.it) || N[0]; LOT_UI.focus = cur.key; continue; }
     const cx = cur.x + cur.w / 2, cy = cur.y + cur.h / 2; let best = null, bd = 1e9;
     for (const n of N) { if (n === cur) continue; const nx = n.x + n.w / 2 - cx, ny = n.y + n.h / 2 - cy, along = nx * dx + ny * dy; if (along <= 2) continue; const d = along + Math.abs(nx * dy - ny * dx) * 2.4; if (d < bd) { bd = d; best = n; } }
@@ -395,7 +395,7 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
     LOT_update({ noVertical: LOT_UI.tab === 'stats' && UI.keyNav && (LOT_UI.focus || '').startsWith('tab:') });
     const inp = game.input;
     if (inp.pressed('map')) { LOT_UI.tab = LOT_UI.tab === 'bag' ? 'stats' : 'bag'; sfx('select', { vol: .4 }); }
-    if (LOT_UI.tab === 'stats' && UI.keyNav && (LOT_UI.focus || '').startsWith('tab:')) { if (inp.repeat('down')) LOT_UI.scroll = Math.min(LOT_UI.maxScroll, LOT_UI.scroll + 9); if (inp.repeat('up')) LOT_UI.scroll = Math.max(0, LOT_UI.scroll - 9); }
+    if (LOT_UI.tab === 'stats' && UI.keyNav && (LOT_UI.focus || '').startsWith('tab:')) { if (inp.repeat('menuDown')) LOT_UI.scroll = Math.min(LOT_UI.maxScroll, LOT_UI.scroll + 9); if (inp.repeat('menuUp')) LOT_UI.scroll = Math.max(0, LOT_UI.scroll - 9); }
   },
   wheel(d) { if (LOT_UI.tab === 'stats') LOT_UI.scroll = clamp(LOT_UI.scroll + d * 18, 0, LOT_UI.maxScroll); },
   draw(g, x, y, w, hh) {

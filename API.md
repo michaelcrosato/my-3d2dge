@@ -106,6 +106,9 @@ game.start({ scene: 'title', scenes: {
 - Actions in every preset: `up down left right` (WASD, arrows, d-pad), `start` (Enter, Start), `pause` (Escape, P, Start), `confirm` (Enter, Space, J, Z, pad A), `cancel` (Escape, Backspace, X, K, pad B).
 - DEFAULT adds `attack` (J, X, click), `dash` (Space, Shift, K), `skill` (L, E, right click), `jump` (Z). PLATFORMER: `jump` (Space, Z, K, pad A), `attack` (X, J, click), `dash` (Shift, C, L), `skill`. SHMUP: `fire` (Space, Z, J, click), `bomb` (X, K).
 - `down(a)`, `pressed(a)`, `released(a)`, `repeat(a, delay, rate)` (menus), `buffered(a, win)` + `consume(a)`, `consumeAll()`, `anyPressed()`, `move()` (screen direction `[x, y]`, length up to 1), `use(preset)`, `touchButtons(['jump', 'attack'])`.
+- `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
+- Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`; diagnostics: `padIndex`, `padId`, `padAxes`, `padPrev`, `lastDevice`. Controllers are detected in any browser slot, and disconnects release their inputs. Bind `PadAxisUp/Down/Left/Right` to menu actions for left-stick navigation.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.

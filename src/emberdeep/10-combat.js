@@ -103,6 +103,7 @@ function damageNumber(u, amt, crit, el) {
 /** run a hit on a unit. Returns the damage dealt (0 if it missed or was ignored) */
 function dealDamage(tgt, hit) {
   if (!tgt || !tgt.alive || tgt.spawnT > 0) return 0;
+  if (DEV.enabled && DEV.god && tgt === ED.hero) return 0;
   if (tgt.team === 'hero' && (tgt.inv > 0 || tgt.ghost)) { if (tgt.onDodgedHit) tgt.onDodgedHit(hit); return 0; }
   const src = hit.src || null, el = hit.el || 'phys';
   let amt = hit.amount * (hit.var === 0 ? 1 : 1 + (Math.random() * 2 - 1) * (hit.var || .12));

@@ -212,7 +212,8 @@ function heroAim(h) {
   else if (inp.aimSource === 'pad' && inp.padAim) { const d = view.screenDirToGround(inp.padAim[0], inp.padAim[1]); aimA = Math.atan2(d[1], d[0]); }
   if (aimA === null && mlen > .1) aimA = Math.atan2(md[1], md[0]);
   if (aimA !== null) h.aim = aimA;
-  if (!tgt) { const nearest = nearestEnemy('hero', h.x + Math.cos(h.aim) * 40, h.y + Math.sin(h.aim) * 40, 70); tgt = nearest ? [nearest.x, nearest.y] : [h.x + Math.cos(h.aim) * 60, h.y + Math.sin(h.aim) * 60]; }
+  if (!tgt) { const nearest = (!h.bot && !CONTROL.aimAssist) ? null : nearestEnemy('hero', h.x + Math.cos(h.aim) * 40, h.y + Math.sin(h.aim) * 40, 70); tgt = nearest ? [nearest.x, nearest.y] : [h.x + Math.cos(h.aim) * 60, h.y + Math.sin(h.aim) * 60]; }
+  if (!h.bot && CONTROL.aimAssist && inp.aimSource !== 'mouse' && !inp.padAim && mlen < .1) h.aim = Math.atan2(tgt[1] - h.y, tgt[0] - h.x);
   h.tx = tgt[0]; h.ty = tgt[1];
   return { md, mlen };
 }

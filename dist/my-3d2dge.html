@@ -129,6 +129,9 @@ game.start({ scene: 'title', scenes: {
 - Actions in every preset: `up down left right` (WASD, arrows, d-pad), `start` (Enter, Start), `pause` (Escape, P, Start), `confirm` (Enter, Space, J, Z, pad A), `cancel` (Escape, Backspace, X, K, pad B).
 - DEFAULT adds `attack` (J, X, click), `dash` (Space, Shift, K), `skill` (L, E, right click), `jump` (Z). PLATFORMER: `jump` (Space, Z, K, pad A), `attack` (X, J, click), `dash` (Shift, C, L), `skill`. SHMUP: `fire` (Space, Z, J, click), `bomb` (X, K).
 - `down(a)`, `pressed(a)`, `released(a)`, `repeat(a, delay, rate)` (menus), `buffered(a, win)` + `consume(a)`, `consumeAll()`, `anyPressed()`, `move()` (screen direction `[x, y]`, length up to 1), `use(preset)`, `touchButtons(['jump', 'attack'])`.
+- `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
+- Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`; diagnostics: `padIndex`, `padId`, `padAxes`, `padPrev`, `lastDevice`. Controllers are detected in any browser slot, and disconnects release their inputs. Bind `PadAxisUp/Down/Left/Right` to menu actions for left-stick navigation.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
@@ -743,8 +746,11 @@ class Input {
     this.use(map);
     this.held = new Set(); this.clock = 0; this.pt = {}; this.used = {};
     this.fresh = new Set(); this.now = new Set(); this.freshUp = new Set(); this.nowUp = new Set(); this.rk = {};
+    this.suppressed = new Set();
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this.padPrev = []; this.aimSource = 'move';
+    this.deadzone = .18; this.padIndex = null; this.padId = ''; this.lastDevice = 'keyboard';
+    this.touchEnabled = true; this.stickSide = 'left'; this.stickRadius = 44; this.padAxes = [];
     const el = screen.canvas;
     const typing = e => {
       const t = e.target; if (!t || !t.tagName) return false;
@@ -756,18 +762,21 @@ class Input {
       if (this.codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); }
     });
     addEventListener('keyup', e => this.release(e.code));
-    addEventListener('blur', () => this.held.clear());
+    addEventListener('blur', () => this.clear());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); });
     el.addEventListener('contextmenu', e => e.preventDefault());
     el.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else this._stickMove(e); });
     el.addEventListener('pointerdown', e => {
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
-      else this._stickStart(e);
+      else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
     });
     addEventListener('pointerup', e => { if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else this._stickEnd(e); });
     addEventListener('pointercancel', e => this._stickEnd(e));
+    el.addEventListener('lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP') */
   use(map) {
+    if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
     this.map = {}; for (const a in map) this.map[a] = [...map[a], 'Act:' + a];
     this.codes = {}; for (const a in this.map) for (const c of this.map[a]) (this.codes[c] = this.codes[c] || []).push(a);
@@ -798,6 +807,9 @@ class Input {
   }
   press(code) {
     if (this.held.has(code)) return; this.held.add(code);
+    if (code.startsWith('Pad')) { this.lastDevice = 'gamepad'; this.aimSource = 'pad'; }
+    else if (code.startsWith('Act:')) this.lastDevice = 'touch';
+    else this.lastDevice = code.startsWith('Mouse') ? 'mouse' : 'keyboard';
     for (const a of this.codes[code] || []) { this.pt[a] = this.clock; this.used[a] = false; this.rk[a] = -1; this.fresh.add(a); }
   }
   release(code) {
@@ -806,9 +818,9 @@ class Input {
   }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
   /** is the action held right now? */
-  down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } for (const c of m) if (this.held.has(c)) return true; return false; }
+  down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } if (this.suppressed.has(a)) return false; for (const c of m) if (this.held.has(c)) return true; return false; }
   /** true only during the first update step after the press (menus, jumps, one-shot actions) */
-  pressed(a) { if (!this.map[a]) this._check(a); return this.now.has(a); }
+  pressed(a) { if (!this.map[a]) this._check(a); return !this.suppressed.has(a) && this.now.has(a); }
   /** true only during the first update step after the action was let go */
   released(a) { return this.nowUp.has(a); }
   /** pressed, then repeats while held (after `delay` s, every `rate` s): menu cursors, puzzle pieces */
@@ -820,34 +832,59 @@ class Input {
     return false;
   }
   /** was it pressed within the last `win` seconds and not yet consumed? (input buffering) */
-  buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this.pt[a]; return t !== undefined && !this.used[a] && this.clock - t <= win; }
+  buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this.pt[a]; return !this.suppressed.has(a) && t !== undefined && !this.used[a] && this.clock - t <= win; }
   consume(a) { this.used[a] = true; }
+  /** Suppress a held action until the next tick (a HUD widget owns the pointer this step). */
+  suppress(a) { this.consume(a); this.suppressed.add(a); }
+  /** A widget owns this button; other devices bound to the same action still work. */
+  suppressCode(code) {
+    for (const a of this.codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
+  }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
   consumeAll() { for (const a in this.map) this.used[a] = true; this.now.clear(); this.fresh.clear(); }
+  /** Release all devices and discard buffered input on focus loss or a modal transition. */
+  clear() {
+    this.held.clear(); this.consumeAll(); this.nowUp.clear(); this.freshUp.clear(); this.pt = {}; this.rk = {};
+    this.padMove = [0, 0]; this.padAim = null;
+    this._stickEnd({ pointerId: this.stickId });
+    for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
+  }
   /** any action pressed this step (title screens: "press any button") */
   anyPressed() { return this.now.size > 0; }
   /** movement intent in screen directions: x right, y down, length <= 1 */
   move() {
     let x = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), y = (this.down('down') ? 1 : 0) - (this.down('up') ? 1 : 0);
     if (this.stickOn) { x = this.stick[0]; y = this.stick[1]; }
-    if (Math.hypot(this.padMove[0], this.padMove[1]) > .2) { x = this.padMove[0]; y = this.padMove[1]; }
+    if (Math.hypot(this.padMove[0], this.padMove[1]) > 0) { x = this.padMove[0]; y = this.padMove[1]; }
     const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
     return [x, y];
   }
   /** mouse position in projected screen pixels, or null */
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
   tick(dt) {
+    this.suppressed.clear();
     this.clock += dt;
     let pads = [];
     try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { /* gamepads blocked */ }
-    const p = pads && pads[0];
+    const p = Array.from(pads || []).find(p => p && p.connected !== false && p.index === this.padIndex)
+      || Array.from(pads || []).find(p => p && p.connected !== false);
+    if (!p || p.index !== this.padIndex || p.id !== this.padId) {
+      this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); });
+      for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c);
+      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
+      this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
+      if (this.aimSource === 'pad') this.aimSource = 'move';
+    }
     if (p) {
-      const dz = v => Math.abs(v) < .18 ? 0 : v;
-      this.padMove = [dz(p.axes[0] || 0), dz(p.axes[1] || 0)];
-      const ax = dz(p.axes[2] || 0), ay = dz(p.axes[3] || 0);
-      this.padAim = Math.hypot(ax, ay) > .3 ? [ax, ay] : null;
-      if (this.padAim) this.aimSource = 'pad';
+      const dz = (x, y) => { const l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8); return l <= d ? [0, 0] : [x / l * Math.min(1, (l - d) / (1 - d)), y / l * Math.min(1, (l - d) / (1 - d))]; };
+      this.padAxes = Array.from(p.axes);
+      this.padMove = dz(p.axes[0] || 0, p.axes[1] || 0);
+      const aim = dz(p.axes[2] || 0, p.axes[3] || 0);
+      this.padAim = Math.hypot(...aim) > 0 ? [aim[0], aim[1] * (this.invertAimY ? -1 : 1)] : null;
+      if (this.padAim || Math.hypot(...this.padMove) > 0) { this.aimSource = 'pad'; this.lastDevice = 'gamepad'; }
       p.buttons.forEach((b, i) => { const on = b.pressed; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });
+      const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
+      ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
     // presses since the last step become this step's pressed()/released()
     const n = this.now; n.clear(); this.now = this.fresh; this.fresh = n;
@@ -855,16 +892,21 @@ class Input {
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {
+    this._boundButtons = (this._boundButtons || []).filter(b => b.isConnected);
     root.querySelectorAll('[data-act]').forEach(b => {
+      if (b._inputPointers) return;
       const code = 'Act:' + b.dataset.act;
-      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); this.press(code); b.classList.add('on'); });
-      const off = () => { this.release(code); b.classList.remove('on'); };
-      b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+      b._inputPointers = new Set(); this._boundButtons.push(b);
+      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); b._inputPointers.add(e.pointerId); b.setPointerCapture(e.pointerId); this.press(code); b.classList.add('on'); });
+      const off = e => { b._inputPointers.delete(e.pointerId); if (!b._inputPointers.size) { this.release(code); b.classList.remove('on'); } };
+      b.addEventListener('pointerup', off); b.addEventListener('lostpointercapture', off); b.addEventListener('pointercancel', off);
     });
   }
   _stickStart(e) {
+    if (!this.touchEnabled || this.stickOn) return;
     const rc = this.screen.canvas.getBoundingClientRect();
-    if (e.clientX - rc.left > rc.width * .5) return;
+    if (this.stickSide === 'right' ? e.clientX - rc.left < rc.width * .5 : e.clientX - rc.left > rc.width * .5) return;
+    this.screen.canvas.setPointerCapture(e.pointerId); this.aimSource = 'move'; this.lastDevice = 'touch';
     this.stickId = e.pointerId; this.stickOn = true; this.stickO = [e.clientX, e.clientY]; this.stick = [0, 0];
     if (!this.stickEl) {
       const mkEl = (s, css) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;pointer-events:none;border-radius:50%;z-index:3;' + css; d.style.width = d.style.height = s + 'px'; this.screen.canvas.parentElement.appendChild(d); return d; };
@@ -875,7 +917,7 @@ class Input {
   }
   _stickMove(e) {
     if (!this.stickOn || e.pointerId !== this.stickId) return;
-    let dx = (e.clientX - this.stickO[0]) / 44, dy = (e.clientY - this.stickO[1]) / 44;
+    let dx = (e.clientX - this.stickO[0]) / this.stickRadius, dy = (e.clientY - this.stickO[1]) / this.stickRadius;
     const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
     this.stick = [dx, dy]; this._stickDraw();
   }
