@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "echo 'Static site: the pages in examples/ and dist/ are prebuilt and committed (npm run build makes them)'",
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/", "destination": "/examples/emberdeep.html" },
+    { "source": "/:page(emberdeep|arena|stress-test|perspective-lab|scarfrunner-side)", "destination": "/examples/:page.html" },
+    { "source": "/kits/:kit(adventure|animlab|brawler|platformer|rpg|shooter)", "destination": "/dist/kits/my-3d2dge-:kit.html" }
+  ]
+}
