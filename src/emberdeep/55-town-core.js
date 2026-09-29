@@ -2,8 +2,9 @@
  * TOWN: Emberhold's map, its people, and the framework that animates them
  * An NPC is def('npcs', id, {
  *   name: 'HARROW', title: 'Blacksmith', rig: { Humanoid options }, at: [x, y] (world) or tag, facing,
- *   service: 'smith' | 'vendor' | 'mystic' | 'waystone' | null (the panel E opens after the greeting),
+ *   service: 'smith' | 'vendor' | 'mystic' | 'waystone' | null (the panel E opens at once; a click on them chats instead),
  *   lines: ['greeting', ...] (one is picked per talk), held: { kind: 'hammer', hand: 'R' } (see heldItem),
+ *   hi: ['short greeting', ...] (the bubble when the shop opens), bye: ['short farewell', ...] (the bubble when it closes),
  *   script: [{ dur, rig: { fields for rig.update }, go: [x, y] (walk there), face: angle | 'hero', fx(n, u, dt) }, ...]  (loops),
  *   update(n, dt) (instead of or after the script), near(n) (the hero came close: wave, turn...)
  * })
@@ -69,18 +70,25 @@ function drawNPC(n, r) {
     if (S.drawExtra) S.drawExtra(g, ox, oy, r.view, n);
   }, { outline: true });
   if (S.after) S.after(n, r);
-  // name tag when the hero is near; a speech bubble if there is one
-  if (n.near || n.bubble) r.overlay(g => {
+  // name tag when the hero is near (not over an open panel); a speech bubble if there is one
+  if ((n.near && !UI.modal) || n.bubble) r.overlay(g => {
     const [x, y] = r.w(n.x, n.y, (n.z || 0) + (n.rig.o.size || 1) * 34);
-    if (n.bubble) { const t = n.bubble.text, w = E.font.width(t, { font: 'tiny' }) + 8; E.ui.box(g, x - w / 2, y - 18, w, 11, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false }); E.font.text(g, t, x, y - 15, '#2a1a2a', { align: 'center', font: 'tiny', outline: false }); }
+    if (n.bubble) {   // wrapped to a few short lines, kept on screen, with a tail down to the speaker; it rises into place as it appears
+      const B = n.bubble, lines = B.lines || (B.lines = E.font.wrap(B.text, 118, { font: 'tiny' })), lh = 7, w = Math.max(...lines.map(l => E.font.width(l, { font: 'tiny' }))) + 8, hh = lines.length * lh + 4;
+      const age = B.max - B.t, pop = age < .12 ? age / .12 : 1, bx = Math.round(clamp(x - w / 2, 2, r.W - w - 2)), by = Math.round(y - 11 - hh + (1 - pop) * 3);
+      E.ui.box(g, bx, by, w, hh, { bg: '#f0e8d8', border: '#3a2a3a', shadow: false, gradient: false });
+      const tx = Math.round(clamp(x, bx + 4, bx + w - 5)); px.poly(g, [[tx - 2, by + hh - 1], [tx + 2, by + hh - 1], [tx, by + hh + 3]], '#3a2a3a'); px.rect(g, tx - 1, by + hh - 1, 2, 2, '#f0e8d8');
+      lines.forEach((l, i) => E.font.text(g, l, bx + w / 2, by + 3 + i * lh, '#2a1a2a', { align: 'center', font: 'tiny', outline: false }));
+    }
     else { E.font.text(g, S.name, x, y - 12, '#ffd36a', { align: 'center', font: 'tiny', outline: '#0c0818' }); if (S.title) E.font.text(g, S.title, x, y - 6, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#0c0818' }); }
   });
 }
-const say = (n, text, t = 2.5) => { n.bubble = { text, t }; };
+const say = (n, text, t = 2.5) => { n.bubble = { text, t, max: t }; };
 
 /* ---------- the town builder: 56-town.js replaces TOWN.build with Emberhold; this fallback is a green with a waystone ---------- */
 const TOWN = {
-  build: null,   // () => L (a level-like object: map, flow, things, props, torches, npcs, start, waystone, portal)
+  build: null,   // () => L (a level-like object: map, flow, things, props, torches, npcs, start, waystone, portal,
+                 //   uses: [{ x, y, r, label, use(h) }]: things E works on, like the stash chest)
   fallback() {
     const w = 30, h = 24, cells = new Array(w * h).fill(0);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!x || !y || x === w - 1 || y === h - 1) cells[y * w + x] = 1;

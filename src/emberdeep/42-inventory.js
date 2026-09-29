@@ -5,8 +5,11 @@
  *              can be turned by dragging); the bag; rich tooltips that compare with what is worn; click equips, drag
  *              moves, right-click drops (or sells while a shop is open); a character sheet tab with every stat
  *   vendor     Cobb: a stock that rerolls every town visit (scaled to the deepest depth), buy, sell, buy back, gamble
- *   smith      Harrow: reforge (reroll every affix), temper (raise the item level), salvage
- *   mystic     Seren: enchant (reroll one affix, D4 style), transmute (raise the rarity), respec
+ *   smith      Harrow: reforge (reroll every affix), temper (raise the item level), salvage (into materials)
+ *   mystic     Seren: enchant (reroll one affix, D4 style), transmute (raise the rarity), imprint (a salvaged
+ *              legendary's power onto another item), respec
+ *   stash      the chest in Emberhold: four tabs of forty, plus the materials and the essences salvage gives
+ * Crafting costs gold AND materials (Iron Scrap, Rune Dust, Ember Cores), so salvaging is not selling.
  * Mouse and keyboard: arrows move a focus over everything, Enter uses, Backspace sells or drops, Tab switches tabs.
  * Menus animate in real time (performance.now), so slow motion never slows them. Private names start with LOT_.
  * ============================================================================= */
@@ -51,6 +54,7 @@ function LOT_end(g) {
   for (const f of LOT_UI.fx) {
     if (f.t < 0) continue;
     if (f.kind === 'coin') { px.ell(g, f.x, f.y + 1, 2.4, 1.6, '#8a6a1a'); px.ell(g, f.x, f.y, 2.4, 1.6, '#ffd23a'); px.dot(g, f.x - 1, f.y - 1, '#fff6c0'); }
+    else if (f.kind === 'text') { const a = clamp(Math.min(f.t / .08, (f.max - f.t) / .45), 0, 1); px.blend(g, a, 'normal', () => E.font.text(g, f.s, f.x, f.y, f.c, { align: 'center', font: 'tiny', outline: '#0c0818' })); }
     else { const k = 1 - f.t / f.max, R = Math.round(k * 2.5); px.rect(g, f.x - R, f.y, R * 2 + 1, 1, f.c); px.rect(g, f.x, f.y - R, 1, R * 2 + 1, f.c); px.dot(g, f.x, f.y, '#ffffff'); }
   }
   const T = LOT_UI.tip;
@@ -66,7 +70,8 @@ function LOT_update(o = {}) {
     if (f.kind === 'coin') {
       if (f.t < .22) { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 300 * dt; }
       else { const G0 = LOT_UI.goldAt || [f.x, f.y], k = Math.min(1, dt * 12); f.x = lerp(f.x, G0[0], k); f.y = lerp(f.y, G0[1], k); if (Math.hypot(f.x - G0[0], f.y - G0[1]) < 3) { LOT_UI.fx.splice(i, 1); if (Math.random() < .5) sfx('coin', { vol: .15, pitch: 1.3 + Math.random() * .4 }); continue; } }
-    } else { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 60 * dt; f.vx *= .95; }
+    } else if (f.kind === 'text') f.y -= 14 * dt;
+    else { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 60 * dt; f.vx *= .95; }
     if (f.t > f.max + (f.kind === 'coin' ? 1 : 0)) LOT_UI.fx.splice(i, 1);
   }
   if (LOT_UI.confirmT > 0 && (LOT_UI.confirmT -= dt) <= 0) LOT_UI.confirm = null;
@@ -75,6 +80,8 @@ function LOT_update(o = {}) {
 }
 /** a burst of sparkles in screen pixels (equips, reforges, reveals) */
 function LOT_burst(x, y, c, n = 10) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 20 + Math.random() * 55; LOT_UI.fx.push({ kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 25, t: 0, max: .45 + Math.random() * .4, c }); } }
+/** a line that floats up from a spot and fades ('+3 SCRAP  +1 DUST') */
+function LOT_float(x, y, s, c = '#e8e0f8') { LOT_UI.fx.push({ kind: 'text', x, y, s, c, t: 0, max: 1.6 }); }
 /** coins that pop out of a cell and fly into the gold counter */
 function LOT_coins(x, y, n) { const k = Math.min(9, 2 + Math.floor(Math.log10(n + 1) * 2)); for (let i = 0; i < k; i++) LOT_UI.fx.push({ kind: 'coin', x: x + (Math.random() - .5) * 8, y: y + (Math.random() - .5) * 6, vx: (Math.random() - .5) * 70, vy: -50 - Math.random() * 50, t: -i * .035, max: .9 }); }
 
@@ -183,16 +190,20 @@ function LOT_bagGrid(g, x, y, cols, rows, S, h, mode) {
 /** the second action on an item: sell (a shop is open), salvage (the smith), or drop it on the ground */
 function LOT_itemAlt(h, it, at, mode = {}) {
   const shop = LOT_shopOpen();
-  if (mode.kind === 'smith' || shop === 'smith') return LOT_sell(h, it, at, 'salvage');
+  if (mode.kind === 'stash') return LOT_equip(h, it);   // at the stash a right-click wears it (a click stores it)
+  if (mode.kind === 'smith' || shop === 'smith') return LOT_salvage(h, it, at);
   if (shop) return LOT_sell(h, it, at);
+  if (UI.isOpen('stash')) return LOT_toStash(h, it);   // the bag opened over the stash: a right-click stores it
   LOT_dropGround(h, it);
 }
 function LOT_dropBag(h, it, T, mode) {
   if (!T) { const [px0, py0, pw, ph] = LOT_UI.panelRect, m = UI.mouse; if (mode.kind === 'inv' && !LOT_in(m, px0, py0, pw, ph)) { if (LOT_shopOpen()) LOT_sell(h, it, null); else LOT_dropGround(h, it); } return; }
   if (T.kind === 'bag') LOT_moveBag(h, it, T.i);
   else if (T.kind === 'slot') { if (LOT_fits(it, T.slot)) LOT_equip(h, it, T.slot); else { notify('THAT GOES IN THE ' + SLOT_NAMES[it.slot].toUpperCase() + ' SLOT', '#ff9a7a', 1.2); sfx('cancel', { vol: .4 }); } }
-  else if (T.kind === 'sell') LOT_sell(h, it, [T.x + T.w / 2, T.y + 10], mode.kind === 'smith' ? 'salvage' : 'sell');
+  else if (T.kind === 'sell') { if (mode.kind === 'smith') LOT_salvage(h, it, [T.x + T.w / 2, T.y + 10]); else LOT_sell(h, it, [T.x + T.w / 2, T.y + 10]); }
   else if (T.kind === 'anvil' && mode.select) mode.select(it);
+  else if (T.kind === 'stash') LOT_toStash(h, it, T.tab, T.i);
+  else if (T.kind === 'stashTab') LOT_toStash(h, it, T.tab);
 }
 function LOT_dropWorn(h, slot, T) {
   const it = h.gear[slot]; if (!it) return;
@@ -207,6 +218,8 @@ function LOT_hints(h, kind) {
   if (kind === 'worn') return [{ t: 'CLICK: TAKE OFF  •  DRAG: MOVE', c }, { t: shop ? 'RIGHT-CLICK: SELL' : 'RIGHT-CLICK: DROP', c }];
   if (kind === 'smith') return [{ t: 'CLICK: PUT ON THE ANVIL  •  RIGHT-CLICK: SALVAGE', c }];
   if (kind === 'mystic') return [{ t: 'CLICK: PLACE ON THE ALTAR', c }];
+  if (kind === 'stash') return [{ t: 'CLICK: INTO THE STASH  •  DRAG: PLACE', c }, { t: 'RIGHT-CLICK: EQUIP', c }];
+  if (kind === 'stashed') return [{ t: 'CLICK: INTO THE BAG  •  DRAG: PLACE', c }, { t: 'RIGHT-CLICK: WEAR IT (WHAT IT REPLACES IS STORED)', c }];
   return [{ t: 'CLICK: EQUIP  •  DRAG: MOVE', c }, { t: shop ? 'RIGHT-CLICK: SELL' : 'RIGHT-CLICK: DROP ON THE GROUND', c }];
 }
 /** gold with a coin, and where flying coins go */
@@ -318,7 +331,7 @@ function LOT_readout(g, x, y, w, h) {
   });
   const y4 = y3 + 9, sp = v => (v >= 0 ? '+' : '') + Math.round(v) + '%';
   E.font.text(g, 'CRIT ' + (h.critChance * 100).toFixed(0) + '%', x, y4, '#ffd23a', tiny);
-  E.font.text(g, 'ATK ' + sp((h.atkMul - 1) * 100), x + third, y4, '#e8e0f8', tiny);
+  E.font.text(g, 'ATK ' + sp((h.atkMul / DIFF.heroSpeed - 1) * 100), x + third, y4, '#e8e0f8', tiny);
   E.font.text(g, 'RUN ' + sp((h.speedMul / DIFF.heroSpeed - 1) * 100), x + third * 2, y4, '#8fe3ff', tiny);
 }
 
@@ -328,11 +341,11 @@ function LOT_statRows(h) {
   const w = h.gear.weapon, el = (w && w.el) || 'phys', staff = !!(w && w.look && w.look.weapon === 'staff'), hit = heroHit(h, 1, { el, tags: staff ? ['spell'] : ['melee', 'attack'] }).amount;
   const sgn = v => (v >= 0 ? '+' : '') + Math.round(v) + '%';
   head('OFFENSE');
-  add('Weapon', w ? (w.dmg ? w.dmg[0] + '-' + w.dmg[1] : '-') + ' ' + EL(el).name : 'bare hands', EL(el).light);
+  add('Weapon', w ? (w.dmg ? fmt(w.dmg[0]) + '-' + fmt(w.dmg[1]) : '-') + ' ' + EL(el).name : 'bare hands', EL(el).light);
   add(staff ? 'Spell hit' : 'Weapon hit', Math.round(hit * .88) + '-' + Math.round(hit * 1.12));
   add('Damage rating', LOT_power(h).toFixed(1), '#fff2c4');
   add('Critical strike chance', (h.critChance * 100).toFixed(1) + '%', '#ffd23a'); add('Critical strike damage', 'x' + h.critMul.toFixed(2), '#ffd23a');
-  add('Attack speed', sgn((h.atkMul - 1) * 100)); add('Cast speed', sgn((h.castMul - 1) * 100));
+  add('Attack speed', sgn((h.atkMul / DIFF.heroSpeed - 1) * 100)); add('Cast speed', sgn((h.castMul / DIFF.heroSpeed - 1) * 100));   // (the gear's share; the speed slider is shown apart)
   add('Status chance', sgn((h.statusMul - 1) * 100)); add('Area of effect', sgn(s.area || 0));
   if (s.projectiles) add('Extra projectiles', '+' + Math.round(s.projectiles)); if (s.cdr) add('Cooldown reduction', Math.round(s.cdr) + '%');
   head('DEFENSE');
@@ -348,7 +361,7 @@ function LOT_statRows(h) {
   head('EVERY BONUS');
   const keys = Object.keys(STATS).concat(Object.keys(s).filter(k => !STATS[k]));
   for (const k of keys) if (s[k]) rows.push({ t: statText(k, Math.round(s[k] * 10) / 10), line: true, tc: '#8ab4ff' });
-  if (h.powers.length) { head('LEGENDARY POWERS'); for (const id of h.powers) { const p = REG.powers[id]; if (!p) continue; rows.push({ t: p.name, line: true, tc: '#ffb070' }); rows.push({ t: p.desc, line: true, tc: '#ff9a4a', wrap: true }); } }
+  if (h.powers.length) { head('LEGENDARY POWERS'); for (const id of h.powers) { const p = powerSpec(id); if (!p) continue; rows.push({ t: p.name, line: true, tc: '#ffb070' }); rows.push({ t: p.desc, line: true, tc: '#ff9a4a', wrap: true }); } }
   return rows;
 }
 function LOT_drawStats(g, x, y, w, h, hero) {
@@ -414,7 +427,7 @@ LOT_PANELS.inventory = { title: 'INVENTORY', w: W => Math.min(W - 8, 500), h: (W
         E.font.text(g, 'LEGENDARY POWERS', gx, py, '#9a90b0', { font: 'tiny', outline: false }); py += 8;
         let px0 = gx;
         for (const id of h.powers) {
-          const p = REG.powers[id]; if (!p) continue; const tw = E.font.width(p.name) + 10;
+          const p = powerSpec(id); if (!p) continue; const tw = E.font.width(p.name) + 10;
           if (px0 + tw > gx + cols * CS) { px0 = gx; py += 10; } if (py > foot - 9) break;
           const over = LOT_hot(px0, py - 1, tw, 10, { tip: [{ t: p.name, c: '#ffb070' }, { t: p.desc, c: '#ff9a4a' }] });
           px.rect(g, px0, py + 2, 3, 3, '#ff8a2a'); px.dot(g, px0 + 1, py + 2, '#fff0a0');
@@ -451,15 +464,20 @@ const LOT_LINES = {
     greet: ['Bring it to the anvil. I\'ll make it sing.', 'Steel remembers the forge. So do I.', 'Every blade can be better. Most of them need it.'],
     reforge: ['Melted, hammered, reborn.', 'There. Same bones, new temper.', 'Didn\'t like the old one anyway.'],
     temper: ['Hotter fire, harder edge.', 'Now it can keep up with you.'],
-    salvage: ['Scrap is scrap. Here\'s your coin.', 'I\'ll melt it down for nails.'],
+    salvage: ['Broken down. The good bits are yours.', 'Melted, sorted, stacked. Scrap for the forge, dust for Seren.', 'Nothing wasted in this forge.'],
+    essence: ['Its power came out whole. Seren can bind it to something else.', 'Hear that hum? That\'s the power it held, bottled.'],
     unique: ['That one isn\'t mine to change. Old magic in it.'], max: ['Can\'t make it any better than you are.'],
-    poor: ['Coal isn\'t free, friend.'], pick: ['Put something on the anvil first.'] },
+    poor: ['Coal isn\'t free, friend.'], pick: ['Put something on the anvil first.'],
+    mats: ['Not enough scrap and dust. Salvage what you don\'t need.', 'I forge with scrap, friend. Bring me something to break.'] },
   mystic: {
     greet: ['The deep whispers in every thread. I can change what it says.', 'Show me what you carry.', 'Sit. The weave is listening.'],
     enchant: ['Choose. The weave will not wait.', 'Three threads. Pull one.'], chosen: ['It is woven.', 'So it shall be.'],
     transmute: ['Rise. Become more than you were.', 'It remembers what it could have been.'],
     respec: ['Forget, and learn again.', 'Your path unravels. Walk it anew.'], confirm: ['Are you certain? Ask again.'],
-    unique: ['That one is already whole. I cannot touch it.'], poor: ['The weave asks for gold, not promises.'], pick: ['Place something on the altar.'] }
+    unique: ['That one is already whole. I cannot touch it.'], poor: ['The weave asks for gold, not promises.'], pick: ['Place something on the altar.'],
+    mats: ['The weave needs rune dust. Harrow breaks spare things into it.', 'Not enough dust. Salvage something first.'],
+    nocore: ['An imprint burns two ember cores. Salvage a legendary at Harrow\'s.'], imprint: ['Bound. It remembers a new power now.', 'The power takes. Feel it settle.'],
+    noess: ['You carry no power that fits it. Salvage legendaries to bottle theirs.'], rare: ['Only a rare or a legendary can hold a power. Transmute it first.'] }
 };
 const LOT_SAY = { svc: null, text: '', t: 0 };
 function LOT_say(svc, kind) { const L0 = LOT_LINES[svc] && LOT_LINES[svc][kind]; if (!L0) return; let t = rnd.pick(L0); if (L0.length > 1 && t === LOT_SAY.text) t = rnd.pick(L0); LOT_SAY.svc = svc; LOT_SAY.text = t; LOT_SAY.t = 0; }
@@ -495,16 +513,104 @@ const LOT_COST = {
 };
 /** pay or complain: true if the gold was taken */
 function LOT_pay(h, n, svc) { if (h.gold < n) { LOT_say(svc, 'poor'); sfx('cancel', { vol: .5 }); return false; } h.gold -= n; return true; }
-/** the right-hand column every shop shares: 'YOUR BAG', the gold, the grid; worn items too for the smith and the mystic */
-function LOT_shopBag(g, x, y, w, bottom, h, mode, worn) {
-  E.font.text(g, 'YOUR BAG', x, y, '#9a90b0', { font: 'tiny', outline: false }); E.font.text(g, h.bag.length + '/' + BAG_MAX, x + 38, y, h.bag.length >= BAG_MAX ? '#ff8a7a' : '#6a6488', { font: 'tiny', outline: false });
+
+/* =============================================================================
+ * MATERIALS: salvage breaks items into them and crafting spends them with the gold, so salvaging is not selling.
+ * They live in the stash (h.stash.mats, saved with it); a legendary's power comes out as an ESSENCE (h.stash.ess)
+ * that Seren can imprint on another item of a slot it fits (Diablo IV's aspects). Yields grow a step every 20 item
+ * levels, so deep salvage keeps up with deep crafting.
+ * ============================================================================= */
+const LOT_MATS = {
+  scrap: { name: 'Iron Scrap', color: '#b8bcc8', desc: 'Salvaged from anything. Harrow reforges and tempers with it.' },
+  dust: { name: 'Rune Dust', color: '#8ab4ff', desc: 'Salvaged from magic items and better. Reforging, enchanting and transmuting use it.' },
+  core: { name: 'Ember Core', color: '#ff9a3a', desc: 'Salvaged from legendary and unique items. An imprint burns two.' }
+};
+const LOT_MAT_IDS = ['scrap', 'dust', 'core'];
+/** what crafting costs besides gold */
+const LOT_MATCOST = {
+  reforge: it => ({ scrap: 1 + it.rarity, dust: it.rarity }),
+  temper: (it, to) => ({ scrap: clamp(Math.ceil((to - it.ilvl) / 2), 1, 24) }),
+  enchant: it => ({ dust: 1 + (it.enchants || 0) }),
+  transmute: it => ({ dust: it.rarity === 0 ? 1 : 3 }),
+  imprint: () => ({ core: 2 })
+};
+LOT_COST.imprint = it => Math.round(40 * SCALE.gold(it.ilvl) + it.value * 2);
+/** what an item breaks into: { scrap, dust, core, ess (a power id or null) } */
+function LOT_yield(it) {
+  const k = 1 + Math.floor((it.ilvl || 1) / 20), r = it.rarity, pw = it.power && REG.powers[it.power];
+  return { scrap: [1, 2, 2, 3, 3][r] * k, dust: [0, 1, 2, 3, 3][r] * k, core: r === 3 ? 1 + (it.ilvl >= 40 ? 1 : 0) : r === 4 ? 2 : 0,
+    ess: pw && (r === 3 || (r === 4 && pw.slots && pw.slots.length)) ? pw.id : null };   // (a unique-only power stays with its unique)
+}
+const LOT_yieldText = y => LOT_MAT_IDS.filter(k => y[k]).map(k => '+' + y[k] + ' ' + LOT_MATS[k].name.split(' ')[1].toUpperCase()).join('  ') + (y.ess ? '  +ESSENCE' : '');
+/** a material's 7 px icon: stacked ingots, a glittering heap of dust, a faceted core that glows */
+function LOT_matIcon(g, id, x, y) {
+  if (id === 'ess') { const t = E.tones('#ffb070'); px.blend(g, .4, 'add', () => px.disc(g, x + 3.5, y + 4, 3.5, '#ff8a2a')); px.disc(g, x + 3.5, y + 4.5, 2.4, t.sh); px.disc(g, x + 3.2, y + 4, 1.6, t.base); px.dot(g, x + 3, y + 3, t.hi); px.dot(g, x + 5, y + 1, t.lt); px.dot(g, x + 4, y, t.hi); return; }
+  const t = E.tones(LOT_MATS[id].color);
+  if (id === 'scrap') { px.rect(g, x, y + 4, 7, 3, t.deep); px.rect(g, x + 1, y + 4, 5, 1, t.lt); px.rect(g, x + 1, y + 5, 5, 1, t.sh); px.rect(g, x + 1, y + 1, 5, 3, t.deep); px.rect(g, x + 2, y + 1, 3, 1, t.hi); px.rect(g, x + 2, y + 2, 3, 1, t.base); }
+  else if (id === 'dust') { px.ell(g, x + 3.5, y + 5.2, 3.5, 1.9, t.deep); px.ell(g, x + 3.5, y + 4.6, 2.8, 1.6, t.sh); px.ell(g, x + 3.2, y + 4.2, 1.8, 1.1, t.base); const k = Math.floor(performance.now() / 300) % 3; px.dot(g, x + [2, 4, 5][k], y + [3, 2, 4][k], t.hi); px.dot(g, x + 3, y + 1, t.lt); }
+  else { px.blend(g, .35, 'add', () => px.disc(g, x + 3.5, y + 3.5, 4, t.base)); px.poly(g, [[x + 3.5, y], [x + 7, y + 3.5], [x + 3.5, y + 7], [x, y + 3.5]], t.deep); px.poly(g, [[x + 3.5, y + 1], [x + 6, y + 3.5], [x + 3.5, y + 6], [x + 1, y + 3.5]], t.base); px.rect(g, x + 2, y + 3, 2, 1, t.hi); px.dot(g, x + 3, y + 2, '#ffffff'); }
+}
+/** how many essences he holds */
+const LOT_essN = h => Object.values(LOT_stash(h).ess).reduce((a, n) => a + n, 0);
+/** the materials in a row (icon, count), each with its tooltip; align 'right' ends the row at x. Returns its width */
+function LOT_matsRow(g, x, y, h, align = 'left') {
+  const S = LOT_stash(h), items = LOT_MAT_IDS.map(k => [k, S.mats[k] || 0]).concat([['ess', LOT_essN(h)]]), tiny = { font: 'tiny', outline: false };
+  const ws = items.map(([, n]) => 9 + E.font.width(fmt(n), { font: 'tiny' }) + 4), W0 = ws.reduce((a, b) => a + b, 0);
+  let xx = align === 'right' ? x - W0 : x;
+  items.forEach(([k, n], i) => {
+    LOT_matIcon(g, k, xx, y - 1); E.font.text(g, fmt(n), xx + 9, y, n ? '#e8e0f8' : '#5a5478', tiny);
+    const tip = k === 'ess' ? [{ t: 'Essences  ' + n, c: '#ffb070' }, { t: 'Powers salvaged from legendaries. Seren imprints one on a rare or legendary item of a slot it fits.', c: '#c8c0d8' }].concat(Object.entries(S.ess).filter(([, c]) => c > 0).slice(0, 8).map(([id, c]) => ({ t: (powerSpec(id) ? powerSpec(id).name : id) + (c > 1 ? '  x' + c : ''), c: '#ff9a4a' })))
+      : [{ t: LOT_MATS[k].name + '  ' + fmt(n), c: LOT_MATS[k].color }, { t: LOT_MATS[k].desc, c: '#c8c0d8' }];
+    LOT_hot(xx - 1, y - 2, ws[i], 9, { tip }); xx += ws[i];
+  });
+  return W0;
+}
+/** can he pay gold and materials? say why not (the NPC's line) */
+function LOT_afford(h, gold, need, svc, quiet) {
+  const S = LOT_stash(h), short = LOT_MAT_IDS.filter(k => (need[k] || 0) > (S.mats[k] || 0));
+  if (h.gold < gold) { if (!quiet) { LOT_say(svc, 'poor'); sfx('cancel', { vol: .5 }); } return false; }
+  if (short.length) { if (!quiet) { LOT_say(svc, short.includes('core') ? 'nocore' : 'mats'); sfx('cancel', { vol: .5 }); } return false; }
+  return true;
+}
+function LOT_payAll(h, gold, need, svc) { if (!LOT_afford(h, gold, need, svc)) return false; const S = LOT_stash(h); h.gold -= gold; for (const k of LOT_MAT_IDS) if (need[k]) S.mats[k] -= need[k]; return true; }
+/** a crafting button: the verb at the left, the price at the right (gold, then each material, red where he is short) */
+function LOT_costBtn(g, x, y, w, BH, label, gold, need, h, fn, o = {}) {
+  LOT_btn(g, x, y, w, BH, '', fn, o);
+  const S = LOT_stash(h), dis = o.disabled, ty = y + Math.round((BH - 7) / 2);
+  E.font.text(g, label, x + 5, ty, dis ? '#6a6488' : '#e8e0f8', { outline: false, shadow: '#05040a' });
+  if (dis && !o.showCost) return;
+  let xx = x + w - 5;
+  if (need && need.ess && o.gain) { xx -= 7; LOT_matIcon(g, 'ess', xx, ty); xx -= 5; }
+  for (const k of LOT_MAT_IDS.slice().reverse()) if (need && need[k]) { const s = (o.gain ? '+' : '') + need[k], sw = E.font.width(s, { font: 'tiny' }); xx -= sw; E.font.text(g, s, xx, ty + 1, o.gain ? '#a8f0b0' : (S.mats[k] || 0) >= need[k] ? '#e8e0f8' : '#ff7a6a', { font: 'tiny', outline: false }); xx -= 9; LOT_matIcon(g, k, xx, ty); xx -= 4; }
+  if (gold) { const s = fmt(gold), sw = E.font.width(s, { font: 'tiny' }); xx -= sw; E.font.text(g, s, xx, ty + 1, h.gold >= gold ? GOLD : '#ff7a6a', { font: 'tiny', outline: false }); xx -= 6; LOT_coin(g, xx, ty + 1, true); }
+}
+/** salvage at the forge: materials (and a legendary's essence), never gold; rares and better ask twice */
+function LOT_salvage(h, it, at) {
+  if (!it || LOT_worn(h, it)) return false;
+  if (it.rarity >= 2 && LOT_UI.confirm !== it.uid) { LOT_UI.confirm = it.uid; LOT_UI.confirmT = 2.5; notify('SALVAGE ' + it.name.toUpperCase() + '? AGAIN TO CONFIRM', '#ffd36a', 2.2); sfx('select', { vol: .5 }); return false; }
+  if (!LOT_take(h, it)) return false;
+  LOT_UI.confirm = null; const y = LOT_yield(it), S = LOT_stash(h);
+  for (const k of LOT_MAT_IDS) if (y[k]) S.mats[k] = (S.mats[k] || 0) + y[k];
+  if (y.ess) S.ess[y.ess] = (S.ess[y.ess] || 0) + 1;
+  if (at) { LOT_float(at[0] + 8, at[1] - 2, LOT_yieldText(y), y.ess ? '#ffb070' : '#d8e0f0'); LOT_burst(at[0] + 8, at[1] + 8, '#c8ccd8', 8); if (y.dust) LOT_burst(at[0] + 8, at[1] + 8, '#8ab4ff', 5); if (y.core) LOT_burst(at[0] + 8, at[1] + 8, '#ff9a3a', 8); }
+  sfx('clang', { vol: .45, pitch: 1.2 }); if (y.ess) sfx('chime', { vol: .5 }); LOT_say('smith', y.ess ? 'essence' : 'salvage');
+  return true;
+}
+/** the right-hand column every shop shares. Each block is labelled from above: 'WORN' over the worn row (the smith and
+ *  the mystic work on those too), then 'YOUR BAG n/40' over the bag; the gold (and the materials, where crafting
+ *  spends them) sits at the right of the first line */
+function LOT_shopBag(g, x, y, w, bottom, h, mode, worn, mats) {
+  const tiny = { font: 'tiny', outline: false }, bagLabel = yy => { E.font.text(g, 'YOUR BAG', x, yy, '#9a90b0', tiny); E.font.text(g, h.bag.length + '/' + BAG_MAX, x + 38, yy, h.bag.length >= BAG_MAX ? '#ff8a7a' : '#6a6488', tiny); };
   LOT_gold(g, x + w, y - 1, h, 'right');
+  if (mats) LOT_matsRow(g, x + w - E.font.width(fmt(h.gold)) - 14, y, h, 'right');
   let gy = y + 9;
   if (worn) {
+    E.font.text(g, 'WORN', x, y, '#9a90b0', tiny);
     const WS = clamp(Math.floor(w / 10), 14, 19);
     SLOTS.forEach((s, i) => { const it = h.gear[s], cx = x + i * WS; LOT_itemCell(g, cx, gy, WS - 1, it, { key: 'worn:' + s, sel: mode.sel && mode.sel === it, seam: 1, click: () => mode.select(it), alt: null, drop: T => { if (T && T.kind === 'anvil') mode.select(it); }, tipO: { equipped: true, hint: [{ t: 'CLICK: ' + (mode.kind === 'smith' ? 'PUT ON THE ANVIL' : 'PLACE ON THE ALTAR'), c: '#8a80a8' }] } }); if (!it) drawItemIconEx(g, LOT_ghost(s), cx + Math.floor((WS - 17) / 2), gy + Math.floor((WS - 17) / 2), 1, { alpha: .35, anim: false }); });
-    E.font.text(g, 'WORN', x, gy + WS + 1, '#6a6488', { font: 'tiny', outline: false }); gy += WS + 9;
-  }
+    gy += WS + 3; px.rect(g, x, gy, w, 1, '#3a3050'); gy += 3;   // a rule between what he wears and what he carries
+    bagLabel(gy); gy += 9;
+  } else bagLabel(y);
   const cols = 8, rows = 5, CS = clamp(Math.min(Math.floor(w / cols), Math.floor((bottom - gy) / rows)), 14, 24);
   LOT_bagGrid(g, x + Math.floor((w - CS * cols) / 2), gy, cols, rows, CS, h, mode);
   return gy + rows * CS;
@@ -600,7 +706,7 @@ const LOT_owned = (h, it) => !!it && (h.bag.includes(it) || !!LOT_worn(h, it));
 /** after changing an item: if he wears it, his stats, powers and look follow */
 function LOT_refit(h, it) { if (LOT_worn(h, it)) { refreshPowers(h); computeStats(h); dressHero(h); } LOT_CMP.clear(); }
 function LOT_reforge(h, it) {
-  const fresh = makeItem({ base: it.base, rarity: it.rarity, ilvl: it.ilvl, power: it.power, R: rnd });
+  const fresh = makeItem({ base: it.base, rarity: it.rarity, ilvl: it.ilvl, power: it.power, grade: it.grade, R: rnd });
   it.affixes = fresh.affixes; if (it.rarity === 1) it.name = fresh.name; delete it.enchIdx; it.enchants = 0;
   if (it.slot === 'weapon') {
     it.el = fresh.el; const fc = (fresh.look && fresh.look.colors) || {}, bc = ((REG.itemBases[it.base] || {}).look || {}).colors || {};
@@ -609,14 +715,8 @@ function LOT_reforge(h, it) {
   LOT_refit(h, it);
 }
 function LOT_temper(h, it, to) {
-  const from = it.ilvl; if (to <= from) return;
-  const kf = SCALE.ilvl(to) / SCALE.ilvl(from), pk = l => 1 + Math.min(1.5, (l - 1) * .025), kp = pk(to) / pk(from), base = REG.itemBases[it.base] || {}, uq = it.rarity === 4;
-  if (base.dmg) it.dmg = [Math.round(base.dmg[0] * SCALE.ilvl(to) * (uq ? 1.15 : 1)), Math.round(base.dmg[1] * SCALE.ilvl(to) * (uq ? 1.15 : 1))];
-  if (base.armor) { it.armor = Math.round(base.armor * SCALE.ilvl(to) * (uq ? 1.2 : 1)); const im = it.implicit.find(a => a.stat === 'armor'); if (im) im.v = it.armor; }
-  for (const a of it.affixes) {
-    const A = REG.itemAffixes[a.id], sc = A ? A.scale : STATS[a.stat] && STATS[a.stat].f === 'flat' ? 'flat' : 'none', k = sc === 'flat' ? kf : sc === 'pct' ? kp : 1;
-    if (k !== 1) { const v = a.v * k; a.v = Math.abs(v) < 10 ? Math.round(v * 10) / 10 : Math.round(v); }
-  }
+  if (to <= it.ilvl) return;
+  rescaleItem(it, to);   // (40-loot-core: base, implicits and every line keep their tier position and roll, hybrids too)
   it.ilvl = to; it.value = itemValue(to, it.rarity);   // the same gold curve as a fresh drop of that level
   LOT_refit(h, it);
 }
@@ -647,23 +747,23 @@ LOT_PANELS.smith = { get title() { return LOT_npcName('smith') + "'S FORGE"; }, 
     if (it) { E.font.text(g, it.name.length > 30 ? it.name.slice(0, 29) + '.' : it.name, cx, by, RARITY[it.rarity].color, { align: 'center', outline: false, shadow: '#05040a' }); E.font.text(g, 'ITEM LEVEL ' + it.ilvl + (LOT_worn(h, it) ? '  •  WORN' : ''), cx, by + 9, '#8a80a8', { align: 'center', font: 'tiny', outline: false }); }
     by += 18;
     const bw = lw, d = Math.max(1, h.maxDepth || 1), uniq = it && it.rarity === 4, bx = x + pad, BH = 13;
-    const rc = it && !uniq && it.rarity >= 1 ? LOT_COST.reforge(it) : 0, tc = it && it.ilvl < d ? LOT_COST.temper(it, d) : 0;
-    LOT_btn(g, bx, by, bw, BH, it ? (uniq ? 'REFORGE (UNIQUE)' : it.rarity < 1 ? 'REFORGE (COMMON)' : 'REFORGE  ' + fmt(rc) + ' GOLD') : 'REFORGE', () => {
+    const rc = it && !uniq && it.rarity >= 1 ? LOT_COST.reforge(it) : 0, tc = it && it.ilvl < d ? LOT_COST.temper(it, d) : 0, rm = it ? LOT_MATCOST.reforge(it) : null, tm = it && it.ilvl < d ? LOT_MATCOST.temper(it, d) : null;
+    LOT_costBtn(g, bx, by, bw, BH, it ? (uniq ? 'REFORGE (UNIQUE)' : it.rarity < 1 ? 'REFORGE (COMMON)' : 'REFORGE') : 'REFORGE', rc, rm, h, () => {
       if (!it) return LOT_say('smith', 'pick'); if (uniq) return LOT_say('smith', 'unique'); if (it.rarity < 1) return;
-      if (!LOT_pay(h, rc, 'smith')) return; LOT_reforge(h, it); LOT_forgeFx(icx, icy, it); LOT_say('smith', 'reforge');
-    }, { key: 'reforge', disabled: !it || uniq || it.rarity < 1, tip: [{ t: 'Reforge', c: GOLD }, { t: 'Reroll every affix. The base, rarity, item level and legendary power stay.', c: '#c8c0d8' }] });
+      if (!LOT_payAll(h, rc, rm, 'smith')) return; LOT_reforge(h, it); LOT_forgeFx(icx, icy, it); LOT_say('smith', 'reforge');
+    }, { key: 'reforge', disabled: !it || uniq || it.rarity < 1, tip: [{ t: 'Reforge', c: GOLD }, { t: 'Reroll every affix. The base, rarity, item level and legendary power stay. Costs gold, Iron Scrap and Rune Dust.', c: '#c8c0d8' }] });
     by += BH + 3;
-    LOT_btn(g, bx, by, bw, BH, it ? (it.ilvl >= d ? 'TEMPER (AT ' + d + ')' : 'TEMPER TO ' + d + '  ' + fmt(tc) + ' GOLD') : 'TEMPER', () => {
+    LOT_costBtn(g, bx, by, bw, BH, it ? (it.ilvl >= d ? 'TEMPER (AT ' + d + ')' : 'TEMPER TO ' + d) : 'TEMPER', tc, tm, h, () => {
       if (!it) return LOT_say('smith', 'pick'); if (it.ilvl >= d) return LOT_say('smith', 'max');
-      if (!LOT_pay(h, tc, 'smith')) return; LOT_temper(h, it, d); LOT_forgeFx(icx, icy, it); LOT_say('smith', 'temper');
-    }, { key: 'temper', disabled: !it || it.ilvl >= d, tip: [{ t: 'Temper', c: GOLD }, { t: 'Raise the item level to your deepest depth (' + d + '). Damage, armor and affixes grow with it.', c: '#c8c0d8' }] });
+      if (!LOT_payAll(h, tc, tm, 'smith')) return; LOT_temper(h, it, d); LOT_forgeFx(icx, icy, it); LOT_say('smith', 'temper');
+    }, { key: 'temper', disabled: !it || it.ilvl >= d, tip: [{ t: 'Temper', c: GOLD }, { t: 'Raise the item level to your deepest depth (' + d + '). Damage, armor and affixes grow with it. Costs gold and Iron Scrap.', c: '#c8c0d8' }] });
     by += BH + 3;
-    const worn = it && LOT_worn(h, it);
-    LOT_btn(g, bx, by, bw, BH, it ? (worn ? 'SALVAGE (WORN)' : 'SALVAGE  +' + fmt(it.value) + ' GOLD') : 'SALVAGE', () => {
-      if (!it) return LOT_say('smith', 'pick'); if (worn) return; if (LOT_sell(h, it, [icx, icy], 'salvage')) { LOT_SMITH.sel = null; LOT_forgeFx(icx, icy, it); }
-    }, { key: 'salvage', disabled: !it || !!worn, color: '#4a2a2a', tip: [{ t: 'Salvage', c: GOLD }, { t: 'Break it down for its value in gold.', c: '#c8c0d8' }] });
-    LOT_shopBag(g, rx, top, rw, foot - 4, h, { kind: 'smith', sel: it, select: LOT_SMITH.select }, true);
-    E.font.text(g, 'CLICK OR DRAG AN ITEM TO THE ANVIL  •  RIGHT-CLICK SALVAGES', x + w / 2, foot + 1, '#5a5478', { align: 'center', font: 'tiny', outline: false });
+    const worn = it && LOT_worn(h, it), yl = it && !worn ? LOT_yield(it) : null;
+    LOT_costBtn(g, bx, by, bw, BH, it ? (worn ? 'SALVAGE (WORN)' : 'SALVAGE' + (yl.ess ? ' + ESSENCE' : '')) : 'SALVAGE', 0, yl, h, () => {
+      if (!it) return LOT_say('smith', 'pick'); if (worn) return; if (LOT_salvage(h, it, [icx - 8, icy])) { LOT_SMITH.sel = null; LOT_forgeFx(icx, icy, it); }
+    }, { key: 'salvage', disabled: !it || !!worn, color: '#4a2a2a', gain: true, tip: [{ t: 'Salvage', c: GOLD }, { t: 'Break it into materials for crafting (no gold: sell to Cobb for that). A legendary also gives up its power as an essence Seren can imprint on another item.', c: '#c8c0d8' }] });
+    LOT_shopBag(g, rx, top, rw, foot - 4, h, { kind: 'smith', sel: it, select: LOT_SMITH.select }, true, true);
+    E.font.text(g, 'CLICK OR DRAG AN ITEM TO THE ANVIL  •  RIGHT-CLICK SALVAGES INTO MATERIALS', x + w / 2, foot + 1, '#5a5478', { align: 'center', font: 'tiny', outline: false });
     LOT_end(g);
   } };
 /** an anvil in pixel art (k = size): a stepped foot, a waist, a horned body with a lit top */
@@ -700,19 +800,28 @@ function LOT_forgeFx(x, y, it) { LOT_burst(x, y, '#ffb040', 16); LOT_burst(x, y,
 /* =============================================================================
  * SEREN'S ALTAR (mystic): enchant one affix, transmute the rarity, respec
  * ============================================================================= */
-const LOT_MYST = { sel: null, ench: null, respecT: 0, select: null };
+const LOT_MYST = { sel: null, ench: null, imp: false, respecT: 0, select: null };
+/** the essences that fit an item's slot: [[power id, count]] */
+const LOT_essFor = (h, it) => { const slot = it.slot === 'ring2' ? 'ring' : it.slot; return Object.entries(LOT_stash(h).ess).filter(([id, n]) => n > 0 && powerFits(id, slot)); };   // (powerFits: composed powers too)
+/** bind a power to a rare or a legendary: it becomes (or stays) legendary with that power, its affixes kept */
+function LOT_imprint(h, it, id) {
+  const S = LOT_stash(h); if (!S.ess[id]) return false;
+  S.ess[id]--; if (S.ess[id] <= 0) delete S.ess[id];
+  it.power = id; it.rarity = 3; it.name = itemName(it, rnd); it.value = itemValue(it.ilvl, 3); if (it.look) tintLegend(it, rnd);
+  LOT_refit(h, it); return true;
+}
 /** two new affixes the chosen line could become (never a stat the item already has) */
 function LOT_enchantOptions(it, idx) {
-  const slot = it.slot === 'ring2' ? 'ring' : it.slot, cur = it.affixes[idx], taken = new Set(it.affixes.filter((a, i) => i !== idx).map(a => (REG.itemAffixes[a.id] || {}).stat || a.stat));
-  const opts = Object.values(REG.itemAffixes).filter(A => !taken.has(A.stat) && A.id !== cur.id && (A.minIlvl || 1) <= it.ilvl && A.slots.includes(slot)), out = [];
+  const slot = it.slot === 'ring2' ? 'ring' : it.slot, cur = it.affixes[idx], taken = new Set(it.affixes.filter((a, i) => i !== idx).flatMap(a => [(REG.itemAffixes[a.id] || {}).stat || a.stat].concat((a.also || []).map(b => b.stat))));   // (a hybrid's second stat is taken too)
+  const opts = Object.values(REG.itemAffixes).filter(A => !taken.has(A.stat) && !(A.also || []).some(([b]) => REG.itemAffixes[b] && taken.has(REG.itemAffixes[b].stat)) && A.id !== cur.id && (A.minIlvl || 1) <= it.ilvl && A.slots.includes(slot)), out = [];
   while (out.length < 2 && opts.length) { const A = rnd.weighted(opts, a => a.weight || 10); opts.splice(opts.indexOf(A), 1); out.push(rollAffix(A, it.ilvl, rnd)); }
   return out;
 }
 function LOT_transmute(h, it) {
   if (it.rarity >= 2) return;
-  const to = it.rarity + 1, [n0, n1] = RARITY[to].n, want = rnd.int(n0, n1), taken = new Set(it.affixes.map(a => (REG.itemAffixes[a.id] || {}).stat || a.stat)), slot = it.slot === 'ring2' ? 'ring' : it.slot;
+  const to = it.rarity + 1, [n0, n1] = RARITY[to].n, want = rnd.int(n0, n1), taken = new Set(it.affixes.flatMap(a => [(REG.itemAffixes[a.id] || {}).stat || a.stat].concat((a.also || []).map(b => b.stat)))), slot = it.slot === 'ring2' ? 'ring' : it.slot;
   while (it.affixes.length < want) {
-    const kind = it.affixes.length % 2 ? 'suffix' : 'prefix', opts = Object.values(REG.itemAffixes).filter(A => !taken.has(A.stat) && (A.minIlvl || 1) <= it.ilvl && A.slots.includes(slot) && (to < 2 || A.kind === kind || rnd() < .3));
+    const kind = it.affixes.length % 2 ? 'suffix' : 'prefix', opts = Object.values(REG.itemAffixes).filter(A => !taken.has(A.stat) && !(A.also || []).some(([b]) => REG.itemAffixes[b] && taken.has(REG.itemAffixes[b].stat)) && (A.minIlvl || 1) <= it.ilvl && A.slots.includes(slot) && (to < 2 || A.kind === kind || rnd() < .3));
     if (!opts.length) break; const A = rnd.weighted(opts, a => a.weight || 10); taken.add(A.stat); it.affixes.push(rollAffix(A, it.ilvl, rnd));
   }
   it.rarity = to; it.name = itemName(it, rnd); it.value = itemValue(it.ilvl, to);
@@ -729,13 +838,13 @@ function LOT_respec(h) {
   computeStats(h); notify('SKILLS AND PASSIVES RESET', '#c890ff', 2.5);
 }
 LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }, hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => Math.min(H - 8, 262),
-  open() { LOT_MYST.sel = null; LOT_MYST.ench = null; LOT_UI.focus = null; LOT_UI.press = null; LOT_MYST.select = it => { if (!it || LOT_MYST.ench) return; LOT_MYST.sel = it; sfx('select', { vol: .5 }); }; LOT_say('mystic', 'greet'); },
+  open() { LOT_MYST.sel = null; LOT_MYST.ench = null; LOT_MYST.imp = false; LOT_UI.focus = null; LOT_UI.press = null; LOT_MYST.select = it => { if (!it || LOT_MYST.ench) return; LOT_MYST.sel = it; LOT_MYST.imp = false; sfx('select', { vol: .5 }); }; LOT_say('mystic', 'greet'); },
   close() { LOT_UI.press = null; const r = LOT_npcRig('mystic'); if (r) r._talk = false; },
   update() { LOT_update(); LOT_MYST.respecT = Math.max(0, LOT_MYST.respecT - LOT_UI.rdt); },
   wheel() {},
   draw(g, x, y, w, hh) {
     const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh);
-    if (LOT_MYST.sel && !LOT_owned(h, LOT_MYST.sel)) { LOT_MYST.sel = null; LOT_MYST.ench = null; }
+    if (LOT_MYST.sel && !LOT_owned(h, LOT_MYST.sel)) { LOT_MYST.sel = null; LOT_MYST.ench = null; LOT_MYST.imp = false; }
     const pad = 7, top = y + 19, lw = Math.floor((w - pad * 2 - 8) * .5), rx = x + pad + lw + 8, rw = x + w - pad - rx, foot = y + hh - 10, it = LOT_MYST.sel, t = performance.now() / 1000;
     LOT_npcHeader(g, x + pad, top, lw, 'mystic');
     // the altar: a void orb that breathes, runes turning around it, the item floating in its light
@@ -753,14 +862,27 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
       nl.forEach((l, i) => E.font.text(g, l, ax + 44, ay + 5 + i * 9, RARITY[it.rarity].color, { outline: false, shadow: '#05040a' }));
       E.font.text(g, RARITY[it.rarity].name.toUpperCase() + '  •  ITEM LEVEL ' + it.ilvl, ax + 44, ay + 7 + nl.length * 9, '#8a80a8', { font: 'tiny', outline: false });
     } else { px.blend(g, .7, 'add', () => px.disc(g, ox, oy, 6, '#b070ff')); px.disc(g, ox, oy, 3, '#ecd8ff'); E.font.text(g, 'PLACE AN ITEM ON THE ALTAR', ax + 44, oy - 3, '#8a6aa8', { font: 'tiny', outline: false }); }
-    // the affixes: click one to enchant it (after the first, only that line may change again)
-    let ly = ay + ah + 3; const BH = 13, lastY = foot - 2 * (BH + 3) - 1;
-    if (it && LOT_MYST.ench) {
+    // the affixes: click one to enchant it (after the first, only that line may change again); or the essences to imprint
+    let ly = ay + ah + 3; const BH = 13, lastY = foot - 3 * (BH + 3) - 1;
+    if (it && LOT_MYST.imp) {
+      const list = LOT_essFor(h, it), ic = LOT_COST.imprint(it), im = LOT_MATCOST.imprint(it);
+      E.font.text(g, 'IMPRINT A POWER', ax + 2, ly, '#ffb070', { font: 'tiny', outline: false });
+      LOT_btn(g, ax + lw - 44, ly - 2, 44, 10, 'CANCEL', () => { LOT_MYST.imp = false; }, { key: 'impx', color: '#2a2040' }); ly += 9;
+      if (!list.length) E.font.wrap('NO ESSENCE FITS A ' + SLOT_NAMES[it.slot].toUpperCase() + '. SALVAGE LEGENDARIES AT HARROW\'S FORGE TO BOTTLE THEIR POWERS.', lw - 4, { font: 'tiny' }).slice(0, 3).forEach((l, i) => E.font.text(g, l, ax + 2, ly + 2 + i * 8, '#8a80a8', { font: 'tiny', outline: false }));
+      list.forEach(([id, n], i) => {
+        const p = powerSpec(id); if (ly + 12 > lastY) return;
+        LOT_costBtn(g, ax, ly, lw, 12, (p.name.length > 20 ? p.name.slice(0, 19) + '.' : p.name) + (n > 1 ? ' x' + n : ''), ic, im, h, () => {
+          if (!LOT_payAll(h, ic, im, 'mystic')) return; if (!LOT_imprint(h, it, id)) return; LOT_MYST.imp = false; LOT_burst(ox, oy, '#ff9a3a', 20); LOT_burst(ox, oy, '#fff0a0', 10); sfx('powerup', { vol: .55 }); LOT_say('mystic', 'imprint');
+        }, { key: 'ess' + i, color: '#3a2430', tip: [{ t: p.name, c: '#ffb070' }, { t: p.desc, c: '#ff9a4a' }, { t: 'Imprint it: the item becomes legendary with this power (its affixes stay). A power it had is replaced.', c: '#c8c0d8' }] });
+        ly += 13;
+      });
+    } else if (it && LOT_MYST.ench) {
       const E0 = LOT_MYST.ench; E.font.text(g, 'CHOOSE ONE', ax + 2, ly, '#c890ff', { font: 'tiny', outline: false }); ly += 8;
       [E0.cur].concat(E0.opts).forEach((a, i) => {
-        const label = (i ? '' : 'KEEP: ') + statText(a.stat, a.v);
+        const rt = LOT_rangeText(it, a), base = (i ? '' : 'KEEP: ') + affixText(a), room = 34 - (rt ? rt.length + 2 : 0);   // the roll's range always shows: the name gives way
+        const label = (base.length > room ? base.slice(0, room - 1) + '.' : base) + (rt ? '  ' + rt : '');
         if (ly + 11 > lastY) return;
-        LOT_btn(g, ax, ly, lw, 11, label.length > 34 ? label.slice(0, 33) + '.' : label, () => { it.affixes[E0.idx] = a; it.enchIdx = E0.idx; it.enchants = (it.enchants || 0) + 1; if (it.rarity === 1) it.name = itemName(it, rnd); LOT_MYST.ench = null; LOT_refit(h, it); LOT_burst(ox, oy, '#c890ff', 14); sfx('chime', { vol: .5 }); LOT_say('mystic', 'chosen'); },
+        LOT_btn(g, ax, ly, lw, 11, label, () => { it.affixes[E0.idx] = a; it.enchIdx = E0.idx; it.enchants = (it.enchants || 0) + 1; if (it.rarity === 1) it.name = itemName(it, rnd); LOT_MYST.ench = null; LOT_refit(h, it); LOT_burst(ox, oy, '#c890ff', 14); sfx('chime', { vol: .5 }); LOT_say('mystic', 'chosen'); },
           { key: 'opt' + i, color: i ? '#3a2458' : '#2a2438' });
         ly += 12;
       });
@@ -768,34 +890,172 @@ LOT_PANELS.mystic = { get title() { return LOT_npcName('mystic') + "'S ALTAR"; }
       if (it.rarity === 4) E.font.text(g, 'A UNIQUE CANNOT BE ENCHANTED.', ax + 2, ly + 2, '#8a80a8', { font: 'tiny', outline: false });
       else if (!it.affixes.length) E.font.text(g, 'NO AFFIXES TO ENCHANT. TRANSMUTE IT FIRST.', ax + 2, ly + 2, '#8a80a8', { font: 'tiny', outline: false });
       else {
-        const cost = LOT_COST.enchant(it);
-        E.font.text(g, 'ENCHANT ONE LINE  ' + fmt(cost) + ' GOLD', ax + 2, ly, '#c890ff', { font: 'tiny', outline: false }); ly += 8;
+        const cost = LOT_COST.enchant(it), em = LOT_MATCOST.enchant(it), S = LOT_stash(h);
+        E.font.text(g, 'ENCHANT ONE LINE  ' + fmt(cost) + ' GOLD  +' + em.dust + ' DUST', ax + 2, ly, h.gold >= cost && (S.mats.dust || 0) >= em.dust ? '#c890ff' : '#c87a8a', { font: 'tiny', outline: false }); ly += 8;
         it.affixes.forEach((a, i) => {
           if (ly + 11 > lastY) return; const locked = it.enchIdx !== undefined && it.enchIdx !== i, label = statText(a.stat, a.v);
           LOT_btn(g, ax, ly, lw, 11, (locked ? '' : '▸ ') + (label.length > 32 ? label.slice(0, 31) + '.' : label), () => {
-            if (locked) return; if (!LOT_pay(h, cost, 'mystic')) return; LOT_MYST.ench = { idx: i, cur: a, opts: LOT_enchantOptions(it, i) }; LOT_burst(ox, oy, '#b070ff', 10); sfx('warp', { vol: .4 }); LOT_say('mystic', 'enchant');
-          }, { key: 'aff' + i, disabled: locked, color: '#2a2040', tip: locked ? [{ t: 'Locked', c: '#9a90b0' }, { t: 'Only the line enchanted before can change again.', c: '#c8c0d8' }] : [{ t: 'Enchant for ' + fmt(cost) + ' gold', c: '#c890ff' }, { t: 'Reroll this line: keep it, or take one of two new ones.', c: '#c8c0d8' }] });
+            if (locked) return; if (!LOT_payAll(h, cost, em, 'mystic')) return; LOT_MYST.ench = { idx: i, cur: a, opts: LOT_enchantOptions(it, i) }; LOT_burst(ox, oy, '#b070ff', 10); sfx('warp', { vol: .4 }); LOT_say('mystic', 'enchant');
+          }, { key: 'aff' + i, disabled: locked, color: '#2a2040', tip: locked ? [{ t: 'Locked', c: '#9a90b0' }, { t: 'Only the line enchanted before can change again.', c: '#c8c0d8' }] : [{ t: 'Enchant for ' + fmt(cost) + ' gold and ' + em.dust + ' Rune Dust', c: '#c890ff' }, { t: 'Reroll this line: keep it, or take one of two new ones.', c: '#c8c0d8' }] });
           ly += 12;
         });
       }
     }
-    // transmute and respec at the bottom
-    const by = foot - 2 * (BH + 3), tcost = it && it.rarity < 2 ? LOT_COST.transmute(it) : 0, rcost = LOT_COST.respec(h);
-    LOT_btn(g, ax, by, lw, BH, it ? (it.rarity >= 2 ? 'TRANSMUTE (AT MOST)' : 'TRANSMUTE TO ' + RARITY[it.rarity + 1].name.toUpperCase() + '  ' + fmt(tcost)) : 'TRANSMUTE', () => {
-      if (!it) return LOT_say('mystic', 'pick'); if (it.rarity >= 2 || LOT_MYST.ench) return; if (!LOT_pay(h, tcost, 'mystic')) return;
+    // transmute, imprint and respec at the bottom
+    const by = foot - 3 * (BH + 3), tcost = it && it.rarity < 2 ? LOT_COST.transmute(it) : 0, tm = it && it.rarity < 2 ? LOT_MATCOST.transmute(it) : null, rcost = LOT_COST.respec(h);
+    LOT_costBtn(g, ax, by, lw, BH, it ? (it.rarity >= 2 ? 'TRANSMUTE (RARE IS THE LIMIT)' : 'TRANSMUTE TO ' + RARITY[it.rarity + 1].name.toUpperCase()) : 'TRANSMUTE', tcost, tm, h, () => {
+      if (!it) return LOT_say('mystic', 'pick'); if (it.rarity >= 2 || LOT_MYST.ench) return; if (!LOT_payAll(h, tcost, tm, 'mystic')) return;
       LOT_transmute(h, it); LOT_burst(ox, oy, RARITY[it.rarity].color, 18); sfx('powerup', { vol: .5 }); LOT_say('mystic', 'transmute');
-    }, { key: 'transmute', disabled: !it || it.rarity >= 2 || !!LOT_MYST.ench, color: '#3a2458', tip: [{ t: 'Transmute', c: '#c890ff' }, { t: 'Common becomes magic, magic becomes rare: new affixes are woven in.', c: '#c8c0d8' }] });
+    }, { key: 'transmute', disabled: !it || it.rarity >= 2 || !!LOT_MYST.ench, color: '#3a2458', tip: [{ t: 'Transmute', c: '#c890ff' }, { t: 'Common becomes magic, magic becomes rare: new affixes are woven in. Rare is as far as it goes; a power makes it legendary (imprint).', c: '#c8c0d8' }] });
+    const canImp = it && it.rarity >= 2 && it.rarity < 4 && !LOT_MYST.ench, nEss = it ? LOT_essFor(h, it).length : 0;
+    LOT_btn(g, ax, by + BH + 3, lw, BH, it && it.rarity === 4 ? 'IMPRINT (UNIQUE)' : it && it.rarity < 2 ? 'IMPRINT (RARE OR LEGENDARY)' : LOT_MYST.imp ? 'CHOOSE A POWER ABOVE' : 'IMPRINT A POWER' + (it ? '  (' + nEss + ' FIT' + (nEss === 1 ? 'S' : '') + ')' : ''), () => {
+      if (!it) return LOT_say('mystic', 'pick'); if (it.rarity === 4) return LOT_say('mystic', 'unique'); if (it.rarity < 2) return LOT_say('mystic', 'rare'); if (LOT_MYST.ench) return;
+      if (!nEss) return LOT_say('mystic', 'noess'); LOT_MYST.imp = !LOT_MYST.imp; sfx('warp', { vol: .35 });
+    }, { key: 'imprint', disabled: !canImp, color: '#3a2430', active: LOT_MYST.imp, tip: [{ t: 'Imprint', c: '#ffb070' }, { t: 'Bind a salvaged power (an essence) to a rare or legendary item of a slot it fits. Costs gold and two Ember Cores.', c: '#c8c0d8' }] });
     const pts = Object.entries(h.skills).reduce((a, [id, k]) => a + Math.max(0, (k.rank || 0) - (id === 'blade' || id === 'ember' ? 1 : 0)), 0) + (Array.isArray(h.tree) ? h.tree.length : 0);   // what a respec would give back (nothing: no charge)
-    LOT_btn(g, ax, by + BH + 3, lw, BH, LOT_MYST.respecT > 0 ? 'CONFIRM RESPEC  ' + fmt(rcost) : 'RESPEC ALL POINTS  ' + fmt(rcost), () => {
+    LOT_btn(g, ax, by + 2 * (BH + 3), lw, BH, LOT_MYST.respecT > 0 ? 'CONFIRM RESPEC  ' + fmt(rcost) : 'RESPEC ALL POINTS  ' + fmt(rcost), () => {
       if (pts <= 0) return; if (LOT_MYST.respecT <= 0) { LOT_MYST.respecT = 3; LOT_say('mystic', 'confirm'); return; }
       if (!LOT_pay(h, rcost, 'mystic')) return; LOT_MYST.respecT = 0; LOT_respec(h); LOT_burst(ox, oy, '#ecd8ff', 20); sfx('warp', { vol: .6 }); LOT_say('mystic', 'respec');
     }, { key: 'respec', disabled: pts <= 0, color: LOT_MYST.respecT > 0 ? '#5a2a3a' : '#2a2040', tip: [{ t: 'Respec', c: '#c890ff' }, { t: 'Every skill and passive point comes back to spend again.', c: '#c8c0d8' }] });
-    LOT_shopBag(g, rx, top, rw, foot - 4, h, { kind: 'mystic', sel: it, select: LOT_MYST.select }, true);
+    LOT_shopBag(g, rx, top, rw, foot - 4, h, { kind: 'mystic', sel: it, select: LOT_MYST.select }, true, true);
     E.font.text(g, 'CLICK OR DRAG AN ITEM TO THE ALTAR', x + w / 2, foot + 1, '#5a5478', { align: 'center', font: 'tiny', outline: false });
     LOT_end(g);
   } };
 
+/* =============================================================================
+ * THE STASH: the chest in Emberhold (56-town opens it: UI.open('stash')). Four tabs of forty, kept in h.stash with the
+ * materials and essences (saved: 'stash' is a save key). A click moves an item between the bag and the stash (shift
+ * too), a drag places it on a cell or a tab, a right-click wears it. Old saves (no stash, or a bare list) are fitted.
+ * ============================================================================= */
+const LOT_STASH_TABS = 4, LOT_STASH_N = 40, LOT_ST = { tab: 0, openT: 0, bump: 0, motes: [] }, LOT_STASH_OK = new WeakSet();
+/** the stash, made whole: { tabs: [4 x 40 cells, null when empty], mats: {}, ess: {} }. Items kept there get uids
+ *  above every new one (the save's own uid scan only knows the bag and the gear) */
+function LOT_stash(h) {
+  let S = h.stash;
+  if (S && LOT_STASH_OK.has(S)) return S;
+  if (Array.isArray(S)) { const items = S.filter(Boolean); S = { tabs: [] }; for (let i = 0; i < items.length; i += LOT_STASH_N) S.tabs.push(items.slice(i, i + LOT_STASH_N)); }
+  if (!S || typeof S !== 'object') S = {};
+  if (!Array.isArray(S.tabs)) S.tabs = [];
+  while (S.tabs.length < LOT_STASH_TABS) S.tabs.push([]);
+  let mx = 0;
+  for (const T of S.tabs) for (let i = 0; i < LOT_STASH_N; i++) { if (!T[i]) T[i] = null; else if (typeof T[i].uid === 'number') mx = Math.max(mx, T[i].uid); }
+  if (mx >= itemUid) itemUid = mx + 1;
+  S.mats = S.mats && typeof S.mats === 'object' ? S.mats : {}; S.ess = S.ess && typeof S.ess === 'object' ? S.ess : {};
+  h.stash = S; LOT_STASH_OK.add(S); return S;
+}
+const LOT_stashFree = (S, t) => S.tabs[t].indexOf(null);
+const LOT_stashCount = (S, t) => S.tabs[t].reduce((a, q) => a + (q ? 1 : 0), 0);
+/** from the bag (or off him, into an empty cell) into the stash: tab t, cell i (or the first free cell of t, then of the
+ *  other tabs). A filled cell swaps: its item goes into the bag where this one was */
+function LOT_toStash(h, it, t = LOT_ST.tab, i) {
+  const S = LOT_stash(h); if (!it) return false;
+  let tt = t, j = i;
+  if (j === undefined) { j = LOT_stashFree(S, tt); for (let k = 1; j < 0 && k < LOT_STASH_TABS; k++) { tt = (t + k) % LOT_STASH_TABS; j = LOT_stashFree(S, tt); } }
+  if (j < 0) { notify('THE STASH IS FULL', '#ff8a7a', 1.4); sfx('cancel', { vol: .4 }); return false; }
+  const bi = h.bag.indexOf(it), prev = S.tabs[tt][j]; if (prev === it) return false;
+  if (bi < 0 && (prev || !LOT_worn(h, it))) return false;
+  if (!LOT_take(h, it)) return false;
+  S.tabs[tt][j] = it; it._new = false; if (prev) { h.bag.splice(Math.min(bi, h.bag.length), 0, prev); prev._new = true; }
+  if (tt !== LOT_ST.tab) LOT_ST.tabFlash = { t: tt, k: .6 };
+  LOT_ST.bump = .35; sfx('pickup', { vol: .4, pitch: .85 }); return true;
+}
+/** from the stash into the bag (at bag index j, or the end). A full bag swaps with the item at j */
+function LOT_fromStash(h, t, i, j) {
+  const S = LOT_stash(h), it = S.tabs[t][i]; if (!it) return false;
+  if (h.bag.length >= BAG_MAX) {
+    if (j !== undefined && h.bag[j]) { const o = h.bag[j]; h.bag[j] = it; S.tabs[t][i] = o; sfx('pickup', { vol: .4 }); LOT_ST.bump = .35; return true; }
+    notify('BAG FULL', '#ff8a7a', 1.2); sfx('cancel', { vol: .4 }); return false;
+  }
+  S.tabs[t][i] = null; h.bag.push(it); if (j !== undefined) LOT_moveBag(h, it, j); else sfx('pickup', { vol: .4, pitch: 1.1 });
+  LOT_ST.bump = .35; return true;
+}
+/** a stashed item straight onto him; what it replaces takes its cell */
+function LOT_stashWear(h, t, i, slot) {
+  const S = LOT_stash(h), it = S.tabs[t][i]; if (!it) return; slot = slot || LOT_slotFor(h, it);
+  if (!LOT_fits(it, slot)) { notify('THAT GOES IN THE ' + SLOT_NAMES[it.slot].toUpperCase() + ' SLOT', '#ff9a7a', 1.2); return; }
+  const old = h.gear[slot]; h.gear[slot] = it; S.tabs[t][i] = old || null; it._new = false;
+  refreshPowers(h); computeStats(h); dressHero(h); sfx('pickup', { vol: .5 }); if (it.rarity >= 3) sfx('powerup', { vol: .35, pitch: 1.4 });
+}
+function LOT_stashDrop(h, t, i, T) {
+  const S = LOT_stash(h), it = S.tabs[t][i]; if (!it || !T) return;
+  if (T.kind === 'bag') LOT_fromStash(h, t, i, T.i);
+  else if (T.kind === 'stash') { const o = S.tabs[T.tab][T.i]; S.tabs[T.tab][T.i] = it; S.tabs[t][i] = o || null; sfx('select', { vol: .3 }); }
+  else if (T.kind === 'stashTab' && T.tab !== t) { const j = LOT_stashFree(S, T.tab); if (j < 0) { notify('THAT TAB IS FULL', '#ff8a7a', 1.2); return; } S.tabs[T.tab][j] = it; S.tabs[t][i] = null; LOT_ST.tabFlash = { t: T.tab, k: .6 }; sfx('pickup', { vol: .4, pitch: .85 }); }
+  else if (T.kind === 'slot') LOT_stashWear(h, t, i, T.slot);
+}
+/** the chest: dark planks, iron bands and corners, a brass lock. The lid swings back on its hinge (a little overshoot)
+ *  and shows its inside; the mouth is dark and full of gold that catches a warm light; motes rise out of it. It hops
+ *  when something goes in or out */
+function LOT_chestDraw(g, x, y, open) {
+  const W = 34, wood = E.tones('#7a4a2e'), iron = E.tones('#5e6072'), brass = E.tones('#d8a040'), bx = x, BH = 13, by = y + 17, o = clamp(open, 0, 1.25), hinge = by - 4;
+  if (o < .12) {   // shut: the lid's top and its front face
+    px.rect(g, bx - 1, by - 9, W + 2, 10, wood.deep); px.rect(g, bx, by - 8, W, 2, wood.lt); px.rect(g, bx, by - 6, W, 5, wood.base); px.rect(g, bx, by - 2, W, 1, wood.sh);
+    for (const q of [5, W - 8]) { px.rect(g, bx + q, by - 9, 3, 10, iron.sh); px.rect(g, bx + q, by - 9, 1, 10, iron.lt); }
+  } else {
+    const lh = Math.round(3 + 10 * Math.min(1, o)), top = hinge - lh - Math.round(Math.max(0, o - 1) * 8);
+    px.blend(g, .28 * Math.min(1, o), 'add', () => px.poly(g, [[bx + 4, hinge], [bx + W - 4, hinge], [bx + W + 3, top - 7], [bx - 3, top - 7]], '#ffb040'));   // light pouring up behind the lid
+    px.rect(g, bx - 1, top, W + 2, hinge - top + 1, wood.deep); px.rect(g, bx, top + 1, W, hinge - top - 1, wood.sh);   // the lid's inside
+    for (let yy = top + 3; yy < hinge - 1; yy += 3) px.rect(g, bx, yy, W, 1, wood.deep);
+    for (const q of [5, W - 8]) px.rect(g, bx + q, top, 3, hinge - top + 1, iron.deep);
+    px.rect(g, bx - 1, top, W + 2, 1, wood.lt);   // its edge catches the light
+    px.rect(g, bx, hinge, W, by - hinge, '#160a06');   // the mouth, and the hoard in it
+    for (let i = 0; i < 9; i++) { const cx = bx + 3 + i * 3.4, k = (Math.floor(performance.now() / 180) + i * 5) % 11; px.rect(g, cx, by - 2 - (i % 2), 2, 1, i % 3 ? '#e8a830' : '#ffd23a'); if (k === 0) px.dot(g, cx, by - 3 - (i % 2), '#fffbe0'); }
+    px.blend(g, .35 * Math.min(1, o), 'add', () => px.rect(g, bx + 1, hinge, W - 2, by - hinge, '#ff9a2a'));
+  }
+  // the body: planks, bands, corners, the lock
+  px.rect(g, bx - 1, by, W + 2, BH + 1, wood.deep); px.rect(g, bx, by + 1, W, BH - 1, wood.base); px.rect(g, bx, by + 1, W, 1, wood.lt);
+  for (const r of [5, 9]) px.rect(g, bx, by + r, W, 1, wood.sh);
+  for (const q of [5, W - 8]) { px.rect(g, bx + q, by, 3, BH + 1, iron.sh); px.rect(g, bx + q, by, 1, BH + 1, iron.lt); px.dot(g, bx + q + 1, by + 3, iron.hi); px.dot(g, bx + q + 1, by + BH - 3, iron.hi); }
+  for (const cx of [bx - 1, bx + W - 2]) { px.rect(g, cx, by + BH - 2, 3, 3, iron.base); px.dot(g, cx + 1, by + BH - 2, iron.hi); }
+  const lk = bx + W / 2 - 2; px.rect(g, lk, by, 5, 6, brass.deep); px.rect(g, lk + 1, by + 1, 3, 4, brass.base); px.dot(g, lk + 1, by + 1, brass.hi); px.rect(g, lk + 2, by + 3, 1, 2, '#2a1808');
+  // motes rising out of it
+  for (const m of LOT_ST.motes) { const a = Math.min(1, m.t * 3, (m.max - m.t) * 2) * Math.min(1, o); if (a > 0) px.blend(g, a, 'add', () => px.dot(g, bx + W / 2 + m.x, hinge - m.y, m.c)); }
+}
+LOT_PANELS.stash = { title: 'STASH', hotkeyPanel: true, w: W => Math.min(W - 8, 480), h: (W, H) => Math.min(H - 8, 262),
+  open() { LOT_UI.focus = null; LOT_UI.press = null; LOT_ST.openT = 0; LOT_ST.motes.length = 0; if (ED.hero) LOT_stash(ED.hero); sfx('door', { vol: .4 }); },
+  close() { LOT_UI.press = null; if (typeof saveGame === 'function') saveGame(); },   // what went in is kept, even if the tab closes now
+  update() {
+    LOT_update(); const dt = LOT_UI.rdt; LOT_ST.openT += dt; LOT_ST.bump = Math.max(0, LOT_ST.bump - dt); if (LOT_ST.tabFlash) LOT_ST.tabFlash.k -= dt;
+    if (Math.random() < dt * 6) LOT_ST.motes.push({ x: (Math.random() - .5) * 22, y: 0, vy: 8 + Math.random() * 10, t: 0, max: .8 + Math.random() * .8, c: Math.random() < .3 ? '#fff0b0' : '#ffb040' });
+    for (let i = LOT_ST.motes.length - 1; i >= 0; i--) { const m = LOT_ST.motes[i]; m.t += dt; m.y += m.vy * dt; m.x += Math.sin(m.t * 5 + i) * 4 * dt; if (m.t > m.max) LOT_ST.motes.splice(i, 1); }
+    if (game.input.pressed('map')) { LOT_ST.tab = (LOT_ST.tab + 1) % LOT_STASH_TABS; sfx('select', { vol: .4 }); }
+  },
+  wheel(d) { LOT_ST.tab = (LOT_ST.tab + (d > 0 ? 1 : LOT_STASH_TABS - 1)) % LOT_STASH_TABS; sfx('select', { vol: .3 }); },
+  draw(g, x, y, w, hh) {
+    const h = ED.hero; if (!h) return; LOT_begin(this, x, y, w, hh);
+    const S = LOT_stash(h), pad = 7, top = y + 19, lw = Math.floor((w - pad * 2 - 8) * .5), rx = x + pad + lw + 8, rw = x + w - pad - rx, foot = y + hh - 10, tiny = { font: 'tiny', outline: false };
+    // the chest, its name, what it holds
+    const u = clamp(LOT_ST.openT / .45, 0, 1), open = clamp(E.ease.outBack(u) + Math.sin(Math.min(1, LOT_ST.bump / .35) * Math.PI) * .25, 0, 1.2);
+    E.ui.box(g, x + pad, top, 42, 36, { bg: ['#2a1c14', '#0e0806'], border: '#5a4030', shadow: false });
+    LOT_chestDraw(g, x + pad + 4, top + 3, open);
+    const nx = x + pad + 48;
+    E.font.text(g, 'THE STASH', nx, top + 1, GOLD, { outline: false, shadow: '#05040a' });
+    const total = S.tabs.reduce((a, T, t) => a + LOT_stashCount(S, t), 0);
+    E.font.text(g, total + ' / ' + LOT_STASH_TABS * LOT_STASH_N + ' KEPT  •  SAFE BETWEEN DESCENTS', nx, top + 11, '#8a80a8', tiny);
+    E.font.text(g, 'MATERIALS', nx, top + 21, '#9a90b0', tiny); LOT_matsRow(g, nx + 40, top + 21, h);
+    // the tabs (an item dragged onto one goes into it)
+    const ty = top + 40, tw = Math.floor((lw - 6) / LOT_STASH_TABS);
+    for (let t = 0; t < LOT_STASH_TABS; t++) {
+      const tx = x + pad + t * (tw + 2), n = LOT_stashCount(S, t), fl = LOT_ST.tabFlash && LOT_ST.tabFlash.t === t && LOT_ST.tabFlash.k > 0;
+      if (LOT_UI.active) LOT_UI.targets.push({ x: tx, y: ty, w: tw, h: 12, kind: 'stashTab', tab: t });
+      LOT_tabBtn(g, tx, ty, tw, ['I', 'II', 'III', 'IV'][t] + '  ' + n, LOT_ST.tab === t, () => { LOT_ST.tab = t; }, 'st' + t);
+      if (fl) px.blend(g, LOT_ST.tabFlash.k, 'add', () => px.rect(g, tx + 1, ty + 1, tw - 2, 10, '#ffd36a'));
+    }
+    // the grid of the open tab
+    const gy = ty + 15, cols = 8, rows = LOT_STASH_N / cols, CS = clamp(Math.min(Math.floor(lw / cols), Math.floor((foot - 3 - gy) / rows)), 14, 26), gx = x + pad + Math.floor((lw - CS * cols) / 2), T0 = LOT_ST.tab;
+    E.ui.box(g, gx - 2, gy - 2, CS * cols + 3, CS * rows + 3, { bg: ['#1a1410', '#0a0806'], border: '#3a2c20', shadow: false });
+    for (let i = 0; i < LOT_STASH_N; i++) {
+      const it = S.tabs[T0][i], cx = gx + (i % cols) * CS, cy = gy + Math.floor(i / cols) * CS;
+      LOT_itemCell(g, cx, cy, CS - 1, it, { key: 'stash:' + T0 + ':' + i, target: { kind: 'stash', tab: T0, i }, cmp: true, seam: 1,
+        click: () => LOT_fromStash(h, T0, i), alt: () => LOT_stashWear(h, T0, i), drop: T => LOT_stashDrop(h, T0, i, T), tipO: { hint: LOT_hints(h, 'stashed') } });
+    }
+    // the bag, on the right: a click stores
+    LOT_shopBag(g, rx, top, rw, foot - 4, h, { kind: 'stash', select: it => LOT_toStash(h, it) }, false, false);
+    E.font.text(g, 'CLICK MOVES BETWEEN BAG AND STASH  •  DRAG PLACES  •  RIGHT-CLICK WEARS  •  TAB: NEXT TAB', x + w / 2, foot + 1, '#5a5478', { align: 'center', font: 'tiny', outline: false });
+    LOT_end(g);
+  } };
+
 /* the loot panels' state for tests and tools (window.__edLoot is started in 41-loot.js) */
-Object.assign(window.__edLoot, { ui: LOT_UI, shop: LOT_SHOP, smith: LOT_SMITH, mystic: LOT_MYST,
+Object.assign(window.__edLoot, { ui: LOT_UI, shop: LOT_SHOP, smith: LOT_SMITH, mystic: LOT_MYST, stashUI: LOT_ST, stash: () => LOT_stash(ED.hero), toStash: (it, t, i) => LOT_toStash(ED.hero, it, t, i), fromStash: (t, i, j) => LOT_fromStash(ED.hero, t, i, j), salvage: it => LOT_salvage(ED.hero, it), yield: LOT_yield, imprint: (it, id) => LOT_imprint(ED.hero, it, id),
   /** put on a legendary with power id, or the unique id: __edLoot.wear('emberwheel') */
   wear(id) { const h = ED.hero, d = Math.max(1, h.maxDepth || 1), pw = REG.powers[id], it = REG.uniques[id] ? makeItem({ unique: id, ilvl: d }) : pw ? makeItem({ rarity: 3, power: id, slot: (pw.slots && pw.slots[0]) || 'weapon', ilvl: d }) : null; if (!it) return null; h.bag.push(it); equip(h, it, LOT_slotFor(h, it)); return it.name; } });

@@ -10,7 +10,7 @@ function setupGPU(map) {
 /* ---------- save / load ---------- */
 const SAVE_KEYS = ['level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
 function saveGame() { const h = ED.hero; if (!h || ED.demo) return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set('ed:save', o); }
-function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); itemUid = mx + 1; return s; }
+function loadSave() { const s = E.store.get('ed:save', null); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); const st = s.stash; (st && Array.isArray(st.tabs) ? st.tabs.flat() : Array.isArray(st) ? st : []).forEach(scan); itemUid = mx + 1; return s; }
 function newHero() {
   const h = makeHero(null);
   // a starting kit: the classic look, plain gear
@@ -216,22 +216,62 @@ const townScene = {
     if (o.arrive === 'intro') { showCard('Emberhold', 'THE LAST LIT TOWN', null, 4); game.after(4.5, () => notify('THE WAYSTONE IN THE SQUARE LEADS DOWN.  (E TO USE)', '#bff6ff', 5)); }
   },
   update(dt) {
-    if (talkStep(dt)) { if (UI.modal) updateUI(dt); townLife(dt); return; }
+    if (talkStep(dt)) { UI.prompt = null; if (UI.modal) updateUI(dt); townLife(dt); return; }   // (worldStep, which clears the prompt, does not run: clear it here, or it draws under the box)
     const waiting = updateUI(dt);
     const L0 = ED.L, h = ED.hero, inp = game.input;
-    if (waiting) { townLife(dt); return; }
+    if (waiting) { UI.prompt = null; townLife(dt); townServed(L0); return; }
     if ((L0.saveT = (L0.saveT || 0) + dt) > 20) { L0.saveT = 0; saveGame(); }   // purchases, crafting and gambling are kept even if the tab closes
+    // a click on a person in reach starts a chat (the way to talk to the shopkeepers, whose E opens the shop at once).
+    // Checked before the world step, so the same click does not also swing the sword
+    const chat = inp.pressed('click') && townChatTarget(L0, h);
+    if (chat) { inp.consumeAll(); talkTo(chat); townLife(dt); return; }
     worldStep(dt, { town: true, canAct: true });
     for (const n of L0.npcs) updateNPC(n, dt);
-    // who is close enough to talk to, the waystone, the portal back
-    const near = L0.npcs.filter(n => Math.hypot(n.x - h.x, n.y - h.y) < (n.S.talkR || 26)).sort((a, b) => dist2(a, h) - dist2(b, h))[0];
-    const onStone = L0.waystone && Math.hypot(L0.waystone.x - h.x, L0.waystone.y - h.y) < 22;   // the stone is solid: close enough to touch is close enough
-    if (near) { UI.prompt = '[E] Talk to ' + near.S.name; if (inp.pressed('interact')) talkTo(near); }
-    else if (onStone) { UI.prompt = '[E] Use the waystone'; if (inp.pressed('interact')) { UI.open('waystone'); UI.keyNav = true; } }   // opened by key: Enter picks the highlighted depth
+    townServed(L0);
+    const use = townUse(L0, h);
+    if (use) { UI.prompt = use.label; if (inp.pressed('interact')) use.fn(); }
     if (L0.portal && ED.savedLevel && Math.hypot(L0.portal.x - h.x, L0.portal.y - h.y) < 10) returnThroughPortal();
   },
   draw(r) { worldDraw(r); talk.draw(r); }
 };
+/** what E does where the hero stands. The waystone always wins when he touches it (Ilsa and Pip stand close by and
+ *  must never steal its prompt); otherwise the nearest person or thing in reach: a shopkeeper opens the shop at once
+ *  (the greeting is a bubble over them, not three presses of dialog), anyone else talks; a town's L.uses (the stash
+ *  chest) are things with { x, y, r, label, use() } */
+const TOWN_VERB = { vendor: 'Trade with', smith: 'Craft with', mystic: 'Consult', waystone: 'Travel with' };
+function townUse(L0, h) {
+  if (L0.waystone && Math.hypot(L0.waystone.x - h.x, L0.waystone.y - h.y) < 22) return { label: '[E] Use the waystone', fn: () => { UI.open('waystone'); UI.keyNav = true; } };   // opened by key: Enter picks the highlighted depth
+  let best = null, bd = 1e9;
+  for (const n of L0.npcs) {
+    const d = Math.hypot(n.x - h.x, n.y - h.y), svc = n.S.service && UI.panels[n.S.service] ? n.S.service : null; if (d >= (n.S.talkR || 26) || d >= bd) continue;
+    bd = d; best = svc ? { label: '[E] ' + (TOWN_VERB[svc] || 'Visit') + ' ' + n.S.name + '  •  click to talk', fn: () => serveNPC(n) } : { label: '[E] Talk to ' + n.S.name, fn: () => talkTo(n) };
+  }
+  for (const u of L0.uses || []) { const d = Math.hypot(u.x - h.x, u.y - h.y); if (d < u.r && d < bd) { bd = d; best = { label: u.label, fn: () => u.use(h) }; } }
+  return best;
+}
+/** open a shopkeeper's panel straight away: they turn to the hero, greet in a bubble, and keep him company while it is open */
+function serveNPC(n) {
+  const S = n.S, L0 = ED.L, pool = S.hi || [];
+  if (!n.bubble && pool.length) { let t = pool[Math.floor(Math.random() * pool.length)]; if (t === n.lastHi && pool.length > 1) t = pool[(pool.indexOf(t) + 1) % pool.length]; n.lastHi = t; say(n, t, 2.4); }
+  n.talking = true; n.rig.kick(2); L0.serving = n;
+  UI.open(S.service, { npc: n }); UI.keyNav = true;   // opened by key: driven by keys
+}
+/** the shop closed: the shopkeeper says goodbye and goes back to work */
+function townServed(L0) {
+  const n = L0.serving; if (!n || UI.isOpen(n.S.service)) return;
+  L0.serving = null; n.talking = false; const b = n.S.bye; if (b && b.length) say(n, b[Math.floor(Math.random() * b.length)], 2.2);
+}
+/** the person under the mouse, if the hero stands close enough to chat (their body on screen, feet to head) */
+function townChatTarget(L0, h) {
+  const r = game.r, m = UI.mouse, s = r.view.scale || 1; let best = null, bd = 1e9;
+  for (const n of L0.npcs) {
+    if (Math.hypot(n.x - h.x, n.y - h.y) > (n.S.talkR || 26) + 22) continue;
+    const sz = n.rig.o.size || 1, [fx, fy] = r.w(n.x, n.y, n.z || 0), [, hy] = r.w(n.x, n.y, (n.z || 0) + 34 * sz), hw = 7 * s * sz;
+    if (m.x < fx - hw || m.x > fx + hw || m.y < hy - 3 || m.y > fy + 3) continue;
+    const d = Math.abs(m.x - fx); if (d < bd) { bd = d; best = n; }
+  }
+  return best;
+}
 /** the talk dialog: E (the key that opened it) and a left click turn its pages too, not only Space / Enter */
 function talkStep(dt) {
   if (!talk.open) return false;
@@ -244,12 +284,24 @@ function talkStep(dt) {
   }
   return talk.update(dt);
 }
-function townLife(dt) { const L0 = ED.L; for (const n of L0.npcs) updateNPC(n, dt); for (const b of L0.torches) b.t += dt; if (L0.theme && L0.theme.ambience) L0.theme.ambience(L0, dt); ED.hero.rig.update(dt, { x: ED.hero.x, y: ED.hero.y, facing: ED.hero.facing, pose: UI.modal ? null : 'hips' }); }
+function townLife(dt) {
+  const L0 = ED.L, h = ED.hero; for (const n of L0.npcs) updateNPC(n, dt); for (const b of L0.torches) b.t += dt; if (L0.theme && L0.theme.ambience) L0.theme.ambience(L0, dt);
+  const n = talk.open && L0.npcs.find(q => q.talking);
+  if (n) h.facing = E.approachAng(h.facing, angTo(h, n), dt * 8);   // the hero turns to whoever he talks to
+  h.rig.update(dt, { x: h.x, y: h.y, facing: h.facing, pose: UI.modal ? null : 'hips' });
+  if (n) {   // frame the two of them above the dialog box: look at their midpoint, slid toward the camera by ~34 px
+    const v = game.view, fl = Math.hypot(v.fx || 0, v.fy === undefined ? 1 : v.fy) || 1, fx = (v.fx || 0) / fl, fy = (v.fy === undefined ? 1 : v.fy) / fl, mx = (h.x + n.x) / 2, my = (h.y + n.y) / 2;
+    const a = v.p(mx, my, 0), b = v.p(mx + fx * 10, my + fy * 10, 0), s = (b[1] - a[1]) / 10, k = Math.abs(s) > .05 ? clamp(34 / s, -80, 80) : 0;
+    game.focus(mx + fx * k, my + fy * k, 8);
+  }
+}
 function reviveIfDead(h) { if (h.dead || !h.alive) reviveHero(h); }
 function talkTo(n) {
   const S = n.S; n.talking = true;
   const lines = Array.isArray(S.lines) ? [S.lines[(n.talks = (n.talks || 0) + 1) % S.lines.length]] : typeof S.lines === 'function' ? S.lines(n, ED.hero) : ['...'];
-  talk.say(lines, { name: S.name, portrait: n.rig, onDone() { n.talking = false; if (S.service && UI.panels[S.service]) UI.open(S.service, { npc: n }); } });
+  // the box sits above the HUD's bottom row (skill bar, potions, gold, the skill-point line) so nothing is clipped under it
+  const dh = Math.max(talk.lines * E.font.lineHeight() + 9, 48), y = Math.max(16, game.H - 42 - dh);
+  talk.say(lines, { name: S.name, portrait: n.rig, y, onDone() { n.talking = false; } });   // a chat only: E opens a shopkeeper's panel (serveNPC)
 }
 function returnThroughPortal() { const S = ED.savedLevel; if (!S) return; sfx('portal'); game.go('level', { resume: S }); }
 
@@ -274,8 +326,7 @@ const levelScene = {
     dropIn(h);
     const M = rec.newMech && REG.mechanics[rec.newMech];
     const first = M && !(h.seenMech || []).includes(M.id + (depth > PLANNED ? ':' + rec.mechs.join('+') : ''));
-    const comboName = rec.mechs.map(id => REG.mechanics[id] && REG.mechanics[id].name).filter(Boolean).join(' + ');
-    showCard(rec.name, 'DEPTH ' + depth, M ? Object.assign({}, M, depth > PLANNED ? { name: comboName, combo: true, tip: 'A new combination. ' + rec.mechs.map(id => REG.mechanics[id] && REG.mechanics[id].tip).filter(Boolean).slice(0, 2).join(' ') } : {}) : null, first ? 6 : 4);
+    const C = levelCardInfo(L0); showCard(C.title, C.sub, C.mech, first ? 6 : 4);   // (a combination card lists each element's rule and how they combine)
     if (M) { h.seenMech = h.seenMech || []; h.seenMech.push(M.id + (depth > PLANNED ? ':' + rec.mechs.join('+') : '')); }
     if (depth > h.maxDepth) h.maxDepth = depth;
     playSong(L0.theme.music || 'deep'); game.cam.snap = true; saveGame();
@@ -288,7 +339,7 @@ const levelScene = {
     if (updateUI(dt)) return;
     const L0 = ED.L, h = ED.hero, inp = game.input;
     worldStep(dt);
-    if (h.dead) { if (h.deadT > 2.2 && !UI.isOpen('death')) UI.open('death'); return; }
+    if (h.dead) { if ((h.deadT > 2.2 || wallClock() - (h.deadAt || 0) > 3.4) && !UI.isOpen('death')) UI.open('death'); return; }   // (the wall clock too: the fall plays in slow motion)
     if (inp.pressed('portal')) openTownPortal(h);
     if ((L0.saveT = (L0.saveT || 0) + dt) > 30) { L0.saveT = 0; saveGame(); }   // autosave: a closed tab loses half a minute at most
     // wake the boss when the hero reaches its arena; open the exit when it falls
@@ -345,7 +396,7 @@ const provingScene = {
     if (updateUI(dt)) return;
     const h = ED.hero;
     worldStep(dt);
-    if (h.dead) { if (h.deadT > 2.2 && !UI.isOpen('death')) UI.open('death'); return; }
+    if (h.dead) { if ((h.deadT > 2.2 || wallClock() - (h.deadAt || 0) > 3.4) && !UI.isOpen('death')) UI.open('death'); return; }   // (the wall clock too: the fall plays in slow motion)
     if (!ED.foes.length && (PROVE.next -= dt) <= 0) {
       PROVE.wave++; PROVE.next = 2.5; const w = PROVE.wave, n = Math.round((12 + w * 10) * DIFF.density), boss = w % 10 === 0;
       // the horde grows and widens: the stress test's five, then one more kind of monster each wave (the whole bestiary by

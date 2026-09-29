@@ -64,8 +64,9 @@ function computeStats(h) {
   h.hp = clamp(h.alive ? frac * h.maxHp : h.maxHp, 1, h.maxHp);
   h.maxEmber = Math.round(s.ember); h.ember = Math.min(h.ember === undefined ? h.maxEmber : h.ember, h.maxEmber);
   h.maxPotions = Math.max(1, Math.round(s.potionCharges)); h.maxDodge = Math.max(1, Math.round(s.dodgeCharges));
+  // the Settings 'hero speed' slider is the whole tempo: running, attacking and casting (a playtest knob, not only legs)
   h.speedMul = (1 + (s.moveSpeed || 0) / 100) * DIFF.heroSpeed;
-  h.atkMul = 1 + (s.atkSpeed || 0) / 100; h.castMul = 1 + (s.castSpeed || 0) / 100;
+  h.atkMul = (1 + (s.atkSpeed || 0) / 100) * DIFF.heroSpeed; h.castMul = (1 + (s.castSpeed || 0) / 100) * DIFF.heroSpeed;
   return s;
 }
 /** a skill's rank including +skill gear */

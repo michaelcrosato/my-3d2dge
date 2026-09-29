@@ -40,13 +40,12 @@ function recipe(depth, visit = 0) {
     rec.mechs = rec.newMech ? [rec.newMech] : [];
     rec.boss = p.boss && REG.bosses[p.boss] ? p.boss : null;
   } else {
-    // composed depths: a known theme (recolored further the deeper you go), one mechanic new to this combination
-    // plus one or two from before, and a composed boss every fifth depth
+    // composed depths: a known theme (recolored further the deeper you go), one NEW combination of mechanics (pairs,
+    // then triples and quads phasing in: comboAt), and a composed boss every fifth depth
     const themes = Object.keys(REG.themes);
     rec.theme = R.pick(themes); rec.layout = R.pick(Object.keys(REG.layouts).filter(id => !REG.layouts[id].bossOnly));
     rec.hue = ((depth - PLANNED) * 37 + R.int(-20, 20)) % 360;
-    // every composed depth brings one NEW combination: all pairs of mechanics first (older mechanics sooner), then triples
-    const combo = comboFor(depth - PLANNED - 1);
+    const combo = comboAt(depth);
     rec.mechs = combo; rec.newMech = combo[0]; rec.combo = true;
     if (depth % 5 === 0) { rec.boss = composeBoss(depth, R); rec.layout = REG.layouts.arena ? 'arena' : rec.layout; }
   }
@@ -63,29 +62,121 @@ function levelPool(theme, depth) {
   const ids = pool.map(a => a.id);
   return ids.length ? ids : ['husk', 'skeleton', 'slime'];
 }
-/** the n-th new combination of mechanics (0-based): pairs ordered by when their newer member arrived, then triples */
-let _combos = null;
-function comboFor(n) {
-  if (!_combos) {
-    const intro = id => { const i = PLAN.findIndex(p => p && p.mech === id); return i > 0 ? i : 50 + (REG.mechanics[id].depth || 0); };
-    const ids = Object.keys(REG.mechanics).filter(id => !REG.mechanics[id].bossOnly).sort((a, b) => intro(a) - intro(b)), R = RNG('emberdeep:combos'), pairs = [], triples = [];
-    for (let j = 1; j < ids.length; j++) { const tier = []; for (let i = 0; i < j; i++) tier.push([ids[j], ids[i]]); pairs.push(...R.shuffle(tier)); }
-    for (let k = 2; k < ids.length; k++) { const tier = []; for (let j = 1; j < k; j++) for (let i = 0; i < j; i++) tier.push([ids[k], ids[j], ids[i]]); triples.push(...R.shuffle(tier)); }
-    _combos = pairs.concat(triples);
-    if (!_combos.length) _combos = [ids.slice(0, 1)];
-  }
-  if (n < _combos.length) return _combos[n].slice();
-  const R = RNG('emberdeep:combo:' + n), ids = Object.keys(REG.mechanics).filter(id => !REG.mechanics[id].bossOnly);   // past every triple: random quads
-  return R.shuffle(ids.slice()).slice(0, Math.min(4, ids.length));
+/* ---------- composed depths: every depth brings one NEW combination of mechanics, and they grow ----------
+ * The pace (DESIGN.md): pairs to depth 30; triples one depth in three from 31 and two in three from 61; quads one in
+ * three from 101 and two in three from 201. Each size phases in over a stretch instead of switching on, so a new size
+ * is a spike before it is the norm; a boss arena keeps one element fewer than the depths around it (never under two):
+ * the boss is the show there. Within a size every combination comes once, and each depth takes the one whose elements
+ * the player has seen least recently, so all fifteen keep turning up (pairs sorted by age left flood and the quake
+ * out of play to depth 107 and kept complexity flat at two for 105 depths). A size that runs dry (past depth ~2000
+ * for the quads) draws random ones: still endless */
+function comboSize(depth) {
+  const d = depth, m3 = d % 3;
+  const k = d <= 30 ? 2 : d <= 60 ? (m3 === 0 ? 3 : 2) : d <= 100 ? (m3 === 1 ? 2 : 3) : d <= 200 ? (m3 === 0 ? 4 : 3) : (m3 === 1 ? 3 : 4);
+  return Math.max(2, d % 5 === 0 ? k - 1 : k);
 }
+/** every k-element subset of ids, each newest element first */
+function comboSets(ids, k) {
+  const out = [], pick = (from, acc) => { if (acc.length === k) { out.push(acc.slice().reverse()); return; } for (let i = from; i < ids.length; i++) { acc.push(ids[i]); pick(i + 1, acc); acc.pop(); } };
+  pick(0, []); return out;
+}
+const COMBO = { ids: null, lists: {}, seq: [], last: null };
+/** the combination of mechanics for a composed depth (newest element first). Built depth by depth from PLANNED + 1 and
+ *  memoised, since each pick depends on what the depths before it showed */
+function comboAt(depth) {
+  const C = COMBO;
+  if (!C.ids) {
+    const intro = id => { const i = PLAN.findIndex(p => p && p.mech === id); return i > 0 ? i : 50 + (REG.mechanics[id].depth || 0); };
+    C.ids = Object.keys(REG.mechanics).filter(id => !REG.mechanics[id].bossOnly).sort((a, b) => intro(a) - intro(b));
+    C.last = new Map(C.ids.map(id => [id, 0]));
+  }
+  const ids = C.ids, N = ids.length;
+  if (N < 2) return ids.slice(0, 1);
+  for (let d = PLANNED + 1 + C.seq.length; d <= depth; d++) {
+    const k = Math.min(comboSize(d), N), L0 = C.lists[k] || (C.lists[k] = RNG('emberdeep:combos:' + k).shuffle(comboSets(ids, k)));
+    let pick;
+    if (L0.length) {   // stalest first: the most recently seen member decides, then the sum (ties: the seeded order)
+      let bi = 0, bm = Infinity, bs = Infinity;
+      for (let i = 0; i < L0.length; i++) { let m = 0, s = 0; for (const id of L0[i]) { const v = C.last.get(id); if (v > m) m = v; s += v; } if (m < bm || (m === bm && s < bs)) { bm = m; bs = s; bi = i; } }
+      pick = L0.splice(bi, 1)[0];
+    } else pick = RNG('emberdeep:combo:' + d).shuffle(ids.slice()).slice(0, k).sort((a, b) => ids.indexOf(b) - ids.indexOf(a));
+    for (const id of pick) C.last.set(id, d);
+    C.seq.push(pick);
+  }
+  return C.seq[depth - PLANNED - 1].slice();
+}
+/** a level is named after its new element (the brief), and a composed one after where it is too:
+ *  - a planned depth: the mechanic's own title ('The Powder Vaults');
+ *  - a planned boss depth: the element woven into the boss's lair ('The Brood Mother's Lair' + webs: 'The Webbed Lair');
+ *  - a composed depth: every element's adjective, newest first, on a place noun of its theme ('The Molten, Howling
+ *    Crypts') */
 function levelName(rec, R) {
-  if (rec.boss && REG.bosses[rec.boss] && REG.bosses[rec.boss].levelName) return REG.bosses[rec.boss].levelName;
-  const ms = rec.mechs.map(id => REG.mechanics[id]).filter(Boolean);
-  if (!ms.length) return 'The ' + ((REG.themes[rec.theme] && R.pick(REG.themes[rec.theme].nouns || ['Deep'])) || 'Deep');
-  if (rec.depth <= PLANNED && ms[0].title) return ms[0].title;
-  if (ms.length === 1) return 'The ' + ms[0].adj + ' ' + ms[0].noun;
-  if (ms.length === 2) return 'The ' + ms[1].adj + ' ' + ms[0].noun;
-  return 'The ' + ms[2].adj + ', ' + ms[1].adj + ' ' + ms[0].noun;
+  const ms = rec.mechs.map(id => REG.mechanics[id]).filter(Boolean), th = REG.themes[rec.theme], B = rec.boss && REG.bosses[rec.boss];
+  // (a noun holding any mechanic's adjective is skipped too: 'Sundered Halls' would promise chasms that are not there)
+  const adjs = ms.map(m => m.adj).filter(Boolean), used = new Set(Object.values(REG.mechanics).map(m => m.adj || '').join(' ').toLowerCase().split(/\s+/));
+  const nouns = (th && th.nouns && th.nouns.length ? th.nouns : ['Deep']), fit = nouns.filter(n => !n.toLowerCase().split(/\s+/).some(w => used.has(w)));
+  const noun = R.pick(fit.length ? fit : nouns);
+  if (!ms.length) return (B && B.levelName) || 'The ' + noun;
+  if (rec.depth <= PLANNED) {
+    if (B && B.levelName && ms[0].adj) return 'The ' + ms[0].adj + ' ' + B.levelName.split(/\s+/).pop();
+    return ms[0].title || 'The ' + (ms[0].adj || '') + ' ' + (ms[0].noun || noun);
+  }
+  return 'The ' + (adjs.length ? adjs.join(', ') + ' ' : '') + noun;
+}
+
+/* ---------- the level card: what the scene shows when a depth starts ---------- */
+/* Short words for mechanics defined outside the mechanics files (their own brief / lure / act fields win) */
+const LVL_WORDS = {
+  magma: { brief: 'Vents erupt in fire that burns all near.', lure: 'onto a vent', act: 'set the vent off' },
+  webs: { brief: 'Silk slows you, never spiders; fire burns it.', lure: 'onto the silk', act: 'set the silk alight', zone: 'the silk' },
+  quake: { brief: 'The ground heaves: fissures stun, rocks fall.', lure: 'onto a red fissure', act: 'let the quake stun them' }
+};
+/* pairs whose elements really work on each other in code (keyed by the two ids, sorted) */
+const LVL_SYNERGY = {
+  'flood+pylons': 'Pylon arcs that touch the water run through the whole pool.',
+  'flood+magma': 'Fire on the water raises scalding steam: erupt a vent in the shallows.',
+  'magma+webs': 'Fire burns silk in a rush of flame: erupt a vent under a nest.',
+  'powder+webs': 'A keg blast is fire: blow one on the silk and the web goes up.',
+  'chasm+gale': 'Gusts carry knocked foes far: blow a pack over the edge.',
+  'chasm+ice': 'Foes knocked on ice slide, and skate right off the edge.',
+  'gale+ice': 'Knock packs downwind on the ice: they fly the length of the room.',
+  'bloodrush+brood': 'Farm the swarmers: every kill feeds the streak.',
+  'flood+webs': 'Water and silk both slow you: keep to dry stone, and let them wade.'
+};
+const lvlWord = (M, k) => M[k] || (LVL_WORDS[M.id] || {})[k];
+const lvlCap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+/** one line on how two elements play together: a hand-written pair when their systems touch, else a sentence built
+ *  from their words (a mover's move toward the other's lure; a zone to fight in with the other's act) */
+function lvlSynergy(A, B) {
+  const key = [A.id, B.id].sort().join('+'); if (LVL_SYNERGY[key]) return LVL_SYNERGY[key];
+  const w = (M, k) => lvlWord(M, k);
+  for (const [X, Y] of [[A, B], [B, A]]) {
+    if (X.id === 'bloodrush') return (w(Y, 'act') ? lvlCap(w(Y, 'act')) + ' to chain kills' : 'Chain kills fast') + ': each one feeds the streak.';
+    if (X.id === 'brood' && w(Y, 'lure') && w(Y, 'act')) return 'Lure the swarmers ' + w(Y, 'lure') + ', then ' + w(Y, 'act') + '.';
+  }
+  for (const [X, Y] of [[A, B], [B, A]]) if (w(X, 'move') && w(Y, 'lure') && !w(Y, 'move')) return w(X, 'move') + ' ' + w(Y, 'lure') + '.';
+  if (w(A, 'zone') && w(B, 'zone')) return 'Fight where ' + w(A, 'zone') + ' and ' + w(B, 'zone') + ' meet.';
+  const [X, Y] = w(B, 'zone') && !w(A, 'zone') ? [B, A] : [A, B];   // the zone (where to stand) lures, the other finishes
+  if (w(X, 'lure') && w(Y, 'act')) return 'Pull packs ' + w(X, 'lure') + ', then ' + w(Y, 'act') + '.';
+  if (w(Y, 'lure') && w(X, 'act')) return 'Pull packs ' + w(Y, 'lure') + ', then ' + w(X, 'act') + '.';
+  return 'Use one to set up the other.';
+}
+/** the level card for a level: { title, sub, mech }. title is the level name, sub 'DEPTH n', mech the new element's
+ *  spec (a copy) or null: on a planned depth the mechanic itself (its tip is the card's text); on a combination
+ *  { name: 'A + B', combo: true, ids, lines, tip: '' } where lines are one row per element, 'Magma Vents: Vents erupt in
+ *  fire...' (the card picks the name out in its colour), and a last 'Together: ...' line on how they play off each other */
+function levelCardInfo(L0) {
+  const rec = L0.rec || {}, depth = L0.depth, M = rec.newMech && REG.mechanics[rec.newMech];
+  const info = { title: L0.name || rec.name || '', sub: 'DEPTH ' + depth, mech: null };
+  if (!M) return info;
+  const ms = (rec.mechs || []).map(id => REG.mechanics[id]).filter(Boolean);
+  if (depth <= PLANNED || ms.length < 2) { info.mech = Object.assign({}, M); return info; }
+  // the together line: a pair with a hand-written synergy if the combination holds one (the newest element's first), else the newest two
+  let pair = [ms[0], ms[1]];
+  outer: for (let i = 0; i < ms.length; i++) for (let j = i + 1; j < ms.length; j++) if (LVL_SYNERGY[[ms[i].id, ms[j].id].sort().join('+')]) { pair = [ms[i], ms[j]]; break outer; }
+  const lines = ms.map(m => m.name + ': ' + (lvlWord(m, 'brief') || (m.tip || '').split(/(?<=\.)\s/)[0])).concat('Together: ' + lvlSynergy(pair[0], pair[1]));
+  info.mech = Object.assign({}, M, { name: ms.map(m => m.name).join(' + '), combo: true, ids: ms.map(m => m.id), lines, tip: '' });
+  return info;
 }
 
 /* ---------- the classic layout: rooms joined by wide corridors ---------- */
@@ -185,9 +276,9 @@ function standardFloor(L0, x, y, tag, base) {
   }
   if (tag === 'ice') {
     const crack = Math.abs(E.noise2(x * .08, y * .08) - .5) < .02 || Math.abs(E.noise2(x * .05 + 9, y * .05) - .5) < .012;
-    if (crack) return [118, 158, 196];   // (kept below white: the lights add their colour on top, and pale ice bleached out)
+    if (crack) return [108, 146, 186];   // (kept well below white: the lights add their colour on top, and pale ice bleached out)
     const streak = ((x + y * .6) % 23 + 23) % 23 < 1.2 && n > .45;
-    return streak ? [212, 236, 250] : n > .55 ? [166, 200, 226] : [146, 184, 216];
+    return streak ? [200, 226, 244] : n > .55 ? [150, 186, 214] : [132, 170, 204];
   }
   if (tag === 'lava') {
     const crust = E.noise2(x * .09, y * .09) * .7 + E.noise2(x * .3, y * .3) * .3;
@@ -237,25 +328,38 @@ function cryptFloor(L0, x, y, tag, pal) {
 /* ---------- building a level from a recipe ---------- */
 /** past the plan every level turns its theme's hue, but materials stay near their own: wood, brass, bone and sand
  *  (warm and not vivid) turn at most 20 degrees, so brass never goes lime, bone never green, wood never violet;
- *  stone, moss, ice, glows and skies turn freely. levelPal is shiftPal with that rule (51-themes.js uses levelHue) */
+ *  stone, moss, ice, glows and skies turn freely. A turned material never comes out brighter than it went in (a few
+ *  percent of luma at most): at one HSL lightness green and yellow read far brighter than blue, so pale ice turned mint
+ *  glared and swallowed white skeletons. Glows (vivid colours) keep their lightness. levelPal is shiftPal with those
+ *  rules, and lk scales the lightness of every material (a pale theme passes .9 when it turns: th.pale); 51-themes.js
+ *  uses levelHue for its decorations */
 const LVL_HUE = new Map();   // memo: decorations ask for their colours every frame
-function levelHue(c, deg) {
-  if (!deg || typeof c !== 'string' || c[0] !== '#') return c;
-  const key = c + '|' + deg; let v = LVL_HUE.get(key); if (v) return v;
-  const [h, s] = E.toHsl(c); let d = ((deg % 360) + 540) % 360 - 180;
+const lvlLuma = c => { const [r, g, b] = E.hex(c); return .2126 * r + .7152 * g + .0722 * b; };
+function levelHue(c, deg, lk = 1) {
+  if ((!deg && lk === 1) || typeof c !== 'string' || c[0] !== '#') return c;
+  const key = c + '|' + deg + '|' + lk; let v = LVL_HUE.get(key); if (v) return v;
+  const [h, s, l] = E.toHsl(c); let d = ((deg % 360) + 540) % 360 - 180;
   if (h >= 16 && h <= 62 && s > .12 && s < .7) d = clamp(d, -20, 20);
+  v = hueShift(c, d);
+  if (s < .72) {   // a material: hold its brightness (a few steps of HSL lightness find it), then scale it for a pale theme
+    const cap = lvlLuma(c) * lk * 1.04 + 2; let L1 = l * lk;
+    for (let k = 0; k < 4 && lvlLuma(E.hsl(h + d, s, L1)) > cap; k++) L1 *= cap / Math.max(1, lvlLuma(E.hsl(h + d, s, L1)));
+    if (L1 !== l) v = E.hsl(h + d, s, clamp(L1, 0, 1));
+  }
   if (LVL_HUE.size > 4000) LVL_HUE.clear();
-  LVL_HUE.set(key, v = hueShift(c, d)); return v;
+  LVL_HUE.set(key, v); return v;
 }
-const levelPal = (pal, deg) => { const o = {}; for (const k in pal) o[k] = levelHue(pal[k], deg); return o; };
+const levelPal = (pal, deg, lk = 1) => { const o = {}; for (const k in pal) o[k] = levelHue(pal[k], deg, lk); return o; };
 function buildLevel(rec) {
   const R = RNG(rec.seed), th = REG.themes[rec.theme] || REG.themes.crypt, lay = REG.layouts[rec.layout] || REG.layouts.halls;
   const G0 = lay.gen(R, { w: rec.size[0], h: rec.size[1], depth: rec.depth });
   const L0 = { kind: 'level', rec, depth: rec.depth, name: rec.name, theme: th, hue: rec.hue || 0, w: G0.w, h: G0.h, cells: G0.cells, tags: G0.tags, rooms: G0.rooms,
     things: [], props: [], torches: [], runes: [], mechs: rec.mechs.slice(), seen: new Uint8Array(G0.w * G0.h), t: 0 };
-  L0.pal = levelPal(th.pal || CRYPT, L0.hue);
+  // (a pale theme, th.pale, dims a little when it turns: its floor and walls keep their contrast with the units)
+  const lk = L0.hue && th.pale ? th.pale : 1;
+  L0.pal = levelPal(th.pal || CRYPT, L0.hue, lk);
   // walls: the theme's types, recolored for deep levels; the exit gets a rune circle
-  const types = {}; for (const k in th.walls) types[k] = levelPal(th.walls[k], L0.hue);
+  const types = {}; for (const k in th.walls) types[k] = levelPal(th.walls[k], L0.hue, lk);
   const [sx, sy] = G0.start, [ex, ey] = G0.exit;
   // the landing and the waystone stand on open floor, whatever the layout: no pillar or low wall inside their rune
   // circles (a halls low wall across the exit cell once left the waystone out of reach)
@@ -270,7 +374,8 @@ function buildLevel(rec) {
   L0.flow = new E.FlowField(L0.map);
   L0.randomFloor = (Rr, o = {}) => randomFloor(L0, Rr, o);
   // light sources along the rooms (braziers stand in the room, sconces on walls)
-  const torch = (x, y) => L0.torches.push({ x, y, t: R() * 9, kind: th.torch || 'brazier', color: th.light || '#ff9a4a', r: 4.5, solid: true });
+  // (th.lightR / th.lightI: a pale theme's braziers reach less far and burn less bright, or they bleach its floor)
+  const torch = (x, y) => L0.torches.push({ x, y, t: R() * 9, kind: th.torch || 'brazier', color: th.light || '#ff9a4a', r: 4.5, solid: true, radius: th.lightR, i: th.lightI });
   for (const r0 of G0.rooms) {
     if (r0.kind === 'arena' && r0.ir) {   // a boss arena: braziers by its wall, in the gaps of the pillar ring, frame the fight; none stand in it
       const n = r0.pillars || 8;          // the pillars stand at (k + .5) / n of the way round from north, the gaps at k / n

@@ -55,7 +55,10 @@ function SKM_hit(ctx, u, scale, o = {}) {
     const fx = h.x + Math.cos(h.facing) * 9, fy = h.y + Math.sin(h.facing) * 9;
     if (Math.hypot(u.x - h.x, u.y - h.y) < 40) { u.vx = (fx - u.x) * 2.5; u.vy = (fy - u.y) * 2.5; } else { u.vx *= .3; u.vy *= .3; }
   }
-  if (air && game.time - (u.skmJug || 0) > .6 && game.time - SKM_hit.pop > .35) { u.skmJug = SKM_hit.pop = game.time; P.text(u.x, u.y, (u.z || 0) + (u.head || 20) + 12, u.skmJugN > 1 ? 'JUGGLE x' + u.skmJugN : 'JUGGLE', '#ffd23a'); }
+  if (air && game.time - (u.skmJug || 0) > .6 && game.time - SKM_hit.pop > .35) {   // the label pops on the far side of the foe from him (the juggled foe hangs right in front of him: over it, it sat on his head)
+    u.skmJug = SKM_hit.pop = game.time; const dx = u.x - h.x, dy = u.y - h.y, d = Math.hypot(dx, dy) || 1;
+    P.text(u.x + dx / d * 14, u.y + dy / d * 14, (u.z || 0) + (u.head || 20) * .8, u.skmJugN > 1 ? 'JUGGLE x' + u.skmJugN : 'JUGGLE', '#ffd23a');
+  }
   return ctx.hit(scale * (air ? SKM_JUGGLE : 1), q);
 }
 SKM_hit.pop = -1;   // the JUGGLE popup, at most every .35 s
@@ -571,14 +574,30 @@ const SKM_FLURRY = [
   SKM_spec('uppercut', { hand: 'L', wind: .09, active: .09, recover: .26, hop: 4, crouch: .7, hold: .4 })
 ];
 const SKM_HAYMAKER = SKM_spec('haymaker', { hand: 'L', wind: .15, active: .1, recover: .3, hold: .45 });
+/** Thunder Fists' finisher: the axe kick. The right heel swings up past his head and chops straight down (E.MOVES.axekick),
+ *  a hop into it, and the sky answers with a bolt on the target */
+const SKM_AXE = SKM_spec('axekick', { wind: .16, active: .09, recover: .3, hold: .45, hop: 3.5, lean: -.25, crouch: .3, reach: 5.4, hitAt: .55 });
+const SKM_AXE_HIT = { r: 21, half: .8, dmg: 1.15, kb: 40, snd: 'kick', p: 2, push: 65, big: true };
+/** a bolt out of the sky onto a point (the axe kick's thunder): a zigzag from high up, a flare, a storm burst and a small
+ *  storm nova. An airborne foe under it is spiked into the floor */
+function SKM_skyBolt(h, ctx, u) {
+  const x = u.x, y = u.y; let t = 0;
+  if (SKM_air(u) && !u.boss && !u.canFly) { u.vz = -420; u.air = true; }   // the spike: a juggled foe is driven into the floor
+  addFx({ kind: 'skmSkyBolt', update(dt) { t += dt; if (t > .16) return false; return true; }, draw(r) {
+    const z = (u.z || 0) + 10;
+    r.queue(x, y, z, g => { const [x0, y0] = r.w(x, y, z + 150), [x1, y1] = r.w(x, y, z), zm = r.view.zoom || 1; px.glow(g, 1); zig(g, x0, y0, x1, y1, '#ffe45a', 3, 6, x | 0); zig(g, x0, y0, x1, y1, '#ffffff', 1, 6, x | 0); r.glowDisc(g, x1, y1, 9 * zm, '#fff0a0', .6); }, { emissive: true, bias: .5 });
+  } });
+  elBurst(x, y, (u.z || 0) + 8, 'storm', 10); sfx('zap'); SKM_flare(x, y, 20, 90, '#fff0a0', .2, 1.6);
+  FX.nova({ team: 'hero', src: h, x, y, r0: 4, r1: 24 * ctx.area, dur: .2, el: 'storm', set: new Set([u]), hit: ctx.hit(.5, { el: 'storm', kb: 80 }) });
+}
 const SKM_FLURRY_HIT = [{ r: 19, half: .6, dmg: .5, kb: 22, snd: 'punch', p: .8, push: 55 }, { r: 17, half: .85, dmg: .55, kb: 30, snd: 'punch', p: 1, push: 60 }, { r: 17, half: .75, dmg: .65, kb: 45, up: 60, snd: 'kick', p: 1.2, push: 70 },
   { r: 20, half: .75, dmg: 1, kb: 28, up: 180, snd: 'kick', p: 1.8, push: 80, big: true }];   // light pushes so the chain stays in reach; he steps in with every blow
 def('skills', 'flurry', {
   name: 'Brawler\'s Flurry', kind: 'basic', tags: ['melee', 'attack'], el: 'phys', cost: 0, gen: 5, unlock: 1, color: '#6a3a4a',
-  runes: [{ id: 'thunder', name: 'Thunder Fists', desc: 'Storm damage: every blow arcs lightning to the enemies beside the target.' },
+  runes: [{ id: 'thunder', name: 'Thunder Fists', desc: 'Storm damage: every blow arcs lightning to the enemies beside the target, and the finisher is an axe kick that calls a thunderbolt down (and spikes airborne enemies into the floor).' },
     { id: 'iron', name: 'Iron Knuckles', desc: 'Every blow stuns, and the finisher is a crushing haymaker that hurls enemies away.' }],
   desc: (rank, rune) => 'Jab, elbow, knee and a launching uppercut from the free hand (' + SKM_pct(.5, rank) + ' to ' + SKM_pct(1, rank) + '). Press or hold to chain. Generates Ember.' +
-    (rune === 'thunder' ? ' Blows arc lightning.' : rune === 'iron' ? ' Blows stun; the finisher hurls.' : ''),
+    (rune === 'thunder' ? ' Blows arc lightning; the finisher is a thunderous axe kick.' : rune === 'iron' ? ' Blows stun; the finisher hurls.' : ''),
   icon: (g, x, y, s) => {   // a shaded fist driving in, two fading blows behind it, the impact star it lands
     const P = SKM_P(x, y, s), W = Math.max(1, Math.round(s)), sk = E.tones('#f1c7a0'), sl = E.tones('#2f8f86');
     const fist = (fx, fy, a) => px.blend(g, a, 'normal', () => {
@@ -594,19 +613,20 @@ def('skills', 'flurry', {
   },
   cast(h, ctx) {
     const iron = ctx.rune === 'iron', thunder = ctx.rune === 'thunder', el = thunder ? 'storm' : ctx.el, set = new Set();
-    const specs = SKM_FLURRY.slice(); if (iron) specs[3] = SKM_HAYMAKER;
-    const combo = new E.Combo(specs, { window: .32 }); combo.press(); h.facing = h.aim;
-    const act = SKM_act(h, { name: 'flurry', moveK: .35, face: h.aim, speed: h.atkMul, combo, rig: { attack: null },
+    const specs = SKM_FLURRY.slice(); if (iron) specs[3] = SKM_HAYMAKER; if (thunder) specs[3] = SKM_AXE;
+    const self = this, combo = comboResume(self, ctx.rune || '', () => new E.Combo(specs, { window: .32 })); combo.press(); h.facing = h.aim;   // (moving out of a blow keeps the string: the next press throws the next one)
+    const act = SKM_act(h, { name: 'flurry', moveK: .35, face: h.aim, speed: h.atkMul, combo, rig: { attack: null }, end() { comboLeft(self); },
       update(dt) {
-        const began = combo.update(dt), st = combo.state, i = combo.step, H = SKM_FLURRY_HIT[i] || SKM_FLURRY_HIT[0], fin = i === 3; this.rig.attack = st; this.t += dt;
+        const began = combo.update(dt), st = combo.state, i = combo.step, fin = i === 3, axe = fin && thunder, H = axe ? SKM_AXE_HIT : SKM_FLURRY_HIT[i] || SKM_FLURRY_HIT[0]; this.rig.attack = st; this.t += dt;
         if (thunder) SKM_smear(h, 'storm');
         this.rig.expr = st && st.phase !== 'recover' ? (fin ? 'shout' : 'angry') : null;
-        if (began === 'active') { set.clear(); sfx('whoosh', { vol: .35, pitch: 1.5 + i * .1 }); const p = H.push; h.vx += Math.cos(h.facing) * p; h.vy += Math.sin(h.facing) * p; if (fin && !iron) h.rig.kick(3); }
-        if (st && st.phase === 'active' && st.u >= .3) hitCone('hero', h.x, h.y, h.facing, H.r * (fin ? ctx.area : 1), H.half, u => {
+        if (began === 'active') { set.clear(); sfx('whoosh', { vol: .35, pitch: 1.5 + i * .1 }); const p = H.push; h.vx += Math.cos(h.facing) * p; h.vy += Math.sin(h.facing) * p; if (fin && !iron) h.rig.kick(axe ? -4 : 3); }
+        if (st && st.phase === 'active' && st.u >= (axe ? SKM_AXE.hitAt : .3)) hitCone('hero', h.x, h.y, h.facing, H.r * (fin ? ctx.area : 1), H.half, u => {
           const ang = h.facing, hay = fin && iron;
-          SKM_impact(u, ang, H.p * (hay ? 1.3 : 1), el, H.snd); if (fin) { sfx('hit', { vol: .5 }); if (!iron) SKM_upSparks(u.x, u.y, (u.z || 0) + 8, 5); }
+          SKM_impact(u, ang, H.p * (hay ? 1.3 : 1), el, H.snd); if (fin) { sfx('hit', { vol: .5 }); if (!iron && !axe) SKM_upSparks(u.x, u.y, (u.z || 0) + 8, 5); }
+          if (axe) { SKM_skyBolt(h, ctx, u); shake(3); P.dust(u.x, u.y, 0, 8, { speed: 50 }); SKM_crack(u.x, u.y, { n: 5, r: 16, el: 'storm', dur: 1.6 }); }   // the heel comes down: thunder
           if (thunder && u.team === 'foe') FX.chain({ team: 'hero', src: h, from: u, hops: fin ? 3 : 1, range: 60, el: 'storm', set: new Set([u]), hit: ctx.hit(.3, { el: 'storm', kb: 30 }) });
-          return SKM_hit(ctx, u, H.dmg * (hay ? 1.3 : 1), { kb: hay ? 330 : H.kb, up: hay ? 60 : H.up, ang, el, stun: iron ? (hay ? .9 : .45) : undefined, statusChance: thunder ? .35 : undefined });
+          return SKM_hit(ctx, u, H.dmg * (hay ? 1.3 : 1), { kb: hay ? 330 : H.kb, up: hay ? 60 : axe ? undefined : H.up, lift: axe ? false : undefined, ang, el, stun: iron ? (hay ? .9 : .45) : axe ? .4 : undefined, statusChance: thunder ? .35 : undefined });
         }, set);
         // (holding the key keeps the blows coming: updateHero repeats a held slot through again())
         this.free = !st || st.phase === 'recover';
@@ -727,14 +747,14 @@ def('skills', 'bladethrow', {
         if (!blade) { SKM_giveSword(h); return false; }
         if (!blade.caught && !blade.gone) SKM_takeSword(h);   // keep his hand empty (a rig rebuilt by new gear too)
         if (phase === 'wait') {
-          this.rig.attack = null; this.free = true;   // an empty hand, not an idle hero: any skill or a dodge may follow
+          this.rig.attack = null; this.free = true; this.moveCancel = false;   // an empty hand, not an idle hero: any skill or a dodge may follow (walking does not end the throw)
           const d = Math.hypot(blade.x - h.x, blade.y - h.y), back = blade.phase === 'back';
           this.face = back || blade.phase === 'hang' ? Math.atan2(blade.y - h.y, blade.x - h.x) : a;
           this.rig.point = back && d < 60; this.rig.aim = .2;   // the hand goes out to meet it
           if (blade.caught || blade.gone || pt > 4) {
             SKM_giveSword(h); recall(); phase = 'catch'; pt = 0; this.rig.point = false; this.moveK = .2;
             const [hx, hy, hz] = h.rig.hand('R'); sfx('skmCatch'); P.glints(hx, hy, hz, 5, '#ffffff', 6); P.sparks(hx, hy, hz, 5, h.facing + Math.PI, { color: '#fff2c4' }); game.freeze(.03); h.rig.kick(2);
-            this.face = h.facing; this.rig.expr = 'smile';
+            this.face = h.facing; this.rig.expr = 'smile'; this.moveCancel = true;
           }
           return true;
         }

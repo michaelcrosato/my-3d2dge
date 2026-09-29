@@ -30,7 +30,8 @@ const TWN_SFX = {
   giggle: { wave: 'square', freq: 740, arp: [0, 4, 0, 4, 7], step: .06, dur: .32, vol: .05 },
   yawn: { wave: 'triangle', freq: 320, to: 170, dur: .8, vol: .07, vib: [4, .06] },
   blip: { wave: 'square', freq: 620, dur: .03, vol: .05 },
-  tick: { wave: 'noise', freq: 2000, dur: .03, vol: .06 }
+  tick: { wave: 'noise', freq: 2000, dur: .03, vol: .06 },
+  creak: [{ wave: 'saw', freq: 150, to: 330, dur: .42, vol: .05, vib: [26, .25] }, { wave: 'square', freq: 90, to: 120, dur: .3, vol: .03 }]
 };
 /** a sound from somewhere in town: quieter with distance from the hero, silent far away */
 function tsfx(v, x, y, o = {}) { const h = ED.hero; if (!h) return; const k = clamp(1 - Math.hypot(h.x - x, h.y - y) / 260, 0, 1); if (k > .05) sfx(v, Object.assign({}, o, { vol: (o.vol === undefined ? 1 : o.vol) * k })); }
@@ -603,7 +604,7 @@ function quenchThing() {
 
 /* ---------- the market stall: a striped awning on the store's front (sorted cell by cell so it sits between the wall
  * and Cobb), goods on the counter, a signpost with a lantern ---------- */
-const AWN = { x0: 352, x1: 464, yb: 96, zb: 34, yf: 116, zf: 28 };
+const AWN = { x0: 352, x1: 464, yb: 96, zb: 35, yf: 116, zf: 30 };
 function stallThing() {
   const potions = [[364, 134, '#e04a5a'], [370, 138, '#4a8ae8'], [376, 134, '#6ad06a'], [382, 138, '#e8a040']];
   return { kind: 'stall', x: 408, y: 128, r: 0, keep: true,
@@ -640,12 +641,82 @@ function stallThing() {
         const cq = W3(r, P(-6, bz + 3.5)), s = r.view.scale; px.disc(g, cq[0], cq[1], Math.max(1, 1.8 * s), '#e8b840'); px.dot(g, cq[0] - 1, cq[1] - 1, '#fff0a0');
         const tq = W3(r, P(3, bz + 3.5)); E.font.text(g, 'COBB', Math.round(tq[0]), Math.round(tq[1]) - 2, '#3a2010', { align: 'center', font: 'tiny', outline: false });
       });
-      if (!ED.L.broomHeld) r.queue(BROOM_AT[0], BROOM_AT[1], 0, g => {   // the broom leans on the wall until Cobb needs it
-        const [bx, by] = BROOM_AT, b = W3(r, [bx, by + 1, 0]), t0 = W3(r, [bx + 3, by - 2, 25]), s2 = r.view.scale;
+      const BA = ED.L.broomAt || BROOM_AT, onCounter = !!ED.L.broomAt;
+      if (!ED.L.broomHeld) r.queue(BA[0], BA[1], 0, g => {   // the broom leans on the crates until Cobb needs it (or on the counter's back, if a customer called him away)
+        const [bx, by] = BA, b = W3(r, [bx, by + 1, 0]), t0 = W3(r, onCounter ? [bx + 1.5, by + 4.5, 15] : [bx + 1, by - 6.5, 17]), s2 = r.view.scale;
         px.line(g, b[0], b[1] - 4 * s2, t0[0], t0[1], '#6a4428', zw(r) + 1); px.line(g, b[0] - 1, b[1] - 4 * s2, t0[0] - 1, t0[1], '#9a6a3e', zw(r));
         px.poly(g, [[b[0] - 1.5 * s2, b[1] - 5 * s2], [b[0] + 1.5 * s2, b[1] - 5 * s2], [b[0] + 3 * s2, b[1]], [b[0] - 3 * s2, b[1]]], '#c8a050'); px.line(g, b[0] - 3 * s2, b[1], b[0] + 3 * s2, b[1], '#8a6a30');
       });
-      L.add(408, 150, 20, 64, .5, { color: '#ffc070' });
+      L.add(408, 150, 20, 64, .5, { color: '#ffc070' }); L.add(408, COBB_LANE - 2, 22, 58, .45, { color: '#ffc880' });   // the counter front, and the lane under the awning
+    } };
+}
+/* ---------- the stash: an iron-bound oak strongbox beside Cobb's stall. E opens it (the UI's 'stash' panel): the lid swings
+ * up on its hinges with a creak and a spring's overshoot, the red velvet lining and a heap of gold catch the light; when
+ * the panel closes it drops shut with a thud, bounces once and puffs dust. Every piece is a world point through r.w,
+ * so it reads in every view and at every zoom ---------- */
+const STASH = { x: 322, y: 172, a: -.64, hl: 8.5, hw: 5.5, z0: 1.4, z1: 9.8, hL: 3.8 };
+function stashThing() {
+  const K = STASH, c = Math.cos(K.a), sn = Math.sin(K.a), Q = (u, v, z) => [K.x + u * c - v * sn, K.y + u * sn + v * c, z];
+  return { kind: 'stash', x: K.x, y: K.y, r: 9, solid: true, hittable: true, keep: true, mapColor: '#e8c860', lid: 0, lv: 0, peek: 0, tr: 0, want: 0,
+    onHit(hit) { this.lv += 3; tsfx('clang', this.x, this.y, { vol: .5, pitch: 1.4 }); P.sparks(this.x, this.y, 8, 5, hit.ang, { color: '#ffd070', hot: '#ffffff' }); },   // a knock makes the lid jump
+    use() { this.peek = UI.panels.stash ? 0 : 1; UI.open('stash', { chest: this }); UI.keyNav = true; },
+    step(dt) {   // a damped spring toward open (the panel is up) or shut; called from draw so it runs while the panel is modal
+      const want = UI.isOpen('stash') || this.peek > 0 ? 1 : 0; this.peek -= dt;
+      if (want && !this.want) { tsfx(TWN_SFX.creak, this.x, this.y); P.glints(this.x, this.y, K.z1 + 2, 8, '#ffe8a0', 10); }
+      this.want = want; this.lv += ((want - this.lid) * 120 - this.lv * 12) * dt; this.lid += this.lv * dt;
+      if (this.lid < 0) { if (this.lv < -1.5) { tsfx('thud', this.x, this.y, { vol: .4, pitch: 1.2 }); P.dust(this.x, this.y, 0, 6, { speed: 26 }); shake(.6); } this.lid = 0; this.lv = Math.abs(this.lv) * .22; if (this.lv < .3) this.lv = 0; }
+      if (this.lid > 1.1) { this.lid = 1.1; this.lv = 0; }
+    },
+    draw(r) {
+      const now = game.real, dt = clamp(now - (this.tr || now), 0, .05); this.tr = now; this.step(dt);
+      if (!r.visible(K.x, K.y, 0, 50, 60, 40)) return;
+      const th = this.lid * 1.9, open = this.lid > .04, v = r.view;
+      r.queue(K.x, K.y, 0, g => {
+        const zm = zw(r), wd = E.tones('#7a4a2a'), ir = E.tones('#4a4a5a'), au = E.tones('#e0b040'), W = p => W3(r, p);
+        for (const k of [-6, 6]) { const q = Q(k, 0, 0); obox(r, g, q[0], q[1], 0, K.z0, .9, K.hw + .5, K.a, '#4a3020', '#3a2418'); }   // skids
+        obox(r, g, K.x, K.y, K.z0, K.z1, K.hl, K.hw, K.a, null, '#7a4a2a', { grain: 3 });                                    // the body
+        const band = (u, vv, nx, ny) => { if (nx * v.fx + ny * v.fy <= .02) return; line3(r, g, Q(u, vv, K.z0), Q(u, vv, K.z1), ir.deep, zm + 1); line3(r, g, Q(u, vv, K.z0 + .3), Q(u, vv, K.z1 - .3), ir.lt, zm); };
+        for (const u of [-5.5, 5.5]) band(u, K.hw + .15, -sn, c);                                                          // straps on the front,
+        for (const sd of [-1, 1]) band(sd * (K.hl + .15), 0, sd * c, sd * sn);                                             // and round the ends
+        for (const z of [K.z0 + 1.6, K.z1 - 1.4]) if (-sn * v.fx + c * v.fy > .02) line3(r, g, Q(-K.hl, K.hw + .15, z), Q(K.hl, K.hw + .15, z), ir.sh);   // a rail top and bottom
+        if (-sn * v.fx + c * v.fy > .02) {   // the lock plate and its keyhole
+          quad(r, g, [Q(-1.6, K.hw + .25, 4.6), Q(1.6, K.hw + .25, 4.6), Q(1.6, K.hw + .25, 8.4), Q(-1.6, K.hw + .25, 8.4)], au.sh);
+          quad(r, g, [Q(-1.2, K.hw + .3, 5), Q(1.2, K.hw + .3, 5), Q(1.2, K.hw + .3, 8), Q(-1.2, K.hw + .3, 8)], au.base);
+          const kh = W(Q(0, K.hw + .35, 6.3)); px.rect(g, kh[0], kh[1] - 1, 1, 2, '#1a1010'); const hl = W(Q(-.9, K.hw + .35, 7.8)); px.dot(g, hl[0], hl[1], au.hi);
+        }
+        // the lid: a barrel top in six facets turned about the back hinge by th; each facet shaded by its normal, the inside velvet
+        const arc = []; for (let i = 0; i <= 6; i++) { const t = i / 6, ph = Math.PI * t, dv = K.hw * (1 + Math.cos(ph)), dz = K.hL * Math.sin(ph), nv = Math.cos(ph) / K.hw, nz = Math.sin(ph) / K.hL;
+          arc.push({ v: -K.hw + dv * Math.cos(th) - dz * Math.sin(th), z: K.z1 + dv * Math.sin(th) + dz * Math.cos(th), nv: nv * Math.cos(th) - nz * Math.sin(th), nz: nv * Math.sin(th) + nz * Math.cos(th) }); }
+        const L0 = K.hl + .3, F = [];
+        for (let i = 0; i < 6; i++) { const a = arc[i], b = arc[i + 1], nv = (a.nv + b.nv) / 2, nz = (a.nz + b.nz) / 2, l = Math.hypot(nv, nz) || 1, nx = -sn * nv / l, ny = c * nv / l, nzz = nz / l;
+          const m = Q(0, (a.v + b.v) / 2, (a.z + b.z) / 2); F.push({ q: [Q(-L0, a.v, a.z), Q(L0, a.v, a.z), Q(L0, b.v, b.z), Q(-L0, b.v, b.z)], d: nx * v.dx + ny * v.dy + nzz * v.dz, k: LIT(nx, ny) * .6 + nzz * .7, dp: v.depth(m[0], m[1], m[2]), i, a, b }); }
+        const cap = sd => ({ q: arc.map(p => Q(sd * L0, p.v, p.z)), d: sd * (c * v.dx + sn * v.dy), cap: true });
+        const lidDraw = () => {
+          for (const sd of [-1, 1]) { const C0 = cap(sd); if (C0.d > 0) quad(r, g, C0.q, wd.sh); }
+          for (const f of F.slice().sort((p, q) => p.dp - q.dp)) {   // far facets first
+            if (f.d > 0) { quad(r, g, f.q, f.k > .75 ? wd.lt : f.k > .3 ? wd.base : f.k > -.1 ? wd.sh : wd.deep); if (f.i % 2 === 0) line3(r, g, f.q[0], f.q[1], wd.deep); }
+            else if (open) {   // the quilted velvet lining: darker toward the hinge, a gold button in each tuft
+              quad(r, g, f.q, f.i > 3 ? '#5a1424' : f.i > 1 ? '#7a2032' : '#8e2c3e');
+              if (f.i % 2 === 1) for (const u of [-5, 0, 5]) { const q = W(Q(u, (f.a.v + f.b.v) / 2, (f.a.z + f.b.z) / 2)); px.dot(g, q[0], q[1], '#d8a040'); px.dot(g, q[0] + 1, q[1] + 1, '#3a0a14'); }
+            }
+          }
+          if (open) {   // the lid's wooden frame round the lining: its front edge and both curved ends
+            line3(r, g, Q(-L0, arc[0].v, arc[0].z), Q(L0, arc[0].v, arc[0].z), wd.base, zm + 1);
+            for (const sd of [-1, 1]) for (let i = 0; i < 6; i++) line3(r, g, Q(sd * L0, arc[i].v, arc[i].z), Q(sd * L0, arc[i + 1].v, arc[i + 1].z), wd.sh, zm + 1);
+          }
+          for (const u of [-5.5, 5.5]) for (let i = 0; i < 6; i++) { const a = arc[i], b = arc[i + 1]; if (F[i].d > 0) { line3(r, g, Q(u, a.v, a.z), Q(u, b.v, b.z), ir.deep, zm + 1); line3(r, g, Q(u, a.v, a.z + .2), Q(u, b.v, b.z + .2), ir.lt, zm); } }   // iron hoops over the lid
+          const f0 = arc[0], hp = W(Q(0, f0.v + .2, f0.z)), hq = W(Q(0, f0.v + .2 - 2 * Math.cos(th), f0.z - 2 * Math.cos(th) + (1 - Math.cos(th)) * 1.5)); px.line(g, hp[0], hp[1], hq[0], hq[1], au.base, zm + 1); px.dot(g, hq[0], hq[1], au.hi);   // the hasp
+        };
+        const cavity = () => {   // the open box: a dark hold, a heap of coin and a gem or two, lit from within
+          quad(r, g, [Q(-K.hl + .6, -K.hw + .6, K.z1), Q(K.hl - .6, -K.hw + .6, K.z1), Q(K.hl - .6, K.hw - .6, K.z1), Q(-K.hl + .6, K.hw - .6, K.z1)], '#1a0e0a');
+          const s = v.scale, t = game.time;
+          for (let i = 0; i < 24; i++) { const u = (hs(i, 3) - .5) * 13, vv = (hs(i, 5) - .5) * 7, zz = K.z1 - .8 + (1 - Math.abs(u) / 7) * 1.3 + (i > 12 ? .4 : 0), q = W(Q(u, vv, zz)); px.ell(g, q[0], q[1], 1.3 * s, .65 * s, i < 8 ? au.deep : i % 3 ? au.base : au.sh); if (i % 4 === 0 && i > 8) px.dot(g, q[0], q[1] - .5, au.hi); }   // a heap of coin, the deeper ones darker
+          const gq = W(Q(-2.5, 1, K.z1 + .2)); px.disc(g, gq[0], gq[1], 1.2 * s, '#c83a5a'); px.dot(g, gq[0] - .4, gq[1] - .4, '#ffc0d0');
+          const gq2 = W(Q(3, -1.5, K.z1)); px.disc(g, gq2[0], gq2[1], s, '#3a8ae8'); if (Math.sin(t * 3) > .6) px.dot(g, gq2[0], gq2[1] - s, '#ffffff');
+        };
+        if (open && th > 1.05) { lidDraw(); cavity(); } else { if (open) cavity(); lidDraw(); }
+      });
+      if (this.lid > .15) { glowAt(r, K.x, K.y, K.z1 + 1, 10, .9 * this.lid, '#ffd070'); L.add(K.x, K.y, K.z1 + 4, 40, .5 * this.lid, { color: '#ffc060' }); }
     } };
 }
 /* ---------- small set pieces: barrels, crates, sacks, tables, stools, the well, benches, hay, the coop, stones ---------- */
@@ -757,6 +828,16 @@ function paintItem(g, rig, ox, oy, view, it, n) {
     px.line(g, hx, hy, lx, ly - 2.5 * z, '#2a2430');
     px.rect(g, lx - 2.2 * z, ly - 3 * z, 4.4 * z, 1.2 * z, '#2a2430'); px.rect(g, lx - 2 * z, ly - 1.8 * z, 4 * z, 4.2 * z, c); px.rect(g, lx - 1.2 * z, ly - 1.2 * z, 1.4 * z, 2.8 * z, '#f0fffc');
     px.rect(g, lx - 2.2 * z, ly + 2.4 * z, 4.4 * z, 1.2 * z, '#2a2430'); px.rect(g, lx - .4 * z, ly - 1.8 * z, Math.max(1, .8 * z), 4.2 * z, '#3a3440');
+  } else if (it.kind === 'halberd') {   // an ash pole taller than he is (its butt on the ground when it.ground is 1), an axe blade, a back spike, a top spike, a red pennant that flutters
+    const g0 = it.ground || 0, up = V3.norm([.1 * (1 - g0) + .03, .04, 1]), below = (1 - g0) * 9 + g0 * H[2] / up[2], B0 = V3.sub(H, V3.mul(up, below)), len = 38;
+    const Pp = k => V3.add(B0, V3.mul(up, k)), fw = V3.norm(V3.sub([1, 0, 0], V3.mul(up, up[0]))), sd = V3.norm([-fw[1], fw[0], 0]), t = game.time + (n ? n.x * .01 : 0);
+    const a = S(B0), b = S(Pp(len)); px.line(g, a[0], a[1], b[0], b[1], '#2a1a10', lw + 1); px.line(g, a[0], a[1], b[0], b[1], '#8a5a34', lw); px.dot(g, b[0], b[1], '#b07a48');
+    const fl = Math.sin(t * 5.2) * 1.4, fl2 = Math.sin(t * 5.2 - 1.1) * 1.8, pn = [Pp(len - 10.5), Pp(len - 15), V3.add(V3.add(Pp(len - 13.5), V3.mul(fw, -6.5)), V3.mul(sd, fl2)), V3.add(V3.add(Pp(len - 11), V3.mul(fw, -5.5)), V3.mul(sd, fl))].map(S);
+    px.poly(g, pn, '#a8302e'); px.line(g, pn[0][0], pn[0][1], pn[3][0], pn[3][1], '#e8c860'); px.line(g, pn[1][0], pn[1][1], pn[2][0], pn[2][1], '#6a1a1a');   // the pennant
+    const mt = E.tones('#8e98a8'), bl = [Pp(len - 8.5), V3.add(Pp(len - 9.2), V3.mul(fw, 3.6)), V3.add(Pp(len - 5.5), V3.mul(fw, 4.1)), V3.add(Pp(len - 2.6), V3.mul(fw, 3.2)), Pp(len - 3.2)].map(S);
+    px.poly(g, bl, '#2a2430'); px.poly(g, bl.map(p => [p[0] - .4, p[1] - .4]), mt.base); px.line(g, bl[1][0], bl[1][1], bl[2][0], bl[2][1], mt.hi); px.line(g, bl[2][0], bl[2][1], bl[3][0], bl[3][1], mt.lt);   // the axe blade, its edge lit
+    const bk = [Pp(len - 6.8), V3.add(Pp(len - 5.8), V3.mul(fw, -2.8)), Pp(len - 5)].map(S); px.poly(g, bk, mt.sh);                                             // the back spike
+    const tp = [V3.add(Pp(len - .5), V3.mul(fw, .6)), Pp(len + 4.5), V3.add(Pp(len - .5), V3.mul(fw, -.6))].map(S); px.poly(g, tp, mt.base); px.dot(g, tp[1][0], tp[1][1], mt.hi);   // the top spike
   } else if (it.kind === 'lute') {   // a pear-shaped body at the belly, the neck across the chest to the left hand
     const B = it.rel === 'sh' ? V3.add(J.shC, it.body) : it.body, N = it.rel === 'sh' ? V3.add(J.shC, it.neck) : it.neck, nd = V3.norm(V3.sub(N, B)), wd = V3.norm([-nd[1], nd[0], .15]), pts = [];
     for (let i = 0; i < 16; i++) { const a = i / 16 * TAU, k = Math.cos(a) < 0 ? 1.35 : .9, w = Math.cos(a) < 0 ? 1.15 : .9; pts.push(S(V3.add(B, V3.add(V3.mul(nd, Math.cos(a) * 4.4 * k), V3.mul(wd, Math.sin(a) * 3.8 * w))))); }
@@ -814,7 +895,7 @@ function life(n, dt, rs) {
     if (S.hover) { n.z = approach(n.z, S.hover(n), dt * 10); rs.z = n.z; }
     return;
   }
-  if (n.greetT > 0 && h) {   // a greeting: turn, wave (the core's wave pose), smile; the work waits a moment
+  if (n.greetT > 0 && h && !n.serving) {   // a greeting: turn, wave (the core's wave pose), smile; the work waits a moment (a shopkeeper hurrying to his customer waves on the way)
     n.vx = n.vy = 0; n.facing = E.approachAng(n.facing, angTo(n, h), dt * 7); setIK(n, null, dt);
     if (n.waveT <= 0) rs.pose = S.greetPose || 'hips';
     if (S.hover) { n.z = approach(n.z, S.hover(n), dt * 10); rs.z = n.z; }
@@ -910,6 +991,7 @@ townNPC('harrow', {
     { d: 1.8, face: Math.PI * .45, rig: { pose: 'hips', expr: 'smile' }, enter: n => n.rig.kick(2) }
   ],
   hi: ['Mind the sparks!', 'Oi, delver!', 'Back in one piece?', 'Anvil\'s hot!'],
+  bye: ['Don\'t dull it on the first skull.', 'Go on, then.', 'Bring it back in one piece.'],
   intro: 'Harrow. I keep the forge. You keep bleeding on my good steel, and I keep fixing it.',
   lines: ['Steel remembers every blow. So do I. Bring me whatever the deep has been chewing on.',
     'Hot iron, cold ale and a customer who pays. That is the whole of my religion.',
@@ -1005,6 +1087,7 @@ townNPC('seren', {
     glowAt(r, n.x, n.y, n.z + 14, 13, .35 + (q.glow || 0) * .5, '#c8a0ff');
   },
   hi: ['The stars whisper...', 'Ah. You again.', 'Hmm. Curious.', 'Mind the candles, dear.'],
+  bye: ['The stars will be watching.', 'Go gently, dear.', 'Come back stranger.'],
   intro: 'I am Seren. I read the stars, the stones and, on slow evenings, other people\'s letters.',
   lines: ['The stars are loud tonight. They say you should buy something. I did not argue with them.',
     'Every stone you carry up from the deep hums a little song. Let me listen to yours.',
@@ -1019,16 +1102,56 @@ const bookAt = n => [n.x + Math.cos(n.facing) * 8, n.y + Math.sin(n.facing) * 8]
 
 /* =============================================================================
  * COBB, the merchant: counts his coins behind the counter, calls out to passers-by, fetches his broom and sweeps the
- * lane, puts it back, and surveys his kingdom with his hands on his hips
+ * lane, puts it back, and surveys his kingdom with his hands on his hips. A customer at the counter comes first: he
+ * leans the broom back on the crates, bustles along the counter to wherever the hero stands, and counts coins there,
+ * facing him, until he leaves. His lane runs in front of the awning's valance (y 117 to 123), so he never stands
+ * under the canvas, and two lanterns hang from it to light him
  * ============================================================================= */
-const COBB_AT = [404, 118], BROOM_AT = [458, 100];
+const COBB_AT = [404, 120], BROOM_AT = [478, 126], BROOM_PICK = [469, 121], COBB_LANE = 121;
+/** where Cobb stands to take the broom: by the crates, or beside the spot on the counter he propped it */
+const broomPick = () => { const b = ED.L.broomAt; return b ? [b[0] - 8, COBB_LANE] : BROOM_PICK; };
 const sweepIK = (n, sw) => { const B = [7.5, sw, .6], T = [-.5, 6.5, 19]; n.items[0].at = B; return { L: V3.lerp(B, T, .74).concat('root'), R: V3.lerp(B, T, .44).concat('root') }; };
+/** the hero is at the counter: in front of it (the counter row is y 128 to 144), within ~64 of its front and its ends */
+function cobbCustomer(n, dt) {
+  const h = ED.hero; if (!h || !h.alive) return null;
+  const m = n.serving ? 14 : 0, at = h.y > COUNTER.y + 12 - m && h.y < COUNTER.y + 16 + 64 + m && h.x > COUNTER.x0 - 22 - m && h.x < COUNTER.x1 + 22 + m;
+  n.custT = at ? 0 : (n.custT || 0) + dt;   // he lingers a second after the hero steps away
+  return at || (n.serving && n.custT < 1) ? h : null;
+}
+/** walk n toward (x, y) at speed sp; true once there */
+function stepTo(n, x, y, sp, dt) {
+  const dx = x - n.x, dy = y - n.y, d = Math.hypot(dx, dy); if (d < 1.5) { n.vx = n.vy = 0; return true; }
+  n.vx = dx / d * Math.min(sp, d * 4); n.vy = dy / d * Math.min(sp, d * 4); n.facing = E.approachAng(n.facing, Math.atan2(dy, dx), dt * 9); return false;
+}
+function cobbServe(n, dt, rs, h) {
+  const L0 = ED.L;
+  if (!n.serving) { n.serving = true; n.sT = undefined; n.svT = 0; n.svX = null; n.items = []; setIK(n, null, dt); }
+  if (L0.broomHeld) {   // a customer! the broom is propped on the counter right where he stands (no trip to the crates)
+    n.items = n.items.length ? n.items : [{ kind: 'broom', at: [7.5, 0, .6] }]; n.vx = n.vy = 0; n.svT += dt;
+    n.facing = E.approachAng(n.facing, Math.PI / 2, dt * 10);
+    if (n.svT < .22) setIK(n, sweepIK(n, 0), dt); else { L0.broomHeld = false; L0.broomAt = [n.x + 3, n.y + 4]; n.items = []; setIK(n, null, dt); n.svT = 0; tsfx(TWN_SFX.tick, n.x, n.y, { pitch: .8 }); }
+    return;
+  }
+  // to the stretch of counter nearest the hero (re-aimed only when he moves well along it, so Cobb does not jitter)
+  const want = clamp(h.x, COUNTER.x0 + 7, COUNTER.x1 - 4); if (n.svX === null || Math.abs(want - n.svX) > 14) n.svX = want;
+  if (!stepTo(n, n.svX, COBB_LANE, 40, dt)) { rs.expr = 'smile'; n.items = []; setIK(n, null, dt); return; }
+  n.facing = E.approachAng(n.facing, angTo(n, h), dt * 7); n.svT += dt;
+  if (!n.items.length) n.items = [{ kind: 'coins', flip: -1 }];   // then he counts, a coin flipping hand to hand, an eye on his customer
+  const k = Math.floor(n.svT / .55); n.items[0].flip = (n.svT % .55) / .45;
+  setIK(n, { L: [4.6, -2.4, -6.2, 'sh'], R: [4.6, 2.4, -6.4 + Math.max(0, Math.sin(n.svT / .55 * TAU)) * .8, 'sh'] }, dt); rs.expr = 'smile';
+  if (cue(n, n.svT % .55, .45, 'svc' + k)) { tsfx(TWN_SFX.tink, n.x, n.y, { pitch: 1 + (k % 3) * .12 }); n.rig.kick(1.2); }
+}
 townNPC('cobb', {
-  name: 'COBB', title: 'Merchant', service: 'vendor', at: COBB_AT, facing: Math.PI / 2 - .3, talkR: 36, voice: 1.2, greetPose: 'hips',
+  name: 'COBB', title: 'Merchant', service: 'vendor', at: COBB_AT, facing: Math.PI / 2 - .3, talkR: 40, voice: 1.2, greetPose: 'hips',
   rig: { size: .95, weapon: null, outfit: 'coat', sleeves: 'long', hair: 'short', hat: { style: 'cap', color: '#b8402a' }, face: { eyes: 'big', bangs: .8 },
     colors: { skin: '#f0c49a', hair: '#6a3a1e', cloth: '#3a6a4a', coat: '#3a6a4a', trim: '#e8c860', pants: '#5a4030', boot: '#3a2a1a', belt: '#e8c860', eye: '#2a2a3a', iris: '#4a6a3a' } },
   items: () => [{ kind: 'coins', flip: -1 }],
   talk: ['hips', null, 'cast', 'hips'],
+  work(n, dt, rs) {   // a customer first; otherwise the loop (from its start, the counting, once the customer has gone)
+    const c = cobbCustomer(n, dt); if (c) { cobbServe(n, dt, rs, c); return; }
+    if (n.serving) { n.serving = false; n.k = 0; n.sT = undefined; }
+    runSteps(n, dt, rs, n.S.steps);
+  },
   steps: [
     { d: 4.4, go: COBB_AT, face: Math.PI / 2 - .3, sp: 22,   // count the takings: a coin flips from hand to hand, a nod for each
       enter: n => { n.items = [{ kind: 'coins', flip: -1 }]; },
@@ -1039,19 +1162,20 @@ townNPC('cobb', {
       enter: n => { n.items = []; },
       rig: (n, u) => ({ pose: 'hips', expr: u > .08 && u < .7 ? 'shout' : 'smile' }), ik: (n, u) => ({ R: [3.2, 1.4, 4.4, 'sh', u < .75 ? 1 : 0] }),
       tick: (n, u) => { if (cue(n, u, .08)) { say(n, COBB_CALLS[Math.floor(Math.random() * COBB_CALLS.length)], 2.2); for (let i = 0; i < 3; i++) game.after(i * .07, () => tsfx(TWN_SFX.blip, n.x, n.y, { pitch: 1.2 + Math.random() * .4 })); } } },
-    { d: .1, go: [450, 108], sp: 24, enter: n => { n.items = []; } },
-    { d: .8, face: [BROOM_AT[0], BROOM_AT[1]], rig: (n, u) => ({ pose: u > .15 && u < .7 ? 'crouch' : null }),   // pick up the broom
-      tick: (n, u) => { if (cue(n, u, .45)) { ED.L.broomHeld = true; n.items = [{ kind: 'broom', at: [7.5, 0, .6] }]; } } },
-    { d: 1, go: [370, 113], sp: 13, walkWork: true,   // sweep the lane, dust puffing at every stroke
+    { d: .1, go: () => broomPick(), sp: 24, enter: n => { n.items = []; } },
+    { d: .8, face: n => ang(n, ED.L.broomAt || BROOM_AT), rig: (n, u) => ({ pose: u > .15 && u < .7 ? 'crouch' : null }),   // pick up the broom (from the crates, or the counter if a customer came)
+      tick: (n, u) => { if (cue(n, u, .45)) { ED.L.broomHeld = true; ED.L.broomAt = null; n.items = [{ kind: 'broom', at: [7.5, 0, .6] }]; } } },
+    { d: 1, go: [372, COBB_LANE - 1], sp: 13, walkWork: true,   // sweep the lane, dust puffing at every stroke
       ik: n => sweepIK(n, Math.sin(n.sT * 5) * 3.2),
       tick: (n, u) => { if (cue(n, (n.sT * 5 / Math.PI) % 1, .5, 'sw' + Math.floor(n.sT * 5 / Math.PI))) { const b = rigWorld(n.rig, n.items[0].at); P.dust(b[0], b[1], 0, 2, { speed: 18, color: '#a89880' }); tsfx(TWN_SFX.sweep, n.x, n.y); } } },
-    { d: 1, go: [432, 114], sp: 13, walkWork: true, ik: n => sweepIK(n, Math.sin(n.sT * 5) * 3.2),
+    { d: 1, go: [436, COBB_LANE], sp: 13, walkWork: true, ik: n => sweepIK(n, Math.sin(n.sT * 5) * 3.2),
       tick: (n, u) => { if (cue(n, (n.sT * 5 / Math.PI) % 1, .5, 'sw' + Math.floor(n.sT * 5 / Math.PI))) { const b = rigWorld(n.rig, n.items[0].at); P.dust(b[0], b[1], 0, 2, { speed: 18, color: '#a89880' }); tsfx(TWN_SFX.sweep, n.x, n.y); } } },
-    { d: .1, go: [450, 108], sp: 24, ik: n => sweepIK(n, 0) },
-    { d: .8, face: [BROOM_AT[0], BROOM_AT[1]], rig: (n, u) => ({ pose: u > .15 && u < .7 ? 'crouch' : null }), ik: (n, u) => u < .45 ? sweepIK(n, 0) : null,   // lean it back on the wall
+    { d: .1, go: BROOM_PICK, sp: 24, ik: n => sweepIK(n, 0) },
+    { d: .8, face: BROOM_AT, rig: (n, u) => ({ pose: u > .15 && u < .7 ? 'crouch' : null }), ik: (n, u) => u < .45 ? sweepIK(n, 0) : null,   // lean it back on the crates
       tick: (n, u) => { if (cue(n, u, .45)) { ED.L.broomHeld = false; n.items = []; } } },
     { d: 2.6, go: COBB_AT, sp: 22, face: (n, u) => Math.PI / 2 - .3 + Math.sin(u * TAU) * .7, turn: 4, rig: { pose: 'hips', expr: 'smile' } }   // survey the plaza
   ],
+  bye: ['Pleasure doing business!', 'Come back soon!', 'Mind the change!', 'Tell your friends!'],
   hi: ['Welcome, welcome!', 'Customer!', 'Ooh, shiny boots!', 'Back again? Excellent!'],
   intro: 'Cobb\'s Goods, and I am Cobb! Honest trade since... this morning. But honestly!',
   lines: ['Welcome, welcome! Everything is on sale, and the sale is also on sale.',
@@ -1068,12 +1192,28 @@ const COBB_CALLS = ['Potions! Fresh potions!', 'Bargains, delver!', 'Rope! Never
 /* =============================================================================
  * ILSA, the waykeeper: stands guard by the waystone with her lantern raised, walks a slow round to look toward the
  * gate, then sets the lantern down and kneels at the stone with her sword planted (the stone brightens as she prays),
- * rises and salutes it
+ * rises and salutes it. She kneels on the stone's north-east side, so the camera (from the south-east) sees her in
+ * profile: the planted blade, her joined hands and the lantern at her knee all read. Bare-headed, a gold circlet with
+ * a waystone chip in it, her blonde ponytail swinging: nothing like Bram's iron hat and halberd
  * ============================================================================= */
-const ILSA_AT = [440, 304], ILSA_PRAY = [421, 316];
+const ILSA_AT = [440, 304], ILSA_PRAY = [412, 296];
+/** a gold circlet round her brow with a teal gem at the front (the gem brightens as she prays) */
+function ilsaCirclet(g, rig, ox, oy, view, n) {
+  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view;
+  const W = (f, r, z) => rig._w([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
+  const c = rig._w(H), dc = v.depth(c[0], c[1], c[2]), c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]), lw = Math.max(1, Math.round(rs * .22));
+  let prev = null;
+  for (let i = 0; i <= 20; i++) {   // the band: only the arc on the camera's side of the head
+    const a = i / 20 * TAU, w = W(Math.cos(a) * 1.02, Math.sin(a) * 1.02, .4), d = v.depth(w[0], w[1], w[2]), p = S(w);
+    if (prev && d > dc - .15 && prev.d > dc - .15) { px.line(g, prev.p[0], prev.p[1] + 1, p[0], p[1] + 1, '#8a6a2a', lw); px.line(g, prev.p[0], prev.p[1], p[0], p[1], '#f0cc60', lw); }
+    prev = { p, d };
+  }
+  const gw = W(1.04, 0, .45); if (v.depth(gw[0], gw[1], gw[2]) > dc) { const q = S(gw), k = n.prayK || 0; px.disc(g, q[0], q[1], Math.max(1, rs * .3), '#2a8a8a'); px.dot(g, q[0], q[1], k > .4 ? '#ffffff' : '#8ff0e0'); }
+}
 townNPC('ilsa', {
   name: 'ILSA', title: 'Waykeeper', service: 'waystone', at: ILSA_AT, facing: Math.PI / 2, talkR: 30, voice: .9, greetPose: null,
-  rig: { build: 'heroic', size: 1.02, weapon: 'sword', bladeLen: 12, armor: true, outfit: 'tunic', hair: 'ponytail', hat: { style: 'helmet', color: '#8a94a8' }, cape: { len: 7, width: 6, seg: 2.5 }, face: { bangs: .5 },
+  face: ilsaCirclet,
+  rig: { build: 'heroic', size: 1.02, weapon: 'sword', bladeLen: 12, armor: true, outfit: 'tunic', hair: 'ponytail', cape: { len: 7, width: 6, seg: 2.5 }, face: { bangs: .45 },
     colors: { cloth: '#3a5a8a', cape: '#2a3a6a', capeIn: '#1a2440', hair: '#c8a060', trim: '#e8c860', skin: '#e8c0a0', pants: '#2e3448', boot: '#3a3040', belt: '#6a4a2a', metal: '#c8d4e4', metalDk: '#6a7a90', hilt: '#e8c860', eye: '#2a2a3a', iris: '#3a6aa8' } },
   items: () => [{ kind: 'lantern', hand: 'L', color: '#8ff0e0' }],
   talk: [null, 'block', null, null],
@@ -1103,6 +1243,7 @@ townNPC('ilsa', {
     else if (n.items.length) { const p = rigWorld(n.rig, n.rig.J.handL); glowAt(r, p[0], p[1], p[2] - 4, 9, 1.1, '#8ff0e0'); L.add(p[0], p[1], p[2], 52, .65 * fl, { color: '#6fd6cc' }); }
   },
   hi: ['Light keep you.', 'Welcome home.', 'The stone is warm tonight.'],
+  bye: ['Come home safe.', 'The stone will remember.', 'Light keep you.'],
   intro: 'Ilsa, keeper of the waystone. I keep the light; you keep coming back. That is our bargain.',
   lines: ['The waystone remembers every depth you reach. Step close to it when you are ready to go down.',
     'The stone hums lower at every fifth depth. It knows what waits there.',
@@ -1201,26 +1342,64 @@ function pushOut(n) { for (const t of ED.L.things) if (t.solid && !t.dead && t.n
 const PIP_SAYS = ['Hee hee!', 'Almost!', 'Come back, Duchess!', 'So close!', 'Wait up!'];
 
 /* =============================================================================
- * BRAM, the town guard: walks the wall with his sword at the ready; at every stop he looks about, stands to attention,
- * or stretches and yawns
+ * BRAM, the night watch: a stocky guard in a brick-red gambeson and an iron kettle hat, a walrus moustache, a halberd
+ * in one fist and a lantern in the other. He walks a lit round of the south and east (the gate, the memorial, the east
+ * wall, the tower, the plaza, the garden) and at every stop he peers into the dark with the lantern raised, thumps the
+ * halberd down and stands to attention, or stretches and yawns. His route keeps a body's width off every bush and tree
  * ============================================================================= */
-const BRAM_ROUTE = [[428, 556], [520, 588], [618, 574], [730, 522], [736, 400], [706, 300], [640, 262], [706, 300], [736, 400], [730, 522], [618, 574], [520, 588]];
-const bramPause = (k) => k % 3 === 0 ? { d: 2.4, face: (n, u) => n.facing0 + Math.sin(u * TAU) * .8, turn: 3, rig: { stance: 'ready' }, enter: n => { n.facing0 = n.facing; } }
-  : k % 3 === 1 ? { d: 1.8, rig: (n, u) => ({ pose: u > .1 && u < .85 ? 'block' : null }), enter: n => n.rig.kick(1.5) }
-  : { d: 2.2, rig: (n, u) => ({ pose: u > .1 && u < .7 ? 'cheer' : null, expr: u > .15 && u < .6 ? 'shout' : null }), tick: (n, u) => { if (cue(n, u, .15)) { tsfx(TWN_SFX.yawn, n.x, n.y); if (n.bubbleCd <= 0) { say(n, '*yawn*', 1.6); n.bubbleCd = 4; } } } };
+const BRAM_ROUTE = [[392, 609, 'attn'], [520, 606], [606, 598, 'look'], [700, 560], [742, 516, 'yawn'], [746, 440], [746, 372, 'look'], [712, 300], [650, 262, 'attn'],
+  [612, 330], [560, 420, 'look'], [470, 470], [392, 520], [300, 560], [228, 606, 'look'], [140, 606, 'yawn'], [300, 610]];
+/** the carry: halberd upright in the right fist, the lantern low in the left, swinging with his stride */
+const bramCarry = (n, lift = 0) => { const sw = Math.sin(n.rig.phase || 0); return { R: [3.2, 4.2, 15 + Math.abs(sw) * .5, 'root'], L: [2 + sw * 1.6 + lift * 4, -4.4 + lift * 1.8, 10.5 + lift * 10, 'root'] }; };
+const bramBeat = {
+  look: { d: 2.6, face: (n, u) => n.facing0 + Math.sin(u * TAU) * .8, turn: 3, enter: n => { n.facing0 = n.facing; },   // lantern up, peering into the dark
+    ik: (n, u) => bramCarry(n, Math.sin(clamp(u / .2, 0, 1) * Math.PI / 2) * (u < .85 ? 1 : (1 - u) / .15)) },
+  attn: { d: 2.3, enter: n => n.rig.kick(1.5),   // the halberd thumps down, he stands to attention, then shoulders it again
+    ik: (n, u) => ({ R: [1.4, 4.4, 15.5, 'root'], L: [.6, -4.4, 10.5, 'root'] }), rig: (n, u) => ({ expr: u > .15 && u < .8 ? 'angry' : null }),
+    tick: (n, u) => { n.grounded = u > .08 && u < .82; if (cue(n, u, .12)) { const b = rigWorld(n.rig, [n.rig.J.handR[0], n.rig.J.handR[1], 0]); P.dust(b[0], b[1], 0, 4, { speed: 22 }); tsfx('thud', n.x, n.y, { vol: .35, pitch: 1.3 }); n.rig.kick(-2); } },
+    exit: n => { n.grounded = false; } },
+  yawn: { d: 2.4, rig: (n, u) => ({ pose: u > .1 && u < .7 ? 'cheer' : null, expr: u > .15 && u < .6 ? 'shout' : null }), ik: (n, u) => u > .08 && u < .75 ? null : bramCarry(n),   // a stretch, arms, lantern and halberd high
+    tick: (n, u) => { if (cue(n, u, .15)) { tsfx(TWN_SFX.yawn, n.x, n.y); if (n.bubbleCd <= 0) { say(n, '*yawn*', 1.6); n.bubbleCd = 4; } } } }
+};
+/** his kettle hat (a wide iron brim, a riveted dome with a ridge) and a walrus moustache, painted over the head */
+function bramKettle(g, rig, ox, oy, view, n) {
+  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view;
+  const W = (f, r, z) => rig._w([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; }, D = w => v.depth(w[0], w[1], w[2]);
+  const c = rig._w(H), dc = D(c), fr = W(1, 0, 0), faceOn = D(fr) >= dc - .1, c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]);
+  const ht = E.tones(rig.C.hair), mt = E.tones('#7a8290');
+  if (faceOn) {   // the moustache: two drooping wings under the nose
+    for (const sd of [-1, 1]) { const pts = [W(1.02, 0, -.22), W(1, sd * .5, -.3), W(.9, sd * .72, -.72), W(.94, sd * .52, -.62), W(1.04, sd * .12, -.46)].map(S); px.poly(g, pts, ht.sh); px.line(g, pts[0][0], pts[0][1], pts[1][0], pts[1][1], ht.base); }
+  }
+  // the brim sits high on the brow, so his eyes and moustache show under its front edge
+  const rim = [], N = 18; for (let i = 0; i < N; i++) { const a = i / N * TAU; rim.push({ w: W(Math.cos(a) * 1.4, Math.sin(a) * 1.4, .6 - Math.max(0, Math.cos(a)) * .08), a }); }
+  px.poly(g, rim.map(p => S(p.w)), mt.sh);                                                    // the brim (underside tone)
+  const top = S(W(0, 0, 1)); px.disc(g, top[0], top[1], rs * .82 + .5, mt.deep); px.disc(g, top[0], top[1] + .3, rs * .82 - .3, mt.base);   // the dome
+  const hl = S(W(.15, -.3, 1.4)); px.disc(g, hl[0], hl[1], Math.max(.8, rs * .28), mt.lt); px.dot(g, hl[0] - .5, hl[1] - .5, mt.hi);
+  const r0 = S(W(-.75, 0, 1.2)), r1 = S(W(0, 0, 1.78)), r2 = S(W(.75, 0, 1.2)); px.line(g, r0[0], r0[1], r1[0], r1[1], mt.lt); px.line(g, r1[0], r1[1], r2[0], r2[1], mt.lt);   // the ridge
+  for (let i = 0; i < N; i++) { const a = rim[i], b = rim[(i + 1) % N]; if (D(a.w) >= dc - .2 && D(b.w) >= dc - .2) { const p = S(a.w), q = S(b.w); px.line(g, p[0], p[1], q[0], q[1], mt.lt); px.line(g, p[0], p[1] + 1, q[0], q[1] + 1, mt.deep); } }   // the lit front edge
+  for (const a of [.6, -.6]) { const w = W(Math.cos(a) * .8, Math.sin(a) * .8, .72); if (D(w) > dc) { const q = S(w); px.dot(g, q[0], q[1], mt.hi); } }   // rivets
+}
 townNPC('bram', {
-  name: 'BRAM', title: 'Town Guard', at: BRAM_ROUTE[0], facing: 0, talkR: 30, voice: .8, greetPose: 'block',
-  rig: { build: 'heroic', size: 1.04, weapon: 'sword', bladeLen: 11, armor: true, outfit: 'tunic', hair: 'short', hat: { style: 'helmet', color: '#7a8494' }, cape: { len: 5, width: 5, seg: 2.4 },
-    colors: { cloth: '#8a2a2a', trim: '#e8c860', cape: '#6a1e24', capeIn: '#3a1418', skin: '#d8a888', hair: '#3a2a22', pants: '#3a3440', boot: '#2a2228', belt: '#4a3020', metal: '#c8d0dc', metalDk: '#6a7488', eye: '#1a1a24' } },
-  talk: [null, 'block', null, 'hips'],
-  steps: BRAM_ROUTE.flatMap((w, k) => [{ d: .1, go: w, sp: 24, walkRig: { stance: 'ready' } }, bramPause(k)]),
+  name: 'BRAM', title: 'Night Watch', at: BRAM_ROUTE[0], facing: 0, talkR: 30, voice: .8, greetPose: null,
+  rig: { build: 'bulky', size: 1.04, weapon: null, outfit: 'coat', sleeves: 'long', hair: 'short', face: { bangs: 0 },
+    colors: { cloth: '#6a2a24', coat: '#8a3a2a', trim: '#d8b048', skin: '#d8a888', hair: '#5a3a24', pants: '#3e3a44', boot: '#2e2626', belt: '#3a2618', glove: '#6a4a30', eye: '#1a1a24' } },
+  items: () => [{ kind: 'halberd', hand: 'R', ground: 0 }, { kind: 'lantern', hand: 'L', color: '#ffd070' }],
+  face: bramKettle,
+  talk: [null, null, 'hips', null], talkIK: n => bramCarry(n),
+  idle(n, dt) { const it = n.items[0]; if (it) it.ground = approach(it.ground || 0, n.grounded && !n.talking ? 1 : 0, dt * 9); },
+  steps: BRAM_ROUTE.flatMap(([x, y, beat]) => [{ d: .1, go: [x, y], sp: 24, walkWork: true, ik: n => bramCarry(n) }].concat(beat ? [bramBeat[beat]] : [])),
+  after(n, r) {   // the lantern lights his round (warm, where Ilsa's is teal)
+    const t = game.time, fl = .9 + .1 * Math.sin(t * 8) * Math.sin(t * 2.9), p = rigWorld(n.rig, n.rig.J.handL);
+    glowAt(r, p[0], p[1], p[2] - 4, 9, 1.1, '#ffd070'); L.add(p[0], p[1], p[2], 64, .8 * fl, { color: '#ffb050' });
+  },
   hi: ['All quiet.', 'Evening.', 'Move along. Or don\'t.'],
-  intro: 'Bram, town guard. I walk the wall. The wall does not walk anywhere, so somebody has to.',
+  intro: 'Bram, night watch. I walk the wall. The wall does not walk anywhere, so somebody has to.',
   lines: ['Quiet night. Good. I like quiet. Quiet does not bite.',
     'Walls keep things out. The deep is under us. I try not to think about that.',
     'Sixteen laps of the wall a night. I counted once. Then I stopped counting.',
     'If anything crawls up out of the waystone, I am to shout very loudly. I have been practising.',
     'The lamps stay lit until dawn. That is the whole rule of Emberhold.',
+    'This halberd was my father\'s. He never used it either. Proud tradition.',
     'You could help with the rounds, you know. No? Figured.']
 });
 
@@ -1325,13 +1504,13 @@ function buildTown() {
   for (const Hs of HOUSES) { if (!Hs.planes) houseParts(Hs); Hs.smoke.length = 0; addThing(Lv, houseThing(Hs)); }
   addThing(Lv, waystoneThing()); addThing(Lv, towerThing()); Lv.drawWaystone = true;
   dressTown(Lv);
-  Lv.duchess = addThing(Lv, chickenThing()); addThing(Lv, catThing(98, 144)); Lv.broomHeld = false; TWN.pray = 0; TWN.heat = 0;
+  Lv.duchess = addThing(Lv, chickenThing()); addThing(Lv, catThing(98, 144)); Lv.broomHeld = false; Lv.broomAt = null; TWN.pray = 0; TWN.heat = 0;
   for (const id of TWN_NPCS) if (REG.npcs[id]) {
     const n = makeNPC(id); n.items = n.S.items ? n.S.items() : []; hookRig(n); n.k = 0; Lv.npcs.push(n);
     addThing(Lv, { kind: 'npcBody', n, x: n.x, y: n.y, r: 4 * (n.rig.o.size || 1), solid: true, keep: true, update() { this.x = n.x; this.y = n.y; } });   // people are solid: the hero walks round them
   }
   addThing(Lv, ambienceThing());
-  Lv.drawUnder = r => drawStars(r);
+  Lv.drawBack = r => drawOutskirts(r); Lv.drawUnder = r => drawStars(r); dressOutskirts(Lv);
   return Lv;
 }
 function houseThing(Hs) {
@@ -1457,22 +1636,125 @@ function ambienceThing() {
     } };
 }
 function drawStars(r) {
-  const t = game.real, v = r.view, g = r.ctx, W = r.W, H = r.H, MW = TW * U, MH = TH * U;
+  const t = game.real, v = r.view, g = r.ctx, W = r.W, H = r.H;
   for (let i = 0; i < 70; i++) {
     const sx = Math.floor(hs(i, 71) * W), sy = Math.floor(hs(i, 73) * H * .8), q = v.toGround(sx + r.ix, sy + r.iy);
-    if (q && q[0] > -30 && q[1] > -30 && q[0] < MW + 30 && q[1] < MH + 30) continue;   // only where the sky shows
+    if (q && outDist(q[0], q[1]) < OUT.fade1) continue;   // only where the sky shows (past the outskirts' fade)
     const tw = Math.sin(t * (1 + hs(i, 5) * 2) + i) > .6, c = hs(i, 9) < .2 ? '#ffe8c0' : '#d8d8ff';
     px.dot(g, sx, sy, tw ? '#ffffff' : c); if (tw && hs(i, 11) < .3) { px.dot(g, sx - 1, sy, c); px.dot(g, sx + 1, sy, c); px.dot(g, sx, sy - 1, c); px.dot(g, sx, sy + 1, c); }
   }
+}
+/** the forge yard's weapon rack: a slotted base beam, two uprights, a notched crossbar, and three finished swords standing
+ *  point-down in the slots, leaning back on the bar: lit and shaded blades with a fuller, a gold guard, a wrapped grip, a pommel */
+function weaponRack(r, g, x, y) {
+  const wood = E.tones('#7a5232'), zm = zw(r), yb = y - 2.2;
+  obox(r, g, x, y + .8, 0, 3, 9, 2.2, 0, wood.lt, wood.base, { grain: 2 });                                        // the base beam
+  for (const k of [-8, 8]) obox(r, g, x + k, yb, 0, 15, .9, .9, 0, wood.base, wood.sh);                           // uprights
+  obox(r, g, x, yb, 12, 13.8, 9, 1, 0, wood.lt, wood.base);                                                      // the crossbar
+  for (let i = -1; i <= 1; i++) { const q = W3(r, [x + i * 5, yb + 1.05, 13.8]); px.rect(g, q[0] - zm, q[1] - zm, 2 * zm, zm + 1, wood.deep); }   // its notches
+  const bt = E.tones('#b8c4d4'), ht = E.tones('#d8a848'), sw = 1.05;
+  for (let i = -1; i <= 1; i++) {
+    const bx = x + i * 5 + (i === 0 ? .4 : 0), tip = [bx, y + 1.2, 1.2], gd = [bx + .3, yb + .6, 14.6], L0 = [bx - sw, gd[1], gd[2]], R0 = [bx + sw, gd[1], gd[2]];
+    quad(r, g, [[tip[0] - .2, tip[1], tip[2]], [tip[0] + .2, tip[1], tip[2]], R0, L0], '#2a2430');                   // the blade: a dark outline, a shaded half, a lit half, a fuller
+    quad(r, g, [tip, [tip[0] + .15, tip[1], tip[2]], [R0[0] - .2, R0[1], R0[2]], [gd[0], gd[1], gd[2]]], bt.sh);
+    quad(r, g, [tip, [gd[0], gd[1], gd[2]], [L0[0] + .2, L0[1], L0[2]], [tip[0] - .15, tip[1], tip[2]]], bt.lt);
+    line3(r, g, lerp3(tip, gd, .2), lerp3(tip, gd, .92), bt.hi);
+    line3(r, g, [bx - 2, gd[1], gd[2]], [bx + 2.6, gd[1], gd[2]], ht.deep, zm + 1); line3(r, g, [bx - 2, gd[1], gd[2] + .3], [bx + 2.6, gd[1], gd[2] + .3], ht.lt, zm);   // the guard
+    line3(r, g, [gd[0], gd[1], gd[2] + .8], [gd[0] + .15, gd[1] - .2, gd[2] + 4.6], '#3a2418', zm + 1); line3(r, g, [gd[0], gd[1], gd[2] + 1.6], [gd[0] + .1, gd[1] - .1, gd[2] + 2.2], '#8a5a34');   // the grip, one wrap lit
+    const pm = W3(r, [gd[0] + .2, gd[1] - .25, gd[2] + 5.3]); px.disc(g, pm[0], pm[1], Math.max(1, r.view.scale * .9), ht.sh); px.dot(g, pm[0] - .5, pm[1] - .5, ht.hi);   // the pommel
+  }
+}
+/* ---------- the outskirts: the land beyond the wall, so the town never floats on the dusk. A road leaves the gate between
+ * hedged fields (wheat, cabbages, furrows, pasture), a stream winds through the east meadow, the north and west are dark
+ * meadow under the pines; the ground dims with distance and dithers out into the sky. Baked per view in 128-unit chunks,
+ * lazily (a few per frame), only the ones on screen ---------- */
+const OMW = TW * U, OMH = TH * U, OUT = { fade0: 110, fade1: 205, C: 128, x0: -256, y0: -256, x1: TW * U + 256, y1: TH * U + 256, cache: null };
+const DUSK = rgb('#231c3a'), HEDGE = ['#1e3a2a', '#27462f', '#315438'].map(rgb), WHEAT = ['#8a6a32', '#a8864a', '#c4a25a'].map(rgb), WATER = ['#1e3450', '#2a4a6e', '#6a9ac8'].map(rgb);
+/** how far a point lies outside the walls (0 inside) */
+function outDist(x, y) { const dx = Math.max(0, -x, x - OMW), dy = Math.max(0, -y, y - OMH); return Math.hypot(dx, dy); }
+const roadX = y => 392 + Math.sin((y - OMH) / 55) * 9 + (y - OMH) * .1, streamX = y => 868 + Math.sin(y / 83) * 26 + Math.sin(y / 31) * 6;
+function fieldAt(x, y) {   // hedged plots of four kinds, each plot its own; a verge of grass along the road
+  const X = x + 36, Y = y - OMH - 20, px0 = Math.floor(X / 104), py0 = Math.floor(Y / 74), lx = X - px0 * 104, ly = Y - py0 * 74, bump = (nz(x * .2, y * .2) - .5) * 3;
+  if (lx < 4 + bump || ly < 4 + bump) return HEDGE[(lx < 2 + bump || ly < 2 + bump) ? 0 : nz(x * .4, y * .4) > .5 ? 2 : 1];
+  const kind = Math.floor(hs(px0 + 7, py0 + 3) * 4);
+  if (kind === 0) { const f = (x % 4 + 4) % 4; return f < 1.2 ? WHEAT[0] : nz(x * .3, y * .08) > .55 ? WHEAT[2] : WHEAT[1]; }                                   // wheat in rows
+  if (kind === 1) { const f = (y % 6 + 6) % 6, cx = ((x + Math.floor(y / 6) * 3) % 6 + 6) % 6; if (f > 1.5 && f < 4.5 && cx > 1.5 && cx < 4.5) return (f - 1.5) < 1.2 ? FC.sprout[1] : FC.sprout[0]; return f < 1.3 ? FC.soil[1] : FC.soil[0]; }   // cabbages
+  if (kind === 2) { const f = (y % 5 + 5) % 5; return f < 1.4 ? FC.soil[1] : f > 3.6 ? FC.soil[2] : FC.soil[0]; }                                                   // fresh furrows
+  return grassAt(x, y);                                                                                                                                              // pasture
+}
+function outTex(x, y) {
+  const d = outDist(x, y); if (d <= 0) return null;
+  let c = null;
+  if (y > OMH) {   // the road out of the gate: wheel ruts, pebbles, grass creeping over its edges
+    const rx = roadX(y), e = Math.abs(x - rx) - (14 - Math.min(5, (y - OMH) * .03)) + (nz(x * .09, y * .09) - .5) * 5;
+    if (e < 0) { c = dirtAt(x, y, e); if (Math.abs(Math.abs(x - rx) - 5) < .9) c = mixc(c, FC.pebbleSh, .45); }
+    else if (e > 8 && y > OMH + 16) c = fieldAt(x, y);
+  }
+  if (!c && x > OMW + 24) {   // the east meadow's stream: dark water, lit ripples, reeds on the banks
+    const e = Math.abs(x - streamX(y)) - 4.5 - (nz(x * .1, y * .1) - .5) * 2;
+    if (e < 0) c = hs(Math.floor(x * .7), Math.floor(y * .35)) < .06 ? WATER[2] : e < -2.5 ? WATER[0] : WATER[1];
+    else if (e < 2.2 && hs(Math.floor(x), Math.floor(y / 2)) < .35) c = HEDGE[2];
+  }
+  if (!c) c = grassAt(x, y);
+  if (d < 7) c = mixc(c, [18, 14, 28], (7 - d) / 7 * .45);   // the wall's shadow at its foot
+  return mixc(c, DUSK, clamp((d - 20) / 200, 0, 1) * .6);   // the land dims into the dusk with distance
+}
+function drawOutskirts(r) {
+  const v = r.view; if (!v.inv) return;
+  const key = v.id + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + v.scale;
+  if (!OUT.cache || OUT.cache.key !== key) OUT.cache = { key, m: new Map() };
+  let budget = 2;   // chunks baked this frame, ~12 ms each at the closest zoom (the rest next frame: no hitch when the view or the zoom changes)
+  for (let cy = OUT.y0; cy < OUT.y1; cy += OUT.C) for (let cx = OUT.x0; cx < OUT.x1; cx += OUT.C) {
+    if (cx >= 0 && cy >= 0 && cx + OUT.C <= OMW && cy + OUT.C <= OMH) continue;   // wholly inside the walls
+    if (Math.hypot(Math.max(0, cx - OMW, -(cx + OUT.C)), Math.max(0, cy - OMH, -(cy + OUT.C))) > OUT.fade1) continue;   // wholly past the fade
+    const idx = cx + ':' + cy; let ch = OUT.cache.m.get(idx);
+    if (!ch) {
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (const [a, b] of [[cx, cy], [cx + OUT.C, cy], [cx, cy + OUT.C], [cx + OUT.C, cy + OUT.C]]) { const q = v.p(a, b, 0); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+      ch = { x0: Math.floor(x0), y0: Math.floor(y0), w: Math.ceil(x1) - Math.floor(x0) + 1, h: Math.ceil(y1) - Math.floor(y0) + 1, cv: null };
+      OUT.cache.m.set(idx, ch);
+    }
+    const sx = ch.x0 - r.ix, sy = ch.y0 - r.iy; if (sx > r.bw || sy > r.bh || sx + ch.w < 0 || sy + ch.h < 0) continue;   // off screen
+    if (!ch.cv) {
+      if (budget-- <= 0) continue;
+      const cv = E.mkCanvas(ch.w, ch.h), g = cv.getContext('2d'), img = g.createImageData(ch.w, ch.h), dd = img.data;
+      for (let py = 0; py < ch.h; py++) for (let pxx = 0; pxx < ch.w; pxx++) {
+        const q = v.toGround(pxx + ch.x0 + .5, py + ch.y0 + .5); if (!q) continue;
+        const gx = q[0], gy = q[1]; if (gx < cx || gy < cy || gx >= cx + OUT.C || gy >= cy + OUT.C) continue;
+        const dist = outDist(gx, gy); if (dist <= 0 || dist > OUT.fade1) continue;
+        if (dist > OUT.fade0 && (dist - OUT.fade0) / (OUT.fade1 - OUT.fade0) > E.bayer(pxx + ch.x0, py + ch.y0)) continue;   // dithered into the sky
+        const c = outTex(gx, gy); if (!c) continue;
+        const k = (py * ch.w + pxx) * 4; dd[k] = c[0]; dd[k + 1] = c[1]; dd[k + 2] = c[2]; dd[k + 3] = 255;
+      }
+      g.putImageData(img, 0, 0); ch.cv = cv;
+    }
+    r.ctx.drawImage(ch.cv, sx, sy);
+  }
+}
+/** the low things out there: fence posts along the road, haystacks, a signpost home, a wayside lamp; pines only far off */
+function dressOutskirts(Lv) {
+  const T = Lv.things, add = t => { T.push(t); t.dead = false; return t; };
+  for (let y = OMH + 26; y < OMH + 150; y += 20) for (const sd of [-1, 1]) { const x = roadX(y) + sd * 20; add(piece('post', x, y, 0, (r, g) => { obox(r, g, x, y, 0, 7, .8, .8, 0, '#6a4a2e', '#4a3220'); if (y + 20 < OMH + 150) line3(r, g, [x, y, 5.5], [roadX(y + 20) + sd * 20, y + 20, 5.5], '#5a3a24', zw(r)); })); }
+  for (const [x, y, a] of [[300, 700, .2], [318, 712, -.4], [520, 690, .5], [236, 742, .1], [604, 748, -.2]]) add(hay(x, y, a));
+  const sgx = roadX(704) + 24; add(piece('waysign', sgx, 704, 0, (r, g) => {   // EMBERHOLD, on a post by the road
+    obox(r, g, sgx, 704, 0, 24, 1.1, 1.1, 0, '#7a5232', '#5a3a22'); const P0 = (dx, z) => [sgx + dx, 705, z];
+    quad(r, g, [P0(-12, 15), P0(12, 15), P0(12, 21), P0(-12, 21)], '#5a3820'); quad(r, g, [P0(-11, 15.7), P0(11, 15.7), P0(11, 20.3), P0(-11, 20.3)], '#9a6a3e');
+    const q = W3(r, P0(0, 18)); E.font.text(g, 'EMBERHOLD', Math.round(q[0]), Math.round(q[1]) - 2, '#3a2010', { align: 'center', font: 'tiny', outline: false });
+  }));
+  add(lampThing(360, 668));
+  for (let i = 0; i < 14; i++) Lv.props.push({ name: 'pine', x: 20 + i * 62 + hs(i, 21) * 30, y: OMH + 104 + hs(i, 22) * 60, z: 0, o: { size: 1.4 + hs(i, 23) * .7, color: i % 3 ? '#1e3c34' : '#24463a' } });
+  for (let i = 0; i < 11; i++) Lv.props.push({ name: 'pine', x: OMW + 96 + hs(i, 24) * 70, y: 30 + i * 56 + hs(i, 25) * 26, z: 0, o: { size: 1.4 + hs(i, 26) * .7, color: i % 3 ? '#1e3c34' : '#24463a' } });
+  for (const [x, y] of [[180, 668], [470, 676], [690, 700], [812, 520], [836, 300], [800, 160]]) add(bushThing(x, y, 1, '#2e5236', null));
 }
 /* ---------- set dressing: where every piece stands ---------- */
 function dressTown(Lv) {
   const T = Lv.things, add = t => { T.push(t); t.dead = false; return t; }, prop = (name, x, y, o = {}, z = 0) => Lv.props.push({ name, x, y, z, o });
   add(forgeThing()); add(Lv.bellows = bellowsThing()); add(anvilThing()); add(Lv.quench = quenchThing()); add(stallThing()); add(wellThing());
+  const chest = add(stashThing()); Lv.uses = [{ x: chest.x, y: chest.y, r: 21, label: '[E] Open the stash', use: () => chest.use() }];   // the stash by Cobb's stall
   // the forge yard: a coal heap, a woodpile, a weapon rack, the smithy's sign
   add(piece('coal', 122, 334, 6, (r, g, x, y) => { const [cx, cy] = r.w(x, y, 0), s = r.view.scale; for (let i = 0; i < 14; i++) { const a = hs(i, 3) * TAU, d = hs(i, 5) * 6; px.disc(g, cx + Math.cos(a) * d * s, cy + Math.sin(a) * d * s * .5 - (6 - d) * s * .6, 2.2 * s, i % 4 ? '#2a2428' : '#4a4048'); } px.dot(g, cx - s, cy - 4 * s, '#8a8290'); }));
   add(piece('logs', 232, 318, 8, (r, g, x, y) => { for (let row = 0; row < 3; row++) for (let i = 0; i < 4 - row; i++) { const lx = x - 7 + i * 4.6 + row * 2.3, [cx, cy] = r.w(lx, y + 4, 3 + row * 4), s = r.view.scale; obox(r, g, lx, y, row * 4, row * 4 + 4, 2, 7, 0, null, '#7a5232', { edge: false }); px.disc(g, cx, cy, 2 * s, '#b08a5a'); px.dot(g, cx, cy, '#7a5a3a'); } }));
-  add(piece('rack', 228, 236, 5, (r, g, x, y) => { obox(r, g, x, y, 0, 3, 7, 2, 0, '#6a4428', '#5a3a22'); obox(r, g, x, y, 12, 13.5, 8, 1, 0, '#8a6040', '#6a4428'); for (let i = -1; i <= 1; i++) { line3(r, g, [x + i * 5, y, 2], [x + i * 5 + 1, y - 2, 20], '#c8d0dc', zw(r)); line3(r, g, [x + i * 5 - 1.5, y, 7], [x + i * 5 + 1.5, y, 7], '#c8a040'); } }));
+  add(piece('rack', 228, 236, 6, weaponRack));
   add(barrel(222, 268, '#7a5232')); add(crate(206, 342, .3));
   // the stall's stock: barrels, crates, sacks round the counter
   add(barrel(334, 110)); add(barrel(338, 128, '#7a4a2a')); add(crate(482, 112, .15)); add(crate(482, 112, .4, .8, 10)); add(crate(486, 132, -.2, .9)); add(sack(474, 150)); add(sack(482, 158, '#b8a078')); add(sack(330, 148, '#c8b890'));
@@ -1481,7 +1763,8 @@ function dressTown(Lv) {
   add(barrel(60, 136, '#7a4a2a')); add(barrel(72, 134)); add(crate(200, 134, .1, .8));
   add(fireBowl(206, 192)); add(fireBowl(52, 190));
   // lamps round the plaza, by the gate, the tower path and the forge yard (oil lamps: they flicker like flames)
-  for (const [x, y] of [[289, 225], [495, 225], [282, 430], [502, 432], [360, 596], [424, 596], [560, 236], [250, 262], [210, 470], [606, 420]]) add(lampThing(x, y));
+  for (const [x, y] of [[289, 225], [495, 225], [282, 430], [502, 432], [360, 596], [424, 596], [560, 236], [258, 222], [210, 470], [606, 420]]) add(lampThing(x, y));   // (the forge-yard lamp stands east of the rack, not in front of it)
+  for (const [x, y] of [[726, 470], [714, 342], [118, 588]]) add(lampThing(x, y));   // Bram's round: the east wall and the garden corner
   // Seren's corner: crystals, candles, a crystal ball on a little table
   for (const [x, y, c, sz] of [[604, 136, '#b48aff', 1.2], [668, 138, '#6ad8f0', 1], [674, 178, '#c890ff', 1.3], [598, 182, '#8ac8ff', .9]]) add(crystalCluster(x, y, c, sz));
   add(candles([[600, 170, 5], [605, 175, 3.5], [609, 169, 4.5]])); add(candles([[664, 131, 4], [670, 132, 5.5], [675, 151, 3.5], [678, 157, 4.5]]));
@@ -1511,7 +1794,7 @@ function dressTown(Lv) {
   }
   // lanterns hung by doors (and one on Cobb's signpost); signs over the tavern and the smithy
   for (const [x, y, z, f] of [[102, 128, 30, 's'], [138, 128, 30, 's'], [266, 112, 28, 's'], [552, 112, 28, 's'], [112, 278, 27, 'e'], [112, 442, 27, 'e']]) add(lanternThing(x, y, z, f));
-  add(lanternThing(346, 143, 29, null));
+  add(lanternThing(346, 143, 29, null)); add(lanternThing(378, 117, 24, null, '#ffc860')); add(lanternThing(438, 117, 24, null, '#ffc860'));   // two hang from the awning's valance over Cobb's lane
   add(piece('tavernSign', 186, 130, 0, (r, g) => signBoard(r, g, 186, 131, 26, 's', 'mug')));
   add(piece('smithySign', 114, 316, 0, (r, g) => signBoard(r, g, 113, 316, 25, 'e', 'anvil')));
 }

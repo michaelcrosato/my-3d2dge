@@ -260,6 +260,7 @@ const MKA_GLYPHS = [[[-1.5, -1, 1.5, -1], [0, -1, 0, 1.6]], [[-1.4, -1.2, 1.4, 1
 const MKA_RUNE_SPR = [['a.a', 'aaa', '.a.', '.a.', '.a.'], ['aa.', 'a.a', 'aa.', 'a.a', 'a..'], ['a..', 'aa.', 'a.a', 'aa.', 'a..']].map(rows => E.sprite(rows, { a: '#bff6ff' }));
 def('mechanics', 'wards', { name: 'Warding Circles', title: 'The Warded Halls', adj: 'Warded', noun: 'Rune Halls', color: '#6fd6cc', depth: 2, weight: 10,
   tip: 'Rune circles empower you while you stand inside, more for every foe in there with you. Foes inside are slowed and exposed: pull packs in.',
+  brief: 'They empower you, more per foe inside.', lure: 'into a rune circle', act: 'fight from inside the circle', zone: 'rune circles',
   icon(g, x, y, s) {
     const R = MKA_ir(g, x, y, s);
     R(5, 0, 6, 12, MKA_WC.deep); R(6, 0, 4, 12, MKA_WC.sh); R(7, 0, 2, 12, MKA_WC.base);
@@ -456,6 +457,7 @@ function MKA_leaps(L0) {
 }
 def('mechanics', 'chasm', { name: 'Chasms', title: 'The Sundered Bridges', adj: 'Sundered', noun: 'Bridges', color: '#b8a8e0', depth: 3, weight: 10,
   tip: 'The floor is torn open. Knock foes over the edge and they fall for full experience. A dodge leaps a narrow gap.',
+  brief: 'Foes knocked over the edge fall, for full XP.', lure: 'to the edge', act: 'knock them over the edge',
   icon(g, x, y, s) {
     const R = MKA_ir(g, x, y, s), Q = pts => pts.map(([a, b]) => [x + a * s, y + b * s]);
     R(1, 2, 14, 13, '#4b4559'); R(1, 2, 14, 1, '#7a7290'); R(1, 14, 14, 1, '#2a2634'); R(2, 6, 3, 1, '#5d566c'); R(11, 11, 3, 1, '#5d566c');
@@ -546,6 +548,7 @@ function MKA_lane(L0, c, R) {
 }
 def('mechanics', 'gale', { name: 'Gale Vents', title: 'The Howling Galleries', adj: 'Howling', noun: 'Galleries', color: '#cfe8b0', depth: 4, weight: 10,
   tip: 'Vents blow wind lanes in gusts: you drift, shots curve, and foes knocked downwind fly. Ride a lane; knock packs down one.',
+  brief: 'Gusts carry you, your shots and foes.', lure: 'into a wind lane', act: 'knock them downwind', move: 'Knock packs down a wind lane',
   icon(g, x, y, s) {
     const R = MKA_ir(g, x, y, s), Ln = (x0, y0, x1, y1, c) => px.line(g, x + x0 * s, y + y0 * s, x + x1 * s, y + y1 * s, c);
     Ln(1, 4, 10, 4, '#e8f4ff'); Ln(10, 4, 12, 2, '#e8f4ff'); Ln(12, 2, 10, 1, '#9ab8d0');
@@ -586,7 +589,7 @@ def('mechanics', 'gale', { name: 'Gale Vents', title: 'The Howling Galleries', a
         const v = clamp(1 - Math.hypot(h.x - ln.x, h.y - ln.y) / 230, .15, 1);
         sfx([{ wave: 'noise', freq: 420, to: 1300, dur: 1.5, vol: .07 * v, filter: 'bandpass', q: 5 }, { wave: 'sine', freq: 380, to: 470, dur: 1.3, vol: .025 * v, vib: [5, .07] }], { vary: .1 });
       }
-      if (near && Math.random() < dt * 5 * ln.gust) { const u = Math.random() * ln.len; P.dust(ln.x + ln.dir[0] * u + ln.ax * (Math.random() - .5) * 26, ln.y + ln.dir[1] * u + ln.ay * (Math.random() - .5) * 26, 1, 1, { speed: 6, vx: ln.dir[0] * 90 * ln.gust, vy: ln.dir[1] * 90 * ln.gust, color: '#c8c0b0' }); }
+      if (near && Math.random() < dt * 5 * ln.gust) { const u = Math.random() * ln.len; P.dust(ln.x + ln.dir[0] * u + ln.ax * (Math.random() - .5) * 26, ln.y + ln.dir[1] * u + ln.ay * (Math.random() - .5) * 26, 1, 1, { speed: 6, vx: ln.dir[0] * 90 * ln.gust, vy: ln.dir[1] * 90 * ln.gust, color: '#cfe0ee' }); }   // (dust in the lane's cool colour)
       if (near && L0.mkaLeaves.length < 26 && Math.random() < dt * 1.6 * ln.gust) L0.mkaLeaves.push({ x: ln.x + ln.ax * (Math.random() - .5) * 20, y: ln.y + ln.ay * (Math.random() - .5) * 20, z: 5 + Math.random() * 12, vx: 0, vy: 0, ph: Math.random() * 9, t: 0, c: MKA_LEAF[(Math.random() * MKA_LEAF.length) | 0] });
     }
     const drift = (u, k) => { const w = MKA_wind(L0, u.x, u.y); if (!w) return; const f = S * k; u.drift = u.drift ? [u.drift[0] + w[0] * f, u.drift[1] + w[1] * f] : [w[0] * f, w[1] * f]; };
@@ -615,16 +618,21 @@ def('mechanics', 'gale', { name: 'Gale Vents', title: 'The Howling Galleries', a
       const ex = ln.x + ln.dir[0] * ln.len, ey = ln.y + ln.dir[1] * ln.len;
       if (!r.visible(ln.x, ln.y, 0, 160, 120, 160) && !r.visible(ex, ey, 0, 160, 120, 160) && !r.visible((ln.x + ex) / 2, (ln.y + ey) / 2, 0, 160, 120, 160)) continue;
       const [dx, dy] = ln.dir, ax = ln.ax, ay = ln.ay, gu = ln.gust;
-      r.decal(g => {   // the lane on the floor: a cool sheen over its two cells, chevrons swept downwind, dashed rails at its edges
-        // (every mark has a dark twin a pixel below it, so the lane reads on pale stone as well as dark, in every view)
-        const off = (t * (26 + 70 * gu)) % 24, L0p = (u, o) => r.w(ln.x + dx * u + ax * o, ln.y + dy * u + ay * o, 0);
-        px.blend(g, .05 + .07 * gu, 'add', () => px.poly(g, [L0p(0, -16), L0p(ln.len, -16), L0p(ln.len, 16), L0p(0, 16)], '#7a9ab8'));
-        const mark = (A0, B0, c, a) => { px.blend(g, a * .55, 'normal', () => px.line(g, A0[0], A0[1] + 1, B0[0], B0[1] + 1, '#1a2230')); px.blend(g, a, 'normal', () => px.line(g, A0[0], A0[1], B0[0], B0[1], c)); };
-        for (let u = off; u < ln.len; u += 24) {
-          const fade = Math.min(1, u / 18, (ln.len - u) / 18), a = (.32 + .4 * gu) * fade; if (a < .08) continue;
-          const cx = ln.x + dx * u, cy = ln.y + dy * u;
-          for (const o of [-7, 7]) { const P1 = r.w(cx + ax * (o - 3.5) - dx * 3, cy + ay * (o - 3.5) - dy * 3, 0), P2 = r.w(cx + ax * o + dx, cy + ay * o + dy, 0), P3 = r.w(cx + ax * (o + 3.5) - dx * 3, cy + ay * (o + 3.5) - dy * 3, 0); mark(P1, P2, '#e4f2ff', a); mark(P2, P3, '#e4f2ff', a); }
-          for (const o of [-15, 15]) mark(r.w(cx + ax * o, cy + ay * o, 0), r.w(cx + ax * o + dx * 8, cy + ay * o + dy * 8, 0), '#b8d4ea', a * .75);
+      r.decal(g => {   // the lane on the floor, readable from a still frame: a scoured band two cells wide (darker stone, a
+        // cool sheen that swells with the gust), solid rails along both edges, and one broad chevron across the whole
+        // lane every 22 units, pointing downwind and sweeping along it faster as the gust builds. (Every mark has a dark
+        // twin a pixel below it, so the lane reads on pale stone as well as dark, in every view)
+        const off = (t * (26 + 70 * gu)) % 22, L0p = (u, o) => r.w(ln.x + dx * u + ax * o, ln.y + dy * u + ay * o, 0), zw = Math.max(1, Math.round(r.view.zoom || 1));
+        const band = [L0p(0, -15), L0p(ln.len, -15), L0p(ln.len, 15), L0p(0, 15)];
+        px.blend(g, .22, 'normal', () => px.poly(g, band, '#0c1420'));
+        px.blend(g, .09 + .13 * gu, 'add', () => px.poly(g, band, '#7aa4c8'));
+        const mark = (A0, B0, c, a, w = 1) => { px.blend(g, a * .6, 'normal', () => px.line(g, A0[0], A0[1] + 1, B0[0], B0[1] + 1, '#141c28', w)); px.blend(g, a, 'normal', () => px.line(g, A0[0], A0[1], B0[0], B0[1], c, w)); };
+        for (const o of [-15, 15]) mark(L0p(4, o), L0p(ln.len - 4, o), '#a8c4dc', .42 + .3 * gu);
+        for (let u = off; u < ln.len; u += 22) {
+          const fade = Math.min(1, u / 16, (ln.len - u) / 16), a = (.5 + .45 * gu) * fade; if (a < .08) continue;
+          const tip = L0p(u + 3, 0), l = L0p(u - 5, -11), rr = L0p(u - 5, 11);
+          mark(l, tip, '#e4f2ff', a, zw); mark(tip, rr, '#e4f2ff', a, zw);
+          const hl = L0p(u - 2, -5), hr = L0p(u - 2, 5); px.blend(g, a * .7, 'add', () => { px.line(g, hl[0], hl[1], tip[0], tip[1], '#ffffff'); px.line(g, tip[0], tip[1], hr[0], hr[1], '#ffffff'); });   // a hot core near the tip
         }
       }, { emissive: .3 });
       for (const s of ln.streaks) {   // streaks of wind at every height, a little wavy, brightest at the head
@@ -684,6 +692,7 @@ function MKA_ventDraw(v, r) {
 const MKA_ICE = { deep: '#2f6ab0', sh: '#5aa8d8', base: '#9fdfff', lt: '#dff8ff', hi: '#ffffff' };
 def('mechanics', 'ice', { name: 'Rime Ice', title: 'The Rime Deep', adj: 'Frozen', noun: 'Rime Halls', color: '#8fd8ff', depth: 6, weight: 10,
   tip: 'Foes knocked on ice slide far and slam into walls. Strike a rime crystal to freeze a pack, then break one: the frozen shatter, one into the next.',
+  brief: 'Knocked foes slide far; crystals freeze packs.', lure: 'onto the ice', act: 'freeze them with a rime crystal', move: 'Knock packs sliding across the ice',
   icon(g, x, y, s) {
     const R = MKA_ir(g, x, y, s);
     px.poly(g, [[x + 8 * s, y + 1 * s], [x + 12 * s, y + 6 * s], [x + 10.5 * s, y + 15 * s], [x + 5.5 * s, y + 15 * s], [x + 4 * s, y + 6 * s]], MKA_ICE.sh);
@@ -878,6 +887,7 @@ const MKA_BROOD_SLIME = { dk: '#4a1428', base: '#b04a5a', lt: '#f0a0a8', spec: '
 const MKA_beat = p => { const c = ((p % 1) + 1) % 1; return Math.exp(-(((c - .08) / .045) ** 2)) + .65 * Math.exp(-(((c - .27) / .05) ** 2)); };   // lub-dub
 def('mechanics', 'brood', { name: 'Brood Nests', title: 'The Brood Warrens', adj: 'Teeming', noun: 'Warrens', color: '#d8506a', depth: 7, weight: 10,
   tip: 'Nests birth swarmers while you are near. Farm the brood for experience, or burst the nests for loot and move on.',
+  brief: 'Nests birth swarmers: farm or burst them.', lure: 'to a nest', act: 'burst the nest',
   icon(g, x, y, s) {
     const R = MKA_ir(g, x, y, s);
     px.ell(g, x + 8 * s, y + 10 * s, 7 * s, 5.2 * s, MKA_FLESH.deep); px.ell(g, x + 8 * s, y + 9.6 * s, 6 * s, 4.4 * s, '#b0405a'); px.ell(g, x + 6.2 * s, y + 8 * s, 2.6 * s, 1.8 * s, '#e07888'); R(5, 7, 1, 1, '#ffd0d8');
@@ -1049,6 +1059,7 @@ function MKA_nestDraw(n, r) {
 const MKA_PY = { dull: '#5a4a8a', bright: '#cdb8ff', storm: '#ffe45a', arc: '#b890ff' };
 def('mechanics', 'pylons', { name: 'Stormglass Pylons', title: 'The Stormglass Mines', adj: 'Stormlit', noun: 'Stormglass Mines', color: '#ffe45a', depth: 8, weight: 10,
   tip: 'Strike a pylon to charge it. Charged pylons arc lightning to each other and zap what comes near. Charge a web, then drag packs through it.',
+  brief: 'Struck pylons charge and arc bolts.', lure: 'between the pylons', act: 'charge the pylons',
   icon(g, x, y, s) {
     const R = MKA_ir(g, x, y, s);
     px.poly(g, [[x + 8 * s, y + 1 * s], [x + 11 * s, y + 5 * s], [x + 11 * s, y + 13 * s], [x + 5 * s, y + 13 * s], [x + 5 * s, y + 5 * s]], '#7a6ab8');

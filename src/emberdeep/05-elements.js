@@ -79,14 +79,16 @@ function statusSpeed(u) {
   const st = u.st; if (st.freeze || st.stun) return 0;
   let k = 1; if (st.chill) k *= 1 - .1 * st.chill.n; if (st.slow) k *= .6; if (st.haste) k *= 1.35; return k;
 }
-/** the tint a unit shows for its strongest visible status (drawn as a flash overlay) */
+/** the tint a unit shows for its strongest visible status (drawn as a flash overlay). A gentle, slow pulse, never an
+ *  on / off gate: burn and shock used to strobe at 5-6 Hz, and a boss that is nearly always burning or shocked showed
+ *  a white-orange flicker instead of its own colors. The palette must always read through; the particles say the rest */
 function statusTint(u) {
-  const st = u.st;
-  if (st.freeze) return ['#c8f4ff', .55];
-  if (st.burn && Math.sin(game.time * 30 + u.x) > .3) return ['#ff9a4a', .28];
-  if (st.shock && Math.sin(game.time * 40 + u.y) > .6) return ['#fff4a0', .4];
-  if (st.poison) return ['#8ae04a', .2];
-  if (st.curse) return ['#9a60e0', .22];
-  if (st.chill) return ['#9fdfff', .12 + st.chill.n * .05];
+  const st = u.st, t = game.time, ph = u.ph || 0, k = u.boss ? .7 : 1;   // (a steady phase per unit) a boss's own palette is its showpiece
+  if (st.freeze) return ['#c8f4ff', .42 * k];
+  if (st.burn) return ['#ff9a4a', (.1 + .05 * Math.sin(t * 6 + ph)) * k];
+  if (st.shock) return ['#fff4a0', (.1 + .06 * Math.sin(t * 7 + ph)) * k];
+  if (st.poison) return ['#8ae04a', (.11 + .03 * Math.sin(t * 4 + ph)) * k];
+  if (st.curse) return ['#9a60e0', (.12 + .03 * Math.sin(t * 4 + ph)) * k];
+  if (st.chill) return ['#9fdfff', (.07 + st.chill.n * .035) * k];
   return null;
 }

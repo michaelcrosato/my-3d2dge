@@ -12,7 +12,7 @@
  *   warned on the floor, scales with the boss (BOS_sz), strikes in its element (b.el) for its damage (b.dmg), drives
  *   a Humanoid through the rig fields it returns and squashes other bodies (BOS_kick):
  *   meteorrain firewave sweepbeam spinattack leapchain shockring spiral groundspikes teleportstrike mirror enrage
- * BOSS BODIES (bossBody): the Bone King, the Armored Colossus, the Flesh Titan.
+ * BOSS BODIES (bossBody): the Bone King, the Armored Colossus, the Flesh Titan, the Six-Armed Reaver.
  * THE ARENA, for every boss: it slumbers kneeling, rises and roars when woken (walking close or striking it), a name
  *   card, embers or ash in the air, element smears on every swing, a burst of its element when it dies and a treasure
  *   chest that falls from above and opens when struck. Also for every boss: leaping patterns keep their flight (the core
@@ -42,7 +42,10 @@ const BOS_hand = b => b.rig ? b.rig.hand('R') : [b.x, b.y, (b.head || 28) * .6];
 const BOS_look = (el, size = 1.7) => el === 'phys' ? { kind: 'bone' } : { kind: 'orb', size };
 /** four tones of an element's flame, dark to white-hot */
 const BOS_FIRE = ['#c83a1a', '#ff8a3a', '#ffe070', '#fffbe0'];
-const BOS_tones = el => !el || el === 'fire' ? BOS_FIRE : [EL(el).dark, EL(el).color, EL(el).light, '#ffffff'];
+/** four tones of stone and dust, dark to light: a physical boss's eruptions are rock, not a pale grey flame (which read as a
+ *  crowd of white ghosts around it) */
+const BOS_STONE = ['#3a3028', '#6a5c4c', '#a08c70', '#d4c4a4'];
+const BOS_tones = el => !el || el === 'fire' ? BOS_FIRE : el === 'phys' ? BOS_STONE : [EL(el).dark, EL(el).color, EL(el).light, '#ffffff'];
 const BOS_near = (x, y, d) => { const h = ED.hero; return !!h && Math.hypot(h.x - x, h.y - y) < d; };
 /** a flame tongue standing at screen (x, y): three nested tongues that sway with the phase t */
 function BOS_flame(g, x, y, h, w, t, c = BOS_FIRE) {
@@ -90,6 +93,7 @@ function BOS_coveredAt(r, x, y, z, hw, up) {
  * sparks: particles per second, bias }
  */
 function BOS_column(x, y, o = {}) {
+  if (o.el === 'phys') return BOS_rockBurst(x, y, o);   // physical: the floor bursts in rock and dust instead
   const H = o.h || 70, W0 = o.w || 8, dur = o.dur || 1, c = BOS_tones(o.el), seed = (Math.random() * 97) | 0;
   return FX.visual(dur, (r, u) => {
     if (!r.visible(x, y, 0, 60, H * 1.6 + 40, 40)) return;
@@ -118,6 +122,28 @@ function BOS_column(x, y, o = {}) {
   }, (f, dt) => {
     const u = f.t / dur; if (Math.random() < (o.sparks || 30) * dt * (u < .7 ? 1 : .3)) P.add({ kind: Math.random() < .5 ? 'fire' : 'ember', x: x + (rnd() - .5) * W0, y: y + (rnd() - .5) * W0, z: rnd() * H * .8, vx: (rnd() - .5) * 30, vy: (rnd() - .5) * 30, vz: 50 + rnd() * 70, g: -10, drag: 1.5, max: .45 + rnd() * .4, size: 1.6 + rnd() * 1.8, color: c[1] });
     if (u < .8 && Math.random() < dt * H * .06) P.smoke(x, y, H * .9, 1, { size: W0 * .5, color: '#5a4a4a', dark: '#2a2024', light: '#7a6a68' });
+  });
+}
+/**
+ * the stone twin of BOS_column: the floor cracks and a cluster of rock spikes bursts up (the tallest in the middle, each a beat
+ * after the last, overshooting), holds, and sinks back while dust rolls off it; a tall one (a death) raises a plume of dust
+ */
+function BOS_rockBurst(x, y, o = {}) {
+  const H0 = o.h || 70, H = Math.min(44, H0 * .62), W0 = o.w || 8, dur = o.dur || 1, seed = (Math.random() * 997) | 0, n = W0 > 7 ? 7 : 4, rocks = [];
+  for (let i = 0; i < n; i++) { const a = E.hash2(i, seed) * TAU, d = i ? W0 * (.45 + .75 * E.hash2(i + 9, seed)) : 0; rocks.push({ dx: Math.cos(a) * d, dy: Math.sin(a) * d, h: H * (i ? .38 + .42 * E.hash2(i + 3, seed) : 1), w: W0 * (i ? .32 + .2 * E.hash2(i + 5, seed) : .55), at: i * .025 }); }
+  P.bits(x, y, 3, 3 + n, BOS_STONE.slice(0, 3)); P.dust(x, y, 0, 2 + n, { speed: 30 + W0 * 4 });
+  return FX.visual(dur, (r, u) => {
+    if (!r.visible(x, y, 0, 40, H * 1.5 + 20, 30)) return;
+    const fade = u > .72 ? (1 - u) / .28 : 1, v = r.view;
+    r.decal(() => { r.groundDisc(x, y, W0 * 1.5, '#1a140f', .5 * fade); r.groundRing(x, y, W0 * 1.7 + u * 5, BOS_STONE[1], .45 * fade); });
+    for (const k of rocks) {   // each spike is queued at its own foot, so the hero and the boss sort among them
+      const px0 = x + k.dx, py0 = y + k.dy, t = clamp((u * dur - k.at) / .1, 0, 1); if (t <= 0) continue;
+      r.queue(px0, py0, 0, g => { const zm = v.zoom || 1, [sx, sy] = r.w(px0, py0, 0), hh = k.h * E.ease.outBack(t) * fade * zm, w = Math.max(1.2, k.w * zm); BOS_spike(g, sx, sy + zm, hh, w, BOS_STONE); if (hh > 6) px.line(g, sx - w * .55, sy - hh * .35, sx - w * .15, sy - hh * .55, BOS_STONE[0]); });   // (a crack across the lit face)
+    }
+  }, (f, dt) => {
+    const u = f.t / dur; if (u > .85) return;
+    if (Math.random() < dt * (6 + W0)) P.add({ kind: 'dust', x: x + (rnd() - .5) * W0 * 2, y: y + (rnd() - .5) * W0 * 2, z: rnd() * H * .5, vx: (rnd() - .5) * 24, vy: (rnd() - .5) * 24, vz: 10 + rnd() * 18, g: -4, drag: 2, max: .6 + rnd() * .5, size: 1.4 + rnd() * 1.4, color: rnd() < .5 ? '#8a7a66' : '#5e5244' });
+    if (H0 > 60 && u < .6 && Math.random() < dt * 10) P.smoke(x + (rnd() - .5) * W0, y + (rnd() - .5) * W0, H * .6 + rnd() * H, 1, { size: W0 * .6, color: '#6a5e50', dark: '#3a322a', light: '#9a8c78' });
   });
 }
 /** rings of small element pillars bursting out of the floor around (x, y): a roar, a waking, a death */
@@ -180,7 +206,7 @@ const BOS_DRIVE = BOS_mv('plunge', { name: 'drive', hand: 'both', a0: 2.3, a1: -
  * ============================================================================= */
 
 // meteorrain: the boss calls the sky down. Warned circles, the first on the hero, then ahead of him and around him
-def('patterns', 'meteorrain', { name: 'Meteor Rain', range: [0, 420], start(b) {
+def('patterns', 'meteorrain', { name: 'Meteor Rain', role: 'zone', range: [0, 420], start(b) {
   const h = ED.hero, n = 6 + 2 * Math.min(3, b.phase), el = b.el, z = BOS_sz(b);
   let k = 0; sfx('bos_rumble', { vol: .5 }); shake(2);
   return { t: 0, rig: { pose: 'cheer' }, update(dt) {
@@ -200,7 +226,7 @@ def('patterns', 'meteorrain', { name: 'Meteor Rain', range: [0, 420], start(b) {
 
 // firewave: the weapon is driven into the floor and rings of waves run out along warned spokes: stand in the gaps.
 // Each ring is turned half a spoke from the last, so the safe gaps move
-def('patterns', 'firewave', { name: 'Fire Wave', range: [0, 170], start(b) {
+def('patterns', 'firewave', { name: 'Fire Wave', role: 'zone', range: [0, 170], start(b) {
   const el = b.el, z = BOS_sz(b), rings = 2 + (b.phase > 0 ? 1 : 0), n = 8 + Math.min(2, b.phase), len = 150 * z, wind = .8, gap = .65, off = rnd() * TAU, sp = BOS_DRIVE;
   const spokes = i => { const out = []; for (let k = 0; k < n; k++) out.push(off + (k + (i % 2) * .5) / n * TAU); return out; };
   const warn = (i, dur) => { for (const a of spokes(i)) FX.telegraph({ shape: 'line', x: b.x, y: b.y, ang: a, len, w: 10, dur, owner: b }); };
@@ -222,7 +248,7 @@ def('patterns', 'firewave', { name: 'Fire Wave', range: [0, 170], start(b) {
 } });
 
 // sweepbeam: the whole sector it will sweep is warned first, then a beam pours from the boss's hands across it
-def('patterns', 'sweepbeam', { name: 'Sweeping Beam', range: [40, 230], start(b) {
+def('patterns', 'sweepbeam', { name: 'Sweeping Beam', role: 'zone', range: [40, 230], start(b) {
   const h = ED.hero, el = b.el, dir = rnd.chance(.5) ? 1 : -1, arc = 1.8 + .25 * Math.min(2, b.phase), dur = 1.6 + .25 * Math.min(2, b.phase), warm = .85, len = 200;
   const a0 = angTo(b, h) - dir * arc * .5;
   FX.telegraph({ shape: 'arc', x: b.x, y: b.y, r: len * .8, ang: a0 + dir * arc * .5, half: arc * .5, dur: warm, owner: b });
@@ -245,7 +271,7 @@ function BOS_whirl(b, R, dur) {
   });
 }
 // spinattack: a crouch inside a warned circle, a whirlwind that chases the hero (slower than he runs), then a dizzy moment to punish
-def('patterns', 'spinattack', { name: 'Whirlwind', range: [0, 140], start(b) {
+def('patterns', 'spinattack', { name: 'Whirlwind', role: 'close', range: [0, 140], start(b) {
   const h = ED.hero, el = b.el, z = BOS_sz(b), R = b.r + 16 * z, spinT = 2.2 + .5 * Math.min(2, b.phase), sp = E.move('spin').spec, set = new Set();
   FX.telegraph({ shape: 'circle', x: b.x, y: b.y, r: R, dur: .6, owner: b, follow: b });
   let hitT = 0, dir = angTo(b, h), fx = null;
@@ -270,7 +296,7 @@ def('patterns', 'spinattack', { name: 'Whirlwind', range: [0, 140], start(b) {
 
 // leapchain: three leaps at the hero, each landing warned by a circle that fills as the boss comes down; the last lands
 // with a ring of waves
-def('patterns', 'leapchain', { name: 'Leap Chain', range: [40, 280], start(b) {
+def('patterns', 'leapchain', { name: 'Leap Chain', role: 'close', range: [40, 280], start(b) {
   const h = ED.hero, el = b.el, z = BOS_sz(b), n = 3, air = .6, sp = BOS_mv('plunge');
   let i = 0, st = 'crouch', t = 0, sx = b.x, sy = b.y, tx = b.x, ty = b.y, H = 40;
   const crouchT = k => k ? .24 : .45, rad = k => (k === n - 1 ? 34 : 24) * z;
@@ -336,7 +362,7 @@ function BOS_ringWave(b, gapA, gw, o = {}) {
   return f;
 }
 // shockring: the boss pounds the floor again and again; each blow sends a ring wall out with one gap, shown on the floor first
-def('patterns', 'shockring', { name: 'Shock Rings', range: [0, 170], start(b) {
+def('patterns', 'shockring', { name: 'Shock Rings', role: 'zone', range: [0, 170], start(b) {
   const h = ED.hero, n = 2 + (b.phase > 0 ? 1 : 0), warn = .85, every = 1.05, max = 165 * BOS_sz(b) / 1.05, gw = .42, sp = BOS_mv('overhead');
   const plan = []; let g0 = angTo(b, h) + (rnd() - .5) * 2.6;
   for (let i = 0; i < n; i++) { plan.push(g0); g0 += (rnd.chance(.5) ? 1 : -1) * (1.3 + rnd() * 1.5); }
@@ -357,7 +383,7 @@ def('patterns', 'shockring', { name: 'Shock Rings', range: [0, 170], start(b) {
 } });
 
 // spiral: motes gather into the boss, then arms of bolts pour out and turn slowly: step into the widening gaps
-def('patterns', 'spiral', { name: 'Bolt Spiral', range: [0, 220], start(b) {
+def('patterns', 'spiral', { name: 'Bolt Spiral', role: 'zone', range: [0, 220], start(b) {
   const el = b.el, arms = Math.min(5, 3 + b.phase), dur = 2 + .4 * Math.min(2, b.phase), dir = rnd.chance(.5) ? 1 : -1, z0 = (b.head || 28) * .42, charge = .75, col = EL(el).color;
   let a = rnd() * TAU, next = 0, vol = 0;
   FX.telegraph({ shape: 'circle', x: b.x, y: b.y, r: 22 * BOS_sz(b), dur: charge, owner: b, follow: b });
@@ -377,7 +403,7 @@ def('patterns', 'spiral', { name: 'Bolt Spiral', range: [0, 220], start(b) {
 /** a line of crystal spikes (in the element's colors) bursting up and sinking back; fire bosses raise spikes of obsidian */
 const BOS_spikeWave = (b, ang, len) => BOS_wave(b, ang, { speed: 240, len, w: 13, dmg: .8, kb: 90, up: 120, h: 14, el: b.el === 'fire' ? 'phys' : b.el });
 // groundspikes: the weapon hammers the floor; each blow bursts warned lines of spikes outward, each set turned between the last
-def('patterns', 'groundspikes', { name: 'Ground Spikes', range: [0, 190], start(b) {
+def('patterns', 'groundspikes', { name: 'Ground Spikes', role: 'zone', range: [0, 190], start(b) {
   const z = BOS_sz(b), blows = 2 + Math.min(2, b.phase), n = 6, len = 150 * z, every = .8, first = .6, sp = BOS_mv('overhead'), off = rnd() * TAU;
   const lines = i => { const out = []; for (let j = 0; j < n; j++) out.push(off + (j + (i % 2) * .5) / n * TAU); return out; };
   const warn = (i, dur) => { for (const a of lines(i)) FX.telegraph({ shape: 'line', x: b.x, y: b.y, ang: a, len, w: 12, dur, owner: b }); };
@@ -409,7 +435,7 @@ function BOS_motes(b, el, dir = 1) {
   P.add({ kind: 'ember', x: b.x + Math.cos(q) * d, y: b.y + Math.sin(q) * d, z, vx: Math.cos(q) * 40 * dir, vy: Math.sin(q) * 40 * dir, vz: 15, drag: 1.5, max: .5, color: EL(el).color });
 }
 // teleportstrike: the boss dissolves, a circle opens behind the hero (in the element's color), it steps out and strikes
-def('patterns', 'teleportstrike', { name: 'Blink Strike', range: [50, 420], start(b) {
+def('patterns', 'teleportstrike', { name: 'Blink Strike', role: 'close', range: [50, 420], start(b) {
   const h = ED.hero, el = b.el, z = BOS_sz(b), R = b.r + 22 * z;
   let st = 'out', t = 0, tx = 0, ty = 0, atk = null;
   sfx('bos_blink'); elBurst(b.x, b.y, (b.head || 28) * .5, el, 12); b.bosVanish = true;
@@ -474,7 +500,7 @@ function BOS_clone(b, x, y) {
   return m;
 }
 // mirror: the boss flickers out and the ring around the hero fills with it: illusions and the real one, all casting
-def('patterns', 'mirror', { name: 'Mirror Images', range: [0, 320], start(b) {
+def('patterns', 'mirror', { name: 'Mirror Images', role: 'aid', range: [0, 320], start(b) {
   const h = ED.hero, el = b.el, live = ED.foes.filter(m => m.alive && m.bosCloneOf === b).length;
   if (live >= 2 || !REG.archetypes[b.kind]) return { t: 0, rig: { pose: 'cheer' }, update(dt) { this.t += dt; this.rig = { pose: 'cheer', expr: 'shout' }; return this.t < .6; } };
   const n = Math.min(4, 2 + b.phase), R = 64 + 10 * BOS_sz(b), a0 = rnd() * TAU, spots = [];
@@ -503,7 +529,7 @@ function BOS_rageStep(b, dt) {
 }
 function BOS_rageDraw(b, r) { const c = BOS_tones(b.el), p = .5 + .5 * Math.sin(game.time * 9); r.decal(() => { r.groundRing(b.x, b.y, b.r + 3 + p * 2, c[1], .7); r.groundDisc(b.x, b.y, b.r + 2, '#ff3a2a', .18 + .1 * p); }, { emissive: .7 }); L.add(b.x, b.y, 12, 60, .5 + .2 * p, { color: c[1] }); }
 // enrage: a crouch, then a roar that throws the hero back, then a burning aura: hasted and harder hitting for a while
-def('patterns', 'enrage', { name: 'Enrage', range: [0, 420], start(b) {
+def('patterns', 'enrage', { name: 'Enrage', role: 'aid', range: [0, 420], start(b) {
   const el = b.el;
   return { t: 0, rig: { pose: 'crouch' }, update(dt) {
     this.t += dt; b.vx *= .8; b.vy *= .8; const t = this.t;
@@ -614,6 +640,65 @@ def('archetypes', 'fleshtitan', { name: 'Flesh Titan', tags: ['undead', 'brute']
   ai: 'melee', attacks: [{ move: 'haymaker', dmg: 1.4, kb: 200 }, { move: 'claw' }],
   onSpawn(m) { BOS_wrapRig(m, (g, ox, oy, v) => BOS_titanSpikes(m, g, ox, oy, v, false), (g, ox, oy, v) => { BOS_titanStitches(m, g, ox, oy, v); BOS_titanSpikes(m, g, ox, oy, v, true); }); } });
 
+/* ---- the Six-Armed Reaver: a hooded giant with two more pairs of arms out of its back, a curved blade in every hand ---- */
+/** it remembers where its own two hands went (rig-local, from the shoulders) for the last .4 s: the extra arms replay that
+ *  path a beat late, so one swing becomes a cascade of three blades and an idle hand's sway ripples down its sides */
+function BOS_reaverRecord(m) {
+  const rig = m.rig, J = rig.J, H = m.bosArms || (m.bosArms = []); if (!J.handR || (H.length && H[H.length - 1].t === game.time)) return;
+  H.push({ t: game.time, R: E.V3.sub(J.handR, J.shR), L: E.V3.sub(J.handL, J.shL), bd: (J.bladeDir || [1, 0, 0]).slice() });
+  while (H.length > 2 && game.time - H[1].t > .4) H.shift();
+}
+/** the pose of its hands lag seconds ago (the oldest kept when the record is shorter) */
+function BOS_reaverAt(m, lag) { const H = m.bosArms || []; for (let i = H.length - 1; i >= 0; i--) if (game.time - H[i].t >= lag) return H[i]; return H[0]; }
+/** one extra arm: out of the back below the shoulder of side s (tier k: 0 the upper pair, 1 the lower), its hand where the
+ *  main hand of that side was a beat ago (swept a little wider and lower), an elbow bent out and back (E.ik3), a sickle blade */
+function BOS_reaverArm(m, g, ox, oy, view, s, k, near) {
+  const rig = m.rig, J = rig.J, o = rig.o, V = E.V3, c0 = rigScreen(rig, J.shC, ox, oy, view), sh = s > 0 ? J.shR : J.shL;
+  const root = V.add(sh, [-1.1 - .3 * k, s * (.35 + .45 * k), -1.5 - 1.8 * k]), P0 = rigScreen(rig, root, ox, oy, view); if ((P0[2] >= c0[2] - .2) !== near) return;
+  const q = BOS_reaverAt(m, .07 + .08 * k), t = game.time * (1.6 + .3 * k) + m.ph + s + k * 1.7;
+  if (!q) return;
+  // a fan held out from the body (the upper pair raised, the lower pair at the hip), moved by how far the main hand of that
+  // side has swung from where it hangs at rest, a beat ago: the cascade
+  const rel = s > 0 ? q.R : q.L, reach = o.armUpper + o.armLower, rest = [.6, s * .9, -reach * .78], ready = [1.8 + .6 * k, s * (reach * .55 + 1.2 * k), k ? -reach * .45 : -reach * .05];
+  const tgt = V.add(root, V.add(ready, V.add(V.mul(V.sub(rel, rest), .9 - .12 * k), [.35 * Math.sin(t), .3 * s * Math.sin(t * .7), .45 * Math.sin(t * .8)])));
+  const [el, hd] = E.ik3(root, tgt, o.armUpper * .92, o.armLower * .95, [-1, s * .9, -.2]), A = P0, B = rigScreen(rig, el, ox, oy, view), C = rigScreen(rig, hd, ox, oy, view);
+  const u = BOS_u(rig, view), w = Math.max(2, (o.limbW || 2) * u * .72), sk = E.tones(rig.C.skin || '#8a8098'), mt = E.tones(rig.C.metal || '#c8ccd8'), OL = '#140c1c';
+  // the blade first when it points away (it goes behind the forearm), the arm, then the blade when it points out
+  const fore = V.norm(V.sub(hd, el)), bd = V.norm(V.add(s > 0 ? q.bd : V.add(fore, [0, 0, .7]), [.2, s * .55, .35])), Lb = (o.bladeLen || 11) * (.62 - .06 * k);
+  const tip = rigScreen(rig, V.add(hd, V.mul(bd, Lb)), ox, oy, view), mid = rigScreen(rig, V.add(V.add(hd, V.mul(bd, Lb * .55)), [0, 0, 1.1]), ox, oy, view), back = C[2] > tip[2];
+  const blade = () => {
+    const bw = Math.max(1, Math.round(u * .75));
+    px.line(g, C[0], C[1], mid[0], mid[1], OL, bw + 2); px.line(g, mid[0], mid[1], tip[0], tip[1], OL, bw + 1);
+    px.line(g, C[0], C[1], mid[0], mid[1], mt.sh, bw + 1); px.line(g, mid[0], mid[1], tip[0], tip[1], mt.base, bw);
+    px.line(g, C[0], C[1] - 1, mid[0], mid[1] - 1, mt.lt); px.line(g, mid[0], mid[1] - 1, tip[0], tip[1], mt.hi); px.dot(g, tip[0], tip[1], '#ffffff');
+  };
+  if (back) blade();
+  // shaded capsules like the rig's own limbs (the beasts' limb painter): the far arms a shade darker; a bony fist
+  const ra = w * .5, far = !near || k > 0;
+  BST_limb(g, A, B, ra, ra * .85, sk, far, OL); BST_limb(g, B, C, ra * .85, ra * .7, sk, far, OL);
+  px.disc(g, C[0], C[1], ra * .9 + 1, OL); px.disc(g, C[0], C[1], ra * .9, far ? sk.sh : sk.base); px.dot(g, C[0] - ra * .3, C[1] - ra * .3, sk.lt);
+  if (!back) blade();
+}
+/** the rune seam down its back and a glowing mark on the hood, in its element (the knot the arms grow from) */
+function BOS_reaverSeam(m, g, ox, oy, view) {
+  const rig = m.rig, J = rig.J, V = E.V3, e = EL(m.el === 'phys' ? 'void' : m.el), fr = rigScreen(rig, V.add(J.shC, [1.5, 0, -2]), ox, oy, view), bk = rigScreen(rig, V.add(J.shC, [-1.5, 0, -2]), ox, oy, view);
+  if (bk[2] <= fr[2]) return;   // its back is turned toward the camera: the seam shows
+  let prev = null; for (let k = 0; k <= 4; k++) { const p = rigScreen(rig, V.add(V.lerp(J.shC, J.hipC, k / 5), [-1.6, 0, 0]), ox, oy, view); if (prev) px.line(g, prev[0], prev[1], p[0], p[1], k % 2 ? e.color : e.dark); px.dot(g, p[0], p[1], e.light); prev = p; }
+}
+// the Six-Armed Reaver: a tall hooded giant in a long robe (the hood is drawn in its 'hair' color), a curved blade in each of
+// its six hands. Its four extra arms replay its own two a beat late: every swing is a cascade
+def('archetypes', 'reaver', { name: 'Six-Armed Reaver', tags: ['demon', 'melee'], bossBody: true, noPack: true, minDepth: 999, weight: 0, hp: 64, dmg: 14, speed: 30, r: 5.5, head: 32, mass: 4, armor: 10, xp: 40,
+  rig: { build: 'heroic', weapon: 'sword', bladeLen: 12, outfit: 'robe', sleeves: 'none', hood: true, hair: 'long', hunch: .25, lean: .08, cape: { len: 7, width: 5, seg: 2.3 }, eyeGlow: '#ff5a7a', speedRef: 60 },
+  palettes: [
+    { skin: '#8a8098', hair: '#2a2234', cloth: '#2c2234', coat: '#221a2a', pants: '#241c2a', boot: '#1a141e', belt: '#6a4a3a', trim: '#b8905a', glove: '#8a8098', metal: '#d0d4e0', metalDk: '#6a6e80', hilt: '#4a3a30', cape: '#3e1a2c', capeIn: '#1a0c14' },
+    { skin: '#7a8a80', hair: '#1c2422', cloth: '#1e2c2a', coat: '#16201e', pants: '#1c2422', boot: '#141a18', belt: '#5a4a34', trim: '#a8a060', glove: '#7a8a80', metal: '#c8c0a8', metalDk: '#6a6450', hilt: '#3a3026', cape: '#2a3a26', capeIn: '#101a10' }],
+  elKeys: ['cloth', 'cape'],
+  ai: 'melee', attacks: [{ move: 'slash', dmg: 1.1 }, { move: 'backslash' }, { move: 'spin', dmg: 1.3, kb: 160 }],
+  onSpawn(m) {
+    BOS_wrapRig(m, (g, ox, oy, v) => { BOS_reaverRecord(m); for (const k of [1, 0]) for (const s of [-1, 1]) BOS_reaverArm(m, g, ox, oy, v, s, k, false); },
+      (g, ox, oy, v) => { BOS_reaverSeam(m, g, ox, oy, v); for (const k of [1, 0]) for (const s of [-1, 1]) BOS_reaverArm(m, g, ox, oy, v, s, k, true); });
+  } });
+
 /* =============================================================================
  * THE ARENA: what every boss gets. It slumbers kneeling until woken (walk close, or strike it), rises, roars with a
  * burst of its element, and its name comes up on a card; embers (or ash) drift through the arena while it lives;
@@ -716,6 +801,7 @@ function BOS_ambience(dt) {
 /** a chest landing at (x, y) (moved to open floor). o: { depth, big } */
 function BOS_chestDrop(x, y, o = {}) {
   const L0 = ED.L; if (!L0 || !L0.things) return null;
+  const ex = L0.exit; if (ex) { const d = Math.hypot(x - ex.x, y - ex.y); if (d < 30) { const a = d > .1 ? Math.atan2(y - ex.y, x - ex.x) : Math.PI / 2; x = ex.x + Math.cos(a) * 30; y = ex.y + Math.sin(a) * 30; } }   // (a chest is solid: never on the waystone)
   [x, y] = BOS_openNear(x, y, L0);
   return addThing(L0, { kind: 'bosschest', x, y, z: 170, vz: 0, r: o.big ? 9 : 7.5, solid: false, hittable: false, keep: true, mapColor: '#ffd36a', lid: 0, openT: 0, opened: false, landed: false, t: 0, depth: o.depth || ED.depth || 1, big: !!o.big,
     onHit() { if (!this.landed || this.opened) return; this.opened = true; this.hittable = false; BOS_chestOpen(this); },
@@ -936,9 +1022,10 @@ function BOS_throneSpot(L0) {
     if (cx < room.x + 1 || cx > room.x + room.w - 2) continue;
     let ok = !m.walkable(cx, cy - 1);   // a wall behind it, not a corridor
     for (let dy = 0; dy < 3 && ok; dy++) for (let dx = -1; dx <= 1; dx++) if (!m.walkable(cx + dx, cy + dy)) { ok = false; break; }
+    if (ok && Math.hypot((cx + .5) * 16 - ex.x, cy * 16 + 17 - ex.y) < 34) ok = false;   // never on the waystone (a solid throne there would bar the way down)
     if (ok) best = { x: (cx + .5) * 16, y: cy * 16 + 17 };
   }
-  return (L0.bosThrone = best || { x: ex.x, y: room ? room.y * 16 + 17 : ex.y - 40 });
+  return (L0.bosThrone = best || { x: ex.x + (ex.x > L0.w * 8 ? -56 : 56), y: room ? room.y * 16 + 17 : ex.y - 40 });
 }
 function BOS_throne(L0, x, y) {
   return addThing(L0, { kind: 'throne', x, y, r: 14, solid: true, keep: true, mapColor: '#ff8a3a', heat: 1, flare: 0, t: 0,
@@ -1105,12 +1192,12 @@ function BOS_kingDeath(b) {
   void f;
 }
 
-def('bosses', 'cinderking', { name: 'The Cinder King', title: 'Sovereign of Ash', arch: 'cinderking', size: 2.3, hp: 11, dmg: 1.3, el: 'fire', levelName: 'The Cinder Throne', music: 'boss', minDepth: 5,
+def('bosses', 'cinderking', { name: 'The Cinder King', title: 'Sovereign of Ash', arch: 'cinderking', size: 2.3, hp: 17, dmg: 1.4, el: 'fire', levelName: 'The Cinder Throne', music: 'boss', minDepth: 5,
   pal: BOS_KING_PAL,
-  phases: [
-    { at: 1, patterns: ['kingcombo', 'slam', 'firewave'], gap: 1.25 },
-    { at: .6, patterns: ['kingcombo', 'kingsummon', 'meteorrain', 'firewave', 'slam'], gap: 1.05 },
-    { at: .3, patterns: ['inferno', 'kingcombo', 'meteorrain', 'slam', 'firewave'], gap: .75 }],
+  phases: [   // (the first boss must take a careless hero below a quarter of his life: a longer fight, less breathing room)
+    { at: 1, patterns: ['kingcombo', 'slam', 'firewave'], gap: 1 },
+    { at: .6, patterns: ['kingcombo', 'kingsummon', 'meteorrain', 'firewave', 'slam'], gap: .85 },
+    { at: .3, patterns: ['inferno', 'kingcombo', 'meteorrain', 'slam', 'firewave'], gap: .62 }],
   sleepRig: { pose: 'kneel', attack: { spec: BOS_mv('plunge'), phase: 'active', u: 1 }, expr: null },   // kneeling, the greatsword driven into the floor before him
   /** at his spawn: the throne behind him (in his own arena he takes his place before it) */
   intro(b) {

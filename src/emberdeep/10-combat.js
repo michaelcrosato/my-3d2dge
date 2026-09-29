@@ -51,13 +51,22 @@ function hitThing(t, hit) { if (t.dead || !t.onHit) return; t.onHit(hit); BUS.em
  * foes: 0.30 s of stop before, 0.12 s after.
  * Impact stars are budgeted per step the same way: a pack struck at once shows two full stars and smaller ones
  * after, so the foes stay readable under the flash. */
-const HITSTOP = { debt: 0, t: 0, soft: .07, refill: .22, impT: -1, impN: 0 };
+const HITSTOP = { debt: 0, t: 0, soft: .07, refill: .22, impT: -1, impN: 0, hard: s => game.freeze(s) };
 {
   const freeze0 = game.freeze.bind(game), impact0 = P.impact.bind(P);
+  HITSTOP.hard = s => freeze0(s);   // a stop the budget must not shrink (the hero's death: it follows his own hurt stop)
   game.freeze = s => {
     const H = HITSTOP, now = game.real; H.debt = Math.max(0, H.debt - (now - H.t) * H.refill); H.t = now;
     const want = s * clamp(1 - H.debt / H.soft, .18, 1);
     H.debt += Math.max(0, want - Math.max(0, game.hitstop)); freeze0(want);
+  };
+  // glints (frost, loot, holy sparkles) are long-lived crosses: past a dozen in one step they thin out, and near the hero
+  // half of them are dropped, so a frozen pack or a loot shower never buries him under white crosses
+  const glints0 = P.glints.bind(P);
+  P.glints = (x, y, z, n = 5, color, spread) => {
+    const H = HITSTOP; if (game.time !== H.glT) { H.glT = game.time; H.glN = 0; }
+    const h = ED.hero; let k = H.glN > 12 ? .35 : 1; if (h && d2(x, y, h.x, h.y) < 20 * 20) k *= .5;
+    const m = k < 1 ? Math.floor(n * k + Math.random()) : n; if (m <= 0) return; H.glN += m; glints0(x, y, z, m, color, spread);
   };
   P.impact = (x, y, z, size = 6, color) => {
     const H = HITSTOP; if (game.time !== H.impT) { H.impT = game.time; H.impN = 0; }
@@ -81,8 +90,14 @@ function damageNumber(u, amt, crit, el) {
   c.t = t; const row = c.n % 6; c.n += crit ? 2 : 1;
   // the text is screen-sized but the column is stacked in world height: a top-down view flattens height (4 px per 10
   // units against iso's 15) and a close zoom stretches it, so the rows and the rise scale to stay ~10 px apart
-  const zk = clamp(1.5 / Math.max(.1, Math.abs(game.view.p(0, 0, 10)[1] - game.view.p(0, 0, 0)[1]) / 10), .6, 4), z0 = c.z + row * 7 * zk;
-  const p = P.add({ kind: 'text', x: c.x + (hero ? 0 : (Math.random() - .5) * 6), y: c.y, z: z0, vz: (crit ? 70 : 38) * zk, g: (crit ? 260 : 40) * zk, bounce: crit ? .35 : 0, floor: crit ? z0 : undefined, text: crit ? fmt(amt) + '!' : fmt(amt), color: col, max: crit ? 1.1 : .8, scale: crit ? 2 : 1 });
+  const zk = clamp(1.5 / Math.max(.1, Math.abs(game.view.p(0, 0, 10)[1] - game.view.p(0, 0, 0)[1]) / 10), .6, 4);
+  // never on his head: the hero's own numbers pop out beside his shoulder (alternating sides), and a monster's number
+  // that would rise through him (a foe in his face) is pushed out to the far side of it, so he stays readable in a brawl
+  const H = ED.hero, sd = game.view.screenDirToGround(1, 0), sl = Math.hypot(sd[0], sd[1]) || 1;
+  let nx = c.x + (hero ? 0 : (Math.random() - .5) * 6), ny = c.y, z0 = c.z + row * 7 * zk;
+  if (hero) { const side = (damageNumber.side = -(damageNumber.side || 1)) * 13; nx += sd[0] / sl * side; ny += sd[1] / sl * side; z0 = (u.z || 0) + (u.head || 20) * .6 + row * 7 * zk; }
+  else if (H && H.alive && d2(nx, ny, H.x, H.y) < 18 * 18) { const dx = nx - H.x, dy = ny - H.y, d = Math.hypot(dx, dy); const ux = d > .5 ? dx / d : sd[0] / sl, uy = d > .5 ? dy / d : sd[1] / sl; nx = H.x + ux * 18; ny = H.y + uy * 18; }
+  const p = P.add({ kind: 'text', x: nx, y: ny, z: z0, vz: (crit ? 70 : 38) * zk, g: (crit ? 260 : 40) * zk, bounce: crit ? .35 : 0, floor: crit ? z0 : undefined, text: crit ? fmt(amt) + '!' : fmt(amt), color: col, max: crit ? 1.1 : .8, scale: crit ? 2 : 1 });
   u.numQ = p && !crit ? { p, col, sum: amt, t, t0: t } : null;
 }
 /** run a hit on a unit. Returns the damage dealt (0 if it missed or was ignored) */
@@ -186,6 +201,7 @@ FX.bolt = o => {
   p.vx = Math.cos(p.ang) * p.speed; p.vy = Math.sin(p.ang) * p.speed;
   const lk = p.look, e = EL(p.el || 'phys'); lk.color = lk.color || e.color; lk.core = lk.core || e.light; lk.size = lk.size || 2;
   p.update = dt => {
+    if (p.team === 'foe') dt *= DIFF.foeSpeed;   // (monster shots follow the Monster speed slider)
     p.t += dt; if (p.t >= p.life) { end(); return false; }
     if (p.home && p.t > .08) {   // homing: the target is looked up ten times a second (a 110 search is ~200 grid cells), not every step
       if (!p.tg || !p.tg.alive || p.hitSet.has(p.tg) || (p.rt = (p.rt || 0) - dt) <= 0) { p.rt = .1; p.tg = nearestEnemy(p.team, p.x, p.y, 110, p.hitSet); }
@@ -198,6 +214,7 @@ FX.bolt = o => {
       else { elBurst(p.x, p.y, p.z, p.el, 4); end(); return false; }
     } else { p.x = nx; p.y = ny; }
     if (lk.trail !== false && Math.random() < dt * 30) trail();
+    if (p.team === 'foe' && !p.nearMiss && ED.hero && ED.hero.dodgeT > .1) { const h = ED.hero; if (d2(p.x, p.y, h.x, h.y) < (h.r + p.r + 14) ** 2 && Math.abs(p.z - (h.z || 0) - 8) < 20) { p.nearMiss = true; heroNearMiss(p.src, () => -1); } }   // a shot that flies past a roll
     // hits: the first target it overlaps (all of them when piercing)
     let done = false;
     eachEnemy(p.team, p.x, p.y, p.r, u => {
@@ -297,7 +314,9 @@ FX.area = o => {
 // shape: 'circle' { r } | 'arc' { r, ang, half } | 'line' { ang, len, w } | 'ring' { r0, r1 }
 FX.telegraph = o => {
   const f = addFx(Object.assign({ kind: 'tele', shape: 'circle', x: 0, y: 0, r: 20, dur: .7, t: 0, color: '#ff4a3a' }, o));
-  f.update = dt => { f.t += dt; if (f.follow && f.follow.alive) { f.x = f.follow.x; f.y = f.follow.y; if (f.followAng) f.ang = f.follow.facing; } if (f.t >= f.dur) { if (f.then && !f.cancelled && (!f.owner || f.owner.alive)) f.then(f); return false; } return !f.cancelled && (!f.owner || f.owner.alive); };
+  f.update = dt => {
+    f.t += dt * foeClock(f.owner || f.src);   // a monster's warning fills at its own clock (the speed slider, time wells)
+    if (f.follow && f.follow.alive) { f.x = f.follow.x; f.y = f.follow.y; if (f.followAng) f.ang = f.follow.facing; } if (f.t >= f.dur) { if (!f.cancelled && (!f.owner || f.owner.alive)) { teleNearMiss(f); if (f.then) f.then(f); } return false; } return !f.cancelled && (!f.owner || f.owner.alive); };
   f.draw = r => {
     const u = clamp(f.t / f.dur, 0, 1), c = f.color, a = .2 + .5 * u;
     r.decal(() => {
@@ -316,10 +335,24 @@ FX.telegraph = o => {
   return f;
 };
 
+/** a hostile warning goes off: how far outside its shape the hero stands (a roll just then, even away from it, is a
+ *  perfect dodge: heroNearMiss in 20-hero.js). The hero's own warnings (FX.strike / FX.meteor with team 'hero') don't count */
+function teleNearMiss(f) {
+  const h = ED.hero; if (!h || !(h.dodgeT > .1) || h.perfectT || f.team === 'hero' || (f.owner && f.owner.team === 'hero')) return;
+  heroNearMiss(f.owner || f.src, (x, y) => {
+    const dx = x - f.x, dy = y - f.y, d = Math.hypot(dx, dy);
+    if (f.shape === 'circle') return d - f.r;
+    if (f.shape === 'ring') return Math.max(f.r0 - d, d - f.r1);
+    if (f.shape === 'arc') return Math.abs(E.angDiff(f.ang, Math.atan2(dy, dx))) <= f.half + .35 ? d - f.r : 99;
+    if (f.shape === 'line') { const ca = Math.cos(f.ang), sa = Math.sin(f.ang), al = dx * ca + dy * sa, sd = Math.abs(-dx * sa + dy * ca); return al < 0 ? Math.hypot(al, Math.max(0, sd - f.w / 2)) : al > f.len ? Math.hypot(al - f.len, Math.max(0, sd - f.w / 2)) : sd - f.w / 2; }
+    return 99;
+  });
+}
+
 /* ---- strike: lightning (or any element) from the sky at a point after a short warning ---- */
 FX.strike = o => {
   const f = Object.assign({ team: 'hero', x: 0, y: 0, r: 14, delay: .45, el: 'storm' }, o);
-  const warn = FX.telegraph({ shape: 'circle', x: f.x, y: f.y, r: f.r, dur: f.delay, color: f.team === 'hero' ? EL(f.el).color : '#ff4a3a', then() {
+  const warn = FX.telegraph({ shape: 'circle', x: f.x, y: f.y, r: f.r, dur: f.delay, team: f.team, src: f.src, color: f.team === 'hero' ? EL(f.el).color : '#ff4a3a', then() {
     const b = addFx({ kind: 'strikeBolt', t: 0, update: dt => (b.t += dt) < .18, draw: r => {
       r.queue(f.x, f.y, 0, g => { const [x0, y0] = r.w(f.x, f.y, 150), [x1, y1] = r.w(f.x, f.y, 0); px.glow(g, 1); zig(g, x0, y0, x1, y1, EL(f.el).color, 3, 7, f.x | 0); zig(g, x0, y0, x1, y1, '#ffffff', 1, 7, f.x | 0); }, { emissive: true, bias: .5 });
       L.add(f.x, f.y, 20, 90, 1.4 * (1 - b.t / .18), { color: EL(f.el).glow });
@@ -340,7 +373,7 @@ FX.meteor = o => {
     L.add(x, y, z, 60, .8, { color: EL(f.el).glow });
     if (Math.random() < .5) P.add({ kind: f.el === 'fire' ? 'fire' : 'ember', x, y, z, vz: 10, max: .3, size: 3, color: EL(f.el).color });
   } });
-  FX.telegraph({ shape: 'circle', x: f.x, y: f.y, r: f.r, dur: f.delay, color: f.team === 'hero' ? EL(f.el).color : '#ff4a3a' });
+  FX.telegraph({ shape: 'circle', x: f.x, y: f.y, r: f.r, dur: f.delay, team: f.team, src: f.src, color: f.team === 'hero' ? EL(f.el).color : '#ff4a3a' });
   function land() {
     hitCircle(f.team, f.x, f.y, f.r, u => { if (f.onHit) f.onHit(u, f); return mkHit(f, { ang: Math.atan2(u.y - f.y, u.x - f.x), kb: 160, up: 90, tags: ['aoe', 'spell'] }); });
     if (f.el === 'fire') P.explosion(f.x, f.y, 4, 1.2 * f.size, { flash: false }); else { elBurst(f.x, f.y, 4, f.el, 20); sfx('explode'); }

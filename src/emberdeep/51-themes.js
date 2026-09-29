@@ -430,6 +430,8 @@ function WLD_pillars(L0, R, p, fn) {
     for (const [nx, ny] of R.shuffle(opts).slice(0, R.int(1, 2))) fn(L0, R, (cx + .5 + nx * .56) * T16, (cy + .5 + ny * .56) * T16, nx, ny);
   }
 }
+/** glow-worms on the pillars' faces that look toward the camera side (south, east, west: a north face hides them) */
+function WLD_glowPillars(L0, R, p, o = {}) { WLD_pillars(L0, R, p, (L1, R1, x, y, nx, ny) => { if (ny >= 0) WLD_deco(L1, 'glowworms', x, y, Object.assign({ nx: -nx, ny: -ny }, o)); }); }
 /** holes in the floor of big rooms (collapsed floors, rifts): a void blob with a ring of floor kept around it */
 function WLD_holes(L0, R, p, rmin = 1.4, rmax = 2.6) {
   const m = L0.map, w = L0.w; let n = 0;
@@ -452,7 +454,7 @@ function WLD_setup(L0, th) {
   // a boss arena gets a great sigil in the middle of the floor
   const ar = L0.rooms[0]; if (ar && ar.kind === 'arena' && !L0._wsig) { L0._wsig = true; L0.runes.push({ x: ar.ix * T16, y: ar.iy * T16, r: 46 }); }
   // open spaces that are not rooms (an arena's antechamber) get their light too: a pair flanking the way on
-  for (const sp of L0.rooms.extra || []) for (const fx of [.2, .8]) { const x = (sp.x + sp.w * fx) * T16, y = (sp.y + 1.2) * T16; if (m.walkable(Math.floor(x / T16), Math.floor(y / T16))) L0.torches.push({ x, y, t: Math.random() * 9, kind: th.torch || 'brazier', color: th.light || '#ff9a4a', r: 4.5, solid: true }); }
+  for (const sp of L0.rooms.extra || []) for (const fx of [.2, .8]) { const x = (sp.x + sp.w * fx) * T16, y = (sp.y + 1.2) * T16; if (m.walkable(Math.floor(x / T16), Math.floor(y / T16))) L0.torches.push({ x, y, t: Math.random() * 9, kind: th.torch || 'brazier', color: th.light || '#ff9a4a', r: 4.5, solid: true, radius: th.lightR, i: th.lightI }); }
   if (th.sky) L0.sky = th.sky.map(c => WLD_c(L0, c));
   // the backdrop shows through the void: drawn before the floor through the core's L.drawBack hook (the abyss under
   // chasms, 46-mechanics-a.js, wraps drawFloor and so still lands between the two), and only while there is a void
@@ -687,20 +689,37 @@ const WLD_DECO = {
       }, { outline: true });
       r.queue(t.x, t.y, 0, g => { const [ox, oy] = r.w(t.x, t.y, 0), s = WLD_zm(r) * sz; px.glow(g, 1); r.glowDisc(g, ox, oy - 5 * s, 6 * s, gl, (.1 + .08 * Math.sin(t.t * 2.2 + t.ph)) * gv); px.dot(g, ox, oy - 11 * s + s, gl); }, { emissive: true, bias: .01 });
     } },
-  /* glow-worm threads hanging from the dark, beads of light swaying on them (fungal, cavern) */
-  glowworms: { hangs: true, init(t) { t.th = Array.from({ length: 6 }, () => ({ dx: (Math.random() - .5) * 26, dy: (Math.random() - .5) * 26, l: 14 + Math.random() * 26, ph: Math.random() * TAU })); },
+  /* glow-worm threads hanging from the top edge of a wall or a pillar, beads of light swaying on them (fungal, cavern).
+   * They need stone to hang from: placed against a back wall (or on a pillar's face; nx, ny point at the stone), each
+   * thread is rooted in a knot of silk at the stone's lip, a hair out from its face. With nothing beside it the cluster
+   * is dropped (threads anchored in mid-air hung over open floor from the top of the screen) */
+  glowworms: { hangs: true, init(t, L0) {
+      const nx = t.nx || 0, ny = t.ny || 0, cx = Math.floor(t.x / T16), cy = Math.floor(t.y / T16), m = L0.map, top = (nx || ny) ? m.height(cx + nx, cy + ny) : 0;
+      // a wall that drops to its cut height in the standard views (floor within four cells behind it: north for the
+      // views that look from the south, west and north-west too for iso) would leave the threads hanging from nothing
+      const wx = cx + nx, wy = cy + ny, T = m.types[m.cell(wx, wy)], thin = T && T.cut && [1, 2, 3, 4].some(k => m.cell(wx, wy - k) === 0 || m.cell(wx - k, wy) === 0 || m.cell(wx - k, wy - k) === 0);
+      if (!(top > 8 && top < 200) || thin) { t.dead = t.hidden = true; return; }
+      t.wx = wx; t.wy = wy;
+      t.top = top - .5; t.tx = -ny; t.ty = nx;   // the lip's height, and the direction along the face
+      t.ax = nx ? (cx + (nx > 0 ? 1 : 0)) * T16 - nx * 1.5 : t.x; t.ay = ny ? (cy + (ny > 0 ? 1 : 0)) * T16 - ny * 1.5 : t.y;
+      t.th = Array.from({ length: 5 }, (_, i) => ({ s: (i - 2) * 4.5 + (Math.random() - .5) * 3, out: Math.random() * 2, l: 7 + Math.random() * 15, ph: Math.random() * TAU }));
+    },
     draw(t, r) {
-      const gl = WLD_c(t.lv, t.glow || '#8affe0'), dim = E.tones(gl).deep;
-      r.queue(t.x, t.y, 60, g => {
-        px.glow(g, 1);
-        for (const q of t.th) {
-          const sw = Math.sin(t.t * .9 + q.ph) * 2, [x0, y0] = r.w(t.x + q.dx, t.y + q.dy, 96), [x1, y1] = r.w(t.x + q.dx + sw, t.y + q.dy, 96 - q.l);
-          px.line(g, x0, y0, x1, y1, dim);
-          for (let k = 1; k <= 3; k++) { const u = k / 3.2, bx = lerp(x0, x1, u), by = lerp(y0, y1, u); px.dot(g, bx, by, E.tones(gl).base); }
+      const m = t.lv.map; if (t.top === undefined || (m.cutaway && m._isFront && m._isFront(t.wx, t.wy, r.view))) return;   // (its wall is cut down in this view)
+      const gl = WLD_c(t.lv, t.glow || '#8affe0'), gt = E.tones(gl), knot = WLD_tn(t.lv, '#4a5a56');
+      r.queue(t.ax, t.ay, t.top - 10, g => {
+        const zm = WLD_zm(r), kw = Math.max(1, Math.round(zm));
+        for (const q of t.th) {   // (out: a thread hangs a little clear of the face; its sway runs along the wall)
+          const bx = t.ax + t.tx * q.s - t.nx * q.out, by = t.ay + t.ty * q.s - t.ny * q.out, sw = Math.sin(t.t * .9 + q.ph) * 1.6;
+          const [x0, y0] = r.w(bx, by, t.top), [x1, y1] = r.w(bx + t.tx * sw, by + t.ty * sw, t.top - q.l);
+          px.line(g, x0, y0, x1, y1, gt.deep);
+          px.glow(g, 1);
+          for (let k = 1; k <= 3; k++) { const u = k / 3.2; px.dot(g, lerp(x0, x1, u), lerp(y0, y1, u), gt.base); }
           px.rect(g, x1 - .5, y1 - .5, 2, 2, gl); px.dot(g, x1, y1, '#ffffff');
+          px.glow(g, 0); px.rect(g, Math.round(x0) - kw, Math.round(y0) - 1, kw * 2 + 1, 2, knot.deep); px.dot(g, x0, y0 - 1, knot.lt);   // the knot it hangs from
         }
       }, { emissive: true });
-      if (r.visible(t.x, t.y, 60)) L.add(t.x, t.y, 50, 56, .35, { color: gl });
+      if (r.visible(t.ax, t.ay, t.top)) L.add(t.ax, t.ay, t.top - 12, 56, .35, { color: gl });
     } },
   /* a mine cart standing on its rails, heaped with ore; the stormglass in it glints (mine) */
   cart: { r: 7, draw(t, r) {
@@ -1153,7 +1172,7 @@ const WLD_dd = (kind, o) => (L1, R, x, y, nx, ny) => WLD_deco(L1, kind, x, y, Ob
 const WLD_rim = (L0, R, n, kind, o) => { for (const rm of L0.rooms) for (let k = R.int(n[0], n[1]); k > 0; k--) { const s = WLD_spot(L0, R, rm, { rim: 1, gap: 22, startGap: 24 }); if (s) WLD_deco(L0, kind, s[0], s[1], Object.assign({ overVoid: true, nx: s[2], ny: s[3] }, typeof o === 'function' ? o(R) : o)); } };
 
 /* RUINS (depths 3-4): a sunken temple of sun-bleached stone, overgrown, its halls broken open onto the glowing deep */
-def('themes', 'ruins', { name: 'Ruins', nouns: ['Ruins', 'Colonnades', 'Fallen Courts', 'Sundered Halls'], music: 'ruins',
+def('themes', 'ruins', { name: 'Ruins', nouns: ['Ruins', 'Colonnades', 'Fallen Courts', 'Broken Halls'], music: 'ruins',
   pal: { stone: '#8c8472', stone2: '#958b76', stone3: '#827a6a', mortar: '#3e3a32', moss: '#5f7a3a', lichen: '#8e9468', dirt: '#5a4a36', lip: '#6f8a44', cliff: '#6a6254', plank: '#7a5a3a', rune: '#3f8a7a', runeHi: '#9ff0d8', void: '#1a0e14' },
   walls: { 1: { h: 38, cut: true, cutH: 6, top: '#6f6a5a', side: '#8a8270', line: '#4a4538', face: 'mossy', roof: 'moss', accent: '#5f7a3a' },
            2: { h: 40, top: '#a8a08a', side: '#9a927e', line: '#5a5446', face: 'stone', roof: 'slab', course: 10 },
@@ -1216,12 +1235,15 @@ def('themes', 'forge', { name: 'Forge', nouns: ['Forge', 'Foundry', 'Smelteries'
 });
 
 /* FROST (depth 6): the Rime Deep. Ice-glazed stone, snow drifted against glassy ice walls, spikes of ice, icicles */
-def('themes', 'frost', { name: 'Frost', nouns: ['Rime', 'Glaciers', 'Frozen Halls', 'Ice Caves'], music: 'rime',
-  pal: { stone: '#8ea2b6', snow: '#8698b0', ice: '#557fae', frost: '#a2bad2', cliff: '#526e8c', lip: '#aec2d8', plank: '#6a7a8a', rune: '#3a9ad0', runeHi: '#dff8ff', void: '#040814' },
-  walls: { 1: { h: 38, cut: true, cutH: 6, top: '#a2b4c8', side: '#6e8cab', line: '#4a6886', face: 'ice', roof: 'snow' },
-           2: { h: 40, top: '#aebfd2', side: '#7a98b8', line: '#5a7896', face: 'ice', roof: 'snow' },
-           3: { h: 12, top: '#a8b9cc', side: '#708aa6', line: '#4a6886', face: 'stone', roof: 'snow', course: 6 } },
-  torch: 'brazier', light: '#7fd0ff', ambient: .17, lights: 1, dark: [8, 16, 38], tint: .2,
+// (kept a step darker than snow looks: every light in a fight lifts the floor to its full colour and adds its own on
+// top, and paler snow and ice swallowed white skeletons, ice crystals and the hero. pale: a deep recolor dims it too,
+// lightR / lightI: its blue braziers reach less far)
+def('themes', 'frost', { name: 'Frost', nouns: ['Rime', 'Glaciers', 'Hoarfrost Halls', 'Ice Caves'], music: 'rime', pale: .9,
+  pal: { stone: '#7a8ea4', snow: '#72859e', ice: '#4a7099', frost: '#8ba2bb', cliff: '#4a6482', lip: '#98adc4', plank: '#62707e', rune: '#3a9ad0', runeHi: '#dff8ff', void: '#040814' },
+  walls: { 1: { h: 38, cut: true, cutH: 6, top: '#8c9eb4', side: '#5f7c9a', line: '#415e7c', face: 'ice', roof: 'snow' },
+           2: { h: 40, top: '#98aabe', side: '#6a88a8', line: '#4e6c8a', face: 'ice', roof: 'snow' },
+           3: { h: 12, top: '#92a4b8', side: '#627e9a', line: '#415e7c', face: 'stone', roof: 'snow', course: 6 } },
+  torch: 'brazier', light: '#7fd0ff', lightR: 108, lightI: 1, ambient: .15, lights: 1, dark: [8, 16, 38], tint: .12,
   back: { sky: ['#03050e', '#081228', '#10223e'], stars: 30, starsY: .5, layers: [{ kind: 'fog', color: '#6a8ab8', y: .66, height: .24, parallax: .12, drift: 4 }, { kind: 'fog', color: '#a8c8e8', y: .95, height: .2, parallax: .24, drift: 6 }] },
   floor: WLD_floor(WLD_fFrost),
   decorate(L0, R) {
@@ -1257,12 +1279,13 @@ def('themes', 'fungal', { name: 'Fungal', nouns: ['Warrens', 'Mycelia', 'Spore C
     WLD_dress(L0, R, [
       { w: 4.5, edge: 1, inset: 6, f: WLD_dd('shroom', R => { const c = R.pick(caps); return { solid: true, color: c[0], glow: c[1], h: R.range(20, 34), w: R.range(10, 14) }; }) },
       { w: 2, open: 1, f: WLD_dd('pod', R => ({ color: R.pick(['#7a4a8a', '#5a6a3a']) })) },
-      { w: 1.5, f: WLD_dd('glowworms') },
+      { w: 4, edge: 1, back: 1, inset: 2, gap: 22, f: WLD_dd('glowworms') },   // (heavy: many a wall spot is too thin to hang from)
       { w: 3, gap: 8, f: WLD_pp('mushroom', R => ({ color: R.pick(caps)[0], size: R.range(.7, 1.4), flip: R.chance(.5) })) },
       { w: 2, gap: 8, f: WLD_pp('grass', R => ({ color: '#3a8a7a', size: R.range(1, 1.5) })) },
       { w: 1, edge: 1, f: WLD_pp('bush', { color: '#2e5a52' }) }
     ]);
     WLD_pillars(L0, R, .5, (L1, R1, x, y) => WLD_prop(L1, 'vines', x, y, { z: 38, anchor: 'top', color: '#3a7a6a', size: R1.range(.9, 1.2) }));
+    WLD_glowPillars(L0, R, .25);
   },
   ambience(L0, dt) {
     WLD_mood(this);
@@ -1381,7 +1404,7 @@ def('themes', 'ossuary', { name: 'Ossuary', nouns: ['Ossuary', 'Charnel Halls', 
 });
 
 /* SKY (depth 13): the Leaping Spires. Marble gardens floating in a golden sky, gold inlay, pennants in the wind */
-def('themes', 'sky', { name: 'Sky', nouns: ['Spires', 'Sky Gardens', 'Aeries', 'Cloud Courts'], music: 'ruins',
+def('themes', 'sky', { name: 'Sky', nouns: ['Spires', 'Sky Gardens', 'Aeries', 'Cloud Courts'], music: 'ruins', pale: .9,
   pal: { marble: '#b9b1a5', marble2: '#b0a89b', joint: '#857c70', gold: '#c89c38', vein: '#a0988c', cliff: '#9a8e84', lip: '#6aa04e', plank: '#b8a88a', rune: '#4a90d0', runeHi: '#dff4ff', void: '#f0d8b8' },
   // the rock mass (only walled layouts have it, in composed depths): an overgrown garden top, darker than the marble
   // floors, so it never reads as raised floor
@@ -1456,11 +1479,12 @@ def('themes', 'cavern', { name: 'Cavern', nouns: ['Caverns', 'Hollows', 'Grottoe
       { w: 3, edge: 1, f: WLD_dd('spikes', R => ({ solid: true, color: '#6a6058', h: R.range(16, 32), blunt: true })) },
       { w: 1.4, open: 1, f: WLD_dd('spikes', R => ({ color: '#6a6058', h: R.range(8, 13), n: 2, blunt: true })) },
       { w: 1.6, edge: 1, f: WLD_dd('spikes', R => ({ solid: true, color: '#e8a04a', h: R.range(12, 20), glow: true })) },
-      { w: 1.4, f: WLD_dd('glowworms', { glow: '#a8ffe8' }) },
+      { w: 3, edge: 1, back: 1, inset: 2, gap: 22, f: WLD_dd('glowworms', { glow: '#a8ffe8' }) },
       { w: .6, edge: 1, back: 1, inset: 3, gap: 30, startGap: 64, f: WLD_dd('waterfall', { color: '#3a7aa0' }) },
       { w: 2, f: WLD_pp('rock', R => ({ color: '#7a7068', size: R.range(.8, 1.5) })) },
       { w: 1.2, f: WLD_pp('bones', { color: '#c8bca8' }) }, { w: 1.2, gap: 8, f: WLD_pp('mushroom', R => ({ color: '#a07a5a', size: R.range(.6, 1) })) }
     ]);
+    WLD_glowPillars(L0, R, .25, { glow: '#a8ffe8' });
   },
   ambience(L0, dt) {
     WLD_mood(this);

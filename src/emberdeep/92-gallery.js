@@ -47,8 +47,19 @@ const GAL_POSES = [
 function galItems() {
   if (GAL.reel === 0) return Object.keys(REG.skills);
   if (GAL.reel === 1) return Object.keys(REG.archetypes).filter(id => { const A0 = REG.archetypes[id]; return id !== 'dummy' && !A0.bossBody && !(A0.tags || []).includes('boss'); });   // bosses have their own reel
-  if (GAL.reel === 2) return Object.keys(REG.bosses);
+  if (GAL.reel === 2) return galBosses();
   return GAL_POSES.map((p, i) => i);
+}
+/** the BOSSES reel: the planned bosses, then one seeded composed boss on each body built for the endless descent (the Bone
+ *  King, the Armored Colossus, the Flesh Titan...) as the deep depths compose them: that body, an element, patterns, a name */
+function galBosses() {
+  const named = Object.keys(REG.bosses).filter(id => !REG.bosses[id].composed);
+  return named.concat(Object.keys(REG.archetypes).filter(id => REG.archetypes[id].bossBody && !bossPlanned(id)).map(id => 'gal:' + id));
+}
+/** a reel entry's boss id: a showcase body is composed once, from a seed of its own (so it is the same boss every time) */
+function galBossId(key) {
+  if (!String(key).startsWith('gal:')) return key;
+  const body = key.slice(4); return composeBoss(45, RNG('emberdeep:gallery:' + body), { body, id: 'gallery:' + body });
 }
 function galStage() {
   const w = 26, hh = 20, cells = new Array(w * hh).fill(0);
@@ -77,7 +88,7 @@ function galReset() {
   ED.foes.length = 0; ED.corpses.length = 0; ED.fx.length = 0; ED.allies.length = 0; ED.drops.length = 0; P.list.length = 0; ED.boss = null;
   endAction(h); h.vx = h.vy = 0; h.z = 0; h.facing = h.aim = 0; h.hp = h.maxHp; h.st = {}; h.inv = 0; h.dead = false; h.alive = true; h.ember = h.maxEmber; h.cds = {}; h.buffs = []; computeStats(h);
   h.bot = { manual: true, input: makeBotInput() };   // the gallery drives him through the autopilot's virtual input (the mouse must not steer the show)
-  GAL.t = 0; GAL.fired = 0; GAL.next = .8; GAL.hold = 0; GAL.mon = null;
+  GAL.t = 0; GAL.fired = 0; GAL.next = .8; GAL.hold = 0; GAL.mon = null; GAL.rune = null;
   const items = galItems(); GAL.i = (GAL.i + items.length) % Math.max(1, items.length); GAL.cur = items[GAL.i];
   if (GAL.reel === 0) {   // a cluster of dummies to strike
     const kx = cx + GAL_K; GAL.markX = kx - galMark(GAL.cur); h.x = GAL.markX; h.y = cy;
@@ -88,7 +99,8 @@ function galReset() {
     const m = spawnMonster(GAL.cur, cx + 40, cy, { instant: true, level: 3 }); if (m) { m.noLoot = true; m.ai.aware = true; m.facing = Math.PI; GAL.mon = m; }
   } else if (GAL.reel === 2) {   // a boss, awake
     h.x = cx - 44; h.y = cy;
-    const m = spawnBoss(GAL.cur, cx + 30, cy, { level: 3 }); if (m) { m.noLoot = true; m.facing = Math.PI; GAL.mon = m; ED.boss = m; if (typeof wakeBoss === 'function') wakeBoss(m); }
+    GAL.boss = galBossId(GAL.cur);
+    const m = spawnBoss(GAL.boss, cx + 30, cy, { level: 3 }); if (m) { m.noLoot = true; m.facing = Math.PI; GAL.mon = m; ED.boss = m; if (typeof wakeBoss === 'function') wakeBoss(m); }
   } else { h.x = cx; h.y = cy; }   // poses: centre stage
   if (GAL.reel !== 2) playSong('title');
   game.setZoom(GAL.reel === 3 ? 2.5 : GAL.reel === 2 ? 1.25 : 1.75);
@@ -106,6 +118,8 @@ function galSkill(h, dt) {
   if (S.again && h.act && h.act.skill === id && h.act.free) useSlot(h, 5);                             // whole combos
   if (!h.act && GAL.fired < 4 && GAL.t >= GAL.next && d <= 3) {
     h.cds = {}; h.ember = h.maxEmber; h.aim = h.facing = Math.atan2(cy - h.y, kx - h.x); h.tx = kx; h.ty = cy;
+    // the takes run through the skill's runes: plain, the first rune, the second, plain again (runes change the animation too)
+    const rn = S.runes && S.runes[[-1, 0, 1, -1][GAL.fired]]; if (h.skills[id]) h.skills[id].rune = rn ? rn.id : null; GAL.rune = rn || null;
     if (useSlot(h, 5)) { GAL.fired++; if (h.act && h.act.hold) GAL.hold = 1.8; }
   }
   if (h.act) GAL.next = GAL.t + 1.1;   // the next take starts a beat after this one ends
@@ -136,8 +150,10 @@ const galleryScene = {
       const m = GAL.mon;
       if (m && m.alive && GAL.t > 7) { m.st = {}; dealDamage(m, { src: h, amount: m.hp + 1, el: 'phys', kb: 90, ang: angTo(h, m), noNumber: false }); }
       if (GAL.t > 10) galReset();
-    } else if (GAL.reel === 2) {
-      if (GAL.t > 16) galReset();
+    } else if (GAL.reel === 2) {   // the show runs every phase: the boss is worn down to its second and third
+      const m = GAL.mon, B = m && m.bossDef, ph = (B && B.phases) || [];
+      for (let i = 1; i < ph.length; i++) if (m.alive && GAL.t > 1 + i * 7 && m.phase < i && m.hp > m.maxHp * (ph[i].at - .02)) m.hp = m.maxHp * (ph[i].at - .02);
+      if (GAL.t > 8 + ph.length * 7) galReset();
     }
     if (GAL.reel === 3) {   // poses: the rig alone
       const p = GAL_POSES[GAL.cur] || GAL_POSES[0], st = Object.assign({ x: h.x, y: h.y, z: 0, vx: 0, vy: 0, facing: Math.PI / 2 + Math.sin(GAL.t * .5) * .8 }, p[1]);
@@ -173,9 +189,9 @@ const galleryScene = {
       E.font.title(g, 'GALLERY', cx, 4, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
       GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - (GAL.reels.length - 1) / 2) * 60, 22, i === GAL.reel ? GOLD : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }));
       let title = '', sub = '';
-      if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { title = S.name; sub = typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
+      if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
-      else if (GAL.reel === 2) { const B = REG.bosses[GAL.cur]; if (B) { title = B.name; sub = (B.title ? B.title + '  ·  ' : '') + (B.depth ? 'depth ' + B.depth + '  ·  ' : '') + 'patterns: ' + ((GAL.mon && GAL.mon.patterns) || (B.phases || []).flatMap(p => p.patterns || []).filter((v, i, a) => a.indexOf(v) === i)).join(', '); } }
+      else if (GAL.reel === 2) { const B = REG.bosses[GAL.boss]; if (B) { const A0 = REG.archetypes[B.arch]; title = B.name + (B.composed && B.title ? ', ' + B.title : ''); sub = (B.composed ? (A0 ? A0.name : 'a body') + ', composed in ' + EL(B.el).name.toLowerCase() + ' for the endless descent  ·  ' : B.title ? B.title + '  ·  ' : '') + (B.depth ? 'depth ' + B.depth + '  ·  ' : '') + 'patterns: ' + ((GAL.mon && GAL.mon.patterns) || (B.phases || []).flatMap(p => p.patterns || []).filter((v, i, a) => a.indexOf(v) === i)).join(', '); } }
       else { const p = GAL_POSES[GAL.cur] || GAL_POSES[0]; title = p[0]; sub = p[2]; }
       E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
       E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
