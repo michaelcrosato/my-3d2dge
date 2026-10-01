@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emberdeep · Visual Workshop</title>
+<!-- WORKSHOP_STYLE -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark" aria-hidden="true">VW</span><div><h1>Visual Workshop</h1><p>EMBERDEEP <span class="divider">/</span> LOOK &amp; MOTION</p></div></div>
+  <div class="header-actions"><span id="connection" class="badge">No game loaded</span><button id="openGame">Open game file</button><button id="importReview">Open review</button><button id="exportReview" class="primary" disabled>Export review</button></div>
+</header>
+<div id="status" class="status" role="status" aria-live="polite">Load the game to start. Your saved games stay separate.</div>
+<main class="workspace">
+  <aside class="panel library" aria-label="Select a subject">
+    <div class="section-heading"><h2>Subject</h2><span class="micro">01</span></div>
+    <label for="character">Character</label><select id="character" disabled><option value="codex">Codex · The Unwritten</option><option value="wanderer">Wanderer</option></select>
+    <div class="tabs" role="group" aria-label="Preview mode"><button class="active" id="rigMode" aria-pressed="true" disabled>Character</button><button id="galleryMode" aria-pressed="false" disabled>Game gallery</button></div>
+    <label for="search">Find an action</label><input id="search" type="search" placeholder="Search poses or skills…" disabled>
+    <label id="reelLabel" for="reel" hidden>Gallery group</label><select id="reel" hidden disabled><option value="0">Skills</option><option value="1">Monsters</option><option value="2">Bosses</option><option value="3">Poses</option></select>
+    <div id="actions" class="action-list" role="group" aria-label="Actions"><p class="muted">Actions appear when the game loads.</p></div>
+    <div class="library-footer"><span class="small-label">SOURCE</span><p id="sourceLabel">No source</p><p class="muted">Real game code. No substitute artwork.</p><details><summary>Source locations</summary><pre id="sourcePaths"></pre></details></div>
+  </aside>
+
+  <section class="main-stage" aria-label="Preview and comparison">
+    <div class="stage-toolbar"><div><span class="small-label">LIVE PREVIEW</span><h2 id="subjectTitle">Select a game file</h2></div><div class="stage-tools"><label class="inline"><input id="compare" type="checkbox" disabled> Compare A / B</label><button id="saveA" disabled>Keep as A</button><button id="restoreA" disabled>Restore A</button></div></div>
+    <div id="stages" class="stages">
+      <figure id="baselineStage" class="preview baseline" hidden><figcaption><b>A</b> Saved settings <span id="baselineLabel"></span></figcaption><canvas id="canvasA" width="800" height="500" aria-label="Baseline preview"></canvas></figure>
+      <figure class="preview current"><figcaption><b id="currentLabel">B</b> Current settings <span id="frameLabel">FRAME 0000</span></figcaption><div id="canvasWrap"><canvas id="canvasB" width="800" height="500" aria-label="Current preview. Pause, then click to place a note."></canvas><canvas id="marks" width="800" height="500" aria-label="Click to place a note on a paused frame" tabindex="0"></canvas><div id="emptyState"><div class="empty-icon" aria-hidden="true">+</div><h3>Work on the actual game</h3><p>Open <code>examples/emberdeep.html</code>, or use the bundled Workshop build.</p><button id="openGameEmpty" class="primary">Open Emberdeep</button><p class="muted">The file stays in your browser. Load only a game file you trust.</p></div></div></figure>
+    </div>
+    <div class="transport" aria-label="Playback controls"><div class="transport-buttons"><button id="restart" title="Return to frame zero" disabled>Reset</button><button id="back" title="Previous frame" disabled>−1</button><button id="play" class="primary" title="Play or pause (Space)" disabled>Play</button><button id="step" title="Next frame (right arrow)" disabled>+1</button></div><label class="inline" for="speed">Preview speed <select id="speed"><option value="0.1">0.1×</option><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><label class="inline"><input id="loop" type="checkbox" checked> Loop</label><span id="timeLabel" class="mono">0.000 s / 4.000 s</span></div>
+    <div class="timeline"><label for="timeline" class="sr-only">Frame</label><input id="timeline" type="range" min="0" max="240" step="1" value="0" disabled><div class="timeline-labels"><span>0 s</span><span id="midTime">2 s</span><span id="endTime">4 s</span></div></div>
+    <div class="capture-bar"><div><h3>Frame strip</h3><p class="muted">Each card keeps its own settings, frame, and notes.</p></div><div class="row"><button id="capture" disabled>Capture frame</button><button id="captureStrip" disabled>Capture 8 frames</button><button id="savePNG" disabled>Save PNG</button></div></div>
+    <div id="frameStrip" class="frame-strip"><p class="muted">Capture a frame to start a review.</p></div>
+  </section>
+
+  <aside class="panel inspector" aria-label="Settings and notes">
+    <div class="section-heading"><h2>Adjust</h2><button id="resetLook" class="text-button" disabled>Defaults</button></div>
+    <p class="muted compact">Preview settings only. Export a review to request a source change.</p>
+    <fieldset id="settings" disabled>
+      <details open><summary>Camera &amp; stage</summary>
+        <label for="view">View</label><select id="view"><option value="iso">Isometric</option><option value="threequarter">Three-quarter</option><option value="topdown">Top-down</option><option value="brawler">Side / brawler</option></select>
+        <label for="yaw">Turn <output for="yaw" id="yawOut">0°</output></label><input id="yaw" type="range" min="-180" max="180" step="15" value="0">
+        <label for="zoom">Preview zoom <output for="zoom" id="zoomOut">3×</output></label><input id="zoom" type="range" min="1" max="6" step="0.25" value="3">
+        <label for="background">Background</label><select id="background"><option value="dark">Dark studio</option><option value="light">Light studio</option><option value="checker">Checkerboard</option></select>
+        <label class="inline"><input id="native" type="checkbox" checked> Show 1× rig reference</label>
+      </details>
+      <details open><summary>Appearance</summary>
+        <label for="size">Body size <output for="size" id="sizeOut">1×</output></label><input id="size" type="range" min="0.6" max="1.6" step="0.05" value="1">
+        <div id="colors" class="colors"></div>
+        <div id="chargeGroup"><label for="charge">Codex manuscript pages</label><select id="charge"><option value="0">0 · Uncharged</option><option value="1">1 page</option><option value="2">2 pages</option><option value="3">3 · Illuminated</option></select></div>
+      </details>
+      <details open id="motionGroup"><summary>Motion</summary>
+        <label for="motion">Rig motion rate <output for="motion" id="motionOut">1×</output></label><input id="motion" type="range" min="0.25" max="2" step="0.05" value="1">
+        <div id="codexMotion"><label for="hover">Hover amount <output for="hover" id="hoverOut">0.7</output></label><input id="hover" type="range" min="0" max="2" step="0.1" value="0.7"><label for="hoverRate">Hover rate <output for="hoverRate" id="hoverRateOut">2.8</output></label><input id="hoverRate" type="range" min="0.5" max="6" step="0.1" value="2.8"></div>
+        <p class="muted compact">Rig motion rate changes the pose preview. Preview speed changes only playback. Neither changes combat timing.</p>
+      </details>
+      <details><summary>Repeatable capture</summary><label for="seed">Random seed</label><input id="seed" type="number" min="1" max="2147483647" step="1" value="104729"><label for="duration">Loop length (seconds)</label><select id="duration"><option value="2">2</option><option value="4" selected>4</option><option value="8">8</option><option value="12">12</option></select><p class="muted compact">60 fixed steps per second. Backward seeking rebuilds the scene. GPU lighting and sound are off.</p></details>
+    </fieldset>
+    <section class="notes-panel"><div class="section-heading"><h2>Review notes</h2><span class="micro">02</span></div><p class="muted compact">Pause and click the preview to mark a point. A note also works without a marker.</p><label for="note">What should change?</label><textarea id="note" rows="3" maxlength="2000" placeholder="Example: Reduce the hover. Keep the book shape." disabled></textarea><div class="row"><button id="addNote" disabled>Add note to frame</button><button id="clearPin" disabled>Clear pin</button></div><div id="noteList"></div></section>
+  </aside>
+</main>
+<footer class="footer"><span>Space: play / pause <span class="divider">·</span> ← / →: step <span class="divider">·</span> C: capture</span><span id="buildLabel">LOCAL WORKSPACE · NO ACCOUNT REQUIRED</span></footer>
+<input id="gameFile" type="file" accept=".html,text/html" hidden><input id="reviewFile" type="file" accept=".json,application/json" hidden>
+<dialog id="busyDialog"><h2 id="busyTitle">Preparing frames</h2><p id="busyText">The game is rebuilding the selected scene.</p><progress id="busyProgress" max="1" value="0"></progress></dialog>
+<!-- WORKSHOP_DATA -->
+<script id="game-source" type="application/json">null</script>
+<script id="build-info" type="application/json">{}</script>
+<!-- WORKSHOP_SCRIPTS -->
+<script src="bridge.js"></script><script src="app.js"></script>
+</body></html>
