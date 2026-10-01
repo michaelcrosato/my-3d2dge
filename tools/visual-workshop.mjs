@@ -44,9 +44,11 @@ try {
   } catch { /* A downloaded repository ZIP has no Git metadata. The source hash is sufficient. */ }
   const info = { workshopVersion: '1.0.0', gameSha256, commit, dirty, sourceName: gamePath === join(root, 'examples/emberdeep.html') ? 'examples/emberdeep.html' : gamePath.split(/[\\/]/).pop() };
   let html = readFileSync(join(folder, 'index.html'), 'utf8');
-  html = html.replace('<!-- WORKSHOP_STYLE -->\n<link rel="stylesheet" href="style.css">', '<style>\n' + readFileSync(join(folder, 'style.css'), 'utf8') + '\n</style>');
-  html = html.replace('<!-- WORKSHOP_DATA -->\n<script id="game-source" type="application/json">null</script>\n<script id="build-info" type="application/json">{}</script>', '<script id="game-source" type="application/json">' + safeJSON(game) + '</script>\n<script id="build-info" type="application/json">' + safeJSON(info) + '</script>');
-  html = html.replace('<!-- WORKSHOP_SCRIPTS -->\n<script src="bridge.js"></script><script src="app.js"></script>', ['bridge.js', 'app.js'].map(file => '<script>\n' + safeScript(readFileSync(join(folder, file), 'utf8')) + '\n</script>').join('\n'));
+  html = html.replace('<!-- WORKSHOP_STYLE -->\n<link rel="stylesheet" href="style.css">', () => '<style>\n' + readFileSync(join(folder, 'style.css'), 'utf8') + '\n</style>');
+  html = html.replace('<!-- WORKSHOP_DATA -->\n<script id="game-source" type="application/json">null</script>\n<script id="build-info" type="application/json">{}</script>', () => '<script id="game-source" type="application/json">' + safeJSON(game) + '</script>\n<script id="build-info" type="application/json">' + safeJSON(info) + '</script>');
+  html = html.replace('<!-- WORKSHOP_SCRIPTS -->\n<script src="bridge.js"></script><script src="app.js"></script>', () => ['bridge.js', 'app.js'].map(file => '<script>\n' + safeScript(readFileSync(join(folder, file), 'utf8')) + '\n</script>').join('\n'));
+  const embedded = html.match(/<script id="game-source" type="application\/json">([\s\S]*?)<\/script>/);
+  if (!embedded || JSON.parse(embedded[1]) !== game) throw new Error('The embedded game does not match the original source.');
   if (/<!-- WORKSHOP_/.test(html)) throw new Error('A Workshop template marker was not replaced.');
   const output = join(root, 'examples/visual-workshop.html'); mkdirSync(dirname(output), { recursive: true }); writeFileSync(output, html);
   console.log('Built examples/visual-workshop.html (' + (Buffer.byteLength(html) / 1024 / 1024).toFixed(2) + ' MB).');
