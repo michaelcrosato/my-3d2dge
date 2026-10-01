@@ -1,0 +1,41 @@
+name: Emberdeep showcase checks
+on:
+  push:
+    branches: [feature/emberdeep-showcase-foundry]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: showcase-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  showcase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install build and browser tools
+        run: npm install --ignore-scripts && npx playwright install --with-deps chromium
+      - name: Build and run existing regression tests
+        run: npm test
+      - name: Foundry tests when present
+        run: |
+          if test -f tools/ed-foundry-test.mjs; then node tools/ed-foundry-test.mjs; fi
+      - name: Package inspectable source and game
+        if: always()
+        run: |
+          mkdir -p showcase-artifact
+          cp -r engine src tools examples docs showcase-artifact/
+          cp package.json README.md API.md AI_GUIDE.md LICENSE showcase-artifact/
+          if test -d artifacts; then cp -r artifacts showcase-artifact/; fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: emberdeep-showcase
+          path: showcase-artifact/
+          retention-days: 7
+          if-no-files-found: error
