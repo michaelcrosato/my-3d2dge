@@ -34,7 +34,7 @@ try {
   try { game = readFileSync(gamePath, 'utf8'); }
   catch { throw new Error('Cannot read ' + gamePath + '. Run npm run build first, or use --game with a standalone Emberdeep file.'); }
   if (!game.includes('window.__ed') || !game.includes('class CodexRig')) throw new Error('The input is not a supported Emberdeep build.');
-  const safeJSON = value => JSON.stringify(value).replace(/</g, '\u003c');
+  const safeJSON = value => JSON.stringify(value).replace(/</g, String.fromCharCode(92) + 'u003c');
   const safeScript = text => text.replace(/<\/script/gi, '<\\/script');
   const gameSha256 = createHash('sha256').update(game).digest('hex');
   let commit = null, dirty = null;
