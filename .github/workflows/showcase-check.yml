@@ -22,20 +22,52 @@ jobs:
         run: npm install --ignore-scripts && npx playwright install --with-deps chromium
       - name: Build and run existing regression tests
         run: npm test
-      - name: Foundry tests when present
-        run: |
-          if test -f tools/ed-foundry-test.mjs; then node tools/ed-foundry-test.mjs; fi
+      - name: Verify procedural grammar and native Foundry integration
+        run: node tools/ed-foundry-test.mjs
       - name: Package inspectable source and game
         if: always()
         run: |
           mkdir -p showcase-artifact
-          cp -r engine src tools examples docs showcase-artifact/
-          cp package.json README.md API.md AI_GUIDE.md LICENSE showcase-artifact/
+          cp -r engine src tools examples docs dist showcase-artifact/
+          cp package.json README.md API.md AI_GUIDE.md LICENSE vercel.json showcase-artifact/
+          cp -r .github showcase-artifact/
+          cp .vercelignore showcase-artifact/
+          if test -f package-lock.json; then cp package-lock.json showcase-artifact/; fi
           if test -d artifacts; then cp -r artifacts showcase-artifact/; fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: emberdeep-showcase
           path: showcase-artifact/
+          include-hidden-files: true
           retention-days: 7
           if-no-files-found: error
+  publish:
+    needs: showcase
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/emberdeep-showcase-foundry'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Rebuild the self-contained game from tested source
+        run: node tools/build.mjs
+      - name: Commit generated game only to the tested feature branch
+        run: |
+          git fetch origin feature/emberdeep-showcase-foundry
+          if test "$(git rev-parse FETCH_HEAD)" != "$GITHUB_SHA"; then
+            echo 'The feature branch advanced; leave newer work untouched.'
+            exit 0
+          fi
+          git add examples/emberdeep.html
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build: publish verified Emberdeep Foundry standalone'
+          git push origin HEAD:refs/heads/feature/emberdeep-showcase-foundry
