@@ -7,6 +7,8 @@
 //   dist/kits/my-3d2dge-<genre>.html  minified engine + API card + ONE slice: the smallest file to
 //                                hand a model that is making a game in that genre
 //   dist/my-3d2dge.js / .min.js  the engine alone, for multi-file projects
+//   dist/my-3d2dge-agent.js      the agent edition: the essential engine plus its manual in one readable file,
+//                                for AI coding agents (source: engine/my-3d2dge-agent.js; test: node tools/agent-test.mjs)
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,5 +77,7 @@ for (const b of builds) {
 }
 writeFileSync(join(root, 'dist/my-3d2dge.js'), readFileSync(join(root, ENGINE), 'utf8'));
 console.log('built dist/my-3d2dge.js');
+writeFileSync(join(root, 'dist/my-3d2dge-agent.js'), readFileSync(join(root, 'engine/my-3d2dge-agent.js'), 'utf8'));
+console.log('built dist/my-3d2dge-agent.js');
 const min = await engineMin();
 if (min) { writeFileSync(join(root, 'dist/my-3d2dge.min.js'), min); console.log('built dist/my-3d2dge.min.js'); }
