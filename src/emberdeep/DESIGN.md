@@ -222,8 +222,8 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
 1. `node tools/ed-build.mjs --out <scratch>/mine.html --mine <your files, comma separated>` builds the core plus your files only. Other agents are editing their own files at the same time, so don't use `--all` until the end.
 2. `node tools/ed-play.mjs <scratch>/mine.html --hash depth-N --god --out <scratch>/shots --steps "wait:3000 | eval:<js> | aimfoe | click | ... | shot:name | log:<js>"`.
    - `window.__ed` gives you ED, REG, spawnMonster, spawnPack, spawnBoss, makeItem, equip, UI, FX, dealDamage, heroHit and more.
-   - Deep links: `#depth-7`, `#town`, `#proving`.
+   - Deep links: `#depth-7`, `#town`, `#proving`, and one gallery entry: `#gallery/bestiary/<monster id>`, `#gallery/skills/<skill id>`, `#gallery/bosses/<boss id>`, `#gallery/poses/<pose name>` (add `?view=topdown` or `?character=codex` before the `#`). A wrong name warns with the list of right ones.
    - Steps separated by ` | ` may contain spaces.
 3. Look at your screenshots (Read the PNGs) and judge them against the quality bar. Check several views (`eval:__ed.game.setView('threequarter')`).
-4. `node tools/filmstrip.mjs <page>#depth-N --steps "..." --crop x,y,w,h` records animations frame by frame. Use it for every new animation.
+4. `node tools/filmstrip.mjs <page>#depth-N --steps "..." --crop x,y,w,h` records animations frame by frame. Use it for every new animation. A monster, skill, boss or pose films best from its gallery entry (`<page>#gallery/bestiary/<id> --steps "wait:200 rec:16:36"`). Add `--seed 1` to make the strip repeatable, and `--compare <page built before your change>` to mark exactly what changed.
 5. It must run with zero errors in the console and in `game.errors`.
