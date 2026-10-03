@@ -6,6 +6,9 @@
  *   BOSSES   the bosses wake on the stage and run their patterns (the hero cannot be hurt here)
  * Left / Right pick, Up / Down change the reel, Enter replays, Z toggles slow motion, V view, [ ] turn, Esc leaves.
  * The gallery plays with a COPY of the saved hero (skills are ranked up for the show), so nothing here reaches the save.
+ * A deep link opens one entry, so a tool can film it: #gallery/bestiary/husk, #gallery/skills/<skill id>,
+ * #gallery/bosses/<boss id>, #gallery/poses/hands-on-hips (add ?view=topdown, ?character=codex for Codex's skills).
+ * In code: game.go('gallery', { reel: 'bestiary', item: 'husk' }). A wrong name warns with the list of right ones.
  * ============================================================================= */
 /* ---- a straw training dummy: a post, a stuffed body and a sack head on a damped spring, so every hit shows ---- */
 def('archetypes', 'dummy', { name: 'Training Dummy', tags: ['object'], minDepth: 999, weight: 0, noPack: true, hp: 1e9, dmg: 0, speed: 0, r: 5, xp: 0, head: 26, mass: 3, stagger: false,
@@ -49,6 +52,16 @@ function galItems() {
   if (GAL.reel === 1) return Object.keys(REG.archetypes).filter(id => { const A0 = REG.archetypes[id]; return id !== 'dummy' && !A0.bossBody && !(A0.tags || []).includes('boss'); });   // bosses have their own reel
   if (GAL.reel === 2) return galBosses();
   return GAL_POSES.map((p, i) => i);
+}
+/** point the gallery at a reel by name and an entry by id (a pose by its name, spaces as dashes); unknown names warn and are ignored */
+function galOpen(reel, item) {
+  const r = GAL.reels.findIndex(n => n.toLowerCase() === String(reel).toLowerCase());
+  if (r < 0) { console.warn('gallery: no reel "' + reel + '". Reels: ' + GAL.reels.join(', ').toLowerCase()); return; }
+  GAL.reel = r; GAL.i = 0;
+  if (!item) return;
+  const items = galItems(), name = id => r === 3 ? GAL_POSES[id][0].toLowerCase().replace(/ /g, '-') : String(id).toLowerCase(), i = items.findIndex(id => name(id) === String(item).toLowerCase());
+  if (i >= 0) GAL.i = i;
+  else console.warn('gallery: no ' + GAL.reels[r].toLowerCase() + ' entry "' + item + '"' + (r === 0 ? ' for this character' : '') + '. Entries: ' + items.map(name).join(', '));
 }
 /** the BOSSES reel: the planned bosses, then one seeded composed boss on each body built for the endless descent (the Bone
  *  King, the Armored Colossus, the Flesh Titan...) as the deep depths compose them: that body, an element, patterns, a name */
@@ -125,11 +138,12 @@ function galSkill(h, dt) {
   if (h.act) GAL.next = GAL.t + 1.1;   // the next take starts a beat after this one ends
 }
 const galleryScene = {
-  enter() {
+  enter(data) {
     ED.mode = 'gallery'; UI.closeAll(); BUS.clear('level');
     GAL.real = ED.hero; ED.hero = loadHeroOrNew();   // a copy from the save: the show ranks skills up, and none of that may be saved
     const L0 = galStage(); enterWorld(L0); ED.depth = 3; L.ambient = .16;
-    GAL.i = 0; galReset(); game.cam.snap = true;
+    GAL.i = 0; if (data && data.reel) galOpen(data.reel, data.item);   // a deep link: one reel and entry
+    galReset(); game.cam.snap = true;
   },
   exit() { slowMoReset(1); ED.foes.length = 0; ED.boss = null; ED.hero = GAL.real || null; GAL.real = null; },
   update(dt) {

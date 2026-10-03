@@ -67,7 +67,7 @@ Broken animation ruins a good-looking game faster than flat art. The Humanoid ri
 - **A move set per character.** A knight gets `overhead`, `thrust` and `spin`; a mage `cast`; a rogue `jab`, `thrust` and `backslash`; a monk `jab`, `cross`, `roundhouse` and `flyingkick`; a brute `haymaker`, `bash` and `sweep`; a beast `claw`. Two heroes must never share one swing.
 - **Stances and poses between attacks.** Brawlers walk with `stance: 'guard'`, knights with `stance: 'ready'`. Win with `pose: 'cheer'`, cast with `'cast'`, block with `'block'` (weapons) or `'guard'` (fists), duck with `'crouch'`, taunt with `'hips'` or `'wave'`, fall with `down`, die with `'die'` (stagger, knees, topple), and climb ladders with `climb: true`. Faces act too: `expr: 'smile' | 'shout' | 'angry' | 'wince'`, and a Dialog portrait's mouth moves while its line types.
 - **Enemies telegraph.** Give enemy attacks a longer `wind` (.2-.35 s) than the hero's, so players can read and dodge them. Flash and knock back on hit, lie `down` on death.
-- **Check the motion.** `node tools/filmstrip.mjs game.html#scene --steps "... rec:16:2 press:KeyJ" --crop x,y,w,h` records the swing frame by frame. Look for the wind-up, the strike and a clean settle.
+- **Check the motion.** `node tools/filmstrip.mjs game.html#scene --steps "... rec:16:2 press:KeyJ" --crop x,y,w,h` records the swing frame by frame. Look for the wind-up, the strike and a clean settle. Add `--seed 1` for a repeatable strip, and `--compare before.html` (a copy of the page from before your change) to see exactly which pixels your change moved.
 
 ## Hard rules
 
