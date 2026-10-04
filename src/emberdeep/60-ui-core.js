@@ -528,7 +528,7 @@ const DIFF_ROWS = [['heroDmg', 'Hero damage', 'Every hit you deal.', 1], ['heroH
   ['density', 'Monster density', 'Packs per room. Takes hold from the next depth.', -1], ['xp', 'Experience gain', 'Experience from every kill.', 1], ['loot', 'Loot drops', 'How often monsters drop items and gold.', 1]];
 /** set one difficulty value and make it felt at once: stats recompute, living monsters take the new life and speed */
 function setDiff(k, v) {
-  const was = DIFF[k] || 1; v = +clamp(v, .25, 4).toFixed(3); if (v === was) return; DIFF[k] = v; saveOpts();
+  const was = DIFF[k] || 1; v = +clamp(v, .25, 4).toFixed(2); if (v === was) return; DIFF[k] = v; saveOpts();
   const q = v / was;
   if (k === 'foeHp') for (const m of ED.foes) if (m.alive && m.maxHp) { m.maxHp *= q; m.hp *= q; }
   if (ED.hero) computeStats(ED.hero);
@@ -543,6 +543,26 @@ function settingsToggles() {
     ['Particles ' + ['low', 'mid', 'high'][OPT.fx === undefined ? 2 : OPT.fx], null, () => { OPT.fx = ((OPT.fx === undefined ? 2 : OPT.fx) + 1) % 3; P.max = [500, 1000, 1600][OPT.fx]; saveOpts(); }],
     ['Sound ' + Math.round(OPT.sfx * 10), null, () => { OPT.sfx = OPT.sfx >= 1 ? 0 : Math.round((OPT.sfx + .2) * 10) / 10; saveOpts(); applyAudioOpts(); sfx('coin'); }]];
 }
+/* typing a difficulty value: click it (or Enter or a digit on a focused slider), type 1.4 or 140%, Enter sets it, Esc
+ * leaves it. The keys are caught before the game's own input sees them; Shift makes the arrow keys step 10% */
+const SET_EDIT = { k: null, text: '', rect: null, shift: false };
+function settingsEdit(k, text = '') { settingsCommit(); SET_EDIT.k = k; SET_EDIT.text = text; SET_EDIT.rect = null; game.input.clear(); }
+function settingsCommit() {
+  const s = SET_EDIT; if (!s.k) return; const k = s.k, t = s.text; s.k = null;
+  const n = parseFloat(t); if (isFinite(n) && n > 0) setDiff(k, t.endsWith('%') ? n / 100 : n);
+}
+addEventListener('keydown', e => {
+  const s = SET_EDIT; s.shift = e.shiftKey;
+  if (!s.k && /^[0-9.]$/.test(e.key) && UI.top() === UI.panels.settings && UI.keyNav && UI.focus < SET_N) settingsEdit(DIFF_ROWS[UI.focus][0]);
+  if (!s.k) return;
+  if (UI.top() !== UI.panels.settings) { s.k = null; return; }
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.key === 'Enter') settingsCommit(); else if (e.key === 'Escape') s.k = null;
+  else if (e.key === 'Backspace') s.text = s.text.slice(0, -1);
+  else if (/^[0-9.%]$/.test(e.key) && s.text.length < 6) s.text += e.key;
+}, true);
+addEventListener('keyup', e => { SET_EDIT.shift = e.shiftKey; });
+canvas.addEventListener('pointerdown', () => { const s = SET_EDIT; if (s.k && s.rect && !inRect(mouseHUD(), s.rect)) settingsCommit(); });   // a click anywhere else sets the typed value
 const settingsReset = () => { for (const k in DIFF_DEFAULT) setDiff(k, DIFF_DEFAULT[k]); };
 /* keyboard focus in settings: 0-8 the sliders, 9-17 the option buttons (a 3 x 3 grid), 18 RESET */
 const SET_N = DIFF_ROWS.length, SET_RESET = SET_N + 9;
@@ -554,26 +574,36 @@ UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H
   if (ez) E.font.text(g, ez > 0 ? 'EASIER' : 'HARDER', x + w - 10, y + 20, ez > 0 ? '#8affb0' : '#ff9a7a', { font: 'tiny', outline: false, align: 'right' });
   rows.forEach(([k, label, about, up], i) => {
     const yy = y + 30 + i * lh, v = DIFF[k], foc = UI.keyNav && UI.focus === i, easy = (v - 1) * up;
-    const over = hot(x + 6, yy - 2, sx - x - 10, lh, { tip: [{ t: label, c: GOLD }, { t: about, c: '#c8c0d8' }, { t: 'Drag the bar, or arrows with the keys. The mark is 1x.', c: '#8a80a8' }] });
+    const over = hot(x + 6, yy - 2, sx - x - 10, lh, { tip: [{ t: label, c: GOLD }, { t: about, c: '#c8c0d8' }, { t: 'Drag the bar, or the arrow keys: 1% a step, Shift for 10%. Click the value to type one (1.4 or 140%). The mark is 1x.', c: '#8a80a8' }] });
     E.font.text(g, label, x + 10, yy, foc || over ? GOLD : '#e8e0f8', { outline: false, shadow: '#05040a' });
-    // a log scale: 1x in the middle, 0.25x and 4x at the ends, steps of the square root of 2
-    const vs = (v >= 1 ? v.toFixed(v % 1 ? 1 : 0) : v.toFixed(2)) + 'x';
-    slider(g, sx, yy + 1, sw, Math.log2(v), -2, 2, .5, nv => setDiff(k, Math.pow(2, nv)), { mark: 0, color: k.startsWith('hero') ? '#6fd6cc' : k.startsWith('foe') || k === 'density' ? '#ff8a6a' : GOLD, focus: foc, tip: [{ t: label + '  ' + vs, c: GOLD }, { t: about, c: '#c8c0d8' }] });
-    E.font.text(g, vs, x + w - 10, yy, v === 1 ? '#9a90b0' : easy > 0 ? '#8affb0' : '#ff9a7a', { align: 'right', outline: false });   // green: easier, red: harder
+    // a log scale: 1x in the middle, 0.25x and 4x at the ends; dragging moves in whole percents
+    const vs = +v.toFixed(2) + 'x';
+    slider(g, sx, yy + 1, sw, Math.log2(v), -2, 2, .001, nv => { if (SET_EDIT.k === k) SET_EDIT.k = null; setDiff(k, Math.pow(2, nv)); }, { mark: 0, color: k.startsWith('hero') ? '#6fd6cc' : k.startsWith('foe') || k === 'density' ? '#ff8a6a' : GOLD, focus: foc, tip: [{ t: label + '  ' + vs, c: GOLD }, { t: about, c: '#c8c0d8' }] });
+    const vx = sx + sw + 6, vw = x + w - 6 - vx;
+    if (SET_EDIT.k === k) {   // the value being typed, with a blinking caret
+      SET_EDIT.rect = { x: vx, y: yy - 2, w: vw, h: lh }; hot(vx, yy - 2, vw, lh, { click: () => {} });
+      px.rect(g, vx, yy - 2, vw, lh - 1, '#6a5a88'); px.rect(g, vx + 1, yy - 1, vw - 2, lh - 3, '#0c0818');
+      E.font.text(g, SET_EDIT.text, x + w - 12, yy, '#fff6d8', { align: 'right', outline: false });
+      if (Math.floor(performance.now() / 400) % 2) px.rect(g, x + w - 11, yy - 1, 1, 8, '#fff6d8');
+    } else {
+      const ov = hot(vx, yy - 2, vw, lh, { click: () => settingsEdit(k), tip: [{ t: label + '  ' + vs, c: GOLD }, { t: 'Click to type a value from 0.25 to 4 (or 25% to 400%).', c: '#c8c0d8' }] });
+      E.font.text(g, vs, x + w - 10, yy, ov ? GOLD : v === 1 ? '#9a90b0' : easy > 0 ? '#8affb0' : '#ff9a7a', { align: 'right', outline: false });   // green: easier, red: harder
+    }
   });
   const oy = y + 30 + rows.length * lh + 4;
   E.font.text(g, 'OPTIONS', x + 10, oy, '#9a90b0', { font: 'tiny', outline: false });
   settingsToggles().forEach(([label, on, fn], i) => button(g, x + 10 + (i % 3) * Math.floor((w - 20) / 3), oy + 8 + Math.floor(i / 3) * 16, Math.floor((w - 20) / 3) - 3, 13, label + (on === null ? '' : on ? ': ON' : ': OFF'), fn, { active: !!on, focus: UI.keyNav && UI.focus === SET_N + i }));
   settingsFooter().forEach(([label, fn], i) => button(g, x + 10 + i * (w - 20) / 3, y + h - 18, (w - 20) / 3 - 3, 13, label, fn, { focus: UI.keyNav && UI.focus === SET_RESET + i }));
-}, update() {
+}, close() { settingsCommit(); }, update() {
   const inp = game.input, f = UI.focus || 0, nav = nf => { UI.focus = nf; UI.keyNav = true; };
   if (inp.repeat('menuUp')) nav(f === 0 ? SET_RESET : f < SET_N ? f - 1 : f < SET_N + 3 ? SET_N - 1 : f - 3);
   else if (inp.repeat('menuDown')) nav(f < SET_N - 1 ? f + 1 : f === SET_N - 1 ? SET_N : f >= SET_RESET ? 0 : f + 3);
   else if (inp.repeat('menuLeft') || inp.repeat('menuRight')) {
     const d = inp.down('menuLeft') ? -1 : 1;
-    if (f < SET_N) { const k = DIFF_ROWS[f][0]; setDiff(k, Math.pow(2, clamp(Math.round(Math.log2(DIFF[k]) * 2) / 2 + d * .5, -2, 2))); UI.keyNav = true; }
+    if (f < SET_N) { const k = DIFF_ROWS[f][0]; setDiff(k, DIFF[k] + d * (SET_EDIT.shift ? .1 : .01)); UI.keyNav = true; }
     else { const base = SET_N + Math.floor((f - SET_N) / 3) * 3; nav(base + (f - base + d + 3) % 3); }
   }
+  if (inp.pressed('confirm') && f < SET_N && inp.lastDevice !== 'gamepad') { inp.consumeAll(); settingsEdit(DIFF_ROWS[f][0]); }   // (a pad has nothing to type with)
   if (inp.pressed('confirm') && f >= SET_N) { inp.consumeAll(); if (f >= SET_RESET) settingsFooter()[f - SET_RESET][1](); else settingsToggles()[f - SET_N][2](); }
 
 } });
