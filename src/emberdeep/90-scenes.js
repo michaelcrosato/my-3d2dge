@@ -328,6 +328,11 @@ function talkTo(n) {
 function returnThroughPortal() { const S = ED.savedLevel; if (!S) return; sfx('portal'); game.go('level', { resume: S }); }
 
 /* ---------- A DEPTH ---------- */
+/** the death panel waits for the fall: 2.2 s of game time, or 3.4 s on the wall clock (the fall plays in slow motion)
+ *  once a rig that tracks its fall (Codex) has landed; the open panel stops the world, so it must not freeze the hero mid-fall */
+function deathPanelDue(h) {
+  return h.deadT > 2.2 || wallClock() - (h.deadAt || 0) > 3.4 && !(h.rig && h.rig.fall < .95);
+}
 const levelScene = {
   enter(o = {}) {
     ED.mode = 'level'; UI.closeAll(); BUS.clear('level');
@@ -361,7 +366,7 @@ const levelScene = {
     if (updateUI(dt)) return;
     const L0 = ED.L, h = ED.hero, inp = game.input;
     worldStep(dt);
-    if (h.dead) { if ((h.deadT > 2.2 || wallClock() - (h.deadAt || 0) > 3.4) && !UI.isOpen('death')) UI.open('death'); return; }   // (the wall clock too: the fall plays in slow motion)
+    if (h.dead) { if (deathPanelDue(h) && !UI.isOpen('death')) UI.open('death'); return; }
     if (inp.pressed('portal')) openTownPortal(h);
     if ((L0.saveT = (L0.saveT || 0) + dt) > 30) { L0.saveT = 0; saveGame(); }   // autosave: a closed tab loses half a minute at most
     // wake the boss when the hero reaches its arena; open the exit when it falls
@@ -418,7 +423,7 @@ const provingScene = {
     if (updateUI(dt)) return;
     const h = ED.hero;
     worldStep(dt);
-    if (h.dead) { if ((h.deadT > 2.2 || wallClock() - (h.deadAt || 0) > 3.4) && !UI.isOpen('death')) UI.open('death'); return; }   // (the wall clock too: the fall plays in slow motion)
+    if (h.dead) { if (deathPanelDue(h) && !UI.isOpen('death')) UI.open('death'); return; }
     if (!ED.foes.length && (PROVE.next -= dt) <= 0) {
       PROVE.wave++; PROVE.next = 2.5; const w = PROVE.wave, n = Math.round((12 + w * 10) * DIFF.density), boss = w % 10 === 0;
       // the horde grows and widens: the stress test's five, then one more kind of monster each wave (the whole bestiary by
