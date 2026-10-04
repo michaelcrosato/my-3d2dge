@@ -512,6 +512,7 @@ const LOT_COST = {
   gamble: (slot, d) => Math.round((slot === 'weapon' ? 9 : slot === 'amulet' ? 8 : slot === 'ring' ? 7 : 6) * itemValue(d, 0)),
   respec: h => Math.round(15 * h.level * (1 + h.level * .08))
 };
+for (const k in LOT_COST) { const f = LOT_COST[k]; LOT_COST[k] = (...a) => { const v = f(...a); return TUNE.prices === 1 ? v : Math.round(v * TUNE.prices); }; }   // (the Developer panel's Shop prices)
 /** pay or complain: true if the gold was taken */
 function LOT_pay(h, n, svc) { if (h.gold < n) { LOT_say(svc, 'poor'); sfx('cancel', { vol: .5 }); return false; } h.gold -= n; return true; }
 

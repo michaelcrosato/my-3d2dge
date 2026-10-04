@@ -808,7 +808,7 @@ function BOS_chestDrop(x, y, o = {}) {
     update(dt) {
       this.t += dt;
       if (!this.landed) {
-        this.vz -= 420 * dt; this.z += this.vz * dt;
+        this.vz -= 420 * TUNE.gravity * dt; this.z += this.vz * dt;
         if (this.z <= 0) { this.z = 0; if (this.vz < -110) { this.vz = -this.vz * .25; shake(3); sfx('thud'); P.dust(this.x, this.y, 0, 16, { speed: 70 }); P.ring(this.x, this.y, 4, 26, '#ffe070', .35); } else { this.vz = 0; this.landed = true; this.hittable = true; this.solid = true; notify('A TREASURE CHEST!  STRIKE IT OPEN', '#ffd36a', 3); } }
         return;
       }

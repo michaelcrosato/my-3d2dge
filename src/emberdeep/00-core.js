@@ -157,7 +157,7 @@ function slowMoStep() {
   const now = wallClock(); for (let i = l.length; i--;) if (now >= l[i].until) l.splice(i, 1);
   game.timeScale = SLOW.base * l.reduce((a, q) => Math.min(a, q.k), 1); SLOW.live = l.length > 0;
 }
-function slowMoReset(base = 1) { SLOW.list.length = 0; SLOW.live = false; SLOW.base = base; game.timeScale = base; }
+function slowMoReset(base = 1) { SLOW.list.length = 0; SLOW.live = false; SLOW.raw = base; SLOW.base = base * TUNE.gameSpeed; game.timeScale = SLOW.base; }   // (TUNE.gameSpeed: the Developer panel's world clock)
 
 /* ---------- scaling: the curves that let depth go on forever ---------- */
 // Both sides grow exponentially and the monsters' base is a little higher, so every depth is a touch harder than the
@@ -167,14 +167,14 @@ function slowMoReset(base = 1) { SLOW.list.length = 0; SLOW.live = false; SLOW.b
 // so the deep's slope is unchanged): the hero's first levels, ranks and gear outran the monsters, and a careless player
 // walked through depths 6 to 16 above two thirds of his life
 const SCALE = {
-  foeHp: d => Math.pow(1.1, d - 1) * (1 + d * .02) * (1 + .4 * (1 - Math.exp(-(d - 1) / 8))),
-  foeDmg: d => Math.pow(1.075, d - 1) * (1 + d * .02) * (1 + .6 * (1 - Math.exp(-(d - 1) / 8))),
-  foeXp: d => Math.pow(1.11, d - 1) * (1 + d * .05),
-  gold: d => Math.pow(1.08, d - 1) * (1 + d * .1),
+  foeHp: d => Math.pow(TUNE.foeHpGrowth, d - 1) * (1 + d * .02) * (1 + .4 * (1 - Math.exp(-(d - 1) / 8))),
+  foeDmg: d => Math.pow(TUNE.foeDmgGrowth, d - 1) * (1 + d * .02) * (1 + .6 * (1 - Math.exp(-(d - 1) / 8))),
+  foeXp: d => Math.pow(TUNE.foeXpGrowth, d - 1) * (1 + d * .05),
+  gold: d => Math.pow(TUNE.goldGrowth, d - 1) * (1 + d * .1),
   /** xp to go from hero level l to l + 1 */
   // polynomial for the first 20 levels, then exponential too: monster experience grows as 1.11^depth, so a polynomial
   // curve alone would hand out thousands of levels a kill deep down. This keeps about 1.35 levels per depth forever
-  xpNeed: l => Math.round((90 * Math.pow(l, 1.75) + 30 * l) * Math.pow(1.07, Math.max(0, l - 20))),
+  xpNeed: l => Math.max(1, Math.round((90 * Math.pow(l, 1.75) + 30 * l) * Math.pow(1.07, Math.max(0, l - 20)) * TUNE.xpCurve)),
   /** item power grows with item level: flat stats and weapon damage (percent affixes grow gently on their own) */
-  ilvl: il => Math.pow(1.08, il - 1) * (1 + (il - 1) * .015)
+  ilvl: il => Math.pow(TUNE.ilvlGrowth, il - 1) * (1 + (il - 1) * .015)
 };

@@ -24,7 +24,7 @@ const MOVE_FIX = {   // monster takes on E.MOVES (from the stress test), so each
  *  wind-up never drops under .36 s (.42 s for heavy bodies, mass 2+): long enough to see the red arc grow and roll */
 function foeSpec(a, arch) {
   const sp = new E.Attack(a.move, Object.assign({}, MOVE_FIX[a.move] || {}, a.over || {})).spec;
-  return Object.assign(sp, { wind: Math.max(arch && (arch.mass || 1) >= 2 ? .42 : .36, sp.wind * (a.wind || 2.2)), recover: sp.recover + (a.recover === undefined ? .14 : a.recover) });
+  return Object.assign(sp, { wind: TUNE.windUp * Math.max(arch && (arch.mass || 1) >= 2 ? .42 : .36, sp.wind * (a.wind || 2.2)), recover: sp.recover + (a.recover === undefined ? .14 : a.recover) });
 }
 const strikePt = (rig, spec) => rig.o.weapon && spec.blade !== 0 && spec.hand !== 'L' ? rig.tip() : rig.hand(spec.hand === 'L' ? 'L' : 'R');
 /** measure each attack once on a spare rig: how far its strike reaches and where the monster should stand for it */
@@ -55,11 +55,12 @@ function spawnMonster(id, x, y, o = {}) {
   const arch = REG.archetypes[id]; if (!arch) { E.warn('ed:arch:' + id, 'EMBERDEEP: no archetype "' + id + '"'); return null; }
   measureAttacks(arch);
   const depth = o.level || ED.depth || 1, R = o.rng || rnd, elite = o.elite || 0, el = o.el || arch.el || 'phys';
-  const hpK = SCALE.foeHp(depth) * DIFF.foeHp * [1, 2.6, 4.2, 1][elite] * (o.hpMul || 1), dmgK = SCALE.foeDmg(depth) * [1, 1.25, 1.45, 1][elite] * (o.dmgMul || 1);
+  const eK = (b, k) => 1 + (b - 1) * k;   // (the Developer panel scales an elite's extra life and damage)
+  const hpK = SCALE.foeHp(depth) * DIFF.foeHp * eK([1, 2.6, 4.2, 1][elite], TUNE.eliteHp) * (o.hpMul || 1), dmgK = SCALE.foeDmg(depth) * eK([1, 1.25, 1.45, 1][elite], TUNE.eliteDmg) * (o.dmgMul || 1);
   const m = {
     team: 'foe', arch, kind: id, name: arch.name, x, y, z: 0, vx: 0, vy: 0, vz: 0, r: arch.r || 5, alive: true, spawnT: o.instant ? 0 : .6, facing: R() * TAU,
-    st: {}, res: Object.assign({}, arch.res || {}), armor: (arch.armor || 0) * (1 + depth * .15), head: arch.head || 28, mass: arch.mass || 1,
-    level: depth, el, elite, affixes: [], dmg: arch.dmg * dmgK, speed: (arch.speed || 30) * (1 + Math.min(.35, depth * .012)) * (.9 + R() * .2),   // (DIFF.foeSpeed runs its whole clock: updateFoes)
+    st: {}, res: Object.assign({}, arch.res || {}), armor: (arch.armor || 0) * (1 + depth * TUNE.foeArmorGrowth), head: arch.head || 28, mass: arch.mass || 1,
+    level: depth, el, elite, affixes: [], dmg: arch.dmg * dmgK, speed: (arch.speed || 30) * (1 + Math.min(TUNE.foeSpeedCap, depth * TUNE.foeSpeedGrowth)) * (.9 + R() * .2),   // (DIFF.foeSpeed runs its whole clock: updateFoes)
     xp: (arch.xp || 10) * SCALE.foeXp(depth) * [1, 3, 6, 25][elite], ai: {}, atk: null, cool: R() * 1.5, next: 0, flash: 0, ph: R() * TAU, tok: false, kbT: 0, stunT: 0,
     canFly: !!arch.flies, scale: o.scale || (elite === 2 ? 1.12 : 1)
   };
@@ -72,7 +73,7 @@ function spawnMonster(id, x, y, o = {}) {
   if (elite) {
     m.name = o.name || (elite === 2 ? eliteName(R) : arch.name);
     const pool = Object.values(REG.affixes).filter(a => (a.minDepth || 1) <= depth && (!a.ok || a.ok(arch)));
-    const ids = o.affixes || (elite === 3 ? [] : R.shuffle(pool.slice()).slice(0, elite === 2 ? Math.min(3, 1 + Math.floor(depth / 6)) : 1).map(a => a.id));   // bosses bring their own tricks
+    const ids = o.affixes || (elite === 3 ? [] : R.shuffle(pool.slice()).slice(0, elite === 2 ? Math.max(0, Math.min(3, 1 + Math.floor(depth / 6)) + TUNE.eliteAffixes) : 1).map(a => a.id));   // bosses bring their own tricks
     for (const id2 of ids) addAffix(m, id2);
     if (elite === 1) m.name = REG.affixes[m.affixes[0]] ? REG.affixes[m.affixes[0]].name + ' ' + arch.name : arch.name;
   }
@@ -143,9 +144,9 @@ function foeDie(hit) {
 /* ---------- shared AI helpers ---------- */
 const AI = {
   tokens: 0, nextTurn: 0, shotNext: 0,
-  maxAttackers: () => Math.min(8, 3 + Math.floor((ED.depth || 1) / 4)),
+  maxAttackers: () => Math.round(Math.min(8, 3 + Math.floor((ED.depth || 1) / 4)) * TUNE.maxAttackers),
   /** attack turns: a few monsters attack at once, each new wind-up a moment after the last, so every hit has a readable author */
-  takeTurn(m) { if (AI.tokens >= AI.maxAttackers() || game.time < AI.nextTurn || !ED.hero || !ED.hero.alive) return false; AI.tokens++; AI.nextTurn = game.time + .22 * (.7 + Math.random() * .6) / DIFF.foeSpeed; return true; },
+  takeTurn(m) { if (AI.tokens >= AI.maxAttackers() || game.time < AI.nextTurn || !ED.hero || !ED.hero.alive) return false; AI.tokens++; AI.nextTurn = game.time + .22 * TUNE.turnGap * (.7 + Math.random() * .6) / DIFF.foeSpeed; return true; },
   /** walk direction toward a point around walls (the level's flow field toward the hero; straight when close and in the
    *  open, so a monster round a corner follows the field instead of pressing into the wall) */
   steer(m, tx, ty) { const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1, fl = ED.L && ED.L.flow; if (!fl || d < 20 || (d < 64 && AI.clear(m, tx, ty))) return [dx / d, dy / d]; return fl.dir(m.x, m.y, tx, ty); },
@@ -153,7 +154,7 @@ const AI = {
   clear(m, tx, ty) { const a = m.ai || (m.ai = {}); if (game.time < (a.clrT || 0) && Math.abs(tx - a.clrX) + Math.abs(ty - a.clrY) < 12) return a.clr; a.clrT = game.time + .2 + Math.random() * .1; a.clrX = tx; a.clrY = ty; const map = ED.L && ED.L.map; return (a.clr = !map || map.los(m.x, m.y, tx, ty)); },
   /** is the hero close enough (and seen) for this monster to wake and chase? */
   aware(m, rad = 150) {
-    const h = ED.hero; if (!h || !h.alive) return false; if (m.ai.aware) return true;
+    rad *= TUNE.sight; const h = ED.hero; if (!h || !h.alive) return false; if (m.ai.aware) return true;
     const d = Math.hypot(h.x - m.x, h.y - m.y);
     if (d < rad && (d < 60 || !ED.L || !ED.L.map || ED.L.map.los(m.x, m.y, h.x, h.y))) {   // it sees him: the whole pack wakes, and says so
       m.ai.aware = true; for (const o of ED.foes) if (o.pack === m.pack && m.pack) o.ai.aware = true;
@@ -222,7 +223,7 @@ def('ai', 'pouncer', { update(m, dt) {
       }
     }
   }
-  if (m.z > 0 || m.vz > 0) { m.vz -= SLIME_G * dt; m.z += m.vz * dt; if (m.z <= 0) { m.z = 0; m.vz = 0; const rest = a.state === 'pounce' ? 1.1 : .45; a.state = 'idle'; a.t = rest + Math.random() * .6; m.blob.kick(-5); m.tok = false; } }
+  if (m.z > 0 || m.vz > 0) { m.vz -= SLIME_G * TUNE.gravity * dt; m.z += m.vz * dt; if (m.z <= 0) { m.z = 0; m.vz = 0; const rest = a.state === 'pounce' ? 1.1 : .45; a.state = 'idle'; a.t = rest + Math.random() * .6; m.blob.kick(-5); m.tok = false; } }
   dx = h.x - m.x; dy = h.y - m.y; d = Math.hypot(dx, dy) || 1;
   if (h.alive && m.z < 6 && d < m.r + h.r + 1 && a.state === 'pounce') { if (dealDamage(h, { src: m, amount: m.dmg, el: m.el, kb: 90, ang: Math.atan2(dy, dx) })) onFoeHit(m, h); a.state = 'air'; m.vx *= -.7; m.vy *= -.7; m.vz = Math.max(m.vz, 90); }
   a.flap = approach(a.flap || 0, m.z > 0 ? 1 : 0, dt * 5);
@@ -268,7 +269,7 @@ function updateFoes(dt) {
     tickStatus(m, dt0 * tk); if (!m.alive) continue;
     // launched into the air (uppercuts, explosions): a ballistic arc, no thinking until it lands
     if (m.air || (m.z > 0 && !m.canFly && m.arch.ai !== 'pouncer' && !(m.boss && m.pat) && !m.leaping)) {
-      m.vz -= 520 * dt; m.z += m.vz * dt; m.x += m.vx * dt; m.y += m.vy * dt;
+      m.vz -= 520 * TUNE.gravity * dt; m.z += m.vz * dt; m.x += m.vx * dt; m.y += m.vy * dt;
       if (m.z <= 0) { m.z = 0; m.air = false; if (m.vz < -140) { m.vz = -m.vz * .25; m.air = true; } else m.vz = 0; P.dust(m.x, m.y, 0, 5); if (m.rig) m.rig.kick(-4); m.stunT = Math.max(m.stunT, .35); }
       collideUnit(m); animFoe(m, dt); continue;
     }
@@ -436,7 +437,7 @@ function pickArch(pool, R, depth) { const opts = pool.map(id => REG.archetypes[i
 function spawnPack(x, y, o = {}) {
   const R = o.rng || rnd, depth = ED.depth || 1, pool = o.pool || ['husk', 'skeleton', 'slime', 'wisp'], packId = ++spawnPack.n;
   const main = o.kind || pickArch(pool, R, depth), second = R.chance(.45) ? pickArch(pool, R, depth) : main;
-  const n = o.n || Math.round((4 + R.int(0, 4)) * DIFF.density), out = [], rad = o.radius || 26;
+  const n = o.n || Math.max(1, Math.round((4 + R.int(0, 4)) * DIFF.density * TUNE.packSize)), out = [], rad = o.radius || 26;
   const place = () => { for (let k = 0; k < 12; k++) { const a = R() * TAU, d = R() * rad, px0 = x + Math.cos(a) * d, py0 = y + Math.sin(a) * d; if (ED.L && ED.L.map && !ED.L.map.walkable(Math.floor(px0 / 16), Math.floor(py0 / 16))) continue; return [px0, py0]; } return [x, y]; };
   const affixes = o.elite === 1 ? R.shuffle(Object.values(REG.affixes).filter(a => (a.minDepth || 1) <= depth && (!a.ok || a.ok(REG.archetypes[main])))).slice(0, 1).map(a => a.id) : null;
   const mod = o.mod || {};   // pack variants from deep recipes: { scale, hpMul, dmgMul, speedMul, prefix, affix }

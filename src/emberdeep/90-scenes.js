@@ -56,7 +56,7 @@ function drawPortal(pt, r, home) {
 /* ---------- the shared world step ---------- */
 function worldStep(dt, o = {}) {
   const h = ED.hero, L0 = ED.L;
-  devBeforeWorld();
+  tuneStep(); devBeforeWorld();
   ED.t += dt; L0.t = (L0.t || 0) + dt; slowMoStep();
   UI.prompt = null;
   floorEffects(h, dt); for (const m of ED.foes) if (m.alive && m.spawnT <= 0) floorEffects(m, dt);
@@ -68,10 +68,10 @@ function worldStep(dt, o = {}) {
   for (const b of L0.torches) b.t += dt;
   if (L0.theme && L0.theme.ambience) L0.theme.ambience(L0, dt);
   BUS.emit('step', { dt, L: L0 });
-  reveal(L0, h);
+  reveal(L0, h, Math.round(9 * TUNE.reveal));
   if (L0.flow && h.alive) L0.flow.update(h.x, h.y);   // the level's paths lead to the hero (cached per cell)
   const a = h.aim;
-  game.focus(h.x + Math.cos(a) * 16, h.y + Math.sin(a) * 16, 8 + (h.z || 0) * .7);   // the camera rises with leaps and flights
+  game.focus(h.x + Math.cos(a) * 16 * TUNE.camLead, h.y + Math.sin(a) * 16 * TUNE.camLead, 8 + (h.z || 0) * .7);   // the camera rises with leaps and flights
 }
 function worldDraw(r) {
   L.enabled = !(DEV.enabled && DEV.bright); if (gpu) gpu.enabled = OPT.gpu && L.enabled;
@@ -359,7 +359,7 @@ const levelScene = {
     playSong(L0.theme.music || 'deep'); game.cam.snap = true; saveGame();
     BUS.emit('levelStart', { L: L0 });
   },
-  exit() { BUS.emit('levelEnd', { L: ED.L }); slowMoReset(SLOW.base); },
+  exit() { BUS.emit('levelEnd', { L: ED.L }); slowMoReset(SLOW.raw === undefined ? SLOW.base : SLOW.raw); },
   update(dt) {
     if (ED.demo) { if (game.input.anyPressed() || UI.mouse.down || ED.t > 70 || ED.hero.dead) { endDemo(); return; } worldStep(dt); return; }
     if (talkStep(dt)) return;

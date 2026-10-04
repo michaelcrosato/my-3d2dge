@@ -11,7 +11,7 @@
 function spawnBoss(id, x, y, o = {}) {
   const B = REG.bosses[id]; if (!B) return null;
   const arch = REG.archetypes[B.arch || 'knight'];
-  const m = spawnMonster(arch.id, x, y, Object.assign({ elite: 3, hpMul: B.hp || 14, dmgMul: B.dmg || 1.3, el: B.el || o.el, instant: true, scale: B.size || 1.8, pal: B.pal ? shiftPal(B.pal, o.hue || 0) : undefined }, o));
+  const m = spawnMonster(arch.id, x, y, Object.assign({ elite: 3, hpMul: (B.hp || 14) * TUNE.bossHp, dmgMul: (B.dmg || 1.3) * TUNE.bossDmg, el: B.el || o.el, instant: true, scale: B.size || 1.8, pal: B.pal ? shiftPal(B.pal, o.hue || 0) : undefined }, o));
   if (!m) return null;
   m.boss = true; m.bossDef = B; m.name = o.name || B.name; m.title = o.title || B.title || ''; m.mass = 99; m.phase = 0; m.pat = null; m.patT = 1.5;   // (its experience is 25 monsters' worth: doubled, one kill handed out three levels)
   m.patterns = o.patterns || null;
@@ -46,7 +46,7 @@ def('ai', 'boss', { update(m, dt) {
   if (next && m.hp / m.maxHp <= next.at) { m.phase++; m.pat = null; m.patT = 1; m.introT = 1.2; game.flash('#ff8a5a', .2, .6); sfx('boom'); shake(5); P.ring(m.x, m.y, 6, 60, '#ff8a5a', .5); if (B.onPhase) B.onPhase(m, m.phase); notify(m.name.toUpperCase() + ' GROWS ENRAGED', '#ff8a5a', 2); return; }
   const ph = phases[m.phase];
   if (B.update) B.update(m, dt);
-  if (m.pat) { const keep = m.pat.update(dt * statusSpeed(m)); m.rigState = m.pat.rig || null; if (!keep) { m.pat = null; m.patT = (ph.gap || 1.1) * (.8 + Math.random() * .4); m.rigState = null; } return; }
+  if (m.pat) { const keep = m.pat.update(dt * statusSpeed(m) * TUNE.bossTempo); m.rigState = m.pat.rig || null; if (!keep) { m.pat = null; m.patT = (ph.gap || 1.1) * (.8 + Math.random() * .4) / TUNE.bossTempo; m.rigState = null; } return; }
   // between patterns: stalk the hero, then pick a pattern that suits the distance
   m.patT -= dt; const d = Math.hypot(h.x - m.x, h.y - m.y);
   AI.face(m, angTo(m, h), dt, 4); AI.move(m, d > 40 ? AI.steer(m, h.x, h.y) : [0, 0], dt, .8);

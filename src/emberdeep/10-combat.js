@@ -106,12 +106,12 @@ function dealDamage(tgt, hit) {
   if (DEV.enabled && DEV.god && tgt === ED.hero) return 0;
   if (tgt.team === 'hero' && (tgt.inv > 0 || tgt.ghost)) { if (tgt.onDodgedHit) tgt.onDodgedHit(hit); return 0; }
   const src = hit.src || null, el = hit.el || 'phys';
-  let amt = hit.amount * (hit.var === 0 ? 1 : 1 + (Math.random() * 2 - 1) * (hit.var || .12));
+  let amt = hit.amount * (hit.var === 0 ? 1 : 1 + (Math.random() * 2 - 1) * (hit.var || TUNE.dmgVariance));
   let crit = hit.crit;
   if (crit === undefined) crit = !!(src && src.critChance && Math.random() < src.critChance);
-  if (crit) amt *= hit.critMul || (src && src.critMul) || 1.5;
+  if (crit) amt *= hit.critMul || (src && src.critMul) || TUNE.critMul;
   // mitigation: armor against physical, resistances against the rest (both capped), and status multipliers
-  if (el === 'phys') { const ar = tgt.armor || 0; if (ar > 0) amt *= 1 - clamp(ar / (ar + 5 * amt + 30), 0, .75); }
+  if (el === 'phys') { const ar = tgt.armor || 0; if (ar > 0 && TUNE.armorK > 0) { const a2 = ar * TUNE.armorK; amt *= 1 - clamp(a2 / (a2 + 5 * amt + 30), 0, TUNE.armorCap); } }
   else if (tgt.res) amt *= 1 - clamp(tgt.res[el] || 0, -1, .8);
   if (tgt.st.shock) amt *= 1.15; if (tgt.st.vuln) amt *= 1.25; if (tgt.st.freeze && el === 'phys') amt *= 1.3;
   if (src && src.st && src.st.curse) amt *= .8;
@@ -122,7 +122,7 @@ function dealDamage(tgt, hit) {
   tgt.hp -= amt; hit.dmg = amt; hit.crit = crit; tgt.lastHit = game.time; tgt.hitBy = src;
   // statuses: the hit's own, or the element's with a chance
   const stId = hit.status || (el !== 'phys' || hit.statusChance ? EL(el).status : null);
-  if (stId) { let ch = hit.statusChance === undefined ? (el === 'phys' ? 0 : .3) : hit.statusChance; if (src && src.statusMul) ch *= src.statusMul; if (Math.random() < ch) applyStatus(tgt, stId, hit.statusPower === undefined ? amt * .4 : hit.statusPower, src); }
+  if (stId) { let ch = hit.statusChance === undefined ? (el === 'phys' ? 0 : TUNE.statusChance) : hit.statusChance; if (src && src.statusMul) ch *= src.statusMul; if (Math.random() < ch) applyStatus(tgt, stId, hit.statusPower === undefined ? amt * .4 : hit.statusPower, src); }
   if (hit.stun) applyStatus(tgt, 'stun', 0); if (hit.stun && tgt.st.stun) tgt.st.stun.t = Math.max(tgt.st.stun.t, hit.stun);
   if (tgt.react) tgt.react(hit);
   if (!hit.noNumber) damageNumber(tgt, amt, crit, el);
@@ -145,6 +145,7 @@ function killUnit(u, hit) {
 /** push a unit away from (x, y) (or along ang) with speed kb; heavy units (mass) move less. up launches it */
 function knock(u, ang, kb, up = 0) {
   const m = u.mass || 1; if (m >= 99) return;
+  kb *= TUNE.knockback; up *= TUNE.knockUp;
   u.vx += Math.cos(ang) * kb / m; u.vy += Math.sin(ang) * kb / m;
   if (up && u.canFly !== true) { u.vz = Math.max(u.vz || 0, up / Math.sqrt(m)); u.air = true; }
 }
@@ -199,7 +200,7 @@ function zig(g, x0, y0, x1, y1, color, w = 1, jag = 4, seed = 0) {
 /* ---- projectile: bolts, orbs, blades, bones, spit, arrows; pierce, chain, fork, homing, bounce, lob ---- */
 FX.bolt = o => {
   const p = addFx(Object.assign({ kind: 'bolt', team: 'hero', x: 0, y: 0, z: 10, ang: 0, speed: 240, life: 1.2, r: 3, pierce: 0, chain: 0, fork: 0, home: 0, bounce: 0, grav: 0, vz: 0, t: 0, look: {}, hitSet: new Set(), light: 36 }, o));
-  p.vx = Math.cos(p.ang) * p.speed; p.vy = Math.sin(p.ang) * p.speed;
+  p.speed *= TUNE.projSpeed; p.vx = Math.cos(p.ang) * p.speed; p.vy = Math.sin(p.ang) * p.speed;
   const lk = p.look, e = EL(p.el || 'phys'); lk.color = lk.color || e.color; lk.core = lk.core || e.light; lk.size = lk.size || 2;
   p.update = dt => {
     if (p.team === 'foe') dt *= DIFF.foeSpeed;   // (monster shots follow the Monster speed slider)
@@ -208,7 +209,7 @@ FX.bolt = o => {
       if (!p.tg || !p.tg.alive || p.hitSet.has(p.tg) || (p.rt = (p.rt || 0) - dt) <= 0) { p.rt = .1; p.tg = nearestEnemy(p.team, p.x, p.y, 110, p.hitSet); }
       const tg = p.tg; if (tg) { const a = Math.atan2(tg.y - p.y, tg.x - p.x), cur = Math.atan2(p.vy, p.vx), na = E.approachAng(cur, a, p.home * dt), sp = Math.hypot(p.vx, p.vy); p.vx = Math.cos(na) * sp; p.vy = Math.sin(na) * sp; }
     }
-    if (p.grav) { p.vz -= p.grav * dt; p.z += p.vz * dt; if (p.z <= 0) { p.z = 0; end(); return false; } }
+    if (p.grav) { p.vz -= p.grav * TUNE.gravity * dt; p.z += p.vz * dt; if (p.z <= 0) { p.z = 0; end(); return false; } }
     const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt, map = ED.L && ED.L.map;
     if (map && map.heightAt(nx, ny) > p.z) {
       if (p.bounce > 0) { p.bounce--; if (map.heightAt(nx, p.y) > p.z) p.vx = -p.vx; else p.vy = -p.vy; elBurst(p.x, p.y, p.z, p.el, 3); }

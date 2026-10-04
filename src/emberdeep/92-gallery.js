@@ -187,7 +187,7 @@ const galleryScene = {
     const c = GAL.cam || (GAL.cam = tgt.slice()), k = Math.min(1, dt * 3); for (let i = 0; i < 3; i++) c[i] += (tgt[i] - c[i]) * k;
     game.focus(c[0], c[1], c[2]);
     if (inp.pressed('labels')) { GAL.slow = !GAL.slow; }
-    if (SLOW.base !== (GAL.slow ? .3 : 1)) slowMoReset(GAL.slow ? .3 : 1);
+    if (SLOW.raw !== (GAL.slow ? .3 : 1)) slowMoReset(GAL.slow ? .3 : 1);
   },
   draw(r) {
     const L0 = ED.L;

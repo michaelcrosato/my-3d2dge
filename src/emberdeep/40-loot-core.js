@@ -509,19 +509,19 @@ function dropLoot(kind, x, y, o = {}) {
 /** what a dead monster leaves: gold, potions, items (champions, rares and bosses much more) */
 BUS.on('kill', e => {
   const m = e.tgt; if (m.team !== 'foe' || m.noLoot) return;
-  const h = ED.hero, mf = (h && h.stats.magicFind) || 0, gf = (h && h.stats.goldFind) || 0, depth = m.level || ED.depth || 1, lk = DIFF.loot;
-  const nItems = m.boss ? 5 + rnd.int(0, 3) : m.elite === 2 ? 2 + rnd.int(0, 1) : m.elite === 1 ? (rnd.chance(.6) ? 1 : 0) : rnd.chance(.1 * lk) ? 1 : 0;
+  const h = ED.hero, mf = ((h && h.stats.magicFind) || 0) + TUNE.rarityBoost, gf = (h && h.stats.goldFind) || 0, depth = m.level || ED.depth || 1, lk = DIFF.loot * TUNE.dropChance;   // (TUNE: the Developer panel's Loot)
+  const nItems = m.elite ? Math.round((m.boss ? 5 + rnd.int(0, 3) : m.elite === 2 ? 2 + rnd.int(0, 1) : rnd.chance(.6) ? 1 : 0) * TUNE.eliteLoot) : rnd.chance(.1 * lk) ? 1 : 0;
   for (let i = 0; i < nItems; i++) dropLoot('item', m.x, m.y, { item: makeItem({ ilvl: depth + (m.elite ? 1 : 0), el: m.el, rarity: m.boss && i === 0 ? 3 : rollRarity(depth, rnd, mf, m.boss ? .6 : m.elite === 2 ? .35 : m.elite ? .15 : 0) }) });   // (el: deep loot leans to its killer's element)
-  if (rnd.chance(m.elite ? .9 : .32 * lk)) { const n = Math.max(1, Math.round((3 + rnd() * 7) * SCALE.gold(depth) * (1 + gf / 100) * (m.elite ? 3 : 1) * (m.boss ? 8 : 1))); const piles = m.boss ? 6 : m.elite ? 3 : 1; for (let i = 0; i < piles; i++) dropLoot('gold', m.x, m.y, { n: Math.ceil(n / piles) }); }
-  if (h && rnd.chance(m.elite ? .35 : .035) && h.potions + ED.drops.filter(d => d.kind === 'potion').length < h.maxPotions) dropLoot('potion', m.x, m.y);
+  if (rnd.chance(m.elite ? .9 : .32 * lk)) { const n = Math.max(1, Math.round((3 + rnd() * 7) * TUNE.goldDrop * SCALE.gold(depth) * (1 + gf / 100) * (m.elite ? 3 : 1) * (m.boss ? 8 : 1))); const piles = m.boss ? 6 : m.elite ? 3 : 1; for (let i = 0; i < piles; i++) dropLoot('gold', m.x, m.y, { n: Math.ceil(n / piles) }); }
+  if (h && rnd.chance((m.elite ? .35 : .035) * TUNE.potionDrop) && h.potions + ED.drops.filter(d => d.kind === 'potion').length < h.maxPotions) dropLoot('potion', m.x, m.y);
 });
-const pickupR = h => 12 * (1 + ((h && h.stats.pickup) || 0) / 100);
+const pickupR = h => 12 * TUNE.pickupRadius * (1 + ((h && h.stats.pickup) || 0) / 100);
 function updateDrops(dt) {
   const h = ED.hero, map = ED.L && ED.L.map;
   for (let i = ED.drops.length - 1; i >= 0; i--) {
     const d = ED.drops[i]; d.t += dt;
     if (!d.rest) {
-      d.vz -= 420 * dt; d.z += d.vz * dt; const nx = d.x + d.vx * dt, ny = d.y + d.vy * dt;
+      d.vz -= 420 * TUNE.gravity * dt; d.z += d.vz * dt; const nx = d.x + d.vx * dt, ny = d.y + d.vy * dt;
       if (map && map.solidAt(nx, ny)) { d.vx *= -.5; d.vy *= -.5; } else { d.x = nx; d.y = ny; }
       if (d.z <= 0) { d.z = 0; if (d.bounces++ < 2 && d.vz < -40) { d.vz = -d.vz * .35; d.vx *= .5; d.vy *= .5; if (d.kind === 'gold') sfx('coin', { vol: .15, pitch: 1.5 }); } else { d.rest = true; d.vx = d.vy = d.vz = 0; if (map) lootToGround(d, map); } }
     }

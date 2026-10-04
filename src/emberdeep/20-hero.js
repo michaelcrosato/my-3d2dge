@@ -63,13 +63,13 @@ function gainXp(h, n) {
   let up = 0;
   while (h.xp >= SCALE.xpNeed(h.level)) {
     if (up >= 50) { h.xp = SCALE.xpNeed(h.level) - 1; break; }   // (a safety net: no kill is worth more than 50 levels)
-    h.xp -= SCALE.xpNeed(h.level); h.level++; h.pts.skill++; h.pts.passive++; up++;
+    h.xp -= SCALE.xpNeed(h.level); h.level++; h.pts.skill += TUNE.skillPts; h.pts.passive += TUNE.passivePts; up++;
     computeStats(h);
     BUS.emit('heroLevel', { lvl: h.level });
   }
   // a level-up is a second wind, not a free full heal (every boss gave two or three levels, so the depth after it began
   // at full life): a third of his life back and a full ember pool, once however many levels the kill gave
-  if (up) { h.hp = Math.min(h.maxHp, h.hp + h.maxHp * .35); h.ember = h.maxEmber; levelUpFx(h, up); }
+  if (up) { h.hp = Math.min(h.maxHp, h.hp + h.maxHp * TUNE.levelHeal); h.ember = h.maxEmber; levelUpFx(h, up); }
 }
 /**
  * The level-up: he throws his arms up (cheer, shouting) inside a column of golden light that shoots up from his feet
@@ -107,7 +107,7 @@ function gainGold(h, n) { h.gold += n; BUS.emit('gold', { n }); }
 // every hit shows: a flash, a wince and a stagger; big hits (kb >= 200 or a slam) knock him down for a moment
 function heroReact(hit) {
   const h = this;
-  h.hurtT = .22; h.flash = .06; h.inv = Math.max(h.inv, .35);
+  h.hurtT = .22; h.flash = .06; h.inv = Math.max(h.inv, TUNE.hurtInv);
   const ang = hit.ang !== undefined ? hit.ang : (hit.src ? angTo(hit.src, h) : 0);
   h.hitA = ang + Math.PI;
   if (hit.ang !== undefined || hit.src) knock(h, ang, hit.kb === 0 ? 0 : Math.min(260, (hit.kb || 60) + 60), 0);   // a sourceless hit (lava, a trap tick) has no direction to shove him in
@@ -153,7 +153,7 @@ function heroBeforeHit(hit, amt) {
 function heroDodgedHit(hit) {
   const h = this;
   if (h.dodgeT > 0 && h.dodgeT > .1 && !h.perfectT && hit.src && hit.src.team === 'foe') {   // dodged right through a strike: time slows for everyone else
-    h.perfectT = 1.1; slowMo(.35, 1.1, 'perfect'); sfx('warp', { vol: .6 }); notify('PERFECT DODGE', '#8fe3ff', 1.5);
+    h.perfectT = 1.1 * TUNE.perfectSlow; if (TUNE.perfectSlow > 0) slowMo(.35, 1.1 * TUNE.perfectSlow, 'perfect'); sfx('warp', { vol: .6 }); notify('PERFECT DODGE', '#8fe3ff', 1.5);
     P.ring(h.x, h.y, 4, 40, '#8fe3ff', .4); game.flash('#8fe3ff', .15, .5);
     BUS.emit('perfectDodge', { h, hit });
   }
@@ -223,7 +223,7 @@ function heroAim(h) {
 }
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
-  const profile = characterOf(h), dodgeTime = profile.dodgeTime;
+  const profile = characterOf(h), dodgeTime = profile.dodgeTime * TUNE.dodgeTime;
   heroUnroll(h);   // the roll's cloth goes back upright before anything simulates it
   if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) h.perfectT = 0;
   // witch time: after a perfect dodge the world crawls but he keeps close to his own pace (his clock runs fast)
@@ -235,14 +235,14 @@ function updateHero(h, dt, o = {}) {
   if (h.dead) {   // he falls from wherever death found him (mid-leap, mid-roll), then crumples
     h.deadT += dt;
     if (h.deathZ) game.setZoom(h.deathZ * (1 + .3 * E.ease.outCubic(Math.min(1, h.deadT / 1.3))));   // the camera leans in on the fall (a new world entry resets the zoom)
-    if (h.z > 0) { h.vz -= 520 * dt; h.z = Math.max(0, h.z + h.vz * dt); if (!h.z) { h.vz = 0; P.dust(h.x, h.y, 0, 6, { speed: 40 }); sfx('thud', { vol: .5 }); } }
+    if (h.z > 0) { h.vz -= 520 * TUNE.gravity * dt; h.z = Math.max(0, h.z + h.vz * dt); if (!h.z) { h.vz = 0; P.dust(h.x, h.y, 0, 6, { speed: 40 }); sfx('thud', { vol: .5 }); } }
     h.rig.update(dt, { x: h.x, y: h.y, z: h.z, facing: h.facing, pose: h.z > 1 ? null : 'die', air: h.z > 1, hurt: h.z > 1, expr: 'wince' }); return;
   }
   // regeneration, heal over time (potions)
   const s = h.stats;
   h.hp = Math.min(h.maxHp, h.hp + (s.lifeRegen || 0) * dt + (h.healT > 0 ? h.healRate * dt : 0)); h.healT -= dt;
   h.ember = Math.min(h.maxEmber, h.ember + (s.emberRegen || 0) * dt);
-  if (h.dodges < h.maxDodge && (h.dodgeRe -= dt * (1 + (s.dodgeCd || 0) / 100)) <= 0) { h.dodges++; h.dodgeRe = 1.4; }
+  if (h.dodges < h.maxDodge && (h.dodgeRe -= dt * (1 + (s.dodgeCd || 0) / 100)) <= 0) { h.dodges++; h.dodgeRe = TUNE.dodgeRecharge; }
   const { md, mlen } = heroAim(h), sp = statusSpeed(h);
   // dodge: a quick low dash with invulnerability; it carries him over chasms (he is briefly airborne). A press he cannot
   // honour yet (mid-roll, mid-leap, mid-dash) is kept for a moment and rolls the instant he can: nothing is swallowed
@@ -253,7 +253,7 @@ function updateHero(h, dt, o = {}) {
     inp.consume('dodge'); h.dodgeQ = 0; h.slotQ = null;   // (a skill still waiting in the queue gives way to the roll)
     const a = mlen > .1 ? Math.atan2(md[1], md[0]) : h.aim;
     if (h.act) endAction(h);
-    h.dodgeDir = a; h.dodgeT = dodgeTime; h.dodgeX = h.x; h.dodgeY = h.y; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = 1.4; h.inv = Math.max(h.inv, dodgeTime + .04);
+    h.dodgeDir = a; h.dodgeT = dodgeTime; h.dodgeX = h.x; h.dodgeY = h.y; h.facing = a; h.dodges--; if (h.dodgeRe <= 0) h.dodgeRe = TUNE.dodgeRecharge; h.inv = Math.max(h.inv, dodgeTime + .04);
     P.dust(h.x, h.y, 0, 6, { speed: 40 }); P.ring(h.x, h.y, 3, 14, '#bff6ff', .25); h.rig.kick(-3); sfx('whoosh', { vol: .7 });
     BUS.emit('dodge', { h });
   }
@@ -287,10 +287,10 @@ function updateHero(h, dt, o = {}) {
   if (h.dodgeT > .1 && !h.perfectT) heroNearSwings(h);
   // movement
   if (h.dodgeT > 0) {
-    h.dodgeT -= dt; const u = 1 - h.dodgeT / dodgeTime, v = profile.dodgeSpeed * h.speedMul * (1 - .5 * u * u);
+    h.dodgeT -= dt; const u = 1 - h.dodgeT / dodgeTime, v = profile.dodgeSpeed * TUNE.dodgeSpeed * h.speedMul * (1 - .5 * u * u);
     h.vx = Math.cos(h.dodgeDir) * v; h.vy = Math.sin(h.dodgeDir) * v; h.z = Math.sin(Math.min(1, u) * Math.PI) * 3 + 2.1;
   } else {
-    const slow = act ? (act.moveK === undefined ? .3 : act.moveK) : 1, acc = (h.hurtT > 0 ? 300 : profile.acceleration) * dt * (h.traction === undefined ? 1 : h.traction), top = profile.speed * h.speedMul * sp * (h.speedK === undefined ? 1 : h.speedK);
+    const slow = act ? (act.moveK === undefined ? .3 : act.moveK) : 1, acc = (h.hurtT > 0 ? 300 : profile.acceleration * TUNE.heroAccel) * dt * (h.traction === undefined ? 1 : h.traction), top = profile.speed * TUNE.heroRun * h.speedMul * sp * (h.speedK === undefined ? 1 : h.speedK);
     h.vx = approach(h.vx, md[0] * top * slow, acc); h.vy = approach(h.vy, md[1] * top * slow, acc);
     h.z = act && act.z !== undefined ? act.z : 0;
   }
@@ -382,7 +382,7 @@ function drawFlask(h, g, ox, oy, view) {
 function drinkPotion(h) {
   if (h.potions <= 0 || h.potionT > 0 || h.dead) { if (h.potions <= 0) notify('NO POTIONS', '#ff8a7a', 1.2); return; }
   h.potions--; h.potionT = .8;
-  const heal = h.maxHp * .45 * (1 + (h.stats.potionHeal || 0) / 100);
+  const heal = h.maxHp * TUNE.potionHeal * (1 + (h.stats.potionHeal || 0) / 100);
   h.hp = Math.min(h.maxHp, h.hp + heal * .35); h.healT = 1.5; h.healRate = heal * .65 / 1.5;
   sfx('heal'); P.glints(h.x, h.y, 14, 10, '#ff6a7a', 14); P.ring(h.x, h.y, 2, 16, '#ff8a9a', .35);
   BUS.emit('potion', { h, heal });
