@@ -11,7 +11,7 @@ const out = resolve(opt('out', 'check-output/smoke')), from = +opt('from', 1), t
 const character = opt('character', null);
 if (character && !['wanderer', 'codex'].includes(character)) throw new Error('Unknown character: ' + character);
 mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--autoplay-policy=no-user-gesture-required'] });
 const targets = ['title', 'town', 'gallery', 'proving', ...Array.from({ length: to - from + 1 }, (_, i) => 'depth-' + (from + i))];
 let bad = 0;
 for (const t of targets) {

@@ -8,7 +8,7 @@ import { chromium } from "playwright";
 const out = resolve("check-output/codex");
 mkdirSync(out, { recursive: true });
 const url = pathToFileURL(resolve("examples/emberdeep.html")).href;
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const context = await browser.newContext({
 	viewport: { width: 1280, height: 800 },
 });

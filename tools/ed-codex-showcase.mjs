@@ -9,7 +9,7 @@ const frames = process.argv.includes("--frames");
 const folder = resolve("check-output/codex-showcase");
 mkdirSync(folder, { recursive: true });
 mkdirSync("docs/assets", { recursive: true });
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 try {
 	const page = await browser.newPage({ viewport: { width: 960, height: 620 } });
 	await page.goto(

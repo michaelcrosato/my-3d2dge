@@ -249,6 +249,8 @@ npm run test:codex                # character, spells, progression, saves and de
 npm run test:agent                # agent edition: header examples and a coverage scene on both engines, API subset
 ```
 
+Every browser tool accepts `CHROMIUM_PATH` to use an already installed Chromium instead of Playwright's download. In Claude Code cloud sessions, `.claude/hooks/session-start.sh` runs `npm install` and sets it for you.
+
 To check an animation frame by frame, record a contact sheet:
 
 ```
