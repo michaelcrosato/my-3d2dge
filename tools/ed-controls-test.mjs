@@ -9,7 +9,7 @@ import { chromium } from "playwright";
 const out = resolve("check-output/controls");
 mkdirSync(out, { recursive: true });
 const url = pathToFileURL(resolve("examples/emberdeep.html")).href;
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const errors = [],
 	checks = [];
 const context = await browser.newContext({

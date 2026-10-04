@@ -70,7 +70,7 @@ function recorder([n, every, crop, virtual]) {
   return new Promise(done => { const loop = () => grab() ? done(result()) : requestAnimationFrame(loop); requestAnimationFrame(loop); });
 }
 
-const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--autoplay-policy=no-user-gesture-required'] });
 const errors = [];
 
 // Plays the steps on one page and returns its recorded frames.

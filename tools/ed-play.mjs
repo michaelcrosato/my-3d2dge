@@ -27,7 +27,7 @@ const out = resolve(opt('out', 'check-output/ed')), hash = opt('hash', '');
 // steps are separated by spaces, or by ' | ' when the list contains that (so eval:/log: code may hold spaces)
 const rawSteps = (opt('steps', 'wait:2500 shot:start') || '').trim(), steps = rawSteps.includes(' | ') ? rawSteps.split(' | ').map(s => s.trim()).filter(Boolean) : rawSteps.split(/\s+/);
 mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [], warns = [];
 page.on('pageerror', e => errors.push(String(e && e.stack || e)));
