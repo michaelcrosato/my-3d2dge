@@ -23,6 +23,7 @@ The **core** files, which you must NOT edit, are:
 
 ```
 00-core.js          setup, input, ED state, DIFF/OPT, REG registries, def(), BUS events, RNG, helpers, SCALE curves
+01-tune.js          TUNE: the rule numbers the Developer panel changes (knob(...) defaults = the shipped game); see TUNING.md
 05-elements.js      elements (phys fire frost storm void venom), statuses, dot(), applyStatus(), statusSpeed(), statusTint()
 10-combat.js        units, dealDamage(), killUnit(), knock(), GRID, eachEnemy(), hitCircle(), hitCone(), elBurst(), FX verbs
 15-stats.js         STATS, statText(), statSource(), computeStats(), skillRank(), heroHit()
@@ -41,6 +42,10 @@ The **core** files, which you must NOT edit, are:
 ```
 
 If you need a core change, don't edit the file. Work around it through the registries, hooks and BUS events below. If you truly cannot, describe the smallest core change in your final report.
+
+## Tuning numbers
+
+A rule number that a designer may want to change (a speed, a chance, a growth rate, a timing) belongs in `01-tune.js` as a `knob(...)`, read as `TUNE.<id>` where the rule lives. Each knob's default is the shipped value. The Developer panel (`62-developer.js`) lists, explains, saves and resets every knob. Its inspectors also change any number in a registered spec (monsters, bosses, item bases and affixes, skills). See `TUNING.md`.
 
 ## The language (registries)
 

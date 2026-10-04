@@ -44,7 +44,8 @@ function statSource(fn) { STAT_SOURCES.push(fn); }
 function statFinal(fn) { STAT_FINAL.push(fn); }
 /** base stats at a hero level */
 function baseStats(lvl) {
-  return { life: 70 + lvl * 12, ember: 100, emberRegen: 5, lifeRegen: .4 + lvl * .08, crit: 5, critDmg: 50, armor: 4 + lvl * 3, dmgFlat: 0, potionCharges: 3, dodgeCharges: 2 };
+  const T = TUNE;   // (the Developer panel's Hero > Base stats)
+  return { life: T.baseLife + lvl * T.lifePerLevel, ember: T.baseEmber, emberRegen: T.emberRegen, lifeRegen: T.lifeRegen + lvl * T.regenPerLevel, crit: T.baseCrit, critDmg: T.baseCritDmg, armor: T.baseArmor + lvl * T.armorPerLevel, dmgFlat: 0, potionCharges: 3 + T.potionCharges, dodgeCharges: 2 + T.dodgeCharges };
 }
 function computeStats(h) {
   const s = baseStats(h.level);
@@ -54,10 +55,10 @@ function computeStats(h) {
   for (const fn of STAT_FINAL) { try { fn(h, s); } catch (e) { game._fail('stat final', e); } }
   h.stats = s;
   // derived values the combat code reads directly
-  const ra = s.resAll || 0;
-  h.res = { fire: clamp((s.resFire || 0) + ra, -100, 75) / 100, frost: clamp((s.resFrost || 0) + ra, -100, 75) / 100, storm: clamp((s.resStorm || 0) + ra, -100, 75) / 100, void: clamp((s.resVoid || 0) + ra, -100, 75) / 100, venom: clamp((s.resVenom || 0) + ra, -100, 75) / 100 };
+  const ra = s.resAll || 0, rc = TUNE.resCap;
+  h.res = { fire: clamp((s.resFire || 0) + ra, -100, rc) / 100, frost: clamp((s.resFrost || 0) + ra, -100, rc) / 100, storm: clamp((s.resStorm || 0) + ra, -100, rc) / 100, void: clamp((s.resVoid || 0) + ra, -100, rc) / 100, venom: clamp((s.resVenom || 0) + ra, -100, rc) / 100 };
   h.armor = s.armor * (1 + (s.armorPct || 0) / 100);
-  h.critChance = clamp(s.crit, 0, 95) / 100; h.critMul = 1.5 + (s.critDmg - 50) / 100 + .0;
+  h.critChance = clamp(s.crit, 0, 95) / 100; h.critMul = TUNE.critMul + (s.critDmg - 50) / 100;
   h.statusMul = 1 + (s.statusChance || 0) / 100;
   const was = h.maxHp || 1, frac = h.hp / was;
   h.maxHp = Math.round(s.life * (1 + (s.lifePct || 0) / 100) * DIFF.heroHp);
@@ -85,7 +86,7 @@ function heroHit(h, scale, o = {}) {
   if (tags.includes('proj')) inc += s.incProj || 0;
   if (tags.includes('aoe')) inc += s.incAoe || 0;
   if (tags.includes('dot')) inc += s.incDot || 0;
-  const rank = o.skill ? skillRank(h, o.skill) : 1, rankMul = 1 + Math.max(0, rank - 1) * .12;
-  const amount = base * scale * (1 + inc / 100) * (1 + (s.moreDmg || 0) / 100) * rankMul;
+  const rank = o.skill ? skillRank(h, o.skill) : 1, rankMul = 1 + Math.max(0, rank - 1) * TUNE.rankBonus;
+  const SK = o.skill && REG.skills[o.skill], amount = base * scale * (1 + inc / 100) * (1 + (s.moreDmg || 0) / 100) * rankMul * (SK && SK.dmgMul !== undefined ? SK.dmgMul : 1);   // (dmgMul: the Developer panel's Skill inspector)
   return Object.assign({ src: h, amount, el, tags, kb: (o.kb || 0) * (1 + (s.knockback || 0) / 100), statusPower: amount * .45 * (1 + (s.statusDmg || 0) / 100), skill: o.skill }, o.extra || {});
 }

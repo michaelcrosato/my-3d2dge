@@ -196,7 +196,7 @@ BUS.on('hit', e => { const h = ED.hero; if (h && h.bot && e.src === h) h.bot.las
 BUS.on('step', e => {
   const h = ED.hero; if (h && h.bot && !h.bot.manual) botThink(h, e.dt);   // manual: a scene drives the virtual input itself (the Gallery)
   // balance runs keep their speed (as the base clock: a perfect dodge or a finisher slows it by its own factor)
-  if (BOT_RUN.on && ED.mode === 'level' && SLOW.base !== BOT_RUN.speed) slowMoReset(BOT_RUN.speed);
+  if (BOT_RUN.on && ED.mode === 'level' && SLOW.raw !== BOT_RUN.speed) slowMoReset(BOT_RUN.speed);
 });
 /* a soak / balance run: the bot plays depth after depth and logs how it went (time, level, deaths, potions) */
 const BOT_RUN = { on: false, to: 0, log: [], speed: 3 };

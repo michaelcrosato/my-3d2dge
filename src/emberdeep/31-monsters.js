@@ -805,7 +805,7 @@ def('ai', 'imp', { update(m, dt) {
   a.t = (a.t || 0) + dt; a.blinkCd = (a.blinkCd === undefined ? 1.5 : a.blinkCd) - dt; m.cool -= dt;
   if (MON_blinkStep(m, dt)) { m.blobState = { squash: .3, squint: true, look: [dx, dy] }; return; }
   if (m.z > 0 || m.vz > 0) {   // a hop's arc (canFly while airborne keeps the core's ballistics off it)
-    m.vz -= 460 * dt * k; m.z += m.vz * dt * k;
+    m.vz -= 460 * TUNE.gravity * dt * k; m.z += m.vz * dt * k;
     if (m.z <= 0) { m.z = 0; m.vz = 0; m.canFly = false; m.blob.kick(-5); P.dust(m.x, m.y, 0, 3, { speed: 20 }); a.rest = .22 + Math.random() * .4; m.vx *= .25; m.vy *= .25; }
     m.blobState = { squash: clamp(m.vz / 500, -.2, .3), look: [dx, dy] }; return;
   }

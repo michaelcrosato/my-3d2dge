@@ -62,8 +62,10 @@ function applyStatus(u, id, power = 0, src = null) {
   if (!u.alive) return;
   const S = REG.statuses[id]; if (!S) return;
   if ((id === 'stun' || id === 'fear') && u.boss) return;
+  power *= TUNE.statusPower; const t0 = u.st[id] ? u.st[id].t : 0;
   if (S.apply) S.apply(u, power, src); else u.st[id] = { t: S.dur, p: power };
-  if (u.st[id]) u.st[id].src = src;
+  const s1 = u.st[id]; if (s1 && TUNE.statusTime !== 1 && s1.t !== t0) s1.t = t0 + (s1.t - t0) * TUNE.statusTime;   // (the Developer panel's Status duration)
+  if (s1) s1.src = src;
 }
 /** run statuses for one unit (called by the unit's own update) */
 function tickStatus(u, dt) {

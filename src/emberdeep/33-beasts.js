@@ -503,7 +503,7 @@ function BST_egg(x, y, o = {}) {
     hatch() { if (this.dead) return; this.dead = true; sfx('bst_squelch', { vol: .6, pitch: 1.3 }); P.bits(this.x, this.y, 5, 12, ['#e8dcb0', '#c8b890', '#9ad84a']); P.ring(this.x, this.y, 2, 14, '#e8dcb0', .3);
       for (let i = 0; i < this.n; i++) { const a = Math.random() * TAU, b = spawnMonster('broodling', this.x + Math.cos(a) * 3, this.y + Math.sin(a) * 3, { instant: true }); if (b) { b.ai.aware = true; b.vx = Math.cos(a) * 60; b.vy = Math.sin(a) * 60; b.cool = .6 + Math.random() * .5; b.noLoot = Math.random() < .7; } } },
     update(dt) {
-      if (this.z > 0 || this.vz > 0) { this.vz -= 400 * dt; this.z += this.vz * dt; this.x += this.vx * dt; this.y += this.vy * dt; if (this.z <= 0) { this.z = 0; this.vz = 0; this.vx = this.vy = 0; P.dust(this.x, this.y, 0, 5, { color: '#c8c0a0' }); sfx('bst_egg', { vol: .35, pitch: .7 }); if (ED.L && ED.L.map && ED.L.map.solidAt(this.x, this.y)) this.pop(false); } return; }
+      if (this.z > 0 || this.vz > 0) { this.vz -= 400 * TUNE.gravity * dt; this.z += this.vz * dt; this.x += this.vx * dt; this.y += this.vy * dt; if (this.z <= 0) { this.z = 0; this.vz = 0; this.vx = this.vy = 0; P.dust(this.x, this.y, 0, 5, { color: '#c8c0a0' }); sfx('bst_egg', { vol: .35, pitch: .7 }); if (ED.L && ED.L.map && ED.L.map.solidAt(this.x, this.y)) this.pop(false); } return; }
       this.t += dt; const h = ED.hero;
       if (this.cue < 0 && (this.hatchT !== null ? this.t >= this.hatchT : h && h.alive && Math.hypot(h.x - this.x, h.y - this.y) < 44)) this.cue = 0;
       if (this.cue >= 0 && (this.cue += dt) > .9) this.hatch();
