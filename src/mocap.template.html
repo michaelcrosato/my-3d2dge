@@ -46,7 +46,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 @media (pointer:coarse){ .keys{display:none} kbd{display:none} }
 @media (max-width:720px),(max-height:520px){ .brand p{display:none} .brand h1{font-size:17px} .top{top:8px;left:8px;right:8px} }
 
-.side{top:118px;left:12px;bottom:118px;width:236px;display:flex;flex-direction:column}
+.side{top:132px;left:12px;bottom:118px;width:236px;display:flex;flex-direction:column}
 .list{overflow:auto;padding:6px 8px 10px;flex:1;min-height:0;scrollbar-width:thin}
 .list h2{margin:10px 4px 4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .list h2:first-child{margin-top:4px}
@@ -59,6 +59,27 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 #frame{font-size:13px;color:var(--muted);min-width:110px;text-align:right}
 #pick{display:none;font:inherit;font-size:14px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-height:36px;max-width:100%}
 @media (max-width:900px),(max-height:560px){ .side{display:none} #pick{display:block} }
+.ai{top:212px;right:12px;bottom:118px;width:min(400px,calc(100% - 24px));display:flex;flex-direction:column;padding:6px}
+.ai[hidden]{display:none}
+.tabs{display:flex;gap:3px;flex-wrap:wrap}
+.tabs button{font-size:13px;min-height:30px;padding:4px 9px}
+.pane{display:flex;flex-direction:column;gap:6px;min-height:0;flex:1;margin-top:6px}
+.pane[hidden]{display:none}
+#clipText{flex:1;min-height:120px;width:100%;resize:none;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink);background:var(--key);border:1px solid var(--line);border-radius:4px;padding:7px;white-space:pre-wrap;word-break:break-word;overflow:auto;-webkit-user-select:text;user-select:text}
+.pane pre{margin:0;flex:1;min-height:0;overflow:auto;white-space:pre-wrap;font:11.5px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--key);border:1px solid var(--line);border-radius:4px;padding:7px;-webkit-user-select:text;user-select:text}
+#paneFormat{overflow:auto;display:block}
+#paneFormat > *{margin-bottom:6px}
+#legend{flex:none;overflow:visible}
+.tnote{margin:0;font-size:12.5px;line-height:1.4;color:var(--muted)}
+.tnote.bad{color:var(--hp)}
+.row-btns{display:flex;gap:4px;flex-wrap:wrap}
+.row-btns button{font-size:13px;min-height:30px;padding:4px 10px;border:1px solid var(--line)}
+.fmt{border-collapse:collapse;font-size:12.5px;width:100%}
+.fmt th{text-align:left;font-weight:600;color:var(--muted);padding:3px 4px;border-bottom:1px solid var(--line)}
+.fmt td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.fmt td span{color:var(--muted);font-size:11.5px}
+button:disabled{opacity:.45;cursor:default}
+@media (max-width:1100px){ .ai{top:auto;bottom:118px;height:46%} }
 </style>
 </head>
 <body>
@@ -81,18 +102,49 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
       <div class="seg panel" role="group" aria-label="Who plays the clip">
         <button type="button" data-cast="mannequin" aria-pressed="false">Mannequin</button>
         <button type="button" data-cast="hero" aria-pressed="false">Hero</button>
-        <button type="button" data-cast="both" aria-pressed="false"><kbd>C</kbd>Both</button>
+        <button type="button" data-cast="both" aria-pressed="false">Both</button>
+        <button type="button" data-cast="compare" aria-pressed="false" title="One clip five ways: as captured, at 15 fps, as key poses at two error budgets, and as the readable text format"><kbd>C</kbd>Compare</button>
       </div>
       <div class="seg panel" role="group" aria-label="Inspection tools">
         <button type="button" id="boneBtn" aria-pressed="false"><kbd>B</kbd>Bones</button>
         <button type="button" id="spinBtn" aria-pressed="false"><kbd>P</kbd>Turntable</button>
         <button type="button" id="trueBtn" aria-pressed="false" title="Draw the figures exactly as the camera sees the floor, with no sprite-angle cheat"><kbd>H</kbd>True camera</button>
+        <button type="button" id="readBtn" aria-pressed="false" title="Play the readable key poses instead of the capture"><kbd>R</kbd>Readable</button>
+        <button type="button" id="ghostBtn" aria-pressed="false" title="In Compare, show the capture in blue behind each version: blue shows where a version strays"><kbd>G</kbd>Ghost</button>
+        <button type="button" id="aiBtn" aria-pressed="false" title="The panel for AI models: the clip as text, the catalog, the format"><kbd>A</kbd>AI panel</button>
       </div>
     </div>
   </div>
   <div class="hud side panel">
     <div class="list" id="clips" role="group" aria-label="Animation clips"></div>
     <p class="credit">45 clips from the <a href="https://quaternius.com/packs/universalanimationlibrary.html" target="_blank" rel="noopener">Universal Animation Library</a> by Quaternius (CC0). ★ the core set.</p>
+  </div>
+  <div class="hud ai panel" id="ai">
+    <div class="tabs" role="group" aria-label="AI panel">
+      <button type="button" data-tab="text" aria-pressed="true">This clip as text</button>
+      <button type="button" data-tab="catalog" aria-pressed="false">Catalog</button>
+      <button type="button" data-tab="format" aria-pressed="false">Format and costs</button>
+    </div>
+    <div class="pane" id="paneText">
+      <textarea id="clipText" spellcheck="false" aria-label="The current clip in the readable format"></textarea>
+      <p class="tnote" id="textNote"></p>
+      <div class="row-btns">
+        <button type="button" id="applyBtn">Apply</button>
+        <button type="button" id="resetBtn">Reset</button>
+        <button type="button" id="mirrorBtn" title="Swap left and right: a model's one-line transform">Mirror</button>
+        <button type="button" id="copyBtn" title="Copy the legend and this clip, to paste into a model">Copy for a model</button>
+      </div>
+    </div>
+    <div class="pane" id="paneCatalog" hidden>
+      <p class="tnote" id="catalogNote"></p>
+      <pre id="catalog"></pre>
+    </div>
+    <div class="pane" id="paneFormat" hidden>
+      <p class="tnote"><span id="fmtCount">All the clips</span> stored each way. Sizes are gzipped, as a browser downloads them. Error is the furthest any body point strays from the capture in any frame (one pixel is about 24 mm at the default zoom).</p>
+      <table class="fmt"><thead><tr><th>Stored as</th><th>Poses</th><th>Size</th><th>Worst</th><th>For a model</th></tr></thead><tbody id="formatRows"></tbody></table>
+      <p class="tnote" id="legendNote"></p>
+      <pre id="legend"></pre>
+    </div>
   </div>
   <div class="hud bottom">
     <div class="player panel">
@@ -111,6 +163,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 </div>
 <!-- @inline engine/my-3d2dge.js -->
 <!-- @inline src/mocap/ual-clips.js -->
+<!-- @inline src/mocap/ual-catalog.js -->
 <!-- @inline src/mocap/mocap.js -->
 <!-- @inline src/mocap.game.js -->
 </body>
