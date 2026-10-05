@@ -13,8 +13,10 @@
     "build": "node tools/build.mjs",
     "check": "node tools/check.mjs",
     "pretest": "npm run build",
-    "test": "node tools/ed-syntax.mjs --all && node tools/ed-controls-test.mjs && node tools/ed-codex-test.mjs && node tools/ed-tune-test.mjs && node tools/agent-test.mjs",
+    "test": "node tools/ed-syntax.mjs --all && node tools/ed-controls-test.mjs && node tools/ed-codex-test.mjs && node tools/ed-tune-test.mjs && node tools/agent-test.mjs && node tools/mocap-test.mjs",
     "test:agent": "node tools/agent-test.mjs",
+    "test:mocap": "node tools/mocap-test.mjs",
+    "mocap:import": "node tools/anim-import.mjs",
     "test:smoke": "node tools/ed-smoke.mjs",
     "test:codex": "npm run build && node tools/ed-codex-test.mjs",
     "showcase:codex": "node tools/ed-codex-showcase.mjs"

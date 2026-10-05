@@ -59,6 +59,7 @@ The file is 82k tokens in all (140k for the readable full engine, 128k-133k for 
 | **`examples/emberdeep.html`** | **Emberdeep**, the engine's signature game: a hack-and-slash that goes down forever (see below). Deep links: `#town`, `#depth-7`, `#proving`, `#gallery`, or one gallery entry such as `#gallery/bestiary/husk`, `#gallery/skills/whirlwind` or `#gallery/poses/fall`. |
 | `examples/arena.html` | **Emberwell**, an action-RPG arena with WebGPU lighting. One game in four views: isometric (Diablo, Bastion), three-quarter (Zelda, Stardew Valley), top-down and brawler. Keys `1`-`4` or `V` switch, or open `arena.html#threequarter`. |
 | `examples/perspective-lab.html` | One room in every view, with lighting and skeleton toggles |
+| `examples/mocap-lab.html` | 45 ready-made animations imported from a 3D library ([Quaternius' Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html), CC0), played on a pixel-art look-alike of its mannequin and, retargeted, on the engine's hero. Every view, slow motion, frame stepping and a bone overlay. Deep links: `#Dance_Loop`, `?view=side`, `?cast=hero`. See `docs/MOCAP.md`. |
 | `examples/stress-test.html` | Up to 5,000 monsters in stick, HD, skeleton or knight rigs that attack with telegraphed moves and fall when beaten; 30 shadow-casting torches, particle storms, camera distance, zoom and turn, a benchmark and a copyable report |
 | `examples/scarfrunner-side.html` | The standalone side-scrolling prototype that came before the engine |
 
@@ -247,6 +248,7 @@ npm run test:smoke -- --secs 2    # title, town, gallery, proving, depths 1–20
 npm run test:smoke -- --character codex --secs 2 --out check-output/codex-smoke
 npm run test:codex                # character, spells, progression, saves and device checks
 npm run test:agent                # agent edition: header examples and a coverage scene on both engines, API subset
+npm run test:mocap                # mocap lab: every imported clip on the mannequin and the hero, in every view
 ```
 
 Every browser tool accepts `CHROMIUM_PATH` to use an already installed Chromium instead of Playwright's download. In Claude Code cloud sessions, `.claude/hooks/session-start.sh` runs `npm install` and sets it for you.
@@ -271,6 +273,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 8,400 tokens, with three complete example games.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 - `docs/ANIMATION-RESEARCH.md`: famous animations for every view and genre the engine covers, what the engine can already draw, and a ranked list of animations to ship ready-made.
+- `docs/MOCAP.md`: importing ready-made skeletal animation (glTF) with `tools/anim-import.mjs`, the clip format, retargeting onto the engine's rigs, and which animation libraries are safe to use.
 
 ## License
 

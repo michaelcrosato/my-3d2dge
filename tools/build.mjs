@@ -32,6 +32,8 @@ const builds = [
   { template: 'src/arena.template.html', out: 'examples/arena.html', vars: { VIEW: 'iso', TITLE: 'Emberwell · my-3D2dge' } },
   { template: 'src/lab.template.html', out: 'examples/perspective-lab.html', vars: {} },
   { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} },
+  // imported animation clips (tools/anim-import.mjs) on a look-alike mannequin and on the hero
+  { template: 'src/mocap.template.html', out: 'examples/mocap-lab.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
   { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {} },
   // the files to share with AI models: API card + engine + starter slices
