@@ -6,8 +6,9 @@
 <title>Mocap Lab · my-3D2dge</title>
 <!--
   Built with the my-3D2dge engine: https://github.com/michaelcrosato/my-3d2dge
-  This file is standalone: engine, clip data and lab are inlined below.
-  Animations: Universal Animation Library by Quaternius (quaternius.com), CC0 1.0, converted by tools/anim-import.mjs.
+  This file is standalone: engine, animation sets and lab are inlined below.
+  Animations: Universal Animation Library 1 and 2 by Quaternius (quaternius.com), CC0 1.0, imported into the readable
+  format by tools/anim-import.mjs (src/mocap/sets/quaternius.js); the hero's set is picked from it by tools/anim-set.mjs.
 -->
 <style>
 :root{
@@ -67,7 +68,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 .pane[hidden]{display:none}
 #clipText{flex:1;min-height:120px;width:100%;resize:none;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink);background:var(--key);border:1px solid var(--line);border-radius:4px;padding:7px;white-space:pre-wrap;word-break:break-word;overflow:auto;-webkit-user-select:text;user-select:text}
 .pane pre{margin:0;flex:1;min-height:0;overflow:auto;white-space:pre-wrap;font:11.5px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--key);border:1px solid var(--line);border-radius:4px;padding:7px;-webkit-user-select:text;user-select:text}
-#paneFormat{overflow:auto;display:block}
+#paneFormat:not([hidden]){overflow:auto;display:block}
 #paneFormat > *{margin-bottom:6px}
 #legend{flex:none;overflow:visible}
 .tnote{margin:0;font-size:12.5px;line-height:1.4;color:var(--muted)}
@@ -102,28 +103,29 @@ button:disabled{opacity:.45;cursor:default}
       <div class="seg panel" role="group" aria-label="Who plays the clip">
         <button type="button" data-cast="mannequin" aria-pressed="false">Mannequin</button>
         <button type="button" data-cast="hero" aria-pressed="false">Hero</button>
-        <button type="button" data-cast="both" aria-pressed="false">Both</button>
-        <button type="button" data-cast="compare" aria-pressed="false" title="One clip five ways: as captured, at 15 fps, as key poses at two error budgets, and as the readable text format"><kbd>C</kbd>Compare</button>
+        <button type="button" data-cast="both" aria-pressed="false"><kbd>C</kbd>Both</button>
+      </div>
+      <div class="seg panel" role="group" aria-label="Animation set">
+        <button type="button" data-set="quaternius" data-label="Quaternius" aria-pressed="false" title="Every free clip of Universal Animation Library 1 and 2"><kbd>G</kbd>Quaternius</button>
+        <button type="button" data-set="hero" data-label="Hero" aria-pressed="false" title="The clips Emberdeep's Wanderer plays">Hero</button>
       </div>
       <div class="seg panel" role="group" aria-label="Inspection tools">
         <button type="button" id="boneBtn" aria-pressed="false"><kbd>B</kbd>Bones</button>
         <button type="button" id="spinBtn" aria-pressed="false"><kbd>P</kbd>Turntable</button>
         <button type="button" id="trueBtn" aria-pressed="false" title="Draw the figures exactly as the camera sees the floor, with no sprite-angle cheat"><kbd>H</kbd>True camera</button>
-        <button type="button" id="readBtn" aria-pressed="false" title="Play the readable key poses instead of the capture"><kbd>R</kbd>Readable</button>
-        <button type="button" id="ghostBtn" aria-pressed="false" title="In Compare, show the capture in blue behind each version: blue shows where a version strays"><kbd>G</kbd>Ghost</button>
         <button type="button" id="aiBtn" aria-pressed="false" title="The panel for AI models: the clip as text, the catalog, the format"><kbd>A</kbd>AI panel</button>
       </div>
     </div>
   </div>
   <div class="hud side panel">
     <div class="list" id="clips" role="group" aria-label="Animation clips"></div>
-    <p class="credit">45 clips from the <a href="https://quaternius.com/packs/universalanimationlibrary.html" target="_blank" rel="noopener">Universal Animation Library</a> by Quaternius (CC0). ★ the core set.</p>
+    <p class="credit"><span id="setNote"></span> <a href="https://quaternius.com/packs/universalanimationlibrary.html" target="_blank" rel="noopener">Library 1</a>, <a href="https://quaternius.com/packs/universalanimationlibrary2.html" target="_blank" rel="noopener">Library 2</a>.</p>
   </div>
   <div class="hud ai panel" id="ai">
     <div class="tabs" role="group" aria-label="AI panel">
       <button type="button" data-tab="text" aria-pressed="true">This clip as text</button>
       <button type="button" data-tab="catalog" aria-pressed="false">Catalog</button>
-      <button type="button" data-tab="format" aria-pressed="false">Format and costs</button>
+      <button type="button" data-tab="format" aria-pressed="false">This set</button>
     </div>
     <div class="pane" id="paneText">
       <textarea id="clipText" spellcheck="false" aria-label="The current clip in the readable format"></textarea>
@@ -140,8 +142,8 @@ button:disabled{opacity:.45;cursor:default}
       <pre id="catalog"></pre>
     </div>
     <div class="pane" id="paneFormat" hidden>
-      <p class="tnote"><span id="fmtCount">All the clips</span> stored each way. Sizes are gzipped, as a browser downloads them. Error is the furthest any body point strays from the capture in any frame (one pixel is about 24 mm at the default zoom).</p>
-      <table class="fmt"><thead><tr><th>Stored as</th><th>Poses</th><th>Size</th><th>Worst</th><th>For a model</th></tr></thead><tbody id="formatRows"></tbody></table>
+      <p class="tnote">The set as stored: key poses a model reads and edits, in-betweened as they play. The distances are how far a body point strays from the motion capture it was measured from (one pixel is about 24 mm at the default zoom).</p>
+      <table class="fmt"><tbody id="formatRows"></tbody></table>
       <p class="tnote" id="legendNote"></p>
       <pre id="legend"></pre>
     </div>
@@ -158,12 +160,13 @@ button:disabled{opacity:.45;cursor:default}
       <span id="frame">frame 1 / 1</span>
       <span class="fps" id="fps">60 fps</span>
     </div>
-    <p class="keys panel"><b>↑ ↓</b> clips, <b>, .</b> step a frame, <b>Q E</b> turn the figure, <b>[ ]</b> turn the camera, <b>- =</b> zoom, <b>0</b> reset.</p>
+    <p class="keys panel"><b>↑ ↓</b> clips, <b>G</b> switch set, <b>, .</b> step a frame, <b>Q E</b> turn the figure, <b>[ ]</b> turn the camera, <b>- =</b> zoom, <b>0</b> reset.</p>
   </div>
 </div>
 <!-- @inline engine/my-3d2dge.js -->
-<!-- @inline src/mocap/ual-clips.js -->
-<!-- @inline src/mocap/ual-catalog.js -->
+<!-- @inline src/mocap/readable.js -->
+<!-- @inline src/mocap/sets/quaternius.js -->
+<!-- @inline src/mocap/sets/hero.js -->
 <!-- @inline src/mocap/mocap.js -->
 <!-- @inline src/mocap.game.js -->
 </body>

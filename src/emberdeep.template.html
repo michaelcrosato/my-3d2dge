@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Emberdeep · my-3D2dge</title>
 <!-- EMBERDEEP, the signature game of the my-3D2dge engine: https://github.com/michaelcrosato/my-3d2dge (standalone file, no network)
-     Source: src/emberdeep/*.js joined into one script by tools/build.mjs. -->
+     Source: src/emberdeep/*.js joined into one script by tools/build.mjs.
+     The hero's captured animations (src/mocap/sets/hero.js): Universal Animation Library 1 and 2 by Quaternius
+     (quaternius.com), CC0 1.0, in my-3D2dge's readable format. -->
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #stage{position:relative;width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
@@ -24,6 +26,9 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <!-- @inline engine/my-3d2dge.js -->
+<!-- @inline src/mocap/readable.js -->
+<!-- @inline src/mocap/mocap.js -->
+<!-- @inline src/mocap/sets/hero.js -->
 <!-- @inline-parts src/emberdeep -->
 </body>
 </html>

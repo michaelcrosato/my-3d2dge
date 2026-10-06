@@ -1,71 +1,65 @@
-// Animation importer: turns a skeletal animation library in glTF binary form (.glb: one humanoid rig, a mesh and
-// its clips) into my-3D2dge clip data, so ready-made animations can play on the engine's procedural rigs.
+// Animation importer: turns skeletal animation libraries in glTF binary form (.glb: a humanoid rig, a mesh and its
+// clips) into a my-3D2dge animation set: readable key poses (src/mocap/readable.js) that the engine's rigs play and
+// that an AI model can read, pick from and edit.
 //
-// For every clip it samples the skeleton at a fixed rate, runs forward kinematics, and keeps the 3D positions of
-// 31 body points (pelvis, spine, head, shoulders, arms, hands, legs, feet) in the engine's local frame:
-// f = forward, r = right, z = up, centred on the character's root on the ground. It also measures the body from
-// the mesh (limb radii, head size, the waist and joint bands of a second material), so a game can draw a look-alike.
+// For every clip it samples the skeleton at a fixed rate, runs forward kinematics, and takes 36 body points (pelvis,
+// spine, head and the way it faces, collarbones, arms, fists, legs, feet) in the rig's local frame: f forward, r right,
+// z up, centred on the root on the ground. It measures the body from its own clips (proportions, how its spine bends),
+// then fits each clip with as few key poses as keep it within --tol mm of the capture. It also measures the first
+// library's mesh (limb radii, height, the joint-ring material), so a game can draw a look-alike of its mannequin.
 //
-// Points marked 'fwd' sit 12 cm in front of a bone (the way it faced in the rest pose), so a renderer can tell
-// which way the face, the chest and the hips point, and how far the torso twists.
-//
-// Usage:  node tools/anim-import.mjs library.glb [--out src/mocap/ual-clips.js] [--fps 30] [--clips A,B,C] [--name UAL] [--credit "..."]
-//         node tools/anim-import.mjs library.glb --list          (print the clips and the bones, write nothing)
-// The bone names default to the Rigify "DEF-" deform bones that Quaternius' Universal Animation Library uses; for
-// another rig, edit BONES below (one entry per body point).
-//
-// Output: a script that sets window.MOCAP[name] = { points, fps, body, clips }. Each clip is
-//   { n: frames, loop, dur, move?, data } where data is base64 of little-endian Int16 values: frame by frame,
-//   point by point, f r z in millimetres. move (root motion clips) is the root's [f, r] in millimetres per frame.
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+// Usage:  node tools/anim-import.mjs a.glb [b.glb ...] [--sources UAL1,UAL2] [--name QUATERNIUS] [--out src/mocap/sets/quaternius.js]
+//                [--catalog src/mocap/catalogs/quaternius.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword]
+//         node tools/anim-import.mjs a.glb --list          (print the clips, the bones and the rig it recognises; write nothing)
+// Rigs: the Rigify "DEF-" deform bones (Quaternius' Universal Animation Library) and the Unreal mannequin's names
+// (pelvis, spine_01, upperarm_l ...; Universal Animation Library 2) are recognised. For another rig, add it to RIGS.
+// Clips are named once: a later library's clip with a name already taken (its own T-pose) is left out.
+// --catalog: a JSON file { clip: [tags, what the body does] } written by hand; its words go into each clip.
+import { readFileSync } from 'node:fs';
+import { resolve, basename } from 'node:path';
+import { MR, writeSet } from './mocap-lib.mjs';
 
 const args = process.argv.slice(2);
-const file = args.find(a => !a.startsWith('--') && !args[args.indexOf(a) - 1]?.startsWith('--'));
+const files = args.filter((a, i) => !a.startsWith('--') && !(args[i - 1] || '').startsWith('--'));
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : def; };
-if (!file) { console.error('Usage: node tools/anim-import.mjs library.glb [--out src/mocap/ual-clips.js] [--fps 30] [--clips A,B] [--name UAL] [--credit "..."] [--list]'); process.exit(2); }
-const OUT = resolve(opt('out', 'src/mocap/ual-clips.js')), FPS = +opt('fps', 30), NAME = opt('name', 'UAL');
-const CREDIT = opt('credit', NAME === 'UAL' ? 'Universal Animation Library by Quaternius (quaternius.com), CC0 1.0 (public domain).' : '');   // the source's author and license, kept in the output
-const ONLY = opt('clips', null) ? new Set(opt('clips').split(',')) : null;
+if (!files.length) { console.error('Usage: node tools/anim-import.mjs a.glb [b.glb ...] [--sources A,B] [--name SET] [--out file.js] [--catalog cat.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword] [--list]'); process.exit(2); }
+const OUT = resolve(opt('out', 'src/mocap/sets/quaternius.js')), FPS = +opt('fps', 30), NAME = opt('name', 'QUATERNIUS'), TOL = +opt('tol', 30);
+const SOURCES = (opt('sources', '') || '').split(',').filter(Boolean), ONLY = opt('clips', null) ? new Set(opt('clips').split(',')) : null;
+const BLADE = new RegExp(opt('blade', 'Sword'));
+const CREDIT = opt('credit', 'Universal Animation Library 1 and 2 by Quaternius (quaternius.com), CC0 1.0 (public domain).');
+const CATALOG = opt('catalog', null) ? JSON.parse(readFileSync(resolve(opt('catalog')), 'utf8')) : {};
 
-/* ---- the body points: [point, bone, where] (where: 'head' = the bone's own position, 'tip' = its far end) ---- */
-const BONES = [
-  ['pelvis', 'DEF-hips'], ['spine1', 'DEF-spine.001'], ['spine2', 'DEF-spine.002'], ['chest', 'DEF-spine.003'],
-  ['neck', 'DEF-neck'], ['head', 'DEF-head'], ['headTop', 'DEF-head', 'tip'],
-  ['faceF', 'DEF-head', 'fwd'], ['chestF', 'DEF-spine.003', 'fwd'], ['pelvisF', 'DEF-hips', 'fwd'],   // 12 cm in front: which way the face, chest and hips point
-  ...['L', 'R'].flatMap(s => [
-    ['clav' + s, 'DEF-shoulder.' + s], ['sh' + s, 'DEF-upper_arm.' + s], ['elbow' + s, 'DEF-forearm.' + s], ['wrist' + s, 'DEF-hand.' + s],
-    ['index' + s, 'DEF-f_index.01.' + s], ['knuck' + s, 'DEF-f_middle.01.' + s], ['pinky' + s, 'DEF-f_pinky.01.' + s], ['fist' + s, 'DEF-f_middle.02.' + s],
-    ['hip' + s, 'DEF-thigh.' + s], ['knee' + s, 'DEF-shin.' + s], ['ankle' + s, 'DEF-foot.' + s], ['ball' + s, 'DEF-toe.' + s], ['toe' + s, 'DEF-toe.' + s, 'tip']
-  ])
-];
-const POINTS = BONES.map(b => b[0]);
-// segments whose thickness the mesh tells us: [from point, to point, bone whose vertices it owns]
-const SEGS = [
-  ['pelvis', 'spine1', 'DEF-hips'], ['spine1', 'spine2', 'DEF-spine.001'], ['spine2', 'chest', 'DEF-spine.002'], ['chest', 'neck', 'DEF-spine.003'],
-  ['neck', 'head', 'DEF-neck'], ['head', 'headTop', 'DEF-head'],
-  ...['L', 'R'].flatMap(s => [
-    ['clav' + s, 'sh' + s, 'DEF-shoulder.' + s], ['sh' + s, 'elbow' + s, 'DEF-upper_arm.' + s], ['elbow' + s, 'wrist' + s, 'DEF-forearm.' + s],
-    ['wrist' + s, 'knuck' + s, 'DEF-hand.' + s], ['hip' + s, 'knee' + s, 'DEF-thigh.' + s], ['knee' + s, 'ankle' + s, 'DEF-shin.' + s],
-    ['ankle' + s, 'ball' + s, 'DEF-foot.' + s], ['ball' + s, 'toe' + s, 'DEF-toe.' + s]
-  ])
-];
+/* ---- rigs: which bone gives each body point. [point, bone, where]: where 'tip' = the bone's far end, 'fwd' = 12 cm in front ---- */
+const RIGS = {
+  rigify: {
+    test: 'DEF-hips', root: 'root',
+    map: s => ({ clav: 'DEF-shoulder.' + s, sh: 'DEF-upper_arm.' + s, elbow: 'DEF-forearm.' + s, wrist: 'DEF-hand.' + s, index: 'DEF-f_index.01.' + s, knuck: 'DEF-f_middle.01.' + s,
+      pinky: 'DEF-f_pinky.01.' + s, fist: 'DEF-f_middle.02.' + s, hip: 'DEF-thigh.' + s, knee: 'DEF-shin.' + s, ankle: 'DEF-foot.' + s, ball: 'DEF-toe.' + s, toe: ['DEF-toe.' + s, 'tip'] }),
+    core: { pelvis: 'DEF-hips', spine1: 'DEF-spine.001', spine2: 'DEF-spine.002', chest: 'DEF-spine.003', neck: 'DEF-neck', head: 'DEF-head' },
+    // segments whose thickness the mesh gives (for the look-alike): [from point, to point, bone whose vertices it owns]
+    segs: s => [['clav' + s, 'sh' + s, 'DEF-shoulder.' + s], ['sh' + s, 'elbow' + s, 'DEF-upper_arm.' + s], ['elbow' + s, 'wrist' + s, 'DEF-forearm.' + s],
+      ['wrist' + s, 'knuck' + s, 'DEF-hand.' + s], ['hip' + s, 'knee' + s, 'DEF-thigh.' + s], ['knee' + s, 'ankle' + s, 'DEF-shin.' + s], ['ankle' + s, 'ball' + s, 'DEF-foot.' + s], ['ball' + s, 'toe' + s, 'DEF-toe.' + s]],
+    coreSegs: [['pelvis', 'spine1', 'DEF-hips'], ['spine1', 'spine2', 'DEF-spine.001'], ['spine2', 'chest', 'DEF-spine.002'], ['chest', 'neck', 'DEF-spine.003'], ['neck', 'head', 'DEF-neck'], ['head', 'headTop', 'DEF-head']]
+  },
+  unreal: {
+    test: 'spine_01', root: 'root',
+    map: s => { const x = s.toLowerCase(); return { clav: 'clavicle_' + x, sh: 'upperarm_' + x, elbow: 'lowerarm_' + x, wrist: 'hand_' + x, index: 'index_01_' + x, knuck: 'middle_01_' + x,
+      pinky: 'pinky_01_' + x, fist: 'middle_02_' + x, hip: 'thigh_' + x, knee: 'calf_' + x, ankle: 'foot_' + x, ball: 'ball_' + x, toe: 'ball_leaf_' + x }; },
+    core: { pelvis: 'pelvis', spine1: 'spine_01', spine2: 'spine_02', chest: 'spine_03', neck: 'neck_01', head: 'Head' },
+    segs: () => [], coreSegs: []
+  }
+};
+const bonesFor = rig => {
+  const R = RIGS[rig], c = R.core, list = MR.POINTS.map(p => {
+    if (c[p]) return [p, c[p]];
+    if (p === 'headTop') return [p, c.head, 'tip'];
+    if (p === 'faceF') return [p, c.head, 'fwd']; if (p === 'chestF') return [p, c.chest, 'fwd']; if (p === 'pelvisF') return [p, c.pelvis, 'fwd'];
+    const s = p.slice(-1), b = R.map(s)[p.slice(0, -1)]; return Array.isArray(b) ? [p, ...b] : [p, b];
+  });
+  return list;
+};
 
-/* ---- GLB reading ---- */
-const buf = readFileSync(resolve(file));
-if (buf.readUInt32LE(0) !== 0x46546c67) { console.error(file + ' is not a binary glTF (.glb) file'); process.exit(1); }
-const jsonLen = buf.readUInt32LE(12), G = JSON.parse(buf.subarray(20, 20 + jsonLen).toString('utf8')), BIN = 20 + jsonLen + 8;
-const SIZE = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
-function accessor(i) {
-  const a = G.accessors[i], bv = G.bufferViews[a.bufferView], n = SIZE[a.type];
-  const read = { 5126: o => buf.readFloatLE(o), 5125: o => buf.readUInt32LE(o), 5123: o => buf.readUInt16LE(o), 5121: o => buf.readUInt8(o) }[a.componentType];
-  const bytes = { 5126: 4, 5125: 4, 5123: 2, 5121: 1 }[a.componentType], norm = a.normalized ? { 5123: 65535, 5121: 255 }[a.componentType] || 1 : 1;
-  const base = BIN + (bv.byteOffset || 0) + (a.byteOffset || 0), stride = bv.byteStride || n * bytes, out = new Array(a.count);
-  for (let k = 0; k < a.count; k++) { const row = new Array(n); for (let c = 0; c < n; c++) row[c] = read(base + k * stride + c * bytes) / norm; out[k] = n === 1 ? row[0] : row; }
-  return out;
-}
-
-/* ---- math: column-major 4x4 matrices, quaternions [x, y, z, w] ---- */
+/* ---- column-major 4x4 matrices, quaternions [x, y, z, w] ---- */
 const mat = (t = [0, 0, 0], q = [0, 0, 0, 1], s = [1, 1, 1]) => {
   const [x, y, z, w] = q, xx = x * x, yy = y * y, zz = z * z, xy = x * y, xz = x * z, yz = y * z, wx = w * x, wy = w * y, wz = w * z;
   return [(1 - 2 * (yy + zz)) * s[0], 2 * (xy + wz) * s[0], 2 * (xz - wy) * s[0], 0, 2 * (xy - wz) * s[1], (1 - 2 * (xx + zz)) * s[1], 2 * (yz + wx) * s[1], 0,
@@ -79,113 +73,133 @@ const slerp = (a, b, t) => {
   const th = Math.acos(d), k0 = Math.sin((1 - t) * th) / Math.sin(th), k1 = Math.sin(t * th) / Math.sin(th) * s;
   return a.map((v, i) => v * k0 + b[i] * k1);
 };
-
-/* ---- the skeleton ---- */
-const nodes = G.nodes, parent = new Array(nodes.length).fill(-1), byName = new Map();
-nodes.forEach((n, i) => { (n.children || []).forEach(c => parent[c] = i); byName.set(n.name, i); });
-const missing = BONES.filter(b => !byName.has(b[1])).map(b => b[1]);
-if (args.includes('--list')) {
-  console.log('clips:', G.animations.map(a => a.name).join(', '));
-  console.log('bones:', nodes.map(n => n.name).join(', '));
-  if (missing.length) console.log('bones the importer needs but this file lacks:', [...new Set(missing)].join(', '));
-  process.exit(0);
-}
-if (missing.length) { console.error('This rig lacks bones the importer maps: ' + [...new Set(missing)].join(', ') + '. Edit BONES in tools/anim-import.mjs.'); process.exit(1); }
-const rest = nodes.map(n => ({ t: n.translation || [0, 0, 0], r: n.rotation || [0, 0, 0, 1], s: n.scale || [1, 1, 1] }));
-const order = [], seen = new Set();
-const visit = i => { if (seen.has(i)) return; if (parent[i] >= 0) visit(parent[i]); seen.add(i); order.push(i); };
-nodes.forEach((_, i) => visit(i));
-const world = trs => { const W = new Array(nodes.length); for (const i of order) { const L = mat(trs[i].t, trs[i].r, trs[i].s); W[i] = parent[i] >= 0 ? mul(W[parent[i]], L) : L; } return W; };
-
-/* ---- measure the body from the mesh in its bind pose ---- */
-const skin = G.skins[0], joints = skin.joints, ibm = accessor(skin.inverseBindMatrices);
-const meshNode = nodes.findIndex(n => n.mesh !== undefined && n.skin !== undefined), mesh = G.meshes[nodes[meshNode].mesh];
-const boneVerts = new Map(), bandVerts = new Map();   // bone index -> [[x, y, z] in that bone's own frame]
-let matJoint = -1; (G.materials || []).forEach((m, i) => { if (/joint/i.test(m.name)) matJoint = i; });
-for (const prim of mesh.primitives) {
-  const P = accessor(prim.attributes.POSITION), JN = accessor(prim.attributes.JOINTS_0), W = accessor(prim.attributes.WEIGHTS_0), band = prim.material === matJoint;
-  for (let v = 0; v < P.length; v++) {
-    let best = 0; for (let k = 1; k < 4; k++) if (W[v][k] > W[v][best]) best = k;
-    const ji = JN[v][best], node = joints[ji], local = xf(ibm[ji], P[v]);
-    const m = band ? bandVerts : boneVerts; if (!m.has(node)) m.set(node, []); m.get(node).push(local);
-  }
-}
 const pct = (arr, p) => { if (!arr.length) return 0; const s = arr.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
-const bindW = world(rest);
-const boneLen = name => {   // distance to the bone's first child, or (a tip bone) the extent of its vertices along y
-  const i = byName.get(name), kids = nodes[i].children || [];
-  if (kids.length) { const a = xf(bindW[i], [0, 0, 0]), b = xf(bindW[kids[0]], [0, 0, 0]); return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]); }
-  const vs = (boneVerts.get(i) || []).concat(bandVerts.get(i) || []); return pct(vs.map(v => v[1]), .98);
-};
-// tip lengths for the bones that end a chain (head top, toe tip): from the mesh, in the bone's frame (y runs along a bone)
-const TIP = {}; for (const b of BONES) if (b[2] === 'tip') TIP[b[1]] = boneLen(b[1]);
-
-/* ---- the engine's local frame, found from the rest pose: up = +y, forward from the heels toward the toes ---- */
-const pos = (W, name, where) => { const i = byName.get(name); return where === 'tip' ? xf(W[i], [0, TIP[name], 0]) : where === 'fwd' ? xf(W[i], FWD[name]) : xf(W[i], [0, 0, 0]); };
-const UP = [0, 1, 0];
-const fwd0 = (() => { const a = pos(bindW, 'DEF-foot.L'), b = pos(bindW, 'DEF-toe.L', 'tip'); const v = [b[0] - a[0], 0, b[2] - a[2]], l = Math.hypot(...v); return v.map(x => x / l); })();
-const RIGHT = [fwd0[1] * UP[2] - fwd0[2] * UP[1], fwd0[2] * UP[0] - fwd0[0] * UP[2], fwd0[0] * UP[1] - fwd0[1] * UP[0]].map(x => -x);   // up x forward = left, so right is its negative
-{ const l = pos(bindW, 'DEF-thigh.L'), r = pos(bindW, 'DEF-thigh.R'), d = (r[0] - l[0]) * RIGHT[0] + (r[2] - l[2]) * RIGHT[2]; if (d < 0) RIGHT.forEach((v, i) => RIGHT[i] = -v); }   // right really is toward the .R side
-// for 'fwd' points: the rest pose's forward direction written in each bone's own frame (the transpose of its rotation)
-const FWD = {}; for (const b of BONES) if (b[2] === 'fwd') { const m = bindW[byName.get(b[1])], n = [0, 1, 2].map(c => Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2])); FWD[b[1]] = [0, 1, 2].map(c => (m[c * 4] * fwd0[0] + m[c * 4 + 1] * fwd0[1] + m[c * 4 + 2] * fwd0[2]) / (n[c] * n[c]) * .12); }
-const toLocal = (p, o) => { const d = [p[0] - o[0], p[1], p[2] - o[2]]; return [d[0] * fwd0[0] + d[2] * fwd0[2], d[0] * RIGHT[0] + d[2] * RIGHT[2], d[1]]; };
-
-/* body: per-segment radii at the start, middle and end (from the vertices each bone owns), widths for the torso,
-   and the second material's bands (where along which segment they sit) */
 const MM = 1000;   // metres -> millimetres
-const body = { height: 0, segs: [], bands: [] };
-{ let top = 0; for (const prim of mesh.primitives) for (const p of accessor(prim.attributes.POSITION)) top = Math.max(top, p[1]); body.height = Math.round(top * MM); }
-for (const [a, b, bone] of SEGS) {
-  const i = byName.get(bone), vs = (boneVerts.get(i) || []).concat(bandVerts.get(i) || []), L = boneLen(bone) || 1;
-  const bins = [[], [], []], wide = [], deep = [];
-  for (const v of vs) { const t = v[1] / L, r = Math.hypot(v[0], v[2]); bins[t < .33 ? 0 : t < .67 ? 1 : 2].push(r); wide.push(Math.abs(v[0])); deep.push(Math.abs(v[2])); }
-  body.segs.push({ a, b, r: bins.map(x => Math.round(pct(x, .8) * MM)), w: Math.round(pct(wide, .9) * MM), d: Math.round(pct(deep, .9) * MM) });
-}
-for (const [a, b, bone] of SEGS) {   // one band per run of the segment the second material covers (an elbow ring, a wrist ring)
-  const i = byName.get(bone), vs = bandVerts.get(i); if (!vs || vs.length < 12) continue;
-  const L = boneLen(bone) || 1, NB = 24, bins = Array.from({ length: NB }, () => []);
-  for (const v of vs) { const t = v[1] / L, k = Math.max(0, Math.min(NB - 1, Math.floor((t + .2) / 1.4 * NB))); bins[k].push(v); }
-  const min = Math.max(4, vs.length * .02);
-  for (let k = 0; k < NB;) {
-    if (bins[k].length < min) { k++; continue; }
-    let e = k; const run = []; while (e < NB && bins[e].length >= min) run.push(...bins[e++]);
-    const ts = run.map(v => v[1] / L), rs = run.map(v => Math.hypot(v[0], v[2]));
-    body.bands.push({ a, b, t0: +pct(ts, .03).toFixed(2), t1: +pct(ts, .97).toFixed(2), r: Math.round(pct(rs, .85) * MM), front: +(run.reduce((s, v) => s + v[2], 0) / run.length / (pct(rs, .85) || 1)).toFixed(2) });
-    k = e;
-  }
-}
 
-/* ---- sample each clip ---- */
-const clips = {};
-const enc = arr => Buffer.from(new Int16Array(arr).buffer).toString('base64');
-for (const an of G.animations) {
-  if (ONLY && !ONLY.has(an.name)) continue;
-  const tracks = an.channels.map(c => { const s = an.samplers[c.sampler]; return { node: c.target.node, path: c.target.path, t: accessor(s.input), v: accessor(s.output), interp: s.interpolation }; });
-  const dur = Math.max(...tracks.map(k => k.t[k.t.length - 1])), n = Math.max(1, Math.round(dur * FPS) + 1);
-  const data = [], move = []; let moved = false;
-  for (let f = 0; f < n; f++) {
-    const time = Math.min(dur, f / FPS), trs = rest.map(r => ({ t: r.t, r: r.r, s: r.s }));
-    for (const k of tracks) {
-      const T = k.t; let j = 0; while (j < T.length - 2 && T[j + 1] <= time) j++;
-      const u = T.length < 2 || k.interp === 'STEP' ? 0 : Math.max(0, Math.min(1, (time - T[j]) / ((T[j + 1] - T[j]) || 1)));
-      const a = k.v[j], b = k.v[Math.min(j + 1, k.v.length - 1)];
-      const val = k.path === 'rotation' ? slerp(a, b, u) : a.map((x, i) => x + (b[i] - x) * u);
-      const key = k.path === 'translation' ? 't' : k.path === 'rotation' ? 'r' : k.path === 'scale' ? 's' : null; if (key) trs[k.node] = Object.assign({}, trs[k.node], { [key]: val });
+/** one library: its rig, its clips captured as body points, and (Rigify) the look of its mannequin */
+function readLibrary(file) {
+  const buf = readFileSync(resolve(file));
+  if (buf.readUInt32LE(0) !== 0x46546c67) throw new Error(file + ' is not a binary glTF (.glb) file');
+  const jsonLen = buf.readUInt32LE(12), G = JSON.parse(buf.subarray(20, 20 + jsonLen).toString('utf8')), BIN = 20 + jsonLen + 8;
+  const SIZE = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+  const accessor = i => {
+    const a = G.accessors[i], bv = G.bufferViews[a.bufferView], n = SIZE[a.type];
+    const read = { 5126: o => buf.readFloatLE(o), 5125: o => buf.readUInt32LE(o), 5123: o => buf.readUInt16LE(o), 5121: o => buf.readUInt8(o) }[a.componentType];
+    const bytes = { 5126: 4, 5125: 4, 5123: 2, 5121: 1 }[a.componentType], norm = a.normalized ? { 5123: 65535, 5121: 255 }[a.componentType] || 1 : 1;
+    const base = BIN + (bv.byteOffset || 0) + (a.byteOffset || 0), stride = bv.byteStride || n * bytes, out = new Array(a.count);
+    for (let k = 0; k < a.count; k++) { const row = new Array(n); for (let c = 0; c < n; c++) row[c] = read(base + k * stride + c * bytes) / norm; out[k] = n === 1 ? row[0] : row; }
+    return out;
+  };
+  const nodes = G.nodes, parent = new Array(nodes.length).fill(-1), byName = new Map();
+  nodes.forEach((n, i) => { (n.children || []).forEach(c => parent[c] = i); byName.set(n.name, i); });
+  const rig = Object.keys(RIGS).find(r => byName.has(RIGS[r].test));
+  if (args.includes('--list')) {
+    console.log(basename(file) + ': rig ' + (rig || 'not recognised'));
+    console.log('clips:', (G.animations || []).map(a => a.name).join(', '));
+    console.log('bones:', nodes.map(n => n.name).join(', '));
+    return null;
+  }
+  if (!rig) throw new Error(basename(file) + ': the rig is not one the importer knows (add it to RIGS in tools/anim-import.mjs)');
+  const BONES = bonesFor(rig), missing = BONES.filter(b => !byName.has(b[1])).map(b => b[1]);
+  if (missing.length) throw new Error(basename(file) + ' lacks bones the ' + rig + ' map needs: ' + [...new Set(missing)].join(', '));
+  const rest = nodes.map(n => ({ t: n.translation || [0, 0, 0], r: n.rotation || [0, 0, 0, 1], s: n.scale || [1, 1, 1] }));
+  const order = [], seen = new Set();
+  const visit = i => { if (seen.has(i)) return; if (parent[i] >= 0) visit(parent[i]); seen.add(i); order.push(i); };
+  nodes.forEach((_, i) => visit(i));
+  const world = trs => { const W = new Array(nodes.length); for (const i of order) { const L = mat(trs[i].t, trs[i].r, trs[i].s); W[i] = parent[i] >= 0 ? mul(W[parent[i]], L) : L; } return W; };
+
+  // the bind pose's mesh, each vertex in the frame of the bone that moves it most
+  const skin = G.skins[0], joints = skin.joints, ibm = accessor(skin.inverseBindMatrices);
+  const meshNode = nodes.findIndex(n => n.mesh !== undefined && n.skin !== undefined), mesh = G.meshes[nodes[meshNode].mesh];
+  const boneVerts = new Map(), bandVerts = new Map();
+  let matJoint = -1; (G.materials || []).forEach((m, i) => { if (/joint/i.test(m.name)) matJoint = i; });
+  let top = 0;
+  for (const prim of mesh.primitives) {
+    const Pp = accessor(prim.attributes.POSITION), JN = accessor(prim.attributes.JOINTS_0), W = accessor(prim.attributes.WEIGHTS_0), band = prim.material === matJoint;
+    for (let v = 0; v < Pp.length; v++) {
+      top = Math.max(top, Pp[v][1]);
+      let best = 0; for (let k = 1; k < 4; k++) if (W[v][k] > W[v][best]) best = k;
+      const ji = JN[v][best], node = joints[ji], local = xf(ibm[ji], Pp[v]);
+      const m = band ? bandVerts : boneVerts; if (!m.has(node)) m.set(node, []); m.get(node).push(local);
     }
-    const W = world(trs), root = xf(W[byName.get('root') ?? order[0]], [0, 0, 0]);
-    const rl = toLocal(root, [0, 0, 0]); move.push(Math.round(rl[0] * MM), Math.round(rl[1] * MM)); if (Math.abs(rl[0]) + Math.abs(rl[1]) > .01) moved = true;
-    for (const [, bone, where] of BONES) { const p = toLocal(pos(W, bone, where), root); data.push(Math.round(p[0] * MM), Math.round(p[1] * MM), Math.round(p[2] * MM)); }
   }
-  const loop = /_Loop$/.test(an.name) || /Idle$/.test(an.name);
-  clips[an.name] = Object.assign({ n, dur: +dur.toFixed(3), loop }, moved ? { move: enc(move) } : {}, { data: enc(data) });
+  const bindW = world(rest);
+  const boneLen = name => {   // distance to the bone's first child, or (a tip bone) the extent of its vertices along y
+    const i = byName.get(name), kids = nodes[i].children || [];
+    if (kids.length) { const a = xf(bindW[i], [0, 0, 0]), b = xf(bindW[kids[0]], [0, 0, 0]); return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]); }
+    const vs = (boneVerts.get(i) || []).concat(bandVerts.get(i) || []); return pct(vs.map(v => v[1]), .98);
+  };
+  const TIP = {}; for (const b of BONES) if (b[2] === 'tip') TIP[b[1]] = pct(((boneVerts.get(byName.get(b[1])) || []).concat(bandVerts.get(byName.get(b[1])) || [])).map(v => v[1]), .98) || boneLen(b[1]);
+  // the rig's local frame, from the rest pose: up = +y, forward from the heel toward the toes, right toward the R side
+  const map = RIGS[rig].map, FWD = {};
+  const pos = (W, name, where) => { const i = byName.get(name); return where === 'tip' ? xf(W[i], [0, TIP[name], 0]) : where === 'fwd' ? xf(W[i], FWD[name]) : xf(W[i], [0, 0, 0]); };
+  const toeOf = W => { const t = map('L').toe; return Array.isArray(t) ? pos(W, t[0], 'tip') : pos(W, t); };
+  const fwd0 = (() => { const a = pos(bindW, map('L').ankle), b = toeOf(bindW), v = [b[0] - a[0], 0, b[2] - a[2]], l = Math.hypot(...v); return v.map(x => x / l); })();
+  const RIGHT = [-(fwd0[1] * 0 - fwd0[2] * 1), -(fwd0[2] * 0 - fwd0[0] * 0), -(fwd0[0] * 1 - fwd0[1] * 0)];   // up x forward = left
+  { const l = pos(bindW, map('L').hip), r = pos(bindW, map('R').hip), d = (r[0] - l[0]) * RIGHT[0] + (r[2] - l[2]) * RIGHT[2]; if (d < 0) RIGHT.forEach((v, i) => RIGHT[i] = -v); }
+  // 'fwd' points: the rest pose's forward direction written in each bone's own frame (the transpose of its rotation)
+  for (const b of BONES) if (b[2] === 'fwd') { const m = bindW[byName.get(b[1])], n = [0, 1, 2].map(c => Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2])); FWD[b[1]] = [0, 1, 2].map(c => (m[c * 4] * fwd0[0] + m[c * 4 + 1] * fwd0[1] + m[c * 4 + 2] * fwd0[2]) / (n[c] * n[c]) * .12); }
+  const toLocal = (p, o) => { const d = [p[0] - o[0], p[1], p[2] - o[2]]; return [d[0] * fwd0[0] + d[2] * fwd0[2], d[0] * RIGHT[0] + d[2] * RIGHT[2], d[1]]; };
+
+  // the look of the mannequin: per-segment radii and where the joint-ring material sits (Rigify meshes)
+  let body = null;
+  if (RIGS[rig].coreSegs.length) {
+    body = { height: Math.round(top * MM), segs: [], bands: [] };
+    const SEGS = [...RIGS[rig].coreSegs, ...['L', 'R'].flatMap(RIGS[rig].segs)];
+    for (const [a, b, bone] of SEGS) {
+      const i = byName.get(bone), vs = (boneVerts.get(i) || []).concat(bandVerts.get(i) || []), L = boneLen(bone) || 1, bins = [[], [], []];
+      for (const v of vs) bins[v[1] / L < .33 ? 0 : v[1] / L < .67 ? 1 : 2].push(Math.hypot(v[0], v[2]));
+      body.segs.push({ a, b, r: bins.map(x => Math.round(pct(x, .8) * MM)) });
+      const bv = bandVerts.get(i); if (!bv || bv.length < 12) continue;
+      const NB = 24, bb = Array.from({ length: NB }, () => []), min = Math.max(4, bv.length * .02);
+      for (const v of bv) bb[Math.max(0, Math.min(NB - 1, Math.floor((v[1] / L + .2) / 1.4 * NB)))].push(v);
+      for (let k = 0; k < NB;) { if (bb[k].length < min) { k++; continue; } let e = k; const run = []; while (e < NB && bb[e].length >= min) run.push(...bb[e++]); body.bands.push({ a, b, t0: +pct(run.map(v => v[1] / L), .03).toFixed(2), t1: +pct(run.map(v => v[1] / L), .97).toFixed(2), r: Math.round(pct(run.map(v => Math.hypot(v[0], v[2])), .85) * MM) }); k = e; }
+    }
+  }
+
+  // every clip, sampled and turned into body points
+  const clips = {}, rootNode = byName.get(RIGS[rig].root) ?? order[0];
+  for (const an of G.animations || []) {
+    const tracks = an.channels.map(c => { const s = an.samplers[c.sampler]; return { node: c.target.node, path: c.target.path, t: accessor(s.input), v: accessor(s.output), interp: s.interpolation }; });
+    const dur = Math.max(...tracks.map(k => k.t[k.t.length - 1])), n = Math.max(1, Math.round(dur * FPS) + 1);
+    const data = new Float32Array(n * MR.P * 3), move = new Float32Array(n * 2); let moved = false;
+    for (let f = 0; f < n; f++) {
+      const time = Math.min(dur, f / FPS), trs = rest.map(r => ({ t: r.t, r: r.r, s: r.s }));
+      for (const k of tracks) {
+        const T = k.t; let j = 0; while (j < T.length - 2 && T[j + 1] <= time) j++;
+        const u = T.length < 2 || k.interp === 'STEP' ? 0 : Math.max(0, Math.min(1, (time - T[j]) / ((T[j + 1] - T[j]) || 1)));
+        const a = k.v[j], b = k.v[Math.min(j + 1, k.v.length - 1)];
+        const val = k.path === 'rotation' ? slerp(a, b, u) : a.map((x, i) => x + (b[i] - x) * u);
+        const key = k.path === 'translation' ? 't' : k.path === 'rotation' ? 'r' : k.path === 'scale' ? 's' : null; if (key) trs[k.node] = Object.assign({}, trs[k.node], { [key]: val });
+      }
+      const W = world(trs), root = xf(W[rootNode], [0, 0, 0]), rl = toLocal(root, [0, 0, 0]);
+      move[f * 2] = rl[0] * MM; move[f * 2 + 1] = rl[1] * MM; if (Math.abs(rl[0]) + Math.abs(rl[1]) > .01) moved = true;
+      BONES.forEach(([, bone, where], i) => { const p = toLocal(pos(W, bone, where), root); data[(f * MR.P + i) * 3] = p[0] * MM; data[(f * MR.P + i) * 3 + 1] = p[1] * MM; data[(f * MR.P + i) * 3 + 2] = p[2] * MM; });
+    }
+    clips[an.name] = { name: an.name, n, dur, loop: /_Loop$/.test(an.name) || /(^|_)Idle$/.test(an.name), fps: FPS, data, move: moved ? move : null };
+  }
+  return { rig, clips, body };
 }
 
-const lib = { source: 'converted by tools/anim-import.mjs from ' + file.split(/[\\/]/).pop(), credit: CREDIT, points: POINTS, fps: FPS, unit: 'mm', body, clips };
-const js = `/* ${NAME}: skeletal animation clips converted to my-3D2dge clip data by tools/anim-import.mjs (do not edit by hand).
- * Source: ${file.split(/[\\/]/).pop()}.${CREDIT ? ' ' + CREDIT : ''}
- * Points are body positions in the rig's local frame (f forward, r right, z up), millimetres, base64 Int16, ${FPS} fps. */
-(window.MOCAP = window.MOCAP || {})[${JSON.stringify(NAME)}] = ${JSON.stringify(lib)};
-`;
-mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(OUT, js);
-console.log(`wrote ${OUT}: ${Object.keys(clips).length} clips, ${POINTS.length} points, ${(js.length / 1024).toFixed(0)} KB; mannequin ${body.height} mm tall`);
+/* ---- read every library, fit every clip ---- */
+const libs = files.map(readLibrary);
+if (args.includes('--list')) process.exit(0);
+const set = { set: NAME, format: 1, credit: CREDIT, fps: FPS, sources: {}, body: null, fit: {}, clips: {} };
+const r1 = v => Math.round(v);
+libs.forEach((L, li) => {
+  const id = SOURCES[li] || basename(files[li]).replace(/\.glb$/i, ''), rest = MR.measure(L.clips);
+  set.sources[id] = { file: basename(files[li]), rig: L.rig, rest };
+  if (!set.body && L.body) set.body = L.body;
+  let kept = 0;
+  for (const [name, cap] of Object.entries(L.clips)) {
+    if (set.clips[name] || (ONLY && !ONLY.has(name))) continue;
+    const cat = CATALOG[name], extra = { blade: BLADE.test(name) };
+    if (cat) { extra.tags = cat[0].split(' ').filter(Boolean); extra.desc = cat[1]; } else if (Object.keys(CATALOG).length) console.warn('no catalog entry for ' + name);
+    const { clip, max, mean } = MR.fit(rest, cap, TOL, extra);
+    const ordered = { clip: clip.clip, src: id, dur: clip.dur, loop: clip.loop }; if (clip.tags) ordered.tags = clip.tags; if (clip.desc) ordered.desc = clip.desc; ordered.keys = clip.keys;
+    set.clips[name] = ordered; set.fit[name] = [r1(mean), r1(max)]; kept++;
+  }
+  console.log(`${basename(files[li])}: ${L.rig} rig, ${kept} clips; spine shares ${rest.spineW.join(' ')}, neck ${rest.neckW}`);
+});
+const w = writeSet(set, OUT);
+console.log(`wrote ${OUT}: ${w.clips} clips, ${w.keys} key poses, ${w.kb.toFixed(0)} KB`);
