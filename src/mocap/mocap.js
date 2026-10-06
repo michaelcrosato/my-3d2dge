@@ -29,7 +29,7 @@ function load(set) {
   const lib = { set, P, idx, clips, names: Object.keys(clips), fps: set.fps, body: set.body, rest: base, points: MR.POINTS };
   lib.clip = name => clips[name] || null;
   /** the pose at time t (seconds): key poses in-betweened, loops wrap, one-shots hold their last pose */
-  lib.sample = (clip, t, out = new Float32Array(P * 3)) => MR.pose(restOf(clip), clip, t, out);
+  lib.sample = (clip, t, out = new Float32Array(P * 3)) => { MR.pose(restOf(clip), clip, t, out); out.src = clip.src; return out; };   // (src: whose rest it is measured against)
   /** a clip that travels: how far it has carried the body at time t ([forward, right] mm), or null */
   lib.moveAt = (clip, t) => MR.moveAt(restOf(clip), clip, t);
   /** swap in an edited clip (readable text a person or a model changed); the original is kept for restore() */
@@ -43,7 +43,7 @@ function load(set) {
    *  and (a capture database's) the take and the stretch of it: '13_29 2.30-3.42' */
   lib.origin = clip => { const s = set.sources[clip.src] || {}; return { src: clip.src, label: s.label || clip.src, origin: s.origin || '', license: s.license || '', url: s.url || '', orig: clip.orig || null, take: clip.take || null }; };
   /** a pose blended from a to b (crossfades between clips) */
-  lib.blend = (a, b, k, out = new Float32Array(P * 3)) => { for (let i = 0; i < P * 3; i++) out[i] = a[i] + (b[i] - a[i]) * k; return out; };
+  lib.blend = (a, b, k, out = new Float32Array(P * 3)) => { for (let i = 0; i < P * 3; i++) out[i] = a[i] + (b[i] - a[i]) * k; out.src = (k < .5 ? a : b).src; return out; };
   lib.pt = (pose, name) => { const i = idx[name] * 3; return [pose[i], pose[i + 1], pose[i + 2]]; };
   lib.error = MR.error;
   return lib;
@@ -141,19 +141,56 @@ class Mannequin {
 const V = E.V3;
 const DRIVEN = ['hipC', 'hipL', 'hipR', 'kneeL', 'kneeR', 'footL', 'footR', 'shC', 'shL', 'shR', 'head', 'elbowL', 'elbowR', 'handL', 'handR', 'bladeDir'];
 const UPPER = ['shC', 'shL', 'shR', 'head', 'elbowL', 'elbowR', 'handL', 'handR', 'bladeDir'];
+const turn = (p, a) => { const c = Math.cos(a), s = Math.sin(a); return [p[0] * c - p[1] * s, p[0] * s + p[1] * c, p[2]]; };   // about the up axis
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+/** a frame from an up and a forward direction: 3x3, row-major, columns forward, right, up (the rig's f r z) */
+function frame3(up, fwd) {
+  const u = V.norm(up); let f = V.sub(fwd, V.mul(u, V.dot(fwd, u)));
+  if (Math.hypot(f[0], f[1], f[2]) < 1e-6) f = Math.abs(u[0]) < .9 ? V.sub([1, 0, 0], V.mul(u, u[0])) : V.sub([0, 1, 0], V.mul(u, u[1]));
+  f = V.norm(f); const r = cross(u, f);
+  return [f[0], r[0], u[0], f[1], r[1], u[1], f[2], r[2], u[2]];
+}
+/** how far a part has turned from its rest: the frame now (up, forward) times the library's rest frame for it (rest: its
+ *  forward, right and up, measured on the T-pose), so a part held as it stands at rest reads upright, whatever the library */
+function tiltFrom(up, fwd, rest) {
+  const C = frame3(up, fwd); if (!rest) return C;
+  const T = new Array(9); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) T[i * 3 + j] = C[i * 3] * rest[0][j] + C[i * 3 + 1] * rest[1][j] + C[i * 3 + 2] * rest[2][j];
+  return T;
+}
+/** a frame turned a about the up axis, and eased toward upright by w (0 = upright, 1 = the frame) */
+function frameMix(m, a, w) {
+  const col = i => turn([m[i], m[i + 3], m[i + 6]], a), f = col(0), u = col(2);
+  return w >= 1 ? frame3(u, f) : frame3(V.lerp([0, 0, 1], u, w), V.lerp([1, 0, 0], f, w));
+}
 /**
  * Mocap.drive(rig, lib): after the rig poses itself each step it takes the pose in rig.mocap (a sampled pose, or
  * null to play its own animation). The rig keeps its build: each bone takes the clip's direction at its own length,
  * the feet and hands are placed in proportion and solved with the engine's two-bone IK, so the cape and hair follow.
+ * The rig turns with the clip's chest (rig.spin: a spinning kick turns the face, hair and cape with it), and what it
+ * draws around the joints follows the clip's body and head (rig.mocapTilt: upside down in a cartwheel, a face that
+ * looks down). A held sword never goes through the floor.
  * rig.mocapW fades the clip over the rig's own pose; rig.mocapMask = 'upper' leaves the hips and legs to the rig.
  */
 function drive(rig, lib) {
-  const base = E.Humanoid.prototype._pose, R = lib.rest, hipH = R.hipZ, ankleH = R.ankleZ;
+  const base = E.Humanoid.prototype._pose, update = E.Humanoid.prototype.update, R = lib.rest, hipH = R.hipZ, ankleH = R.ankleZ;
   const legSrc = R.thigh + R.shin, armSrc = R.up + R.fore + R.fist * .6;
+  // the rig's own turn this step (an attack's spin), read before the clip turns it: _pose can run more than once a step
+  rig.update = function (dt, s) { this._ownSpin = null; return update.call(this, dt, s); };
   rig._pose = function () {
     base.call(this);
-    const pose = this.mocap, w = this.mocapW === undefined ? 1 : Math.max(0, Math.min(1, this.mocapW)); if (!pose || w <= 0) return;
-    const o = this.o, J = this.J, pt = n => lib.pt(pose, n), k = o.hipZ / hipH, upper = this.mocapMask === 'upper';
+    const pose = this.mocap, w = this.mocapW === undefined ? 1 : Math.max(0, Math.min(1, this.mocapW));
+    if (this._ownSpin == null) this._ownSpin = this.spin || 0;
+    if (!pose || w <= 0) { this.mocapTilt = null; this.spin = this._ownSpin; return; }
+    const o = this.o, J = this.J, k = o.hipZ / hipH, upper = this.mocapMask === 'upper';
+    // the body's heading: where the chest faces, flat on the floor. The rig turns to it, so the clip is read in a frame
+    // turned with the body. A chest that faces up or down (lying, bent double) has no heading to trust: the rig faces ahead
+    let yaw = 0;
+    if (!upper) {
+      const c = lib.pt(pose, 'chest'), cf = lib.pt(pose, 'chestF'), fx = cf[0] - c[0], fy = cf[1] - c[1], fl = Math.hypot(fx, fy);
+      const trust = Math.max(0, Math.min(1, (fl / (Math.hypot(fx, fy, cf[2] - c[2]) || 1) - .3) / .3));
+      if (trust > 0) yaw = Math.atan2(fy, fx) * trust;
+    }
+    const pt = yaw ? n => turn(lib.pt(pose, n), -yaw) : n => lib.pt(pose, n);
     const keep = w < 1 ? {} : null; if (keep) for (const key of DRIVEN) keep[key] = J[key] && J[key].slice();
     const mid = (a, b) => V.lerp(pt(a), pt(b), .5), hipsS = mid('hipL', 'hipR'), shS = mid('shL', 'shR');
     if (!upper) {
@@ -185,9 +222,24 @@ function drive(rig, lib) {
     }
     // a sword in a fist runs along the knuckles, out past the index finger (otherwise the blade keeps its resting angle)
     if (this.mocapBlade) J.bladeDir = V.norm(V.sub(pt('indexR'), pt('pinkyR')));
-    if (keep) for (const key of upper ? UPPER : DRIVEN) if (keep[key]) J[key] = key === 'bladeDir' ? V.norm(V.lerp(keep[key], J[key], w)) : V.lerp(keep[key], J[key], w);
-    // lying on the back: the rig's knocked-down measure follows the torso, so the face, hair and toes it draws around
-    // the joints lie with the body (a clip that falls or gets up drives it; the rig's own fall is overridden)
+    // the frames the rig draws its details in (Humanoid._offsets): the chest's and the head's, as turned from how they sit
+    // at rest. Only a whole-body clip sets them; an upper-body one keeps the rig's own
+    const src = lib.set.sources[pose.src] || lib.set.sources[Object.keys(lib.set.sources)[0]], rest = src && src.rest;
+    const body = upper ? null : tiltFrom(V.sub(pt('neck'), pt('chest')), V.sub(pt('chestF'), pt('chest')), rest && rest.Cr);
+    const head = upper ? null : tiltFrom(V.sub(pt('headTop'), pt('head')), V.sub(pt('faceF'), pt('head')), rest && rest.Hr);
+    // the turn the rig is drawn with: the clip's heading, faded in with the clip over the rig's own (an attack's spin)
+    const own = this._ownSpin, spin = upper ? own : own * (1 - w) + yaw * w;
+    if (keep) {
+      const toM = yaw - spin, toK = own - spin;   // both poses into the frame the rig is drawn with, then blended
+      for (const key of upper ? UPPER : DRIVEN) if (keep[key]) {
+        const m = upper ? J[key] : turn(J[key], toM), kp = upper ? keep[key] : turn(keep[key], toK);
+        J[key] = key === 'bladeDir' ? V.norm(V.lerp(kp, m, w)) : V.lerp(kp, m, w);
+      }
+    }
+    this.spin = spin;
+    this.mocapTilt = body ? { body: frameMix(body, yaw - spin, w), head: frameMix(head, yaw - spin, w) } : null;
+    // lying on the back: the rig's knocked-down measure follows the torso (the game reads it: shadows, what a body on
+    // the floor can do); the face, hair and toes it draws around the joints lie with the body through mocapTilt
     if (!upper) {
       const d = V.sub(shS, hipsS), back = Math.max(0, -d[0]), side = Math.hypot(d[0], d[1]), tilt = Math.atan2(side, d[2]);
       const down = side > 1e-6 ? Math.max(0, Math.min(1, tilt / (Math.PI / 2 * .96))) * back / side : 0;
@@ -195,6 +247,15 @@ function drive(rig, lib) {
       // and a weapon he is not holding up (no mocapBlade) drops flat on the floor beside the hand as he goes down
       const kn = V.sub(pt('indexR'), pt('pinkyR')), kl = Math.hypot(kn[0], kn[1]);
       if (!this.mocapBlade && down > 0 && kl > 1e-6 && J.bladeDir) J.bladeDir = V.norm(V.lerp(J.bladeDir, [kn[0] / kl, kn[1] / kl, -.08], Math.min(1, down * 1.5) * w));
+    }
+    // a sword never goes through the floor (hands planted in a cartwheel, a roll): the blade lowers no further than
+    // to lie along it
+    if (o.weapon === 'sword' && J.handR && J.bladeDir) {
+      const h = J.handR[2], b = J.bladeDir, L = o.bladeLen, floor = .3;
+      if (h + b[2] * L < floor && h > floor - L) {
+        const bz = (floor - h) / L, hl = Math.hypot(b[0], b[1]), r = Math.sqrt(Math.max(0, 1 - bz * bz));
+        J.bladeDir = hl > 1e-6 ? [b[0] / hl * r, b[1] / hl * r, bz] : [r, 0, bz];
+      }
     }
   };
   return rig;
