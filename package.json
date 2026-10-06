@@ -18,6 +18,7 @@
     "test:mocap": "node tools/mocap-test.mjs && node tools/ed-clips-test.mjs",
     "mocap:import": "node tools/anim-import.mjs",
     "mocap:set": "node tools/anim-set.mjs",
+    "mocap:sheet": "node tools/anim-sheet.mjs",
     "test:smoke": "node tools/ed-smoke.mjs",
     "test:codex": "npm run build && node tools/ed-codex-test.mjs",
     "showcase:codex": "node tools/ed-codex-showcase.mjs"

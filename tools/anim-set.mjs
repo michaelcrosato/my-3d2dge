@@ -13,6 +13,6 @@ const clips = {}, fit = {}, used = new Set();
 for (const n of names) { clips[n] = src.clips[n]; fit[n] = src.fit[n]; used.add(src.clips[n].src); }
 // the first source stays first: every clip is rebuilt on its proportions
 const sources = {}; for (const id of Object.keys(src.sources)) if (used.has(id) || id === Object.keys(src.sources)[0]) sources[id] = src.sources[id];
-const out = { set: opt('name'), format: src.format, credit: opt('credit', src.credit), from: src.set, fps: src.fps, sources, body: src.body, fit, clips };
+const out = Object.assign({ set: opt('name') }, opt('title') ? { title: opt('title') } : {}, { format: src.format, credit: opt('credit', src.credit), from: src.set, fps: src.fps, sources, body: src.body, fit, clips });
 const w = writeSet(out, resolve(opt('out')));
 console.log(`wrote ${opt('out')}: ${w.clips} clips from ${src.set}, ${w.keys} key poses, ${w.kb.toFixed(0)} KB`);
