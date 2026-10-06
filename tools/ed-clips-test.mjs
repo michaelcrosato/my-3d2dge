@@ -1,9 +1,10 @@
 // The hero's captured animations in Emberdeep (src/emberdeep/96-hero-clips.js, the HERO set in src/mocap/sets/hero.js):
 // each moment starts when it should and lets go when it should. In town: the stash opens his chest clip (he turns to
-// the chest), the waystone his hands-on clip, a talk folds his arms; walking off takes the body back. In a level: loot
-// starts the upper-body reach, a heavy blow the upper-body flinch; death plays the fall and the YOU DIED panel waits
-// until he has landed; revived in town, he gets up off the ground. The gallery plays each one. Every joint stays a
-// number, and no page error or engine warning may appear.
+// the chest), the waystone his hands-on clip, a talk opens with a nod and he listens; walking off takes the body back.
+// In a level: dropping in ends in a three-point landing, loot starts the upper-body reach, a heavy blow the upper-body
+// flinch, a level gained a fist pump, a boss down a victory jump; a plain killing blow, a tick of poison and a crushing
+// blow each play their own fall, and the YOU DIED panel waits until he is down; revived in town, he gets up off the
+// ground. The gallery plays each one. Every joint stays a number, and no page error or engine warning may appear.
 // Usage: node tools/ed-clips-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { resolve } from 'node:path';
@@ -50,17 +51,24 @@ s = await state();
 check(s.id === null && !s.mocap, 'a one-shot ends and lets go (' + s.id + ')');
 const talker = await page.evaluate(() => { const h = __ed.ED.hero, n = __ed.ED.L.npcs.find(q => !q.S.service); if (!n) return null; h.x = n.x + 12; h.y = n.y + 2; h.vx = h.vy = 0; return n.S.name; });
 if (talker) {
-  await wait(150); await page.keyboard.press('KeyE'); await wait(700);
+  await wait(150); await page.keyboard.press('KeyE'); await wait(350);
   s = await state();
-  check(s.id === 'wait' && s.finite, 'talking to ' + talker + ': he folds his arms (' + s.id + ')');
-  for (let i = 0; i < 8 && await page.evaluate(() => { const k = __ed.ED.hero.HCL; return !!k && k.id === 'wait' && !k.out; }); i++) { await page.keyboard.press('KeyE'); await wait(250); }   // E turns the pages, then closes the talk
+  check(s.id === 'nod' && s.finite, 'talking to ' + talker + ': he nods (' + s.id + ')');
+  await wait(1000);
+  s = await state();
+  check(s.id === 'listen' && s.finite, 'then listens (' + s.id + ')');
+  for (let i = 0; i < 8 && await page.evaluate(() => { const k = __ed.ED.hero.HCL; return !!k && (k.id === 'listen' || k.id === 'nod') && !k.out; }); i++) { await page.keyboard.press('KeyE'); await wait(250); }   // E turns the pages, then closes the talk
   await wait(500);
   s = await state();
-  check(s.id === null || s.out, 'the talk ends: the arms unfold (' + s.id + ')');
+  check(s.id === null || s.out, 'the talk ends: he lets go (' + s.id + ')');
 } else problems.push('no townsperson without a shop to talk to');
 
-// ---- a level: loot, a heavy blow, death, the get-up in town ----
-await open('depth-1');
+// ---- a level: the landing, loot, a heavy blow, a level, a boss down, three deaths, the get-up in town ----
+/** wait (in the page, frame by frame) until the hero plays the moment id, for up to ms; true if he did */
+const plays = (id, ms) => page.evaluate(([id, ms]) => new Promise(res => { const t0 = performance.now(); const f = () => { const k = __ed.ED.hero && __ed.ED.hero.HCL; if (k && k.id === id) return res(true); if (performance.now() - t0 > ms) return res(false); requestAnimationFrame(f); }; f(); }), [id, ms]);
+await page.goto('about:blank'); await page.goto(url + '#depth-1');
+check(await page.waitForFunction(() => window.__ed && __ed.ED.hero && __ed.ED.hero.act && __ed.ED.hero.act.name === 'dropin', null, { timeout: 15000 }).then(() => plays('land', 4000)), 'dropped into a depth: he lands on one knee and a hand (Land_Three_Point)');
+await wait(1500);
 await page.evaluate(() => { const h = __ed.ED.hero; __ed.ED.foes.length = 0; h.act = null; __ed.BUS.emit('pickup', { item: __ed.makeItem({ base: 'longsword', rarity: 0, ilvl: 1, R: __ed.RNG('t') }) }); });
 await wait(250);
 s = await state();
@@ -71,7 +79,13 @@ await wait(120);
 s = await state();
 check((s.id === 'hitChest' || s.id === 'hitHead') && s.mask === 'upper' && s.finite, 'a heavy blow: the upper body snaps back (' + s.id + ')');
 await wait(800);
-await page.evaluate(() => { const h = __ed.ED.hero; h.inv = 0; h.act = null; __ed.dealDamage(h, { amount: h.maxHp * 50, el: 'phys', kb: 0 }); });
+await page.evaluate(() => { const h = __ed.ED.hero; h.act = null; h.vx = h.vy = 0; __ed.gainXp(h, 1e4); });
+check(await plays('levelUp', 3000), 'a level gained while he stands still: a fist pump (Victory Fist Pump)');
+await wait(2500);
+await page.evaluate(() => { const h = __ed.ED.hero; h.act = null; h.vx = h.vy = 0; __ed.BUS.emit('bossDown', { m: { x: h.x + 40, y: h.y, r: 10, el: 'phys', noLoot: true, bosOwnDeath: true } }); });
+check(await plays('victory', 3000), 'a boss down: he jumps with a fist raised (Victory)');
+await wait(2500);
+await page.evaluate(() => { const h = __ed.ED.hero; h.inv = 0; h.act = null; h.hp = h.maxHp * .1; __ed.dealDamage(h, { amount: h.maxHp * .3, el: 'phys', kb: 0 }); });   // a plain killing blow
 let landedOk = true, sawDeath = false, firstPanelT = null;
 for (let i = 0; i < 60; i++) {
   await wait(100); s = await state();
@@ -80,7 +94,7 @@ for (let i = 0; i < 60; i++) {
   if (s.panel && firstPanelT === null) firstPanelT = s.t;
   if (s.panel) break;
 }
-check(sawDeath, 'death: he plays Death01');
+check(sawDeath, 'a plain killing blow: he plays Death01');
 check(landedOk, 'every joint stays a number through the fall');
 check(firstPanelT !== null && firstPanelT >= 1.4, 'the YOU DIED panel waits until he has landed (clip at ' + (firstPanelT === null ? 'never' : firstPanelT.toFixed(2)) + ' s)');
 check(s.downW > .7 && s.headZ < s.hipZ, 'he lies on his back (down ' + s.downW.toFixed(2) + ', head ' + s.headZ.toFixed(1) + ' high)');
@@ -92,9 +106,19 @@ await wait(2200);
 s = await state();
 check(s.id === null && s.downW < .1 && s.headZ > s.hipZ, 'he is up and the rig has him back (' + s.id + ', down ' + s.downW.toFixed(2) + ')');
 
+// ---- how he dies picks the fall: worn down by a tick of poison, or flung by a crushing blow (each waits until he is down) ----
+for (const [what, hit, id, landed] of [['worn down by poison', { el: 'venom', kb: 0, tags: ['dot'] }, 'deathSink', 3.75], ['a crushing blow', { el: 'phys', kb: 320 }, 'deathBlown', 1.2]]) {
+  await open('depth-1'); await wait(1500);
+  await page.evaluate(hit => { const h = __ed.ED.hero; __ed.ED.foes.length = 0; h.inv = 0; h.act = null; h.hp = h.maxHp * .1; __ed.dealDamage(h, Object.assign({ amount: h.maxHp * .3 }, hit)); }, hit);
+  let saw = false, panelT = null, ok = true;
+  for (let i = 0; i < 120; i++) { await wait(100); s = await state(); if (s.id === id) saw = true; if (!s.finite) ok = false; if (s.panel) { panelT = s.t; break; } }
+  check(saw && ok, what + ': he plays ' + id + ' (' + s.id + ')');
+  check(panelT !== null && panelT >= landed, what + ': the YOU DIED panel waits until he is down (clip at ' + (panelT === null ? 'never' : panelT.toFixed(2)) + ' s)');
+}
+
 // ---- the gallery plays each captured moment ----
-const names = ['captured-death', 'captured-get-up', 'arms-folded', 'open-the-stash', 'use-the-waystone', 'pick-up', 'hit-in-the-chest', 'hit-in-the-head'];
-const ids = ['death', 'rise', 'wait', 'chest', 'stone', 'pickup', 'hitChest', 'hitHead'];
+const names = ['captured-death', 'captured-get-up', 'arms-folded', 'open-the-stash', 'use-the-waystone', 'pick-up', 'hit-in-the-chest', 'hit-in-the-head', 'worn-down', 'crushed', 'landing', 'listening', 'head-nod', 'boss-victory', 'level-up'];
+const ids = ['death', 'rise', 'wait', 'chest', 'stone', 'pickup', 'hitChest', 'hitHead', 'deathSink', 'deathBlown', 'land', 'listen', 'nod', 'victory', 'levelUp'];
 await open('gallery/poses/' + names[0]);
 for (let i = 0; i < names.length; i++) {
   await page.evaluate(n => { __ed.galOpen('poses', n); __ed.galReset(); }, names[i]);
@@ -113,4 +137,4 @@ check(s.id === null && !s.mocap, 'a procedural pose in the gallery has the rig b
 
 await browser.close();
 if (problems.length) { console.error('hero clips: ' + problems.length + ' problem(s)\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log('hero clips: ' + seen.length + ' checks passed: the stash, the waystone, a talk, loot, a heavy blow, death, the get-up and the gallery');
+console.log('hero clips: ' + seen.length + ' checks passed: the stash, the waystone, a talk, the landing, loot, a heavy blow, a level, a boss down, three deaths, the get-up and the gallery');

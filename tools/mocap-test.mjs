@@ -65,14 +65,14 @@ const report = await page.evaluate(async () => {
     }
     if (out.sets[id].fit > 20) out.bad.push(id + ': clips stray ' + out.sets[id].fit.toFixed(1) + ' mm from their captures on average (more than 20)');
   }
-  // a set picked from another (tools/anim-set.mjs: "from") has that set's clips, key for key
+  // a set picked from others (tools/anim-set.mjs: "from") has their clips, key for key
   for (const [id, L] of Object.entries(M.SETS)) {
-    const from = L.set.from && M.SETS[L.set.from.toLowerCase()]; if (!L.set.from) continue;
-    if (!from) { out.bad.push(id + ' is picked from ' + L.set.from + ', which the lab does not carry'); continue; }
+    if (!L.set.from) continue;
+    const names = [].concat(L.set.from), from = names.map(n => M.SETS[n.toLowerCase()]);
+    if (from.some(f => !f)) { out.bad.push(id + ' is picked from ' + names.join(' and ') + ', which the lab does not all carry'); continue; }
     for (const name of L.names) {
-      const h = L.clip(name), q = from.clip(name);
-      if (!q) { out.bad.push(id + ' clip ' + name + ' is not in ' + L.set.from); continue; }
-      if (JSON.stringify(h.keys) !== JSON.stringify(q.keys)) out.bad.push(id + ' clip ' + name + ' differs from the ' + L.set.from + ' clip');
+      const h = L.clip(name), same = from.some(f => { const q = f.clip(name); return q && q.src === h.src && JSON.stringify(h.keys) === JSON.stringify(q.keys); });
+      if (!same) out.bad.push(id + ' clip ' + name + ' is not, key for key, a clip of ' + names.join(' or '));
     }
   }
   M.setSet(Object.keys(M.SETS)[0]);
