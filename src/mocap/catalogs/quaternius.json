@@ -1,4 +1,8 @@
 {
+  "$sources": {
+    "UAL1": {"label": "Quaternius Universal Animation Library 1", "origin": "Universal Animation Library by Quaternius: the free Standard edition (45 clips and a T-pose), as Quaternius exports it for Godot", "license": "CC0 1.0", "url": "https://quaternius.com/packs/universalanimationlibrary.html"},
+    "UAL2": {"label": "Quaternius Universal Animation Library 2", "origin": "Universal Animation Library 2 by Quaternius: the free Standard edition (42 clips), as Quaternius exports it for Unreal and Godot", "license": "CC0 1.0", "url": "https://quaternius.com/packs/universalanimationlibrary2.html"}
+  },
   "A_TPose": ["reference","T-pose, arms straight out: the rest pose every clip is measured from"],
   "Idle_Loop": ["idle","standing at rest, breathing and shifting weight"],
   "Idle_Talking_Loop": ["idle talk","standing and talking with hand gestures"],

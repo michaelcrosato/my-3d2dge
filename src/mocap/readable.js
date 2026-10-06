@@ -103,16 +103,20 @@ const bendOf = (dist, L1, L2) => 180 - Math.acos(Math.max(-1, Math.min(1, (L1 * 
 const reachOf = (bend, L1, L2) => Math.sqrt(Math.max(0, L1 * L1 + L2 * L2 + 2 * L1 * L2 * Math.cos(bend * DG)));
 const unwrap = (v, prev) => prev === undefined ? v : v + 360 * Math.round((prev - v) / 360);
 const r0 = v => Math.round(v);
-// the natural direction elbows (back, out, down) and knees (forward) bend, in chest and pelvis space. A twist is
-// measured from it round the limb, which is undefined when the limb points along it (an arm swung back and out, a
-// knee pulled up in a roll): approaching that, the reference blends smoothly into a second one, so twists stay
-// continuous between key poses. Both sides compute it from the stored direction, so they always agree.
-const HINT = { arm: s => [-1, s * .5, -.3], leg: s => [1, s * .1, 0] }, HINT2 = { arm: s => [0, -s * .3, 1], leg: s => [-.2, s * .2, -1] };
+// A twist is measured round the limb from the way its middle joint naturally bends. That direction is known for one
+// limb direction (REST: an arm hanging forward, out and down, its elbow bending back; a leg down, its knee forward)
+// and carried to the limb's actual direction by the shortest turn, so it moves smoothly with the limb everywhere
+// except straight opposite REST, where no arm or leg reaches (an arm behind the head across the back; a leg up behind).
+// (An earlier reference blended two fixed directions; where they faced apart it flipped, and in-betweens put the elbow
+// on the wrong side.) Both sides compute it from the stored direction, so they always agree.
+const REST = { arm: s => [.5, s * .5, -.7], leg: s => [.3, 0, -1] }, BEND = { arm: s => [-1, s * .5, -.3], leg: s => [1, s * .1, 0] };
 const across = (h, d) => RV.norm(RV.sub(h, RV.mul(d, RV.dot(h, d))));
 const hintFor = (limb, s, M, dLocal) => {
-  const d = RV.norm(dLocal), h1 = RV.norm(HINT[limb](s)), a = Math.abs(RV.dot(h1, d)), w = Math.min(1, Math.max(0, (a - .6) / .3)), k = w * w * (3 - 2 * w);
-  const n = k <= 0 ? across(h1, d) : k >= 1 ? across(RV.norm(HINT2[limb](s)), d) : RV.norm(RV.add(RV.mul(across(h1, d), 1 - k), RV.mul(across(RV.norm(HINT2[limb](s)), d), k)));
-  return wld(M, n);
+  const d = RV.norm(dLocal), r = RV.norm(REST[limb](s)), n0 = across(RV.norm(BEND[limb](s)), r), ax = RV.cross(r, d), sn = RV.len(ax), cs = RV.dot(r, d);
+  let n = n0;
+  if (sn > 1e-9) { const k = RV.mul(ax, 1 / sn), a = Math.atan2(sn, cs), c = Math.cos(a), si = Math.sin(a);   // turn n0 by a round k (Rodrigues)
+    n = RV.add(RV.add(RV.mul(n0, c), RV.mul(RV.cross(k, n0), si)), RV.mul(k, RV.dot(k, n0) * (1 - c))); }
+  return wld(M, across(n, d));
 };
 /** the signed angle (degrees) round axis d from hint h to the bend direction b */
 const poleOf = (d, h, b) => { const hn = RV.norm(RV.sub(h, RV.mul(d, RV.dot(h, d)))), bn = RV.norm(RV.sub(b, RV.mul(d, RV.dot(b, d)))); return Math.atan2(RV.dot(RV.cross(hn, bn), d), RV.dot(hn, bn)) / DG; };
@@ -194,14 +198,17 @@ const limbEnd = (root, M, v, s, len) => RV.add(root, wld(M, [v[0] * len, v[1] * 
 /** one key pose from captured body points (prev: the key before, so angles continue without jumps) */
 function encodePose(R, X, prev) {
   const D = derived(R), p = n => pt(X, n), k = {}, pr = prev || {}, uw = (a, b) => a.map((v, i) => r0(unwrap(v, b && b[i])));
+  // a turn, lean and tilt has a second reading (turn + 180, 180 - lean, tilt + 180): take whichever continues from the
+  // key before, so a body leaning past horizontal (a flip, a fall) keeps leaning instead of jumping round
+  const ue = (e, b) => { const a1 = uw(e, b); if (!b) return a1; const a2 = uw([e[0] + 180, 180 - e[1], e[2] + 180], b), d = a => a.reduce((t, v, i) => t + Math.abs(v - b[i]), 0); return d(a2) < d(a1) ? a2 : a1; };
   k.hips = p('pelvis').map(v => r0(v / R.H0 * 100));
   const RPx = frameFR(RV.sub(p('hipR'), p('hipL')), RV.sub(p('pelvisF'), p('pelvis')));
   const RCx = frameUF(RV.sub(p('neck'), p('chest')), RV.sub(p('chestF'), p('chest')));
   const RHx = frameUF(RV.sub(p('headTop'), p('head')), RV.sub(p('faceF'), p('head')));
-  k.body = uw(euler(RPx), pr.body);
-  k.chest = uw(euler(rel(fromEuler(k.body), RCx)), pr.chest);
+  k.body = ue(euler(RPx), pr.body);
+  k.chest = ue(euler(rel(fromEuler(k.body), RCx)), pr.chest);
   const RC = compose(fromEuler(k.body), fromEuler(k.chest));
-  k.head = uw(euler(rel(RC, RHx)), pr.head);
+  k.head = ue(euler(rel(RC, RHx)), pr.head);
   for (const s of ['L', 'R']) {
     const v = loc(RC, RV.sub(p('sh' + s), p('clav' + s))), v0 = R.cv[s], az = a => Math.atan2(a[0], a[1] * SG[s]) / DG, el = a => Math.asin(Math.max(-1, Math.min(1, a[2] / RV.len(a)))) / DG;
     k['sh' + s] = [r0(az(v) - az(v0)), r0(el(v) - el(v0))];
@@ -270,12 +277,12 @@ const moveAt = (R, clip, t) => { if (!clip.keys[0].root) return null; const k = 
 function encode(R, cap, kf, extra = {}) {
   const keys = [], X = new Float32Array(P * 3); let prev = null;
   for (const f of kf) {
-    capSample(cap, f / cap.fps, X); const k = Object.assign({ t: Math.round(f / cap.fps * 100) / 100 }, encodePose(R, X, prev));
+    capSample(cap, f / cap.fps, X); const k = Object.assign({ t: Math.round(f / cap.fps * 1000) / 1000 }, encodePose(R, X, prev));   // (to the millisecond: a key lands on its frame)
     if (extra.blade) k.blade = loc(compose(fromEuler(k.body), fromEuler(k.chest)), RV.norm(RV.sub(pt(X, 'indexR'), pt(X, 'pinkyR')))).map(x => r0(x * 100));
     if (cap.move) k.root = [r0(cap.move[f * 2] / R.H0 * 100), r0(cap.move[f * 2 + 1] / R.H0 * 100)];
     keys.push(k); prev = k;
   }
-  return Object.assign({ clip: cap.name, dur: Math.round(cap.dur * 100) / 100, loop: cap.loop }, extra.tags ? { tags: extra.tags } : {}, extra.desc ? { desc: extra.desc } : {}, { keys });
+  return Object.assign({ clip: cap.name, dur: Math.round(cap.dur * 1000) / 1000, loop: cap.loop }, extra.tags ? { tags: extra.tags } : {}, extra.desc ? { desc: extra.desc } : {}, { keys });
 }
 /**
  * fit(R, cap, tol): a readable clip within tol mm of the capture. It starts from the position key frames and adds the

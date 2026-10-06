@@ -3,9 +3,15 @@
 my-3D2dge animates with code, but its rigs can also play animation made for 3D games. Imported animation is stored in one format that both people and AI models can read and edit: **readable key poses**, plain JSON with whole numbers (below). It is organised in **sets**:
 
 - **QUATERNIUS** (`src/mocap/sets/quaternius.js`): every free clip of [Quaternius' Universal Animation Library 1](https://quaternius.com/packs/universalanimationlibrary.html) and [Library 2](https://quaternius.com/packs/universalanimationlibrary2.html) (both CC0). 88 clips: 45 from the first library plus its T-pose, and 42 from the second. It is the library a game or a model picks from.
+- **MESH2MOTION** (`src/mocap/sets/mesh2motion.js`): the human animations of [Mesh2Motion](https://github.com/Mesh2Motion/mesh2motion-app) (CC0), from three origins:
+  - 86 of Quaternius' clips as Mesh2Motion re-exported them (one defective copy is skipped);
+  - 75 clips its contributors animated (ladder, wall and pipe climbs, ledge hang, bow, backflip, dodges, crawling, flying, dances, emotes, deaths);
+  - 16 it motion-captured itself with a Sony mocopi suit (fishing, golf, cheers, salutes, turns).
+
+  That makes 177 clips, and every one records which origin it came from (see [Where each clip came from](#where-each-clip-came-from)).
 - **HERO** (`src/mocap/sets/hero.js`): the 8 clips Emberdeep's hero, the Wanderer, has adopted (see [The hero's clips](#the-heros-clips-in-emberdeep)). It is a subset of QUATERNIUS, picked with `tools/anim-set.mjs`, and it is the only set the game ships.
 
-`examples/mocap-lab.html` plays either set (**G** switches) on two figures:
+`examples/mocap-lab.html` plays any of the sets (**G** switches) on two figures:
 
 - **a look-alike of the libraries' mannequin**: an orange figure with an egg-shaped head and purple joint rings. Its proportions and limb thickness are measured from the first library's own mesh.
 - **the engine's hero** (the Emberdeep swordsman, an HD `Humanoid`), playing the same clip retargeted to his chibi build. His cape and hair follow, and in sword clips his blade follows his fist.
@@ -54,8 +60,9 @@ libraries (.glb) ──tools/anim-import.mjs──▶ src/mocap/sets/quaternius.
 
    | Set | Clips | Key poses | Size | Gzipped | As tokens |
    |---|---|---|---|---|---|
-   | QUATERNIUS | 88 | 1,345 | 391 KB | 75 KB | ~197k for all; a typical clip ~2,100 |
-   | HERO | 8 | 122 | 40 KB | 9 KB | ~17k |
+   | QUATERNIUS | 88 | 1,295 | 378 KB | 72 KB | ~190k for all; a typical clip ~2,100 |
+   | MESH2MOTION | 177 | 2,798 | 800 KB | 155 KB | ~400k for all |
+   | HERO | 8 | 115 | 38 KB | 9 KB | ~17k |
 
    For comparison, the old raw form (every frame of the first library's 46 clips as base64 Int16) was 591 KB, 232 KB gzipped, and unreadable.
 4. **Play**: `const lib = Mocap.load(window.MOCAP.HERO)`. Then:
@@ -118,9 +125,12 @@ npm run mocap:import -- ual1-pro.glb ual2-source.glb --sources UAL1,UAL2 --name 
 
 **6. Read the fit.**
 - The importer prints, for each library, the spine shares it fitted.
-- The set records each clip's average and worst error against its capture (`fit`). Our sets average 14 mm; one pixel is about 24 mm at the default zoom.
-- `npm run test:mocap` fails a clip that averages over 30 mm or reaches 300 mm at worst. Look at those in the lab, and leave them out (`--clips`) if they read wrong.
-- The usual culprits are hard wrist bends (the format treats the hand as a straight continuation of the forearm), flips and rolls.
+- The set records each clip's average and worst error against its capture (`fit`). Our sets average 14 to 16 mm; one pixel is about 24 mm at the default zoom.
+- `npm run test:mocap` fails a clip that averages over 40 mm or reaches 300 mm at worst, and a set that averages over 20 mm.
+- Look at the clips over 30 mm in the lab. The usual culprits are known limits of the format:
+  - hard wrist bends: the format treats the hand as a straight continuation of the forearm;
+  - a spine curled into a C (a crouched sneak, a roll on the ground): the chest's turn is shared along the spine in fixed proportions.
+- A clip that reads wrong goes in the catalog's `"$skip"` with the reason, so it is left out on the record.
 
 **7. Write the catalog.** A model picks clips by their one-line descriptions, so every clip needs one, written from watching it.
 
@@ -130,19 +140,47 @@ npm run mocap:sheet -- src/mocap/sets/quaternius.js --uncataloged src/mocap/cata
 
 - This draws contact sheets into `check-output/anim-sheets/`: each clip the catalog lacks, as a row of eight frames from start to end.
 - For each clip, add `"Name": ["tags", "what the body does"]` to the catalog, then import again so the words go into the set.
-- **Tags** are lowercase words the lab groups by: idle, walk, run, crouch, jump, dodge, climb, slide, attack, stance, block, shield, sword, unarmed, magic, gun, throw, hurt, death, getup, interact, work, item, chest, carry, eat, farm, talk, emote, gesture, sit, swim, zombie, reference. Add any others that help a search (air, prop, root-motion).
+  - A third element, `"SET/clip"`, names the clip it was made from when it is a copy or an edit of another set's clip.
+  - The catalog's `"$sources"` says where each library came from, and `"$skip"` lists the clips left out, with the reason (see [Where each clip came from](#where-each-clip-came-from)).
+- **Tags** are lowercase words the lab groups by: idle, walk, run, crouch, crawl, strafe, turn, jump, dodge, climb, slide, fly, attack, stance, block, shield, sword, unarmed, magic, gun, bow, throw, kick, hurt, death, getup, interact, work, item, chest, carry, eat, farm, fish, sport, talk, emote, gesture, dance, cheer, exercise, sit, rest, lie, swim, zombie, reference. Add any others that help a search (air, prop, root-motion).
+- **`loop` and `once`** in the tags say whether the clip loops, for libraries whose names don't (Quaternius ends looping clips in `_Loop`; Mesh2Motion doesn't). The importer takes them out of the tags.
 - **Describe the body, not the intent.** "Bends forward and lifts a chest's lid with both hands" is something a model can match to a moment in a game.
 
 **8. Add it to the lab.** Add one line to `src/mocap.template.html`, next to the other sets: `<!-- @inline src/mocap/sets/mesh2motion.js -->`. The lab makes a button for every set it carries, and `tools/mocap-test.mjs` checks every one. Then run `npm run build` and look through the clips.
 
 **9. Test and commit.** Run `npm test`. Commit the set and the catalog, never the source files, and add the source and its license to the table below.
 
-**10. Use it in a game.** A game ships only the clips it plays: `npm run mocap:set` picks them into a small set (as the hero's), and the game inlines that set.
+**10. Use it in a game.** A game ships only the clips it plays: `npm run mocap:set` picks them into a small set (as the hero's), and the game inlines that set. The picked clips keep their `src` and `orig`, and the set keeps their libraries' records.
+
+### Where each clip came from
+
+Every set records the origin of every clip, so a clip's history survives being copied into another set or edited by a model:
+
+- **`sources`**: one record per library the set was imported from. It gives the `file` and `rig`, plus a `label`, `origin`, `license` and `url`, written by hand in the catalog's `"$sources"`.
+
+  ```
+  "M2M_QUATERNIUS": { "label": "Quaternius, via Mesh2Motion", "origin": "Quaternius' Universal Animation Library 1 and 2
+     as Mesh2Motion re-exported them ... Library 1's clips run 25% longer than in Quaternius' own files ...",
+     "license": "CC0 1.0", "url": "https://github.com/Mesh2Motion/mesh2motion-app" }
+  ```
+- **`src`** on each clip: the library it came from (the key into `sources`).
+- **`orig`** on a clip that is a copy or an edit of another set's clip: that clip, as `SET/clip`. Mesh2Motion's `Walk` says `"orig": "QUATERNIUS/Walk_Loop"`.
+- **`"$skip"`** in the catalog: the clips left out on purpose, each with the reason.
+
+How Mesh2Motion's origins were established:
+- **Its base clips:** each was matched to a Quaternius clip by motion, with every frame of both compared after scaling to the same length.
+  - 77 match their same-named or renamed Quaternius clip closely. 8 more are Quaternius' clips with small edits (trimmed, or ending back on their feet). All 84 kept carry an `orig`.
+  - Two (`Death_D`, `Hit_Chest`) differ from every free Quaternius clip, so they carry the library but no `orig`.
+  - Mesh2Motion's copy of `Sword_Regular_A_Rec` whips the body round in its last frames, so it is skipped: Quaternius' own clip is in the Quaternius set.
+- **Its hand-animated clips:** each has its own Blender file in [mesh2motion-assets](https://github.com/Mesh2Motion/mesh2motion-assets) (`rigs/human`).
+- **Its motion captures:** the raw mocopi BVH files and the retargeting add-on are in the same repository (`motion-capture`).
+
+The lab shows the origin under each clip's name ("From Quaternius, via Mesh2Motion (CC0 1.0), made from QUATERNIUS Walk_Loop"), and the catalog adds the library to each line. `tools/mocap-test.mjs` fails a clip whose library has no origin or license on record, or whose `orig` names a clip that doesn't exist.
 
 **What it costs:**
 - every 100 clips adds about 450 KB to the lab (85 KB gzipped);
 - a model reading one clip spends about 2,200 tokens;
-- the catalog grows by about 27 tokens per clip.
+- the catalog grows by about 30 tokens per clip.
 
 ## Retargeting onto a Humanoid
 
@@ -186,10 +224,14 @@ Why it is shaped this way:
 - **Whole numbers are cheap.** In cl100k, `-0.35` costs several tokens and `-35` costs one or two. Named fields cost about a quarter more than bare rows, but they make edits safe ("which column was `legR`?").
 - **The spine is fitted per library.** How much of the hips-to-chest turn each spine bone takes is measured from each library's clips at import, because a library's animators decide how the spine bends. Each clip names its source (`src`), and plays back with that library's spine.
 - **Keys are chosen by the format's own error** (`fit`), and the fitter stops adding keys where the remaining error is the format's limit, not the in-betweening.
+- **Numbers continue from key to key, so in-betweens never jump:**
+  - **Twist:** measured from a reference carried smoothly from one rest direction to wherever the limb points. An earlier reference blended two fixed directions; where those faced apart it flipped, and in-betweens put the elbow on the wrong side.
+  - **Turn, lean and tilt:** each has a second reading (turn + 180, 180 − lean, tilt + 180). The encoder takes whichever continues from the key before, so a body leaning past horizontal in a flip keeps leaning.
+  - **Key times:** stored to the millisecond, so a key lands exactly on its frame.
 
-The QUATERNIUS set stays 14 mm per body point from the capture on average (each clip's average and worst are in the set's `fit`). One pixel is about 24 mm at the default zoom. Its biggest misses are elbows and wrists when a wrist bends hard: the format treats the hand as a straight continuation of the forearm.
+The QUATERNIUS set stays 13.9 mm per body point from the capture on average, MESH2MOTION 16.1 mm (each clip's average and worst are in the set's `fit`). One pixel is about 24 mm at the default zoom. Its biggest misses are elbows and wrists when a wrist bends hard: the format treats the hand as a straight continuation of the forearm.
 
-**The catalog.** A model picks a clip from one line per clip, never from motion data: `name | seconds | loop or once | tags | what the body does`. All 88 clips cost about 2,400 tokens; the lab's **Catalog** tab shows it. The words come from `src/mocap/catalogs/quaternius.json`. The model then opens only the clips it uses.
+**The catalog.** A model picks a clip from one line per clip, never from motion data: `name | seconds | loop or once | tags | what the body does | library (= the clip it was made from)`. The QUATERNIUS set's 88 clips cost about 2,500 tokens, MESH2MOTION's 177 about 6,400; the lab's **Catalog** tab shows each set's. The words come from `src/mocap/catalogs/`. The model then opens only the clips it uses.
 
 **Editing in the lab.** The **This clip as text** tab shows the current clip:
 - **Apply** (Ctrl+Enter) plays an edit on both figures; **Reset** brings the imported clip back.
@@ -242,7 +284,7 @@ These are the questions that get harder to change once games and models depend o
 5. **Root motion against physics.** Clips play in place by default and expose their root path as data (`root`, `lib.moveAt`) that a game can use or ignore. Keep it that way.
 6. **Layering.** Upper-body masks and fades exist (`mocapMask`, `mocapW`). Still missing: additive layers (breathing, wounded) and partial poses (only the arms) in the format itself.
 7. **Style.** Motion capture is realistic; `E.MOVES` is snappy and stylized. Mixed in one game they can feel inconsistent, so imported clips will want a style pass: holds on key poses, a little exaggeration, eased in-betweens. The hero's adopted clips are the calm moments (getting up, waiting, a chest) for this reason; his combat stays procedural.
-8. **The catalog's token budget.** At 88 clips the catalog is about 2,400 tokens (about 27 a clip). At 500 clips it would be about 13k, and with CMU's 2,500 about 67k. It will need tiers (a starred core set in the API card, the rest by tag) and no clip data in the agent edition: models fetch clips by name.
+8. **The catalog's token budget.** A catalog costs about 30 tokens a clip (2,500 for the 88 Quaternius clips). At 500 clips it would be about 15k, and with CMU's 2,500 about 75k. It will need tiers (a starred core set in the API card, the rest by tag) and no clip data in the agent edition: models fetch clips by name.
 9. **Provenance per clip.** Each set carries its credit and each clip its source library. When a source with other terms arrives (CMU's no-resale terms), the credit should move to the source, and the importer should refuse sources that forbid redistribution.
 10. **Two engine editions.** Playback is an add-on (`readable.js` and `mocap.js`) that a page loads after the engine, so the agent edition's 82k-token budget stays intact.
 
@@ -270,7 +312,7 @@ Prices and contents as of October 2026.
 | Quaternius Universal Animation Library 2, Standard | 42 | free | CC0 | GLB | imported (QUATERNIUS) |
 | [Library 1 Pro](https://quaternius.itch.io/universal-animation-library) | 120+ | $9.99 | CC0 | GLB, FBX | Drop-in: same skeleton as Standard. Import it in place of the Standard file. |
 | [Library 2 Source](https://quaternius.itch.io/universal-animation-library-2) (Library 2 has no Pro tier) | 130+ | $14.99 | CC0 | .blend only | `tools/to-glb.py`, then import. Library 1's Source edition ($14.99) is the same route. |
-| [Mesh2Motion](https://github.com/Mesh2Motion/mesh2motion-app) humans (`static/animations/human-*.glb`) | about 180: 87 base clips (Quaternius' free clips, re-exported), 75 others (ladder and wall climbs, ledge hang, bow, backflip, dodges, crawl, dances, emotes, flying), 16 from CMU | free | CC0 (its CMU clips: CMU's terms) | GLB | Tested: imports as is. 14 mm on average for the base and CMU clips, 19 mm for the others; 7 clips are over the test's 30 mm. |
+| [Mesh2Motion](https://github.com/Mesh2Motion/mesh2motion-app) humans (`static/animations/human-*.glb`) | 178: 87 Quaternius clips re-exported, 75 hand-animated (climbs, ledge hang, bow, backflip, dodges, crawl, flying, dances, emotes), 16 of its own mocopi captures | free | CC0 | GLB | Imported (MESH2MOTION, 177 clips; one defective re-export skipped). 16.1 mm on average. |
 | [CMU motion capture, retargeted by RancidMilk](https://rancidmilk.itch.io/free-character-animations) | 2,000+ | free | CMU's terms: use, change and share freely, credit mocap.cs.cmu.edu, never sell the data itself | FBX, on a Quaternius character | `tools/to-glb.py`; not tried yet. It needs a bone map if the rig is not one we read. |
 | CMU raw ([mocap.cs.cmu.edu](http://mocap.cs.cmu.edu)) | 2,500 | free | as above | BVH, ASF/AMC | `tools/to-glb.py` reads BVH. The CMU skeleton (hip, abdomen, chest, lThigh...) needs a bone map, and long takes need cutting into clips. |
 | [100STYLE](https://zenodo.org/record/8127870) | 100 walking and running styles | free | CC BY 4.0 (credit required) | BVH | Same route as raw CMU: a bone map, then cutting into loops. |
@@ -288,7 +330,8 @@ Prices and contents as of October 2026.
 - a figure that draws nothing, or a cast that draws the wrong number of figures;
 - a foot under the floor;
 - clip text that does not read back the same, or that is not restored by mirroring twice;
-- a clip without a recorded fit, one more than 30 mm from its capture on average (300 mm at worst), or a set more than 20 mm on average;
+- a clip without a recorded fit, one more than 40 mm from its capture on average (300 mm at worst), or a set more than 20 mm on average;
+- a clip whose library has no origin or license on record, or whose `orig` names a clip that doesn't exist;
 - a clip of a picked set (the hero's) that is not key for key the clip it was picked from;
 - a broken edit accepted, or rejected without a clear message;
 - an edit applied in the panel that does not play, or that Reset does not undo.

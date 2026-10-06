@@ -38,7 +38,9 @@ function load(set) {
   lib.restore = name => { if (originals[name]) { clips[name] = originals[name]; delete originals[name]; } return clips[name]; };
   lib.edited = name => !!originals[name];
   /** the clip as the text a model reads (its header and its key poses) */
-  lib.text = clip => { const o = { clip: clip.clip || clip.name }; for (const k of ['src', 'dur', 'loop', 'tags', 'desc']) if (clip[k] !== undefined) o[k] = clip[k]; o.keys = clip.keys; return MR.text(o); };
+  lib.text = clip => { const o = { clip: clip.clip || clip.name }; for (const k of ['src', 'orig', 'dur', 'loop', 'tags', 'desc']) if (clip[k] !== undefined) o[k] = clip[k]; o.keys = clip.keys; return MR.text(o); };
+  /** where a clip came from: its library's label, origin and license (from the set's sources), and the clip it was made from */
+  lib.origin = clip => { const s = set.sources[clip.src] || {}; return { src: clip.src, label: s.label || clip.src, origin: s.origin || '', license: s.license || '', url: s.url || '', orig: clip.orig || null }; };
   /** a pose blended from a to b (crossfades between clips) */
   lib.blend = (a, b, k, out = new Float32Array(P * 3)) => { for (let i = 0; i < P * 3; i++) out[i] = a[i] + (b[i] - a[i]) * k; return out; };
   lib.pt = (pose, name) => { const i = idx[name] * 3; return [pose[i], pose[i + 1], pose[i + 2]]; };
@@ -154,7 +156,10 @@ function drive(rig, lib) {
     const keep = w < 1 ? {} : null; if (keep) for (const key of DRIVEN) keep[key] = J[key] && J[key].slice();
     const mid = (a, b) => V.lerp(pt(a), pt(b), .5), hipsS = mid('hipL', 'hipR'), shS = mid('shL', 'shR');
     if (!upper) {
-      const hipC = V.mul(hipsS, k), across = V.norm(V.sub(pt('hipR'), pt('hipL')));
+      // a clip that dips below the ground (an in-place jump's pointed toes, a zombie climbing out of a grave) is lifted
+      // until its lowest point stands on it: the floor here hides nothing beneath it
+      let lo = 0; for (let i = 2; i < pose.length; i += 3) if (pose[i] < lo) lo = pose[i];
+      const hipC = V.add(V.mul(hipsS, k), [0, 0, -lo * k]), across = V.norm(V.sub(pt('hipR'), pt('hipL')));
       J.hipC = hipC; J.hipL = V.add(hipC, V.mul(across, -o.hipHalf)); J.hipR = V.add(hipC, V.mul(across, o.hipHalf));
       const legK = (o.legUpper + o.legLower) / legSrc;
       for (const s of ['L', 'R']) {

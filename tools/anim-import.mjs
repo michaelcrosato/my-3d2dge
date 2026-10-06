@@ -11,11 +11,17 @@
 // Usage:  node tools/anim-import.mjs a.glb [b.glb ...] [--sources UAL1,UAL2] [--name QUATERNIUS] [--out src/mocap/sets/quaternius.js]
 //                [--catalog src/mocap/catalogs/quaternius.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword]
 //                [--rest A_TPose,,Rest Pose]   (each library's rest-pose clip; by default a T-pose or 'Rest Pose' clip, else the first clip)
+//                [--title Mesh2Motion]          (the set's name as people read it; the lab's button)
 //         node tools/anim-import.mjs a.glb --list          (print the clips, the bones and the rig it recognises; write nothing)
 // Rigs: the Rigify "DEF-" deform bones (Quaternius' Universal Animation Library) and the Unreal mannequin's names
 // (pelvis, spine_01, upperarm_l ...; Universal Animation Library 2, Mesh2Motion's humans) are recognised, in any case. For another rig, add it to RIGS.
 // Clips are named once: a later library's clip with a name already taken (its own T-pose) is left out.
-// --catalog: a JSON file { clip: [tags, what the body does] } written by hand; its words go into each clip.
+// --catalog: a JSON file written by hand. { clip: [tags, what the body does, orig?] }: its words go into each clip (the
+//   tags 'loop' and 'once' set whether it loops, where the clip names do not say), and
+//   orig names the clip this one was made from when it is a copy or an edit of another set's ("QUATERNIUS/Walk_Loop").
+//   "$sources": { ID: { label, origin, license, url } } says where each library (--sources ID) came from; every
+//   clip names its library in "src", so a set always says where each of its clips came from. "$skip": { clip: why }
+//   leaves clips out, with the reason on record.
 import { readFileSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { MR, writeSet } from './mocap-lib.mjs';
@@ -23,12 +29,16 @@ import { MR, writeSet } from './mocap-lib.mjs';
 const args = process.argv.slice(2);
 const files = args.filter((a, i) => !a.startsWith('--') && !(args[i - 1] || '').startsWith('--'));
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : def; };
-if (!files.length) { console.error('Usage: node tools/anim-import.mjs a.glb [b.glb ...] [--sources A,B] [--name SET] [--out file.js] [--catalog cat.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword] [--rest ClipA,ClipB] [--list]'); process.exit(2); }
+if (!files.length) { console.error('Usage: node tools/anim-import.mjs a.glb [b.glb ...] [--sources A,B] [--name SET] [--out file.js] [--catalog cat.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword] [--rest ClipA,ClipB] [--title Name] [--list]'); process.exit(2); }
 const OUT = resolve(opt('out', 'src/mocap/sets/quaternius.js')), FPS = +opt('fps', 30), NAME = opt('name', 'QUATERNIUS'), TOL = +opt('tol', 30);
 const SOURCES = (opt('sources', '') || '').split(',').filter(Boolean), REST = (opt('rest', '') || '').split(','), ONLY = opt('clips', null) ? new Set(opt('clips').split(',')) : null;
 const BLADE = new RegExp(opt('blade', 'Sword'));
 const CREDIT = opt('credit', 'Universal Animation Library 1 and 2 by Quaternius (quaternius.com), CC0 1.0 (public domain).');
 const CATALOG = opt('catalog', null) ? JSON.parse(readFileSync(resolve(opt('catalog')), 'utf8')) : {};
+// where each library came from: the catalog's "$sources" { ID: { label, origin, license, url } }, written by hand
+const ABOUT = CATALOG.$sources || {}; delete CATALOG.$sources;
+// clips left out on purpose, each with the reason: the catalog's "$skip" { clip: why }
+const SKIP = CATALOG.$skip || {}; delete CATALOG.$skip;
 
 /* ---- rigs: which bone gives each body point. [point, bone, where]: where 'tip' = the bone's far end, 'fwd' = 12 cm in front ---- */
 const RIGS = {
@@ -191,21 +201,27 @@ function readLibrary(file) {
 /* ---- read every library, fit every clip ---- */
 const libs = files.map(readLibrary);
 if (args.includes('--list')) process.exit(0);
-const set = { set: NAME, format: 1, credit: CREDIT, fps: FPS, sources: {}, body: null, fit: {}, clips: {} };
+const set = Object.assign({ set: NAME }, opt('title') ? { title: opt('title') } : {}, { format: 1, credit: CREDIT, fps: FPS, sources: {}, body: null, fit: {}, clips: {} });
 const r1 = v => Math.round(v);
 libs.forEach((L, li) => {
   // the body at rest comes from the library's T-pose or rest-pose clip (--rest names it), else the first clip's first frame
   const restClip = [REST[li], 'A_TPose', 'T-Pose', 'TPose', 'Rest Pose', 'Rest_Pose'].find(n => n && L.clips[n]);
   const id = SOURCES[li] || basename(files[li]).replace(/\.glb$/i, ''), rest = MR.measure(L.clips, restClip);
-  set.sources[id] = { file: basename(files[li]), rig: L.rig, rest };
+  if (Object.keys(CATALOG).length && !ABOUT[id]) console.warn('no "$sources" entry for ' + id + ': the set will not say where its clips came from');
+  set.sources[id] = Object.assign({ file: basename(files[li]), rig: L.rig }, ABOUT[id] || {}, { rest });
   if (!set.body && L.body) set.body = L.body;
   let kept = 0;
   for (const [name, cap] of Object.entries(L.clips)) {
     if (set.clips[name] || (ONLY && !ONLY.has(name))) continue;
+    if (SKIP[name]) { console.log('left out ' + name + ': ' + SKIP[name]); continue; }
     const cat = CATALOG[name], extra = { blade: BLADE.test(name) };
-    if (cat) { extra.tags = cat[0].split(' ').filter(Boolean); extra.desc = cat[1]; } else if (Object.keys(CATALOG).length) console.warn('no catalog entry for ' + name);
+    if (cat) {   // the tags 'loop' and 'once' say whether it loops (for libraries whose names do not: '_Loop', '_Idle')
+      const tags = cat[0].split(' ').filter(Boolean); if (tags.includes('loop')) cap.loop = true; if (tags.includes('once')) cap.loop = false;
+      extra.tags = tags.filter(t => t !== 'loop' && t !== 'once'); extra.desc = cat[1];
+    } else if (Object.keys(CATALOG).length) console.warn('no catalog entry for ' + name);
     const { clip, max, mean } = MR.fit(rest, cap, TOL, extra);
-    const ordered = { clip: clip.clip, src: id, dur: clip.dur, loop: clip.loop }; if (clip.tags) ordered.tags = clip.tags; if (clip.desc) ordered.desc = clip.desc; ordered.keys = clip.keys;
+    const ordered = { clip: clip.clip, src: id }; if (cat && cat[2]) ordered.orig = cat[2];   // orig: the clip it was made from, as SET/clip
+    Object.assign(ordered, { dur: clip.dur, loop: clip.loop }); if (clip.tags) ordered.tags = clip.tags; if (clip.desc) ordered.desc = clip.desc; ordered.keys = clip.keys;
     set.clips[name] = ordered; set.fit[name] = [r1(mean), r1(max)]; kept++;
   }
   console.log(`${basename(files[li])}: ${L.rig} rig, ${kept} clips; spine shares ${rest.spineW.join(' ')}, neck ${rest.neckW}`);

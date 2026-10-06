@@ -36,10 +36,10 @@ const heroK = () => hero.o.hipZ * hero.o.size / lib.rest.hipZ;   // hero world u
 
 /* 3. Clips, grouped by their catalog tags; the starred ones are the core set */
 const GROUPS = [
-  ['Idle', ['idle']], ['Locomotion', ['walk', 'run', 'crouch']], ['Jump, dodge, climb', ['jump', 'dodge', 'climb', 'slide']],
-  ['Combat', ['attack', 'stance', 'block', 'shield', 'sword', 'unarmed', 'magic', 'gun', 'throw']], ['Reactions', ['hurt', 'death', 'getup']],
-  ['Interacting', ['interact', 'work', 'item', 'chest', 'carry', 'eat', 'farm']], ['Social', ['talk', 'emote', 'gesture']], ['Sitting', ['sit']],
-  ['Swimming', ['swim']], ['Monsters', ['zombie']], ['Reference', ['reference']]
+  ['Idle', ['idle']], ['Locomotion', ['walk', 'run', 'crouch', 'crawl', 'strafe', 'turn']], ['Jump, dodge, climb, fly', ['jump', 'dodge', 'climb', 'slide', 'fly']],
+  ['Combat', ['attack', 'stance', 'block', 'shield', 'sword', 'unarmed', 'magic', 'gun', 'bow', 'throw', 'kick']], ['Reactions', ['hurt', 'death', 'getup']],
+  ['Interacting', ['interact', 'work', 'item', 'chest', 'carry', 'eat', 'farm', 'fish', 'sport']], ['Social', ['talk', 'emote', 'gesture', 'dance', 'cheer', 'exercise']],
+  ['Sitting and resting', ['sit', 'rest', 'lie']], ['Swimming', ['swim']], ['Monsters', ['zombie']], ['Reference', ['reference']]
 ];
 const CORE = new Set(['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Jump_Start', 'Roll', 'Punch_Jab', 'Sword_Attack', 'Sword_Regular_Combo', 'Hit_Chest', 'Death01',
   'LayToIdle', 'Interact', 'PickUp_Table', 'Chest_Open', 'Walk_Carry_Loop', 'Consume', 'Sitting_Enter', 'Dance_Loop', 'ClimbUp_1m_RM']);
@@ -175,14 +175,17 @@ function syncList() {
 }
 function syncInfo() {
   const c = S.clip, fit = lib.set.fit && lib.set.fit[c.name];
-  $('note').textContent = pretty(c.name) + (c.desc ? ': ' + c.desc + '.' : '.') + ' ' + c.keys.length + ' key poses, ' + c.dur.toFixed(2) + ' s, ' + (c.loop ? 'loops' : 'plays once') + (c.keys[0].root ? ', travels' : '') + (fit ? '; within ' + fit[0] + ' mm of the capture on average.' : '.');
+  const o = lib.origin(c);   // where it came from: its library, and the clip it was made from
+  $('note').textContent = pretty(c.name) + (c.desc ? ': ' + c.desc + '.' : '.') + ' ' + c.keys.length + ' key poses, ' + c.dur.toFixed(2) + ' s, ' + (c.loop ? 'loops' : 'plays once') + (c.keys[0].root ? ', travels' : '') + (fit ? '; within ' + fit[0] + ' mm of the capture on average.' : '.')
+    + ' From ' + o.label + (o.license ? ' (' + o.license + ')' : '') + (o.orig ? ', made from ' + o.orig.replace('/', ' ') : '') + '.';
+  $('note').title = o.origin;
   $('playBtn').setAttribute('aria-pressed', String(!S.playing));
   placePanels();
 }
 scrub.addEventListener('input', () => { S.playing = false; S.t = +scrub.value / 1000 * S.clip.dur; S.hold = 0; syncInfo(); });
 // one button per set (G cycles them); the label is the set's name, the tooltip its credit
 const setBtns = SET_IDS.map((id, i) => {
-  const b = document.createElement('button'), L = SETS[id], label = L.set.set.charAt(0) + L.set.set.slice(1).toLowerCase().replace(/_/g, ' ');
+  const b = document.createElement('button'), L = SETS[id], label = L.set.title || L.set.set.charAt(0) + L.set.set.slice(1).toLowerCase().replace(/_/g, ' ');
   b.type = 'button'; b.dataset.set = id; b.title = L.set.credit || ''; b.setAttribute('aria-pressed', 'false');
   b.innerHTML = (i === 0 ? '<kbd>G</kbd>' : '') + label + ' (' + L.names.length + ')'; $('sets').appendChild(b); return b;
 });
@@ -233,8 +236,8 @@ $('copyBtn').addEventListener('click', () => { if (navigator.clipboard) navigato
 textEl.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); apply(); } });
 // the catalog: one line per clip, what a model reads to choose (it never needs the key poses to pick)
 function showCatalog() {
-  const txt = '// ' + lib.names.length + ' clips. name | seconds | loop or once | tags | what the body does\n' + S.order.map(n => {
-    const c = lib.clip(n); return n + ' | ' + c.dur.toFixed(2) + ' | ' + (c.loop ? 'loop' : 'once') + ' | ' + (c.tags || []).join(' ') + ' | ' + (c.desc || '');
+  const txt = '// ' + lib.names.length + ' clips. name | seconds | loop or once | tags | what the body does | library (= the clip it was made from)\n' + S.order.map(n => {
+    const c = lib.clip(n); return n + ' | ' + c.dur.toFixed(2) + ' | ' + (c.loop ? 'loop' : 'once') + ' | ' + (c.tags || []).join(' ') + ' | ' + (c.desc || '') + ' | ' + c.src + (c.orig ? ' (= ' + c.orig + ')' : '');
   }).join('\n');
   $('catalog').textContent = txt; $('catalogNote').textContent = '~' + tokens(txt, PROSE) + ' tokens for all ' + lib.names.length + ' clips. A model picks from this list, then opens only the clips it uses.';
 }
