@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Emberdeep · my-3D2dge</title>
 <!-- EMBERDEEP, the signature game of the my-3D2dge engine: https://github.com/michaelcrosato/my-3d2dge (standalone file, no network)
-     Source: src/emberdeep/*.js joined into one script by tools/build.mjs. -->
+     Source: src/emberdeep/*.js joined into one script by tools/build.mjs.
+     The hero's captured animations (src/mocap/sets/hero.js): Universal Animation Library 1 and 2 by Quaternius
+     (quaternius.com), CC0 1.0, in my-3D2dge's readable format. -->
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #stage{position:relative;width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
@@ -4650,7 +4652,1089 @@ root.My3D2dge = E;
 
 </script>
 <script>
-/* ---- inlined from src/emberdeep (00-core.js, 01-tune.js, 05-elements.js, 10-combat.js, 15-stats.js, 18-characters.js, 20-hero.js, 21-codex.js, 25-skills-core.js, 26-skills-melee.js, 27-skills-spells.js, 28-progression.js, 29-codex-skills.js, 30-monsters-core.js, 31-monsters.js, 33-beasts.js, 35-bosses-core.js, 36-bosses.js, 40-loot-core.js, 41-loot.js, 42-inventory.js, 45-mechanics-core.js, 46-mechanics-a.js, 47-mechanics-b.js, 50-levels-core.js, 51-themes.js, 52-layouts.js, 55-town-core.js, 56-town.js, 60-ui-core.js, 61-controls.js, 62-developer.js, 63-character-menu.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 94-tips.js, 95-perf.js, 99-start.js) ---- */
+/* ---- inlined from src/mocap/readable.js ---- */
+/* =============================================================================
+ * READABLE KEY POSES: the animation format my-3D2dge stores, and the one AI models (and people) read and edit.
+ * A clip is a short list of key poses. Each pose names what an animator would: where the hips are, how the body,
+ * chest and head turn and lean, how the shoulders reach and shrug, which way each arm and leg points with how much
+ * elbow or knee bend, and how the feet point. It does not depend on body size, so the same clip fits any build, and
+ * it mirrors by swapping L and R. Limbs are a direction plus a bend, not joint angles: an arm swinging through
+ * straight down has no angle that flips, a bend in degrees rounds well, and an IK rig consumes exactly this.
+ *
+ * Shared by tools/anim-import.mjs (Node: it measures a captured body, fits each clip, writes the set) and the
+ * browser (src/mocap/mocap.js: it rebuilds every body point from a set to draw or drive a rig). No dependencies.
+ *   const rest = MocapReadable.measure(captureClips)          // a body's proportions, from its own clips
+ *   const { clip } = MocapReadable.fit(rest, capClip, 30)     // key poses within 30 mm of the capture
+ *   MocapReadable.text(clip)  MocapReadable.parse(text)  MocapReadable.mirror(clip)
+ *   MocapReadable.pose(rest, clip, t, out)                    // 36 body points (mm) at time t
+ * ============================================================================= */
+var MocapReadable = (() => {
+'use strict';
+
+/** the body points a pose rebuilds, in the rig's local frame (f forward, r right, z up), millimetres */
+const POINTS = ['pelvis', 'spine1', 'spine2', 'chest', 'neck', 'head', 'headTop', 'faceF', 'chestF', 'pelvisF',
+  ...['L', 'R'].flatMap(s => ['clav', 'sh', 'elbow', 'wrist', 'index', 'knuck', 'pinky', 'fist', 'hip', 'knee', 'ankle', 'ball', 'toe'].map(p => p + s))];
+const IDX = {}; POINTS.forEach((p, i) => IDX[p] = i);
+const P = POINTS.length;
+
+const LEGEND = `// my-3D2dge readable clip. Times in seconds; every other number is a whole number. Rig frame: forward, right, up.
+// L and R are the figure's own sides. Directions are percentages and need not add up: [100, 0, 0] and [50, 0, 0] agree.
+// hips   [forward, right, up]   the pelvis, in percent of standing hip height (100 = standing, 55 = sitting on a chair)
+// body   [turn, lean, tilt]     the pelvis, degrees: turn + = toward the right, lean + = forward, tilt + = toward the right
+// chest  [turn, lean, tilt]     the chest, relative to the pelvis        head [turn, lean, tilt]  relative to the chest
+// shL shR    [reach, shrug]     degrees the shoulder swings forward (into a punch or an aim) and up, from rest
+// armL armR  [forward, out, up, bend, twist]  which way the arm points from the shoulder to the fist, in chest space
+//            (out + = away from the body on that side; [0, 0, -100] hangs down, [100, 0, 0] punches ahead);
+//            bend = elbow bend in degrees (0 = straight); twist = degrees the elbow swings round the arm from its
+//            natural direction (back and down)
+// legL legR  [forward, out, up, bend, twist]  hip to ankle in pelvis space; bend: the knee; twist: from pointing forward
+// footL footR [down, out, toes]   degrees the foot points down from standing, turns outward, and the toes bend up
+// blade  [forward, right, up]   (sword clips) the direction of a blade held in the right fist, in chest space
+// root   [forward, right]       (clips that travel) how far the whole body has moved, in percent of standing hip height`;
+
+/* ---- vectors, frames, rotations ---- */
+const RV = {
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], mul: (a, k) => [a[0] * k, a[1] * k, a[2] * k],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], len: a => Math.hypot(a[0], a[1], a[2]),
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
+};
+// a frame is [F, R, U]: its forward, right and up axes written in the parent's coordinates (f x r = u)
+const frameFR = (right, fwd) => { const R = RV.norm(right), F = RV.norm(RV.sub(fwd, RV.mul(R, RV.dot(fwd, R)))); return [F, R, RV.cross(F, R)]; };
+const frameUF = (up, fwd) => { const U = RV.norm(up), F = RV.norm(RV.sub(fwd, RV.mul(U, RV.dot(fwd, U)))); return [F, RV.cross(U, F), U]; };
+const loc = (M, v) => [RV.dot(v, M[0]), RV.dot(v, M[1]), RV.dot(v, M[2])];
+const wld = (M, l) => [M[0][0] * l[0] + M[1][0] * l[1] + M[2][0] * l[2], M[0][1] * l[0] + M[1][1] * l[1] + M[2][1] * l[2], M[0][2] * l[0] + M[1][2] * l[1] + M[2][2] * l[2]];
+const rel = (Pm, Cm) => Cm.map(c => loc(Pm, c));          // child frame in parent coordinates
+const compose = (Pm, Rm) => Rm.map(c => wld(Pm, c));      // parent then relative -> child in the grandparent's coordinates
+const DG = Math.PI / 180;
+// rotations as quaternions [x, y, z, w], to spread a bend over the spine and the neck
+const quatOf = M => {   // frame [F, R, U] (columns) -> quaternion
+  const [m00, m10, m20] = M[0], [m01, m11, m21] = M[1], [m02, m12, m22] = M[2], tr = m00 + m11 + m22;
+  let q;
+  if (tr > 0) { const s = Math.sqrt(tr + 1) * 2; q = [(m21 - m12) / s, (m02 - m20) / s, (m10 - m01) / s, s / 4]; }
+  else if (m00 > m11 && m00 > m22) { const s = Math.sqrt(1 + m00 - m11 - m22) * 2; q = [s / 4, (m01 + m10) / s, (m02 + m20) / s, (m21 - m12) / s]; }
+  else if (m11 > m22) { const s = Math.sqrt(1 + m11 - m00 - m22) * 2; q = [(m01 + m10) / s, s / 4, (m12 + m21) / s, (m02 - m20) / s]; }
+  else { const s = Math.sqrt(1 + m22 - m00 - m11) * 2; q = [(m02 + m20) / s, (m12 + m21) / s, s / 4, (m10 - m01) / s]; }
+  const l = Math.hypot(...q); return q.map(v => v / l);
+};
+const qmul = (a, b) => [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
+const qconj = q => [-q[0], -q[1], -q[2], q[3]];
+const qrot = (q, v) => { const p = qmul(qmul(q, [v[0], v[1], v[2], 0]), qconj(q)); return [p[0], p[1], p[2]]; };
+const qslerp = (a, b, t) => {
+  let d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3], bb = b; if (d < 0) { d = -d; bb = b.map(v => -v); }
+  if (d > .9995) { const o = a.map((v, i) => v + (bb[i] - v) * t), l = Math.hypot(...o); return o.map(v => v / l); }
+  const th = Math.acos(d), k0 = Math.sin((1 - t) * th) / Math.sin(th), k1 = Math.sin(t * th) / Math.sin(th);
+  return a.map((v, i) => v * k0 + bb[i] * k1);
+};
+/** the rotation that takes rest frame A to frame B (both [F, R, U]), as a quaternion */
+const qFromTo = (A, B) => qmul(quatOf(B), qconj(quatOf(A)));
+/** degrees [turn, lean, tilt] of a frame: yaw about up, then pitch about right (+ = forward), then roll (+ = toward the right) */
+function euler(M) {
+  const [F, , U] = M, yaw = Math.atan2(F[1], F[0]), pitch = Math.asin(Math.max(-1, Math.min(1, -F[2])));
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), u1 = [U[0] * cy + U[1] * sy, -U[0] * sy + U[1] * cy, U[2]], cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const u2 = [u1[0] * cp - u1[2] * sp, u1[1], u1[0] * sp + u1[2] * cp];
+  return [yaw / DG, pitch / DG, -Math.atan2(-u2[1], u2[2]) / DG];
+}
+function fromEuler(a) {
+  const y = a[0] * DG, p = a[1] * DG, r = -a[2] * DG, cy = Math.cos(y), sy = Math.sin(y), cp = Math.cos(p), sp = Math.sin(p), cr = Math.cos(r), sr = Math.sin(r);
+  const rot = v => { let [x, yy, z] = v; [yy, z] = [yy * cr - z * sr, yy * sr + z * cr]; [x, z] = [x * cp + z * sp, -x * sp + z * cp]; return [x * cy - yy * sy, x * sy + yy * cy, z]; };
+  return [rot([1, 0, 0]), rot([0, 1, 0]), rot([0, 0, 1])];
+}
+/** two-bone IK in 3D (the engine's E.ik3): returns [joint, end]; hint points the way the joint should bend */
+function ik3(a, b, L1, L2, hint) {
+  let d = RV.sub(b, a), dist = RV.len(d);
+  const max = L1 + L2 - .01;
+  if (dist > max) { d = RV.mul(d, max / dist); b = RV.add(a, d); dist = max; }
+  dist = Math.max(dist, .01);
+  const n = RV.mul(d, 1 / dist);
+  let h = RV.sub(hint, RV.mul(n, RV.dot(hint, n)));
+  const hl = RV.len(h);
+  h = hl < 1e-4 ? [n[1], -n[0], 0] : RV.mul(h, 1 / hl);
+  const x = (L1 * L1 - L2 * L2 + dist * dist) / (2 * dist), y = Math.sqrt(Math.max(0, L1 * L1 - x * x));
+  return [RV.add(RV.add(a, RV.mul(n, x)), RV.mul(h, y)), b];
+}
+/** a two-bone limb: the bend at the middle joint (degrees, 0 = straight) for a root-to-end distance, and back */
+const bendOf = (dist, L1, L2) => 180 - Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + L2 * L2 - dist * dist) / (2 * L1 * L2)))) / DG;
+const reachOf = (bend, L1, L2) => Math.sqrt(Math.max(0, L1 * L1 + L2 * L2 + 2 * L1 * L2 * Math.cos(bend * DG)));
+const unwrap = (v, prev) => prev === undefined ? v : v + 360 * Math.round((prev - v) / 360);
+const r0 = v => Math.round(v);
+// the natural direction elbows (back, out, down) and knees (forward) bend, in chest and pelvis space. A twist is
+// measured from it round the limb, which is undefined when the limb points along it (an arm swung back and out, a
+// knee pulled up in a roll): approaching that, the reference blends smoothly into a second one, so twists stay
+// continuous between key poses. Both sides compute it from the stored direction, so they always agree.
+const HINT = { arm: s => [-1, s * .5, -.3], leg: s => [1, s * .1, 0] }, HINT2 = { arm: s => [0, -s * .3, 1], leg: s => [-.2, s * .2, -1] };
+const across = (h, d) => RV.norm(RV.sub(h, RV.mul(d, RV.dot(h, d))));
+const hintFor = (limb, s, M, dLocal) => {
+  const d = RV.norm(dLocal), h1 = RV.norm(HINT[limb](s)), a = Math.abs(RV.dot(h1, d)), w = Math.min(1, Math.max(0, (a - .6) / .3)), k = w * w * (3 - 2 * w);
+  const n = k <= 0 ? across(h1, d) : k >= 1 ? across(RV.norm(HINT2[limb](s)), d) : RV.norm(RV.add(RV.mul(across(h1, d), 1 - k), RV.mul(across(RV.norm(HINT2[limb](s)), d), k)));
+  return wld(M, n);
+};
+/** the signed angle (degrees) round axis d from hint h to the bend direction b */
+const poleOf = (d, h, b) => { const hn = RV.norm(RV.sub(h, RV.mul(d, RV.dot(h, d)))), bn = RV.norm(RV.sub(b, RV.mul(d, RV.dot(b, d)))); return Math.atan2(RV.dot(RV.cross(hn, bn), d), RV.dot(hn, bn)) / DG; };
+const poleHint = (d, h, deg) => { const hn = RV.norm(RV.sub(h, RV.mul(d, RV.dot(h, d)))), a = deg * DG; return RV.add(RV.mul(hn, Math.cos(a)), RV.mul(RV.cross(d, hn), Math.sin(a))); };
+const SG = { L: -1, R: 1 };
+const pt = (X, n) => { const i = IDX[n] * 3; return [X[i], X[i + 1], X[i + 2]]; };
+
+/* ---- captured clips (the importer's input): { name, n, dur, loop, fps, data: n x 36 points x f r z (mm), move? } ---- */
+function capSample(c, t, out = new Float32Array(P * 3)) {
+  const n = c.n, u = Math.max(0, t) * c.fps, f = c.loop ? u % Math.max(1, n - 1) : Math.min(u, n - 1), i0 = Math.floor(f), k = f - i0, a = i0 * P * 3, b = Math.min(n - 1, i0 + 1) * P * 3, D = c.data;
+  for (let i = 0; i < P * 3; i++) out[i] = D[a + i] + (D[b + i] - D[a + i]) * k;
+  return out;
+}
+// the finger helpers only aim a blade: errors leave them out
+const SHOWN = POINTS.map((p, i) => /^(index|pinky)/.test(p) ? -1 : i * 3).filter(i => i >= 0);
+/** the largest distance between matching body points of two poses (mm) */
+function error(A, B) { let w = 0; for (const i of SHOWN) w = Math.max(w, (A[i] - B[i]) ** 2 + (A[i + 1] - B[i + 1]) ** 2 + (A[i + 2] - B[i + 2]) ** 2); return Math.sqrt(w); }
+/** the average distance between matching body points (mm) */
+function meanError(A, B) { let s = 0; for (const i of SHOWN) s += Math.hypot(A[i] - B[i], A[i + 1] - B[i + 1], A[i + 2] - B[i + 2]); return s / SHOWN.length; }
+/** key frames (Ramer-Douglas-Peucker over whole poses): in-betweening the rest stays within tol mm of the capture */
+function reduce(c, tol) {
+  const D = c.data, n = c.n, keep = [0, n - 1], tmp = new Float32Array(P * 3);
+  const off = (a, b, i) => { const t = (i - a) / (b - a); for (let j = 0; j < P * 3; j++) tmp[j] = D[a * P * 3 + j] + (D[b * P * 3 + j] - D[a * P * 3 + j]) * t; return error(tmp, D.subarray(i * P * 3, (i + 1) * P * 3)); };
+  const go = (a, b) => { if (b - a < 2) return; let wi = -1, we = 0; for (let i = a + 1; i < b; i++) { const e = off(a, b, i); if (e > we) { we = e; wi = i; } } if (we > tol) { keep.push(wi); go(a, wi); go(wi, b); } };
+  if (n > 1) go(0, n - 1);
+  return [...new Set(keep)].sort((x, y) => x - y);
+}
+
+/* ---- a body's rest measurements (mm), from its own captured clips ---- */
+const rnd = (v, k = 10) => Array.isArray(v) ? v.map(x => rnd(x, k)) : Math.round(v * k) / k;
+/**
+ * measure(clips, tpose): proportions and rest offsets from the T-pose (or the first frame of the first clip), and how
+ * much of the hips-to-chest turn each spine bone takes (and the neck between chest and head). That share differs per
+ * library (how its animators posed the spine), so it is fitted from the clips themselves. The result is plain data.
+ */
+function measure(clips, tposeName = 'A_TPose') {
+  const list = Object.values(clips), T = capSample(clips[tposeName] || list[0], 0), q = n => pt(T, n), d = (a, b) => RV.len(RV.sub(q(a), q(b)));
+  const Pr = frameFR(RV.sub(q('hipR'), q('hipL')), RV.sub(q('pelvisF'), q('pelvis'))), Cr = frameUF(RV.sub(q('neck'), q('chest')), RV.sub(q('chestF'), q('chest')));
+  const Hr = frameUF(RV.sub(q('headTop'), q('head')), RV.sub(q('faceF'), q('head')));
+  const R = {
+    H0: q('pelvis')[2], hipZ: (q('hipL')[2] + q('hipR')[2]) / 2, ankleZ: q('ankleL')[2], Pr, Cr, Hr,
+    hip: { L: loc(Pr, RV.sub(q('hipL'), q('pelvis'))), R: loc(Pr, RV.sub(q('hipR'), q('pelvis'))) },
+    // the spine's four bones at rest; in motion each turns part of the way from the hips' rotation to the chest's
+    spine: [RV.sub(q('spine1'), q('pelvis')), RV.sub(q('spine2'), q('spine1')), RV.sub(q('chest'), q('spine2')), RV.sub(q('neck'), q('chest'))],
+    neckSeg: RV.sub(q('head'), q('neck')),
+    clav: { L: loc(Cr, RV.sub(q('clavL'), q('neck'))), R: loc(Cr, RV.sub(q('clavR'), q('neck'))) },
+    cv: { L: loc(Cr, RV.sub(q('shL'), q('clavL'))), R: loc(Cr, RV.sub(q('shR'), q('clavR'))) },   // collarbone: pivot to shoulder
+    topH: loc(Hr, RV.sub(q('headTop'), q('head'))), faceH: loc(Hr, RV.sub(q('faceF'), q('head'))),
+    up: d('shL', 'elbowL'), fore: d('elbowL', 'wristL'), knuck: d('knuckL', 'wristL'), fist: d('fistL', 'wristL'),
+    thigh: d('hipL', 'kneeL'), shin: d('kneeL', 'ankleL'), ab: d('ankleL', 'ballL'), bt: d('ballL', 'toeL'),
+    abPitch: Math.asin((q('ankleL')[2] - q('ballL')[2]) / d('ankleL', 'ballL')) / DG, btPitch: Math.asin((q('ballL')[2] - q('toeL')[2]) / d('ballL', 'toeL')) / DG
+  };
+  const sub = RV.sub, fr = X => { const p = n => pt(X, n); return { P: frameFR(sub(p('hipR'), p('hipL')), sub(p('pelvisF'), p('pelvis'))), C: frameUF(sub(p('neck'), p('chest')), sub(p('chestF'), p('chest'))), H: frameUF(sub(p('headTop'), p('head')), sub(p('faceF'), p('head'))) }; };
+  const frames = []; for (const c of list) for (let f = 0; f < c.n; f += Math.max(1, Math.floor(c.n / 6))) { const X = capSample(c, f / c.fps), F = fr(X); frames.push({ X, qP: qFromTo(Pr, F.P), qC: qFromTo(Cr, F.C), qH: qFromTo(Hr, F.H) }); }
+  const fitW = (a, b, from, to, rest) => { let best = 0, be = Infinity; for (let w = 0; w <= 1.0001; w += .05) { let e = 0; for (const S of frames) e += RV.len(sub(qrot(qslerp(S[from], S[to], w), rest), sub(pt(S.X, b), pt(S.X, a)))); if (e < be) { be = e; best = w; } } return Math.round(best * 100) / 100; };
+  R.spineW = [fitW('pelvis', 'spine1', 'qP', 'qC', R.spine[0]), fitW('spine1', 'spine2', 'qP', 'qC', R.spine[1]), fitW('spine2', 'chest', 'qP', 'qC', R.spine[2]), 1];
+  R.neckW = fitW('neck', 'head', 'qC', 'qH', R.neckSeg);
+  // plain, rounded data: it is saved in the set file
+  for (const k of ['H0', 'hipZ', 'ankleZ', 'up', 'fore', 'knuck', 'fist', 'thigh', 'shin', 'ab', 'bt', 'abPitch', 'btPitch']) R[k] = rnd(R[k], 100);
+  for (const k of ['Pr', 'Cr', 'Hr']) R[k] = rnd(R[k], 1e5);
+  for (const k of ['spine', 'neckSeg', 'topH', 'faceH']) R[k] = rnd(R[k]);
+  for (const k of ['hip', 'clav', 'cv']) R[k] = { L: rnd(R[k].L), R: rnd(R[k].R) };
+  return R;
+}
+
+/* ---- encode and decode one key pose against a rest ---- */
+const derived = R => { if (!R._d) Object.defineProperty(R, '_d', { value: { lower: R.fore + R.fist, arm: R.up + R.fore + R.fist, leg: R.thigh + R.shin } }); return R._d; };
+/** the torso and head frames and the joints placed from them (shared by encode and decode, so rounding never drifts) */
+function torso(R, k) {
+  const p = RV.mul(k.hips, R.H0 / 100), RP = fromEuler(k.body), RC = compose(RP, fromEuler(k.chest)), RH = compose(RC, fromEuler(k.head));
+  const qP = qFromTo(R.Pr, RP), qC = qFromTo(R.Cr, RC), qH = qFromTo(R.Hr, RH), sp = [p];
+  R.spineW.forEach((w, i) => sp.push(RV.add(sp[i], qrot(qslerp(qP, qC, w), R.spine[i]))));
+  const neck = sp[4], head = RV.add(neck, qrot(qslerp(qC, qH, R.neckW), R.neckSeg));
+  const sh = s => { const sv = k['sh' + s] || [0, 0], v0 = R.cv[s], L = RV.len(v0), az = Math.atan2(v0[0], v0[1] * SG[s]) + sv[0] * DG, el = Math.asin(v0[2] / L) + sv[1] * DG;
+    return RV.add(RV.add(neck, wld(RC, R.clav[s])), wld(RC, [L * Math.cos(el) * Math.sin(az), SG[s] * L * Math.cos(el) * Math.cos(az), L * Math.sin(el)])); };
+  return { p, RP, RC, RH, spine1: sp[1], spine2: sp[2], chest: sp[3], neck, head, sh, hip: s => RV.add(p, wld(RP, R.hip[s])) };
+}
+const limbEnd = (root, M, v, s, len) => RV.add(root, wld(M, [v[0] * len, v[1] * SG[s] * len, v[2] * len]));
+/** one key pose from captured body points (prev: the key before, so angles continue without jumps) */
+function encodePose(R, X, prev) {
+  const D = derived(R), p = n => pt(X, n), k = {}, pr = prev || {}, uw = (a, b) => a.map((v, i) => r0(unwrap(v, b && b[i])));
+  k.hips = p('pelvis').map(v => r0(v / R.H0 * 100));
+  const RPx = frameFR(RV.sub(p('hipR'), p('hipL')), RV.sub(p('pelvisF'), p('pelvis')));
+  const RCx = frameUF(RV.sub(p('neck'), p('chest')), RV.sub(p('chestF'), p('chest')));
+  const RHx = frameUF(RV.sub(p('headTop'), p('head')), RV.sub(p('faceF'), p('head')));
+  k.body = uw(euler(RPx), pr.body);
+  k.chest = uw(euler(rel(fromEuler(k.body), RCx)), pr.chest);
+  const RC = compose(fromEuler(k.body), fromEuler(k.chest));
+  k.head = uw(euler(rel(RC, RHx)), pr.head);
+  for (const s of ['L', 'R']) {
+    const v = loc(RC, RV.sub(p('sh' + s), p('clav' + s))), v0 = R.cv[s], az = a => Math.atan2(a[0], a[1] * SG[s]) / DG, el = a => Math.asin(Math.max(-1, Math.min(1, a[2] / RV.len(a)))) / DG;
+    k['sh' + s] = [r0(az(v) - az(v0)), r0(el(v) - el(v0))];
+  }
+  const tq = torso(R, k);
+  for (const s of ['L', 'R']) {
+    for (const [limb, root, M, end, mid, L1, L2] of [['arm', tq.sh(s), tq.RC, 'fist', 'elbow', R.up, D.lower], ['leg', tq.hip(s), tq.RP, 'ankle', 'knee', R.thigh, R.shin]]) {
+      let v = loc(M, RV.sub(p(end + s), root));
+      // a fist curled in past the shoulder (a bent wrist, mid roll) is closer than a straight hand can fold: point the
+      // fully bent limb away from the elbow instead, so the elbow, the bigger shape, stays where it was
+      if (RV.len(v) < Math.abs(L1 - L2) + 10) v = RV.mul(RV.norm(loc(M, RV.sub(p(mid + s), root))), -Math.abs(L1 - L2));
+      const dir = RV.norm([v[0], v[1] * SG[s], v[2]]).map(x => r0(x * 100));
+      const bend = r0(bendOf(RV.len(v), L1, L2)), target = limbEnd(root, M, RV.norm(dir), s, reachOf(bend, L1, L2)), dd = RV.norm(RV.sub(target, root));
+      const tw = poleOf(dd, hintFor(limb, SG[s], M, [dir[0], dir[1] * SG[s], dir[2]]), RV.sub(p(mid + s), root)), prevT = pr[limb + s] && pr[limb + s][4];
+      k[limb + s] = [...dir, bend, r0(unwrap(tw, prevT))];
+    }
+    const fd = loc(tq.RP, RV.norm(RV.sub(p('ball' + s), p('ankle' + s)))), td = loc(tq.RP, RV.norm(RV.sub(p('toe' + s), p('ball' + s))));
+    const pf = pr['foot' + s], down = Math.asin(Math.max(-1, Math.min(1, -fd[2]))) / DG;
+    k['foot' + s] = [r0(down - R.abPitch), r0(unwrap(Math.atan2(fd[1] * SG[s], fd[0]) / DG, pf && pf[1])), r0(down - Math.asin(Math.max(-1, Math.min(1, -td[2]))) / DG - (R.abPitch - R.btPitch))];
+  }
+  return k;
+}
+/** every body point rebuilt from one key pose, on the rest body's proportions */
+function decodePose(R, k, out) {
+  const D = derived(R), tq = torso(R, k), set = (n, v) => { const i = IDX[n] * 3; out[i] = v[0]; out[i + 1] = v[1]; out[i + 2] = v[2]; };
+  const { p, RP, RC, RH, neck, head } = tq;
+  set('pelvis', p); set('pelvisF', RV.add(p, RV.mul(RP[0], 120)));
+  set('spine1', tq.spine1); set('spine2', tq.spine2);
+  set('chest', tq.chest); set('chestF', RV.add(tq.chest, RV.mul(RC[0], 120)));
+  set('neck', neck); set('head', head); set('headTop', RV.add(head, wld(RH, R.topH))); set('faceF', RV.add(head, wld(RH, R.faceH)));
+  const blade = k.blade ? RV.norm(wld(RC, k.blade)) : null;
+  for (const s of ['L', 'R']) {
+    const sh = tq.sh(s), a = k['arm' + s], aN = RV.norm(a), fT = limbEnd(sh, RC, aN, s, reachOf(a[3] || 0, R.up, D.lower)), ad = RV.norm(RV.sub(fT, sh));
+    const [el, fist] = ik3(sh, fT, R.up, D.lower, poleHint(ad, hintFor('arm', SG[s], RC, [aN[0], aN[1] * SG[s], aN[2]]), a[4] || 0));
+    const fd = RV.norm(RV.sub(fist, el)), wr = RV.add(el, RV.mul(fd, R.fore));
+    set('clav' + s, RV.add(neck, wld(RC, R.clav[s]))); set('sh' + s, sh); set('elbow' + s, el); set('wrist' + s, wr);
+    set('knuck' + s, RV.add(wr, RV.mul(fd, R.knuck))); set('fist' + s, fist);
+    const acr = s === 'R' && blade ? blade : RC[1];
+    set('index' + s, RV.add(fist, RV.mul(acr, 20))); set('pinky' + s, RV.add(fist, RV.mul(acr, -20)));
+    const hip = tq.hip(s), l = k['leg' + s], ln = RV.norm(l), aT = limbEnd(hip, RP, ln, s, reachOf(l[3] || 0, R.thigh, R.shin)), ld = RV.norm(RV.sub(aT, hip));
+    const [kn, an] = ik3(hip, aT, R.thigh, R.shin, poleHint(ld, hintFor('leg', SG[s], RP, [ln[0], ln[1] * SG[s], ln[2]]), l[4] || 0));
+    set('hip' + s, hip); set('knee' + s, kn); set('ankle' + s, an);
+    const ft = k['foot' + s] || [0, 0, 0], pa = (ft[0] + R.abPitch) * DG, pb = (ft[0] + R.btPitch - (ft[2] || 0)) * DG, yw = ft[1] * DG;
+    const dir = q => wld(RP, [Math.cos(q) * Math.cos(yw), SG[s] * Math.cos(q) * Math.sin(yw), -Math.sin(q)]);
+    const ball = RV.add(an, RV.mul(dir(pa), R.ab)); set('ball' + s, ball); set('toe' + s, RV.add(ball, RV.mul(dir(pb), R.bt)));
+  }
+  return out;
+}
+
+/* ---- clips ---- */
+const FIELDS = ['hips', 'body', 'chest', 'head', 'shL', 'shR', 'armL', 'armR', 'legL', 'legR', 'footL', 'footR', 'blade', 'root'];
+const REQUIRED = ['hips', 'body', 'chest', 'head', 'armL', 'armR', 'legL', 'legR'];
+/** the key pose at time t: every number in-betweened linearly from the keys either side (loops wrap) */
+function keyAt(clip, t) {
+  const K = clip.keys, dur = clip.dur || K[K.length - 1].t, tt = clip.loop && dur > 0 ? ((t % dur) + dur) % dur : Math.min(Math.max(0, t), dur);
+  let i = 0; while (i < K.length - 2 && K[i + 1].t <= tt) i++;
+  const a = K[i], b = K[Math.min(i + 1, K.length - 1)], u = b.t > a.t ? Math.min(1, Math.max(0, (tt - a.t) / (b.t - a.t))) : 0, k = {};
+  for (const f of FIELDS) if (a[f]) k[f] = a[f].map((v, j) => v + (((b[f] || a[f])[j]) - v) * u);
+  return k;
+}
+/** every body point at time t (mm, rig frame) on the proportions of rest R */
+const pose = (R, clip, t, out = new Float32Array(P * 3)) => decodePose(R, keyAt(clip, t), out);
+/** how far a travelling clip has carried the body at time t: [forward, right] in mm, or null */
+const moveAt = (R, clip, t) => { if (!clip.keys[0].root) return null; const k = keyAt(clip, t); return [k.root[0] * R.H0 / 100, k.root[1] * R.H0 / 100]; };
+/** a readable clip from a captured one, keeping frames kf; extra: { tags, desc, blade } */
+function encode(R, cap, kf, extra = {}) {
+  const keys = [], X = new Float32Array(P * 3); let prev = null;
+  for (const f of kf) {
+    capSample(cap, f / cap.fps, X); const k = Object.assign({ t: Math.round(f / cap.fps * 100) / 100 }, encodePose(R, X, prev));
+    if (extra.blade) k.blade = loc(compose(fromEuler(k.body), fromEuler(k.chest)), RV.norm(RV.sub(pt(X, 'indexR'), pt(X, 'pinkyR')))).map(x => r0(x * 100));
+    if (cap.move) k.root = [r0(cap.move[f * 2] / R.H0 * 100), r0(cap.move[f * 2 + 1] / R.H0 * 100)];
+    keys.push(k); prev = k;
+  }
+  return Object.assign({ clip: cap.name, dur: Math.round(cap.dur * 100) / 100, loop: cap.loop }, extra.tags ? { tags: extra.tags } : {}, extra.desc ? { desc: extra.desc } : {}, { keys });
+}
+/**
+ * fit(R, cap, tol): a readable clip within tol mm of the capture. It starts from the position key frames and adds the
+ * frame the readable in-betweening misses most, until the rest is within tol of what the format can capture at all
+ * (a frame encoded as its own key): keys past the format's own limits are not worth their tokens.
+ * Returns { clip, max, mean }: the worst and the average body-point error over the clip (mm).
+ */
+function fit(R, cap, tol, extra = {}) {
+  const kf = reduce(cap, tol), X = new Float32Array(P * 3), Y = new Float32Array(P * 3), t = f => f / cap.fps;
+  const floor = Array.from({ length: cap.n }, (_, f) => error(capSample(cap, t(f), X), pose(R, encode(R, cap, [f], extra), t(f), Y)));
+  for (let guard = 0; ; guard++) {
+    const o = encode(R, cap, kf, extra); let worst = 0, wf = -1, max = 0, sum = 0;
+    for (let f = 0; f < cap.n; f++) { capSample(cap, t(f), X); pose(R, o, t(f), Y); const e = error(X, Y), over = e - floor[f]; max = Math.max(max, e); sum += meanError(X, Y); if (over > worst) { worst = over; wf = f; } }
+    if (worst <= tol || kf.includes(wf) || guard > cap.n) return { clip: o, max, mean: sum / cap.n };
+    kf.push(wf); kf.sort((a, b) => a - b);
+  }
+}
+/** the text a model reads: a clip's header, then each key pose as three short lines (torso, arms, legs) */
+function text(o) {
+  const head = Object.entries(o).filter(([k]) => k !== 'keys').map(([k, v]) => JSON.stringify(k) + ': ' + JSON.stringify(v)).join(', ');
+  const grp = [['hips', 'body', 'chest', 'head', 'root'], ['shL', 'shR', 'armL', 'armR', 'blade'], ['legL', 'legR', 'footL', 'footR']];
+  const line = k => '  {"t":' + k.t + ',\n' + grp.map(g => '   ' + g.filter(f => k[f] !== undefined).map(f => '"' + f + '":' + JSON.stringify(k[f])).join(', ')).join(',\n') + '}';
+  return '{' + head + ', "keys": [\n' + o.keys.map(line).join(',\n') + '\n]}';
+}
+/** text -> clip (// comments allowed); throws an error that names the key and the field when one is missing */
+function parse(txt) {
+  const o = typeof txt === 'string' ? JSON.parse(txt.replace(/^\s*\/\/.*$/gm, '')) : txt;
+  if (!o || !Array.isArray(o.keys) || !o.keys.length) throw new Error('a clip needs "keys": [ ... ] with at least one key pose');
+  o.keys.forEach((k, i) => {
+    if (typeof k.t !== 'number') throw new Error('key ' + (i + 1) + ' has no time "t"');
+    for (const f of REQUIRED) if (!Array.isArray(k[f])) throw new Error('key ' + (i + 1) + ' (t ' + k.t + ') has no "' + f + '"');
+    for (const f of FIELDS) if (k[f] && !k[f].every(Number.isFinite)) throw new Error('key ' + (i + 1) + ' (t ' + k.t + '): "' + f + '" must hold numbers');
+  });
+  o.keys.sort((a, b) => a.t - b.t); o.dur = o.dur || o.keys[o.keys.length - 1].t;
+  return o;
+}
+/** the same clip on the other side: L and R swap, turns and tilts change sign */
+function mirror(o) {
+  const neg = v => v && [-v[0], v[1], -v[2]], keys = o.keys.map(k => {
+    const m = { t: k.t, hips: [k.hips[0], -k.hips[1], k.hips[2]], body: neg(k.body), chest: neg(k.chest), head: neg(k.head) };
+    if (k.root) m.root = [k.root[0], -k.root[1]];
+    for (const [a, b] of [['L', 'R'], ['R', 'L']]) {
+      for (const limb of ['arm', 'leg']) { const v = k[limb + b]; m[limb + a] = [v[0], v[1], v[2], v[3] || 0, -(v[4] || 0)]; }
+      for (const f of ['foot', 'sh']) if (k[f + b]) m[f + a] = k[f + b].slice();
+    }
+    if (k.blade) m.blade = [k.blade[0], -k.blade[1], k.blade[2]];
+    return m;
+  });
+  return Object.assign({}, o, { clip: (o.clip || 'clip') + '_Mirror', keys });
+}
+
+return { POINTS, IDX, P, LEGEND, measure, fit, encode, pose, moveAt, keyAt, text, parse, mirror, error, meanError, capSample, reduce };
+})();
+
+</script>
+<script>
+/* ---- inlined from src/mocap/mocap.js ---- */
+/* =============================================================================
+ * MOCAP  plays animation sets in the readable format (src/mocap/readable.js; written by tools/anim-import.mjs) on
+ * my-3D2dge rigs.
+ *   const lib = Mocap.load(window.MOCAP.QUATERNIUS);   // a set: its clips, and the bodies they were measured on
+ *   const clip = lib.clip('Dance_Loop');               // { name, dur, loop, tags, desc, keys }
+ *   const pose = lib.sample(clip, t);                  // Float32Array: every body point's f r z (mm), in-betweened
+ *   const man = new Mocap.Mannequin(lib, { height: 34 });  man.draw(g, ox, oy, view, pose, facing)
+ *   Mocap.drive(humanoid, lib)  then each step  humanoid.mocap = pose: the rig plays it at its own build.
+ *     humanoid.mocapW (0..1) fades it in and out over the rig's own animation; humanoid.mocapMask = 'upper' plays
+ *     only the chest, head and arms over the rig's own legs (an interaction while walking); humanoid.mocapBlade = true
+ *     while the clip holds a sword (the blade follows the fist).
+ * Points are in the rig's local frame: f = forward, r = right, z = up, centred on the root on the ground.
+ * ============================================================================= */
+const Mocap = (() => {
+'use strict';
+const E = My3D2dge, { px } = E, MR = MocapReadable;
+
+/* ---- sets ---- */
+/**
+ * Every clip is rebuilt on the first library's proportions (the format does not depend on size); each keeps how its own
+ * library bends the spine, since the key poses were measured that way.
+ */
+function load(set) {
+  const P = MR.P, idx = MR.IDX, ids = Object.keys(set.sources), base = set.sources[ids[0]].rest, rests = {};
+  for (const id of ids) rests[id] = Object.assign({}, base, { spineW: set.sources[id].rest.spineW, neckW: set.sources[id].rest.neckW });
+  const meta = c => ({ name: c.clip, fps: set.fps, n: Math.round(c.dur * set.fps) + 1 }), clips = {};
+  for (const [name, c] of Object.entries(set.clips)) clips[name] = Object.assign(meta(Object.assign({ clip: name }, c)), c);
+  const restOf = c => rests[c.src] || base;
+  const lib = { set, P, idx, clips, names: Object.keys(clips), fps: set.fps, body: set.body, rest: base, points: MR.POINTS };
+  lib.clip = name => clips[name] || null;
+  /** the pose at time t (seconds): key poses in-betweened, loops wrap, one-shots hold their last pose */
+  lib.sample = (clip, t, out = new Float32Array(P * 3)) => MR.pose(restOf(clip), clip, t, out);
+  /** a clip that travels: how far it has carried the body at time t ([forward, right] mm), or null */
+  lib.moveAt = (clip, t) => MR.moveAt(restOf(clip), clip, t);
+  /** swap in an edited clip (readable text a person or a model changed); the original is kept for restore() */
+  const originals = {};
+  lib.replace = (name, edited) => { if (!originals[name]) originals[name] = clips[name]; clips[name] = Object.assign({}, originals[name], edited, { name, keys: edited.keys }); return clips[name]; };
+  lib.restore = name => { if (originals[name]) { clips[name] = originals[name]; delete originals[name]; } return clips[name]; };
+  lib.edited = name => !!originals[name];
+  /** the clip as the text a model reads (its header and its key poses) */
+  lib.text = clip => { const o = { clip: clip.clip || clip.name }; for (const k of ['src', 'dur', 'loop', 'tags', 'desc']) if (clip[k] !== undefined) o[k] = clip[k]; o.keys = clip.keys; return MR.text(o); };
+  /** a pose blended from a to b (crossfades between clips) */
+  lib.blend = (a, b, k, out = new Float32Array(P * 3)) => { for (let i = 0; i < P * 3; i++) out[i] = a[i] + (b[i] - a[i]) * k; return out; };
+  lib.pt = (pose, name) => { const i = idx[name] * 3; return [pose[i], pose[i + 1], pose[i + 2]]; };
+  lib.error = MR.error;
+  return lib;
+}
+
+/* ---- the look-alike mannequin: shaded capsules in the source model's proportions, with its joint bands ---- */
+const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const add3 = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const norm3 = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+class Mannequin {
+  /** o: { height: world units tall (34), main: '#e8aa3a', joint: '#aa66db' } (the colors of the source model's two materials) */
+  constructor(lib, o = {}) {
+    this.lib = lib; this.o = Object.assign({ height: 34, main: '#e8aa3a', joint: '#aa66db' }, o);
+    this.k = this.o.height / ((lib.body && lib.body.height) || 1829);   // world units per mm
+    this._ops = [];
+  }
+  /**
+   * draw the pose into g with (ox, oy) = the projected root. Every part is a capsule between two body points,
+   * sorted by true camera depth, drawn dark-then-lit like the engine's HD rigs.
+   */
+  draw(g, ox, oy, view, pose, facing = 0) {
+    const L = this.lib, o = this.o, k = this.k, ca = Math.cos(facing), sa = Math.sin(facing), sc = view.scale;
+    const pt = name => L.pt(pose, name);
+    const S = p => { const wx = (p[0] * ca - p[1] * sa) * k, wy = (p[0] * sa + p[1] * ca) * k, wz = p[2] * k; return [ox + view.ax * wx + view.ay * wy, oy + view.bx * wx + view.by * wy + view.bz * wz, view.dx * wx + view.dy * wy + view.dz * wz]; };
+    const R = mm => mm * k * sc;   // a radius in mm -> screen pixels
+    const ops = this._ops; ops.length = 0;
+    const main = E.tones(o.main), joint = E.tones(o.joint);
+    // centre depth of the body: parts behind it are drawn a touch darker (the far arm and leg)
+    const mid = S(pt('spine1'))[2];
+    const capsule = (A, B, ra, rb, col, dx = 0, dy = 0) => {
+      const ax = A[0] + dx, ay = A[1] + dy, bx = B[0] + dx, by = B[1] + dy, vx = bx - ax, vy = by - ay, l = Math.hypot(vx, vy);
+      if (l > .01) { const nx = -vy / l, ny = vx / l; px.poly(g, [[ax + nx * ra, ay + ny * ra], [bx + nx * rb, by + ny * rb], [bx - nx * rb, by - ny * rb], [ax - nx * ra, ay - ny * ra]], col); }
+      px.disc(g, ax, ay, Math.max(.5, ra - .3), col); px.disc(g, bx, by, Math.max(.5, rb - .3), col);
+    };
+    // a shaded part: dark silhouette, the base color shifted toward the light (upper left), a soft highlight
+    const part = (a, b, ra, rb, T, bias = 0) => {
+      const A = S(a), B = S(b), pa = R(ra), pb = R(rb), far = (A[2] + B[2]) * .5 < mid - 2 * k * 60;
+      ops.push({ d: (A[2] + B[2]) * .5 + bias, f: () => {
+        capsule(A, B, pa, pb, far ? T.deep : T.sh);
+        capsule(A, B, Math.max(.5, pa - .9), Math.max(.5, pb - .9), far ? T.sh : T.base, -.5, -.6);
+        if (pa > 2.2 && !far) capsule(A, B, pa * .32, pb * .32, T.lt, -pa * .38, -pa * .42);
+      } });
+    };
+    // a ring painted round a limb (the second material): a straight-edged stripe across the capsule, no round ends,
+    // so a thin band reads as a band from every side. Seen end-on (the limb points at the camera) it is hidden.
+    const band = (a, b, t0, t1, ra, rb, T) => {
+      const A = S(lerp3(a, b, t0)), B = S(lerp3(a, b, t1)), axis = S(a), end = S(b), vx = end[0] - axis[0], vy = end[1] - axis[1], l = Math.hypot(vx, vy);
+      if (l < R(Math.max(ra, rb)) * .5) return;
+      const nx = -vy / l, ny = vx / l, wa = R(ra + (rb - ra) * t0) + .2, wb = R(ra + (rb - ra) * t1) + .2;
+      ops.push({ d: (axis[2] + end[2]) * .5 + .02, f: () => {
+        const q = (w0, w1, dx, dy) => [[A[0] + nx * w0 + dx, A[1] + ny * w0 + dy], [B[0] + nx * w1 + dx, B[1] + ny * w1 + dy], [B[0] - nx * w1 + dx, B[1] - ny * w1 + dy], [A[0] - nx * w0 + dx, A[1] - ny * w0 + dy]];
+        px.poly(g, q(wa, wb, 0, 0), T.sh); px.poly(g, q(Math.max(.5, wa - .9), Math.max(.5, wb - .9), -.5, -.6), T.base);
+      } });
+    };
+
+    const pelvis = pt('pelvis'), sp1 = pt('spine1'), sp2 = pt('spine2'), chest = pt('chest'), neck = pt('neck'), head = pt('head'), top = pt('headTop'), face = pt('faceF'), chestF = pt('chestF');
+    const fwdC = norm3(sub3(chestF, chest)), fwdH = norm3(sub3(face, head));
+    // legs: thigh, shin, foot (heel to ball), toes; purple at the hip, knee and ankle
+    for (const s of ['L', 'R']) {
+      const hip = pt('hip' + s), knee = pt('knee' + s), ank = pt('ankle' + s), b = pt('ball' + s), toe = pt('toe' + s);
+      const heel = add3(lerp3(ank, b, -.28), [0, 0, -1], 45);
+      part(hip, knee, 80, 60, main); band(hip, knee, .02, .1, 80, 62, joint);
+      part(knee, ank, 56, 40, main); band(knee, ank, .86, 1, 56, 41, joint);
+      band(hip, knee, .9, 1, 80, 60, joint); band(knee, ank, 0, .1, 56, 40, joint);   // the knee ring
+      part(heel, b, 44, 40, main, .005); part(b, toe, 38, 28, main, .006);
+    }
+    // torso: pelvis, a waist band, belly, a broad chest that runs shoulder to shoulder
+    const shL = pt('shL'), shR = pt('shR'), clL = pt('clavL'), clR = pt('clavR');
+    part(pt('hipL'), pt('hipR'), 92, 92, main, -.01);
+    part(pelvis, sp1, 118, 112, main);
+    part(sp1, sp2, 104, 112, main);
+    band(sp1, sp2, .1, .26, 108, 112, joint);
+    const pecL = add3(lerp3(chest, shL, .38), fwdC, 22), pecR = add3(lerp3(chest, shR, .38), fwdC, 22), up = norm3(sub3(neck, sp2));
+    part(sp2, add3(chest, up, 40), 122, 132, main);
+    part(add3(pecL, up, -30), add3(pecR, up, -30), 112, 112, main, .01);
+    // neck (purple) and an egg-shaped head: a narrow jaw forward, a round crown
+    part(add3(neck, up, -20), lerp3(head, top, .25), 48, 46, joint);
+    const jaw = add3(lerp3(head, top, .3), fwdH, 26), crown = lerp3(head, top, .64);
+    part(jaw, crown, 70, 96, main, .02);
+    // arms: shoulder cap, upper arm, forearm, fist; purple elbow and wrist
+    for (const s of ['L', 'R']) {
+      const cl = s === 'L' ? clL : clR, sh = s === 'L' ? shL : shR, el = pt('elbow' + s), wr = pt('wrist' + s), kn = pt('knuck' + s), fist = pt('fist' + s);
+      part(lerp3(cl, sh, .45), sh, 62, 68, main);
+      part(sh, el, 62, 46, main); band(sh, el, .9, 1, 62, 46, joint);
+      part(el, wr, 46, 34, main); band(el, wr, 0, .1, 46, 34, joint); band(el, wr, .86, 1, 46, 35, joint);
+      part(wr, lerp3(kn, fist, .5), 36, 38, main, .005);
+    }
+    ops.sort((a, b) => a.d - b.d);
+    for (const op of ops) op.f();
+  }
+}
+
+/* ---- retarget onto a Humanoid: the clip's directions, the rig's own bone lengths, feet planted with IK ---- */
+const V = E.V3;
+const DRIVEN = ['hipC', 'hipL', 'hipR', 'kneeL', 'kneeR', 'footL', 'footR', 'shC', 'shL', 'shR', 'head', 'elbowL', 'elbowR', 'handL', 'handR', 'bladeDir'];
+const UPPER = ['shC', 'shL', 'shR', 'head', 'elbowL', 'elbowR', 'handL', 'handR', 'bladeDir'];
+/**
+ * Mocap.drive(rig, lib): after the rig poses itself each step it takes the pose in rig.mocap (a sampled pose, or
+ * null to play its own animation). The rig keeps its build: each bone takes the clip's direction at its own length,
+ * the feet and hands are placed in proportion and solved with the engine's two-bone IK, so the cape and hair follow.
+ * rig.mocapW fades the clip over the rig's own pose; rig.mocapMask = 'upper' leaves the hips and legs to the rig.
+ */
+function drive(rig, lib) {
+  const base = E.Humanoid.prototype._pose, R = lib.rest, hipH = R.hipZ, ankleH = R.ankleZ;
+  const legSrc = R.thigh + R.shin, armSrc = R.up + R.fore + R.fist * .6;
+  rig._pose = function () {
+    base.call(this);
+    const pose = this.mocap, w = this.mocapW === undefined ? 1 : Math.max(0, Math.min(1, this.mocapW)); if (!pose || w <= 0) return;
+    const o = this.o, J = this.J, pt = n => lib.pt(pose, n), k = o.hipZ / hipH, upper = this.mocapMask === 'upper';
+    const keep = w < 1 ? {} : null; if (keep) for (const key of DRIVEN) keep[key] = J[key] && J[key].slice();
+    const mid = (a, b) => V.lerp(pt(a), pt(b), .5), hipsS = mid('hipL', 'hipR'), shS = mid('shL', 'shR');
+    if (!upper) {
+      const hipC = V.mul(hipsS, k), across = V.norm(V.sub(pt('hipR'), pt('hipL')));
+      J.hipC = hipC; J.hipL = V.add(hipC, V.mul(across, -o.hipHalf)); J.hipR = V.add(hipC, V.mul(across, o.hipHalf));
+      const legK = (o.legUpper + o.legLower) / legSrc;
+      for (const s of ['L', 'R']) {
+        const hip = J['hip' + s], hipSrc = pt('hip' + s), ank = pt('ankle' + s), knee = pt('knee' + s);
+        const footSrc = V.sub(ank, [0, 0, ankleH * Math.min(1, Math.max(0, 1 - (ank[2] - ankleH) / 300))]);   // the sole, not the ankle, touches the ground
+        let foot = V.add(hip, V.mul(V.sub(footSrc, hipSrc), legK)); if (foot[2] < 0) foot = [foot[0], foot[1], 0];
+        const hint = V.norm(V.sub(knee, V.lerp(hipSrc, ank, .5)));
+        const [kn, ft] = E.ik3(hip, foot, o.legUpper, o.legLower, hint); J['knee' + s] = kn; J['foot' + s] = ft;
+      }
+    }
+    J.shC = V.add(J.hipC, V.mul(V.norm(V.sub(shS, hipsS)), o.torso));
+    const sAcross = V.norm(V.sub(pt('shR'), pt('shL')));
+    J.shL = V.add(J.shC, V.mul(sAcross, -o.shoulderHalf)); J.shR = V.add(J.shC, V.mul(sAcross, o.shoulderHalf));
+    const headC = V.lerp(pt('head'), pt('headTop'), .45);
+    J.head = V.add(J.shC, V.mul(V.norm(V.sub(headC, shS)), o.neck + o.headR));
+    const armK = (o.armUpper + o.armLower) / armSrc;
+    for (const s of ['L', 'R']) {
+      const sh = J['sh' + s], shSrc = pt('sh' + s), fist = pt('fist' + s), el = pt('elbow' + s);
+      const hand = V.add(sh, V.mul(V.sub(fist, shSrc), armK));
+      const hint = V.norm(V.sub(el, V.lerp(shSrc, fist, .5)));
+      const [e, h] = E.ik3(sh, hand, o.armUpper, o.armLower, hint); J['elbow' + s] = e; J['hand' + s] = h;
+    }
+    // a sword in a fist runs along the knuckles, out past the index finger (otherwise the blade keeps its resting angle)
+    if (this.mocapBlade) J.bladeDir = V.norm(V.sub(pt('indexR'), pt('pinkyR')));
+    if (keep) for (const key of upper ? UPPER : DRIVEN) if (keep[key]) J[key] = key === 'bladeDir' ? V.norm(V.lerp(keep[key], J[key], w)) : V.lerp(keep[key], J[key], w);
+    // lying on the back: the rig's knocked-down measure follows the torso, so the face, hair and toes it draws around
+    // the joints lie with the body (a clip that falls or gets up drives it; the rig's own fall is overridden)
+    if (!upper) {
+      const d = V.sub(shS, hipsS), back = Math.max(0, -d[0]), side = Math.hypot(d[0], d[1]), tilt = Math.atan2(side, d[2]);
+      const down = side > 1e-6 ? Math.max(0, Math.min(1, tilt / (Math.PI / 2 * .96))) * back / side : 0;
+      this.downW = (this.downW || 0) * (1 - w) + down * w;
+      // and a weapon he is not holding up (no mocapBlade) drops flat on the floor beside the hand as he goes down
+      const kn = V.sub(pt('indexR'), pt('pinkyR')), kl = Math.hypot(kn[0], kn[1]);
+      if (!this.mocapBlade && down > 0 && kl > 1e-6 && J.bladeDir) J.bladeDir = V.norm(V.lerp(J.bladeDir, [kn[0] / kl, kn[1] / kl, -.08], Math.min(1, down * 1.5) * w));
+    }
+  };
+  return rig;
+}
+
+return { load, Mannequin, drive, LEGEND: MR.LEGEND };
+})();
+
+</script>
+<script>
+/* ---- inlined from src/mocap/sets/hero.js ---- */
+/* HERO: an animation set in my-3D2dge's readable format (written by the tools in tools/; clips may be edited by hand).
+ * The Wanderer's captured animations, adopted from Universal Animation Library 1 and 2 by Quaternius (quaternius.com), CC0 1.0 (public domain).
+ * 8 clips, 122 key poses. Played by src/mocap/mocap.js with src/mocap/readable.js. "sources" holds the proportions
+ * each library was measured with; "fit" each clip's average and worst body-point error against its capture (mm).
+ * my-3D2dge readable clip. Times in seconds; every other number is a whole number. Rig frame: forward, right, up.
+ * L and R are the figure's own sides. Directions are percentages and need not add up: [100, 0, 0] and [50, 0, 0] agree.
+ * hips   [forward, right, up]   the pelvis, in percent of standing hip height (100 = standing, 55 = sitting on a chair)
+ * body   [turn, lean, tilt]     the pelvis, degrees: turn + = toward the right, lean + = forward, tilt + = toward the right
+ * chest  [turn, lean, tilt]     the chest, relative to the pelvis        head [turn, lean, tilt]  relative to the chest
+ * shL shR    [reach, shrug]     degrees the shoulder swings forward (into a punch or an aim) and up, from rest
+ * armL armR  [forward, out, up, bend, twist]  which way the arm points from the shoulder to the fist, in chest space
+ *            (out + = away from the body on that side; [0, 0, -100] hangs down, [100, 0, 0] punches ahead);
+ *            bend = elbow bend in degrees (0 = straight); twist = degrees the elbow swings round the arm from its
+ *            natural direction (back and down)
+ * legL legR  [forward, out, up, bend, twist]  hip to ankle in pelvis space; bend: the knee; twist: from pointing forward
+ * footL footR [down, out, toes]   degrees the foot points down from standing, turns outward, and the toes bend up
+ * blade  [forward, right, up]   (sword clips) the direction of a blade held in the right fist, in chest space
+ * root   [forward, right]       (clips that travel) how far the whole body has moved, in percent of standing hip height
+ */
+(window.MOCAP = window.MOCAP || {})["HERO"] = {
+"set": "HERO",
+"format": 1,
+"credit": "The Wanderer's captured animations, adopted from Universal Animation Library 1 and 2 by Quaternius (quaternius.com), CC0 1.0 (public domain).",
+"from": "QUATERNIUS",
+"fps": 30,
+"sources": {"UAL1":{"file":"AnimationLibrary_Godot_Standard.glb","rig":"rigify","rest":{"H0":916.7,"hipZ":932.1,"ankleZ":103.7,"Pr":[[1,0,0],[0,1,0],[0,0,1]],"Cr":[[0.99948,0,0.03239],[0,1,0],[-0.03239,0,0.99948]],"Hr":[[0.99947,0,-0.03252],[0,1,0],[0.03252,0,0.99947]],"hip":{"L":[51.5,-89,15.4],"R":[51.5,89,15.4]},"spine":[[34.5,0,133.8],[15.2,0,123.1],[-4.5,0,141.2],[-5.6,0,172.8]],"neckSeg":[15.6,0,81.1],"clav":{"L":[80.9,-18.8,-32.3],"R":[80.9,18.8,-32.3]},"cv":{"L":[-137.3,-173.1,-12.7],"R":[-137.3,173.1,-12.7]},"topH":[0,0,256],"faceH":[119.9,0,3.9],"up":274.44,"fore":272.64,"knuck":121.71,"fist":163.93,"thigh":400.31,"shin":429.48,"ab":173.3,"bt":92.24,"abPitch":30.71,"btPitch":0,"spineW":[0,0,0.25,1],"neckW":0.45}},"UAL2":{"file":"UAL2_Standard.glb","rig":"unreal","rest":{"H0":916.7,"hipZ":932.1,"ankleZ":103.7,"Pr":[[1,0,0],[0,1,0],[0,0,1]],"Cr":[[0.99948,0,0.03239],[0,1,0],[-0.03239,0,0.99948]],"Hr":[[0.99947,0,-0.03252],[0,1,0],[0.03252,0,0.99947]],"hip":{"L":[51.5,-89,15.4],"R":[51.5,89,15.4]},"spine":[[34.5,0,133.8],[15.2,0,123.1],[-4.5,0,141.2],[-5.6,0,172.8]],"neckSeg":[15.6,0,81.1],"clav":{"L":[80.9,-18.8,-32.3],"R":[80.9,18.8,-32.3]},"cv":{"L":[-137.3,-173.1,-12.7],"R":[-137.3,173.1,-12.7]},"topH":[0,0,256],"faceH":[119.9,0,3.9],"up":274.44,"fore":272.64,"knuck":121.71,"fist":163.93,"thigh":400.31,"shin":429.48,"ab":173.3,"bt":78.9,"abPitch":30.71,"btPitch":0,"spineW":[0,0,0.55,1],"neckW":0.65}}},
+"body": {"height":1829,"segs":[{"a":"pelvis","b":"spine1","r":[134,141,140]},{"a":"spine1","b":"spine2","r":[122,128,124]},{"a":"spine2","b":"chest","r":[117,140,153]},{"a":"chest","b":"neck","r":[184,204,176]},{"a":"neck","b":"head","r":[57,122,84]},{"a":"head","b":"headTop","r":[94,106,98]},{"a":"clavL","b":"shL","r":[127,95,82]},{"a":"shL","b":"elbowL","r":[76,71,55]},{"a":"elbowL","b":"wristL","r":[54,65,46]},{"a":"wristL","b":"knuckL","r":[36,49,49]},{"a":"hipL","b":"kneeL","r":[87,98,67]},{"a":"kneeL","b":"ankleL","r":[61,90,48]},{"a":"ankleL","b":"ballL","r":[97,66,58]},{"a":"ballL","b":"toeL","r":[65,47,38]},{"a":"clavR","b":"shR","r":[145,95,82]},{"a":"shR","b":"elbowR","r":[76,71,55]},{"a":"elbowR","b":"wristR","r":[54,65,46]},{"a":"wristR","b":"knuckR","r":[36,49,49]},{"a":"hipR","b":"kneeR","r":[87,98,67]},{"a":"kneeR","b":"ankleR","r":[61,90,48]},{"a":"ankleR","b":"ballR","r":[97,66,58]},{"a":"ballR","b":"toeR","r":[65,47,38]}],"bands":[{"a":"spine1","b":"spine2","t0":0.16,"t1":0.31,"r":120},{"a":"spine2","b":"chest","t0":0.22,"t1":0.26,"r":115},{"a":"spine2","b":"chest","t0":0.4,"t1":0.44,"r":135},{"a":"spine2","b":"chest","t0":0.54,"t1":0.55,"r":125},{"a":"spine2","b":"chest","t0":0.64,"t1":0.66,"r":126},{"a":"neck","b":"head","t0":0.22,"t1":0.26,"r":57},{"a":"neck","b":"head","t0":0.4,"t1":0.42,"r":57},{"a":"neck","b":"head","t0":0.88,"t1":0.89,"r":84},{"a":"head","b":"headTop","t0":0.09,"t1":0.22,"r":87},{"a":"head","b":"headTop","t0":0.35,"t1":0.37,"r":98},{"a":"shL","b":"elbowL","t0":0.94,"t1":1.02,"r":50},{"a":"elbowL","b":"wristL","t0":0,"t1":0.07,"r":47},{"a":"elbowL","b":"wristL","t0":0.97,"t1":0.98,"r":39},{"a":"hipL","b":"kneeL","t0":-0.18,"t1":0.13,"r":86},{"a":"hipL","b":"kneeL","t0":0.92,"t1":1.02,"r":64},{"a":"kneeL","b":"ankleL","t0":-0.01,"t1":0.14,"r":63},{"a":"kneeL","b":"ankleL","t0":0.93,"t1":1.02,"r":47},{"a":"shR","b":"elbowR","t0":0.94,"t1":1.02,"r":50},{"a":"elbowR","b":"wristR","t0":0,"t1":0.07,"r":47},{"a":"elbowR","b":"wristR","t0":0.97,"t1":0.98,"r":39},{"a":"hipR","b":"kneeR","t0":-0.18,"t1":0.13,"r":86},{"a":"hipR","b":"kneeR","t0":0.92,"t1":1.02,"r":64},{"a":"kneeR","b":"ankleR","t0":-0.01,"t1":0.14,"r":63},{"a":"kneeR","b":"ankleR","t0":0.93,"t1":1.02,"r":47}]},
+"fit": {"Death01":[10,71],"LayToIdle":[13,143],"Idle_FoldArms_Loop":[18,101],"Chest_Open":[15,83],"Interact":[14,88],"PickUp_Table":[13,69],"Hit_Chest":[13,58],"Hit_Head":[13,52]},
+"clips": {
+"Death01": {"clip": "Death01", "src": "UAL1", "dur": 2.4, "loop": false, "tags": ["death"], "desc": "staggers and falls flat on the back", "keys": [
+  {"t":0,
+   "hips":[-9,0,96], "body":[13,-6,0], "chest":[0,18,0], "head":[-11,1,1],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[24,16,-96,50,1], "armR":[29,11,-95,62,5],
+   "legL":[3,18,-98,19,9], "legR":[-33,13,-93,9,-39], "footL":[6,8,0], "footR":[5,33,0]},
+  {"t":0.03,
+   "hips":[-12,-1,95], "body":[14,-3,0], "chest":[0,9,0], "head":[-11,-1,2],
+   "shL":[6,-3], "shR":[-6,-3], "armL":[16,17,-97,53,5], "armR":[24,12,-96,68,7],
+   "legL":[11,18,-98,24,13], "legR":[-25,14,-96,25,-38], "footL":[3,9,0], "footR":[3,31,0]},
+  {"t":0.1,
+   "hips":[-19,-2,91], "body":[19,3,0], "chest":[0,10,0], "head":[-9,-34,2],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[39,23,-89,70,16], "armR":[50,14,-85,88,9],
+   "legL":[27,22,-94,38,28], "legR":[-6,15,-99,49,-38], "footL":[-3,13,0], "footR":[-3,24,0]},
+  {"t":0.2,
+   "hips":[-19,-3,84], "body":[27,2,0], "chest":[-4,16,0], "head":[-6,-31,2],
+   "shL":[6,-3], "shR":[-6,-3], "armL":[62,28,-74,95,20], "armR":[59,28,-76,93,11],
+   "legL":[23,27,-93,59,29], "legR":[-4,18,-98,67,-35], "footL":[-2,21,0], "footR":[-2,16,0]},
+  {"t":0.3,
+   "hips":[-19,-5,80], "body":[30,1,0], "chest":[-8,23,0], "head":[-3,-18,3],
+   "shL":[6,-2], "shR":[-5,-2], "armL":[74,19,-65,103,18], "armR":[65,40,-64,91,6],
+   "legL":[21,28,-94,69,27], "legR":[-3,21,-98,75,-29], "footL":[-1,24,0], "footR":[-1,14,0]},
+  {"t":0.47,
+   "hips":[-19,-6,75], "body":[31,-3,0], "chest":[-6,39,0], "head":[-6,3,0],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[80,24,-54,106,18], "armR":[79,46,-41,92,-5],
+   "legL":[16,29,-94,78,24], "legR":[-8,23,-97,84,-25], "footL":[3,26,0], "footR":[3,13,0]},
+  {"t":0.6,
+   "hips":[-21,-6,73], "body":[30,-11,0], "chest":[-3,50,1], "head":[-7,6,-4],
+   "shL":[11,-6], "shR":[0,-6], "armL":[80,35,-48,86,18], "armR":[95,21,-23,85,-18],
+   "legL":[6,30,-95,79,15], "legR":[-17,24,-96,90,-25], "footL":[6,27,0], "footR":[20,17,9]},
+  {"t":0.67,
+   "hips":[-26,-5,70], "body":[29,-16,1], "chest":[-2,53,0], "head":[-9,-7,-5],
+   "shL":[14,-7], "shR":[5,-8], "armL":[83,35,-43,75,14], "armR":[99,1,-15,76,-154],
+   "legL":[5,32,-95,79,13], "legR":[-17,22,-96,98,-24], "footL":[9,27,0], "footR":[30,23,15]},
+  {"t":0.73,
+   "hips":[-34,-3,64], "body":[26,-23,2], "chest":[-1,55,1], "head":[-12,-30,-7],
+   "shL":[16,-9], "shR":[12,-9], "armL":[89,27,-37,69,10], "armR":[99,-9,-4,65,-171],
+   "legL":[7,36,-93,80,10], "legR":[-16,18,-97,108,-24], "footL":[15,25,0], "footR":[39,41,18]},
+  {"t":0.8,
+   "hips":[-45,-2,53], "body":[23,-32,5], "chest":[0,55,0], "head":[-16,-47,-10],
+   "shL":[16,-9], "shR":[19,-9], "armL":[96,10,-25,70,43], "armR":[100,-4,4,49,-171],
+   "legL":[17,36,-92,76,13], "legR":[-5,17,-98,119,-26], "footL":[23,19,0], "footR":[41,77,14]},
+  {"t":0.83,
+   "hips":[-52,-1,43], "body":[23,-38,7], "chest":[-1,56,1], "head":[-18,-50,-11],
+   "shL":[15,-10], "shR":[24,-7], "armL":[100,4,-7,73,161], "armR":[99,-1,10,38,-169],
+   "legL":[25,38,-89,67,21], "legR":[28,3,-96,111,-25], "footL":[23,16,0], "footR":[41,57,15]},
+  {"t":0.87,
+   "hips":[-57,-1,32], "body":[23,-44,11], "chest":[0,56,-1], "head":[-16,-45,-9],
+   "shL":[16,-10], "shR":[27,-5], "armL":[99,7,8,81,177], "armR":[99,1,15,32,-167],
+   "legL":[32,34,-89,54,29], "legR":[46,2,-89,91,-25], "footL":[22,12,-1], "footR":[30,32,10]},
+  {"t":0.9,
+   "hips":[-61,-1,20], "body":[25,-51,15], "chest":[-2,55,0], "head":[-13,-33,-7],
+   "shL":[16,-9], "shR":[29,-2], "armL":[97,20,12,88,163], "armR":[99,-1,17,23,-164],
+   "legL":[35,32,-88,36,35], "legR":[50,4,-86,92,-26], "footL":[20,16,-1], "footR":[20,29,3]},
+  {"t":0.93,
+   "hips":[-62,-1,6], "body":[30,-59,22], "chest":[-3,55,1], "head":[-11,-19,-7],
+   "shL":[16,-9], "shR":[30,2], "armL":[91,40,10,98,77], "armR":[97,-13,23,22,-158],
+   "legL":[36,31,-88,27,37], "legR":[61,5,-79,91,-26], "footL":[19,23,-1], "footR":[14,28,0]},
+  {"t":0.97,
+   "hips":[-61,-1,7], "body":[40,-68,35], "chest":[-2,53,0], "head":[-9,-6,-5],
+   "shL":[12,-8], "shR":[26,7], "armL":[81,58,5,107,62], "armR":[92,-21,34,26,-155],
+   "legL":[21,24,-95,25,36], "legR":[61,10,-78,73,-25], "footL":[20,26,-1], "footR":[6,20,0]},
+  {"t":1,
+   "hips":[-60,-1,8], "body":[64,-75,60], "chest":[-2,50,1], "head":[-6,2,-4],
+   "shL":[3,-6], "shR":[17,13], "armL":[72,69,7,114,43], "armR":[85,-23,48,34,-138],
+   "legL":[8,22,-97,28,34], "legR":[61,11,-78,34,-19], "footL":[22,30,0], "footR":[-2,11,0]},
+  {"t":1.03,
+   "hips":[-60,-1,9], "body":[101,-77,98], "chest":[-1,45,0], "head":[-3,6,-1],
+   "shL":[-8,-2], "shR":[6,17], "armL":[69,72,14,115,23], "armR":[83,-23,51,37,-122],
+   "legL":[0,21,-98,27,33], "legR":[60,13,-79,0,-52], "footL":[25,32,0], "footR":[-3,6,0]},
+  {"t":1.07,
+   "hips":[-60,-1,10], "body":[125,-74,123], "chest":[0,40,0], "head":[-1,9,-1],
+   "shL":[-18,-1], "shR":[-2,21], "armL":[60,77,22,106,9], "armR":[84,-20,50,34,-115],
+   "legL":[-4,20,-98,24,33], "legR":[60,15,-79,16,-10], "footL":[27,33,0], "footR":[-1,4,0]},
+  {"t":1.1,
+   "hips":[-60,-1,10], "body":[132,-73,130], "chest":[0,34,0], "head":[0,8,0],
+   "shL":[-21,0], "shR":[-7,22], "armL":[48,78,40,93,5], "armR":[80,4,59,26,-133],
+   "legL":[1,22,-98,20,33], "legR":[60,16,-78,26,-7], "footL":[26,31,0], "footR":[-1,4,0]},
+  {"t":1.13,
+   "hips":[-60,-1,10], "body":[131,-73,129], "chest":[0,29,0], "head":[0,-4,0],
+   "shL":[-21,0], "shR":[-7,22], "armL":[36,72,59,87,10], "armR":[60,34,73,21,-86],
+   "legL":[7,24,-97,15,34], "legR":[60,16,-78,26,-8], "footL":[23,30,0], "footR":[-5,4,0]},
+  {"t":1.17,
+   "hips":[-60,-1,9], "body":[127,-73,125], "chest":[0,24,0], "head":[-1,-23,-1],
+   "shL":[-21,1], "shR":[-6,22], "armL":[24,64,73,86,20], "armR":[38,52,76,17,-92],
+   "legL":[11,25,-96,8,36], "legR":[62,15,-77,23,-8], "footL":[20,30,0], "footR":[-9,3,0]},
+  {"t":1.2,
+   "hips":[-60,-1,9], "body":[122,-74,119], "chest":[0,21,1], "head":[-2,-50,-1],
+   "shL":[-21,1], "shR":[-6,22], "armL":[4,56,83,87,29], "armR":[12,65,75,17,-76],
+   "legL":[13,27,-95,10,41], "legR":[63,13,-77,25,-14], "footL":[16,31,0], "footR":[-15,3,0]},
+  {"t":1.23,
+   "hips":[-60,-1,8], "body":[115,-75,113], "chest":[1,20,0], "head":[-3,-42,-2],
+   "shL":[-21,1], "shR":[-6,22], "armL":[-19,51,84,87,38], "armR":[-6,66,75,22,-61],
+   "legL":[16,26,-95,0,193], "legR":[64,15,-75,26,-15], "footL":[13,31,0], "footR":[-21,4,0]},
+  {"t":1.3,
+   "hips":[-60,-1,6], "body":[104,-75,102], "chest":[1,22,1], "head":[-4,-37,-4],
+   "shL":[-22,0], "shR":[-6,22], "armL":[-48,45,76,91,48], "armR":[0,60,80,25,-55],
+   "legL":[12,25,-96,0,42], "legR":[63,14,-76,27,-18], "footL":[8,37,0], "footR":[-27,5,0]},
+  {"t":1.33,
+   "hips":[-60,-1,6], "body":[102,-76,100], "chest":[2,24,1], "head":[-5,-37,-4],
+   "shL":[-22,0], "shR":[-6,22], "armL":[-54,43,72,93,48], "armR":[1,59,81,26,-53],
+   "legL":[3,22,-97,20,39], "legR":[59,16,-79,30,-22], "footL":[6,38,0], "footR":[-24,7,0]},
+  {"t":1.37,
+   "hips":[-60,-1,6], "body":[102,-76,100], "chest":[2,25,1], "head":[-4,-36,-4],
+   "shL":[-22,0], "shR":[-6,22], "armL":[-53,44,72,93,49], "armR":[-2,59,81,25,-57],
+   "legL":[-16,17,-97,14,34], "legR":[53,18,-83,33,-20], "footL":[5,40,0], "footR":[-15,8,0]},
+  {"t":1.47,
+   "hips":[-60,-1,7], "body":[104,-78,102], "chest":[4,25,1], "head":[-4,-34,-4],
+   "shL":[-22,0], "shR":[-6,22], "armL":[-51,46,73,93,48], "armR":[-18,61,77,25,-75],
+   "legL":[-14,18,-97,12,23], "legR":[19,26,-95,32,-21], "footL":[17,41,0], "footR":[16,12,0]},
+  {"t":1.5,
+   "hips":[-60,-1,7], "body":[104,-77,102], "chest":[3,25,0], "head":[-4,-34,-3],
+   "shL":[-21,0], "shR":[-6,22], "armL":[-50,44,74,93,47], "armR":[-21,63,74,25,-78],
+   "legL":[-15,18,-97,12,22], "legR":[-2,29,-96,14,-19], "footL":[19,43,0], "footR":[20,11,0]},
+  {"t":1.83,
+   "hips":[-60,-1,7], "body":[102,-76,100], "chest":[2,23,1], "head":[-5,-41,-4],
+   "shL":[-22,0], "shR":[-6,22], "armL":[-57,43,70,91,48], "armR":[-19,58,79,26,-69],
+   "legL":[-17,17,-97,13,40], "legR":[0,29,-96,14,-20], "footL":[20,42,0], "footR":[19,10,0]},
+  {"t":2.4,
+   "hips":[-60,-1,7], "body":[102,-76,100], "chest":[2,22,1], "head":[-5,-40,-4],
+   "shL":[-22,1], "shR":[-6,23], "armL":[-56,43,70,92,48], "armR":[-17,58,79,27,-69],
+   "legL":[-17,17,-97,13,40], "legR":[0,29,-96,14,-20], "footL":[20,42,0], "footR":[19,10,0]}
+]},
+
+"LayToIdle": {"clip": "LayToIdle", "src": "UAL2", "dur": 1.53, "loop": false, "tags": ["getup"], "desc": "gets up from lying on the back to standing", "keys": [
+  {"t":0,
+   "hips":[-26,0,5], "body":[180,-81,180], "chest":[0,23,0], "head":[-2,-12,1],
+   "shL":[2,-9], "shR":[-6,-2], "armL":[26,17,-95,15,-8], "armR":[25,23,-94,7,-76],
+   "legL":[-22,10,-97,3,46], "legR":[-20,0,-98,11,-27], "footL":[37,46,-2], "footR":[36,17,0]},
+  {"t":0.03,
+   "hips":[-26,0,5], "body":[181,-81,181], "chest":[0,24,0], "head":[-2,-12,1],
+   "shL":[2,-9], "shR":[-5,-3], "armL":[28,18,-94,16,1], "armR":[26,24,-94,15,-62],
+   "legL":[-22,10,-97,3,38], "legR":[-20,1,-98,17,-27], "footL":[37,45,-2], "footR":[37,17,0]},
+  {"t":0.07,
+   "hips":[-26,0,5], "body":[184,-82,184], "chest":[-1,25,1], "head":[-2,-11,1],
+   "shL":[2,-10], "shR":[-6,-2], "armL":[30,18,-94,25,-6], "armR":[27,28,-92,36,-4],
+   "legL":[-20,10,-97,6,34], "legR":[-18,2,-98,32,-28], "footL":[36,40,-2], "footR":[39,19,0]},
+  {"t":0.1,
+   "hips":[-26,0,5], "body":[190,-83,190], "chest":[-2,28,1], "head":[-1,-10,1],
+   "shL":[2,-9], "shR":[-5,-3], "armL":[34,21,-92,36,-18], "armR":[29,31,-90,64,24],
+   "legL":[-18,11,-98,11,24], "legR":[-16,5,-99,47,-27], "footL":[33,34,-1], "footR":[42,22,0]},
+  {"t":0.13,
+   "hips":[-26,0,4], "body":[199,-83,200], "chest":[-3,32,1], "head":[1,-7,1],
+   "shL":[2,-9], "shR":[-6,-2], "armL":[41,24,-88,47,-37], "armR":[31,37,-87,87,38],
+   "legL":[-15,11,-98,19,20], "legR":[-15,11,-98,61,-24], "footL":[32,28,0], "footR":[46,34,-1]},
+  {"t":0.2,
+   "hips":[-26,0,4], "body":[235,-84,235], "chest":[-8,41,4], "head":[4,-4,3],
+   "shL":[2,-9], "shR":[-6,-2], "armL":[54,32,-78,70,-46], "armR":[19,49,-85,112,12],
+   "legL":[-8,15,-99,39,25], "legR":[-11,20,-97,86,-21], "footL":[24,21,0], "footR":[54,82,-4]},
+  {"t":0.3,
+   "hips":[-26,0,3], "body":[289,-80,289], "chest":[-17,55,8], "head":[8,-2,8],
+   "shL":[2,-8], "shR":[-6,-3], "armL":[70,48,-53,95,-29], "armR":[4,40,-91,103,-29],
+   "legL":[9,18,-98,63,31], "legR":[-3,43,-90,110,-16], "footL":[12,13,0], "footR":[47,163,-22]},
+  {"t":0.37,
+   "hips":[-27,0,3], "body":[305,-75,304], "chest":[-26,63,14], "head":[10,-6,11],
+   "shL":[2,-9], "shR":[-5,-2], "armL":[77,53,-37,103,5], "armR":[7,29,-95,91,-47],
+   "legL":[21,20,-96,74,35], "legR":[0,48,-88,113,-15], "footL":[5,10,0], "footR":[45,173,-27]},
+  {"t":0.47,
+   "hips":[-27,-1,7], "body":[317,-65,315], "chest":[-34,68,19], "head":[13,-11,11],
+   "shL":[3,-8], "shR":[-6,-2], "armL":[78,54,-31,108,10], "armR":[12,15,-98,70,-64],
+   "legL":[34,22,-92,93,33], "legR":[0,49,-87,113,-19], "footL":[4,0,0], "footR":[49,176,-19]},
+  {"t":0.53,
+   "hips":[-26,-2,13], "body":[324,-58,320], "chest":[-31,66,15], "head":[12,-8,6],
+   "shL":[3,-8], "shR":[-5,-2], "armL":[70,59,-40,106,15], "armR":[10,8,-99,55,-63],
+   "legL":[36,27,-89,105,32], "legR":[-5,45,-89,112,-23], "footL":[10,-6,0], "footR":[54,186,-10]},
+  {"t":0.6,
+   "hips":[-26,-4,21], "body":[329,-50,324], "chest":[-23,61,6], "head":[10,-2,2],
+   "shL":[4,-7], "shR":[-6,-3], "armL":[59,62,-52,96,20], "armR":[25,28,-93,82,-57],
+   "legL":[35,29,-89,111,28], "legR":[-9,40,-91,107,-27], "footL":[18,-9,0], "footR":[58,350,0]},
+  {"t":0.7,
+   "hips":[-24,-5,31], "body":[337,-38,329], "chest":[-20,51,-1], "head":[9,9,2],
+   "shL":[4,-7], "shR":[-6,-3], "armL":[44,69,-57,78,33], "armR":[46,78,-43,100,-38],
+   "legL":[33,38,-86,117,22], "legR":[-6,31,-95,102,-31], "footL":[27,2,-1], "footR":[46,360,-1]},
+  {"t":0.73,
+   "hips":[-23,-5,34], "body":[339,-35,331], "chest":[-22,49,-2], "head":[9,12,3],
+   "shL":[4,-6], "shR":[-6,-2], "armL":[43,71,-55,74,49], "armR":[48,83,-28,98,-35],
+   "legL":[30,40,-86,117,20], "legR":[-5,30,-95,101,-31], "footL":[29,7,-2], "footR":[42,363,-1]},
+  {"t":0.77,
+   "hips":[-22,-5,35], "body":[340,-30,333], "chest":[-23,47,-4], "head":[10,13,6],
+   "shL":[4,-6], "shR":[-5,-3], "armL":[44,74,-51,73,51], "armR":[49,85,-17,101,-32],
+   "legL":[35,39,-85,119,17], "legR":[-1,32,-95,102,-33], "footL":[29,9,-2], "footR":[37,367,-1]},
+  {"t":0.83,
+   "hips":[-20,-4,37], "body":[339,-23,336], "chest":[-30,45,-4], "head":[13,15,11],
+   "shL":[5,-5], "shR":[-6,-3], "armL":[53,72,-46,52,52], "armR":[66,75,-5,109,-29],
+   "legL":[41,36,-84,119,12], "legR":[1,35,-94,104,-33], "footL":[27,4,-2], "footR":[31,376,-1]},
+  {"t":0.9,
+   "hips":[-17,-3,39], "body":[336,-16,339], "chest":[-33,43,-5], "head":[15,15,14],
+   "shL":[5,-5], "shR":[-6,-2], "armL":[56,67,-50,20,26], "armR":[88,47,-1,108,-20],
+   "legL":[47,30,-83,120,6], "legR":[-2,39,-92,107,-34], "footL":[21,-7,-1], "footR":[24,384,-1]},
+  {"t":0.93,
+   "hips":[-16,-3,40], "body":[334,-13,340], "chest":[-33,42,-5], "head":[15,14,14],
+   "shL":[5,-5], "shR":[-5,-2], "armL":[56,63,-53,18,-5], "armR":[94,34,-3,104,-18],
+   "legL":[50,26,-83,119,1], "legR":[-4,41,-91,107,-36], "footL":[19,-11,-1], "footR":[22,388,0]},
+  {"t":0.97,
+   "hips":[-15,-2,42], "body":[333,-11,341], "chest":[-33,41,-4], "head":[16,12,14],
+   "shL":[5,-5], "shR":[-6,-2], "armL":[56,61,-57,15,-30], "armR":[97,22,-5,96,-49],
+   "legL":[50,26,-83,118,0], "legR":[-6,39,-92,108,-35], "footL":[17,-14,-1], "footR":[21,390,0]},
+  {"t":1,
+   "hips":[-14,-2,43], "body":[333,-10,342], "chest":[-33,40,-4], "head":[15,11,14],
+   "shL":[5,-4], "shR":[-6,-3], "armL":[55,59,-59,34,-14], "armR":[98,17,-7,94,-75],
+   "legL":[49,25,-84,117,-2], "legR":[-10,38,-92,111,-36], "footL":[16,-16,-1], "footR":[22,394,0]},
+  {"t":1.07,
+   "hips":[-12,-1,49], "body":[336,-9,345], "chest":[-31,38,-3], "head":[14,8,12],
+   "shL":[6,-4], "shR":[-6,-3], "armL":[51,55,-66,45,-9], "armR":[99,-1,-13,89,-127],
+   "legL":[41,27,-87,111,0], "legR":[-22,28,-93,115,-34], "footL":[14,-16,-1], "footR":[24,402,0]},
+  {"t":1.13,
+   "hips":[-11,0,57], "body":[341,-7,348], "chest":[-26,34,-3], "head":[11,6,10],
+   "shL":[6,-4], "shR":[-6,-3], "armL":[44,49,-75,51,-5], "armR":[95,-19,-26,80,-141],
+   "legL":[34,29,-89,101,1], "legR":[-33,12,-94,111,-35], "footL":[10,-14,0], "footR":[24,408,0]},
+  {"t":1.17,
+   "hips":[-11,0,61], "body":[344,-7,350], "chest":[-23,33,-3], "head":[9,5,8],
+   "shL":[6,-4], "shR":[-6,-3], "armL":[42,45,-79,54,-2], "armR":[91,-24,-34,76,-148],
+   "legL":[30,27,-91,95,1], "legR":[-38,8,-92,105,-35], "footL":[9,-12,0], "footR":[21,410,0]},
+  {"t":1.2,
+   "hips":[-11,0,65], "body":[347,-7,351], "chest":[-20,31,-2], "head":[7,5,6],
+   "shL":[5,-3], "shR":[-5,-2], "armL":[39,39,-83,55,1], "armR":[86,-25,-45,72,32],
+   "legL":[26,27,-93,89,1], "legR":[-41,3,-91,97,-36], "footL":[9,-10,0], "footR":[19,411,0]},
+  {"t":1.27,
+   "hips":[-10,0,74], "body":[354,-6,354], "chest":[-14,27,-2], "head":[2,4,4],
+   "shL":[6,-3], "shR":[-5,-2], "armL":[33,31,-89,57,4], "armR":[74,-22,-64,66,18],
+   "legL":[19,25,-95,74,3], "legR":[-43,1,-90,74,-38], "footL":[7,-6,0], "footR":[11,408,0]},
+  {"t":1.33,
+   "hips":[-10,0,82], "body":[361,-6,356], "chest":[-9,25,0], "head":[-3,2,2],
+   "shL":[6,-4], "shR":[-6,-2], "armL":[32,24,-92,59,6], "armR":[64,-9,-76,62,13],
+   "legL":[13,24,-96,58,5], "legR":[-41,4,-91,54,-37], "footL":[6,-1,0], "footR":[7,403,0]},
+  {"t":1.4,
+   "hips":[-10,0,89], "body":[367,-5,358], "chest":[-4,21,0], "head":[-7,2,1],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[29,21,-93,56,7], "armR":[51,2,-86,62,7],
+   "legL":[10,21,-97,40,7], "legR":[-35,9,-93,36,-36], "footL":[5,3,0], "footR":[5,398,0]},
+  {"t":1.47,
+   "hips":[-9,-1,94], "body":[372,-5,360], "chest":[-1,20,-1], "head":[-10,2,1],
+   "shL":[6,-3], "shR":[-5,-3], "armL":[28,20,-94,55,9], "armR":[36,11,-93,66,-1],
+   "legL":[6,17,-98,22,7], "legR":[-32,14,-94,15,-41], "footL":[5,7,0], "footR":[4,393,0]},
+  {"t":1.53,
+   "hips":[-9,-1,96], "body":[373,-5,360], "chest":[0,19,0], "head":[-11,2,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[27,19,-94,53,10], "armR":[27,17,-95,65,-4],
+   "legL":[5,17,-98,11,5], "legR":[-31,14,-94,0,-48], "footL":[5,8,0], "footR":[4,392,0]}
+]},
+
+"Idle_FoldArms_Loop": {"clip": "Idle_FoldArms_Loop", "src": "UAL2", "dur": 2.5, "loop": true, "tags": ["idle","talk"], "desc": "standing with the arms folded across the chest, shifting weight: waiting, listening", "keys": [
+  {"t":0,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,19,0], "head":[-11,-3,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[28,-89,-35,116,-136], "armR":[44,-90,-4,118,-179],
+   "legL":[5,17,-98,11,5], "legR":[-31,14,-94,0,-48], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":0.7,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,20,0], "head":[-11,-3,0],
+   "shL":[6,-5], "shR":[-6,-5], "armL":[32,-90,-31,117,-137], "armR":[45,-89,1,116,-161],
+   "legL":[8,19,-98,15,7], "legR":[-29,13,-95,12,-37], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":0.9,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,21,0], "head":[-11,-4,0],
+   "shL":[6,-4], "shR":[-6,-4], "armL":[31,-90,-32,117,-137], "armR":[45,-89,0,116,-163],
+   "legL":[6,18,-98,18,8], "legR":[-29,13,-95,14,-38], "footL":[-5,8,0], "footR":[3,32,0]},
+  {"t":1.07,
+   "hips":[-10,0,95], "body":[13,-5,0], "chest":[0,21,0], "head":[-11,-4,0],
+   "shL":[6,-3], "shR":[-6,-3], "armL":[32,-89,-32,117,-137], "armR":[46,-89,-1,116,-161],
+   "legL":[6,19,-98,17,5], "legR":[-31,13,-94,15,-36], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":1.27,
+   "hips":[-9,0,96], "body":[13,-5,0], "chest":[0,19,0], "head":[-11,-3,0],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[28,-89,-35,116,-136], "armR":[44,-90,-3,118,-176],
+   "legL":[3,18,-98,12,5], "legR":[-32,13,-94,0,-42], "footL":[-4,8,0], "footR":[4,32,0]},
+  {"t":2.03,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,21,0], "head":[-13,-4,-1],
+   "shL":[6,-5], "shR":[-6,-5], "armL":[32,-90,-31,118,-137], "armR":[45,-89,1,115,-161],
+   "legL":[8,19,-98,15,8], "legR":[-29,13,-95,12,-37], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":2.5,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,19,0], "head":[-11,-3,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[28,-89,-35,116,-136], "armR":[44,-90,-4,118,-179],
+   "legL":[5,17,-98,11,5], "legR":[-31,14,-94,0,-48], "footL":[5,8,0], "footR":[4,32,0]}
+]},
+
+"Chest_Open": {"clip": "Chest_Open", "src": "UAL2", "dur": 1.37, "loop": false, "tags": ["interact","chest"], "desc": "bends forward and lifts a chest's lid with both hands, then straightens", "keys": [
+  {"t":0,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,19,0], "head":[-11,2,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[29,19,-94,52,8], "armR":[28,17,-94,61,-5],
+   "legL":[5,17,-98,11,5], "legR":[-31,14,-94,0,-48], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":0.17,
+   "hips":[-11,-1,94], "body":[13,1,-1], "chest":[0,24,-2], "head":[-12,14,-1],
+   "shL":[7,-2], "shR":[-6,-3], "armL":[40,27,-88,45,21], "armR":[37,13,-92,69,-4],
+   "legL":[18,20,-96,24,7], "legR":[-20,13,-97,21,-36], "footL":[-1,8,0], "footR":[0,30,0]},
+  {"t":0.3,
+   "hips":[-12,-1,92], "body":[13,12,-4], "chest":[1,30,-3], "head":[-12,7,-1],
+   "shL":[6,-3], "shR":[-5,-3], "armL":[51,34,-79,42,37], "armR":[40,11,-91,72,-3],
+   "legL":[38,25,-89,38,10], "legR":[-1,8,-100,32,-40], "footL":[-12,8,0], "footR":[-9,26,0]},
+  {"t":0.43,
+   "hips":[-14,-1,90], "body":[14,21,-7], "chest":[1,36,-4], "head":[-12,2,-1],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[69,33,-64,40,39], "armR":[36,14,-92,69,-3],
+   "legL":[54,30,-79,46,13], "legR":[16,3,-99,42,-39], "footL":[-22,8,0], "footR":[-16,24,-1]},
+  {"t":0.5,
+   "hips":[-15,-1,90], "body":[15,25,-7], "chest":[2,37,-7], "head":[-12,-1,0],
+   "shL":[6,-2], "shR":[-6,-3], "armL":[83,33,-44,45,39], "armR":[33,13,-93,66,-4],
+   "legL":[60,31,-74,46,14], "legR":[24,3,-97,44,-37], "footL":[-26,9,0], "footR":[-20,24,-2]},
+  {"t":0.57,
+   "hips":[-15,-1,90], "body":[15,26,-8], "chest":[2,38,-6], "head":[-13,-1,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[94,34,-9,61,60], "armR":[30,15,-94,61,-3],
+   "legL":[61,32,-72,47,15], "legR":[26,2,-97,44,-38], "footL":[-27,9,0], "footR":[-20,23,-2]},
+  {"t":0.6,
+   "hips":[-15,-1,90], "body":[15,25,-8], "chest":[2,39,-6], "head":[-13,-2,-1],
+   "shL":[6,-3], "shR":[-6,-3], "armL":[94,32,10,71,89], "armR":[30,15,-94,61,-1],
+   "legL":[60,32,-73,47,15], "legR":[24,2,-97,44,-37], "footL":[-26,9,0], "footR":[-19,23,-2]},
+  {"t":0.67,
+   "hips":[-14,-1,90], "body":[14,22,-7], "chest":[2,38,-5], "head":[-13,-1,-1],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[93,28,22,86,129], "armR":[27,15,-95,58,0],
+   "legL":[55,30,-78,46,13], "legR":[18,3,-98,42,-39], "footL":[-23,8,0], "footR":[-17,24,-1]},
+  {"t":0.8,
+   "hips":[-12,-1,91], "body":[13,10,-4], "chest":[1,35,-4], "head":[-12,2,-1],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[99,10,12,97,180], "armR":[27,15,-95,59,0],
+   "legL":[35,25,-90,40,10], "legR":[-5,8,-100,35,-37], "footL":[-10,8,0], "footR":[-7,27,0]},
+  {"t":0.9,
+   "hips":[-9,-1,92], "body":[13,1,-1], "chest":[1,31,-4], "head":[-12,6,-1],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[99,-2,-11,98,175], "armR":[26,15,-95,61,-2],
+   "legL":[16,20,-97,34,8], "legR":[-23,13,-96,27,-39], "footL":[-1,8,0], "footR":[0,30,0]},
+  {"t":0.97,
+   "hips":[-9,-1,94], "body":[13,-4,0], "chest":[1,29,-3], "head":[-12,9,-1],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[95,-5,-30,91,140], "armR":[28,16,-95,60,-3],
+   "legL":[7,17,-98,22,8], "legR":[-30,15,-94,15,-36], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":1,
+   "hips":[-9,-1,94], "body":[13,-5,0], "chest":[1,28,-2], "head":[-12,8,-1],
+   "shL":[6,-3], "shR":[-5,-2], "armL":[92,-6,-39,90,26], "armR":[28,16,-95,62,-3],
+   "legL":[6,17,-98,23,8], "legR":[-32,15,-94,17,-36], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":1.13,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,23,-1], "head":[-11,-1,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[67,-1,-74,76,0], "armR":[28,17,-95,60,-4],
+   "legL":[5,17,-98,10,5], "legR":[-31,14,-94,0,-44], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":1.27,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,20,0], "head":[-11,1,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[38,13,-92,58,3], "armR":[29,17,-94,61,-5],
+   "legL":[5,17,-98,10,5], "legR":[-31,14,-94,0,-47], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":1.37,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,19,0], "head":[-11,2,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[29,19,-94,52,8], "armR":[28,17,-94,61,-5],
+   "legL":[5,17,-98,11,5], "legR":[-31,14,-94,0,-48], "footL":[5,8,0], "footR":[4,32,0]}
+]},
+
+"Interact": {"clip": "Interact", "src": "UAL1", "dur": 2, "loop": false, "tags": ["interact"], "desc": "reaches forward at chest height and works something with the hands (a lever, a door, a box)", "keys": [
+  {"t":0,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,21,0], "head":[-11,1,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[32,9,-94,61,-5], "armR":[29,17,-94,60,-5],
+   "legL":[5,17,-98,20,6], "legR":[-31,14,-94,9,-42], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":0.17,
+   "hips":[-9,-1,95], "body":[13,-6,0], "chest":[0,19,0], "head":[-11,2,0],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[43,6,-90,57,-2], "armR":[31,17,-94,63,-4],
+   "legL":[4,17,-98,26,7], "legR":[-33,15,-93,18,-39], "footL":[6,8,0], "footR":[5,33,0]},
+  {"t":0.33,
+   "hips":[-10,0,95], "body":[13,-5,0], "chest":[0,18,0], "head":[-11,0,0],
+   "shL":[6,-5], "shR":[-6,-4], "armL":[72,9,-68,44,8], "armR":[32,13,-94,62,-6],
+   "legL":[6,19,-98,25,8], "legR":[-31,13,-94,21,-35], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":0.4,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,18,0], "head":[-11,-1,0],
+   "shL":[6,-5], "shR":[-6,-5], "armL":[89,9,-45,49,26], "armR":[32,13,-94,62,-7],
+   "legL":[8,19,-98,25,8], "legR":[-29,13,-95,22,-37], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":0.43,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,19,0], "head":[-11,-2,0],
+   "shL":[6,-5], "shR":[-6,-5], "armL":[96,7,-27,55,72], "armR":[33,13,-94,62,-7],
+   "legL":[8,19,-98,25,8], "legR":[-29,13,-95,22,-37], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":0.47,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,19,0], "head":[-11,-2,0],
+   "shL":[6,-5], "shR":[-6,-5], "armL":[99,6,-11,60,173], "armR":[32,13,-94,61,-7],
+   "legL":[8,19,-98,25,8], "legR":[-29,13,-95,22,-37], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":0.53,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,20,0], "head":[-11,-2,0],
+   "shL":[6,-5], "shR":[-6,-5], "armL":[99,8,9,62,186], "armR":[33,13,-94,61,-7],
+   "legL":[8,19,-98,25,8], "legR":[-29,13,-95,22,-37], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":0.6,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,21,0], "head":[-11,-2,0],
+   "shL":[6,-5], "shR":[-6,-5], "armL":[98,10,16,55,186], "armR":[33,13,-94,62,-6],
+   "legL":[8,19,-98,25,8], "legR":[-29,13,-95,22,-37], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":0.77,
+   "hips":[-10,0,95], "body":[13,-4,0], "chest":[0,21,0], "head":[-11,0,0],
+   "shL":[6,-4], "shR":[-6,-4], "armL":[99,5,9,42,166], "armR":[31,15,-94,63,-5],
+   "legL":[8,19,-98,25,7], "legR":[-29,13,-95,22,-38], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":0.93,
+   "hips":[-9,0,96], "body":[13,-5,0], "chest":[0,20,0], "head":[-11,2,0],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[99,10,12,51,184], "armR":[29,17,-94,61,-5],
+   "legL":[5,18,-98,19,7], "legR":[-32,13,-94,10,-39], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":1.03,
+   "hips":[-9,0,96], "body":[13,-5,0], "chest":[0,18,0], "head":[-11,3,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[99,11,2,51,180], "armR":[28,17,-94,61,-5],
+   "legL":[5,18,-98,19,7], "legR":[-32,13,-94,10,-39], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":1.17,
+   "hips":[-9,0,96], "body":[13,-6,0], "chest":[0,18,0], "head":[-11,2,1],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[98,9,-20,49,121], "armR":[29,17,-94,60,-5],
+   "legL":[3,18,-98,19,7], "legR":[-33,13,-93,9,-40], "footL":[6,8,0], "footR":[5,33,0]},
+  {"t":1.33,
+   "hips":[-10,0,96], "body":[13,-5,0], "chest":[0,18,0], "head":[-11,0,0],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[85,7,-51,45,22], "armR":[31,16,-94,62,-4],
+   "legL":[6,18,-98,18,9], "legR":[-31,13,-94,13,-34], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":1.5,
+   "hips":[-10,0,96], "body":[13,-4,0], "chest":[0,19,0], "head":[-11,-1,0],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[67,6,-74,48,9], "armR":[31,16,-94,62,-5],
+   "legL":[8,18,-98,19,10], "legR":[-29,13,-95,14,-36], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":1.73,
+   "hips":[-10,0,96], "body":[13,-4,0], "chest":[0,20,0], "head":[-11,0,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[43,7,-90,56,-4], "armR":[30,16,-94,61,-7],
+   "legL":[8,18,-98,19,11], "legR":[-29,13,-95,14,-35], "footL":[4,8,0], "footR":[3,32,0]},
+  {"t":2,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,21,0], "head":[-11,1,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[32,9,-94,61,-5], "armR":[29,17,-94,60,-5],
+   "legL":[5,17,-98,20,6], "legR":[-31,14,-94,9,-42], "footL":[5,8,0], "footR":[4,32,0]}
+]},
+
+"PickUp_Table": {"clip": "PickUp_Table", "src": "UAL1", "dur": 0.83, "loop": false, "tags": ["interact","item"], "desc": "reaches out and picks something up from table height", "keys": [
+  {"t":0,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,21,0], "head":[-11,0,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[29,19,-94,51,6], "armR":[29,17,-94,60,-5],
+   "legL":[5,17,-98,20,6], "legR":[-31,14,-94,9,-42], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":0.07,
+   "hips":[-10,-1,96], "body":[14,-3,-1], "chest":[7,21,-3], "head":[-17,1,0],
+   "shL":[7,-2], "shR":[-6,-3], "armL":[35,34,-87,41,8], "armR":[31,16,-94,61,-4],
+   "legL":[9,19,-98,22,7], "legR":[-27,13,-95,13,-35], "footL":[3,9,0], "footR":[3,30,0]},
+  {"t":0.13,
+   "hips":[-10,-1,96], "body":[18,3,-4], "chest":[21,18,-7], "head":[-31,3,0],
+   "shL":[6,-2], "shR":[-5,-2], "armL":[40,55,-73,41,5], "armR":[30,17,-94,60,-5],
+   "legL":[17,26,-95,28,8], "legR":[-15,9,-98,15,-36], "footL":[-4,14,0], "footR":[-1,23,0]},
+  {"t":0.2,
+   "hips":[-10,-1,96], "body":[23,8,-6], "chest":[32,16,-11], "head":[-41,6,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[53,65,-55,50,-2], "armR":[29,17,-94,60,-5],
+   "legL":[23,31,-92,32,9], "legR":[-5,7,-100,18,-35], "footL":[-9,18,0], "footR":[-6,17,0]},
+  {"t":0.23,
+   "hips":[-9,-1,96], "body":[26,9,-6], "chest":[34,15,-12], "head":[-43,8,-1],
+   "shL":[6,-2], "shR":[-5,-2], "armL":[58,63,-52,58,-3], "armR":[27,17,-95,59,-6],
+   "legL":[22,31,-92,33,10], "legR":[-2,8,-100,18,-39], "footL":[-11,21,0], "footR":[-7,14,0]},
+  {"t":0.3,
+   "hips":[-9,-1,96], "body":[31,8,-5], "chest":[33,15,-11], "head":[-41,12,-3],
+   "shL":[6,-3], "shR":[-5,-2], "armL":[79,42,-45,79,-13], "armR":[27,17,-95,61,-7],
+   "legL":[17,31,-94,32,10], "legR":[-2,10,-99,21,-35], "footL":[-9,25,0], "footR":[-7,10,0]},
+  {"t":0.37,
+   "hips":[-8,-1,96], "body":[35,5,-4], "chest":[29,16,-10], "head":[-37,12,-3],
+   "shL":[7,-2], "shR":[-6,-2], "armL":[94,3,-35,89,-17], "armR":[25,18,-95,60,-5],
+   "legL":[9,29,-95,30,10], "legR":[-5,13,-99,19,-38], "footL":[-6,30,0], "footR":[-4,6,0]},
+  {"t":0.4,
+   "hips":[-8,-1,97], "body":[36,3,-3], "chest":[28,17,-9], "head":[-36,12,-3],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[94,-16,-30,90,122], "armR":[27,18,-95,58,-7],
+   "legL":[5,27,-96,22,9], "legR":[-8,15,-99,10,-34], "footL":[-4,31,0], "footR":[-3,6,0]},
+  {"t":0.43,
+   "hips":[-7,-1,97], "body":[37,1,-2], "chest":[26,18,-9], "head":[-34,10,-3],
+   "shL":[6,-3], "shR":[-5,-3], "armL":[90,-36,-24,92,127], "armR":[27,18,-95,59,-6],
+   "legL":[0,25,-97,21,8], "legR":[-12,17,-98,7,-38], "footL":[-2,32,0], "footR":[-1,5,0]},
+  {"t":0.5,
+   "hips":[-7,-1,97], "body":[37,-1,-1], "chest":[20,18,-7], "head":[-29,8,-2],
+   "shL":[6,-3], "shR":[-6,-3], "armL":[80,-58,-16,96,129], "armR":[26,18,-95,59,-6],
+   "legL":[-3,23,-97,18,8], "legR":[-15,19,-97,6,-36], "footL":[0,32,0], "footR":[1,6,0]},
+  {"t":0.6,
+   "hips":[-8,-1,96], "body":[30,-4,0], "chest":[12,20,-4], "head":[-22,3,-1],
+   "shL":[6,-3], "shR":[-6,-3], "armL":[80,-55,-24,99,142], "armR":[28,19,-94,62,-7],
+   "legL":[-3,21,-98,22,9], "legR":[-23,19,-95,16,-34], "footL":[4,25,0], "footR":[4,14,0]},
+  {"t":0.63,
+   "hips":[-8,-1,96], "body":[27,-4,0], "chest":[9,20,-3], "head":[-19,2,-1],
+   "shL":[6,-3], "shR":[-6,-3], "armL":[79,-52,-33,99,155], "armR":[28,19,-94,61,-6],
+   "legL":[-1,21,-98,22,7], "legR":[-24,18,-95,15,-39], "footL":[4,22,0], "footR":[4,17,0]},
+  {"t":0.67,
+   "hips":[-8,-1,96], "body":[24,-5,0], "chest":[6,21,-2], "head":[-17,1,-1],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[76,-45,-47,95,285], "armR":[28,19,-94,61,-6],
+   "legL":[-2,20,-98,22,7], "legR":[-27,18,-95,13,-39], "footL":[5,19,0], "footR":[5,21,0]},
+  {"t":0.73,
+   "hips":[-9,-1,96], "body":[18,-5,0], "chest":[2,21,-1], "head":[-13,0,0],
+   "shL":[7,-3], "shR":[-6,-3], "armL":[57,-14,-81,72,337], "armR":[29,17,-94,61,-4],
+   "legL":[3,19,-98,21,7], "legR":[-29,16,-94,12,-36], "footL":[5,13,0], "footR":[4,27,0]},
+  {"t":0.77,
+   "hips":[-9,-1,96], "body":[15,-5,0], "chest":[2,21,0], "head":[-12,0,-1],
+   "shL":[6,-3], "shR":[-5,-2], "armL":[43,2,-90,60,349], "armR":[29,18,-94,61,-5],
+   "legL":[4,18,-98,21,5], "legR":[-31,15,-94,10,-37], "footL":[5,10,0], "footR":[4,30,0]},
+  {"t":0.8,
+   "hips":[-9,-1,96], "body":[14,-5,0], "chest":[0,21,0], "head":[-11,0,0],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[33,14,-93,54,360], "armR":[29,17,-94,60,-4],
+   "legL":[5,17,-98,21,8], "legR":[-31,15,-94,9,-38], "footL":[5,9,0], "footR":[4,31,0]},
+  {"t":0.83,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,21,0], "head":[-11,0,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[29,19,-94,51,366], "armR":[29,17,-94,60,-5],
+   "legL":[5,17,-98,20,6], "legR":[-31,14,-94,9,-42], "footL":[5,8,0], "footR":[4,32,0]}
+]},
+
+"Hit_Chest": {"clip": "Hit_Chest", "src": "UAL1", "dur": 0.33, "loop": false, "tags": ["hurt"], "desc": "takes a blow to the chest: torso snaps back, recovers", "keys": [
+  {"t":0,
+   "hips":[-6,-1,93], "body":[14,-15,2], "chest":[-1,2,5], "head":[0,-12,-2],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[29,19,-94,56,6], "armR":[29,18,-94,64,-3],
+   "legL":[-15,14,-98,32,6], "legR":[-50,19,-85,23,-35], "footL":[15,8,0], "footR":[11,37,-1]},
+  {"t":0.1,
+   "hips":[-7,-1,94], "body":[14,-13,2], "chest":[-1,10,3], "head":[-2,-26,1],
+   "shL":[6,-3], "shR":[-6,-2], "armL":[51,26,-82,52,14], "armR":[52,13,-84,62,-8],
+   "legL":[-11,14,-98,28,6], "legR":[-46,18,-87,20,-35], "footL":[13,8,0], "footR":[10,36,0]},
+  {"t":0.17,
+   "hips":[-8,-1,95], "body":[13,-10,1], "chest":[0,17,1], "head":[-6,-26,2],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[50,26,-82,49,17], "armR":[52,14,-85,61,-9],
+   "legL":[-4,15,-99,24,7], "legR":[-40,16,-90,14,-38], "footL":[10,7,0], "footR":[8,35,0]},
+  {"t":0.23,
+   "hips":[-9,-1,95], "body":[13,-8,1], "chest":[0,22,0], "head":[-9,-6,0],
+   "shL":[7,-3], "shR":[-6,-2], "armL":[43,23,-87,52,11], "armR":[43,15,-89,62,-7],
+   "legL":[0,15,-99,24,8], "legR":[-36,16,-92,18,-38], "footL":[8,7,0], "footR":[6,34,0]},
+  {"t":0.33,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,21,0], "head":[-11,1,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[29,19,-94,51,6], "armR":[29,17,-94,60,-5],
+   "legL":[5,17,-98,20,6], "legR":[-31,14,-94,9,-42], "footL":[5,8,0], "footR":[4,32,0]}
+]},
+
+"Hit_Head": {"clip": "Hit_Head", "src": "UAL1", "dur": 0.43, "loop": false, "tags": ["hurt"], "desc": "takes a blow to the head: head snaps aside, recovers", "keys": [
+  {"t":0,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,12,2], "head":[0,-18,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[29,19,-94,52,7], "armR":[29,17,-94,61,-4],
+   "legL":[5,17,-98,20,6], "legR":[-31,14,-94,9,-42], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":0.13,
+   "hips":[-12,-1,95], "body":[13,-5,0], "chest":[0,16,1], "head":[-18,-32,-6],
+   "shL":[6,-2], "shR":[-6,-3], "armL":[42,24,-87,45,3], "armR":[43,14,-89,55,-7],
+   "legL":[9,18,-98,23,9], "legR":[-29,14,-95,24,-37], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":0.33,
+   "hips":[-10,-1,96], "body":[13,-5,0], "chest":[0,21,0], "head":[-12,-4,-1],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[32,20,-93,46,4], "armR":[32,16,-93,56,-5],
+   "legL":[6,17,-98,19,8], "legR":[-30,14,-94,12,-39], "footL":[5,8,0], "footR":[4,32,0]},
+  {"t":0.43,
+   "hips":[-9,-1,96], "body":[13,-5,0], "chest":[0,21,0], "head":[-11,1,0],
+   "shL":[6,-2], "shR":[-6,-2], "armL":[29,19,-94,51,6], "armR":[29,17,-94,60,-5],
+   "legL":[5,17,-98,20,6], "legR":[-31,14,-94,9,-42], "footL":[5,8,0], "footR":[4,32,0]}
+]}
+}};
+
+</script>
+<script>
+/* ---- inlined from src/emberdeep (00-core.js, 01-tune.js, 05-elements.js, 10-combat.js, 15-stats.js, 18-characters.js, 20-hero.js, 21-codex.js, 25-skills-core.js, 26-skills-melee.js, 27-skills-spells.js, 28-progression.js, 29-codex-skills.js, 30-monsters-core.js, 31-monsters.js, 33-beasts.js, 35-bosses-core.js, 36-bosses.js, 40-loot-core.js, 41-loot.js, 42-inventory.js, 45-mechanics-core.js, 46-mechanics-a.js, 47-mechanics-b.js, 50-levels-core.js, 51-themes.js, 52-layouts.js, 55-town-core.js, 56-town.js, 60-ui-core.js, 61-controls.js, 62-developer.js, 63-character-menu.js, 70-audio.js, 90-scenes.js, 92-gallery.js, 93-autopilot.js, 94-tips.js, 95-perf.js, 96-hero-clips.js, 99-start.js) ---- */
 /* =============================================================================
  * EMBERDEEP  the signature game of my-3D2dge
  * A hack-and-slash that goes down forever. The hero from the stress test (teal tunic, red cape) climbs out of
@@ -27623,6 +28707,145 @@ BUS.on('step', () => {
     if (PERF.bad >= 6) { PERF.low = true; PERF.good = 0; PERF.n++; P.max = Math.min(cap, 700); game.r.glowMask = false; if (now - PERF.since < 25) PERF.need = Math.min(160, PERF.need * 2); }
   } else { PERF.good = fps >= 57 ? PERF.good + 1 : 0; if (PERF.good >= PERF.need) { PERF.low = false; PERF.bad = 0; P.max = cap; game.r.glowMask = true; PERF.since = now; } }
 });
+
+/* =============================================================================
+ * HERO CLIPS: motion-captured moments the Wanderer plays on his own rig. The clips are the HERO animation set
+ * (src/mocap/sets/hero.js: picked from the Quaternius set by tools/anim-set.mjs, in the readable format; docs/MOCAP.md),
+ * each one a moment his procedural animation had no answer for:
+ *   death      Death01             he dies: staggers back and falls flat (the death panel waits until he lands)
+ *   rise       LayToIdle           revived (back in town, a retry, the developer's revive): he gets up off the ground
+ *   wait       Idle_FoldArms_Loop  someone talks to him, or a shopkeeper serves him: arms folded while he waits
+ *   chest      Chest_Open          the stash opens: he turns to it, bends and lifts the lid
+ *   stone      Interact            the waystone's panel opens: he turns to it and works it with his hands
+ *   pickup     PickUp_Table        loot goes in his bag: a quick reach (upper body only: he keeps walking)
+ *   hitChest,  Hit_Chest, Hit_Head a heavy blow that does not knock him down (over 12% of his life): the upper body
+ *   hitHead                        snaps back while his legs take the stagger
+ * Mocap.drive retargets a clip onto his rig each step (his build, cape and hair stay his). Moving, rolling, attacking
+ * or a flinch takes the body back at once (the clip fades out in a few frames). The gallery's POSES reel shows each one.
+ * Codex has his own rig and plays none of them.
+ * Hooks: updateHero, townLife and reviveHero are wrapped (the clip is stepped before the rig poses itself);
+ * deathPanelDue waits for the fall; the pickup and hurt events start the small ones.
+ * ============================================================================= */
+const HCL = { lib: typeof Mocap !== 'undefined' && window.MOCAP && window.MOCAP.HERO ? Mocap.load(window.MOCAP.HERO) : null, LANDED: 1.4 };
+// how each moment plays: speed, fade (seconds in and out), mask 'upper' (his legs keep walking), walk (moving does not
+// cut it), hold (the last pose stays: he lies where he fell)
+const HCL_MOVES = {
+  death: { clip: 'Death01', hold: true },
+  rise: { clip: 'LayToIdle', speed: 1.1, instant: true, out: .25 },
+  wait: { clip: 'Idle_FoldArms_Loop', fade: .35 },
+  chest: { clip: 'Chest_Open', speed: 1.15 },
+  stone: { clip: 'Interact', speed: 1.2 },
+  pickup: { clip: 'PickUp_Table', speed: 1.5, mask: 'upper', walk: true },
+  hitChest: { clip: 'Hit_Chest', mask: 'upper', walk: true },
+  hitHead: { clip: 'Hit_Head', mask: 'upper', walk: true }
+};
+const HCL_fit = h => !!(HCL.lib && h && h.rig instanceof E.Humanoid && h.character !== 'codex');
+/** start a moment (crossfading from whatever clip is on him); o.instant: at full weight from the first frame */
+function HCL_play(h, id, o = {}) {
+  const M = HCL_MOVES[id], c = M && HCL.lib.clip(M.clip); if (!c) return null;
+  const was = h.HCL, from = was && was.w > 0 && h.HCL_pose ? Float32Array.from(h.HCL_pose) : null;
+  h.HCL = { id, c, t: 0, speed: M.speed || 1, fade: M.fade || .12, w: o.instant || M.instant ? 1 : was ? was.w : 0, out: false, hold: !!(M.hold || o.hold), mask: o.full ? null : M.mask || null, walk: !!M.walk, from, blend: from ? .18 : 0, gal: !!o.gal };
+  return h.HCL;
+}
+/** let the clip go: it fades out over `fade` seconds and the rig's own animation takes the body back */
+function HCL_stop(h, fade = .15) { const k = h.HCL; if (k && !k.out) { k.out = true; k.fade = fade; } }
+/** advance the clip and hand this step's pose to the rig (call before the rig updates) */
+function HCL_step(h, dt) {
+  const rig = h.rig, k = h.HCL, L = HCL.lib;
+  if (rig.HCL !== L) { Mocap.drive(rig, L); rig.HCL = L; }   // a new rig (new gear dresses him again) is driven again
+  if (!k) { rig.mocap = null; return; }
+  k.t += dt * k.speed;
+  if (k.t >= k.c.dur && !k.c.loop && !k.hold && !k.out) { k.out = true; k.fade = HCL_MOVES[k.id].out || .2; }
+  k.w = k.out ? k.w - dt / k.fade : Math.min(1, k.w + dt / k.fade);
+  if (k.w <= 0) { h.HCL = null; rig.mocap = null; return; }
+  const pose = L.sample(k.c, k.t, h.HCL_pose || (h.HCL_pose = new Float32Array(L.P * 3)));
+  if (k.from) { k.blend -= dt; if (k.blend <= 0) k.from = null; else L.blend(k.from, pose, 1 - k.blend / .18, pose); }
+  rig.mocap = pose; rig.mocapW = E.ease.inOut(clamp(k.w, 0, 1)); rig.mocapMask = k.mask; rig.mocapBlade = false;
+}
+const HCL_waiting = () => !!(talk.open || (ED.L && ED.L.serving));
+/** the moments that start from his state: dying, getting up after a revive */
+function HCL_auto(h) {
+  const k = h.HCL;
+  if (h.dead) { if ((!k || k.id !== 'death') && (h.z || 0) <= 1) HCL_play(h, 'death'); return; }
+  if (h.HCL_rise) { h.HCL_rise = false; if (!(h.act && h.act.name === 'dropin') && !((h.z || 0) > 1)) HCL_play(h, 'rise'); }   // (dropped in from above, he lands on his feet)
+}
+/** what takes the body back: a roll or an action at once; moving or a flinch (unless the clip walks with him) */
+function HCL_cancel(h) {
+  const k = h.HCL; if (!k || k.out || k.gal || h.dead) return;
+  if (h.dodgeT > 0 || h.act) return HCL_stop(h, .07);
+  if (!k.walk && (Math.hypot(h.vx, h.vy) > 20 || h.hurtT > 0)) return HCL_stop(h, HCL_MOVES[k.id].out || .15);
+  if (k.id === 'wait' && !HCL_waiting()) HCL_stop(h, .3);
+}
+{ const base = updateHero;
+  updateHero = function (h, dt, o) {
+    if (!HCL_fit(h)) return base(h, dt, o);
+    h.HCL_ui = null; HCL_auto(h); HCL_step(h, dt);
+    base(h, dt, o);
+    HCL_cancel(h);
+  };
+}
+/** in town with a panel or a talk open (townLife poses him then, not updateHero): fold the arms, open the chest, work the stone */
+{ const base = townLife;
+  townLife = function (dt) {
+    const h = ED.hero;
+    if (HCL_fit(h) && !h.dead) {
+      const L0 = ED.L, chest = UI.isOpen('stash') && (L0.things || []).find(t => t.kind === 'stash'), stone = UI.isOpen('waystone') && L0.waystone, at = chest || stone;
+      if (at) h.facing = E.approachAng(h.facing, angTo(h, at), dt * 8);
+      const want = chest ? 'chest' : stone ? 'stone' : HCL_waiting() ? 'wait' : null;
+      if (want !== h.HCL_ui) { h.HCL_ui = want; if (want && !(h.HCL && h.HCL.id === want && !h.HCL.out)) HCL_play(h, want); }
+      HCL_step(h, dt);
+    }
+    return base(dt);
+  };
+}
+{ const base = reviveHero;
+  reviveHero = function (h) {
+    const fell = !!(h && (h.dead || (h.HCL && h.HCL.id === 'death')));
+    base(h);
+    if (!HCL_fit(h)) return;
+    if (h.HCL && h.HCL.id === 'death') h.HCL = null;
+    if (fell) h.HCL_rise = true;   // he gets up on his next step (unless he drops in from above)
+  };
+}
+// the YOU DIED panel stops the world: it waits until he has landed, so it never freezes him mid-fall
+{ const base = deathPanelDue; deathPanelDue = h => base(h) && !(h.HCL && h.HCL.id === 'death' && h.HCL.t < HCL.LANDED); }
+BUS.on('pickup', () => {
+  const h = ED.hero; if (!HCL_fit(h) || !h.alive || h.dead || h.act || h.dodgeT > 0 || (h.HCL && !h.HCL.out && !h.HCL.walk)) return;
+  HCL_play(h, 'pickup');
+});
+BUS.on('hurt', e => {
+  const h = ED.hero, hit = (e && e.hit) || {}; if (!e || e.tgt !== h || !HCL_fit(h) || !h.alive || h.dead) return;
+  if ((hit.kb || 0) >= 200 || hit.knockdown || h.act || h.dodgeT > 0 || !(e.dmg > h.maxHp * .12)) return;   // knocked down: the rig's own fall
+  if (h.HCL && !h.HCL.out && !h.HCL.walk) return;
+  HCL_play(h, (h.HCL_hits = (h.HCL_hits || 0) + 1) % 2 ? 'hitChest' : 'hitHead');
+});
+
+/* ---- the gallery's POSES reel: each captured moment, played whole on the spot, then again ---- */
+const HCL_GALLERY = [
+  ['Captured death', 'death', 'Motion capture: a stagger, then flat on his back.'], ['Captured get-up', 'rise', 'Motion capture: up off the ground.'],
+  ['Arms folded', 'wait', 'Waiting while someone talks.'], ['Open the stash', 'chest', 'He bends and lifts the lid.'],
+  ['Use the waystone', 'stone', 'Hands on the stone.'], ['Pick up', 'pickup', 'A quick reach for loot.'],
+  ['Hit in the chest', 'hitChest', 'A heavy blow snaps him back.'], ['Hit in the head', 'hitHead', 'A heavy blow to the head.']
+];
+if (HCL.lib) for (const [name, id, cap] of HCL_GALLERY) GAL_POSES.push([name, { clip: id }, cap]);
+{ const base = galItems;
+  galItems = function () { const ids = base(); return GAL.reel === 3 && !HCL_fit(ED.hero) ? ids.filter(i => !GAL_POSES[i][1].clip) : ids; };
+}
+{ const base = galleryScene.update;
+  galleryScene.update = function (dt) {
+    const h = ED.hero;
+    if (HCL_fit(h)) {
+      const p = GAL.reel === 3 && GAL_POSES[GAL.cur], id = p && p[1].clip, k = h.HCL;
+      if (id) {
+        const again = k && k.gal && k.id === id && !k.c.loop && k.t > k.c.dur + 1.2;   // the end pose holds a moment, then the take runs again
+        if (again) galReset();
+        if (again || !k || !k.gal || k.id !== id || GAL.t < (h.HCL_galT || 0)) HCL_play(h, id, { gal: true, hold: true, full: true, instant: true });
+        h.HCL_galT = GAL.t; HCL_step(h, dt);
+      } else if (k && k.gal) { h.HCL = null; h.rig.mocap = null; }
+    }
+    return base.call(this, dt);
+  };
+}
 
 /* ---------- START: powers listen, the title (or a deep link: #town, #depth-7, #proving, #gallery, #gallery/bestiary/husk) ---------- */
 installPowers();

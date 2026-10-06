@@ -6,7 +6,7 @@
   "outputDirectory": ".",
   "rewrites": [
     { "source": "/", "destination": "/examples/emberdeep.html" },
-    { "source": "/:page(emberdeep|arena|stress-test|perspective-lab|scarfrunner-side)", "destination": "/examples/:page.html" },
+    { "source": "/:page(emberdeep|arena|stress-test|perspective-lab|mocap-lab|scarfrunner-side)", "destination": "/examples/:page.html" },
     { "source": "/kits/:kit(adventure|animlab|brawler|platformer|rpg|shooter)", "destination": "/dist/kits/my-3d2dge-:kit.html" }
   ]
 }

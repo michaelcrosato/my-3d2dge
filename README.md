@@ -59,6 +59,7 @@ The file is 82k tokens in all (140k for the readable full engine, 128k-133k for 
 | **`examples/emberdeep.html`** | **Emberdeep**, the engine's signature game: a hack-and-slash that goes down forever (see below). Deep links: `#town`, `#depth-7`, `#proving`, `#gallery`, or one gallery entry such as `#gallery/bestiary/husk`, `#gallery/skills/whirlwind` or `#gallery/poses/fall`. |
 | `examples/arena.html` | **Emberwell**, an action-RPG arena with WebGPU lighting. One game in four views: isometric (Diablo, Bastion), three-quarter (Zelda, Stardew Valley), top-down and brawler. Keys `1`-`4` or `V` switch, or open `arena.html#threequarter`. |
 | `examples/perspective-lab.html` | One room in every view, with lighting and skeleton toggles |
+| `examples/mocap-lab.html` | Ready-made animation from a 3D library, stored as readable key poses an AI model can read and edit: all 88 free clips of [Quaternius' Universal Animation Library 1 and 2](https://quaternius.com/packs/universalanimationlibrary.html) (CC0) as one set, and the 8 the Emberdeep hero adopted as another (**G** switches). Each plays on a pixel-art look-alike of the libraries' mannequin and, retargeted, on the engine's hero, in every view, in slow motion, frame by frame and with a bone overlay. The AI panel shows the clip as editable text (Apply plays your edit), the catalog a model picks from, and the set's size and accuracy. Deep links: `#Dance_Loop`, `?set=hero`, `?view=side`. See `docs/MOCAP.md`. |
 | `examples/stress-test.html` | Up to 5,000 monsters in stick, HD, skeleton or knight rigs that attack with telegraphed moves and fall when beaten; 30 shadow-casting torches, particle storms, camera distance, zoom and turn, a benchmark and a copyable report |
 | `examples/scarfrunner-side.html` | The standalone side-scrolling prototype that came before the engine |
 
@@ -85,7 +86,8 @@ The file is 82k tokens in all (140k for the readable full engine, 128k-133k for 
   - packs with elements, shared affixes, giants and swarms;
   - bosses built from a boss body, an element and a set of close, zone and aid patterns;
   - item levels that keep scaling.
-- **A gallery.** `#gallery` plays every skill on straw training dummies, every monster's moveset, every boss's entrance, and the hero's full pose vocabulary, in any view and in slow motion.
+- **Captured moments.** The hero plays motion-captured clips (Quaternius, CC0) where code animation had no answer: he staggers and falls flat when he dies, gets up off the ground when revived, folds his arms while someone talks, lifts the stash's lid, works the waystone, reaches for loot while walking and snaps back from a heavy blow. Each is retargeted to his build, so his cape and hair follow (`docs/MOCAP.md`).
+- **A gallery.** `#gallery` plays every skill on straw training dummies, every monster's moveset, every boss's entrance, and the hero's full pose vocabulary and captured moments, in any view and in slow motion.
 - **Challenging.** Bosses usually take a real fight and sometimes a second try, and a level-up heals only part of your life. **For playtesting**, Settings has difficulty sliders for hero damage, life and speed (movement, attacks and casting), the same for monsters, plus density, experience and loot. `__ed.botRun({ to: 10 })` lets an autopilot play depth after depth, and the title screen runs it as a demo when left idle.
 
 **Controls:** WASD or the arrows to move, the mouse to aim; LMB, RMB and 1-4 fire the six skill slots; Space or Shift dodges; Q drinks a potion, E talks or picks up, T opens a portal home; I the bag, K the skills, P the passive tree, Tab the map, Z the loot labels, Esc pauses. Open **Controls** from the title, pause menu, or Settings to rebind keyboard, mouse, and controller buttons. Bindings and controller/touch preferences save automatically; conflicts are reported and defaults can be restored. Menu navigation remains available even after movement is rebound.
@@ -247,6 +249,7 @@ npm run test:smoke -- --secs 2    # title, town, gallery, proving, depths 1–20
 npm run test:smoke -- --character codex --secs 2 --out check-output/codex-smoke
 npm run test:codex                # character, spells, progression, saves and device checks
 npm run test:agent                # agent edition: header examples and a coverage scene on both engines, API subset
+npm run test:mocap                # both animation sets on the mannequin and the hero in every view, and the hero's captured moments in Emberdeep
 ```
 
 Every browser tool accepts `CHROMIUM_PATH` to use an already installed Chromium instead of Playwright's download. In Claude Code cloud sessions, `.claude/hooks/session-start.sh` runs `npm install` and sets it for you.
@@ -271,6 +274,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 8,400 tokens, with three complete example games.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 - `docs/ANIMATION-RESEARCH.md`: famous animations for every view and genre the engine covers, what the engine can already draw, and a ranked list of animations to ship ready-made.
+- `docs/MOCAP.md`: importing ready-made skeletal animation (glTF) into the readable key-pose format with `tools/anim-import.mjs`, animation sets and `tools/anim-set.mjs`, retargeting onto the engine's rigs, the hero's captured moments, and which animation libraries are safe to use.
 
 ## License
 
