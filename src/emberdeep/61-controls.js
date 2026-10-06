@@ -520,6 +520,37 @@ addEventListener("blur", pauseOnFocusLoss);
 document.addEventListener("visibilitychange", () => {
 	if (document.hidden) pauseOnFocusLoss();
 });
+/* Full screen: the game fills the phone without the browser's bars. On a touch screen, a tap on the title menu asks for
+   it (a browser only goes full screen from a tap or a click); FULL SCREEN on the title and in the pause menu turn it
+   on and off, and leaving it there is remembered. An iPhone has no full screen for a web page:
+   there, Add to Home Screen opens Emberdeep as an app, with no browser bars (the page's web-app tags). */
+const FS = {
+	can: () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled),
+	on: () => !!(document.fullscreenElement || document.webkitFullscreenElement),
+	quiet: (p) => p && p.catch && p.catch(() => {}),
+	enter() {
+		const el = document.documentElement,
+			f = el.requestFullscreen || el.webkitRequestFullscreen;
+		if (f && !FS.on()) try { FS.quiet(f.call(el, { navigationUI: "hide" })); } catch (e) {}
+	},
+	exit() {
+		const f = document.exitFullscreen || document.webkitExitFullscreen;
+		if (f && FS.on()) try { FS.quiet(f.call(document)); } catch (e) {}
+	},
+	toggle() {
+		OPT.fullscreen = !FS.on();
+		saveOpts();
+		if (OPT.fullscreen) FS.enter();
+		else FS.exit();
+	},
+	/** from a tap on the title menu: a phone or a tablet (a finger is its main pointer) goes full screen unless the
+	 *  player left it */
+	auto() {
+		if (OPT.fullscreen !== false && FS.can() && matchMedia("(pointer: coarse)").matches) FS.enter();
+	},
+};
+for (const ev of ["fullscreenchange", "webkitfullscreenchange"])
+	document.addEventListener(ev, () => syncTouchControls(true));
 const TOUCH = { el: null, key: "" };
 function syncTouchControls(force = false) {
 	const show =
@@ -535,6 +566,7 @@ function syncTouchControls(force = false) {
 		CONTROL.size,
 		CONTROL.handed,
 		CONTROL.opacity,
+		FS.on(),
 	].join(":");
 	if (!force && key === TOUCH.key) return;
 	TOUCH.key = key;
@@ -546,6 +578,7 @@ function syncTouchControls(force = false) {
 	game.input.touchEnabled = show && !panel;
 	if (!show) {
 		TOUCH.el = null;
+		HUD_layout();
 		return;
 	}
 	const root = formElement("div", "", document.getElementById("stage"), {
@@ -565,7 +598,8 @@ function syncTouchControls(force = false) {
 			formElement("button", label, actions, { type: "button", "data-act": a });
 	}
 	const bar = formElement("div", "", root, { class: "ed-touch-bar" });
-	for (const [a, label] of ED.mode === "gallery" && !UI.modal
+	if (!(ED.mode === "title" && !UI.modal))   // the title's menu is all on the canvas (FULL SCREEN too)
+		for (const [a, label] of ED.mode === "gallery" && !UI.modal
 		? [
 				["menuLeft", "Previous"],
 				["menuRight", "Next"],
@@ -584,5 +618,56 @@ function syncTouchControls(force = false) {
 				])
 		formElement("button", label, bar, { type: "button", "data-act": a });
 	game.input.bindButtons(root);
+	HUD_layout();
 }
+/* The HUD's frame (UI.frame, in screen pixels) on a phone. The safe areas first: the picture fills the whole screen,
+   under the notch, the status bar and the home bar, and the HUD keeps out of them. Then the touch buttons: held
+   upright, the action buttons take the bottom of the screen and the HUD bar (orbs, skills, xp) rides just above them;
+   on a wide screen they stand in the ember orb's corner, above the HUD bar. The buttons at the top push the minimap,
+   the boss bar and the notices down (barB). Runs when the buttons change and when the screen does. */
+const SAFE = formElement("div", "", document.body, { "aria-hidden": "true" });
+SAFE.style.cssText =
+	"position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)";
+function HUD_layout() {
+	const sc = game.screen,
+		F = UI.frame,
+		rc = canvas.getBoundingClientRect(),
+		cs = getComputedStyle(SAFE),
+		pad = (v) => parseFloat(v) || 0;
+	if (!(rc.width > 0 && rc.height > 0)) return;
+	// page (CSS) pixels to screen pixels and back
+	const sx = (x) => ((x - rc.left) * sc.dpr - sc.OX) / sc.S,
+		sy = (y) => ((y - rc.top) * sc.dpr - sc.OY) / sc.S,
+		py = (y) => rc.top + (y * sc.S + sc.OY) / sc.dpr;
+	F.l = Math.max(0, Math.ceil(sx(rc.left + pad(cs.paddingLeft))));
+	F.r = Math.max(0, Math.ceil(sc.W - sx(rc.right - pad(cs.paddingRight))));
+	F.t = Math.max(0, Math.ceil(sy(rc.top + pad(cs.paddingTop))));
+	F.b = Math.max(0, Math.ceil(sc.H - sy(rc.bottom - pad(cs.paddingBottom))));
+	const acts = TOUCH.el && TOUCH.el.querySelector(".ed-touch-actions"),
+		bar = TOUCH.el && TOUCH.el.querySelector(".ed-touch-bar"),
+		tall = rc.height > rc.width;
+	F.barB = bar && bar.childElementCount ? Math.max(0, Math.ceil(sy(bar.getBoundingClientRect().bottom))) : 0;
+	if (acts) {
+		acts.style.removeProperty("--touch-size");
+		if (tall) {
+			acts.style.bottom = "max(10px, env(safe-area-inset-bottom, 0px))";
+			F.b = Math.max(F.b, Math.ceil(sc.H - sy(acts.getBoundingClientRect().top) + 3));
+		} else {
+			acts.style.bottom =
+				Math.max(8, Math.ceil(rc.bottom - py(sc.H - F.b - 42))) + "px";   // the orbs reach 39 px up
+			// a short wide screen (a phone on its side, a notch and a home bar taking their share): smaller buttons, so
+			// the grid fits between the minimap and the HUD bar (the menu buttons and the minimap stay on the right for
+			// either hand; a left hand's grid has the left side to itself)
+			const a = acts.getBoundingClientRect(),
+				mapB = py(F.t + HUD_under() + 4 + 54) + 4;
+			if (CONTROL.handed !== "left" && a.top < mapB)
+				acts.style.setProperty("--touch-size", Math.max(44, Math.floor((a.bottom - mapB - 10) / 3)) + "px");
+		}
+	}
+	// in play the hero sits in the middle of the open ground between them (kept while a panel is up, so the view holds
+	// still); the title and the gallery frame their own scenes
+	if (!["town", "level", "proving"].includes(ED.mode)) game.cam.offset = null;
+	else if (acts || !TOUCH.el) game.cam.offset = [Math.round((F.l - F.r) / 2), Math.round((Math.max(F.t, acts && tall ? F.barB : 0) - F.b) / 2)];
+}
+game.screen.listeners.push(HUD_layout);
 applyControls(false);

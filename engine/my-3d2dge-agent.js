@@ -599,17 +599,19 @@ class Screen {
     this.resize();
     addEventListener('resize', () => this.resize());
   }
-  fixedRes() {
-    const r = this.o.res; if (!r) return null;
+  /** the sizing options in force: o.portrait's fields over the game's while the screen is taller than wide */
+  options(pw, ph) { const o = this.o; return o.portrait && ph > pw ? Object.assign({}, o, o.portrait) : o; }
+  fixedRes(o = this.o) {
+    const r = o.res; if (!r) return null;
     const v = Array.isArray(r) ? r : E.RES[String(r).toLowerCase()];
     if (!v) { warn('res:' + r, 'unknown res "' + r + '". Use one of ' + Object.keys(E.RES).join(', ') + ' or [width, height]'); return null; }
     return [Math.max(16, v[0] | 0), Math.max(16, v[1] | 0)];
   }
   resize() {
-    const o = this.o, dpr = Math.min(window.devicePixelRatio || 1, 3), rc = this.canvas.getBoundingClientRect();
-    const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr));
-    this.canvas.width = pw; this.canvas.height = ph; this.dpr = dpr;
-    const fix = this.fixedRes();
+    const dpr = Math.min(window.devicePixelRatio || 1, 3), rc = this.canvas.getBoundingClientRect();
+    const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this.options(pw, ph);
+    this.canvas.width = pw; this.canvas.height = ph; this.dpr = dpr; this.portrait = ph > pw;
+    const fix = this.fixedRes(o);
     if (fix) { this.W = fix[0]; this.H = fix[1]; this.S = Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1]))); }
     else { this.S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW))); this.W = Math.min(o.maxW, Math.ceil(pw / this.S)); this.H = Math.min(o.maxH, Math.ceil(ph / this.S)); }
     this.OX = Math.floor((pw - this.W * this.S) / 2); this.OY = Math.floor((ph - this.H * this.S) / 2);
@@ -1077,7 +1079,7 @@ class Game {
   }
   static _makeCanvas() {
     const c = document.createElement('canvas'); c.id = 'screen';
-    c.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;display:block;image-rendering:pixelated;background:#000;touch-action:none';
+    c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;background:#000;touch-action:none';
     document.body.style.margin = '0'; document.body.appendChild(c); return c;
   }
   get W() { return this.screen.W; }

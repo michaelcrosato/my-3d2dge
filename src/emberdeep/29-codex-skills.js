@@ -679,8 +679,10 @@ BUS.on("draw", ({ r }) => {
 	if (!h || h.character !== "codex" || UI.hideHud || ED.mode === "gallery")
 		return;
 	r.overlay((g) => {
-		const x = r.W - 89,
-			y = r.H - 45;
+		const f = HUD_in(g, r);
+		try {
+		const x = f.W - 89,
+			y = f.H - 45;
 		for (let i = 0; i < 3; i++) {
 			const c = i < h.manuscript ? CX.gold : "#40384d";
 			px.poly(
@@ -698,5 +700,8 @@ BUS.on("draw", ({ r }) => {
 			font: "tiny",
 			align: "center",
 		});
+		} finally {
+			HUD_out(g);
+		}
 	});
 });

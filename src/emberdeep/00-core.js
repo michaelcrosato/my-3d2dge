@@ -26,7 +26,7 @@ const qs = new URLSearchParams(location.search);
 
 /* ---------- game ---------- */
 const canvas = document.getElementById('screen');
-const BASE = { minH: 220, minW: 320, maxW: 560, maxH: 330 };
+const BASE = { minH: 220, minW: 320, maxW: 640, maxH: 330, portrait: { maxH: 1000 } };   // wide enough for a phone on its side (about 2.2 : 1); held upright, its picture grows to fill the 9:16 screen
 /* keys (Diablo IV style): WASD moves, the mouse aims; LMB / RMB / 1-4 are the six skill slots, Space dodges,
    Q drinks, E interacts, T opens a town portal, I bag, K skills, P passives, Tab map, Esc menu */
 const INPUT = {

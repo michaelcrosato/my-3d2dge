@@ -198,11 +198,11 @@ const galleryScene = {
     drawHero(ED.hero, r); drawFx(r); drawThings(L0, r);
     BUS.emit('draw', { r, L: L0 });   // what skills leave behind (blades, rifts, totems) and the powers' own light
     L.add(L0.w * 8, L0.h * 8, 3, 70, .5, { color: '#4fe0cc' });
-    r.overlay(g => {
-      const W = r.W, H = r.H, cx = W / 2, items = galItems();
-      px.blend(g, .6, 'normal', () => { px.rect(g, 0, 0, W, 31, '#05040a'); px.rect(g, 0, H - 38, W, 38, '#05040a'); });   // bands behind the text, so it reads on any floor
-      E.font.title(g, 'GALLERY', cx, 4, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
-      GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - (GAL.reels.length - 1) / 2) * 60, 22, i === GAL.reel ? GOLD : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }));
+    r.overlay(g => { const f = HUD_in(g, r); try {   // inside a phone's safe frame, the top band under its touch buttons
+      const W = f.W, H = f.H, cx = W / 2, items = galItems(), T = HUD_under();
+      px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, 31 + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor
+      E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
+      GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - (GAL.reels.length - 1) / 2) * 60, 22 + T, i === GAL.reel ? GOLD : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }));
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
@@ -211,7 +211,7 @@ const galleryScene = {
       E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
       E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
       E.font.text(g, (GAL.i + 1) + ' / ' + items.length + '   ← → pick   ↑ ↓ reel   ENTER replay   Z slow' + (GAL.slow ? ' (ON)' : '') + '   V view   ESC back', cx, H - 6, '#a89ec8', { align: 'center', font: 'tiny', outline: false });
-    });
+    } finally { HUD_out(g); } });
     drawPanels(r);
   }
 };

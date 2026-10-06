@@ -63,6 +63,29 @@ async function canvasButton(p, label, touch = false) {
 }
 const save = (p) =>
 	p.evaluate(() => JSON.stringify(My3D2dge.store.get("ed:save")));
+/* the phone layout, in page pixels: whether the picture fills the screen, where the HUD bar, the action buttons, the
+   top buttons and the minimap sit (UI.frame: the HUD's frame, 61-controls HUD_layout) */
+const phoneLayout = (p) =>
+	p.evaluate(() => {
+		const sc = __ed.game.screen,
+			F = __ed.UI.frame,
+			rc = sc.canvas.getBoundingClientRect(),
+			py = (y) => rc.top + (y * sc.S + sc.OY) / sc.dpr,
+			a = document.querySelector(".ed-touch-actions")?.getBoundingClientRect(),
+			b = document.querySelector(".ed-touch-bar")?.getBoundingClientRect(),
+			under = F.barB > 0 ? Math.max(0, Math.ceil(F.barB - F.t) + 1) : 0;
+		return {
+			fills:
+				sc.OX <= 0 && sc.OY <= 0 && sc.W * sc.S >= sc.canvas.width - sc.S && sc.H * sc.S >= sc.canvas.height - sc.S,
+			hudTop: py(sc.H - F.b - 39),   // the orbs' tops
+			hudBottom: py(sc.H - F.b - 5),
+			gridTop: a && a.top,
+			gridBottom: a && a.bottom,
+			barBottom: b && b.bottom,
+			mapTop: py(F.t + under + 4),
+			mapBottom: py(F.t + under + 58),
+		};
+	});
 async function check(name, fn) {
 	await fn();
 	checks.push(name);
@@ -531,13 +554,19 @@ try {
 		async () => {
 			const mobile = await browser.newContext({
 				viewport: { width: 390, height: 844 },
+				deviceScaleFactor: 3,   // a phone's screen (an iPhone 14's)
 				isMobile: true,
 				hasTouch: true,
 			});
 			const p = await mobile.newPage();
 			track(p);
 			await ready(p, "");
+			// held upright, the title fills the phone, and a touch screen that can go full screen offers it
+			assert.ok((await phoneLayout(p)).fills);
+			assert.ok(await p.evaluate(() => __ed.UI.hot.some((h) => h.label === "FULL SCREEN")));
 			await canvasButton(p, "CONTROLS", true);
+			// any tap on the title menu takes a phone full screen (a browser only allows it from a tap)
+			assert.ok(await p.evaluate(() => !!document.fullscreenElement));
 			assert.equal(await p.locator("dialog").count(), 1);
 			assert.ok(
 				await p
@@ -567,6 +596,13 @@ try {
 			await p.waitForFunction(() => __ed.ED.mode === "town");
 			await p.waitForTimeout(1200);
 			assert.equal(await p.locator(".ed-touch-actions button").count(), 9);
+			// the picture fills the upright screen: the HUD bar rides over the action buttons, the minimap sits
+			// under the top buttons, and the camera keeps the hero in the open ground between them
+			const up = await phoneLayout(p);
+			assert.ok(up.fills, "the picture fills the upright screen");
+			assert.ok(up.hudBottom <= up.gridTop, "the HUD bar is above the action buttons");
+			assert.ok(up.mapTop >= up.barBottom, "the minimap is under the top buttons");
+			assert.ok(await p.evaluate(() => __ed.game.cam.offset[1] < 0));
 			await p.screenshot({ path: out + "/mobile-portrait.png" });
 			const cdp = await mobile.newCDPSession(p),
 				attack = await p.locator('[data-act="s0"]').boundingBox();
@@ -608,6 +644,10 @@ try {
 				),
 			);
 			await p.locator('[data-act="pause"]').tap();
+			// leaving full screen from the pause menu is remembered (the title then leaves the phone as it is)
+			await canvasButton(p, "LEAVE FULL SCREEN", true);
+			await p.waitForFunction(() => !document.fullscreenElement);
+			assert.equal(await p.evaluate(() => My3D2dge.store.get("ed:opt").fullscreen), false);
 			await canvasButton(p, "CONTROLS", true);
 			await p
 				.getByRole("combobox", { name: "Action buttons on", exact: true })
@@ -617,6 +657,11 @@ try {
 			assert.equal(await p.evaluate(() => __ed.game.input.stickSide), "right");
 			await p.setViewportSize({ width: 844, height: 390 });
 			await p.waitForTimeout(300);
+			// on its side the action buttons stand above the HUD bar, under the minimap
+			const side = await phoneLayout(p);
+			assert.ok(side.fills, "the picture fills the screen on its side");
+			assert.ok(side.gridBottom <= side.hudTop, "the action buttons are above the HUD bar");
+			assert.ok(side.gridTop >= side.mapBottom, "the action buttons are under the minimap");
 			assert.ok(
 				await p.locator(".ed-touch-actions").evaluate((el) => {
 					const r = el.getBoundingClientRect();
