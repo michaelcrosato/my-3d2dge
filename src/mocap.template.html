@@ -8,9 +8,10 @@
   Built with the my-3D2dge engine: https://github.com/michaelcrosato/my-3d2dge
   This file is standalone: engine, animation sets and lab are inlined below.
   Animations: Universal Animation Library 1 and 2 by Quaternius (quaternius.com) and Mesh2Motion's human animations
-  (mesh2motion.org), all CC0 1.0, imported into the readable format by tools/anim-import.mjs (src/mocap/sets/); the
-  hero's set is picked from the Quaternius set by tools/anim-set.mjs. Every clip names its library (src) and, for a
-  re-export, the clip it was made from (orig).
+  (mesh2motion.org), all CC0 1.0, and moments of the CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu,
+  free for all uses), imported into the readable format by tools/anim-import.mjs (src/mocap/sets/); the hero's set is
+  picked from the Quaternius and Mesh2Motion sets by tools/anim-set.mjs. Every clip names its library (src), for a
+  re-export the clip it was made from (orig), and for a capture database the take and the stretch of it (take).
 -->
 <style>
 :root{
@@ -166,6 +167,7 @@ button:disabled{opacity:.45;cursor:default}
 <!-- @inline src/mocap/readable.js -->
 <!-- @inline src/mocap/sets/quaternius.js -->
 <!-- @inline src/mocap/sets/mesh2motion.js -->
+<!-- @inline src/mocap/sets/cmu.js -->
 <!-- @inline src/mocap/sets/hero.js -->
 <!-- @inline src/mocap/mocap.js -->
 <!-- @inline src/mocap.game.js -->

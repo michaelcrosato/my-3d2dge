@@ -4,3 +4,4 @@ check-output/
 *:Zone.Identifier
 .vercel
 .env*
+.cache/

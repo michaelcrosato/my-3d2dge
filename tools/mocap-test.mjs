@@ -61,6 +61,9 @@ const report = await page.evaluate(async () => {
       if (c.orig) { const [os, oc] = c.orig.split('/'), S = M.SETS[(os || '').toLowerCase()];
         if (!oc) out.bad.push(id + ' ' + name + ': orig "' + c.orig + '" is not SET/clip');
         else if (S && !S.clip(oc)) out.bad.push(id + ' ' + name + ': orig ' + c.orig + ' is not a clip of ' + os); }
+      // a clip cut from a capture database names the take and the seconds: '13_29 2.30-3.42'
+      if (c.take !== undefined) { const m = /^(\d+_\d+) (\d+\.\d\d)-(\d+\.\d\d)$/.exec(c.take);
+        if (!m || !(+m[3] > +m[2])) out.bad.push(id + ' ' + name + ': take "' + c.take + '" is not TAKE FROM-TO (seconds)'); }
       if (!rest) out.bad.push(id + ': no rest body');
     }
     if (out.sets[id].fit > 20) out.bad.push(id + ': clips stray ' + out.sets[id].fit.toFixed(1) + ' mm from their captures on average (more than 20)');
