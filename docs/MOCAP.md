@@ -9,7 +9,7 @@ my-3D2dge animates with code, but its rigs can also play animation made for 3D g
   - 16 it motion-captured itself with a Sony mocopi suit (fishing, golf, cheers, salutes, turns).
 
   That makes 177 clips, and every one records which origin it came from (see [Where each clip came from](#where-each-clip-came-from)).
-- **HERO** (`src/mocap/sets/hero.js`): the 8 clips Emberdeep's hero, the Wanderer, has adopted (see [The hero's clips](#the-heros-clips-in-emberdeep)). It is a subset of QUATERNIUS, picked with `tools/anim-set.mjs`, and it is the only set the game ships.
+- **HERO** (`src/mocap/sets/hero.js`): the 15 clips Emberdeep's hero, the Wanderer, has adopted (see [The hero's clips](#the-heros-clips-in-emberdeep)): 8 from QUATERNIUS and 7 from MESH2MOTION, picked with `tools/anim-set.mjs`. It is the only set the game ships.
 
 `examples/mocap-lab.html` plays any of the sets (**G** switches) on two figures:
 
@@ -62,7 +62,7 @@ libraries (.glb) ──tools/anim-import.mjs──▶ src/mocap/sets/quaternius.
    |---|---|---|---|---|---|
    | QUATERNIUS | 88 | 1,295 | 378 KB | 72 KB | ~190k for all; a typical clip ~2,100 |
    | MESH2MOTION | 177 | 2,798 | 800 KB | 155 KB | ~400k for all |
-   | HERO | 8 | 115 | 38 KB | 9 KB | ~17k |
+   | HERO | 15 | 238 | 74 KB | 17 KB | ~34k |
 
    For comparison, the old raw form (every frame of the first library's 46 clips as base64 Int16) was 591 KB, 232 KB gzipped, and unreadable.
 4. **Play**: `const lib = Mocap.load(window.MOCAP.HERO)`. Then:
@@ -257,21 +257,40 @@ Side by side in motion the readable version could not be told from the capture, 
 
 ## The hero's clips in Emberdeep
 
-`src/emberdeep/96-hero-clips.js` plays the HERO set on the Wanderer, each clip at a moment his procedural animation had no answer for:
+`src/emberdeep/96-hero-clips.js` plays the HERO set on the Wanderer, each clip at a moment his procedural animation had no answer for. The set is picked from two sets:
 
-| Moment | Clip | When |
-|---|---|---|
-| death | `Death01` | he dies: a stagger back, then flat on his back. The YOU DIED panel waits until he has landed. |
-| get-up | `LayToIdle` | revived (back in town, a retry, the developer's revive): he gets up off the ground. Dropped in from above, he lands on his feet instead. |
-| arms folded | `Idle_FoldArms_Loop` | someone talks to him, or a shopkeeper serves him. |
-| open the stash | `Chest_Open` | the stash's panel opens: he turns to the chest, bends and lifts the lid. |
-| use the waystone | `Interact` | the waystone's panel opens: he turns to it and works it with his hands. |
-| pick up | `PickUp_Table` | loot goes in his bag: a quick reach with the upper body, so he keeps walking. |
-| heavy blow | `Hit_Chest`, `Hit_Head` | a hit for more than 12% of his life that does not knock him down: the upper body snaps back while his legs take the stagger. |
+```
+npm run mocap:set -- src/mocap/sets/quaternius.js src/mocap/sets/mesh2motion.js --name HERO --title Hero \
+  --clips "QUATERNIUS:Death01,...,Land_Three_Point,Death_A,..." --out src/mocap/sets/hero.js --credit "..."
+```
 
-Moving, rolling, attacking or a flinch takes the body back at once: the clip fades out in a few frames. Codex has his own rig and plays none of them. The gallery's POSES reel plays each one (`#gallery/poses/captured-death`, `captured-get-up`, `arms-folded`, `open-the-stash`, `use-the-waystone`, `pick-up`, `hit-in-the-chest`, `hit-in-the-head`).
+A name both sets have is picked as `SET:Clip`. Each clip keeps its `src`, so the hero's set still says where every clip came from.
 
-To adopt another clip: add it to the `anim-set.mjs` command above, re-run it, and give it a moment in `HCL_MOVES` and a trigger.
+| Moment | Clip | Library | When |
+|---|---|---|---|
+| death | `Death01` | Quaternius | A plain killing blow: a stagger back, then flat on his back. |
+| worn down | `Death_A` | Mesh2Motion, hand-animated | The killing blow was a tick of poison, fire or bleeding: he clutches his chest and sinks onto his side (played 1.4× fast). |
+| crushed | `Death_B` | Mesh2Motion, hand-animated | A crushing blow kills him (a knockdown, a boss, or half his life at once): thrown back off his feet. |
+| get-up | `LayToIdle` | Quaternius | Revived (back in town, a retry, the developer's revive): he gets up off the ground. |
+| landing | `Land_Three_Point` | Mesh2Motion, hand-animated | He drops in from above (every new depth, the waystone, the first arrival): a three-point landing, from the moment his feet touch. |
+| nod, then listening | `Head Nod`, `Idle Listening` | Mesh2Motion, hand-animated | Someone talks to him: he nods, then listens, weight on one leg and a hand on the hip. |
+| arms folded | `Idle_FoldArms_Loop` | Quaternius | A shopkeeper serves him. |
+| open the stash | `Chest_Open` | Quaternius | The stash's panel opens: he turns to the chest, bends and lifts the lid. |
+| use the waystone | `Interact` | Quaternius | The waystone's panel opens: he turns to it and works it with his hands. |
+| pick up | `PickUp_Table` | Quaternius | Loot goes in his bag: a quick reach with the upper body, so he keeps walking. |
+| heavy blow | `Hit_Chest`, `Hit_Head` | Quaternius | A hit for more than 12% of his life that does not knock him down: the upper body snaps back while his legs take the stagger. |
+| boss victory | `Victory` | Mesh2Motion, hand-animated | A boss falls: he jumps with a fist raised. |
+| level up | `Victory Fist Pump` | Mesh2Motion, hand-animated | He gains a level: a fist pump. |
+
+- **The YOU DIED panel** waits until he is down, whichever fall plays (each death records the clip time by which it lands).
+- **The two celebrations** wait up to 3 seconds for him to stand still, so they never cut into a fight.
+- **Moving, rolling, attacking or a flinch** takes the body back at once: the clip fades out in a few frames.
+- **Codex** has his own rig and plays none of them.
+- **The gallery's POSES reel** plays each one: `#gallery/poses/captured-death`, `worn-down`, `crushed`, `captured-get-up`, `landing`, `head-nod`, `listening`, `arms-folded`, `open-the-stash`, `use-the-waystone`, `pick-up`, `hit-in-the-chest`, `hit-in-the-head`, `boss-victory`, `level-up`.
+
+**To adopt another clip:**
+1. Add it to the `anim-set.mjs` command above and run it again.
+2. Give the clip a moment in `HCL_MOVES`, and a trigger.
 
 ## Looking ahead
 

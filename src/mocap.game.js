@@ -166,7 +166,7 @@ function buildList() {
       const op = document.createElement('option'); op.value = n; op.textContent = b.textContent; og.appendChild(op);
     }
   }
-  $('setNote').textContent = lib.names.length + ' clips' + (lib.set.from ? ', picked from the ' + lib.set.from.toLowerCase() + ' set' : '') + '. ' + (lib.set.credit || '') + ' ★ the core set.';
+  $('setNote').textContent = lib.names.length + ' clips' + (lib.set.from ? ', picked from the ' + [].concat(lib.set.from).map(n => (SETS[n.toLowerCase()] && SETS[n.toLowerCase()].set.title) || n.toLowerCase()).join(' and ') + ' set' + ([].concat(lib.set.from).length > 1 ? 's' : '') : '') + '. ' + (lib.set.credit || '') + ' ★ the core set.';
 }
 pick.addEventListener('change', () => play(pick.value));
 function syncList() {
