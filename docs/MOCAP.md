@@ -12,9 +12,12 @@ my-3D2dge animates with code, but its rigs can also play animation made for 3D g
 
 Both work in every view, at any camera turn or zoom, in slow motion and frame by frame.
 
+To bring in another library, follow [Adding a library, step by step](#adding-a-library-step-by-step); [Where to get more animation](#where-to-get-more-animation) lists the sources, what they cost and what each one takes.
+
 ## Pipeline
 
 ```
+.blend / .fbx / .bvh ──tools/to-glb.py──▶ .glb
 libraries (.glb) ──tools/anim-import.mjs──▶ src/mocap/sets/quaternius.js ──tools/anim-set.mjs──▶ src/mocap/sets/hero.js
                                                      │                                                    │
                                                      └──────────── Mocap.load(set) ◀──────────────────────┘
@@ -67,6 +70,79 @@ libraries (.glb) ──tools/anim-import.mjs──▶ src/mocap/sets/quaternius.
 5. **Draw or drive**:
    - `new Mocap.Mannequin(lib, { height }).draw(g, ox, oy, view, pose, facing)` draws the look-alike. It is built from shaded capsules sorted by camera depth, the way the engine's HD rigs are drawn.
    - `Mocap.drive(humanoid, lib)` makes a `Humanoid` take `rig.mocap = pose` after it poses itself.
+
+## Adding a library, step by step
+
+This is the whole process of translating a 3D animation library into our format. Each step names its tool. Everything runs in Node, except the conversion from Blender, FBX or BVH files.
+
+**1. Check the license.** The converted set is committed to this public repository and ships inside games, so the source must allow sharing derived data.
+- CC0 is ideal.
+- CC BY works, with the credit in the set (`--credit`) and the README.
+- "No derivatives", "non-commercial" and Mixamo-style terms are out.
+
+See [Where to get more animation](#where-to-get-more-animation).
+
+**2. Get the files to where the tools run.** Keep source files out of this repository: Library 1 Pro is 41 MB, and only the converted set is committed.
+- **On your machine:** anywhere on disk.
+- **In a Claude Code cloud session:** put the zip in a private GitHub repository the session can add, or give a direct download link. A repository is the simplest channel for a 40–50 MB file. The Google Drive connector cannot carry files this large.
+
+**3. Convert to GLB, if it isn't one.** `tools/anim-import.mjs` reads glTF binary only. `tools/to-glb.py` converts `.blend`, `.fbx` and `.bvh` files with Blender's Python module, so no Blender install is needed:
+
+```
+python3 -m venv /tmp/bpyenv && /tmp/bpyenv/bin/pip install bpy              # once: bpy 5.x needs Python 3.11 (about 1 GB)
+/tmp/bpyenv/bin/python tools/to-glb.py library.blend library.glb --list     # what is inside: armatures, meshes, actions
+/tmp/bpyenv/bin/python tools/to-glb.py library.blend library.glb
+```
+
+- Every action in the file becomes one clip.
+- A Rigify source file also carries control bones; `--deform-only` keeps only the `DEF-` bones the importer maps.
+- A file without a skinned mesh (a `.bvh`, or a `.blend` that links its mesh from another file) still imports. The mesh only shapes the look-alike mannequin.
+
+**4. Inspect it.** `npm run mocap:import -- library.glb --list` prints the rig it recognises, the clips and the bones, and writes nothing.
+- **`rig rigify` or `rig unreal`:** go on to step 5.
+- **`rig not recognised`:** add the skeleton to `RIGS` in `tools/anim-import.mjs`.
+  - A map names the bone for each body point: the pelvis, the spine and chest, the neck and head, and per side the collarbone, upper arm, forearm, hand, index, middle and pinky knuckles, thigh, shin, foot and toes.
+  - Bone names match whatever their case.
+  - Once the map is in, a contact sheet (step 7) and the fit (step 6) show whether it is right.
+
+**5. Import into a set.** Use one set per source family (QUATERNIUS, MESH2MOTION...), so each keeps its own credit:
+
+```
+npm run mocap:import -- ual1-pro.glb ual2-source.glb --sources UAL1,UAL2 --name QUATERNIUS \
+  --catalog src/mocap/catalogs/quaternius.json --out src/mocap/sets/quaternius.js
+```
+
+- **Order matters.** A clip whose name an earlier file already took is skipped. A bigger edition of a library (Library 1 Pro also holds the Standard clips) goes in place of the smaller one, not after it.
+- **The rest pose.** Each library's body is measured from its T-pose or `Rest Pose` clip, and `--rest` names another (one per file, comma-separated). Without one, the importer uses the first clip's first frame. That still gives the right proportions, but it tilts the reference posture if that clip starts bent. On Mesh2Motion's addon clips, measuring from the right rest pose cut the average error from about 32 mm to 19.
+- **Options.** `--tol` (default 30 mm) is the key-pose budget; `--clips A,B` imports only those clips.
+
+**6. Read the fit.**
+- The importer prints, for each library, the spine shares it fitted.
+- The set records each clip's average and worst error against its capture (`fit`). Our sets average 14 mm; one pixel is about 24 mm at the default zoom.
+- `npm run test:mocap` fails a clip that averages over 30 mm or reaches 300 mm at worst. Look at those in the lab, and leave them out (`--clips`) if they read wrong.
+- The usual culprits are hard wrist bends (the format treats the hand as a straight continuation of the forearm), flips and rolls.
+
+**7. Write the catalog.** A model picks clips by their one-line descriptions, so every clip needs one, written from watching it.
+
+```
+npm run mocap:sheet -- src/mocap/sets/quaternius.js --uncataloged src/mocap/catalogs/quaternius.json
+```
+
+- This draws contact sheets into `check-output/anim-sheets/`: each clip the catalog lacks, as a row of eight frames from start to end.
+- For each clip, add `"Name": ["tags", "what the body does"]` to the catalog, then import again so the words go into the set.
+- **Tags** are lowercase words the lab groups by: idle, walk, run, crouch, jump, dodge, climb, slide, attack, stance, block, shield, sword, unarmed, magic, gun, throw, hurt, death, getup, interact, work, item, chest, carry, eat, farm, talk, emote, gesture, sit, swim, zombie, reference. Add any others that help a search (air, prop, root-motion).
+- **Describe the body, not the intent.** "Bends forward and lifts a chest's lid with both hands" is something a model can match to a moment in a game.
+
+**8. Add it to the lab.** Add one line to `src/mocap.template.html`, next to the other sets: `<!-- @inline src/mocap/sets/mesh2motion.js -->`. The lab makes a button for every set it carries, and `tools/mocap-test.mjs` checks every one. Then run `npm run build` and look through the clips.
+
+**9. Test and commit.** Run `npm test`. Commit the set and the catalog, never the source files, and add the source and its license to the table below.
+
+**10. Use it in a game.** A game ships only the clips it plays: `npm run mocap:set` picks them into a small set (as the hero's), and the game inlines that set.
+
+**What it costs:**
+- every 100 clips adds about 450 KB to the lab (85 KB gzipped);
+- a model reading one clip spends about 2,200 tokens;
+- the catalog grows by about 27 tokens per clip.
 
 ## Retargeting onto a Humanoid
 
@@ -181,24 +257,31 @@ These are the questions that get harder to change once games and models depend o
 
 - **The hero's face and hair follow `facing`,** not the clip's head (see 3 above). The mannequin uses the clip's own face direction.
 - **Fingers are not imported.** Hands are fists, which suits pixel art at this size.
-- **Two bone maps:** Rigify `DEF-` bones and Unreal-style names. Another rig (Mixamo's, CMU BVH) needs its own map in `tools/anim-import.mjs`, plus a BVH reader for BVH files.
+- **Two bone maps:** Rigify `DEF-` bones and Unreal-style names (any case). Another skeleton (CMU's, 100STYLE's) needs its own map in `tools/anim-import.mjs`; `tools/to-glb.py` already turns their BVH and FBX files into GLB.
 - **The mannequin's body is measured from the first library's mesh.** The second library's skeleton has the same proportions, so its clips play on the same figure.
 
-## Which libraries are safe
+## Where to get more animation
 
-| Source | License | Use here |
-|---|---|---|
-| Quaternius Universal Animation Library 1 and 2 (Standard is free; Pro adds the rest of the 120+ and 130+ clips) | CC0 | Yes. Converted data can be committed. |
-| Mesh2Motion | CC0 | Yes |
-| CMU Graphics Lab Motion Capture Database | free, including in products; the data may not be resold | Yes, with a note in the output |
-| Mixamo | Adobe's terms forbid redistributing the animations in an editable form | No: converted clip data in an open repository is exactly that |
-| Bandai Namco Research motion dataset | CC BY-NC-ND 4.0 (no derivatives) | No: retargeting is a derivative |
+Prices and contents as of October 2026.
+
+| Source | Humanoid clips | Cost | License | Files | In our pipeline |
+|---|---|---|---|---|---|
+| Quaternius Universal Animation Library 1, Standard | 45 + T-pose | free | CC0 | GLB | imported (QUATERNIUS) |
+| Quaternius Universal Animation Library 2, Standard | 42 | free | CC0 | GLB | imported (QUATERNIUS) |
+| [Library 1 Pro](https://quaternius.itch.io/universal-animation-library) | 120+ | $9.99 | CC0 | GLB, FBX | Drop-in: same skeleton as Standard. Import it in place of the Standard file. |
+| [Library 2 Source](https://quaternius.itch.io/universal-animation-library-2) (Library 2 has no Pro tier) | 130+ | $14.99 | CC0 | .blend only | `tools/to-glb.py`, then import. Library 1's Source edition ($14.99) is the same route. |
+| [Mesh2Motion](https://github.com/Mesh2Motion/mesh2motion-app) humans (`static/animations/human-*.glb`) | about 180: 87 base clips (Quaternius' free clips, re-exported), 75 others (ladder and wall climbs, ledge hang, bow, backflip, dodges, crawl, dances, emotes, flying), 16 from CMU | free | CC0 (its CMU clips: CMU's terms) | GLB | Tested: imports as is. 14 mm on average for the base and CMU clips, 19 mm for the others; 7 clips are over the test's 30 mm. |
+| [CMU motion capture, retargeted by RancidMilk](https://rancidmilk.itch.io/free-character-animations) | 2,000+ | free | CMU's terms: use, change and share freely, credit mocap.cs.cmu.edu, never sell the data itself | FBX, on a Quaternius character | `tools/to-glb.py`; not tried yet. It needs a bone map if the rig is not one we read. |
+| CMU raw ([mocap.cs.cmu.edu](http://mocap.cs.cmu.edu)) | 2,500 | free | as above | BVH, ASF/AMC | `tools/to-glb.py` reads BVH. The CMU skeleton (hip, abdomen, chest, lThigh...) needs a bone map, and long takes need cutting into clips. |
+| [100STYLE](https://zenodo.org/record/8127870) | 100 walking and running styles | free | CC BY 4.0 (credit required) | BVH | Same route as raw CMU: a bone map, then cutting into loops. |
+| Mixamo | thousands | free account | Adobe's terms forbid redistributing the animations in an editable form | FBX | No: a converted set in an open repository is exactly that. |
+| Bandai Namco Research motion dataset | 3,000 | free | CC BY-NC-ND 4.0 | BVH | No: retargeting is a derivative. |
 
 ## Tests
 
 `npm run test:mocap` (part of `npm test`) runs two checks.
 
-`tools/mocap-test.mjs` plays every clip of both sets at four moments, on both figures and across all five views. It fails on any of these:
+`tools/mocap-test.mjs` plays every clip of every set the lab carries at four moments, on both figures and across all five views. It fails on any of these:
 
 - a page error or engine warning;
 - a pose or hero joint that is not a number;
@@ -206,7 +289,7 @@ These are the questions that get harder to change once games and models depend o
 - a foot under the floor;
 - clip text that does not read back the same, or that is not restored by mirroring twice;
 - a clip without a recorded fit, one more than 30 mm from its capture on average (300 mm at worst), or a set more than 20 mm on average;
-- a hero clip that is not key for key the Quaternius clip it was picked from;
+- a clip of a picked set (the hero's) that is not key for key the clip it was picked from;
 - a broken edit accepted, or rejected without a clear message;
 - an edit applied in the panel that does not play, or that Reset does not undo.
 

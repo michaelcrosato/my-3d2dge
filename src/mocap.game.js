@@ -10,7 +10,9 @@
 (() => {
 'use strict';
 const E = My3D2dge, { clamp } = E;
-const SETS = { quaternius: Mocap.load(window.MOCAP.QUATERNIUS), hero: Mocap.load(window.MOCAP.HERO) };
+// every animation set the page carries (each set file assigns window.MOCAP[NAME]), by lowercase name, in page order
+const SETS = {}; for (const [k, v] of Object.entries(window.MOCAP)) SETS[k.toLowerCase()] = Mocap.load(v);
+const SET_IDS = Object.keys(SETS);
 
 /* 1. Game and a studio floor: light grey with a grid, like the libraries' preview stage */
 const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 230, maxW: 520, bg: '#cfcac3' });
@@ -27,7 +29,7 @@ const map = new E.TileMap({
 game.cam.bounds = null;
 
 /* 2. The cast: the libraries' mannequin and the engine's hero (retargeted, cape and all) */
-let lib = SETS.quaternius;
+let lib = SETS[SET_IDS[0]];
 const man = new Mocap.Mannequin(lib, { height: 34 });
 const hero = Mocap.drive(new E.Humanoid({ cape: { len: 6, width: 5, seg: 2.5 } }), lib);
 const heroK = () => hero.o.hipZ * hero.o.size / lib.rest.hipZ;   // hero world units per mm (for clips that travel)
@@ -48,7 +50,7 @@ const pretty = n => n.replace(/_Loop$/, '').replace(/_RM$/, ' (travels)').replac
 const qs = new URLSearchParams(location.search);
 const CASTS = ['mannequin', 'hero', 'both'];
 const S = {
-  set: SETS[qs.get('set')] ? qs.get('set') : 'quaternius', clip: null, t: 0, hold: 0, playing: true,
+  set: SETS[qs.get('set')] ? qs.get('set') : SET_IDS[0], clip: null, t: 0, hold: 0, playing: true,
   speed: clamp(+qs.get('speed') || 1, .1, 2), cast: CASTS.includes(qs.get('cast')) ? qs.get('cast') : 'both',
   facing: qs.has('facing') ? +qs.get('facing') * E.DEG : null, spin: qs.has('spin'), bones: false, trueCam: qs.has('true'), caption: qs.has('caption'),
   fade: 0, pose: new Float32Array(lib.P * 3), prev: new Float32Array(lib.P * 3), order: []
@@ -59,7 +61,7 @@ function play(name, cut) {
   if (S.clip && S.clip !== c && !cut) { S.prev.set(S.pose); S.fade = .18; }   // crossfade from the pose on screen (cut: no blend)
   S.clip = c; S.t = 0; S.hold = 0;
   history.replaceState(null, '', location.pathname + location.search + '#' + c.name);
-  syncList(); syncInfo(); showText();
+  syncInfo(); syncList(); showText();   // (the note sets the panels' height before the list scrolls to the clip)
 }
 
 /* 5. Update: advance the clip, pose both figures */
@@ -164,7 +166,7 @@ function buildList() {
       const op = document.createElement('option'); op.value = n; op.textContent = b.textContent; og.appendChild(op);
     }
   }
-  $('setNote').textContent = lib.names.length + ' clips from ' + (lib.set.from ? 'the ' + lib.set.from.toLowerCase() + ' set' : 'Universal Animation Library 1 and 2') + ' by Quaternius (CC0). ★ the core set.';
+  $('setNote').textContent = lib.names.length + ' clips' + (lib.set.from ? ', picked from the ' + lib.set.from.toLowerCase() + ' set' : '') + '. ' + (lib.set.credit || '') + ' ★ the core set.';
 }
 pick.addEventListener('change', () => play(pick.value));
 function syncList() {
@@ -175,16 +177,22 @@ function syncInfo() {
   const c = S.clip, fit = lib.set.fit && lib.set.fit[c.name];
   $('note').textContent = pretty(c.name) + (c.desc ? ': ' + c.desc + '.' : '.') + ' ' + c.keys.length + ' key poses, ' + c.dur.toFixed(2) + ' s, ' + (c.loop ? 'loops' : 'plays once') + (c.keys[0].root ? ', travels' : '') + (fit ? '; within ' + fit[0] + ' mm of the capture on average.' : '.');
   $('playBtn').setAttribute('aria-pressed', String(!S.playing));
+  placePanels();
 }
 scrub.addEventListener('input', () => { S.playing = false; S.t = +scrub.value / 1000 * S.clip.dur; S.hold = 0; syncInfo(); });
-const setBtns = [...document.querySelectorAll('[data-set]')];
+// one button per set (G cycles them); the label is the set's name, the tooltip its credit
+const setBtns = SET_IDS.map((id, i) => {
+  const b = document.createElement('button'), L = SETS[id], label = L.set.set.charAt(0) + L.set.set.slice(1).toLowerCase().replace(/_/g, ' ');
+  b.type = 'button'; b.dataset.set = id; b.title = L.set.credit || ''; b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = (i === 0 ? '<kbd>G</kbd>' : '') + label + ' (' + L.names.length + ')'; $('sets').appendChild(b); return b;
+});
 function setSet(id, clipName) {
   S.set = id; lib = SETS[id]; man.lib = lib; Mocap.drive(hero, lib);
   setBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.set === id)));
   buildList(); showCatalog(); formatDone = false; if (!$('paneFormat').hidden) showFormat();
   play(lib.clip(clipName) ? clipName : S.order[0], true);
 }
-setBtns.forEach(b => { b.textContent = b.dataset.label + ' (' + SETS[b.dataset.set].names.length + ')'; b.addEventListener('click', () => { setSet(b.dataset.set, S.clip && S.clip.name); b.blur(); }); });
+setBtns.forEach(b => b.addEventListener('click', () => { setSet(b.dataset.set, S.clip && S.clip.name); b.blur(); }));
 const viewBtns = [...document.querySelectorAll('[data-view]')];
 function setView(id) { game.setView(id); viewBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === id))); }
 viewBtns.forEach(b => b.addEventListener('click', () => { setView(b.dataset.view); b.blur(); }));
@@ -262,7 +270,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyP') { S.spin = !S.spin; if (!S.spin) S.facing = null; syncSpin(); }
   else if (e.code === 'KeyH') { S.trueCam = !S.trueCam; hero.o.charView = !S.trueCam; syncTrue(); }
   else if (e.code === 'KeyA') { $('ai').hidden = !$('ai').hidden; syncAI(); }
-  else if (e.code === 'KeyG') setSet(S.set === 'quaternius' ? 'hero' : 'quaternius', S.clip.name);
+  else if (e.code === 'KeyG') setSet(SET_IDS[(SET_IDS.indexOf(S.set) + 1) % SET_IDS.length], S.clip.name);
   else if (e.code === 'KeyQ') S.facing = facing() - Math.PI / 8;
   else if (e.code === 'KeyE') S.facing = facing() + Math.PI / 8;
   else if (e.code === 'BracketLeft') game.rotateView(-15);
@@ -273,6 +281,16 @@ addEventListener('keydown', e => {
 });
 addEventListener('wheel', e => { if (e.target.closest && e.target.closest('.list, .ai')) return; game.setZoom(game.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); }, { passive: true });
 
+/** the side panels start below whatever sits above them (the buttons wrap, the clip's note grows) */
+function placePanels() {
+  const wide = innerWidth > 1100, below = el => Math.round(el.getBoundingClientRect().bottom + 8) + 'px';
+  $('ai').style.top = wide ? below(document.querySelector('.controls')) : '';
+  const side = $('clips').closest('.side'), sr = side.getBoundingClientRect();
+  let top = document.querySelector('.brand').getBoundingClientRect().bottom;
+  for (const g of document.querySelectorAll('.controls > *')) { const r = g.getBoundingClientRect(); if (r.left < sr.right && r.width) top = Math.max(top, r.bottom); }   // a button row that reaches over the list
+  side.style.top = innerWidth > 900 && innerHeight > 560 ? Math.round(top + 8) + 'px' : '';
+}
+addEventListener('resize', placePanels);
 game.lights.enabled = false; hero.o.charView = !S.trueCam;
 $('ai').hidden = innerWidth < 1100; syncAI();
 setView(E.VIEWS[qs.get('view')] ? qs.get('view') : 'threequarter');

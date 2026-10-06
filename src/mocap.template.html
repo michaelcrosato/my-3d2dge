@@ -105,10 +105,7 @@ button:disabled{opacity:.45;cursor:default}
         <button type="button" data-cast="hero" aria-pressed="false">Hero</button>
         <button type="button" data-cast="both" aria-pressed="false"><kbd>C</kbd>Both</button>
       </div>
-      <div class="seg panel" role="group" aria-label="Animation set">
-        <button type="button" data-set="quaternius" data-label="Quaternius" aria-pressed="false" title="Every free clip of Universal Animation Library 1 and 2"><kbd>G</kbd>Quaternius</button>
-        <button type="button" data-set="hero" data-label="Hero" aria-pressed="false" title="The clips Emberdeep's Wanderer plays">Hero</button>
-      </div>
+      <div class="seg panel" role="group" aria-label="Animation set" id="sets"></div>
       <div class="seg panel" role="group" aria-label="Inspection tools">
         <button type="button" id="boneBtn" aria-pressed="false"><kbd>B</kbd>Bones</button>
         <button type="button" id="spinBtn" aria-pressed="false"><kbd>P</kbd>Turntable</button>
@@ -119,7 +116,7 @@ button:disabled{opacity:.45;cursor:default}
   </div>
   <div class="hud side panel">
     <div class="list" id="clips" role="group" aria-label="Animation clips"></div>
-    <p class="credit"><span id="setNote"></span> <a href="https://quaternius.com/packs/universalanimationlibrary.html" target="_blank" rel="noopener">Library 1</a>, <a href="https://quaternius.com/packs/universalanimationlibrary2.html" target="_blank" rel="noopener">Library 2</a>.</p>
+    <p class="credit" id="setNote"></p>
   </div>
   <div class="hud ai panel" id="ai">
     <div class="tabs" role="group" aria-label="AI panel">

@@ -274,7 +274,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 8,400 tokens, with three complete example games.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 - `docs/ANIMATION-RESEARCH.md`: famous animations for every view and genre the engine covers, what the engine can already draw, and a ranked list of animations to ship ready-made.
-- `docs/MOCAP.md`: importing ready-made skeletal animation (glTF) into the readable key-pose format with `tools/anim-import.mjs`, animation sets and `tools/anim-set.mjs`, retargeting onto the engine's rigs, the hero's captured moments, and which animation libraries are safe to use.
+- `docs/MOCAP.md`: importing ready-made skeletal animation into the readable key-pose format: a step-by-step guide to adding a library (`tools/to-glb.py` converts Blender, FBX and BVH files, `tools/anim-import.mjs` imports, `tools/anim-sheet.mjs` draws contact sheets for the catalog, `tools/anim-set.mjs` picks a game's clips), where to get more animation and what it costs, retargeting onto the engine's rigs, and the hero's captured moments.
 
 ## License
 

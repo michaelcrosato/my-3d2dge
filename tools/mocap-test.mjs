@@ -1,10 +1,11 @@
-// Mocap lab check: loads examples/mocap-lab.html in a headless browser and plays every clip of both animation sets
-// (Quaternius, Hero), at several moments, on both figures and in every view. It fails (exit code 1) on any page error
+// Mocap lab check: loads examples/mocap-lab.html in a headless browser and plays every clip of every animation set it
+// carries (Quaternius, Hero, and any set added to src/mocap.template.html), at several moments, on both figures and in
+// every view. It fails (exit code 1) on any page error
 // or engine warning, a clip whose pose has a non-number in it, a retargeted hero joint that is not a number, a figure
 // that draws nothing, or a mannequin whose feet end up under the floor. It also checks the readable format: each
 // clip's text reads back the same and mirrors back to itself, a broken edit is rejected with a clear message, an edit
-// applied in the panel plays and Reset restores the clip, the import kept every clip close to its capture, and the
-// hero's set is the same data as the clips it was picked from.
+// applied in the panel plays and Reset restores the clip, the import kept every clip close to its capture, and a set
+// picked from another (the hero's) is the same data as the clips it was picked from.
 // Usage: node tools/mocap-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { resolve } from 'node:path';
@@ -21,7 +22,7 @@ await page.waitForFunction(() => window.__mocap && __mocap.game.fps > 0, null, {
 const report = await page.evaluate(async () => {
   const M = __mocap, R = MocapReadable, out = { sets: {}, frames: 0, bad: [] }, wait = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const views = My3D2dge.VIEW_ORDER, X = new Float32Array(R.P * 3), Y = new Float32Array(R.P * 3);
-  for (const id of ['quaternius', 'hero']) {
+  for (const id of Object.keys(M.SETS)) {   // every set the lab carries (each set file it inlines)
     M.setSet(id); const lib = M.lib, fit = Object.values(lib.set.fit);
     out.sets[id] = { clips: lib.names.length, keys: 0, fit: fit.reduce((t, f) => t + f[0], 0) / fit.length };
     for (const name of lib.names) {
@@ -54,13 +55,17 @@ const report = await page.evaluate(async () => {
     }
     if (out.sets[id].fit > 20) out.bad.push(id + ': clips stray ' + out.sets[id].fit.toFixed(1) + ' mm from their captures on average (more than 20)');
   }
-  // the hero's clips are the Quaternius clips they were picked from, key for key
-  for (const name of M.SETS.hero.names) {
-    const h = M.SETS.hero.clip(name), q = M.SETS.quaternius.clip(name);
-    if (!q) { out.bad.push('hero clip ' + name + ' is not in the Quaternius set'); continue; }
-    if (JSON.stringify(h.keys) !== JSON.stringify(q.keys)) out.bad.push('hero clip ' + name + ' differs from the Quaternius clip');
+  // a set picked from another (tools/anim-set.mjs: "from") has that set's clips, key for key
+  for (const [id, L] of Object.entries(M.SETS)) {
+    const from = L.set.from && M.SETS[L.set.from.toLowerCase()]; if (!L.set.from) continue;
+    if (!from) { out.bad.push(id + ' is picked from ' + L.set.from + ', which the lab does not carry'); continue; }
+    for (const name of L.names) {
+      const h = L.clip(name), q = from.clip(name);
+      if (!q) { out.bad.push(id + ' clip ' + name + ' is not in ' + L.set.from); continue; }
+      if (JSON.stringify(h.keys) !== JSON.stringify(q.keys)) out.bad.push(id + ' clip ' + name + ' differs from the ' + L.set.from + ' clip');
+    }
   }
-  M.setSet('quaternius');
+  M.setSet(Object.keys(M.SETS)[0]);
   for (const [cast, n] of [['mannequin', 1], ['hero', 1], ['both', 2]]) { M.setCast(cast); await wait(); if (M.game.stats.actors !== n) out.bad.push('cast ' + cast + ' drew ' + M.game.stats.actors + ' figures, not ' + n); }
   M.setCast('both');
   // a broken edit is refused with a message that says where

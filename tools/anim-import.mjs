@@ -10,9 +10,10 @@
 //
 // Usage:  node tools/anim-import.mjs a.glb [b.glb ...] [--sources UAL1,UAL2] [--name QUATERNIUS] [--out src/mocap/sets/quaternius.js]
 //                [--catalog src/mocap/catalogs/quaternius.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword]
+//                [--rest A_TPose,,Rest Pose]   (each library's rest-pose clip; by default a T-pose or 'Rest Pose' clip, else the first clip)
 //         node tools/anim-import.mjs a.glb --list          (print the clips, the bones and the rig it recognises; write nothing)
 // Rigs: the Rigify "DEF-" deform bones (Quaternius' Universal Animation Library) and the Unreal mannequin's names
-// (pelvis, spine_01, upperarm_l ...; Universal Animation Library 2) are recognised. For another rig, add it to RIGS.
+// (pelvis, spine_01, upperarm_l ...; Universal Animation Library 2, Mesh2Motion's humans) are recognised, in any case. For another rig, add it to RIGS.
 // Clips are named once: a later library's clip with a name already taken (its own T-pose) is left out.
 // --catalog: a JSON file { clip: [tags, what the body does] } written by hand; its words go into each clip.
 import { readFileSync } from 'node:fs';
@@ -22,9 +23,9 @@ import { MR, writeSet } from './mocap-lib.mjs';
 const args = process.argv.slice(2);
 const files = args.filter((a, i) => !a.startsWith('--') && !(args[i - 1] || '').startsWith('--'));
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : def; };
-if (!files.length) { console.error('Usage: node tools/anim-import.mjs a.glb [b.glb ...] [--sources A,B] [--name SET] [--out file.js] [--catalog cat.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword] [--list]'); process.exit(2); }
+if (!files.length) { console.error('Usage: node tools/anim-import.mjs a.glb [b.glb ...] [--sources A,B] [--name SET] [--out file.js] [--catalog cat.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword] [--rest ClipA,ClipB] [--list]'); process.exit(2); }
 const OUT = resolve(opt('out', 'src/mocap/sets/quaternius.js')), FPS = +opt('fps', 30), NAME = opt('name', 'QUATERNIUS'), TOL = +opt('tol', 30);
-const SOURCES = (opt('sources', '') || '').split(',').filter(Boolean), ONLY = opt('clips', null) ? new Set(opt('clips').split(',')) : null;
+const SOURCES = (opt('sources', '') || '').split(',').filter(Boolean), REST = (opt('rest', '') || '').split(','), ONLY = opt('clips', null) ? new Set(opt('clips').split(',')) : null;
 const BLADE = new RegExp(opt('blade', 'Sword'));
 const CREDIT = opt('credit', 'Universal Animation Library 1 and 2 by Quaternius (quaternius.com), CC0 1.0 (public domain).');
 const CATALOG = opt('catalog', null) ? JSON.parse(readFileSync(resolve(opt('catalog')), 'utf8')) : {};
@@ -92,6 +93,10 @@ function readLibrary(file) {
   };
   const nodes = G.nodes, parent = new Array(nodes.length).fill(-1), byName = new Map();
   nodes.forEach((n, i) => { (n.children || []).forEach(c => parent[c] = i); byName.set(n.name, i); });
+  // bone names match whatever their case (Quaternius' Library 2 says 'Head', Mesh2Motion's copy of the rig 'head')
+  { const lower = new Map(); for (const [k, i] of byName) if (!lower.has(k.toLowerCase())) lower.set(k.toLowerCase(), i);
+    const get = byName.get.bind(byName), has = byName.has.bind(byName);
+    byName.get = k => has(k) ? get(k) : lower.get(String(k).toLowerCase()); byName.has = k => has(k) || lower.has(String(k).toLowerCase()); }
   const rig = Object.keys(RIGS).find(r => byName.has(RIGS[r].test));
   if (args.includes('--list')) {
     console.log(basename(file) + ': rig ' + (rig || 'not recognised'));
@@ -108,9 +113,11 @@ function readLibrary(file) {
   nodes.forEach((_, i) => visit(i));
   const world = trs => { const W = new Array(nodes.length); for (const i of order) { const L = mat(trs[i].t, trs[i].r, trs[i].s); W[i] = parent[i] >= 0 ? mul(W[parent[i]], L) : L; } return W; };
 
-  // the bind pose's mesh, each vertex in the frame of the bone that moves it most
-  const skin = G.skins[0], joints = skin.joints, ibm = accessor(skin.inverseBindMatrices);
-  const meshNode = nodes.findIndex(n => n.mesh !== undefined && n.skin !== undefined), mesh = G.meshes[nodes[meshNode].mesh];
+  // the bind pose's mesh, each vertex in the frame of the bone that moves it most. It is optional: it gives the
+  // look-alike mannequin its shape and the toe tips their length (a file with no skinned mesh uses the bones alone)
+  const skin = (G.skins || [])[0], joints = skin ? skin.joints : [], ibm = skin ? accessor(skin.inverseBindMatrices) : [];
+  const meshNode = nodes.findIndex(n => n.mesh !== undefined && n.skin !== undefined), mesh = skin && meshNode >= 0 ? G.meshes[nodes[meshNode].mesh] : { primitives: [] };
+  if (!skin || meshNode < 0) console.warn(basename(file) + ': no skinned mesh: the body is measured from the bones alone');
   const boneVerts = new Map(), bandVerts = new Map();
   let matJoint = -1; (G.materials || []).forEach((m, i) => { if (/joint/i.test(m.name)) matJoint = i; });
   let top = 0;
@@ -143,7 +150,7 @@ function readLibrary(file) {
 
   // the look of the mannequin: per-segment radii and where the joint-ring material sits (Rigify meshes)
   let body = null;
-  if (RIGS[rig].coreSegs.length) {
+  if (RIGS[rig].coreSegs.length && top > 0) {
     body = { height: Math.round(top * MM), segs: [], bands: [] };
     const SEGS = [...RIGS[rig].coreSegs, ...['L', 'R'].flatMap(RIGS[rig].segs)];
     for (const [a, b, bone] of SEGS) {
@@ -187,7 +194,9 @@ if (args.includes('--list')) process.exit(0);
 const set = { set: NAME, format: 1, credit: CREDIT, fps: FPS, sources: {}, body: null, fit: {}, clips: {} };
 const r1 = v => Math.round(v);
 libs.forEach((L, li) => {
-  const id = SOURCES[li] || basename(files[li]).replace(/\.glb$/i, ''), rest = MR.measure(L.clips);
+  // the body at rest comes from the library's T-pose or rest-pose clip (--rest names it), else the first clip's first frame
+  const restClip = [REST[li], 'A_TPose', 'T-Pose', 'TPose', 'Rest Pose', 'Rest_Pose'].find(n => n && L.clips[n]);
+  const id = SOURCES[li] || basename(files[li]).replace(/\.glb$/i, ''), rest = MR.measure(L.clips, restClip);
   set.sources[id] = { file: basename(files[li]), rig: L.rig, rest };
   if (!set.body && L.body) set.body = L.body;
   let kept = 0;
