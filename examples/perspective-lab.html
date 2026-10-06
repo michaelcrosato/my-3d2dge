@@ -1988,7 +1988,7 @@ class Humanoid {
     const o = this.o, long = o.hair.style === 'long', N = o.hair.len || (long ? 6 : 4), seg = (long ? 1.9 : 1.6) * o.size;
     const J = this.J, anchor = () => { const w = this._w([J.head[0] - o.headR * .8, 0, J.head[2] + (long ? o.headR * .1 : o.headR * .55)]); return [this.x + w[0], this.y + w[1], this.z + w[2]]; };
     if (!this.hairPts) { const a = anchor(), hx = -Math.cos(this.facing) * .8 * o.size, hy = -Math.sin(this.facing) * .8 * o.size; this.hairPts = Array.from({ length: N }, (_, i) => ({ x: a[0] + hx * i * .3, y: a[1] + hy * i * .3, z: a[2] - i * seg, px: a[0] + hx * i * .3, py: a[1] + hy * i * .3, pz: a[2] - i * seg })); }
-    const P = this.hairPts, a = anchor(), damp = Math.pow(.97, dt * 120), fx = Math.cos(this.facing), fy = Math.sin(this.facing), dt2 = dt * dt;
+    const P = this.hairPts, a = anchor(), damp = Math.pow(.97, dt * 120), fx = Math.cos(this.facing + this.spin), fy = Math.sin(this.facing + this.spin), dt2 = dt * dt;   // trails behind the body's turn
     Object.assign(P[0], { x: a[0], y: a[1], z: a[2], px: a[0], py: a[1], pz: a[2] });
     for (let i = 1; i < P.length; i++) { const n = P[i], vx = (n.x - n.px) * damp, vy = (n.y - n.py) * damp, vz = (n.z - n.pz) * damp; n.px = n.x; n.py = n.y; n.pz = n.z; n.x += vx - fx * 20 * dt2; n.y += vy - fy * 20 * dt2; n.z += vz - 200 * dt2; }
     const shZ = this.z + J.shC[2] * o.size, bodyR = (o.torsoW * .75 + .6) * o.size, headTop = this.z + (J.head[2] + o.headR * .6) * o.size;
@@ -2125,7 +2125,7 @@ class Humanoid {
       const bx = -Math.cos(this.facing) * (c.body || 3.4) * sz, by = -Math.sin(this.facing) * (c.body || 3.4) * sz;   // start hanging behind the back, not inside the body
       for (const s of [-1, 1]) { const a = anchor(s), ch = s < 0 ? this.capeL : this.capeR; for (let i = 0; i < N; i++) { const k = Math.min(1, i / 2); ch.push({ x: a[0] + bx * k, y: a[1] + by * k, z: a[2] - i * seg, px: a[0] + bx * k, py: a[1] + by * k, pz: a[2] - i * seg }); } }
     }
-    const damp = Math.pow(.982, dt * 120), dt2 = dt * dt, fx = Math.cos(this.facing), fy = Math.sin(this.facing);
+    const damp = Math.pow(.982, dt * 120), dt2 = dt * dt, fx = Math.cos(this.facing + this.spin), fy = Math.sin(this.facing + this.spin);   // trails behind the body's turn
     for (const [ch, s] of [[this.capeL, -1], [this.capeR, 1]]) {
       const a = anchor(s); Object.assign(ch[0], { x: a[0], y: a[1], z: a[2], px: a[0], py: a[1], pz: a[2] });
       for (let i = 1; i < N; i++) {
@@ -2154,6 +2154,22 @@ class Humanoid {
     }
   }
   /** draw into g with (ox, oy) = projected position of the rig's root */
+  /**
+   * Sp(joint, f, r, z): a detail drawn around a joint (the face, hair, belt, toes) at offsets in the body's own frame,
+   * projected by S. A knocked-down body turns them backward with it. While a motion clip plays (Mocap.drive sets
+   * mocapTilt: the clip's body and head frames, 3x3, columns forward, right, up) they lean, roll and turn upside down with
+   * the body, and the face with the head; the weapon hand's offsets (the blade) are already in the rig's frame.
+   */
+  _offsets(S) {
+    const J = this.J, T = this.mocapTilt;
+    if (T) return (p, df = 0, dr = 0, dz = 0) => {
+      if (p === J.handR) return S(p[0] + df, p[1] + dr, p[2] + dz);
+      const m = p === J.head ? T.head : T.body;
+      return S(p[0] + m[0] * df + m[1] * dr + m[2] * dz, p[1] + m[3] * df + m[4] * dr + m[5] * dz, p[2] + m[6] * df + m[7] * dr + m[8] * dz);
+    };
+    const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);
+    return dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
+  }
   draw(g, ox, oy, view) {
     this._pitch = view.pitchDeg;
     if (this.o.charView !== false) view = charView(view);
@@ -2174,8 +2190,7 @@ class Humanoid {
     const an = this.facing + this.spin + this._cheat, ca = Math.cos(an), sa = Math.sin(an), k = (1 - this.sq * .4) * sz, kz = (1 + this.sq) * sz;
     const vax = view.ax, vay = view.ay, vbx = view.bx, vby = view.by, vbz = view.bz, vdx = view.dx, vdy = view.dy, vdz = view.dz;
     const S = (f, r, z) => { const wx = (f * ca - r * sa) * k, wy = (f * sa + r * ca) * k, wz = z * kz; return [ox + vax * wx + vay * wy, oy + vbx * wx + vby * wy + vbz * wz, vdx * wx + vdy * wy + vdz * wz]; };
-    const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);   // offsets (face, hair, toes) turn with a knocked-down body
-    const Sp = dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
+    const Sp = this._offsets(S);   // details around a joint (face, hair, belt, toes) turn with the body
     const Q = {};
     for (const key of JOINT_KEYS) Q[key] = Sp(J[key]);
     const lq = (A, B, t) => [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t];
@@ -2383,8 +2398,7 @@ class Humanoid {
     const an = this.facing + this.spin + this._cheat, ca = Math.cos(an), sa = Math.sin(an), k = (1 - this.sq * .4) * o.size, kz = (1 + this.sq) * o.size;
     const vax = view.ax, vay = view.ay, vbx = view.bx, vby = view.by, vbz = view.bz, vdx = view.dx, vdy = view.dy, vdz = view.dz;
     const S = (f, r, z) => { const wx = (f * ca - r * sa) * k, wy = (f * sa + r * ca) * k, wz = z * kz; return [ox + vax * wx + vay * wy, oy + vbx * wx + vby * wy + vbz * wz, vdx * wx + vdy * wy + vdz * wz]; };
-    const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);   // offsets (face, hair, toes) turn with a knocked-down body
-    const Sp = dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
+    const Sp = this._offsets(S);   // details around a joint (face, hair, belt, toes) turn with the body
     const Q = {};
     for (const key of JOINT_KEYS) Q[key] = Sp(J[key]);
     const lq = (A, B, t) => [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t];

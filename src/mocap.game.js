@@ -6,7 +6,8 @@
  * of the libraries' mannequin plays each clip at their proportions; the engine's hero plays it retargeted to his build.
  * The AI panel shows a clip as the text a model reads and edits, the catalog it picks from, and the format.
  * Deep links: mocap-lab.html#Dance_Loop, ?set=hero, ?view=side, ?cast=both|hero|mannequin, ?speed=.25, ?true (true
- * camera), ?facing=90 (degrees), ?spin (turntable), ?caption (the clip's name drawn into the image, for recordings)
+ * camera), ?facing=90 (degrees), ?spin (turntable), ?sword=0 (the hero's sword put away), ?caption (the clip's name
+ * drawn into the image, for recordings)
  * ============================================================================= */
 (() => {
 'use strict';
@@ -53,7 +54,7 @@ const CASTS = ['mannequin', 'hero', 'both'];
 const S = {
   set: SETS[qs.get('set')] ? qs.get('set') : SET_IDS[0], clip: null, t: 0, hold: 0, playing: true,
   speed: clamp(+qs.get('speed') || 1, .1, 2), cast: CASTS.includes(qs.get('cast')) ? qs.get('cast') : 'both',
-  facing: qs.has('facing') ? +qs.get('facing') * E.DEG : null, spin: qs.has('spin'), bones: false, trueCam: qs.has('true'), caption: qs.has('caption'),
+  facing: qs.has('facing') ? +qs.get('facing') * E.DEG : null, spin: qs.has('spin'), bones: false, trueCam: qs.has('true'), caption: qs.has('caption'), sword: qs.get('sword') !== '0',
   fade: 0, pose: new Float32Array(lib.P * 3), prev: new Float32Array(lib.P * 3), order: []
 };
 
@@ -78,16 +79,21 @@ function update(dt) {
   if (S.fade > 0) { S.fade = Math.max(0, S.fade - dt); lib.blend(S.pose, S.prev, S.fade / .18, S.pose); }
   if (S.spin && S.playing) S.facing = (S.facing ?? baseFacing()) + dt * .6;
   const f = facing(), mv = lib.moveAt(c, S.t), list = actors();
-  let side = sideDir();
-  if (mv) { const v = game.view; side = [-Math.sin(f), Math.cos(f)]; if (v.ax * side[0] + v.ay * side[1] < 0) side = [-side[0], -side[1]]; }   // travelling clips: parallel lanes, still left to right
+  let side = sideDir(), gap = 30;
+  if (mv) {   // travelling clips: parallel lanes, still left to right
+    const v = game.view; side = [-Math.sin(f), Math.cos(f)]; if (v.ax * side[0] + v.ay * side[1] < 0) side = [-side[0], -side[1]];
+    // lanes that run away from the camera (the side view) would hide one figure behind the other: stagger them along
+    // the way they travel instead, one ahead of the other, far enough apart for a kick or a lunge
+    if (Math.hypot(v.ax * side[0] + v.ay * side[1], v.bx * side[0] + v.by * side[1]) < .45 * Math.hypot(v.ax, v.ay)) { side = sideDir(); gap = 40; }
+  }
   for (const a in pos) delete pos[a];
   list.forEach((a, i) => {
-    const off = (i - (list.length - 1) / 2) * 30, k = a === 'hero' ? heroK() : man.k;
+    const off = (i - (list.length - 1) / 2) * gap, k = a === 'hero' ? heroK() : man.k;
     let x = CX + side[0] * off, y = CY + side[1] * off;
     if (mv) { x += (mv[0] * Math.cos(f) - mv[1] * Math.sin(f)) * k; y += (mv[0] * Math.sin(f) + mv[1] * Math.cos(f)) * k; }
     pos[a] = [x, y];
   });
-  hero.mocap = S.pose; hero.mocapBlade = /Sword/.test(c.name);
+  hero.mocap = S.pose; hero.mocapBlade = /Sword/.test(c.name); hero.o.weapon = S.sword ? 'sword' : null;
   if (pos.hero) hero.update(dt, { x: pos.hero[0], y: pos.hero[1], facing: f });
   const ps = list.map(a => pos[a]), sh = panelShift();   // the camera keeps the cast in frame, centred between the panels
   game.focus(ps.reduce((t, p) => t + p[0], 0) / ps.length - sideDir()[0] * sh, ps.reduce((t, p) => t + p[1], 0) / ps.length - sideDir()[1] * sh, 14);
@@ -116,7 +122,7 @@ function draw(r) {
   map.drawFloor(r);
   for (const a of actors()) r.shadow(pos[a][0], pos[a][1], 7, .35);
   if (pos.mannequin) r.actor(pos.mannequin[0], pos.mannequin[1], lift * man.k, (g, ox, oy) => man.draw(g, ox, oy, mv, S.pose, f), { outlineColor: '#3a2a1c' });
-  if (pos.hero) r.actor(pos.hero[0], pos.hero[1], lift * heroK(), (g, ox, oy) => hero.draw(g, ox, oy, view));
+  if (pos.hero) r.actor(pos.hero[0], pos.hero[1], 0, (g, ox, oy) => hero.draw(g, ox, oy, view));   // (Mocap.drive lifts a clip that dips below the floor itself)
   if (S.bones) r.overlay(g => drawBones(r, g, f));
   if (S.caption) r.overlay(g => {   // for recordings, which capture the game's own image
     E.font.text(g, pretty(S.clip.name).toUpperCase(), 6, 6, '#2a2140');
@@ -212,6 +218,7 @@ const syncBones = tog('boneBtn', () => S.bones, v => { S.bones = v; });
 const syncSpin = tog('spinBtn', () => S.spin, v => { S.spin = v; if (!v) S.facing = null; });
 const syncTrue = tog('trueBtn', () => S.trueCam, v => { S.trueCam = v; hero.o.charView = !v; });
 const syncAI = tog('aiBtn', () => !$('ai').hidden, v => { $('ai').hidden = !v; });
+const syncSword = tog('swordBtn', () => S.sword, v => { S.sword = v; });
 $('playBtn').addEventListener('click', e => { S.playing = !S.playing; syncInfo(); e.currentTarget.blur(); });
 
 /* 8. The AI panel: the clip as a model reads it (editable), the catalog a model picks from, the format */
@@ -275,6 +282,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyP') { S.spin = !S.spin; if (!S.spin) S.facing = null; syncSpin(); }
   else if (e.code === 'KeyH') { S.trueCam = !S.trueCam; hero.o.charView = !S.trueCam; syncTrue(); }
   else if (e.code === 'KeyA') { $('ai').hidden = !$('ai').hidden; syncAI(); }
+  else if (e.code === 'KeyX') { S.sword = !S.sword; syncSword(); }
   else if (e.code === 'KeyG') setSet(SET_IDS[(SET_IDS.indexOf(S.set) + 1) % SET_IDS.length], S.clip.name);
   else if (e.code === 'KeyQ') S.facing = facing() - Math.PI / 8;
   else if (e.code === 'KeyE') S.facing = facing() + Math.PI / 8;
@@ -304,5 +312,5 @@ setCast(S.cast); setSpeed(S.speed); setTab('text');
 setSet(S.set, decodeURIComponent(location.hash.slice(1)) || 'Idle_Loop');
 game.start({ update, draw: r => { draw(r); $('fps').textContent = game.fps + ' fps'; } });
 /** for tools (recordings, tests): switch sets, play a clip, seek to a time, change the view or the cast */
-window.__mocap = { game, SETS, get lib() { return lib; }, hero, man, S, groundLift, play, setSet, setView, setCast, setSpeed, apply, seek(t) { S.playing = false; S.t = t; S.hold = 0; }, resume() { S.playing = true; } };
+window.__mocap = { game, SETS, get lib() { return lib; }, hero, man, S, pos, groundLift, play, setSet, setView, setCast, setSpeed, apply, seek(t) { S.playing = false; S.t = t; S.hold = 0; }, resume() { S.playing = true; } };
 })();

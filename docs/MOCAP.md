@@ -234,8 +234,10 @@ The hero's skeleton is 15 points with fixed bone lengths. The source's skeleton 
 - **Hips:** height scaled by the ratio of the two hip heights. The pelvis takes the clip's left-to-right axis.
 - **Spine, shoulders, head:** each takes the clip's direction at the hero's own length (`torso`, `shoulderHalf`, `neck + headR`).
 - **Feet and hands:** placed in proportion to the leg and arm lengths, then solved with the engine's two-bone IK (`E.ik3`). The knee and elbow bend the way the clip's do. The sole, not the ankle, meets the floor.
-- **Sword:** with `rig.mocapBlade = true`, it runs along the knuckles (pinky to index), the way a blade sits in a fist. Otherwise it keeps the rig's own angle, and as the body goes down it drops flat on the floor beside the hand.
-- **Lying down:** the rig's knocked-down measure follows the clip's torso, so the face, hair and toes the rig draws around its joints lie with the body.
+- **Turning:** the rig turns to wherever the clip's chest faces, flat on the floor (`rig.spin`), and reads the clip in that turned frame. A spinning kick turns his face, hair, cape and belt buckle round with him, not just his limbs. A chest that faces up or down (lying, bent double) has no heading to trust, so the rig keeps facing ahead.
+- **Tilting:** the details the rig draws around its joints (the face, hair, belt, toes) follow the clip's chest and head (`rig.mocapTilt`, read by `Humanoid._offsets`). He goes upside down in a cartwheel, rolls and leans with the body, and bows his head when the clip does. Each tilt is measured from the clip's own library's rest pose, so a head that a library holds slightly forward at rest still reads level.
+- **Sword:** with `rig.mocapBlade = true`, it runs along the knuckles (pinky to index), the way a blade sits in a fist. Otherwise it keeps the rig's own angle, and as the body goes down it drops flat on the floor beside the hand. Either way the blade never goes through the floor: with the hands planted (a cartwheel, a crouch, harvesting) it lowers no further than to lie along it.
+- **Lying down:** the rig's knocked-down measure (`downW`) follows the clip's torso, for the game to read (shadows, what a body on the floor can do).
 - **Blending:** `rig.mocapW` (0 to 1) fades a clip in and out over the rig's own animation; `rig.mocapMask = 'upper'` plays only the chest, head and arms over the rig's own legs (reaching for loot while walking).
 
 ## The readable format (for AI models)

@@ -6,7 +6,9 @@
 // clip's text reads back the same and mirrors back to itself, a broken edit is rejected with a clear message, an edit
 // applied in the panel plays and Reset restores the clip, the import kept every clip close to its capture, every clip
 // says where it came from (its library's origin and license, and the clip it was made from), and a set picked from
-// another (the hero's) is the same data as the clips it was picked from.
+// another (the hero's) is the same data as the clips it was picked from. And the hero: his sword never goes under the
+// floor, he turns round with a spinning kick and turns upside down in a cartwheel, his face follows the clip's head,
+// side view keeps a travelling clip's two figures apart, and the sword can be put away.
 // Usage: node tools/mocap-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { resolve } from 'node:path';
@@ -38,6 +40,7 @@ const report = await page.evaluate(async () => {
         const lift = M.groundLift(pose);
         for (const s of ['L', 'R']) { const z = Math.min(lib.pt(pose, 'toe' + s)[2], lib.pt(pose, 'ankle' + s)[2]) + lift; if (z < -1) out.bad.push(id + ' ' + name + ': mannequin ' + s + ' foot is ' + Math.round(-z) + ' mm under the floor'); }
         for (const s of ['L', 'R']) if (M.hero.J['foot' + s][2] < -.01) out.bad.push(id + ' ' + name + ': hero ' + s + ' foot is under the floor');
+        { const J = M.hero.J, tip = J.handR[2] + J.bladeDir[2] * M.hero.o.bladeLen; if (M.hero.o.weapon === 'sword' && tip < -.01) out.bad.push(id + ' ' + name + ': the hero\'s sword goes ' + (-tip).toFixed(1) + ' under the floor'); }
         if (!(M.game.stats.actors >= (M.S.cast === 'both' ? 2 : 1))) out.bad.push(id + ' ' + name + ': a figure was not drawn (actors: ' + M.game.stats.actors + ')');
       }
       // the text a model reads gives back the same motion, and mirroring twice is the original
@@ -77,6 +80,40 @@ const report = await page.evaluate(async () => {
       const h = L.clip(name), same = from.some(f => { const q = f.clip(name); return q && q.src === h.src && JSON.stringify(h.keys) === JSON.stringify(q.keys); });
       if (!same) out.bad.push(id + ' clip ' + name + ' is not, key for key, a clip of ' + names.join(' or '));
     }
+  }
+  // the hero turns with the clip and his face follows the clip's head: a spinning kick turns him all the way round,
+  // and the angle between his face and the clip's stays the same through the clip (each library's rest sets it)
+  if (M.SETS.cmu) {
+    M.setSet('cmu'); M.setCast('hero');
+    const rot = (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a), v[2]];
+    for (const name of ['Jump_Kick', 'Cartwheel']) {
+      if (!M.lib.clip(name)) continue;
+      M.play(name, true); const c = M.S.clip; let lo = 1e9, hi = -1e9, prev = null, turned = 0, upside = false;
+      for (let i = 0; i <= 40; i++) {
+        M.seek(c.dur * i / 40); await wait();
+        const h = M.hero, T = h.mocapTilt, A = M.lib.pt(M.S.pose, 'head'), B = M.lib.pt(M.S.pose, 'faceF');
+        if (!T) { out.bad.push('cmu ' + name + ': the hero has no body frame while the clip plays'); break; }
+        const mw = rot([B[0] - A[0], B[1] - A[1], B[2] - A[2]], h.facing), hw = rot([T.head[0], T.head[3], T.head[6]], h.facing + h.spin);
+        const ang = Math.acos(Math.max(-1, Math.min(1, (mw[0] * hw[0] + mw[1] * hw[1] + mw[2] * hw[2]) / Math.hypot(...mw) / Math.hypot(...hw)))) * 180 / Math.PI;
+        lo = Math.min(lo, ang); hi = Math.max(hi, ang);
+        if (prev !== null) turned += Math.abs(Math.atan2(Math.sin(h.spin - prev), Math.cos(h.spin - prev)));
+        prev = h.spin; if (T.body[8] < -.5) upside = true;   // the body frame's up points down
+      }
+      if (hi - lo > 2) out.bad.push('cmu ' + name + ': the hero\'s face strays ' + (hi - lo).toFixed(1) + ' degrees from the clip\'s head');
+      if (name === 'Jump_Kick' && turned < Math.PI * 1.5) out.bad.push('cmu Jump_Kick: the hero turned ' + Math.round(turned * 180 / Math.PI) + ' degrees, not round with the kick');
+      if (name === 'Cartwheel' && !upside) out.bad.push('cmu Cartwheel: the hero\'s body frame never turned upside down');
+    }
+    // side view, a clip that travels: the figures stand one ahead of the other, not one behind the other
+    if (M.lib.clip('Boxing_Jab')) {
+      M.setCast('both'); M.setView('side'); M.play('Boxing_Jab', true); M.seek(.5); await wait();
+      const v = M.game.view, q = M.pos;
+      const dx = Math.abs((q.hero[0] - q.mannequin[0]) * v.ax + (q.hero[1] - q.mannequin[1]) * v.ay);
+      if (dx < 20) out.bad.push('side view: the figures of a travelling clip are ' + dx.toFixed(0) + ' pixels apart across the screen');
+    }
+    // the sword can be put away
+    M.S.sword = false; await wait(); if (M.hero.o.weapon !== null) out.bad.push('the hero still holds his sword with it put away');
+    M.S.sword = true; await wait(); if (M.hero.o.weapon !== 'sword') out.bad.push('the hero did not take his sword back');
+    M.setView('threequarter');
   }
   M.setSet(Object.keys(M.SETS)[0]);
   for (const [cast, n] of [['mannequin', 1], ['hero', 1], ['both', 2]]) { M.setCast(cast); await wait(); if (M.game.stats.actors !== n) out.bad.push('cast ' + cast + ' drew ' + M.game.stats.actors + ' figures, not ' + n); }
