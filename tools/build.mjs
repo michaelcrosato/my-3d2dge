@@ -34,6 +34,8 @@ const builds = [
   { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} },
   // imported animation clips (tools/anim-import.mjs) on a look-alike mannequin and on the hero
   { template: 'src/mocap.template.html', out: 'examples/mocap-lab.html', vars: {} },
+  // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
+  { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
   { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {} },
   // the files to share with AI models: API card + engine + starter slices

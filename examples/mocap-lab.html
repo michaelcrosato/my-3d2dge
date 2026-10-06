@@ -84,6 +84,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 .fmt td span{color:var(--muted);font-size:11.5px}
 button:disabled{opacity:.45;cursor:default}
 @media (max-width:1100px){ .ai{top:auto;bottom:118px;height:46%} }
+a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);text-decoration:none;white-space:nowrap}a.to-labs:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -91,7 +92,7 @@ button:disabled{opacity:.45;cursor:default}
   <canvas id="screen" role="img" aria-label="Mocap lab: imported animation clips played on a pixel-art mannequin and on the engine's hero"></canvas>
   <div class="hud top">
     <div class="brand panel">
-      <h1>Mocap Lab</h1>
+      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
       <p id="note"></p>
       <select id="pick" aria-label="Animation clip"></select>
     </div>
@@ -24672,8 +24673,9 @@ return { load, Mannequin, drive, LEGEND: MR.LEGEND };
 /* ---- inlined from src/mocap.game.js ---- */
 /* =============================================================================
  * MOCAP LAB  animation sets in my-3D2dge's readable format, played on the engine's rigs.
- * Two sets: QUATERNIUS (Universal Animation Library 1 and 2 by Quaternius, CC0: every free clip, imported by
- * tools/anim-import.mjs) and HERO (the clips Emberdeep's Wanderer adopted, picked by tools/anim-set.mjs). A look-alike
+ * Four sets: QUATERNIUS (Universal Animation Library 1 and 2 by Quaternius, CC0: every free clip), MESH2MOTION (its
+ * human clips, CC0), CMU (moments cut from the CMU motion capture database), all imported by tools/anim-import.mjs, and
+ * HERO (the clips Emberdeep's Wanderer adopted, picked by tools/anim-set.mjs). A look-alike
  * of the libraries' mannequin plays each clip at their proportions; the engine's hero plays it retargeted to his build.
  * The AI panel shows a clip as the text a model reads and edits, the catalog it picks from, and the format.
  * Deep links: mocap-lab.html#Dance_Loop, ?set=hero, ?view=side, ?cast=both|hero|mannequin, ?speed=.25, ?true (true
@@ -24687,7 +24689,7 @@ const SETS = {}; for (const [k, v] of Object.entries(window.MOCAP)) SETS[k.toLow
 const SET_IDS = Object.keys(SETS);
 
 /* 1. Game and a studio floor: light grey with a grid, like the libraries' preview stage */
-const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 230, maxW: 520, bg: '#cfcac3' });
+const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 230, maxW: 520, portrait: { maxH: 1000 }, bg: '#cfcac3' });
 const MW = 40, MH = 40, T = 16, CX = MW * T / 2, CY = MH * T / 2;
 const map = new E.TileMap({
   w: MW, h: MH, tile: T, cells: new Array(MW * MH).fill(0), types: {},
