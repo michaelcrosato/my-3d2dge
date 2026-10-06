@@ -9,6 +9,7 @@ my-3D2dge animates with code, but its rigs can also play animation made for 3D g
   - 16 it motion-captured itself with a Sony mocopi suit (fishing, golf, cheers, salutes, turns).
 
   That makes 177 clips, and every one records which origin it came from (see [Where each clip came from](#where-each-clip-came-from)).
+- **CMU** (`src/mocap/sets/cmu.js`): 9 moments cut from the [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu/) (about 2,500 takes, free for all uses), the first test of reading it directly: a walk, a zombie's shamble, jumping jacks and a boxer's guard (each one cycle, looping in place), a jab, a sword lunge, a jump kick, a cartwheel and a ladder climb, from five subjects. Every clip records its take and the seconds it came from (see [Importing from CMU](#importing-from-cmu-step-by-step)).
 - **HERO** (`src/mocap/sets/hero.js`): the 15 clips Emberdeep's hero, the Wanderer, has adopted (see [The hero's clips](#the-heros-clips-in-emberdeep)): 8 from QUATERNIUS and 7 from MESH2MOTION, picked with `tools/anim-set.mjs`. It is the only set the game ships.
 
 `examples/mocap-lab.html` plays any of the sets (**G** switches) on two figures:
@@ -24,6 +25,7 @@ To bring in another library, follow [Adding a library, step by step](#adding-a-l
 
 ```
 .blend / .fbx / .bvh ──tools/to-glb.py──▶ .glb
+CMU takes (.asf + .amc) ──tools/cmu.mjs get──▶ .cache/cmu ──tools/anim-import.mjs --cmu──▶ src/mocap/sets/cmu.js
 libraries (.glb) ──tools/anim-import.mjs──▶ src/mocap/sets/quaternius.js ──tools/anim-set.mjs──▶ src/mocap/sets/hero.js
                                                      │                                                    │
                                                      └──────────── Mocap.load(set) ◀──────────────────────┘
@@ -62,6 +64,7 @@ libraries (.glb) ──tools/anim-import.mjs──▶ src/mocap/sets/quaternius.
    |---|---|---|---|---|---|
    | QUATERNIUS | 88 | 1,295 | 378 KB | 72 KB | ~190k for all; a typical clip ~2,100 |
    | MESH2MOTION | 177 | 2,798 | 800 KB | 155 KB | ~400k for all |
+   | CMU | 9 | 250 | 79 KB | 20 KB | ~37k |
    | HERO | 15 | 238 | 74 KB | 17 KB | ~34k |
 
    For comparison, the old raw form (every frame of the first library's 46 clips as base64 Int16) was 591 KB, 232 KB gzipped, and unreadable.
@@ -152,6 +155,47 @@ npm run mocap:sheet -- src/mocap/sets/quaternius.js --uncataloged src/mocap/cata
 
 **10. Use it in a game.** A game ships only the clips it plays: `npm run mocap:set` picks them into a small set (as the hero's), and the game inlines that set. The picked clips keep their `src` and `orig`, and the set keeps their libraries' records.
 
+### Importing from CMU, step by step
+
+The [CMU database](http://mocap.cs.cmu.edu/) holds about 2,500 takes by more than 100 people: walks in every style, runs, dances, sports, martial arts, acrobatics, playground games, everyday chores. It is "free for all uses", and the data "may be copied, modified, or redistributed without permission". Takes are raw: long recordings of several actions, so each clip is a stretch cut from one. Nine takes went through this route as its first test (the CMU set).
+
+**1. Find takes.** `node tools/cmu.mjs find cartwheel` lists the takes whose description has every word, with each take's frame rate and the subject's own description (`49_06  120 fps  cartwheel  (modern dance, gymnastics)`). The first run downloads the site's index of all 2,435 takes to `.cache/cmu/index.tsv`. `node tools/cmu.mjs subject 13` lists one subject's takes. (`npm run mocap:cmu -- find kick`.)
+
+**2. Pick a stretch.** Import the whole take once to look at it: a catalog whose `"$pick"` names it, then a contact sheet with a frame every half second, each marked with its time:
+
+```
+{ "$pick": { "T13_29": ["13_29"] } }
+node tools/anim-import.mjs --cmu --catalog check-output/cmu/look.json --name CMU --out check-output/cmu/look.js
+node tools/anim-sheet.mjs check-output/cmu/look.js --every 0.5 --frames 16 --out check-output/cmu
+```
+
+Narrow it with `--every 0.1` around the moment. When the frames are too small to judge (a fast move like a jumping jack), measure it instead: `tools/asf-amc.mjs` exports `readAsf`, `readAmc` and `pose`, which give every bone's position frame by frame (hands above the head, feet apart, hips height).
+
+**3. Write the catalog** (`src/mocap/catalogs/cmu.json`):
+- `"$sources"`: one `"CMU"` record (label, origin, license, url); the importer copies it for each subject, naming the subject and linking its page.
+- `"$pick"`: each clip's take and the seconds to keep, `"Cartwheel": ["49_06", 1.0, 3.6]` (no end: to the end of the take).
+- an entry per clip, `[tags, what the body does]`, as for any library. The tag `loop` asks for a loop.
+
+**4. Import:**
+
+```
+node tools/anim-import.mjs --cmu --catalog src/mocap/catalogs/cmu.json --name CMU --title CMU \
+  --credit "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu), free for all uses; ..." --out src/mocap/sets/cmu.js
+```
+
+It downloads the takes it needs (to `.cache/cmu`, not committed), reads each subject's skeleton and each take, and fits the picked stretches like any other clips. On the way it:
+- **places the body points** on CMU's bones by forward kinematics (pelvis, spine, neck, head, collarbones, arms, the knuckle line, legs, feet), at 30 fps from the take's 120 or 60;
+- **turns each clip to face forward and start at the origin**, from the hips' heading at its first frame;
+- **finds the floor** (the height the lowest foot point keeps most often over the subject's takes), so standing hips read as 100;
+- **cuts loops**: for a clip tagged `loop` it searches the stretch for the cycle whose end best matches its start, in pose and in speed, among spans that keep moving (a pause matches itself perfectly). It prints the cycle and how far its seam is off, spreads that remainder over the cycle so the loop closes exactly, and plays it in place, facing the way it travels, with the hips' sway kept.
+
+**5. Check.** `npm run mocap:sheet -- src/mocap/sets/cmu.js` for the contact sheets, the lab (`?set=cmu`) to play each clip on both figures, and `npm test`. The lab names each clip's take ("From CMU motion capture, subject 49 (modern dance, gymnastics) (free for all uses ...), take 49_06 at 1.00 to 3.60 s").
+
+What the first nine showed:
+- **Accuracy:** 10 to 24 mm from the capture on average (Quaternius: 14), 250 key poses for 9 clips.
+- **The loops:** the walk's cycle closed within 23 mm; the boxer's guard bounce, which is not strictly periodic, within 92 mm, then exactly after spreading.
+- **What needed fixing on the way:** the first loop search picked a pause in the jumping jacks (now refused); the first floor estimate, a low percentile of foot heights, caught a landing's dip and put one subject's standing hips at 112 (now the most common height).
+
 ### Where each clip came from
 
 Every set records the origin of every clip, so a clip's history survives being copied into another set or edited by a model:
@@ -165,6 +209,7 @@ Every set records the origin of every clip, so a clip's history survives being c
   ```
 - **`src`** on each clip: the library it came from (the key into `sources`).
 - **`orig`** on a clip that is a copy or an edit of another set's clip: that clip, as `SET/clip`. Mesh2Motion's `Walk` says `"orig": "QUATERNIUS/Walk_Loop"`.
+- **`take`** on a clip cut from a motion capture database: the recording and the seconds used, as `"13_29 2.30-3.42"` (CMU subject 13, take 29, from 2.30 s to 3.42 s). Each CMU subject is its own library (`CMU_13`), and its record names the subject and links its page.
 - **`"$skip"`** in the catalog: the clips left out on purpose, each with the reason.
 
 How Mesh2Motion's origins were established:
@@ -318,7 +363,8 @@ These are the questions that get harder to change once games and models depend o
 
 - **The hero's face and hair follow `facing`,** not the clip's head (see 3 above). The mannequin uses the clip's own face direction.
 - **Fingers are not imported.** Hands are fists, which suits pixel art at this size.
-- **Two bone maps:** Rigify `DEF-` bones and Unreal-style names (any case). Another skeleton (CMU's, 100STYLE's) needs its own map in `tools/anim-import.mjs`; `tools/to-glb.py` already turns their BVH and FBX files into GLB.
+- **Two bone maps, plus CMU:** Rigify `DEF-` bones and Unreal-style names (any case) in GLB files, and CMU's own skeleton files (ASF/AMC), which `tools/asf-amc.mjs` reads directly. Another skeleton (100STYLE's BVH) needs its own map in `tools/anim-import.mjs`; `tools/to-glb.py` already turns BVH and FBX files into GLB.
+- **CMU's hands have one finger bone and a thumb.** The knuckle line is set across the hand toward the thumb, so a CMU fist turns with the wrist but never curls.
 - **The mannequin's body is measured from the first library's mesh.** The second library's skeleton has the same proportions, so its clips play on the same figure.
 
 ## Where to get more animation
@@ -333,7 +379,7 @@ Prices and contents as of October 2026.
 | [Library 2 Source](https://quaternius.itch.io/universal-animation-library-2) (Library 2 has no Pro tier) | 130+ | $14.99 | CC0 | .blend only | `tools/to-glb.py`, then import. Library 1's Source edition ($14.99) is the same route. |
 | [Mesh2Motion](https://github.com/Mesh2Motion/mesh2motion-app) humans (`static/animations/human-*.glb`) | 178: 87 Quaternius clips re-exported, 75 hand-animated (climbs, ledge hang, bow, backflip, dodges, crawl, flying, dances, emotes), 16 of its own mocopi captures | free | CC0 | GLB | Imported (MESH2MOTION, 177 clips; one defective re-export skipped). 16.1 mm on average. |
 | [CMU motion capture, retargeted by RancidMilk](https://rancidmilk.itch.io/free-character-animations) | 2,000+ | free | CMU's terms: use, change and share freely, credit mocap.cs.cmu.edu, never sell the data itself | FBX, on a Quaternius character | `tools/to-glb.py`; not tried yet. It needs a bone map if the rig is not one we read. |
-| CMU raw ([mocap.cs.cmu.edu](http://mocap.cs.cmu.edu)) | 2,500 | free | as above | BVH, ASF/AMC | `tools/to-glb.py` reads BVH. The CMU skeleton (hip, abdomen, chest, lThigh...) needs a bone map, and long takes need cutting into clips. |
+| CMU raw ([mocap.cs.cmu.edu](http://mocap.cs.cmu.edu)) | 2,435 takes (2,109 at 120 fps, 326 at 60) | free | "free for all uses"; "may be copied, modified, or redistributed without permission" | ASF/AMC (BVH conversions elsewhere) | **Imported (CMU)**: `tools/cmu.mjs` finds and downloads takes, `anim-import --cmu` reads them directly and cuts the picked moments (loops cut to their best cycle). 9 so far, 16.8 mm on average. See [Importing from CMU](#importing-from-cmu-step-by-step). |
 | [100STYLE](https://zenodo.org/record/8127870) | 100 walking and running styles | free | CC BY 4.0 (credit required) | BVH | Same route as raw CMU: a bone map, then cutting into loops. |
 | Mixamo | thousands | free account | Adobe's terms forbid redistributing the animations in an editable form | FBX | No: a converted set in an open repository is exactly that. |
 | Bandai Namco Research motion dataset | 3,000 | free | CC BY-NC-ND 4.0 | BVH | No: retargeting is a derivative. |
@@ -350,7 +396,7 @@ Prices and contents as of October 2026.
 - a foot under the floor;
 - clip text that does not read back the same, or that is not restored by mirroring twice;
 - a clip without a recorded fit, one more than 40 mm from its capture on average (300 mm at worst), or a set more than 20 mm on average;
-- a clip whose library has no origin or license on record, or whose `orig` names a clip that doesn't exist;
+- a clip whose library has no origin or license on record, whose `orig` names a clip that doesn't exist, or whose `take` is not a take and a stretch of seconds;
 - a clip of a picked set (the hero's) that is not key for key the clip it was picked from;
 - a broken edit accepted, or rejected without a clear message;
 - an edit applied in the panel that does not play, or that Reset does not undo.

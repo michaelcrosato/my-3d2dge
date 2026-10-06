@@ -1,0 +1,25 @@
+{
+  "$sources": {
+    "CMU": { "label": "CMU motion capture", "origin": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu). The database was created with funding from NSF EIA-0196217.", "license": "free for all uses (may be copied, modified, or redistributed without permission)", "url": "http://mocap.cs.cmu.edu/" }
+  },
+  "$pick": {
+    "Walk_Loop": ["02_01"],
+    "Zombie_Walk_Loop": ["120_22", 2.0, 9.0],
+    "Jumping_Jacks_Loop": ["13_29", 0.3, 4.0],
+    "Boxing_Guard_Loop": ["13_17", 12.0, 14.4],
+    "Boxing_Jab": ["13_17", 1.5, 2.6],
+    "Lunge_Thrust": ["02_07", 10.5, 12.5],
+    "Jump_Kick": ["90_05", 1.0, 3.4],
+    "Cartwheel": ["49_06", 1.0, 3.6],
+    "Climb_Ladder": ["13_33", 2.0, 9.0]
+  },
+  "Walk_Loop": ["walk loop", "An everyday walk at a steady pace, arms swinging loosely. One stride cycle, in place"],
+  "Zombie_Walk_Loop": ["walk zombie loop", "A zombie's shamble: head and shoulders slumped forward, a dragging step, arms hanging. One cycle, in place"],
+  "Jumping_Jacks_Loop": ["exercise loop", "Jumping jacks: hop the feet apart while the arms swing up overhead, then back together. One jack, in place"],
+  "Boxing_Guard_Loop": ["stance unarmed loop", "A boxer's guard: fists up by the face, bouncing light on the feet, weaving a little. In place"],
+  "Boxing_Jab": ["attack unarmed once", "From the guard, a straight jab with the lead fist, snapped back to the guard"],
+  "Lunge_Thrust": ["attack sword once", "Swordplay: from a guard, a lunge forward with the sword arm thrust straight out, then a recovery back (no sword is drawn)"],
+  "Jump_Kick": ["attack kick jump once", "A run-up, a leap with a high kick in the air, and a landing on both feet"],
+  "Cartwheel": ["jump dodge once", "A cartwheel to the side: hands to the floor one after the other, legs wheeling over, back up to standing"],
+  "Climb_Ladder": ["climb once", "Climbing a ladder hand over hand, rising about a step a second (no ladder is drawn)"]
+}

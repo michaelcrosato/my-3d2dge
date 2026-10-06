@@ -22,14 +22,22 @@
 //   "$sources": { ID: { label, origin, license, url } } says where each library (--sources ID) came from; every
 //   clip names its library in "src", so a set always says where each of its clips came from. "$skip": { clip: why }
 //   leaves clips out, with the reason on record.
+// --cmu: the CMU motion capture database (tools/cmu.mjs) instead of .glb files. The catalog's "$pick" names each clip's
+//   take and the stretch of it: { "Cartwheel": ["49_06", 1.2, 3.4] } (seconds; no end = to the end of the take). The
+//   takes are downloaded to .cache/cmu; each subject is a library (CMU_49), described by the catalog's "$sources".CMU,
+//   and each clip records its take in "take" ("49_06 1.20-3.40").
+//   node tools/anim-import.mjs --cmu --catalog src/mocap/catalogs/cmu.json --name CMU --title CMU --out src/mocap/sets/cmu.js
 import { readFileSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { MR, writeSet } from './mocap-lib.mjs';
+import { readCmu } from './asf-amc.mjs';
+import { cmuIndex, cmuGet } from './cmu.mjs';
 
 const args = process.argv.slice(2);
-const files = args.filter((a, i) => !a.startsWith('--') && !(args[i - 1] || '').startsWith('--'));
+const FLAGS = ['--list', '--cmu'], files = args.filter((a, i) => !a.startsWith('--') && (!(args[i - 1] || '').startsWith('--') || FLAGS.includes(args[i - 1])));   // flags take no value
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : def; };
-if (!files.length) { console.error('Usage: node tools/anim-import.mjs a.glb [b.glb ...] [--sources A,B] [--name SET] [--out file.js] [--catalog cat.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword] [--rest ClipA,ClipB] [--title Name] [--list]'); process.exit(2); }
+const CMU = args.includes('--cmu');
+if (!files.length && !CMU) { console.error('Usage: node tools/anim-import.mjs a.glb [b.glb ...] [--sources A,B] [--name SET] [--out file.js] [--catalog cat.json] [--credit "..."] [--tol 30] [--fps 30] [--clips A,B] [--blade Sword] [--rest ClipA,ClipB] [--title Name] [--list]'); process.exit(2); }
 const OUT = resolve(opt('out', 'src/mocap/sets/quaternius.js')), FPS = +opt('fps', 30), NAME = opt('name', 'QUATERNIUS'), TOL = +opt('tol', 30);
 const SOURCES = (opt('sources', '') || '').split(',').filter(Boolean), REST = (opt('rest', '') || '').split(','), ONLY = opt('clips', null) ? new Set(opt('clips').split(',')) : null;
 const BLADE = new RegExp(opt('blade', 'Sword'));
@@ -39,6 +47,25 @@ const CATALOG = opt('catalog', null) ? JSON.parse(readFileSync(resolve(opt('cata
 const ABOUT = CATALOG.$sources || {}; delete CATALOG.$sources;
 // clips left out on purpose, each with the reason: the catalog's "$skip" { clip: why }
 const SKIP = CATALOG.$skip || {}; delete CATALOG.$skip;
+// CMU: which take and which stretch of it each clip is (the catalog's "$pick"), grouped by subject; the takes are fetched
+const PICKS = {}, SUBJECT = {};
+if (CMU) {
+  const pick = CATALOG.$pick || {}; delete CATALOG.$pick;
+  if (!Object.keys(pick).length) { console.error('--cmu needs the catalog\'s "$pick": { clip: [take, from, to] }'); process.exit(2); }
+  const index = await cmuIndex(), byId = new Map(index.map(t => [t.id, t]));
+  for (const [name, [take, from, to]] of Object.entries(pick)) {
+    const [f] = await cmuGet([take]), t = byId.get(take);
+    if (!t) console.warn(take + ' is not in the CMU index');
+    if (!PICKS[f.asf]) { PICKS[f.asf] = []; files.push(f.asf); SUBJECT[f.asf] = t ? t.subject : +take.split('_')[0]; }
+    PICKS[f.asf].push({ name, take, from, to, fps: t ? t.fps : 120, loop: ((CATALOG[name] || [''])[0] || '').split(' ').includes('loop') });   // tagged 'loop': cut to its best cycle
+  }
+  if (!SOURCES.length) files.forEach(f => SOURCES.push('CMU_' + String(SUBJECT[f]).padStart(2, '0')));
+  // one record per subject, from the catalog's "$sources".CMU: its label and page name the subject
+  if (ABOUT.CMU) for (const f of files) {
+    const n = SUBJECT[f], who = (index.find(t => t.subject === n) || {}).about;
+    ABOUT['CMU_' + String(n).padStart(2, '0')] = Object.assign({}, ABOUT.CMU, { label: ABOUT.CMU.label + ', subject ' + n + (who ? ' (' + who + ')' : ''), url: 'http://mocap.cs.cmu.edu/search.php?subjectnumber=' + n });
+  }
+}
 
 /* ---- rigs: which bone gives each body point. [point, bone, where]: where 'tip' = the bone's far end, 'fwd' = 12 cm in front ---- */
 const RIGS = {
@@ -89,6 +116,7 @@ const MM = 1000;   // metres -> millimetres
 
 /** one library: its rig, its clips captured as body points, and (Rigify) the look of its mannequin */
 function readLibrary(file) {
+  if (/\.asf$/i.test(file)) return readCmu(resolve(file), PICKS[file] || [], FPS);   // a CMU subject: its picked takes
   const buf = readFileSync(resolve(file));
   if (buf.readUInt32LE(0) !== 0x46546c67) throw new Error(file + ' is not a binary glTF (.glb) file');
   const jsonLen = buf.readUInt32LE(12), G = JSON.parse(buf.subarray(20, 20 + jsonLen).toString('utf8')), BIN = 20 + jsonLen + 8;
@@ -205,14 +233,14 @@ const set = Object.assign({ set: NAME }, opt('title') ? { title: opt('title') } 
 const r1 = v => Math.round(v);
 libs.forEach((L, li) => {
   // the body at rest comes from the library's T-pose or rest-pose clip (--rest names it), else the first clip's first frame
-  const restClip = [REST[li], 'A_TPose', 'T-Pose', 'TPose', 'Rest Pose', 'Rest_Pose'].find(n => n && L.clips[n]);
+  const restClip = [REST[li], 'A_TPose', 'T-Pose', 'TPose', 'Rest Pose', 'Rest_Pose', '_rest'].find(n => n && L.clips[n]);
   const id = SOURCES[li] || basename(files[li]).replace(/\.glb$/i, ''), rest = MR.measure(L.clips, restClip);
   if (Object.keys(CATALOG).length && !ABOUT[id]) console.warn('no "$sources" entry for ' + id + ': the set will not say where its clips came from');
   set.sources[id] = Object.assign({ file: basename(files[li]), rig: L.rig }, ABOUT[id] || {}, { rest });
   if (!set.body && L.body) set.body = L.body;
   let kept = 0;
   for (const [name, cap] of Object.entries(L.clips)) {
-    if (set.clips[name] || (ONLY && !ONLY.has(name))) continue;
+    if (set.clips[name] || (ONLY && !ONLY.has(name)) || name.startsWith('_')) continue;   // '_rest': a reader's rest pose, not a clip
     if (SKIP[name]) { console.log('left out ' + name + ': ' + SKIP[name]); continue; }
     const cat = CATALOG[name], extra = { blade: BLADE.test(name) };
     if (cat) {   // the tags 'loop' and 'once' say whether it loops (for libraries whose names do not: '_Loop', '_Idle')
@@ -220,7 +248,8 @@ libs.forEach((L, li) => {
       extra.tags = tags.filter(t => t !== 'loop' && t !== 'once'); extra.desc = cat[1];
     } else if (Object.keys(CATALOG).length) console.warn('no catalog entry for ' + name);
     const { clip, max, mean } = MR.fit(rest, cap, TOL, extra);
-    const ordered = { clip: clip.clip, src: id }; if (cat && cat[2]) ordered.orig = cat[2];   // orig: the clip it was made from, as SET/clip
+    const ordered = { clip: clip.clip, src: id }; if (cap.take) ordered.take = cap.take;   // take: the recording and the stretch of it (CMU)
+    if (cat && cat[2]) ordered.orig = cat[2];   // orig: the clip it was made from, as SET/clip
     Object.assign(ordered, { dur: clip.dur, loop: clip.loop }); if (clip.tags) ordered.tags = clip.tags; if (clip.desc) ordered.desc = clip.desc; ordered.keys = clip.keys;
     set.clips[name] = ordered; set.fit[name] = [r1(mean), r1(max)]; kept++;
   }

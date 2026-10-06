@@ -177,7 +177,8 @@ function syncInfo() {
   const c = S.clip, fit = lib.set.fit && lib.set.fit[c.name];
   const o = lib.origin(c);   // where it came from: its library, and the clip it was made from
   $('note').textContent = pretty(c.name) + (c.desc ? ': ' + c.desc + '.' : '.') + ' ' + c.keys.length + ' key poses, ' + c.dur.toFixed(2) + ' s, ' + (c.loop ? 'loops' : 'plays once') + (c.keys[0].root ? ', travels' : '') + (fit ? '; within ' + fit[0] + ' mm of the capture on average.' : '.')
-    + ' From ' + o.label + (o.license ? ' (' + o.license + ')' : '') + (o.orig ? ', made from ' + o.orig.replace('/', ' ') : '') + '.';
+    + ' From ' + o.label + (o.license ? ' (' + o.license + ')' : '') + (o.orig ? ', made from ' + o.orig.replace('/', ' ') : '')
+    + (o.take ? ', take ' + o.take.replace(' ', ' at ').replace('-', ' to ') + ' s' : '') + '.';
   $('note').title = o.origin;
   $('playBtn').setAttribute('aria-pressed', String(!S.playing));
   placePanels();
@@ -236,8 +237,8 @@ $('copyBtn').addEventListener('click', () => { if (navigator.clipboard) navigato
 textEl.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); apply(); } });
 // the catalog: one line per clip, what a model reads to choose (it never needs the key poses to pick)
 function showCatalog() {
-  const txt = '// ' + lib.names.length + ' clips. name | seconds | loop or once | tags | what the body does | library (= the clip it was made from)\n' + S.order.map(n => {
-    const c = lib.clip(n); return n + ' | ' + c.dur.toFixed(2) + ' | ' + (c.loop ? 'loop' : 'once') + ' | ' + (c.tags || []).join(' ') + ' | ' + (c.desc || '') + ' | ' + c.src + (c.orig ? ' (= ' + c.orig + ')' : '');
+  const txt = '// ' + lib.names.length + ' clips. name | seconds | loop or once | tags | what the body does | library (= the clip it was made from) (take: the recording and the seconds used, for motion capture)\n' + S.order.map(n => {
+    const c = lib.clip(n); return n + ' | ' + c.dur.toFixed(2) + ' | ' + (c.loop ? 'loop' : 'once') + ' | ' + (c.tags || []).join(' ') + ' | ' + (c.desc || '') + ' | ' + c.src + (c.orig ? ' (= ' + c.orig + ')' : '') + (c.take ? ' (take ' + c.take + ')' : '');
   }).join('\n');
   $('catalog').textContent = txt; $('catalogNote').textContent = '~' + tokens(txt, PROSE) + ' tokens for all ' + lib.names.length + ' clips. A model picks from this list, then opens only the clips it uses.';
 }

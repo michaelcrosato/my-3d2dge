@@ -5048,9 +5048,10 @@ function load(set) {
   lib.restore = name => { if (originals[name]) { clips[name] = originals[name]; delete originals[name]; } return clips[name]; };
   lib.edited = name => !!originals[name];
   /** the clip as the text a model reads (its header and its key poses) */
-  lib.text = clip => { const o = { clip: clip.clip || clip.name }; for (const k of ['src', 'orig', 'dur', 'loop', 'tags', 'desc']) if (clip[k] !== undefined) o[k] = clip[k]; o.keys = clip.keys; return MR.text(o); };
-  /** where a clip came from: its library's label, origin and license (from the set's sources), and the clip it was made from */
-  lib.origin = clip => { const s = set.sources[clip.src] || {}; return { src: clip.src, label: s.label || clip.src, origin: s.origin || '', license: s.license || '', url: s.url || '', orig: clip.orig || null }; };
+  lib.text = clip => { const o = { clip: clip.clip || clip.name }; for (const k of ['src', 'take', 'orig', 'dur', 'loop', 'tags', 'desc']) if (clip[k] !== undefined) o[k] = clip[k]; o.keys = clip.keys; return MR.text(o); };
+  /** where a clip came from: its library's label, origin and license (from the set's sources), the clip it was made from,
+   *  and (a capture database's) the take and the stretch of it: '13_29 2.30-3.42' */
+  lib.origin = clip => { const s = set.sources[clip.src] || {}; return { src: clip.src, label: s.label || clip.src, origin: s.origin || '', license: s.license || '', url: s.url || '', orig: clip.orig || null, take: clip.take || null }; };
   /** a pose blended from a to b (crossfades between clips) */
   lib.blend = (a, b, k, out = new Float32Array(P * 3)) => { for (let i = 0; i < P * 3; i++) out[i] = a[i] + (b[i] - a[i]) * k; return out; };
   lib.pt = (pose, name) => { const i = idx[name] * 3; return [pose[i], pose[i + 1], pose[i + 2]]; };
