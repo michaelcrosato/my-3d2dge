@@ -1,0 +1,71 @@
+{
+  "$about": "The Labs page (examples/labs.html, my-3d2dge.vercel.app/labs) is built from this list by tools/build.mjs. Each entry is one page: page is an examples/ page name (examples/<page>.html, served at /<page>) or a dist/ path; links are [label, what to add to the address]. keep: tools and demos worth keeping. temporary: one-off comparisons and experiments, each with the date it was added and the question it answers; when the question is settled, delete the page and its entry. tools/labs-test.mjs opens every link.",
+  "sections": [
+    {
+      "id": "game",
+      "title": "The game",
+      "entries": [
+        {
+          "page": "emberdeep",
+          "title": "Emberdeep",
+          "what": "The game itself. Its own test areas are inside it: the Proving Grounds, the Gallery (every monster, skill and pose) and the Developer panel's sandbox.",
+          "links": [["Title", ""], ["Town", "#town"], ["Depth 7", "#depth-7"], ["Proving Grounds", "#proving"], ["Gallery", "#gallery"], ["Bestiary: husk", "#gallery/bestiary/husk"], ["Three-quarter view", "?view=threequarter"]]
+        }
+      ]
+    },
+    {
+      "id": "keep",
+      "title": "Labs",
+      "entries": [
+        {
+          "page": "mocap-lab",
+          "title": "Mocap Lab",
+          "what": "Every imported animation clip, on a mannequin and on the hero, in every view, slow or frame by frame. Sets: Quaternius, Mesh2Motion, CMU motion capture, and the clips the hero uses.",
+          "links": [["All sets", ""], ["CMU clips", "?set=cmu"], ["Mesh2Motion", "?set=mesh2motion"], ["Hero's clips", "?set=hero"], ["Side view", "?view=side"], ["Hero only, slow", "?cast=hero&speed=.25"]]
+        },
+        {
+          "page": "perspective-lab",
+          "title": "Perspective Lab",
+          "what": "One room in every camera view (isometric, three-quarter, top-down, brawler, side), with skeleton and lighting toggles.",
+          "links": [["Open", ""]]
+        },
+        {
+          "page": "stress-test",
+          "title": "Stress test",
+          "what": "Raise the load (up to 5,000 monsters, torches, particles) until the frame rate drops, or run the benchmark to rate this device.",
+          "links": [["Open", ""], ["Three-quarter view", "?view=threequarter"]]
+        }
+      ]
+    },
+    {
+      "id": "demos",
+      "title": "Demos and starters",
+      "entries": [
+        {
+          "page": "arena",
+          "title": "Emberwell",
+          "what": "The action-RPG arena demo with GPU lighting, in four views.",
+          "links": [["Isometric", ""], ["Three-quarter", "#threequarter"], ["Top-down", "#topdown"], ["Brawler", "#brawler"]]
+        },
+        {
+          "page": "dist/my-3d2dge.html",
+          "title": "Starter games",
+          "what": "The file to hand an AI model: the engine, its API card and five small games. The kits are one game each.",
+          "links": [["All five", ""], ["Adventure kit", "dist/kits/my-3d2dge-adventure.html"], ["Platformer kit", "dist/kits/my-3d2dge-platformer.html"], ["Brawler kit", "dist/kits/my-3d2dge-brawler.html"], ["Shooter kit", "dist/kits/my-3d2dge-shooter.html"], ["RPG kit", "dist/kits/my-3d2dge-rpg.html"], ["Animation kit", "dist/kits/my-3d2dge-animlab.html"]]
+        },
+        {
+          "page": "scarfrunner-side",
+          "title": "Scarfrunner",
+          "what": "The side-scrolling prototype that came before the engine.",
+          "links": [["Open", ""]]
+        }
+      ]
+    },
+    {
+      "id": "temporary",
+      "title": "Temporary",
+      "empty": "Nothing here right now. One-off comparisons and experiments land here, with the date and the question each one answers, and are deleted once it is settled.",
+      "entries": []
+    }
+  ]
+}

@@ -7,7 +7,7 @@
 const E = My3D2dge, { px, clamp, approach, TAU } = E;
 
 /* 1. Game: canvas + starting view. Everything else hangs off `game`. */
-const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 200, maxW: 520, bg: '#0d0b14' });
+const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 200, maxW: 520, portrait: { maxH: 1000 }, bg: '#0d0b14' });
 const P = game.particles;
 
 /* 2. Map: 0 = floor, other ids = wall types (height in world units, colors). */

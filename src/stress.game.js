@@ -16,7 +16,7 @@ const qs = new URLSearchParams(location.search);
 
 /* ---------- setup ---------- */
 const canvas = document.getElementById('screen');
-const BASE = { minH: 200, minW: 300, maxW: 540, maxH: 330 };
+const BASE = { minH: 200, minW: 300, maxW: 540, maxH: 330, portrait: { maxH: 1000 } };
 const game = new E.Game(Object.assign({ canvas, view: qs.get('view') || 'iso', bg: '#06050b' }, BASE));
 const P = game.particles;
 game.lights.enabled = true; game.lights.ambient = .12;
@@ -677,7 +677,7 @@ function hud() {
 const VIEWS = ['iso', 'threequarter', 'topdown', 'brawler'];
 function setDistance(d) {
   S.distance = d;
-  game.screen.setOptions({ minH: BASE.minH * d, minW: BASE.minW * d, maxW: Math.round(BASE.maxW * d), maxH: Math.round(BASE.maxH * d) });
+  game.screen.setOptions({ minH: BASE.minH * d, minW: BASE.minW * d, maxW: Math.round(BASE.maxW * d), maxH: Math.round(BASE.maxH * d), portrait: { maxH: Math.round(BASE.portrait.maxH * d) } });
   game.cam.snap = true;
 }
 // camera: distance (above) renders more pixels, zoom scales the drawing at the same resolution, turn spins the view

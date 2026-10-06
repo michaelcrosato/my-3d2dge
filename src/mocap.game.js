@@ -1,7 +1,8 @@
 /* =============================================================================
  * MOCAP LAB  animation sets in my-3D2dge's readable format, played on the engine's rigs.
- * Two sets: QUATERNIUS (Universal Animation Library 1 and 2 by Quaternius, CC0: every free clip, imported by
- * tools/anim-import.mjs) and HERO (the clips Emberdeep's Wanderer adopted, picked by tools/anim-set.mjs). A look-alike
+ * Four sets: QUATERNIUS (Universal Animation Library 1 and 2 by Quaternius, CC0: every free clip), MESH2MOTION (its
+ * human clips, CC0), CMU (moments cut from the CMU motion capture database), all imported by tools/anim-import.mjs, and
+ * HERO (the clips Emberdeep's Wanderer adopted, picked by tools/anim-set.mjs). A look-alike
  * of the libraries' mannequin plays each clip at their proportions; the engine's hero plays it retargeted to his build.
  * The AI panel shows a clip as the text a model reads and edits, the catalog it picks from, and the format.
  * Deep links: mocap-lab.html#Dance_Loop, ?set=hero, ?view=side, ?cast=both|hero|mannequin, ?speed=.25, ?true (true
@@ -15,7 +16,7 @@ const SETS = {}; for (const [k, v] of Object.entries(window.MOCAP)) SETS[k.toLow
 const SET_IDS = Object.keys(SETS);
 
 /* 1. Game and a studio floor: light grey with a grid, like the libraries' preview stage */
-const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 230, maxW: 520, bg: '#cfcac3' });
+const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 230, maxW: 520, portrait: { maxH: 1000 }, bg: '#cfcac3' });
 const MW = 40, MH = 40, T = 16, CX = MW * T / 2, CY = MH * T / 2;
 const map = new E.TileMap({
   w: MW, h: MH, tile: T, cells: new Array(MW * MH).fill(0), types: {},

@@ -13,7 +13,7 @@ const qs = new URLSearchParams(location.search);
 /* ---------- setup ---------- */
 const canvas = document.getElementById('screen');
 const hashView = location.hash.slice(1), startView = qs.get('view') || (E.VIEWS[hashView] ? hashView : null) || CFG.view || 'iso';   // arena.html#threequarter
-const game = new E.Game({ canvas, view: startView, minH: 200, maxW: 540, bg: '#06050b' });
+const game = new E.Game({ canvas, view: startView, minH: 200, maxW: 540, portrait: { maxH: 1000 }, bg: '#06050b' });
 const P = game.particles;
 game.lights.enabled = true;
 game.lights.ambient = .1;

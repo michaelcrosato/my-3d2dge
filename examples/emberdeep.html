@@ -27860,6 +27860,8 @@ function renderDeveloper() {
 		const top = formElement("div", "", el, { class: "ed-dev-top" });
 		formElement("p", DEV.enabled ? "Sandbox active: a throwaway hero. Leave to restore your normal hero in town." : "Change how the game plays, section by section. Start the sandbox to test on a throwaway hero.", top);
 		formButton(top, DEV.enabled ? "Leave sandbox" : "Enable developer mode", () => (DEV.enabled ? devDisable() : devEnable()));
+		// every lab, test page and demo (examples/labs.html, /labs on the site); "labs.html" works from both
+		formButton(top, "All labs ↗", () => location.assign("labs.html")).title = "The Labs page: every lab, test page and demo";
 		formElement("p", "", el, { class: "ed-meta", "data-tuned": "" });
 		const bar = formElement("div", "", el, { class: "ed-dev-bar" });
 		const tiers = formElement("div", "", bar, { class: "ed-seg", role: "group", "aria-label": "Detail" });

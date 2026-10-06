@@ -61,6 +61,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 @media (pointer:coarse){ .touch{display:flex} .keys{display:none} kbd{display:none} }
 @media (max-width:720px),(max-height:520px){ .brand p{display:none} .brand h1{font-size:17px} .top{top:8px;left:8px;right:8px} }
 @media (prefers-reduced-motion: reduce){ #banner,#hpFill{transition:none} }
+a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);text-decoration:none;white-space:nowrap}a.to-labs:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -68,7 +69,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
   <canvas id="screen" role="img" aria-label="Emberwell, an action game in a torch-lit hall"></canvas>
   <div class="hud top">
     <div class="brand panel">
-      <h1>Emberwell</h1>
+      <h1>Emberwell <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
       <p id="note"></p>
       <p id="gpuNote" class="gpu-note"></p>
     </div>
