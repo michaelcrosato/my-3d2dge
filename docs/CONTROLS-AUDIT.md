@@ -18,6 +18,8 @@ Scope: shared engine input handling, Emberdeep movement/aim/combat input, canvas
 | Town conversations prevented the pause menu from opening. | Handle pause before conversation input and keep the conversation suspended under a modal. |
 | Gallery exit could continue updating a scene after switching to the title. | Stop the old scene update after the transition. Gallery save calls also explicitly skip the display hero. |
 | Camera view changes were not restored on startup. | Save the chosen view and restore it unless a URL view override is supplied. |
+| A phone held upright showed the game as a 330-pixel band across the middle of the screen, with the touch buttons over the skill bar. | The view grows to fill a screen taller than wide (the engine's `portrait` sizing). The HUD is drawn inside a frame (`UI.frame`) that keeps it out of the safe areas and, upright, lifts the HUD bar over the action buttons; the minimap, boss bar, notices and the gallery's title band go under the menu buttons; the camera centres the hero between them. On a wide screen the action buttons stand above the HUD bar and shrink to fit under the minimap. The menu buttons stay on the right for either hand. |
+| There was no way to go full screen on a phone. | A tap on the title menu asks for full screen on a touch screen; FULL SCREEN on the title and in the pause menu toggles it, and leaving it is remembered. The page carries the web-app tags, so an iPhone's Add to Home Screen opens it with no browser bars. |
 
 ## Added features
 
@@ -28,7 +30,7 @@ Developer is available from the same menus. The sandbox clones the hero and bloc
 ## Verification
 
 - `npm test`: rebuilds standalone artifacts, parses all 35 Emberdeep modules together, then runs the browser regressions in `tools/ed-controls-test.mjs`.
-- The control regressions use real keyboard/mouse events, browser touch events with two simultaneous contacts, and a simulated Gamepad API controller in slot 2. They cover rebinding, conflicts, reset, persistence, movement, attack/potion input, aim/deadzone/inversion, menu interaction, disconnects, focus loss, gallery navigation, portrait/landscape layout and handedness.
+- The control regressions use real keyboard/mouse events, browser touch events with two simultaneous contacts, and a simulated Gamepad API controller in slot 2. They cover rebinding, conflicts, reset, persistence, movement, attack/potion input, aim/deadzone/inversion, menu interaction, disconnects, focus loss, gallery navigation, portrait/landscape layout and handedness. On a phone-sized screen (390 x 844 at 3x) they check that the picture fills the screen upright and on its side, that the HUD bar clears the action buttons and the minimap clears the menu buttons, that a title tap goes full screen and that leaving it from the pause menu is remembered.
 - Developer regressions cover damage immunity, resource and cooldown restoration, frame stepping, pause, freeze/unfreeze, monster/boss spawn, loot/points/skills/gold, map reveal, clearing, lighting, speed, travel, autopilot, and normal-save/difficulty isolation with restoration.
 - `node tools/ed-syntax.mjs`: parses the 22-module core build, including the new controls/developer modules.
 - `node tools/ed-smoke.mjs --from 1 --to 20 --secs 2 --out check-output/final-smoke`: exercises title, town, gallery, proving grounds, and depths 1–20 with autopilot combat.

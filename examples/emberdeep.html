@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- a phone's home screen: Add to Home Screen opens it as an app, full screen, with no browser bars (an iPhone has no
+     full screen for a web page; this is its way). The picture runs under the status bar and the game keeps clear of it -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Emberdeep">
+<meta name="theme-color" content="#05040a">
 <title>Emberdeep · my-3D2dge</title>
 <!-- EMBERDEEP, the signature game of the my-3D2dge engine: https://github.com/michaelcrosato/my-3d2dge (standalone file, no network)
      Source: src/emberdeep/*.js joined into one script by tools/build.mjs.
@@ -10,14 +17,14 @@
      (quaternius.com), CC0 1.0, in my-3D2dge's readable format. -->
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
-#stage{position:relative;width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
+#stage{position:fixed;inset:0;overflow:hidden;background:#000;touch-action:none}
 #screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;cursor:crosshair}
 .ed-dialog{box-sizing:border-box;width:min(720px,96vw);max-height:92dvh;margin:auto;padding:20px;color:#eee5ff;background:linear-gradient(145deg,#211931,#100c1c);border:1px solid #8a7aa8;border-radius:12px;font:15px/1.5 system-ui,sans-serif;box-shadow:0 24px 80px #000a;touch-action:pan-y;color-scheme:dark}
 .ed-dialog::backdrop{background:#05030cc4}.ed-dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}.ed-dialog h2{margin:0;color:#ffd36a;font-size:24px}.ed-dialog h3{color:#b5eaff;margin:20px 0 8px}.ed-dialog p{color:#c8c0d8}.ed-dialog button,.ed-dialog select,.ed-dialog input{font:inherit;min-height:44px;border:1px solid #6a5a88;border-radius:6px;background:#302542;color:#fff;padding:6px 10px;max-width:100%;box-sizing:border-box}.ed-dialog button{cursor:pointer;margin:3px}.ed-dialog button:hover{background:#49375e}.ed-dialog :focus-visible{outline:3px solid #ffd36a;outline-offset:2px}.ed-field{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:50px;border-bottom:1px solid #ffffff12}.ed-field input[type=range]{width:45%;padding:0}.ed-field input[type=checkbox]{width:24px;accent-color:#6fd6cc}.ed-field select{max-width:55%}.ed-field input[type=number]{width:100px}.ed-meter{font:12px/1.5 monospace;overflow-wrap:anywhere;background:#0004;padding:10px;border-radius:6px}.ed-status{color:#ffd36a!important;position:sticky;top:-20px;z-index:1;background:#211931;padding:10px;min-height:24px}.ed-binding{display:grid;grid-template-columns:100px 1fr 1fr;align-items:center;gap:5px;border-top:1px solid #ffffff12;padding:8px 0}.ed-binding strong{font-size:13px}.ed-binding>div{display:flex;flex-wrap:wrap;gap:2px}.ed-binding button{font-size:12px;margin:0}.ed-binding button:first-child{flex:1}.ed-binding button+button{color:#b8adc9}
-.ed-touch{position:absolute;inset:0;pointer-events:none;z-index:5;opacity:var(--touch-opacity)}.ed-touch button{pointer-events:auto;touch-action:none;user-select:none;min-width:44px;min-height:44px;border:1px solid #b3a0cc80;background:#160f28cc;color:#fff;font:600 11px system-ui,sans-serif;border-radius:12px}.ed-touch button.on{background:#665185;border-color:#ffd36a}.ed-touch-actions{position:absolute;right:max(8px,env(safe-area-inset-right));bottom:max(76px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(3,var(--touch-size));gap:5px}.ed-touch-actions button{width:var(--touch-size);height:var(--touch-size)}.ed-touch-bar{position:absolute;right:max(8px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 16px);gap:5px}.ed-left .ed-touch-actions,.ed-left .ed-touch-bar{left:max(8px,env(safe-area-inset-left));right:auto}
+.ed-touch{position:absolute;inset:0;pointer-events:none;z-index:5;opacity:var(--touch-opacity)}.ed-touch button{pointer-events:auto;touch-action:none;user-select:none;min-width:44px;min-height:44px;border:1px solid #b3a0cc80;background:#160f28cc;color:#fff;font:600 11px system-ui,sans-serif;border-radius:12px}.ed-touch button.on{background:#665185;border-color:#ffd36a}.ed-touch-actions{position:absolute;right:max(8px,env(safe-area-inset-right));bottom:max(76px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(3,var(--touch-size));gap:5px}.ed-touch-actions button{width:var(--touch-size);height:var(--touch-size)}.ed-touch-bar{position:absolute;right:max(8px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 16px);gap:5px}.ed-left .ed-touch-actions{left:max(8px,env(safe-area-inset-left));right:auto}
 .ed-dev{width:min(860px,98vw)}.ed-dev .ed-status:empty{display:none}.ed-dev .ed-dev-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.ed-dev .ed-dev-top p{margin:4px 0;flex:1 1 260px}.ed-dev-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}.ed-dev-bar input[type=search]{flex:1 1 200px}.ed-seg{display:flex}.ed-seg button{margin:0;border-radius:0}.ed-seg button:first-child{border-radius:6px 0 0 6px}.ed-seg button:last-child{border-radius:0 6px 6px 0}.ed-dialog button[aria-pressed=true],.ed-dialog button[aria-selected=true]{background:#5a4270;border-color:#ffd36a;color:#fff6d8}.ed-tabs{display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid #6a5a88;padding-bottom:6px}.ed-tabs button{margin:0;font-size:14px;padding:4px 10px;min-height:38px}.ed-badge{display:inline-block;min-width:0;margin-left:5px;color:#8fe3ff;font-weight:700}.ed-badge:empty{display:none}.ed-tab-body{padding-top:4px}.ed-dev-intro{font-size:15px;background:#0003;padding:10px 12px;border-left:3px solid #ffd36a;border-radius:4px}.ed-dev-blurb{font-size:14px}.ed-dialog h4{color:#ffd36a;margin:18px 0 4px;font-size:14px;letter-spacing:.06em;text-transform:uppercase}.ed-knob,.ed-field-row{border-bottom:1px solid #ffffff12;padding:8px 6px;border-radius:4px}.ed-knob.ed-changed,.ed-field-row.ed-changed{background:#8fe3ff10;box-shadow:inset 3px 0 #8fe3ff}.ed-knob.ed-flash{animation:edflash 1.6s}@keyframes edflash{0%,40%{background:#ffd36a40}}.ed-knob-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.ed-knob-head label{font-weight:600;color:#fff}.ed-val{font:600 15px monospace;color:#ffd36a}.ed-tag{font-size:11px;color:#9a90b0;border:1px solid #5a4a78;border-radius:4px;padding:0 4px;margin-left:6px;font-weight:400}.ed-about{font-size:13px!important;margin:2px 0 4px;color:#b8adc9!important}.ed-meta{font-size:12px!important;color:#8a80a8!important;margin:2px 0}.ed-knob-ctl{display:flex;align-items:center;gap:8px}.ed-knob-ctl input[type=range]{flex:1;min-height:32px;padding:0;accent-color:#ffd36a}.ed-knob-ctl input[type=number]{width:96px}.ed-knob-ctl button,.ed-field-row button{min-height:36px;padding:2px 10px;margin:0}.ed-field-row{display:grid;grid-template-columns:1fr 110px 44px;gap:6px;align-items:center}.ed-field-row label{color:#e8e0f8;font-weight:600}.ed-code{font:400 11px monospace;color:#8a80a8;margin-left:4px}.ed-field-row .ed-about{grid-column:1/-1}.ed-inspect{max-height:none}.ed-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}.ed-dev-foot{border-top:1px solid #6a5a88;padding-top:8px}.ed-guide{border-bottom:1px solid #ffffff12;padding:4px 0}.ed-dialog .ed-guide-q{background:none;border:none;color:#8fe3ff;font-weight:600;text-align:left;padding:4px 0;min-height:32px}.ed-dialog .ed-guide-q:hover{background:none;text-decoration:underline}.ed-dev-list li{color:#c8c0d8;margin:4px 0}
-@media(max-width:480px){.ed-field-row{grid-template-columns:1fr 90px 44px}.ed-knob-ctl input[type=number]{width:76px}.ed-dialog{padding:14px;font-size:14px}.ed-binding{grid-template-columns:1fr 1fr}.ed-binding strong{grid-column:1/-1}.ed-status{top:-14px}.ed-touch-actions{bottom:max(94px,env(safe-area-inset-bottom))}}
-@media(max-height:480px){.ed-touch-actions{bottom:48px;grid-template-columns:repeat(3,min(var(--touch-size),48px))}.ed-touch-actions button{width:min(var(--touch-size),48px);height:min(var(--touch-size),48px)}}
+@media(max-width:480px){.ed-field-row{grid-template-columns:1fr 90px 44px}.ed-knob-ctl input[type=number]{width:76px}.ed-dialog{padding:14px;font-size:14px}.ed-binding{grid-template-columns:1fr 1fr}.ed-binding strong{grid-column:1/-1}.ed-status{top:-14px}}
+@media(max-height:480px){.ed-touch-actions{grid-template-columns:repeat(3,min(var(--touch-size),48px))}.ed-touch-actions button{width:min(var(--touch-size),48px);height:min(var(--touch-size),48px)}}
 .ed-character-choices{display:flex;gap:8px}.ed-character-choices button{flex:1;font-weight:700}.ed-character-choices [aria-pressed=true]{border-color:#83f4df;background:#284447}.ed-character-preview{box-sizing:border-box;display:block;width:min(100%,480px);height:auto;margin:16px auto;image-rendering:pixelated;border:1px solid #625174;border-radius:8px}
 </style>
 </head>
@@ -436,18 +443,23 @@ class Screen {
     this.resize();
     addEventListener('resize', () => this.resize());
   }
+  /**
+   * the sizing options in force: the game's, with o.portrait's over them while the screen is taller than wide (a phone
+   * held upright). new Game({ maxH: 330, portrait: { maxH: 1000 } }) lets the picture grow to fill a 9:16 screen
+   */
+  options(pw, ph) { const o = this.o; return o.portrait && ph > pw ? Object.assign({}, o, o.portrait) : o; }
   /** fixed internal size from o.res ('snes', [256, 224], ...) or null for the adaptive size */
-  fixedRes() {
-    const r = this.o.res; if (!r) return null;
+  fixedRes(o = this.o) {
+    const r = o.res; if (!r) return null;
     const v = Array.isArray(r) ? r : E.RES[String(r).toLowerCase()];
     if (!v) { warn('res:' + r, 'unknown res "' + r + '". Use one of ' + Object.keys(E.RES).join(', ') + ' or [width, height]'); return null; }
     return [Math.max(16, v[0] | 0), Math.max(16, v[1] | 0)];
   }
   resize() {
-    const o = this.o, dpr = Math.min(window.devicePixelRatio || 1, 3), rc = this.canvas.getBoundingClientRect();
-    const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr));
-    this.canvas.width = pw; this.canvas.height = ph; this.dpr = dpr;
-    const fix = this.fixedRes();
+    const dpr = Math.min(window.devicePixelRatio || 1, 3), rc = this.canvas.getBoundingClientRect();
+    const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this.options(pw, ph);
+    this.canvas.width = pw; this.canvas.height = ph; this.dpr = dpr; this.portrait = ph > pw;
+    const fix = this.fixedRes(o);
     if (fix) {
       // fixed resolution: whole-number scale, letterboxed. HUD pixel positions stay the same on every screen.
       this.W = fix[0]; this.H = fix[1]; this.S = Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
@@ -1519,8 +1531,9 @@ class Game {
     /** views this game is designed for (view cycling and the checker use it). null = every view */
     this.views = this.o.views || null;
     this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this.shakeAmt = 0; this.reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-    /** camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen rooms; moving = sliding between rooms */
-    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false };
+    /** camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen rooms; moving = sliding between rooms;
+     *  offset = [dx, dy] screen pixels from the screen's centre to where the focus sits (above a phone's touch buttons: [0, -40]) */
+    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null };
     this.particles = new Particles(this); this.lights = new Lighting(this); this.r = new Renderer(this);
     this.fps = 60; this.viewListeners = []; this.gpu = null;
     this.paused = false; this.pauseOverlay = true; this.timers = []; this.errors = []; this._errKeys = new Set();
@@ -1535,7 +1548,7 @@ class Game {
   }
   static _makeCanvas() {
     const c = document.createElement('canvas'); c.id = 'screen';
-    c.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;display:block;image-rendering:pixelated;background:#000;touch-action:none';
+    c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;background:#000;touch-action:none';   // fixed + inset 0 follows a phone's browser bars (100vh does not)
     document.body.style.margin = '0'; document.body.appendChild(c); return c;
   }
   /** internal buffer size in pixels (HUD layout) */
@@ -1615,8 +1628,8 @@ class Game {
       fx = (Math.floor(fx / rw) + .5) * rw;
       if (this.view.isSide) fz = (Math.floor(fz / rh) + .5) * rh; else fy = (Math.floor(fy / rh) + .5) * rh;
     }
-    const [sx, sy] = this.view.p(fx, fy, fz);
-    let tx = sx - this.screen.W / 2, ty = sy - this.screen.H / 2;
+    const [sx, sy] = this.view.p(fx, fy, fz), off = c.offset;
+    let tx = sx - this.screen.W / 2 - (off ? off[0] : 0), ty = sy - this.screen.H / 2 - (off ? off[1] : 0);
     const b = c.bounds && c.bounds(this.view);
     if (b) {
       const W = this.screen.W, H = this.screen.H, bottom = (c.align || (this.view.pitchDeg < 40 ? 'bottom' : 'center')) === 'bottom';
@@ -6261,7 +6274,7 @@ const qs = new URLSearchParams(location.search);
 
 /* ---------- game ---------- */
 const canvas = document.getElementById('screen');
-const BASE = { minH: 220, minW: 320, maxW: 560, maxH: 330 };
+const BASE = { minH: 220, minW: 320, maxW: 640, maxH: 330, portrait: { maxH: 1000 } };   // wide enough for a phone on its side (about 2.2 : 1); held upright, its picture grows to fill the 9:16 screen
 /* keys (Diablo IV style): WASD moves, the mouse aims; LMB / RMB / 1-4 are the six skill slots, Space dodges,
    Q drinks, E interacts, T opens a town portal, I bag, K skills, P passives, Tab map, Esc menu */
 const INPUT = {
@@ -11867,8 +11880,10 @@ BUS.on("draw", ({ r }) => {
 	if (!h || h.character !== "codex" || UI.hideHud || ED.mode === "gallery")
 		return;
 	r.overlay((g) => {
-		const x = r.W - 89,
-			y = r.H - 45;
+		const f = HUD_in(g, r);
+		try {
+		const x = f.W - 89,
+			y = f.H - 45;
 		for (let i = 0; i < 3; i++) {
 			const c = i < h.manuscript ? CX.gold : "#40384d";
 			px.poly(
@@ -11886,6 +11901,9 @@ BUS.on("draw", ({ r }) => {
 			font: "tiny",
 			align: "center",
 		});
+		} finally {
+			HUD_out(g);
+		}
 	});
 });
 
@@ -21198,8 +21216,8 @@ function MKB_drawAltar(a, r) {
 /** the streak counter: a big crimson number that shakes on every kill, the timer draining under it, the rewards */
 function MKB_rushHud(r, L0) {
   const S = L0.MKB_rush; if (!S || (S.n < 1 && S.t <= 0 && S.endT <= 0) || UI.hideHud) return;
-  r.overlay(g => {
-    const x = r.W - 8, y = 64, sh = S.shake * S.shake, jx = Math.round((Math.random() * 2 - 1) * sh * 3), jy = Math.round((Math.random() * 2 - 1) * sh * 2);
+  r.overlay(g => { const f = HUD_in(g, r); try {
+    const x = f.W - 8, y = 64 + HUD_under(), sh = S.shake * S.shake, jx = Math.round((Math.random() * 2 - 1) * sh * 3), jy = Math.round((Math.random() * 2 - 1) * sh * 2);
     if (S.n >= 1 || S.t > 0) {
       const sc = (S.n >= 50 ? 4 : 3) + (S.pop > 0 ? 1 : 0), hot = S.pop > 0, cols = hot ? ['#ffffff', '#ffffff', '#ffd0d0', '#ff6a7a'] : S.mul >= MKB_BR.cap ? ['#fff6d0', '#ffd36a', '#ff5a2a', '#8a1010'] : ['#fff0f0', '#ff8a8a', '#e0202e', '#7a0614'];
       E.font.text(g, 'KILL STREAK', x, y, '#ff8a8a', { align: 'right', font: 'tiny', outline: '#1a0008' });
@@ -21219,7 +21237,7 @@ function MKB_rushHud(r, L0) {
         if (S.lastXp >= 1) E.font.text(g, '+' + fmt(S.lastXp) + ' BONUS XP', x, y + 26, '#ffd36a', { align: 'right', outline: '#1a0008' });
       });
     }
-  });
+  } finally { HUD_out(g); } });
 }
 
 /* =============================================================================
@@ -25867,6 +25885,10 @@ TOWN.build = buildTown;
 const UI = {
   mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0 },
   panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
+  /* the HUD's frame on a phone (screen pixels): l t r b keep it out of the notch, the status bar and the home bar, and
+     b lifts the HUD bar over the touch buttons on a screen held upright; barB is how far down the touch buttons at the
+     top reach (the minimap, the boss bar and the notices go under them). HUD_layout in 61-controls sets them */
+  frame: { l: 0, t: 0, r: 0, b: 0, barB: 0 }, hotO: null,
   def(id, spec) { spec.id = id; this.panels[id] = spec; return spec; },
   top() { return this.stack.length ? this.panels[this.stack[this.stack.length - 1].id] : null; },
   isOpen(id) { return this.stack.some(s => s.id === id); },
@@ -25885,6 +25907,7 @@ canvas.addEventListener('wheel', e => { UI.mouse.wheel += Math.sign(e.deltaY); }
 function mouseHUD() { const sc = game.screen, p = sc.clientToScreen(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p[0] - sc.ix; UI.mouse.y = p[1] - sc.iy; return UI.mouse; }
 /** register a hot rectangle (inside draw). o: { click, rclick, tip: lines | () => lines, drag(mx, my), key } */
 function hot(x, y, w, h, o) { if ((UI.hudPass || UI.underPass) && UI.modal) return false;   // under a modal panel the HUD and the panels below it are display only
+  if (UI.hotO) { x += UI.hotO[0]; y += UI.hotO[1]; }   // drawn inside the HUD's frame: the rectangle in screen pixels
   UI.nextHot.push(Object.assign({ x, y, w, h }, o)); const m = UI.mouse; return m.x >= x && m.x < x + w && m.y >= y && m.y < y + h; }
 const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y < r0.y + r0.h;
 /** run every step before the world: clicks, drags, Esc, the panel's own update. Returns true when the world should wait */
@@ -26016,8 +26039,20 @@ function drawTimedIcon(g, x, y, c, bg, o, stacks, paint) {
 }
 function drawHUD(r) {
   const h = ED.hero; if (!h) return;
-  r.overlay(g => { UI.hudPass = true; try { drawHudInner(g, r, h); } finally { UI.hudPass = false; } });
+  r.overlay(g => { UI.hudPass = true; const f = HUD_in(g, r); try { drawHudInner(g, f, h); } finally { HUD_out(g); UI.hudPass = false; } });
 }
+/** draw inside the HUD's frame (UI.frame): the canvas moves to its corner and the renderer it gets back is the frame's
+ *  size, so everything placed against an edge (the orbs, the skill bar, the place names, the minimap) lands inside it */
+function HUD_in(g, r) {
+  const F = UI.frame; if (!F.l && !F.t && !F.r && !F.b) return r;
+  g.save(); g.translate(F.l, F.t); UI.hotO = [F.l, F.t];
+  const f = Object.create(r);
+  Object.defineProperties(f, { W: { value: r.W - F.l - F.r }, H: { value: r.H - F.t - F.b }, w: { value: (x, y, z) => { const q = r.w(x, y, z); return [q[0] - F.l, q[1] - F.t]; } } });
+  return f;
+}
+function HUD_out(g) { if (UI.hotO) { g.restore(); UI.hotO = null; } }
+/** how far the touch buttons at the top reach into the frame: the minimap, the boss bar and the notices start below */
+function HUD_under() { const F = UI.frame; return F.barB > 0 ? Math.max(0, Math.ceil(F.barB - F.t) + 1) : 0; }
 function drawHudInner(g, r, h) {
   {
     const W = r.W, H = r.H, cx = Math.round(W / 2), by = H - 24;
@@ -26100,7 +26135,7 @@ function drawHudInner(g, r, h) {
     // boss bar: in the gap between the place names (top left) and the minimap (top right), centered when it can be
     const B = ED.boss;
     if (B && B.alive && !B.dormant) {
-      const lx = L0 ? 5 + leftW + 6 : 4, rx = L0 ? W - 84 : W - 4, w = Math.max(60, Math.min(220, rx - lx)), x = Math.round(clamp(cx - w / 2, lx, Math.max(lx, rx - w))), y = 8, mid = x + w / 2;
+      const lx = L0 ? 5 + leftW + 6 : 4, rx = L0 ? W - 84 : W - 4, w = Math.max(60, Math.min(220, rx - lx)), x = Math.round(clamp(cx - w / 2, lx, Math.max(lx, rx - w))), y = 8 + HUD_under(), mid = x + w / 2;
       let nm = B.name.toUpperCase() + (B.title ? ', ' + B.title.toUpperCase() : ''), tiny = false;
       if (E.font.width(nm) > w + 20) nm = B.name.toUpperCase(); if (E.font.width(nm) > w + 20) tiny = true;
       E.font.text(g, nm, mid, tiny ? y + 2 : y, '#ff9a6a', { align: 'center', shadow: '#05040a', outline: false, font: tiny ? 'tiny' : undefined });
@@ -26124,7 +26159,7 @@ function drawHudInner(g, r, h) {
 function drawLevelCard(g, W, H, cx, c) {
   const a = clamp(Math.min(UI.cardT, (c.dur - UI.cardT) * 3), 0, 1);
   px.blend(g, a, 'normal', () => {
-    const y = Math.round(H * .16);
+    const y = Math.round(Math.max(H * .16, HUD_under() ? HUD_under() + 72 : 0));   // under the minimap when the touch buttons push it down
     E.font.text(g, c.sub || '', cx, y - 12, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
     const T0 = String(c.title || '').toUpperCase(), sc = E.font.width(T0, { scale: 2 }) <= W - 16 ? 2 : 1;   // long composed names drop to one scale on narrow screens
     E.font.title(g, T0, cx, y + (sc === 1 ? 5 : 0), { scale: sc, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: sc, align: 'center' });
@@ -26249,7 +26284,7 @@ function drawNoticeFeed(g, W, H, rect, hud) {
     let shown = 0;   // whole lines from the oldest, at most five rows (the first always shows); the rest wait their turn
     for (const n of NT.top.slice(0, NT_TOP)) { const L = E.font.wrap(label(n), ww); if (shown && rows.length + L.length > 5) break; shown++; const a = NT_alpha(n); for (const s of L) rows.push({ s, n, a }); }
     NT.shown = shown;
-    const y0 = 28, ghost = rows.length && m.x > fx - ww / 2 - 4 && m.x < fx + ww / 2 + 4 && m.y > y0 - 3 && m.y < y0 + rows.length * 10 + 2 ? .3 : 1;
+    const y0 = 28 + HUD_under(), o0 = UI.hotO || [0, 0], mx = m.x - o0[0], my = m.y - o0[1], ghost = rows.length && mx > fx - ww / 2 - 4 && mx < fx + ww / 2 + 4 && my > y0 - 3 && my < y0 + rows.length * 10 + 2 ? .3 : 1;
     rows.forEach((r0, i) => { if (r0.a > 0) line(r0.s, fx, y0 + i * 10, r0.n.color, r0.a * ghost, false); });
   }
   // quick feedback over the skill bar (above the interaction prompt when one shows)
@@ -26286,8 +26321,8 @@ function skillTip(h, id) {
 /** the minimap: explored floor, walls, the exit, monsters nearby, the hero. It is drawn through the camera's own
  *  projection (flattened to the ground), so it turns and tilts with the view like Diablo's automap */
 function drawMinimap(g, r, L0, h) {
-  const big = game.input.down('map'), W0 = big ? r.W - 60 : 74, H0 = big ? r.H - 50 : 54;
-  const x0 = big ? 30 : r.W - W0 - 4, y0 = big ? 25 : 4, v = r.view, k = (big ? 3.2 : 1.3) / (T16 * v.scale / (v.zoom || 1)) * T16 / T16;
+  const big = game.input.down('map'), W0 = big ? r.W - 60 : 74, H0 = big ? r.H - 50 - HUD_under() : 54;
+  const x0 = big ? 30 : r.W - W0 - 4, y0 = (big ? 25 : 4) + HUD_under(), v = r.view, k = (big ? 3.2 : 1.3) / (T16 * v.scale / (v.zoom || 1)) * T16 / T16;
   const hp0 = v.p(h.x, h.y, 0), cxm = x0 + W0 / 2, cym = y0 + H0 / 2;
   const M = (wx, wy) => { const q = v.p(wx, wy, 0); return [cxm + (q[0] - hp0[0]) * k, cym + (q[1] - hp0[1]) * k]; };
   const inside = ([sx, sy]) => sx >= x0 && sy >= y0 && sx < x0 + W0 - 1 && sy < y0 + H0 - 1;
@@ -26354,7 +26389,7 @@ function drawPanels(r) {
     }
     // the notices: over the panels (never on their bodies) and under every tooltip, which draws after them (an
     // item's tooltip is queued by its panel, the core tooltip comes next)
-    if (rect || !UI.hideHud) drawNoticeFeed(g, r.W, r.H, rect, UI.hudDrawn); UI.hudDrawn = false;
+    if (rect || !UI.hideHud) { const f = !rect && UI.hudDrawn ? HUD_in(g, r) : r; try { drawNoticeFeed(g, f.W, f.H, rect, UI.hudDrawn); } finally { if (f !== r) HUD_out(g); } } UI.hudDrawn = false;
     // tooltip: the hovered hot rect's tip (last registered wins: the topmost)
     const m = UI.mouse; let tipR = null;
     for (const r0 of UI.nextHot) if (r0.tip && inRect(m, r0)) tipR = r0;
@@ -26367,11 +26402,11 @@ function showCard(title, sub, mech, dur = 5) { UI.card = { title, sub, mech, dur
 /* ---------- panels: pause, settings, death, waystone ---------- */
 function pauseItems() {
   return [['RESUME', () => UI.close('pause')], ['INVENTORY', () => UI.open('inventory')], ['SKILLS', () => UI.open('skills')], ['PASSIVES', () => UI.open('tree')],
-    ['CONTROLS', () => UI.open('controls')], ['SETTINGS', () => UI.open('settings')], ['DEVELOPER', () => UI.open('developer')],
+    ['CONTROLS', () => UI.open('controls')], ['SETTINGS', () => UI.open('settings')], FS.can() ? [FS.on() ? 'LEAVE FULL SCREEN' : 'FULL SCREEN', () => FS.toggle()] : null, ['DEVELOPER', () => UI.open('developer')],
     ED.mode === 'level' ? ['TOWN PORTAL', () => { UI.closeAll(); openTownPortal(ED.hero); }] : null,
     DEV.enabled ? ['LEAVE SANDBOX', devDisable] : ['SAVE AND QUIT', () => { UI.closeAll(); saveGame(); game.go('title'); }]].filter(Boolean);
 }
-UI.def('pause', { title: 'PAUSED', w: 180, h: 198, draw(g, x, y, w) {
+UI.def('pause', { title: 'PAUSED', w: 180, h: (W, H) => Math.min(H - 8, 36 + pauseItems().length * 18), draw(g, x, y, w) {
   pauseItems().forEach(([label, fn], i) => button(g, x + 12, y + 20 + i * 18, w - 24, 16, label, fn, { focus: UI.keyNav && UI.focus === i }));
 }, update() { const items = pauseItems(); menuKeys(items.length, i => items[i][1]()); } });
 /** up / down / confirm over a panel's list of n entries */
@@ -27102,6 +27137,37 @@ addEventListener("blur", pauseOnFocusLoss);
 document.addEventListener("visibilitychange", () => {
 	if (document.hidden) pauseOnFocusLoss();
 });
+/* Full screen: the game fills the phone without the browser's bars. On a touch screen, a tap on the title menu asks for
+   it (a browser only goes full screen from a tap or a click); FULL SCREEN on the title and in the pause menu turn it
+   on and off, and leaving it there is remembered. An iPhone has no full screen for a web page:
+   there, Add to Home Screen opens Emberdeep as an app, with no browser bars (the page's web-app tags). */
+const FS = {
+	can: () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled),
+	on: () => !!(document.fullscreenElement || document.webkitFullscreenElement),
+	quiet: (p) => p && p.catch && p.catch(() => {}),
+	enter() {
+		const el = document.documentElement,
+			f = el.requestFullscreen || el.webkitRequestFullscreen;
+		if (f && !FS.on()) try { FS.quiet(f.call(el, { navigationUI: "hide" })); } catch (e) {}
+	},
+	exit() {
+		const f = document.exitFullscreen || document.webkitExitFullscreen;
+		if (f && FS.on()) try { FS.quiet(f.call(document)); } catch (e) {}
+	},
+	toggle() {
+		OPT.fullscreen = !FS.on();
+		saveOpts();
+		if (OPT.fullscreen) FS.enter();
+		else FS.exit();
+	},
+	/** from a tap on the title menu: a phone or a tablet (a finger is its main pointer) goes full screen unless the
+	 *  player left it */
+	auto() {
+		if (OPT.fullscreen !== false && FS.can() && matchMedia("(pointer: coarse)").matches) FS.enter();
+	},
+};
+for (const ev of ["fullscreenchange", "webkitfullscreenchange"])
+	document.addEventListener(ev, () => syncTouchControls(true));
 const TOUCH = { el: null, key: "" };
 function syncTouchControls(force = false) {
 	const show =
@@ -27117,6 +27183,7 @@ function syncTouchControls(force = false) {
 		CONTROL.size,
 		CONTROL.handed,
 		CONTROL.opacity,
+		FS.on(),
 	].join(":");
 	if (!force && key === TOUCH.key) return;
 	TOUCH.key = key;
@@ -27128,6 +27195,7 @@ function syncTouchControls(force = false) {
 	game.input.touchEnabled = show && !panel;
 	if (!show) {
 		TOUCH.el = null;
+		HUD_layout();
 		return;
 	}
 	const root = formElement("div", "", document.getElementById("stage"), {
@@ -27147,7 +27215,8 @@ function syncTouchControls(force = false) {
 			formElement("button", label, actions, { type: "button", "data-act": a });
 	}
 	const bar = formElement("div", "", root, { class: "ed-touch-bar" });
-	for (const [a, label] of ED.mode === "gallery" && !UI.modal
+	if (!(ED.mode === "title" && !UI.modal))   // the title's menu is all on the canvas (FULL SCREEN too)
+		for (const [a, label] of ED.mode === "gallery" && !UI.modal
 		? [
 				["menuLeft", "Previous"],
 				["menuRight", "Next"],
@@ -27166,7 +27235,58 @@ function syncTouchControls(force = false) {
 				])
 		formElement("button", label, bar, { type: "button", "data-act": a });
 	game.input.bindButtons(root);
+	HUD_layout();
 }
+/* The HUD's frame (UI.frame, in screen pixels) on a phone. The safe areas first: the picture fills the whole screen,
+   under the notch, the status bar and the home bar, and the HUD keeps out of them. Then the touch buttons: held
+   upright, the action buttons take the bottom of the screen and the HUD bar (orbs, skills, xp) rides just above them;
+   on a wide screen they stand in the ember orb's corner, above the HUD bar. The buttons at the top push the minimap,
+   the boss bar and the notices down (barB). Runs when the buttons change and when the screen does. */
+const SAFE = formElement("div", "", document.body, { "aria-hidden": "true" });
+SAFE.style.cssText =
+	"position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)";
+function HUD_layout() {
+	const sc = game.screen,
+		F = UI.frame,
+		rc = canvas.getBoundingClientRect(),
+		cs = getComputedStyle(SAFE),
+		pad = (v) => parseFloat(v) || 0;
+	if (!(rc.width > 0 && rc.height > 0)) return;
+	// page (CSS) pixels to screen pixels and back
+	const sx = (x) => ((x - rc.left) * sc.dpr - sc.OX) / sc.S,
+		sy = (y) => ((y - rc.top) * sc.dpr - sc.OY) / sc.S,
+		py = (y) => rc.top + (y * sc.S + sc.OY) / sc.dpr;
+	F.l = Math.max(0, Math.ceil(sx(rc.left + pad(cs.paddingLeft))));
+	F.r = Math.max(0, Math.ceil(sc.W - sx(rc.right - pad(cs.paddingRight))));
+	F.t = Math.max(0, Math.ceil(sy(rc.top + pad(cs.paddingTop))));
+	F.b = Math.max(0, Math.ceil(sc.H - sy(rc.bottom - pad(cs.paddingBottom))));
+	const acts = TOUCH.el && TOUCH.el.querySelector(".ed-touch-actions"),
+		bar = TOUCH.el && TOUCH.el.querySelector(".ed-touch-bar"),
+		tall = rc.height > rc.width;
+	F.barB = bar && bar.childElementCount ? Math.max(0, Math.ceil(sy(bar.getBoundingClientRect().bottom))) : 0;
+	if (acts) {
+		acts.style.removeProperty("--touch-size");
+		if (tall) {
+			acts.style.bottom = "max(10px, env(safe-area-inset-bottom, 0px))";
+			F.b = Math.max(F.b, Math.ceil(sc.H - sy(acts.getBoundingClientRect().top) + 3));
+		} else {
+			acts.style.bottom =
+				Math.max(8, Math.ceil(rc.bottom - py(sc.H - F.b - 42))) + "px";   // the orbs reach 39 px up
+			// a short wide screen (a phone on its side, a notch and a home bar taking their share): smaller buttons, so
+			// the grid fits between the minimap and the HUD bar (the menu buttons and the minimap stay on the right for
+			// either hand; a left hand's grid has the left side to itself)
+			const a = acts.getBoundingClientRect(),
+				mapB = py(F.t + HUD_under() + 4 + 54) + 4;
+			if (CONTROL.handed !== "left" && a.top < mapB)
+				acts.style.setProperty("--touch-size", Math.max(44, Math.floor((a.bottom - mapB - 10) / 3)) + "px");
+		}
+	}
+	// in play the hero sits in the middle of the open ground between them (kept while a panel is up, so the view holds
+	// still); the title and the gallery frame their own scenes
+	if (!["town", "level", "proving"].includes(ED.mode)) game.cam.offset = null;
+	else if (acts || !TOUCH.el) game.cam.offset = [Math.round((F.l - F.r) / 2), Math.round((Math.max(F.t, acts && tall ? F.barB : 0) - F.b) / 2)];
+}
+game.screen.listeners.push(HUD_layout);
 applyControls(false);
 
 /* Developer mode uses a disposable hero; autosaves never write this session. */
@@ -28386,12 +28506,13 @@ function dropIn(h, from = 150) {
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
   const save = characterSave();
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS AGAIN TO RESTART ' + CHARACTERS[CHAR.selected].name.toUpperCase() + ' (THIS CHARACTER SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['CHARACTER', () => UI.open('characters')], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]].filter(Boolean);
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS AGAIN TO RESTART ' + CHARACTERS[CHAR.selected].name.toUpperCase() + ' (THIS CHARACTER SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['CHARACTER', () => UI.open('characters')], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')],
+    TOUCH.el && FS.can() && !FS.on() ? ['FULL SCREEN', () => FS.toggle()] : null].filter(Boolean);   // on a touch screen that can
 }
 function loadHeroOrNew(identity = CHAR.selected) { const s = loadSave(identity); if (s) { const h = makeHero(s, identity); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(identity); }
 function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove(characterSaveKey()); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
 /** The title menu grows upward from the key legend; shorter windows use tighter rows. */
-function titleMenu(n) { const step = game.H < 260 ? 14 : 16, y = game.H - 29 - n * step; return { y, step }; }
+function titleMenu(n) { const step = game.H < 260 ? 14 : 16, y = game.H - UI.frame.b - 29 - n * step; return { y, step }; }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
 const KATA = ['slash', 'backslash', 'spin', 'thrust'];
 function titleKata(t) {
@@ -28452,16 +28573,18 @@ const titleScene = {
     h.rig.drawSmear(r, h.smear || undefined);   // the kata's swings leave the same ribbon as in play
     L.add(L0.w * 8, L0.h * 8, 3, 78, .55 + .12 * Math.sin(game.time * 1.7), { color: '#4fe0cc', shadow: true });
     r.overlay(g => {
-      const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1);
-      px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
-      E.font.title(g, 'EMBERDEEP', cx, H < 260 ? 5 : 14, { scale: H < 260 ? 3 : 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
-      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, H < 260 ? 34 : 50, characterOf(h).color, { align: 'center', font: 'tiny', shadow: '#05040a', outline: false });
+      const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1), F = UI.frame, top = F.t, Hb = H - F.b;   // clear of a phone's status bar and home bar
+      px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64 + top; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
+      E.font.title(g, 'EMBERDEEP', cx, top + (H < 260 ? 5 : 14), { scale: H < 260 ? 3 : 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
+      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, top + (H < 260 ? 34 : 50), characterOf(h).color, { align: 'center', font: 'tiny', shadow: '#05040a', outline: false });
       const items = titleItems(), M = titleMenu(items.length), bw = 118;   // laid out up from the key legend, so every item shows
-      items.forEach(([label, fn], i) => button(g, cx - bw / 2, M.y + i * M.step, bw, 13, label, () => { TITLE.menu = i; fn(); }, { focus: TITLE.menu === i }));
+      items.forEach(([label, fn], i) => button(g, cx - bw / 2, M.y + i * M.step, bw, 13, label, () => { TITLE.menu = i; FS.auto(); fn(); }, { focus: TITLE.menu === i }));
       const h2 = ED.titleHero; if (characterSave()) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
-      px.blend(g, .7, 'normal', () => px.rect(g, 0, H - 21, W, 21, '#05040a'));
-      E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
-      E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
+      px.blend(g, .7, 'normal', () => px.rect(g, 0, Hb - 21, W, 21 + F.b, '#05040a'));
+      const legend = TOUCH.el ? [   // touch buttons showing: the thumbs, not the keys
+        'DRAG ON THE ' + (CONTROL.handed === 'left' ? 'RIGHT' : 'LEFT') + ' TO MOVE  •  THE BUTTONS ON THE ' + (CONTROL.handed === 'left' ? 'LEFT' : 'RIGHT') + ' FIGHT',
+        'MENU  BAG  MAP  PORTAL: THE BUTTONS AT THE TOP'] : ['WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU'];
+      legend.forEach((l, i) => E.font.text(g, l, cx, Hb - 17 + i * 7, '#b8b0d0', { align: 'center', font: 'tiny', outline: false }));
     });
     drawPanels(r);
   }
@@ -28583,7 +28706,7 @@ function talkTo(n) {
   const S = n.S; n.talking = true;
   const lines = Array.isArray(S.lines) ? [S.lines[(n.talks = (n.talks || 0) + 1) % S.lines.length]] : typeof S.lines === 'function' ? S.lines(n, ED.hero) : ['...'];
   // the box sits above the HUD's bottom row (skill bar, potions, gold, the skill-point line) so nothing is clipped under it
-  const dh = Math.max(talk.lines * E.font.lineHeight() + 9, 48), y = Math.max(16, game.H - 42 - dh);
+  const dh = Math.max(talk.lines * E.font.lineHeight() + 9, 48), y = Math.max(16, game.H - UI.frame.b - 42 - dh);
   talk.say(lines, { name: S.name, portrait: n.rig, y, onDone() { n.talking = false; } });   // a chat only: E opens a shopkeeper's panel (serveNPC)
 }
 function returnThroughPortal() { const S = ED.savedLevel; if (!S) return; sfx('portal'); game.go('level', { resume: S }); }
@@ -28922,11 +29045,11 @@ const galleryScene = {
     drawHero(ED.hero, r); drawFx(r); drawThings(L0, r);
     BUS.emit('draw', { r, L: L0 });   // what skills leave behind (blades, rifts, totems) and the powers' own light
     L.add(L0.w * 8, L0.h * 8, 3, 70, .5, { color: '#4fe0cc' });
-    r.overlay(g => {
-      const W = r.W, H = r.H, cx = W / 2, items = galItems();
-      px.blend(g, .6, 'normal', () => { px.rect(g, 0, 0, W, 31, '#05040a'); px.rect(g, 0, H - 38, W, 38, '#05040a'); });   // bands behind the text, so it reads on any floor
-      E.font.title(g, 'GALLERY', cx, 4, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
-      GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - (GAL.reels.length - 1) / 2) * 60, 22, i === GAL.reel ? GOLD : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }));
+    r.overlay(g => { const f = HUD_in(g, r); try {   // inside a phone's safe frame, the top band under its touch buttons
+      const W = f.W, H = f.H, cx = W / 2, items = galItems(), T = HUD_under();
+      px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, 31 + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor
+      E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
+      GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - (GAL.reels.length - 1) / 2) * 60, 22 + T, i === GAL.reel ? GOLD : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }));
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
@@ -28935,7 +29058,7 @@ const galleryScene = {
       E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
       E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
       E.font.text(g, (GAL.i + 1) + ' / ' + items.length + '   ← → pick   ↑ ↓ reel   ENTER replay   Z slow' + (GAL.slow ? ' (ON)' : '') + '   V view   ESC back', cx, H - 6, '#a89ec8', { align: 'center', font: 'tiny', outline: false });
-    });
+    } finally { HUD_out(g); } });
     drawPanels(r);
   }
 };

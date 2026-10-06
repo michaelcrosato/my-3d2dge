@@ -513,8 +513,8 @@ function MKB_drawAltar(a, r) {
 /** the streak counter: a big crimson number that shakes on every kill, the timer draining under it, the rewards */
 function MKB_rushHud(r, L0) {
   const S = L0.MKB_rush; if (!S || (S.n < 1 && S.t <= 0 && S.endT <= 0) || UI.hideHud) return;
-  r.overlay(g => {
-    const x = r.W - 8, y = 64, sh = S.shake * S.shake, jx = Math.round((Math.random() * 2 - 1) * sh * 3), jy = Math.round((Math.random() * 2 - 1) * sh * 2);
+  r.overlay(g => { const f = HUD_in(g, r); try {
+    const x = f.W - 8, y = 64 + HUD_under(), sh = S.shake * S.shake, jx = Math.round((Math.random() * 2 - 1) * sh * 3), jy = Math.round((Math.random() * 2 - 1) * sh * 2);
     if (S.n >= 1 || S.t > 0) {
       const sc = (S.n >= 50 ? 4 : 3) + (S.pop > 0 ? 1 : 0), hot = S.pop > 0, cols = hot ? ['#ffffff', '#ffffff', '#ffd0d0', '#ff6a7a'] : S.mul >= MKB_BR.cap ? ['#fff6d0', '#ffd36a', '#ff5a2a', '#8a1010'] : ['#fff0f0', '#ff8a8a', '#e0202e', '#7a0614'];
       E.font.text(g, 'KILL STREAK', x, y, '#ff8a8a', { align: 'right', font: 'tiny', outline: '#1a0008' });
@@ -534,7 +534,7 @@ function MKB_rushHud(r, L0) {
         if (S.lastXp >= 1) E.font.text(g, '+' + fmt(S.lastXp) + ' BONUS XP', x, y + 26, '#ffd36a', { align: 'right', outline: '#1a0008' });
       });
     }
-  });
+  } finally { HUD_out(g); } });
 }
 
 /* =============================================================================

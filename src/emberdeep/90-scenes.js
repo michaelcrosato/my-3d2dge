@@ -125,12 +125,13 @@ function dropIn(h, from = 150) {
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
   const save = characterSave();
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS AGAIN TO RESTART ' + CHARACTERS[CHAR.selected].name.toUpperCase() + ' (THIS CHARACTER SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['CHARACTER', () => UI.open('characters')], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]].filter(Boolean);
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS AGAIN TO RESTART ' + CHARACTERS[CHAR.selected].name.toUpperCase() + ' (THIS CHARACTER SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['CHARACTER', () => UI.open('characters')], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')],
+    TOUCH.el && FS.can() && !FS.on() ? ['FULL SCREEN', () => FS.toggle()] : null].filter(Boolean);   // on a touch screen that can
 }
 function loadHeroOrNew(identity = CHAR.selected) { const s = loadSave(identity); if (s) { const h = makeHero(s, identity); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(identity); }
 function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove(characterSaveKey()); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
 /** The title menu grows upward from the key legend; shorter windows use tighter rows. */
-function titleMenu(n) { const step = game.H < 260 ? 14 : 16, y = game.H - 29 - n * step; return { y, step }; }
+function titleMenu(n) { const step = game.H < 260 ? 14 : 16, y = game.H - UI.frame.b - 29 - n * step; return { y, step }; }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
 const KATA = ['slash', 'backslash', 'spin', 'thrust'];
 function titleKata(t) {
@@ -191,16 +192,18 @@ const titleScene = {
     h.rig.drawSmear(r, h.smear || undefined);   // the kata's swings leave the same ribbon as in play
     L.add(L0.w * 8, L0.h * 8, 3, 78, .55 + .12 * Math.sin(game.time * 1.7), { color: '#4fe0cc', shadow: true });
     r.overlay(g => {
-      const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1);
-      px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
-      E.font.title(g, 'EMBERDEEP', cx, H < 260 ? 5 : 14, { scale: H < 260 ? 3 : 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
-      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, H < 260 ? 34 : 50, characterOf(h).color, { align: 'center', font: 'tiny', shadow: '#05040a', outline: false });
+      const W = r.W, H = r.H, cx = W / 2, a = clamp(TITLE.t / 1.2, 0, 1), F = UI.frame, top = F.t, Hb = H - F.b;   // clear of a phone's status bar and home bar
+      px.blend(g, .55 * a, 'normal', () => { for (let y = 0; y < 64 + top; y++) px.rect(g, 0, y, W, 1, '#05040a'); });
+      E.font.title(g, 'EMBERDEEP', cx, top + (H < 260 ? 5 : 14), { scale: H < 260 ? 3 : 4, colors: ['#fff6c8', '#ffd36a', '#ff8a3a', '#b83a1a'], depth: 3, align: 'center' });
+      E.font.text(g, characterOf(h).name.toUpperCase() + '  •  ' + characterOf(h).title, cx, top + (H < 260 ? 34 : 50), characterOf(h).color, { align: 'center', font: 'tiny', shadow: '#05040a', outline: false });
       const items = titleItems(), M = titleMenu(items.length), bw = 118;   // laid out up from the key legend, so every item shows
-      items.forEach(([label, fn], i) => button(g, cx - bw / 2, M.y + i * M.step, bw, 13, label, () => { TITLE.menu = i; fn(); }, { focus: TITLE.menu === i }));
+      items.forEach(([label, fn], i) => button(g, cx - bw / 2, M.y + i * M.step, bw, 13, label, () => { TITLE.menu = i; FS.auto(); fn(); }, { focus: TITLE.menu === i }));
       const h2 = ED.titleHero; if (characterSave()) E.font.text(g, 'LEVEL ' + h2.level + '  •  DEEPEST ' + h2.maxDepth, cx, M.y + items.length * M.step + 1, '#c8c0d8', { align: 'center', font: 'tiny', outline: '#05040a' });
-      px.blend(g, .7, 'normal', () => px.rect(g, 0, H - 21, W, 21, '#05040a'));
-      E.font.text(g, 'WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', cx, H - 17, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
-      E.font.text(g, 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU', cx, H - 10, '#b8b0d0', { align: 'center', font: 'tiny', outline: false });
+      px.blend(g, .7, 'normal', () => px.rect(g, 0, Hb - 21, W, 21 + F.b, '#05040a'));
+      const legend = TOUCH.el ? [   // touch buttons showing: the thumbs, not the keys
+        'DRAG ON THE ' + (CONTROL.handed === 'left' ? 'RIGHT' : 'LEFT') + ' TO MOVE  •  THE BUTTONS ON THE ' + (CONTROL.handed === 'left' ? 'LEFT' : 'RIGHT') + ' FIGHT',
+        'MENU  BAG  MAP  PORTAL: THE BUTTONS AT THE TOP'] : ['WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU'];
+      legend.forEach((l, i) => E.font.text(g, l, cx, Hb - 17 + i * 7, '#b8b0d0', { align: 'center', font: 'tiny', outline: false }));
     });
     drawPanels(r);
   }
@@ -322,7 +325,7 @@ function talkTo(n) {
   const S = n.S; n.talking = true;
   const lines = Array.isArray(S.lines) ? [S.lines[(n.talks = (n.talks || 0) + 1) % S.lines.length]] : typeof S.lines === 'function' ? S.lines(n, ED.hero) : ['...'];
   // the box sits above the HUD's bottom row (skill bar, potions, gold, the skill-point line) so nothing is clipped under it
-  const dh = Math.max(talk.lines * E.font.lineHeight() + 9, 48), y = Math.max(16, game.H - 42 - dh);
+  const dh = Math.max(talk.lines * E.font.lineHeight() + 9, 48), y = Math.max(16, game.H - UI.frame.b - 42 - dh);
   talk.say(lines, { name: S.name, portrait: n.rig, y, onDone() { n.talking = false; } });   // a chat only: E opens a shopkeeper's panel (serveNPC)
 }
 function returnThroughPortal() { const S = ED.savedLevel; if (!S) return; sfx('portal'); game.go('level', { resume: S }); }

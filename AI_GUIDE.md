@@ -102,7 +102,7 @@ An error in `update` or `draw` does not stop the loop. It is shown in a red box 
 - Presets: `iso` (yaw 45, pitch 30), `threequarter` (pitch 55), `topdown` (pitch 80), `brawler` (pitch 25), `side` (pitch 0).
 - `overhead` (pitch 90, scale 1) makes world x/y equal screen pixels, for shooters, puzzle and arcade games. It is not in the default view cycle.
 - Make your own with `new E.View(id, label, yaw, pitch, scale, zBoost)`.
-- `res` fixes the internal resolution with whole-number scaling. Without it, the size adapts to the window between `minH` and `maxW` × `maxH`.
+- `res` fixes the internal resolution with whole-number scaling. Without it, the size adapts to the window between `minH` and `maxW` × `maxH`; `portrait: { maxH }` lets the view grow on a screen held upright (a phone), so it fills the screen.
 - `game.views` limits view cycling (`game.nextView()`) and tells the checker which views to test.
 
 ### Scenes

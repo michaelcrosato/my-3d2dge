@@ -83,13 +83,14 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 ## Game
 `new E.Game({ canvas: 'screen', view, views, res, input, bg })`
 - `res`: `'nes'` 256x240, `'snes'` 256x224, `'genesis'` 320x224, `'gb'` 160x144, `'gba'` 240x160, `'ps1'` / `'n64'` 320x240, `'wide'` 400x225, or `[w, h]`. Fixed pixels, whole-number scaling. Leave it out for an adaptive size.
+- Adaptive size: `minW` / `minH` set the scale (the screen shows at least that many pixels), `maxW` / `maxH` cap the view (the rest is letterboxed). `portrait: { maxH: 1000 }` overrides them while the screen is taller than wide, so a phone held upright (9:16) is filled instead of showing a band across its middle. `game.screen.portrait` says which way it is.
 - `input`: `'DEFAULT'` (top-down action), `'PLATFORMER'`, `'SHMUP'`, or your own `{ action: ['KeyQ', 'Pad0'] }`.
 - `views`: the views your game supports; `game.nextView()` cycles them (bind it to a key).
 - Start: `game.start({ update(dt), draw(r) })`, or with scenes (below).
 - Methods: `follow(obj, { z: 16, lead: 20 })` (camera tracks it automatically), `focus(x, y, z)` (or aim it yourself every update), `setView(id)`, `nextView()`, `freeze(s)` (hit-stop), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
 - Fields: `W`, `H` (screen pixels), `time`, `real`, `timeScale` (0.25 = slow motion), `paused`, `input`, `audio`, `particles`, `lights`, `view`, `errors`, `cam`.
 - Camera zoom and turn: `game.setZoom(1.5)` (.5 .. 3; everything drawn by the engine re-rasterizes crisply, the HUD stays), `game.rotateView(45)` (ground views only), `game.resetCamera()`, `game.zoom`, `game.yaw`, `game.note('ZOOM 2x')` (a short notice at the top of the screen). Custom painters can read `r.view.zoom` (undefined at 1x) to scale their own art. The starter binds `-` / `=` / mouse wheel to zoom, `[` / `]` to turn and `0` to reset; a scene limits it with `camera: { zoom: [.75, 2] | false, rotate: true }`.
-- Camera: `cam.bounds = v => map.bounds(v)` keeps it inside the level (in side views a level shorter than the screen sits on the bottom edge; `cam.align = 'center'` to change); `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds (0 = locked to the target, no lag).
+- Camera: `cam.offset = [dx, dy]` sits the focus that many screen pixels from the centre (above a phone's touch buttons: `[0, -60]`); `cam.bounds = v => map.bounds(v)` keeps it inside the level (in side views a level shorter than the screen sits on the bottom edge; `cam.align = 'center'` to change); `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds (0 = locked to the target, no lag).
 
 ## Scenes (title, play, game over)
 ```js

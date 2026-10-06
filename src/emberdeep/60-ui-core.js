@@ -8,6 +8,10 @@
 const UI = {
   mouse: { x: -99, y: -99, cx: 0, cy: 0, down: false, active: false, wheel: 0 },
   panels: {}, stack: [], hot: [], nextHot: [], tip: null, drag: null, hotItem: null, focus: 0, keyNav: false, keyT: -1e9, cardT: 0, card: null,
+  /* the HUD's frame on a phone (screen pixels): l t r b keep it out of the notch, the status bar and the home bar, and
+     b lifts the HUD bar over the touch buttons on a screen held upright; barB is how far down the touch buttons at the
+     top reach (the minimap, the boss bar and the notices go under them). HUD_layout in 61-controls sets them */
+  frame: { l: 0, t: 0, r: 0, b: 0, barB: 0 }, hotO: null,
   def(id, spec) { spec.id = id; this.panels[id] = spec; return spec; },
   top() { return this.stack.length ? this.panels[this.stack[this.stack.length - 1].id] : null; },
   isOpen(id) { return this.stack.some(s => s.id === id); },
@@ -26,6 +30,7 @@ canvas.addEventListener('wheel', e => { UI.mouse.wheel += Math.sign(e.deltaY); }
 function mouseHUD() { const sc = game.screen, p = sc.clientToScreen(UI.mouse.cx, UI.mouse.cy); UI.mouse.x = p[0] - sc.ix; UI.mouse.y = p[1] - sc.iy; return UI.mouse; }
 /** register a hot rectangle (inside draw). o: { click, rclick, tip: lines | () => lines, drag(mx, my), key } */
 function hot(x, y, w, h, o) { if ((UI.hudPass || UI.underPass) && UI.modal) return false;   // under a modal panel the HUD and the panels below it are display only
+  if (UI.hotO) { x += UI.hotO[0]; y += UI.hotO[1]; }   // drawn inside the HUD's frame: the rectangle in screen pixels
   UI.nextHot.push(Object.assign({ x, y, w, h }, o)); const m = UI.mouse; return m.x >= x && m.x < x + w && m.y >= y && m.y < y + h; }
 const inRect = (m, r0) => m.x >= r0.x && m.x < r0.x + r0.w && m.y >= r0.y && m.y < r0.y + r0.h;
 /** run every step before the world: clicks, drags, Esc, the panel's own update. Returns true when the world should wait */
@@ -157,8 +162,20 @@ function drawTimedIcon(g, x, y, c, bg, o, stacks, paint) {
 }
 function drawHUD(r) {
   const h = ED.hero; if (!h) return;
-  r.overlay(g => { UI.hudPass = true; try { drawHudInner(g, r, h); } finally { UI.hudPass = false; } });
+  r.overlay(g => { UI.hudPass = true; const f = HUD_in(g, r); try { drawHudInner(g, f, h); } finally { HUD_out(g); UI.hudPass = false; } });
 }
+/** draw inside the HUD's frame (UI.frame): the canvas moves to its corner and the renderer it gets back is the frame's
+ *  size, so everything placed against an edge (the orbs, the skill bar, the place names, the minimap) lands inside it */
+function HUD_in(g, r) {
+  const F = UI.frame; if (!F.l && !F.t && !F.r && !F.b) return r;
+  g.save(); g.translate(F.l, F.t); UI.hotO = [F.l, F.t];
+  const f = Object.create(r);
+  Object.defineProperties(f, { W: { value: r.W - F.l - F.r }, H: { value: r.H - F.t - F.b }, w: { value: (x, y, z) => { const q = r.w(x, y, z); return [q[0] - F.l, q[1] - F.t]; } } });
+  return f;
+}
+function HUD_out(g) { if (UI.hotO) { g.restore(); UI.hotO = null; } }
+/** how far the touch buttons at the top reach into the frame: the minimap, the boss bar and the notices start below */
+function HUD_under() { const F = UI.frame; return F.barB > 0 ? Math.max(0, Math.ceil(F.barB - F.t) + 1) : 0; }
 function drawHudInner(g, r, h) {
   {
     const W = r.W, H = r.H, cx = Math.round(W / 2), by = H - 24;
@@ -241,7 +258,7 @@ function drawHudInner(g, r, h) {
     // boss bar: in the gap between the place names (top left) and the minimap (top right), centered when it can be
     const B = ED.boss;
     if (B && B.alive && !B.dormant) {
-      const lx = L0 ? 5 + leftW + 6 : 4, rx = L0 ? W - 84 : W - 4, w = Math.max(60, Math.min(220, rx - lx)), x = Math.round(clamp(cx - w / 2, lx, Math.max(lx, rx - w))), y = 8, mid = x + w / 2;
+      const lx = L0 ? 5 + leftW + 6 : 4, rx = L0 ? W - 84 : W - 4, w = Math.max(60, Math.min(220, rx - lx)), x = Math.round(clamp(cx - w / 2, lx, Math.max(lx, rx - w))), y = 8 + HUD_under(), mid = x + w / 2;
       let nm = B.name.toUpperCase() + (B.title ? ', ' + B.title.toUpperCase() : ''), tiny = false;
       if (E.font.width(nm) > w + 20) nm = B.name.toUpperCase(); if (E.font.width(nm) > w + 20) tiny = true;
       E.font.text(g, nm, mid, tiny ? y + 2 : y, '#ff9a6a', { align: 'center', shadow: '#05040a', outline: false, font: tiny ? 'tiny' : undefined });
@@ -265,7 +282,7 @@ function drawHudInner(g, r, h) {
 function drawLevelCard(g, W, H, cx, c) {
   const a = clamp(Math.min(UI.cardT, (c.dur - UI.cardT) * 3), 0, 1);
   px.blend(g, a, 'normal', () => {
-    const y = Math.round(H * .16);
+    const y = Math.round(Math.max(H * .16, HUD_under() ? HUD_under() + 72 : 0));   // under the minimap when the touch buttons push it down
     E.font.text(g, c.sub || '', cx, y - 12, '#c8c0d8', { align: 'center', shadow: '#05040a', outline: false });
     const T0 = String(c.title || '').toUpperCase(), sc = E.font.width(T0, { scale: 2 }) <= W - 16 ? 2 : 1;   // long composed names drop to one scale on narrow screens
     E.font.title(g, T0, cx, y + (sc === 1 ? 5 : 0), { scale: sc, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: sc, align: 'center' });
@@ -390,7 +407,7 @@ function drawNoticeFeed(g, W, H, rect, hud) {
     let shown = 0;   // whole lines from the oldest, at most five rows (the first always shows); the rest wait their turn
     for (const n of NT.top.slice(0, NT_TOP)) { const L = E.font.wrap(label(n), ww); if (shown && rows.length + L.length > 5) break; shown++; const a = NT_alpha(n); for (const s of L) rows.push({ s, n, a }); }
     NT.shown = shown;
-    const y0 = 28, ghost = rows.length && m.x > fx - ww / 2 - 4 && m.x < fx + ww / 2 + 4 && m.y > y0 - 3 && m.y < y0 + rows.length * 10 + 2 ? .3 : 1;
+    const y0 = 28 + HUD_under(), o0 = UI.hotO || [0, 0], mx = m.x - o0[0], my = m.y - o0[1], ghost = rows.length && mx > fx - ww / 2 - 4 && mx < fx + ww / 2 + 4 && my > y0 - 3 && my < y0 + rows.length * 10 + 2 ? .3 : 1;
     rows.forEach((r0, i) => { if (r0.a > 0) line(r0.s, fx, y0 + i * 10, r0.n.color, r0.a * ghost, false); });
   }
   // quick feedback over the skill bar (above the interaction prompt when one shows)
@@ -427,8 +444,8 @@ function skillTip(h, id) {
 /** the minimap: explored floor, walls, the exit, monsters nearby, the hero. It is drawn through the camera's own
  *  projection (flattened to the ground), so it turns and tilts with the view like Diablo's automap */
 function drawMinimap(g, r, L0, h) {
-  const big = game.input.down('map'), W0 = big ? r.W - 60 : 74, H0 = big ? r.H - 50 : 54;
-  const x0 = big ? 30 : r.W - W0 - 4, y0 = big ? 25 : 4, v = r.view, k = (big ? 3.2 : 1.3) / (T16 * v.scale / (v.zoom || 1)) * T16 / T16;
+  const big = game.input.down('map'), W0 = big ? r.W - 60 : 74, H0 = big ? r.H - 50 - HUD_under() : 54;
+  const x0 = big ? 30 : r.W - W0 - 4, y0 = (big ? 25 : 4) + HUD_under(), v = r.view, k = (big ? 3.2 : 1.3) / (T16 * v.scale / (v.zoom || 1)) * T16 / T16;
   const hp0 = v.p(h.x, h.y, 0), cxm = x0 + W0 / 2, cym = y0 + H0 / 2;
   const M = (wx, wy) => { const q = v.p(wx, wy, 0); return [cxm + (q[0] - hp0[0]) * k, cym + (q[1] - hp0[1]) * k]; };
   const inside = ([sx, sy]) => sx >= x0 && sy >= y0 && sx < x0 + W0 - 1 && sy < y0 + H0 - 1;
@@ -495,7 +512,7 @@ function drawPanels(r) {
     }
     // the notices: over the panels (never on their bodies) and under every tooltip, which draws after them (an
     // item's tooltip is queued by its panel, the core tooltip comes next)
-    if (rect || !UI.hideHud) drawNoticeFeed(g, r.W, r.H, rect, UI.hudDrawn); UI.hudDrawn = false;
+    if (rect || !UI.hideHud) { const f = !rect && UI.hudDrawn ? HUD_in(g, r) : r; try { drawNoticeFeed(g, f.W, f.H, rect, UI.hudDrawn); } finally { if (f !== r) HUD_out(g); } } UI.hudDrawn = false;
     // tooltip: the hovered hot rect's tip (last registered wins: the topmost)
     const m = UI.mouse; let tipR = null;
     for (const r0 of UI.nextHot) if (r0.tip && inRect(m, r0)) tipR = r0;
@@ -508,11 +525,11 @@ function showCard(title, sub, mech, dur = 5) { UI.card = { title, sub, mech, dur
 /* ---------- panels: pause, settings, death, waystone ---------- */
 function pauseItems() {
   return [['RESUME', () => UI.close('pause')], ['INVENTORY', () => UI.open('inventory')], ['SKILLS', () => UI.open('skills')], ['PASSIVES', () => UI.open('tree')],
-    ['CONTROLS', () => UI.open('controls')], ['SETTINGS', () => UI.open('settings')], ['DEVELOPER', () => UI.open('developer')],
+    ['CONTROLS', () => UI.open('controls')], ['SETTINGS', () => UI.open('settings')], FS.can() ? [FS.on() ? 'LEAVE FULL SCREEN' : 'FULL SCREEN', () => FS.toggle()] : null, ['DEVELOPER', () => UI.open('developer')],
     ED.mode === 'level' ? ['TOWN PORTAL', () => { UI.closeAll(); openTownPortal(ED.hero); }] : null,
     DEV.enabled ? ['LEAVE SANDBOX', devDisable] : ['SAVE AND QUIT', () => { UI.closeAll(); saveGame(); game.go('title'); }]].filter(Boolean);
 }
-UI.def('pause', { title: 'PAUSED', w: 180, h: 198, draw(g, x, y, w) {
+UI.def('pause', { title: 'PAUSED', w: 180, h: (W, H) => Math.min(H - 8, 36 + pauseItems().length * 18), draw(g, x, y, w) {
   pauseItems().forEach(([label, fn], i) => button(g, x + 12, y + 20 + i * 18, w - 24, 16, label, fn, { focus: UI.keyNav && UI.focus === i }));
 }, update() { const items = pauseItems(); menuKeys(items.length, i => items[i][1]()); } });
 /** up / down / confirm over a panel's list of n entries */
