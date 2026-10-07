@@ -41,7 +41,7 @@ const GROUPS = [
   ['Idle', ['idle']], ['Locomotion', ['walk', 'run', 'crouch', 'crawl', 'strafe', 'turn']], ['Jump, dodge, climb, fly', ['jump', 'dodge', 'climb', 'slide', 'fly']],
   ['Combat', ['attack', 'stance', 'block', 'shield', 'sword', 'unarmed', 'magic', 'gun', 'bow', 'throw', 'kick']], ['Reactions', ['hurt', 'death', 'getup']],
   ['Interacting', ['interact', 'work', 'item', 'chest', 'carry', 'eat', 'farm', 'fish', 'sport']], ['Social', ['talk', 'emote', 'gesture', 'dance', 'cheer', 'exercise']],
-  ['Sitting and resting', ['sit', 'rest', 'lie']], ['Swimming', ['swim']], ['Monsters', ['zombie']], ['Reference', ['reference']]
+  ['Sitting and resting', ['sit', 'rest', 'lie']], ['Swimming', ['swim']], ['Monsters', ['zombie', 'monster']], ['Reference', ['reference']]
 ];
 const CORE = new Set(['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Jump_Start', 'Roll', 'Punch_Jab', 'Sword_Attack', 'Sword_Regular_Combo', 'Hit_Chest', 'Death01',
   'LayToIdle', 'Interact', 'PickUp_Table', 'Chest_Open', 'Walk_Carry_Loop', 'Consume', 'Sitting_Enter', 'Dance_Loop', 'ClimbUp_1m_RM']);

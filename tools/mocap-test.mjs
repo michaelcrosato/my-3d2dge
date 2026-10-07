@@ -12,6 +12,7 @@
 // Usage: node tools/mocap-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -134,6 +135,18 @@ const report = await page.evaluate(async () => {
 });
 await browser.close();
 problems.push(...report.bad);
+// the CMU ledger (src/mocap/catalogs/cmu-takes.tsv, written by tools/cmu.mjs survey): every take of the database, each
+// measured, and every take the CMU set cuts a clip from marked with those clips
+{
+  const { readLedger } = await import('./cmu.mjs'), L = readLedger(), rows = Object.values(L);
+  const pick = JSON.parse(readFileSync(resolve('src/mocap/catalogs/cmu.json'), 'utf8')).$pick || {};
+  if (rows.length < 2548) problems.push('the CMU ledger lists ' + rows.length + ' takes, not all 2,548');
+  for (const r of rows) if (!/error|not downloaded/.test(r.flags) && !(r.sec && r.category && /^\d+\/\d+$/.test(r.fit) && /^[\d.]+-[\d.]+$/.test(r.active))) { problems.push('CMU ledger: take ' + r.id + ' is not fully measured'); break; }
+  for (const [clip, [take]] of Object.entries(pick)) {
+    if (!L[take]) problems.push('CMU clip ' + clip + ': its take ' + take + ' is not in the ledger');
+    else if (!L[take].used.split(' ').includes(clip)) problems.push('CMU ledger: take ' + take + ' does not list ' + clip + ' as used (run node tools/cmu.mjs survey --subjects ' + +take.split('_')[0] + ')');
+  }
+}
 if (problems.length) { console.error('mocap lab: ' + problems.length + ' problem(s)\n  ' + [...new Set(problems)].slice(0, 40).join('\n  ')); process.exit(1); }
 const sets = Object.entries(report.sets).map(([id, s]) => `${id} ${s.clips} clips (${s.keys} key poses, ${s.fit.toFixed(1)} mm from the capture)`).join(', ');
 console.log(`mocap lab: ${sets}; ${report.frames} poses checked on the mannequin and the hero; no problems`);
