@@ -157,9 +157,19 @@ npm run mocap:sheet -- src/mocap/sets/quaternius.js --uncataloged src/mocap/cata
 
 ### Importing from CMU, step by step
 
-The [CMU database](http://mocap.cs.cmu.edu/) holds about 2,500 takes by more than 100 people: walks in every style, runs, dances, sports, martial arts, acrobatics, playground games, everyday chores. It is "free for all uses", and the data "may be copied, modified, or redistributed without permission". Takes are raw: long recordings of several actions, so each clip is a stretch cut from one. Nine takes went through this route as its first test (the CMU set).
+The [CMU database](http://mocap.cs.cmu.edu/) holds 2,548 takes by more than 100 people: walks in every style, runs, dances, sports, martial arts, acrobatics, playground games, everyday chores, people acting animals. It is "free for all uses", and the data "may be copied, modified, or redistributed without permission". Takes are raw: recordings of one action or several, so each clip is a stretch cut from one.
 
-**1. Find takes.** `node tools/cmu.mjs find cartwheel` lists the takes whose description has every word, with each take's frame rate and the subject's own description (`49_06  120 fps  cartwheel  (modern dance, gymnastics)`). The first run downloads the site's index of all 2,435 takes to `.cache/cmu/index.tsv`. `node tools/cmu.mjs subject 13` lists one subject's takes. (`npm run mocap:cmu -- find kick`.)
+**All of it, and the ledger.** Every take has been downloaded, converted and measured, and the results are kept in **`src/mocap/catalogs/cmu-takes.tsv`**: one line a take with its category, its length, the stretch where it moves, how closely the readable format keeps to it, how far it travels, how low and high the hips go, its flags (upside down, off the floor, loose, short, undescribed) and which clips of the CMU set use it. A `note` column is yours: `pick` (next to import), `skip: why`. To do it again on another computer:
+
+```
+node tools/cmu.mjs all       # the site's 1 GB archive, unpacked: 2,548 takes, 3.3 GB in .cache/cmu (not committed)
+node tools/cmu.mjs survey    # converts and measures every take (about 30 minutes) and rewrites the ledger, keeping the notes
+node tools/cmu.mjs ledger combat --status none --top 20   # query it: a category or words, and none | used | pick | skip
+```
+
+`survey --lib` also writes every converted take to `.cache/cmu-lib/` (one set file a subject, long takes in 10-second parts), which the contact-sheet tool reads like any set. That library is about 130 MB of text for ten hours of motion, so it is not committed or put on the site: the CMU set carries the moments picked from it.
+
+**1. Find takes.** The ledger is the quickest: `node tools/cmu.mjs ledger getup` lists the takes in a category or with the words, with their length, active stretch, fit and flags. `node tools/cmu.mjs find cartwheel` searches the site's own index (2,435 takes listed, downloaded once to `.cache/cmu/index.tsv`; the archive also holds 113 takes the site never described, in the ledger as `fps?`). `node tools/cmu.mjs subject 13` lists one subject's takes. (`npm run mocap:cmu -- find kick`.)
 
 **2. Pick a stretch.** Import the whole take once to look at it: a catalog whose `"$pick"` names it, then a contact sheet with a frame every half second, each marked with its time:
 
@@ -173,7 +183,7 @@ Narrow it with `--every 0.1` around the moment. When the frames are too small to
 
 **3. Write the catalog** (`src/mocap/catalogs/cmu.json`):
 - `"$sources"`: one `"CMU"` record (label, origin, license, url); the importer copies it for each subject, naming the subject and linking its page.
-- `"$pick"`: each clip's take and the seconds to keep, `"Cartwheel": ["49_06", 1.0, 3.6]` (no end: to the end of the take).
+- `"$pick"`: each clip's take and the seconds to keep, `"Cartwheel": ["49_06", 1.0, 3.6]` (no end: to the end of the take). The take alone, `"Wave_Hello": ["141_16"]`, keeps the stretch where it moves, from the ledger: enough for a take of one action.
 - an entry per clip, `[tags, what the body does]`, as for any library. The tag `loop` asks for a loop.
 
 **4. Import:**
