@@ -20,7 +20,7 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 
 | File | For | Size |
 |---|---|---|
-| **`dist/my-3d2dge-agent.js`** | **AI coding agents** (Claude Code, Codex, Cursor and the like). The [agent edition](#the-agent-edition-for-ai-coding-agents): the essential engine in one readable file whose header is the whole manual, with three complete example games. An agent reads the header and nothing else. | header ~8k tokens, whole file ~82k |
+| **`dist/my-3d2dge-agent.js`** | **AI coding agents** (Claude Code, Codex, Cursor and the like). The [agent edition](#the-agent-edition-for-ai-coding-agents): the essential engine in one readable file whose header is the whole manual, with three complete example games. An agent reads the header and nothing else. | header ~9k tokens, whole file ~83k |
 | **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `shooter`, `rpg`), or `animlab` to explore the animation system. Fits a 200k context with room to work. | ~119k-130k tokens |
 | **`dist/my-3d2dge-compact.html`** | All five slices and the animation lab, engine minified. | ~229k tokens |
 | **`dist/my-3d2dge.html`** | The complete reference: readable engine, all five slices and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~275k tokens |
@@ -43,13 +43,13 @@ The model copies the closest slice and replaces the code between `GAME START` an
 
 ### The agent edition (for AI coding agents)
 
-`dist/my-3d2dge-agent.js` is the engine cut down to what an agent needs to build games, in one readable file. Its header is the whole manual: how to host a game, the mental model, a complete game (title, play, win or lose), the API for every kit, a side-scroller and a shoot-'em-up recipe, and the rules. A coding agent reads those ~8k tokens and builds from them; the code below is there to debug, sectioned by `// ---- N. NAME` banners so it can be grepped.
+`dist/my-3d2dge-agent.js` is the engine cut down to what an agent needs to build games, in one readable file. Its header is the whole manual: how to host a game, the mental model, a complete game (title, play, win or lose), the API for every kit, a side-scroller and a shoot-'em-up recipe, and the rules. A coding agent reads those ~9k tokens and builds from them; the code below is there to debug, sectioned by `// ---- N. NAME` banners so it can be grepped.
 
 - **Kept:** the game loop and scenes, keyboard, mouse and gamepad input, every view, the depth-sorted renderer, pixel primitives, string sprites, the 5x7 font and title text, UI windows, dialog and menus, particles and hit effects, the chip synth with every sound effect and song, `TileMap` + `Body` + `FlowField`, `PlatformMap` + `Platformer`, `Bullets` and patterns, the HD `Humanoid` with every pose and move (plus capes, outfits and hats), and `Blob` monsters.
 - **Left to the full engine:** canvas and WebGPU lighting, props, parallax backdrops, touch controls, camera zoom and turn, dialog portraits, x-ray silhouettes and afterimages, the classic and skeleton rigs, weapon trails, NES-style dithering, the 3x5 font, and the extra wall, roof and tile materials. Calling one of these in the agent edition does nothing (it warns once), so full-engine code degrades instead of crashing.
 - **Compatible upward:** its API is a strict subset of the full engine's, so a game written for it runs unchanged on `dist/my-3d2dge.js`. `npm run test:agent` checks this. It plays every example in the header on both engines, drives a coverage scene through every rig option, pose, move, view and kit, and compares the two APIs name by name.
 
-The file is 82k tokens in all (140k for the readable full engine, 128k-133k for a genre kit). Its source is `engine/my-3d2dge-agent.js`, a curated copy of the engine, so fixes to the full engine are ported to it by hand. `node tools/build.mjs` copies it to `dist/`.
+The file is 83k tokens in all (140k for the readable full engine, 128k-133k for a genre kit). The header ends with a map of what lies outside the file and how to take from it: the store of motion clips (search the catalogs, cut the clips a game needs into a small set, play them on any Humanoid), Emberdeep's worked examples and the genre kits. `API.md`, `AI_GUIDE.md` and the full engine's header carry the same map, and `npm run test:agent` checks that every path it names exists and that its recipe works. Its source is `engine/my-3d2dge-agent.js`, a curated copy of the engine, so fixes to the full engine are ported to it by hand. `node tools/build.mjs` copies it to `dist/`.
 
 ## Try it
 
@@ -280,12 +280,12 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.7.0**. Every change merged to `main` bumps it (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.8.1**. Every change merged to `main` bumps it (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
-- `API.md`: the API card, about 11,019 tokens. It is embedded in every single-file edition.
-- The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 8,400 tokens, with three complete example games.
+- `API.md`: the API card, about 12,200 tokens. It is embedded in every single-file edition.
+- The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 9,000 tokens, with three complete example games.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 - `docs/ANIMATION-RESEARCH.md`: famous animations for every view and genre the engine covers, what the engine can already draw, and a ranked list of animations to ship ready-made.
 - `docs/CHARACTERS.md`: adding a playable character to Emberdeep, from a brief to a checked hero: the scaffold, the body contract, the character test, the character sheet and the balance run.

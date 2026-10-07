@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.8.1 (2026-10-07)
+
+The engine files now tell an AI agent what lies outside them, and how to take from it.
+
+- **Docs**: a map of the store outside the engine files, where an agent reads: at the end of the agent edition's manual (about 600 tokens), in the full engine's header, in `API.md` (so in every genre kit) and in `AI_GUIDE.md` ("Where to find more"). It lists the 325 curated motion clips and 2,548 motion-capture takes, Emberdeep's worked examples (monster and boss bodies, heroes whose bodies are not people, skills) and the genre kits. Each step has its command: search the catalogs or `node tools/cmu.mjs ledger <word>`, cut the clips a game needs into a small set with `tools/anim-set.mjs`, play them on any Humanoid with `src/mocap/mocap.js`. The map also says the store's files are large: search them, never read one whole. Clips play on the agent edition too (tested); the full engine also turns the face and hair with a clip.
+- **Tools**: `npm run test:agent` checks the map: every path it names in the four places exists, and its recipe works (the ledger search, the cut of a curated clip and a motion-capture take, both played on the agent edition's Humanoid). `tools/version.mjs` also writes and checks the version the README states (it said 0.7.0 through 0.8.0).
+
 ## 0.8.0 (2026-10-07)
 
 A third playable character, adapted from concept art, and what building it taught the character tools.

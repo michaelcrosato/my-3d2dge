@@ -21,7 +21,8 @@ const PLACES = [
   ['engine/my-3d2dge-agent.js', /(my-3D2dge AGENT EDITION v)(\d+\.\d+\.\d+)()/],
   ['engine/my-3d2dge-agent.js', /(const E = \{ version: ')([^']+)(')/],
   ['API.md', /(# my-3D2dge API card \(v)([^)]+)(\))/],
-  ['AI_GUIDE.md', /(`engine\/my-3d2dge\.js` v)(\d+\.\d+\.\d+)()/]
+  ['AI_GUIDE.md', /(`engine\/my-3d2dge\.js` v)(\d+\.\d+\.\d+)()/],
+  ['README.md', /(`My3D2dge\.version`, now \*\*)(\d+\.\d+\.\d+)(\*\*)/]
 ];
 // copies tools/build.mjs makes: they must carry the same number (a bump without a rebuild leaves them behind)
 const BUILT = [

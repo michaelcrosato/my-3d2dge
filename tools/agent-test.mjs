@@ -3,11 +3,15 @@
 //      on the agent edition AND on the full engine (games written for it must run unchanged on the full engine)
 //   2. a coverage scene drives every rig option, pose, move, view, tile kind and kit for runtime errors, on both engines
 //   3. its public API is a subset of the full engine's (every name it offers exists there too)
-//   4. its size, in bytes and tokens (cl100k when the optional gpt-tokenizer package is installed, otherwise an estimate)
+//   4. the store it points to (its "More" section, and the same in the full engine, API.md and AI_GUIDE.md): every path
+//      named exists, and its recipe works: the ledger search, the cut of a curated clip and a motion-capture take into a
+//      set of its own, and both clips playing on the agent edition's Humanoid
+//   5. its size, in bytes and tokens (cl100k when the optional gpt-tokenizer package is installed, otherwise an estimate)
 // Usage: node tools/agent-test.mjs [--out check-output/agent] [--only quickstart]    (exit code 1 on any failure)
 // Setup: npm install (Playwright). Set CHROMIUM_PATH to use an already installed Chromium.
 import { chromium } from 'playwright';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -177,10 +181,54 @@ if (!only) {
   const missing = [...a].filter(n => !f.has(n) && !AGENT_ONLY.has(n));
   if (missing.length) fail('api', missing.length + ' name(s) are not in the full engine: ' + missing.join(', '));
   else console.log('  ok   ' + a.size + ' names, all in the full engine (which has ' + f.size + ')');
+
+  console.log('4. the store it points to: every path named exists, and the clip recipe works');
+  // the sections that point outside the engine files, from each place an agent reads
+  const cut = (text, from, to) => { const i = text.indexOf(from); if (i < 0) return null; const j = text.indexOf(to, i + from.length); return text.slice(i, j < 0 ? undefined : j); };
+  const FULLSRC = readFileSync(FULL, 'utf8'), API = readFileSync(join(root, 'API.md'), 'utf8'), GUIDE = readFileSync(join(root, 'AI_GUIDE.md'), 'utf8');
+  const more = [['agent header', cut(header, '## More, outside this file', '\u0000')], ['full engine header', cut(FULLSRC, ' * MORE, outside this file', ' */')],
+    ['API.md', cut(API, '## More: animation and examples', '\n## ')], ['AI_GUIDE.md', cut(GUIDE, '## Where to find more', '\n## ')]];
+  let named = 0;
+  for (const [where, text] of more) {
+    if (!text) { fail('pointers', where + ' has no section pointing to the store'); continue; }
+    // repo paths: alternatives <a|b> expanded, a placeholder (<set>, NN) or a glob checked as its folder; bare catalog names
+    const paths = new Set();
+    for (let m of text.match(/\b(?:src|docs|tools|examples|dist)\/[\w.\/<>|*-]+/g) || []) {
+      m = m.replace(/[.,;:)]+$/, '');
+      const alt = m.match(/<([\w|-]+)>/);
+      if (alt && alt[1].includes('|')) for (const a of alt[1].split('|')) paths.add(m.replace(alt[0], a));
+      else if (/<\w+>|\*|NN/.test(m)) paths.add(m.slice(0, m.lastIndexOf('/') + 1));
+      else paths.add(m);
+    }
+    for (const m of text.match(/\b[\w-]+\.json\b/g) || []) if (!/\//.test(m)) paths.add('src/mocap/catalogs/' + m);
+    for (const p of paths) { named++; if (!existsSync(join(root, p))) fail('pointers', where + ' names ' + p + ', which does not exist'); }
+  }
+  // the recipe as the agent header gives it: search the ledger, cut the two clips, play them on the agent edition
+  const node = (args, what) => { const r = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' }); if (r.status) fail('pointers', what + ' failed: ' + (r.stderr || r.stdout).trim().split('\n')[0]); return r.stdout || ''; };
+  if (!/^\d\d_\d\d\t/m.test(node(['tools/cmu.mjs', 'ledger', 'kick', '--top', '3'], 'node tools/cmu.mjs ledger kick'))) fail('pointers', 'the ledger search found no take');
+  const take = (cut(header, 'node tools/anim-set.mjs', 'mine.js') || '').replace(/\(.*?\)/g, ' ').split(/\s+/).filter(Boolean);
+  const setFile = join(out, 'store', 'mine.js'); mkdirSync(dirname(setFile), { recursive: true });
+  if (take.length < 4) fail('pointers', 'the agent header has no anim-set command to cut clips');
+  else {
+    node(take.slice(1).concat([setFile]), take.join(' ') + ' mine.js');
+    const clips = (take[take.indexOf('--clips') + 1] || '').split(',');
+    const { p, errors } = await page(browser, AGENT, '', 'store');
+    for (const f of [join(root, 'src/mocap/readable.js'), join(root, 'src/mocap/mocap.js'), setFile]) await p.addScriptTag({ path: f });
+    const moved = await p.evaluate(names => {
+      const E = My3D2dge, own = new E.Humanoid({}), rig = new E.Humanoid({}), s = { x: 0, y: 0, z: 0, vx: 0, vy: 0, facing: 0 };
+      const lib = Mocap.load(MOCAP.MINE); Mocap.drive(rig, lib);
+      return names.map(name => { const clip = lib.clip(name); if (!clip) return name + ' is not in the set'; let far = 0;
+        for (let i = 1; i <= 60; i++) { own.update(1 / 60, s); rig.mocap = lib.sample(clip, i / 60); rig.update(1 / 60, s); for (const k of ['handL', 'handR', 'footL', 'footR', 'head']) far = Math.max(far, Math.hypot(...rig.J[k].map((v, j) => v - own.J[k][j]))); }
+        return far > 1 ? null : name + ' does not move the rig'; }).filter(Boolean);
+    }, clips);
+    await p.close();
+    for (const m of moved.concat(errors)) fail('pointers', m);
+    if (!moved.length && !errors.length) console.log('  ok   ' + named + ' paths named in 4 places exist; the ledger search, the cut (' + clips.join(', ') + ') and both clips on the agent edition work');
+  }
 }
 await browser.close();
 
-console.log('4. size');
+console.log('5. size');
 let tok = null;
 try { const { encode } = await import('gpt-tokenizer/encoding/cl100k_base'); tok = s => encode(s).length; } catch (e) { /* optional */ }
 const count = s => tok ? tok(s) + ' tokens' : '~' + Math.round(s.length / 2.6) + ' tokens (estimate; npm i gpt-tokenizer for exact cl100k counts)';

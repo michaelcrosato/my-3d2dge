@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.8.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.8.1 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and five working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.8.0)
+# my-3D2dge API card (v0.8.1)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -223,6 +223,12 @@ game.start({ scene: 'title', scenes: {
 
 **Feel numbers** (world units per second, tile = 16): walk 70-90, run 95-140, jump 250-320 with gravity 800, fall cap 330, dash 200-260, bullets 250-320 (player) and 70-120 (enemy), enemy walk 25-45. Hit feedback: `game.freeze(.05)`, `game.shake(2)`, `particles.sparks`, `audio.sfx('hit')`.
 
+## More: animation and examples outside this card
+The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubusercontent.com/michaelcrosato/my-3d2dge/main/<path>`) holds more to take from. Its files are large: search them and take only what the game needs.
+- **Motion clips**: 325 curated (idles, walks, runs, jumps, fights, hits, deaths, chores, dances) and 2,548 motion-capture takes, as readable key poses that play on any Humanoid. Find one in `src/mocap/catalogs/quaternius.json`, `mesh2motion.json` or `cmu.json` (each clip's name, tags and description; a few thousand tokens each) or `src/mocap/catalogs/cmu-takes.tsv` (every take, one a line). `node tools/anim-set.mjs src/mocap/sets/quaternius.js --clips Idle_Loop,Punch_Jab --name MINE --out mine.js` cuts the clips you want into a small set (a take `NN_xx` is in `examples/cmu-lib/CMU_NN.js`); paste `src/mocap/readable.js`, `src/mocap/mocap.js` and that set, in this order, before your game's code, then `const lib = Mocap.load(MOCAP.MINE); Mocap.drive(rig, lib);` and each step `rig.mocap = lib.sample(lib.clip('Idle_Loop'), t)`. `docs/MOCAP.md` explains the format and blending.
+- **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 28 monster, boss and dummy bodies, 3 heroes (one a living book, one a scythed beast) and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
+- **Everything running**: https://my-3d2dge.vercel.app/labs
+
 ## Before you hand the game back
 - One IIFE between the markers, starting with `const E = My3D2dge`. Only your game: no leftover starter menu or unused slices. No other files, no network, no libraries.
 - Title screen and game-over screen as scenes; `pausable: true` on gameplay scenes.
@@ -276,7 +282,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.8.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.8.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -322,6 +328,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
  * Errors in your game are shown on screen and in the console (game.errors).
  * The compact API card is API.md (also embedded in the single-file edition).
  * See AI_GUIDE.md in the repo for the full guide and recipes.
+ * MORE, outside this file (github.com/michaelcrosato/my-3d2dge; search it and take only what a game needs, its files
+ *    are large): 325 curated motion clips and 2,548 motion-capture takes as readable key poses that play on any
+ *    Humanoid (src/mocap/: the catalogs list every clip's tags and description, tools/anim-set.mjs cuts the ones you
+ *    want into a small set, src/mocap/mocap.js plays them), and Emberdeep (src/emberdeep/), a whole game of worked
+ *    examples: monsters, bosses, heroes with bodies that are not people, skills. AI_GUIDE.md, "Where to find more",
+ *    says how to search them and take what you need.
  */
 (function (root) {
 'use strict';
@@ -329,7 +341,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.8.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.8.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
