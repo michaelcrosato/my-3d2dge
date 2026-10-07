@@ -65,7 +65,7 @@ Register every part with `def(kind, id, spec)`. The kinds, with each spec docume
 | `themes` | 50-levels-core.js | see the PLAN below |
 | `layouts` | 50-levels-core.js | `halls` (core), `islands`, `arena`, `caves` |
 | `npcs` | 55-town-core.js | `waykeeper` (core) |
-| `characters` (playable heroes) | 18-characters.js (recipe: `docs/CHARACTERS.md`) | `wanderer` (core), `codex` (21-codex.js) |
+| `characters` (playable heroes) | 18-characters.js (recipe: `docs/CHARACTERS.md`) | `wanderer` (core), `codex` (21-codex.js), `dan` (22-char-dan.js) |
 | `songs` | 70-audio.js | core: `town deep deep2 title` |
 
 UI panels are registered with `UI.def(id, spec)`. Contractual panel ids:

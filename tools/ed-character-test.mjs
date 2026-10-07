@@ -75,7 +75,7 @@ for (const C of list) {
         if (!Array.isArray(C.skills) || !C.skills.length || C.skills.length > 6) bad.push('skills must list 1 to 6 starting skill ids');
         else for (const s of C.skills) { const S = __ed.REG.skills[s]; if (!S) bad.push('starting skill "' + s + '" is not registered'); else if (S.character && S.character !== id) bad.push('starting skill "' + s + '" belongs to ' + S.character); }
         for (const [k, lo, hi] of [['speed', 30, 200], ['acceleration', 100, 3000], ['dodgeTime', .1, .8], ['dodgeSpeed', 80, 600]]) if (!(C[k] >= lo && C[k] <= hi)) bad.push(k + ' should be a number from ' + lo + ' to ' + hi + ' (the Wanderer has ' + W[k] + ')');
-        for (const k of ['stats', 'init', 'kit', 'rig', 'dropIn', 'titlePose', 'preview', 'menuNotes']) if (C[k] !== undefined && typeof C[k] !== 'function') bad.push(k + ' should be a function');
+        for (const k of ['stats', 'init', 'prime', 'kit', 'rig', 'dropIn', 'titlePose', 'preview', 'menuNotes']) if (C[k] !== undefined && typeof C[k] !== 'function') bad.push(k + ' should be a function');
         const slot = __ed.characterSaveKey(id); if (Object.keys(__ed.CHARACTERS).filter(o => __ed.characterSaveKey(o) === slot).length > 1) bad.push('its save slot ' + slot + ' is shared with another character');
         return { bad, rig: __ed.checkRig(id) };
       }, C.id);
@@ -139,6 +139,7 @@ for (const C of list) {
         h.slots[0] = id; __ed.dressHero(h);
         const m = __ed.spawnMonster('dummy', h.x + dist, h.y, { instant: true }); m.spawnT = 0; m.hp = m.maxHp = 1e6;
         h.bot.input.aimAt = [m.x, m.y]; h.aim = h.facing = 0; h.tx = m.x; h.ty = m.y;
+        { const C = __ed.characterOf(h); if (C.prime) C.prime(h); }   // its own resource full, as the gallery does (Dan's brood)
         const cast = !!__ed.useSlot(h, 0); let echo = null;
         for (let f = 0; f < frames; f++) { game.hitstop = 0; game._step(1 / 60); if (f % 15 === 0) game._frame(); const e = ED.allies.find(a => a.kind === 'echo'); if (e) echo = e.rig && e.rig.constructor === h.rig.constructor; }
         out[id] = { cast, hit: hits.has(id), echo };

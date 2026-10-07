@@ -110,6 +110,8 @@ Codex starts with six signature spells. **Quillshot** charges three manuscript p
 
 [Watch the animated rig](docs/assets/codex-motion.gif) · [Character design and verification](docs/CODEX.md)
 
+**A third: Dan, the Brood-Scythe.** [Start as Dan](https://my-3d2dge.vercel.app/?character=dan). A stalking beast adapted from concept art: two bone scythes for forearms, a horned crown, reverse-kneed legs, a tail, and egg sacs on its hips that ripen with every kill. It reaps in three-cut combos, pounces and impales, whirls, roars into a frenzy, and spends its brood as broodlings that hunt or as a void blast that grows with every sac. See [docs/DAN.md](docs/DAN.md).
+
 **More characters.** Playable characters are a registry like monsters and skills: each one is a file that registers with `def('characters', id, spec)`, and nothing shared changes. `npm run new:character -- <id>` writes a hero that already works (a dressed Humanoid, or a custom body), `npm run character:check -- <id>` tests it and draws its character sheet (every state in every view, with numbers for size, contrast and motion), and `docs/CHARACTERS.md` is the recipe.
 
 The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIGN.md` explains the modular "language" (registries for elements, skills, monsters, affixes, bosses, patterns, items, powers, mechanics, themes and layouts). `tools/ed-play.mjs` (scripted headless playtests) and `tools/ed-smoke.mjs` (every scene and depth) test it.

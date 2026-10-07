@@ -867,6 +867,8 @@ function devBeforeWorld() {
 		h.ember = h.maxEmber;
 		h.potions = h.maxPotions;
 		h.dodges = h.maxDodge;
+		const C = characterOf(h);
+		if (C.prime) C.prime(h); // a character's own resource too (Dan's brood)
 	}
 	if (DEV.cooldowns && h) h.cds = {};
 }
