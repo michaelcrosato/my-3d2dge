@@ -571,6 +571,7 @@ function renderDeveloper() {
 		// every lab, test page and demo (examples/labs.html, /labs on the site); "labs.html" works from both
 		formButton(top, "All labs ↗", () => location.assign("labs.html")).title = "The Labs page: every lab, test page and demo";
 		formElement("p", "", el, { class: "ed-meta", "data-tuned": "" });
+		formElement("p", "Emberdeep on my-3D2dge " + E.versionLabel(), el, { class: "ed-meta ed-version" });   // the release and the commit it was built from
 		const bar = formElement("div", "", el, { class: "ed-dev-bar" });
 		const tiers = formElement("div", "", bar, { class: "ed-seg", role: "group", "aria-label": "Detail" });
 		for (const [t, name] of [[1, "Simple"], [2, "Advanced"]]) {

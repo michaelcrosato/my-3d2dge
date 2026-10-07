@@ -27,6 +27,7 @@ The **core** files, which you must NOT edit, are:
 05-elements.js      elements (phys fire frost storm void venom), statuses, dot(), applyStatus(), statusSpeed(), statusTint()
 10-combat.js        units, dealDamage(), killUnit(), knock(), GRID, eachEnemy(), hitCircle(), hitCone(), elBurst(), FX verbs
 15-stats.js         STATS, statText(), statSource(), computeStats(), skillRank(), heroHit()
+18-characters.js    playable characters: def('characters'), the body contract, checkRig(), charRig(), the Wanderer
 20-hero.js          the hero: actions, xp, dodge, potions, drawing, collideUnit(), settleCape()
 25-skills-core.js   skill runtime (useSlot, skillCtx, swingAction), ICON, drawSkillIcon, Blade Dance, Ember Bolt
 30-monsters-core.js monsters: spawnMonster(), AI helpers + melee/pouncer/orb AIs, affixes, packs, drawFoe(), 5 archetypes
@@ -64,6 +65,7 @@ Register every part with `def(kind, id, spec)`. The kinds, with each spec docume
 | `themes` | 50-levels-core.js | see the PLAN below |
 | `layouts` | 50-levels-core.js | `halls` (core), `islands`, `arena`, `caves` |
 | `npcs` | 55-town-core.js | `waykeeper` (core) |
+| `characters` (playable heroes) | 18-characters.js (recipe: `docs/CHARACTERS.md`) | `wanderer` (core), `codex` (21-codex.js) |
 | `songs` | 70-audio.js | core: `town deep deep2 title` |
 
 UI panels are registered with `UI.def(id, spec)`. Contractual panel ids:
@@ -232,3 +234,4 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
 3. Look at your screenshots (Read the PNGs) and judge them against the quality bar. Check several views (`eval:__ed.game.setView('threequarter')`).
 4. `node tools/filmstrip.mjs <page>#depth-N --steps "..." --crop x,y,w,h` records animations frame by frame. Use it for every new animation. A monster, skill, boss or pose films best from its gallery entry (`<page>#gallery/bestiary/<id> --steps "wait:200 rec:16:36"`). Add `--seed 1` to make the strip repeatable, and `--compare <page built before your change>` to mark exactly what changed.
 5. It must run with zero errors in the console and in `game.errors`.
+6. A playable character has its own loop: `npm run character:check -- <id>` runs the character test (`tools/ed-character-test.mjs`) and draws the character sheet (`tools/ed-sheet.mjs`). See `docs/CHARACTERS.md`.

@@ -1,6 +1,8 @@
-# The site is the prebuilt pages (examples/, dist/), the engine and its docs; the sources and dev tools stay out
+# The site is the prebuilt pages (examples/, dist/), the engine and its docs; the sources and dev tools stay out.
+# The pages are prebuilt and committed (npm run build); the deploy only stamps them with the commit (tools/stamp.mjs).
 src/
-tools/
+tools/*
+!tools/stamp.mjs
 node_modules/
 check-output/
 *:Zone.Identifier

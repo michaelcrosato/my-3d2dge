@@ -405,6 +405,7 @@ cxSkill("revision", {
 	cost: 24,
 	cd: 10,
 	noAuto: true,
+	bot: { heal: 0.65 }, // the autopilot casts it to heal, below 65% life
 	desc: (rank = 1) => {
 		const heal = 18 + Math.min(5, Math.max(0, rank - 1));
 		return `Redraw your bindings: recover ${heal}% life, cleanse damaging ailments, and restore one foldstep. Illuminated: heal ${heal * 1.5}% instead.`;

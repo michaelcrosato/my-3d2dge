@@ -43,6 +43,7 @@ h2{margin:22px 0 8px;font-size:14px;letter-spacing:.08em;text-transform:uppercas
 .empty{font-size:14px;color:var(--muted);margin:0;padding:10px 14px;border:1px dashed var(--line);border-radius:10px}
 footer{margin-top:26px;font-size:13px;color:var(--muted)}
 footer a{color:var(--accent)}
+footer .ver{margin-top:6px;font-size:12px;opacity:.8}
 </style>
 </head>
 <body>
@@ -151,6 +152,8 @@ const foot = document.getElementById('foot');
 foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Developer panel.');
+// the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
+el('div', 'ver', 'my-3D2dge v0.7.0 · dev-build', foot);
 </script>
 </body>
 </html>

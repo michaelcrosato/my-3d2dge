@@ -6,7 +6,9 @@
  *   runes: [{ id, name, desc }, { id, name, desc }]   (one may be chosen from rank 2: the skill's two upgrades),
  *   desc(rank, rune) -> 'text', icon(g, x, y, s, h) (a 16x16 pictogram, s = size),
  *   cast(h, ctx) -> an action (see 20-hero.js) or null (nothing happened),
- *   again(h, act, ctx) -> true if a press during its own action continues it (combos)
+ *   again(h, act, ctx) -> true if a press during its own action continues it (combos),
+ *   character: 'codex' (one hero's own skill: the others never see it), bot: { heal: .65 } (how the autopilot uses it: a
+ *   heal only below that share of life; without it, the autopilot reads tags and kind)
  * })
  * ctx: { id, S, slot, rank, rune, aim, tx, ty (the cursor on the ground), hit(scale, o) (a hero hit with this
  *        skill's element and tags), area (radius multiplier), proj (extra projectiles), pierce, chains }

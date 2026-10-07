@@ -60,11 +60,14 @@ async function engineMin() {
 }
 
 const read = file => readFileSync(join(root, file), 'utf8').replaceAll('</script', '<\\/script');
+// every page may say which release it is: {{VERSION}} (package.json) and {{BUILD}}, a placeholder that tools/stamp.mjs
+// turns into the commit when the site deploys (the repo's copies keep it, so a rebuild matches them exactly)
+const GLOBAL = { VERSION: JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version, BUILD: 'dev-build' };
 for (const b of builds) {
   const min = b.compact ? await engineMin() : null;
   if (b.compact && !min) continue;
   let html = readFileSync(join(root, b.template), 'utf8');
-  for (const [k, v] of Object.entries(b.vars)) html = html.replaceAll(`{{${k}}}`, v);
+  for (const [k, v] of Object.entries(Object.assign({}, GLOBAL, b.vars))) html = html.replaceAll(`{{${k}}}`, v);
   html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => read(file));
   // a folder of script parts joined in name order into one <script> (the starter game: shell + one file per slice)
   html = html.replace(/<!-- @inline-parts (\S+) -->/g, (_, dir) => {

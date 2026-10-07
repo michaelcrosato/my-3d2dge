@@ -56,7 +56,7 @@ function HCL_deathFor(h, hit) {
   if ((hit.kb || 0) >= 200 || hit.knockdown || (hit.src && hit.src.boss) || (hit.dmg || hit.amount || 0) >= h.maxHp * .5) return 'deathBlown';
   return 'death';
 }
-const HCL_fit = h => !!(HCL.lib && h && h.rig instanceof E.Humanoid && h.character !== 'codex');
+const HCL_fit = h => !!(HCL.lib && h && h.rig instanceof E.Humanoid && characterOf(h).clips !== false);   // (a character with clips: false keeps its own animation)
 /** start a moment (crossfading from whatever clip is on him); o.instant: at full weight from the first frame */
 function HCL_play(h, id, o = {}) {
   const M = HCL_MOVES[id], c = M && HCL.lib.clip(M.clip); if (!c) return null;

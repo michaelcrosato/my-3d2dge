@@ -34,7 +34,7 @@ const [filePath, hash] = file.split('#');
 await page.goto(pathToFileURL(resolve(filePath)).href + (hash ? '#' + hash : ''));
 await page.waitForTimeout(1200);
 const hasEngine = await page.evaluate(() => !!(window.My3D2dge && My3D2dge.current));
-const report = { file, engine: hasEngine ? await page.evaluate(() => My3D2dge.version) : null, scenes: [], views: [], errors, warnings, engineWarnings, external: [] };
+const report = { file, engine: hasEngine ? await page.evaluate(() => My3D2dge.version) : null, build: hasEngine ? await page.evaluate(() => My3D2dge.build || null) : null, scenes: [], views: [], errors, warnings, engineWarnings, external: [] };
 
 // how much of the frame is not background: share of pixels that differ from the most common color
 // how much of the frame is not background, plus a quick look lint: palette depth, flat areas, dither checkerboards, contrast
@@ -88,7 +88,7 @@ const blank = played.length > 0 && played.every(v => v.filled < .01);
 if (blank) errors.push('After pressing start, the screen stayed one flat color the whole time: nothing is drawn where the camera looks (check game.focus, level.draw / map.drawFloor, and that the play scene draws).');
 if (all.some(v => v.errorBox)) errors.push('The on-screen error box was showing (see the errors above).');
 
-console.log('my-3D2dge check: ' + file + (report.engine ? ' (engine ' + report.engine + ')' : ''));
+console.log('my-3D2dge check: ' + file + (report.engine ? ' (engine ' + report.engine + (report.build ? ', build ' + report.build : '') + ')' : ''));
 for (const v of report.scenes) console.log(`  ${v.at.padEnd(13)} scene ${String(v.scene).padEnd(10)} ${String(v.fps).padStart(3)} fps  ${v.actors} characters  ${v.items} draws  ${Math.round(v.filled * 100)}% filled  ${v.colors} colors  ${v.resolution}`);
 for (const v of report.views) console.log(`  view ${v.view.padEnd(13)} ${String(v.fps).padStart(3)} fps  update ${v.updateMs} ms  draw ${v.renderMs} ms  ${v.actors} characters  ${Math.round(v.filled * 100)}% filled`);
 const sparse = all.filter(v => v.filled < .06);

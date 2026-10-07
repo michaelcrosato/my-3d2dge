@@ -35,7 +35,8 @@ Illuminated offensive spells deal 50% more damage; Revision's healing is multipl
 - `ed:save:codex` holds Codex's separate progression, inventory, stash, skills and records.
 - `ed:character` remembers the chosen hero. `?character=codex` or `?character=wanderer` overrides selection for that page load and works with existing scene/depth links.
 - Developer mode clones the current hero with its correct rig. Sandbox saves and gallery saves remain isolated.
-- `18-characters.js` defines identities; `21-codex.js` draws/animates Codex; `29-codex-skills.js` defines combat; `63-character-menu.js` implements selection and preview. The core builder includes all four.
+- Codex is a playable character like any other (`docs/CHARACTERS.md`): `21-codex.js` draws and animates it and registers it with `def('characters', 'codex', ...)` (its body, starting gear, arrival, title pose, menu notes); `29-codex-skills.js` defines its combat. `18-characters.js` holds what every character shares, and `63-character-menu.js` the selection and preview.
+- `npm run character:check -- codex` runs the character test and draws its character sheet; `tools/ed-codex-test.mjs` keeps what is Codex's own (its pages, its signature spells, the legacy-save handover).
 
 ## Verification and reproduction
 

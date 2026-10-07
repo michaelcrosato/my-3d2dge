@@ -12,26 +12,28 @@ const HERO_LOOK = {   // the classic look: every piece of gear may override part
   colors: { skin: '#f1c7a0', hair: '#2e2230', cloth: '#2f8f86', pants: '#3b3552', boot: '#6a4128', belt: '#e0a84a', cape: '#c8452f', capeIn: '#7a2622', metal: '#dce8f1', metalDk: '#7f93ab', hilt: '#e8b04e', glove: null, trim: null }
 };
 function makeHero(save, identity = CHAR.selected) {
-  const character = characterId(save ? save.character || identity : identity), profile = CHARACTERS[character];
+  const character = characterId(save ? save.character || identity : identity), profile = CHARACTERS[character];   // (18-characters.js)
   const h = {
-    character, manuscript: 0,
-    team: 'hero', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 4.5, facing: -Math.PI / 2, aim: -Math.PI / 2, alive: true, st: {}, res: {}, armor: 0, head: 26, mass: 1.6,
-    level: 1, xp: 0, gold: 0, pts: { skill: 1, passive: 0 }, gear: {}, bag: [], skills: { blade: { rank: 1 }, ember: { rank: 1 } }, slots: ['blade', 'ember', null, null, null, null],
+    character,
+    team: 'hero', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: profile.r || 4.5, facing: -Math.PI / 2, aim: -Math.PI / 2, alive: true, st: {}, res: {}, armor: 0, head: profile.head || 26, mass: 1.6,
+    level: 1, xp: 0, gold: 0, pts: { skill: 1, passive: 0 }, gear: {}, bag: [],
+    skills: Object.fromEntries(profile.skills.map(id => [id, { rank: 1 }])), slots: profile.skills.concat([null, null, null, null, null, null]).slice(0, 6),   // his starting skills, slotted in order
     tree: [], potions: 3, potionT: 0, healT: 0, healRate: 0, act: null, cds: {}, inv: 0, hurtT: 0, flash: 0, dodges: 2, dodgeT: 0, dodgeRe: 0, dodgeDir: 0, buffs: [], powers: [],
     dead: false, deadT: 0, lastGhost: 0, idleT: 0, cheerT: 0, stats: {}, maxDepth: 1, unlocked: [1], seenMech: [], kills: 0
   };
-  if (character === 'codex') { h.skills = Object.fromEntries(profile.skills.map(id => [id, { rank: 1 }])); h.slots = profile.skills.slice(); h.head = 32; h.r = 5; }
   if (save) Object.assign(h, save, { st: {}, act: null, cds: {}, buffs: [], alive: true, dead: false });
   h.character = character;
+  if (profile.init) profile.init(h);
   h.react = heroReact; h.onDie = heroDie; h.onDodgedHit = heroDodgedHit; h.onBeforeHit = heroBeforeHit;
   h.hp = undefined; h.ember = undefined;
   computeStats(h); h.hp = h.maxHp; h.ember = h.maxEmber; h.potions = Math.min(h.potions, h.maxPotions); h.dodges = h.maxDodge;
   dressHero(h);
   return h;
 }
-/** the look from gear: each item's `look` merges over the classic look */
+/** the look from gear: each item's `look` merges over the classic look (and over the character's own, its spec's `look`) */
 function heroLook(h) {
-  const L0 = JSON.parse(JSON.stringify(HERO_LOOK));
+  const L0 = JSON.parse(JSON.stringify(HERO_LOOK)), own = characterOf(h).look;
+  if (own) for (const k in own) if (k === 'colors') Object.assign(L0.colors, own.colors); else L0[k] = JSON.parse(JSON.stringify(own[k]));
   for (const slot of ['legs', 'boots', 'gloves', 'chest', 'cloak', 'helm', 'weapon']) {
     const it = h.gear[slot]; if (!it || !it.look) continue;
     const lk = it.look;
@@ -43,7 +45,7 @@ function heroLook(h) {
 function dressHero(h) {
   const lk = heroLook(h), old = h.rig;
   h.look = lk;
-  h.rig = h.character === 'codex' ? new CodexRig(h) : new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
+  h.rig = charRig(h, lk);   // the character's body (18-characters.js): a Humanoid dressed from his gear by default
   if (old) { h.rig.update(0, { x: h.x, y: h.y, z: h.z, facing: h.facing }); }
   const w = h.gear.weapon; h.smear = (w && w.look && w.look.smear) || EL(lk.el).smear;
 }
@@ -320,7 +322,7 @@ function updateHero(h, dt, o = {}) {
   if (!act && !town && h.idleT > 5 && h.idleT % 9 < 1.4 && !rs.pose) { rs.pose = 'block'; rs.expr = null; }
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
-  if (h.character === 'codex') return; // Codex's rig owns its foldstep, potion, wounded and hover layers.
+  if (profile.ownLayers) return;   // a body that animates its own dodge, potion and wounds (Codex) gets none of the layers below
   if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / dodgeTime);
   else if (h.potionT > 0) heroDrinkPose(h, 1 - h.potionT / .8);
   if (!(sp === 0 && h.st.freeze)) heroWoundPose(h, dt, rs.pose || h.hurtT > 0 ? 0 : low);   // (a pose or a flinch has the hand; frozen solid, the rig keeps last step's joints and nothing may be added twice)
@@ -373,7 +375,7 @@ function heroWoundPose(h, dt, low) {
   const [el, hd] = E.ik3(J.shL, tgt, o.armUpper, o.armLower, [-.5, -1, -.3]); J.elbowL = el; J.handL = hd;
 }
 function drawFlask(h, g, ox, oy, view) {
-  if (h.character === 'codex') return;
+  if (characterOf(h).ownLayers) return;   // (its own body shows the drink)
   if (!(h.potionT > 0) || !h.drinkK) return;
   const [x, y, dep] = rigScreen(h.rig, h.rig.J.handL, ox, oy, view), hd = rigScreen(h.rig, h.rig.J.head, ox, oy, view)[2], z = view.zoom || 1, tilt = h.drinkK;
   if (dep < hd - .5 && Math.hypot(x - rigScreen(h.rig, h.rig.J.head, ox, oy, view)[0], 0) < 4 * z) return;   // hidden behind his head when he faces away

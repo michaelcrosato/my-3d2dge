@@ -228,7 +228,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.6.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.7.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -279,7 +279,11 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 'use strict';
 
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.6.0', name: 'my-3D2dge', TAU, DEG, current: null };
+/** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
+ *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
+const E = { version: '0.7.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+/** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
+E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
 const _warned = new Set();
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
