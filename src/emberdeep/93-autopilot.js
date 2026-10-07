@@ -164,7 +164,9 @@ function botThink(h, dt) {
     mv = [Math.cos(a), Math.sin(a)];
   } else if ((mv[0] || mv[1]) && canRoll && !h.act && botFissure(h, Math.atan2(mv[1], mv[0]))) { I.worldMove = mv; I.press('dodge'); I.aimAt = [h.x + mv[0] * 30, h.y + mv[1] * 30]; return; }   // a fissure across the way: roll over it
   // stuck (wanted to move, did not, and not busy swinging): sidestep one way, then the other, then roll free, then give up the target
-  const moved = Math.hypot(h.x - B.lx, h.y - B.ly); B.lx = h.x; B.ly = h.y;
+  // progress is measured along the way it wants to go: pressed against a solid thing, the push-out jitters the body back and
+  // forth faster than 'not moving' allowed, so the stuck count hovered under its threshold forever
+  const ml = Math.hypot(mv[0], mv[1]) || 1, moved = ((h.x - B.lx) * mv[0] + (h.y - B.ly) * mv[1]) / ml; B.lx = h.x; B.ly = h.y;
   const trying = (mv[0] || mv[1]) && !h.act && h.dodgeT <= 0;
   if (trying && moved < 8 * dt) { B.stuck += dt; B.stuckSum += dt; } else B.stuck = Math.max(0, B.stuck - dt * 2);
   if (B.stuck > .45) {
@@ -180,6 +182,7 @@ function botThink(h, dt) {
   const big = foe.elite || foe.boss, here = botCrowd(h.x, h.y, 50);
   for (let i = 5; i >= 1; i--) {
     const id = h.slots[i]; if (!id) continue; const S = REG.skills[id]; if (!skillAvailable(h, S) || h.cds[id] > 0 || h.ember < skillCost(h, S)) continue;
+    if (S.bot && S.bot.ready && !S.bot.ready(h)) continue;   // a skill that needs something first (Dan's brood)
     if (S.bot && S.bot.heal) { if (h.hp < h.maxHp * S.bot.heal) I.press(SLOT_ACTS[i]); continue; }   // a heal (bot: { heal: .65 }): only below that share of life
     const tags = S.tags || [], melee = tags.includes('melee'), mob = S.kind === 'mobility' || tags.includes('movement'), ult = S.kind === 'ultimate', aoe = tags.includes('aoe') || tags.includes('channel'), range = S.range || (melee ? 40 : 150);
     let want, at = [foe.x, foe.y];

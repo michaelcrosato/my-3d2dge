@@ -98,10 +98,13 @@ const res = await page.evaluate(([id, SC]) => {
   }
   if (worst) sg.drawImage(cell(idle, E.VIEWS.iso, hexOf(floors[worst])).c, W - CW * 2 - 4, y, CW * 2, CH * 2);
   // 5. motion: every state from idle and back, joints in the world frame every step
-  const BONES = [['hipL', 'kneeL'], ['kneeL', 'footL'], ['hipR', 'kneeR'], ['kneeR', 'footR'], ['shL', 'elbowL'], ['elbowL', 'handL'], ['shR', 'elbowR'], ['elbowR', 'handR']];
+  // the bones that must keep their length: the body's own list (rig.bones, pairs of joint names) or, for a Humanoid, its
+  // limbs (a custom body without a list has none measured: its knee to foot may not be a bone at all)
+  const HUMAN = [['hipL', 'kneeL'], ['kneeL', 'footL'], ['hipR', 'kneeR'], ['kneeR', 'footR'], ['shL', 'elbowL'], ['elbowL', 'handL'], ['shR', 'elbowR'], ['elbowR', 'handR']];
+  const bonesOf = rig => rig.bones || (rig instanceof E.Humanoid ? HUMAN : []);
   const lints = [], len = {}; let topSpeed = 0, topAt = '';
   for (const [name, st, hold] of CHAR_STATES) {
-    const rig = make(), size = (rig.o && rig.o.size) || 1, seq = [[{}, .3], [st, hold], [{}, .5]], pops = {}; let prev = null, slide = 0;
+    const rig = make(), size = (rig.o && rig.o.size) || 1, seq = [[{}, .3], [st, hold], [{}, .5]], pops = {}, steps = {}; let prev = null, slide = 0;
     for (const [s0, secs] of seq) for (let i = 0; i < Math.round(secs * 60); i++) {
       rig.update(DT, Object.assign({ facing: .6 }, base, s0));
       const J = rig.J, P = {};
@@ -109,14 +112,17 @@ const res = await page.evaluate(([id, SC]) => {
       if (prev) for (const k in P) if (prev[k]) {
         const d = Math.hypot(P[k][0] - prev[k][0], P[k][1] - prev[k][1], P[k][2] - prev[k][2]) / size;
         if (d > topSpeed) { topSpeed = d; topAt = name + ' (' + k + ')'; }
-        if (d > 9) pops[k] = Math.max(pops[k] || 0, d);
+        (steps[k] || (steps[k] = [])).push(d);
         if (s0 === st && name === 'idle' && /^foot/.test(k)) slide += Math.hypot(P[k][0] - prev[k][0], P[k][1] - prev[k][1]);
       }
       for (const k in P) if (rig.z + P[k][2] < -1.5 * size) lints.push(name + ': ' + k + ' goes under the floor (z ' + (rig.z + P[k][2]).toFixed(1) + ')');
-      for (const [a, b] of BONES) if (J[a] && J[b]) { const l = Math.hypot(J[a][0] - J[b][0], J[a][1] - J[b][1], J[a][2] - J[b][2]); const r = len[a + '-' + b] || (len[a + '-' + b] = { min: l, max: l, at: name }); if (l < r.min) r.min = l; if (l > r.max) { r.max = l; r.at = name; } }
+      for (const [a, b] of bonesOf(rig)) if (J[a] && J[b]) { const l = Math.hypot(J[a][0] - J[b][0], J[a][1] - J[b][1], J[a][2] - J[b][2]); const r = len[a + '-' + b] || (len[a + '-' + b] = { min: l, max: l, at: name }); if (l < r.min) r.min = l; if (l > r.max) { r.max = l; r.at = name; } }
       prev = P;
     }
     if (slide > 2 * size) lints.push('idle: its feet slide ' + slide.toFixed(1) + ' units while it stands still');
+    // a pop is a spike: a joint that jumps in one step while it hardly moved the step before and the step after (a fast,
+    // steady sweep of a long blade is motion, not a pop)
+    for (const k in steps) { const d = steps[k]; for (let i = 1; i < d.length - 1; i++) if (d[i] > 9 && d[i] > 2.5 * Math.max(d[i - 1], d[i + 1], .5)) pops[k] = Math.max(pops[k] || 0, d[i]); }
     const pk = Object.keys(pops); if (pk.length) lints.push(name + ': ' + pk.join(', ') + ' jump' + (pk.length === 1 ? 's' : '') + ' up to ' + Math.max(...Object.values(pops)).toFixed(1) + ' units in one step (a pop: ease into the pose)');
   }
   for (const [k, r] of Object.entries(len)) if (r.max > r.min * 1.12) lints.push('the ' + k + ' bone stretches from ' + r.min.toFixed(1) + ' to ' + r.max.toFixed(1) + ' (' + r.at + ')');
@@ -135,6 +141,6 @@ console.log(`character sheet: ${id} (${res.version}) -> ${out} (${res.w}x${res.h
 console.log('  size at game scale (idle): ' + Object.entries(res.sizes).map(([v, s]) => v + ' ' + s).join(', '));
 console.log('  palette: ' + res.palette + ' colors (idle, iso)');
 console.log('  stands out from the floor: ' + c.map(([t, p]) => t + ' ' + p + '%').join(', '));
-console.log('  motion: fastest joint ' + res.topSpeed + ' units a step (' + res.topAt + '); ' + (res.bones ? res.bones + ' limb bones measured' : 'no arm or leg bones to measure'));
+console.log('  motion: fastest joint ' + res.topSpeed + ' units a step (' + res.topAt + '); ' + (res.bones ? res.bones + ' bones measured' : 'no bones declared to measure (rig.bones)'));
 console.log(res.lints.length ? '  look at:\n    ' + res.lints.join('\n    ') : '  nothing to look at: no pops, no sliding, nothing under the floor, limbs keep their length');
 if (errors.length) console.log('  page errors: ' + errors.join('; '));

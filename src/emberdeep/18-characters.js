@@ -13,6 +13,8 @@
  *   saveKey ('ed:save:<id>')           its save slot (the Wanderer keeps the original 'ed:save')
  *   stats(h, add)                      flat bonuses: add('ember', 25) (stat names: 15-stats.js)
  *   init(h)                            fields of its own on every new or loaded hero (Codex: its manuscript pages)
+ *   prime(h)                           fill its own resource for a cast outside real play: the gallery's demos, the
+ *                                      sandbox's unlimited resources and the character test call it (Dan: a ripe brood)
  *   kit(h)                             the starting gear, over the shared kit (longsword, tunic, shoes, cape)
  *   look: { build, hair, outfit, colors: { skin, hair, cloth, ... } }   its own look under the gear: E.Humanoid options
  *                                      over the classic look (HERO_LOOK, 20-hero.js); gear still changes it, the Echo and
@@ -42,6 +44,8 @@
  *   J                      joints in its own frame: at least hipC, shC, head, handL, handR, and bladeDir (a direction)
  *   o                      options: at least size; the hero writes o.hunch and o.lean (wounded), skills read o.weapon
  *   C                      its colors (skills borrow C.metal and C.hilt); x, y, z, facing, t, phase (the gait clock)
+ *   bones (optional)       pairs of joint names that keep their length ([['hipL', 'kneeL'], ...]): the character sheet
+ *                          measures them for stretching (a Humanoid's limbs are measured without it)
  * ============================================================================= */
 const CHARACTERS = REG.characters;   // (the registry, under the name tools and tests use: __ed.CHARACTERS)
 const characterId = id => (Object.hasOwn(CHARACTERS, id) ? id : 'wanderer');

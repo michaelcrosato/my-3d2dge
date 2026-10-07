@@ -131,6 +131,7 @@ function galSkill(h, dt) {
   if (S.again && h.act && h.act.skill === id && h.act.free) useSlot(h, 5);                             // whole combos
   if (!h.act && GAL.fired < 4 && GAL.t >= GAL.next && d <= 3) {
     h.cds = {}; h.ember = h.maxEmber; h.aim = h.facing = Math.atan2(cy - h.y, kx - h.x); h.tx = kx; h.ty = cy;
+    { const C = characterOf(h); if (C.prime) C.prime(h); }   // a character's own resource, full for the demo (Dan's brood)
     // the takes run through the skill's runes: plain, the first rune, the second, plain again (runes change the animation too)
     const rn = S.runes && S.runes[[-1, 0, 1, -1][GAL.fired]]; if (h.skills[id]) h.skills[id].rune = rn ? rn.id : null; GAL.rune = rn || null;
     if (useSlot(h, 5)) { GAL.fired++; if (h.act && h.act.hold) GAL.hold = 1.8; }

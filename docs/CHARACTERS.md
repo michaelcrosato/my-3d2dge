@@ -33,7 +33,7 @@ Write it before any code, in the entry's `desc` and `style` and the file's heade
 |---|---|---|
 | What it is | The engine's `E.Humanoid`, dressed with the entry's `look` (build, outfit, hair, hat, armor, colors) under the gear | A class of your own, drawn with `px` and `E.tones`, that keeps the body contract |
 | What it gets for free | Every move of `E.MOVES`, every pose, IK legs and arms, cloth cape and hair, captured clips, the somersault dodge, the IK potion, the wounded hunch, weapon trails, portraits | Nothing: it animates everything itself (`ownLayers: true`) |
-| What it costs | A `look` and a `kit`: tens of lines | A body: Codex's is about 440 lines |
+| What it costs | A `look` and a `kit`: tens of lines | A body: Codex's is about 440 lines, Dan's about 250 |
 | Pick it when | The hero is a person | The hero is not a person (a book, a wisp, a beast), or the body is the point |
 
 ## 3. The entry
@@ -48,6 +48,7 @@ Write it before any code, in the entry's `desc` and `style` and the file's heade
 | `clips: false` | No captured clips (a Humanoid hero plays the HERO set's moments by default) |
 | `head`, `r` | How tall it is (bars and effects sit there) and its collision radius (26 and 4.5) |
 | `stats(h, add)` | Flat bonuses: `add('ember', 25)` (stat names: `15-stats.js`) |
+| `prime(h)` | Fill its own resource for a cast outside real play: the gallery's demos, the sandbox's unlimited resources and the character test call it (Dan: a ripe brood) |
 | `init(h)` | Fields of its own on every new or loaded hero (Codex: its manuscript pages) |
 | `kit(h)` | Its starting gear, over the shared kit (longsword, tunic, shoes, cape) |
 | `dropIn(h, from)` | Its arrival in a depth (returns an action, see `20-hero.js`) |
@@ -69,11 +70,14 @@ What makes a custom body look like it belongs:
 - **Project through the view.** Points in its own frame go through `_w`, then `view.p(...)`; use `E.charView(view)` so faces stay readable in steep views, and keep it in `this._lastView` (held items and effects use it).
 - **Sort its parts** by `view.depth(...)` and draw far to near, so an arm passes behind the body when it turns away.
 - **Pixel rules**: only `px.*` and the engine's primitives, whole pixels, `E.tones` for every material. No `ctx.arc`, no gradients.
-- Start from the template (`--body custom`) or from `CodexRig` in `21-codex.js`.
+- **Keep bones rigid.** Solve a limb with `E.ik3` (a hip to a hock, a shoulder to a wrist) and build a spine as one length at an angle, then list those pairs in `rig.bones` (`[['hipL', 'kneeL'], ...]`): the sheet measures exactly those for stretching. A Humanoid's limbs are measured without it; a custom body that lists none has nothing measured.
+- **Blend directions as angles.** A blade's direction blended as a vector passes through zero when two poses point opposite ways and flips; blend its pitch and yaw instead (`DanRig` does).
+- **Swing on a spring.** A strike's wind-up, sweep and recovery driven through a critically damped spring gathers speed and settles instead of jumping a frame where one phase hands over to the next.
+- Start from the template (`--body custom`), from `CodexRig` in `21-codex.js` (a floating body) or from `DanRig` in `22-char-dan.js` (a beast on reverse-kneed legs with a tail).
 
 ## 5. Skills
 
-A skill is `def('skills', id, spec)`; the spec is documented at the top of `25-skills-core.js`. Add `character: '<id>'` to keep it the hero's own. The templates show the two common shapes: a melee swing (`swingAction` with an `E.Attack`, any move of `E.MOVES`) and a projectile (`FX.bolt` from `h.rig.hand('L')`). `26-skills-melee.js` and `27-skills-spells.js` hold many more patterns (leaps, channels, novas, summons). Give the autopilot what it needs: `tags` (melee, proj, aoe, channel, movement), `kind` (basic, core, mobility, ultimate) and, for a heal, `bot: { heal: .65 }`.
+A skill is `def('skills', id, spec)`; the spec is documented at the top of `25-skills-core.js`. Add `character: '<id>'` to keep it the hero's own. The templates show the two common shapes: a melee swing (`swingAction` with an `E.Attack`, any move of `E.MOVES`) and a projectile (`FX.bolt` from `h.rig.hand('L')`). `26-skills-melee.js` and `27-skills-spells.js` hold many more patterns (leaps, channels, novas, summons). Give the autopilot what it needs: `tags` (melee, proj, aoe, channel, movement), `kind` (basic, core, mobility, ultimate) and, for a heal, `bot: { heal: .65 }`; a skill that spends a resource of the hero's own says when it is worth casting with `bot: { ready: h => h.brood > 1 }`.
 
 ## 6. Reading the checks
 
@@ -92,7 +96,7 @@ A skill is `def('skills', id, spec)`; the spec is documented at the top of `25-s
 
 | It says | Do this |
 |---|---|
-| a pop: a joint jumps far in one step | Ease that pose's weight instead of setting the joint |
+| a pop: a joint jumps far in one step (against the steps around it: a fast, steady sweep is not one) | Ease that pose's weight instead of setting the joint |
 | its feet slide while it stands | Keep the feet still in idle; sway the hips instead |
 | a joint goes under the floor | Clamp it (`Math.max(1, z)`) or lift the pose |
 | a bone stretches | Solve the limb with `E.ik3` so its length holds |
