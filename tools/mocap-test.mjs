@@ -8,11 +8,12 @@
 // says where it came from (its library's origin and license, and the clip it was made from), and a set picked from
 // another (the hero's) is the same data as the clips it was picked from. And the hero: his sword never goes under the
 // floor, he turns round with a spinning kick and turns upside down in a cartwheel, his face follows the clip's head,
-// side view keeps a travelling clip's two figures apart, and the sword can be put away.
+// side view keeps a travelling clip's two figures apart, and the sword can be put away. The CMU library (?set=library)
+// has every take of the ledger, each subject's file is there, and takes of several subjects load and play.
 // Usage: node tools/mocap-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { resolve } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -116,6 +117,20 @@ const report = await page.evaluate(async () => {
     M.S.sword = true; await wait(); if (M.hero.o.weapon !== 'sword') out.bad.push('the hero did not take his sword back');
     M.setView('threequarter');
   }
+  // the CMU library (?set=library, examples/cmu-lib): takes of different subjects load as they are picked and play on
+  // both figures (a 60 fps subject, a long take's part, a take the site never described)
+  {
+    M.setCast('both'); await M.setLibrary('02_01');
+    for (const name of ['02_01', '79_38', '15_05_part3', '121_01', '140_08']) {
+      if (!M.LIBRARY.byName[name]) { out.bad.push('CMU library: no take ' + name); continue; }
+      await M.playLib(name, true); M.seek(M.S.clip.dur * .6); await wait();
+      if (M.S.clip.name !== name) { out.bad.push('CMU library: picking ' + name + ' played ' + M.S.clip.name); continue; }
+      if (!Array.from(M.S.pose).every(Number.isFinite)) out.bad.push('CMU library ' + name + ': a pose value is not a number');
+      for (const [j, v] of Object.entries(M.hero.J)) if (!v.every(Number.isFinite)) { out.bad.push('CMU library ' + name + ': hero joint ' + j + ' is not a number'); break; }
+      if (M.game.stats.actors < 2) out.bad.push('CMU library ' + name + ': a figure was not drawn');
+    }
+    out.library = { takes: M.LIBRARY.index.takes.length, loaded: Object.keys(M.LIBRARY.subjects).length };
+  }
   M.setSet(Object.keys(M.SETS)[0]);
   for (const [cast, n] of [['mannequin', 1], ['hero', 1], ['both', 2]]) { M.setCast(cast); await wait(); if (M.game.stats.actors !== n) out.bad.push('cast ' + cast + ' drew ' + M.game.stats.actors + ' figures, not ' + n); }
   M.setCast('both');
@@ -142,6 +157,14 @@ problems.push(...report.bad);
   const pick = JSON.parse(readFileSync(resolve('src/mocap/catalogs/cmu.json'), 'utf8')).$pick || {};
   if (rows.length < 2548) problems.push('the CMU ledger lists ' + rows.length + ' takes, not all 2,548');
   for (const r of rows) if (!/error|not downloaded/.test(r.flags) && !(r.sec && r.category && /^\d+\/\d+$/.test(r.fit) && /^[\d.]+-[\d.]+$/.test(r.active))) { problems.push('CMU ledger: take ' + r.id + ' is not fully measured'); break; }
+  // and the lab's CMU library has every take of it, each subject's file beside the index
+  const libDir = resolve('examples/cmu-lib'), sb = { window: {} };
+  try {
+    (await import('node:vm')).runInNewContext(readFileSync(resolve(libDir, 'index.js'), 'utf8'), sb);
+    const X = sb.window.CMU_LIB, have = new Set(X.takes.map(t => t[0]));
+    for (const r of rows) if (!/error|not downloaded/.test(r.flags) && !have.has(r.id)) { problems.push('the CMU library lacks take ' + r.id); break; }
+    for (const s of Object.keys(X.subjects)) if (!existsSync(resolve(libDir, 'CMU_' + String(s).padStart(2, '0') + '.js'))) problems.push('the CMU library lacks subject ' + s + "'s file");
+  } catch (e) { problems.push('the CMU library index (examples/cmu-lib/index.js) does not read: ' + e.message); }
   for (const [clip, [take]] of Object.entries(pick)) {
     if (!L[take]) problems.push('CMU clip ' + clip + ': its take ' + take + ' is not in the ledger');
     else if (!L[take].used.split(' ').includes(clip)) problems.push('CMU ledger: take ' + take + ' does not list ' + clip + ' as used (run node tools/cmu.mjs survey --subjects ' + +take.split('_')[0] + ')');
@@ -149,4 +172,4 @@ problems.push(...report.bad);
 }
 if (problems.length) { console.error('mocap lab: ' + problems.length + ' problem(s)\n  ' + [...new Set(problems)].slice(0, 40).join('\n  ')); process.exit(1); }
 const sets = Object.entries(report.sets).map(([id, s]) => `${id} ${s.clips} clips (${s.keys} key poses, ${s.fit.toFixed(1)} mm from the capture)`).join(', ');
-console.log(`mocap lab: ${sets}; ${report.frames} poses checked on the mannequin and the hero; no problems`);
+console.log(`mocap lab: ${sets}; ${report.frames} poses checked on the mannequin and the hero; the CMU library: ${report.library.takes} takes, ${report.library.loaded} subjects loaded and played; no problems`);

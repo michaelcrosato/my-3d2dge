@@ -16,7 +16,7 @@ const fail = m => problems.push(m);
 
 /* a static server with vercel.json's rewrites: "/:page(a|b)" patterns, filled into the destination */
 const rules = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8')).rewrites.map(r => ({
-  re: new RegExp('^' + r.source.replace(/\./g, '\\.').replace(/:(\w+)\(([^)]+)\)/g, '(?<$1>$2)') + '$'),
+  re: new RegExp('^' + r.source.replace(/\./g, '\\.').replace(/:(\w+)\(([^)]+)\)/g, '(?<$1>$2)').replace(/:(\w+)(?![\w>])/g, '(?<$1>[^/]+)') + '$'),
   to: r.destination,
 }));
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png' };
