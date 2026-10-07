@@ -13,8 +13,9 @@
 //         node tools/cmu.mjs all                           download every take (the site's 1 GB archive, plus the
 //                                                          subject added after it): about 3.3 GB unpacked
 //         node tools/cmu.mjs survey [--subjects 5,13]      convert every downloaded take and write the ledger (keeps its
-//                                                          notes); --lib also writes the converted takes, one set a
-//                                                          subject, to .cache/cmu-lib (about 130 MB for all of them)
+//                                                          notes)
+//         node tools/cmu.mjs library [--tol 50]            every take for the mocap lab's CMU library: one set file a
+//                                                          subject and an index, in examples/cmu-lib (about 65 MB)
 //         node tools/cmu.mjs ledger [combat] [--status none] [--top 20]   query the ledger by category, word or status
 //         --dir .cache/cmu                                 where takes go (the default; not committed)
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, openSync, readSync, closeSync, unlinkSync, createWriteStream } from 'node:fs';
@@ -146,10 +147,10 @@ function usedBy() { const out = {}; if (!existsSync(CATALOG)) return out; for (c
 /**
  * Convert every downloaded take, a subject at a time, the way the importer would (whole takes, 30 frames a second),
  * and measure each: its fit, where it moves, how far it travels, how high and low the hips go, whether it turns upside
- * down, whether the feet keep to the floor. Writes the ledger; with lib, also every take as an animation set file a
- * subject (the converted library, .cache/cmu-lib/CMU_NN.js).
+ * down, whether the feet keep to the floor. Writes the ledger (ledger: false skips it); with lib, every take as an
+ * animation set file a subject, fitted within libTol, and an index: the mocap lab's CMU library (examples/cmu-lib).
  */
-export async function cmuSurvey(dir = DIR, { subjects = null, lib = false, tol = 30 } = {}) {
+export async function cmuSurvey(dir = DIR, { subjects = null, lib = false, ledger = true, tol = 30, libTol = 50, libOut = join(ROOT, 'examples/cmu-lib') } = {}) {
   const { readCmu } = await import('./asf-amc.mjs'), { MR, writeSet } = await import('./mocap-lib.mjs');
   const index = await cmuIndex(dir), byId = new Map(index.map(t => [t.id, t])), old = readLedger(), used = usedBy(), rows = { ...old };
   const subjFps = {}; for (const t of index) (subjFps[t.subject] = subjFps[t.subject] || new Set()).add(t.fps);
@@ -158,7 +159,8 @@ export async function cmuSurvey(dir = DIR, { subjects = null, lib = false, tol =
   const bySubject = {}; for (const id of amcs) (bySubject[+id.split('_')[0]] = bySubject[+id.split('_')[0]] || []).push(id);
   for (const t of index) if (!bySubject[t.subject]?.includes(t.id) && !rows[t.id]) rows[t.id] = { id: t.id, subject: t.subject, fps: t.fps, desc: t.desc, about: t.about, flags: 'not downloaded' };
   const P = MR.POINTS, ix = n => P.indexOf(n), PEL = ix('pelvis'), TOP = ix('headTop'), FEET = ['toeL', 'toeR', 'ballL', 'ballR', 'ankleL', 'ankleR'].map(ix);
-  const libDir = join(ROOT, '.cache/cmu-lib'); if (lib) mkdirSync(libDir, { recursive: true });
+  const libDir = libOut; if (lib) mkdirSync(libDir, { recursive: true });
+  const libIndex = { subjects: {}, takes: [] };   // the library's list for the lab: every take, its subject file and parts
   let done = 0, secs = 0, bytes = 0;
   for (const s of Object.keys(bySubject).map(Number).sort((a, b) => a - b)) {
     if (subjects && !subjects.includes(s)) continue;
@@ -200,23 +202,32 @@ export async function cmuSurvey(dir = DIR, { subjects = null, lib = false, tol =
       if (inverted > 2) flags.push('inverted'); if (off > n * .6) flags.push('floats'); if (cap.dur < 1) flags.push('short');
       // fitted in pieces of at most 10 s (fitting costs the square of a clip's length; a long take is a series of moments
       // anyway): the ledger's fit is over all of them; the converted library keeps a long take as its numbered parts
+      // the library is fitted looser (libTol: for browsing; a clip picked for a set is cut again at the set's tolerance)
       const W = n > 600 ? 300 : n - 1; let sum = 0, worst = 0, part = 0;
       for (let a = 0; a < n - 1 || a === 0; a += W) {
         const b = Math.min(n - 1, a + W), piece = { name: id, n: b - a + 1, dur: (b - a) / 30, loop: false, fps: 30, data: d.subarray(a * F, (b + 1) * F), move: cap.move ? cap.move.subarray(a * 2, (b + 1) * 2) : null };
-        const { clip, max, mean } = MR.fit(rest, piece, tol, {}); sum += mean * piece.n; worst = Math.max(worst, max);
-        if (set) { const name = W < n - 1 ? id + '_part' + (++part) : id; set.clips[name] = Object.assign({ clip: name, src: set.set, take: id + ' ' + (a / 30).toFixed(2) + '-' + (b / 30).toFixed(2), dur: clip.dur, loop: false, tags: [r.category] }, t.desc ? { desc: t.desc } : {}, { keys: clip.keys }); set.fit[name] = [Math.round(mean), Math.round(max)]; }
+        const fitted = ledger ? MR.fit(rest, piece, tol, {}) : null; if (fitted) { sum += fitted.mean * piece.n; worst = Math.max(worst, fitted.max); }
+        if (set) {
+          const { clip, max, mean } = fitted && libTol === tol ? fitted : MR.fit(rest, piece, libTol, {}), name = W < n - 1 ? id + '_part' + (++part) : id;
+          set.clips[name] = Object.assign({ clip: name, src: set.set, take: id + ' ' + (a / 30).toFixed(2) + '-' + (b / 30).toFixed(2), dur: clip.dur, loop: false, tags: [r.category] }, t.desc ? { desc: t.desc } : {}, { keys: clip.keys }); set.fit[name] = [Math.round(mean), Math.round(max)];
+        }
         if (b >= n - 1) break;
       }
-      const mean = sum / n; r.fit = Math.round(mean) + '/' + Math.round(worst); if (mean > 30) flags.push('loose');
+      if (set) libIndex.takes.push([id, s, r.category, +r.sec, t.desc || '', W < n - 1 ? part : 1]);
+      const mean = sum / n; r.fit = ledger ? Math.round(mean) + '/' + Math.round(worst) : old[id]?.fit || ''; if (ledger && mean > 30) flags.push('loose');
       r.flags = flags.join(' '); r.used = (used[id] || []).join(' ');
       rows[id] = r; done++; secs += cap.dur;
     }
-    if (set) { const f = join(libDir, set.set + '.js'); writeSet(set, f); bytes += readFileSync(f).length; }
+    if (set) { const f = join(libDir, set.set + '.js'); writeSet(set, f); bytes += readFileSync(f).length; libIndex.subjects[s] = about[s] || ''; }
     process.stdout.write(`\rsubject ${s}: ${ids.length} takes (${done} so far, ${(secs / 3600).toFixed(1)} h of motion)        `);
   }
   console.log('');
   for (const r of Object.values(rows)) { if (r.sec !== undefined && r.sec !== '') r.category = categoryOf(r); r.used = (used[r.id] || []).join(' '); }   // (these follow the words and the catalog, so every row is brought up to date)
-  writeLedger(rows);
+  if (ledger) writeLedger(rows);
+  if (lib && libIndex.takes.length) {   // the lab's list of the library (a subject's file loads when one of its takes is picked)
+    const head = '/* The CMU library\'s index for the mocap lab (written by node tools/cmu.mjs library): every take as [id, subject,\n * category, seconds, description, parts]; a take of more than 20 s is in 10 s parts (ID_part1...). Each subject\'s takes\n * are in CMU_NN.js beside this file, in the readable format, fitted within ' + libTol + ' mm. */\n';
+    writeFileSync(join(libDir, 'index.js'), head + 'window.CMU_LIB = ' + JSON.stringify({ tol: libTol, subjects: libIndex.subjects, takes: libIndex.takes }) + ';\n');
+  }
   return { done, secs, bytes, rows: Object.keys(rows).length };
 }
 
@@ -231,8 +242,11 @@ if (import.meta.url === 'file://' + resolve(process.argv[1])) {
   } else if (cmd === 'all') {
     console.log((await cmuAll(DIR, args.includes('--keep-zip'))) + ' takes in ' + DIR);
   } else if (cmd === 'survey') {
-    const r = await cmuSurvey(DIR, { subjects: opt('subjects') ? opt('subjects').split(',').map(Number) : null, lib: args.includes('--lib'), tol: +opt('tol', 30) });
-    console.log(`converted ${r.done} takes (${(r.secs / 3600).toFixed(1)} hours of motion); the ledger has ${r.rows} takes: ${LEDGER}` + (r.bytes ? `; the converted library is ${(r.bytes / 1e6).toFixed(0)} MB in .cache/cmu-lib` : ''));
+    const r = await cmuSurvey(DIR, { subjects: opt('subjects') ? opt('subjects').split(',').map(Number) : null, tol: +opt('tol', 30) });
+    console.log(`converted ${r.done} takes (${(r.secs / 3600).toFixed(1)} hours of motion); the ledger has ${r.rows} takes: ${LEDGER}`);
+  } else if (cmd === 'library') {
+    const out = resolve(opt('out', 'examples/cmu-lib')), r = await cmuSurvey(DIR, { lib: true, ledger: false, libTol: +opt('tol', 50), libOut: out });
+    console.log(`converted ${r.done} takes (${(r.secs / 3600).toFixed(1)} hours of motion) into ${(r.bytes / 1e6).toFixed(0)} MB of set files and an index in ${out}`);
   } else if (cmd === 'ledger') {
     const rows = Object.values(readLedger()), q = words.map(w => w.toLowerCase()), st = opt('status');
     const hits = rows.filter(r => q.every(w => r.category === w || (r.id + ' ' + r.desc + ' ' + r.about + ' ' + r.flags + ' ' + r.note + ' ' + r.used).toLowerCase().includes(w)))
@@ -240,5 +254,5 @@ if (import.meta.url === 'file://' + resolve(process.argv[1])) {
     const cats = {}; for (const r of hits) cats[r.category || '-'] = (cats[r.category || '-'] || 0) + 1;
     for (const r of hits.slice(0, +opt('top', 1e9))) console.log([r.id, r.sec + ' s', r.category, 'active ' + r.active, 'fit ' + r.fit, r.flags, r.used ? 'USED: ' + r.used : '', r.note, r.desc].filter(Boolean).join('\t'));
     console.log(hits.length + ' take(s): ' + Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, k]) => c + ' ' + k).join(', '));
-  } else { console.error('Usage: node tools/cmu.mjs find WORD [...] | subject N | get 02_01 [...] | all | survey [--subjects 5,13] [--lib] | ledger [CATEGORY|WORD ...] [--status none|used|pick|skip] [--top N]  [--dir .cache/cmu]'); process.exit(2); }
+  } else { console.error('Usage: node tools/cmu.mjs find WORD [...] | subject N | get 02_01 [...] | all | survey [--subjects 5,13] | library [--tol 50] | ledger [CATEGORY|WORD ...] [--status none|used|pick|skip] [--top N]  [--dir .cache/cmu]'); process.exit(2); }
 }
