@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.8.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.8.1: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -323,11 +323,32 @@ game.start({
 4. A title scene, play scenes with pausable: true, and a game-over or win path back to the title.
 5. Dress every character (outfit, hat, colors) and give each its own moves; enemies wind up slower than the hero.
 6. Nothing on screen? The camera looks elsewhere: game.follow(hero) or game.focus(...) every update (side: y = 0).
+
+## More, outside this file: animation and examples to take from
+In the repo (github.com/michaelcrosato/my-3d2dge; every clip is free to use). Its files are large: search them and take
+only what the game needs; never read one whole. All of it runs at https://my-3d2dge.vercel.app/labs.
+- Motion clips: 325 curated (idles, walks, runs, jumps, fights, hits, deaths, chores, dances) and 2,548 motion-capture
+  takes, as readable key poses that play on any Humanoid (either engine; the full one also turns the face and hair).
+    find  src/mocap/catalogs/quaternius.json, mesh2motion.json, cmu.json: each clip's name, tags and description;
+          node tools/cmu.mjs ledger kick (or grep src/mocap/catalogs/cmu-takes.tsv): the takes, one a line
+    take  node tools/anim-set.mjs src/mocap/sets/quaternius.js examples/cmu-lib/CMU_10.js --clips Idle_Loop,10_01
+          --name MINE --out mine.js     (take NN_xx is in examples/cmu-lib/CMU_NN.js; curated sets: src/mocap/sets/)
+    play  load src/mocap/readable.js, src/mocap/mocap.js and mine.js after the engine, then
+          const lib = Mocap.load(MOCAP.MINE); Mocap.drive(rig, lib);
+          and each step rig.mocap = lib.sample(lib.clip(name), t) (rig.mocapW 0..1 fades it over the rig's own motion;
+          rig.mocapMask = 'upper' keeps the rig's own legs)
+    docs/MOCAP.md: the format, retargeting, and where every clip came from.
+- Worked examples: Emberdeep (src/emberdeep/), a whole game on the full engine, one line per part:
+  grep -nE "def\(['\"](archetypes|characters|skills)" src/emberdeep/*.js   (28 monster, boss and dummy bodies with
+  tags, 3 heroes, 30 skills: Codex's six come from one helper); bodies that are not people: grep -n "^class "
+  src/emberdeep/*.js (a spider, a serpent, a floating eye, a living book, a scythed beast). They lean on the game's
+  helpers: adapt them, do not paste them (the recipe for a new body is docs/CHARACTERS.md).
+- A starter game per genre: dist/kits/my-3d2dge-<adventure|platformer|brawler|shooter|rpg|animlab>.html.
 */
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.8.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.8.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };

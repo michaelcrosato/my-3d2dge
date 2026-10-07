@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.8.0)
+# my-3D2dge API card (v0.8.1)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -199,6 +199,12 @@ game.start({ scene: 'title', scenes: {
 **Sizes:** at 320x240, heroes should be 40-60 px tall: `new E.Humanoid({ size: 1.2-1.4 })` in the default views. Bosses 1.8-2.4. Small things (coins, bullets, ships, pickups) are string sprites designed at 8-16 px, drawn at scale 2 if they are the player's ship. Keep hitboxes smaller than the art.
 
 **Feel numbers** (world units per second, tile = 16): walk 70-90, run 95-140, jump 250-320 with gravity 800, fall cap 330, dash 200-260, bullets 250-320 (player) and 70-120 (enemy), enemy walk 25-45. Hit feedback: `game.freeze(.05)`, `game.shake(2)`, `particles.sparks`, `audio.sfx('hit')`.
+
+## More: animation and examples outside this card
+The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubusercontent.com/michaelcrosato/my-3d2dge/main/<path>`) holds more to take from. Its files are large: search them and take only what the game needs.
+- **Motion clips**: 325 curated (idles, walks, runs, jumps, fights, hits, deaths, chores, dances) and 2,548 motion-capture takes, as readable key poses that play on any Humanoid. Find one in `src/mocap/catalogs/quaternius.json`, `mesh2motion.json` or `cmu.json` (each clip's name, tags and description; a few thousand tokens each) or `src/mocap/catalogs/cmu-takes.tsv` (every take, one a line). `node tools/anim-set.mjs src/mocap/sets/quaternius.js --clips Idle_Loop,Punch_Jab --name MINE --out mine.js` cuts the clips you want into a small set (a take `NN_xx` is in `examples/cmu-lib/CMU_NN.js`); paste `src/mocap/readable.js`, `src/mocap/mocap.js` and that set, in this order, before your game's code, then `const lib = Mocap.load(MOCAP.MINE); Mocap.drive(rig, lib);` and each step `rig.mocap = lib.sample(lib.clip('Idle_Loop'), t)`. `docs/MOCAP.md` explains the format and blending.
+- **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 28 monster, boss and dummy bodies, 3 heroes (one a living book, one a scythed beast) and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
+- **Everything running**: https://my-3d2dge.vercel.app/labs
 
 ## Before you hand the game back
 - One IIFE between the markers, starting with `const E = My3D2dge`. Only your game: no leftover starter menu or unused slices. No other files, no network, no libraries.
