@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "",
-  "buildCommand": "echo 'Static site: the pages in examples/ and dist/ are prebuilt and committed (npm run build makes them)'",
+  "buildCommand": "node tools/stamp.mjs",
   "outputDirectory": ".",
   "rewrites": [
     { "source": "/", "destination": "/examples/emberdeep.html" },

@@ -110,6 +110,8 @@ Codex starts with six signature spells. **Quillshot** charges three manuscript p
 
 [Watch the animated rig](docs/assets/codex-motion.gif) · [Character design and verification](docs/CODEX.md)
 
+**More characters.** Playable characters are a registry like monsters and skills: each one is a file that registers with `def('characters', id, spec)`, and nothing shared changes. `npm run new:character -- <id>` writes a hero that already works (a dressed Humanoid, or a custom body), `npm run character:check -- <id>` tests it and draws its character sheet (every state in every view, with numbers for size, contrast and motion), and `docs/CHARACTERS.md` is the recipe.
+
 The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIGN.md` explains the modular "language" (registries for elements, skills, monsters, affixes, bosses, patterns, items, powers, mechanics, themes and layouts). `tools/ed-play.mjs` (scripted headless playtests) and `tools/ed-smoke.mjs` (every scene and depth) test it.
 
 ## What's in the engine
@@ -140,7 +142,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
   - Presets: `day`, `dusk`, `night`, `castle-night`, `city-night`, `desert`, `forest`, `ocean`, `cave`, `space`.
 - Textured tiles: stone with moss, bricks, wood, riveted metal, grass-topped ground, with carved edges. Floors get contact shadows and water/lava shimmer.
 - Wall materials for top-down, iso and brawler maps: brick, stone, rock cliff, planks, Tudor timber, plaster and hedge, with tiled roofs, paving, leafy or grassy tops.
-- 39 procedural props (`r.prop`):
+- 38 procedural props (`r.prop`):
   - lights with animated, glowing flames: torches, candles, chandeliers, lanterns, street lamps, fire drums;
   - stained-glass windows, banners, pillars (whole or broken), statues;
   - chests and doors (shut or open), crates, barrels, sandbags;
@@ -254,6 +256,8 @@ npm run test:smoke -- --character codex --secs 2 --out check-output/codex-smoke
 npm run test:codex                # character, spells, progression, saves and device checks
 npm run test:agent                # agent edition: header examples and a coverage scene on both engines, API subset
 npm run test:mocap                # both animation sets on the mannequin and the hero in every view, and the hero's captured moments in Emberdeep
+npm run character:check -- codex   # one playable character: the character test and its character sheet (check-output/sheet-codex.png)
+node tools/ed-balance.mjs --character codex --to 5   # the autopilot plays a hero against the Wanderer, depth by depth
 ```
 
 Every browser tool accepts `CHROMIUM_PATH` to use an already installed Chromium instead of Playwright's download. In Claude Code cloud sessions, `.claude/hooks/session-start.sh` runs `npm install` and sets it for you.
@@ -272,12 +276,18 @@ node tools/filmstrip.mjs "examples/emberdeep.html?view=threequarter#gallery/best
 
 The checker presses start and plays the game (move, jump, attack, fire), then cycles the game's views. It reports errors, engine warnings, frame times, how much of each screenshot is filled, and look notes that flag cheap-looking frames (a thin palette, large flat areas, checkerboard dithering, low contrast). It fails (exit code 1) on any error, or when gameplay leaves the screen blank.
 
+## Versions
+
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.7.0**. Every change merged to `main` bumps it (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+
 ## Docs
 
 - `API.md`: the API card, about 11,019 tokens. It is embedded in every single-file edition.
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 8,400 tokens, with three complete example games.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 - `docs/ANIMATION-RESEARCH.md`: famous animations for every view and genre the engine covers, what the engine can already draw, and a ranked list of animations to ship ready-made.
+- `docs/CHARACTERS.md`: adding a playable character to Emberdeep, from a brief to a checked hero: the scaffold, the body contract, the character test, the character sheet and the balance run.
+- `CHANGELOG.md`: what each version changed, by part (rendering, animation, art, mocap, Emberdeep, characters, tools, docs). `CLAUDE.md`: the rules every change follows (versioning, building, testing).
 - `docs/MOCAP.md`: importing ready-made skeletal animation into the readable key-pose format: a step-by-step guide to adding a library (`tools/to-glb.py` converts Blender, FBX and BVH files, `tools/anim-import.mjs` imports, `tools/anim-sheet.mjs` draws contact sheets for the catalog, `tools/anim-set.mjs` picks a game's clips), where to get more animation and what it costs, retargeting onto the engine's rigs, and the hero's captured moments.
 
 ## License

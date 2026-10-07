@@ -47,7 +47,7 @@ game.fadeTime = .3;
 
 /* ---------- shared state: one object every module reads ---------- */
 const ED = {
-  version: '1.0',
+  version: E.version,  // the release (package.json); E.build says which commit (shown on the title and in Developer)
   mode: null,          // 'title' | 'town' | 'level' | 'proving'
   depth: 0,            // current depth (0 = town)
   L: null,             // the current level (or town) object: map, flow, things, props, lights...
@@ -75,7 +75,8 @@ applyAudioOpts(); P.max = [500, 1000, 1600][OPT.fx === undefined ? 2 : OPT.fx];
 /* ---------- registries: the parts of the language ---------- */
 const REG = {
   elements: {}, statuses: {}, skills: {}, archetypes: {}, ai: {}, affixes: {}, bosses: {}, patterns: {},
-  itemBases: {}, itemAffixes: {}, powers: {}, uniques: {}, mechanics: {}, themes: {}, layouts: {}, npcs: {}, passives: {}, songs: {}
+  itemBases: {}, itemAffixes: {}, powers: {}, uniques: {}, mechanics: {}, themes: {}, layouts: {}, npcs: {}, passives: {}, songs: {},
+  characters: {}   // playable heroes (18-characters.js)
 };
 /** register a part: def('archetypes', 'husk', { ... }). Returns the spec (with .id set) */
 function def(kind, id, spec) {

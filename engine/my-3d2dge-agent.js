@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.6.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.7.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -327,7 +327,8 @@ game.start({
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.6.0', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.7.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
 E.warn = warn;

@@ -180,7 +180,7 @@ function botThink(h, dt) {
   const big = foe.elite || foe.boss, here = botCrowd(h.x, h.y, 50);
   for (let i = 5; i >= 1; i--) {
     const id = h.slots[i]; if (!id) continue; const S = REG.skills[id]; if (!skillAvailable(h, S) || h.cds[id] > 0 || h.ember < skillCost(h, S)) continue;
-    if (id === 'cx_revision') { if (h.hp < h.maxHp * .65) I.press(SLOT_ACTS[i]); continue; }
+    if (S.bot && S.bot.heal) { if (h.hp < h.maxHp * S.bot.heal) I.press(SLOT_ACTS[i]); continue; }   // a heal (bot: { heal: .65 }): only below that share of life
     const tags = S.tags || [], melee = tags.includes('melee'), mob = S.kind === 'mobility' || tags.includes('movement'), ult = S.kind === 'ultimate', aoe = tags.includes('aoe') || tags.includes('channel'), range = S.range || (melee ? 40 : 150);
     let want, at = [foe.x, foe.y];
     if (mob) want = fd > 55 && fd < 150 && (pathD(foe) === null || pathD(foe) < 1e9);                 // close the gap (never leap at what cannot be reached)

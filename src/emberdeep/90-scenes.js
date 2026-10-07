@@ -15,12 +15,7 @@ function newHero(identity = CHAR.selected) {
   const h = makeHero(null, identity);
   // a starting kit: the classic look, plain gear
   for (const [slot, base] of [['weapon', 'longsword'], ['chest', 'tunic'], ['boots', 'shoes'], ['cloak', 'cape']]) { const it = makeItem({ base, rarity: 0, ilvl: 1, R: RNG(slot) }); it.look.colors = Object.assign(it.look.colors || {}, slot === 'chest' ? { cloth: '#2f8f86' } : slot === 'cloak' ? { cape: '#c8452f', capeIn: '#7a2622' } : slot === 'boots' ? { boot: '#6a4128' } : {}); h.gear[slot] = it; }
-  if (h.character === 'codex') {
-    h.gear.weapon = makeItem({ base: 'staff', rarity: 0, ilvl: 1, R: RNG('codex-quill') });
-    h.gear.weapon.name = 'The First Quill'; h.gear.weapon.el = 'storm';
-    h.gear.chest.name = 'Archive Bindings'; h.gear.chest.look.colors.cloth = '#30263f';
-    h.gear.cloak.name = 'Unwritten Pages'; h.gear.cloak.look.colors = { cape: '#eee2b9', capeIn: '#83d7cf' };
-  }
+  const C = characterOf(h); if (C.kit) C.kit(h);   // a character's own starting gear (18-characters.js)
   refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h);
   return h;
 }
@@ -109,12 +104,7 @@ function enterWorld(L0) {
 /** the hero drops in from above: a fall in the jump pose, a crouched landing, dust and a thud */
 function dropIn(h, from = 150) {
   h.z = from; h.vz = 0; h.inv = 1.4;
-  if (h.character === 'codex') return startAction(h, { name: 'dropin', cancel: false, moveK: 0, rig: { dash: true }, update(dt) {
-    this.t += dt; const u = Math.min(1, this.t / .9); this.z = from * Math.pow(1 - u, 3);
-    this.rig = { dash: u < .55, codexPose: u > .55 ? 'orbit' : null };
-    if (u === 1 && !this.landed) { this.landed = true; cxBurst(h.x, h.y, 24, '#83f4df', .6); sfx('cx_fold', { pitch: 1.4, vol: .45 }); }
-    return this.t < 1.15;
-  } });
+  const C = characterOf(h); if (C.dropIn) return C.dropIn(h, from);   // a character's own arrival (Codex unfolds)
   startAction(h, { name: 'dropin', cancel: false, moveK: 0, rig: { air: true }, zz: from, vz: 0, update(dt) {
     if (this.zz > 0) { this.vz -= 520 * dt; this.zz = Math.max(0, this.zz + this.vz * dt); this.z = this.zz; this.rig = { air: true, expr: 'shout' }; if (this.zz <= 0) { this.land = .35; P.dust(h.x, h.y, 0, 14, { speed: 70 }); P.ring(h.x, h.y, 4, 30, '#bff6ff', .35); shake(4); sfx('thud'); h.rig.kick(-6); } return true; }
     this.z = 0; this.rig = { pose: 'crouch' }; return (this.land -= dt) > 0;
@@ -165,12 +155,12 @@ const titleScene = {
     TITLE.t += dt;
     if (updateUI(dt)) return;
     const h = ED.titleHero, items = titleItems();
-    const titleZoom = game.H < 260 ? (h.character === 'codex' ? .85 : 1.05) : (h.character === 'codex' ? 1.4 : 1.75);
+    const C = characterOf(h), tz = C.titleZoom || [1.05, 1.75], titleZoom = game.H < 260 ? tz[0] : tz[1];
     if (game.zoom !== titleZoom) game.setZoom(titleZoom);
     const mm = UI.mouse.cx + ',' + UI.mouse.cy, moved = mm !== TITLE.mm; TITLE.mm = mm;   // a hand on the mouse is not idle either
     if (game.input.anyPressed() || UI.mouse.down || moved) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
     if (TITLE.idle > 28 && !UI.stack.length && !DEV.enabled) { TITLE.idle = 0; startDemo(); return; }
-    const ct = TITLE.t % 12, pose = h.character === 'codex' ? { codexPose: ct > 3 && ct < 5 ? 'seal' : ct > 9 ? 'finale' : null, codexStroke: Math.sin(TITLE.t * 4), dash: ct > 6 && ct < 6.35, run: ct > 7 && ct < 9 ? .6 : 0 } : titleKata(TITLE.t);
+    const pose = C.titlePose ? C.titlePose(TITLE.t) : titleKata(TITLE.t);   // the Wanderer's kata, or the character's own loop
     h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, pose));
     h.facing = h.rig.facing;
     for (const b of ED.L.torches) b.t += dt;
@@ -204,6 +194,7 @@ const titleScene = {
         'DRAG ON THE ' + (CONTROL.handed === 'left' ? 'RIGHT' : 'LEFT') + ' TO MOVE  •  THE BUTTONS ON THE ' + (CONTROL.handed === 'left' ? 'LEFT' : 'RIGHT') + ' FIGHT',
         'MENU  BAG  MAP  PORTAL: THE BUTTONS AT THE TOP'] : ['WASD MOVE  MOUSE AIMS  LMB RMB 1-4 SKILLS  SPACE DODGE  Q POTION', 'E USE  T PORTAL  I BAG  K SKILLS  P PASSIVES  V VIEW  ESC MENU'];
       legend.forEach((l, i) => E.font.text(g, l, cx, Hb - 17 + i * 7, '#b8b0d0', { align: 'center', font: 'tiny', outline: false }));
+      E.font.text(g, ('v' + E.version + ' • ' + E.build).toUpperCase(), W - F.r - 4, Hb - 29, '#6f6788', { align: 'right', font: 'tiny', outline: false });   // which release and build this is
     });
     drawPanels(r);
   }

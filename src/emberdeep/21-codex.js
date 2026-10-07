@@ -436,3 +436,92 @@ class CodexRig {
 		this.draw(g, x + size / 2, y + size * 1.2, v);
 	}
 }
+
+/* Codex as a playable character (18-characters.js): everything the game does differently for it is here. */
+def("characters", "codex", {
+	name: "Codex",
+	title: "The Unwritten",
+	color: "#9cebdd",
+	desc: "A lost archive that wrote itself a soul. An ivory mask, a brass-bound folio, and pages that refuse to fall.",
+	style: "Inertial glide · written magic · foldstep dodge",
+	skills: ["cx_quill", "cx_seal", "cx_folio", "cx_revision", "cx_orbit", "cx_finale"],
+	speed: 90,
+	acceleration: 620,
+	dodgeTime: 0.32,
+	dodgeSpeed: 245,
+	head: 32,
+	r: 5,
+	stats(h, add) {
+		add("ember", 25);
+		add("emberRegen", 2);
+		add("castSpeed", 10);
+	},
+	init(h) {
+		h.manuscript = 0; // Quillshot's pages (29-codex-skills.js); three illuminate the next signature spell
+	},
+	kit(h) {
+		h.gear.weapon = makeItem({ base: "staff", rarity: 0, ilvl: 1, R: RNG("codex-quill") });
+		h.gear.weapon.name = "The First Quill";
+		h.gear.weapon.el = "storm";
+		h.gear.chest.name = "Archive Bindings";
+		h.gear.chest.look.colors.cloth = "#30263f";
+		h.gear.cloak.name = "Unwritten Pages";
+		h.gear.cloak.look.colors = { cape: "#eee2b9", capeIn: "#83d7cf" };
+	},
+	rig: (h) => new CodexRig(h),
+	ownLayers: true, // the rig folds for the dodge, lifts the flask and sags when wounded on its own
+	clips: false,
+	dropIn(h, from) {
+		// it glides down folded and opens into its orbit with a burst of pages
+		return startAction(h, {
+			name: "dropin",
+			cancel: false,
+			moveK: 0,
+			rig: { dash: true },
+			update(dt) {
+				this.t += dt;
+				const u = Math.min(1, this.t / 0.9);
+				this.z = from * Math.pow(1 - u, 3);
+				this.rig = { dash: u < 0.55, codexPose: u > 0.55 ? "orbit" : null };
+				if (u === 1 && !this.landed) {
+					this.landed = true;
+					cxBurst(h.x, h.y, 24, "#83f4df", 0.6);
+					sfx("cx_fold", { pitch: 1.4, vol: 0.45 });
+				}
+				return this.t < 1.15;
+			},
+		});
+	},
+	titlePose(t) {
+		const ct = t % 12;
+		return {
+			codexPose: ct > 3 && ct < 5 ? "seal" : ct > 9 ? "finale" : null,
+			codexStroke: Math.sin(t * 4),
+			dash: ct > 6 && ct < 6.35,
+			run: ct > 7 && ct < 9 ? 0.6 : 0,
+		};
+	},
+	preview(h, part) {
+		h.manuscript = part === 3 ? 3 : 0;
+		return { codexPose: part === 3 ? "finale" : null };
+	},
+	titleZoom: [0.85, 1.4],
+	dollHeight: 43,
+	menuNotes(el, C) {
+		formElement(
+			"p",
+			"Manuscript: land three Quillshot hits to illuminate your next Codex spell. Orbiting pages and three gold pips show the charge. Hovering is visual: walls, hazards and chasms still matter.",
+			el,
+		);
+		formElement(
+			"p",
+			"Starts with all six signature spells. Upgrade their ranks and choose runes in Skills; all shared skills, gear, crafting and passives remain available.",
+			el,
+		);
+		const list = formElement("ul", "", el);
+		for (const skill of C.skills) {
+			const S = REG.skills[skill];
+			if (S) formElement("li", S.name + " — " + S.desc(), list);
+		}
+	},
+});

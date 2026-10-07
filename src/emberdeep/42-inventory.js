@@ -238,7 +238,7 @@ function LOT_dollRig(h) {
   const sig = SLOTS.map(s => h.gear[s] ? h.gear[s].uid : 0).join(',');
   if (D.sig !== sig || D.character !== h.character) {
     const lk = heroLook(h), was = D.sig ? D.sig.split(',') : null, now = sig.split(',');
-    D.rig = h.character === 'codex' ? new CodexRig(h) : new E.Humanoid(Object.assign({}, lk, { colors: Object.assign({}, lk.colors) }));
+    D.rig = charRig(h, lk);
     D.character = h.character;
     D.rig.update(0, { x: 0, y: 0, z: 0, facing: D.face });
     const w = h.gear.weapon; D.smear = (w && w.look && w.look.smear) || EL(lk.el).smear;
@@ -281,7 +281,7 @@ function LOT_canvas(key, w, h) {
   return c;
 }
 function LOT_dollDraw(g, x, y, w, h, hero) {
-  const D = LOT_dollRig(hero), rig = D.rig, sc = clamp((h - 18) / (hero.character === 'codex' ? 43 : 31), 1.2, 3.3), V = LOT_UI.dollView || (LOT_UI.dollView = new E.View('portrait', 'Doll', 0, 16, 2, 1));
+  const D = LOT_dollRig(hero), rig = D.rig, sc = clamp((h - 18) / (characterOf(hero).dollHeight || 31), 1.2, 3.3), V = LOT_UI.dollView || (LOT_UI.dollView = new E.View('portrait', 'Doll', 0, 16, 2, 1));
   V.set(0, 16, sc, 1);
   // the alcove: a dark niche, a shaft of light, a rune circle on the floor
   E.ui.box(g, x, y, w, h, { bg: ['#1c1634', '#07050c'], border: '#3a3050', shadow: false });

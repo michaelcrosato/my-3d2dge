@@ -41,23 +41,7 @@ function renderCharacters() {
 		formElement("h3", C.name + " · " + C.title, el);
 		formElement("p", C.desc, el);
 		formElement("p", C.style, el);
-		if (id === "codex") {
-			formElement(
-				"p",
-				"Manuscript: land three Quillshot hits to illuminate your next Codex spell. Orbiting pages and three gold pips show the charge. Hovering is visual: walls, hazards and chasms still matter.",
-				el,
-			);
-			formElement(
-				"p",
-				"Starts with all six signature spells. Upgrade their ranks and choose runes in Skills; all shared skills, gear, crafting and passives remain available.",
-				el,
-			);
-			const list = formElement("ul", "", el);
-			for (const skill of C.skills) {
-				const S = REG.skills[skill];
-				if (S) formElement("li", S.name + " — " + S.desc(), list);
-			}
-		}
+		if (C.menuNotes) C.menuNotes(el, C); // a character's own lines (18-characters.js)
 		formElement(
 			"p",
 			saved
@@ -97,11 +81,11 @@ function updateCharacterPreview(dt) {
 		vy: 0,
 		dash: part === 2 && t % 2.5 < 0.7,
 		pose: part === 3 ? "cast" : null,
-		codexPose: part === 3 ? "finale" : null,
 	};
+	const C = characterOf(h);
+	if (C.preview) Object.assign(s, C.preview(h, part, t)); // a character's own preview (Codex: its finale, its pages)
 	h.rig.update(dt, s);
-	if (h.character !== "codex" && s.dash) heroRoll(h, (t % 2.5) / 0.7);
-	h.manuscript = part === 3 ? 3 : 0;
+	if (!C.ownLayers && s.dash) heroRoll(h, (t % 2.5) / 0.7);
 	g.fillStyle = "#110e1e";
 	g.fillRect(0, 0, cv.width, cv.height);
 	px.ell(g, 160, 181, 56, 14, "#282338");
