@@ -108,10 +108,11 @@ export function readCmu(asfFile, picks, FPS = 30) {
   const pts = ps => MR.POINTS.map(n => at(ps, P[n]));
   const local = (p, o) => { const d = [p[0] - o[0], p[1], p[2] - o[2]]; return [d[0] * fwd0[0] + d[2] * fwd0[2], d[0] * RIGHT[0] + d[2] * RIGHT[2], d[1]]; };
   const I = MR.POINTS.indexOf('pelvis'), J = MR.POINTS.indexOf('pelvisF'), heading = W => { const h = sub(W[J], W[I]); return Math.atan2(dot([h[0], 0, h[2]], RIGHT), dot([h[0], 0, h[2]], fwd0)); };
-  /** the best cycle in [from, to] (seconds): frames i < j, half a second to 2.5 s apart, whose poses (seen from the
-   *  hips, turned to face the same way) and speeds match best, among the spans that keep moving (a pause matches
-   *  itself perfectly: a span must move at least half as fast as the stretch's typical frame) */
-  const cycle = (frames, src, from, to) => {
+  /** the best cycle in [from, to] (seconds): frames i < j, half a second (or min) to 2.5 s apart, whose poses (seen
+   *  from the hips, turned to face the same way) and speeds match best, among the spans that keep moving (a pause
+   *  matches itself perfectly: a span must move at least half as fast as the stretch's typical frame). min: a gait
+   *  whose feet meet between steps (a robot's, a limp) matches itself after one step; a full stride is longer */
+  const cycle = (frames, src, from, to, min = .5) => {
     const a = Math.round(from * src), b = Math.min(frames.length - 1, Math.round(to * src)), F = [];
     for (let k = a; k <= b; k++) {
       const W = pts(pose(sk, frames[k])), g = -heading(W), c = Math.cos(g), s = Math.sin(g), o = W[I], v = new Float64Array(MR.P * 3);
@@ -123,12 +124,12 @@ export function readCmu(asfFile, picks, FPS = 30) {
     const step = F.map((v, k) => k ? rms(v, F[k - 1]) : 0), sum = [0]; step.forEach((d, k) => sum.push(sum[k] + d));
     const typical = step.slice(1).sort((x, y) => x - y)[Math.floor((step.length - 1) / 2)] || 0;
     let best = null;
-    for (let i = 1; i < F.length - 1; i++) for (let j = i + Math.round(src / 2); j < Math.min(F.length - 1, i + 2.5 * src); j++) {
+    for (let i = 1; i < F.length - 1; i++) for (let j = i + Math.round(src * min); j < Math.min(F.length - 1, i + 2.5 * src); j++) {
       if ((sum[j + 1] - sum[i + 1]) / (j - i) < typical / 2) continue;   // too still to be the motion's cycle
       const cost = rms(F[i], F[j]) + .1 * rms(F[i + 1], F[i - 1], F[j + 1], F[j - 1]) * src / 2 + .002 * (j - i) / src;
       if (!best || cost < best.cost) best = { cost, i, j };
     }
-    if (!best) throw new Error('no cycle of half a second or more between ' + from + ' s and ' + to + ' s');
+    if (!best) throw new Error('no cycle of ' + min + ' s or more between ' + from + ' s and ' + to + ' s');
     return [(a + best.i) / src, (a + best.j) / src, best.cost];
   };
   const takes = {}, clips = {}, lows = [], low = W => Math.min(...['toeL', 'toeR', 'ballL', 'ballR'].map(k => W[MR.POINTS.indexOf(k)][1]));
@@ -140,7 +141,7 @@ export function readCmu(asfFile, picks, FPS = 30) {
     const frames = takes[pk.take];
     const src = pk.fps || 120; let from = pk.from || 0, to = Math.min(pk.to === undefined ? Infinity : pk.to, (frames.length - 1) / src);
     if (!(to > from)) throw new Error(pk.name + ': ' + pk.take + ' has no frames from ' + from + ' s to ' + pk.to + ' s (it lasts ' + ((frames.length - 1) / src).toFixed(2) + ' s)');
-    let seam = 0; if (pk.loop) [from, to, seam] = cycle(frames, src, from, to);
+    let seam = 0; if (pk.loop) [from, to, seam] = cycle(frames, src, from, to, pk.minCycle);
     // a loop's frames are spaced to end exactly on its cycle (a stretch of a few milliseconds at most)
     const n = Math.max(1, Math.round((to - from) * FPS) + 1), step = pk.loop && n > 1 ? (to - from) / (n - 1) : 1 / FPS, world = [];
     for (let f = 0; f < n; f++) { const ps = pose(sk, frames[Math.min(frames.length - 1, Math.round((from + f * step) * src))]); world.push(pts(ps)); }

@@ -24,7 +24,8 @@
 //   leaves clips out, with the reason on record.
 // --cmu: the CMU motion capture database (tools/cmu.mjs) instead of .glb files. The catalog's "$pick" names each clip's
 //   take and the stretch of it: { "Cartwheel": ["49_06", 1.2, 3.4] } (seconds; no end = to the end of the take; the take
-//   alone, ["49_06"] = the stretch where it moves, from the ledger src/mocap/catalogs/cmu-takes.tsv). The
+//   alone, ["49_06"] = the stretch where it moves, from the ledger src/mocap/catalogs/cmu-takes.tsv; a loop's fourth
+//   number, the shortest cycle it may cut: ["139_19", 3, 8, 0.9] for a limp whose feet meet between steps). The
 //   takes are downloaded to .cache/cmu; each subject is a library (CMU_49), described by the catalog's "$sources".CMU,
 //   and each clip records its take in "take" ("49_06 1.20-3.40").
 //   node tools/anim-import.mjs --cmu --catalog src/mocap/catalogs/cmu.json --name CMU --title CMU --out src/mocap/sets/cmu.js
@@ -55,12 +56,12 @@ if (CMU) {
   if (!Object.keys(pick).length) { console.error('--cmu needs the catalog\'s "$pick": { clip: [take, from, to] }'); process.exit(2); }
   // a pick that names only its take plays the stretch where the take moves, as the ledger measured it (tools/cmu.mjs survey)
   const index = await cmuIndex(), byId = new Map(index.map(t => [t.id, t])), ledger = readLedger();
-  for (const [name, [take, from0, to0]] of Object.entries(pick)) {
+  for (const [name, [take, from0, to0, minCycle]] of Object.entries(pick)) {
     const [f] = await cmuGet([take]), t = byId.get(take), row = ledger[take], act = row && /^[\d.]+-[\d.]+$/.test(row.active || '') ? row.active.split('-').map(Number) : null;
     if (!t && !row) console.warn(take + ' is not in the CMU index or the ledger');
     const [from, to] = from0 === undefined && act ? act : [from0, to0];
     if (!PICKS[f.asf]) { PICKS[f.asf] = []; files.push(f.asf); SUBJECT[f.asf] = t ? t.subject : +take.split('_')[0]; }
-    PICKS[f.asf].push({ name, take, from, to, fps: t ? t.fps : row ? +row.fps : 120, loop: ((CATALOG[name] || [''])[0] || '').split(' ').includes('loop') });   // tagged 'loop': cut to its best cycle
+    PICKS[f.asf].push({ name, take, from, to, minCycle, fps: t ? t.fps : row ? +row.fps : 120, loop: ((CATALOG[name] || [''])[0] || '').split(' ').includes('loop') });   // tagged 'loop': cut to its best cycle
   }
   if (!SOURCES.length) files.forEach(f => SOURCES.push('CMU_' + String(SUBJECT[f]).padStart(2, '0')));
   // one record per subject, from the catalog's "$sources".CMU: its label and page name the subject

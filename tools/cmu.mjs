@@ -103,21 +103,22 @@ export async function cmuAll(dir = DIR, keepZip = false) {
 const CATEGORIES = [
   ['calibration', /motorcycle|range of motion|t-pose|tpose|calibration|lost marker/],
   ['acrobatics', /cartwheel|flip|handspring|somersault|breakdanc|acrobat|gymnast|handstand|tumbl|backbend|\broll/],
-  ['combat', /punch|kick|box(ing|er)|fight|martial|karate|sword|stab|\bjab|uppercut|strike|slash|attack|block|dodge|duck\b|ducking/],
+  ['combat', /punch|kick|box(ing|er)|fight|martial|karate|sword|stab|\bjab|uppercut|strike|slash|attack|block|dodge|duck\b|ducking|wrestl|swat/],
   ['reaction', /\bfall|stumbl|\btrip|injur|wound|limp|hurt|\bdie\b|dead|collaps|faint|get(ting)? up|stand up from|getup/],
   ['climb', /climb|ladder|ledge|\bscal|hang|monkey ?bar|swing on|swings? /],
   ['jump', /jump|\bhop|leap|hopscotch|vault/],
   ['sit and lie', /\bsit|stool|chair|\blie\b|laying|lying|sleep|kneel|crouch|squat|bench/],
   ['dance', /danc|salsa|charleston|ballet|arabesque|waltz|tango|michael jackson|pirouette|twist\b|moonwalk|lambada/],
   ['sports', /basketball|soccer|football|golf|tennis|baseball|swim|skate|bowl|volleyball|frisbee|throw|catch|dribbl|shoot|\bball|sport|bicycle|row(ing)?\b/],
-  ['animal and character', /chicken|monkey|\bdog|\bcat\b|bear|elephant|animal|\bduck|frog|snake|horse|bird|dinosaur|robot|zombie|mickey|mime|pantomime|penguin|crab|kangaroo|gorilla|ape\b|t-rex|teapot|alien|monster|old man|drunk|baby/],
-  ['gesture and talk', /wave|waving|clap|point|cheer|salute|\bbow\b|bowing|shrug|signal|\btalk|laugh|\bcry|yawn|nod|beckon|story|rhyme|express|emotion|greet|shake hands|celebrat|conversation|argue|gestur/],
-  ['everyday', /pick|carry|lift|push|pull|open|close|reach|wash|sweep|drink|\beat|mug|coffee|window|\bbox|suitcase|\bplace|put|grab|wipe|mop|construction|hammer|saw|shovel|drag|\bload|stack|lean|bend|cook|clean|phone|read|write|door|table|step ?stool|stepstool|bucket|broom/],
+  ['animal and character', /chicken|monkey|\bdog|\bcat\b|bear|elephant|animal|\bduck|frog|snake|horse|bird|dinosaur|robot|zombie|mickey|mime|pantomime|penguin|crab|kangaroo|gorilla|ape\b|t-rex|teapot|alien|monster|old man|drunk|baby|tiger|panther|lion|ghost|dragon|devil|genie|superhero/],
+  ['gesture and talk', /wave|waving|clap|point|cheer|salute|\bbow\b|bowing|shrug|signal|\btalk|laugh|\bcry|yawn|nod|beckon|story|rhyme|express|emotion|greet|shak(e|ing) hands|hand ?shake|celebrat|conversation|argue|gestur|happy|\bsad\b|upset|scared|angry|freez|shiver|teach|curtsey|high five|peek/],
+  ['everyday', /pick|carry|lift|push|pull|open|close|reach|wash|sweep|drink|\beat|mug|coffee|window|\bbox|suitcase|\bplace|put|grab|wipe|mop|construction|hammer|saw|shovel|drag|\bload|stack|lean|bend|cook|clean|phone|read|writ|door|table|step ?stool|stepstool|bucket|broom|fish|sew|plant|rak(e|ing)|paint|pay|buy|vacuum|typ(e|ing)|laptop|palm pilot|movie|shav|slic|chop|dig|dough|batter|mix|search|pok(e|ing)|violin|piano|drum|guitar|sipping|martini|smok|setting|dial/],
   ['exercise', /stretch|exercise|jacks|squats|yoga|tai ?chi|push ?up|sit ?up|lunge|range of motion|warm|balanc|toe touch/],
-  ['locomotion', /walk|\brun|jog|sprint|march|sneak|stride|\bstep|turn|veer|sidestep|stairs|navigate|backward|strafe|skip|stroll|shuffle|creep|crawl|wander|pace|obstacle|avoid/],
+  ['locomotion', /walk|\brun|jog|sprint|march|sneak|stride|\bstep|turn|veer|sidestep|stairs|navigate|backward|strafe|skip|stroll|shuffle|creep|crawl|wander|pace|obstacle|avoid|start|stop|\b(90|180|360)\b/],
+  ['idle', /idle|standing|wait|stand\b|shift/],
 ];
 /** a take's category: its description's words first, then its subject's ("calibration": a capture's set-up poses, not motion) */
-const categoryOf = t => { const a = (t.desc || '').toLowerCase(), b = (t.about || '').toLowerCase(); for (const s of [a, b]) for (const [c, re] of CATEGORIES) if (re.test(s)) return c; return 'other'; };
+const categoryOf = t => { const a = (t.desc || '').toLowerCase(), b = (t.about || '').toLowerCase(); if (!a) return 'undescribed'; for (const s of [a, b]) for (const [c, re] of CATEGORIES) if (re.test(s)) return c; return 'other'; };
 const COLS = ['id', 'subject', 'fps', 'sec', 'category', 'active', 'fit', 'travel', 'hips', 'flags', 'used', 'note', 'desc', 'about'];
 /** the ledger's rows by id ({} when there is none yet) */
 export function readLedger(file = LEDGER) {
