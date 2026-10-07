@@ -240,7 +240,8 @@ async function setLibrary(clipName) {
   S.set = LIB; setBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.set === LIB)));
   try { await libIndex(); } catch (err) { $('setNote').textContent = 'The CMU library is not here (' + err.message + '): node tools/cmu.mjs all, then library, writes it.'; return; }
   buildLibList(); showCatalog();
-  await playLib(LIBRARY.byName[clipName] ? clipName : '02_01', true);
+  const name = LIBRARY.byName[clipName] ? clipName : LIBRARY.byName[clipName + '_part1'] ? clipName + '_part1' : '02_01';   // (a long take: its first part)
+  await playLib(name, true);
 }
 function buildLibList() {
   listEl.innerHTML = ''; pick.innerHTML = ''; S.order = [];
@@ -372,8 +373,9 @@ $('ai').hidden = innerWidth < 1100; syncAI();
 setView(E.VIEWS[qs.get('view')] ? qs.get('view') : 'threequarter');
 game.setZoom(innerWidth < 600 ? 1.8 : 1.5);   // the figures are the subject: start close
 setCast(S.cast); setSpeed(S.speed); setTab('text');
-{ const want = S.set; if (want === LIB) setSet(SET_IDS[0], 'Idle_Loop');   // (a set to stand on while the library's index loads)
-  setSet(want, decodeURIComponent(location.hash.slice(1)) || 'Idle_Loop'); }
+{ const want = S.set, clip = decodeURIComponent(location.hash.slice(1)) || 'Idle_Loop';
+  if (want === LIB) setSet(SET_IDS[0], 'Idle_Loop');   // (a set to stand on while the library's index loads)
+  setSet(want, clip); }
 game.start({ update, draw: r => { draw(r); $('fps').textContent = game.fps + ' fps'; } });
 /** for tools (recordings, tests): switch sets, play a clip, seek to a time, change the view or the cast */
 window.__mocap = { game, SETS, get lib() { return lib; }, LIBRARY, libIndex, playLib, setLibrary, hero, man, S, pos, groundLift, play, setSet, setView, setCast, setSpeed, apply, seek(t) { S.playing = false; S.t = t; S.hold = 0; }, resume() { S.playing = true; } };

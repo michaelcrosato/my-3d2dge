@@ -2,7 +2,7 @@
 // way Vercel does (vercel.json's rewrites), opens the Labs page at /labs and /labs.html, and opens every link on it: each
 // must load (status 200) without a page error. As files on disk, every link must point at a file that exists. Each lab's
 // "All labs" link and the game's Developer panel button must reach the Labs page, and held upright on a phone every lab's
-// picture must fill the screen. It fails (exit code 1) on any of these.
+// picture must fill the screen with none of its buttons running off the edge. It fails (exit code 1) on any of these.
 // Usage: node tools/labs-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -89,9 +89,11 @@ for (const lab of ['mocap-lab', 'perspective-lab', 'stress-test', 'arena']) {
   await phone.waitForTimeout(500);
   const fills = await phone.evaluate(() => { const sc = (window.__mocap || window.__game).game.screen; return sc.W * sc.S >= sc.canvas.width - sc.S && sc.H * sc.S >= sc.canvas.height - sc.S; });
   if (!fills) fail(lab + ': the picture does not fill an upright phone');
+  const cut = await phone.evaluate(() => [...document.querySelectorAll('.controls button, .top button')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.left < -1); }).map(e => e.textContent.trim()));
+  if (cut.length) fail(lab + ': buttons run off an upright phone: ' + cut.join(', '));
 }
 
 await browser.close();
 server.close();
 if (problems.length) { console.error('labs check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files), the way back from 4 labs and the game, 4 labs fill an upright phone`);
+console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files), the way back from 4 labs and the game, 4 labs fill an upright phone, their buttons on screen`);
