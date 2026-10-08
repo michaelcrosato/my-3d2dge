@@ -5,7 +5,7 @@
  *           thousands of monsters cost a handful of draw calls: Batch.tube(a, b, r), .ball(p, rx, ry, rz), .box(...),
  *           .cone(...). A walker is about twenty parts sized from its own build (limbW, torsoW, headR) and colored from
  *           its own palette (rig.C); a slime is its body squashed as the Blob squashes, with eyes, horns, ears or wings.
- *   Card    the engine draws each rig into a sprite atlas (one canvas, one texture upload a frame), outlined as its
+ *   Card    the engine draws each rig into a sprite atlas (fixed pages: only the pages in use upload), outlined as its
  *           sprites are, and an instanced card shows each cell where the monster stands, facing the camera. The look
  *           is the 2D page's, to the pixel, at the engine's resolution.
  *   Wisps are glowing orbs in both looks. Hit flashes tint toward the 2D page's flash color; spawning monsters rise
@@ -63,13 +63,13 @@ class Batch {
     if (this.shell) this.shell.count = outlines ? this.n : 0;
   }
 }
-const toon = new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS });
+const toon = objMat(new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS }));
 const BATCH = {
   tube: new Batch(new THREE.CylinderGeometry(.85, 1, 1, 7, 1, true), toon, { outline: 'normal', shadow: true, cap: 8192 }),
   ball: new Batch(new THREE.SphereGeometry(1, 9, 6), toon, { outline: 'normal', shadow: true, cap: 8192 }),
   box: new Batch(new THREE.BoxGeometry(1, 1, 1), toon, { outline: 'center', shadow: true }),
   cone: new Batch(new THREE.ConeGeometry(1, 1, 6), toon, { outline: 'normal', shadow: true }),
-  glow: new Batch(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicNodeMaterial({ color: '#ffffff' })),
+  glow: new Batch(new THREE.SphereGeometry(1, 8, 6), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ffffff' }))),
   halo: new Batch(new THREE.SphereGeometry(1, 10, 7), new THREE.MeshBasicNodeMaterial({ color: '#ffffff', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), { order: 2 }),
   blob: new Batch(new THREE.CircleGeometry(1, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicNodeMaterial({ color: '#ffffff', transparent: true, opacity: .45, depthWrite: false }), { order: 1 })
 };
@@ -169,7 +169,7 @@ function wispParts(e) {
 
 /* ---- capes: every rig's cloth (the hero's, and the monsters' when the panel turns capes on) in one mesh ---- */
 const CAPE = (() => {
-  const SLOT = 8, mat = new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS, vertexColors: true, side: THREE.DoubleSide });
+  const SLOT = 8, mat = objMat(new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS, vertexColors: true, side: THREE.DoubleSide }));
   let cap = 0, mesh = null, pos, col, n = 0;
   function grow(c) {
     cap = c; pos = new Float32Array(cap * SLOT * 2 * 3); col = new Float32Array(cap * SLOT * 2 * 3);
@@ -199,77 +199,102 @@ const CAPE = (() => {
   };
 })();
 
-/* ---- Card: the engine's sprites in an atlas, on instanced cards ---- */
+/* ---- Card: the engine's sprites in atlas pages, on instanced cards ----
+ * The atlas is a row of fixed pages (512 pixels square, or four cells across when zoomed in), each its own canvas,
+ * texture and instanced mesh. Pages are made when first needed and kept: no texture is ever resized or remade while
+ * the crowd grows and shrinks (a remade texture stalls the frame), and each frame uploads only the pages it used, and
+ * outlines only their used rows. */
+const CARD_QUAD = new THREE.PlaneGeometry(1, 1);
 const ATLAS = (() => {
-  const cv = document.createElement('canvas'), out = document.createElement('canvas'), g = cv.getContext('2d'), go = out.getContext('2d');
-  let tex = null, size = 0, cell = 0, cols = 0, n = 0, max = 0, cap = 4096;
-  const rect = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
-  const texNode = texture(new THREE.Texture()), R = instancedBufferAttribute(rect);
-  const mat = new THREE.MeshBasicNodeMaterial({ alphaTest: .5, alphaHash: false });
-  mat.colorNode = texNode.sample(uv().mul(R.zw).add(R.xy));
-  let mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, cap); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh);
-  const M = () => mesh.instanceMatrix.array;
+  const pages = [];
+  let P = 0, cell = 0, cols = 0, per = 0, n = 0, key = '';
+  function page(i) {
+    if (pages[i]) return pages[i];
+    const cv = document.createElement('canvas'), out = document.createElement('canvas'); cv.width = cv.height = out.width = out.height = P;
+    const tex = new THREE.CanvasTexture(out); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
+    const rect = new THREE.InstancedBufferAttribute(new Float32Array(per * 4), 4), R = instancedBufferAttribute(rect);
+    const mat = objMat(new THREE.MeshBasicNodeMaterial({ alphaTest: .5 }));
+    mat.colorNode = texture(tex).sample(uv().mul(R.zw).add(R.xy));
+    const mesh = new THREE.InstancedMesh(CARD_QUAD, mat, per); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh);
+    return (pages[i] = { cv, out, g: cv.getContext('2d'), go: out.getContext('2d'), tex, rect, mesh, M: mesh.instanceMatrix.array, n: 0, rows: 0 });
+  }
+  function reset() {   // a new cell size (the zoom changed): pages hold a different number of cells, start again
+    for (const pg of pages) { scene.remove(pg.mesh); pg.mesh.dispose(); pg.mesh.material.dispose(); OBJ_MATS.delete(pg.mesh.material); pg.tex.dispose(); }
+    pages.length = 0;
+  }
   return {
-    /** start a frame: the cell size from the view's scale, the atlas big enough for `want` cells (up to 4096 pixels) */
-    begin(view, want) {
-      cell = Math.ceil(64 * view.scale / 8) * 8; n = 0;
-      let s = 512; while (s < 4096 && Math.floor(s / cell) ** 2 < want) s *= 2;
-      if (s !== size) {
-        size = cv.width = cv.height = out.width = out.height = s;
-        if (tex) tex.dispose();
-        tex = new THREE.CanvasTexture(out); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
-        texNode.value = tex;
-      }
-      cols = Math.floor(size / cell); max = Math.min(cap, cols * cols);
-      g.clearRect(0, 0, size, size);
+    /** start a frame: the cell size from the view's scale */
+    begin(view) {
+      cell = Math.ceil(64 * view.scale / 8) * 8;
+      let size = 512; while (size < 4 * cell && size < 2048) size *= 2;
+      if (size + ':' + cell !== key) { reset(); key = size + ':' + cell; P = size; }
+      cols = Math.floor(P / cell); per = cols * cols; n = 0;
+      for (const pg of pages) { if (pg.rows) pg.g.clearRect(0, 0, P, pg.rows * cell); pg.n = 0; }
     },
     /** draw one character into the next cell (draw(g, ox, oy) as the engine's actor draws) and stand a card for it at
      *  (x, y, z) engine units; false when the atlas is full */
     add(x, y, z, draw, flash, alpha, v) {
-      if (n >= max) return false;
-      const cx = (n % cols) * cell, cy = Math.floor(n / cols) * cell, ox = cx + cell / 2, oy = cy + Math.round(cell * .72);
+      if (n >= 64 * per) return false;
+      const pg = page(Math.floor(n / per)), j = pg.n, g = pg.g;
+      const cx = (j % cols) * cell, cy = Math.floor(j / cols) * cell, ox = cx + cell / 2, oy = cy + Math.round(cell * .72);
       g.save(); g.beginPath(); g.rect(cx + 1, cy + 1, cell - 2, cell - 2); g.clip();
       if (alpha < 1) g.globalAlpha = alpha;
       try { draw(g, ox, oy); } finally { g.restore(); }
       if (flash) { g.save(); g.beginPath(); g.rect(cx, cy, cell, cell); g.clip(); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = .3; g.fillStyle = '#ffe6d8'; g.fillRect(cx, cy, cell, cell); g.restore(); }
-      // the card: the cell's size on screen, its root on the rig's root (snapped to the screen's pixels), facing the camera
-      const ppm = v.ppm, w = cell / ppm, h = cell / (ppm * v.vert), sp = view3.p(x, y, z), fx = Math.round(sp[0]) - sp[0], fy = Math.round(sp[1]) - sp[1];
+      // the card: the cell's size on screen, its root on the rig's root (snapped to the screen's pixels in the engine's
+      // own views), facing the camera
+      const ppm = v.ppm, w = cell / ppm, h = cell / (ppm * v.vert);
+      let fx = 0, fy = 0; if (v.snap) { const sp = view3.p(x, y, z); fx = Math.round(sp[0]) - sp[0]; fy = Math.round(sp[1]) - sp[1]; }
       // the card's centre from the root: right by the root's distance from the cell's middle, up by the part of the cell
       // above the root, plus the snap; pushed toward the camera so the floor can't cut its feet
       const dx = (cell / 2 - (ox - cx) + fx) / ppm, dy = ((oy - cy) - cell / 2 - fy) / (ppm * v.vert);
-      const r = v.right, up = v.up, bk = v.back, i = n * 16;
+      const r = v.right, up = v.up, bk = v.back, i = j * 16;
       const tx = x / U + r.x * dx + up.x * dy + bk.x * .45, ty = z / U + r.y * dx + up.y * dy + bk.y * .45, tz = y / U + r.z * dx + up.z * dy + bk.z * .45;
-      const A = M(); A[i] = r.x * w; A[i + 1] = r.y * w; A[i + 2] = r.z * w; A[i + 3] = 0; A[i + 4] = up.x * h; A[i + 5] = up.y * h; A[i + 6] = up.z * h; A[i + 7] = 0;
+      const A = pg.M; A[i] = r.x * w; A[i + 1] = r.y * w; A[i + 2] = r.z * w; A[i + 3] = 0; A[i + 4] = up.x * h; A[i + 5] = up.y * h; A[i + 6] = up.z * h; A[i + 7] = 0;
       A[i + 8] = bk.x; A[i + 9] = bk.y; A[i + 10] = bk.z; A[i + 11] = 0; A[i + 12] = tx; A[i + 13] = ty; A[i + 14] = tz; A[i + 15] = 1;
-      const q = rect.array, k = n * 4; q[k] = cx / size; q[k + 1] = 1 - (cy + cell) / size; q[k + 2] = cell / size; q[k + 3] = cell / size;
-      n++; return true;
+      const q = pg.rect.array, k = j * 4; q[k] = cx / P; q[k + 1] = 1 - (cy + cell) / P; q[k + 2] = cell / P; q[k + 3] = cell / P;
+      pg.n++; n++; return true;
     },
-    /** finish: the sprites' outline (each grown by a pixel in the outline color, under it), one upload */
+    /** finish: each used page's outline (each sprite grown by a pixel in the outline color, under it) over its used rows,
+     *  and one upload per used page */
     end(outlines) {
-      go.clearRect(0, 0, size, size);
-      if (outlines && n) { for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) go.drawImage(cv, dx, dy); go.globalCompositeOperation = 'source-in'; go.fillStyle = OUTLINE; go.fillRect(0, 0, size, size); go.globalCompositeOperation = 'source-over'; }
-      if (n) go.drawImage(cv, 0, 0);
-      mesh.count = n; if (tex && n) tex.needsUpdate = true;
-      mesh.instanceMatrix.clearUpdateRanges(); mesh.instanceMatrix.addUpdateRange(0, Math.max(1, n) * 16); mesh.instanceMatrix.needsUpdate = true;
-      rect.clearUpdateRanges(); rect.addUpdateRange(0, Math.max(1, n) * 4); rect.needsUpdate = true;
+      for (const pg of pages) {
+        const rows = Math.ceil(pg.n / cols), hNow = rows * cell, hWas = pg.rows * cell, go = pg.go;
+        if (hWas) go.clearRect(0, 0, P, hWas);
+        if (pg.n) {
+          if (outlines) {
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) go.drawImage(pg.cv, 0, 0, P, hNow, dx, dy, P, hNow);
+            go.globalCompositeOperation = 'source-in'; go.fillStyle = OUTLINE; go.fillRect(0, 0, P, hNow + 1); go.globalCompositeOperation = 'source-over';
+          }
+          go.drawImage(pg.cv, 0, 0, P, hNow, 0, 0, P, hNow);
+        }
+        if (pg.n || hWas) pg.tex.needsUpdate = true;   // (a page emptied this frame uploads once more, blank)
+        pg.rows = rows; pg.mesh.count = pg.n;
+        if (pg.n) {
+          pg.mesh.instanceMatrix.clearUpdateRanges(); pg.mesh.instanceMatrix.addUpdateRange(0, pg.n * 16); pg.mesh.instanceMatrix.needsUpdate = true;
+          pg.rect.clearUpdateRanges(); pg.rect.addUpdateRange(0, pg.n * 4); pg.rect.needsUpdate = true;
+        }
+      }
     },
-    get size() { return size; }, get count() { return n; }
+    /** load time: make the first pages, so the crowd's first frames don't */
+    prepare(view, k) { this.begin(view); for (let i = 0; i < k; i++) page(i); },
+    get pages() { return pages; }, get count() { return n; }
   };
 })();
-
 /* ---- the crowd, each frame ---- */
 let view3 = game.view;   // the engine view this frame (40-frame sets it)
 const fade = e => !e.alive ? clamp(e.type === 'wisp' ? 1 - e.deadT / POP_T : (DEAD_T - e.deadT) * 2, 0, 1) : e.spawnT > 0 ? clamp(1 - e.spawnT / .6, .05, 1) : 1;
-/** draw the hero and every monster on screen (the 2D page's culling rect); returns { drawn, culled } */
-function drawCrowd(view, cam, W, H, look, outlines, v) {
+/** draw the hero and every monster the camera sees; returns { drawn, culled }. o: { view (the engine view the cards are
+ *  drawn from), vis(x, y, z) (on screen?), look, outlines, v (the camera's axes), hideHero (first person) } */
+function drawCrowd(o) {
+  const { view, vis, look, outlines, v } = o;
   view3 = view;
-  const vis = (x, y, z) => { const s = view.p(x, y, z), sx = s[0] - cam[0], sy = s[1] - cam[1]; return sx > -60 && sx < W + 60 && sy > -60 && sy < H + 100; };
   for (const b of Object.values(BATCH)) b.begin();
   CAPE.begin();
   const list = [], h = G.hero;
   for (const L of [G.enemies, G.corpses]) for (const e of L) { if (e.type !== 'wisp' && !vis(e.x, e.y, e.z || 0)) continue; list.push(e); }
   const cards = look === 'card';
-  if (cards) ATLAS.begin(view, list.length + 1);
+  if (cards) ATLAS.begin(view);
   let drawn = 0;
   const u = 1 / U, sh = P3[23];
   for (const e of list) {
@@ -282,8 +307,9 @@ function drawCrowd(view, cam, W, H, look, outlines, v) {
     if (e.rig) { e.rig._cheat = 0; _sink = sink; humanParts(e.rig, flash); if (e.rig.capeL && e.rig.o.cape) CAPE.add(e.rig, sink, flash); }
     else slimeParts(e, flash, sink);
   }
-  // the hero last (as the 2D page draws him over the crowd): fades out when he falls, a shadow under him
-  if (vis(h.x, h.y, h.z)) {
+  // the hero last (as the 2D page draws him over the crowd): fades out when he falls, a shadow under him; not in first
+  // person (the camera is his eyes)
+  if (!o.hideHero && vis(h.x, h.y, h.z)) {
     const a = h.dead ? clamp(4 - h.deadT * 2, 0, 1) : 1, flash = h.flash > 0;
     sh[0] = h.x * u; sh[1] = .012; sh[2] = h.y * u; if (!h.dead) BATCH.blob.ball(sh, 5.5 * u, 1, 4.4 * u, BLACKISH);
     if (!(cards && ATLAS.add(h.x, h.y, h.z, (g, ox, oy) => h.rig.draw(g, ox, oy, view), flash, a, v))) { h.rig._cheat = 0; _sink = (a - 1) * 34; humanParts(h.rig, flash); if (h.rig.capeL) CAPE.add(h.rig, _sink, flash); }

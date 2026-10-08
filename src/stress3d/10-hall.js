@@ -13,7 +13,7 @@
 const map = G.map, T = map.T, MW = map.w, MH = map.h, CXu = MW * T / 2, CYu = MH * T / 2;
 
 /* ---- the floor: color and glow, baked as the engine bakes it ---- */
-const floor = (() => {
+const floorMesh = (() => {
   const w = MW * T, h = MH * T, cv = document.createElement('canvas'), gv = document.createElement('canvas');
   cv.width = gv.width = w; cv.height = gv.height = h;
   const g = cv.getContext('2d'), gg = gv.getContext('2d'), img = g.createImageData(w, h), gimg = gg.createImageData(w, h), d = img.data, gd = gimg.data;
@@ -95,11 +95,11 @@ function placeWalls(view) {
  *      thirty in a few instanced meshes; the first S.lights stand ---- */
 const NT = G.TORCHES.length, inst = (geo, mat, n, shadow) => { const m = new THREE.InstancedMesh(geo, mat, n); m.frustumCulled = false; m.count = 0; m.castShadow = m.receiveShadow = !!shadow; scene.add(m); return m; };
 const BRAZ = {
-  base: inst(new THREE.BoxGeometry(6 / U, 8 / U, 6 / U), new THREE.MeshLambertNodeMaterial({ color: '#4c4562' }), NT),
-  bowl: inst(new THREE.CylinderGeometry(5.5 / U, 4.2 / U, 3 / U, 10), new THREE.MeshLambertNodeMaterial({ color: '#2b2430' }), NT),   // (a brazier casts no shadow: its own torch sits on it)
-  coals: inst(new THREE.CylinderGeometry(4 / U, 4 / U, .4 / U, 10), new THREE.MeshBasicNodeMaterial({ color: '#ff8a3c' }), NT),
-  outer: inst(new THREE.ConeGeometry(2.2 / U, 1, 5), new THREE.MeshBasicNodeMaterial({ color: '#ff7a2a' }), NT * 3),
-  inner: inst(new THREE.ConeGeometry(2.2 / U, 1, 5), new THREE.MeshBasicNodeMaterial({ color: '#ffd36a' }), NT * 3)
+  base: inst(new THREE.BoxGeometry(6 / U, 8 / U, 6 / U), objMat(new THREE.MeshLambertNodeMaterial({ color: '#4c4562' })), NT),
+  bowl: inst(new THREE.CylinderGeometry(5.5 / U, 4.2 / U, 3 / U, 10), objMat(new THREE.MeshLambertNodeMaterial({ color: '#2b2430' })), NT),   // (a brazier casts no shadow: its own torch sits on it)
+  coals: inst(new THREE.CylinderGeometry(4 / U, 4 / U, .4 / U, 10), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ff8a3c' })), NT),
+  outer: inst(new THREE.ConeGeometry(2.2 / U, 1, 5), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ff7a2a' })), NT * 3),
+  inner: inst(new THREE.ConeGeometry(2.2 / U, 1, 5), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ffd36a' })), NT * 3)
 };
 const _bq = new THREE.Quaternion(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bz = new THREE.Vector3(0, 0, 1);
 /** stand the first n braziers; the flames dance as the 2D page's drawFlame: three tongues, each with its own height and sway */

@@ -11,14 +11,17 @@
  *   20-crowd    the hero, walkers, slimes, wisps and the fallen, as Puppets (3D parts on each rig's joints, drawn in
  *               instanced batches) or Cards (each rig drawn by the engine into a sprite atlas, on camera-facing cards)
  *   30-effects  telegraph arcs, weapon trails, bolts, particles; damage numbers and notes on a pixel overlay
- *   40-frame    the camera (the engine's own view and camera, to the pixel), the frame, the panel's numbers, keys
+ *   35-cameras  the engine's camera, or a 3D one: chase, first person, fly, fixed
+ *   38-filters  Clean, Comic cel or Pixel over the whole picture, the characters and objects, or the hall; bloom; FXAA
+ *   40-frame    the frame (the engine's own view and camera to the pixel, or a 3D camera), the panel's numbers, keys
  * Units: three.js metres, y up; the engine's units, z up: 16 units = 1 metre (one floor tile).
  *   engine (x, y, z) -> three (x / U, z / U, y / U)
  * Rules as the 3D world lab (tools/lab3d-test.mjs checks them): WebGPURenderer and node materials only, no compute,
  * no GPU read-backs.
  * ============================================================================= */
 import * as THREE from 'three/webgpu';
-import { Fn, vec4, uniform, positionLocal, normalLocal, modelViewMatrix, cameraProjectionMatrix, texture, uv, instancedBufferAttribute } from 'three/tsl';
+import { Fn, vec2, vec3, vec4, float, uniform, positionLocal, normalLocal, modelViewMatrix, cameraProjectionMatrix, texture, uv, instancedBufferAttribute,
+  pass, mrt, output, rtt, floor, mod, abs, max, min, mix, select, smoothstep, luminance, saturation, sRGBTransferOETF } from 'three/tsl';
 
 const E = window.My3D2dge, G = window.__game, game = G.game, { clamp, lerp, TAU } = E;
 const QS = new URLSearchParams(location.search);
@@ -47,6 +50,7 @@ const BACKEND = renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL 2';
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.NoToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setClearColor('#06050b');
+renderer.info.autoReset = false;   // (the frame resets it: with a filter on, one frame is several renders)
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#06050b');
 
@@ -68,13 +72,17 @@ const TOON_BANDS = (() => {
   t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
   return t;
 })();
+/** the materials of characters and objects (not the hall): while a filter is on they write 1 into the filters' mask
+ *  (38-filters), so a filter can take the characters and objects, or the hall, alone */
+const OBJ_MATS = new Set(); let OBJ_MRT = null;
+function objMat(m) { OBJ_MATS.add(m); if (OBJ_MRT) { m.mrtNode = OBJ_MRT; m.needsUpdate = true; } return m; }
 /* outlines: an inverted hull. The same (instanced) mesh again, back faces only, each vertex pushed OUTLINE_PX pixels
  * outward on the screen (along its normal for round parts, away from the part's centre for boxes) */
 const OUTLINE_PX = uniform(new THREE.Vector2(.01, .01));   // clip-space size of the push, set per frame (one game pixel)
 const _outline = {};
 function outlineMat(mode = 'normal') {
   if (_outline[mode]) return _outline[mode];
-  const m = new THREE.MeshBasicNodeMaterial({ color: OUTLINE, side: THREE.BackSide, fog: false });
+  const m = objMat(new THREE.MeshBasicNodeMaterial({ color: OUTLINE, side: THREE.BackSide, fog: false }));
   m.vertexNode = Fn(() => {
     const mvp = cameraProjectionMatrix.mul(modelViewMatrix), pos = mvp.mul(vec4(positionLocal, 1));
     const out = mode === 'center' ? positionLocal : normalLocal;

@@ -17,7 +17,7 @@ const qs = new URLSearchParams(location.search);
 /* ---------- setup ---------- */
 const canvas = document.getElementById('screen');
 const BASE = { minH: 200, minW: 300, maxW: 540, maxH: 330, portrait: { maxH: 1000 } };
-const game = new E.Game(Object.assign({ canvas, view: qs.get('view') || 'iso', bg: '#06050b' }, BASE));
+const game = new E.Game(Object.assign({ canvas, view: qs.get('view') && qs.get('view') !== 'custom' ? qs.get('view') : 'iso', bg: '#06050b' }, BASE));
 const P = game.particles;
 game.lights.enabled = true; game.lights.ambient = .12;
 
@@ -507,7 +507,8 @@ function update(dt) {
   storm(dt);
   for (const b of TORCHES) b.t += dt;
   const a = hero.aim !== undefined ? hero.aim : hero.facing;
-  game.focus(hero.x + Math.cos(a) * 16, hero.y + Math.sin(a) * 16, 8);
+  if (FIX.on) game.focus(FIX.x, FIX.y, FIX.z);   // a fixed camera stays where it was fixed
+  else game.focus(hero.x + Math.cos(a) * 16, hero.y + Math.sin(a) * 16, 8);
 }
 
 /* ---------- draw ---------- */
@@ -674,7 +675,49 @@ function hud() {
 }
 
 /* ---------- controls ---------- */
-const VIEWS = ['iso', 'threequarter', 'topdown', 'brawler'];
+const VIEWS = ['iso', 'threequarter', 'topdown', 'brawler', 'side'];
+/* the camera beyond the engine's named views (both stress pages: the 3D page draws whatever view the engine has, so a
+ * custom or fixed camera is the same camera on both):
+ *   Custom  any orthographic view the engine can give: a turn, a tilt (0 is the side view) and a height boost, as in the
+ *           free camera room; zoom and the 45° turn keys still apply on top
+ *   Fix     the camera stops following the hero and stays where it is, in any view (F)
+ *   ?cam=yaw,pitch,zoom,height,boost[,x,y]  the free camera room's format: opens the custom view, fixed at x, y */
+// the 3D stress test fills these in (each may return null to leave it to this page): renderer() names what draws,
+// camera() describes its own camera, camLink() links to it, fix() fixes or frees it (true: done), fixed() says if it is
+const HOOKS = {};
+const CUSTOM = { yaw: 30, pitch: 40, boost: 1.1 };
+const FIX = { on: false, x: 0, y: 0, z: 0 };
+const customViews = new Map();
+function customView() {   // whole degrees and boosts in .05 steps, so a slider drag reuses cached views
+  const pitch = CUSTOM.pitch < 3 ? 0 : Math.max(5, Math.round(CUSTOM.pitch)), yaw = pitch ? ((Math.round(CUSTOM.yaw) % 360) + 360) % 360 : 0, boost = Math.round(CUSTOM.boost * 20) / 20;
+  const key = yaw + ':' + pitch + ':' + boost; let v = customViews.get(key);
+  // (the id carries the boost: the map caches its wall blocks per id, turn, tilt and scale)
+  if (!v) { if (customViews.size > 300) customViews.clear(); v = new E.View('custom-' + boost, 'Custom', yaw, pitch, 1.5, boost); customViews.set(key, v); }
+  return v;
+}
+const isCustom = () => game.baseView.id.startsWith('custom');
+function setCustom() { game.setView(customView()); syncUI(); }
+const fixedNow = () => { const f = HOOKS.fixed && HOOKS.fixed(); return f === undefined || f === null ? FIX.on : f; };
+function toggleFix() { if (!(HOOKS.fix && HOOKS.fix())) setFixed(!FIX.on); }
+function setFixed(on) {
+  FIX.on = on; if (on) { FIX.x = game.cam.tx; FIX.y = game.cam.ty; FIX.z = game.cam.tz; }
+  game.note(on ? 'CAMERA FIXED' : 'CAMERA FOLLOWS THE HERO'); syncUI();
+}
+/** the camera in words, for the benchmark's report (the 3D page names its own cameras) */
+function camDesc() {
+  const v = game.view, b = game.baseView;
+  const c = HOOKS.camera && HOOKS.camera(); if (c) return c;
+  return (isCustom() ? 'Custom view (turn ' + b.yawDeg + '°, tilt ' + b.pitchDeg + '°, height boost ' + b.zBoost + ')' : v.label + ' view') + (FIX.on ? ', camera fixed' : '');
+}
+/** the camera as a link: the free camera room's ?cam= (turn, tilt, zoom, height, boost, and where it is fixed) */
+function camLink() {
+  const l = HOOKS.camLink && HOOKS.camLink(); if (l) return l;
+  const b = game.baseView, u = new URL(location.href);
+  const n = [((b.yawDeg + (b.pitchDeg < 5 ? 0 : game.yaw)) % 360 + 360) % 360, b.pitchDeg, game.zoom, Math.round(FIX.on ? FIX.z : game.cam.tz), b.zBoost];
+  if (FIX.on) n.push(Math.round(FIX.x), Math.round(FIX.y));
+  u.searchParams.delete('cam'); u.searchParams.delete('view'); const rest = u.search.slice(1);
+  return u.origin + u.pathname + '?' + [rest, 'cam=' + n.join(',')].filter(Boolean).join('&') + u.hash;
+}
 function setDistance(d) {
   S.distance = d;
   game.screen.setOptions({ minH: BASE.minH * d, minW: BASE.minW * d, maxW: Math.round(BASE.maxW * d), maxH: Math.round(BASE.maxH * d), portrait: { maxH: Math.round(BASE.portrait.maxH * d) } });
@@ -699,7 +742,13 @@ function syncUI() {
   $('gpuLabel').title = st === 'unavailable' ? (gpu.failed || '') : '';
   $('shadows').checked = st === 'on' && gpu.shadows; $('shadows').disabled = st !== 'on';
   $('canvasLight').checked = game.lights.enabled;
-  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === game.view.id)));
+  $('dither').checked = E.style.trans === 'dither'; $('readable').checked = E.style.charPitch !== false;
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === 'custom' ? isCustom() : b.dataset.view === game.view.id)));
+  $('customCam').hidden = !isCustom();
+  $('camYaw').value = Math.round(CUSTOM.yaw); $('camYawOut').textContent = customView().pitchDeg ? customView().yawDeg + '°' : 'side';
+  $('camPitch').value = Math.round(CUSTOM.pitch); $('camPitchOut').textContent = customView().pitchDeg + '°';
+  $('camBoost').value = Math.round(CUSTOM.boost * 100); $('camBoostOut').textContent = customView().zBoost.toFixed(2);
+  const fx = fixedNow(); $('fixBtn').setAttribute('aria-pressed', String(fx)); $('fixBtn').firstChild.textContent = fx ? 'Unfix camera ' : 'Fix camera here ';
 }
 gpu.onStatus = syncUI;
 const on = (id, ev, f) => $(id).addEventListener(ev, e => { f(e); syncUI(); });
@@ -721,8 +770,18 @@ on('mlights', 'change', e => { S.monsterLights = e.target.checked; e.target.blur
 on('gpuOn', 'change', e => { gpu.enabled = e.target.checked; e.target.blur(); });
 on('shadows', 'change', e => { gpu.shadows = e.target.checked; e.target.blur(); });
 on('canvasLight', 'change', e => { game.lights.enabled = e.target.checked; e.target.blur(); });
+// the engine's own looks (E.style): dithered translucency (NES, Genesis) or stepped alpha (PS1); the readable tilt in steep views
+on('dither', 'change', e => { E.style.trans = e.target.checked ? 'dither' : 'alpha'; e.target.blur(); });
+on('readable', 'change', e => { E.style.charPitch = e.target.checked ? undefined : false; e.target.blur(); });
 document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('pointerup', () => el.blur()));
-document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { game.setView(b.dataset.view); syncUI(); b.blur(); }));
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { if (b.dataset.view === 'custom') setCustom(); else game.setView(b.dataset.view); syncUI(); b.blur(); }));
+for (const [id, k, f] of [['camYaw', 'yaw', v => v], ['camPitch', 'pitch', v => v], ['camBoost', 'boost', v => v / 100]]) $(id).addEventListener('input', e => { CUSTOM[k] = f(+e.target.value); setCustom(); });
+$('fixBtn').addEventListener('click', e => { toggleFix(); e.currentTarget.blur(); });
+$('camLinkBtn').addEventListener('click', async e => {
+  const b = e.currentTarget, link = camLink(); b.blur();
+  try { await navigator.clipboard.writeText(link); b.textContent = 'Copied'; } catch (err) { prompt('The camera link:', link); }
+  setTimeout(() => { b.textContent = 'Copy camera link'; }, 1500);
+});
 document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => { zoomStep(+b.dataset.zoom); b.blur(); }));
 document.querySelectorAll('[data-turn]').forEach(b => b.addEventListener('click', () => { turn(+b.dataset.turn); b.blur(); }));
 $('camReset').addEventListener('click', e => { resetCam(); e.target.blur(); });
@@ -753,6 +812,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'Digit0') resetCam();
   else if (e.code === 'KeyG' && gpu.status() !== 'unavailable' && gpu.status() !== 'loading') { gpu.enabled = !gpu.enabled; syncUI(); }
   else if (e.code === 'KeyR') showRig = !showRig;
+  else if (e.code === 'KeyF') toggleFix();
 });
 game.input.bindButtons(document);
 
@@ -781,10 +841,10 @@ function benchFrame(ms) {
   bench.samples.push(ms);
   if (now - bench.t0 < 3000) return;
   const avg = bench.samples.reduce((a, b) => a + b, 0) / bench.samples.length;
-  const res = { n: STEPS[bench.i], fps: 1000 / avg, low: 1000 / pct(bench.samples, .99), cpu: ema.update + ema.render };
+  const res = { n: STEPS[bench.i], fps: 1000 / avg, low: 1000 / pct(bench.samples, .99), logic: ema.update, draw: ema.render, cpu: ema.update + ema.render };
   bench.results.push(res);
   const row = document.createElement('tr');
-  row.innerHTML = '<td>' + res.n.toLocaleString() + '</td><td>' + Math.round(res.fps) + '</td><td>' + Math.round(res.low) + '</td><td>' + res.cpu.toFixed(1) + '</td>';
+  row.innerHTML = '<td>' + res.n.toLocaleString() + '</td><td>' + Math.round(res.fps) + '</td><td>' + Math.round(res.low) + '</td><td>' + res.logic.toFixed(1) + '</td><td>' + res.draw.toFixed(1) + '</td><td>' + res.cpu.toFixed(1) + '</td>';
   $('benchTable').appendChild(row);
   bench.i++;
   if (res.fps < 20 || bench.i >= STEPS.length) return benchStop(true);
@@ -800,14 +860,16 @@ function benchReport() {
   $('benchSummary').textContent = summary; $('benchStatus').textContent = 'Done.';
   const v = game.view, sc = game.screen;
   lastReport = [
-    'my-3D2dge stress test' + (gpu.renderer ? ' in 3D, ' + gpu.renderer() : ''),   // (the 3D stress test names its renderer)
+    'my-3D2dge stress test' + (HOOKS.renderer ? ' in 3D, ' + HOOKS.renderer() : ''),   // (the 3D stress test names its renderer)
     'Result: ' + summary,
-    'Settings: ' + v.label + ' view, camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), zoom ' + game.zoom + 'x, turn ' + game.yaw + '°, ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
-      ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on'),
+    'Settings: ' + camDesc() + ', camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), zoom ' + game.zoom + 'x, turn ' + game.yaw + '°, ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
+      ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on') +
+      (E.style.trans === 'dither' ? ', dithered translucency' : '') + (E.style.charPitch === false ? ', characters as the camera sees them' : ''),
     ...(hwLines || hwInfo()),
     '',
-    'Monsters | avg fps | 1% low | CPU ms',
-    ...R.map(r => r.n + ' | ' + Math.round(r.fps) + ' | ' + Math.round(r.low) + ' | ' + r.cpu.toFixed(1))
+    // CPU ms = game logic + drawing (the CPU's side of it: what the GPU does after is in the frame time, not here)
+    'Monsters | avg fps | 1% low | logic ms | drawing ms | CPU ms',
+    ...R.map(r => r.n + ' | ' + Math.round(r.fps) + ' | ' + Math.round(r.low) + ' | ' + r.logic.toFixed(1) + ' | ' + r.draw.toFixed(1) + ' | ' + r.cpu.toFixed(1))
   ].join('\n');
   $('copyBtn').hidden = false;
 }
@@ -818,10 +880,22 @@ $('copyBtn').addEventListener('click', async () => {
   setTimeout(() => { $('copyBtn').textContent = 'Copy results'; }, 2000);
 });
 
+// a ?cam= link (Copy camera link, or the free camera room's): the custom view at that turn, tilt, zoom and boost, fixed
+// where it says (x, y and the height), or following the hero without them; ?view=custom opens the custom view as it is
+{
+  const n = (qs.get('cam') || '').split(',').map(Number);
+  if (n.length >= 5 && n.every(Number.isFinite)) {
+    Object.assign(CUSTOM, { yaw: n[0], pitch: clamp(n[1], 0, 90), boost: clamp(n[4], 1, 1.5) });
+    game.setView(customView()); game.setZoom(clamp(n[2], .5, 3));
+    if (n.length >= 7) { Object.assign(FIX, { on: true, x: n[5], y: n[6], z: clamp(n[3], -40, 100) }); game.focus(FIX.x, FIX.y, FIX.z); }
+  } else if (qs.get('view') === 'custom') game.setView(customView());
+}
+// the other stress test's address (the site serves pages without .html, a local server as files), with the same camera
+for (const [id, page] of [['to3d', 'stress-3d']]) { const a = $(id); if (a) a.href = (/\.html$/.test(location.pathname) ? page + '.html' : '/' + page) + location.search; }
 syncUI();
 game.start({ update, draw: r => { draw(r); hud(); } });
 // (the 3D stress test, src/stress3d.template.html, runs this same game and draws it with three.js: it also reads the
 // map, the torches, the shots and frameStats, and calls hud itself in place of draw)
 window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; },
-  map, TORCHES, shots, frameStats, hud };
+  map, TORCHES, shots, frameStats, hud, FIX, CUSTOM, setFixed, syncUI, HOOKS };
 })();
