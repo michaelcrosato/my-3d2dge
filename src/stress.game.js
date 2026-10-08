@@ -509,6 +509,7 @@ function update(dt) {
   const a = hero.aim !== undefined ? hero.aim : hero.facing;
   if (FIX.on) game.focus(FIX.x, FIX.y, FIX.z);   // a fixed camera stays where it was fixed
   else game.focus(hero.x + Math.cos(a) * 16, hero.y + Math.sin(a) * 16, 8);
+  if (depthActive()) depthFollow(dt);
 }
 
 /* ---------- draw ---------- */
@@ -544,6 +545,7 @@ function telegraph(r, e, u, reach) {
   r.decal(() => r.groundArc(e.x, e.y, e.r * .6, e.r * .6 + (reach - e.r * .6) * u, e.facing - .8, e.facing + .8, '#ff4a3a', .25 + .45 * u), { emissive: .2 + .35 * u });
 }
 function draw(r) {
+  if (depthActive()) { drawDepth(r); return; }   // side scrolling with depth: Mode 7 (below)
   const view = r.view, L = game.lights, t = game.time;
   map.drawFloor(r);
   if (!hero.dead) r.shadow(hero.x, hero.y, 5.5, .55);
@@ -593,6 +595,222 @@ function draw(r) {
   }
   if (showRig) r.overlay(() => { if (!hero.dead) hero.rig.debug(r); for (const e of enemies) if (e.alive && e.rig && r.visible(e.x, e.y, 0)) e.rig.debug(r); });
   frameStats.lights = L.list.length;
+}
+
+/* =============================================================================
+ * SIDE SCROLLING WITH DEPTH (Mode 7). The engine's side view is orthographic: a character is the same size wherever he
+ * stands, and walking into the hall only changes who is drawn over whom. With depth on (M), the side view gets a
+ * perspective camera on a rail: it follows the hero sideways and keeps him DEPTH.near to DEPTH.far units away, so he
+ * shrinks walking into the hall and grows coming back (the camera moves in depth only past those). This page draws it
+ * the way SNES games did (Mode 7, with the scaled sprites of Super Mario Kart and F-Zero): the floor one screen row at
+ * a time, each row the strip of floor texture at that row's distance stretched to the screen's width; then walls,
+ * braziers, shadows, telegraphs, trails, shots, particles and every character, back to front, each at the size its
+ * distance gives. The characters are the engine's own: a rig draws by code at any scale, so a near one is crisp, not a
+ * blown-up sprite. The torches light warm pools on the floor (the engine's lighting works in its own views only), and
+ * the far end fades into the dark. The 3D page puts a real perspective camera at the same place (depthPose), for the
+ * head-to-head. Zoom narrows the field of view. ?view=side&depth=1 opens it.
+ * ============================================================================= */
+const DEPTH = { on: qs.get('depth') === '1', x: 0, y: 0, h: 70, pitch: 14, fov: 50, near: 110, far: 260, ready: false };   // (units: near keeps his feet on screen)
+const depthActive = () => DEPTH.on && game.baseView.id === 'side';
+/** the camera follows the hero sideways, and in depth only when he comes nearer than near or goes past far; a fixed
+ *  camera (F) stays where it is */
+function depthFollow(dt) {
+  const h = hero;
+  if (!DEPTH.ready) { DEPTH.x = h.x; DEPTH.y = h.y + 160; DEPTH.ready = true; }
+  if (FIX.on) return;
+  const k = 1 - Math.exp(-dt * 5), want = clamp(DEPTH.y, h.y + DEPTH.near, h.y + DEPTH.far);
+  DEPTH.x += (h.x - DEPTH.x) * k; DEPTH.y += (want - DEPTH.y) * Math.min(1, k * 2);
+}
+const depthFov = () => 2 * Math.atan(Math.tan(DEPTH.fov * Math.PI / 360) / (game.zoom || 1));   // radians: zoom narrows it
+/** the camera for the 3D page: engine units, looking north (-y) and tilted down */
+const depthPose = () => ({ x: DEPTH.x, y: DEPTH.y, z: DEPTH.h, yaw: -Math.PI / 2, pitch: -DEPTH.pitch * Math.PI / 180, fov: depthFov() * 180 / Math.PI });
+/** the engine's cut-away for a camera that moves: border walls between the camera and the hero drop low */
+const depthCut = (cx, cy) => { const t = map.types[map.cell(cx, cy)]; return !!(t && t.cut) && cy * T > hero.y; };
+function setDepth(on) {
+  DEPTH.on = on; DEPTH.ready = false;
+  if (on && game.baseView.id !== 'side') game.setView('side');
+  game.note(on ? 'SIDE SCROLLING WITH DEPTH' : 'FLAT SIDE VIEW'); syncUI();
+}
+/* the projection: a pinhole camera at (x, y, h) looking north, pitched down; f is the focal length in buffer pixels */
+const PJ = { x: 0, y: 0, h: 70, cp: 1, sp: 0, f: 1, cx: 0, cy: 0 };
+/** engine (x, y, z) -> [buffer x, buffer y, buffer pixels per unit there], or null at or behind the camera */
+function proj(x, y, z) {
+  const D = PJ.y - y, dz = z - PJ.h, zc = D * PJ.cp - dz * PJ.sp; if (zc < 6) return null;
+  const k = PJ.f / zc; return [PJ.cx + (x - PJ.x) * k, PJ.cy - (D * PJ.sp + dz * PJ.cp) * k, k];
+}
+/** a buffer row's floor distance (the inverse of proj on the floor), or 0 above the horizon */
+function rowDepth(by) {
+  const k = (PJ.cy - by) / PJ.f, den = PJ.sp - k * PJ.cp; if (den <= 1e-4) return 0;
+  return PJ.h * (PJ.cp + k * PJ.sp) / den;
+}
+// the floor texture, one texel per unit, baked from the map's own floorTex the first time it is needed
+let FLOOR7 = null;
+function floor7() {
+  if (FLOOR7) return FLOOR7;
+  const w = MW * T, h = MH * T, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d'), img = g.createImageData(w, h), d = img.data;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (map.cell(Math.floor(x / T), Math.floor(y / T)) !== 0) continue;
+    const c = map.floorTex(x + .5, y + .5), i = (y * w + x) * 4; if (!c) continue;
+    d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return (FLOOR7 = cv);
+}
+// wall faces: courses of bricks in the type's colors, one canvas per type and height (16 pixels across a tile)
+const FACE7 = new Map();
+function face7(t, h) {
+  const key = t.side + h; let cv = FACE7.get(key); if (cv) return cv;
+  cv = document.createElement('canvas'); cv.width = 16; cv.height = h; const g = cv.getContext('2d'), course = t.course || 8, tn = E.tones(t.side);
+  g.fillStyle = t.side; g.fillRect(0, 0, 16, h);
+  for (let z = 0, ci = 0; z < h; z += course, ci++) {
+    const y = h - z - course; g.fillStyle = t.line || E.shade(t.side, -.3);
+    g.fillRect(0, Math.max(0, y), 16, 1); g.fillRect((ci & 1) ? 4 : 12, Math.max(0, y), 1, course);
+    g.fillStyle = tn.lt; g.fillRect(0, Math.max(0, y + 1), 16, 1);
+  }
+  FACE7.set(key, cv); return cv;
+}
+const views7 = new Map();
+/** the engine view a character is drawn with at k pixels per unit (whole 1/16ths, so views are reused) */
+function view7(k) {
+  const q = Math.max(1 / 8, Math.round(k * 16) / 16); let v = views7.get(q);
+  if (!v) { if (views7.size > 400) views7.clear(); v = new E.View('side-depth', 'Side, depth', 0, DEPTH.pitch, q, 1); views7.set(q, v); }
+  return v;
+}
+/** a pool of light on the floor at (x, y), radius R units: a radial gradient squashed as the floor squashes it there */
+function pool7(g, x, y, R, rgb, a) {
+  const c = proj(x, y, 0); if (!c) return;
+  const n = proj(x, y - R, 0), f = proj(x, y + R, 0), rx = R * c[2], ry = Math.max(1, ((f ? f[1] : c[1] + rx * .3) - (n ? n[1] : c[1] - rx * .3)) / 2);
+  if (rx < 1 || c[0] + rx < 0 || c[0] - rx > PJ.W) return;
+  g.save(); g.translate(c[0], (f && n ? (f[1] + n[1]) / 2 : c[1])); g.scale(1, ry / rx);
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx); gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = gr; g.fillRect(-rx, -rx, rx * 2, rx * 2); g.restore();
+}
+/** a flat shape on the floor (telegraphs): points [x, y] in engine units */
+function floorPoly7(g, pts, color, a) {
+  const ps = []; for (const [x, y] of pts) { const p = proj(x, y, .2); if (!p) return; ps.push(p); }
+  g.globalAlpha = a; g.fillStyle = color; g.beginPath(); ps.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fill(); g.globalAlpha = 1;
+}
+function drawDepth(r) {
+  const sc = game.screen, W = r.W, H = r.H, t = game.time;
+  const pitch = DEPTH.pitch * Math.PI / 180;
+  Object.assign(PJ, { x: DEPTH.x, y: DEPTH.y, h: DEPTH.h, cp: Math.cos(pitch), sp: Math.sin(pitch), f: H / 2 / Math.tan(depthFov() / 2), cx: W / 2 + sc.fx, cy: H / 2 + sc.fy, W });
+  // everything standing, gathered now (the panel counts it) and drawn back to front (the far end of the hall first)
+  const items = [];
+  for (let cy = 0; cy < MH; cy++) for (let cx = 0; cx < MW; cx++) {
+    const id = map.cell(cx, cy); if (id <= 0) continue;
+    const y1 = (cy + 1) * T; if (PJ.y - y1 < 6 && PJ.y - cy * T < 6) continue;
+    items.push([y1, g => wall7(g, cx, cy, map.types[id])]);
+  }
+  for (let i = 0; i < S.lights; i++) { const b = TORCHES[i]; items.push([b.y, g => brazier7(g, b)]); }
+  let drawn = 0, culled = 0;
+  for (const list of [enemies, corpses]) for (const e of list) {
+    const p = proj(e.x, e.y, e.z || 0); if (!p || p[0] < -80 || p[0] > W + 80) { culled++; continue; }
+    items.push([e.y, g => actor7(g, e, p)]); drawn++;
+  }
+  { const p = proj(hero.x, hero.y, 0); if (p) { items.push([hero.y + .01, g => actor7(g, hero, p)]); drawn++; } }
+  for (const s of shots) items.push([s.y, g => { const p = proj(s.x, s.y, s.z); if (!p) return; glow7(g, p[0], p[1], 5 * p[2], s.color, .5); disc7(g, p[0], p[1], Math.max(1, 2 * p[2]), s.core); }]);
+  items.sort((a, b) => a[0] - b[0]);
+  game.stats.actors = drawn; game.stats.culled = culled; frameStats.lights = S.lights + 2;
+  r.overlay(g => {   // (an overlay: drawn over the engine's empty world, after its lighting pass)
+    g.save(); g.imageSmoothingEnabled = false;
+    g.fillStyle = '#06050b'; g.fillRect(0, 0, r.bw, r.bh);
+    // the floor, a row at a time (Mode 7), then the dark of the hall, fading with distance, and the light pools
+    const F = floor7(), top = Math.max(0, Math.ceil(PJ.cy - PJ.f * PJ.sp / PJ.cp));
+    for (let by = top; by < r.bh; by++) {
+      const D = rowDepth(by + .5); if (!D || D > 2400) continue;
+      const y = PJ.y - D; if (y < 0 || y >= MH * T) continue;
+      const zc = D * PJ.cp + PJ.h * PJ.sp, u = zc / PJ.f;
+      g.drawImage(F, PJ.x - PJ.cx * u, Math.floor(y), r.bw * u, 1, 0, by, r.bw, 1);
+    }
+    const fog = g.createLinearGradient(0, top, 0, r.bh); fog.addColorStop(0, 'rgba(6,5,11,.92)'); fog.addColorStop(.45, 'rgba(6,5,11,.62)'); fog.addColorStop(1, 'rgba(6,5,11,.45)');
+    g.fillStyle = fog; g.fillRect(0, top, r.bw, r.bh - top);
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < S.lights; i++) { const b = TORCHES[i]; pool7(g, b.x, b.y, 124, '255,154,74', .42 * flicker(b.t)); }
+    pool7(g, CX, CY, 78, '79,224,204', .3 + .07 * Math.sin(t * 1.7)); pool7(g, hero.x, hero.y, 82, '201,194,236', .22);
+    g.globalCompositeOperation = 'source-over';
+    for (const [, fn] of items) fn(g);
+    // particles and damage numbers, over the scene
+    for (const q of P.list) {
+      const p = proj(q.x, q.y, q.z || 0); if (!p) continue; const u = q.life / q.max;
+      if (q.kind === 'text') { if (u < .75 || Math.floor(q.life * 20) % 2) E.font.text(g, q.text, Math.round(p[0]), Math.round(p[1]), q.color, { align: 'center', scale: q.scale || 1, outline: '#0b0814' }); continue; }
+      if (q.kind === 'ring') continue;
+      const add = q.kind === 'spark' || q.kind === 'ember' || q.kind === 'glint' || q.kind === 'impact';
+      if (add) g.globalCompositeOperation = 'lighter';
+      g.fillStyle = q.kind === 'spark' && u < .5 ? (q.hot || '#fff5cf') : q.color; const sz = Math.max(1, (q.size || 1) * p[2] * .7);
+      g.fillRect(Math.round(p[0] - sz / 2), Math.round(p[1] - sz / 2), Math.ceil(sz), Math.ceil(sz));
+      if (add) g.globalCompositeOperation = 'source-over';
+    }
+    g.restore();
+  });
+}
+function disc7(g, x, y, rad, color) { g.fillStyle = color; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill(); }
+function glow7(g, x, y, rad, color, a) {
+  const gr = g.createRadialGradient(x, y, 0, x, y, rad), c = E.hex(color); gr.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${a})`); gr.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+  g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); g.globalCompositeOperation = 'source-over';
+}
+/** one wall cell: its front face (bricks), its sides toward the camera and its top, in perspective */
+function wall7(g, cx, cy, t) {
+  const x0 = cx * T, x1 = x0 + T, y0 = cy * T, y1 = y0 + T, h = depthCut(cx, cy) ? (t.cutH || 6) : t.h;
+  const poly = (pts, color) => { const ps = []; for (const q of pts) { const p = proj(q[0], q[1], q[2]); if (!p) return; ps.push(p); } g.fillStyle = color; g.beginPath(); ps.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fill(); };
+  if (PJ.x > x1 && map.cell(cx + 1, cy) === 0) poly([[x1, y0, 0], [x1, y1, 0], [x1, y1, h], [x1, y0, h]], E.shade(t.side, -.25));
+  if (PJ.x < x0 && map.cell(cx - 1, cy) === 0) poly([[x0, y0, 0], [x0, y1, 0], [x0, y1, h], [x0, y0, h]], E.shade(t.side, -.25));
+  if (PJ.h > h) poly([[x0, y0, h], [x1, y0, h], [x1, y1, h], [x0, y1, h]], t.top);
+  if (map.cell(cx, cy + 1) === 0) {
+    const a = proj(x0, y1, 0), b = proj(x1, y1, h); if (!a || !b) return;
+    g.drawImage(face7(t, h), a[0], b[1], b[0] - a[0], a[1] - b[1]);
+  }
+}
+/** a brazier: stone base, iron bowl, glowing coals and three flame tongues, at the size its distance gives */
+function brazier7(g, b) {
+  const p = proj(b.x, b.y, 0); if (!p) return; const k = p[2], x = p[0], y = p[1], t = b.t;
+  g.fillStyle = '#4c4562'; g.fillRect(x - 3 * k, y - 8 * k, 6 * k, 8 * k);
+  g.fillStyle = '#2b2430'; g.fillRect(x - 5.5 * k, y - 11 * k, 11 * k, 3 * k);
+  g.fillStyle = '#ff8a3c'; g.fillRect(x - 4 * k, y - 11.4 * k, 8 * k, .8 * k);
+  for (let i = 0; i < 3; i++) {
+    const hh = (7 + Math.sin(t * 9 + i * 2) * 2.2 + Math.sin(t * 17 + i) * 1.2) * k, sw = Math.sin(t * 6 + i * 1.7) * 1.4 * k, bx = x + (i - 1) * 1.8 * k;
+    for (const [w, c, f] of [[2.2, '#ff7a2a', 1], [1.2, '#ffd36a', .65]]) { g.fillStyle = c; g.beginPath(); g.moveTo(bx - w * k, y - 11 * k); g.lineTo(bx + sw * f, y - 11 * k - hh * f); g.lineTo(bx + w * k, y - 11 * k); g.fill(); }
+  }
+  glow7(g, x, y - 14 * k, 16 * k, '#ff9a4a', .35 * flicker(t));
+}
+/** a character: its shadow, a telegraph or trail if it has one, and the engine's own drawing at its distance's size */
+function actor7(g, e, p) {
+  const k = p[2], v = view7(k), isHero = e === hero;
+  const alpha = isHero ? (e.dead ? clamp(4 - e.deadT * 2, 0, 1) : 1) : !e.alive ? clamp(e.type === 'wisp' ? 1 - e.deadT / POP_T : (DEAD_T - e.deadT) * 2, 0, 1) : e.spawnT > 0 ? clamp(1 - e.spawnT / .6, .05, 1) : 1;
+  if (e.type === 'wisp') {   // a glowing orb, its halo and motes
+    const kk = !e.alive ? 1 + e.deadT / POP_T * 1.8 : e.charge > 0 ? 1 + (1 - e.charge / .6) * .8 : 1;
+    g.globalAlpha = alpha; glow7(g, p[0], p[1], 7 * kk * k, '#7a4ac0', .7); disc7(g, p[0], p[1], 3.2 * kk * k, e.flash > 0 ? '#ffffff' : '#c78bff'); disc7(g, p[0] - .5 * k, p[1] - .5 * k, 1.8 * kk * k, '#f4e6ff');
+    for (let i = 0; i < 3; i++) { const a = e.t * 4 + i * TAU / 3; disc7(g, p[0] + Math.cos(a) * 6 * kk * k, p[1] + Math.sin(a) * 3 * kk * k, Math.max(.6, .7 * k), '#e3c8ff'); }
+    g.globalAlpha = 1; return;
+  }
+  const s = proj(e.x, e.y, 0);
+  if (s) { g.globalAlpha = .45 * alpha; g.fillStyle = '#05030c'; g.beginPath(); g.ellipse(s[0], s[1], 5.5 * s[2], Math.max(1, 5.5 * s[2] * PJ.sp * 1.6), 0, 0, TAU); g.fill(); g.globalAlpha = 1; }
+  if (e.type === 'walker' && e.alive && e.atk && e.atk.busy && e.atk.phase === 'wind') { const u = e.atk.u, r0 = e.r * .6, r1 = r0 + (e.kind.reach[e.next] - r0) * u; floorPoly7(g, arc7(e.x, e.y, r0, r1, e.facing), '#ff4a3a', .25 + .45 * u); }
+  if (e.type === 'slime' && e.state === 'wind') { const u = clamp(1 - e.t / .5, 0, 1), a = Math.atan2(hero.y - e.y, hero.x - e.x), r0 = e.r * .6; floorPoly7(g, arc7(e.x, e.y, r0, r0 + (Math.hypot(hero.x - e.x, hero.y - e.y) - hero.r - r0) * u, a), '#ff4a3a', .25 + .45 * u); }
+  g.globalAlpha = alpha;
+  if (e.rig) e.rig.draw(g, Math.round(p[0]), Math.round(p[1]), v); else e.blob.draw(g, Math.round(p[0]), Math.round(p[1]), v);
+  g.globalAlpha = 1;
+  const tr = e.rig && e.rig.trail; if (tr && tr.length > 1 && (isHero || (e.alive && e.atk))) trail7(g, tr, isHero ? '216,242,255' : '255,122,90');
+}
+const arc7 = (x, y, r0, r1, a) => { const pts = []; for (let i = 0; i <= 8; i++) { const b = a - .8 + 1.6 * i / 8; pts.push([x + Math.cos(b) * r1, y + Math.sin(b) * r1]); } for (let i = 8; i >= 0; i--) { const b = a - .8 + 1.6 * i / 8; pts.push([x + Math.cos(b) * r0, y + Math.sin(b) * r0]); } return pts; };
+/** a blade's trail: its last base and tip points as a fading band */
+function trail7(g, tr, rgb) {
+  const n = Math.min(10, tr.length); g.globalCompositeOperation = 'lighter';
+  for (let i = 1; i < n; i++) {
+    const A = tr[tr.length - n + i - 1], B = tr[tr.length - n + i], pa = proj(...A.b), pb = proj(...B.b), ta = proj(...A.t), tb = proj(...B.t); if (!pa || !pb || !ta || !tb) continue;
+    g.fillStyle = `rgba(${rgb},${(i / n) * .55})`; g.beginPath(); g.moveTo(pa[0], pa[1]); g.lineTo(ta[0], ta[1]); g.lineTo(tb[0], tb[1]); g.lineTo(pb[0], pb[1]); g.closePath(); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+}
+// aiming with the mouse: the floor point under it, through the same projection
+{
+  const base = game.mouseGround.bind(game);
+  game.mouseGround = () => {
+    if (!depthActive()) return base();
+    const m = game.input.mouseScreen(); if (!m) return null;
+    const bx = m[0] - game.screen.ix, by = m[1] - game.screen.iy, D = rowDepth(by); if (!D) return null;
+    const zc = D * PJ.cp + PJ.h * PJ.sp; return [PJ.x + (bx - PJ.cx) * zc / PJ.f, PJ.y - D];
+  };
 }
 
 /* =============================================================================
@@ -707,12 +925,14 @@ function setFixed(on) {
 function camDesc() {
   const v = game.view, b = game.baseView;
   const c = HOOKS.camera && HOOKS.camera(); if (c) return c;
+  if (depthActive()) return 'Side scrolling with depth (Mode 7: the floor a row at a time, everything scaled by its distance)' + (FIX.on ? ', camera fixed' : '');
   return (isCustom() ? 'Custom view (turn ' + b.yawDeg + '°, tilt ' + b.pitchDeg + '°, height boost ' + b.zBoost + ')' : v.label + ' view') + (FIX.on ? ', camera fixed' : '');
 }
 /** the camera as a link: the free camera room's ?cam= (turn, tilt, zoom, height, boost, and where it is fixed) */
 function camLink() {
   const l = HOOKS.camLink && HOOKS.camLink(); if (l) return l;
   const b = game.baseView, u = new URL(location.href);
+  if (depthActive()) { for (const k of ['cam', 'view', 'depth']) u.searchParams.delete(k); const rest = u.search.slice(1); return u.origin + u.pathname + '?' + [rest, 'view=side&depth=1'].filter(Boolean).join('&') + u.hash; }
   const n = [((b.yawDeg + (b.pitchDeg < 5 ? 0 : game.yaw)) % 360 + 360) % 360, b.pitchDeg, game.zoom, Math.round(FIX.on ? FIX.z : game.cam.tz), b.zBoost];
   if (FIX.on) n.push(Math.round(FIX.x), Math.round(FIX.y));
   u.searchParams.delete('cam'); u.searchParams.delete('view'); const rest = u.search.slice(1);
@@ -744,7 +964,7 @@ function syncUI() {
   $('canvasLight').checked = game.lights.enabled;
   $('dither').checked = E.style.trans === 'dither'; $('readable').checked = E.style.charPitch !== false;
   document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === 'custom' ? isCustom() : b.dataset.view === game.view.id)));
-  $('customCam').hidden = !isCustom();
+  $('customCam').hidden = !isCustom(); $('depth').checked = DEPTH.on;
   $('camYaw').value = Math.round(CUSTOM.yaw); $('camYawOut').textContent = customView().pitchDeg ? customView().yawDeg + '°' : 'side';
   $('camPitch').value = Math.round(CUSTOM.pitch); $('camPitchOut').textContent = customView().pitchDeg + '°';
   $('camBoost').value = Math.round(CUSTOM.boost * 100); $('camBoostOut').textContent = customView().zBoost.toFixed(2);
@@ -778,6 +998,7 @@ document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { if (b.dataset.view === 'custom') setCustom(); else game.setView(b.dataset.view); syncUI(); b.blur(); }));
 for (const [id, k, f] of [['camYaw', 'yaw', v => v], ['camPitch', 'pitch', v => v], ['camBoost', 'boost', v => v / 100]]) $(id).addEventListener('input', e => { CUSTOM[k] = f(+e.target.value); setCustom(); });
 $('fixBtn').addEventListener('click', e => { toggleFix(); e.currentTarget.blur(); });
+$('depth').addEventListener('change', e => { setDepth(e.target.checked); e.target.blur(); });
 $('camLinkBtn').addEventListener('click', async e => {
   const b = e.currentTarget, link = camLink(); b.blur();
   try { await navigator.clipboard.writeText(link); b.textContent = 'Copied'; } catch (err) { prompt('The camera link:', link); }
@@ -814,6 +1035,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyG' && gpu.status() !== 'unavailable' && gpu.status() !== 'loading') { gpu.enabled = !gpu.enabled; syncUI(); }
   else if (e.code === 'KeyR') showRig = !showRig;
   else if (e.code === 'KeyF') toggleFix();
+  else if (e.code === 'KeyM') setDepth(!DEPTH.on);
 });
 game.input.bindButtons(document);
 
@@ -913,5 +1135,5 @@ game.start({ update, draw: r => { draw(r); hud(); } });
 // (the 3D stress test, src/stress3d.template.html, runs this same game and draws it with three.js: it also reads the
 // map, the torches, the shots and frameStats, and calls hud itself in place of draw)
 window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; },
-  map, TORCHES, shots, frameStats, hud, FIX, CUSTOM, setFixed, syncUI, HOOKS };
+  map, TORCHES, shots, frameStats, hud, FIX, CUSTOM, setFixed, syncUI, HOOKS, DEPTH, depthActive, depthPose, depthCut, setDepth };
 })();

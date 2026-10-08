@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.12.0 (2026-10-08)
+
+Depth for side scrolling, the Mode 7 way on the 2D page and in real perspective on the 3D one, and sharp characters when the 3D page zooms out.
+
+- **Rendering** (both stress tests): side scrolling with depth (M, `?view=side&depth=1`). A perspective camera on a rail follows the hero sideways and keeps him 110 to 260 units away, so he shrinks walking into the hall and grows coming back. The 2D page draws it as SNES games did, Mode 7: the floor a screen row at a time from the map's own floor texture, then walls, braziers, telegraphs, trails and every character back to front, each drawn by the engine at the size its distance gives (crisp, not a scaled sprite); torchlight as warm pools on the floor. The 3D page puts a real perspective camera at the same pose. The mouse aims at the floor through the same projection.
+- **Rendering** (3D stress test): at the balanced or full resolution the engine draws each card as fine as the picture's own pixels (cells up to 256 pixels, outlines one engine pixel thick), so zoomed out the characters are sharp, not small sprites blown up; at the engine's pixels nothing changes.
+- **Tools**: `tools/lab3d-test.mjs` checks the depth view on both pages (the 2D page draws the crowd, and the hero shrinks and grows with depth; the 3D page takes a perspective camera) and the cards' detail at the full resolution.
+- **Docs**: `docs/LAB-3D.md`, side scrolling with depth and sharp cards; Labs links to both.
+
 ## 0.11.0 (2026-10-08)
 
 The stress tests, head to head: the same cameras on both pages, the 3D page's own cameras and filters, and no more stalls mid-fight.

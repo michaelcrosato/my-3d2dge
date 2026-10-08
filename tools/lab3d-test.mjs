@@ -15,7 +15,9 @@
 //      panel's numbers fill in, every camera draws (side, custom, chase, first person, fly, fixed; W walks away from a
 //      fixed one), every filter draws (cel, pixel, on everything, the characters, the hall; bloom, FXAA), the hero moves
 //   7. the 2D stress test's cameras: a ?cam= link opens its custom view fixed in place, a fixed camera stays put while
-//      the hero walks, F frees it, the side scrolling view
+//      the hero walks, F frees it, the side scrolling view, and side scrolling with depth (Mode 7: the crowd draws, the
+//      hero shrinks walking into the hall and grows coming back); on the 3D page the same depth is a perspective camera,
+//      and at the full resolution its cards are drawn finer than the engine's pixels
 // Usage: node tools/lab3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -206,7 +208,7 @@ for (const want of ['webgl', 'webgpu']) {
   const panel = await page.evaluate(() => ['fpsBig', 'mMonsters', 'mRender', 'mGpu'].map(id => document.getElementById(id).textContent));
   if (!/\d/.test(panel[1]) || !/three\.js/.test(panel[3])) fail(`stress-3d ${label}: the panel's numbers did not fill in (${panel.join(' | ')})`);
   // every camera draws the fight: the engine's side and custom views, chase, first person, fly, fixed
-  const CAMS = [['side', () => document.querySelector('[data-view=side]').click()], ['custom', () => document.querySelector('[data-view=custom]').click()],
+  const CAMS = [['side', () => document.querySelector('[data-view=side]').click()], ['depth', () => __game.setDepth(true)], ['custom', () => { __game.setDepth(false); document.querySelector('[data-view=custom]').click(); }],
     ['chase', () => __stress3d.setCam('chase')], ['first', () => __stress3d.setCam('first')], ['fly', () => __stress3d.setCam('fly')], ['fixed', () => __game.HOOKS.fix()]];
   for (const [name, fn] of CAMS) {
     await page.evaluate(fn); await frames(name, 6);
@@ -214,6 +216,7 @@ for (const want of ['webgl', 'webgpu']) {
     const png = await picture(page, label, 'cam-' + name);
     if (s.drawn < 3 || png.length < 15000) fail(`stress-3d ${label} camera ${name}: ${s.drawn} drawn, picture ${png.length} bytes`);
     if (['side', 'custom'].includes(name) && !s.view.startsWith(name)) fail(`stress-3d ${label}: the ${name} view did not take (${s.view})`);
+    if (name === 'depth' && !/depth/.test(await page.evaluate(() => __game.HOOKS.camera() || ''))) fail(`stress-3d ${label}: side scrolling with depth did not take a perspective camera`);
     if (['chase', 'first', 'fly', 'fixed'].includes(name) && s.mode !== name) fail(`stress-3d ${label}: the ${name} camera did not take (${s.mode})`);
   }
   // in the fixed 3D camera, W walks the hero away from it
@@ -238,6 +241,13 @@ for (const want of ['webgl', 'webgpu']) {
     const png = await picture(page, label, 'fx-' + name);
     if (png.length < 25000) fail(`stress-3d ${label} filter ${name}: the picture looks blank (${png.length} bytes)`);
   }
+  // at the full resolution the engine draws the cards finer than its own pixels (sharp when zoomed out)
+  await page.evaluate(() => { document.querySelector('[data-fx=clean]').click(); __stress3d.set('look', 'card'); __stress3d.set('res', 'full'); __game.game.setZoom(.5); });
+  await frames('fine cards', 6);
+  const detail = await page.evaluate(() => __stress3d.stats.detail);
+  if (!(detail > 1.5)) fail(`stress-3d ${label}: at the full resolution the cards are drawn at ${detail}x the engine's pixels`);
+  await picture(page, label, 'cards-zoomed-out-full');
+  await page.evaluate(() => { __stress3d.set('res', 'engine'); __game.game.setZoom(1); });
   const report = await page.evaluate(() => __game.HOOKS.renderer());
   if (!/no filter/.test(report)) fail(`stress-3d ${label}: the report's renderer line is off (${report})`);
   // the hero under the keys (the 2D page's own controls, the engine camera)
@@ -272,6 +282,17 @@ let camOk = false;
   await page.waitForTimeout(400);
   if (await page.evaluate(() => __game.game.view.id) !== 'side') fail('stress-test: the side scrolling view did not take');
   await page.screenshot({ path: join(OUT, 'stress2d-side.png') });
+  // side scrolling with depth (Mode 7): it draws the crowd, and the hero shrinks walking into the hall and grows coming back
+  await page.evaluate(() => { __game.setDepth(true); __game.setMonsters(12, true); });
+  await page.waitForTimeout(600);
+  const drawn = await page.evaluate(() => +(document.getElementById('mMonsters').textContent.match(/\((\d+) drawn/) || [0, 0])[1]);
+  if (!(drawn > 0)) fail(`stress-test: with depth, no monster was drawn`);
+  await page.screenshot({ path: join(OUT, 'stress2d-depth.png') });
+  const size = () => page.evaluate(() => { const D = __game.DEPTH, p = D.pitch * Math.PI / 180; return 1 / ((D.y - __game.hero.y) * Math.cos(p) + D.h * Math.sin(p)); });
+  const walk = async (code, sec) => { const t0 = await page.evaluate(() => __game.game.time); await page.keyboard.down(code); await page.waitForFunction(t => __game.game.time > t, t0 + sec, { timeout: 60000 }).catch(() => {}); await page.keyboard.up(code); await page.waitForTimeout(500); };
+  await page.evaluate(() => __game.setMonsters(0));
+  const s0 = await size(); await walk('KeyW', 1.5); const s1 = await size(); await walk('KeyS', 3); const s2 = await size();
+  if (!(s1 < s0 * .85 && s2 > s1 * 1.4)) fail(`stress-test: with depth the hero did not shrink and grow (${[s0, s1, s2].map(v => (v * 1000).toFixed(2)).join(', ')})`);
   for (const e of errors) fail(`stress-test: ${e}`);
   camOk = !errors.length;
   await page.close();
