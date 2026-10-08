@@ -176,6 +176,34 @@ Each milestone ends with screenshots on both backends.
   move the hero with our own kinematic code and keep Rapier for the crates. Our engine's collision is already
   enough for walking among walls and pillars.
 
+## The 3D stress test (v0.10.0)
+
+A head-to-head with the engine's own renderer: `/stress-3d` (Labs → Temporary → Stress test in 3D) is the stress test
+at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `examples/stress-3d.html`.
+
+- **The same game, not a copy.** The page inlines `src/stress.game.js` unchanged: the hall, the hero, walkers,
+  slimes, wisps, attack tokens, telegraphs, waves, particles, the panel, its metrics and the benchmark. It runs in
+  the engine's own loop (fixed steps, hit-stop, camera, shake); `src/stress3d/` replaces only the loop's drawing step
+  (`game._frame`) and reads the game's state from `window.__game`. The engine times that step as it times its own
+  drawing, so "Drawing (CPU)" on the two pages compares directly. The benchmark's report says which renderer drew
+  it, the look and the resolution.
+- **The same picture, where it can be.** The camera is the engine's view and camera (view, zoom, turn, height boost,
+  shake), so the hall frames the same and the mouse aims the same. The hall comes from the game's `TileMap` (its floor
+  texture, wall types and cut-away), every texture from the engine's code.
+- **Two looks** (C switches): **Card**, each character drawn by the engine onto a card standing in the hall (one
+  sprite atlas, drawn as one batch), the closest to the 2D page; **Puppet**, 3D parts on the same joints in shared
+  instanced batches, with torchlight, shadows and outlines. X switches between the engine's pixels and the screen's
+  full resolution; `?backend=webgl` forces WebGL 2.
+- **Where it differs, by the nature of the tech.** The lights are a fixed set (a changing count rebuilds shaders):
+  up to 30 torches, of which the two nearest the hero cast shadows (the 2D page shadows every torch), and up to four
+  wisp and four bolt lights (the 2D page lights up to 16 wisps). The 2D page's canvas-lighting option has no
+  counterpart. Swing smears are ribbons; damage numbers and notes are the engine's pixel font on an overlay.
+- **A three.js r182 bug to remember:** an `InstancedMesh` with more than 1,000 instances whose matrices use
+  `DynamicDrawUsage` never sends its changes to the GPU (the monsters vanished). The batches keep the default usage
+  and mark their update ranges each frame.
+- `node tools/lab3d-test.mjs` checks it on both backends: a fight with every monster kind in both looks, the panel's
+  numbers, the hero under the keys, and no errors (pictures in `check-output/lab3d/`).
+
 ## Out of scope
 
 Emberdeep, the engine files, the agent edition, importing model files, sound, performance work, and phones (the

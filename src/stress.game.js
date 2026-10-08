@@ -800,7 +800,7 @@ function benchReport() {
   $('benchSummary').textContent = summary; $('benchStatus').textContent = 'Done.';
   const v = game.view, sc = game.screen;
   lastReport = [
-    'my-3D2dge stress test',
+    'my-3D2dge stress test' + (gpu.renderer ? ' in 3D, ' + gpu.renderer() : ''),   // (the 3D stress test names its renderer)
     'Result: ' + summary,
     'Settings: ' + v.label + ' view, camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), zoom ' + game.zoom + 'x, turn ' + game.yaw + '°, ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
       ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on'),
@@ -820,5 +820,8 @@ $('copyBtn').addEventListener('click', async () => {
 
 syncUI();
 game.start({ update, draw: r => { draw(r); hud(); } });
-window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; } };
+// (the 3D stress test, src/stress3d.template.html, runs this same game and draws it with three.js: it also reads the
+// map, the torches, the shots and frameStats, and calls hud itself in place of draw)
+window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; },
+  map, TORCHES, shots, frameStats, hud };
 })();

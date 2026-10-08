@@ -41,6 +41,9 @@ const builds = [
   // temporary (src/labs.json, docs/LAB-3D.md): our characters in a fully 3D world (three.js r182 + Rapier from vendor/,
   // loaded through the page's import map, so it is served, not double-clicked); delete with its labs.json entry and vendor/
   { template: 'src/lab3d.template.html', out: 'examples/lab-3d.html', vars: {} },
+  // temporary (src/labs.json): the stress test (src/stress.game.js, unchanged) drawn by three.js instead of the engine's
+  // canvas, for a head-to-head comparison; delete with its labs.json entry
+  { template: 'src/stress3d.template.html', out: 'examples/stress-3d.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
