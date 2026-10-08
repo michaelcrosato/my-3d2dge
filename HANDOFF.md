@@ -53,11 +53,22 @@ The owner asked to see the idea, so there is a **temporary lab**: Labs page -> T
 (`examples/shapes-compare.html`, short address `/shapes-compare`). Twelve models ranked from the best case to the worst,
 each drawn live in four views and turning, beside the hero and our closest flat prop, with what works, what is off and
 what would fix it. Its controls already cover Phase 0's four questions (size, steep-view tilt, lit top edges, floor).
-- Source: `src/shapes-compare.template.html`, `src/shapes-compare.game.js` (a **depth-correct rasterizer** at game size,
-  one tone per face by how it faces the light, the actors' 1-px outline, a cache per facing), `src/shapes-compare.data.js`
-  (written by `handoff/shapes-spike/compare-data.mjs`; boxes only, the prototype encoding).
+- Source: `src/shapes-compare.template.html`, `src/shapes-compare.game.js` (the cards and controls),
+  `src/shapes-raster.js` (a **depth-correct rasterizer** at game size, one tone per face by how it faces the light, the
+  actors' 1-px outline; shared with the room below), `src/shapes-compare.data.js` (written by
+  `handoff/shapes-spike/compare-data.mjs`; boxes only, the prototype encoding).
 - Listed in `src/labs.json` (Temporary, added 2026-10-08), built by `tools/build.mjs`, addressed in `vercel.json`.
-- When the question is settled, delete the three files, the build entry, the `vercel.json` name and the labs entry.
+- When the question is settled, delete its template and game files, the build entry, the `vercel.json` name and the
+  labs entry; `src/shapes-raster.js` and the data file go with the last of the two labs.
+
+A second temporary lab, **Free camera room** (`/free-camera`, `src/free-camera.template.html`,
+`src/free-camera.game.js`), puts the converted crate in a room with four pillars and the hero, under a free camera:
+drag turns and tilts, the wheel zooms, WASD moves, Q/E go down and up, F fixes the camera (the view goes into the
+address as `?cam=yaw,pitch,zoom,height,boost,x,y`, and the panel prints the `new E.View(...)` a game would use). The
+crates switch between the shape, the flat prop and the engine's `r.box`, which shows the case for shapes better than
+any sheet: the prop shows the same side from every angle. Turning costs a frame or two per new angle (the engine
+redraws its floor image and wall blocks for each view; about 12 ms floor at zoom 1, 50 ms at zoom 3 in headless
+Chromium), which a game with a fixed camera never pays. Delete it the same way.
 
 
 - **Encoding (hybrid):** split each model into connected parts (shared vertices and the same material); voxelize each
@@ -91,7 +102,7 @@ Build one comparison sheet (PNG, plus a 3x enlargement), scratch only:
   `handoff/shapes-spike/hybrid.mjs` only measures; extend it into an encoder that writes shape text.
 - **Draw them with a small depth-correct rasterizer** into a sprite (whole pixels, tones by face normal), outlined the
   way the renderer outlines actors (`Renderer._composite` in the engine). The comparison lab's `raster()` in
-  `src/shapes-compare.game.js` already does this for boxes: extend it to prisms and lathes. Draw the final sprite with
+  `src/shapes-raster.js` already does this for boxes: extend it to prisms and lathes. Draw the final sprite with
   `px.sprite` (engine primitives only).
 - **Every shape in the iso, threequarter, topdown and brawler views** (`E.VIEWS`), at game scale (1x), beside our hero
   (`new E.Humanoid`) and our props crate, barrel and chest, on at least two Emberdeep theme floor colors.

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Free camera room · my-3D2dge</title>
+<!--
+  A temporary lab (src/labs.json, "Temporary"): a small room (four pillars, crates, the hero walking) and a free camera
+  that turns, tilts, zooms, moves and fixes anywhere the engine's camera can go. Built from src/free-camera.template.html
+  and src/free-camera.game.js (plus the shared src/shapes-raster.js and src/shapes-compare.data.js) by tools/build.mjs.
+  Delete it (and its labs.json entry) once the question is settled.
+-->
+<style>
+:root{
+  --bg:#f0e6d6; --panel:rgba(250,242,228,.94); --ink:#2a2140; --muted:#63557a; --accent:#b8612a; --accent-ink:#fff6e6;
+  --line:rgba(42,33,64,.2); --key:rgba(42,33,64,.1); --track:rgba(42,33,64,.22);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#06050b; --panel:rgba(18,14,30,.9); --ink:#f1e4c8; --muted:#ab9dc0; --accent:#f0a23a; --accent-ink:#1c1428; --line:rgba(241,228,200,.16); --key:rgba(241,228,200,.12); --track:rgba(241,228,200,.25); }
+}
+:root[data-theme="dark"]{ --bg:#06050b; --panel:rgba(18,14,30,.9); --ink:#f1e4c8; --muted:#ab9dc0; --accent:#f0a23a; --accent-ink:#1c1428; --line:rgba(241,228,200,.16); --key:rgba(241,228,200,.12); --track:rgba(241,228,200,.25); }
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;background:var(--bg)}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Trebuchet MS',system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#stage{position:relative;width:100%;height:100%;overflow:hidden;background:#0d0b14;touch-action:none}
+#screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;cursor:grab;touch-action:none}
+#screen.dragging{cursor:grabbing}
+#screen.fixed{cursor:default}
+.panel{position:absolute;z-index:2;background:var(--panel);border:1px solid var(--line);border-radius:8px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.brand{top:12px;left:12px;padding:9px 13px 10px;max-width:min(380px,calc(100% - 24px))}
+.brand h1{margin:0;font-size:20px;font-weight:600;line-height:1.15}
+.brand p{margin:5px 0 0;font-size:13.5px;line-height:1.4;color:var(--muted)}
+a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);text-decoration:none;white-space:nowrap}
+a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#tag{display:none;margin-top:6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent);border-radius:999px;padding:2px 9px;width:max-content}
+#tag.on{display:block}
+.side{top:12px;right:12px;width:310px;max-height:calc(100% - 24px);overflow:auto;padding:4px 14px 12px}
+summary{cursor:pointer;font-size:15px;font-weight:600;padding:8px 0;list-style:none;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'▾';color:var(--muted);font-size:13px}
+details:not([open]) summary::after{content:'▴'}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:12px 0 6px;font-weight:700}
+.slider{display:grid;grid-template-columns:62px 1fr 52px;gap:8px;align-items:center;font-size:13.5px;margin:4px 0}
+.slider output{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent);height:22px;margin:0}
+input[type=range]:disabled{opacity:.45}
+.seg{display:flex;flex-wrap:wrap;gap:3px;background:var(--key);border-radius:6px;padding:3px}
+button{font:inherit;font-size:13px;color:var(--ink);background:transparent;border:0;border-radius:4px;padding:5px 8px;min-height:32px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;justify-content:center}
+button:hover{background:var(--key)}
+button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+button:disabled{opacity:.45;cursor:default}
+.seg button{flex:1 1 auto}
+.row{display:flex;gap:6px;margin-top:10px}
+.row button{flex:1 1 0;background:var(--key)}
+#fixBtn{font-weight:700}
+#fixBtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+kbd{font:inherit;font-size:11px;line-height:1;padding:3px 5px;border-radius:3px;background:var(--key)}
+button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
+.code{margin-top:8px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;background:var(--key);border-radius:6px;padding:7px 8px;word-break:break-all;-webkit-user-select:text;user-select:text}
+.note{font-size:12.5px;line-height:1.45;color:var(--muted);margin:8px 0 0}
+.note b{color:var(--ink);font-weight:600}
+.keys{font-size:12.5px;line-height:1.5;color:var(--muted);margin:8px 0 0}
+.keys b{color:var(--ink);font-weight:600}
+@media (pointer:coarse){ kbd{display:none} .keys .kb{display:none} }
+@media (pointer:fine){ .keys .tp{display:none} }
+@media (max-width:720px){
+  .brand{top:8px;left:8px;padding:7px 10px 8px}
+  .brand h1{font-size:16px}
+  .brand p{display:none}
+  .side{top:auto;bottom:8px;left:8px;right:8px;width:auto;max-height:48%;padding:2px 12px 8px}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="screen" role="img" aria-label="Free camera room: a stone room with four pillars, crates and the hero, drawn from the camera you set"></canvas>
+  <div class="brand panel">
+    <h1>Free camera room <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
+    <p>Four pillars, a few crates and the hero walking a lap, drawn live by the engine from any angle. Drag to turn and tilt, then fix the camera where you like it.</p>
+    <div id="tag">Camera fixed</div>
+  </div>
+  <div class="side panel">
+    <details id="details" open>
+      <summary>Camera</summary>
+      <div class="slider"><label for="yaw">Turn</label><input id="yaw" type="range" min="0" max="359" step="1"><output id="yawOut" for="yaw"></output></div>
+      <div class="slider"><label for="pitch">Tilt</label><input id="pitch" type="range" min="0" max="90" step="1"><output id="pitchOut" for="pitch"></output></div>
+      <div class="slider"><label for="zoom">Zoom</label><input id="zoom" type="range" min="50" max="300" step="5"><output id="zoomOut" for="zoom"></output></div>
+      <div class="slider"><label for="height">Up/down</label><input id="height" type="range" min="-40" max="100" step="1"><output id="heightOut" for="height"></output></div>
+      <div class="slider"><label for="boost" title="Height boost: pixel-art views stretch height a little so things read">Boost</label><input id="boost" type="range" min="100" max="150" step="5"><output id="boostOut" for="boost"></output></div>
+      <div class="row">
+        <button type="button" id="fixBtn" aria-pressed="false"><kbd>F</kbd>Fix camera</button>
+        <button type="button" id="resetBtn"><kbd>R</kbd>Reset</button>
+      </div>
+      <div class="code" id="code" aria-live="polite"></div>
+      <div class="row"><button type="button" id="copyBtn">Copy code</button><button type="button" id="linkBtn">Copy link</button></div>
+
+      <h2>The engine's own views</h2>
+      <div class="seg" role="group" aria-label="Preset views">
+        <button type="button" data-preset="iso"><kbd>1</kbd>Iso</button>
+        <button type="button" data-preset="threequarter"><kbd>2</kbd>¾</button>
+        <button type="button" data-preset="topdown"><kbd>3</kbd>Top</button>
+        <button type="button" data-preset="brawler"><kbd>4</kbd>Brawler</button>
+        <button type="button" data-preset="side"><kbd>5</kbd>Side</button>
+      </div>
+      <p class="note">Each is just one point in this camera's range: a turn, a tilt, a zoom and a boost.</p>
+
+      <h2>Crates</h2>
+      <div class="seg" role="group" aria-label="How the crates are drawn">
+        <button type="button" data-crates="shape">3D shape</button>
+        <button type="button" data-crates="prop">Flat prop</button>
+        <button type="button" data-crates="box">Plain box</button>
+      </div>
+      <p class="note" id="crateNote"></p>
+
+      <h2>Room</h2>
+      <div class="seg" role="group" aria-label="Room options">
+        <button type="button" id="walkBtn" aria-pressed="true">Hero walks</button>
+        <button type="button" id="tiltBtn" aria-pressed="true" title="Steep views draw characters from a lower angle so their faces show">Readable characters</button>
+      </div>
+
+      <p class="keys"><span class="kb"><b>Drag</b> turns and tilts · <b>wheel</b> zooms · <b>WASD</b> or arrows move · <b>Q</b>/<b>E</b> down/up · <b>F</b> fixes · <b>R</b> resets</span><span class="tp"><b>Drag</b> turns and tilts · <b>pinch</b> zooms · <b>two fingers</b> move</span></p>
+      <p class="note"><b>What it can't do:</b> go inside the room at eye level. The engine draws without perspective (far things don't shrink), so there's no first-person view; the closest is a low tilt.</p>
+    </details>
+  </div>
+</div>
+<!-- @inline engine/my-3d2dge.js -->
+<!-- @inline src/shapes-compare.data.js -->
+<!-- @inline src/shapes-raster.js -->
+<!-- @inline src/free-camera.game.js -->
+</body>
+</html>

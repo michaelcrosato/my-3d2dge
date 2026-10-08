@@ -36,6 +36,8 @@ const builds = [
   { template: 'src/mocap.template.html', out: 'examples/mocap-lab.html', vars: {} },
   // temporary (src/labs.json): our flat props beside converted 3D shapes; delete with its labs.json entry once settled
   { template: 'src/shapes-compare.template.html', out: 'examples/shapes-compare.html', vars: {} },
+  // temporary (src/labs.json): a small room and a free camera (turn, tilt, zoom, move, fix); delete with its labs.json entry
+  { template: 'src/free-camera.template.html', out: 'examples/free-camera.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)

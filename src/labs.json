@@ -73,6 +73,14 @@
           "question": "Are 3D models converted to shapes worth building, next to our flat props?",
           "what": "Twelve free 3D models (Kenney and KayKit, CC0) converted to shapes and drawn by the engine in every view and turning, beside the hero and our closest flat prop, ranked from the best case to the worst, with what is off and what would fix it.",
           "links": [["Open", ""]]
+        },
+        {
+          "page": "free-camera",
+          "title": "Free camera room",
+          "added": "2026-10-08",
+          "question": "What does a free camera look like in our engine, and which objects hold up when you turn it?",
+          "what": "A small room with four pillars, crates and the hero walking a lap. Drag to turn and tilt, zoom, move up and down, then fix the camera anywhere and copy its code or link. The crates switch between a converted 3D shape, today's flat prop and the engine's plain box.",
+          "links": [["Open", ""], ["Fixed: low corner", "?cam=320,18,1.6,6,1,104,88"], ["Fixed: straight down", "?cam=0,90,1.2,0,1,104,88"]]
         }
       ]
     }
