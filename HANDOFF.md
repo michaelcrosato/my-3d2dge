@@ -47,7 +47,18 @@ The first render (box shapes, four views, beside our hero and props) worked: rea
 pixels. Problems seen: real-world scale makes them small next to the hero; Kenney's pastel colors; small things (a chair
 from above) become blobs; no lit edges or wood grain like our props.
 
-## Decisions already made
+## The comparison lab (built after the plan, to explain it)
+
+The owner asked to see the idea, so there is a **temporary lab**: Labs page -> Temporary -> **Shapes vs props**
+(`examples/shapes-compare.html`, short address `/shapes-compare`). Twelve models ranked from the best case to the worst,
+each drawn live in four views and turning, beside the hero and our closest flat prop, with what works, what is off and
+what would fix it. Its controls already cover Phase 0's four questions (size, steep-view tilt, lit top edges, floor).
+- Source: `src/shapes-compare.template.html`, `src/shapes-compare.game.js` (a **depth-correct rasterizer** at game size,
+  one tone per face by how it faces the light, the actors' 1-px outline, a cache per facing), `src/shapes-compare.data.js`
+  (written by `handoff/shapes-spike/compare-data.mjs`; boxes only, the prototype encoding).
+- Listed in `src/labs.json` (Temporary, added 2026-10-08), built by `tools/build.mjs`, addressed in `vercel.json`.
+- When the question is settled, delete the three files, the build entry, the `vercel.json` name and the labs entry.
+
 
 - **Encoding (hybrid):** split each model into connected parts (shared vertices and the same material); voxelize each
   part at 1 game unit; encode it as the simplest of **box**, **prism** (an outline extruded along x, y or z) or
@@ -79,8 +90,9 @@ Build one comparison sheet (PNG, plus a 3x enlargement), scratch only:
 - **Encode them with the hybrid encoding** above (so the sheet shows the real format, lathes and prisms included).
   `handoff/shapes-spike/hybrid.mjs` only measures; extend it into an encoder that writes shape text.
 - **Draw them with a small depth-correct rasterizer** into a sprite (whole pixels, tones by face normal), outlined the
-  way the renderer outlines actors (`Renderer._composite` in the engine). `render.mjs` paints box faces in sorted order
-  with no depth buffer: replace that. Draw the final sprite with `px.sprite` (engine primitives only).
+  way the renderer outlines actors (`Renderer._composite` in the engine). The comparison lab's `raster()` in
+  `src/shapes-compare.game.js` already does this for boxes: extend it to prisms and lathes. Draw the final sprite with
+  `px.sprite` (engine primitives only).
 - **Every shape in the iso, threequarter, topdown and brawler views** (`E.VIEWS`), at game scale (1x), beside our hero
   (`new E.Humanoid`) and our props crate, barrel and chest, on at least two Emberdeep theme floor colors.
 - **Variants for the four decisions:**
@@ -118,7 +130,8 @@ The previous session's copies may still be at
 | `boxes.mjs <dir> <out.js> [U]` | Voxel + greedy boxes for every model; writes a shapes file |
 | `hybrid.mjs <dir>` (env `U`, `THR`) | Measures the hybrid encoding; writes nothing |
 | `classify.mjs <dir>` | Exact box / prism / lathe detection (the 30% result) |
-| `render.mjs <shapes.js> <out.png>` | Draws box shapes in four views beside the hero and three props, using the engine |
+| `render.mjs <shapes.js> <out.png>` | Draws box shapes in four views beside the hero and three props (painter's order, superseded by the lab's rasterizer) |
+| `compare-data.mjs <kenney dir> <kaykit dir> <out.js>` | Writes the comparison lab's data: the twelve models, their numbers and card notes |
 
 ## The plan after Phase 0
 

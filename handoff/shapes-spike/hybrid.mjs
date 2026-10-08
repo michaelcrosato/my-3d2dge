@@ -5,6 +5,7 @@
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { readGlb } from './glb.mjs';
+import { pathToFileURL } from 'node:url';
 const U = +process.env.U || 1, THR = +process.env.THR || .85, dirs = process.argv.slice(2);
 function voxelPart(T) {   // T: triangles in game units -> { o, n, cells: Uint8Array }
   let lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9]; for (const t of T) for (const v of t) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[k] / U); hi[k] = Math.max(hi[k], v[k] / U); }
@@ -44,9 +45,10 @@ function bestFit({ n, cells, I }) {
     for (let Z = z; Z <= z1; Z++) for (let Y = y; Y <= y1; Y++) for (let X = x; X <= x1; X++) used[I(X, Y, Z)] = 1; nb++; }
   return { kind: 'boxes', cost: nb };
 }
-const kinds = {}, perModel = [];
-for (const dir of dirs) for (const f of readdirSync(dir).filter(f => f.endsWith('.glb'))) {
-  const { tris } = readGlb(join(dir, f)), g = v => [v[0] * 16, -v[2] * 16, v[1] * 16];
+/** the hybrid encoding's line count for one model, and its parts by encoding */
+export function hybridCount(file) {
+  const kinds = {};
+  const { tris } = readGlb(file), g = v => [v[0] * 16, -v[2] * 16, v[1] * 16];
   // parts: connected by shared vertices (eighth-unit grid), split by material too
   const key = v => v.map(c => Math.round(c * 8)).join(), id = new Map(), P = [], find = i => P[i] === i ? i : (P[i] = find(P[i]));
   const TT = tris.map(t => ({ m: t.m, v: t.v.map(g) })), vi = TT.map(t => t.v.map(v => { const k = t.m + '|' + key(v); if (!id.has(k)) { id.set(k, P.length); P.push(P.length); } return id.get(k); }));
@@ -54,8 +56,15 @@ for (const dir of dirs) for (const f of readdirSync(dir).filter(f => f.endsWith(
   const parts = new Map(); TT.forEach((t, i) => { const r = find(vi[i][0]); (parts.get(r) || parts.set(r, []).get(r)).push(t.v); });
   let prims = 0;
   for (const T of parts.values()) { const r = bestFit(voxelPart(T)); kinds[r.kind] = (kinds[r.kind] || 0) + 1; prims += r.kind === 'boxes' ? r.cost : 1; }
-  perModel.push([f, prims, parts.size]);
+  return { lines: prims, parts: parts.size, kinds };
 }
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {   // (run as a command, not imported)
+  const kinds = {}, perModel = [];
+  for (const dir of dirs) for (const f of readdirSync(dir).filter(f => f.endsWith('.glb'))) {
+    const r = hybridCount(join(dir, f)); for (const k in r.kinds) kinds[k] = (kinds[k] || 0) + r.kinds[k];
+    perModel.push([f, r.lines, r.parts]);
+  }
 perModel.sort((a, b) => a[1] - b[1]); const m = perModel[perModel.length >> 1], p9 = perModel[Math.floor(perModel.length * .9)];
 console.log(`U=${U} THR=${THR}: ${perModel.length} models; parts by encoding:`, JSON.stringify(kinds));
 console.log(`primitives (lines) per model: median ${m[1]}, p90 ${p9[1]}, max ${perModel.at(-1)[1]} (${perModel.at(-1)[0]})`);
+}

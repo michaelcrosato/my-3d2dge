@@ -4,6 +4,7 @@
 import { readdirSync, writeFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { readGlb } from './glb.mjs';
+import { pathToFileURL } from 'node:url';
 export function boxes(file, U = 1) {
   const { tris, mats } = readGlb(file), S = 16 / U;   // cells per metre
   const T = tris.map(t => ({ m: t.m, v: t.v.map(v => [v[0] * S, -v[2] * S, v[1] * S]) }));   // y-up -> z-up, y south
@@ -31,7 +32,7 @@ export function boxes(file, U = 1) {
   const hex = c => '#' + c.map(x => x.toString(16).padStart(2, '0')).join('');
   return { mats: mats.map(m => hex(m.rgb)), boxes: B };
 }
-if (process.argv[2]) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2]) {   // (run as a command, not imported)
   const dir = process.argv[2], res = {}; let glb = 0, nb = [];
   for (const f of readdirSync(dir).filter(f => f.endsWith('.glb'))) { const r = boxes(join(dir, f), +(process.argv[4] || 1)); res[f.replace('.glb', '')] = r; glb += statSync(join(dir, f)).size; nb.push(r.boxes.length); }
   const txt = '(window.SHAPES = window.SHAPES || {}).FURNITURE = {\n' + Object.entries(res).map(([k, r]) => JSON.stringify(k) + ': {"mats": ' + JSON.stringify(r.mats) + ', "boxes": [\n  ' + r.boxes.map(b => JSON.stringify(b)).join(',\n  ') + ']}').join(',\n') + '\n};\n';
