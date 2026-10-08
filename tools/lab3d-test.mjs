@@ -10,6 +10,8 @@
 //      to a texture the test reads back for the pictures): the whole WebGPU pipeline runs, only presenting is skipped
 //   4. it plays: the hero walks and swings under the keys and knocks crates about
 //   5. every camera and look draws a picture (screenshots in check-output/lab3d/, read them)
+//   6. the 3D stress test (/stress-3d: the 2D stress test's own game drawn by three.js) on both backends: a fight with every
+//      monster kind draws as cards and as puppets, the panel's numbers fill in, the hero moves under the keys
 // Usage: node tools/lab3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -33,18 +35,20 @@ const BANNED = [
   [/\bcompute\s*\(|\bStorageBufferAttribute\b|\bstorage\s*\(|\bcomputeAsync\b/, 'compute shaders or storage buffers (WebGPU only)'],
   [/readRenderTargetPixels|getImageData\s*\(|readPixels\s*\(/, 'reading pixels back (nothing comes back from the GPU into gameplay)']
 ];
-const srcs = readdirSync(join(root, 'src/lab3d')).filter(f => f.endsWith('.js')).map(f => 'src/lab3d/' + f);
-for (const f of [...srcs, 'src/lab3d.template.html']) {
+const srcs = ['src/lab3d', 'src/stress3d'].flatMap(d => readdirSync(join(root, d)).filter(f => f.endsWith('.js')).map(f => d + '/' + f));
+for (const f of [...srcs, 'src/lab3d.template.html', 'src/stress3d.template.html']) {
   const lines = readFileSync(join(root, f), 'utf8').split('\n');
   lines.forEach((line, i) => {
     const code = line.replace(/\/\/.*$|\/\*.*?\*\/|^\s*\*.*$/g, '');   // comments may name what is banned
     for (const [re, why] of BANNED) if (re.test(code)) fail(`${f}:${i + 1}: ${why}`);
   });
 }
-const map = JSON.parse(readFileSync(join(root, 'src/lab3d.template.html'), 'utf8').match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]);
-for (const [k, v] of Object.entries(map.imports)) {
-  if (!v.startsWith('/vendor/')) fail(`import map: ${k} -> ${v} is not a vendored file`);
-  else if (!existsSync(join(root, v))) fail(`import map: ${k} -> ${v} does not exist`);
+for (const tpl of ['src/lab3d.template.html', 'src/stress3d.template.html']) {
+  const map = JSON.parse(readFileSync(join(root, tpl), 'utf8').match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]);
+  for (const [k, v] of Object.entries(map.imports)) {
+    if (!v.startsWith('/vendor/')) fail(`${tpl} import map: ${k} -> ${v} is not a vendored file`);
+    else if (!existsSync(join(root, v))) fail(`${tpl} import map: ${k} -> ${v} does not exist`);
+  }
 }
 
 /* 3. the page, served like Vercel (vercel.json's rewrites) */
@@ -146,9 +150,50 @@ for (const want of ['webgl', 'webgpu']) {
   for (const e of errors) fail(`${label}: ${e}`);
   await page.close();
 }
+/* 6. the 3D stress test */
+const stressOk = [];
+for (const want of ['webgl', 'webgpu']) {
+  const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+  if (want === 'webgpu') await page.addInitScript(standInCanvas);
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  const r = await page.goto(SITE + '/stress-3d' + (want === 'webgl' ? '?backend=webgl' : ''));
+  if (!r || r.status() !== 200) { fail(`/stress-3d (${want}): status ${r && r.status()}`); await page.close(); continue; }
+  try { await page.waitForFunction(() => window.__stress3d && (__stress3d.ready || __stress3d.error), null, { timeout: 90000 }); }
+  catch (e) { fail(`stress-3d ${want}: it did not start in 90 s`); await page.close(); continue; }
+  const st = await page.evaluate(() => ({ error: __stress3d.error || null, backend: __stress3d.backend }));
+  if (st.error) { fail(`stress-3d ${want}: ${st.error}`); await page.close(); continue; }
+  const label = st.backend === 'WebGPU' ? 'webgpu' : 'webgl';
+  if (want === 'webgpu' && label !== 'webgpu') { await page.close(); continue; }
+  // a fight: every kind of monster and rig, run forward in the game's own steps, the hero swinging through them
+  await page.evaluate(() => { const G = __game, g = G.game; G.S.skin = 'mixed'; G.setMonsters(36, true); for (let i = 0; i < 600; i++) g._step(1 / 120); for (let k = 0; k < 10; k++) { G.hero.combo.press(); for (let i = 0; i < 22; i++) g._step(1 / 120); } });
+  for (const look of ['card', 'puppet']) {
+    await page.evaluate(l => __stress3d.set('look', l), look);
+    const f0 = await page.evaluate(() => __stress3d.stats.frames);
+    await page.waitForFunction(n => __stress3d.stats.frames > n + 12, f0, { timeout: 60000 }).catch(() => fail(`stress-3d ${label} ${look}: frames stopped`));
+    const drawn = await page.evaluate(() => __stress3d.stats.drawn);
+    if (drawn < 10) fail(`stress-3d ${label} ${look}: only ${drawn} characters drawn`);
+    let png;
+    if (label === 'webgl') png = await page.screenshot({ path: join(OUT, `stress-${label}-${look}.png`) });
+    else { png = Buffer.from((await page.evaluate(() => __readFrame(3))).split(',')[1], 'base64'); writeFileSync(join(OUT, `stress-${label}-${look}.png`), png); }
+    if (png.length < 25000) fail(`stress-3d ${label} ${look}: the picture looks blank (${png.length} bytes)`);
+  }
+  // the panel's numbers, and the hero under the keys (the 2D page's own controls)
+  const panel = await page.evaluate(() => ['fpsBig', 'mMonsters', 'mRender', 'mGpu'].map(id => document.getElementById(id).textContent));
+  if (!/\d/.test(panel[1]) || !/three\.js/.test(panel[3])) fail(`stress-3d ${label}: the panel's numbers did not fill in (${panel.join(' | ')})`);
+  await page.evaluate(() => __game.setMonsters(0));
+  const h0 = await page.evaluate(() => [__game.hero.x, __game.hero.y]);
+  await page.keyboard.down('KeyD'); await page.waitForTimeout(1500); await page.keyboard.up('KeyD');
+  const h1 = await page.evaluate(() => [__game.hero.x, __game.hero.y]);
+  if (Math.hypot(h1[0] - h0[0], h1[1] - h0[1]) < 2) fail(`stress-3d ${label}: the hero did not move under the keys`);
+  for (const e of errors) fail(`stress-3d ${label}: ${e}`);
+  stressOk.push(label);
+  await page.close();
+}
 await browser.close();
 server.close();
 if (results.webgl && results.webgpu && results.webgl !== results.webgpu) fail(`the proof run differs: WebGL 2 ${results.webgl}, WebGPU ${results.webgpu}`);
 writeFileSync(join(OUT, 'results.json'), JSON.stringify({ results, notes, problems }, null, 2));
 if (problems.length) { console.error('lab 3D check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`lab 3D check passed: vendored files verified, rules kept in ${srcs.length} files, proof run ${Object.entries(results).map(([k, v]) => k + ' ' + v).join(' = ')}, it plays, ${Object.keys(results).length * 11} pictures in check-output/lab3d/${notes.length ? ' (' + notes.join('; ') + ')' : ''}`);
+console.log(`lab 3D check passed: vendored files verified, rules kept in ${srcs.length} files, proof run ${Object.entries(results).map(([k, v]) => k + ' ' + v).join(' = ')}, it plays, ${Object.keys(results).length * 11} pictures; the 3D stress test fights in both looks on ${stressOk.join(' and ')}; pictures in check-output/lab3d/${notes.length ? ' (' + notes.join('; ') + ')' : ''}`);

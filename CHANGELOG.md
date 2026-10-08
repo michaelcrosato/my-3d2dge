@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.10.0 (2026-10-08)
+
+The stress test drawn in real 3D by three.js, for a head-to-head with the engine's own renderer (`docs/LAB-3D.md`, *The 3D stress test*).
+
+- **Rendering**: the 3D stress test (`/stress-3d`, Labs → Temporary → Stress test in 3D): the stress test's hall, hero, walkers, slimes, wisps and the fallen drawn by three.js r182 (WebGPU, or WebGL 2; `?backend=webgl` forces it) with the engine's own camera (view, zoom, turn, height boost, shake), so it frames and aims like the 2D page. Two looks (C switches): **Card** (the engine draws each character onto a card in the hall, from one sprite atlas) and **Puppet** (3D parts on the same joints in shared instanced batches, with outlines, torchlight and shadows). X switches between the engine's pixels and full resolution.
+- **Rendering** (combat): telegraph arcs on the floor during wind-ups, blade and claw trails as ribbons, bolts with their own lights, every particle kind, damage numbers and notes in the engine's pixel font. The lights are a fixed set: up to 30 torches (the two nearest the hero cast shadows), up to four wisp and four bolt lights.
+- **Engine** (stress test): the 3D page runs the 2D page's game code unchanged and replaces only the loop's drawing step, so gameplay, controls, the panel, its metrics ("Drawing (CPU)" is timed the same way) and the benchmark are the same on both. The game hands the 3D page its map, torches, shots and frame numbers, and the benchmark's report names the renderer that drew it.
+- **Tools**: `tools/lab3d-test.mjs` also checks the 3D stress test on WebGL 2 and WebGPU: a fight with every monster kind in both looks, the panel's numbers, the hero under the keys, no errors; and keeps its rules (no `WebGLRenderer`, `ShaderMaterial`, compute or GPU read-backs) in `src/stress3d/`.
+- **Docs**: `docs/LAB-3D.md` describes the 3D stress test, where it differs from the 2D page and why, and a three.js r182 bug to remember (an `InstancedMesh` of more than 1,000 instances with `DynamicDrawUsage` never sends its changes to the GPU).
+
 ## 0.9.0 (2026-10-08)
 
 A temporary lab that puts our characters in a fully 3D world, to see what carries over (the plan and its trade-offs: `docs/LAB-3D.md`), and the camera labs that led to it.

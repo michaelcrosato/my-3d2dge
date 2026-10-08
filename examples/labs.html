@@ -145,6 +145,14 @@ const LABS = {
           "question": "Can our characters, animation and look live in a real 3D world (three.js r182 and Rapier), with all its art drawn by code, and stay easy for AI agents to work on?",
           "what": "A stone room in real 3D (three.js r182 on WebGPU, or WebGL 2 by itself, and Rapier physics), every texture and shape drawn by code. The hero walks a lap or you play it (move, swing, dash, knock the crates about); a mocap figure and Emberdeep's Dan stand by. Each character is a Card (the engine's own drawing on a card facing the camera) or a Puppet (3D parts on the same joints), or both side by side, in the engine's five fixed views or a free orbit, fly or chase camera. The plan and the trade-offs are in docs/LAB-3D.md.",
           "links": [["Open", ""], ["Side by side", "?look=both&view=threequarter"], ["Puppets, fly", "?look=puppet&view=fly"], ["Play: chase camera", "?view=chase"], ["On WebGL 2", "?backend=webgl"]]
+        },
+        {
+          "page": "stress-3d",
+          "title": "Stress test in 3D",
+          "added": "2026-10-08",
+          "question": "Head to head: how does the stress test hold up drawn by three.js in real 3D, next to our own 2D renderer?",
+          "what": "The stress test itself (the same game code: hall, hero, walkers, slimes, wisps, combat, waves, panel, metrics and benchmark) drawn by three.js r182 on WebGPU or WebGL 2 in place of the engine's canvas. The monsters are Cards (the engine's own drawing standing in the 3D hall) or Puppets (3D parts on the same joints, with torchlight and shadows); C switches, X switches between the engine's pixels and full resolution. Run the benchmark on both pages to compare.",
+          "links": [["Open", ""], ["Puppets", "?look=puppet"], ["Full resolution", "?pixels=0"], ["Three-quarter view", "?view=threequarter"], ["On WebGL 2", "?backend=webgl"]]
         }
       ]
     }
@@ -178,7 +186,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Developer panel.');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.9.0 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.10.0 · dev-build', foot);
 </script>
 </body>
 </html>
