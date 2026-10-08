@@ -176,6 +176,14 @@ for (const want of ['webgl', 'webgpu']) {
   if (st.error) { fail(`stress-3d ${want}: ${st.error}`); await page.close(); continue; }
   const label = st.backend === 'WebGPU' ? 'webgpu' : 'webgl';
   if (want === 'webgpu' && label !== 'webgpu') { await page.close(); continue; }
+  // hold a key for so much game time (not wall time: on the WebGPU stand-in a frame can take half a second, and the
+  // engine caps the game time one frame may step)
+  const hold = async (code, seconds) => {
+    const t0 = await page.evaluate(() => __game.game.time);
+    await page.keyboard.down(code);
+    await page.waitForFunction(t => __game.game.time > t, t0 + seconds, { timeout: 60000 }).catch(() => fail(`stress-3d ${label}: the game stopped while ${code} was held`));
+    await page.keyboard.up(code);
+  };
   const frames = async (what, n = 8) => { const f0 = await page.evaluate(() => __stress3d.stats.frames); await page.waitForFunction(k => __stress3d.stats.frames > k, f0 + n, { timeout: 60000 }).catch(() => fail(`stress-3d ${label} ${what}: frames stopped`)); };
   const pipelines = () => page.evaluate(() => { const p = __stress3d.renderer._pipelines; return p && p.caches ? p.caches.size : null; });
   await frames('start', 3);
@@ -212,7 +220,7 @@ for (const want of ['webgl', 'webgpu']) {
   await page.evaluate(() => { __game.setMonsters(0); });
   const away = async () => {
     const before = await page.evaluate(() => [__game.hero.x, __game.hero.y, __stress3d.CAM.pose.yaw]);
-    await page.keyboard.down('KeyW'); await page.waitForTimeout(1200); await page.keyboard.up('KeyW');
+    await hold('KeyW', .6);
     const after = await page.evaluate(() => [__game.hero.x, __game.hero.y]);
     return (after[0] - before[0]) * Math.cos(before[2]) + (after[1] - before[1]) * Math.sin(before[2]);
   };
@@ -235,9 +243,9 @@ for (const want of ['webgl', 'webgpu']) {
   // the hero under the keys (the 2D page's own controls, the engine camera)
   await page.evaluate(() => __game.setMonsters(0));
   const h0 = await page.evaluate(() => [__game.hero.x, __game.hero.y]);
-  await page.keyboard.down('KeyD'); await page.waitForTimeout(1500); await page.keyboard.up('KeyD');
+  await hold('KeyD', .6);
   const h1 = await page.evaluate(() => [__game.hero.x, __game.hero.y]);
-  if (Math.hypot(h1[0] - h0[0], h1[1] - h0[1]) < 2) fail(`stress-3d ${label}: the hero did not move under the keys`);
+  if (Math.hypot(h1[0] - h0[0], h1[1] - h0[1]) < 4) fail(`stress-3d ${label}: the hero did not move under the keys`);
   for (const e of errors) fail(`stress-3d ${label}: ${e}`);
   stressOk.push(label);
   await page.close();
