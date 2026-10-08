@@ -121,7 +121,32 @@ const LABS = {
       "id": "temporary",
       "title": "Temporary",
       "empty": "Nothing here right now. One-off comparisons and experiments land here, with the date and the question each one answers, and are deleted once it is settled.",
-      "entries": []
+      "entries": [
+        {
+          "page": "shapes-compare",
+          "title": "Shapes vs props",
+          "added": "2026-10-08",
+          "question": "Are 3D models converted to shapes worth building, next to our flat props?",
+          "what": "Twelve free 3D models (Kenney and KayKit, CC0) converted to shapes and drawn by the engine in every view and turning, beside the hero and our closest flat prop, ranked from the best case to the worst, with what is off and what would fix it.",
+          "links": [["Open", ""]]
+        },
+        {
+          "page": "free-camera",
+          "title": "Free camera room",
+          "added": "2026-10-08",
+          "question": "What does a free camera look like in our engine, and which objects hold up when you turn it?",
+          "what": "A small room with four pillars, crates and the hero walking a lap. Drag to turn and tilt, zoom, move up and down, then fix the camera anywhere and copy its code or link. The crates switch between a converted 3D shape, today's flat prop and the engine's plain box. Fly mode (G) is a first-person camera on a small renderer of its own, to show what the engine can't do and what carries over.",
+          "links": [["Open", ""], ["Fixed: low corner", "?cam=320,18,1.6,6,1,104,88"], ["Fixed: straight down", "?cam=0,90,1.2,0,1,104,88"], ["Fly: eye level", "?fly=104,150,20,-90,-7,70"]]
+        },
+        {
+          "page": "lab-3d",
+          "title": "3D world lab",
+          "added": "2026-10-08",
+          "question": "Can our characters, animation and look live in a real 3D world (three.js r182 and Rapier), with all its art drawn by code, and stay easy for AI agents to work on?",
+          "what": "A stone room in real 3D (three.js r182 on WebGPU, or WebGL 2 by itself, and Rapier physics), every texture and shape drawn by code. The hero walks a lap or you play it (move, swing, dash, knock the crates about); a mocap figure and Emberdeep's Dan stand by. Each character is a Card (the engine's own drawing on a card facing the camera) or a Puppet (3D parts on the same joints), or both side by side, in the engine's five fixed views or a free orbit, fly or chase camera. The plan and the trade-offs are in docs/LAB-3D.md.",
+          "links": [["Open", ""], ["Side by side", "?look=both&view=threequarter"], ["Puppets, fly", "?look=puppet&view=fly"], ["Play: chase camera", "?view=chase"], ["On WebGL 2", "?backend=webgl"]]
+        }
+      ]
     }
   ]
 }
@@ -153,7 +178,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Developer panel.');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.8.1 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.9.0 · dev-build', foot);
 </script>
 </body>
 </html>
