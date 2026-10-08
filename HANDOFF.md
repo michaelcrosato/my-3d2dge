@@ -68,7 +68,12 @@ address as `?cam=yaw,pitch,zoom,height,boost,x,y`, and the panel prints the `new
 crates switch between the shape, the flat prop and the engine's `r.box`, which shows the case for shapes better than
 any sheet: the prop shows the same side from every angle. Turning costs a frame or two per new angle (the engine
 redraws its floor image and wall blocks for each view; about 12 ms floor at zoom 1, 50 ms at zoom 3 in headless
-Chromium), which a game with a fixed camera never pays. Delete it the same way.
+Chromium), which a game with a fixed camera never pays. Its **fly mode** (G, or `?fly=x,y,z,yaw,pitch,fov`) is a
+first-person camera the engine can't give: `src/free-camera.fly.js` is a small software renderer (depth buffer,
+perspective-correct texturing, near-plane clipping, outlines from depth) at 135-270 lines that redraws the room in
+perspective. It takes from the engine the colors, the floor texture function, the brick look, the converted crate,
+the flat props and the hero (the engine draws him from the camera's angle and distance each frame; he is pasted in as
+a billboard). About 5-13 ms a frame at 180 lines in headless Chromium. Delete it the same way.
 
 
 - **Encoding (hybrid):** split each model into connected parts (shared vertices and the same material); voxelize each

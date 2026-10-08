@@ -6,8 +6,10 @@
 <title>Free camera room · my-3D2dge</title>
 <!--
   A temporary lab (src/labs.json, "Temporary"): a small room (four pillars, crates, the hero walking) and a free camera
-  that turns, tilts, zooms, moves and fixes anywhere the engine's camera can go. Built from src/free-camera.template.html
-  and src/free-camera.game.js (plus the shared src/shapes-raster.js and src/shapes-compare.data.js) by tools/build.mjs.
+  that turns, tilts, zooms, moves and fixes anywhere the engine's camera can go, plus a fly mode (a first-person camera
+  on a small renderer of its own, src/free-camera.fly.js). Built from src/free-camera.template.html,
+  src/free-camera.game.js and src/free-camera.fly.js (plus the shared src/shapes-raster.js and
+  src/shapes-compare.data.js) by tools/build.mjs.
   Delete it (and its labs.json entry) once the question is settled.
 -->
 <style>
@@ -26,6 +28,8 @@ body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Tre
 #screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;cursor:grab;touch-action:none}
 #screen.dragging{cursor:grabbing}
 #screen.fixed{cursor:default}
+#fly{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges;cursor:crosshair;touch-action:none}
+#fly[hidden],#screen[hidden]{display:none}
 .panel{position:absolute;z-index:2;background:var(--panel);border:1px solid var(--line);border-radius:8px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .brand{top:12px;left:12px;padding:9px 13px 10px;max-width:min(380px,calc(100% - 24px))}
 .brand h1{margin:0;font-size:20px;font-weight:600;line-height:1.15}
@@ -61,6 +65,11 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 .note b{color:var(--ink);font-weight:600}
 .keys{font-size:12.5px;line-height:1.5;color:var(--muted);margin:8px 0 0}
 .keys b{color:var(--ink);font-weight:600}
+.note.warn{margin:10px 0 8px;padding:7px 9px;border-radius:6px;background:var(--key);color:var(--ink)}
+.list{margin:4px 0 0;padding-left:18px;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.list li{margin:3px 0}
+.list b{color:var(--ink);font-weight:600}
+[hidden]{display:none !important}
 @media (pointer:coarse){ kbd{display:none} .keys .kb{display:none} }
 @media (pointer:fine){ .keys .tp{display:none} }
 @media (max-width:720px){
@@ -74,35 +83,71 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <body>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Free camera room: a stone room with four pillars, crates and the hero, drawn from the camera you set"></canvas>
+  <canvas id="fly" hidden role="img" aria-label="Fly mode: the same room from a first-person camera you steer with the keyboard and mouse"></canvas>
   <div class="brand panel">
     <h1>Free camera room <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
-    <p>Four pillars, a few crates and the hero walking a lap, drawn live by the engine from any angle. Drag to turn and tilt, then fix the camera where you like it.</p>
+    <p id="brandNote"></p>
     <div id="tag">Camera fixed</div>
   </div>
   <div class="side panel">
     <details id="details" open>
       <summary>Camera</summary>
-      <div class="slider"><label for="yaw">Turn</label><input id="yaw" type="range" min="0" max="359" step="1"><output id="yawOut" for="yaw"></output></div>
-      <div class="slider"><label for="pitch">Tilt</label><input id="pitch" type="range" min="0" max="90" step="1"><output id="pitchOut" for="pitch"></output></div>
-      <div class="slider"><label for="zoom">Zoom</label><input id="zoom" type="range" min="50" max="300" step="5"><output id="zoomOut" for="zoom"></output></div>
-      <div class="slider"><label for="height">Up/down</label><input id="height" type="range" min="-40" max="100" step="1"><output id="heightOut" for="height"></output></div>
-      <div class="slider"><label for="boost" title="Height boost: pixel-art views stretch height a little so things read">Boost</label><input id="boost" type="range" min="100" max="150" step="5"><output id="boostOut" for="boost"></output></div>
-      <div class="row">
-        <button type="button" id="fixBtn" aria-pressed="false"><kbd>F</kbd>Fix camera</button>
-        <button type="button" id="resetBtn"><kbd>R</kbd>Reset</button>
+      <div class="seg" role="group" aria-label="Camera mode">
+        <button type="button" data-mode="orbit">Engine camera</button>
+        <button type="button" data-mode="fly"><kbd>G</kbd>Fly (first person)</button>
       </div>
-      <div class="code" id="code" aria-live="polite"></div>
-      <div class="row"><button type="button" id="copyBtn">Copy code</button><button type="button" id="linkBtn">Copy link</button></div>
 
-      <h2>The engine's own views</h2>
-      <div class="seg" role="group" aria-label="Preset views">
-        <button type="button" data-preset="iso"><kbd>1</kbd>Iso</button>
-        <button type="button" data-preset="threequarter"><kbd>2</kbd>¾</button>
-        <button type="button" data-preset="topdown"><kbd>3</kbd>Top</button>
-        <button type="button" data-preset="brawler"><kbd>4</kbd>Brawler</button>
-        <button type="button" data-preset="side"><kbd>5</kbd>Side</button>
+      <div id="orbitUI">
+        <h2>The engine's camera</h2>
+        <div class="slider"><label for="yaw">Turn</label><input id="yaw" type="range" min="0" max="359" step="1"><output id="yawOut" for="yaw"></output></div>
+        <div class="slider"><label for="pitch">Tilt</label><input id="pitch" type="range" min="0" max="90" step="1"><output id="pitchOut" for="pitch"></output></div>
+        <div class="slider"><label for="zoom">Zoom</label><input id="zoom" type="range" min="50" max="300" step="5"><output id="zoomOut" for="zoom"></output></div>
+        <div class="slider"><label for="height">Up/down</label><input id="height" type="range" min="-40" max="100" step="1"><output id="heightOut" for="height"></output></div>
+        <div class="slider"><label for="boost" title="Height boost: pixel-art views stretch height a little so things read">Boost</label><input id="boost" type="range" min="100" max="150" step="5"><output id="boostOut" for="boost"></output></div>
+        <div class="row">
+          <button type="button" id="fixBtn" aria-pressed="false"><kbd>F</kbd>Fix camera</button>
+          <button type="button" id="resetBtn"><kbd>R</kbd>Reset</button>
+        </div>
+        <div class="code" id="code" aria-live="polite"></div>
+        <div class="row"><button type="button" id="copyBtn">Copy code</button><button type="button" id="linkBtn">Copy link</button></div>
+
+        <h2>The engine's own views</h2>
+        <div class="seg" role="group" aria-label="Preset views">
+          <button type="button" data-preset="iso"><kbd>1</kbd>Iso</button>
+          <button type="button" data-preset="threequarter"><kbd>2</kbd>¾</button>
+          <button type="button" data-preset="topdown"><kbd>3</kbd>Top</button>
+          <button type="button" data-preset="brawler"><kbd>4</kbd>Brawler</button>
+          <button type="button" data-preset="side"><kbd>5</kbd>Side</button>
+        </div>
+        <p class="note">Each is just one point in this camera's range: a turn, a tilt, a zoom and a boost.</p>
+        <p class="keys"><span class="kb"><b>Drag</b> turns and tilts · <b>wheel</b> zooms · <b>WASD</b> or arrows move · <b>Q</b>/<b>E</b> down/up · <b>F</b> fixes · <b>R</b> resets</span><span class="tp"><b>Drag</b> turns and tilts · <b>pinch</b> zooms · <b>two fingers</b> move</span></p>
+        <p class="note"><b>What it can't do:</b> go inside the room at eye level. The engine draws without perspective (far things don't shrink), so it has no first-person view. Fly mode shows what that would take.</p>
       </div>
-      <p class="note">Each is just one point in this camera's range: a turn, a tilt, a zoom and a boost.</p>
+
+      <div id="flyUI" hidden>
+        <p class="note warn"><b>This is not the engine drawing.</b> The engine has no perspective, so fly mode uses a small first-person renderer written for this lab, fed by the engine where it can be.</p>
+        <div class="slider"><label for="fov">View</label><input id="fov" type="range" min="45" max="110" step="1"><output id="fovOut" for="fov"></output></div>
+        <div class="seg" role="group" aria-label="Pixels (lines of resolution)">
+          <button type="button" data-lines="135">Chunky</button>
+          <button type="button" data-lines="180">180 lines</button>
+          <button type="button" data-lines="270">270 lines</button>
+        </div>
+        <div class="seg" role="group" aria-label="Fly options" style="margin-top:6px">
+          <button type="button" id="outlineBtn" aria-pressed="true">Outlines</button>
+          <button type="button" id="fogBtn" aria-pressed="true">Fog</button>
+          <button type="button" id="collideBtn" aria-pressed="true">Solid walls</button>
+        </div>
+        <div class="code" id="flyCode" aria-live="polite"></div>
+        <div class="row"><button type="button" id="flyLinkBtn">Copy link</button><button type="button" id="flyHomeBtn">Back to start</button></div>
+        <p class="keys"><span class="kb"><b>Click</b> the view to steer with the mouse (<b>Esc</b> frees it) · <b>WASD</b> fly · <b>Space</b>/<b>E</b> up · <b>Q</b>/<b>C</b> down · <b>Shift</b> faster · arrows turn</span><span class="tp"><b>Drag</b> looks around · <b>two fingers</b> fly forward, back and sideways</span></p>
+        <h2>What carries over from the engine</h2>
+        <ul class="list">
+          <li><b>Comes across:</b> the colors (its tone ramps), the floor's stone texture, the wall bricks, the converted crate, and the hero: the engine draws him from your exact angle every frame, then he's pasted in like a sprite in Doom.</li>
+          <li><b>Had to be rewritten:</b> perspective itself; walls, floor and boxes drawn in 3D; outlines (found from depth here, not drawn around each character).</li>
+          <li><b>Missing:</b> the engine's lighting, cut-away walls, x-ray, particles.</li>
+          <li><b>Not quite right:</b> the hero and the flat props are flat cut-outs, so up close or from straight above they read as pictures; the far floor shimmers; there's no ceiling.</li>
+        </ul>
+      </div>
 
       <h2>Crates</h2>
       <div class="seg" role="group" aria-label="How the crates are drawn">
@@ -117,9 +162,6 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
         <button type="button" id="walkBtn" aria-pressed="true">Hero walks</button>
         <button type="button" id="tiltBtn" aria-pressed="true" title="Steep views draw characters from a lower angle so their faces show">Readable characters</button>
       </div>
-
-      <p class="keys"><span class="kb"><b>Drag</b> turns and tilts · <b>wheel</b> zooms · <b>WASD</b> or arrows move · <b>Q</b>/<b>E</b> down/up · <b>F</b> fixes · <b>R</b> resets</span><span class="tp"><b>Drag</b> turns and tilts · <b>pinch</b> zooms · <b>two fingers</b> move</span></p>
-      <p class="note"><b>What it can't do:</b> go inside the room at eye level. The engine draws without perspective (far things don't shrink), so there's no first-person view; the closest is a low tilt.</p>
     </details>
   </div>
 </div>
@@ -4807,8 +4849,9 @@ window.SHAPES_COMPARE = [
  * SHAPE RASTER (temporary, shared by the Shapes vs props lab and the Free camera room, src/labs.json "Temporary"):
  * draws a converted 3D model (a list of boxes, src/shapes-compare.data.js) at game size from any view and facing. Every
  * visible box face is rasterized with a small depth buffer (whole pixels, nearer wins) and shaded with a tone of
- * E.tones by how it faces the light; window.ShapeRaster.outline adds the renderer's 1-px actor outline. Throwaway: it
- * goes with the last of the two labs (HANDOFF.md, the Shapes library plan).
+ * E.tones by how it faces the light; window.ShapeRaster.outline adds the renderer's 1-px actor outline, and tone()
+ * gives the Free camera room's fly mode the same shading. Throwaway: it goes with the last of the two labs (HANDOFF.md,
+ * the Shapes library plan).
  * ============================================================================= */
 (() => {
 'use strict';
@@ -4833,6 +4876,11 @@ function prep(d) {
   d.T = d.mats.map(m => { const t = E.tones(m); return { deep: rgb(t.deep), sh: rgb(t.sh), base: rgb(t.base), lt: rgb(t.lt), hi: rgb(t.hi) }; });
   return d;
 }
+/** the tone [r, g, b] a face of material m gets when its outward normal (world, unit length) is n */
+function tone(d, m, n) {
+  const lit = n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2], t = d.T[m] || d.T[0];
+  return lit > .6 ? t.lt : lit > .15 ? t.base : lit > -.35 ? t.sh : t.deep;
+}
 // a box's corners (bit 0 x, bit 1 y, bit 2 z) and its faces: [corners in order, outward normal]
 const FACES = [[[4, 5, 7, 6], [0, 0, 1]], [[0, 2, 3, 1], [0, 0, -1]], [[1, 3, 7, 5], [1, 0, 0]], [[0, 4, 6, 2], [-1, 0, 0]], [[2, 6, 7, 3], [0, 1, 0]], [[0, 1, 5, 4], [0, -1, 0]]];
 const edge = (a, b, x, y) => (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]);
@@ -4854,8 +4902,7 @@ function raster(d, view, facing, k = 1, edges = true) {
   for (const [m, q] of boxes) for (const [ix, n0] of FACES) {
     const n = [n0[0] * c - n0[1] * s, n0[0] * s + n0[1] * c, n0[2]];
     if (n[0] * D[0] + n[1] * D[1] + n[2] * D[2] <= 1e-6) continue;   // faces away from the camera
-    const lit = n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2], t = d.T[m] || d.T[0];
-    const C = lit > .6 ? t.lt : lit > .15 ? t.base : lit > -.35 ? t.sh : t.deep, up = n[2] > .5 ? 1 : 0;
+    const C = tone(d, m, n), up = n[2] > .5 ? 1 : 0;
     const v = ix.map(i => [q[i][0] + ox, q[i][1] + oy, q[i][2]]);
     for (const [a, b, e] of [[v[0], v[1], v[2]], [v[0], v[2], v[3]]]) {
       const area = edge(a, b, e[0], e[1]); if (Math.abs(area) < 1e-9) continue;
@@ -4891,7 +4938,254 @@ function outline(cv) {
   g.putImageData(img, 0, 0); return cv;
 }
 
-window.ShapeRaster = { prep, raster, outline, rgb };
+window.ShapeRaster = { prep, raster, outline, rgb, tone, FACES };
+})();
+
+</script>
+<script>
+/* ---- inlined from src/free-camera.fly.js ---- */
+/* =============================================================================
+ * FREE CAMERA ROOM: FLY MODE (temporary lab). The engine has no perspective (every view is an orthographic camera), so
+ * a first-person camera needs a renderer of its own. This is a small one, written for this lab to show what it takes:
+ * a software rasterizer at pixel-art resolution (a depth buffer, perspective-correct texturing, near-plane clipping)
+ * that redraws the room's walls, floor and crates in 3D. What it takes from the engine: the colors (E.tones, E.shade),
+ * the floor's texture function (E.tex.flagstone), the wall look (its bricks, re-made per pixel), the converted crate
+ * (src/shapes-raster.js) and the flat props, and the hero: the engine draws him from the camera's exact angle every
+ * frame, then he is pasted in like a Doom sprite (one depth for the whole picture). What it leaves out: the engine's
+ * lighting, cut-away walls, x-ray, particles. window.FlyCam(canvas, room) -> { resize, render, collide }.
+ * ============================================================================= */
+(() => {
+'use strict';
+const E = My3D2dge, SR = window.ShapeRaster, NEAR = .5, SPR = 65535;
+const BG = [13, 11, 20], OUT = [20, 12, 28];
+const rgb = c => Array.isArray(c) ? c.slice(0, 3) : SR.rgb(c);
+const clamp = E.clamp, hash2 = E.hash2;
+
+function FlyCam(canvas, room) {
+  const { cells, MW, MH, T, types, floorTex, light } = room, FW = MW * T, FH = MH * T;
+  const g = canvas.getContext('2d');
+  let W = 0, H = 0, img = null, buf = null, zb = null, idb = null, mark = null;
+
+  /* the floor: one texel per world unit, from the engine's own texture function */
+  const floor = new Uint8Array(FW * FH * 3);
+  for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) { const c = floorTex(x + .5, y + .5), k = (y * FW + x) * 3; floor[k] = c[0]; floor[k + 1] = c[1]; floor[k + 2] = c[2]; }
+
+  /* the room as polygons: walls and pillars (sides, tops), the floor. kind 0 floor, 1 wall side, 2 top, 3 flat color */
+  const cell = (x, y) => x < 0 || y < 0 || x >= MW || y >= MH ? 0 : cells[y * MW + x];
+  const height = (x, y) => { const c = cell(x, y); return c > 0 ? types[c].h : 0; };
+  const statics = [{ kind: 0, id: 1, n: [0, 0, 1], v: [[T, T, 0], [FW - T, T, 0], [FW - T, FH - T, 0], [T, FH - T, 0]] }];
+  for (let cy = 0; cy < MH; cy++) for (let cx = 0; cx < MW; cx++) {
+    const c = cell(cx, cy); if (c <= 0) continue;
+    const t = types[c], h = t.h, x0 = cx * T, y0 = cy * T, x1 = x0 + T, y1 = y0 + T, id = 2 + cy * MW + cx, tt = E.tones(t.top);
+    statics.push({ kind: 2, id, n: [0, 0, 1], v: [[x0, y0, h], [x1, y0, h], [x1, y1, h], [x0, y1, h]], top: rgb(t.top), sh: rgb(tt.sh), lt: rgb(tt.lt) });
+    for (const [nx, ny, A, B] of [[0, -1, [x1, y0], [x0, y0]], [0, 1, [x0, y1], [x1, y1]], [-1, 0, [x0, y0], [x0, y1]], [1, 0, [x1, y1], [x1, y0]]]) {
+      const nh = height(cx + nx, cy + ny); if (nh >= h) continue;
+      // the TileMap's face light: lit sides a shade lighter, the others darker (TileMap._box)
+      const lit = -(nx * light[0] + ny * light[1]), col = lit > .2 ? E.shade(t.side, .12) : lit < -.2 ? E.shade(t.side, -.25) : t.side, ct = E.tones(col);
+      statics.push({ kind: 1, id, n: [nx, ny, 0], v: [[A[0], A[1], nh], [B[0], B[1], nh], [B[0], B[1], h], [A[0], A[1], h]],
+        alongX: ny !== 0, z0: nh, course: t.course || 8, seed: id * 31 + (nx + 2) * 7 + ny,
+        base: rgb(col), sh: rgb(ct.sh), lt: rgb(ct.lt), line: rgb(E.shade(col, -.3)), bottom: rgb(E.shade(col, -.35)) });
+    }
+  }
+
+  /* the crates, rebuilt when their look changes: the converted shape's boxes, or the engine-style plain box */
+  let crateKey = '', cratePolys = [];
+  function buildCrates(look, crates, shape) {
+    const key = look + crates.length; if (key === crateKey) return; crateKey = key; cratePolys = [];
+    crates.forEach((c, i) => {
+      const id = 1000 + i;
+      if (look === 'shape' && shape) {
+        const co = Math.cos(c.f), si = Math.sin(c.f), [ccx, ccy, ccz] = shape.c;
+        const P = (x, y, z) => { x -= ccx; y -= ccy; return [c.x + x * co - y * si, c.y + x * si + y * co, c.z + z - ccz]; };
+        for (const b of shape.b) {
+          const q = []; for (let k = 0; k < 8; k++) q.push(P(k & 1 ? b[4] : b[1], k & 2 ? b[5] : b[2], k & 4 ? b[6] : b[3]));
+          for (const [ix, n0] of SR.FACES) {
+            const n = [n0[0] * co - n0[1] * si, n0[0] * si + n0[1] * co, n0[2]];
+            cratePolys.push({ kind: 3, id, n, v: ix.map(k => q[k]), col: SR.tone(shape, b[0], n) });
+          }
+        }
+      } else if (look === 'box') {   // r.box's colors and face light (the engine's plain box)
+        const x0 = c.x - 8.5, y0 = c.y - 8.5, x1 = c.x + 8.5, y1 = c.y + 8.5, z0 = c.z, z1 = c.z + 17, side = '#7a5a36';
+        cratePolys.push({ kind: 3, id, n: [0, 0, 1], v: [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], col: rgb('#b08a58') });
+        for (const [nx, ny, A, B] of [[0, -1, [x1, y0], [x0, y0]], [0, 1, [x0, y1], [x1, y1]], [-1, 0, [x0, y0], [x0, y1]], [1, 0, [x1, y1], [x1, y0]]]) {
+          const lit = .6 * nx + .8 * ny, col = lit < -.2 ? E.shade(side, .12) : lit > .5 ? E.shade(side, -.25) : side;
+          cratePolys.push({ kind: 3, id, n: [nx, ny, 0], v: [[A[0], A[1], z0], [B[0], B[1], z0], [B[0], B[1], z1], [A[0], A[1], z1]], col: rgb(col) });
+        }
+      }
+    });
+  }
+
+  function resize(lines, cssW, cssH) {
+    H = lines; W = Math.max(80, Math.round(lines * clamp(cssW / Math.max(1, cssH), .45, 2.6)));
+    canvas.width = W; canvas.height = H; img = g.createImageData(W, H); buf = img.data;
+    zb = new Float32Array(W * H); idb = new Uint16Array(W * H); mark = new Uint8Array(W * H);
+  }
+
+  /* ---- per frame ---- */
+  let P, f, r, u, F, cx0, cy0, fog, blobs, stats = { polys: 0, ms: 0 };
+  const shade = (c, depth, k) => {   // write one pixel with distance fog
+    let R = c[0], G = c[1], B = c[2];
+    if (fog) { const t = clamp((depth - 90) / 320, 0, .6); R += (BG[0] - R) * t; G += (BG[1] - G) * t; B += (BG[2] - B) * t; }
+    buf[k * 4] = R; buf[k * 4 + 1] = G; buf[k * 4 + 2] = B; buf[k * 4 + 3] = 255;
+  };
+  const tmp = [0, 0, 0];
+  function floorColor(x, y) {
+    const tx = Math.floor(x), ty = Math.floor(y);
+    if (tx < 0 || ty < 0 || tx >= FW || ty >= FH) return BG;
+    const k = (ty * FW + tx) * 3; let m = 1;
+    for (const b of blobs) { const d2 = (x - b[0]) * (x - b[0]) + (y - b[1]) * (y - b[1]); if (d2 < b[2]) m = Math.min(m, .62 + .38 * d2 / b[2]); }   // contact shadows
+    tmp[0] = floor[k] * m; tmp[1] = floor[k + 1] * m; tmp[2] = floor[k + 2] * m; return tmp;
+  }
+  function wallColor(p, x, y, z) {   // the TileMap's bricks, per pixel: courses, running bond, varied bricks, mortar
+    const u = p.alongX ? x : y, ci = Math.floor(z / p.course), fz = z / p.course - ci, bu = u + (ci & 1) * 4, bm = bu - Math.floor(bu / 8) * 8;
+    if (z - p.z0 < .6) return p.bottom;
+    if (z - ci * p.course < .7 || bm < .7) return p.line;
+    const v = hash2(Math.floor(bu / 8) * 5 + p.seed, ci + 99);
+    if (hash2(Math.floor(u * 1.4) + p.seed * 7, Math.floor(z * 1.4)) < .07) return p.sh;
+    return fz > .8 && v > .5 ? p.lt : v < .22 ? p.sh : v > .86 ? p.lt : p.base;
+  }
+  function topColor(p, x, y) { const v = hash2(Math.floor(x * 1.5), Math.floor(y * 1.5)); return v < .08 ? p.sh : v > .96 ? p.lt : p.top; }
+
+  // a polygon: cull, to camera space, clip at the near plane, project, fill as a fan of triangles
+  const cam = q => { const dx = q[0] - P[0], dy = q[1] - P[1], dz = q[2] - P[2]; return [dx * r[0] + dy * r[1], dx * u[0] + dy * u[1] + dz * u[2], dx * f[0] + dy * f[1] + dz * f[2], q[0], q[1], q[2]]; };
+  function poly(p) {
+    const v0 = p.v[0], n = p.n;
+    if ((P[0] - v0[0]) * n[0] + (P[1] - v0[1]) * n[1] + (P[2] - v0[2]) * n[2] <= 0) return;   // faces away
+    let vs = p.v.map(cam);
+    if (vs.every(q => q[2] < NEAR)) return;
+    if (vs.some(q => q[2] < NEAR)) {   // Sutherland-Hodgman against z = NEAR
+      const out = [];
+      for (let i = 0; i < vs.length; i++) {
+        const a = vs[i], b = vs[(i + 1) % vs.length], ia = a[2] >= NEAR, ib = b[2] >= NEAR;
+        if (ia) out.push(a);
+        if (ia !== ib) { const t = (NEAR - a[2]) / (b[2] - a[2]); out.push(a.map((x, j) => x + (b[j] - x) * t)); }
+      }
+      vs = out; if (vs.length < 3) return;
+    }
+    const sv = vs.map(q => { const w = 1 / q[2]; return [cx0 + q[0] * F * w, cy0 - q[1] * F * w, w, q[3] * w, q[4] * w, q[5] * w]; });
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const s of sv) { x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
+    if (x1 < 0 || y1 < 0 || x0 > W || y0 > H) return;
+    stats.polys++;
+    for (let i = 1; i + 1 < sv.length; i++) tri(p, sv[0], sv[i], sv[i + 1]);
+  }
+  function tri(p, a, b, c) {
+    const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]); if (Math.abs(area) < 1e-9) return;
+    const ia = 1 / area;
+    const mx = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]))), Mx = Math.min(W - 1, Math.ceil(Math.max(a[0], b[0], c[0])));
+    const my = Math.max(0, Math.floor(Math.min(a[1], b[1], c[1]))), My = Math.min(H - 1, Math.ceil(Math.max(a[1], b[1], c[1])));
+    // edge functions, stepped per pixel: l0 for vertex a (edge b-c), l1 for b (edge c-a)
+    const A0 = (b[1] - c[1]) * ia, A1 = (c[1] - a[1]) * ia;
+    const kind = p.kind, id = p.id;
+    for (let y = my; y <= My; y++) {
+      const py = y + .5;
+      let l0 = ((b[0] - c[0]) * (py - c[1]) - (b[1] - c[1]) * (mx + .5 - c[0])) * -ia, l1 = ((c[0] - a[0]) * (py - a[1]) - (c[1] - a[1]) * (mx + .5 - a[0])) * -ia;
+      for (let x = mx; x <= Mx; x++, l0 += A0, l1 += A1) {
+        const l2 = 1 - l0 - l1;
+        if (l0 < -1e-6 || l1 < -1e-6 || l2 < -1e-6) continue;
+        const w = l0 * a[2] + l1 * b[2] + l2 * c[2], k = y * W + x;
+        if (w <= zb[k]) continue;
+        const iw = 1 / w;
+        let col;
+        if (kind === 3) col = p.col;
+        else {
+          const wx = (l0 * a[3] + l1 * b[3] + l2 * c[3]) * iw, wy = (l0 * a[4] + l1 * b[4] + l2 * c[4]) * iw;
+          if (kind === 0) col = floorColor(wx, wy);
+          else if (kind === 2) col = topColor(p, wx, wy);
+          else col = wallColor(p, wx, wy, (l0 * a[5] + l1 * b[5] + l2 * c[5]) * iw);
+        }
+        zb[k] = w; idb[k] = id; shade(col, iw, k);
+      }
+    }
+  }
+
+  // a picture standing in the world (the hero, a flat prop): one depth for all of it, its feet at a world point
+  const pics = new WeakMap();
+  function picture(cv, ax, ay, at, depthAt, fresh) {
+    const c = cam(at), d = cam(depthAt); if (d[2] < NEAR * 2 || c[2] < NEAR) return;
+    let data = !fresh && pics.get(cv);
+    if (!data) { data = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; if (!fresh) pics.set(cv, data); }
+    const sx = Math.round(cx0 + c[0] * F / c[2]) - ax, sy = Math.round(cy0 - c[1] * F / c[2]) - ay, w = 1 / d[2], cw = cv.width, ch = cv.height;
+    for (let y = Math.max(0, -sy); y < ch && sy + y < H; y++) for (let x = Math.max(0, -sx); x < cw && sx + x < W; x++) {
+      const i = (y * cw + x) * 4; if (data[i + 3] < 128) continue;
+      const k = (sy + y) * W + sx + x; if (w <= zb[k]) continue;
+      zb[k] = w; idb[k] = SPR; shade([data[i], data[i + 1], data[i + 2]], d[2], k);
+    }
+  }
+
+  // outlines from depth: a pixel next to a nearer, different object turns dark (the way 3D pixel engines ink edges)
+  function outlines() {
+    mark.fill(0);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = y * W + x, id = idb[k]; if (id === SPR) continue;
+      const lim = zb[k] * 1.06;
+      if ((x > 0 && idb[k - 1] !== id && idb[k - 1] !== SPR && zb[k - 1] > lim) || (x < W - 1 && idb[k + 1] !== id && idb[k + 1] !== SPR && zb[k + 1] > lim) ||
+          (y > 0 && idb[k - W] !== id && idb[k - W] !== SPR && zb[k - W] > lim) || (y < H - 1 && idb[k + W] !== id && idb[k + W] !== SPR && zb[k + W] > lim)) mark[k] = 1;
+    }
+    for (let k = 0; k < W * H; k++) if (mark[k]) { buf[k * 4] = OUT[0]; buf[k * 4 + 1] = OUT[1]; buf[k * 4 + 2] = OUT[2]; }
+  }
+
+  /* the hero, drawn by the engine from the camera's angle at the camera's scale, then outlined like an actor */
+  const heroCv = document.createElement('canvas'), views = new Map();
+  heroCv.getContext('2d', { willReadFrequently: true });   // read back every frame
+  function heroPicture(hero) {
+    const dx = P[0] - hero.x, dy = P[1] - hero.y, c = cam([hero.x, hero.y, 13]); if (c[2] < NEAR * 2) return;
+    const yaw = ((Math.round(Math.atan2(dx, dy) * 180 / Math.PI / 5) * 5) % 360 + 360) % 360;
+    const pitch = clamp(Math.round(Math.atan2(P[2] - 13, Math.hypot(dx, dy)) * 180 / Math.PI / 5) * 5, 0, 85);
+    const s = clamp(Math.round(F / c[2] * 4) / 4, .25, 10), key = yaw + ':' + pitch + ':' + s;
+    let v = views.get(key); if (!v) { if (views.size > 600) views.clear(); v = new E.View('fly', 'Fly', yaw, pitch, s, 1); views.set(key, v); }
+    const cw = Math.ceil(60 * s) + 6, ch = Math.ceil(64 * s) + 6, ox = cw >> 1, oy = ch - Math.ceil(12 * s) - 3;
+    if (heroCv.width !== cw || heroCv.height !== ch) { heroCv.width = cw; heroCv.height = ch; } else heroCv.getContext('2d').clearRect(0, 0, cw, ch);
+    const hg = heroCv.getContext('2d'); hg.imageSmoothingEnabled = false;
+    hero.rig.draw(hg, ox, oy, v); SR.outline(heroCv);
+    picture(heroCv, ox, oy, [hero.x, hero.y, 0], [hero.x, hero.y, 13], true);
+  }
+
+  /** draw a frame. C: { x, y, z, yaw, pitch, fov (degrees) }; o: { crates: 'shape' | 'prop' | 'box', outlines, fog,
+   *  offX, offY (the view's centre, in buffer pixels from the middle) }; hero: { x, y, rig }; crates: [{ x, y, z, f }] */
+  function render(C, o, hero, crates, shape) {
+    const t0 = performance.now(); stats.polys = 0;
+    const cyw = Math.cos(C.yaw), syw = Math.sin(C.yaw), cp = Math.cos(C.pitch), sp = Math.sin(C.pitch);
+    P = [C.x, C.y, C.z]; f = [cp * cyw, cp * syw, sp]; r = [-syw, cyw, 0]; u = [-sp * cyw, -sp * syw, cp];
+    F = (H / 2) / Math.tan(C.fov * Math.PI / 360); cx0 = W / 2 + (o.offX || 0); cy0 = H / 2 + (o.offY || 0); fog = !!o.fog;
+    blobs = [[hero.x, hero.y, 5.5 * 5.5]]; for (const c of crates) if (!c.z) blobs.push([c.x, c.y, 100]);
+    for (let k = 0; k < W * H; k++) { buf[k * 4] = BG[0]; buf[k * 4 + 1] = BG[1]; buf[k * 4 + 2] = BG[2]; buf[k * 4 + 3] = 255; }
+    zb.fill(0); idb.fill(0);
+    for (const p of statics) poly(p);
+    buildCrates(o.crates, crates, shape);
+    for (const p of cratePolys) poly(p);
+    if (o.crates === 'prop') for (const c of crates) {   // the engine's flat crate, sized for its distance
+      const d = cam([c.x, c.y, c.z + 8]); if (d[2] < NEAR * 2) continue;
+      const size = clamp(Math.round(17 * F / d[2] / 14 * 4) / 4, .25, 12), spr = E.prop('crate', { size }).frames[0];
+      picture(spr.cv, Math.floor(spr.w / 2), spr.h, [c.x, c.y, c.z], [c.x, c.y, c.z + 8], false);
+    }
+    heroPicture(hero);
+    if (o.outlines) outlines();
+    g.putImageData(img, 0, 0);
+    stats.ms = performance.now() - t0;
+  }
+
+  /** keep a flying camera (radius 3) out of walls, pillars and crates below their tops, and above the floor */
+  function collide(C, crates) {
+    const R = 3;
+    C.z = clamp(C.z, R, 220); C.x = clamp(C.x, -4 * T, FW + 4 * T); C.y = clamp(C.y, -4 * T, FH + 4 * T);
+    const boxes = [];
+    const gx = Math.floor(C.x / T), gy = Math.floor(C.y / T);
+    for (let y = gy - 1; y <= gy + 1; y++) for (let x = gx - 1; x <= gx + 1; x++) { const h = height(x, y); if (h && C.z < h + R) boxes.push([x * T, y * T, x * T + T, y * T + T]); }
+    for (const c of crates) if (C.z < c.z + 17 + R) boxes.push([c.x - 8.5, c.y - 8.5, c.x + 8.5, c.y + 8.5]);
+    for (const [x0, y0, x1, y1] of boxes) {
+      const nx = clamp(C.x, x0, x1), ny = clamp(C.y, y0, y1), dx = C.x - nx, dy = C.y - ny, d = Math.hypot(dx, dy);
+      if (d >= R) continue;
+      if (d > 1e-6) { C.x = nx + dx / d * R; C.y = ny + dy / d * R; continue; }
+      // inside: out through the nearest side
+      const l = C.x - x0, rr = x1 - C.x, t = C.y - y0, b = y1 - C.y, m = Math.min(l, rr, t, b);
+      if (m === l) C.x = x0 - R; else if (m === rr) C.x = x1 + R; else if (m === t) C.y = y0 - R; else C.y = y1 + R;
+    }
+  }
+
+  return { resize, render, collide, stats, get size() { return [W, H]; } };
+}
+window.FlyCam = FlyCam;
 })();
 
 </script>
@@ -4904,6 +5198,8 @@ window.ShapeRaster = { prep, raster, outline, rgb };
  * with new E.View(...) and game.setView(view). Drag turns and tilts, the wheel or a pinch zooms, WASD moves, Q/E go
  * down and up, F fixes the camera (and writes it to the address as ?cam=, so a reload or a shared link keeps it).
  * The crates switch between the converted 3D shape (src/shapes-raster.js), today's flat prop and the engine's box.
+ * Fly mode (G) is a first-person camera the engine can't give: a small renderer of its own (src/free-camera.fly.js)
+ * redraws the same room in perspective, fed by the engine where it can be (colors, textures, the hero's picture).
  * ============================================================================= */
 (() => {
 'use strict';
@@ -4916,11 +5212,9 @@ const MW = 13, MH = 11, cells = new Array(MW * MH).fill(0);
 for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (!x || !y || x === MW - 1 || y === MH - 1) cells[y * MW + x] = 1;
 for (const [x, y] of [[3, 3], [9, 3], [3, 7], [9, 7]]) cells[y * MW + x] = 2;
 const PAL = { stones: ['#6b6f5a', '#767a63', '#626653'].map(E.hex), mortar: E.hex('#3a3c31'), hi: E.hex('#8b8f75'), lo: E.hex('#51543f'), speck: E.hex('#45473a') };
-const map = new E.TileMap({
-  w: MW, h: MH, tile: T, cells,
-  floorTex: (x, y) => E.tex.flagstone(x, y, PAL),
-  types: { 1: { h: 40, cut: true, cutH: 6, top: '#8a8470', side: '#625d4d', course: 8 }, 2: { h: 46, top: '#b0a890', side: '#7d7662', course: 8 } }
-});
+const TYPES = { 1: { h: 40, cut: true, cutH: 6, top: '#8a8470', side: '#625d4d', course: 8 }, 2: { h: 46, top: '#b0a890', side: '#7d7662', course: 8 } };
+const floorTex = (x, y) => E.tex.flagstone(x, y, PAL);
+const map = new E.TileMap({ w: MW, h: MH, tile: T, cells, floorTex, types: TYPES });
 const CX = MW * T / 2, CY = MH * T / 2;   // the room's centre (the camera looks here at first)
 
 /* 2. Crates: two on the floor (one turned), one stacked. Shapes turn; the flat prop and the engine's box cannot */
@@ -4939,7 +5233,10 @@ const pa = [0, 0], pb = [0, 0];
 /* 4. The camera: what the controls set. pitch under 3 is the side view (which never turns); 3-5 snaps to 5 */
 const BASE = 1.5;   // pixels per world unit at zoom 1 (the engine's three-quarter, top-down, brawler and side views)
 const HOME = { yaw: 35, pitch: 42, zoom: 1, height: 0, boost: 1.1, fx: CX, fy: CY };
-const S = Object.assign({ fixed: false, crates: 'shape', walk: true, readable: true }, HOME);
+const S = Object.assign({ mode: 'orbit', fixed: false, crates: 'shape', walk: true, readable: true }, HOME);
+// fly mode: the camera (position in world units, yaw and pitch in radians, field of view in degrees) and its options
+const FLY_HOME = { x: CX, y: (MH - 1.7) * T, z: 20, yaw: -Math.PI / 2, pitch: -.12, fov: 70 };
+const FLY = Object.assign({}, FLY_HOME), FS = { lines: 180, outlines: true, fog: true, collide: true };
 const PRESETS = { iso: [45, 30, Math.SQRT2 / BASE, 1], threequarter: [0, 55, 1, 1.35], topdown: [0, 80, 1, 1.3], brawler: [0, 25, 1, 1], side: [0, 0, 1, 1] };
 const eff = () => {   // the values the view is built from (whole degrees, zoom in .05 steps, so a drag reuses cached views)
   const pitch = S.pitch < 3 ? 0 : Math.max(5, Math.round(S.pitch)), yaw = pitch ? ((Math.round(S.yaw) % 360) + 360) % 360 : 0;
@@ -4964,6 +5261,7 @@ function viewNow() {
 
 const game = new E.Game({ canvas: 'screen', view: viewNow(), minH: 200, maxW: 520, portrait: { maxH: 1000 }, bg: '#0d0b14' });
 game.input.touchFilter = () => false;   // touches turn the camera here; no move stick
+const fly = window.FlyCam($('fly'), { cells, MW, MH, T, types: TYPES, floorTex, light: map.light });
 let shownView = null;
 function apply() {
   const v = viewNow(); if (v !== shownView) { shownView = v; game.setView(v); }
@@ -4973,8 +5271,19 @@ function apply() {
 
 /* 5. Update: the camera's keys, the hero's lap */
 const held = new Set();
+const touchMove = [0, 0];   // fly mode on a phone: two fingers held off their start point (forward, sideways)
+function flyStep(dt) {
+  const k = c => held.has(c), C = FLY, sp = 48 * (k('ShiftLeft') || k('ShiftRight') ? 2.5 : 1) * dt;
+  C.yaw += ((k('ArrowRight') ? 1 : 0) - (k('ArrowLeft') ? 1 : 0)) * 1.8 * dt;
+  const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0) + touchMove[0];
+  const str = (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0) + touchMove[1], up = (k('Space') || k('KeyE') ? 1 : 0) - (k('KeyQ') || k('KeyC') ? 1 : 0);
+  const cy = Math.cos(C.yaw), sy = Math.sin(C.yaw), cp = Math.cos(C.pitch), spp = Math.sin(C.pitch);
+  C.x += (cp * cy * fwd - sy * str) * sp; C.y += (cp * sy * fwd + cy * str) * sp; C.z += (spp * fwd + up) * sp;   // fly where you look
+  if (FS.collide) fly.collide(C, CRATES); else { C.z = clamp(C.z, 1, 220); C.x = clamp(C.x, -4 * T, (MW + 4) * T); C.y = clamp(C.y, -4 * T, (MH + 4) * T); }
+}
 function update(dt) {
-  if (!S.fixed) {
+  if (S.mode === 'fly') flyStep(dt);
+  else if (!S.fixed) {
     const mv = game.input.move(), d = game.view.screenDirToGround(mv[0], mv[1]), sp = 110 / S.zoom;
     if (mv[0] || mv[1]) { S.fx = clamp(S.fx + d[0] * sp * dt, -2 * T, (MW + 2) * T); S.fy = clamp(S.fy + d[1] * sp * dt, -2 * T, (MH + 2) * T); }
     const up = (held.has('KeyE') ? 1 : 0) - (held.has('KeyQ') ? 1 : 0);
@@ -4999,7 +5308,15 @@ function crateSprite(view, f) {
   if (!s) { if (sprites.size > 400) sprites.clear(); s = SR.raster(CRATE, view, f, 1, true); SR.outline(s.cv); sprites.set(key, s); }
   return s;
 }
+let flyText = '', flyTextT = 0, flyOff = [0, 0];
 function draw(r) {
+  if (S.mode === 'fly') {   // the engine's own picture is hidden: fly mode draws the room itself
+    fly.render(FLY, { crates: S.crates, outlines: FS.outlines, fog: FS.fog, offX: flyOff[0], offY: flyOff[1] }, hero, CRATES, CRATE);
+    const [W, H] = fly.size, C = FLY, deg = a => Math.round(a * 180 / Math.PI);
+    const t = `x ${Math.round(C.x)}, y ${Math.round(C.y)}, ${Math.round(C.z)} up (${(C.z / T).toFixed(1)} m)\nfacing ${((deg(C.yaw) + 90) % 360 + 360) % 360}° · looking ${deg(C.pitch) > 0 ? 'up' : 'down'} ${Math.abs(deg(C.pitch))}°\n${W}×${H} pixels · ${fly.stats.ms.toFixed(1)} ms a frame`;
+    if (game.real - flyTextT > .25 && t !== flyText) { flyText = t; flyTextT = game.real; $('flyCode').textContent = t; }
+    return;
+  }
   const view = r.view;
   map.drawFloor(r);
   r.shadow(hero.x, hero.y, 5.5, .45);
@@ -5048,6 +5365,17 @@ function sync() {
   for (const b of document.querySelectorAll('[data-crates]')) b.setAttribute('aria-pressed', String(b.dataset.crates === S.crates));
   $('crateNote').textContent = CRATE_NOTES[S.crates];
   $('walkBtn').setAttribute('aria-pressed', String(S.walk)); $('tiltBtn').setAttribute('aria-pressed', String(S.readable));
+  // fly mode
+  const isFly = S.mode === 'fly';
+  for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode));
+  $('orbitUI').hidden = isFly; $('flyUI').hidden = !isFly; $('screen').hidden = isFly; $('fly').hidden = !isFly;
+  $('tag').classList.toggle('on', S.fixed && !isFly);
+  $('brandNote').textContent = isFly
+    ? 'Fly mode: a first-person camera the engine itself can\'t give. A small renderer made for this lab draws the room in perspective, using the engine\'s colors, textures and hero.'
+    : 'Four pillars, a few crates and the hero walking a lap, drawn live by the engine from any angle. Drag to turn and tilt, then fix the camera where you like it.';
+  $('fov').value = FLY.fov; $('fovOut').textContent = FLY.fov + '°';
+  for (const b of document.querySelectorAll('[data-lines]')) b.setAttribute('aria-pressed', String(+b.dataset.lines === FS.lines));
+  $('outlineBtn').setAttribute('aria-pressed', String(FS.outlines)); $('fogBtn').setAttribute('aria-pressed', String(FS.fog)); $('collideBtn').setAttribute('aria-pressed', String(FS.collide));
 }
 function setFixed(on) {
   S.fixed = on;
@@ -5072,6 +5400,50 @@ const copy = (text, btn) => {
 };
 $('copyBtn').onclick = () => copy(code(), $('copyBtn'));
 $('linkBtn').onclick = () => copy(withCam(true), $('linkBtn'));
+
+/* 7b. Fly mode: switching in starts from the engine camera's own shot, so the same view gains perspective */
+function setMode(m) {
+  if (m === S.mode) return;
+  if (m === 'fly') {
+    const v = eff(), w = v.yaw * Math.PI / 180, p = v.pitch * Math.PI / 180, D = 150 / v.zoom;
+    Object.assign(FLY, { x: S.fx + Math.cos(p) * Math.sin(w) * D, y: S.fy + Math.cos(p) * Math.cos(w) * D, z: S.height + Math.sin(p) * D, yaw: Math.atan2(-Math.cos(w), -Math.sin(w)), pitch: -clamp(p, 0, 1.5) });
+    if (FS.collide) fly.collide(FLY, CRATES);
+  } else if (document.pointerLockElement) document.exitPointerLock();
+  S.mode = m; held.clear(); sync(); flyFit();
+}
+for (const b of document.querySelectorAll('[data-mode]')) b.onclick = () => setMode(b.dataset.mode);
+$('fov').addEventListener('input', e => { FLY.fov = +e.target.value; sync(); });
+for (const b of document.querySelectorAll('[data-lines]')) b.onclick = () => { FS.lines = +b.dataset.lines; flyFit(); sync(); };
+$('outlineBtn').onclick = () => { FS.outlines = !FS.outlines; sync(); };
+$('fogBtn').onclick = () => { FS.fog = !FS.fog; sync(); };
+$('collideBtn').onclick = () => { FS.collide = !FS.collide; sync(); };
+$('flyHomeBtn').onclick = () => { Object.assign(FLY, FLY_HOME, { fov: FLY.fov }); sync(); };
+const flyParam = () => [FLY.x, FLY.y, FLY.z].map(Math.round).concat([FLY.yaw, FLY.pitch].map(a => Math.round(a * 180 / Math.PI)), [FLY.fov]).join(',');
+$('flyLinkBtn').onclick = () => { const u = new URL(location.href); u.searchParams.delete('cam'); u.searchParams.delete('fly'); const rest = u.search.slice(1); copy(u.origin + u.pathname + '?' + [rest, 'fly=' + flyParam()].filter(Boolean).join('&') + u.hash, $('flyLinkBtn')); };
+// the mouse steers once the view has it (pointer lock); otherwise a drag looks around, and two fingers fly
+const fcv = $('fly'), fptrs = new Map(); let fpinch = null;
+const look = (dx, dy, k) => { FLY.yaw += dx * k; FLY.pitch = clamp(FLY.pitch - dy * k, -1.52, 1.52); };
+fcv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && !document.pointerLockElement && fcv.requestPointerLock) { try { const p = fcv.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (err) { /* drag to look instead */ } }
+  if (document.pointerLockElement === fcv) return;   // the locked mouse steers through pointermove
+  try { fcv.setPointerCapture(e.pointerId); } catch (err) { /* a pointer that is being locked can't be captured */ }
+  fptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (fptrs.size === 2) { const [a, b] = [...fptrs.values()]; fpinch = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
+});
+fcv.addEventListener('pointermove', e => {
+  if (document.pointerLockElement === fcv) { look(e.movementX, e.movementY, .0022); return; }
+  const p = fptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
+  if (fptrs.size === 1) look(-dx, -dy, .005);   // a drag grabs the scene: it moves with the finger
+  else if (fpinch) { const [a, b] = [...fptrs.values()], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2; touchMove[0] = clamp((fpinch[1] - my) / 60, -1, 1); touchMove[1] = clamp((mx - fpinch[0]) / 60, -1, 1); }
+});
+const flift = e => { fptrs.delete(e.pointerId); if (fptrs.size < 2) { fpinch = null; touchMove[0] = touchMove[1] = 0; } };
+fcv.addEventListener('pointerup', flift); fcv.addEventListener('pointercancel', flift);
+function flyFit() {   // the fly picture: lines of resolution tall, the screen's shape, centred in the part the panel leaves
+  const st = $('stage'); fly.resize(FS.lines, st.clientWidth, st.clientHeight);
+  const [W, H] = fly.size, open = details.open;
+  flyOff = !open ? [0, 0] : innerWidth > 720 ? [-(side.offsetWidth + 12) / 2 * W / st.clientWidth, 0] : [0, -(side.offsetHeight + 8) / 2 * H / st.clientHeight];
+}
 
 /* 8. Drag to turn and tilt, wheel or pinch to zoom, two fingers to move */
 const cv = $('screen'), ptrs = new Map(); let pinch = null;
@@ -5103,7 +5475,9 @@ cv.addEventListener('wheel', e => { e.preventDefault(); if (S.fixed) return; S.z
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
   held.add(e.code); if (e.repeat) return;
-  if (e.code === 'KeyF') setFixed(!S.fixed);
+  if (e.code === 'KeyG') setMode(S.mode === 'fly' ? 'orbit' : 'fly');
+  else if (S.mode === 'fly') return;
+  else if (e.code === 'KeyF') setFixed(!S.fixed);
   else if (e.code === 'KeyR') reset();
   else if (/^Digit[1-5]$/.test(e.code)) preset(Object.keys(PRESETS)[+e.code.slice(5) - 1]);
   else if ((e.code === 'Equal' || e.code === 'Minus') && !S.fixed) { S.zoom = clamp(S.zoom * (e.code === 'Equal' ? 1.15 : 1 / 1.15), .5, 3); apply(); }
@@ -5118,7 +5492,7 @@ function fitOffset() {
   game.cam.offset = innerWidth > 720 ? [-(side.offsetWidth + 12) / 2 * k, 0] : [0, -(side.offsetHeight + 8) / 2 * k];
   game.cam.snap = true;
 }
-addEventListener('resize', () => requestAnimationFrame(fitOffset)); details.addEventListener('toggle', fitOffset);
+addEventListener('resize', () => requestAnimationFrame(() => { fitOffset(); flyFit(); })); details.addEventListener('toggle', () => { fitOffset(); flyFit(); });
 if (innerWidth <= 720) details.open = false;   // phones: the picture first, the controls one tap away
 
 /* 10. Start: a ?cam= link opens fixed on that view */
@@ -5131,11 +5505,19 @@ if (q) {
     S.fixed = true;
   }
 }
+const qf = new URLSearchParams(location.search).get('fly');
+if (qf) {   // a ?fly= link opens fly mode at that spot: x, y, z, yaw and pitch in degrees, field of view
+  const n = qf.split(',').map(Number);
+  if (n.length >= 5 && n.every(Number.isFinite)) {
+    Object.assign(FLY, { x: n[0], y: n[1], z: n[2], yaw: n[3] * Math.PI / 180, pitch: clamp(n[4], -87, 87) * Math.PI / 180, fov: clamp(n[5] || 70, 45, 110) });
+    S.mode = 'fly';
+  }
+}
 const ver = document.createElement('p'); ver.className = 'note'; ver.textContent = 'my-3D2dge ' + E.versionLabel(); details.appendChild(ver);
-apply(); fitOffset();
+apply(); fitOffset(); flyFit();
 game.focus(S.fx, S.fy, S.height);
 game.start({ update, draw });
-window.__freeCam = { game, S, apply, preset, setFixed, viewNow, hero };
+window.__freeCam = { game, S, apply, preset, setFixed, viewNow, hero, FLY, FS, fly, setMode };
 })();
 
 </script>

@@ -5,6 +5,8 @@
  * with new E.View(...) and game.setView(view). Drag turns and tilts, the wheel or a pinch zooms, WASD moves, Q/E go
  * down and up, F fixes the camera (and writes it to the address as ?cam=, so a reload or a shared link keeps it).
  * The crates switch between the converted 3D shape (src/shapes-raster.js), today's flat prop and the engine's box.
+ * Fly mode (G) is a first-person camera the engine can't give: a small renderer of its own (src/free-camera.fly.js)
+ * redraws the same room in perspective, fed by the engine where it can be (colors, textures, the hero's picture).
  * ============================================================================= */
 (() => {
 'use strict';
@@ -17,11 +19,9 @@ const MW = 13, MH = 11, cells = new Array(MW * MH).fill(0);
 for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (!x || !y || x === MW - 1 || y === MH - 1) cells[y * MW + x] = 1;
 for (const [x, y] of [[3, 3], [9, 3], [3, 7], [9, 7]]) cells[y * MW + x] = 2;
 const PAL = { stones: ['#6b6f5a', '#767a63', '#626653'].map(E.hex), mortar: E.hex('#3a3c31'), hi: E.hex('#8b8f75'), lo: E.hex('#51543f'), speck: E.hex('#45473a') };
-const map = new E.TileMap({
-  w: MW, h: MH, tile: T, cells,
-  floorTex: (x, y) => E.tex.flagstone(x, y, PAL),
-  types: { 1: { h: 40, cut: true, cutH: 6, top: '#8a8470', side: '#625d4d', course: 8 }, 2: { h: 46, top: '#b0a890', side: '#7d7662', course: 8 } }
-});
+const TYPES = { 1: { h: 40, cut: true, cutH: 6, top: '#8a8470', side: '#625d4d', course: 8 }, 2: { h: 46, top: '#b0a890', side: '#7d7662', course: 8 } };
+const floorTex = (x, y) => E.tex.flagstone(x, y, PAL);
+const map = new E.TileMap({ w: MW, h: MH, tile: T, cells, floorTex, types: TYPES });
 const CX = MW * T / 2, CY = MH * T / 2;   // the room's centre (the camera looks here at first)
 
 /* 2. Crates: two on the floor (one turned), one stacked. Shapes turn; the flat prop and the engine's box cannot */
@@ -40,7 +40,10 @@ const pa = [0, 0], pb = [0, 0];
 /* 4. The camera: what the controls set. pitch under 3 is the side view (which never turns); 3-5 snaps to 5 */
 const BASE = 1.5;   // pixels per world unit at zoom 1 (the engine's three-quarter, top-down, brawler and side views)
 const HOME = { yaw: 35, pitch: 42, zoom: 1, height: 0, boost: 1.1, fx: CX, fy: CY };
-const S = Object.assign({ fixed: false, crates: 'shape', walk: true, readable: true }, HOME);
+const S = Object.assign({ mode: 'orbit', fixed: false, crates: 'shape', walk: true, readable: true }, HOME);
+// fly mode: the camera (position in world units, yaw and pitch in radians, field of view in degrees) and its options
+const FLY_HOME = { x: CX, y: (MH - 1.7) * T, z: 20, yaw: -Math.PI / 2, pitch: -.12, fov: 70 };
+const FLY = Object.assign({}, FLY_HOME), FS = { lines: 180, outlines: true, fog: true, collide: true };
 const PRESETS = { iso: [45, 30, Math.SQRT2 / BASE, 1], threequarter: [0, 55, 1, 1.35], topdown: [0, 80, 1, 1.3], brawler: [0, 25, 1, 1], side: [0, 0, 1, 1] };
 const eff = () => {   // the values the view is built from (whole degrees, zoom in .05 steps, so a drag reuses cached views)
   const pitch = S.pitch < 3 ? 0 : Math.max(5, Math.round(S.pitch)), yaw = pitch ? ((Math.round(S.yaw) % 360) + 360) % 360 : 0;
@@ -65,6 +68,7 @@ function viewNow() {
 
 const game = new E.Game({ canvas: 'screen', view: viewNow(), minH: 200, maxW: 520, portrait: { maxH: 1000 }, bg: '#0d0b14' });
 game.input.touchFilter = () => false;   // touches turn the camera here; no move stick
+const fly = window.FlyCam($('fly'), { cells, MW, MH, T, types: TYPES, floorTex, light: map.light });
 let shownView = null;
 function apply() {
   const v = viewNow(); if (v !== shownView) { shownView = v; game.setView(v); }
@@ -74,8 +78,19 @@ function apply() {
 
 /* 5. Update: the camera's keys, the hero's lap */
 const held = new Set();
+const touchMove = [0, 0];   // fly mode on a phone: two fingers held off their start point (forward, sideways)
+function flyStep(dt) {
+  const k = c => held.has(c), C = FLY, sp = 48 * (k('ShiftLeft') || k('ShiftRight') ? 2.5 : 1) * dt;
+  C.yaw += ((k('ArrowRight') ? 1 : 0) - (k('ArrowLeft') ? 1 : 0)) * 1.8 * dt;
+  const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0) + touchMove[0];
+  const str = (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0) + touchMove[1], up = (k('Space') || k('KeyE') ? 1 : 0) - (k('KeyQ') || k('KeyC') ? 1 : 0);
+  const cy = Math.cos(C.yaw), sy = Math.sin(C.yaw), cp = Math.cos(C.pitch), spp = Math.sin(C.pitch);
+  C.x += (cp * cy * fwd - sy * str) * sp; C.y += (cp * sy * fwd + cy * str) * sp; C.z += (spp * fwd + up) * sp;   // fly where you look
+  if (FS.collide) fly.collide(C, CRATES); else { C.z = clamp(C.z, 1, 220); C.x = clamp(C.x, -4 * T, (MW + 4) * T); C.y = clamp(C.y, -4 * T, (MH + 4) * T); }
+}
 function update(dt) {
-  if (!S.fixed) {
+  if (S.mode === 'fly') flyStep(dt);
+  else if (!S.fixed) {
     const mv = game.input.move(), d = game.view.screenDirToGround(mv[0], mv[1]), sp = 110 / S.zoom;
     if (mv[0] || mv[1]) { S.fx = clamp(S.fx + d[0] * sp * dt, -2 * T, (MW + 2) * T); S.fy = clamp(S.fy + d[1] * sp * dt, -2 * T, (MH + 2) * T); }
     const up = (held.has('KeyE') ? 1 : 0) - (held.has('KeyQ') ? 1 : 0);
@@ -100,7 +115,15 @@ function crateSprite(view, f) {
   if (!s) { if (sprites.size > 400) sprites.clear(); s = SR.raster(CRATE, view, f, 1, true); SR.outline(s.cv); sprites.set(key, s); }
   return s;
 }
+let flyText = '', flyTextT = 0, flyOff = [0, 0];
 function draw(r) {
+  if (S.mode === 'fly') {   // the engine's own picture is hidden: fly mode draws the room itself
+    fly.render(FLY, { crates: S.crates, outlines: FS.outlines, fog: FS.fog, offX: flyOff[0], offY: flyOff[1] }, hero, CRATES, CRATE);
+    const [W, H] = fly.size, C = FLY, deg = a => Math.round(a * 180 / Math.PI);
+    const t = `x ${Math.round(C.x)}, y ${Math.round(C.y)}, ${Math.round(C.z)} up (${(C.z / T).toFixed(1)} m)\nfacing ${((deg(C.yaw) + 90) % 360 + 360) % 360}° · looking ${deg(C.pitch) > 0 ? 'up' : 'down'} ${Math.abs(deg(C.pitch))}°\n${W}×${H} pixels · ${fly.stats.ms.toFixed(1)} ms a frame`;
+    if (game.real - flyTextT > .25 && t !== flyText) { flyText = t; flyTextT = game.real; $('flyCode').textContent = t; }
+    return;
+  }
   const view = r.view;
   map.drawFloor(r);
   r.shadow(hero.x, hero.y, 5.5, .45);
@@ -149,6 +172,17 @@ function sync() {
   for (const b of document.querySelectorAll('[data-crates]')) b.setAttribute('aria-pressed', String(b.dataset.crates === S.crates));
   $('crateNote').textContent = CRATE_NOTES[S.crates];
   $('walkBtn').setAttribute('aria-pressed', String(S.walk)); $('tiltBtn').setAttribute('aria-pressed', String(S.readable));
+  // fly mode
+  const isFly = S.mode === 'fly';
+  for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode));
+  $('orbitUI').hidden = isFly; $('flyUI').hidden = !isFly; $('screen').hidden = isFly; $('fly').hidden = !isFly;
+  $('tag').classList.toggle('on', S.fixed && !isFly);
+  $('brandNote').textContent = isFly
+    ? 'Fly mode: a first-person camera the engine itself can\'t give. A small renderer made for this lab draws the room in perspective, using the engine\'s colors, textures and hero.'
+    : 'Four pillars, a few crates and the hero walking a lap, drawn live by the engine from any angle. Drag to turn and tilt, then fix the camera where you like it.';
+  $('fov').value = FLY.fov; $('fovOut').textContent = FLY.fov + '°';
+  for (const b of document.querySelectorAll('[data-lines]')) b.setAttribute('aria-pressed', String(+b.dataset.lines === FS.lines));
+  $('outlineBtn').setAttribute('aria-pressed', String(FS.outlines)); $('fogBtn').setAttribute('aria-pressed', String(FS.fog)); $('collideBtn').setAttribute('aria-pressed', String(FS.collide));
 }
 function setFixed(on) {
   S.fixed = on;
@@ -173,6 +207,50 @@ const copy = (text, btn) => {
 };
 $('copyBtn').onclick = () => copy(code(), $('copyBtn'));
 $('linkBtn').onclick = () => copy(withCam(true), $('linkBtn'));
+
+/* 7b. Fly mode: switching in starts from the engine camera's own shot, so the same view gains perspective */
+function setMode(m) {
+  if (m === S.mode) return;
+  if (m === 'fly') {
+    const v = eff(), w = v.yaw * Math.PI / 180, p = v.pitch * Math.PI / 180, D = 150 / v.zoom;
+    Object.assign(FLY, { x: S.fx + Math.cos(p) * Math.sin(w) * D, y: S.fy + Math.cos(p) * Math.cos(w) * D, z: S.height + Math.sin(p) * D, yaw: Math.atan2(-Math.cos(w), -Math.sin(w)), pitch: -clamp(p, 0, 1.5) });
+    if (FS.collide) fly.collide(FLY, CRATES);
+  } else if (document.pointerLockElement) document.exitPointerLock();
+  S.mode = m; held.clear(); sync(); flyFit();
+}
+for (const b of document.querySelectorAll('[data-mode]')) b.onclick = () => setMode(b.dataset.mode);
+$('fov').addEventListener('input', e => { FLY.fov = +e.target.value; sync(); });
+for (const b of document.querySelectorAll('[data-lines]')) b.onclick = () => { FS.lines = +b.dataset.lines; flyFit(); sync(); };
+$('outlineBtn').onclick = () => { FS.outlines = !FS.outlines; sync(); };
+$('fogBtn').onclick = () => { FS.fog = !FS.fog; sync(); };
+$('collideBtn').onclick = () => { FS.collide = !FS.collide; sync(); };
+$('flyHomeBtn').onclick = () => { Object.assign(FLY, FLY_HOME, { fov: FLY.fov }); sync(); };
+const flyParam = () => [FLY.x, FLY.y, FLY.z].map(Math.round).concat([FLY.yaw, FLY.pitch].map(a => Math.round(a * 180 / Math.PI)), [FLY.fov]).join(',');
+$('flyLinkBtn').onclick = () => { const u = new URL(location.href); u.searchParams.delete('cam'); u.searchParams.delete('fly'); const rest = u.search.slice(1); copy(u.origin + u.pathname + '?' + [rest, 'fly=' + flyParam()].filter(Boolean).join('&') + u.hash, $('flyLinkBtn')); };
+// the mouse steers once the view has it (pointer lock); otherwise a drag looks around, and two fingers fly
+const fcv = $('fly'), fptrs = new Map(); let fpinch = null;
+const look = (dx, dy, k) => { FLY.yaw += dx * k; FLY.pitch = clamp(FLY.pitch - dy * k, -1.52, 1.52); };
+fcv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && !document.pointerLockElement && fcv.requestPointerLock) { try { const p = fcv.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (err) { /* drag to look instead */ } }
+  if (document.pointerLockElement === fcv) return;   // the locked mouse steers through pointermove
+  try { fcv.setPointerCapture(e.pointerId); } catch (err) { /* a pointer that is being locked can't be captured */ }
+  fptrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (fptrs.size === 2) { const [a, b] = [...fptrs.values()]; fpinch = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
+});
+fcv.addEventListener('pointermove', e => {
+  if (document.pointerLockElement === fcv) { look(e.movementX, e.movementY, .0022); return; }
+  const p = fptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
+  if (fptrs.size === 1) look(-dx, -dy, .005);   // a drag grabs the scene: it moves with the finger
+  else if (fpinch) { const [a, b] = [...fptrs.values()], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2; touchMove[0] = clamp((fpinch[1] - my) / 60, -1, 1); touchMove[1] = clamp((mx - fpinch[0]) / 60, -1, 1); }
+});
+const flift = e => { fptrs.delete(e.pointerId); if (fptrs.size < 2) { fpinch = null; touchMove[0] = touchMove[1] = 0; } };
+fcv.addEventListener('pointerup', flift); fcv.addEventListener('pointercancel', flift);
+function flyFit() {   // the fly picture: lines of resolution tall, the screen's shape, centred in the part the panel leaves
+  const st = $('stage'); fly.resize(FS.lines, st.clientWidth, st.clientHeight);
+  const [W, H] = fly.size, open = details.open;
+  flyOff = !open ? [0, 0] : innerWidth > 720 ? [-(side.offsetWidth + 12) / 2 * W / st.clientWidth, 0] : [0, -(side.offsetHeight + 8) / 2 * H / st.clientHeight];
+}
 
 /* 8. Drag to turn and tilt, wheel or pinch to zoom, two fingers to move */
 const cv = $('screen'), ptrs = new Map(); let pinch = null;
@@ -204,7 +282,9 @@ cv.addEventListener('wheel', e => { e.preventDefault(); if (S.fixed) return; S.z
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
   held.add(e.code); if (e.repeat) return;
-  if (e.code === 'KeyF') setFixed(!S.fixed);
+  if (e.code === 'KeyG') setMode(S.mode === 'fly' ? 'orbit' : 'fly');
+  else if (S.mode === 'fly') return;
+  else if (e.code === 'KeyF') setFixed(!S.fixed);
   else if (e.code === 'KeyR') reset();
   else if (/^Digit[1-5]$/.test(e.code)) preset(Object.keys(PRESETS)[+e.code.slice(5) - 1]);
   else if ((e.code === 'Equal' || e.code === 'Minus') && !S.fixed) { S.zoom = clamp(S.zoom * (e.code === 'Equal' ? 1.15 : 1 / 1.15), .5, 3); apply(); }
@@ -219,7 +299,7 @@ function fitOffset() {
   game.cam.offset = innerWidth > 720 ? [-(side.offsetWidth + 12) / 2 * k, 0] : [0, -(side.offsetHeight + 8) / 2 * k];
   game.cam.snap = true;
 }
-addEventListener('resize', () => requestAnimationFrame(fitOffset)); details.addEventListener('toggle', fitOffset);
+addEventListener('resize', () => requestAnimationFrame(() => { fitOffset(); flyFit(); })); details.addEventListener('toggle', () => { fitOffset(); flyFit(); });
 if (innerWidth <= 720) details.open = false;   // phones: the picture first, the controls one tap away
 
 /* 10. Start: a ?cam= link opens fixed on that view */
@@ -232,9 +312,17 @@ if (q) {
     S.fixed = true;
   }
 }
+const qf = new URLSearchParams(location.search).get('fly');
+if (qf) {   // a ?fly= link opens fly mode at that spot: x, y, z, yaw and pitch in degrees, field of view
+  const n = qf.split(',').map(Number);
+  if (n.length >= 5 && n.every(Number.isFinite)) {
+    Object.assign(FLY, { x: n[0], y: n[1], z: n[2], yaw: n[3] * Math.PI / 180, pitch: clamp(n[4], -87, 87) * Math.PI / 180, fov: clamp(n[5] || 70, 45, 110) });
+    S.mode = 'fly';
+  }
+}
 const ver = document.createElement('p'); ver.className = 'note'; ver.textContent = 'my-3D2dge ' + E.versionLabel(); details.appendChild(ver);
-apply(); fitOffset();
+apply(); fitOffset(); flyFit();
 game.focus(S.fx, S.fy, S.height);
 game.start({ update, draw });
-window.__freeCam = { game, S, apply, preset, setFixed, viewNow, hero };
+window.__freeCam = { game, S, apply, preset, setFixed, viewNow, hero, FLY, FS, fly, setMode };
 })();

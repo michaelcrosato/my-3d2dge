@@ -6,8 +6,10 @@
 <title>Free camera room · my-3D2dge</title>
 <!--
   A temporary lab (src/labs.json, "Temporary"): a small room (four pillars, crates, the hero walking) and a free camera
-  that turns, tilts, zooms, moves and fixes anywhere the engine's camera can go. Built from src/free-camera.template.html
-  and src/free-camera.game.js (plus the shared src/shapes-raster.js and src/shapes-compare.data.js) by tools/build.mjs.
+  that turns, tilts, zooms, moves and fixes anywhere the engine's camera can go, plus a fly mode (a first-person camera
+  on a small renderer of its own, src/free-camera.fly.js). Built from src/free-camera.template.html,
+  src/free-camera.game.js and src/free-camera.fly.js (plus the shared src/shapes-raster.js and
+  src/shapes-compare.data.js) by tools/build.mjs.
   Delete it (and its labs.json entry) once the question is settled.
 -->
 <style>
@@ -26,6 +28,8 @@ body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Tre
 #screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;cursor:grab;touch-action:none}
 #screen.dragging{cursor:grabbing}
 #screen.fixed{cursor:default}
+#fly{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges;cursor:crosshair;touch-action:none}
+#fly[hidden],#screen[hidden]{display:none}
 .panel{position:absolute;z-index:2;background:var(--panel);border:1px solid var(--line);border-radius:8px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .brand{top:12px;left:12px;padding:9px 13px 10px;max-width:min(380px,calc(100% - 24px))}
 .brand h1{margin:0;font-size:20px;font-weight:600;line-height:1.15}
@@ -61,6 +65,11 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 .note b{color:var(--ink);font-weight:600}
 .keys{font-size:12.5px;line-height:1.5;color:var(--muted);margin:8px 0 0}
 .keys b{color:var(--ink);font-weight:600}
+.note.warn{margin:10px 0 8px;padding:7px 9px;border-radius:6px;background:var(--key);color:var(--ink)}
+.list{margin:4px 0 0;padding-left:18px;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.list li{margin:3px 0}
+.list b{color:var(--ink);font-weight:600}
+[hidden]{display:none !important}
 @media (pointer:coarse){ kbd{display:none} .keys .kb{display:none} }
 @media (pointer:fine){ .keys .tp{display:none} }
 @media (max-width:720px){
@@ -74,35 +83,71 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <body>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Free camera room: a stone room with four pillars, crates and the hero, drawn from the camera you set"></canvas>
+  <canvas id="fly" hidden role="img" aria-label="Fly mode: the same room from a first-person camera you steer with the keyboard and mouse"></canvas>
   <div class="brand panel">
     <h1>Free camera room <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
-    <p>Four pillars, a few crates and the hero walking a lap, drawn live by the engine from any angle. Drag to turn and tilt, then fix the camera where you like it.</p>
+    <p id="brandNote"></p>
     <div id="tag">Camera fixed</div>
   </div>
   <div class="side panel">
     <details id="details" open>
       <summary>Camera</summary>
-      <div class="slider"><label for="yaw">Turn</label><input id="yaw" type="range" min="0" max="359" step="1"><output id="yawOut" for="yaw"></output></div>
-      <div class="slider"><label for="pitch">Tilt</label><input id="pitch" type="range" min="0" max="90" step="1"><output id="pitchOut" for="pitch"></output></div>
-      <div class="slider"><label for="zoom">Zoom</label><input id="zoom" type="range" min="50" max="300" step="5"><output id="zoomOut" for="zoom"></output></div>
-      <div class="slider"><label for="height">Up/down</label><input id="height" type="range" min="-40" max="100" step="1"><output id="heightOut" for="height"></output></div>
-      <div class="slider"><label for="boost" title="Height boost: pixel-art views stretch height a little so things read">Boost</label><input id="boost" type="range" min="100" max="150" step="5"><output id="boostOut" for="boost"></output></div>
-      <div class="row">
-        <button type="button" id="fixBtn" aria-pressed="false"><kbd>F</kbd>Fix camera</button>
-        <button type="button" id="resetBtn"><kbd>R</kbd>Reset</button>
+      <div class="seg" role="group" aria-label="Camera mode">
+        <button type="button" data-mode="orbit">Engine camera</button>
+        <button type="button" data-mode="fly"><kbd>G</kbd>Fly (first person)</button>
       </div>
-      <div class="code" id="code" aria-live="polite"></div>
-      <div class="row"><button type="button" id="copyBtn">Copy code</button><button type="button" id="linkBtn">Copy link</button></div>
 
-      <h2>The engine's own views</h2>
-      <div class="seg" role="group" aria-label="Preset views">
-        <button type="button" data-preset="iso"><kbd>1</kbd>Iso</button>
-        <button type="button" data-preset="threequarter"><kbd>2</kbd>¾</button>
-        <button type="button" data-preset="topdown"><kbd>3</kbd>Top</button>
-        <button type="button" data-preset="brawler"><kbd>4</kbd>Brawler</button>
-        <button type="button" data-preset="side"><kbd>5</kbd>Side</button>
+      <div id="orbitUI">
+        <h2>The engine's camera</h2>
+        <div class="slider"><label for="yaw">Turn</label><input id="yaw" type="range" min="0" max="359" step="1"><output id="yawOut" for="yaw"></output></div>
+        <div class="slider"><label for="pitch">Tilt</label><input id="pitch" type="range" min="0" max="90" step="1"><output id="pitchOut" for="pitch"></output></div>
+        <div class="slider"><label for="zoom">Zoom</label><input id="zoom" type="range" min="50" max="300" step="5"><output id="zoomOut" for="zoom"></output></div>
+        <div class="slider"><label for="height">Up/down</label><input id="height" type="range" min="-40" max="100" step="1"><output id="heightOut" for="height"></output></div>
+        <div class="slider"><label for="boost" title="Height boost: pixel-art views stretch height a little so things read">Boost</label><input id="boost" type="range" min="100" max="150" step="5"><output id="boostOut" for="boost"></output></div>
+        <div class="row">
+          <button type="button" id="fixBtn" aria-pressed="false"><kbd>F</kbd>Fix camera</button>
+          <button type="button" id="resetBtn"><kbd>R</kbd>Reset</button>
+        </div>
+        <div class="code" id="code" aria-live="polite"></div>
+        <div class="row"><button type="button" id="copyBtn">Copy code</button><button type="button" id="linkBtn">Copy link</button></div>
+
+        <h2>The engine's own views</h2>
+        <div class="seg" role="group" aria-label="Preset views">
+          <button type="button" data-preset="iso"><kbd>1</kbd>Iso</button>
+          <button type="button" data-preset="threequarter"><kbd>2</kbd>¾</button>
+          <button type="button" data-preset="topdown"><kbd>3</kbd>Top</button>
+          <button type="button" data-preset="brawler"><kbd>4</kbd>Brawler</button>
+          <button type="button" data-preset="side"><kbd>5</kbd>Side</button>
+        </div>
+        <p class="note">Each is just one point in this camera's range: a turn, a tilt, a zoom and a boost.</p>
+        <p class="keys"><span class="kb"><b>Drag</b> turns and tilts · <b>wheel</b> zooms · <b>WASD</b> or arrows move · <b>Q</b>/<b>E</b> down/up · <b>F</b> fixes · <b>R</b> resets</span><span class="tp"><b>Drag</b> turns and tilts · <b>pinch</b> zooms · <b>two fingers</b> move</span></p>
+        <p class="note"><b>What it can't do:</b> go inside the room at eye level. The engine draws without perspective (far things don't shrink), so it has no first-person view. Fly mode shows what that would take.</p>
       </div>
-      <p class="note">Each is just one point in this camera's range: a turn, a tilt, a zoom and a boost.</p>
+
+      <div id="flyUI" hidden>
+        <p class="note warn"><b>This is not the engine drawing.</b> The engine has no perspective, so fly mode uses a small first-person renderer written for this lab, fed by the engine where it can be.</p>
+        <div class="slider"><label for="fov">View</label><input id="fov" type="range" min="45" max="110" step="1"><output id="fovOut" for="fov"></output></div>
+        <div class="seg" role="group" aria-label="Pixels (lines of resolution)">
+          <button type="button" data-lines="135">Chunky</button>
+          <button type="button" data-lines="180">180 lines</button>
+          <button type="button" data-lines="270">270 lines</button>
+        </div>
+        <div class="seg" role="group" aria-label="Fly options" style="margin-top:6px">
+          <button type="button" id="outlineBtn" aria-pressed="true">Outlines</button>
+          <button type="button" id="fogBtn" aria-pressed="true">Fog</button>
+          <button type="button" id="collideBtn" aria-pressed="true">Solid walls</button>
+        </div>
+        <div class="code" id="flyCode" aria-live="polite"></div>
+        <div class="row"><button type="button" id="flyLinkBtn">Copy link</button><button type="button" id="flyHomeBtn">Back to start</button></div>
+        <p class="keys"><span class="kb"><b>Click</b> the view to steer with the mouse (<b>Esc</b> frees it) · <b>WASD</b> fly · <b>Space</b>/<b>E</b> up · <b>Q</b>/<b>C</b> down · <b>Shift</b> faster · arrows turn</span><span class="tp"><b>Drag</b> looks around · <b>two fingers</b> fly forward, back and sideways</span></p>
+        <h2>What carries over from the engine</h2>
+        <ul class="list">
+          <li><b>Comes across:</b> the colors (its tone ramps), the floor's stone texture, the wall bricks, the converted crate, and the hero: the engine draws him from your exact angle every frame, then he's pasted in like a sprite in Doom.</li>
+          <li><b>Had to be rewritten:</b> perspective itself; walls, floor and boxes drawn in 3D; outlines (found from depth here, not drawn around each character).</li>
+          <li><b>Missing:</b> the engine's lighting, cut-away walls, x-ray, particles.</li>
+          <li><b>Not quite right:</b> the hero and the flat props are flat cut-outs, so up close or from straight above they read as pictures; the far floor shimmers; there's no ceiling.</li>
+        </ul>
+      </div>
 
       <h2>Crates</h2>
       <div class="seg" role="group" aria-label="How the crates are drawn">
@@ -117,15 +162,13 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
         <button type="button" id="walkBtn" aria-pressed="true">Hero walks</button>
         <button type="button" id="tiltBtn" aria-pressed="true" title="Steep views draw characters from a lower angle so their faces show">Readable characters</button>
       </div>
-
-      <p class="keys"><span class="kb"><b>Drag</b> turns and tilts · <b>wheel</b> zooms · <b>WASD</b> or arrows move · <b>Q</b>/<b>E</b> down/up · <b>F</b> fixes · <b>R</b> resets</span><span class="tp"><b>Drag</b> turns and tilts · <b>pinch</b> zooms · <b>two fingers</b> move</span></p>
-      <p class="note"><b>What it can't do:</b> go inside the room at eye level. The engine draws without perspective (far things don't shrink), so there's no first-person view; the closest is a low tilt.</p>
     </details>
   </div>
 </div>
 <!-- @inline engine/my-3d2dge.js -->
 <!-- @inline src/shapes-compare.data.js -->
 <!-- @inline src/shapes-raster.js -->
+<!-- @inline src/free-camera.fly.js -->
 <!-- @inline src/free-camera.game.js -->
 </body>
 </html>

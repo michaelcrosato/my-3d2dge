@@ -4748,8 +4748,9 @@ window.SHAPES_COMPARE = [
  * SHAPE RASTER (temporary, shared by the Shapes vs props lab and the Free camera room, src/labs.json "Temporary"):
  * draws a converted 3D model (a list of boxes, src/shapes-compare.data.js) at game size from any view and facing. Every
  * visible box face is rasterized with a small depth buffer (whole pixels, nearer wins) and shaded with a tone of
- * E.tones by how it faces the light; window.ShapeRaster.outline adds the renderer's 1-px actor outline. Throwaway: it
- * goes with the last of the two labs (HANDOFF.md, the Shapes library plan).
+ * E.tones by how it faces the light; window.ShapeRaster.outline adds the renderer's 1-px actor outline, and tone()
+ * gives the Free camera room's fly mode the same shading. Throwaway: it goes with the last of the two labs (HANDOFF.md,
+ * the Shapes library plan).
  * ============================================================================= */
 (() => {
 'use strict';
@@ -4774,6 +4775,11 @@ function prep(d) {
   d.T = d.mats.map(m => { const t = E.tones(m); return { deep: rgb(t.deep), sh: rgb(t.sh), base: rgb(t.base), lt: rgb(t.lt), hi: rgb(t.hi) }; });
   return d;
 }
+/** the tone [r, g, b] a face of material m gets when its outward normal (world, unit length) is n */
+function tone(d, m, n) {
+  const lit = n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2], t = d.T[m] || d.T[0];
+  return lit > .6 ? t.lt : lit > .15 ? t.base : lit > -.35 ? t.sh : t.deep;
+}
 // a box's corners (bit 0 x, bit 1 y, bit 2 z) and its faces: [corners in order, outward normal]
 const FACES = [[[4, 5, 7, 6], [0, 0, 1]], [[0, 2, 3, 1], [0, 0, -1]], [[1, 3, 7, 5], [1, 0, 0]], [[0, 4, 6, 2], [-1, 0, 0]], [[2, 6, 7, 3], [0, 1, 0]], [[0, 1, 5, 4], [0, -1, 0]]];
 const edge = (a, b, x, y) => (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]);
@@ -4795,8 +4801,7 @@ function raster(d, view, facing, k = 1, edges = true) {
   for (const [m, q] of boxes) for (const [ix, n0] of FACES) {
     const n = [n0[0] * c - n0[1] * s, n0[0] * s + n0[1] * c, n0[2]];
     if (n[0] * D[0] + n[1] * D[1] + n[2] * D[2] <= 1e-6) continue;   // faces away from the camera
-    const lit = n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2], t = d.T[m] || d.T[0];
-    const C = lit > .6 ? t.lt : lit > .15 ? t.base : lit > -.35 ? t.sh : t.deep, up = n[2] > .5 ? 1 : 0;
+    const C = tone(d, m, n), up = n[2] > .5 ? 1 : 0;
     const v = ix.map(i => [q[i][0] + ox, q[i][1] + oy, q[i][2]]);
     for (const [a, b, e] of [[v[0], v[1], v[2]], [v[0], v[2], v[3]]]) {
       const area = edge(a, b, e[0], e[1]); if (Math.abs(area) < 1e-9) continue;
@@ -4832,7 +4837,7 @@ function outline(cv) {
   g.putImageData(img, 0, 0); return cv;
 }
 
-window.ShapeRaster = { prep, raster, outline, rgb };
+window.ShapeRaster = { prep, raster, outline, rgb, tone, FACES };
 })();
 
 </script>

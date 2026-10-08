@@ -79,8 +79,8 @@
           "title": "Free camera room",
           "added": "2026-10-08",
           "question": "What does a free camera look like in our engine, and which objects hold up when you turn it?",
-          "what": "A small room with four pillars, crates and the hero walking a lap. Drag to turn and tilt, zoom, move up and down, then fix the camera anywhere and copy its code or link. The crates switch between a converted 3D shape, today's flat prop and the engine's plain box.",
-          "links": [["Open", ""], ["Fixed: low corner", "?cam=320,18,1.6,6,1,104,88"], ["Fixed: straight down", "?cam=0,90,1.2,0,1,104,88"]]
+          "what": "A small room with four pillars, crates and the hero walking a lap. Drag to turn and tilt, zoom, move up and down, then fix the camera anywhere and copy its code or link. The crates switch between a converted 3D shape, today's flat prop and the engine's plain box. Fly mode (G) is a first-person camera on a small renderer of its own, to show what the engine can't do and what carries over.",
+          "links": [["Open", ""], ["Fixed: low corner", "?cam=320,18,1.6,6,1,104,88"], ["Fixed: straight down", "?cam=0,90,1.2,0,1,104,88"], ["Fly: eye level", "?fly=104,150,20,-90,-7,70"]]
         }
       ]
     }
