@@ -311,7 +311,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.10.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.11.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -370,7 +370,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.10.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.11.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -6617,7 +6617,7 @@ function drawOverlay(project, W, H, crosshair) {
  *   With a 3D camera the hero's controls follow it: W walks away from the camera (the game's movement reads an engine
  *   view turned to match it), and he aims where the camera looks (mouse captured) or where the mouse points on the
  *   floor. Cards are drawn by the engine from the camera's own turn and tilt.
- *   ?cam3=chase | first | fly,x,y,z,yaw,pitch,fov | fixed,x,y,z,yaw,pitch,fov  (engine units and degrees) opens one
+ *   ?cam3=chase | first | fly[,x,y,z,yaw,pitch,fov] | fixed,x,y,z,yaw,pitch,fov  (engine units and degrees) opens one
  * ============================================================================= */
 const DEG3 = Math.PI / 180;
 const camP = new THREE.PerspectiveCamera(60, 1, .05, 300);
@@ -6634,7 +6634,7 @@ const persp = () => CAM.mode !== 'engine';
 const camViews = new Map();
 function camView(kind, yawDeg, pitchDeg) {
   const key = kind + ':' + yawDeg + ':' + pitchDeg; let v = camViews.get(key);
-  if (!v) { if (camViews.size > 500) camViews.clear(); v = new E.View('cam3-' + kind, CAM_LABEL[CAM.mode] || 'Camera', yawDeg, pitchDeg, 1.5, 1); camViews.set(key, v); }
+  if (!v) { if (camViews.size > 500) camViews.clear(); v = new E.View('cam3-' + kind, '3D camera', yawDeg, pitchDeg, 1.5, 1); camViews.set(key, v); }
   return v;
 }
 /** the engine's turn for a camera looking along ground heading a (the engine's yaw puts the camera at (sin, cos)) */
@@ -6817,7 +6817,7 @@ document.querySelectorAll('[data-cam3]').forEach(b => b.addEventListener('click'
 // ?cam3= opens a 3D camera
 {
   const q = (QS.get('cam3') || '').split(','), n = q.slice(1).map(Number);
-  if (['chase', 'first'].includes(q[0])) CAM.mode = q[0];
+  if (['chase', 'first'].includes(q[0]) || (q[0] === 'fly' && q.length === 1)) CAM.mode = q[0];
   else if (['fly', 'fixed'].includes(q[0]) && n.length >= 5 && n.every(Number.isFinite)) {
     const p = { x: n[0], y: n[1], z: n[2], yaw: n[3] * DEG3, pitch: clamp(n[4], -86, 86) * DEG3, fov: clamp(n[5] || 70, 40, 110) };
     if (q[0] === 'fly') Object.assign(CAM.fly, p); else CAM.fixed = p;

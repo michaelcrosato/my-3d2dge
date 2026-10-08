@@ -246,6 +246,7 @@ for (const want of ['webgl', 'webgpu']) {
 let camOk = false;
 {
   const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+  await page.addInitScript(standInCanvas);   // (the 2D page's GPU lighting is WebGPU too: the same headless stand-in)
   const errors = []; page.on('pageerror', e => errors.push(String(e)));
   await page.goto(SITE + '/stress-test?cam=300,20,1.25,8,1.2,520,410');
   await page.waitForFunction(() => window.__game && __game.game.stats.renderMs > 0, null, { timeout: 60000 }).catch(() => fail('stress-test: it did not start'));
