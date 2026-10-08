@@ -3,8 +3,8 @@
  * draws a converted 3D model (a list of boxes, src/shapes-compare.data.js) at game size from any view and facing. Every
  * visible box face is rasterized with a small depth buffer (whole pixels, nearer wins) and shaded with a tone of
  * E.tones by how it faces the light; window.ShapeRaster.outline adds the renderer's 1-px actor outline, and tone()
- * gives the Free camera room's fly mode the same shading. Throwaway: it goes with the last of the two labs (HANDOFF.md,
- * the Shapes library plan).
+ * gives the Free camera room's fly mode the same shading. Throwaway: it goes with the last of the two labs (the Shapes
+ * library plan, since dropped).
  * ============================================================================= */
 (() => {
 'use strict';

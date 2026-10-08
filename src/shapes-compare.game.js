@@ -3,7 +3,7 @@
  * boxes (window.SHAPES_COMPARE, src/shapes-compare.data.js) and drawn by the engine in its four views and turning,
  * beside the hero and our closest flat prop. Each shape is rasterized at game size with a small depth buffer (whole
  * pixels, a tone of E.tones per face by how it faces the light), outlined like the renderer's actors, then enlarged.
- * Throwaway: it settles whether shapes are worth building (HANDOFF.md, the Shapes library plan).
+ * Throwaway: it showed whether shapes were worth building (the Shapes library plan, since dropped).
  * ============================================================================= */
 (() => {
 'use strict';
