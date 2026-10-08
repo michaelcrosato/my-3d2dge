@@ -154,12 +154,13 @@ function FlyCam(canvas, room) {
   }
 
   // a picture standing in the world (the hero, a flat prop): one depth for all of it, its feet at a world point
-  const pics = new WeakMap();
+  const pics = new WeakMap(), lastAt = [0, 0];
   function picture(cv, ax, ay, at, depthAt, fresh) {
     const c = cam(at), d = cam(depthAt); if (d[2] < NEAR * 2 || c[2] < NEAR) return;
     let data = !fresh && pics.get(cv);
     if (!data) { data = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; if (!fresh) pics.set(cv, data); }
     const sx = Math.round(cx0 + c[0] * F / c[2]) - ax, sy = Math.round(cy0 - c[1] * F / c[2]) - ay, w = 1 / d[2], cw = cv.width, ch = cv.height;
+    lastAt[0] = sx + ax; lastAt[1] = sy + ay;
     for (let y = Math.max(0, -sy); y < ch && sy + y < H; y++) for (let x = Math.max(0, -sx); x < cw && sx + x < W; x++) {
       const i = (y * cw + x) * 4; if (data[i + 3] < 128) continue;
       const k = (sy + y) * W + sx + x; if (w <= zb[k]) continue;
@@ -184,15 +185,18 @@ function FlyCam(canvas, room) {
   heroCv.getContext('2d', { willReadFrequently: true });   // read back every frame
   function heroPicture(hero) {
     const dx = P[0] - hero.x, dy = P[1] - hero.y, c = cam([hero.x, hero.y, 13]); if (c[2] < NEAR * 2) return;
-    const yaw = ((Math.round(Math.atan2(dx, dy) * 180 / Math.PI / 5) * 5) % 360 + 360) % 360;
-    const pitch = clamp(Math.round(Math.atan2(P[2] - 13, Math.hypot(dx, dy)) * 180 / Math.PI / 5) * 5, 0, 85);
-    const s = clamp(Math.round(F / c[2] * 4) / 4, .25, 10), key = yaw + ':' + pitch + ':' + s;
-    let v = views.get(key); if (!v) { if (views.size > 600) views.clear(); v = new E.View('fly', 'Fly', yaw, pitch, s, 1); views.set(key, v); }
+    // whole degrees and 1/16 steps of scale: he is redrawn every frame anyway (he animates), and coarser steps make
+    // him pop in size as he walks toward or away from the camera (quarter steps jumped 15% at a time)
+    const yaw = ((Math.round(Math.atan2(dx, dy) * 180 / Math.PI)) % 360 + 360) % 360;
+    const pitch = clamp(Math.round(Math.atan2(P[2] - 13, Math.hypot(dx, dy)) * 180 / Math.PI), 0, 85);
+    const s = clamp(Math.round(F / c[2] * 16) / 16, .25, 10), key = yaw + ':' + pitch + ':' + s;
+    let v = views.get(key); if (!v) { if (views.size > 2000) views.clear(); v = new E.View('fly', 'Fly', yaw, pitch, s, 1); views.set(key, v); }
     const cw = Math.ceil(60 * s) + 6, ch = Math.ceil(64 * s) + 6, ox = cw >> 1, oy = ch - Math.ceil(12 * s) - 3;
     if (heroCv.width !== cw || heroCv.height !== ch) { heroCv.width = cw; heroCv.height = ch; } else heroCv.getContext('2d').clearRect(0, 0, cw, ch);
     const hg = heroCv.getContext('2d'); hg.imageSmoothingEnabled = false;
     hero.rig.draw(hg, ox, oy, v); SR.outline(heroCv);
     picture(heroCv, ox, oy, [hero.x, hero.y, 0], [hero.x, hero.y, 13], true);
+    stats.hero = { scale: s, exact: F / c[2], yaw, pitch, at: lastAt.slice() };
   }
 
   /** draw a frame. C: { x, y, z, yaw, pitch, fov (degrees) }; o: { crates: 'shape' | 'prop' | 'box', outlines, fog,

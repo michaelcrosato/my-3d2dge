@@ -97,10 +97,14 @@ function update(dt) {
     if (up) { S.height = clamp(S.height + up * 60 * dt, -40, 100); sync(); }
   }
   const h = hero;
-  if (S.walk) {   // a steady 42 units a second along the lap, whatever its curve
+  if (S.walk) {   // a steady 42 units a second along the lap, whatever its curve. The velocity comes from the lap's
+    // direction, never from dividing by dt: the engine's first step can be 0 s long, and a NaN facing stops the hero
+    // turning for good (he slides round facing one way, his cape flailing)
     LAP(h.t, pa); LAP(h.t + .01, pb);
-    h.t += dt * 42 / Math.max(5, Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) / .01);
-    LAP(h.t, pb); h.vx = (pb[0] - h.x) / dt; h.vy = (pb[1] - h.y) / dt; h.x = pb[0]; h.y = pb[1];
+    const dx = pb[0] - pa[0], dy = pb[1] - pa[1], d = Math.hypot(dx, dy) || 1;
+    h.vx = dx / d * 42; h.vy = dy / d * 42;
+    h.t += dt * 42 / Math.max(5, d / .01);
+    LAP(h.t, pb); h.x = pb[0]; h.y = pb[1];
     h.facing = E.approachAng(h.facing, Math.atan2(h.vy, h.vx), dt * 10);
   } else h.vx = h.vy = 0;
   h.rig.update(dt, { x: h.x, y: h.y, vx: h.vx, vy: h.vy, facing: h.facing });
@@ -175,7 +179,9 @@ function sync() {
   // fly mode
   const isFly = S.mode === 'fly';
   for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode));
-  $('orbitUI').hidden = isFly; $('flyUI').hidden = !isFly; $('screen').hidden = isFly; $('fly').hidden = !isFly;
+  // the engine's canvas stays in the layout while fly mode covers it: hidden outright it measures 0 pixels wide, and the
+  // engine would size its picture (and this page its camera offset) from that
+  $('orbitUI').hidden = isFly; $('flyUI').hidden = !isFly; $('screen').style.visibility = isFly ? 'hidden' : ''; $('fly').hidden = !isFly;
   $('tag').classList.toggle('on', S.fixed && !isFly);
   $('brandNote').textContent = isFly
     ? 'Fly mode: a first-person camera the engine itself can\'t give. A small renderer made for this lab draws the room in perspective, using the engine\'s colors, textures and hero.'
@@ -217,6 +223,7 @@ function setMode(m) {
     if (FS.collide) fly.collide(FLY, CRATES);
   } else if (document.pointerLockElement) document.exitPointerLock();
   S.mode = m; held.clear(); sync(); flyFit();
+  if (m === 'orbit') { game.screen.resize(); fitOffset(); }   // back to the engine's picture: measure it again
 }
 for (const b of document.querySelectorAll('[data-mode]')) b.onclick = () => setMode(b.dataset.mode);
 $('fov').addEventListener('input', e => { FLY.fov = +e.target.value; sync(); });
@@ -254,7 +261,7 @@ function flyFit() {   // the fly picture: lines of resolution tall, the screen's
 
 /* 8. Drag to turn and tilt, wheel or pinch to zoom, two fingers to move */
 const cv = $('screen'), ptrs = new Map(); let pinch = null;
-const bufPerCss = () => game.screen.W / Math.max(1, cv.clientWidth);
+const bufPerCss = () => game.screen.W / (cv.clientWidth || innerWidth);
 const two = () => { const [a, b] = [...ptrs.values()]; return { d: Math.hypot(a[0] - b[0], a[1] - b[1]), mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2 }; };
 function pan(dxCss, dyCss) {   // grab the floor: it follows the fingers
   const k = bufPerCss(), v = game.view, dx = dxCss * k, dy = dyCss * k;

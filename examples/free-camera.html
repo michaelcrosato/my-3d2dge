@@ -5100,12 +5100,13 @@ function FlyCam(canvas, room) {
   }
 
   // a picture standing in the world (the hero, a flat prop): one depth for all of it, its feet at a world point
-  const pics = new WeakMap();
+  const pics = new WeakMap(), lastAt = [0, 0];
   function picture(cv, ax, ay, at, depthAt, fresh) {
     const c = cam(at), d = cam(depthAt); if (d[2] < NEAR * 2 || c[2] < NEAR) return;
     let data = !fresh && pics.get(cv);
     if (!data) { data = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; if (!fresh) pics.set(cv, data); }
     const sx = Math.round(cx0 + c[0] * F / c[2]) - ax, sy = Math.round(cy0 - c[1] * F / c[2]) - ay, w = 1 / d[2], cw = cv.width, ch = cv.height;
+    lastAt[0] = sx + ax; lastAt[1] = sy + ay;
     for (let y = Math.max(0, -sy); y < ch && sy + y < H; y++) for (let x = Math.max(0, -sx); x < cw && sx + x < W; x++) {
       const i = (y * cw + x) * 4; if (data[i + 3] < 128) continue;
       const k = (sy + y) * W + sx + x; if (w <= zb[k]) continue;
@@ -5130,15 +5131,18 @@ function FlyCam(canvas, room) {
   heroCv.getContext('2d', { willReadFrequently: true });   // read back every frame
   function heroPicture(hero) {
     const dx = P[0] - hero.x, dy = P[1] - hero.y, c = cam([hero.x, hero.y, 13]); if (c[2] < NEAR * 2) return;
-    const yaw = ((Math.round(Math.atan2(dx, dy) * 180 / Math.PI / 5) * 5) % 360 + 360) % 360;
-    const pitch = clamp(Math.round(Math.atan2(P[2] - 13, Math.hypot(dx, dy)) * 180 / Math.PI / 5) * 5, 0, 85);
-    const s = clamp(Math.round(F / c[2] * 4) / 4, .25, 10), key = yaw + ':' + pitch + ':' + s;
-    let v = views.get(key); if (!v) { if (views.size > 600) views.clear(); v = new E.View('fly', 'Fly', yaw, pitch, s, 1); views.set(key, v); }
+    // whole degrees and 1/16 steps of scale: he is redrawn every frame anyway (he animates), and coarser steps make
+    // him pop in size as he walks toward or away from the camera (quarter steps jumped 15% at a time)
+    const yaw = ((Math.round(Math.atan2(dx, dy) * 180 / Math.PI)) % 360 + 360) % 360;
+    const pitch = clamp(Math.round(Math.atan2(P[2] - 13, Math.hypot(dx, dy)) * 180 / Math.PI), 0, 85);
+    const s = clamp(Math.round(F / c[2] * 16) / 16, .25, 10), key = yaw + ':' + pitch + ':' + s;
+    let v = views.get(key); if (!v) { if (views.size > 2000) views.clear(); v = new E.View('fly', 'Fly', yaw, pitch, s, 1); views.set(key, v); }
     const cw = Math.ceil(60 * s) + 6, ch = Math.ceil(64 * s) + 6, ox = cw >> 1, oy = ch - Math.ceil(12 * s) - 3;
     if (heroCv.width !== cw || heroCv.height !== ch) { heroCv.width = cw; heroCv.height = ch; } else heroCv.getContext('2d').clearRect(0, 0, cw, ch);
     const hg = heroCv.getContext('2d'); hg.imageSmoothingEnabled = false;
     hero.rig.draw(hg, ox, oy, v); SR.outline(heroCv);
     picture(heroCv, ox, oy, [hero.x, hero.y, 0], [hero.x, hero.y, 13], true);
+    stats.hero = { scale: s, exact: F / c[2], yaw, pitch, at: lastAt.slice() };
   }
 
   /** draw a frame. C: { x, y, z, yaw, pitch, fov (degrees) }; o: { crates: 'shape' | 'prop' | 'box', outlines, fog,
@@ -5290,10 +5294,14 @@ function update(dt) {
     if (up) { S.height = clamp(S.height + up * 60 * dt, -40, 100); sync(); }
   }
   const h = hero;
-  if (S.walk) {   // a steady 42 units a second along the lap, whatever its curve
+  if (S.walk) {   // a steady 42 units a second along the lap, whatever its curve. The velocity comes from the lap's
+    // direction, never from dividing by dt: the engine's first step can be 0 s long, and a NaN facing stops the hero
+    // turning for good (he slides round facing one way, his cape flailing)
     LAP(h.t, pa); LAP(h.t + .01, pb);
-    h.t += dt * 42 / Math.max(5, Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) / .01);
-    LAP(h.t, pb); h.vx = (pb[0] - h.x) / dt; h.vy = (pb[1] - h.y) / dt; h.x = pb[0]; h.y = pb[1];
+    const dx = pb[0] - pa[0], dy = pb[1] - pa[1], d = Math.hypot(dx, dy) || 1;
+    h.vx = dx / d * 42; h.vy = dy / d * 42;
+    h.t += dt * 42 / Math.max(5, d / .01);
+    LAP(h.t, pb); h.x = pb[0]; h.y = pb[1];
     h.facing = E.approachAng(h.facing, Math.atan2(h.vy, h.vx), dt * 10);
   } else h.vx = h.vy = 0;
   h.rig.update(dt, { x: h.x, y: h.y, vx: h.vx, vy: h.vy, facing: h.facing });
@@ -5368,7 +5376,9 @@ function sync() {
   // fly mode
   const isFly = S.mode === 'fly';
   for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode));
-  $('orbitUI').hidden = isFly; $('flyUI').hidden = !isFly; $('screen').hidden = isFly; $('fly').hidden = !isFly;
+  // the engine's canvas stays in the layout while fly mode covers it: hidden outright it measures 0 pixels wide, and the
+  // engine would size its picture (and this page its camera offset) from that
+  $('orbitUI').hidden = isFly; $('flyUI').hidden = !isFly; $('screen').style.visibility = isFly ? 'hidden' : ''; $('fly').hidden = !isFly;
   $('tag').classList.toggle('on', S.fixed && !isFly);
   $('brandNote').textContent = isFly
     ? 'Fly mode: a first-person camera the engine itself can\'t give. A small renderer made for this lab draws the room in perspective, using the engine\'s colors, textures and hero.'
@@ -5410,6 +5420,7 @@ function setMode(m) {
     if (FS.collide) fly.collide(FLY, CRATES);
   } else if (document.pointerLockElement) document.exitPointerLock();
   S.mode = m; held.clear(); sync(); flyFit();
+  if (m === 'orbit') { game.screen.resize(); fitOffset(); }   // back to the engine's picture: measure it again
 }
 for (const b of document.querySelectorAll('[data-mode]')) b.onclick = () => setMode(b.dataset.mode);
 $('fov').addEventListener('input', e => { FLY.fov = +e.target.value; sync(); });
@@ -5447,7 +5458,7 @@ function flyFit() {   // the fly picture: lines of resolution tall, the screen's
 
 /* 8. Drag to turn and tilt, wheel or pinch to zoom, two fingers to move */
 const cv = $('screen'), ptrs = new Map(); let pinch = null;
-const bufPerCss = () => game.screen.W / Math.max(1, cv.clientWidth);
+const bufPerCss = () => game.screen.W / (cv.clientWidth || innerWidth);
 const two = () => { const [a, b] = [...ptrs.values()]; return { d: Math.hypot(a[0] - b[0], a[1] - b[1]), mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2 }; };
 function pan(dxCss, dyCss) {   // grab the floor: it follows the fingers
   const k = bufPerCss(), v = game.view, dx = dxCss * k, dy = dyCss * k;
