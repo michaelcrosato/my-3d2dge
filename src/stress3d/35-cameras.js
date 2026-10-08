@@ -15,6 +15,9 @@
  *   With a 3D camera the hero's controls follow it: W walks away from the camera (the game's movement reads an engine
  *   view turned to match it), and he aims where the camera looks (mouse captured) or where the mouse points on the
  *   floor. Cards are drawn by the engine from the camera's own turn and tilt.
+ *   side scrolling with depth (M, shared code: src/stress.game.js's DEPTH): the engine camera's side view, but through
+ *            a perspective camera at the same pose the 2D page's Mode 7 uses, on a rail beside the hero, so he shrinks
+ *            and grows with depth; walls between the camera and the hero are cut low as on the 2D page
  *   ?cam3=chase | first | fly[,x,y,z,yaw,pitch,fov] | fixed,x,y,z,yaw,pitch,fov  (engine units and degrees) opens one
  * ============================================================================= */
 const DEG3 = Math.PI / 180;
@@ -26,7 +29,12 @@ const CAM = {
   fixed: null, pose: null, smooth: null, eyeZ: 24
 };
 const CAM_LABEL = { chase: 'Chase camera', first: 'First person', fly: 'Fly camera', fixed: 'Fixed 3D camera' };
-const persp = () => CAM.mode !== 'engine';
+/** a 3D camera of its own (chase, first, fly, fixed: the panel's camera buttons and their keys) */
+const cam3d = () => CAM.mode !== 'engine';
+/** the engine camera's side scrolling with depth: a perspective camera at the shared depth pose */
+const depthOn = () => CAM.mode === 'engine' && G.depthActive();
+/** drawn through the perspective camera */
+const persp = () => cam3d() || depthOn();
 /** the engine view the hero's controls read in a 3D camera (W walks away from the camera), and the view cards are drawn
  *  from (the camera's own turn and tilt); cached by whole degrees */
 const camViews = new Map();
@@ -71,7 +79,7 @@ function flyStep(dt) {
 /** turning with the keys in chase and first person ([ ] held), and the camera's pose this frame */
 function cameraPose(dt) {
   if (CAM.mode === 'chase' || CAM.mode === 'first') CAM.yaw += ((CAM.held.has('BracketRight') ? 1 : 0) - (CAM.held.has('BracketLeft') ? 1 : 0)) * 2.2 * dt;
-  const p = CAM.mode === 'chase' ? chasePose(dt) : CAM.mode === 'first' ? firstPose(dt) : CAM.mode === 'fly' ? flyStep(dt) : CAM.fixed;
+  const p = depthOn() ? G.depthPose() : CAM.mode === 'chase' ? chasePose(dt) : CAM.mode === 'first' ? firstPose(dt) : CAM.mode === 'fly' ? flyStep(dt) : CAM.fixed;
   return (CAM.pose = p);
 }
 const _look = new THREE.Vector3(), _pm = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sph = new THREE.Sphere();
@@ -91,7 +99,7 @@ function placePersp(p, sc, shx, shy) {
   _fr.setFromProjectionMatrix(_pm.multiplyMatrices(camP.projectionMatrix, camP.matrixWorldInverse), camP.coordinateSystem);
   // the hero's controls: the game reads game.view to turn the keys into a ground direction
   const yw = engineYaw(p.yaw);
-  if (CAM.mode !== 'fly') game.view = camView('input', yw, 45);
+  if (cam3d() && CAM.mode !== 'fly') game.view = camView('input', yw, 45);   // (with depth the engine's side view stays: W walks away)
   return camView('card', yw, clamp(Math.round(-p.pitch / DEG3), 0, 89));
 }
 /** on screen for the perspective camera: a sphere round the body inside the view */
@@ -140,7 +148,7 @@ function setCam(mode, keepPose) {
 }
 /** F in a 3D camera: fix it where it is (the hero is yours again), or free a fixed one into fly mode */
 function fix3d() {
-  if (!persp()) return false;
+  if (!cam3d()) return false;   // (the engine camera, depth or not, fixes as the 2D page does)
   if (CAM.mode === 'fixed') { setCam('fly', true); return true; }
   const p = CAM.mode === 'first' ? backOff(CAM.pose || firstPose(0)) : CAM.pose || chasePose(0);
   CAM.fixed = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, fov: p.fov };
@@ -148,15 +156,16 @@ function fix3d() {
   setCam('fixed', true); return true;
 }
 const poseParam = p => [Math.round(p.x), Math.round(p.y), Math.round(p.z), Math.round(p.yaw / DEG3), Math.round(p.pitch / DEG3), Math.round(p.fov)].join(',');
-G.HOOKS.camera = () => !persp() ? null : CAM_LABEL[CAM.mode] + ' (perspective, ' + Math.round((CAM.pose || {}).fov || 60) + '° field of view)';
+G.HOOKS.camera = () => depthOn() ? 'Side scrolling with depth (a perspective camera on a rail, ' + Math.round(G.depthPose().fov) + '° field of view)' + (G.FIX.on ? ', camera fixed' : '')
+  : !cam3d() ? null : CAM_LABEL[CAM.mode] + ' (perspective, ' + Math.round((CAM.pose || {}).fov || 60) + '° field of view)';
 G.HOOKS.camLink = () => {
-  if (!persp()) return null;
+  if (!cam3d()) return null;
   const u = new URL(location.href); u.searchParams.delete('cam'); u.searchParams.delete('cam3');
   const v = CAM.mode === 'fixed' || CAM.mode === 'fly' ? CAM.mode + ',' + poseParam(CAM.pose || CAM.fly) : CAM.mode;
   const rest = u.search.slice(1); return u.origin + u.pathname + '?' + [rest, 'cam3=' + v].filter(Boolean).join('&') + u.hash;
 };
 G.HOOKS.fix = fix3d;
-G.HOOKS.fixed = () => persp() ? CAM.mode === 'fixed' : null;
+G.HOOKS.fixed = () => cam3d() ? CAM.mode === 'fixed' : null;
 
 /* ---- the keys, the wheel and the mouse (taken before the game sees them where a 3D camera needs them) ---- */
 const FLY_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyQ', 'KeyE', 'Space', 'ShiftLeft', 'ShiftRight', 'KeyJ', 'KeyK', 'KeyL', 'KeyX', 'KeyZ']);
@@ -171,7 +180,7 @@ addEventListener('keydown', e => {
   if (typingIn(e) || e.ctrlKey || e.metaKey) return;
   if (CAM.mode === 'fly' && FLY_KEYS.has(e.code)) { CAM.held.add(e.code); take(e); return; }
   if (/^Digit[1-4]$/.test(e.code)) { if (!e.repeat) setCam(['engine', 'chase', 'first', 'fly'][+e.code.slice(5) - 1]); take(e); return; }
-  if (!persp()) return;
+  if (!cam3d()) return;
   if (e.code === 'BracketLeft' || e.code === 'BracketRight') { CAM.held.add(e.code); take(e); }
   else if (e.code === 'Minus' || e.code === 'NumpadSubtract' || e.code === 'Equal' || e.code === 'NumpadAdd') { zoom3(e.code === 'Equal' || e.code === 'NumpadAdd' ? 1 : -1); take(e); }
   else if (e.code === 'Digit0') { Object.assign(CAM.chase, { pitch: -.36, dist: 88, fov: 60 }); Object.assign(CAM.first, { pitch: -.08, fov: 75 }); take(e); }
@@ -181,15 +190,15 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => CAM.held.delete(e.code), true);
 addEventListener('blur', () => CAM.held.clear());
 const screenEl = $('screen');
-addEventListener('wheel', e => { if (persp() && e.target === screenEl) { e.stopPropagation(); zoom3(e.deltaY < 0 ? 1 : -1); } }, { capture: true, passive: true });
+addEventListener('wheel', e => { if (cam3d() && e.target === screenEl) { e.stopPropagation(); zoom3(e.deltaY < 0 ? 1 : -1); } }, { capture: true, passive: true });
 addEventListener('pointerdown', e => {
-  if (!persp() || e.target !== screenEl || e.pointerType !== 'mouse') return;
+  if (!cam3d() || e.target !== screenEl || e.pointerType !== 'mouse') return;
   if (CAM.mode === 'fly') e.stopPropagation();   // a click in fly mode only captures the mouse (no swing)
   if (CAM.mode !== 'fixed' && !CAM.locked && screenEl.requestPointerLock) { try { const r = screenEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* refused: the keys still turn */ } }
 }, true);
 document.addEventListener('pointerlockchange', () => { CAM.locked = document.pointerLockElement === screenEl; syncCam(); });
 document.addEventListener('mousemove', e => {
-  if (!CAM.locked || !persp()) return;
+  if (!CAM.locked || !cam3d()) return;
   const k = .0024, dx = e.movementX || 0, dy = e.movementY || 0;
   if (CAM.mode === 'fly') { CAM.fly.yaw += dx * k; CAM.fly.pitch = clamp(CAM.fly.pitch - dy * k, -1.5, 1.5); }
   else { CAM.yaw += dx * k; const c = CAM.mode === 'chase' ? CAM.chase : CAM.first; c.pitch = clamp(c.pitch - dy * k, CAM.mode === 'chase' ? -1.3 : -1.2, CAM.mode === 'chase' ? .15 : 1.1); }
@@ -209,7 +218,7 @@ const CAM_NOTES = {
 function syncCam() {
   document.querySelectorAll('[data-cam3]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cam3 === CAM.mode || (b.dataset.cam3 === 'fly' && CAM.mode === 'fixed'))));
   $('camNote').textContent = CAM_NOTES[CAM.mode] + (CAM.locked ? ' Mouse captured: Esc frees it.' : '');
-  $('screen').style.cursor = persp() && CAM.mode !== 'fixed' && !CAM.locked ? 'pointer' : '';
+  $('screen').style.cursor = cam3d() && CAM.mode !== 'fixed' && !CAM.locked ? 'pointer' : '';
 }
 document.querySelectorAll('[data-cam3]').forEach(b => b.addEventListener('click', () => { setCam(b.dataset.cam3); b.blur(); }));
 // ?cam3= opens a 3D camera

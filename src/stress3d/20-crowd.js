@@ -7,7 +7,8 @@
  *           its own palette (rig.C); a slime is its body squashed as the Blob squashes, with eyes, horns, ears or wings.
  *   Card    the engine draws each rig into a sprite atlas (fixed pages: only the pages in use upload), outlined as its
  *           sprites are, and an instanced card shows each cell where the monster stands, facing the camera. The look
- *           is the 2D page's, to the pixel, at the engine's resolution.
+ *           is the 2D page's, to the pixel, at the engine's resolution; at the balanced or full resolution the engine
+ *           draws each card that many times finer (it draws by code, at any scale), so zoomed out it stays sharp.
  *   Wisps are glowing orbs in both looks. Hit flashes tint toward the 2D page's flash color; spawning monsters rise
  *   out of the floor and the fallen sink into it (the 2D page fades them).
  *   drawCrowd(view, look, outlines) is called by the frame; it returns how many characters it drew.
@@ -243,8 +244,9 @@ const ATLAS = (() => {
       if (flash) { g.save(); g.beginPath(); g.rect(cx, cy, cell, cell); g.clip(); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = .3; g.fillStyle = '#ffe6d8'; g.fillRect(cx, cy, cell, cell); g.restore(); }
       // the card: the cell's size on screen, its root on the rig's root (snapped to the screen's pixels in the engine's
       // own views), facing the camera
-      const ppm = v.ppm, w = cell / ppm, h = cell / (ppm * v.vert);
-      let fx = 0, fy = 0; if (v.snap) { const sp = view3.p(x, y, z); fx = Math.round(sp[0]) - sp[0]; fy = Math.round(sp[1]) - sp[1]; }
+      // (v.detail: the cell is drawn that many times finer than the camera's pixels, at the balanced or full resolution)
+      const ppm = v.ppm * (v.detail || 1), w = cell / ppm, h = cell / (ppm * v.vert);
+      let fx = 0, fy = 0; if (v.snap && (v.detail || 1) === 1) { const sp = view3.p(x, y, z); fx = Math.round(sp[0]) - sp[0]; fy = Math.round(sp[1]) - sp[1]; }
       // the card's centre from the root: right by the root's distance from the cell's middle, up by the part of the cell
       // above the root, plus the snap; pushed toward the camera so the floor can't cut its feet
       const dx = (cell / 2 - (ox - cx) + fx) / ppm, dy = ((oy - cy) - cell / 2 - fy) / (ppm * v.vert);
@@ -255,16 +257,18 @@ const ATLAS = (() => {
       const q = pg.rect.array, k = j * 4; q[k] = cx / P; q[k + 1] = 1 - (cy + cell) / P; q[k + 2] = cell / P; q[k + 3] = cell / P;
       pg.n++; n++; return true;
     },
-    /** finish: each used page's outline (each sprite grown by a pixel in the outline color, under it) over its used rows,
-     *  and one upload per used page */
-    end(outlines) {
+    /** finish: each used page's outline (each sprite grown by `thick` pixels in the outline color, under it: one engine
+     *  pixel at the cards' detail) over its used rows, and one upload per used page */
+    end(outlines, thick = 1) {
+      const t = Math.max(1, Math.round(thick)), d = Math.max(1, Math.round(t * .7));
+      const OFFS = t === 1 ? [[1, 0], [-1, 0], [0, 1], [0, -1]] : [[t, 0], [-t, 0], [0, t], [0, -t], [d, d], [-d, d], [d, -d], [-d, -d]];
       for (const pg of pages) {
         const rows = Math.ceil(pg.n / cols), hNow = rows * cell, hWas = pg.rows * cell, go = pg.go;
         if (hWas) go.clearRect(0, 0, P, hWas);
         if (pg.n) {
           if (outlines) {
-            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) go.drawImage(pg.cv, 0, 0, P, hNow, dx, dy, P, hNow);
-            go.globalCompositeOperation = 'source-in'; go.fillStyle = OUTLINE; go.fillRect(0, 0, P, hNow + 1); go.globalCompositeOperation = 'source-over';
+            for (const [dx, dy] of OFFS) go.drawImage(pg.cv, 0, 0, P, hNow, dx, dy, P, hNow);
+            go.globalCompositeOperation = 'source-in'; go.fillStyle = OUTLINE; go.fillRect(0, 0, P, hNow + t); go.globalCompositeOperation = 'source-over';
           }
           go.drawImage(pg.cv, 0, 0, P, hNow, 0, 0, P, hNow);
         }
@@ -316,7 +320,7 @@ function drawCrowd(o) {
     drawn++;
   }
   _sink = 0;
-  if (cards) ATLAS.end(outlines);
+  if (cards) ATLAS.end(outlines, v.detail || 1);
   for (const b of Object.values(BATCH)) b.end(outlines);
   CAPE.end();
   return { drawn, culled: G.enemies.length + G.corpses.length - list.length };

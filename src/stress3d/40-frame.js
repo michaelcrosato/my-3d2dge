@@ -21,7 +21,18 @@ const R3 = { look: ['card', 'puppet'].includes(QS.get('look')) ? QS.get('look') 
 const resScale = sc => R3.res === 'engine' ? 1 : R3.res === 'full' ? sc.S : sc.S / 2;
 const cam3 = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 300);
 const DEG = Math.PI / 180, _S = new THREE.Matrix4(), _M = new THREE.Matrix4(), _g = new THREE.Vector3();
-const CV = { right: new THREE.Vector3(), up: new THREE.Vector3(), back: new THREE.Vector3(), q: new THREE.Quaternion(), ppm: 1, vert: 1, snap: true };
+const CV = { right: new THREE.Vector3(), up: new THREE.Vector3(), back: new THREE.Vector3(), q: new THREE.Quaternion(), ppm: 1, vert: 1, snap: true, detail: 1 };
+/** the cards' detail: the engine draws them this many times finer than its own pixels, as fine as the picture's own
+ *  pixels at the balanced or full resolution (zoomed out, a card is then sharp, not a small sprite blown up), within
+ *  cells of at most 256 pixels (each card is drawn and uploaded every frame) */
+const cardDetail = (sc, view) => R3.res === 'engine' ? 1 : clamp(Math.min(resScale(sc), 256 / (64 * view.scale)), 1, 8);
+const fineViews = new Map();
+function fineView(view, q) {
+  if (q === 1) return view;
+  const s = Math.round(view.scale * q * 16) / 16, key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.zBoost + ':' + s; let v = fineViews.get(key);
+  if (!v) { if (fineViews.size > 300) fineViews.clear(); v = new E.View(view.id, view.label, view.yawDeg, view.pitchDeg, s, view.zBoost); fineViews.set(key, v); }
+  return v;
+}
 const frameEl = $('frame');
 let lastFit = '';
 /** the 3D canvas over the engine's picture (its whole-pixel scale and letterbox), one pixel larger, at the right size */
@@ -66,8 +77,8 @@ let warmed = false;
 /** draw one picture with every batch, atlas page, trail and floor shape in it (empty, scaled to nothing), so each
  *  material builds its shader and GPU pipelines now, shadow passes too, and not on the frame a monster kind or an effect
  *  first appears (tens of milliseconds each: the stall the benchmark caught at 50 monsters) */
-function warmUp(camNow) {
-  ARCS.prepare(8); RINGS.prepare(12); RIBBONS.prepare(6); ATLAS.prepare(game.view, 2);
+function warmUp(camNow, cardView) {
+  ARCS.prepare(8); RINGS.prepare(12); RIBBONS.prepare(6); ATLAS.prepare(cardView, 2);
   const Z = new THREE.Matrix4().makeScale(0, 0, 0), inst = [], pools = [...ARCS.list, ...RINGS.list, ...RIBBONS.list];
   for (const b of [...Object.values(BATCH), ...Object.values(PART)]) { inst.push(b.mesh); if (b.shell) inst.push(b.shell); }
   for (const pg of ATLAS.pages) inst.push(pg.mesh);
@@ -78,7 +89,7 @@ function warmUp(camNow) {
   for (const m of pools) m.visible = false;
   warmed = true;
 }
-const STATS = { drawn: 0, culled: 0, calls: 0, tris: 0, frames: 0 };
+const STATS = { drawn: 0, culled: 0, calls: 0, tris: 0, frames: 0, detail: 1 };
 /** one picture of the game as it stands (the engine's loop calls this in place of its own drawing) */
 function frame3d() {
   const sc = game.screen, view = game.view, c = game.cam, s = game.shakeAmt, t = game.real, dt = clamp(t - (CAM.last || t), 0, .1); CAM.last = t;
@@ -97,7 +108,8 @@ function frame3d() {
     project = (x, y, z) => { const p = view.p(x, y, z); return [p[0] - ix, p[1] - iy]; };
   } else {          // a 3D camera
     canvas3d.style.transform = over.style.transform = '';
-    cardView = placePersp(cameraPose(dt), sc, shx, shy); placeWalls(NO_CUT);
+    cardView = placePersp(cameraPose(dt), sc, shx, shy);
+    if (depthOn()) placeWalls(view, { key: 'depth' + Math.floor(G.hero.y / T), fn: G.depthCut }); else placeWalls(NO_CUT);
     camNow = camP; vis = visPersp; project = (x, y, z) => projectPersp(x, y, z, W1, H1);
   }
   let lights = lightHall(t);
@@ -106,16 +118,17 @@ function frame3d() {
   // the wisps nearest the hero carry lights when the panel says so (the 2D page lights up to 16; here up to 4)
   const wisps = G.S.monsterLights ? G.enemies.filter(e => e.type === 'wisp' && e.alive).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y)) : [];
   wispLights.forEach((L, i) => { const e = wisps[i]; L.intensity = e ? LIGHT.wisp : 0; if (e) { L.position.set(e.x / U, e.z / U, e.y / U); lights++; } });
+  const fine = fineView(cardView, cardDetail(sc, cardView)); CV.detail = fine.scale / cardView.scale;
   renderer.info.reset();
-  if (!warmed) warmUp(camNow);
-  const crowd = drawCrowd({ view: cardView, vis, look: R3.look, outlines: G.S.outlines, v: CV, hideHero: CAM.mode === 'first' });
+  if (!warmed) warmUp(camNow, fine);
+  const crowd = drawCrowd({ view: fine, vis, look: R3.look, outlines: G.S.outlines, v: CV, hideHero: CAM.mode === 'first' });
   lights += drawEffects(CV);
   renderFrame(camNow);
   drawOverlay(project, W1, H1, CAM.mode === 'first' || (CAM.locked && CAM.mode === 'chase'));
   // the numbers the panel shows, as the engine counts its own
   const info = renderer.info.render, st = game.stats;
   st.actors = crowd.drawn; st.culled = crowd.culled; st.items = info.drawCalls; G.frameStats.lights = lights;
-  STATS.drawn = crowd.drawn; STATS.culled = crowd.culled; STATS.calls = info.drawCalls; STATS.tris = info.triangles; STATS.frames++;
+  STATS.drawn = crowd.drawn; STATS.culled = crowd.culled; STATS.detail = CV.detail; STATS.calls = info.drawCalls; STATS.tris = info.triangles; STATS.frames++;
   G.hud();
   $('mGpu').textContent = 'three.js · ' + BACKEND;
   if (R3.res !== 'engine') { const k = resScale(sc), w = Math.round(W1 * k), hh = Math.round(H1 * k); $('mRes').textContent = w + '×' + hh + ' (' + Math.round(w * hh / 1000) + 'k px)'; }

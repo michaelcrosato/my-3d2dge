@@ -32,8 +32,8 @@
         {
           "page": "stress-test",
           "title": "Stress test",
-          "what": "Raise the load (up to 5,000 monsters, torches, particles) until the frame rate drops, or run the benchmark to rate this device. Any view the engine can draw (side scrolling, or a custom turn and tilt), fixed in place if you like, and the same camera opens on the 3D stress test.",
-          "links": [["Open", ""], ["Three-quarter view", "?view=threequarter"], ["Side scrolling", "?view=side"], ["Custom camera, fixed", "?cam=300,20,1.25,8,1.2,520,410"]]
+          "what": "Raise the load (up to 5,000 monsters, torches, particles) until the frame rate drops, or run the benchmark to rate this device. Any view the engine can draw (side scrolling, with depth drawn the Mode 7 way, or a custom turn and tilt), fixed in place if you like, and the same camera opens on the 3D stress test.",
+          "links": [["Open", ""], ["Three-quarter view", "?view=threequarter"], ["Side scrolling", "?view=side"], ["Side scrolling with depth (Mode 7)", "?view=side&depth=1"], ["Custom camera, fixed", "?cam=300,20,1.25,8,1.2,520,410"]]
         }
       ]
     },
@@ -96,7 +96,7 @@
           "added": "2026-10-08",
           "question": "Head to head: how does the stress test hold up drawn by three.js in real 3D, next to our own 2D renderer?",
           "what": "The stress test itself (the same game code: hall, hero, walkers, slimes, wisps, combat, waves, panel, metrics and benchmark) drawn by three.js r182 on WebGPU or WebGL 2 in place of the engine's canvas. The monsters are Cards (the engine's own drawing standing in the 3D hall) or Puppets (3D parts on the same joints, with torchlight and shadows). The engine's own camera (every view, side scrolling, custom, fixed), or a chase, first-person or fly camera, fixed anywhere. Filters: Comic cel or Pixel on the whole scene, the characters and objects, or the hall, with bloom and FXAA. Run the benchmark on both pages to compare.",
-          "links": [["Open", ""], ["Puppets", "?look=puppet"], ["Chase camera", "?cam3=chase&look=puppet&pixels=0"], ["First person", "?cam3=first"], ["Fly", "?cam3=fly&look=puppet"], ["Comic cel", "?fx=cel&look=puppet&pixels=0"], ["Pixel on the characters", "?fx=pixel&fxto=objects&pixels=0"], ["On WebGL 2", "?backend=webgl"]]
+          "links": [["Open", ""], ["Puppets", "?look=puppet"], ["Side scrolling with depth", "?view=side&depth=1&res=full"], ["Chase camera", "?cam3=chase&look=puppet&pixels=0"], ["First person", "?cam3=first"], ["Fly", "?cam3=fly&look=puppet"], ["Comic cel", "?fx=cel&look=puppet&pixels=0"], ["Pixel on the characters", "?fx=pixel&fxto=objects&pixels=0"], ["On WebGL 2", "?backend=webgl"]]
         }
       ]
     }

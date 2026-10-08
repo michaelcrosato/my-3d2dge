@@ -157,6 +157,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
         <button type="button" data-view="side">Side scrolling</button>
         <button type="button" data-view="custom">Custom</button>
       </div>
+      <label class="check"><input type="checkbox" id="depth"><span>Depth in side scrolling <kbd>M</kbd><small>Mode 7: a perspective camera on a rail beside the hero, so he shrinks walking into the hall and grows coming back. The floor is drawn a row at a time and every character at the size its distance gives, by the engine at that size, not a scaled sprite.</small></span></label>
       <div id="customCam" hidden>
         <label class="field" for="camYaw"><span>Turn</span><output id="camYawOut">30°</output></label>
         <input type="range" id="camYaw" min="0" max="359" step="1" value="30">
@@ -240,7 +241,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
     <details><summary>This device</summary><p id="hw">Detecting...</p></details>
   </div>
 
-  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>F</b> fixes it in place, <b>G</b> toggles GPU lighting, <b>R</b> shows skeletons, <b>H</b> hides the panel.</p>
+  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>F</b> fixes it in place, <b>M</b> adds depth to side scrolling, <b>G</b> toggles GPU lighting, <b>R</b> shows skeletons, <b>H</b> hides the panel.</p>
   <div class="touch" aria-hidden="true"><button data-act="dash">Dash</button><button data-act="skill">Ember</button><button data-act="attack">Slash</button></div>
 </div>
 <!-- @inline engine/my-3d2dge.js -->

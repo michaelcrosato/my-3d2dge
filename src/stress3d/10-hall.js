@@ -76,15 +76,16 @@ for (const id of [...new Set(map.cells)].filter(i => i > 0)) {
   };
   WALLS[id] = { t, cells, full: make(t.h), cut: t.cut ? make(t.cutH || 6) : null };
 }
-/** place the walls for this view: the full height, or the cut height for walls the engine cuts away in front */
+/** place the walls for this view: the full height, or the cut height for walls the engine cuts away in front (or, with
+ *  cut = { key, fn(cx, cy) }, the walls fn cuts: side scrolling with depth cuts the ones between camera and hero) */
 let wallKey = '';
-function placeWalls(view) {
-  const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg; if (key === wallKey) return; wallKey = key;
+function placeWalls(view, cut) {
+  const key = cut ? 'cut:' + cut.key : view.id + ':' + view.yawDeg + ':' + view.pitchDeg; if (key === wallKey) return; wallKey = key;
   for (const W of Object.values(WALLS)) {
     let nf = 0, nc = 0;
     for (const [cx, cy] of W.cells) {
-      const cut = W.cut && map._isFront(cx, cy, view), m = cut ? W.cut : W.full, h = (cut ? W.t.cutH || 6 : W.t.h) / U;
-      m.setMatrixAt(cut ? nc++ : nf++, _wm.makeTranslation(cx + .5, h / 2, cy + .5));
+      const isCut = W.cut && (cut ? cut.fn(cx, cy) : map._isFront(cx, cy, view)), m = isCut ? W.cut : W.full, h = (isCut ? W.t.cutH || 6 : W.t.h) / U;
+      m.setMatrixAt(isCut ? nc++ : nf++, _wm.makeTranslation(cx + .5, h / 2, cy + .5));
     }
     W.full.count = nf; W.full.instanceMatrix.needsUpdate = true;
     if (W.cut) { W.cut.count = nc; W.cut.instanceMatrix.needsUpdate = true; }

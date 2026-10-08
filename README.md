@@ -280,7 +280,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.11.0**. Every change merged to `main` bumps it (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.12.0**. Every change merged to `main` bumps it (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

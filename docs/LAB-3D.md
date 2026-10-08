@@ -176,7 +176,7 @@ Each milestone ends with screenshots on both backends.
   move the hero with our own kinematic code and keep Rapier for the crates. Our engine's collision is already
   enough for walking among walls and pillars.
 
-## The 3D stress test (v0.10.0, cameras and filters v0.11.0)
+## The 3D stress test (v0.10.0, cameras and filters v0.11.0, depth v0.12.0)
 
 A head-to-head with the engine's own renderer: `/stress-3d` (Labs → Temporary → Stress test in 3D) is the stress test
 at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `examples/stress-3d.html`.
@@ -202,6 +202,18 @@ at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `ex
   F fixes any of them where it is: a **fixed 3D camera** while you play (`?cam3=`). In a 3D camera the hero's
   controls follow it: the game reads an engine view turned to match, so W walks away from the camera, and he aims
   where the camera looks or where the mouse points on the floor. Cards are drawn from the camera's own turn and tilt.
+- **Side scrolling with depth** (M, both pages; v0.12.0). The engine's side view is orthographic, so a character is
+  the same size wherever he stands. With depth on, the side view gets a perspective camera on a rail: it follows the
+  hero sideways and keeps him 110 to 260 units away, so he shrinks walking into the hall and grows coming back. The
+  2D page draws it the SNES way, Mode 7 (with the scaled sprites of Super Mario Kart and F-Zero): the floor one screen
+  row at a time, each row the strip of floor texture at that row's distance; then walls, braziers, telegraphs, trails
+  and every character back to front, each drawn by the engine at the size its distance gives (a rig draws by code at
+  any scale, so a near one is crisp). The 3D page puts a real perspective camera at the same pose, for the head-to-head.
+  Walls between the camera and the hero are cut low on both. The engine's lighting works only in its own views, so
+  the 2D page lights warm pools on the floor itself.
+- **Sharp cards** (v0.12.0). At the balanced or full resolution the engine draws each card as fine as the picture's
+  own pixels (it draws by code, at any scale; cells up to 256 pixels), so a zoomed-out character is sharp instead of
+  a small sprite blown up. At the engine's pixels the cards are the 2D page's, to the pixel, as before.
 - **Filters** (N cycles; 3D only). **Clean** (no filter, no extra pass), **Comic cel** (shade bands, ink strength,
   ink width, colour punch) or **Pixel** (pixel size, colours per channel, Bayer dither), on the **entire scene**,
   the **characters and objects**, or the **environment**; and **bloom** and **FXAA**. All TSL in `PostProcessing`,
