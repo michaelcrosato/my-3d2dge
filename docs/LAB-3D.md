@@ -10,6 +10,16 @@ It is a test, not a new engine. Nothing in `engine/` or `src/emberdeep/` changes
 the mocap player and Dan's body as they are. When the question is settled, the lab, its vendored libraries and its
 Labs entry are deleted or promoted.
 
+## Status: built (v0.9.0)
+
+All five milestones are done. The lab is at `/lab-3d` (Labs → Temporary → 3D world lab); locally, run
+`node tools/build.mjs`, serve the repository's root (`npx serve`, `python3 -m http.server`) and open
+`examples/lab-3d.html`. `node tools/lab3d-test.mjs` (part of `npm test`) checks it: the vendored files' checksums, the
+rules below, the same state hash on WebGL 2 and WebGPU, a short session of play, and a picture of every camera and look
+(`check-output/lab3d/`). Headless Chromium's WebGPU loses its device as soon as it shows a frame on a canvas, so on
+WebGPU the test gives three.js a stand-in canvas context and reads the frames back itself: the whole WebGPU pipeline
+runs; only showing the frame is skipped. A real browser shows it.
+
 ## Decisions (agreed)
 
 | Topic | Decision |
@@ -67,7 +77,8 @@ Labs entry are deleted or promoted.
 
 ### The room
 - Four walls, four pillars and a floor, built from an ASCII map (`#` wall, `P` pillar, `.` floor, `T` a wall with a
-  torch, `c` a crate), so an agent can edit the level as text.
+  torch, `c` a crate, `C` two stacked, `m` and `d` where the mocap figure and Dan stand), so an agent can edit the
+  level as text (`src/lab3d/20-world.js`).
 - Crates in the middle: a stack and a few loose ones, real Rapier bodies that the hero pushes, knocks and topples.
 - Procedural materials: flagstone floor (`E.tex.flagstone`, the engine's own), brick walls, stone pillars and wood
   crates, each generated pixel by pixel into a texture with nearest filtering, so texels stay crisp.
@@ -101,8 +112,10 @@ Labs entry are deleted or promoted.
 - The backend in use (WebGPU or WebGL 2), `?backend=webgl` to force the fallback, and the game-state hash after the
   fixed scripted run.
 - `window.__lab3d`: `run(n)` resets and runs n scripted fixed steps and returns the hash, `state()` returns positions
-  and the hash, `setCamera(...)`, `set(option, value)`. Tests and agents drive the lab through it.
-- An info line per mode: what it shows and what carried over from our engine and what didn't.
+  and the hash, `camera(code)` sets a camera from its code (as `?cam=` has it), `set(option, value)` (`cam`, `look`,
+  `play`, `pixels`, `outlines`, `shadows`, `fog`). Tests and agents drive the lab through it. The address takes
+  `?view=` (a camera to start with), `?cam=` (a fixed camera), `?look=`, `?play=1`, `?pixels=0` and `?backend=webgl`.
+- An info line per camera and per look, and a list of what carried over from our engine and what didn't.
 
 ## How it's built
 
@@ -126,8 +139,9 @@ tools/lab3d-test.mjs                 the banned-API check; opens the lab on WebG
 ```
 
 - `tools/build.mjs` writes `examples/lab-3d.html` (the engine, the mocap player and sets, Dan's body section and the
-  lab's module inlined); `vercel.json` serves it at `/lab-3d`; `src/labs.json` lists it under Temporary with the
-  date and the question. The vendored files are served as they are from `/vendor/`.
+  lab's module inlined: `@inline-module` joins `src/lab3d/` into one module, `@inline-head` takes the first section of
+  `src/emberdeep/22-char-dan.js`, the class `DanRig`); `vercel.json` serves it at `/lab-3d`; `src/labs.json` lists it
+  under Temporary with the date and the question. The vendored files are served as they are from `/vendor/`.
 - Our engine (`engine/my-3d2dge.js`) is loaded as is, for the rigs, the animation, the mocap store and the textures.
   The lab only reads from it.
 

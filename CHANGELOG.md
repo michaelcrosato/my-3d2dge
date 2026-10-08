@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.9.0 (2026-10-08)
+
+A temporary lab that puts our characters in a fully 3D world, to see what carries over (the plan and its trade-offs: `docs/LAB-3D.md`), and the camera labs that led to it.
+
+- **Rendering**: the 3D world lab (`/lab-3d`, Labs → Temporary): a stone room built from a text map in real 3D with three.js r182 (`WebGPURenderer`: WebGPU, or WebGL 2 by itself; `?backend=webgl` forces it) and Rapier 0.19.3 (SIMD), every texture and shape drawn by code (the floor is the engine's own `E.tex.flagstone`). Sun shadows, flickering torches, walls cut away on the camera's side as the engine does, outlines in the engine's outline color, fog, and a pixel-art pass that draws the engine's 240 lines.
+- **Rendering** (cameras): the engine's five views as orthographic cameras with its exact height boost (in the projection only), turned 45° at a time; and the cameras real 3D gives for free: a free orbit, a first-person fly camera and a third-person chase camera. Fix camera puts any of them in the address.
+- **Animation**: the rigs, every move, the mocap player and Dan's body run unchanged in 3D, two ways, alone or side by side: **Card** (the engine draws the character from the camera's angle onto a card facing it: the exact look, flat, at one depth) and **Puppet** (3D parts hung on the same joints, listed as data, e.g. `['limb', 'hipL', 'kneeL', 1.45, 1.2, 'pants']`: real depth, light and shadow, any camera; the look an approximation). A mocap figure plays CMU and hero clips; Dan swings on a timetable.
+- **Engine** (gameplay): the hero walks a lap or you play it (WASD, J or a click swings the engine's three-hit combo, K or Space dashes), moved by Rapier's character controller: it slides along walls, shoves crates and knocks them flying. Gameplay runs on the CPU at a fixed 60 Hz and never reads the renderer: 600 scripted steps give the same state hash on WebGPU and WebGL 2, shown on the page.
+- **Rendering** (earlier labs in this release): the free camera room (`/free-camera`): any orthographic camera the engine can give (turn, tilt, zoom, move, fix) and a fly mode on a small renderer of its own, to show what the engine can't do; and the shapes comparison (`/shapes-compare`).
+- **Tools**: `tools/vendor-3d.mjs` vendors the two libraries into `vendor/` at pinned versions with checksums (`--check` verifies them); `tools/lab3d-test.mjs` (in `npm test`) checks the checksums and the lab's rules (no `WebGLRenderer`, `ShaderMaterial`, `onBeforeCompile`, compute or GPU read-backs), opens the lab on WebGL 2 and WebGPU (headless, on a stand-in canvas), compares the hashes, plays it and saves a picture of every camera and look. `tools/build.mjs` can join a folder into one ES module (`@inline-module`) and take a file's first section (`@inline-head`).
+- **Docs**: `docs/LAB-3D.md`, the plan: why three.js r182 and Rapier 0.19.3 (releases the models know well, not the newest), the GPU rule, Card versus Puppet, what an agent reads.
+
 ## 0.8.1 (2026-10-07)
 
 The engine files now tell an AI agent what lies outside them, and how to take from it.

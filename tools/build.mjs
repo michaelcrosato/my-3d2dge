@@ -38,6 +38,9 @@ const builds = [
   { template: 'src/shapes-compare.template.html', out: 'examples/shapes-compare.html', vars: {} },
   // temporary (src/labs.json): a small room and a free camera (turn, tilt, zoom, move, fix); delete with its labs.json entry
   { template: 'src/free-camera.template.html', out: 'examples/free-camera.html', vars: {} },
+  // temporary (src/labs.json, docs/LAB-3D.md): our characters in a fully 3D world (three.js r182 + Rapier from vendor/,
+  // loaded through the page's import map, so it is served, not double-clicked); delete with its labs.json entry and vendor/
+  { template: 'src/lab3d.template.html', out: 'examples/lab-3d.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
@@ -77,6 +80,17 @@ for (const b of builds) {
   html = html.replace(/<!-- @inline-parts (\S+) -->/g, (_, dir) => {
     const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort();
     return `<script>\n/* ---- inlined from ${dir} (${parts.join(', ')}) ---- */\n${parts.map(f => read(join(dir, f))).join('\n')}\n</script>`;
+  });
+  // a folder of module parts joined in name order into one <script type="module"> (they share one scope; imports go first)
+  html = html.replace(/<!-- @inline-module (\S+) -->/g, (_, dir) => {
+    const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js')).sort();
+    return `<script type="module">\n/* ---- inlined from ${dir} (${parts.join(', ')}) ---- */\n${parts.map(f => read(join(dir, f))).join('\n')}\n</script>`;
+  });
+  // a file's first section, raw: everything before its second /* ==== banner (Dan's body, without Emberdeep's skills)
+  html = html.replace(/<!-- @inline-head (\S+) -->/g, (_, file) => {
+    const src = read(file), at = [...src.matchAll(/^\/\* =+$/gm)].map(m => m.index);
+    if (at.length < 2) throw new Error(file + ': @inline-head needs a second /* ==== section banner');
+    return `/* ---- inlined from ${file} (its first section) ---- */\n` + src.slice(0, at[1]);
   });
   html = html.replace(/<!-- @inline (\S+) -->/g, (_, file) => {
     const src = file === ENGINE && min ? min.replaceAll('</script', '<\\/script') : read(file);
