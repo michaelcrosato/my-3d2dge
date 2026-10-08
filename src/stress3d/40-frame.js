@@ -8,13 +8,17 @@
  *                3D canvas sits where the engine's picture sits (its whole-pixel scale and letterbox), one pixel larger
  *                and shifted by the camera's sub-pixel offset, as the engine presents its own buffer. So the engine's
  *                mouse aiming lands on the 3D picture unchanged. Or one of the 3D cameras (perspective, 35-cameras).
- *   resolution   the engine's own pixels (W x H, the panel's camera distance grows it), or the screen's full resolution
+ *   resolution   the engine's own pixels (W x H, the panel's camera distance grows it), balanced (half the screen's
+ *                resolution) or full (the screen's); P cycles them. ?res=engine|balanced|full (?pixels=0: full)
  *   look         Card or Puppet (20-crowd), C switches; P switches the resolution
  *   warm-up      the first frame (and the first after a filter change) also draws everything once, empty, so every
  *                shader is built before the fight needs it
  *   window.__stress3d  { ready, backend, R3, CAM, set(key, value), setCam(mode), stats, FX }
  * ============================================================================= */
-const R3 = { look: ['card', 'puppet'].includes(QS.get('look')) ? QS.get('look') : 'card', pixels: QS.get('pixels') !== '0' };
+const RES = ['engine', 'balanced', 'full'];
+const R3 = { look: ['card', 'puppet'].includes(QS.get('look')) ? QS.get('look') : 'card', res: RES.includes(QS.get('res')) ? QS.get('res') : QS.get('pixels') === '0' ? 'full' : 'engine' };
+/** the picture's pixels per engine pixel at this resolution (the engine's whole-pixel scale S is full) */
+const resScale = sc => R3.res === 'engine' ? 1 : R3.res === 'full' ? sc.S : sc.S / 2;
 const cam3 = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 300);
 const DEG = Math.PI / 180, _S = new THREE.Matrix4(), _M = new THREE.Matrix4(), _g = new THREE.Vector3();
 const CV = { right: new THREE.Vector3(), up: new THREE.Vector3(), back: new THREE.Vector3(), q: new THREE.Quaternion(), ppm: 1, vert: 1, snap: true };
@@ -22,15 +26,15 @@ const frameEl = $('frame');
 let lastFit = '';
 /** the 3D canvas over the engine's picture (its whole-pixel scale and letterbox), one pixel larger, at the right size */
 function fit(sc) {
-  const dpr = sc.dpr, key = [sc.W, sc.H, sc.S, sc.OX, sc.OY, dpr, R3.pixels].join(',');
+  const dpr = sc.dpr, key = [sc.W, sc.H, sc.S, sc.OX, sc.OY, dpr, R3.res].join(','), k = resScale(sc);
   if (key === lastFit) return; lastFit = key;
   Object.assign(frameEl.style, { left: sc.OX / dpr + 'px', top: sc.OY / dpr + 'px', width: sc.W * sc.S / dpr + 'px', height: sc.H * sc.S / dpr + 'px' });
   const cw = (sc.W + 1) * sc.S / dpr + 'px', ch = (sc.H + 1) * sc.S / dpr + 'px';
   renderer.setPixelRatio(1);
-  if (R3.pixels) renderer.setSize(sc.W + 1, sc.H + 1, false); else renderer.setSize((sc.W + 1) * sc.S, (sc.H + 1) * sc.S, false);
+  renderer.setSize(Math.max(1, Math.round((sc.W + 1) * k)), Math.max(1, Math.round((sc.H + 1) * k)), false);
   over.width = sc.W + 1; over.height = sc.H + 1;
   for (const c of [canvas3d, over]) { c.style.width = cw; c.style.height = ch; }
-  canvas3d.classList.toggle('pixels', R3.pixels);
+  canvas3d.classList.toggle('pixels', R3.res !== 'full');
 }
 /** the engine's projection, for the camera at buffer origin (ix, iy) */
 function placeCamera(view, sc, ix, iy) {
@@ -114,7 +118,7 @@ function frame3d() {
   STATS.drawn = crowd.drawn; STATS.culled = crowd.culled; STATS.calls = info.drawCalls; STATS.tris = info.triangles; STATS.frames++;
   G.hud();
   $('mGpu').textContent = 'three.js · ' + BACKEND;
-  if (!R3.pixels) $('mRes').textContent = W1 * sc.S + '×' + H1 * sc.S + ' (' + Math.round(W1 * H1 * sc.S * sc.S / 1000) + 'k px)';
+  if (R3.res !== 'engine') { const k = resScale(sc), w = Math.round(W1 * k), hh = Math.round(H1 * k); $('mRes').textContent = w + '×' + hh + ' (' + Math.round(w * hh / 1000) + 'k px)'; }
 }
 game._frame = frame3d;
 
@@ -125,15 +129,18 @@ const LOOK_NOTES = {
 };
 function sync3d() {
   document.querySelectorAll('[data-look]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.look === R3.look)));
-  $('pixels3d').checked = R3.pixels; $('lookNote').textContent = LOOK_NOTES[R3.look];
+  $('res3d').value = R3.res; $('lookNote').textContent = LOOK_NOTES[R3.look];
 }
-function set3d(k, v) { if (k === 'look') R3.look = v; else if (k === 'pixels') R3.pixels = !!v; lastFit = ''; sync3d(); }
+function set3d(k, v) {
+  if (k === 'look') R3.look = v; else if (k === 'res' && RES.includes(v)) R3.res = v; else if (k === 'pixels') R3.res = v ? 'engine' : 'full';   // ('pixels': the switch before the resolution menu)
+  lastFit = ''; sync3d();
+}
 document.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click', () => { set3d('look', b.dataset.look); b.blur(); }));
-$('pixels3d').addEventListener('change', e => { set3d('pixels', e.target.checked); e.target.blur(); });
+$('res3d').addEventListener('change', e => { set3d('res', e.target.value); e.target.blur(); });
 addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.metaKey || (e.target && ['SELECT', 'TEXTAREA', 'INPUT'].includes(e.target.tagName) && e.target.type !== 'checkbox')) return;
   if (e.code === 'KeyC') set3d('look', R3.look === 'card' ? 'puppet' : 'card');
-  else if (e.code === 'KeyP') set3d('pixels', !R3.pixels);
+  else if (e.code === 'KeyP') { set3d('res', RES[(RES.indexOf(R3.res) + 1) % RES.length]); game.note(R3.res === 'engine' ? 'ENGINE PIXELS' : R3.res === 'balanced' ? 'BALANCED RESOLUTION' : 'FULL RESOLUTION'); }
 });
 {
   const url = new URL(location.href), webgl = BACKEND !== 'WebGPU';
@@ -151,7 +158,7 @@ $('screen').style.opacity = '0';
 game.gpu._st = 'on'; if (game.gpu.onStatus) game.gpu.onStatus();
 // the benchmark's report says what drew it, for the head-to-head with the 2D page
 const FX_NAMES = { cel: 'Comic cel', pixel: 'Pixel' }, FX_TO = { all: 'the entire scene', objects: 'the characters and objects', env: 'the environment' };
-G.HOOKS.renderer = () => 'drawn by three.js r182 on ' + BACKEND + ', ' + (R3.look === 'card' ? 'Card' : 'Puppet') + ' look, ' + (R3.pixels ? "the engine's pixels" : 'full resolution') +
+G.HOOKS.renderer = () => 'drawn by three.js r182 on ' + BACKEND + ', ' + (R3.look === 'card' ? 'Card' : 'Puppet') + ' look, ' + (R3.res === 'engine' ? "the engine's pixels" : R3.res === 'balanced' ? 'balanced resolution (half the screen\'s)' : 'full resolution') +
   (FX.look !== 'clean' ? ', filter ' + FX_NAMES[FX.look] + ' on ' + FX_TO[FX.apply] : ', no filter') + (FX.bloom ? ', bloom' : '') + (FX.fxaa ? ', FXAA' : '');
 $('loading3d').hidden = true;
 sync3d(); syncCam(); syncFX();

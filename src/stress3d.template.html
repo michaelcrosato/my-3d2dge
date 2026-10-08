@@ -133,7 +133,12 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <label class="field"><span>Camera <kbd>1</kbd>–<kbd>4</kbd></span></label>
       <div class="seg" role="group" aria-label="Camera"><button type="button" data-cam3="engine">Engine</button><button type="button" data-cam3="chase">Chase</button><button type="button" data-cam3="first">First person</button><button type="button" data-cam3="fly">Fly</button></div>
       <p class="note" id="camNote"></p>
-      <label class="check"><input type="checkbox" id="pixels3d"><span>Engine resolution <kbd>P</kbd><small>Draw at the engine's own pixel size (off: the screen's full resolution)</small></span></label>
+      <label class="field" for="res3d"><span>Resolution <kbd>P</kbd></span></label>
+      <select id="res3d">
+        <option value="engine">Engine pixels (the 2D page's own size)</option>
+        <option value="balanced">Balanced (half the screen's resolution)</option>
+        <option value="full">Full (the screen's resolution)</option>
+      </select>
       <div class="btnrow"><button type="button" id="backendBtn"></button></div>
     </section>
 
@@ -250,6 +255,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 
     <section>
       <h2>Rendering</h2>
+      <div class="btnrow"><button type="button" id="fsBtn">Full screen</button></div>
+      <label class="check"><input type="checkbox" id="fsStart"><span>Start in full screen<small>On this device, the first click or key goes full screen (browsers allow it no sooner)</small></span></label>
       <label class="check" id="gpuLabel"><input type="checkbox" id="gpuOn"><span>Torch lights <kbd>G</kbd><small>Every lit torch is a real point light (off: ambient light only)</small></span></label>
       <label class="check"><input type="checkbox" id="shadows"><span>Shadows<small>The two torches nearest the hero cast real shadows</small></span></label>
       <label class="check" hidden><input type="checkbox" id="canvasLight"><span>Canvas lighting</span></label>

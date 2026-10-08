@@ -748,6 +748,7 @@ function syncUI() {
   $('camYaw').value = Math.round(CUSTOM.yaw); $('camYawOut').textContent = customView().pitchDeg ? customView().yawDeg + '°' : 'side';
   $('camPitch').value = Math.round(CUSTOM.pitch); $('camPitchOut').textContent = customView().pitchDeg + '°';
   $('camBoost').value = Math.round(CUSTOM.boost * 100); $('camBoostOut').textContent = customView().zBoost.toFixed(2);
+  $('fsBtn').textContent = document.fullscreenElement ? 'Leave full screen' : 'Full screen'; $('fsStart').checked = fsStart;
   const fx = fixedNow(); $('fixBtn').setAttribute('aria-pressed', String(fx)); $('fixBtn').firstChild.textContent = fx ? 'Unfix camera ' : 'Fix camera here ';
 }
 gpu.onStatus = syncUI;
@@ -890,6 +891,21 @@ $('copyBtn').addEventListener('click', async () => {
     if (n.length >= 7) { Object.assign(FIX, { on: true, x: n[5], y: n[6], z: clamp(n[3], -40, 100) }); game.focus(FIX.x, FIX.y, FIX.z); }
   } else if (qs.get('view') === 'custom') game.setView(customView());
 }
+// full screen: the stage (picture, panel and numbers) fills the screen. Browsers allow it only from a click or a key, so
+// "start in full screen" (remembered on this device) enters it on the first one
+const FS_KEY = 'my3d2dge.stress.fullscreen';
+let fsStart = false; try { fsStart = localStorage.getItem(FS_KEY) === '1'; } catch (e) { /* storage blocked: off */ }
+function fullScreen(on) {
+  try {
+    if (on && !document.fullscreenElement) { const r = $('stage').requestFullscreen(); if (r && r.catch) r.catch(() => {}); }
+    else if (!on && document.fullscreenElement) document.exitFullscreen();
+  } catch (e) { /* refused (an embedded page, an old browser): stays as it is */ }
+}
+if (fsStart) { const go = () => { fullScreen(true); removeEventListener('pointerdown', go, true); removeEventListener('keydown', go, true); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
+$('fsBtn').hidden = !document.documentElement.requestFullscreen;
+$('fsBtn').addEventListener('click', e => { fullScreen(!document.fullscreenElement); e.currentTarget.blur(); });
+$('fsStart').addEventListener('change', e => { fsStart = e.target.checked; try { localStorage.setItem(FS_KEY, fsStart ? '1' : '0'); } catch (err) { /* not remembered */ } e.target.blur(); });
+document.addEventListener('fullscreenchange', () => syncUI());
 // the other stress test's address (the site serves pages without .html, a local server as files), with the same camera
 for (const [id, page] of [['to3d', 'stress-3d']]) { const a = $(id); if (a) a.href = (/\.html$/.test(location.pathname) ? page + '.html' : '/' + page) + location.search; }
 syncUI();

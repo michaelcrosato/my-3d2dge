@@ -191,8 +191,8 @@ at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `ex
   `fixed`).
 - **Two looks** (C switches): **Card**, each character drawn by the engine onto a card standing in the hall (the
   closest to the 2D page); **Puppet**, 3D parts on the same joints in shared instanced batches, with torchlight,
-  shadows and outlines. P switches between the engine's pixels and the screen's full resolution; `?backend=webgl`
-  forces WebGL 2.
+  shadows and outlines. P cycles the resolution (the engine's pixels, balanced at half the screen's, full);
+  `?backend=webgl` forces WebGL 2. Both pages can go full screen, or start in it.
 - **Cameras** (1 to 4). The **engine** camera is the 2D page's own and is shared code, so it is the same camera on
   both pages: the engine's views, **side scrolling** (the engine's side view), a **custom** view (any turn, tilt and
   height boost) and **fix camera here** (F: the camera stays put while the hero moves on), with a link in the free
