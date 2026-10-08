@@ -130,8 +130,48 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <label class="field"><span>Characters <kbd>C</kbd></span></label>
       <div class="seg" role="group" aria-label="Characters"><button type="button" data-look="card">Card (the engine draws)</button><button type="button" data-look="puppet">Puppet (3D parts)</button></div>
       <p class="note" id="lookNote"></p>
-      <label class="check"><input type="checkbox" id="pixels3d"><span>Engine resolution <kbd>X</kbd><small>Draw at the engine's own pixel size (off: the screen's full resolution)</small></span></label>
+      <label class="field"><span>Camera <kbd>1</kbd>–<kbd>4</kbd></span></label>
+      <div class="seg" role="group" aria-label="Camera"><button type="button" data-cam3="engine">Engine</button><button type="button" data-cam3="chase">Chase</button><button type="button" data-cam3="first">First person</button><button type="button" data-cam3="fly">Fly</button></div>
+      <p class="note" id="camNote"></p>
+      <label class="field" for="res3d"><span>Resolution <kbd>P</kbd></span></label>
+      <select id="res3d">
+        <option value="engine">Engine pixels (the 2D page's own size)</option>
+        <option value="balanced">Balanced (half the screen's resolution)</option>
+        <option value="full">Full (the screen's resolution)</option>
+      </select>
       <div class="btnrow"><button type="button" id="backendBtn"></button></div>
+    </section>
+
+    <section>
+      <h2>Filters <kbd>N</kbd></h2>
+      <div class="seg" role="group" aria-label="Filter"><button type="button" data-fx="clean">Clean</button><button type="button" data-fx="cel">Comic cel</button><button type="button" data-fx="pixel">Pixel</button></div>
+      <label class="field" for="fxApply"><span>Apply to</span></label>
+      <select id="fxApply">
+        <option value="all">Entire scene</option>
+        <option value="objects">Characters and objects</option>
+        <option value="env">Environment (the hall)</option>
+      </select>
+      <div id="fxCel" hidden>
+        <label class="field" for="fx-bands"><span>Shade bands</span><output id="fx-bandsOut">4</output></label>
+        <input type="range" id="fx-bands" min="2" max="8" step="1" value="4">
+        <label class="field" for="fx-ink"><span>Ink strength</span><output id="fx-inkOut">0.90</output></label>
+        <input type="range" id="fx-ink" min="0" max="1" step=".05" value=".9">
+        <label class="field" for="fx-inkW"><span>Ink width</span><output id="fx-inkWOut">1.50</output></label>
+        <input type="range" id="fx-inkW" min=".5" max="3" step=".25" value="1.5">
+        <label class="field" for="fx-punch"><span>Colour punch</span><output id="fx-punchOut">1.30</output></label>
+        <input type="range" id="fx-punch" min=".5" max="2" step=".05" value="1.3">
+      </div>
+      <div id="fxPixel" hidden>
+        <label class="field" for="fx-px"><span>Pixel size</span><output id="fx-pxOut">4</output></label>
+        <input type="range" id="fx-px" min="1" max="12" step="1" value="4">
+        <label class="field" for="fx-levels"><span>Colours per channel</span><output id="fx-levelsOut">8</output></label>
+        <input type="range" id="fx-levels" min="2" max="32" step="1" value="8">
+        <label class="field" for="fx-dither"><span>Dither</span><output id="fx-ditherOut">0.35</output></label>
+        <input type="range" id="fx-dither" min="0" max="1" step=".05" value=".35">
+      </div>
+      <label class="check"><input type="checkbox" id="fxBloom"><span>Bloom<small>Bright parts glow: torches, wisps, sparks</small></span></label>
+      <label class="check"><input type="checkbox" id="fxFxaa"><span>Edge smoothing (FXAA)<small>Softens jagged edges, after the filter</small></span></label>
+      <p class="note" id="fxNote"></p>
     </section>
 
     <section>
@@ -187,7 +227,20 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
         <button type="button" data-view="threequarter">Three-quarter</button>
         <button type="button" data-view="topdown">Top-down</button>
         <button type="button" data-view="brawler">Brawler</button>
+        <button type="button" data-view="side">Side scrolling</button>
+        <button type="button" data-view="custom">Custom</button>
       </div>
+      <div id="customCam" hidden>
+        <label class="field" for="camYaw"><span>Turn</span><output id="camYawOut">30°</output></label>
+        <input type="range" id="camYaw" min="0" max="359" step="1" value="30">
+        <label class="field" for="camPitch"><span>Tilt</span><output id="camPitchOut">40°</output></label>
+        <input type="range" id="camPitch" min="0" max="90" step="1" value="40">
+        <label class="field" for="camBoost"><span>Height boost</span><output id="camBoostOut">1.10</output></label>
+        <input type="range" id="camBoost" min="100" max="150" step="5" value="110">
+        <p class="note">Any view the engine can draw: tilt 0 is the side view, 90 straight down. Zoom and the turn keys still apply on top.</p>
+      </div>
+      <div class="btnrow"><button type="button" id="fixBtn" aria-pressed="false">Fix camera here <kbd>F</kbd></button><button type="button" id="camLinkBtn">Copy camera link</button></div>
+      <p class="note">Fixed, the camera stays where it is while the hero moves on, in any view. The link opens this camera (view, turn, tilt, zoom, and where it is fixed) on either stress test.</p>
     </section>
 
     <section>
@@ -202,6 +255,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 
     <section>
       <h2>Rendering</h2>
+      <div class="btnrow"><button type="button" id="fsBtn">Full screen</button></div>
+      <label class="check"><input type="checkbox" id="fsStart"><span>Start in full screen<small>On this device, the first click or key goes full screen (browsers allow it no sooner)</small></span></label>
       <label class="check" id="gpuLabel"><input type="checkbox" id="gpuOn"><span>Torch lights <kbd>G</kbd><small>Every lit torch is a real point light (off: ambient light only)</small></span></label>
       <label class="check"><input type="checkbox" id="shadows"><span>Shadows<small>The two torches nearest the hero cast real shadows</small></span></label>
       <label class="check" hidden><input type="checkbox" id="canvasLight"><span>Canvas lighting</span></label>
@@ -209,6 +264,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <label class="check"><input type="checkbox" id="capes"><span>Monster capes<small>Adds a cloth simulation to every humanoid</small></span></label>
       <label class="check"><input type="checkbox" id="mlights"><span>Monster lights<small>The wisps nearest the hero become light sources (up to 4)</small></span></label>
       <label class="check"><input type="checkbox" id="lod"><span>Skip off-screen animation<small>Monsters outside the view still move but don't pose</small></span></label>
+      <label class="check"><input type="checkbox" id="dither"><span>Dithered translucency<small>The engine's NES and Genesis style: glows, fades and shadows as ordered dither patterns instead of stepped transparency (here: the cards)</small></span></label>
+      <label class="check"><input type="checkbox" id="readable"><span>Readable characters<small>In steep views the engine draws characters from a lower angle so their faces show (the SNES cheat); off draws them as the camera sees them (here: the cards)</small></span></label>
       <label class="check"><input type="checkbox" id="god"><span>Invincible hero</span></label>
     </section>
 
@@ -229,7 +286,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <div class="btnrow"><button type="button" id="benchBtn" class="primary">Run benchmark</button><button type="button" id="copyBtn" hidden>Copy results</button></div>
       <p id="benchStatus" class="note" aria-live="polite"></p>
       <p id="benchSummary" aria-live="polite"></p>
-      <table><thead><tr><th>Monsters</th><th>Avg fps</th><th>1% low</th><th>CPU ms</th></tr></thead><tbody id="benchTable"></tbody></table>
+      <table><thead><tr><th>Monsters</th><th>Avg fps</th><th>1% low</th><th title="Game logic, ms a frame">Logic ms</th><th title="Drawing on the CPU, ms a frame">Draw ms</th><th title="Logic and drawing together">CPU ms</th></tr></thead><tbody id="benchTable"></tbody></table>
       <textarea id="reportText" hidden readonly aria-label="Benchmark report"></textarea>
     </section>
   </aside>
@@ -255,7 +312,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
     <details><summary>This device</summary><p id="hw">Detecting...</p></details>
   </div>
 
-  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>C</b> switches cards and puppets, <b>X</b> the resolution, <b>G</b> toggles torch lights, <b>H</b> hides the panel.</p>
+  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>F</b> fixes the camera, <b>C</b> switches cards and puppets, <b>1</b>–<b>4</b> the camera (engine, chase, first person, fly), <b>N</b> the filter, <b>P</b> the resolution, <b>G</b> toggles torch lights, <b>H</b> hides the panel.</p>
   <div class="touch" aria-hidden="true"><button data-act="dash">Dash</button><button data-act="skill">Ember</button><button data-act="attack">Slash</button></div>
 </div>
 <!-- @inline engine/my-3d2dge.js -->

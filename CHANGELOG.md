@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.11.0 (2026-10-08)
+
+The stress tests, head to head: the same cameras on both pages, the 3D page's own cameras and filters, and no more stalls mid-fight.
+
+- **Rendering** (3D stress test): no stall when a fight starts. The first frame draws every batch, atlas page, trail and floor shape once, empty, so their GPU pipelines exist before they are needed (again after a filter change); each effect pool shares one material; the card atlas is fixed 512-pixel pages that are never remade, and only the pages in use upload and get outlined. A 50-monster fight in both looks builds no pipeline (the last version built four, the 1% low of 34 fps at 50 monsters); as a fight starts, the cards' worst frame drops from 72 to 29 ms and their median from 31 to 16 ms (headless WebGL 2).
+- **Rendering** (3D stress test cameras, 1 to 4): chase (behind the hero, in front of walls), first person (his eyes) and fly (WASD, Q and E, Shift), mouse steering once a click captures it (Esc frees it); F fixes any of them where it is, a fixed 3D camera while you play; `?cam3=` links. The hero's controls follow the camera (W walks away from it, he aims where it looks), and cards are drawn from its turn and tilt. P now switches the resolution (X also swung the sword).
+- **Rendering** (3D stress test filters, N): Clean, Comic cel (shade bands, ink strength, ink width, colour punch) or Pixel (pixel size, colours per channel, dither) on the entire scene, the characters and objects, or the environment, with bloom and FXAA: TSL in `PostProcessing`, on WebGPU and WebGL 2, with an MRT mask the character and object materials write while a filter is on. `?fx=`, `&fxto=`, `&bloom=1`, `&fxaa=1`.
+- **Rendering** (3D stress test): a resolution menu (engine pixels, balanced at half the screen's, full; P cycles; `?res=`).
+- **Engine** (both stress tests): full screen, and start in full screen (remembered on the device; the first click or key enters it, as browsers require); the side scrolling view, a custom view (turn, tilt, height boost, on top of zoom and turn), fix camera here (F: it stays put while the hero moves on) and Copy camera link (`?cam=`, the free camera room's format, opens the same camera on either page); the engine's own looks, dithered translucency (`E.style.trans`) and the readable characters tilt (`E.style.charPitch`).
+- **Tools**: the benchmark's table and report give game logic, drawing and CPU ms for each step, and the report names the camera, the engine looks and (3D) the filter. `tools/lab3d-test.mjs` also checks the 3D stress test's cameras (W walks away from a fixed camera), its filters, that no GPU pipeline is built mid-fight, and the 2D stress test's cameras (a `?cam=` link, a fixed camera staying put, side scrolling).
+- **Docs**: `docs/LAB-3D.md`, the 3D stress test's cameras, filters, engine looks and the warm-up; Labs entries with links to each camera and filter.
+
 ## 0.10.0 (2026-10-08)
 
 The stress test drawn in real 3D by three.js, for a head-to-head with the engine's own renderer (`docs/LAB-3D.md`, *The 3D stress test*).

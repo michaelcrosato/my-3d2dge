@@ -130,8 +130,48 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <label class="field"><span>Characters <kbd>C</kbd></span></label>
       <div class="seg" role="group" aria-label="Characters"><button type="button" data-look="card">Card (the engine draws)</button><button type="button" data-look="puppet">Puppet (3D parts)</button></div>
       <p class="note" id="lookNote"></p>
-      <label class="check"><input type="checkbox" id="pixels3d"><span>Engine resolution <kbd>X</kbd><small>Draw at the engine's own pixel size (off: the screen's full resolution)</small></span></label>
+      <label class="field"><span>Camera <kbd>1</kbd>–<kbd>4</kbd></span></label>
+      <div class="seg" role="group" aria-label="Camera"><button type="button" data-cam3="engine">Engine</button><button type="button" data-cam3="chase">Chase</button><button type="button" data-cam3="first">First person</button><button type="button" data-cam3="fly">Fly</button></div>
+      <p class="note" id="camNote"></p>
+      <label class="field" for="res3d"><span>Resolution <kbd>P</kbd></span></label>
+      <select id="res3d">
+        <option value="engine">Engine pixels (the 2D page's own size)</option>
+        <option value="balanced">Balanced (half the screen's resolution)</option>
+        <option value="full">Full (the screen's resolution)</option>
+      </select>
       <div class="btnrow"><button type="button" id="backendBtn"></button></div>
+    </section>
+
+    <section>
+      <h2>Filters <kbd>N</kbd></h2>
+      <div class="seg" role="group" aria-label="Filter"><button type="button" data-fx="clean">Clean</button><button type="button" data-fx="cel">Comic cel</button><button type="button" data-fx="pixel">Pixel</button></div>
+      <label class="field" for="fxApply"><span>Apply to</span></label>
+      <select id="fxApply">
+        <option value="all">Entire scene</option>
+        <option value="objects">Characters and objects</option>
+        <option value="env">Environment (the hall)</option>
+      </select>
+      <div id="fxCel" hidden>
+        <label class="field" for="fx-bands"><span>Shade bands</span><output id="fx-bandsOut">4</output></label>
+        <input type="range" id="fx-bands" min="2" max="8" step="1" value="4">
+        <label class="field" for="fx-ink"><span>Ink strength</span><output id="fx-inkOut">0.90</output></label>
+        <input type="range" id="fx-ink" min="0" max="1" step=".05" value=".9">
+        <label class="field" for="fx-inkW"><span>Ink width</span><output id="fx-inkWOut">1.50</output></label>
+        <input type="range" id="fx-inkW" min=".5" max="3" step=".25" value="1.5">
+        <label class="field" for="fx-punch"><span>Colour punch</span><output id="fx-punchOut">1.30</output></label>
+        <input type="range" id="fx-punch" min=".5" max="2" step=".05" value="1.3">
+      </div>
+      <div id="fxPixel" hidden>
+        <label class="field" for="fx-px"><span>Pixel size</span><output id="fx-pxOut">4</output></label>
+        <input type="range" id="fx-px" min="1" max="12" step="1" value="4">
+        <label class="field" for="fx-levels"><span>Colours per channel</span><output id="fx-levelsOut">8</output></label>
+        <input type="range" id="fx-levels" min="2" max="32" step="1" value="8">
+        <label class="field" for="fx-dither"><span>Dither</span><output id="fx-ditherOut">0.35</output></label>
+        <input type="range" id="fx-dither" min="0" max="1" step=".05" value=".35">
+      </div>
+      <label class="check"><input type="checkbox" id="fxBloom"><span>Bloom<small>Bright parts glow: torches, wisps, sparks</small></span></label>
+      <label class="check"><input type="checkbox" id="fxFxaa"><span>Edge smoothing (FXAA)<small>Softens jagged edges, after the filter</small></span></label>
+      <p class="note" id="fxNote"></p>
     </section>
 
     <section>
@@ -187,7 +227,20 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
         <button type="button" data-view="threequarter">Three-quarter</button>
         <button type="button" data-view="topdown">Top-down</button>
         <button type="button" data-view="brawler">Brawler</button>
+        <button type="button" data-view="side">Side scrolling</button>
+        <button type="button" data-view="custom">Custom</button>
       </div>
+      <div id="customCam" hidden>
+        <label class="field" for="camYaw"><span>Turn</span><output id="camYawOut">30°</output></label>
+        <input type="range" id="camYaw" min="0" max="359" step="1" value="30">
+        <label class="field" for="camPitch"><span>Tilt</span><output id="camPitchOut">40°</output></label>
+        <input type="range" id="camPitch" min="0" max="90" step="1" value="40">
+        <label class="field" for="camBoost"><span>Height boost</span><output id="camBoostOut">1.10</output></label>
+        <input type="range" id="camBoost" min="100" max="150" step="5" value="110">
+        <p class="note">Any view the engine can draw: tilt 0 is the side view, 90 straight down. Zoom and the turn keys still apply on top.</p>
+      </div>
+      <div class="btnrow"><button type="button" id="fixBtn" aria-pressed="false">Fix camera here <kbd>F</kbd></button><button type="button" id="camLinkBtn">Copy camera link</button></div>
+      <p class="note">Fixed, the camera stays where it is while the hero moves on, in any view. The link opens this camera (view, turn, tilt, zoom, and where it is fixed) on either stress test.</p>
     </section>
 
     <section>
@@ -202,6 +255,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 
     <section>
       <h2>Rendering</h2>
+      <div class="btnrow"><button type="button" id="fsBtn">Full screen</button></div>
+      <label class="check"><input type="checkbox" id="fsStart"><span>Start in full screen<small>On this device, the first click or key goes full screen (browsers allow it no sooner)</small></span></label>
       <label class="check" id="gpuLabel"><input type="checkbox" id="gpuOn"><span>Torch lights <kbd>G</kbd><small>Every lit torch is a real point light (off: ambient light only)</small></span></label>
       <label class="check"><input type="checkbox" id="shadows"><span>Shadows<small>The two torches nearest the hero cast real shadows</small></span></label>
       <label class="check" hidden><input type="checkbox" id="canvasLight"><span>Canvas lighting</span></label>
@@ -209,6 +264,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <label class="check"><input type="checkbox" id="capes"><span>Monster capes<small>Adds a cloth simulation to every humanoid</small></span></label>
       <label class="check"><input type="checkbox" id="mlights"><span>Monster lights<small>The wisps nearest the hero become light sources (up to 4)</small></span></label>
       <label class="check"><input type="checkbox" id="lod"><span>Skip off-screen animation<small>Monsters outside the view still move but don't pose</small></span></label>
+      <label class="check"><input type="checkbox" id="dither"><span>Dithered translucency<small>The engine's NES and Genesis style: glows, fades and shadows as ordered dither patterns instead of stepped transparency (here: the cards)</small></span></label>
+      <label class="check"><input type="checkbox" id="readable"><span>Readable characters<small>In steep views the engine draws characters from a lower angle so their faces show (the SNES cheat); off draws them as the camera sees them (here: the cards)</small></span></label>
       <label class="check"><input type="checkbox" id="god"><span>Invincible hero</span></label>
     </section>
 
@@ -229,7 +286,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <div class="btnrow"><button type="button" id="benchBtn" class="primary">Run benchmark</button><button type="button" id="copyBtn" hidden>Copy results</button></div>
       <p id="benchStatus" class="note" aria-live="polite"></p>
       <p id="benchSummary" aria-live="polite"></p>
-      <table><thead><tr><th>Monsters</th><th>Avg fps</th><th>1% low</th><th>CPU ms</th></tr></thead><tbody id="benchTable"></tbody></table>
+      <table><thead><tr><th>Monsters</th><th>Avg fps</th><th>1% low</th><th title="Game logic, ms a frame">Logic ms</th><th title="Drawing on the CPU, ms a frame">Draw ms</th><th title="Logic and drawing together">CPU ms</th></tr></thead><tbody id="benchTable"></tbody></table>
       <textarea id="reportText" hidden readonly aria-label="Benchmark report"></textarea>
     </section>
   </aside>
@@ -255,13 +312,13 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
     <details><summary>This device</summary><p id="hw">Detecting...</p></details>
   </div>
 
-  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>C</b> switches cards and puppets, <b>X</b> the resolution, <b>G</b> toggles torch lights, <b>H</b> hides the panel.</p>
+  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>F</b> fixes the camera, <b>C</b> switches cards and puppets, <b>1</b>–<b>4</b> the camera (engine, chase, first person, fly), <b>N</b> the filter, <b>P</b> the resolution, <b>G</b> toggles torch lights, <b>H</b> hides the panel.</p>
   <div class="touch" aria-hidden="true"><button data-act="dash">Dash</button><button data-act="skill">Ember</button><button data-act="attack">Slash</button></div>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.10.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.11.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -320,7 +377,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.10.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.11.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -4944,7 +5001,7 @@ const qs = new URLSearchParams(location.search);
 /* ---------- setup ---------- */
 const canvas = document.getElementById('screen');
 const BASE = { minH: 200, minW: 300, maxW: 540, maxH: 330, portrait: { maxH: 1000 } };
-const game = new E.Game(Object.assign({ canvas, view: qs.get('view') || 'iso', bg: '#06050b' }, BASE));
+const game = new E.Game(Object.assign({ canvas, view: qs.get('view') && qs.get('view') !== 'custom' ? qs.get('view') : 'iso', bg: '#06050b' }, BASE));
 const P = game.particles;
 game.lights.enabled = true; game.lights.ambient = .12;
 
@@ -5434,7 +5491,8 @@ function update(dt) {
   storm(dt);
   for (const b of TORCHES) b.t += dt;
   const a = hero.aim !== undefined ? hero.aim : hero.facing;
-  game.focus(hero.x + Math.cos(a) * 16, hero.y + Math.sin(a) * 16, 8);
+  if (FIX.on) game.focus(FIX.x, FIX.y, FIX.z);   // a fixed camera stays where it was fixed
+  else game.focus(hero.x + Math.cos(a) * 16, hero.y + Math.sin(a) * 16, 8);
 }
 
 /* ---------- draw ---------- */
@@ -5601,7 +5659,49 @@ function hud() {
 }
 
 /* ---------- controls ---------- */
-const VIEWS = ['iso', 'threequarter', 'topdown', 'brawler'];
+const VIEWS = ['iso', 'threequarter', 'topdown', 'brawler', 'side'];
+/* the camera beyond the engine's named views (both stress pages: the 3D page draws whatever view the engine has, so a
+ * custom or fixed camera is the same camera on both):
+ *   Custom  any orthographic view the engine can give: a turn, a tilt (0 is the side view) and a height boost, as in the
+ *           free camera room; zoom and the 45° turn keys still apply on top
+ *   Fix     the camera stops following the hero and stays where it is, in any view (F)
+ *   ?cam=yaw,pitch,zoom,height,boost[,x,y]  the free camera room's format: opens the custom view, fixed at x, y */
+// the 3D stress test fills these in (each may return null to leave it to this page): renderer() names what draws,
+// camera() describes its own camera, camLink() links to it, fix() fixes or frees it (true: done), fixed() says if it is
+const HOOKS = {};
+const CUSTOM = { yaw: 30, pitch: 40, boost: 1.1 };
+const FIX = { on: false, x: 0, y: 0, z: 0 };
+const customViews = new Map();
+function customView() {   // whole degrees and boosts in .05 steps, so a slider drag reuses cached views
+  const pitch = CUSTOM.pitch < 3 ? 0 : Math.max(5, Math.round(CUSTOM.pitch)), yaw = pitch ? ((Math.round(CUSTOM.yaw) % 360) + 360) % 360 : 0, boost = Math.round(CUSTOM.boost * 20) / 20;
+  const key = yaw + ':' + pitch + ':' + boost; let v = customViews.get(key);
+  // (the id carries the boost: the map caches its wall blocks per id, turn, tilt and scale)
+  if (!v) { if (customViews.size > 300) customViews.clear(); v = new E.View('custom-' + boost, 'Custom', yaw, pitch, 1.5, boost); customViews.set(key, v); }
+  return v;
+}
+const isCustom = () => game.baseView.id.startsWith('custom');
+function setCustom() { game.setView(customView()); syncUI(); }
+const fixedNow = () => { const f = HOOKS.fixed && HOOKS.fixed(); return f === undefined || f === null ? FIX.on : f; };
+function toggleFix() { if (!(HOOKS.fix && HOOKS.fix())) setFixed(!FIX.on); }
+function setFixed(on) {
+  FIX.on = on; if (on) { FIX.x = game.cam.tx; FIX.y = game.cam.ty; FIX.z = game.cam.tz; }
+  game.note(on ? 'CAMERA FIXED' : 'CAMERA FOLLOWS THE HERO'); syncUI();
+}
+/** the camera in words, for the benchmark's report (the 3D page names its own cameras) */
+function camDesc() {
+  const v = game.view, b = game.baseView;
+  const c = HOOKS.camera && HOOKS.camera(); if (c) return c;
+  return (isCustom() ? 'Custom view (turn ' + b.yawDeg + '°, tilt ' + b.pitchDeg + '°, height boost ' + b.zBoost + ')' : v.label + ' view') + (FIX.on ? ', camera fixed' : '');
+}
+/** the camera as a link: the free camera room's ?cam= (turn, tilt, zoom, height, boost, and where it is fixed) */
+function camLink() {
+  const l = HOOKS.camLink && HOOKS.camLink(); if (l) return l;
+  const b = game.baseView, u = new URL(location.href);
+  const n = [((b.yawDeg + (b.pitchDeg < 5 ? 0 : game.yaw)) % 360 + 360) % 360, b.pitchDeg, game.zoom, Math.round(FIX.on ? FIX.z : game.cam.tz), b.zBoost];
+  if (FIX.on) n.push(Math.round(FIX.x), Math.round(FIX.y));
+  u.searchParams.delete('cam'); u.searchParams.delete('view'); const rest = u.search.slice(1);
+  return u.origin + u.pathname + '?' + [rest, 'cam=' + n.join(',')].filter(Boolean).join('&') + u.hash;
+}
 function setDistance(d) {
   S.distance = d;
   game.screen.setOptions({ minH: BASE.minH * d, minW: BASE.minW * d, maxW: Math.round(BASE.maxW * d), maxH: Math.round(BASE.maxH * d), portrait: { maxH: Math.round(BASE.portrait.maxH * d) } });
@@ -5626,7 +5726,14 @@ function syncUI() {
   $('gpuLabel').title = st === 'unavailable' ? (gpu.failed || '') : '';
   $('shadows').checked = st === 'on' && gpu.shadows; $('shadows').disabled = st !== 'on';
   $('canvasLight').checked = game.lights.enabled;
-  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === game.view.id)));
+  $('dither').checked = E.style.trans === 'dither'; $('readable').checked = E.style.charPitch !== false;
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === 'custom' ? isCustom() : b.dataset.view === game.view.id)));
+  $('customCam').hidden = !isCustom();
+  $('camYaw').value = Math.round(CUSTOM.yaw); $('camYawOut').textContent = customView().pitchDeg ? customView().yawDeg + '°' : 'side';
+  $('camPitch').value = Math.round(CUSTOM.pitch); $('camPitchOut').textContent = customView().pitchDeg + '°';
+  $('camBoost').value = Math.round(CUSTOM.boost * 100); $('camBoostOut').textContent = customView().zBoost.toFixed(2);
+  $('fsBtn').textContent = document.fullscreenElement ? 'Leave full screen' : 'Full screen'; $('fsStart').checked = fsStart;
+  const fx = fixedNow(); $('fixBtn').setAttribute('aria-pressed', String(fx)); $('fixBtn').firstChild.textContent = fx ? 'Unfix camera ' : 'Fix camera here ';
 }
 gpu.onStatus = syncUI;
 const on = (id, ev, f) => $(id).addEventListener(ev, e => { f(e); syncUI(); });
@@ -5648,8 +5755,18 @@ on('mlights', 'change', e => { S.monsterLights = e.target.checked; e.target.blur
 on('gpuOn', 'change', e => { gpu.enabled = e.target.checked; e.target.blur(); });
 on('shadows', 'change', e => { gpu.shadows = e.target.checked; e.target.blur(); });
 on('canvasLight', 'change', e => { game.lights.enabled = e.target.checked; e.target.blur(); });
+// the engine's own looks (E.style): dithered translucency (NES, Genesis) or stepped alpha (PS1); the readable tilt in steep views
+on('dither', 'change', e => { E.style.trans = e.target.checked ? 'dither' : 'alpha'; e.target.blur(); });
+on('readable', 'change', e => { E.style.charPitch = e.target.checked ? undefined : false; e.target.blur(); });
 document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('pointerup', () => el.blur()));
-document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { game.setView(b.dataset.view); syncUI(); b.blur(); }));
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { if (b.dataset.view === 'custom') setCustom(); else game.setView(b.dataset.view); syncUI(); b.blur(); }));
+for (const [id, k, f] of [['camYaw', 'yaw', v => v], ['camPitch', 'pitch', v => v], ['camBoost', 'boost', v => v / 100]]) $(id).addEventListener('input', e => { CUSTOM[k] = f(+e.target.value); setCustom(); });
+$('fixBtn').addEventListener('click', e => { toggleFix(); e.currentTarget.blur(); });
+$('camLinkBtn').addEventListener('click', async e => {
+  const b = e.currentTarget, link = camLink(); b.blur();
+  try { await navigator.clipboard.writeText(link); b.textContent = 'Copied'; } catch (err) { prompt('The camera link:', link); }
+  setTimeout(() => { b.textContent = 'Copy camera link'; }, 1500);
+});
 document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => { zoomStep(+b.dataset.zoom); b.blur(); }));
 document.querySelectorAll('[data-turn]').forEach(b => b.addEventListener('click', () => { turn(+b.dataset.turn); b.blur(); }));
 $('camReset').addEventListener('click', e => { resetCam(); e.target.blur(); });
@@ -5680,6 +5797,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'Digit0') resetCam();
   else if (e.code === 'KeyG' && gpu.status() !== 'unavailable' && gpu.status() !== 'loading') { gpu.enabled = !gpu.enabled; syncUI(); }
   else if (e.code === 'KeyR') showRig = !showRig;
+  else if (e.code === 'KeyF') toggleFix();
 });
 game.input.bindButtons(document);
 
@@ -5708,10 +5826,10 @@ function benchFrame(ms) {
   bench.samples.push(ms);
   if (now - bench.t0 < 3000) return;
   const avg = bench.samples.reduce((a, b) => a + b, 0) / bench.samples.length;
-  const res = { n: STEPS[bench.i], fps: 1000 / avg, low: 1000 / pct(bench.samples, .99), cpu: ema.update + ema.render };
+  const res = { n: STEPS[bench.i], fps: 1000 / avg, low: 1000 / pct(bench.samples, .99), logic: ema.update, draw: ema.render, cpu: ema.update + ema.render };
   bench.results.push(res);
   const row = document.createElement('tr');
-  row.innerHTML = '<td>' + res.n.toLocaleString() + '</td><td>' + Math.round(res.fps) + '</td><td>' + Math.round(res.low) + '</td><td>' + res.cpu.toFixed(1) + '</td>';
+  row.innerHTML = '<td>' + res.n.toLocaleString() + '</td><td>' + Math.round(res.fps) + '</td><td>' + Math.round(res.low) + '</td><td>' + res.logic.toFixed(1) + '</td><td>' + res.draw.toFixed(1) + '</td><td>' + res.cpu.toFixed(1) + '</td>';
   $('benchTable').appendChild(row);
   bench.i++;
   if (res.fps < 20 || bench.i >= STEPS.length) return benchStop(true);
@@ -5727,14 +5845,16 @@ function benchReport() {
   $('benchSummary').textContent = summary; $('benchStatus').textContent = 'Done.';
   const v = game.view, sc = game.screen;
   lastReport = [
-    'my-3D2dge stress test' + (gpu.renderer ? ' in 3D, ' + gpu.renderer() : ''),   // (the 3D stress test names its renderer)
+    'my-3D2dge stress test' + (HOOKS.renderer ? ' in 3D, ' + HOOKS.renderer() : ''),   // (the 3D stress test names its renderer)
     'Result: ' + summary,
-    'Settings: ' + v.label + ' view, camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), zoom ' + game.zoom + 'x, turn ' + game.yaw + '°, ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
-      ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on'),
+    'Settings: ' + camDesc() + ', camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), zoom ' + game.zoom + 'x, turn ' + game.yaw + '°, ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
+      ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on') +
+      (E.style.trans === 'dither' ? ', dithered translucency' : '') + (E.style.charPitch === false ? ', characters as the camera sees them' : ''),
     ...(hwLines || hwInfo()),
     '',
-    'Monsters | avg fps | 1% low | CPU ms',
-    ...R.map(r => r.n + ' | ' + Math.round(r.fps) + ' | ' + Math.round(r.low) + ' | ' + r.cpu.toFixed(1))
+    // CPU ms = game logic + drawing (the CPU's side of it: what the GPU does after is in the frame time, not here)
+    'Monsters | avg fps | 1% low | logic ms | drawing ms | CPU ms',
+    ...R.map(r => r.n + ' | ' + Math.round(r.fps) + ' | ' + Math.round(r.low) + ' | ' + r.logic.toFixed(1) + ' | ' + r.draw.toFixed(1) + ' | ' + r.cpu.toFixed(1))
   ].join('\n');
   $('copyBtn').hidden = false;
 }
@@ -5745,17 +5865,44 @@ $('copyBtn').addEventListener('click', async () => {
   setTimeout(() => { $('copyBtn').textContent = 'Copy results'; }, 2000);
 });
 
+// a ?cam= link (Copy camera link, or the free camera room's): the custom view at that turn, tilt, zoom and boost, fixed
+// where it says (x, y and the height), or following the hero without them; ?view=custom opens the custom view as it is
+{
+  const n = (qs.get('cam') || '').split(',').map(Number);
+  if (n.length >= 5 && n.every(Number.isFinite)) {
+    Object.assign(CUSTOM, { yaw: n[0], pitch: clamp(n[1], 0, 90), boost: clamp(n[4], 1, 1.5) });
+    game.setView(customView()); game.setZoom(clamp(n[2], .5, 3));
+    if (n.length >= 7) { Object.assign(FIX, { on: true, x: n[5], y: n[6], z: clamp(n[3], -40, 100) }); game.focus(FIX.x, FIX.y, FIX.z); }
+  } else if (qs.get('view') === 'custom') game.setView(customView());
+}
+// full screen: the stage (picture, panel and numbers) fills the screen. Browsers allow it only from a click or a key, so
+// "start in full screen" (remembered on this device) enters it on the first one
+const FS_KEY = 'my3d2dge.stress.fullscreen';
+let fsStart = false; try { fsStart = localStorage.getItem(FS_KEY) === '1'; } catch (e) { /* storage blocked: off */ }
+function fullScreen(on) {
+  try {
+    if (on && !document.fullscreenElement) { const r = $('stage').requestFullscreen(); if (r && r.catch) r.catch(() => {}); }
+    else if (!on && document.fullscreenElement) document.exitFullscreen();
+  } catch (e) { /* refused (an embedded page, an old browser): stays as it is */ }
+}
+if (fsStart) { const go = () => { fullScreen(true); removeEventListener('pointerdown', go, true); removeEventListener('keydown', go, true); }; addEventListener('pointerdown', go, true); addEventListener('keydown', go, true); }
+$('fsBtn').hidden = !document.documentElement.requestFullscreen;
+$('fsBtn').addEventListener('click', e => { fullScreen(!document.fullscreenElement); e.currentTarget.blur(); });
+$('fsStart').addEventListener('change', e => { fsStart = e.target.checked; try { localStorage.setItem(FS_KEY, fsStart ? '1' : '0'); } catch (err) { /* not remembered */ } e.target.blur(); });
+document.addEventListener('fullscreenchange', () => syncUI());
+// the other stress test's address (the site serves pages without .html, a local server as files), with the same camera
+for (const [id, page] of [['to3d', 'stress-3d']]) { const a = $(id); if (a) a.href = (/\.html$/.test(location.pathname) ? page + '.html' : '/' + page) + location.search; }
 syncUI();
 game.start({ update, draw: r => { draw(r); hud(); } });
 // (the 3D stress test, src/stress3d.template.html, runs this same game and draws it with three.js: it also reads the
 // map, the torches, the shots and frameStats, and calls hud itself in place of draw)
 window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; },
-  map, TORCHES, shots, frameStats, hud };
+  map, TORCHES, shots, frameStats, hud, FIX, CUSTOM, setFixed, syncUI, HOOKS };
 })();
 
 </script>
 <script type="module">
-/* ---- inlined from src/stress3d (00-setup.js, 10-hall.js, 20-crowd.js, 30-effects.js, 40-frame.js) ---- */
+/* ---- inlined from src/stress3d (00-setup.js, 10-hall.js, 20-crowd.js, 30-effects.js, 35-cameras.js, 38-filters.js, 40-frame.js) ---- */
 /* =============================================================================
  * STRESS TEST 3D (temporary lab; docs/LAB-3D.md): the engine's stress test drawn by three.js r182 instead of the
  * engine's canvas renderer, for a head-to-head comparison with /stress-test.
@@ -5769,14 +5916,17 @@ window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistan
  *   20-crowd    the hero, walkers, slimes, wisps and the fallen, as Puppets (3D parts on each rig's joints, drawn in
  *               instanced batches) or Cards (each rig drawn by the engine into a sprite atlas, on camera-facing cards)
  *   30-effects  telegraph arcs, weapon trails, bolts, particles; damage numbers and notes on a pixel overlay
- *   40-frame    the camera (the engine's own view and camera, to the pixel), the frame, the panel's numbers, keys
+ *   35-cameras  the engine's camera, or a 3D one: chase, first person, fly, fixed
+ *   38-filters  Clean, Comic cel or Pixel over the whole picture, the characters and objects, or the hall; bloom; FXAA
+ *   40-frame    the frame (the engine's own view and camera to the pixel, or a 3D camera), the panel's numbers, keys
  * Units: three.js metres, y up; the engine's units, z up: 16 units = 1 metre (one floor tile).
  *   engine (x, y, z) -> three (x / U, z / U, y / U)
  * Rules as the 3D world lab (tools/lab3d-test.mjs checks them): WebGPURenderer and node materials only, no compute,
  * no GPU read-backs.
  * ============================================================================= */
 import * as THREE from 'three/webgpu';
-import { Fn, vec4, uniform, positionLocal, normalLocal, modelViewMatrix, cameraProjectionMatrix, texture, uv, instancedBufferAttribute } from 'three/tsl';
+import { Fn, vec2, vec3, vec4, float, uniform, positionLocal, normalLocal, modelViewMatrix, cameraProjectionMatrix, texture, uv, instancedBufferAttribute,
+  pass, mrt, output, rtt, floor, mod, abs, max, min, mix, select, smoothstep, luminance, saturation, sRGBTransferOETF } from 'three/tsl';
 
 const E = window.My3D2dge, G = window.__game, game = G.game, { clamp, lerp, TAU } = E;
 const QS = new URLSearchParams(location.search);
@@ -5805,6 +5955,7 @@ const BACKEND = renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL 2';
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.NoToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setClearColor('#06050b');
+renderer.info.autoReset = false;   // (the frame resets it: with a filter on, one frame is several renders)
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#06050b');
 
@@ -5826,13 +5977,17 @@ const TOON_BANDS = (() => {
   t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
   return t;
 })();
+/** the materials of characters and objects (not the hall): while a filter is on they write 1 into the filters' mask
+ *  (38-filters), so a filter can take the characters and objects, or the hall, alone */
+const OBJ_MATS = new Set(); let OBJ_MRT = null;
+function objMat(m) { OBJ_MATS.add(m); if (OBJ_MRT) { m.mrtNode = OBJ_MRT; m.needsUpdate = true; } return m; }
 /* outlines: an inverted hull. The same (instanced) mesh again, back faces only, each vertex pushed OUTLINE_PX pixels
  * outward on the screen (along its normal for round parts, away from the part's centre for boxes) */
 const OUTLINE_PX = uniform(new THREE.Vector2(.01, .01));   // clip-space size of the push, set per frame (one game pixel)
 const _outline = {};
 function outlineMat(mode = 'normal') {
   if (_outline[mode]) return _outline[mode];
-  const m = new THREE.MeshBasicNodeMaterial({ color: OUTLINE, side: THREE.BackSide, fog: false });
+  const m = objMat(new THREE.MeshBasicNodeMaterial({ color: OUTLINE, side: THREE.BackSide, fog: false }));
   m.vertexNode = Fn(() => {
     const mvp = cameraProjectionMatrix.mul(modelViewMatrix), pos = mvp.mul(vec4(positionLocal, 1));
     const out = mode === 'center' ? positionLocal : normalLocal;
@@ -5858,7 +6013,7 @@ function outlineMat(mode = 'normal') {
 const map = G.map, T = map.T, MW = map.w, MH = map.h, CXu = MW * T / 2, CYu = MH * T / 2;
 
 /* ---- the floor: color and glow, baked as the engine bakes it ---- */
-const floor = (() => {
+const floorMesh = (() => {
   const w = MW * T, h = MH * T, cv = document.createElement('canvas'), gv = document.createElement('canvas');
   cv.width = gv.width = w; cv.height = gv.height = h;
   const g = cv.getContext('2d'), gg = gv.getContext('2d'), img = g.createImageData(w, h), gimg = gg.createImageData(w, h), d = img.data, gd = gimg.data;
@@ -5940,11 +6095,11 @@ function placeWalls(view) {
  *      thirty in a few instanced meshes; the first S.lights stand ---- */
 const NT = G.TORCHES.length, inst = (geo, mat, n, shadow) => { const m = new THREE.InstancedMesh(geo, mat, n); m.frustumCulled = false; m.count = 0; m.castShadow = m.receiveShadow = !!shadow; scene.add(m); return m; };
 const BRAZ = {
-  base: inst(new THREE.BoxGeometry(6 / U, 8 / U, 6 / U), new THREE.MeshLambertNodeMaterial({ color: '#4c4562' }), NT),
-  bowl: inst(new THREE.CylinderGeometry(5.5 / U, 4.2 / U, 3 / U, 10), new THREE.MeshLambertNodeMaterial({ color: '#2b2430' }), NT),   // (a brazier casts no shadow: its own torch sits on it)
-  coals: inst(new THREE.CylinderGeometry(4 / U, 4 / U, .4 / U, 10), new THREE.MeshBasicNodeMaterial({ color: '#ff8a3c' }), NT),
-  outer: inst(new THREE.ConeGeometry(2.2 / U, 1, 5), new THREE.MeshBasicNodeMaterial({ color: '#ff7a2a' }), NT * 3),
-  inner: inst(new THREE.ConeGeometry(2.2 / U, 1, 5), new THREE.MeshBasicNodeMaterial({ color: '#ffd36a' }), NT * 3)
+  base: inst(new THREE.BoxGeometry(6 / U, 8 / U, 6 / U), objMat(new THREE.MeshLambertNodeMaterial({ color: '#4c4562' })), NT),
+  bowl: inst(new THREE.CylinderGeometry(5.5 / U, 4.2 / U, 3 / U, 10), objMat(new THREE.MeshLambertNodeMaterial({ color: '#2b2430' })), NT),   // (a brazier casts no shadow: its own torch sits on it)
+  coals: inst(new THREE.CylinderGeometry(4 / U, 4 / U, .4 / U, 10), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ff8a3c' })), NT),
+  outer: inst(new THREE.ConeGeometry(2.2 / U, 1, 5), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ff7a2a' })), NT * 3),
+  inner: inst(new THREE.ConeGeometry(2.2 / U, 1, 5), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ffd36a' })), NT * 3)
 };
 const _bq = new THREE.Quaternion(), _bp = new THREE.Vector3(), _bs = new THREE.Vector3(), _bz = new THREE.Vector3(0, 0, 1);
 /** stand the first n braziers; the flames dance as the 2D page's drawFlame: three tongues, each with its own height and sway */
@@ -6002,7 +6157,7 @@ function lightHall(t) {
  *           thousands of monsters cost a handful of draw calls: Batch.tube(a, b, r), .ball(p, rx, ry, rz), .box(...),
  *           .cone(...). A walker is about twenty parts sized from its own build (limbW, torsoW, headR) and colored from
  *           its own palette (rig.C); a slime is its body squashed as the Blob squashes, with eyes, horns, ears or wings.
- *   Card    the engine draws each rig into a sprite atlas (one canvas, one texture upload a frame), outlined as its
+ *   Card    the engine draws each rig into a sprite atlas (fixed pages: only the pages in use upload), outlined as its
  *           sprites are, and an instanced card shows each cell where the monster stands, facing the camera. The look
  *           is the 2D page's, to the pixel, at the engine's resolution.
  *   Wisps are glowing orbs in both looks. Hit flashes tint toward the 2D page's flash color; spawning monsters rise
@@ -6060,13 +6215,13 @@ class Batch {
     if (this.shell) this.shell.count = outlines ? this.n : 0;
   }
 }
-const toon = new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS });
+const toon = objMat(new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS }));
 const BATCH = {
   tube: new Batch(new THREE.CylinderGeometry(.85, 1, 1, 7, 1, true), toon, { outline: 'normal', shadow: true, cap: 8192 }),
   ball: new Batch(new THREE.SphereGeometry(1, 9, 6), toon, { outline: 'normal', shadow: true, cap: 8192 }),
   box: new Batch(new THREE.BoxGeometry(1, 1, 1), toon, { outline: 'center', shadow: true }),
   cone: new Batch(new THREE.ConeGeometry(1, 1, 6), toon, { outline: 'normal', shadow: true }),
-  glow: new Batch(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicNodeMaterial({ color: '#ffffff' })),
+  glow: new Batch(new THREE.SphereGeometry(1, 8, 6), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ffffff' }))),
   halo: new Batch(new THREE.SphereGeometry(1, 10, 7), new THREE.MeshBasicNodeMaterial({ color: '#ffffff', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), { order: 2 }),
   blob: new Batch(new THREE.CircleGeometry(1, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicNodeMaterial({ color: '#ffffff', transparent: true, opacity: .45, depthWrite: false }), { order: 1 })
 };
@@ -6166,7 +6321,7 @@ function wispParts(e) {
 
 /* ---- capes: every rig's cloth (the hero's, and the monsters' when the panel turns capes on) in one mesh ---- */
 const CAPE = (() => {
-  const SLOT = 8, mat = new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS, vertexColors: true, side: THREE.DoubleSide });
+  const SLOT = 8, mat = objMat(new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS, vertexColors: true, side: THREE.DoubleSide }));
   let cap = 0, mesh = null, pos, col, n = 0;
   function grow(c) {
     cap = c; pos = new Float32Array(cap * SLOT * 2 * 3); col = new Float32Array(cap * SLOT * 2 * 3);
@@ -6196,77 +6351,102 @@ const CAPE = (() => {
   };
 })();
 
-/* ---- Card: the engine's sprites in an atlas, on instanced cards ---- */
+/* ---- Card: the engine's sprites in atlas pages, on instanced cards ----
+ * The atlas is a row of fixed pages (512 pixels square, or four cells across when zoomed in), each its own canvas,
+ * texture and instanced mesh. Pages are made when first needed and kept: no texture is ever resized or remade while
+ * the crowd grows and shrinks (a remade texture stalls the frame), and each frame uploads only the pages it used, and
+ * outlines only their used rows. */
+const CARD_QUAD = new THREE.PlaneGeometry(1, 1);
 const ATLAS = (() => {
-  const cv = document.createElement('canvas'), out = document.createElement('canvas'), g = cv.getContext('2d'), go = out.getContext('2d');
-  let tex = null, size = 0, cell = 0, cols = 0, n = 0, max = 0, cap = 4096;
-  const rect = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
-  const texNode = texture(new THREE.Texture()), R = instancedBufferAttribute(rect);
-  const mat = new THREE.MeshBasicNodeMaterial({ alphaTest: .5, alphaHash: false });
-  mat.colorNode = texNode.sample(uv().mul(R.zw).add(R.xy));
-  let mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, cap); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh);
-  const M = () => mesh.instanceMatrix.array;
+  const pages = [];
+  let P = 0, cell = 0, cols = 0, per = 0, n = 0, key = '';
+  function page(i) {
+    if (pages[i]) return pages[i];
+    const cv = document.createElement('canvas'), out = document.createElement('canvas'); cv.width = cv.height = out.width = out.height = P;
+    const tex = new THREE.CanvasTexture(out); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
+    const rect = new THREE.InstancedBufferAttribute(new Float32Array(per * 4), 4), R = instancedBufferAttribute(rect);
+    const mat = objMat(new THREE.MeshBasicNodeMaterial({ alphaTest: .5 }));
+    mat.colorNode = texture(tex).sample(uv().mul(R.zw).add(R.xy));
+    const mesh = new THREE.InstancedMesh(CARD_QUAD, mat, per); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh);
+    return (pages[i] = { cv, out, g: cv.getContext('2d'), go: out.getContext('2d'), tex, rect, mesh, M: mesh.instanceMatrix.array, n: 0, rows: 0 });
+  }
+  function reset() {   // a new cell size (the zoom changed): pages hold a different number of cells, start again
+    for (const pg of pages) { scene.remove(pg.mesh); pg.mesh.dispose(); pg.mesh.material.dispose(); OBJ_MATS.delete(pg.mesh.material); pg.tex.dispose(); }
+    pages.length = 0;
+  }
   return {
-    /** start a frame: the cell size from the view's scale, the atlas big enough for `want` cells (up to 4096 pixels) */
-    begin(view, want) {
-      cell = Math.ceil(64 * view.scale / 8) * 8; n = 0;
-      let s = 512; while (s < 4096 && Math.floor(s / cell) ** 2 < want) s *= 2;
-      if (s !== size) {
-        size = cv.width = cv.height = out.width = out.height = s;
-        if (tex) tex.dispose();
-        tex = new THREE.CanvasTexture(out); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
-        texNode.value = tex;
-      }
-      cols = Math.floor(size / cell); max = Math.min(cap, cols * cols);
-      g.clearRect(0, 0, size, size);
+    /** start a frame: the cell size from the view's scale */
+    begin(view) {
+      cell = Math.ceil(64 * view.scale / 8) * 8;
+      let size = 512; while (size < 4 * cell && size < 2048) size *= 2;
+      if (size + ':' + cell !== key) { reset(); key = size + ':' + cell; P = size; }
+      cols = Math.floor(P / cell); per = cols * cols; n = 0;
+      for (const pg of pages) { if (pg.rows) pg.g.clearRect(0, 0, P, pg.rows * cell); pg.n = 0; }
     },
     /** draw one character into the next cell (draw(g, ox, oy) as the engine's actor draws) and stand a card for it at
      *  (x, y, z) engine units; false when the atlas is full */
     add(x, y, z, draw, flash, alpha, v) {
-      if (n >= max) return false;
-      const cx = (n % cols) * cell, cy = Math.floor(n / cols) * cell, ox = cx + cell / 2, oy = cy + Math.round(cell * .72);
+      if (n >= 64 * per) return false;
+      const pg = page(Math.floor(n / per)), j = pg.n, g = pg.g;
+      const cx = (j % cols) * cell, cy = Math.floor(j / cols) * cell, ox = cx + cell / 2, oy = cy + Math.round(cell * .72);
       g.save(); g.beginPath(); g.rect(cx + 1, cy + 1, cell - 2, cell - 2); g.clip();
       if (alpha < 1) g.globalAlpha = alpha;
       try { draw(g, ox, oy); } finally { g.restore(); }
       if (flash) { g.save(); g.beginPath(); g.rect(cx, cy, cell, cell); g.clip(); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = .3; g.fillStyle = '#ffe6d8'; g.fillRect(cx, cy, cell, cell); g.restore(); }
-      // the card: the cell's size on screen, its root on the rig's root (snapped to the screen's pixels), facing the camera
-      const ppm = v.ppm, w = cell / ppm, h = cell / (ppm * v.vert), sp = view3.p(x, y, z), fx = Math.round(sp[0]) - sp[0], fy = Math.round(sp[1]) - sp[1];
+      // the card: the cell's size on screen, its root on the rig's root (snapped to the screen's pixels in the engine's
+      // own views), facing the camera
+      const ppm = v.ppm, w = cell / ppm, h = cell / (ppm * v.vert);
+      let fx = 0, fy = 0; if (v.snap) { const sp = view3.p(x, y, z); fx = Math.round(sp[0]) - sp[0]; fy = Math.round(sp[1]) - sp[1]; }
       // the card's centre from the root: right by the root's distance from the cell's middle, up by the part of the cell
       // above the root, plus the snap; pushed toward the camera so the floor can't cut its feet
       const dx = (cell / 2 - (ox - cx) + fx) / ppm, dy = ((oy - cy) - cell / 2 - fy) / (ppm * v.vert);
-      const r = v.right, up = v.up, bk = v.back, i = n * 16;
+      const r = v.right, up = v.up, bk = v.back, i = j * 16;
       const tx = x / U + r.x * dx + up.x * dy + bk.x * .45, ty = z / U + r.y * dx + up.y * dy + bk.y * .45, tz = y / U + r.z * dx + up.z * dy + bk.z * .45;
-      const A = M(); A[i] = r.x * w; A[i + 1] = r.y * w; A[i + 2] = r.z * w; A[i + 3] = 0; A[i + 4] = up.x * h; A[i + 5] = up.y * h; A[i + 6] = up.z * h; A[i + 7] = 0;
+      const A = pg.M; A[i] = r.x * w; A[i + 1] = r.y * w; A[i + 2] = r.z * w; A[i + 3] = 0; A[i + 4] = up.x * h; A[i + 5] = up.y * h; A[i + 6] = up.z * h; A[i + 7] = 0;
       A[i + 8] = bk.x; A[i + 9] = bk.y; A[i + 10] = bk.z; A[i + 11] = 0; A[i + 12] = tx; A[i + 13] = ty; A[i + 14] = tz; A[i + 15] = 1;
-      const q = rect.array, k = n * 4; q[k] = cx / size; q[k + 1] = 1 - (cy + cell) / size; q[k + 2] = cell / size; q[k + 3] = cell / size;
-      n++; return true;
+      const q = pg.rect.array, k = j * 4; q[k] = cx / P; q[k + 1] = 1 - (cy + cell) / P; q[k + 2] = cell / P; q[k + 3] = cell / P;
+      pg.n++; n++; return true;
     },
-    /** finish: the sprites' outline (each grown by a pixel in the outline color, under it), one upload */
+    /** finish: each used page's outline (each sprite grown by a pixel in the outline color, under it) over its used rows,
+     *  and one upload per used page */
     end(outlines) {
-      go.clearRect(0, 0, size, size);
-      if (outlines && n) { for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) go.drawImage(cv, dx, dy); go.globalCompositeOperation = 'source-in'; go.fillStyle = OUTLINE; go.fillRect(0, 0, size, size); go.globalCompositeOperation = 'source-over'; }
-      if (n) go.drawImage(cv, 0, 0);
-      mesh.count = n; if (tex && n) tex.needsUpdate = true;
-      mesh.instanceMatrix.clearUpdateRanges(); mesh.instanceMatrix.addUpdateRange(0, Math.max(1, n) * 16); mesh.instanceMatrix.needsUpdate = true;
-      rect.clearUpdateRanges(); rect.addUpdateRange(0, Math.max(1, n) * 4); rect.needsUpdate = true;
+      for (const pg of pages) {
+        const rows = Math.ceil(pg.n / cols), hNow = rows * cell, hWas = pg.rows * cell, go = pg.go;
+        if (hWas) go.clearRect(0, 0, P, hWas);
+        if (pg.n) {
+          if (outlines) {
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) go.drawImage(pg.cv, 0, 0, P, hNow, dx, dy, P, hNow);
+            go.globalCompositeOperation = 'source-in'; go.fillStyle = OUTLINE; go.fillRect(0, 0, P, hNow + 1); go.globalCompositeOperation = 'source-over';
+          }
+          go.drawImage(pg.cv, 0, 0, P, hNow, 0, 0, P, hNow);
+        }
+        if (pg.n || hWas) pg.tex.needsUpdate = true;   // (a page emptied this frame uploads once more, blank)
+        pg.rows = rows; pg.mesh.count = pg.n;
+        if (pg.n) {
+          pg.mesh.instanceMatrix.clearUpdateRanges(); pg.mesh.instanceMatrix.addUpdateRange(0, pg.n * 16); pg.mesh.instanceMatrix.needsUpdate = true;
+          pg.rect.clearUpdateRanges(); pg.rect.addUpdateRange(0, pg.n * 4); pg.rect.needsUpdate = true;
+        }
+      }
     },
-    get size() { return size; }, get count() { return n; }
+    /** load time: make the first pages, so the crowd's first frames don't */
+    prepare(view, k) { this.begin(view); for (let i = 0; i < k; i++) page(i); },
+    get pages() { return pages; }, get count() { return n; }
   };
 })();
-
 /* ---- the crowd, each frame ---- */
 let view3 = game.view;   // the engine view this frame (40-frame sets it)
 const fade = e => !e.alive ? clamp(e.type === 'wisp' ? 1 - e.deadT / POP_T : (DEAD_T - e.deadT) * 2, 0, 1) : e.spawnT > 0 ? clamp(1 - e.spawnT / .6, .05, 1) : 1;
-/** draw the hero and every monster on screen (the 2D page's culling rect); returns { drawn, culled } */
-function drawCrowd(view, cam, W, H, look, outlines, v) {
+/** draw the hero and every monster the camera sees; returns { drawn, culled }. o: { view (the engine view the cards are
+ *  drawn from), vis(x, y, z) (on screen?), look, outlines, v (the camera's axes), hideHero (first person) } */
+function drawCrowd(o) {
+  const { view, vis, look, outlines, v } = o;
   view3 = view;
-  const vis = (x, y, z) => { const s = view.p(x, y, z), sx = s[0] - cam[0], sy = s[1] - cam[1]; return sx > -60 && sx < W + 60 && sy > -60 && sy < H + 100; };
   for (const b of Object.values(BATCH)) b.begin();
   CAPE.begin();
   const list = [], h = G.hero;
   for (const L of [G.enemies, G.corpses]) for (const e of L) { if (e.type !== 'wisp' && !vis(e.x, e.y, e.z || 0)) continue; list.push(e); }
   const cards = look === 'card';
-  if (cards) ATLAS.begin(view, list.length + 1);
+  if (cards) ATLAS.begin(view);
   let drawn = 0;
   const u = 1 / U, sh = P3[23];
   for (const e of list) {
@@ -6279,8 +6459,9 @@ function drawCrowd(view, cam, W, H, look, outlines, v) {
     if (e.rig) { e.rig._cheat = 0; _sink = sink; humanParts(e.rig, flash); if (e.rig.capeL && e.rig.o.cape) CAPE.add(e.rig, sink, flash); }
     else slimeParts(e, flash, sink);
   }
-  // the hero last (as the 2D page draws him over the crowd): fades out when he falls, a shadow under him
-  if (vis(h.x, h.y, h.z)) {
+  // the hero last (as the 2D page draws him over the crowd): fades out when he falls, a shadow under him; not in first
+  // person (the camera is his eyes)
+  if (!o.hideHero && vis(h.x, h.y, h.z)) {
     const a = h.dead ? clamp(4 - h.deadT * 2, 0, 1) : 1, flash = h.flash > 0;
     sh[0] = h.x * u; sh[1] = .012; sh[2] = h.y * u; if (!h.dead) BATCH.blob.ball(sh, 5.5 * u, 1, 4.4 * u, BLACKISH);
     if (!(cards && ATLAS.add(h.x, h.y, h.z, (g, ox, oy) => h.rig.draw(g, ox, oy, view), flash, a, v))) { h.rig._cheat = 0; _sink = (a - 1) * 34; humanParts(h.rig, flash); if (h.rig.capeL) CAPE.add(h.rig, _sink, flash); }
@@ -6306,42 +6487,46 @@ _sink = 0;
  *   overlay      damage numbers and notes ("WAVE 1 CLEARED", "ZOOM 2x") in the engine's pixel font, on a canvas over the
  *                picture at the engine's resolution, exactly where the 2D page prints them
  * ============================================================================= */
-/** a pool of flat floor shapes (arcs and rings), each its own mesh so each can fade on its own */
+/** a pool of flat floor shapes (arcs and rings), each its own mesh so each can fade on its own; one material for the
+ *  pool (the color and fade are in the vertices), so a new shape never builds a new shader mid-fight */
 function floorPool(segments) {
-  const pool = [];
+  const pool = [], mat = new THREE.MeshBasicNodeMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
   return {
     get(i) {
       if (!pool[i]) {
         const geo = new THREE.BufferGeometry(), pos = new Float32Array((segments + 1) * 2 * 3), idx = [];
         for (let k = 0; k < segments; k++) { const a = k * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
-        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicNodeMaterial({ color: '#ffffff', transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
-        m.frustumCulled = false; m.renderOrder = 1; scene.add(m); pool[i] = m;
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(pos.length), 3)); geo.setIndex(idx);
+        const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.renderOrder = 1; m.visible = false; scene.add(m); pool[i] = m;
       }
       return pool[i];
     },
     /** shape i: from radius r0 to r1 (engine units) between angles a0 and a1, around (x, y) at height z */
     set(i, x, y, z, r0, r1, a0, a1, color, alpha) {
-      const m = this.get(i), p = m.geometry.attributes.position.array;
+      const m = this.get(i), p = m.geometry.attributes.position.array, cl = m.geometry.attributes.color.array, c = lin(color);
       for (let k = 0; k <= segments; k++) {
-        const a = a0 + (a1 - a0) * k / segments, c = Math.cos(a), s = Math.sin(a), o = k * 6;
-        p[o] = (x + c * r0) / U; p[o + 1] = (z + .3) / U; p[o + 2] = (y + s * r0) / U; p[o + 3] = (x + c * r1) / U; p[o + 4] = (z + .3) / U; p[o + 5] = (y + s * r1) / U;
+        const a = a0 + (a1 - a0) * k / segments, cs = Math.cos(a), sn = Math.sin(a), o = k * 6;
+        p[o] = (x + cs * r0) / U; p[o + 1] = (z + .3) / U; p[o + 2] = (y + sn * r0) / U; p[o + 3] = (x + cs * r1) / U; p[o + 4] = (z + .3) / U; p[o + 5] = (y + sn * r1) / U;
+        cl[o] = cl[o + 3] = c[0] * alpha; cl[o + 1] = cl[o + 4] = c[1] * alpha; cl[o + 2] = cl[o + 5] = c[2] * alpha;
       }
-      m.geometry.attributes.position.needsUpdate = true; m.material.color.set(color).multiplyScalar(alpha); m.visible = true;
+      m.geometry.attributes.position.needsUpdate = m.geometry.attributes.color.needsUpdate = true; m.visible = true;
     },
-    hideFrom(i) { for (let k = i; k < pool.length; k++) pool[k].visible = false; }
+    hideFrom(i) { for (let k = i; k < pool.length; k++) pool[k].visible = false; },
+    /** load time: make n shapes, so the fight's first ones don't */
+    prepare(n) { for (let i = 0; i < n; i++) this.get(i); },
+    get list() { return pool; }
   };
 }
 const ARCS = floorPool(12), RINGS = floorPool(24);
 /** the swing trails: ribbons between a blade's base and tip over its last positions, fading to nothing at the tail */
 const RIBBONS = (() => {
-  const pool = [], MAX = 12;
+  const pool = [], MAX = 12, mat = new THREE.MeshBasicNodeMaterial({ vertexColors: true, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
   function make() {
     const pos = new Float32Array(MAX * 2 * 3), col = new Float32Array(MAX * 2 * 3), idx = [];
     for (let i = 0; i < MAX - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
-    const m = new THREE.Mesh(geo, new THREE.MeshBasicNodeMaterial({ vertexColors: true, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-    m.frustumCulled = false; m.renderOrder = 3; scene.add(m); return m;
+    const m = new THREE.Mesh(geo, mat);   // (one material for every trail)
+    m.frustumCulled = false; m.renderOrder = 3; m.visible = false; scene.add(m); return m;
   }
   return {
     set(i, trail, tint) {
@@ -6354,15 +6539,17 @@ const RIBBONS = (() => {
       }
       m.geometry.attributes.position.needsUpdate = m.geometry.attributes.color.needsUpdate = true; m.geometry.setDrawRange(0, (n - 1) * 6);
     },
-    hideFrom(i) { for (let k = i; k < pool.length; k++) pool[k].visible = false; }
+    hideFrom(i) { for (let k = i; k < pool.length; k++) pool[k].visible = false; },
+    prepare(n) { for (let i = 0; i < n; i++) if (!pool[i]) pool[i] = make(); },
+    get list() { return pool; }
   };
 })();
 const HERO_TRAIL = lin('#d8f2ff'), CLAW_TRAIL = lin('#ff7a5a');
 /* particles: camera-facing quads in two instanced batches (light that adds, and solid) */
 const PART = {
   add: new Batch(new THREE.CircleGeometry(1, 6), new THREE.MeshBasicNodeMaterial({ color: '#ffffff', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), { order: 4, cap: 4096 }),
-  solid: new Batch(new THREE.CircleGeometry(1, 6), new THREE.MeshBasicNodeMaterial({ color: '#ffffff' }), { cap: 4096 }),
-  bit: new Batch(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicNodeMaterial({ color: '#ffffff' }), { cap: 2048 })
+  solid: new Batch(new THREE.CircleGeometry(1, 6), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ffffff' })), { cap: 4096 }),
+  bit: new Batch(new THREE.PlaneGeometry(2, 2), objMat(new THREE.MeshBasicNodeMaterial({ color: '#ffffff' })), { cap: 2048 })
 };
 const _pc = [0, 0, 0], _pp = [0, 0, 0];
 /** one quad facing the camera (v: the card view's axes) at engine (x, y, z), radius r engine units */
@@ -6373,7 +6560,7 @@ function quad(B, x, y, z, r, col, v) {
 const mul3 = (c, k, out = _pc) => { out[0] = c[0] * k; out[1] = c[1] * k; out[2] = c[2] * k; return out; };
 const ease = E.ease;
 /** everything above, this frame; returns how many lights the bolts and wisps used */
-function drawEffects(view, cam, W, H, v) {
+function drawEffects(v) {
   // telegraphs
   let na = 0;
   for (const e of G.enemies) {
@@ -6416,60 +6603,457 @@ function drawEffects(view, cam, W, H, v) {
   for (const b of Object.values(PART)) b.end(false);
   return ns;
 }
-/** the overlay at the engine's resolution: damage numbers and the current note, where the 2D page prints them */
-function drawOverlay(view, ix, iy, W, H) {
+/** the overlay at the engine's resolution: damage numbers and the current note, where the 2D page prints them
+ *  (project(x, y, z) -> overlay pixels, or null: the engine's projection, or the 3D camera's), and the 3D cameras'
+ *  crosshair while the mouse steers */
+function drawOverlay(project, W, H, crosshair) {
   og.clearRect(0, 0, over.width, over.height);
   for (const p of game.particles.list) {
     if (p.kind !== 'text') continue;
     const u = p.life / p.max; if (!(u < .75 || Math.floor(p.life * 20) % 2)) continue;
-    const s = view.p(p.x, p.y, p.z);
-    E.font.text(og, p.text, Math.round(s[0] - ix), Math.round(s[1] - iy), p.color, { align: 'center', scale: p.scale || 1, outline: '#0b0814' });
+    const s = project(p.x, p.y, p.z); if (!s) continue;
+    E.font.text(og, p.text, Math.round(s[0]), Math.round(s[1]), p.color, { align: 'center', scale: p.scale || 1, outline: '#0b0814' });
   }
   const n = game._note;
   if (n && game.real < n.end) E.font.text(og, n.text, W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+  if (crosshair) {
+    const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
+    og.fillStyle = '#0b0814'; og.fillRect(cx - 4, cy - 1, 9, 3); og.fillRect(cx - 1, cy - 4, 3, 9);
+    og.fillStyle = '#f0e3c6'; og.fillRect(cx - 3, cy, 7, 1); og.fillRect(cx, cy - 3, 1, 7);
+  }
 }
+
+/* =============================================================================
+ * THE CAMERAS. Two kinds:
+ *   engine     the 2D page's own camera, whatever it is set to (its views, the side view, the custom view, zoom, turn,
+ *              shake, fixed in place): an orthographic camera framing exactly the engine's picture (40-frame). It is
+ *              shared code (src/stress.game.js), so it is the same camera on both stress tests.
+ *   3D only    perspective cameras the engine can't give:
+ *     chase    behind the hero and above him. A click on the picture captures the mouse: it turns the camera and the
+ *              hero aims straight ahead; Esc frees it, and then the mouse aims at the floor and [ ] turn. The wheel or
+ *              - = pull it in and out; it slides in front of a wall rather than through it
+ *     first    the hero's eyes (he isn't drawn): the same mouse and keys; the wheel or - = set the field of view
+ *     fly      a free camera: WASD fly where it looks, Q and E (or Space) down and up, Shift faster, the arrows or the
+ *              captured mouse look. The hero stands where he is (the keys are the camera's)
+ *     fixed    a perspective camera left where it was: F in chase, first person or fly fixes the camera there, and the
+ *              hero is yours again; F frees it into fly mode from there
+ *   With a 3D camera the hero's controls follow it: W walks away from the camera (the game's movement reads an engine
+ *   view turned to match it), and he aims where the camera looks (mouse captured) or where the mouse points on the
+ *   floor. Cards are drawn by the engine from the camera's own turn and tilt.
+ *   ?cam3=chase | first | fly[,x,y,z,yaw,pitch,fov] | fixed,x,y,z,yaw,pitch,fov  (engine units and degrees) opens one
+ * ============================================================================= */
+const DEG3 = Math.PI / 180;
+const camP = new THREE.PerspectiveCamera(60, 1, .05, 300);
+const CAM = {
+  mode: 'engine', yaw: -Math.PI / 2, locked: false, held: new Set(), last: 0,
+  chase: { pitch: -.36, dist: 88, fov: 60 }, first: { pitch: -.08, fov: 75 },
+  fly: { x: CXu, y: CYu + 220, z: 90, yaw: -Math.PI / 2, pitch: -.32, fov: 70 },
+  fixed: null, pose: null, smooth: null, eyeZ: 24
+};
+const CAM_LABEL = { chase: 'Chase camera', first: 'First person', fly: 'Fly camera', fixed: 'Fixed 3D camera' };
+const persp = () => CAM.mode !== 'engine';
+/** the engine view the hero's controls read in a 3D camera (W walks away from the camera), and the view cards are drawn
+ *  from (the camera's own turn and tilt); cached by whole degrees */
+const camViews = new Map();
+function camView(kind, yawDeg, pitchDeg) {
+  const key = kind + ':' + yawDeg + ':' + pitchDeg; let v = camViews.get(key);
+  if (!v) { if (camViews.size > 500) camViews.clear(); v = new E.View('cam3-' + kind, '3D camera', yawDeg, pitchDeg, 1.5, 1); camViews.set(key, v); }
+  return v;
+}
+/** the engine's turn for a camera looking along ground heading a (the engine's yaw puts the camera at (sin, cos)) */
+const engineYaw = a => ((Math.round(Math.atan2(-Math.cos(a), -Math.sin(a)) / DEG3) % 360) + 360) % 360;
+
+/* ---- each camera's pose: { x, y, z (engine units), yaw, pitch (radians), fov } ---- */
+const _cp = [0, 0, 0];
+function chasePose(dt) {
+  const h = G.hero, C = CAM.chase, k = 1 - Math.exp(-dt * 12);
+  // the point it looks at follows the hero smoothly (turning stays immediate)
+  const s = CAM.smooth || (CAM.smooth = [h.x, h.y]); s[0] += (h.x - s[0]) * k; s[1] += (h.y - s[1]) * k;
+  const tx = s[0], ty = s[1], tz = 24, cp = Math.cos(C.pitch), fx = Math.cos(CAM.yaw) * cp, fy = Math.sin(CAM.yaw) * cp, fz = Math.sin(C.pitch);
+  let d = C.dist;
+  for (let r = 6; r <= C.dist; r += 3) {   // pull in front of a wall (or the hall's edge) between the hero and the camera
+    const x = tx - fx * r, y = ty - fy * r, z = tz - fz * r;
+    if (z < map.heightAt(x, y) + 4) { d = Math.max(6, r - 5); break; }
+  }
+  return { x: tx - fx * d, y: ty - fy * d, z: Math.max(3, tz - fz * d), yaw: CAM.yaw, pitch: C.pitch, fov: C.fov };
+}
+function firstPose(dt) {
+  const h = G.hero, k = 1 - Math.exp(-dt * 16);
+  frame(h.rig); wp(h.rig.J.head, _cp);   // his head (it bobs with his steps, drops when he falls)
+  CAM.eyeZ += (_cp[1] * U + 1 - CAM.eyeZ) * k;
+  return { x: h.x + Math.cos(CAM.yaw) * 2.5, y: h.y + Math.sin(CAM.yaw) * 2.5, z: CAM.eyeZ, yaw: CAM.yaw, pitch: CAM.first.pitch, fov: CAM.first.fov };
+}
+function flyStep(dt) {
+  const F = CAM.fly, k = c => CAM.held.has(c), sp = (k('ShiftLeft') || k('ShiftRight') ? 170 : 64) * dt;
+  F.yaw += ((k('ArrowRight') ? 1 : 0) - (k('ArrowLeft') ? 1 : 0)) * 1.7 * dt;
+  F.pitch = clamp(F.pitch + ((k('ArrowUp') ? 1 : 0) - (k('ArrowDown') ? 1 : 0)) * 1.2 * dt, -1.5, 1.5);
+  const fwd = (k('KeyW') ? 1 : 0) - (k('KeyS') ? 1 : 0), str = (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0), up = (k('KeyE') || k('Space') ? 1 : 0) - (k('KeyQ') ? 1 : 0);
+  const cy = Math.cos(F.yaw), sy = Math.sin(F.yaw), cp = Math.cos(F.pitch), spp = Math.sin(F.pitch);
+  F.x = clamp(F.x + (cp * cy * fwd - sy * str) * sp, -6 * T, (MW + 6) * T); F.y = clamp(F.y + (cp * sy * fwd + cy * str) * sp, -6 * T, (MH + 6) * T);
+  F.z = clamp(F.z + (spp * fwd + up) * sp, 2, 600);
+  return F;
+}
+/** turning with the keys in chase and first person ([ ] held), and the camera's pose this frame */
+function cameraPose(dt) {
+  if (CAM.mode === 'chase' || CAM.mode === 'first') CAM.yaw += ((CAM.held.has('BracketRight') ? 1 : 0) - (CAM.held.has('BracketLeft') ? 1 : 0)) * 2.2 * dt;
+  const p = CAM.mode === 'chase' ? chasePose(dt) : CAM.mode === 'first' ? firstPose(dt) : CAM.mode === 'fly' ? flyStep(dt) : CAM.fixed;
+  return (CAM.pose = p);
+}
+const _look = new THREE.Vector3(), _pm = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sph = new THREE.Sphere();
+/** aim the perspective camera at a pose (with the engine's screen shake), and the hero's controls with it */
+function placePersp(p, sc, shx, shy) {
+  camP.fov = p.fov; camP.aspect = (sc.W + 1) / (sc.H + 1); camP.near = .05; camP.far = 300;
+  const cp = Math.cos(p.pitch), fx = Math.cos(p.yaw) * cp, fz = Math.sin(p.yaw) * cp, fy = Math.sin(p.pitch);
+  // the shake moves the camera sideways and up a little (the engine moves its picture a few pixels)
+  const rx = -Math.sin(p.yaw), rz = Math.cos(p.yaw), k = .012;
+  camP.position.set(p.x / U + rx * shx * k, p.z / U - shy * k, p.y / U + rz * shx * k);
+  camP.up.set(0, 1, 0); camP.lookAt(_look.set(camP.position.x + fx, camP.position.y + fy, camP.position.z + fz));
+  camP.updateMatrixWorld(); camP.updateProjectionMatrix();
+  camP.getWorldQuaternion(CV.q);
+  CV.right.set(1, 0, 0).applyQuaternion(CV.q); CV.up.set(0, 1, 0).applyQuaternion(CV.q); CV.back.set(0, 0, 1).applyQuaternion(CV.q);
+  CV.ppm = 1.5 * U; CV.vert = 1; CV.snap = false;
+  OUTLINE_PX.value.set(2 / (sc.W + 1), 2 / (sc.H + 1));
+  _fr.setFromProjectionMatrix(_pm.multiplyMatrices(camP.projectionMatrix, camP.matrixWorldInverse), camP.coordinateSystem);
+  // the hero's controls: the game reads game.view to turn the keys into a ground direction
+  const yw = engineYaw(p.yaw);
+  if (CAM.mode !== 'fly') game.view = camView('input', yw, 45);
+  return camView('card', yw, clamp(Math.round(-p.pitch / DEG3), 0, 89));
+}
+/** on screen for the perspective camera: a sphere round the body inside the view */
+const visPersp = (x, y, z) => _fr.intersectsSphere(_sph.set(_look.set(x / U, (z + 14) / U, y / U), 2.2));
+/** a point (engine units) on the overlay's pixels, or null behind the camera */
+const _pp3 = new THREE.Vector3();
+function projectPersp(x, y, z, W, H) {
+  _pp3.set(x / U, z / U, y / U).project(camP); if (_pp3.z > 1 || _pp3.z < -1) return null;
+  return [(_pp3.x + 1) / 2 * W, (1 - _pp3.y) / 2 * H];
+}
+
+/* ---- aiming: where the mouse points on the floor, or straight ahead with the mouse captured ---- */
+const _rd = new THREE.Vector3();
+function mouseOnFloor() {
+  const r = canvas3d.getBoundingClientRect(), m = game.input.mouse; if (!r.width) return null;
+  _rd.set((m.cx - r.left) / r.width * 2 - 1, -((m.cy - r.top) / r.height * 2 - 1), .5).unproject(camP).sub(camP.position).normalize();
+  if (_rd.y > -1e-3) return null;
+  const k = -camP.position.y / _rd.y; return [(camP.position.x + _rd.x * k) * U, (camP.position.z + _rd.z * k) * U];
+}
+const engineMouseGround = game.mouseGround.bind(game);
+game.mouseGround = () => {
+  if (!persp()) return engineMouseGround();
+  if (CAM.mode === 'fly' || !CAM.pose) return null;
+  const h = G.hero, ahead = [h.x + Math.cos(CAM.pose.yaw) * 60, h.y + Math.sin(CAM.pose.yaw) * 60];
+  return CAM.locked ? ahead : mouseOnFloor() || ahead;
+};
+
+/* ---- switching ---- */
+/** out of the hero's head (first person) into a spot behind and above him, where fly and fixed cameras show him */
+const backOff = p => ({ x: p.x - Math.cos(p.yaw) * 56, y: p.y - Math.sin(p.yaw) * 56, z: p.z + 26, yaw: p.yaw, pitch: Math.min(p.pitch, -.3), fov: p.fov });
+function setCam(mode, keepPose) {
+  if (mode === CAM.mode && !keepPose) return;
+  const was = CAM.mode, p = CAM.pose;
+  if (mode !== 'engine' && was === 'engine') {   // from the engine's view: keep looking the same way
+    const v = game.view; CAM.yaw = Math.atan2(-Math.cos(v.yaw), -Math.sin(v.yaw));
+  }
+  if (mode === 'fly' && p && was !== 'engine') Object.assign(CAM.fly, was === 'first' ? backOff(p) : { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, fov: p.fov });
+  else if (mode === 'fly' && was === 'engine') Object.assign(CAM.fly, { x: G.hero.x - Math.cos(CAM.yaw) * 120, y: G.hero.y - Math.sin(CAM.yaw) * 120, z: 80, yaw: CAM.yaw, pitch: -.4 });
+  if ((mode === 'chase' || mode === 'first') && p && was !== 'engine') CAM.yaw = p.yaw;
+  CAM.mode = mode; CAM.smooth = null; CAM.held.clear();
+  game.input.clear();   // nothing stays held across the switch (fly mode takes the keys)
+  if (mode === 'engine') { game.setView(game.baseView); if (document.pointerLockElement) document.exitPointerLock(); }
+  if (mode === 'engine' || mode === 'fixed') CAM.locked = false;
+  game.note(mode === 'engine' ? 'ENGINE CAMERA' : CAM_LABEL[mode].toUpperCase());
+  lastFit = ''; syncCam(); G.syncUI();
+}
+/** F in a 3D camera: fix it where it is (the hero is yours again), or free a fixed one into fly mode */
+function fix3d() {
+  if (!persp()) return false;
+  if (CAM.mode === 'fixed') { setCam('fly', true); return true; }
+  const p = CAM.mode === 'first' ? backOff(CAM.pose || firstPose(0)) : CAM.pose || chasePose(0);
+  CAM.fixed = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, fov: p.fov };
+  if (document.pointerLockElement) document.exitPointerLock();
+  setCam('fixed', true); return true;
+}
+const poseParam = p => [Math.round(p.x), Math.round(p.y), Math.round(p.z), Math.round(p.yaw / DEG3), Math.round(p.pitch / DEG3), Math.round(p.fov)].join(',');
+G.HOOKS.camera = () => !persp() ? null : CAM_LABEL[CAM.mode] + ' (perspective, ' + Math.round((CAM.pose || {}).fov || 60) + '° field of view)';
+G.HOOKS.camLink = () => {
+  if (!persp()) return null;
+  const u = new URL(location.href); u.searchParams.delete('cam'); u.searchParams.delete('cam3');
+  const v = CAM.mode === 'fixed' || CAM.mode === 'fly' ? CAM.mode + ',' + poseParam(CAM.pose || CAM.fly) : CAM.mode;
+  const rest = u.search.slice(1); return u.origin + u.pathname + '?' + [rest, 'cam3=' + v].filter(Boolean).join('&') + u.hash;
+};
+G.HOOKS.fix = fix3d;
+G.HOOKS.fixed = () => persp() ? CAM.mode === 'fixed' : null;
+
+/* ---- the keys, the wheel and the mouse (taken before the game sees them where a 3D camera needs them) ---- */
+const FLY_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyQ', 'KeyE', 'Space', 'ShiftLeft', 'ShiftRight', 'KeyJ', 'KeyK', 'KeyL', 'KeyX', 'KeyZ']);
+const typingIn = e => { const t = e.target; return t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(t.type))); };
+const take = e => { e.preventDefault(); e.stopImmediatePropagation(); };
+function zoom3(dir) {   // chase: distance; first person and fly: field of view
+  if (CAM.mode === 'chase') CAM.chase.dist = clamp(CAM.chase.dist * (dir > 0 ? 1 / 1.15 : 1.15), 24, 260);
+  else if (CAM.mode === 'first') CAM.first.fov = clamp(CAM.first.fov - dir * 5, 45, 110);
+  else if (CAM.mode === 'fly') CAM.fly.fov = clamp(CAM.fly.fov - dir * 5, 40, 110);
+}
+addEventListener('keydown', e => {
+  if (typingIn(e) || e.ctrlKey || e.metaKey) return;
+  if (CAM.mode === 'fly' && FLY_KEYS.has(e.code)) { CAM.held.add(e.code); take(e); return; }
+  if (/^Digit[1-4]$/.test(e.code)) { if (!e.repeat) setCam(['engine', 'chase', 'first', 'fly'][+e.code.slice(5) - 1]); take(e); return; }
+  if (!persp()) return;
+  if (e.code === 'BracketLeft' || e.code === 'BracketRight') { CAM.held.add(e.code); take(e); }
+  else if (e.code === 'Minus' || e.code === 'NumpadSubtract' || e.code === 'Equal' || e.code === 'NumpadAdd') { zoom3(e.code === 'Equal' || e.code === 'NumpadAdd' ? 1 : -1); take(e); }
+  else if (e.code === 'Digit0') { Object.assign(CAM.chase, { pitch: -.36, dist: 88, fov: 60 }); Object.assign(CAM.first, { pitch: -.08, fov: 75 }); take(e); }
+  else if (e.code === 'KeyV') { setCam('engine'); take(e); }
+  else if (e.code === 'KeyF') { if (!e.repeat) fix3d(); take(e); }
+}, true);
+addEventListener('keyup', e => CAM.held.delete(e.code), true);
+addEventListener('blur', () => CAM.held.clear());
+const screenEl = $('screen');
+addEventListener('wheel', e => { if (persp() && e.target === screenEl) { e.stopPropagation(); zoom3(e.deltaY < 0 ? 1 : -1); } }, { capture: true, passive: true });
+addEventListener('pointerdown', e => {
+  if (!persp() || e.target !== screenEl || e.pointerType !== 'mouse') return;
+  if (CAM.mode === 'fly') e.stopPropagation();   // a click in fly mode only captures the mouse (no swing)
+  if (CAM.mode !== 'fixed' && !CAM.locked && screenEl.requestPointerLock) { try { const r = screenEl.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* refused: the keys still turn */ } }
+}, true);
+document.addEventListener('pointerlockchange', () => { CAM.locked = document.pointerLockElement === screenEl; syncCam(); });
+document.addEventListener('mousemove', e => {
+  if (!CAM.locked || !persp()) return;
+  const k = .0024, dx = e.movementX || 0, dy = e.movementY || 0;
+  if (CAM.mode === 'fly') { CAM.fly.yaw += dx * k; CAM.fly.pitch = clamp(CAM.fly.pitch - dy * k, -1.5, 1.5); }
+  else { CAM.yaw += dx * k; const c = CAM.mode === 'chase' ? CAM.chase : CAM.first; c.pitch = clamp(c.pitch - dy * k, CAM.mode === 'chase' ? -1.3 : -1.2, CAM.mode === 'chase' ? .15 : 1.1); }
+});
+// a view button or the custom view's sliders go back to the engine's camera
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setCam('engine')));
+['camYaw', 'camPitch', 'camBoost'].forEach(id => $(id).addEventListener('input', () => setCam('engine')));
+
+/* ---- the panel ---- */
+const CAM_NOTES = {
+  engine: 'Engine: the 2D page\'s own camera (its views, side scrolling, custom, zoom, turn, fix), the same picture on both pages.',
+  chase: 'Chase: behind the hero. Click the picture to steer with the mouse (Esc frees it); [ ] turn, the wheel pulls in and out. F fixes the camera here.',
+  first: 'First person: through the hero\'s eyes. Click to look with the mouse (Esc frees it); [ ] turn, the wheel sets the field of view. F fixes the camera here.',
+  fly: 'Fly: WASD fly where you look, Q and E down and up, Shift faster, the arrows or a click (mouse look) to look. The hero waits. F fixes the camera here and gives you the hero back.',
+  fixed: 'Fixed: the camera stays here while you play; the hero walks away from it with W. F frees it (fly mode). Copy camera link keeps it.'
+};
+function syncCam() {
+  document.querySelectorAll('[data-cam3]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cam3 === CAM.mode || (b.dataset.cam3 === 'fly' && CAM.mode === 'fixed'))));
+  $('camNote').textContent = CAM_NOTES[CAM.mode] + (CAM.locked ? ' Mouse captured: Esc frees it.' : '');
+  $('screen').style.cursor = persp() && CAM.mode !== 'fixed' && !CAM.locked ? 'pointer' : '';
+}
+document.querySelectorAll('[data-cam3]').forEach(b => b.addEventListener('click', () => { setCam(b.dataset.cam3); b.blur(); }));
+// ?cam3= opens a 3D camera
+{
+  const q = (QS.get('cam3') || '').split(','), n = q.slice(1).map(Number);
+  if (['chase', 'first'].includes(q[0]) || (q[0] === 'fly' && q.length === 1)) CAM.mode = q[0];
+  else if (['fly', 'fixed'].includes(q[0]) && n.length >= 5 && n.every(Number.isFinite)) {
+    const p = { x: n[0], y: n[1], z: n[2], yaw: n[3] * DEG3, pitch: clamp(n[4], -86, 86) * DEG3, fov: clamp(n[5] || 70, 40, 110) };
+    if (q[0] === 'fly') Object.assign(CAM.fly, p); else CAM.fixed = p;
+    CAM.mode = q[0];
+  }
+}
+
+/* =============================================================================
+ * FILTERS (the panel's Filters section, N cycles the look): one look over the finished picture, on the entire scene,
+ * on the characters and objects only, or on the environment (the hall) only.
+ *   Clean      no filter: the scene goes straight to the screen, no extra pass (the benchmark's baseline)
+ *   Comic cel  light in a few flat bands (shade bands, keeping each color's hue), colors pushed (colour punch), and ink
+ *              where the picture changes sharply (ink strength, ink width), on the darker side of the edge, and round
+ *              each character's and object's silhouette
+ *   Pixel      the picture in square blocks (pixel size, in the picture's own pixels), a few levels per channel
+ *              (colours per channel), ordered Bayer 4 x 4 dithering between the levels (dither)
+ *   Bloom      bright parts glow: what is brighter than a threshold, blurred at a quarter of the size, added back
+ *   FXAA       edge smoothing over the result (the classic FXAA: blend along the edge's direction)
+ *   Cel and Pixel work in display colors (sRGB), as the engine's palettes are written, so bands and levels fall
+ *   where the eye expects them.
+ * Characters and objects apart from the hall: with a filter on, the scene draws into two targets at once (MRT): the
+ * picture, and a mask every character and object material writes 1 to (objMat, 00-setup) while the floor and walls
+ * leave 0. Glows, trails and particles that add light leave the mask as it is.
+ * All TSL in PostProcessing (three/webgpu), the same on WebGPU and WebGL 2; no add-ons.
+ *   ?fx=cel|pixel  &fxto=objects|env  &bloom=1  &fxaa=1  open with a filter
+ * ============================================================================= */
+const FX = {
+  look: ['cel', 'pixel'].includes(QS.get('fx')) ? QS.get('fx') : 'clean', apply: ['objects', 'env'].includes(QS.get('fxto')) ? QS.get('fxto') : 'all',
+  bands: 4, ink: .9, inkW: 1.5, punch: 1.3, px: 4, levels: 8, dither: .35, bloom: QS.get('bloom') === '1', fxaa: QS.get('fxaa') === '1',
+  active() { return this.look !== 'clean' || this.bloom || this.fxaa; }
+};
+const UF = {
+  bands: uniform(4), ink: uniform(.9), inkW: uniform(1.5), punch: uniform(1.3), px: uniform(4), levels: uniform(8), dither: uniform(.35),
+  apply: uniform(0), texel: uniform(new THREE.Vector2(1, 1)), qtexel: uniform(new THREE.Vector2(1, 1))
+};
+const post = new THREE.PostProcessing(renderer);
+post.outputColorTransform = false;   // (the filters end in display colors themselves)
+const scenePass = pass(scene, camP);   // (its camera is set each frame: the engine's or a 3D one)
+scenePass.setMRT(mrt({ output, mask: float(0) }));
+const OBJ_MASK = mrt({ mask: float(1) });
+const colTex = scenePass.getTextureNode('output'), maskTex = scenePass.getTextureNode('mask');
+const INK = vec3(.047, .031, .094);   // the engine's outline color
+/** the scene at uv in display colors, and the mask */
+const sceneAt = u => sRGBTransferOETF(colTex.sample(u).rgb);
+const maskAt = u => maskTex.sample(u).r;
+/** how much of the filter to keep at a pixel whose mask is m: everywhere, characters and objects, or the hall */
+const keep = m => select(UF.apply.equal(0), float(1), select(UF.apply.equal(1), m, float(1).sub(m)));
+function celLook() {
+  const u = uv(), c = sceneAt(u), l = luminance(c);
+  // brightness rounded to N flat bands (the darkest kept above black), the hue kept
+  const q = max(floor(l.mul(UF.bands).add(.5)), .5).div(UF.bands), banded = c.mul(q.div(max(l, .002)));
+  const punched = saturation(banded, UF.punch);
+  // ink, on the darker side of an edge only (so a line is ink width thick, not twice that): where a neighbour ink width
+  // away is much brighter, and round each character's and object's silhouette (the mask falling away beside it)
+  const o = UF.texel.mul(UF.inkW), m = maskAt(u);
+  let edge = float(0), rim = float(0);
+  for (const d of [vec2(o.x, 0), vec2(o.x.negate(), 0), vec2(0, o.y), vec2(0, o.y.negate())]) {
+    edge = max(edge, luminance(sceneAt(u.add(d))).sub(l)); rim = max(rim, m.sub(maskAt(u.add(d))));
+  }
+  const inked = mix(punched, INK, max(smoothstep(.16, .36, edge), rim).mul(UF.ink));
+  return mix(c, min(max(inked, vec3(0)), vec3(1)), keep(m));
+}
+function pixelLook() {
+  const u = uv(), res = vec2(1).div(UF.texel), blk = floor(u.mul(res).div(UF.px)), cu = blk.add(.5).mul(UF.px).div(res);
+  const c = sceneAt(cu);
+  // ordered dithering: a 4 x 4 Bayer threshold from the block's position (two 2 x 2 levels: 2 * (x xor y) + y)
+  const b2 = (x, y) => abs(x.sub(y)).mul(2).add(y);
+  const bx = mod(blk.x, 2), by = mod(blk.y, 2), bx2 = mod(floor(blk.x.div(2)), 2), by2 = mod(floor(blk.y.div(2)), 2);
+  const bayer = b2(bx, by).mul(4).add(b2(bx2, by2)).add(.5).div(16).sub(.5);
+  const L = UF.levels.sub(1), q = floor(c.mul(L).add(bayer.mul(UF.dither)).add(.5)).div(L);
+  // which parts: the block's own mask for characters and objects (whole blocks), the pixel's own for the hall
+  const m = select(UF.apply.equal(1), maskAt(cu), maskAt(u));
+  return mix(sceneAt(u), min(max(q, vec3(0)), vec3(1)), keep(m));
+}
+/** bloom: the bright parts at a quarter of the size, blurred across and down (9 taps each way) */
+const BLOOM_W = [.227, .194, .121, .054, .016];
+function bloomOf() {
+  const bright = rtt(vec4(sceneAt(uv()).mul(smoothstep(.72, 1, luminance(sceneAt(uv())))), 1), 1, 1);
+  const blur = (src, dir) => {
+    let acc = src.sample(uv()).rgb.mul(BLOOM_W[0]);
+    for (let i = 1; i < 5; i++) acc = acc.add(src.sample(uv().add(dir.mul(i * 1.6))).rgb.mul(BLOOM_W[i])).add(src.sample(uv().sub(dir.mul(i * 1.6))).rgb.mul(BLOOM_W[i]));
+    return rtt(vec4(acc, 1), 1, 1);
+  };
+  const h = blur(bright, vec2(UF.qtexel.x, 0)), v = blur(h, vec2(0, UF.qtexel.y));
+  return { targets: [bright, h, v], glow: v.sample(uv()).rgb };
+}
+/** FXAA over a finished picture (a texture node): the classic version, blending along the edge it finds */
+function fxaa(src) {
+  const u = uv(), t = UF.texel, L = p => luminance(src.sample(p).rgb);
+  const nw = L(u.add(vec2(-1, -1).mul(t))), ne = L(u.add(vec2(1, -1).mul(t))), sw = L(u.add(vec2(-1, 1).mul(t))), se = L(u.add(vec2(1, 1).mul(t))), m = L(u);
+  const lo = min(m, min(min(nw, ne), min(sw, se))), hi = max(m, max(max(nw, ne), max(sw, se)));
+  const dir0 = vec2(nw.add(ne).sub(sw.add(se)).negate(), nw.add(sw).sub(ne.add(se)));
+  const reduce = max(nw.add(ne).add(sw).add(se).mul(.25 / 8), 1 / 128), rcp = float(1).div(min(abs(dir0.x), abs(dir0.y)).add(reduce));
+  const dir = min(vec2(8), max(vec2(-8), dir0.mul(rcp))).mul(t);
+  const a = src.sample(u.add(dir.mul(1 / 3 - .5))).rgb.add(src.sample(u.add(dir.mul(2 / 3 - .5))).rgb).mul(.5);
+  const b = a.mul(.5).add(src.sample(u.add(dir.mul(-.5))).rgb.add(src.sample(u.add(dir.mul(.5))).rgb).mul(.25));
+  const lb = luminance(b);
+  return select(lb.lessThan(lo).or(lb.greaterThan(hi)), a, b);
+}
+let fxTargets = [], fxaaTarget = null, fxKey = '';
+/** the output graph for the look and the switches (built again only when one of those changes; sliders are uniforms) */
+function buildFX() {
+  let col = FX.look === 'cel' ? celLook() : FX.look === 'pixel' ? pixelLook() : sceneAt(uv());
+  fxTargets = [];
+  if (FX.bloom) { const b = bloomOf(); fxTargets = b.targets; col = col.add(b.glow.mul(.6)); }
+  fxaaTarget = null;
+  if (FX.fxaa) { fxaaTarget = rtt(vec4(col, 1)); col = fxaa(fxaaTarget); }
+  post.outputNode = vec4(col, 1); post.needsUpdate = true;
+}
+/** tag (or untag) the character and object materials for the mask: only while a filter is on, since a material with
+ *  its own MRT outputs can't draw straight to the screen */
+function tagMaterials(on) {
+  OBJ_MRT = on ? OBJ_MASK : null;
+  for (const m of OBJ_MATS) { m.mrtNode = OBJ_MRT; m.needsUpdate = true; }
+}
+let fxWas = false;
+const _sz = new THREE.Vector2();
+/** draw the frame: straight to the screen, or through the filters */
+function renderFrame(cam) {
+  const on = FX.active();
+  if (on !== fxWas) { fxWas = on; tagMaterials(on); warmed = false; }
+  if (!on) { renderer.render(scene, cam); return; }
+  const key = [FX.look, FX.bloom, FX.fxaa].join(); if (key !== fxKey) { fxKey = key; buildFX(); warmed = false; }
+  renderer.getDrawingBufferSize(_sz);
+  UF.texel.value.set(1 / _sz.x, 1 / _sz.y);
+  const qw = Math.max(1, Math.round(_sz.x / 4)), qh = Math.max(1, Math.round(_sz.y / 4));
+  for (const t of fxTargets) if (t.width !== qw || t.height !== qh) t.setSize(qw, qh);
+  UF.qtexel.value.set(1 / qw, 1 / qh);
+  UF.bands.value = FX.bands; UF.ink.value = FX.ink; UF.inkW.value = FX.inkW; UF.punch.value = FX.punch;
+  UF.px.value = FX.px; UF.levels.value = FX.levels; UF.dither.value = FX.dither; UF.apply.value = FX.apply === 'all' ? 0 : FX.apply === 'objects' ? 1 : 2;
+  scenePass.camera = cam;
+  post.render();
+}
+
+/* ---- the panel ---- */
+const FX_NOTES = {
+  clean: 'Clean: no filter, the picture as the scene draws it (no extra pass).',
+  cel: 'Comic cel: flat bands of light, pushed colors and ink lines.',
+  pixel: 'Pixel: square blocks, a few colors per channel, dithered between them.'
+};
+const FX_SLIDERS = { bands: v => v, ink: v => v.toFixed(2), inkW: v => v.toFixed(2), punch: v => v.toFixed(2), px: v => v, levels: v => v, dither: v => v.toFixed(2) };
+function syncFX() {
+  document.querySelectorAll('[data-fx]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.fx === FX.look)));
+  $('fxApply').value = FX.apply; $('fxApply').disabled = FX.look === 'clean';
+  $('fxCel').hidden = FX.look !== 'cel'; $('fxPixel').hidden = FX.look !== 'pixel';
+  for (const k in FX_SLIDERS) { $('fx-' + k).value = FX[k]; $('fx-' + k + 'Out').textContent = FX_SLIDERS[k](FX[k]); }
+  $('fxBloom').checked = FX.bloom; $('fxFxaa').checked = FX.fxaa;
+  $('fxNote').textContent = FX_NOTES[FX.look] + (FX.active() ? ' Filters draw the scene into a target first and then over the screen: their cost shows in the frame time.' : '');
+}
+function setFX(k, v) { FX[k] = v; syncFX(); }
+document.querySelectorAll('[data-fx]').forEach(b => b.addEventListener('click', () => { setFX('look', b.dataset.fx); b.blur(); }));
+$('fxApply').addEventListener('change', e => { setFX('apply', e.target.value); e.target.blur(); });
+for (const k in FX_SLIDERS) $('fx-' + k).addEventListener('input', e => setFX(k, +e.target.value));
+$('fxBloom').addEventListener('change', e => { setFX('bloom', e.target.checked); e.target.blur(); });
+$('fxFxaa').addEventListener('change', e => { setFX('fxaa', e.target.checked); e.target.blur(); });
+addEventListener('keydown', e => {
+  if (e.repeat || e.ctrlKey || e.metaKey || e.code !== 'KeyN' || (e.target && ['SELECT', 'TEXTAREA'].includes(e.target.tagName))) return;
+  const L = ['clean', 'cel', 'pixel']; setFX('look', L[(L.indexOf(FX.look) + 1) % L.length]); game.note(FX.look === 'clean' ? 'NO FILTER' : FX.look === 'cel' ? 'COMIC CEL' : 'PIXEL');
+});
 
 /* =============================================================================
  * THE FRAME: the engine's loop steps the game (its fixed steps, hit-stop, camera, particles) and then calls
  * game._frame() to draw; here that is replaced by frame3d(). It times this as it times its own drawing ("Drawing
  * (CPU)" on the panel), so the two pages' numbers compare directly.
- *   the camera   the engine's own: game.view (view, zoom and turn) and game.cam (with its shake) give an orthographic
- *                camera framing exactly the engine's picture (W x H pixels at view.scale per unit), stretched in
- *                height by the view's zBoost through the projection (as in the 3D world lab). The 3D canvas sits where
- *                the engine's picture sits (its whole-pixel scale and letterbox), one pixel larger and shifted by the
- *                camera's sub-pixel offset, as the engine presents its own buffer. So the engine's mouse aiming lands
- *                on the 3D picture unchanged.
- *   resolution   the engine's own pixels (W x H, the panel's camera distance grows it), or the screen's full resolution
- *   look         Card or Puppet (20-crowd), C switches; X switches the resolution
- *   window.__stress3d  { ready, backend, look, pixels, set(key, value), stats }
+ *   the camera   the engine's own (35-cameras: "engine"): game.view (view, zoom, turn) and game.cam (with its shake)
+ *                give an orthographic camera framing exactly the engine's picture (W x H pixels at view.scale per
+ *                unit), stretched in height by the view's zBoost through the projection (as in the 3D world lab). The
+ *                3D canvas sits where the engine's picture sits (its whole-pixel scale and letterbox), one pixel larger
+ *                and shifted by the camera's sub-pixel offset, as the engine presents its own buffer. So the engine's
+ *                mouse aiming lands on the 3D picture unchanged. Or one of the 3D cameras (perspective, 35-cameras).
+ *   resolution   the engine's own pixels (W x H, the panel's camera distance grows it), balanced (half the screen's
+ *                resolution) or full (the screen's); P cycles them. ?res=engine|balanced|full (?pixels=0: full)
+ *   look         Card or Puppet (20-crowd), C switches; P switches the resolution
+ *   warm-up      the first frame (and the first after a filter change) also draws everything once, empty, so every
+ *                shader is built before the fight needs it
+ *   window.__stress3d  { ready, backend, R3, CAM, set(key, value), setCam(mode), stats, FX }
  * ============================================================================= */
-const R3 = { look: ['card', 'puppet'].includes(QS.get('look')) ? QS.get('look') : 'card', pixels: QS.get('pixels') !== '0' };
-const cam3 = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 200);
+const RES = ['engine', 'balanced', 'full'];
+const R3 = { look: ['card', 'puppet'].includes(QS.get('look')) ? QS.get('look') : 'card', res: RES.includes(QS.get('res')) ? QS.get('res') : QS.get('pixels') === '0' ? 'full' : 'engine' };
+/** the picture's pixels per engine pixel at this resolution (the engine's whole-pixel scale S is full) */
+const resScale = sc => R3.res === 'engine' ? 1 : R3.res === 'full' ? sc.S : sc.S / 2;
+const cam3 = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 300);
 const DEG = Math.PI / 180, _S = new THREE.Matrix4(), _M = new THREE.Matrix4(), _g = new THREE.Vector3();
-const CV = { right: new THREE.Vector3(), up: new THREE.Vector3(), back: new THREE.Vector3(), q: new THREE.Quaternion(), ppm: 1, vert: 1 };
+const CV = { right: new THREE.Vector3(), up: new THREE.Vector3(), back: new THREE.Vector3(), q: new THREE.Quaternion(), ppm: 1, vert: 1, snap: true };
 const frameEl = $('frame');
 let lastFit = '';
 /** the 3D canvas over the engine's picture (its whole-pixel scale and letterbox), one pixel larger, at the right size */
 function fit(sc) {
-  const dpr = sc.dpr, key = [sc.W, sc.H, sc.S, sc.OX, sc.OY, dpr, R3.pixels].join(',');
+  const dpr = sc.dpr, key = [sc.W, sc.H, sc.S, sc.OX, sc.OY, dpr, R3.res].join(','), k = resScale(sc);
   if (key === lastFit) return; lastFit = key;
   Object.assign(frameEl.style, { left: sc.OX / dpr + 'px', top: sc.OY / dpr + 'px', width: sc.W * sc.S / dpr + 'px', height: sc.H * sc.S / dpr + 'px' });
   const cw = (sc.W + 1) * sc.S / dpr + 'px', ch = (sc.H + 1) * sc.S / dpr + 'px';
   renderer.setPixelRatio(1);
-  if (R3.pixels) renderer.setSize(sc.W + 1, sc.H + 1, false); else renderer.setSize((sc.W + 1) * sc.S, (sc.H + 1) * sc.S, false);
+  renderer.setSize(Math.max(1, Math.round((sc.W + 1) * k)), Math.max(1, Math.round((sc.H + 1) * k)), false);
   over.width = sc.W + 1; over.height = sc.H + 1;
   for (const c of [canvas3d, over]) { c.style.width = cw; c.style.height = ch; }
-  canvas3d.classList.toggle('pixels', R3.pixels);
+  canvas3d.classList.toggle('pixels', R3.res !== 'full');
 }
-/** the engine's projection, for the camera at buffer origin (ix, iy): the ground point under the picture's centre */
+/** the engine's projection, for the camera at buffer origin (ix, iy) */
 function placeCamera(view, sc, ix, iy) {
   const ppm = view.scale * U, w = (sc.W + 1) / ppm, h = (sc.H + 1) / ppm;
   Object.assign(cam3, { left: -w / 2, right: w / 2, top: h / 2, bottom: -h / 2 });
-  const g = view.toGround(ix + (sc.W + 1) / 2, iy + (sc.H + 1) / 2);
-  _g.set(g[0] / U, 0, g[1] / U);
-  const yw = view.yawDeg * DEG, pt = view.pitchDeg * DEG;
-  cam3.position.set(_g.x + Math.sin(yw) * Math.cos(pt) * 60, Math.sin(pt) * 60, _g.z + Math.cos(yw) * Math.cos(pt) * 60);
-  cam3.up.set(0, 1, 0); cam3.lookAt(_g);
+  // the world point at the picture's centre: the engine camera's target moved within the picture's plane by its offset
+  // on screen (exact for every view, the side view too, where the picture's centre has no ground point)
+  const c = game.cam, sr = view.p(c.tx, c.ty, c.tz), dxs = ix + (sc.W + 1) / 2 - sr[0], dys = iy + (sc.H + 1) / 2 - sr[1];
+  const sk = view.scale, sp = Math.sin(view.pitch), cw = Math.cos(view.yaw), sw = Math.sin(view.yaw);
+  let gx = c.tx + cw * dxs / sk, gy = c.ty - sw * dxs / sk, gz = c.tz;
+  if (sp > .5) { gx += sw * dys / (sk * sp); gy += cw * dys / (sk * sp); } else gz += dys / view.bz;
+  _g.set(gx / U, gz / U, gy / U);
+  const yw = view.yawDeg * DEG, pt = view.pitchDeg * DEG, D = 100;
+  cam3.position.set(_g.x + Math.sin(yw) * Math.cos(pt) * D, _g.y + Math.sin(pt) * D, _g.z + Math.cos(yw) * Math.cos(pt) * D);
+  if (view.pitchDeg > 89) cam3.up.set(-Math.sin(yw), 0, -Math.cos(yw)); else cam3.up.set(0, 1, 0);   // (straight down: the picture's up is the view's far side)
+  cam3.lookAt(_g);
   cam3.updateMatrixWorld(); cam3.updateProjectionMatrix();
   if (view.zBoost !== 1) {   // the engine's height boost, in the projection only: P * V * S(1, boost, 1) * V^-1
     _M.copy(cam3.matrixWorldInverse).multiply(_S.makeScale(1, view.zBoost, 1)).multiply(cam3.matrixWorld);
@@ -6477,39 +7061,67 @@ function placeCamera(view, sc, ix, iy) {
   }
   cam3.getWorldQuaternion(CV.q);
   CV.right.set(1, 0, 0).applyQuaternion(CV.q); CV.up.set(0, 1, 0).applyQuaternion(CV.q); CV.back.set(0, 0, 1).applyQuaternion(CV.q);
-  CV.ppm = ppm; CV.vert = 1 + (view.zBoost - 1) * CV.up.y * CV.up.y;
+  CV.ppm = ppm; CV.vert = 1 + (view.zBoost - 1) * CV.up.y * CV.up.y; CV.snap = true;
   OUTLINE_PX.value.set(2 / (sc.W + 1), 2 / (sc.H + 1));   // one engine pixel, whatever the resolution
+}
+const NO_CUT = { id: 'persp', yawDeg: 0, pitchDeg: 90, isTop: true };   // 3D cameras: every wall at full height
+let warmed = false;
+/** draw one picture with every batch, atlas page, trail and floor shape in it (empty, scaled to nothing), so each
+ *  material builds its shader and GPU pipelines now, shadow passes too, and not on the frame a monster kind or an effect
+ *  first appears (tens of milliseconds each: the stall the benchmark caught at 50 monsters) */
+function warmUp(camNow) {
+  ARCS.prepare(8); RINGS.prepare(12); RIBBONS.prepare(6); ATLAS.prepare(game.view, 2);
+  const Z = new THREE.Matrix4().makeScale(0, 0, 0), inst = [], pools = [...ARCS.list, ...RINGS.list, ...RIBBONS.list];
+  for (const b of [...Object.values(BATCH), ...Object.values(PART)]) { inst.push(b.mesh); if (b.shell) inst.push(b.shell); }
+  for (const pg of ATLAS.pages) inst.push(pg.mesh);
+  for (const m of inst) { m.setMatrixAt(0, Z); m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.needsUpdate = true; m.count = 1; }
+  for (const m of pools) m.visible = true;
+  renderFrame(camNow);
+  for (const m of inst) m.count = 0;
+  for (const m of pools) m.visible = false;
+  warmed = true;
 }
 const STATS = { drawn: 0, culled: 0, calls: 0, tris: 0, frames: 0 };
 /** one picture of the game as it stands (the engine's loop calls this in place of its own drawing) */
 function frame3d() {
-  const sc = game.screen, view = game.view, c = game.cam, s = game.shakeAmt, t = game.real;
+  const sc = game.screen, view = game.view, c = game.cam, s = game.shakeAmt, t = game.real, dt = clamp(t - (CAM.last || t), 0, .1); CAM.last = t;
   // the engine's camera with its shake, split into whole pixels and the sub-pixel rest, as Screen.begin splits it
   const shx = s > .05 ? (Math.sin(t * 83) + Math.sin(t * 57.3)) * .5 * s : 0, shy = s > .05 ? (Math.sin(t * 71) + Math.sin(t * 49.7)) * .5 * s : 0;
   const cx = c.x + shx, cy = c.y + shy, ix = Math.floor(cx), iy = Math.floor(cy);
   sc.ix = ix; sc.iy = iy; sc.fx = cx - ix; sc.fy = cy - iy;   // (the engine's mouse aiming reads these)
   fit(sc);
-  const shift = `translate(${-Math.round(sc.fx * sc.S) / sc.dpr}px, ${-Math.round(sc.fy * sc.S) / sc.dpr}px)`;
-  canvas3d.style.transform = over.style.transform = shift;
-  placeCamera(view, sc, ix, iy);
-  placeWalls(view);
+  const W1 = sc.W + 1, H1 = sc.H + 1;
+  let camNow, cardView, vis, project;
+  if (!persp()) {   // the engine's camera, to the pixel
+    canvas3d.style.transform = over.style.transform = `translate(${-Math.round(sc.fx * sc.S) / sc.dpr}px, ${-Math.round(sc.fy * sc.S) / sc.dpr}px)`;
+    placeCamera(view, sc, ix, iy); placeWalls(view);
+    camNow = cam3; cardView = view;
+    vis = (x, y, z) => { const p = view.p(x, y, z), sx = p[0] - ix, sy = p[1] - iy; return sx > -60 && sx < W1 + 60 && sy > -60 && sy < H1 + 100; };
+    project = (x, y, z) => { const p = view.p(x, y, z); return [p[0] - ix, p[1] - iy]; };
+  } else {          // a 3D camera
+    canvas3d.style.transform = over.style.transform = '';
+    cardView = placePersp(cameraPose(dt), sc, shx, shy); placeWalls(NO_CUT);
+    camNow = camP; vis = visPersp; project = (x, y, z) => projectPersp(x, y, z, W1, H1);
+  }
   let lights = lightHall(t);
   animateBraziers(G.S.lights);
   const h = G.hero; heroLight.position.set(h.x / U, 40 / U, h.y / U); heroLight.intensity = game.gpu.enabled && !h.dead ? LIGHT.hero : 0; if (heroLight.intensity) lights++;
   // the wisps nearest the hero carry lights when the panel says so (the 2D page lights up to 16; here up to 4)
   const wisps = G.S.monsterLights ? G.enemies.filter(e => e.type === 'wisp' && e.alive).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y)) : [];
   wispLights.forEach((L, i) => { const e = wisps[i]; L.intensity = e ? LIGHT.wisp : 0; if (e) { L.position.set(e.x / U, e.z / U, e.y / U); lights++; } });
-  const crowd = drawCrowd(view, [ix, iy], sc.W + 1, sc.H + 1, R3.look, G.S.outlines, CV);
-  lights += drawEffects(view, [ix, iy], sc.W + 1, sc.H + 1, CV);
-  renderer.render(scene, cam3);
-  drawOverlay(view, ix, iy, sc.W + 1, sc.H + 1);
+  renderer.info.reset();
+  if (!warmed) warmUp(camNow);
+  const crowd = drawCrowd({ view: cardView, vis, look: R3.look, outlines: G.S.outlines, v: CV, hideHero: CAM.mode === 'first' });
+  lights += drawEffects(CV);
+  renderFrame(camNow);
+  drawOverlay(project, W1, H1, CAM.mode === 'first' || (CAM.locked && CAM.mode === 'chase'));
   // the numbers the panel shows, as the engine counts its own
   const info = renderer.info.render, st = game.stats;
   st.actors = crowd.drawn; st.culled = crowd.culled; st.items = info.drawCalls; G.frameStats.lights = lights;
   STATS.drawn = crowd.drawn; STATS.culled = crowd.culled; STATS.calls = info.drawCalls; STATS.tris = info.triangles; STATS.frames++;
   G.hud();
   $('mGpu').textContent = 'three.js · ' + BACKEND;
-  if (!R3.pixels) $('mRes').textContent = (sc.W + 1) * sc.S + '×' + (sc.H + 1) * sc.S + ' (' + Math.round((sc.W + 1) * (sc.H + 1) * sc.S * sc.S / 1000) + 'k px)';
+  if (R3.res !== 'engine') { const k = resScale(sc), w = Math.round(W1 * k), hh = Math.round(H1 * k); $('mRes').textContent = w + '×' + hh + ' (' + Math.round(w * hh / 1000) + 'k px)'; }
 }
 game._frame = frame3d;
 
@@ -6520,15 +7132,18 @@ const LOOK_NOTES = {
 };
 function sync3d() {
   document.querySelectorAll('[data-look]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.look === R3.look)));
-  $('pixels3d').checked = R3.pixels; $('lookNote').textContent = LOOK_NOTES[R3.look];
+  $('res3d').value = R3.res; $('lookNote').textContent = LOOK_NOTES[R3.look];
 }
-function set3d(k, v) { if (k === 'look') R3.look = v; else if (k === 'pixels') R3.pixels = !!v; lastFit = ''; sync3d(); }
+function set3d(k, v) {
+  if (k === 'look') R3.look = v; else if (k === 'res' && RES.includes(v)) R3.res = v; else if (k === 'pixels') R3.res = v ? 'engine' : 'full';   // ('pixels': the switch before the resolution menu)
+  lastFit = ''; sync3d();
+}
 document.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click', () => { set3d('look', b.dataset.look); b.blur(); }));
-$('pixels3d').addEventListener('change', e => { set3d('pixels', e.target.checked); e.target.blur(); });
+$('res3d').addEventListener('change', e => { set3d('res', e.target.value); e.target.blur(); });
 addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.metaKey || (e.target && ['SELECT', 'TEXTAREA', 'INPUT'].includes(e.target.tagName) && e.target.type !== 'checkbox')) return;
   if (e.code === 'KeyC') set3d('look', R3.look === 'card' ? 'puppet' : 'card');
-  else if (e.code === 'KeyX') set3d('pixels', !R3.pixels);
+  else if (e.code === 'KeyP') { set3d('res', RES[(RES.indexOf(R3.res) + 1) % RES.length]); game.note(R3.res === 'engine' ? 'ENGINE PIXELS' : R3.res === 'balanced' ? 'BALANCED RESOLUTION' : 'FULL RESOLUTION'); }
 });
 {
   const url = new URL(location.href), webgl = BACKEND !== 'WebGPU';
@@ -6537,16 +7152,20 @@ addEventListener('keydown', e => {
   $('backendBtn').addEventListener('click', () => { location.href = url.href; });
   $('backend3d').innerHTML = `Drawn by <b>three.js r182</b> on <b>${BACKEND}</b>. The game is the 2D page's own code, unchanged; only the drawing is new.`;
   // the 2D page's address: the site serves pages without .html, a local server as files
-  $('to2d').href = /\.html$/.test(location.pathname) ? 'stress-test.html' + location.search.replace(/[?&](look|pixels|backend)=[^&]*/g, '') : '/stress-test';
+  // the 2D page's address, with the same engine camera (?view, ?cam): the site serves pages without .html, a local server as files
+  const keepQ = () => { const u = new URLSearchParams(location.search); for (const k of [...u.keys()]) if (!['view', 'cam'].includes(k)) u.delete(k); const q = u.toString(); return q ? '?' + q : ''; };
+  $('to2d').href = (/\.html$/.test(location.pathname) ? 'stress-test.html' : '/stress-test') + keepQ();
 }
 // the engine's canvas stays on top for the mouse and keys, but shows nothing; the stand-in GPU lighting reports in
 $('screen').style.opacity = '0';
 game.gpu._st = 'on'; if (game.gpu.onStatus) game.gpu.onStatus();
 // the benchmark's report says what drew it, for the head-to-head with the 2D page
-game.gpu.renderer = () => 'drawn by three.js r182 on ' + BACKEND + ', ' + (R3.look === 'card' ? 'Card' : 'Puppet') + ' look, ' + (R3.pixels ? "the engine's pixels" : 'full resolution');
+const FX_NAMES = { cel: 'Comic cel', pixel: 'Pixel' }, FX_TO = { all: 'the entire scene', objects: 'the characters and objects', env: 'the environment' };
+G.HOOKS.renderer = () => 'drawn by three.js r182 on ' + BACKEND + ', ' + (R3.look === 'card' ? 'Card' : 'Puppet') + ' look, ' + (R3.res === 'engine' ? "the engine's pixels" : R3.res === 'balanced' ? 'balanced resolution (half the screen\'s)' : 'full resolution') +
+  (FX.look !== 'clean' ? ', filter ' + FX_NAMES[FX.look] + ' on ' + FX_TO[FX.apply] : ', no filter') + (FX.bloom ? ', bloom' : '') + (FX.fxaa ? ', FXAA' : '');
 $('loading3d').hidden = true;
-sync3d();
-window.__stress3d = { ready: true, backend: BACKEND, R3, set: set3d, renderer, scene, stats: STATS, camera: cam3, LIGHT };
+sync3d(); syncCam(); syncFX();
+window.__stress3d = { ready: true, backend: BACKEND, R3, CAM, set: set3d, setCam, renderer, scene, stats: STATS, camera: cam3, cameraP: camP, LIGHT, FX };
 
 </script>
 </body>

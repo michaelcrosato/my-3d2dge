@@ -176,7 +176,7 @@ Each milestone ends with screenshots on both backends.
   move the hero with our own kinematic code and keep Rapier for the crates. Our engine's collision is already
   enough for walking among walls and pillars.
 
-## The 3D stress test (v0.10.0)
+## The 3D stress test (v0.10.0, cameras and filters v0.11.0)
 
 A head-to-head with the engine's own renderer: `/stress-3d` (Labs → Temporary → Stress test in 3D) is the stress test
 at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `examples/stress-3d.html`.
@@ -185,24 +185,49 @@ at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `ex
   slimes, wisps, attack tokens, telegraphs, waves, particles, the panel, its metrics and the benchmark. It runs in
   the engine's own loop (fixed steps, hit-stop, camera, shake); `src/stress3d/` replaces only the loop's drawing step
   (`game._frame`) and reads the game's state from `window.__game`. The engine times that step as it times its own
-  drawing, so "Drawing (CPU)" on the two pages compares directly. The benchmark's report says which renderer drew
-  it, the look and the resolution.
-- **The same picture, where it can be.** The camera is the engine's view and camera (view, zoom, turn, height boost,
-  shake), so the hall frames the same and the mouse aims the same. The hall comes from the game's `TileMap` (its floor
-  texture, wall types and cut-away), every texture from the engine's code.
-- **Two looks** (C switches): **Card**, each character drawn by the engine onto a card standing in the hall (one
-  sprite atlas, drawn as one batch), the closest to the 2D page; **Puppet**, 3D parts on the same joints in shared
-  instanced batches, with torchlight, shadows and outlines. X switches between the engine's pixels and the screen's
-  full resolution; `?backend=webgl` forces WebGL 2.
+  drawing, so "Drawing (CPU)" on the two pages compares directly. The benchmark's table and report give game logic,
+  drawing and their sum for each step, and the 3D report names its renderer, look, resolution, camera and filter.
+  `__game.HOOKS` is how the 3D page tells the shared code about itself (`renderer`, `camera`, `camLink`, `fix`,
+  `fixed`).
+- **Two looks** (C switches): **Card**, each character drawn by the engine onto a card standing in the hall (the
+  closest to the 2D page); **Puppet**, 3D parts on the same joints in shared instanced batches, with torchlight,
+  shadows and outlines. P cycles the resolution (the engine's pixels, balanced at half the screen's, full);
+  `?backend=webgl` forces WebGL 2. Both pages can go full screen, or start in it.
+- **Cameras** (1 to 4). The **engine** camera is the 2D page's own and is shared code, so it is the same camera on
+  both pages: the engine's views, **side scrolling** (the engine's side view), a **custom** view (any turn, tilt and
+  height boost) and **fix camera here** (F: the camera stays put while the hero moves on), with a link in the free
+  camera room's `?cam=` format that opens the same camera on either page. The 3D page adds perspective cameras the
+  engine can't give: **chase** (behind the hero, sliding in front of walls), **first person** (his eyes; he isn't
+  drawn) and **fly** (WASD, Q and E, Shift; the hero waits). A click captures the mouse to steer (Esc frees it), and
+  F fixes any of them where it is: a **fixed 3D camera** while you play (`?cam3=`). In a 3D camera the hero's
+  controls follow it: the game reads an engine view turned to match, so W walks away from the camera, and he aims
+  where the camera looks or where the mouse points on the floor. Cards are drawn from the camera's own turn and tilt.
+- **Filters** (N cycles; 3D only). **Clean** (no filter, no extra pass), **Comic cel** (shade bands, ink strength,
+  ink width, colour punch) or **Pixel** (pixel size, colours per channel, Bayer dither), on the **entire scene**,
+  the **characters and objects**, or the **environment**; and **bloom** and **FXAA**. All TSL in `PostProcessing`,
+  the same on both backends, no add-ons. To tell characters from the hall, the scene draws into two targets at once
+  (MRT): the picture, and a mask that character and object materials write 1 to. A material with its own MRT outputs
+  can't draw straight to the screen, so they carry it only while a filter is on (`objMat` in `00-setup`).
+- **The engine's own looks** on both pages: dithered translucency (`E.style.trans`, NES and Genesis style) and the
+  readable characters tilt (`E.style.charPitch`). They are what the 2D renderer allows of a filter; on the 3D page
+  they change the cards.
 - **Where it differs, by the nature of the tech.** The lights are a fixed set (a changing count rebuilds shaders):
   up to 30 torches, of which the two nearest the hero cast shadows (the 2D page shadows every torch), and up to four
   wisp and four bolt lights (the 2D page lights up to 16 wisps). The 2D page's canvas-lighting option has no
-  counterpart. Swing smears are ribbons; damage numbers and notes are the engine's pixel font on an overlay.
+  counterpart, and the 3D cameras and filters have none on the 2D page. Swing smears are ribbons; damage numbers and
+  notes are the engine's pixel font on an overlay.
+- **No stalls mid-fight.** A material's first draw builds its shader and GPU pipelines (tens of milliseconds; the
+  first benchmark showed it as a 1% low of 34 fps at 50 monsters). The first frame now draws everything once, empty,
+  so every pipeline exists before the fight (again after a filter change); the effect pools share one material each;
+  the card atlas is fixed 512-pixel pages that are never remade and upload only when used. The test counts the GPU
+  pipelines during a fight: none are built.
 - **A three.js r182 bug to remember:** an `InstancedMesh` with more than 1,000 instances whose matrices use
   `DynamicDrawUsage` never sends its changes to the GPU (the monsters vanished). The batches keep the default usage
   and mark their update ranges each frame.
-- `node tools/lab3d-test.mjs` checks it on both backends: a fight with every monster kind in both looks, the panel's
-  numbers, the hero under the keys, and no errors (pictures in `check-output/lab3d/`).
+- `node tools/lab3d-test.mjs` checks it on both backends: a fight with every monster kind in both looks with no
+  pipeline built mid-fight, the panel's numbers, every camera and filter, W walking away from a fixed camera, the hero
+  under the keys, no errors; and the 2D page's cameras (a `?cam=` link, a fixed camera staying put, side scrolling).
+  Pictures in `check-output/lab3d/`.
 
 ## Out of scope
 

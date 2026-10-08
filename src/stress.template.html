@@ -154,7 +154,21 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
         <button type="button" data-view="threequarter">Three-quarter</button>
         <button type="button" data-view="topdown">Top-down</button>
         <button type="button" data-view="brawler">Brawler</button>
+        <button type="button" data-view="side">Side scrolling</button>
+        <button type="button" data-view="custom">Custom</button>
       </div>
+      <div id="customCam" hidden>
+        <label class="field" for="camYaw"><span>Turn</span><output id="camYawOut">30°</output></label>
+        <input type="range" id="camYaw" min="0" max="359" step="1" value="30">
+        <label class="field" for="camPitch"><span>Tilt</span><output id="camPitchOut">40°</output></label>
+        <input type="range" id="camPitch" min="0" max="90" step="1" value="40">
+        <label class="field" for="camBoost"><span>Height boost</span><output id="camBoostOut">1.10</output></label>
+        <input type="range" id="camBoost" min="100" max="150" step="5" value="110">
+        <p class="note">Any view the engine can draw: tilt 0 is the side view, 90 straight down. Zoom and the turn keys still apply on top.</p>
+      </div>
+      <div class="btnrow"><button type="button" id="fixBtn" aria-pressed="false">Fix camera here <kbd>F</kbd></button><button type="button" id="camLinkBtn">Copy camera link</button></div>
+      <p class="note">Fixed, the camera stays where it is while the hero moves on, in any view. The link opens this camera (view, turn, tilt, zoom, and where it is fixed) on either stress test.</p>
+      <p class="note">Chase, first-person and fly cameras need real 3D: they are on the <a href="stress-3d.html" id="to3d">3D stress test</a>.</p>
     </section>
 
     <section>
@@ -169,6 +183,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 
     <section>
       <h2>Rendering</h2>
+      <div class="btnrow"><button type="button" id="fsBtn">Full screen</button></div>
+      <label class="check"><input type="checkbox" id="fsStart"><span>Start in full screen<small>On this device, the first click or key goes full screen (browsers allow it no sooner)</small></span></label>
       <label class="check" id="gpuLabel"><input type="checkbox" id="gpuOn"><span>GPU lighting <kbd>G</kbd><small>WebGPU shadows, glow and heat shimmer</small></span></label>
       <label class="check"><input type="checkbox" id="shadows"><span>GPU shadows<small>Every torch marches shadows through the level</small></span></label>
       <label class="check"><input type="checkbox" id="canvasLight"><span>Canvas lighting<small>Used when GPU lighting is off</small></span></label>
@@ -176,6 +192,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <label class="check"><input type="checkbox" id="capes"><span>Monster capes<small>Adds a cloth simulation to every humanoid</small></span></label>
       <label class="check"><input type="checkbox" id="mlights"><span>Monster lights<small>Visible wisps become light sources (up to 16)</small></span></label>
       <label class="check"><input type="checkbox" id="lod"><span>Skip off-screen animation<small>Monsters outside the view still move but don't pose</small></span></label>
+      <label class="check"><input type="checkbox" id="dither"><span>Dithered translucency<small>The engine's NES and Genesis style: glows, fades and shadows as ordered dither patterns instead of stepped transparency</small></span></label>
+      <label class="check"><input type="checkbox" id="readable"><span>Readable characters<small>In steep views the engine draws characters from a lower angle so their faces show (the SNES cheat); off draws them as the camera sees them</small></span></label>
       <label class="check"><input type="checkbox" id="god"><span>Invincible hero</span></label>
     </section>
 
@@ -196,7 +214,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <div class="btnrow"><button type="button" id="benchBtn" class="primary">Run benchmark</button><button type="button" id="copyBtn" hidden>Copy results</button></div>
       <p id="benchStatus" class="note" aria-live="polite"></p>
       <p id="benchSummary" aria-live="polite"></p>
-      <table><thead><tr><th>Monsters</th><th>Avg fps</th><th>1% low</th><th>CPU ms</th></tr></thead><tbody id="benchTable"></tbody></table>
+      <table><thead><tr><th>Monsters</th><th>Avg fps</th><th>1% low</th><th title="Game logic, ms a frame">Logic ms</th><th title="Drawing on the CPU, ms a frame">Draw ms</th><th title="Logic and drawing together">CPU ms</th></tr></thead><tbody id="benchTable"></tbody></table>
       <textarea id="reportText" hidden readonly aria-label="Benchmark report"></textarea>
     </section>
   </aside>
@@ -222,7 +240,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
     <details><summary>This device</summary><p id="hw">Detecting...</p></details>
   </div>
 
-  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>G</b> toggles GPU lighting, <b>R</b> shows skeletons, <b>H</b> hides the panel.</p>
+  <p class="keys panel"><b>WASD</b> moves, <b>mouse</b> aims, <b>click</b> slashes (three clicks: slash, backslash, spin), <b>E</b> throws, <b>Space</b> dashes (click while dashing to thrust). <b>V</b> cycles the view, <b>-</b> <b>=</b> or the wheel zoom, <b>[</b> <b>]</b> turn, <b>0</b> resets the camera, <b>F</b> fixes it in place, <b>G</b> toggles GPU lighting, <b>R</b> shows skeletons, <b>H</b> hides the panel.</p>
   <div class="touch" aria-hidden="true"><button data-act="dash">Dash</button><button data-act="skill">Ember</button><button data-act="attack">Slash</button></div>
 </div>
 <!-- @inline engine/my-3d2dge.js -->
