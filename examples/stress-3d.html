@@ -319,7 +319,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.12.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.12.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -378,7 +378,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.12.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.12.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -5495,6 +5495,8 @@ function update(dt) {
   if (FIX.on) game.focus(FIX.x, FIX.y, FIX.z);   // a fixed camera stays where it was fixed
   else game.focus(hero.x + Math.cos(a) * 16, hero.y + Math.sin(a) * 16, 8);
   if (depthActive()) depthFollow(dt);
+  depthResolution(depthActive());
+  if (DEPTH.note) { if (!game._note) game._note = DEPTH.note; DEPTH.note = null; }   // (the note, borrowed by the depth view to draw it large)
 }
 
 /* ---------- draw ---------- */
@@ -5595,7 +5597,23 @@ function draw(r) {
  * the far end fades into the dark. The 3D page puts a real perspective camera at the same place (depthPose), for the
  * head-to-head. Zoom narrows the field of view. ?view=side&depth=1 opens it.
  * ============================================================================= */
-const DEPTH = { on: qs.get('depth') === '1', x: 0, y: 0, h: 70, pitch: 14, fov: 50, near: 110, far: 260, ready: false };   // (units: near keeps his feet on screen)
+const DEPTH = { on: qs.get('depth') === '1', x: 0, y: 0, h: 70, pitch: 14, fov: 50, near: 110, far: 260, ready: false, text: 1, note: null };   // (units: near keeps his feet on screen)
+/* the depth view draws at the screen's own resolution, one buffer pixel per screen pixel: the characters are drawn by
+ * the engine at the size their distance gives there, so near or far, zoomed in or out, they stay sharp (in the engine's
+ * own views the pixel size is the look; here the framing comes from the field of view, so more pixels only sharpen).
+ * Its text (damage numbers, notes) is drawn as large as at the page's own pixel size. The 3D page keeps its own
+ * resolution menu. The engine's pixel size comes back with depth off. */
+let depthRes = false;
+function depthResolution(on) {
+  if (HOOKS.renderer) return;   // (the 3D page)
+  if (on && game.screen.S !== 1) {
+    if (!depthRes) DEPTH.text = game.screen.S;
+    depthRes = true; game.screen.setOptions({ minW: 1e6, minH: 1e6, maxW: 1e6, maxH: 1e6, portrait: { maxH: 1e6 } }); game.cam.snap = true;
+  } else if (!on && depthRes) { depthRes = false; setDistance(S.distance); }
+}
+// (the depth view covers the frame and draws the particles itself: no lighting pass or engine particles under it)
+{ const render = game.lights.render.bind(game.lights); game.lights.render = r => { if (!depthActive()) render(r); }; }
+{ const draw = P.draw.bind(P); P.draw = r => { if (!depthActive()) draw(r); }; }
 const depthActive = () => DEPTH.on && game.baseView.id === 'side';
 /** the camera follows the hero sideways, and in depth only when he comes nearer than near or goes past far; a fixed
  *  camera (F) stays where it is */
@@ -5697,6 +5715,8 @@ function drawDepth(r) {
   for (const s of shots) items.push([s.y, g => { const p = proj(s.x, s.y, s.z); if (!p) return; glow7(g, p[0], p[1], 5 * p[2], s.color, .5); disc7(g, p[0], p[1], Math.max(1, 2 * p[2]), s.core); }]);
   items.sort((a, b) => a[0] - b[0]);
   game.stats.actors = drawn; game.stats.culled = culled; frameStats.lights = S.lights + 2;
+  if (game._note && game.real < game._note.end) { DEPTH.note = game._note; game._note = null; }   // (drawn below, at the text's size)
+  const note = DEPTH.note, tx = HOOKS.renderer ? 1 : Math.max(1, Math.round(DEPTH.text));
   r.overlay(g => {   // (an overlay: drawn over the engine's empty world, after its lighting pass)
     g.save(); g.imageSmoothingEnabled = false;
     g.fillStyle = '#06050b'; g.fillRect(0, 0, r.bw, r.bh);
@@ -5718,7 +5738,7 @@ function drawDepth(r) {
     // particles and damage numbers, over the scene
     for (const q of P.list) {
       const p = proj(q.x, q.y, q.z || 0); if (!p) continue; const u = q.life / q.max;
-      if (q.kind === 'text') { if (u < .75 || Math.floor(q.life * 20) % 2) E.font.text(g, q.text, Math.round(p[0]), Math.round(p[1]), q.color, { align: 'center', scale: q.scale || 1, outline: '#0b0814' }); continue; }
+      if (q.kind === 'text') { if (u < .75 || Math.floor(q.life * 20) % 2) E.font.text(g, q.text, Math.round(p[0]), Math.round(p[1]), q.color, { align: 'center', scale: (q.scale || 1) * tx, outline: '#0b0814' }); continue; }
       if (q.kind === 'ring') continue;
       const add = q.kind === 'spark' || q.kind === 'ember' || q.kind === 'glint' || q.kind === 'impact';
       if (add) g.globalCompositeOperation = 'lighter';
@@ -5726,6 +5746,7 @@ function drawDepth(r) {
       g.fillRect(Math.round(p[0] - sz / 2), Math.round(p[1] - sz / 2), Math.ceil(sz), Math.ceil(sz));
       if (add) g.globalCompositeOperation = 'source-over';
     }
+    if (note) E.font.text(g, note.text, Math.round(W / 2), 3 * tx, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny', scale: tx });
     g.restore();
   });
 }

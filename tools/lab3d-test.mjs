@@ -15,8 +15,8 @@
 //      panel's numbers fill in, every camera draws (side, custom, chase, first person, fly, fixed; W walks away from a
 //      fixed one), every filter draws (cel, pixel, on everything, the characters, the hall; bloom, FXAA), the hero moves
 //   7. the 2D stress test's cameras: a ?cam= link opens its custom view fixed in place, a fixed camera stays put while
-//      the hero walks, F frees it, the side scrolling view, and side scrolling with depth (Mode 7: the crowd draws, the
-//      hero shrinks walking into the hall and grows coming back); on the 3D page the same depth is a perspective camera,
+//      the hero walks, F frees it, the side scrolling view, and side scrolling with depth (Mode 7, at the screen's own
+//      resolution: the crowd draws, the hero shrinks walking into the hall and grows coming back); on the 3D page the same depth is a perspective camera,
 //      and at the full resolution its cards are drawn finer than the engine's pixels
 // Usage: node tools/lab3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
@@ -283,8 +283,11 @@ let camOk = false;
   if (await page.evaluate(() => __game.game.view.id) !== 'side') fail('stress-test: the side scrolling view did not take');
   await page.screenshot({ path: join(OUT, 'stress2d-side.png') });
   // side scrolling with depth (Mode 7): it draws the crowd, and the hero shrinks walking into the hall and grows coming back
+  const flatS = await page.evaluate(() => __game.game.screen.S);
   await page.evaluate(() => { __game.setDepth(true); __game.setMonsters(12, true); });
   await page.waitForTimeout(600);
+  // the depth view draws at the screen's own resolution (sharp near and far, zoomed in or out); the pixel size returns after
+  if (await page.evaluate(() => __game.game.screen.S) !== 1) fail('stress-test: the depth view does not draw at the screen\'s resolution');
   const drawn = await page.evaluate(() => +(document.getElementById('mMonsters').textContent.match(/\((\d+) drawn/) || [0, 0])[1]);
   if (!(drawn > 0)) fail(`stress-test: with depth, no monster was drawn`);
   await page.screenshot({ path: join(OUT, 'stress2d-depth.png') });
@@ -293,6 +296,8 @@ let camOk = false;
   await page.evaluate(() => __game.setMonsters(0));
   const s0 = await size(); await walk('KeyW', 1.5); const s1 = await size(); await walk('KeyS', 3); const s2 = await size();
   if (!(s1 < s0 * .85 && s2 > s1 * 1.4)) fail(`stress-test: with depth the hero did not shrink and grow (${[s0, s1, s2].map(v => (v * 1000).toFixed(2)).join(', ')})`);
+  await page.evaluate(() => __game.setDepth(false)); await page.waitForTimeout(300);
+  if (await page.evaluate(() => __game.game.screen.S) !== flatS) fail('stress-test: the engine\'s pixel size did not come back with depth off');
   for (const e of errors) fail(`stress-test: ${e}`);
   camOk = !errors.length;
   await page.close();

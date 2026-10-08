@@ -18,7 +18,8 @@ my-3D2dge is a 2D game engine for AI models (`engine/my-3d2dge.js`), its agent e
 
 ## Checks
 
-- `npm test` before pushing (about ten minutes: version, syntax, every browser suite). In cloud sessions `CHROMIUM_PATH` is set for you.
+- Before pushing: `npm run test:changed`. It runs the version and syntax checks and every suite that covers a file you changed (read from git against main; a change that only bumps version numbers doesn't count), says why it chose each and how long each took. A change to the engine, the build or the dependencies runs them all. `npm run test:which` shows the choice without running it.
+- Push and merge as soon as it passes (squash merge; the Vercel preview needn't finish first). Then run the full `npm test` (every suite, about 25 minutes) in the background: a failure there is fixed forward at once, or the merge reverted. In cloud sessions `CHROMIUM_PATH` is set for you.
 - Fast ones while working: `node tools/ed-syntax.mjs --all`, `npm run version:check`, `node tools/check.mjs <page>`.
 - Look at what you changed: read the screenshots, record a filmstrip for any animation (`node tools/filmstrip.mjs ... --seed 1`, `--compare <the page before>` to prove a change touches only what it should).
 
