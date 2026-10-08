@@ -210,7 +210,9 @@ at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `ex
   and every character back to front, each drawn by the engine at the size its distance gives (a rig draws by code at
   any scale, so a near one is crisp). The 3D page puts a real perspective camera at the same pose, for the head-to-head.
   Walls between the camera and the hero are cut low on both. The engine's lighting works only in its own views, so
-  the 2D page lights warm pools on the floor itself.
+  the 2D page lights warm pools on the floor itself. The 2D page draws this view at the screen's own resolution (one
+  buffer pixel per screen pixel; its text as large as at the page's own pixel size): the framing comes from the field
+  of view, so more pixels only sharpen, and characters near or far, zoomed in or out, stay sharp (v0.12.1).
 - **Sharp cards** (v0.12.0). At the balanced or full resolution the engine draws each card as fine as the picture's
   own pixels (it draws by code, at any scale; cells up to 256 pixels), so a zoomed-out character is sharp instead of
   a small sprite blown up. At the engine's pixels the cards are the 2D page's, to the pixel, as before.

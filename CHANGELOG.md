@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.12.1 (2026-10-08)
+
+The 2D page's side scrolling with depth stays sharp zoomed out.
+
+- **Rendering** (2D stress test): the depth view (Mode 7) draws at the screen's own resolution, one buffer pixel per screen pixel, so its characters, drawn by the engine at the size their distance gives, are sharp near or far, zoomed in or out (at the page's own pixel size a zoomed-out hero was a few blocky pixels). Its damage numbers and notes are drawn as large as at the page's own pixel size; the engine's lighting pass and its particles are skipped under it (it draws its own). The engine's pixel size comes back with depth off.
+- **Tools**: `tools/lab3d-test.mjs` checks that the depth view draws at the screen's resolution and that the pixel size returns after.
+
 ## 0.12.0 (2026-10-08)
 
 Depth for side scrolling, the Mode 7 way on the 2D page and in real perspective on the 3D one, and sharp characters when the 3D page zooms out.

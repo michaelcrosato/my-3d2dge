@@ -157,7 +157,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
         <button type="button" data-view="side">Side scrolling</button>
         <button type="button" data-view="custom">Custom</button>
       </div>
-      <label class="check"><input type="checkbox" id="depth"><span>Depth in side scrolling <kbd>M</kbd><small>Mode 7: a perspective camera on a rail beside the hero, so he shrinks walking into the hall and grows coming back. The floor is drawn a row at a time and every character at the size its distance gives, by the engine at that size, not a scaled sprite.</small></span></label>
+      <label class="check"><input type="checkbox" id="depth"><span>Depth in side scrolling <kbd>M</kbd><small>Mode 7: a perspective camera on a rail beside the hero, so he shrinks walking into the hall and grows coming back. The floor is drawn a row at a time and every character at the size its distance gives, by the engine at that size, not a scaled sprite, and at the screen's own resolution, so zoomed in or out they stay sharp.</small></span></label>
       <div id="customCam" hidden>
         <label class="field" for="camYaw"><span>Turn</span><output id="camYawOut">30°</output></label>
         <input type="range" id="camYaw" min="0" max="359" step="1" value="30">
