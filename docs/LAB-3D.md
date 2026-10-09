@@ -176,76 +176,34 @@ Each milestone ends with screenshots on both backends.
   move the hero with our own kinematic code and keep Rapier for the crates. Our engine's collision is already
   enough for walking among walls and pillars.
 
-## The 3D stress test (v0.10.0, cameras and filters v0.11.0, depth v0.12.0)
+## The 3D-drawn stress test (v0.10.0 to v0.13.0, retired in v0.14.0)
 
-A head-to-head with the engine's own renderer: `/stress-3d` (Labs → Temporary → Stress test in 3D) is the stress test
-at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `examples/stress-3d.html`.
+`/stress-3d` was the 2D stress test's own game (`src/stress.game.js`, unchanged) drawn by three.js instead of the
+engine's canvas, for a head-to-head: cards or puppets in a 3D hall, torchlight and shadows, chase, first-person and fly
+cameras, filters. It was retired because it sat between the two things worth having. The engine is already the light
+"3D": a 3D world drawn in classic views, side scrolling with depth (Mode 7) and optional WebGPU lighting, with no
+libraries, in one file. Real 3D is the 3D world below (`/stress-world`): a hall with height, physics and jumping, where
+those cameras have something to show. The 3D-drawn page paid three.js's weight for a world that was still flat, and its
+code read the 2D game's internals by name, so it was no 3D view for any other game. Its cameras, filters, lights,
+cards and puppets live on in `src/stress-world/`; old `/stress-3d` links open `/stress-world`. What it taught:
 
-- **The same game, not a copy.** The page inlines `src/stress.game.js` unchanged: the hall, the hero, walkers,
-  slimes, wisps, attack tokens, telegraphs, waves, particles, the panel, its metrics and the benchmark. It runs in
-  the engine's own loop (fixed steps, hit-stop, camera, shake); `src/stress3d/` replaces only the loop's drawing step
-  (`game._frame`) and reads the game's state from `window.__game`. The engine times that step as it times its own
-  drawing, so "Drawing (CPU)" on the two pages compares directly. The benchmark's table and report give game logic,
-  drawing and their sum for each step, and the 3D report names its renderer, look, resolution, camera and filter.
-  `__game.HOOKS` is how the 3D page tells the shared code about itself (`renderer`, `camera`, `camLink`, `fix`,
-  `fixed`).
-- **Two looks** (C switches): **Card**, each character drawn by the engine onto a card standing in the hall (the
-  closest to the 2D page); **Puppet**, 3D parts on the same joints in shared instanced batches, with torchlight,
-  shadows and outlines. P cycles the resolution (the engine's pixels, balanced at half the screen's, full);
-  `?backend=webgl` forces WebGL 2. Both pages can go full screen, or start in it.
-- **Cameras** (1 to 4). The **engine** camera is the 2D page's own and is shared code, so it is the same camera on
-  both pages: the engine's views, **side scrolling** (the engine's side view), a **custom** view (any turn, tilt and
-  height boost) and **fix camera here** (F: the camera stays put while the hero moves on), with a link in the free
-  camera room's `?cam=` format that opens the same camera on either page. The 3D page adds perspective cameras the
-  engine can't give: **chase** (behind the hero, sliding in front of walls), **first person** (his eyes; he isn't
-  drawn) and **fly** (WASD, Q and E, Shift; the hero waits). A click captures the mouse to steer (Esc frees it), and
-  F fixes any of them where it is: a **fixed 3D camera** while you play (`?cam3=`). In a 3D camera the hero's
-  controls follow it: the game reads an engine view turned to match, so W walks away from the camera, and he aims
-  where the camera looks or where the mouse points on the floor. Cards are drawn from the camera's own turn and tilt.
-- **Side scrolling with depth** (M, both pages; v0.12.0). The engine's side view is orthographic, so a character is
-  the same size wherever he stands. With depth on, the side view gets a perspective camera on a rail: it follows the
-  hero sideways and keeps him 110 to 260 units away, so he shrinks walking into the hall and grows coming back. The
-  2D page draws it the SNES way, Mode 7 (with the scaled sprites of Super Mario Kart and F-Zero): the floor one screen
-  row at a time, each row the strip of floor texture at that row's distance; then walls, braziers, telegraphs, trails
-  and every character back to front, each drawn by the engine at the size its distance gives (a rig draws by code at
-  any scale, so a near one is crisp). The 3D page puts a real perspective camera at the same pose, for the head-to-head.
-  Walls between the camera and the hero are cut low on both. The engine's lighting works only in its own views, so
-  the 2D page lights warm pools on the floor itself. The 2D page draws this view at the screen's own resolution (one
-  buffer pixel per screen pixel; its text as large as at the page's own pixel size): the framing comes from the field
-  of view, so more pixels only sharpen, and characters near or far, zoomed in or out, stay sharp (v0.12.1).
-- **Sharp cards** (v0.12.0). At the balanced or full resolution the engine draws each card as fine as the picture's
-  own pixels (it draws by code, at any scale; cells up to 256 pixels), so a zoomed-out character is sharp instead of
-  a small sprite blown up. At the engine's pixels the cards are the 2D page's, to the pixel, as before.
-- **Filters** (N cycles; 3D only). **Clean** (no filter, no extra pass), **Comic cel** (shade bands, ink strength,
-  ink width, colour punch) or **Pixel** (pixel size, colours per channel, Bayer dither), on the **entire scene**,
-  the **characters and objects**, or the **environment**; and **bloom** and **FXAA**. All TSL in `PostProcessing`,
-  the same on both backends, no add-ons. To tell characters from the hall, the scene draws into two targets at once
-  (MRT): the picture, and a mask that character and object materials write 1 to. A material with its own MRT outputs
-  can't draw straight to the screen, so they carry it only while a filter is on (`objMat` in `00-setup`).
-- **The engine's own looks** on both pages: dithered translucency (`E.style.trans`, NES and Genesis style) and the
-  readable characters tilt (`E.style.charPitch`). They are what the 2D renderer allows of a filter; on the 3D page
-  they change the cards.
-- **Where it differs, by the nature of the tech.** The lights are a fixed set (a changing count rebuilds shaders):
-  up to 30 torches, of which the two nearest the hero cast shadows (the 2D page shadows every torch), and up to four
-  wisp and four bolt lights (the 2D page lights up to 16 wisps). The 2D page's canvas-lighting option has no
-  counterpart, and the 3D cameras and filters have none on the 2D page. Swing smears are ribbons; damage numbers and
-  notes are the engine's pixel font on an overlay.
-- **No stalls mid-fight.** A material's first draw builds its shader and GPU pipelines (tens of milliseconds; the
-  first benchmark showed it as a 1% low of 34 fps at 50 monsters). The first frame now draws everything once, empty,
-  so every pipeline exists before the fight (again after a filter change); the effect pools share one material each;
-  the card atlas is fixed 512-pixel pages that are never remade and upload only when used, and every page shares one
-  shader (v0.13.0: three.js r182 gives an instanced mesh of 1,000 or fewer instances a shader of its own, so a page
-  has room for more, and reads its cells from one named attribute; before, each page past the two the warm-up made
-  built a pipeline the first time a crowd needed it). The test counts the GPU pipelines during a fight and with a
-  crowd of 400: none are built.
+- **The rules never read the drawing.** The same game ran under the engine's canvas and under three.js with the same
+  results: gameplay that reads only its input and its own state can be drawn any way at all. Both 3D pages keep this
+  rule (the proof hash is the same on WebGPU, WebGL 2 and run again).
+- **No stalls mid-fight.** A material's first draw builds its shader and GPU pipelines (tens of milliseconds; a 1% low
+  of 34 fps at 50 monsters in the first benchmark). Draw everything once, empty, before the fight (again after a
+  filter change); share one material per effect pool; keep the card atlas as fixed pages that share one shader.
 - **A three.js r182 bug to remember:** an `InstancedMesh` with more than 1,000 instances whose matrices use
-  `DynamicDrawUsage` never sends its changes to the GPU (the monsters vanished). The batches keep the default usage
-  and mark their update ranges each frame. Its other side: with 1,000 or fewer, the matrices live in a uniform buffer
-  named after the mesh, so each such mesh made at run time compiles its own shader (see the card atlas above).
-- `node tools/lab3d-test.mjs` checks it on both backends: a fight with every monster kind in both looks with no
-  pipeline built mid-fight, the panel's numbers, every camera and filter, W walking away from a fixed camera, the hero
-  under the keys, no errors; and the 2D page's cameras (a `?cam=` link, a fixed camera staying put, side scrolling).
-  Pictures in `check-output/lab3d/`.
+  `DynamicDrawUsage` never sends its changes to the GPU (the monsters vanished). Keep the default usage and mark the
+  update ranges each frame. With 1,000 or fewer, the matrices live in a uniform buffer named after the mesh, so each
+  such mesh made at run time compiles its own shader.
+
+Side scrolling with depth stays on the 2D stress test (M, or `?view=side&depth=1`): a perspective camera on a rail
+follows the hero sideways and keeps him 110 to 260 units away, so he shrinks walking into the hall and grows coming
+back. The page draws it the SNES way, Mode 7: the floor one screen row at a time, then walls, braziers, telegraphs and
+every character back to front, each drawn by the engine at the size its distance gives, at the screen's own resolution
+so near and far stay sharp. `node tools/stress-test.mjs` checks the 2D page's cameras: a `?cam=` link, a fixed camera
+staying put, side scrolling, and the depth view (the hero shrinks and grows).
 
 ## The stress test as a 3D world (v0.13.0)
 
@@ -281,13 +239,15 @@ the pixel font) and the 2D hall's floor texture and layout. Everything else is i
   cameras following the hero with the 2D camera's lag, in **perspective** (a lens: field of view) or **orthographic**
   (the engine's projection; O switches); zoom, camera distance, turn, fix (F), a link. Walls facing an outside camera
   are cut low, and pillars between the camera and the fight are cut to stumps. **Side scrolling** is orthographic, or
-  with **depth** (M) the 2D page's Mode 7 rail as a perspective camera. **Chase**, **first person** (bodies pressed
-  against the camera aren't drawn) and **fly** as on the 3D stress test, and F fixes any of them. In every camera W
+  with **depth** (M) the 2D page's Mode 7 rail as a perspective camera. **Chase** (behind the hero, sliding in front of
+  walls), **first person** (his eyes; bodies pressed against the camera aren't drawn) and **fly** (WASD, Q and E,
+  Shift), and F fixes any of them. In every camera W
   walks away from it and the mouse aims at the floor.
 - **Drawing** (`30-crowd.js`, `35-effects.js`, `45-filters.js`): Cards (the engine draws each rig from the camera's
   turn and tilt, at about the screen's pixel size where the hero stands) or Puppets in instanced batches; a blob
   shadow on the surface under every body (under a thrown one too); telegraphs at the floor's height; trails, bolts,
-  particles; the filters of the 3D stress test. Resolution: the engine's pixels (the 2D page's 200 to 330 lines,
+  particles. Filters (N): Comic cel or Pixel on the whole scene, the characters and objects, or the hall, with
+  bloom and FXAA, all TSL (the scene draws a mask of the characters alongside the picture, MRT). Resolution: the engine's pixels (the 2D page's 200 to 330 lines,
   enlarged with whole pixels), balanced or full. Fog starts past the hero, however far the camera stands.
 - **The numbers.** The loop steps the game in equal steps no longer than a sixtieth, then draws once. The panel and
   the benchmark split the CPU's time three ways: **physics** (Rapier's world step), **logic** (AI, combat, the rigs'

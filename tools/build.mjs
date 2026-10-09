@@ -41,9 +41,6 @@ const builds = [
   // temporary (src/labs.json, docs/LAB-3D.md): our characters in a fully 3D world (three.js r182 + Rapier from vendor/,
   // loaded through the page's import map, so it is served, not double-clicked); delete with its labs.json entry and vendor/
   { template: 'src/lab3d.template.html', out: 'examples/lab-3d.html', vars: {} },
-  // temporary (src/labs.json): the stress test (src/stress.game.js, unchanged) drawn by three.js instead of the engine's
-  // canvas, for a head-to-head comparison; delete with its labs.json entry
-  { template: 'src/stress3d.template.html', out: 'examples/stress-3d.html', vars: {} },
   // temporary (src/labs.json): the stress test built again as a 3D game (src/stress-world/: three.js r182 and Rapier from
   // vendor/, the engine's animation system); delete with its labs.json entry
   { template: 'src/stress-world.template.html', out: 'examples/stress-world.html', vars: {} },

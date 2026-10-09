@@ -434,7 +434,7 @@ function animateBraziers(n, dt) {
 
 /* ---- lights: a fixed set (see the header) ---- */
 const FLICKER = t => .9 + Math.sin(t * 13) * .05 + Math.sin(t * 29) * .04 + Math.sin(t * 7.3) * .04;   // the 2D hall's flicker
-const LIGHT = { torch: 30, rune: 8, hero: 14, wisp: 10, shot: 10, ambient: 4 };   // intensities (set by eye, as the 3D stress test's)
+const LIGHT = { torch: 30, rune: 8, hero: 14, wisp: 10, shot: 10, ambient: 4 };   // intensities (set by eye)
 const ambient = new THREE.HemisphereLight('#5a5480', '#241f30', LIGHT.ambient);
 scene.add(ambient);
 const point = (color, dist, decay = 1) => { const l = new THREE.PointLight(color, 0, dist / U, decay); scene.add(l); return l; };

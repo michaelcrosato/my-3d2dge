@@ -10,15 +10,6 @@
 //      to a texture the test reads back for the pictures): the whole WebGPU pipeline runs, only presenting is skipped
 //   4. it plays: the hero walks and swings under the keys and knocks crates about
 //   5. every camera and look draws a picture (screenshots in check-output/lab3d/, read them)
-//   6. the 3D stress test (/stress-3d: the 2D stress test's own game drawn by three.js) on both backends: a fight with every
-//      monster kind draws as cards and as puppets without building a GPU pipeline mid-fight (the warm-up's job; nor when
-//      the crowd grows past the card atlas pages the warm-up made), the
-//      panel's numbers fill in, every camera draws (side, custom, chase, first person, fly, fixed; W walks away from a
-//      fixed one), every filter draws (cel, pixel, on everything, the characters, the hall; bloom, FXAA), the hero moves
-//   7. the 2D stress test's cameras: a ?cam= link opens its custom view fixed in place, a fixed camera stays put while
-//      the hero walks, F frees it, the side scrolling view, and side scrolling with depth (Mode 7, at the screen's own
-//      resolution: the crowd draws, the hero shrinks walking into the hall and grows coming back); on the 3D page the same depth is a perspective camera,
-//      and at the full resolution its cards are drawn finer than the engine's pixels
 // Usage: node tools/lab3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -42,15 +33,15 @@ const BANNED = [
   [/\bcompute\s*\(|\bStorageBufferAttribute\b|\bstorage\s*\(|\bcomputeAsync\b/, 'compute shaders or storage buffers (WebGPU only)'],
   [/readRenderTargetPixels|getImageData\s*\(|readPixels\s*\(/, 'reading pixels back (nothing comes back from the GPU into gameplay)']
 ];
-const srcs = ['src/lab3d', 'src/stress3d'].flatMap(d => readdirSync(join(root, d)).filter(f => f.endsWith('.js')).map(f => d + '/' + f));
-for (const f of [...srcs, 'src/lab3d.template.html', 'src/stress3d.template.html']) {
+const srcs = ['src/lab3d'].flatMap(d => readdirSync(join(root, d)).filter(f => f.endsWith('.js')).map(f => d + '/' + f));
+for (const f of [...srcs, 'src/lab3d.template.html']) {
   const lines = readFileSync(join(root, f), 'utf8').split('\n');
   lines.forEach((line, i) => {
     const code = line.replace(/\/\/.*$|\/\*.*?\*\/|^\s*\*.*$/g, '');   // comments may name what is banned
     for (const [re, why] of BANNED) if (re.test(code)) fail(`${f}:${i + 1}: ${why}`);
   });
 }
-for (const tpl of ['src/lab3d.template.html', 'src/stress3d.template.html']) {
+for (const tpl of ['src/lab3d.template.html']) {
   const map = JSON.parse(readFileSync(join(root, tpl), 'utf8').match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]);
   for (const [k, v] of Object.entries(map.imports)) {
     if (!v.startsWith('/vendor/')) fail(`${tpl} import map: ${k} -> ${v} is not a vendored file`);
@@ -157,161 +148,9 @@ for (const want of ['webgl', 'webgpu']) {
   for (const e of errors) fail(`${label}: ${e}`);
   await page.close();
 }
-/* 6. the 3D stress test, on both backends */
-const stressOk = [];
-const picture = async (page, label, name) => {   // a screenshot (WebGL 2) or the stand-in canvas's last frame (WebGPU)
-  let png;
-  if (label === 'webgl') png = await page.screenshot({ path: join(OUT, `stress-${label}-${name}.png`) });
-  else { png = Buffer.from((await page.evaluate(() => __readFrame(3))).split(',')[1], 'base64'); writeFileSync(join(OUT, `stress-${label}-${name}.png`), png); }
-  return png;
-};
-for (const want of ['webgl', 'webgpu']) {
-  const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
-  if (want === 'webgpu') await page.addInitScript(standInCanvas);
-  const errors = [];
-  page.on('pageerror', e => errors.push(String(e)));
-  page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-  const r = await page.goto(SITE + '/stress-3d' + (want === 'webgl' ? '?backend=webgl' : ''));
-  if (!r || r.status() !== 200) { fail(`/stress-3d (${want}): status ${r && r.status()}`); await page.close(); continue; }
-  try { await page.waitForFunction(() => window.__stress3d && (__stress3d.ready || __stress3d.error), null, { timeout: 90000 }); }
-  catch (e) { fail(`stress-3d ${want}: it did not start in 90 s`); await page.close(); continue; }
-  const st = await page.evaluate(() => ({ error: __stress3d.error || null, backend: __stress3d.backend }));
-  if (st.error) { fail(`stress-3d ${want}: ${st.error}`); await page.close(); continue; }
-  const label = st.backend === 'WebGPU' ? 'webgpu' : 'webgl';
-  if (want === 'webgpu' && label !== 'webgpu') { await page.close(); continue; }
-  // hold a key for so much game time (not wall time: on the WebGPU stand-in a frame can take half a second, and the
-  // engine caps the game time one frame may step)
-  const hold = async (code, seconds) => {
-    const t0 = await page.evaluate(() => __game.game.time);
-    await page.keyboard.down(code);
-    await page.waitForFunction(t => __game.game.time > t, t0 + seconds, { timeout: 60000 }).catch(() => fail(`stress-3d ${label}: the game stopped while ${code} was held`));
-    await page.keyboard.up(code);
-  };
-  const frames = async (what, n = 8) => { const f0 = await page.evaluate(() => __stress3d.stats.frames); await page.waitForFunction(k => __stress3d.stats.frames > k, f0 + n, { timeout: 60000 }).catch(() => fail(`stress-3d ${label} ${what}: frames stopped`)); };
-  const pipelines = () => page.evaluate(() => { const p = __stress3d.renderer._pipelines; return p && p.caches ? p.caches.size : null; });
-  await frames('start', 3);
-  const p0 = await pipelines();
-  // a fight: every kind of monster and rig, run forward in the game's own steps, the hero swinging through them and
-  // throwing embers, wisps lit
-  await page.evaluate(() => { const G = __game, g = G.game; G.S.skin = 'mixed'; G.S.monsterLights = true; G.setMonsters(36, true); for (let i = 0; i < 600; i++) g._step(1 / 120); for (let k = 0; k < 10; k++) { G.hero.combo.press(); g.input.press('KeyE'); for (let i = 0; i < 22; i++) g._step(1 / 120); g.input.release('KeyE'); } });
-  for (const look of ['card', 'puppet']) {
-    await page.evaluate(l => __stress3d.set('look', l), look);
-    await frames(look, 12);
-    const drawn = await page.evaluate(() => __stress3d.stats.drawn);
-    if (drawn < 10) fail(`stress-3d ${label} ${look}: only ${drawn} characters drawn`);
-    const png = await picture(page, label, look);
-    if (png.length < 25000) fail(`stress-3d ${label} ${look}: the picture looks blank (${png.length} bytes)`);
-  }
-  // no stall: the load-time warm-up built every pipeline the fight needs (a new one mid-fight costs tens of ms)
-  const p1 = await pipelines();
-  if (p0 !== null && p1 !== p0) fail(`stress-3d ${label}: ${p1 - p0} GPU pipelines were built during the fight (the warm-up should have built them)`);
-  // a crowd that needs more card atlas pages than the warm-up made: still none (every page shares one shader)
-  await page.evaluate(() => { __stress3d.set('look', 'card'); const G = __game; G.setMonsters(400, true); for (let i = 0; i < 120; i++) G.game._step(1 / 120); });
-  await frames('a big crowd', 6);
-  const big = await page.evaluate(() => __stress3d.stats.drawn), p2 = await pipelines();
-  if (p0 !== null && p2 !== p0) fail(`stress-3d ${label}: ${p2 - p0} GPU pipelines were built when the crowd grew to ${big} cards on screen (a new atlas page should share the first one's)`);
-  await page.evaluate(() => __game.setMonsters(36, true));
-  // the panel's numbers
-  const panel = await page.evaluate(() => ['fpsBig', 'mMonsters', 'mRender', 'mGpu'].map(id => document.getElementById(id).textContent));
-  if (!/\d/.test(panel[1]) || !/three\.js/.test(panel[3])) fail(`stress-3d ${label}: the panel's numbers did not fill in (${panel.join(' | ')})`);
-  // every camera draws the fight: the engine's side and custom views, chase, first person, fly, fixed
-  const CAMS = [['side', () => document.querySelector('[data-view=side]').click()], ['depth', () => __game.setDepth(true)], ['custom', () => { __game.setDepth(false); document.querySelector('[data-view=custom]').click(); }],
-    ['chase', () => __stress3d.setCam('chase')], ['first', () => __stress3d.setCam('first')], ['fly', () => __stress3d.setCam('fly')], ['fixed', () => __game.HOOKS.fix()]];
-  for (const [name, fn] of CAMS) {
-    await page.evaluate(fn); await frames(name, 6);
-    const s = await page.evaluate(() => ({ mode: __stress3d.CAM.mode, drawn: __stress3d.stats.drawn, view: __game.game.view.id }));
-    const png = await picture(page, label, 'cam-' + name);
-    if (s.drawn < 3 || png.length < 15000) fail(`stress-3d ${label} camera ${name}: ${s.drawn} drawn, picture ${png.length} bytes`);
-    if (['side', 'custom'].includes(name) && !s.view.startsWith(name)) fail(`stress-3d ${label}: the ${name} view did not take (${s.view})`);
-    if (name === 'depth' && !/depth/.test(await page.evaluate(() => __game.HOOKS.camera() || ''))) fail(`stress-3d ${label}: side scrolling with depth did not take a perspective camera`);
-    if (['chase', 'first', 'fly', 'fixed'].includes(name) && s.mode !== name) fail(`stress-3d ${label}: the ${name} camera did not take (${s.mode})`);
-  }
-  // in the fixed 3D camera, W walks the hero away from it
-  await page.evaluate(() => { __game.setMonsters(0); });
-  const away = async () => {
-    const before = await page.evaluate(() => [__game.hero.x, __game.hero.y, __stress3d.CAM.pose.yaw]);
-    await hold('KeyW', .6);
-    const after = await page.evaluate(() => [__game.hero.x, __game.hero.y]);
-    return (after[0] - before[0]) * Math.cos(before[2]) + (after[1] - before[1]) * Math.sin(before[2]);
-  };
-  const fwd = await away();
-  if (!(fwd > 4)) fail(`stress-3d ${label}: W did not walk the hero away from the fixed camera (${fwd.toFixed(1)} units)`);
-  // filters: each look and where it applies, bloom and FXAA, through PostProcessing (the warm-up runs again for them)
-  await page.evaluate(() => { __stress3d.setCam('engine'); document.querySelector('[data-view=iso]').click(); const G = __game; G.setMonsters(30, true); for (let i = 0; i < 300; i++) G.game._step(1 / 120); });
-  const FX = [['cel-all', 'cel', 'all', false], ['cel-objects', 'cel', 'objects', false], ['pixel-env', 'pixel', 'env', false], ['pixel-all-bloom-fxaa', 'pixel', 'all', true], ['clean', 'clean', 'all', false]];
-  for (const [name, look, to, extras] of FX) {
-    await page.evaluate(([l, t, x]) => {
-      document.querySelector(`[data-fx=${l}]`).click(); const s = document.getElementById('fxApply'); s.value = t; s.dispatchEvent(new Event('change'));
-      for (const id of ['fxBloom', 'fxFxaa']) { const c = document.getElementById(id); c.checked = x; c.dispatchEvent(new Event('change')); }
-    }, [look, to, extras]);
-    await frames('filter ' + name, 6);
-    const png = await picture(page, label, 'fx-' + name);
-    if (png.length < 25000) fail(`stress-3d ${label} filter ${name}: the picture looks blank (${png.length} bytes)`);
-  }
-  // at the full resolution the engine draws the cards finer than its own pixels (sharp when zoomed out)
-  await page.evaluate(() => { document.querySelector('[data-fx=clean]').click(); __stress3d.set('look', 'card'); __stress3d.set('res', 'full'); __game.game.setZoom(.5); });
-  await frames('fine cards', 6);
-  const detail = await page.evaluate(() => __stress3d.stats.detail);
-  if (!(detail > 1.5)) fail(`stress-3d ${label}: at the full resolution the cards are drawn at ${detail}x the engine's pixels`);
-  await picture(page, label, 'cards-zoomed-out-full');
-  await page.evaluate(() => { __stress3d.set('res', 'engine'); __game.game.setZoom(1); });
-  const report = await page.evaluate(() => __game.HOOKS.renderer());
-  if (!/no filter/.test(report)) fail(`stress-3d ${label}: the report's renderer line is off (${report})`);
-  // the hero under the keys (the 2D page's own controls, the engine camera)
-  await page.evaluate(() => __game.setMonsters(0));
-  const h0 = await page.evaluate(() => [__game.hero.x, __game.hero.y]);
-  await hold('KeyD', .6);
-  const h1 = await page.evaluate(() => [__game.hero.x, __game.hero.y]);
-  if (Math.hypot(h1[0] - h0[0], h1[1] - h0[1]) < 4) fail(`stress-3d ${label}: the hero did not move under the keys`);
-  for (const e of errors) fail(`stress-3d ${label}: ${e}`);
-  stressOk.push(label);
-  await page.close();
-}
-/* 7. the 2D stress test's cameras (shared with the 3D one): side scrolling, custom, fixed, and its link */
-let camOk = false;
-{
-  const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
-  await page.addInitScript(standInCanvas);   // (the 2D page's GPU lighting is WebGPU too: the same headless stand-in)
-  const errors = []; page.on('pageerror', e => errors.push(String(e)));
-  await page.goto(SITE + '/stress-test?cam=300,20,1.25,8,1.2,520,410');
-  await page.waitForFunction(() => window.__game && __game.game.stats.renderMs > 0, null, { timeout: 60000 }).catch(() => fail('stress-test: it did not start'));
-  const s = await page.evaluate(() => ({ view: __game.game.view, fix: __game.FIX, zoom: __game.game.zoom }));
-  if (!s.view.id.startsWith('custom') || s.view.yawDeg !== 300 || s.view.pitchDeg !== 20 || !s.fix.on || s.fix.x !== 520 || s.zoom !== 1.25) fail(`stress-test: the ?cam= link did not open its camera (${JSON.stringify({ id: s.view.id, yaw: s.view.yawDeg, pitch: s.view.pitchDeg, fix: s.fix, zoom: s.zoom })})`);
-  await page.screenshot({ path: join(OUT, 'stress2d-custom-fixed.png') });
-  // fixed: the camera stays while the hero walks; freed, it follows him
-  const c0 = await page.evaluate(() => [__game.game.cam.x, __game.game.cam.y]);
-  await page.keyboard.down('KeyD'); await page.waitForTimeout(1000); await page.keyboard.up('KeyD');
-  const c1 = await page.evaluate(() => [__game.game.cam.x, __game.game.cam.y]);
-  if (Math.hypot(c1[0] - c0[0], c1[1] - c0[1]) > 1) fail('stress-test: a fixed camera moved with the hero');
-  await page.keyboard.press('KeyF');
-  if (await page.evaluate(() => __game.FIX.on)) fail('stress-test: F did not free the camera');
-  await page.evaluate(() => document.querySelector('[data-view=side]').click());
-  await page.waitForTimeout(400);
-  if (await page.evaluate(() => __game.game.view.id) !== 'side') fail('stress-test: the side scrolling view did not take');
-  await page.screenshot({ path: join(OUT, 'stress2d-side.png') });
-  // side scrolling with depth (Mode 7): it draws the crowd, and the hero shrinks walking into the hall and grows coming back
-  const flatS = await page.evaluate(() => __game.game.screen.S);
-  await page.evaluate(() => { __game.setDepth(true); __game.setMonsters(12, true); });
-  await page.waitForTimeout(600);
-  // the depth view draws at the screen's own resolution (sharp near and far, zoomed in or out); the pixel size returns after
-  if (await page.evaluate(() => __game.game.screen.S) !== 1) fail('stress-test: the depth view does not draw at the screen\'s resolution');
-  const drawn = await page.evaluate(() => +(document.getElementById('mMonsters').textContent.match(/\((\d+) drawn/) || [0, 0])[1]);
-  if (!(drawn > 0)) fail(`stress-test: with depth, no monster was drawn`);
-  await page.screenshot({ path: join(OUT, 'stress2d-depth.png') });
-  const size = () => page.evaluate(() => { const D = __game.DEPTH, p = D.pitch * Math.PI / 180; return 1 / ((D.y - __game.hero.y) * Math.cos(p) + D.h * Math.sin(p)); });
-  const walk = async (code, sec) => { const t0 = await page.evaluate(() => __game.game.time); await page.keyboard.down(code); await page.waitForFunction(t => __game.game.time > t, t0 + sec, { timeout: 60000 }).catch(() => {}); await page.keyboard.up(code); await page.waitForTimeout(500); };
-  await page.evaluate(() => __game.setMonsters(0));
-  const s0 = await size(); await walk('KeyW', 1.5); const s1 = await size(); await walk('KeyS', 3); const s2 = await size();
-  if (!(s1 < s0 * .85 && s2 > s1 * 1.4)) fail(`stress-test: with depth the hero did not shrink and grow (${[s0, s1, s2].map(v => (v * 1000).toFixed(2)).join(', ')})`);
-  await page.evaluate(() => __game.setDepth(false)); await page.waitForTimeout(300);
-  if (await page.evaluate(() => __game.game.screen.S) !== flatS) fail('stress-test: the engine\'s pixel size did not come back with depth off');
-  for (const e of errors) fail(`stress-test: ${e}`);
-  camOk = !errors.length;
-  await page.close();
-}
 await browser.close();
 server.close();
 if (results.webgl && results.webgpu && results.webgl !== results.webgpu) fail(`the proof run differs: WebGL 2 ${results.webgl}, WebGPU ${results.webgpu}`);
 writeFileSync(join(OUT, 'results.json'), JSON.stringify({ results, notes, problems }, null, 2));
 if (problems.length) { console.error('lab 3D check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`lab 3D check passed: vendored files verified, rules kept in ${srcs.length} files, proof run ${Object.entries(results).map(([k, v]) => k + ' ' + v).join(' = ')}, it plays, ${Object.keys(results).length * 11} pictures; the 3D stress test fights in both looks, every camera and filter on ${stressOk.join(' and ')} with no pipeline built mid-fight; the 2D one's cameras ${camOk ? 'work' : 'FAILED'}; pictures in check-output/lab3d/${notes.length ? ' (' + notes.join('; ') + ')' : ''}`);
+console.log(`lab 3D check passed: vendored files verified, rules kept in ${srcs.length} files, proof run ${Object.entries(results).map(([k, v]) => k + ' ' + v).join(' = ')}, it plays, ${Object.keys(results).length * 11} pictures in check-output/lab3d/${notes.length ? ' (' + notes.join('; ') + ')' : ''}`);

@@ -168,8 +168,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
         <p class="note">Any view the engine can draw: tilt 0 is the side view, 90 straight down. Zoom and the turn keys still apply on top.</p>
       </div>
       <div class="btnrow"><button type="button" id="fixBtn" aria-pressed="false">Fix camera here <kbd>F</kbd></button><button type="button" id="camLinkBtn">Copy camera link</button></div>
-      <p class="note">Fixed, the camera stays where it is while the hero moves on, in any view. The link opens this camera (view, turn, tilt, zoom, and where it is fixed) on either stress test.</p>
-      <p class="note">Chase, first-person and fly cameras need real 3D: they are on the <a href="stress-3d.html" id="to3d">3D stress test</a>.</p>
+      <p class="note">Fixed, the camera stays where it is while the hero moves on, in any view. The link opens this camera (view, turn, tilt, zoom, and where it is fixed).</p>
+      <p class="note">Chase, first-person and fly cameras need real 3D: they are on the <a href="stress-world.html" id="toWorld">3D world stress test</a>.</p>
     </section>
 
     <section>
@@ -247,7 +247,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.13.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.14.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -306,7 +306,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.13.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.14.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -5513,18 +5513,16 @@ function draw(r) {
  * braziers, shadows, telegraphs, trails, shots, particles and every character, back to front, each at the size its
  * distance gives. The characters are the engine's own: a rig draws by code at any scale, so a near one is crisp, not a
  * blown-up sprite. The torches light warm pools on the floor (the engine's lighting works in its own views only), and
- * the far end fades into the dark. The 3D page puts a real perspective camera at the same place (depthPose), for the
- * head-to-head. Zoom narrows the field of view. ?view=side&depth=1 opens it.
+ * the far end fades into the dark. Zoom narrows the field of view. ?view=side&depth=1 opens it.
  * ============================================================================= */
 const DEPTH = { on: qs.get('depth') === '1', x: 0, y: 0, h: 70, pitch: 14, fov: 50, near: 110, far: 260, ready: false, text: 1, note: null };   // (units: near keeps his feet on screen)
 /* the depth view draws at the screen's own resolution, one buffer pixel per screen pixel: the characters are drawn by
  * the engine at the size their distance gives there, so near or far, zoomed in or out, they stay sharp (in the engine's
  * own views the pixel size is the look; here the framing comes from the field of view, so more pixels only sharpen).
- * Its text (damage numbers, notes) is drawn as large as at the page's own pixel size. The 3D page keeps its own
- * resolution menu. The engine's pixel size comes back with depth off. */
+ * Its text (damage numbers, notes) is drawn as large as at the page's own pixel size. The engine's pixel size comes
+ * back with depth off. */
 let depthRes = false;
 function depthResolution(on) {
-  if (HOOKS.renderer) return;   // (the 3D page)
   if (on && game.screen.S !== 1) {
     if (!depthRes) DEPTH.text = game.screen.S;
     depthRes = true; game.screen.setOptions({ minW: 1e6, minH: 1e6, maxW: 1e6, maxH: 1e6, portrait: { maxH: 1e6 } }); game.cam.snap = true;
@@ -5544,8 +5542,6 @@ function depthFollow(dt) {
   DEPTH.x += (h.x - DEPTH.x) * k; DEPTH.y += (want - DEPTH.y) * Math.min(1, k * 2);
 }
 const depthFov = () => 2 * Math.atan(Math.tan(DEPTH.fov * Math.PI / 360) / (game.zoom || 1));   // radians: zoom narrows it
-/** the camera for the 3D page: engine units, looking north (-y) and tilted down */
-const depthPose = () => ({ x: DEPTH.x, y: DEPTH.y, z: DEPTH.h, yaw: -Math.PI / 2, pitch: -DEPTH.pitch * Math.PI / 180, fov: depthFov() * 180 / Math.PI });
 /** the engine's cut-away for a camera that moves: border walls between the camera and the hero drop low */
 const depthCut = (cx, cy) => { const t = map.types[map.cell(cx, cy)]; return !!(t && t.cut) && cy * T > hero.y; };
 function setDepth(on) {
@@ -5635,7 +5631,7 @@ function drawDepth(r) {
   items.sort((a, b) => a[0] - b[0]);
   game.stats.actors = drawn; game.stats.culled = culled; frameStats.lights = S.lights + 2;
   if (game._note && game.real < game._note.end) { DEPTH.note = game._note; game._note = null; }   // (drawn below, at the text's size)
-  const note = DEPTH.note, tx = HOOKS.renderer ? 1 : Math.max(1, Math.round(DEPTH.text));
+  const note = DEPTH.note, tx = Math.max(1, Math.round(DEPTH.text));
   r.overlay(g => {   // (an overlay: drawn over the engine's empty world, after its lighting pass)
     g.save(); g.imageSmoothingEnabled = false;
     g.fillStyle = '#06050b'; g.fillRect(0, 0, r.bw, r.bh);
@@ -5819,15 +5815,11 @@ function hud() {
 
 /* ---------- controls ---------- */
 const VIEWS = ['iso', 'threequarter', 'topdown', 'brawler', 'side'];
-/* the camera beyond the engine's named views (both stress pages: the 3D page draws whatever view the engine has, so a
- * custom or fixed camera is the same camera on both):
+/* the camera beyond the engine's named views:
  *   Custom  any orthographic view the engine can give: a turn, a tilt (0 is the side view) and a height boost, as in the
  *           free camera room; zoom and the 45° turn keys still apply on top
  *   Fix     the camera stops following the hero and stays where it is, in any view (F)
  *   ?cam=yaw,pitch,zoom,height,boost[,x,y]  the free camera room's format: opens the custom view, fixed at x, y */
-// the 3D stress test fills these in (each may return null to leave it to this page): renderer() names what draws,
-// camera() describes its own camera, camLink() links to it, fix() fixes or frees it (true: done), fixed() says if it is
-const HOOKS = {};
 const CUSTOM = { yaw: 30, pitch: 40, boost: 1.1 };
 const FIX = { on: false, x: 0, y: 0, z: 0 };
 const customViews = new Map();
@@ -5840,22 +5832,19 @@ function customView() {   // whole degrees and boosts in .05 steps, so a slider 
 }
 const isCustom = () => game.baseView.id.startsWith('custom');
 function setCustom() { game.setView(customView()); syncUI(); }
-const fixedNow = () => { const f = HOOKS.fixed && HOOKS.fixed(); return f === undefined || f === null ? FIX.on : f; };
-function toggleFix() { if (!(HOOKS.fix && HOOKS.fix())) setFixed(!FIX.on); }
+function toggleFix() { setFixed(!FIX.on); }
 function setFixed(on) {
   FIX.on = on; if (on) { FIX.x = game.cam.tx; FIX.y = game.cam.ty; FIX.z = game.cam.tz; }
   game.note(on ? 'CAMERA FIXED' : 'CAMERA FOLLOWS THE HERO'); syncUI();
 }
-/** the camera in words, for the benchmark's report (the 3D page names its own cameras) */
+/** the camera in words, for the benchmark's report */
 function camDesc() {
   const v = game.view, b = game.baseView;
-  const c = HOOKS.camera && HOOKS.camera(); if (c) return c;
   if (depthActive()) return 'Side scrolling with depth (Mode 7: the floor a row at a time, everything scaled by its distance)' + (FIX.on ? ', camera fixed' : '');
   return (isCustom() ? 'Custom view (turn ' + b.yawDeg + '°, tilt ' + b.pitchDeg + '°, height boost ' + b.zBoost + ')' : v.label + ' view') + (FIX.on ? ', camera fixed' : '');
 }
 /** the camera as a link: the free camera room's ?cam= (turn, tilt, zoom, height, boost, and where it is fixed) */
 function camLink() {
-  const l = HOOKS.camLink && HOOKS.camLink(); if (l) return l;
   const b = game.baseView, u = new URL(location.href);
   if (depthActive()) { for (const k of ['cam', 'view', 'depth']) u.searchParams.delete(k); const rest = u.search.slice(1); return u.origin + u.pathname + '?' + [rest, 'view=side&depth=1'].filter(Boolean).join('&') + u.hash; }
   const n = [((b.yawDeg + (b.pitchDeg < 5 ? 0 : game.yaw)) % 360 + 360) % 360, b.pitchDeg, game.zoom, Math.round(FIX.on ? FIX.z : game.cam.tz), b.zBoost];
@@ -5894,7 +5883,7 @@ function syncUI() {
   $('camPitch').value = Math.round(CUSTOM.pitch); $('camPitchOut').textContent = customView().pitchDeg + '°';
   $('camBoost').value = Math.round(CUSTOM.boost * 100); $('camBoostOut').textContent = customView().zBoost.toFixed(2);
   $('fsBtn').textContent = document.fullscreenElement ? 'Leave full screen' : 'Full screen'; $('fsStart').checked = fsStart;
-  const fx = fixedNow(); $('fixBtn').setAttribute('aria-pressed', String(fx)); $('fixBtn').firstChild.textContent = fx ? 'Unfix camera ' : 'Fix camera here ';
+  const fx = FIX.on; $('fixBtn').setAttribute('aria-pressed', String(fx)); $('fixBtn').firstChild.textContent = fx ? 'Unfix camera ' : 'Fix camera here ';
 }
 gpu.onStatus = syncUI;
 const on = (id, ev, f) => $(id).addEventListener(ev, e => { f(e); syncUI(); });
@@ -6008,7 +5997,7 @@ function benchReport() {
   $('benchSummary').textContent = summary; $('benchStatus').textContent = 'Done.';
   const v = game.view, sc = game.screen;
   lastReport = [
-    'my-3D2dge stress test' + (HOOKS.renderer ? ' in 3D, ' + HOOKS.renderer() : ''),   // (the 3D stress test names its renderer)
+    'my-3D2dge stress test',
     'Result: ' + summary,
     'Settings: ' + camDesc() + ', camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), zoom ' + game.zoom + 'x, turn ' + game.yaw + '°, ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
       ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on') +
@@ -6053,14 +6042,12 @@ $('fsBtn').hidden = !document.documentElement.requestFullscreen;
 $('fsBtn').addEventListener('click', e => { fullScreen(!document.fullscreenElement); e.currentTarget.blur(); });
 $('fsStart').addEventListener('change', e => { fsStart = e.target.checked; try { localStorage.setItem(FS_KEY, fsStart ? '1' : '0'); } catch (err) { /* not remembered */ } e.target.blur(); });
 document.addEventListener('fullscreenchange', () => syncUI());
-// the other stress test's address (the site serves pages without .html, a local server as files), with the same camera
-for (const [id, page] of [['to3d', 'stress-3d']]) { const a = $(id); if (a) a.href = (/\.html$/.test(location.pathname) ? page + '.html' : '/' + page) + location.search; }
+// the 3D world stress test's address (the site serves pages without .html, a local server as files)
+for (const [id, page] of [['toWorld', 'stress-world']]) { const a = $(id); if (a) a.href = /\.html$/.test(location.pathname) ? page + '.html' : '/' + page; }
 syncUI();
 game.start({ update, draw: r => { draw(r); hud(); } });
-// (the 3D stress test, src/stress3d.template.html, runs this same game and draws it with three.js: it also reads the
-// map, the torches, the shots and frameStats, and calls hud itself in place of draw)
 window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; },
-  map, TORCHES, shots, frameStats, hud, FIX, CUSTOM, setFixed, syncUI, HOOKS, DEPTH, depthActive, depthPose, depthCut, setDepth };
+  FIX, DEPTH, setDepth };
 })();
 
 </script>
