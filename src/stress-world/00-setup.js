@@ -1,8 +1,8 @@
 /* =============================================================================
- * STRESS TEST, 3D WORLD (temporary lab; docs/LAB-3D.md): the stress test built again from the ground up as a 3D game,
- * not the 2D game drawn in 3D (that is /stress-3d). It tries to do the same things (a torch-lit hall, the hero, a crowd
- * of walkers, slimes and wisps that take turns to attack, waves, a particle storm, the panel, the numbers and the
- * benchmark) the way a 3D game would, and is allowed to feel different:
+ * STRESS TEST, 3D WORLD (temporary lab; docs/LAB-3D.md): the stress test built again from the ground up as a 3D game.
+ * It tries to do the same things (a torch-lit hall, the hero, a crowd of walkers, slimes and wisps that take turns to
+ * attack, waves, a particle storm, the panel, the numbers and the benchmark) the way a 3D game would, and is allowed
+ * to feel different:
  *   physics    Rapier 0.19.3 (SIMD): every monster is a rigid body (the crowd pushes and piles up by itself, knockback
  *              is momentum, big hits launch bodies into the air, the fallen fly and slide), the hero is a character
  *              controller that walks, dashes and jumps, crates and barrels are knocked about

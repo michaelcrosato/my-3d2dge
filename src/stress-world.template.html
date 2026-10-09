@@ -7,8 +7,8 @@
 <link rel="icon" href="data:,">
 <!--
   A temporary lab (src/labs.json, "Temporary"; docs/LAB-3D.md): the stress test built again from the ground up as a 3D
-  game (three.js r182 and Rapier 0.19.3), sharing the engine's animation system, not the 2D game drawn in 3D (that is
-  /stress-3d). It tries to do what the 2D stress test does, its own way. Built by tools/build.mjs from this template and
+  game (three.js r182 and Rapier 0.19.3), sharing the engine's animation system. It tries to do what the 2D stress
+  test does, its own way. Built by tools/build.mjs from this template and
   src/stress-world/*.js (one module, parts joined in name order); the engine is inlined unchanged. The libraries come
   from vendor/ through the import map, so this page must be served, not opened as a file. Delete it and its labs.json
   entry once the question is settled.
@@ -123,7 +123,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <h1>Stress test: 3D world <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
       <button type="button" id="hidePanel">Hide <kbd>H</kbd></button>
     </header>
-    <p class="lede">The stress test built from the ground up as a 3D game: Rapier physics, a hall made of code, the engine's animation system on every character. It tries to do what the <a href="stress-test.html" id="to2d">2D stress test</a> does, its own way (the <a href="stress-3d.html" id="to3d">3D-drawn one</a> is the 2D game itself).</p>
+    <p class="lede">The stress test built from the ground up as a 3D game: Rapier physics, a hall made of code, the engine's animation system on every character. It tries to do what the <a href="stress-test.html" id="to2d">2D stress test</a> does, its own way.</p>
 
     <section>
       <h2>3D</h2>

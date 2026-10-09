@@ -7,8 +7,8 @@
 <link rel="icon" href="data:,">
 <!--
   A temporary lab (src/labs.json, "Temporary"; docs/LAB-3D.md): the stress test built again from the ground up as a 3D
-  game (three.js r182 and Rapier 0.19.3), sharing the engine's animation system, not the 2D game drawn in 3D (that is
-  /stress-3d). It tries to do what the 2D stress test does, its own way. Built by tools/build.mjs from this template and
+  game (three.js r182 and Rapier 0.19.3), sharing the engine's animation system. It tries to do what the 2D stress
+  test does, its own way. Built by tools/build.mjs from this template and
   src/stress-world/*.js (one module, parts joined in name order); the engine is inlined unchanged. The libraries come
   from vendor/ through the import map, so this page must be served, not opened as a file. Delete it and its labs.json
   entry once the question is settled.
@@ -123,7 +123,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       <h1>Stress test: 3D world <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
       <button type="button" id="hidePanel">Hide <kbd>H</kbd></button>
     </header>
-    <p class="lede">The stress test built from the ground up as a 3D game: Rapier physics, a hall made of code, the engine's animation system on every character. It tries to do what the <a href="stress-test.html" id="to2d">2D stress test</a> does, its own way (the <a href="stress-3d.html" id="to3d">3D-drawn one</a> is the 2D game itself).</p>
+    <p class="lede">The stress test built from the ground up as a 3D game: Rapier physics, a hall made of code, the engine's animation system on every character. It tries to do what the <a href="stress-test.html" id="to2d">2D stress test</a> does, its own way.</p>
 
     <section>
       <h2>3D</h2>
@@ -332,7 +332,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.13.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.14.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -391,7 +391,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.13.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.14.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -4988,10 +4988,10 @@ root.My3D2dge = E;
 <script type="module">
 /* ---- inlined from src/stress-world (00-setup.js, 10-hall.js, 20-sim.js, 30-crowd.js, 35-effects.js, 40-cameras.js, 45-filters.js, 50-frame.js, 60-panel.js) ---- */
 /* =============================================================================
- * STRESS TEST, 3D WORLD (temporary lab; docs/LAB-3D.md): the stress test built again from the ground up as a 3D game,
- * not the 2D game drawn in 3D (that is /stress-3d). It tries to do the same things (a torch-lit hall, the hero, a crowd
- * of walkers, slimes and wisps that take turns to attack, waves, a particle storm, the panel, the numbers and the
- * benchmark) the way a 3D game would, and is allowed to feel different:
+ * STRESS TEST, 3D WORLD (temporary lab; docs/LAB-3D.md): the stress test built again from the ground up as a 3D game.
+ * It tries to do the same things (a torch-lit hall, the hero, a crowd of walkers, slimes and wisps that take turns to
+ * attack, waves, a particle storm, the panel, the numbers and the benchmark) the way a 3D game would, and is allowed
+ * to feel different:
  *   physics    Rapier 0.19.3 (SIMD): every monster is a rigid body (the crowd pushes and piles up by itself, knockback
  *              is momentum, big hits launch bodies into the air, the fallen fly and slide), the hero is a character
  *              controller that walks, dashes and jumps, crates and barrels are knocked about
@@ -5540,7 +5540,7 @@ function animateBraziers(n, dt) {
 
 /* ---- lights: a fixed set (see the header) ---- */
 const FLICKER = t => .9 + Math.sin(t * 13) * .05 + Math.sin(t * 29) * .04 + Math.sin(t * 7.3) * .04;   // the 2D hall's flicker
-const LIGHT = { torch: 30, rune: 8, hero: 14, wisp: 10, shot: 10, ambient: 4 };   // intensities (set by eye, as the 3D stress test's)
+const LIGHT = { torch: 30, rune: 8, hero: 14, wisp: 10, shot: 10, ambient: 4 };   // intensities (set by eye)
 const ambient = new THREE.HemisphereLight('#5a5480', '#241f30', LIGHT.ambient);
 scene.add(ambient);
 const point = (color, dist, decay = 1) => { const l = new THREE.PointLight(color, 0, dist / U, decay); scene.add(l); return l; };
@@ -7483,7 +7483,7 @@ document.addEventListener('fullscreenchange', () => syncUI());
   $('backendBtn').textContent = webgl ? 'Try it on WebGPU' : 'Try it on WebGL 2';
   $('backendBtn').addEventListener('click', () => { location.href = url.href; });
   $('backend3d').innerHTML = `Drawn by <b>three.js r182</b> on <b>${BACKEND}</b>; physics by <b>Rapier 0.19.3</b> (SIMD).`;
-  for (const [id, page] of [['to2d', 'stress-test'], ['to3d', 'stress-3d']]) $(id).href = (/\.html$/.test(location.pathname) ? page + '.html' : '/' + page);
+  for (const [id, page] of [['to2d', 'stress-test']]) $(id).href = (/\.html$/.test(location.pathname) ? page + '.html' : '/' + page);
 }
 
 /* ---- the benchmark ---- */

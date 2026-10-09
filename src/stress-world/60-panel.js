@@ -198,7 +198,7 @@ document.addEventListener('fullscreenchange', () => syncUI());
   $('backendBtn').textContent = webgl ? 'Try it on WebGPU' : 'Try it on WebGL 2';
   $('backendBtn').addEventListener('click', () => { location.href = url.href; });
   $('backend3d').innerHTML = `Drawn by <b>three.js r182</b> on <b>${BACKEND}</b>; physics by <b>Rapier 0.19.3</b> (SIMD).`;
-  for (const [id, page] of [['to2d', 'stress-test'], ['to3d', 'stress-3d']]) $(id).href = (/\.html$/.test(location.pathname) ? page + '.html' : '/' + page);
+  for (const [id, page] of [['to2d', 'stress-test']]) $(id).href = (/\.html$/.test(location.pathname) ? page + '.html' : '/' + page);
 }
 
 /* ---- the benchmark ---- */

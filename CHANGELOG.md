@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.14.0 (2026-10-09)
+
+The 3D-drawn stress test is retired: two clear tools remain, the engine for 2D and its classic "3D" views, and the 3D world for real 3D.
+
+- **Rendering**: `/stress-3d` (the 2D stress test's game drawn by three.js) is gone, and its links open the 3D world stress test (`/stress-world`). The engine already does the light "3D" (classic views, side scrolling with depth, WebGPU lighting, no libraries); real 3D is the 3D world, which keeps its cameras, filters, lights, cards and puppets. The 2D stress test points to the 3D world for chase, first-person and fly cameras.
+- **Engine** (2D stress test, `src/stress.game.js`): the hooks the 3D page drew through are gone (`HOOKS`, the depth camera's pose, the extra `window.__game` fields); the game plays and draws as before.
+- **Tools**: `tools/stress-test.mjs` (`npm run test:stress`, a suite of `npm test` and `test:changed`) checks the 2D stress test's cameras (a `?cam=` link, a fixed camera, side scrolling, side scrolling with depth), moved out of `tools/lab3d-test.mjs`, which now checks the 3D world lab only. A change to the 2D stress test no longer runs the 3D suites.
+- **Docs**: `docs/LAB-3D.md` says why the 3D-drawn stress test was retired and keeps what it taught (rules that never read the drawing, no stalls mid-fight, a three.js r182 instancing bug); the Labs page drops it.
+
 ## 0.13.0 (2026-10-09)
 
 The stress test built again from the ground up as a 3D game, with Rapier physics, sharing only the animation system.

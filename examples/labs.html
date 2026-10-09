@@ -88,7 +88,7 @@ const LABS = {
         {
           "page": "stress-test",
           "title": "Stress test",
-          "what": "Raise the load (up to 5,000 monsters, torches, particles) until the frame rate drops, or run the benchmark to rate this device. Any view the engine can draw (side scrolling, with depth drawn the Mode 7 way, or a custom turn and tilt), fixed in place if you like, and the same camera opens on the 3D stress test.",
+          "what": "Raise the load (up to 5,000 monsters, torches, particles) until the frame rate drops, or run the benchmark to rate this device. Any view the engine can draw (side scrolling, with depth drawn the Mode 7 way, or a custom turn and tilt), fixed in place if you like.",
           "links": [["Open", ""], ["Three-quarter view", "?view=threequarter"], ["Side scrolling", "?view=side"], ["Side scrolling with depth (Mode 7)", "?view=side&depth=1"], ["Custom camera, fixed", "?cam=300,20,1.25,8,1.2,520,410"]]
         }
       ]
@@ -147,19 +147,11 @@ const LABS = {
           "links": [["Open", ""], ["Side by side", "?look=both&view=threequarter"], ["Puppets, fly", "?look=puppet&view=fly"], ["Play: chase camera", "?view=chase"], ["On WebGL 2", "?backend=webgl"]]
         },
         {
-          "page": "stress-3d",
-          "title": "Stress test in 3D",
-          "added": "2026-10-08",
-          "question": "Head to head: how does the stress test hold up drawn by three.js in real 3D, next to our own 2D renderer?",
-          "what": "The stress test itself (the same game code: hall, hero, walkers, slimes, wisps, combat, waves, panel, metrics and benchmark) drawn by three.js r182 on WebGPU or WebGL 2 in place of the engine's canvas. The monsters are Cards (the engine's own drawing standing in the 3D hall) or Puppets (3D parts on the same joints, with torchlight and shadows). The engine's own camera (every view, side scrolling, custom, fixed), or a chase, first-person or fly camera, fixed anywhere. Filters: Comic cel or Pixel on the whole scene, the characters and objects, or the hall, with bloom and FXAA. Run the benchmark on both pages to compare.",
-          "links": [["Open", ""], ["Puppets", "?look=puppet"], ["Side scrolling with depth", "?view=side&depth=1&res=full"], ["Chase camera", "?cam3=chase&look=puppet&pixels=0"], ["First person", "?cam3=first"], ["Fly", "?cam3=fly&look=puppet"], ["Comic cel", "?fx=cel&look=puppet&pixels=0"], ["Pixel on the characters", "?fx=pixel&fxto=objects&pixels=0"], ["On WebGL 2", "?backend=webgl"]]
-        },
-        {
           "page": "stress-world",
           "title": "Stress test: 3D world",
           "added": "2026-10-09",
           "question": "What does the stress test become built from the ground up as a 3D game (three.js r182, Rapier physics, a hall written as text), sharing only the engine's animation system, and how does it hold up?",
-          "what": "The stress test's job done as a 3D game, its own way: every monster is a Rapier body (the crowd pushes and piles up by itself, big hits throw bodies into the air, crates and barrels fly), the hero walks, dashes and jumps onto low walls and galleries, monsters find their way up the stairs after him. The hall is the 2D one's layout written as ASCII text, with a raised rune dais and two galleries. Characters are Cards (the engine draws them) or Puppets, in the engine's views (perspective or orthographic), side scrolling with depth, chase, first person, fly or fixed; filters as on the 3D stress test. The benchmark adds a physics column.",
+          "what": "The stress test's job done as a 3D game, its own way: every monster is a Rapier body (the crowd pushes and piles up by itself, big hits throw bodies into the air, crates and barrels fly), the hero walks, dashes and jumps onto low walls and galleries, monsters find their way up the stairs after him. The hall is the 2D one's layout written as ASCII text, with a raised rune dais and two galleries. Characters are Cards (the engine draws them) or Puppets, in the engine's views (perspective or orthographic), side scrolling with depth, chase, first person, fly or fixed; filters (Comic cel or Pixel on the scene, the characters or the hall, bloom, FXAA). The benchmark adds a physics column.",
           "links": [["Open", ""], ["Puppets", "?look=puppet"], ["400 monsters", "?monsters=400"], ["Chase camera", "?cam3=chase&look=puppet&res=balanced"], ["Side scrolling with depth", "?view=side&depth=1"], ["Orthographic three-quarter", "?view=threequarter&proj=ortho"], ["Comic cel", "?fx=cel&look=puppet&res=full"], ["On WebGL 2", "?backend=webgl"]]
         }
       ]
@@ -194,7 +186,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Developer panel.');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.13.0 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.14.0 · dev-build', foot);
 </script>
 </body>
 </html>
