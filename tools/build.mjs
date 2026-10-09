@@ -44,6 +44,9 @@ const builds = [
   // temporary (src/labs.json): the stress test (src/stress.game.js, unchanged) drawn by three.js instead of the engine's
   // canvas, for a head-to-head comparison; delete with its labs.json entry
   { template: 'src/stress3d.template.html', out: 'examples/stress-3d.html', vars: {} },
+  // temporary (src/labs.json): the stress test built again as a 3D game (src/stress-world/: three.js r182 and Rapier from
+  // vendor/, the engine's animation system); delete with its labs.json entry
+  { template: 'src/stress-world.template.html', out: 'examples/stress-world.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
