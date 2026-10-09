@@ -1,6 +1,8 @@
-# Lab plan: our characters in a fully 3D world
+# The 3D world labs: our characters in a fully 3D world
 
-A temporary, self-contained experiment for the Labs page. It answers one question:
+Two temporary, self-contained experiments on the Labs page: the 3D world lab (`/lab-3d`) and, built after it, the
+stress test as a 3D world (`/stress-world`, [below](#the-stress-test-as-a-3d-world-v0130)). The first answers one
+question:
 
 > Can our character system (rigs, animation, the mocap store, combat poses and their look) live in a real 3D world
 > built with three.js and Rapier, with every piece of art drawn by code or made procedurally, while staying as easy
@@ -10,9 +12,9 @@ It is a test, not a new engine. Nothing in `engine/` or `src/emberdeep/` changes
 the mocap player and Dan's body as they are. When the question is settled, the lab, its vendored libraries and its
 Labs entry are deleted or promoted.
 
-## Status: built (v0.9.0)
+## Running and checking it (since v0.9.0)
 
-All five milestones are done. The lab is at `/lab-3d` (Labs → Temporary → 3D world lab); locally, run
+The lab is at `/lab-3d` (Labs → Temporary → 3D world lab); locally, run
 `node tools/build.mjs`, serve the repository's root (`npx serve`, `python3 -m http.server`) and open
 `examples/lab-3d.html`. `node tools/lab3d-test.mjs` (part of `npm test`) checks it: the vendored files' checksums, the
 rules below, the same state hash on WebGL 2 and WebGPU, a short session of play, and a picture of every camera and look
@@ -20,7 +22,7 @@ rules below, the same state hash on WebGL 2 and WebGPU, a short session of play,
 WebGPU the test gives three.js a stand-in canvas context and reads the frames back itself: the whole WebGPU pipeline
 runs; only showing the frame is skipped. A real browser shows it.
 
-## Decisions (agreed)
+## Decisions
 
 | Topic | Decision |
 |---|---|
@@ -32,7 +34,6 @@ runs; only showing the frame is skipped. A real browser shows it.
 | Player | The hero walks a lap by itself, or the player takes over (move, attack, dash) and pushes and knocks the boxes about. |
 | Self-contained | All dependencies are vendored in the repository (`vendor/`), no CDN, no network. |
 | Performance | Not a concern for this test. |
-| Fallback | If three.js or Rapier can't meet the rules above, a custom renderer or physics engine is acceptable (see *If three.js or Rapier fall short*). |
 
 ## Things to be clear about (trade-offs)
 
@@ -145,37 +146,6 @@ tools/lab3d-test.mjs                 the banned-API check; opens the lab on WebG
 - Our engine (`engine/my-3d2dge.js`) is loaded as is, for the rigs, the animation, the mocap store and the textures.
   The lab only reads from it.
 
-## Milestones
-
-1. **Skeleton:** vendor the libraries, renderer with the fallback, the room from the ASCII map, the fixed and free
-   cameras, the backend label.
-2. **Physics:** the Rapier world, colliders from the map, crates, the character controller, the fixed step and the
-   state hash on both backends.
-3. **Card characters:** the hero's lap, player control, the attack, the mocap figure, Dan.
-4. **Puppet characters:** parts on the rig's joints, toon materials in our colors, the split view.
-5. **Look and finish:** pixel-art pass, outlines, fog, info, `window.__lab3d`, the test script, the Labs entry.
-
-Each milestone ends with screenshots on both backends.
-
-## How we'll judge it
-
-- **Look:** Card and Puppet at the same camera (the split view). Does either keep what we love?
-- **Feel:** the hero under player control, swinging and pushing crates. Does it still feel like ours?
-- **Agents:** hand the lab to a fresh agent with a small task (add a prop, a new room layout, a second enemy) and see
-  how far it gets from the headers alone.
-- **The rule holds:** identical state hashes on WebGPU and WebGL 2.
-- **Cost:** how much code the lab needed beyond the vendored libraries, as a preview of what a real engine would
-  carry.
-
-## If three.js or Rapier fall short
-
-- **three.js:** if a needed effect can't be done in TSL for both backends, try a simpler look first. If the
-  renderer itself blocks us, the fallback is our own small renderer (fly mode in the free camera room is a working
-  start: a depth buffer, perspective-correct textures, clipping), with WebGL 2 for speed.
-- **Rapier:** if the character controller fights our combat feel (snappy starts and stops, hit-stop, knockback),
-  move the hero with our own kinematic code and keep Rapier for the crates. Our engine's collision is already
-  enough for walking among walls and pillars.
-
 ## The 3D-drawn stress test (v0.10.0 to v0.13.0, retired in v0.14.0)
 
 `/stress-3d` was the 2D stress test's own game (`src/stress.game.js`, unchanged) drawn by three.js instead of the
@@ -257,8 +227,3 @@ the pixel font) and the 2D hall's floor texture and layout. Everything else is i
   with no GPU pipeline built mid-fight, kills and launches, the hero jumping and climbing to a gallery with monsters
   following, a crate knocked about, every camera and filter, W walking away from a fixed camera, the benchmark's
   report. Pictures in `check-output/stress-world/`.
-
-## Out of scope
-
-Emberdeep, the engine files, the agent edition, importing model files, sound, performance work, and phones (the
-lab should work on them, but that isn't tested).

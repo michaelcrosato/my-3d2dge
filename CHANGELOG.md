@@ -7,9 +7,10 @@ One version number covers the engine, its agent edition, the docs and the games 
 
 ## 0.14.1 (2026-10-09)
 
-The 3D world is leaving to become its own engine, in its own repository.
+Dead weight out: plans that were finished or never built, a dated audit and an unused tool. Every linked lab stays.
 
-- **Docs**: `docs/HANDOFF-3D-WORLD.md`, the brief for the new repository: what to take from the two 3D labs (the stress-world lab as the base, the 3D world lab's mocap, Dan and puppet parts), the vendored libraries, the engine API both depend on (private rig fields included), the tools and the lessons; which principles carry over and which diverge; how to stand it up; and the checklist for removing the labs here afterwards.
+- **Docs**: `docs/ANIMATION-RESEARCH.md` is gone (a survey of famous animations and a build list of ones to ship ready-made, never started), and so is `docs/CONTROLS-AUDIT.md` (the 2026-09-29 controls audit, long done). `docs/LAB-3D.md` keeps the 3D labs' decisions, trade-offs, contents, build and lessons and drops the finished plan's milestones, judging criteria, fallbacks and scope. `docs/MOCAP.md` drops its "Looking ahead" list of open questions; `docs/DAN.md` drops what building Dan changed in the tools (0.8.0 below has it).
+- **Tools**: `tools/slice-test.mjs` is gone: nothing used it, and the genre kits (`dist/kits/`) are already the engine, the shell and one slice.
 
 ## 0.14.0 (2026-10-09)
 

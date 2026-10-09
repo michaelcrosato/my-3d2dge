@@ -6,7 +6,7 @@
 <title>3D world lab · my-3D2dge</title>
 <link rel="icon" href="data:,">
 <!--
-  A temporary lab (src/labs.json, "Temporary"; the plan is docs/LAB-3D.md): our characters (the hero, a mocap figure,
+  A temporary lab (src/labs.json, "Temporary"; docs/LAB-3D.md): our characters (the hero, a mocap figure,
   Emberdeep's Dan) in a fully 3D room built with three.js r182 and Rapier 0.19.3 (SIMD), every piece of art drawn by
   code. Built by tools/build.mjs from this template and src/lab3d/*.js (one module, parts joined in name order); the
   engine, the mocap player and Dan's body are inlined unchanged. The two libraries are vendored in vendor/
@@ -16425,7 +16425,7 @@ return Object.assign(DanRig, { COL: DAN_COL });   // (its colors, for the 3D lab
 <script type="module">
 /* ---- inlined from src/lab3d (00-setup.js, 10-materials.js, 20-world.js, 30-physics.js, 40-characters.js, 50-cameras.js, 60-panel.js) ---- */
 /* =============================================================================
- * LAB 3D (temporary lab; the plan is docs/LAB-3D.md): our characters in a fully 3D world.
+ * LAB 3D (temporary lab; docs/LAB-3D.md): our characters in a fully 3D world.
  * three.js r182 (WebGPURenderer: WebGPU, falling back to WebGL 2 by itself) and Rapier 0.19.3 (SIMD), vendored in
  * vendor/ and loaded through the import map in src/lab3d.template.html. The engine (window.My3D2dge), the mocap
  * player (Mocap, window.MOCAP) and Dan's body (window.DanRig) are classic scripts inlined above this module,
