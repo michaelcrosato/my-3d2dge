@@ -163,7 +163,7 @@ function cardView() {
 }
 /** which walls stand cut low (those facing an outside camera: the views), and which pillars are cut to stumps (those
  *  between a view's camera and the hero); none for cameras inside the hall (the chase camera slides in front instead) */
-const _cutA = [0, 0, 0], _hh = [0, 0, 0];
+const _cutA = [0, 0, 0], _hh = [0, 0, 0], AIM_HERO = [[0, 0, 26], [0, 0, 2]], AIM_FIGHT = [...AIM_HERO, [40, 0, 2], [-40, 0, 2], [0, 40, 2], [0, -40, 2]];
 function placeCut() {
   const p = CAM.pose; if (!p) return;
   if (cam3d()) { placeWalls('none', null); placePillars('none', null); return; }
@@ -171,10 +171,11 @@ function placeCut() {
   const fx = Math.sin(yw * DEG), fy = Math.cos(yw * DEG);
   placeWalls(pt > 85 ? 'none' : 'cut:' + yw, pt > 85 ? null : c => c.ox * fx + c.oy * fy > .3);
   // the camera (an orthographic one: far back along its direction) to the hero's head, and to the floor round him where
-  // the fight is (his feet and four points 40 units out): a pillar in the way of any of them is cut
+  // the fight is (his feet and four points 40 units out; from a steep view, which a pillar hides little of, him only):
+  // a pillar in the way of any of them is cut
   const far = p.ortho ? 3000 : 0, cp = Math.cos(p.pitch);
   _cutA[0] = p.x - Math.cos(p.yaw) * cp * far; _cutA[1] = p.y - Math.sin(p.yaw) * cp * far; _cutA[2] = p.z - Math.sin(p.pitch) * far;
-  const aims = [[0, 0, 26], [0, 0, 2], [40, 0, 2], [-40, 0, 2], [0, 40, 2], [0, -40, 2]];
+  const aims = pt >= 60 ? AIM_HERO : AIM_FIGHT;
   const cut = PILLARS.map(([x0, y0, x1, y1]) => aims.some(([dx, dy, dz]) => { _hh[0] = hero.x + dx; _hh[1] = hero.y + dy; _hh[2] = hero.z + dz; return segBox(_cutA, _hh, x0 * T - 4, y0 * T - 4, 0, (x1 + 1) * T + 4, (y1 + 1) * T + 4, PILLAR_H); }));
   placePillars(cut.map(c => c ? 1 : 0).join(''), r => cut[PILLARS.indexOf(r)]);
 }
