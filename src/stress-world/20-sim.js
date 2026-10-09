@@ -19,7 +19,7 @@
  *              cam: [fx, fy, k] the ground direction toward the camera and how much a body in front of the hero hides
  *              him from it (0 from straight above) }
  *   SIM.run(n) resets, runs n steps of a scripted fight and returns the state's hash (the proof: the same on WebGPU
- *              and WebGL 2, and when run again); SIM.hash(), SIM.reset(seed)
+ *              and WebGL 2, and when run again); SIM.hash(), SIM.reset(seed), SIM.placeHero(x, y)
  * Randomness in the game comes from SIM.rnd (seeded); the particles and the rigs' idle motion use Math.random (looks
  * only, never read back).
  * ============================================================================= */
@@ -280,6 +280,11 @@ function heroIntent(dt, ctl) {
   else if (!A.busy && h.dashT <= 0 && h.aim !== undefined) h.facing = E.approachAng(h.facing, h.aim, dt * 16);
   moveHero(dt, h.vx, h.vy);
 }
+/** put the hero on the floor at (x, y), standing still (tests and agents: a known place to start from) */
+SIM.placeHero = function (x, y) {
+  const z = floorH(x, y); hero.body.setTranslation({ x, y, z: z + HERO_FOOT + .4 }, true);
+  Object.assign(hero, { x, y, z, vx: 0, vy: 0, vz: 0, dashT: 0 });
+};
 /** the controller moves the capsule as far as it can (sliding along walls, up stairs and slopes, pushing props); the
  *  world's step then carries the body there */
 function moveHero(dt, vx, vy) {

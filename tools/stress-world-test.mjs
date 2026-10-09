@@ -8,7 +8,8 @@
 //      backend each claims, and the proof run's state hash the same on both and the same when run again (the game and
 //      its physics never read the renderer)
 //   3. a fight with every monster kind draws as cards and as puppets without building a GPU pipeline mid-fight (the
-//      warm-up's job), the hero kills monsters and some fly, the panel's numbers fill in
+//      warm-up's job), nor when the crowd grows past the card atlas pages the warm-up made; the hero kills monsters and
+//      some fly, the panel's numbers fill in
 //   4. physics: the hero jumps, climbs the stairs onto a gallery, monsters find their way up after him, a crate is knocked
 //      about
 //   5. every camera (the five views, side scrolling with depth, custom, orthographic, chase, first person, fly, fixed)
@@ -151,6 +152,11 @@ for (const want of ['webgl', 'webgpu']) {
   }
   const p1 = await pipelines();
   if (p0 !== null && p1 !== p0) fail(`${label}: ${p1 - p0} GPU pipelines were built during the fight (the warm-up should have built them)`);
+  // a crowd that needs more card atlas pages than the warm-up made: still none (every page shares one shader)
+  await page.evaluate(() => { __sw.set('look', 'card'); __sw.setMonsters(300, true); __sw.step(120); });
+  await frames('a big crowd', 4);
+  const big = await page.evaluate(() => __sw.STATS.drawn), p2 = await pipelines();
+  if (p0 !== null && p2 !== p0) fail(`${label}: ${p2 - p0} GPU pipelines were built when the crowd grew to ${big} cards on screen (a new atlas page should share the first one's)`);
   const panel = await page.evaluate(() => ['fpsBig', 'mMonsters', 'mPhys', 'mRender', 'mBodies', 'mGpu'].map(id => document.getElementById(id).textContent));
   if (!/\d/.test(panel[1]) || !/ms/.test(panel[2]) || !/\d/.test(panel[4]) || !/three\.js/.test(panel[5])) fail(`${label}: the panel's numbers did not fill in (${panel.join(' | ')})`);
 
@@ -161,12 +167,15 @@ for (const want of ['webgl', 'webgpu']) {
     const z0 = H.z; let top = z0; W.step(1, { jump: 1 }); for (let i = 0; i < 60; i++) { W.step(1); top = Math.max(top, H.z); }
     out.jump = top - z0;
     const go = (x, y, n) => { for (let i = 0; i < n; i++) { const dx = x - H.x, dy = y - H.y, d = Math.hypot(dx, dy); if (d < 4) return true; W.step(1, { move: [dx / d, dy / d] }); } return false; };
-    out.stairs = go(12.5 * 16, 11 * 16, 1200) && go(12.5 * 16, 2.5 * 16, 600); out.galleryZ = H.z;
+    // (each check starts from a known place: the fight before leaves the hero and the props anywhere)
+    W.placeHero(12.5 * 16, 12 * 16); W.step(10);   // at the foot of the west gallery's stairs, then up them
+    out.stairs = go(12.5 * 16, 2.5 * 16, 600); out.galleryZ = H.z;
     W.S.mix = 'humanoids'; W.setMonsters(16, true); W.step(1800);
     out.followed = W.enemies.filter(e => e.alive && e.z > 12).length;
     W.setMonsters(0); W.S.mix = 'balanced';
-    const p = W.PROPS[0], a0 = [p.x, p.y];
-    go(p.x + 20, p.y, 1500);
+    // a crate on the floor: the hero placed beside it on the side toward the hall's centre, swinging at it
+    const p = W.PROPS.find(q => q.kind === 'crate' && q.z < 8) || W.PROPS[0], a0 = [p.x, p.y], cx = 32 * 16 - p.x, cy = 22 * 16 - p.y, cd = Math.hypot(cx, cy) || 1;
+    W.placeHero(p.x + cx / cd * 18, p.y + cy / cd * 18); W.step(5);
     for (let i = 0; i < 40; i++) W.step(1, { attack: 10, aim: Math.atan2(p.y - H.y, p.x - H.x) });
     W.step(60);
     out.crate = Math.hypot(p.x - a0[0], p.y - a0[1]);

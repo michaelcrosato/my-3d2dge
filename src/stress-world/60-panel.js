@@ -3,7 +3,7 @@
  * metrics (with the physics apart from the game logic), presets, the benchmark and its report, full screen, and
  * window.__sw for tests and agents:
  *   { ready, backend, error, S, SIM, CAM, R3, FX, STATS, hero, enemies, corpses, PROPS, renderer,
- *     set(key, value), setCam(mode), setView(v), setDepth(on), setProj(p), setMonsters(n, instant), setProps(n),
+ *     set(key, value), setCam(mode), setView(v), setDepth(on), setProj(p), setMonsters(n, instant), setProps(n), placeHero(x, y),
  *     step(n, o) (n game steps of STEP: o.move [x, y], o.attack / dash / jump / skill: every that many steps),
  *     run(n) (the proof: the scripted fight's hash), hash(), benchStart(), bench, report }
  * ============================================================================= */
@@ -282,5 +282,5 @@ function stepN(n, o = {}) {
   for (i = 0; i < n; i++) SIM.step(STEP, ctl);
 }
 window.__sw = { ready: true, backend: BACKEND, S, SIM, CAM, R3, FX, STATS, hero, enemies, corpses, PROPS, shots, renderer, scene, set: set3d, setCam, setView, setDepth, setProj, toggleFix,
-  setMonsters, setProps, step: stepN, run: n => { const h = SIM.run(n); SIM.reset(1); setMonsters(S.monsters, true); return h; }, hash: () => SIM.hash(), benchStart,
+  setMonsters, setProps, placeHero: SIM.placeHero, step: stepN, run: n => { const h = SIM.run(n); SIM.reset(1); setMonsters(S.monsters, true); return h; }, hash: () => SIM.hash(), benchStart,
   get bench() { return bench; }, get report() { return lastReport; }, rendererDesc, camDesc, camLink };

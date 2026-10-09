@@ -204,8 +204,11 @@ const CAPE = (() => {
  * The atlas is a row of fixed pages (512 pixels square, or four cells across when zoomed in), each its own canvas,
  * texture and instanced mesh. Pages are made when first needed and kept: no texture is ever resized or remade while
  * the crowd grows and shrinks (a remade texture stalls the frame), and each frame uploads only the pages it used, and
- * outlines only their used rows. */
-const CARD_QUAD = new THREE.PlaneGeometry(1, 1);
+ * outlines only their used rows. Every page compiles to the same shader, so a new page never builds a GPU pipeline
+ * mid-fight: each card's cell comes from a per-card attribute with the same name on every page ('cardRect'), and
+ * each page's mesh has room for more than 1,000 cards (three r182 keeps the matrices of an InstancedMesh with 1,000
+ * or fewer in a uniform buffer named after the mesh, which makes every such mesh's shader its own). */
+const CARD_QUAD = new THREE.PlaneGeometry(1, 1), CARD_RECT = attribute('cardRect', 'vec4');
 const ATLAS = (() => {
   const pages = [];
   let P = 0, cell = 0, cols = 0, per = 0, n = 0, key = '';
@@ -213,14 +216,14 @@ const ATLAS = (() => {
     if (pages[i]) return pages[i];
     const cv = document.createElement('canvas'), out = document.createElement('canvas'); cv.width = cv.height = out.width = out.height = P;
     const tex = new THREE.CanvasTexture(out); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
-    const rect = new THREE.InstancedBufferAttribute(new Float32Array(per * 4), 4), R = instancedBufferAttribute(rect);
-    const mat = objMat(new THREE.MeshBasicNodeMaterial({ alphaTest: .5 }));
+    const room = Math.max(per, 1001), rect = new THREE.InstancedBufferAttribute(new Float32Array(room * 4), 4), geo = CARD_QUAD.clone(); geo.setAttribute('cardRect', rect);
+    const mat = objMat(new THREE.MeshBasicNodeMaterial({ alphaTest: .5 })), R = CARD_RECT;
     mat.colorNode = texture(tex).sample(uv().mul(R.zw).add(R.xy));
-    const mesh = new THREE.InstancedMesh(CARD_QUAD, mat, per); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh);
+    const mesh = new THREE.InstancedMesh(geo, mat, room); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh);
     return (pages[i] = { cv, out, g: cv.getContext('2d'), go: out.getContext('2d'), tex, rect, mesh, M: mesh.instanceMatrix.array, n: 0, rows: 0 });
   }
   function reset() {   // a new cell size (the zoom changed): pages hold a different number of cells, start again
-    for (const pg of pages) { scene.remove(pg.mesh); pg.mesh.dispose(); pg.mesh.material.dispose(); OBJ_MATS.delete(pg.mesh.material); pg.tex.dispose(); }
+    for (const pg of pages) { scene.remove(pg.mesh); pg.mesh.dispose(); pg.mesh.geometry.dispose(); pg.mesh.material.dispose(); OBJ_MATS.delete(pg.mesh.material); pg.tex.dispose(); }
     pages.length = 0;
   }
   return {

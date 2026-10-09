@@ -233,11 +233,15 @@ at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `ex
 - **No stalls mid-fight.** A material's first draw builds its shader and GPU pipelines (tens of milliseconds; the
   first benchmark showed it as a 1% low of 34 fps at 50 monsters). The first frame now draws everything once, empty,
   so every pipeline exists before the fight (again after a filter change); the effect pools share one material each;
-  the card atlas is fixed 512-pixel pages that are never remade and upload only when used. The test counts the GPU
-  pipelines during a fight: none are built.
+  the card atlas is fixed 512-pixel pages that are never remade and upload only when used, and every page shares one
+  shader (v0.13.0: three.js r182 gives an instanced mesh of 1,000 or fewer instances a shader of its own, so a page
+  has room for more, and reads its cells from one named attribute; before, each page past the two the warm-up made
+  built a pipeline the first time a crowd needed it). The test counts the GPU pipelines during a fight and with a
+  crowd of 400: none are built.
 - **A three.js r182 bug to remember:** an `InstancedMesh` with more than 1,000 instances whose matrices use
   `DynamicDrawUsage` never sends its changes to the GPU (the monsters vanished). The batches keep the default usage
-  and mark their update ranges each frame.
+  and mark their update ranges each frame. Its other side: with 1,000 or fewer, the matrices live in a uniform buffer
+  named after the mesh, so each such mesh made at run time compiles its own shader (see the card atlas above).
 - `node tools/lab3d-test.mjs` checks it on both backends: a fight with every monster kind in both looks with no
   pipeline built mid-fight, the panel's numbers, every camera and filter, W walking away from a fixed camera, the hero
   under the keys, no errors; and the 2D page's cameras (a `?cam=` link, a fixed camera staying put, side scrolling).

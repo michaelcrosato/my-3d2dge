@@ -20,7 +20,7 @@
  * no GPU read-backs.
  * ============================================================================= */
 import * as THREE from 'three/webgpu';
-import { Fn, vec2, vec3, vec4, float, uniform, positionLocal, normalLocal, modelViewMatrix, cameraProjectionMatrix, texture, uv, instancedBufferAttribute,
+import { Fn, vec2, vec3, vec4, float, uniform, positionLocal, normalLocal, modelViewMatrix, cameraProjectionMatrix, texture, uv, attribute,
   pass, mrt, output, rtt, floor, mod, abs, max, min, mix, select, smoothstep, luminance, saturation, sRGBTransferOETF } from 'three/tsl';
 
 const E = window.My3D2dge, G = window.__game, game = G.game, { clamp, lerp, TAU } = E;
