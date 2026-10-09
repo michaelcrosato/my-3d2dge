@@ -350,21 +350,6 @@ A name both sets have is picked as `SET:Clip`. Each clip keeps its `src`, so the
 1. Add it to the `anim-set.mjs` command above and run it again.
 2. Give the clip a moment in `HCL_MOVES`, and a trigger.
 
-## Looking ahead
-
-These are the questions that get harder to change once games and models depend on the format:
-
-1. **The format is an API.** Sets carry `"format": 1`, so a later version can be converted. It still needs a validator that warns, in the engine's forgiving style, about a reach past full length or a knee bending backwards.
-2. **It is a humanoid format.** Blobs, the Emberdeep crawler, serpent and watcher, Codex's folio body, and future four-legged rigs need either their own formats or a general "named chains" form. Decide which before the humanoid one hardens.
-3. **The renderer has to honour what the format says.** The HD `Humanoid` draws its face, hair and torso from `facing` and its knocked-down measure, so chest twist and head turn are approximate on the hero. As more clips arrive, the draw code should read the chest and head frames the clip provides.
-4. **Gameplay needs events.** Motion capture has no "the punch lands now", footsteps, or "the hand reaches the lever". The format should carry named events (`events: { hit: .42, step: [.1, .6] }`): authored for a few clips, detected (feet that stop moving) for the rest. Emberdeep times its moments by hand for now (the death panel waits for `Death01` to land at 1.4 s).
-5. **Root motion against physics.** Clips play in place by default and expose their root path as data (`root`, `lib.moveAt`) that a game can use or ignore. Keep it that way.
-6. **Layering.** Upper-body masks and fades exist (`mocapMask`, `mocapW`). Still missing: additive layers (breathing, wounded) and partial poses (only the arms) in the format itself.
-7. **Style.** Motion capture is realistic; `E.MOVES` is snappy and stylized. Mixed in one game they can feel inconsistent, so imported clips will want a style pass: holds on key poses, a little exaggeration, eased in-betweens. The hero's adopted clips are the calm moments (getting up, waiting, a chest) for this reason; his combat stays procedural.
-8. **The catalog's token budget.** A catalog costs about 30 tokens a clip (2,500 for the 88 Quaternius clips). At 500 clips it would be about 15k, and with all 2,548 CMU takes about 75k (the ledger, which lists them all, is for tools and people, not for a model's context). It will need tiers (a starred core set in the API card, the rest by tag) and no clip data in the agent edition: models fetch clips by name.
-9. **Provenance per clip.** Each set carries its credit and each clip its source library. When a source with other terms arrives (CMU's no-resale terms), the credit should move to the source, and the importer should refuse sources that forbid redistribution.
-10. **Two engine editions.** Playback is an add-on (`readable.js` and `mocap.js`) that a page loads after the engine, so the agent edition's 82k-token budget stays intact.
-
 ## What the clips assume
 
 - **In-place jumps.** `Jump_Start`, `Jump_Loop` and the `NinjaJump_*` clips keep the root on the floor while the feet point down. A game supplies the vertical arc. The lab lifts the figure until its lowest point touches the floor.

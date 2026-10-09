@@ -87,7 +87,7 @@
           "title": "3D world lab",
           "added": "2026-10-08",
           "question": "Can our characters, animation and look live in a real 3D world (three.js r182 and Rapier), with all its art drawn by code, and stay easy for AI agents to work on?",
-          "what": "A stone room in real 3D (three.js r182 on WebGPU, or WebGL 2 by itself, and Rapier physics), every texture and shape drawn by code. The hero walks a lap or you play it (move, swing, dash, knock the crates about); a mocap figure and Emberdeep's Dan stand by. Each character is a Card (the engine's own drawing on a card facing the camera) or a Puppet (3D parts on the same joints), or both side by side, in the engine's five fixed views or a free orbit, fly or chase camera. The plan and the trade-offs are in docs/LAB-3D.md.",
+          "what": "A stone room in real 3D (three.js r182 on WebGPU, or WebGL 2 by itself, and Rapier physics), every texture and shape drawn by code. The hero walks a lap or you play it (move, swing, dash, knock the crates about); a mocap figure and Emberdeep's Dan stand by. Each character is a Card (the engine's own drawing on a card facing the camera) or a Puppet (3D parts on the same joints), or both side by side, in the engine's five fixed views or a free orbit, fly or chase camera. The decisions and trade-offs are in docs/LAB-3D.md.",
           "links": [["Open", ""], ["Side by side", "?look=both&view=threequarter"], ["Puppets, fly", "?look=puppet&view=fly"], ["Play: chase camera", "?view=chase"], ["On WebGL 2", "?backend=webgl"]]
         },
         {

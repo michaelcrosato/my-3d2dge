@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.14.1 (2026-10-09)
+
+Dead weight out: plans that were finished or never built, a dated audit and an unused tool. Every linked lab stays.
+
+- **Docs**: `docs/ANIMATION-RESEARCH.md` is gone (a survey of famous animations and a build list of ones to ship ready-made, never started), and so is `docs/CONTROLS-AUDIT.md` (the 2026-09-29 controls audit, long done). `docs/LAB-3D.md` keeps the 3D labs' decisions, trade-offs, contents, build and lessons and drops the finished plan's milestones, judging criteria, fallbacks and scope. `docs/MOCAP.md` drops its "Looking ahead" list of open questions; `docs/DAN.md` drops what building Dan changed in the tools (0.8.0 below has it).
+- **Tools**: `tools/slice-test.mjs` is gone: nothing used it, and the genre kits (`dist/kits/`) are already the engine, the shell and one slice.
+
 ## 0.14.0 (2026-10-09)
 
 The 3D-drawn stress test is retired: two clear tools remain, the engine for 2D and its classic "3D" views, and the 3D world for real 3D.
