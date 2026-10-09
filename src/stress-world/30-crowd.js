@@ -1,19 +1,20 @@
 /* =============================================================================
- * THE CROWD: the hero, walkers (husks, skeletons, knights; HD or classic), slimes, wisps and the fallen, each as the game
- * poses it (the 2D page updates every rig; this only reads them).
- *   Puppet  3D parts hung on each rig's joints, as in the 3D world lab, but drawn in shared instanced batches so
- *           thousands of monsters cost a handful of draw calls: Batch.tube(a, b, r), .ball(p, rx, ry, rz), .box(...),
- *           .cone(...). A walker is about twenty parts sized from its own build (limbW, torsoW, headR) and colored from
- *           its own palette (rig.C); a slime is its body squashed as the Blob squashes, with eyes, horns, ears or wings.
+ * THE CHARACTERS: the hero, walkers (husks, skeletons, knights; HD or classic), slimes, wisps and the fallen, each as
+ * its rig stands (20-sim poses every rig; this only reads them), and the crates and barrels where their bodies are.
+ *   Puppet  3D parts hung on each rig's joints, in shared instanced batches so thousands of monsters cost a handful of
+ *           draw calls: Batch.tube(a, b, r), .ball(p, rx, ry, rz), .box(...), .cone(...). A walker is about twenty parts
+ *           sized from its own build (limbW, torsoW, headR) and colored from its own palette (rig.C); a slime is its
+ *           body squashed as the Blob squashes, with eyes, horns, ears or wings
  *   Card    the engine draws each rig into a sprite atlas (fixed pages: only the pages in use upload), outlined as its
- *           sprites are, and an instanced card shows each cell where the monster stands, facing the camera. The look
- *           is the 2D page's, to the pixel, at the engine's resolution; at the balanced or full resolution the engine
- *           draws each card that many times finer (it draws by code, at any scale), so zoomed out it stays sharp.
+ *           sprites are, and an instanced card shows each cell where the monster stands, facing the camera, drawn
+ *           from the camera's own turn and tilt at about the screen's pixel size where the hero stands
  *   Wisps are glowing orbs in both looks. Hit flashes tint toward the 2D page's flash color; spawning monsters rise
- *   out of the floor and the fallen sink into it (the 2D page fades them).
- *   drawCrowd(view, look, outlines) is called by the frame; it returns how many characters it drew.
+ *   out of the floor and the fallen sink into it. A blob shadow lies on the floor under every body (under a thrown one
+ *   too, so its height shows).
+ *   drawCrowd(o) is called by the frame; it returns how many characters it drew and marks them (with "skip off-screen
+ *   animation" the rest don't pose)
  * ============================================================================= */
-const FLASH = lin('#ffe6d8'), DEAD_T = 1.6, POP_T = .35;
+const FLASH = lin('#ffe6d8');
 const _m = new THREE.Matrix4();
 /** an instanced batch of one shape: write parts with tube / ball / box / cone between begin() and end() */
 class Batch {
@@ -176,6 +177,7 @@ const CAPE = (() => {
     cap = c; pos = new Float32Array(cap * SLOT * 2 * 3); col = new Float32Array(cap * SLOT * 2 * 3);
     const idx = []; for (let s = 0; s < cap; s++) for (let i = 0; i < SLOT - 1; i++) { const a = (s * SLOT + i) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
+    geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(pos.length), 3));   // (filled each frame; there from the start for the warm-up)
     if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
     mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.castShadow = true; scene.add(mesh);
   }
@@ -208,7 +210,7 @@ const CAPE = (() => {
  * mid-fight: each card's cell comes from a per-card attribute with the same name on every page ('cardRect'), and
  * each page's mesh has room for more than 1,000 cards (three r182 keeps the matrices of an InstancedMesh with 1,000
  * or fewer in a uniform buffer named after the mesh, which makes every such mesh's shader its own). */
-const CARD_QUAD = new THREE.PlaneGeometry(1, 1), CARD_RECT = attribute('cardRect', 'vec4');
+const CARD_QUAD = new THREE.PlaneGeometry(1, 1), CARD_RECT = TSL.attribute('cardRect', 'vec4');
 const ATLAS = (() => {
   const pages = [];
   let P = 0, cell = 0, cols = 0, per = 0, n = 0, key = '';
@@ -218,7 +220,7 @@ const ATLAS = (() => {
     const tex = new THREE.CanvasTexture(out); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
     const room = Math.max(per, 1001), rect = new THREE.InstancedBufferAttribute(new Float32Array(room * 4), 4), geo = CARD_QUAD.clone(); geo.setAttribute('cardRect', rect);
     const mat = objMat(new THREE.MeshBasicNodeMaterial({ alphaTest: .5 })), R = CARD_RECT;
-    mat.colorNode = texture(tex).sample(uv().mul(R.zw).add(R.xy));
+    mat.colorNode = TSL.texture(tex).sample(TSL.uv().mul(R.zw).add(R.xy));
     const mesh = new THREE.InstancedMesh(geo, mat, room); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh);
     return (pages[i] = { cv, out, g: cv.getContext('2d'), go: out.getContext('2d'), tex, rect, mesh, M: mesh.instanceMatrix.array, n: 0, rows: 0 });
   }
@@ -245,13 +247,11 @@ const ATLAS = (() => {
       if (alpha < 1) g.globalAlpha = alpha;
       try { draw(g, ox, oy); } finally { g.restore(); }
       if (flash) { g.save(); g.beginPath(); g.rect(cx, cy, cell, cell); g.clip(); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = .3; g.fillStyle = '#ffe6d8'; g.fillRect(cx, cy, cell, cell); g.restore(); }
-      // the card: the cell's size on screen, its root on the rig's root (snapped to the screen's pixels in the engine's
-      // own views), facing the camera
-      // (v.detail: the cell is drawn that many times finer than the camera's pixels, at the balanced or full resolution)
-      const ppm = v.ppm * (v.detail || 1), w = cell / ppm, h = cell / (ppm * v.vert);
-      let fx = 0, fy = 0; if (v.snap && (v.detail || 1) === 1) { const sp = view3.p(x, y, z); fx = Math.round(sp[0]) - sp[0]; fy = Math.round(sp[1]) - sp[1]; }
+      // the card: the cell's size in the world (v.ppm: the cards' pixels per metre), its root on the rig's root, facing the camera
+      const ppm = v.ppm, w = cell / ppm, h = cell / (ppm * v.vert);
+      const fx = 0, fy = 0;
       // the card's centre from the root: right by the root's distance from the cell's middle, up by the part of the cell
-      // above the root, plus the snap; pushed toward the camera so the floor can't cut its feet
+      // above the root; pushed toward the camera so the floor can't cut its feet
       const dx = (cell / 2 - (ox - cx) + fx) / ppm, dy = ((oy - cy) - cell / 2 - fy) / (ppm * v.vert);
       const r = v.right, up = v.up, bk = v.back, i = j * 16;
       const tx = x / U + r.x * dx + up.x * dy + bk.x * .45, ty = z / U + r.y * dx + up.y * dy + bk.y * .45, tz = y / U + r.z * dx + up.z * dy + bk.z * .45;
@@ -288,44 +288,87 @@ const ATLAS = (() => {
     get pages() { return pages; }, get count() { return n; }
   };
 })();
+/* ---- crates and barrels: instanced, each where its body is (a crate's planks and a barrel's staves drawn by code) ---- */
+const WOOD = { planks: ['#9d6a3f', '#8f5f37', '#a87547'].map(E.hex), frame: E.hex('#6e4528'), line: E.hex('#4a2e1c'), hi: E.hex('#c08a55'), nail: E.hex('#2e2420') };
+function crateTex(x, y) {   // 12 x 12 pixels for a 12-unit crate: a dark frame, planks, a diagonal brace, four nails
+  const P = WOOD, n = 12;
+  if (x === 0 || y === 0 || x === n - 1 || y === n - 1) return P.line;
+  if (x === 1 || y === 1 || x === n - 2 || y === n - 2) return (x === 1 || x === n - 2) && (y === 1 || y === n - 2) ? P.nail : P.frame;
+  if (Math.abs(x - y) <= .5 || Math.abs(x - y - 1) <= .5) return x === y ? P.hi : P.frame;
+  if ((y - 2) % 3 === 2) return P.line;
+  return P.planks[Math.floor((y - 2) / 3) % P.planks.length];
+}
+function barrelTex(x, y) {   // staves round the side (38 x 14 pixels), two iron hoops
+  if (y === 2 || y === 3 || y === 10 || y === 11) return y === 2 || y === 10 ? E.hex('#5d5a66') : E.hex('#3a3842');
+  const st = Math.floor(x / 3), c = WOOD.planks[st % 3];
+  return x % 3 === 2 ? WOOD.line : E.hash2(st, y) < .08 ? WOOD.frame : c;
+}
+const PROP_MESH = {
+  crate: (() => { const m = new THREE.InstancedMesh(new THREE.BoxGeometry(12 / U, 12 / U, 12 / U), objMat(new THREE.MeshLambertNodeMaterial({ map: bake(crateTex, 12, 12) })), 300); m.frustumCulled = false; m.count = 0; m.castShadow = m.receiveShadow = true; scene.add(m); return m; })(),
+  barrel: (() => {
+    const g = new THREE.CylinderGeometry(6 / U, 6 / U, 14 / U, 12, 1);
+    const side = objMat(new THREE.MeshLambertNodeMaterial({ map: bake(barrelTex, 36, 14) })), lid = objMat(new THREE.MeshLambertNodeMaterial({ color: '#7a5030' }));
+    const m = new THREE.InstancedMesh(g, [side, lid, lid], 300); m.frustumCulled = false; m.count = 0; m.castShadow = m.receiveShadow = true; scene.add(m); return m;
+  })()
+};
+const _pq = new THREE.Quaternion(), _pv = new THREE.Vector3(), _ps = new THREE.Vector3(1, 1, 1), _propM = new THREE.Matrix4(), _rotZY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+/** every prop where its body is: Rapier's rotation is about the engine's axes (z up), so it turns into three's (y up) */
+function drawProps(vis) {
+  let nc = 0, nb = 0;
+  for (const p of PROPS) {
+    if (!vis(p.x, p.y, p.z - 8)) continue;
+    // a quaternion in engine axes (x, y, z) -> three's (x, z, y): swap the y and z parts and flip the handedness
+    _pq.set(-p.q[0], -p.q[2], -p.q[1], p.q[3]);
+    if (p.kind === 'barrel') _pq.multiply(_rotZY);   // (the barrel's cylinder stands along Rapier's y, three's along its own y)
+    _propM.compose(toThree(p.x, p.y, p.z, _pv), _pq, _ps);
+    if (p.kind === 'crate') PROP_MESH.crate.setMatrixAt(nc++, _propM); else PROP_MESH.barrel.setMatrixAt(nb++, _propM);
+  }
+  PROP_MESH.crate.count = nc; PROP_MESH.barrel.count = nb;
+  PROP_MESH.crate.instanceMatrix.needsUpdate = PROP_MESH.barrel.instanceMatrix.needsUpdate = true;
+  return nc + nb;
+}
+
 /* ---- the crowd, each frame ---- */
-let view3 = game.view;   // the engine view this frame (40-frame sets it)
 const fade = e => !e.alive ? clamp(e.type === 'wisp' ? 1 - e.deadT / POP_T : (DEAD_T - e.deadT) * 2, 0, 1) : e.spawnT > 0 ? clamp(1 - e.spawnT / .6, .05, 1) : 1;
+const SEEN = new Set();
+/** a blob shadow on the surface under a body (smaller and lighter the higher the body is above it) */
+function shadowAt(x, y, z, r, a) {
+  const f = floorH(x, y), up = Math.max(0, z - f), k = Math.max(.35, 1 - up / 80), sh = P3[23];
+  sh[0] = x / U; sh[1] = (f + .2) / U; sh[2] = y / U; BATCH.blob.ball(sh, r * k / U * a, 1, r * k * .8 / U * a, BLACKISH);
+}
 /** draw the hero and every monster the camera sees; returns { drawn, culled }. o: { view (the engine view the cards are
- *  drawn from), vis(x, y, z) (on screen?), look, outlines, v (the camera's axes), hideHero (first person) } */
+ *  drawn from), vis(x, y, z) (on screen?), look, outlines, v (the camera's axes and the cards' pixels per metre),
+ *  hideHero and near: [x, y, r] (first person: the hero isn't drawn, nor anything within r of him) } */
 function drawCrowd(o) {
   const { view, vis, look, outlines, v } = o;
-  view3 = view;
   for (const b of Object.values(BATCH)) b.begin();
-  CAPE.begin();
-  const list = [], h = G.hero;
-  for (const L of [G.enemies, G.corpses]) for (const e of L) { if (e.type !== 'wisp' && !vis(e.x, e.y, e.z || 0)) continue; list.push(e); }
+  CAPE.begin(); SEEN.clear();
+  const list = [], h = hero;
+  const nr = o.near;   // (first person: a body pressed against the camera isn't drawn; it would fill the picture)
+  for (const L of [enemies, corpses]) for (const e of L) { if (!vis(e.x, e.y, e.z || 0) || (nr && Math.abs(e.x - nr[0]) < nr[2] && Math.abs(e.y - nr[1]) < nr[2] && Math.hypot(e.x - nr[0], e.y - nr[1]) < nr[2])) continue; list.push(e); SEEN.add(e); }
   const cards = look === 'card';
   if (cards) ATLAS.begin(view);
   let drawn = 0;
-  const u = 1 / U, sh = P3[23];
   for (const e of list) {
     const a = fade(e), flash = e.flash > 0, sink = (a - 1) * (e.type === 'slime' ? 16 : 34);
     if (e.type === 'wisp') { wispParts(e); drawn++; continue; }
-    // the blob shadow under every body (the 2D page's r.shadow), smaller as a slime rises
-    sh[0] = e.x * u; sh[1] = .012; sh[2] = e.y * u; const sr = (e.type === 'slime' ? 6 - Math.min(3, (e.z || 0) * .1) : 5) * u * a; BATCH.blob.ball(sh, sr, 1, sr * .8, BLACKISH);
+    shadowAt(e.x, e.y, e.z, e.type === 'slime' ? 6 : 5, a);
     drawn++;
     if (cards && ATLAS.add(e.x, e.y, e.z || 0, (g, ox, oy) => e.rig ? e.rig.draw(g, ox, oy, view) : e.blob.draw(g, ox, oy, view), flash, a, v)) continue;
     if (e.rig) { e.rig._cheat = 0; _sink = sink; humanParts(e.rig, flash); if (e.rig.capeL && e.rig.o.cape) CAPE.add(e.rig, sink, flash); }
     else slimeParts(e, flash, sink);
   }
-  // the hero last (as the 2D page draws him over the crowd): fades out when he falls, a shadow under him; not in first
-  // person (the camera is his eyes)
+  // the hero last (over the crowd, as on the 2D page): fades out when he falls; not in first person (the camera is his eyes)
   if (!o.hideHero && vis(h.x, h.y, h.z)) {
     const a = h.dead ? clamp(4 - h.deadT * 2, 0, 1) : 1, flash = h.flash > 0;
-    sh[0] = h.x * u; sh[1] = .012; sh[2] = h.y * u; if (!h.dead) BATCH.blob.ball(sh, 5.5 * u, 1, 4.4 * u, BLACKISH);
-    if (!(cards && ATLAS.add(h.x, h.y, h.z, (g, ox, oy) => h.rig.draw(g, ox, oy, view), flash, a, v))) { h.rig._cheat = 0; _sink = (a - 1) * 34; humanParts(h.rig, flash); if (h.rig.capeL) CAPE.add(h.rig, _sink, flash); }
+    if (!h.dead) shadowAt(h.x, h.y, h.z, 5.5, 1);
+    if (!(cards && ATLAS.add(h.x, h.y, h.z + h.hop, (g, ox, oy) => h.rig.draw(g, ox, oy, view), flash, a, v))) { h.rig._cheat = 0; _sink = (a - 1) * 34; humanParts(h.rig, flash); if (h.rig.capeL) CAPE.add(h.rig, _sink, flash); }
     drawn++;
   }
   _sink = 0;
-  if (cards) ATLAS.end(outlines, v.detail || 1);
+  if (cards) ATLAS.end(outlines, v.thick || 1);
   for (const b of Object.values(BATCH)) b.end(outlines);
   CAPE.end();
-  return { drawn, culled: G.enemies.length + G.corpses.length - list.length };
+  return { drawn, culled: enemies.length + corpses.length - list.length };
 }
 _sink = 0;

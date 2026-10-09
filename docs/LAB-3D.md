@@ -233,15 +233,70 @@ at `/stress-test` drawn by three.js instead of the engine's canvas. Locally, `ex
 - **No stalls mid-fight.** A material's first draw builds its shader and GPU pipelines (tens of milliseconds; the
   first benchmark showed it as a 1% low of 34 fps at 50 monsters). The first frame now draws everything once, empty,
   so every pipeline exists before the fight (again after a filter change); the effect pools share one material each;
-  the card atlas is fixed 512-pixel pages that are never remade and upload only when used. The test counts the GPU
-  pipelines during a fight: none are built.
+  the card atlas is fixed 512-pixel pages that are never remade and upload only when used, and every page shares one
+  shader (v0.13.0: three.js r182 gives an instanced mesh of 1,000 or fewer instances a shader of its own, so a page
+  has room for more, and reads its cells from one named attribute; before, each page past the two the warm-up made
+  built a pipeline the first time a crowd needed it). The test counts the GPU pipelines during a fight and with a
+  crowd of 400: none are built.
 - **A three.js r182 bug to remember:** an `InstancedMesh` with more than 1,000 instances whose matrices use
   `DynamicDrawUsage` never sends its changes to the GPU (the monsters vanished). The batches keep the default usage
-  and mark their update ranges each frame.
+  and mark their update ranges each frame. Its other side: with 1,000 or fewer, the matrices live in a uniform buffer
+  named after the mesh, so each such mesh made at run time compiles its own shader (see the card atlas above).
 - `node tools/lab3d-test.mjs` checks it on both backends: a fight with every monster kind in both looks with no
   pipeline built mid-fight, the panel's numbers, every camera and filter, W walking away from a fixed camera, the hero
   under the keys, no errors; and the 2D page's cameras (a `?cam=` link, a fixed camera staying put, side scrolling).
   Pictures in `check-output/lab3d/`.
+
+## The stress test as a 3D world (v0.13.0)
+
+`/stress-world` (Labs → Temporary → Stress test: 3D world; locally `examples/stress-world.html`) is the stress test built
+again from the ground up as a 3D game. It is not a fair head-to-head and isn't meant to be: it tries to do what the 2D
+stress test does (a torch-lit hall, a crowd that takes turns to attack, waves, a particle storm, the same panel and
+benchmark) the way a 3D game would, and may look and feel different. What it shares with the 2D games is what is
+truly shared: the animation system (the engine's rigs, `E.MOVES`, `E.Attack` and `E.Combo`, the particles' emitters,
+the pixel font) and the 2D hall's floor texture and layout. Everything else is its own (`src/stress-world/`).
+
+- **One coordinate system.** The game and Rapier both run in the engine's units with z up (16 units = 1 metre = one
+  tile; Rapier's length unit is 16, gravity -480 along z, the 2D slimes' own cartoon gravity), so the rigs, moves and
+  reaches read exactly as in the 2D games. three.js gets metres, y up, at the drawing's edge (`toThree`).
+- **The hall is text** (`10-hall.js`): a 64 x 44 ASCII map, one character per tile (`#` wall, `P` pillar, `w` low
+  wall, `t` brazier, `=` gallery, `^` stairs, `o` the rune dais). It is the 2D hall's layout from the same seeds, plus
+  what a 3D hall can add: a raised rune dais with a gentle slope all round, and two galleries along the north wall up
+  stairs. The colliders, the floor heights, the walkable grid and the meshes all come from the text. Every texture is
+  drawn by code (the floor is the 2D hall's own `floorTex`); pillars have plinths and capitals; braziers burn.
+- **Physics** (Rapier 0.19.3, SIMD; `20-sim.js`). The hero is a kinematic capsule moved by Rapier's character
+  controller: he walks, dashes, **jumps** (Space: onto low walls and galleries), climbs the stairs and the dais, pushes
+  crates, and shoves monsters aside. Every monster is a dynamic body (walkers capsules, slimes balls, wisps weightless
+  balls hovering over whatever is below): each step the 2D page's AI sets the velocity a monster wants and the physics
+  resolves the crowd, so there is no separation code; knockback is momentum. With **Launches** on, big hits (the spin,
+  the thrust) throw bodies up and the fallen fly with the blow, then slide; they stop blocking the crowd. Crates and
+  barrels (0 to 300) are knocked about by swings, bolts and the crowd. Swarming monsters follow a flow field over the
+  walkable grid, which knows that stairs and the dais's edge climb gently while a gallery's edge is a wall from below
+  and a drop from above: they find their way up the stairs after the hero; slimes hop, wisps fly.
+- **The proof** is the 3D world lab's: `SIM.run(600)` resets and plays a scripted fight (40 mixed monsters, the hero
+  walking a square, swinging, dashing, jumping and throwing) and hashes the state. The hash is the same on WebGPU and
+  WebGL 2 and when run again: the game reads its controls as input and never the renderer. Its randomness is seeded;
+  only particles and the rigs' idle motion use `Math.random` (looks, never read back).
+- **Cameras** (1 to 4; `40-cameras.js`). **View**: the engine's five views and a custom turn and tilt, as real 3D
+  cameras following the hero with the 2D camera's lag, in **perspective** (a lens: field of view) or **orthographic**
+  (the engine's projection; O switches); zoom, camera distance, turn, fix (F), a link. Walls facing an outside camera
+  are cut low, and pillars between the camera and the fight are cut to stumps. **Side scrolling** is orthographic, or
+  with **depth** (M) the 2D page's Mode 7 rail as a perspective camera. **Chase**, **first person** (bodies pressed
+  against the camera aren't drawn) and **fly** as on the 3D stress test, and F fixes any of them. In every camera W
+  walks away from it and the mouse aims at the floor.
+- **Drawing** (`30-crowd.js`, `35-effects.js`, `45-filters.js`): Cards (the engine draws each rig from the camera's
+  turn and tilt, at about the screen's pixel size where the hero stands) or Puppets in instanced batches; a blob
+  shadow on the surface under every body (under a thrown one too); telegraphs at the floor's height; trails, bolts,
+  particles; the filters of the 3D stress test. Resolution: the engine's pixels (the 2D page's 200 to 330 lines,
+  enlarged with whole pixels), balanced or full. Fog starts past the hero, however far the camera stands.
+- **The numbers.** The loop steps the game in equal steps no longer than a sixtieth, then draws once. The panel and
+  the benchmark split the CPU's time three ways: **physics** (Rapier's world step), **logic** (AI, combat, the rigs'
+  animation, particles) and **drawing**. In a headless Chromium the game alone costs about 1 ms a step with 100
+  monsters, 5.6 ms with 1,000 (2.6 ms physics) and 33 ms with 5,000 crowding the hero (21 ms physics).
+- `node tools/stress-world-test.mjs` checks it on both backends: the rules, the same proof hash, a fight in both looks
+  with no GPU pipeline built mid-fight, kills and launches, the hero jumping and climbing to a gallery with monsters
+  following, a crate knocked about, every camera and filter, W walking away from a fixed camera, the benchmark's
+  report. Pictures in `check-output/stress-world/`.
 
 ## Out of scope
 

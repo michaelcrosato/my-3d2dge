@@ -11,7 +11,8 @@
 //   4. it plays: the hero walks and swings under the keys and knocks crates about
 //   5. every camera and look draws a picture (screenshots in check-output/lab3d/, read them)
 //   6. the 3D stress test (/stress-3d: the 2D stress test's own game drawn by three.js) on both backends: a fight with every
-//      monster kind draws as cards and as puppets without building a GPU pipeline mid-fight (the warm-up's job), the
+//      monster kind draws as cards and as puppets without building a GPU pipeline mid-fight (the warm-up's job; nor when
+//      the crowd grows past the card atlas pages the warm-up made), the
 //      panel's numbers fill in, every camera draws (side, custom, chase, first person, fly, fixed; W walks away from a
 //      fixed one), every filter draws (cel, pixel, on everything, the characters, the hall; bloom, FXAA), the hero moves
 //   7. the 2D stress test's cameras: a ?cam= link opens its custom view fixed in place, a fixed camera stays put while
@@ -204,6 +205,12 @@ for (const want of ['webgl', 'webgpu']) {
   // no stall: the load-time warm-up built every pipeline the fight needs (a new one mid-fight costs tens of ms)
   const p1 = await pipelines();
   if (p0 !== null && p1 !== p0) fail(`stress-3d ${label}: ${p1 - p0} GPU pipelines were built during the fight (the warm-up should have built them)`);
+  // a crowd that needs more card atlas pages than the warm-up made: still none (every page shares one shader)
+  await page.evaluate(() => { __stress3d.set('look', 'card'); const G = __game; G.setMonsters(400, true); for (let i = 0; i < 120; i++) G.game._step(1 / 120); });
+  await frames('a big crowd', 6);
+  const big = await page.evaluate(() => __stress3d.stats.drawn), p2 = await pipelines();
+  if (p0 !== null && p2 !== p0) fail(`stress-3d ${label}: ${p2 - p0} GPU pipelines were built when the crowd grew to ${big} cards on screen (a new atlas page should share the first one's)`);
+  await page.evaluate(() => __game.setMonsters(36, true));
   // the panel's numbers
   const panel = await page.evaluate(() => ['fpsBig', 'mMonsters', 'mRender', 'mGpu'].map(id => document.getElementById(id).textContent));
   if (!/\d/.test(panel[1]) || !/three\.js/.test(panel[3])) fail(`stress-3d ${label}: the panel's numbers did not fill in (${panel.join(' | ')})`);
