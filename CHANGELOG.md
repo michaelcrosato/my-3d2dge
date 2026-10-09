@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.14.1 (2026-10-09)
+
+The 3D world is leaving to become its own engine, in its own repository.
+
+- **Docs**: `docs/HANDOFF-3D-WORLD.md`, the brief for the new repository: what to take from the two 3D labs (the stress-world lab as the base, the 3D world lab's mocap, Dan and puppet parts), the vendored libraries, the engine API both depend on (private rig fields included), the tools and the lessons; which principles carry over and which diverge; how to stand it up; and the checklist for removing the labs here afterwards.
+
 ## 0.14.0 (2026-10-09)
 
 The 3D-drawn stress test is retired: two clear tools remain, the engine for 2D and its classic "3D" views, and the 3D world for real 3D.
