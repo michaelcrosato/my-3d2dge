@@ -160,7 +160,7 @@ const shots = [];
 function fireBolt() {
   const h = hero, a = h.aim !== undefined ? h.aim : h.facing;
   h.facing = a;
-  const hand = h.rig.J.handR ? h.rig._w(h.rig.J.handR) : [0, 0, 12];
+  const hand = h.rig.J.handR ? h.rig.worldOffset(h.rig.J.handR) : [0, 0, 12];
   shots.push({ x: h.x + hand[0] + Math.cos(a) * 4, y: h.y + hand[1] + Math.sin(a) * 4, z: Math.max(8, hand[2]), vx: Math.cos(a) * 250, vy: Math.sin(a) * 250, life: 1.1, from: 'hero', dmg: 9, color: '#ffb347', core: '#fff3c4', r: 3 });
   P.sparks(h.x + Math.cos(a) * 8, h.y + Math.sin(a) * 8, 12, 4, a, { color: '#ffb347' });
   h.rig.kick(1.5);

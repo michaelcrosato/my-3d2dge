@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.15.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.16.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -197,6 +197,7 @@ Humanoid: new E.Humanoid({ size: 1.3, build: 'chibi' | 'heroic' | 'bulky', weapo
     (+ = up); pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'block' | 'die' | 'down';
     stance: 'guard' (fists up) | 'ready' (weapon forward); run: 0..1 runs in place
   rig.draw(g, ox, oy, r.view) inside r.actor; rig.hand(), rig.tip() -> world points to spawn bullets; rig.kick(v) squash
+  rig.worldOffset(rig.J.head) -> [dx, dy, dz] of any joint from the feet (add rig.x, y, z for the world point)
 Attack: const slash = new E.Attack('slash' | spec, overrides); if (input.buffered('attack') && slash.start()) input.consume('attack');
   slash.update(dt) -> phase that began ('active' = play the swing sound); slash.hits(targets, t => E.inArc(hero, facing, t,
   22, 1.4), t => {...}) hits each target once per swing; rig.update(dt, { ..., attack: slash.state }); busy, active, cancel()
@@ -348,7 +349,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.15.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.16.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1091,8 +1092,9 @@ class Game {
     this.view = this._view(this.o.view) || E.VIEWS.iso;
     this.views = this.o.views || null;   // views the game supports: nextView() cycles them
     this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this.shakeAmt = 0; this.reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-    // smooth = seconds of lag (0 = locked), bounds(view) = clamp rect, room = [w, h] screen-by-screen rooms, moving = sliding between rooms
-    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false };
+    // smooth = seconds of lag (0 = locked), bounds(view) = clamp rect, room = [w, h] screen-by-screen rooms, moving = sliding between rooms,
+    // offset = [dx, dy] screen pixels from the screen's centre to where the focus sits ([0, -40] keeps it above on-screen buttons)
+    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null };
     this.particles = new Particles(this); this.r = new Renderer(this); this.audio = new ChipAudio(this);
     this.fps = 60; this.paused = false; this.pauseOverlay = true; this.timers = []; this.errors = []; this._errKeys = new Set();
     this.fadeTime = .22; this._fade = null; this.scenes = null; this.scene = null; this.sceneName = null; this._next = null;
@@ -1141,8 +1143,8 @@ class Game {
       fx = (Math.floor(fx / rw) + .5) * rw;
       if (this.view.isSide) fz = (Math.floor(fz / rh) + .5) * rh; else fy = (Math.floor(fy / rh) + .5) * rh;
     }
-    const [sx, sy] = this.view.p(fx, fy, fz);
-    let tx = sx - this.screen.W / 2, ty = sy - this.screen.H / 2;
+    const [sx, sy] = this.view.p(fx, fy, fz), off = c.offset;
+    let tx = sx - this.screen.W / 2 - (off ? off[0] : 0), ty = sy - this.screen.H / 2 - (off ? off[1] : 0);
     const b = c.bounds && c.bounds(this.view);
     if (b) {
       const W = this.screen.W, H = this.screen.H, bottom = (c.align || (this.view.pitchDeg < 40 ? 'bottom' : 'center')) === 'bottom';
@@ -1295,6 +1297,9 @@ class Humanoid {
   kick(v) { this.sqV += v; }
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   tip() { const J = this.J, L = this.o.weapon === 'gun' ? 5 : this.o.weapon === 'staff' ? 10 : this.o.bladeLen, w = this._w(V3.add(J.handR, V3.mul(J.bladeDir, L))); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
+  /** where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it)
+   *  sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint */
+  worldOffset(p) { return this._w(p); }
   _w(p) {
     const a = this.facing + this.spin + this._cheat, c = Math.cos(a), s = Math.sin(a), sz = this.o.size, k = (1 - this.sq * .4) * sz;
     return [(p[0] * c - p[1] * s) * k, (p[0] * s + p[1] * c) * k, p[2] * (1 + this.sq) * sz];
@@ -1450,7 +1455,7 @@ class Humanoid {
       const bx = -Math.cos(this.facing) * (c.body || 3.4) * sz, by = -Math.sin(this.facing) * (c.body || 3.4) * sz;
       for (const s of [-1, 1]) { const a = anchor(s), ch = s < 0 ? this.capeL : this.capeR; for (let i = 0; i < N; i++) { const k = Math.min(1, i / 2); ch.push({ x: a[0] + bx * k, y: a[1] + by * k, z: a[2] - i * seg, px: a[0] + bx * k, py: a[1] + by * k, pz: a[2] - i * seg }); } }
     }
-    const damp = Math.pow(.982, dt * 120), dt2 = dt * dt, fx = Math.cos(this.facing), fy = Math.sin(this.facing);
+    const damp = Math.pow(.982, dt * 120), dt2 = dt * dt, fx = Math.cos(this.facing + this.spin), fy = Math.sin(this.facing + this.spin);   // trails behind the body's turn
     for (const [ch, s] of [[this.capeL, -1], [this.capeR, 1]]) {
       const a = anchor(s); Object.assign(ch[0], { x: a[0], y: a[1], z: a[2], px: a[0], py: a[1], pz: a[2] });
       for (let i = 1; i < N; i++) {
@@ -1478,6 +1483,22 @@ class Humanoid {
       }
     }
   }
+  /**
+   * Sp(joint, f, r, z): a detail drawn around a joint (the face, belt, toes) at offsets in the body's own frame,
+   * projected by S. A knocked-down body turns them backward with it. While a motion clip plays (Mocap.drive sets
+   * mocapTilt: the clip's body and head frames, 3x3, columns forward, right, up) they lean, roll and turn upside down with
+   * the body, and the face with the head; the weapon hand's offsets (the blade) are already in the rig's frame.
+   */
+  _offsets(S) {
+    const J = this.J, T = this.mocapTilt;
+    if (T) return (p, df = 0, dr = 0, dz = 0) => {
+      if (p === J.handR) return S(p[0] + df, p[1] + dr, p[2] + dz);
+      const m = p === J.head ? T.head : T.body;
+      return S(p[0] + m[0] * df + m[1] * dr + m[2] * dz, p[1] + m[3] * df + m[4] * dr + m[5] * dz, p[2] + m[6] * df + m[7] * dr + m[8] * dz);
+    };
+    const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);
+    return dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
+  }
   draw(g, ox, oy, view) {
     this._pitch = view.pitchDeg;
     if (this.o.charView !== false) view = charView(view);
@@ -1492,8 +1513,7 @@ class Humanoid {
     const an = this.facing + this.spin + this._cheat, ca = Math.cos(an), sa = Math.sin(an), k = (1 - this.sq * .4) * sz, kz = (1 + this.sq) * sz;
     const vax = view.ax, vay = view.ay, vbx = view.bx, vby = view.by, vbz = view.bz, vdx = view.dx, vdy = view.dy, vdz = view.dz;
     const S = (f, r, z) => { const wx = (f * ca - r * sa) * k, wy = (f * sa + r * ca) * k, wz = z * kz; return [ox + vax * wx + vay * wy, oy + vbx * wx + vby * wy + vbz * wz, vdx * wx + vdy * wy + vdz * wz]; };
-    const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);
-    const Sp = dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
+    const Sp = this._offsets(S);   // details around a joint (face, belt, toes) turn with the body
     const Q = {};
     for (const key of JOINT_KEYS) Q[key] = Sp(J[key]);
     const lq = (A, B, t) => [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t];
@@ -2574,6 +2594,9 @@ class ChipAudio {
   constructor(game) {
     this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this._waves = {};
+    // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
+    // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
+    this.rnd = rng(0x51A7E);
   }
   _init() {
     if (this.ctx || this.failed) return this.ctx;
@@ -2584,7 +2607,7 @@ class ChipAudio {
       this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
       this.musBus = c.createGain(); this.musBus.connect(this.master);
       this._levels();
-      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
       this.noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
       for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true });
@@ -2633,7 +2656,7 @@ class ChipAudio {
     if (this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
-    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (Math.random() * 2 - 1));
+    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
     try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this.sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }

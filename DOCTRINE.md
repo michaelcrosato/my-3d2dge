@@ -7,7 +7,8 @@ says how it applies here, what was grandfathered when it was adopted, and which 
 
 Read this as a trusted, capable manager building an engine that you and others will use. We don't spell out the obvious;
 use your judgment. Every principle is a default with a reason. When the reason doesn't hold, deviate and say why (see
-[Deviations and escalation](#deviations-and-escalation)). This document changes the same way.
+[Deviations and escalation](#deviations-and-escalation)). Variation is how discovery works: a deviation with a case for
+it is welcome, not merely tolerated. This document changes the same way.
 
 Two kinds of work carry different weight:
 
@@ -131,10 +132,11 @@ A principle without a check drifts.
 
 - **In a prototype:** deviate whenever it helps the idea, and note it in one line in the prototype's pitch. No approval
   is needed, except for binary assets (principle 4).
-- **In the engine:** escalate. Say which principle, what you recommend and why, then keep working on whatever doesn't
-  depend on the answer. If nothing is left and 15 minutes pass with no response, make your call in its own commit so it
-  can be reverted alone, and continue. For the rest of that run, or until a human responds, report further conflicts
-  without stopping.
+- **In the engine:** escalate. Say which principle, what you recommend and why, arm a wake-up timer for 15 minutes,
+  and keep working on whatever doesn't depend on the answer; with nothing left, end your turn and let the timer bring
+  you back. If it fires with no response, make your call in its own commit so it can be reverted alone, and continue.
+  An answer that comes first cancels the timer. For the rest of that run, or until a human responds, report further
+  conflicts without stopping.
 - **Record:** every call made without a response goes in the decisions log (date, principle, the call, why, the commit)
   and in the PR description. The log is never cleaned up.
 - **A deviation that keeps winning** is a proposal to change this document.
@@ -148,7 +150,9 @@ Rationale: progress never stalls, and the worst case is a review, a change or a 
 my-3D2dge was deep in its development when the doctrine was adopted (v0.15.0). New work follows the doctrine; existing
 code that departs from it was **grandfathered**: it stays as it is, by a decision recorded in `docs/DECISIONS.md` that
 says why and what would reopen it. Gaps that are not grandfathered are **open**: closed when they surface, as the North
-Star says.
+Star says. The owner reviewed what was grandfathered and kept it (D10): my-3D2dge differs from the front-runners on
+purpose (pixel art drawn by code in the classic views, one HTML file that works anywhere), and where a difference has a
+case, it is part of what the engine is.
 
 ### The two tiers here
 
@@ -169,10 +173,10 @@ Star says.
 | 2 Agent-operable | Emberdeep: `window.__ed`, deep links (`#depth-7`, `#gallery/...`), the Developer panel over the `TUNE` knobs. Labs: `window.__sw`, `__lab3d`, `?cam=` links. `tools/ed-play.mjs` scripts input. | **Open:** the engine gives games no links to a moment or live tuning of their own; Emberdeep built both. Move them into the engine when a second game needs them. | the suites drive every page through these handles |
 | 3 Headless | Every suite runs in headless Chromium. `tools/check.mjs` plays a page and notes cheap-looking frames; `tools/filmstrip.mjs` records frame strips and `--compare` marks every pixel a change touched. Humans judge on the Vercel preview of each branch. | | `npm test` |
 | 4 Assets | Stricter than the doctrine: no image, sound or font files; fonts are drawn by code. Motion capture is stored as readable key poses with its provenance. | Approved (D7): the pictures our tools draw for the docs (`docs/assets/`). | `doctrine-check` (assets) |
-| 5 Deterministic | Under the harness: `filmstrip --seed` gives a virtual clock, seeded randomness, no sound, controller or GPU, and the same steps then give the same pixels. The 3D world's `SIM.run` gives the same hash on WebGPU, WebGL 2 and run again. | **Grandfathered (D4):** the engine's loop splits each frame into equal substeps, and Emberdeep draws from `Math.random`. New gameplay code takes time only from `dt` and the game's clocks, and randomness only from `Math.random` or `E.rng`. | `determinism-test` (the same run twice is identical, pixel for pixel), the 3D labs' proof hash |
+| 5 Deterministic | Under the harness: `filmstrip --seed` gives a virtual clock, seeded randomness, no sound, controller or GPU, and the same steps then give the same pixels. The 3D world's `SIM.run` gives the same hash on WebGPU, WebGL 2 and run again. Sound draws its own random numbers (v0.16.0), so sound on, off or muted never changes a run's. | **Grandfathered (D4):** the engine's loop splits each frame into equal substeps, and Emberdeep draws from `Math.random`. New gameplay code takes time only from `dt` and the game's clocks, and randomness only from `Math.random` or `E.rng`. **Open (D12):** replaying a session recorded on a device, built when the first bug seen there won't reproduce under the harness. | `determinism-test` (the same run twice is identical, pixel for pixel), the 3D labs' proof hash |
 | 6 WebGPU, CPU gameplay | Gameplay never reads the GPU: the engine's WebGPU lighting only draws, and the 3D labs ban read-backs. | **Grandfathered (D3):** the engine draws with Canvas 2D, with WebGPU only for optional lighting. The 3D labs keep three.js's WebGL 2 fallback. New GPU code is WebGPU, never WebGL. | the 3D labs' banned-API check |
 | 7 Common ground | Plain JavaScript, no dependencies in the engine or the games; tools are ES modules. | **Grandfathered (D5):** sources joined in name order into one shared scope, the build's `@inline` directives, the dense style. Every page ships as one self-contained HTML file. | |
-| 8 Quality under the hood | The agent edition's API is a strict subset of the full engine's, compared name by name. Errors show in an on-screen box, and warnings for common mistakes start with `my-3D2dge:`. | **Grandfathered (D6):** the engine-private members already used outside the engine, by area. First on the to-do list: `rig._w`, which the starter games use. | `doctrine-check` (boundary; `--todo` lists the to-do), `agent-test` (API subset) |
+| 8 Quality under the hood | The agent edition's API is a strict subset of the full engine's, compared name by name. Errors show in an on-screen box, and warnings for common mistakes start with `my-3D2dge:`. | **Grandfathered (D6):** the engine-private members already used outside the engine, by area. `rig._w` is public now as `rig.worldOffset(p)` (v0.16.0) and the starters use it; Emberdeep and the 3D labs keep the old name. | `doctrine-check` (boundary; `--todo` lists the to-do), `agent-test` (API subset) |
 | 9 Pin what agents know | The engine and games have no dependencies. The 3D labs pin three.js r182 and Rapier 0.19.3, vendored with checksums, chosen for what models know (D9). | | `vendor-3d --check`, the 3D labs' banned-API check |
 | 10 Discovery first | Development and tests run in headless Chromium on Linux (cloud sessions); the owner reviews each branch's Vercel preview on a phone, and the games are kept good enough there. | | |
 
@@ -193,3 +197,8 @@ yet hand a brief to a fresh agent.
 
 The decisions log is `docs/DECISIONS.md`. A call made without a response is also named in the pull request's
 description. A deviation in a prototype goes in one line in its `labs.json` entry instead.
+
+The 15-minute timer, in a cloud session (D11): `send_later` (the claude-code-remote tools) with `delay_minutes: 15`
+delivers a message back into the same session, even after the turn has ended; if the human answers first,
+`delete_trigger` cancels it. Where no such tool exists, ask, keep working, and make the call when the work reaches the
+point that needs the answer.

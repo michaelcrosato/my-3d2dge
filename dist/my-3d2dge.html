@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.15.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.16.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and five working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.15.0)
+# my-3D2dge API card (v0.16.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -194,7 +194,7 @@ game.start({ scene: 'title', scenes: {
 - In steep ground views (threequarter) rigs and Blobs are drawn from a lower, sprite-like angle so faces show, like SNES RPG sprites (`charView: false` turns it off for one rig, `E.style.charPitch = false` for all).
 - Faces (eyes with catch-lights, brows, mouth), a cheated 3/4 turn toward the camera in side views (`cheat: .5`, 0 turns it off) and hair layers are automatic. `face: { eyes: 'big' (anime / Mana style), bangs: 0..1 }`.
 - Poses: `rig.update(dt, { ..., pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' })` (victory with the weapon raised, spell casting, a boxer's guard, hurt or resting, ducking, greeting, a cocky idle, knocked out; they blend in and out), `'block'` (weapon held upright across the body), `'die'` (a stagger, the knees give, then the body topples), `expr: 'smile' | 'shout' | 'angry' | 'wince'` (faces and portraits), `run: 0..1` (run in place), or `down: 0..1` to lie a defeated body flat (centred on its position). `stance: 'guard'` keeps fists up while walking (brawlers; the free hand guards the chin during punches), `stance: 'ready'` holds the weapon forward. `climb: true` with `vz` climbs a ladder hand over hand (`Platformer.rigState()` passes both). Every wind-up starts from the rig's current pose, so chained hits and hand changes never snap. Idle rigs breathe and shift their weight by themselves.
-- `rig.draw(g, ox, oy, view)` inside `r.actor`, `rig.drawSmear(r)` (a glowing trail along the real blade, fist or foot path, in every view), `rig.debug(r)` (skeleton), `rig.kick(v)` (squash and stretch), `rig.hand()` and `rig.tip()` (world points to spawn bullets from).
+- `rig.draw(g, ox, oy, view)` inside `r.actor`, `rig.drawSmear(r)` (a glowing trail along the real blade, fist or foot path, in every view), `rig.debug(r)` (skeleton), `rig.kick(v)` (squash and stretch), `rig.hand()` and `rig.tip()` (world points to spawn bullets from), `rig.worldOffset(p)` (where a point in the rig's own frame, such as a joint in `rig.J`, sits from its feet: to draw or spawn at any joint).
 **Blob** (slimes, rabbites, bats, imps, round monsters): `new E.Blob({ R: 6, colors: { dk, base, lt, spec, eye, pupil }, ears: 'rabbit' | 'cat', horns: true, wings: true, feet: true, tail: true, mouth: true | 'fangs', face: 'front' })`, `update(dt, { squash: -0.4..0.4, look: [dx, dy], squint, walk: 0..1, flap: 0..1 (wing speed; 0 folds them), hang: true (roost upside down) })`, `kick(v)`, `draw(g, ox, oy, view)`. Mix the parts for a bestiary: `wings` + `mouth: 'fangs'` is a bat, `ears: 'rabbit'` + `feet` a Mana rabbite, `horns` + `tail` an imp.
 
 ## Effects and lighting
@@ -282,7 +282,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.15.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.16.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -341,7 +341,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.15.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.16.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -2073,6 +2073,9 @@ class Humanoid {
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   /** world position of the weapon tip (sword tip, gun muzzle, staff orb) */
   tip() { const J = this.J, L = this.o.weapon === 'gun' ? 5 : this.o.weapon === 'staff' ? 10 : this.o.bladeLen, w = this._w(V3.add(J.handR, V3.mul(J.bladeDir, L))); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
+  /** where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it)
+   *  sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint */
+  worldOffset(p) { return this._w(p); }
   /** local (f, r, z) -> world offset */
   _w(p) {
     const a = this.facing + this.spin + this._cheat, c = Math.cos(a), s = Math.sin(a), sz = this.o.size, k = (1 - this.sq * .4) * sz;
@@ -2349,7 +2352,6 @@ class Humanoid {
       }
     }
   }
-  /** draw into g with (ox, oy) = projected position of the rig's root */
   /**
    * Sp(joint, f, r, z): a detail drawn around a joint (the face, hair, belt, toes) at offsets in the body's own frame,
    * projected by S. A knocked-down body turns them backward with it. While a motion clip plays (Mocap.drive sets
@@ -2366,6 +2368,7 @@ class Humanoid {
     const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);
     return dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
   }
+  /** draw into g with (ox, oy) = projected position of the rig's root */
   draw(g, ox, oy, view) {
     this._pitch = view.pitchDeg;
     if (this.o.charView !== false) view = charView(view);
@@ -3991,6 +3994,9 @@ class ChipAudio {
   constructor(game) {
     this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this._waves = {};
+    // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
+    // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
+    this.rnd = rng(0x51A7E);
   }
   _init() {
     if (this.ctx || this.failed) return this.ctx;
@@ -4001,7 +4007,7 @@ class ChipAudio {
       this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
       this.musBus = c.createGain(); this.musBus.connect(this.master);
       this._levels();
-      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
       this.noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
       for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true });
@@ -4032,7 +4038,7 @@ class ChipAudio {
     if (wave === 'noise') {
       src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
       const f = c.createBiquadFilter(); f.type = p.filter || 'bandpass'; f.Q.value = p.q || 1.1; f.frequency.setValueAtTime(f0, t); if (to) f.frequency.exponentialRampToValueAtTime(to, end);
-      src.connect(f); f.connect(g); src.start(t, Math.random() * .5);
+      src.connect(f); f.connect(g); src.start(t, this.rnd() * .5);
     } else {
       src = c.createOscillator();
       if (wave === 'pulse' || wave === 'pulse12') src.setPeriodicWave(this._pulse(wave === 'pulse' ? .25 : .125));
@@ -4056,7 +4062,7 @@ class ChipAudio {
     if (this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
-    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (Math.random() * 2 - 1));
+    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
     try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this.sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
@@ -6726,8 +6732,8 @@ const RPG = (() => {
     px.ell(g, x - R * .2, y + cy + R * .6, R * .38, R * .18, '#ffc050'); px.poly(g, [[mx - R * .55, my], [mx + R * .55, my], [mx + R * .3, my + R * .42], [mx - R * .3, my + R * .42]], '#4a0a0a');
     for (const d of [-.32, 0, .32]) px.poly(g, [[mx + (d - .1) * R, my], [mx + (d + .1) * R, my], [mx + d * R, my + R * .22]], '#ffffff');
   };
-  // a rig joint on screen: rig._w gives the world offset of a local point, v.p projects it
-  const joint = (c, v, x, y, k, f = 0, s = 0, z = 0) => { const J = c.rig.J[k], w = c.rig._w([J[0] + f, J[1] + s, J[2] + z]), q = v.p(w[0], w[1], w[2]); return [x + q[0], y + q[1]]; };
+  // a rig joint on screen: rig.worldOffset gives where a point in the rig's frame sits, v.p projects it
+  const joint = (c, v, x, y, k, f = 0, s = 0, z = 0) => { const J = c.rig.J[k], w = c.rig.worldOffset([J[0] + f, J[1] + s, J[2] + z]), q = v.p(w[0], w[1], w[2]); return [x + q[0], y + q[1]]; };
   // the Dread Knight's plate: knee cops, shins, horns, a faceplate
   function knightPlate(g, x, y, c, v) {
     const m = E.tones('#b4bed8'), P = (k, f, s, z) => joint(c, v, x, y, k, f, s, z), r = c.rig.o.headR * c.rig.o.size * v.scale;
@@ -7335,7 +7341,7 @@ const BRAWL = (() => {
     if (rig.downW > .3) return;                  // lying flat: the rig alone
     const J = rig.J, o = rig.o, C = rig.C, u = view.scale * o.size, R = o.headR, r = R * u * .93, k = u / 3.4, q = Math.max(1, Math.round(k));
     const sk = E.tones(C.skin), gt = E.tones(C.glove || C.skin), ht = E.tones(C.hair), hd = ht.deep;
-    const S = (p, f = 0, s = 0, z = 0) => { const w = rig._w([p[0] + f, p[1] + s, p[2] + z]), v = view.p(w[0], w[1], w[2]); return [Math.round(ox + v[0]), Math.round(oy + v[1]), view.depth(w[0], w[1], w[2])]; };
+    const S = (p, f = 0, s = 0, z = 0) => { const w = rig.worldOffset([p[0] + f, p[1] + s, p[2] + z]), v = view.p(w[0], w[1], w[2]); return [Math.round(ox + v[0]), Math.round(oy + v[1]), view.depth(w[0], w[1], w[2])]; };
     const near = S(J.shR)[2] > S(J.shL)[2] ? 1 : -1, N = near > 0 ? 'R' : 'L', F = (f, s, z) => S(J.head, f * R, s * R, z * R), H = S(J.head), fw = Math.sign(F(1, 0, 0)[0] - H[0]) || 1, hurt = rig.hurtW > .5;
     const fm = F(.42, near * .12, -.22), cn = F(.72, near * .05, -.92), n0 = F(.95, 0, .1), n1 = F(1.12, near * .05, -.2), m = F(.92, near * .05, -.5);
     px.disc(g, fm[0], fm[1] + 1, r * .78, sk.sh); px.disc(g, cn[0], cn[1], r * .36, sk.sh);          // a face plate and a square jaw over the rig's round head

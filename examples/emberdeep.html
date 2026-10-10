@@ -35,7 +35,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.15.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.16.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -94,7 +94,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.15.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.16.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -1826,6 +1826,9 @@ class Humanoid {
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   /** world position of the weapon tip (sword tip, gun muzzle, staff orb) */
   tip() { const J = this.J, L = this.o.weapon === 'gun' ? 5 : this.o.weapon === 'staff' ? 10 : this.o.bladeLen, w = this._w(V3.add(J.handR, V3.mul(J.bladeDir, L))); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
+  /** where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it)
+   *  sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint */
+  worldOffset(p) { return this._w(p); }
   /** local (f, r, z) -> world offset */
   _w(p) {
     const a = this.facing + this.spin + this._cheat, c = Math.cos(a), s = Math.sin(a), sz = this.o.size, k = (1 - this.sq * .4) * sz;
@@ -2102,7 +2105,6 @@ class Humanoid {
       }
     }
   }
-  /** draw into g with (ox, oy) = projected position of the rig's root */
   /**
    * Sp(joint, f, r, z): a detail drawn around a joint (the face, hair, belt, toes) at offsets in the body's own frame,
    * projected by S. A knocked-down body turns them backward with it. While a motion clip plays (Mocap.drive sets
@@ -2119,6 +2121,7 @@ class Humanoid {
     const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);
     return dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
   }
+  /** draw into g with (ox, oy) = projected position of the rig's root */
   draw(g, ox, oy, view) {
     this._pitch = view.pitchDeg;
     if (this.o.charView !== false) view = charView(view);
@@ -3744,6 +3747,9 @@ class ChipAudio {
   constructor(game) {
     this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this._waves = {};
+    // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
+    // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
+    this.rnd = rng(0x51A7E);
   }
   _init() {
     if (this.ctx || this.failed) return this.ctx;
@@ -3754,7 +3760,7 @@ class ChipAudio {
       this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
       this.musBus = c.createGain(); this.musBus.connect(this.master);
       this._levels();
-      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
       this.noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
       for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true });
@@ -3785,7 +3791,7 @@ class ChipAudio {
     if (wave === 'noise') {
       src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
       const f = c.createBiquadFilter(); f.type = p.filter || 'bandpass'; f.Q.value = p.q || 1.1; f.frequency.setValueAtTime(f0, t); if (to) f.frequency.exponentialRampToValueAtTime(to, end);
-      src.connect(f); f.connect(g); src.start(t, Math.random() * .5);
+      src.connect(f); f.connect(g); src.start(t, this.rnd() * .5);
     } else {
       src = c.createOscillator();
       if (wave === 'pulse' || wave === 'pulse12') src.setPeriodicWave(this._pulse(wave === 'pulse' ? .25 : .125));
@@ -3809,7 +3815,7 @@ class ChipAudio {
     if (this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
-    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (Math.random() * 2 - 1));
+    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
     try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this.sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }

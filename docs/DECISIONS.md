@@ -74,6 +74,7 @@ An entry:
   will not reproduce under the harness.
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
+- **Revised by D12** (v0.16.0): the plan for replaying recorded sessions, and sound on its own random stream.
 
 ## D5 · 2026-10-10 · One-file pages and shared-scope sources stay (principle 7 grandfathered)
 
@@ -98,6 +99,8 @@ An entry:
   code that works. The ratchet stops it growing, and the to-do list says which names are wanted.
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
+- **Progress:** v0.16.0 made `rig._w` public as `rig.worldOffset(p)` in both editions; the starters and the arena use
+  it, and their entries left `GRANDFATHERED`. A new use of `_w` is told to use the public name.
 
 ## D7 · 2026-10-10 · Approved binaries and imported data
 
@@ -129,3 +132,53 @@ An entry:
 - **Why:** the choice already follows the adopted principle.
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
+
+## D10 · 2026-10-10 · The owner reviewed D3 to D6 and kept them
+
+- **Principle:** process (deviations)
+- **Call:** Canvas 2D (D3), determinism from the harness (D4, revised by D12), one-file pages and shared-scope sources
+  (D5) and the grandfathered private-member uses (D6) stay. A deviation with a case for it is welcome: the doctrine's
+  "How to read this" and `CLAUDE.md` now say so.
+- **Why:** the owner's words: variation is the key to discovery, so some deviation must happen where there is a case for
+  it; this engine is uniquely different from the four front-runners, and that counts for something.
+- **Answered:** yes, the owner.
+- **Landed in:** v0.16.0
+
+## D11 · 2026-10-10 · The 15-minute wait is a wake-up timer
+
+- **Principle:** process (escalation)
+- **Call:** an agent that escalates arms a 15-minute wake-up and keeps working; with nothing left it ends its turn. In a
+  cloud session the timer is `send_later` (claude-code-remote) with `delay_minutes: 15`, which delivers a message back
+  into the same session after the turn has ended; `delete_trigger` cancels it when the answer comes first. When it fires
+  with no answer, the agent makes the call in its own commit and logs it here.
+- **Why:** corrects the agent's earlier claim that a cloud session can't wait 15 minutes and resume: it can, by timer.
+  The owner asked.
+- **Answered:** yes, the owner.
+- **Landed in:** v0.16.0
+
+## D12 · 2026-10-10 · Replay recorded sessions, when a bug needs it; sound on its own random stream now
+
+- **Principle:** 5 (deterministic by construction)
+- **Call:** D4 argued that determinism needs an exact fixed step. Replaying a session doesn't: the engine's loop is
+  already a pure function of each frame's elapsed time, so the same frame times, the same inputs at the same frames and
+  the same random seed give the same game. Two parts:
+  - **Now (v0.16.0):** the chip synth draws its own random numbers (`ChipAudio.rnd`) in both editions. It used to draw
+    from `Math.random`: 44,100 numbers for its noise when sound first started (none where there is no Web Audio, as
+    under the harness), and one per sound effect, only while sound was running, unmuted, and the same effect hadn't
+    played in the last 35 ms of the audio clock. So whether sound existed, was unlocked, muted or busy shifted every
+    random number the game drew after it.
+  - **When it's needed:** a session recorder. Recording, installed before the game's code: a seed for `Math.random`;
+    each display frame's timestamp, with `performance.now` and `Date.now` reading it during the frame (Emberdeep's slow
+    motion and menus read the wall clock); every input event with the frame it arrived before (keys, pointer, wheel,
+    touch, blur, focus, visibility, resize; DOM buttons by selector), and gamepad snapshots per frame; the viewport and
+    pixel ratio; the save (`localStorage`) at the start; and a checksum every second (a game's own state hash when it
+    gives one) so a replay can say where it diverged. Replaying: a tool opens the page in headless Chromium at the
+    recorded viewport, restores the save, installs the seed and the clock, dispatches each event before its frame and
+    runs every frame, drawing included (some drawing draws random numbers too); then screenshots, filmstrips or
+    `__ed` queries at any frame. The owner turns recording on once (a Developer setting), plays on a phone, and on a
+    bug saves the session for an agent.
+- **Why:** a bug seen on a device becomes an exact, headless repro instead of a description; that's the biggest gain
+  determinism can give this repository. Building the recorder waits for its trigger, as the North Star asks: the first
+  bug seen on a device that the harness can't reproduce, or the owner wanting to send sessions as bug reports.
+- **Answered:** yes, the owner left it to the agent ("fix it, or leave it and see how it goes").
+- **Landed in:** v0.16.0 (the sound's stream); the recorder is open.
