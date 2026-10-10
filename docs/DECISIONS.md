@@ -272,3 +272,20 @@ An entry:
   repository's preferred asset format and let an agent inspect and change the same data the human sees.
 - **Answered:** yes, the owner requested this extension and a quick shared feedback loop in this session.
 - **Landed in:** v0.18.0
+
+## D18 · 2026-10-10 · Compact agent transactions and exact retry receipts
+
+- **Principle:** 1 (agent-readable), 2 (agent-operable), 3 (headless inspection), and 8 (errors in the tool's language).
+- **Call:** add compact animation reads and receipts, ordered animation batches with optional capture, explicit
+  project import and session status through MCP, structured results and errors, and immutable local export links.
+  Existing browser HTTP routes keep full snapshots. MCP callers explicitly ask for full projects or inline HTML.
+  A request ID wraps the complete save-and-capture result so a lost reply can be retried without repeating a change.
+  Retry receipts and export bytes are bounded in memory for the server session; the project remains ordinary JSON.
+- **Why:** the owner's completion audit exposed oversized agent replies and ambiguous retries after a lost response.
+  A one-key edit returned every clip; HTML exports returned the whole engine to the model. A repeated mirror or Undo
+  could be applied again if an agent treated an uncertain response as a failed save. Compact targeted reads, atomic
+  writes, and exact receipts shorten the prompt-to-preview loop without adding a model service or runtime dependency.
+- **Verification:** focused state, HTTP, MCP, and browser checks cover atomic rollback, retries after later edits,
+  bounded caches, useful failures, live pose changes, separate captures, immutable downloads, and offline play.
+- **Answered:** yes, the owner asked to finish and optimize the tool for LLM agents in this session.
+- **Landed in:** v0.19.0

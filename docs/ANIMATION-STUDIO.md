@@ -6,6 +6,9 @@ The studio uses the engine's readable humanoid clips. It can start with a new cl
 
 The same project can also hold readable models, procedural materials, objects, and levels. Open the **Scene** workspace to place actors that use these clips. See [Asset Studio](ASSET-STUDIO.md) for scene tools, atomic edit batches, and the edit-and-capture workflow.
 
+For a short first-use sequence and the complete MCP contract, read [Studio agents](STUDIO-AGENTS.md). It covers compact
+replies, animation batches, safe retries, project import, and download links.
+
 ![Animation Studio with a library walk, two figures, a timeline, and readable pose data](assets/animation-studio.png)
 
 The timeline and JSON panel edit the same clip. The source mannequin and game hero show how that motion fits each body.
@@ -78,16 +81,26 @@ The client discovers these tools and their input fields through MCP:
 
 | Tool | Input | Result |
 |---|---|---|
+| `studio_status` | None | Check the revision, editor URLs and connections, file errors, and capture setup. |
+| `studio_import` | `expectedRevision`, `project`; optional `requestId` | Import a complete shared project or a scene JSON export, with Undo. |
 | `animation_catalog` | Optional `query`, `set`, `limit`, and `offset` | Find existing library clips without reading all their poses. |
-| `animation_get` | Optional `id` and `includeSchema` | Read the current revision, project, clip, and pose format. |
-| `animation_create` | `expectedRevision`, `name`; optional `duration`, `loop`, `preset`, `set`, and `fromClip` | Create new motion, or copy a library clip with `fromClip`. |
-| `animation_edit` | `expectedRevision`, `action`; optional `summary` | Apply a structured edit to the shared project. |
+| `animation_get` | Optional `id`, `includeSchema`, and `full` | Read the current revision, clip inventory, and one complete clip. `full: true` includes the whole project. |
+| `animation_create` | `expectedRevision`, `name`; optional `duration`, `loop`, `preset`, `set`, `fromClip`, `capture`, and `requestId` | Create new motion, or copy a library clip with `fromClip`. |
+| `animation_edit` | `expectedRevision`, exactly one of `action` or `actions`; optional `summary`, `capture`, and `requestId` | Apply 1–100 actions as one revision and one Undo step; optionally return its PNG. |
 | `animation_preview` | Optional `id`, `time`, `playing`, `speed`, `view`, `cast`, `bones`, `facing`, and `zoom` | Set the controls in connected previews. |
 | `animation_capture` | `times`; optional `id`, `view`, `cast`, `bones`, `facing`, and `zoom` | Return a PNG image with one or more frames. |
-| `animation_history` | `expectedRevision` and `direction`: `undo` or `redo` | Restore an earlier or later project state. |
-| `animation_export` | Optional `id` and `format`: `json` or `js` | Export one clip as a native animation set, with its source data. |
+| `animation_history` | `expectedRevision` and `direction`: `undo` or `redo`; optional `requestId` | Restore an earlier or later project state. |
+| `animation_export` | Optional `id`, `format`: `json` or `js`, and `inline` | Export one clip as a native animation set, with its source data. `inline: false` returns a download link. |
 
-Use `animation_get` with `includeSchema: true` before the first edit. The schema describes the pose fields and accepted actions. Use a new revision for each edit that follows another accepted edit.
+Use `studio_status`, then `animation_get` with `includeSchema: true` before the first edit. The schema describes the
+pose fields and accepted actions. Use a new revision for each edit that follows another accepted edit. Default
+animation reads and edit replies omit other clips' keys and scene assets. Read one clip by `id`, or use `full: true`
+when you need a complete project. JSON replies include structured content as well as readable text.
+
+An animation batch uses ordered dependencies: create a clip before changing its keys or placing an actor that uses
+it. Add `capture` to `animation_edit` to save and inspect in one call. A failed action rolls back the whole batch.
+If saving succeeds and capture fails, `captureError` reports that failure alongside the saved revision. Do not
+repeat the edit; request another capture after correcting the problem.
 
 `preset` is `neutral` or `wave`. Both presets generate new keys. A source set supplies the body's proportions. To change an existing movement, use `set` and `fromClip`.
 
@@ -129,7 +142,13 @@ Use a short cycle for each change:
 4. Capture a still frame or a frame strip. Check the motion at several times and views.
 5. Keep the change, correct it, or use Undo.
 
-The revision prevents an old command from replacing a more recent edit. This check applies to MCP and HTTP writes. A direct file save replaces the complete project. If the server reports a revision conflict, read the new state. Apply the intended change to that state. Do not retry an old replacement unchanged.
+The revision prevents an old command from replacing a more recent edit. This check applies to MCP and HTTP writes.
+Give each intended edit a unique `requestId`. After a timeout, retry that ID with exactly the original arguments,
+including the old revision: the server returns the saved receipt rather than repeating the edit. A replay includes
+`replayed: true` and `currentRevision`, while `revision` remains the original edit's revision. Retry receipts last
+for the server session within a bounded cache. On a revision conflict, inspect current state before issuing a new
+request; the earlier edit may already have succeeded. A direct file save replaces the complete project and does not
+use request IDs. See [retry rules](STUDIO-AGENTS.md#retry-rules).
 
 An incoming edit keeps an unsaved JSON draft in the editor. The draft still has its earlier revision. Use **Read current** to replace the draft with the latest clip before you prepare another edit.
 
@@ -173,16 +192,20 @@ An agent without MCP can use the same local service through HTTP:
 
 | Endpoint | Use |
 |---|---|
+| `GET /api/status` | Discover editor connections, project errors, and capture setup. |
+| `GET /api/animation?id=Wave` | Read one clip and compact summaries. Add `includeSchema=true` or `full=true` explicitly. |
+| `POST /api/animation/edit` | Apply `{expectedRevision, requestId?, action? or actions?, summary?, capture?}`; return a compact receipt. |
 | `GET /api/state` | Read the project, revision, and history status. |
 | `GET /api/schema` | Read the pose and action schemas. |
 | `GET /api/catalog?query=walk&set=quaternius` | Find library clips. |
 | `GET /api/clip?set=quaternius&name=Walk_Loop` | Read one source clip. |
-| `POST /api/action` | Apply `{expectedRevision, action, source, summary?}`. |
+| `POST /api/action` | Apply `{expectedRevision, action, source, summary?, requestId?}` with a legacy full-state reply. |
 | `GET /api/project` | Read the project document. |
-| `PUT /api/project` | Replace it with `{expectedRevision, project}`. |
+| `PUT /api/project` | Replace it with `{expectedRevision, project, requestId?}`. `compact=true` returns a compact receipt. |
 | `POST /api/preview` | Change preview controls. |
 | `POST /api/capture` | Capture exact times with the same fields as `animation_capture`. |
 | `GET /api/export?id=Wave&format=js` | Download a native set. |
+| `GET /api/export?delivery=link` | Get an immutable local download descriptor instead of the file contents. |
 | `GET /api/events` | Receive live state, preview, and validation-error events. |
 
 Send JSON requests with `Content-Type: application/json`. Use `source: "agent"` for an agent edit. A stale revision returns HTTP `409`. A validation error includes a message that identifies the problem.

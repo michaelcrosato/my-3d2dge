@@ -3,6 +3,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, unlinkSync, statSync, watch } from 'node:fs';
 import { dirname, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 import { MR, readSet } from './mocap-lib.mjs';
 
@@ -19,6 +20,11 @@ export function object(value, label = 'Request') {
 }
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const serial = project => JSON.stringify(project);
+// Retain complete successful replies, including image content, for a bounded local retry window.
+export const REQUEST_CACHE_LIMITS = Object.freeze({ entries: 64, bytes: 32 * 1024 * 1024, pending: 32 });
+const stableJSON = value => JSON.stringify(value, (key, item) => item && typeof item === 'object' && !Array.isArray(item)
+  ? Object.fromEntries(Object.keys(item).sort().map(name => [name, item[name]])) : item);
+const retryGuidance = 'Read the current state and inspect whether the edit already applied before making a new request. Do not blindly repeat a transform, duplicate, undo or redo.';
 
 export function loadAssetModel(root = REPO_ROOT) {
   const sandbox = {}, file = resolve(root, 'src/asset-studio/model.js');
@@ -96,6 +102,19 @@ const only = (value, allowed, label) => {
   for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new StudioError('Unknown ' + label + ' field: ' + key + '.');
 };
 export const projectAssets = (project, assetModel) => project.assets || assetModel.createProject({ clipIds: [project.selected, ...Object.keys(project.clips).filter(id => id !== project.selected)] });
+/** Agent replies carry clip inventories, never unrelated animation keys or the whole scene. */
+export function animationReceipt(state, before) {
+  const p = state.project, clips = Object.entries(p.clips).map(([id, value]) => ({ id, set: value.set,
+    duration: value.clip.dur, loop: !!value.clip.loop, keys: value.clip.keys.length }));
+  const result = { revision: state.revision, name: p.name, selected: p.selected, canUndo: state.canUndo, canRedo: state.canRedo,
+    lastChange: state.lastChange, summary: { schema: p.schema, clips: clips.length, keys: clips.reduce((n, c) => n + c.keys, 0), assets: !!p.assets }, clips };
+  if (before) {
+    result.applied = state.revision !== before.revision;
+    result.changed = { clips: [...new Set([...Object.keys(before.project.clips), ...Object.keys(p.clips)])].filter(id => serial(before.project.clips[id]) !== serial(p.clips[id])),
+      assets: serial(before.project.assets) !== serial(p.assets), selection: before.project.selected !== p.selected };
+  }
+  return result;
+}
 export function sceneReceipt(state, assetModel, before) {
   const assets = projectAssets(state.project, assetModel);
   const rows = Object.entries;
@@ -167,18 +186,23 @@ export function studioSchema(model, sets, assetModel) {
     schema: 1, format: 'my-3D2dge readable key poses', legend: MR.LEGEND, fields: model.FIELDS,
     project: { schema: 1, name: 'Animation Studio', selected: 'Clip name', clips: { 'Clip name': { set: 'quaternius', clip: '{clip,src,dur,loop,keys,...}' } } },
     sets: catalog(sets, { limit: 1 }).sets, action: ACTION_SCHEMA,
-    request: { expectedRevision: 'Required current integer revision from GET /api/state', action: 'One action from the schema', source: 'agent or editor', summary: 'Optional short description' },
+    request: { expectedRevision: 'Required current integer revision from animation_get, scene_get or GET /api/state', action: 'One action from the schema',
+      actions: 'Alternatively, POST /api/animation/edit accepts 1 to 100 ordered actions as one atomic edit. Define an animation before adding an actor that uses it. Undo or redo must stand alone.',
+      source: 'agent or editor', summary: 'Optional short description', requestId: 'Optional unique ID (1 to 128 letters, digits, dots, underscores, colons or hyphens, starting with a letter or digit). Retry the exact original request and expectedRevision with this ID after a timeout.',
+      capture: 'POST /api/animation/edit accepts optional capture options to return a PNG of the saved revision in the same reply.' },
+    retries: { ...REQUEST_CACHE_LIMITS, persistence: 'Current server session only; bounded by completed receipt count and bytes. Duplicate in-flight requests join the original operation.',
+      receipt: 'A replay returns the original revision and result, replayed:true, and currentRevision. A successful edit with captureError must not be repeated.', recovery: retryGuidance },
     preview: { view: VIEWS, cast: CASTS, time: 'seconds', speed: '.05 to 4', facing: 'degrees from -180 to 180', zoom: '.5 to 3', bones: 'boolean', playing: 'boolean' },
-    endpoints: { state: 'GET /api/state', edit: 'POST /api/action', project: 'GET or PUT /api/project', live: 'GET /api/events (SSE)', catalog: 'GET /api/catalog?query=&set=&limit=50&offset=0', clip: 'GET /api/clip?set=&name=', preview: 'POST /api/preview', capture: 'POST /api/capture', export: 'GET /api/export?id=&format=json|js', scene: 'GET /api/scene', assets: 'GET /api/assets/catalog?includeSchema=true', sceneEdit: 'POST /api/scene/edit', scenePreview: 'POST /api/scene/preview', sceneCapture: 'POST /api/scene/capture', sceneExport: 'GET /api/scene/export?level=&format=json|html' },
+    endpoints: { state: 'GET /api/state', edit: 'POST /api/action', animation: 'GET /api/animation?id=&includeSchema=true&full=false', animationEdit: 'POST /api/animation/edit', project: 'GET or PUT /api/project', live: 'GET /api/events (SSE)', catalog: 'GET /api/catalog?query=&set=&limit=50&offset=0', clip: 'GET /api/clip?set=&name=', preview: 'POST /api/preview', capture: 'POST /api/capture', export: 'GET /api/export?id=&format=json|js', scene: 'GET /api/scene', assets: 'GET /api/assets/catalog?includeSchema=true', sceneEdit: 'POST /api/scene/edit', scenePreview: 'POST /api/scene/preview', sceneCapture: 'POST /api/scene/capture', sceneExport: 'GET /api/scene/export?level=&format=json|html' },
     ...(assetModel ? { assets: assetModel.schema() } : {})
   };
 }
 
 export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-studio/project.json'), root = REPO_ROOT, watchDebounce = 80 } = {}) {
   file = resolve(file);
-  const { model, assetModel, sets } = loadStudioResources(root), listeners = new Set(), undo = [], redo = [];
+  const { model, assetModel, sets } = loadStudioResources(root), listeners = new Set(), undo = [], redo = [], requests = new Map();
   let project, revision = Date.now(), lastChange = { source: 'studio', summary: 'Project opened' };
-  let diskText = '', canonical = '', lastError = null, timer, closed = false, saveID = 0;
+  let diskText = '', canonical = '', lastError = null, timer, closed = false, saveID = 0, requestBytes = 0;
   const emit = (event, data) => { for (const fn of listeners) fn(event, data); };
   const snapshot = () => ({ revision, project: model.clone(project), canUndo: undo.length > 0, canRedo: redo.length > 0, lastChange: { ...lastChange } });
   const record = (stack, p) => { stack.push(p); if (stack.length > 50) stack.shift(); };
@@ -189,7 +213,8 @@ export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-stud
     if (Buffer.byteLength(raw) > MAX_BYTES) throw new StudioError('Project exceeds the 8 MiB limit.');
     const tmp = resolve(dirname(file), '.' + basename(file) + '.' + process.pid + '.' + (++saveID) + '.tmp');
     try { writeFileSync(tmp, raw, { flag: 'wx', mode: 0o600 }); renameSync(tmp, file); }
-    catch (err) { try { unlinkSync(tmp); } catch {} throw new StudioError('Cannot save the project: ' + err.message, 500); }
+    catch (err) { try { unlinkSync(tmp); } catch {} throw new StudioError('Cannot save the project: ' + err.message, 500,
+      { code: 'SAVE_FAILED', recovery: 'The edit was not applied. Fix the project directory write error and retry with the same request.' }); }
     diskText = raw; canonical = serial(p); lastError = null;
   };
   mkdirSync(dirname(file), { recursive: true });
@@ -220,9 +245,11 @@ export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-stud
   watcher.on('error', err => { lastError = 'Cannot watch project file. ' + err.message; emit('error', { error: lastError, revision }); });
   const expect = value => {
     refresh();
-    if (!Number.isSafeInteger(value) || value < 0) throw new StudioError('expectedRevision must be the integer revision from GET /api/state.');
-    if (value !== revision) throw new StudioError('Revision conflict. Read the latest state and apply the edit again.', 409, { revision });
-    if (lastError) throw new StudioError('Fix the invalid project file before saving another edit. ' + lastError, 409, { revision });
+    if (!Number.isSafeInteger(value) || value < 0) throw new StudioError('expectedRevision must be the integer revision from animation_get, scene_get or GET /api/state.', 400,
+      { code: 'INVALID_REVISION', recovery: 'Read the current revision before making an edit.' });
+    if (value !== revision) throw new StudioError('Revision conflict. ' + retryGuidance, 409, { code: 'REVISION_CONFLICT', revision, recovery: retryGuidance });
+    if (lastError) throw new StudioError('Fix the invalid project file before saving another edit. ' + lastError, 409,
+      { code: 'INVALID_PROJECT_FILE', revision, recovery: 'Repair the JSON project file, then read the latest state. The last valid project and history remain active.' });
   };
   const change = (value, expected, source, summary, historyAction) => {
     expect(expected);
@@ -234,23 +261,72 @@ export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-stud
     else { record(undo, project); redo.length = 0; }
     project = next; revision++; lastChange = { source, summary }; const state = snapshot(); emit('state', state); return state;
   };
+  const sourceAndSummary = (body, fallback) => {
+    const source = body.source === undefined ? 'agent' : body.source;
+    if (!['agent', 'editor'].includes(source)) throw new StudioError('source must be agent or editor.');
+    return { source, summary: body.summary === undefined ? fallback : text(body.summary, 240, 'summary') };
+  };
+  const trimRequests = () => {
+    let count = [...requests.values()].filter(entry => entry.done).length;
+    for (const [id, entry] of requests) {
+      if (count <= REQUEST_CACHE_LIMITS.entries && requestBytes <= REQUEST_CACHE_LIMITS.bytes) break;
+      if (!entry.done) continue; // A duplicate request must join the original save/capture while it runs.
+      requests.delete(id); requestBytes -= entry.bytes; count--;
+    }
+  };
   return {
     file, model, assetModel, sets, snapshot, refresh,
     get lastError() { return lastError; },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    /** HTTP handlers wrap the complete save-and-capture operation so a lost reply can be retried exactly. */
+    async executeRequest(body, scope, work) {
+      object(body);
+      if (body.requestId === undefined) return work();
+      const id = body.requestId;
+      if (typeof id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id)) throw new StudioError('requestId must contain 1 to 128 letters, digits, dots, underscores, colons or hyphens, starting with a letter or digit.', 400,
+        { code: 'INVALID_REQUEST_ID', recovery: 'Use a unique ID for each intended edit. Reuse that ID and the exact original arguments only when retrying it.' });
+      const fingerprint = createHash('sha256').update(stableJSON({ scope, body })).digest('hex'), existing = requests.get(id);
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) throw new StudioError('requestId was already used with different arguments. Retry with the original arguments or use a new ID for a new edit.', 409,
+          { code: 'REQUEST_ID_CONFLICT', revision, requestId: id, recovery: 'Preserve the original expectedRevision and every argument when retrying a request. Use a new requestId for a different edit.' });
+        const value = await existing.promise;
+        refresh(); return { ...model.clone(value), replayed: true, currentRevision: revision };
+      }
+      if ([...requests.values()].filter(entry => !entry.done).length >= REQUEST_CACHE_LIMITS.pending) throw new StudioError('Too many identified requests are still in progress. Retry after an earlier request finishes.', 429,
+        { code: 'REQUEST_BUSY', revision, requestId: id, recovery: 'This request did not run. Retry the same requestId and original arguments after an earlier request completes.' });
+      const entry = { fingerprint, done: false, bytes: 0 };
+      requests.set(id, entry);
+      entry.promise = Promise.resolve().then(work).then(value => {
+        // Copy once to isolate cached receipts from their original caller. No failures are cached.
+        const result = { ...model.clone(value), requestId: id }; entry.bytes = Buffer.byteLength(serial(result)); entry.done = true;
+        if (!closed) { requestBytes += entry.bytes; trimRequests(); } return result;
+      }).catch(err => { if (requests.get(id) === entry) requests.delete(id); throw err; });
+      return model.clone(await entry.promise);
+    },
     apply(body) {
       object(body); expect(body.expectedRevision); object(body.action, 'action');
-      const source = body.source === undefined ? 'agent' : body.source;
-      if (!['agent', 'editor'].includes(source)) throw new StudioError('source must be agent or editor.');
-      const summary = body.summary === undefined ? body.action.type : text(body.summary, 240, 'summary');
+      const { source, summary } = sourceAndSummary(body, body.action.type);
       let next;
       if (body.action.type === 'undo' || body.action.type === 'redo') {
         if (Object.keys(body.action).some(key => key !== 'type')) throw new StudioError('Undo and redo actions accept only the type field.');
         const stack = body.action.type === 'undo' ? undo : redo;
-        if (!stack.length) throw new StudioError('There is no edit to ' + body.action.type + '.', 409, { revision });
+        if (!stack.length) throw new StudioError('There is no edit to ' + body.action.type + '.', 409,
+          { code: 'HISTORY_EMPTY', revision, recovery: 'Read canUndo and canRedo before requesting history. History is limited to the current server session.' });
         next = stack[stack.length - 1];
       } else next = model.apply(project, body.action, sets);
       return change(next, body.expectedRevision, source, summary, ['undo', 'redo'].includes(body.action.type) ? body.action.type : null);
+    },
+    applyBatch(body) {
+      object(body); expect(body.expectedRevision);
+      const actions = body.actions;
+      if (!Array.isArray(actions) || actions.length < 1 || actions.length > 100) throw new StudioError('Animation actions must contain 1 to 100 actions.');
+      if (actions.some(a => a?.type === 'undo' || a?.type === 'redo')) {
+        if (actions.length !== 1) throw new StudioError('Undo or redo must be the only action in its request.');
+        return this.apply({ ...body, action: actions[0] });
+      }
+      const { source, summary } = sourceAndSummary(body, actions.length === 1 ? actions[0]?.type : 'Edited ' + actions.length + ' animation actions');
+      const next = model.applyMany(project, actions, sets);
+      return change(next, body.expectedRevision, source, summary);
     },
     replace(body) {
       object(body); expect(body.expectedRevision);
@@ -259,10 +335,22 @@ export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-stud
       return change(body.project, body.expectedRevision, source, 'Project imported');
     },
     preview(body) {
+      refresh();
       const value = previewOptions(body, project);
       value.id = value.id ?? project.selected; // Every client must use the same target that time validation used.
       value.workspace = 'animation';
       emit('preview', value); return { ...value, revision };
+    },
+    animation(body = {}) {
+      only(body, ['id', 'includeSchema', 'full'], 'animation request'); refresh();
+      for (const key of ['includeSchema', 'full']) if (own(body, key) && typeof body[key] !== 'boolean') throw new StudioError(key + ' must be true or false.');
+      const state = snapshot(), id = body.id === undefined ? project.selected : body.id;
+      if (typeof id !== 'string' || !own(project.clips, id)) throw new StudioError('Project has no clip "' + String(id) + '". Provide an id from animation_get.', 404,
+        { code: 'CLIP_NOT_FOUND', revision, recovery: 'Read animation_get for the current clip IDs.' });
+      const result = { ...animationReceipt(state), inspected: { id, ...model.clone(project.clips[id]) } };
+      if (body.includeSchema) result.schema = studioSchema(model, sets);
+      if (body.full) result.project = state.project;
+      return result;
     },
     scene(body = {}) {
       only(body, ['type', 'id', 'level', 'includeSchema', 'full'], 'scene request'); refresh();
@@ -317,6 +405,6 @@ export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-stud
       const setName = JSON.stringify(out.set).replace(/</g, '\\u003c');
       return { id, set: out, text: format === 'js' ? '(window.MOCAP = window.MOCAP || {})[' + setName + '] = ' + escaped + ';\n' : json + '\n' };
     },
-    close() { closed = true; clearTimeout(timer); watcher.close(); listeners.clear(); }
+    close() { closed = true; clearTimeout(timer); watcher.close(); listeners.clear(); requests.clear(); requestBytes = 0; }
   };
 }

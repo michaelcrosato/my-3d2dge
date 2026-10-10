@@ -312,13 +312,14 @@ try {
     assert.ok(initialized.capabilities.tools);
     mcp.notify('notifications/initialized', {});
     const tools = await mcp.call('tools/list', {});
-    assert.ok(tools.tools.length >= 4);
+    assert.equal(tools.tools.length, 16);
     // Kept explicit so a changed public tool contract requires a corresponding test and guide update.
     const names = tools.tools.map(tool => tool.name);
-    for (const name of ['animation_catalog', 'animation_get', 'animation_create', 'animation_edit', 'animation_preview', 'animation_capture', 'animation_history', 'animation_export']) assert.ok(names.includes(name), 'Missing MCP tool: ' + name);
+    for (const name of ['animation_catalog', 'animation_get', 'animation_create', 'animation_edit', 'animation_preview', 'animation_capture', 'animation_history', 'animation_export', 'studio_status', 'studio_import']) assert.ok(names.includes(name), 'Missing MCP tool: ' + name);
     const stateResult = await mcp.call('tools/call', { name: 'animation_get', arguments: {} });
     assert.ok(!stateResult.isError, JSON.stringify(stateResult));
     const state = stateResult.structuredContent || JSON.parse(stateResult.content.find(c => c.type === 'text').text);
+    assert.equal(state.project, undefined); assert.equal(state.selected, 'Live Greeting'); assert.equal(state.inspected.id, 'Live Greeting');
     const result = await mcp.call('tools/call', { name: 'animation_edit', arguments: { expectedRevision: state.revision, action: { type: 'edit_key', id: 'Live Greeting', time: 0, values: { armR: [0, 0, 100, 0, 0] } } } });
     assert.ok(!result.isError, JSON.stringify(result));
     await live.waitForFunction(() => __animationStudio.project.clips['Live Greeting'].clip.keys[0].armR[2] === 100);

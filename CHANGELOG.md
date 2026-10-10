@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.19.0 (2026-10-10)
+
+- **Tools**: Animation reads and edit receipts stay compact; unrelated clips and scene data are returned only with `full: true`. `animation_edit` accepts 1 to 100 ordered actions as one revision and Undo step, with an optional exact-time image in the same reply.
+- **Tools**: Optional `requestId` values let an agent recover a lost edit response without applying a mirror, duplication, or Undo twice. Identical concurrent requests share one result, including its captured image. Revision conflicts and other errors include machine-readable recovery guidance.
+- **Tools**: `studio_status` reports the shared revision, connected editors, invalid-file errors, and image-capture setup. `studio_import` loads complete projects or scene JSON exports through MCP with the same revision check and history as the editor.
+- **Tools**: MCP HTML exports return a small download descriptor and resource link by default. The link holds the exact exported bytes across later edits. `inline: true` retains inline output. Download storage is local and bounded.
+- **Tools**: MCP JSON replies expose structured content, protocol errors use JSON-RPC error codes, and long captures no longer block unrelated reads or pings. Immediate animation preview requests refresh watched-file changes before choosing the clip.
+- **Tools**: Agent workflow checks cover compact payloads, atomic animation batches, retry recovery, imports, protocol behavior, live pose updates, immutable downloads, and offline playback.
+- **Docs**: `docs/STUDIO-AGENTS.md` gives a short first-use contract, one-call authoring examples, retry rules, and precise scope. Existing studio guides describe the expanded MCP interface.
+
 ## 0.18.0 (2026-10-10)
 
 - **Animation**: Animation Studio creates original clips and copies existing motion into a project. Pose controls, a timeline, and live JSON edit the same readable keys. Both the source mannequin and game hero show the result in five views, with frame stepping and a bone overlay.

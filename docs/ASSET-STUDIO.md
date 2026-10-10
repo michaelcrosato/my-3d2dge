@@ -2,6 +2,8 @@
 
 Asset Studio lets a person and an AI agent build the same scene. It adds readable models, procedural materials, placed objects, and tile levels to [Animation Studio](ANIMATION-STUDIO.md). An actor in a level can use a clip from the animation project. When the agent changes that clip, the actor shows the change too.
 
+For first calls, efficient replies, safe retries, and the full MCP workflow, start with [Studio agents](STUDIO-AGENTS.md).
+
 Keep the browser beside the conversation. Describe a change, let the agent apply it, and judge the result in the open scene. Accepted edits update the browser without a page reload or a rebuild. The agent can request an image in the same call that changes the scene.
 
 ![Asset Studio with a courtyard, reusable models, procedural materials, and a placed animation actor](assets/asset-studio.png)
@@ -86,18 +88,22 @@ Replace the path with the absolute path to your checkout. For a different server
 
 ### Asset tools
 
-The six new tools work beside the eight animation tools:
+The six asset tools work beside eight animation tools and the shared `studio_status` and `studio_import` tools:
 
 | Tool | Use |
 |---|---|
 | `asset_catalog` | Discover presets, part shapes, texture patterns, limits, and action examples. `includeSchema: true` adds the exact JSON schemas. |
 | `scene_get` | Read the current revision and a compact inventory. Use `type` and `id` to inspect a `material`, `model`, `level`, or `object`. Use `level` for an object in another level. |
-| `scene_edit` | Send `expectedRevision`, an `actions` array, and an optional short `summary`. Add `capture` to get a PNG in the same reply. |
+| `scene_edit` | Send `expectedRevision`, an `actions` array, and optional `requestId` and `summary`. Add `capture` to get a PNG in the same reply. |
 | `scene_preview` | Set `level`, `view`, `zoom`, `focus`, `selected`, `grid`, `time`, `playing`, or `mode`. Preview settings do not save assets or add history. |
 | `scene_capture` | Return a PNG still or frame strip for one level at exact times. |
-| `scene_export` | Export one level as a readable JSON project or a self-contained HTML page. |
+| `scene_export` | Export readable JSON or a link to a self-contained HTML page. `inline: true` explicitly requests all the HTML text. |
 
 `scene_get` and `scene_edit` report the same revision used by `animation_get` and `animation_edit`. Use `animation_history` with `direction: "undo"` or `"redo"` to undo either kind of edit.
+
+Call `studio_status` first to check editor connections, project-file errors, and capture setup. Use `studio_import`
+to load a complete project or scene JSON export with the same revision protection and Undo history. Default JSON
+results include structured content. Use `full: true` only when you need all the project's data.
 
 Capture accepts 1 to 8 scene times from 0 to 600 seconds; the default is `[0]`. The five views are `iso`, `threequarter`, `topdown`, `brawler`, and `side`. `zoom` is from `0.5` to `3`. `focus` is a world point `[x,y,z]`. Use `selected: null` and `grid: false` for a clear image without an object outline or edit grid.
 
@@ -110,6 +116,7 @@ This example uses the built-in courtyard assets. Read `scene_get` first and repl
 ```json
 {
   "expectedRevision": 123,
+  "requestId": "path-crate-001",
   "summary": "Darken the timber and place a crate beside the path",
   "actions": [
     {
@@ -208,13 +215,24 @@ Use the animation tools to author or copy the clip first. The scene keeps a refe
 
 The browser controls, JSON editor, MCP tools, HTTP endpoints, and watched file all use the same validated data. They share Undo and Redo. The session keeps up to 50 history states; saved project data survives a restart, but Undo history does not.
 
-A write needs the revision that the agent or editor last read. If another edit arrived first, HTTP returns `409` and MCP reports a revision conflict. Read the latest state, review the change, and prepare the edit against that state. Do not resend an old replacement unchanged. A direct file save replaces the complete project, so read the file before changing it and preserve the clip and source records.
+A write needs the revision that the agent or editor last read. If another edit arrived first, HTTP returns `409` and
+MCP reports a structured revision conflict. Use a unique `requestId` for each intended write. If its response is lost,
+resend that ID and exactly the same arguments, including the original revision. A replay returns the original receipt
+and image without applying the edit again. `currentRevision` may be newer than the receipt's `revision`; read current
+state before preparing another edit. After restart, receipt expiry, or a conflict, inspect whether the earlier change
+already happened. Do not blindly repeat a duplication or Undo. A direct file save replaces the complete project, so
+read the file before changing it and preserve the clip and source records. See [retry rules](STUDIO-AGENTS.md#retry-rules).
 
 Incomplete or invalid JSON leaves the last valid scene on screen. The server rejects other writes until an invalid watched file is repaired. This prevents a later command from silently discarding a file edit that is still in progress.
 
 **JSON export** contains the selected level, readable materials and models, and the clips needed by its actors. It is wrapped as `{schema, level, revision, project}`. Its `project` is a complete animation-and-assets project that the studio can load.
 
-**HTML export** includes the engine, data, and reference sets in one file. Open it without the local server to play the level. It starts in a full-screen play view with camera controls. For further editing, import the JSON export into the studio, or continue in the original shared project.
+**HTML export** includes the engine, data, and reference sets in one file. MCP returns a compact descriptor and download
+link by default, with its revision, byte count, and SHA-256. The link retains the exact exported data after later edits
+and remains available during the server session until its bounded cache expires. `inline: true` requests the HTML text.
+Download and open the file without the local server to play the level. It starts in a full-screen play view with camera
+controls. For further editing, import the JSON export through the browser or `studio_import`, or continue in the original
+shared project. JSON can also be downloaded through a link by setting `inline: false`.
 
 This version creates procedural part models and procedural textures. It does not import GLB, FBX, Blender, PNG, or JPEG assets. Animation file conversion remains in the existing [motion capture pipeline](MOCAP.md#pipeline). The text format is intended to make the editable source small and understandable to an agent.
 
@@ -222,13 +240,16 @@ This version creates procedural part models and procedural textures. It does not
 
 | Endpoint | Use |
 |---|---|
+| `GET /api/status` | Discover editor connections, project errors, and capture setup. |
+| `PUT /api/project?compact=true` | Import `{expectedRevision, requestId?, project}`; accepts a complete project or scene export. |
 | `GET /api/assets/catalog?includeSchema=true` | Discover patterns, shapes, presets, examples, and schemas. |
 | `GET /api/scene` | Read the compact current scene and shared revision. |
 | `GET /api/scene?type=model&id=Crate` | Inspect one record. `full=true` adds the complete project. |
-| `POST /api/scene/edit` | Apply `{expectedRevision, actions, summary?, capture?}`. |
+| `POST /api/scene/edit` | Apply `{expectedRevision, requestId?, actions, summary?, capture?}`. |
 | `POST /api/scene/preview` | Set scene preview controls. |
 | `POST /api/scene/capture` | Capture one level at exact times. |
 | `GET /api/scene/export?level=Courtyard&format=html` | Download a level as `html` or `json`. |
+| `GET /api/scene/export?format=html&delivery=link` | Return a small descriptor for an immutable local download. |
 
 Send JSON with `Content-Type: application/json`. Existing `/api/state`, `/api/project`, `/api/action`, and `/api/events` remain available. Use `/api/events` for live state, preview, and error events.
 

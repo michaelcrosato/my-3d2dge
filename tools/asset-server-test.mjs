@@ -191,7 +191,7 @@ test('an optional capture error explicitly reports the successfully saved revisi
 
 test('MCP advertises asset schemas and runs compact atomic edits, preview, export and shared undo', async t => {
   const app = await studio(t), client = await mcp(t, app), list = await client.ask('tools/list');
-  assert.equal(list.result.tools.length, 14);
+  assert.equal(list.result.tools.length, 16);
   const edit = list.result.tools.find(t => t.name === 'scene_edit'); assert.ok(edit.inputSchema.required.includes('expectedRevision')); assert.ok(edit.inputSchema.properties.actions.items.oneOf.length >= 15);
   const initial = parse(await client.call('scene_get')); assert.equal(initial.project, undefined);
   const catalog = parse(await client.call('asset_catalog', { includeSchema: true })); assert.ok(catalog.examples.createMaterial);
@@ -208,7 +208,9 @@ test('MCP advertises asset schemas and runs compact atomic edits, preview, expor
   finally { if (oldPath === undefined) delete process.env.CHROMIUM_PATH; else process.env.CHROMIUM_PATH = oldPath; }
   assert.equal(receipt.applied, true); assert.equal(receipt.captureError.status, 503); assert.equal(receipt.captureError.revision, receipt.revision);
   const state = parse(await client.call('animation_history', { expectedRevision: receipt.revision, direction: 'undo' }));
-  assert.equal(state.project.assets.materials.copper.color, '#b56b3b');
+  assert.equal(state.project, undefined);
+  const restored = parse(await client.call('scene_get', { type: 'material', id: 'copper' }));
+  assert.equal(restored.revision, state.revision); assert.equal(restored.inspected.data.color, '#b56b3b');
   assert.equal((await client.call('scene_capture', { times: [601] })).result.isError, true);
   assert.equal((await client.call('scene_export', { format: 'zip' })).result.isError, true);
 });

@@ -81,15 +81,18 @@ Open **[http://127.0.0.1:4173/asset-studio](http://127.0.0.1:4173/asset-studio)*
 conversation. `asset:studio` and `animation:studio` start the same server; run only one. Connect an MCP client to
 `node /absolute/path/my-3d2dge/tools/animation-mcp.mjs`. It exposes both animation and asset tools.
 
-For scenes, the agent starts with `scene_get` and `asset_catalog`, then sends a `scene_edit` batch with the current
-revision. One batch makes one Undo step. It can request a PNG in the same call to inspect the result. For motion, use
-`animation_get`, `animation_edit`, and `animation_capture`. Install the capture browser once with
+The agent starts with `studio_status`, then `scene_get` and `asset_catalog` for scenes, or `animation_get` for motion.
+Both `scene_edit` and `animation_edit` accept batches that make one revision and one Undo step, with an optional PNG
+in the same reply. Replies stay compact; `full: true` requests a whole project. A unique `requestId` lets an agent retry
+a lost response without repeating the edit. `studio_import` restores exported JSON projects. HTML exports return
+small links to the exact exported file. Install the capture browser once with
 `npx playwright install chromium`, or set `CHROMIUM_PATH` to an installed Chromium executable.
 
 Each accepted data edit updates the open page without a reload or rebuild. A coding agent can also edit
 `.animation-studio/project.json`; each valid file save updates the same preview. The hosted page supports browser
 editing. The local server adds shared MCP, HTTP, and file access. There is no bundled LLM or model service.
 
+Start with **[the agent tool contract](docs/STUDIO-AGENTS.md)** for the 16 MCP tools, first-call sequence, and retry rules.
 See **[the Asset Studio guide](docs/ASSET-STUDIO.md)** for the prompt-to-preview workflow, scene tools, play mode,
 and level exports. **[The Animation Studio guide](docs/ANIMATION-STUDIO.md)** covers pose editing, MCP configuration,
 clip imports, and native animation exports.
@@ -326,7 +329,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.18.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.19.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

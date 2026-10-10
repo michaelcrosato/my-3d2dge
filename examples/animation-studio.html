@@ -26,7 +26,7 @@ body[data-workspace=animation] .scene-only,body[data-workspace=scene] .animation
 </head>
 <body data-workspace="animation">
 <header class="app-header">
-  <a class="brand" href="labs.html" aria-label="my-3D2dge: All labs"><span class="brand-mark" aria-hidden="true">A</span><span>Asset Studio<small>my-3D2dge <span class="version">v0.18.0 · dev-build</span></small></span></a>
+  <a class="brand" href="labs.html" aria-label="my-3D2dge: All labs"><span class="brand-mark" aria-hidden="true">A</span><span>Asset Studio<small>my-3D2dge <span class="version">v0.19.0 · dev-build</span></small></span></a>
   <nav class="workspace-switch" aria-label="Workspace"><button id="workspaceAnimation" type="button" aria-pressed="true">Animation</button><button id="workspaceScene" type="button" aria-pressed="false">Scene</button></nav>
   <div class="header-actions"><span id="connection" class="connection"><i></i>Local editor</span><button id="connectBtn" class="primary" type="button">Connect an LLM <span aria-hidden="true">↗</span></button></div>
 </header>
@@ -155,7 +155,7 @@ npm run asset:studio</pre><p>For image capture, install the preview browser once
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.18.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.19.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -217,7 +217,7 @@ npm run asset:studio</pre><p>For image capture, install the preview browser once
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.18.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.19.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -34217,7 +34217,7 @@ return { clone, createProject, validateProject, apply, applyMany, catalog, schem
 /* =============================================================================
  * ANIMATION STUDIO MODEL  shared by the browser and the local tools. No I/O.
  * Projects hold readable clips and optional AssetStudioModel scene data.
- * validateClip / validateProject copy and check input; apply returns a new project.
+ * validateClip / validateProject copy and check input; apply/applyMany return a new project.
  * The input project never changes, including when an operation fails.
  * ============================================================================= */
 var AnimationStudioModel = (() => {
@@ -34399,9 +34399,8 @@ function addRecord(p, record) {
   if (Object.keys(p.clips).length >= MAX_CLIPS) fail('A project can hold at most ' + MAX_CLIPS + ' clips.');
   p.clips[id] = record; p.selected = id;
 }
-/** One atomic operation. Optional id uses the selected clip. */
-function apply(project, action, sets) {
-  const p = validateProject(project, sets);
+/** One ordered step on the private working copy. Optional id uses the selected clip. */
+function step(p, action, sets) {
   if (!object(action) || typeof action.type !== 'string') fail('An action needs a type.');
   if (!own(ACTION_FIELDS, action.type)) fail('Unknown action type "' + action.type + '".');
   keysOnly(action, ['type', ...ACTION_FIELDS[action.type]], 'Action "' + action.type + '"');
@@ -34470,8 +34469,23 @@ function apply(project, action, sets) {
       delete p.clips[id]; if (p.selected === id) p.selected = Object.keys(p.clips)[0];
     } else fail('Unknown action type "' + action.type + '".');
   }
+  return p;
+}
+/** Validate and copy once for a batch; publish nothing unless every ordered step is valid. */
+function applyMany(project, actions, sets) {
+  if (!Array.isArray(actions) || actions.length < 1 || actions.length > 100) fail('Animation actions must contain 1 to 100 actions.');
+  let p = validateProject(project, sets);
+  for (let i = 0; i < actions.length; i++) {
+    try { p = step(p, actions[i], sets); }
+    catch (err) {
+      err.message = 'Action ' + (i + 1) + (actions[i]?.type ? ' (' + actions[i].type + ')' : '') + ': ' + err.message;
+      err.actionIndex = i; err.actionType = actions[i]?.type; throw err;
+    }
+  }
   return validateProject(p, sets);
 }
+/** One atomic operation; a batch uses the same action vocabulary and makes one history entry. */
+function apply(project, action, sets) { return applyMany(project, [action], sets); }
 /** Export a game-ready set. Retain reference bodies and credits; discard old fit claims. */
 function exportSet(project, id, sets) {
   const p = validateProject(project, sets), record = requireClip(p, id === undefined ? p.selected : id), source = getSet(sets, record.set).set;
@@ -34482,7 +34496,7 @@ function exportSet(project, id, sets) {
   if (source.body) set.body = clone(source.body);
   return set;
 }
-return { FIELDS, clone, validateClip, validateProject, newClip, createProject, importClip, apply, exportSet };
+return { FIELDS, clone, validateClip, validateProject, newClip, createProject, importClip, apply, applyMany, exportSet };
 })();
 
 </script>

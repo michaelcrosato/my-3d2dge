@@ -197,21 +197,26 @@ test('MCP stdio initializes, advertises schemas, applies an edit and returns err
   const initialized = await client.ask('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'studio-test', version: '1' } });
   assert.equal(initialized.result.protocolVersion, '2025-11-25'); assert.ok(initialized.result.capabilities.tools);
   client.notify('notifications/initialized'); assert.deepEqual((await client.ask('ping')).result, {});
-  const list = await client.ask('tools/list'); assert.equal(list.result.tools.length, 14);
+  const list = await client.ask('tools/list'); assert.equal(list.result.tools.length, 16);
   assert.ok(list.result.tools.find(t => t.name === 'animation_edit').inputSchema.required.includes('expectedRevision'));
+  for (const name of ['studio_status', 'studio_import']) assert.ok(list.result.tools.some(tool => tool.name === name), name);
   assert.equal((await client.raw('{invalid JSON')).error.code, -32700);
   assert.equal((await client.ask('does/not/exist')).error.code, -32601);
   const call = (name, args, timeout) => client.ask('tools/call', { name, arguments: args }, timeout);
-  let state = parseTool(await call('animation_get', { includeSchema: true })); assert.equal(state.project.selected, 'Wave'); assert.equal(state.schema.fields.armL, 5);
+  let state = parseTool(await call('animation_get', { includeSchema: true })); assert.equal(state.selected, 'Wave'); assert.equal(state.schema.fields.armL, 5);
+  assert.equal(state.project, undefined); assert.equal(state.inspected.id, 'Wave'); assert.ok(state.inspected.clip.keys.length);
   const before = state.revision;
   state = parseTool(await call('animation_create', { expectedRevision: before, name: 'MCP wave', duration: 2, preset: 'wave' }));
-  assert.equal(state.project.selected, 'MCP wave');
+  assert.equal(state.selected, 'MCP wave'); assert.equal(state.project, undefined);
   const stale = await call('animation_edit', { expectedRevision: before, action: { type: 'delete', id: 'Wave' } });
   assert.equal(stale.result.isError, true); assert.match(stale.result.content[0].text, /Revision conflict/);
   state = parseTool(await call('animation_edit', { expectedRevision: state.revision, action: { type: 'edit_key', id: 'MCP wave', time: .5, values: { armR: [20, 40, 100, 60, 0] } } }));
-  assert.deepEqual(state.project.clips['MCP wave'].clip.keys.find(k => k.t === .5).armR, [20, 40, 100, 60, 0]);
+  assert.equal(state.project, undefined);
+  const inspected = parseTool(await call('animation_get', { id: 'MCP wave' }));
+  assert.equal(inspected.revision, state.revision);
+  assert.deepEqual(inspected.inspected.clip.keys.find(k => k.t === .5).armR, [20, 40, 100, 60, 0]);
   assert.equal((await call('animation_edit', { action: { type: 'undo' } })).result.isError, true);
-  assert.equal((await call('animation_unknown', {})).result.isError, true);
+  assert.equal((await call('animation_unknown', {})).error.code, -32602);
   const exported = parseTool(await call('animation_export', { id: 'MCP wave' })); assert.equal(exported.clips['MCP wave'].dur, 2); assert.ok(exported.sources);
   if (existsSync(join(REPO_ROOT, 'examples/animation-studio.html'))) {
     const capture = await call('animation_capture', { id: 'MCP wave', times: [0, .5, 1], view: 'side', cast: 'mannequin' }, 90000);
@@ -223,7 +228,9 @@ test('MCP stdio initializes, advertises schemas, applies an edit and returns err
       const meta = JSON.parse(capture.result.content.find(c => c.type === 'text').text); assert.equal(meta.revision, state.revision); assert.deepEqual(meta.times, [0, .5, 1]);
     }
   } else t.diagnostic('Capture skipped: run npm run build to create the page.');
-  assert.deepEqual(JSON.parse(await readFile(app.file, 'utf8')), state.project);
+  const full = parseTool(await call('animation_get', { full: true }));
+  assert.equal(full.revision, state.revision);
+  assert.deepEqual(JSON.parse(await readFile(app.file, 'utf8')), full.project);
   assert.equal(validateStudioURL('http://localhost:4173'), 'http://127.0.0.1:4173');
   for (const url of ['https://127.0.0.1:4173', 'http://attacker.example', 'http://127.0.0.1:4173/file', 'http://name:secret@127.0.0.1:4173']) assert.throws(() => validateStudioURL(url));
 });

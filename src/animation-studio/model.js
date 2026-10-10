@@ -1,7 +1,7 @@
 /* =============================================================================
  * ANIMATION STUDIO MODEL  shared by the browser and the local tools. No I/O.
  * Projects hold readable clips and optional AssetStudioModel scene data.
- * validateClip / validateProject copy and check input; apply returns a new project.
+ * validateClip / validateProject copy and check input; apply/applyMany return a new project.
  * The input project never changes, including when an operation fails.
  * ============================================================================= */
 var AnimationStudioModel = (() => {
@@ -183,9 +183,8 @@ function addRecord(p, record) {
   if (Object.keys(p.clips).length >= MAX_CLIPS) fail('A project can hold at most ' + MAX_CLIPS + ' clips.');
   p.clips[id] = record; p.selected = id;
 }
-/** One atomic operation. Optional id uses the selected clip. */
-function apply(project, action, sets) {
-  const p = validateProject(project, sets);
+/** One ordered step on the private working copy. Optional id uses the selected clip. */
+function step(p, action, sets) {
   if (!object(action) || typeof action.type !== 'string') fail('An action needs a type.');
   if (!own(ACTION_FIELDS, action.type)) fail('Unknown action type "' + action.type + '".');
   keysOnly(action, ['type', ...ACTION_FIELDS[action.type]], 'Action "' + action.type + '"');
@@ -254,8 +253,23 @@ function apply(project, action, sets) {
       delete p.clips[id]; if (p.selected === id) p.selected = Object.keys(p.clips)[0];
     } else fail('Unknown action type "' + action.type + '".');
   }
+  return p;
+}
+/** Validate and copy once for a batch; publish nothing unless every ordered step is valid. */
+function applyMany(project, actions, sets) {
+  if (!Array.isArray(actions) || actions.length < 1 || actions.length > 100) fail('Animation actions must contain 1 to 100 actions.');
+  let p = validateProject(project, sets);
+  for (let i = 0; i < actions.length; i++) {
+    try { p = step(p, actions[i], sets); }
+    catch (err) {
+      err.message = 'Action ' + (i + 1) + (actions[i]?.type ? ' (' + actions[i].type + ')' : '') + ': ' + err.message;
+      err.actionIndex = i; err.actionType = actions[i]?.type; throw err;
+    }
+  }
   return validateProject(p, sets);
 }
+/** One atomic operation; a batch uses the same action vocabulary and makes one history entry. */
+function apply(project, action, sets) { return applyMany(project, [action], sets); }
 /** Export a game-ready set. Retain reference bodies and credits; discard old fit claims. */
 function exportSet(project, id, sets) {
   const p = validateProject(project, sets), record = requireClip(p, id === undefined ? p.selected : id), source = getSet(sets, record.set).set;
@@ -266,5 +280,5 @@ function exportSet(project, id, sets) {
   if (source.body) set.body = clone(source.body);
   return set;
 }
-return { FIELDS, clone, validateClip, validateProject, newClip, createProject, importClip, apply, exportSet };
+return { FIELDS, clone, validateClip, validateProject, newClip, createProject, importClip, apply, applyMany, exportSet };
 })();

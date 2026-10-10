@@ -1,10 +1,11 @@
 // Local Animation and Asset Studio: HTTP/SSE over one project, with isolated exact-time captures.
 // Usage: node tools/animation-studio.mjs [--port 4173] [--file .animation-studio/project.json]
 import http from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, accessSync, constants } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { REPO_ROOT, MAX_BYTES, StudioError, object, createStudioSession, catalog, studioSchema, previewOptions, sceneOptions, sceneReceipt, projectAssets } from './studio-service.mjs';
+import { REPO_ROOT, MAX_BYTES, StudioError, object, createStudioSession, catalog, studioSchema, previewOptions, sceneOptions, sceneReceipt, animationReceipt, projectAssets } from './studio-service.mjs';
 
 const json = (res, code, value) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)); };
 async function body(req) {
@@ -32,20 +33,27 @@ function guard(req, port) {
 
 const flags = params => {
   const values = Object.fromEntries(params);
-  for (const key of ['includeSchema', 'full']) if (key in values) {
+  for (const key of ['includeSchema', 'full', 'compact']) if (key in values) {
     if (!['true', 'false'].includes(values[key])) throw new StudioError(key + ' must be true or false.');
     values[key] = values[key] === 'true';
   }
   return values;
 };
 const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+const only = (value, allowed, label) => {
+  object(value, label);
+  for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new StudioError('Unknown ' + label + ' field: ' + key + '.');
+};
+const EXPORT_COUNT = 16, EXPORT_BYTES = 64 * 1024 * 1024;
 
 /** Start a server immediately; the returned close() also closes file watchers, SSE clients and capture browsers. */
 export async function createStudioServer(options = {}) {
   const root = resolve(options.root || REPO_ROOT), port = options.port === undefined ? 4173 : Number(options.port);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new StudioError('port must be an integer from 0 to 65535.');
   const session = createStudioSession({ ...options, root });
-  const clients = new Set(), browsers = new Set(); let captureBusy = false, stopping = false, captureBrowser;
+  const clients = new Set(), browsers = new Set(), downloads = new Map();
+  let captureBusy = false, stopping = false, captureBrowser, downloadBytes = 0;
+  const version = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).version;
   const paths = new Map([
     ['/', 'examples/animation-studio.html'], ['/animation-studio', 'examples/animation-studio.html'],
     ['/animation-studio.html', 'examples/animation-studio.html'], ['/examples/animation-studio.html', 'examples/animation-studio.html'],
@@ -61,6 +69,37 @@ export async function createStudioServer(options = {}) {
   const unsubscribe = session.subscribe((event, data) => { for (const res of clients) send(res, event, data); });
   const heartbeat = setInterval(() => { for (const res of clients) { if (res.destroyed) clients.delete(res); else res.write(': heartbeat\n\n'); } }, 15000);
   heartbeat.unref();
+
+  // Export links refer to immutable bytes, not to a mutable live scene. Keep them local and bounded.
+  const exportLink = (content, filename, mimeType, metadata) => {
+    const bytes = Buffer.byteLength(content), sha256 = createHash('sha256').update(content).digest('hex');
+    if (bytes > EXPORT_BYTES) throw new StudioError('Export exceeds the 64 MiB download limit.', 413);
+    const key = sha256 + '/' + filename;
+    const previous = downloads.get(key);
+    if (previous) { downloads.delete(key); downloadBytes -= previous.bytes; }
+    while (downloads.size >= EXPORT_COUNT || downloadBytes + bytes > EXPORT_BYTES) {
+      const oldest = downloads.keys().next().value;
+      downloadBytes -= downloads.get(oldest).bytes; downloads.delete(oldest);
+    }
+    downloads.set(key, { content, filename, mimeType, bytes }); downloadBytes += bytes;
+    return { schema: 1, ...metadata, filename, mimeType, bytes, sha256, downloadUrl: address() + '/api/download/' + key,
+      availability: 'This server session; the oldest downloads expire after 16 exports or 64 MiB.' };
+  };
+
+  async function status() {
+    let ready = false, message;
+    try {
+      const { chromium } = await import('playwright');
+      accessSync(process.env.CHROMIUM_PATH || chromium.executablePath(), constants.X_OK); ready = true;
+    } catch { message = 'Image capture needs npm install and npx playwright install chromium, or CHROMIUM_PATH pointing to an installed Chromium executable.'; }
+    session.refresh(); const state = session.snapshot();
+    return { version, revision: state.revision, name: state.project.name, selected: state.project.selected,
+      canUndo: state.canUndo, canRedo: state.canRedo, lastChange: state.lastChange,
+      connectedEditors: clients.size, projectFile: session.file, fileError: session.lastError,
+      editorUrl: address() + '/asset-studio', animationUrl: address() + '/animation-studio',
+      capture: { ready, busy: captureBusy, warm: !!captureBrowser?.isConnected(), ...(message ? { message } : {}) },
+      retry: { requestId: true, scope: 'server session', instruction: 'Retry the identical requestId and payload after a lost response. On a revision conflict, inspect current state before making a new request.' } };
+  }
 
   async function capture(input, scene = false, savedState) {
     if (captureBusy) throw new StudioError('A capture is in progress. Try again when it has finished.', 429);
@@ -146,6 +185,8 @@ export async function createStudioServer(options = {}) {
         req.on('close', () => clients.delete(res)); return;
       }
       if (method === 'GET' && path === '/api/state') { session.refresh(); json(res, 200, session.snapshot()); return; }
+      if (method === 'GET' && path === '/api/status') { json(res, 200, await status()); return; }
+      if (method === 'GET' && path === '/api/animation') { json(res, 200, { ...session.animation(flags(url.searchParams)), editorUrl: address() + '/animation-studio' }); return; }
       if (method === 'GET' && path === '/api/project') { session.refresh(); json(res, 200, session.snapshot().project); return; }
       if (method === 'GET' && path === '/api/catalog') { json(res, 200, catalog(session.sets, Object.fromEntries(url.searchParams))); return; }
       if (method === 'GET' && path === '/api/schema') { json(res, 200, studioSchema(session.model, session.sets, session.assetModel)); return; }
@@ -161,12 +202,18 @@ export async function createStudioServer(options = {}) {
       if (method === 'GET' && path === '/api/export') {
         session.refresh(); const format = url.searchParams.get('format') || 'json';
         const output = session.export(url.searchParams.get('id') || undefined, format), safeName = output.id.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80) || 'animation';
-        res.writeHead(200, { 'Content-Type': format === 'js' ? 'text/javascript; charset=utf-8' : 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="' + safeName + '.' + format + '"' });
+        const mimeType = format === 'js' ? 'text/javascript' : 'application/json';
+        const delivery = url.searchParams.get('delivery') || 'inline';
+        if (!['inline', 'link'].includes(delivery)) throw new StudioError('delivery must be inline or link.');
+        if (delivery === 'link') { json(res, 200, exportLink(output.text, safeName + '.' + format, mimeType, { id: output.id, revision: session.snapshot().revision, format })); return; }
+        res.writeHead(200, { 'Content-Type': mimeType + '; charset=utf-8', 'Content-Disposition': 'attachment; filename="' + safeName + '.' + format + '"' });
         res.end(output.text); return;
       }
       if (method === 'GET' && path === '/api/scene/export') {
         const format = url.searchParams.get('format') || 'json';
         if (!['json', 'html'].includes(format)) throw new StudioError('format must be json or html.');
+        const delivery = url.searchParams.get('delivery') || 'inline';
+        if (!['inline', 'link'].includes(delivery)) throw new StudioError('delivery must be inline or link.');
         const output = session.sceneExport(url.searchParams.get('level') || undefined);
         const safeName = output.level.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80) || 'level';
         let content = JSON.stringify(output, null, 2) + '\n';
@@ -177,28 +224,77 @@ export async function createStudioServer(options = {}) {
           if (!/<head(?:\s[^>]*)?>/i.test(template)) throw new StudioError('The built studio page has no HTML head. Run npm run build.', 500);
           content = template.replace(/<head(?:\s[^>]*)?>/i, match => match + '\n<script>window.__assetStudioExport=' + scriptJSON(output) + ';<\/script>');
         }
-        res.writeHead(200, { 'Content-Type': format === 'html' ? 'text/html; charset=utf-8' : 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="' + safeName + '.' + format + '"' });
+        const mimeType = format === 'html' ? 'text/html' : 'application/json';
+        if (delivery === 'link') { json(res, 200, exportLink(content, safeName + '.' + format, mimeType, { level: output.level, revision: output.revision, format })); return; }
+        res.writeHead(200, { 'Content-Type': mimeType + '; charset=utf-8', 'Content-Disposition': 'attachment; filename="' + safeName + '.' + format + '"' });
         res.end(content); return;
+      }
+      if ((method === 'GET' || method === 'HEAD') && path.startsWith('/api/download/')) {
+        const key = path.slice('/api/download/'.length), output = downloads.get(key);
+        if (!output) throw new StudioError('This download is no longer available. Export again to create a new link.', 410,
+          { code: 'EXPORT_EXPIRED', recovery: 'Call scene_export or animation_export again for a fresh download link.' });
+        res.writeHead(200, { 'Content-Type': output.mimeType + '; charset=utf-8', 'Content-Length': output.bytes,
+          'Content-Disposition': 'attachment; filename="' + output.filename + '"', 'ETag': '"' + key.split('/')[0] + '"' });
+        res.end(method === 'HEAD' ? undefined : output.content); return;
+      }
+      if (method === 'POST' && path === '/api/animation/edit') {
+        const input = await body(req);
+        only(input, ['expectedRevision', 'requestId', 'action', 'actions', 'summary', 'source', 'capture'], 'animation edit');
+        if ((input.action !== undefined) === (input.actions !== undefined)) throw new StudioError('Provide exactly one of action or actions.');
+        if (input.action !== undefined) object(input.action, 'action');
+        if (input.capture !== undefined) object(input.capture, 'capture');
+        const receipt = await session.executeRequest(input, 'animation/edit', async () => {
+          session.refresh(); const before = session.snapshot();
+          const state = session.applyBatch({ expectedRevision: input.expectedRevision, actions: input.actions ?? [input.action],
+            source: input.source ?? 'agent', ...(input.summary === undefined ? {} : { summary: input.summary }) });
+          const result = { ...animationReceipt(state, before), editorUrl: address() + '/animation-studio' };
+          if (input.capture !== undefined) {
+            try { result.capture = await capture(input.capture, false, state); }
+            catch (err) { result.captureError = { error: err.message, status: err.status || 500, revision: state.revision }; }
+          }
+          return result;
+        });
+        json(res, 200, receipt); return;
       }
       if (method === 'POST' && path === '/api/scene/edit') {
         const input = await body(req);
-        for (const key of Object.keys(input)) if (!['expectedRevision', 'actions', 'summary', 'source', 'capture'].includes(key)) throw new StudioError('Unknown scene edit field: ' + key + '.');
+        only(input, ['expectedRevision', 'requestId', 'actions', 'summary', 'source', 'capture'], 'scene edit');
         if (input.capture !== undefined) object(input.capture, 'capture');
-        session.refresh(); const before = session.snapshot();
-        const state = session.apply({ expectedRevision: input.expectedRevision, action: { type: 'assets', actions: input.actions }, source: input.source ?? 'agent', ...(input.summary === undefined ? {} : { summary: input.summary }) });
-        const receipt = { ...sceneReceipt(state, session.assetModel, before), editorUrl: address() + '/asset-studio' };
-        if (input.capture !== undefined) {
-          // A captured snapshot always identifies the edit it depicts, even if another editor saves meanwhile.
-          // A rendering failure cannot undo a saved edit: report the successful revision and a separate error.
-          try { receipt.capture = await capture(input.capture, true, state); }
-          catch (err) { receipt.captureError = { error: err.message, status: err.status || 500, revision: state.revision }; }
-        }
+        const receipt = await session.executeRequest(input, 'scene/edit', async () => {
+          session.refresh(); const before = session.snapshot();
+          const state = session.apply({ expectedRevision: input.expectedRevision, action: { type: 'assets', actions: input.actions }, source: input.source ?? 'agent', ...(input.summary === undefined ? {} : { summary: input.summary }) });
+          const result = { ...sceneReceipt(state, session.assetModel, before), editorUrl: address() + '/asset-studio' };
+          if (input.capture !== undefined) {
+            // Save first. Capture is tied to this immutable revision; a rendering failure never undoes the edit.
+            try { result.capture = await capture(input.capture, true, state); }
+            catch (err) { result.captureError = { error: err.message, status: err.status || 500, revision: state.revision }; }
+          }
+          return result;
+        });
         json(res, 200, receipt); return;
       }
       if (method === 'POST' && path === '/api/scene/preview') { json(res, 200, session.scenePreview(await body(req))); return; }
       if (method === 'POST' && path === '/api/scene/capture') { json(res, 200, await capture(await body(req), true)); return; }
-      if (method === 'POST' && path === '/api/action') { json(res, 200, session.apply(await body(req))); return; }
-      if (method === 'PUT' && path === '/api/project') { json(res, 200, session.replace(await body(req))); return; }
+      if (method === 'POST' && path === '/api/action') {
+        const input = await body(req); only(input, ['expectedRevision', 'requestId', 'action', 'source', 'summary'], 'action request');
+        json(res, 200, await session.executeRequest(input, 'action', () => session.apply(input))); return;
+      }
+      if (method === 'PUT' && path === '/api/project') {
+        const input = await body(req), query = flags(url.searchParams);
+        only(input, ['expectedRevision', 'requestId', 'project', 'source'], 'project import');
+        only(query, ['compact'], 'project query');
+        const result = await session.executeRequest(input, 'project/import' + (query.compact ? '/compact' : ''), () => {
+          session.refresh(); const before = session.snapshot();
+          // A scene export is a wrapper around a complete project. Accept that wrapper without a manual conversion.
+          let project = input.project;
+          if (project?.schema === 1 && Object.prototype.hasOwnProperty.call(project, 'project')) {
+            only(project, ['schema', 'level', 'revision', 'project'], 'project export'); project = project.project;
+          }
+          const state = session.replace({ ...input, project });
+          return query.compact ? { ...animationReceipt(state, before), scene: sceneReceipt(state, session.assetModel), editorUrl: address() + '/asset-studio' } : state;
+        });
+        json(res, 200, result); return;
+      }
       if (method === 'POST' && path === '/api/preview') { json(res, 200, session.preview(await body(req))); return; }
       if (method === 'POST' && path === '/api/capture') { json(res, 200, await capture(await body(req))); return; }
       if (path.startsWith('/api/') || paths.has(path)) throw new StudioError('This route does not support that method, or does not exist.', 404);
@@ -206,7 +302,9 @@ export async function createStudioServer(options = {}) {
     } catch (err) {
       if (res.destroyed || res.writableEnded) return;
       if (res.headersSent) { res.end(); return; }
-      json(res, err.status || 400, { error: err.message || 'Request failed.', ...(err.details || {}) });
+      const status = err.status || 400;
+      json(res, status, { error: err.message || 'Request failed.', code: status === 404 ? 'NOT_FOUND' : status === 429 ? 'CAPTURE_BUSY' : status >= 500 ? 'STUDIO_UNAVAILABLE' : 'INVALID_REQUEST',
+        ...(Number.isInteger(err.actionIndex) ? { code: 'INVALID_ACTION', actionIndex: err.actionIndex, actionType: err.actionType } : {}), ...(err.details || {}) });
     }
   });
   server.requestTimeout = 30000; server.headersTimeout = 10000; server.keepAliveTimeout = 5000;
@@ -217,7 +315,7 @@ export async function createStudioServer(options = {}) {
   let closing;
   const close = () => closing || (closing = (async () => {
     stopping = true; clearInterval(heartbeat); unsubscribe(); session.close();
-    for (const res of clients) res.end(); clients.clear();
+    for (const res of clients) res.end(); clients.clear(); downloads.clear(); downloadBytes = 0;
     await Promise.allSettled([...browsers].map(browser => browser.close())); browsers.clear();
     await new Promise(done => { server.close(done); server.closeAllConnections(); });
   })());
