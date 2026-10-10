@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.17.4 (2026-10-10)
+
+Corrections to the Vesper plan.
+
+- **Docs**: `docs/HANDOFF-VESPER-FEEDBACK.md`: the fixed-step clock keeps today's runs only at normal speed. In slow motion its steps get shorter rather than fewer: Emberdeep slows to 0.3-0.4, where fixed game-time steps would update on only about 60% of frames. Old and new clocks are compared with a seeded filmstrip against the build before, since the determinism and replay tests compare a build with itself. If nobody answers about spending on the benchmark runs, the plan's call is to run nothing. `Land_Three_Point` is already Emberdeep's landing clip.
+
 ## 0.17.3 (2026-10-10)
 
 The first feedback from a model that built a game on the engine, checked against the code, with a plan for the next steps.

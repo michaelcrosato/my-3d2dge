@@ -71,9 +71,10 @@ half of its output, up from about 30%. Phase 5 measures it instead of guessing.
 
 Three more things the code shows:
 - It ran its own 1/60 s substeps inside the engine's update. It didn't trust the clock, and Phase 0 removes the reason.
-- The motion store already has the traversal clips such a game needs, and no game uses them yet. They are `ClimbUp_1m_RM`,
-  Climb Wall, Ledge Hang, Pipe Climb, Crawl, `Walk_Stealth`, `Run_Stealth`, `Crouch_Walk`, Roll, `Dive_Roll`,
-  `Land_Three_Point` and the NinjaJump pair, in the Quaternius, Mesh2Motion and CMU catalogs.
+- The motion store already has the traversal clips such a game needs: `ClimbUp_1m_RM`, Climb Wall, Ledge Hang, Pipe
+  Climb, Crawl, `Walk_Stealth`, `Run_Stealth`, `Crouch_Walk`, Roll, `Dive_Roll`, `Land_Three_Point` and the NinjaJump
+  pair, in the Quaternius, Mesh2Motion and CMU catalogs. Only `Land_Three_Point` is used by a game so far (Emberdeep's
+  landing).
 - The 2026-09-29 survey of famous animations ranked an `E.ACTIONS` library first: timed, multi-beat actions such as get
   up, ledge climb and roll. It was removed in v0.14.1 as unstarted; read it with
   `git show f990e9a^:docs/ANIMATION-RESEARCH.md`. Its section 7 has frame timings, such as Prince of Persia's 14 frames
@@ -114,12 +115,14 @@ so in the pull request.
    - Add each frame's real time, capped as today so a stall can't run away (today a frame adds at most 50 ms of game
      time; Vesper allowed 12 steps). While the accumulator holds a whole step, 1/120 s of real time, run
      `_step(step * timeScale)` and keep the remainder.
-   - Slow motion makes each step shorter; it never skips frames. Emberdeep's slow-motion stack (`src/emberdeep/00-core.js`)
-     and its perfect dodge, which scales the hero's `dt` back up (`src/emberdeep/20-hero.js` around line 230), must stay
-     smooth.
-   - At 60 and 120 Hz the game sees exactly what it sees today, two or one steps of 1/120 s per frame, so Emberdeep, the
-     starters and every test baseline are unchanged. Only other rates (90 and 144 Hz, dropped frames) change, and they
-     now agree with 60 Hz.
+   - Slow motion makes each step shorter; it never skips frames. Emberdeep slows to 0.3-0.4 (`slowMo` in
+     `src/emberdeep/00-core.js`: perfect dodges, finishers, deaths, a boss's fall), and its perfect dodge scales the
+     hero's `dt` back up (`src/emberdeep/20-hero.js` around line 230); both must stay smooth. Accumulating game time in
+     fixed game steps instead would update on only about 60% of frames at those speeds.
+   - At normal speed, at 60 and 120 Hz, the game sees exactly what it sees today: two or one steps of 1/120 s per frame.
+     So Emberdeep, the starters and the test baselines are unchanged outside slow motion. Other rates (90 and 144 Hz,
+     dropped frames) change, and now agree with 60 Hz. In slow motion the steps get shorter rather than fewer: half speed
+     at 60 Hz becomes two steps of 1/240 s where today has one of 1/120, the same at every rate.
    - Expose `game.alpha`, the fraction of a step left over (0..1), for a game that wants to interpolate. Don't
      interpolate in the engine yet: check the pacing at 90 and 144 Hz on a filmstrip and on the owner's phone
      (principle 10), and note what you see.
@@ -321,8 +324,9 @@ Run it on three briefs:
 - A Batman: Arkham predator room.
 
 Running it spends money. Build the tool, then ask the owner before the runs: spending is one of the doctrine's
-hard-to-undo calls, so arm the wake-up timer as D11 says. The results go in the pull request and in `DOCTRINE.md`'s
-open measures.
+hard-to-undo calls, so arm the wake-up timer as D11 says. If it fires with no answer, the call this plan recommends is to
+run nothing, and to say so in the pull request. The results go in the pull request and in `DOCTRINE.md`'s open
+measures.
 
 ## 5. Traps
 
@@ -331,8 +335,9 @@ open measures.
 - **The agent edition is a subset.** Whatever goes into it must exist in the full engine and behave the same;
   `npm run test:agent` compares them name by name.
 - **Don't change Emberdeep's feel by accident.** New optional parameters default to today's behavior (`inArc` without
-  `dz`, `FlowField` without `climb` or `drop`). At 60 Hz the clock must give identical runs: `npm run test:determinism`
-  and `test:replay` prove it.
+  `dz`, `FlowField` without `climb` or `drop`). At normal speed and 60 Hz the new clock must play exactly like the old
+  one: compare a seeded filmstrip of an Emberdeep fight against the build before (`--compare`, outside slow motion).
+  `npm run test:determinism` and `test:replay` must stay green (they compare a build with itself).
 - **Single files stay single.** Every page ships as one HTML file with its scripts inlined (D5). `dist/handoff/` is the
   only output of several files, and it is all text.
 - **The API boundary.** The new hooks exist so that games stop reaching into `_box`, `_duck` and the like.
