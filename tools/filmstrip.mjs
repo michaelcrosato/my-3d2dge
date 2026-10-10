@@ -18,6 +18,8 @@
 // --compare b.html records the same steps from a second page (another build, or the game after your change) and
 // lays the strips out A above B, with a third row that marks every pixel that differs. It implies --seed (1 if
 // not given) and prints which frames changed, so a visual change can be checked to do only what it should.
+// --expect-same (with --compare) exits with code 1 when any frame differs: tools/determinism-test.mjs compares a page with
+// itself this way, to prove the same steps give the same pixels.
 // Example: node tools/filmstrip.mjs dist/my-3d2dge.html#brawler --steps "wait:1500 press:Enter wait:800 rec:16:2 press:KeyJ wait:120 press:KeyJ" --out jab.png
 import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
@@ -148,4 +150,5 @@ if (b) {
 }
 if (errors.length) console.log('errors:\n' + errors.join('\n'));
 await browser.close();
+if (args.includes('--expect-same') && b && (b.frames.length !== a.frames.length || sheet.diffs.some(n => n !== 0))) process.exit(1);
 process.exit(errors.length ? 1 : 0);

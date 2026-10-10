@@ -69,6 +69,7 @@ for (const S of LABS.sections) {
     const card = el('section', 'card', '', list), h = el('h3', '', '', card), a = el('a', '', L.title, h);
     a.href = target(L.page, L.links[0][1]);
     if (L.added) el('div', 'date', 'Added ' + L.added + (L.question ? ' · ' + L.question : ''), card);
+    if (L.deviates) el('div', 'date', 'Deviates: ' + L.deviates, card);   // a prototype's departure from DOCTRINE.md, in a line
     el('p', '', L.what, card);
     const row = el('div', 'links', '', card);
     for (const [label, add] of L.links) el('a', '', label, row).href = target(L.page, add);

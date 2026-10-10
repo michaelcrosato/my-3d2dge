@@ -7,13 +7,14 @@
 //   node tools/test-run.mjs --list --files a,b              what a change to those files would run
 // What counts as changed: source files, not what the build writes (examples/, dist/) and not the changelog; a file whose
 // only changes are version numbers (the bump touches the engine, the docs and the kits) counts as unchanged. A change to
-// the engine, the build or the dependencies runs everything. The quick checks (version, syntax) always run.
+// the engine, the build or the dependencies runs everything. The quick checks (version, syntax, doctrine) always run.
 // Exit code 1 when a suite fails (all chosen suites run; the failures are listed at the end).
 import { execFileSync, spawnSync } from 'node:child_process';
 
 const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path)]
   ['version', 'node tools/version.mjs --check', ['*']],
   ['syntax', 'node tools/ed-syntax.mjs --all', ['*']],
+  ['doctrine', 'node tools/doctrine-check.mjs', ['*']],
   ['ed-controls', 'node tools/ed-controls-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-controls-test.mjs']],
   ['ed-codex', 'node tools/ed-codex-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-codex-test.mjs']],
   ['ed-character', 'node tools/ed-character-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-character-test.mjs', 'tools/character-check.mjs', 'docs/CHARACTERS.md']],
@@ -22,6 +23,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['agent', 'node tools/agent-test.mjs', ['API.md', 'AI_GUIDE.md', 'src/mocap/', 'src/starter/', 'tools/agent-test.mjs', 'tools/anim-set.mjs', 'tools/cmu.mjs', 'tools/mocap-lib.mjs']],
   ['mocap', 'node tools/mocap-test.mjs', ['src/mocap/', 'src/mocap.template.html', 'src/mocap.game.js', 'tools/mocap-test.mjs', 'tools/mocap-lib.mjs', 'tools/anim-']],
   ['ed-clips', 'node tools/ed-clips-test.mjs', ['src/emberdeep/', 'src/mocap/', 'tools/ed-clips-test.mjs']],
+  ['determinism', 'node tools/determinism-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'tools/filmstrip.mjs', 'tools/determinism-test.mjs']],
   ['labs', 'node tools/labs-test.mjs', ['src/', 'vercel.json', 'tools/labs-test.mjs']],
   ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'vercel.json', 'tools/stress-test.mjs']],
   ['lab3d', 'node tools/lab3d-test.mjs', ['src/lab3d', 'vendor/', 'vercel.json', 'tools/lab3d-test.mjs', 'tools/vendor-3d.mjs']],
