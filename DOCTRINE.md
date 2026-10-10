@@ -132,12 +132,16 @@ A principle without a check drifts.
 
 - **In a prototype:** deviate whenever it helps the idea, and note it in one line in the prototype's pitch. No approval
   is needed, except for binary assets (principle 4).
-- **In the engine:** escalate. Say which principle, what you recommend and why, arm a wake-up timer for 15 minutes,
-  and keep working on whatever doesn't depend on the answer; with nothing left, end your turn and let the timer bring
-  you back. If it fires with no response, make your call in its own commit so it can be reverted alone, and continue.
-  An answer that comes first cancels the timer. For the rest of that run, or until a human responds, report further
-  conflicts without stopping.
-- **Record:** every call made without a response goes in the decisions log (date, principle, the call, why, the commit)
+- **In the engine, a reversible call:** anything a revert undoes (code, design, a dependency, a doc). Make it now, in
+  its own commit so it can be reverted alone, flag it in the PR, and log it. A human who disagrees reverts it; nobody
+  waits.
+- **In the engine, a call that is hard to undo:** one that reaches outside the repository or can't be taken back with a
+  revert (deleting what others rely on, publishing, spending, a license). Escalate: say which principle, what you
+  recommend and why, arm a wake-up timer for 15 minutes, and keep working on whatever doesn't depend on the answer;
+  with nothing left, end your turn and let the timer bring you back. If it fires with no response, make your call in
+  its own commit and continue. An answer that comes first cancels the timer. For the rest of that run, or until a
+  human responds, report further conflicts without stopping.
+- **Record:** every call made without a response, reversible or not, goes in the decisions log (date, principle, the call, why, the commit)
   and in the PR description. The log is never cleaned up.
 - **A deviation that keeps winning** is a proposal to change this document.
 
@@ -198,7 +202,7 @@ yet hand a brief to a fresh agent.
 The decisions log is `docs/DECISIONS.md`. A call made without a response is also named in the pull request's
 description. A deviation in a prototype goes in one line in its `labs.json` entry instead.
 
-The 15-minute timer, in a cloud session (D11): `send_later` (the claude-code-remote tools) with `delay_minutes: 15`
+Reversible calls are made at once (D13); the timer is for the rest. The 15-minute timer, in a cloud session (D11): `send_later` (the claude-code-remote tools) with `delay_minutes: 15`
 delivers a message back into the same session, even after the turn has ended; if the human answers first,
 `delete_trigger` cancels it. Where no such tool exists, ask, keep working, and make the call when the work reaches the
 point that needs the answer.

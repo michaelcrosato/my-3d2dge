@@ -155,6 +155,7 @@ An entry:
   The owner asked.
 - **Answered:** yes, the owner.
 - **Landed in:** v0.16.0
+- **Narrowed by D13** (v0.16.1): the timer is for calls that are hard to undo; reversible calls are made at once.
 
 ## D12 · 2026-10-10 · Replay recorded sessions, when a bug needs it; sound on its own random stream now
 
@@ -182,3 +183,17 @@ An entry:
   bug seen on a device that the harness can't reproduce, or the owner wanting to send sessions as bug reports.
 - **Answered:** yes, the owner left it to the agent ("fix it, or leave it and see how it goes").
 - **Landed in:** v0.16.0 (the sound's stream); the recorder is open.
+
+## D13 · 2026-10-10 · Reversible calls are made at once; the timer is for the hard to undo
+
+- **Principle:** process (escalation)
+- **Call:** in the engine tier, a call a revert undoes (code, design, a dependency, a doc) is made immediately, in its own
+  commit, flagged in the pull request and logged here; nobody waits for it. Only a call that reaches outside the
+  repository or can't be taken back with a revert (deleting what others rely on, publishing, spending, a license) is
+  escalated with the 15-minute wake-up timer of D11. This entry is itself such a call: made at once, in its own commit,
+  flagged in its pull request.
+- **Why:** the doctrine optimizes good ideas per unit of time, and a reversible call's worst case is a revert, which costs
+  less than an agent idling or a human being interrupted. The timer still protects the decisions a revert can't fix.
+  The owner's goal for this round named both: reversible calls at once, and the timer.
+- **Answered:** yes, the owner.
+- **Landed in:** v0.16.1
