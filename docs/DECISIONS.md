@@ -233,5 +233,9 @@ An entry:
   bit into a different fight: in the test, a session recorded with every native function one unit off diverged at its
   first checksum (frame 60) without the portable math, and replayed exactly with it. Testing on a real phone needs the
   owner's phone; this closes the known gap between Safari and Chromium in advance.
+- **Verified in Safari's engine** (v0.17.2): `tools/cross-engine-math.cjs` runs the same code in V8 and in
+  JavaScriptCore (through Bun 1.2.23). Native math gave different bits in the two engines (2.8 million results), and so
+  did the engine's own Humanoid animated for 3,000 steps with it; the portable math and the same Humanoid with it gave
+  the same bits in both.
 - **Answered:** yes, the owner (this round's goal: a bug seen on a phone, replayed headless).
 - **Landed in:** v0.17.1
