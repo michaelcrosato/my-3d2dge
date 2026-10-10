@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.17.3 (2026-10-10)
+
+The first feedback from a model that built a game on the engine, checked against the code, with a plan for the next steps.
+
+- **Docs**: `docs/HANDOFF-VESPER-FEEDBACK.md` checks a GPT-6 model's Assassin's Creed adaptation, Vesper, against the code. Every claim it made about the engine holds. The step size follows the refresh rate, so physics differs at 144 Hz, though the header says it doesn't. Flow fields go stale when the map changes. Sight, reach and navigation ignore height. The engine file points to docs and tools it doesn't include, so the model read the source to find 28 undocumented members. The plan, in phases: an exact fixed-step clock and flow fields that follow the map, then one height-aware spatial API, a handoff package (lifecycle, headless runs, a checked API index, contract tests, tools and a template), a third-person kit (actions, a ground controller, navigation over heights, perception, facade hooks, footprint sorting, a stealth starter), an HTML UI shell, and a benchmark with fresh agents. It recommends xhigh effort for the work.
+- **Docs**: `docs/FEEDBACK-LOG.md` keeps builders' feedback points that we did not act on, counted by theme, so a pattern shows when the same point comes back. `CLAUDE.md` says how to process feedback, and `README.md` lists the log.
+
 ## 0.17.2 (2026-10-10)
 
 The portable math checked in Safari's own engine.
