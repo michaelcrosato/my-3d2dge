@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.15.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.16.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -178,7 +178,7 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
   - You own the timing: move `phase` from `'wind'` to `'active'` to `'recover'` with your own timers, and pass `u` (0 to 1) within the phase.
   - `spec.a0` / `a1` are hand angles relative to facing; `z0` / `z1` are heights.
   - `spin: true` swings a full circle, `kick: true` swings the right foot, `blade: 0` hides the smear.
-- `hand()` and `tip()` give world points for spawning bullets or sparks. `debug(r)` draws the skeleton.
+- `hand()` and `tip()` give world points for spawning bullets or sparks; `worldOffset(p)` gives where any point in the rig's own frame (a joint in `J`) sits from its feet. `debug(r)` draws the skeleton.
 
 ### Audio
 - Browsers start sound only after the first key press or click; the engine waits for it.

@@ -73,12 +73,12 @@ const PRIVATE = new Set([...ENGINE.matchAll(/(?:\bthis\.|^\s+|[{,]\s*)(_[A-Za-z]
 // the uses before the doctrine (v0.15.0), by area: a folder of src/ or a single file. Remove a name once its area stops
 // using it (the check says when); never add one: promote the member to the public API instead, or make it a prototype's.
 const GRANDFATHERED = {
-  'src/arena.game.js': ['_w'],
   'src/emberdeep/': ['_build', '_cheat', '_composite', '_facePattern', '_fail', '_isFront', '_lastView', '_levels', '_roofPattern', '_w'],
   'src/mocap/': ['_pose'],
-  'src/starter/': ['_w'],
   'src/stress.game.js': ['_note']
 };
+// private names that have a public twin now: a new use is pointed at it
+const PROMOTED = { _w: 'rig.worldOffset(p)' };
 const area = f => { const p = f.split('/'); return p.length > 2 ? p.slice(0, 2).join('/') + '/' : f; };
 const walk = d => readdirSync(join(root, d), { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(d + '/' + e.name) : [d + '/' + e.name]);
 // the prototypes: each Temporary lab's template and the sources it inlines that no other page does
@@ -111,7 +111,7 @@ if (opt('baseline')) {
   for (const [a, names] of Object.entries(uses)) {
     if (PROTOTYPES.has(a)) continue;
     for (const [name, files] of Object.entries(names)) if (!(GRANDFATHERED[a] || []).includes(name)) {
-      fresh++; fail('boundary', `${files.join(', ')} uses the engine's private ${name}: use the public API, or promote ${name} to it (engine, agent edition, API.md), or keep this in a prototype`);
+      fresh++; fail('boundary', `${files.join(', ')} uses the engine's private ${name}: ` + (PROMOTED[name] ? `use ${PROMOTED[name]}` : `use the public API, or promote ${name} to it (engine, agent edition, API.md), or keep this in a prototype`));
     }
   }
   for (const [a, names] of Object.entries(GRANDFATHERED)) for (const name of names) if (!(uses[a] && uses[a][name])) notes.push(`boundary: ${a} no longer uses ${name}; remove it from GRANDFATHERED in tools/doctrine-check.mjs`);

@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.16.0 (2026-10-10)
+
+The agent edition catches up with the full engine, a joint's position gets a public name, and sound stops shifting the game's random numbers.
+
+- **Animation** (agent edition): a motion clip now turns the face, belt and toes with the body and the head, as in the full engine (`Humanoid._offsets`: a cartwheel goes upside down, the face follows the clip's head), and the cape trails behind the body's turn, not its facing alone. Both reached the full engine on 2026-10-06, after the agent edition was cut from it, and were never ported.
+- **Engine**: `rig.worldOffset(p)`, in both editions: where a point in the rig's own frame (a joint in `rig.J`, or one offset from it) sits from its feet. It is what the private `rig._w` did; the starter games and the arena use the public name now, so models that copy them learn it. `API.md`, `AI_GUIDE.md` and the agent edition's header document it.
+- **Engine** (agent edition): `cam.offset`, where the camera's focus sits on screen ([0, -40] keeps it above on-screen buttons), as in the full engine.
+- **Engine**: the chip synth draws its own random numbers (both editions). It drew from `Math.random` only while sound existed, ran unmuted and wasn't throttled, so sound shifted every random number the game drew after it; now the same seed and inputs play the same game with sound on, off or muted.
+- **Docs**: `DOCTRINE.md` and `CLAUDE.md`: an escalation arms a 15-minute wake-up timer (`send_later` in cloud sessions) and keeps working; a deviation with a case is welcome. `docs/DECISIONS.md` D10 (the owner kept D3 to D6), D11 (the timer) and D12 (replaying recorded sessions: the plan, and its trigger); D4 and D6 point to what changed.
+- **Tools**: `tools/doctrine-check.mjs` no longer grandfathers `_w` in the starters and the arena, and points a new use of it at `rig.worldOffset(p)`.
+
 ## 0.15.0 (2026-10-10)
 
 The doctrine adopted: what the engine optimizes and ten principles for an engine built for AI coding agents, with a check for each one this repository can hold, and existing code grandfathered rather than rewritten.
