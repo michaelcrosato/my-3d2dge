@@ -55,7 +55,7 @@ footer .ver{margin-top:6px;font-size:12px;opacity:.8}
 </main>
 <script>
 const LABS = {
-  "$about": "The Labs page (examples/labs.html, my-3d2dge.vercel.app/labs) is built from this list by tools/build.mjs. Each entry is one page: page is an examples/ page name (examples/<page>.html, served at /<page>) or a dist/ path; links are [label, what to add to the address]. keep: tools and demos worth keeping. temporary: one-off comparisons and experiments, each with the date it was added and the question it answers; when the question is settled, delete the page and its entry. tools/labs-test.mjs opens every link.",
+  "$about": "The Labs page (examples/labs.html, my-3d2dge.vercel.app/labs) is built from this list by tools/build.mjs. Each entry is one page: page is an examples/ page name (examples/<page>.html, served at /<page>) or a dist/ path; links are [label, what to add to the address]. keep: tools and demos worth keeping. temporary: the prototypes (DOCTRINE.md), one-off comparisons and experiments, each with the date it was added and the question it answers, and deviates: one line for each way it departs from the doctrine, if any; when the question is settled, delete the page and its entry, or graduate it to another section (it is then held to the engine tier). A change to a prototype alone needs no version bump. tools/labs-test.mjs opens every link.",
   "sections": [
     {
       "id": "game",
@@ -143,6 +143,7 @@ const LABS = {
           "title": "3D world lab",
           "added": "2026-10-08",
           "question": "Can our characters, animation and look live in a real 3D world (three.js r182 and Rapier), with all its art drawn by code, and stay easy for AI agents to work on?",
+          "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",
           "what": "A stone room in real 3D (three.js r182 on WebGPU, or WebGL 2 by itself, and Rapier physics), every texture and shape drawn by code. The hero walks a lap or you play it (move, swing, dash, knock the crates about); a mocap figure and Emberdeep's Dan stand by. Each character is a Card (the engine's own drawing on a card facing the camera) or a Puppet (3D parts on the same joints), or both side by side, in the engine's five fixed views or a free orbit, fly or chase camera. The decisions and trade-offs are in docs/LAB-3D.md.",
           "links": [["Open", ""], ["Side by side", "?look=both&view=threequarter"], ["Puppets, fly", "?look=puppet&view=fly"], ["Play: chase camera", "?view=chase"], ["On WebGL 2", "?backend=webgl"]]
         },
@@ -151,6 +152,7 @@ const LABS = {
           "title": "Stress test: 3D world",
           "added": "2026-10-09",
           "question": "What does the stress test become built from the ground up as a 3D game (three.js r182, Rapier physics, a hall written as text), sharing only the engine's animation system, and how does it hold up?",
+          "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",
           "what": "The stress test's job done as a 3D game, its own way: every monster is a Rapier body (the crowd pushes and piles up by itself, big hits throw bodies into the air, crates and barrels fly), the hero walks, dashes and jumps onto low walls and galleries, monsters find their way up the stairs after him. The hall is the 2D one's layout written as ASCII text, with a raised rune dais and two galleries. Characters are Cards (the engine draws them) or Puppets, in the engine's views (perspective or orthographic), side scrolling with depth, chase, first person, fly or fixed; filters (Comic cel or Pixel on the scene, the characters or the hall, bloom, FXAA). The benchmark adds a physics column.",
           "links": [["Open", ""], ["Puppets", "?look=puppet"], ["400 monsters", "?monsters=400"], ["Chase camera", "?cam3=chase&look=puppet&res=balanced"], ["Side scrolling with depth", "?view=side&depth=1"], ["Orthographic three-quarter", "?view=threequarter&proj=ortho"], ["Comic cel", "?fx=cel&look=puppet&res=full"], ["On WebGL 2", "?backend=webgl"]]
         }
@@ -173,6 +175,7 @@ for (const S of LABS.sections) {
     const card = el('section', 'card', '', list), h = el('h3', '', '', card), a = el('a', '', L.title, h);
     a.href = target(L.page, L.links[0][1]);
     if (L.added) el('div', 'date', 'Added ' + L.added + (L.question ? ' · ' + L.question : ''), card);
+    if (L.deviates) el('div', 'date', 'Deviates: ' + L.deviates, card);   // a prototype's departure from DOCTRINE.md, in a line
     el('p', '', L.what, card);
     const row = el('div', 'links', '', card);
     for (const [label, add] of L.links) el('a', '', label, row).href = target(L.page, add);
@@ -186,7 +189,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Developer panel.');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.14.1 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.15.0 · dev-build', foot);
 </script>
 </body>
 </html>

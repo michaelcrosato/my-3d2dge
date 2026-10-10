@@ -1,9 +1,18 @@
 # Changelog
 
-One version number covers the engine, its agent edition, the docs and the games (semantic versioning while the major number is 0: the minor number for features, the patch for fixes). Every change merged to `main` bumps it and adds its lines here, sorted under the parts it touched: **Rendering**, **Animation**, **Art**, **Mocap**, **Engine** (the rest of it), **Emberdeep**, **Characters**, **Tools**, **Docs**.
+One version number covers the engine, its agent edition, the docs and the games (semantic versioning while the major number is 0: the minor number for features, the patch for fixes). Every change merged to `main` bumps it and adds its lines here (except a change confined to a prototype, a Temporary lab: `DOCTRINE.md`), sorted under the parts it touched: **Rendering**, **Animation**, **Art**, **Mocap**, **Engine** (the rest of it), **Emberdeep**, **Characters**, **Tools**, **Docs**.
 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
+
+## 0.15.0 (2026-10-10)
+
+The doctrine adopted: what the engine optimizes and ten principles for an engine built for AI coding agents, with a check for each one this repository can hold, and existing code grandfathered rather than rewritten.
+
+- **Docs**: `DOCTRINE.md`, the doctrine (agent-readable, agent-operable, verifiable without a display, assets as code and data, deterministic, the GPU rule, common ground, quality under the hood, pin what agents know, discovery first), then how each principle applies here, what was grandfathered and which check holds it. `docs/DECISIONS.md`, the decisions log, never cleaned up: the adoption and nine calls (D1 to D9), among them the engine keeping Canvas 2D, determinism coming from the test harness, one-file pages, and the token budgets for the manuals.
+- **Docs**: two tiers. Prototypes are the Temporary labs: a change confined to one merges without a version bump or a changelog line, may reach past the engine's API, and notes any deviation in its `labs.json` entry (`deviates`, shown on the Labs page; the two 3D labs keep three.js's WebGL 2 fallback). Everything else is the engine tier. `CLAUDE.md` says how to deviate, escalate and record a call.
+- **Tools**: `tools/doctrine-check.mjs` (`npm run doctrine:check`, run with the version and syntax checks by `npm test` and `npm run test:changed`): no binary file outside the approved list; the agent edition's header under 10,000 tokens and the API card under 13,500; no new use of the engine's private members outside `engine/` in the engine tier (today's uses are grandfathered by area, a prototype's are listed as the engine's to-do list, `--todo`; first on it, `rig._w`, which the starter games use); and no entry gone from the decisions log.
+- **Tools**: `tools/determinism-test.mjs` (`npm run test:determinism`, a suite of `npm test` and `test:changed`): a fight in Emberdeep (a pack spawned on depth 3) and in the brawler starter, each played twice under the filmstrip's virtual clock and seeded randomness, must match pixel for pixel. `tools/filmstrip.mjs --expect-same` exits 1 when compared runs differ.
 
 ## 0.14.1 (2026-10-09)
 

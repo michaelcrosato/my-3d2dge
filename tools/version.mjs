@@ -5,7 +5,8 @@
 //        node tools/version.mjs 0.8.0      write 0.8.0 everywhere and open a CHANGELOG.md section for it (fill it in, then
 //                                          run node tools/build.mjs so the pages carry it)
 // Semantic versioning while the major number is 0: the minor number (0.8.0) for features, the patch (0.7.1) for fixes.
-// Every change merged to main bumps it and adds its lines to CHANGELOG.md (see CLAUDE.md). The build (which commit)
+// Every change merged to main bumps it and adds its lines to CHANGELOG.md, except one confined to a prototype (a Temporary
+// lab; CLAUDE.md, DOCTRINE.md). The build (which commit)
 // is not written here: tools/stamp.mjs adds it to the deployed pages (My3D2dge.build, My3D2dge.versionLabel()).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
