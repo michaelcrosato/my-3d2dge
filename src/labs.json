@@ -18,6 +18,12 @@
       "title": "Labs",
       "entries": [
         {
+          "page": "animation-studio",
+          "title": "Animation Studio",
+          "what": "Create an animation, use a library clip, and edit readable key poses while both rigs play. Timeline, pose controls, live JSON, undo, and game exports. Run npm run animation:studio for live LLM edits through MCP or a watched project file.",
+          "links": [["Open editor", ""], ["Side view", "?view=side"], ["Game hero", "?cast=hero"]]
+        },
+        {
           "page": "mocap-lab",
           "title": "Mocap Lab",
           "what": "Every imported animation clip, on a mannequin and on the hero, in every view, slow or frame by frame. Sets: Quaternius, Mesh2Motion, CMU motion capture, and the clips the hero uses; the CMU library holds every one of its 2,548 takes.",

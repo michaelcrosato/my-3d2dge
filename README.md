@@ -53,6 +53,29 @@ The file is 83k tokens in all (140k for the readable full engine, 128k-133k for 
 
 ## Try it
 
+### Animation Studio: edit with an LLM and watch the result
+
+**[Open Animation Studio](https://my-3d2dge.vercel.app/animation-studio)** to create animations, copy a motion-library
+clip, and edit its key poses. The timeline, pose controls, and readable JSON all change the same animation. Both the
+source mannequin and the game hero show the result. Undo, redo, and exports are built in.
+
+For **live LLM edits**, run the local server from this repository:
+
+```sh
+npm install
+npm run build
+npm run animation:studio
+```
+
+Open `http://127.0.0.1:4173/` and leave the page open. Connect an MCP client to
+`node /absolute/path/my-3d2dge/tools/animation-mcp.mjs`. The LLM can search clips, read poses, create or edit an
+animation, and request a PNG frame strip to inspect the motion. Each accepted edit updates the page without a reload.
+A coding agent can also edit `.animation-studio/project.json`; each valid file save updates the same preview.
+
+The hosted page is a standalone editor. The local server adds the file connection and MCP tools. There is no bundled
+LLM or model service. See **[the Animation Studio guide](docs/ANIMATION-STUDIO.md)** for MCP configuration, tool examples,
+file imports, revision checks, and game exports.
+
 | File | What it shows |
 |---|---|
 | `dist/my-3d2dge.html` | Title menu plus the five vertical slices and the animation lab. Arrows and Enter; `V` changes the view, `-` / `=` or the mouse wheel zoom, `[` / `]` turn the camera where a scene allows it, `0` resets it, `M` mutes. |
@@ -282,7 +305,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.15.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.16.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
@@ -291,6 +314,7 @@ One version number covers the engine, its agent edition, the docs and the games:
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 9,000 tokens, with three complete example games.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 - `docs/CHARACTERS.md`: adding a playable character to Emberdeep, from a brief to a checked hero: the scaffold, the body contract, the character test, the character sheet and the balance run.
+- [docs/ANIMATION-STUDIO.md](docs/ANIMATION-STUDIO.md): create and edit animations with a live preview, connect an LLM through MCP or a project file, inspect frame captures, and export native animation sets.
 - `CHANGELOG.md`: what each version changed, by part (rendering, animation, art, mocap, Emberdeep, characters, tools, docs). `CLAUDE.md`: the rules every change follows (versioning, building, testing).
 - `docs/MOCAP.md`: importing ready-made skeletal animation into the readable key-pose format: a step-by-step guide to adding a library (`tools/to-glb.py` converts Blender, FBX and BVH files, `tools/anim-import.mjs` imports, `tools/anim-sheet.mjs` draws contact sheets for the catalog, `tools/anim-set.mjs` picks a game's clips), where to get more animation and what it costs, retargeting onto the engine's rigs, and the hero's captured moments.
 

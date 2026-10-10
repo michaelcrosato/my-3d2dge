@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.16.0 (2026-10-10)
+
+- **Animation**: Animation Studio creates original clips and copies existing motion into a project. Pose controls, a timeline, and live JSON edit the same readable keys. Both the source mannequin and game hero show the result in five views, with frame stepping and a bone overlay.
+- **Tools**: `npm run animation:studio` starts a local server with live updates, a watched JSON project, atomic saves, revision checks, and undo/redo. The MCP adapter lets an LLM inspect, create, edit, preview, capture, and export animations. Frame strips use a separate browser so the user's preview stays in place.
+- **Tools**: Shared model, HTTP/MCP, and browser checks cover native clip compatibility, invalid edits, concurrent revisions, file changes, and repeated image capture. The studio suite is part of `test:changed` and `npm test`.
+- **Tools**: Character movement tests wait for the arrival to finish and measure held input with the game clock. Dodge checks wait for actual start and end states, so slow browser rendering does not shorten the tested action.
+- **Tools**: The documentation path check distinguishes a full JSON path from a bare motion catalog name.
+- **Docs**: The Animation Studio guide includes setup, MCP configuration, the edit-and-inspect workflow, file and HTTP access, and exports. The Labs page links to the editor. The hosted page works as a standalone editor; live LLM access uses the local server.
+
 ## 0.15.0 (2026-10-10)
 
 The doctrine adopted: what the engine optimizes and ten principles for an engine built for AI coding agents, with a check for each one this repository can hold, and existing code grandfathered rather than rewritten.

@@ -15,6 +15,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['version', 'node tools/version.mjs --check', ['*']],
   ['syntax', 'node tools/ed-syntax.mjs --all', ['*']],
   ['doctrine', 'node tools/doctrine-check.mjs', ['*']],
+  ['studio', 'node tools/studio-model-test.mjs && node tools/studio-server-test.mjs && node tools/studio-browser-test.mjs', ['src/animation-studio', 'src/mocap/', 'tools/animation-studio.mjs', 'tools/animation-mcp.mjs', 'tools/studio-', 'tools/mocap-lib.mjs']],
   ['ed-controls', 'node tools/ed-controls-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-controls-test.mjs']],
   ['ed-codex', 'node tools/ed-codex-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-codex-test.mjs']],
   ['ed-character', 'node tools/ed-character-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-character-test.mjs', 'tools/character-check.mjs', 'docs/CHARACTERS.md']],

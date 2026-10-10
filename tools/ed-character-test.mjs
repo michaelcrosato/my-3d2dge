@@ -42,8 +42,9 @@ async function choose(p, C, touch = false) {
   await button(p, 'CHARACTER', touch);
   const pick = p.getByRole('button', { name: C.name, exact: true }), play = p.getByRole('button', { name: 'PLAY AS ' + C.name.toUpperCase(), exact: true });
   if (touch) { await pick.tap(); await play.tap(); } else { await pick.click(); await play.click(); }
-  await p.waitForFunction(() => __ed.ED.mode === 'town', null, { timeout: 8000 });
-  await p.waitForTimeout(1000);
+  // Arrivals take simulation time; a slow rendered frame must not shorten the landing before input is tested.
+  await p.waitForFunction(() => __ed.ED.mode === 'town' && !__ed.ED.hero.act && __ed.ED.hero.z === 0 && !__ed.UI.modal, null, { timeout: 15000 })
+    .catch(() => { throw new Error('the hero did not finish arriving in town'); });
 }
 /** run the game by hand for s seconds (the update, and a drawn frame every few steps): fast and the same every time */
 const run = (p, s) => p.evaluate(s => { const g = __ed.game; for (let i = 0; i < Math.ceil(s * 60); i++) { g.hitstop = 0; g._step(1 / 60); if (i % 6 === 0) g._frame(); } }, s);
@@ -101,14 +102,21 @@ for (const C of list) {
 
     await check('moves and dodges', async () => {
       const a = await page.evaluate(() => [__ed.ED.hero.x, __ed.ED.hero.y]);
-      await key(page, 'KeyD', 350);
+      await page.keyboard.down('KeyD');
+      try {
+        const until = await page.evaluate(() => __ed.ED.t + .35);
+        await page.waitForFunction(t => __ed.ED.t >= t, until, { timeout: 10000 })
+          .catch(() => { throw new Error('the world did not advance 0.35 seconds while D was held'); });
+      } finally { await page.keyboard.up('KeyD'); }
       const b = await page.evaluate(() => [__ed.ED.hero.x, __ed.ED.hero.y]);
       must(Math.hypot(b[0] - a[0], b[1] - a[1]) > 10, 'holding D moved it ' + Math.hypot(b[0] - a[0], b[1] - a[1]).toFixed(1) + ' units');
-      await page.keyboard.down('Space'); await page.waitForTimeout(60);
-      const d = await page.evaluate(() => ({ t: __ed.ED.hero.dodgeT, inv: __ed.ED.hero.inv }));
-      await page.keyboard.up('Space'); await page.waitForTimeout(700);
-      must(d.t > 0 && d.inv > 0, 'Space did not start a dodge');
-      must(await page.evaluate(() => __ed.ED.hero.dodgeT <= 0), 'the dodge never ended');
+      await page.keyboard.down('Space');
+      try {
+        await page.waitForFunction(() => __ed.ED.hero.dodgeT > 0 && __ed.ED.hero.inv > 0, null, { timeout: 10000 })
+          .catch(() => { throw new Error('Space did not start a dodge with invulnerability'); });
+      } finally { await page.keyboard.up('Space'); }
+      await page.waitForFunction(() => __ed.ED.hero.dodgeT <= 0, null, { timeout: 10000 })
+        .catch(() => { throw new Error('the dodge never ended'); });
       must(!(await finiteRig(page)).length, 'its joints are not numbers after the dodge');
     });
 

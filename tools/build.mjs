@@ -34,6 +34,8 @@ const builds = [
   { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} },
   // imported animation clips (tools/anim-import.mjs) on a look-alike mannequin and on the hero
   { template: 'src/mocap.template.html', out: 'examples/mocap-lab.html', vars: {} },
+  // animation authoring: the same readable poses, with local editing and an optional live tool server
+  { template: 'src/animation-studio.template.html', out: 'examples/animation-studio.html', vars: {} },
   // temporary (src/labs.json): our flat props beside converted 3D shapes; delete with its labs.json entry once settled
   { template: 'src/shapes-compare.template.html', out: 'examples/shapes-compare.html', vars: {} },
   // temporary (src/labs.json): a small room and a free camera (turn, tilt, zoom, move, fix); delete with its labs.json entry

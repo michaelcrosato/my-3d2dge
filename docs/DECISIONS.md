@@ -129,3 +129,15 @@ An entry:
 - **Why:** the choice already follows the adopted principle.
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
+
+## D10 · 2026-10-10 · Local tools for live animation edits
+
+- **Principle:** 2 (agent-operable), 3 (headless inspection), and the repository's offline pages.
+- **Call:** Animation Studio is a kept tool. Its built page contains the engine, clip data, and editor. It works by
+  itself. An optional Node server connects a loopback page to a watched JSON project and an MCP stdio adapter.
+  Live edits use local HTTP and server-sent events. No model service, remote data request, or engine dependency is added.
+- **Why:** the owner asked to see LLM animation edits while they happen. The shared readable model lets the browser,
+  file tools, HTTP client, and MCP client edit the same data. Exact-time frame strips let an LLM inspect the result.
+  Source files remain readable, and exported clips keep reference bodies and source details.
+- **Answered:** yes, the owner asked for an animation tool with live LLM edits in this session.
+- **Landed in:** v0.16.0
