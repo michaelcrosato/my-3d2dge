@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.17.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.17.1.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -225,6 +225,12 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
   - `--page` replays on another page. Fix the bug, rebuild, and replay the same session to see it gone.
 - `game.stateHash = () => [hero.x, hero.y, hero.hp, foes.length]` adds a game's own state to the checksum, so a replay stops at the first frame where that state differs.
 - Why it works: the loop splits each frame's time into equal steps, so the same frame times, inputs and seed give the same game.
+- Any browser: while recording and replaying, `Math.sin`, `cos`, `tan`, `atan`, `atan2`, `asin`, `acos`, `exp`, `log`, `log2`, `log10`, `pow`, `hypot` and `cbrt` are the engine's portable versions (`E.session.math`).
+  - Browsers may round these differently in the last bit: an iPhone's Safari and Chromium use different libraries.
+  - The portable versions are built only from `+ - * /` and `sqrt`, which are exact everywhere.
+  - So a session recorded in one browser replays in another bit for bit.
+  - `sin`, `cos`, `atan`, `atan2`, `exp` and `log` are fdlibm's algorithms, the same bits as Chromium's own.
+  - The others are within a few units in the last place.
 - Limits:
   - the GPU lighting is off while recording, because it starts up on real time;
   - a session is one page load;

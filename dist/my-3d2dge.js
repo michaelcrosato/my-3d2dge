@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.17.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.17.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -61,7 +61,7 @@
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.17.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.17.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -4667,9 +4667,201 @@ E.GPULighting = GPULighting;
  *    frames. E.session.save() returns it as JSON; E.session.share() hands it to the phone's share sheet (or downloads
  *    it). node tools/replay.mjs session.json plays it back headless, frame by frame, and stops at the first checksum
  *    that differs; game.stateHash = () => [numbers] makes the checksum sharper. The engine's loop needs nothing else:
- *    the same frame times, inputs and seed give the same game (docs/DECISIONS.md, D12).
+ *    the same frame times, inputs and seed give the same game (docs/DECISIONS.md, D12). Math.sin, cos, pow and the other
+ *    functions browsers may round differently are replaced by portable ones while recording and replaying, so a session
+ *    from an iPhone's Safari replays in Chromium bit for bit (D15).
  *    While recording, GPU lighting stays off (it starts up on real time) and update/draw timings read 0 ms.
  * ============================================================================= */
+/** sin, cos, tan, atan, atan2, asin, acos, exp, log, log2, log10, pow, hypot and cbrt from exact operations only, the
+ *  same bits in every browser (fdlibm 5.3's algorithms and constants for sin, cos, atan, atan2, exp and log) */
+const PORTABLE_MATH = (() => {
+  const N = { pow: Math.pow, sqrt: Math.sqrt }, F = new Float64Array(1), U = new Uint32Array(F.buffer);
+  const H = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1 ? 1 : 0, L = 1 - H;   // which word is high (little-endian: 1)
+  const hi = x => { F[0] = x; return U[H] | 0; }, lo = x => { F[0] = x; return U[L]; };
+  const make = (h, l) => { U[H] = h >>> 0; U[L] = l >>> 0; return F[0]; }, withHi = (x, h) => { F[0] = x; U[H] = h >>> 0; return F[0]; };
+  // sin and cos: reduce to [-pi/4, pi/4] (Cody-Waite, up to three steps), then the kernels
+  const S1 = -1.66666666666666324348e-01, S2 = 8.33333333332248946124e-03, S3 = -1.98412698298579493134e-04, S4 = 2.75573137070700676789e-06, S5 = -2.50507602534068634195e-08, S6 = 1.58969099521155010221e-10;
+  const C1 = 4.16666666666666019037e-02, C2 = -1.38888888888741095749e-03, C3 = 2.48015872894767294178e-05, C4 = -2.75573143513906633035e-07, C5 = 2.08757232129817482790e-09, C6 = -1.13596475577881948265e-11;
+  const kSin = (x, y, iy) => {
+    if ((hi(x) & 0x7fffffff) < 0x3e400000 && (x | 0) === 0) return x;
+    const z = x * x, v = z * x, r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
+    return iy === 0 ? x + v * (S1 + z * r) : x - ((z * (.5 * y - v * r) - y) - v * S1);
+  };
+  const kCos = (x, y) => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix < 0x3e400000 && (x | 0) === 0) return 1;
+    const z = x * x, r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
+    if (ix < 0x3fd33333) return 1 - (.5 * z - (z * r - x * y));
+    const qx = ix > 0x3fe90000 ? .28125 : make(ix - 0x00200000, 0), hz = .5 * z - qx, a = 1 - qx;
+    return a - (hz - (z * r - x * y));
+  };
+  const invpio2 = 6.36619772367581382433e-01, pio2_1 = 1.57079632673412561417e+00, pio2_1t = 6.07710050650619224932e-11, pio2_2 = 6.07710050630396597660e-11,
+    pio2_2t = 2.02226624879595063154e-21, pio2_3 = 2.02226624871116645580e-21, pio2_3t = 8.47842766036889956997e-32;
+  const NPIO2 = [0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C, 0x4025FDBB, 0x402921FB, 0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C, 0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB,
+    0x403AB41B, 0x403C463A, 0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C, 0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB, 0x404858EB, 0x404921FB];
+  const Y = [0, 0];
+  /** x = n * pi/2 + Y[0] + Y[1]; returns n. Beyond 2^19 pi/2 (fdlibm's own reduction ends there and turns to a 1,200-bit
+   *  2/pi) n is split in two halves whose products stay exact, good to about 1e12; past that any angle in range will do */
+  const remPio2 = x => {
+    const hx = hi(x), ix = hx & 0x7fffffff;
+    if (ix <= 0x3fe921fb) { Y[0] = x; Y[1] = 0; return 0; }   // |x| <= pi/4 already
+    if (ix > 0x413921fb) {
+      let t = hx < 0 ? -x : x, n;
+      if (t >= 1.7e12) { t -= Math.floor(t / 6.283185307179586) * 6.283185307179586; n = remPio2(t); }
+      else {
+        const fn = Math.floor(t * invpio2 + .5), f0 = fn % 1048576, f1 = fn - f0;
+        let r = (t - f1 * pio2_1) - f0 * pio2_1; r = (r - f1 * pio2_2) - f0 * pio2_2;
+        const w = (f1 * pio2_3 + f0 * pio2_3) + fn * pio2_3t;
+        Y[0] = r - w; Y[1] = (r - Y[0]) - w; n = fn % 4;
+      }
+      if (hx < 0) { Y[0] = -Y[0]; Y[1] = -Y[1]; return -n; }
+      return n;
+    }
+    if (ix < 0x4002d97c) {   // |x| < 3pi/4: n = +-1
+      if (hx > 0) { let z = x - pio2_1; if (ix !== 0x3ff921fb) { Y[0] = z - pio2_1t; Y[1] = (z - Y[0]) - pio2_1t; } else { z -= pio2_2; Y[0] = z - pio2_2t; Y[1] = (z - Y[0]) - pio2_2t; } return 1; }
+      let z = x + pio2_1; if (ix !== 0x3ff921fb) { Y[0] = z + pio2_1t; Y[1] = (z - Y[0]) + pio2_1t; } else { z += pio2_2; Y[0] = z + pio2_2t; Y[1] = (z - Y[0]) + pio2_2t; } return -1;
+    }
+    const t0 = hx < 0 ? -x : x, fn = (t0 * invpio2 + .5) | 0, n = fn;
+    let r = t0 - fn * pio2_1, w = fn * pio2_1t;
+    if (n < 32 && ix !== NPIO2[n - 1]) Y[0] = r - w;
+    else {
+      const j = ix >> 20; Y[0] = r - w;
+      let i = j - ((hi(Y[0]) >> 20) & 0x7ff);
+      if (i > 16) {
+        let t = r; w = fn * pio2_2; r = t - w; w = fn * pio2_2t - ((t - r) - w); Y[0] = r - w;
+        i = j - ((hi(Y[0]) >> 20) & 0x7ff);
+        if (i > 49) { t = r; w = fn * pio2_3; r = t - w; w = fn * pio2_3t - ((t - r) - w); Y[0] = r - w; }
+      }
+    }
+    Y[1] = (r - Y[0]) - w;
+    if (hx < 0) { Y[0] = -Y[0]; Y[1] = -Y[1]; return -n; }
+    return n;
+  };
+  const sin = x => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix <= 0x3fe921fb) return kSin(x, 0, 0);
+    if (ix >= 0x7ff00000) return x - x;
+    const n = remPio2(x) & 3;
+    return n === 0 ? kSin(Y[0], Y[1], 1) : n === 1 ? kCos(Y[0], Y[1]) : n === 2 ? -kSin(Y[0], Y[1], 1) : -kCos(Y[0], Y[1]);
+  };
+  const cos = x => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix <= 0x3fe921fb) return kCos(x, 0);
+    if (ix >= 0x7ff00000) return x - x;
+    const n = remPio2(x) & 3;
+    return n === 0 ? kCos(Y[0], Y[1]) : n === 1 ? -kSin(Y[0], Y[1], 1) : n === 2 ? -kCos(Y[0], Y[1]) : kSin(Y[0], Y[1], 1);
+  };
+  // atan and atan2
+  const ATANHI = [4.63647609000806093515e-01, 7.85398163397448278999e-01, 9.82793723247329054082e-01, 1.57079632679489655800e+00];
+  const ATANLO = [2.26987774529616870924e-17, 3.06161699786838301793e-17, 1.39033110312309984516e-17, 6.12323399573676603587e-17];
+  const AT = [3.33333333333329318027e-01, -1.99999999998764832476e-01, 1.42857142725034663711e-01, -1.11111104054623557880e-01, 9.09088713343650656196e-02, -7.69187620504482999495e-02,
+    6.66107313738753120669e-02, -5.83357013379057348645e-02, 4.97687799461593236017e-02, -3.65315727442169155270e-02, 1.62858201153657823623e-02];
+  const atan = x0 => {
+    let x = x0, id;
+    const hx = hi(x), ix = hx & 0x7fffffff;
+    if (ix >= 0x44100000) { if (x !== x) return x + x; return hx > 0 ? ATANHI[3] + ATANLO[3] : -ATANHI[3] - ATANLO[3]; }
+    if (ix < 0x3fdc0000) { if (ix < 0x3e200000) return x; id = -1; }
+    else {
+      x = Math.abs(x);
+      if (ix < 0x3ff30000) { if (ix < 0x3fe60000) { id = 0; x = (2 * x - 1) / (2 + x); } else { id = 1; x = (x - 1) / (x + 1); } }
+      else if (ix < 0x40038000) { id = 2; x = (x - 1.5) / (1 + 1.5 * x); } else { id = 3; x = -1 / x; }
+    }
+    const z = x * x, w = z * z;
+    const s1 = z * (AT[0] + w * (AT[2] + w * (AT[4] + w * (AT[6] + w * (AT[8] + w * AT[10]))))), s2 = w * (AT[1] + w * (AT[3] + w * (AT[5] + w * (AT[7] + w * AT[9]))));
+    if (id < 0) return x - x * (s1 + s2);
+    const r = ATANHI[id] - ((x * (s1 + s2) - ATANLO[id]) - x);
+    return hx < 0 ? -r : r;
+  };
+  const PI = 3.1415926535897931160E+00, PI_LO = 1.2246467991473531772E-16, PI_2 = 1.5707963267948965580E+00, PI_4 = 7.8539816339744827900E-01;
+  const neg = v => v < 0 || (v === 0 && 1 / v < 0);
+  const atan2 = (y, x) => {
+    if (x !== x || y !== y) return x + y;
+    if (x === 1) return atan(y);
+    const m = (neg(y) ? 1 : 0) | (neg(x) ? 2 : 0);
+    if (y === 0) return m === 0 || m === 1 ? y : m === 2 ? PI : -PI;
+    if (x === 0) return neg(y) ? -PI_2 : PI_2;
+    if (x === Infinity || x === -Infinity) {
+      if (y === Infinity || y === -Infinity) return m === 0 ? PI_4 : m === 1 ? -PI_4 : m === 2 ? 3 * PI_4 : -3 * PI_4;
+      return m === 0 ? 0 : m === 1 ? -0 : m === 2 ? PI : -PI;
+    }
+    if (y === Infinity || y === -Infinity) return neg(y) ? -PI_2 : PI_2;
+    const k = ((hi(y) & 0x7fffffff) - (hi(x) & 0x7fffffff)) >> 20;
+    const z = k > 60 ? PI_2 + .5 * PI_LO : x < 0 && k < -60 ? 0 : atan(Math.abs(y / x));
+    return m === 0 ? z : m === 1 ? -z : m === 2 ? PI - (z - PI_LO) : (z - PI_LO) - PI;
+  };
+  // exp and log
+  const LN2HI = [6.93147180369123816490e-01, -6.93147180369123816490e-01], LN2LO = [1.90821492927058770002e-10, -1.90821492927058770002e-10], INVLN2 = 1.44269504088896338700e+00;
+  const P1 = 1.66666666666666019037e-01, P2 = -2.77777777770155933842e-03, P3 = 6.61375632143793436117e-05, P4 = -1.65339022054652515390e-06, P5 = 4.13813679705723846039e-08, TWOM1000 = 9.33263618503218878990e-302;
+  const exp = x0 => {
+    let x = x0, k = 0, hiP = 0, loP = 0;
+    const h = hi(x), xsb = (h >>> 31) & 1, hx = h & 0x7fffffff;
+    if (hx >= 0x40862E42) {
+      if (hx >= 0x7ff00000) return x !== x ? x + x : xsb === 0 ? x : 0;
+      if (x > 7.09782712893383973096e+02) return Infinity;
+      if (x < -7.45133219101941108420e+02) return 0;
+    }
+    if (hx > 0x3fd62e42) {
+      if (hx < 0x3FF0A2B2) { hiP = x - LN2HI[xsb]; loP = LN2LO[xsb]; k = 1 - xsb - xsb; }
+      else { k = (INVLN2 * x + (xsb ? -.5 : .5)) | 0; hiP = x - k * LN2HI[0]; loP = k * LN2LO[0]; }
+      x = hiP - loP;
+    } else if (hx < 0x3e300000) return 1 + x;
+    const t = x * x, c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
+    if (k === 0) return 1 - ((x * c) / (c - 2) - x);
+    const y = 1 - ((loP - (x * c) / (2 - c)) - hiP);
+    return k >= -1021 ? withHi(y, hi(y) + (k << 20)) : withHi(y, hi(y) + ((k + 1000) << 20)) * TWOM1000;
+  };
+  const LN2_HI = 6.93147180369123816490e-01, LN2_LO = 1.90821492927058770002e-10, TWO54 = 1.80143985094819840000e+16;
+  const LG1 = 6.666666666666735130e-01, LG2 = 3.999999999940941908e-01, LG3 = 2.857142874366239149e-01, LG4 = 2.222219843214978396e-01, LG5 = 1.818357216161805012e-01, LG6 = 1.531383769920937332e-01, LG7 = 1.479819860511658591e-01;
+  const log = x0 => {
+    let x = x0, hx = hi(x), k = 0;
+    const lx = lo(x);
+    if (hx < 0x00100000) {
+      if (((hx & 0x7fffffff) | lx) === 0) return -Infinity;
+      if (hx < 0) return NaN;
+      k -= 54; x *= TWO54; hx = hi(x);
+    }
+    if (hx >= 0x7ff00000) return x + x;
+    k += (hx >> 20) - 1023; hx &= 0x000fffff;
+    const i0 = (hx + 0x95f64) & 0x100000;
+    x = withHi(x, hx | (i0 ^ 0x3ff00000)); k += i0 >> 20;
+    const f = x - 1;
+    if ((0x000fffff & (2 + hx)) < 3) {
+      if (f === 0) return k === 0 ? 0 : k * LN2_HI + k * LN2_LO;
+      const R = f * f * (.5 - .33333333333333333 * f);
+      return k === 0 ? f - R : k * LN2_HI - ((R - k * LN2_LO) - f);
+    }
+    const s = f / (2 + f), dk = k, z = s * s, w = z * z;
+    let i = hx - 0x6147a; const j = 0x6b851 - hx;
+    const t1 = w * (LG2 + w * (LG4 + w * LG6)), t2 = z * (LG1 + w * (LG3 + w * (LG5 + w * LG7))), R = t2 + t1;
+    i |= j;
+    if (i > 0) { const hfsq = .5 * f * f; return k === 0 ? f - (hfsq - s * (hfsq + R)) : dk * LN2_HI - ((hfsq - (s * (hfsq + R) + dk * LN2_LO)) - f); }
+    return k === 0 ? f - s * (f - R) : dk * LN2_HI - ((s * (f - R) - dk * LN2_LO) - f);
+  };
+  // the rest, from those and exact operations (exact powers of 2 and 10 give exact logs, so floor(log10(1000)) is 3)
+  const tens = new Map(); for (let n = 0, p = 1; n <= 22; n++, p *= 10) tens.set(p, n);   // 1 .. 1e22, each exact
+  const log2 = x => { if (x > 0 && x !== Infinity && lo(x) === 0 && (hi(x) & 0x000fffff) === 0 && hi(x) >= 0x00100000) return (hi(x) >> 20) - 1023; return log(x) / 6.93147180559945286227e-01; };
+  const log10 = x => tens.has(x) ? tens.get(x) : log(x) / 2.30258509299404590109e+00;
+  const pow = (x, y) => {
+    if (y === 0) return 1;
+    if (x !== x || y !== y) return NaN;
+    if (x === 0 || x === Infinity || x === -Infinity || y === Infinity || y === -Infinity || x === 1) return N.pow(x, y);   // exact by definition, the same everywhere
+    if (y === .5 && x > 0) return N.sqrt(x);
+    const yi = Number.isInteger(y);
+    if (yi && Math.abs(y) <= 1024) { let r = 1, b = x, e = Math.abs(y); while (e > 0) { if (e & 1) r *= b; b *= b; e >>= 1; } return y < 0 ? 1 / r : r; }
+    if (x < 0) { if (!yi) return NaN; const r = exp(y * log(-x)); return y % 2 ? -r : r; }
+    return exp(y * log(x));
+  };
+  const hypot = function () {
+    let s = 0, inf = false, nan = false;
+    for (let i = 0; i < arguments.length; i++) { const v = +arguments[i]; if (v === Infinity || v === -Infinity) inf = true; else if (v !== v) nan = true; else s += v * v; }
+    return inf ? Infinity : nan ? NaN : N.sqrt(s);
+  };
+  const cbrt = x => { if (x === 0 || x !== x || x === Infinity || x === -Infinity) return x; const a = Math.abs(x); let r = exp(log(a) / 3); r = r - (r * r * r - a) / (3 * r * r); return x < 0 ? -r : r; };
+  const asin = x => x !== x || x > 1 || x < -1 ? NaN : atan2(x, N.sqrt((1 - x) * (1 + x)));
+  const acos = x => x !== x || x > 1 || x < -1 ? NaN : atan2(N.sqrt((1 - x) * (1 + x)), x);
+  const tan = x => sin(x) / cos(x);
+  return { sin, cos, tan, atan, atan2, asin, acos, exp, log, log2, log10, pow, hypot, cbrt };
+})();
 const SESSION = (() => {
   const S = { recording: false, replaying: false, frame: 0 };
   /** turn recording on or off for the next page loads (each load is a session of its own) */
@@ -4703,6 +4895,12 @@ const SESSION = (() => {
   if (!R) try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); rec.storage.push([k, localStorage.getItem(k)]); } } catch (e) { /* no storage */ }
   else try { localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(k, v); } catch (e) { /* no storage */ }
   S.data = rec;
+  // the same math everywhere: + - * / and sqrt are exact in every JavaScript engine, but sin, cos, pow and the rest may
+  // differ in their last bit between browsers (an iPhone's Safari and Chromium use different libraries), and a game
+  // grows that bit into a different fight. While recording and replaying they are these, built from exact operations
+  // only (fdlibm's algorithms, the ones Chromium's own are derived from), so a session plays the same in any browser.
+  S.math = PORTABLE_MATH;
+  for (const k in PORTABLE_MATH) Math[k] = PORTABLE_MATH[k];
   // the same random numbers, counted (the count is part of the checksum: a draw too many shows at once)
   let draws = 0; const rnd = rng(rec.seed);
   Math.random = () => { draws++; return rnd(); };

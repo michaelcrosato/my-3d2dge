@@ -217,3 +217,21 @@ An entry:
   change events.
 - **Answered:** yes, the owner (this round's goal).
 - **Landed in:** v0.17.0
+
+## D15 · 2026-10-10 · Portable math while recording and replaying
+
+- **Principle:** 5 (deterministic by construction)
+- **Call:** while a session records or replays, `Math.sin`, `cos`, `tan`, `atan`, `atan2`, `asin`, `acos`, `exp`, `log`,
+  `log2`, `log10`, `pow`, `hypot` and `cbrt` are the engine's own (`PORTABLE_MATH`, engine section 23, `E.session.math`):
+  built from `+ - * /` and `sqrt` only, which every JavaScript engine computes exactly, so a session recorded in one
+  browser replays in another bit for bit. `sin`, `cos`, `atan`, `atan2`, `exp` and `log` are fdlibm 5.3's algorithms,
+  the ones Chromium's are derived from: on 200,000 random inputs each they give Chromium's own bits every time (angles
+  past 820,000 radians go on with an exact two-part reduction, within one unit in the last place of Chromium up to
+  1e12). The others are composed from those, within a few units in the last place; exact powers of 2 and 10 give exact
+  logs. They cost up to about twice the native time while recording; outside a session the browser's own are used.
+- **Why:** an iPhone's Safari and Chromium round these functions differently in the last bit, and a game grows that
+  bit into a different fight: in the test, a session recorded with every native function one unit off diverged at its
+  first checksum (frame 60) without the portable math, and replayed exactly with it. Testing on a real phone needs the
+  owner's phone; this closes the known gap between Safari and Chromium in advance.
+- **Answered:** yes, the owner (this round's goal: a bug seen on a phone, replayed headless).
+- **Landed in:** v0.17.1
