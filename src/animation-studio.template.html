@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asset Studio · my-3D2dge</title>
+<!-- A self-contained animation and scene editor. npm run asset:studio adds live file and MCP edits.
+     Sources: src/animation-studio/ and src/asset-studio/. Both use the engine's public APIs. -->
+<style>
+<!-- @inline-raw src/animation-studio/studio.css -->
+<!-- @inline-raw src/asset-studio/studio.css -->
+</style>
+</head>
+<body data-workspace="animation">
+<header class="app-header">
+  <a class="brand" href="labs.html" aria-label="my-3D2dge: All labs"><span class="brand-mark" aria-hidden="true">A</span><span>Asset Studio<small>my-3D2dge <span class="version">v{{VERSION}} · {{BUILD}}</span></small></span></a>
+  <nav class="workspace-switch" aria-label="Workspace"><button id="workspaceAnimation" type="button" aria-pressed="true">Animation</button><button id="workspaceScene" type="button" aria-pressed="false">Scene</button></nav>
+  <div class="header-actions"><span id="connection" class="connection"><i></i>Local editor</span><button id="connectBtn" class="primary" type="button">Connect an LLM <span aria-hidden="true">↗</span></button></div>
+</header>
+<main class="workspace">
+  <aside class="library-panel animation-only" aria-label="Animations">
+    <div class="panel-heading"><h2>Project clips</h2><span id="projectCount" class="count">1</span></div>
+    <div class="project-actions"><button id="newBtn" class="primary subtle" type="button">+ New animation</button><button id="importBtn" type="button" title="Import a project or a readable clip JSON file">Import</button><input id="importFile" type="file" accept=".json,application/json" hidden></div>
+    <div id="clipList" class="clip-list" role="group" aria-label="Project clips"></div>
+    <div class="library-heading"><h2>Motion library</h2><span id="libraryCount" class="count"></span></div>
+    <p class="muted library-note">Start from an existing animation.</p>
+    <label class="search-field"><span aria-hidden="true">⌕</span><input id="librarySearch" type="search" placeholder="Search clips or tags" aria-label="Search motion library"></label>
+    <select id="librarySet" aria-label="Motion library source"><option value="all">All sources</option><option value="quaternius">Quaternius</option><option value="mesh2motion">Mesh2Motion</option><option value="cmu">CMU</option><option value="hero">Hero</option></select>
+    <div id="libraryList" class="library-list" role="group" aria-label="Motion library clips"></div>
+    <div class="library-footer"><span class="tiny-mark">◇</span><span>Readable poses. Reusable motion.<br><a class="to-labs" href="labs.html">All labs ↗</a></span></div>
+  </aside>
+  <!-- @inline-raw src/asset-studio/library.html -->
+  <section class="editor" aria-label="Asset editor">
+    <div class="editor-heading"><div class="animation-only"><span class="eyebrow">LIVE PREVIEW</span><h1 id="clipTitle">Wave</h1><p id="clipMeta" class="muted"></p></div><div class="scene-only"><span class="eyebrow">LIVE SCENE</span><h1 id="sceneTitle">Courtyard</h1><p id="sceneMeta" class="muted"></p></div><div class="history-actions"><button id="undoBtn" type="button" title="Undo (Ctrl or Command + Z)" aria-label="Undo">↶</button><button id="redoBtn" type="button" title="Redo (Ctrl or Command + Shift + Z)" aria-label="Redo">↷</button><span id="revision" class="revision">rev 0</span></div></div>
+    <div class="viewport" id="viewport">
+      <canvas id="screen" role="img" aria-label="Live animation on the source mannequin and the game hero"></canvas>
+      <div class="viewport-toolbar"><div class="toolbar-group"><select id="viewSelect" aria-label="Camera view"><option value="threequarter">Three-quarter</option><option value="iso">Isometric</option><option value="side">Side</option><option value="brawler">Brawler</option><option value="topdown">Top-down</option></select><select id="castSelect" class="animation-only" aria-label="Preview characters"><option value="both">Both rigs</option><option value="mannequin">Mannequin</option><option value="hero">Game hero</option></select><button id="sceneFitBtn" class="scene-only" type="button" title="Fit level (F)">Fit level</button></div><button id="bonesBtn" class="animation-only" type="button" aria-pressed="false">Bones</button><div class="toolbar-group scene-only"><button id="sceneGridBtn" type="button" aria-pressed="true">Grid</button><button id="scenePlayBtn" class="primary" type="button">▶ Play</button></div></div>
+      <div class="stage-status"><span id="previewMode">LIVE</span><span id="fps">60 fps</span></div>
+      <div class="camera-controls"><label class="animation-only">Turn <input id="facingInput" type="range" min="-180" max="180" value="-35" step="1" aria-label="Turn the characters"></label><label>Zoom <input id="zoomInput" type="range" min="0.5" max="3" value="2" step="0.1" aria-label="Preview zoom"></label></div>
+      <div class="export-help">Move: WASD / arrows · Jump: Space · Drag the left side on touch</div>
+    </div>
+    <section class="timeline animation-only" aria-label="Animation timeline">
+      <div class="transport"><div class="transport-buttons"><button id="prevFrame" type="button" aria-label="Previous frame" title="Previous frame (comma)">‹</button><button id="playBtn" type="button" class="play" aria-label="Pause" title="Play or pause (Space)">Ⅱ</button><button id="nextFrame" type="button" aria-label="Next frame" title="Next frame (period)">›</button><span id="timeLabel" class="time-label">0.00 <span>/ 2.00 s</span></span></div><select id="speedSelect" aria-label="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1× speed</option><option value="2">2×</option></select></div>
+      <div class="timeline-track"><div id="ruler" class="ruler" aria-hidden="true"></div><input id="scrub" type="range" min="0" max="2" step="0.001" value="0" aria-label="Animation time"><div id="keyMarkers" class="key-markers" role="group" aria-label="Key poses"></div></div>
+      <div class="timeline-footer"><span><i class="key-symbol"></i><span id="keyCount">5 key poses</span></span><span>Click a key to edit · Space to play</span></div>
+    </section>
+    <section class="scene-strip scene-only" aria-label="Level tools"><div class="button-row"><button id="sceneSelectBtn" type="button" aria-pressed="true">Select</button><button id="scenePaintBtn" type="button" aria-pressed="false">Paint tiles</button><select id="sceneBrush" aria-label="Tile brush"></select><button id="sceneFocusBtn" type="button" title="Focus the selected object">Focus object</button></div><p id="sceneHint" class="muted">Click an object to select it. Changes from your agent appear here.</p></section>
+    <div class="notice-bar"><span id="notice" role="status" aria-live="polite">Ready. Create an animation or use a library clip.</span><span id="saveState">Saved in this browser</span></div>
+  </section>
+  <aside class="inspector animation-only" aria-label="Animation properties">
+    <div class="inspector-tabs" role="tablist" aria-label="Edit mode"><button type="button" role="tab" data-panel="pose" aria-selected="true" aria-controls="posePanel">Pose</button><button type="button" role="tab" data-panel="json" aria-selected="false" aria-controls="jsonPanel">JSON</button><button type="button" role="tab" data-panel="history" aria-selected="false" aria-controls="historyPanel">Activity</button></div>
+    <div id="posePanel" class="inspector-body" role="tabpanel">
+      <div class="section-title"><h2>Key pose</h2><span id="keyState" class="tag">Sampled pose</span></div>
+      <label class="field-row">Time <span class="number-unit"><input id="poseTime" type="number" min="0" step="0.01" value="0" aria-label="Key pose time"><span>s</span></span></label>
+      <label class="field-label" for="channelSelect">Body channel</label><select id="channelSelect"><option value="armR">Right arm</option><option value="armL">Left arm</option><option value="body">Body</option><option value="chest">Chest</option><option value="head">Head</option><option value="hips">Hips</option><option value="legR">Right leg</option><option value="legL">Left leg</option><option value="shR">Right shoulder</option><option value="shL">Left shoulder</option><option value="footR">Right foot</option><option value="footL">Left foot</option><option value="root">Root travel</option></select>
+      <p class="muted help" id="channelHelp">Directions are percentages. Bend and twist are degrees.</p>
+      <div id="channelValues" class="channel-values"></div>
+      <div class="button-row"><button id="setKeyBtn" type="button" class="primary">Set key pose</button><button id="deleteKeyBtn" type="button">Delete key</button></div>
+      <p class="muted help">Set a pose at any time. The engine fills the motion between keys.</p>
+      <hr>
+      <h2>Animation</h2>
+      <label class="field-row">Duration <span class="number-unit"><input id="clipDuration" type="number" min="0.001" max="600" step="any" value="2" aria-label="Animation duration"><span>s</span></span></label>
+      <button id="retimeBtn" type="button" class="full">Apply duration</button>
+      <label class="check-row"><input id="loopInput" type="checkbox" checked>Loop animation</label>
+      <div class="button-row"><button id="mirrorBtn" type="button">Mirror</button><button id="reverseBtn" type="button">Reverse</button></div>
+      <hr><h2>Source</h2><p id="origin" class="muted source-note"></p>
+    </div>
+    <div id="jsonPanel" class="inspector-body json-panel" role="tabpanel" hidden>
+      <div class="section-title"><h2>Readable clip</h2><label class="check-row"><input id="autoApply" type="checkbox" checked>Live apply</label></div>
+      <p class="muted help">Edit the pose data. Valid JSON updates the preview after a short pause.</p>
+      <textarea id="clipText" aria-label="Animation clip JSON" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      <p id="jsonStatus" class="help muted" role="status">The preview uses the last valid edit.</p>
+      <div class="button-row"><button id="applyJsonBtn" type="button" class="primary">Apply JSON</button><button id="resetJsonBtn" type="button">Read current</button></div>
+    </div>
+    <div id="historyPanel" class="inspector-body" role="tabpanel" hidden><h2>Session activity</h2><p class="muted help">Every accepted edit has a revision. Undo and redo keep a new revision.</p><ol id="activityList" class="activity-list"></ol></div>
+    <div class="export-controls"><button id="exportBtn" type="button" class="full">Export clip JSON <span aria-hidden="true">↓</span></button><div class="button-row"><button id="exportSetBtn" type="button">Game set (.js)</button><button id="saveProjectBtn" type="button">Save project</button></div></div>
+  </aside>
+  <!-- @inline-raw src/asset-studio/inspector.html -->
+</main>
+<dialog id="newDialog"><form id="newForm"><div class="dialog-heading"><h2>New animation</h2><button type="button" data-close="newDialog" aria-label="Close">×</button></div><p class="muted">Start with a still pose or a short example.</p><label class="field-label" for="newName">Name</label><input id="newName" value="My_animation" maxlength="80" required><label class="field-label" for="newPreset">Starting pose</label><select id="newPreset"><option value="neutral">Neutral pose</option><option value="wave">Wave example</option></select><label class="field-label" for="newDuration">Duration in seconds</label><input id="newDuration" type="number" min="0.001" max="600" step="any" value="2" required><label class="check-row"><input id="newLoop" type="checkbox" checked>Loop animation</label><p class="help muted">Use a short name that describes the motion.</p><button id="createBtn" type="submit" class="primary full">Create animation</button></form></dialog>
+<dialog id="importSourceDialog"><form id="importSourceForm"><div class="dialog-heading"><h2>Choose the reference body</h2><button type="button" data-close="importSourceDialog" aria-label="Close">×</button></div><p>This readable clip does not name its reference set. More than one body can use its source. Choose the set used to make the clip.</p><label class="field-label" for="importSourceSet">Reference set</label><select id="importSourceSet"></select><p class="muted help">Clip JSON exported by this editor includes the set, so you can import it without this choice.</p><button id="importSourceBtn" type="submit" class="primary full">Import clip</button></form></dialog>
+<dialog id="connectDialog"><div class="dialog-heading"><h2>Connect your LLM</h2><button type="button" data-close="connectDialog" aria-label="Close">×</button></div><p>Run the local server in the repository. Keep its preview page open while you prompt your LLM.</p><pre>npm install
+npm run build
+npm run asset:studio</pre><p>For image capture, install the preview browser once:</p><pre>npx playwright install chromium</pre><p>Open <a href="http://127.0.0.1:4173/" target="_blank" rel="noopener">http://127.0.0.1:4173/</a>. Add this server to an MCP client. Replace the path with your repository path.</p><pre>{ "mcpServers": {
+  "animation": {
+    "command": "node",
+    "args": ["/absolute/path/my-3d2dge/tools/animation-mcp.mjs"]
+  }
+}}</pre><p>Try: “Read the current scene. Make the benches wider, change their wood to a dark color, and show me the result.” Or: “Make the wave slower and raise the hand. Show me a frame strip.”</p><p class="muted">A coding agent can also edit <code>.animation-studio/project.json</code>. Each valid save updates the preview. Animation and scene assets share one project and undo history. Your MCP client runs the LLM; this editor shows its accepted edits.</p><p class="help muted">A hosted or downloaded page works as a local editor. Live file updates and MCP tools need the local server.</p><button type="button" class="primary full" data-close="connectDialog">Done</button></dialog>
+<!-- @inline engine/my-3d2dge.js -->
+<!-- @inline src/mocap/readable.js -->
+<!-- @inline src/mocap/sets/quaternius.js -->
+<!-- @inline src/mocap/sets/mesh2motion.js -->
+<!-- @inline src/mocap/sets/cmu.js -->
+<!-- @inline src/mocap/sets/hero.js -->
+<!-- @inline src/mocap/mocap.js -->
+<!-- @inline src/asset-studio/model.js -->
+<!-- @inline src/animation-studio/model.js -->
+<!-- @inline src/asset-studio/runtime.js -->
+<!-- @inline src/asset-studio/studio.js -->
+<!-- @inline src/animation-studio/studio.js -->
+</body>
+</html>

@@ -18,6 +18,12 @@
       "title": "Labs",
       "entries": [
         {
+          "page": "animation-studio",
+          "title": "Asset Studio",
+          "what": "Create animations, reusable part models, procedural textures, placed objects and tile levels. Animation and Scene share live JSON, undo and exports. Play the level or inspect a frame strip. Run npm run asset:studio for live LLM edits through MCP or a watched project file.",
+          "links": [["Open editor", ""], ["Scene", "?workspace=scene"], ["Side view", "?view=side"], ["Game hero", "?cast=hero"]]
+        },
+        {
           "page": "mocap-lab",
           "title": "Mocap Lab",
           "what": "Every imported animation clip, on a mannequin and on the hero, in every view, slow or frame by frame. Sets: Quaternius, Mesh2Motion, CMU motion capture, and the clips the hero uses; the CMU library holds every one of its 2,548 takes.",

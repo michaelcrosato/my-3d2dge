@@ -42,8 +42,9 @@ async function choose(p, C, touch = false) {
   await button(p, 'CHARACTER', touch);
   const pick = p.getByRole('button', { name: C.name, exact: true }), play = p.getByRole('button', { name: 'PLAY AS ' + C.name.toUpperCase(), exact: true });
   if (touch) { await pick.tap(); await play.tap(); } else { await pick.click(); await play.click(); }
-  await p.waitForFunction(() => __ed.ED.mode === 'town', null, { timeout: 8000 });
-  await p.waitForTimeout(1000);
+  // Arrivals take simulation time; a slow rendered frame must not shorten the landing before input is tested.
+  await p.waitForFunction(() => __ed.ED.mode === 'town' && !__ed.ED.hero.act && __ed.ED.hero.z === 0 && !__ed.UI.modal, null, { timeout: 15000 })
+    .catch(() => { throw new Error('the hero did not finish arriving in town'); });
 }
 /** run the game by hand for s seconds (the update, and a drawn frame every few steps): fast and the same every time */
 const run = (p, s) => p.evaluate(s => { const g = __ed.game; for (let i = 0; i < Math.ceil(s * 60); i++) { g.hitstop = 0; g._step(1 / 60); if (i % 6 === 0) g._frame(); } }, s);
@@ -101,14 +102,21 @@ for (const C of list) {
 
     await check('moves and dodges', async () => {
       const a = await page.evaluate(() => [__ed.ED.hero.x, __ed.ED.hero.y]);
-      await key(page, 'KeyD', 350);
+      await page.keyboard.down('KeyD');
+      try {
+        const until = await page.evaluate(() => __ed.ED.t + .35);
+        await page.waitForFunction(t => __ed.ED.t >= t, until, { timeout: 10000 })
+          .catch(() => { throw new Error('the world did not advance 0.35 seconds while D was held'); });
+      } finally { await page.keyboard.up('KeyD'); }
       const b = await page.evaluate(() => [__ed.ED.hero.x, __ed.ED.hero.y]);
       must(Math.hypot(b[0] - a[0], b[1] - a[1]) > 10, 'holding D moved it ' + Math.hypot(b[0] - a[0], b[1] - a[1]).toFixed(1) + ' units');
-      await page.keyboard.down('Space'); await page.waitForTimeout(60);
-      const d = await page.evaluate(() => ({ t: __ed.ED.hero.dodgeT, inv: __ed.ED.hero.inv }));
-      await page.keyboard.up('Space'); await page.waitForTimeout(700);
-      must(d.t > 0 && d.inv > 0, 'Space did not start a dodge');
-      must(await page.evaluate(() => __ed.ED.hero.dodgeT <= 0), 'the dodge never ended');
+      await page.keyboard.down('Space');
+      try {
+        await page.waitForFunction(() => __ed.ED.hero.dodgeT > 0 && __ed.ED.hero.inv > 0, null, { timeout: 10000 })
+          .catch(() => { throw new Error('Space did not start a dodge with invulnerability'); });
+      } finally { await page.keyboard.up('Space'); }
+      await page.waitForFunction(() => __ed.ED.hero.dodgeT <= 0, null, { timeout: 10000 })
+        .catch(() => { throw new Error('the dodge never ended'); });
       must(!(await finiteRig(page)).length, 'its joints are not numbers after the dodge');
     });
 
@@ -165,10 +173,19 @@ for (const C of list) {
       const dud = ids.filter(id => !r.out[id].cast); must(!dud.length, 'these shared skills did not cast: ' + dud.join(', '));
       if (r.out.echo) must(r.out.echo.echo === true, 'its Echo (the shared skill) does not have its body');
     });
-    await page.evaluate(() => { __ed.ED.hero.bot = null; __ed.devDisable(); }); await page.waitForTimeout(900);
+    // Leaving the sandbox schedules a town-to-town fade. The old ED.mode is already 'town'; its input is
+    // consumed while fading out. Wait for the new world to enter and update before testing a real key press.
+    const sandboxWorld = await page.evaluateHandle(() => __ed.ED.L);
+    await page.evaluate(() => { __ed.ED.hero.bot = null; __ed.devDisable(); });
+    try {
+      await page.waitForFunction(oldWorld => __ed.ED.L !== oldWorld && __ed.ED.mode === 'town' && __ed.ED.t > 0 && !__ed.ED.hero.act && __ed.ED.hero.z === 0 && !__ed.UI.modal, sandboxWorld, { timeout: 15000 })
+        .catch(() => { throw new Error('the normal hero did not finish returning from the developer sandbox'); });
+    } finally { await sandboxWorld.dispose(); }
 
     await check('shows on the paper doll in its own body', async () => {
-      await key(page, 'KeyI'); await page.waitForTimeout(300);
+      await key(page, 'KeyI');
+      await page.waitForFunction(() => __ed.UI.top()?.id === 'inventory', null, { timeout: 8000 })
+        .catch(() => { throw new Error('I did not open the bag'); });
       const r = await page.evaluate(() => ({ top: __ed.UI.top() && __ed.UI.top().id, same: __ed.LOT_dollRig(__ed.ED.hero).rig.constructor === __ed.ED.hero.rig.constructor }));
       await page.screenshot({ path: out + '/bag.png' });
       must(r.top === 'inventory', 'I did not open the bag'); must(r.same, 'the paper doll is not its body');

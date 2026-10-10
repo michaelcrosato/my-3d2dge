@@ -5,6 +5,31 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.19.0 (2026-10-10)
+
+- **Tools**: Animation reads and edit receipts stay compact; unrelated clips and scene data are returned only with `full: true`. `animation_edit` accepts 1 to 100 ordered actions as one revision and Undo step, with an optional exact-time image in the same reply.
+- **Tools**: Optional `requestId` values let an agent recover a lost edit response without applying a mirror, duplication, or Undo twice. Identical concurrent requests share one result, including its captured image. Revision conflicts and other errors include machine-readable recovery guidance.
+- **Tools**: `studio_status` reports the shared revision, connected editors, invalid-file errors, and image-capture setup. `studio_import` loads complete projects or scene JSON exports through MCP with the same revision check and history as the editor.
+- **Tools**: MCP HTML exports return a small download descriptor and resource link by default. The link holds the exact exported bytes across later edits. `inline: true` retains inline output. Download storage is local and bounded.
+- **Tools**: MCP JSON replies expose structured content, protocol errors use JSON-RPC error codes, and long captures no longer block unrelated reads or pings. Immediate animation preview requests refresh watched-file changes before choosing the clip.
+- **Tools**: Agent workflow checks cover compact payloads, atomic animation batches, retry recovery, imports, protocol behavior, live pose updates, immutable downloads, and offline playback.
+- **Docs**: `docs/STUDIO-AGENTS.md` gives a short first-use contract, one-call authoring examples, retry rules, and precise scope. Existing studio guides describe the expanded MCP interface.
+
+## 0.18.0 (2026-10-10)
+
+- **Animation**: Animation Studio creates original clips and copies existing motion into a project. Pose controls, a timeline, and live JSON edit the same readable keys. Both the source mannequin and game hero show the result in five views, with frame stepping and a bone overlay.
+- **Art**: Asset Studio adds procedural materials and textures, reusable models made from boxes, wedges and cylinders, placed objects, and tile levels. Courtyard and empty presets use readable JSON. Material and model edits update every instance that uses them.
+- **Animation**: Placed actors use the shared project's clips. Clip renames update their references; deleting a clip still used by an actor fails without changing the project. Old animation projects gain an optional assets section only after the first asset edit.
+- **Tools**: `npm run animation:studio` starts a local server with live updates, a watched JSON project, atomic saves, revision checks, and undo/redo. The MCP adapter lets an LLM inspect, create, edit, preview, capture, and export animations. Frame strips use a separate browser so the user's preview stays in place.
+- **Tools**: Six asset MCP tools add compact scene reads, schema discovery, atomic batches of up to 100 edits, preview control, captures, and exports. An edit can return its resulting PNG in the same call; captures keep a fixed revision and reuse the browser process. `asset:studio` and `asset:mcp` are aliases for the shared local tools.
+- **Tools**: The Scene workspace adds object selection, transforms, tile painting, material controls, live JSON, five camera views, and a playable level preview. Animation and scene edits share file saves and Undo/Redo. Export a level as readable JSON or a self-contained HTML page.
+- **Tools**: Shared model, HTTP/MCP, and browser checks cover native clip compatibility, invalid edits, concurrent revisions, file changes, and repeated image capture. The studio suite is part of `test:changed` and `npm test`.
+- **Tools**: `test:assets` checks atomic asset edits, references, level painting, live HTTP/MCP updates, captures, play mode, and exports. The assets suite runs for shared studio changes, and asset sources also select the existing animation regression suite.
+- **Tools**: Character movement tests wait for the arrival to finish and measure held input with the game clock. Dodge checks wait for actual start and end states, so slow browser rendering does not shorten the tested action. The inventory check waits for the new town to enter after leaving the developer sandbox, so a fade cannot consume the test's key press. Changes to the shared character checks also select the new-character template suite.
+- **Tools**: The documentation path check distinguishes a full JSON path from a bare motion catalog name.
+- **Docs**: The Animation Studio guide includes setup, MCP configuration, the edit-and-inspect workflow, file and HTTP access, and exports. The Labs page links to the editor. The hosted page works as a standalone editor; live LLM access uses the local server.
+- **Docs**: The Asset Studio guide, README, and agent guide explain the shared prompt-to-preview workflow. The existing Labs entry now links to both workspaces; `/asset-studio` opens Scene in the same built page. Decision D17 records the readable asset extension.
+
 ## 0.17.2 (2026-10-10)
 
 The portable math checked in Safari's own engine.

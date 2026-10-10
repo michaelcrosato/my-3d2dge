@@ -239,3 +239,53 @@ An entry:
   the same bits in both.
 - **Answered:** yes, the owner (this round's goal: a bug seen on a phone, replayed headless).
 - **Landed in:** v0.17.1
+
+## D16 · 2026-10-10 · Local tools for live animation edits
+
+- **History:** recorded as D10 in unmerged PR #53; renumbered to preserve main's D10 to D15.
+- **Principle:** 2 (agent-operable), 3 (headless inspection), and the repository's offline pages.
+- **Call:** Animation Studio is a kept tool. Its built page contains the engine, clip data, and editor. It works by
+  itself. An optional Node server connects a loopback page to a watched JSON project and an MCP stdio adapter.
+  Live edits use local HTTP and server-sent events. No model service, remote data request, or engine dependency is added.
+- **Why:** the owner asked to see LLM animation edits while they happen. The shared readable model lets the browser,
+  file tools, HTTP client, and MCP client edit the same data. Exact-time frame strips let an LLM inspect the result.
+  Source files remain readable, and exported clips keep reference bodies and source details.
+- **Answered:** yes, the owner asked for an animation tool with live LLM edits in this session.
+- **Landed in:** v0.18.0
+
+## D17 · 2026-10-10 · Shared readable assets and live scene authoring
+
+- **Principle:** 2 (agent-operable), 3 (headless inspection), 4 (agent-accessible assets), and the repository's
+  self-contained pages and asset rules.
+- **Call:** extend the kept studio with Animation and Scene modes in the same built page. An optional `assets`
+  section stores materials, reusable part models, placed objects, and tile levels as ordinary JSON. Models use boxes,
+  wedges, and cylinders; texture patterns are generated from colors, scale, and a seed. No model or texture binary
+  files, new engine dependencies, or remote asset requests are added. The runtime uses the engine's public APIs.
+  Placed actors reference the project's readable animation clips. Existing animation-only projects remain valid.
+- **Shared work:** browser controls, watched-file edits, HTTP, and MCP operate on the same project, revisions, and
+  Undo/Redo history. A batch of asset actions is validated and saved as one change. An agent can request a capture
+  with that edit; the image records its revision and leaves the human's preview in place. Scene exports include the
+  readable asset definitions and actor clips, or a self-contained HTML page for playing the level. All studio modes
+  and sources are included by the existing repeatable build.
+- **Why:** the owner asked to expand live animation authoring to other assets, while keeping the agent interface
+  easy to use and shortening the human's prompt-to-preview loop. Procedural geometry and materials follow the
+  repository's preferred asset format and let an agent inspect and change the same data the human sees.
+- **Answered:** yes, the owner requested this extension and a quick shared feedback loop in this session.
+- **Landed in:** v0.18.0
+
+## D18 · 2026-10-10 · Compact agent transactions and exact retry receipts
+
+- **Principle:** 1 (agent-readable), 2 (agent-operable), 3 (headless inspection), and 8 (errors in the tool's language).
+- **Call:** add compact animation reads and receipts, ordered animation batches with optional capture, explicit
+  project import and session status through MCP, structured results and errors, and immutable local export links.
+  Existing browser HTTP routes keep full snapshots. MCP callers explicitly ask for full projects or inline HTML.
+  A request ID wraps the complete save-and-capture result so a lost reply can be retried without repeating a change.
+  Retry receipts and export bytes are bounded in memory for the server session; the project remains ordinary JSON.
+- **Why:** the owner's completion audit exposed oversized agent replies and ambiguous retries after a lost response.
+  A one-key edit returned every clip; HTML exports returned the whole engine to the model. A repeated mirror or Undo
+  could be applied again if an agent treated an uncertain response as a failed save. Compact targeted reads, atomic
+  writes, and exact receipts shorten the prompt-to-preview loop without adding a model service or runtime dependency.
+- **Verification:** focused state, HTTP, MCP, and browser checks cover atomic rollback, retries after later edits,
+  bounded caches, useful failures, live pose changes, separate captures, immutable downloads, and offline play.
+- **Answered:** yes, the owner asked to finish and optimize the tool for LLM agents in this session.
+- **Landed in:** v0.19.0

@@ -200,7 +200,7 @@ if (!only) {
       else if (/<\w+>|\*|NN/.test(m)) paths.add(m.slice(0, m.lastIndexOf('/') + 1));
       else paths.add(m);
     }
-    for (const m of text.match(/\b[\w-]+\.json\b/g) || []) if (!/\//.test(m)) paths.add('src/mocap/catalogs/' + m);
+    for (const m of text.match(/(?<![\w./\\-])[\w-]+\.json\b(?![/\\])/g) || []) paths.add('src/mocap/catalogs/' + m);
     for (const p of paths) { named++; if (!existsSync(join(root, p))) fail('pointers', where + ' names ' + p + ', which does not exist'); }
   }
   // the recipe as the agent header gives it: search the ledger, cut the two clips, play them on the agent edition

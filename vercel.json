@@ -9,7 +9,8 @@
   ],
   "rewrites": [
     { "source": "/", "destination": "/examples/emberdeep.html" },
-    { "source": "/:page(emberdeep|arena|stress-test|perspective-lab|mocap-lab|scarfrunner-side|labs|shapes-compare|free-camera|lab-3d|stress-world)", "destination": "/examples/:page.html" },
+    { "source": "/asset-studio", "destination": "/examples/animation-studio.html" },
+    { "source": "/:page(emberdeep|arena|stress-test|perspective-lab|mocap-lab|animation-studio|scarfrunner-side|labs|shapes-compare|free-camera|lab-3d|stress-world)", "destination": "/examples/:page.html" },
     { "source": "/labs.html", "destination": "/examples/labs.html" },
     { "source": "/cmu-lib/:file", "destination": "/examples/cmu-lib/:file" },
     { "source": "/kits/:kit(adventure|animlab|brawler|platformer|rpg|shooter)", "destination": "/dist/kits/my-3d2dge-:kit.html" }
