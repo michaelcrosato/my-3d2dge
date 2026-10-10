@@ -1,11 +1,11 @@
 /*!
-my-3D2dge AGENT EDITION v0.16.1: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.17.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
 This is a curated subset of the full engine (dist/my-3d2dge.js). A game written against this file runs
 unchanged on the full engine, which adds lighting, props, parallax backdrops, touch controls, camera
-zoom and turn, dialog portraits, x-ray silhouettes and more.
+zoom and turn, dialog portraits, x-ray silhouettes, recorded play sessions that replay exactly, and more.
 
 AGENTS: this header is the whole manual. Build games from it; you do not need to read the code below.
 Read a section only to debug: each starts with "// ---- N. NAME" (grep "// ---- 10." for the Humanoid).
@@ -349,7 +349,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.16.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.17.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };

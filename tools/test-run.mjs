@@ -24,6 +24,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['mocap', 'node tools/mocap-test.mjs', ['src/mocap/', 'src/mocap.template.html', 'src/mocap.game.js', 'tools/mocap-test.mjs', 'tools/mocap-lib.mjs', 'tools/anim-']],
   ['ed-clips', 'node tools/ed-clips-test.mjs', ['src/emberdeep/', 'src/mocap/', 'tools/ed-clips-test.mjs']],
   ['determinism', 'node tools/determinism-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'tools/filmstrip.mjs', 'tools/determinism-test.mjs']],
+  ['replay', 'node tools/replay-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'tools/replay.mjs', 'tools/replay-test.mjs']],
   ['labs', 'node tools/labs-test.mjs', ['src/', 'vercel.json', 'tools/labs-test.mjs']],
   ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'vercel.json', 'tools/stress-test.mjs']],
   ['lab3d', 'node tools/lab3d-test.mjs', ['src/lab3d', 'vendor/', 'vercel.json', 'tools/lab3d-test.mjs', 'tools/vendor-3d.mjs']],

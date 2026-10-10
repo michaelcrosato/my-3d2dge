@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.16.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.17.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -210,6 +210,25 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
   - uneven level rows and non-hex colors;
   - lights with bad numbers, and PlatformMaps drawn in the wrong view.
 - The checker prints them all.
+
+### Recorded sessions (a bug from a phone, replayed exactly)
+- `E.session.record(true)` turns recording on for every later page load (`?record=1` does it for one load). It starts before the game's code and keeps everything a game's next frame depends on:
+  - a seed for `Math.random`;
+  - each display frame's time (`performance.now` and `Date.now` read it during that frame);
+  - every input and the frame it arrived before: keys, pointer and touch, wheel, clicks and form edits, focus, visibility, resize, full screen;
+  - gamepad readings, the media queries the game asked, the safe-area insets, the screen, and the save (`localStorage`) at the start;
+  - a checksum every 60 frames.
+- `E.session.share()` saves the session: the share sheet on a phone, a download elsewhere. In Emberdeep it is Developer → Guide → Record a session.
+- `node tools/replay.mjs session.json` replays it in headless Chromium at the recorded screen size, frame by frame, and reports the first checksum that differs. Useful options:
+  - `--to 1800` stops at a frame; `--shots 600,1200` saves screenshots;
+  - `--log "__ed.ED.hero"` prints any state at the end;
+  - `--page` replays on another page. Fix the bug, rebuild, and replay the same session to see it gone.
+- `game.stateHash = () => [hero.x, hero.y, hero.hp, foes.length]` adds a game's own state to the checksum, so a replay stops at the first frame where that state differs.
+- Why it works: the loop splits each frame's time into equal steps, so the same frame times, inputs and seed give the same game.
+- Limits:
+  - the GPU lighting is off while recording, because it starts up on real time;
+  - a session is one page load;
+  - replay on the build it was recorded on: its version and build are in the file.
 
 ## Genre recipes
 

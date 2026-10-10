@@ -496,7 +496,30 @@ const DEV_GUIDE = [
 	["Make hits feel heavier or calmer", "Physics & world > Feel (hit stop and screen shake) and Combat > Knockback.", "world", "hitStop"],
 	["Test changes safely", "Sandbox: a throwaway copy of your hero. Spawn any monster or boss, jump to any depth, make items, go invulnerable. Your normal save is kept.", "sandbox"],
 ];
+/* ---------- recording a session for a bug report (E.session: the engine records, tools/replay.mjs replays) ---------- */
+// a sharper checksum for the recording: the hero, the level and the crowd, so a replay stops at the first frame that differs
+game.stateHash = () => {
+	const h = ED.hero;
+	return [ED.mode || "", ED.depth || 0, h ? h.x : 0, h ? h.y : 0, h ? h.hp : 0, (ED.foes || []).length, (ED.drops || []).length];
+};
+function devSessionBlock(el) {
+	const S = E.session,
+		live = S.recording || S.replaying; // (a replay lays the panel out as the recording did, so its taps land on the same buttons)
+	devSection(el, "Record a session for a bug report", "Turn recording on and play. When something goes wrong, save the session and send it to Claude: it replays your exact game, frame by frame, and sees what you saw. Recording starts with the next load and goes on until you turn it off. While recording, the GPU lighting is off.");
+	formField(el, "Record sessions (from the next load)", "checkbox", S.wanted(), (v) => {
+		S.record(v);
+		devRenderTab();
+	});
+	if (live) {
+		const d = S.data, secs = d.frames.length ? (d.frames[d.frames.length - 1] - d.frames[0]) / 1000 : 0;
+		formElement("p", "Recording this session: " + Math.floor(secs / 60) + " min " + Math.round(secs % 60) + " s, " + d.frames.length + " frames, " + d.events.length + " inputs.", el, { class: "ed-about" });
+		formButton(el, "Save this session", () => {
+			if (S.share) S.share().then(() => formStatus("Session saved: send the file to Claude with what went wrong and when."));
+		});
+	} else if (S.wanted()) formButton(el, "Start recording now (reloads the page)", () => location.reload());
+}
 function devGuideTab(el) {
+	devSessionBlock(el);
 	devSection(el, "How this panel works", null);
 	const ul = formElement("ul", "", el, { class: "ed-dev-list" });
 	for (const t of [

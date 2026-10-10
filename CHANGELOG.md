@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.17.0 (2026-10-10)
+
+Play sessions recorded on any device replay exactly in a headless browser, so a bug seen on a phone happens again where an agent can look at it.
+
+- **Engine**: `E.session` (section 23). `E.session.record(true)` records every later page load (`?record=1` for one): a seed for `Math.random`, every display frame's time (the clock reads it during the frame), every input from the person or the device with the frame it arrived before (keys, pointer and touch, wheel, clicks and form edits, focus, visibility, resize, full screen), gamepad readings, the media queries the game asked, the safe-area insets, the screen and the save at the start, and a checksum every 60 frames. `E.session.save()` gives the JSON, `E.session.share()` the share sheet on a phone or a download elsewhere. `game.stateHash = () => [...]` adds a game's own state to the checksum. While recording, the GPU lighting is off and update/draw timings read 0 ms.
+- **Emberdeep**: Developer → Guide → Record a session: turn recording on, see how long this session has run, save it for a bug report. Its checksum includes the hero, the level and the crowd.
+- **Tools**: `tools/replay.mjs` (`npm run replay -- session.json`) replays a session in headless Chromium at the recorded screen, frame by frame, with `--to`, `--shots`, `--log` and `--page`, and reports the first checksum that differs. `tools/replay-test.mjs` (`npm run test:replay`, a suite of `npm test` and `test:changed`): sessions recorded in real time at a desk and on a phone by touch in Emberdeep, and in a starter game, replay with every checksum matching and the same end state; a session with one key press taken out diverges.
+- **Docs**: `API.md`, `AI_GUIDE.md` ("Recorded sessions"), `README.md`, the engine's header and `CLAUDE.md` say how to record and replay; the agent edition's header says the full engine has it. `DOCTRINE.md` marks replay done; `docs/DECISIONS.md` D14 (D12 points to it).
+
 ## 0.16.1 (2026-10-10)
 
 Escalation by what a revert can undo.

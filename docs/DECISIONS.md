@@ -183,6 +183,7 @@ An entry:
   bug seen on a device that the harness can't reproduce, or the owner wanting to send sessions as bug reports.
 - **Answered:** yes, the owner left it to the agent ("fix it, or leave it and see how it goes").
 - **Landed in:** v0.16.0 (the sound's stream); the recorder is open.
+- **Done in D14** (v0.17.0): the recorder and the replay tool are built.
 
 ## D13 · 2026-10-10 · Reversible calls are made at once; the timer is for the hard to undo
 
@@ -197,3 +198,22 @@ An entry:
   The owner's goal for this round named both: reversible calls at once, and the timer.
 - **Answered:** yes, the owner.
 - **Landed in:** v0.16.1
+
+## D14 · 2026-10-10 · Sessions recorded on any device replay exactly
+
+- **Principle:** 5 (deterministic by construction), 3 (verifiable without a display)
+- **Call:** build D12's recorder now instead of waiting for its trigger. The engine records (section 23, `E.session`):
+  the seed, every frame's time (the clock reads it during the frame), every input from the person or the device with the
+  frame it arrived before, gamepad readings, media queries, safe-area insets, the screen and the save at the start, and
+  a checksum every 60 frames (`game.stateHash` adds a game's own state; Emberdeep gives its hero, level and crowd).
+  `tools/replay.mjs` replays a session in headless Chromium and reports the first checksum that differs. Emberdeep's
+  Developer panel (Guide) turns recording on and saves the session; on a phone, to the share sheet.
+- **Why:** the owner's goal for this round named a working replay path. It is a reversible call (D13), so it was made at
+  once. `tools/replay-test.mjs` proves it: sessions recorded in real time, with the browser's own uneven frame times,
+  at a desk and on a phone by touch, replay to the same state to the last decimal, and a session with one key press
+  taken out diverges where it should.
+- **Limits:** the GPU lighting is off while recording (it starts on real time); a session is one page load; a session
+  replays on the build it was recorded on (it carries its version and build); clicks on checkboxes replay through their
+  change events.
+- **Answered:** yes, the owner (this round's goal).
+- **Landed in:** v0.17.0
