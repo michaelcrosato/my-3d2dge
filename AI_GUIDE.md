@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.17.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.17.2.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -231,6 +231,9 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
   - So a session recorded in one browser replays in another bit for bit.
   - `sin`, `cos`, `atan`, `atan2`, `exp` and `log` are fdlibm's algorithms, the same bits as Chromium's own.
   - The others are within a few units in the last place.
+  - `node tools/cross-engine-math.cjs` checks this in Safari's own engine. It runs the same code in V8 and in JavaScriptCore, through Bun (`BUN=/path/to/bun`).
+  - Native math gives different bits in the two engines, and so does a Humanoid animated with it.
+  - The portable math, and the same Humanoid with it, give the same bits in both.
 - Limits:
   - the GPU lighting is off while recording, because it starts up on real time;
   - a session is one page load;

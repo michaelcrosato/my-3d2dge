@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.17.2 (2026-10-10)
+
+The portable math checked in Safari's own engine.
+
+- **Tools**: `tools/cross-engine-math.cjs` (`npm run test:cross-engine`; needs Bun, `BUN=/path/to/bun`) runs the same code in V8 and in JavaScriptCore, Safari's engine. With native math the two engines gave different bits, both for 2.8 million math results and for the engine's Humanoid animated for 3,000 steps. With the portable math they gave the same bits for both, so a session recorded in Safari replays in Chromium as it played. Without Bun it says so and passes.
+- **Docs**: `AI_GUIDE.md` (recorded sessions); `docs/DECISIONS.md` D15 records the result.
+
 ## 0.17.1 (2026-10-10)
 
 A session recorded in any browser replays in Chromium bit for bit: an iPhone's Safari included.
