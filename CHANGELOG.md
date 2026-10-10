@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.17.1 (2026-10-10)
+
+A session recorded in any browser replays in Chromium bit for bit: an iPhone's Safari included.
+
+- **Engine**: portable math while recording and replaying (`E.session.math`). `Math.sin`, `cos`, `tan`, `atan`, `atan2`, `asin`, `acos`, `exp`, `log`, `log2`, `log10`, `pow`, `hypot` and `cbrt` are built from exact operations only, so browsers that round these differently in the last bit (Safari and Chromium do) play a session the same. `sin`, `cos`, `atan`, `atan2`, `exp` and `log` follow fdlibm and give Chromium's own bits on every one of 200,000 random inputs each; large angles stay exact to about 1e12. Outside a session the browser's own are used.
+- **Tools**: `tools/replay-test.mjs` records Emberdeep in a browser whose own math is one unit in the last place off everywhere and replays it in Chromium: every checksum matches (without the portable math, the same session diverges at its first checksum).
+- **Docs**: `AI_GUIDE.md`, `API.md`, the engine's section 23, `DOCTRINE.md`; `docs/DECISIONS.md` D15.
+
 ## 0.17.0 (2026-10-10)
 
 Play sessions recorded on any device replay exactly in a headless browser, so a bug seen on a phone happens again where an agent can look at it.

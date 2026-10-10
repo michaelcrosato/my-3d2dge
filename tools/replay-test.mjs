@@ -5,6 +5,9 @@
 //   2. Emberdeep on a phone (390 x 844 at 3x, a touch screen): the movement stick dragged, the action buttons tapped
 //   3. a starter game (the brawler slice), which gives no stateHash: the engine's own checksum
 //   4. the first session with one input taken out: the replay must say where it diverged
+//   5. a session recorded in a browser whose own Math differs from Chromium's in the last bit (as an iPhone's Safari
+//      may: every native sin, cos, pow... is nudged by one unit in the last place before the page loads) replays in
+//      Chromium to the same state: while recording and replaying, the engine's portable math is used, not the browser's
 // Usage: node tools/replay-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 // Sessions and pictures in check-output/replay-test/.
 import { chromium } from 'playwright';
@@ -20,8 +23,9 @@ const ED_PROBE = '[__ed.ED.hero.x, __ed.ED.hero.y, __ed.ED.hero.hp, __ed.ED.foes
 const GAME_PROBE = '[My3D2dge.current.time, My3D2dge.current.cam.x, My3D2dge.current.cam.y, My3D2dge.current.sceneName, My3D2dge.session.frame]';
 
 /** open a page with recording on, play it, then save the session and the state at that moment (between two frames) */
-async function record(name, page, ctxOpts, play, probe) {
+async function record(name, page, ctxOpts, play, probe, initScript) {
   const ctx = await browser.newContext(ctxOpts), p = await ctx.newPage(), errors = [];
+  if (initScript) await p.addInitScript(initScript);
   p.on('pageerror', e => errors.push(String(e)));
   await p.goto(pathToFileURL(resolve(page.split(/[?#]/)[0])).href + page.slice(page.search(/[?#]|$/)));
   await p.waitForFunction(() => window.My3D2dge && My3D2dge.current && My3D2dge.session.recording, null, { timeout: 60000 });
@@ -96,6 +100,28 @@ console.log('4. a session with one input taken out must diverge');
   console.log('  ' + line);
   if (r.code === 0 || !/DIVERGED at frame \d+/.test(line)) fail('a session missing a key press replayed without diverging');
   else console.log('  ok   the replay found where it diverged');
+}
+
+console.log('5. recorded where the browser\'s own math differs, replayed in Chromium');
+{
+  const otherMath = () => {   // a browser whose libm rounds differently: one unit in the last place off, everywhere
+    const F = new Float64Array(1), U = new BigUint64Array(F.buffer);
+    for (const k of ['sin', 'cos', 'tan', 'atan', 'atan2', 'asin', 'acos', 'exp', 'log', 'log2', 'log10', 'pow', 'hypot', 'cbrt']) {
+      const f = Math[k]; Math[k] = (...a) => { const v = f(...a); if (!isFinite(v) || v === 0) return v; F[0] = v; U[0] += 1n; return F[0]; };
+    }
+    window.__nudged = Math.sin(1) !== 0.8414709848078965;
+  };
+  const other = await record('emberdeep-other-math', 'examples/emberdeep.html?record=1#depth-3', { viewport: { width: 960, height: 540 } }, async p => {
+    await p.waitForFunction(() => window.__ed && __ed.game, null, { timeout: 60000 });
+    const ok = await p.evaluate(() => [window.__nudged, Math.sin === My3D2dge.session.math.sin, Math.pow === My3D2dge.session.math.pow]);
+    if (!ok[0]) fail('the stand-in for another browser did not change its Math');
+    if (!ok[1] || !ok[2]) fail('the recording does not use the engine\'s portable math');
+    await p.waitForTimeout(2000); await p.mouse.move(620, 300);
+    for (const [k, ms] of [['KeyD', 900], ['KeyW', 500]]) { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); }
+    for (let i = 0; i < 5; i++) { await p.mouse.down(); await p.waitForTimeout(80); await p.mouse.up(); await p.waitForTimeout(300); }
+    await p.keyboard.press('Space'); await p.waitForTimeout(1500);
+  }, ED_PROBE, otherMath);
+  check('emberdeep-other-math', other, ED_PROBE);
 }
 
 await browser.close();

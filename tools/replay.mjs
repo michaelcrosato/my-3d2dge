@@ -1,6 +1,6 @@
 // Replays a recorded play session (E.session, engine section 23; docs/DECISIONS.md D12) in headless Chromium, frame by
-// frame: the same seed, frame times, inputs, screen and save give the same game, so a bug seen on a phone happens again
-// here, where an agent can look at it.
+// frame: the same seed, frame times, inputs, screen and save give the same game (with the engine's portable math, the same
+// in every browser), so a bug seen on a phone happens again here, where an agent can look at it.
 //   node tools/replay.mjs session.json [--page examples/emberdeep.html] [--to <frame>] [--shots f1,f2,...] [--out dir]
 //                                      [--log "<js>"] [--keep-going]
 //   --page   the page to replay on; by default the one the session was recorded on (the site's address, read through
