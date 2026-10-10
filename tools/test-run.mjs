@@ -20,6 +20,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['ed-character', 'node tools/ed-character-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-character-test.mjs', 'tools/character-check.mjs', 'docs/CHARACTERS.md']],
   ['new-character', 'node tools/new-character.mjs --test', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/new-character.mjs', 'docs/CHARACTERS.md']],
   ['ed-tune', 'node tools/ed-tune-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-tune-test.mjs']],
+  ['contract', 'node tools/contract-test.mjs', ['API.md', 'AI_GUIDE.md', 'tools/contract-test.mjs']],
   ['agent', 'node tools/agent-test.mjs', ['API.md', 'AI_GUIDE.md', 'src/mocap/', 'src/starter/', 'tools/agent-test.mjs', 'tools/anim-set.mjs', 'tools/cmu.mjs', 'tools/mocap-lib.mjs']],
   ['mocap', 'node tools/mocap-test.mjs', ['src/mocap/', 'src/mocap.template.html', 'src/mocap.game.js', 'tools/mocap-test.mjs', 'tools/mocap-lib.mjs', 'tools/anim-']],
   ['ed-clips', 'node tools/ed-clips-test.mjs', ['src/emberdeep/', 'src/mocap/', 'tools/ed-clips-test.mjs']],

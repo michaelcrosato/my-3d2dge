@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.17.5 (2026-10-10)
+
+The clock is an exact fixed step: the same inputs play the same game at 60, 90, 120 or 144 Hz. Phase 0 of the Vesper plan.
+
+- **Engine**: the clock (both editions). Each frame's real time (at most 50 ms) fills an accumulator, and each whole 1/120 s of it runs one update of `dt = 1/120 * game.timeScale`; the rest waits for the next frame (`game.alpha`, 0..1, for a game that wants to interpolate). 60 Hz runs two steps a frame and 120 Hz one, as before; 90 and 144 Hz now run the same steps as 60 Hz instead of steps of 1/180 and 1/144 s, so a jump peaks at the same height on every screen. Slow motion makes steps shorter, never fewer (Emberdeep's perfect dodges stay smooth); above speed 1 a step is split so none is longer than 1/120 s. Paused or at `timeScale` 0, input still ticks. The engine's header promised this before and didn't keep it.
+- **Engine**: flow fields follow the map (both editions). `map.block()` bumps `map.version` when a cell changes, and `FlowField.update` rebuilds when the target's cell or the map's version changes: a bridge blocked with `block()` or a door opened with `set()` reroutes at the next update, where before the field kept the old paths until the target moved to another cell.
+- **Engine**: `game.fps` counts real frame time (both editions); it never read under 20 before, because it added up the 50 ms-clamped time. `game.stats.frameMs` is the real time too.
+- **Engine**: `audio.duck(on)` (both editions): quieter music under a game's own pause or map screen. Vesper reached for the private `_duck`, which the engine reset every step.
+- **Tools**: `tools/contract-test.mjs` (`npm run test:contract`, a suite of `npm test` and `test:changed`): one test per documented behavior an agent relies on, on both editions. Now: the same inputs at 60, 90, 120 and 144 Hz give the same state bit for bit, steps of 1/120 s, slow motion, pause and timeScale 0, the frame counter, flow fields that follow `block()` and `set()`, `audio.duck`. Run against v0.17.4 it fails 27 of its 42 checks.
+- **Tools**: `tools/filmstrip.mjs --hz 144` records on a virtual display at another refresh rate.
+- **Docs**: the engine's header (item 6), the agent edition's header, `API.md` (rule 1, `duck`, flow fields), `AI_GUIDE.md` (hard rule 1, the frame order, why recorded sessions replay) and `DOCTRINE.md` describe the new clock; `docs/DECISIONS.md` D16 supersedes D4's substeps.
+
 ## 0.17.4 (2026-10-10)
 
 Corrections to the Vesper plan.

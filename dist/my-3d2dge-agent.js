@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.17.4: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.17.5: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -22,7 +22,8 @@ For a single-file game, paste both scripts inline. Start every game with: const 
   Fight), 'side' (Mario: x right, z up, y = 0), 'overhead' (shmups, puzzles: world x/y = screen pixels once you call
   game.focus(W / 2, H / 2)). The same game runs in every view. In ground views, turn the stick or keys into a world
   direction with game.view.screenDirToGround(mx, my).
-- update(dt) runs in fixed steps of about 1/120 s. Read input only there.
+- update(dt) runs in exact fixed steps: 1/120 s of real time each, dt = 1/120 * timeScale, the same steps at any
+  refresh rate. Read input only there.
 - draw(r) order: backgrounds first (r.sky, map.drawFloor + map.queueWalls, level.draw), then everything that can
   overlap through r.actor / r.sprite / r.queue (depth sorted), then the HUD through r.text / r.overlay (screen pixels).
 - Characters are procedural rigs posed every step (E.Humanoid, E.Blob) or string sprites (E.sprite).
@@ -349,7 +350,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.17.4', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.17.5', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1099,6 +1100,7 @@ class Game {
     this.fps = 60; this.paused = false; this.pauseOverlay = true; this.timers = []; this.errors = []; this._errKeys = new Set();
     this.fadeTime = .22; this._fade = null; this.scenes = null; this.scene = null; this.sceneName = null; this._next = null;
     this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
+    this.alpha = .5; this._acc = this.o.step / 2;   // the step left over (0..1); starting half a step in keeps a steady step count
     E.current = this;
   }
   static _makeCanvas() {
@@ -1169,15 +1171,30 @@ class Game {
     let last = performance.now(), acc = 0, n = 0;
     const frame = now => {
       requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
-      const dt = Math.min(.05, Math.max(0, (now - last) / 1000)); last = now;
-      acc += dt; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }
-      const sdt = dt * this.timeScale, steps = Math.max(1, Math.ceil(sdt / this.o.step - 1e-6)), h = sdt / steps, t0 = performance.now();
-      try { for (let i = 0; i < steps; i++) this._step(h); } catch (e) { this._fail('update', e); }
-      const t1 = performance.now();
+      const raw = Math.max(0, (now - last) / 1000); last = now;
+      acc += raw; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }   // real time: a slow device reads slow
+      const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
-      const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = dt * 1000; st.steps = steps;
+      const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = raw * 1000; st.steps = steps;
     };
     requestAnimationFrame(frame);
+  }
+  // the clock, an exact fixed step: real time (at most 50 ms a frame) fills an accumulator, each whole o.step (1/120 s)
+  // of it runs one update of o.step * timeScale (split so no step is longer than o.step), the rest waits (game.alpha).
+  // The same steps at 60, 90, 120 or 144 Hz; slow motion makes steps shorter, never fewer; paused, input still ticks
+  _run(real) {
+    const step = this.o.step; let n = 0;
+    this._acc += Math.min(.05, real);
+    try {
+      while (this._acc > step - 1e-9) {
+        this._acc -= step;
+        const k = this.timeScale > 1 ? Math.ceil(this.timeScale - 1e-9) : 1, h = step * Math.max(0, this.timeScale) / k;
+        for (let i = 0; i < k; i++, n++) this._step(h);
+      }
+    } catch (e) { this._acc %= step; this._fail('update', e); }
+    if (this._acc < 0) this._acc = 0;
+    this.alpha = this._acc / step;
+    return n;
   }
   // switch scene (fades through black unless o.fade is 0): game.go('play', { level: 2 })
   go(name, data, o = {}) {
@@ -1872,7 +1889,7 @@ class TileMap {
   center(cx, cy) { return [(cx + .5) * this.T, (cy + .5) * this.T]; }
   solidCell(cx, cy) { const c = this.cell(cx, cy); return c !== 0; }
   walkable(cx, cy) { return this.cell(cx, cy) === 0 && !this.blocked[cy * this.w + cx]; }
-  block(cx, cy, on = true) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) this.blocked[cy * this.w + cx] = on ? 1 : 0; }
+  block(cx, cy, on = true) { const i = cy * this.w + cx, v = on ? 1 : 0; if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h && this.blocked[i] !== v) { this.blocked[i] = v; this.version++; } }
   solidAt(x, y) { return this.solidCell(Math.floor(x / this.T), Math.floor(y / this.T)); }
   height(cx, cy) { const c = this.cell(cx, cy); return c > 0 ? this.types[c].h : c < 0 ? 1e9 : 0; }
   heightAt(x, y) { return this.height(Math.floor(x / this.T), Math.floor(y / this.T)); }
@@ -2043,10 +2060,11 @@ class TileMap {
 }
 E.TileMap = TileMap;
 class FlowField {
-  constructor(map) { this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this.q = new Int32Array(n); this.tx = -1; this.ty = -1; }
+  constructor(map) { this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this.q = new Int32Array(n); this.tx = -1; this.ty = -1; this.version = -1; }
   update(x, y) {
     const m = this.map, T = m.T, tx = Math.floor(x / T), ty = Math.floor(y / T);
-    if (tx === this.tx && ty === this.ty) return; this.tx = tx; this.ty = ty;
+    if (tx === this.tx && ty === this.ty && m.version === this.version) return;   // rebuilt when the target's cell or the map changes
+    this.tx = tx; this.ty = ty; this.version = m.version;
     const d = this.d, q = this.q, W = m.w; d.fill(1e9);
     const solid = m.walkable ? (cx, cy) => !m.walkable(cx, cy) : (cx, cy) => m.solidCell(cx, cy);
     if (solid(tx, ty)) return;
@@ -2593,7 +2611,7 @@ const DRUMS = {
 class ChipAudio {
   constructor(game) {
     this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
-    this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this._waves = {};
+    this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
     this.rnd = rng(0x51A7E);
@@ -2616,9 +2634,11 @@ class ChipAudio {
     return this.ctx;
   }
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
-  _levels() { if (!this.ctx) return; this.master.gain.value = this.muted ? 0 : this.volume; this.sfxBus.gain.value = this.sfxVolume; this.musBus.gain.value = this.musicVolume * (this._ducked ? .35 : 1); }
+  _levels() { if (!this.ctx) return; this.master.gain.value = this.muted ? 0 : this.volume; this.sfxBus.gain.value = this.sfxVolume; this.musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
   setVolume(v) { this.volume = clamp(v, 0, 1); this._levels(); }
   mute(on = !this.muted) { this.muted = on; this._levels(); return on; }
+  // quiet the music (to 35%) under a game's own pause or map screen; the engine also ducks it while game.paused
+  duck(on = true) { on = !!on; if (this.ducked === on) return; this.ducked = on; this._levels(); }
   _duck(on) { if (this._ducked === on) return; this._ducked = on; this._levels(); }
   _pulse(duty) {
     if (this._waves[duty]) return this._waves[duty];

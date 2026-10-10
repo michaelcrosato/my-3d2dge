@@ -105,7 +105,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.17.4  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.17.5  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -132,8 +132,9 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
  *    Anything that can be in front of or behind something else goes through
  *    r.queue(x, y, z, fn), r.actor(x, y, z, drawFn, opts) or r.sprite(...).
  * 6. TIME. game.start({ update(dt), draw(r) }) or game.start({ scenes, scene }).
- *    update runs in fixed ~1/120 s substeps, so motion is identical at 60, 120 or
- *    144 Hz. game.freeze(s) = hit-stop, game.shake(n) = screen shake,
+ *    update runs in exact fixed steps: each 1/120 s of real time is one update with
+ *    dt = 1/120 * timeScale, so motion is identical at 60, 90, 120 or 144 Hz (game.alpha =
+ *    the part of a step left over). game.freeze(s) = hit-stop, game.shake(n) = screen shake,
  *    game.timeScale = slow motion, game.paused = pause, game.after(s, fn) = timer.
  * 7. LEVELS. Top-down / isometric / brawler floors: E.TileMap (walls on the ground
  *    plane). Side-scrollers: E.PlatformMap + E.Platformer (tiles on the x/z plane,
@@ -167,7 +168,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.17.4', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.17.5', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -1625,8 +1626,11 @@ class Game {
     this.scenes = null; this.scene = null; this.sceneName = null; this._next = null; this.hooks = null;
     /** chip-sound synthesizer: game.audio.sfx('jump'), game.audio.music(song) */
     this.audio = new E.Audio(this);
-    /** per-frame timings (ms) and counts, for profiling overlays */
+    /** per-frame timings (ms) and counts, for profiling overlays. frameMs: the real time since the last frame */
     this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
+    /** the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth
+     *  at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count */
+    this.alpha = .5; this._acc = this.o.step / 2;
     E.current = this;   // handy for tools and tests: My3D2dge.current is the latest game
   }
   static _makeCanvas() {
@@ -1748,16 +1752,35 @@ class Game {
     let last = performance.now(), acc = 0, n = 0;
     const frame = now => {
       requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
-      const dt = Math.min(.05, Math.max(0, (now - last) / 1000)); last = now;
-      acc += dt; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }
-      const sdt = dt * this.timeScale, steps = Math.max(1, Math.ceil(sdt / this.o.step - 1e-6)), h = sdt / steps;
-      const t0 = performance.now();
-      try { for (let i = 0; i < steps; i++) this._step(h); } catch (e) { this._fail('update', e); }
-      const t1 = performance.now();
+      const raw = Math.max(0, (now - last) / 1000); last = now;
+      acc += raw; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }   // real time: a slow device reads slow
+      const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
-      const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = dt * 1000; st.steps = steps;
+      const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = raw * 1000; st.steps = steps;
     };
     requestAnimationFrame(frame);
+  }
+  /**
+   * the clock: an exact fixed step. Real time (at most 50 ms a frame, so a stall can't run away) fills an accumulator;
+   * each whole o.step of it (1/120 s) runs one update of o.step * timeScale game seconds (split in two or more when
+   * timeScale > 1, so no step is longer than o.step), and the remainder waits for the next frame (game.alpha = its
+   * fraction of a step). 60 Hz runs two steps a frame, 120 Hz one, 144 Hz one on most frames: the same steps at any rate.
+   * Slow motion makes steps shorter, never fewer. Paused or at timeScale 0 the steps still run (dt 0), so input ticks.
+   * Returns the updates run
+   */
+  _run(real) {
+    const step = this.o.step; let n = 0;
+    this._acc += Math.min(.05, real);
+    try {
+      while (this._acc > step - 1e-9) {   // (the tolerance absorbs the rounding in frame times: 1/60 s is two steps)
+        this._acc -= step;
+        const k = this.timeScale > 1 ? Math.ceil(this.timeScale - 1e-9) : 1, h = step * Math.max(0, this.timeScale) / k;
+        for (let i = 0; i < k; i++, n++) this._step(h);
+      }
+    } catch (e) { this._acc %= step; this._fail('update', e); }   // an error drops the frame's other steps, as before
+    if (this._acc < 0) this._acc = 0;
+    this.alpha = this._acc / step;
+    return n;
   }
   /** switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 */
   go(name, data, o = {}) {
@@ -2855,7 +2878,7 @@ class TileMap {
   /** true where a body can walk: no wall and not a blocked floor (water, lava). Pathfinding uses this. */
   walkable(cx, cy) { return this.cell(cx, cy) === 0 && !this.blocked[cy * this.w + cx]; }
   /** mark a cell blocked or free at runtime (a bridge appears, lava cools) */
-  block(cx, cy, on = true) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) this.blocked[cy * this.w + cx] = on ? 1 : 0; }
+  block(cx, cy, on = true) { const i = cy * this.w + cx, v = on ? 1 : 0; if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h && this.blocked[i] !== v) { this.blocked[i] = v; this.version++; } }
   solidAt(x, y) { return this.solidCell(Math.floor(x / this.T), Math.floor(y / this.T)); }
   height(cx, cy) { const c = this.cell(cx, cy); return c > 0 ? this.types[c].h : c < 0 ? 1e9 : 0; }
   /** wall height at a world point (0 on the floor) */
@@ -3130,10 +3153,11 @@ TileMap.prototype._roofPattern = function (g, top, roof, t, wx0, wy0) {
  * 14. FLOW FIELD  BFS distance map toward a target: cheap pathfinding for crowds
  * ============================================================================= */
 class FlowField {
-  constructor(map) { this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this.q = new Int32Array(n); this.tx = -1; this.ty = -1; }
+  constructor(map) { this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this.q = new Int32Array(n); this.tx = -1; this.ty = -1; this.version = -1; }
   update(x, y) {
     const m = this.map, T = m.T, tx = Math.floor(x / T), ty = Math.floor(y / T);
-    if (tx === this.tx && ty === this.ty) return; this.tx = tx; this.ty = ty;
+    if (tx === this.tx && ty === this.ty && m.version === this.version) return;   // rebuilt when the target's cell or the map changes
+    this.tx = tx; this.ty = ty; this.version = m.version;
     const d = this.d, q = this.q, W = m.w; d.fill(1e9);
     const solid = m.walkable ? (cx, cy) => !m.walkable(cx, cy) : (cx, cy) => m.solidCell(cx, cy);
     if (solid(tx, ty)) return;
@@ -3819,7 +3843,7 @@ const DRUMS = {
 class ChipAudio {
   constructor(game) {
     this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
-    this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this._waves = {};
+    this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
     this.rnd = rng(0x51A7E);
@@ -3843,11 +3867,13 @@ class ChipAudio {
   }
   /** true once the browser lets the game make sound */
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
-  _levels() { if (!this.ctx) return; this.master.gain.value = this.muted ? 0 : this.volume; this.sfxBus.gain.value = this.sfxVolume; this.musBus.gain.value = this.musicVolume * (this._ducked ? .35 : 1); }
+  _levels() { if (!this.ctx) return; this.master.gain.value = this.muted ? 0 : this.volume; this.sfxBus.gain.value = this.sfxVolume; this.musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
   setVolume(v) { this.volume = clamp(v, 0, 1); this._levels(); }
   /** toggle (or set) mute; returns the new state */
   mute(on = !this.muted) { this.muted = on; this._levels(); return on; }
-  _duck(on) { if (this._ducked === on) return; this._ducked = on; this._levels(); }
+  /** quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused */
+  duck(on = true) { on = !!on; if (this.ducked === on) return; this.ducked = on; this._levels(); }
+  _duck(on) { if (this._ducked === on) return; this._ducked = on; this._levels(); }   // (the engine's own: game.paused)
   _pulse(duty) {
     if (this._waves[duty]) return this._waves[duty];
     const N = 40, re = new Float32Array(N), im = new Float32Array(N);
