@@ -173,10 +173,19 @@ for (const C of list) {
       const dud = ids.filter(id => !r.out[id].cast); must(!dud.length, 'these shared skills did not cast: ' + dud.join(', '));
       if (r.out.echo) must(r.out.echo.echo === true, 'its Echo (the shared skill) does not have its body');
     });
-    await page.evaluate(() => { __ed.ED.hero.bot = null; __ed.devDisable(); }); await page.waitForTimeout(900);
+    // Leaving the sandbox schedules a town-to-town fade. The old ED.mode is already 'town'; its input is
+    // consumed while fading out. Wait for the new world to enter and update before testing a real key press.
+    const sandboxWorld = await page.evaluateHandle(() => __ed.ED.L);
+    await page.evaluate(() => { __ed.ED.hero.bot = null; __ed.devDisable(); });
+    try {
+      await page.waitForFunction(oldWorld => __ed.ED.L !== oldWorld && __ed.ED.mode === 'town' && __ed.ED.t > 0 && !__ed.ED.hero.act && __ed.ED.hero.z === 0 && !__ed.UI.modal, sandboxWorld, { timeout: 15000 })
+        .catch(() => { throw new Error('the normal hero did not finish returning from the developer sandbox'); });
+    } finally { await sandboxWorld.dispose(); }
 
     await check('shows on the paper doll in its own body', async () => {
-      await key(page, 'KeyI'); await page.waitForTimeout(300);
+      await key(page, 'KeyI');
+      await page.waitForFunction(() => __ed.UI.top()?.id === 'inventory', null, { timeout: 8000 })
+        .catch(() => { throw new Error('I did not open the bag'); });
       const r = await page.evaluate(() => ({ top: __ed.UI.top() && __ed.UI.top().id, same: __ed.LOT_dollRig(__ed.ED.hero).rig.constructor === __ed.ED.hero.rig.constructor }));
       await page.screenshot({ path: out + '/bag.png' });
       must(r.top === 'inventory', 'I did not open the bag'); must(r.same, 'the paper doll is not its body');

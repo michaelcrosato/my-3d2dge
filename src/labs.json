@@ -19,9 +19,9 @@
       "entries": [
         {
           "page": "animation-studio",
-          "title": "Animation Studio",
-          "what": "Create an animation, use a library clip, and edit readable key poses while both rigs play. Timeline, pose controls, live JSON, undo, and game exports. Run npm run animation:studio for live LLM edits through MCP or a watched project file.",
-          "links": [["Open editor", ""], ["Side view", "?view=side"], ["Game hero", "?cast=hero"]]
+          "title": "Asset Studio",
+          "what": "Create animations, reusable part models, procedural textures, placed objects and tile levels. Animation and Scene share live JSON, undo and exports. Play the level or inspect a frame strip. Run npm run asset:studio for live LLM edits through MCP or a watched project file.",
+          "links": [["Open editor", ""], ["Scene", "?workspace=scene"], ["Side view", "?view=side"], ["Game hero", "?cast=hero"]]
         },
         {
           "page": "mocap-lab",

@@ -1,6 +1,6 @@
 /* =============================================================================
  * ANIMATION STUDIO MODEL  shared by the browser and the local tools. No I/O.
- * Projects hold readable clips and the name of the reference set for each clip.
+ * Projects hold readable clips and optional AssetStudioModel scene data.
  * validateClip / validateProject copy and check input; apply returns a new project.
  * The input project never changes, including when an operation fails.
  * ============================================================================= */
@@ -14,7 +14,7 @@ const CLIP_FIELDS = ['clip', 'src', 'dur', 'loop', 'tags', 'desc', 'orig', 'take
 const ACTION_FIELDS = {
   create: ['name', 'duration', 'loop', 'preset', 'set'], import: ['set', 'clip', 'name'], add: ['set', 'clip'],
   select: ['id'], replace: ['id', 'clip'], edit_key: ['id', 'time', 'values'], delete_key: ['id', 'time'],
-  transform: ['id', 'kind', 'duration'], rename: ['id', 'name'], delete: ['id']
+  transform: ['id', 'kind', 'duration'], rename: ['id', 'name'], delete: ['id'], assets: ['actions']
 };
 const MAX_KEYS = 2000, MAX_CLIPS = 128, MAX_DURATION = 600, END_TOL = 1 / 30 + 1e-6, EPS = 1e-9;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -97,10 +97,14 @@ function getSet(sets, name) {
   if (!object(set) || !object(set.sources) || !Object.keys(set.sources).length) fail('Animation set "' + id + '" has no reference body.');
   return { id, set };
 }
+function assetModel() {
+  if (typeof AssetStudioModel === 'undefined') fail('This project contains assets. Open it with Asset Studio or load AssetStudioModel before AnimationStudioModel.');
+  return AssetStudioModel;
+}
 /** A project is portable JSON. Reference set data remains in the repository. */
 function validateProject(input, sets) {
   if (!object(input)) fail('A project must be an object.');
-  keysOnly(input, ['schema', 'name', 'selected', 'clips'], 'Project');
+  keysOnly(input, ['schema', 'name', 'selected', 'clips', 'assets'], 'Project');
   if (input.schema !== 1) fail('Project schema must be 1.');
   label(input.name, 'Project name', 120);
   if (!object(input.clips)) fail('Project clips must be an object.');
@@ -117,7 +121,10 @@ function validateProject(input, sets) {
     clips[id] = { set: source.id, clip: c };
   }
   if (typeof input.selected !== 'string' || !own(clips, input.selected)) fail('Project selected must name a clip in this project.');
-  return { schema: 1, name: input.name, selected: input.selected, clips };
+  const p = { schema: 1, name: input.name, selected: input.selected, clips };
+  // Old animation files stay byte-for-byte equivalent and need no asset runtime.
+  if (own(input, 'assets')) p.assets = assetModel().validateProject(input.assets, { clips });
+  return p;
 }
 function neutral() {
   return { hips: [0, 0, 100], body: [0, 0, 0], chest: [0, 0, 0], head: [0, 0, 0], shL: [0, 0], shR: [0, 0],
@@ -182,7 +189,10 @@ function apply(project, action, sets) {
   if (!object(action) || typeof action.type !== 'string') fail('An action needs a type.');
   if (!own(ACTION_FIELDS, action.type)) fail('Unknown action type "' + action.type + '".');
   keysOnly(action, ['type', ...ACTION_FIELDS[action.type]], 'Action "' + action.type + '"');
-  if (action.type === 'create') addRecord(p, newClip(action, sets));
+  if (action.type === 'assets') {
+    const A = assetModel(), context = { clipIds: [p.selected, ...Object.keys(p.clips).filter(id => id !== p.selected)] };
+    p.assets = A.applyMany(p.assets || A.createProject(context), action.actions, context);
+  } else if (action.type === 'create') addRecord(p, newClip(action, sets));
   else if (action.type === 'import') addRecord(p, importClip(sets, action.set, action.clip, action.name === undefined ? action.clip : action.name));
   else if (action.type === 'add') {
     const source = getSet(sets, action.set === undefined ? 'quaternius' : action.set);
@@ -234,9 +244,13 @@ function apply(project, action, sets) {
         c.clip = name;
         p.clips = Object.fromEntries(Object.entries(p.clips).map(([key, value]) => [key === id ? name : key, value]));
         if (p.selected === id) p.selected = name;
+        if (p.assets) for (const level of Object.values(p.assets.levels)) for (const o of Object.values(level.objects)) if (o.kind === 'actor' && o.clip === id) o.clip = name;
       }
     } else if (action.type === 'delete') {
       if (Object.keys(p.clips).length === 1) fail('The last clip cannot be deleted. Create another clip first.');
+      if (p.assets) for (const [levelId, level] of Object.entries(p.assets.levels)) for (const [objectId, o] of Object.entries(level.objects)) {
+        if (o.kind === 'actor' && o.clip === id) fail('Clip "' + id + '" is used by actor "' + objectId + '" in level "' + levelId + '". Change or remove that actor before deleting the clip.');
+      }
       delete p.clips[id]; if (p.selected === id) p.selected = Object.keys(p.clips)[0];
     } else fail('Unknown action type "' + action.type + '".');
   }

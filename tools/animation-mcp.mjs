@@ -1,15 +1,15 @@
-// MCP stdio bridge for an already running local Animation Studio. JSON-RPC only on stdout; diagnostics on stderr.
+// MCP stdio bridge for live animation, asset and level work. JSON-RPC only on stdout; diagnostics on stderr.
 // Usage: node tools/animation-mcp.mjs [--url http://127.0.0.1:4173]
 // Transport: MCP 2025-11-25, newline-delimited JSON-RPC 2.0. No model account or API key is used by this bridge.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ACTION_SCHEMA, VIEWS, CASTS, MAX_BYTES } from './studio-service.mjs';
+import { ACTION_SCHEMA, VIEWS, CASTS, MAX_BYTES, loadAssetModel } from './studio-service.mjs';
 
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const schema = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const name = { type: 'string', minLength: 1, maxLength: 80 };
-const revision = { type: 'integer', minimum: 0, description: 'Current revision from animation_get. Required to avoid replacing a newer edit.' };
+const revision = { type: 'integer', minimum: 0, description: 'Current revision from scene_get or animation_get. Required to avoid replacing a newer edit.' };
 const camera = {
   id: { ...name, description: 'Project clip to inspect. Does not change the saved selection.' },
   view: { enum: VIEWS }, cast: { enum: CASTS }, bones: { type: 'boolean' },
@@ -37,7 +37,40 @@ export const ANIMATION_TOOLS = [
     inputSchema: schema({ id: name, format: { enum: ['json', 'js'] } }), annotations: readonly }
 ];
 
+const assetModel = loadAssetModel();
+const sceneCamera = {
+  level: { ...name, description: 'Level ID. Defaults to the saved selectedLevel. Preview does not save selection.' },
+  view: { enum: VIEWS }, zoom: { type: 'number', minimum: .5, maximum: 3 },
+  focus: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', minimum: -100000, maximum: 100000 }, description: 'Camera focus in world coordinates [x,y,z].' },
+  selected: { oneOf: [name, { type: 'null' }], description: 'Object ID for the selection outline, or null for none.' }, grid: { type: 'boolean' }
+};
+const sceneCapture = schema({ ...sceneCamera, times: { type: 'array', minItems: 1, maxItems: 8, items: { type: 'number', minimum: 0, maximum: 600 }, description: 'Exact scene times in seconds. Defaults to [0].' } });
+export const ASSET_TOOLS = [
+  { name: 'asset_catalog', description: 'Discover readable procedural materials, texture patterns, model shapes and ready-made level presets. Returns current asset summaries. Set includeSchema=true to learn exact action fields. No image/model binaries or LLM API key are needed.',
+    inputSchema: schema({ includeSchema: { type: 'boolean' } }), annotations: readonly },
+  { name: 'scene_get', description: 'Read a compact scene summary and current shared revision before editing. Inspect one material, model, level or object with type and id. Level defaults to the saved selection. includeSchema adds action schemas; full=true explicitly includes the full project and animation keys.',
+    inputSchema: schema({ type: { enum: ['material', 'model', 'level', 'object'] }, id: name, level: name, includeSchema: { type: 'boolean' }, full: { type: 'boolean' } }), annotations: readonly },
+  { name: 'scene_edit', description: 'Apply 1 to 100 asset actions as one atomic revision and one Undo step. Create or change procedural materials/textures, reusable part models, level tiles and placed objects/animated actors. All open editors update immediately. Supply capture to receive the resulting PNG in this same call. A captureError means the edit was saved but its image failed; do not repeat the edit.',
+    inputSchema: schema({ expectedRevision: revision, actions: { type: 'array', minItems: 1, maxItems: 100, items: assetModel.schema().action }, summary: { type: 'string', minLength: 1, maxLength: 240 }, capture: sceneCapture }, ['expectedRevision', 'actions']), annotations: localwrite },
+  { name: 'scene_preview', description: 'Show a level, camera, selected object or exact time in the live editors. mode=play starts the human playtest; mode=edit returns to editing. These settings do not save assets or add history. The shared scene remains editable during play.',
+    inputSchema: schema({ ...sceneCamera, mode: { enum: ['edit', 'play'] }, time: { type: 'number', minimum: 0, maximum: 600 }, playing: { type: 'boolean' } }), annotations: localwrite },
+  { name: 'scene_capture', description: 'Inspect a level as a PNG or frame strip at up to 8 exact scene times. A separate browser keeps the human view unchanged. Response names the captured revision. Defaults to time 0. Requires Playwright and Chromium; the browser stays warm for later captures.',
+    inputSchema: sceneCapture, annotations: readonly },
+  { name: 'scene_export', description: 'Export one level with its readable materials, models and actor animations. format=json returns a portable data project; format=html returns a self-contained playable page. Does not write an external file or alter the editor.',
+    inputSchema: schema({ level: name, format: { enum: ['json', 'html'] } }), annotations: readonly }
+];
+export const STUDIO_TOOLS = [...ANIMATION_TOOLS, ...ASSET_TOOLS];
+
 function check(value, spec, path = 'arguments') {
+  if (Array.isArray(spec.type)) return check(value, { ...spec, type: undefined, oneOf: spec.type.map(type => ({ ...spec, type })) }, path);
+  if (spec.anyOf) {
+    for (const option of spec.anyOf) { try { check(value, option, path); return; } catch {} }
+    throw new Error(path + ' does not match an accepted format.');
+  }
+  if (spec.not) {
+    let excluded = false; try { check(value, spec.not, path); excluded = true; } catch {}
+    if (excluded) throw new Error(path + ' uses a reserved value.');
+  }
   if (spec.oneOf) {
     const errors = [];
     for (const option of spec.oneOf) { try { check(value, option, path); return; } catch (err) { errors.push(err.message); } }
@@ -50,10 +83,13 @@ function check(value, spec, path = 'arguments') {
   if (spec.enum && !spec.enum.includes(value)) throw new Error(path + ' must be one of: ' + spec.enum.join(', ') + '.');
   if (spec.type === 'object') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(path + ' must be an object.');
+    if (Object.keys(value).length < (spec.minProperties || 0) || Object.keys(value).length > (spec.maxProperties ?? Infinity)) throw new Error(path + ' has an invalid number of fields.');
     for (const key of spec.required || []) if (!Object.prototype.hasOwnProperty.call(value, key)) throw new Error(path + '.' + key + ' is required.');
     for (const [key, v] of Object.entries(value)) {
+      if (spec.propertyNames) check(key, spec.propertyNames, path + ' key');
       if (spec.additionalProperties === false && !Object.prototype.hasOwnProperty.call(spec.properties || {}, key)) throw new Error(path + ': unknown field ' + key + '.');
       if (spec.properties?.[key]) check(v, spec.properties[key], path + '.' + key);
+      else if (spec.additionalProperties && typeof spec.additionalProperties === 'object') check(v, spec.additionalProperties, path + '.' + key);
     }
   } else if (spec.type === 'array') {
     if (!Array.isArray(value) || value.length < (spec.minItems || 0) || value.length > (spec.maxItems ?? Infinity)) throw new Error(path + ' must be an array with ' + (spec.minItems || 0) + ' to ' + (spec.maxItems ?? 'unlimited') + ' items.');
@@ -63,7 +99,9 @@ function check(value, spec, path = 'arguments') {
     if (value < (spec.minimum ?? -Infinity) || value > (spec.maximum ?? Infinity) || (spec.exclusiveMinimum !== undefined && value <= spec.exclusiveMinimum)) throw new Error(path + ' is outside the permitted range.');
   } else if (spec.type === 'string') {
     if (typeof value !== 'string' || value.length < (spec.minLength || 0) || value.length > (spec.maxLength ?? Infinity)) throw new Error(path + ' must be text of the permitted length.');
+    if (spec.pattern && !new RegExp(spec.pattern).test(value)) throw new Error(path + ' does not match the accepted text format.');
   } else if (spec.type === 'boolean' && typeof value !== 'boolean') throw new Error(path + ' must be true or false.');
+  else if (spec.type === 'null' && value !== null) throw new Error(path + ' must be null.');
 }
 
 export function validateStudioURL(input = 'http://127.0.0.1:4173') {
@@ -81,7 +119,7 @@ export function createMCPHandler({ url = 'http://127.0.0.1:4173' } = {}) {
   const result = (id, value) => ({ jsonrpc: '2.0', id, result: value });
   async function request(path, data, plain = false) {
     let response;
-    try { response = await fetch(base + path, { method: data === undefined ? 'GET' : 'POST', headers: data === undefined ? {} : { 'Content-Type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data), signal: AbortSignal.timeout(path === '/api/capture' ? 90000 : 10000), redirect: 'error' }); }
+    try { response = await fetch(base + path, { method: data === undefined ? 'GET' : 'POST', headers: data === undefined ? {} : { 'Content-Type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data), signal: AbortSignal.timeout(path === '/api/capture' || path === '/api/scene/capture' || path === '/api/scene/edit' && data?.capture ? 90000 : 10000), redirect: 'error' }); }
     catch (err) { throw new Error('Cannot reach Animation Studio at ' + base + '. Start it with: node tools/animation-studio.mjs. ' + err.message); }
     const raw = await response.text();
     let parsed; try { parsed = JSON.parse(raw); } catch { parsed = null; }
@@ -109,7 +147,13 @@ export function createMCPHandler({ url = 'http://127.0.0.1:4173' } = {}) {
     if (tool === 'animation_capture') return request('/api/capture', args);
     if (tool === 'animation_history') return request('/api/action', { expectedRevision: args.expectedRevision, action: { type: args.direction }, source: 'agent' });
     if (tool === 'animation_export') return request('/api/export?' + query(args), undefined, true);
-    throw new Error('Unknown animation tool: ' + tool + '.');
+    if (tool === 'asset_catalog') return request('/api/assets/catalog?' + query(args));
+    if (tool === 'scene_get') return request('/api/scene?' + query(args));
+    if (tool === 'scene_edit') return request('/api/scene/edit', { ...args, source: 'agent' });
+    if (tool === 'scene_preview') return request('/api/scene/preview', args);
+    if (tool === 'scene_capture') return request('/api/scene/capture', args);
+    if (tool === 'scene_export') return request('/api/scene/export?' + query(args), undefined, true);
+    throw new Error('Unknown studio tool: ' + tool + '.');
   }
   return async message => {
     if (!message || typeof message !== 'object' || Array.isArray(message) || message.jsonrpc !== '2.0' || typeof message.method !== 'string' || (Object.prototype.hasOwnProperty.call(message, 'id') && message.id !== null && typeof message.id !== 'string' && typeof message.id !== 'number')) {
@@ -120,22 +164,26 @@ export function createMCPHandler({ url = 'http://127.0.0.1:4173' } = {}) {
     if (message.method === 'initialize') {
       if (!message.params || typeof message.params.protocolVersion !== 'string') return rpcError(id, -32602, 'initialize requires protocolVersion.');
       const supported = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']; initialized = true;
-      return result(id, { protocolVersion: supported.includes(message.params.protocolVersion) ? message.params.protocolVersion : supported[0], capabilities: { tools: {} }, serverInfo: { name: 'my-3d2dge-animation-studio', version }, instructions: 'Keep the local Animation Studio server running at ' + base + '. Call animation_get with includeSchema=true to learn the readable format. Use the current revision for every edit. The live editor shows changes immediately. Use animation_capture to inspect motion before and after edits.' });
+      return result(id, { protocolVersion: supported.includes(message.params.protocolVersion) ? message.params.protocolVersion : supported[0], capabilities: { tools: {} }, serverInfo: { name: 'my-3d2dge-animation-studio', version }, instructions: 'Keep the local Animation and Asset Studio server running at ' + base + '. For assets and levels, start with scene_get and asset_catalog(includeSchema=true). scene_edit accepts an atomic batch and optional capture for a PNG in the same reply. Responses stay compact unless full=true. For poses use animation_get(includeSchema=true). Use the latest shared revision for every edit. All editors update immediately; animation_history undoes either type of edit. Captures inspect a fixed revision without changing the human preview.' });
     }
     if (message.method === 'ping') return result(id, {});
     if (!initialized) return rpcError(id, -32002, 'Initialize this MCP session first.');
-    if (message.method === 'tools/list') return result(id, { tools: ANIMATION_TOOLS });
+    if (message.method === 'tools/list') return result(id, { tools: STUDIO_TOOLS });
     if (message.method !== 'tools/call') return rpcError(id, -32601, 'Method not found: ' + message.method + '.');
     try {
       const params = message.params;
       if (!params || typeof params.name !== 'string') throw new Error('tools/call requires a tool name.');
-      const tool = ANIMATION_TOOLS.find(t => t.name === params.name);
+      const tool = STUDIO_TOOLS.find(t => t.name === params.name);
       if (!tool) throw new Error('Unknown tool: ' + params.name + '. Use tools/list.');
       const args = params.arguments === undefined ? {} : params.arguments; check(args, tool.inputSchema);
       const output = await call(tool.name, args);
-      if (tool.name === 'animation_capture') {
+      if (tool.name === 'animation_capture' || tool.name === 'scene_capture') {
         const { data, ...metadata } = output;
         return result(id, { content: [{ type: 'image', data, mimeType: output.mimeType }, { type: 'text', text: JSON.stringify(metadata) }] });
+      }
+      if (tool.name === 'scene_edit' && output.capture) {
+        const { capture, ...receipt } = output, { data, ...metadata } = capture;
+        return result(id, { content: [{ type: 'text', text: JSON.stringify({ ...receipt, capture: metadata }) }, { type: 'image', data, mimeType: capture.mimeType }] });
       }
       return result(id, { content: [{ type: 'text', text: typeof output === 'string' ? output : JSON.stringify(output) }] });
     } catch (err) { return result(id, { isError: true, content: [{ type: 'text', text: err.message || 'Animation tool failed.' }] }); }

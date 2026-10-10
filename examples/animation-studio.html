@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Animation Studio · my-3D2dge</title>
-<!-- A self-contained animation editor. npm run animation:studio adds live file and MCP edits.
-     Sources: src/animation-studio/. The renderer and motion format are the engine's public APIs. -->
+<title>Asset Studio · my-3D2dge</title>
+<!-- A self-contained animation and scene editor. npm run asset:studio adds live file and MCP edits.
+     Sources: src/animation-studio/ and src/asset-studio/. Both use the engine's public APIs. -->
 <style>
 /* Animation Studio: the HTML controls are views of the shared project model. No external assets. */
 :root{color-scheme:dark;--bg:#111619;--panel:#1a2024;--panel2:#20282d;--line:#303a40;--ink:#e8eeef;--muted:#94a3ab;--accent:#9ee5c3;--accent-dark:#142d24;--warn:#ffb987;--bad:#ff9c9c;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px}
@@ -16,15 +16,22 @@
 @media(max-width:560px){.app-header{height:60px;padding:0 12px;gap:8px}.brand{font-size:13px;gap:8px}.brand-mark{width:26px;height:28px;font-size:18px}.brand small{font-size:9px}.header-actions{gap:7px}.header-actions button{font-size:10px;padding:7px}.header-actions .connection{display:none}.workspace{display:flex;flex-direction:column;min-height:0}.editor{order:0;min-height:540px;height:calc(100dvh - 60px);max-height:880px}.library-panel{order:2;max-height:620px;height:620px;position:static;border:0;border-top:1px solid var(--line);padding:20px 16px 0}.clip-list{max-height:150px}.inspector{order:1;min-height:480px}.editor-heading{padding:14px 16px}h1{font-size:19px}.eyebrow{font-size:8px}.viewport{margin:0 9px;min-height:210px}.timeline{margin:9px 9px 0;padding:11px}.viewport-toolbar select{max-width:120px}.viewport-toolbar button{padding:5px 8px}.camera-controls input{width:46px}.stage-status{font-size:8px}.notice-bar{font-size:9px;min-height:39px;padding:8px 12px}.time-label{font-size:11px}.inspector-tabs{padding-top:5px}.library-list button{min-height:49px}.export-controls{padding:13px}.export-controls .button-row{flex:1.7}.export-controls button{font-size:10px!important}.history-actions{gap:3px}.history-actions button{width:29px;min-width:29px}dialog{padding:19px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important}}
 
+/* Scene mode shares the animation editor's canvas, connection, undo and project. */
+body[data-workspace=animation] .scene-only,body[data-workspace=scene] .animation-only{display:none!important}.workspace-switch{display:flex;border:1px solid var(--line);border-radius:6px;padding:3px;gap:3px;background:var(--bg)}.workspace-switch button{font-size:11px;border:0;min-height:29px;padding:6px 18px;background:transparent;color:var(--muted)}.workspace-switch button[aria-pressed=true]{background:#2d443a;color:var(--accent)}.small-button{font-size:10px;min-height:25px;padding:4px 6px}.scene-library{overflow:auto;scrollbar-width:thin;padding-top:17px}.scene-library>.library-heading{margin:18px 0 8px}.scene-library>.panel-heading{margin-bottom:8px}.scene-library>select{margin-bottom:0}.scene-library>.library-footer{margin-top:18px;flex-shrink:0}.asset-list{display:flex;flex-direction:column;gap:3px;flex-shrink:0;scrollbar-width:thin}.asset-list button{background:transparent;text-align:left;border-color:transparent;justify-content:flex-start;padding:7px 9px;font-size:11px;white-space:normal}.asset-list button[aria-pressed=true]{background:#273b34;border-color:#3c5a4c;color:var(--ink)}.asset-list button>span:last-child{min-width:0;overflow-wrap:anywhere}.asset-list small{display:block;font-size:9px;color:var(--muted);margin-top:3px}.object-list{max-height:220px;overflow:auto}.object-list .asset-symbol{font-size:17px;color:var(--accent);width:20px;text-align:center}.add-object-row{display:flex;gap:5px;margin:9px 0 7px}.add-object-row select{width:100%;flex:1;font-size:10px}.add-object-row button,#sceneAddActor{font-size:10px}.model-list{display:grid;grid-template-columns:1fr 1fr;max-height:200px;overflow:auto}.model-list button{background:var(--bg);border:1px solid var(--line);display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:9px}.model-list .model-icon{font-size:20px;color:#acc3ba}.material-list{display:grid;grid-template-columns:1fr 1fr;gap:5px;max-height:170px;overflow:auto}.material-list button{padding:6px;background:var(--bg);border:1px solid var(--line);gap:7px;font-size:10px}.material-swatch{height:24px;width:24px;min-width:24px;display:block;border:1px solid #ffffff25;border-radius:3px}.scene-strip{margin:12px 15px 0;padding:12px 14px;border:1px solid var(--line);border-radius:7px;background:var(--panel)}.scene-strip .button-row{margin:0;gap:6px}.scene-strip button,.scene-strip select{font-size:10px;min-height:31px;padding:6px 8px}.scene-strip select{flex:1.5}.scene-strip p{font-size:10px;line-height:1.6;margin-top:9px}.scene-inspector fieldset{border:0;padding:0;margin:0;min-width:0}.scene-inspector fieldset:disabled{opacity:.45}.axis-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}.axis-fields.two{grid-template-columns:repeat(2,minmax(0,1fr))}.axis-fields label{font-size:10px;color:var(--muted);min-width:0}.axis-fields input{display:block;width:100%;margin-top:6px;font-size:11px;padding:7px}.axis-fields.material-colors input{height:36px;padding:3px}.scene-inspector .check-row{margin:0 0 12px}.scene-inspector .section-title .check-row{margin:0}.scene-inspector .export-controls{display:flex;flex-direction:column;gap:7px}.scene-inspector textarea{width:100%;white-space:pre;tab-size:2;font:10px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:auto;resize:vertical;padding:10px}.scene-inspector #sceneModelText{height:235px;margin:0 0 9px}.scene-inspector #sceneJson{flex:1;min-height:320px;resize:none}.scene-inspector>select,#sceneMaterialSelect,#sceneModelSelect{margin-top:10px}.scene-inspector .bad{color:var(--bad)}#sceneSelectionTitle{overflow-wrap:anywhere;min-width:0}#sceneMeta{font-size:10px;line-height:1.5}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}.export-help{display:none}.scene-painting #screen{cursor:crosshair}
+.viewport-toolbar button.primary{background:var(--accent);color:var(--accent-dark);border-color:var(--accent)}body.capture .scene-strip,body.capture .export-help{display:none!important}body.standalone .app-header,body.standalone .library-panel,body.standalone .inspector,body.standalone .editor-heading,body.standalone .timeline,body.standalone .scene-strip,body.standalone .notice-bar{display:none!important}body.standalone .workspace{height:100dvh;min-height:0;display:block}body.standalone .editor{height:100dvh;min-height:0;max-height:none}body.standalone .viewport{margin:0;border:0;border-radius:0}body.standalone .export-help{display:block;position:absolute;bottom:15px;left:50%;transform:translateX(-50%);width:max-content;max-width:90%;text-align:center;font-size:11px;background:#14251ed9;color:#daebdf;padding:8px 12px;border-radius:5px;pointer-events:none}body.standalone .stage-status,body.standalone .camera-controls{bottom:55px}
+@media(min-width:1600px){.scene-strip{margin:16px 24px 0}}@media(max-width:1100px){.workspace-switch button{padding:6px 12px}.app-header{gap:10px}.scene-strip{padding:10px}.scene-strip button,.scene-strip select{font-size:9px;padding:6px}.scene-library{padding-top:14px}.model-list button{padding:7px}.material-list{grid-template-columns:1fr}.material-list button{min-height:32px}.material-list small{display:none}.material-swatch{height:19px;width:19px;min-width:19px}}
+@media(max-width:880px){.scene-inspector .export-controls{flex-direction:row}.scene-inspector .export-controls button{flex:1}.scene-inspector #sceneJson{min-height:380px}.scene-inspector .axis-fields{max-width:480px}.header-actions{gap:8px}.header-actions button{font-size:10px}.header-actions .connection{display:none}}@media(max-width:560px){.app-header{height:auto;min-height:60px;flex-wrap:wrap;padding:10px 12px}.workspace-switch{order:3;width:100%;padding:2px;margin-top:2px}.workspace-switch button{flex:1}.workspace-switch button{min-height:28px}.workspace{min-height:0}.editor{height:calc(100dvh - 102px);min-height:520px}.scene-strip{margin:9px 9px 0;padding:9px}.scene-strip .button-row{flex-wrap:wrap}.scene-strip select{flex:1.5}.scene-strip #sceneFocusBtn{display:none}.scene-library{height:auto;max-height:none;padding:20px 16px}.object-list{max-height:220px}.model-list{grid-template-columns:repeat(3,minmax(0,1fr))}.material-list{grid-template-columns:repeat(3,minmax(0,1fr));max-height:220px}.material-list button{font-size:9px;min-height:40px}.scene-inspector .export-controls button{font-size:10px!important}.viewport-toolbar .toolbar-group{gap:4px}.viewport-toolbar #sceneFitBtn{font-size:9px;padding:4px}.viewport-toolbar #sceneGridBtn{display:none}body.standalone .export-help{font-size:9px;bottom:12px}}
+
 </style>
 </head>
-<body>
+<body data-workspace="animation">
 <header class="app-header">
-  <a class="brand" href="labs.html" aria-label="my-3D2dge: All labs"><span class="brand-mark" aria-hidden="true">A</span><span>Animation Studio<small>my-3D2dge <span class="version">v0.16.0 · dev-build</span></small></span></a>
+  <a class="brand" href="labs.html" aria-label="my-3D2dge: All labs"><span class="brand-mark" aria-hidden="true">A</span><span>Asset Studio<small>my-3D2dge <span class="version">v0.18.0 · dev-build</span></small></span></a>
+  <nav class="workspace-switch" aria-label="Workspace"><button id="workspaceAnimation" type="button" aria-pressed="true">Animation</button><button id="workspaceScene" type="button" aria-pressed="false">Scene</button></nav>
   <div class="header-actions"><span id="connection" class="connection"><i></i>Local editor</span><button id="connectBtn" class="primary" type="button">Connect an LLM <span aria-hidden="true">↗</span></button></div>
 </header>
 <main class="workspace">
-  <aside class="library-panel" aria-label="Animations">
+  <aside class="library-panel animation-only" aria-label="Animations">
     <div class="panel-heading"><h2>Project clips</h2><span id="projectCount" class="count">1</span></div>
     <div class="project-actions"><button id="newBtn" class="primary subtle" type="button">+ New animation</button><button id="importBtn" type="button" title="Import a project or a readable clip JSON file">Import</button><input id="importFile" type="file" accept=".json,application/json" hidden></div>
     <div id="clipList" class="clip-list" role="group" aria-label="Project clips"></div>
@@ -35,22 +42,38 @@
     <div id="libraryList" class="library-list" role="group" aria-label="Motion library clips"></div>
     <div class="library-footer"><span class="tiny-mark">◇</span><span>Readable poses. Reusable motion.<br><a class="to-labs" href="labs.html">All labs ↗</a></span></div>
   </aside>
-  <section class="editor" aria-label="Animation editor">
-    <div class="editor-heading"><div><span class="eyebrow">LIVE PREVIEW</span><h1 id="clipTitle">Wave</h1><p id="clipMeta" class="muted"></p></div><div class="history-actions"><button id="undoBtn" type="button" title="Undo (Ctrl or Command + Z)" aria-label="Undo">↶</button><button id="redoBtn" type="button" title="Redo (Ctrl or Command + Shift + Z)" aria-label="Redo">↷</button><span id="revision" class="revision">rev 0</span></div></div>
+  <aside class="library-panel scene-library scene-only" aria-label="Scene assets">
+  <div class="panel-heading"><h2>Level</h2><button id="sceneNewLevelBtn" type="button" class="small-button" title="Create an empty level">+ New</button></div>
+  <select id="sceneLevel" aria-label="Current level"></select>
+  <div class="library-heading"><h2>Objects</h2><span id="sceneObjectCount" class="count"></span></div>
+  <div id="sceneObjectList" class="asset-list object-list" role="group" aria-label="Level objects"></div>
+  <div class="add-object-row"><select id="sceneObjectModel" aria-label="Model to place"></select><button id="sceneNewObject" type="button" title="Place the chosen model">+ Place</button></div>
+  <button id="sceneAddActor" type="button" class="full subtle">+ Place animation actor</button>
+  <div class="library-heading"><h2>Reusable models</h2><button id="sceneNewModel" type="button" class="small-button">+ New</button></div>
+  <div id="sceneModelList" class="asset-list model-list" role="group" aria-label="Reusable models"></div>
+  <div class="library-heading"><h2>Materials &amp; textures</h2><button id="sceneNewMaterial" type="button" class="small-button">+ New</button></div>
+  <div id="sceneMaterialList" class="asset-list material-list" role="group" aria-label="Materials"></div>
+  <div class="library-footer"><span class="tiny-mark">◇</span><span>One project. One live history.<br>Animation, models and levels.</span></div>
+</aside>
+
+  <section class="editor" aria-label="Asset editor">
+    <div class="editor-heading"><div class="animation-only"><span class="eyebrow">LIVE PREVIEW</span><h1 id="clipTitle">Wave</h1><p id="clipMeta" class="muted"></p></div><div class="scene-only"><span class="eyebrow">LIVE SCENE</span><h1 id="sceneTitle">Courtyard</h1><p id="sceneMeta" class="muted"></p></div><div class="history-actions"><button id="undoBtn" type="button" title="Undo (Ctrl or Command + Z)" aria-label="Undo">↶</button><button id="redoBtn" type="button" title="Redo (Ctrl or Command + Shift + Z)" aria-label="Redo">↷</button><span id="revision" class="revision">rev 0</span></div></div>
     <div class="viewport" id="viewport">
       <canvas id="screen" role="img" aria-label="Live animation on the source mannequin and the game hero"></canvas>
-      <div class="viewport-toolbar"><div class="toolbar-group"><select id="viewSelect" aria-label="Camera view"><option value="threequarter">Three-quarter</option><option value="iso">Isometric</option><option value="side">Side</option><option value="brawler">Brawler</option><option value="topdown">Top-down</option></select><select id="castSelect" aria-label="Preview characters"><option value="both">Both rigs</option><option value="mannequin">Mannequin</option><option value="hero">Game hero</option></select></div><button id="bonesBtn" type="button" aria-pressed="false">Bones</button></div>
+      <div class="viewport-toolbar"><div class="toolbar-group"><select id="viewSelect" aria-label="Camera view"><option value="threequarter">Three-quarter</option><option value="iso">Isometric</option><option value="side">Side</option><option value="brawler">Brawler</option><option value="topdown">Top-down</option></select><select id="castSelect" class="animation-only" aria-label="Preview characters"><option value="both">Both rigs</option><option value="mannequin">Mannequin</option><option value="hero">Game hero</option></select><button id="sceneFitBtn" class="scene-only" type="button" title="Fit level (F)">Fit level</button></div><button id="bonesBtn" class="animation-only" type="button" aria-pressed="false">Bones</button><div class="toolbar-group scene-only"><button id="sceneGridBtn" type="button" aria-pressed="true">Grid</button><button id="scenePlayBtn" class="primary" type="button">▶ Play</button></div></div>
       <div class="stage-status"><span id="previewMode">LIVE</span><span id="fps">60 fps</span></div>
-      <div class="camera-controls"><label>Turn <input id="facingInput" type="range" min="-180" max="180" value="-35" step="1" aria-label="Turn the characters"></label><label>Zoom <input id="zoomInput" type="range" min="0.5" max="3" value="2" step="0.1" aria-label="Preview zoom"></label></div>
+      <div class="camera-controls"><label class="animation-only">Turn <input id="facingInput" type="range" min="-180" max="180" value="-35" step="1" aria-label="Turn the characters"></label><label>Zoom <input id="zoomInput" type="range" min="0.5" max="3" value="2" step="0.1" aria-label="Preview zoom"></label></div>
+      <div class="export-help">Move: WASD / arrows · Jump: Space · Drag the left side on touch</div>
     </div>
-    <section class="timeline" aria-label="Animation timeline">
+    <section class="timeline animation-only" aria-label="Animation timeline">
       <div class="transport"><div class="transport-buttons"><button id="prevFrame" type="button" aria-label="Previous frame" title="Previous frame (comma)">‹</button><button id="playBtn" type="button" class="play" aria-label="Pause" title="Play or pause (Space)">Ⅱ</button><button id="nextFrame" type="button" aria-label="Next frame" title="Next frame (period)">›</button><span id="timeLabel" class="time-label">0.00 <span>/ 2.00 s</span></span></div><select id="speedSelect" aria-label="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1× speed</option><option value="2">2×</option></select></div>
       <div class="timeline-track"><div id="ruler" class="ruler" aria-hidden="true"></div><input id="scrub" type="range" min="0" max="2" step="0.001" value="0" aria-label="Animation time"><div id="keyMarkers" class="key-markers" role="group" aria-label="Key poses"></div></div>
       <div class="timeline-footer"><span><i class="key-symbol"></i><span id="keyCount">5 key poses</span></span><span>Click a key to edit · Space to play</span></div>
     </section>
+    <section class="scene-strip scene-only" aria-label="Level tools"><div class="button-row"><button id="sceneSelectBtn" type="button" aria-pressed="true">Select</button><button id="scenePaintBtn" type="button" aria-pressed="false">Paint tiles</button><select id="sceneBrush" aria-label="Tile brush"></select><button id="sceneFocusBtn" type="button" title="Focus the selected object">Focus object</button></div><p id="sceneHint" class="muted">Click an object to select it. Changes from your agent appear here.</p></section>
     <div class="notice-bar"><span id="notice" role="status" aria-live="polite">Ready. Create an animation or use a library clip.</span><span id="saveState">Saved in this browser</span></div>
   </section>
-  <aside class="inspector" aria-label="Animation properties">
+  <aside class="inspector animation-only" aria-label="Animation properties">
     <div class="inspector-tabs" role="tablist" aria-label="Edit mode"><button type="button" role="tab" data-panel="pose" aria-selected="true" aria-controls="posePanel">Pose</button><button type="button" role="tab" data-panel="json" aria-selected="false" aria-controls="jsonPanel">JSON</button><button type="button" role="tab" data-panel="history" aria-selected="false" aria-controls="historyPanel">Activity</button></div>
     <div id="posePanel" class="inspector-body" role="tabpanel">
       <div class="section-title"><h2>Key pose</h2><span id="keyState" class="tag">Sampled pose</span></div>
@@ -78,21 +101,61 @@
     <div id="historyPanel" class="inspector-body" role="tabpanel" hidden><h2>Session activity</h2><p class="muted help">Every accepted edit has a revision. Undo and redo keep a new revision.</p><ol id="activityList" class="activity-list"></ol></div>
     <div class="export-controls"><button id="exportBtn" type="button" class="full">Export clip JSON <span aria-hidden="true">↓</span></button><div class="button-row"><button id="exportSetBtn" type="button">Game set (.js)</button><button id="saveProjectBtn" type="button">Save project</button></div></div>
   </aside>
+  <aside class="inspector scene-inspector scene-only" aria-label="Scene properties">
+  <div class="inspector-tabs" role="tablist" aria-label="Scene edit mode"><button type="button" role="tab" data-scene-panel="object" aria-selected="true" aria-controls="sceneObjectPanel">Object</button><button type="button" role="tab" data-scene-panel="asset" aria-selected="false" aria-controls="sceneAssetPanel">Asset</button><button type="button" role="tab" data-scene-panel="json" aria-selected="false" aria-controls="sceneJsonPanel">JSON</button></div>
+  <div id="sceneObjectPanel" class="inspector-body" role="tabpanel">
+    <div class="section-title"><h2 id="sceneSelectionTitle">Selected object</h2><span id="sceneObjectKind" class="tag">Model</span></div>
+    <p id="sceneSelectionHelp" class="help muted">Select an object in the scene or the list.</p>
+    <fieldset id="sceneObjectFields"><legend class="sr-only">Object transform</legend>
+      <label class="field-label" for="sceneObjectName">Display name</label><input id="sceneObjectName" class="full" maxlength="120">
+      <label class="field-label" for="sceneObjectAsset">Model or animation</label><select id="sceneObjectAsset" class="full"></select>
+      <div class="axis-fields"><label>X<input id="sceneObjectX" type="number" step="1"></label><label>Y<input id="sceneObjectY" type="number" step="1"></label><label>Z<input id="sceneObjectZ" type="number" step="1"></label></div>
+      <div class="axis-fields two"><label>Turn (degrees)<input id="sceneObjectRotation" type="number" step="5"></label><label>Scale<input id="sceneObjectScale" type="number" step="0.1" min="0.05" max="16"></label></div>
+      <div class="button-row"><label class="check-row"><input id="sceneObjectVisible" type="checkbox" checked>Visible</label><label class="check-row"><input id="sceneObjectSolid" type="checkbox" checked>Solid</label></div>
+      <button id="sceneApplyObject" type="button" class="primary full">Apply object</button>
+      <div class="button-row"><button id="sceneDuplicateObject" type="button">Duplicate</button><button id="sceneDeleteObject" type="button">Delete</button></div>
+    </fieldset>
+    <hr><h2>Level setup</h2><p class="help muted">One tile = 16 world units. Z points up. The gold cross marks the player start.</p>
+    <button id="sceneSetSpawn" type="button" class="full">Set player start at selected object</button>
+    <div class="button-row"><button id="sceneSaveProject" type="button">Save project</button><button id="sceneImportProject" type="button">Import</button><input id="sceneImportFile" type="file" accept=".json,application/json" hidden></div>
+    <p id="sceneDraftNotice" class="help muted" role="status"></p>
+  </div>
+  <div id="sceneAssetPanel" class="inspector-body" role="tabpanel" hidden>
+    <h2>Material</h2><select id="sceneMaterialSelect" class="full" aria-label="Material to edit"></select>
+    <div class="axis-fields two material-colors"><label>Base color<input id="sceneMaterialColor" type="color"></label><label>Accent<input id="sceneMaterialAccent" type="color"></label></div>
+    <label class="field-label" for="scenePattern">Procedural texture</label><select id="scenePattern" class="full"><option value="solid">Solid</option><option value="checker">Checker</option><option value="brick">Brick</option><option value="planks">Planks</option><option value="noise">Noise</option></select>
+    <div class="axis-fields two"><label>Pattern size<input id="sceneMaterialScale" type="number" min="0.25" max="64" step="0.25"></label><label>Seed<input id="sceneMaterialSeed" type="number" min="0" step="1"></label></div>
+    <button id="sceneApplyMaterial" type="button" class="primary full">Apply material</button><p class="help muted">Every object and tile that uses this material updates together.</p>
+    <hr><div class="section-title"><h2>Part model</h2><span id="scenePartCount" class="count"></span></div><select id="sceneModelSelect" class="full" aria-label="Model to edit"></select>
+    <p class="help muted">Build from boxes, wedges and cylinders. Edit the model JSON below. All placed copies update together.</p>
+    <textarea id="sceneModelText" aria-label="Part model JSON" spellcheck="false" autocapitalize="off"></textarea>
+    <button id="sceneApplyModel" type="button" class="full">Apply model JSON</button><p id="sceneModelStatus" class="help muted" role="status"></p>
+  </div>
+  <div id="sceneJsonPanel" class="inspector-body json-panel" role="tabpanel" hidden>
+    <div class="section-title"><h2>Scene assets</h2><label class="check-row"><input id="sceneLiveJson" type="checkbox" checked>Live apply</label></div>
+    <p class="help muted">Materials, models, levels and object placement in one readable document. Edit ASCII rows to reshape the level.</p>
+    <textarea id="sceneJson" aria-label="Scene assets JSON" spellcheck="false" autocapitalize="off"></textarea>
+    <p id="sceneJsonStatus" class="help muted" role="status">The preview uses the last valid edit.</p>
+    <div class="button-row"><button id="sceneApplyJson" type="button" class="primary">Apply JSON</button><button id="sceneReadJson" type="button">Read current</button></div>
+  </div>
+  <div class="export-controls"><button id="sceneExportHtml" type="button" class="full">Export playable HTML <span aria-hidden="true">↓</span></button><button id="sceneExportJson" type="button" class="full">Export scene data (.json)</button></div>
+</aside>
+
 </main>
 <dialog id="newDialog"><form id="newForm"><div class="dialog-heading"><h2>New animation</h2><button type="button" data-close="newDialog" aria-label="Close">×</button></div><p class="muted">Start with a still pose or a short example.</p><label class="field-label" for="newName">Name</label><input id="newName" value="My_animation" maxlength="80" required><label class="field-label" for="newPreset">Starting pose</label><select id="newPreset"><option value="neutral">Neutral pose</option><option value="wave">Wave example</option></select><label class="field-label" for="newDuration">Duration in seconds</label><input id="newDuration" type="number" min="0.001" max="600" step="any" value="2" required><label class="check-row"><input id="newLoop" type="checkbox" checked>Loop animation</label><p class="help muted">Use a short name that describes the motion.</p><button id="createBtn" type="submit" class="primary full">Create animation</button></form></dialog>
 <dialog id="importSourceDialog"><form id="importSourceForm"><div class="dialog-heading"><h2>Choose the reference body</h2><button type="button" data-close="importSourceDialog" aria-label="Close">×</button></div><p>This readable clip does not name its reference set. More than one body can use its source. Choose the set used to make the clip.</p><label class="field-label" for="importSourceSet">Reference set</label><select id="importSourceSet"></select><p class="muted help">Clip JSON exported by this editor includes the set, so you can import it without this choice.</p><button id="importSourceBtn" type="submit" class="primary full">Import clip</button></form></dialog>
 <dialog id="connectDialog"><div class="dialog-heading"><h2>Connect your LLM</h2><button type="button" data-close="connectDialog" aria-label="Close">×</button></div><p>Run the local server in the repository. Keep its preview page open while you prompt your LLM.</p><pre>npm install
 npm run build
-npm run animation:studio</pre><p>For image capture, install the preview browser once:</p><pre>npx playwright install chromium</pre><p>Open <a href="http://127.0.0.1:4173/" target="_blank" rel="noopener">http://127.0.0.1:4173/</a>. Add this server to an MCP client. Replace the path with your repository path.</p><pre>{ "mcpServers": {
+npm run asset:studio</pre><p>For image capture, install the preview browser once:</p><pre>npx playwright install chromium</pre><p>Open <a href="http://127.0.0.1:4173/" target="_blank" rel="noopener">http://127.0.0.1:4173/</a>. Add this server to an MCP client. Replace the path with your repository path.</p><pre>{ "mcpServers": {
   "animation": {
     "command": "node",
     "args": ["/absolute/path/my-3d2dge/tools/animation-mcp.mjs"]
   }
-}}</pre><p>Try: “Read the current animation. Make the wave slower and raise the hand. Show me a frame strip.”</p><p class="muted">A coding agent can also edit <code>.animation-studio/project.json</code>. Each valid save updates the preview. This editor does not include an LLM or send prompts to a model.</p><p class="help muted">A hosted or downloaded page works as a local editor. Live file updates and MCP tools need the local server.</p><button type="button" class="primary full" data-close="connectDialog">Done</button></dialog>
+}}</pre><p>Try: “Read the current scene. Make the benches wider, change their wood to a dark color, and show me the result.” Or: “Make the wave slower and raise the hand. Show me a frame strip.”</p><p class="muted">A coding agent can also edit <code>.animation-studio/project.json</code>. Each valid save updates the preview. Animation and scene assets share one project and undo history. Your MCP client runs the LLM; this editor shows its accepted edits.</p><p class="help muted">A hosted or downloaded page works as a local editor. Live file updates and MCP tools need the local server.</p><button type="button" class="primary full" data-close="connectDialog">Done</button></dialog>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.16.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.18.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -135,6 +198,9 @@ npm run animation:studio</pre><p>For image capture, install the preview browser 
  * 9. GPU LIGHTING is optional: game.enableGPU({ map }). Mark glowing things with
  *    px.glow(g, 1) inside queue callbacks, pass { color, shadow } to lights.add, and
  *    register shadow casters with game.lights.caster(). Falls back to Canvas lighting.
+ * 10. SESSIONS. E.session.record(true) records every later page load (or ?record=1 for one): the frame times, the
+ *    inputs, the random seed, the screen and the save. E.session.share() saves it as a file; node tools/replay.mjs
+ *    plays it back headless, exactly, and stops where it differs (game.stateHash = () => [...] sharpens that).
  * Errors in your game are shown on screen and in the console (game.errors).
  * The compact API card is API.md (also embedded in the single-file edition).
  * See AI_GUIDE.md in the repo for the full guide and recipes.
@@ -151,7 +217,7 @@ npm run animation:studio</pre><p>For image capture, install the preview browser 
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.16.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.18.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -1883,6 +1949,9 @@ class Humanoid {
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   /** world position of the weapon tip (sword tip, gun muzzle, staff orb) */
   tip() { const J = this.J, L = this.o.weapon === 'gun' ? 5 : this.o.weapon === 'staff' ? 10 : this.o.bladeLen, w = this._w(V3.add(J.handR, V3.mul(J.bladeDir, L))); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
+  /** where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it)
+   *  sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint */
+  worldOffset(p) { return this._w(p); }
   /** local (f, r, z) -> world offset */
   _w(p) {
     const a = this.facing + this.spin + this._cheat, c = Math.cos(a), s = Math.sin(a), sz = this.o.size, k = (1 - this.sq * .4) * sz;
@@ -2159,7 +2228,6 @@ class Humanoid {
       }
     }
   }
-  /** draw into g with (ox, oy) = projected position of the rig's root */
   /**
    * Sp(joint, f, r, z): a detail drawn around a joint (the face, hair, belt, toes) at offsets in the body's own frame,
    * projected by S. A knocked-down body turns them backward with it. While a motion clip plays (Mocap.drive sets
@@ -2176,6 +2244,7 @@ class Humanoid {
     const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);
     return dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
   }
+  /** draw into g with (ox, oy) = projected position of the rig's root */
   draw(g, ox, oy, view) {
     this._pitch = view.pitchDeg;
     if (this.o.charView !== false) view = charView(view);
@@ -3801,6 +3870,9 @@ class ChipAudio {
   constructor(game) {
     this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this._waves = {};
+    // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
+    // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
+    this.rnd = rng(0x51A7E);
   }
   _init() {
     if (this.ctx || this.failed) return this.ctx;
@@ -3811,7 +3883,7 @@ class ChipAudio {
       this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
       this.musBus = c.createGain(); this.musBus.connect(this.master);
       this._levels();
-      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
       this.noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
       for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true });
@@ -3842,7 +3914,7 @@ class ChipAudio {
     if (wave === 'noise') {
       src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
       const f = c.createBiquadFilter(); f.type = p.filter || 'bandpass'; f.Q.value = p.q || 1.1; f.frequency.setValueAtTime(f0, t); if (to) f.frequency.exponentialRampToValueAtTime(to, end);
-      src.connect(f); f.connect(g); src.start(t, Math.random() * .5);
+      src.connect(f); f.connect(g); src.start(t, this.rnd() * .5);
     } else {
       src = c.createOscillator();
       if (wave === 'pulse' || wave === 'pulse12') src.setPeriodicWave(this._pulse(wave === 'pulse' ? .25 : .125));
@@ -3866,7 +3938,7 @@ class ChipAudio {
     if (this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
-    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (Math.random() * 2 - 1));
+    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
     try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this.sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
@@ -4740,6 +4812,408 @@ class GPULighting {
   }
 }
 E.GPULighting = GPULighting;
+
+/* =============================================================================
+ * 23. SESSIONS  record a play session on any device, replay it exactly in a headless browser
+ *    E.session.record(true) (or ?record=1 for one load) records from the next page load on, starting before the game's
+ *    code, so it sees all the game sees: a seed for Math.random, every display frame's time (performance.now and
+ *    Date.now read that time during the frame), every input event and the frame it arrived before (keys, pointer,
+ *    wheel, clicks and form edits, focus, visibility, resize, full screen), gamepad readings, the media queries the game
+ *    asked, the safe-area insets, the screen's size and the save (localStorage) at the start, plus a checksum every 60
+ *    frames. E.session.save() returns it as JSON; E.session.share() hands it to the phone's share sheet (or downloads
+ *    it). node tools/replay.mjs session.json plays it back headless, frame by frame, and stops at the first checksum
+ *    that differs; game.stateHash = () => [numbers] makes the checksum sharper. The engine's loop needs nothing else:
+ *    the same frame times, inputs and seed give the same game (docs/DECISIONS.md, D12). Math.sin, cos, pow and the other
+ *    functions browsers may round differently are replaced by portable ones while recording and replaying, so a session
+ *    from an iPhone's Safari replays in Chromium bit for bit (D15).
+ *    While recording, GPU lighting stays off (it starts up on real time) and update/draw timings read 0 ms.
+ * ============================================================================= */
+/** sin, cos, tan, atan, atan2, asin, acos, exp, log, log2, log10, pow, hypot and cbrt from exact operations only, the
+ *  same bits in every browser (fdlibm 5.3's algorithms and constants for sin, cos, atan, atan2, exp and log) */
+const PORTABLE_MATH = (() => {
+  const N = { pow: Math.pow, sqrt: Math.sqrt }, F = new Float64Array(1), U = new Uint32Array(F.buffer);
+  const H = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1 ? 1 : 0, L = 1 - H;   // which word is high (little-endian: 1)
+  const hi = x => { F[0] = x; return U[H] | 0; }, lo = x => { F[0] = x; return U[L]; };
+  const make = (h, l) => { U[H] = h >>> 0; U[L] = l >>> 0; return F[0]; }, withHi = (x, h) => { F[0] = x; U[H] = h >>> 0; return F[0]; };
+  // sin and cos: reduce to [-pi/4, pi/4] (Cody-Waite, up to three steps), then the kernels
+  const S1 = -1.66666666666666324348e-01, S2 = 8.33333333332248946124e-03, S3 = -1.98412698298579493134e-04, S4 = 2.75573137070700676789e-06, S5 = -2.50507602534068634195e-08, S6 = 1.58969099521155010221e-10;
+  const C1 = 4.16666666666666019037e-02, C2 = -1.38888888888741095749e-03, C3 = 2.48015872894767294178e-05, C4 = -2.75573143513906633035e-07, C5 = 2.08757232129817482790e-09, C6 = -1.13596475577881948265e-11;
+  const kSin = (x, y, iy) => {
+    if ((hi(x) & 0x7fffffff) < 0x3e400000 && (x | 0) === 0) return x;
+    const z = x * x, v = z * x, r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
+    return iy === 0 ? x + v * (S1 + z * r) : x - ((z * (.5 * y - v * r) - y) - v * S1);
+  };
+  const kCos = (x, y) => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix < 0x3e400000 && (x | 0) === 0) return 1;
+    const z = x * x, r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
+    if (ix < 0x3fd33333) return 1 - (.5 * z - (z * r - x * y));
+    const qx = ix > 0x3fe90000 ? .28125 : make(ix - 0x00200000, 0), hz = .5 * z - qx, a = 1 - qx;
+    return a - (hz - (z * r - x * y));
+  };
+  const invpio2 = 6.36619772367581382433e-01, pio2_1 = 1.57079632673412561417e+00, pio2_1t = 6.07710050650619224932e-11, pio2_2 = 6.07710050630396597660e-11,
+    pio2_2t = 2.02226624879595063154e-21, pio2_3 = 2.02226624871116645580e-21, pio2_3t = 8.47842766036889956997e-32;
+  const NPIO2 = [0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C, 0x4025FDBB, 0x402921FB, 0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C, 0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB,
+    0x403AB41B, 0x403C463A, 0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C, 0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB, 0x404858EB, 0x404921FB];
+  const Y = [0, 0];
+  /** x = n * pi/2 + Y[0] + Y[1]; returns n. Beyond 2^19 pi/2 (fdlibm's own reduction ends there and turns to a 1,200-bit
+   *  2/pi) n is split in two halves whose products stay exact, good to about 1e12; past that any angle in range will do */
+  const remPio2 = x => {
+    const hx = hi(x), ix = hx & 0x7fffffff;
+    if (ix <= 0x3fe921fb) { Y[0] = x; Y[1] = 0; return 0; }   // |x| <= pi/4 already
+    if (ix > 0x413921fb) {
+      let t = hx < 0 ? -x : x, n;
+      if (t >= 1.7e12) { t -= Math.floor(t / 6.283185307179586) * 6.283185307179586; n = remPio2(t); }
+      else {
+        const fn = Math.floor(t * invpio2 + .5), f0 = fn % 1048576, f1 = fn - f0;
+        let r = (t - f1 * pio2_1) - f0 * pio2_1; r = (r - f1 * pio2_2) - f0 * pio2_2;
+        const w = (f1 * pio2_3 + f0 * pio2_3) + fn * pio2_3t;
+        Y[0] = r - w; Y[1] = (r - Y[0]) - w; n = fn % 4;
+      }
+      if (hx < 0) { Y[0] = -Y[0]; Y[1] = -Y[1]; return -n; }
+      return n;
+    }
+    if (ix < 0x4002d97c) {   // |x| < 3pi/4: n = +-1
+      if (hx > 0) { let z = x - pio2_1; if (ix !== 0x3ff921fb) { Y[0] = z - pio2_1t; Y[1] = (z - Y[0]) - pio2_1t; } else { z -= pio2_2; Y[0] = z - pio2_2t; Y[1] = (z - Y[0]) - pio2_2t; } return 1; }
+      let z = x + pio2_1; if (ix !== 0x3ff921fb) { Y[0] = z + pio2_1t; Y[1] = (z - Y[0]) + pio2_1t; } else { z += pio2_2; Y[0] = z + pio2_2t; Y[1] = (z - Y[0]) + pio2_2t; } return -1;
+    }
+    const t0 = hx < 0 ? -x : x, fn = (t0 * invpio2 + .5) | 0, n = fn;
+    let r = t0 - fn * pio2_1, w = fn * pio2_1t;
+    if (n < 32 && ix !== NPIO2[n - 1]) Y[0] = r - w;
+    else {
+      const j = ix >> 20; Y[0] = r - w;
+      let i = j - ((hi(Y[0]) >> 20) & 0x7ff);
+      if (i > 16) {
+        let t = r; w = fn * pio2_2; r = t - w; w = fn * pio2_2t - ((t - r) - w); Y[0] = r - w;
+        i = j - ((hi(Y[0]) >> 20) & 0x7ff);
+        if (i > 49) { t = r; w = fn * pio2_3; r = t - w; w = fn * pio2_3t - ((t - r) - w); Y[0] = r - w; }
+      }
+    }
+    Y[1] = (r - Y[0]) - w;
+    if (hx < 0) { Y[0] = -Y[0]; Y[1] = -Y[1]; return -n; }
+    return n;
+  };
+  const sin = x => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix <= 0x3fe921fb) return kSin(x, 0, 0);
+    if (ix >= 0x7ff00000) return x - x;
+    const n = remPio2(x) & 3;
+    return n === 0 ? kSin(Y[0], Y[1], 1) : n === 1 ? kCos(Y[0], Y[1]) : n === 2 ? -kSin(Y[0], Y[1], 1) : -kCos(Y[0], Y[1]);
+  };
+  const cos = x => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix <= 0x3fe921fb) return kCos(x, 0);
+    if (ix >= 0x7ff00000) return x - x;
+    const n = remPio2(x) & 3;
+    return n === 0 ? kCos(Y[0], Y[1]) : n === 1 ? -kSin(Y[0], Y[1], 1) : n === 2 ? -kCos(Y[0], Y[1]) : kSin(Y[0], Y[1], 1);
+  };
+  // atan and atan2
+  const ATANHI = [4.63647609000806093515e-01, 7.85398163397448278999e-01, 9.82793723247329054082e-01, 1.57079632679489655800e+00];
+  const ATANLO = [2.26987774529616870924e-17, 3.06161699786838301793e-17, 1.39033110312309984516e-17, 6.12323399573676603587e-17];
+  const AT = [3.33333333333329318027e-01, -1.99999999998764832476e-01, 1.42857142725034663711e-01, -1.11111104054623557880e-01, 9.09088713343650656196e-02, -7.69187620504482999495e-02,
+    6.66107313738753120669e-02, -5.83357013379057348645e-02, 4.97687799461593236017e-02, -3.65315727442169155270e-02, 1.62858201153657823623e-02];
+  const atan = x0 => {
+    let x = x0, id;
+    const hx = hi(x), ix = hx & 0x7fffffff;
+    if (ix >= 0x44100000) { if (x !== x) return x + x; return hx > 0 ? ATANHI[3] + ATANLO[3] : -ATANHI[3] - ATANLO[3]; }
+    if (ix < 0x3fdc0000) { if (ix < 0x3e200000) return x; id = -1; }
+    else {
+      x = Math.abs(x);
+      if (ix < 0x3ff30000) { if (ix < 0x3fe60000) { id = 0; x = (2 * x - 1) / (2 + x); } else { id = 1; x = (x - 1) / (x + 1); } }
+      else if (ix < 0x40038000) { id = 2; x = (x - 1.5) / (1 + 1.5 * x); } else { id = 3; x = -1 / x; }
+    }
+    const z = x * x, w = z * z;
+    const s1 = z * (AT[0] + w * (AT[2] + w * (AT[4] + w * (AT[6] + w * (AT[8] + w * AT[10]))))), s2 = w * (AT[1] + w * (AT[3] + w * (AT[5] + w * (AT[7] + w * AT[9]))));
+    if (id < 0) return x - x * (s1 + s2);
+    const r = ATANHI[id] - ((x * (s1 + s2) - ATANLO[id]) - x);
+    return hx < 0 ? -r : r;
+  };
+  const PI = 3.1415926535897931160E+00, PI_LO = 1.2246467991473531772E-16, PI_2 = 1.5707963267948965580E+00, PI_4 = 7.8539816339744827900E-01;
+  const neg = v => v < 0 || (v === 0 && 1 / v < 0);
+  const atan2 = (y, x) => {
+    if (x !== x || y !== y) return x + y;
+    if (x === 1) return atan(y);
+    const m = (neg(y) ? 1 : 0) | (neg(x) ? 2 : 0);
+    if (y === 0) return m === 0 || m === 1 ? y : m === 2 ? PI : -PI;
+    if (x === 0) return neg(y) ? -PI_2 : PI_2;
+    if (x === Infinity || x === -Infinity) {
+      if (y === Infinity || y === -Infinity) return m === 0 ? PI_4 : m === 1 ? -PI_4 : m === 2 ? 3 * PI_4 : -3 * PI_4;
+      return m === 0 ? 0 : m === 1 ? -0 : m === 2 ? PI : -PI;
+    }
+    if (y === Infinity || y === -Infinity) return neg(y) ? -PI_2 : PI_2;
+    const k = ((hi(y) & 0x7fffffff) - (hi(x) & 0x7fffffff)) >> 20;
+    const z = k > 60 ? PI_2 + .5 * PI_LO : x < 0 && k < -60 ? 0 : atan(Math.abs(y / x));
+    return m === 0 ? z : m === 1 ? -z : m === 2 ? PI - (z - PI_LO) : (z - PI_LO) - PI;
+  };
+  // exp and log
+  const LN2HI = [6.93147180369123816490e-01, -6.93147180369123816490e-01], LN2LO = [1.90821492927058770002e-10, -1.90821492927058770002e-10], INVLN2 = 1.44269504088896338700e+00;
+  const P1 = 1.66666666666666019037e-01, P2 = -2.77777777770155933842e-03, P3 = 6.61375632143793436117e-05, P4 = -1.65339022054652515390e-06, P5 = 4.13813679705723846039e-08, TWOM1000 = 9.33263618503218878990e-302;
+  const exp = x0 => {
+    let x = x0, k = 0, hiP = 0, loP = 0;
+    const h = hi(x), xsb = (h >>> 31) & 1, hx = h & 0x7fffffff;
+    if (hx >= 0x40862E42) {
+      if (hx >= 0x7ff00000) return x !== x ? x + x : xsb === 0 ? x : 0;
+      if (x > 7.09782712893383973096e+02) return Infinity;
+      if (x < -7.45133219101941108420e+02) return 0;
+    }
+    if (hx > 0x3fd62e42) {
+      if (hx < 0x3FF0A2B2) { hiP = x - LN2HI[xsb]; loP = LN2LO[xsb]; k = 1 - xsb - xsb; }
+      else { k = (INVLN2 * x + (xsb ? -.5 : .5)) | 0; hiP = x - k * LN2HI[0]; loP = k * LN2LO[0]; }
+      x = hiP - loP;
+    } else if (hx < 0x3e300000) return 1 + x;
+    const t = x * x, c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
+    if (k === 0) return 1 - ((x * c) / (c - 2) - x);
+    const y = 1 - ((loP - (x * c) / (2 - c)) - hiP);
+    return k >= -1021 ? withHi(y, hi(y) + (k << 20)) : withHi(y, hi(y) + ((k + 1000) << 20)) * TWOM1000;
+  };
+  const LN2_HI = 6.93147180369123816490e-01, LN2_LO = 1.90821492927058770002e-10, TWO54 = 1.80143985094819840000e+16;
+  const LG1 = 6.666666666666735130e-01, LG2 = 3.999999999940941908e-01, LG3 = 2.857142874366239149e-01, LG4 = 2.222219843214978396e-01, LG5 = 1.818357216161805012e-01, LG6 = 1.531383769920937332e-01, LG7 = 1.479819860511658591e-01;
+  const log = x0 => {
+    let x = x0, hx = hi(x), k = 0;
+    const lx = lo(x);
+    if (hx < 0x00100000) {
+      if (((hx & 0x7fffffff) | lx) === 0) return -Infinity;
+      if (hx < 0) return NaN;
+      k -= 54; x *= TWO54; hx = hi(x);
+    }
+    if (hx >= 0x7ff00000) return x + x;
+    k += (hx >> 20) - 1023; hx &= 0x000fffff;
+    const i0 = (hx + 0x95f64) & 0x100000;
+    x = withHi(x, hx | (i0 ^ 0x3ff00000)); k += i0 >> 20;
+    const f = x - 1;
+    if ((0x000fffff & (2 + hx)) < 3) {
+      if (f === 0) return k === 0 ? 0 : k * LN2_HI + k * LN2_LO;
+      const R = f * f * (.5 - .33333333333333333 * f);
+      return k === 0 ? f - R : k * LN2_HI - ((R - k * LN2_LO) - f);
+    }
+    const s = f / (2 + f), dk = k, z = s * s, w = z * z;
+    let i = hx - 0x6147a; const j = 0x6b851 - hx;
+    const t1 = w * (LG2 + w * (LG4 + w * LG6)), t2 = z * (LG1 + w * (LG3 + w * (LG5 + w * LG7))), R = t2 + t1;
+    i |= j;
+    if (i > 0) { const hfsq = .5 * f * f; return k === 0 ? f - (hfsq - s * (hfsq + R)) : dk * LN2_HI - ((hfsq - (s * (hfsq + R) + dk * LN2_LO)) - f); }
+    return k === 0 ? f - s * (f - R) : dk * LN2_HI - ((s * (f - R) - dk * LN2_LO) - f);
+  };
+  // the rest, from those and exact operations (exact powers of 2 and 10 give exact logs, so floor(log10(1000)) is 3)
+  const tens = new Map(); for (let n = 0, p = 1; n <= 22; n++, p *= 10) tens.set(p, n);   // 1 .. 1e22, each exact
+  const log2 = x => { if (x > 0 && x !== Infinity && lo(x) === 0 && (hi(x) & 0x000fffff) === 0 && hi(x) >= 0x00100000) return (hi(x) >> 20) - 1023; return log(x) / 6.93147180559945286227e-01; };
+  const log10 = x => tens.has(x) ? tens.get(x) : log(x) / 2.30258509299404590109e+00;
+  const pow = (x, y) => {
+    if (y === 0) return 1;
+    if (x !== x || y !== y) return NaN;
+    if (x === 0 || x === Infinity || x === -Infinity || y === Infinity || y === -Infinity || x === 1) return N.pow(x, y);   // exact by definition, the same everywhere
+    if (y === .5 && x > 0) return N.sqrt(x);
+    const yi = Number.isInteger(y);
+    if (yi && Math.abs(y) <= 1024) { let r = 1, b = x, e = Math.abs(y); while (e > 0) { if (e & 1) r *= b; b *= b; e >>= 1; } return y < 0 ? 1 / r : r; }
+    if (x < 0) { if (!yi) return NaN; const r = exp(y * log(-x)); return y % 2 ? -r : r; }
+    return exp(y * log(x));
+  };
+  const hypot = function () {
+    let s = 0, inf = false, nan = false;
+    for (let i = 0; i < arguments.length; i++) { const v = +arguments[i]; if (v === Infinity || v === -Infinity) inf = true; else if (v !== v) nan = true; else s += v * v; }
+    return inf ? Infinity : nan ? NaN : N.sqrt(s);
+  };
+  const cbrt = x => { if (x === 0 || x !== x || x === Infinity || x === -Infinity) return x; const a = Math.abs(x); let r = exp(log(a) / 3); r = r - (r * r * r - a) / (3 * r * r); return x < 0 ? -r : r; };
+  const asin = x => x !== x || x > 1 || x < -1 ? NaN : atan2(x, N.sqrt((1 - x) * (1 + x)));
+  const acos = x => x !== x || x > 1 || x < -1 ? NaN : atan2(N.sqrt((1 - x) * (1 + x)), x);
+  const tan = x => sin(x) / cos(x);
+  return { sin, cos, tan, atan, atan2, asin, acos, exp, log, log2, log10, pow, hypot, cbrt };
+})();
+const SESSION = (() => {
+  const S = { recording: false, replaying: false, frame: 0 };
+  /** turn recording on or off for the next page loads (each load is a session of its own) */
+  S.record = on => { try { if (on) localStorage.setItem('my3d2dge:record', '1'); else localStorage.removeItem('my3d2dge:record'); } catch (e) { /* no storage */ } return !!on; };
+  S.wanted = () => { try { return localStorage.getItem('my3d2dge:record') === '1'; } catch (e) { return false; } };
+  if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') return S;
+  const R = window.__my3d2dgeReplay || null;
+  if (!R && !(S.wanted() || /[?&]record=1\b/.test(location.search))) return S;
+  S.recording = !R; S.replaying = !!R;
+  // the session's record. Events are arrays: [frame, type, target, ...the fields SCHEMA names for their kind]
+  const SCHEMA = { key: 'code key repeat mods', pointer: 'pointerId pointerType button buttons clientX clientY isPrimary mods movementX movementY pressure',
+    wheel: 'deltaX deltaY deltaMode clientX clientY mods', mouse: 'button buttons clientX clientY detail mods', value: 'value checked',
+    resize: 'innerWidth innerHeight devicePixelRatio safeTop safeRight safeBottom safeLeft', hidden: 'hidden', fullscreen: 'on', capture: 'pointerId pointerType', plain: '' };
+  const KIND = { keydown: 'key', keyup: 'key', pointerdown: 'pointer', pointermove: 'pointer', pointerup: 'pointer', pointercancel: 'pointer', wheel: 'wheel',
+    click: 'mouse', dblclick: 'mouse', contextmenu: 'mouse', input: 'value', change: 'value', resize: 'resize', visibilitychange: 'hidden',
+    fullscreenchange: 'fullscreen', webkitfullscreenchange: 'fullscreen', gotpointercapture: 'capture', lostpointercapture: 'capture', blur: 'plain', focus: 'plain', cancel: 'plain' };
+  const ON_DOC = ['visibilitychange', 'fullscreenchange', 'webkitfullscreenchange'];
+  const realNow = performance.now.bind(performance), realDate = Date.now, realRAF = requestAnimationFrame.bind(window);
+  const realMM = window.matchMedia ? matchMedia.bind(window) : null, realGP = navigator.getGamepads ? navigator.getGamepads.bind(navigator) : null;
+  const fixed = (o, k, v) => { try { Object.defineProperty(o, k, { value: v, configurable: true, writable: true }); } catch (e) { /* read-only here */ } };
+  const getter = (o, k, f) => { try { Object.defineProperty(o, k, { get: f, configurable: true }); } catch (e) { /* read-only here */ } };
+  const insets = () => {   // the safe-area insets (a phone's notch and home bar), read the way a page reads them
+    if (!document.body) return [0, 0, 0, 0];
+    const p = document.createElement('div'); p.style.cssText = 'position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.body.appendChild(p); const c = getComputedStyle(p), v = [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseFloat(x) || 0); p.remove(); return v;
+  };
+  const rec = R || { format: 'my3d2dge-session', v: 1, version: E.version, build: E.build, href: location.pathname + location.search + location.hash,
+    started: new Date(realDate()).toISOString(), ua: navigator.userAgent, seed: (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0) || 1, clock0: realNow(), epoch0: realDate() - realNow(),
+    env: { innerWidth, innerHeight, devicePixelRatio: window.devicePixelRatio || 1, safe: null, media: {}, fullscreenEnabled: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) },
+    storage: [], frames: [], events: [], pads: [], checks: [], schema: SCHEMA };
+  if (!R) try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); rec.storage.push([k, localStorage.getItem(k)]); } } catch (e) { /* no storage */ }
+  else try { localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(k, v); } catch (e) { /* no storage */ }
+  S.data = rec;
+  // the same math everywhere: + - * / and sqrt are exact in every JavaScript engine, but sin, cos, pow and the rest may
+  // differ in their last bit between browsers (an iPhone's Safari and Chromium use different libraries), and a game
+  // grows that bit into a different fight. While recording and replaying they are these, built from exact operations
+  // only (fdlibm's algorithms, the ones Chromium's own are derived from), so a session plays the same in any browser.
+  S.math = PORTABLE_MATH;
+  for (const k in PORTABLE_MATH) Math[k] = PORTABLE_MATH[k];
+  // the same random numbers, counted (the count is part of the checksum: a draw too many shows at once)
+  let draws = 0; const rnd = rng(rec.seed);
+  Math.random = () => { draws++; return rnd(); };
+  // one clock: the current display frame's time, the same in the recording and the replay
+  let clock = rec.clock0;
+  fixed(performance, 'now', () => clock);
+  Date.now = () => Math.floor(rec.epoch0 + clock);
+  fixed(navigator, 'gpu', undefined);   // GPU lighting starts up on real time; the canvas lighting is the same everywhere
+  // the media queries the game asks (touch screen or not, reduced motion) answer as they did on the device
+  if (realMM) window.matchMedia = q => {
+    const m = realMM(q);
+    if (!R) { if (!(q in rec.env.media)) rec.env.media[q] = m.matches; return m; }
+    return q in R.env.media ? new Proxy(m, { get: (t, k) => k === 'matches' ? R.env.media[q] : typeof t[k] === 'function' ? t[k].bind(t) : t[k] }) : m;
+  };
+  // gamepads: each reading the game takes, stored when it changes, given back reading by reading
+  let gpCalls = 0, gpLast = '', gpAt = 0, gpCur = [];
+  const padSnap = pads => Array.from(pads || []).filter(Boolean).map(p => [p.index, p.id, p.connected !== false ? 1 : 0, Array.from(p.axes), p.buttons.map(b => [b.pressed ? 1 : 0, b.value])]);
+  const padObj = s => ({ index: s[0], id: s[1], connected: !!s[2], mapping: 'standard', timestamp: 0, axes: s[3].slice(), buttons: s[4].map(b => ({ pressed: !!b[0], touched: !!b[0], value: b[1] })) });
+  if (realGP) fixed(navigator, 'getGamepads', () => {
+    if (!R) { const pads = realGP(), snap = padSnap(pads), k = JSON.stringify(snap); if (k !== gpLast) { rec.pads.push([gpCalls, snap]); gpLast = k; } gpCalls++; return pads; }
+    while (gpAt < R.pads.length && R.pads[gpAt][0] <= gpCalls) gpCur = R.pads[gpAt++][1].map(padObj);
+    gpCalls++; return gpCur;
+  });
+  // a target as a path from the nearest element with an id: '#screen', 'body>3>0', 'w' (window), 'd' (document)
+  const pathOf = t => {
+    if (t === window || !t || !t.nodeType) return 'w';
+    if (t === document) return 'd';
+    const idx = []; let el = t;
+    while (el && !el.id && el !== document.body && el !== document.documentElement && el.parentNode) { idx.unshift(Array.prototype.indexOf.call(el.parentNode.children, el)); el = el.parentNode; }
+    return (el && el.id ? '#' + el.id : el === document.documentElement ? 'html' : 'body') + (idx.length ? '>' + idx.join('>') : '');
+  };
+  const atPath = p => {
+    if (p === 'w') return window; if (p === 'd') return document;
+    const [base, ...idx] = p.split('>'); let el = base[0] === '#' ? document.getElementById(base.slice(1)) : base === 'html' ? document.documentElement : document.body;
+    for (const i of idx) el = el && el.children[+i];
+    return el || null;
+  };
+  const mods = e => (e.shiftKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.altKey ? 4 : 0) | (e.metaKey ? 8 : 0);
+  const fields = (kind, e) => kind === 'key' ? [e.code, e.key, e.repeat ? 1 : 0, mods(e)]
+    : kind === 'pointer' ? [e.pointerId, e.pointerType, e.button, e.buttons, e.clientX, e.clientY, e.isPrimary ? 1 : 0, mods(e), e.movementX || 0, e.movementY || 0, e.pressure || 0]
+    : kind === 'wheel' ? [e.deltaX, e.deltaY, e.deltaMode, e.clientX, e.clientY, mods(e)]
+    : kind === 'mouse' ? [e.button, e.buttons, e.clientX, e.clientY, e.detail, mods(e)]
+    : kind === 'value' ? [e.target.value === undefined ? null : e.target.value, e.target.checked ? 1 : 0]
+    : kind === 'resize' ? [innerWidth, innerHeight, window.devicePixelRatio || 1, ...insets()]
+    : kind === 'hidden' ? [document.hidden ? 1 : 0]
+    : kind === 'fullscreen' ? [document.fullscreenElement || document.webkitFullscreenElement ? 1 : 0]
+    : kind === 'capture' ? [e.pointerId, e.pointerType] : [];
+  // only what came from the person (or the device): a page's own events happen again by themselves in the replay
+  const wanted = e => KIND[e.type] && e.isTrusted && ((e.type !== 'blur' && e.type !== 'focus') || e.target === window);
+  const mm = a => ({ shiftKey: !!(a & 1), ctrlKey: !!(a & 2), altKey: !!(a & 4), metaKey: !!(a & 8) });
+  // checksums: the frame, the draws, the game's time, camera and scene, and whatever game.stateHash() adds
+  const checksum = () => {
+    const g = E.current, parts = [S.frame, draws];
+    if (g) { parts.push(g.time, g.cam.x, g.cam.y, g.sceneName || ''); if (typeof g.stateHash === 'function') try { parts.push(...[].concat(g.stateHash())); } catch (e) { parts.push('stateHash threw'); } }
+    let h = 2166136261; const s = parts.map(String).join('|');
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    return h >>> 0;
+  };
+  // the frame loop: requestAnimationFrame callbacks run with the frame's time, the same way in both
+  let queue = [], ids = 0, pending = false;
+  window.requestAnimationFrame = cb => { const id = ++ids; queue.push([id, cb]); if (!R && !pending) { pending = true; realRAF(tick); } return id; };
+  window.cancelAnimationFrame = id => { queue = queue.filter(q => q[0] !== id); };
+  const CHECKS = R ? new Map(R.checks) : null;
+  S.checked = 0;
+  const compare = (frame, want) => { S.checked++; if (want !== checksum() && S.diverged === undefined) S.diverged = frame; };
+  const runFrame = ts => {
+    clock = ts; const q = queue; queue = [];
+    for (const [, cb] of q) try { cb(ts); } catch (e) { setTimeout(() => { throw e; }); }
+    S.frame++;
+    if (!R) { if (S.frame % 60 === 0) rec.checks.push([S.frame, checksum()]); }
+    else if (CHECKS.has(S.frame)) compare(S.frame, CHECKS.get(S.frame));
+  };
+  function tick(ts) { pending = false; rec.frames.push(ts); runFrame(ts); }
+  if (!R) {
+    // RECORDING: every wanted event, with the number of frames run before it
+    const log = e => { if (wanted(e)) rec.events.push([S.frame, e.type, pathOf(e.target), ...fields(KIND[e.type], e)]); };
+    for (const t in KIND) (ON_DOC.includes(t) ? document : window).addEventListener(t, log, { capture: true });
+    const first = () => { rec.env.safe = insets(); };
+    if (document.body) first(); else addEventListener('DOMContentLoaded', first);
+    S.frames = () => rec.frames.length;
+    /** the session so far, as JSON */
+    S.save = () => JSON.stringify(Object.assign({}, rec, { saved: new Date(realDate()).toISOString(), final: [S.frame, checksum()] }));   // final: after the inputs that came after the last frame
+    /** offer the session as a file: the share sheet on a phone, a download elsewhere */
+    S.share = (name = 'session-' + new Date(realDate()).toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json') => {
+      const file = new File([S.save()], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], title: name }).catch(() => {});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      return Promise.resolve();
+    };
+    return S;
+  }
+  // REPLAYING: the page sees only the recorded events, the recorded screen and the recorded device
+  for (const t in KIND) (ON_DOC.includes(t) ? document : window).addEventListener(t, e => { if (e.isTrusted && wanted(e)) e.stopImmediatePropagation(); }, { capture: true });
+  window.AudioContext = window.webkitAudioContext = undefined;
+  let hidden = false, fs = false, safe = R.env.safe || [0, 0, 0, 0];
+  getter(document, 'hidden', () => hidden); getter(document, 'visibilityState', () => hidden ? 'hidden' : 'visible');
+  getter(document, 'fullscreenElement', () => fs ? document.documentElement : null); getter(document, 'webkitFullscreenElement', () => fs ? document.documentElement : null);
+  getter(document, 'fullscreenEnabled', () => R.env.fullscreenEnabled); getter(document, 'webkitFullscreenEnabled', () => R.env.fullscreenEnabled);
+  Element.prototype.requestFullscreen = Element.prototype.webkitRequestFullscreen = function () { return Promise.resolve(); };
+  document.exitFullscreen = document.webkitExitFullscreen = () => Promise.resolve();
+  Element.prototype.setPointerCapture = Element.prototype.releasePointerCapture = function () {};
+  // elements padded by env(safe-area-inset-*) report the device's insets (a headless browser has none)
+  const realGCS = window.getComputedStyle.bind(window), PADS = ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'], PADC = ['padding-top', 'padding-right', 'padding-bottom', 'padding-left'];
+  window.getComputedStyle = (el, ps) => {
+    const cs = realGCS(el, ps);
+    if (!el || !el.style || !/safe-area-inset/.test(el.style.cssText)) return cs;
+    return new Proxy(cs, { get: (t, k) => {
+      if (PADS.includes(k)) return safe[PADS.indexOf(k)] + 'px';
+      if (k === 'getPropertyValue') return n => PADC.includes(n) ? safe[PADC.indexOf(n)] + 'px' : t.getPropertyValue(n);
+      const v = t[k]; return typeof v === 'function' ? v.bind(t) : v;
+    } });
+  };
+  let at = 0;
+  S.missing = 0;
+  const dispatch = ev => {
+    const [, type, path, ...a] = ev, kind = KIND[type], t = atPath(path);
+    if (!t) { S.missing++; return; }
+    const base = { bubbles: !['blur', 'focus', 'cancel'].includes(type), cancelable: true, composed: true };
+    if (kind === 'key') t.dispatchEvent(new KeyboardEvent(type, Object.assign(base, { code: a[0], key: a[1], repeat: !!a[2] }, mm(a[3]))));
+    else if (kind === 'pointer') t.dispatchEvent(new PointerEvent(type, Object.assign(base, { pointerId: a[0], pointerType: a[1], button: a[2], buttons: a[3], clientX: a[4], clientY: a[5], isPrimary: !!a[6], movementX: a[8], movementY: a[9], pressure: a[10] }, mm(a[7]))));
+    else if (kind === 'wheel') t.dispatchEvent(new WheelEvent(type, Object.assign(base, { deltaX: a[0], deltaY: a[1], deltaMode: a[2], clientX: a[3], clientY: a[4] }, mm(a[5]))));
+    else if (kind === 'mouse') {
+      if (type === 'click' && t.tagName === 'INPUT' && /^(checkbox|radio)$/.test(t.type)) return;   // its input and change events carry the new state
+      t.dispatchEvent(new MouseEvent(type, Object.assign(base, { button: a[0], buttons: a[1], clientX: a[2], clientY: a[3], detail: a[4] }, mm(a[5]))));
+    }
+    else if (kind === 'value') { if ('value' in t && a[0] !== null) t.value = a[0]; if ('checked' in t) t.checked = !!a[1]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'resize') { safe = a.slice(3, 7); t.dispatchEvent(new Event(type)); }
+    else if (kind === 'hidden') { hidden = !!a[0]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'fullscreen') { fs = !!a[0]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'capture') t.dispatchEvent(new PointerEvent(type, Object.assign(base, { pointerId: a[0], pointerType: a[1] })));
+    else t.dispatchEvent(type === 'blur' || type === 'focus' ? new FocusEvent(type) : new Event(type, base));
+  };
+  /**
+   * replay n frames: each frame's events, then its callbacks at its time. Returns { frame, frames, diverged, resize, done }:
+   * resize = [w, h, dpr] asks the driver (tools/replay.mjs) to set the screen to the recorded size before going on
+   */
+  S.step = n => {
+    for (let i = 0; i < n && S.frame < R.frames.length; i++) {
+      while (at < R.events.length && R.events[at][0] <= S.frame) {
+        const ev = R.events[at];
+        if (ev[1] === 'resize' && (innerWidth !== ev[3] || innerHeight !== ev[4]) && !S._sized) { S._sized = true; return { frame: S.frame, frames: R.frames.length, resize: [ev[3], ev[4], ev[5]] }; }
+        S._sized = false; at++; dispatch(ev);
+      }
+      runFrame(R.frames[S.frame]);
+    }
+    const done = S.frame >= R.frames.length;
+    if (done && !S._final) {   // the inputs after the last frame, then the checksum taken when the session was saved
+      S._final = true; while (at < R.events.length) dispatch(R.events[at++]);
+      if (R.final) compare(R.final[0], R.final[1]);
+    }
+    return { frame: S.frame, frames: R.frames.length, events: at, checked: S.checked, diverged: S.diverged, missing: S.missing, done };
+  };
+  S.frames = () => R.frames.length;
+  return S;
+})();
+E.session = SESSION;
 
 root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -33337,10 +33811,412 @@ return { load, Mannequin, drive, LEGEND: MR.LEGEND };
 
 </script>
 <script>
+/* ---- inlined from src/asset-studio/model.js ---- */
+/* =============================================================================
+ * ASSET STUDIO MODEL  readable materials, part models and tile levels. No I/O.
+ * Shared by the browser and local tools. Positions are [x,y,z], with z up.
+ * A part position is its bottom-face center; size is [width,depth,height].
+ * applyMany validates references at the end and never changes its input.
+ * context: {clipIds:[...]}, or {clips:<the animation project's clips object>}.
+ * ============================================================================= */
+var AssetStudioModel = (() => {
+'use strict';
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const fail = message => { throw new Error(message); };
+const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const RESERVED = ['__proto__', 'prototype', 'constructor'];
+const ID = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+const PATTERNS = ['solid', 'checker', 'brick', 'planks', 'noise'], SHAPES = ['box', 'wedge', 'cylinder'];
+const LIMITS = { materials: 128, models: 128, levels: 16, objectsPerLevel: 256, partsPerModel: 32,
+  levelWidth: 64, levelHeight: 64, actions: 100, position: 4096 };
+const FIELDS = {
+  project: ['schema', 'materials', 'models', 'levels', 'selectedLevel', 'selectedObject'],
+  material: ['name', 'color', 'accent', 'pattern', 'scale', 'seed'], model: ['name', 'parts', 'tags'],
+  part: ['shape', 'position', 'size', 'rotation', 'material'],
+  level: ['name', 'tile', 'rows', 'tiles', 'objects', 'spawn'], tile: ['material', 'height', 'solid'],
+  object: ['name', 'kind', 'model', 'clip', 'position', 'rotation', 'scale', 'visible', 'solid']
+};
+const ACTION_FIELDS = {
+  material_create: ['id', 'material'], material_update: ['id', 'changes'], material_delete: ['id'],
+  model_create: ['id', 'model'], model_update: ['id', 'changes'], model_delete: ['id'],
+  level_create: ['id', 'level'], level_update: ['id', 'changes'], level_delete: ['id'],
+  object_add: ['level', 'id', 'object'], object_update: ['level', 'id', 'changes'], object_delete: ['level', 'id'],
+  object_duplicate: ['level', 'id', 'newId', 'offset'], paint: ['level', 'cells'],
+  fill: ['level', 'x', 'y', 'width', 'height', 'tile'], select: ['level', 'id'], load_preset: ['preset']
+};
+/** JSON-only copying rejects unsafe keys before an assignment can interpret them. */
+function clone(input) {
+  const active = new Set();
+  function copy(value, depth) {
+    if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+    if (typeof value === 'number') { if (!Number.isFinite(value)) fail('Asset data cannot contain a nonfinite number.'); return value; }
+    if (!object(value) && !Array.isArray(value)) fail('Asset data must contain JSON values only.');
+    if (depth > 64 || active.has(value)) fail('Asset data is too deeply nested or contains a cycle.');
+    const proto = Object.getPrototypeOf(value);
+    if (!Array.isArray(value) && proto !== null && Object.getPrototypeOf(proto) !== null) fail('Asset data must contain plain JSON objects.');
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== 'string') fail('Asset data cannot contain symbol keys.');
+      if (RESERVED.includes(key)) fail('Asset data contains the reserved key "' + key + '".');
+      if (!own(Object.getOwnPropertyDescriptor(value, key), 'value')) fail('Asset data cannot contain getters or setters.');
+    }
+    active.add(value);
+    let result;
+    if (Array.isArray(value)) result = Array.from(value, item => copy(item, depth + 1));
+    else {
+      result = {};
+      for (const key of Object.keys(value)) {
+        result[key] = copy(value[key], depth + 1);
+      }
+    }
+    active.delete(value); return result;
+  }
+  return copy(input, 0);
+}
+function fields(value, allowed, at, required = []) {
+  if (!object(value)) fail(at + ' must be an object.');
+  for (const key of Object.keys(value)) if (!allowed.includes(key)) fail(at + ': unknown field "' + key + '".');
+  for (const key of required) if (!own(value, key)) fail(at + ': missing "' + key + '".');
+  return value;
+}
+function id(value, at = 'ID') {
+  if (typeof value !== 'string' || !ID.test(value) || RESERVED.includes(value)) fail(at + ' must start with a letter and use 1 to 64 letters, digits, underscores or hyphens. Reserved keys are not allowed.');
+  return value;
+}
+function text(value, at, max = 120) {
+  if (typeof value !== 'string' || !value.trim() || value.length > max || /[\u0000-\u001f\u007f]/.test(value)) fail(at + ' must contain 1 to ' + max + ' printable characters.');
+  return value;
+}
+function number(value, at, low, high, integer = false) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < low || value > high || (integer && !Number.isInteger(value))) fail(at + ' must be ' + (integer ? 'an integer' : 'a finite number') + ' from ' + low + ' to ' + high + '.');
+  return value;
+}
+function vector(value, at, low = -LIMITS.position, high = LIMITS.position) {
+  if (!Array.isArray(value) || value.length !== 3) fail(at + ' must contain three numbers [x,y,z].');
+  value.forEach((n, i) => number(n, at + '[' + i + ']', low, high)); return value;
+}
+function boolean(value, at) { if (typeof value !== 'boolean') fail(at + ' must be true or false.'); }
+function registry(value, at, min, max) {
+  if (!object(value)) fail(at + ' must be an object keyed by IDs.');
+  const entries = Object.entries(value);
+  if (entries.length < min || entries.length > max) fail(at + ' must contain ' + min + ' to ' + max + ' entries.');
+  for (const [key] of entries) id(key, at + ' ID'); return entries;
+}
+function tileChar(value, at) {
+  if (typeof value !== 'string' || !/^[ -~]$/.test(value)) fail(at + ' must be one printable ASCII character.');
+  return value;
+}
+function clipIds(context = {}) {
+  if (!object(context)) fail('Asset context must be an object.');
+  if (context.clipIds !== undefined) {
+    if (!Array.isArray(context.clipIds) || context.clipIds.some(value => typeof value !== 'string' || !value)) fail('Asset context clipIds must be an array of clip names.');
+    return context.clipIds;
+  }
+  if (context.clips !== undefined) { if (!object(context.clips)) fail('Asset context clips must be an object.'); return Object.keys(context.clips); }
+  return [];
+}
+function reference(records, value, at, kind) {
+  id(value, at);
+  if (!own(records, value)) fail(at + ': ' + kind + ' "' + value + '" does not exist.');
+}
+/** All saved fields are explicit. Defaults belong to actions, never hidden in a file. */
+function validateProject(input, context = {}) {
+  const p = clone(input), knownClips = new Set(clipIds(context));
+  fields(p, FIELDS.project, 'Assets', FIELDS.project);
+  if (p.schema !== 1) fail('Assets schema must be 1.');
+  for (const [key, m] of registry(p.materials, 'Materials', 1, LIMITS.materials)) {
+    const at = 'Material "' + key + '"'; fields(m, FIELDS.material, at, FIELDS.material); text(m.name, at + ' name');
+    for (const c of ['color', 'accent']) if (typeof m[c] !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(m[c])) fail(at + ' ' + c + ' must be a six-digit hex color such as #78a050.');
+    if (!PATTERNS.includes(m.pattern)) fail(at + ' pattern must be one of: ' + PATTERNS.join(', ') + '.');
+    number(m.scale, at + ' scale', .25, 64); number(m.seed, at + ' seed', 0, 2147483647, true);
+  }
+  for (const [key, m] of registry(p.models, 'Models', 0, LIMITS.models)) {
+    const at = 'Model "' + key + '"'; fields(m, FIELDS.model, at, FIELDS.model); text(m.name, at + ' name');
+    if (!Array.isArray(m.parts) || m.parts.length < 1 || m.parts.length > LIMITS.partsPerModel) fail(at + ' needs 1 to ' + LIMITS.partsPerModel + ' parts.');
+    if (!Array.isArray(m.tags) || m.tags.length > 16) fail(at + ' tags must be an array of at most 16 values.');
+    m.tags.forEach(tag => text(tag, at + ' tag', 48));
+    m.parts.forEach((part, i) => {
+      const where = at + ' part ' + (i + 1); fields(part, FIELDS.part, where, FIELDS.part);
+      if (!SHAPES.includes(part.shape)) fail(where + ' shape must be one of: ' + SHAPES.join(', ') + '.');
+      vector(part.position, where + ' position'); vector(part.size, where + ' size', .125, 1024);
+      number(part.rotation, where + ' rotation', -36000, 36000);
+      reference(p.materials, part.material, where + ' material', 'material');
+    });
+  }
+  for (const [key, l] of registry(p.levels, 'Levels', 1, LIMITS.levels)) {
+    const at = 'Level "' + key + '"'; fields(l, FIELDS.level, at, FIELDS.level); text(l.name, at + ' name');
+    number(l.tile, at + ' tile size', 1, 64, true); vector(l.spawn, at + ' spawn');
+    if (!Array.isArray(l.rows) || !l.rows.length || l.rows.length > LIMITS.levelHeight) fail(at + ' needs 1 to ' + LIMITS.levelHeight + ' rows.');
+    const width = typeof l.rows[0] === 'string' ? l.rows[0].length : 0;
+    if (width < 1 || width > LIMITS.levelWidth) fail(at + ' rows must be 1 to ' + LIMITS.levelWidth + ' cells wide.');
+    if (!object(l.tiles) || !Object.keys(l.tiles).length || Object.keys(l.tiles).length > 32) fail(at + ' tiles must contain 1 to 32 tile definitions.');
+    for (const [symbol, tile] of Object.entries(l.tiles)) {
+      const where = at + ' tile "' + symbol + '"'; tileChar(symbol, where); fields(tile, FIELDS.tile, where, FIELDS.tile);
+      reference(p.materials, tile.material, where + ' material', 'material');
+      number(tile.height, where + ' height', 0, 512); boolean(tile.solid, where + ' solid');
+    }
+    l.rows.forEach((row, y) => {
+      if (typeof row !== 'string' || row.length !== width || !/^[ -~]+$/.test(row)) fail(at + ' row ' + y + ' must contain ' + width + ' printable ASCII cells.');
+      for (const symbol of row) if (!own(l.tiles, symbol)) fail(at + ' row ' + y + ': tile "' + symbol + '" is not defined.');
+    });
+    for (const [key, o] of registry(l.objects, at + ' objects', 0, LIMITS.objectsPerLevel)) {
+      const where = at + ' object "' + key + '"';
+      fields(o, FIELDS.object, where, ['name', 'kind', 'position', 'rotation', 'scale', 'visible', 'solid']);
+      text(o.name, where + ' name'); vector(o.position, where + ' position');
+      number(o.rotation, where + ' rotation', -36000, 36000); number(o.scale, where + ' scale', .05, 16);
+      boolean(o.visible, where + ' visible'); boolean(o.solid, where + ' solid');
+      if (o.kind === 'model') {
+        if (own(o, 'clip')) fail(where + ': a model object cannot have a clip field.');
+        reference(p.models, o.model, where + ' model', 'model');
+      } else if (o.kind === 'actor') {
+        if (own(o, 'model')) fail(where + ': an actor cannot have a model field.');
+        text(o.clip, where + ' clip', 80);
+        if (!knownClips.has(o.clip)) fail(where + ': animation clip "' + o.clip + '" does not exist in this project.');
+      } else fail(where + ' kind must be "model" or "actor".');
+    }
+  }
+  reference(p.levels, p.selectedLevel, 'Assets selectedLevel', 'level');
+  if (p.selectedObject !== null) reference(p.levels[p.selectedLevel].objects, p.selectedObject, 'Assets selectedObject', 'object in the selected level');
+  return p;
+}
+const defaultMaterial = name => ({ name, color: '#b59c78', accent: '#70573c', pattern: 'solid', scale: 1, seed: 1 });
+const part = (shape, position, size, material, rotation = 0) => ({ shape, position, size, rotation, material });
+const placed = (name, model, position, rotation = 0, scale = 1) => ({ name, kind: 'model', model, position, rotation, scale, visible: true, solid: true });
+function blankLevel(name, material) {
+  return { name, tile: 16, rows: new Array(16).fill('.'.repeat(20)), tiles: { '.': { material, height: 0, solid: false } }, objects: {}, spawn: [160, 128, 0] };
+}
+/** Presets contain authored data and deterministic texture seeds, no binary assets. */
+function createProject(options = {}) {
+  if (!object(options)) fail('New asset options must be an object.');
+  const preset = options.preset === undefined ? 'courtyard' : options.preset;
+  if (!['courtyard', 'empty'].includes(preset)) fail('Asset preset must be "courtyard" or "empty".');
+  const materials = {
+    stone: { name: 'Limestone', color: '#a6b1b4', accent: '#78868d', pattern: 'checker', scale: 8, seed: 11 },
+    brick: { name: 'Stone blocks', color: '#8797a3', accent: '#51616d', pattern: 'brick', scale: 8, seed: 23 },
+    wood: { name: 'Warm timber', color: '#b9824e', accent: '#724628', pattern: 'planks', scale: 8, seed: 37 },
+    grass: { name: 'Meadow grass', color: '#527d64', accent: '#3b5e50', pattern: 'noise', scale: 2, seed: 53 },
+    water: { name: 'Pool water', color: '#4d9aa7', accent: '#83c3c3', pattern: 'noise', scale: 6, seed: 71 },
+    metal: { name: 'Iron details', color: '#526375', accent: '#9dafbc', pattern: 'solid', scale: 1, seed: 89 }
+  };
+  const models = {
+    Crate: { name: 'Timber crate', tags: ['storage', 'wood'], parts: [
+      part('box', [0, 0, 0], [24, 24, 24], 'wood'), part('box', [-9, 0, 0], [3, 25, 25], 'metal'),
+      part('box', [9, 0, 0], [3, 25, 25], 'metal') ] },
+    Bench: { name: 'Garden bench', tags: ['furniture', 'wood'], parts: [
+      part('box', [0, 0, 12], [48, 15, 4], 'wood'), part('box', [-17, 0, 0], [5, 12, 12], 'metal'),
+      part('box', [17, 0, 0], [5, 12, 12], 'metal'), part('box', [0, 6, 20], [48, 3, 12], 'wood'),
+      part('box', [-17, 6, 12], [3, 3, 14], 'metal'), part('box', [17, 6, 12], [3, 3, 14], 'metal') ] },
+    Arch: { name: 'Courtyard arch', tags: ['architecture', 'stone'], parts: [
+      part('box', [-29, 0, 0], [14, 18, 48], 'brick'), part('box', [29, 0, 0], [14, 18, 48], 'brick'),
+      part('box', [0, 0, 46], [72, 20, 12], 'stone'), part('box', [-29, 0, 0], [20, 24, 5], 'stone'),
+      part('box', [29, 0, 0], [20, 24, 5], 'stone'), part('wedge', [0, 0, 58], [78, 24, 8], 'brick') ] },
+    Column: { name: 'Stone column', tags: ['architecture', 'stone'], parts: [
+      part('box', [0, 0, 0], [24, 24, 5], 'stone'), part('cylinder', [0, 0, 5], [15, 15, 38], 'brick'),
+      part('box', [0, 0, 43], [23, 23, 5], 'stone') ] },
+    Steps: { name: 'Three stone steps', tags: ['architecture', 'stone'], parts: [
+      part('box', [0, -12, 0], [40, 12, 5], 'stone'), part('box', [0, 0, 0], [40, 12, 10], 'stone'),
+      part('box', [0, 12, 0], [40, 12, 15], 'stone') ] }
+  };
+  if (preset === 'empty') return validateProject({ schema: 1, materials, models, levels: { Empty: blankLevel('Empty level', 'stone') }, selectedLevel: 'Empty', selectedObject: null }, options);
+  const width = 24, height = 20;
+  const rows = Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => {
+    if (x === 0 || y === 0 || x === width - 1 || y === height - 1) return '#';
+    if (x >= 16 && x <= 20 && y >= 4 && y <= 7) return 'w';
+    if ((x >= 9 && x <= 14) || (y >= 9 && y <= 12)) return '.';
+    return 'g';
+  }).join(''));
+  // Open the front entrance so playtest can leave the courtyard.
+  rows[height - 1] = rows[height - 1].slice(0, 10) + '....' + rows[height - 1].slice(14);
+  const level = { name: 'Timber and stone courtyard', tile: 16, rows,
+    tiles: { '.': { material: 'stone', height: 0, solid: false }, '#': { material: 'brick', height: 20, solid: true },
+      g: { material: 'grass', height: 0, solid: false }, w: { material: 'water', height: 0, solid: true } },
+    objects: {
+      Gate: placed('Courtyard gate', 'Arch', [192, 48, 0]),
+      Bench_West: placed('West bench', 'Bench', [80, 136, 0]),
+      Bench_East: placed('East bench', 'Bench', [304, 232, 0], 180),
+      Crate_A: placed('Supply crate', 'Crate', [72, 232, 0], 8),
+      Crate_B: placed('Stacked crate', 'Crate', [96, 248, 0], -10, .8),
+      Column_West: placed('West column', 'Column', [104, 64, 0]),
+      Column_East: placed('East column', 'Column', [280, 64, 0]),
+      Pool_Steps: placed('Pool steps', 'Steps', [296, 144, 0], 180)
+    }, spawn: [192, 240, 0] };
+  const firstClip = clipIds(options)[0];
+  if (firstClip) level.objects.Guide = { name: 'Animation guide', kind: 'actor', clip: firstClip, position: [192, 168, 0], rotation: -35, scale: 1, visible: true, solid: false };
+  return validateProject({ schema: 1, materials, models, levels: { Courtyard: level }, selectedLevel: 'Courtyard', selectedObject: firstClip ? 'Guide' : 'Crate_A' }, options);
+}
+function requireEntry(records, key, kind) {
+  id(key, kind + ' ID'); if (!own(records, key)) fail(kind + ' "' + key + '" does not exist.'); return records[key];
+}
+function fresh(records, key, kind) {
+  id(key, kind + ' ID'); if (own(records, key)) fail(kind + ' "' + key + '" already exists. Choose another ID.'); return key;
+}
+function patch(input, kind) {
+  fields(input, FIELDS[kind], kind + ' changes');
+  if (!Object.keys(input).length) fail(kind + ' changes must contain at least one field.');
+  return input;
+}
+function modelParts(parts, material) {
+  if (!Array.isArray(parts)) fail('Model parts must be an array.');
+  return parts.map(input => Object.assign(part('box', [0, 0, 0], [16, 16, 16], material), fields(input, FIELDS.part, 'Model part')));
+}
+function createLevel(name, input, material) {
+  fields(input, FIELDS.level, 'New level');
+  return Object.assign(blankLevel(name, material), input);
+}
+/** Step changes only private working data. References may be created later in a batch. */
+function step(p, action, context) {
+  if (!object(action) || !own(ACTION_FIELDS, action.type)) fail('Unknown asset action type "' + String(action?.type) + '".');
+  fields(action, ['type', ...ACTION_FIELDS[action.type]], 'Asset action "' + action.type + '"');
+  const firstMaterial = () => Object.keys(p.materials)[0] || 'stone';
+  if (action.type === 'load_preset') {
+    if (!own(action, 'preset')) fail('Load preset needs a preset name: "courtyard" or "empty".');
+    return createProject(Object.assign({}, context, { preset: action.preset }));
+  }
+  if (action.type === 'material_create') {
+    const key = fresh(p.materials, action.id, 'Material');
+    p.materials[key] = Object.assign(defaultMaterial(key), fields(action.material, FIELDS.material, 'New material'));
+  } else if (action.type === 'material_update') Object.assign(requireEntry(p.materials, action.id, 'Material'), patch(action.changes, 'material'));
+  else if (action.type === 'material_delete') { requireEntry(p.materials, action.id, 'Material'); delete p.materials[action.id]; }
+  else if (action.type === 'model_create') {
+    const key = fresh(p.models, action.id, 'Model'), input = fields(action.model, FIELDS.model, 'New model');
+    p.models[key] = Object.assign({ name: key, parts: [part('box', [0, 0, 0], [24, 24, 24], firstMaterial())], tags: [] }, input);
+    p.models[key].parts = modelParts(p.models[key].parts, firstMaterial());
+  } else if (action.type === 'model_update') {
+    const model = requireEntry(p.models, action.id, 'Model'), changes = patch(action.changes, 'model');
+    Object.assign(model, changes); if (own(changes, 'parts')) model.parts = modelParts(changes.parts, firstMaterial());
+  } else if (action.type === 'model_delete') { requireEntry(p.models, action.id, 'Model'); delete p.models[action.id]; }
+  else if (action.type === 'level_create') {
+    const key = fresh(p.levels, action.id, 'Level');
+    p.levels[key] = createLevel(key, action.level === undefined ? {} : action.level, firstMaterial());
+    p.selectedLevel = key; p.selectedObject = null;
+  } else if (action.type === 'level_update') Object.assign(requireEntry(p.levels, action.id === undefined ? p.selectedLevel : action.id, 'Level'), patch(action.changes, 'level'));
+  else if (action.type === 'level_delete') {
+    requireEntry(p.levels, action.id, 'Level'); delete p.levels[action.id];
+    if (p.selectedLevel === action.id) { p.selectedLevel = Object.keys(p.levels)[0] || null; p.selectedObject = null; }
+  } else if (action.type === 'select') {
+    if (!own(action, 'level') && !own(action, 'id')) fail('Asset select needs a level or an object id (null clears the object).');
+    if (own(action, 'level') && p.selectedLevel !== action.level) { p.selectedLevel = action.level; p.selectedObject = null; }
+    if (own(action, 'id')) p.selectedObject = action.id;
+  } else {
+    const levelId = action.level === undefined ? p.selectedLevel : action.level, level = requireEntry(p.levels, levelId, 'Level');
+    if (action.type === 'object_add') {
+      const key = fresh(level.objects, action.id, 'Object'), input = fields(action.object, FIELDS.object, 'New object', ['kind']);
+      level.objects[key] = Object.assign({ name: key, position: [0, 0, 0], rotation: 0, scale: 1, visible: true, solid: input.kind !== 'actor' }, input);
+      if (p.selectedLevel === levelId) p.selectedObject = key;
+    } else if (action.type === 'object_update') {
+      const obj = requireEntry(level.objects, action.id, 'Object'), changes = patch(action.changes, 'object');
+      if (own(changes, 'kind') && changes.kind !== obj.kind) { delete obj.clip; delete obj.model; }
+      Object.assign(obj, changes);
+    } else if (action.type === 'object_delete') {
+      requireEntry(level.objects, action.id, 'Object'); delete level.objects[action.id];
+      if (p.selectedLevel === levelId && p.selectedObject === action.id) p.selectedObject = null;
+    } else if (action.type === 'object_duplicate') {
+      const src = requireEntry(level.objects, action.id, 'Object'), key = fresh(level.objects, action.newId, 'Object');
+      const offset = action.offset === undefined ? [16, 16, 0] : vector(action.offset, 'Duplicate offset');
+      level.objects[key] = Object.assign(clone(src), { name: src.name.slice(0, 115) + ' copy', position: src.position.map((n, i) => n + offset[i]) });
+      if (p.selectedLevel === levelId) p.selectedObject = key;
+    } else if (action.type === 'paint' || action.type === 'fill') {
+      const width = level.rows[0].length, height = level.rows.length;
+      const cell = (x, y, tile) => {
+        number(x, 'Cell x', 0, width - 1, true); number(y, 'Cell y', 0, height - 1, true); tileChar(tile, 'Cell tile');
+        level.rows[y] = level.rows[y].slice(0, x) + tile + level.rows[y].slice(x + 1);
+      };
+      if (action.type === 'paint') {
+        if (!Array.isArray(action.cells) || action.cells.length < 1 || action.cells.length > LIMITS.levelWidth * LIMITS.levelHeight) fail('Paint cells must contain 1 to 4096 cells.');
+        for (const c of action.cells) { fields(c, ['x', 'y', 'tile'], 'Paint cell', ['x', 'y', 'tile']); cell(c.x, c.y, c.tile); }
+      } else {
+        number(action.width, 'Fill width', 1, width, true); number(action.height, 'Fill height', 1, height, true);
+        number(action.x, 'Fill x', 0, width - action.width, true); number(action.y, 'Fill y', 0, height - action.height, true); tileChar(action.tile, 'Fill tile');
+        for (let y = action.y; y < action.y + action.height; y++) for (let x = action.x; x < action.x + action.width; x++) cell(x, y, action.tile);
+      }
+    }
+  }
+  return p;
+}
+function applyMany(project, actions, context = {}) {
+  if (!Array.isArray(actions) || actions.length < 1 || actions.length > LIMITS.actions) fail('Asset actions must contain 1 to ' + LIMITS.actions + ' actions.');
+  let p = validateProject(project, context);
+  for (const action of clone(actions)) p = step(p, action, context);
+  return validateProject(p, context);
+}
+function apply(project, action, context = {}) { return applyMany(project, [action], context); }
+function catalog() {
+  return { presets: [{ id: 'courtyard', name: 'Timber and stone courtyard', description: 'A 24 by 20 level, six procedural materials, five reusable models and an actor when an animation is available.' },
+    { id: 'empty', name: 'Empty level', description: 'A 20 by 16 floor with no placed objects. Keeps the six materials and five model templates ready to use.' }],
+    shapes: [...SHAPES], patterns: [...PATTERNS], limits: clone(LIMITS),
+    coordinates: { position: '[x,y,z], z up, in engine world units', partOrigin: 'center of the bottom face', size: '[widthX,depthY,heightZ]', rotation: 'degrees around z', tile: 'rows[y][x]; tile centers are [(x+.5)*tile,(y+.5)*tile,0]' },
+    actions: Object.keys(ACTION_FIELDS), examples: {
+      createMaterial: { type: 'material_create', id: 'sand', material: { name: 'Warm sand', color: '#ceb778', accent: '#a08955', pattern: 'noise', scale: 2, seed: 7 } },
+      createModel: { type: 'model_create', id: 'Block', model: { name: 'Low block', parts: [part('box', [0, 0, 0], [32, 24, 16], 'stone')], tags: ['architecture'] } },
+      placeObject: { type: 'object_add', id: 'NewCrate', object: { kind: 'model', model: 'Crate', position: [160, 192, 0] } },
+      paint: { type: 'fill', x: 4, y: 4, width: 3, height: 2, tile: '.' }
+    } };
+}
+/** A compact inventory; callers pass validated data from their shared snapshot. */
+function summary(project) {
+  const p = project, level = p.levels[p.selectedLevel], allObjects = Object.values(p.levels).flatMap(l => Object.values(l.objects));
+  return clone({ schema: 1, selectedLevel: p.selectedLevel, selectedObject: p.selectedObject,
+    counts: { materials: Object.keys(p.materials).length, models: Object.keys(p.models).length, levels: Object.keys(p.levels).length,
+      objects: allObjects.length, actors: allObjects.filter(o => o.kind === 'actor').length, parts: Object.values(p.models).reduce((n, m) => n + m.parts.length, 0) },
+    materials: Object.entries(p.materials).map(([id, m]) => ({ id, name: m.name, color: m.color, pattern: m.pattern })),
+    models: Object.entries(p.models).map(([id, m]) => ({ id, name: m.name, parts: m.parts.length, tags: m.tags })),
+    levels: Object.entries(p.levels).map(([id, l]) => ({ id, name: l.name, width: l.rows[0].length, height: l.rows.length, tile: l.tile, objects: Object.keys(l.objects).length, spawn: l.spawn })),
+    level: { id: p.selectedLevel, name: level.name, width: level.rows[0].length, height: level.rows.length, tile: level.tile,
+      spawn: level.spawn, tiles: level.tiles, objects: Object.entries(level.objects).map(([id, o]) => Object.assign({ id }, o)) } });
+}
+/** Inlined JSON Schema works when embedded under an MCP tool's input schema. */
+function schema() {
+  const num = (minimum, maximum, integer = false) => ({ type: integer ? 'integer' : 'number', minimum, maximum });
+  const str = (maxLength = 120) => ({ type: 'string', minLength: 1, maxLength });
+  const identifier = { ...str(64), pattern: '^[A-Za-z][A-Za-z0-9_-]{0,63}$', not: { enum: RESERVED } };
+  const bool = { type: 'boolean' }, vec = (min = -LIMITS.position, max = LIMITS.position) => ({ type: 'array', items: num(min, max), minItems: 3, maxItems: 3 });
+  const obj = (properties, required = Object.keys(properties)) => ({ type: 'object', properties, required, additionalProperties: false });
+  const dict = (additionalProperties, minProperties, maxProperties, propertyNames = identifier) => ({ type: 'object', additionalProperties, minProperties, maxProperties, propertyNames });
+  const tileSymbol = { type: 'string', pattern: '^[ -~]$', minLength: 1, maxLength: 1 };
+  const material = obj({ name: str(), color: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$' }, accent: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$' },
+    pattern: { enum: PATTERNS }, scale: num(.25, 64), seed: num(0, 2147483647, true) });
+  const partSchema = obj({ shape: { enum: SHAPES }, position: vec(), size: vec(.125, 1024), rotation: num(-36000, 36000), material: identifier });
+  const model = obj({ name: str(), parts: { type: 'array', items: partSchema, minItems: 1, maxItems: LIMITS.partsPerModel }, tags: { type: 'array', items: str(48), maxItems: 16 } });
+  const sharedObject = { name: str(), position: vec(), rotation: num(-36000, 36000), scale: num(.05, 16), visible: bool, solid: bool };
+  const objectSchema = { oneOf: [obj({ ...sharedObject, kind: { const: 'model' }, model: identifier }), obj({ ...sharedObject, kind: { const: 'actor' }, clip: str(80) })] };
+  const tile = obj({ material: identifier, height: num(0, 512), solid: bool });
+  const level = obj({ name: str(), tile: num(1, 64, true), rows: { type: 'array', items: { type: 'string', pattern: '^[ -~]+$', minLength: 1, maxLength: LIMITS.levelWidth }, minItems: 1, maxItems: LIMITS.levelHeight },
+    tiles: dict(tile, 1, 32, tileSymbol), objects: dict(objectSchema, 0, LIMITS.objectsPerLevel), spawn: vec() });
+  const project = obj({ schema: { const: 1 }, materials: dict(material, 1, LIMITS.materials), models: dict(model, 0, LIMITS.models),
+    levels: dict(level, 1, LIMITS.levels), selectedLevel: identifier, selectedObject: { anyOf: [identifier, { type: 'null' }] } });
+  const partial = (s, minProperties = 0) => Object.assign({}, s, { required: [], minProperties });
+  const actions = [], add = (type, properties, required) => actions.push(obj({ type: { const: type }, ...properties }, ['type', ...required]));
+  for (const [kind, data] of [['material', material], ['model', model]]) {
+    const creating = partial(data);
+    if (kind === 'model') creating.properties = { ...data.properties, parts: { ...data.properties.parts, items: partial(partSchema) } };
+    add(kind + '_create', { id: identifier, [kind]: creating }, ['id', kind]);
+    add(kind + '_update', { id: identifier, changes: partial(creating, 1) }, ['id', 'changes']);
+    add(kind + '_delete', { id: identifier }, ['id']);
+  }
+  add('level_create', { id: identifier, level: partial(level) }, ['id']);
+  add('level_update', { id: identifier, changes: partial(level, 1) }, ['changes']);
+  add('level_delete', { id: identifier }, ['id']);
+  add('object_add', { level: identifier, id: identifier, object: { oneOf: [obj({ ...sharedObject, kind: { const: 'model' }, model: identifier }, ['kind', 'model']), obj({ ...sharedObject, kind: { const: 'actor' }, clip: str(80) }, ['kind', 'clip'])] } }, ['id', 'object']);
+  add('object_update', { level: identifier, id: identifier, changes: { ...obj({ ...sharedObject, kind: { enum: ['model', 'actor'] }, model: identifier, clip: str(80) }, []), minProperties: 1 } }, ['id', 'changes']);
+  add('object_delete', { level: identifier, id: identifier }, ['id']);
+  add('object_duplicate', { level: identifier, id: identifier, newId: identifier, offset: vec() }, ['id', 'newId']);
+  add('paint', { level: identifier, cells: { type: 'array', minItems: 1, maxItems: LIMITS.levelWidth * LIMITS.levelHeight, items: obj({ x: num(0, 63, true), y: num(0, 63, true), tile: tileSymbol }) } }, ['cells']);
+  add('fill', { level: identifier, x: num(0, 63, true), y: num(0, 63, true), width: num(1, 64, true), height: num(1, 64, true), tile: tileSymbol }, ['x', 'y', 'width', 'height', 'tile']);
+  add('select', { level: identifier, id: { anyOf: [identifier, { type: 'null' }] } }, []);
+  actions[actions.length - 1].anyOf = [{ required: ['level'] }, { required: ['id'] }];
+  add('load_preset', { preset: { enum: ['courtyard', 'empty'] } }, ['preset']);
+  return clone({ project, action: { oneOf: actions }, limits: LIMITS, coordinates: catalog().coordinates,
+    batch: 'Use 1 to 100 actions. References are checked after the full batch. Unknown fields, reserved keys, and nonfinite numbers are rejected.' });
+}
+function exportData(project, context = {}) { return validateProject(project, context); }
+return { clone, createProject, validateProject, apply, applyMany, catalog, schema, summary, exportData };
+})();
+
+</script>
+<script>
 /* ---- inlined from src/animation-studio/model.js ---- */
 /* =============================================================================
  * ANIMATION STUDIO MODEL  shared by the browser and the local tools. No I/O.
- * Projects hold readable clips and the name of the reference set for each clip.
+ * Projects hold readable clips and optional AssetStudioModel scene data.
  * validateClip / validateProject copy and check input; apply returns a new project.
  * The input project never changes, including when an operation fails.
  * ============================================================================= */
@@ -33354,7 +34230,7 @@ const CLIP_FIELDS = ['clip', 'src', 'dur', 'loop', 'tags', 'desc', 'orig', 'take
 const ACTION_FIELDS = {
   create: ['name', 'duration', 'loop', 'preset', 'set'], import: ['set', 'clip', 'name'], add: ['set', 'clip'],
   select: ['id'], replace: ['id', 'clip'], edit_key: ['id', 'time', 'values'], delete_key: ['id', 'time'],
-  transform: ['id', 'kind', 'duration'], rename: ['id', 'name'], delete: ['id']
+  transform: ['id', 'kind', 'duration'], rename: ['id', 'name'], delete: ['id'], assets: ['actions']
 };
 const MAX_KEYS = 2000, MAX_CLIPS = 128, MAX_DURATION = 600, END_TOL = 1 / 30 + 1e-6, EPS = 1e-9;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -33437,10 +34313,14 @@ function getSet(sets, name) {
   if (!object(set) || !object(set.sources) || !Object.keys(set.sources).length) fail('Animation set "' + id + '" has no reference body.');
   return { id, set };
 }
+function assetModel() {
+  if (typeof AssetStudioModel === 'undefined') fail('This project contains assets. Open it with Asset Studio or load AssetStudioModel before AnimationStudioModel.');
+  return AssetStudioModel;
+}
 /** A project is portable JSON. Reference set data remains in the repository. */
 function validateProject(input, sets) {
   if (!object(input)) fail('A project must be an object.');
-  keysOnly(input, ['schema', 'name', 'selected', 'clips'], 'Project');
+  keysOnly(input, ['schema', 'name', 'selected', 'clips', 'assets'], 'Project');
   if (input.schema !== 1) fail('Project schema must be 1.');
   label(input.name, 'Project name', 120);
   if (!object(input.clips)) fail('Project clips must be an object.');
@@ -33457,7 +34337,10 @@ function validateProject(input, sets) {
     clips[id] = { set: source.id, clip: c };
   }
   if (typeof input.selected !== 'string' || !own(clips, input.selected)) fail('Project selected must name a clip in this project.');
-  return { schema: 1, name: input.name, selected: input.selected, clips };
+  const p = { schema: 1, name: input.name, selected: input.selected, clips };
+  // Old animation files stay byte-for-byte equivalent and need no asset runtime.
+  if (own(input, 'assets')) p.assets = assetModel().validateProject(input.assets, { clips });
+  return p;
 }
 function neutral() {
   return { hips: [0, 0, 100], body: [0, 0, 0], chest: [0, 0, 0], head: [0, 0, 0], shL: [0, 0], shR: [0, 0],
@@ -33522,7 +34405,10 @@ function apply(project, action, sets) {
   if (!object(action) || typeof action.type !== 'string') fail('An action needs a type.');
   if (!own(ACTION_FIELDS, action.type)) fail('Unknown action type "' + action.type + '".');
   keysOnly(action, ['type', ...ACTION_FIELDS[action.type]], 'Action "' + action.type + '"');
-  if (action.type === 'create') addRecord(p, newClip(action, sets));
+  if (action.type === 'assets') {
+    const A = assetModel(), context = { clipIds: [p.selected, ...Object.keys(p.clips).filter(id => id !== p.selected)] };
+    p.assets = A.applyMany(p.assets || A.createProject(context), action.actions, context);
+  } else if (action.type === 'create') addRecord(p, newClip(action, sets));
   else if (action.type === 'import') addRecord(p, importClip(sets, action.set, action.clip, action.name === undefined ? action.clip : action.name));
   else if (action.type === 'add') {
     const source = getSet(sets, action.set === undefined ? 'quaternius' : action.set);
@@ -33574,9 +34460,13 @@ function apply(project, action, sets) {
         c.clip = name;
         p.clips = Object.fromEntries(Object.entries(p.clips).map(([key, value]) => [key === id ? name : key, value]));
         if (p.selected === id) p.selected = name;
+        if (p.assets) for (const level of Object.values(p.assets.levels)) for (const o of Object.values(level.objects)) if (o.kind === 'actor' && o.clip === id) o.clip = name;
       }
     } else if (action.type === 'delete') {
       if (Object.keys(p.clips).length === 1) fail('The last clip cannot be deleted. Create another clip first.');
+      if (p.assets) for (const [levelId, level] of Object.entries(p.assets.levels)) for (const [objectId, o] of Object.entries(level.objects)) {
+        if (o.kind === 'actor' && o.clip === id) fail('Clip "' + id + '" is used by actor "' + objectId + '" in level "' + levelId + '". Change or remove that actor before deleting the clip.');
+      }
       delete p.clips[id]; if (p.selected === id) p.selected = Object.keys(p.clips)[0];
     } else fail('Unknown action type "' + action.type + '".');
   }
@@ -33597,6 +34487,500 @@ return { FIELDS, clone, validateClip, validateProject, newClip, createProject, i
 
 </script>
 <script>
+/* ---- inlined from src/asset-studio/runtime.js ---- */
+/* Asset Studio runtime. Readable parts, procedural materials and TileMap levels on public engine APIs.
+ * AssetStudioRuntime.create({game, project, sets}) returns a live scene renderer; no editor or file I/O.
+ * Coordinates are world units, z up. A part's position is the center of its bottom face.
+ * Solid model parts use conservative world AABBs for playtest collision, including rotated parts. */
+(() => {
+'use strict';
+const E = My3D2dge, A = AssetStudioModel, VIEWS = ['iso', 'threequarter', 'topdown', 'brawler', 'side'];
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const hex = color => [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
+const color = rgb => '#' + rgb.map(n => clamp(Math.round(n), 0, 255).toString(16).padStart(2, '0')).join('');
+const mix = (a, b, t) => a.map((n, i) => Math.round(n + (b[i] - n) * t));
+const hash = (x, y, seed) => { let n = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ (seed | 0); n = Math.imul(n ^ n >>> 13, 1274126177); return (n ^ n >>> 16) >>> 0; };
+function palette(material) {
+  const a = hex(material.color), b = hex(material.accent), shades = [a, b, mix(a, b, .22), mix(a, b, .48)];
+  const s = material.scale, seed = material.seed;
+  return { material, rgb: shades, css: shades.map(color), at(x, y) {
+    const u = x / s, v = y / s, ix = Math.floor(u), iy = Math.floor(v);
+    switch (material.pattern) {
+      case 'checker': return (ix + iy) & 1;
+      case 'brick': return v - iy < .12 || ((u + (iy & 1) * .5) % 1 + 1) % 1 < .07 ? 1 : 0;
+      case 'planks': return u - ix < .08 || v % 8 < .12 ? 1 : hash(ix, Math.floor(v / 8), seed) % 3 === 0 ? 2 : 0;
+      case 'noise': return hash(ix, iy, seed) % 4;
+      default: return 0;
+    }
+  } };
+}
+const avg = points => [0, 1, 2].map(i => points.reduce((n, p) => n + p[i], 0) / points.length);
+const cross = (a, b, c) => { const u = b.map((n, i) => n - a[i]), v = c.map((n, i) => n - a[i]); return [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; };
+const distance = (a, b) => Math.hypot(...a.map((n, i) => n - b[i]));
+function partMesh(part, object) {
+  const [w, d, h] = part.size, x = w / 2, y = d / 2;
+  let vertices, indices;
+  if (part.shape === 'cylinder') {
+    vertices = []; indices = [];
+    for (const z of [0, h]) for (let i = 0; i < 12; i++) vertices.push([Math.cos(i * Math.PI / 6) * x, Math.sin(i * Math.PI / 6) * y, z]);
+    indices.push(Array.from({ length: 12 }, (_, i) => i + 12));
+    for (let i = 0; i < 12; i++) { const j = (i + 1) % 12; indices.push([i, j, j + 12, i + 12]); }
+  } else if (part.shape === 'wedge') {
+    vertices = [[-x, -y, 0], [x, -y, 0], [x, y, 0], [-x, y, 0], [x, -y, h], [x, y, h]];
+    indices = [[0, 4, 5, 3], [0, 1, 4], [1, 2, 5, 4], [2, 3, 5]];
+  } else {
+    vertices = [[-x, -y, 0], [x, -y, 0], [x, y, 0], [-x, y, 0], [-x, -y, h], [x, -y, h], [x, y, h], [-x, y, h]];
+    indices = [[4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]];
+  }
+  const pa = part.rotation * E.DEG, oa = object.rotation * E.DEG, pc = Math.cos(pa), ps = Math.sin(pa), oc = Math.cos(oa), os = Math.sin(oa), k = object.scale;
+  vertices = vertices.map(([vx, vy, vz]) => {
+    const a = vx * pc - vy * ps + part.position[0], b = vx * ps + vy * pc + part.position[1];
+    return [object.position[0] + (a * oc - b * os) * k, object.position[1] + (a * os + b * oc) * k, object.position[2] + (vz + part.position[2]) * k];
+  });
+  const bounds = [0, 1, 2].map(i => [Math.min(...vertices.map(v => v[i])), Math.max(...vertices.map(v => v[i]))]);
+  return { vertices, bounds, center: avg(vertices), material: part.material, faces: indices.map(ids => {
+    const points = ids.map(i => vertices[i]), normal = cross(points[0], points[1], points[2]), len = Math.hypot(...normal) || 1;
+    return { points, center: avg(points), normal: normal.map(n => n / len), width: distance(points[0], points[1]), height: distance(points[0], points[points.length - 1]) };
+  }) };
+}
+function quadPoint(p, u, v) { return [0, 1, 2].map(i => p[0][i] * (1 - u) * (1 - v) + p[1][i] * u * (1 - v) + p[2][i] * u * v + p[3][i] * (1 - u) * v); }
+function paintFace(r, g, face, p) {
+  const pts = face.points.map(v => r.w(...v)), n = face.normal;
+  const light = clamp(.68 + n[2] * .3 - n[0] * .12 - n[1] * .12, .45, 1.08);
+  const colors = p.rgb.map(rgb => color(rgb.map(c => c * light)));
+  E.px.poly(g, pts, colors[0]);
+  if (face.points.length === 4 && p.material.pattern !== 'solid') {
+    // Bounded small quads keep textures readable at pixel scale, even for large agent-authored models.
+    const cols = clamp(Math.ceil(face.width / Math.max(2, p.material.scale / 2)), 1, 8), rows = clamp(Math.ceil(face.height / Math.max(2, p.material.scale / 2)), 1, 8);
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const c = p.at((x + .5) / cols * face.width, (y + .5) / rows * face.height);
+      if (!c) continue;
+      const q = [[x / cols, y / rows], [(x + 1) / cols, y / rows], [(x + 1) / cols, (y + 1) / rows], [x / cols, (y + 1) / rows]].map(([u, v]) => r.w(...quadPoint(face.points, u, v)));
+      E.px.poly(g, q, colors[c]);
+    }
+  }
+  const edge = color(p.rgb[0].map(c => c * light * .68));
+  for (let i = 0; i < pts.length; i++) E.px.line(g, ...pts[i], ...pts[(i + 1) % pts.length], edge);
+}
+function create({ game, project, sets }) {
+  let source, assets, level, map, physicsMap, palettes, objects = [], actorRigs = new Map(), meshes = new Map(), lastRenderer = null, player = null, playerRig = null, playerFacing = 0;
+  let staticSolids = [], collisionBounds = [];
+  const S = { level: null, selected: null, view: 'iso', zoom: 1, focus: null, grid: true, mode: 'edit', time: 0, playing: !game.reduceMotion };
+  function context(p) { return { clipIds: [p.selected, ...Object.keys(p.clips).filter(id => id !== p.selected)] }; }
+  function setData(next, options = {}) {
+    source = next; assets = next.assets || A.createProject(context(next));
+    const oldLevel = S.level;
+    if (options.level !== undefined) S.level = options.level;
+    if (!S.level || !assets.levels[S.level] || options.followSelection) S.level = assets.selectedLevel;
+    level = assets.levels[S.level];
+    if (options.followSelection || !Object.hasOwn(level.objects, S.selected)) S.selected = S.level === assets.selectedLevel ? assets.selectedObject : null;
+    palettes = Object.fromEntries(Object.entries(assets.materials).map(([id, m]) => [id, palette(m)]));
+    const legend = {}, collisionLegend = {}, types = {}; let nextType = 1;
+    for (const [ch, tile] of Object.entries(level.tiles)) {
+      const p = palettes[tile.material], wall = tile.height > 0 ? nextType++ : 0;
+      if (wall) types[wall] = { h: tile.height, top: p.material.color, side: color(p.rgb[0].map(c => c * .8)), line: p.material.accent, face: ({ brick: 'brick', planks: 'plank', noise: 'stone' })[p.material.pattern] || 'none', roof: p.material.pattern === 'solid' ? 'plain' : 'slab', cut: false };
+      legend[ch] = { tile: wall, floor: tile.material, block: tile.solid && !wall };
+      collisionLegend[ch] = { tile: tile.solid ? wall : 0, floor: tile.material, block: tile.solid && !wall };
+    }
+    const fallback = Object.values(palettes)[0];
+    const floorTex = (x, y, tag) => { const p = palettes[tag] || fallback; return p.rgb[p.at(x, y)]; };
+    map = new E.TileMap({ tile: level.tile, rows: level.rows, legend, types, floorTex, ao: 3, shimmer: false, cutaway: false });
+    physicsMap = new E.TileMap({ tile: level.tile, rows: level.rows, legend: collisionLegend, types, floorTex, shimmer: false });
+    objects = Object.entries(level.objects); meshes = new Map(); actorRigs = new Map();
+    for (const [id, object] of objects) {
+      if (object.kind === 'model') meshes.set(id, assets.models[object.model].parts.map(part => partMesh(part, object)));
+      else {
+        const record = next.clips[object.clip], base = sets[record.set], lib = Mocap.load({ ...base, clips: { [object.clip]: record.clip } });
+        const rig = Mocap.drive(new E.Humanoid({ size: object.scale, cape: null, weapon: null }), lib);
+        actorRigs.set(id, { lib, rig, pose: new Float32Array(lib.P * 3), clip: object.clip, position: object.position.slice() });
+      }
+    }
+    staticSolids = objects.filter(([, o]) => o.kind === 'model' && o.solid && o.visible).flatMap(([id]) => meshes.get(id).map(p => p.bounds));
+    sampleActors();
+    if (oldLevel !== S.level) { S.focus = null; player = null; if (S.mode === 'play') startPlay(); }
+    if (!S.focus) fit();
+    return getState();
+  }
+  function sampleActors() {
+    for (const [id, object] of objects) if (object.kind === 'actor') {
+      const a = actorRigs.get(id), c = a.lib.clip(object.clip), t = c.loop && c.dur > 0 ? S.time % c.dur : Math.min(S.time, c.dur);
+      a.lib.sample(c, t, a.pose); a.rig.mocap = a.pose;
+      const move = a.lib.moveAt(c, t), facing = object.rotation * E.DEG, k = a.rig.o.hipZ * a.rig.o.size / a.lib.rest.hipZ;
+      const dx = move ? (move[0] * Math.cos(facing) - move[1] * Math.sin(facing)) * k : 0;
+      const dy = move ? (move[0] * Math.sin(facing) + move[1] * Math.cos(facing)) * k : 0;
+      a.position = [object.position[0] + dx, object.position[1] + dy, object.position[2]];
+      a.rig.update(0, { x: a.position[0], y: a.position[1], z: a.position[2], facing });
+    }
+    collisionBounds = staticSolids.concat(objects.filter(([, o]) => o.kind === 'actor' && o.solid && o.visible).map(([id]) => bounds(id)));
+  }
+  function applyCamera() { game.setView(S.view); game.setZoom(S.zoom); game.cam.bounds = null; game.cam.smooth = 0; if (S.focus) game.focus(...S.focus); }
+  function fit() {
+    if (!level) return;
+    const v = E.VIEWS[S.view], w = level.rows[0].length * level.tile, h = level.rows.length * level.tile, maxZ = Math.max(32, ...Object.values(level.tiles).map(t => t.height));
+    const boxes = [[[0, w], [0, h], [0, maxZ]], ...objects.filter(([, o]) => o.visible).map(([id]) => bounds(id))], world = [];
+    for (const box of boxes) for (const x of box[0]) for (const y of box[1]) for (const z of box[2]) world.push([x, y, z]);
+    const points = world.map(p => v.p(...p)), x0 = Math.min(...points.map(p => p[0])), x1 = Math.max(...points.map(p => p[0])), y0 = Math.min(...points.map(p => p[1])), y1 = Math.max(...points.map(p => p[1]));
+    const width = x1 - x0, height = y1 - y0;
+    S.zoom = clamp(Math.min((game.W - 28) / Math.max(1, width), (game.H - 55) / Math.max(1, height)), .5, 3);
+    const focus = [0, 1, 2].map(i => (Math.min(...world.map(p => p[i])) + Math.max(...world.map(p => p[i]))) / 2), center = v.p(...focus);
+    const dx = (x0 + x1) / 2 - center[0], dy = (y0 + y1) / 2 - center[1], xx = v.ax * v.ax + v.ay * v.ay, yy = v.bx * v.bx + v.by * v.by + v.bz * v.bz;
+    // Screen axes are orthogonal. This centers every view, including side views with no ground inverse.
+    S.focus = [focus[0] + dx * v.ax / xx + dy * v.bx / yy, focus[1] + dx * v.ay / xx + dy * v.by / yy, focus[2] + dy * v.bz / yy];
+    applyCamera(); return getState();
+  }
+  function focusSelection() {
+    const object = level.objects[S.selected]; if (!object) return fit();
+    const b = bounds(S.selected); S.focus = b.map(pair => (pair[0] + pair[1]) / 2); S.zoom = 2; applyCamera(); return getState();
+  }
+  function setPreview(options = {}) {
+    if (options.level !== undefined && !assets.levels[options.level]) throw new Error('Unknown scene level.');
+    if (options.view !== undefined && !VIEWS.includes(options.view)) throw new Error('Unknown camera view.');
+    if (options.zoom !== undefined && (typeof options.zoom !== 'number' || !Number.isFinite(options.zoom) || options.zoom < .5 || options.zoom > 3)) throw new Error('Scene zoom must be between 0.5 and 3.');
+    if (options.focus !== undefined && (!Array.isArray(options.focus) || options.focus.length !== 3 || options.focus.some(n => typeof n !== 'number' || !Number.isFinite(n) || Math.abs(n) > 100000))) throw new Error('Scene focus must be three finite world coordinates.');
+    const target = assets.levels[options.level || S.level];
+    if (options.selected !== undefined && options.selected !== null && !Object.hasOwn(target.objects, options.selected)) throw new Error('Unknown scene object.');
+    if (options.mode !== undefined && !['edit', 'play'].includes(options.mode)) throw new Error('Scene mode must be edit or play.');
+    for (const k of ['grid', 'playing']) if (options[k] !== undefined && typeof options[k] !== 'boolean') throw new Error(k + ' must be true or false.');
+    if (options.time !== undefined && (typeof options.time !== 'number' || !Number.isFinite(options.time) || options.time < 0 || options.time > 600)) throw new Error('Scene time must be between 0 and 600 seconds.');
+    if (options.level !== undefined && options.level !== S.level) setData(source, { level: options.level });
+    for (const k of ['view', 'zoom', 'focus', 'selected', 'grid', 'playing', 'time']) if (options[k] !== undefined) S[k] = Array.isArray(options[k]) ? options[k].slice() : options[k];
+    if (options.mode !== undefined && S.mode !== options.mode) options.mode === 'play' ? startPlay() : stopPlay();
+    if (!S.focus) fit(); applyCamera(); sampleActors(); return getState();
+  }
+  function startPlay() {
+    S.mode = 'play'; S.playing = true; game.input.clear(); game.input.use('PLATFORMER'); game.input.touchButtons(['jump']);
+    player = new E.Body({ x: level.spawn[0], y: level.spawn[1], z: level.spawn[2], r: 5, gravity: 500 });
+    playerRig = new E.Humanoid({ cape: null, weapon: null, colors: { cloth: '#9ee5c3' } }); playerFacing = 0;
+    playerRig.update(0, { x: player.x, y: player.y, z: player.z, facing: playerFacing }); return getState();
+  }
+  function stopPlay() { S.mode = 'edit'; player = null; game.input.clear(); game.input.touchButtons([]); applyCamera(); return getState(); }
+  function bounds(id) {
+    const object = level.objects[id]; if (!object) return null;
+    if (object.kind === 'actor') {
+      const a = actorRigs.get(id), padding = 4 * object.scale;
+      const points = Object.values(a.rig.J).filter(p => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite)).map(p => a.rig.worldOffset(p));
+      return [0, 1, 2].map(i => [a.position[i] + Math.min(0, ...points.map(p => p[i])) - (i === 2 ? 0 : padding), a.position[i] + Math.max(0, ...points.map(p => p[i])) + padding]);
+    }
+    const parts = meshes.get(id); return [0, 1, 2].map(i => [Math.min(...parts.map(p => p.bounds[i][0])), Math.max(...parts.map(p => p.bounds[i][1]))]);
+  }
+  const collision = {
+    collide(body) {
+      let hit = physicsMap.collide(body);
+      for (const b of collisionBounds) {
+        if (body.z + 28 <= b[2][0] || body.z + body.step >= b[2][1]) continue;
+        const nx = clamp(body.x, ...b[0]), ny = clamp(body.y, ...b[1]); let dx = body.x - nx, dy = body.y - ny, d = Math.hypot(dx, dy);
+        if (d >= body.r) continue; hit = true;
+        if (d < .0001) {
+          const choices = [[body.x - b[0][0], -1, 0], [b[0][1] - body.x, 1, 0], [body.y - b[1][0], 0, -1], [b[1][1] - body.y, 0, 1]].sort((a, b2) => a[0] - b2[0]);
+          const [gap, ux, uy] = choices[0]; body.x += ux * (gap + body.r); body.y += uy * (gap + body.r);
+        } else { body.x = nx + dx / d * body.r; body.y = ny + dy / d * body.r; }
+      }
+      return physicsMap.collide(body) || hit;
+    },
+    groundAt(x, y, radius, z, step) {
+      let ground = physicsMap.groundAt(x, y, radius, z, step);
+      for (const b of collisionBounds) if (x >= b[0][0] - radius * .4 && x <= b[0][1] + radius * .4 && y >= b[1][0] - radius * .4 && y <= b[1][1] + radius * .4 && b[2][1] <= z + step) ground = Math.max(ground, b[2][1]);
+      return ground;
+    }
+  };
+  function update(dt) {
+    if (S.playing) { S.time = (S.time + dt) % 600; sampleActors(); }
+    if (S.mode === 'play' && player) {
+      const typing = document.activeElement?.matches('input,textarea,select') || document.querySelector('dialog[open]');
+      const m = typing ? [0, 0] : game.input.move(), dir = game.view.screenDirToGround(...m);
+      player.vx = dir[0] * 66; player.vy = dir[1] * 66;
+      if (!typing && game.input.pressed('jump')) player.jump(180);
+      player.update(dt, collision); if (Math.hypot(...dir) > .01) playerFacing = Math.atan2(dir[1], dir[0]);
+      playerRig.update(dt, { x: player.x, y: player.y, z: player.z, vx: player.vx, vy: player.vy, facing: playerFacing });
+      game.focus(player.x, player.y, player.z + 16);
+    } else if (S.focus) game.focus(...S.focus);
+  }
+  function draw(r) {
+    lastRenderer = r; map.drawFloor(r);
+    if (S.grid && S.mode === 'edit') {
+      const w = level.rows[0].length * level.tile, h = level.rows.length * level.tile;
+      r.decal(g => {
+        for (let x = 0; x <= w; x += level.tile) E.px.line(g, ...r.w(x, 0, 0), ...r.w(x, h, 0), '#91aaa12b');
+        for (let y = 0; y <= h; y += level.tile) E.px.line(g, ...r.w(0, y, 0), ...r.w(w, y, 0), '#91aaa12b');
+      });
+    }
+    map.queueWalls(r);
+    for (const [id, object] of objects) {
+      if (!object.visible) continue;
+      const b = bounds(id), radius = Math.max(b[0][1] - b[0][0], b[1][1] - b[1][0]) / 2;
+      const center = b.map(pair => (pair[0] + pair[1]) / 2), pixels = [];
+      for (const x of b[0]) for (const y of b[1]) for (const z of b[2]) pixels.push(r.w(x, y, z));
+      const screen = r.w(...center), margin = Math.max(16, ...pixels.flatMap(p => [Math.abs(p[0] - screen[0]), Math.abs(p[1] - screen[1])]), object.kind === 'actor' ? Math.max(...b.map(pair => pair[1] - pair[0])) * r.view.scale * 2 : 0) + 8;
+      if (!r.visible(...center, margin, margin, margin)) continue;
+      if (object.kind === 'actor') {
+        const a = actorRigs.get(id); r.shadow(a.position[0], a.position[1], Math.min(radius, 24), .28, '#091813', a.position[2]);
+        r.queue(...a.position, g => { const [x, y] = r.w(...a.position); a.rig.draw(g, Math.round(x), Math.round(y), r.view); }, { solid: true });
+      } else {
+        r.shadow(center[0], center[1], Math.min(radius, 24), .28, '#091813', b[2][0]);
+        for (const mesh of meshes.get(id)) {
+        const faces = mesh.faces.filter(f => f.normal[0] * r.view.dx + f.normal[1] * r.view.dy + f.normal[2] * r.view.dz > .0001).sort((a, b2) => r.view.depth(...a.center) - r.view.depth(...b2.center));
+        r.queue(mesh.center[0], mesh.center[1], mesh.bounds[2][0], g => { for (const face of faces) paintFace(r, g, face, palettes[mesh.material]); }, { solid: true });
+        }
+      }
+    }
+    if (S.mode === 'play' && player) { r.shadow(player.x, player.y, 7, .3, '#091813', player.groundZ); r.queue(player.x, player.y, player.z, g => { const [x, y] = r.w(player.x, player.y, player.z); playerRig.draw(g, Math.round(x), Math.round(y), r.view); }, { solid: true }); }
+    else r.overlay(g => {
+      const spawn = r.w(...level.spawn); E.px.line(g, spawn[0] - 4, spawn[1], spawn[0] + 4, spawn[1], '#dace8a'); E.px.line(g, spawn[0], spawn[1] - 4, spawn[0], spawn[1] + 4, '#dace8a');
+      const b = bounds(S.selected);
+      if (b) {
+        const corners = [[b[0][0], b[1][0], b[2][0]], [b[0][1], b[1][0], b[2][0]], [b[0][1], b[1][1], b[2][0]], [b[0][0], b[1][1], b[2][0]]];
+        for (const z of [b[2][0], b[2][1]]) for (let i = 0; i < 4; i++) { const a = corners[i], c = corners[(i + 1) % 4]; E.px.line(g, ...r.w(a[0], a[1], z), ...r.w(c[0], c[1], z), '#b4f5d3'); }
+        for (const c of corners) E.px.line(g, ...r.w(...c), ...r.w(c[0], c[1], b[2][1]), '#b4f5d3');
+        const p = r.w((b[0][0] + b[0][1]) / 2, (b[1][0] + b[1][1]) / 2, b[2][1]); E.font.text(g, S.selected, p[0], p[1] - 10, '#daf7e6', { align: 'center', font: 'tiny', shadow: '#14251e' });
+      }
+    });
+  }
+  function groundPoint(x, y) {
+    const r = lastRenderer; if (!r) return null;
+    const o = r.w(0, 0, 0), a = r.w(1, 0, 0), b = r.w(0, 1, 0), ax = a[0] - o[0], ay = a[1] - o[1], bx = b[0] - o[0], by = b[1] - o[1], det = ax * by - ay * bx;
+    if (Math.abs(det) < .00001) return null;
+    return [((x - o[0]) * by - (y - o[1]) * bx) / det, ((y - o[1]) * ax - (x - o[0]) * ay) / det, 0];
+  }
+  function pick(x, y) {
+    if (!lastRenderer) return null;
+    const r = lastRenderer;
+    const location = ([id, o]) => o.kind === 'actor' ? actorRigs.get(id).position : bounds(id).map(pair => (pair[0] + pair[1]) / 2);
+    return objects.filter(([, o]) => o.visible).sort((a, b) => r.view.order(...location(b)) - r.view.order(...location(a))).find(([id]) => {
+      const b = bounds(id), p = [];
+      for (const wx of b[0]) for (const wy of b[1]) for (const wz of b[2]) p.push(r.w(wx, wy, wz));
+      return x >= Math.min(...p.map(q => q[0])) - 3 && x <= Math.max(...p.map(q => q[0])) + 3 && y >= Math.min(...p.map(q => q[1])) - 3 && y <= Math.max(...p.map(q => q[1])) + 3;
+    })?.[0] || null;
+  }
+  function getState() { return { ...S, focus: S.focus?.slice() || null, player: player ? { x: player.x, y: player.y, z: player.z, onGround: player.onGround } : null }; }
+  setData(project);
+  return { setData, setPreview, fit, focusSelection, update, draw, pick, groundPoint, bounds, startPlay, stopPlay, getState, get assets() { return assets; }, get level() { return level; }, get map() { return map; }, get actors() { return actorRigs; } };
+}
+window.AssetStudioRuntime = { create, palette, partMesh };
+})();
+
+</script>
+<script>
+/* ---- inlined from src/asset-studio/studio.js ---- */
+/* Human controls over the same asset actions used by MCP and the watched project file.
+ * This helper shares the parent editor's revision, history, connection and canvas. */
+(() => {
+'use strict';
+const A = AssetStudioModel, $ = id => document.getElementById(id);
+const el = (tag, properties = {}) => Object.assign(document.createElement(tag), properties);
+const cleanName = name => String(name).replace(/[^A-Za-z0-9_-]/g, '_').replace(/^[^A-Za-z]+/, '').slice(0, 56) || 'Asset';
+function attach(ctx) {
+  const { game, sets, getSnapshot, mutate, replaceProject, note, exportFile } = ctx;
+  const runtime = AssetStudioRuntime.create({ game, project: getSnapshot().project, sets });
+  const template = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  let materialID = null, modelID = null, tool = 'select', jsonDirty = false, jsonRevision = 0, jsonTimer = null;
+  let objectDirty = false, objectRevision = 0, objectID = null, materialDirty = false, materialRevision = 0, modelDirty = false, modelRevision = 0;
+  let pointer = null, lastSavedSelection = null, lastSavedLevel = null;
+  const state = () => runtime.getState(), assets = () => runtime.assets, currentLevel = () => runtime.level;
+  const fail = error => { note(error.message || String(error), true); return null; };
+  const unique = (registry, base) => { base = cleanName(base); let id = base, n = 2; while (Object.hasOwn(registry, id)) id = base + '_' + n++; return id; };
+  const selected = () => currentLevel().objects[state().selected];
+  const applyActions = (actions, expectedRevision = getSnapshot().revision) => mutate({ type: 'assets', actions }, expectedRevision);
+  const action = (value, rev) => applyActions([value], rev);
+  function panel(name) { for (const b of document.querySelectorAll('[data-scene-panel]')) { const on = b.dataset.scenePanel === name; b.setAttribute('aria-selected', String(on)); $('scene' + b.dataset.scenePanel[0].toUpperCase() + b.dataset.scenePanel.slice(1) + 'Panel').hidden = !on; } }
+  function optionList(select, rows, value) {
+    select.replaceChildren(...rows.map(([id, label]) => el('option', { value: id, textContent: label })));
+    if (rows.some(([id]) => id === value)) select.value = value;
+  }
+  function readObject() {
+    objectDirty = false; objectRevision = getSnapshot().revision; objectID = state().selected;
+    const o = selected(); $('sceneObjectFields').disabled = !o;
+    $('sceneSelectionTitle').textContent = objectID || 'No object selected'; $('sceneObjectKind').textContent = o?.kind || 'Select';
+    $('sceneSelectionHelp').textContent = o ? (o.kind === 'actor' ? 'This actor uses a clip from the Animation workspace.' : 'This is a reusable model instance. Change its asset to update every copy.') : 'Click an object in the scene or the list. Place a model to start.';
+    $('sceneDraftNotice').textContent = '';
+    if (!o) return;
+    $('sceneObjectName').value = o.name;
+    const registry = o.kind === 'actor' ? getSnapshot().project.clips : assets().models;
+    optionList($('sceneObjectAsset'), Object.entries(registry).map(([id, value]) => [id, value.name || id]), o.kind === 'actor' ? o.clip : o.model);
+    ['X', 'Y', 'Z'].forEach((axis, i) => { $('sceneObject' + axis).value = o.position[i]; });
+    $('sceneObjectRotation').value = o.rotation; $('sceneObjectScale').value = o.scale; $('sceneObjectVisible').checked = o.visible; $('sceneObjectSolid').checked = o.solid;
+  }
+  function readMaterial() {
+    materialDirty = false; materialRevision = getSnapshot().revision;
+    const m = assets().materials[materialID]; if (!m) return;
+    $('sceneMaterialSelect').value = materialID; $('sceneMaterialColor').value = m.color; $('sceneMaterialAccent').value = m.accent;
+    $('scenePattern').value = m.pattern; $('sceneMaterialScale').value = m.scale; $('sceneMaterialSeed').value = m.seed;
+  }
+  function readModel() {
+    modelDirty = false; modelRevision = getSnapshot().revision;
+    const m = assets().models[modelID]; if (!m) return;
+    $('sceneModelSelect').value = modelID; $('sceneModelText').value = JSON.stringify(m, null, 2); $('scenePartCount').textContent = m.parts.length + ' parts'; $('sceneModelStatus').textContent = '';
+  }
+  function readJSON() { clearTimeout(jsonTimer); jsonDirty = false; jsonRevision = getSnapshot().revision; $('sceneJson').value = JSON.stringify(assets(), null, 2); $('sceneJsonStatus').textContent = 'Current assets · revision ' + jsonRevision; $('sceneJsonStatus').classList.remove('bad'); }
+  function render() {
+    const a = assets(), s = state(), level = currentLevel(), saved = getSnapshot();
+    if (!a.materials[materialID]) { materialID = Object.keys(a.materials)[0]; materialDirty = false; }
+    if (!a.models[modelID]) { modelID = Object.keys(a.models)[0]; modelDirty = false; }
+    $('sceneTitle').textContent = level.name; $('sceneMeta').textContent = level.rows[0].length + ' × ' + level.rows.length + ' tiles · ' + Object.keys(level.objects).length + ' objects · ' + Object.keys(a.models).length + ' reusable models';
+    optionList($('sceneLevel'), Object.entries(a.levels).map(([id, l]) => [id, l.name]), s.level);
+    $('sceneObjectCount').textContent = Object.keys(level.objects).length;
+    $('sceneObjectList').replaceChildren(...Object.entries(level.objects).map(([id, o]) => {
+      const b = el('button', { type: 'button' }); b.dataset.id = id; b.setAttribute('aria-pressed', String(id === s.selected));
+      const label = el('span', { textContent: o.name }); label.append(el('small', { textContent: (o.kind === 'actor' ? 'Animation · ' + o.clip : o.model) + (o.visible ? '' : ' · hidden') }));
+      b.append(el('span', { className: 'asset-symbol', textContent: o.kind === 'actor' ? '♧' : '◇' }), label);
+      b.onclick = () => { objectDirty = false; action({ type: 'select', level: s.level, id }).catch(fail); }; return b;
+    }));
+    if (!Object.keys(level.objects).length) $('sceneObjectList').append(el('p', { className: 'help muted', textContent: 'An empty level. Place a model or animation actor.' }));
+    optionList($('sceneObjectModel'), Object.entries(a.models).map(([id, m]) => [id, m.name]), $('sceneObjectModel').value || modelID);
+    $('sceneNewObject').disabled = !Object.keys(a.models).length;
+    $('sceneApplyModel').disabled = !modelID;
+    if (!modelID) { $('sceneModelText').value = ''; $('scenePartCount').textContent = '0 models'; }
+    $('sceneModelList').replaceChildren(...Object.entries(a.models).map(([id, m]) => {
+      const b = el('button', { type: 'button' }); b.dataset.id = id; b.setAttribute('aria-pressed', String(id === modelID));
+      const label = el('span', { textContent: m.name }); label.append(el('small', { textContent: m.parts.length + ' parts' })); b.append(el('span', { className: 'model-icon', textContent: '◇' }), label);
+      b.onclick = () => { modelID = id; modelDirty = false; $('sceneObjectModel').value = id; render(); panel('asset'); }; return b;
+    }));
+    $('sceneMaterialList').replaceChildren(...Object.entries(a.materials).map(([id, m]) => {
+      const b = el('button', { type: 'button' }); b.dataset.id = id; b.setAttribute('aria-pressed', String(id === materialID));
+      const swatch = el('span', { className: 'material-swatch' }); swatch.style.backgroundColor = m.color;
+      if (m.pattern !== 'solid') { swatch.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 4px, ' + m.accent + ' 4px, ' + m.accent + ' 6px)'; }
+      const label = el('span', { textContent: m.name }); label.append(el('small', { textContent: m.pattern })); b.append(swatch, label);
+      b.onclick = () => { materialID = id; materialDirty = false; render(); panel('asset'); }; return b;
+    }));
+    optionList($('sceneMaterialSelect'), Object.entries(a.materials).map(([id, m]) => [id, m.name]), materialID);
+    optionList($('sceneModelSelect'), Object.entries(a.models).map(([id, m]) => [id, m.name]), modelID);
+    optionList($('sceneBrush'), Object.entries(level.tiles).map(([ch, t]) => [ch, (ch === ' ' ? 'space' : ch) + ' · ' + a.materials[t.material].name + (t.height ? ' · ' + t.height + ' high' : '')]), $('sceneBrush').value);
+    if (!objectDirty) readObject(); else if (objectRevision !== saved.revision) $('sceneDraftNotice').textContent = 'A newer revision arrived. Your object draft is kept. Click the object again to read current values.';
+    if (!materialDirty) readMaterial();
+    if (!modelDirty) readModel(); else if (modelRevision !== saved.revision) $('sceneModelStatus').textContent = 'A newer revision arrived. Click this model in the list to read current data.';
+    if (!jsonDirty) readJSON(); else if (jsonRevision !== saved.revision) { $('sceneJsonStatus').textContent = 'A new revision arrived. Your draft is kept. Read current before applying.'; $('sceneJsonStatus').classList.add('bad'); }
+    updateTime();
+  }
+  function sync(project) {
+    const a = project.assets, followSelection = a?.selectedLevel !== lastSavedLevel || a?.selectedObject !== lastSavedSelection;
+    runtime.setData(project, { followSelection }); lastSavedLevel = a?.selectedLevel ?? null; lastSavedSelection = a?.selectedObject ?? null;
+    render();
+  }
+  function setPreview(options = {}) { runtime.setPreview(options); render(); return state(); }
+  function activate() { runtime.setPreview({}); game.screen.resize(); render(); }
+  function seek(time) { return setPreview({ time, playing: false }).time; }
+  function updateTime() {
+    if (ctx.getWorkspace() !== 'scene') return;
+    const s = state(); $('viewSelect').value = s.view; $('zoomInput').value = s.zoom;
+    $('previewMode').textContent = s.mode === 'play' ? 'PLAYTEST' : s.playing ? 'LIVE SCENE' : 'PAUSED'; $('fps').textContent = game.fps + ' fps';
+    $('scenePlayBtn').textContent = s.mode === 'play' ? '■ Stop' : '▶ Play'; $('sceneGridBtn').setAttribute('aria-pressed', String(s.grid));
+    $('sceneHint').textContent = s.mode === 'play' ? 'Move: WASD / arrows · Jump: Space · Stop or Esc returns to editing.' : tool === 'paint' ? 'Click or drag to paint tiles. Release to save one edit. Shift-drag to pan.' : 'Click objects · Shift-drag to pan · Scroll to zoom · F fits the level';
+  }
+  async function applyObject() {
+    const o = currentLevel().objects[objectID]; if (!o) throw new Error('Select the object again before applying your draft.');
+    const changes = { name: $('sceneObjectName').value, position: ['X', 'Y', 'Z'].map(axis => Number($('sceneObject' + axis).value)), rotation: Number($('sceneObjectRotation').value), scale: Number($('sceneObjectScale').value), visible: $('sceneObjectVisible').checked, solid: $('sceneObjectSolid').checked, [o.kind === 'actor' ? 'clip' : 'model']: $('sceneObjectAsset').value };
+    await action({ type: 'object_update', level: state().level, id: objectID, changes }, objectRevision); objectDirty = false; render();
+  }
+  async function applyJSON() {
+    clearTimeout(jsonTimer); const text = $('sceneJson').value, value = A.validateProject(JSON.parse(text), { clips: getSnapshot().project.clips });
+    const next = await replaceProject({ ...getSnapshot().project, assets: value }, jsonRevision);
+    if ($('sceneJson').value === text) { readJSON(); $('sceneJsonStatus').textContent = 'Applied revision ' + next.revision + '.'; }
+    return next;
+  }
+  function jsonError(error) { $('sceneJsonStatus').textContent = error.message; $('sceneJsonStatus').classList.add('bad'); note('The scene still uses the last valid edit.', true); }
+  const atCenter = () => { const s = state(); return [Math.round((s.focus?.[0] ?? currentLevel().spawn[0]) / 8) * 8, Math.round((s.focus?.[1] ?? currentLevel().spawn[1]) / 8) * 8, 0]; };
+  for (const b of document.querySelectorAll('[data-scene-panel]')) b.onclick = () => panel(b.dataset.scenePanel);
+  $('sceneLevel').onchange = () => { objectDirty = false; action({ type: 'select', level: $('sceneLevel').value, id: null }).then(() => { runtime.fit(); render(); }).catch(fail); };
+  $('sceneNewLevelBtn').onclick = () => { objectDirty = false; action({ type: 'level_create', id: unique(assets().levels, 'Level') }).then(() => { runtime.fit(); render(); }).catch(fail); };
+  $('sceneNewObject').onclick = () => { const model = $('sceneObjectModel').value; objectDirty = false; action({ type: 'object_add', level: state().level, id: unique(currentLevel().objects, model), object: { kind: 'model', model, position: atCenter() } }).then(() => panel('object')).catch(fail); };
+  $('sceneAddActor').onclick = () => { objectDirty = false; action({ type: 'object_add', level: state().level, id: unique(currentLevel().objects, 'Actor'), object: { kind: 'actor', clip: getSnapshot().project.selected, position: atCenter(), solid: false } }).then(() => panel('object')).catch(fail); };
+  $('sceneNewMaterial').onclick = async () => { try { const id = unique(assets().materials, 'Material'); await action({ type: 'material_create', id, material: { name: id, color: '#cfad79', accent: '#79604a', pattern: 'checker', scale: 8, seed: 1 } }); materialID = id; materialDirty = false; render(); panel('asset'); } catch (e) { fail(e); } };
+  $('sceneNewModel').onclick = async () => { try { const id = unique(assets().models, 'Model'); await action({ type: 'model_create', id, model: { name: id, parts: [{ shape: 'box', position: [0, 0, 0], size: [24, 24, 24], rotation: 0, material: materialID }] } }); modelID = id; modelDirty = false; $('sceneObjectModel').value = id; render(); panel('asset'); } catch (e) { fail(e); } };
+  $('sceneApplyObject').onclick = () => applyObject().catch(fail);
+  for (const input of $('sceneObjectFields').querySelectorAll('input,select')) input.addEventListener('input', () => { if (!objectDirty) objectRevision = getSnapshot().revision; objectDirty = true; });
+  $('sceneDuplicateObject').onclick = () => { if (!selected()) return; objectDirty = false; action({ type: 'object_duplicate', level: state().level, id: state().selected, newId: unique(currentLevel().objects, state().selected), offset: [16, 16, 0] }).catch(fail); };
+  $('sceneDeleteObject').onclick = () => { if (!selected()) return; objectDirty = false; action({ type: 'object_delete', level: state().level, id: state().selected }).catch(fail); };
+  $('sceneSetSpawn').onclick = () => { if (!selected()) return fail(new Error('Select an object to use its position as the player start.')); action({ type: 'level_update', id: state().level, changes: { spawn: selected().position.slice() } }).catch(fail); };
+  $('sceneMaterialSelect').onchange = () => { materialID = $('sceneMaterialSelect').value; readMaterial(); render(); };
+  for (const id of ['sceneMaterialColor', 'sceneMaterialAccent', 'scenePattern', 'sceneMaterialScale', 'sceneMaterialSeed']) $(id).addEventListener('input', () => { if (!materialDirty) materialRevision = getSnapshot().revision; materialDirty = true; });
+  $('sceneApplyMaterial').onclick = async () => { try { await action({ type: 'material_update', id: materialID, changes: { color: $('sceneMaterialColor').value, accent: $('sceneMaterialAccent').value, pattern: $('scenePattern').value, scale: Number($('sceneMaterialScale').value), seed: Number($('sceneMaterialSeed').value) } }, materialRevision); materialDirty = false; render(); } catch (e) { fail(e); } };
+  $('sceneModelSelect').onchange = () => { modelID = $('sceneModelSelect').value; readModel(); render(); };
+  $('sceneModelText').oninput = () => { if (!modelDirty) modelRevision = getSnapshot().revision; modelDirty = true; $('sceneModelStatus').textContent = 'Model draft. Apply to update every placed copy.'; };
+  $('sceneApplyModel').onclick = async () => { try { await action({ type: 'model_update', id: modelID, changes: JSON.parse($('sceneModelText').value) }, modelRevision); modelDirty = false; render(); } catch (e) { $('sceneModelStatus').textContent = e.message; fail(e); } };
+  $('sceneJson').oninput = () => { if (!jsonDirty) jsonRevision = getSnapshot().revision; jsonDirty = true; clearTimeout(jsonTimer); $('sceneJsonStatus').textContent = 'Draft. Waiting for valid JSON.'; if ($('sceneLiveJson').checked) jsonTimer = setTimeout(() => applyJSON().catch(jsonError), 350); };
+  $('sceneLiveJson').onchange = () => { clearTimeout(jsonTimer); if ($('sceneLiveJson').checked && jsonDirty) jsonTimer = setTimeout(() => applyJSON().catch(jsonError), 350); };
+  $('sceneApplyJson').onclick = () => applyJSON().catch(jsonError); $('sceneReadJson').onclick = readJSON;
+  $('sceneFitBtn').onclick = () => { runtime.fit(); render(); }; $('sceneFocusBtn').onclick = () => { runtime.focusSelection(); render(); };
+  $('sceneGridBtn').onclick = () => setPreview({ grid: !state().grid });
+  $('scenePlayBtn').onclick = () => setPreview({ mode: state().mode === 'play' ? 'edit' : 'play' });
+  function chooseTool(next) { tool = next; document.body.classList.toggle('scene-painting', tool === 'paint'); $('sceneSelectBtn').setAttribute('aria-pressed', String(tool === 'select')); $('scenePaintBtn').setAttribute('aria-pressed', String(tool === 'paint')); updateTime(); }
+  $('sceneSelectBtn').onclick = () => chooseTool('select'); $('scenePaintBtn').onclick = () => { setPreview({ mode: 'edit' }); chooseTool('paint'); };
+  const point = event => { const p = game.screen.clientToScreen(event.clientX, event.clientY); return [p[0] - game.screen.ix, p[1] - game.screen.iy]; };
+  function paintCell(event) {
+    const p = runtime.groundPoint(...point(event)); if (!p) throw new Error('Choose a ground view to paint tiles. Side view has no floor plane.');
+    const x = Math.floor(p[0] / currentLevel().tile), y = Math.floor(p[1] / currentLevel().tile);
+    if (y >= 0 && y < currentLevel().rows.length && x >= 0 && x < currentLevel().rows[0].length) pointer.cells.set(x + ',' + y, { x, y, tile: $('sceneBrush').value });
+  }
+  $('screen').addEventListener('pointerdown', event => {
+    if (ctx.getWorkspace() !== 'scene' || state().mode === 'play') return;
+    event.preventDefault(); game.input.clear(); const s = state();
+    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, pan: event.shiftKey || event.button === 1 || event.button === 2, focus: s.focus.slice(), start: runtime.groundPoint(...point(event)), revision: getSnapshot().revision, level: s.level, cells: new Map() };
+    $('screen').setPointerCapture(event.pointerId);
+    if (!pointer.pan && tool === 'paint') { try { paintCell(event); } catch (e) { pointer = null; fail(e); } }
+  });
+  $('screen').addEventListener('pointermove', event => {
+    if (!pointer || event.pointerId !== pointer.id) return;
+    if (pointer.pan) {
+      const k = game.screen.dpr / game.screen.S, dx = (event.clientX - pointer.x) * k, dy = (event.clientY - pointer.y) * k, v = game.view;
+      const delta = v.toGround(dx, dy);
+      const focus = delta ? [pointer.focus[0] - delta[0], pointer.focus[1] - delta[1], pointer.focus[2]] : [pointer.focus[0] - dx / v.ax, pointer.focus[1], pointer.focus[2] - dy / v.bz];
+      runtime.setPreview({ focus });
+    } else if (tool === 'paint') { try { paintCell(event); } catch (e) { fail(e); } }
+  });
+  $('screen').addEventListener('pointerup', event => {
+    if (!pointer || event.pointerId !== pointer.id) return; const p = pointer; pointer = null;
+    if (p.pan) return;
+    if (tool === 'paint' && p.cells.size) action({ type: 'paint', level: p.level, cells: [...p.cells.values()] }, p.revision).catch(fail);
+    else if (tool === 'select' && Math.hypot(event.clientX - p.x, event.clientY - p.y) < 8) { const id = runtime.pick(...point(event)); objectDirty = false; action({ type: 'select', level: p.level, id }, p.revision).then(() => panel('object')).catch(fail); }
+  });
+  $('screen').addEventListener('pointercancel', () => { pointer = null; }); $('screen').addEventListener('contextmenu', event => { if (ctx.getWorkspace() === 'scene') event.preventDefault(); });
+  $('screen').addEventListener('wheel', event => { if (ctx.getWorkspace() !== 'scene') return; event.preventDefault(); setPreview({ zoom: Math.max(.5, Math.min(3, state().zoom + (event.deltaY > 0 ? -.1 : .1))) }); }, { passive: false });
+  $('sceneSaveProject').onclick = () => exportFile('asset-project.json', JSON.stringify({ ...getSnapshot().project, assets: assets() }, null, 2) + '\n');
+  $('sceneImportProject').onclick = () => $('sceneImportFile').click();
+  $('sceneImportFile').onchange = async () => {
+    try {
+      const file = $('sceneImportFile').files[0]; if (!file) return; if (file.size > 8 * 1024 * 1024) throw new Error('The JSON file must be smaller than 8 MB.');
+      const data = JSON.parse(await file.text()), p = data.project || (data.clips ? data : { ...getSnapshot().project, assets: data });
+      await replaceProject(p); runtime.fit(); render();
+    } catch (e) { fail(e); } finally { $('sceneImportFile').value = ''; }
+  };
+  function exportData() {
+    const p = A.clone(getSnapshot().project), a = A.clone(assets()), levelID = state().level;
+    a.levels = { [levelID]: a.levels[levelID] }; a.selectedLevel = levelID; if (!a.levels[levelID].objects[a.selectedObject]) a.selectedObject = null;
+    const ids = new Set(Object.values(a.levels[levelID].objects).filter(o => o.kind === 'actor').map(o => o.clip)); if (!ids.size) ids.add(p.selected);
+    p.clips = Object.fromEntries([...ids].map(id => [id, p.clips[id]])); if (!p.clips[p.selected]) p.selected = [...ids][0]; p.assets = a;
+    return { schema: 1, level: levelID, revision: getSnapshot().revision, project: p };
+  }
+  async function exportScene(format) {
+    const data = exportData();
+    if (ctx.isLive()) {
+      const response = await fetch('/api/scene/export?level=' + encodeURIComponent(state().level) + '&format=' + format);
+      if (!response.ok) throw new Error('Scene export failed. ' + await response.text());
+      exportFile(data.level + '.' + format, await response.text(), format === 'html' ? 'text/html' : 'application/json'); return;
+    }
+    if (format === 'json') exportFile(data.level + '.json', JSON.stringify(data, null, 2) + '\n');
+    else {
+      const json = JSON.stringify(data).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+      const html = template.replace(/<head(?:\s[^>]*)?>/i, match => match + '\n<script>window.__assetStudioExport=' + json + ';<\/script>');
+      exportFile(data.level + '.html', html, 'text/html');
+    }
+  }
+  $('sceneExportHtml').onclick = () => exportScene('html').catch(fail); $('sceneExportJson').onclick = () => exportScene('json').catch(fail);
+  function draw(r) {
+    runtime.draw(r);
+    if (pointer?.cells.size) r.overlay(g => {
+      const t = currentLevel().tile;
+      for (const { x, y } of pointer.cells.values()) E.px.polyDither(g, [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([cx, cy]) => r.w(cx * t, cy * t, 0)), '#b4f5d3', .35);
+    });
+  }
+  const E = My3D2dge;
+  sync(getSnapshot().project);
+  return { runtime, sync, render, activate, setPreview, seek, update: dt => runtime.update(dt), draw, updateTime, applyActions, exportData, getState: () => ({ workspace: 'scene', ...state() }) };
+}
+window.AssetStudioUI = { attach };
+})();
+
+</script>
+<script>
 /* ---- inlined from src/animation-studio/studio.js ---- */
 /* Animation Studio: preview and HTML controls over AnimationStudioModel.
  * The same actions run locally, through HTTP, and through MCP. A live connection uses server revisions.
@@ -33606,9 +34990,11 @@ return { FIELDS, clone, validateClip, validateProject, newClip, createProject, i
 'use strict';
 const E = My3D2dge, MR = MocapReadable, M = AnimationStudioModel, $ = id => document.getElementById(id);
 const SETS = Object.fromEntries(Object.entries(window.MOCAP).map(([k, v]) => [k.toLowerCase(), v]));
-const qs = new URLSearchParams(location.search), capture = qs.get('capture') === '1', STORAGE = 'my3d2dge.animation-studio.v1';
+const qs = new URLSearchParams(location.search), capture = qs.get('capture') === '1', exported = window.__assetStudioExport, STORAGE = 'my3d2dge.animation-studio.v1';
 if (capture) document.body.classList.add('capture');
-let project = M.createProject(SETS), revision = 0, canUndo = false, canRedo = false, lastChange = null;
+if (exported) document.body.classList.add('standalone');
+let project = exported ? M.validateProject(exported.project, SETS) : M.createProject(SETS), revision = 0, canUndo = false, canRedo = false, lastChange = null;
+let workspace = 'animation', sceneUI = null, sceneOpened = false;
 let live = false, connected = false, events = null, pending = false, jsonDirty = false, jsonRevision = 0, jsonTimer = null;
 let pendingImport = null;
 const undo = [], redo = [], activity = [];
@@ -33629,11 +35015,11 @@ const snapshot = () => M.clone({ revision, project, canUndo, canRedo, lastChange
 const note = (text, bad = false) => { $('notice').textContent = text; $('notice').classList.toggle('bad', bad); };
 const fail = error => { note(error.message || String(error), true); return null; };
 function storeLocal() {
-  if (capture || live) return;
+  if (capture || exported || live) return;
   try { localStorage.setItem(STORAGE, JSON.stringify(project)); $('saveState').textContent = 'Saved in this browser'; }
   catch (e) { $('saveState').textContent = 'Not saved'; note('Browser storage is full or unavailable. Use Save project to keep this animation.', true); }
 }
-if (!capture) {
+if (!capture && !exported) {
   try { const saved = localStorage.getItem(STORAGE); if (saved) project = M.validateProject(JSON.parse(saved), SETS); }
   catch (e) { note('The saved project could not load. A new project is open. ' + e.message, true); }
 }
@@ -33664,6 +35050,7 @@ const sideDir = () => { const v = game.view, l = Math.hypot(v.ax, v.ay) || 1; re
 const groundLift = p => { let lo = 0; for (let i = 2; i < p.length; i += 3) lo = Math.min(lo, p[i]); return -lo; };
 const sampleClip = () => S.time >= clip().dur ? Object.assign({}, lib.clip(activeId()), { loop: false }) : lib.clip(activeId());
 function updateStage(dt) {
+  if (workspace === 'scene' && sceneUI) { sceneUI.update(dt); return; }
   if (!lib) return;
   const c = clip(), f = S.facing * E.DEG;
   if (S.playing) {
@@ -33689,6 +35076,7 @@ function updateStage(dt) {
 const BONES = [['pelvis', 'spine1'], ['spine1', 'spine2'], ['spine2', 'chest'], ['chest', 'neck'], ['neck', 'head'], ['head', 'headTop'],
   ...['L', 'R'].flatMap(s => [['chest', 'sh' + s], ['sh' + s, 'elbow' + s], ['elbow' + s, 'wrist' + s], ['pelvis', 'hip' + s], ['hip' + s, 'knee' + s], ['knee' + s, 'ankle' + s], ['ankle' + s, 'toe' + s]])];
 function draw(r) {
+  if (workspace === 'scene' && sceneUI) { sceneUI.draw(r); return; }
   if (!lib) return;
   map.drawFloor(r);
   const f = S.facing * E.DEG, lift = groundLift(pose), view = E.charView(r.view);
@@ -33721,6 +35109,7 @@ function loadSnapshot(next) {
   if (oldId !== activeId()) { S.time = 0; switchDraft(oldId, activeId()); }
   S.time = Math.min(S.time, clip().dur);
   if (lastChange && !activity.some(a => a.revision === revision)) { activity.unshift({ revision, ...lastChange }); activity.length = Math.min(activity.length, 50); }
+  if (sceneUI) sceneUI.sync(project);
   rebuildRig(); renderProject();
   if (jsonDirty) { $('jsonStatus').textContent = 'A new revision arrived. Your JSON draft is kept. Read current before you apply it.'; $('jsonStatus').classList.add('bad'); }
   return snapshot();
@@ -33759,19 +35148,20 @@ async function mutate(action, expectedRevision = revision) {
     storeLocal(); note(next.lastChange?.summary || 'Animation updated.'); return snapshot();
   } finally { pending = false; }
 }
-async function replaceProject(value) {
+async function replaceProject(value, expectedRevision = revision) {
   const validated = M.validateProject(value, SETS);
   if (pending) throw new Error('An edit is still saving. Try again when it completes.');
   pending = true;
   try {
     let next;
-    if (live) next = await request('/api/project', { method: 'PUT', body: JSON.stringify({ expectedRevision: revision, project: validated, source: 'editor' }) });
-    else { undo.push(M.clone(project)); if (undo.length > 50) undo.shift(); redo.length = 0; next = { revision: revision + 1, project: validated, canUndo: true, canRedo: false, lastChange: { source: 'editor', summary: 'Imported project.' } }; }
+    if (live) next = await request('/api/project', { method: 'PUT', body: JSON.stringify({ expectedRevision, project: validated, source: 'editor' }) });
+    else { if (expectedRevision !== revision) throw new Error('This draft uses an old revision. Read current before you apply it.'); undo.push(M.clone(project)); if (undo.length > 50) undo.shift(); redo.length = 0; next = { revision: revision + 1, project: validated, canUndo: true, canRedo: false, lastChange: { source: 'editor', summary: 'Imported project.' } }; }
     if (!live || next.revision >= revision) loadSnapshot(next);
     storeLocal(); note('Project imported.'); return snapshot();
   } finally { pending = false; }
 }
 function actionSummary(a) {
+  if (a.type === 'assets') return 'Updated scene · ' + a.actions.length + ' asset action' + (a.actions.length === 1 ? '.' : 's.');
   if (a.type === 'edit_key') return 'Updated key at ' + Number(a.time).toFixed(2) + ' s.';
   if (a.type === 'transform') return ({ retime: 'Changed animation duration.', mirror: 'Mirrored animation.', reverse: 'Reversed animation.' })[a.kind];
   return ({ create: 'Created animation.', import: 'Copied a library animation.', add: 'Imported readable animation.', replace: 'Applied readable clip.', select: 'Selected animation.', delete_key: 'Deleted key pose.', undo: 'Undid the last edit.', redo: 'Restored the last edit.' })[a.type] || 'Animation updated.';
@@ -33791,19 +35181,28 @@ function jsonError(e) { $('jsonStatus').textContent = e.message; $('jsonStatus')
 
 /* The scene clock advances only by the engine's dt. Seek is exact, including a looping clip's endpoint. */
 function syncTransport() {
+  if (workspace === 'scene' && sceneUI) { sceneUI.updateTime(); return; }
   $('playBtn').textContent = S.playing ? 'Ⅱ' : '▶'; $('playBtn').setAttribute('aria-label', S.playing ? 'Pause' : 'Play');
   $('previewMode').textContent = S.playing ? 'LIVE' : 'PAUSED'; $('speedSelect').value = String(S.speed);
 }
 function updateTime() {
+  if (workspace === 'scene' && sceneUI) { sceneUI.updateTime(); return; }
   $('scrub').value = String(S.time); $('timeLabel').replaceChildren(document.createTextNode(S.time.toFixed(2) + ' '), Object.assign(document.createElement('span'), { textContent: '/ ' + clip().dur.toFixed(2) + ' s' }));
   if (document.activeElement !== $('poseTime')) $('poseTime').value = String(Math.round(S.time * 1000) / 1000);
   for (const b of $('keyMarkers').children) b.setAttribute('aria-pressed', String(Math.abs(Number(b.dataset.time) - S.time) < .002));
   $('fps').textContent = game.fps + ' fps';
 }
 function seek(time) {
+  if (workspace === 'scene' && sceneUI) return sceneUI.seek(time);
   finite(time, 0, clip().dur, 'Time'); S.time = time; S.playing = false; resetHero(); updateStage(0); updateTime(); syncTransport(); renderChannels(); return S.time;
 }
 function setPreview(options = {}) {
+  if (options.workspace !== undefined && !['animation', 'scene'].includes(options.workspace)) throw new Error('Workspace must be animation or scene.');
+  if (options.workspace === 'scene' || (workspace === 'scene' && options.workspace !== 'animation' && options.id === undefined && options.cast === undefined && options.bones === undefined)) {
+    sceneUI.setPreview(options); activateWorkspace('scene');
+    if (!sceneOpened && options.zoom === undefined && options.focus === undefined) { sceneUI.runtime.fit(); sceneUI.render(); }
+    sceneOpened = true; return sceneUI.getState();
+  }
   // Check every option before changing any state.
   if (options.id !== undefined && (typeof options.id !== 'string' || !Object.hasOwn(project.clips, options.id))) throw new Error('Unknown project clip.');
   if (options.view !== undefined && !VIEWS.includes(options.view)) throw new Error('Unknown camera view.');
@@ -33814,6 +35213,7 @@ function setPreview(options = {}) {
   if (options.zoom !== undefined) finite(options.zoom, .5, 3, 'Zoom');
   const target = project.clips[options.id || activeId()].clip;
   if (options.time !== undefined) finite(options.time, 0, target.dur, 'Time');
+  activateWorkspace('animation');
   const oldId = activeId();
   if (options.id !== undefined) previewId = options.id === project.selected ? null : options.id;
   if (oldId !== activeId()) { switchDraft(oldId, activeId()); S.time = 0; rebuildRig(); }
@@ -33823,7 +35223,17 @@ function setPreview(options = {}) {
   $('facingInput').value = String(S.facing); $('zoomInput').value = String(S.zoom);
   if (!S.playing) resetHero(); else poseDirty = true;
   if (oldId !== activeId()) renderProject();
-  updateStage(0); updateTime(); syncTransport(); if (!S.playing) renderChannels(); return { id: activeId(), ...S };
+  updateStage(0); updateTime(); syncTransport(); if (!S.playing) renderChannels(); return { workspace: 'animation', id: activeId(), ...S };
+}
+function activateWorkspace(name) {
+  const changed = workspace !== name; workspace = name; document.body.dataset.workspace = name;
+  $('workspaceAnimation').setAttribute('aria-pressed', String(name === 'animation')); $('workspaceScene').setAttribute('aria-pressed', String(name === 'scene'));
+  $('screen').setAttribute('aria-label', name === 'scene' ? 'Live level with models, materials and animation actors' : 'Live animation on the source mannequin and the game hero');
+  if (changed) {
+    game.input.clear(); game.screen.setOptions(name === 'scene' ? { minW: 400, minH: 280, maxW: 960, maxH: 960 } : { minW: 220, minH: 160, maxW: 760, maxH: 700 });
+    if (name === 'scene') { sceneUI.activate(); note('Scene ready. Edit assets here or direct your agent.'); }
+    else { sceneUI?.runtime.stopPlay(); game.setView(S.view); game.setZoom(S.zoom); updateStage(0); updateTime(); syncTransport(); }
+  }
 }
 
 /* DOM rendering never owns animation data. */
@@ -33907,6 +35317,7 @@ function exportFile(filename, text, type = 'application/json') {
 $('newBtn').onclick = () => { $('newName').value = uniqueName('My_animation'); $('newDialog').showModal(); $('newName').select(); };
 $('newForm').onsubmit = async e => { e.preventDefault(); try { await mutate({ type: 'create', name: $('newName').value, duration: +$('newDuration').value, preset: $('newPreset').value, loop: $('newLoop').checked, set: current().set }); $('newDialog').close(); } catch (error) { fail(error); } };
 $('connectBtn').onclick = () => $('connectDialog').showModal();
+$('workspaceAnimation').onclick = () => setPreview({ workspace: 'animation' }); $('workspaceScene').onclick = () => setPreview({ workspace: 'scene' });
 for (const b of document.querySelectorAll('[data-close]')) b.onclick = () => $(b.dataset.close).close();
 $('undoBtn').onclick = () => mutate({ type: 'undo' }).catch(fail); $('redoBtn').onclick = () => mutate({ type: 'redo' }).catch(fail);
 $('mirrorBtn').onclick = () => mutate({ type: 'transform', id: activeId(), kind: 'mirror' }).catch(fail);
@@ -33980,6 +35391,7 @@ $('exportSetBtn').onclick = () => {
 addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select,dialog')) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); mutate({ type: e.shiftKey ? 'redo' : 'undo' }).catch(fail); }
+  else if (workspace === 'scene') { if (e.code === 'Escape') { e.preventDefault(); sceneUI.setPreview({ mode: 'edit' }); } else if (e.code === 'KeyF') { e.preventDefault(); sceneUI.runtime.fit(); sceneUI.render(); } }
   else if (e.code === 'Space') { e.preventDefault(); $('playBtn').click(); }
   else if (e.code === 'Comma') { e.preventDefault(); $('prevFrame').click(); }
   else if (e.code === 'Period') { e.preventDefault(); $('nextFrame').click(); }
@@ -33988,7 +35400,7 @@ new ResizeObserver(() => game.screen.resize()).observe($('viewport'));
 
 /* A hosted/downloaded page remains self-contained. Only a loopback page probes the local tool server. */
 async function connect() {
-  if (capture || !['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) return;
+  if (capture || exported || !['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) return;
   try {
     const next = await request('/api/state'); live = true; connected = true; loadSnapshot(next); syncConnection(); note('Live connection ready. LLM edits will appear here.');
     events = new EventSource('/api/events');
@@ -34005,13 +35417,19 @@ async function connect() {
     events.onopen = () => { connected = true; syncConnection(); };
   } catch (e) { live = false; connected = false; syncConnection(); }
 }
-rebuildRig(); renderProject(); buildLibrary(); setPreview({ view: VIEWS.includes(qs.get('view')) ? qs.get('view') : S.view, cast: CASTS.includes(qs.get('cast')) ? qs.get('cast') : S.cast });
+sceneUI = AssetStudioUI.attach({ game, sets: SETS, getSnapshot: snapshot, mutate, replaceProject, note, exportFile, getWorkspace: () => workspace, isLive: () => live });
+rebuildRig(); renderProject(); buildLibrary(); setPreview({ workspace: 'animation', view: VIEWS.includes(qs.get('view')) ? qs.get('view') : S.view, cast: CASTS.includes(qs.get('cast')) ? qs.get('cast') : S.cast });
 game.start({ pausable: false, update(dt) { updateStage(dt); uiTime += dt; if (uiTime >= 1 / 20) { uiTime = 0; updateTime(); } }, draw });
 window.__animationStudio = {
-  ready: true, game, SETS, get project() { return M.clone(project); }, get lib() { return lib; }, get pose() { return pose; }, get hero() { return hero; }, get man() { return man; }, get state() { return { id: activeId(), ...S }; },
+  ready: true, game, SETS, get project() { return M.clone(project); }, get lib() { return lib; }, get pose() { return pose; }, get hero() { return hero; }, get man() { return man; }, get state() { return workspace === 'scene' ? sceneUI.getState() : { workspace, id: activeId(), ...S }; },
   getSnapshot: snapshot, loadSnapshot, seek, setPreview, apply: mutate, replaceProject, exportSet: () => M.exportSet(project, activeId(), SETS)
 };
-if (capture) setPreview({ playing: false }); else connect();
+window.__assetStudio = { ready: true, game, get project() { return M.clone(project); }, get state() { return { ...sceneUI.getState(), workspace }; }, get assets() { return M.clone(sceneUI.runtime.assets); }, runtime: sceneUI.runtime, getSnapshot: snapshot, loadSnapshot, applyActions: sceneUI.applyActions, setPreview: options => setPreview({ ...options, workspace: 'scene' }), seek: sceneUI.seek, exportData: sceneUI.exportData };
+if (exported) setPreview({ workspace: 'scene', level: exported.level, mode: 'play', grid: false, zoom: 1.25 });
+else {
+  if (qs.get('workspace') === 'scene' || location.pathname.includes('asset-studio')) setPreview({ workspace: 'scene' });
+  if (capture) setPreview({ playing: false }); else connect();
+}
 })();
 
 </script>

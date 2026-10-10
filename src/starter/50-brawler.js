@@ -251,7 +251,7 @@ const BRAWL = (() => {
     if (rig.downW > .3) return;                  // lying flat: the rig alone
     const J = rig.J, o = rig.o, C = rig.C, u = view.scale * o.size, R = o.headR, r = R * u * .93, k = u / 3.4, q = Math.max(1, Math.round(k));
     const sk = E.tones(C.skin), gt = E.tones(C.glove || C.skin), ht = E.tones(C.hair), hd = ht.deep;
-    const S = (p, f = 0, s = 0, z = 0) => { const w = rig._w([p[0] + f, p[1] + s, p[2] + z]), v = view.p(w[0], w[1], w[2]); return [Math.round(ox + v[0]), Math.round(oy + v[1]), view.depth(w[0], w[1], w[2])]; };
+    const S = (p, f = 0, s = 0, z = 0) => { const w = rig.worldOffset([p[0] + f, p[1] + s, p[2] + z]), v = view.p(w[0], w[1], w[2]); return [Math.round(ox + v[0]), Math.round(oy + v[1]), view.depth(w[0], w[1], w[2])]; };
     const near = S(J.shR)[2] > S(J.shL)[2] ? 1 : -1, N = near > 0 ? 'R' : 'L', F = (f, s, z) => S(J.head, f * R, s * R, z * R), H = S(J.head), fw = Math.sign(F(1, 0, 0)[0] - H[0]) || 1, hurt = rig.hurtW > .5;
     const fm = F(.42, near * .12, -.22), cn = F(.72, near * .05, -.92), n0 = F(.95, 0, .1), n1 = F(1.12, near * .05, -.2), m = F(.92, near * .05, -.5);
     px.disc(g, fm[0], fm[1] + 1, r * .78, sk.sh); px.disc(g, cn[0], cn[1], r * .36, sk.sh);          // a face plate and a square jaw over the rig's round head

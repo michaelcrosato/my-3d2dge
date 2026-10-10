@@ -6,9 +6,11 @@
 'use strict';
 const E = My3D2dge, MR = MocapReadable, M = AnimationStudioModel, $ = id => document.getElementById(id);
 const SETS = Object.fromEntries(Object.entries(window.MOCAP).map(([k, v]) => [k.toLowerCase(), v]));
-const qs = new URLSearchParams(location.search), capture = qs.get('capture') === '1', STORAGE = 'my3d2dge.animation-studio.v1';
+const qs = new URLSearchParams(location.search), capture = qs.get('capture') === '1', exported = window.__assetStudioExport, STORAGE = 'my3d2dge.animation-studio.v1';
 if (capture) document.body.classList.add('capture');
-let project = M.createProject(SETS), revision = 0, canUndo = false, canRedo = false, lastChange = null;
+if (exported) document.body.classList.add('standalone');
+let project = exported ? M.validateProject(exported.project, SETS) : M.createProject(SETS), revision = 0, canUndo = false, canRedo = false, lastChange = null;
+let workspace = 'animation', sceneUI = null, sceneOpened = false;
 let live = false, connected = false, events = null, pending = false, jsonDirty = false, jsonRevision = 0, jsonTimer = null;
 let pendingImport = null;
 const undo = [], redo = [], activity = [];
@@ -29,11 +31,11 @@ const snapshot = () => M.clone({ revision, project, canUndo, canRedo, lastChange
 const note = (text, bad = false) => { $('notice').textContent = text; $('notice').classList.toggle('bad', bad); };
 const fail = error => { note(error.message || String(error), true); return null; };
 function storeLocal() {
-  if (capture || live) return;
+  if (capture || exported || live) return;
   try { localStorage.setItem(STORAGE, JSON.stringify(project)); $('saveState').textContent = 'Saved in this browser'; }
   catch (e) { $('saveState').textContent = 'Not saved'; note('Browser storage is full or unavailable. Use Save project to keep this animation.', true); }
 }
-if (!capture) {
+if (!capture && !exported) {
   try { const saved = localStorage.getItem(STORAGE); if (saved) project = M.validateProject(JSON.parse(saved), SETS); }
   catch (e) { note('The saved project could not load. A new project is open. ' + e.message, true); }
 }
@@ -64,6 +66,7 @@ const sideDir = () => { const v = game.view, l = Math.hypot(v.ax, v.ay) || 1; re
 const groundLift = p => { let lo = 0; for (let i = 2; i < p.length; i += 3) lo = Math.min(lo, p[i]); return -lo; };
 const sampleClip = () => S.time >= clip().dur ? Object.assign({}, lib.clip(activeId()), { loop: false }) : lib.clip(activeId());
 function updateStage(dt) {
+  if (workspace === 'scene' && sceneUI) { sceneUI.update(dt); return; }
   if (!lib) return;
   const c = clip(), f = S.facing * E.DEG;
   if (S.playing) {
@@ -89,6 +92,7 @@ function updateStage(dt) {
 const BONES = [['pelvis', 'spine1'], ['spine1', 'spine2'], ['spine2', 'chest'], ['chest', 'neck'], ['neck', 'head'], ['head', 'headTop'],
   ...['L', 'R'].flatMap(s => [['chest', 'sh' + s], ['sh' + s, 'elbow' + s], ['elbow' + s, 'wrist' + s], ['pelvis', 'hip' + s], ['hip' + s, 'knee' + s], ['knee' + s, 'ankle' + s], ['ankle' + s, 'toe' + s]])];
 function draw(r) {
+  if (workspace === 'scene' && sceneUI) { sceneUI.draw(r); return; }
   if (!lib) return;
   map.drawFloor(r);
   const f = S.facing * E.DEG, lift = groundLift(pose), view = E.charView(r.view);
@@ -121,6 +125,7 @@ function loadSnapshot(next) {
   if (oldId !== activeId()) { S.time = 0; switchDraft(oldId, activeId()); }
   S.time = Math.min(S.time, clip().dur);
   if (lastChange && !activity.some(a => a.revision === revision)) { activity.unshift({ revision, ...lastChange }); activity.length = Math.min(activity.length, 50); }
+  if (sceneUI) sceneUI.sync(project);
   rebuildRig(); renderProject();
   if (jsonDirty) { $('jsonStatus').textContent = 'A new revision arrived. Your JSON draft is kept. Read current before you apply it.'; $('jsonStatus').classList.add('bad'); }
   return snapshot();
@@ -159,19 +164,20 @@ async function mutate(action, expectedRevision = revision) {
     storeLocal(); note(next.lastChange?.summary || 'Animation updated.'); return snapshot();
   } finally { pending = false; }
 }
-async function replaceProject(value) {
+async function replaceProject(value, expectedRevision = revision) {
   const validated = M.validateProject(value, SETS);
   if (pending) throw new Error('An edit is still saving. Try again when it completes.');
   pending = true;
   try {
     let next;
-    if (live) next = await request('/api/project', { method: 'PUT', body: JSON.stringify({ expectedRevision: revision, project: validated, source: 'editor' }) });
-    else { undo.push(M.clone(project)); if (undo.length > 50) undo.shift(); redo.length = 0; next = { revision: revision + 1, project: validated, canUndo: true, canRedo: false, lastChange: { source: 'editor', summary: 'Imported project.' } }; }
+    if (live) next = await request('/api/project', { method: 'PUT', body: JSON.stringify({ expectedRevision, project: validated, source: 'editor' }) });
+    else { if (expectedRevision !== revision) throw new Error('This draft uses an old revision. Read current before you apply it.'); undo.push(M.clone(project)); if (undo.length > 50) undo.shift(); redo.length = 0; next = { revision: revision + 1, project: validated, canUndo: true, canRedo: false, lastChange: { source: 'editor', summary: 'Imported project.' } }; }
     if (!live || next.revision >= revision) loadSnapshot(next);
     storeLocal(); note('Project imported.'); return snapshot();
   } finally { pending = false; }
 }
 function actionSummary(a) {
+  if (a.type === 'assets') return 'Updated scene · ' + a.actions.length + ' asset action' + (a.actions.length === 1 ? '.' : 's.');
   if (a.type === 'edit_key') return 'Updated key at ' + Number(a.time).toFixed(2) + ' s.';
   if (a.type === 'transform') return ({ retime: 'Changed animation duration.', mirror: 'Mirrored animation.', reverse: 'Reversed animation.' })[a.kind];
   return ({ create: 'Created animation.', import: 'Copied a library animation.', add: 'Imported readable animation.', replace: 'Applied readable clip.', select: 'Selected animation.', delete_key: 'Deleted key pose.', undo: 'Undid the last edit.', redo: 'Restored the last edit.' })[a.type] || 'Animation updated.';
@@ -191,19 +197,28 @@ function jsonError(e) { $('jsonStatus').textContent = e.message; $('jsonStatus')
 
 /* The scene clock advances only by the engine's dt. Seek is exact, including a looping clip's endpoint. */
 function syncTransport() {
+  if (workspace === 'scene' && sceneUI) { sceneUI.updateTime(); return; }
   $('playBtn').textContent = S.playing ? 'Ⅱ' : '▶'; $('playBtn').setAttribute('aria-label', S.playing ? 'Pause' : 'Play');
   $('previewMode').textContent = S.playing ? 'LIVE' : 'PAUSED'; $('speedSelect').value = String(S.speed);
 }
 function updateTime() {
+  if (workspace === 'scene' && sceneUI) { sceneUI.updateTime(); return; }
   $('scrub').value = String(S.time); $('timeLabel').replaceChildren(document.createTextNode(S.time.toFixed(2) + ' '), Object.assign(document.createElement('span'), { textContent: '/ ' + clip().dur.toFixed(2) + ' s' }));
   if (document.activeElement !== $('poseTime')) $('poseTime').value = String(Math.round(S.time * 1000) / 1000);
   for (const b of $('keyMarkers').children) b.setAttribute('aria-pressed', String(Math.abs(Number(b.dataset.time) - S.time) < .002));
   $('fps').textContent = game.fps + ' fps';
 }
 function seek(time) {
+  if (workspace === 'scene' && sceneUI) return sceneUI.seek(time);
   finite(time, 0, clip().dur, 'Time'); S.time = time; S.playing = false; resetHero(); updateStage(0); updateTime(); syncTransport(); renderChannels(); return S.time;
 }
 function setPreview(options = {}) {
+  if (options.workspace !== undefined && !['animation', 'scene'].includes(options.workspace)) throw new Error('Workspace must be animation or scene.');
+  if (options.workspace === 'scene' || (workspace === 'scene' && options.workspace !== 'animation' && options.id === undefined && options.cast === undefined && options.bones === undefined)) {
+    sceneUI.setPreview(options); activateWorkspace('scene');
+    if (!sceneOpened && options.zoom === undefined && options.focus === undefined) { sceneUI.runtime.fit(); sceneUI.render(); }
+    sceneOpened = true; return sceneUI.getState();
+  }
   // Check every option before changing any state.
   if (options.id !== undefined && (typeof options.id !== 'string' || !Object.hasOwn(project.clips, options.id))) throw new Error('Unknown project clip.');
   if (options.view !== undefined && !VIEWS.includes(options.view)) throw new Error('Unknown camera view.');
@@ -214,6 +229,7 @@ function setPreview(options = {}) {
   if (options.zoom !== undefined) finite(options.zoom, .5, 3, 'Zoom');
   const target = project.clips[options.id || activeId()].clip;
   if (options.time !== undefined) finite(options.time, 0, target.dur, 'Time');
+  activateWorkspace('animation');
   const oldId = activeId();
   if (options.id !== undefined) previewId = options.id === project.selected ? null : options.id;
   if (oldId !== activeId()) { switchDraft(oldId, activeId()); S.time = 0; rebuildRig(); }
@@ -223,7 +239,17 @@ function setPreview(options = {}) {
   $('facingInput').value = String(S.facing); $('zoomInput').value = String(S.zoom);
   if (!S.playing) resetHero(); else poseDirty = true;
   if (oldId !== activeId()) renderProject();
-  updateStage(0); updateTime(); syncTransport(); if (!S.playing) renderChannels(); return { id: activeId(), ...S };
+  updateStage(0); updateTime(); syncTransport(); if (!S.playing) renderChannels(); return { workspace: 'animation', id: activeId(), ...S };
+}
+function activateWorkspace(name) {
+  const changed = workspace !== name; workspace = name; document.body.dataset.workspace = name;
+  $('workspaceAnimation').setAttribute('aria-pressed', String(name === 'animation')); $('workspaceScene').setAttribute('aria-pressed', String(name === 'scene'));
+  $('screen').setAttribute('aria-label', name === 'scene' ? 'Live level with models, materials and animation actors' : 'Live animation on the source mannequin and the game hero');
+  if (changed) {
+    game.input.clear(); game.screen.setOptions(name === 'scene' ? { minW: 400, minH: 280, maxW: 960, maxH: 960 } : { minW: 220, minH: 160, maxW: 760, maxH: 700 });
+    if (name === 'scene') { sceneUI.activate(); note('Scene ready. Edit assets here or direct your agent.'); }
+    else { sceneUI?.runtime.stopPlay(); game.setView(S.view); game.setZoom(S.zoom); updateStage(0); updateTime(); syncTransport(); }
+  }
 }
 
 /* DOM rendering never owns animation data. */
@@ -307,6 +333,7 @@ function exportFile(filename, text, type = 'application/json') {
 $('newBtn').onclick = () => { $('newName').value = uniqueName('My_animation'); $('newDialog').showModal(); $('newName').select(); };
 $('newForm').onsubmit = async e => { e.preventDefault(); try { await mutate({ type: 'create', name: $('newName').value, duration: +$('newDuration').value, preset: $('newPreset').value, loop: $('newLoop').checked, set: current().set }); $('newDialog').close(); } catch (error) { fail(error); } };
 $('connectBtn').onclick = () => $('connectDialog').showModal();
+$('workspaceAnimation').onclick = () => setPreview({ workspace: 'animation' }); $('workspaceScene').onclick = () => setPreview({ workspace: 'scene' });
 for (const b of document.querySelectorAll('[data-close]')) b.onclick = () => $(b.dataset.close).close();
 $('undoBtn').onclick = () => mutate({ type: 'undo' }).catch(fail); $('redoBtn').onclick = () => mutate({ type: 'redo' }).catch(fail);
 $('mirrorBtn').onclick = () => mutate({ type: 'transform', id: activeId(), kind: 'mirror' }).catch(fail);
@@ -380,6 +407,7 @@ $('exportSetBtn').onclick = () => {
 addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select,dialog')) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); mutate({ type: e.shiftKey ? 'redo' : 'undo' }).catch(fail); }
+  else if (workspace === 'scene') { if (e.code === 'Escape') { e.preventDefault(); sceneUI.setPreview({ mode: 'edit' }); } else if (e.code === 'KeyF') { e.preventDefault(); sceneUI.runtime.fit(); sceneUI.render(); } }
   else if (e.code === 'Space') { e.preventDefault(); $('playBtn').click(); }
   else if (e.code === 'Comma') { e.preventDefault(); $('prevFrame').click(); }
   else if (e.code === 'Period') { e.preventDefault(); $('nextFrame').click(); }
@@ -388,7 +416,7 @@ new ResizeObserver(() => game.screen.resize()).observe($('viewport'));
 
 /* A hosted/downloaded page remains self-contained. Only a loopback page probes the local tool server. */
 async function connect() {
-  if (capture || !['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) return;
+  if (capture || exported || !['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) return;
   try {
     const next = await request('/api/state'); live = true; connected = true; loadSnapshot(next); syncConnection(); note('Live connection ready. LLM edits will appear here.');
     events = new EventSource('/api/events');
@@ -405,11 +433,17 @@ async function connect() {
     events.onopen = () => { connected = true; syncConnection(); };
   } catch (e) { live = false; connected = false; syncConnection(); }
 }
-rebuildRig(); renderProject(); buildLibrary(); setPreview({ view: VIEWS.includes(qs.get('view')) ? qs.get('view') : S.view, cast: CASTS.includes(qs.get('cast')) ? qs.get('cast') : S.cast });
+sceneUI = AssetStudioUI.attach({ game, sets: SETS, getSnapshot: snapshot, mutate, replaceProject, note, exportFile, getWorkspace: () => workspace, isLive: () => live });
+rebuildRig(); renderProject(); buildLibrary(); setPreview({ workspace: 'animation', view: VIEWS.includes(qs.get('view')) ? qs.get('view') : S.view, cast: CASTS.includes(qs.get('cast')) ? qs.get('cast') : S.cast });
 game.start({ pausable: false, update(dt) { updateStage(dt); uiTime += dt; if (uiTime >= 1 / 20) { uiTime = 0; updateTime(); } }, draw });
 window.__animationStudio = {
-  ready: true, game, SETS, get project() { return M.clone(project); }, get lib() { return lib; }, get pose() { return pose; }, get hero() { return hero; }, get man() { return man; }, get state() { return { id: activeId(), ...S }; },
+  ready: true, game, SETS, get project() { return M.clone(project); }, get lib() { return lib; }, get pose() { return pose; }, get hero() { return hero; }, get man() { return man; }, get state() { return workspace === 'scene' ? sceneUI.getState() : { workspace, id: activeId(), ...S }; },
   getSnapshot: snapshot, loadSnapshot, seek, setPreview, apply: mutate, replaceProject, exportSet: () => M.exportSet(project, activeId(), SETS)
 };
-if (capture) setPreview({ playing: false }); else connect();
+window.__assetStudio = { ready: true, game, get project() { return M.clone(project); }, get state() { return { ...sceneUI.getState(), workspace }; }, get assets() { return M.clone(sceneUI.runtime.assets); }, runtime: sceneUI.runtime, getSnapshot: snapshot, loadSnapshot, applyActions: sceneUI.applyActions, setPreview: options => setPreview({ ...options, workspace: 'scene' }), seek: sceneUI.seek, exportData: sceneUI.exportData };
+if (exported) setPreview({ workspace: 'scene', level: exported.level, mode: 'play', grid: false, zoom: 1.25 });
+else {
+  if (qs.get('workspace') === 'scene' || location.pathname.includes('asset-studio')) setPreview({ workspace: 'scene' });
+  if (capture) setPreview({ playing: false }); else connect();
+}
 })();

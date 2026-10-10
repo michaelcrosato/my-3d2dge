@@ -1,10 +1,10 @@
-// Local Animation Studio: an HTTP/SSE view over the shared animation project. No runtime dependencies.
+// Local Animation and Asset Studio: HTTP/SSE over one project, with isolated exact-time captures.
 // Usage: node tools/animation-studio.mjs [--port 4173] [--file .animation-studio/project.json]
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { REPO_ROOT, MAX_BYTES, StudioError, object, createStudioSession, catalog, studioSchema, previewOptions } from './studio-service.mjs';
+import { REPO_ROOT, MAX_BYTES, StudioError, object, createStudioSession, catalog, studioSchema, previewOptions, sceneOptions, sceneReceipt, projectAssets } from './studio-service.mjs';
 
 const json = (res, code, value) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)); };
 async function body(req) {
@@ -30,15 +30,26 @@ function guard(req, port) {
   if (req.headers['sec-fetch-site'] === 'cross-site') throw new StudioError('Cross-site requests are not permitted.', 403);
 }
 
+const flags = params => {
+  const values = Object.fromEntries(params);
+  for (const key of ['includeSchema', 'full']) if (key in values) {
+    if (!['true', 'false'].includes(values[key])) throw new StudioError(key + ' must be true or false.');
+    values[key] = values[key] === 'true';
+  }
+  return values;
+};
+const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
 /** Start a server immediately; the returned close() also closes file watchers, SSE clients and capture browsers. */
 export async function createStudioServer(options = {}) {
   const root = resolve(options.root || REPO_ROOT), port = options.port === undefined ? 4173 : Number(options.port);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new StudioError('port must be an integer from 0 to 65535.');
   const session = createStudioSession({ ...options, root });
-  const clients = new Set(), browsers = new Set(); let captureBusy = false, stopping = false;
+  const clients = new Set(), browsers = new Set(); let captureBusy = false, stopping = false, captureBrowser;
   const paths = new Map([
     ['/', 'examples/animation-studio.html'], ['/animation-studio', 'examples/animation-studio.html'],
     ['/animation-studio.html', 'examples/animation-studio.html'], ['/examples/animation-studio.html', 'examples/animation-studio.html'],
+    ['/asset-studio', 'examples/animation-studio.html'], ['/asset-studio.html', 'examples/animation-studio.html'],
     ['/labs.html', 'examples/labs.html']
   ]);
   const send = (res, event, data) => {
@@ -51,20 +62,25 @@ export async function createStudioServer(options = {}) {
   const heartbeat = setInterval(() => { for (const res of clients) { if (res.destroyed) clients.delete(res); else res.write(': heartbeat\n\n'); } }, 15000);
   heartbeat.unref();
 
-  async function capture(input) {
+  async function capture(input, scene = false, savedState) {
     if (captureBusy) throw new StudioError('A capture is in progress. Try again when it has finished.', 429);
-    session.refresh();
-    const state = session.snapshot(), opts = previewOptions(input, state.project, true);
+    if (!savedState) session.refresh();
+    const state = savedState || session.snapshot();
+    const assets = scene ? projectAssets(state.project, session.assetModel) : null;
+    const opts = scene ? sceneOptions(input, assets, true) : previewOptions(input, state.project, true);
     if (opts.id) state.project.selected = opts.id;
-    captureBusy = true; let browser;
+    captureBusy = true; let page;
     try {
       let chromium;
       try { ({ chromium } = await import('playwright')); }
       catch { throw new StudioError('Capture needs Playwright. Run npm install in this repository, then npx playwright install chromium.', 503); }
-      try { browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, timeout: 15000, args: ['--autoplay-policy=no-user-gesture-required'] }); }
-      catch (err) { throw new StudioError('Capture cannot start Chromium. Run npx playwright install chromium, or set CHROMIUM_PATH to an installed Chromium. ' + err.message.split('\n')[0], 503); }
-      browsers.add(browser);
-      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
+      if (!captureBrowser?.isConnected()) {
+        try { captureBrowser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, timeout: 15000, args: ['--autoplay-policy=no-user-gesture-required'] }); }
+        catch (err) { throw new StudioError('Capture cannot start Chromium. Run npx playwright install chromium, or set CHROMIUM_PATH to an installed Chromium. ' + err.message.split('\n')[0], 503); }
+        browsers.clear(); browsers.add(captureBrowser);
+      }
+      // Keep the browser warm, but give every request a fresh, isolated context and the captured revision.
+      page = await captureBrowser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
       await page.addInitScript(() => {
         let seed = 1;
         Math.random = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -73,10 +89,10 @@ export async function createStudioServer(options = {}) {
       const pageErrors = []; page.on('pageerror', err => pageErrors.push(err.message));
       await page.goto(address() + '/?capture=1', { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => window.__animationStudio?.ready === true, null, { polling: 50 });
-      const result = await page.evaluate(async ({ state, opts }) => {
+      const result = await page.evaluate(async ({ state, opts, scene }) => {
         const api = window.__animationStudio;
         await api.loadSnapshot(state);
-        const { times, ...preview } = opts; await api.setPreview({ ...preview, playing: false });
+        const { times, ...preview } = opts; await api.setPreview({ workspace: scene ? 'scene' : 'animation', ...preview, playing: false });
         const frames = [], screen = document.getElementById('screen');
         if (!(screen instanceof HTMLCanvasElement)) throw new Error('The Animation Studio screen canvas is missing.');
         const paint = () => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)));
@@ -95,14 +111,14 @@ export async function createStudioServer(options = {}) {
           g.drawImage(frame, x, y, w, h); g.fillStyle = '#dfe8f2'; g.fillText(times[i].toFixed(3) + ' s', x + 8, y + h + label / 2);
         });
         return { data: strip.toDataURL('image/png').split(',')[1], width: strip.width, height: strip.height };
-      }, { state, opts });
+      }, { state, opts, scene });
       if (pageErrors.length) throw new StudioError('Capture page failed: ' + pageErrors[0], 500);
-      return { mimeType: 'image/png', ...result, revision: state.revision, times: opts.times };
+      return { mimeType: 'image/png', ...result, revision: state.revision, times: opts.times, ...(scene ? { workspace: 'scene', level: opts.level } : {}) };
     } catch (err) {
       if (err instanceof StudioError) throw err;
       throw new StudioError('Capture failed. Run npm run build and check that the Animation Studio page loads. ' + err.message, 500);
     } finally {
-      if (browser) { browsers.delete(browser); await browser.close().catch(() => {}); }
+      if (page) await page.close().catch(() => {});
       captureBusy = false;
     }
   }
@@ -132,7 +148,9 @@ export async function createStudioServer(options = {}) {
       if (method === 'GET' && path === '/api/state') { session.refresh(); json(res, 200, session.snapshot()); return; }
       if (method === 'GET' && path === '/api/project') { session.refresh(); json(res, 200, session.snapshot().project); return; }
       if (method === 'GET' && path === '/api/catalog') { json(res, 200, catalog(session.sets, Object.fromEntries(url.searchParams))); return; }
-      if (method === 'GET' && path === '/api/schema') { json(res, 200, studioSchema(session.model, session.sets)); return; }
+      if (method === 'GET' && path === '/api/schema') { json(res, 200, studioSchema(session.model, session.sets, session.assetModel)); return; }
+      if (method === 'GET' && path === '/api/assets/catalog') { json(res, 200, { ...session.assetCatalog(flags(url.searchParams)), editorUrl: address() + '/asset-studio' }); return; }
+      if (method === 'GET' && path === '/api/scene') { json(res, 200, { ...session.scene(flags(url.searchParams)), editorUrl: address() + '/asset-studio' }); return; }
       if (method === 'GET' && path === '/api/clip') {
         const set = url.searchParams.get('set'), name = url.searchParams.get('name');
         if (!set || !Object.prototype.hasOwnProperty.call(session.sets, set)) throw new StudioError('Unknown source set.', 404);
@@ -146,6 +164,39 @@ export async function createStudioServer(options = {}) {
         res.writeHead(200, { 'Content-Type': format === 'js' ? 'text/javascript; charset=utf-8' : 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="' + safeName + '.' + format + '"' });
         res.end(output.text); return;
       }
+      if (method === 'GET' && path === '/api/scene/export') {
+        const format = url.searchParams.get('format') || 'json';
+        if (!['json', 'html'].includes(format)) throw new StudioError('format must be json or html.');
+        const output = session.sceneExport(url.searchParams.get('level') || undefined);
+        const safeName = output.level.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80) || 'level';
+        let content = JSON.stringify(output, null, 2) + '\n';
+        if (format === 'html') {
+          let template;
+          try { template = readFileSync(resolve(root, 'examples/animation-studio.html'), 'utf8'); }
+          catch (err) { if (err.code === 'ENOENT') throw new StudioError('Build the Asset Studio page first: npm run build.', 503); throw err; }
+          if (!/<head(?:\s[^>]*)?>/i.test(template)) throw new StudioError('The built studio page has no HTML head. Run npm run build.', 500);
+          content = template.replace(/<head(?:\s[^>]*)?>/i, match => match + '\n<script>window.__assetStudioExport=' + scriptJSON(output) + ';<\/script>');
+        }
+        res.writeHead(200, { 'Content-Type': format === 'html' ? 'text/html; charset=utf-8' : 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="' + safeName + '.' + format + '"' });
+        res.end(content); return;
+      }
+      if (method === 'POST' && path === '/api/scene/edit') {
+        const input = await body(req);
+        for (const key of Object.keys(input)) if (!['expectedRevision', 'actions', 'summary', 'source', 'capture'].includes(key)) throw new StudioError('Unknown scene edit field: ' + key + '.');
+        if (input.capture !== undefined) object(input.capture, 'capture');
+        session.refresh(); const before = session.snapshot();
+        const state = session.apply({ expectedRevision: input.expectedRevision, action: { type: 'assets', actions: input.actions }, source: input.source ?? 'agent', ...(input.summary === undefined ? {} : { summary: input.summary }) });
+        const receipt = { ...sceneReceipt(state, session.assetModel, before), editorUrl: address() + '/asset-studio' };
+        if (input.capture !== undefined) {
+          // A captured snapshot always identifies the edit it depicts, even if another editor saves meanwhile.
+          // A rendering failure cannot undo a saved edit: report the successful revision and a separate error.
+          try { receipt.capture = await capture(input.capture, true, state); }
+          catch (err) { receipt.captureError = { error: err.message, status: err.status || 500, revision: state.revision }; }
+        }
+        json(res, 200, receipt); return;
+      }
+      if (method === 'POST' && path === '/api/scene/preview') { json(res, 200, session.scenePreview(await body(req))); return; }
+      if (method === 'POST' && path === '/api/scene/capture') { json(res, 200, await capture(await body(req), true)); return; }
       if (method === 'POST' && path === '/api/action') { json(res, 200, session.apply(await body(req))); return; }
       if (method === 'PUT' && path === '/api/project') { json(res, 200, session.replace(await body(req))); return; }
       if (method === 'POST' && path === '/api/preview') { json(res, 200, session.preview(await body(req))); return; }
@@ -181,7 +232,7 @@ async function main() {
     const key = args[i].slice(2); options[key] = args[++i];
   }
   const app = await createStudioServer(options);
-  console.log('Animation Studio: ' + app.url + '\nProject: ' + app.session.file + '\nMCP: node tools/animation-mcp.mjs --url ' + app.url + '\nPress Ctrl+C to stop.');
+  console.log('Animation and Asset Studio: ' + app.url + '\nAssets and levels: ' + app.url + '/asset-studio\nProject: ' + app.session.file + '\nMCP: node tools/animation-mcp.mjs --url ' + app.url + '\nPress Ctrl+C to stop.');
   const stop = async () => { await app.close(); };
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
 }

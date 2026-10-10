@@ -121,8 +121,8 @@ const RPG = (() => {
     px.ell(g, x - R * .2, y + cy + R * .6, R * .38, R * .18, '#ffc050'); px.poly(g, [[mx - R * .55, my], [mx + R * .55, my], [mx + R * .3, my + R * .42], [mx - R * .3, my + R * .42]], '#4a0a0a');
     for (const d of [-.32, 0, .32]) px.poly(g, [[mx + (d - .1) * R, my], [mx + (d + .1) * R, my], [mx + d * R, my + R * .22]], '#ffffff');
   };
-  // a rig joint on screen: rig._w gives the world offset of a local point, v.p projects it
-  const joint = (c, v, x, y, k, f = 0, s = 0, z = 0) => { const J = c.rig.J[k], w = c.rig._w([J[0] + f, J[1] + s, J[2] + z]), q = v.p(w[0], w[1], w[2]); return [x + q[0], y + q[1]]; };
+  // a rig joint on screen: rig.worldOffset gives where a point in the rig's frame sits, v.p projects it
+  const joint = (c, v, x, y, k, f = 0, s = 0, z = 0) => { const J = c.rig.J[k], w = c.rig.worldOffset([J[0] + f, J[1] + s, J[2] + z]), q = v.p(w[0], w[1], w[2]); return [x + q[0], y + q[1]]; };
   // the Dread Knight's plate: knee cops, shins, horns, a faceplate
   function knightPlate(g, x, y, c, v) {
     const m = E.tones('#b4bed8'), P = (k, f, s, z) => joint(c, v, x, y, k, f, s, z), r = c.rig.o.headR * c.rig.o.size * v.scale;

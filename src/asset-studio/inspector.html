@@ -1,0 +1,39 @@
+<aside class="inspector scene-inspector scene-only" aria-label="Scene properties">
+  <div class="inspector-tabs" role="tablist" aria-label="Scene edit mode"><button type="button" role="tab" data-scene-panel="object" aria-selected="true" aria-controls="sceneObjectPanel">Object</button><button type="button" role="tab" data-scene-panel="asset" aria-selected="false" aria-controls="sceneAssetPanel">Asset</button><button type="button" role="tab" data-scene-panel="json" aria-selected="false" aria-controls="sceneJsonPanel">JSON</button></div>
+  <div id="sceneObjectPanel" class="inspector-body" role="tabpanel">
+    <div class="section-title"><h2 id="sceneSelectionTitle">Selected object</h2><span id="sceneObjectKind" class="tag">Model</span></div>
+    <p id="sceneSelectionHelp" class="help muted">Select an object in the scene or the list.</p>
+    <fieldset id="sceneObjectFields"><legend class="sr-only">Object transform</legend>
+      <label class="field-label" for="sceneObjectName">Display name</label><input id="sceneObjectName" class="full" maxlength="120">
+      <label class="field-label" for="sceneObjectAsset">Model or animation</label><select id="sceneObjectAsset" class="full"></select>
+      <div class="axis-fields"><label>X<input id="sceneObjectX" type="number" step="1"></label><label>Y<input id="sceneObjectY" type="number" step="1"></label><label>Z<input id="sceneObjectZ" type="number" step="1"></label></div>
+      <div class="axis-fields two"><label>Turn (degrees)<input id="sceneObjectRotation" type="number" step="5"></label><label>Scale<input id="sceneObjectScale" type="number" step="0.1" min="0.05" max="16"></label></div>
+      <div class="button-row"><label class="check-row"><input id="sceneObjectVisible" type="checkbox" checked>Visible</label><label class="check-row"><input id="sceneObjectSolid" type="checkbox" checked>Solid</label></div>
+      <button id="sceneApplyObject" type="button" class="primary full">Apply object</button>
+      <div class="button-row"><button id="sceneDuplicateObject" type="button">Duplicate</button><button id="sceneDeleteObject" type="button">Delete</button></div>
+    </fieldset>
+    <hr><h2>Level setup</h2><p class="help muted">One tile = 16 world units. Z points up. The gold cross marks the player start.</p>
+    <button id="sceneSetSpawn" type="button" class="full">Set player start at selected object</button>
+    <div class="button-row"><button id="sceneSaveProject" type="button">Save project</button><button id="sceneImportProject" type="button">Import</button><input id="sceneImportFile" type="file" accept=".json,application/json" hidden></div>
+    <p id="sceneDraftNotice" class="help muted" role="status"></p>
+  </div>
+  <div id="sceneAssetPanel" class="inspector-body" role="tabpanel" hidden>
+    <h2>Material</h2><select id="sceneMaterialSelect" class="full" aria-label="Material to edit"></select>
+    <div class="axis-fields two material-colors"><label>Base color<input id="sceneMaterialColor" type="color"></label><label>Accent<input id="sceneMaterialAccent" type="color"></label></div>
+    <label class="field-label" for="scenePattern">Procedural texture</label><select id="scenePattern" class="full"><option value="solid">Solid</option><option value="checker">Checker</option><option value="brick">Brick</option><option value="planks">Planks</option><option value="noise">Noise</option></select>
+    <div class="axis-fields two"><label>Pattern size<input id="sceneMaterialScale" type="number" min="0.25" max="64" step="0.25"></label><label>Seed<input id="sceneMaterialSeed" type="number" min="0" step="1"></label></div>
+    <button id="sceneApplyMaterial" type="button" class="primary full">Apply material</button><p class="help muted">Every object and tile that uses this material updates together.</p>
+    <hr><div class="section-title"><h2>Part model</h2><span id="scenePartCount" class="count"></span></div><select id="sceneModelSelect" class="full" aria-label="Model to edit"></select>
+    <p class="help muted">Build from boxes, wedges and cylinders. Edit the model JSON below. All placed copies update together.</p>
+    <textarea id="sceneModelText" aria-label="Part model JSON" spellcheck="false" autocapitalize="off"></textarea>
+    <button id="sceneApplyModel" type="button" class="full">Apply model JSON</button><p id="sceneModelStatus" class="help muted" role="status"></p>
+  </div>
+  <div id="sceneJsonPanel" class="inspector-body json-panel" role="tabpanel" hidden>
+    <div class="section-title"><h2>Scene assets</h2><label class="check-row"><input id="sceneLiveJson" type="checkbox" checked>Live apply</label></div>
+    <p class="help muted">Materials, models, levels and object placement in one readable document. Edit ASCII rows to reshape the level.</p>
+    <textarea id="sceneJson" aria-label="Scene assets JSON" spellcheck="false" autocapitalize="off"></textarea>
+    <p id="sceneJsonStatus" class="help muted" role="status">The preview uses the last valid edit.</p>
+    <div class="button-row"><button id="sceneApplyJson" type="button" class="primary">Apply JSON</button><button id="sceneReadJson" type="button">Read current</button></div>
+  </div>
+  <div class="export-controls"><button id="sceneExportHtml" type="button" class="full">Export playable HTML <span aria-hidden="true">↓</span></button><button id="sceneExportJson" type="button" class="full">Export scene data (.json)</button></div>
+</aside>

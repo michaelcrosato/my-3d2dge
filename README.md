@@ -53,28 +53,46 @@ The file is 83k tokens in all (140k for the readable full engine, 128k-133k for 
 
 ## Try it
 
-### Animation Studio: edit with an LLM and watch the result
+### Asset Studio: direct an LLM and watch the changes
 
-**[Open Animation Studio](https://my-3d2dge.vercel.app/animation-studio)** to create animations, copy a motion-library
-clip, and edit its key poses. The timeline, pose controls, and readable JSON all change the same animation. Both the
-source mannequin and the game hero show the result. Undo, redo, and exports are built in.
+**[Open Asset Studio](https://my-3d2dge.vercel.app/asset-studio)** to build animations and scenes in the same project.
+The **Animation** and **Scene** buttons switch workspaces. Browser controls and LLM commands share the same readable
+data, Undo and Redo history, and live preview.
 
-For **live LLM edits**, run the local server from this repository:
+| Workspace | What you can make and change |
+|---|---|
+| **Animation** | Create original motion, copy a library clip, and edit key poses with a timeline, pose controls, or JSON. The source mannequin and game hero show the result in five views. |
+| **Scene** | Create models from boxes, wedges, and cylinders; change procedural texture colors and patterns; place objects and animated actors; and paint tile levels. Start from a courtyard or empty level, then use Play to move through it. |
+
+An actor in a scene uses a clip from the animation project. Change the clip and see the actor's motion change too.
+Materials and model definitions are shared, so one edit updates every object that uses them. Export readable scene
+JSON or a self-contained HTML page to try the level. [The animation editor](https://my-3d2dge.vercel.app/animation-studio)
+and its native clip exports remain available.
+
+For **live LLM edits**, run the local server from this repository with Node.js 20 or later:
 
 ```sh
 npm install
 npm run build
-npm run animation:studio
+npm run asset:studio
 ```
 
-Open `http://127.0.0.1:4173/` and leave the page open. Connect an MCP client to
-`node /absolute/path/my-3d2dge/tools/animation-mcp.mjs`. The LLM can search clips, read poses, create or edit an
-animation, and request a PNG frame strip to inspect the motion. Each accepted edit updates the page without a reload.
-A coding agent can also edit `.animation-studio/project.json`; each valid file save updates the same preview.
+Open **[http://127.0.0.1:4173/asset-studio](http://127.0.0.1:4173/asset-studio)** and leave the page open beside your
+conversation. `asset:studio` and `animation:studio` start the same server; run only one. Connect an MCP client to
+`node /absolute/path/my-3d2dge/tools/animation-mcp.mjs`. It exposes both animation and asset tools.
 
-The hosted page is a standalone editor. The local server adds the file connection and MCP tools. There is no bundled
-LLM or model service. See **[the Animation Studio guide](docs/ANIMATION-STUDIO.md)** for MCP configuration, tool examples,
-file imports, revision checks, and game exports.
+For scenes, the agent starts with `scene_get` and `asset_catalog`, then sends a `scene_edit` batch with the current
+revision. One batch makes one Undo step. It can request a PNG in the same call to inspect the result. For motion, use
+`animation_get`, `animation_edit`, and `animation_capture`. Install the capture browser once with
+`npx playwright install chromium`, or set `CHROMIUM_PATH` to an installed Chromium executable.
+
+Each accepted data edit updates the open page without a reload or rebuild. A coding agent can also edit
+`.animation-studio/project.json`; each valid file save updates the same preview. The hosted page supports browser
+editing. The local server adds shared MCP, HTTP, and file access. There is no bundled LLM or model service.
+
+See **[the Asset Studio guide](docs/ASSET-STUDIO.md)** for the prompt-to-preview workflow, scene tools, play mode,
+and level exports. **[The Animation Studio guide](docs/ANIMATION-STUDIO.md)** covers pose editing, MCP configuration,
+clip imports, and native animation exports.
 
 | File | What it shows |
 |---|---|
@@ -241,6 +259,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 **Built for models**
 - Clear errors in an on-screen box, with one-time warnings for common mistakes (unknown view, action, sound, legend character or wall type, or a bad color).
 - Forgiving inputs: `'#rgb'` colors, canvas lookup by id, string presets.
+- Recorded sessions: `E.session.record(true)` records play on any device (frame times, inputs, the random seed, the screen, the save), and `node tools/replay.mjs session.json` replays it headless, exactly, so a bug seen on a phone happens again where an agent can look at it. In Emberdeep: Developer → Guide → Record a session.
 
 ## Genre coverage
 
@@ -283,6 +302,8 @@ npm run test:agent                # agent edition: header examples and a coverag
 npm run test:mocap                # both animation sets on the mannequin and the hero in every view, and the hero's captured moments in Emberdeep
 npm run doctrine:check            # the doctrine's quick checks: binary files, the manuals' token budgets, the API boundary, the decisions log
 npm run test:determinism          # a fight in Emberdeep and in a starter game, played twice under the harness: the same pixels
+npm run test:replay               # sessions recorded in real time (desk, phone touch, a starter) replay to the same state
+node tools/replay.mjs session.json --shots 600   # replay a recorded session (a bug report) headless, with pictures
 npm run character:check -- codex   # one playable character: the character test and its character sheet (check-output/sheet-codex.png)
 node tools/ed-balance.mjs --character codex --to 5   # the autopilot plays a hero against the Wanderer, depth by depth
 ```
@@ -305,7 +326,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.16.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.18.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
@@ -315,6 +336,7 @@ One version number covers the engine, its agent edition, the docs and the games:
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
 - `docs/CHARACTERS.md`: adding a playable character to Emberdeep, from a brief to a checked hero: the scaffold, the body contract, the character test, the character sheet and the balance run.
 - [docs/ANIMATION-STUDIO.md](docs/ANIMATION-STUDIO.md): create and edit animations with a live preview, connect an LLM through MCP or a project file, inspect frame captures, and export native animation sets.
+- [docs/ASSET-STUDIO.md](docs/ASSET-STUDIO.md): build readable models, procedural textures, placed objects, and tile levels in the same live session; apply atomic agent edits, inspect captures, play the level, and export a self-contained page.
 - `CHANGELOG.md`: what each version changed, by part (rendering, animation, art, mocap, Emberdeep, characters, tools, docs). `CLAUDE.md`: the rules every change follows (versioning, building, testing).
 - `docs/MOCAP.md`: importing ready-made skeletal animation into the readable key-pose format: a step-by-step guide to adding a library (`tools/to-glb.py` converts Blender, FBX and BVH files, `tools/anim-import.mjs` imports, `tools/anim-sheet.mjs` draws contact sheets for the catalog, `tools/anim-set.mjs` picks a game's clips), where to get more animation and what it costs, retargeting onto the engine's rigs, and the hero's captured moments.
 

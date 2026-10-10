@@ -74,6 +74,7 @@ An entry:
   will not reproduce under the harness.
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
+- **Revised by D12** (v0.16.0): the plan for replaying recorded sessions, and sound on its own random stream.
 
 ## D5 · 2026-10-10 · One-file pages and shared-scope sources stay (principle 7 grandfathered)
 
@@ -98,6 +99,8 @@ An entry:
   code that works. The ratchet stops it growing, and the to-do list says which names are wanted.
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
+- **Progress:** v0.16.0 made `rig._w` public as `rig.worldOffset(p)` in both editions; the starters and the arena use
+  it, and their entries left `GRANDFATHERED`. A new use of `_w` is told to use the public name.
 
 ## D7 · 2026-10-10 · Approved binaries and imported data
 
@@ -130,8 +133,116 @@ An entry:
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
 
-## D10 · 2026-10-10 · Local tools for live animation edits
+## D10 · 2026-10-10 · The owner reviewed D3 to D6 and kept them
 
+- **Principle:** process (deviations)
+- **Call:** Canvas 2D (D3), determinism from the harness (D4, revised by D12), one-file pages and shared-scope sources
+  (D5) and the grandfathered private-member uses (D6) stay. A deviation with a case for it is welcome: the doctrine's
+  "How to read this" and `CLAUDE.md` now say so.
+- **Why:** the owner's words: variation is the key to discovery, so some deviation must happen where there is a case for
+  it; this engine is uniquely different from the four front-runners, and that counts for something.
+- **Answered:** yes, the owner.
+- **Landed in:** v0.16.0
+
+## D11 · 2026-10-10 · The 15-minute wait is a wake-up timer
+
+- **Principle:** process (escalation)
+- **Call:** an agent that escalates arms a 15-minute wake-up and keeps working; with nothing left it ends its turn. In a
+  cloud session the timer is `send_later` (claude-code-remote) with `delay_minutes: 15`, which delivers a message back
+  into the same session after the turn has ended; `delete_trigger` cancels it when the answer comes first. When it fires
+  with no answer, the agent makes the call in its own commit and logs it here.
+- **Why:** corrects the agent's earlier claim that a cloud session can't wait 15 minutes and resume: it can, by timer.
+  The owner asked.
+- **Answered:** yes, the owner.
+- **Landed in:** v0.16.0
+- **Narrowed by D13** (v0.16.1): the timer is for calls that are hard to undo; reversible calls are made at once.
+
+## D12 · 2026-10-10 · Replay recorded sessions, when a bug needs it; sound on its own random stream now
+
+- **Principle:** 5 (deterministic by construction)
+- **Call:** D4 argued that determinism needs an exact fixed step. Replaying a session doesn't: the engine's loop is
+  already a pure function of each frame's elapsed time, so the same frame times, the same inputs at the same frames and
+  the same random seed give the same game. Two parts:
+  - **Now (v0.16.0):** the chip synth draws its own random numbers (`ChipAudio.rnd`) in both editions. It used to draw
+    from `Math.random`: 44,100 numbers for its noise when sound first started (none where there is no Web Audio, as
+    under the harness), and one per sound effect, only while sound was running, unmuted, and the same effect hadn't
+    played in the last 35 ms of the audio clock. So whether sound existed, was unlocked, muted or busy shifted every
+    random number the game drew after it.
+  - **When it's needed:** a session recorder. Recording, installed before the game's code: a seed for `Math.random`;
+    each display frame's timestamp, with `performance.now` and `Date.now` reading it during the frame (Emberdeep's slow
+    motion and menus read the wall clock); every input event with the frame it arrived before (keys, pointer, wheel,
+    touch, blur, focus, visibility, resize; DOM buttons by selector), and gamepad snapshots per frame; the viewport and
+    pixel ratio; the save (`localStorage`) at the start; and a checksum every second (a game's own state hash when it
+    gives one) so a replay can say where it diverged. Replaying: a tool opens the page in headless Chromium at the
+    recorded viewport, restores the save, installs the seed and the clock, dispatches each event before its frame and
+    runs every frame, drawing included (some drawing draws random numbers too); then screenshots, filmstrips or
+    `__ed` queries at any frame. The owner turns recording on once (a Developer setting), plays on a phone, and on a
+    bug saves the session for an agent.
+- **Why:** a bug seen on a device becomes an exact, headless repro instead of a description; that's the biggest gain
+  determinism can give this repository. Building the recorder waits for its trigger, as the North Star asks: the first
+  bug seen on a device that the harness can't reproduce, or the owner wanting to send sessions as bug reports.
+- **Answered:** yes, the owner left it to the agent ("fix it, or leave it and see how it goes").
+- **Landed in:** v0.16.0 (the sound's stream); the recorder is open.
+- **Done in D14** (v0.17.0): the recorder and the replay tool are built.
+
+## D13 · 2026-10-10 · Reversible calls are made at once; the timer is for the hard to undo
+
+- **Principle:** process (escalation)
+- **Call:** in the engine tier, a call a revert undoes (code, design, a dependency, a doc) is made immediately, in its own
+  commit, flagged in the pull request and logged here; nobody waits for it. Only a call that reaches outside the
+  repository or can't be taken back with a revert (deleting what others rely on, publishing, spending, a license) is
+  escalated with the 15-minute wake-up timer of D11. This entry is itself such a call: made at once, in its own commit,
+  flagged in its pull request.
+- **Why:** the doctrine optimizes good ideas per unit of time, and a reversible call's worst case is a revert, which costs
+  less than an agent idling or a human being interrupted. The timer still protects the decisions a revert can't fix.
+  The owner's goal for this round named both: reversible calls at once, and the timer.
+- **Answered:** yes, the owner.
+- **Landed in:** v0.16.1
+
+## D14 · 2026-10-10 · Sessions recorded on any device replay exactly
+
+- **Principle:** 5 (deterministic by construction), 3 (verifiable without a display)
+- **Call:** build D12's recorder now instead of waiting for its trigger. The engine records (section 23, `E.session`):
+  the seed, every frame's time (the clock reads it during the frame), every input from the person or the device with the
+  frame it arrived before, gamepad readings, media queries, safe-area insets, the screen and the save at the start, and
+  a checksum every 60 frames (`game.stateHash` adds a game's own state; Emberdeep gives its hero, level and crowd).
+  `tools/replay.mjs` replays a session in headless Chromium and reports the first checksum that differs. Emberdeep's
+  Developer panel (Guide) turns recording on and saves the session; on a phone, to the share sheet.
+- **Why:** the owner's goal for this round named a working replay path. It is a reversible call (D13), so it was made at
+  once. `tools/replay-test.mjs` proves it: sessions recorded in real time, with the browser's own uneven frame times,
+  at a desk and on a phone by touch, replay to the same state to the last decimal, and a session with one key press
+  taken out diverges where it should.
+- **Limits:** the GPU lighting is off while recording (it starts on real time); a session is one page load; a session
+  replays on the build it was recorded on (it carries its version and build); clicks on checkboxes replay through their
+  change events.
+- **Answered:** yes, the owner (this round's goal).
+- **Landed in:** v0.17.0
+
+## D15 · 2026-10-10 · Portable math while recording and replaying
+
+- **Principle:** 5 (deterministic by construction)
+- **Call:** while a session records or replays, `Math.sin`, `cos`, `tan`, `atan`, `atan2`, `asin`, `acos`, `exp`, `log`,
+  `log2`, `log10`, `pow`, `hypot` and `cbrt` are the engine's own (`PORTABLE_MATH`, engine section 23, `E.session.math`):
+  built from `+ - * /` and `sqrt` only, which every JavaScript engine computes exactly, so a session recorded in one
+  browser replays in another bit for bit. `sin`, `cos`, `atan`, `atan2`, `exp` and `log` are fdlibm 5.3's algorithms,
+  the ones Chromium's are derived from: on 200,000 random inputs each they give Chromium's own bits every time (angles
+  past 820,000 radians go on with an exact two-part reduction, within one unit in the last place of Chromium up to
+  1e12). The others are composed from those, within a few units in the last place; exact powers of 2 and 10 give exact
+  logs. They cost up to about twice the native time while recording; outside a session the browser's own are used.
+- **Why:** an iPhone's Safari and Chromium round these functions differently in the last bit, and a game grows that
+  bit into a different fight: in the test, a session recorded with every native function one unit off diverged at its
+  first checksum (frame 60) without the portable math, and replayed exactly with it. Testing on a real phone needs the
+  owner's phone; this closes the known gap between Safari and Chromium in advance.
+- **Verified in Safari's engine** (v0.17.2): `tools/cross-engine-math.cjs` runs the same code in V8 and in
+  JavaScriptCore (through Bun 1.2.23). Native math gave different bits in the two engines (2.8 million results), and so
+  did the engine's own Humanoid animated for 3,000 steps with it; the portable math and the same Humanoid with it gave
+  the same bits in both.
+- **Answered:** yes, the owner (this round's goal: a bug seen on a phone, replayed headless).
+- **Landed in:** v0.17.1
+
+## D16 · 2026-10-10 · Local tools for live animation edits
+
+- **History:** recorded as D10 in unmerged PR #53; renumbered to preserve main's D10 to D15.
 - **Principle:** 2 (agent-operable), 3 (headless inspection), and the repository's offline pages.
 - **Call:** Animation Studio is a kept tool. Its built page contains the engine, clip data, and editor. It works by
   itself. An optional Node server connects a loopback page to a watched JSON project and an MCP stdio adapter.
@@ -140,4 +251,24 @@ An entry:
   file tools, HTTP client, and MCP client edit the same data. Exact-time frame strips let an LLM inspect the result.
   Source files remain readable, and exported clips keep reference bodies and source details.
 - **Answered:** yes, the owner asked for an animation tool with live LLM edits in this session.
-- **Landed in:** v0.16.0
+- **Landed in:** v0.18.0
+
+## D17 · 2026-10-10 · Shared readable assets and live scene authoring
+
+- **Principle:** 2 (agent-operable), 3 (headless inspection), 4 (agent-accessible assets), and the repository's
+  self-contained pages and asset rules.
+- **Call:** extend the kept studio with Animation and Scene modes in the same built page. An optional `assets`
+  section stores materials, reusable part models, placed objects, and tile levels as ordinary JSON. Models use boxes,
+  wedges, and cylinders; texture patterns are generated from colors, scale, and a seed. No model or texture binary
+  files, new engine dependencies, or remote asset requests are added. The runtime uses the engine's public APIs.
+  Placed actors reference the project's readable animation clips. Existing animation-only projects remain valid.
+- **Shared work:** browser controls, watched-file edits, HTTP, and MCP operate on the same project, revisions, and
+  Undo/Redo history. A batch of asset actions is validated and saved as one change. An agent can request a capture
+  with that edit; the image records its revision and leaves the human's preview in place. Scene exports include the
+  readable asset definitions and actor clips, or a self-contained HTML page for playing the level. All studio modes
+  and sources are included by the existing repeatable build.
+- **Why:** the owner asked to expand live animation authoring to other assets, while keeping the agent interface
+  easy to use and shortening the human's prompt-to-preview loop. Procedural geometry and materials follow the
+  repository's preferred asset format and let an agent inspect and change the same data the human sees.
+- **Answered:** yes, the owner requested this extension and a quick shared feedback loop in this session.
+- **Landed in:** v0.18.0

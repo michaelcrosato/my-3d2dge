@@ -1,4 +1,4 @@
-// Animation Studio state: shared readable model, source catalog, revision checks, atomic saves and file watching.
+// Animation and Asset Studio state: readable models, catalogs, revision checks, atomic saves and file watching.
 // The project file is JSON data only. Source set scripts are the trusted, versioned files used by the engine.
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, unlinkSync, statSync, watch } from 'node:fs';
 import { dirname, resolve, basename } from 'node:path';
@@ -20,16 +20,25 @@ export function object(value, label = 'Request') {
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const serial = project => JSON.stringify(project);
 
+export function loadAssetModel(root = REPO_ROOT) {
+  const sandbox = {}, file = resolve(root, 'src/asset-studio/model.js');
+  vm.runInNewContext(readFileSync(file, 'utf8'), sandbox, { filename: file, timeout: 5000 });
+  if (!sandbox.AssetStudioModel) throw new Error('The Asset Studio model is missing.');
+  return sandbox.AssetStudioModel;
+}
+
 export function loadStudioResources(root = REPO_ROOT) {
   const sets = Object.create(null), folder = resolve(root, 'src/mocap/sets');
   for (const name of readdirSync(folder).filter(n => /^[a-z0-9-]+\.js$/.test(n)).sort()) {
     sets[name.slice(0, -3)] = readSet(resolve(folder, name));
   }
   const sandbox = { MocapReadable: MR };
+  const assetFile = resolve(root, 'src/asset-studio/model.js');
+  vm.runInNewContext(readFileSync(assetFile, 'utf8'), sandbox, { filename: assetFile, timeout: 5000 });
   const file = resolve(root, 'src/animation-studio/model.js');
   vm.runInNewContext(readFileSync(file, 'utf8'), sandbox, { filename: file, timeout: 5000 });
   if (!sandbox.AnimationStudioModel) throw new Error('Build the Animation Studio model before starting the server.');
-  return { model: sandbox.AnimationStudioModel, sets };
+  return { model: sandbox.AnimationStudioModel, assetModel: sandbox.AssetStudioModel, sets };
 }
 
 const text = (s, max, label) => {
@@ -57,6 +66,58 @@ export function previewOptions(input, project, capture = false) {
     }
   }
   return out;
+}
+
+// Scene previews never save data or change history. Resolve targets before broadcasting so every editor agrees.
+export function sceneOptions(input, assets, capture = false) {
+  object(input, 'Scene preview');
+  const allowed = ['level', 'view', 'zoom', 'focus', 'selected', 'grid', ...(capture ? ['times'] : ['mode', 'time', 'playing'])];
+  for (const key of Object.keys(input)) if (!allowed.includes(key)) throw new StudioError('Unknown scene preview field: ' + key + '.');
+  const out = { ...input, level: input.level ?? assets.selectedLevel };
+  if (typeof out.level !== 'string' || !own(assets.levels, out.level)) throw new StudioError('Scene level does not exist.', 404);
+  const level = assets.levels[out.level];
+  if (own(out, 'selected') && out.selected !== null && (typeof out.selected !== 'string' || !own(level.objects, out.selected))) throw new StudioError('Selected object does not exist in the preview level.', 404);
+  if (own(out, 'view') && !VIEWS.includes(out.view)) throw new StudioError('view must be one of: ' + VIEWS.join(', ') + '.');
+  if (own(out, 'mode') && !['edit', 'play'].includes(out.mode)) throw new StudioError('mode must be edit or play.');
+  for (const key of ['grid', 'playing']) if (own(out, key) && typeof out[key] !== 'boolean') throw new StudioError(key + ' must be true or false.');
+  for (const [key, min, max] of [['time', 0, 600], ['zoom', .5, 3]]) {
+    if (own(out, key) && (typeof out[key] !== 'number' || !Number.isFinite(out[key]) || out[key] < min || out[key] > max)) throw new StudioError(key + ' must be a number from ' + min + ' to ' + max + '.');
+  }
+  if (own(out, 'focus') && (!Array.isArray(out.focus) || out.focus.length !== 3 || out.focus.some(n => typeof n !== 'number' || !Number.isFinite(n) || Math.abs(n) > 100000))) throw new StudioError('focus must contain three finite coordinates from -100000 to 100000.');
+  if (capture) {
+    out.times ??= [0];
+    if (!Array.isArray(out.times) || out.times.length < 1 || out.times.length > 8 || out.times.some(n => typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 600)) throw new StudioError('times must contain 1 to 8 scene times from 0 to 600 seconds.');
+  }
+  return out;
+}
+
+const only = (value, allowed, label) => {
+  object(value, label);
+  for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new StudioError('Unknown ' + label + ' field: ' + key + '.');
+};
+export const projectAssets = (project, assetModel) => project.assets || assetModel.createProject({ clipIds: [project.selected, ...Object.keys(project.clips).filter(id => id !== project.selected)] });
+export function sceneReceipt(state, assetModel, before) {
+  const assets = projectAssets(state.project, assetModel);
+  const rows = Object.entries;
+  const summary = assetModel.summary(assets), current = assets.levels[assets.selectedLevel];
+  const result = {
+    revision: state.revision, name: state.project.name, initialized: !!state.project.assets,
+    canUndo: state.canUndo, canRedo: state.canRedo, lastChange: state.lastChange,
+    summary: { schema: summary.schema, selectedLevel: summary.selectedLevel, selectedObject: summary.selectedObject, counts: summary.counts },
+    materials: rows(assets.materials).map(([id, value]) => ({ id, name: value.name, pattern: value.pattern })),
+    models: rows(assets.models).map(([id, value]) => ({ id, name: value.name, parts: value.parts.length })),
+    levels: rows(assets.levels).map(([id, value]) => ({ id, name: value.name, width: value.rows[0]?.length || 0, height: value.rows.length, objects: Object.keys(value.objects).length })),
+    objects: rows(current.objects).map(([id, value]) => ({ id, kind: value.kind, asset: value.model || value.clip, position: value.position })),
+    animations: rows(state.project.clips).map(([id, value]) => ({ id, duration: value.clip.dur, loop: !!value.clip.loop }))
+  };
+  if (before) {
+    const old = projectAssets(before.project, assetModel);
+    const changed = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(id => serial(a[id]) !== serial(b[id]));
+    result.applied = state.revision !== before.revision;
+    result.changed = { materials: changed(old.materials, assets.materials), models: changed(old.models, assets.models), levels: changed(old.levels, assets.levels), objects: [] };
+    for (const id of new Set([...Object.keys(old.levels), ...Object.keys(assets.levels)])) for (const objectID of changed(old.levels[id]?.objects || {}, assets.levels[id]?.objects || {})) result.changed.objects.push({ level: id, id: objectID });
+  }
+  return result;
 }
 
 export function catalog(sets, query = {}) {
@@ -98,22 +159,24 @@ export const ACTION_SCHEMA = { oneOf: [
   schema({ type: { const: 'transform' }, id, kind: { enum: ['mirror', 'reverse', 'retime'] }, duration: { type: 'number', minimum: .001, maximum: 600 } }, ['type', 'id', 'kind']),
   schema({ type: { const: 'rename' }, id, name: id }, ['type', 'id', 'name']),
   schema({ type: { const: 'delete' }, id }, ['type', 'id']),
+  schema({ type: { const: 'assets' }, actions: { type: 'array', minItems: 1, maxItems: 100, items: { type: 'object' }, description: 'Atomic asset actions. Use asset_catalog with includeSchema=true for the full action schema.' } }, ['type', 'actions']),
   schema({ type: { enum: ['undo', 'redo'] } }, ['type'])
 ] };
-export function studioSchema(model, sets) {
+export function studioSchema(model, sets, assetModel) {
   return {
     schema: 1, format: 'my-3D2dge readable key poses', legend: MR.LEGEND, fields: model.FIELDS,
     project: { schema: 1, name: 'Animation Studio', selected: 'Clip name', clips: { 'Clip name': { set: 'quaternius', clip: '{clip,src,dur,loop,keys,...}' } } },
     sets: catalog(sets, { limit: 1 }).sets, action: ACTION_SCHEMA,
     request: { expectedRevision: 'Required current integer revision from GET /api/state', action: 'One action from the schema', source: 'agent or editor', summary: 'Optional short description' },
     preview: { view: VIEWS, cast: CASTS, time: 'seconds', speed: '.05 to 4', facing: 'degrees from -180 to 180', zoom: '.5 to 3', bones: 'boolean', playing: 'boolean' },
-    endpoints: { state: 'GET /api/state', edit: 'POST /api/action', project: 'GET or PUT /api/project', live: 'GET /api/events (SSE)', catalog: 'GET /api/catalog?query=&set=&limit=50&offset=0', clip: 'GET /api/clip?set=&name=', preview: 'POST /api/preview', capture: 'POST /api/capture', export: 'GET /api/export?id=&format=json|js' }
+    endpoints: { state: 'GET /api/state', edit: 'POST /api/action', project: 'GET or PUT /api/project', live: 'GET /api/events (SSE)', catalog: 'GET /api/catalog?query=&set=&limit=50&offset=0', clip: 'GET /api/clip?set=&name=', preview: 'POST /api/preview', capture: 'POST /api/capture', export: 'GET /api/export?id=&format=json|js', scene: 'GET /api/scene', assets: 'GET /api/assets/catalog?includeSchema=true', sceneEdit: 'POST /api/scene/edit', scenePreview: 'POST /api/scene/preview', sceneCapture: 'POST /api/scene/capture', sceneExport: 'GET /api/scene/export?level=&format=json|html' },
+    ...(assetModel ? { assets: assetModel.schema() } : {})
   };
 }
 
 export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-studio/project.json'), root = REPO_ROOT, watchDebounce = 80 } = {}) {
   file = resolve(file);
-  const { model, sets } = loadStudioResources(root), listeners = new Set(), undo = [], redo = [];
+  const { model, assetModel, sets } = loadStudioResources(root), listeners = new Set(), undo = [], redo = [];
   let project, revision = Date.now(), lastChange = { source: 'studio', summary: 'Project opened' };
   let diskText = '', canonical = '', lastError = null, timer, closed = false, saveID = 0;
   const emit = (event, data) => { for (const fn of listeners) fn(event, data); };
@@ -172,7 +235,7 @@ export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-stud
     project = next; revision++; lastChange = { source, summary }; const state = snapshot(); emit('state', state); return state;
   };
   return {
-    file, model, sets, snapshot, refresh,
+    file, model, assetModel, sets, snapshot, refresh,
     get lastError() { return lastError; },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     apply(body) {
@@ -198,7 +261,53 @@ export function createStudioSession({ file = resolve(REPO_ROOT, '.animation-stud
     preview(body) {
       const value = previewOptions(body, project);
       value.id = value.id ?? project.selected; // Every client must use the same target that time validation used.
+      value.workspace = 'animation';
       emit('preview', value); return { ...value, revision };
+    },
+    scene(body = {}) {
+      only(body, ['type', 'id', 'level', 'includeSchema', 'full'], 'scene request'); refresh();
+      for (const key of ['includeSchema', 'full']) if (own(body, key) && typeof body[key] !== 'boolean') throw new StudioError(key + ' must be true or false.');
+      const state = snapshot(), assets = projectAssets(project, assetModel), result = sceneReceipt(state, assetModel);
+      if (body.type !== undefined && !['material', 'model', 'level', 'object'].includes(body.type)) throw new StudioError('type must be material, model, level or object.');
+      if (body.id !== undefined && (typeof body.id !== 'string' || !body.id)) throw new StudioError('id must be a non-empty string.');
+      if (body.level !== undefined && (typeof body.level !== 'string' || !own(assets.levels, body.level))) throw new StudioError('Scene level does not exist.', 404);
+      if (body.id !== undefined && body.type === undefined) throw new StudioError('Provide type when inspecting an id.');
+      if (body.type) {
+        const levelID = body.level || assets.selectedLevel, registry = body.type === 'object' ? assets.levels[levelID].objects : assets[body.type + 's'];
+        const id = body.id ?? (body.type === 'level' ? levelID : body.type === 'object' && levelID === assets.selectedLevel ? assets.selectedObject : undefined);
+        if (typeof id !== 'string' || !own(registry, id)) throw new StudioError('The requested ' + body.type + ' does not exist. Provide its id from scene_get.', 404);
+        result.inspected = { type: body.type, id, ...(body.type === 'object' ? { level: levelID } : {}), data: model.clone(registry[id]) };
+      }
+      if (body.includeSchema) result.schema = assetModel.schema();
+      if (body.full) result.project = state.project;
+      return result;
+    },
+    assetCatalog(body = {}) {
+      only(body, ['includeSchema'], 'asset catalog');
+      if (own(body, 'includeSchema') && typeof body.includeSchema !== 'boolean') throw new StudioError('includeSchema must be true or false.');
+      refresh(); const state = snapshot(), result = { ...assetModel.catalog(), current: sceneReceipt(state, assetModel) };
+      if (body.includeSchema) result.schema = assetModel.schema();
+      return result;
+    },
+    scenePreview(body) {
+      refresh(); const assets = projectAssets(project, assetModel);
+      const value = { workspace: 'scene', ...sceneOptions(body, assets) };
+      emit('preview', value); return { ...value, revision };
+    },
+    sceneExport(levelID) {
+      refresh(); const state = snapshot(), assets = projectAssets(project, assetModel);
+      levelID ??= assets.selectedLevel;
+      if (typeof levelID !== 'string' || !own(assets.levels, levelID)) throw new StudioError('Scene level does not exist.', 404);
+      const data = assetModel.exportData(assets, { clips: project.clips });
+      data.levels = { [levelID]: data.levels[levelID] }; data.selectedLevel = levelID;
+      if (!own(data.levels[levelID].objects, data.selectedObject)) data.selectedObject = null;
+      const ids = new Set(Object.values(data.levels[levelID].objects).filter(o => o.kind === 'actor').map(o => o.clip));
+      // This is a complete readable project so an agent can import the export without a conversion step.
+      // Keep a selected clip when a level has no actors; schema 1 always contains at least one animation.
+      if (!ids.size) ids.add(project.selected);
+      const clips = Object.fromEntries([...ids].map(id => [id, project.clips[id]]));
+      const exported = model.validateProject({ ...project, selected: own(clips, project.selected) ? project.selected : [...ids][0], clips, assets: data }, sets);
+      return { schema: 1, level: levelID, revision: state.revision, project: exported };
     },
     export(id = project.selected, format = 'json') {
       if (!['json', 'js'].includes(format)) throw new StudioError('format must be json or js.');

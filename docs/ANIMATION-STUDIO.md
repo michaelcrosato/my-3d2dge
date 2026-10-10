@@ -4,6 +4,8 @@ Animation Studio lets a person and an AI agent work on the same animation. The b
 
 The studio uses the engine's readable humanoid clips. It can start with a new clip or with a clip from the supplied libraries. It keeps animation data as text, with source and license records.
 
+The same project can also hold readable models, procedural materials, objects, and levels. Open the **Scene** workspace to place actors that use these clips. See [Asset Studio](ASSET-STUDIO.md) for scene tools, atomic edit batches, and the edit-and-capture workflow.
+
 ![Animation Studio with a library walk, two figures, a timeline, and readable pose data](assets/animation-studio.png)
 
 The timeline and JSON panel edit the same clip. The source mannequin and game hero show how that motion fits each body.

@@ -197,7 +197,7 @@ test('MCP stdio initializes, advertises schemas, applies an edit and returns err
   const initialized = await client.ask('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'studio-test', version: '1' } });
   assert.equal(initialized.result.protocolVersion, '2025-11-25'); assert.ok(initialized.result.capabilities.tools);
   client.notify('notifications/initialized'); assert.deepEqual((await client.ask('ping')).result, {});
-  const list = await client.ask('tools/list'); assert.equal(list.result.tools.length, 8);
+  const list = await client.ask('tools/list'); assert.equal(list.result.tools.length, 14);
   assert.ok(list.result.tools.find(t => t.name === 'animation_edit').inputSchema.required.includes('expectedRevision'));
   assert.equal((await client.raw('{invalid JSON')).error.code, -32700);
   assert.equal((await client.ask('does/not/exist')).error.code, -32601);

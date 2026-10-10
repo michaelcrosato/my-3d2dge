@@ -94,7 +94,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
   <canvas id="screen" role="img" aria-label="Mocap lab: imported animation clips played on a pixel-art mannequin and on the engine's hero"></canvas>
   <div class="hud top">
     <div class="brand panel">
-      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a> <span class="ver" title="Release and build">v0.16.0 · dev-build</span></h1>
+      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a> <span class="ver" title="Release and build">v0.18.0 · dev-build</span></h1>
       <p id="note"></p>
       <select id="pick" aria-label="Animation clip"></select>
     </div>
@@ -170,7 +170,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.16.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.18.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -213,6 +213,9 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
  * 9. GPU LIGHTING is optional: game.enableGPU({ map }). Mark glowing things with
  *    px.glow(g, 1) inside queue callbacks, pass { color, shadow } to lights.add, and
  *    register shadow casters with game.lights.caster(). Falls back to Canvas lighting.
+ * 10. SESSIONS. E.session.record(true) records every later page load (or ?record=1 for one): the frame times, the
+ *    inputs, the random seed, the screen and the save. E.session.share() saves it as a file; node tools/replay.mjs
+ *    plays it back headless, exactly, and stops where it differs (game.stateHash = () => [...] sharpens that).
  * Errors in your game are shown on screen and in the console (game.errors).
  * The compact API card is API.md (also embedded in the single-file edition).
  * See AI_GUIDE.md in the repo for the full guide and recipes.
@@ -229,7 +232,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.16.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.18.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -1961,6 +1964,9 @@ class Humanoid {
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   /** world position of the weapon tip (sword tip, gun muzzle, staff orb) */
   tip() { const J = this.J, L = this.o.weapon === 'gun' ? 5 : this.o.weapon === 'staff' ? 10 : this.o.bladeLen, w = this._w(V3.add(J.handR, V3.mul(J.bladeDir, L))); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
+  /** where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it)
+   *  sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint */
+  worldOffset(p) { return this._w(p); }
   /** local (f, r, z) -> world offset */
   _w(p) {
     const a = this.facing + this.spin + this._cheat, c = Math.cos(a), s = Math.sin(a), sz = this.o.size, k = (1 - this.sq * .4) * sz;
@@ -2237,7 +2243,6 @@ class Humanoid {
       }
     }
   }
-  /** draw into g with (ox, oy) = projected position of the rig's root */
   /**
    * Sp(joint, f, r, z): a detail drawn around a joint (the face, hair, belt, toes) at offsets in the body's own frame,
    * projected by S. A knocked-down body turns them backward with it. While a motion clip plays (Mocap.drive sets
@@ -2254,6 +2259,7 @@ class Humanoid {
     const dA = (this.downW || 0) * Math.PI / 2 * .96, dca = Math.cos(dA), dsa = Math.sin(dA);
     return dA ? (p, df = 0, dr = 0, dz = 0) => S(p[0] + df * dca - dz * dsa, p[1] + dr, p[2] + df * dsa + dz * dca) : (p, df = 0, dr = 0, dz = 0) => S(p[0] + df, p[1] + dr, p[2] + dz);
   }
+  /** draw into g with (ox, oy) = projected position of the rig's root */
   draw(g, ox, oy, view) {
     this._pitch = view.pitchDeg;
     if (this.o.charView !== false) view = charView(view);
@@ -3879,6 +3885,9 @@ class ChipAudio {
   constructor(game) {
     this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this._waves = {};
+    // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
+    // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
+    this.rnd = rng(0x51A7E);
   }
   _init() {
     if (this.ctx || this.failed) return this.ctx;
@@ -3889,7 +3898,7 @@ class ChipAudio {
       this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
       this.musBus = c.createGain(); this.musBus.connect(this.master);
       this._levels();
-      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
       this.noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
       for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true });
@@ -3920,7 +3929,7 @@ class ChipAudio {
     if (wave === 'noise') {
       src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
       const f = c.createBiquadFilter(); f.type = p.filter || 'bandpass'; f.Q.value = p.q || 1.1; f.frequency.setValueAtTime(f0, t); if (to) f.frequency.exponentialRampToValueAtTime(to, end);
-      src.connect(f); f.connect(g); src.start(t, Math.random() * .5);
+      src.connect(f); f.connect(g); src.start(t, this.rnd() * .5);
     } else {
       src = c.createOscillator();
       if (wave === 'pulse' || wave === 'pulse12') src.setPeriodicWave(this._pulse(wave === 'pulse' ? .25 : .125));
@@ -3944,7 +3953,7 @@ class ChipAudio {
     if (this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
-    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (Math.random() * 2 - 1));
+    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
     try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this.sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
@@ -4818,6 +4827,408 @@ class GPULighting {
   }
 }
 E.GPULighting = GPULighting;
+
+/* =============================================================================
+ * 23. SESSIONS  record a play session on any device, replay it exactly in a headless browser
+ *    E.session.record(true) (or ?record=1 for one load) records from the next page load on, starting before the game's
+ *    code, so it sees all the game sees: a seed for Math.random, every display frame's time (performance.now and
+ *    Date.now read that time during the frame), every input event and the frame it arrived before (keys, pointer,
+ *    wheel, clicks and form edits, focus, visibility, resize, full screen), gamepad readings, the media queries the game
+ *    asked, the safe-area insets, the screen's size and the save (localStorage) at the start, plus a checksum every 60
+ *    frames. E.session.save() returns it as JSON; E.session.share() hands it to the phone's share sheet (or downloads
+ *    it). node tools/replay.mjs session.json plays it back headless, frame by frame, and stops at the first checksum
+ *    that differs; game.stateHash = () => [numbers] makes the checksum sharper. The engine's loop needs nothing else:
+ *    the same frame times, inputs and seed give the same game (docs/DECISIONS.md, D12). Math.sin, cos, pow and the other
+ *    functions browsers may round differently are replaced by portable ones while recording and replaying, so a session
+ *    from an iPhone's Safari replays in Chromium bit for bit (D15).
+ *    While recording, GPU lighting stays off (it starts up on real time) and update/draw timings read 0 ms.
+ * ============================================================================= */
+/** sin, cos, tan, atan, atan2, asin, acos, exp, log, log2, log10, pow, hypot and cbrt from exact operations only, the
+ *  same bits in every browser (fdlibm 5.3's algorithms and constants for sin, cos, atan, atan2, exp and log) */
+const PORTABLE_MATH = (() => {
+  const N = { pow: Math.pow, sqrt: Math.sqrt }, F = new Float64Array(1), U = new Uint32Array(F.buffer);
+  const H = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1 ? 1 : 0, L = 1 - H;   // which word is high (little-endian: 1)
+  const hi = x => { F[0] = x; return U[H] | 0; }, lo = x => { F[0] = x; return U[L]; };
+  const make = (h, l) => { U[H] = h >>> 0; U[L] = l >>> 0; return F[0]; }, withHi = (x, h) => { F[0] = x; U[H] = h >>> 0; return F[0]; };
+  // sin and cos: reduce to [-pi/4, pi/4] (Cody-Waite, up to three steps), then the kernels
+  const S1 = -1.66666666666666324348e-01, S2 = 8.33333333332248946124e-03, S3 = -1.98412698298579493134e-04, S4 = 2.75573137070700676789e-06, S5 = -2.50507602534068634195e-08, S6 = 1.58969099521155010221e-10;
+  const C1 = 4.16666666666666019037e-02, C2 = -1.38888888888741095749e-03, C3 = 2.48015872894767294178e-05, C4 = -2.75573143513906633035e-07, C5 = 2.08757232129817482790e-09, C6 = -1.13596475577881948265e-11;
+  const kSin = (x, y, iy) => {
+    if ((hi(x) & 0x7fffffff) < 0x3e400000 && (x | 0) === 0) return x;
+    const z = x * x, v = z * x, r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
+    return iy === 0 ? x + v * (S1 + z * r) : x - ((z * (.5 * y - v * r) - y) - v * S1);
+  };
+  const kCos = (x, y) => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix < 0x3e400000 && (x | 0) === 0) return 1;
+    const z = x * x, r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
+    if (ix < 0x3fd33333) return 1 - (.5 * z - (z * r - x * y));
+    const qx = ix > 0x3fe90000 ? .28125 : make(ix - 0x00200000, 0), hz = .5 * z - qx, a = 1 - qx;
+    return a - (hz - (z * r - x * y));
+  };
+  const invpio2 = 6.36619772367581382433e-01, pio2_1 = 1.57079632673412561417e+00, pio2_1t = 6.07710050650619224932e-11, pio2_2 = 6.07710050630396597660e-11,
+    pio2_2t = 2.02226624879595063154e-21, pio2_3 = 2.02226624871116645580e-21, pio2_3t = 8.47842766036889956997e-32;
+  const NPIO2 = [0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C, 0x4025FDBB, 0x402921FB, 0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C, 0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB,
+    0x403AB41B, 0x403C463A, 0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C, 0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB, 0x404858EB, 0x404921FB];
+  const Y = [0, 0];
+  /** x = n * pi/2 + Y[0] + Y[1]; returns n. Beyond 2^19 pi/2 (fdlibm's own reduction ends there and turns to a 1,200-bit
+   *  2/pi) n is split in two halves whose products stay exact, good to about 1e12; past that any angle in range will do */
+  const remPio2 = x => {
+    const hx = hi(x), ix = hx & 0x7fffffff;
+    if (ix <= 0x3fe921fb) { Y[0] = x; Y[1] = 0; return 0; }   // |x| <= pi/4 already
+    if (ix > 0x413921fb) {
+      let t = hx < 0 ? -x : x, n;
+      if (t >= 1.7e12) { t -= Math.floor(t / 6.283185307179586) * 6.283185307179586; n = remPio2(t); }
+      else {
+        const fn = Math.floor(t * invpio2 + .5), f0 = fn % 1048576, f1 = fn - f0;
+        let r = (t - f1 * pio2_1) - f0 * pio2_1; r = (r - f1 * pio2_2) - f0 * pio2_2;
+        const w = (f1 * pio2_3 + f0 * pio2_3) + fn * pio2_3t;
+        Y[0] = r - w; Y[1] = (r - Y[0]) - w; n = fn % 4;
+      }
+      if (hx < 0) { Y[0] = -Y[0]; Y[1] = -Y[1]; return -n; }
+      return n;
+    }
+    if (ix < 0x4002d97c) {   // |x| < 3pi/4: n = +-1
+      if (hx > 0) { let z = x - pio2_1; if (ix !== 0x3ff921fb) { Y[0] = z - pio2_1t; Y[1] = (z - Y[0]) - pio2_1t; } else { z -= pio2_2; Y[0] = z - pio2_2t; Y[1] = (z - Y[0]) - pio2_2t; } return 1; }
+      let z = x + pio2_1; if (ix !== 0x3ff921fb) { Y[0] = z + pio2_1t; Y[1] = (z - Y[0]) + pio2_1t; } else { z += pio2_2; Y[0] = z + pio2_2t; Y[1] = (z - Y[0]) + pio2_2t; } return -1;
+    }
+    const t0 = hx < 0 ? -x : x, fn = (t0 * invpio2 + .5) | 0, n = fn;
+    let r = t0 - fn * pio2_1, w = fn * pio2_1t;
+    if (n < 32 && ix !== NPIO2[n - 1]) Y[0] = r - w;
+    else {
+      const j = ix >> 20; Y[0] = r - w;
+      let i = j - ((hi(Y[0]) >> 20) & 0x7ff);
+      if (i > 16) {
+        let t = r; w = fn * pio2_2; r = t - w; w = fn * pio2_2t - ((t - r) - w); Y[0] = r - w;
+        i = j - ((hi(Y[0]) >> 20) & 0x7ff);
+        if (i > 49) { t = r; w = fn * pio2_3; r = t - w; w = fn * pio2_3t - ((t - r) - w); Y[0] = r - w; }
+      }
+    }
+    Y[1] = (r - Y[0]) - w;
+    if (hx < 0) { Y[0] = -Y[0]; Y[1] = -Y[1]; return -n; }
+    return n;
+  };
+  const sin = x => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix <= 0x3fe921fb) return kSin(x, 0, 0);
+    if (ix >= 0x7ff00000) return x - x;
+    const n = remPio2(x) & 3;
+    return n === 0 ? kSin(Y[0], Y[1], 1) : n === 1 ? kCos(Y[0], Y[1]) : n === 2 ? -kSin(Y[0], Y[1], 1) : -kCos(Y[0], Y[1]);
+  };
+  const cos = x => {
+    const ix = hi(x) & 0x7fffffff;
+    if (ix <= 0x3fe921fb) return kCos(x, 0);
+    if (ix >= 0x7ff00000) return x - x;
+    const n = remPio2(x) & 3;
+    return n === 0 ? kCos(Y[0], Y[1]) : n === 1 ? -kSin(Y[0], Y[1], 1) : n === 2 ? -kCos(Y[0], Y[1]) : kSin(Y[0], Y[1], 1);
+  };
+  // atan and atan2
+  const ATANHI = [4.63647609000806093515e-01, 7.85398163397448278999e-01, 9.82793723247329054082e-01, 1.57079632679489655800e+00];
+  const ATANLO = [2.26987774529616870924e-17, 3.06161699786838301793e-17, 1.39033110312309984516e-17, 6.12323399573676603587e-17];
+  const AT = [3.33333333333329318027e-01, -1.99999999998764832476e-01, 1.42857142725034663711e-01, -1.11111104054623557880e-01, 9.09088713343650656196e-02, -7.69187620504482999495e-02,
+    6.66107313738753120669e-02, -5.83357013379057348645e-02, 4.97687799461593236017e-02, -3.65315727442169155270e-02, 1.62858201153657823623e-02];
+  const atan = x0 => {
+    let x = x0, id;
+    const hx = hi(x), ix = hx & 0x7fffffff;
+    if (ix >= 0x44100000) { if (x !== x) return x + x; return hx > 0 ? ATANHI[3] + ATANLO[3] : -ATANHI[3] - ATANLO[3]; }
+    if (ix < 0x3fdc0000) { if (ix < 0x3e200000) return x; id = -1; }
+    else {
+      x = Math.abs(x);
+      if (ix < 0x3ff30000) { if (ix < 0x3fe60000) { id = 0; x = (2 * x - 1) / (2 + x); } else { id = 1; x = (x - 1) / (x + 1); } }
+      else if (ix < 0x40038000) { id = 2; x = (x - 1.5) / (1 + 1.5 * x); } else { id = 3; x = -1 / x; }
+    }
+    const z = x * x, w = z * z;
+    const s1 = z * (AT[0] + w * (AT[2] + w * (AT[4] + w * (AT[6] + w * (AT[8] + w * AT[10]))))), s2 = w * (AT[1] + w * (AT[3] + w * (AT[5] + w * (AT[7] + w * AT[9]))));
+    if (id < 0) return x - x * (s1 + s2);
+    const r = ATANHI[id] - ((x * (s1 + s2) - ATANLO[id]) - x);
+    return hx < 0 ? -r : r;
+  };
+  const PI = 3.1415926535897931160E+00, PI_LO = 1.2246467991473531772E-16, PI_2 = 1.5707963267948965580E+00, PI_4 = 7.8539816339744827900E-01;
+  const neg = v => v < 0 || (v === 0 && 1 / v < 0);
+  const atan2 = (y, x) => {
+    if (x !== x || y !== y) return x + y;
+    if (x === 1) return atan(y);
+    const m = (neg(y) ? 1 : 0) | (neg(x) ? 2 : 0);
+    if (y === 0) return m === 0 || m === 1 ? y : m === 2 ? PI : -PI;
+    if (x === 0) return neg(y) ? -PI_2 : PI_2;
+    if (x === Infinity || x === -Infinity) {
+      if (y === Infinity || y === -Infinity) return m === 0 ? PI_4 : m === 1 ? -PI_4 : m === 2 ? 3 * PI_4 : -3 * PI_4;
+      return m === 0 ? 0 : m === 1 ? -0 : m === 2 ? PI : -PI;
+    }
+    if (y === Infinity || y === -Infinity) return neg(y) ? -PI_2 : PI_2;
+    const k = ((hi(y) & 0x7fffffff) - (hi(x) & 0x7fffffff)) >> 20;
+    const z = k > 60 ? PI_2 + .5 * PI_LO : x < 0 && k < -60 ? 0 : atan(Math.abs(y / x));
+    return m === 0 ? z : m === 1 ? -z : m === 2 ? PI - (z - PI_LO) : (z - PI_LO) - PI;
+  };
+  // exp and log
+  const LN2HI = [6.93147180369123816490e-01, -6.93147180369123816490e-01], LN2LO = [1.90821492927058770002e-10, -1.90821492927058770002e-10], INVLN2 = 1.44269504088896338700e+00;
+  const P1 = 1.66666666666666019037e-01, P2 = -2.77777777770155933842e-03, P3 = 6.61375632143793436117e-05, P4 = -1.65339022054652515390e-06, P5 = 4.13813679705723846039e-08, TWOM1000 = 9.33263618503218878990e-302;
+  const exp = x0 => {
+    let x = x0, k = 0, hiP = 0, loP = 0;
+    const h = hi(x), xsb = (h >>> 31) & 1, hx = h & 0x7fffffff;
+    if (hx >= 0x40862E42) {
+      if (hx >= 0x7ff00000) return x !== x ? x + x : xsb === 0 ? x : 0;
+      if (x > 7.09782712893383973096e+02) return Infinity;
+      if (x < -7.45133219101941108420e+02) return 0;
+    }
+    if (hx > 0x3fd62e42) {
+      if (hx < 0x3FF0A2B2) { hiP = x - LN2HI[xsb]; loP = LN2LO[xsb]; k = 1 - xsb - xsb; }
+      else { k = (INVLN2 * x + (xsb ? -.5 : .5)) | 0; hiP = x - k * LN2HI[0]; loP = k * LN2LO[0]; }
+      x = hiP - loP;
+    } else if (hx < 0x3e300000) return 1 + x;
+    const t = x * x, c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
+    if (k === 0) return 1 - ((x * c) / (c - 2) - x);
+    const y = 1 - ((loP - (x * c) / (2 - c)) - hiP);
+    return k >= -1021 ? withHi(y, hi(y) + (k << 20)) : withHi(y, hi(y) + ((k + 1000) << 20)) * TWOM1000;
+  };
+  const LN2_HI = 6.93147180369123816490e-01, LN2_LO = 1.90821492927058770002e-10, TWO54 = 1.80143985094819840000e+16;
+  const LG1 = 6.666666666666735130e-01, LG2 = 3.999999999940941908e-01, LG3 = 2.857142874366239149e-01, LG4 = 2.222219843214978396e-01, LG5 = 1.818357216161805012e-01, LG6 = 1.531383769920937332e-01, LG7 = 1.479819860511658591e-01;
+  const log = x0 => {
+    let x = x0, hx = hi(x), k = 0;
+    const lx = lo(x);
+    if (hx < 0x00100000) {
+      if (((hx & 0x7fffffff) | lx) === 0) return -Infinity;
+      if (hx < 0) return NaN;
+      k -= 54; x *= TWO54; hx = hi(x);
+    }
+    if (hx >= 0x7ff00000) return x + x;
+    k += (hx >> 20) - 1023; hx &= 0x000fffff;
+    const i0 = (hx + 0x95f64) & 0x100000;
+    x = withHi(x, hx | (i0 ^ 0x3ff00000)); k += i0 >> 20;
+    const f = x - 1;
+    if ((0x000fffff & (2 + hx)) < 3) {
+      if (f === 0) return k === 0 ? 0 : k * LN2_HI + k * LN2_LO;
+      const R = f * f * (.5 - .33333333333333333 * f);
+      return k === 0 ? f - R : k * LN2_HI - ((R - k * LN2_LO) - f);
+    }
+    const s = f / (2 + f), dk = k, z = s * s, w = z * z;
+    let i = hx - 0x6147a; const j = 0x6b851 - hx;
+    const t1 = w * (LG2 + w * (LG4 + w * LG6)), t2 = z * (LG1 + w * (LG3 + w * (LG5 + w * LG7))), R = t2 + t1;
+    i |= j;
+    if (i > 0) { const hfsq = .5 * f * f; return k === 0 ? f - (hfsq - s * (hfsq + R)) : dk * LN2_HI - ((hfsq - (s * (hfsq + R) + dk * LN2_LO)) - f); }
+    return k === 0 ? f - s * (f - R) : dk * LN2_HI - ((s * (f - R) - dk * LN2_LO) - f);
+  };
+  // the rest, from those and exact operations (exact powers of 2 and 10 give exact logs, so floor(log10(1000)) is 3)
+  const tens = new Map(); for (let n = 0, p = 1; n <= 22; n++, p *= 10) tens.set(p, n);   // 1 .. 1e22, each exact
+  const log2 = x => { if (x > 0 && x !== Infinity && lo(x) === 0 && (hi(x) & 0x000fffff) === 0 && hi(x) >= 0x00100000) return (hi(x) >> 20) - 1023; return log(x) / 6.93147180559945286227e-01; };
+  const log10 = x => tens.has(x) ? tens.get(x) : log(x) / 2.30258509299404590109e+00;
+  const pow = (x, y) => {
+    if (y === 0) return 1;
+    if (x !== x || y !== y) return NaN;
+    if (x === 0 || x === Infinity || x === -Infinity || y === Infinity || y === -Infinity || x === 1) return N.pow(x, y);   // exact by definition, the same everywhere
+    if (y === .5 && x > 0) return N.sqrt(x);
+    const yi = Number.isInteger(y);
+    if (yi && Math.abs(y) <= 1024) { let r = 1, b = x, e = Math.abs(y); while (e > 0) { if (e & 1) r *= b; b *= b; e >>= 1; } return y < 0 ? 1 / r : r; }
+    if (x < 0) { if (!yi) return NaN; const r = exp(y * log(-x)); return y % 2 ? -r : r; }
+    return exp(y * log(x));
+  };
+  const hypot = function () {
+    let s = 0, inf = false, nan = false;
+    for (let i = 0; i < arguments.length; i++) { const v = +arguments[i]; if (v === Infinity || v === -Infinity) inf = true; else if (v !== v) nan = true; else s += v * v; }
+    return inf ? Infinity : nan ? NaN : N.sqrt(s);
+  };
+  const cbrt = x => { if (x === 0 || x !== x || x === Infinity || x === -Infinity) return x; const a = Math.abs(x); let r = exp(log(a) / 3); r = r - (r * r * r - a) / (3 * r * r); return x < 0 ? -r : r; };
+  const asin = x => x !== x || x > 1 || x < -1 ? NaN : atan2(x, N.sqrt((1 - x) * (1 + x)));
+  const acos = x => x !== x || x > 1 || x < -1 ? NaN : atan2(N.sqrt((1 - x) * (1 + x)), x);
+  const tan = x => sin(x) / cos(x);
+  return { sin, cos, tan, atan, atan2, asin, acos, exp, log, log2, log10, pow, hypot, cbrt };
+})();
+const SESSION = (() => {
+  const S = { recording: false, replaying: false, frame: 0 };
+  /** turn recording on or off for the next page loads (each load is a session of its own) */
+  S.record = on => { try { if (on) localStorage.setItem('my3d2dge:record', '1'); else localStorage.removeItem('my3d2dge:record'); } catch (e) { /* no storage */ } return !!on; };
+  S.wanted = () => { try { return localStorage.getItem('my3d2dge:record') === '1'; } catch (e) { return false; } };
+  if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') return S;
+  const R = window.__my3d2dgeReplay || null;
+  if (!R && !(S.wanted() || /[?&]record=1\b/.test(location.search))) return S;
+  S.recording = !R; S.replaying = !!R;
+  // the session's record. Events are arrays: [frame, type, target, ...the fields SCHEMA names for their kind]
+  const SCHEMA = { key: 'code key repeat mods', pointer: 'pointerId pointerType button buttons clientX clientY isPrimary mods movementX movementY pressure',
+    wheel: 'deltaX deltaY deltaMode clientX clientY mods', mouse: 'button buttons clientX clientY detail mods', value: 'value checked',
+    resize: 'innerWidth innerHeight devicePixelRatio safeTop safeRight safeBottom safeLeft', hidden: 'hidden', fullscreen: 'on', capture: 'pointerId pointerType', plain: '' };
+  const KIND = { keydown: 'key', keyup: 'key', pointerdown: 'pointer', pointermove: 'pointer', pointerup: 'pointer', pointercancel: 'pointer', wheel: 'wheel',
+    click: 'mouse', dblclick: 'mouse', contextmenu: 'mouse', input: 'value', change: 'value', resize: 'resize', visibilitychange: 'hidden',
+    fullscreenchange: 'fullscreen', webkitfullscreenchange: 'fullscreen', gotpointercapture: 'capture', lostpointercapture: 'capture', blur: 'plain', focus: 'plain', cancel: 'plain' };
+  const ON_DOC = ['visibilitychange', 'fullscreenchange', 'webkitfullscreenchange'];
+  const realNow = performance.now.bind(performance), realDate = Date.now, realRAF = requestAnimationFrame.bind(window);
+  const realMM = window.matchMedia ? matchMedia.bind(window) : null, realGP = navigator.getGamepads ? navigator.getGamepads.bind(navigator) : null;
+  const fixed = (o, k, v) => { try { Object.defineProperty(o, k, { value: v, configurable: true, writable: true }); } catch (e) { /* read-only here */ } };
+  const getter = (o, k, f) => { try { Object.defineProperty(o, k, { get: f, configurable: true }); } catch (e) { /* read-only here */ } };
+  const insets = () => {   // the safe-area insets (a phone's notch and home bar), read the way a page reads them
+    if (!document.body) return [0, 0, 0, 0];
+    const p = document.createElement('div'); p.style.cssText = 'position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.body.appendChild(p); const c = getComputedStyle(p), v = [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseFloat(x) || 0); p.remove(); return v;
+  };
+  const rec = R || { format: 'my3d2dge-session', v: 1, version: E.version, build: E.build, href: location.pathname + location.search + location.hash,
+    started: new Date(realDate()).toISOString(), ua: navigator.userAgent, seed: (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0) || 1, clock0: realNow(), epoch0: realDate() - realNow(),
+    env: { innerWidth, innerHeight, devicePixelRatio: window.devicePixelRatio || 1, safe: null, media: {}, fullscreenEnabled: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) },
+    storage: [], frames: [], events: [], pads: [], checks: [], schema: SCHEMA };
+  if (!R) try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); rec.storage.push([k, localStorage.getItem(k)]); } } catch (e) { /* no storage */ }
+  else try { localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(k, v); } catch (e) { /* no storage */ }
+  S.data = rec;
+  // the same math everywhere: + - * / and sqrt are exact in every JavaScript engine, but sin, cos, pow and the rest may
+  // differ in their last bit between browsers (an iPhone's Safari and Chromium use different libraries), and a game
+  // grows that bit into a different fight. While recording and replaying they are these, built from exact operations
+  // only (fdlibm's algorithms, the ones Chromium's own are derived from), so a session plays the same in any browser.
+  S.math = PORTABLE_MATH;
+  for (const k in PORTABLE_MATH) Math[k] = PORTABLE_MATH[k];
+  // the same random numbers, counted (the count is part of the checksum: a draw too many shows at once)
+  let draws = 0; const rnd = rng(rec.seed);
+  Math.random = () => { draws++; return rnd(); };
+  // one clock: the current display frame's time, the same in the recording and the replay
+  let clock = rec.clock0;
+  fixed(performance, 'now', () => clock);
+  Date.now = () => Math.floor(rec.epoch0 + clock);
+  fixed(navigator, 'gpu', undefined);   // GPU lighting starts up on real time; the canvas lighting is the same everywhere
+  // the media queries the game asks (touch screen or not, reduced motion) answer as they did on the device
+  if (realMM) window.matchMedia = q => {
+    const m = realMM(q);
+    if (!R) { if (!(q in rec.env.media)) rec.env.media[q] = m.matches; return m; }
+    return q in R.env.media ? new Proxy(m, { get: (t, k) => k === 'matches' ? R.env.media[q] : typeof t[k] === 'function' ? t[k].bind(t) : t[k] }) : m;
+  };
+  // gamepads: each reading the game takes, stored when it changes, given back reading by reading
+  let gpCalls = 0, gpLast = '', gpAt = 0, gpCur = [];
+  const padSnap = pads => Array.from(pads || []).filter(Boolean).map(p => [p.index, p.id, p.connected !== false ? 1 : 0, Array.from(p.axes), p.buttons.map(b => [b.pressed ? 1 : 0, b.value])]);
+  const padObj = s => ({ index: s[0], id: s[1], connected: !!s[2], mapping: 'standard', timestamp: 0, axes: s[3].slice(), buttons: s[4].map(b => ({ pressed: !!b[0], touched: !!b[0], value: b[1] })) });
+  if (realGP) fixed(navigator, 'getGamepads', () => {
+    if (!R) { const pads = realGP(), snap = padSnap(pads), k = JSON.stringify(snap); if (k !== gpLast) { rec.pads.push([gpCalls, snap]); gpLast = k; } gpCalls++; return pads; }
+    while (gpAt < R.pads.length && R.pads[gpAt][0] <= gpCalls) gpCur = R.pads[gpAt++][1].map(padObj);
+    gpCalls++; return gpCur;
+  });
+  // a target as a path from the nearest element with an id: '#screen', 'body>3>0', 'w' (window), 'd' (document)
+  const pathOf = t => {
+    if (t === window || !t || !t.nodeType) return 'w';
+    if (t === document) return 'd';
+    const idx = []; let el = t;
+    while (el && !el.id && el !== document.body && el !== document.documentElement && el.parentNode) { idx.unshift(Array.prototype.indexOf.call(el.parentNode.children, el)); el = el.parentNode; }
+    return (el && el.id ? '#' + el.id : el === document.documentElement ? 'html' : 'body') + (idx.length ? '>' + idx.join('>') : '');
+  };
+  const atPath = p => {
+    if (p === 'w') return window; if (p === 'd') return document;
+    const [base, ...idx] = p.split('>'); let el = base[0] === '#' ? document.getElementById(base.slice(1)) : base === 'html' ? document.documentElement : document.body;
+    for (const i of idx) el = el && el.children[+i];
+    return el || null;
+  };
+  const mods = e => (e.shiftKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.altKey ? 4 : 0) | (e.metaKey ? 8 : 0);
+  const fields = (kind, e) => kind === 'key' ? [e.code, e.key, e.repeat ? 1 : 0, mods(e)]
+    : kind === 'pointer' ? [e.pointerId, e.pointerType, e.button, e.buttons, e.clientX, e.clientY, e.isPrimary ? 1 : 0, mods(e), e.movementX || 0, e.movementY || 0, e.pressure || 0]
+    : kind === 'wheel' ? [e.deltaX, e.deltaY, e.deltaMode, e.clientX, e.clientY, mods(e)]
+    : kind === 'mouse' ? [e.button, e.buttons, e.clientX, e.clientY, e.detail, mods(e)]
+    : kind === 'value' ? [e.target.value === undefined ? null : e.target.value, e.target.checked ? 1 : 0]
+    : kind === 'resize' ? [innerWidth, innerHeight, window.devicePixelRatio || 1, ...insets()]
+    : kind === 'hidden' ? [document.hidden ? 1 : 0]
+    : kind === 'fullscreen' ? [document.fullscreenElement || document.webkitFullscreenElement ? 1 : 0]
+    : kind === 'capture' ? [e.pointerId, e.pointerType] : [];
+  // only what came from the person (or the device): a page's own events happen again by themselves in the replay
+  const wanted = e => KIND[e.type] && e.isTrusted && ((e.type !== 'blur' && e.type !== 'focus') || e.target === window);
+  const mm = a => ({ shiftKey: !!(a & 1), ctrlKey: !!(a & 2), altKey: !!(a & 4), metaKey: !!(a & 8) });
+  // checksums: the frame, the draws, the game's time, camera and scene, and whatever game.stateHash() adds
+  const checksum = () => {
+    const g = E.current, parts = [S.frame, draws];
+    if (g) { parts.push(g.time, g.cam.x, g.cam.y, g.sceneName || ''); if (typeof g.stateHash === 'function') try { parts.push(...[].concat(g.stateHash())); } catch (e) { parts.push('stateHash threw'); } }
+    let h = 2166136261; const s = parts.map(String).join('|');
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    return h >>> 0;
+  };
+  // the frame loop: requestAnimationFrame callbacks run with the frame's time, the same way in both
+  let queue = [], ids = 0, pending = false;
+  window.requestAnimationFrame = cb => { const id = ++ids; queue.push([id, cb]); if (!R && !pending) { pending = true; realRAF(tick); } return id; };
+  window.cancelAnimationFrame = id => { queue = queue.filter(q => q[0] !== id); };
+  const CHECKS = R ? new Map(R.checks) : null;
+  S.checked = 0;
+  const compare = (frame, want) => { S.checked++; if (want !== checksum() && S.diverged === undefined) S.diverged = frame; };
+  const runFrame = ts => {
+    clock = ts; const q = queue; queue = [];
+    for (const [, cb] of q) try { cb(ts); } catch (e) { setTimeout(() => { throw e; }); }
+    S.frame++;
+    if (!R) { if (S.frame % 60 === 0) rec.checks.push([S.frame, checksum()]); }
+    else if (CHECKS.has(S.frame)) compare(S.frame, CHECKS.get(S.frame));
+  };
+  function tick(ts) { pending = false; rec.frames.push(ts); runFrame(ts); }
+  if (!R) {
+    // RECORDING: every wanted event, with the number of frames run before it
+    const log = e => { if (wanted(e)) rec.events.push([S.frame, e.type, pathOf(e.target), ...fields(KIND[e.type], e)]); };
+    for (const t in KIND) (ON_DOC.includes(t) ? document : window).addEventListener(t, log, { capture: true });
+    const first = () => { rec.env.safe = insets(); };
+    if (document.body) first(); else addEventListener('DOMContentLoaded', first);
+    S.frames = () => rec.frames.length;
+    /** the session so far, as JSON */
+    S.save = () => JSON.stringify(Object.assign({}, rec, { saved: new Date(realDate()).toISOString(), final: [S.frame, checksum()] }));   // final: after the inputs that came after the last frame
+    /** offer the session as a file: the share sheet on a phone, a download elsewhere */
+    S.share = (name = 'session-' + new Date(realDate()).toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json') => {
+      const file = new File([S.save()], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], title: name }).catch(() => {});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      return Promise.resolve();
+    };
+    return S;
+  }
+  // REPLAYING: the page sees only the recorded events, the recorded screen and the recorded device
+  for (const t in KIND) (ON_DOC.includes(t) ? document : window).addEventListener(t, e => { if (e.isTrusted && wanted(e)) e.stopImmediatePropagation(); }, { capture: true });
+  window.AudioContext = window.webkitAudioContext = undefined;
+  let hidden = false, fs = false, safe = R.env.safe || [0, 0, 0, 0];
+  getter(document, 'hidden', () => hidden); getter(document, 'visibilityState', () => hidden ? 'hidden' : 'visible');
+  getter(document, 'fullscreenElement', () => fs ? document.documentElement : null); getter(document, 'webkitFullscreenElement', () => fs ? document.documentElement : null);
+  getter(document, 'fullscreenEnabled', () => R.env.fullscreenEnabled); getter(document, 'webkitFullscreenEnabled', () => R.env.fullscreenEnabled);
+  Element.prototype.requestFullscreen = Element.prototype.webkitRequestFullscreen = function () { return Promise.resolve(); };
+  document.exitFullscreen = document.webkitExitFullscreen = () => Promise.resolve();
+  Element.prototype.setPointerCapture = Element.prototype.releasePointerCapture = function () {};
+  // elements padded by env(safe-area-inset-*) report the device's insets (a headless browser has none)
+  const realGCS = window.getComputedStyle.bind(window), PADS = ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'], PADC = ['padding-top', 'padding-right', 'padding-bottom', 'padding-left'];
+  window.getComputedStyle = (el, ps) => {
+    const cs = realGCS(el, ps);
+    if (!el || !el.style || !/safe-area-inset/.test(el.style.cssText)) return cs;
+    return new Proxy(cs, { get: (t, k) => {
+      if (PADS.includes(k)) return safe[PADS.indexOf(k)] + 'px';
+      if (k === 'getPropertyValue') return n => PADC.includes(n) ? safe[PADC.indexOf(n)] + 'px' : t.getPropertyValue(n);
+      const v = t[k]; return typeof v === 'function' ? v.bind(t) : v;
+    } });
+  };
+  let at = 0;
+  S.missing = 0;
+  const dispatch = ev => {
+    const [, type, path, ...a] = ev, kind = KIND[type], t = atPath(path);
+    if (!t) { S.missing++; return; }
+    const base = { bubbles: !['blur', 'focus', 'cancel'].includes(type), cancelable: true, composed: true };
+    if (kind === 'key') t.dispatchEvent(new KeyboardEvent(type, Object.assign(base, { code: a[0], key: a[1], repeat: !!a[2] }, mm(a[3]))));
+    else if (kind === 'pointer') t.dispatchEvent(new PointerEvent(type, Object.assign(base, { pointerId: a[0], pointerType: a[1], button: a[2], buttons: a[3], clientX: a[4], clientY: a[5], isPrimary: !!a[6], movementX: a[8], movementY: a[9], pressure: a[10] }, mm(a[7]))));
+    else if (kind === 'wheel') t.dispatchEvent(new WheelEvent(type, Object.assign(base, { deltaX: a[0], deltaY: a[1], deltaMode: a[2], clientX: a[3], clientY: a[4] }, mm(a[5]))));
+    else if (kind === 'mouse') {
+      if (type === 'click' && t.tagName === 'INPUT' && /^(checkbox|radio)$/.test(t.type)) return;   // its input and change events carry the new state
+      t.dispatchEvent(new MouseEvent(type, Object.assign(base, { button: a[0], buttons: a[1], clientX: a[2], clientY: a[3], detail: a[4] }, mm(a[5]))));
+    }
+    else if (kind === 'value') { if ('value' in t && a[0] !== null) t.value = a[0]; if ('checked' in t) t.checked = !!a[1]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'resize') { safe = a.slice(3, 7); t.dispatchEvent(new Event(type)); }
+    else if (kind === 'hidden') { hidden = !!a[0]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'fullscreen') { fs = !!a[0]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'capture') t.dispatchEvent(new PointerEvent(type, Object.assign(base, { pointerId: a[0], pointerType: a[1] })));
+    else t.dispatchEvent(type === 'blur' || type === 'focus' ? new FocusEvent(type) : new Event(type, base));
+  };
+  /**
+   * replay n frames: each frame's events, then its callbacks at its time. Returns { frame, frames, diverged, resize, done }:
+   * resize = [w, h, dpr] asks the driver (tools/replay.mjs) to set the screen to the recorded size before going on
+   */
+  S.step = n => {
+    for (let i = 0; i < n && S.frame < R.frames.length; i++) {
+      while (at < R.events.length && R.events[at][0] <= S.frame) {
+        const ev = R.events[at];
+        if (ev[1] === 'resize' && (innerWidth !== ev[3] || innerHeight !== ev[4]) && !S._sized) { S._sized = true; return { frame: S.frame, frames: R.frames.length, resize: [ev[3], ev[4], ev[5]] }; }
+        S._sized = false; at++; dispatch(ev);
+      }
+      runFrame(R.frames[S.frame]);
+    }
+    const done = S.frame >= R.frames.length;
+    if (done && !S._final) {   // the inputs after the last frame, then the checksum taken when the session was saved
+      S._final = true; while (at < R.events.length) dispatch(R.events[at++]);
+      if (R.final) compare(R.final[0], R.final[1]);
+    }
+    return { frame: S.frame, frames: R.frames.length, events: at, checked: S.checked, diverged: S.diverged, missing: S.missing, done };
+  };
+  S.frames = () => R.frames.length;
+  return S;
+})();
+E.session = SESSION;
 
 root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);

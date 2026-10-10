@@ -75,9 +75,9 @@ const LABS = {
       "entries": [
         {
           "page": "animation-studio",
-          "title": "Animation Studio",
-          "what": "Create an animation, use a library clip, and edit readable key poses while both rigs play. Timeline, pose controls, live JSON, undo, and game exports. Run npm run animation:studio for live LLM edits through MCP or a watched project file.",
-          "links": [["Open editor", ""], ["Side view", "?view=side"], ["Game hero", "?cast=hero"]]
+          "title": "Asset Studio",
+          "what": "Create animations, reusable part models, procedural textures, placed objects and tile levels. Animation and Scene share live JSON, undo and exports. Play the level or inspect a frame strip. Run npm run asset:studio for live LLM edits through MCP or a watched project file.",
+          "links": [["Open editor", ""], ["Scene", "?workspace=scene"], ["Side view", "?view=side"], ["Game hero", "?cast=hero"]]
         },
         {
           "page": "mocap-lab",
@@ -195,7 +195,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Developer panel.');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.16.0 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.18.0 · dev-build', foot);
 </script>
 </body>
 </html>

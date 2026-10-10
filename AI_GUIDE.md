@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.16.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.18.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -178,7 +178,7 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
   - You own the timing: move `phase` from `'wind'` to `'active'` to `'recover'` with your own timers, and pass `u` (0 to 1) within the phase.
   - `spec.a0` / `a1` are hand angles relative to facing; `z0` / `z1` are heights.
   - `spin: true` swings a full circle, `kick: true` swings the right foot, `blade: 0` hides the smear.
-- `hand()` and `tip()` give world points for spawning bullets or sparks. `debug(r)` draws the skeleton.
+- `hand()` and `tip()` give world points for spawning bullets or sparks; `worldOffset(p)` gives where any point in the rig's own frame (a joint in `J`) sits from its feet. `debug(r)` draws the skeleton.
 
 ### Audio
 - Browsers start sound only after the first key press or click; the engine waits for it.
@@ -210,6 +210,34 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
   - uneven level rows and non-hex colors;
   - lights with bad numbers, and PlatformMaps drawn in the wrong view.
 - The checker prints them all.
+
+### Recorded sessions (a bug from a phone, replayed exactly)
+- `E.session.record(true)` turns recording on for every later page load (`?record=1` does it for one load). It starts before the game's code and keeps everything a game's next frame depends on:
+  - a seed for `Math.random`;
+  - each display frame's time (`performance.now` and `Date.now` read it during that frame);
+  - every input and the frame it arrived before: keys, pointer and touch, wheel, clicks and form edits, focus, visibility, resize, full screen;
+  - gamepad readings, the media queries the game asked, the safe-area insets, the screen, and the save (`localStorage`) at the start;
+  - a checksum every 60 frames.
+- `E.session.share()` saves the session: the share sheet on a phone, a download elsewhere. In Emberdeep it is Developer → Guide → Record a session.
+- `node tools/replay.mjs session.json` replays it in headless Chromium at the recorded screen size, frame by frame, and reports the first checksum that differs. Useful options:
+  - `--to 1800` stops at a frame; `--shots 600,1200` saves screenshots;
+  - `--log "__ed.ED.hero"` prints any state at the end;
+  - `--page` replays on another page. Fix the bug, rebuild, and replay the same session to see it gone.
+- `game.stateHash = () => [hero.x, hero.y, hero.hp, foes.length]` adds a game's own state to the checksum, so a replay stops at the first frame where that state differs.
+- Why it works: the loop splits each frame's time into equal steps, so the same frame times, inputs and seed give the same game.
+- Any browser: while recording and replaying, `Math.sin`, `cos`, `tan`, `atan`, `atan2`, `asin`, `acos`, `exp`, `log`, `log2`, `log10`, `pow`, `hypot` and `cbrt` are the engine's portable versions (`E.session.math`).
+  - Browsers may round these differently in the last bit: an iPhone's Safari and Chromium use different libraries.
+  - The portable versions are built only from `+ - * /` and `sqrt`, which are exact everywhere.
+  - So a session recorded in one browser replays in another bit for bit.
+  - `sin`, `cos`, `atan`, `atan2`, `exp` and `log` are fdlibm's algorithms, the same bits as Chromium's own.
+  - The others are within a few units in the last place.
+  - `node tools/cross-engine-math.cjs` checks this in Safari's own engine. It runs the same code in V8 and in JavaScriptCore, through Bun (`BUN=/path/to/bun`).
+  - Native math gives different bits in the two engines, and so does a Humanoid animated with it.
+  - The portable math, and the same Humanoid with it, give the same bits in both.
+- Limits:
+  - the GPU lighting is off while recording, because it starts up on real time;
+  - a session is one page load;
+  - replay on the build it was recorded on: its version and build are in the file.
 
 ## Genre recipes
 
@@ -303,6 +331,8 @@ The engine files carry the engine; the repo (github.com/michaelcrosato/my-3d2dge
 - **Edit** it: a clip is text. Change a key pose's numbers to fix or vary it (the Mocap Lab's AI panel shows a clip as text and plays an edit).
 
 **Live animation authoring** (`docs/ANIMATION-STUDIO.md`): `npm run animation:studio` opens a shared project with a live browser preview. Connect an MCP client to `tools/animation-mcp.mjs`, or edit `.animation-studio/project.json`. Start with `animation_get` and `includeSchema: true`. Create motion, copy a library clip, edit keys, then inspect exact-time images with `animation_capture`. Export a native set with its reference bodies and source records.
+
+**Live assets and levels** (`docs/ASSET-STUDIO.md`): the same server and MCP process also edit procedural materials, part models, placed objects, and tile levels. Open `/asset-studio` or choose **Scene**. Read `scene_get` and `asset_catalog` with `includeSchema: true`; use IDs to inspect one record. Send `scene_edit` with the current `expectedRevision` and 1 to 100 actions. A batch makes one Undo step; add `capture` for a PNG in the same reply. Scene actors use the project's animation clips. Use `scene_preview` to direct the human's view and `scene_export` for readable JSON or a playable HTML page.
 
 **Worked examples** (`src/emberdeep/`, `src/emberdeep/DESIGN.md`): Emberdeep registers every part on one line, so one search lists them all: `grep -nE "def\(['\"](archetypes|characters|skills)" src/emberdeep/*.js` gives the 28 monster, boss and dummy bodies (with tags: beast, spider, flying, ranged...), the 3 heroes and the skills (Codex's six come from one helper in `29-codex-skills.js`). Bodies that are not people are classes: `grep -n "^class " src/emberdeep/*.js` (an eight-legged crawler with IK legs, a burrowing serpent, a floating eye with a beam, Codex the living book, Dan the scythed beast on reverse-kneed legs). They lean on the game's helpers and shared state, so adapt them rather than paste them; `docs/CHARACTERS.md` is the recipe for a new body and what makes one read at game scale.
 

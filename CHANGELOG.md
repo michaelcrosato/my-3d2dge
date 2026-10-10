@@ -5,14 +5,61 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
-## 0.16.0 (2026-10-10)
+## 0.18.0 (2026-10-10)
 
 - **Animation**: Animation Studio creates original clips and copies existing motion into a project. Pose controls, a timeline, and live JSON edit the same readable keys. Both the source mannequin and game hero show the result in five views, with frame stepping and a bone overlay.
+- **Art**: Asset Studio adds procedural materials and textures, reusable models made from boxes, wedges and cylinders, placed objects, and tile levels. Courtyard and empty presets use readable JSON. Material and model edits update every instance that uses them.
+- **Animation**: Placed actors use the shared project's clips. Clip renames update their references; deleting a clip still used by an actor fails without changing the project. Old animation projects gain an optional assets section only after the first asset edit.
 - **Tools**: `npm run animation:studio` starts a local server with live updates, a watched JSON project, atomic saves, revision checks, and undo/redo. The MCP adapter lets an LLM inspect, create, edit, preview, capture, and export animations. Frame strips use a separate browser so the user's preview stays in place.
+- **Tools**: Six asset MCP tools add compact scene reads, schema discovery, atomic batches of up to 100 edits, preview control, captures, and exports. An edit can return its resulting PNG in the same call; captures keep a fixed revision and reuse the browser process. `asset:studio` and `asset:mcp` are aliases for the shared local tools.
+- **Tools**: The Scene workspace adds object selection, transforms, tile painting, material controls, live JSON, five camera views, and a playable level preview. Animation and scene edits share file saves and Undo/Redo. Export a level as readable JSON or a self-contained HTML page.
 - **Tools**: Shared model, HTTP/MCP, and browser checks cover native clip compatibility, invalid edits, concurrent revisions, file changes, and repeated image capture. The studio suite is part of `test:changed` and `npm test`.
-- **Tools**: Character movement tests wait for the arrival to finish and measure held input with the game clock. Dodge checks wait for actual start and end states, so slow browser rendering does not shorten the tested action.
+- **Tools**: `test:assets` checks atomic asset edits, references, level painting, live HTTP/MCP updates, captures, play mode, and exports. The assets suite runs for shared studio changes, and asset sources also select the existing animation regression suite.
+- **Tools**: Character movement tests wait for the arrival to finish and measure held input with the game clock. Dodge checks wait for actual start and end states, so slow browser rendering does not shorten the tested action. The inventory check waits for the new town to enter after leaving the developer sandbox, so a fade cannot consume the test's key press. Changes to the shared character checks also select the new-character template suite.
 - **Tools**: The documentation path check distinguishes a full JSON path from a bare motion catalog name.
 - **Docs**: The Animation Studio guide includes setup, MCP configuration, the edit-and-inspect workflow, file and HTTP access, and exports. The Labs page links to the editor. The hosted page works as a standalone editor; live LLM access uses the local server.
+- **Docs**: The Asset Studio guide, README, and agent guide explain the shared prompt-to-preview workflow. The existing Labs entry now links to both workspaces; `/asset-studio` opens Scene in the same built page. Decision D17 records the readable asset extension.
+
+## 0.17.2 (2026-10-10)
+
+The portable math checked in Safari's own engine.
+
+- **Tools**: `tools/cross-engine-math.cjs` (`npm run test:cross-engine`; needs Bun, `BUN=/path/to/bun`) runs the same code in V8 and in JavaScriptCore, Safari's engine. With native math the two engines gave different bits, both for 2.8 million math results and for the engine's Humanoid animated for 3,000 steps. With the portable math they gave the same bits for both, so a session recorded in Safari replays in Chromium as it played. Without Bun it says so and passes.
+- **Docs**: `AI_GUIDE.md` (recorded sessions); `docs/DECISIONS.md` D15 records the result.
+
+## 0.17.1 (2026-10-10)
+
+A session recorded in any browser replays in Chromium bit for bit: an iPhone's Safari included.
+
+- **Engine**: portable math while recording and replaying (`E.session.math`). `Math.sin`, `cos`, `tan`, `atan`, `atan2`, `asin`, `acos`, `exp`, `log`, `log2`, `log10`, `pow`, `hypot` and `cbrt` are built from exact operations only, so browsers that round these differently in the last bit (Safari and Chromium do) play a session the same. `sin`, `cos`, `atan`, `atan2`, `exp` and `log` follow fdlibm and give Chromium's own bits on every one of 200,000 random inputs each; large angles stay exact to about 1e12. Outside a session the browser's own are used.
+- **Tools**: `tools/replay-test.mjs` records Emberdeep in a browser whose own math is one unit in the last place off everywhere and replays it in Chromium: every checksum matches (without the portable math, the same session diverges at its first checksum).
+- **Docs**: `AI_GUIDE.md`, `API.md`, the engine's section 23, `DOCTRINE.md`; `docs/DECISIONS.md` D15.
+
+## 0.17.0 (2026-10-10)
+
+Play sessions recorded on any device replay exactly in a headless browser, so a bug seen on a phone happens again where an agent can look at it.
+
+- **Engine**: `E.session` (section 23). `E.session.record(true)` records every later page load (`?record=1` for one): a seed for `Math.random`, every display frame's time (the clock reads it during the frame), every input from the person or the device with the frame it arrived before (keys, pointer and touch, wheel, clicks and form edits, focus, visibility, resize, full screen), gamepad readings, the media queries the game asked, the safe-area insets, the screen and the save at the start, and a checksum every 60 frames. `E.session.save()` gives the JSON, `E.session.share()` the share sheet on a phone or a download elsewhere. `game.stateHash = () => [...]` adds a game's own state to the checksum. While recording, the GPU lighting is off and update/draw timings read 0 ms.
+- **Emberdeep**: Developer → Guide → Record a session: turn recording on, see how long this session has run, save it for a bug report. Its checksum includes the hero, the level and the crowd.
+- **Tools**: `tools/replay.mjs` (`npm run replay -- session.json`) replays a session in headless Chromium at the recorded screen, frame by frame, with `--to`, `--shots`, `--log` and `--page`, and reports the first checksum that differs. `tools/replay-test.mjs` (`npm run test:replay`, a suite of `npm test` and `test:changed`): sessions recorded in real time at a desk and on a phone by touch in Emberdeep, and in a starter game, replay with every checksum matching and the same end state; a session with one key press taken out diverges.
+- **Docs**: `API.md`, `AI_GUIDE.md` ("Recorded sessions"), `README.md`, the engine's header and `CLAUDE.md` say how to record and replay; the agent edition's header says the full engine has it. `DOCTRINE.md` marks replay done; `docs/DECISIONS.md` D14 (D12 points to it).
+
+## 0.16.1 (2026-10-10)
+
+Escalation by what a revert can undo.
+
+- **Docs**: `DOCTRINE.md` and `CLAUDE.md`: in the engine tier a reversible call (anything a revert undoes) is made at once, in its own commit, flagged in the pull request and logged; only a call that reaches outside the repository or can't be reverted waits on the 15-minute wake-up timer. `docs/DECISIONS.md` D13; D11 points to it.
+
+## 0.16.0 (2026-10-10)
+
+The agent edition catches up with the full engine, a joint's position gets a public name, and sound stops shifting the game's random numbers.
+
+- **Animation** (agent edition): a motion clip now turns the face, belt and toes with the body and the head, as in the full engine (`Humanoid._offsets`: a cartwheel goes upside down, the face follows the clip's head), and the cape trails behind the body's turn, not its facing alone. Both reached the full engine on 2026-10-06, after the agent edition was cut from it, and were never ported.
+- **Engine**: `rig.worldOffset(p)`, in both editions: where a point in the rig's own frame (a joint in `rig.J`, or one offset from it) sits from its feet. It is what the private `rig._w` did; the starter games and the arena use the public name now, so models that copy them learn it. `API.md`, `AI_GUIDE.md` and the agent edition's header document it.
+- **Engine** (agent edition): `cam.offset`, where the camera's focus sits on screen ([0, -40] keeps it above on-screen buttons), as in the full engine.
+- **Engine**: the chip synth draws its own random numbers (both editions). It drew from `Math.random` only while sound existed, ran unmuted and wasn't throttled, so sound shifted every random number the game drew after it; now the same seed and inputs play the same game with sound on, off or muted.
+- **Docs**: `DOCTRINE.md` and `CLAUDE.md`: an escalation arms a 15-minute wake-up timer (`send_later` in cloud sessions) and keeps working; a deviation with a case is welcome. `docs/DECISIONS.md` D10 (the owner kept D3 to D6), D11 (the timer) and D12 (replaying recorded sessions: the plan, and its trigger); D4 and D6 point to what changed.
+- **Tools**: `tools/doctrine-check.mjs` no longer grandfathers `_w` in the starters and the arena, and points a new use of it at `rig.worldOffset(p)`.
 
 ## 0.15.0 (2026-10-10)
 
