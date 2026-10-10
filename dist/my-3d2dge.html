@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.16.1 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.17.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and five working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.16.1)
+# my-3D2dge API card (v0.17.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -113,6 +113,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - Methods: `follow(obj, { z: 16, lead: 20 })` (camera tracks it automatically), `focus(x, y, z)` (or aim it yourself every update), `setView(id)`, `nextView()`, `freeze(s)` (hit-stop), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
 - Fields: `W`, `H` (screen pixels), `time`, `real`, `timeScale` (0.25 = slow motion), `paused`, `input`, `audio`, `particles`, `lights`, `view`, `errors`, `cam`.
 - Camera zoom and turn: `game.setZoom(1.5)` (.5 .. 3; everything drawn by the engine re-rasterizes crisply, the HUD stays), `game.rotateView(45)` (ground views only), `game.resetCamera()`, `game.zoom`, `game.yaw`, `game.note('ZOOM 2x')` (a short notice at the top of the screen). Custom painters can read `r.view.zoom` (undefined at 1x) to scale their own art. The starter binds `-` / `=` / mouse wheel to zoom, `[` / `]` to turn and `0` to reset; a scene limits it with `camera: { zoom: [.75, 2] | false, rotate: true }`.
+- Sessions: `E.session.record(true)` records every later page load (or `?record=1` for one): frame times, inputs, the random seed, the screen and the save. `E.session.share()` saves it as a file, and `node tools/replay.mjs session.json --shots 600` replays it headless, exactly, and stops at the first frame that differs. `game.stateHash = () => [hero.x, hero.y, hp]` sharpens that check.
 - Camera: `cam.offset = [dx, dy]` sits the focus that many screen pixels from the centre (above a phone's touch buttons: `[0, -60]`); `cam.bounds = v => map.bounds(v)` keeps it inside the level (in side views a level shorter than the screen sits on the bottom edge; `cam.align = 'center'` to change); `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds (0 = locked to the target, no lag).
 
 ## Scenes (title, play, game over)
@@ -282,7 +283,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.16.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.17.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -325,6 +326,9 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
  * 9. GPU LIGHTING is optional: game.enableGPU({ map }). Mark glowing things with
  *    px.glow(g, 1) inside queue callbacks, pass { color, shadow } to lights.add, and
  *    register shadow casters with game.lights.caster(). Falls back to Canvas lighting.
+ * 10. SESSIONS. E.session.record(true) records every later page load (or ?record=1 for one): the frame times, the
+ *    inputs, the random seed, the screen and the save. E.session.share() saves it as a file; node tools/replay.mjs
+ *    plays it back headless, exactly, and stops where it differs (game.stateHash = () => [...] sharpens that).
  * Errors in your game are shown on screen and in the console (game.errors).
  * The compact API card is API.md (also embedded in the single-file edition).
  * See AI_GUIDE.md in the repo for the full guide and recipes.
@@ -341,7 +345,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.16.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.17.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -4936,6 +4940,210 @@ class GPULighting {
   }
 }
 E.GPULighting = GPULighting;
+
+/* =============================================================================
+ * 23. SESSIONS  record a play session on any device, replay it exactly in a headless browser
+ *    E.session.record(true) (or ?record=1 for one load) records from the next page load on, starting before the game's
+ *    code, so it sees all the game sees: a seed for Math.random, every display frame's time (performance.now and
+ *    Date.now read that time during the frame), every input event and the frame it arrived before (keys, pointer,
+ *    wheel, clicks and form edits, focus, visibility, resize, full screen), gamepad readings, the media queries the game
+ *    asked, the safe-area insets, the screen's size and the save (localStorage) at the start, plus a checksum every 60
+ *    frames. E.session.save() returns it as JSON; E.session.share() hands it to the phone's share sheet (or downloads
+ *    it). node tools/replay.mjs session.json plays it back headless, frame by frame, and stops at the first checksum
+ *    that differs; game.stateHash = () => [numbers] makes the checksum sharper. The engine's loop needs nothing else:
+ *    the same frame times, inputs and seed give the same game (docs/DECISIONS.md, D12).
+ *    While recording, GPU lighting stays off (it starts up on real time) and update/draw timings read 0 ms.
+ * ============================================================================= */
+const SESSION = (() => {
+  const S = { recording: false, replaying: false, frame: 0 };
+  /** turn recording on or off for the next page loads (each load is a session of its own) */
+  S.record = on => { try { if (on) localStorage.setItem('my3d2dge:record', '1'); else localStorage.removeItem('my3d2dge:record'); } catch (e) { /* no storage */ } return !!on; };
+  S.wanted = () => { try { return localStorage.getItem('my3d2dge:record') === '1'; } catch (e) { return false; } };
+  if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') return S;
+  const R = window.__my3d2dgeReplay || null;
+  if (!R && !(S.wanted() || /[?&]record=1\b/.test(location.search))) return S;
+  S.recording = !R; S.replaying = !!R;
+  // the session's record. Events are arrays: [frame, type, target, ...the fields SCHEMA names for their kind]
+  const SCHEMA = { key: 'code key repeat mods', pointer: 'pointerId pointerType button buttons clientX clientY isPrimary mods movementX movementY pressure',
+    wheel: 'deltaX deltaY deltaMode clientX clientY mods', mouse: 'button buttons clientX clientY detail mods', value: 'value checked',
+    resize: 'innerWidth innerHeight devicePixelRatio safeTop safeRight safeBottom safeLeft', hidden: 'hidden', fullscreen: 'on', capture: 'pointerId pointerType', plain: '' };
+  const KIND = { keydown: 'key', keyup: 'key', pointerdown: 'pointer', pointermove: 'pointer', pointerup: 'pointer', pointercancel: 'pointer', wheel: 'wheel',
+    click: 'mouse', dblclick: 'mouse', contextmenu: 'mouse', input: 'value', change: 'value', resize: 'resize', visibilitychange: 'hidden',
+    fullscreenchange: 'fullscreen', webkitfullscreenchange: 'fullscreen', gotpointercapture: 'capture', lostpointercapture: 'capture', blur: 'plain', focus: 'plain', cancel: 'plain' };
+  const ON_DOC = ['visibilitychange', 'fullscreenchange', 'webkitfullscreenchange'];
+  const realNow = performance.now.bind(performance), realDate = Date.now, realRAF = requestAnimationFrame.bind(window);
+  const realMM = window.matchMedia ? matchMedia.bind(window) : null, realGP = navigator.getGamepads ? navigator.getGamepads.bind(navigator) : null;
+  const fixed = (o, k, v) => { try { Object.defineProperty(o, k, { value: v, configurable: true, writable: true }); } catch (e) { /* read-only here */ } };
+  const getter = (o, k, f) => { try { Object.defineProperty(o, k, { get: f, configurable: true }); } catch (e) { /* read-only here */ } };
+  const insets = () => {   // the safe-area insets (a phone's notch and home bar), read the way a page reads them
+    if (!document.body) return [0, 0, 0, 0];
+    const p = document.createElement('div'); p.style.cssText = 'position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.body.appendChild(p); const c = getComputedStyle(p), v = [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft].map(x => parseFloat(x) || 0); p.remove(); return v;
+  };
+  const rec = R || { format: 'my3d2dge-session', v: 1, version: E.version, build: E.build, href: location.pathname + location.search + location.hash,
+    started: new Date(realDate()).toISOString(), ua: navigator.userAgent, seed: (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0) || 1, clock0: realNow(), epoch0: realDate() - realNow(),
+    env: { innerWidth, innerHeight, devicePixelRatio: window.devicePixelRatio || 1, safe: null, media: {}, fullscreenEnabled: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) },
+    storage: [], frames: [], events: [], pads: [], checks: [], schema: SCHEMA };
+  if (!R) try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); rec.storage.push([k, localStorage.getItem(k)]); } } catch (e) { /* no storage */ }
+  else try { localStorage.clear(); for (const [k, v] of R.storage) localStorage.setItem(k, v); } catch (e) { /* no storage */ }
+  S.data = rec;
+  // the same random numbers, counted (the count is part of the checksum: a draw too many shows at once)
+  let draws = 0; const rnd = rng(rec.seed);
+  Math.random = () => { draws++; return rnd(); };
+  // one clock: the current display frame's time, the same in the recording and the replay
+  let clock = rec.clock0;
+  fixed(performance, 'now', () => clock);
+  Date.now = () => Math.floor(rec.epoch0 + clock);
+  fixed(navigator, 'gpu', undefined);   // GPU lighting starts up on real time; the canvas lighting is the same everywhere
+  // the media queries the game asks (touch screen or not, reduced motion) answer as they did on the device
+  if (realMM) window.matchMedia = q => {
+    const m = realMM(q);
+    if (!R) { if (!(q in rec.env.media)) rec.env.media[q] = m.matches; return m; }
+    return q in R.env.media ? new Proxy(m, { get: (t, k) => k === 'matches' ? R.env.media[q] : typeof t[k] === 'function' ? t[k].bind(t) : t[k] }) : m;
+  };
+  // gamepads: each reading the game takes, stored when it changes, given back reading by reading
+  let gpCalls = 0, gpLast = '', gpAt = 0, gpCur = [];
+  const padSnap = pads => Array.from(pads || []).filter(Boolean).map(p => [p.index, p.id, p.connected !== false ? 1 : 0, Array.from(p.axes), p.buttons.map(b => [b.pressed ? 1 : 0, b.value])]);
+  const padObj = s => ({ index: s[0], id: s[1], connected: !!s[2], mapping: 'standard', timestamp: 0, axes: s[3].slice(), buttons: s[4].map(b => ({ pressed: !!b[0], touched: !!b[0], value: b[1] })) });
+  if (realGP) fixed(navigator, 'getGamepads', () => {
+    if (!R) { const pads = realGP(), snap = padSnap(pads), k = JSON.stringify(snap); if (k !== gpLast) { rec.pads.push([gpCalls, snap]); gpLast = k; } gpCalls++; return pads; }
+    while (gpAt < R.pads.length && R.pads[gpAt][0] <= gpCalls) gpCur = R.pads[gpAt++][1].map(padObj);
+    gpCalls++; return gpCur;
+  });
+  // a target as a path from the nearest element with an id: '#screen', 'body>3>0', 'w' (window), 'd' (document)
+  const pathOf = t => {
+    if (t === window || !t || !t.nodeType) return 'w';
+    if (t === document) return 'd';
+    const idx = []; let el = t;
+    while (el && !el.id && el !== document.body && el !== document.documentElement && el.parentNode) { idx.unshift(Array.prototype.indexOf.call(el.parentNode.children, el)); el = el.parentNode; }
+    return (el && el.id ? '#' + el.id : el === document.documentElement ? 'html' : 'body') + (idx.length ? '>' + idx.join('>') : '');
+  };
+  const atPath = p => {
+    if (p === 'w') return window; if (p === 'd') return document;
+    const [base, ...idx] = p.split('>'); let el = base[0] === '#' ? document.getElementById(base.slice(1)) : base === 'html' ? document.documentElement : document.body;
+    for (const i of idx) el = el && el.children[+i];
+    return el || null;
+  };
+  const mods = e => (e.shiftKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.altKey ? 4 : 0) | (e.metaKey ? 8 : 0);
+  const fields = (kind, e) => kind === 'key' ? [e.code, e.key, e.repeat ? 1 : 0, mods(e)]
+    : kind === 'pointer' ? [e.pointerId, e.pointerType, e.button, e.buttons, e.clientX, e.clientY, e.isPrimary ? 1 : 0, mods(e), e.movementX || 0, e.movementY || 0, e.pressure || 0]
+    : kind === 'wheel' ? [e.deltaX, e.deltaY, e.deltaMode, e.clientX, e.clientY, mods(e)]
+    : kind === 'mouse' ? [e.button, e.buttons, e.clientX, e.clientY, e.detail, mods(e)]
+    : kind === 'value' ? [e.target.value === undefined ? null : e.target.value, e.target.checked ? 1 : 0]
+    : kind === 'resize' ? [innerWidth, innerHeight, window.devicePixelRatio || 1, ...insets()]
+    : kind === 'hidden' ? [document.hidden ? 1 : 0]
+    : kind === 'fullscreen' ? [document.fullscreenElement || document.webkitFullscreenElement ? 1 : 0]
+    : kind === 'capture' ? [e.pointerId, e.pointerType] : [];
+  // only what came from the person (or the device): a page's own events happen again by themselves in the replay
+  const wanted = e => KIND[e.type] && e.isTrusted && ((e.type !== 'blur' && e.type !== 'focus') || e.target === window);
+  const mm = a => ({ shiftKey: !!(a & 1), ctrlKey: !!(a & 2), altKey: !!(a & 4), metaKey: !!(a & 8) });
+  // checksums: the frame, the draws, the game's time, camera and scene, and whatever game.stateHash() adds
+  const checksum = () => {
+    const g = E.current, parts = [S.frame, draws];
+    if (g) { parts.push(g.time, g.cam.x, g.cam.y, g.sceneName || ''); if (typeof g.stateHash === 'function') try { parts.push(...[].concat(g.stateHash())); } catch (e) { parts.push('stateHash threw'); } }
+    let h = 2166136261; const s = parts.map(String).join('|');
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    return h >>> 0;
+  };
+  // the frame loop: requestAnimationFrame callbacks run with the frame's time, the same way in both
+  let queue = [], ids = 0, pending = false;
+  window.requestAnimationFrame = cb => { const id = ++ids; queue.push([id, cb]); if (!R && !pending) { pending = true; realRAF(tick); } return id; };
+  window.cancelAnimationFrame = id => { queue = queue.filter(q => q[0] !== id); };
+  const CHECKS = R ? new Map(R.checks) : null;
+  S.checked = 0;
+  const compare = (frame, want) => { S.checked++; if (want !== checksum() && S.diverged === undefined) S.diverged = frame; };
+  const runFrame = ts => {
+    clock = ts; const q = queue; queue = [];
+    for (const [, cb] of q) try { cb(ts); } catch (e) { setTimeout(() => { throw e; }); }
+    S.frame++;
+    if (!R) { if (S.frame % 60 === 0) rec.checks.push([S.frame, checksum()]); }
+    else if (CHECKS.has(S.frame)) compare(S.frame, CHECKS.get(S.frame));
+  };
+  function tick(ts) { pending = false; rec.frames.push(ts); runFrame(ts); }
+  if (!R) {
+    // RECORDING: every wanted event, with the number of frames run before it
+    const log = e => { if (wanted(e)) rec.events.push([S.frame, e.type, pathOf(e.target), ...fields(KIND[e.type], e)]); };
+    for (const t in KIND) (ON_DOC.includes(t) ? document : window).addEventListener(t, log, { capture: true });
+    const first = () => { rec.env.safe = insets(); };
+    if (document.body) first(); else addEventListener('DOMContentLoaded', first);
+    S.frames = () => rec.frames.length;
+    /** the session so far, as JSON */
+    S.save = () => JSON.stringify(Object.assign({}, rec, { saved: new Date(realDate()).toISOString(), final: [S.frame, checksum()] }));   // final: after the inputs that came after the last frame
+    /** offer the session as a file: the share sheet on a phone, a download elsewhere */
+    S.share = (name = 'session-' + new Date(realDate()).toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json') => {
+      const file = new File([S.save()], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], title: name }).catch(() => {});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      return Promise.resolve();
+    };
+    return S;
+  }
+  // REPLAYING: the page sees only the recorded events, the recorded screen and the recorded device
+  for (const t in KIND) (ON_DOC.includes(t) ? document : window).addEventListener(t, e => { if (e.isTrusted && wanted(e)) e.stopImmediatePropagation(); }, { capture: true });
+  window.AudioContext = window.webkitAudioContext = undefined;
+  let hidden = false, fs = false, safe = R.env.safe || [0, 0, 0, 0];
+  getter(document, 'hidden', () => hidden); getter(document, 'visibilityState', () => hidden ? 'hidden' : 'visible');
+  getter(document, 'fullscreenElement', () => fs ? document.documentElement : null); getter(document, 'webkitFullscreenElement', () => fs ? document.documentElement : null);
+  getter(document, 'fullscreenEnabled', () => R.env.fullscreenEnabled); getter(document, 'webkitFullscreenEnabled', () => R.env.fullscreenEnabled);
+  Element.prototype.requestFullscreen = Element.prototype.webkitRequestFullscreen = function () { return Promise.resolve(); };
+  document.exitFullscreen = document.webkitExitFullscreen = () => Promise.resolve();
+  Element.prototype.setPointerCapture = Element.prototype.releasePointerCapture = function () {};
+  // elements padded by env(safe-area-inset-*) report the device's insets (a headless browser has none)
+  const realGCS = window.getComputedStyle.bind(window), PADS = ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'], PADC = ['padding-top', 'padding-right', 'padding-bottom', 'padding-left'];
+  window.getComputedStyle = (el, ps) => {
+    const cs = realGCS(el, ps);
+    if (!el || !el.style || !/safe-area-inset/.test(el.style.cssText)) return cs;
+    return new Proxy(cs, { get: (t, k) => {
+      if (PADS.includes(k)) return safe[PADS.indexOf(k)] + 'px';
+      if (k === 'getPropertyValue') return n => PADC.includes(n) ? safe[PADC.indexOf(n)] + 'px' : t.getPropertyValue(n);
+      const v = t[k]; return typeof v === 'function' ? v.bind(t) : v;
+    } });
+  };
+  let at = 0;
+  S.missing = 0;
+  const dispatch = ev => {
+    const [, type, path, ...a] = ev, kind = KIND[type], t = atPath(path);
+    if (!t) { S.missing++; return; }
+    const base = { bubbles: !['blur', 'focus', 'cancel'].includes(type), cancelable: true, composed: true };
+    if (kind === 'key') t.dispatchEvent(new KeyboardEvent(type, Object.assign(base, { code: a[0], key: a[1], repeat: !!a[2] }, mm(a[3]))));
+    else if (kind === 'pointer') t.dispatchEvent(new PointerEvent(type, Object.assign(base, { pointerId: a[0], pointerType: a[1], button: a[2], buttons: a[3], clientX: a[4], clientY: a[5], isPrimary: !!a[6], movementX: a[8], movementY: a[9], pressure: a[10] }, mm(a[7]))));
+    else if (kind === 'wheel') t.dispatchEvent(new WheelEvent(type, Object.assign(base, { deltaX: a[0], deltaY: a[1], deltaMode: a[2], clientX: a[3], clientY: a[4] }, mm(a[5]))));
+    else if (kind === 'mouse') {
+      if (type === 'click' && t.tagName === 'INPUT' && /^(checkbox|radio)$/.test(t.type)) return;   // its input and change events carry the new state
+      t.dispatchEvent(new MouseEvent(type, Object.assign(base, { button: a[0], buttons: a[1], clientX: a[2], clientY: a[3], detail: a[4] }, mm(a[5]))));
+    }
+    else if (kind === 'value') { if ('value' in t && a[0] !== null) t.value = a[0]; if ('checked' in t) t.checked = !!a[1]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'resize') { safe = a.slice(3, 7); t.dispatchEvent(new Event(type)); }
+    else if (kind === 'hidden') { hidden = !!a[0]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'fullscreen') { fs = !!a[0]; t.dispatchEvent(new Event(type, { bubbles: true })); }
+    else if (kind === 'capture') t.dispatchEvent(new PointerEvent(type, Object.assign(base, { pointerId: a[0], pointerType: a[1] })));
+    else t.dispatchEvent(type === 'blur' || type === 'focus' ? new FocusEvent(type) : new Event(type, base));
+  };
+  /**
+   * replay n frames: each frame's events, then its callbacks at its time. Returns { frame, frames, diverged, resize, done }:
+   * resize = [w, h, dpr] asks the driver (tools/replay.mjs) to set the screen to the recorded size before going on
+   */
+  S.step = n => {
+    for (let i = 0; i < n && S.frame < R.frames.length; i++) {
+      while (at < R.events.length && R.events[at][0] <= S.frame) {
+        const ev = R.events[at];
+        if (ev[1] === 'resize' && (innerWidth !== ev[3] || innerHeight !== ev[4]) && !S._sized) { S._sized = true; return { frame: S.frame, frames: R.frames.length, resize: [ev[3], ev[4], ev[5]] }; }
+        S._sized = false; at++; dispatch(ev);
+      }
+      runFrame(R.frames[S.frame]);
+    }
+    const done = S.frame >= R.frames.length;
+    if (done && !S._final) {   // the inputs after the last frame, then the checksum taken when the session was saved
+      S._final = true; while (at < R.events.length) dispatch(R.events[at++]);
+      if (R.final) compare(R.final[0], R.final[1]);
+    }
+    return { frame: S.frame, frames: R.frames.length, events: at, checked: S.checked, diverged: S.diverged, missing: S.missing, done };
+  };
+  S.frames = () => R.frames.length;
+  return S;
+})();
+E.session = SESSION;
 
 root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);

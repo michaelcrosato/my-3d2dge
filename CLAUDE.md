@@ -32,6 +32,7 @@ A change confined to prototypes (a Temporary lab's own sources and its `labs.jso
 - Before pushing: `npm run test:changed`. It runs the version, syntax and doctrine checks and every suite that covers a file you changed (read from git against main; a change that only bumps version numbers doesn't count), says why it chose each and how long each took. A change to the engine, the build or the dependencies runs them all. `npm run test:which` shows the choice without running it.
 - Push and merge as soon as it passes (squash merge; the Vercel preview needn't finish first). Then run the full `npm test` (every suite, about 25 minutes) in the background: a failure there is fixed forward at once, or the merge reverted. In cloud sessions `CHROMIUM_PATH` is set for you.
 - Fast ones while working: `node tools/ed-syntax.mjs --all`, `npm run version:check`, `npm run doctrine:check` (binaries, the manuals' token budgets, the API boundary, the decisions log), `node tools/check.mjs <page>`.
+- A bug report with a session file (Developer → Guide → Record a session in Emberdeep, `E.session` anywhere): `node tools/replay.mjs <file> --shots <frames> --log "<js>"` plays it back exactly, headless; replay it again after the fix.
 - Look at what you changed: read the screenshots, record a filmstrip for any animation (`node tools/filmstrip.mjs ... --seed 1`, `--compare <the page before>` to prove a change touches only what it should).
 
 ## Emberdeep

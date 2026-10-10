@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.16.1)
+# my-3D2dge API card (v0.17.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -90,6 +90,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - Methods: `follow(obj, { z: 16, lead: 20 })` (camera tracks it automatically), `focus(x, y, z)` (or aim it yourself every update), `setView(id)`, `nextView()`, `freeze(s)` (hit-stop), `shake(n)`, `after(s, fn)`, `every(s, fn)` (timers in game time, return `{ cancel() }`), `mouseGround()`, `go(scene, data)`, `enableGPU({ map })`.
 - Fields: `W`, `H` (screen pixels), `time`, `real`, `timeScale` (0.25 = slow motion), `paused`, `input`, `audio`, `particles`, `lights`, `view`, `errors`, `cam`.
 - Camera zoom and turn: `game.setZoom(1.5)` (.5 .. 3; everything drawn by the engine re-rasterizes crisply, the HUD stays), `game.rotateView(45)` (ground views only), `game.resetCamera()`, `game.zoom`, `game.yaw`, `game.note('ZOOM 2x')` (a short notice at the top of the screen). Custom painters can read `r.view.zoom` (undefined at 1x) to scale their own art. The starter binds `-` / `=` / mouse wheel to zoom, `[` / `]` to turn and `0` to reset; a scene limits it with `camera: { zoom: [.75, 2] | false, rotate: true }`.
+- Sessions: `E.session.record(true)` records every later page load (or `?record=1` for one): frame times, inputs, the random seed, the screen and the save. `E.session.share()` saves it as a file, and `node tools/replay.mjs session.json --shots 600` replays it headless, exactly, and stops at the first frame that differs. `game.stateHash = () => [hero.x, hero.y, hp]` sharpens that check.
 - Camera: `cam.offset = [dx, dy]` sits the focus that many screen pixels from the centre (above a phone's touch buttons: `[0, -60]`); `cam.bounds = v => map.bounds(v)` keeps it inside the level (in side views a level shorter than the screen sits on the bottom edge; `cam.align = 'center'` to change); `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds (0 = locked to the target, no lag).
 
 ## Scenes (title, play, game over)
