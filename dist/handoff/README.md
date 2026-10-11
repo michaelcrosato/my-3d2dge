@@ -1,4 +1,4 @@
-# my-3D2dge handoff package (v0.20.0)
+# my-3D2dge handoff package (v0.21.0)
 
 Everything a coding agent needs to build, run, test and check a game on the full my-3D2dge engine, in one folder of text
 files. You don't need the engine's repository, and you don't need to read the engine's source below its header.

@@ -67,6 +67,14 @@
       "empty": "Nothing here right now. One-off comparisons and experiments land here, with the date and the question each one answers, and are deleted once it is settled.",
       "entries": [
         {
+          "page": "vesper-ui",
+          "title": "Vesper's interface on E.Shell",
+          "added": "2026-10-11",
+          "question": "Does E.Shell bring a modern adaptation's interface (Vesper's: 15.2k tokens of HTML, CSS and glue) down to a quarter?",
+          "what": "Vesper's title, HUD (objective and distance, status, health, awareness, seals, hold-to-interact prompt, tip, district name, control bar, minimap), toasts, tutorial card, pause, settings, help, district map with a waypoint and results, rebuilt on E.Shell over a small stand-in game: climb to the bell tower, take the ledger, leave by boat. Keyboard, gamepad and touch. The interface is src/vesper-ui.ui.js; the pull request that added it gives the count.",
+          "links": [["Open", ""], ["Three-quarter view", "#threequarter"]]
+        },
+        {
           "page": "shapes-compare",
           "title": "Shapes vs props",
           "added": "2026-10-08",
