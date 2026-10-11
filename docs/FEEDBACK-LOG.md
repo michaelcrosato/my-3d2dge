@@ -23,7 +23,9 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Melee helpers (`E.Attack`, `E.Combo`) bypassed | watch | F1 | a game built after the height-aware queries and actions still bypasses them |
 | GPU lighting unused | watch | F1 | three sources: rethink its space in the manuals |
 | One fixed custom view, views never switched | watch | F1 | three sources: make one view the default for third-person kits and their checks |
-| The engine's file size | no | F1 | agents still read the source once the index and the handoff package exist (the benchmark measures it) |
+| Reading the engine's source (F1: its size) | **threshold** | F1, F2 | reached: two model families. The next plan takes it up: F2.1 lists what the index and cards lack |
+| The look below the PS1/N64 bar | watch | F2 | the benchmark's judge scores two more games under 7 |
+| `E.Shell` unused, the interface drawn on the canvas | watch | F2 | two more games skip it when their source has a modern interface |
 | Not verified on physical phones or native GPUs | no | F1 | a game heads to production (principle 10) |
 | Saves, checkpoints and objectives written by the game | watch | F1 | three sources write the same checkpoint or objective code |
 | Music written by the game for stealth and chases | watch | F1 | two more sources: built-in `stealth` and `chase` songs |
@@ -80,3 +82,26 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     **Watch:** that is game logic until several games write the same thing.
   - **F1.9** · music · seen in its code, not said: it wrote its own quiet, pursuit and win songs (1.8k tokens with its
     sound effects). **Watch.**
+
+### F2 · 2026-10-11 · the benchmark's Assassin's Creed run ("The Acre Memory")
+
+- **Builder:** Claude Code (Opus 5.5) with `--safe-mode` (none of this machine's instructions or tools), run by
+  `tools/agent-bench.mjs`; its brief was Vesper's (F1), minimal.
+- **Handed:** the handoff package v0.22.0 (`dist/handoff/`) in an empty directory.
+- **Built:** an isometric Acre of sandstone roofs: climbing, guards with sight, takedowns, portrait dialogue, a minimap,
+  a title. About 27.5k tokens of game code and a 4.3k-token headless test, in 39 minutes and 185.6k output tokens
+  (thinking included); its first build passes `tools/check.mjs` and its test. The subscription's usage limit cut it off in
+  its last read-through. It wrote its own headless playthrough bot (a `FlowField` picking the way, input only) to test
+  the whole mission. It didn't patch the engine. The judge: 6/10, "strong SNES-era work rather than PS1 polish".
+- **Not acted on (yet):**
+  - **F2.1** · reading the source · it read the engine below its header 18 times, for: the third-person kit's own
+    sections (17b-17d) rather than their index lines; the rig's state keys (`flip`, `hang`: the index lists rig methods
+    and fields, not what `rig.update` takes); the backdrop and prop preset names and the backdrop's `sun`; `emissive`;
+    `px.blend`; the song format (`steps`, `bpm`); `E.Combo`, `E.Attack` and `game.hitFx`; how `Dialog` holds play;
+    hats and hoods; the actor box's size. **Threshold** (with F1): the next plan takes it up, likely as index entries
+    for option and state keys, preset lists and the song format.
+  - **F2.2** · the look · flat lighting, unshaded foliage, and the hero drawn as cyan x-ray dither while he stands in a
+    rooftop recess (the stealth starter's `xray` default). **Watch.**
+  - **F2.3** · `E.Shell` unused · it drew its interface on the canvas (`Dialog` with portraits, `E.ui` boxes). The brief
+    didn't ask for HTML. **Watch.**
+

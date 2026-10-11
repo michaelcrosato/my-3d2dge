@@ -309,5 +309,7 @@ An entry:
   the runs: Assassin's Creed (the baseline against Vesper's ~50k output tokens), a Breath of the Wild village and an
   Arkham predator room. What would change it: the owner's yes (then run the three briefs and put the rows in
   `DOCTRINE.md` and a pull request) or a budget they set.
-- **Answered:** no: asked, waiting
-- **Landed in:** v0.22.0
+- **Answered:** yes: the owner said to run the three briefs (2026-10-11). The Assassin's Creed run is in `DOCTRINE.md`
+  (cut off by the subscription's usage limit in its last read-through, which these runs share with the owner's own
+  sessions); the Breath of the Wild run was stopped by the machine's memory pressure; the Arkham run hasn't run.
+- **Landed in:** v0.22.0 (#66); the first results in v0.22.1

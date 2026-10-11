@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.22.1 (2026-10-11)
+
+The benchmark's first run.
+
+- **Docs**: `DOCTRINE.md`'s measures get their first row. The Assassin's Creed brief, given to Claude Code (Opus 5.5) with the handoff package: about 27.5k tokens of game code (Vesper wrote ~50k), a first build that passes the check and its own test, no engine patch, the engine read below its header 18 times, and 6/10 from the judge. The other two briefs didn't complete (memory pressure on the machine; not run). D19 answered.
+- **Docs**: `docs/FEEDBACK-LOG.md` F2, the run's points: what it read the source for (the rig's state keys, preset lists, the song format and more), now at its threshold with F1; the look; the canvas interface instead of `E.Shell`.
+- **Tools**: `tools/agent-bench.mjs` writes the agent's stream to disk as it comes (a run can be watched, and a stopped one keeps what it did), says when an API error cut a run off (a usage limit, a budget), measures the game code the agent wrote (its tests apart; output tokens include thinking, so they don't compare with code), and keeps the judge's answer when it has no score.
+
 ## 0.22.0 (2026-10-11)
 
 The North Star's measures get a tool. Phase 5 of the Vesper plan.

@@ -19,7 +19,7 @@
 //        node tools/agent-bench.mjs --list                   (the briefs)
 // Briefs: tools/agent-bench/briefs/<name>.md (assassins-creed: Vesper's brief, the baseline; botw-village; arkham-predator).
 import { spawnSync, spawn } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, cpSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, cpSync, createWriteStream } from 'node:fs';
 import { join, dirname, resolve, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -35,7 +35,7 @@ export const headerEnd = src => { const i = src.split('\n').findIndex(l => /^\(f
 
 /** read an agent's JSON stream (claude stream-json or codex --json) into what the bench measures */
 export function readStream(text, header) {
-  const out = { agent: null, outputTokens: 0, inputTokens: 0, costUsd: null, turns: 0, ms: null, reads: [], searches: [], belowHeader: false, patched: false, result: '' };
+  const out = { agent: null, outputTokens: 0, inputTokens: 0, costUsd: null, turns: 0, ms: null, reads: [], searches: [], belowHeader: false, patched: false, result: '', error: null };
   const engine = p => typeof p === 'string' && basename(p) === ENGINE && !/\/node_modules\//.test(p);
   const shell = cmd => {
     if (typeof cmd !== 'string' || !cmd.includes(ENGINE)) return;
@@ -57,7 +57,8 @@ export function readStream(text, header) {
         else if (c.name === 'Bash') shell(i.command);
       }
     }
-    if (e.type === 'result') { out.agent = out.agent || 'claude'; const u = e.usage || {}; out.outputTokens = u.output_tokens || 0; out.inputTokens = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0); out.costUsd = e.total_cost_usd ?? null; out.turns = e.num_turns || 0; out.ms = e.duration_ms ?? null; out.result = String(e.result || '').slice(0, 2000); }
+    if (e.type === 'result') { out.agent = out.agent || 'claude'; const u = e.usage || {}; out.outputTokens = u.output_tokens || 0; out.inputTokens = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0); out.costUsd = e.total_cost_usd ?? null; out.turns = e.num_turns || 0; out.ms = e.duration_ms ?? null; out.result = String(e.result || '').slice(0, 2000);
+      if (e.is_error) out.error = (e.api_error || e.subtype || 'error') + ': ' + out.result.slice(0, 160); }   // cut off (a usage limit, a budget): the build is unfinished
     // codex exec --json: item events with commands and file changes, turn.completed with usage
     if (e.type === 'thread.started') out.agent = 'codex';
     if (e.type === 'item.completed' && e.item) {
@@ -69,6 +70,18 @@ export function readStream(text, header) {
     if (e.type === 'turn.completed' && e.usage) { out.turns++; out.outputTokens += e.usage.output_tokens || 0; out.inputTokens += (e.usage.input_tokens || 0) + (e.usage.cached_input_tokens || 0); }
   }
   return out;
+}
+
+/** the size of the game an agent wrote: characters and estimated cl100k tokens of game/'s code, its tests apart (dense
+ *  game code runs about 2.65 characters a token, measured on the starters and on a benchmark's game) */
+export function codeSize(dir) {
+  const out = { chars: 0, testChars: 0, tokens: 0, testTokens: 0 };
+  const walk = d => { for (const f of existsSync(d) ? readdirSync(d, { withFileTypes: true }) : []) {
+    if (f.isDirectory()) { if (f.name !== 'node_modules') walk(join(d, f.name)); continue; }
+    if (!/\.(m?js|html|css)$/.test(f.name)) continue;
+    const n = readFileSync(join(d, f.name), 'utf8').length; if (/test/i.test(f.name)) out.testChars += n; else out.chars += n;
+  } };
+  walk(dir); out.tokens = Math.round(out.chars / 2.65); out.testTokens = Math.round(out.testChars / 2.65); return out;
 }
 
 /** the judge's answer: the first {"score": n, ...} in its text */
@@ -91,6 +104,7 @@ function score(dir, o = {}) {
   const s = readStream(existsSync(join(dir, 'stream.jsonl')) ? readFileSync(join(dir, 'stream.jsonl'), 'utf8') : '', meta.header);
   const page = join(work, 'game/index.html'), res = Object.assign({ brief: meta.brief, agent: meta.agent, model: meta.model || 'default', wallSeconds: meta.wallSeconds || (s.ms ? s.ms / 1000 : null) }, s);
   res.game = existsSync(page) && hash(join(work, 'game/game.js')) !== meta.template;   // (the package's template game alone is not a build)
+  res.code = codeSize(join(work, 'game'));
   if (res.game) {
     const c = run(process.execPath, [join(root, 'tools/check.mjs'), page, '--out', join(dir, 'check')], { cwd: root });
     let rep = null; try { rep = JSON.parse(readFileSync(join(dir, 'check/report.json'), 'utf8')); } catch (e) { /* no report */ }
@@ -103,14 +117,14 @@ function score(dir, o = {}) {
       const prompt = readFileSync(join(BENCH, 'judge.md'), 'utf8') + '\n\nThe screenshots: ' + shots.join(', ');
       const j = run('claude', ['-p', prompt, '--safe-mode', '--output-format', 'json', '--allowedTools', 'Read', '--permission-mode', 'dontAsk', '--no-session-persistence', '--add-dir', join(dir, 'check'), ...(o.judgeModel ? ['--model', o.judgeModel] : [])], { cwd: dir, timeout: 600000 });
       let txt = j.stdout; try { txt = JSON.parse(j.stdout).result; } catch (e) { /* plain text */ }
-      res.judge = readJudge(txt); res.judgeCostUsd = (() => { try { return JSON.parse(j.stdout).total_cost_usd; } catch (e) { return null; } })();
+      res.judge = readJudge(txt); if (!res.judge) res.judgeError = String(txt || j.stderr || 'no answer').slice(0, 300); res.judgeCostUsd = (() => { try { return JSON.parse(j.stdout).total_cost_usd; } catch (e) { return null; } })();
     }
   }
   writeFileSync(join(dir, 'result.json'), JSON.stringify(res, null, 2));
   return res;
 }
-const row = r => `| ${r.brief} | ${r.agent} ${r.model} | ${Math.round(r.outputTokens / 100) / 10}k | ${r.wallSeconds ? Math.round(r.wallSeconds / 60) + ' min' : '?'} | ${r.costUsd !== null && r.costUsd !== undefined ? '$' + r.costUsd.toFixed(2) : '?'} | ${r.game ? (r.checkPasses ? 'yes' : 'no') : 'no game (the template unchanged)'} | ${r.belowHeader ? 'yes' : 'no'}${r.patched ? ', patched it' : ''} | ${r.judge ? r.judge.score + '/10' : '-'} |`;
-const HEAD = '| brief | agent | output tokens | wall time | cost | first build passes check | read the engine below its header | judge (PS1/N64 bar) |\n| --- | --- | --- | --- | --- | --- | --- | --- |';
+const row = r => `| ${r.brief} | ${r.agent} ${r.model} | ${r.code ? '~' + Math.round(r.code.tokens / 100) / 10 + 'k (+' + Math.round(r.code.testTokens / 100) / 10 + 'k tests)' : '-'} | ${Math.round(r.outputTokens / 100) / 10}k | ${r.wallSeconds ? Math.round(r.wallSeconds / 60) + ' min' : '?'} | ${r.costUsd !== null && r.costUsd !== undefined ? '$' + r.costUsd.toFixed(2) : '?'} | ${r.game ? (r.checkPasses ? 'yes' : 'no') : 'no game (the template unchanged)'}${r.error ? ' (cut off: ' + r.error.split(':')[0] + ')' : ''} | ${r.belowHeader ? 'yes' : 'no'}${r.patched ? ', patched it' : ''} | ${r.judge ? r.judge.score + '/10' : '-'} |`;
+const HEAD = '| brief | agent | game code | output tokens (thinking included) | wall time | cost | first build passes check | read the engine below its header | judge (PS1/N64 bar) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |';
 
 function selftest() {
   let fails = 0; const ok = (name, c, d = '') => { if (!c) fails++; console.log((c ? '  ok   ' : '  FAIL ') + name + (c ? '' : ': ' + d)); };
@@ -133,6 +147,8 @@ function selftest() {
   ok('an Edit of the engine is a patch', s.patched);
   s = readStream(S({ type: 'thread.started' }, { type: 'item.completed', item: { type: 'command_execution', command: 'cat my-3d2dge.js' } }, { type: 'turn.completed', usage: { output_tokens: 500, input_tokens: 9 } }), 70);
   ok('codex: commands and usage', s.agent === 'codex' && s.belowHeader && s.outputTokens === 500 && s.turns === 1, JSON.stringify(s));
+  s = readStream(S({ type: 'result', is_error: true, api_error: 'usage_limit_reached', result: 'limit', num_turns: 3 }), 70);
+  ok('a run cut off by an API error says so', /^usage_limit_reached/.test(s.error), String(s.error));
   ok('the judge\'s score is read from its text', readJudge('Here: {"score": 6, "why": "flat floors"} done').score === 6 && readJudge('no score') === null);
   ok('every brief exists and asks for game/index.html', briefs().length >= 3 && briefs().every(b => /game\/index\.html/.test(brief(b))), briefs().join(','));
   console.log(fails ? `\n${fails} failed` : '\nall passed'); process.exit(fails ? 1 : 0);
@@ -152,13 +168,12 @@ else {
   writeFileSync(join(dir, 'meta.json'), JSON.stringify({ brief: name, agent, model, budget, header, template: hash(join(work, 'game/game.js')), cmd: [cmd, ...a.map(x => x === text ? '<brief>' : x)] }, null, 2));
   console.log(`run: ${dir}\nworkspace: ${work} (the handoff package; header ends at line ${header})\nagent: ${cmd} ${a.map(x => x === text ? '<brief>' : x).join(' ')}`);
   if (flag('dry-run')) { console.log('dry run: nothing started, nothing spent'); process.exit(0); }
-  const t0 = Date.now(), log = [];
+  const t0 = Date.now(), log = createWriteStream(join(dir, 'stream.jsonl'));   // (written as it comes: tail it to watch a run)
   const child = spawn(cmd, a, { cwd: work, stdio: ['ignore', 'pipe', 'pipe'], env: Object.assign({}, process.env, { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' }) });
-  child.stdout.on('data', d => log.push(d)); child.stderr.on('data', d => process.stderr.write(d));
-  child.on('close', code => {
-    writeFileSync(join(dir, 'stream.jsonl'), Buffer.concat(log));
+  child.stdout.pipe(log); child.stderr.on('data', d => process.stderr.write(d));
+  child.on('close', code => log.end(() => {
     const meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')); meta.wallSeconds = (Date.now() - t0) / 1000; meta.exit = code; writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2));
     const r = score(dir, { judgeModel: opt('judge-model') });
     console.log('\n' + HEAD + '\n' + row(r) + '\n\nresult: ' + join(dir, 'result.json'));
-  });
+  }));
 }
