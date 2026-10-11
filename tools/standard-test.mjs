@@ -274,6 +274,15 @@ if (!process.argv.includes('--node')) {
       await ev(q, () => { window.picked = -1; }); const c1 = await at(mb.x + 10, mb.y + mb.rowH * .5); await q.mouse.click(c1[0], c1[1]); await ev(q, () => step(2)); const byClick = await ev(q, () => window.picked);
       const beside = await at(mb.x - 30, mb.y - 20); await ev(q, () => { window.picked = -1; }); await q.touchscreen.tap(beside[0], beside[1]); await ev(q, () => step(2)); const outside = await ev(q, () => window.picked);
       check(`${ed}: a tap or a click on a menu entry picks it, a tap beside the menu does not`, byTap === 2 && byClick === 0 && outside === -1, JSON.stringify([byTap, byClick, outside]));
+      // a finger that lands on an entry and drags away (the touch stick) picks nothing; a tap anywhere makes the device touch
+      await ev(q, () => { window.picked = -1; game.input.lastDevice = 'keyboard'; });
+      const touchAt = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 2 }] });
+      await touchAt('touchStart', t3[0], t3[1]); await touchAt('touchMove', t3[0] + 20, t3[1] + 30); await touchAt('touchMove', t3[0] + 40, t3[1] + 60); await touchAt('touchEnd'); await ev(q, () => step(2));
+      const dragged = await ev(q, () => window.picked);
+      await ev(q, () => { game.input.lastDevice = 'keyboard'; });
+      const rp = await ev(q, () => { const S = game.screen, rc = S.canvas.getBoundingClientRect(); return [rc.left + rc.width * .85, rc.top + rc.height * .2]; });
+      await q.touchscreen.tap(rp[0], rp[1]); await ev(q, () => step(1)); const dev = await ev(q, () => game.input.lastDevice);
+      check(`${ed}: a drag across a menu entry picks nothing; a tap on the stick-free half makes the device touch`, dragged === -1 && dev === 'touch', JSON.stringify([dragged, dev]));
       const db = await ev(q, () => { const d = window.dd = new E.Dialog(game); d.say(['Page one', 'Page two']); game.scene.update = dt => d.update(dt); game.scene.draw = r => d.draw(r); step(2); return d._dims(); });
       const dt = await at(db.x + db.w / 2, db.y + db.h / 2);
       for (let i = 0; i < 2; i++) { await q.touchscreen.tap(dt[0], dt[1]); await ev(q, () => step(2)); }
