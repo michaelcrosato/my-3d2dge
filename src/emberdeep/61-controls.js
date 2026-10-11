@@ -398,6 +398,14 @@ function renderControls() {
 		);
 		formField(
 			el,
+			"Vibration",
+			"range",
+			game.settings.rumble,
+			(v) => game.settings.set("rumble", v),   // the engine's setting (saved with the player's other choices): 0 turns it off
+			{ min: 0, max: 1, step: 0.05 },
+		);
+		formField(
+			el,
 			"Aim assist for sticks / touch",
 			"checkbox",
 			CONTROL.aimAssist,

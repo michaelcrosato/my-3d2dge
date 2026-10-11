@@ -159,6 +159,7 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
   - hero actions: `skill {id, slot, h, ctx}`, `dodge {h}`, `perfectDodge`;
   - loot: `pickup {item}`, `gold {n}`;
   - progress: `levelStart {L}`, `levelEnd {L}`, `bossDown {m}`, `heroLevel {lvl}`, `spawn {m}`, `thingHit {thing, hit}`;
+  - stealth: `execute {h, m, kind: 'finish' | 'silent'}` (an execution or a takedown dropped m), `alarm {m, n}` (a Warden rang: n monsters heard it);
   - frame: `step {dt, L}`, `draw {r, L}`.
 - **The hero's actions** (20-hero.js):
   - `startAction(h, { name, update(dt) -> keep, rig: {...}, moveK, cancel, face, z, ghost, speed, free, draw(r) })`.
@@ -201,7 +202,31 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
 - **Endless progression** (28-progression.js): past rank 5 a skill point buys a mastery rank (`h.skills[id].mastery`, diminishing more damage; rune tiers at mastery 5, 15, 30, 50... add +1 rank). Once the 199-star core is complete, seeded rings of deep stars (ids `dp<ring>_<j>`) wake one after another. `PRG_canSpend(h) -> { skill, passive }` says whether an unspent point can buy anything.
 - **Bosses** (35-bosses-core.js): a pattern spec carries `role: 'close' | 'zone' | 'aid'`; composed bosses pick 2 close + 2 zone + 1 aid (plus a zone past depth 40). Composed bosses use only `bossBody` archetypes (bone king, colossus, flesh titan, the Six-Armed Reaver; the planned set pieces only past depth 100, recolored). A boss that kills the hero keeps a scar (15% life per defeat at that depth, at most 3), cleared by the win.
 - **Monster clock**: `foeClock(u)` is a monster's time rate (time wells times the Monster speed slider); its moves, telegraphs and shots follow it. `foeTint(m)` is the one place a monster's hit flash and status tint are decided.
-- **Hero**: a one-deep skill queue (`h.slotQ`), moving cancels an action's follow-through (opt out with `moveCancel: false`), near-miss perfect dodges (`heroNearMiss`, and BUS `'foeStrike' { src, x, y, r }` for custom attacks), short knockdowns with a tech roll, and a death with weight (hard stop, slow motion, camera push-in).
+- **Hero**: a one-deep skill queue (`h.slotQ`), moving cancels an action's follow-through (opt out with `moveCancel: false`), near-miss perfect dodges (`heroNearMiss`, and BUS `'foeStrike' { src, x, y, r }` for custom attacks), short knockdowns with a tech roll (he gets up through the engine's `E.ACTIONS.getUp`: sits up, one knee, stands), and a death with weight (hard stop, slow motion, camera push-in).
+- **Executions and takedowns** (23-executions.js): a humanoid monster your hit staggers or crits at or under `TUNE.exeLife` of its life reels (`m.reelT`, its outline flickers) and E executes it: the hero leaps onto it and the engine's paired `E.ACTIONS.takedown` moves both bodies (the victim is held with a stun and posed through `m.rigState`). An archetype with `takedown: true` (the Warden) can be taken down from behind, silently, while `m.alarmed` is false. Every one gives back `TUNE.exeHeal` of his life and a dodge charge. `makeNoise({ x, y, z, loud }, except)` lets every monster in earshot hear something (`E.hears`): one with a mind of its own gets `m.hear(k, noise)`, any other wakes with its pack. The autopilot executes whatever it can.
+- **Wardens** (32-wardens.js): the `warden` archetype (no packs: one to three walk a beat on each level from depth 3 that has no boss, placed on their own seeded stream at `levelStart`). Its mind is an `E.Suspicion` fed by `E.sees` down its lantern cone (`TUNE.wardenSight`, cut by walls); `r.sightCone` draws exactly that cone, colored by its state. Alert, it rings for `TUNE.wardenRing` (a stagger restarts it; `r.marker` points to it, on or off screen), and the alarm wakes every monster that hears it (`TUNE.wardenAlarm`). It never rang: it leaves its tithe.
+- **Rumble** (97-rumble.js): a controller rumbles with every screen shake and the hero's own moments (a blow, a perfect dodge, an elite or a boss falling, a level, his death); the Vibration slider in Controls is the engine's `game.settings.rumble`.
+- **Boot and debug** (99-start.js): `game.start`'s `boot` gives the page's boot screen Emberdeep's title, accent and lines and two real steps (every monster's reach measured, the composed depths ordered ahead); `game.debug.snapshot()` (mode, depth, level, foes, the Wardens' states, the hero) is what `tools/check.mjs` and `tools/replay.mjs` print, and `game.debug.teleport(x, y)` moves him.
+- **The gallery's MOVES reel** (92-gallery.js): the engine's actions on the hero on a little set (a stone block and a low wall drawn with `r.box`, built to face the camera in any view): the execution and the takedown on real monsters, getting up, climbing up and down, hopping down, vaulting, a roll.
+
+## What Emberdeep shows of the engine
+Emberdeep is the engine's showcase: when the engine gains something a hack-and-slash can use, it should show here. The map, so the next feature finds its place (and so what is left out is left out on purpose):
+
+| engine | where Emberdeep shows it |
+|---|---|
+| rigs, `E.MOVES`, `E.Combo`, poses, capes, hair, IK | the hero and every humanoid monster; the flask drunk with IK (20-hero.js); the gallery's POSES |
+| Blob rig, custom bodies | slimes, bats, imps (31-monsters.js); crawlers, the serpent, the Watcher (33-beasts.js) |
+| `Mocap` clips | the hero's captured moments (96-hero-clips.js) |
+| `E.ACTIONS` / `E.Action` | executions and takedowns (paired, aerial and ground), the knockdown's get-up, the gallery's MOVES (climb, vault, hop down, roll) |
+| perception: `E.sees`, `E.Suspicion`, `E.hears`, `r.sightCone`, `r.marker` | the Wardens, the noise an execution makes, the alarm |
+| `E.targets` | the execution and takedown target |
+| lighting (canvas and WebGPU: shadows, casters, heat), particles, `r.glowDisc` | every level; heat over braziers and the forge |
+| `E.Backdrop`, themes, wall materials, `E.tones` | the themes (51-themes.js) |
+| `FlowField`, `TileMap` floors and tags | every level; the mechanics' floors (ice, water, lava, webs, pits) |
+| `E.session`, `game.debug`, the boot (`game.start({ boot })`) | Developer → Record a session; the tools' snapshot; the boot screen |
+| `game.fullscreen`, `game.settings` (rumble), `input.rumble` | FULL SCREEN; the Vibration slider; rumble (97-rumble.js) |
+
+Left out on purpose: the standard pause menu, corner and `E.Shell` (Emberdeep keeps its own canvas menus, D21); `E.Mover`, heights and roofs (its levels are flat: a hack-and-slash's floor), `E.Bullets` (its projectiles are `FX.bolt`, which carry elements and hits).
 
 ## Quality bar (read this)
 

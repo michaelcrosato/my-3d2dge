@@ -4,10 +4,12 @@
  *   BESTIARY every monster walks in, attacks, flinches and falls, one at a time
  *   POSES    the hero's whole pose vocabulary, and his reactions
  *   BOSSES   the bosses wake on the stage and run their patterns (the hero cannot be hurt here)
+ *   MOVES    the engine's actions (E.ACTIONS) on the hero: an execution and a takedown on real monsters, getting up,
+ *            climbing up and down a stone block, hopping down, vaulting a low wall, a roll
  * Left / Right pick, Up / Down change the reel, Enter replays, Z toggles slow motion, V view, [ ] turn, Esc leaves.
  * The gallery plays with a COPY of the saved hero (skills are ranked up for the show), so nothing here reaches the save.
  * A deep link opens one entry, so a tool can film it: #gallery/bestiary/husk, #gallery/skills/<skill id>,
- * #gallery/bosses/<boss id>, #gallery/poses/hands-on-hips (add ?view=topdown, ?character=codex for Codex's skills).
+ * #gallery/bosses/<boss id>, #gallery/poses/hands-on-hips, #gallery/moves/climb-up (add ?view=topdown, ?character=codex for Codex's skills).
  * In code: game.go('gallery', { reel: 'bestiary', item: 'husk' }). A wrong name warns with the list of right ones.
  * ============================================================================= */
 /* ---- a straw training dummy: a post, a stuffed body and a sack head on a damped spring, so every hit shows ---- */
@@ -37,7 +39,7 @@ def('archetypes', 'dummy', { name: 'Training Dummy', tags: ['object'], minDepth:
   react(m, hit) { if (m.body) m.body.hit(hit.ang || 0, 3 + (hit.kb || 0) * .02); m.hp = m.maxHp; P.add({ kind: 'bit', x: m.x, y: m.y, z: 16, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, vz: 60, g: 300, max: .8, color: '#d8b25a' }); }
 });
 
-const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES'], cam: null };
+const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES', 'MOVES'], cam: null };
 
 const GAL_POSES = [
   ['Idle', {}, 'He breathes and shifts his weight.'], ['Walk', { run: .55 }, 'A gait driven by velocity, not frames.'], ['Run', { run: 1.1 }, 'The cape streams behind.'],
@@ -47,10 +49,58 @@ const GAL_POSES = [
   ['Airborne', { air: true }, 'Legs tuck in a jump.'], ['Dash', { dash: true }, 'Leaning into a dash.'], ['Hurt', { hurt: true, expr: 'wince' }, 'A flinch: one arm shields the face.'],
   ['Knocked down', { down: 1 }, 'Flat on his back, then up again.'], ['Fall', { pose: 'die' }, 'A stagger, the knees give, a topple.'], ['Climb', { climb: true, vz: 30 }, 'Hand over hand.']
 ];
+/* ---- MOVES: [name, caption, what plays]. The set: a stone block (climbs, the hop) and a low wall (the vault), drawn
+ * with r.box; the hero is moved by E.Action alone (galMove holds him where it puts him, on top of the block too) ---- */
+const GAL_MOVES = [
+  ['Execution', 'A wounded foe reels: E leaps onto it, and the two bodies play one action (E.ACTIONS.takedown, aerial).', 'finish'],
+  ['Takedown', 'Behind a Warden that has not seen you: the ground takedown, silent.', 'silent'],
+  ['Get up', 'Knocked flat: he sits up, comes to one knee and stands (E.ACTIONS.getUp), untouchable until he is up.', 'getUp'],
+  ['Climb up', 'Reach, hang under the edge, pull up and stand (E.ACTIONS.climbUp).', 'climbUp'],
+  ['Climb down', 'The same action played backwards (reverse: true).', 'climbDown'],
+  ['Hop down', 'A small rise, then the drop; a deep one lands on bent knees (E.ACTIONS.hopDown).', 'hopDown'],
+  ['Vault', 'A hand on a low wall and over it at a run (E.ACTIONS.vault).', 'vault'],
+  ['Roll', 'A forward roll, untouchable through its middle (E.ACTIONS.roll).', 'roll']
+];
+/** the set, built for the view so it faces the camera: d is the ground axis toward the camera (he climbs away from it,
+ *  up the face it sees), sr the screen's right on the ground. The block (a half width of 13, top 24) and the low wall
+ *  (3.5 deep, 15 wide, top 10) stand round c; at(k, j) is the point k along d and j along its side from c */
+function galSet() {
+  const cx = ED.L.w * 8, cy = ED.L.h * 8, k = (GAL_MOVES[GAL.cur] || GAL_MOVES[0])[2], v = game.view;
+  const d = [[1, 0], [-1, 0], [0, 1], [0, -1]].reduce((a, b) => b[0] * v.fx + b[1] * v.fy > a[0] * v.fx + a[1] * v.fy + 1e-6 ? b : a);   // (view.fx, fy points toward the camera)
+  const sd = v.screenDirToGround(1, 0), sl = Math.hypot(sd[0], sd[1]) || 1, sr = [sd[0] / sl, sd[1] / sl], c = { x: cx - 4, y: cy };
+  const at = (k2, j = 0) => ({ x: c.x + d[0] * k2 - d[1] * j, y: c.y + d[1] * k2 + d[0] * j });
+  const box = (hk, hj, top) => { const p0 = at(-hk, -hj), p1 = at(hk, hj); return { x0: Math.min(p0.x, p1.x), x1: Math.max(p0.x, p1.x), y0: Math.min(p0.y, p1.y), y1: Math.max(p0.y, p1.y), top, back: at(-hk) }; };
+  return { k, c, d, sr, at, toward: Math.atan2(d[1], d[0]), away: Math.atan2(-d[1], -d[0]), B: box(13, 13, 24), W: box(3.5, 15, 10), block: ['climbUp', 'climbDown', 'hopDown'].includes(k), wall: k === 'vault' };
+}
+/** play one of the engine's actions on the hero: a beat standing where it starts, the action, then a beat where it ended */
+function galMove(h) {
+  const S = galSet(), { k, at, B, W } = S, edge = at(13), ledge = Object.assign(at(4), { z: B.top, edge: [edge.x, edge.y], facing: S.away });
+  const make = () => k === 'climbUp' ? new E.Action('climbUp', { body: h, to: ledge })
+    : k === 'climbDown' ? new E.Action('climbUp', { body: h, reverse: true, from: Object.assign(at(21), { z: 0 }), to: ledge })
+    : k === 'hopDown' ? new E.Action('hopDown', { body: h, to: Object.assign(at(29), { z: 0 }) })
+    : k === 'vault' ? new E.Action('vault', { body: h, to: Object.assign(at(16), { z: 0 }), top: W.top })
+    : k === 'getUp' ? new E.Action('getUp', { body: h })
+    : new E.Action('roll', { body: h, dir: S.sr, dist: 34 });
+  let A = null, t = 0, hold = 0;
+  startAction(h, { name: 'galMove', moveK: 0, cancel: false, face: h.facing, z: h.z, rig: k === 'getUp' ? { down: 1 } : {}, update(dt) {
+    t += dt; this.z = h.z;
+    if (t < .7) return true;   // where he starts (lying, for the get-up)
+    if (!A) A = make();
+    if (!A.done) { A.update(dt); this.rig = A.rigState(); this.z = h.z; this.face = h.facing; return true; }
+    this.rig = { x: h.x, y: h.y, z: h.z }; return (hold += dt) < 1.1;   // where it put him (on the block: he stays up there)
+  } });
+}
+/** the block and the wall, queued at their back faces: whatever stands on them or in front draws over them */
+function galSetDraw(r) {
+  const S = galSet(), box = (b, top, side) => r.queue(b.back.x, b.back.y, 0, g => r.box(g, b.x0, b.y0, 0, b.x1, b.y1, b.top, top, side));
+  if (S.block) box(S.B, '#7d7590', '#544c66');
+  if (S.wall) box(S.W, '#8a8070', '#5e5648');
+}
 function galItems() {
   if (GAL.reel === 0) return Object.keys(REG.skills).filter(id => skillAvailable(ED.hero, REG.skills[id])).sort((a, b) => Number(!!REG.skills[b].character) - Number(!!REG.skills[a].character));
   if (GAL.reel === 1) return Object.keys(REG.archetypes).filter(id => { const A0 = REG.archetypes[id]; return id !== 'dummy' && !A0.bossBody && !(A0.tags || []).includes('boss'); });   // bosses have their own reel
   if (GAL.reel === 2) return galBosses();
+  if (GAL.reel === 4) return GAL_MOVES.map((p, i) => i);
   return GAL_POSES.map((p, i) => i);
 }
 /** point the gallery at a reel by name and an entry by id (a pose by its name, spaces as dashes); unknown names warn and are ignored */
@@ -59,7 +109,7 @@ function galOpen(reel, item) {
   if (r < 0) { console.warn('gallery: no reel "' + reel + '". Reels: ' + GAL.reels.join(', ').toLowerCase()); return; }
   GAL.reel = r; GAL.i = 0;
   if (!item) return;
-  const items = galItems(), name = id => r === 3 ? GAL_POSES[id][0].toLowerCase().replace(/ /g, '-') : String(id).toLowerCase(), i = items.findIndex(id => name(id) === String(item).toLowerCase());
+  const items = galItems(), name = id => r === 3 || r === 4 ? (r === 3 ? GAL_POSES : GAL_MOVES)[id][0].toLowerCase().replace(/ /g, '-') : String(id).toLowerCase(), i = items.findIndex(id => name(id) === String(item).toLowerCase());
   if (i >= 0) GAL.i = i;
   else console.warn('gallery: no ' + GAL.reels[r].toLowerCase() + ' entry "' + item + '"' + (r === 0 ? ' for this character' : '') + '. Entries: ' + items.map(name).join(', '));
 }
@@ -114,9 +164,21 @@ function galReset() {
     h.x = cx - 44; h.y = cy;
     GAL.boss = galBossId(GAL.cur);
     const m = spawnBoss(GAL.boss, cx + 30, cy, { level: 3 }); if (m) { m.noLoot = true; m.facing = Math.PI; GAL.mon = m; ED.boss = m; if (typeof wakeBoss === 'function') wakeBoss(m); }
+  } else if (GAL.reel === 4) {   // moves: the set, and a monster for the takedowns (across the screen from him)
+    const S = galSet(), put = p => { h.x = p.x; h.y = p.y; }; GAL.doneT = null; h.z = 0;
+    if (S.k === 'finish' || S.k === 'silent') {
+      const far = S.k === 'finish' ? 10 : -4, m = spawnMonster(S.k === 'finish' ? 'skeleton' : 'warden', S.c.x + S.sr[0] * far, S.c.y + S.sr[1] * far, { instant: true, level: 3 });
+      const back = S.k === 'finish' ? 28 : 22; h.x = S.c.x - S.sr[0] * back; h.y = S.c.y - S.sr[1] * back; h.facing = h.aim = Math.atan2(S.sr[1], S.sr[0]);
+      if (m) { m.noLoot = true; m.facing = h.facing; m.cool = 99; GAL.mon = m; if (S.k === 'finish') { m.hp = m.maxHp * .2; m.reelT = game.time + 99; } else { m.ai.wd.wait = 99; m.ai.wd.sweep = m.facing; } }
+    } else {
+      put(S.k === 'climbUp' ? S.at(21) : S.k === 'climbDown' ? S.at(4) : S.k === 'hopDown' ? S.at(7) : S.k === 'vault' ? S.at(-16) : S.c);
+      h.facing = h.aim = S.k === 'climbUp' || S.k === 'climbDown' ? S.away : S.k === 'roll' ? Math.atan2(S.sr[1], S.sr[0]) : S.toward;
+      if (S.k === 'climbDown' || S.k === 'hopDown') h.z = S.B.top;
+      galMove(h);
+    }
   } else { h.x = cx; h.y = cy; }   // poses: centre stage
   if (GAL.reel !== 2) playSong('title');
-  game.setZoom(GAL.reel === 3 ? 2.5 : GAL.reel === 2 ? 1.25 : 1.75);
+  game.setZoom(GAL.reel === 3 ? 2.5 : GAL.reel === 2 ? 1.25 : GAL.reel === 4 ? 2 : 1.75);
   GAL.cam = null;
 }
 /** the SKILLS reel's autopilot: walk back to the mark, face the dummies, cast (holding channels), let combos run on */
@@ -170,6 +232,10 @@ const galleryScene = {
       const m = GAL.mon, B = m && m.bossDef, ph = (B && B.phases) || [];
       for (let i = 1; i < ph.length; i++) if (m.alive && GAL.t > 1 + i * 7 && m.phase < i && m.hp > m.maxHp * (ph[i].at - .02)) m.hp = m.maxHp * (ph[i].at - .02);
       if (GAL.t > 8 + ph.length * 7) galReset();
+    } else if (GAL.reel === 4) {   // moves: the takedowns start after a beat; each entry plays again once it is over
+      const k = galSet().k;
+      if ((k === 'finish' || k === 'silent') && !GAL.fired && GAL.t > .7 && GAL.mon && GAL.mon.alive) { GAL.fired = 1; exeStart(h, GAL.mon, k); }
+      if (!h.act && GAL.t > .8) { if (GAL.doneT === null) GAL.doneT = GAL.t; if (GAL.t - GAL.doneT > (GAL.fired ? 1.2 : 0)) galReset(); }
     }
     if (GAL.reel === 3) {   // poses: the rig alone
       const p = GAL_POSES[GAL.cur] || GAL_POSES[0], st = Object.assign({ x: h.x, y: h.y, z: 0, vx: 0, vy: 0, facing: Math.PI / 2 + Math.sin(GAL.t * .5) * .8 }, p[1]);
@@ -184,7 +250,8 @@ const galleryScene = {
     if (GAL.reel === 1 && h.act === null && GAL.mon) { h.facing = E.approachAng(h.facing, angTo(h, GAL.mon), dt * 6); h.aim = h.facing; }
     // the camera frames what matters: the hero and the dummies, the monster (at its height: flyers too), or the hero alone
     const m = GAL.mon, tgt = GAL.reel === 0 ? [(GAL.markX + cx + GAL_K) / 2 + 4, cy, 10]
-      : (GAL.reel === 1 || GAL.reel === 2) && m ? [(h.x + m.x) / 2, (h.y + m.y) / 2, 8 + Math.max(0, (m.z || 0)) * .5 + (GAL.reel === 2 ? 14 : 0)] : [h.x, h.y, 19];
+      : (GAL.reel === 1 || GAL.reel === 2) && m ? [(h.x + m.x) / 2, (h.y + m.y) / 2, 8 + Math.max(0, (m.z || 0)) * .5 + (GAL.reel === 2 ? 14 : 0)]
+      : GAL.reel === 4 ? [ED.L.w * 8 - 4, ED.L.h * 8, 16] : [h.x, h.y, 19];
     const c = GAL.cam || (GAL.cam = tgt.slice()), k = Math.min(1, dt * 3); for (let i = 0; i < 3; i++) c[i] += (tgt[i] - c[i]) * k;
     game.focus(c[0], c[1], c[2]);
     if (inp.pressed('labels')) { GAL.slow = !GAL.slow; }
@@ -193,6 +260,7 @@ const galleryScene = {
   draw(r) {
     const L0 = ED.L;
     L0.map.drawFloor(r); L0.map.queueWalls(r); drawTorches(L0, r);
+    if (GAL.reel === 4) galSetDraw(r);
     for (const m of ED.corpses) drawFoe(m, r);
     for (const m of ED.foes) drawFoe(m, r);
     for (const a of ED.allies) if (a.draw) a.draw(r);
@@ -208,6 +276,7 @@ const galleryScene = {
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
       else if (GAL.reel === 2) { const B = REG.bosses[GAL.boss]; if (B) { const A0 = REG.archetypes[B.arch]; title = B.name + (B.composed && B.title ? ', ' + B.title : ''); sub = (B.composed ? (A0 ? A0.name : 'a body') + ', composed in ' + EL(B.el).name.toLowerCase() + ' for the endless descent  ·  ' : B.title ? B.title + '  ·  ' : '') + (B.depth ? 'depth ' + B.depth + '  ·  ' : '') + 'patterns: ' + ((GAL.mon && GAL.mon.patterns) || (B.phases || []).flatMap(p => p.patterns || []).filter((v, i, a) => a.indexOf(v) === i)).join(', '); } }
+      else if (GAL.reel === 4) { const p = GAL_MOVES[GAL.cur] || GAL_MOVES[0]; title = p[0]; sub = p[1]; }
       else { const p = GAL_POSES[GAL.cur] || GAL_POSES[0]; title = p[0]; sub = p[2]; }
       E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
       E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));

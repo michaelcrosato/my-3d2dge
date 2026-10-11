@@ -59,6 +59,9 @@ knob('combat', 'Statuses', 2, 'statusPower', 'Status strength', 1, 0, 5, .05, 'x
 knob('combat', 'Statuses', 2, 'statusTime', 'Status duration', 1, .1, 5, .05, 'x', 'How long statuses last on anyone.', '05-elements.js (applyStatus)');
 knob('combat', 'Knockback', 1, 'knockback', 'Knockback strength', 1, 0, 5, .05, 'x', 'How far hits shove whoever they land on, both ways. 0 pins everyone in place; heavy monsters (mass) still move less.', '10-combat.js (knock)');
 knob('combat', 'Knockback', 2, 'knockUp', 'Launch height', 1, 0, 5, .05, 'x', 'How high uppercuts and blasts throw monsters into the air.', '10-combat.js (knock)');
+knob('combat', 'Executions', 1, 'exeLife', 'Execution threshold', .25, 0, 1, .01, 'x', 'A humanoid monster staggered (or crit) by you at or under this share of its life reels and can be executed with E (0.25 = 25%; elites at 60% of it). 0 turns executions off.', '23-executions.js');
+knob('combat', 'Executions', 2, 'exeWindow', 'Reeling time', 2, .3, 8, .05, 's', 'How long a staggered monster stays open to an execution.', '23-executions.js');
+knob('combat', 'Executions', 2, 'exeHeal', 'Execution heal', .06, 0, 1, .01, 'x', 'Share of maximum life an execution or a takedown gives back (it also returns a dodge charge).', '23-executions.js');
 
 /* ---------- Monsters ---------- */
 knob('monsters', 'Strength', 1, 'foeHpGrowth', 'Life growth per depth', 1.1, 1, 1.4, .005, 'x', 'Monster life multiplies by this every depth down (1.10 = +10% a depth, compounding). The biggest lever on how fast the deep gets tanky.', '00-core.js (SCALE.foeHp)');
@@ -77,6 +80,9 @@ knob('monsters', 'Elites', 1, 'eliteHp', 'Elite life', 1, .1, 10, .05, 'x', 'Sca
 knob('monsters', 'Elites', 2, 'eliteDmg', 'Elite damage', 1, .1, 10, .05, 'x', 'Scales the extra damage of champions (1.25x) and rares (1.45x).', '30-monsters-core.js (spawnMonster)');
 knob('monsters', 'Elites', 2, 'eliteAffixes', 'Rare affix count', 0, -3, 5, 1, '+', 'Extra affixes (Hasted, Stoneskin, Vampiric...) on rare monsters, on top of 1 + 1 per 6 depths (at most 3).', '30-monsters-core.js (spawnMonster)');
 knob('monsters', 'Rewards', 2, 'foeXpGrowth', 'XP growth per depth', 1.11, 1, 1.4, .005, 'x', 'Experience per kill multiplies by this every depth.', '00-core.js (SCALE.foeXp)');
+knob('monsters', 'Wardens', 1, 'wardenSight', 'Warden sight', 130, 20, 400, 5, '', 'How far a Warden sees down its lantern cone (world units; 16 = one tile). Walls and pillars cut the cone short.', '32-wardens.js');
+knob('monsters', 'Wardens', 2, 'wardenRing', 'Alarm ring time', 1.4, .2, 6, .05, 's', 'Seconds a Warden rings its bell before the alarm goes off. A stagger restarts it.', '32-wardens.js');
+knob('monsters', 'Wardens', 2, 'wardenAlarm', 'Alarm reach', 320, 0, 1200, 10, '', 'How far the alarm carries: every monster that hears it (a wall halves it) wakes and comes for you.', '32-wardens.js');
 
 /* ---------- Bosses ---------- */
 knob('bosses', 'Strength', 1, 'bossHp', 'Boss life', 1, .05, 20, .05, 'x', 'Multiplies every boss’s life (on top of the Monster life slider and depth).', '35-bosses-core.js (spawnBoss)');
