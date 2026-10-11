@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.20.0)
+# my-3D2dge API index (v0.21.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.20.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.21.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -406,6 +406,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.sceneName = null`: its name ('main' for a game started with one scene)
 - `game.scenes = null`: the scenes given to start(), by name
 - `game.screen`: screen: the low-resolution screen (its W, H, scale and buffer)
+- `game.shell = null` †: the E.Shell over this game (an HTML interface: screens and HUD), or null
 - `game.stats`: per-frame timings (ms) and counts, for profiling overlays. frameMs: the real time since the last frame; updateMs, renderMs: milliseconds the last frame spent updating and drawing; steps: the updates it ran; items: what it queued for drawing; actors: actors drawn; culled: actors skipped off screen
 - `game.stats.updateMs`: milliseconds the last frame spent updating and drawing
 - `game.stats.renderMs`: milliseconds the last frame spent updating and drawing
@@ -883,6 +884,20 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `menu.title = null`: a heading, or null
 - `menu.x = 'center'`: where it sits, 'center' or pixels
 - `menu.y = 'center'`: where it sits, 'center' or pixels
+- `new E.Shell(game, o = {})`: new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings', meters: .125 }): an HTML interface over the game (see the section's header). theme: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont); screens: specs ui.show(name) starts from (a pause spec makes it follow game.paused); settings.items: 'sound', 'volume', 'motion' or { key, label, type: 'toggle' | 'slider', min, max, step, value }; store: the E.store key the settings are saved under; meters: meters per world unit for distances
+- `shell.back()` †: what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes)
+- `shell.dispose()` †: take its elements away and let go of the game (game.dispose() does it)
+- `shell.hide()` †: close every screen
+- `shell.hud(st = {})` †: the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn): { objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below), status: 'UNSEEN' or { text, color }, bars: [{ label, value, max, kind: 'bar' | 'pips', color }], counts: [[label, value]], prompt: { key: 'E', label, hint, progress: 0..1 }, tip: 'text' or { title, text }, place: 'The Old Harbour', keys: [['WASD', 'Move'], ...] (hidden on touch screens), buttons: [[label, fn or action]] (top right: pause and map where there is no Escape key), minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick } }
+- `shell.screen` †: the name of the open screen ('pause', 'settings', ...), or null while the game plays
+- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel) }; title: { name, subtitle, meta: [...], footer }; settings: its items; help: { keys: [[key, what]], sections: [[heading, text]] }; results: { emblem, stats: [[value, label]], medals: [[label, earned]] }; map: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old)
+- `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds
+- `shell.tutorial(title, text = '', seconds = 15)` †: a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away
+- `shell.els` †: the HUD's elements, by piece (hb, obj, vit, toast, tut, pr, tip, place, mini, keys) and the screen layer (scr)
+- `shell.game` †: the game it is over
+- `shell.o` †: its options
+- `shell.root = null` †: its DOM element (null in a headless game)
+- `shell.settings` †: the saved settings by key (read them, change them on the settings screen)
 - `E.ui`: pixel-drawn interface pieces for r.overlay: box (a window), bar (a meter), hearts (life); E.ui.heartSprites
 - `E.ui.bar(g, x, y, w, h, frac, color = '#e0463c', o = {})`: health / magic / boss bar: ui.bar(g, x, y, w, h, 0..1, '#e0463c')
 - `E.ui.box(g, x, y, w, h, o = {})`: window frame: ui.box(g, x, y, w, h, { bg, border, shadow, gradient }) bg: one color (drawn as a soft top-to-bottom gradient, like Final Fantasy windows) or [top, bottom] colors. gradient: false for a flat fill.

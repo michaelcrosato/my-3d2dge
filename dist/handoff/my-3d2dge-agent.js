@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.20.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.21.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -361,7 +361,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.20.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.21.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -3135,6 +3135,7 @@ E.prop = fullOnly('E.prop');
 Renderer.prototype.prop = fullOnly('r.prop');
 Renderer.prototype.sightCone = fullOnly('r.sightCone');
 for (const k of ['Mover', 'Action', 'Suspicion']) E[k] = class { constructor() { throw new Error('E.' + k + ' is only in the full engine (dist/my-3d2dge.js), with the rest of the third-person kit'); } };
+E.Shell = class { constructor(game) { fullOnly('E.Shell')(); this.game = game; this.settings = {}; this.root = null; } get screen() { return null; } show() { return this; } back() { return this; } hide() { return this; } toast() { return this; } tutorial() { return this; } hud() { return this; } dispose() {} };
 E.Backdrop = class { constructor() { fullOnly('E.Backdrop')(); } draw() {} };
 for (const m of ['enableGPU', 'setZoom', 'rotateView', 'resetCamera']) Game.prototype[m] = fullOnly('game.' + m);
 for (const m of ['drawPortrait', 'drawSmear', 'debug']) Humanoid.prototype[m] = fullOnly('rig.' + m);

@@ -12,6 +12,9 @@
 //                  full one E.Mover climbs, vaults, leaps a gap, hops down, rolls, takes fall damage and jumps once a press,
 //                  E.ACTIONS and E.Action (your own, paired, invulnerable, cancellable), E.Suspicion, FlowField jump links
 //                  and next(), and in Chromium footprint sorting, the decorate hook and r.sightCone cut by a wall
+//   shell          E.Shell: its HUD shows the state it is given, its pause screen follows game.paused, the game's input
+//                  moves the focus and is held back while a screen is open, a button's act reaches the game, settings
+//                  apply, toasts time out, dispose() takes it away; headless it keeps its screens' names
 // Usage: node tools/contract-test.mjs [--node]   (exit code 1 on a failure; --node runs only the part without a browser). What runs without a screen runs in Node; the game loop
 // runs in headless Chromium on a virtual clock (CHROMIUM_PATH picks a browser).
 import { chromium } from 'playwright';
@@ -55,6 +58,7 @@ for (const [ed, file] of EDITIONS) {
   lifecycle(E, ed);
   seesAndMaps(E, ed);
   if (ed === 'full') thirdPerson(E, ed);   // (the rest of the kit is the full engine's)
+  shellHeadless(E, ed);
 }
 
 // every fenced example in API.md and API-INDEX.md runs: a snippet in Node, in a headless game when it uses one it
@@ -298,6 +302,17 @@ function seesAndMaps(E, ed) {
   built.fill(1, 1, 2, 2, 0); check(`${ed}: fill() with 0 clears`, built.cell(1, 1) === 0 && built.cell(2, 2) === 0);
 }
 
+// E.Shell in a headless game: no DOM, but its screens' names, the pause it follows and back() still work; the agent
+// edition's stand-in does nothing and doesn't throw
+function shellHeadless(E, ed) {
+  const game = new E.Game({ headless: true }), ui = new E.Shell(game, { screens: { pause: { text: 'x' } } });
+  game.start({ scenes: { play: { pausable: true, update() { ui.hud({ objective: { title: 'x' } }); }, draw() {} } }, scene: 'play' });
+  if (ed === 'agent') { ui.show('pause'); check(`${ed}: E.Shell is a stand-in that does nothing`, ui.screen === null && ui.root === null); return; }
+  game.input.tap('pause'); game.advance(2 / 120);
+  const opened = ui.screen; ui.back();
+  check(`${ed}: E.Shell headless: the pause screen follows game.paused, back() resumes`, opened === 'pause' && ui.screen === null && !game.paused && ui.root === null, opened + ' ' + ui.screen + ' ' + game.paused);
+}
+
 // ---- in the browser: the game loop, on a virtual clock that only moves when the test says so
 const CLOCK = () => {
   let now = 0, due = [];
@@ -397,6 +412,34 @@ const DRAW3P = () => {
   frame({ cone: 'map' }); out.coneMap = count('#00ffff');
   return out;
 };
+// E.Shell over a game run by advance(): the HUD, the pause screen, focus moved by the game's input, input held back from
+// the game while a screen is open, a button's act, settings, the toast's time, dispose
+const SHELL = () => {
+  const E = My3D2dge, out = {}, q = s => document.querySelector(s), texts = s => [...document.querySelectorAll(s)].map(e => e.textContent);
+  const game = new E.Game({ canvas: 'screen', res: 'snes', loop: false, input: 'THIRDPERSON' }), I = game.input;
+  const ui = new E.Shell(game, { screens: { pause: { text: 'The objective' }, help: { keys: [['WASD', 'Move']] } },
+    settings: { items: ['motion', { key: 'cones', label: 'Cones', value: true }], onChange: (s, k) => { out.changed = k; } } });
+  game.start({ scenes: { play: { pausable: true, update() {
+    if (I.pressed('attack')) out.attacked = (out.attacked || 0) + 1;
+    ui.hud({ objective: { title: 'Steal it', at: { x: 160, y: 0, z: 40 }, from: { x: 0, y: 0, z: 0 } }, prompt: { key: 'E', label: 'Take', progress: .5 }, bars: [{ value: 2, max: 3, kind: 'pips' }] });
+  }, draw(r) { r.sky(['#000', '#000']); } } }, scene: 'play' });
+  const step = (n = 1) => game.advance(n / 120);
+  step();
+  out.obj = q('.esh-obj').textContent; out.prompt = q('.esh-pr').textContent; out.pips = [document.querySelectorAll('.esh-pips i').length, document.querySelectorAll('.esh-pips i.off').length];
+  I.tap('pause'); step(2);
+  out.pause = ui.screen; out.paused = game.paused; out.buttons = texts('.esh-sh button'); out.focus = document.activeElement.textContent; out.hudHidden = q('.esh-obj').hidden;
+  // (a tap holds its action through the next step: step twice before tapping the same one again, as a key is let go)
+  I.tap('down'); step(2); out.f1 = document.activeElement.textContent; I.tap('down'); step(2); out.f2 = document.activeElement.textContent;
+  I.tap('confirm'); step(2); out.s1 = ui.screen; I.tap('cancel'); step(2); out.s2 = ui.screen; I.tap('cancel'); step(2); out.s3 = ui.screen; out.resumed = !game.paused;
+  ui.show('results', { title: 'Done', stats: [['1', 'A']], medals: [['M', true]], actions: [['Again', () => { out.again = true; }], { label: 'Hit', act: 'attack' }] });
+  I.tap('attack'); step(2); out.heldBack = out.attacked || 0;
+  document.querySelectorAll('.esh-sh button')[1].click(); step(); out.actPassed = out.attacked || 0;
+  out.results = q('.esh-stats').textContent + '|' + q('.esh-med').textContent;
+  ui.show('settings'); q('.esh-sh [role=switch]').click(); step(); out.motion = game.reduceMotion; out.still = ui.root.classList.contains('esh-still'); out.saved = ui.settings.motion;
+  ui.hide(); ui.toast('Hi'); out.toastOn = q('.esh-toast').classList.contains('on'); step(600); out.toastOff = !q('.esh-toast').classList.contains('on');
+  game.dispose(); out.gone = !q('.esh') && game.shell === null;
+  return out;
+};
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [ed, file] of EDITIONS) {
   console.log(`\n${ed} edition (Chromium, virtual clock)`);
@@ -430,6 +473,16 @@ for (const [ed, file] of EDITIONS) {
   const LF = await run(LIFE);
   check(`${ed}: dispose() removes the engine's listeners`, LF.before && !LF.after && LF.current, JSON.stringify(LF));
   check(`${ed}: loop: false waits for advance(), which runs fixed steps and draws when asked`, LF.idle && LF.steps === 120 && LF.ups === 120 && LF.draws === 1, JSON.stringify(LF));
+  if (ed === 'full') {
+    const S = await run(SHELL);
+    console.log('  shell:', JSON.stringify(S));
+    check(`${ed}: E.Shell's HUD shows the state it is given (the objective's distance and height, the prompt, the pips)`, /Steal it/.test(S.obj) && /20 m/.test(S.obj) && /ABOVE/.test(S.obj) && /Take/.test(S.prompt) && S.pips.join() === '3,1', JSON.stringify([S.obj, S.prompt, S.pips]));
+    check(`${ed}: E.Shell's pause screen follows game.paused, with Resume, Settings and Help, the HUD hidden`, S.pause === 'pause' && S.paused && S.buttons.join() === 'Resume,Settings,Help' && S.focus === 'Resume' && S.hudHidden, JSON.stringify(S));
+    check(`${ed}: E.Shell: the game's input moves the focus, confirm opens, cancel goes back, then resumes`, S.f1 === 'Settings' && S.f2 === 'Help' && S.s1 === 'help' && S.s2 === 'pause' && S.s3 === null && S.resumed, JSON.stringify(S));
+    check(`${ed}: E.Shell holds the game's input back while a screen is open; a button's act reaches it`, S.heldBack === 0 && S.actPassed === 1 && /A/.test(S.results), JSON.stringify(S));
+    check(`${ed}: E.Shell settings apply (reduce motion) and tell the game`, S.motion === true && S.still && S.saved === true && S.changed === 'motion', JSON.stringify(S));
+    check(`${ed}: E.Shell toasts time out; dispose() takes it away`, S.toastOn && S.toastOff && S.gone, JSON.stringify(S));
+  }
   const D = await run(DRAW3P);
   console.log('  third person:', JSON.stringify(Object.assign({}, D, { faces: D.faces.length })));
   check(`${ed}: r.marker: a diamond on screen, an arrow at the edge off it`, D.onScreen.inner > 10 && D.offScreen.n > 10 && D.offScreen.inner === 0, JSON.stringify([D.onScreen, D.offScreen]));

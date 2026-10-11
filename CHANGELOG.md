@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.21.0 (2026-10-11)
+
+An HTML interface for modern adaptations, built from data. Phase 4 of the Vesper plan.
+
+- **Engine**: `E.Shell` (section 21d), an HTML interface over the game: the screens a modern adaptation writes by hand (title, pause, settings, help, results, a district map with a waypoint, or your own) from specs, and HUD pieces from each step's state (an objective with its distance and whether it is above or below, status, pips and bars, counts, a hold-to-interact prompt, a tip, the place's name, a control bar, on-screen buttons, a minimap drawn from a `TileMap` with markers), plus toasts and a tutorial card. It holds no game state: values come in every step and buttons call back (or tap an input action). With a pause spec it follows `game.paused`. The game's input moves its focus (keys, d-pad, stick; sliders turn) and is held back from the game while a screen is open; touch taps. Built-in settings (sound, volume, reduce motion) apply themselves and every setting is saved with `E.store`. It honors reduced motion and the safe-area insets, CSS variables theme it, it is headless-safe, and `game.dispose()` takes it away. `game.shell` is the one over a game.
+- **Engine**: the agent edition has a stand-in `E.Shell` that does nothing (it warns once), so full-engine code runs there without its interface.
+- **Tools**: a Temporary lab, "Vesper's interface on E.Shell" (`examples/vesper-ui.html`, `/vesper-ui`): Vesper's whole interface rebuilt over a small stand-in game. It comes to 2,100 cl100k tokens (`src/vesper-ui.ui.js`), against the 15.2k of HTML, CSS and glue Vesper wrote by hand: 14%, under the plan's quarter.
+- **Tools**: `tools/contract-test.mjs` holds the shell to its word: the HUD shows what it is given, the pause screen follows `game.paused`, the game's input moves the focus and is held back while a screen is open, a button's act reaches the game, settings apply, toasts time out, `dispose()` takes it away, and headless it keeps its screens' names.
+- **Docs**: `API.md` (one line), `AI_GUIDE.md` ("Shell"), `README.md`, the engine's header; D18 records its pull request.
+
 ## 0.20.0 (2026-10-11)
 
 A third-person kit: a ground controller that climbs, vaults and leaps between roofs, timed actions, guards that see, hear and search, and a stealth starter. Phase 3 of the Vesper plan.

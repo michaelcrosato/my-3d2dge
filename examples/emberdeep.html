@@ -35,7 +35,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.20.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.21.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -72,7 +72,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
  *    E.Mover on a TileMap of roofs climbs, vaults and leaps; E.ACTIONS, and E.sees / E.Suspicion for guards (17b-17d).
  * 8. SOUND, TEXT, MENUS. game.audio.sfx('jump'), game.audio.music(song);
  *    E.font.text(...) (5x7 proportional font), E.font.title(...), E.ui.box/bar/hearts,
- *    new E.Dialog(game), new E.Menu(game, items).
+ *    new E.Dialog(game), new E.Menu(game, items). An HTML interface (title, pause, settings, help, results, map
+ *    screens and a HUD with a minimap) from data: new E.Shell(game, {...}) (21d).
  * 8b. LOOK. Aim for PS1 / N64 era 2D, not NES: HD rigs (size, outfit, hair, armor),
  *    new E.Backdrop('castle-night') behind levels, textured tiles (stone, brick, wood,
  *    metal), r.prop('torch', ...) set dressing, particles.explosion / smoke / fire,
@@ -106,7 +107,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.20.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.21.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1821,6 +1822,8 @@ class Game {
      *  pauseOverlay: false hides the engine's PAUSED overlay (a game drawing its own pause screen); errors: the
      *  errors caught in update and draw, each { where, scene, message, stack }, once per kind */
     this.paused = false; this.pauseOverlay = true; this._timers = []; this.errors = []; this._errKeys = new Set();
+    /** the E.Shell over this game (an HTML interface: screens and HUD), or null */
+    this.shell = null;
     /** seconds for the dithered fade between scenes (0 = instant cuts) */
     this.fadeTime = .22; this._fade = null;
     /** scenes: the scenes given to start(), by name; scene: the scene running; sceneName: its name ('main' for a
@@ -1990,6 +1993,7 @@ class Game {
     /** disposed: true after dispose() */
     this.stop(); this.disposed = true;
     if (this._abort) this._abort.abort();
+    if (this.shell) this.shell.dispose();
     const A = this.audio; try { A.stopMusic(); if (A.ctx && A.ctx.close) A.ctx.close(); } catch (e) { /* already closed */ } A.ctx = null; A.failed = 'the game was disposed';
     const I = this.input; for (const el of [I._touchEl, I._stickEl, I._knobEl]) if (el && el.remove) el.remove();
     const G = this.gpu; if (G) { try { if (G.cv) G.cv.remove(); if (G._dev && G._dev.destroy) G._dev.destroy(); } catch (e) { /* gone */ } G.enabled = G.ready = false; this.gpu = null; }
@@ -2074,6 +2078,7 @@ class Game {
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
     this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt);
+    if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
     if (this._fade) { const out = this._fade.out; this._fadeStep(dt); if (out) return; }   // the old scene freezes while it fades out
     const s = this.scene;
@@ -5564,6 +5569,307 @@ class Menu {
   }
 }
 E.Menu = Menu;
+
+/* =============================================================================
+ * 21d. SHELL  an HTML interface over the game, built from data: the screens (title, pause, settings, help, results, map)
+ *    and the HUD pieces (toast, tutorial card, interaction prompt, objective with its distance, status, bars, counts,
+ *    minimap) a modern adaptation would otherwise write by hand in HTML and CSS. It shows game state and holds none:
+ *    the game passes values in every step and callbacks for the buttons, and it reaches the game only through those and
+ *    input actions (a button's act is tapped, as input.bindButtons presses one).
+ *      const ui = new E.Shell(game, { theme: { accent: '#d9b77c' }, settings: { items: ['sound', 'volume', 'motion'] },
+ *        screens: { pause: { text: () => objective.title }, help: { keys: [['WASD', 'Move'], ['SPACE', 'Climb']] } } });
+ *      ui.show('title', { name: 'VESPER', subtitle: 'The Ninth Bell', actions: [['Enter the district', start]] });
+ *      every step: ui.hud({ objective: { title, text, at: ledger, from: hero }, status: 'UNSEEN',
+ *        bars: [{ value: hp, max: 5, kind: 'pips' }], prompt: near && { key: 'E', label: 'Take the ledger', progress },
+ *        minimap: { map, at: hero, markers: [{ x, y, kind: 'diamond' }] } });
+ *      ui.toast('Checkpoint', 'The ledger is yours'); ui.show('results', { title: 'The names are safe', stats, medals })
+ *    With a pause screen, it opens while game.paused and Resume unpauses. Keys, d-pad, stick and touch move the focus
+ *    (up / down / left / right turn a slider, confirm presses, cancel goes back); while a screen is open the game's input
+ *    is held back. It honors reduced motion and the safe-area insets, CSS variables theme it (ink, paper, accent, muted,
+ *    danger, line, font, titleFont), and a headless game keeps its screens' names and draws nothing.
+ * ============================================================================= */
+const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;font:14px/1.45 var(--font);color:var(--ink);--sat:env(safe-area-inset-top,0px);
+--pt:calc(14px + env(safe-area-inset-top,0px));--pr:calc(14px + env(safe-area-inset-right,0px));--pb:calc(14px + env(safe-area-inset-bottom,0px));--pl:calc(14px + env(safe-area-inset-left,0px))}
+.esh *{box-sizing:border-box}.esh [hidden]{display:none!important}.esh p{margin:4px 0 0;white-space:pre-line}
+.esh h1,.esh h2{font-family:var(--title);font-weight:600;margin:2px 0 0;line-height:1.05}.esh h2{font-size:26px}
+.esh-pan{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:10px 13px;box-shadow:0 8px 28px #0009}
+.esh-k{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}.esh-m{color:var(--muted);font-size:12px}
+.esh-obj{position:absolute;left:var(--pl);top:var(--pt);max-width:min(330px,58vw)}.esh-obj b{font:600 17px var(--title);display:block}
+.esh-dist{color:var(--accent);font-size:12px;margin-top:4px;letter-spacing:.06em}
+.esh-vit{text-align:right;min-width:120px}.esh-hb{display:flex;gap:6px;pointer-events:auto}.esh-hb button{padding:6px 10px;font-size:11px;background:var(--paper)}
+.esh-st{font-size:11px;letter-spacing:.16em}.esh-st i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--c)}
+.esh-pips{margin-top:5px}.esh-pips i{display:inline-block;width:9px;height:9px;margin-left:4px;transform:rotate(45deg);background:var(--c,var(--danger))}.esh-pips i.off{opacity:.22}
+.esh-bar{height:4px;background:#ffffff1c;border-radius:2px;overflow:hidden;margin-top:6px}.esh-bar i{display:block;height:100%;background:var(--c,var(--accent));transition:width .2s}
+.esh-cnt{margin-top:6px;font-size:12px;color:var(--muted)}.esh-cnt b{color:var(--ink);margin-left:5px}
+.esh-toast{position:absolute;left:50%;top:var(--pt);transform:translate(-50%,calc(-100% - 30px));transition:transform .35s;max-width:min(420px,80vw);text-align:center}.esh-toast.on{transform:translate(-50%,0)}
+.esh-tut{position:absolute;left:var(--pl);bottom:var(--pb);max-width:min(330px,62vw);pointer-events:auto;padding-right:30px}
+.esh-x{position:absolute;right:6px;top:4px;background:none!important;border:0!important;color:var(--muted)!important;padding:2px 6px!important;font-size:16px!important}
+.esh-pr{position:absolute;left:50%;bottom:calc(var(--pb) + 44px);transform:translateX(-50%);display:flex;gap:10px;align-items:center;min-width:200px}
+.esh kbd{font:700 12px var(--font);border:1px solid var(--accent);border-bottom-width:2px;border-radius:4px;padding:2px 7px;color:var(--accent)}
+.esh-tip{position:absolute;left:50%;bottom:calc(var(--pb) + 100px);transform:translateX(-50%);text-align:center;border-color:var(--danger)}
+.esh-col{position:absolute;right:var(--pr);top:var(--pt);display:flex;flex-direction:column;align-items:flex-end;gap:8px}.esh-place{text-align:right;font:italic 13px var(--title);color:var(--muted)}
+.esh-mini{position:absolute;right:var(--pr);bottom:var(--pb);width:min(176px,28vw);border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}
+.esh-keys{position:absolute;left:50%;bottom:var(--pb);transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap}.esh-keys kbd{margin-right:4px}
+@media (pointer:coarse){.esh-keys{display:none}}
+.esh-sh{position:absolute;inset:0;display:grid;place-items:center;background:#04060acc;pointer-events:auto;padding:var(--pt) var(--pr) var(--pb) var(--pl);animation:esh-in .25s}
+.esh-mod{width:min(460px,100%);max-height:100%;overflow:auto;padding:22px 24px}.esh-wide{width:min(760px,100%)}
+.esh-ttl{place-items:center start;background:linear-gradient(90deg,#04060aee,#04060a99 50%,#04060a00 85%)}.esh-ttl>div{max-width:min(520px,92vw);padding-left:4vw}
+.esh-ttl h1{font-size:clamp(44px,10vw,92px);letter-spacing:.07em}.esh-sub{font:italic 20px var(--title);color:var(--accent);margin-top:6px}
+.esh-btns{display:flex;flex-direction:column;gap:8px;margin-top:18px}.esh-tags{display:flex;gap:10px;margin-top:18px;font-size:11px;letter-spacing:.16em;color:var(--muted)}
+.esh button{font:600 13px var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);background:#ffffff0f;border:1px solid #ffffff2c;border-radius:4px;padding:10px 14px;text-align:left;cursor:pointer}
+.esh button.pri{background:var(--accent);border-color:var(--accent);color:#16130e}.esh button:disabled{opacity:.4;cursor:default}
+.esh button:focus-visible,.esh input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.esh-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:7px 0;border-bottom:1px solid var(--line)}.esh-row button{min-width:64px;text-align:center}
+.esh input[type=range]{accent-color:var(--accent);width:140px}.esh-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin-top:12px;align-items:center}
+.esh-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;margin:16px 0 8px}.esh-stats b{display:block;font:600 24px var(--title)}
+.esh-stats small{color:var(--muted);font-size:10px;letter-spacing:.14em}.esh-med{display:inline-block;margin:6px 6px 0 0;padding:3px 9px;border-radius:12px;border:1px solid var(--accent);font-size:12px}.esh-med.off{opacity:.35;border-color:var(--muted)}
+.esh-sec{margin-top:14px}.esh-emb{font-size:34px;color:var(--accent);text-align:center}.esh-map{width:100%;margin-top:12px;border-radius:4px;cursor:crosshair;display:block}
+.esh-still,.esh-still *{transition:none!important;animation:none!important}@media (prefers-reduced-motion:reduce){.esh *{transition:none!important;animation:none!important}}
+@keyframes esh-in{from{opacity:0}}`;
+const SHELL_THEME = { ink: '#f1e8d6', paper: 'rgba(14,18,22,.86)', accent: '#d9b77c', muted: '#a49d8c', danger: '#e8836a', line: 'rgba(217,183,124,.3)', font: 'system-ui, sans-serif', titleFont: 'Georgia, serif' };
+/** the settings E.Shell knows how to apply itself: settings: { items: ['sound', 'volume', 'motion', { key, label, ... }] } */
+const SHELL_SETTINGS = {
+  sound: { label: 'Sound', value: true, apply: (g, v) => g.audio.mute(!v) },
+  volume: { label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
+  motion: { label: 'Reduce motion', value: false, apply: (g, v) => { g.reduceMotion = !!v; } }
+};
+class Shell {
+  /**
+   * new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings',
+   * meters: .125 }): an HTML interface over the game (see the section's header). theme: CSS variables (ink, paper, accent,
+   * muted, danger, line, font, titleFont); screens: specs ui.show(name) starts from (a pause spec makes it follow
+   * game.paused); settings.items: 'sound', 'volume', 'motion' or { key, label, type: 'toggle' | 'slider', min, max, step,
+   * value }; store: the E.store key the settings are saved under; meters: meters per world unit for distances
+   */
+  constructor(game, o = {}) {
+    /** game: the game it is over; o: its options; settings: the saved settings by key (read them, change them on the
+     *  settings screen); root: its DOM element (null in a headless game) */
+    this.game = game; this.o = o; this.settings = {}; this.root = null; this._stack = []; this._keep = new Set(); this._held = new Set(); this._last = {};
+    const items = this._items(), saved = store.get(o.store || 'shell-settings', null) || {};
+    for (const it of items) this.settings[it.key] = saved[it.key] !== undefined ? saved[it.key] : it.value !== undefined ? it.value : it.type === 'slider' ? 1 : false;
+    for (const it of items) if (it.apply && !game.headless) it.apply(game, this.settings[it.key]);
+    game.shell = this;
+    if (o.screens && o.screens.pause) game.pauseOverlay = false;
+    if (game.headless || typeof document === 'undefined') return;
+    if (!document.getElementById('esh-css')) { const st = document.createElement('style'); st.id = 'esh-css'; st.textContent = SHELL_CSS; document.head.appendChild(st); }
+    const r = this.root = this._el('div', 'esh'), th = Object.assign({}, SHELL_THEME, o.theme);
+    for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
+    const host = document.body; host.appendChild(r);
+    const E2 = (cls, parent = r, tag = 'div') => { const e = this._el(tag, cls); e.hidden = true; parent.appendChild(e); return e; };
+    const col = this._el('div', 'esh-col'); r.appendChild(col);
+    /** the HUD's elements, by piece (hb, obj, vit, toast, tut, pr, tip, place, mini, keys) and the screen layer (scr) */
+    this.els = { hb: E2('esh-hb', col), obj: E2('esh-obj esh-pan'), vit: E2('esh-vit esh-pan', col), place: E2('esh-place', col), tip: E2('esh-tip esh-pan'), pr: E2('esh-pr esh-pan'), keys: E2('esh-keys'),
+      tut: E2('esh-tut esh-pan'), mini: E2('esh-mini', r, 'canvas'), toast: E2('esh-toast esh-pan'), scr: this._el('div', '') };
+    r.appendChild(this.els.scr); this.els.toast.hidden = false;
+    const mini = this.els.mini; mini.width = 176; mini.height = 158; mini.onclick = () => { const m = this._miniLast; if (m && m.onClick) m.onClick(); };
+  }
+  /** the name of the open screen ('pause', 'settings', ...), or null while the game plays */
+  get screen() { const t = this._stack[this._stack.length - 1]; return t ? t.name : null; }
+  /** open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over
+   *  o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act,
+   *  primary, disabled }], back (fn for cancel) }; title: { name, subtitle, meta: [...], footer }; settings: its items;
+   *  help: { keys: [[key, what]], sections: [[heading, text]] }; results: { emblem, stats: [[value, label]], medals:
+   *  [[label, earned]] }; map: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }. From
+   *  another screen it stacks (back() returns); shown again, it updates (the new spec over the old) */
+  show(name, spec = {}) {
+    const top = this._stack[this._stack.length - 1], again = top && top.name === name, s = Object.assign({}, this.o.screens && this.o.screens[name], again ? top.s : null, spec);
+    if (again) this._stack.pop();   // the same screen again: updated in place
+    this._stack.push({ name, s }); this._render(); return this;
+  }
+  /** what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes) */
+  back() {
+    const top = this._stack[this._stack.length - 1]; if (!top) return this;
+    if (top.s.back) { top.s.back(); return this; }
+    this._stack.pop(); if (top.name === 'pause') this.game.paused = false;
+    this._render(); return this;
+  }
+  /** close every screen */
+  hide() { const p = this._stack.some(t => t.name === 'pause'); this._stack.length = 0; if (p) this.game.paused = false; this._render(); return this; }
+  /** a message that slides in at the top for a few seconds */
+  toast(title, text = '', seconds = 4) {
+    if (!this.root) return this;
+    const e = this.els.toast; e.replaceChildren(this._el('b', '', title)); if (text) e.appendChild(this._el('p', 'esh-m', text));
+    e.classList.add('on'); this._toastEnd = this.game.real + seconds; return this;
+  }
+  /** a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away */
+  tutorial(title, text = '', seconds = 15) {
+    if (!this.root) return this;
+    const e = this.els.tut; e.hidden = !title; this._tutEnd = title ? this.game.real + seconds : 0; if (!title) return this;
+    const x = this._el('button', 'esh-x', '×'); x.setAttribute('aria-label', 'Dismiss'); x.onclick = () => this.tutorial(null);
+    e.replaceChildren(this._el('div', 'esh-k', 'Tutorial'), this._el('b', '', title), this._el('p', 'esh-m', text), x); return this;
+  }
+  /**
+   * the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn):
+   * { objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below),
+   *   status: 'UNSEEN' or { text, color }, bars: [{ label, value, max, kind: 'bar' | 'pips', color }],
+   *   counts: [[label, value]], prompt: { key: 'E', label, hint, progress: 0..1 }, tip: 'text' or { title, text },
+   *   place: 'The Old Harbour', keys: [['WASD', 'Move'], ...] (hidden on touch screens), buttons: [[label, fn or action]]
+   *   (top right: pause and map where there is no Escape key),
+   *   minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick } }
+   */
+  hud(st = {}) {
+    if (!this.root) return this;
+    const s = st || {}, E3 = this.els, play = !this.screen;
+    this._piece('obj', play && s.objective, o => {
+      const d = o.at && o.from ? Math.round(Math.hypot(o.at.x - o.from.x, o.at.y - o.from.y) * (this.o.meters || .125)) : null, dz = o.at && o.from ? (o.at.z || 0) - (o.from.z || 0) : 0;
+      return [o.step && this._el('div', 'esh-k', o.step), this._el('b', '', o.title), o.text && this._el('p', 'esh-m', o.text),
+        d !== null && this._el('div', 'esh-dist', d + ' m' + (dz > 12 ? '  ·  ABOVE YOU' : dz < -12 ? '  ·  BELOW YOU' : ''))];
+    });
+    this._piece('vit', play && (s.status || s.bars || s.counts) && [s.status, s.bars, s.counts], ([sta, bars, cnt]) => {
+      const out = [];
+      if (sta) { const t = typeof sta === 'string' ? { text: sta } : sta, e = this._el('div', 'esh-st'); e.style.setProperty('--c', t.color || 'var(--accent)'); e.append(this._el('i'), t.text); out.push(e); }
+      for (const b of bars || []) {
+        const e = this._el('div', b.kind === 'pips' ? 'esh-pips' : 'esh-bar'); if (b.color) e.style.setProperty('--c', b.color);
+        if (b.label) out.push(this._el('div', 'esh-m', b.label));
+        if (b.kind === 'pips') for (let i = 0; i < (b.max || 0); i++) e.appendChild(this._el('i', i < b.value ? '' : 'off'));
+        else { const f = this._el('i'); f.style.width = clamp(b.value / (b.max || 1), 0, 1) * 100 + '%'; e.appendChild(f); }
+        e.setAttribute('aria-label', (b.label || '') + ' ' + b.value + ' of ' + (b.max || 1)); out.push(e);
+      }
+      for (const [k, v] of cnt || []) { const e = this._el('div', 'esh-cnt', k); e.appendChild(this._el('b', '', v)); out.push(e); }
+      return out;
+    });
+    this._piece('pr', play && s.prompt, p => {
+      const box = this._el('div'), bar = this._el('div', 'esh-bar'), f = this._el('i'); f.style.width = clamp(p.progress || 0, 0, 1) * 100 + '%'; bar.appendChild(f);
+      box.append(this._el('div', 'esh-k', p.hint || (p.progress !== undefined ? 'Hold to interact' : 'Interact')), this._el('b', '', p.label || ''));
+      if (p.progress !== undefined) box.appendChild(bar);
+      return [this._el('kbd', '', p.key || 'E'), box];
+    });
+    this._btns = s.buttons || [];   // (clicks call this step's: the functions may be new every step)
+    this._piece('hb', play && s.buttons && s.buttons.map(b => b[0]), labels => labels.map((l, i) => { const b = this._el('button', '', l); b.onclick = () => { const f = this._btns[i] && this._btns[i][1]; if (typeof f === 'function') f(); else if (f) { this.game.input.tap(f); this._held.add(f); } }; return b; }));
+    this._piece('tip', play && s.tip, t => typeof t === 'string' ? [this._el('b', '', t)] : [this._el('b', '', t.title), t.text && this._el('p', 'esh-m', t.text)]);
+    this._piece('place', play && s.place, p => [p]);
+    this._piece('keys', play && s.keys, ks => ks.map(([k, w]) => { const e = this._el('span'); e.append(this._el('kbd', '', k), w); return e; }));
+    const m = play && s.minimap; E3.mini.hidden = !m; if (m) this._miniLast = m;
+    if (m && (this.game.real - (this._miniT || -1) > .1)) { this._miniT = this.game.real; this._map(E3.mini, m, false); }
+    return this;
+  }
+  /** take its elements away and let go of the game (game.dispose() does it) */
+  dispose() { if (this.root) this.root.remove(); this.root = null; if (this.game.shell === this) this.game.shell = null; }
+  /** the settings items, with the built-in ones filled in */
+  _items() { const it = this.o.settings && this.o.settings.items || []; return it.map(i => typeof i === 'string' ? Object.assign({ key: i }, SHELL_SETTINGS[i]) : i).filter(i => i && i.key); }
+  /** an element with a class and text (text is never parsed as HTML) */
+  _el(tag, cls = '', text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null && text !== false) e.textContent = String(text); return e; }
+  /** redraw one HUD piece when its state changed: build(state) -> its children */
+  _piece(k, state, build) {
+    const e = this.els[k], key = state ? JSON.stringify(state, (n, v) => n === 'from' || n === 'at' ? (v ? [Math.round(v.x), Math.round(v.y), Math.round(v.z || 0)] : v) : v) : '';
+    if (key === this._last[k]) return; this._last[k] = key; e.hidden = !state;
+    if (state) e.replaceChildren(...build(state).filter(Boolean).map(c => typeof c === 'string' ? document.createTextNode(c) : c));
+  }
+  /** a settings value changed: save it, apply it, tell the game */
+  _set(key, v) {
+    this.settings[key] = v; store.set(this.o.store || 'shell-settings', this.settings);
+    const it = this._items().find(i => i.key === key); if (it && it.apply) it.apply(this.game, v);
+    const cb = this.o.settings && this.o.settings.onChange; if (cb) cb(this.settings, key);
+  }
+  /** a button: [label, fn] or { label, fn, act, primary, disabled } */
+  _btn(a, i) {
+    const b = Array.isArray(a) ? { label: a[0], fn: a[1] } : a, e = this._el('button', b.primary || (b.primary === undefined && i === 0) ? 'pri' : '', b.label);
+    e.disabled = !!b.disabled;
+    e.onclick = () => { if (b.fn) b.fn(); else if (b.act) { this.game.input.tap(b.act); this._held.add(b.act); } };
+    return e;
+  }
+  /** build the open screen */
+  _render() {
+    if (!this.root) return;
+    const scr = this.els.scr, top = this._stack[this._stack.length - 1];
+    if (!top) { scr.replaceChildren(); return; }
+    for (const k of ['hb', 'obj', 'vit', 'place', 'tip', 'pr', 'keys', 'mini']) { this.els[k].hidden = true; this._last[k] = null; }   // the HUD hides under a screen (a paused game calls no hud())
+    const { name, s } = top, v = x => typeof x === 'function' ? x() : x, title = name === 'title';
+    const sh = this._el('div', 'esh-sh' + (title ? ' esh-ttl' : '')), box = this._el('div', title ? '' : 'esh-pan esh-mod' + (name === 'map' ? ' esh-wide' : ''));
+    sh.appendChild(box); sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-label', v(s.title || s.name) || name);
+    const add = (...c) => box.append(...c.filter(Boolean));
+    add(s.emblem && this._el('div', 'esh-emb', s.emblem), s.kicker && this._el('div', 'esh-k', v(s.kicker)));
+    if (title) add(this._el('h1', '', v(s.name || s.title)), s.subtitle && this._el('div', 'esh-sub', v(s.subtitle)));
+    else add(this._el('h2', '', v(s.title) || { pause: 'Paused', settings: 'Settings', help: 'Controls', map: 'Map' }[name] || ''));
+    add(v(s.text) && this._el('p', title ? '' : 'esh-m', v(s.text)));
+    if (name === 'settings') for (const it of this._items()) {
+      const row = this._el('div', 'esh-row'), val = this.settings[it.key]; row.appendChild(this._el('span', '', it.label || it.key));
+      if (it.type === 'slider') { const r = this._el('input'); Object.assign(r, { type: 'range', min: it.min || 0, max: it.max === undefined ? 1 : it.max, step: it.step || .1, value: val }); r.setAttribute('aria-label', it.label || it.key); r.oninput = () => this._set(it.key, +r.value); row.appendChild(r); }
+      else { const b = this._el('button', '', val ? 'On' : 'Off'); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(!!val)); b.onclick = () => { this._set(it.key, !this.settings[it.key]); b.textContent = this.settings[it.key] ? 'On' : 'Off'; b.setAttribute('aria-checked', String(!!this.settings[it.key])); }; row.appendChild(b); }
+      add(row);
+    }
+    if (s.keys) { const g = this._el('div', 'esh-grid'); for (const [k, w] of v(s.keys)) g.append(this._el('kbd', '', k), this._el('span', '', w)); add(g); }
+    for (const [h, t] of v(s.sections) || []) add(this._el('div', 'esh-k esh-sec', h), this._el('p', 'esh-m', t));
+    if (s.stats) { const g = this._el('div', 'esh-stats'); for (const [val, lab] of v(s.stats)) { const c = this._el('div'); c.append(this._el('b', '', val), this._el('small', '', lab)); g.appendChild(c); } add(g); }
+    if (s.medals) { const g = this._el('div'); for (const [lab, got] of v(s.medals)) g.appendChild(this._el('span', 'esh-med' + (got ? '' : ' off'), (got ? '✓ ' : '') + lab)); add(g); }
+    if (name === 'map' && s.map) {
+      const cv = this._el('canvas', 'esh-map'); cv.width = 720; cv.height = Math.round(720 * s.map.h / s.map.w); this._map(cv, s, true); add(cv);
+      if (s.onPick) cv.onclick = e => { const b = cv.getBoundingClientRect(), t = cv._xf, x = ((e.clientX - b.left) * cv.width / b.width - t.ox) / t.k, y = ((e.clientY - b.top) * cv.height / b.height - t.oy) / t.k; s.onPick(x, y); this._map(cv, s, true); };
+    }
+    const acts = (name === 'pause' ? [['Resume', () => { this.game.paused = false; }]] : []).concat(v(s.actions) || []).filter(Boolean);
+    if (name === 'pause') { if (this._items().length) acts.push(['Settings', () => this.show('settings')]); if (this.o.screens && this.o.screens.help) acts.push(['Help', () => this.show('help')]); }
+    if (!acts.length && !title) acts.push(['Back', () => this.back()]);
+    const btns = this._el('div', 'esh-btns'); acts.forEach((a, i) => btns.appendChild(this._btn(a, i))); add(btns);
+    if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
+    add(s.footer && this._el('div', 'esh-m', v(s.footer)));
+    this.els.scr.replaceChildren(sh);
+    const f = sh.querySelector('button.pri:not(:disabled)') || sh.querySelector('button:not(:disabled), input'); if (f) f.focus({ preventScroll: true });
+  }
+  /** draw a TileMap from above: floor, roofs by height, water and grass, then markers and the body at (an arrow) */
+  _map(cv, s, large) {
+    const m = s.map, g = cv.getContext('2d'), W = cv.width, H = cv.height, T = m.T, ww = m.w * T, hh = m.h * T, pad = large ? 22 : 8;
+    const k = Math.min((W - pad * 2) / ww, (H - pad * 2) / hh), ox = (W - ww * k) / 2, oy = (H - hh * k) / 2, P = (x, y) => [ox + x * k, oy + y * k];
+    cv._xf = { k, ox, oy };
+    if (!m._shellBase || m._shellBase.v !== m.version || m._shellBase.w !== W) {   // the cells, cached until the map changes
+      const b = mkCanvas(W, H), bg = ctx2d(b); bg.fillStyle = '#121b1d'; bg.fillRect(0, 0, W, H);
+      let top = 1; for (let cy = 0; cy < m.h; cy++) for (let cx = 0; cx < m.w; cx++) top = Math.max(top, m.height(cx, cy));
+      for (let cy = 0; cy < m.h; cy++) for (let cx = 0; cx < m.w; cx++) {
+        const c = m.cell(cx, cy), tag = m.floorAt((cx + .5) * T, (cy + .5) * T);
+        bg.fillStyle = c > 0 ? mix('#4a5650', '#d2c296', m.height(cx, cy) / top) : tag === 'water' || tag === 'lava' ? (tag === 'water' ? '#1d3e56' : '#6a2a1a') : tag === 'grass' ? '#29452f' : '#1f2b2c';
+        bg.fillRect(Math.floor(ox + cx * T * k), Math.floor(oy + cy * T * k), Math.ceil(T * k), Math.ceil(T * k));
+      }
+      m._shellBase = { v: m.version, w: W, cv: b };
+    }
+    g.drawImage(m._shellBase.cv, 0, 0);
+    g.textAlign = 'center'; g.font = (large ? 12 : 7) + 'px ' + (this.o.theme && this.o.theme.font || 'sans-serif');
+    if (large) for (const [t, x, y] of s.labels || []) { g.fillStyle = '#cbbf9e'; g.fillText(t, ...P(x, y)); }
+    for (const q of (typeof s.markers === 'function' ? s.markers() : s.markers) || []) {
+      const [x, y] = P(q.x, q.y), r = (q.size || (large ? 6 : 3)); g.strokeStyle = g.fillStyle = q.color || '#ffe0a0'; g.lineWidth = large ? 2 : 1; g.beginPath();
+      if (q.kind === 'diamond') { g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r); g.lineTo(x - r, y); g.closePath(); g.stroke(); }
+      else if (q.kind === 'cross') { g.moveTo(x - r, y); g.lineTo(x + r, y); g.moveTo(x, y - r); g.lineTo(x, y + r); g.stroke(); }
+      else if (q.kind === 'ring') { g.arc(x, y, r, 0, TAU); g.stroke(); }
+      else { g.arc(x, y, r * .7, 0, TAU); g.fill(); }
+      if (large && q.label) { g.fillStyle = '#ebd3a0'; g.fillText(q.label, x, y + r + 13); }
+    }
+    if (s.at) {
+      const [x, y] = P(s.at.x, s.at.y), a = s.at.facing || 0, r = large ? 9 : 5; g.fillStyle = '#f8efd0'; g.strokeStyle = '#10181a'; g.lineWidth = 1.5; g.beginPath();
+      g.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); g.lineTo(x + Math.cos(a + 2.45) * r * .8, y + Math.sin(a + 2.45) * r * .8); g.lineTo(x + Math.cos(a - 2.45) * r * .8, y + Math.sin(a - 2.45) * r * .8); g.closePath(); g.fill(); g.stroke();
+    }
+    g.fillStyle = '#b6c5b5'; g.textAlign = 'right'; g.fillText('N', W - (large ? 12 : 5), large ? 18 : 10);
+  }
+  /** each step (the game calls it after reading input): follow game.paused, time out the toast and the card, and while a
+   *  screen is open, move the focus with the game's input and hold the rest of it back from the game */
+  _step() {
+    const g = this.game, I = g.input, now = g.real, pause = this.o.screens && this.o.screens.pause;
+    if (pause && g.paused && !this._stack.length) this.show('pause');
+    if (pause && !g.paused && this._stack.some(t => t.name === 'pause')) { this._stack.length = 0; this._render(); }
+    if (this.root) {
+      if (this._toastEnd && now > this._toastEnd) { this.els.toast.classList.remove('on'); this._toastEnd = 0; }
+      if (this._tutEnd && now > this._tutEnd) this.tutorial(null);
+      this.root.classList.toggle('esh-still', !!g.reduceMotion);
+    }
+    if (!this._stack.length) return;
+    const keep = this._held; this._held = new Set();
+    const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), mv = I.move();
+    const hit = ['up', 'down', 'left', 'right'].find(a => has(a) && I.pressed(a)), dir = Math.abs(mv[1]) > .5 ? (mv[1] < 0 ? 'up' : 'down') : Math.abs(mv[0]) > .5 ? (mv[0] < 0 ? 'left' : 'right') : null;
+    for (const a in I.map) if (!keep.has(a)) I.suppress(a);   // the game doesn't see what the menu used
+    if (!this.root) { if (cancel) this.back(); return; }
+    if (hit) { this._dir = hit; this._dirT = now + .35; this._nav(hit); }   // a press (however short), then the held direction repeats
+    else if (dir !== this._dir) { this._dir = dir; this._dirT = now + .35; if (dir) this._nav(dir); }
+    else if (dir && now > this._dirT) { this._dirT = now + .09; this._nav(dir); }
+    const f = document.activeElement, mine = f && this.els.scr.contains(f);
+    if (confirm && mine && f.tagName === 'BUTTON') f.click();
+    else if (cancel) this.back();
+  }
+  /** move the focus (or turn a focused slider) */
+  _nav(dir) {
+    const all = [...this.els.scr.querySelectorAll('button:not(:disabled), input')]; if (!all.length) return;
+    const f = document.activeElement, i = all.indexOf(f);
+    if (f && f.type === 'range' && (dir === 'left' || dir === 'right')) { if (dir === 'left') f.stepDown(); else f.stepUp(); f.dispatchEvent(new Event('input')); return; }
+    const n = all[((i < 0 ? 0 : i + (dir === 'up' || dir === 'left' ? -1 : 1)) + all.length) % all.length]; n.focus({ preventScroll: true });
+  }
+}
+E.Shell = Shell;
 
 /* =============================================================================
  * 22. GPU LIGHTING (WebGPU)  optional. game.enableGPU({ map }) turns it on.

@@ -297,4 +297,4 @@ An entry:
   forbids. About 10% headroom again. What would change it: if agents turn out to read the index whole (Phase 5's
   benchmark watches what they open), split it by area instead of raising it again.
 - **Answered:** no: made without a response, to review (reversible: lower the number and cut lines)
-- **Landed in:** v0.20.0
+- **Landed in:** v0.20.0 (#64)
