@@ -325,3 +325,23 @@ An entry:
   growing past this is a reason to move its detail into `AI_GUIDE.md` and the index, not to raise it again.
 - **Answered:** no: made without a response, to review (reversible: lower the number and cut the section)
 - **Landed in:** v0.23.0
+
+## D21 · 2026-10-11 · Standard features in every game, on unless a game says no
+
+- **Principle:** 1 (agent-readable) and 10 (discovery first)
+- **Call:** every `new E.Game` gets the standard features (engine section 10b and `E.Shell`'s standard menu): a pause
+  menu with Settings, Controls (rebinding) and Full screen; settings saved per game, versioned and checked; full screen
+  from a phone's first tap (the player's exit is kept); a pausable scene pausing when the page is hidden or the
+  controller unplugs; the corner's menu and full-screen buttons; the page set up for phones; a fixed resolution filling
+  a high-density screen (`scale: 'auto'`); a hidden page's sound asleep. They are on by default; a game turns parts off
+  (`menu: false`, `fullscreen: 'button' | false`, `corner: false`, `autoPause: false`). The canvas PAUSED overlay stays
+  for `menu: false` and the agent edition. Emberdeep and the labs with panels of their own opt out of the menu and the
+  corner. What the owner's quality prompt asks beyond this (PWA, wake lock, folds, physical devices, controllers with
+  other mappings) is production hardening: deferred, as principle 10 says (`docs/STANDARD-FEATURES.md`).
+- **Why:** the owner asked for it: games came back without full screen or settings, and a long quality prompt then
+  bought them with output tokens, game by game. Built into the engine, they cost a builder a few hundred input tokens of
+  manual. On by default, because an opt-in is what three builders skipped with `E.Shell` (`docs/FEEDBACK-LOG.md`,
+  F2.3 to F4.3). What would change it: a builder fighting the defaults (a game whose own UI collides with the corner or
+  the menu) is a reason to turn them off in that genre's starter, or to make the menu opt-in again.
+- **Answered:** yes: the owner's goal for this work (2026-10-11), the defaults themselves made without a response, to review
+- **Landed in:** v0.23.0

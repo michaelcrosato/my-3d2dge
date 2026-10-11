@@ -19,7 +19,7 @@ const SET_IDS = Object.keys(SETS);
 const LIB = 'library';   // the CMU library: every take of the database, loaded as it is picked (section 7b)
 
 /* 1. Game and a studio floor: light grey with a grid, like the libraries' preview stage */
-const game = new E.Game({ canvas: document.getElementById('screen'), view: 'threequarter', minH: 230, maxW: 520, portrait: { maxH: 1000 }, bg: '#cfcac3' });
+const game = new E.Game({ canvas: document.getElementById('screen'), menu: false, corner: false, fullscreen: 'button', view: 'threequarter', minH: 230, maxW: 520, portrait: { maxH: 1000 }, bg: '#cfcac3' });
 const MW = 40, MH = 40, T = 16, CX = MW * T / 2, CY = MH * T / 2;
 const map = new E.TileMap({
   w: MW, h: MH, tile: T, cells: new Array(MW * MH).fill(0), types: {},

@@ -10,7 +10,9 @@ files. You don't need the engine's repository, and you don't need to read the en
 2. **Search `API-INDEX.md`** when you need a name: every public name in the engine, one line each, with its signature,
    units and defaults, and the height rules at the top. `grep -n "ledge\|landing" API-INDEX.md`. Don't read it whole.
 3. **`AI_GUIDE.md`** has the recipes: genre by genre, the look to aim for, the frame order, heights, recorded sessions.
-4. **Copy `game/`** and make it yours: `game/game.js` is a small complete game (climbing, a guard with sight, a HUD,
+4. **Don't build a pause menu, settings, key rebinding or full screen**: every game has them (`API.md`, "Standard
+   features"). Adjust them with `new E.Game({ menu: { items, settings, controls, quit } })`.
+5. **Copy `game/`** and make it yours: `game/game.js` is a small complete game (climbing, a guard with sight, a HUD,
    scenes), `game/index.html` plays it, and `game/test.mjs` tests it without a browser.
 
 ## What is here

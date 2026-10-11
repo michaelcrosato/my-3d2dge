@@ -40,7 +40,7 @@ const INPUT = {
   start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'Pad9'], confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyJ', 'Pad0'], cancel: ['Escape', 'Backspace', 'Pad1']
 };
 const SLOT_KEYS = ['LMB', 'RMB', '1', '2', '3', '4'], SLOT_ACTS = ['s0', 's1', 's2', 's3', 's4', 's5'];
-const game = new E.Game(Object.assign({ canvas, view: qs.get('view') || 'iso', bg: '#05040a', input: INPUT }, BASE));
+const game = new E.Game(Object.assign({ canvas, menu: false, corner: false, fullscreen: 'button', view: qs.get('view') || 'iso', bg: '#05040a', input: INPUT }, BASE));
 const P = game.particles, L = game.lights, A = game.audio;
 L.enabled = true; L.ambient = .14;
 game.fadeTime = .3;

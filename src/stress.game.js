@@ -17,7 +17,7 @@ const qs = new URLSearchParams(location.search);
 /* ---------- setup ---------- */
 const canvas = document.getElementById('screen');
 const BASE = { minH: 200, minW: 300, maxW: 540, maxH: 330, portrait: { maxH: 1000 } };
-const game = new E.Game(Object.assign({ canvas, view: qs.get('view') && qs.get('view') !== 'custom' ? qs.get('view') : 'iso', bg: '#06050b' }, BASE));
+const game = new E.Game(Object.assign({ canvas, menu: false, corner: false, fullscreen: 'button', view: qs.get('view') && qs.get('view') !== 'custom' ? qs.get('view') : 'iso', bg: '#06050b' }, BASE));
 const P = game.particles;
 game.lights.enabled = true; game.lights.ambient = .12;
 

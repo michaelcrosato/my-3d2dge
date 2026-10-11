@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.22.4.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.23.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -77,6 +77,44 @@ Broken animation ruins a good-looking game faster than flat art. The Humanoid ri
 4. **Animate with continuous values** (phases, velocities, eased timers), never frame lists.
 5. **Read input in `update`**: `pressed` for one-shot actions, `down` for held, `buffered` + `consume` for combat.
 6. **Keep games single-file.** In the repo, edit `engine/my-3d2dge.js` and `src/*`, then run `node tools/build.mjs`. In a shared single file, replace only the code between `GAME START` and `GAME END`.
+7. **Don't rebuild the standard features** (below): the pause menu, settings, key rebinding, full screen and pausing on focus loss come with every game. Adjust them with `new E.Game({ menu: {...} })`.
+
+## Standard features (built in: adjust them, don't rebuild them)
+Every `new E.Game(...)` comes with what players expect of a modern release, so your code goes to the game itself. They're tested on both editions, they work with keys, mouse, gamepad and touch, and the player's choices are saved per game.
+- **Pause menu** (full engine): a pausable scene pauses on Escape, P, Start, the touch START button or the corner's menu button, and shows Resume, your items, Settings, Controls, Full screen, Help (when your `E.Shell` has one) and Quit to title (it asks first; Keep playing has the focus). Arrows, d-pad and stick move, Enter or A chooses, Escape or B goes back one screen, P or Start closes the menu. The game sees none of those presses.
+- **Settings** (`game.settings`): Display (full screen; pixel scaling for a fixed `res`: Auto, Sharp, Fill), Sound (sound, volume, music, effects), Comfort (reduce motion, screen shake, screen flashes), and yours. Saved per game with a version (`E.store` key `settings:` + the page's path, or `id`); a bad saved value falls back to its default, and where storage is blocked the game plays on (`game.settings.saved` is false).
+- **Controls**: every action of the current preset, rebound by pressing the new key, mouse button or gamepad button (a conflict is said and nothing changes; Escape, Enter, the F keys, Start, the arrow keys and the d-pad stay with the menus, so a player can't lock themselves out), the controller (dead zone, invert aim, button symbols: Xbox, PlayStation, Nintendo or positions, vibration) and the touch buttons (always, automatic or hidden; right or left side; size; opacity). Restore defaults resets the controls and never touches a save.
+- **Full screen** (`game.fullscreen`): a phone's first tap goes full screen, the top-right button and the menu toggle it, and once the player leaves it the game never forces it back. Where a browser can't (an iPhone), the settings say to use Share, then Add to Home Screen; the page carries the home-screen app tags.
+- **Pausing by itself**: a pausable scene pauses when the page is hidden, the window loses focus or the controller in use is unplugged (`game.pauseReason` says which), and only the player resumes.
+- **The corner**: a menu button and a full-screen button at the top right, inside the safe area. They show on titles, game overs and pauses, for a moment when the mouse nears the top, and the menu stays on a touch screen with no touch buttons; in play they're gone. Keep a title's art clear of the top-right 110 x 60 CSS pixels, or pass `corner: false`.
+- **Phones**: a viewport that reaches the safe areas (pinch zoom left alone), no page scrolling, zooming, selection or callouts on the canvas, touch buttons inside the safe areas, a touch stick with a dead zone, and a fixed `res` filling a high-density screen.
+- **Juice that respects the player**: `game.shake` and `game.flash` follow the comfort settings, `game.hitFx` rumbles a gamepad (the vibration setting; `rumble: false` skips it), and `game.input.rumble(strength, seconds)` does it for your own moments.
+
+Adjust them:
+```js
+const game = new E.Game({ canvas: 'screen', res: 'ps1', view: 'side', input: 'PLATFORMER',
+  menu: {
+    items: [['Restart level', () => game.go('play', { level })]],                 // pause-menu buttons after Resume
+    settings: [{ key: 'hints', label: 'Hints', value: true },                      // yours, beside the standard ones
+      { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal', help: 'How hard enemies hit' }],
+    controls: { attack: 'Sword', skill: 'Magic', debug: false },                  // names on the Controls screen; false hides one
+    quit: 'title'                                                                  // the scene Quit goes to (false: no Quit)
+  } });
+const hurt = { Easy: .5, Normal: 1, Hard: 1.5 }[game.settings.difficulty];       // read them anywhere, any time
+r.text('PRESS ' + game.input.label('jump') + ' TO JUMP', 8, 8, '#fff');           // 'SPACE', 'A' or '✕', after the player's rebinding
+```
+- Leave parts out: `menu: false` (you draw your own pause: the canvas PAUSED overlay comes back), `fullscreen: 'button'` (no tap) or `false`, `corner: false`, `autoPause: false`, `id: 'mygame'` (the name the settings are saved under).
+- A canvas title menu can offer OPTIONS: `game.menu('settings')` opens the settings over the title, which waits; `game.menu('controls')` the controls.
+- From code: `game.settings.set('volume', .5)` (checked, saved, applied), `game.settings.reset('Sound')`, `game.fullscreen.toggle()` (browsers allow it only from a key, click or tap), `game.pause(reason)`, `game.resume()`.
+- Your own `E.Shell` takes over from the engine's and keeps the standard menu (`standard: false` leaves it out).
+- The agent edition has `game.settings`, `game.fullscreen`, the corner, the pausing and `input.label`, but not the menu screens: its corner's menu button pauses and resumes.
+
+What stays your game's job, because only the game knows it:
+- Every gameplay scene `pausable: true`, so the menu and the pausing reach it; titles and game overs not.
+- Prompts from `game.input.label(action)` (or `ui.hud({ prompt: { act: 'interact' } })`), never hard-coded keys; touch buttons (`touch: [...]`) for every action a level needs (the stick moves).
+- The assists your mechanics call for, as settings: difficulty, aim assist, auto-fire, hold or toggle for a sustained action, hints after repeated failure.
+- Saves: `E.store` with a version in what you save, written at checkpoints (not on page close); ask before overwriting or deleting progress.
+- Information never in color alone; flashes short (`game.flash` already follows the settings).
 
 ## Frame order
 
@@ -110,7 +148,7 @@ An error in `update` or `draw` does not stop the loop. It is shown in a red box 
 ### Scenes
 A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, touch }`.
 - `game.go('play', data)` switches before the next step; timers and particles are cleared and the camera snaps.
-- `pausable: true` lets `pause` (Escape, P, Start) toggle `game.paused`; a PAUSED overlay is drawn and the music is ducked.
+- `pausable: true` lets `pause` (Escape, P, Start, the touch START) toggle `game.paused`: the pause menu opens (the canvas PAUSED overlay with `menu: false`) and the music is ducked. It also lets the page pause the scene by itself when it is hidden or loses focus.
 
 ### Camera
 - `game.follow(hero, { z, lead })` once, or `game.focus(x, y, z)` every update.
@@ -247,10 +285,10 @@ if (prey && input.pressed('attack')) takedown(prey.target);
 
 ### Shell (an HTML interface: screens and HUD)
 A modern adaptation (Assassin's Creed, Breath of the Wild) wants readable HTML screens over the pixel world, not pixel windows. `E.Shell` builds them from data, so you write none of the HTML, CSS or focus handling. It shows the game's state and holds none of it: you pass values in each step and callbacks for the buttons.
-- `const ui = new E.Shell(game, { theme: { ink, paper, accent, muted, danger, line, font, titleFont }, settings: { items: ['sound', 'volume', 'motion', { key: 'cones', label: 'Sight cones', value: true }], onChange(s, key) {} }, screens: { pause: {...}, help: {...} }, store: 'mygame-settings' })`. The built-in settings apply themselves (mute, volume, `game.reduceMotion`); yours go to `onChange` and `ui.settings`, saved with `E.store`.
-- Screens: `ui.show(name, spec)`, `ui.back()`, `ui.hide()`, `ui.screen` (the open one's name, or null). Every spec takes `kicker`, `title`, `text` (strings or functions), `actions: [[label, fn], { label, act, primary, disabled }]` (falsy entries are skipped, so `cond && [...]` works; `act` taps an input action) and `back`. Then: `'title'` (`name`, `subtitle`, `meta`, `footer`), `'pause'` (Resume first, then your actions, then Settings and Help if you gave them; with a pause spec it opens while `game.paused` and Resume unpauses), `'settings'`, `'help'` (`keys: [[key, what]]`, `sections: [[heading, text]]`), `'results'` (`emblem`, `stats: [[value, label]]`, `medals: [[label, earned]]`) and `'map'` (`map`, `at`, `markers`, `labels`, `onPick(x, y)` for a waypoint). A screen opened from another stacks; cancel goes back.
+- `const ui = new E.Shell(game, { theme: { ink, paper, accent, muted, danger, line, font, titleFont }, settings: { items: [{ key: 'cones', label: 'Sight cones', value: true }], onChange(s, key) {} }, screens: { pause: {...}, help: {...} } })`. It takes over from the engine's own and keeps the standard menu (see Standard features). Your items join `game.settings` (`ui.settings` is the same object), saved and checked with the rest; `onChange` hears every change.
+- Screens: `ui.show(name, spec)`, `ui.back()`, `ui.hide()`, `ui.screen` (the open one's name, or null). Every spec takes `kicker`, `title`, `text` (strings or functions), `actions: [[label, fn], { label, act, primary, disabled }]` (falsy entries are skipped, so `cond && [...]` works; `act` taps an input action) and `back`. Then: `'title'` (`name`, `subtitle`, `meta`, `footer`), `'pause'` (Resume first, then your actions, then Settings, Controls, Full screen, Help and Quit to title; it opens while `game.paused` and Resume unpauses; `screens: { pause: false }` leaves it out), `'settings'`, `'controls'`, `'help'` (`keys: [[key, what]]`, `sections: [[heading, text]]`), `'results'` (`emblem`, `stats: [[value, label]]`, `medals: [[label, earned]]`) and `'map'` (`map`, `at`, `markers`, `labels`, `onPick(x, y)` for a waypoint). A screen opened from another stacks; cancel goes back.
 - The HUD, each step: `ui.hud({ objective: { step, title, text, at, from }, status, bars: [{ label, value, max, kind: 'pips' | 'bar', color }], counts: [[label, value]], prompt: { key, label, hint, progress }, tip, place, keys, buttons: [[label, fn]], minimap: { map, at, markers, onClick } })`. A piece left out is hidden, only what changed is redrawn, and the HUD hides while a screen is open. `objective` shows the distance in meters (`meters: .125` a world unit) and whether the target is above or below. `ui.toast(title, text, seconds)` and `ui.tutorial(title, text, seconds)` come and go on their own.
-- Input: the game's own input moves the focus (keys, d-pad, stick: up / down / left / right, a slider turns left and right), confirm presses, cancel goes back; touch taps. While a screen is open the game's actions are held back, so a menu press doesn't also attack. Give touch players `buttons: [['❚❚', () => game.paused = true], ['Map', openMap]]`: phones have no Escape key.
+- Input: the game's own input moves the focus (keys, d-pad, stick: up / down / left / right, a slider or a choice turns left and right), confirm presses, cancel goes back, pause closes the menu; touch taps. While a screen is open the game's actions are held back, so a menu press doesn't also attack. Touch players reach the menu with the touch START or the corner's button; `buttons: [['Map', openMap]]` adds your own.
 - It honors reduced motion and the safe-area insets, is headless-safe (it keeps its screens' names and draws nothing), and `game.dispose()` takes it away. The Labs page's "Vesper's interface on E.Shell" rebuilds a model's hand-written 15.2k-token interface in 2.1k tokens (`src/vesper-ui.ui.js`).
 
 ### Lighting
@@ -446,6 +484,7 @@ The engine files carry the engine; the repo (github.com/michaelcrosato/my-3d2dge
 ## Checklist before handing a game back
 - One IIFE between `GAME START` and `GAME END`, starting with `const E = My3D2dge`, holding only your game (no leftover starter menu or slices). No other files, libraries or network requests.
 - A title scene, a gameplay scene with `pausable: true`, and a game-over or win path back to the title.
+- No pause menu, settings screen, key rebinding or full-screen code of your own: they're standard. Your settings, names and menu items go in `new E.Game({ menu: {...} })`; prompts come from `game.input.label(action)`.
 - The camera follows the player and the level is visible. The HUD uses screen pixels (`r.text`, `r.overlay`).
 - Sounds for jumping, hitting, pickups and dying; music per scene.
 - Positions and speeds are in world units, `dt` is used everywhere, and nothing draws with anti-aliased canvas calls.
