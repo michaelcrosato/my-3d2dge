@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.22.3 (2026-10-11)
+
+The Vesper round closed out.
+
+- **Docs**: `docs/FEEDBACK-LOG.md` marks the benchmark's runs, left waiting on the owner when the plan ended, as taken up in v0.22.1 and v0.22.2.
+- **Tools**: `.gitignore` keeps `temp-feedback/`, the folder where builders' feedback lands before it is read, out of the repository.
+
 ## 0.22.2 (2026-10-11)
 
 The benchmark's other two briefs.
