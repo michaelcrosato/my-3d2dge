@@ -2202,7 +2202,7 @@ class Game {
     this._booting = true; this._bootOpt = o;
     const live = !this.headless && this.o.loop !== false && hooks.boot !== false && typeof document !== 'undefined';
     const steps = (Array.isArray(o.steps) ? o.steps : []).filter(Boolean).map(x => Array.isArray(x) ? x : [x.label || 'Getting ready', x.run]);
-    if (hooks.boot === false) { BOOT.played = true; const el = typeof document !== 'undefined' && document.getElementById('e3-boot'); if (el) el.remove(); BOOT.el = null; return this.start(h); }
+    if (hooks.boot === false) { BOOT.played = true; const el = typeof document !== 'undefined' && document.getElementById('e3-boot'); if (el) { el.hidden = true; el.style.display = 'none'; } BOOT.el = null; return this.start(h); }
     let res; this.booted = new Promise(r => { res = r; });
     if (live) { BOOT._open(this, o); BOOT._checks(this); }
     const now = () => typeof performance !== 'undefined' ? performance.now() : 0, t0 = now(), n = steps.length;   // (no clock in a bare Node context)
@@ -2558,7 +2558,7 @@ function pageSetup(canvas) {
  *        messages: ['Counting the bells', 'Oiling the hinges'], min: 0 } })
  *    A page shows the screen from its first paint when E.bootSplash(title) is the first thing in its <body> (the build
  *    puts it in every game page; a hand-written page pastes it): the engine takes it over when it runs, and it goes
- *    away once the game has drawn. A game with no steps and no splash shows nothing (it starts at once).
+ *    away once the game has drawn (hidden, not removed). A game with no steps and no splash shows nothing (it starts at once).
  * ============================================================================= */
 /** the engine's own lines for the boot screen, when a game gives none (boot.messages) */
 const BOOT_MESSAGES = ['Reticulating splines', 'Snapping every pixel to the grid', 'Teaching skeletons to walk', 'Counting to 120, every second',
@@ -2628,7 +2628,7 @@ Object.assign(BOOT, {
     if (!document.getElementById('e3-boot-css')) { const st = document.createElement('style'); st.id = 'e3-boot-css'; st.textContent = BOOT_CSS; document.head.appendChild(st); }
     let el = document.getElementById('e3-boot');
     if (!el) { el = document.createElement('div'); el.id = 'e3-boot'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
-    el.removeAttribute('style'); el.classList.remove('out'); if (o && o.accent) el.style.setProperty('--e3-accent', o.accent);
+    el.removeAttribute('style'); el.classList.remove('out'); el.removeAttribute('data-failed'); el.hidden = false; if (o && o.accent) el.style.setProperty('--e3-accent', o.accent);
     const title = (o && o.title) || document.title || '';
     el.innerHTML = '<pre class="e3-sys"></pre><div><b></b><div class="e3-step">Starting</div><span class="e3-bar"><i style="width:4%"></i></span><div class="e3-quip"></div></div>';
     el.querySelector('b').textContent = title;
@@ -2664,7 +2664,8 @@ Object.assign(BOOT, {
     if (!el || el.hasAttribute('data-failed')) return;
     el.querySelector('.e3-bar i') && (el.querySelector('.e3-bar i').style.width = '100%');
     const reduce = this.game && this.game.reduceMotion;
-    if (reduce) el.remove(); else { el.classList.add('out'); setTimeout(() => el.remove(), 400); }
+    const gone = () => { el.hidden = true; el.style.display = 'none'; el.textContent = ''; };   // hidden, never removed: a recorded session finds the page's elements where they were
+    if (reduce) gone(); else { el.classList.add('out'); setTimeout(gone, 400); }
   },
   /** something failed before play: the screen becomes the report (what failed, the error, the system), with Try again,
    *  Copy report and Continue */
@@ -2684,7 +2685,7 @@ Object.assign(BOOT, {
     const act = el.querySelector('.e3-act'), btn = (t, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = fn; act.appendChild(b); return b; };
     btn('Try again', () => location.reload());
     const copy = btn('Copy report', () => { const done = () => { copy.textContent = 'Copied'; }; try { navigator.clipboard.writeText(report).then(done, () => { copy.textContent = 'Select the text to copy'; }); } catch (x) { copy.textContent = 'Select the text to copy'; } });
-    btn('Continue', () => { this.played = true; el.remove(); this.el = null; });
+    btn('Continue', () => { this.played = true; el.hidden = true; el.style.display = 'none'; this.el = null; });
     this.report = report;
   }
 });

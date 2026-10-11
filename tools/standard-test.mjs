@@ -258,7 +258,7 @@ if (!process.argv.includes('--node')) {
     check(`${ed}: the boot screen takes over the splash: the system's lines, each step, the game's lines; the game waits`, mid && /HARBOUR/.test(mid[0]) && /Engine +my-3D2dge/.test(mid[0]) && /Canvas +256x224/.test(mid[0]) && /Hanging the lanterns · 2 \/ 2/.test(mid[0]) && /Counting the bells/.test(mid[0]) && mid[1] === 0 && mid[2] === null, JSON.stringify(mid));
     await b.close();
     b = await bootPage('', "{ steps: [['Quick', () => 1]] }"); await b.waitForTimeout(800);
-    const end = await ev(b, () => [!!document.getElementById('e3-boot'), window.draws > 1, game.sceneName, window.randoms]);
+    const end = await ev(b, () => { const el = document.getElementById('e3-boot'); return [!!el && getComputedStyle(el).display !== 'none', window.draws > 1, game.sceneName, window.randoms]; });
     check(`${ed}: once the game has drawn under it the boot screen goes, and it drew no random numbers of the game's`, end[0] === false && end[1] && end[2] === 'play' && end[3] === 0, JSON.stringify(end));
     await ev(b, () => { window.boom = true; }); await b.waitForTimeout(150);
     const late = await ev(b, () => [!!document.getElementById('my3d2dge-error'), !!document.querySelector('#e3-boot[data-failed]'), (document.getElementById('my3d2dge-error') || {}).textContent || '']);
@@ -267,14 +267,14 @@ if (!process.argv.includes('--node')) {
     b = await bootPage('', "{ title: 'HARBOUR', steps: [['Teaching the guards to look up', () => { throw new Error('guard.eyes is undefined'); }]] }"); await b.waitForTimeout(300);
     const failed = await ev(b, () => { const el = document.querySelector('#e3-boot[data-failed]'); return el ? [el.innerText, game.sceneName] : null; });
     check(`${ed}: a failing step turns the screen into a report: what failed, the error, a code, the engine, the canvas`, failed && /HARBOUR could not start/i.test(failed[0]) && /Teaching the guards to look up/.test(failed[0]) && /guard\.eyes is undefined/.test(failed[0]) && /E3-[0-9A-F]{6}/.test(failed[0]) && /Engine +my-3D2dge v/.test(failed[0]) && /Canvas +256x224/.test(failed[0]) && failed[1] === null, JSON.stringify(failed));
-    await b.click('#e3-boot button:has-text("Continue")'); check(`${ed}: the report's Continue takes it away`, !(await ev(b, () => !!document.getElementById('e3-boot'))));
+    await b.click('#e3-boot button:has-text("Continue")'); check(`${ed}: the report's Continue takes it away`, await ev(b, () => getComputedStyle(document.getElementById('e3-boot')).display === 'none'));
     await b.close();
     b = await bootPage("throw new Error('bad level rows');", "{}"); await b.waitForTimeout(300);
     const top = await ev(b, () => { const el = document.querySelector('#e3-boot[data-failed]'); return el ? el.innerText : ''; });
     check(`${ed}: a script error before play is reported on the boot screen`, /could not start/i.test(top) && /bad level rows/.test(top), top.slice(0, 200));
     await b.close();
     b = await bootPage('', 'false'); await b.waitForTimeout(200);
-    check(`${ed}: boot: false takes the splash away at once`, (await ev(b, () => [!!document.getElementById('e3-boot'), game.sceneName])).join() === 'false,play');
+    check(`${ed}: boot: false takes the splash away at once`, (await ev(b, () => [getComputedStyle(document.getElementById('e3-boot')).display, game.sceneName])).join() === 'none,play');
     await b.close(); await desk.close();
   }
   await browser.close();
