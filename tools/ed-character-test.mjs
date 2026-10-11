@@ -43,8 +43,11 @@ async function choose(p, C, touch = false) {
   const pick = p.getByRole('button', { name: C.name, exact: true }), play = p.getByRole('button', { name: 'PLAY AS ' + C.name.toUpperCase(), exact: true });
   if (touch) { await pick.tap(); await play.tap(); } else { await pick.click(); await play.click(); }
   await p.waitForFunction(() => __ed.ED.mode === 'town', null, { timeout: 8000 });
-  await p.waitForTimeout(1000);
+  await settle(p, 1);
 }
+/** wait for s seconds of game time: a loaded machine draws fewer frames, each worth at most 50 ms of game, so a wait on
+ *  the wall clock can end before the game has run (the hero still arriving in town, a tap not yet taken) */
+async function settle(p, s) { const t0 = await p.evaluate(() => __ed.game.time); await p.waitForFunction(([t0, s]) => __ed.game.time >= t0 + s, [t0, s], { timeout: 30000 }); }
 /** run the game by hand for s seconds (the update, and a drawn frame every few steps): fast and the same every time */
 const run = (p, s) => p.evaluate(s => { const g = __ed.game; for (let i = 0; i < Math.ceil(s * 60); i++) { g.hitstop = 0; g._step(1 / 60); if (i % 6 === 0) g._frame(); } }, s);
 const finiteRig = p => p.evaluate(() => { const J = __ed.ED.hero.rig.J; return Object.keys(J).filter(k => J[k] && !J[k].every(Number.isFinite)); });
@@ -101,7 +104,7 @@ for (const C of list) {
 
     await check('moves and dodges', async () => {
       const a = await page.evaluate(() => [__ed.ED.hero.x, __ed.ED.hero.y]);
-      await key(page, 'KeyD', 350);
+      await page.keyboard.down('KeyD'); await settle(page, .35); await page.keyboard.up('KeyD'); await page.waitForTimeout(90);
       const b = await page.evaluate(() => [__ed.ED.hero.x, __ed.ED.hero.y]);
       must(Math.hypot(b[0] - a[0], b[1] - a[1]) > 10, 'holding D moved it ' + Math.hypot(b[0] - a[0], b[1] - a[1]).toFixed(1) + ' units');
       await page.keyboard.down('Space'); await page.waitForTimeout(60);
@@ -237,8 +240,8 @@ for (const C of list) {
       await p.waitForTimeout(500);
       await choose(p, C, true);
       must(await p.locator('[data-act="s0"]').count() > 0, 'no touch buttons');
-      await p.locator('[data-act="s0"]').tap(); await p.waitForTimeout(120);
-      const used = await p.evaluate(id => { const h = __ed.ED.hero; return !!(h.act && h.act.skill === id) || id in h.cds || __ed.ED.fx.some(f => f.hit && f.hit.skill === id); }, C.skills[0]);
+      await p.locator('[data-act="s0"]').tap();   // (waits for the game to take the tap: a loaded machine runs its steps late)
+      const used = await p.waitForFunction(id => { const h = __ed.ED.hero; return !!(h.act && h.act.skill === id) || id in h.cds || __ed.ED.fx.some(f => f.hit && f.hit.skill === id); }, C.skills[0], { timeout: 5000 }).then(() => true, () => false);
       await p.screenshot({ path: out + '/phone.png' });
       const errs = mlog.errors.concat(await p.evaluate(() => __ed.game.errors));
       await mob.close();
