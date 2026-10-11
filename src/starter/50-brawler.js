@@ -5,6 +5,8 @@
  * strings. Heavy blows knock fighters down; they get up on one knee. Waves lock the screen. Crates hide food.
  * THE LOOK: Final Fight sized fighters (90-105 of 240 lines) in a guard stance with big gloves, lit by the nearest
  * light; building fronts drawn once over TileMap walls; solid parked cars; PS1 translucency (hard shapes, one alpha)
+ * ANY SCREEN: a wider screen shows more street (waves walk in from past its edges); a taller one (a phone held upright)
+ * lifts the street onto a FOREGROUND wall, clear of the touch buttons, under more skyline
  * ===================================================================================== */
 const BRAWL = (() => {
   const T = 16, Y0 = 30, Y1 = 136, TOP = 88, DARK = '#140c1c';   // Y0..Y1: the walkable band; TOP: rooftop room (2x zoom)
@@ -63,8 +65,9 @@ const BRAWL = (() => {
   function skyDetail(g, r) {
     const mx = Math.round(236 - r.ix * .01);
     px.blend(g, .125, 'add', () => { px.disc(g, mx, 30, 26, '#ffd8c0'); px.disc(g, mx, 30, 17, '#ffd8c0'); }); px.disc(g, mx, 30, 9, '#fff4e0'); px.disc(g, mx + 4, 27, 8, SKY[4]);
+    const wrap = Math.max(520, r.W + 190);   // the clouds wrap round past the widest screen
     for (const [cx, cy, w] of [[40, 50, 80], [190, 38, 54], [300, 62, 96], [420, 46, 64]]) {
-      const x = ((cx - r.ix * .03) % 520 + 520) % 520 - 90;
+      const x = ((cx - r.ix * .03) % wrap + wrap) % wrap - 90;
       px.ell(g, x, cy, w / 2, 4, '#5a2a60'); px.ell(g, x + w * .12, cy - 3, w / 3, 4, '#6a3068'); px.ell(g, x + 3, cy + 2, w / 2 - 6, 2, '#d8686c');
     }
   }
@@ -296,8 +299,9 @@ const BRAWL = (() => {
       // wall face material, brick course height, roof; sideLt: the lit front's color
       types: Object.fromEntries(blocks.map(b => [b.i + 1, { h: b.h, side: b.color, sideLt: b.color, top: E.shade(b.color, -.45), face: b.face, course: b.face === 'brick' ? 3 : undefined, roof: 'slab' }])) });
     SPR = { crate: E.prop('crate', { size: .8 }).frames[0], barrel: E.prop('barrel', { size: .8, color: '#9a6030' }).frames[0] };
-    // the camera scrolls sideways, the street's front edge on the screen bottom; zoomed in, it also follows the hero up the street
-    game.cam.bounds = v => { const b = map.bounds(v); return { x0: b.x0 + 8, x1: b.x1 - 8, y0: b.y1 - 9 - game.H * Math.max(1, game.zoom), y1: b.y1 - 9 }; };
+    // the camera scrolls sideways, the street's front edge on the screen bottom (or on the foreground wall); zoomed in, it
+    // also follows the hero up the street
+    game.cam.bounds = v => { const b = map.bounds(v), y1 = b.y1 - 9 + wall(game.H); return { x0: b.x0 + 8, x1: b.x1 - 8, y0: y1 - game.H * Math.max(1, game.zoom), y1 }; };
     // the hero's move set (E.MOVES, some tuned): a 4-hit punch string, a clinch (grab, knees, elbow), a kick string, a flying kick, a sweep
     hero = body(54, 58, 7, { hp: 60, max: 60, lives: 3, grip: 0, rig: fighterRig(HERO), moves: {
       punch: new E.Combo(['jab', 'cross', move('hook'), 'uppercut'], { window: .35 }), clinch: new E.Combo([GRAB, 'knee', 'knee', 'elbow'], { window: .35 }),
@@ -312,7 +316,7 @@ const BRAWL = (() => {
   function spawnWave(w) {                        // foes close in from both sides; the boss talks
     w.foes.forEach((kind, i) => {
       const k = FOES[kind], side = wave && i % 2 ? -1 : 1, swap = k.swap && w.foes.indexOf(kind) !== i;
-      const x = kind === 'boss' ? hero.x + 120 : clamp(w.x * T + side * (190 + i * 26), 12, LEN - 12);
+      const x = kind === 'boss' ? hero.x + 120 : clamp(w.x * T + side * (Math.max(190, game.W / 2 / game.view.ax + 24) + i * 26), 12, LEN - 12);   // just past the screen's edge, however wide
       const f = body(x, Y0 + 12 + (i * 37) % 90, k.r, { k, name: swap ? k.swapName : k.name, hp: k.hp, facing: Math.PI, t: 1 + Math.random(), friction: 5, grip: 5,
         moves: k.moves.map(s => new E.Combo(s.map((m, j) => move(m, { wind: Math.max(E.MOVES[m].wind, j ? k.wind / 2 : k.wind) })))),   // its strings
         rig: fighterRig(k.rig, swap ? { colors: Object.assign({}, k.rig.colors, k.swap) } : {}) });
@@ -487,7 +491,17 @@ const BRAWL = (() => {
       px.blend(g, u < .5 ? .5 : .25, 'normal', () => { px.ell(g, x, y, R * 1.5, R * .7, '#8a7e9a'); px.ell(g, x - R * .3, y - R * .3, R, R * .4, '#d0c8dc'); });
     });
     for (const s of sparks) at(s.x, s.y, s.z, (g, x, y) => star(g, x, y, s), { bias: .5 });
+    if (wall(r.H) && game.zoom <= 1) r.overlay(g => foreground(g, r));
     r.overlay(g => hud(g, r)); talk.draw(r);
+  }
+  // ANY SCREEN: how far a screen taller than the street lifts it (0 on a wide one), and the FOREGROUND wall in that band:
+  // a lit coping, dark brick, nearer and so faster than the street
+  const wall = H => Math.max(0, Math.min(130, Math.round((H - 300) * .55)));
+  function foreground(g, r) {
+    const y = Math.round(map.bounds(r.view).y1 - 9 - r.iy), o = ((Math.round(r.ix * 1.2) % 24) + 24) % 24;
+    px.rect(g, 0, y, r.W, r.H - y, '#1a1222'); px.rect(g, 0, y, r.W, 3, '#5a4258'); px.rect(g, 0, y + 3, r.W, 2, '#2e2236');
+    for (let row = 0, by = y + 5; by < r.H; row++, by += 7) { px.rect(g, 0, by, r.W, 1, '#120c18'); for (let x = -o + (row & 1) * 12; x < r.W; x += 24) px.rect(g, x, by, 1, 7, '#120c18'); }
+    px.blend(g, .5, 'normal', () => px.rect(g, 0, y + 5, r.W, 10, '#0a0610'));   // the street's shadow on the wall's face
   }
 
   /* ---- HUD: solid panels, live 3/4 rig.drawPortrait faces, two-tone bars ---- */
@@ -515,10 +529,11 @@ const BRAWL = (() => {
       E.font.title(g, s, 12, 53, { scale: 3, colors: ['#ffffff', '#ffe070', '#ff9a2a'] }); E.font.title(g, 'HITS', 18 + w, 63, { scale: 1, colors: ['#fff6d0', '#ffc860'] });
     }
     if (intro > 0) {                             // round card slides in and out
-      const k = Math.min(1, (INTRO - intro) * 5, intro * 5), x = Math.round(W / 2 - 90 + (1 - k) * (intro < 1 ? W : -W));
-      E.ui.box(g, x, 52, 180, 56, WIN);
-      E.font.title(g, 'ROUND 1', x + 90, 57, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
-      E.font.text(g, 'DOWNTOWN AT DUSK', x + 90, 79, '#ffe8c8', TXC); E.font.text(g, 'J punch K kick L sweep Z jump', x + 90, 92, '#b8b0e0', TXC);
+      const keys = [prompt('attack', 'punch'), prompt('kick', 'kick'), prompt('sweep', 'sweep'), prompt('jump', 'jump')].join(' '), cw = Math.max(180, E.font.width(keys) + 16);   // the player's own keys
+      const k = Math.min(1, (INTRO - intro) * 5, intro * 5), x = Math.round(W / 2 - cw / 2 + (1 - k) * (intro < 1 ? W : -W)), m = x + cw / 2;
+      E.ui.box(g, x, 52, cw, 56, WIN);
+      E.font.title(g, 'ROUND 1', m, 57, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
+      E.font.text(g, 'DOWNTOWN AT DUSK', m, 79, '#ffe8c8', TXC); E.font.text(g, keys, m, 92, '#b8b0e0', TXC);
     }
     if (go > 0 && Math.floor(game.real * 3) % 2 === 0) E.font.title(g, 'GO →', W - 14, 96, { scale: 3, align: 'right', colors: ['#fff6c0', '#ffc040', '#e06a20'] });
     if (won > 1.5) {                             // results on the left, clear of the cheering hero

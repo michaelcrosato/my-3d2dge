@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.25.5: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.26.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -114,11 +114,12 @@ game.start({ scene: 'title', scenes: { title, play, end } });
 ```
 
 ## API
-Game: new E.Game({ canvas: 'screen', res, view, views, input, bg })
+Game: new E.Game({ canvas: 'screen', res, expand, view, views, input, bg })
   res: 'nes' 256x240 | 'snes' 256x224 | 'genesis' 320x224 | 'gb' 160x144 | 'gba' 240x160 | 'ps1' 320x240 | 'wide' 400x225 | [w, h]
+  expand: true fills any window with no bars: res is the least it shows, r.W x r.H grows; anchor the HUD to r.W and r.H
   input: 'DEFAULT' | 'PLATFORMER' | 'SHMUP' | your own { action: ['KeyQ', 'Pad0', 'Mouse0'] }
   start({ update(dt), draw(r) }) or start({ scene: 'title', scenes: { title: {...}, play: {...} } })
-  scene: { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res }; go(name, data, { fade: .22 })
+  scene: { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, expand }; go(name, data, { fade: .22 })
   camera: follow(obj, { z: 16, lead }) once, or focus(x, y, z) every update; cam.bounds = v => map.bounds(v);
     cam.room = [w, h] for screen-by-screen rooms (cam.moving is true while it slides); cam.smooth = .18 (0 = locked)
   juice: hitFx(x, y, z, { power: 1, damage, angle, color, sound }), freeze(s), shake(n), flash(color, s), timeScale = .25
@@ -369,7 +370,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.25.5', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.26.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -689,6 +690,7 @@ class Screen {
     this.W = 320; this.H = 200; this.S = 3; this.OX = 0; this.OY = 0; this.dpr = 1;
     this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0;
     this.scale = 'auto';   // a fixed res: 'sharp' (whole-number scale), 'fill' (the largest fit), 'auto' (fill on high-density screens)
+    // o.expand: res is the least the screen shows; the picture grows on both sides to fill it (no bars; up to expand.maxW x maxH)
     this.resize();
     if (canvas) addEventListener('resize', () => this.resize(), { signal });
   }
@@ -706,8 +708,9 @@ class Screen {
     if (c) { c.width = pw; c.height = ph; } this.dpr = dpr; this.portrait = ph > pw;
     const fix = this.fixedRes(o);
     if (fix) {
-      const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2);
-      this.W = fix[0]; this.H = fix[1]; this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
+      const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2), x = o.expand;
+      this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
+      this.W = x ? clamp(Math.ceil(pw / this.S - 1e-6), fix[0], x.maxW || 1e4) : fix[0]; this.H = x ? clamp(Math.ceil(ph / this.S - 1e-6), fix[1], x.maxH || 1e4) : fix[1];
     }
     else { this.S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW))); this.W = Math.min(o.maxW, Math.ceil(pw / this.S)); this.H = Math.min(o.maxH, Math.ceil(ph / this.S)); }
     this.OX = Math.floor((pw - this.W * this.S) / 2); this.OY = Math.floor((ph - this.H * this.S) / 2);
@@ -759,7 +762,8 @@ class Input {
   use(map) {
     if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
-    this.map = {}; for (const a in map) this.map[a] = [...map[a], ...(a === 'start' || a === 'pause' ? ['Act:menu'] : []), 'Act:' + a];   // (Act:menu: a touch START)
+    const stick = { up: 'PadAxisUp', down: 'PadAxisDown', left: 'PadAxisLeft', right: 'PadAxisRight' };   // the left stick past halfway, as the d-pad
+    this.map = {}; for (const a in map) this.map[a] = [...new Set([...map[a], ...(a === 'start' || a === 'pause' ? ['Act:menu'] : []), ...(stick[a] ? [stick[a]] : []), 'Act:' + a])];   // (Act:menu: a touch START)
     this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
     return this;
   }
@@ -819,11 +823,12 @@ class Input {
     this.clock += dt; this.padLost = false;
     let p = null;
     try { p = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).find(q => q && q.connected !== false) || null; } catch (e) { /* gamepads blocked */ }
-    if ((p ? p.index : null) !== this.padIndex) { if (!p && this.padIndex !== null) this.padLost = this.lastDevice === 'gamepad'; this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; this.padId = p ? p.id : ''; }
+    if ((p ? p.index : null) !== this.padIndex) { if (!p && this.padIndex !== null) this.padLost = this.lastDevice === 'gamepad'; this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; this.padId = p ? p.id : ''; }
     if (p) {
       const x = p.axes[0] || 0, y = p.axes[1] || 0, l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;
       this.padMove = [x * k, y * k];
       p.buttons.forEach((b, i) => { if (b.pressed && !this.padPrev[i]) this.press('Pad' + i); if (!b.pressed && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = b.pressed; });
+      [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5].forEach((on, i) => { const c = ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'][i]; if (on) this.press(c); else this.release(c); });
     }
     for (const c of this._tapsDue) this.release(c);   // a tap is held for the one step after it
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
@@ -1445,7 +1450,7 @@ class Game {
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
     if (s.input) this.input.use(s.input);
-    if (s.res) this.screen.setOptions({ res: s.res });
+    if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
     if (s.enter) s.enter(data);
   }
   _fail(where, e) {

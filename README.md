@@ -41,7 +41,7 @@ Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-li
    - STEALTH (Assassin's Creed / Metal Gear third-person: roofs to climb and leap, guards that see and search, takedowns)
    - ANIMATION LAB: every move, pose and reaction on every skin, in every view, with zoom, rotation, slow motion and frame stepping
 
-The model copies the closest slice and replaces the code between `GAME START` and `GAME END`. Opened in a browser, the same file is playable. Press `?` for the API card, and add `#adventure`, `#platformer`, `#brawler`, `#shooter`, `#rpg`, `#stealth` or `#animlab` to the address to jump straight into a slice.
+The model copies the closest slice and replaces the code between `GAME START` and `GAME END`. Opened in a browser, the same file is playable, full screen at any shape: a desktop or ultrawide monitor, a tablet, a phone either way up, with no black bars (`res: 'ps1', expand: true`: 320x240 is the least it shows). Each slice fills the extra space in its own way, and its prompts name the player's own keys. Press `?` for the API card, and add `#adventure`, `#platformer`, `#brawler`, `#shooter`, `#rpg`, `#stealth` or `#animlab` to the address to jump straight into a slice.
 
 ### The agent edition (for AI coding agents)
 
@@ -314,7 +314,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.25.5**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.26.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

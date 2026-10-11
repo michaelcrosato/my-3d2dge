@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.25.5)
+# my-3D2dge API index (v0.26.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.25.5"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.26.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -194,7 +194,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.screen.listeners = []` †: functions called after every resize
 - `game.screen.o`: the sizing options (the game's o)
 - `game.screen.portrait`: true while the screen is taller than wide (a phone held upright)
-- `game.screen.scale = 'auto'`: scale: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black bars), 'fill' (the largest fit, pixels a device pixel apart in size) or 'auto' (fill on high-density screens, phones and tablets, where that difference can't be seen; sharp elsewhere). game.settings.scale sets it
+- `game.screen.scale = 'auto'`: scale: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black bars unless o.expand grows the picture into them), 'fill' (the largest fit, pixels a device pixel apart in size) or 'auto' (fill on high-density screens, phones and tablets, where that difference can't be seen; sharp elsewhere). game.settings.scale sets it
 
 ## 5. Input
 
@@ -231,7 +231,8 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.suppressCode(code)` †: A widget owns this button; other devices bound to the same action still work.
 - `input.tap(a)`: press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down() are true in the next step, released() in the one after
 - `input.tick(dt)`: advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and released() (the engine calls it every step)
-- `input.touchButtons(actions, o = {})` †: On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' }, force }). The other half of the screen is a move stick. START is the menu: it starts on a title and pauses a pausable scene, as a gamepad's Start does
+- `input.touchArea()` †: where the touch buttons (START too) cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W and r.H), or null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself)
+- `input.touchButtons(actions, o = {})` †: On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' }, force }). The other half of the screen is a move stick (past halfway it presses up, down, left and right too, as a d-pad does: menus and ladders). START is the menu: it starts on a title and pauses a pausable scene, as a gamepad's Start does
 - `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
 - `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it
 - `input.aimSource = 'move'` †: what aims right now: 'move' | 'mouse' | 'pad'
@@ -361,7 +362,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 10. Game
 
-- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, autoPause: true, id }). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap, until the player leaves it), 'button' (only when asked) or false; corner: the menu and full-screen buttons at the top right; autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path)
+- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, autoPause: true, id }). res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap, until the player leaves it), 'button' (only when asked) or false; corner: the menu and full-screen buttons at the top right; autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path)
 - `game.H`: the screen's height in game pixels (W is its width)
 - `game.W`: internal buffer size in pixels (HUD layout)
 - `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
@@ -387,7 +388,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.setView(v)`: switch the view: an id from E.VIEWS ('iso', 'side', ...) or a View; keeps zoom and turn
 - `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
 - `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
-- `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, touch } (all optional); view / views / input ('PLATFORMER') / res ('snes') / touch (['jump', 'attack']) are applied when it starts. start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance(). boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
+- `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, expand, touch } (all optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied when it starts (res and expand stay until another scene sets them). start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance(). boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
 - `game.alpha = .5`: the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count
 - `game.audio`: chip-sound synthesizer: game.audio.sfx('jump'), game.audio.music(song)
@@ -419,7 +420,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.hitstop = 0`: seconds of hit-stop left (freeze)
 - `game.input`: input: keyboard, mouse, gamepad and touch, read as actions (pressed, down, move, ...)
 - `game.lights` †: canvas lighting (lights.enabled, lights.add in draw)
-- `game.o`: o: the options the game was made with, the defaults filled in (view, res, minW, minH, maxW, maxH, bg, step, input, loop, headless)
+- `game.o`: o: the options the game was made with, the defaults filled in (view, res, expand, minW, minH, maxW, maxH, bg, step, input, loop, headless)
 - `game.particles`: dust, sparks, debris and text in the world
 - `game.pauseOverlay = true`: false hides the engine's PAUSED overlay (a game drawing its own pause screen)
 - `game.pauseReason = null`: why the game paused: 'player' | 'focus' (the page was hidden) | 'controller' (unplugged) | 'menu', or null

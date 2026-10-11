@@ -341,34 +341,36 @@ const ANIMLAB = (() => {
   const TXT = { outline: false, shadow: '#07050e' }, TINY = Object.assign({ font: 'tiny' }, TXT), RIGHT = o => Object.assign({ align: 'right' }, o);
   const LEGEND = ['↑↓ ANIMATION  ←→ SKIN  V VIEW  - = ZOOM  [ ] TURN  0 RESET  F FLIP', 'SPACE PAUSE  . STEP  S SLOW  T TRAIL  B BONES  L LINEUP  J REPLAY  H HUD'];
   function hud(g, r) {
-    const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = anim.group + ' ▸ ';
-    E.ui.box(g, 4, 11, W - 8, 34, WIN);
-    E.font.title(g, 'ANIMATION LAB', 10, 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
-    E.font.text(g, lineup ? 'LINEUP: ALL ' + actors.length + ' SKINS' : '← ' + a.s.name + ' →', W - 10, 15, '#ffffff', RIGHT(TXT));
-    E.font.text(g, lead, 10, 26, '#a8a0d8', TXT);
-    E.font.text(g, anim.name, 10 + E.font.width(lead), 26, '#ffe070', TXT);
+    const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = anim.group + ' ▸ ', T0 = Math.max(0, Math.round(corner()[1]) - 9);   // T0: under the corner's buttons (they stay up in a lab)
+    E.ui.box(g, 4, T0 + 11, W - 8, 34, WIN);
+    E.font.title(g, 'ANIMATION LAB', 10, T0 + 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
+    E.font.text(g, lineup ? 'LINEUP: ALL ' + actors.length + ' SKINS' : '← ' + a.s.name + ' →', W - 10, T0 + 15, '#ffffff', RIGHT(TXT));
+    E.font.text(g, lead, 10, T0 + 26, '#a8a0d8', TXT);
+    E.font.text(g, anim.name, 10 + E.font.width(lead), T0 + 26, '#ffe070', TXT);
     const cam = [game.view.label + ' view', 'zoom ' + +game.zoom.toFixed(2) + 'x', game.yaw ? 'turn ' + game.yaw + ' deg' : '', paused ? 'paused' : game.timeScale < 1 ? 'slow .25x' : 'speed 1x'];
-    E.font.text(g, cam.filter(Boolean).join('    '), 10, 37, paused ? '#ff9a7a' : '#c8c0f0', TINY);
+    E.font.text(g, cam.filter(Boolean).join('    '), 10, T0 + 37, paused ? '#ff9a7a' : '#c8c0f0', TINY);
     if (!lineup) {
       // the animation list: the neighbours of the current one, groups in alternating tints
-      E.ui.box(g, 4, 48, 100, 61, SEE);
+      E.ui.box(g, 4, T0 + 48, 100, 61, SEE);
       for (let k = -3; k <= 3; k++) {
         const n = ANIMS[(ai + k + N) % N], odd = GROUPS.indexOf(n.group) % 2;
-        E.font.text(g, (k ? '  ' : '> ') + n.name, 8, 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
+        E.font.text(g, (k ? '  ' : '> ') + n.name, 8, T0 + 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
       }
-      E.font.text(g, (ai + 1) + '/' + N, 100, 101, '#8a82b0', RIGHT(TINY));
+      E.font.text(g, (ai + 1) + '/' + N, 100, T0 + 101, '#8a82b0', RIGHT(TINY));
       // key poses of a move; the one playing now is lit
       const cur = attack ? ['wind', 'active', 'recover'].indexOf(attack.phase) : combo && combo.busy ? combo.step : -1;
       keyPoses().forEach((k, i) => {
-        const y = 48 + i * 39, lit = i === cur;
+        const y = T0 + 48 + i * 39, lit = i === cur;
         E.ui.box(g, W - 46, y, 42, 38, lit ? { bg: ['#5a4a2a', '#1a1208'], border: '#ffe070' } : SEE);
         g.drawImage(k.cv, W - 45, y + 1);
         E.font.text(g, k.label, W - 25, y + 31, lit ? '#ffe070' : '#c8c0f0', Object.assign({ align: 'center' }, TINY));
       });
     }
-    // the timeline: one bar per phase (the current one lit), the clock as a white mark, the phase's name and the time
-    E.ui.box(g, 4, H - 36, W - 8, 33, WIN);
-    const bx = 10, bw = W - 124, by = H - 31;
+    // the timeline: one bar per phase (the current one lit), the clock as a white mark, the phase's name and the time; clear
+    // of the touch buttons when they show: beside them where there is room, else above them
+    const ta = game.input.touchArea(), side = ta && ta.x0 > 200, B = ta && !side ? Math.floor(ta.y0) - 2 : H, BW = side ? Math.floor(ta.x0) - 8 : W - 8;
+    E.ui.box(g, 4, B - 36, BW, 33, WIN);
+    const bx = 10, bw = BW - 116, by = B - 31;
     let t0 = 0, label = '';
     for (const [name, secs, c] of anim.segs) {
       const x0 = bx + Math.round(t0 / anim.len * bw), x1 = bx + Math.round((t0 + secs) / anim.len * bw), on = t > t0 && t <= t0 + secs;
@@ -377,8 +379,8 @@ const ANIMLAB = (() => {
       t0 += secs;
     }
     px.rect(g, bx + Math.round(Math.min(1, t / anim.len) * bw), by - 2, 1, 11, '#ffffff');
-    E.font.text(g, label + '  ' + t.toFixed(2) + ' / ' + anim.len.toFixed(2) + 's', W - 10, by + 1, '#ffe8b0', RIGHT(TINY));
-    LEGEND.forEach((s, i) => E.font.text(g, s, 10, H - 21 + i * 8, '#b8b0e0', TINY));
+    E.font.text(g, label + '  ' + t.toFixed(2) + ' / ' + anim.len.toFixed(2) + 's', BW - 2, by + 1, '#ffe8b0', RIGHT(TINY));
+    (touch() ? ['STICK ↑↓ ANIMATION   ←→ SKIN', 'THE BUTTONS: REPLAY, SLOW, HOLD'] : LEGEND).forEach((s, i) => E.font.text(g, s, 10, B - 21 + i * 8, '#b8b0e0', TINY));
   }
 
   /* ---- UPDATE: keys, then the clock (paused: . steps one 60th of a second) ---- */
@@ -411,7 +413,7 @@ const ANIMLAB = (() => {
     game.cam.bounds = null; game.cam.room = null; game.timeScale = 1; L.enabled = false; A.music(null);
     game.resetCamera(); game.setZoom(1.5); lineup = false; paused = false; viewKey = ''; play(ai);
   }
-  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], rotate: true },
+  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], rotate: true }, touch: ['replay', 'slow', 'hold'],   // the stick picks (up, down) and dresses (left, right)
     input: { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], replay: ['KeyJ', 'Enter'], hold: ['Space'], step: ['Period'],
       slow: ['KeyS'], trail: ['KeyT'], bones: ['KeyB'], lineup: ['KeyL'], flip: ['KeyF'], hud: ['KeyH'], turn: ['BracketLeft', 'BracketRight'], back: ['Escape'] },
     enter, exit() { game.timeScale = 1; game.resetCamera(); }, update, draw,

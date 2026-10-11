@@ -190,9 +190,15 @@ const STEALTH = (() => {
       E.ui.box(g, 4, 4, 92, 20, { alpha: .75 }); E.ui.hearts(g, 9, 9, hp, HP);
       if (ledger) px.sprite(g, BOOK, 66, 10);
       E.font.text(g, hero.exposure === 0 ? 'HIDDEN' : hero.crouch ? 'CROUCHED' : '', 9, 18, '#9ae89a', { font: 'tiny', outline: false });
-      if (msgT > 0) { const w = E.font.width(msg) + 16; E.ui.box(g, (r.W - w) / 2, r.H - 34, w, 18, { alpha: .85 }); E.font.text(g, msg, r.W / 2, r.H - 29, '#ffe7a8', { align: 'center' }); }
+      if (msgT > 0) {   // the message stays clear of the touch buttons: above them where they reach under it
+        const w = E.font.width(msg) + 16, ta = game.input.touchArea(), my = ta && (r.W + w) / 2 > ta.x0 ? Math.min(r.H - 34, Math.floor(ta.y0) - 22) : r.H - 34;
+        E.ui.box(g, (r.W - w) / 2, my, w, 18, { alpha: .85 }); E.font.text(g, msg, r.W / 2, my + 5, '#ffe7a8', { align: 'center' });
+      }
       if (won) { E.font.title(g, 'MISSION COMPLETE', r.W / 2, 60, { align: 'center', scale: 3, colors: ['#ffffff', '#ffe08a', '#e0a040'], depth: 2 }); px.sprite(g, STAR, r.W / 2 - 2, 94); }
-      E.font.text(g, 'WASD  SHIFT SPRINT  SPACE JUMP/CLIMB  C CROUCH  J STRIKE  K BLOCK  L ROLL', r.W / 2, r.H - 9, '#b8b0d8', { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+      if (!touch()) {   // the player's own keys (a touch screen's buttons name themselves)
+        const k = a => game.input.label(a).toUpperCase(), pad = game.input.lastDevice === 'gamepad', move = pad ? 'STICK' : ['up', 'left', 'down', 'right'].map(k).join('');
+        E.font.text(g, [move, k('sprint') + ' SPRINT', k('jump') + ' JUMP/CLIMB', k('crouch') + ' CROUCH', k('attack') + ' STRIKE', k('block') + ' BLOCK', k('dodge') + ' ROLL'].join('  '), r.W / 2, r.H - 9, '#b8b0d8', { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+      }
     });
   }
   return { view: 'iso', views: ['iso', 'threequarter'], input: 'THIRDPERSON', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'block', 'crouch'],

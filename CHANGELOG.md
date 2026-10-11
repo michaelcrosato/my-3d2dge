@@ -5,6 +5,32 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.26.0 (2026-10-11)
+
+The starter kits are full screen at any shape (desktop, ultrawide, tablet, a phone either way up) with no black bars, and playable by touch. They were fixed 320x240 boxes (the shooter 240x320) letterboxed on every screen of another shape.
+
+- **Engine**:
+  - `expand: true` (a game's option, or a scene's): `res` becomes the least the screen shows, and the picture grows to fill the window at any shape with no bars (`r.W` x `r.H` grows; a 16:9 monitor shows about 427x240 of `'ps1'`, a phone held upright 320x690). `expand: { maxW, maxH }` caps it. Both editions.
+  - The touch stick and a gamepad's left stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does, so menus, dialog choices and the Platformer's ladders work with them. Before, a phone could not move a menu's cursor or climb a ladder. Both editions (the agent edition has no touch stick).
+  - A bottom `E.Dialog` keeps clear of the touch buttons: beside them where it fits, else above them. `input.touchArea()` says where the buttons cover the screen, for a game's own prompts.
+- **Characters** (the starter kits, `src/starter/`):
+  - Every slice fills any screen with `res: 'ps1', expand: true` and a HUD anchored to the screen's edges, and makes something of the extra space:
+    - Adventure: a wider screen shows the neighbouring rooms under a dim curtain. A taller one keeps the room at the top and lays the HUD out on a deck below it, with a map of the rooms; dialog opens on the deck.
+    - Platformer: an upright phone lifts the level onto a band of soil, clear of the buttons, and the skies hang from the level's foot.
+    - Brawler: an upright phone lifts the street onto a foreground wall, and wave spawns come from just past the screen's edge however wide it is.
+    - Shooter: the playfield stays 272 wide, so the game plays the same, and is as tall as the screen. A wider screen shows the valley going on to each side, painted by the same functions, baked in strips as it scrolls in and dimmed beyond gold rules.
+    - RPG: the sunset backdrop is painted at the screen's size, its ground the plaza's own grass and light. The HUD band sits on the bottom edge, or on a tall screen under the battle with a deck below; it slides clear of the touch buttons.
+    - Stealth and the animation lab: their messages and timeline stay clear of the touch buttons. The lab gets touch buttons (replay, slow, hold) and its top bar drops below the corner's buttons.
+  - Prompts name the player's own keys, after rebinding and on a gamepad (`prompt('attack', 'Sword')`, `input.label`), instead of hard-coded keys. That covers the HUD hints, the stage cards and the NPCs' lines. On a touch screen a hint the buttons already give is left out.
+  - The title: a sixth hero in the lineup, the stealth slice's hooded assassin (one hero per genre slice). The ledge sits on the screen's bottom edge at any height, and the logo drops below the corner's buttons where it would reach them. START picks on the title and game-over menus, so a phone can start a slice. Game over is centred.
+- **Tools**:
+  - `tools/check.mjs --size 390x844@3` checks a game at any window size and pixel density (2 and up is a touch device). Its report says how much of the window the picture `covers` (1: no bars).
+  - `standard-test`: expand at five shapes, the touch stick's directions, and a dialog clear of the touch buttons (98 checks).
+  - The build's deep-link list for the full edition names `#stealth`.
+- **Docs**:
+  - `API.md`, `AI_GUIDE.md`, the agent edition's header and `docs/STANDARD-FEATURES.md` describe `expand`, what fills the extra space (the kits show four ways), the sticks' directions and `touchArea()`. `README.md` says the kits fill any screen.
+  - The handoff package's template game fills any screen too (`expand: true`), its title and end screens centred, its prompt the player's own key.
+
 ## 0.25.5 (2026-10-11)
 
 Two more details in the asset store plan, from a review of v0.25.4.

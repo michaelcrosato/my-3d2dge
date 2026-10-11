@@ -10,6 +10,8 @@
  *   5. LIGHT   each zone has a colored darkness; every flame punches a smooth hole in it and adds a colored glow
  *   6. CAST    engine rigs with E.MOVES move sets (a caped hero, rising skeletons, a knight), a hand-drawn bat
  *   7. HITS    game.hitFx (numbers stack in rows), a short tint and a flinch; 'die' topples, skeletons fall apart into bones
+ *   8. ANY SCREEN  wider shows more of the level; taller (a phone held upright) lifts it onto a band of SOIL, clear of the
+ *              touch buttons, and hangs the skies from the level's foot (FOOT) instead of the screen's
  * ===================================================================================== */
 const PLAT = (() => {
   const T = 16, MAXHP = 80, BONE = '#e4dcc4';
@@ -206,6 +208,10 @@ const PLAT = (() => {
     portrait: (g, x, y) => { E.ui.box(g, x - 2, y - 2, 44, 44, { bg: ['#4a1a3a', '#0c0612'], border: '#e0d0a8' }); px.sprite(g, VALE, x, y + 2); if (game.real % 4 < .12) px.rect(g, x + 26, y + 17, 4, 2, '#f0c8a8'); } });   // + a blink
   const fx = [], lights = [], shafts = [], addFx = (kind, x, z, o) => fx.push(Object.assign({ kind, x, z, t: 0, max: .3, size: 1, c: '#ffffff', vx: 0, vz: 0, dir: 1 }, o));
   let level, hero, rig, combo, MV, atk, charge, idle, land, foes, coins, candles, drops, lift, lives, score, gold, hp, inv, cheer, clear, spawn, gate, lava, age, hint, darkCv, rimWas;
+  // 8. ANY SCREEN: soil = the band of earth under the level on a screen taller than it (0 on a wide one); FOOT = the level's
+  // foot on screen when the camera rests on the ground (the screen's bottom edge, or the top of the soil): the skies hang from it
+  let soil = 0, FOOT = 240;
+  const soilFor = (b, H) => { const lh = b.y1 - b.y0; return H > lh ? Math.min(160, Math.round((H - lh) * .55)) : 0; };
 
   function reset(full) {
     if (full) {
@@ -411,12 +417,12 @@ const PLAT = (() => {
       blend(g, 'source-over', mo, () => { px.disc(g, mx, my, 16, t.sh); px.disc(g, mx - 1, my - 1, 15, t.base); px.disc(g, mx - 4, my - 5, 7, t.lt); for (const [a, b, c] of [[5, 3, 4], [-6, 6, 3], [2, -8, 2], [-2, 10, 2]]) px.disc(g, mx + a, my + b, c, t.sh); });
     }
     // the far castle (blue by moonlight, red over the moat), mist at its foot, a faster treeline
-    const cx = Math.round(r.W * .28 - r.ix * .03), cy = Math.round(r.H * .72 - r.iy * .04);
+    const cx = Math.round(r.W * .28 - r.ix * .03), cy = Math.round(FOOT * .72 - r.iy * .04);
     for (const [i, c, e, w] of [[0, '#16223e', '#34507e', '#ffc868'], [1, '#3a0e18', '#8a2a20', '#ff8a3a']]) if (Z.bg[i] > .01) blend(g, 'source-over', Z.bg[i], () => g.drawImage(castle(c, e, w), cx, cy - 170));
     blend(g, 'source-over', .8, () => { const o = ((r.ix * .05 + game.time * 3) % 320 + 320) % 320; for (let x = -o; x < r.bw; x += 320) g.drawImage(fog(Z.bg[1] > .5 ? '#b8482a' : '#5a7aa8'), x, cy - 30); });
-    if (Z.bg[0] > .01) blend(g, 'source-over', Z.bg[0], () => { const ty = Math.round(r.H * .9 - 90 - r.iy * .12), o = ((r.ix * .22) % 320 + 320) % 320; for (let x = -o; x < r.bw; x += 320) g.drawImage(treeline(), x, ty); px.rect(g, 0, ty + 90, r.bw, r.bh, '#0c1830'); });
+    if (Z.bg[0] > .01) blend(g, 'source-over', Z.bg[0], () => { const ty = Math.round(FOOT * .9 - 90 - r.iy * .12), o = ((r.ix * .22) % 320 + 320) % 320; for (let x = -o; x < r.bw; x += 320) g.drawImage(treeline(), x, ty); px.rect(g, 0, ty + 90, r.bw, r.bh, '#0c1830'); });
     if (Z.bg[2] > .01) blend(g, 'source-over', Z.bg[2], () => { for (let k = 0; k < 3; k++) {   // the sea of clouds: three billowy rows, nearer = darker and faster
-      const y = Math.round(r.H * (.58 + k * .12) - r.iy * .05 * (k + 1)), o = ((r.ix * (.05 + k * .07) + game.time * (2 + k * 2)) % 600 + 600) % 600;
+      const y = Math.round(FOOT * (.58 + k * .12) - r.iy * .05 * (k + 1)), o = ((r.ix * (.05 + k * .07) + game.time * (2 + k * 2)) % 600 + 600) % 600;
       for (let x = -o; x < r.bw; x += 600) g.drawImage(clouds(k), x, y); px.rect(g, 0, y + 70, r.bw, r.bh, E.tones(CLOUD[k]).deep); } });
   }
   function decor(r, g) {                               // baked decals behind the play layer; engine props are queued
@@ -461,11 +467,15 @@ const PLAT = (() => {
     }, { bias: 2 });
   }
   function draw(r) {
-    const view = r.view, t = game.time, g = r.ctx, Z = zoneAt(hero.x), tilted = view.pitchDeg > 5;
-    lights.length = shafts.length = 0;
+    const view = r.view, t = game.time, g = r.ctx, Z = zoneAt(hero.x), tilted = view.pitchDeg > 5, b = level.bounds(view);
+    lights.length = shafts.length = 0; soil = soilFor(b, r.H); FOOT = r.H - soil;
     sky(r, g, Z);                                      // 1. skies (cross-faded), moon, castle, mist, clouds
     back.draw(r); decor(r, g); mist(r, g, Z, .55, .6, -8);   // 2. castle walls, decals, props on them, the far mist layer
     level.draw(r); lavaDraw(r, g);                     // 3. the play layer, the lava painted over its tiles, the earth cut
+    if (soil) {   // 8. the SOIL under the level: the earth cut's strata, darkening; above the clouds it gives way to them
+      const top = Math.round(b.y1 - 4 - r.iy), o = ((r.ix % 160) + 160) % 160;
+      blend(g, 'source-over', 1 - Z.bg[2], () => { for (let x = -o; x < r.bw; x += 160) g.drawImage(earth(), x, top); for (let k = 0; k < 4; k++) px.rect(g, 0, top + 48 + k * 10, r.bw, k < 3 ? 10 : r.bh, ['#2a2030', '#211a28', '#18131f', '#100c16'][k]); });
+    }
     { const [ex, ey] = r.w(0, 8, 2 * T), [x1, eb] = r.w(20 * T, 8, 0), w = (x1 - ex) / 3; if (x1 > 0) for (let k = 0; k < 3; k++) g.drawImage(earth(), Math.round(ex + k * w), Math.round(ey) + 3, Math.round(w), Math.round(eb - ey) - 3); }
     const shadow = (x, z) => { const gz = tilted && level.groundBelow(x, z); if (gz !== null && gz !== false) r.shadow(x, 0, 6, .35, '#000', gz); };   // contact shadows in the 2.5D view
     for (const c of candles) if (!c.dead) {            // floating candles on iron cups: slash them for loot
@@ -503,7 +513,7 @@ const PLAT = (() => {
     r.queue(0, -1.5, 0, g2 => shade(g2, r, Z, Z.dark));   // full darkness: after the walls and wall props, before the characters
     r.overlay(g2 => { shade(g2, r, Z, Z.dark * .3); glow(g2); mist(r, g2, Z, .3, 1.3, 8);   // a third of it over everything, the colored glows, the near mist
       for (const [x, y, L] of shafts) blend(g2, 'lighter', .09, () => { const k = L / 126, b = y - 30 + L; px.poly(g2, [[x - 8, y - 30], [x + 8, y - 30], [x + 70 * k, b], [x + 40 * k, b]], '#8098ff'); px.poly(g2, [[x - 3, y - 30], [x + 3, y - 30], [x + 58 * k, b], [x + 50 * k, b]], '#c0c8ff'); });   // shafts end on the floor
-      const fo = ((r.ix * 1.3) % 480 + 480) % 480; if (Z.bg[1] < .99) blend(g2, 'source-over', 1 - Z.bg[1], () => { for (let x = -fo; x < r.bw; x += 480) g2.drawImage(fore(), x, r.bh - 36); });
+      const fo = ((r.ix * 1.3) % 480 + 480) % 480, fy = soil ? Math.round(b.y1 - 4 - r.iy) : r.bh; if (Z.bg[1] < .99) blend(g2, 'source-over', 1 - Z.bg[1], () => { for (let x = -fo; x < r.bw; x += 480) g2.drawImage(fore(), x, fy - 36); });
       hud(g2, r); });
     talk.draw(r);
   }
@@ -528,11 +538,15 @@ const PLAT = (() => {
     E.font.text(g, '♥', 40, 23, '#ff5a6a', S); E.font.text(g, '×' + lives, 48, 23, '#f0e8ff', S); coin(g, 74, 27, 0); E.font.text(g, String(gold), 81, 23, '#ffe066', S);
     const ribbon = (y, h, a) => blend(g, 'source-over', a, () => { px.rect(g, 0, y, r.W, h, '#05030a'); px.rect(g, 0, y, r.W, 1, '#d8a848'); px.rect(g, 0, y + h - 1, r.W, 1, '#d8a848'); });
     if (age < 1.8) { const a = clamp((1.8 - age) * 2, 0, 1); ribbon(58, 26, .5 * a); if (a > .3) E.font.title(g, 'Castle Approach', r.W / 2, 64, { scale: 2, align: 'center', colors: ['#ffffff', '#d8c8f0', '#9a7ad0'], depth: 1, depthColor: '#1c1430' }); }
-    else if (hint > 0 && !talk.open) { ribbon(r.H - 17, 13, .55 * clamp(hint, 0, 1)); E.font.text(g, hint > 4 ? 'Space jump  •  X slash  •  C dash  •  V 2.5D' : '↑X rise  •  ↓X dive  •  C+X thrust  •  hold X spin', r.W / 2, r.H - 14, '#e8e0ff', SC); }   // controls after the dialog
+    else if (hint > 0 && !talk.open) {   // controls after the dialog, in the player's own keys; over the soil when there is some
+      const k = a => game.input.label(a), y = soil ? r.H - soil + 6 : r.H - 17, s = hint > 4 ? [prompt('jump', 'jump'), prompt('attack', 'slash'), prompt('dash', 'dash'), touch() ? '' : 'V 2.5D'].filter(Boolean).join('  •  ')
+        : ['↑' + k('attack') + ' rise', '↓' + k('attack') + ' dive', k('dash') + '+' + k('attack') + ' thrust', 'hold ' + k('attack') + ' spin'].join('  •  '), fit = E.font.width(s) < r.W - 8;
+      ribbon(y, 13, .55 * clamp(hint, 0, 1)); E.font.text(g, s, r.W / 2, y + (fit ? 3 : 4), '#e8e0ff', fit ? SC : Object.assign({ font: 'tiny' }, SC));
+    }
     if (clear) { ribbon(40, 30, .6); E.font.title(g, 'STAGE CLEAR', r.W / 2, 46, { scale: 2, align: 'center', colors: ['#fffbe8', '#ffd36a', '#e0662a'] }); }   // a translucent ribbon keeps the lit gate visible
   }
   return { view: 'side', views: ['side', 'brawler'], input: 'PLATFORMER', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2] },   // props at the hero's scale; zoom limits, no turning
-    enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => level.bounds(v); A.music('adventure'); L.enabled = false; rimWas = game.r.rimAlpha; game.r.rimAlpha = .5;   // a stronger, zone-colored rim light
+    enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => { const b = level.bounds(v); return Object.assign({}, b, { y1: b.y1 + soilFor(b, game.H) }); }; A.music('adventure'); L.enabled = false; rimWas = game.r.rimAlpha; game.r.rimAlpha = .5;   // a stronger, zone-colored rim light
       P.ground = (x, y, z) => level.groundBelow(x, z + 1); },              // sparks and debris land and bounce on the platform under them
     exit() { game.r.rimAlpha = rimWas; P.ground = null; }, update, draw };
 })();

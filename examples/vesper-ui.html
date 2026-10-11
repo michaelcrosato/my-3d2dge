@@ -16,12 +16,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">VESPER</b><span>Starting · my-3D2dge v0.25.5</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">VESPER</b><span>Starting · my-3D2dge v0.26.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <canvas id="screen" role="img" aria-label="The district"></canvas>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.25.5  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.26.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -99,7 +99,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.25.5', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.26.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -554,8 +554,9 @@ class Screen {
      *  presenting); listeners: functions called after every resize */
     this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0; this.listeners = [];
     /** scale: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black
-     *  bars), 'fill' (the largest fit, pixels a device pixel apart in size) or 'auto' (fill on high-density screens,
-     *  phones and tablets, where that difference can't be seen; sharp elsewhere). game.settings.scale sets it */
+     *  bars unless o.expand grows the picture into them), 'fill' (the largest fit, pixels a device pixel apart in size)
+     *  or 'auto' (fill on high-density screens, phones and tablets, where that difference can't be seen; sharp
+     *  elsewhere). game.settings.scale sets it */
     this.scale = 'auto';
     this.resize();
     if (canvas) addEventListener('resize', () => this.resize(), { signal });
@@ -581,8 +582,11 @@ class Screen {
     const fix = this.fixedRes(o);
     if (fix) {
       // fixed resolution: whole-number scale, letterboxed (or the largest fit: scale). HUD pixel positions stay the same on every screen.
-      const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2);
-      this.W = fix[0]; this.H = fix[1]; this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
+      // o.expand: the resolution is the least the screen shows, and the picture grows on both sides to fill the window
+      // (no bars at any shape, up to expand.maxW x maxH): a HUD anchors to W and H
+      const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2), x = o.expand;
+      this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
+      this.W = x ? clamp(Math.ceil(pw / this.S - 1e-6), fix[0], x.maxW || 1e4) : fix[0]; this.H = x ? clamp(Math.ceil(ph / this.S - 1e-6), fix[1], x.maxH || 1e4) : fix[1];
     } else {
       const S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW)));
       this.S = S; this.W = Math.min(o.maxW, Math.ceil(pw / S)); this.H = Math.min(o.maxH, Math.ceil(ph / S));
@@ -703,6 +707,7 @@ class Input {
       let codes = map[a].slice(); const b = B[a];
       if (b && this.rebindable(a, map)) for (const k of ['keys', 'pad']) if (Array.isArray(b[k])) codes = codes.filter(c => padCode(c) !== (k === 'pad') || FIXED_CODES.has(c)).concat(b[k]);
       if (a === 'start' || a === 'pause') codes.push('Act:menu');   // (the touch START)
+      if (STICK_CODES[a]) codes.push(STICK_CODES[a]);   // (the gamepad's left stick; the touch stick presses 'Act:' + a)
       this.map[a] = [...new Set(codes), 'Act:' + a];
     }
     this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
@@ -773,13 +778,24 @@ class Input {
   /**
    * On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide
    * them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack:
-   * 'B' }, force }). The other half of the screen is a move stick. START is the menu: it starts on a title and pauses a
-   * pausable scene, as a gamepad's Start does
+   * 'B' }, force }). The other half of the screen is a move stick (past halfway it presses up, down, left and right too,
+   * as a d-pad does: menus and ladders). START is the menu: it starts on a title and pauses a pausable scene, as a
+   * gamepad's Start does
    */
   touchButtons(actions, o = {}) {
     if (!this.screen.canvas) return null;
     this._touchArgs = { actions, o }; this._touchLabels = o.labels || null;
     return this._touchSync();
+  }
+  /** where the touch buttons (START too) cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W
+   *  and r.H), or null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself) */
+  touchArea() {
+    const el = this._touchEl, S = this.screen; if (!el || !S.canvas || !el.isConnected) return null;
+    const cr = S.canvas.getBoundingClientRect(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const b of el.querySelectorAll('button')) { const q = b.getBoundingClientRect(); x0 = Math.min(x0, q.left); y0 = Math.min(y0, q.top); x1 = Math.max(x1, q.right); y1 = Math.max(y1, q.bottom); }
+    if (x1 < x0) return null;
+    const X = v => ((v - cr.left) * S.dpr - S.OX) / S.S, Y = v => ((v - cr.top) * S.dpr - S.OY) / S.S;
+    return { x0: X(x0), y0: Y(y0), x1: X(x1), y1: Y(y1) };
   }
   /** build the touch buttons again from the player's settings (touch, hand, touchSize, touchOpacity) */
   _touchSync() {
@@ -937,9 +953,14 @@ class Input {
     if (!this.stickOn || e.pointerId !== this.stickId) return;
     let dx = (e.clientX - this._stickO[0]) / this.stickRadius, dy = (e.clientY - this._stickO[1]) / this.stickRadius;
     const l = Math.hypot(dx, dy), d = clamp(this.stickDeadzone, 0, .5), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;   // a thumb resting on the glass doesn't creep
-    this.stick = [dx * k, dy * k]; this._stickDraw();
+    this.stick = [dx * k, dy * k]; this._stickDirs(); this._stickDraw();
   }
-  _stickEnd(e) { if (e.pointerId !== this.stickId) return; this.stickOn = false; this.stick = [0, 0]; if (this._stickEl) this._stickEl.style.display = this._knobEl.style.display = 'none'; }
+  _stickEnd(e) { if (e.pointerId !== this.stickId) return; this.stickOn = false; this.stick = [0, 0]; this._stickDirs(); if (this._stickEl) this._stickEl.style.display = this._knobEl.style.display = 'none'; }
+  // past halfway the stick presses the direction actions, as a d-pad would (and lets go of them)
+  _stickDirs() {
+    const [x, y] = this.stick, on = [y < -.5, y > .5, x < -.5, x > .5], was = this._sd || (this._sd = [false, false, false, false]);
+    ['up', 'down', 'left', 'right'].forEach((d, i) => { if (on[i] !== was[i]) { was[i] = on[i]; if (on[i]) this.press('Act:' + d); else this.release('Act:' + d); } });
+  }
   _stickDraw() {
     const rc = this.screen.canvas.getBoundingClientRect(), pr = this.screen.canvas.parentElement.getBoundingClientRect();
     const ox = this._stickO[0] - pr.left, oy = this._stickO[1] - pr.top;
@@ -957,7 +978,9 @@ const MENU_KEYS = {
 /* rebinding: the codes a player may bind (not Escape, Enter, the F keys, Start or Home: the menus and the browser keep
    them), the arrow keys and d-pad that stay on the moves whatever is bound, and which codes are a gamepad's */
 const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Pad([0-8]|1[0-5]))$/;
-const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15']);
+const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15', 'PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']);
+/* the left stick past halfway presses the direction actions, as the d-pad does (menus, dialog choices, ladders) */
+const STICK_CODES = { up: 'PadAxisUp', down: 'PadAxisDown', left: 'PadAxisLeft', right: 'PadAxisRight' };
 const padCode = c => c.startsWith('Pad');
 /* a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders and triggers, 8 back, 9 start,
    10-11 stick clicks, 12-15 d-pad, 16 home), as each family prints them */
@@ -1886,8 +1909,10 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 
 class Game {
   /**
-   * new E.Game({ canvas, view, views, res, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap',
-   * corner: true, autoPause: true, id }).
+   * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
+   * fullscreen: 'tap', corner: true, autoPause: true, id }).
+   * res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows
+   * the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there).
    * headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes
    * update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in
    * a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and
@@ -1906,8 +1931,8 @@ class Game {
       if (!o.canvas) o.canvas = document.getElementById('screen') || document.querySelector('canvas') || Game._makeCanvas();
     }
     if (typeof o.input === 'string') o.input = Input[o.input.toUpperCase()] || (warn('input:' + o.input, 'unknown input preset "' + o.input + '" (use DEFAULT, PLATFORMER or SHMUP)'), Input.DEFAULT);
-    /** o: the options the game was made with, the defaults filled in (view, res, minW, minH, maxW, maxH, bg, step,
-     *  input, loop, headless) */
+    /** o: the options the game was made with, the defaults filled in (view, res, expand, minW, minH, maxW, maxH, bg,
+     *  step, input, loop, headless) */
     this.o = Object.assign({ view: 'iso', minH: 190, minW: 300, maxW: 560, maxH: 330, bg: '#07060d', step: 1 / 120, input: Input.DEFAULT, loop: !this.headless }, o);
     // every listener the engine adds to the window, the document, the canvas and its buttons goes through this: dispose() removes them all
     this._abort = typeof AbortController === 'function' ? new AbortController() : null;
@@ -2145,8 +2170,9 @@ class Game {
   /**
    * Start the loop. Either one scene:  game.start({ update(dt), draw(r) })
    * or several:  game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
-   * A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, touch } (all optional);
-   * view / views / input ('PLATFORMER') / res ('snes') / touch (['jump', 'attack']) are applied when it starts.
+   * A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, expand, touch } (all
+   * optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied
+   * when it starts (res and expand stay until another scene sets them).
    * start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance().
    * boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c):
    * the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
@@ -2290,7 +2316,7 @@ class Game {
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
     if (s.input) this.input.use(s.input);
-    if (s.res) this.screen.setOptions({ res: s.res });
+    if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
     if (s.touch) this.input.touchButtons(s.touch);
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
     if (s.enter) s.enter(data);
@@ -5991,8 +6017,12 @@ class Dialog {
   }
   _dims() {
     const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this.pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
-    const pl = this._place || this.place, y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
-    return { x: Math.round((W - w) / 2), y, w, h, lh, tx, P };
+    const pl = this._place || this.place; let x = Math.round((W - w) / 2), y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
+    const t = this._y === undefined && pl === 'bottom' && this.game.input.touchArea && this.game.input.touchArea();
+    if (t && x + w > t.x0 && x < t.x1 && y + h > t.y0) {   // clear of the touch buttons: beside them where it fits, else above them
+      if (t.x0 - 4 - w >= 4) x = Math.floor(t.x0 - 4 - w); else if (t.x1 + 4 + w <= W - 4) x = Math.ceil(t.x1 + 4); else y = Math.max(4, Math.floor(t.y0 - h - 4));
+    }
+    return { x, y, w, h, lh, tx, P };
   }
   /**
    * open with one string or a list of strings (each starts a new page).

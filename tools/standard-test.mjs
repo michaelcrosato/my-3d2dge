@@ -10,7 +10,8 @@
 //                a scene in play; on the full engine rebind() (a conflict or a reserved code changes nothing, the arrow
 //                keys and d-pad stay on the moves, bindings survive use() and are saved), resetBindings()
 //   page         the viewport (viewport-fit=cover, pinch zoom left alone) and the canvas's touch-action; a fixed
-//                resolution filling a high-density screen ('auto' scale) or kept whole ('sharp')
+//                resolution filling a high-density screen ('auto' scale) or kept whole ('sharp'); expand filling every
+//                shape with no bars; the touch stick pressing the directions; a bottom dialog clear of the touch buttons
 //   corner       the menu and full-screen buttons: shown on a title and while paused, hidden in play; the menu button
 //                pauses (the agent edition: and resumes); full screen from a click, and the player's choice kept (leaving
 //                it means a phone's tap no longer takes it there)
@@ -244,6 +245,30 @@ if (!process.argv.includes('--node')) {
     }
     if (p.errors.length) check(`${ed}: no errors`, false, p.errors.join(' | '));
     await p.close(); await phone.close();
+    // expand: the resolution is the least the screen shows; the picture fills the window at any shape, with no bars
+    const fills = [];
+    for (const [w, h, d] of [[1920, 1080, 1], [2560, 1080, 1], [1366, 768, 1], [844, 390, 3], [390, 844, 3]]) {
+      const c = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: d }), q = await open('{ expand: true }', c);
+      fills.push(await ev(q, () => { const S = game.screen; return [S.W, S.H, S.W >= 256 && S.H >= 224 && S.OX <= 0 && S.OY <= 0 && S.W * S.S >= S.canvas.width - 1 && S.H * S.S >= S.canvas.height - 1]; }));
+      await c.close();
+    }
+    check(`${ed}: expand fills a desktop, an ultrawide, a laptop and a phone both ways with no bars, showing at least the resolution`, fills.every(f => f[2]), JSON.stringify(fills));
+    if (ed === 'full') {
+      // the touch stick past halfway presses the directions as a d-pad does, and lets go; a bottom dialog keeps clear of the touch buttons
+      const tc = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+      const q = await open('{ fullscreen: false, expand: true }', tc), cdp = await tc.newCDPSession(q);
+      await ev(q, () => { game.input.tap('start'); step(3); });   // into play, where the touch buttons show
+      const finger = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: 90, y, id: 1 }] });
+      await finger('touchStart', 520); await finger('touchMove', 505); const nudge = await ev(q, () => game.input.down('up'));
+      await finger('touchMove', 440); const up = await ev(q, () => [game.input.down('up'), game.input.move()[1] < -.9]);
+      await finger('touchEnd'); const off = await ev(q, () => game.input.down('up'));
+      check(`${ed}: the touch stick past halfway presses up (a nudge does not), and lets go when lifted`, !nudge && up.join() === 'true,true' && !off, JSON.stringify([nudge, up, off]));
+      const dl = await ev(q, () => { const d = new E.Dialog(game); d.say('A line long enough to cross the screen from side to side'); const b = d._dims(), t = game.input.touchArea(); return [b.x, b.y, b.w, b.h, t && [t.x0, t.y0, t.x1, t.y1]]; });
+      const [dx, dy, dw, dh, ta] = dl;
+      check(`${ed}: a bottom dialog keeps clear of the touch buttons`, !!ta && (dx + dw <= ta[0] || dx >= ta[2] || dy + dh <= ta[1]) && dy > 100, JSON.stringify(dl));
+      if (q.errors.length) check(`${ed}: no errors (touch)`, false, q.errors.join(' | '));
+      await tc.close();
+    }
     // the boot screen, in a page with the splash and a live loop
     const BOOTPAGE = (body, boot) => `<!doctype html><html><head><meta charset="utf-8"><title>Harbour</title></head><body style="margin:0;background:#000">${splash}<canvas id="screen" style="width:100vw;height:100vh;display:block"></canvas><script>${engine}</script><script>
       const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: 'snes' }); window.draws = 0; window.hold = new Promise(r => { window.letGo = r; });
