@@ -312,4 +312,5 @@ An entry:
 - **Answered:** yes: the owner said to run the three briefs (2026-10-11). The Assassin's Creed run is in `DOCTRINE.md`
   (cut off by the subscription's usage limit in its last read-through, which these runs share with the owner's own
   sessions); the Breath of the Wild run was stopped by the machine's memory pressure; the Arkham run hasn't run.
-- **Landed in:** v0.22.0 (#66); the first results in v0.22.1
+  The owner then said to run both again (2026-10-11): both completed, and their rows are in `DOCTRINE.md` (v0.22.2).
+- **Landed in:** v0.22.0 (#66); the first results in v0.22.1; the other two in v0.22.2

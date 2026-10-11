@@ -193,10 +193,14 @@ The first runs (D19; one run per brief, so read them as signals):
 | date | brief | agent | game code | output tokens (thinking included) | wall time | first build passes check | read the engine below its header | judge |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | baseline | Assassin's Creed: Vesper, given the engine file alone (F1) | GPT-6 Astra Pro | ~50k | ? | ? | (its own checks) | read the source, patched it | - |
-| 2026-10-11 | Assassin's Creed | Claude Code (Opus 5.5) | ~27.5k (+4.3k tests) | 185.6k | 39 min | yes, and its own test (cut off by a usage limit in its last read-through) | yes, 18 times; no patch (F2) | 6/10 |
+| 2026-10-11 | Assassin's Creed | Claude Code (Opus 5.5) | ~27.5k (+4.3k tests) | 185.6k | 39 min | yes, and its own test (cut off by a usage limit in its last read-through) | yes, 13 times; no patch (F2) | 6/10 |
+| 2026-10-11 | Breath of the Wild village | Claude Code (Opus 5.5) | ~27.9k (+4.3k tests) | 209k | 38 min | yes, and its own test | yes, 11 times; no patch (F3) | 6/10 |
+| 2026-10-11 | Arkham predator room | Claude Code (Opus 5.5) | ~26.2k (+4.1k tests) | 278.8k (its subagents included) | 77 min (41 working; the rest waiting on a reviewing subagent that never reported) | yes, and its own test | yes, 29 times; no patch (F4) | 6/10 |
 
-The Breath of the Wild village brief was stopped after 29 minutes when the machine ran short of memory (other work on
-it); the Arkham predator room hasn't run.
+What the three say together: every first build runs, none patched the engine, and each game is about half of Vesper's
+code. All three still read the source below the header, for the same things (F2.1, F3.1, F4.1); all three drew their
+interface on the canvas rather than with `E.Shell`; and the judge put all three at 6/10, short of the PS1/N64 bar.
+Those are the next plan's three themes (`docs/FEEDBACK-LOG.md`). The runs cost $40.40 together.
 
 ### The checks here
 

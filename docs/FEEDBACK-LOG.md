@@ -23,9 +23,10 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Melee helpers (`E.Attack`, `E.Combo`) bypassed | watch | F1 | a game built after the height-aware queries and actions still bypasses them |
 | GPU lighting unused | watch | F1 | three sources: rethink its space in the manuals |
 | One fixed custom view, views never switched | watch | F1 | three sources: make one view the default for third-person kits and their checks |
-| Reading the engine's source (F1: its size) | **threshold** | F1, F2 | reached: two model families. The next plan takes it up: F2.1 lists what the index and cards lack |
-| The look below the PS1/N64 bar | watch | F2 | the benchmark's judge scores two more games under 7 |
-| `E.Shell` unused, the interface drawn on the canvas | watch | F2 | two more games skip it when their source has a modern interface |
+| Reading the engine's source (F1: its size) | **threshold** | F1, F2, F3, F4 | reached: two model families. The next plan takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack |
+| The look below the PS1/N64 bar | **threshold** | F2, F3, F4 | reached: three games at 6/10. The next plan takes it up (F2.2, F3.2, F4.2) |
+| `E.Shell` unused, the interface drawn on the canvas | **threshold** | F2, F3, F4 | reached: three games with modern interfaces skipped it. The next plan takes it up (F4.3) |
+| Climbing any wall and gliding written by the game (`E.Mover` climbs ledges) | watch | F3, F4 | a third source, or one from another model family |
 | Not verified on physical phones or native GPUs | no | F1 | a game heads to production (principle 10) |
 | Saves, checkpoints and objectives written by the game | watch | F1 | three sources write the same checkpoint or objective code |
 | Music written by the game for stealth and chases | watch | F1 | two more sources: built-in `stealth` and `chase` songs |
@@ -94,7 +95,8 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   its last read-through. It wrote its own headless playthrough bot (a `FlowField` picking the way, input only) to test
   the whole mission. It didn't patch the engine. The judge: 6/10, "strong SNES-era work rather than PS1 polish".
 - **Not acted on (yet):**
-  - **F2.1** · reading the source · it read the engine below its header 18 times, for: the third-person kit's own
+  - **F2.1** · reading the source · it read the engine below its header 18 times (13 by v0.22.2's stricter count, which
+    leaves out scripts that only load the engine), for: the third-person kit's own
     sections (17b-17d) rather than their index lines; the rig's state keys (`flip`, `hang`: the index lists rig methods
     and fields, not what `rig.update` takes); the backdrop and prop preset names and the backdrop's `sun`; `emissive`;
     `px.blend`; the song format (`steps`, `bpm`); `E.Combo`, `E.Attack` and `game.hitFx`; how `Dialog` holds play;
@@ -105,3 +107,56 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   - **F2.3** · `E.Shell` unused · it drew its interface on the canvas (`Dialog` with portraits, `E.ui` boxes). The brief
     didn't ask for HTML. **Watch.**
 
+### F3 · 2026-10-11 · the benchmark's Breath of the Wild run ("Wild Heights")
+
+- **Builder:** Claude Code (Opus 5.5) with `--safe-mode`, run by `tools/agent-bench.mjs`; the minimal Breath of the
+  Wild village brief.
+- **Handed:** the handoff package v0.22.1 in an empty directory.
+- **Built:** a Kakariko-style village in iso and three-quarter views: climb any wall on a stamina wheel, sprint, swim,
+  a paraglider with a bonfire updraft, four Spirit Orbs that each teach one move, a second wheel from the statue, a
+  tower to wake, an ending with stats; talking villagers with portraits. About 27.9k tokens of game code and a 4.3k-token
+  headless test (48 checks), in 38 minutes, 209k output tokens and $12.75; its first build passes the check and its
+  test. No engine patch. The judge: 6/10, "solidly SNES-plus": a warm, well-dressed village, but flat two-tone pines,
+  thin shadows, the hero's x-ray dither, and a camp label running into the HUD.
+- **Not acted on (yet):**
+  - **F3.1** · reading the source · 11 reads below the header, for: the rig's pose weights (`cheer`, `kneel`) and limb
+    poses; the level legend; the song format; the pixel scale and the touch stick; the view's camera (`set`); `Body`'s
+    collision and ground; the backdrop's drawing; the texture names; the Mover's `dir`; `Dialog.say` and its choices.
+    The rig and `Dialog` are what all three runs looked up. **Threshold** (the theme's).
+  - **F3.2** · the look · flat pines, thin shadows, and the x-ray dither on the hero behind trees, which the judge took
+    for a rendering glitch (as in F2.2). **Threshold** (the theme's).
+  - **F3.3** · `E.Shell` unused · its HUD (hearts, orb and rupee counters, the objective line) and dialog are drawn on
+    the canvas, and they collide with world labels. **Threshold** (the theme's).
+  - **F3.4** · climbing and gliding · it wrote its own climb-any-wall (latching, moving round corners, climb jumps,
+    pulling up onto the top: about an eighth of its code) and its own ground movement and paraglider on `E.Body`;
+    `E.Mover` climbs ledges and vaults but has no free climbing on a wall face and no glide. **Watch.**
+
+### F4 · 2026-10-11 · the benchmark's Arkham run (the Great Hall)
+
+- **Builder:** Claude Code (Opus 5.5) with `--safe-mode`, run by `tools/agent-bench.mjs`; the minimal Arkham predator
+  room brief.
+- **Handed:** the handoff package v0.22.1 in an empty directory.
+- **Built:** the Great Hall: gothic windows, Joker graffiti, bookshelves, fire drums and lamps, ten gargoyles; six
+  armed thugs on patrols, seeing in cones (better in light) and hearing noise, growing afraid as the room empties;
+  grapple between gargoyles, glide, silent, drop, inverted and glide-kick takedowns, detective mode with heart rates
+  through walls; the Joker heckling with a portrait, music that switches when spotted, a title and win or lose screens.
+  It uses the third-person kit (`E.Mover`, `E.ACTIONS`, `E.sees`, `E.hears`, `E.Suspicion`, `r.sightCone`, `r.marker`,
+  `FlowField`, `facades`) and `E.Attack`. About 26.2k tokens of game code and a 4.1k-token headless test (48 checks);
+  278.8k output tokens with its subagents, $16.50, 41 minutes working and 77 in all: it then waited on a reviewing
+  subagent that never reported, until `claude -p` stopped it after 10 minutes. Its first build passes the check and its
+  test. No engine patch. The judge: 6/10, "above SNES level but short of the PS1 bar": a well-dressed hall with warm
+  light pools, but small, lightly shaded figures, a three-quarter view of flat overlapping wall planes, and the button
+  prompts sitting on the dialogue box.
+- **Not acted on (yet):**
+  - **F4.1** · reading the source · 29 reads below the header, most for the third-person kit's own code (`Mover`, the
+    actions, perception: lines 4320-4790, twice) rather than its index lines; then the rig's joints, colours and hood;
+    `Dialog`'s modality and its options; the game's lifecycle (`pausable`, `hitstop`, the fade); `r.actor`'s box;
+    `hitFx`; `sightCone`; `FlowField`; `E.Attack`. **Threshold** (the theme's).
+  - **F4.2** · the look · small, lightly shaded figures that merge when they overlap; in three-quarter, walls and
+    pillars stack into flat planes. **Threshold** (the theme's).
+  - **F4.3** · `E.Shell` unused · its prompt bar, threat panel and portrait dialogue are canvas boxes, and the prompts
+    overlap the dialogue. The three games all wanted a modern interface and none found `E.Shell` worth it: the package
+    names it in `API.md` and `AI_GUIDE.md` but the starters and the template game don't use it. **Threshold** (the
+    theme's): the next plan decides whether the template and the stealth starter should.
+  - **F4.4** · gliding · its glide is its own, on top of `E.Mover`; the grapple it wrote as an `E.ACTIONS` entry, as the
+    kit means. **Watch** (with F3.4).
