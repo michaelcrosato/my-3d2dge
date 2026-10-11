@@ -5,6 +5,10 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.22.4 (2026-10-11)
+
+- **Tools**: `tools/ed-character-test.mjs` waits in game time, not on the wall clock: a second of it after a character arrives in town, 0.35 s of it while D is held, and for the game to take a tap on a skill button (up to 5 s) rather than a fixed 120 ms. On a loaded machine the browser draws fewer frames, each worth at most 50 ms of game time, so the hero was still arriving in town when the test pressed D; the check failed in the full run after v0.22.3 ("moved 0.2 units") though nothing it covers had changed.
+
 ## 0.22.3 (2026-10-11)
 
 The Vesper round closed out.
