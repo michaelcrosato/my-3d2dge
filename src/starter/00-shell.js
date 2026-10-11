@@ -109,8 +109,8 @@ scenes.title = {
       E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Stick + START' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
-      : 'Arrows + Enter   V view   - = zoom   M mute   ? API';
+    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Tap a game to play it' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
+      : 'Arrows + Enter or click   V view   - = zoom   M mute';
     r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };

@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.26.0)
+# my-3D2dge API index (v0.26.1)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.26.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.26.1"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -208,6 +208,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.bindings` †: the player's bindings over the preset: { action: { keys: [codes], pad: [codes] } } (game.settings.bindings keeps them)
 - `input.buffered(a, win = .15)`: was it pressed within the last `win` seconds and not yet consumed? (input buffering)
 - `input.clear()`: Release all devices and discard buffered input on focus loss or a modal transition.
+- `input.clicked()` †: where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step after it; else null. Menus and dialogs answer to it; a HUD button of your own can: if (hit(input.clicked())) ...
 - `input.codeLabel(code)`: a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family)
 - `input.consume(a)`: mark a buffered press of action a as used, so buffered(a) is false until the next press
 - `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack)
@@ -217,6 +218,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.mouseScreen()`: mouse position in projected screen pixels, or null
 - `input.move()`: movement intent in screen directions: x right, y down, length <= 1
 - `input.padStyle()`: the controller family whose symbols label() shows: glyphs, or with glyphs 'auto' the one its name says
+- `input.pointer()` †: the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas
 - `input.press(code)`: press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input, tests, bots
 - `input.pressed(a)`: true only during the first update step after the press (menus, jumps, one-shot actions)
 - `input.rebind(a, device, code)` †: bind action a to one code for a device ('keys' = keyboard and mouse, 'pad' = gamepad), in place of that device's codes: input.rebind('attack', 'keys', 'KeyF'). Returns null when done, the action that already uses the code (nothing changes: free it first), or 'reserved' for the codes the menus keep (Escape, Enter, F keys, Start, the d-pad). The arrow keys and the d-pad always move as well
@@ -226,6 +228,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.repeat(a, delay = .3, rate = .08)`: pressed, then repeats while held (after `delay` s, every `rate` s): menu cursors, puzzle pieces
 - `input.resetBindings()` †: forget the player's bindings: every action back to its preset's codes
 - `input.rumble(strength = .5, seconds = .15)` †: shake the gamepad: strength 0..1 for seconds (scaled by rumbleScale; nothing where the controller can't). Returns true when it rumbled
+- `input.screenPoint(cx, cy)` †: browser client coords -> screen pixels [x, y] (the HUD's space, with no camera), or null without a canvas
 - `input.stopRumble()` †: stop a rumble now (pause, focus lost, unplugged)
 - `input.suppress(a)` †: Suppress a held action until the next tick (a HUD widget owns the pointer this step).
 - `input.suppressCode(code)` †: A widget owns this button; other devices bound to the same action still work.
@@ -236,6 +239,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
 - `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it
 - `input.aimSource = 'move'` †: what aims right now: 'move' | 'mouse' | 'pad'
+- `input.clickAt = null` †: clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked())
 - `input.clock = 0`: seconds of input time (the steps' dt added up)
 - `input.deadzone = .18`: how far a gamepad stick moves before it counts (0..0.8)
 - `input.glyphs = 'auto'`: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' | 'nintendo' | 'generic' (positions)
@@ -915,7 +919,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `new E.Menu(game, items, o = {})`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
 - `menu.draw(r)`: draw it to the overlay
 - `menu.selected`: the entry under the cursor
-- `menu.update()`: move the cursor (up, down; held keys repeat) and pick or cancel; returns true when it picked or cancelled
+- `menu.update()`: move the cursor (up, down; held keys repeat; the mouse over an entry) and pick (confirm, or a click or tap on an entry) or cancel; returns true when it picked or cancelled
 - `menu.active = true`: false stops it reading input
 - `menu.bg = '#141a3a'`: the window's colors
 - `menu.border = '#e8e4ff'`: the window's colors

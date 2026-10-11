@@ -67,7 +67,7 @@ Shapes here use the <b>prototype</b> encoding (boxes only). Where the planned en
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.26.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.26.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -145,7 +145,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.26.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.26.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -690,6 +690,8 @@ class Input {
     /** mouse: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last
      *  moved */
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
+    /** clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked()) */
+    this.clickAt = null; this._click = null;
     /** stick: the touch stick's direction [x, y], length <= 1; stickOn: a finger is on it; padMove: the gamepad's
      *  left stick after the dead zone; padAim: its right stick, or null when centered; padPrev: which gamepad buttons
      *  were down at the last step; aimSource: what aims right now: 'move' | 'mouse' | 'pad' */
@@ -730,6 +732,7 @@ class Input {
     on(el, 'contextmenu', e => e.preventDefault());
     on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else this._stickMove(e); });
     on(el, 'pointerdown', e => {
+      if (e.pointerType !== 'mouse' || e.button === 0) this._click = [e.clientX, e.clientY];   // a click or tap: clicked() for a step (menus, dialogs)
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
@@ -837,11 +840,11 @@ class Input {
    *  and r.H), or null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself) */
   touchArea() {
     const el = this._touchEl, S = this.screen; if (!el || !S.canvas || !el.isConnected) return null;
-    const cr = S.canvas.getBoundingClientRect(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const b of el.querySelectorAll('button')) { const q = b.getBoundingClientRect(); x0 = Math.min(x0, q.left); y0 = Math.min(y0, q.top); x1 = Math.max(x1, q.right); y1 = Math.max(y1, q.bottom); }
     if (x1 < x0) return null;
-    const X = v => ((v - cr.left) * S.dpr - S.OX) / S.S, Y = v => ((v - cr.top) * S.dpr - S.OY) / S.S;
-    return { x0: X(x0), y0: Y(y0), x1: X(x1), y1: Y(y1) };
+    const a = this.screenPoint(x0, y0), b = this.screenPoint(x1, y1);
+    return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] };
   }
   /** build the touch buttons again from the player's settings (touch, hand, touchSize, touchOpacity) */
   _touchSync() {
@@ -912,7 +915,7 @@ class Input {
     for (const a of this._codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this.clickAt = this._click = null; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {};
@@ -932,6 +935,16 @@ class Input {
   }
   /** mouse position in projected screen pixels, or null */
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
+  /** where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step
+   *  after it; else null. Menus and dialogs answer to it; a HUD button of your own can: if (hit(input.clicked())) ... */
+  clicked() { return this.clickAt; }
+  /** the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas */
+  pointer() { return this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null; }
+  /** browser client coords -> screen pixels [x, y] (the HUD's space, with no camera), or null without a canvas */
+  screenPoint(cx, cy) {
+    const S = this.screen; if (!S.canvas) return null;
+    const rc = S.canvas.getBoundingClientRect(); return [((cx - rc.left) * S.dpr - S.OX) / S.S, ((cy - rc.top) * S.dpr - S.OY) / S.S];
+  }
   /** advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and
    *  released() (the engine calls it every step) */
   tick(dt) {
@@ -967,6 +980,7 @@ class Input {
     // presses since the last step become this step's pressed()/released()
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
+    this.clickAt = this._click && this.screenPoint(this._click[0], this._click[1]); this._click = null;
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {
@@ -6045,7 +6059,7 @@ E.ui = {
  *   talk.say('Buy the shield?', { choices: ['YES', 'NO'], onChoice(i) {...} });
  *   update: if (talk.update(dt)) return;   // true while it is open, so gameplay waits
  *   draw:   talk.draw(r);                  // anywhere in draw (it goes to the overlay)
- * confirm (Enter, Space, J, Z, pad A) finishes the line, then turns the page.
+ * confirm (Enter, Space, J, Z, pad A), or a click or tap on the box, finishes the line, then turns the page.
  */
 class Dialog {
   /** new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border }): a dialog box that types its
@@ -6115,7 +6129,8 @@ class Dialog {
       if (inp.repeat('up') || inp.repeat('left')) { this.choice = (this.choice + this.choices.length - 1) % this.choices.length; this.game.audio.sfx('select'); }
       if (inp.repeat('down') || inp.repeat('right')) { this.choice = (this.choice + 1) % this.choices.length; this.game.audio.sfx('select'); }
     }
-    if (inp.pressed('confirm')) {
+    const c = inp.clicked(), d = c && this._dims(), tapped = !!d && c[0] >= d.x && c[0] < d.x + d.w && c[1] >= d.y && c[1] < d.y + d.h;   // a tap on the box, as confirm
+    if (inp.pressed('confirm') || tapped) {
       if (this.typing) this.shown = len;
       else if (!last) { this.i++; this.shown = 0; }
       else { this.close(); this.game.audio.sfx('confirm'); if (this.choices && this.onChoice) this.onChoice(this.choice, this.choices[this.choice]); if (this.onDone) this.onDone(); }
@@ -6171,14 +6186,19 @@ class Menu {
   _skip(dir) { for (let k = 0; k < this.items.length && this._off(this.items[this.i]); k++) this.i = (this.i + dir + this.items.length) % this.items.length; }
   /** the entry under the cursor */
   get selected() { return this.items[this.i]; }
-  /** move the cursor (up, down; held keys repeat) and pick or cancel; returns true when it picked or cancelled */
+  /** move the cursor (up, down; held keys repeat; the mouse over an entry) and pick (confirm, or a click or tap on an
+   *  entry) or cancel; returns true when it picked or cancelled */
   update() {
     if (!this.active || !this.items.length) return false;
-    const inp = this.game.input, n = this.items.length, old = this.i;
+    const inp = this.game.input, n = this.items.length, old = this.i, b = this._box;
+    const row = p => { if (!b || !p || p[0] < b.x || p[0] >= b.x + b.w) return -1; const k = Math.floor((p[1] - b.y) / b.rowH); return k >= 0 && k < n && !this._off(this.items[k]) ? k : -1; };
     if (inp.repeat('up')) { this.i = (this.i + n - 1) % n; this._skip(-1); }
     if (inp.repeat('down')) { this.i = (this.i + 1) % n; this._skip(1); }
+    if (inp.mouse.t !== this._mt) { this._mt = inp.mouse.t; const k = row(inp.pointer()); if (k >= 0) this.i = k; }   // the mouse moved over an entry
+    const tap = row(inp.clicked());   // a click or tap on an entry picks it
+    if (tap >= 0) this.i = tap;
     if (this.i !== old) { if (this.sound) this.game.audio.sfx('select'); if (this.onMove) this.onMove(this.i, this.items[this.i]); }
-    if (inp.pressed('confirm') && !this._off(this.items[this.i])) { if (this.sound) this.game.audio.sfx('confirm'); inp.consumeAll(); if (this.onPick) this.onPick(this.i, this.items[this.i]); return true; }
+    if ((inp.pressed('confirm') || tap >= 0) && !this._off(this.items[this.i])) { if (this.sound) this.game.audio.sfx('confirm'); inp.consumeAll(); if (this.onPick) this.onPick(this.i, this.items[this.i]); return true; }
     if (inp.pressed('cancel') && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); inp.consumeAll(); this.onCancel(); return true; }
     return false;
   }
@@ -6191,6 +6211,7 @@ class Menu {
       if (this.box) E.ui.box(g, x, y, w, h, { bg: this.bg, border: this.border });
       let yy = y + 5;
       if (this.title) { E.font.text(g, this.title, x + w / 2, yy, this.pick, { align: 'center', outline: false, shadow: '#05040a' }); yy += rowH + 3; }
+      this._box = { x: x + 3, y: yy - 2, w: w - 6, rowH };   // where the entries are, for a click or tap
       const blink = Math.floor(this.game.real * 3) % 2 === 0;
       labels.forEach((l, k) => {
         const sel = k === this.i && this.active, off = this._off(this.items[k]);

@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.26.1 (2026-10-11)
+
+The kits' title menu could only be worked with keys or a gamepad: a click on an entry did nothing, and a phone, with no touch buttons on a title, could not get past it at all.
+
+- **Engine**:
+  - `E.Menu` answers to the pointer: a click or tap on an entry picks it, and the mouse over one moves the cursor. Every menu drawn with `menu.draw(r)` gets it: the kits' title and game over, and any game's.
+  - A tap on an `E.Dialog`'s box finishes the line, then turns the page, as confirm does (a scene with no confirm button, like the brawler's boss taunt, no longer strands a phone).
+  - `input.clicked()`: where a click or tap on the canvas landed, in screen pixels, for the step after it (for a HUD button of a game's own); `input.pointer()`: the mouse in screen pixels; `input.screenPoint(cx, cy)`.
+- **Characters**: the kits' title says how on each device: "Tap a game to play it" on a touch screen, "Arrows + Enter or click" with keys.
+- **Tools**: `standard-test`: a tap and a click on a menu entry pick it, a tap beside it does not, a tap on a dialog turns the page (100 checks).
+- **Docs**: `API.md`, `AI_GUIDE.md` and `docs/STANDARD-FEATURES.md` say menus and dialogs take taps and clicks.
+
 ## 0.26.0 (2026-10-11)
 
 The starter kits are full screen at any shape (desktop, ultrawide, tablet, a phone either way up) with no black bars, and playable by touch. They were fixed 320x240 boxes (the shooter 240x320) letterboxed on every screen of another shape.
