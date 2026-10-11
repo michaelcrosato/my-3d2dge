@@ -207,8 +207,15 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 - A camera with bounds and room-by-room movement, plus zoom and rotation (`game.setZoom`, `game.rotateView`): the world re-rasterizes crisply at any size while the HUD stays put.
 - Save data (`E.store`).
 
+**Standard features, in every game with no code** (`docs/STANDARD-FEATURES.md`)
+- A pause menu on pausable scenes: Resume, Settings, Controls, Full screen and Quit to title (it asks first), driven by keys, mouse, gamepad or touch.
+- Settings saved per game, with a version, every value checked on load (`game.settings`): sound, volume, music, effects, reduce motion, screen shake and flashes, pixel scaling, and the game's own (difficulty, hints).
+- Controls the player rebinds by pressing the new key or button, conflicts said before anything changes, the menus' keys kept so nobody locks themselves out; the controller's dead zone, invert aim, button symbols (Xbox, PlayStation, Nintendo) and vibration; the touch buttons' side, size and opacity. `input.label(action)` gives prompts the right key or button.
+- Full screen (`game.fullscreen`): a phone's first tap, a corner button and the menu; leaving it is remembered. Pausing when the page is hidden or the controller is unplugged. A page set up for phones (safe areas, no scrolling or zooming on the game).
+- Adjusted with `new E.Game({ menu: { items, settings, controls, quit } })`, or left out (`menu: false`, `fullscreen: false`, `corner: false`, `autoPause: false`).
+
 **Input**
-- Keyboard, mouse, gamepad and touch (stick plus on-screen buttons).
+- Keyboard, mouse, gamepad and touch (a floating stick with a dead zone, plus on-screen buttons the player can move, size and hide).
 - Presets for action, platformer, shooter and third-person games.
 - `pressed`, `repeat` and buffered presses.
 
@@ -216,7 +223,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 - A 5x7 proportional pixel font (plus the old 3x5 as `font: 'tiny'`) with scale, alignment, word wrap, shadows and gradients.
 - Window boxes, bars and hearts.
 - Typewriter `Dialog` boxes with names and choices, and `Menu` with a cursor.
-- `E.Shell`, an HTML interface for modern adaptations, built from data: title, pause, settings, help, results and map
+- `E.Shell`, an HTML interface for modern adaptations, built from data: title, pause, settings, controls, help, results and map
   screens, and HUD pieces (objective with its distance, status, bars, prompt with hold progress, toasts, a tutorial
   card, a minimap). Keyboard, gamepad and touch move its focus; it honors reduced motion and the safe-area insets;
   CSS variables theme it.
@@ -305,7 +312,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.22.4**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.23.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

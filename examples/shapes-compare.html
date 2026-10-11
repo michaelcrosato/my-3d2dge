@@ -67,7 +67,7 @@ Shapes here use the <b>prototype</b> encoding (boxes only). Where the planned en
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.22.4  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.23.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -106,6 +106,10 @@ Shapes here use the <b>prototype</b> encoding (boxes only). Where the planned en
  *    E.font.text(...) (5x7 proportional font), E.font.title(...), E.ui.box/bar/hearts,
  *    new E.Dialog(game), new E.Menu(game, items). An HTML interface (title, pause, settings, help, results, map
  *    screens and a HUD with a minimap) from data: new E.Shell(game, {...}) (21d).
+ * 8a. STANDARD FEATURES come with every game (10b): a pause menu with settings and controls the player rebinds, saved
+ *    per game (game.settings), full screen (game.fullscreen; a phone's first tap), pausing when the page is hidden, and
+ *    input.label(action) for prompts. Don't build your own: adjust them with new E.Game({ menu: { items, settings,
+ *    controls, quit } }), or leave them out (menu: false, fullscreen: false, corner: false, autoPause: false).
  * 8b. LOOK. Aim for PS1 / N64 era 2D, not NES: HD rigs (size, outfit, hair, armor),
  *    new E.Backdrop('castle-night') behind levels, textured tiles (stone, brick, wood,
  *    metal), r.prop('torch', ...) set dressing, particles.explosion / smoke / fire,
@@ -139,7 +143,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.22.4', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.23.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -593,6 +597,10 @@ class Screen {
     /** ix, iy: the camera's whole-pixel offset this frame; fx, fy: its sub-pixel part (0..1, applied when
      *  presenting); listeners: functions called after every resize */
     this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0; this.listeners = [];
+    /** scale: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black
+     *  bars), 'fill' (the largest fit, pixels a device pixel apart in size) or 'auto' (fill on high-density screens,
+     *  phones and tablets, where that difference can't be seen; sharp elsewhere). game.settings.scale sets it */
+    this.scale = 'auto';
     this.resize();
     if (canvas) addEventListener('resize', () => this.resize(), { signal });
   }
@@ -616,8 +624,9 @@ class Screen {
     if (c) { c.width = pw; c.height = ph; } this.dpr = dpr; this.portrait = ph > pw;
     const fix = this.fixedRes(o);
     if (fix) {
-      // fixed resolution: whole-number scale, letterboxed. HUD pixel positions stay the same on every screen.
-      this.W = fix[0]; this.H = fix[1]; this.S = Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
+      // fixed resolution: whole-number scale, letterboxed (or the largest fit: scale). HUD pixel positions stay the same on every screen.
+      const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2);
+      this.W = fix[0]; this.H = fix[1]; this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
     } else {
       const S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW)));
       this.S = S; this.W = Math.min(o.maxW, Math.ceil(pw / S)); this.H = Math.min(o.maxH, Math.ceil(ph / S));
@@ -628,6 +637,8 @@ class Screen {
   }
   /** change sizing at runtime, e.g. { minH: 400, maxW: 1080, maxH: 660 } to pull the camera back */
   setOptions(o) { Object.assign(this.o, o); this.resize(); }
+  /** how a fixed resolution fills the screen: 'sharp' | 'fill' | 'auto' (see scale) */
+  setScale(v) { this.scale = v === 'sharp' || v === 'fill' ? v : 'auto'; this.resize(); }
   /** start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it) */
   begin(cx, cy, bg) {
     this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
@@ -682,10 +693,21 @@ class Input {
      *  right button prompts) */
     this.deadzone = .18; this.padIndex = null; this.padId = ''; this.lastDevice = 'keyboard';
     /** touchEnabled: false turns the touch stick off; stickSide: 'left' or 'right', the half of the screen the stick
-     *  lives on; stickRadius: how far (CSS pixels) a finger drags for full tilt; padAxes: the gamepad's raw axes */
-    this.touchEnabled = true; this.stickSide = 'left'; this.stickRadius = 44; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
+     *  lives on; stickRadius: how far (CSS pixels) a finger drags for full tilt; stickDeadzone: the part of that radius a
+     *  thumb moves before the stick counts (0..0.5); padAxes: the gamepad's raw axes */
+    this.touchEnabled = true; this.stickSide = 'left'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
+    /** glyphs: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' |
+     *  'nintendo' | 'generic' (positions); rumbleScale: vibration strength 0..1 (0 = off; game.settings.rumble sets it);
+     *  padLost: true for the step after the gamepad in use was unplugged (a pausable scene pauses) */
+    this.glyphs = 'auto'; this.rumbleScale = .6; this.padLost = false;
+    /** names: the actions' names on the Controls screen ({ attack: 'Sword' }; false hides one from rebinding: the
+     *  game's menu.controls); onBindings(b): called with the player's new bindings (the game saves and applies them) */
+    this.names = null; this.onBindings = null;
     const el = screen.canvas;
     if (!el) return;
+    // the keyboard's own letters for labels (an AZERTY Z where the code says KeyW), where the browser tells them
+    try { if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then(m => { this._layout = m; }).catch(() => {}); } catch (e) { /* no layout map */ }
+    if (screen.listeners) screen.listeners.push(() => { if (this.stickOn) this._stickEnd({ pointerId: this.stickId }); });   // a resize or a turn of the phone moves the stick's origin: lift it (a screen of a page's own may have no listeners)
     const on = (t, type, fn) => t.addEventListener(type, fn, { signal });
     const typing = e => {
       const t = e.target; if (!t || !t.tagName) return false;
@@ -703,42 +725,125 @@ class Input {
     on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else this._stickMove(e); });
     on(el, 'pointerdown', e => {
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
-      else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
+      else {
+        if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
+        if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
+      }
     });
     on(window, 'pointerup', e => { if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else this._stickEnd(e); });
     on(window, 'pointercancel', e => this._stickEnd(e));
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
-  /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP') */
+  /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
+   *  (bindings, set by rebind() and the Controls screen) are laid over it */
   use(map) {
     if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
+    const B = this.bindings || {};
     /** map: each action's codes ({ jump: ['Space', 'Pad0', 'Act:jump'] }); every action also answers to 'Act:<name>'
      *  (DOM buttons with data-act, tap, hold) */
-    this.map = {}; for (const a in map) this.map[a] = [...map[a], 'Act:' + a];
+    this.map = {};
+    for (const a in map) {
+      let codes = map[a].slice(); const b = B[a];
+      if (b && this.rebindable(a, map)) for (const k of ['keys', 'pad']) if (Array.isArray(b[k])) codes = codes.filter(c => padCode(c) !== (k === 'pad') || FIXED_CODES.has(c)).concat(b[k]);
+      if (a === 'start' || a === 'pause') codes.push('Act:menu');   // (the touch START)
+      this.map[a] = [...new Set(codes), 'Act:' + a];
+    }
     this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
     /** preset: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own) */
     this.preset = map;
     return this;
   }
+  /** can the player rebind action a? Every action but the menu's (start, pause, confirm, cancel: they are how a player
+   *  gets back to the menu), and those the game hides with new E.Game({ menu: { controls: { a: false } } }) */
+  rebindable(a, map = this.preset) { return !!map && a in map && !(a in MENU_KEYS) && !(this.names && this.names[a] === false); }
+  /** the player's bindings over the preset: { action: { keys: [codes], pad: [codes] } } (game.settings.bindings keeps them) */
+  get bindings() { return this._bindings || {}; }
+  set bindings(b) { this._bindings = b && typeof b === 'object' ? b : {}; if (this.preset) this.use(this.preset); }
   /**
-   * On-screen buttons for phones and tablets (only shown on touch screens unless force is true):
-   * input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' } }). The left half of the screen is a move stick.
+   * bind action a to one code for a device ('keys' = keyboard and mouse, 'pad' = gamepad), in place of that device's
+   * codes: input.rebind('attack', 'keys', 'KeyF'). Returns null when done, the action that already uses the code (nothing
+   * changes: free it first), or 'reserved' for the codes the menus keep (Escape, Enter, F keys, Start, the d-pad). The
+   * arrow keys and the d-pad always move as well
+   */
+  rebind(a, device, code) {
+    if (!this.rebindable(a) || (device !== 'keys' && device !== 'pad') || !BINDABLE.test(code) || padCode(code) !== (device === 'pad')) return 'reserved';
+    const other = Object.keys(this.map).find(b => b !== a && !(b in MENU_KEYS) && this.map[b].includes(code));
+    if (other) return other;
+    this._setBindings(Object.assign({}, this.bindings, { [a]: Object.assign({}, this.bindings[a], { [device]: [code] }) }));
+    return null;
+  }
+  /** take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves */
+  unbind(a, device) { if (this.rebindable(a)) this._setBindings(Object.assign({}, this.bindings, { [a]: Object.assign({}, this.bindings[a], { [device]: [] }) })); }
+  /** forget the player's bindings: every action back to its preset's codes */
+  resetBindings() { this._setBindings({}); }
+  _setBindings(b) { if (this.onBindings) this.onBindings(b); else this.bindings = b; }   // (the game saves them in its settings)
+  /** a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad
+   *  button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family) */
+  codeLabel(code) {
+    if (!code) return '';
+    const L = this._layout && this._layout.get && this._layout.get(code);
+    if (/^Key[A-Z]$/.test(code)) return (L || code.slice(3)).toUpperCase();
+    if (/^Digit\d$/.test(code)) return L || code.slice(5);
+    if (/^Pad\d+$/.test(code)) return (PAD_GLYPHS[this.padStyle()] || PAD_GLYPHS.xbox)[+code.slice(3)] || code;
+    return CODE_LABELS[code] || (code.startsWith('Numpad') ? 'Num ' + code.slice(6) : code.startsWith('Act:') ? code.slice(4).toUpperCase() : code);
+  }
+  /** the controller family whose symbols label() shows: glyphs, or with glyphs 'auto' the one its name says */
+  padStyle() {
+    if (this.glyphs && this.glyphs !== 'auto') return this.glyphs;
+    const id = this.padId || '';
+    return /054c|playstation|dualsense|dualshock|wireless controller/i.test(id) ? 'playstation' : /057e|nintendo|pro controller|joy-con/i.test(id) ? 'nintendo' : 'xbox';
+  }
+  /** the key or button to show in a prompt for action a, on the device the player used last (or the one named:
+   *  'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕' */
+  label(a, device = this.lastDevice) {
+    const m = this.map[a]; if (!m) { this._check(a); return ''; }
+    if (device === 'touch') return (this._touchLabels && this._touchLabels[a]) || a.toUpperCase();
+    const real = m.filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis')), pads = real.filter(padCode), keys = real.filter(c => !padCode(c));
+    const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
+    return c ? this.codeLabel(c) : '';
+  }
+  /** shake the gamepad: strength 0..1 for seconds (scaled by rumbleScale; nothing where the controller can't). Returns
+   *  true when it rumbled */
+  rumble(strength = .5, seconds = .15) {
+    const k = clamp(strength, 0, 1) * clamp(this.rumbleScale, 0, 1); if (!(k > 0) || this.padIndex === null || !this.screen.canvas) return false;
+    let a = null; try { const p = navigator.getGamepads()[this.padIndex]; a = p && p.vibrationActuator; } catch (e) { /* gamepads blocked */ }
+    if (!a || !a.playEffect) return false;
+    try { const r = a.playEffect('dual-rumble', { duration: Math.round(seconds * 1000), strongMagnitude: k, weakMagnitude: Math.min(1, k * 1.25) }); if (r && r.catch) r.catch(() => {}); } catch (e) { return false; }
+    this._rumbling = a; return true;
+  }
+  /** stop a rumble now (pause, focus lost, unplugged) */
+  stopRumble() { const a = this._rumbling; this._rumbling = null; try { if (a && a.reset) { const r = a.reset(); if (r && r.catch) r.catch(() => {}); } } catch (e) { /* gone */ } }
+  /**
+   * On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide
+   * them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack:
+   * 'B' }, force }). The other half of the screen is a move stick. START is the menu: it starts on a title and pauses a
+   * pausable scene, as a gamepad's Start does
    */
   touchButtons(actions, o = {}) {
     if (!this.screen.canvas) return null;
-    const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
-    if (this._touchEl) this._touchEl.remove();
-    if (!coarse && !o.force) return null;
-    const host = this.screen.canvas.parentElement || document.body, box = document.createElement('div');
-    box.style.cssText = 'position:absolute;right:14px;bottom:14px;display:flex;gap:10px;z-index:4;touch-action:none';
+    this._touchArgs = { actions, o }; this._touchLabels = o.labels || null;
+    return this._touchSync();
+  }
+  /** build the touch buttons again from the player's settings (touch, hand, touchSize, touchOpacity) */
+  _touchSync() {
+    if (!this._touchArgs || !this.screen.canvas) return null;
+    const { actions, o } = this._touchArgs, S = this._settings || {}, mode = S.touch || 'auto', left = S.hand === 'left', size = clamp(+S.touchSize || 62, 40, 96);
+    const coarse = this._touched || (window.matchMedia && matchMedia('(pointer: coarse)').matches);   // (a laptop with a touch screen: once touched)
+    if (this._touchEl) { for (const b of this._touchEl.querySelectorAll('[data-act]')) this.release('Act:' + b.dataset.act); this._touchEl.remove(); this._touchEl = null; }
+    const show = mode === 'on' || (mode === 'auto' && (coarse || !!o.force));
+    this.touchEnabled = mode !== 'off'; this.stickSide = left ? 'right' : 'left';
+    if (!show) { if (this.stickOn) this._stickEnd({ pointerId: this.stickId }); return null; }
+    const host = this.screen.canvas.parentElement || document.body, box = document.createElement('div'), side = left ? 'left' : 'right';
+    box.dataset.sys = 'touch';
+    box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (left ? ';flex-direction:row-reverse' : '');
     for (const a of actions) {
-      const b = document.createElement('button'); b.dataset.act = a; b.textContent = (o.labels && o.labels[a]) || a.toUpperCase();
-      b.style.cssText = 'width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 12px system-ui,sans-serif;touch-action:none;user-select:none';
+      const b = document.createElement('button'); b.dataset.act = a; b.textContent = (o.labels && o.labels[a]) || a.toUpperCase(); b.setAttribute('aria-label', a);
+      b.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(size / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none';
       box.appendChild(b);
     }
-    const st = document.createElement('button'); st.dataset.act = 'start'; st.textContent = 'START';
-    st.style.cssText = 'position:absolute;right:0;bottom:78px;padding:6px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.4);background:rgba(20,16,40,.55);color:#fff;font:600 11px system-ui,sans-serif';
+    const st = document.createElement('button'); st.dataset.act = 'menu'; st.textContent = 'START'; st.setAttribute('aria-label', 'Start or menu');
+    st.style.cssText = 'position:absolute;' + side + ':0;bottom:' + (size + 16) + 'px;min-height:44px;padding:6px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.4);background:rgba(20,16,40,.55);color:#fff;font:600 11px system-ui,sans-serif;touch-action:none';
     box.appendChild(st);
     if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
     host.appendChild(box); this.bindButtons(box); this._touchEl = box;
@@ -818,7 +923,9 @@ class Input {
     try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { /* gamepads blocked */ }
     const p = Array.from(pads || []).find(p => p && p.connected !== false && p.index === this.padIndex)
       || Array.from(pads || []).find(p => p && p.connected !== false);
+    this.padLost = false;
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
+      if (!p && this.padIndex !== null) { this.padLost = this.lastDevice === 'gamepad'; this.stopRumble(); }   // unplugged while in use
       this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); });
       for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c);
       this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
@@ -873,8 +980,8 @@ class Input {
   _stickMove(e) {
     if (!this.stickOn || e.pointerId !== this.stickId) return;
     let dx = (e.clientX - this._stickO[0]) / this.stickRadius, dy = (e.clientY - this._stickO[1]) / this.stickRadius;
-    const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
-    this.stick = [dx, dy]; this._stickDraw();
+    const l = Math.hypot(dx, dy), d = clamp(this.stickDeadzone, 0, .5), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;   // a thumb resting on the glass doesn't creep
+    this.stick = [dx * k, dy * k]; this._stickDraw();
   }
   _stickEnd(e) { if (e.pointerId !== this.stickId) return; this.stickOn = false; this.stick = [0, 0]; if (this._stickEl) this._stickEl.style.display = this._knobEl.style.display = 'none'; }
   _stickDraw() {
@@ -885,11 +992,30 @@ class Input {
     void rc;
   }
 }
-/* menu actions shared by every preset. Pad9 = Start, Pad0 = A (bottom), Pad1 = B (right) */
+/* menu actions shared by every preset. Pad9 = Start, Pad0 = A (bottom), Pad1 = B (right). use() adds 'Act:menu', the
+   touch START button, to start and pause in any layout: like Start, it starts on a title and pauses a pausable scene */
 const MENU_KEYS = {
   start: ['Enter', 'NumpadEnter', 'Pad9'], pause: ['Escape', 'KeyP', 'Pad9'],
   confirm: ['Enter', 'NumpadEnter', 'Space', 'KeyJ', 'KeyZ', 'Pad0'], cancel: ['Escape', 'Backspace', 'KeyX', 'KeyK', 'Pad1']
 };
+/* rebinding: the codes a player may bind (not Escape, Enter, the F keys, Start or Home: the menus and the browser keep
+   them), the arrow keys and d-pad that stay on the moves whatever is bound, and which codes are a gamepad's */
+const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Pad([0-8]|1[0-5]))$/;
+const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15']);
+const padCode = c => c.startsWith('Pad');
+/* a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders and triggers, 8 back, 9 start,
+   10-11 stick clicks, 12-15 d-pad, 16 home), as each family prints them */
+const PAD_GLYPHS = {
+  xbox: ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'LS', 'RS', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Guide'],
+  playstation: ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS'],
+  nintendo: ['B', 'A', 'Y', 'X', 'L', 'R', 'ZL', 'ZR', '−', '+', 'L stick', 'R stick', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home'],
+  generic: ['Bottom', 'Right', 'Left', 'Top', 'L1', 'R1', 'L2', 'R2', 'Select', 'Start', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home']
+};
+const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift', ControlLeft: 'Ctrl', ControlRight: 'R Ctrl', AltLeft: 'Alt', AltRight: 'R Alt',
+  Enter: 'Enter', NumpadEnter: 'Enter', Escape: 'Esc', Backspace: 'Backspace', Tab: 'Tab', CapsLock: 'Caps', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
+  Mouse0: 'Left click', Mouse1: 'Middle click', Mouse2: 'Right click', Mouse3: 'Mouse 4', Mouse4: 'Mouse 5', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[',
+  BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
+  PadAxisUp: 'L stick ↑', PadAxisDown: 'L stick ↓', PadAxisLeft: 'L stick ←', PadAxisRight: 'L stick →' };
 /** top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks */
 Input.DEFAULT = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
@@ -1800,10 +1926,15 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 
 class Game {
   /**
-   * new E.Game({ canvas, view, views, res, input, bg, step: 1 / 120, loop: true, headless: false }).
+   * new E.Game({ canvas, view, views, res, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap',
+   * corner: true, autoPause: true, id }).
    * headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes
    * update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in
-   * a page that runs only by advance()
+   * a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and
+   * controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone
+   * goes full screen at its first tap, until the player leaves it), 'button' (only when asked) or false; corner: the menu
+   * and full-screen buttons at the top right; autoPause: a pausable scene pauses when the page is hidden or loses focus;
+   * id: the name the player's settings are saved under (the page's path)
    */
   constructor(o = {}) {
     o = Object.assign({}, o);
@@ -1874,6 +2005,14 @@ class Game {
     /** the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth
      *  at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count */
     this.alpha = .5; this._acc = this.o.step / 2;
+    /** the player's choices (game.settings.volume, game.settings.set('volume', .5), your own from menu.settings), saved
+     *  and applied (section 10b) */
+    this.settings = new Settings(this, (this.o.menu && this.o.menu.settings) || []);
+    /** full screen: game.fullscreen.toggle(), .on, .supported */
+    this.fullscreen = new FullScreen(this);
+    /** why the game paused: 'player' | 'focus' (the page was hidden) | 'controller' (unplugged) | 'menu', or null */
+    this.pauseReason = null;
+    if (!this.headless) this._standard(signal);
     E.current = this;   // handy for tools and tests: My3D2dge.current is the latest game
   }
   static _makeCanvas() {
@@ -1909,6 +2048,62 @@ class Game {
   resetCamera() { this.zoom = 1; this.yaw = 0; this._applyView(); }
   /** a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1) */
   note(text, seconds = 1.2) { this._note = { text: String(text), end: this.real + seconds }; }
+  /** pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused.
+   *  The player resumes (Escape, Start, Resume); resume() does it from code */
+  pause(reason = 'player') { this.input.stopRumble(); if (this.paused) return false; this.paused = true; this.pauseReason = reason; return true; }
+  /** take the game out of pause (and close the pause screen) */
+  resume() { this.paused = false; this.pauseReason = null; }
+  /** a pausable scene in play pauses when the page is hidden, the window loses focus or the controller is unplugged
+   *  (new E.Game({ autoPause: false }) turns that off); coming back never resumes by itself */
+  _autoPause(reason) { this.input.stopRumble(); return this.o.autoPause !== false && !!this.scene && !!this.scene.pausable && this.pause(reason); }
+  /**
+   * open the menu (the corner's menu button and the touch START do it): a pausable scene (or a game started without
+   * scenes) pauses on its pause screen; any other scene, a title, waits under the settings. menu('settings') or
+   * menu('controls') opens that screen. Without a menu (menu: false, or the agent edition) it pauses a scene in play.
+   * Returns true when a menu opened
+   */
+  menu(name) {
+    const sh = this.shell, s = this.scene, play = !!s && (!!s.pausable || this.sceneName === 'main');
+    if (!sh || !sh._menu()) { if (play) this.pause('player'); return false; }
+    if (!name && play) { this.pause('player'); return true; }
+    if (this.pause('menu')) sh._ownPause = true;
+    sh.show(name || 'settings'); return true;
+  }
+  /** the standard features in a page (section 10b): the page set up for phones, pausing when it is hidden, the player's
+   *  full-screen choice kept, a phone's first tap going full screen, the corner buttons and the menu screens */
+  _standard(signal) {
+    const on = (t, type, fn, o) => t.addEventListener(type, fn, Object.assign({ signal }, o)), fs = this.fullscreen;
+    pageSetup(this.screen.canvas);
+    on(window, 'blur', () => this._autoPause('focus'));
+    on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
+    on(window, 'pagehide', () => this._autoPause('focus'));
+    const fsChange = () => { if (this.settings.fullscreen !== fs.on) this.settings.set('fullscreen', fs.on); this.input.clear(); if (this.shell && this.shell.screen) this.shell._render(); };   // the player's choice: kept whichever way they left it
+    on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
+    if (this.o.fullscreen === undefined || this.o.fullscreen === 'tap') on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one)
+      if (e.pointerType === 'mouse' || this._fsAuto || this.settings.fullscreen === false || !fs.supported || fs.on || fs.standalone) return;
+      if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches) || (e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) return;
+      this._fsAuto = true; fs.enter();   // once a page load: the player who leaves it stays out
+    }, { capture: true });
+    on(window, 'pointermove', e => { if (e.pointerType === 'mouse' && e.clientY < 80 && (e.movementX || e.movementY)) this._mouseTop = performance.now(); }, { passive: true });   // (a real mouse moved: not a page's synthetic event)
+    this.input.names = (this.o.menu && this.o.menu.controls) || null;
+    if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
+    if (this.o.menu !== false) new Shell(this, { system: true });
+  }
+  /** show or hide the corner buttons: shown while the game isn't being played (a title, a game over, a pause without
+   *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen without the
+   *  engine's touch buttons; hidden under an open menu screen */
+  _cornerSync() {
+    const c = this._corner; if (!c) return;
+    const sh = this.shell, s = this.scene, I = this.input, fs = this.fullscreen, open = !!(sh && sh.screen);
+    const main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
+    const touch = !I._touchEl && (I._touched || !!(this._coarse || (this._coarse = window.matchMedia && matchMedia('(pointer: coarse)')) || {}).matches);   // (the query kept: this runs every frame)
+    const showM = this.o.menu !== false && !open && (!!(sh && sh._menu()) || main) && (!play || near || touch);
+    const showF = this.o.fullscreen !== false && fs.supported && !fs.standalone && !open && (!play || near);
+    const key = (showM ? 1 : 0) + (showF ? 2 : 0) + (fs.on ? 4 : 0);
+    if (key === this._cornerKey) return; this._cornerKey = key;
+    const [m, f] = c.children; c.style.display = showM || showF ? 'flex' : 'none'; m.style.display = showM ? 'grid' : 'none'; f.style.display = showF ? 'grid' : 'none';
+    f.innerHTML = cornerIcon(fs.on ? CORNER_ICONS.exit : CORNER_ICONS.full); f.setAttribute('aria-label', fs.on ? 'Leave full screen' : 'Full screen'); f.title = f.getAttribute('aria-label');
+  }
   _applyView() {
     const b = this.baseView, z = this.zoom || 1, y = b.pitchDeg < 5 ? 0 : (this.yaw || 0);
     if (z === 1 && !y) this.view = b;
@@ -1925,11 +2120,12 @@ class Game {
   nextView(dir = 1) { const list = this.views || E.VIEW_ORDER, i = list.indexOf(this.baseView.id); this.setView(list[((i + dir) % list.length + list.length) % list.length]); }
   /** call f(view) whenever the view changes (re-bake caches, move HUD) */
   onView(f) { this._viewListeners.push(f); }
-  /** shake the screen by a (pixels, decaying; at most 10 in all); softened when reduceMotion */
-  shake(a) { if (!this.reduceMotion) this._shakeAmt = Math.min(10, this._shakeAmt + a); }
+  /** shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's
+   *  settings.shake */
+  shake(a) { if (!this.reduceMotion) this._shakeAmt = Math.min(10, this._shakeAmt + a * clamp(this.settings.shake, 0, 1)); }
   /**
    * everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound,
-   * and a damage number. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit' })
+   * a damage number and a rumble on a gamepad. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit', rumble: true })
    */
   hitFx(x, y, z, o = {}) {
     const p = o.power === undefined ? 1 : o.power, P = this.particles;
@@ -1939,9 +2135,11 @@ class Game {
     if (o.damage !== undefined) P.text(x + (Math.random() - .5) * 10, y, z + (o.textZ === undefined ? 22 : o.textZ), o.damage, o.textColor || '#fff2c4', { bounce: o.bounce !== false, scale: o.textScale || 1 });
     if (o.sound !== false) this.audio.sfx(o.sound || (p > 1.3 ? 'kick' : 'hit'));
     if (p >= 2) this.flash('#ffffff', .06);
+    if (this.input.lastDevice === 'gamepad' && o.rumble !== false) this.input.rumble(.2 + .2 * Math.min(2, p), .06 + .03 * p);
   }
-  /** flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning */
-  flash(color = '#ffffff', seconds = .12, strength = 1) { if (this.reduceMotion) seconds *= .4; this._flash = { color, t: 0, dur: seconds, k: strength }; }
+  /** flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning. Shorter when
+   *  reduceMotion, dimmer by the player's settings.flashes */
+  flash(color = '#ffffff', seconds = .12, strength = 1) { if (this.reduceMotion) seconds *= .4; this._flash = { color, t: 0, dur: seconds, k: strength * clamp(this.settings.flashes, 0, 1) }; }
   /** hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks */
   freeze(s) { this.hitstop = Math.max(this.hitstop, s); }
   /** camera follows this world point. Side-scrollers: game.focus(x, 0, z) */
@@ -2027,7 +2225,8 @@ class Game {
     if (this._abort) this._abort.abort();
     if (this.shell) this.shell.dispose();
     const A = this.audio; try { A.stopMusic(); if (A.ctx && A.ctx.close) A.ctx.close(); } catch (e) { /* already closed */ } A.ctx = null; A.failed = 'the game was disposed';
-    const I = this.input; for (const el of [I._touchEl, I._stickEl, I._knobEl]) if (el && el.remove) el.remove();
+    const I = this.input; I.stopRumble(); for (const el of [I._touchEl, I._stickEl, I._knobEl, this._corner]) if (el && el.remove) el.remove();
+    this._corner = null;
     const G = this.gpu; if (G) { try { if (G.cv) G.cv.remove(); if (G._dev && G._dev.destroy) G._dev.destroy(); } catch (e) { /* gone */ } G.enabled = G.ready = false; this.gpu = null; }
     if (E.current === this) E.current = null;
   }
@@ -2110,11 +2309,13 @@ class Game {
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
     this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt);
+    if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
     if (this._fade) { const out = this._fade.out; this._fadeStep(dt); if (out) return; }   // the old scene freezes while it fades out
     const s = this.scene;
-    if (s && s.pausable && this.input.pressed('pause')) { this.paused = !this.paused; this.audio.sfx('pause'); }
+    if (s && s.pausable && this.input.pressed('pause')) { this.paused = !this.paused; this.pauseReason = this.paused ? 'player' : null; this.audio.sfx('pause'); }
+    if (!this.paused) this.pauseReason = null;
     this.audio._duck(this.paused);
     if (this.paused) return;
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
@@ -2142,7 +2343,8 @@ class Game {
     const sc = this.scene;
     if (sc && sc.draw) sc.draw(this.r);
     if (this._note && this.real < this._note.end) { const n = this._note; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
-    if (this.paused && this.pauseOverlay) this.r.overlay(g => {
+    this._cornerSync();
+    if (this.paused && this.pauseOverlay && !(this.shell && this.shell._sys && this.shell.screen)) this.r.overlay(g => {
       const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r.checker, 'repeat'); else { g.fillStyle = '#05030c'; g.globalAlpha = .55; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
       E.font.text(g, 'PAUSED', r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });
       E.font.text(g, 'PRESS ESC OR START', r.W / 2, r.H / 2 + 8, '#c9c0e0', { align: 'center' });
@@ -2155,6 +2357,180 @@ class Game {
   }
 }
 E.Game = Game;
+
+/* =============================================================================
+ * 10b. STANDARD FEATURES  what every game gets without writing it, so a game's code goes to the game:
+ *    - game.settings: the player's choices (display, sound, comfort, controls), saved per game (a version, every value
+ *      checked when it loads, a bad one falls back to its default), applied at once. A game adds its own with
+ *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints.
+ *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there; leaving it is
+ *      the player's choice, kept: it never comes back by itself.
+ *    - pausing: a pausable scene pauses when the page is hidden or loses focus, or the controller in use is unplugged,
+ *      and waits for the player (game.pause(reason), game.resume(), game.pauseReason).
+ *    - the corner: a menu button and a full-screen button at the top right, inside the safe area.
+ *    - the page set up for phones: a viewport that reaches the safe areas, and no scrolling, zooming, text selection or
+ *      callouts on the game's canvas (menus keep theirs).
+ *    E.Shell draws the menu's screens (pause, settings, controls): section 21d.
+ * ============================================================================= */
+const SETTINGS_VERSION = 1;
+/** the standard settings by key: { group, label, type: 'toggle' | 'slider' | 'select', value (the default, or a
+ *  function of the game), min, max, step, options: [[value, label]], help, apply(game, value) }. Groups: Display,
+ *  Sound, Comfort (the settings screen), Controller, Touch (the controls screen) */
+const STANDARD_SETTINGS = {
+  fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (left it), null (never chose)
+  scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
+  sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },
+  volume: { group: 'Sound', label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
+  music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio._levels(); } },
+  effects: { group: 'Sound', label: 'Effects', type: 'slider', value: 1, apply: (g, v) => { g.audio.sfxVolume = v; g.audio._levels(); } },
+  background: { group: 'Sound', label: 'Sound in the background', type: 'toggle', value: false, help: 'Keep playing sound while the page is hidden' },
+  motion: { group: 'Comfort', label: 'Reduce motion', type: 'toggle', value: g => !!g.reduceMotion, help: 'No screen shake, shorter flashes, still menus', apply: (g, v) => { g.reduceMotion = !!v; } },
+  shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
+  flashes: { group: 'Comfort', label: 'Screen flashes', type: 'slider', value: 1 },
+  bindings: { group: 'Controls', type: 'bindings', value: () => ({}), apply: (g, v) => { g.input.bindings = v; } },
+  deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, step: .01, apply: (g, v) => { g.input.deadzone = v; } },
+  invertY: { group: 'Controller', label: 'Invert aim up and down', type: 'toggle', value: false, apply: (g, v) => { g.input.invertAimY = !!v; } },
+  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { g.input.glyphs = v; } },
+  rumble: { group: 'Controller', label: 'Vibration', type: 'slider', value: .6, apply: (g, v) => { g.input.rumbleScale = v; } },
+  touch: { group: 'Touch', label: 'Touch buttons', type: 'select', value: 'auto', options: [['auto', 'Automatic'], ['on', 'Always'], ['off', 'Hidden']], apply: g => g.input._touchSync() },
+  hand: { group: 'Touch', label: 'Buttons on', type: 'select', value: 'right', options: [['right', 'Right'], ['left', 'Left']], apply: g => g.input._touchSync() },
+  touchSize: { group: 'Touch', label: 'Button size', type: 'slider', value: 62, min: 44, max: 88, step: 2, unit: ' px', apply: g => g.input._touchSync() },
+  touchOpacity: { group: 'Touch', label: 'Button opacity', type: 'slider', value: .8, min: .3, max: 1, step: .05, apply: g => g.input._touchSync() }
+};
+/** a value for a setting, checked: the value kept, or undefined when it can't be one */
+function settingValue(sp, v) {
+  if (sp.type === 'toggle') return typeof v === 'boolean' ? v : undefined;
+  if (sp.type === 'fullscreen') return v === true || v === false || v === null ? v : undefined;
+  if (sp.type === 'slider') return typeof v === 'number' && isFinite(v) ? clamp(v, sp.min === undefined ? 0 : sp.min, sp.max === undefined ? 1 : sp.max) : undefined;
+  if (sp.type === 'select') return (sp.options || []).some(o => (Array.isArray(o) ? o[0] : o) === v) ? v : undefined;
+  if (sp.type === 'bindings') {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    const out = {};
+    for (const a in v) { const b = v[a]; if (!b || typeof b !== 'object') continue; const o = {}; for (const k of ['keys', 'pad']) if (Array.isArray(b[k])) o[k] = b[k].filter(c => typeof c === 'string' && BINDABLE.test(c) && padCode(c) === (k === 'pad')).slice(0, 4); out[a] = o; }
+    return out;
+  }
+  return v === undefined || typeof v === 'function' ? undefined : v;   // a type of the game's own: any JSON value
+}
+class Settings {
+  /**
+   * game.settings: the player's choices, one property each (game.settings.volume), with the game's own (o.menu.settings)
+   * beside the standard ones (STANDARD_SETTINGS). Saved with E.store under 'settings:' + the game's id, with a version;
+   * on load every value is checked and a bad one falls back to its default. Where storage is blocked the game plays on
+   * with the defaults (saved: false)
+   */
+  constructor(game, own = []) {
+    const hide = (k, v) => Object.defineProperty(this, k, { value: v, writable: true });
+    hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game'));
+    hide('saved', true);
+    /** onChange(key, value): called after every change (E.Shell's settings.onChange goes through it) */
+    hide('onChange', null);
+    const raw = store.get(this._key, null);
+    hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});   // (a newer version's values are checked like the rest)
+    game.input._settings = this; game.input.onBindings = b => this.set('bindings', b);
+    for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
+    for (const sp of own) this.define(sp);
+  }
+  /** add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value,
+   *  label]] or [value], help, group: 'Game', apply(game, value) }. Its saved value is loaded (when it is a valid one) and
+   *  applied; it shows on the settings screen. Returns its value */
+  define(sp) {
+    if (!sp || !sp.key || typeof sp.key !== 'string') { warn('setting', 'a setting needs a key: { key: "hints", label: "Hints", value: true }'); return undefined; }
+    if (sp.key in Settings.prototype || sp.key === 'saved' || sp.key === 'onChange' || sp.key[0] === '_') { warn('setting:' + sp.key, 'a setting cannot be called "' + sp.key + '" (a name the settings object uses)'); return undefined; }
+    const s = Object.assign({ group: 'Game', type: sp.options ? 'select' : typeof sp.value === 'number' ? 'slider' : typeof sp.value === 'boolean' || sp.value === undefined ? 'toggle' : 'value' }, sp);
+    this._specs[s.key] = s;
+    const saved = settingValue(s, this._raw[s.key]);
+    if (saved !== undefined) this._saved[s.key] = saved;
+    this[s.key] = saved !== undefined ? saved : this.default(s.key);
+    this._apply(s.key);
+    return this[s.key];
+  }
+  /** a setting's default value */
+  default(key) { const s = this._specs[key]; if (!s) return undefined; const v = typeof s.value === 'function' ? s.value(this._g) : s.value; return v === undefined && s.type === 'toggle' ? false : v; }
+  /** the spec a setting was defined with (its label, type, range, options), or undefined */
+  spec(key) { return this._specs[key]; }
+  /** the keys of a group's settings, in order ('Display', 'Sound', 'Comfort', 'Controller', 'Touch', 'Game'), or every key */
+  keys(group) { return Object.keys(this._specs).filter(k => !group || this._specs[k].group === group); }
+  /** change a setting: checked (a slider kept in range, a choice among its options), saved, applied, onChange told.
+   *  Returns the value kept (the old one when v is not a valid value) */
+  set(key, v) {
+    const s = this._specs[key]; if (!s) { warn('setting:' + key, 'unknown setting "' + key + '". Settings: ' + this.keys().join(', ')); return undefined; }
+    const ok = settingValue(s, v); if (ok === undefined) return this[key];
+    this[key] = ok; this._saved[key] = ok; this._save(); this._apply(key);
+    if (this.onChange) try { this.onChange(key, ok); } catch (e) { this._g._fail('settings.onChange', e); }
+    return ok;
+  }
+  /** put a group's settings (or all of them) back to their defaults; a game's saves are not touched */
+  reset(group) {
+    for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; this[k] = this.default(k); this._apply(k); if (this.onChange) this.onChange(k, this[k]); }
+    this._save();
+  }
+  _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g._fail('setting "' + key + '"', e); } }
+  _save() {
+    if (this._g.headless) return;
+    this.saved = store.set(this._key, { v: SETTINGS_VERSION, values: this._saved });   // false when the last save failed (storage blocked or full: the choices last for this visit)
+    if (!this.saved) warn('settings:save', 'the settings could not be saved (storage is blocked or full): they last for this visit');
+  }
+}
+E.Settings = Settings;
+class FullScreen {
+  /** game.fullscreen: the whole page full screen (the game, its menus and buttons), where the browser can */
+  constructor(game) {
+    /** game: the game it serves; failed: why the last request was refused (a message), or null */
+    this.game = game; this.failed = null;
+  }
+  /** true where this page can go full screen (not an iPhone, which has Add to Home Screen instead; not a frame
+   *  without permission; not headless) */
+  get supported() { if (this.game.headless) return false; const d = document, el = d.documentElement; return !!((d.fullscreenEnabled || d.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen)); }
+  /** true while the page is full screen */
+  get on() { return !this.game.headless && !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  /** true when the page was opened from a home screen as an app (no browser bars: nothing to go full screen from) */
+  get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this.game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }   // (full screen from here matches display-mode: fullscreen too)
+  /** go full screen. Browsers allow it only from a tap, click or key press: call it from one (a button, the menu, a
+   *  key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen) */
+  enter() {
+    if (this.on || !this.supported) return Promise.resolve(this.on);
+    const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
+    const no = e => { this.failed = (e && e.message) || 'refused'; this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
+    try { const p = f.call(el, { navigationUI: 'hide' }); this.failed = null; return p && p.then ? p.then(() => true, no) : Promise.resolve(true); } catch (e) { return Promise.resolve(no(e)); }
+  }
+  /** leave full screen (Escape and the phone's back gesture do it too) */
+  exit() {
+    if (!this.on) return Promise.resolve(false);
+    const f = document.exitFullscreen || document.webkitExitFullscreen;
+    try { const p = f && f.call(document); return p && p.then ? p.then(() => true, () => false) : Promise.resolve(true); } catch (e) { return Promise.resolve(false); }
+  }
+  /** full screen on or off */
+  toggle() { return this.on ? this.exit() : this.enter(); }
+}
+E.FullScreen = FullScreen;
+/* the corner buttons: menu and full screen, 44 px, top right inside the safe area (Game._cornerSync shows them) */
+const CORNER_ICONS = { menu: 'M4 7h16M4 12h16M4 17h16', full: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', exit: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5' };
+const cornerIcon = d => '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
+function makeCorner(game) {
+  const box = document.createElement('div'); box.id = 'e3-corner'; box.dataset.sys = 'corner';
+  box.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:21;display:none;gap:8px';
+  const btn = (label, fn) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', label); b.title = label;
+    b.style.cssText = 'width:44px;height:44px;display:none;place-items:center;padding:0;margin:0;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(8,8,18,.6);color:#f4f0ff;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent';
+    b.addEventListener('click', e => { e.stopPropagation(); b.blur(); fn(); });   // (blurred, so a later Space or Enter is the game's)
+    box.appendChild(b); return b;
+  };
+  btn('Menu', () => game.menu()).innerHTML = cornerIcon(CORNER_ICONS.menu);
+  btn('Full screen', () => game.fullscreen.toggle());
+  document.body.appendChild(box); return box;
+}
+/* a page made for phones, once: a viewport that reaches the safe areas (pinch zoom left alone), the home-screen app tags,
+   and on each game's canvas no page gestures, text selection, callouts or tap highlights */
+let _paged = false;
+function pageSetup(canvas) {
+  const st = canvas && canvas.style;
+  if (st) { st.touchAction = 'none'; st.userSelect = 'none'; st.webkitUserSelect = 'none'; st.webkitTouchCallout = 'none'; st.webkitTapHighlightColor = 'transparent'; }
+  if (_paged || !document.head) return; _paged = true;
+  const meta = (name, content) => { let m = document.querySelector('meta[name="' + name + '"]'); if (!m) { m = document.createElement('meta'); m.name = name; m.content = content; document.head.appendChild(m); } return m; };
+  const vp = meta('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+  if (!/viewport-fit/.test(vp.content)) vp.content += ', viewport-fit=cover';
+  meta('mobile-web-app-capable', 'yes'); meta('apple-mobile-web-app-capable', 'yes');
+}
 
 /* =============================================================================
  * 11. HUMANOID RIG
@@ -4968,6 +5344,8 @@ class ChipAudio {
   setVolume(v) { this.volume = clamp(v, 0, 1); this._levels(); }
   /** toggle (or set) mute; returns the new state */
   mute(on = !this.muted) { this.muted = on; this._levels(); return on; }
+  /** the page is hidden (sleep true) or back: the sound sleeps with it unless the player keeps it on (settings.background) */
+  _background(sleep) { const c = this.ctx; if (!c) return; try { if (sleep && c.state === 'running') { this._slept = true; c.suspend().catch(() => {}); } else if (!sleep && this._slept) { this._slept = false; c.resume().catch(() => {}); } } catch (e) { /* closed */ } }
   /** quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused */
   duck(on = true) { on = !!on; if (this.ducked === on) return; this.ducked = on; this._levels(); }
   _duck(on) { if (this._ducked === on) return; this._ducked = on; this._levels(); }   // (the engine's own: game.paused)
@@ -5616,9 +5994,17 @@ E.Menu = Menu;
  *        minimap: { map, at: hero, markers: [{ x, y, kind: 'diamond' }] } });
  *      ui.toast('Checkpoint', 'The ledger is yours'); ui.show('results', { title: 'The names are safe', stats, medals })
  *    With a pause screen, it opens while game.paused and Resume unpauses. Keys, d-pad, stick and touch move the focus
- *    (up / down / left / right turn a slider, confirm presses, cancel goes back); while a screen is open the game's input
- *    is held back. It honors reduced motion and the safe-area insets, CSS variables theme it (ink, paper, accent, muted,
- *    danger, line, font, titleFont), and a headless game keeps its screens' names and draws nothing.
+ *    (up / down / left / right turn a slider or a choice, confirm presses, cancel goes back, pause or Start closes the
+ *    menu); while a screen is open the game's input is held back. It honors reduced motion and the safe-area insets, CSS
+ *    variables theme it (ink, paper, accent, muted, danger, line, font, titleFont), and a headless game keeps its screens'
+ *    names and draws nothing.
+ *    THE STANDARD MENU: every game gets one (new E.Game makes this shell for itself, and a game's own E.Shell takes over
+ *    from it): the pause screen (Resume, the game's items, Settings, Controls, Full screen, Help, Quit to title with a
+ *    confirmation), the settings screen (Display, Sound, Comfort and the game's own settings, from game.settings) and the
+ *    controls screen (every action's keys and buttons, rebound by pressing the new one, conflicts said before anything
+ *    changes; the controller's dead zone, aim, symbols and vibration; the touch buttons' side, size and opacity; restore
+ *    defaults). new E.Game({ menu: { items: [['Restart', fn]], settings: [...], controls: { attack: 'Sword', skill:
+ *    false }, quit: 'title' } }) adjusts it; menu: false, or new E.Shell(game, { standard: false }), leaves it out.
  * ============================================================================= */
 const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;font:14px/1.45 var(--font);color:var(--ink);--sat:env(safe-area-inset-top,0px);
 --pt:calc(14px + env(safe-area-inset-top,0px));--pr:calc(14px + env(safe-area-inset-right,0px));--pb:calc(14px + env(safe-area-inset-bottom,0px));--pl:calc(14px + env(safe-area-inset-left,0px))}
@@ -5658,34 +6044,45 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-stats small{color:var(--muted);font-size:10px;letter-spacing:.14em}.esh-med{display:inline-block;margin:6px 6px 0 0;padding:3px 9px;border-radius:12px;border:1px solid var(--accent);font-size:12px}.esh-med.off{opacity:.35;border-color:var(--muted)}
 .esh-sec{margin-top:14px}.esh-emb{font-size:34px;color:var(--accent);text-align:center}.esh-map{width:100%;margin-top:12px;border-radius:4px;cursor:crosshair;display:block}
 .esh-still,.esh-still *{transition:none!important;animation:none!important}@media (prefers-reduced-motion:reduce){.esh *{transition:none!important;animation:none!important}}
+.esh-cornered .esh-col{top:calc(var(--pt) + 50px)}.esh-sh button{min-height:44px}.esh-row{flex-wrap:wrap}.esh-row>span{flex:1 1 150px}.esh-row small{display:block;color:var(--muted);font-size:11px;line-height:1.3}
+.esh-ctl{display:flex;align-items:center;gap:8px}.esh output{min-width:46px;text-align:right;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.esh-sel{min-width:136px;text-align:center!important}.esh input[type=range]{height:30px}.esh-status{min-height:20px;margin-top:8px;color:var(--accent);font-size:12px}
+.esh-bind{display:grid;grid-template-columns:1fr minmax(92px,auto) minmax(92px,auto);gap:6px 10px;align-items:center;margin-top:8px}.esh-bind small{color:var(--muted);font-size:10px;letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.esh-bind button{text-align:center;text-transform:none;letter-spacing:.02em;font-size:12px;padding:8px 10px}.esh-bind button.cap{outline:2px dashed var(--accent);outline-offset:2px}
 @keyframes esh-in{from{opacity:0}}`;
 const SHELL_THEME = { ink: '#f1e8d6', paper: 'rgba(14,18,22,.86)', accent: '#d9b77c', muted: '#a49d8c', danger: '#e8836a', line: 'rgba(217,183,124,.3)', font: 'system-ui, sans-serif', titleFont: 'Georgia, serif' };
-/** the settings E.Shell knows how to apply itself: settings: { items: ['sound', 'volume', 'motion', { key, label, ... }] } */
-const SHELL_SETTINGS = {
-  sound: { label: 'Sound', value: true, apply: (g, v) => g.audio.mute(!v) },
-  volume: { label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
-  motion: { label: 'Reduce motion', value: false, apply: (g, v) => { g.reduceMotion = !!v; } }
-};
+/** the settings screen's groups, in order (the standard ones; a game's own are 'Game' unless they name another) */
+const SHELL_GROUPS = ['Display', 'Sound', 'Comfort'];
+/** 'menuUp' -> 'Menu up': an action's name on the controls screen when the game gives none */
+const actionName = a => { const t = String(a).replace(/([a-z])([A-Z0-9])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 class Shell {
   /**
    * new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings',
-   * meters: .125 }): an HTML interface over the game (see the section's header). theme: CSS variables (ink, paper, accent,
-   * muted, danger, line, font, titleFont); screens: specs ui.show(name) starts from (a pause spec makes it follow
-   * game.paused); settings.items: 'sound', 'volume', 'motion' or { key, label, type: 'toggle' | 'slider', min, max, step,
-   * value }; store: the E.store key the settings are saved under; meters: meters per world unit for distances
+   * meters: .125, standard: true }): an HTML interface over the game (see the section's header). theme: CSS variables (ink,
+   * paper, accent, muted, danger, line, font, titleFont); screens: specs ui.show(name) starts from (the pause screen
+   * follows game.paused; screens: { pause: false } leaves it out); settings.items: the game's own settings, { key, label,
+   * type: 'toggle' | 'slider' | 'select', min, max, step, options, value } (kept in game.settings, beside the standard
+   * ones); store: where an older version saved them; meters: meters per world unit for distances; standard: false leaves
+   * out the standard menu (the pause screen's Settings, Controls, Full screen and Quit, and the settings' groups)
    */
   constructor(game, o = {}) {
-    /** game: the game it is over; o: its options; settings: the saved settings by key (read them, change them on the
-     *  settings screen); root: its DOM element (null in a headless game) */
-    this.game = game; this.o = o; this.settings = {}; this.root = null; this._stack = []; this._keep = new Set(); this._held = new Set(); this._last = {};
-    const items = this._items(), saved = store.get(o.store || 'shell-settings', null) || {};
-    for (const it of items) this.settings[it.key] = saved[it.key] !== undefined ? saved[it.key] : it.value !== undefined ? it.value : it.type === 'slider' ? 1 : false;
-    for (const it of items) if (it.apply && !game.headless) it.apply(game, this.settings[it.key]);
+    if (game.shell && game.shell._sys && !o.system) game.shell.dispose();   // the game's own shell takes over from the engine's
+    /** game: the game it is over; o: its options; root: its DOM element (null in a headless game) */
+    this.game = game; this.o = o; this.root = null; this._stack = []; this._keep = new Set(); this._held = new Set(); this._last = {};
+    this._sys = !!o.system; this._std = o.standard !== false && game.o.menu !== false;
+    const old = store.get(o.store || 'shell-settings', null) || {}, S = game.settings;   // (settings saved by an older version are kept)
+    for (const it of this._items()) if (!S.spec(it.key)) { if (S._raw[it.key] === undefined && old[it.key] !== undefined) S._raw[it.key] = old[it.key]; S.define(Object.assign({ group: 'Game' }, it)); }
+    for (const k of ['sound', 'volume', 'motion']) if (S._raw[k] === undefined && old[k] !== undefined && this._items().some(it => it.key === k)) S.set(k, old[k]);
+    if (o.settings && o.settings.onChange) S.onChange = k => o.settings.onChange(S, k);
     game.shell = this;
-    if (o.screens && o.screens.pause) game.pauseOverlay = false;
+    if (!this._sys && this._pauseSpec()) game.pauseOverlay = false;
     if (game.headless || typeof document === 'undefined') return;
+    // rebinding: the next key or mouse button goes to the action being bound (before the game's own listeners see it)
+    const signal = game._abort ? game._abort.signal : undefined;
+    addEventListener('keydown', e => { const c = this._cap; if (!c) return; e.preventDefault(); e.stopImmediatePropagation(); if (e.code === 'Escape') this._capEnd('Not changed.'); else if (c.device === 'keys' && !e.repeat) this._capBind(e.code); }, { capture: true, signal });
+    addEventListener('pointerdown', e => { const c = this._cap; if (!c || c.device !== 'keys' || e.pointerType !== 'mouse') return; e.preventDefault(); e.stopImmediatePropagation(); this._capBind('Mouse' + e.button); }, { capture: true, signal });
     if (!document.getElementById('esh-css')) { const st = document.createElement('style'); st.id = 'esh-css'; st.textContent = SHELL_CSS; document.head.appendChild(st); }
-    const r = this.root = this._el('div', 'esh'), th = Object.assign({}, SHELL_THEME, o.theme);
+    const r = this.root = this._el('div', 'esh' + (game._corner ? ' esh-cornered' : '')), th = Object.assign({}, SHELL_THEME, o.theme);   // (the top-right column starts below the corner's buttons)
     for (const k in th) r.style.setProperty('--' + (k === 'titleFont' ? 'title' : k), th[k]);
     const host = document.body; host.appendChild(r);
     const E2 = (cls, parent = r, tag = 'div') => { const e = this._el(tag, cls); e.hidden = true; parent.appendChild(e); return e; };
@@ -5696,8 +6093,14 @@ class Shell {
     r.appendChild(this.els.scr); this.els.toast.hidden = false;
     const mini = this.els.mini; mini.width = 176; mini.height = 158; mini.onclick = () => { const m = this._miniLast; if (m && m.onClick) m.onClick(); };
   }
-  /** the name of the open screen ('pause', 'settings', ...), or null while the game plays */
+  /** the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays */
   get screen() { const t = this._stack[this._stack.length - 1]; return t ? t.name : null; }
+  /** the player's settings: game.settings (the standard ones and the game's own, by key) */
+  get settings() { return this.game.settings; }
+  /** the pause screen's spec ({} for the standard one), or null without one */
+  _pauseSpec() { const sc = this.o.screens; return sc && 'pause' in sc ? sc.pause || null : this._std ? {} : null; }
+  /** does this shell give the standard menu (the corner's menu button and game.menu() open it)? */
+  _menu() { return this._std; }
   /** open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over
    *  o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act,
    *  primary, disabled }], back (fn for cancel) }; title: { name, subtitle, meta: [...], footer }; settings: its items;
@@ -5707,17 +6110,23 @@ class Shell {
   show(name, spec = {}) {
     const top = this._stack[this._stack.length - 1], again = top && top.name === name, s = Object.assign({}, this.o.screens && this.o.screens[name], again ? top.s : null, spec);
     if (again) this._stack.pop();   // the same screen again: updated in place
-    this._stack.push({ name, s }); this._render(); return this;
+    else { if (top) top.focus = this._focusAt(); this._status = ''; }   // (the focus comes back here when the new screen closes)
+    this._stack.push({ name, s, focus: again ? top.focus : undefined }); this._capEnd(); this._render(); return this;
   }
   /** what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes) */
   back() {
     const top = this._stack[this._stack.length - 1]; if (!top) return this;
     if (top.s.back) { top.s.back(); return this; }
-    this._stack.pop(); if (top.name === 'pause') this.game.paused = false;
-    this._render(); return this;
+    this._stack.pop(); this._capEnd(); if (top.name === 'pause') this.game.resume();
+    this._closed(); this._render(); return this;
   }
-  /** close every screen */
-  hide() { const p = this._stack.some(t => t.name === 'pause'); this._stack.length = 0; if (p) this.game.paused = false; this._render(); return this; }
+  /** close every screen (and resume, when the menu paused the game) */
+  hide() { const p = this._stack.some(t => t.name === 'pause'); this._stack.length = 0; this._capEnd(); if (p) this.game.resume(); this._closed(); this._render(); return this; }
+  /** the last screen closed: a game the menu paused (a title under its settings) goes on */
+  _closed() { if (!this._stack.length && this._ownPause) { this._ownPause = false; this.game.resume(); } }
+  /** which focusable element of the open screen has the focus (its index), or -1 */
+  _focusAt() { if (!this.root) return -1; const all = this._focusables(); return all.indexOf(document.activeElement); }
+  _focusables() { return [...this.els.scr.querySelectorAll('button:not(:disabled), input:not(:disabled)')]; }
   /** a message that slides in at the top for a few seconds */
   toast(title, text = '', seconds = 4) {
     if (!this.root) return this;
@@ -5735,7 +6144,8 @@ class Shell {
    * the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn):
    * { objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below),
    *   status: 'UNSEEN' or { text, color }, bars: [{ label, value, max, kind: 'bar' | 'pips', color }],
-   *   counts: [[label, value]], prompt: { key: 'E', label, hint, progress: 0..1 }, tip: 'text' or { title, text },
+   *   counts: [[label, value]], prompt: { key: 'E' (or act: 'interact': its key on the player's device), label, hint,
+   *   progress: 0..1 }, tip: 'text' or { title, text },
    *   place: 'The Old Harbour', keys: [['WASD', 'Move'], ...] (hidden on touch screens), buttons: [[label, fn or action]]
    *   (top right: pause and map where there is no Escape key),
    *   minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick } }
@@ -5761,11 +6171,12 @@ class Shell {
       for (const [k, v] of cnt || []) { const e = this._el('div', 'esh-cnt', k); e.appendChild(this._el('b', '', v)); out.push(e); }
       return out;
     });
-    this._piece('pr', play && s.prompt, p => {
+    const pr = s.prompt && Object.assign({}, s.prompt, { key: s.prompt.key || (s.prompt.act ? this.game.input.label(s.prompt.act) : 'E') });   // (the key follows the device in use)
+    this._piece('pr', play && pr, p => {
       const box = this._el('div'), bar = this._el('div', 'esh-bar'), f = this._el('i'); f.style.width = clamp(p.progress || 0, 0, 1) * 100 + '%'; bar.appendChild(f);
       box.append(this._el('div', 'esh-k', p.hint || (p.progress !== undefined ? 'Hold to interact' : 'Interact')), this._el('b', '', p.label || ''));
       if (p.progress !== undefined) box.appendChild(bar);
-      return [this._el('kbd', '', p.key || 'E'), box];
+      return [this._el('kbd', '', p.key), box];
     });
     this._btns = s.buttons || [];   // (clicks call this step's: the functions may be new every step)
     this._piece('hb', play && s.buttons && s.buttons.map(b => b[0]), labels => labels.map((l, i) => { const b = this._el('button', '', l); b.onclick = () => { const f = this._btns[i] && this._btns[i][1]; if (typeof f === 'function') f(); else if (f) { this.game.input.tap(f); this._held.add(f); } }; return b; }));
@@ -5778,8 +6189,8 @@ class Shell {
   }
   /** take its elements away and let go of the game (game.dispose() does it) */
   dispose() { if (this.root) this.root.remove(); this.root = null; if (this.game.shell === this) this.game.shell = null; }
-  /** the settings items, with the built-in ones filled in */
-  _items() { const it = this.o.settings && this.o.settings.items || []; return it.map(i => typeof i === 'string' ? Object.assign({ key: i }, SHELL_SETTINGS[i]) : i).filter(i => i && i.key); }
+  /** the settings items the game gave (a name is a standard setting: 'sound', 'volume', 'motion', ...) */
+  _items() { const it = this.o.settings && this.o.settings.items || []; return it.map(i => typeof i === 'string' ? Object.assign({ key: i }, STANDARD_SETTINGS[i]) : i).filter(i => i && i.key); }
   /** an element with a class and text (text is never parsed as HTML) */
   _el(tag, cls = '', text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null && text !== false) e.textContent = String(text); return e; }
   /** redraw one HUD piece when its state changed: build(state) -> its children */
@@ -5788,15 +6199,92 @@ class Shell {
     if (key === this._last[k]) return; this._last[k] = key; e.hidden = !state;
     if (state) e.replaceChildren(...build(state).filter(Boolean).map(c => typeof c === 'string' ? document.createTextNode(c) : c));
   }
-  /** a settings value changed: save it, apply it, tell the game */
-  _set(key, v) {
-    this.settings[key] = v; store.set(this.o.store || 'shell-settings', this.settings);
-    const it = this._items().find(i => i.key === key); if (it && it.apply) it.apply(this.game, v);
-    const cb = this.o.settings && this.o.settings.onChange; if (cb) cb(this.settings, key);
+  /** a settings value changed: game.settings checks, saves and applies it, and tells the game */
+  _set(key, v) { return this.game.settings.set(key, v); }
+  /** one settings row: its label (and help), and a control for its type: a switch, a slider with its value, a choice
+   *  that turns with left and right, full screen (with why not, where it can't) */
+  _row(key) {
+    const S = this.game.settings, sp = S.spec(key); if (!sp) return null;
+    const row = this._el('div', 'esh-row'), lab = this._el('span', '', sp.label || actionName(key)), fs = this.game.fullscreen;
+    row.appendChild(lab);
+    const help = t => { if (t) lab.appendChild(this._el('small', '', t)); };
+    if (sp.type === 'fullscreen') {
+      const can = fs.supported && !fs.standalone, b = this._el('button', '', !can ? (fs.standalone ? 'App' : 'Not here') : fs.on ? 'On' : 'Off');
+      b.disabled = !can; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(fs.on)); b.onclick = () => { fs.toggle(); };
+      help(fs.standalone ? 'Opened from the home screen: no browser bars.' : !fs.supported ? (/iP(hone|od)/.test(navigator.userAgent) ? 'On an iPhone: Share, then Add to Home Screen, plays without the browser\'s bars.' : 'This browser or page doesn\'t allow it.') : '');
+      row.appendChild(b); return row;
+    }
+    help(sp.help);
+    if (sp.type === 'slider') {
+      const box = this._el('span', 'esh-ctl'), r = this._el('input'), out = this._el('output'), lo = sp.min === undefined ? 0 : sp.min, hi = sp.max === undefined ? 1 : sp.max;
+      const fmt = v => hi <= 1 && lo >= 0 ? Math.round(v * 100) + '%' : Math.round(v * 100) / 100 + (sp.unit || '');
+      Object.assign(r, { type: 'range', min: lo, max: hi, step: sp.step || (hi - lo) / 20, value: S[key] }); r.setAttribute('aria-label', sp.label || key); out.textContent = fmt(S[key]);
+      r.oninput = () => { out.textContent = fmt(this._set(key, +r.value)); };
+      box.append(r, out); row.appendChild(box); return row;
+    }
+    if (sp.type === 'select') {
+      const opts = (sp.options || []).map(o => Array.isArray(o) ? o : [o, String(o)]), b = this._el('button', 'esh-sel');
+      const show = () => { const o = opts.find(o => o[0] === S[key]) || opts[0]; b.textContent = '‹ ' + (o ? o[1] : '') + ' ›'; b.setAttribute('aria-label', (sp.label || key) + ': ' + (o ? o[1] : '')); };
+      b._cycle = d => { const i = opts.findIndex(o => o[0] === S[key]); this._set(key, opts[((i < 0 ? 0 : i) + d + opts.length) % opts.length][0]); show(); };
+      b.onclick = () => b._cycle(1); show(); row.appendChild(b); return row;
+    }
+    if (sp.type !== 'toggle') return null;
+    const b = this._el('button', '', S[key] ? 'On' : 'Off'); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(!!S[key]));
+    b.onclick = () => { const v = this._set(key, !S[key]); b.textContent = v ? 'On' : 'Off'; b.setAttribute('aria-checked', String(!!v)); };
+    row.appendChild(b); return row;
   }
+  /** the settings screen's rows: Display, Sound and Comfort, then the game's own (standard: false, the game's items only) */
+  _settingsRows(add) {
+    const S = this.game.settings, own = this._items().map(i => i.key);
+    if (!this._std) { for (const k of own) add(this._row(k)); return; }
+    const groups = SHELL_GROUPS.concat([...new Set(S.keys().map(k => S.spec(k).group))].filter(g => !SHELL_GROUPS.includes(g) && !['Controls', 'Controller', 'Touch'].includes(g)));
+    for (const g of groups) {
+      const keys = S.keys(g).filter(k => (k !== 'scale' || this.game.screen.fixedRes()) && (k !== 'fullscreen' || this.game.o.fullscreen !== false) && S.spec(k).type !== 'value');
+      if (!keys.length) continue;
+      add(this._el('div', 'esh-k esh-sec', g)); for (const k of keys) add(this._row(k));
+    }
+  }
+  /** the controls screen: each action's keys and buttons (press a new one to rebind), the controller's and the touch
+   *  buttons' settings */
+  _controls(add) {
+    const I = this.game.input, names = I.names || {}, st = this._el('div', 'esh-status', this._status || ''); st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite');
+    add(this._el('p', 'esh-m', 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.'), st);
+    const S = this.game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = I._touchArgs && (coarse || I._touched || S.touch === 'on');
+    const touchRows = () => { add(this._el('div', 'esh-k esh-sec', 'Touch')); for (const k of S.keys('Touch')) add(this._row(k)); }, first = touch && I.lastDevice === 'touch';
+    if (first) touchRows();   // (a phone in hand: its buttons first)
+    const grid = this._el('div', 'esh-bind'); grid.append(this._el('span'), this._el('small', '', 'Keyboard'), this._el('small', '', 'Controller'));
+    for (const a of Object.keys(I.map).filter(a => I.rebindable(a))) {
+      const name = typeof names[a] === 'string' ? names[a] : actionName(a); grid.appendChild(this._el('span', '', name));
+      for (const d of ['keys', 'pad']) {
+        const codes = I.map[a].filter(c => !c.startsWith('Act:') && !c.startsWith('PadAxis') && padCode(c) === (d === 'pad')), cap = this._cap && this._cap.a === a && this._cap.device === d;
+        const b = this._el('button', cap ? 'cap' : '', cap ? 'Press…' : codes.map(c => I.codeLabel(c)).join(' / ') || '—');
+        b.setAttribute('aria-label', name + ', ' + (d === 'pad' ? 'controller' : 'keyboard') + ': ' + (codes.map(c => I.codeLabel(c)).join(', ') || 'none'));
+        b.onclick = () => this._capStart(a, d, name); grid.appendChild(b);
+      }
+    }
+    add(grid);
+    const pad = I.padId ? 'Controller: ' + I.padId.replace(/\s*\(.*$/, '') : 'No controller found: press a button on one to connect it.';
+    add(this._el('div', 'esh-k esh-sec', 'Controller'), this._el('p', 'esh-m', pad));
+    for (const k of S.keys('Controller')) add(this._row(k));
+    if (touch && !first) touchRows();
+  }
+  _capStart(a, device, name) {
+    this._cap = { a, device, name, prev: this.game.input.padPrev.slice() };
+    this._status = device === 'pad' ? 'Press a controller button for ' + name + ' (Start cancels).' : 'Press a key or mouse button for ' + name + ' (Escape cancels).';
+    this._render();
+  }
+  _capBind(code) {
+    const c = this._cap; if (!c) return;
+    const I = this.game.input, r = I.rebind(c.a, c.device, code), names = I.names || {}, nm = a => typeof names[a] === 'string' ? names[a] : actionName(a);
+    if (r === 'reserved') { this._status = I.codeLabel(code) + ' is kept for the menus. Choose another, or press Escape.'; this._render(); return; }
+    if (r) { this._status = I.codeLabel(code) + ' is already ' + nm(r) + '. Rebind ' + nm(r) + ' first, or choose another.'; this._render(); return; }
+    this._capEnd(nm(c.a) + ': ' + I.codeLabel(code) + '. Saved.');
+  }
+  /** stop listening for a new binding (msg: what the status line says) */
+  _capEnd(msg) { if (!this._cap) { if (msg !== undefined) this._status = msg; return; } this._cap = null; this._status = msg || ''; this.game.input.clear(); this._render(); }
   /** a button: [label, fn] or { label, fn, act, primary, disabled } */
-  _btn(a, i) {
-    const b = Array.isArray(a) ? { label: a[0], fn: a[1] } : a, e = this._el('button', b.primary || (b.primary === undefined && i === 0) ? 'pri' : '', b.label);
+  _btn(a, i, pri = true) {
+    const b = Array.isArray(a) ? { label: a[0], fn: a[1] } : a, e = this._el('button', b.primary || (b.primary === undefined && i === 0 && pri) ? 'pri' : '', b.label);
     e.disabled = !!b.disabled;
     e.onclick = () => { if (b.fn) b.fn(); else if (b.act) { this.game.input.tap(b.act); this._held.add(b.act); } };
     return e;
@@ -5813,14 +6301,10 @@ class Shell {
     const add = (...c) => box.append(...c.filter(Boolean));
     add(s.emblem && this._el('div', 'esh-emb', s.emblem), s.kicker && this._el('div', 'esh-k', v(s.kicker)));
     if (title) add(this._el('h1', '', v(s.name || s.title)), s.subtitle && this._el('div', 'esh-sub', v(s.subtitle)));
-    else add(this._el('h2', '', v(s.title) || { pause: 'Paused', settings: 'Settings', help: 'Controls', map: 'Map' }[name] || ''));
+    else add(this._el('h2', '', v(s.title) || { pause: 'Paused', settings: 'Settings', controls: 'Controls', help: 'Help', map: 'Map' }[name] || ''));
     add(v(s.text) && this._el('p', title ? '' : 'esh-m', v(s.text)));
-    if (name === 'settings') for (const it of this._items()) {
-      const row = this._el('div', 'esh-row'), val = this.settings[it.key]; row.appendChild(this._el('span', '', it.label || it.key));
-      if (it.type === 'slider') { const r = this._el('input'); Object.assign(r, { type: 'range', min: it.min || 0, max: it.max === undefined ? 1 : it.max, step: it.step || .1, value: val }); r.setAttribute('aria-label', it.label || it.key); r.oninput = () => this._set(it.key, +r.value); row.appendChild(r); }
-      else { const b = this._el('button', '', val ? 'On' : 'Off'); b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(!!val)); b.onclick = () => { this._set(it.key, !this.settings[it.key]); b.textContent = this.settings[it.key] ? 'On' : 'Off'; b.setAttribute('aria-checked', String(!!this.settings[it.key])); }; row.appendChild(b); }
-      add(row);
-    }
+    if (name === 'settings') this._settingsRows(add);
+    if (name === 'controls') this._controls(add);
     if (s.keys) { const g = this._el('div', 'esh-grid'); for (const [k, w] of v(s.keys)) g.append(this._el('kbd', '', k), this._el('span', '', w)); add(g); }
     for (const [h, t] of v(s.sections) || []) add(this._el('div', 'esh-k esh-sec', h), this._el('p', 'esh-m', t));
     if (s.stats) { const g = this._el('div', 'esh-stats'); for (const [val, lab] of v(s.stats)) { const c = this._el('div'); c.append(this._el('b', '', val), this._el('small', '', lab)); g.appendChild(c); } add(g); }
@@ -5829,14 +6313,29 @@ class Shell {
       const cv = this._el('canvas', 'esh-map'); cv.width = 720; cv.height = Math.round(720 * s.map.h / s.map.w); this._map(cv, s, true); add(cv);
       if (s.onPick) cv.onclick = e => { const b = cv.getBoundingClientRect(), t = cv._xf, x = ((e.clientX - b.left) * cv.width / b.width - t.ox) / t.k, y = ((e.clientY - b.top) * cv.height / b.height - t.oy) / t.k; s.onPick(x, y); this._map(cv, s, true); };
     }
-    const acts = (name === 'pause' ? [['Resume', () => { this.game.paused = false; }]] : []).concat(v(s.actions) || []).filter(Boolean);
-    if (name === 'pause') { if (this._items().length) acts.push(['Settings', () => this.show('settings')]); if (this.o.screens && this.o.screens.help) acts.push(['Help', () => this.show('help')]); }
-    if (!acts.length && !title) acts.push(['Back', () => this.back()]);
-    const btns = this._el('div', 'esh-btns'); acts.forEach((a, i) => btns.appendChild(this._btn(a, i))); add(btns);
+    const acts = (name === 'pause' ? [['Resume', () => this.hide()]] : []).concat(v(s.actions) || [], name === 'pause' && this._std && v(this.game.o.menu && this.game.o.menu.items) || []).filter(Boolean);
+    if (name === 'pause') this._pauseActs(acts);
+    if (name === 'settings' && this._std) acts.push(['Controls', () => this.show('controls')], ['Restore defaults', () => { for (const g of SHELL_GROUPS.concat('Game')) this.game.settings.reset(g); this.show('settings'); }]);
+    if (name === 'controls') acts.push(['Restore defaults', () => { this.game.input.resetBindings(); this.game.settings.reset('Controller'); this.game.settings.reset('Touch'); this._status = 'Every control is back to its default.'; this.show('controls'); }]);
+    if (!acts.length && !title || name === 'settings' || name === 'controls') acts.push(['Back', () => this.back()]);
+    const btns = this._el('div', 'esh-btns'), lists = name === 'settings' || name === 'controls'; acts.forEach((a, i) => btns.appendChild(this._btn(a, i, !lists))); add(btns);
     if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
     add(s.footer && this._el('div', 'esh-m', v(s.footer)));
+    const keep = top.focus !== undefined ? top.focus : this._shown === top ? this._focusAt() : -1; this._shown = top;   // (redrawn in place: the focus stays where it was)
     this.els.scr.replaceChildren(sh);
-    const f = sh.querySelector('button.pri:not(:disabled)') || sh.querySelector('button:not(:disabled), input'); if (f) f.focus({ preventScroll: true });
+    const all = this._focusables(), f = all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
+    top.focus = undefined; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
+  }
+  /** the standard pause screen's buttons after Resume and the game's own: Settings, Controls, Full screen, Help, Quit */
+  _pauseActs(acts) {
+    const g = this.game, fs = g.fullscreen, M = g.o.menu || {}, quit = M.quit === false ? null : M.quit || 'title', help = this.o.screens && this.o.screens.help;
+    if (this._std || this._items().length) acts.push(['Settings', () => this.show('settings')]);
+    if (!this._std) { if (help) acts.push(['Help', () => this.show('help')]); return; }
+    acts.push(['Controls', () => this.show('controls')]);
+    if (g.o.fullscreen !== false && fs.supported && !fs.standalone) acts.push([fs.on ? 'Leave full screen' : 'Full screen', () => { fs.toggle(); }]);
+    if (help) acts.push(['Help', () => this.show('help')]);
+    if (quit && g.scenes && g.scenes[quit] && g.sceneName !== quit) acts.push(['Quit to ' + (quit === 'title' ? 'title' : actionName(quit).toLowerCase()), () => this.show('confirm', { kicker: 'Quit', title: 'Leave this game?', text: 'Progress since the last save is lost.',
+      actions: [{ label: 'Keep playing', fn: () => this.back() }, { label: 'Quit', fn: () => { this.hide(); g.go(quit); } }] })]);
   }
   /** draw a TileMap from above: floor, roofs by height, water and grass, then markers and the body at (an arrow) */
   _map(cv, s, large) {
@@ -5873,9 +6372,10 @@ class Shell {
   /** each step (the game calls it after reading input): follow game.paused, time out the toast and the card, and while a
    *  screen is open, move the focus with the game's input and hold the rest of it back from the game */
   _step() {
-    const g = this.game, I = g.input, now = g.real, pause = this.o.screens && this.o.screens.pause;
+    const g = this.game, I = g.input, now = g.real, sc = g.scene, play = !!sc && (!!sc.pausable || g.sceneName === 'main');
+    const pause = this._pauseSpec() && (!this._sys || (g.pauseOverlay !== false && play));   // (the engine's own menu stays out of a game that draws its own pause)
     if (pause && g.paused && !this._stack.length) this.show('pause');
-    if (pause && !g.paused && this._stack.some(t => t.name === 'pause')) { this._stack.length = 0; this._render(); }
+    if (!g.paused && this._stack.length && (this._ownPause || (pause && this._stack.some(t => t.name === 'pause')))) { this._stack.length = 0; this._ownPause = false; this._capEnd(); this._render(); }   // resumed from code
     if (this.root) {
       if (this._toastEnd && now > this._toastEnd) { this.els.toast.classList.remove('on'); this._toastEnd = 0; }
       if (this._tutEnd && now > this._tutEnd) this.tutorial(null);
@@ -5883,23 +6383,32 @@ class Shell {
     }
     if (!this._stack.length) return;
     const keep = this._held; this._held = new Set();
-    const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), mv = I.move();
+    const has = a => !!I.map[a], confirm = has('confirm') && I.pressed('confirm'), cancel = has('cancel') && I.pressed('cancel'), closeAll = has('pause') && I.pressed('pause'), mv = I.move();
     const hit = ['up', 'down', 'left', 'right'].find(a => has(a) && I.pressed(a)), dir = Math.abs(mv[1]) > .5 ? (mv[1] < 0 ? 'up' : 'down') : Math.abs(mv[0]) > .5 ? (mv[0] < 0 ? 'left' : 'right') : null;
     for (const a in I.map) if (!keep.has(a)) I.suppress(a);   // the game doesn't see what the menu used
-    if (!this.root) { if (cancel) this.back(); return; }
+    if (this._cap) { this._capPad(); return; }   // binding: the next button is the answer, not a move in the menu
+    if (!this.root) { if (cancel) this.back(); else if (closeAll) this.hide(); return; }
     if (hit) { this._dir = hit; this._dirT = now + .35; this._nav(hit); }   // a press (however short), then the held direction repeats
     else if (dir !== this._dir) { this._dir = dir; this._dirT = now + .35; if (dir) this._nav(dir); }
     else if (dir && now > this._dirT) { this._dirT = now + .09; this._nav(dir); }
     const f = document.activeElement, mine = f && this.els.scr.contains(f);
     if (confirm && mine && f.tagName === 'BUTTON') f.click();
     else if (cancel) this.back();
+    else if (closeAll) this.hide();   // Start (or P) closes the whole menu; Escape and B go back one screen
   }
-  /** move the focus (or turn a focused slider) */
+  /** binding a controller button: the first one pressed since binding began (Start cancels) */
+  _capPad() {
+    const c = this._cap, I = this.game.input; if (!c || c.device !== 'pad') return;
+    const i = I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
+    if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i);
+  }
+  /** move the focus (or turn a focused slider or choice), keeping it in view */
   _nav(dir) {
-    const all = [...this.els.scr.querySelectorAll('button:not(:disabled), input')]; if (!all.length) return;
-    const f = document.activeElement, i = all.indexOf(f);
-    if (f && f.type === 'range' && (dir === 'left' || dir === 'right')) { if (dir === 'left') f.stepDown(); else f.stepUp(); f.dispatchEvent(new Event('input')); return; }
-    const n = all[((i < 0 ? 0 : i + (dir === 'up' || dir === 'left' ? -1 : 1)) + all.length) % all.length]; n.focus({ preventScroll: true });
+    const all = this._focusables(); if (!all.length) return;
+    const f = document.activeElement, i = all.indexOf(f), side = dir === 'left' || dir === 'right', d = dir === 'up' || dir === 'left' ? -1 : 1;
+    if (f && side && f.type === 'range') { if (d < 0) f.stepDown(); else f.stepUp(); f.dispatchEvent(new Event('input')); return; }
+    if (f && side && f._cycle) { f._cycle(d); return; }
+    const n = all[((i < 0 ? 0 : i + d) + all.length) % all.length]; n.focus({ preventScroll: true }); if (n.scrollIntoView) n.scrollIntoView({ block: 'nearest' });
   }
 }
 E.Shell = Shell;

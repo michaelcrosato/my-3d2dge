@@ -1,11 +1,11 @@
 /*!
-my-3D2dge AGENT EDITION v0.22.4: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.23.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
 This is a curated subset of the full engine (dist/my-3d2dge.js). A game written against this file runs
-unchanged on the full engine, which adds lighting, props, parallax backdrops, touch controls, camera
-zoom and turn, dialog portraits, x-ray silhouettes, recorded play sessions that replay exactly, and more.
+unchanged on the full engine, which adds the pause, settings and controls menus, lighting, props, parallax
+backdrops, touch controls, camera zoom and turn, dialog portraits, x-ray silhouettes, replayable sessions, and more.
 
 AGENTS: this header is the whole manual. Build games from it; you do not need to read the code below.
 Read a section only to debug: each starts with "// ---- N. NAME" (grep "// ---- 10." for the Humanoid).
@@ -132,6 +132,12 @@ Input (game.input): down(a) held, pressed(a) this step only, released(a), repeat
   DEFAULT: attack (J, X, click), dash (Space, Shift, K), skill (L, E, right click), jump (Z)
   PLATFORMER: jump (Space, Z, K), attack (X, J, click), dash (Shift, C, L), skill (E, V)
   SHMUP: fire (Space, Z, J, click), bomb (X, K, right click)
+  label('jump') -> its key or button on the device in use, for prompts: 'Space', 'A', '✕'
+Standard, with no code: game.settings (saved per game: volume music effects sound motion shake flashes scale deadzone
+  glyphs; set(key, v) checks, saves, applies; yours: new E.Game({ menu: { settings: [{ key: 'hints', value: true }] } })),
+  game.fullscreen (a phone's first tap, a top-right button; toggle() from a key or click), and a pausable scene pausing
+  when the page is hidden or the controller unplugs (pause(reason), resume(), pauseReason). Don't build your own. Leave
+  out: fullscreen: 'button' | false, corner: false, autoPause: false. The full engine adds the menu screens.
 Drawing (r in draw(r); r.W, r.H = screen size in pixels)
   r.sky(['#top', '#mid', '#bottom']); r.starfield({ count: 70, speed: 30, dir: 'down' | 'up' | 'left' | 'right', height: 0..1 })
   r.actor(x, y, z, (g, ox, oy) => rig.draw(g, ox, oy, r.view), { outline: true, flash: '#ffffff', flashMix: .5, alpha, bias })
@@ -361,7 +367,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.22.4', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.23.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -680,6 +686,7 @@ class Screen {
     this.buf = canvas ? mkCanvas(8, 8) : null; this.ctx = canvas ? ctx2d(this.buf) : null;
     this.W = 320; this.H = 200; this.S = 3; this.OX = 0; this.OY = 0; this.dpr = 1;
     this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0;
+    this.scale = 'auto';   // a fixed res: 'sharp' (whole-number scale), 'fill' (the largest fit), 'auto' (fill on high-density screens)
     this.resize();
     if (canvas) addEventListener('resize', () => this.resize(), { signal });
   }
@@ -696,12 +703,16 @@ class Screen {
     const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this.options(pw, ph);
     if (c) { c.width = pw; c.height = ph; } this.dpr = dpr; this.portrait = ph > pw;
     const fix = this.fixedRes(o);
-    if (fix) { this.W = fix[0]; this.H = fix[1]; this.S = Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1]))); }
+    if (fix) {
+      const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2);
+      this.W = fix[0]; this.H = fix[1]; this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
+    }
     else { this.S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW))); this.W = Math.min(o.maxW, Math.ceil(pw / this.S)); this.H = Math.min(o.maxH, Math.ceil(ph / this.S)); }
     this.OX = Math.floor((pw - this.W * this.S) / 2); this.OY = Math.floor((ph - this.H * this.S) / 2);
     if (this.buf) { this.buf.width = this.W + 2; this.buf.height = this.H + 2; this.ctx = ctx2d(this.buf); this.ctx._c = null; }
   }
   setOptions(o) { Object.assign(this.o, o); this.resize(); }
+  setScale(v) { this.scale = v === 'sharp' || v === 'fill' ? v : 'auto'; this.resize(); }
   begin(cx, cy, bg) {
     this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
     const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
@@ -729,7 +740,8 @@ class Input {
     this.screen = screen; this.use(map);
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {}; this._rk = {};
     this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set();
-    this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this.padPrev = []; this.padIndex = null; this.deadzone = .18;
+    this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this.padPrev = []; this.padIndex = null; this.padId = ''; this.deadzone = .18;
+    this.lastDevice = 'keyboard'; this.glyphs = 'auto'; this.padLost = false;   // label() follows the device used last; glyphs: 'auto' | 'xbox' | 'playstation' | 'nintendo' | 'generic'
     const el = screen.canvas; if (!el) return;
     const addEventListener = (type, fn) => window.addEventListener(type, fn, { signal }), typing = e => { const t = e.target; return !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(t.type))); };
     const at = e => { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; };
@@ -745,12 +757,13 @@ class Input {
   use(map) {
     if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
-    this.map = {}; for (const a in map) this.map[a] = [...map[a], 'Act:' + a];
+    this.map = {}; for (const a in map) this.map[a] = [...map[a], ...(a === 'start' || a === 'pause' ? ['Act:menu'] : []), 'Act:' + a];   // (Act:menu: a touch START)
     this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
     return this;
   }
   press(code) {
     if (this.held.has(code)) return; this.held.add(code);
+    this.lastDevice = code.startsWith('Pad') ? 'gamepad' : code.startsWith('Act:') ? 'touch' : code.startsWith('Mouse') ? 'mouse' : 'keyboard';
     for (const a of this._codes[code] || []) { this._pt[a] = this.clock; this._used[a] = false; this._rk[a] = -1; this._fresh.add(a); }
   }
   release(code) {
@@ -783,11 +796,28 @@ class Input {
     return [x, y];
   }
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
+  // a code as a person reads it ('W', 'Space', 'Left click', a gamepad button by its family's symbol: 'A', '✕', 'B')
+  codeLabel(code) {
+    if (!code) return '';
+    if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+    if (/^Digit\d$/.test(code)) return code.slice(5);
+    if (/^Pad\d+$/.test(code)) return (PAD_GLYPHS[this.padStyle()] || PAD_GLYPHS.xbox)[+code.slice(3)] || code;
+    return CODE_LABELS[code] || (code.startsWith('Act:') ? code.slice(4).toUpperCase() : code);
+  }
+  padStyle() { if (this.glyphs && this.glyphs !== 'auto') return this.glyphs; const id = this.padId || ''; return /054c|playstation|dualsense|dualshock|wireless controller/i.test(id) ? 'playstation' : /057e|nintendo|pro controller|joy-con/i.test(id) ? 'nintendo' : 'xbox'; }
+  // the key or button to show in a prompt for action a on the device used last: input.label('jump') -> 'Space', 'A' or '✕'
+  label(a, device = this.lastDevice) {
+    const m = this.map[a]; if (!m) { this._check(a); return ''; }
+    if (device === 'touch') return a.toUpperCase();
+    const real = m.filter(c => !c.startsWith('Act:')), pads = real.filter(c => c.startsWith('Pad')), keys = real.filter(c => !c.startsWith('Pad'));
+    const c = device === 'gamepad' ? pads[0] || keys[0] : device === 'mouse' ? keys.find(c => c.startsWith('Mouse')) || keys[0] || pads[0] : keys.find(c => !c.startsWith('Mouse')) || keys[0] || pads[0];
+    return c ? this.codeLabel(c) : '';
+  }
   tick(dt) {
-    this.clock += dt;
+    this.clock += dt; this.padLost = false;
     let p = null;
     try { p = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).find(q => q && q.connected !== false) || null; } catch (e) { /* gamepads blocked */ }
-    if ((p ? p.index : null) !== this.padIndex) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; }
+    if ((p ? p.index : null) !== this.padIndex) { if (!p && this.padIndex !== null) this.padLost = this.lastDevice === 'gamepad'; this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; this.padId = p ? p.id : ''; }
     if (p) {
       const x = p.axes[0] || 0, y = p.axes[1] || 0, l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;
       this.padMove = [x * k, y * k];
@@ -807,6 +837,15 @@ Input.DEFAULT = { ...DIRS, attack: ['KeyJ', 'KeyX', 'Mouse0', 'Pad0', 'Pad7'], d
 Input.PLATFORMER = { ...DIRS, jump: ['Space', 'KeyZ', 'KeyK', 'Pad0'], attack: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2'], dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad1', 'Pad5'], skill: ['KeyE', 'KeyV', 'Mouse2', 'Pad3'], ...MENU_KEYS };
 Input.SHMUP = { ...DIRS, fire: ['Space', 'KeyZ', 'KeyJ', 'Mouse0', 'Pad0', 'Pad7'], bomb: ['KeyX', 'KeyK', 'Mouse2', 'Pad1', 'Pad6'], ...MENU_KEYS };
 E.Input = Input;
+// a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders, 8 back, 9 start, 10-11 sticks, 12-15 d-pad)
+const PAD_GLYPHS = {
+  xbox: ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'LS', 'RS', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Guide'],
+  playstation: ['✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'PS'],
+  nintendo: ['B', 'A', 'Y', 'X', 'L', 'R', 'ZL', 'ZR', '−', '+', 'L stick', 'R stick', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home'],
+  generic: ['Bottom', 'Right', 'Left', 'Top', 'L1', 'R1', 'L2', 'R2', 'Select', 'Start', 'L3', 'R3', 'D-pad ↑', 'D-pad ↓', 'D-pad ←', 'D-pad →', 'Home']
+};
+const CODE_LABELS = { Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift', ControlLeft: 'Ctrl', ControlRight: 'R Ctrl', AltLeft: 'Alt', AltRight: 'R Alt', Enter: 'Enter', NumpadEnter: 'Enter',
+  Escape: 'Esc', Backspace: 'Backspace', Tab: 'Tab', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Mouse0: 'Left click', Mouse1: 'Middle click', Mouse2: 'Right click' };
 
 // ---- 6. FONT: 5x7 proportional pixel font with lower case. Glyph data: char, width, then one base-32 digit per row (bit 1 << (w - 1 - x) = pixel x) ----
 const F = { g: {}, h: 7, desc: 2, gap: 1, space: 3 };
@@ -1165,7 +1204,9 @@ if (typeof window !== 'undefined' && window.addEventListener) {
   window.addEventListener('unhandledrejection', ev => E.showError('unhandled promise rejection', ev.reason));
 }
 class Game {
-  // headless (or no DOM: Node): no screen, renderer, sound or DOM input; drive it with advance(). loop: false runs only by advance()
+  // headless (or no DOM: Node): no screen, renderer, sound or DOM input; drive it with advance(). loop: false runs only by advance().
+  // The standard features (9b): fullscreen: 'tap' (a phone's first tap) | 'button' | false; corner: false hides the corner's
+  // buttons; autoPause: false keeps a pausable scene running when the page is hidden; id: the name settings are saved under
   constructor(o = {}) {
     o = Object.assign({}, o);
     this.headless = !!o.headless || typeof document === 'undefined';
@@ -1193,6 +1234,9 @@ class Game {
     this.fadeTime = .22; this._fade = null; this.scenes = null; this.scene = null; this.sceneName = null; this._next = null;
     this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
     this.alpha = .5; this._acc = this.o.step / 2;   // the step left over (0..1); starting half a step in keeps a steady step count
+    // the player's choices (game.settings.volume; set(key, v) checks, saves, applies), full screen, why the game paused
+    this.settings = new Settings(this, (this.o.menu && this.o.menu.settings) || []); this.fullscreen = new FullScreen(this); this.pauseReason = null;
+    if (!this.headless) this._standard(signal);
     E.current = this;
   }
   static _makeCanvas() {
@@ -1211,7 +1255,41 @@ class Game {
   setView(v) { const w = this._view(v); if (w) { this.view = w; this.cam.snap = true; } }
   nextView(dir = 1) { const list = this.views || E.VIEW_ORDER, i = list.indexOf(this.view.id); this.setView(list[((i + dir) % list.length + list.length) % list.length]); }
   note(text, seconds = 1.2) { this._note = { text: String(text), end: this.real + seconds }; }
-  shake(a) { if (!this.reduceMotion) this._shakeAmt = Math.min(10, this._shakeAmt + a); }
+  // pause, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); resume() takes it out of pause
+  pause(reason = 'player') { if (this.paused) return false; this.paused = true; this.pauseReason = reason; return true; }
+  resume() { this.paused = false; this.pauseReason = null; }
+  _autoPause(reason) { return this.o.autoPause !== false && !!this.scene && !!this.scene.pausable && this.pause(reason); }
+  // the corner's menu button: pauses (or resumes) a scene in play. The settings menu is the full engine's (E.Shell)
+  menu() {
+    const s = this.scene; if (!s || !(s.pausable || this.sceneName === 'main')) { warn('menu', "game.menu(): the settings menu is the full engine's (dist/my-3d2dge.js); here it pauses a scene in play"); return false; }
+    if (this.paused) this.resume(); else this.pause('player'); return false;
+  }
+  _standard(signal) {   // the page set up for phones, pausing when hidden, the full-screen choice kept, a phone's first tap going full screen, the corner
+    const on = (t, type, fn, o) => t.addEventListener(type, fn, Object.assign({ signal }, o)), fs = this.fullscreen;
+    pageSetup(this.screen.canvas);
+    on(window, 'blur', () => this._autoPause('focus'));
+    on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
+    const fsChange = () => { if (this.settings.fullscreen !== fs.on) this.settings.set('fullscreen', fs.on); this.input.clear(); };
+    on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
+    if (this.o.fullscreen === undefined || this.o.fullscreen === 'tap') on(window, 'pointerup', e => {
+      if (e.pointerType === 'mouse' || this._fsAuto || this.settings.fullscreen === false || !fs.supported || fs.on || fs.standalone) return;
+      if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches) || (e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) return;
+      this._fsAuto = true; fs.enter();
+    }, { capture: true });
+    on(window, 'pointermove', e => { if (e.pointerType === 'mouse' && e.clientY < 80 && (e.movementX || e.movementY)) this._mouseTop = performance.now(); }, { passive: true });
+    if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
+  }
+  _cornerSync() {   // shown while the game isn't being played (a title, a pause), after the mouse comes near the top, the menu always on a touch screen
+    const c = this._corner; if (!c) return;
+    const s = this.scene, fs = this.fullscreen, main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
+    const touch = !!(this._coarse || (this._coarse = window.matchMedia && matchMedia('(pointer: coarse)')) || {}).matches;   // (the queries kept: this runs every frame)
+    const showM = this.o.menu !== false && main && (!play || near || touch), showF = this.o.fullscreen !== false && fs.supported && !fs.standalone && (!play || near);
+    const key = (showM ? 1 : 0) + (showF ? 2 : 0) + (fs.on ? 4 : 0);
+    if (key === this._cornerKey) return; this._cornerKey = key;
+    const [m, f] = c.children; c.style.display = showM || showF ? 'flex' : 'none'; m.style.display = showM ? 'grid' : 'none'; f.style.display = showF ? 'grid' : 'none';
+    f.innerHTML = cornerIcon(fs.on ? CORNER_ICONS.exit : CORNER_ICONS.full); f.setAttribute('aria-label', fs.on ? 'Leave full screen' : 'Full screen'); f.title = f.getAttribute('aria-label');
+  }
+  shake(a) { if (!this.reduceMotion) this._shakeAmt = Math.min(10, this._shakeAmt + a * clamp(this.settings.shake, 0, 1)); }
   // a good hit in one call: hit-stop, shake, impact star, sparks, damage number, sound. o: { power: 1, angle, damage, color, textColor, textScale, textZ: 22, bounce, sound }
   hitFx(x, y, z, o = {}) {
     const p = o.power === undefined ? 1 : o.power, P = this.particles;
@@ -1222,7 +1300,7 @@ class Game {
     if (o.sound !== false) this.audio.sfx(o.sound || (p > 1.3 ? 'kick' : 'hit'));
     if (p >= 2) this.flash('#ffffff', .06);
   }
-  flash(color = '#ffffff', seconds = .12, strength = 1) { if (this.reduceMotion) seconds *= .4; this._flash = { color, t: 0, dur: seconds, k: strength }; }
+  flash(color = '#ffffff', seconds = .12, strength = 1) { if (this.reduceMotion) seconds *= .4; this._flash = { color, t: 0, dur: seconds, k: strength * clamp(this.settings.flashes, 0, 1) }; }
   freeze(s) { this.hitstop = Math.max(this.hitstop, s); }
   focus(x, y, z = 0) { this.cam.tx = x; this.cam.ty = y; this.cam.tz = z; }
   // keep the camera on an object: follow(hero, { z: 16, lead: 0 }); follow(null) stops
@@ -1282,6 +1360,7 @@ class Game {
     this.stop(); this.disposed = true;
     if (this._abort) this._abort.abort();
     const A = this.audio; try { A.stopMusic(); if (A.ctx && A.ctx.close) A.ctx.close(); } catch (e) { /* already closed */ } A.ctx = null; A.failed = 'the game was disposed';
+    if (this._corner) this._corner.remove(); this._corner = null;
     if (E.current === this) E.current = null;
   }
   // run `seconds` of real time in exact fixed steps at once, without requestAnimationFrame (tests, headless runs); o.draw: then draw a frame
@@ -1342,6 +1421,7 @@ class Game {
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
     this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt);
+    if (this.input.padLost) { this._autoPause('controller'); this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
     const f = this._fade;
     if (f) {   // the old scene freezes while it fades out
@@ -1350,7 +1430,8 @@ class Game {
       if (f.t >= f.dur) this._fade = null;
     }
     const s = this.scene;
-    if (s && s.pausable && this.input.pressed('pause')) { this.paused = !this.paused; this.audio.sfx('pause'); }
+    if (s && s.pausable && this.input.pressed('pause')) { this.paused = !this.paused; this.pauseReason = this.paused ? 'player' : null; this.audio.sfx('pause'); }
+    if (!this.paused) this.pauseReason = null;
     this.audio._duck(this.paused);
     if (this.paused) return;
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
@@ -1377,6 +1458,7 @@ class Game {
     if (this.scene && this.scene.draw) this.scene.draw(r);
     const fill = (g, color, alpha, mode) => { g.save(); g.fillStyle = color; g.globalAlpha = alpha; if (mode) g.globalCompositeOperation = mode; g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; };
     if (this._note && this.real < this._note.end) { const n = this._note; r.overlay(g => E.font.text(g, n.text, r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false })); }
+    this._cornerSync();
     if (this.paused && this.pauseOverlay) r.overlay(g => {
       fill(g, '#05030c', .55);
       E.font.text(g, 'PAUSED', r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });
@@ -1390,6 +1472,102 @@ class Game {
   }
 }
 E.Game = Game;
+
+// ---- 9b. STANDARD FEATURES: the player's settings (saved, versioned, checked), full screen, pausing when the page is hidden, the corner's buttons, a page made for phones ----
+const SETTINGS_VERSION = 1;
+// the standard settings by key: { group, label, type: 'toggle' | 'slider' | 'select', value (or a function of the game), min, max, options, apply(game, v) }
+const STANDARD_SETTINGS = {
+  fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (left it), null (never chose)
+  scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], apply: (g, v) => g.screen.setScale(v) },
+  sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },
+  volume: { group: 'Sound', label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
+  music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio._levels(); } },
+  effects: { group: 'Sound', label: 'Effects', type: 'slider', value: 1, apply: (g, v) => { g.audio.sfxVolume = v; g.audio._levels(); } },
+  background: { group: 'Sound', label: 'Sound in the background', type: 'toggle', value: false },
+  motion: { group: 'Comfort', label: 'Reduce motion', type: 'toggle', value: g => !!g.reduceMotion, apply: (g, v) => { g.reduceMotion = !!v; } },
+  shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
+  flashes: { group: 'Comfort', label: 'Screen flashes', type: 'slider', value: 1 },
+  deadzone: { group: 'Controller', label: 'Stick dead zone', type: 'slider', value: .18, min: .05, max: .5, apply: (g, v) => { g.input.deadzone = v; } },
+  glyphs: { group: 'Controller', label: 'Button symbols', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['xbox', 'Xbox'], ['playstation', 'PlayStation'], ['nintendo', 'Nintendo'], ['generic', 'Positions']], apply: (g, v) => { g.input.glyphs = v; } }
+};
+function settingValue(sp, v) {   // a value checked against its setting: the value kept, or undefined
+  if (sp.type === 'toggle') return typeof v === 'boolean' ? v : undefined;
+  if (sp.type === 'fullscreen') return v === true || v === false || v === null ? v : undefined;
+  if (sp.type === 'slider') return typeof v === 'number' && isFinite(v) ? clamp(v, sp.min === undefined ? 0 : sp.min, sp.max === undefined ? 1 : sp.max) : undefined;
+  if (sp.type === 'select') return (sp.options || []).some(o => (Array.isArray(o) ? o[0] : o) === v) ? v : undefined;
+  return v === undefined || typeof v === 'function' ? undefined : v;
+}
+// game.settings: one property per setting (game.settings.volume); set(key, v) checks, saves (E.store 'settings:' + id) and applies it
+class Settings {
+  constructor(game, own = []) {
+    const hide = (k, v) => Object.defineProperty(this, k, { value: v, writable: true });
+    hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game')); hide('saved', true); hide('onChange', null);
+    const raw = store.get(this._key, null); hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});
+    for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
+    for (const sp of own) this.define(sp);
+  }
+  // add a setting { key, label, type, value, min, max, step, options, group: 'Game', apply(game, v) }: its saved value loads and applies
+  define(sp) {
+    if (!sp || !sp.key || typeof sp.key !== 'string' || sp.key in Settings.prototype || sp.key === 'saved' || sp.key === 'onChange' || sp.key[0] === '_') { warn('setting:' + (sp && sp.key), 'a setting needs a key of its own: { key: "hints", label: "Hints", value: true }'); return undefined; }
+    const s = Object.assign({ group: 'Game', type: sp.options ? 'select' : typeof sp.value === 'number' ? 'slider' : typeof sp.value === 'boolean' || sp.value === undefined ? 'toggle' : 'value' }, sp);
+    this._specs[s.key] = s;
+    const saved = settingValue(s, this._raw[s.key]); if (saved !== undefined) this._saved[s.key] = saved;
+    this[s.key] = saved !== undefined ? saved : this.default(s.key); this._apply(s.key);
+    return this[s.key];
+  }
+  default(key) { const s = this._specs[key]; if (!s) return undefined; const v = typeof s.value === 'function' ? s.value(this._g) : s.value; return v === undefined && s.type === 'toggle' ? false : v; }
+  spec(key) { return this._specs[key]; }
+  keys(group) { return Object.keys(this._specs).filter(k => !group || this._specs[k].group === group); }
+  set(key, v) {
+    const s = this._specs[key]; if (!s) { warn('setting:' + key, 'unknown setting "' + key + '". Settings: ' + this.keys().join(', ')); return undefined; }
+    const ok = settingValue(s, v); if (ok === undefined) return this[key];
+    this[key] = ok; this._saved[key] = ok; this._save(); this._apply(key);
+    if (this.onChange) this.onChange(key, ok);
+    return ok;
+  }
+  reset(group) { for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; this[k] = this.default(k); this._apply(k); } this._save(); }
+  _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g._fail('setting "' + key + '"', e); } }
+  _save() { if (this._g.headless) return; this.saved = store.set(this._key, { v: SETTINGS_VERSION, values: this._saved }); if (!this.saved) warn('settings:save', 'the settings could not be saved (storage is blocked or full): they last for this visit'); }
+}
+E.Settings = Settings;
+// game.fullscreen: the whole page full screen where the browser can (supported, on, standalone; enter, exit, toggle from a tap, click or key)
+class FullScreen {
+  constructor(game) { this.game = game; this.failed = null; }
+  get supported() { if (this.game.headless) return false; const d = document, el = d.documentElement; return !!((d.fullscreenEnabled || d.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen)); }
+  get on() { return !this.game.headless && !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this.game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }
+  enter() {
+    if (this.on || !this.supported) return Promise.resolve(this.on);
+    const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen, no = e => { this.failed = (e && e.message) || 'refused'; this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
+    try { const p = f.call(el, { navigationUI: 'hide' }); this.failed = null; return p && p.then ? p.then(() => true, no) : Promise.resolve(true); } catch (e) { return Promise.resolve(no(e)); }
+  }
+  exit() { if (!this.on) return Promise.resolve(false); const f = document.exitFullscreen || document.webkitExitFullscreen; try { const p = f && f.call(document); return p && p.then ? p.then(() => true, () => false) : Promise.resolve(true); } catch (e) { return Promise.resolve(false); } }
+  toggle() { return this.on ? this.exit() : this.enter(); }
+}
+E.FullScreen = FullScreen;
+const CORNER_ICONS = { menu: 'M4 7h16M4 12h16M4 17h16', full: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', exit: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5' };
+const cornerIcon = d => '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
+function makeCorner(game) {   // the menu and full-screen buttons, 44 px, top right inside the safe area
+  const box = document.createElement('div'); box.id = 'e3-corner'; box.dataset.sys = 'corner';
+  box.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:21;display:none;gap:8px';
+  const btn = (label, fn) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', label); b.title = label;
+    b.style.cssText = 'width:44px;height:44px;display:none;place-items:center;padding:0;margin:0;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(8,8,18,.6);color:#f4f0ff;cursor:pointer;touch-action:manipulation';
+    b.addEventListener('click', e => { e.stopPropagation(); b.blur(); fn(); }); box.appendChild(b); return b;
+  };
+  btn('Menu', () => game.menu()).innerHTML = cornerIcon(CORNER_ICONS.menu);
+  btn('Full screen', () => game.fullscreen.toggle());
+  document.body.appendChild(box); return box;
+}
+let _paged = false;
+function pageSetup(canvas) {   // no page gestures, selection or callouts on the canvas; a viewport that reaches the safe areas (once)
+  const st = canvas && canvas.style;
+  if (st) { st.touchAction = 'none'; st.userSelect = 'none'; st.webkitUserSelect = 'none'; st.webkitTouchCallout = 'none'; st.webkitTapHighlightColor = 'transparent'; }
+  if (_paged || !document.head) return; _paged = true;
+  const meta = (name, content) => { let m = document.querySelector('meta[name="' + name + '"]'); if (!m) { m = document.createElement('meta'); m.name = name; m.content = content; document.head.appendChild(m); } return m; };
+  const vp = meta('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover'); if (!/viewport-fit/.test(vp.content)) vp.content += ', viewport-fit=cover';
+  meta('mobile-web-app-capable', 'yes'); meta('apple-mobile-web-app-capable', 'yes');
+}
 
 // ---- 10. HUMANOID: a 3D skeleton posed by math every step (IK legs and arms, gait, poses, attacks, cape cloth), drawn as shaded pixel art ----
 //   local frame: f = forward, r = right, z = up. update(dt, state) then draw(g, ox, oy, view) inside r.actor
@@ -2873,6 +3051,7 @@ class ChipAudio {
   mute(on = !this.muted) { this.muted = on; this._levels(); return on; }
   // quiet the music (to 35%) under a game's own pause or map screen; the engine also ducks it while game.paused
   duck(on = true) { on = !!on; if (this.ducked === on) return; this.ducked = on; this._levels(); }
+  _background(sleep) { const c = this.ctx; if (!c) return; try { if (sleep && c.state === 'running') { this._slept = true; c.suspend().catch(() => {}); } else if (!sleep && this._slept) { this._slept = false; c.resume().catch(() => {}); } } catch (e) { /* closed */ } }   // a hidden page's sound sleeps
   _duck(on) { if (this._ducked === on) return; this._ducked = on; this._levels(); }
   _pulse(duty) {
     if (this._waves[duty]) return this._waves[duty];
@@ -3135,7 +3314,7 @@ E.prop = fullOnly('E.prop');
 Renderer.prototype.prop = fullOnly('r.prop');
 Renderer.prototype.sightCone = fullOnly('r.sightCone');
 for (const k of ['Mover', 'Action', 'Suspicion']) E[k] = class { constructor() { throw new Error('E.' + k + ' is only in the full engine (dist/my-3d2dge.js), with the rest of the third-person kit'); } };
-E.Shell = class { constructor(game) { fullOnly('E.Shell')(); this.game = game; this.settings = {}; this.root = null; } get screen() { return null; } show() { return this; } back() { return this; } hide() { return this; } toast() { return this; } tutorial() { return this; } hud() { return this; } dispose() {} };
+E.Shell = class { constructor(game) { fullOnly('E.Shell')(); this.game = game; this.root = null; } get settings() { return this.game.settings; } get screen() { return null; } show() { return this; } back() { return this; } hide() { return this; } toast() { return this; } tutorial() { return this; } hud() { return this; } dispose() {} };
 E.Backdrop = class { constructor() { fullOnly('E.Backdrop')(); } draw() {} };
 for (const m of ['enableGPU', 'setZoom', 'rotateView', 'resetCamera']) Game.prototype[m] = fullOnly('game.' + m);
 for (const m of ['drawPortrait', 'drawSmear', 'debug']) Humanoid.prototype[m] = fullOnly('rig.' + m);

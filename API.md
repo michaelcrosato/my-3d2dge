@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.22.4)
+# my-3D2dge API card (v0.23.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -103,7 +103,12 @@ game.start({ scene: 'title', scenes: {
           enter(data) { /* build the level */ }, exit() {}, update(dt) {}, draw(r) {} }
 } });
 ```
-`game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it (a PAUSED screen is drawn for you). `view`, `views`, `input`, `res`, `touch`, `propSize` are applied on entry.
+`game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `touch`, `propSize` are applied on entry.
+
+## Standard features (every game has them: don't build your own)
+With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap, a top-right button, the menu; leaving it is remembered), **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling or zooming on the canvas).
+- Adjust: `new E.Game({ menu: { items: [['Restart', fn]], settings: [{ key: 'hints', label: 'Hints', value: true }, { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }], controls: { attack: 'Sword', skill: false }, quit: 'title' } })`, then read `game.settings.hints`. Leave parts out: `menu: false` (your own pause), `fullscreen: 'button' | false`, `corner: false`, `autoPause: false`.
+- Prompts: `game.input.label('jump')` is that action's key or button on the player's device, after rebinding ('Space', 'A', '✕'). A canvas title's OPTIONS: `game.menu('settings')`. From code: `game.settings.set(key, v)`, `game.fullscreen.toggle()` (from a key, click or tap), `game.pause(reason)`, `game.resume()`.
 
 ## Input: `game.input`
 - Actions in every preset: `up down left right` (WASD, arrows, d-pad), `start` (Enter, Start), `pause` (Escape, P, Start), `confirm` (Enter, Space, J, Z, pad A), `cancel` (Escape, Backspace, X, K, pad B).
@@ -216,7 +221,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
 
 ## Before you hand the game back
 - One IIFE between the markers, starting with `const E = My3D2dge`. Only your game: no leftover starter menu or unused slices. No other files, no network, no libraries.
-- Title screen and game-over screen as scenes; `pausable: true` on gameplay scenes.
+- Title screen and game-over screen as scenes; `pausable: true` on gameplay scenes. No pause, settings, rebinding or full-screen code of your own (they're standard); prompts from `game.input.label(action)`.
 - The camera follows the player (`game.focus` every update) and shows the level; the HUD uses screen pixels.
 - Sound effects on jump, hit, pickup and death; music per scene.
 - The look target list above: backdrop, textured tiles, props, sized and dressed HD characters, effects, title font. Compare your screenshots with Symphony of the Night or Metal Slug, not with NES games.

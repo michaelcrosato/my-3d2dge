@@ -524,19 +524,11 @@ document.addEventListener("visibilitychange", () => {
    it (a browser only goes full screen from a tap or a click); FULL SCREEN on the title and in the pause menu turn it
    on and off, and leaving it there is remembered. An iPhone has no full screen for a web page:
    there, Add to Home Screen opens Emberdeep as an app, with no browser bars (the page's web-app tags). */
-const FS = {
-	can: () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled),
-	on: () => !!(document.fullscreenElement || document.webkitFullscreenElement),
-	quiet: (p) => p && p.catch && p.catch(() => {}),
-	enter() {
-		const el = document.documentElement,
-			f = el.requestFullscreen || el.webkitRequestFullscreen;
-		if (f && !FS.on()) try { FS.quiet(f.call(el, { navigationUI: "hide" })); } catch (e) {}
-	},
-	exit() {
-		const f = document.exitFullscreen || document.webkitExitFullscreen;
-		if (f && FS.on()) try { FS.quiet(f.call(document)); } catch (e) {}
-	},
+const FS = {   // the engine's game.fullscreen (new E.Game({ fullscreen: 'button' }): the title's tap decides here, not the engine)
+	can: () => game.fullscreen.supported,
+	on: () => game.fullscreen.on,
+	enter: () => game.fullscreen.enter(),
+	exit: () => game.fullscreen.exit(),
 	toggle() {
 		OPT.fullscreen = !FS.on();
 		saveOpts();

@@ -30,6 +30,9 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Not verified on physical phones or native GPUs | no | F1 | a game heads to production (principle 10) |
 | Saves, checkpoints and objectives written by the game | watch | F1 | three sources write the same checkpoint or objective code |
 | Music written by the game for stealth and chases | watch | F1 | two more sources: built-in `stealth` and `chase` songs |
+| Production hardening asked of every game (PWA, wake lock, folds, physical devices, other gamepad mappings) | deferred | F5 | a game heads to production (principle 10) |
+| Settings nothing honors yet (frame-rate limit, brightness, text size, HUD scale) | deferred | F5 | the engine or a game has something they would change |
+| Assists each game writes (aim assist, auto-fire, hold or toggle, captions) | watch | F5 | two builders write the same assist: the engine gets it, as a standard setting |
 
 ## Sources
 
@@ -161,3 +164,20 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     theme's): the next plan decides whether the template and the stealth starter should.
   - **F4.4** · gliding · its glide is its own, on top of `E.Mover`; the grapple it wrote as an `E.ACTIONS` entry, as the
     kit means. **Watch** (with F3.4).
+
+### F5 · 2026-10-11 · the owner's quality prompt (controls, display, accessibility)
+
+- **Builder:** none: the owner's "Universal Game Controls, Display, Accessibility, and Quality Upgrade" prompt (v2),
+  which they sent to builders after a game was done, because games came back without full screen, settings or
+  rebinding.
+- **Taken up in v0.23.0:** the standard features every game gets (D21); the requirement matrix, the action coverage and
+  the verification are in `docs/STANDARD-FEATURES.md`.
+- **Not acted on (yet):**
+  - **F5.1** · production hardening · a PWA manifest and offline play, wake lock, folds and hinges, verification on
+    physical phones, an iPhone and controllers, gamepads without the standard mapping, analog trigger values. **Deferred**
+    (principle 10: done when a game heads to production).
+  - **F5.2** · settings nothing honors yet · a frame-rate limit, brightness, text size and HUD scale: the prompt says not
+    to offer a setting with no effect. **Deferred** until the engine or a game has something they would change.
+  - **F5.3** · assists and gameplay accessibility · aim assist, auto-fire, hold or toggle for sustained actions,
+    subtitles and sound captions, target lock: only the game knows its mechanics; `menu.settings` gives them a place and
+    the manuals ask for them. **Watch.**

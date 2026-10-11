@@ -12,9 +12,10 @@
 //                  full one E.Mover climbs, vaults, leaps a gap, hops down, rolls, takes fall damage and jumps once a press,
 //                  E.ACTIONS and E.Action (your own, paired, invulnerable, cancellable), E.Suspicion, FlowField jump links
 //                  and next(), and in Chromium footprint sorting, the decorate hook and r.sightCone cut by a wall
-//   shell          E.Shell: its HUD shows the state it is given, its pause screen follows game.paused, the game's input
-//                  moves the focus and is held back while a screen is open, a button's act reaches the game, settings
-//                  apply, toasts time out, dispose() takes it away; headless it keeps its screens' names
+//   shell          E.Shell: its HUD shows the state it is given, its pause screen follows game.paused (with the standard
+//                  menu's Settings, Controls and Full screen), the game's input moves the focus and is held back while a
+//                  screen is open, a button's act reaches the game, settings apply, toasts time out, dispose() takes it
+//                  away; headless it keeps its screens' names (the standard features in depth: tools/standard-test.mjs)
 // Usage: node tools/contract-test.mjs [--node]   (exit code 1 on a failure; --node runs only the part without a browser). What runs without a screen runs in Node; the game loop
 // runs in headless Chromium on a virtual clock (CHROMIUM_PATH picks a browser).
 import { chromium } from 'playwright';
@@ -435,7 +436,7 @@ const SHELL = () => {
   I.tap('attack'); step(2); out.heldBack = out.attacked || 0;
   document.querySelectorAll('.esh-sh button')[1].click(); step(); out.actPassed = out.attacked || 0;
   out.results = q('.esh-stats').textContent + '|' + q('.esh-med').textContent;
-  ui.show('settings'); q('.esh-sh [role=switch]').click(); step(); out.motion = game.reduceMotion; out.still = ui.root.classList.contains('esh-still'); out.saved = ui.settings.motion;
+  ui.show('settings'); [...document.querySelectorAll('.esh-sh .esh-row')].find(r => /Reduce motion/.test(r.textContent)).querySelector('[role=switch]').click(); step(); out.motion = game.reduceMotion; out.still = ui.root.classList.contains('esh-still'); out.saved = ui.settings.motion;
   ui.hide(); ui.toast('Hi'); out.toastOn = q('.esh-toast').classList.contains('on'); step(600); out.toastOff = !q('.esh-toast').classList.contains('on');
   game.dispose(); out.gone = !q('.esh') && game.shell === null;
   return out;
@@ -477,8 +478,8 @@ for (const [ed, file] of EDITIONS) {
     const S = await run(SHELL);
     console.log('  shell:', JSON.stringify(S));
     check(`${ed}: E.Shell's HUD shows the state it is given (the objective's distance and height, the prompt, the pips)`, /Steal it/.test(S.obj) && /20 m/.test(S.obj) && /ABOVE/.test(S.obj) && /Take/.test(S.prompt) && S.pips.join() === '3,1', JSON.stringify([S.obj, S.prompt, S.pips]));
-    check(`${ed}: E.Shell's pause screen follows game.paused, with Resume, Settings and Help, the HUD hidden`, S.pause === 'pause' && S.paused && S.buttons.join() === 'Resume,Settings,Help' && S.focus === 'Resume' && S.hudHidden, JSON.stringify(S));
-    check(`${ed}: E.Shell: the game's input moves the focus, confirm opens, cancel goes back, then resumes`, S.f1 === 'Settings' && S.f2 === 'Help' && S.s1 === 'help' && S.s2 === 'pause' && S.s3 === null && S.resumed, JSON.stringify(S));
+    check(`${ed}: E.Shell's pause screen follows game.paused, with Resume, Settings, Controls, Full screen and Help, the HUD hidden`, S.pause === 'pause' && S.paused && S.buttons.join() === 'Resume,Settings,Controls,Full screen,Help' && S.focus === 'Resume' && S.hudHidden, JSON.stringify(S));
+    check(`${ed}: E.Shell: the game's input moves the focus, confirm opens, cancel goes back, then resumes`, S.f1 === 'Settings' && S.f2 === 'Controls' && S.s1 === 'controls' && S.s2 === 'pause' && S.s3 === null && S.resumed, JSON.stringify(S));
     check(`${ed}: E.Shell holds the game's input back while a screen is open; a button's act reaches it`, S.heldBack === 0 && S.actPassed === 1 && /A/.test(S.results), JSON.stringify(S));
     check(`${ed}: E.Shell settings apply (reduce motion) and tell the game`, S.motion === true && S.still && S.saved === true && S.changed === 'motion', JSON.stringify(S));
     check(`${ed}: E.Shell toasts time out; dispose() takes it away`, S.toastOn && S.toastOff && S.gone, JSON.stringify(S));

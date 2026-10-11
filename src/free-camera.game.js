@@ -66,7 +66,7 @@ function viewNow() {
   return w;
 }
 
-const game = new E.Game({ canvas: 'screen', view: viewNow(), minH: 200, maxW: 520, portrait: { maxH: 1000 }, bg: '#0d0b14' });
+const game = new E.Game({ canvas: 'screen', menu: false, corner: false, fullscreen: 'button', view: viewNow(), minH: 200, maxW: 520, portrait: { maxH: 1000 }, bg: '#0d0b14' });
 game.input.touchFilter = () => false;   // touches turn the camera here; no move stick
 const fly = window.FlyCam($('fly'), { cells, MW, MH, T, types: TYPES, floorTex, light: map.light });
 let shownView = null;

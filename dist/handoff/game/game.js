@@ -1,11 +1,14 @@
 // The handoff package's template game: a rooftop thief in the isometric view. Climb onto the roof, take the gem, and
 // don't let the guard in the street watch you for long. It shows what a game is made of (scenes, a TileMap with roofs, a
 // Body and a Humanoid, input, the camera, a HUD) and the height-aware API: map.ledge to climb, map.sight and E.inArc for
-// the guard's eyes (they see over the planter, not through the roof), and game.debug for tests and tools.
+// the guard's eyes (they see over the planter, not through the roof), and game.debug for tests and tools. The pause menu,
+// settings, rebinding and full screen come with every game: menu: { controls } names the actions on its Controls screen,
+// and input.label() puts the player's own key or button in a prompt.
 // Copy it and make it your game. Test it headless: node game/test.mjs. Check it in a browser: node tools/check.mjs game/index.html
 (() => {
 const E = My3D2dge;
-const game = new E.Game({ canvas: 'screen', res: 'snes', view: 'iso', views: ['iso', 'threequarter'] });
+const game = new E.Game({ canvas: 'screen', res: 'snes', view: 'iso', views: ['iso', 'threequarter'],
+  menu: { controls: { jump: 'Jump and climb', attack: false, dash: false, skill: false } } });   // (this game uses moves and jump only)
 const ROOF = 32;
 const map = new E.TileMap({
   rows: ['############',
@@ -40,8 +43,8 @@ const title = {
   draw(r) {
     r.sky(['#141030', '#3a2a60']);
     r.overlay(g => E.font.title(g, 'ROOFTOP', r.W / 2, 60, { scale: 3, align: 'center' }));
-    r.text('CLIMB WITH Z  TAKE THE GEM  STAY UNSEEN', r.W / 2, 120, '#e8e0ff', { align: 'center' });
-    r.text('PRESS ENTER', r.W / 2, 150, '#ffffff', { align: 'center', shadow: '#000' });
+    r.text(('CLIMB WITH ' + game.input.label('jump') + '  TAKE THE GEM  STAY UNSEEN').toUpperCase(), r.W / 2, 120, '#e8e0ff', { align: 'center' });
+    r.text(('PRESS ' + game.input.label('start')).toUpperCase(), r.W / 2, 150, '#ffffff', { align: 'center', shadow: '#000' });
   }
 };
 

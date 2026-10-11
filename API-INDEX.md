@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.22.4)
+# my-3D2dge API index (v0.23.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.22.4"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.23.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -177,6 +177,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.screen.present()`: copy the buffer to the canvas, scaled up with whole pixels and the camera's sub-pixel offset (the renderer calls it)
 - `game.screen.resize()`: fit the buffer to the canvas again (on window resize; after changing sizing options, setOptions does it)
 - `game.screen.setOptions(o)`: change sizing at runtime, e.g. { minH: 400, maxW: 1080, maxH: 660 } to pull the camera back
+- `game.screen.setScale(v)`: how a fixed resolution fills the screen: 'sharp' | 'fill' | 'auto' (see scale)
 - `game.screen.H = 200`: the buffer's size in game pixels
 - `game.screen.OX = 0`: the letterbox margins on the canvas, in canvas pixels
 - `game.screen.OY = 0`: the letterbox margins on the canvas, in canvas pixels
@@ -193,6 +194,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.screen.listeners = []` †: functions called after every resize
 - `game.screen.o`: the sizing options (the game's o)
 - `game.screen.portrait`: true while the screen is taller than wide (a phone held upright)
+- `game.screen.scale = 'auto'`: scale: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black bars), 'fill' (the largest fit, pixels a device pixel apart in size) or 'auto' (fill on high-density screens, phones and tablets, where that difference can't be seen; sharp elsewhere). game.settings.scale sets it
 
 ## 5. Input
 
@@ -203,41 +205,57 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.Input.THIRDPERSON` †: third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour, C crouch (a toggle), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map
 - `input.anyPressed()`: any action pressed this step (title screens: "press any button")
 - `input.bindButtons(root)` †: wire every element with data-act="<action>" inside root to the action
+- `input.bindings` †: the player's bindings over the preset: { action: { keys: [codes], pad: [codes] } } (game.settings.bindings keeps them)
 - `input.buffered(a, win = .15)`: was it pressed within the last `win` seconds and not yet consumed? (input buffering)
 - `input.clear()`: Release all devices and discard buffered input on focus loss or a modal transition.
+- `input.codeLabel(code)`: a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family)
 - `input.consume(a)`: mark a buffered press of action a as used, so buffered(a) is false until the next press
 - `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack)
 - `input.down(a)`: is the action held right now?
 - `input.hold(a, on = true)`: hold an action down (on) or let it go (false), as its key would
+- `input.label(a, device = this.lastDevice)`: the key or button to show in a prompt for action a, on the device the player used last (or the one named: 'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕'
 - `input.mouseScreen()`: mouse position in projected screen pixels, or null
 - `input.move()`: movement intent in screen directions: x right, y down, length <= 1
+- `input.padStyle()`: the controller family whose symbols label() shows: glyphs, or with glyphs 'auto' the one its name says
 - `input.press(code)`: press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input, tests, bots
 - `input.pressed(a)`: true only during the first update step after the press (menus, jumps, one-shot actions)
+- `input.rebind(a, device, code)` †: bind action a to one code for a device ('keys' = keyboard and mouse, 'pad' = gamepad), in place of that device's codes: input.rebind('attack', 'keys', 'KeyF'). Returns null when done, the action that already uses the code (nothing changes: free it first), or 'reserved' for the codes the menus keep (Escape, Enter, F keys, Start, the d-pad). The arrow keys and the d-pad always move as well
+- `input.rebindable(a, map = this.preset)` †: can the player rebind action a? Every action but the menu's (start, pause, confirm, cancel: they are how a player gets back to the menu), and those the game hides with new E.Game({ menu: { controls: { a: false } } })
 - `input.release(code)`: let go of a code pressed with press()
 - `input.released(a)`: true only during the first update step after the action was let go
 - `input.repeat(a, delay = .3, rate = .08)`: pressed, then repeats while held (after `delay` s, every `rate` s): menu cursors, puzzle pieces
+- `input.resetBindings()` †: forget the player's bindings: every action back to its preset's codes
+- `input.rumble(strength = .5, seconds = .15)` †: shake the gamepad: strength 0..1 for seconds (scaled by rumbleScale; nothing where the controller can't). Returns true when it rumbled
+- `input.stopRumble()` †: stop a rumble now (pause, focus lost, unplugged)
 - `input.suppress(a)` †: Suppress a held action until the next tick (a HUD widget owns the pointer this step).
 - `input.suppressCode(code)` †: A widget owns this button; other devices bound to the same action still work.
 - `input.tap(a)`: press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down() are true in the next step, released() in the one after
 - `input.tick(dt)`: advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and released() (the engine calls it every step)
-- `input.touchButtons(actions, o = {})` †: On-screen buttons for phones and tablets (only shown on touch screens unless force is true): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' } }). The left half of the screen is a move stick.
-- `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP')
+- `input.touchButtons(actions, o = {})` †: On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' }, force }). The other half of the screen is a move stick. START is the menu: it starts on a title and pauses a pausable scene, as a gamepad's Start does
+- `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
+- `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it
 - `input.aimSource = 'move'` †: what aims right now: 'move' | 'mouse' | 'pad'
 - `input.clock = 0`: seconds of input time (the steps' dt added up)
 - `input.deadzone = .18`: how far a gamepad stick moves before it counts (0..0.8)
+- `input.glyphs = 'auto'`: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' | 'nintendo' | 'generic' (positions)
 - `input.held`: the key and button codes down right now ('KeyD', 'Mouse0', 'Pad0', 'Act:jump')
-- `input.lastDevice = 'keyboard'` †: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the right button prompts)
+- `input.lastDevice = 'keyboard'`: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the right button prompts)
 - `input.map`: map: each action's codes ({ jump: ['Space', 'Pad0', 'Act:jump'] }); every action also answers to 'Act:<name>' (DOM buttons with data-act, tap, hold)
 - `input.mouse`: mouse: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last moved
+- `input.names = null` †: the actions' names on the Controls screen ({ attack: 'Sword' }; false hides one from rebinding: the game's menu.controls)
+- `input.onBindings = null` †: called with the player's new bindings (the game saves and applies them)
 - `input.padAim = null` †: its right stick, or null when centered
 - `input.padAxes = []` †: the gamepad's raw axes
-- `input.padId = ''` †: the gamepad in use (null and '' without one)
+- `input.padId = ''`: the gamepad in use (null and '' without one)
 - `input.padIndex = null`: the gamepad in use (null and '' without one)
+- `input.padLost = false`: true for the step after the gamepad in use was unplugged (a pausable scene pauses)
 - `input.padMove = [0, 0]`: the gamepad's left stick after the dead zone
 - `input.padPrev = []`: which gamepad buttons were down at the last step
 - `input.preset` †: preset: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own)
+- `input.rumbleScale = .6` †: vibration strength 0..1 (0 = off; game.settings.rumble sets it)
 - `input.screen`: screen: the game's screen (mouse positions are read through it
 - `input.stick = [0, 0]` †: the touch stick's direction [x, y], length <= 1
+- `input.stickDeadzone = .12` †: the part of that radius a thumb moves before the stick counts (0..0.5)
 - `input.stickId` †: the pointer (finger) holding the touch stick
 - `input.stickOn = false` †: a finger is on it
 - `input.stickRadius = 44` †: how far (CSS pixels) a finger drags for full tilt
@@ -343,7 +361,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 10. Game
 
-- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, input, bg, step: 1 / 120, loop: true, headless: false }). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance()
+- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, autoPause: true, id }). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap, until the player leaves it), 'button' (only when asked) or false; corner: the menu and full-screen buttons at the top right; autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path)
 - `game.H`: the screen's height in game pixels (W is its width)
 - `game.W`: internal buffer size in pixels (HUD layout)
 - `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
@@ -351,21 +369,24 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.dispose()`: end the game for good: stop the loop and remove everything the engine added to the page (its listeners on the window, the document, the canvas and the buttons, the touch controls, the GPU lighting's canvas) and close the sound. Tests and tools that make many games call it; the canvas stays
 - `game.enableGPU(o = {})` †: turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... }
 - `game.every(seconds, fn)`: run fn every `seconds` of game time. Cleared on scene change. Returns { cancel() }
-- `game.flash(color = '#ffffff', seconds = .12, strength = 1)`: flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning
+- `game.flash(color = '#ffffff', seconds = .12, strength = 1)`: flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning. Shorter when reduceMotion, dimmer by the player's settings.flashes
 - `game.focus(x, y, z = 0)`: camera follows this world point. Side-scrollers: game.focus(x, 0, z)
 - `game.follow(target, o = {})`: keep the camera on an object automatically (instead of calling focus every update). opts: { z: extra height to look at (default 16), lead: look ahead in the facing / moving direction }. follow(null) stops.
 - `game.freeze(s)`: hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks
 - `game.go(name, data, o = {})`: switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0
-- `game.hitFx(x, y, z, o = {})`: everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound, and a damage number. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit' })
+- `game.hitFx(x, y, z, o = {})`: everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound, a damage number and a rumble on a gamepad. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit', rumble: true })
+- `game.menu(name)`: open the menu (the corner's menu button and the touch START do it): a pausable scene (or a game started without scenes) pauses on its pause screen; any other scene, a title, waits under the settings. menu('settings') or menu('controls') opens that screen. Without a menu (menu: false, or the agent edition) it pauses a scene in play. Returns true when a menu opened
 - `game.mouseGround()`: mouse position on the ground (world units), or null
 - `game.nextView(dir = 1)`: cycle through game.views (or every view): bind it to a key for players who like to switch
 - `game.note(text, seconds = 1.2)`: a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1)
 - `game.onView(f)` †: call f(view) whenever the view changes (re-bake caches, move HUD)
+- `game.pause(reason = 'player')`: pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused. The player resumes (Escape, Start, Resume); resume() does it from code
 - `game.resetCamera()` †: undo setZoom and rotateView
+- `game.resume()`: take the game out of pause (and close the pause screen)
 - `game.rotateView(deg)` †: turn the camera around the vertical axis in ground views: game.rotateView(45) (degrees). Side views never turn
 - `game.setView(v)`: switch the view: an id from E.VIEWS ('iso', 'side', ...) or a View; keeps zoom and turn
 - `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
-- `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); softened when reduceMotion
+- `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
 - `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, touch } (all optional); view / views / input ('PLATFORMER') / res ('snes') / touch (['jump', 'attack']) are applied when it starts. start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance()
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
 - `game.alpha = .5`: the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count
@@ -390,6 +411,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.errors = []`: the errors caught in update and draw, each { where, scene, message, stack }, once per kind
 - `game.fadeTime = .22`: seconds for the dithered fade between scenes (0 = instant cuts)
 - `game.fps = 60`: frames per second over the last half second of real time
+- `game.fullscreen`: full screen: game.fullscreen.toggle(), .on, .supported
 - `game.gpu = null` †: the WebGPU lighting after enableGPU(), or null
 - `game.headless`: true for a game with no display (o.headless, or no DOM: Node)
 - `game.hitstop = 0`: seconds of hit-stop left (freeze)
@@ -398,6 +420,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.o`: o: the options the game was made with, the defaults filled in (view, res, minW, minH, maxW, maxH, bg, step, input, loop, headless)
 - `game.particles`: dust, sparks, debris and text in the world
 - `game.pauseOverlay = true`: false hides the engine's PAUSED overlay (a game drawing its own pause screen)
+- `game.pauseReason = null`: why the game paused: 'player' | 'focus' (the page was hidden) | 'controller' (unplugged) | 'menu', or null
 - `game.paused = false`: true while paused (a pausable scene toggles it on 'pause'; steps still run, scenes don't update)
 - `game.r`: the renderer handed to draw(r) (null when headless)
 - `game.real = 0`: seconds the game has stepped through, pauses and hit-stop included (blinking HUD, notes)
@@ -406,6 +429,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.sceneName = null`: its name ('main' for a game started with one scene)
 - `game.scenes = null`: the scenes given to start(), by name
 - `game.screen`: screen: the low-resolution screen (its W, H, scale and buffer)
+- `game.settings`: the player's choices (game.settings.volume, game.settings.set('volume', .5), your own from menu.settings), saved and applied (section 10b)
 - `game.shell = null` †: the E.Shell over this game (an HTML interface: screens and HUD), or null
 - `game.stats`: per-frame timings (ms) and counts, for profiling overlays. frameMs: the real time since the last frame; updateMs, renderMs: milliseconds the last frame spent updating and drawing; steps: the updates it ran; items: what it queued for drawing; actors: actors drawn; culled: actors skipped off screen
 - `game.stats.updateMs`: milliseconds the last frame spent updating and drawing
@@ -422,6 +446,26 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.yaw = 0` †: its turn in degrees on top of the view (rotateView)
 - `game.zoom = 1` †: the camera's zoom (1 = as the view is; setZoom)
 - `E.showError(title, e)`: show an error in the red box at the top of the page (the engine does it for errors in update and draw); a click hides it
+
+## 10b. Standard features
+
+- `new E.FullScreen(game)`: game.fullscreen: the whole page full screen (the game, its menus and buttons), where the browser can
+- `fullscreen.enter()`: go full screen. Browsers allow it only from a tap, click or key press: call it from one (a button, the menu, a key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen)
+- `fullscreen.exit()`: leave full screen (Escape and the phone's back gesture do it too)
+- `fullscreen.on`: true while the page is full screen
+- `fullscreen.standalone`: true when the page was opened from a home screen as an app (no browser bars: nothing to go full screen from)
+- `fullscreen.supported`: true where this page can go full screen (not an iPhone, which has Add to Home Screen instead; not a frame without permission; not headless)
+- `fullscreen.toggle()`: full screen on or off
+- `fullscreen.failed = null`: why the last request was refused (a message), or null
+- `fullscreen.game`: the game it serves
+- `new E.Settings(game, own = [])`: game.settings: the player's choices, one property each (game.settings.volume), with the game's own (o.menu.settings) beside the standard ones (STANDARD_SETTINGS). Saved with E.store under 'settings:' + the game's id, with a version; on load every value is checked and a bad one falls back to its default. Where storage is blocked the game plays on with the defaults (saved: false)
+- `settings.default(key)`: a setting's default value
+- `settings.define(sp)`: add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value, label]] or [value], help, group: 'Game', apply(game, value) }. Its saved value is loaded (when it is a valid one) and applied; it shows on the settings screen. Returns its value
+- `settings.keys(group)`: the keys of a group's settings, in order ('Display', 'Sound', 'Comfort', 'Controller', 'Touch', 'Game'), or every key
+- `settings.reset(group)`: put a group's settings (or all of them) back to their defaults; a game's saves are not touched
+- `settings.set(key, v)`: change a setting: checked (a slider kept in range, a choice among its options), saved, applied, onChange told. Returns the value kept (the old one when v is not a valid value)
+- `settings.spec(key)`: the spec a setting was defined with (its label, type, range, options), or undefined
+- `settings.saved`: false when the last save failed (storage blocked or full: the choices last for this visit
 
 ## 11. Humanoid rig
 
@@ -884,12 +928,13 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `menu.title = null`: a heading, or null
 - `menu.x = 'center'`: where it sits, 'center' or pixels
 - `menu.y = 'center'`: where it sits, 'center' or pixels
-- `new E.Shell(game, o = {})`: new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings', meters: .125 }): an HTML interface over the game (see the section's header). theme: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont); screens: specs ui.show(name) starts from (a pause spec makes it follow game.paused); settings.items: 'sound', 'volume', 'motion' or { key, label, type: 'toggle' | 'slider', min, max, step, value }; store: the E.store key the settings are saved under; meters: meters per world unit for distances
+- `new E.Shell(game, o = {})`: new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings', meters: .125, standard: true }): an HTML interface over the game (see the section's header). theme: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont); screens: specs ui.show(name) starts from (the pause screen follows game.paused; screens: { pause: false } leaves it out); settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max, step, options, value } (kept in game.settings, beside the standard ones); store: where an older version saved them; meters: meters per world unit for distances; standard: false leaves out the standard menu (the pause screen's Settings, Controls, Full screen and Quit, and the settings' groups)
 - `shell.back()` †: what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes)
 - `shell.dispose()` †: take its elements away and let go of the game (game.dispose() does it)
-- `shell.hide()` †: close every screen
-- `shell.hud(st = {})` †: the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn): { objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below), status: 'UNSEEN' or { text, color }, bars: [{ label, value, max, kind: 'bar' | 'pips', color }], counts: [[label, value]], prompt: { key: 'E', label, hint, progress: 0..1 }, tip: 'text' or { title, text }, place: 'The Old Harbour', keys: [['WASD', 'Move'], ...] (hidden on touch screens), buttons: [[label, fn or action]] (top right: pause and map where there is no Escape key), minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick } }
-- `shell.screen` †: the name of the open screen ('pause', 'settings', ...), or null while the game plays
+- `shell.hide()` †: close every screen (and resume, when the menu paused the game)
+- `shell.hud(st = {})` †: the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn): { objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below), status: 'UNSEEN' or { text, color }, bars: [{ label, value, max, kind: 'bar' | 'pips', color }], counts: [[label, value]], prompt: { key: 'E' (or act: 'interact': its key on the player's device), label, hint, progress: 0..1 }, tip: 'text' or { title, text }, place: 'The Old Harbour', keys: [['WASD', 'Move'], ...] (hidden on touch screens), buttons: [[label, fn or action]] (top right: pause and map where there is no Escape key), minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick } }
+- `shell.screen` †: the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays
+- `shell.settings` †: the player's settings: game.settings (the standard ones and the game's own, by key)
 - `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel) }; title: { name, subtitle, meta: [...], footer }; settings: its items; help: { keys: [[key, what]], sections: [[heading, text]] }; results: { emblem, stats: [[value, label]], medals: [[label, earned]] }; map: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old)
 - `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds
 - `shell.tutorial(title, text = '', seconds = 15)` †: a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away
@@ -897,7 +942,6 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `shell.game` †: the game it is over
 - `shell.o` †: its options
 - `shell.root = null` †: its DOM element (null in a headless game)
-- `shell.settings` †: the saved settings by key (read them, change them on the settings screen)
 - `E.ui`: pixel-drawn interface pieces for r.overlay: box (a window), bar (a meter), hearts (life); E.ui.heartSprites
 - `E.ui.bar(g, x, y, w, h, frac, color = '#e0463c', o = {})`: health / magic / boss bar: ui.bar(g, x, y, w, h, 0..1, '#e0463c')
 - `E.ui.box(g, x, y, w, h, o = {})`: window frame: ui.box(g, x, y, w, h, { bg, border, shadow, gradient }) bg: one color (drawn as a soft top-to-bottom gradient, like Final Fantasy windows) or [top, bottom] colors. gradient: false for a flat fill.
