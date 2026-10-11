@@ -19,7 +19,7 @@ const dry = process.argv.includes('--dry');
 
 // the deployable files: the built pages and the engine files (not the sources, not the CMU library's data)
 const files = [];
-for (const dir of ['examples', 'dist', 'dist/kits']) {
+for (const dir of ['examples', 'dist', 'dist/kits', 'dist/handoff']) {
   if (!existsSync(join(root, dir))) continue;
   for (const f of readdirSync(join(root, dir))) if (/\.(html|js)$/.test(f)) files.push(join(dir, f));
 }

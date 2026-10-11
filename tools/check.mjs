@@ -6,6 +6,8 @@
 //                 npx playwright install chromium
 // Usage:          node tools/check.mjs path/to/game.html[#scene] [--seconds 4] [--out check-output]
 // Exit code is 1 if the page threw any error or never drew anything, so agents and CI can rely on it.
+// A game that sets game.debug = { snapshot() { return {...} } } gets its snapshot printed after play (its own state:
+// the hero, the objective, what an agent needs to see the game is where it should be).
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
@@ -75,6 +77,7 @@ if (hasEngine) {
     await page.waitForTimeout(seconds * 1000 / views.length);
     report.views.push({ view: id, ...(await snap('view-' + id)) });
   }
+  report.snapshot = await page.evaluate(() => { const d = My3D2dge.current && My3D2dge.current.debug; if (!d || typeof d.snapshot !== 'function') return null; try { return d.snapshot(); } catch (e) { return { threw: e.message }; } });
 } else errors.push('No my-3D2dge game found: My3D2dge.current is empty after loading. Did the game script throw before new E.Game(...)?');
 
 await browser.close();
@@ -101,6 +104,7 @@ for (const v of played) {
   if (v.checker > .06) lookNotes.add(`${Math.round(v.checker * 100)}% of the screen is 1-pixel checkerboard dithering in "${v.at || 'view ' + v.view}": use the stepped-alpha helpers (E.style.trans = 'alpha')`);
   if (v.spread < 70) lookNotes.add(`low contrast in "${v.at || 'view ' + v.view}" (luma spread ${v.spread}): darker shadows, brighter highlights`);
 }
+if (report.snapshot) console.log('  game.debug.snapshot(): ' + JSON.stringify(report.snapshot).slice(0, 600));
 if (lookNotes.size) console.log('  look notes (aim for PS1 / N64 era 2D):\n    ' + [...lookNotes].slice(0, 6).join('\n    '));
 if (engineWarnings.length) console.log(`  ${engineWarnings.length} engine warning(s):\n    ` + engineWarnings.join('\n    '));
 if (report.external.length) console.log(`  not self-contained: the page loaded ${report.external.length} file(s) from the internet:\n    ` + report.external.join('\n    '));

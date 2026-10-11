@@ -8,19 +8,22 @@
 // 1. assets (principle 4): no binary file in the repository outside the approved list: fonts anywhere, and the pictures
 //    our own tools draw for the docs (docs/assets/, written by tools/ed-codex-showcase.mjs). A binary is a file with a zero
 //    byte in its first 8 KB, or a picture, sound, model or archive by its extension.
-// 2. the manuals' budgets (principle 1): the agent edition's header and the API card, in cl100k tokens (exact when the
-//    optional gpt-tokenizer package is installed, otherwise estimated from each manual's own characters a token, measured
-//    on 2026-10-09 and rounded down so the estimate errs high: the header 2.97, the API card 3.15).
+// 2. the manuals' budgets (principle 1): the agent edition's header, the API card and the API index, in cl100k tokens
+//    (exact when the optional gpt-tokenizer package is installed, otherwise estimated from each manual's own characters a
+//    token, measured and rounded down so the estimate errs high: the header 2.97, the API card 3.15, the index 3.29).
 // 3. the API boundary (principle 8): engine-private members (names starting with _ that engine/my-3d2dge.js defines) used
 //    outside engine/. The uses that were there when the doctrine was adopted are grandfathered by area (GRANDFATHERED);
 //    a new one in the engine tier fails. A prototype (a Temporary lab in src/labs.json) may reach past the API: its uses
 //    are listed, as the engine's to-do list, and never fail.
-// 4. the decisions log (DOCTRINE.md, "Deviations and escalation"): docs/DECISIONS.md only grows. Every entry (## D<n>)
-//    on main is still there.
+// 4. the logs that are never cleaned up: docs/DECISIONS.md (DOCTRINE.md, "Deviations and escalation": every entry,
+//    ## D<n>, on main is still there) and docs/FEEDBACK-LOG.md (CLAUDE.md, "Feedback from a builder": every source, ### F<n>,
+//    and every point, F<n>.<m>).
+// 5. the API index (principle 1): API-INDEX.md is what tools/api-index.mjs makes of the engine today (node tools/build.mjs
+//    writes it), and every public name in it has a description.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2), opt = k => args.includes('--' + k);
@@ -55,7 +58,8 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   const agent = read('engine/my-3d2dge-agent.js');
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
-    ['the API card (API.md)', read('API.md'), 13500, 3.1]
+    ['the API card (API.md)', read('API.md'), 13500, 3.1],
+    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 30000, 3.25]   // (D17)
   ];
   const line = [];
   for (const [name, text, budget, ratio] of MANUALS) {
@@ -125,22 +129,34 @@ if (opt('baseline')) {
   if (opt('todo')) for (const [n, as] of ranked) console.log(`     ${n.padEnd(14)} ${as.map(a => a + (PROTOTYPES.has(a) ? ' (prototype)' : '')).join(', ')}`);
 }
 
-/* 4. the decisions log */
+/* 4. the logs that are never cleaned up */
 {
-  const LOG = 'docs/DECISIONS.md', ids = s => [...s.matchAll(/^## (D\d+)\b/gm)].map(m => m[1]);
-  if (!existsSync(join(root, LOG))) fail('decisions', `${LOG} is missing`);
-  else {
+  const LOGS = [   // [file, what an entry is, its ids, what to do instead of removing one]
+    ['docs/DECISIONS.md', 'entries', s => [...s.matchAll(/^## (D\d+)\b/gm)].map(m => m[1]), 'mark an entry superseded instead'],
+    ['docs/FEEDBACK-LOG.md', 'sources and points', s => [...s.matchAll(/^### (F\d+)\b|\*\*(F\d+\.\d+)\*\*/gm)].map(m => m[1] || m[2]), 'mark a point taken up instead']
+  ];
+  const ref = args.includes('--base') ? args[args.indexOf('--base') + 1] : null;
+  let base = null; try { base = ref || git('merge-base', 'HEAD', 'origin/main'); } catch (e) { /* no main */ }
+  const out = [];
+  for (const [LOG, what, ids, instead] of LOGS) {
+    if (!existsSync(join(root, LOG))) { fail('logs', `${LOG} is missing`); continue; }
     const now = new Set(ids(read(LOG)));
-    let base = null, before = null;
-    const ref = args.includes('--base') ? args[args.indexOf('--base') + 1] : null;
-    try { base = ref || git('merge-base', 'HEAD', 'origin/main'); before = git('show', `${base}:${LOG}`); } catch (e) { /* no main, or the log is new */ }
-    if (before === null) console.log(`4. decisions: ${now.size} entries (${base ? 'new on this branch' : 'no main to compare with'})`);
-    else {
-      const gone = ids(before).filter(id => !now.has(id));
-      for (const id of gone) fail('decisions', `${LOG} lost ${id}: the log is never cleaned up (mark an entry superseded instead)`);
-      console.log(`4. decisions: ${now.size} entries, ${gone.length ? gone.length + ' removed' : 'none removed since main'}`);
-    }
+    let before = null; try { if (base) before = git('show', `${base}:${LOG}`); } catch (e) { /* the log is new */ }
+    if (before === null) { out.push(`${LOG.slice(5)} ${now.size} ${what} (${base ? 'new on this branch' : 'no main to compare with'})`); continue; }
+    const gone = ids(before).filter(id => !now.has(id));
+    for (const id of gone) fail('logs', `${LOG} lost ${id}: the log is never cleaned up (${instead})`);
+    out.push(`${LOG.slice(5)} ${now.size} ${what}, ${gone.length ? gone.length + ' removed' : 'none removed since main'}`);
   }
+  console.log(`4. logs: ${out.join('; ')}`);
+}
+
+/* 5. the API index */
+{
+  const { build, render } = await import(pathToFileURL(join(root, 'tools/api-index.mjs')).href), r = build(), want = render(r);
+  const have = existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '';
+  if (r.missing.length) fail('index', `${r.missing.length} public name(s) have no description (a doc comment above, or a // comment at the end of its line): ${r.missing.slice(0, 10).map(m => m.key).join(', ')}${r.missing.length > 10 ? ', ...' : ''}. node tools/api-index.mjs --missing lists them: document each, or make it private (_)`);
+  if (have !== want) fail('index', 'API-INDEX.md is not what the engine gives today: run node tools/build.mjs (it writes the index)');
+  console.log(`5. the API index: ${r.entries.length} public names, ${r.missing.length ? r.missing.length + ' without a description' : 'every one described'}${have === want ? '' : ', out of date'}`);
 }
 
 for (const n of notes) console.log('   note: ' + n);

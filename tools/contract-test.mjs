@@ -11,7 +11,9 @@
 // Usage: node tools/contract-test.mjs [--node]   (exit code 1 on a failure; --node runs only the part without a browser). What runs without a screen runs in Node; the game loop
 // runs in headless Chromium on a virtual clock (CHROMIUM_PATH picks a browser).
 import { chromium } from 'playwright';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -23,6 +25,10 @@ let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; else { failures.push(name + (detail ? ': ' + detail : '')); console.log('  FAIL ' + name + (detail ? ': ' + detail : '')); } };
 /** the engine loaded in Node, as a game's script would load it (a context of its own per call) */
 const load = file => { const ctx = { console }; vm.createContext(ctx); vm.runInContext(readFileSync(join(root, file), 'utf8'), ctx, { filename: file }); return ctx.My3D2dge; };
+
+// the fenced examples of the cards and the index (```js name ... ```)
+const FENCED = file => [...readFileSync(join(root, file), 'utf8').matchAll(/```js( \w+)?\n([\s\S]*?)\n```/g)].map((m, i) => ({ file, name: (m[1] || '').trim() || '#' + (i + 1), code: m[2] }));
+const EXAMPLES = [...FENCED('API.md'), ...FENCED('API-INDEX.md')];
 
 // ---- in Node: what needs no screen
 for (const [ed, file] of EDITIONS) {
@@ -41,6 +47,39 @@ for (const [ed, file] of EDITIONS) {
   map.set(4, 1, 1); check(`${ed}: flow field follows set() closing a door`, at() === 10, 'distance ' + d(7, 1));
   map.set(4, 1, 0); check(`${ed}: flow field follows set() opening a door`, at() === 6, 'distance ' + d(7, 1));
   heights(E, ed);
+  examples(E, ed);
+  lifecycle(E, ed);
+}
+
+// every fenced example in API.md and API-INDEX.md runs: a snippet in Node, in a headless game when it uses one it
+// doesn't make; a complete game ((() => { ... })()) in Chromium, below
+function examples(E, ed) {
+  for (const x of EXAMPLES.filter(x => !/^\(\(\) => \{/.test(x.code.trim()))) {
+    const own = /\b(?:const|let|var)\s[^;]*\bgame\s*=/.test(x.code), game = own ? null : new E.Game({ headless: true });
+    try {
+      new Function('My3D2dge', ...(own ? [] : ['game']), x.code)(E, ...(own ? [] : [game]));
+      if (game && game.scene) { game.input.tap('start'); game.advance(.5); }
+      check(`${ed}: ${x.file} example ${x.name} runs`, true);
+    } catch (e) { check(`${ed}: ${x.file} example ${x.name} runs`, false, e.message); }
+  }
+}
+
+// the lifecycle and headless runs: advance, stop, start, dispose, tap and hold
+function lifecycle(E, ed) {
+  const game = new E.Game({ headless: true, res: 'snes' }), I = game.input;
+  check(`${ed}: a game in Node is headless, sized like a 1280 x 720 window`, game.headless && game.screen.W === 256 && game.screen.H === 224 && game.r === null && new E.Game().screen.W === 427);
+  let ups = 0, draws = 0, taps = 0, downs = 0, ups2 = 0;
+  game.start({ update() { ups++; if (I.pressed('jump')) taps++; if (I.down('jump')) downs++; if (I.released('jump')) ups2++; }, draw() { draws++; } });
+  check(`${ed}: advance(1) runs 120 fixed steps at once`, game.advance(1) === 120 && ups === 120 && Math.abs(game.time - 1) < 1e-9, ups + ' ' + game.time);
+  check(`${ed}: a headless game never draws`, game.advance(.1, { draw: true }) === 12 && draws === 0);
+  I.tap('jump'); game.advance(1 / 120); game.advance(1 / 120); game.advance(1 / 120);
+  check(`${ed}: tap() is pressed and down for one step, released the next`, taps === 1 && downs === 1 && ups2 === 1, [taps, downs, ups2].join(','));
+  I.hold('jump'); game.advance(.05); const held = I.down('jump'); I.hold('jump', false); game.advance(1 / 120);
+  check(`${ed}: hold(a) holds an action until hold(a, false)`, held && !I.down('jump') && taps === 2);
+  game.dispose();
+  check(`${ed}: dispose() ends it`, game.disposed && E.current !== game);
+  let threw = ''; try { new E.Game({ headless: true }).advance(1); } catch (e) { threw = e.message; }
+  check(`${ed}: advance() before start() says what to do`, /start/.test(threw), threw);
 }
 
 // the height rules (E.HEIGHTS): collision, standing, sight, reach and navigation read heights the same way
@@ -117,6 +156,13 @@ function heights(E, ed) {
   check(`${ed}: targets with dz reaches down, nearest first`, tg2.length === 2 && tg2[0].target === near && tg2[1].target === low);
   check(`${ed}: targets with an arc leaves out what's behind`, E.targets(hero, [near], { range: 30, arc: .5, facing: 0 }).length === 0);
   check(`${ed}: targets with sight leaves out what a roof hides`, E.targets({ x: 72, y: 40, z: 0 }, [{ x: 40, y: 88, z: 0 }], { range: 100, sight: city }).length === 0 && E.targets({ x: 4.5 * T, y: 5.5 * T, z: 0 }, [{ x: 4.5 * T, y: 1.5 * T, z: 0 }], { range: 100, sight: city }).length === 1);
+  // Body.step: a body walks onto a kerb of 2 (E.HEIGHTS.step) and is stopped by a planter of 12
+  const walker = new E.Body({ x: 8.5 * T, y: 1.5 * T, r: 5, vy: 60 });
+  for (let i = 0; i < 30; i++) walker.update(1 / 120, city);   // a quarter second: onto the kerb (row 2)
+  check(`${ed}: Body.step: a body walks onto a top within step`, walker.z === 2 && walker.onGround && Math.abs(walker.y - 39) < 1e-9, walker.y + ' ' + walker.z);
+  const blocked = new E.Body({ x: 3.5 * T, y: 1.5 * T, r: 5, vy: 60 });
+  for (let i = 0; i < 60; i++) blocked.update(1 / 120, city);
+  check(`${ed}: Body.step: a top higher than step stops it`, Math.abs(blocked.y - (2 * T - 5)) < 1e-6 && blocked.z === 0, blocked.y + ' ' + blocked.z);
   // navigation over heights
   const f0 = new E.FlowField(city), fd = (f, cx, cy) => f.d[cy * city.w + cx];
   f0.update(4.5 * T, 5.5 * T);
@@ -191,6 +237,22 @@ const RULES = () => {
 };
 
 if (process.argv.includes('--node')) { console.log(failures.length ? `\nFAILED ${failures.length} of ${passed + failures.length}:\n  ${failures.join('\n  ')}` : `\nall ${passed} checks without a browser passed`); process.exit(failures.length ? 1 : 0); }
+// the lifecycle in a page: dispose() takes the engine's listeners away; loop: false runs only by advance()
+const LIFE = () => {
+  const E = My3D2dge, out = {};
+  const g = new E.Game({ canvas: 'screen', res: 'snes' }); g.start({ update() {}, draw(r) { r.sky(['#000', '#000']); } });
+  window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD' })); out.before = g.input.held.has('KeyD');
+  window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD' }));
+  g.dispose(); window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD' })); out.after = g.input.held.has('KeyD');
+  out.current = E.current === null;
+  const h = new E.Game({ canvas: 'screen', res: 'snes', loop: false }); let ups = 0, draws = 0;
+  h.start({ update() { ups++; }, draw(r) { draws++; r.sky(['#000', '#000']); } });
+  for (let i = 1; i <= 30; i++) window.__frame(i * 1000 / 60);
+  out.idle = ups === 0 && draws === 0;
+  out.steps = h.advance(1, { draw: true }); out.ups = ups; out.draws = draws;
+  h.stop(); h.dispose();
+  return out;
+};
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [ed, file] of EDITIONS) {
   console.log(`\n${ed} edition (Chromium, virtual clock)`);
@@ -199,7 +261,8 @@ for (const [ed, file] of EDITIONS) {
     const page = await browser.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await page.setContent(html);
-    const r = await page.evaluate(fn, arg); await page.close();
+    let r; try { r = await page.evaluate(fn, arg); } catch (e) { await page.close(); throw new Error(e.message + (errors.length ? '\n  page errors: ' + errors.join(' | ') : '')); }
+    await page.close();
     if (errors.length) check(`${ed}: no errors`, false, errors.join(' | '));
     return r;
   };
@@ -220,6 +283,32 @@ for (const [ed, file] of EDITIONS) {
   check(`${ed}: fps reads real time (10 frames a second reads 10)`, R.fps === 10 && Math.round(R.frameMs) === 100, 'fps ' + R.fps + ', frameMs ' + R.frameMs);
   check(`${ed}: audio.duck(on) is public`, R.duck);
   check(`${ed}: the first frame updates before it draws, even when it comes at once`, R.firstUpdates);
+  const LF = await run(LIFE);
+  check(`${ed}: dispose() removes the engine's listeners`, LF.before && !LF.after && LF.current, JSON.stringify(LF));
+  check(`${ed}: loop: false waits for advance(), which runs fixed steps and draws when asked`, LF.idle && LF.steps === 120 && LF.ups === 120 && LF.draws === 1, JSON.stringify(LF));
+  // the complete games among the examples (API.md's quick start): they start, take a start press and play, without errors
+  for (const x of EXAMPLES.filter(x => /^\(\(\) => \{/.test(x.code.trim()))) {
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+    const at = html.lastIndexOf('</body>');   // (the agent edition's header has a </body> of its own)
+    await page.setContent(html.slice(0, at) + '<script>' + x.code.replace(/<\/script/gi, '<\\/script') + '</script>' + html.slice(at));
+    const r = await page.evaluate(() => { let f = 0; const run = n => { for (let i = 0; i < n; i++) window.__frame(++f * 1000 / 60); };
+      run(60); const g = My3D2dge.current; g.input.tap('start'); g.input.tap('confirm'); run(60); g.input.hold('right'); run(120); return { scene: g.sceneName, errors: g.errors.length }; });
+    await page.close();
+    check(`${ed}: ${x.file} example ${x.name} plays`, !errors.length && !r.errors, errors.join(' | ') + JSON.stringify(r));
+  }
+}
+// the handoff package's template game: its headless test passes, and it plays in a browser without errors
+if (existsSync(join(root, 'dist/handoff/game/test.mjs'))) {
+  const t = spawnSync(process.execPath, [join(root, 'dist/handoff/game/test.mjs')], { encoding: 'utf8' });
+  check('handoff: game/test.mjs passes', t.status === 0, (t.stdout + t.stderr).split('\n').filter(l => /FAIL|Error/.test(l)).join(' | '));
+  const page = await browser.newPage(), errors = [];
+  page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  await page.addInitScript(CLOCK); await page.goto(pathToFileURL(join(root, 'dist/handoff/game/index.html')).href);
+  const snap = await page.evaluate(() => { let f = 0; const run = n => { for (let i = 0; i < n; i++) window.__frame(++f * 1000 / 60); };
+    run(30); const g = My3D2dge.current; g.input.tap('start'); run(40); g.input.hold('right'); run(90); return g.debug.snapshot(); });
+  await page.close();
+  check('handoff: game/index.html plays in a browser', !errors.length && snap.scene === 'play', errors.join(' | ') + JSON.stringify(snap));
 }
 await browser.close();
 

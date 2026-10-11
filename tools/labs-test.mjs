@@ -68,6 +68,11 @@ for (const href of fileLinks) {
   if (!existsSync(f)) fail('file link to a missing file: ' + f.replace(root, '.'));
 }
 
+/* the handoff package for coding agents (dist/handoff/) is served at /handoff/ */
+for (const path of ['/handoff/', '/handoff/README.md', '/handoff/game/index.html', '/handoff/tools/check.mjs']) {
+  const r = await fetch(SITE + path); if (r.status !== 200) fail(`${path} gave ${r.status}, not the handoff package's file`);
+}
+
 /* the way back: each lab's "All labs" link, and the game's Developer panel */
 for (const lab of ['mocap-lab', 'perspective-lab', 'stress-test', 'arena']) {
   await page.goto(SITE + '/' + lab);

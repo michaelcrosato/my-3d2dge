@@ -269,3 +269,20 @@ An entry:
   on both editions. `test:determinism` and `test:replay` stay green.
 - **Answered:** yes: the owner's plan (`docs/HANDOFF-VESPER-FEEDBACK.md`, Phase 0) asked for it.
 - **Landed in:** v0.17.5
+
+## D17 · 2026-10-11 · The API index and its budget
+
+- **Principle:** 1 (agent-readable)
+- **Call:** `API-INDEX.md` lists every public name in the engine, one line each, written from the engine by
+  `tools/api-index.mjs` (`tools/build.mjs` runs it): its signature, its default for a field, and the doc comment above
+  it. `doctrine-check` fails when the index is stale or a public name has no description, so a name is documented or
+  made private (`_`) when it's added. Its budget is 30,000 cl100k tokens; 27,270 at the start. The cards keep theirs
+  (D8) and point to it.
+- **Why:** a builder (Vesper, `docs/FEEDBACK-LOG.md` F1) used 28 public members the cards never mention, found by
+  reading the 150k-token source. The cards are overviews and have under a thousand tokens of room each; the index holds
+  the detail, and agents search it rather than read it, so its budget is a ceiling on growth, not a reading cost. About
+  10% headroom, as D8 gave the cards. Writing it left 568 of 807 public names without a description: about 110 that
+  were internal machinery became private, and the other 460 got doc comments.
+- **Answered:** yes: the owner's plan (`docs/HANDOFF-VESPER-FEEDBACK.md`, Phase 2) asked for it.
+- **Landed in:** v0.19.0
+

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my-3D2dge handoff package</title>
+<style>
+  :root { color-scheme: light dark; --ink: #1b1726; --paper: #f6f3ee; --line: #d8d2c8; --accent: #6a4ad0 }
+  @media (prefers-color-scheme: dark) { :root { --ink: #ece8f6; --paper: #15121c; --line: #3a3348; --accent: #a68cff } }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 system-ui, sans-serif }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem } p { margin: .5rem 0 1rem }
+  ul { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line) }
+  li { padding: .6rem 0; border-bottom: 1px solid var(--line) } a { color: var(--accent); font-family: ui-monospace, Menlo, monospace }
+  li span { display: block; font-size: .9rem; opacity: .8 }
+</style>
+</head>
+<body>
+<main>
+<h1>my-3D2dge handoff package</h1>
+<p>v0.19.0 · dev-build. Everything a coding agent needs to build, run, test and check a game on the full engine, as text files. Start with <a href="README.md">README.md</a>, then read <a href="API.md">API.md</a>. <a href="game/index.html">Play the template game</a>.</p>
+<ul>
+<li><a href="README.md">README.md</a><span>start here: what the package holds, which page to read, how to run and test a game</span></li>
+<li><a href="package.json">package.json</a><span>pins Playwright for the tools</span></li>
+<li><a href="my-3d2dge.js">my-3d2dge.js</a><span>the full engine, readable</span></li>
+<li><a href="my-3d2dge-agent.js">my-3d2dge-agent.js</a><span>the agent edition: the essential engine, its header a short manual</span></li>
+<li><a href="API.md">API.md</a><span>the API card: read it whole</span></li>
+<li><a href="API-INDEX.md">API-INDEX.md</a><span>every public name, one line each: search it</span></li>
+<li><a href="AI_GUIDE.md">AI_GUIDE.md</a><span>the guide: recipes, the look, heights, sessions</span></li>
+<li><a href="tools/check.mjs">tools/check.mjs</a><span>plays a game headless and reports errors, screenshots and its snapshot</span></li>
+<li><a href="tools/filmstrip.mjs">tools/filmstrip.mjs</a><span>records frames into one picture</span></li>
+<li><a href="tools/replay.mjs">tools/replay.mjs</a><span>replays a recorded play session exactly</span></li>
+<li><a href="game/game.js">game/game.js</a><span>the template game: copy it</span></li>
+<li><a href="game/index.html">game/index.html</a><span>the template game: play it</span></li>
+<li><a href="game/test.mjs">game/test.mjs</a><span>its headless test: node game/test.mjs</span></li>
+</ul>
+</main>
+</body>
+</html>

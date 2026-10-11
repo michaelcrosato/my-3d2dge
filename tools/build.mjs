@@ -9,7 +9,11 @@
 //   dist/my-3d2dge.js / .min.js  the engine alone, for multi-file projects
 //   dist/my-3d2dge-agent.js      the agent edition: the essential engine plus its manual in one readable file,
 //                                for AI coding agents (source: engine/my-3d2dge-agent.js; test: node tools/agent-test.mjs)
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+//   API-INDEX.md                 every public name in the engine, one line each (tools/api-index.mjs)
+//   dist/handoff/                the package for coding agents that need the full engine: the engines, API.md, the
+//                                index, AI_GUIDE.md, the tools that check, film and replay a game, and a template game
+//                                with a headless test (sources: src/handoff/). The only output of several files; text only
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -109,3 +113,33 @@ writeFileSync(join(root, 'dist/my-3d2dge-agent.js'), readFileSync(join(root, 'en
 console.log('built dist/my-3d2dge-agent.js');
 const min = await engineMin();
 if (min) { writeFileSync(join(root, 'dist/my-3d2dge.min.js'), min); console.log('built dist/my-3d2dge.min.js'); }
+
+// the API index, from the engine itself
+const { build: indexOf, render: renderIndex } = await import('./api-index.mjs');
+writeFileSync(join(root, 'API-INDEX.md'), renderIndex(indexOf()));
+console.log('built API-INDEX.md');
+
+// the handoff package: [its path, the source] (the README, package.json and index page take {{VERSION}} and {{BUILD}})
+const H = 'dist/handoff', HANDOFF = [
+  ['README.md', 'src/handoff/README.md'], ['package.json', 'src/handoff/package.json'],
+  ['my-3d2dge.js', ENGINE], ['my-3d2dge-agent.js', 'engine/my-3d2dge-agent.js'],
+  ['API.md', 'API.md'], ['API-INDEX.md', 'API-INDEX.md'], ['AI_GUIDE.md', 'AI_GUIDE.md'],
+  ['tools/check.mjs', 'tools/check.mjs'], ['tools/filmstrip.mjs', 'tools/filmstrip.mjs'], ['tools/replay.mjs', 'tools/replay.mjs'],
+  ...readdirSync(join(root, 'src/handoff/game')).sort().map(f => ['game/' + f, 'src/handoff/game/' + f])
+];
+const SAY = { 'README.md': 'start here: what the package holds, which page to read, how to run and test a game', 'package.json': 'pins Playwright for the tools',
+  'my-3d2dge.js': 'the full engine, readable', 'my-3d2dge-agent.js': 'the agent edition: the essential engine, its header a short manual',
+  'API.md': 'the API card: read it whole', 'API-INDEX.md': 'every public name, one line each: search it', 'AI_GUIDE.md': 'the guide: recipes, the look, heights, sessions',
+  'tools/check.mjs': 'plays a game headless and reports errors, screenshots and its snapshot', 'tools/filmstrip.mjs': 'records frames into one picture',
+  'tools/replay.mjs': 'replays a recorded play session exactly', 'game/index.html': 'the template game: play it', 'game/game.js': 'the template game: copy it',
+  'game/test.mjs': 'its headless test: node game/test.mjs' };
+if (existsSync(join(root, H))) rmSync(join(root, H), { recursive: true });
+const fill = s => s.replaceAll('{{VERSION}}', GLOBAL.VERSION).replaceAll('{{BUILD}}', GLOBAL.BUILD);
+for (const [to, from] of HANDOFF) {
+  mkdirSync(dirname(join(root, H, to)), { recursive: true });
+  const text = readFileSync(join(root, from), 'utf8');
+  writeFileSync(join(root, H, to), from.startsWith('src/handoff/') && !from.endsWith('.js') && !from.endsWith('.mjs') ? fill(text) : text);
+}
+const list = HANDOFF.map(([to]) => `<li><a href="${to}">${to}</a><span>${SAY[to] || ''}</span></li>`).join('\n');
+writeFileSync(join(root, H, 'index.html'), fill(readFileSync(join(root, 'src/handoff/index.html'), 'utf8')).replace('{{FILES}}', list));
+console.log('built ' + H + '/ (' + (HANDOFF.length + 1) + ' files)');

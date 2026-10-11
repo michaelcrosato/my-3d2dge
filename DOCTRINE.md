@@ -173,9 +173,9 @@ case, it is part of what the engine is.
 
 | Principle | Here | Grandfathered or open | Checked by |
 |---|---|---|---|
-| 1 Agent-readable | The agent edition's header is the whole manual for coding agents: a complete game and the API, under a 10,000-token budget (8,952 at adoption). The API card, embedded in every single-file edition, is under 13,500 (12,217). The agent edition's sections start with greppable `// ---- N. NAME` banners, the full engine's with `/* ====` headers. | | `doctrine-check` (budgets), `agent-test` (the header's games run on both engines) |
+| 1 Agent-readable | The agent edition's header is the whole manual for coding agents: a complete game and the API, under a 10,000-token budget (8,952 at adoption). The API card, embedded in every single-file edition, is under 13,500 (12,217). The API index (`API-INDEX.md`, written from the engine by `tools/api-index.mjs`) lists every public name with its signature and description, under 30,000 (27,270 when it began; D17). The agent edition's sections start with greppable `// ---- N. NAME` banners, the full engine's with `/* ====` headers. | | `doctrine-check` (budgets; every public name described in the index), `agent-test` (the header's games run on both engines), `contract-test` (the cards' and the index's examples run) |
 | 2 Agent-operable | Emberdeep: `window.__ed`, deep links (`#depth-7`, `#gallery/...`), the Developer panel over the `TUNE` knobs. Labs: `window.__sw`, `__lab3d`, `?cam=` links. `tools/ed-play.mjs` scripts input. | Any moment of a recorded session is reachable: `tools/replay.mjs --to <frame>` (v0.17.0). **Open:** live tuning of a game's numbers is Emberdeep's own (its `TUNE` knobs); move it into the engine when a second game needs it. | the suites drive every page through these handles |
-| 3 Headless | Every suite runs in headless Chromium. `tools/check.mjs` plays a page and notes cheap-looking frames; `tools/filmstrip.mjs` records frame strips and `--compare` marks every pixel a change touched. Humans judge on the Vercel preview of each branch. | | `npm test` |
+| 3 Headless | Every suite runs in headless Chromium, and a game runs in Node with no screen at all (`new E.Game({ headless: true })`, `game.advance`, `input.tap`; v0.19.0). `tools/check.mjs` plays a page and notes cheap-looking frames; `tools/filmstrip.mjs` records frame strips and `--compare` marks every pixel a change touched. Humans judge on the Vercel preview of each branch. | | `npm test` |
 | 4 Assets | Stricter than the doctrine: no image, sound or font files; fonts are drawn by code. Motion capture is stored as readable key poses with its provenance. | Approved (D7): the pictures our tools draw for the docs (`docs/assets/`). | `doctrine-check` (assets) |
 | 5 Deterministic | Under the harness: `filmstrip --seed` gives a virtual clock, seeded randomness, no sound, controller or GPU, and the same steps then give the same pixels. The 3D world's `SIM.run` gives the same hash on WebGPU, WebGL 2 and run again. Sound draws its own random numbers (v0.16.0), so sound on, off or muted never changes a run's. | The clock is an exact fixed step: 1/120 s of real time per update at any refresh rate (v0.17.5; D16 superseded D4's substeps). **Grandfathered (D4):** Emberdeep draws from `Math.random`. New gameplay code takes time only from `dt` and the game's clocks, and randomness only from `Math.random` or `E.rng`. A session recorded on any device replays exactly (`E.session`, `tools/replay.mjs`, v0.17.0; D12, D14), from any browser: the engine's portable math stands in for the browser's (v0.17.1; D15). | `determinism-test` (the same run twice is identical, pixel for pixel), `replay-test` (sessions recorded in real time replay to the same state), `contract-test` (the same inputs at 60, 90, 120 and 144 Hz give the same state), the 3D labs' proof hash |
 | 6 WebGPU, CPU gameplay | Gameplay never reads the GPU: the engine's WebGPU lighting only draws, and the 3D labs ban read-backs. | **Grandfathered (D3):** the engine draws with Canvas 2D, with WebGPU only for optional lighting. The 3D labs keep three.js's WebGL 2 fallback. New GPU code is WebGPU, never WebGL. | the 3D labs' banned-API check |
@@ -190,7 +190,7 @@ yet hand a brief to a fresh agent.
 
 ### The checks here
 
-- `node tools/doctrine-check.mjs`: assets, the manuals' budgets, the API boundary and the decisions log. Quick, no
+- `node tools/doctrine-check.mjs`: assets, the manuals' budgets (the index's too), the API boundary, the logs that are never cleaned up (decisions and feedback), and the API index (current, every public name described). Quick, no
   browser; `npm run test:changed` and `npm test` always run it, beside the version and syntax checks.
 - `node tools/determinism-test.mjs`: Emberdeep and a starter game, recorded twice under the harness, must match pixel for
   pixel. It runs when the engine, Emberdeep, the starters or the harness change.
@@ -199,7 +199,9 @@ yet hand a brief to a fresh agent.
   and end in the same state; a session with one input taken out must diverge. It runs when the engine, Emberdeep, the starters or the replay tools change.
 - `node tools/contract-test.mjs`: one test for each documented behavior an agent relies on, on both editions: the clock
   (the same inputs at 60, 90, 120 and 144 Hz give the same state; slow motion, pause, the frame counter), flow fields
-  that follow the map, `audio.duck`. It runs when the engine, `API.md` or `AI_GUIDE.md` change.
+  that follow the map, `audio.duck`, the height rules and queries, `Body.step`, the lifecycle and headless runs, every
+  fenced example in `API.md` and `API-INDEX.md`, and the handoff package's template game. It runs when the engine, the
+  cards, the index or `src/handoff/` change.
 - The suites that already held a principle: `agent-test` (the manual and the API subset), `lab3d-test` and
   `stress-world-test` (banned APIs, vendored checksums, the proof hash on both backends), and the rest of `npm test`.
 

@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.18.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.19.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -24,6 +24,8 @@ For a single-file game, paste both scripts inline. Start every game with: const 
   direction with game.view.screenDirToGround(mx, my).
 - update(dt) runs in exact fixed steps: 1/120 s of real time each, dt = 1/120 * timeScale, the same steps at any
   refresh rate. Read input only there.
+- Tests: new E.Game({ headless: true }) (the default in Node) has no screen; game.advance(seconds) runs fixed steps at
+  once, game.input.tap('jump') / hold('right', on) script input, game.debug = { snapshot() {...} } is the game's handle.
 - draw(r) order: backgrounds first (r.sky, map.drawFloor + map.queueWalls, level.draw), then everything that can
   overlap through r.actor / r.sprite / r.queue (depth sorted), then the HUD through r.text / r.overlay (screen pixels).
 - Characters are procedural rigs posed every step (E.Humanoid, E.Blob) or string sprites (E.sprite).
@@ -353,7 +355,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.18.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.19.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -430,7 +432,16 @@ function ramp(c, n = 5, strength = 1) {
   for (let i = 0; i < n; i++) { const u = n < 2 ? 0 : i / (n - 1) * 2 - 1; out.push(s < .08 ? hsl(hh, s, l + u * .3 * strength) : hsl(hueToward(hh, u < 0 ? 250 : 55, Math.abs(u) * 14 * strength), s + (u < 0 ? .06 : -.06) * Math.abs(u), l + u * .3 * strength)); }
   return out;
 }
-const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+// a canvas; with no document (Node, headless) a stand-in whose drawing does nothing, so sprites made at load don't stop a game
+const mkCanvas = (w, h) => { if (typeof document === 'undefined') return nullCanvas(w, h); const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const nullCanvas = (w, h) => {
+  const c = { width: w, height: h }, img = (iw, ih) => ({ width: iw, height: ih, data: new Uint8ClampedArray(Math.max(0, iw * ih * 4)) });
+  const made = { getImageData: (x, y, iw, ih) => img(iw, ih), createImageData: (iw, ih) => img(iw.width || iw, ih || iw.height), measureText: () => ({ width: 0 }),
+    createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), createPattern: () => ({}), canvas: c };
+  const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : () => {}, set: (t, k, v) => { t[k] = v; return true; } });
+  c.getContext = () => g;
+  return c;
+};
 const ctx2d = c => { const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return g; };
 const V3 = {
   add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
@@ -638,13 +649,14 @@ E.charView = charView;
 // ---- 4. SCREEN: low-res buffer, whole-number upscale, sub-pixel camera on present ----
 E.RES = { nes: [256, 240], snes: [256, 224], gb: [160, 144], gba: [240, 160], genesis: [320, 224], n64: [320, 240], ps1: [320, 240], wide: [400, 225] };
 class Screen {
-  constructor(canvas, o) {
-    this.canvas = canvas; this.sctx = canvas.getContext('2d'); this.o = o;
-    this.buf = mkCanvas(8, 8); this.ctx = ctx2d(this.buf);
+  // canvas null: a headless game's screen, sized as a 1280 x 720 window would size it, with nothing to draw on
+  constructor(canvas, o, signal) {
+    this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this.o = o;
+    this.buf = canvas ? mkCanvas(8, 8) : null; this.ctx = canvas ? ctx2d(this.buf) : null;
     this.W = 320; this.H = 200; this.S = 3; this.OX = 0; this.OY = 0; this.dpr = 1;
     this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0;
     this.resize();
-    addEventListener('resize', () => this.resize());
+    if (canvas) addEventListener('resize', () => this.resize(), { signal });
   }
   /** the sizing options in force: o.portrait's fields over the game's while the screen is taller than wide */
   options(pw, ph) { const o = this.o; return o.portrait && ph > pw ? Object.assign({}, o, o.portrait) : o; }
@@ -655,15 +667,14 @@ class Screen {
     return [Math.max(16, v[0] | 0), Math.max(16, v[1] | 0)];
   }
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 3), rc = this.canvas.getBoundingClientRect();
+    const c = this.canvas, dpr = c ? Math.min(window.devicePixelRatio || 1, 3) : 1, rc = c ? c.getBoundingClientRect() : { width: 1280, height: 720 };
     const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this.options(pw, ph);
-    this.canvas.width = pw; this.canvas.height = ph; this.dpr = dpr; this.portrait = ph > pw;
+    if (c) { c.width = pw; c.height = ph; } this.dpr = dpr; this.portrait = ph > pw;
     const fix = this.fixedRes(o);
     if (fix) { this.W = fix[0]; this.H = fix[1]; this.S = Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1]))); }
     else { this.S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW))); this.W = Math.min(o.maxW, Math.ceil(pw / this.S)); this.H = Math.min(o.maxH, Math.ceil(ph / this.S)); }
     this.OX = Math.floor((pw - this.W * this.S) / 2); this.OY = Math.floor((ph - this.H * this.S) / 2);
-    this.buf.width = this.W + 2; this.buf.height = this.H + 2;
-    this.ctx = ctx2d(this.buf); this.ctx._c = null;
+    if (this.buf) { this.buf.width = this.W + 2; this.buf.height = this.H + 2; this.ctx = ctx2d(this.buf); this.ctx._c = null; }
   }
   setOptions(o) { Object.assign(this.o, o); this.resize(); }
   begin(cx, cy, bg) {
@@ -672,7 +683,7 @@ class Screen {
     g.fillStyle = bg; g.fillRect(0, 0, this.buf.width, this.buf.height);
   }
   present() {
-    const s = this.sctx, S = this.S;
+    const s = this._sctx, S = this.S; if (!s) return;
     s.imageSmoothingEnabled = false;
     s.fillStyle = '#000'; s.fillRect(0, 0, this.canvas.width, this.canvas.height);
     s.save(); s.beginPath(); s.rect(this.OX, this.OY, this.W * S, this.H * S); s.clip();
@@ -680,6 +691,7 @@ class Screen {
     s.restore();
   }
   clientToScreen(cx, cy) {
+    if (!this.canvas) return null;
     const rc = this.canvas.getBoundingClientRect(), dx = (cx - rc.left) * this.dpr, dy = (cy - rc.top) * this.dpr;
     return [(dx - this.OX + Math.round(this.fx * this.S)) / this.S + this.ix, (dy - this.OY + Math.round(this.fy * this.S)) / this.S + this.iy];
   }
@@ -687,53 +699,58 @@ class Screen {
 
 // ---- 5. INPUT: actions are names bound to codes (KeyboardEvent.code, 'Mouse0'/'Mouse2', 'Pad0'..'Pad15' standard gamepad buttons) ----
 class Input {
-  constructor(screen, map) {
+  // signal removes every listener (game.dispose()); a headless game's input (no canvas) comes from press, release, tap, hold
+  constructor(screen, map, signal) {
     this.screen = screen; this.use(map);
-    this.held = new Set(); this.clock = 0; this.pt = {}; this.used = {}; this.rk = {};
-    this.fresh = new Set(); this.now = new Set(); this.freshUp = new Set(); this.nowUp = new Set();
-    this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this.padPrev = []; this.padIndex = null; this.deadzone = .18;
-    const el = screen.canvas, typing = e => { const t = e.target; return !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(t.type))); };
+    this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {}; this._rk = {};
+    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set();
+    this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this._padPrev = []; this.padIndex = null; this.deadzone = .18;
+    const el = screen.canvas; if (!el) return;
+    const addEventListener = (type, fn) => window.addEventListener(type, fn, { signal }), typing = e => { const t = e.target; return !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(t.type))); };
     const at = e => { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; };
-    addEventListener('keydown', e => { if (!typing(e) && this.codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); } });
+    addEventListener('keydown', e => { if (!typing(e) && this._codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); } });
     addEventListener('keyup', e => this.release(e.code));
     addEventListener('blur', () => this.clear());
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); });
-    el.addEventListener('contextmenu', e => e.preventDefault());
-    el.addEventListener('pointermove', at);
-    el.addEventListener('pointerdown', e => { at(e); this.press('Mouse' + e.button); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); }, { signal });
+    el.addEventListener('contextmenu', e => e.preventDefault(), { signal });
+    el.addEventListener('pointermove', at, { signal });
+    el.addEventListener('pointerdown', e => { at(e); this.press('Mouse' + e.button); }, { signal });
     addEventListener('pointerup', e => this.release('Mouse' + e.button));
   }
   use(map) {
     if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
-    this.map = {}; for (const a in map) this.map[a] = [...map[a]];
-    this.codes = {}; for (const a in this.map) for (const c of this.map[a]) (this.codes[c] = this.codes[c] || []).push(a);
+    this.map = {}; for (const a in map) this.map[a] = [...map[a], 'Act:' + a];
+    this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
     return this;
   }
   press(code) {
     if (this.held.has(code)) return; this.held.add(code);
-    for (const a of this.codes[code] || []) { this.pt[a] = this.clock; this.used[a] = false; this.rk[a] = -1; this.fresh.add(a); }
+    for (const a of this._codes[code] || []) { this._pt[a] = this.clock; this._used[a] = false; this._rk[a] = -1; this._fresh.add(a); }
   }
   release(code) {
     if (!this.held.delete(code)) return;
-    for (const a of this.codes[code] || []) if (!this.down(a)) this.freshUp.add(a);
+    for (const a of this._codes[code] || []) if (!this.down(a)) this._freshUp.add(a);
   }
+  // scripted input (tests, bots): tap(a) presses an action for one step; hold(a, on) holds it down or lets it go
+  tap(a) { if (!this.map[a]) { this._check(a); return; } const c = 'Act:' + a; this.press(c); this._taps.add(c); }
+  hold(a, on = true) { if (!this.map[a]) { this._check(a); return; } if (on) this.press('Act:' + a); else this.release('Act:' + a); }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + ". Add your own with new E.Game({ input: { ...E.Input.DEFAULT, " + a + ": ['KeyQ'] } })"); }
   down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } for (const c of m) if (this.held.has(c)) return true; return false; }
-  pressed(a) { if (!this.map[a]) this._check(a); return this.now.has(a); }
-  released(a) { return this.nowUp.has(a); }
+  pressed(a) { if (!this.map[a]) this._check(a); return this._now.has(a); }
+  released(a) { return this._nowUp.has(a); }
   repeat(a, delay = .3, rate = .08) {
     if (this.pressed(a)) return true;
-    if (!this.down(a) || this.pt[a] === undefined) return false;
-    const t = this.clock - this.pt[a]; if (t < delay) return false;
-    const k = Math.floor((t - delay) / rate); if (k !== this.rk[a]) { this.rk[a] = k; return true; }
+    if (!this.down(a) || this._pt[a] === undefined) return false;
+    const t = this.clock - this._pt[a]; if (t < delay) return false;
+    const k = Math.floor((t - delay) / rate); if (k !== this._rk[a]) { this._rk[a] = k; return true; }
     return false;
   }
-  buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this.pt[a]; return t !== undefined && !this.used[a] && this.clock - t <= win; }
-  consume(a) { this.used[a] = true; }
-  consumeAll() { for (const a in this.map) this.used[a] = true; this.now.clear(); this.fresh.clear(); }
-  clear() { this.held.clear(); this.consumeAll(); this.nowUp.clear(); this.freshUp.clear(); this.pt = {}; this.rk = {}; this.padMove = [0, 0]; }
-  anyPressed() { return this.now.size > 0; }
+  buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this._pt[a]; return t !== undefined && !this._used[a] && this.clock - t <= win; }
+  consume(a) { this._used[a] = true; }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); }
+  clear() { this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this.padMove = [0, 0]; }
+  anyPressed() { return this._now.size > 0; }
   move() {
     let x = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), y = (this.down('down') ? 1 : 0) - (this.down('up') ? 1 : 0);
     if (Math.hypot(this.padMove[0], this.padMove[1]) > 0) { x = this.padMove[0]; y = this.padMove[1]; }
@@ -745,15 +762,17 @@ class Input {
     this.clock += dt;
     let p = null;
     try { p = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).find(q => q && q.connected !== false) || null; } catch (e) { /* gamepads blocked */ }
-    if ((p ? p.index : null) !== this.padIndex) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; }
+    if ((p ? p.index : null) !== this.padIndex) { this._padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); this._padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; }
     if (p) {
       const x = p.axes[0] || 0, y = p.axes[1] || 0, l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;
       this.padMove = [x * k, y * k];
-      p.buttons.forEach((b, i) => { if (b.pressed && !this.padPrev[i]) this.press('Pad' + i); if (!b.pressed && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = b.pressed; });
+      p.buttons.forEach((b, i) => { if (b.pressed && !this._padPrev[i]) this.press('Pad' + i); if (!b.pressed && this._padPrev[i]) this.release('Pad' + i); this._padPrev[i] = b.pressed; });
     }
+    for (const c of this._tapsDue) this.release(c);   // a tap is held for the one step after it
+    const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed() / released()
-    const n = this.now; n.clear(); this.now = this.fresh; this.fresh = n;
-    const u = this.nowUp; u.clear(); this.nowUp = this.freshUp; this.freshUp = u;
+    const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
+    const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
   }
 }
 // menu actions in every preset. Pad9 = Start, Pad0 = A (bottom), Pad1 = B (right), Pad12-15 = d-pad
@@ -920,10 +939,10 @@ class Particles {
 const AS = 256, AOX = 128, AOY = 200;   // scratch image per actor: room for figures up to about 250 px tall
 class Renderer {
   constructor(game) {
-    this.game = game; this.items = []; this.decals = []; this.overlays = []; this.outline = '#140c1c';
-    this.aCv = mkCanvas(AS, AS); this.aG = ctx2d(this.aCv); this.mCv = mkCanvas(AS, AS); this.mG = ctx2d(this.mCv);
+    this.game = game; this.items = []; this._decals = []; this._overlays = []; this.outline = '#140c1c';
+    this._aCv = mkCanvas(AS, AS); this._aG = ctx2d(this._aCv); this._mCv = mkCanvas(AS, AS); this._mG = ctx2d(this._mCv);
     // track what each actor draws, so outline and flash only touch that rectangle
-    const aG = this.aG, bb = this.bb = [AS, AS, 0, 0], fr = aG.fillRect.bind(aG), di = aG.drawImage.bind(aG);
+    const aG = this._aG, bb = this.bb = [AS, AS, 0, 0], fr = aG.fillRect.bind(aG), di = aG.drawImage.bind(aG);
     const grow = (x, y, w, h) => { if (x < bb[0]) bb[0] = x; if (y < bb[1]) bb[1] = y; if (x + w > bb[2]) bb[2] = x + w; if (y + h > bb[3]) bb[3] = y + h; };
     aG.fillRect = (x, y, w, h) => { grow(x, y, w, h); fr(x, y, w, h); };
     aG.drawImage = (img, ...a) => { if (a.length >= 8) grow(a[4], a[5], a[6], a[7]); else if (a.length >= 4) grow(a[0], a[1], a[2], a[3]); else grow(a[0], a[1], img.width, img.height); di(img, ...a); };
@@ -939,7 +958,7 @@ class Renderer {
   begin(cx, cy) {
     const sc = this.game.screen, st = this.game.stats;
     sc.begin(cx, cy, this.game.o.bg);
-    this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this.decals.length = 0; this.overlays.length = 0; this._map = null; st.actors = 0; st.culled = 0;
+    this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this._decals.length = 0; this._overlays.length = 0; this._map = null; st.actors = 0; st.culled = 0;
   }
   // world -> buffer pixel
   w(x, y, z = 0) { const v = this.game.view; return [v.ax * x + v.ay * y - this.ix, v.bx * x + v.by * y + v.bz * z - this.iy]; }
@@ -948,8 +967,8 @@ class Renderer {
     if (z > .5 && this._map && !(o && o.occluder)) k = this._map._liftOrder(this.game.view, x, y, z, k);   // standing on a TileMap block: sort after it
     this.items.push({ k, fn });
   }
-  decal(fn) { this.decals.push(fn); }
-  overlay(fn) { this.overlays.push(fn); }
+  decal(fn) { this._decals.push(fn); }
+  overlay(fn) { this._overlays.push(fn); }
   groundPts(x, y, rad, n = 18, z = 0) { const pts = []; for (let i = 0; i < n; i++) { const a = i / n * TAU; pts.push(this.w(x + Math.cos(a) * rad, y + Math.sin(a) * rad, z)); } return pts; }
   groundDisc(x, y, rad, color, alpha = 1, z = 0) { px.polyDither(this.ctx, this.groundPts(x, y, rad, 18, z), color, alpha); }
   groundRing(x, y, rad, color, alpha = 1, z = 0) {
@@ -1056,7 +1075,7 @@ class Renderer {
     dst.globalCompositeOperation = 'source-over';
   }
   _composite(g, x, y, z, drawFn, o) {
-    const aG = this.aG, bb = this.bb, P = this._R;
+    const aG = this._aG, bb = this.bb, P = this._R;
     aG.clearRect(P[0], P[1], P[2], P[3]); aG._c = null;
     bb[0] = AS; bb[1] = AS; bb[2] = 0; bb[3] = 0;
     drawFn(aG, AOX, AOY);
@@ -1066,21 +1085,21 @@ class Renderer {
     const [sx, sy] = this.w(x, y, z), bx = Math.round(sx) - AOX, by = Math.round(sy) - AOY, al = o.alpha === undefined ? 1 : o.alpha;
     const put = cv => g.drawImage(cv, x0, y0, w, h, bx + x0, by + y0, w, h);
     g.globalAlpha = al;
-    if (o.outline !== false) { this._tint(this.mG, this.aCv, o.outlineColor || this.outline, R); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(this.mCv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h); }
+    if (o.outline !== false) { this._tint(this._mG, this._aCv, o.outlineColor || this.outline, R); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(this._mCv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h); }
     if (o.flash) {   // the flash tints over the sprite so its shading still shows (flashMix: 1 = solid)
       const fm = o.flashMix === undefined ? .5 : o.flashMix;
-      if (fm < 1) put(this.aCv);
-      this._tint(this.mG, this.aCv, typeof o.flash === 'string' ? o.flash : '#fff6ea', R); g.globalAlpha = al * fm; put(this.mCv);
-    } else put(this.aCv);
+      if (fm < 1) put(this._aCv);
+      this._tint(this._mG, this._aCv, typeof o.flash === 'string' ? o.flash : '#fff6ea', R); g.globalAlpha = al * fm; put(this._mCv);
+    } else put(this._aCv);
     g.globalAlpha = 1;
   }
   finish() {
     const g = this.ctx, items = this.items;
     this.game.particles.draw(this);
-    for (const d of this.decals) d(g);
+    for (const d of this._decals) d(g);
     items.sort((a, b) => a.k - b.k);
     for (const it of items) it.fn(g);
-    for (const f of this.overlays) f(g);
+    for (const f of this._overlays) f(g);
     this.game.stats.items = items.length;
     this.game.screen.present();
   }
@@ -1105,22 +1124,31 @@ if (typeof window !== 'undefined' && window.addEventListener) {
   window.addEventListener('unhandledrejection', ev => E.showError('unhandled promise rejection', ev.reason));
 }
 class Game {
+  // headless (or no DOM: Node): no screen, renderer, sound or DOM input; drive it with advance(). loop: false runs only by advance()
   constructor(o = {}) {
     o = Object.assign({}, o);
-    if (typeof o.canvas === 'string') o.canvas = document.getElementById(o.canvas.replace(/^#/, '')) || document.querySelector(o.canvas);
-    if (!o.canvas) o.canvas = document.getElementById('screen') || document.querySelector('canvas') || Game._makeCanvas();
+    this.headless = !!o.headless || typeof document === 'undefined';
+    if (this.headless) o.canvas = null;
+    else {
+      if (typeof o.canvas === 'string') o.canvas = document.getElementById(o.canvas.replace(/^#/, '')) || document.querySelector(o.canvas);
+      if (!o.canvas) o.canvas = document.getElementById('screen') || document.querySelector('canvas') || Game._makeCanvas();
+    }
     if (typeof o.input === 'string') o.input = Input[o.input.toUpperCase()] || (warn('input:' + o.input, 'unknown input preset "' + o.input + '" (use DEFAULT, PLATFORMER or SHMUP)'), Input.DEFAULT);
-    this.o = Object.assign({ view: 'iso', minH: 190, minW: 300, maxW: 560, maxH: 330, bg: '#07060d', step: 1 / 120, input: Input.DEFAULT }, o);
-    this.screen = new Screen(this.o.canvas, this.o);
-    this.input = new Input(this.screen, this.o.input);
+    this.o = Object.assign({ view: 'iso', minH: 190, minW: 300, maxW: 560, maxH: 330, bg: '#07060d', step: 1 / 120, input: Input.DEFAULT, loop: !this.headless }, o);
+    this._abort = typeof AbortController === 'function' ? new AbortController() : null;   // dispose() removes every listener through it
+    const signal = this._abort ? this._abort.signal : undefined;
+    this.screen = new Screen(this.o.canvas, this.o, signal);
+    this.input = new Input(this.screen, this.o.input, signal);
     this.view = this._view(this.o.view) || E.VIEWS.iso;
     this.views = this.o.views || null;   // views the game supports: nextView() cycles them
-    this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this.shakeAmt = 0; this.reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this._shakeAmt = 0; this.reduceMotion = !this.headless && !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
     // smooth = seconds of lag (0 = locked), bounds(view) = clamp rect, room = [w, h] screen-by-screen rooms, moving = sliding between rooms,
     // offset = [dx, dy] screen pixels from the screen's centre to where the focus sits ([0, -40] keeps it above on-screen buttons)
     this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null };
-    this.particles = new Particles(this); this.r = new Renderer(this); this.audio = new ChipAudio(this);
-    this.fps = 60; this.paused = false; this.pauseOverlay = true; this.timers = []; this.errors = []; this._errKeys = new Set();
+    this.particles = new Particles(this); this.r = this.headless ? null : new Renderer(this); this.audio = new ChipAudio(this, signal);
+    if (this.headless) this.audio.failed = 'a headless game has no sound';
+    this.debug = null;   // a game's own handle for tools: game.debug = { snapshot() {...}, teleport(x, y, z) {...} }
+    this.fps = 60; this.paused = false; this.pauseOverlay = true; this._timers = []; this.errors = []; this._errKeys = new Set();
     this.fadeTime = .22; this._fade = null; this.scenes = null; this.scene = null; this.sceneName = null; this._next = null;
     this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
     this.alpha = .5; this._acc = this.o.step / 2;   // the step left over (0..1); starting half a step in keeps a steady step count
@@ -1142,7 +1170,7 @@ class Game {
   setView(v) { const w = this._view(v); if (w) { this.view = w; this.cam.snap = true; } }
   nextView(dir = 1) { const list = this.views || E.VIEW_ORDER, i = list.indexOf(this.view.id); this.setView(list[((i + dir) % list.length + list.length) % list.length]); }
   note(text, seconds = 1.2) { this._note = { text: String(text), end: this.real + seconds }; }
-  shake(a) { if (!this.reduceMotion) this.shakeAmt = Math.min(10, this.shakeAmt + a); }
+  shake(a) { if (!this.reduceMotion) this._shakeAmt = Math.min(10, this._shakeAmt + a); }
   // a good hit in one call: hit-stop, shake, impact star, sparks, damage number, sound. o: { power: 1, angle, damage, color, textColor, textScale, textZ: 22, bounce, sound }
   hitFx(x, y, z, o = {}) {
     const p = o.power === undefined ? 1 : o.power, P = this.particles;
@@ -1159,8 +1187,8 @@ class Game {
   // keep the camera on an object: follow(hero, { z: 16, lead: 0 }); follow(null) stops
   follow(target, o = {}) { this._follow = target ? { target, z: o.z === undefined ? 16 : o.z, lead: o.lead || 0 } : null; this.cam.snap = true; }
   mouseGround() { const m = this.input.mouseScreen(); return m ? this.view.toGround(m[0], m[1]) : null; }
-  after(seconds, fn) { const t = { at: this.time + seconds, fn, every: 0, dead: false }; this.timers.push(t); return { cancel() { t.dead = true; } }; }
-  every(seconds, fn) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false }; this.timers.push(t); return { cancel() { t.dead = true; } }; }
+  after(seconds, fn) { const t = { at: this.time + seconds, fn, every: 0, dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
+  every(seconds, fn) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
   _camStep(dt) {
     const c = this.cam; let fx = c.tx, fy = c.ty, fz = c.tz;
     if (c.room) {
@@ -1183,31 +1211,52 @@ class Game {
   }
   // game.start({ update(dt), draw(r) }) or game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
   start(hooks) {
-    if (!hooks || typeof hooks !== 'object') throw new Error('game.start needs { update(dt), draw(r) } or { scenes: { name: { update, draw } }, scene: "name" }');
-    if (hooks.scenes) { this.scenes = hooks.scenes; this._enter(hooks.scene || Object.keys(hooks.scenes)[0], hooks.data); }
-    else {
-      if (typeof hooks.update !== 'function' || typeof hooks.draw !== 'function') throw new Error('game.start({ update(dt), draw(r) }) needs both functions (or use { scenes, scene })');
-      this.scene = hooks; this.sceneName = 'main';
+    if (hooks !== undefined || !this._hooks) {   // start() with nothing resumes a stopped loop
+      if (!hooks || typeof hooks !== 'object') throw new Error('game.start needs { update(dt), draw(r) } or { scenes: { name: { update, draw } }, scene: "name" }');
+      this._hooks = hooks;
+      if (hooks.scenes) { this.scenes = hooks.scenes; this._enter(hooks.scene || Object.keys(hooks.scenes)[0], hooks.data); }
+      else {
+        if (typeof hooks.update !== 'function' || typeof hooks.draw !== 'function') throw new Error('game.start({ update(dt), draw(r) }) needs both functions (or use { scenes, scene })');
+        this.scene = hooks; this.sceneName = 'main';
+      }
     }
-    if (this._running) return;
+    if (this._running || this.disposed || this.o.loop === false) return this;
     this._running = true;
     let last = performance.now(), acc = 0, n = 0;
     const frame = now => {
-      requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
+      if (!this._running) return;
+      this._raf = requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
       const raw = Math.max(0, (now - last) / 1000); last = now;
       acc += raw; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }   // real time: a slow device reads slow
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
       const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = raw * 1000; st.steps = steps;
     };
-    requestAnimationFrame(frame);
+    this._raf = requestAnimationFrame(frame);
+    return this;
+  }
+  // stop the loop (start() resumes it); dispose() ends the game for good: the loop, every listener the engine added, the sound
+  stop() { this._running = false; if (this._raf != null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this._raf); this._raf = null; return this; }
+  dispose() {
+    this.stop(); this.disposed = true;
+    if (this._abort) this._abort.abort();
+    const A = this.audio; try { A.stopMusic(); if (A.ctx && A.ctx.close) A.ctx.close(); } catch (e) { /* already closed */ } A.ctx = null; A.failed = 'the game was disposed';
+    if (E.current === this) E.current = null;
+  }
+  // run `seconds` of real time in exact fixed steps at once, without requestAnimationFrame (tests, headless runs); o.draw: then draw a frame
+  advance(seconds = this.o.step, o = {}) {
+    if (!this.scene && !this._next) throw new Error('game.advance() needs a started game: game.start({ update, draw }) first');
+    this._acc += Math.max(0, seconds);
+    const n = this._steps(); this.stats.steps = n;
+    if (o.draw && !this.headless) try { this._frame(); } catch (e) { this._fail('draw', e); }
+    return n;
   }
   // the clock, an exact fixed step: real time (at most 50 ms a frame) fills an accumulator, each whole o.step (1/120 s)
   // of it runs one update of o.step * timeScale (split so no step is longer than o.step), the rest waits (game.alpha).
   // The same steps at 60, 90, 120 or 144 Hz; slow motion makes steps shorter, never fewer; paused, input still ticks
-  _run(real) {
+  _run(real) { this._acc += Math.min(.05, real); return this._steps(); }
+  _steps() {
     const step = this.o.step; let n = 0;
-    this._acc += Math.min(.05, real);
     try {
       while (this._acc > step - 1e-9) {
         this._acc -= step;
@@ -1233,7 +1282,7 @@ class Game {
     const s = this.scenes[name];
     if (!s) throw new Error('scene "' + name + '" does not exist. Scenes: ' + Object.keys(this.scenes).join(', '));
     if (this.scene && this.scene.exit) this.scene.exit();
-    this.scene = s; this.sceneName = name; this.paused = false; this.timers.length = 0; this.hitstop = 0;
+    this.scene = s; this.sceneName = name; this.paused = false; this._timers.length = 0; this.hitstop = 0;
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null;
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
@@ -1251,7 +1300,7 @@ class Game {
   }
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    this.real += dt; this.shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt);
+    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt);
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
     const f = this._fade;
     if (f) {   // the old scene freezes while it fades out
@@ -1265,7 +1314,7 @@ class Game {
     if (this.paused) return;
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     this.time += dt;
-    const T = this.timers;
+    const T = this._timers;
     if (T.length) {
       for (let i = 0; i < T.length; i++) { const t = T[i]; if (t.dead || this.time < t.at) continue; if (t.every) t.at += t.every; else t.dead = true; t.fn(); }
       prune(T, t => t.dead);
@@ -1281,7 +1330,7 @@ class Game {
   }
   _frame() {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    const c = this.cam, s = this.shakeAmt, r = this.r;
+    const c = this.cam, s = this._shakeAmt, r = this.r;
     const shx = s > .05 ? (Math.sin(this.real * 83) + Math.sin(this.real * 57.3)) * .5 * s : 0, shy = s > .05 ? (Math.sin(this.real * 71) + Math.sin(this.real * 49.7)) * .5 * s : 0;
     r.begin(c.x + shx, c.y + shy);
     if (this.scene && this.scene.draw) this.scene.draw(r);
@@ -1330,10 +1379,10 @@ class Humanoid {
     this.C = Object.assign({}, HUMAN_COLORS, o.colors || {});
     const C = this.C;
     C.clothLt = C.clothLt || shade(C.cloth, .25);
-    this.t = Math.random() * 10; this.phase = 0; this.spW = 0; this.mv = [1, 0]; this.dashW = 0; this.hurtW = 0; this.atkW = 0;
-    this.theta = 1.2; this.atkZ = 10; this.reach = 7; this.twist = 0; this.spin = 0; this.atkLean = 0;
+    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this.mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
+    this._theta = 1.2; this.atkZ = 10; this.reach = 7; this._twist = 0; this.spin = 0; this._atkLean = 0;
     this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {};
-    this.capeL = null; this.airW = 0; this.pointW = 0; this.kicking = false;
+    this.capeL = null; this._airW = 0; this._pointW = 0; this._kicking = false;
     this._pose();
   }
   kick(v) { this.sqV += v; }
@@ -1351,27 +1400,27 @@ class Humanoid {
     if (this.t > 0 && Math.hypot((s.x || 0) - this.x, (s.y || 0) - this.y, (s.z || 0) - this.z) > 24 * o.size) this.capeL = null;
     this.t += dt; this.x = s.x; this.y = s.y; this.z = s.z || 0; this.facing = s.facing || 0;
     const speed = s.run ? s.run * o.speedRef : Math.hypot(s.vx || 0, s.vy || 0);
-    this.spW = approach(this.spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
+    this._spW = approach(this._spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
     if (speed > 3 && !s.run) {
       const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
       this.mv[0] = lerp(this.mv[0], (s.vx * c + s.vy * sn) / speed, k); this.mv[1] = lerp(this.mv[1], (-s.vx * sn + s.vy * c) / speed, k);
     }
-    this.phase += dt * speed / (o.stride * o.size * Math.max(.4, Math.min(1, this.spW)));
-    this.dashW = approach(this.dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
+    this.phase += dt * speed / (o.stride * o.size * Math.max(.4, Math.min(1, this._spW)));
+    this._dashW = approach(this._dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
     this.hurtW = approach(this.hurtW, s.hurt ? 1 : 0, dt * 14);
-    this.atkW = approach(this.atkW, s.attack ? 1 : 0, dt * (s.attack ? 30 : 7));
-    this.airW = approach(this.airW, s.air ? 1 : 0, dt * (s.air ? 10 : 18));
+    this._atkW = approach(this._atkW, s.attack ? 1 : 0, dt * (s.attack ? 30 : 7));
+    this._airW = approach(this._airW, s.air ? 1 : 0, dt * (s.air ? 10 : 18));
     const pk = this.poseW || (this.poseW = { cheer: 0, cast: 0, guard: 0, kneel: 0, crouch: 0, wave: 0, hips: 0, block: 0 });
     for (const k in pk) pk[k] = approach(pk[k], s.pose === k ? 1 : 0, dt * 9);
-    this.stW = approach(this.stW || 0, s.stance === 'guard' ? 1 : 0, dt * 10); this.rdW = approach(this.rdW || 0, s.stance === 'ready' ? 1 : 0, dt * 10);
-    this.climbW = approach(this.climbW || 0, s.climb ? 1 : 0, dt * 12); if (s.climb) this.climbP = (this.climbP || 0) + dt * Math.abs(s.vz || 0) / (.4 * (o.armUpper + o.armLower) * o.size) * Math.PI;
+    this._stW = approach(this._stW || 0, s.stance === 'guard' ? 1 : 0, dt * 10); this._rdW = approach(this._rdW || 0, s.stance === 'ready' ? 1 : 0, dt * 10);
+    this._climbW = approach(this._climbW || 0, s.climb ? 1 : 0, dt * 12); if (s.climb) this._climbP = (this._climbP || 0) + dt * Math.abs(s.vz || 0) / (.4 * (o.armUpper + o.armLower) * o.size) * Math.PI;
     this.dieT = s.pose === 'die' ? (this.dieT || 0) + dt : 0;
     const dT = s.down !== undefined ? clamp(+s.down, 0, 1) : s.pose === 'down' || this.dieT > .45 ? 1 : 0;
     this.downW = approach(this.downW || 0, dT, dt * (dT > (this.downW || 0) ? 2.5 + 10 * (this.downW || 0) : 3.2));
     if (this.dieT > 0) { this.hurtW = approach(this.hurtW, this.dieT < .25 ? 1 : 0, dt * 14); pk.kneel = approach(pk.kneel, this.dieT > .2 && this.dieT < .6 ? 1 : 0, dt * 10); }
-    this.pointW = approach(this.pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
+    this._pointW = approach(this._pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
     this.aimA = approach(this.aimA || 0, s.aim || 0, dt * 14);
-    if (s.attack) this.kicking = !!s.attack.spec.kick;
+    if (s.attack) this._kicking = !!s.attack.spec.kick;
     this.blink -= dt; if (this.blink < -.12) this.blink = 2 + Math.random() * 3;
     this.sqV += (-260 * this.sq - 15 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.3, .3);
     const A = s.attack; let tLean = 0, tTwist = 0, tLunge = 0, tHop = 0, tCrouch = 0, armT = A ? 1 : 0;
@@ -1382,103 +1431,103 @@ class Humanoid {
       this.atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9, z0 = sp.z0 === undefined ? zRest : sp.z0, z1 = sp.z1 === undefined ? z0 : sp.z1;
       const hold = sp.hold === undefined ? .3 : sp.hold, lean = sp.lean === undefined ? (sp.kick ? -.22 : .3) : clamp(sp.lean, -.8, .8), lunge = sp.lunge === undefined ? (sp.kick ? .4 : 1.2) : clamp(sp.lunge, -4, 5);
       if (A.phase === 'wind' && (this._aPh !== 'wind' || this._aSp !== sp)) {
-        const chain = (this.armW || 0) > .3 && this.theta !== undefined, fists = !o.weapon || sp.hand === 'L' || sp.blade === 0;
-        this._th0 = chain ? this.theta : rest; this._z0 = chain && this.atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
+        const chain = (this._armW || 0) > .3 && this._theta !== undefined, fists = !o.weapon || sp.hand === 'L' || sp.blade === 0;
+        this._th0 = chain ? this._theta : rest; this._z0 = chain && this.atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
         const J = this.J; if (J.handR) this._from = { R: J.handR.slice(), L: J.handL.slice(), bd: J.bladeDir.slice() };
       }
-      this._aPh = A.phase; this._aSp = sp; this.atkHand = sp.hand || 'R'; if (A.phase !== 'wind') this._windK = 1;
+      this._aPh = A.phase; this._aSp = sp; this._atkHand = sp.hand || 'R'; if (A.phase !== 'wind') this._windK = 1;
       if (A.phase === 'wind') {
         const k = ease.outQuad(A.u);
-        this.theta = lerp(this._th0, sp.a0, k); this.atkZ = lerp(this._z0, z0, A.u); this.reach = lerp(this._r0, r0, k); this._windK = k;
+        this._theta = lerp(this._th0, sp.a0, k); this.atkZ = lerp(this._z0, z0, A.u); this.reach = lerp(this._r0, r0, k); this._windK = k;
         tLean = -Math.abs(lean) * .45; tLunge = -lunge * .3 * k; tCrouch = clamp(sp.crouch === undefined ? (sp.kick ? 0 : .15) : sp.crouch, 0, 1) * k;
       } else if (A.phase === 'active') {
         const k = ease.outCubic(A.u);
-        this.theta = sp.spin ? sp.a0 : lerp(sp.a0, sp.a1, k); this.atkZ = lerp(z0, z1, k); this.reach = lerp(r0, r1, k);
+        this._theta = sp.spin ? sp.a0 : lerp(sp.a0, sp.a1, k); this.atkZ = lerp(z0, z1, k); this.reach = lerp(r0, r1, k);
         tLean = lean; tLunge = lunge * k; tHop = clamp(sp.hop || 0, 0, 12) * Math.sin(k * Math.PI); tCrouch = clamp(sp.crouch === undefined ? (sp.kick ? 0 : .15) : sp.crouch, 0, 1) * (1 - k);
-        if (sp.spin) { if (side) this.theta = sp.a0 - TAU * k; else this.spin = -TAU * k; }
+        if (sp.spin) { if (side) this._theta = sp.a0 - TAU * k; else this.spin = -TAU * k; }
       } else {
         const k = ease.outQuad(clamp(A.u / hold, 0, 1)), span = sp.spin ? 0 : sp.a1 - sp.a0;
-        this.theta = (sp.spin ? sp.a0 : sp.a1) + span * .08 * k; this.atkZ = z1; this.reach = r1;
+        this._theta = (sp.spin ? sp.a0 : sp.a1) + span * .08 * k; this.atkZ = z1; this.reach = r1;
         armT = A.u < hold ? 1 : 1 - ease.inOut((A.u - hold) / (1 - hold));
         tLean = lean * armT; tLunge = lunge * armT;
       }
-      tTwist = sp.spin ? 0 : clamp(this.theta * (side ? .08 : .32) * (sp.twist === undefined ? 1 : sp.twist) * (this.atkHand === 'L' ? -1 : 1), -.7, .7);
+      tTwist = sp.spin ? 0 : clamp(this._theta * (side ? .08 : .32) * (sp.twist === undefined ? 1 : sp.twist) * (this._atkHand === 'L' ? -1 : 1), -.7, .7);
     } else { this._windK = 1; this._aPh = null; }
-    this.armW = approach(this.armW || 0, armT, dt * (armT > (this.armW || 0) ? 30 : 12));
-    this.lunge = lerp(this.lunge || 0, tLunge, Math.min(1, dt * 22)); this.hop = lerp(this.hop || 0, tHop, Math.min(1, dt * 25)); this.crouchA = lerp(this.crouchA || 0, tCrouch, Math.min(1, dt * 20));
-    this.atkLean = lerp(this.atkLean, tLean, Math.min(1, dt * 25));
-    this.twist = lerp(this.twist, tTwist, Math.min(1, dt * 25));
+    this._armW = approach(this._armW || 0, armT, dt * (armT > (this._armW || 0) ? 30 : 12));
+    this.lunge = lerp(this.lunge || 0, tLunge, Math.min(1, dt * 22)); this.hop = lerp(this.hop || 0, tHop, Math.min(1, dt * 25)); this._crouchA = lerp(this._crouchA || 0, tCrouch, Math.min(1, dt * 20));
+    this._atkLean = lerp(this._atkLean, tLean, Math.min(1, dt * 25));
+    this._twist = lerp(this._twist, tTwist, Math.min(1, dt * 25));
     this._pose();
     if (o.cape) this._cape(dt);
   }
   _pose() {
-    const o = this.o, J = this.J, sp = Math.min(1, this.spW), mf = this.mv[0], mr = this.mv[1], ph = this.phase, dash = this.dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
+    const o = this.o, J = this.J, sp = Math.min(1, this._spW), mf = this.mv[0], mr = this.mv[1], ph = this.phase, dash = this._dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
     const breathe = Math.sin(this.t * 2.3) * (1 - sp);
     const bob = (.5 - Math.abs(Math.cos(ph)) * 1.3) * sp;
-    const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel, lg = this.lunge || 0, cw = this.climbW || 0;
-    const cr = Math.max(PW.crouch || 0, this.crouchA || 0, Math.sin(clamp(this.downW || 0, 0, 1) * Math.PI) * .85);
-    const sway = Math.sin(this.t * 1.15) * .3 * (1 - sp) * (1 - this.atkW);
+    const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel, lg = this.lunge || 0, cw = this._climbW || 0;
+    const cr = Math.max(PW.crouch || 0, this._crouchA || 0, Math.sin(clamp(this.downW || 0, 0, 1) * Math.PI) * .85);
+    const sway = Math.sin(this.t * 1.15) * .3 * (1 - sp) * (1 - this._atkW);
     const hipC = [mf * .4 * sp - .4 * hurt + lg * .55, mr * .3 * sp + sway, o.hipZ + bob + breathe * .3 - dash * 2.2 - hurt * .6 - kn * o.hipZ * .42 - PW.guard * .9 - cr * o.hipZ * .32 + (this.hop || 0)];
-    J.hipL = add(hipC, rz([0, -o.hipHalf, 0], this.twist * .4)); J.hipR = add(hipC, rz([0, o.hipHalf, 0], this.twist * .4));
+    J.hipL = add(hipC, rz([0, -o.hipHalf, 0], this._twist * .4)); J.hipR = add(hipC, rz([0, o.hipHalf, 0], this._twist * .4));
     for (const s of [-1, 1]) {
       const p = ph + (s > 0 ? Math.PI : 0), along = Math.sin(p) * o.stride * sp;
       let foot = [mf * along + (s > 0 ? .8 : -.6) * (1 - sp), s * o.footSpread + mr * along, Math.max(0, Math.cos(p)) * o.lift * sp];
       foot = V3.lerp(foot, [s > 0 ? 4 : -5, s * 2.2, s > 0 ? 1.5 : .3], dash);
-      if (this.airW > 0) foot = V3.lerp(foot, [s > 0 ? 3.2 : -2.6, s * 1.9, s > 0 ? 6 : 3.6], this.airW);
+      if (this._airW > 0) foot = V3.lerp(foot, [s > 0 ? 3.2 : -2.6, s * 1.9, s > 0 ? 6 : 3.6], this._airW);
       if (kn > 0) foot = V3.lerp(foot, [s > 0 ? 3.4 : -4.2, s * 2, s > 0 ? 0 : 0], kn);
       if (PW.guard > 0) foot = V3.lerp(foot, [s > 0 ? 2.6 : -2.8, s * 2.6, 0], PW.guard * (1 - sp));
       if (cr > 0) foot = V3.lerp(foot, [s > 0 ? 1.6 : -1.4, s * (o.footSpread + .7), foot[2] * (1 - cr)], cr * (1 - sp * .5));
-      if (lg > 0) foot[0] += (s === (this.atkHand === 'L' ? 1 : -1) ? lg * 1.3 : -lg * .15) * (1 - sp);
+      if (lg > 0) foot[0] += (s === (this._atkHand === 'L' ? 1 : -1) ? lg * 1.3 : -lg * .15) * (1 - sp);
       if (this.hop) foot[2] += this.hop;
-      if (cw > 0) foot = V3.lerp(foot, [.6, s * 1.5, Math.max(0, Math.sin(this.climbP + (s > 0 ? Math.PI : 0))) * 3.4], cw);
-      if (s > 0 && this.kicking && this.atkW > 0) foot = V3.lerp(foot, [Math.cos(this.theta) * (this.reach + 3), Math.sin(this.theta) * (this.reach + 3), (this.atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this.armW || 0);
+      if (cw > 0) foot = V3.lerp(foot, [.6, s * 1.5, Math.max(0, Math.sin(this._climbP + (s > 0 ? Math.PI : 0))) * 3.4], cw);
+      if (s > 0 && this._kicking && this._atkW > 0) foot = V3.lerp(foot, [Math.cos(this._theta) * (this.reach + 3), Math.sin(this._theta) * (this.reach + 3), (this.atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this._armW || 0);
       const hip = s > 0 ? J.hipR : J.hipL;
       const [knee, f2] = ik3(hip, foot, o.legUpper, o.legLower, [1, s * .15, .1]);
       J[s > 0 ? 'kneeR' : 'kneeL'] = knee; J[s > 0 ? 'footR' : 'footL'] = f2;
     }
-    const leanF = o.lean + .16 * sp * mf + .45 * dash + this.atkLean - .35 * hurt + cr * .22, leanR = .1 * sp * mr;
+    const leanF = o.lean + .16 * sp * mf + .45 * dash + this._atkLean - .35 * hurt + cr * .22, leanR = .1 * sp * mr;
     const dir = V3.norm([Math.sin(leanF), Math.sin(leanR), Math.cos(leanF)]);
     const shC = add(hipC, V3.mul(dir, o.torso));
     J.hipC = hipC; J.shC = shC;
-    J.shL = add(shC, rz([0, -o.shoulderHalf, 0], this.twist)); J.shR = add(shC, rz([0, o.shoulderHalf, 0], this.twist));
+    J.shL = add(shC, rz([0, -o.shoulderHalf, 0], this._twist)); J.shR = add(shC, rz([0, o.shoulderHalf, 0], this._twist));
     J.head = add(shC, V3.mul(V3.norm([dir[0] + o.hunch * .9, dir[1], dir[2]]), o.neck + o.headR));
-    const armLen = o.armUpper + o.armLower, aw = this.armW || 0, sA = this.atkHand === 'L' ? -1 : 1, two = this.atkHand === 'both', fists = !o.weapon || this.stW > .5;
-    const aT = this.sidePlane ? add(shC, [Math.cos(this.theta) * this.reach, sA * .8, Math.sin(this.theta) * this.reach]) : add(shC, [Math.cos(this.theta) * this.reach, Math.sin(this.theta) * this.reach, this.atkRel ? this.atkZ : this.atkZ - shC[2]]);
-    const aDir = this.sidePlane ? V3.norm([Math.cos(this.theta), .05, Math.sin(this.theta)]) : V3.norm([Math.cos(this.theta), Math.sin(this.theta), -.12]);
+    const armLen = o.armUpper + o.armLower, aw = this._armW || 0, sA = this._atkHand === 'L' ? -1 : 1, two = this._atkHand === 'both', fists = !o.weapon || this._stW > .5;
+    const aT = this.sidePlane ? add(shC, [Math.cos(this._theta) * this.reach, sA * .8, Math.sin(this._theta) * this.reach]) : add(shC, [Math.cos(this._theta) * this.reach, Math.sin(this._theta) * this.reach, this.atkRel ? this.atkZ : this.atkZ - shC[2]]);
+    const aDir = this.sidePlane ? V3.norm([Math.cos(this._theta), .05, Math.sin(this._theta)]) : V3.norm([Math.cos(this._theta), Math.sin(this._theta), -.12]);
     for (const s of [-1, 1]) {
       const sh = s > 0 ? J.shR : J.shL, q = ph + (s > 0 ? 0 : Math.PI), along = -Math.sin(q) * o.swing * sp;
       let hand = add(sh, [mf * along + .5 * (1 - sp) + o.hunch * 3, s * .9 + mr * along, -armLen * .86 + Math.abs(Math.sin(q)) * 1.2 * sp]);
       hand = V3.lerp(hand, add(sh, [-4.5, s * 1.6, -5]), dash);
       hand = V3.lerp(hand, add(sh, s > 0 ? [1.4, -.6, .6] : [-1.6, s * 2.2, -3.2]), hurt);
-      if (this.airW > 0) hand = V3.lerp(hand, add(sh, [1.2, s * 2.6, -1.2]), this.airW * .7);
-      if (s > 0 && this.pointW > 0) { const aa = this.aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this.pointW); }
+      if (this._airW > 0) hand = V3.lerp(hand, add(sh, [1.2, s * 2.6, -1.2]), this._airW * .7);
+      if (s > 0 && this._pointW > 0) { const aa = this.aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this._pointW); }
       if (PW.cheer > 0) hand = V3.lerp(hand, add(sh, [.6, s * 1.4, armLen * (.74 + .12 * Math.sin(this.t * 9 + (s > 0 ? 0 : .7)))]), PW.cheer);
       if (PW.cast > 0) hand = V3.lerp(hand, add(shC, [armLen * .82, s * 1.3, -1.2]), PW.cast);
       const guardAt = add(shC, s < 0 ? [3.8, -1, .4] : [2.3, 1.5, -.6]);
       if (PW.guard > 0) hand = V3.lerp(hand, guardAt, PW.guard);
-      if (this.stW > 0) hand = V3.lerp(hand, guardAt, this.stW * (1 - dash));
-      if (this.rdW > 0 && o.weapon) hand = V3.lerp(hand, s > 0 ? add(shC, [2.8, .9, -3]) : add(shC, [2.2, .2, -3.6]), this.rdW * (1 - dash));
+      if (this._stW > 0) hand = V3.lerp(hand, guardAt, this._stW * (1 - dash));
+      if (this._rdW > 0 && o.weapon) hand = V3.lerp(hand, s > 0 ? add(shC, [2.8, .9, -3]) : add(shC, [2.2, .2, -3.6]), this._rdW * (1 - dash));
       if (PW.wave > 0 && s === (o.weapon ? -1 : (this._camSide || 1))) { const w = Math.sin(this.t * 11); hand = V3.lerp(hand, add(sh, [.8 + w * 1.7, s * (2 + Math.max(0, w) * 1.4), armLen * .8]), PW.wave); }
       if (PW.hips > 0) hand = V3.lerp(hand, add(s > 0 ? J.hipR : J.hipL, [-.2, s * 1.5, 1.5]), PW.hips);
       if (PW.block > 0) hand = V3.lerp(hand, add(shC, s > 0 ? [2.6, .6, -2.4] : [2.4, -.2, -3.4]), PW.block);
-      if (cw > 0) hand = V3.lerp(hand, add(sh, [1.7, s * .5, armLen * (.08 + .8 * (.5 + .5 * Math.sin(this.climbP + (s > 0 ? 0 : Math.PI))))]), cw);
+      if (cw > 0) hand = V3.lerp(hand, add(sh, [1.7, s * .5, armLen * (.08 + .8 * (.5 + .5 * Math.sin(this._climbP + (s > 0 ? 0 : Math.PI))))]), cw);
       const wk = this._from && this._windK < 1 ? this._windK : 1, from = wk < 1 ? this._from[s > 0 ? 'R' : 'L'] : null;
-      if (aw > 0 && !this.kicking) {
+      if (aw > 0 && !this._kicking) {
         if (s === sA) hand = V3.lerp(hand, from ? V3.lerp(from, aT, wk) : aT, aw);
         else if (two) hand = V3.lerp(hand, add(aT, V3.mul(aDir, -1.7)), aw);
         else { const offT = fists ? guardAt : add(shC, [1.6, s * 1.6, -1.6]); hand = V3.lerp(hand, from ? V3.lerp(from, offT, wk) : offT, from ? aw : aw * .85); }
       }
-      if (this.kicking && aw > 0) hand = V3.lerp(hand, add(shC, [1.8, s * 2.2, .6 - (s > 0 ? 1.5 : 0)]), aw * .85);
+      if (this._kicking && aw > 0) hand = V3.lerp(hand, add(shC, [1.8, s * 2.2, .6 - (s > 0 ? 1.5 : 0)]), aw * .85);
       const [elbow, h2] = ik3(sh, hand, o.armUpper, o.armLower, [-1, s * .7, -.2]);
       J[s > 0 ? 'elbowR' : 'elbowL'] = elbow; J[s > 0 ? 'handR' : 'handL'] = h2;
     }
     const wp = o.weapon, rest = V3.norm(wp === 'staff' ? [.3, .15, 1] : wp === 'gun' ? [.8, 0, -.6] : [.55, .35, -.75]), atk = aDir;
-    let bd = V3.lerp(rest, atk, this.kicking || sA < 0 ? 0 : aw);
-    if (this._from && this._windK < 1 && !this.kicking && sA > 0) bd = V3.lerp(this._from.bd, bd, this._windK);
+    let bd = V3.lerp(rest, atk, this._kicking || sA < 0 ? 0 : aw);
+    if (this._from && this._windK < 1 && !this._kicking && sA > 0) bd = V3.lerp(this._from.bd, bd, this._windK);
     if (PW.cheer > 0) bd = V3.lerp(bd, [.15, .05, 1], PW.cheer);
     if (PW.block > 0) bd = V3.lerp(bd, [.35, -.3, .9], PW.block);
-    if (this.rdW > 0) bd = V3.lerp(bd, [.62, .08, .78], this.rdW * (1 - aw));
-    if (this.pointW > 0) bd = V3.lerp(bd, [Math.cos(this.aimA || 0), 0, Math.sin(this.aimA || 0)], this.pointW);
+    if (this._rdW > 0) bd = V3.lerp(bd, [.62, .08, .78], this._rdW * (1 - aw));
+    if (this._pointW > 0) bd = V3.lerp(bd, [Math.cos(this.aimA || 0), 0, Math.sin(this.aimA || 0)], this._pointW);
     J.bladeDir = V3.norm(bd);
     const dw = this.downW || 0;
     if (dw > 0) J.bladeDir = V3.norm(V3.lerp(J.bladeDir, [0, .9, -.4], dw));
@@ -1587,7 +1636,7 @@ class Humanoid {
     const out = o.outfit, hz = Math.max(J.hipL[2], J.hipR[2]) + .9;
     if (out === 'tunic' || out === 'robe' || out === 'coat') {
       const len = out === 'robe' ? hz - .6 : out === 'coat' ? hz * .62 : hz * .42, fl = out === 'robe' ? 1.55 : 1.3, dep = o.torsoW * .7;
-      const tail = out === 'coat' ? -1.2 - 2.2 * Math.min(1, this.spW) : 0, fwd = this.atkW * .3;
+      const tail = out === 'coat' ? -1.2 - 2.2 * Math.min(1, this._spW) : 0, fwd = this._atkW * .3;
       const lat = [Sp([J.hipC[0], -o.hipHalf * 1.25, hz]), Sp([J.hipC[0], o.hipHalf * 1.25, hz]), Sp([J.hipC[0] + tail * .5 + fwd, o.hipHalf * 1.25 * fl, hz - len]), Sp([J.hipC[0] + tail * .5 + fwd, -o.hipHalf * 1.25 * fl, hz - len])];
       const sag = [Sp([J.hipC[0] + dep, 0, hz]), Sp([J.hipC[0] + (out === 'coat' ? dep * .3 : dep * fl) + fwd, 0, hz - len * (out === 'coat' ? .45 : 1)]), Sp([J.hipC[0] - dep * fl + tail, 0, hz - len]), Sp([J.hipC[0] - dep, 0, hz])];
       const cc = out === 'coat' ? (C.coat || C.cloth) : C.cloth, trim = C.trim || (out === 'coat' ? shade(cc, -.35) : C.belt);
@@ -2184,7 +2233,7 @@ E.TileMap = TileMap;
 class FlowField {
   // new E.FlowField(map, { step: 2, climb: 0, drop: 0 }): paths over the tops a body can stand on (HEIGHTS)
   constructor(map, o = {}) {
-    this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this.q = new Int32Array(n); this.top = new Float64Array(n); this.tx = -1; this.ty = -1; this.version = -1;
+    this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this._q = new Int32Array(n); this._tops = new Float64Array(n); this.tx = -1; this.ty = -1; this.version = -1;
     this.step = o.step === undefined ? HEIGHTS.step : o.step; this.climb = o.climb || 0; this.drop = o.drop || 0;
   }
   _top(cx, cy) {
@@ -2192,12 +2241,12 @@ class FlowField {
     if (m.types && m.height) { const c = m.cell(cx, cy); return c < 0 || (c === 0 && m.blocked && m.blocked[cy * m.w + cx]) ? NaN : c > 0 ? m.height(cx, cy) : 0; }
     return (m.walkable ? m.walkable(cx, cy) : !m.solidCell(cx, cy)) ? 0 : NaN;
   }
-  _link(i, j) { const dz = this.top[j] - this.top[i]; return dz >= 0 ? dz <= Math.max(this.step, this.climb) : -dz <= Math.max(this.step, this.drop); }   // (NaN: false)
+  _link(i, j) { const dz = this._tops[j] - this._tops[i]; return dz >= 0 ? dz <= Math.max(this.step, this.climb) : -dz <= Math.max(this.step, this.drop); }   // (NaN: false)
   update(x, y) {
     const m = this.map, T = m.T, W = m.w, H = m.h, tx = Math.floor(x / T), ty = Math.floor(y / T);
     if (tx === this.tx && ty === this.ty && m.version === this.version) return;
     this.tx = tx; this.ty = ty; this.version = m.version;
-    const d = this.d, q = this.q, top = this.top; d.fill(1e9);
+    const d = this.d, q = this._q, top = this._tops; d.fill(1e9);
     for (let cy = 0, i = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++, i++) top[i] = this._top(cx, cy);
     if (tx < 0 || ty < 0 || tx >= W || ty >= H || Number.isNaN(top[ty * W + tx])) return;
     let h = 0, t = 0; d[ty * W + tx] = 0; q[t++] = ty * W + tx;
@@ -2741,8 +2790,8 @@ const DRUMS = {
   t: [{ wave: 'triangle', freq: 180, to: 90, dur: .16, vol: .45 }]
 };
 class ChipAudio {
-  constructor(game) {
-    this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
+  constructor(game, signal) {
+    this.game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
@@ -2753,20 +2802,20 @@ class ChipAudio {
     try {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) throw new Error('Web Audio is not available');
       const c = this.ctx = new AC();
-      this.master = c.createGain(); this.master.connect(c.destination);
-      this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
-      this.musBus = c.createGain(); this.musBus.connect(this.master);
+      this._master = c.createGain(); this._master.connect(c.destination);
+      this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
+      this._musBus = c.createGain(); this._musBus.connect(this._master);
       this._levels();
       const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
-      this.noise = nb;
+      this._noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
-      for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true });
+      for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true, signal: this._signal });
       resume();
     } catch (e) { this.failed = e.message || String(e); warn('audio', 'sound is off: ' + this.failed); }
     return this.ctx;
   }
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
-  _levels() { if (!this.ctx) return; this.master.gain.value = this.muted ? 0 : this.volume; this.sfxBus.gain.value = this.sfxVolume; this.musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
+  _levels() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
   setVolume(v) { this.volume = clamp(v, 0, 1); this._levels(); }
   mute(on = !this.muted) { this.muted = on; this._levels(); return on; }
   // quiet the music (to 35%) under a game's own pause or map screen; the engine also ducks it while game.paused
@@ -2786,7 +2835,7 @@ class ChipAudio {
     else g.gain.exponentialRampToValueAtTime(.0005, end);
     let src;
     if (wave === 'noise') {
-      src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
+      src = c.createBufferSource(); src.buffer = this._noise; src.loop = true;
       const f = c.createBiquadFilter(); f.type = p.filter || 'bandpass'; f.Q.value = p.q || 1.1; f.frequency.setValueAtTime(f0, t); if (to) f.frequency.exponentialRampToValueAtTime(to, end);
       src.connect(f); f.connect(g); src.start(t, Math.random() * .5);
     } else {
@@ -2809,7 +2858,7 @@ class ChipAudio {
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
     const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
-    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this.sfxBus, now + .005, mul); }
+    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
   define(name, voice) { this.presets[name] = voice; }
@@ -2821,7 +2870,7 @@ class ChipAudio {
     this.stopMusic();
     const tracks = (song.tracks || []).map(t => Object.assign({}, t, { tokens: String(t.notes || '').replace(/\|/g, ' ').trim().split(/\s+/).filter(Boolean) })).filter(t => t.tokens.length);
     if (!tracks.length) { warn('music:empty', 'music(song) needs song.tracks with notes'); return; }
-    const bus = this.ctx.createGain(); bus.connect(this.musBus);
+    const bus = this.ctx.createGain(); bus.connect(this._musBus);
     this.song = { src: song, tracks, spb: 60 / (song.bpm || 120) / (song.steps || 4), step: 0, next: 0, len: Math.max(...tracks.map(t => t.tokens.length)), loop: o.loop !== undefined ? o.loop : song.loop !== false, bus };
     this._timer = setInterval(() => { try { this._schedule(); } catch (e) { warn('music-fail', 'music stopped: ' + e.message); this.stopMusic(); } }, 25);
   }
