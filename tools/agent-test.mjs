@@ -115,7 +115,7 @@ const filled = p => p.evaluate(() => {
   let top = 0; for (let i = 0; i < d.length; i += 4) { const k = d[i] << 16 | d[i + 1] << 8 | d[i + 2], v = (n.get(k) || 0) + 1; n.set(k, v); if (v > top) top = v; }
   return 1 - top / (d.length / 4);
 });
-const state = p => p.evaluate(() => { const g = My3D2dge.current; return g ? { scene: g.sceneName, errors: g.errors.map(e => e.where + ': ' + e.message), box: !!document.getElementById('my3d2dge-error') } : null; });
+const state = p => p.evaluate(() => { const g = My3D2dge.current; return g ? { scene: g.sceneName, errors: g.errors.map(e => e.where + ': ' + e.message), box: !!document.querySelector('#my3d2dge-error, #e3-boot[data-failed]') } : null; });
 
 async function play(browser, engine, ex, tag) {
   const { p, dir, errors } = await page(browser, engine, ex.code, tag);

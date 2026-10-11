@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.23.0)
+# my-3D2dge API card (v0.24.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -109,6 +109,7 @@ game.start({ scene: 'title', scenes: {
 With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap, a top-right button, the menu; leaving it is remembered), **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling or zooming on the canvas).
 - Adjust: `new E.Game({ menu: { items: [['Restart', fn]], settings: [{ key: 'hints', label: 'Hints', value: true }, { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }], controls: { attack: 'Sword', skill: false }, quit: 'title' } })`, then read `game.settings.hints`. Leave parts out: `menu: false` (your own pause), `fullscreen: 'button' | false`, `corner: false`, `autoPause: false`.
 - Prompts: `game.input.label('jump')` is that action's key or button on the player's device, after rebinding ('Space', 'A', '✕'). A canvas title's OPTIONS: `game.menu('settings')`. From code: `game.settings.set(key, v)`, `game.fullscreen.toggle()` (from a key, click or tap), `game.pause(reason)`, `game.resume()`.
+- **Boot**: heavy setup goes in steps, run one a frame behind a boot screen (system checks, a progress bar, your lines), then a warm-up frame: `game.start({ scenes, scene, boot: { title: 'VESPER', steps: [['Raising the harbour', () => { map = build(); }]], messages: ['Counting the bells'] } })` (a step may return a promise). A failing step, or any error before play, shows a report a player can screenshot (`E.diagnose()` gives it any time). `E.bootSplash(title)`'s markup first in `<body>` shows the screen from the first paint (the starter files have it).
 
 ## Input: `game.input`
 - Actions in every preset: `up down left right` (WASD, arrows, d-pad), `start` (Enter, Start), `pause` (Escape, P, Start), `confirm` (Enter, Space, J, Z, pad A), `cancel` (Escape, Backspace, X, K, pad B).

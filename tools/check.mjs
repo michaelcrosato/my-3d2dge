@@ -51,7 +51,7 @@ const coverage = () => page.evaluate(() => {
   return { filled: +(1 - top / N).toFixed(3), colors, flat: +(top / N).toFixed(3), checker: +(checker / Math.max(1, wins)).toFixed(3), spread };
 });
 const snap = async (tag) => {
-  const s = await page.evaluate(() => { const g = My3D2dge.current; return { scene: g.sceneName, fps: g.fps, updateMs: +g.stats.updateMs.toFixed(2), renderMs: +g.stats.renderMs.toFixed(2), items: g.stats.items, actors: g.stats.actors, resolution: g.screen.W + 'x' + g.screen.H, errorBox: !!document.getElementById('my3d2dge-error') }; });
+  const s = await page.evaluate(() => { const g = My3D2dge.current; return { scene: g.sceneName, fps: g.fps, updateMs: +g.stats.updateMs.toFixed(2), renderMs: +g.stats.renderMs.toFixed(2), items: g.stats.items, actors: g.stats.actors, resolution: g.screen.W + 'x' + g.screen.H, errorBox: !!document.querySelector('#my3d2dge-error, #e3-boot[data-failed]') }; });
   const cov = await coverage(), shot = join(out, tag + '.png');
   await page.screenshot({ path: shot });
   return { ...s, ...cov, screenshot: shot };
@@ -89,7 +89,7 @@ const all = [...report.scenes, ...report.views];
 const played = all.filter(v => v.at !== 'load');
 const blank = played.length > 0 && played.every(v => v.filled < .01);
 if (blank) errors.push('After pressing start, the screen stayed one flat color the whole time: nothing is drawn where the camera looks (check game.focus, level.draw / map.drawFloor, and that the play scene draws).');
-if (all.some(v => v.errorBox)) errors.push('The on-screen error box was showing (see the errors above).');
+if (all.some(v => v.errorBox)) errors.push('The on-screen error box (or the boot screen\'s failure report) was showing (see the errors above).');
 
 console.log('my-3D2dge check: ' + file + (report.engine ? ' (engine ' + report.engine + (report.build ? ', build ' + report.build : '') + ')' : ''));
 for (const v of report.scenes) console.log(`  ${v.at.padEnd(13)} scene ${String(v.scene).padEnd(10)} ${String(v.fps).padStart(3)} fps  ${v.actors} characters  ${v.items} draws  ${Math.round(v.filled * 100)}% filled  ${v.colors} colors  ${v.resolution}`);

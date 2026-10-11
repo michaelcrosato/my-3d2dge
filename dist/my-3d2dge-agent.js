@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.23.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.24.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -138,6 +138,8 @@ Standard, with no code: game.settings (saved per game: volume music effects soun
   game.fullscreen (a phone's first tap, a top-right button; toggle() from a key or click), and a pausable scene pausing
   when the page is hidden or the controller unplugs (pause(reason), resume(), pauseReason). Don't build your own. Leave
   out: fullscreen: 'button' | false, corner: false, autoPause: false. The full engine adds the menu screens.
+Boot: start({ ..., boot: { title, steps: [['Raising the harbour', () => build()]], messages: ['Counting the bells'] } }) runs heavy
+  setup one step a frame behind a boot screen; an error before play shows a report to screenshot (E.diagnose() any time).
 Drawing (r in draw(r); r.W, r.H = screen size in pixels)
   r.sky(['#top', '#mid', '#bottom']); r.starfield({ count: 70, speed: 30, dir: 'down' | 'up' | 'left' | 'right', height: 0..1 })
   r.actor(x, y, z, (g, ox, oy) => rig.draw(g, ox, oy, r.view), { outline: true, flash: '#ffffff', flashMix: .5, alpha, bias })
@@ -367,7 +369,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.23.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.24.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1187,9 +1189,11 @@ class Renderer {
 
 // ---- 9. GAME: loop, fixed-step clock, scenes, camera, hit-stop, shake, flash, timers, on-screen errors ----
 let _errBox = null;
+const BOOT = { el: null, game: null, played: false, failed: false, lines: [] };   // the boot screen (9c): an error before play shows there, as a report
 E.showError = (title, e) => {
   if (typeof document === 'undefined') return;
   if (!document.body) { addEventListener('DOMContentLoaded', () => E.showError(title, e)); return; }
+  if (!BOOT.played && BOOT.fail && (BOOT.el || E.current)) { BOOT.fail(title, e); return; }
   if (!_errBox) {
     _errBox = document.createElement('div'); _errBox.id = 'my3d2dge-error'; _errBox.setAttribute('role', 'alert');
     _errBox.style.cssText = 'position:fixed;left:8px;right:8px;top:8px;z-index:99999;max-height:45vh;overflow:auto;background:rgba(40,0,8,.95);color:#ffd6d6;border:2px solid #ff5a5a;border-radius:6px;padding:10px 12px;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;cursor:pointer';
@@ -1197,7 +1201,8 @@ E.showError = (title, e) => {
     document.body.appendChild(_errBox);
   }
   const detail = e && e.stack ? String(e.stack) : String(e && e.message || e);
-  _errBox.textContent = 'my-3D2dge: ' + title + '\n' + detail.split('\n').slice(0, 5).join('\n') + '\n(click to hide. Full details are in the browser console.)';
+  const d = E.diagnose ? E.diagnose() : null;
+  _errBox.textContent = 'my-3D2dge: ' + title + '\n' + detail.split('\n').slice(0, 5).join('\n') + (d ? '\n' + d.short : '') + '\n(click to hide. Full details are in the browser console; My3D2dge.diagnose() gives the report.)';
 };
 if (typeof window !== 'undefined' && window.addEventListener) {
   window.addEventListener('error', ev => { if (ev && (ev.error || ev.message)) E.showError('script error (the game could not start, or crashed outside update/draw)', ev.error || (ev.message + ' (line ' + ev.lineno + ')')); });
@@ -1236,6 +1241,7 @@ class Game {
     this.alpha = .5; this._acc = this.o.step / 2;   // the step left over (0..1); starting half a step in keeps a steady step count
     // the player's choices (game.settings.volume; set(key, v) checks, saves, applies), full screen, why the game paused
     this.settings = new Settings(this, (this.o.menu && this.o.menu.settings) || []); this.fullscreen = new FullScreen(this); this.pauseReason = null;
+    this.booted = Promise.resolve(this); this.bootError = null;   // the boot (9c): a promise of the game once started; the error a boot step failed with
     if (!this.headless) this._standard(signal);
     E.current = this;
   }
@@ -1328,8 +1334,10 @@ class Game {
     [c.y, c.vy] = smoothDamp(c.y, ty, c.vy, c.smooth, dt);
     c.moving = Math.hypot(tx - c.x, ty - c.y) > 1.5;
   }
-  // game.start({ update(dt), draw(r) }) or game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
+  // game.start({ update(dt), draw(r) }) or game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }); boot: { title, version,
+  // steps: [[label, fn]], messages, min } runs the boot first (9c): the steps one a frame behind the boot screen
   start(hooks) {
+    if (hooks && hooks.boot !== undefined && !this._booting) return this._boot(hooks);
     if (hooks !== undefined || !this._hooks) {   // start() with nothing resumes a stopped loop
       if (!hooks || typeof hooks !== 'object') throw new Error('game.start needs { update(dt), draw(r) } or { scenes: { name: { update, draw } }, scene: "name" }');
       this._hooks = hooks;
@@ -1352,6 +1360,36 @@ class Game {
       const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = raw * 1000; st.steps = steps;
     };
     this._raf = requestAnimationFrame(frame);
+    return this;
+  }
+  /** run the boot (9c), then start: the system's checks on the screen, the game's steps one a frame (or all at
+   *  once, headless or with loop: false), waiting for a step's promise, then the loop under the screen until it has drawn */
+  _boot(hooks) {
+    const o = hooks.boot || {}, h = Object.assign({}, hooks); delete h.boot;
+    this._booting = true; this._bootOpt = o;
+    const live = !this.headless && this.o.loop !== false && hooks.boot !== false && typeof document !== 'undefined';
+    const steps = (Array.isArray(o.steps) ? o.steps : []).filter(Boolean).map(x => Array.isArray(x) ? x : [x.label || 'Getting ready', x.run]);
+    if (hooks.boot === false) { BOOT.played = true; const el = typeof document !== 'undefined' && document.getElementById('e3-boot'); if (el) el.remove(); BOOT.el = null; return this.start(h); }
+    let res; this.booted = new Promise(r => { res = r; });
+    if (live) { BOOT._open(this, o); BOOT._checks(this); }
+    const now = () => typeof performance !== 'undefined' ? performance.now() : 0, t0 = now(), n = steps.length;   // (no clock in a bare Node context)
+    let i = 0;
+    const fail = (label, e) => { this._booting = false; this.bootError = e; this._fail('boot step "' + label + '"', e); BOOT.fail('boot step "' + label + '"', e); res(this); };
+    const next = () => {
+      if (this.disposed) return;
+      while (i < n) {
+        const [label, fn] = steps[i++], s0 = now();
+        if (live) BOOT._step(i, n, label);
+        let r; try { r = typeof fn === 'function' ? fn(this) : null; } catch (e) { fail(label, e); return; }
+        const ok = () => { if (live) BOOT._line('  ' + (i + '. ').padEnd(4), label + ' · ' + Math.round(now() - s0) + ' ms'); };
+        if (r && typeof r.then === 'function') { r.then(() => { ok(); live ? requestAnimationFrame(next) : next(); }, e => fail(label, e)); return; }
+        ok(); if (live) { requestAnimationFrame(next); return; }   // one step a frame: the screen shows each
+      }
+      if (live && o.min && now() - t0 < o.min * 1000) { requestAnimationFrame(next); return; }
+      if (live) BOOT._step(n + 1, n + 1, 'Warming up');
+      this._booting = false; this.start(h); res(this);
+    };
+    next();
     return this;
   }
   // stop the loop (start() resumes it); dispose() ends the game for good: the loop, every listener the engine added, the sound
@@ -1469,6 +1507,7 @@ class Game {
     const fd = this._fade, fl = fd ? clamp(fd.out ? fd.t / fd.dur : 1 - fd.t / fd.dur, 0, 1) : 0;
     if (fl > 0) r.overlay(g => fill(g, '#000000', Math.round(fl * 16) / 16));
     r.finish();
+    if (!BOOT.played && !this._booting && (this._drawn = (this._drawn || 0) + 1) >= 2) BOOT._finish();   // play has begun: the boot screen goes
   }
 }
 E.Game = Game;
@@ -1568,6 +1607,141 @@ function pageSetup(canvas) {   // no page gestures, selection or callouts on the
   const vp = meta('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover'); if (!/viewport-fit/.test(vp.content)) vp.content += ', viewport-fit=cover';
   meta('mobile-web-app-capable', 'yes'); meta('apple-mobile-web-app-capable', 'yes');
 }
+
+// ---- 9c. BOOT: the system checked, the game's boot steps one a frame behind a boot screen (its progress and lines), a warm-up frame;
+//      a failure before play becomes a report to screenshot (E.diagnose() gives it any time). E.bootSplash(title) first in <body> shows it from the first paint ----
+/** the engine's own lines for the boot screen, when a game gives none (boot.messages) */
+const BOOT_MESSAGES = ['Reticulating splines', 'Snapping every pixel to the grid', 'Teaching skeletons to walk', 'Counting to 120, every second',
+  'Dithering the shadows', 'Untangling the capes', 'Warming up the chip synth', 'Sorting the world by depth', 'Lighting the torches',
+  'Bribing the camera', 'Seeding the random numbers', 'Bending knees the inverse way', 'Polishing the parallax', 'Folding the pixels into 3D'];
+const BOOT_CSS = `#e3-boot{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:space-between;gap:14px;background:#05040a;color:#a9a1c8;
+font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:max(16px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));transition:opacity .3s;overflow:auto}
+#e3-boot.out{opacity:0;pointer-events:none}#e3-boot b{color:#f4f0ff;font-size:16px;letter-spacing:.08em}#e3-boot .ok{color:#8fd49a}#e3-boot .no{color:#e8a06a}
+#e3-boot pre{margin:0;font:inherit;white-space:pre-wrap;word-break:break-word}#e3-boot .e3-bar{display:block;height:4px;max-width:440px;background:#ffffff14;margin:6px 0 4px;overflow:hidden}
+#e3-boot .e3-bar i{display:block;height:100%;background:var(--e3-accent,#d9b77c);transition:width .2s}#e3-boot .e3-quip{color:var(--e3-accent,#d9b77c);font-style:italic}
+#e3-boot[data-failed]{justify-content:flex-start;color:#e8dcd6}#e3-boot[data-failed] b{color:#ff8a7a}#e3-boot .e3-err{color:#ffd6d0;border-left:3px solid #ff5a5a;padding-left:10px;margin:8px 0}
+#e3-boot button{font:600 13px system-ui,sans-serif;min-height:44px;padding:8px 16px;margin:10px 8px 0 0;border-radius:6px;border:1px solid #ffffff40;background:#ffffff14;color:#fff;cursor:pointer}
+@media (prefers-reduced-motion:reduce){#e3-boot,#e3-boot .e3-bar i{transition:none}}`;
+const bootEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+/** the boot screen's markup, for the very start of a page's <body>: it shows from the first paint, its bar moving while
+ *  the page's scripts load (a pure CSS animation), and says so if the game's script never runs. The engine takes it over */
+E.bootSplash = (title = '') => '<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace">'
+  + '<style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style>'
+  + (title ? '<b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">' + bootEsc(title) + '</b>' : '') + '<span>Starting · my-3D2dge v' + E.version + '</span>'
+  + '<span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span>'
+  + '<span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game\'s script did not run: reload, or open the browser\'s console.</span></div>';
+/** a short name for the browser and system from the user agent: 'Chrome 141 · Android 15' */
+const uaName = ua => {
+  const m = re => (ua.match(re) || [])[1] || '';
+  const b = /Edg\//.test(ua) ? 'Edge ' + m(/Edg\/(\d+)/) : /OPR\//.test(ua) ? 'Opera ' + m(/OPR\/(\d+)/) : /Firefox\//.test(ua) ? 'Firefox ' + m(/Firefox\/(\d+)/)
+    : /CriOS\//.test(ua) ? 'Chrome ' + m(/CriOS\/(\d+)/) : /Chrome\//.test(ua) ? 'Chrome ' + m(/Chrome\/(\d+)/) : /Version\/\d+.*Safari/.test(ua) ? 'Safari ' + m(/Version\/(\d+)/) : 'a browser';
+  const os = /Android/.test(ua) ? 'Android ' + m(/Android (\d+)/) : /iPhone|iPad|iPod/.test(ua) ? (/iPad/.test(ua) ? 'iPadOS ' : 'iOS ') + m(/OS (\d+)_/) : /Windows/.test(ua) ? 'Windows'
+    : /Mac OS X/.test(ua) ? 'macOS' : /CrOS/.test(ua) ? 'ChromeOS' : /Linux/.test(ua) ? 'Linux' : '';
+  return (b + (os ? ' · ' + os : '')).trim();
+};
+/**
+ * the report a bug needs, at any time (and on the boot screen when a game can't start): { engine, game, time, page,
+ * browser, device, screen, canvas, gpu, sound, storage, input, scene, errors, text (all of it, one line each, for a
+ * screenshot or a bug report), short (one line) }. game: the game to report on (E.current)
+ */
+E.diagnose = (game = E.current) => {
+  const W = typeof window !== 'undefined' ? window : null, N = typeof navigator !== 'undefined' ? navigator : {}, g = game, o = (g && g._bootOpt) || {};
+  const mm = q => !!(W && W.matchMedia && W.matchMedia(q).matches), pads = (() => { try { return Array.from(N.getGamepads ? N.getGamepads() : []).filter(Boolean); } catch (e) { return []; } })();
+  let storage = 'none'; try { if (typeof localStorage !== 'undefined') { localStorage.setItem('my3d2dge:probe', '1'); localStorage.removeItem('my3d2dge:probe'); storage = g && g.settings && !g.settings.saved ? 'full or blocked' : 'OK'; } } catch (e) { storage = 'blocked: settings last this visit'; }
+  const sc = g && g.screen, A = g && g.audio, G = g && g.gpu;
+  const d = {
+    engine: 'my-3D2dge v' + E.version + (E.edition === 'agent' ? ' (agent edition)' : '') + ' · ' + E.build,
+    game: ((o.title || (typeof document !== 'undefined' && document.title) || 'a game') + (o.version ? ' ' + o.version : '')).trim(),
+    time: new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC',
+    page: typeof location !== 'undefined' ? (location.pathname + location.search + location.hash).slice(-90) : 'none (no page)',
+    browser: N.userAgent ? uaName(N.userAgent) : 'none (Node)',
+    device: [N.hardwareConcurrency && N.hardwareConcurrency + ' cores', N.deviceMemory && N.deviceMemory + ' GB', mm('(pointer: coarse)') ? 'touch' : W ? 'mouse' : ''].filter(Boolean).join(' · ') || 'unknown',
+    screen: W ? W.innerWidth + 'x' + W.innerHeight + ' @' + Math.round((W.devicePixelRatio || 1) * 100) / 100 + 'x' + (g && g.fullscreen && g.fullscreen.on ? ' · full screen' : '') : 'none',
+    canvas: !g ? 'no game yet' : g.headless ? 'none (headless)' : sc._sctx ? sc.W + 'x' + sc.H + ' at ' + Math.round(sc.S * 100) / 100 + 'x (' + sc.scale + ')' : 'FAILED: no 2D drawing on this canvas',
+    gpu: G ? 'WebGPU lighting ' + G.status() + (G.failed ? ': ' + G.failed : '') : N.gpu ? 'WebGPU available, not used' : 'canvas only (no WebGPU)',
+    sound: !A ? 'no game yet' : A.failed ? 'off: ' + A.failed : A.ready ? 'on' : 'waits for a tap or key',
+    storage,
+    input: g ? g.input.lastDevice + (pads.length ? ' · controller: ' + String(pads[0].id).replace(/\s*\(.*$/, '').slice(0, 40) : ' · no controller') : 'no game yet',
+    scene: g ? (g.sceneName || 'not started') + ' · ' + Math.round(g.real * 10) / 10 + ' s · ' + g.fps + ' fps' + (g.paused ? ' · paused' : '') : 'no game yet',
+    errors: g ? g.errors.length : 0
+  };
+  const rows = [['Engine', d.engine], ['Game', d.game], ['Time', d.time], ['Page', d.page], ['Browser', d.browser], ['Device', d.device], ['Screen', d.screen],
+    ['Canvas', d.canvas], ['GPU', d.gpu], ['Sound', d.sound], ['Storage', d.storage], ['Input', d.input], ['Scene', d.scene]];
+  d.text = rows.map(([k, v]) => (k + '          ').slice(0, 9) + v).join('\n');
+  d.short = 'v' + E.version + ' · ' + E.build + ' · ' + d.browser + ' · ' + d.screen + ' · ' + d.scene;
+  return d;
+};
+Object.assign(BOOT, {
+  /** the screen: the page's splash taken over, or a new one */
+  _open(game, o) {
+    if (typeof document === 'undefined' || !document.body) return null;
+    if (!document.getElementById('e3-boot-css')) { const st = document.createElement('style'); st.id = 'e3-boot-css'; st.textContent = BOOT_CSS; document.head.appendChild(st); }
+    let el = document.getElementById('e3-boot');
+    if (!el) { el = document.createElement('div'); el.id = 'e3-boot'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.removeAttribute('style'); el.classList.remove('out'); if (o && o.accent) el.style.setProperty('--e3-accent', o.accent);
+    const title = (o && o.title) || document.title || '';
+    el.innerHTML = '<pre class="e3-sys"></pre><div><b></b><div class="e3-step">Starting</div><span class="e3-bar"><i style="width:4%"></i></span><div class="e3-quip"></div></div>';
+    el.querySelector('b').textContent = title;
+    this.el = el; this.game = game; this.lines = []; this.played = false;
+    const msgs = o && o.messages === false ? [] : (o && o.messages) || BOOT_MESSAGES, pick = rng((Date.now() >>> 0) || 1), q = el.querySelector('.e3-quip');   // (its own random numbers: never the game's)
+    const quip = () => { if (msgs.length && this.el === el) q.textContent = msgs[Math.floor(pick() * msgs.length)] + '…'; };
+    quip(); clearInterval(this._quip); this._quip = setInterval(quip, 1400);
+    if (o && o.checks === false) el.querySelector('.e3-sys').hidden = true;
+    return el;
+  },
+  /** a line of the system's check: 'Canvas    320x240 at 3x (sharp)' */
+  _line(label, value, ok = true) {
+    const t = (label + '          ').slice(0, 9) + value; this.lines.push(t); if (!this.el) return;
+    const s = this.el.querySelector('.e3-sys'); if (!s) return;
+    const row = document.createElement('div'); row.textContent = t; if (!ok) row.className = 'no'; s.appendChild(row);
+  },
+  /** the system's lines, from E.diagnose */
+  _checks(game) {
+    const d = E.diagnose(game);
+    this._line('Engine', d.engine); this._line('System', d.browser + (d.device ? ' · ' + d.device : '')); this._line('Screen', d.screen);
+    this._line('Canvas', d.canvas, !/FAILED/.test(d.canvas)); this._line('GPU', d.gpu); this._line('Sound', d.sound, !/^off/.test(d.sound));
+    this._line('Storage', d.storage, d.storage === 'OK'); this._line('Input', d.input.replace(/^\w+ · /, ''));
+  },
+  /** step k of n is under way */
+  _step(k, n, label) {
+    if (!this.el) return;
+    this.el.querySelector('.e3-step').textContent = label + (n > 1 ? '  ·  ' + k + ' / ' + n : '');
+    this.el.querySelector('.e3-bar i').style.width = Math.round(4 + 92 * (k - 1) / Math.max(1, n)) + '%';
+  },
+  /** play has started (the game drew under the screen): take the screen away */
+  _finish() {
+    this.played = true; clearInterval(this._quip); const el = this.el; this.el = null;
+    if (!el || el.hasAttribute('data-failed')) return;
+    el.querySelector('.e3-bar i') && (el.querySelector('.e3-bar i').style.width = '100%');
+    const reduce = this.game && this.game.reduceMotion;
+    if (reduce) el.remove(); else { el.classList.add('out'); setTimeout(() => el.remove(), 400); }
+  },
+  /** something failed before play: the screen becomes the report (what failed, the error, the system), with Try again,
+   *  Copy report and Continue */
+  fail(title, e) {
+    if (typeof document === 'undefined' || !document.body) return;
+    const el = this.el || this._open(this.game || E.current, this.game && this.game._bootOpt);
+    if (!el) return;
+    this.failed = true; clearInterval(this._quip);
+    const msg = (e && e.message) || String(e), stack = e && e.stack ? String(e.stack).split('\n').filter(l => /\d:\d/.test(l)).slice(0, 3).map(l => l.trim().replace(/^at /, '')) : [];
+    const d = E.diagnose(this.game || E.current), code = 'E3-' + (hashStr(msg + (stack[0] || '')) >>> 0).toString(16).slice(0, 6).toUpperCase();
+    const report = d.game + ' could not start\nWhat failed: ' + title + '\nError: ' + msg + (stack.length ? '\n  ' + stack.join('\n  ') : '') + '\nCode: ' + code + '\n\n' + d.text;
+    el.setAttribute('data-failed', ''); el.setAttribute('role', 'alert'); el.classList.remove('out');
+    el.innerHTML = '<div><b></b><div class="e3-err"></div><pre class="e3-rep"></pre><div class="e3-act"></div></div>';
+    el.querySelector('b').textContent = d.game + ' could not start';
+    el.querySelector('.e3-err').textContent = title + '\n' + msg; el.querySelector('.e3-err').style.whiteSpace = 'pre-wrap';
+    el.querySelector('.e3-rep').textContent = (stack.length ? stack.join('\n') + '\n' : '') + 'Code     ' + code + '\n' + d.text;
+    const act = el.querySelector('.e3-act'), btn = (t, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.onclick = fn; act.appendChild(b); return b; };
+    btn('Try again', () => location.reload());
+    const copy = btn('Copy report', () => { const done = () => { copy.textContent = 'Copied'; }; try { navigator.clipboard.writeText(report).then(done, () => { copy.textContent = 'Select the text to copy'; }); } catch (x) { copy.textContent = 'Select the text to copy'; } });
+    btn('Continue', () => { this.played = true; el.remove(); this.el = null; });
+    this.report = report;
+  }
+});
+/** a 32-bit hash of a string (the failure's short code) */
+const hashStr = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h; };
+// a page whose splash is there when the engine runs: take it over at once (its title, the engine's version)
+if (typeof document !== 'undefined' && document.getElementById && document.getElementById('e3-boot')) BOOT._open(null, null);
 
 // ---- 10. HUMANOID: a 3D skeleton posed by math every step (IK legs and arms, gait, poses, attacks, cape cloth), drawn as shaded pixel art ----
 //   local frame: f = forward, r = right, z = up. update(dt, state) then draw(g, ox, oy, view) inside r.actor
