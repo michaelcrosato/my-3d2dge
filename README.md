@@ -282,6 +282,7 @@ npm run doctrine:check            # the doctrine's quick checks: binary files, t
 npm run test:determinism          # a fight in Emberdeep and in a starter game, played twice under the harness: the same pixels
 npm run test:replay               # sessions recorded in real time (desk, phone touch, a starter) replay to the same state
 node tools/replay.mjs session.json --shots 600   # replay a recorded session (a bug report) headless, with pictures
+npm run bench -- --brief assassins-creed --dry-run   # the North Star's measures: a fresh agent, a brief, the handoff package (a real run spends money: ask first)
 npm run character:check -- codex   # one playable character: the character test and its character sheet (check-output/sheet-codex.png)
 node tools/ed-balance.mjs --character codex --to 5   # the autopilot plays a hero against the Wanderer, depth by depth
 ```
@@ -304,7 +305,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.21.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.22.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

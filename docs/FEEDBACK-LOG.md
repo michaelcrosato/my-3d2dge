@@ -40,8 +40,23 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   flow-field revisions, the FPS counter) and 16 simulation checks.
 - **Used:** the renderer, views, `TileMap`, `Body`, `FlowField`, `Humanoid`, input, camera, particles, audio, the font
   and storage.
-- **Acted on:** `docs/HANDOFF-VESPER-FEEDBACK.md`: one height-aware spatial API, the clock and caches, a handoff package
-  with an index and contract tests, a third-person kit, an HTML UI shell, and a benchmark.
+- **Acted on:** the plan `docs/HANDOFF-VESPER-FEEDBACK.md` (deleted when done; `git show
+  8b736f5:docs/HANDOFF-VESPER-FEEDBACK.md`), in six releases: the clock and the caches (v0.17.5, D16), one height-aware
+  spatial API (v0.18.0), the handoff package with the API index and contract tests (v0.19.0, D17), a third-person kit
+  (v0.20.0, D18), an HTML UI shell (v0.21.0) and the benchmark (v0.22.0, D19).
+- **Where its output went** (about 50k cl100k tokens of game code, the engine excluded; the benchmark's baseline):
+  UI 15.2k, 30% (HTML 2.8k, CSS 7.7k, glue 1.5k, HUD and minimap 2.2k, results 1.0k: `E.Shell` now, which rebuilds it in
+  2.1k); facades and cached detail drawing 7.9k, 16% (the decoration hook and facade options); traversal, guard AI,
+  takedowns, perception and markers 7.8k, 16% (the spatial queries, `E.Mover`, `E.ACTIONS`, perception); city layout,
+  dressing and floors 6.6k, 13% (the game's content); the simulation core 4.6k, 9% (the game's rules); setup, input,
+  rigs and drawing 4.1k, 8% (the `THIRDPERSON` preset and the stealth starter); saves and checkpoints 1.9k, 4% (F1.8);
+  music and sound 1.8k, 4% (F1.9). It also ran its own 1/60 s substeps inside the engine's update, not trusting the clock.
+- **Plan items not done:**
+  - The traversal clip set (Phase 3, item 2: cut from the motion store where code couldn't match a clip): not needed,
+    the rig's code states met the bar on filmstrips. The store has them if a game wants captured motion: `ClimbUp_1m_RM`,
+    Climb Wall, Ledge Hang, Pipe Climb, Crawl, `Walk_Stealth`, `Run_Stealth`, `Crouch_Walk`, Roll, `Dive_Roll`,
+    `Land_Three_Point` and the NinjaJump pair (the Quaternius, Mesh2Motion and CMU catalogs).
+  - The benchmark's runs (Phase 5): the tool is built; the runs spend money and wait on the owner (D19).
 - **Not acted on:**
   - **F1.1** · kits unused · "PlatformMap, Platformer, Blob, bullets, and projectile patterns: these systems did not
     fit the required movement or actors." **No:** they are for other genres.
@@ -51,7 +66,11 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   - **F1.4** · one fixed custom view, for the same reason. It made its own view (yaw 45, pitch 35, scale 1.27) and
     never switched. **Watch.**
   - **F1.5** · passages under things · "The single-column map model also prevents walkable passages beneath roofs or
-    bridges." **Deferred:** the handoff's section 6 sketches one solid span per cell.
+    bridges." **Deferred.** The likely shape, when it is taken up, is one solid span per cell: a type gets `base`, so it
+    is solid from `base` to `h` instead of from 0. Then collision lets a body pass under when its top is below `base`;
+    `groundAt` picks the floor or the deck by the body's `z`; `ray` passes under; `FlowField` gets two nodes in such
+    cells; the wall baker draws the span and its underside; and draw order uses footprints (v0.20.0). Spike it first: a
+    bridge over a canal and an arch over a street, walked over, walked under and seen through.
   - **F1.6** · file size · "The large source file and references to companion tools that were not supplied increased
     inspection work." **No:** reading the source was a symptom of the missing docs and tools, which the plan
     supplies. Input tokens are cheap, and one file is how the engine ships (D5).

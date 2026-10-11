@@ -185,8 +185,12 @@ case, it is part of what the engine is.
 | 10 Discovery first | Development and tests run in headless Chromium on Linux (cloud sessions); the owner reviews each branch's Vercel preview on a phone, and the games are kept good enough there. | | |
 
 **The North Star's measures** (the time from a brief to a playable link, and how often a fresh agent's first build
-runs) are **open**: nothing records them yet. `tools/agent-test.mjs` checks that the manual's own games run; it doesn't
-yet hand a brief to a fresh agent.
+runs) are **open**: `tools/agent-bench.mjs` (v0.22.0) records them, but no run has been made yet. It hands a brief and
+the handoff package to a fresh coding agent in an empty directory and records its output tokens and wall time, whether
+its first build passes `tools/check.mjs`, whether it read the engine below its header, and a vision judge's score of its
+screenshots against the PS1/N64 bar. Each run spends money, so runs wait on the owner (D19). The briefs: Assassin's
+Creed (Vesper's, the baseline: about 50k output tokens, an engine patch, 28 undocumented members used; F1), a Breath of
+the Wild village with climbing and stamina, and a Batman: Arkham predator room. Results go here, one row per run.
 
 ### The checks here
 
@@ -202,6 +206,9 @@ yet hand a brief to a fresh agent.
   that follow the map, `audio.duck`, the height rules and queries, `Body.step`, the lifecycle and headless runs, every
   fenced example in `API.md` and `API-INDEX.md`, and the handoff package's template game. It runs when the engine, the
   cards, the index or `src/handoff/` change.
+- `node tools/agent-bench.mjs --brief <name>`: the North Star's measures, above (it spends money: ask the owner). Its
+  `--selftest` (the stream reader and the scoring, on fixtures) is free and runs when the tool changes; `--dry-run` sets
+  up a workspace and starts nothing.
 - The suites that already held a principle: `agent-test` (the manual and the API subset), `lab3d-test` and
   `stress-world-test` (banned APIs, vendored checksums, the proof hash on both backends), and the rest of `npm test`.
 
