@@ -1,5 +1,5 @@
 /* ============================== GAME START ==============================
- * MY-3D2DGE STARTER: a title menu, five vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
+ * MY-3D2DGE STARTER: a title menu, six vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
  *   SLICE 1  ADVENTURE   top-down action adventure (Zelda, Secret of Mana): rooms, sword,
  *                        key and locked door, NPC dialog, hearts, rupees, torch lighting
@@ -9,6 +9,8 @@
  *   SLICE 4  RPG BATTLE  turn-based battle (Dragon Quest, Final Fantasy): E.Menu, turns
  *   SLICE 5  BRAWLER     beat-'em-up (Final Fight, Streets of Rage): E.Combo punches, kicks,
  *                        knockback, depth lanes, waves that lock the screen, a boss
+ *   SLICE 7  STEALTH     third-person stealth (Assassin's Creed, Metal Gear): E.Mover climbing,
+ *                        vaulting and gap leaps, guards with sight and suspicion, takedowns, hiding
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
  * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.).
@@ -29,6 +31,7 @@ const SLICES = [
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP' },
   { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE' },
+  { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW' }
 ];
 /* keys every slice shares: V changes the camera view, - and = (or the mouse wheel) zoom, [ and ] turn the camera,

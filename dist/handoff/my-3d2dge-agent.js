@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.19.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.20.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -140,6 +140,7 @@ Drawing (r in draw(r); r.W, r.H = screen size in pixels)
   r.shadow(x, y, radius, alpha .5, color, surfaceZ); floor marks: r.decal(() => r.groundDisc(x, y, rad, color, alpha)),
     r.groundRing(x, y, rad, color, alpha), r.groundArc(x, y, r0, r1, a0, a1, color, alpha)
   r.text(str, x, y, color, opts); r.textAt(x, y, z, str, color); r.overlay(g => {...}); r.glowDisc(g, x, y, rad, color, 0..1)
+  r.marker(x, y, z, { label, color }): an objective marker, an arrow at the screen's edge when it is off screen
   r.w(x, y, z) -> [px, py] where a world point lands; r.visible(x, y, z); r.view
 Pixels (g is a canvas context from r.queue, r.overlay or r.actor): E.px.rect(g, x, y, w, h, c), dot(g, x, y, c),
   line(g, x0, y0, x1, y1, c, width), disc(g, x, y, r, c), ell(g, x, y, rx, ry, c), poly(g, [[x, y], ...], c),
@@ -170,11 +171,14 @@ TileMap (iso, threequarter, topdown and brawler levels):
   find(tag) / findAll(tag) -> { x, y, cx, cy }; drawFloor(r) and queueWalls(r) in draw; bounds(view);
   set(cx, cy, 0) opens a door; cell(cx, cy), walkable(cx, cy), block(cx, cy, on), toCell(x, y), center(cx, cy),
   heightAt(x, y), floorAt(x, y), los(x0, y0, x1, y1). Walls lower than a body's feet are walkable (jump onto blocks).
+  In code: new E.TileMap({ w, h, types }) (open floor), fill(cx, cy, w, h, id), setFloor(cx, cy, tag, block).
   floors: E.tex.grass(x, y, { base, dark, light }), dirt, water, planks, checker(x, y, { a, b, size }), plain(x, y, { base })
   new E.FlowField(map, { climb, drop }): update(tx, ty) every step, dir(x, y, tx, ty) -> [dx, dy] around walls, over roofs
   Heights: z = feet; a cell's top = height(cx, cy); eyes at z + E.HEIGHTS.eye (30) see z + chest (22); same level |dz| <= 8.
   map.sight(a, b), ray(a, b), standable(x, y, z, r), ledge / landing / drop(from, dir), arcClear(a, b, apex);
   E.sameLevel(a, b), E.targets(from, list, { range, arc, dz, sight: map }) nearest first, inArc(..., dz)
+  E.sees(guard, hero, { map, range: 120, fov: 1.6 }) -> { seen, exposure } (hero.crouch, hero.exposure 0..1 hide it);
+  E.hears(guard, { x, y, z, loud: 80 }, map) -> 1 at the noise .. 0 at loud, halved through a wall
 Body (ground physics): new E.Body({ x, y, r: 5, gravity: 700, friction: 0, bounce: 0 }); set vx, vy, then
   update(dt, map); push(ix, iy, iz) knockback; jump(v); reads z, onGround, landed, hitWall, bounced
 PlatformMap (side-scrollers, 2.5D in 'brawler'): new E.PlatformMap({ rows, legend, types }); types[id] = { kind:
@@ -321,6 +325,8 @@ game.start({
   E.Attack, shows the damage with game.hitFx, and steps back; pose: 'down' for the fallen, 'cheer' to win.
 - Puzzle (Tetris): view 'overhead', res 'nes', a 2D array drawn with E.px.rect in r.overlay,
   input.repeat('left', .17, .05) for auto-shift, game.every(speed, fall) for gravity.
+- Third-person stealth (Assassin's Creed): the full engine's kit (E.Mover climbs and leaps, E.Suspicion, r.sightCone);
+  here, Body + map.ledge to climb, E.sees for guards, FlowField({ climb, drop }) to chase. Kit: dist/kits/...-stealth.html.
 
 ## Rules
 1. World units and dt everywhere. Feel numbers (units per second, tile = 16): walk 70-90, run 95-140, jump 250-320
@@ -350,12 +356,12 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
   tags, 3 heroes, 30 skills: Codex's six come from one helper); bodies that are not people: grep -n "^class "
   src/emberdeep/*.js (a spider, a serpent, a floating eye, a living book, a scythed beast). They lean on the game's
   helpers: adapt them, do not paste them (the recipe for a new body is docs/CHARACTERS.md).
-- A starter game per genre: dist/kits/my-3d2dge-<adventure|platformer|brawler|shooter|rpg|animlab>.html.
+- A starter game per genre: dist/kits/my-3d2dge-<adventure|platformer|brawler|shooter|rpg|stealth|animlab>.html.
 */
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.19.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.20.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -495,6 +501,25 @@ const targets = (from, list, o = {}) => {
   }
   return out.sort((p, q) => p.d - q.d);
 };
+// sight and hearing through the height rules: E.sees(guard, hero, { map, range: 120, fov: 1.6 }) -> { seen, d, angle, exposure }
+// (three points on the target past every top; its own exposure 0..1 and crouch lower it); E.hears -> 1 at a noise .. 0 at loud
+const sees = (obs, tgt, o = {}) => {
+  const range = o.range === undefined ? 120 : o.range, fov = o.fov === undefined ? 1.6 : o.fov, facing = o.facing === undefined ? obs.facing || 0 : o.facing;
+  const dx = tgt.x - obs.x, dy = tgt.y - obs.y, d = Math.hypot(dx, dy), angle = Math.atan2(dy, dx), out = { seen: false, d, angle, exposure: 0 };
+  if (d > range + (tgt.r || 0) || (d > (obs.r || 0) && Math.abs(angDiff(facing, angle)) > fov / 2)) return out;
+  const low = tgt.crouch ? .55 : 1, eye = o.eye !== undefined ? o.eye : obs.eye !== undefined ? obs.eye : HEIGHTS.eye;
+  let vis = 0;
+  for (const h of [3, (tgt.chest !== undefined ? tgt.chest : HEIGHTS.chest) * low, (HEIGHTS.eye + 2) * low]) if (!o.map || o.map.ray(obs, tgt, { eye, target: h }).clear) vis++;
+  out.exposure = vis / 3 * (tgt.exposure === undefined ? 1 : clamp(tgt.exposure, 0, 1)) * (tgt.crouch ? .6 : 1);
+  out.seen = out.exposure > 0;
+  return out;
+};
+const hears = (lis, noise, map) => {
+  const R = noise.loud === undefined ? 80 : noise.loud, d = Math.hypot(noise.x - lis.x, noise.y - lis.y, (noise.z || 0) - (lis.z || 0));
+  let k = Math.max(0, 1 - d / R);
+  if (k > 0 && map && !map.ray(lis, noise, { eye: HEIGHTS.eye, target: 4 }).clear) k *= .5;   // a wall muffles it
+  return k;
+};
 const prune = (list, fn) => { let j = 0; for (let i = 0; i < list.length; i++) if (!fn(list[i])) list[j++] = list[i]; list.length = j; return list; };
 const store = {
   get(key, fallback = null) { try { const v = localStorage.getItem('my3d2dge:' + key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
@@ -502,7 +527,7 @@ const store = {
   remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }
 };
 Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, rng, hash2, noise2, smoothDamp, hex, toHex, toHsl, hsl, shade, mix, tones, ramp,
-  mkCanvas, ctx2d, V3, ik3, rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
+  mkCanvas, ctx2d, V3, ik3, rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, sees, hears, HEIGHTS, prune, store });
 
 // ---- 2. PIXELS: every shape snaps to whole pixels (never anti-aliased); g is a CanvasRenderingContext2D ----
 const px = {};
@@ -982,6 +1007,22 @@ class Renderer {
     for (let i = 0; i <= n; i++) { const a = lerp(a0, a1, i / n); pts.push(this.w(x + Math.cos(a) * r1, y + Math.sin(a) * r1, z)); }
     for (let i = n; i >= 0; i--) { const a = lerp(a0, a1, i / n); pts.push(this.w(x + Math.cos(a) * r0, y + Math.sin(a) * r0, z)); }
     px.polyDither(g, pts, color, alpha);
+  }
+  marker(x, y, z = 0, o = {}) {   // an objective marker: a diamond over (x, y, z) on screen, an arrow at the edge off it
+    const [sx, sy] = this.w(x, y, z), color = o.color || '#ffd040', dark = shade(color, -.6), W = this.W, H = this.H, m = 9, bob = this.game.reduceMotion ? 0 : Math.sin(this.game.real * 4) * 1.5;
+    this.overlay(g => {
+      if (sx >= m && sx <= W - m && sy >= m + 14 && sy <= H - m) {
+        const cx = Math.round(sx), cy = Math.round(sy - 14 + bob);
+        px.poly(g, [[cx, cy - 5], [cx + 4, cy], [cx, cy + 5], [cx - 4, cy]], dark); px.poly(g, [[cx, cy - 4], [cx + 3, cy], [cx, cy + 4], [cx - 3, cy]], color);
+        if (o.label) E.font.text(g, o.label, cx, cy - 13, color, { align: 'center', shadow: '#000', outline: false });
+      } else if (o.offscreen !== false) {
+        const mx = W / 2, my = H / 2, a = Math.atan2(sy - my, sx - mx), k = Math.min((W / 2 - m) / Math.max(1e-6, Math.abs(Math.cos(a))), (H / 2 - m) / Math.max(1e-6, Math.abs(Math.sin(a))));
+        const ax = Math.round(mx + Math.cos(a) * k), ay = Math.round(my + Math.sin(a) * k), c = Math.cos(a), s = Math.sin(a), tip = [ax + c * 5, ay + s * 5];
+        px.poly(g, [[tip[0] + c, tip[1] + s], [ax - s * 5 - c * 2, ay + c * 5 - s * 2], [ax + s * 5 - c * 2, ay - c * 5 - s * 2]], dark);
+        px.poly(g, [tip, [ax - s * 4 - c, ay + c * 4 - s], [ax + s * 4 - c, ay - c * 4 - s]], color);
+        if (o.label) E.font.text(g, o.label, clamp(ax - c * 10, 14, W - 14), clamp(ay - s * 10 - 3, 2, H - 8), color, { align: 'center', shadow: '#000', outline: false });
+      }
+    });
   }
   _stamp(key, make) {
     const m = this._stamps || (this._stamps = new Map());
@@ -1944,11 +1985,12 @@ class TileMap {
     this.T = o.tile || 16;
     const L = o.rows ? parseLevel(o.rows, o.legend) : o.level || null;
     if (L) o = Object.assign({}, o, { w: L.w, h: L.h, cells: L.cells });
-    if (!o.w || !o.h || !o.cells) throw new Error('TileMap needs { rows, legend } or { w, h, cells }');
+    else if (o.w && o.h && !o.cells) o = Object.assign({}, o, { cells: new Array(o.w * o.h).fill(0) });   // open floor, to fill in code
+    if (!o.w || !o.h || !o.cells) throw new Error('TileMap needs { rows, legend } or { w, h } (and cells)');
     if (o.cells.length !== o.w * o.h) throw new Error('TileMap: cells has ' + o.cells.length + ' entries but w * h = ' + (o.w * o.h));
     this.w = o.w; this.h = o.h; this.cells = o.cells; this.types = Object.assign({}, o.types || {});
-    this.floorTags = L ? L.floor : null;
-    this.blocked = L ? L.block : new Uint8Array(this.w * this.h);
+    this.floorTags = L ? L.floor : o.floor ? o.floor.slice() : null;
+    this.blocked = L ? L.block : o.blocked ? Uint8Array.from(o.blocked) : new Uint8Array(this.w * this.h);
     if (o.block && this.floorTags) { const tags = [].concat(o.block); this.floorTags.forEach((f, i) => { if (f && tags.includes(f)) this.blocked[i] = 1; }); }
     this.spawns = L ? L.spawns.map(sp => Object.assign(sp, { x: (sp.cx + .5) * this.T, y: (sp.cy + .5) * this.T, z: 0 })) : [];
     for (const id of new Set(this.cells)) if (id > 0 && !this.types[id]) { warn('walltype:' + id, 'TileMap: wall type ' + id + ' is used in the map but missing from types (using a plain grey wall)'); this.types[id] = DEFAULT_WALL; }
@@ -1960,6 +2002,17 @@ class TileMap {
   findAll(tag) { return this.spawns.filter(s => s.tag === tag); }
   cell(cx, cy) { return cx < 0 || cy < 0 || cx >= this.w || cy >= this.h ? -1 : this.cells[cy * this.w + cx]; }
   set(cx, cy, v) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) { if (v > 0 && !this.types[v]) this.types[v] = DEFAULT_WALL; this.cells[cy * this.w + cx] = v; this.floors = {}; this.version++; } }
+  fill(cx, cy, w, h, id) {   // a w x h block of wall type id (0 clears it): maps built in code
+    if (id > 0 && !this.types[id]) this.types[id] = DEFAULT_WALL;
+    for (let y = Math.max(0, cy); y < Math.min(this.h, cy + h); y++) for (let x = Math.max(0, cx); x < Math.min(this.w, cx + w); x++) this.cells[y * this.w + x] = id;
+    this.floors = {}; this.version++;
+  }
+  setFloor(cx, cy, tag, block) {   // a cell's floor tag ('water', 'grass'), blocked or not
+    if (cx < 0 || cy < 0 || cx >= this.w || cy >= this.h) return;
+    if (!this.floorTags) this.floorTags = new Array(this.w * this.h).fill(null);
+    const i = cy * this.w + cx; this.floorTags[i] = tag; if (block !== undefined) this.blocked[i] = block ? 1 : 0;
+    this.floors = {}; this.version++;
+  }
   toCell(x, y) { return [Math.floor(x / this.T), Math.floor(y / this.T)]; }
   center(cx, cy) { return [(cx + .5) * this.T, (cy + .5) * this.T]; }
   solidCell(cx, cy) { const c = this.cell(cx, cy); return c !== 0; }
@@ -3080,6 +3133,8 @@ const fullOnly = name => function () { warn('full:' + name, name + ' is only in 
 px.glow = () => {};
 E.prop = fullOnly('E.prop');
 Renderer.prototype.prop = fullOnly('r.prop');
+Renderer.prototype.sightCone = fullOnly('r.sightCone');
+for (const k of ['Mover', 'Action', 'Suspicion']) E[k] = class { constructor() { throw new Error('E.' + k + ' is only in the full engine (dist/my-3d2dge.js), with the rest of the third-person kit'); } };
 E.Backdrop = class { constructor() { fullOnly('E.Backdrop')(); } draw() {} };
 for (const m of ['enableGPU', 'setZoom', 'rotateView', 'resetCamera']) Game.prototype[m] = fullOnly('game.' + m);
 for (const m of ['drawPortrait', 'drawSmear', 'debug']) Humanoid.prototype[m] = fullOnly('rig.' + m);

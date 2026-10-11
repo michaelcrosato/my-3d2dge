@@ -185,7 +185,7 @@ Floor tags are shared by themes, layouts and mechanics: `pit` (void, blocked for
 - **The level card** comes from `levelCardInfo(L)` (50-levels-core.js): `{ title, sub: 'DEPTH n', mech }`. On a planned depth `mech` is the mechanic (its `tip` is the card's text). On a combination it is `{ name: 'A + B', combo: true, ids, lines, tip: '' }`: one line per element, `'Magma Vents: ' + brief`, then `'Together: ...'`, a line on how they play off each other (a hand-written pair in `LVL_SYNERGY` where their systems touch in code, else built from the mechanics' `lure` / `act` / `move` / `zone` words).
 - Deep packs vary (`packVariant`): an element (recolor + status), a shared affix on normal monsters, and Giant and Swarming packs.
 - The hero:
-  - the dodge is a forward roll (`heroRoll` post-rotates the rig's joints);
+  - the dodge is a forward roll (the rig's `flip` state, the roll Emberdeep's hero had first: it post-rotates the joints and turns the cape and hair with them);
   - drinking re-solves the left arm with IK;
   - a wounded hero hunches.
 - Monsters knocked over a pit fall and die (credited to the hero) when no `chasm` mechanic runs the level.

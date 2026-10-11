@@ -8,6 +8,10 @@
 //   heights        E.HEIGHTS, map.ray/sight/standable/ledge/landing/drop/arcClear, E.inArc's dz, E.sameLevel, E.targets
 //                  and FlowField over heights, on small maps (a roof edge, a kerb, a gap, a planter, a guard above)
 //   audio          audio.duck(on) is public
+//   third person   E.sees, E.hears, maps built in code (fill, setFloor) and r.marker's edge arrow on both editions; on the
+//                  full one E.Mover climbs, vaults, leaps a gap, hops down, rolls, takes fall damage and jumps once a press,
+//                  E.ACTIONS and E.Action (your own, paired, invulnerable, cancellable), E.Suspicion, FlowField jump links
+//                  and next(), and in Chromium footprint sorting, the decorate hook and r.sightCone cut by a wall
 // Usage: node tools/contract-test.mjs [--node]   (exit code 1 on a failure; --node runs only the part without a browser). What runs without a screen runs in Node; the game loop
 // runs in headless Chromium on a virtual clock (CHROMIUM_PATH picks a browser).
 import { chromium } from 'playwright';
@@ -49,6 +53,8 @@ for (const [ed, file] of EDITIONS) {
   heights(E, ed);
   examples(E, ed);
   lifecycle(E, ed);
+  seesAndMaps(E, ed);
+  if (ed === 'full') thirdPerson(E, ed);   // (the rest of the kit is the full engine's)
 }
 
 // every fenced example in API.md and API-INDEX.md runs: a snippet in Node, in a headless game when it uses one it
@@ -181,6 +187,117 @@ function heights(E, ed) {
   check(`${ed}: with drop only, no field from the street up to a roof`, fd(fup, 4, 3) >= 1e9);
 }
 
+// the third-person kit: the ground controller, actions, perception, jump links, maps built in code
+function thirdPerson(E, ed) {
+  const T = 16, still = { move: [0, 0] };
+  // two roofs (40 and 44) three cells apart, a low wall (10) to vault, open street round them, walls of 120
+  const map = new E.TileMap({ rows: [
+    '##############',
+    '#............#',
+    '#.AAA...BBB..#',
+    '#.AAA...BBB..#',
+    '#.AAA...BBB..#',
+    '#............#',
+    '#..w.........#',
+    '#............#',
+    '##############'], legend: { '#': 1, A: 2, B: 3, w: 4 }, types: { 1: { h: 120 }, 2: { h: 40 }, 3: { h: 44 }, 4: { h: 10 } } });
+  const run = (m, sec, ctl = still) => { for (let i = 0; i < Math.round(sec * 120); i++) m.update(1 / 120, map, ctl); return m; };
+  // climb: at the foot of A's south wall, facing it, a jump press climbs it
+  const c = new E.Mover({ x: 3.5 * T, y: 5.5 * T }); c.facing = -Math.PI / 2;
+  c.update(1 / 120, map, { move: [0, 0], jumpPressed: true });
+  const climbing = c.action && c.action.name, hang = c.rigState();
+  run(c, 1.5);
+  check(`${ed}: Mover climbs a ledge with a jump press`, climbing === 'climbUp' && c.z === 40 && c.onGround && !c.action && c.y < 5 * T, [climbing, c.x, c.y, c.z].join(' '));
+  check(`${ed}: Mover.rigState() is the action's while it plays`, hang.x !== undefined && hang.facing === -Math.PI / 2, JSON.stringify(hang));
+  // a gap: running east off A toward B with a jump at the edge lands on B (the gap assist)
+  const l = new E.Mover({ x: 3 * T, y: 3.5 * T, z: 40 }); l.facing = 0;
+  let pressed = false;
+  for (let i = 0; i < 240; i++) { const at = !pressed && l.onGround && map.drop(l, 0, { reach: 10 }); if (at) pressed = true; l.update(1 / 120, map, { move: [1, 0], jumpPressed: !!at }); if (pressed && l.onGround && l.x > 8 * T) break; }
+  check(`${ed}: Mover leaps a gap onto the far roof`, pressed && l.z === 44 && l.x > 8 * T && l.x < 11 * T, [l.x, l.z].join(' '));
+  // one jump a press: pressing again in the next steps (coyote time) doesn't jump again, after a leap or a plain jump
+  const peak = (x, z, again) => { const m = new E.Mover({ x, y: 3.5 * T, z, vx: 85 }); let p = 0, t0 = -1;
+    for (let i = 0; i < 120; i++) { if (t0 < 0 && (map.drop(m, 0, { reach: 10 }) || !z)) t0 = i; m.update(1 / 120, map, { move: [1, 0], jumpPressed: i === t0 || (again && i === t0 + 6) }); p = Math.max(p, m.z); } return p; };
+  check(`${ed}: Mover jumps once a press, even pressed again in the air at once`, peak(4.6 * T, 40) > 60 && peak(4.6 * T, 40, true) === peak(4.6 * T, 40) && peak(6 * T, 0, true) === peak(6 * T, 0),
+    [peak(4.6 * T, 40), peak(4.6 * T, 40, true), peak(6 * T, 0), peak(6 * T, 0, true)].join(' '));
+  // vault: running at the low wall with a jump goes over it
+  const v = new E.Mover({ x: 3.5 * T, y: 7.6 * T }); v.facing = -Math.PI / 2;
+  let vaulted = null;
+  for (let i = 0; i < 240; i++) { v.update(1 / 120, map, { move: [0, -1], jumpPressed: i === 6 }); if (v.action) vaulted = v.action.name; if (vaulted && !v.action && v.onGround) break; }
+  check(`${ed}: Mover vaults a low wall at a run`, vaulted === 'vault' && v.y < 6 * T && v.z === 0, [vaulted, v.y, v.z].join(' '));
+  // hop down: off B's south edge, where no roof is near to leap to
+  const h = new E.Mover({ x: 9.5 * T, y: 4.6 * T, z: 44 }); h.facing = Math.PI / 2;
+  let hop = null;
+  for (let i = 0; i < 240; i++) { const at = !hop && map.drop(h, Math.PI / 2, { reach: 10 }); h.update(1 / 120, map, { move: [0, 1], jumpPressed: !!at }); if (h.action) hop = hop || h.action.name; if (hop && !h.action && h.onGround) break; }
+  check(`${ed}: Mover hops down a ledge`, hop === 'hopDown' && h.z === 0 && h.onGround, [hop, h.y, h.z].join(' '));
+  // falls: a long one hurts, a mid one at speed rolls
+  const f = new E.Mover({ x: 11.5 * T, y: 6.5 * T, z: 90 }); f.onGround = false;
+  let hurt = false; for (let i = 0; i < 240 && !hurt; i++) { f.update(1 / 120, map, still); hurt = f.hurt; }
+  check(`${ed}: Mover: a fall from higher than hurtAt hurts`, hurt && f.fell >= 72, String(f.fell));
+  const rl = new E.Mover({ x: 5 * T, y: 6.5 * T, z: 34, vx: 60 }); rl.onGround = false;
+  let rolled = null; for (let i = 0; i < 240 && !rolled; i++) { rl.update(1 / 120, map, { move: [1, 0] }); if (rl.action) rolled = rl.action.name; }
+  check(`${ed}: Mover: a fall past rollAt at speed rolls`, rolled === 'roll', String(rolled));
+  const sf = new E.Mover({ x: 6.5 * T, y: 7.5 * T }); run(sf, .1); const safe = sf.lastSafe && sf.lastSafe.x;
+  Object.assign(sf, { x: 1, y: 1 }); sf.respawn();
+  check(`${ed}: Mover.respawn() goes back to the last safe spot`, safe === 6.5 * T && sf.x === 6.5 * T && sf.onGround, JSON.stringify(sf.lastSafe));
+  // actions: the built-in names, your own, a paired takedown, invulnerable frames, a cancellable beat
+  check(`${ed}: E.ACTIONS has climbUp, vault, hopDown, roll, getUp, takedown`, ['climbUp', 'vault', 'hopDown', 'roll', 'getUp', 'takedown'].every(n => E.ACTIONS[n]));
+  E.ACTIONS.slide = { beats: [['go', .5]], setup() {}, at: (A, b, u) => ({ x: A.start.x + 20 * u, y: A.start.y, z: 0, state: { pose: 'crouch' } }) };
+  const body = { x: 10, y: 10, z: 0 }, s = new E.Action('slide', { body }); let n = 0; while (s.update(1 / 120)) n++;
+  delete E.ACTIONS.slide;
+  check(`${ed}: your own E.ACTIONS entry plays on any { x, y, z }`, Math.abs(s.duration - .5) < 1e-12 && body.x === 30 && s.done && n > 50 && n < 62, [s.duration, body.x, s.done, n].join(' '));
+  const hero = new E.Mover({ x: 50, y: 50 }), guard = new E.Mover({ x: 62, y: 50 }); hero.facing = guard.facing = 0;
+  const td = hero.play('takedown', { other: guard }); while (td.update(1 / 120));
+  check(`${ed}: a takedown moves two bodies and leaves the other down`, td.other === guard && td.otherState().down === 1 && Math.hypot(guard.x - hero.x, guard.y - hero.y) < 14, JSON.stringify(td.otherState()));
+  const roll = new E.Action('roll', { body: { x: 0, y: 0, z: 0 }, dir: 0, dist: 30 }), inv = [];
+  while (roll.update(1 / 120)) inv.push(roll.invulnerable);
+  check(`${ed}: a roll is invulnerable in its middle only`, !inv[0] && inv.includes(true) && !inv[inv.length - 1], inv.map(Number).join('').replace(/(.)\1+/g, '$1*'));
+  const cu = new E.Mover({ x: 3.5 * T, y: 5.5 * T }); cu.facing = -Math.PI / 2; cu.update(1 / 120, map, { move: [0, 0], jumpPressed: true });
+  check(`${ed}: a climb can be let go of while hanging (canCancel)`, cu.action && cu.action.canCancel && cu.action.beat === 'hang');
+  const g = { x: 1.5 * T, y: 1.5 * T, z: 0, facing: 0 }, tgt = (x, y, o) => Object.assign({ x, y, z: 0, r: 5 }, o), noise = { x: 5.5 * T, y: 1.5 * T, z: 0, loud: 80 };
+  const mind = new E.Suspicion(), states = new Set(), who = tgt(4 * T, 1.5 * T);
+  for (let i = 0; i < 240; i++) states.add(mind.update(1 / 120, E.sees(g, who, { map }), who));
+  check(`${ed}: E.Suspicion rises calm, notice, search, alert while it sees, and keeps where`, ['notice', 'search', 'alert'].every(x => states.has(x)) && mind.state === 'alert' && mind.last.x === who.x, [...states].join(','));
+  for (let i = 0; i < 120 * 3; i++) mind.update(1 / 120, false);
+  const searching = mind.state;
+  for (let i = 0; i < 120 * 8; i++) mind.update(1 / 120, false);
+  check(`${ed}: E.Suspicion: an alert guard that loses the target searches, then calms down`, searching === 'search' && mind.state === 'calm', searching + ' ' + mind.state);
+  mind.reset(); mind.hear(1, noise);
+  check(`${ed}: E.Suspicion.hear: noticed at least, never more than searching`, mind.level >= mind.notice && mind.level <= mind.search && mind.last.x === noise.x, String(mind.level));
+  // jump links: from A to B the field leaps (a climb costs more than the jump); without jump it drops and climbs
+  const leapField = new E.FlowField(map, { climb: 56, drop: 56, jump: 60 }), walkField = new E.FlowField(map, { climb: 56, drop: 56 });
+  leapField.update(9.5 * T, 3.5 * T); walkField.update(9.5 * T, 3.5 * T);
+  const nl = leapField.next(4.5 * T, 3.5 * T), nw = walkField.next(4.5 * T, 3.5 * T);
+  check(`${ed}: FlowField with jump: next() leaps the gap, with edge`, nl && nl.kind === 'jump' && nl.z === 44 && nl.x === 8.5 * T && nl.edge === 8, JSON.stringify(nl));
+  check(`${ed}: FlowField without jump: next() drops into the street`, nw && nw.kind === 'drop' && nw.z === 0, JSON.stringify(nw));
+  check(`${ed}: FlowField with jump: a jump of k cells costs k`, leapField.d[3 * map.w + 4] === 5, String(leapField.d[3 * map.w + 4]));
+}
+
+// sight, hearing and maps built in code (both editions)
+function seesAndMaps(E, ed) {
+  const T = 16, map = new E.TileMap({ rows: ['##############', '#............#', '#.AAA...BBB..#', '#.AAA...BBB..#', '#.AAA...BBB..#', '#............#', '##############'],
+    legend: { '#': 1, A: 2, B: 3 }, types: { 1: { h: 120 }, 2: { h: 40 }, 3: { h: 44 } } });
+  // perception: in front and in range, behind, too far, behind a roof, crouched, hidden by exposure
+  const g = { x: 1.5 * T, y: 1.5 * T, z: 0, facing: 0 }, tgt = (x, y, o) => Object.assign({ x, y, z: 0, r: 5 }, o);
+  const seen = E.sees(g, tgt(5.5 * T, 1.5 * T), { map });
+  check(`${ed}: E.sees: in front, in range: seen, exposure 1`, seen.seen && seen.exposure === 1 && seen.d === 64, JSON.stringify(seen));
+  check(`${ed}: E.sees: behind or out of range: not seen`, !E.sees(Object.assign({}, g, { facing: Math.PI }), tgt(5.5 * T, 1.5 * T)).seen && !E.sees(g, tgt(12.5 * T, 1.5 * T), { range: 100 }).seen);
+  const wall = { x: 1.5 * T, y: 3.5 * T, z: 0, facing: 0 };
+  check(`${ed}: E.sees: not through a roof (with map), seen without it`, !E.sees(wall, tgt(5.5 * T, 3.5 * T), { map, range: 200 }).seen && E.sees(wall, tgt(5.5 * T, 3.5 * T), { range: 200 }).seen);
+  const low = E.sees(g, tgt(5.5 * T, 1.5 * T, { crouch: true }), { map });
+  check(`${ed}: E.sees: a crouched target shows less, a hidden one not at all`, low.seen && low.exposure < 1 && !E.sees(g, tgt(5.5 * T, 1.5 * T, { exposure: 0 }), { map }).seen, JSON.stringify(low));
+  const noise = { x: 5.5 * T, y: 1.5 * T, z: 0, loud: 80 };
+  check(`${ed}: E.hears: 1 at the noise, 0 beyond its radius`, E.hears(noise, noise) === 1 && E.hears(g, Object.assign({}, noise, { loud: 30 })) === 0);
+  const muffled = E.hears(wall, { x: 5.5 * T, y: 3.5 * T, z: 0, loud: 100 }, map), open = E.hears(wall, { x: 5.5 * T, y: 3.5 * T, z: 0, loud: 100 });
+  check(`${ed}: E.hears: a wall between halves it`, Math.abs(muffled - open / 2) < 1e-12 && open > 0, muffled + ' ' + open);
+  // a map built in code
+  const built = new E.TileMap({ w: 6, h: 5, types: { 2: { h: 30 } } }), v0 = built.version;
+  built.fill(1, 1, 2, 2, 2);
+  check(`${ed}: new E.TileMap({ w, h }) starts open; fill() puts a block in`, built.cell(0, 0) === 0 && built.cell(2, 2) === 2 && built.cell(3, 3) === 0 && built.height(1, 1) === 30 && built.version > v0);
+  built.setFloor(4, 3, 'water', true); const bf = new E.FlowField(built); bf.update(4.5 * T, .5 * T);
+  check(`${ed}: setFloor() tags and blocks a cell; fields go round it`, built.floorAt(4.5 * T, 3.5 * T) === 'water' && built.blocked[3 * 6 + 4] === 1 && bf.d[3 * 6 + 4] >= 1e9);
+  built.fill(1, 1, 2, 2, 0); check(`${ed}: fill() with 0 clears`, built.cell(1, 1) === 0 && built.cell(2, 2) === 0);
+}
+
 // ---- in the browser: the game loop, on a virtual clock that only moves when the test says so
 const CLOCK = () => {
   let now = 0, due = [];
@@ -253,6 +370,33 @@ const LIFE = () => {
   h.stop(); h.dispose();
   return out;
 };
+// the third-person kit's drawing (full edition): a footprint lifts a canopy over the tower under it, the decorate hook
+// paints wall faces as they bake, r.marker turns into an arrow at the edge, r.sightCone stops at a wall
+const DRAW3P = () => {
+  const E = My3D2dge, out = { faces: [] }, mode = {};
+  const map = new E.TileMap({ rows: ['#########', '#.......#', '#..TTT..#', '#..TTT..#', '#..TTT..#', '#.......#', '#.......#', '#########'], legend: { '#': 1, T: 2 },
+    types: { 1: { h: 6 }, 2: { h: 60, decorate: f => { out.faces.push({ side: f.side, du: f.u1 - f.u0, z1: f.z1, fns: typeof f.at + typeof f.quad }); f.quad(f.u0 + 4, 20, f.u0 + 12, 32, '#00ff00'); } } } });
+  const game = new E.Game({ canvas: 'screen', res: 'snes', view: 'iso', loop: false }), C = 72, w = 28;   // (a canopy over the 3 x 3 tower, anchored at its middle)
+  const count = (hex, edge) => { const c = game.screen.buf, W = game.screen.W, H = game.screen.H, d = c.getContext('2d').getImageData(0, 0, W, H).data, [R, G, B] = E.hex(hex); let n = 0, inner = 0;
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) if (d[i] === R && d[i + 1] === G && d[i + 2] === B) { n++; const x = p % W, y = (p / W) | 0; if (x > 20 && x < W - 20 && y > 20 && y < H - 20) inner++; } return edge ? { n, inner } : n; };
+  game.start({ update() {}, draw(r) {
+    r.sky(['#000', '#000']); map.drawFloor(r); map.queueWalls(r);
+    if (mode.canopy) r.queue(C, C - 16, 60, g => { const c = [r.w(C - w, C - 16 - w, 60), r.w(C + w, C - 16 - w, 60), r.w(C + w, C - 16 + w, 60), r.w(C - w, C - 16 + w, 60)], tip = r.w(C, C - 16, 76);
+      for (let i = 0; i < 4; i++) E.px.poly(g, [c[i], c[(i + 1) % 4], tip], '#ff00ff'); }, mode.canopy === 'footprint' ? { footprint: [C - w, C - 16 - w, C + w, C - 16 + w] } : {});
+    if (mode.marker) r.marker(mode.marker[0], mode.marker[1], 0, { color: '#ff00ff' });
+    if (mode.cone && r.sightCone) r.sightCone({ x: 120, y: C - 16, z: 0, facing: Math.PI }, { range: 150, fov: .5, color: '#00ffff', alpha: 1, map: mode.cone === 'map' ? map : undefined });
+  } });
+  game.follow({ x: C, y: C - 16, z: 0 }, { z: 20 });
+  const frame = m => { for (const k in mode) delete mode[k]; Object.assign(mode, m); game.advance(1 / 120, { draw: true }); };
+  frame({}); out.green = count('#00ff00');
+  frame({ canopy: 'plain' }); out.plain = count('#ff00ff');
+  frame({ canopy: 'footprint' }); out.footprint = count('#ff00ff');
+  frame({ marker: [C, C] }); out.onScreen = count('#ff00ff', true);
+  frame({ marker: [C + 4000, C] }); out.offScreen = count('#ff00ff', true);
+  frame({ cone: 'open' }); out.coneOpen = count('#00ffff');
+  frame({ cone: 'map' }); out.coneMap = count('#00ffff');
+  return out;
+};
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [ed, file] of EDITIONS) {
   console.log(`\n${ed} edition (Chromium, virtual clock)`);
@@ -286,6 +430,14 @@ for (const [ed, file] of EDITIONS) {
   const LF = await run(LIFE);
   check(`${ed}: dispose() removes the engine's listeners`, LF.before && !LF.after && LF.current, JSON.stringify(LF));
   check(`${ed}: loop: false waits for advance(), which runs fixed steps and draws when asked`, LF.idle && LF.steps === 120 && LF.ups === 120 && LF.draws === 1, JSON.stringify(LF));
+  const D = await run(DRAW3P);
+  console.log('  third person:', JSON.stringify(Object.assign({}, D, { faces: D.faces.length })));
+  check(`${ed}: r.marker: a diamond on screen, an arrow at the edge off it`, D.onScreen.inner > 10 && D.offScreen.n > 10 && D.offScreen.inner === 0, JSON.stringify([D.onScreen, D.offScreen]));
+  if (ed === 'full') {
+    check(`${ed}: types[id].decorate(face) is called for each face with its side, u0..u1, z1, at and quad, and paints it`, D.faces.length >= 4 && new Set(D.faces.map(f => f.side)).size >= 2 && D.faces.every(f => f.du === 16 && f.z1 === 60 && f.fns === 'functionfunction') && D.green > 20, JSON.stringify(D.faces.slice(0, 2)) + ' green ' + D.green);
+    check(`${ed}: a footprint sorts a canopy over every block under it`, D.footprint > D.plain + 20, D.plain + ' -> ' + D.footprint);
+    check(`${ed}: r.sightCone stops at a wall (with map)`, D.coneMap > 0 && D.coneMap < D.coneOpen / 4, D.coneOpen + ' -> ' + D.coneMap);
+  }
   // the complete games among the examples (API.md's quick start): they start, take a start press and play, without errors
   for (const x of EXAMPLES.filter(x => /^\(\(\) => \{/.test(x.code.trim()))) {
     const page = await browser.newPage(), errors = [];

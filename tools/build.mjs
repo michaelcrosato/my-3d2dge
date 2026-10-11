@@ -2,7 +2,7 @@
 // Usage: node tools/build.mjs
 // Every output is a single self-contained HTML file (no network, no other files) that
 // you can open, host, or hand to another AI model.
-//   dist/my-3d2dge.html          readable engine + API card + all five starter slices (the reference)
+//   dist/my-3d2dge.html          readable engine + API card + all six starter slices (the reference)
 //   dist/my-3d2dge-compact.html  same, with the engine minified (fewer tokens)
 //   dist/kits/my-3d2dge-<genre>.html  minified engine + API card + ONE slice: the smallest file to
 //                                hand a model that is making a game in that genre
@@ -20,15 +20,15 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
 const STARTER = 'src/starter';
-const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', rpg: 'RPG BATTLE (turn-based battle)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
+const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', rpg: 'RPG BATTLE (turn-based battle)', stealth: 'STEALTH (third-person stealth and parkour)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
 const ALL = {
-  GAMES: 'five working games and an animation lab',
-  CONTENTS: "a title menu plus five vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
+  GAMES: 'six working games and an animation lab',
+  CONTENTS: "a title menu plus six vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE, STEALTH)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
   LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg or #animlab to the address to start a slice.'
 };
 const kit = id => ({
   EDITION: id + ' kit', GAMES: 'one working game to copy',
-  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with all five slices is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.',
+  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with all six slices is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.',
   LINKS: 'Deep link: add #' + id + ' to the address to start the slice.'
 });
 const builds = [

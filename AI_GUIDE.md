@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.19.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.20.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -30,7 +30,7 @@ It aims for **consistent quality**: the engine carries the hard parts (feel, phy
 
 1. **Name the core loop.** Mega Man: run, jump, shoot, reach the boss. Zelda: explore rooms, fight, find keys, open doors. 1942: dodge, shoot, survive waves, beat the boss. Write it as one sentence at the top of the game.
 2. **Pick the view and the kit.** Use the genre playbook in `API.md`. A side-scroller is `PlatformMap` + `Platformer` in `'side'`; a top-down game is `TileMap` + `Body`. Pick a console resolution (`res: 'nes'` or `'snes'`) so HUD pixel positions are stable.
-3. **Copy the closest starter slice.** The five slices in the single file (adventure, platformer, brawler, shooter, RPG battle) are complete games with gameplay, HUD, win and lose, and music. Start from one and change it, and ship only your game with its own title and game-over scenes. Do not start from an empty file.
+3. **Copy the closest starter slice.** The six slices in the single file (adventure, platformer, brawler, shooter, RPG battle, stealth) are complete games with gameplay, HUD, win and lose, and music. Start from one and change it, and ship only your game with its own title and game-over scenes. Do not start from an empty file.
 4. **Rebuild the content.** Levels are ASCII rows with a legend, enemies are small factories, items are sprites. Keep the original's layout ideas but make your own maps; for a remix, change the rules on purpose.
 5. **Modernize.** The engine gives you most of it for free:
    - forgiving controls: coyote time, jump buffering, variable jump height, input buffering;
@@ -126,6 +126,9 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
 - Collision is height-aware: `collide(body)` ignores walls lower than `body.z + step`, and `groundAt(x, y, r, z)` returns the surface to stand on.
 - Things standing on a block sort after it, and `r.shadow(..., surfaceZ)` draws on top of blocks.
 - `map.block(cx, cy, on)` and `map.set(...)` bump `map.version`; a `FlowField` rebuilds at its next `update` when it changes.
+- Maps built in code: `new E.TileMap({ w, h, types })` starts as open floor; `map.fill(cx, cy, w, h, id)` puts a block of wall type `id` in (0 clears it), and `map.setFloor(cx, cy, tag, block)` tags a floor cell (`'grass'`, `'water'`) and blocks it or not.
+- Facades come from wall-type options: `windows: { w, h, step, from, lit }` (or `true`), `door: { chance, color }`, `shutters: color`, `balcony: { z, color }`, `arch: { chance }`. For anything else, `types[id].decorate(face)` paints each wall face as it is baked (so it costs nothing per frame): `face.side`, `face.u0..u1` along the wall in world units (patterns line up across cells), `face.z0..z1`, `face.at(u, z)`, `face.quad(u0, z0, u1, z1, color)`, `face.line`, `face.dot`, `face.tones`, `face.view`.
+- A big thing over several blocks (a canopy over a tower, a cart across two cells) sorts by its whole base: `r.queue(x, y, z, fn, { footprint: [x0, y0, x1, y1] })` lifts it over every block under it. `r.prop` and `r.sprite` take `footprint` too.
 
 ### Heights: roofs, ledges, sight and reach
 One rule for collision, standing, sight, reach, navigation and drawing, so a game with roofs never writes its own:
@@ -146,7 +149,7 @@ Reach and perception:
 - `E.targets(from, list, { range, arc, facing, dz, sight: map, filter })` → `[{ target, d, dz, angle }]`, nearest first. `dz` defaults to the same level; `arc` is a half angle around `facing`. Melee auto-aim, lock-on, takedowns and interaction prompts use it.
 - `E.inArc(a, facing, b, range, halfAngle, dz)` and `E.sameLevel(a, b, tol)`.
 
-Navigation: `new E.FlowField(map, { step: 2, climb: 0, drop: 0 })` walks the tops a body can stand on. Next-door cells connect when their tops differ by at most `step`, or by up to `climb` going up and `drop` going down. A guard on a roof gets a field across the roofs; with `climb` and `drop` set, it chases between levels.
+Navigation: `new E.FlowField(map, { step: 2, climb: 0, drop: 0, jump: 0 })` walks the tops a body can stand on. Next-door cells connect when their tops differ by at most `step`, or by up to `climb` going up and `drop` going down. A guard on a roof gets a field across the roofs; with `climb` and `drop` set, it chases between levels. With `jump` (the widest gap, world units) it also links roofs across a gap a jump clears, and a climb costs more than a leap, so a chase leaps rather than drop to the street and climb back. `flow.next(x, y)` → `{ x, y, z, kind: 'walk' | 'climb' | 'drop' | 'jump', edge }` says where to head: an AI on the ground presses jump for a `climb` or a `jump` once `edge` (the distance to the side of its cell it leaves by) is under its radius plus a little, and `E.Mover` does the climb or the leap.
 
 ```js
 const seen = map.sight(guard, hero) && E.inArc(guard, guard.facing, hero, 120, .7);   // eyes over planters, not through roofs
@@ -191,6 +194,21 @@ if (prey && input.pressed('attack')) takedown(prey.target);
 - `push(ix, iy, iz)` adds knockback; `jump(v)` jumps with `gravity`.
 - It lands on the highest walkable surface: the floor, or the top of a block low enough to step onto.
 - Use it for heroes, enemies, bombs, crates, pickups and balls.
+
+### Mover and actions (third-person ground controller)
+`E.Mover` is the ground views' answer to `Platformer`: a `Body` with a third-person game's movement.
+- `new E.Mover({ x, y, z })`; each step `hero.update(dt, map, game.input)` with `input: 'THIRDPERSON'` (move, Shift sprint, Space jump and parkour, C crouch, J attack, K block, L dodge; touch buttons), or an AI's intent `{ move: [dx, dy], sprint, crouch, jumpPressed }`. Screen directions turn into ground ones through the view.
+- Walk 50, run 85, sprint 125 and sneak 32 with acceleration; a jump with coyote time and a buffer, once a press.
+- A jump press is parkour first: a ledge up to `climbMax` (82) is climbed (`climbUp`; crouch while hanging lets go), a wall up to `vault` (14) is vaulted at a run, a gap ahead is leapt (it aims for the far side's landing), a drop up to `hopMax` (48) is hopped down; otherwise it jumps.
+- Falls: past `rollAt` (26) at speed it rolls, past `hurtAt` (72) it sets `hurt`. `lastSafe` and `respawn()` bring it back from water and pits (`inHazard`).
+- `hero.rigState(extra)` feeds `rig.update`: its crouch (a sneaking gait), sprint lean, air, landing, or the playing action's pose.
+- Actions (`E.ACTIONS`): `climbUp` (played backwards to climb down), `vault`, `hopDown`, `roll` (invulnerable in its middle), `getUp`, and `takedown`, a paired action that moves two bodies: `hero.play('takedown', { other: guard, aerial, map })`. While `hero.action` plays it moves the body instead of physics; `act.beat`, `act.u`, `act.canCancel`, `act.invulnerable`, `act.otherState()` for the victim's rig. Your own: `E.ACTIONS.slide = { beats: [['go', .4]], setup(A) {}, at(A, beat, u) { return { x, y, z, state } } }`.
+
+### Perception (sight, hearing, suspicion)
+- `E.sees(guard, hero, { map, range: 120, fov: 1.6, eye })` → `{ seen, d, angle, exposure }`: inside the cone, and three points on the hero (feet, chest, head) checked against every top with `map.ray`. Crouching shows less and lower; `hero.exposure` (0..1) is cover you set: tall grass, shadow.
+- `E.hears(guard, { x, y, z, loud: 80 }, map)`: 1 at the noise, 0 at its radius, halved through a wall.
+- `const mind = new E.Suspicion({ rise, decay, notice, search, alert, forget })`; each step `mind.update(dt, E.sees(...), hero)` → `'calm' | 'notice' | 'search' | 'alert'` (it rises faster the nearer and more exposed the hero is), `mind.last` (where it last saw or heard), `mind.changed`. An alert guard that loses the hero searches for `forget` seconds; `mind.hear(strength, at)` notices a noise.
+- Drawing: `r.sightCone(guard, { map, range, fov, color, alpha })` (cut short by walls) and `r.marker(x, y, z, { label, color })`, an objective marker that becomes an arrow at the screen's edge.
 
 ### Attack (melee timing)
 - `new E.Attack(spec)` owns the wind-up, active and recover timers of one move; the spec is also the Humanoid attack spec.
@@ -346,6 +364,25 @@ const s = level.find('hero'), hero = new E.Platformer({ x: s.x, z: s.z }), rig =
 - Use the `iso` or `threequarter` view with a `TileMap` whose wall heights are platforms (h 8, 16, 24...). The hero is a `Body` with `jump(260)`; walls lower than the hero's feet are walkable, so the level becomes a height map you platform across.
 - Add GPU lighting for mood and `cam.bounds` for framing.
 
+**Third-person stealth and parkour (Assassin's Creed, Metal Gear, Tenchu).** Start from the STEALTH slice.
+```js
+const map = new E.TileMap({ rows: CITY, legend: { '#': 1, A: 2, ',': { floor: 'grass' }, '@': 'hero' },
+  types: { 1: { h: 64, cut: true }, 2: { h: 40, face: 'plaster', roof: 'tiles', windows: true, door: { chance: .5 } } } });
+const hero = new E.Mover({ x, y }), guard = new E.Mover({ x: gx, y: gy, walk: 30, run: 70 });
+guard.mind = new E.Suspicion(); guard.flow = new E.FlowField(map, { climb: 56, drop: 56, jump: 60 });
+// scene: { view: 'iso', views: ['iso', 'threequarter'], input: 'THIRDPERSON', touch: ['jump', 'attack', 'block', 'crouch'], ... }
+// update: hero.exposure = hero.crouch && map.floorAt(hero.x, hero.y) === 'grass' ? 0 : 1; hero.update(dt, map, game.input);
+//         const st = guard.mind.update(dt, E.sees(guard, hero, { map, range: 110 }), hero);
+//         goal: 'alert' the hero, 'search' guard.mind.last, else the next patrol point; guard.flow.update(goal.x, goal.y);
+//         const nx = guard.flow.next(guard.x, guard.y);   // walk toward nx; jump for a 'climb' or 'jump' once nx.edge < guard.r + 4
+//         guard.update(dt, map, { move, jumpPressed });   rig.update(dt, hero.rigState({ attack: slash.state }));
+// draw:   map.drawFloor(r); map.queueWalls(r); r.sightCone(guard, { map, range: 110 }); actors; r.marker(goal.x, goal.y, goal.z, { label: 'LEDGER' });
+```
+- Roofs a jump apart (three or four cells, heights within 11 up and 18 down of each other), several heights, and `cut: true` on the walls nearest the camera so the street stays visible.
+- Takedowns: from behind (same level, close, outside the guard's view, not alert) or from a roof above (`aerial: true`); mark the guard down, and feed its rig `act.otherState()` while the action plays.
+- Telegraph guards' swings (`new E.Attack('overhead', { wind: .38 })`) and let a block in the wind-up's last moments parry and stun them.
+- A checkpoint where the objective is taken: respawn there, and reset the guards.
+
 **Mash-ups.** The kits don't depend on each other. Some examples:
 - a platformer with Zelda rooms: `cam.room` in the side view;
 - a shooter with RPG shops: scenes plus `Menu`;
@@ -388,7 +425,7 @@ The engine files carry the engine; the repo (github.com/michaelcrosato/my-3d2dge
 
 **Worked examples** (`src/emberdeep/`, `src/emberdeep/DESIGN.md`): Emberdeep registers every part on one line, so one search lists them all: `grep -nE "def\(['\"](archetypes|characters|skills)" src/emberdeep/*.js` gives the 28 monster, boss and dummy bodies (with tags: beast, spider, flying, ranged...), the 3 heroes and the skills (Codex's six come from one helper in `29-codex-skills.js`). Bodies that are not people are classes: `grep -n "^class " src/emberdeep/*.js` (an eight-legged crawler with IK legs, a burrowing serpent, a floating eye with a beam, Codex the living book, Dan the scythed beast on reverse-kneed legs). They lean on the game's helpers and shared state, so adapt them rather than paste them; `docs/CHARACTERS.md` is the recipe for a new body and what makes one read at game scale.
 
-**Starters**: `dist/kits/my-3d2dge-<adventure|platformer|brawler|shooter|rpg|animlab>.html`, one vertical slice per genre, each a complete game to copy from.
+**Starters**: `dist/kits/my-3d2dge-<adventure|platformer|brawler|shooter|rpg|stealth|animlab>.html`, one vertical slice per genre, each a complete game to copy from.
 
 ## Performance
 - **Rigs:** projection costs microseconds. The outline composite is the expensive part, so crowds should use `outline: false`.

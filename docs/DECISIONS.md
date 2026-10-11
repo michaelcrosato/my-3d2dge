@@ -284,5 +284,17 @@ An entry:
   10% headroom, as D8 gave the cards. Writing it left 568 of 807 public names without a description: about 110 that
   were internal machinery became private, and the other 460 got doc comments.
 - **Answered:** yes: the owner's plan (`docs/HANDOFF-VESPER-FEEDBACK.md`, Phase 2) asked for it.
-- **Landed in:** v0.19.0
+- **Landed in:** v0.19.0 (#63)
 
+## D18 · 2026-10-11 · The API index grows with the third-person kit
+
+- **Principle:** 1 (agent-readable)
+- **Call:** the index's budget rises from 30,000 to 34,000 cl100k tokens (D17's); 30,532 with the kit.
+- **Why:** the third-person kit (the plan's Phase 3) added about 90 public names: `E.Mover` and its fields, `E.Action`
+  and `E.ACTIONS`, `E.Suspicion`, `E.sees`, `E.hears`, `map.fill`, `map.setFloor`, `flow.next`, `r.sightCone`,
+  `r.marker`, `rig.land`, about 3,300 tokens. The index is searched, not read whole (D17), so its budget caps growth
+  rather than a reading cost, and cutting the kit's lines would leave public names undescribed, which `doctrine-check`
+  forbids. About 10% headroom again. What would change it: if agents turn out to read the index whole (Phase 5's
+  benchmark watches what they open), split it by area instead of raising it again.
+- **Answered:** no: made without a response, to review (reversible: lower the number and cut lines)
+- **Landed in:** v0.20.0
