@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.18.0 (2026-10-11)
+
+One spatial API with height: collision, standing, sight, reach and navigation read heights the same way. Phase 1 of the Vesper plan.
+
+- **Engine**: the height rules, in both editions and written once (`E.HEIGHTS`, the engine's section 1, `API.md`, `AI_GUIDE.md`): a body's `z` is its feet, a cell's top is `map.height(cx, cy)`, a body stands on the highest top within `z + 2`, eyes at `z + 30` see a target at `z + 22` (a size-1.3 Humanoid; a body's own `eye` and `chest` override them), and the same level is `|dz| <= 8`.
+- **Engine**: queries on a `TileMap` (both editions). `map.ray(a, b, { eye, target })` walks every cell between two points (no gaps) and says where it stops; `map.sight(a, b)` sees over a planter lower than the eyes and down from a roof, where `los()` only looks across the ground. `map.standable(x, y, z, r)`; `map.ledge(from, dir)`, the nearest top to pull up onto and where the hands grip; `map.landing(from, dir)`, a spot across a gap that a jump arc clears; `map.drop(from, dir)`, what lies past the edge ahead; `map.arcClear(a, b, apex, r)`. A direction is an angle or a ground vector.
+- **Engine**: `E.targets(from, list, { range, arc, facing, dz, sight: map, filter })` gives the eligible targets nearest first, on the same level by default (melee auto-aim, lock-on, takedowns, interaction prompts); `E.sameLevel(a, b)`; `E.inArc(a, facing, b, range, halfAngle, dz)` takes an optional height limit (left out, it stays flat, so Emberdeep plays as before).
+- **Engine**: `new E.FlowField(map, { step, climb, drop })` walks the tops a body can stand on: a guard on a roof gets a field across the roofs, and with `climb` and `drop` it chases between levels. With no options paths stay on the floor as before (walls no higher than 2, which bodies already walk over, are walkable now; no game has one).
+- **Tools**: `tools/contract-test.mjs` checks each query on small maps (a roof edge, a kerb, a gap with and without a pole in it, a planter, a guard above the hero), on both editions.
+- **Docs**: `API.md` (a heights paragraph), `AI_GUIDE.md` ("Heights: roofs, ledges, sight and reach", with an example), the agent edition's header.
+
 ## 0.17.5 (2026-10-10)
 
 The clock is an exact fixed step: the same inputs play the same game at 60, 90, 120 or 144 Hz. Phase 0 of the Vesper plan.

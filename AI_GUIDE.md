@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.17.5.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.18.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -125,6 +125,39 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
 - `map.set(cx, cy, 0)` opens doors or breaks walls; the floor and wall caches rebuild themselves.
 - Collision is height-aware: `collide(body)` ignores walls lower than `body.z + step`, and `groundAt(x, y, r, z)` returns the surface to stand on.
 - Things standing on a block sort after it, and `r.shadow(..., surfaceZ)` draws on top of blocks.
+- `map.block(cx, cy, on)` and `map.set(...)` bump `map.version`; a `FlowField` rebuilds at its next `update` when it changes.
+
+### Heights: roofs, ledges, sight and reach
+One rule for collision, standing, sight, reach, navigation and drawing, so a game with roofs never writes its own:
+- World units, one tile = 16, z up. A body's `z` is its feet. A cell's top is `map.height(cx, cy)`: 0 on the floor, and a wall is solid from 0 up to its `h` (one column per cell: no passages under things yet).
+- A body stands on the highest top within `z + step` under its footprint (`step` 2, `Body.step`), so a kerb of 2 is walked over and a block of 14 is jumped onto.
+- Eyes are at `z + E.HEIGHTS.eye` (30) and a target is seen at `z + E.HEIGHTS.chest` (22), the heights of a size-1.3 Humanoid. A body's own `eye` and `chest` override them: a crouching hero sets `hero.chest = 8`.
+- "The same level" is `|dz| <= E.HEIGHTS.level` (8) unless a call says otherwise. `E.dist` is 3D; `E.overlap` and `E.inArc` are flat unless you pass `dz`.
+
+The queries on a `TileMap` (`dir` is an angle in radians or a ground vector `[dx, dy]`; `from` is a body or any `{ x, y, z, r }`):
+- `map.ray(a, b, { eye, target })` walks every cell between two points and returns `{ clear, t, x, y, z }`, where it stops. `map.sight(a, b)` is eyes to chest; `los()` only looks across the ground (a 12-unit planter blocks it, not `sight`).
+- `map.standable(x, y, z, r)`: room to stand, held up, not in deep water.
+- `map.ledge(from, dir, { reach: 18, min: 4, rise: 82, spread: .28 })` → `{ x, y, z, rise, facing, edge: [x, y] }`: the nearest top to pull up onto, and where the hands grip.
+- `map.landing(from, dir, { min: 35, max: 83, rise: 11, drop: 18, apex: 20 })` → `{ x, y, z, d }`: a spot across a gap that a jump arc clears.
+- `map.drop(from, dir)` → `{ x, y, z, fall }`: what lies past the edge ahead (hop-downs, fall warnings, guards that won't walk off roofs).
+- `map.arcClear(a, b, apex, r)`: a parabola from feet to feet, peaking `apex` above the higher end, clears every top (jumps, throws, aerial takedowns).
+
+Reach and perception:
+- `E.targets(from, list, { range, arc, facing, dz, sight: map, filter })` → `[{ target, d, dz, angle }]`, nearest first. `dz` defaults to the same level; `arc` is a half angle around `facing`. Melee auto-aim, lock-on, takedowns and interaction prompts use it.
+- `E.inArc(a, facing, b, range, halfAngle, dz)` and `E.sameLevel(a, b, tol)`.
+
+Navigation: `new E.FlowField(map, { step: 2, climb: 0, drop: 0 })` walks the tops a body can stand on. Next-door cells connect when their tops differ by at most `step`, or by up to `climb` going up and `drop` going down. A guard on a roof gets a field across the roofs; with `climb` and `drop` set, it chases between levels.
+
+```js
+const seen = map.sight(guard, hero) && E.inArc(guard, guard.facing, hero, 120, .7);   // eyes over planters, not through roofs
+if (input.pressed('jump')) {
+  const up = map.ledge(hero, hero.facing);   // a wall to climb in front?
+  const across = !up && map.landing(hero, hero.facing);   // or a gap to clear?
+  if (up) climbTo(up); else if (across) leapTo(across); else hero.jump(210);
+}
+const prey = E.targets(hero, guards, { range: 22, arc: 1.2, facing: hero.facing, sight: map })[0];   // the same level by default
+if (prey && input.pressed('attack')) takedown(prey.target);
+```
 
 ### PlatformMap (side-scrolling levels)
 - Tiles live on the x/z plane; the ASCII top row is the highest.
