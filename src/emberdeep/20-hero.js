@@ -185,30 +185,6 @@ function heroNearSwings(h) {
 
 /* ---------- the per-step controller ---------- */
 // Each playable identity supplies movement and dodge timing (18-characters.js).
-/**
- * The dodge roll, a new animation on top of the rig: after the rig poses itself, every joint turns a full forward
- * somersault around the hips while the body curls into a tuck (limbs pulled in, the whole thing lowered). The cape
- * and hair are cloth, so they whip around it; the afterimages trace the roll.
- */
-function heroRoll(h, u) {
-  const rig = h.rig, J = rig.J, o = rig.o, a = -E.ease.inOut(clamp(u, 0, 1)) * TAU, c = Math.cos(a), s = Math.sin(a), cz = o.hipZ * .55, tuck = Math.sin(clamp(u, 0, 1) * Math.PI);
-  const T = p => { const f = p[0] * (1 - .35 * tuck), z = (p[2] - cz) * (1 - .45 * tuck); return [f * c - z * s, p[1] * (1 - .25 * tuck), f * s + z * c + cz * (1 - .55 * tuck)]; };
-  for (const k in J) { const p = J[k]; if (p && k !== 'bladeDir') J[k] = T(p); }
-  const b = J.bladeDir; if (b) J.bladeDir = [b[0] * c - b[2] * s, b[1], b[0] * s + b[2] * c];
-  // the cape and hair were solved on the upright body (rig.update anchors them to the unturned shoulders), so on their
-  // own they hung in the air above the somersault like a flag. Turn every cloth node with the body, through the rig's
-  // own local frame (world -> facing/size -> the same roll -> world). It is for this frame's drawing only: the next
-  // step puts them back (heroUnroll) before the cloth simulates again, so the sim never sees a jump or gains velocity,
-  // and at the end of the roll (a whole turn, no tuck) the two agree exactly
-  const an = rig.facing + rig.spin + (rig._cheat || 0), ca = Math.cos(an), sa = Math.sin(an), k = (1 - rig.sq * .4) * o.size, kz = (1 + rig.sq) * o.size, keep = h._rollCloth = [];
-  for (const ch of [rig.capeL, rig.capeR, rig.hairPts]) if (ch) for (const n of ch) {
-    keep.push(n, n.x, n.y, n.z);
-    const dx = n.x - rig.x, dy = n.y - rig.y, q = T([(dx * ca + dy * sa) / k, (-dx * sa + dy * ca) / k, (n.z - rig.z) / kz]);
-    n.x = rig.x + (q[0] * ca - q[1] * sa) * k; n.y = rig.y + (q[0] * sa + q[1] * ca) * k; n.z = rig.z + q[2] * kz;
-  }
-}
-/** undo heroRoll's turn of the cloth (the rig simulates it upright) */
-function heroUnroll(h) { const s = h._rollCloth; if (!s) return; h._rollCloth = null; for (let i = 0; i < s.length; i += 4) { s[i].x = s[i + 1]; s[i].y = s[i + 2]; s[i].z = s[i + 3]; } }
 function heroAim(h) {
   const inp = h.bot ? h.bot.input : game.input, view = game.view;   // h.bot: the autopilot drives a virtual input (93-autopilot.js)
   const mv = inp.move(), md = inp.worldMove ? inp.worldMove.slice() : view.screenDirToGround(mv[0], mv[1]), mlen = Math.hypot(md[0], md[1]);
@@ -226,7 +202,6 @@ function heroAim(h) {
 function updateHero(h, dt, o = {}) {
   const inp = h.bot ? h.bot.input : game.input, town = !!o.town;
   const profile = characterOf(h), dodgeTime = profile.dodgeTime * TUNE.dodgeTime;
-  heroUnroll(h);   // the roll's cloth goes back upright before anything simulates it
   if (h.perfectT > 0 && (h.perfectT -= dt / Math.max(.2, game.timeScale)) <= 0) h.perfectT = 0;
   // witch time: after a perfect dodge the world crawls but he keeps close to his own pace (his clock runs fast)
   if (h.perfectT > 0 && game.timeScale < 1 && !h.dead) dt *= Math.min(3, .85 / Math.max(.2, game.timeScale));
@@ -320,11 +295,12 @@ function updateHero(h, dt, o = {}) {
   // wounded: he hunches and leans as life runs low; idle in a level, he checks his blade now and then
   h.rig.o.hunch = low * .3; h.rig.o.lean = low * .12;
   if (!act && !town && h.idleT > 5 && h.idleT % 9 < 1.4 && !rs.pose) { rs.pose = 'block'; rs.expr = null; }
+  // the dodge is the rig's forward roll (state flip: a somersault about the hips, the cape and hair turned with it)
+  if (h.dodgeT > 0 && !profile.ownLayers) rs.flip = 1 - h.dodgeT / dodgeTime;
   if (sp === 0) { if (!h.st.freeze) h.rig.update(dt, rs); }
   else h.rig.update(dt * (h.st.chill ? .8 : 1), rs);
   if (profile.ownLayers) return;   // a body that animates its own dodge, potion and wounds (Codex) gets none of the layers below
-  if (h.dodgeT > 0) heroRoll(h, 1 - h.dodgeT / dodgeTime);
-  else if (h.potionT > 0) heroDrinkPose(h, 1 - h.potionT / .8);
+  if (h.dodgeT <= 0 && h.potionT > 0) heroDrinkPose(h, 1 - h.potionT / .8);
   if (!(sp === 0 && h.st.freeze)) heroWoundPose(h, dt, rs.pose || h.hurtT > 0 ? 0 : low);   // (a pose or a flinch has the hand; frozen solid, the rig keeps last step's joints and nothing may be added twice)
   // footsteps on the gait: one soft step each time a foot comes down
   const ph = Math.floor(h.rig.phase / Math.PI); if (ph !== h.stepPh) { h.stepPh = ph; if (Math.hypot(h.vx, h.vy) > 30 && h.z < 1) sfx('step', { vol: .35 }); }

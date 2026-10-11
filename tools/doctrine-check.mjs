@@ -59,7 +59,7 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
     ['the API card (API.md)', read('API.md'), 13500, 3.1],
-    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 30000, 3.25]   // (D17)
+    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 34000, 3.25]   // (D17, D18)
   ];
   const line = [];
   for (const [name, text, budget, ratio] of MANUALS) {
@@ -77,7 +77,7 @@ const PRIVATE = new Set([...ENGINE.matchAll(/(?:\bthis\.|^\s+|[{,]\s*)(_[A-Za-z]
 // the uses before the doctrine (v0.15.0), by area: a folder of src/ or a single file. Remove a name once its area stops
 // using it (the check says when); never add one: promote the member to the public API instead, or make it a prototype's.
 const GRANDFATHERED = {
-  'src/emberdeep/': ['_build', '_cheat', '_composite', '_facePattern', '_fail', '_isFront', '_lastView', '_levels', '_roofPattern', '_w'],
+  'src/emberdeep/': ['_build', '_composite', '_facePattern', '_fail', '_isFront', '_lastView', '_levels', '_roofPattern', '_w'],
   'src/mocap/': ['_pose'],
   'src/stress.game.js': ['_note']
 };

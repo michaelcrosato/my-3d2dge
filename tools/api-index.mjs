@@ -33,7 +33,7 @@ function scan(src) {
     const m = /^\/\* ={10,}/.test(L[i]) && /^ \* (\d+b?)\. (.+?)(?:\s{2,}(.*))?$/.exec(L[i + 1] || '');
     if (m) sections.push({ at: i, n: m[1], title: m[2].trim(), gloss: (m[3] || '').trim() });
     let d;
-    if ((d = /^class (\w+)/.exec(L[i]))) { let j = i + 1; while (j < L.length && L[j] !== '}') j++; classes.set(d[1], { at: i, end: j }); top.set(d[1], i); }
+    if ((d = /^class (\w+)(?: extends (\w+))?/.exec(L[i]))) { let j = i + 1; while (j < L.length && L[j] !== '}') j++; classes.set(d[1], { at: i, end: j, parent: d[2] || null }); top.set(d[1], i); }
     else if ((d = /^(?:const|let) (\w+) = /.exec(L[i])) || (d = /^function (\w+)\s*\(/.exec(L[i]))) { if (!top.has(d[1])) top.set(d[1], i); }
     else if ((d = /^E\.(\w+) = /.exec(L[i]))) top.set('E.' + d[1], i);
     else if ((d = /^(\w+)\.(\w+) = /.exec(L[i]))) top.set(d[1] + '.' + d[2], i);
@@ -55,9 +55,13 @@ function scan(src) {
       const oa = /Object\.assign\(this,\s*\{(.*?)\}\s*,\s*o\)/.exec(L[i]);
       if (oa) for (const k of oa[1].matchAll(/(?:^|,)\s*(\w+)\s*:\s*([^,]+)/g)) { if (!fields.has(k[1])) fields.set(k[1], i); defaults.set(k[1], k[2].trim()); }
       // the options with their defaults over several lines: Object.assign(this, {\n ... \n}, o)
-      if (/Object\.assign\(this,\s*\{\s*$/.test(L[i])) for (let j = i + 1; j < c.end && !/^\s*\}\s*,\s*o\)/.test(L[j]); j++)
-        for (const k of L[j].matchAll(/(?:^|,)\s*(\w+)\s*:\s*([^,]+)/g)) { if (!fields.has(k[1])) fields.set(k[1], i); defaults.set(k[1], k[2].trim()); }
+      if (/Object\.assign\(this,\s*\{/.test(L[i]) && (L[i].match(/\{/g) || []).length > (L[i].match(/\}/g) || []).length) for (let j = i; j < c.end; j++) {   // over several lines
+        for (const k of L[j].replace(/^.*Object\.assign\(this,\s*\{/, '').matchAll(/(?:^|,)\s*(\w+)\s*:\s*([^,}]+)/g)) { if (!fields.has(k[1])) fields.set(k[1], i); defaults.set(k[1], k[2].trim()); }
+        if (/\}\s*,\s*o\)/.test(L[j])) break;
+      }
     }
+    // a subclass lists only what it adds: the fields its parent sets are the parent's
+    if (c.parent) { const P = members(c.parent); if (P) for (const f of P.fields.keys()) if (!/Object\.assign/.test(L[fields.get(f)] || '')) fields.delete(f); else if (P.fields.has(f)) fields.delete(f); }
     return { methods, fields, defaults };
   };
   return { L, sections, section, top, classes, spaces, members };

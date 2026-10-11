@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.19.0)
+# my-3D2dge API index (v0.20.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.19.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.20.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -200,6 +200,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.Input.DEFAULT`: top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks
 - `E.Input.PLATFORMER`: side-scrollers (Mario, Mega Man): Space / Z / K jump, X / J attack or shoot, Shift / C dash
 - `E.Input.SHMUP`: shoot-'em-ups (1942, Gradius): Space / Z / J fire (hold for autofire), X / K bomb
+- `E.Input.THIRDPERSON` †: third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour, C crouch (a toggle), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map
 - `input.anyPressed()`: any action pressed this step (title screens: "press any button")
 - `input.bindButtons(root)` †: wire every element with data-act="<action>" inside root to the action
 - `input.buffered(a, win = .15)`: was it pressed within the last `win` seconds and not yet consumed? (input buffering)
@@ -312,10 +313,12 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `r.groundDisc(x, y, rad, color, alpha = 1, z = 0)`: a dithered disc lying on the ground (radius in world units, z its height): shadows, auras, area attacks
 - `r.groundPts(x, y, rad, n = 18, z = 0)`: ground helpers (all dithered, correct in every view)
 - `r.groundRing(x, y, rad, color, alpha = 1, z = 0)`: a ring lying on the ground (radius in world units)
+- `r.marker(x, y, z = 0, o = {})`: an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' }
 - `r.overlay(fn)`: draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus)
-- `r.prop(name, x, y, z, o = {})` †: set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides }) feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights. A prop drawn in front of an x-ray actor (a pillar, a statue, a brazier) shows the actor's silhouette through it; hides: false opts a prop out.
-- `r.queue(x, y, z, fn, o)`: queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it)} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show through it (props, sprites, bodies), nothing else changes
+- `r.prop(name, x, y, z, o = {})` †: set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint }) feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights. A prop drawn in front of an x-ray actor (a pillar, a statue, a brazier) shows the actor's silhouette through it; hides: false opts a prop out.
+- `r.queue(x, y, z, fn, o)`: queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show through it (props, sprites, bodies), nothing else changes
 - `r.shadow(x, y, rad, alpha = .5, color = '#0c0818', z = 0)`: soft contact shadow under a character: a cached dithered ellipse, correct for the current view. z = height of the surface it falls on (0 = floor; the top of a block or platform otherwise)
+- `r.sightCone(obs, o = {})` †: an observer's view on the ground: a dithered fan fov wide (radians) about its facing, out to range, cut short where the map hides a body's chest (map.ray, the height rules), draped over the ground below. o: { range: 120, fov: 1.6, facing, map, eye, color: '#ffe080', alpha: .3, rays }. Call it in draw (it is a decal: under walls and bodies)
 - `r.sky(colors, o = {})`: background of dithered color bands, top to bottom: r.sky(['#0b1030', '#3b2d6b', '#e0806a']). Call first in draw.
 - `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost } (the last five use the actor path)
 - `r.starfield(o = {})`: scrolling star dots for space and night skies. opts: { count: 70, speed: 30 px/s, dir: 'down' | 'up' | 'left' | 'right', colors, layers: 3, seed }
@@ -455,6 +458,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `rig.hand(which = 'R')`: world position of a hand ('R' holds the weapon): spawn bullets, sparks or thrown things here
 - `rig.head()`: world position of the head (for speech bubbles, portraits, halos)
 - `rig.kick(v)`: a squash-and-stretch kick: + stretches (a jump), - squashes (a landing, a hit)
+- `rig.land(strength = 1)` †: a heavy landing: knees bend deep and spring back over a moment; strength 1 or more drops a hand to the ground (a three-point landing), .3-.6 is a soft one. Call it on the step the body lands
 - `rig.tip()`: world position of the weapon tip (sword tip, gun muzzle, staff orb)
 - `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand
 - `rig.worldOffset(p)`: where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it) sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint
@@ -515,7 +519,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 13. Tile map
 
-- `new E.TileMap(o = {})`: Walls standing on a floor (top-down, isometric, brawler). Either { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex } (recommended) or { w, h, cells: [ids...], types, floorTex }. types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow] face: wall pattern 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none' roof: top pattern 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass' block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
+- `new E.TileMap(o = {})`: Walls standing on a floor (top-down, isometric, brawler). Either { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex } (recommended) or { w, h, cells: [ids...], floor: [tags...], blocked: [0 | 1...], types, floorTex } (built in code: fill, setFloor; with no cells it starts as open floor). types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow] face: wall pattern 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none' roof: top pattern 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass' block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
 - `map.arcClear(a, b, apex = 20, r = 0)`: does a jump arc from a to b (feet, { x, y, z }) clear every top on the way? The arc is a parabola peaking apex above the higher end; r > 0 also checks a track on each side of it. Jumps, throws, aerial takedowns
 - `map.block(cx, cy, on = true)`: mark a cell blocked or free at runtime (a bridge appears, lava cools)
 - `map.bounds(view)`: projected pixel bounds of the whole map for this view (camera clamping)
@@ -524,6 +528,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `map.collide(b)`: push a circle { x, y, r } out of walls. If the body has a number z, walls lower than z + step (default 2) do not block it (it is standing or jumping above them). Returns true when it touched a wall.
 - `map.drawFloor(r)`: draw the baked floor (first thing in draw, after r.sky); walls come from queueWalls(r)
 - `map.drop(from, dir, o = {})`: what lies past the edge ahead: the first drop of more than step within reach (default 12) of `from` in direction dir, and the ground a body of its radius lands on just past it: { x, y, z, fall } or null (no edge, or a wall first). AI that won't walk off roofs, hop-downs, fall warnings
+- `map.fill(cx, cy, w, h, id)`: put wall type id in every cell of a w x h block of cells (0 clears them): build maps in code
 - `map.find(tag)`: first spawn with this tag ({ x, y, z, cx, cy }), or null
 - `map.findAll(tag)`: every spawn with this tag
 - `map.floorAt(x, y)`: floor tag from the legend ({ floor: 'water' }) at a world point, or null
@@ -536,6 +541,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `map.queueWalls(r)`: queue every visible wall box. Call once per frame after drawFloor.
 - `map.ray(a, b, o = {})`: the first cell top that rises above the straight segment from a to b ({ x, y, z } world points; o.eye and o.target lift each end): { clear, t (0..1 along it), x, y, z } where it stops (b's point when clear). It walks every cell the segment crosses, not samples; a top level with the segment doesn't block it, and outside the map is solid
 - `map.set(cx, cy, v)`: put wall type v at a cell (0 opens it: a door, a broken wall); bumps version, so caches and flow fields rebuild
+- `map.setFloor(cx, cy, tag, block)`: give a cell a floor tag ('water', 'grass', what floorTex and floorAt read), and block it (deep water, lava) or not
 - `map.sight(a, b, o = {})`: can a's eyes (z + eye) see b's chest (z + chest)? E.HEIGHTS gives both unless o ({ eye, target }) or the bodies' own eye and chest say otherwise. A guard sees over a planter lower than its eyes, and down from a roof
 - `map.solidAt(x, y)`: solidCell at a world point
 - `map.solidCell(cx, cy)`: true where a cell has a wall (or is outside the map); walkable() also counts blocked floor
@@ -561,12 +567,16 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 14. Flow field
 
-- `new E.FlowField(map, o = {})`: new E.FlowField(map, { step: 2, climb: 0, drop: 0 }): distances over the tops a body can stand on (E.HEIGHTS). Next-door cells connect when their tops differ by at most step, or going up by up to climb and down by up to drop (agents that climb walls or hop down). With no options it covers the floor as before (and walls no higher than step, which bodies walk over); a target on a roof gets a field across the roofs it connects to
+- `new E.FlowField(map, o = {})`: new E.FlowField(map, { step: 2, climb: 0, drop: 0, jump: 0 }): distances over the tops a body can stand on (E.HEIGHTS). Next-door cells connect when their tops differ by at most step, or going up by up to climb and down by up to drop (agents that climb walls or hop down). jump (world units) links tops across a gap that a jump clears, straight along a row or column, by map.landing's rules (up to jumpRise higher, 11, and jumpDrop lower, 18): an agent with E.Mover's leap chases across roofs. With jump, distances are travel: a jump of k cells costs k, and a climb 1 plus its rise in cells (climbing is slow), so a chase leaps a gap rather than drop into the street and climb back up. With no options it covers the floor as before (and walls no higher than step, which bodies walk over); a target on a roof gets a field across the roofs it connects to
 - `flow.dir(x, y, fx, fy)`: normalized ground direction to walk from (x, y) toward the target (straight at it where the field doesn't reach)
+- `flow.next(x, y)` †: the next cell to head for from (x, y): { x, y, z (its center and top), kind: 'walk' | 'climb' | 'drop' | 'jump', edge (how far (x, y) is from the side of its cell it leaves by) }, or null where the field doesn't reach (or at the target). An AI standing on the ground presses jump for a 'climb' or a 'jump' once edge is under its radius plus a little (E.Mover climbs or leaps; a press in the air would be kept for the landing)
 - `flow.update(x, y)`: aim the field at a world point; it rebuilds only when the target's cell or the map (map.version) changes
 - `flow.climb`: how much higher a next-door top may be (an agent that climbs walls)
 - `flow.d`: each cell's distance in steps to the target cell (1e9 where it can't get there), row by row
 - `flow.drop`: how much lower (an agent that hops down)
+- `flow.jump` †: the widest gap jumped (world units, 0 = none)
+- `flow.jumpDrop` †: how much higher and lower a jump may land
+- `flow.jumpRise` †: how much higher and lower a jump may land
 - `flow.map`: the map it paths over
 - `flow.step`: the height difference walked over freely (2)
 - `flow.tx = -1`: the target's cell
@@ -675,6 +685,81 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `body.x = 0`: its position (z = feet)
 - `body.y = 0`: its position (z = feet)
 - `body.z = 0`: its position (z = feet)
+
+## 17b. Actions
+
+- `E.ACTIONS: climbUp, vault, hopDown, roll, getUp, takedown` †: the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at }
+- `new E.Action(name, o = {})`: new E.Action(name, { body, to, other, dir, dist, top, aerial, reverse, speed: 1 }): play E.ACTIONS[name] on a body (and on o.other for a paired action). It moves them itself: run update(dt) every step instead of their physics, and feed rigState() to the rig. Each body ends standing where the action put it
+- `action.canCancel` †: true during a beat marked as one the action may be cut short in (spec.cancel)
+- `action.cancel()` †: stop now: the bodies stay where they are
+- `action.invulnerable` †: true while hits should miss (spec.safe: [from, to] of the action's progress)
+- `action.otherState(extra)` †: the rig state for the other body of a paired action (the victim of a takedown)
+- `action.rigState(extra)` †: the rig state for the body (merge extra over it): x, y, z, its speed, facing and the beat's pose
+- `action.u` †: 0..1 through the whole action
+- `action.update(dt)` †: move the bodies one step; returns true while the action runs (false once it has ended)
+- `action.beat` †: the name of the beat playing now
+- `action.beats` †: [[name, seconds], ...]
+- `action.body` †: the bodies it moves
+- `action.done = false` †: it has ended (or was cancelled)
+- `action.duration` †: the action's length in seconds (o.speed shortens it)
+- `action.name` †: the action's name
+- `action.o` †: the options it was given
+- `action.other` †: the bodies it moves
+- `action.shadowZ` †: the ground under the body (with o.map), for its shadow
+- `action.spec` †: its E.ACTIONS entry
+- `action.start` †: where the body was when it began
+- `action.t = 0` †: seconds played
+- `action.vx` †: the body's speed this step, for the rig
+- `action.vy` †: the body's speed this step, for the rig
+- `action.vz = 0` †: the body's speed this step, for the rig
+- `new E.Mover(o = {})`: new E.Mover({ x, y, z, r: 5, walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220, coyote: .1, buffer: .12, climb: true, climbMax: 82, vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14 })
+- `mover.dodge(dir, dist = 34)` †: a dodge roll toward dir (an angle or [dx, dy]; default its facing) when it stands free. Returns the action, or null
+- `mover.play(name, o = {})` †: start an action now (E.ACTIONS name, its options): it moves the body until it ends
+- `mover.respawn()` †: back to the last safe spot (after water, a pit, a fall it shouldn't survive)
+- `mover.rigState(extra)` †: the rig state: rig.update(dt, hero.rigState({ attack })): its motion, crouch, sprint and landing, or the playing action's pose; extra is merged over it
+- `mover.update(dt, map, ctl = {}, view)` †: one step. ctl: game.input (needs the actions move, jump, and sprint / crouch if it has them; screen directions turn into ground ones through view, the game's by default) or an intent { move: [dx, dy], sprint, crouch, jumpPressed }
+- `mover.accel = 700` †: how fast it gets there
+- `mover.action = null` †: the E.Action playing, or null
+- `mover.airAccel = 260` †: how fast it gets there
+- `mover.buffer = .12` †: seconds a jump press is kept
+- `mover.climb = true` †: climbs ledges (true)
+- `mover.climbMax = 82` †: the highest ledge it climbs
+- `mover.coyote = .1` †: seconds a jump still works after leaving an edge
+- `mover.crouch = false` †: sneaking (a toggle)
+- `mover.facing = 0` †: the angle it faces
+- `mover.fell = 0` †: what happened this step
+- `mover.gapAssist = true` †: a jump at a gap aims for the far side
+- `mover.hopMax = 48` †: drops up to this deep are hopped down
+- `mover.hurt = false` †: what happened this step
+- `mover.hurtAt = 72` †: fall heights that roll and that hurt
+- `mover.inHazard = false` †: what happened this step
+- `mover.jumpSpeed = 220` †: a jump's upward speed
+- `mover.lastSafe = null` †: the last spot it stood safely, for respawn()
+- `mover.rollAt = 26` †: fall heights that roll and that hurt
+- `mover.run = 85` †: top speeds (world units a second)
+- `mover.sneak = 32` †: top speeds (world units a second)
+- `mover.sprintSpeed = 125` †: top speeds (world units a second)
+- `mover.sprinting = false` †: sprinting now
+- `mover.turn = 14` †: how fast it turns, radians a second
+- `mover.vault = 14` †: walls up to this high are vaulted at a run
+- `mover.walk = 50` †: top speeds (world units a second)
+- `new E.Suspicion(o = {})`: new E.Suspicion({ rise: 1.5, decay: .3, notice: .3, search: .65, alert: 1, forget: 6 }): a guard's mind. Its level rises while it sees the target (faster the more exposed and nearer), decays while it doesn't, and names a state: 'calm', 'notice' (turn and look), 'search' (go to last), 'alert' (chase). An alert guard that loses the target searches for forget seconds
+- `suspicion.hear(strength, at)` †: a noise heard (strength 0..1, from E.hears) at a point: at least noticed, never more than searching
+- `suspicion.reset()` †: back to calm
+- `suspicion.update(dt, seen, target)` †: one step: seen is E.sees' result (or true / false), target the body seen. Returns the state
+- `suspicion.alert = 1` †: the levels where each state starts
+- `suspicion.changed = false` †: the state changed this step
+- `suspicion.decay = .3` †: per second
+- `suspicion.forget = 6` †: seconds an alert guard searches after losing the target
+- `suspicion.last = null` †: where it last saw or heard the target ({ x, y, z }), or null
+- `suspicion.level = 0` †: 0..1.2, how suspicious
+- `suspicion.notice = .3` †: the levels where each state starts
+- `suspicion.rise = 1.5` †: per second
+- `suspicion.search = .65` †: the levels where each state starts
+- `suspicion.since = 0` †: seconds since it last saw or heard anything
+- `suspicion.state = 'calm'` †: 'calm' | 'notice' | 'search' | 'alert'
+- `E.hears(lis, noise, map)`: how loud a noise ({ x, y, z, loud: its radius in world units, 80 }) is where listener stands: 1 at the noise, 0 at its radius and beyond, halved when a top of map stands between them (a wall muffles it)
+- `E.sees(obs, tgt, o = {})`: can observer see target? { seen, d (ground distance), angle (observer -> target), exposure: 0..1 }. The target must be within range and inside the cone fov wide (radians) about the observer's facing; exposure is the share of three points on it (its feet, its chest, its head) that the observer's eyes see past every top of o.map, times the target's own exposure (default 1) and .6 when it crouches (it also shows lower). o: { range: 120, fov: 1.6, facing, map, eye }
 
 ## 18. Bullets
 

@@ -50,8 +50,8 @@
         {
           "page": "dist/my-3d2dge.html",
           "title": "Starter games",
-          "what": "The file to hand an AI model: the engine, its API card and five small games. The kits are one game each.",
-          "links": [["All five", ""], ["Adventure kit", "dist/kits/my-3d2dge-adventure.html"], ["Platformer kit", "dist/kits/my-3d2dge-platformer.html"], ["Brawler kit", "dist/kits/my-3d2dge-brawler.html"], ["Shooter kit", "dist/kits/my-3d2dge-shooter.html"], ["RPG kit", "dist/kits/my-3d2dge-rpg.html"], ["Animation kit", "dist/kits/my-3d2dge-animlab.html"]]
+          "what": "The file to hand an AI model: the engine, its API card and six small games. The kits are one game each.",
+          "links": [["All six", ""], ["Adventure kit", "dist/kits/my-3d2dge-adventure.html"], ["Platformer kit", "dist/kits/my-3d2dge-platformer.html"], ["Brawler kit", "dist/kits/my-3d2dge-brawler.html"], ["Shooter kit", "dist/kits/my-3d2dge-shooter.html"], ["RPG kit", "dist/kits/my-3d2dge-rpg.html"], ["Stealth kit", "dist/kits/my-3d2dge-stealth.html"], ["Animation kit", "dist/kits/my-3d2dge-animlab.html"]]
         },
         {
           "page": "scarfrunner-side",

@@ -84,8 +84,8 @@ function updateCharacterPreview(dt) {
 	};
 	const C = characterOf(h);
 	if (C.preview) Object.assign(s, C.preview(h, part, t)); // a character's own preview (Codex: its finale, its pages)
+	if (!C.ownLayers && s.dash) s.flip = (t % 2.5) / 0.7; // the dodge: the rig's roll
 	h.rig.update(dt, s);
-	if (!C.ownLayers && s.dash) heroRoll(h, (t % 2.5) / 0.7);
 	g.fillStyle = "#110e1e";
 	g.fillRect(0, 0, cv.width, cv.height);
 	px.ell(g, 160, 181, 56, 14, "#282338");

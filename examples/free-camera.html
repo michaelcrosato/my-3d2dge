@@ -168,7 +168,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.19.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.20.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -201,7 +201,8 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
  *    game.timeScale = slow motion, game.paused = pause, game.after(s, fn) = timer.
  * 7. LEVELS. Top-down / isometric / brawler floors: E.TileMap (walls on the ground
  *    plane). Side-scrollers: E.PlatformMap + E.Platformer (tiles on the x/z plane,
- *    solid, one-way, ladders, hazards, moving platforms). Both read ASCII rows.
+ *    solid, one-way, ladders, hazards, moving platforms). Both read ASCII rows. Third person (Assassin's Creed):
+ *    E.Mover on a TileMap of roofs climbs, vaults and leaps; E.ACTIONS, and E.sees / E.Suspicion for guards (17b-17d).
  * 8. SOUND, TEXT, MENUS. game.audio.sfx('jump'), game.audio.music(song);
  *    E.font.text(...) (5x7 proportional font), E.font.title(...), E.ui.box/bar/hearts,
  *    new E.Dialog(game), new E.Menu(game, items).
@@ -238,7 +239,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.19.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.20.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1001,6 +1002,14 @@ Input.PLATFORMER = {
   jump: ['Space', 'KeyZ', 'KeyK', 'Pad0'], attack: ['KeyX', 'KeyJ', 'Mouse0', 'Pad2'], dash: ['ShiftLeft', 'ShiftRight', 'KeyC', 'KeyL', 'Pad1', 'Pad5'],
   skill: ['KeyE', 'KeyV', 'Mouse2', 'Pad3'], ...MENU_KEYS
 };
+/** third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour,
+ *  C crouch (a toggle), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact,
+ *  LB block, RB dodge, LT use, RT or L3 sprint, Back map */
+Input.THIRDPERSON = {
+  up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
+  sprint: ['ShiftLeft', 'ShiftRight', 'Pad7', 'Pad10'], jump: ['Space', 'Pad0'], crouch: ['KeyC', 'ControlLeft', 'Pad1'], interact: ['KeyE', 'KeyF', 'Pad3'],
+  attack: ['KeyJ', 'Mouse0', 'Pad2'], block: ['KeyK', 'Mouse2', 'Pad4'], dodge: ['KeyL', 'Pad5'], use: ['KeyQ', 'Pad6'], map: ['KeyM', 'Tab', 'Pad8'], ...MENU_KEYS
+};
 /** shoot-'em-ups (1942, Gradius): Space / Z / J fire (hold for autofire), X / K bomb */
 Input.SHMUP = {
   up: ['KeyW', 'ArrowUp', 'Pad12'], down: ['KeyS', 'ArrowDown', 'Pad13'], left: ['KeyA', 'ArrowLeft', 'Pad14'], right: ['KeyD', 'ArrowRight', 'Pad15'],
@@ -1441,13 +1450,18 @@ class Renderer {
   }
   /** world -> buffer pixel coords */
   w(x, y, z = 0) { const v = this.game.view; return [v.ax * x + v.ay * y - this.ix, v.bx * x + v.by * y + v.bz * z - this.iy]; }
-  /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it)}
+  /** queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint}
    *  occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show
    *  through it (props, sprites, bodies), nothing else changes */
   queue(x, y, z, fn, o) {
     let k = this.game.view.order(x, y, z) + (o && o.bias || 0);
-    // things standing on top of a TileMap wall block must sort after that block
-    if (z > .5 && this._map && !(o && o.occluder)) k = this._map._liftOrder(this.game.view, x, y, z, k);
+    // things standing on top of a TileMap wall block must sort after that block; a footprint ([x0, y0, x1, y1], world units)
+    // lifts a big thing over every block under its base (a canopy over a tower's top, a cart across two cells)
+    if (z > .5 && this._map && !(o && o.occluder)) {
+      const f = o && o.footprint, M = this._map, T = M.T;
+      if (f) { for (let cy = Math.floor(f[1] / T); cy <= Math.floor((f[3] - .01) / T); cy++) for (let cx = Math.floor(f[0] / T); cx <= Math.floor((f[2] - .01) / T); cx++) k = M._liftOrder(this.game.view, (cx + .5) * T, (cy + .5) * T, z, k); }
+      else k = M._liftOrder(this.game.view, x, y, z, k);
+    }
     const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
     this.items.push(it);
     if (it.em) this._emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
@@ -1474,6 +1488,39 @@ class Renderer {
     for (let i = n; i >= 0; i--) { const a = lerp(a0, a1, i / n); pts.push(this.w(x + Math.cos(a) * r0, y + Math.sin(a) * r0, z)); }
     px.polyDither(g, pts, color, alpha, this.ix, this.iy);
   }
+  /** an observer's view on the ground: a dithered fan fov wide (radians) about its facing, out to range, cut short where
+   *  the map hides a body's chest (map.ray, the height rules), draped over the ground below. o: { range: 120, fov: 1.6,
+   *  facing, map, eye, color: '#ffe080', alpha: .3, rays }. Call it in draw (it is a decal: under walls and bodies) */
+  sightCone(obs, o = {}) {
+    const range = o.range === undefined ? 120 : o.range, fov = o.fov === undefined ? 1.6 : o.fov, facing = o.facing === undefined ? obs.facing || 0 : o.facing;
+    const z = obs.z || 0, eye = o.eye !== undefined ? o.eye : obs.eye !== undefined ? obs.eye : HEIGHTS.eye, n = o.rays || Math.max(8, Math.ceil(fov * 12)), map = o.map, pts = [this.w(obs.x, obs.y, z)];
+    for (let i = 0; i <= n; i++) {
+      const a = facing - fov / 2 + fov * i / n, ex = obs.x + Math.cos(a) * range, ey = obs.y + Math.sin(a) * range;
+      const t = map ? (h => h.clear ? 1 : h.t)(map.ray(obs, { x: ex, y: ey, z }, { eye, target: HEIGHTS.chest })) : 1, px2 = lerp(obs.x, ex, t), py2 = lerp(obs.y, ey, t);
+      pts.push(this.w(px2, py2, map ? Math.min(z, map.groundAt(px2, py2, 0, z, HEIGHTS.step)) : z));
+    }
+    const color = o.color || '#ffe080', alpha = o.alpha === undefined ? .3 : o.alpha;
+    this.decal(g => px.polyDither(g, pts, color, alpha, this.ix, this.iy));
+  }
+  /** an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the
+   *  screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' } */
+  marker(x, y, z = 0, o = {}) {
+    const [sx, sy] = this.w(x, y, z), color = o.color || '#ffd040', dark = shade(color, -.6), W = this.W, H = this.H, m = 9, bob = this.game.reduceMotion ? 0 : Math.sin(this.game.real * 4) * 1.5;
+    this.overlay(g => {
+      if (sx >= m && sx <= W - m && sy >= m + 14 && sy <= H - m) {
+        const cx = Math.round(sx), cy = Math.round(sy - 14 + bob);
+        px.poly(g, [[cx, cy - 5], [cx + 4, cy], [cx, cy + 5], [cx - 4, cy]], dark); px.poly(g, [[cx, cy - 4], [cx + 3, cy], [cx, cy + 4], [cx - 3, cy]], color);
+        if (o.label) E.font.text(g, o.label, cx, cy - 13, color, { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+      } else if (o.offscreen !== false) {
+        const mx = W / 2, my = H / 2, a = Math.atan2(sy - my, sx - mx), k = Math.min((W / 2 - m) / Math.max(1e-6, Math.abs(Math.cos(a))), (H / 2 - m) / Math.max(1e-6, Math.abs(Math.sin(a))));
+        const ax = Math.round(mx + Math.cos(a) * k), ay = Math.round(my + Math.sin(a) * k), c = Math.cos(a), s = Math.sin(a), tip = [ax + c * 5, ay + s * 5];
+        px.poly(g, [[tip[0] + c, tip[1] + s], [ax - s * 5 - c * 2, ay + c * 5 - s * 2], [ax + s * 5 - c * 2, ay - c * 5 - s * 2]], dark);
+        px.poly(g, [tip, [ax - s * 4 - c, ay + c * 4 - s], [ax + s * 4 - c, ay - c * 4 - s]], color);
+        if (o.label) E.font.text(g, o.label, clamp(ax - c * 10, 14, W - 14), clamp(ay - s * 10 - 3, 2, H - 8), color, { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+      }
+    });
+  }
+
   _stamp(key, make) {
     const m = this._stamps || (this._stamps = new Map());
     let st = m.get(key); if (st) return st;
@@ -1509,10 +1556,10 @@ class Renderer {
       return;
     }
     if (!this.visible(x, y, z, spr.w + 8, spr.h + 8, spr.h + 8)) return;
-    this.queue(x, y, z, g => { if (gl) px.glow(g, gl); const [sx, sy] = this.w(x, y, z); px.sprite(g, spr, Math.round(sx) - ax, Math.round(sy) - ay, flip); }, { bias: o.bias, emissive: gl > .4, hides: o.hides });
+    this.queue(x, y, z, g => { if (gl) px.glow(g, gl); const [sx, sy] = this.w(x, y, z); px.sprite(g, spr, Math.round(sx) - ax, Math.round(sy) - ay, flip); }, { bias: o.bias, emissive: gl > .4, hides: o.hides, footprint: o.footprint });
   }
   /**
-   * set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides })
+   * set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint })
    * feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights.
    * A prop drawn in front of an x-ray actor (a pillar, a statue, a brazier) shows the actor's silhouette through it;
    * hides: false opts a prop out.
@@ -1524,7 +1571,7 @@ class Renderer {
     const gf = p.glow ? p.glow[Math.floor((t * 9 + x * .37) % p.glow.length)] : null;
     const at = () => { const [sx, sy] = this.w(x, y, z); return [Math.round(sx) - ax, Math.round(sy) - ay]; };
     const [bX, bY] = at();
-    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, hides: o.hides !== false, box: [bX, bY, bX + spr.w, bY + spr.h] });
+    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, hides: o.hides !== false, box: [bX, bY, bX + spr.w, bY + spr.h], footprint: o.footprint });
     if (p.glowAt && o.halo !== false) this.queue(x, y, z, g => {   // lamps, lanterns and crystals glow even with lighting off; cone: true adds a light cone below
       if (g._info) return;
       const [X, Y] = at(), gx = X + spr.w * p.glowAt[0], gy = Y + spr.h * p.glowAt[1], R = o.haloR || Math.max(6, spr.w * .9), c = o.haloColor || p.glowAt[2];
@@ -2273,6 +2320,28 @@ class Humanoid {
   }
   /** a squash-and-stretch kick: + stretches (a jump), - squashes (a landing, a hit) */
   kick(v) { this.sqV += v; }
+  /** a heavy landing: knees bend deep and spring back over a moment; strength 1 or more drops a hand to the ground
+   *  (a three-point landing), .3-.6 is a soft one. Call it on the step the body lands */
+  land(strength = 1) { this._landT = 0; this._landK = clamp(strength, 0, 1.5); this.kick(-1.5 * Math.min(1, strength)); }
+  /** how much a stride stretches: shorter while sneaking, longer while sprinting */
+  _strideK() { return 1 - .35 * (this._sneakW || 0) + .25 * (this._sprintW || 0); }
+  /** the roll (state flip: u 0..1, a forward somersault about the hips, tucked in the middle): turns every joint, and the
+   *  cape and hair for this step's drawing only (the next update puts them back before they simulate, so they never
+   *  jump or gain speed). Emberdeep's dodge roll, moved into the rig */
+  _roll(u) {
+    const J = this.J, o = this.o, a = -ease.inOut(clamp(u, 0, 1)) * TAU, c = Math.cos(a), s = Math.sin(a), cz = o.hipZ * .55, tuck = Math.sin(clamp(u, 0, 1) * Math.PI);
+    const T0 = p => { const f = p[0] * (1 - .35 * tuck), z = (p[2] - cz) * (1 - .45 * tuck); return [f * c - z * s, p[1] * (1 - .25 * tuck), f * s + z * c + cz * (1 - .55 * tuck)]; };
+    let lift = 0; for (const k in J) { const p = J[k]; if (p && k !== 'bladeDir') lift = Math.max(lift, -T0(p)[2] + (k === 'head' ? o.headR : .5)); }   // rolls over on the shoulders: nothing goes through the floor
+    const T = p => { const q = T0(p); q[2] += lift; return q; };
+    for (const k in J) { const p = J[k]; if (p && k !== 'bladeDir') J[k] = T(p); }
+    const b = J.bladeDir; if (b) J.bladeDir = [b[0] * c - b[2] * s, b[1], b[0] * s + b[2] * c];
+    const an = this.facing + this.spin + this._cheat, ca = Math.cos(an), sa = Math.sin(an), k = (1 - this.sq * .4) * o.size, kz = (1 + this.sq) * o.size, keep = this._unroll = [];
+    for (const ch of [this.capeL, this.capeR, this.hairPts]) if (ch) for (const n of ch) {
+      keep.push(n, n.x, n.y, n.z);
+      const dx = n.x - this.x, dy = n.y - this.y, q = T([(dx * ca + dy * sa) / k, (-dx * sa + dy * ca) / k, (n.z - this.z) / kz]);
+      n.x = this.x + (q[0] * ca - q[1] * sa) * k; n.y = this.y + (q[0] * sa + q[1] * ca) * k; n.z = this.z + q[2] * kz;
+    }
+  }
   /** world position of a hand ('R' holds the weapon): spawn bullets, sparks or thrown things here */
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   /** world position of the weapon tip (sword tip, gun muzzle, staff orb) */
@@ -2292,16 +2361,27 @@ class Humanoid {
    */
   update(dt, s = {}) {
     const o = this.o;
+    const un = this._unroll; if (un) { this._unroll = null; for (let i = 0; i < un.length; i += 4) { un[i].x = un[i + 1]; un[i].y = un[i + 2]; un[i].z = un[i + 3]; } }   // last step's roll turned the cloth for drawing only
     if (this.t > 0 && Math.hypot((s.x || 0) - this.x, (s.y || 0) - this.y, (s.z || 0) - this.z) > 24 * o.size) { this.capeL = null; this.hairPts = null; this.trail.length = 0; }   // teleported: cloth and hair start fresh
     /** expr: the face shown ('smile', 'shout', 'angry', 'wince'), or null */
     this.t += dt; this.x = s.x; this.y = s.y; this.z = s.z || 0; this.facing = s.facing || 0; this.expr = s.expr || null;
     const speed = s.run ? s.run * o.speedRef : Math.hypot(s.vx || 0, s.vy || 0);   // run: 0..1 runs in place (an RPG 'run away', a treadmill)
+    // traversal: hang from a ledge (hangZ: its top above the feet), a sneaking crouch while moving, a sprint's lean, and a
+    // heavy landing from land(); a roll (flip) turns the whole body after posing
+    this._hangW = approach(this._hangW || 0, s.hang ? 1 : 0, dt * 14); if (s.hang) this._hangZ = s.hangZ;
+    this._sneakW = approach(this._sneakW || 0, s.crouch ? 1 : 0, dt * 8); this._sprintW = approach(this._sprintW || 0, s.sprint ? 1 : 0, dt * 6);
+    if (s.land > 0 && this._landT === undefined) this.land(s.land);   // (an action's landing step)
+    if (this._landT !== undefined) {
+      const k = this._landK, lt = this._landT += dt, dur = .22 + .3 * Math.min(1, k);
+      this._landW = lt < .05 ? lt / .05 * k : lt < dur ? k * (1 - ease.inOut((lt - .05) / (dur - .05))) : 0;
+      if (lt >= dur) this._landT = undefined;
+    }
     this._spW = approach(this._spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
     if (speed > 3 && !s.run) {
       const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
       this.mv[0] = lerp(this.mv[0], (s.vx * c + s.vy * sn) / speed, k); this.mv[1] = lerp(this.mv[1], (-s.vx * sn + s.vy * c) / speed, k);
     }
-    this.phase += dt * speed / (o.stride * o.size * Math.max(.4, Math.min(1, this._spW)));
+    this.phase += dt * speed / (o.stride * o.size * this._strideK() * Math.max(.4, Math.min(1, this._spW)));
     this._dashW = approach(this._dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
     this.hurtW = approach(this.hurtW, s.hurt ? 1 : 0, dt * 14);
     this._atkW = approach(this._atkW, s.attack ? 1 : 0, dt * (s.attack ? 30 : 7));
@@ -2373,6 +2453,7 @@ class Humanoid {
     this._pose();
     if (o.cape) this._cape(dt);
     if (o.hair.style === 'long' || o.hair.style === 'ponytail') this._hair(dt);
+    if (s.flip > 0 && s.flip < 1) this._roll(s.flip);
     // weapon trail: remember where the blade (or fist, or foot) really went, so the smear works in every view
     const T = this.trail;
     for (const p of T) p.age += dt;
@@ -2411,12 +2492,13 @@ class Humanoid {
     const breathe = Math.sin(this.t * 2.3) * (1 - sp);
     const bob = (.5 - Math.abs(Math.cos(ph)) * 1.3) * sp;
     const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel, lg = this.lunge || 0, cw = this._climbW || 0;
+    const hw = this._hangW || 0, snk = this._sneakW || 0, spr = (this._sprintW || 0) * sp, ld = this._landW || 0, sk = this._strideK();
     const cr = Math.max(PW.crouch || 0, this._crouchA || 0, Math.sin(clamp(this.downW || 0, 0, 1) * Math.PI) * .85);   // falling (and getting up) buckles the knees
     const sway = Math.sin(this.t * 1.15) * .3 * (1 - sp) * (1 - this._atkW);   // idle weight shift from foot to foot
-    const hipC = [mf * .4 * sp - .4 * hurt + lg * .55, mr * .3 * sp + sway, o.hipZ + bob + breathe * .3 - dash * 2.2 - hurt * .6 - kn * o.hipZ * .42 - PW.guard * .9 - cr * o.hipZ * .32 + (this.hop || 0)];
+    const hipC = [mf * .4 * sp - .4 * hurt + lg * .55, mr * .3 * sp + sway, o.hipZ + bob + breathe * .3 - dash * 2.2 - hurt * .6 - kn * o.hipZ * .42 - PW.guard * .9 - cr * o.hipZ * .32 - snk * o.hipZ * .3 - ld * o.hipZ * .42 + (this.hop || 0)];
     J.hipL = add(hipC, rz([0, -o.hipHalf, 0], this._twist * .4)); J.hipR = add(hipC, rz([0, o.hipHalf, 0], this._twist * .4));
     for (const s of [-1, 1]) {
-      const p = ph + (s > 0 ? Math.PI : 0), along = Math.sin(p) * o.stride * sp;
+      const p = ph + (s > 0 ? Math.PI : 0), along = Math.sin(p) * o.stride * sp * sk;
       let foot = [mf * along + (s > 0 ? .8 : -.6) * (1 - sp), s * o.footSpread + mr * along, Math.max(0, Math.cos(p)) * o.lift * sp];
       foot = V3.lerp(foot, [s > 0 ? 4 : -5, s * 2.2, s > 0 ? 1.5 : .3], dash);
       if (this._airW > 0) foot = V3.lerp(foot, [s > 0 ? 3.2 : -2.6, s * 1.9, s > 0 ? 6 : 3.6], this._airW);
@@ -2426,12 +2508,15 @@ class Humanoid {
       if (lg > 0) foot[0] += (s === (this._atkHand === 'L' ? 1 : -1) ? lg * 1.3 : -lg * .15) * (1 - sp);   // the lead foot steps into the strike
       if (this.hop) foot[2] += this.hop;
       if (cw > 0) foot = V3.lerp(foot, [.6, s * 1.5, Math.max(0, Math.sin(this._climbP + (s > 0 ? Math.PI : 0))) * 3.4], cw);
+      if (snk > 0) foot[1] += s * .6 * snk;                                                                     // a wider, lower stance
+      if (ld > 0) foot = V3.lerp(foot, [s > 0 ? 2.6 : -2.4, s * (o.footSpread + 1), 0], Math.min(1, ld));      // planted wide
+      if (hw > 0) foot = V3.lerp(foot, [1.3, s * 1.3, o.hipZ * .08 + (s > 0 ? .8 : 0)], hw);                   // dangling against the wall
       if (s > 0 && this._kicking && this._atkW > 0) foot = V3.lerp(foot, [Math.cos(this._theta) * (this.reach + 3), Math.sin(this._theta) * (this.reach + 3), (this.atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this._armW || 0);
       const hip = s > 0 ? J.hipR : J.hipL;
       const [knee, f2] = ik3(hip, foot, o.legUpper, o.legLower, [1, s * .15, .1]);
       J[s > 0 ? 'kneeR' : 'kneeL'] = knee; J[s > 0 ? 'footR' : 'footL'] = f2;
     }
-    const leanF = o.lean + .16 * sp * mf + .45 * dash + this._atkLean - .35 * hurt + cr * .22, leanR = .1 * sp * mr;
+    const leanF = (o.lean + .16 * sp * mf + .45 * dash + this._atkLean - .35 * hurt + cr * .22 + snk * .34 + spr * .3 + ld * .42) * (1 - hw) + hw * .06, leanR = .1 * sp * mr;
     const dir = V3.norm([Math.sin(leanF), Math.sin(leanR), Math.cos(leanF)]);
     const shC = add(hipC, V3.mul(dir, o.torso));
     J.hipC = hipC; J.shC = shC;
@@ -2442,7 +2527,7 @@ class Humanoid {
     const aT = this.sidePlane ? add(shC, [Math.cos(this._theta) * this.reach, sA * .8, Math.sin(this._theta) * this.reach]) : add(shC, [Math.cos(this._theta) * this.reach, Math.sin(this._theta) * this.reach, this.atkRel ? this.atkZ : this.atkZ - shC[2]]);
     const aDir = this.sidePlane ? V3.norm([Math.cos(this._theta), .05, Math.sin(this._theta)]) : V3.norm([Math.cos(this._theta), Math.sin(this._theta), -.12]);
     for (const s of [-1, 1]) {
-      const sh = s > 0 ? J.shR : J.shL, q = ph + (s > 0 ? 0 : Math.PI), along = -Math.sin(q) * o.swing * sp;
+      const sh = s > 0 ? J.shR : J.shL, q = ph + (s > 0 ? 0 : Math.PI), along = -Math.sin(q) * o.swing * sp * (1 + .6 * spr) * (1 - .4 * snk);
       let hand = add(sh, [mf * along + .5 * (1 - sp) + o.hunch * 3, s * .9 + mr * along, -armLen * .86 + Math.abs(Math.sin(q)) * 1.2 * sp]);
       hand = V3.lerp(hand, add(sh, [-4.5, s * 1.6, -5]), dash);
       hand = V3.lerp(hand, add(sh, s > 0 ? [1.4, -.6, .6] : [-1.6, s * 2.2, -3.2]), hurt);   // a flinch: one arm up to shield the face, the other flung back
@@ -2458,6 +2543,9 @@ class Humanoid {
       if (PW.hips > 0) hand = V3.lerp(hand, add(s > 0 ? J.hipR : J.hipL, [-.2, s * 1.5, 1.5]), PW.hips);
       if (PW.block > 0) hand = V3.lerp(hand, add(shC, s > 0 ? [2.6, .6, -2.4] : [2.4, -.2, -3.4]), PW.block);   // block: weapon upright across the body, both hands on it
       if (cw > 0) hand = V3.lerp(hand, add(sh, [1.7, s * .5, armLen * (.08 + .8 * (.5 + .5 * Math.sin(this._climbP + (s > 0 ? 0 : Math.PI))))]), cw);   // hands on the rails, one reaching high above the head while the other pulls down
+      if (snk > 0) hand = V3.lerp(hand, add(sh, [2.2 + along * .3, s * 1.3, -armLen * .6]), snk * .55);       // sneaking: hands low and forward
+      if (ld > 0) hand = V3.lerp(hand, s > 0 && this._landK >= 1 ? [3.2, 1.6, .3] : add(sh, [-1.4, s * 3.2, -armLen * .3]), Math.min(1, ld));   // a three-point landing: one hand on the ground, the other back
+      if (hw > 0) hand = V3.lerp(hand, add(sh, [2.4, s * .4, clamp((this._hangZ === undefined ? sh[2] + armLen : this._hangZ) - sh[2], 1, armLen * .96)]), hw);   // gripping the edge above
       const wk = this._from && this._windK < 1 ? this._windK : 1, from = wk < 1 ? this._from[s > 0 ? 'R' : 'L'] : null;
       if (aw > 0 && !this._kicking) {
         if (s === sA) hand = V3.lerp(hand, from ? V3.lerp(from, aT, wk) : aT, aw);                // the striking hand
@@ -3220,13 +3308,58 @@ function parseLevel(rows, legend = {}) {
 }
 E.parseLevel = parseLevel;
 const DEFAULT_WALL = { h: 32, top: '#6a6280', side: '#4a4360' };
+/**
+ * the facade vocabulary, wall type options painted by the decoration hook (each true, or an object of its options):
+ *   windows: { w: 6, h: 9, every: 16, from: 9, step: 17, glass: '#241e34', frame, lit: .25 (the share that glow), sill: true }
+ *   shutters: true or a color (a pair beside each window); door: { w: 7, h: 13, color, chance: .25 } (on the ground floor);
+ *   balcony: { z (its floor's height), color }; arch: { w: 10, h: 14, color, chance: .3 } (a dark arched opening)
+ * Positions are hashed from the cell, so a street of the same type varies and stays the same on every bake
+ */
+function facade(f, t) {
+  const T = f.u1 - f.u0, ct = f.tones, seed = f.cx * 73 + f.cy * 37 + (f.nx + 2) * 11 + f.ny * 5, H = (k, s = 0) => hash2(seed + s * 131, k * 17 + 3);
+  const door = t.door && (t.door === true ? {} : t.door), arch = t.arch && (t.arch === true ? {} : t.arch), win = t.windows && (t.windows === true ? {} : t.windows);
+  const hasDoor = door && H(1) < (door.chance === undefined ? .25 : door.chance) && f.z0 < 1, hasArch = !hasDoor && arch && H(2) < (arch.chance === undefined ? .3 : arch.chance) && f.z0 < 1;
+  const mid = f.u0 + T / 2;
+  if (hasDoor) {
+    const w = door.w || 7, h = Math.min(door.h || 13, f.z1 - f.z0 - 2), dc = door.color || '#4a2e1e', dt = tones(dc);
+    f.quad(mid - w / 2 - 1, f.z0, mid + w / 2 + 1, f.z0 + h + 1, ct.deep); f.quad(mid - w / 2, f.z0, mid + w / 2, f.z0 + h, dc);
+    f.line(mid, f.z0, mid, f.z0 + h - 1, dt.sh); f.dot(mid + w / 2 - 1.5, f.z0 + h * .45, '#e8c860');
+  }
+  if (hasArch) {
+    const w = arch.w || 10, h = Math.min(arch.h || 14, f.z1 - f.z0 - 2), c = arch.color || '#140e1a', pts = [];
+    for (let i = 0; i <= 8; i++) { const a = Math.PI * i / 8; pts.push(f.at(mid + Math.cos(a) * w / 2, f.z0 + h - w / 2 + Math.sin(a) * w / 2)); }
+    px.poly(f.g, [f.at(mid + w / 2, f.z0), ...pts, f.at(mid - w / 2, f.z0)], c);
+  }
+  if (win) {
+    const w = win.w || 6, h = win.h || 9, every = win.every || T, from = win.from === undefined ? 9 : win.from, step = win.step || 17, glass = win.glass || '#241e34', frame = win.frame || ct.lt;
+    for (let z = f.z0 + from, row = 0; z + h <= f.z1 - 3; z += step, row++) {
+      if ((hasDoor || hasArch) && z < f.z0 + 15) continue;
+      for (let u = Math.ceil((f.u0 - every / 2) / every) * every + every / 2; u < f.u1; u += every) {
+        if (u - w / 2 < f.u0 + 1 || u + w / 2 > f.u1 - 1) continue;
+        const lit = H(10 + row, Math.round(u)) < (win.lit === undefined ? .25 : win.lit);
+        f.quad(u - w / 2 - 1, z - 1, u + w / 2 + 1, z + h + 1, frame); f.quad(u - w / 2, z, u + w / 2, z + h, lit ? '#ffd27a' : glass);
+        if (lit) f.quad(u - w / 2, z + h * .55, u + w / 2, z + h, '#ffe8a8'); else f.line(u - w / 2 + 1, z + h - 2, u - w / 2 + 2, z + h - 1, shade(glass, .5));
+        f.line(u, z, u, z + h, frame); if (win.sill !== false) f.quad(u - w / 2 - 1.5, z - 2, u + w / 2 + 1.5, z - 1, ct.lt);
+        if (t.shutters) { const sc = t.shutters === true ? '#3a6a52' : t.shutters; f.quad(u - w / 2 - 3.5, z, u - w / 2 - 1, z + h, sc); f.quad(u + w / 2 + 1, z, u + w / 2 + 3.5, z + h, sc); }
+      }
+    }
+  }
+  if (t.balcony) {
+    const b = t.balcony === true ? {} : t.balcony, z = b.z === undefined ? f.z0 + Math.min(26, (f.z1 - f.z0) * .55) : b.z, c = b.color || '#5a4030', bt = tones(c);
+    if (z > f.z0 + 4 && z < f.z1 - 4) {
+      f.quad(f.u0, z - 2, f.u1, z, bt.sh); f.quad(f.u0, z, f.u1, z + .8, bt.lt);
+      f.line(f.u0, z + 6, f.u1, z + 6, bt.base); for (let u = f.u0 + 2; u < f.u1; u += 3) f.line(u, z, u, z + 6, bt.sh);
+    }
+  }
+}
 /** a direction as a unit ground vector: an angle (radians) or [dx, dy] */
 const groundDir = d => { if (typeof d === 'number') return [Math.cos(d), Math.sin(d)]; const l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; };
 class TileMap {
   /**
    * Walls standing on a floor (top-down, isometric, brawler). Either
    *   { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex }   (recommended)
-   * or { w, h, cells: [ids...], types, floorTex }.
+   * or { w, h, cells: [ids...], floor: [tags...], blocked: [0 | 1...], types, floorTex } (built in code: fill, setFloor;
+   * with no cells it starts as open floor).
    * types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow]
    *   face: wall pattern 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none'
    *   roof: top pattern 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass'
@@ -3237,16 +3370,17 @@ class TileMap {
     this.T = o.tile || 16;
     const L = o.rows ? parseLevel(o.rows, o.legend) : o.level || null;
     if (L) o = Object.assign({}, o, { w: L.w, h: L.h, cells: L.cells });
-    if (!o.w || !o.h || !o.cells) throw new Error('TileMap needs { rows, legend } or { w, h, cells }');
+    else if (o.w && o.h && !o.cells) o = Object.assign({}, o, { cells: new Array(o.w * o.h).fill(0) });   // open floor, to fill in code
+    if (!o.w || !o.h || !o.cells) throw new Error('TileMap needs { rows, legend } or { w, h } (and cells)');
     if (o.cells.length !== o.w * o.h) throw new Error('TileMap: cells has ' + o.cells.length + ' entries but w * h = ' + (o.w * o.h));
     /** w, h: the map's size in cells; cells: the wall type id of every cell, row by row (index cy * w + cx; change
      *  one with set); types: the wall types by id ({ h, top, side, face, roof, cut, ... }) */
     this.w = o.w; this.h = o.h; this.cells = o.cells; this.types = Object.assign({}, o.types || {});
     /** floorTags: each cell's floor tag from the legend ('water', 'lava', ...), row by row, or null for a map built
      *  from cells */
-    this.floorTags = L ? L.floor : null;
+    this.floorTags = L ? L.floor : o.floor ? o.floor.slice() : null;
     /** cells nobody can walk on (deep water, lava, pits): legend { floor: 'water', block: true } or TileMap { block: ['water'] } */
-    this.blocked = L ? L.block : new Uint8Array(this.w * this.h);
+    this.blocked = L ? L.block : o.blocked ? Uint8Array.from(o.blocked) : new Uint8Array(this.w * this.h);
     if (o.block && this.floorTags) { const tags = [].concat(o.block); this.floorTags.forEach((f, i) => { if (f && tags.includes(f)) this.blocked[i] = 1; }); }
     /** spawn points from the ASCII rows: { tag, ch, cx, cy, x, y, z } (x, y = cell center) */
     this.spawns = L ? L.spawns.map(sp => Object.assign(sp, { x: (sp.cx + .5) * this.T, y: (sp.cy + .5) * this.T, z: 0 })) : [];
@@ -3279,6 +3413,19 @@ class TileMap {
   solidCell(cx, cy) { const c = this.cell(cx, cy); return c !== 0; }
   /** true where a body can walk: no wall and not a blocked floor (water, lava). Pathfinding uses this. */
   walkable(cx, cy) { return this.cell(cx, cy) === 0 && !this.blocked[cy * this.w + cx]; }
+  /** put wall type id in every cell of a w x h block of cells (0 clears them): build maps in code */
+  fill(cx, cy, w, h, id) {
+    if (id > 0 && !this.types[id]) this.types[id] = DEFAULT_WALL;
+    for (let y = Math.max(0, cy); y < Math.min(this.h, cy + h); y++) for (let x = Math.max(0, cx); x < Math.min(this.w, cx + w); x++) this.cells[y * this.w + x] = id;
+    this.floors = {}; this.version++;
+  }
+  /** give a cell a floor tag ('water', 'grass', what floorTex and floorAt read), and block it (deep water, lava) or not */
+  setFloor(cx, cy, tag, block) {
+    if (cx < 0 || cy < 0 || cx >= this.w || cy >= this.h) return;
+    if (!this.floorTags) this.floorTags = new Array(this.w * this.h).fill(null);
+    const i = cy * this.w + cx; this.floorTags[i] = tag; if (block !== undefined) this.blocked[i] = block ? 1 : 0;
+    this.floors = {}; this.version++;
+  }
   /** mark a cell blocked or free at runtime (a bridge appears, lava cools) */
   block(cx, cy, on = true) { const i = cy * this.w + cx, v = on ? 1 : 0; if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h && this.blocked[i] !== v) { this.blocked[i] = v; this.version++; } }
   /** solidCell at a world point */
@@ -3559,6 +3706,23 @@ class TileMap {
     if (g._info) { if (!e.info) e.info = bake(true); g.drawImage(e.info, e.x0 - r.ix, e.y0 - r.iy); }
     else { if (!e.cv) e.cv = bake(false); g.drawImage(e.cv, e.x0 - r.ix, e.y0 - r.iy); }
   }
+  /**
+   * a wall face's painter, for types[id].decorate(face) and the facade options (windows, door, shutters, balcony, arch).
+   * It is called as each wall face is baked, so whatever it paints is cached with the wall. face: { side ('north' | 'south'
+   * | 'east' | 'west'), nx, ny (its outward normal), cx, cy (the cell), u0, u1 (where the face runs along the wall, in world
+   * units: x on north and south faces, y on east and west, so patterns line up across cells), z0, z1 (its bottom and top),
+   * color (its lit color), tones (shades of it), at(u, z) (the buffer pixel of a point on it), quad(u0, z0, u1, z1, color),
+   * line(u0, z0, u1, z1, color), dot(u, z, color), g (the 2D context, for E.px), view, type }
+   */
+  _dressFace(g, r, t, cx, cy, nx, ny, A, B, z0, z1, col) {
+    const alongX = A[1] === B[1], fixed = alongX ? A[1] : A[0], u0 = alongX ? Math.min(A[0], B[0]) : Math.min(A[1], B[1]);
+    const W = (u, z) => alongX ? r.w(u, fixed, z) : r.w(fixed, u, z);
+    const face = { side: ny < 0 ? 'north' : ny > 0 ? 'south' : nx < 0 ? 'west' : 'east', nx, ny, cx, cy, u0, u1: u0 + this.T, z0, z1, color: col, tones: tones(col), view: r.view, g, type: t,
+      at: W, quad: (a, za, b, zb, c) => px.poly(g, [W(a, za), W(b, za), W(b, zb), W(a, zb)], c),
+      line: (a, za, b, zb, c) => { const p = W(a, za), q = W(b, zb); px.line(g, p[0], p[1], q[0], q[1], c); }, dot: (u, z, c) => { const p = W(u, z); px.dot(g, p[0], p[1], c); } };
+    if (t.windows || t.door || t.shutters || t.balcony || t.arch) facade(face, t);
+    if (t.decorate) t.decorate(face);
+  }
   _box(g, r, cx, cy, t, h) {
     const view = r.view, T = this.T, x0 = cx * T, y0 = cy * T, x1 = x0 + T, y1 = y0 + T, P = (x, y, z) => r.w(x, y, z);
     if (!view.isTop) {
@@ -3574,6 +3738,7 @@ class TileMap {
         px.poly(g, face, col);
         const pat = t.texture === false ? 'none' : t.face || 'brick';
         if (!g._info && pat !== 'brick' && pat !== 'none') this._facePattern(g, r, face, pat, t, col, cx, cy, nx * 3 + ny, nh, h, A, B);
+        if (!g._info && (t.decorate || t.windows || t.door || t.shutters || t.balcony || t.arch)) this._dressFace(g, r, t, cx, cy, nx, ny, A, B, nh, h, col);
         if (!g._info && pat === 'brick') {   // per-brick color variation, speckle and lit brick tops, anchored to the wall
           const PA = face[0], ex = face[1][0] - PA[0], ey = face[1][1] - PA[1], bz = view.bz, ct = tones(col), course0 = t.course || 8, fi = nx * 3 + ny;
           if (Math.abs(ex) > .3 && Math.abs(bz) > .05) scan(face, (xa, xb, y) => {
@@ -3678,10 +3843,13 @@ TileMap.prototype._roofPattern = function (g, top, roof, t, wx0, wy0) {
  * ============================================================================= */
 class FlowField {
   /**
-   * new E.FlowField(map, { step: 2, climb: 0, drop: 0 }): distances over the tops a body can stand on (E.HEIGHTS). Next-door
-   * cells connect when their tops differ by at most step, or going up by up to climb and down by up to drop (agents that
-   * climb walls or hop down). With no options it covers the floor as before (and walls no higher than step, which bodies
-   * walk over); a target on a roof gets a field across the roofs it connects to
+   * new E.FlowField(map, { step: 2, climb: 0, drop: 0, jump: 0 }): distances over the tops a body can stand on (E.HEIGHTS).
+   * Next-door cells connect when their tops differ by at most step, or going up by up to climb and down by up to drop (agents
+   * that climb walls or hop down). jump (world units) links tops across a gap that a jump clears, straight along a row or
+   * column, by map.landing's rules (up to jumpRise higher, 11, and jumpDrop lower, 18): an agent with E.Mover's leap chases
+   * across roofs. With jump, distances are travel: a jump of k cells costs k, and a climb 1 plus its rise in cells (climbing
+   * is slow), so a chase leaps a gap rather than drop into the street and climb back up. With no options it covers the floor as before (and walls no higher than step, which bodies walk over); a
+   * target on a roof gets a field across the roofs it connects to
    */
   constructor(map, o = {}) {
     /** map: the map it paths over; d: each cell's distance in steps to the target cell (1e9 where it can't get
@@ -3690,6 +3858,14 @@ class FlowField {
     /** step: the height difference walked over freely (2); climb: how much higher a next-door top may be (an agent
      *  that climbs walls); drop: how much lower (an agent that hops down) */
     this.step = o.step === undefined ? HEIGHTS.step : o.step; this.climb = o.climb || 0; this.drop = o.drop || 0;
+    /** jump: the widest gap jumped (world units, 0 = none); jumpRise, jumpDrop: how much higher and lower a jump may land */
+    this.jump = o.jump || 0; this.jumpRise = o.jumpRise === undefined ? 11 : o.jumpRise; this.jumpDrop = o.jumpDrop === undefined ? 18 : o.jumpDrop; this._hts = new Float64Array(n);
+  }
+  /** can an agent at cell i jump k cells along (dx, dy) to cell j, over a gap lower than both by more than step? */
+  _jumpable(i, j, dx, dy, k) {
+    const a = this._tops[i], b = this._tops[j], W = this.map.w; if (!(b - a <= this.jumpRise && a - b <= this.jumpDrop)) return false;   // (NaN: false)
+    for (let m = 1; m < k; m++) if (!(this._hts[i + (dy * W + dx) * m] < Math.min(a, b) - this.step)) return false;
+    return true;
   }
   /** the height an agent stands at in a cell, or NaN where it can't (outside, a blocked floor; a wall where the map has no heights) */
   _top(cx, cy) {
@@ -3697,6 +3873,8 @@ class FlowField {
     if (m.types && m.height) { const c = m.cell(cx, cy); return c < 0 || (c === 0 && m.blocked && m.blocked[cy * m.w + cx]) ? NaN : c > 0 ? m.height(cx, cy) : 0; }
     return (m.walkable ? m.walkable(cx, cy) : !m.solidCell(cx, cy)) ? 0 : NaN;
   }
+  /** what a link from cell i to cell j costs: k cells, or 1 plus a climb's rise in cells in a field with jumps */
+  _cost(i, j, k) { return k > 1 ? k : this.jump ? 1 + Math.max(0, Math.ceil((this._tops[j] - this._tops[i] - this.step) / this.map.T)) : 1; }
   /** can an agent step from cell i to the cell j next to it? */
   _link(i, j) { const dz = this._tops[j] - this._tops[i]; return dz >= 0 ? dz <= Math.max(this.step, this.climb) : -dz <= Math.max(this.step, this.drop); }   // (NaN: false)
   /** aim the field at a world point; it rebuilds only when the target's cell or the map (map.version) changes */
@@ -3705,8 +3883,9 @@ class FlowField {
     if (tx === this.tx && ty === this.ty && m.version === this.version) return;
     this.tx = tx; this.ty = ty; this.version = m.version;
     const d = this.d, q = this._q, top = this._tops; d.fill(1e9);
-    for (let cy = 0, i = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++, i++) top[i] = this._top(cx, cy);
+    for (let cy = 0, i = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++, i++) { top[i] = this._top(cx, cy); if (this.jump) this._hts[i] = m.height ? m.height(cx, cy) : 0; }
     if (tx < 0 || ty < 0 || tx >= W || ty >= H || Number.isNaN(top[ty * W + tx])) return;
+    if (this.jump) return this._withJumps(ty * W + tx);
     let h = 0, t = 0; d[ty * W + tx] = 0; q[t++] = ty * W + tx;
     while (h < t) {
       const i = q[h++], cx = i % W, cy = (i / W) | 0;
@@ -3715,6 +3894,43 @@ class FlowField {
         const j = ny * W + nx; if (d[j] > d[i] + 1 && this._link(j, i)) { d[j] = d[i] + 1; q[t++] = j; }   // (from j an agent can step to i)
       }
     }
+  }
+  /** the field with jump links (a jump of k cells costs k, a climb more, see _cost): Dial's buckets, smallest distance first */
+  _withJumps(ti) {
+    const m = this.map, W = m.w, H = m.h, d = this.d, K = Math.max(2, Math.floor(this.jump / m.T) + 1), B = [[ti]]; d[ti] = 0;
+    for (let dist = 0; dist < B.length; dist++) {
+      const list = B[dist]; if (!list) continue;
+      for (const i of list) {
+        if (d[i] !== dist) continue;
+        const cx = i % W, cy = (i / W) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          for (let k = 1; k <= K; k++) {
+            const jx = cx + dx * k, jy = cy + dy * k; if (jx < 0 || jy < 0 || jx >= W || jy >= H) break;
+            const j = jy * W + jx, ok = k === 1 ? this._link(j, i) : this._jumpable(j, i, -dx, -dy, k);   // (from j an agent steps or jumps to i)
+            const c = ok ? dist + this._cost(j, i, k) : 0;
+            if (ok && d[j] > c) { d[j] = c; (B[c] || (B[c] = [])).push(j); }
+          }
+        }
+      }
+    }
+  }
+  /** the next cell to head for from (x, y): { x, y, z (its center and top), kind: 'walk' | 'climb' | 'drop' | 'jump', edge
+   *  (how far (x, y) is from the side of its cell it leaves by) }, or null where the field doesn't reach (or at the target).
+   *  An AI standing on the ground presses jump for a 'climb' or a 'jump' once edge is under its radius plus a little
+   *  (E.Mover climbs or leaps; a press in the air would be kept for the landing) */
+  next(x, y) {
+    const m = this.map, T = m.T, W = m.w, cx = Math.floor(x / T), cy = Math.floor(y / T), i = cy * W + cx, here = cx >= 0 && cy >= 0 && cx < W && cy < m.h ? this.d[i] : 1e9;
+    if (here === 0 || here >= 1e9) return null;
+    let best = here + 1, bj = -1, bk = 0, bd = null;
+    const K = this.jump ? Math.max(2, Math.floor(this.jump / T) + 1) : 1;
+    for (const dir of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let k = 1; k <= K; k++) {
+      const [dx, dy] = dir, nx = cx + dx * k, ny = cy + dy * k; if (nx < 0 || ny < 0 || nx >= W || ny >= m.h) break;
+      const j = ny * W + nx; if (!(k === 1 ? this._link(i, j) : this._jumpable(i, j, dx, dy, k))) continue;
+      const c = this.d[j] + this._cost(i, j, k); if (c < best) { best = c; bj = j; bk = k; bd = dir; }
+    }
+    if (bj < 0) return null;
+    const dz = this._tops[bj] - this._tops[i], [dx, dy] = bd, edge = dx > 0 ? (cx + 1) * T - x : dx < 0 ? x - cx * T : dy > 0 ? (cy + 1) * T - y : y - cy * T;
+    return { x: (bj % W + .5) * T, y: (((bj / W) | 0) + .5) * T, z: this._tops[bj], kind: bk > 1 ? 'jump' : dz > this.step ? 'climb' : dz < -this.step ? 'drop' : 'walk', edge };
   }
   /** normalized ground direction to walk from (x, y) toward the target (straight at it where the field doesn't reach) */
   dir(x, y, fx, fy) {
@@ -4266,6 +4482,379 @@ class Body {
   }
 }
 E.Body = Body;
+
+/* =============================================================================
+ * 17b. ACTIONS  timed actions of several beats that move a body along a curve and drive its rig: climb up (and down),
+ *    vault, hop down, roll, get up, and a takedown that moves two bodies at once.
+ *      const act = new E.Action('climbUp', { body: hero, to: map.ledge(hero, hero.facing) });
+ *      each step: if (act.update(dt)) rig.update(dt, act.rigState()); else (it is over: back to normal control)
+ *    act.beat is the beat playing ('hang', 'pull', 'stand'), act.u its progress through the whole action (0..1),
+ *    act.canCancel says the action may be cut short now (a marked beat), act.invulnerable that hits should miss (a roll's
+ *    middle, a get-up). { reverse: true } plays it backwards (climb down). Timings are seeded from classic games
+ *    (Prince of Persia's 14 frames to hang and 17 to climb up, KOF's 39-frame dodge) and quickened for modern pacing.
+ *    Your own: E.ACTIONS.myMove = { beats: [['name', seconds], ...], cancel: ['name'], setup(A) {...}, at(A, beat, u) {...} },
+ *    where at() returns { x, y, z, state: {...rig state...}, other: { x, y, z, state } }
+ * ============================================================================= */
+const _dir = d => typeof d === 'number' ? d : Math.atan2(d[1], d[0]);
+const _p = (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), z: lerp(a.z || 0, b.z || 0, u) });
+/** the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at } */
+const ACTIONS = {
+  /** onto a ledge (o.to: a map.ledge result): reach and hang below the edge, pull up, stand. reverse: climb down from it to o.from */
+  climbUp: {
+    beats: [['hang', .28], ['pull', .42], ['stand', .2]], cancel: ['hang'],
+    setup(A) {
+      if (!A.o.to) throw new Error('E.Action("climbUp") needs { to }: a ledge, as map.ledge(body, dir) gives it (null means there is none to climb)');
+      const L = A.o.to, f = A.o.from || A.start, a = L.facing !== undefined ? L.facing : Math.atan2(L.y - f.y, L.x - f.x), c = Math.cos(a), s = Math.sin(a), r = A.body.r || 5;
+      const reach = A.o.reach === undefined ? 30 : A.o.reach, ex = L.edge ? L.edge[0] : L.x - c * (r + 1), ey = L.edge ? L.edge[1] : L.y - s * (r + 1);
+      A.facing = a; A.top = L.z; A.from = f;
+      A.hang = { x: ex - c * r * .8, y: ey - s * r * .8, z: Math.max(f.z || 0, L.z - reach) };   // against the wall, the hands on its top
+      A.lip = { x: ex + c * 2, y: ey + s * 2, z: L.z };   // a knee on the edge
+      A.end = { x: L.x, y: L.y, z: L.z };
+    },
+    at(A, b, u) {
+      const st = { facing: A.facing };
+      if (b === 'hang') { const p = _p(A.from, A.hang, ease.outQuad(u)); return Object.assign(p, { state: Object.assign(st, { hang: u > .3, hangZ: A.top - p.z, air: u <= .3 }) }); }
+      if (b === 'pull') {
+        const z = lerp(A.hang.z, A.top, ease.inOut(u)), k = clamp((u - .45) / .55, 0, 1), xy = _p(A.hang, A.lip, ease.inQuad(k));
+        return { x: xy.x, y: xy.y, z, state: Object.assign(st, u < .6 ? { hang: true, hangZ: A.top - z } : { air: true, crouch: true }) };
+      }
+      return Object.assign(_p(A.lip, A.end, ease.outQuad(u)), { state: Object.assign(st, { crouch: u < .55 }) });
+    }
+  },
+  /** over a low wall at a run: a hand on its top, the body swings over, land beyond. o.to: the spot beyond; o.top: the wall's top */
+  vault: {
+    beats: [['plant', .1], ['over', .26], ['land', .14]],
+    setup(A) {
+      if (!A.o.to) throw new Error('E.Action("vault") needs { to }: the spot beyond the wall');
+      const f = A.start, t = A.o.to, top = A.o.top === undefined ? Math.max(f.z || 0, t.z || 0) + 8 : A.o.top;
+      A.facing = Math.atan2(t.y - f.y, t.x - f.x); A.from = f; A.end = t;
+      A.near = Object.assign(_p(f, t, .3), { z: top }); A.far = Object.assign(_p(f, t, .72), { z: top });
+    },
+    at(A, b, u) {
+      const st = { facing: A.facing };
+      if (b === 'plant') return Object.assign(_p(A.from, A.near, ease.outQuad(u)), { state: Object.assign(st, { air: true }) });
+      if (b === 'over') { const p = _p(A.near, A.far, u); p.z += Math.sin(u * Math.PI) * 5; return Object.assign(p, { state: Object.assign(st, { air: true, crouch: true }) }); }
+      return Object.assign(_p(A.far, A.end, ease.inQuad(u)), { state: Object.assign(st, u > .8 ? { land: .5 } : { air: true }) });
+    }
+  },
+  /** a ledge hop down (o.to: a map.drop result, or any spot below): a small rise, then the fall, the shadow staying on the
+   *  ground below (act.shadowZ). The beat lasts longer the deeper it goes */
+  hopDown: {
+    beats: [['hop', .34]],
+    setup(A) {
+      if (!A.o.to) throw new Error('E.Action("hopDown") needs { to }: the spot below, as map.drop(body, dir) gives it');
+      const f = A.start, t = A.o.to; A.from = f; A.end = t; A.facing = Math.atan2(t.y - f.y, t.x - f.x) || A.body.facing || 0;
+      A.scale = Math.sqrt(1 + Math.max(0, (f.z || 0) - (t.z || 0)) / 30);   // deeper drops take longer (falls go as the square root)
+    },
+    at(A, b, u) {
+      const p = _p(A.from, A.end, u); p.z = lerp(A.from.z || 0, A.end.z || 0, u * u) + Math.sin(u * Math.PI) * 6;   // the Pokémon ledge hop: up a little, then down
+      return Object.assign(p, { state: { facing: A.facing, air: u < .92, land: u >= .92 ? (A.from.z - A.end.z > 24 ? 1 : .5) : 0 } });
+    }
+  },
+  /** a roll: a dodge (o.dir, o.dist: 34) or a landing roll that carries the body on. Hits miss in its middle */
+  roll: {
+    beats: [['roll', .48], ['rise', .12]], cancel: ['rise'], safe: [.06, .4],
+    setup(A) { const a = A.o.dir === undefined ? A.body.facing || 0 : _dir(A.o.dir), d = A.o.dist === undefined ? 34 : A.o.dist; A.facing = a; A.from = A.start; A.end = { x: A.start.x + Math.cos(a) * d, y: A.start.y + Math.sin(a) * d, z: A.start.z }; },
+    at(A, b, u) {
+      if (b === 'roll') return Object.assign(_p(A.from, A.end, ease.outQuad(u)), { state: { facing: A.facing, flip: u, crouch: true } });
+      return Object.assign({ x: A.end.x, y: A.end.y, z: A.end.z }, { state: { facing: A.facing, crouch: u < .6 } });
+    }
+  },
+  /** from lying down to standing: lie, sit up, one knee, stand. Hits miss until it stands */
+  getUp: {
+    beats: [['lie', .22], ['sit', .3], ['kneel', .28], ['stand', .22]], safe: [0, .92],
+    setup(A) { A.facing = A.body.facing || 0; },
+    at(A, b, u) {
+      const p = { x: A.start.x, y: A.start.y, z: A.start.z }, st = { facing: A.facing };
+      if (b === 'lie') st.down = 1; else if (b === 'sit') st.down = 1 - .55 * ease.inOut(u); else if (b === 'kneel') { st.down = .45 * (1 - u); st.pose = 'kneel'; } else st.pose = u < .45 ? 'kneel' : null;
+      return Object.assign(p, { state: st });
+    }
+  },
+  /** a paired takedown: the attacker (body) closes on the victim (o.other) from behind, strikes, and the victim drops.
+   *  o.aerial: leap down onto them from above. act.otherState() is the victim's rig state */
+  takedown: {
+    beats: [['reach', .2], ['strike', .22], ['drop', .45], ['recover', .2]],
+    setup(A) {
+      if (!A.o.other) throw new Error('E.Action("takedown") needs { other }: the body taken down');
+      const v = A.o.other, a = A.o.aerial ? Math.atan2(v.y - A.start.y, v.x - A.start.x) : v.facing !== undefined ? v.facing : Math.atan2(v.y - A.start.y, v.x - A.start.x);
+      const gap = (A.body.r || 5) + (v.r || 5) - 2;
+      A.facing = a; A.vic = { x: v.x, y: v.y, z: v.z || 0, facing: v.facing || 0 }; A.from = A.start;
+      A.behind = { x: v.x - Math.cos(a) * gap, y: v.y - Math.sin(a) * gap, z: v.z || 0 };
+      if (A.o.aerial) A.beats = [['leap', .38], ['strike', .18], ['drop', .45], ['recover', .25]];
+    },
+    at(A, b, u) {
+      const st = { facing: A.facing }, vs = { facing: A.vic.facing }, V = { x: A.vic.x, y: A.vic.y, z: A.vic.z };
+      if (b === 'reach') return Object.assign(_p(A.from, A.behind, ease.outQuad(u)), { state: Object.assign(st, { stance: 'ready' }), other: Object.assign(V, { state: vs }) });
+      if (b === 'leap') {
+        const p = _p(A.from, A.behind, u); p.z = lerp(A.from.z || 0, A.behind.z, u * u) + Math.sin(u * Math.PI) * 10;
+        return Object.assign(p, { state: Object.assign(st, { air: true }), other: Object.assign(V, { state: vs }) });
+      }
+      const p = { x: A.behind.x, y: A.behind.y, z: A.behind.z };
+      if (b === 'strike') return Object.assign(p, { state: Object.assign(st, { attack: E.move(A.o.aerial ? 'overhead' : 'thrust', u), land: A.o.aerial && u < .2 ? 1 : 0 }), other: Object.assign(V, { state: Object.assign(vs, { hurt: u > .4, expr: 'wince' }) }) });
+      if (b === 'drop') return Object.assign(p, { state: Object.assign(st, { attack: E.move(A.o.aerial ? 'overhead' : 'thrust', 1, 'recover') }), other: Object.assign(V, { state: Object.assign(vs, { down: ease.inQuad(u) }) }) });
+      return Object.assign(p, { state: Object.assign(st, { crouch: u < .5 }), other: Object.assign(V, { state: Object.assign(vs, { down: 1 }) }) });
+    }
+  }
+};
+E.ACTIONS = ACTIONS;
+class Action {
+  /**
+   * new E.Action(name, { body, to, other, dir, dist, top, aerial, reverse, speed: 1 }): play E.ACTIONS[name] on a body (and
+   * on o.other for a paired action). It moves them itself: run update(dt) every step instead of their physics, and feed
+   * rigState() to the rig. Each body ends standing where the action put it
+   */
+  constructor(name, o = {}) {
+    const spec = typeof name === 'string' ? ACTIONS[name] : name;
+    if (!spec) throw new Error('E.Action: no action "' + name + '". Actions: ' + Object.keys(ACTIONS).join(', '));
+    if (!o.body) throw new Error('E.Action("' + name + '") needs { body } (a Body, a Mover or any { x, y, z })');
+    /** name: the action's name; spec: its E.ACTIONS entry; o: the options it was given; body, other: the bodies it moves */
+    this.name = typeof name === 'string' ? name : spec.name || 'action'; this.spec = spec; this.o = o; this.body = o.body; this.other = o.other || null;
+    /** start: where the body was when it began; beats: [[name, seconds], ...]; t: seconds played; done: it has ended (or
+     *  was cancelled); vx, vy, vz: the body's speed this step, for the rig */
+    this.start = { x: o.body.x, y: o.body.y, z: o.body.z || 0 }; this.beats = spec.beats; this.t = 0; this.done = false; this.vx = this.vy = this.vz = 0;
+    spec.setup(this);
+    /** the action's length in seconds (o.speed shortens it) */
+    this.duration = this.beats.reduce((a, b) => a + b[1], 0) / (o.speed || 1);
+    this._apply(0);
+  }
+  /** the beat playing now and how far through it (0..1): [name, u] */
+  _at(t) {
+    const k = clamp(t / this.duration, 0, 1), T = this.beats.reduce((a, b) => a + b[1], 0), raw = (this.o.reverse ? 1 - k : k) * T;
+    let acc = 0;
+    for (const [n, d] of this.beats) { if (raw <= acc + d || n === this.beats[this.beats.length - 1][0]) return [n, clamp((raw - acc) / d, 0, 1)]; acc += d; }
+    return [this.beats[0][0], 0];
+  }
+  _apply(dt) {
+    const [beat, bu] = this._at(this.t), r = this.spec.at(this, beat, bu), b = this.body;
+    if (dt > 0) { this.vx = (r.x - b.x) / dt; this.vy = (r.y - b.y) / dt; this.vz = ((r.z || 0) - (b.z || 0)) / dt; }
+    b.x = r.x; b.y = r.y; b.z = r.z || 0;
+    if (b.vx !== undefined) { b.vx = 0; b.vy = 0; b.vz = 0; }
+    if (r.state && r.state.facing !== undefined) b.facing = r.state.facing;
+    /** the name of the beat playing now */
+    this.beat = beat; this._state = r.state || {}; this._other = r.other || null;
+    if (this.other && r.other) { const v = this.other; v.x = r.other.x; v.y = r.other.y; v.z = r.other.z || 0; if (v.vx !== undefined) { v.vx = v.vy = 0; } }
+    if (this.o.map) this.shadowZ = this.o.map.groundAt(b.x, b.y, b.r || 0, b.z, HEIGHTS.step);   // the ground under the body (with o.map), for its shadow
+  }
+  /** move the bodies one step; returns true while the action runs (false once it has ended) */
+  update(dt) {
+    if (this.done) return false;
+    this.t = Math.min(this.duration, this.t + dt);
+    this._apply(dt);
+    if (this.t >= this.duration) {
+      this.done = true; const b = this.body;
+      if (b.onGround !== undefined) { b.onGround = true; b.vz = 0; b.groundZ = b.z; }
+      if (this.other && this.other.onGround !== undefined) this.other.onGround = true;
+    }
+    return !this.done;
+  }
+  /** 0..1 through the whole action */
+  get u() { return this.duration ? this.t / this.duration : 1; }
+  /** true during a beat marked as one the action may be cut short in (spec.cancel) */
+  get canCancel() { return !this.done && !!this.spec.cancel && this.spec.cancel.includes(this.beat); }
+  /** true while hits should miss (spec.safe: [from, to] of the action's progress) */
+  get invulnerable() { const s = this.spec.safe; return !this.done && !!s && this.u >= s[0] && this.u <= s[1]; }
+  /** stop now: the bodies stay where they are */
+  cancel() { this.done = true; }
+  /** the rig state for the body (merge extra over it): x, y, z, its speed, facing and the beat's pose */
+  rigState(extra) { const b = this.body; return Object.assign({ x: b.x, y: b.y, z: b.z, vx: this.vx, vy: this.vy, vz: this.vz }, this._state, extra); }
+  /** the rig state for the other body of a paired action (the victim of a takedown) */
+  otherState(extra) { const v = this.other || {}; return Object.assign({ x: v.x, y: v.y, z: v.z, vx: 0, vy: 0 }, this._other && this._other.state, extra); }
+}
+E.Action = Action;
+
+/* =============================================================================
+ * 17c. MOVER  the ground views' character controller, what Platformer is to side views. Walking, running, sprinting and
+ *    sneaking with acceleration; a jump with coyote time and buffering; climbing onto ledges and vaulting low walls (with
+ *    E.ACTIONS); a gap-jump assist (map.landing) and hop-downs (map.drop); falls tracked (a roll above rollAt, hurt above
+ *    hurtAt); the last safe spot and respawn().
+ *      const hero = new E.Mover({ x, y, r: 5 });   // a Body, so map.collide, groundAt and the height rules all apply
+ *      each step: hero.update(dt, map, game.input) (with new E.Game({ input: 'THIRDPERSON' })), or for an AI an intent
+ *        { move: [dx, dy] (a ground direction, length <= 1), sprint, crouch, jumpPressed };   rig.update(dt, hero.rigState())
+ *    read: onGround, action (the E.Action playing: climbing, vaulting, rolling; null when free), crouch, sprinting,
+ *    fell (how far it fell, on the step it lands), hurt (that fall was over hurtAt), inHazard (it landed in deep water
+ *    or a pit: call respawn()), lastSafe
+ * ============================================================================= */
+class Mover extends Body {
+  /**
+   * new E.Mover({ x, y, z, r: 5, walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220,
+   * coyote: .1, buffer: .12, climb: true, climbMax: 82, vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14 })
+   */
+  constructor(o = {}) {
+    super(Object.assign({ r: 5 }, o));
+    /** walk, run, sprintSpeed, sneak: top speeds (world units a second); accel, airAccel: how fast it gets there; jumpSpeed: a
+     *  jump's upward speed; coyote: seconds a jump still works after leaving an edge; buffer: seconds a jump press is kept;
+     *  climb: climbs ledges (true); climbMax: the highest ledge it climbs; vault: walls up to this high are vaulted at a run; gapAssist: a jump at a gap
+     *  aims for the far side; hopMax: drops up to this deep are hopped down; rollAt, hurtAt: fall heights that roll and that
+     *  hurt; turn: how fast it turns, radians a second; facing: the angle it faces; crouch: sneaking (a toggle); sprinting:
+     *  sprinting now; action: the E.Action playing, or null; fell, hurt, inHazard: what happened this step; lastSafe: the
+     *  last spot it stood safely, for respawn() */
+    Object.assign(this, { walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220, coyote: .1, buffer: .12, climb: true, climbMax: 82,
+      vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14, facing: 0, crouch: false, sprinting: false, action: null, fell: 0, hurt: false,
+      inHazard: false, lastSafe: null }, o);
+    this._coy = 0; this._jb = 0; this._peak = this.z; this._land = 0; this._leap = false;
+  }
+  /** start an action now (E.ACTIONS name, its options): it moves the body until it ends */
+  play(name, o = {}) { this.action = new Action(name, Object.assign({ body: this }, o)); return this.action; }
+  /** a dodge roll toward dir (an angle or [dx, dy]; default its facing) when it stands free. Returns the action, or null */
+  dodge(dir, dist = 34) { if (this.action || !this.onGround) return null; return this.play('roll', { dir: dir === undefined ? this.facing : dir, dist }); }
+  /** back to the last safe spot (after water, a pit, a fall it shouldn't survive) */
+  respawn() { if (this.lastSafe) Object.assign(this, this.lastSafe); Object.assign(this, { vx: 0, vy: 0, vz: 0, onGround: true, action: null, inHazard: false }); this._peak = this.z; return this; }
+  /** one step. ctl: game.input (needs the actions move, jump, and sprint / crouch if it has them; screen directions turn into
+   *  ground ones through view, the game's by default) or an intent { move: [dx, dy], sprint, crouch, jumpPressed } */
+  update(dt, map, ctl = {}, view) {
+    this.fell = 0; this.hurt = false; this._land = 0;
+    let mx = 0, my = 0, sprint = false, jumpPressed = false;
+    if (ctl && typeof ctl.move === 'function') {
+      const v = view || (E.current && E.current.view), m = ctl.move(), g = v ? v.screenDirToGround(m[0], m[1]) : m, has = a => !!ctl.map[a];
+      mx = g[0]; my = g[1]; sprint = has('sprint') && ctl.down('sprint'); jumpPressed = has('jump') && ctl.pressed('jump');
+      if (has('crouch') && ctl.pressed('crouch')) this.crouch = !this.crouch;
+    } else if (ctl) { const m = ctl.move || [0, 0]; mx = m[0]; my = m[1]; sprint = !!ctl.sprint; jumpPressed = !!ctl.jumpPressed; if (ctl.crouch !== undefined) this.crouch = !!ctl.crouch; }
+    this._jb = jumpPressed ? this.buffer : Math.max(0, this._jb - dt);
+    if (this.action) {
+      if (this.action.canCancel && this.action.name === 'climbUp' && this.crouch) { this.action.cancel(); this.crouch = false; this.onGround = false; }   // let go of the ledge
+      else if (this.action.update(dt)) return this;
+      this.action = null; this._peak = this.z;
+      if (!this.onGround) return this;
+    }
+    const len = Math.min(1, Math.hypot(mx, my)), moving = len > .08;
+    if (moving) this.facing = approachAng(this.facing, Math.atan2(my, mx), this.turn * dt);
+    this.sprinting = sprint && moving && !this.crouch;
+    // coyote time and a buffered jump: parkour first (a ledge, a wall to vault, a gap), else an ordinary jump
+    this._coy = this.onGround ? this.coyote : Math.max(0, this._coy - dt);
+    if (this._jb > 0 && (this.onGround || this._coy > 0) && map) {
+      this._jb = 0; this._coy = 0;   // (one jump a press: a leap or a climb ends coyote time too)
+      if (this._parkour(map, moving)) return this;
+      this.vz = this.jumpSpeed; this.onGround = false; this._peak = this.z;
+    }
+    if (!this._leap) {
+      const top = !moving ? 0 : this.crouch ? this.sneak : this.sprinting ? this.sprintSpeed : len < .55 ? this.walk : this.run, a = (this.onGround ? this.accel : this.airAccel) * dt;
+      const tx = moving ? mx / Math.hypot(mx, my) * top : 0, ty = moving ? my / Math.hypot(mx, my) * top : 0, dx = tx - this.vx, dy = ty - this.vy, dl = Math.hypot(dx, dy);
+      if (dl <= a) { this.vx = tx; this.vy = ty; } else { this.vx += dx / dl * a; this.vy += dy / dl * a; }
+    }
+    // deep water or a pit under a body coming down onto it
+    const wasOver = map && this.z > HEIGHTS.step && map.blocked && (() => { const cx = Math.floor(this.x / map.T), cy = Math.floor(this.y / map.T); return map.cell(cx, cy) === 0 && map.blocked[cy * map.w + cx]; })();
+    const before = this.onGround;
+    super.update(dt, map);
+    if (wasOver && this.z <= HEIGHTS.step) this.inHazard = true;
+    if (!this.onGround) this._peak = Math.max(this._peak, this.z);
+    else if (!before || this.landed) {
+      this._leap = false;
+      const fall = this._peak - this.z; this.fell = fall > 1 ? fall : 0;
+      if (fall >= this.hurtAt) { this.hurt = true; this._land = 1.2; }
+      else if (fall >= this.rollAt && Math.hypot(this.vx, this.vy) > 30) this.play('roll', { dir: Math.atan2(this.vy, this.vx), dist: Math.min(40, Math.hypot(this.vx, this.vy) * .35) });
+      else if (fall >= this.rollAt) this._land = 1;
+      else if (fall > 6) this._land = .4;
+      this._peak = this.z;
+    }
+    if (this.onGround && !this.action && map && map.standable(this.x, this.y, this.z, this.r)) this.lastSafe = { x: this.x, y: this.y, z: this.z };
+    return this;
+  }
+  /** jump at a ledge: climb it (or vault it if it is low and there is floor beyond), leap a gap, or hop down */
+  _parkour(map, moving) {
+    const a = this.facing;
+    if (this.climb) {
+      const L = map.ledge(this, a, { rise: this.climbMax });
+      if (L) {
+        if (L.rise <= this.vault && moving) { const over = this._beyond(map, L); if (over) { this.play('vault', { to: over, top: L.z, map }); return true; } }
+        this.play('climbUp', { to: L, map }); return true;
+      }
+    }
+    if (moving) {
+      const dr = map.drop(this, a, { reach: 10 });
+      if (dr && dr.fall > HEIGHTS.step) {
+        const land = this.gapAssist && map.landing(this, a);
+        if (land) {   // aim the jump for the far side: the speed that lands it there
+          const g = this.gravity, dz = land.z - this.z, vz = Math.max(this.jumpSpeed, Math.sqrt(Math.max(0, 2 * g * dz)) + 30), t = (vz + Math.sqrt(Math.max(0, vz * vz - 2 * g * dz))) / g, d = Math.hypot(land.x - this.x, land.y - this.y);
+          this.vx = (land.x - this.x) / d * d / t; this.vy = (land.y - this.y) / d * d / t; this.vz = vz; this.onGround = false; this._leap = true; this._peak = this.z;
+          return true;
+        }
+        if (dr.fall <= this.hopMax) { this.play('hopDown', { to: dr, map }); return true; }
+      }
+    }
+    return false;
+  }
+  /** past a low wall: floor at its own level beyond it, room to stand */
+  _beyond(map, L) {
+    const c = Math.cos(L.facing), s = Math.sin(L.facing);
+    for (let k = 2; k <= 30; k++) {
+      const x = L.edge[0] + c * k, y = L.edge[1] + s * k;
+      if (map.heightAt(x, y) > this.z + HEIGHTS.step) continue;
+      const px2 = x + c * (this.r + 1), py2 = y + s * (this.r + 1), g = map.groundAt(px2, py2, this.r, this.z + HEIGHTS.step);
+      return g <= this.z + HEIGHTS.step && map.standable(px2, py2, g, this.r) ? { x: px2, y: py2, z: g } : null;
+    }
+    return null;
+  }
+  /** the rig state: rig.update(dt, hero.rigState({ attack })): its motion, crouch, sprint and landing, or the playing
+   *  action's pose; extra is merged over it */
+  rigState(extra) {
+    if (this.action) return this.action.rigState(extra);
+    return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: this.vy, vz: this.vz, facing: this.facing, air: !this.onGround, crouch: this.crouch, sprint: this.sprinting, land: this._land }, extra);
+  }
+}
+E.Mover = Mover;
+
+/* =============================================================================
+ * 17d. PERCEPTION  sight, hearing and suspicion, read through the height rules (E.HEIGHTS, map.ray).
+ *      const seen = E.sees(guard, hero, { map, range: 120, fov: 1.6 });   // { seen, d, angle, exposure }
+ *      guard.mind.update(dt, seen, hero);   // a new E.Suspicion(): 'calm' -> 'notice' -> 'search' -> 'alert', with .last
+ *      if (E.hears(guard, { x, y, z, loud: 90 }, map)) guard.mind.hear(...);   r.sightCone(guard, { map }) draws its view
+ *    A target hides by its own exposure (0..1: tall grass, shadow) and by crouching (target.crouch: it shows lower and less).
+ * ============================================================================= */
+/**
+ * can observer see target? { seen, d (ground distance), angle (observer -> target), exposure: 0..1 }. The target must be
+ * within range and inside the cone fov wide (radians) about the observer's facing; exposure is the share of three points on
+ * it (its feet, its chest, its head) that the observer's eyes see past every top of o.map, times the target's own exposure
+ * (default 1) and .6 when it crouches (it also shows lower). o: { range: 120, fov: 1.6, facing, map, eye }
+ */
+const sees = (obs, tgt, o = {}) => {
+  const range = o.range === undefined ? 120 : o.range, fov = o.fov === undefined ? 1.6 : o.fov, facing = o.facing === undefined ? obs.facing || 0 : o.facing;
+  const dx = tgt.x - obs.x, dy = tgt.y - obs.y, d = Math.hypot(dx, dy), angle = Math.atan2(dy, dx), out = { seen: false, d, angle, exposure: 0 };
+  if (d > range + (tgt.r || 0) || (d > (obs.r || 0) && Math.abs(angDiff(facing, angle)) > fov / 2)) return out;
+  const low = tgt.crouch ? .55 : 1, eye = o.eye !== undefined ? o.eye : obs.eye !== undefined ? obs.eye : HEIGHTS.eye;
+  let vis = 0;
+  for (const h of [3, (tgt.chest !== undefined ? tgt.chest : HEIGHTS.chest) * low, (HEIGHTS.eye + 2) * low]) if (!o.map || o.map.ray(obs, tgt, { eye, target: h }).clear) vis++;
+  out.exposure = vis / 3 * (tgt.exposure === undefined ? 1 : clamp(tgt.exposure, 0, 1)) * (tgt.crouch ? .6 : 1);
+  out.seen = out.exposure > 0;
+  return out;
+};
+/** how loud a noise ({ x, y, z, loud: its radius in world units, 80 }) is where listener stands: 1 at the noise, 0 at its
+ *  radius and beyond, halved when a top of map stands between them (a wall muffles it) */
+const hears = (lis, noise, map) => {
+  const R = noise.loud === undefined ? 80 : noise.loud, d = Math.hypot(noise.x - lis.x, noise.y - lis.y, (noise.z || 0) - (lis.z || 0));
+  let k = Math.max(0, 1 - d / R);
+  if (k > 0 && map && !map.ray(lis, noise, { eye: HEIGHTS.eye, target: 4 }).clear) k *= .5;
+  return k;
+};
+Object.assign(E, { sees, hears });
+class Suspicion {
+  /**
+   * new E.Suspicion({ rise: 1.5, decay: .3, notice: .3, search: .65, alert: 1, forget: 6 }): a guard's mind. Its level rises
+   * while it sees the target (faster the more exposed and nearer), decays while it doesn't, and names a state: 'calm', 'notice'
+   * (turn and look), 'search' (go to last), 'alert' (chase). An alert guard that loses the target searches for forget seconds
+   */
+  constructor(o = {}) {
+    /** level: 0..1.2, how suspicious; rise, decay: per second; notice, search, alert: the levels where each state starts;
+     *  forget: seconds an alert guard searches after losing the target; state: 'calm' | 'notice' | 'search' | 'alert';
+     *  last: where it last saw or heard the target ({ x, y, z }), or null; changed: the state changed this step;
+     *  since: seconds since it last saw or heard anything */
+    Object.assign(this, { level: 0, rise: 1.5, decay: .3, notice: .3, search: .65, alert: 1, forget: 6, state: 'calm', last: null, changed: false, since: 0 }, o);
+  }
+  /** one step: seen is E.sees' result (or true / false), target the body seen. Returns the state */
+  update(dt, seen, target) {
+    const e = seen && typeof seen === 'object' ? seen.exposure : seen ? 1 : 0, near = seen && seen.d !== undefined ? clamp(1.6 - seen.d / 80, .4, 1.6) : 1, was = this.state;
+    if (e > 0) { this.level = Math.min(1.2, this.level + dt * this.rise * e * near); this.since = 0; if (target) this.last = { x: target.x, y: target.y, z: target.z || 0 }; }
+    else { this.since += dt; this.level = Math.max(this._hot && this.since < this.forget ? this.search : 0, this.level - dt * this.decay); }   // once alerted, it searches a while
+    this.state = this.level >= this.alert ? 'alert' : this.level >= this.search ? 'search' : this.level >= this.notice ? 'notice' : 'calm';
+    if (this.state === 'alert') this._hot = true; else if (this.state === 'calm') this._hot = false;
+    this.changed = this.state !== was;
+    return this.state;
+  }
+  /** a noise heard (strength 0..1, from E.hears) at a point: at least noticed, never more than searching */
+  hear(strength, at) { if (!(strength > 0)) return; this.level = Math.max(this.level, Math.min(this.search, this.notice + strength * .4)); this.since = 0; if (at) this.last = { x: at.x, y: at.y, z: at.z || 0 }; }
+  /** back to calm */
+  reset() { Object.assign(this, { level: 0, state: 'calm', last: null, changed: false, since: 0, _hot: false }); }
+}
+E.Suspicion = Suspicion;
 
 /* =============================================================================
  * 18. BULLETS  a pool of projectiles for shooters, boss patterns and magic.
