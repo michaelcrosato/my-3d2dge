@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.26.3 (2026-10-11)
+
+Two fixes from the review of v0.26.1's clicks and taps.
+
+- **Engine**:
+  - A click or tap counts when it lifts within a few pixels of where it landed, not when it lands. A thumb put down on a menu entry or a dialog to drag the touch stick no longer picks the entry or turns the page.
+  - Any touch on the canvas makes the device touch (`input.lastDevice`), on the stick's half or not, so prompts switch to the touch buttons' names after a tap on the right half too.
+- **Tools**: `standard-test`: a drag across a menu entry picks nothing, and a tap on the stick-free half makes the device touch (101 checks).
+
 ## 0.26.2 (2026-10-11)
 
 The asset store plan, ready to run start to finish.
