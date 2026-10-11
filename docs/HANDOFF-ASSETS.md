@@ -148,8 +148,10 @@ E.SHAPES.pine = { about: 'a pine in four tiers', tags: 'tree forest nature', mat
 
 **Placing a shape:** `r.shape(id | spec, x, y, z, { facing, scale, mats: { wood: 'walnut' }, flip, bias, hides,
 footprint, light })`.
-- It takes `r.prop`'s placement options (`flip`, `bias`, `hides`, `footprint`, `light`; F:1521-1546), plus `facing`,
-  `scale` and `mats`.
+- It takes `r.prop`'s placement options (`bias`, `hides`, `footprint`, `light`; F:1521-1546), plus `facing`, `scale`,
+  `mats` and `flip`.
+- **`flip` is a mirror of the shape in its own axes**, x to −x, applied before `facing`. It is not `r.prop`'s
+  screen-space flip of the finished sprite. So drawing and collision mirror the same world-space shape, in every view.
 - It has no `solid`, because `r.prop` has none to mirror.
 - It moves no body.
 
@@ -157,8 +159,10 @@ footprint, light })`.
 Phase 1 builds the call against these requirements:
 - **The same placement.** Collision takes the same spec and placement as `r.shape`: id or spec, position, `facing`,
   `scale`, `flip`. One placement object can feed both calls, so the collision box always matches what is drawn.
-- **Height-aware.** A solid shape is a box with a top. A body below the top collides with it; a body above it can land
-  on it, as on a wall block.
+- **Height-aware.** A solid shape is a box with a bottom (its placement's `z`) and a top (`z` plus its height).
+  - A body whose height overlaps that span collides with it.
+  - A body coming down onto the top lands on it, as on a wall block.
+  - A body wholly below the bottom passes under it. That matters for a shape placed on a roof or a shelf.
   - `map.block` alone is not enough: a blocked cell "stops walkers, not jumpers" (`TileMap.collide`, F:3861), so a
     body three units in the air would pass through a ten-unit table.
   - Cells are also a whole tile wide, and most shapes are smaller.
@@ -399,12 +403,12 @@ Quaternius' did.
 
 ### 5.3 Provenance and fit
 
-- **Each set** carries `credit` and a `sources` record for each downloaded archive or file: `{ label, origin, license,
-  url, fetched, sha256, licenseHash }`.
+- **Each set** carries `credit` and `sources`: one record for each downloaded archive or file, keyed by a short name
+  (`{ 'kenney-furniture': { label, origin, license, url, fetched, sha256, licenseHash } }`).
   - A library of many archives, such as Kenney's kits, has one record per archive.
   - A re-import checks each record's sha256 first.
 - **Each entry** carries:
-  - `src`: exactly one `sources` record, the download it came from;
+  - `src`: the key of its download's record in the set's `sources`. Entries name the record and never copy it;
   - `orig`: the file inside that download;
   - `fit`.
 
