@@ -5,10 +5,13 @@
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
  * PS1 LOOK: real alpha and additive light (px.blend), never dither; altitude shadows, one-point perspective buildings.
  * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs.
- * game.go('shooter', { at: 30 }) starts at the boss.
+ * ANY SCREEN: res [240, 320] with expand. The playfield stays WW wide, so the game plays the same; the screen's height is
+ * the playfield's (W x H are the screen's, read each step). A screen wider than the playfield shows the valley going on
+ * beyond it (2b), dimmed: out of play. game.go('shooter', { at: 30 }) starts at the boss.
  * ===================================================================================== */
 const SHOOT = (() => {
-  const W = 240, H = 320, WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // screen, world width, stage length, scroll px/s, building perspective, stage card seconds
+  const WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // world width (the playfield), stage length, scroll px/s, building perspective, stage card seconds
+  let W = 240, H = 320;   // the screen (at least 240 x 320): set from game.W, game.H every step
 
   /* ---- 1. PS1 LIGHT: px.blend draws with real alpha ('normal') or additive light ('add') ---- */
   // a round glow baked once per size and color: 4 nested discs (visible steps)
@@ -28,7 +31,7 @@ const SHOOT = (() => {
   /* ---- 2. THE GROUND: one painting baked through a TileMap floorTex; every color is a function of the world point ----
    * (no tiles, so nothing seams). A sine river, bridges wherever a road crosses it, noise-bent borders, muted colors. */
   const BASE_Y = 372, TOWN_Y = 760, STREETS = [470, 650], RIVER = y => 136 + 160 * Math.sin(TAU * (y - 560) / 680);
-  const warp = (x, y, k) => (E.noise2(x * .06, y * .06) - .5) * k;
+  const warp = (x, y, k) => (E.noise2(x * .06, y * .06) - .5) * k, pmod = (a, n) => ((a % n) + n) % n;   // (pmod: the valley goes on left of x 0)
   // distance past the river bank and the road edge (< 0 inside)
   const river = (x, y) => y < BASE_Y + 12 ? 99 : Math.abs(x - RIVER(y)) / Math.hypot(1, 1.48 * Math.cos(TAU * (y - 560) / 680)) - 14 - 3 * Math.sin(y * .02) + warp(x, y, 5);
   const road = (x, y) => Math.min(Math.abs(x - 136) - 10, y > BASE_Y && y < TOWN_Y ? Math.min(...STREETS.map(s => Math.abs(y - s) - 8)) : 99);
@@ -53,14 +56,15 @@ const SHOOT = (() => {
     if (d < 13) return d < 1 && y % 16 < 9 ? C.tarmac[1] : d > 11.5 ? C.road[3] : C.tarmac[0];
     return PARK.some(([a, b]) => Math.floor(Math.max(Math.abs(x - a), Math.abs(y - b))) === 14) ? C.tarmac[1] : E.noise2(x * .04 + 3, y * .04) > .66 ? c.map(v => v * .85) : c;
   }
-  function ground(x, y) {
+  function paint(x, y) {   // the ground's color at a world point, before the baked shadows (ground adds them)
     const rv = river(x, y), rd = road(x, y), edge = BASE_Y + warp(x, 0, 16), n = s => E.noise2(x * s, y * s) > .5 ? 0 : 1;
-    const dash = (Math.abs(x - 136) < 1 && y % 14 < 7 && road(x + 20, y) > 0) || (STREETS.some(s => Math.abs(y - s) < 1) && x % 14 < 7 && Math.abs(x - 136) > 10);
-    return shade(x, y, y < edge ? base(x, y) : y < edge + 5 ? C.gravel[n(.5)]
+    const dash = (Math.abs(x - 136) < 1 && y % 14 < 7 && road(x + 20, y) > 0) || (STREETS.some(s => Math.abs(y - s) < 1) && pmod(x, 14) < 7 && Math.abs(x - 136) > 10);
+    return (y < edge ? base(x, y) : y < edge + 5 ? C.gravel[n(.5)]
       : rd < 0 ? (rv < 3 ? C.deck[rd > -2 ? 1 : 0] : rd > -1 ? C.road[3] : dash ? C.road[2] : C.road[n(.3)])   // bridge deck, road
       : rv < 0 ? (road(x - 3, y - 4) < 0 ? C.deck[2] : rv > -2 ? C.water[3] : rv > -6 || Math.sin(x * .3 + y * .12 + Math.sin(y * .05) * 2) > .93 ? C.water[2] : C.water[n(.05)])   // water
-      : rv < 5 ? C.bank[n(.3)] : y < TOWN_Y && rd < 3 ? C.walk[x % 6 < 1 || y % 6 < 1 ? 1 : 0] : isField(x, y) ? field(x, y) : grass(x, y));
+      : rv < 5 ? C.bank[n(.3)] : y < TOWN_Y && rd < 3 ? C.walk[pmod(x, 6) < 1 || y % 6 < 1 ? 1 : 0] : isField(x, y) ? field(x, y) : grass(x, y));
   }
+  const ground = (x, y) => shade(x, y, paint(x, y));
   const SUN = [.5, .65];   // shadow length per unit of height (sun up-left)
   function shade(x, y, c) {   // baked shadows: boxes swept along the sun, round canopies
     for (const o of BAND[Math.floor(y / 32)] || []) if (o.z ? Math.max((x - o.x - o.w) / SUN[0], (y - o.y - o.d) / SUN[1], 0) <= Math.min((x - o.x) / SUN[0], (y - o.y) / SUN[1], o.z)
@@ -90,6 +94,34 @@ const SHOOT = (() => {
   const BAND = [];   // shadow casters per 32 px band
   for (const o of [...BLDS, ...PROPS.filter(p => p.sh)]) for (let b = Math.floor((o.y - 14) / 32); b <= (o.y + (o.d || 0) + (o.z || 0) * SUN[1] + 14) / 32; b++) (BAND[b] = BAND[b] || []).push(o);
   const map = new E.TileMap({ rows: Array(MAP_H / 16).fill('.'.repeat(WW / 16)), floorTex: ground, ao: 0, shimmer: false });
+
+  /* ---- 2b. BEYOND THE PLAYFIELD: a screen wider than WW sees the valley go on to each side, painted by the same functions
+   * (no baked shadows), baked as strips of rows when they come into view and a few ahead each step (a whole side at once
+   * would stall the start), with trees of its own. A curtain dims it (draw): the game is played in the middle ---- */
+  const EDGE = 512, STRIP = 8, edges = [0, 1].map(() => ({ cv: E.mkCanvas(EDGE, MAP_H), done: new Int16Array(MAP_H / STRIP) }));   // done: columns baked per strip
+  function bakeStrip(side, k, w) {   // side 0: x in [-w, 0), side 1: [WW, WW + w); columns already baked are kept
+    const e = edges[side], from = e.done[k]; if (from >= w) return false;
+    const n = w - from, g = E.ctx2d(e.cv), im = g.createImageData(n, STRIP), d = im.data;
+    for (let row = 0; row < STRIP; row++) for (let i = 0; i < n; i++) {
+      const col = from + i, x = side ? WW + col + .5 : -col - .5, c = paint(x, k * STRIP + row + .5), o = (row * n + (side ? i : n - 1 - i)) * 4;
+      d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+    }
+    g.putImageData(im, side ? from : EDGE - w, k * STRIP); e.done[k] = w; return true;
+  }
+  function edgeStep(r) {   // bake what shows now, then up to two strips ahead
+    const w = Math.min(EDGE, Math.ceil((r.W - WW) / 2) + 4); if (w <= 4) return 0;
+    const k0 = Math.max(0, Math.floor((scroll - 2) / STRIP)), k1 = Math.min(MAP_H / STRIP - 1, Math.floor((scroll + r.H + 2) / STRIP));
+    for (let k = k0; k <= k1; k++) for (const side of [0, 1]) bakeStrip(side, k, w);
+    let ahead = 2; for (let k = k0 - 1; k >= 0 && ahead > 0; k--) for (const side of [0, 1]) if (bakeStrip(side, k, w)) ahead--;
+    return w;
+  }
+  const EDGE_PROPS = [];   // trees, bushes and rocks out there (their own seed: the playfield's are kept as they were)
+  for (let i = 0, rnd = E.rng(6); i < 6000; i++) {
+    const side = rnd() < .5, x = side ? WW + 4 + rnd() * EDGE : -4 - rnd() * EDGE, y = BASE_Y + 16 + rnd() * (MAP_H - BASE_Y), k = rnd(), s = Math.round(7 + rnd() * 3) / 10;
+    const name = forest(x, y) ? (k < .65 ? 'tree' : 'pine') : ['tree', 'bush', 'rock', 'flowers'][Math.floor(k * 80)];
+    if (name && river(x, y) > 6 && road(x, y) > 5 && !isField(x, y)) EDGE_PROPS.push({ name, x, y, s: /tree|pine/.test(name) ? s : .9 });
+  }
+  EDGE_PROPS.sort((a, b) => a.y - b.y);
   function building(g, r, b) {   // one-point perspective: height z pushes a point out from the screen center
     const vx = r.bw / 2, vy = r.bh * .55, Pt = (x, y, z) => { const [a, c] = r.w(x, y), k = 1 + z * PERSP; return [vx + (a - vx) * k, vy + (c - vy) * k]; };
     const { x, y, w, d, z, roof: R, wall: Q, style } = b, x1 = x + w, y1 = y + d, L2 = (A, B, k) => [lerp(A[0], B[0], k), lerp(A[1], B[1], k)];
@@ -287,9 +319,10 @@ const SHOOT = (() => {
     ship = { kind: 'player', art: [PLAYER, 'player', 1.2, 40], a: -D, x: WW / 2, y: scroll + H - 86, r: 2.5, inv: 0, respawn: 0, bank: 0, gun: 0, burst: 0 };   // no 'dead' field: E.Bullets skips those
     foes = []; items = []; craters = []; fx = []; shots = shots || new E.Bullets(game, { plane: 'ground', max: 1200 }); shots.clear();
     for (const [kind, x, y, a] of GROUND) unit(kind, x, y, { a: a ?? D, aim: a ?? D });
-    clouds = [0, 1, 2, 3, 4].map(i => ({ x: E.rand(-30, WW - 60), y: i * 90 - 80, art: CLOUDS[i % 3], high: i > 2 }));
+    clouds = [0, 1, 2, 3, 4, 5, 6].map(i => ({ x: cloudX(), y: i * 70 - 80, art: CLOUDS[i % 3], high: i > 3 }));
     lives = 2; bombs = 3; score = 0; power = 1; boss = null; won = 0; fireT = 0; warnT = 0; radio(PILOT, 'EAGLE 1', 'Fortress sighted over the valley. Weapons free!', { point: true, aim: .9, expr: 'smile' });
   }
+  const cloudX = () => { const m = Math.max(0, (W - WW) / 2); return E.rand(-30 - m, WW - 60 + m); };   // across the whole screen
   const shoot = (x, y, vels, art = 'orb') => shots.burst({ x, y, z: 20, r: art === 'big' ? 3 : 2, life: 7, team: 'foe', art }, vels);
   // score pops rise 14 px on screen and blink out in .6 s
   const pop = (x, y, n, big = n >= 1000) => { score += n; P.add({ kind: 'text', x, y, vy: -24 - (scroll > 0 ? SCROLL : 0), max: .6, text: '' + n, color: big ? '#ffd040' : '#fff', scale: big ? 2 : 1 }); };
@@ -346,6 +379,7 @@ const SHOOT = (() => {
 
   /* ---- 7. UPDATE ---- */
   function update(dt) {
+    W = game.W; H = game.H;
     const inp = game.input, move = Math.min(scroll, SCROLL * dt);
     t += dt; scroll -= move;
     for (const o of [ship, ...items, ...shots.list, ...foes.filter(f => f.air)]) o.y -= move;   // flyers move with the camera
@@ -412,10 +446,11 @@ const SHOOT = (() => {
       if (ship.respawn <= 0 && E.overlap(it, { x: ship.x, y: ship.y, r: 10 })) { it.gone = true; A.sfx('powerup'); P.glints(it.x, it.y, 14, 8); if (it.type === 'P' && power < 4) power++; else if (it.type === 'B' && bombs < 5) bombs++; else score += 1000; }
     }
     E.prune(foes, f => f.gone); E.prune(items, i => i.gone); E.prune(craters, c => c.y > scroll + H + 40);
-    for (const c of clouds) if ((c.y += (c.high ? 80 : 44) * (move ? 1 : .5) * dt) > H + 30) Object.assign(c, { y: -c.art.h - 20 - E.rand(0, 60), x: E.rand(-30, WW - 60) });
+    for (const c of clouds) if ((c.y += (c.high ? 80 : 44) * (move ? 1 : .5) * dt) > H + 30) Object.assign(c, { y: -c.art.h - 20 - E.rand(0, 60), x: cloudX() });
     // live portraits: the speaker acts out its line; the pilot winces while shot down
     for (const rig of [PILOT, HQ]) rig.update(dt, { x: 0, y: 0, hurt: rig === PILOT && ship.respawn > 0, ...(talk.open && rig.mood) });
-    game.focus(W / 2 + Math.round(ship.x / WW * (WW - W)), Math.round(scroll) + H / 2, 0);   // whole pixels, no lag: no shimmer
+    // a screen narrower than the playfield pans with the ship, a wider one centres it; whole pixels, no lag: no shimmer
+    game.focus(W / 2 + Math.round((WW - W) / 2 + (ship.x / WW - .5) * Math.max(0, WW - W)), Math.round(scroll) + H / 2, 0);
   }
 
   /* ---- 8. DRAW ---- */
@@ -434,7 +469,11 @@ const SHOOT = (() => {
     });
   }
   function draw(r) {
+    W = r.W; H = r.H;
     map.drawFloor(r);
+    const ew = edgeStep(r), [lx] = r.w(0, 0), [rx] = r.w(WW, 0);   // 2b: the valley beyond the playfield, its trees
+    if (ew) { const [, ty] = r.w(0, 0); for (const [side, x] of [[0, lx - EDGE], [1, rx]]) r.ctx.drawImage(edges[side].cv, Math.round(x), Math.round(ty));
+      for (const p of EDGE_PROPS) if (p.y > scroll - 4 && p.y < scroll + H + 44 && p.x > -ew - 16 && p.x < WW + ew + 16) r.prop(p.name, p.x, p.y, 0, { size: p.s, color: TINT[p.name] }); }
     r.decal(g => {   // craters; glints drifting downstream make the river flow
       for (const c of craters) crater(g, r, c);
       px.blend(g, .5, 'normal', () => { for (let i = 0; i < 30; i++) { const y = scroll - 10 + (i * 53 + game.time * 22) % (H + 20), x = RIVER(y) + (i * 29 % 21) - 10; if (river(x, y) < -4) px.rect(g, ...r.w(x, y), 2 + i % 3, 1, '#a8d4e8'); } });
@@ -460,7 +499,12 @@ const SHOOT = (() => {
     } else if (ship.respawn > 1.6) { const u = (2 - ship.respawn) / .4;   // spinning out: turns, rolls and drops (the shadow slides in), flickering red
       craft(r, { ...ship, a: u * u * 4 - D, bank: Math.sin(u * 12), art: [PLAYER, 'player', 1.2 - u * .5, 40 - u * 40] }, 12, { flash: game.real * 20 % 2 < 1 && '#ff6a40' });
     }
-    r.queue(0, scroll, 20, g => bullets(g, r, 'ship')); r.overlay(hud); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));   // never hidden by a panel
+    r.queue(0, scroll, 20, g => bullets(g, r, 'ship'));
+    if (lx > 0 || rx < r.W) r.overlay(g => {   // the curtain over what lies beyond the playfield, a gold rule at its edges
+      const a = Math.round(lx), b = Math.round(rx); px.blend(g, .55, 'normal', () => { px.rect(g, 0, 0, a, r.H, '#060a14'); px.rect(g, b, 0, r.W - b, r.H, '#060a14'); });
+      px.blend(g, .7, 'normal', () => { px.rect(g, a - 1, 0, 1, r.H, GOLD); px.rect(g, b, 0, 1, r.H, GOLD); });
+    });
+    r.overlay(hud); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));   // never hidden by a panel
   }
 
   /* ---- 9. HUD: see-through windows (E.ui.box alpha) on top, led by the pilot's live portrait. Radio chatter (Star Fox 64):
@@ -490,23 +534,23 @@ const SHOOT = (() => {
     txt(g, power < 4 ? 'POW' : 'MAX', W - 72, 17, '#ffd36a');
     for (let i = 0; i < 4; i++) { const x = W - 48 + i * 10, on = i < power; px.poly(g, [[x, 16], [x + 5, 16], [x + 9, 20], [x + 5, 24], [x, 24], [x + 4, 20]], on ? ['#ffd040', '#ffa030', '#ff6a30', '#ff3a5a'][i] : '#5a6494'); px.line(g, x + 1, 16, x + 5, 16, on ? '#fff4c0' : '#9aa4d0'); }
     if (boss) {   // a pale damage trail drains after the health
-      const f = boss.parts[2].hp / boss.parts[2].max, w = Math.round(118 * f); win(44, 30, 152, 13, RED); txt(g, 'BOSS', 48, 33, '#ff9a8a');
-      E.ui.bar(g, 72, 34, 120, 6, boss.trail, '#ffe8b0', { border: '#140b12', bg: '#2a0a12' }); px.rect(g, 73, 35, w, 4, boss.flash > 0 ? '#ff8a90' : '#e8404a'); px.rect(g, 73, 35, w, 1, '#ff9aa0');
+      const f = boss.parts[2].hp / boss.parts[2].max, w = Math.round(118 * f), o = Math.round(mid) - 120; win(o + 44, 30, 152, 13, RED); txt(g, 'BOSS', o + 48, 33, '#ff9a8a');
+      E.ui.bar(g, o + 72, 34, 120, 6, boss.trail, '#ffe8b0', { border: '#140b12', bg: '#2a0a12' }); px.rect(g, o + 73, 35, w, 4, boss.flash > 0 ? '#ff8a90' : '#e8404a'); px.rect(g, o + 73, 35, w, 1, '#ff9aa0');
     }
     if (t < INTRO) {   // stage card above the radio call; nobody fires until it clears
       band(40, 62, '#080a1c'); E.font.title(g, 'STAGE 1', mid, 46, { align: 'center', scale: 3 });
-      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, 'Z shot     X bomb', mid, 87, '#c8d0f0', { align: 'center' });
+      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, prompt('fire', 'shot') + '     ' + prompt('bomb', 'bomb'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys
     }
     if (warnT > 0) {
       band(60, 62, '#2a0406');
       E.font.title(g, 'WARNING', mid, 75, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(warnT * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); txt(g, 'A HUGE ENEMY APPROACHES', mid, 101, '#ffd0c0', { align: 'center' });
     }
-    if (won && t - won > 2.2) { win(12, 64, W - 24, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(score), mid, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
+    if (won && t - won > 2.2) { win(Math.round(mid) - 108, 64, 216, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(score), mid, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
   }
-  return { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [W, H], pausable: true, touch: ['fire', 'bomb'], propSize: 1,
+  return { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [240, 320], pausable: true, touch: ['fire', 'bomb'], propSize: 1,
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
-      reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
+      W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
     },
     exit() { game.cam.smooth = .18; }, update, draw };
 })();

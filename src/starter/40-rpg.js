@@ -6,27 +6,40 @@
  * Every fighter has its own moves from E.MOVES: Rowan leaps in with an overhead chop and spins to Cleave, Lyra flings
  * sparks and casts Fire, Sera jabs with her staff, then crosses and roundhouses, and raises it to Cure; the Dread Knight
  * slashes, bashes and swings a Doom Blade, the Gargoyle dives claws first or beats up a gale, the Bomb rams or spits.
+ * ANY SCREEN: the backdrop is painted at the screen's size, its ground with the plaza's own grass and light so the plaza's
+ * edge melts into it; the HUD band sits on the bottom edge, or on a tall screen (a phone held upright) under the battle,
+ * with a deck below it for the thumbs; LAYOUT() says where, and the band slides clear of the touch buttons.
  * ===================================================================================== */
 const RPG = (() => {
-  /* ---- BACKDROP: a sunset painted once in crisp pixel shapes like the sprites (zoom and turn move only the plaza) ---- */
+  /* ---- BACKDROP: a sunset painted once per screen size in crisp pixel shapes like the sprites (zoom and turn move only
+   * the plaza). Drawn for 320 x 240 and moved: ox centres it, oy puts its horizon where the plaza's far edge is ---- */
   const SKY = ['#1c1642', '#40245f', '#8a3468', '#d4565c', '#f4935c', '#ffd08a'], skyAt = y => { const f = Math.min(y / 15, 4.99), i = f | 0; return E.mix(SKY[i], SKY[i + 1], f - i); };   // a stop every 15 rows
   const SX = 288, SY = 45, CLOUDS = [[44, 13, 60], [156, 19, 84], [246, 10, 52], [98, 33, 64], [206, 36, 74], [296, 51, 46], [22, 47, 52]];   // clouds: [x, y, width]
   const TOWERS = [[116, 9, 26, 12], [127, 15, 16, 0], [144, 8, 36, 15], [154, 13, 21, 0], [169, 7, 28, 11], [178, 12, 12, 0]];   // castle: [x, width, height, roof]
   // a range: one column per x, slopes facing the sun (right) lit
-  const range = (g, base, amp, s, col, lit) => { const h = x => amp * (.5 + .32 * (1 - Math.abs(Math.sin(x * .017 + s))) + .18 * Math.sin(x * .061 + s * 3)); for (let x = 0; x < 320; x++) px.rect(g, x, base - h(x), 1, 40, h(x + 1) < h(x - 1) ? lit : col); };
-  function paintBackdrop() {
-    const c = E.mkCanvas(320, 240), g = E.ctx2d(c);
-    for (let y = 0; y < 100; y++) {   // sky rows, a smooth sun glow (no bands, no dither)
-      const s = skyAt(y); px.rect(g, 0, y, 320, 1, s);
-      for (let x = 160; x < 320; x++) { const k = 1 - Math.hypot((x - SX) / 2.6, y - SY) / 36; if (k > 0) px.dot(g, x, y, E.mix(s, '#ffe8b8', k * k * .85)); }
+  const range = (g, base, amp, s, col, lit, x0, x1) => { const h = x => amp * (.5 + .32 * (1 - Math.abs(Math.sin(x * .017 + s))) + .18 * Math.sin(x * .061 + s * 3)); for (let x = x0; x < x1; x++) px.rect(g, x, base - h(x), 1, 40, h(x + 1) < h(x - 1) ? lit : col); };
+  function paintBackdrop(W, H, fy) {   // fy: where the camera's focus sits on screen (layout)
+    const c = E.mkCanvas(W, H), g = E.ctx2d(c), ox = Math.round((W - 320) / 2), oy = fy - 120, sx = SX + ox, sy = SY + oy, v = E.VIEWS.brawler;
+    // the ground below the treeline: the plaza's grass and light at the world point under each pixel (the camera at rest)
+    const im = g.createImageData(W, H), d = im.data;
+    for (let y = Math.max(0, 75 + oy); y < H; y++) for (let x = 0; x < W; x++) {
+      const wx = 110 + (x - W / 2) / v.ax, wy = 72 + (y - fy) / v.by, warm = clamp(.5 + (wx - PLAZA[0]) / 260 - (wy - PLAZA[1]) / 200, 0, 1), haze = clamp(1 - wy / 70, 0, 1) * .45, k = 1.08 - clamp(wy - 70, 0, 110) / 400;
+      const q = E.tex.grass(wx, wy, GRASS), o = (y * W + x) * 4; for (let i = 0; i < 3; i++) d[o + i] = lerp(lerp(q[i] * k, lerp(COOL[i], WARM[i], warm), .28), HAZE[i], haze); d[o + 3] = 255;
     }
+    g.putImageData(im, 0, 0);
+    for (let y = 0; y < 100 + oy; y++) {   // sky rows (the top's color above the painting), a smooth sun glow (no bands, no dither)
+      const s = skyAt(Math.max(0, y - oy)); px.rect(g, 0, y, W, 1, s);
+      for (let x = Math.max(0, sx - 100); x < Math.min(W, sx + 100); x++) { const k = 1 - Math.hypot((x - sx) / 2.6, y - sy) / 36; if (k > 0) px.dot(g, x, y, E.mix(s, '#ffe8b8', k * k * .85)); }
+    }
+    g.translate(ox, oy);   // the rest is drawn as for 320 x 240, the far hills and trees running on across a wide screen
+    const x0 = -ox - 4, x1 = W - ox + 6;
     px.disc(g, SX, SY, 12, '#fff0c0'); px.disc(g, SX - 1, SY - 1, 10, '#fffcec');   // a hard-edged sun
-    for (const [x, y, w] of CLOUDS) {   // flat-bottomed puffs lit from below, warmer near the horizon
+    for (const [cx, y, w] of CLOUDS) for (let x = cx - 320 * Math.ceil(ox / 320); x < x1 + w; x += 320) {   // flat-bottomed puffs lit from below, warmer near the horizon
       const k = clamp(y / 50, 0, 1), body = E.mix('#4a2a62', '#b4587a', k), lit = E.mix('#9a4a78', '#f09a88', k);
       for (const [dx, dy, rx, col] of [[0, 0, .5, body], [-.14, -2.5, .24, body], [.16, -1.5, .2, body], [.04, 1.5, .42, lit]]) px.ell(g, x + dx * w, y + dy, rx * w, 2.8, col);
       px.rect(g, x - w * .34, y + 3, w * .68, 1, E.mix('#e0808a', '#fff0c0', k));
     }
-    range(g, 66, 20, 1, '#c47c90', '#eaa4a0');   // the far range, pale with haze
+    range(g, 66, 20, 1, '#c47c90', '#eaa4a0', x0, x1);   // the far range, pale with haze
     for (const [x, w, h, roof] of TOWERS) {   // a hazy castle
       const top = 76 - h;
       px.rect(g, x, top, w, h, '#74446e'); px.rect(g, x + w - 2, top, 2, h, '#e8908e'); px.rect(g, x + (w >> 1), top + 5, 1, 2, '#ffd27a');
@@ -34,11 +47,14 @@ const RPG = (() => {
       else for (let bx = x; bx < x + w; bx += 3) px.rect(g, bx, top - 2, 2, 2, '#74446e');
     }
     px.blend(g, .3, 'normal', () => px.rect(g, 96, 66, 110, 10, '#ffc0a0'));   // mist at the castle's foot
-    range(g, 77, 9, 5, '#8a4a74', '#c06a7c');   // near hills in front of it
-    for (let x = -4; x < 326; x += 5) { const r = 4 + 3 * E.noise2(x * .09, 3), y = 79 - r * .7; px.disc(g, x + 1, y - 1, r, '#b25c5e'); px.disc(g, x, y, r, '#2e2040'); }   // treeline, rim-lit
-    px.rect(g, 0, 79, 320, 161, '#2e2040'); return c;   // down to the bottom: zoomed out, the plaza floats on dusk
+    range(g, 77, 9, 5, '#8a4a74', '#c06a7c', x0, x1);   // near hills in front of it
+    for (let x = x0 - ((x0 - 1) % 5 + 5) % 5; x < x1; x += 5) { const r = 4 + 3 * E.noise2(x * .09, 3), y = 79 - r * .7; px.disc(g, x + 1, y - 1, r, '#b25c5e'); px.disc(g, x, y, r, '#2e2040'); }   // treeline, rim-lit
+    px.rect(g, x0, 79, x1 - x0, 3, '#2e2040'); return c;   // its foot, on the grass
   }
-  let backdrop = null;   // painted on the first draw
+  // where things go on this screen: the HUD band's top (Y), the camera focus's height on screen (fy). A tall screen keeps
+  // the battle up top with the band under it and a deck below; a wide one puts the band on the bottom edge, as on 320 x 240
+  const layout = (W, H) => { const Y = H > 300 ? clamp(Math.round(H * .45), 167, H - 73) : H - 73; return { Y, fy: Y - 47 }; };
+  let backdrop = null;   // painted on the first draw, again for a new screen size
 
   /* ---- FLOOR: a round cobbled plaza (a ground circle projects to a wide ellipse: reads as floor). floorTex runs
    * once per pixel when the floor is baked, so light, shadows and wear cost nothing per frame ---- */
@@ -412,7 +428,8 @@ const RPG = (() => {
     }, { emissive: true });
   }
   function draw(r) {
-    r.ctx.drawImage(backdrop || (backdrop = paintBackdrop()), 0, 0);
+    const key = r.W + 'x' + r.H; if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, layout(r.W, r.H).fy); backdrop.key = key; }
+    r.ctx.drawImage(backdrop, 0, 0);
     plaza.drawFloor(r); plaza.queueWalls(r); for (const [name, x, y, z, o] of PROPS) r.prop(name, x, y, z, o);
     for (const c of all) drawUnit(r, c); for (const f of fx) drawFx(r, f);
     const orb = act && act.orb, m = act && MOVES[act.key];
@@ -436,23 +453,26 @@ const RPG = (() => {
   const txt = (g, s, x, y, c, align) => E.font.text(g, String(s), x, y, c, { shadow: '#0a0820', outline: false, align });
   const tiny = (g, s, x, y, c) => E.font.text(g, s, x, y, c, { font: 'tiny', outline: false });
   function hud(g, r) {
-    const Y = 170, choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
+    const { Y } = layout(r.W, r.H), choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
+    // the band's 316 px: centred, or left of the touch buttons where they would cover it
+    const ta = game.input.touchArea(), X = Math.max(0, Math.min(Math.round((r.W - 320) / 2), ta && ta.y0 < Y + 66 ? Math.floor(ta.x0) - 320 : 1e4));
     // an arrow over the hero on turn, the glove on the target
     if (choosing) { const [sx, sy] = r.w(actor.x, actor.y, actor.z + actor.h + 5); px.poly(g, [[sx - 5, sy - 7 + bob], [sx + 5, sy - 7 + bob], [sx, sy - 1 + bob]], '#ffe060'); px.rect(g, sx - 3, sy - 6 + bob, 6, 1, '#fff8c0'); }
     if (mode === 'target') { const c = list[cursor], [sx, sy] = r.w(c.x, c.y, c.z + c.h * .55); px.sprite(g, HAND, sx - 28 + bob, sy - 4); }
     // top banner: the move, the target, or what the command does
     const top = mode === 'command' ? MOVES[COMMANDS(actor)[menu.i]].info : mode === 'target' ? list[cursor].name : note;
-    if (top && !log.open) { const w = E.font.width(top) + 24; E.ui.box(g, 160 - w / 2, 5, w, 18, { bg: WIN }); txt(g, top, 160, 10, '#ffffff', 'center'); }
+    if (top && !log.open) { const w = E.font.width(top) + 24, c = Math.round(r.W / 2); E.ui.box(g, c - w / 2, 5, w, 18, { bg: WIN }); txt(g, top, c, 10, '#ffffff', 'center'); }
     // a near-black band under the windows; left: commands, spoils or monsters
-    px.rect(g, 0, Y - 3, 320, 73, '#0c0818'); E.ui.box(g, 4, Y, 92, 66, { bg: WIN });
+    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818'); E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });   // (down to the bottom: a tall screen's deck)
     if (choosing) {
-      menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, 89, y, '#9ad0ff', 'right'); });
-      px.sprite(g, HAND, 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10); tiny(g, 'Z OK  X BACK', 26, Y + 57, '#a8b8ff');
-    } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
-    else alive(foes).forEach((f, k) => { txt(g, f.name, 11, Y + 7 + k * 19, '#ffffff'); gauge(g, 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
+      menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
+      px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
+      if (game.input.lastDevice !== 'touch') E.font.text(g, game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK', X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
+    } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
+    else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
     // right: a card per hero (FF IX): portrait, name, MP, HP, ATB
     party.forEach((h, k) => {
-      const x = 100 + k * 72, on = h === actor && choosing, low = h.hp < h.max / 4, col = h.dead ? '#a08aa8' : low ? '#ffd060' : '#ffffff';
+      const x = X + 100 + k * 72, on = h === actor && choosing, low = h.hp < h.max / 4, col = h.dead ? '#a08aa8' : low ? '#ffd060' : '#ffffff';
       E.ui.box(g, x, Y, 70, 66, { bg: h.dead ? KO : on ? HOT : WIN, border: on ? '#ffe890' : undefined });
       const pic = h.pic || (h.pic = E.mkCanvas(30, 30));   // a whole rig draw: redrawn every third frame
       if ((frame + k) % 3 === 0) { const pg = E.ctx2d(pic); pg.clearRect(0, 0, 30, 30); h.rig.drawPortrait(pg, 3, 3, 24, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: h.dead ? '#808080' : undefined }); }
@@ -461,17 +481,18 @@ const RPG = (() => {
       tiny(g, 'HP', x + 6, Y + 36, '#9ad0ff'); txt(g, h.hp + '/' + h.max, x + 64, Y + 34, col, 'right'); gauge(g, x + 6, Y + 44, 58, h.hp / h.max, low ? '#e8a030' : '#58d068');
       gauge(g, x + 6, Y + 54, 58, h.atb, h.atb >= 1 || on ? '#ffe060' : '#dce0f8');
     });
-    if (mode === 'win') E.font.title(g, 'Victory!', 124, 60, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
+    if (mode === 'win') E.font.title(g, 'Victory!', Math.round(r.W / 2) - 36, layout(r.W, r.H).fy - 60, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
   }
   // propSize: props sized to the heroes; a strong warm rim light
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in, it eases to the fight (or the hero on turn) at chest height
   return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: ['confirm', 'cancel'], propSize: 1.3, camera: { zoom: [.75, 2], rotate: true },
-    enter() { start(); game.r.rimAlpha = .75; game.focus(110, 72, 0); yaw = game.yaw; },
-    exit() { game.r.rimAlpha = .28; L.enabled = false; },
+    enter() { start(); game.r.rimAlpha = .75; game.focus(110, 72, 0); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
+    exit() { game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {
       if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? 'TURN ' + yaw : 'CAMERA RESET');   // the kit's notice has a degree sign the pixel font lacks
       update(dt); const f = game.zoom > 1 && (act ? [act.who, act.target || act.who] : actor && [actor, actor]), k = Math.min(1, dt * 4);
       const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [110, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
+      game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
     state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp) }) };   // for automated tests
 })();

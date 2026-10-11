@@ -2,6 +2,9 @@
  * SLICE 1  ADVENTURE  (Secret of Mana, Zelda: ALttP). Three rooms: village, ruins, shrine. Talk, clear the ruins for
  * the key, open the great door, claim the crystal. THE LOOK: wall MATERIALS, ONE floorTex with PAINTED LIGHT, pitched
  * roofs, leaf-clump bushes, light shafts, dialog PORTRAITS.
+ * ANY SCREEN: rooms are 4:3. A wider screen shows the rooms beside this one under a dim CURTAIN (they wait, as their
+ * monsters do); a taller one (a phone held upright) keeps the room at the top and lays the HUD out on a DECK below it,
+ * where the thumbs and the touch buttons go.
  * ===================================================================================== */
 const ADV = (() => {
   const T = 16, ROOM = [14 * T, 12 * T], AREAS = ['Mana Village', 'Mossy Ruins', 'Shrine of Mana'];
@@ -111,17 +114,17 @@ const ADV = (() => {
   const WAIST = { z0: -10, z1: -10 }, CHARGE = { ...E.MOVES.spin, ...WAIST, a0: 2.4, crouch: .6, lean: .6 };
   // idle: poses in turn; near: turn to the hero (wave: say hello); talk: gestures; chore: a move while kneeling
   const NPCS = {
-    elder: { name: 'ELDER', idle: [null, null, 'hips'], near: 56, talk: ['block', null, 'hips', null], lines: ['Rabites overran the Mossy Ruins across the river. Press J to swing your sword and clear them out!',
+    elder: { name: 'ELDER', idle: [null, null, 'hips'], near: 56, talk: ['block', null, 'hips', null], lines: [() => 'Rabites overran the Mossy Ruins across the river. Press ' + game.input.label('attack') + ' to swing your sword and clear them out!',
       'Clear the ruins and the old chest opens. The Mana crystal sleeps in the shrine behind the great door.'] },
     florist: { name: 'LISE', face: Math.PI, idle: ['kneel', 'kneel', null], near: 36, talk: ['hips', 'cast'],   // tends the flower bed
       chore: () => new E.Attack('plunge', { hand: 'both', a0: -.5, a1: -.9, r0: 4, r1: 9, wind: .3, active: .16, recover: .45 }),
       lines: ['A rabite got into my garden again! Could you shoo it away?', 'Mind the bats in the ruins. They swoop when you get close!'] },
-    villager: { name: 'PIP', idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: ['Hi! The bridge leads to the Mossy Ruins.', 'Keep J held after a swing, then let go: a SPIN ATTACK!'] }
+    villager: { name: 'PIP', idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: ['Hi! The bridge leads to the Mossy Ruins.', () => 'Keep ' + game.input.label('attack') + ' held after a swing, then let go: a SPIN ATTACK!'] }   // a function: the player's own key
   };
   // BACKDROP (iso view): a sea of clouds
   const bg = new E.Backdrop({ sky: ['#3a74c8', '#8ac2ea', '#e4f2f4', '#9ccae6', '#5a90c8'], layers: [{ kind: 'clouds', color: '#ffffff', y: .3, height: .16, parallax: .04, drift: 3 },
     { kind: 'clouds', color: '#ffffff', y: .98, height: .4, parallax: .1, drift: 3, seed: 9 }] });
-  let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx;
+  let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx, deck = 0;   // deck: its top on screen (0: none)
   const roomOf = x => Math.floor(x / ROOM[0]), mod = (a, n) => ((a % n) + n) % n, near = (cx, cy, tag) => map.floorAt((cx + .5) * T, (cy + .5) * T) === tag;
   const txt = (g, s, x, y, c, o) => E.font.text(g, s, x, y, c, { shadow: '#07040c', outline: false, ...o });
   const talkable = () => npcs.find(n => E.dist(hero, n) < 34);
@@ -188,7 +191,8 @@ const ADV = (() => {
   function start() {
     map = new E.TileMap({ rows: ROWS, legend: LEGEND, types: TYPES, floorTex, ao: 8 });
     relic = map.find('relic'); entry = map.find('entry'); relic.x += T / 2; entry.x += T / 2;   // on the room's center line
-    game.cam.bounds = v => map.bounds(v); game.cam.room = ROOM;   // screen-by-screen camera
+    // screen-by-screen camera inside the map; a screen taller than the map keeps it at the top (the DECK goes below)
+    game.cam.bounds = v => { const b = map.bounds(v); return Object.assign({}, b, { y1: Math.max(b.y1, b.y0 + game.H) }); }; game.cam.room = ROOM;
     const at = map.find('hero');
     // SWORD (Secret of Mana): J chains slash, backslash, spin, kept low (a raised blade crosses his face); short holds (hold)
     // let the follow-through settle instead of freezing; hold J to CHARGE
@@ -229,7 +233,7 @@ const ADV = (() => {
     L.enabled = false; gpu = gpu || game.enableGPU({ map }); Object.assign(gpu, { map, enabled: true, bands: 24, wrap: .5, ambient: MOOD[0] }); A.music('adventure');
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
-  const say = (who, name, text) => { speaker = who; talk.say(text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };
+  const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG }, y: deck ? deck + 6 : undefined }); };   // on the deck: clear of the touch buttons
   function hurtHero(ang) {   // flinch, knockback, blink; true if it hurt
     if (hero.inv > 0 || won || hero.hp <= 0) return false; hero.hp -= .5; hero.inv = 1; hero.hurt = .25; hero.charge = 0; hero.combo.cancel(); hero.spin.cancel(); hero.push(Math.cos(ang) * 160, Math.sin(ang) * 160);
     game.hitFx(hero.x + Math.cos(ang) * 3, hero.y + Math.sin(ang) * 3, 12, { power: .9, angle: ang + Math.PI, color: '#ff8a6a', sound: 'hurt' }); game.flash('#ff4a3a', .06, .4);
@@ -469,34 +473,55 @@ const ADV = (() => {
       }, { xray: true, flash: h.hurt > .15 || h.charge >= .6 && game.time % .3 < .05, bias: over ? 2 : 0 });
       h.rig.drawSmear(r);
     }
-    shots.draw(r); drawFx(r); shafts(r, room); hud(r); talk.draw(r);
+    shots.draw(r); drawFx(r); shafts(r, room); if (game.cam.room) curtain(r, room); hud(r); talk.draw(r);
   }
-  // HUD: counters; hero status and CONTROLS, hidden during dialog
+  // the CURTAIN: what a wide screen shows beyond the hero's room, dimmed (the room's box: its floor and its walls' height)
+  function curtain(r, room) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const x of [room * ROOM[0], (room + 1) * ROOM[0]]) for (const y of [0, ROOM[1]]) for (const z of [0, 48]) { const [sx, sy] = r.w(x, y, z); x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+    [x0, y0, x1, y1] = [x0, y0, x1, y1].map(Math.round);
+    if (x0 <= 0 && y0 <= 0 && x1 >= r.W && y1 >= r.H) return;
+    r.overlay(g => px.blend(g, .62, 'normal', () => { const D = '#0a0818'; px.rect(g, 0, 0, r.W, y0, D); px.rect(g, 0, y1, r.W, r.H - y1, D); px.rect(g, 0, y0, x0, y1 - y0, D); px.rect(g, x1, y0, r.W - x1, y1 - y0, D); }));
+  }
+  // HUD: counters; hero status and CONTROLS (the player's own keys), hidden during dialog. On a DECK when the screen is tall
   function hud(r) {
-    const npc = talkable(), Y = r.H - 34;
+    const npc = talkable(), foot = Math.round(r.w(0, map.h * T, 0)[1]);   // the map's front edge on screen
+    deck = game.cam.room && r.H - foot > 96 ? foot : 0;
+    const Y = deck ? deck + 34 : r.H - 34, GX = deck ? r.W - 70 : 4, GY = deck ? deck + 10 : 4;
     r.overlay(g => {
-      E.ui.box(g, 4, 4, 66, 17, WIN); px.sprite(g, GEM, 10, 9); px.sprite(g, KEYS[0], 43, 10);
-      txt(g, String(gems).padStart(3, '0'), 18, 9, '#ffffff'); txt(g, 'x' + keys, 52, 9, '#ffffff');
+      if (deck) { E.ui.box(g, -3, deck, r.W + 6, r.H - deck + 3, WIN); minimap(g, Math.round(r.W / 2) - 70, deck + 80, 2); }   // the deck: a window under the room, a map of the rooms
+      E.ui.box(g, GX, GY, 66, 17, WIN); px.sprite(g, GEM, GX + 6, GY + 5); px.sprite(g, KEYS[0], GX + 39, GY + 6);
+      txt(g, String(gems).padStart(3, '0'), GX + 14, GY + 5, '#ffffff'); txt(g, 'x' + keys, GX + 48, GY + 5, '#ffffff');
       if (won) {
-        E.ui.box(g, r.W / 2 - 90, r.H - 62, 180, 48, WIN); E.font.title(g, 'MANA CRYSTAL!', r.W / 2, r.H - 55, { align: 'center', scale: 2, colors: ['#ffffff', '#bff8ff', '#4ac8e8'], depth: 1 });
-        return txt(g, 'Gems ' + gems + '    Best ' + best('adventure', gems), r.W / 2, r.H - 28, '#ffe08a', { align: 'center' });
+        const wy = deck ? deck + 70 : r.H - 62;
+        E.ui.box(g, r.W / 2 - 90, wy, 180, 48, WIN); E.font.title(g, 'MANA CRYSTAL!', r.W / 2, wy + 7, { align: 'center', scale: 2, colors: ['#ffffff', '#bff8ff', '#4ac8e8'], depth: 1 });
+        return txt(g, 'Gems ' + gems + '    Best ' + best('adventure', gems), r.W / 2, wy + 34, '#ffe08a', { align: 'center' });
       }
       if (talk.open) return;
       E.ui.box(g, 4, Y, 84, 30, WIN); hero.rig.drawPortrait(g, 9, Y + 5, 20, { zoom: 1.5, cape: false, bg: FACE_BG });
       txt(g, 'HERO', 36, Y + 4, '#ffe08a', { gradient: ['#fff4c0', '#e8a040'] }); E.ui.hearts(g, 36, Y + 15, hero.hp, hero.max);
-      const cx = r.W - 128;   // 'Enter Talk' blinks near a villager
-      E.ui.box(g, cx, Y + 12, 124, 18, WIN); txt(g, 'J Sword', cx + 8, Y + 17, '#d8d0f0');
-      txt(g, 'Enter Talk', cx + 56, Y + 17, npc && Math.floor(game.real * 3) % 2 ? '#ffe08a' : '#d8d0f0');
+      if (!touch()) {   // (a touch screen's buttons sit in that corner and say it themselves)
+        const a = prompt('attack', 'Sword'), b = prompt('confirm', 'Talk'), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = Y + 12;
+        E.ui.box(g, cx, cy, w, 18, WIN); txt(g, a, cx + 8, cy + 5, '#d8d0f0');
+        txt(g, b, cx + w - 8 - E.font.width(b), cy + 5, npc && Math.floor(game.real * 3) % 2 ? '#ffe08a' : '#d8d0f0');   // 'Talk' blinks near a villager
+      }
       if (npc) {   // a speech bubble: you can talk
         const [fx, fy] = r.w(npc.x, npc.y, 0), q = E.charView(r.view).p(0, 0, 44), x = Math.round(fx + q[0]), y = Math.round(fy + q[1]);
         E.ui.box(g, x - 11, y - 14, 22, 12, WIN); px.poly(g, [[x - 4, y - 3], [x + 2, y - 3], [x - 3, y + 1]], WIN.border);
         for (let k = 0; k < 3; k++) px.rect(g, x - 6 + k * 5, y - 9 - (Math.floor(game.real * 3) % 3 === k ? 1 : 0), 2, 2, '#ffe08a');
       }
-      if (area.t > 0) {   // area name card slides down, then up
+      if (deck) E.font.title(g, AREAS[area.room], Math.round(r.W / 2), deck + 138, { align: 'center', scale: 2, colors: ['#ffffff', '#d8e8ff', '#8ab0e8'], depth: 1 });   // on the deck the area's name stays, under the map
+      else if (area.t > 0) {   // area name card slides down, then up
         const w = E.font.width(AREAS[area.room]) + 20, y = Math.round(4 - (Math.max(0, area.t - 2.3) + Math.max(0, .3 - area.t)) * 90);
         E.ui.box(g, (r.W - w) / 2, y, w, 18, WIN); txt(g, AREAS[area.room], r.W / 2, y + 5, '#ffffff', { align: 'center' });
       }
     });
+  }
+  // a map of the three rooms on the deck (s: its scale): the hero's lit, where he stands blinking
+  function minimap(g, x, y, s = 1) {
+    const room = roomOf(hero.x), C = ['#4a9a4a', '#7a8a56', '#5a5486'], w = 22 * s, h = 16 * s;
+    for (let i = 0; i < 3; i++) { px.rect(g, x + i * (w + 2), y, w, h, i === room ? '#fff4c0' : '#1a1838'); px.rect(g, x + i * (w + 2) + 1, y + 1, w - 2, h - 2, i === room ? C[i] : E.shade(C[i], -.45)); }
+    if (Math.floor(game.real * 3) % 2) px.rect(g, x + Math.round(hero.x / ROOM[0] * (w + 2)) - s, y + 1 + Math.round(clamp(hero.y / ROOM[1], 0, 1) * (h - 4)), 2 * s, 2 * s, '#ffffff');
   }
   return { view: 'threequarter', views: ['threequarter', 'topdown', 'iso'], input: 'DEFAULT', res: 'ps1', propSize: 1.25, pausable: true, touch: ['attack', 'confirm'], enter: start, update, draw,
     camera: { zoom: [.75, 2], rotate: true },   // a TileMap scene rotates cleanly

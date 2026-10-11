@@ -25,7 +25,7 @@ const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer:
 const ALL = {
   GAMES: 'six working games and an animation lab',
   CONTENTS: "a title menu plus six vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE, STEALTH)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
-  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg or #animlab to the address to start a slice.'
+  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg, #stealth or #animlab to the address to start a slice.'
 };
 const kit = id => ({
   EDITION: id + ' kit', GAMES: 'one working game to copy',
