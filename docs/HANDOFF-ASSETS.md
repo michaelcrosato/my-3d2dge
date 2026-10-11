@@ -22,13 +22,16 @@ report instead of building the rest.
 - Run it at **extra (xhigh)** effort (section 11), one phase per pull request, in order. The prompt is in section 12.
 - Engine work goes into the **full engine only**. The agent edition gets stubs that warn once, as it does for props
   (A:3488-3489), plus one line in its map. `npm run test:agent` keeps it a subset.
-- The manuals are nearly full. Estimated today:
-  - the agent edition's header: 9,857 of 10,000 tokens (about 143 left);
-  - `API.md`: 14,181 of 15,000;
-  - `API-INDEX.md`: 34,330 of 37,000.
+- The manuals are nearly full. Estimated at v0.26.1:
+  - the agent edition's header: 9,903 of 10,000 tokens (about 97 left);
+  - `API.md`: 14,580 of 15,000;
+  - `API-INDEX.md`: 34,764 of 37,000.
 
   Detail goes into the new `docs/ASSETS.md`, which gets its own budget, and into the index; each card gets one line.
-- Line numbers are as of v0.25.0. `F:` is `engine/my-3d2dge.js`; `A:` is `engine/my-3d2dge-agent.js`.
+- Line numbers are as of v0.25.0, and v0.26.x moved some engine lines, so search by name. `F:` is
+  `engine/my-3d2dge.js`; `A:` is `engine/my-3d2dge-agent.js`.
+- Each phase takes the next minor version when it merges (other work may merge in between). Section 14 logs where
+  the work stands.
 
 ## 1. Why now
 
@@ -464,7 +467,7 @@ named materials draw objects at least as well as our props, in every view?". It 
 **Done when:** the lab plays on the preview, the pull request shows the sheets and numbers, and section 7's gate has
 been checked.
 
-### Phase 1: materials and shapes in the engine (v0.26.0, full engine)
+### Phase 1: materials and shapes in the engine (the next minor version, full engine)
 
 1. **The material registry**, `E.MATERIALS` and `E.PATTERNS`.
    - Register every existing face, roof, tile style and `E.tex` texture with its own function. Prove it is pixel for
@@ -506,9 +509,9 @@ been checked.
    - Each entry stays within the token budget.
    - `contract-test` runs the new examples on both editions (stubs on the agent edition).
    - `test:determinism` and `test:replay` stay green.
-8. **Version and changelog:** v0.26.0, with lines under Rendering, Art, Engine, Tools and Docs.
+8. **Version and changelog:** the next minor version, with lines under Rendering, Art, Engine, Tools and Docs.
 
-### Phase 2: the store and its importers (v0.27.0)
+### Phase 2: the store and its importers (the next minor version)
 
 1. **The tools.** `npm` scripts follow the `mocap:*` pattern: `assets:fetch`, `assets:import`, `assets:set`,
    `assets:sheet`, `test:assets`.
@@ -549,7 +552,7 @@ been checked.
 7. **`docs/ASSET-IMPORT.md`**, like `docs/MOCAP.md`: the pipeline, adding a library step by step, the sources with
    licenses and dates, provenance, fit, costs and limits.
 
-### Phase 3: in the games (v0.28.0)
+### Phase 3: in the games (the next minor version)
 
 1. **Emberdeep.**
    - Themes' dressing lists can name shapes: `WLD_dress` gains a shape entry beside `WLD_pp`.
@@ -589,8 +592,9 @@ been checked.
 
 **The gate (end of Phase 0).** Stop and report instead of building Phase 1 if any of these holds. That keeps the
 owner's rule: don't push on where the goal can't be met.
-- The shapes don't read at least as well as our props in iso and three-quarter. You judge this from the sheets first;
-  the owner judges it on the preview.
+- The shapes don't read at least as well as our props in iso and three-quarter.
+  - You judge this from the sheets, and log the call.
+  - Don't wait for the owner: they can overrule later on the preview, and a revert undoes it.
 - The median hand-written shape costs more than 150 tokens.
 - A typical shape (30 parts or fewer) takes more than 4 ms to rasterize at zoom 1 headless. At that rate, 100 new shapes
   would stall a first frame.
@@ -624,7 +628,7 @@ owner's rule: don't push on where the goal can't be met.
 - **Kits must fit a 200k context.** Kits embed the full engine, so the renderer and the core library grow every kit.
   Keep both lean, measure the kits before and after (README's table), and never inline the store into a kit.
 - **`fetch()` doesn't work from `file://`.** Sets are `.js` files that assign a global.
-- **The agent header has about 143 tokens left.** Keep its map line short, or trim another line.
+- **The agent header has about 97 tokens left.** Keep its map line short, or trim another line.
 - **Emberdeep's core files stay as they are** (`DESIGN.md`).
 - **Quaternius' license drifts.** Its site-wide license (QAL v1.0, 2026-08-28) forbids repackaging "regardless of how
   much the Assets have been modified", while most of its pack pages still say CC0. So: no Quaternius models unless the
@@ -682,13 +686,25 @@ owner's rule: don't push on where the goal can't be met.
 
 ## 12. The prompt
 
+Run it at extra (xhigh) effort, in a fresh session:
+
 ```
-Implement docs/HANDOFF-ASSETS.md in this repository, one phase per pull request, in order, at extra (xhigh) effort.
-Read CLAUDE.md, DOCTRINE.md and docs/MOCAP.md first, then the plan. Phase 0 ends at a gate (section 7): if any kill
-criterion holds, stop, report what you found with the sheets and numbers, and build nothing more. Make reversible calls
-at once and log them (D13); wait only on what the plan marks hard to undo (licenses beyond CC0, spending). Keep every
-existing prop, wall, roof, tile style and texture drawing exactly as it does now. Report each phase with its version,
-commit and the sheets that show it.
+Run docs/HANDOFF-ASSETS.md to completion: Phases 0 to 4 in order, each its own pull request, merged as CLAUDE.md
+says (npm run test:changed green, squash merge, then the full npm test in the background, fixing forward). Start from
+the latest origin/main, and read CLAUDE.md, DOCTRINE.md, docs/MOCAP.md and the whole plan first. If section 14 shows
+phases already done, resume from the first phase not done.
+- Phase 0 ends at the gate in section 7. Judge it yourself from the sheets and numbers. If any kill criterion holds,
+  stop and report. Otherwise go straight on to Phase 1 without waiting for me.
+- Make reversible calls at once and log them (D13).
+- Licenses: CC0 only. Spending (Phase 4's benchmark re-run): ask me with the 15-minute wake-up (D11). With no answer,
+  skip the paid run and finish the rest.
+- Every existing prop, wall, roof, tile style and texture draws exactly as before; prove it with filmstrip --compare
+  --expect-same.
+- After each merge, read that pull request's Codex review and fix its real findings in a follow-up (or in the next
+  phase's pull request), resolving the threads. Then add the phase's row to section 14.
+- Use subagents for Phase 2's per-library curation and Phase 4's authoring test.
+- When Phase 4 is done, fold what lasts into docs/ASSETS.md and docs/ASSET-IMPORT.md and delete this plan.
+- Report each phase's version, commit and sheets.
 ```
 
 ## 13. Done means
@@ -702,3 +718,11 @@ commit and the sheets that show it.
   every entry.
 - The starters and the template game use it. The four manuals point to it in a line each, within their budgets.
 - Phase 4's numbers are in `DOCTRINE.md` or the pull request, and this file is deleted.
+
+## 14. Progress
+
+One row per merged phase, added by whoever merges it, so a fresh session knows where to pick up.
+
+| Phase | Version | Pull request, commit | Gate numbers and notes | Next |
+| --- | --- | --- | --- | --- |
+| The plan | v0.25.1 to v0.26.2 | #74 to #78, and this plan's prompt update | The probe: 8 objects at 71-330 characters, right in every view. Reviews: 20 findings, all fixed. | Phase 0 |
