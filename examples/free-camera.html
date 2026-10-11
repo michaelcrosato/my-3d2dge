@@ -773,9 +773,9 @@ class Input {
      *  moved */
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     /** stick: the touch stick's direction [x, y], length <= 1; stickOn: a finger is on it; padMove: the gamepad's
-     *  left stick after the dead zone; padAim: its right stick, or null when centered; aimSource: what aims right
-     *  now: 'move' | 'mouse' | 'pad' */
-    this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this._padPrev = []; this.aimSource = 'move';
+     *  left stick after the dead zone; padAim: its right stick, or null when centered; padPrev: which gamepad buttons
+     *  were down at the last step; aimSource: what aims right now: 'move' | 'mouse' | 'pad' */
+    this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this.padPrev = []; this.aimSource = 'move';
     /** deadzone: how far a gamepad stick moves before it counts (0..0.8); padIndex, padId: the gamepad in use (null
      *  and '' without one); lastDevice: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the
      *  right button prompts) */
@@ -893,7 +893,7 @@ class Input {
   clear() {
     this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {};
     this.padMove = [0, 0]; this.padAim = null;
-    this._stickEnd({ pointerId: this._stickId });
+    this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
   }
   /** any action pressed this step (title screens: "press any button") */
@@ -918,9 +918,9 @@ class Input {
     const p = Array.from(pads || []).find(p => p && p.connected !== false && p.index === this.padIndex)
       || Array.from(pads || []).find(p => p && p.connected !== false);
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
-      this._padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); });
+      this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); });
       for (const c of ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']) this.release(c);
-      this._padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
+      this.padPrev = []; this.padMove = [0, 0]; this.padAim = null; this.padAxes = [];
       this.padIndex = p ? p.index : null; this.padId = p ? p.id : '';
       if (this.aimSource === 'pad') this.aimSource = 'move';
     }
@@ -931,7 +931,7 @@ class Input {
       const aim = dz(p.axes[2] || 0, p.axes[3] || 0);
       this.padAim = Math.hypot(...aim) > 0 ? [aim[0], aim[1] * (this.invertAimY ? -1 : 1)] : null;
       if (this.padAim || Math.hypot(...this.padMove) > 0) { this.aimSource = 'pad'; this.lastDevice = 'gamepad'; }
-      p.buttons.forEach((b, i) => { const on = b.pressed; if (on && !this._padPrev[i]) this.press('Pad' + i); if (!on && this._padPrev[i]) this.release('Pad' + i); this._padPrev[i] = on; });
+      p.buttons.forEach((b, i) => { const on = b.pressed; if (on && !this.padPrev[i]) this.press('Pad' + i); if (!on && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = on; });
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
@@ -960,7 +960,8 @@ class Input {
     const rc = this.screen.canvas.getBoundingClientRect();
     if (this.stickSide === 'right' ? e.clientX - rc.left < rc.width * .5 : e.clientX - rc.left > rc.width * .5) return;
     this.screen.canvas.setPointerCapture(e.pointerId); this.aimSource = 'move'; this.lastDevice = 'touch';
-    this._stickId = e.pointerId; this.stickOn = true; this._stickO = [e.clientX, e.clientY]; this.stick = [0, 0];
+    /** stickId: the pointer (finger) holding the touch stick */
+    this.stickId = e.pointerId; this.stickOn = true; this._stickO = [e.clientX, e.clientY]; this.stick = [0, 0];
     if (!this._stickEl) {
       const mkEl = (s, css) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;pointer-events:none;border-radius:50%;z-index:3;' + css; d.style.width = d.style.height = s + 'px'; this.screen.canvas.parentElement.appendChild(d); return d; };
       this._stickEl = mkEl(96, 'border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06)');
@@ -969,12 +970,12 @@ class Input {
     this._stickDraw();
   }
   _stickMove(e) {
-    if (!this.stickOn || e.pointerId !== this._stickId) return;
+    if (!this.stickOn || e.pointerId !== this.stickId) return;
     let dx = (e.clientX - this._stickO[0]) / this.stickRadius, dy = (e.clientY - this._stickO[1]) / this.stickRadius;
     const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
     this.stick = [dx, dy]; this._stickDraw();
   }
-  _stickEnd(e) { if (e.pointerId !== this._stickId) return; this.stickOn = false; this.stick = [0, 0]; if (this._stickEl) this._stickEl.style.display = this._knobEl.style.display = 'none'; }
+  _stickEnd(e) { if (e.pointerId !== this.stickId) return; this.stickOn = false; this.stick = [0, 0]; if (this._stickEl) this._stickEl.style.display = this._knobEl.style.display = 'none'; }
   _stickDraw() {
     const rc = this.screen.canvas.getBoundingClientRect(), pr = this.screen.canvas.parentElement.getBoundingClientRect();
     const ox = this._stickO[0] - pr.left, oy = this._stickO[1] - pr.top;

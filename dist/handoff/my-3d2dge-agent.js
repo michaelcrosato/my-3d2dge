@@ -704,7 +704,7 @@ class Input {
     this.screen = screen; this.use(map);
     this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {}; this._rk = {};
     this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._taps = new Set(); this._tapsDue = new Set();
-    this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this._padPrev = []; this.padIndex = null; this.deadzone = .18;
+    this.mouse = { cx: 0, cy: 0, active: false }; this.padMove = [0, 0]; this.padPrev = []; this.padIndex = null; this.deadzone = .18;
     const el = screen.canvas; if (!el) return;
     const addEventListener = (type, fn) => window.addEventListener(type, fn, { signal }), typing = e => { const t = e.target; return !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(t.type))); };
     const at = e => { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; };
@@ -762,11 +762,11 @@ class Input {
     this.clock += dt;
     let p = null;
     try { p = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).find(q => q && q.connected !== false) || null; } catch (e) { /* gamepads blocked */ }
-    if ((p ? p.index : null) !== this.padIndex) { this._padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); this._padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; }
+    if ((p ? p.index : null) !== this.padIndex) { this.padPrev.forEach((on, i) => { if (on) this.release('Pad' + i); }); this.padPrev = []; this.padMove = [0, 0]; this.padIndex = p ? p.index : null; }
     if (p) {
       const x = p.axes[0] || 0, y = p.axes[1] || 0, l = Math.hypot(x, y), d = clamp(this.deadzone, 0, .8), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;
       this.padMove = [x * k, y * k];
-      p.buttons.forEach((b, i) => { if (b.pressed && !this._padPrev[i]) this.press('Pad' + i); if (!b.pressed && this._padPrev[i]) this.release('Pad' + i); this._padPrev[i] = b.pressed; });
+      p.buttons.forEach((b, i) => { if (b.pressed && !this.padPrev[i]) this.press('Pad' + i); if (!b.pressed && this.padPrev[i]) this.release('Pad' + i); this.padPrev[i] = b.pressed; });
     }
     for (const c of this._tapsDue) this.release(c);   // a tap is held for the one step after it
     const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;

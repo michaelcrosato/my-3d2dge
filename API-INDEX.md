@@ -233,9 +233,11 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.padId = ''` †: the gamepad in use (null and '' without one)
 - `input.padIndex = null`: the gamepad in use (null and '' without one)
 - `input.padMove = [0, 0]`: the gamepad's left stick after the dead zone
+- `input.padPrev = []`: which gamepad buttons were down at the last step
 - `input.preset` †: preset: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own)
 - `input.screen`: screen: the game's screen (mouse positions are read through it
 - `input.stick = [0, 0]` †: the touch stick's direction [x, y], length <= 1
+- `input.stickId` †: the pointer (finger) holding the touch stick
 - `input.stickOn = false` †: a finger is on it
 - `input.stickRadius = 44` †: how far (CSS pixels) a finger drags for full tilt
 - `input.stickSide = 'left'` †: 'left' or 'right', the half of the screen the stick lives on
