@@ -121,13 +121,17 @@ function heroReact(hit) {
 }
 /** knocked flat: he turns to the blow and falls back from it ('down'), lies a moment, gets up (invulnerable while
  *  down). The body holds that facing on the floor (it no longer swings round after the cursor). A quick fall: the body
- *  hits the floor in ~0.16 s, lies until t and is up ~0.35 s later (the rig rises at a steady rate), and from 60% of t a
- *  dodge cuts it short: a tech roll straight off the floor. (A full second flat from a trash monster read as sluggish) */
+ *  hits the floor in ~0.16 s, lies until t, then gets up through the engine's get-up (E.ACTIONS.getUp: he sits up, comes
+ *  to one knee and stands, ~0.45 s), and from 60% of t a dodge cuts it short: a tech roll straight off the floor. (A full
+ *  second flat from a trash monster read as sluggish) */
 function knockDown(h, t = .45) {
   const f = h.hitA !== undefined ? h.hitA : h.facing; h.facing = f;
-  startAction(h, { name: 'down', cancel: false, moveK: 0, face: f, dur: t + .35, rig: { down: 1 }, update(dt) {
-    this.rig.down = this.t < t ? 1 : 0; this.cancel = this.t >= t * .6; h.inv = Math.max(h.inv, .2);
-    return (this.t += dt) < this.dur;
+  let up = null;
+  startAction(h, { name: 'down', cancel: false, moveK: 0, face: f, rig: { down: 1 }, update(dt) {
+    this.t += dt; this.cancel = this.t >= t * .6; h.inv = Math.max(h.inv, .2);
+    if (this.t < t) return true;
+    if (!up) { up = new E.Action('getUp', { body: h, speed: 1.8 }); up.update(.22 / 1.8); }   // (he already lies flat: from its 'sit')
+    const going = up.update(dt); this.rig = up.rigState(); return going;
   } });
 }
 /** the killing blow has weight: a long hard stop, a red flash, a heavy shake, then the world crawls (slow motion for a
