@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.25.5 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.26.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -13,7 +13,7 @@
        To make a new game, copy the slice closest to your genre, then replace everything between
        GAME START and GAME END with only your game. Keep everything else in this file as it is.
   HUMANS: open this file in a browser and play. Press ? for the API card.
-  Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg or #animlab to the address to start a slice.
+  Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg, #stealth or #animlab to the address to start a slice.
 -->
 <html lang="en">
 <head>
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.25.5)
+# my-3D2dge API card (v0.26.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -60,7 +60,7 @@ game.start({
 
 ## Look target (read this before drawing anything)
 Aim above SNES, level with the best PS1 / N64 2D games (Symphony of the Night, Metal Slug, Legend of Mana, Klonoa). Games that skip these steps look like Atari games. **Every game should use all of them:**
-1. **Resolution** `res: 'ps1'` (320x240) or `'snes'`, and characters 40-60 px tall: `new E.Humanoid({ size: 1.3 })` (HD style is the default: shaded volumetric limbs, outfits, hair).
+1. **Resolution** `res: 'ps1'` (320x240) or `'snes'`, with `expand: true` so it fills any screen (anchor the HUD to `r.W` / `r.H`), and characters 40-60 px tall: `new E.Humanoid({ size: 1.3 })` (HD style is the default: shaded volumetric limbs, outfits, hair).
 2. **Dress the character**: `outfit: 'tunic' | 'robe' | 'coat'`, `hair: 'short' | 'spiky' | 'long' | 'ponytail'`, `hat`, `armor: true`, `cape`, `sleeves`, and a real palette in `colors` (never leave the defaults on everyone).
 3. **Backdrop behind every level**: `const bg = new E.Backdrop('castle-night')` then `bg.draw(r)` first in `draw`. Presets: `day dusk night castle-night city-night desert forest ocean cave space`, or your own `{ sky, sun | moon, stars, starsY: .7, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' | 'fog' | 'stalactites', color, y, height, parallax, fill }] }` (`starsY` = how far down the stars reach; a layer fills the screen below its skyline unless `fill: false`).
 4. **Textured tiles**: PlatformMap styles `stone` (with `moss`), `brick`, `wood`, `metal`, `ground` (with `flower`), `block`, `pipe`, `bonus`; TileMap floors from `E.tex.*`, TileMap walls with `face: 'brick' | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge'` and tops with `roof: 'tiles' | 'slab' | 'leaves' | 'grass'` (a village = timber and plaster houses with tile roofs, hedges, rock cliffs).
@@ -104,8 +104,9 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - Errors show in a red box on screen and in the console. Fix the first one first.
 
 ## Game
-`new E.Game({ canvas: 'screen', view, views, res, input, bg })`
+`new E.Game({ canvas: 'screen', view, views, res, expand, input, bg })`
 - `res`: `'nes'` 256x240, `'snes'` 256x224, `'genesis'` 320x224, `'gb'` 160x144, `'gba'` 240x160, `'ps1'` / `'n64'` 320x240, `'wide'` 400x225, or `[w, h]`. Fixed pixels, whole-number scaling. Leave it out for an adaptive size.
+- `expand: true`: full screen at any shape, no bars. `res` becomes the least the screen shows and `r.W` x `r.H` grows to fill the window (a 16:9 monitor shows about 427x240 of `'ps1'`, a phone held upright about 320x690). Anchor the HUD to `r.W` and `r.H`, and give the level something to show in the extra space (more of it, a backdrop, a HUD deck under it on a tall screen). `expand: { maxW, maxH }` caps the growth. A scene may set it too.
 - Adaptive size: `minW` / `minH` set the scale (the screen shows at least that many pixels), `maxW` / `maxH` cap the view (the rest is letterboxed). `portrait: { maxH: 1000 }` overrides them while the screen is taller than wide, so a phone held upright (9:16) is filled instead of showing a band across its middle. `game.screen.portrait` says which way it is.
 - `input`: `'DEFAULT'` (top-down action), `'PLATFORMER'`, `'SHMUP'`, or your own `{ action: ['KeyQ', 'Pad0'] }`.
 - `views`: the views your game supports; `game.nextView()` cycles them (bind it to a key).
@@ -126,7 +127,7 @@ game.start({ scene: 'title', scenes: {
           enter(data) { /* build the level */ }, exit() {}, update(dt) {}, draw(r) {} }
 } });
 ```
-`game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `touch`, `propSize` are applied on entry.
+`game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `propSize` are applied on entry.
 
 ## Standard features (every game has them: don't build your own)
 With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap, a top-right button, the menu; leaving it is remembered), **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling or zooming on the canvas).
@@ -139,8 +140,8 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - DEFAULT adds `attack` (J, X, click), `dash` (Space, Shift, K), `skill` (L, E, right click), `jump` (Z). PLATFORMER: `jump` (Space, Z, K, pad A), `attack` (X, J, click), `dash` (Shift, C, L), `skill`. SHMUP: `fire` (Space, Z, J, click), `bomb` (X, K).
 - `down(a)`, `pressed(a)`, `released(a)`, `repeat(a, delay, rate)` (menus), `buffered(a, win)` + `consume(a)`, `consumeAll()`, `anyPressed()`, `move()` (screen direction `[x, y]`, length up to 1), `use(preset)`, `touchButtons(['jump', 'attack'])`.
 - `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
-- Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`; diagnostics: `padIndex`, `padId`, `padAxes`, `padPrev`, `lastDevice`. Controllers are detected in any browser slot, and disconnects release their inputs. Bind `PadAxisUp/Down/Left/Right` to menu actions for left-stick navigation.
-- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
+- Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`; diagnostics: `padIndex`, `padId`, `padAxes`, `padPrev`, `lastDevice`. Controllers are detected in any browser slot, and disconnects release their inputs. The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
@@ -269,7 +270,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.25.5</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.26.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -297,7 +298,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.25.5  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.26.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -375,7 +376,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.25.5', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.26.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -830,8 +831,9 @@ class Screen {
      *  presenting); listeners: functions called after every resize */
     this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0; this.listeners = [];
     /** scale: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black
-     *  bars), 'fill' (the largest fit, pixels a device pixel apart in size) or 'auto' (fill on high-density screens,
-     *  phones and tablets, where that difference can't be seen; sharp elsewhere). game.settings.scale sets it */
+     *  bars unless o.expand grows the picture into them), 'fill' (the largest fit, pixels a device pixel apart in size)
+     *  or 'auto' (fill on high-density screens, phones and tablets, where that difference can't be seen; sharp
+     *  elsewhere). game.settings.scale sets it */
     this.scale = 'auto';
     this.resize();
     if (canvas) addEventListener('resize', () => this.resize(), { signal });
@@ -857,8 +859,11 @@ class Screen {
     const fix = this.fixedRes(o);
     if (fix) {
       // fixed resolution: whole-number scale, letterboxed (or the largest fit: scale). HUD pixel positions stay the same on every screen.
-      const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2);
-      this.W = fix[0]; this.H = fix[1]; this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
+      // o.expand: the resolution is the least the screen shows, and the picture grows on both sides to fill the window
+      // (no bars at any shape, up to expand.maxW x maxH): a HUD anchors to W and H
+      const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2), x = o.expand;
+      this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
+      this.W = x ? clamp(Math.ceil(pw / this.S - 1e-6), fix[0], x.maxW || 1e4) : fix[0]; this.H = x ? clamp(Math.ceil(ph / this.S - 1e-6), fix[1], x.maxH || 1e4) : fix[1];
     } else {
       const S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW)));
       this.S = S; this.W = Math.min(o.maxW, Math.ceil(pw / S)); this.H = Math.min(o.maxH, Math.ceil(ph / S));
@@ -979,6 +984,7 @@ class Input {
       let codes = map[a].slice(); const b = B[a];
       if (b && this.rebindable(a, map)) for (const k of ['keys', 'pad']) if (Array.isArray(b[k])) codes = codes.filter(c => padCode(c) !== (k === 'pad') || FIXED_CODES.has(c)).concat(b[k]);
       if (a === 'start' || a === 'pause') codes.push('Act:menu');   // (the touch START)
+      if (STICK_CODES[a]) codes.push(STICK_CODES[a]);   // (the gamepad's left stick; the touch stick presses 'Act:' + a)
       this.map[a] = [...new Set(codes), 'Act:' + a];
     }
     this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
@@ -1049,13 +1055,24 @@ class Input {
   /**
    * On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide
    * them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack:
-   * 'B' }, force }). The other half of the screen is a move stick. START is the menu: it starts on a title and pauses a
-   * pausable scene, as a gamepad's Start does
+   * 'B' }, force }). The other half of the screen is a move stick (past halfway it presses up, down, left and right too,
+   * as a d-pad does: menus and ladders). START is the menu: it starts on a title and pauses a pausable scene, as a
+   * gamepad's Start does
    */
   touchButtons(actions, o = {}) {
     if (!this.screen.canvas) return null;
     this._touchArgs = { actions, o }; this._touchLabels = o.labels || null;
     return this._touchSync();
+  }
+  /** where the touch buttons (START too) cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W
+   *  and r.H), or null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself) */
+  touchArea() {
+    const el = this._touchEl, S = this.screen; if (!el || !S.canvas || !el.isConnected) return null;
+    const cr = S.canvas.getBoundingClientRect(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const b of el.querySelectorAll('button')) { const q = b.getBoundingClientRect(); x0 = Math.min(x0, q.left); y0 = Math.min(y0, q.top); x1 = Math.max(x1, q.right); y1 = Math.max(y1, q.bottom); }
+    if (x1 < x0) return null;
+    const X = v => ((v - cr.left) * S.dpr - S.OX) / S.S, Y = v => ((v - cr.top) * S.dpr - S.OY) / S.S;
+    return { x0: X(x0), y0: Y(y0), x1: X(x1), y1: Y(y1) };
   }
   /** build the touch buttons again from the player's settings (touch, hand, touchSize, touchOpacity) */
   _touchSync() {
@@ -1213,9 +1230,14 @@ class Input {
     if (!this.stickOn || e.pointerId !== this.stickId) return;
     let dx = (e.clientX - this._stickO[0]) / this.stickRadius, dy = (e.clientY - this._stickO[1]) / this.stickRadius;
     const l = Math.hypot(dx, dy), d = clamp(this.stickDeadzone, 0, .5), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;   // a thumb resting on the glass doesn't creep
-    this.stick = [dx * k, dy * k]; this._stickDraw();
+    this.stick = [dx * k, dy * k]; this._stickDirs(); this._stickDraw();
   }
-  _stickEnd(e) { if (e.pointerId !== this.stickId) return; this.stickOn = false; this.stick = [0, 0]; if (this._stickEl) this._stickEl.style.display = this._knobEl.style.display = 'none'; }
+  _stickEnd(e) { if (e.pointerId !== this.stickId) return; this.stickOn = false; this.stick = [0, 0]; this._stickDirs(); if (this._stickEl) this._stickEl.style.display = this._knobEl.style.display = 'none'; }
+  // past halfway the stick presses the direction actions, as a d-pad would (and lets go of them)
+  _stickDirs() {
+    const [x, y] = this.stick, on = [y < -.5, y > .5, x < -.5, x > .5], was = this._sd || (this._sd = [false, false, false, false]);
+    ['up', 'down', 'left', 'right'].forEach((d, i) => { if (on[i] !== was[i]) { was[i] = on[i]; if (on[i]) this.press('Act:' + d); else this.release('Act:' + d); } });
+  }
   _stickDraw() {
     const rc = this.screen.canvas.getBoundingClientRect(), pr = this.screen.canvas.parentElement.getBoundingClientRect();
     const ox = this._stickO[0] - pr.left, oy = this._stickO[1] - pr.top;
@@ -1233,7 +1255,9 @@ const MENU_KEYS = {
 /* rebinding: the codes a player may bind (not Escape, Enter, the F keys, Start or Home: the menus and the browser keep
    them), the arrow keys and d-pad that stay on the moves whatever is bound, and which codes are a gamepad's */
 const BINDABLE = /^(Key[A-Z]|Digit\d|Numpad\d|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|Tab|Backspace|Backquote|Minus|Equal|Bracket(Left|Right)|Backslash|Semicolon|Quote|Comma|Period|Slash|CapsLock|Mouse[0-4]|Pad([0-8]|1[0-5]))$/;
-const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15']);
+const FIXED_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pad12', 'Pad13', 'Pad14', 'Pad15', 'PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight']);
+/* the left stick past halfway presses the direction actions, as the d-pad does (menus, dialog choices, ladders) */
+const STICK_CODES = { up: 'PadAxisUp', down: 'PadAxisDown', left: 'PadAxisLeft', right: 'PadAxisRight' };
 const padCode = c => c.startsWith('Pad');
 /* a standard gamepad's buttons by position (0 bottom, 1 right, 2 left, 3 top, 4-7 shoulders and triggers, 8 back, 9 start,
    10-11 stick clicks, 12-15 d-pad, 16 home), as each family prints them */
@@ -2162,8 +2186,10 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 
 class Game {
   /**
-   * new E.Game({ canvas, view, views, res, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap',
-   * corner: true, autoPause: true, id }).
+   * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
+   * fullscreen: 'tap', corner: true, autoPause: true, id }).
+   * res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows
+   * the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there).
    * headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes
    * update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in
    * a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and
@@ -2182,8 +2208,8 @@ class Game {
       if (!o.canvas) o.canvas = document.getElementById('screen') || document.querySelector('canvas') || Game._makeCanvas();
     }
     if (typeof o.input === 'string') o.input = Input[o.input.toUpperCase()] || (warn('input:' + o.input, 'unknown input preset "' + o.input + '" (use DEFAULT, PLATFORMER or SHMUP)'), Input.DEFAULT);
-    /** o: the options the game was made with, the defaults filled in (view, res, minW, minH, maxW, maxH, bg, step,
-     *  input, loop, headless) */
+    /** o: the options the game was made with, the defaults filled in (view, res, expand, minW, minH, maxW, maxH, bg,
+     *  step, input, loop, headless) */
     this.o = Object.assign({ view: 'iso', minH: 190, minW: 300, maxW: 560, maxH: 330, bg: '#07060d', step: 1 / 120, input: Input.DEFAULT, loop: !this.headless }, o);
     // every listener the engine adds to the window, the document, the canvas and its buttons goes through this: dispose() removes them all
     this._abort = typeof AbortController === 'function' ? new AbortController() : null;
@@ -2421,8 +2447,9 @@ class Game {
   /**
    * Start the loop. Either one scene:  game.start({ update(dt), draw(r) })
    * or several:  game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
-   * A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, touch } (all optional);
-   * view / views / input ('PLATFORMER') / res ('snes') / touch (['jump', 'attack']) are applied when it starts.
+   * A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, expand, touch } (all
+   * optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied
+   * when it starts (res and expand stay until another scene sets them).
    * start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance().
    * boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c):
    * the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
@@ -2566,7 +2593,7 @@ class Game {
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
     if (s.input) this.input.use(s.input);
-    if (s.res) this.screen.setOptions({ res: s.res });
+    if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
     if (s.touch) this.input.touchButtons(s.touch);
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
     if (s.enter) s.enter(data);
@@ -6267,8 +6294,12 @@ class Dialog {
   }
   _dims() {
     const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this.pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
-    const pl = this._place || this.place, y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
-    return { x: Math.round((W - w) / 2), y, w, h, lh, tx, P };
+    const pl = this._place || this.place; let x = Math.round((W - w) / 2), y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
+    const t = this._y === undefined && pl === 'bottom' && this.game.input.touchArea && this.game.input.touchArea();
+    if (t && x + w > t.x0 && x < t.x1 && y + h > t.y0) {   // clear of the touch buttons: beside them where it fits, else above them
+      if (t.x0 - 4 - w >= 4) x = Math.floor(t.x0 - 4 - w); else if (t.x1 + 4 + w <= W - 4) x = Math.ceil(t.x1 + 4); else y = Math.max(4, Math.floor(t.y0 - h - 4));
+    }
+    return { x, y, w, h, lh, tx, P };
   }
   /**
    * open with one string or a list of strings (each starts a new page).
@@ -7610,8 +7641,12 @@ root.My3D2dge = E;
  *   SLICE 4  RPG BATTLE  turn-based battle (Dragon Quest, Final Fantasy): E.Menu, turns
  *   SLICE 5  BRAWLER     beat-'em-up (Final Fight, Streets of Rage): E.Combo punches, kicks,
  *                        knockback, depth lanes, waves that lock the screen, a boss
+ *   SLICE 6  ANIM LAB    every move, pose and reaction on every skin, in every view
  *   SLICE 7  STEALTH     third-person stealth (Assassin's Creed, Metal Gear): E.Mover climbing,
  *                        vaulting and gap leaps, guards with sight and suspicion, takedowns, hiding
+ * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
+ * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
+ * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
  * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.).
@@ -7620,12 +7655,16 @@ root.My3D2dge = E;
 'use strict';
 const E = My3D2dge, { px, clamp, lerp, approach, TAU } = E;
 
-/* ---- SHELL: one game, several scenes. Each slice switches view, keys and resolution on entry ---- */
-const game = new E.Game({ canvas: 'screen', res: 'ps1', view: 'side', bg: '#07060d' });
+/* ---- SHELL: one game, several scenes. Each slice switches view, keys and resolution on entry ----
+ * expand: the picture fills the window, any shape, with no bars: at least 320 x 240 (a slice's res), more on the long side */
+const game = new E.Game({ canvas: 'screen', res: 'ps1', expand: true, view: 'side', bg: '#07060d' });
 const P = game.particles, L = game.lights, A = game.audio;
 const scenes = {};
 let gpu = null;                               // WebGPU lighting, used by the adventure slice only
 const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E.store.set('best:' + k, v); return Math.max(old, v); };
+// a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
+// button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
+const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE' },
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER' },
@@ -7657,23 +7696,31 @@ addEventListener('keydown', e => {
 let wheelT = 0;
 addEventListener('wheel', e => { const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
 
-/* ---- TITLE: a lineup of HD heroes on a torch-lit castle ledge under a dusk sky ---- */
-const stage = new E.PlatformMap({ rows: ['SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS', 'SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS'], legend: { S: 1 },
+/* ---- TITLE: a lineup of HD heroes on a torch-lit castle ledge under a dusk sky. The ledge is wide enough for a wide
+ * screen and sits on the screen's bottom edge whatever its height; the logo and menu hang from the top ---- */
+const MID = 480, stage = new E.PlatformMap({ rows: ['S'.repeat(60), 'S'.repeat(60)], legend: { S: 1 },
   types: { 1: { style: 'stone', side: '#6a5a78', moss: '#4a6a3a' } }, edges: 'open' });
 const titleBg = new E.Backdrop('castle-night');
 const HEROES = [   // one hero per genre slice, each dressed with the HD rig options
-  { x: 170, face: 0, rig: new E.Humanoid({ size: 1.25, build: 'heroic', armor: true, hair: 'short', cape: { len: 6, width: 6, seg: 2.6 }, colors: { cloth: '#3a5ab0', cape: '#b02a3a', capeIn: '#5a1020', hair: '#e0b050', trim: '#e8c860' } }) },
-  { x: 205, face: 0, rig: new E.Humanoid({ size: 1.25, outfit: 'tunic', hair: 'spiky', hat: { style: 'pointed', color: '#3aa050' }, colors: { cloth: '#3aa050', pants: '#e8dcc0', hair: '#e0b040', trim: '#8a5a2a' } }) },
-  { x: 240, face: 0, rig: new E.Humanoid({ size: 1.3, build: 'bulky', weapon: null, hat: { style: 'band', color: '#e03a3a' }, colors: { cloth: '#f0f0f0', pants: '#2f5fd0' } }) },
-  { x: 275, face: Math.PI, rig: new E.Humanoid({ size: 1.25, weapon: 'gun', hat: 'cap', sleeves: 'long', colors: { cloth: '#d83a2a', pants: '#2f5fd0', glove: '#f0f0f0' } }) },
-  { x: 310, face: Math.PI, rig: new E.Humanoid({ size: 1.25, weapon: 'staff', outfit: 'robe', hair: 'ponytail', sleeves: 'long', colors: { cloth: '#6a3ab0', hair: '#c8402a', trim: '#e8c860' } }) }
+  { face: 0, rig: new E.Humanoid({ size: 1.25, build: 'heroic', armor: true, hair: 'short', cape: { len: 6, width: 6, seg: 2.6 }, colors: { cloth: '#3a5ab0', cape: '#b02a3a', capeIn: '#5a1020', hair: '#e0b050', trim: '#e8c860' } }) },
+  { face: 0, rig: new E.Humanoid({ size: 1.25, outfit: 'tunic', hair: 'spiky', hat: { style: 'pointed', color: '#3aa050' }, colors: { cloth: '#3aa050', pants: '#e8dcc0', hair: '#e0b040', trim: '#8a5a2a' } }) },
+  { face: 0, rig: new E.Humanoid({ size: 1.3, build: 'bulky', weapon: null, hat: { style: 'band', color: '#e03a3a' }, colors: { cloth: '#f0f0f0', pants: '#2f5fd0' } }) },
+  { face: Math.PI, rig: new E.Humanoid({ size: 1.25, weapon: 'gun', hat: 'cap', sleeves: 'long', colors: { cloth: '#d83a2a', pants: '#2f5fd0', glove: '#f0f0f0' } }) },
+  { face: Math.PI, rig: new E.Humanoid({ size: 1.25, weapon: 'staff', outfit: 'robe', hair: 'ponytail', sleeves: 'long', colors: { cloth: '#6a3ab0', hair: '#c8402a', trim: '#e8c860' } }) },
+  { face: Math.PI, rig: new E.Humanoid({ size: 1.25, build: 'heroic', hood: true, outfit: 'coat', sleeves: 'long', colors: { cloth: '#e8e4dc', coat: '#d8d2c8', trim: '#b02a2a', belt: '#b02a2a', pants: '#4a4a5a', boot: '#3a2e2a' } }) }   // the stealth slice's hooded assassin
 ];
+HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
+// the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
+const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
+// START picks too (the touch START, a pad's Start), as Enter does
+const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
 const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
 scenes.title = {
   view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
-  enter() { A.music('title'); game.resetCamera(); game.follow(null); game.focus(240, 0, 84); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
+  enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
-    titleMenu.update(dt);
+    if (!titleMenu.update(dt)) pickOnStart(titleMenu);
+    game.focus(MID, 0, 32 + (game.H / 2 - 42) / -game.view.bz);   // the ledge's top 42 px above the screen's bottom edge
     const t = game.time;
     HEROES.forEach((h, i) => {
       const u = (t * .45 + i * .37) % 3, swing = u < .5 ? { spec: { a0: 1.4, a1: -1.6, z0: 12, z1: 8, reach: 7.5 }, phase: u < .15 ? 'wind' : 'active', u: u < .15 ? u / .15 : (u - .15) / .35 } : null;
@@ -7681,18 +7728,22 @@ scenes.title = {
     });
   },
   draw(r) {
+    const [cw, ch] = corner(), top = r.W / 2 + 132 > r.W - cw ? Math.round(ch) : 0;   // the logo drops below the corner's buttons where it would reach them (an upright phone)
+    titleMenu.y = 76 + top;
     titleBg.draw(r);
     stage.draw(r);
-    for (const x of [140, 340]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
-    for (const x of [187, 293]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
+    for (const x of [MID - 100, MID + 100]) r.prop('torch', x, 0, 32, { size: 1.3, light: false });
+    for (const x of [MID - 53, MID + 53]) r.prop('banner', x, -8, 64, { size: 1.1, color: '#8a1a2a' });
     for (const h of HEROES) r.actor(h.x, 0, 32, (g, ox, oy) => h.rig.draw(g, ox, oy, r.view));
     r.overlay(g => {
-      E.font.title(g, 'my-3D2dge', r.W / 2, 12, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
-      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
+      E.font.title(g, 'my-3D2dge', r.W / 2, 12 + top, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+      E.font.text(g, 'My "3D" 2D Game Engine', r.W / 2, 48 + top, '#e8e0ff', { align: 'center', gradient: ['#ffffff', '#c8b8f0'], shadow: '#140c1c', outline: false });
       E.font.text(g, SLICES[titleMenu.i].about, r.W / 2, r.H - 14, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
     });
     titleMenu.draw(r);
-    r.text('Arrows + Enter   V view   - = zoom   M mute   ? API', r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
+    const dev = game.input.lastDevice, how = dev === 'touch' ? 'Stick + START' : dev === 'gamepad' ? 'D-pad + ' + game.input.label('confirm') + '   ' + game.input.label('start') + ' menu'
+      : 'Arrows + Enter   V view   - = zoom   M mute   ? API';
+    r.text(how, r.W / 2, r.H - 26, '#b8b0d8', { align: 'center', shadow: '#000', outline: false });
   }
 };
 
@@ -7703,14 +7754,20 @@ const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { 
 scenes.over = {
   view: 'side', input: 'DEFAULT', res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
-  update(dt) { overMenu.update(dt); },
-  draw(r) { overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, 60, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r); }
+  update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  draw(r) {   // centred on any screen
+    const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
+    overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
+  }
 };
 
 /* =====================================================================================
  * SLICE 1  ADVENTURE  (Secret of Mana, Zelda: ALttP). Three rooms: village, ruins, shrine. Talk, clear the ruins for
  * the key, open the great door, claim the crystal. THE LOOK: wall MATERIALS, ONE floorTex with PAINTED LIGHT, pitched
  * roofs, leaf-clump bushes, light shafts, dialog PORTRAITS.
+ * ANY SCREEN: rooms are 4:3. A wider screen shows the rooms beside this one under a dim CURTAIN (they wait, as their
+ * monsters do); a taller one (a phone held upright) keeps the room at the top and lays the HUD out on a DECK below it,
+ * where the thumbs and the touch buttons go.
  * ===================================================================================== */
 const ADV = (() => {
   const T = 16, ROOM = [14 * T, 12 * T], AREAS = ['Mana Village', 'Mossy Ruins', 'Shrine of Mana'];
@@ -7820,17 +7877,17 @@ const ADV = (() => {
   const WAIST = { z0: -10, z1: -10 }, CHARGE = { ...E.MOVES.spin, ...WAIST, a0: 2.4, crouch: .6, lean: .6 };
   // idle: poses in turn; near: turn to the hero (wave: say hello); talk: gestures; chore: a move while kneeling
   const NPCS = {
-    elder: { name: 'ELDER', idle: [null, null, 'hips'], near: 56, talk: ['block', null, 'hips', null], lines: ['Rabites overran the Mossy Ruins across the river. Press J to swing your sword and clear them out!',
+    elder: { name: 'ELDER', idle: [null, null, 'hips'], near: 56, talk: ['block', null, 'hips', null], lines: [() => 'Rabites overran the Mossy Ruins across the river. Press ' + game.input.label('attack') + ' to swing your sword and clear them out!',
       'Clear the ruins and the old chest opens. The Mana crystal sleeps in the shrine behind the great door.'] },
     florist: { name: 'LISE', face: Math.PI, idle: ['kneel', 'kneel', null], near: 36, talk: ['hips', 'cast'],   // tends the flower bed
       chore: () => new E.Attack('plunge', { hand: 'both', a0: -.5, a1: -.9, r0: 4, r1: 9, wind: .3, active: .16, recover: .45 }),
       lines: ['A rabite got into my garden again! Could you shoo it away?', 'Mind the bats in the ruins. They swoop when you get close!'] },
-    villager: { name: 'PIP', idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: ['Hi! The bridge leads to the Mossy Ruins.', 'Keep J held after a swing, then let go: a SPIN ATTACK!'] }
+    villager: { name: 'PIP', idle: [null, 'hips'], near: 50, wave: true, talk: ['hips', null], lines: ['Hi! The bridge leads to the Mossy Ruins.', () => 'Keep ' + game.input.label('attack') + ' held after a swing, then let go: a SPIN ATTACK!'] }   // a function: the player's own key
   };
   // BACKDROP (iso view): a sea of clouds
   const bg = new E.Backdrop({ sky: ['#3a74c8', '#8ac2ea', '#e4f2f4', '#9ccae6', '#5a90c8'], layers: [{ kind: 'clouds', color: '#ffffff', y: .3, height: .16, parallax: .04, drift: 3 },
     { kind: 'clouds', color: '#ffffff', y: .98, height: .4, parallax: .1, drift: 3, seed: 9 }] });
-  let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx;
+  let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx, deck = 0;   // deck: its top on screen (0: none)
   const roomOf = x => Math.floor(x / ROOM[0]), mod = (a, n) => ((a % n) + n) % n, near = (cx, cy, tag) => map.floorAt((cx + .5) * T, (cy + .5) * T) === tag;
   const txt = (g, s, x, y, c, o) => E.font.text(g, s, x, y, c, { shadow: '#07040c', outline: false, ...o });
   const talkable = () => npcs.find(n => E.dist(hero, n) < 34);
@@ -7897,7 +7954,8 @@ const ADV = (() => {
   function start() {
     map = new E.TileMap({ rows: ROWS, legend: LEGEND, types: TYPES, floorTex, ao: 8 });
     relic = map.find('relic'); entry = map.find('entry'); relic.x += T / 2; entry.x += T / 2;   // on the room's center line
-    game.cam.bounds = v => map.bounds(v); game.cam.room = ROOM;   // screen-by-screen camera
+    // screen-by-screen camera inside the map; a screen taller than the map keeps it at the top (the DECK goes below)
+    game.cam.bounds = v => { const b = map.bounds(v); return Object.assign({}, b, { y1: Math.max(b.y1, b.y0 + game.H) }); }; game.cam.room = ROOM;
     const at = map.find('hero');
     // SWORD (Secret of Mana): J chains slash, backslash, spin, kept low (a raised blade crosses his face); short holds (hold)
     // let the follow-through settle instead of freezing; hold J to CHARGE
@@ -7938,7 +7996,7 @@ const ADV = (() => {
     L.enabled = false; gpu = gpu || game.enableGPU({ map }); Object.assign(gpu, { map, enabled: true, bands: 24, wrap: .5, ambient: MOOD[0] }); A.music('adventure');
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
-  const say = (who, name, text) => { speaker = who; talk.say(text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };
+  const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG }, y: deck ? deck + 6 : undefined }); };   // on the deck: clear of the touch buttons
   function hurtHero(ang) {   // flinch, knockback, blink; true if it hurt
     if (hero.inv > 0 || won || hero.hp <= 0) return false; hero.hp -= .5; hero.inv = 1; hero.hurt = .25; hero.charge = 0; hero.combo.cancel(); hero.spin.cancel(); hero.push(Math.cos(ang) * 160, Math.sin(ang) * 160);
     game.hitFx(hero.x + Math.cos(ang) * 3, hero.y + Math.sin(ang) * 3, 12, { power: .9, angle: ang + Math.PI, color: '#ff8a6a', sound: 'hurt' }); game.flash('#ff4a3a', .06, .4);
@@ -8178,34 +8236,55 @@ const ADV = (() => {
       }, { xray: true, flash: h.hurt > .15 || h.charge >= .6 && game.time % .3 < .05, bias: over ? 2 : 0 });
       h.rig.drawSmear(r);
     }
-    shots.draw(r); drawFx(r); shafts(r, room); hud(r); talk.draw(r);
+    shots.draw(r); drawFx(r); shafts(r, room); if (game.cam.room) curtain(r, room); hud(r); talk.draw(r);
   }
-  // HUD: counters; hero status and CONTROLS, hidden during dialog
+  // the CURTAIN: what a wide screen shows beyond the hero's room, dimmed (the room's box: its floor and its walls' height)
+  function curtain(r, room) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const x of [room * ROOM[0], (room + 1) * ROOM[0]]) for (const y of [0, ROOM[1]]) for (const z of [0, 48]) { const [sx, sy] = r.w(x, y, z); x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+    [x0, y0, x1, y1] = [x0, y0, x1, y1].map(Math.round);
+    if (x0 <= 0 && y0 <= 0 && x1 >= r.W && y1 >= r.H) return;
+    r.overlay(g => px.blend(g, .62, 'normal', () => { const D = '#0a0818'; px.rect(g, 0, 0, r.W, y0, D); px.rect(g, 0, y1, r.W, r.H - y1, D); px.rect(g, 0, y0, x0, y1 - y0, D); px.rect(g, x1, y0, r.W - x1, y1 - y0, D); }));
+  }
+  // HUD: counters; hero status and CONTROLS (the player's own keys), hidden during dialog. On a DECK when the screen is tall
   function hud(r) {
-    const npc = talkable(), Y = r.H - 34;
+    const npc = talkable(), foot = Math.round(r.w(0, map.h * T, 0)[1]);   // the map's front edge on screen
+    deck = game.cam.room && r.H - foot > 96 ? foot : 0;
+    const Y = deck ? deck + 34 : r.H - 34, GX = deck ? r.W - 70 : 4, GY = deck ? deck + 10 : 4;
     r.overlay(g => {
-      E.ui.box(g, 4, 4, 66, 17, WIN); px.sprite(g, GEM, 10, 9); px.sprite(g, KEYS[0], 43, 10);
-      txt(g, String(gems).padStart(3, '0'), 18, 9, '#ffffff'); txt(g, 'x' + keys, 52, 9, '#ffffff');
+      if (deck) { E.ui.box(g, -3, deck, r.W + 6, r.H - deck + 3, WIN); minimap(g, Math.round(r.W / 2) - 70, deck + 80, 2); }   // the deck: a window under the room, a map of the rooms
+      E.ui.box(g, GX, GY, 66, 17, WIN); px.sprite(g, GEM, GX + 6, GY + 5); px.sprite(g, KEYS[0], GX + 39, GY + 6);
+      txt(g, String(gems).padStart(3, '0'), GX + 14, GY + 5, '#ffffff'); txt(g, 'x' + keys, GX + 48, GY + 5, '#ffffff');
       if (won) {
-        E.ui.box(g, r.W / 2 - 90, r.H - 62, 180, 48, WIN); E.font.title(g, 'MANA CRYSTAL!', r.W / 2, r.H - 55, { align: 'center', scale: 2, colors: ['#ffffff', '#bff8ff', '#4ac8e8'], depth: 1 });
-        return txt(g, 'Gems ' + gems + '    Best ' + best('adventure', gems), r.W / 2, r.H - 28, '#ffe08a', { align: 'center' });
+        const wy = deck ? deck + 70 : r.H - 62;
+        E.ui.box(g, r.W / 2 - 90, wy, 180, 48, WIN); E.font.title(g, 'MANA CRYSTAL!', r.W / 2, wy + 7, { align: 'center', scale: 2, colors: ['#ffffff', '#bff8ff', '#4ac8e8'], depth: 1 });
+        return txt(g, 'Gems ' + gems + '    Best ' + best('adventure', gems), r.W / 2, wy + 34, '#ffe08a', { align: 'center' });
       }
       if (talk.open) return;
       E.ui.box(g, 4, Y, 84, 30, WIN); hero.rig.drawPortrait(g, 9, Y + 5, 20, { zoom: 1.5, cape: false, bg: FACE_BG });
       txt(g, 'HERO', 36, Y + 4, '#ffe08a', { gradient: ['#fff4c0', '#e8a040'] }); E.ui.hearts(g, 36, Y + 15, hero.hp, hero.max);
-      const cx = r.W - 128;   // 'Enter Talk' blinks near a villager
-      E.ui.box(g, cx, Y + 12, 124, 18, WIN); txt(g, 'J Sword', cx + 8, Y + 17, '#d8d0f0');
-      txt(g, 'Enter Talk', cx + 56, Y + 17, npc && Math.floor(game.real * 3) % 2 ? '#ffe08a' : '#d8d0f0');
+      if (!touch()) {   // (a touch screen's buttons sit in that corner and say it themselves)
+        const a = prompt('attack', 'Sword'), b = prompt('confirm', 'Talk'), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = Y + 12;
+        E.ui.box(g, cx, cy, w, 18, WIN); txt(g, a, cx + 8, cy + 5, '#d8d0f0');
+        txt(g, b, cx + w - 8 - E.font.width(b), cy + 5, npc && Math.floor(game.real * 3) % 2 ? '#ffe08a' : '#d8d0f0');   // 'Talk' blinks near a villager
+      }
       if (npc) {   // a speech bubble: you can talk
         const [fx, fy] = r.w(npc.x, npc.y, 0), q = E.charView(r.view).p(0, 0, 44), x = Math.round(fx + q[0]), y = Math.round(fy + q[1]);
         E.ui.box(g, x - 11, y - 14, 22, 12, WIN); px.poly(g, [[x - 4, y - 3], [x + 2, y - 3], [x - 3, y + 1]], WIN.border);
         for (let k = 0; k < 3; k++) px.rect(g, x - 6 + k * 5, y - 9 - (Math.floor(game.real * 3) % 3 === k ? 1 : 0), 2, 2, '#ffe08a');
       }
-      if (area.t > 0) {   // area name card slides down, then up
+      if (deck) E.font.title(g, AREAS[area.room], Math.round(r.W / 2), deck + 138, { align: 'center', scale: 2, colors: ['#ffffff', '#d8e8ff', '#8ab0e8'], depth: 1 });   // on the deck the area's name stays, under the map
+      else if (area.t > 0) {   // area name card slides down, then up
         const w = E.font.width(AREAS[area.room]) + 20, y = Math.round(4 - (Math.max(0, area.t - 2.3) + Math.max(0, .3 - area.t)) * 90);
         E.ui.box(g, (r.W - w) / 2, y, w, 18, WIN); txt(g, AREAS[area.room], r.W / 2, y + 5, '#ffffff', { align: 'center' });
       }
     });
+  }
+  // a map of the three rooms on the deck (s: its scale): the hero's lit, where he stands blinking
+  function minimap(g, x, y, s = 1) {
+    const room = roomOf(hero.x), C = ['#4a9a4a', '#7a8a56', '#5a5486'], w = 22 * s, h = 16 * s;
+    for (let i = 0; i < 3; i++) { px.rect(g, x + i * (w + 2), y, w, h, i === room ? '#fff4c0' : '#1a1838'); px.rect(g, x + i * (w + 2) + 1, y + 1, w - 2, h - 2, i === room ? C[i] : E.shade(C[i], -.45)); }
+    if (Math.floor(game.real * 3) % 2) px.rect(g, x + Math.round(hero.x / ROOM[0] * (w + 2)) - s, y + 1 + Math.round(clamp(hero.y / ROOM[1], 0, 1) * (h - 4)), 2 * s, 2 * s, '#ffffff');
   }
   return { view: 'threequarter', views: ['threequarter', 'topdown', 'iso'], input: 'DEFAULT', res: 'ps1', propSize: 1.25, pausable: true, touch: ['attack', 'confirm'], enter: start, update, draw,
     camera: { zoom: [.75, 2], rotate: true },   // a TileMap scene rotates cleanly
@@ -8226,6 +8305,8 @@ scenes.adventure = ADV;
  *   5. LIGHT   each zone has a colored darkness; every flame punches a smooth hole in it and adds a colored glow
  *   6. CAST    engine rigs with E.MOVES move sets (a caped hero, rising skeletons, a knight), a hand-drawn bat
  *   7. HITS    game.hitFx (numbers stack in rows), a short tint and a flinch; 'die' topples, skeletons fall apart into bones
+ *   8. ANY SCREEN  wider shows more of the level; taller (a phone held upright) lifts it onto a band of SOIL, clear of the
+ *              touch buttons, and hangs the skies from the level's foot (FOOT) instead of the screen's
  * ===================================================================================== */
 const PLAT = (() => {
   const T = 16, MAXHP = 80, BONE = '#e4dcc4';
@@ -8422,6 +8503,10 @@ const PLAT = (() => {
     portrait: (g, x, y) => { E.ui.box(g, x - 2, y - 2, 44, 44, { bg: ['#4a1a3a', '#0c0612'], border: '#e0d0a8' }); px.sprite(g, VALE, x, y + 2); if (game.real % 4 < .12) px.rect(g, x + 26, y + 17, 4, 2, '#f0c8a8'); } });   // + a blink
   const fx = [], lights = [], shafts = [], addFx = (kind, x, z, o) => fx.push(Object.assign({ kind, x, z, t: 0, max: .3, size: 1, c: '#ffffff', vx: 0, vz: 0, dir: 1 }, o));
   let level, hero, rig, combo, MV, atk, charge, idle, land, foes, coins, candles, drops, lift, lives, score, gold, hp, inv, cheer, clear, spawn, gate, lava, age, hint, darkCv, rimWas;
+  // 8. ANY SCREEN: soil = the band of earth under the level on a screen taller than it (0 on a wide one); FOOT = the level's
+  // foot on screen when the camera rests on the ground (the screen's bottom edge, or the top of the soil): the skies hang from it
+  let soil = 0, FOOT = 240;
+  const soilFor = (b, H) => { const lh = b.y1 - b.y0; return H > lh ? Math.min(160, Math.round((H - lh) * .55)) : 0; };
 
   function reset(full) {
     if (full) {
@@ -8627,12 +8712,12 @@ const PLAT = (() => {
       blend(g, 'source-over', mo, () => { px.disc(g, mx, my, 16, t.sh); px.disc(g, mx - 1, my - 1, 15, t.base); px.disc(g, mx - 4, my - 5, 7, t.lt); for (const [a, b, c] of [[5, 3, 4], [-6, 6, 3], [2, -8, 2], [-2, 10, 2]]) px.disc(g, mx + a, my + b, c, t.sh); });
     }
     // the far castle (blue by moonlight, red over the moat), mist at its foot, a faster treeline
-    const cx = Math.round(r.W * .28 - r.ix * .03), cy = Math.round(r.H * .72 - r.iy * .04);
+    const cx = Math.round(r.W * .28 - r.ix * .03), cy = Math.round(FOOT * .72 - r.iy * .04);
     for (const [i, c, e, w] of [[0, '#16223e', '#34507e', '#ffc868'], [1, '#3a0e18', '#8a2a20', '#ff8a3a']]) if (Z.bg[i] > .01) blend(g, 'source-over', Z.bg[i], () => g.drawImage(castle(c, e, w), cx, cy - 170));
     blend(g, 'source-over', .8, () => { const o = ((r.ix * .05 + game.time * 3) % 320 + 320) % 320; for (let x = -o; x < r.bw; x += 320) g.drawImage(fog(Z.bg[1] > .5 ? '#b8482a' : '#5a7aa8'), x, cy - 30); });
-    if (Z.bg[0] > .01) blend(g, 'source-over', Z.bg[0], () => { const ty = Math.round(r.H * .9 - 90 - r.iy * .12), o = ((r.ix * .22) % 320 + 320) % 320; for (let x = -o; x < r.bw; x += 320) g.drawImage(treeline(), x, ty); px.rect(g, 0, ty + 90, r.bw, r.bh, '#0c1830'); });
+    if (Z.bg[0] > .01) blend(g, 'source-over', Z.bg[0], () => { const ty = Math.round(FOOT * .9 - 90 - r.iy * .12), o = ((r.ix * .22) % 320 + 320) % 320; for (let x = -o; x < r.bw; x += 320) g.drawImage(treeline(), x, ty); px.rect(g, 0, ty + 90, r.bw, r.bh, '#0c1830'); });
     if (Z.bg[2] > .01) blend(g, 'source-over', Z.bg[2], () => { for (let k = 0; k < 3; k++) {   // the sea of clouds: three billowy rows, nearer = darker and faster
-      const y = Math.round(r.H * (.58 + k * .12) - r.iy * .05 * (k + 1)), o = ((r.ix * (.05 + k * .07) + game.time * (2 + k * 2)) % 600 + 600) % 600;
+      const y = Math.round(FOOT * (.58 + k * .12) - r.iy * .05 * (k + 1)), o = ((r.ix * (.05 + k * .07) + game.time * (2 + k * 2)) % 600 + 600) % 600;
       for (let x = -o; x < r.bw; x += 600) g.drawImage(clouds(k), x, y); px.rect(g, 0, y + 70, r.bw, r.bh, E.tones(CLOUD[k]).deep); } });
   }
   function decor(r, g) {                               // baked decals behind the play layer; engine props are queued
@@ -8677,11 +8762,15 @@ const PLAT = (() => {
     }, { bias: 2 });
   }
   function draw(r) {
-    const view = r.view, t = game.time, g = r.ctx, Z = zoneAt(hero.x), tilted = view.pitchDeg > 5;
-    lights.length = shafts.length = 0;
+    const view = r.view, t = game.time, g = r.ctx, Z = zoneAt(hero.x), tilted = view.pitchDeg > 5, b = level.bounds(view);
+    lights.length = shafts.length = 0; soil = soilFor(b, r.H); FOOT = r.H - soil;
     sky(r, g, Z);                                      // 1. skies (cross-faded), moon, castle, mist, clouds
     back.draw(r); decor(r, g); mist(r, g, Z, .55, .6, -8);   // 2. castle walls, decals, props on them, the far mist layer
     level.draw(r); lavaDraw(r, g);                     // 3. the play layer, the lava painted over its tiles, the earth cut
+    if (soil) {   // 8. the SOIL under the level: the earth cut's strata, darkening; above the clouds it gives way to them
+      const top = Math.round(b.y1 - 4 - r.iy), o = ((r.ix % 160) + 160) % 160;
+      blend(g, 'source-over', 1 - Z.bg[2], () => { for (let x = -o; x < r.bw; x += 160) g.drawImage(earth(), x, top); for (let k = 0; k < 4; k++) px.rect(g, 0, top + 48 + k * 10, r.bw, k < 3 ? 10 : r.bh, ['#2a2030', '#211a28', '#18131f', '#100c16'][k]); });
+    }
     { const [ex, ey] = r.w(0, 8, 2 * T), [x1, eb] = r.w(20 * T, 8, 0), w = (x1 - ex) / 3; if (x1 > 0) for (let k = 0; k < 3; k++) g.drawImage(earth(), Math.round(ex + k * w), Math.round(ey) + 3, Math.round(w), Math.round(eb - ey) - 3); }
     const shadow = (x, z) => { const gz = tilted && level.groundBelow(x, z); if (gz !== null && gz !== false) r.shadow(x, 0, 6, .35, '#000', gz); };   // contact shadows in the 2.5D view
     for (const c of candles) if (!c.dead) {            // floating candles on iron cups: slash them for loot
@@ -8719,7 +8808,7 @@ const PLAT = (() => {
     r.queue(0, -1.5, 0, g2 => shade(g2, r, Z, Z.dark));   // full darkness: after the walls and wall props, before the characters
     r.overlay(g2 => { shade(g2, r, Z, Z.dark * .3); glow(g2); mist(r, g2, Z, .3, 1.3, 8);   // a third of it over everything, the colored glows, the near mist
       for (const [x, y, L] of shafts) blend(g2, 'lighter', .09, () => { const k = L / 126, b = y - 30 + L; px.poly(g2, [[x - 8, y - 30], [x + 8, y - 30], [x + 70 * k, b], [x + 40 * k, b]], '#8098ff'); px.poly(g2, [[x - 3, y - 30], [x + 3, y - 30], [x + 58 * k, b], [x + 50 * k, b]], '#c0c8ff'); });   // shafts end on the floor
-      const fo = ((r.ix * 1.3) % 480 + 480) % 480; if (Z.bg[1] < .99) blend(g2, 'source-over', 1 - Z.bg[1], () => { for (let x = -fo; x < r.bw; x += 480) g2.drawImage(fore(), x, r.bh - 36); });
+      const fo = ((r.ix * 1.3) % 480 + 480) % 480, fy = soil ? Math.round(b.y1 - 4 - r.iy) : r.bh; if (Z.bg[1] < .99) blend(g2, 'source-over', 1 - Z.bg[1], () => { for (let x = -fo; x < r.bw; x += 480) g2.drawImage(fore(), x, fy - 36); });
       hud(g2, r); });
     talk.draw(r);
   }
@@ -8744,11 +8833,15 @@ const PLAT = (() => {
     E.font.text(g, '♥', 40, 23, '#ff5a6a', S); E.font.text(g, '×' + lives, 48, 23, '#f0e8ff', S); coin(g, 74, 27, 0); E.font.text(g, String(gold), 81, 23, '#ffe066', S);
     const ribbon = (y, h, a) => blend(g, 'source-over', a, () => { px.rect(g, 0, y, r.W, h, '#05030a'); px.rect(g, 0, y, r.W, 1, '#d8a848'); px.rect(g, 0, y + h - 1, r.W, 1, '#d8a848'); });
     if (age < 1.8) { const a = clamp((1.8 - age) * 2, 0, 1); ribbon(58, 26, .5 * a); if (a > .3) E.font.title(g, 'Castle Approach', r.W / 2, 64, { scale: 2, align: 'center', colors: ['#ffffff', '#d8c8f0', '#9a7ad0'], depth: 1, depthColor: '#1c1430' }); }
-    else if (hint > 0 && !talk.open) { ribbon(r.H - 17, 13, .55 * clamp(hint, 0, 1)); E.font.text(g, hint > 4 ? 'Space jump  •  X slash  •  C dash  •  V 2.5D' : '↑X rise  •  ↓X dive  •  C+X thrust  •  hold X spin', r.W / 2, r.H - 14, '#e8e0ff', SC); }   // controls after the dialog
+    else if (hint > 0 && !talk.open) {   // controls after the dialog, in the player's own keys; over the soil when there is some
+      const k = a => game.input.label(a), y = soil ? r.H - soil + 6 : r.H - 17, s = hint > 4 ? [prompt('jump', 'jump'), prompt('attack', 'slash'), prompt('dash', 'dash'), touch() ? '' : 'V 2.5D'].filter(Boolean).join('  •  ')
+        : ['↑' + k('attack') + ' rise', '↓' + k('attack') + ' dive', k('dash') + '+' + k('attack') + ' thrust', 'hold ' + k('attack') + ' spin'].join('  •  '), fit = E.font.width(s) < r.W - 8;
+      ribbon(y, 13, .55 * clamp(hint, 0, 1)); E.font.text(g, s, r.W / 2, y + (fit ? 3 : 4), '#e8e0ff', fit ? SC : Object.assign({ font: 'tiny' }, SC));
+    }
     if (clear) { ribbon(40, 30, .6); E.font.title(g, 'STAGE CLEAR', r.W / 2, 46, { scale: 2, align: 'center', colors: ['#fffbe8', '#ffd36a', '#e0662a'] }); }   // a translucent ribbon keeps the lit gate visible
   }
   return { view: 'side', views: ['side', 'brawler'], input: 'PLATFORMER', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2] },   // props at the hero's scale; zoom limits, no turning
-    enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => level.bounds(v); A.music('adventure'); L.enabled = false; rimWas = game.r.rimAlpha; game.r.rimAlpha = .5;   // a stronger, zone-colored rim light
+    enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => { const b = level.bounds(v); return Object.assign({}, b, { y1: b.y1 + soilFor(b, game.H) }); }; A.music('adventure'); L.enabled = false; rimWas = game.r.rimAlpha; game.r.rimAlpha = .5;   // a stronger, zone-colored rim light
       P.ground = (x, y, z) => level.groundBelow(x, z + 1); },              // sparks and debris land and bounce on the platform under them
     exit() { game.r.rimAlpha = rimWas; P.ground = null; }, update, draw };
 })();
@@ -8761,10 +8854,13 @@ scenes.platformer = PLAT;
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
  * PS1 LOOK: real alpha and additive light (px.blend), never dither; altitude shadows, one-point perspective buildings.
  * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs.
- * game.go('shooter', { at: 30 }) starts at the boss.
+ * ANY SCREEN: res [240, 320] with expand. The playfield stays WW wide, so the game plays the same; the screen's height is
+ * the playfield's (W x H are the screen's, read each step). A screen wider than the playfield shows the valley going on
+ * beyond it (2b), dimmed: out of play. game.go('shooter', { at: 30 }) starts at the boss.
  * ===================================================================================== */
 const SHOOT = (() => {
-  const W = 240, H = 320, WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // screen, world width, stage length, scroll px/s, building perspective, stage card seconds
+  const WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // world width (the playfield), stage length, scroll px/s, building perspective, stage card seconds
+  let W = 240, H = 320;   // the screen (at least 240 x 320): set from game.W, game.H every step
 
   /* ---- 1. PS1 LIGHT: px.blend draws with real alpha ('normal') or additive light ('add') ---- */
   // a round glow baked once per size and color: 4 nested discs (visible steps)
@@ -8784,7 +8880,7 @@ const SHOOT = (() => {
   /* ---- 2. THE GROUND: one painting baked through a TileMap floorTex; every color is a function of the world point ----
    * (no tiles, so nothing seams). A sine river, bridges wherever a road crosses it, noise-bent borders, muted colors. */
   const BASE_Y = 372, TOWN_Y = 760, STREETS = [470, 650], RIVER = y => 136 + 160 * Math.sin(TAU * (y - 560) / 680);
-  const warp = (x, y, k) => (E.noise2(x * .06, y * .06) - .5) * k;
+  const warp = (x, y, k) => (E.noise2(x * .06, y * .06) - .5) * k, pmod = (a, n) => ((a % n) + n) % n;   // (pmod: the valley goes on left of x 0)
   // distance past the river bank and the road edge (< 0 inside)
   const river = (x, y) => y < BASE_Y + 12 ? 99 : Math.abs(x - RIVER(y)) / Math.hypot(1, 1.48 * Math.cos(TAU * (y - 560) / 680)) - 14 - 3 * Math.sin(y * .02) + warp(x, y, 5);
   const road = (x, y) => Math.min(Math.abs(x - 136) - 10, y > BASE_Y && y < TOWN_Y ? Math.min(...STREETS.map(s => Math.abs(y - s) - 8)) : 99);
@@ -8809,14 +8905,15 @@ const SHOOT = (() => {
     if (d < 13) return d < 1 && y % 16 < 9 ? C.tarmac[1] : d > 11.5 ? C.road[3] : C.tarmac[0];
     return PARK.some(([a, b]) => Math.floor(Math.max(Math.abs(x - a), Math.abs(y - b))) === 14) ? C.tarmac[1] : E.noise2(x * .04 + 3, y * .04) > .66 ? c.map(v => v * .85) : c;
   }
-  function ground(x, y) {
+  function paint(x, y) {   // the ground's color at a world point, before the baked shadows (ground adds them)
     const rv = river(x, y), rd = road(x, y), edge = BASE_Y + warp(x, 0, 16), n = s => E.noise2(x * s, y * s) > .5 ? 0 : 1;
-    const dash = (Math.abs(x - 136) < 1 && y % 14 < 7 && road(x + 20, y) > 0) || (STREETS.some(s => Math.abs(y - s) < 1) && x % 14 < 7 && Math.abs(x - 136) > 10);
-    return shade(x, y, y < edge ? base(x, y) : y < edge + 5 ? C.gravel[n(.5)]
+    const dash = (Math.abs(x - 136) < 1 && y % 14 < 7 && road(x + 20, y) > 0) || (STREETS.some(s => Math.abs(y - s) < 1) && pmod(x, 14) < 7 && Math.abs(x - 136) > 10);
+    return (y < edge ? base(x, y) : y < edge + 5 ? C.gravel[n(.5)]
       : rd < 0 ? (rv < 3 ? C.deck[rd > -2 ? 1 : 0] : rd > -1 ? C.road[3] : dash ? C.road[2] : C.road[n(.3)])   // bridge deck, road
       : rv < 0 ? (road(x - 3, y - 4) < 0 ? C.deck[2] : rv > -2 ? C.water[3] : rv > -6 || Math.sin(x * .3 + y * .12 + Math.sin(y * .05) * 2) > .93 ? C.water[2] : C.water[n(.05)])   // water
-      : rv < 5 ? C.bank[n(.3)] : y < TOWN_Y && rd < 3 ? C.walk[x % 6 < 1 || y % 6 < 1 ? 1 : 0] : isField(x, y) ? field(x, y) : grass(x, y));
+      : rv < 5 ? C.bank[n(.3)] : y < TOWN_Y && rd < 3 ? C.walk[pmod(x, 6) < 1 || y % 6 < 1 ? 1 : 0] : isField(x, y) ? field(x, y) : grass(x, y));
   }
+  const ground = (x, y) => shade(x, y, paint(x, y));
   const SUN = [.5, .65];   // shadow length per unit of height (sun up-left)
   function shade(x, y, c) {   // baked shadows: boxes swept along the sun, round canopies
     for (const o of BAND[Math.floor(y / 32)] || []) if (o.z ? Math.max((x - o.x - o.w) / SUN[0], (y - o.y - o.d) / SUN[1], 0) <= Math.min((x - o.x) / SUN[0], (y - o.y) / SUN[1], o.z)
@@ -8846,6 +8943,34 @@ const SHOOT = (() => {
   const BAND = [];   // shadow casters per 32 px band
   for (const o of [...BLDS, ...PROPS.filter(p => p.sh)]) for (let b = Math.floor((o.y - 14) / 32); b <= (o.y + (o.d || 0) + (o.z || 0) * SUN[1] + 14) / 32; b++) (BAND[b] = BAND[b] || []).push(o);
   const map = new E.TileMap({ rows: Array(MAP_H / 16).fill('.'.repeat(WW / 16)), floorTex: ground, ao: 0, shimmer: false });
+
+  /* ---- 2b. BEYOND THE PLAYFIELD: a screen wider than WW sees the valley go on to each side, painted by the same functions
+   * (no baked shadows), baked as strips of rows when they come into view and a few ahead each step (a whole side at once
+   * would stall the start), with trees of its own. A curtain dims it (draw): the game is played in the middle ---- */
+  const EDGE = 512, STRIP = 8, edges = [0, 1].map(() => ({ cv: E.mkCanvas(EDGE, MAP_H), done: new Int16Array(MAP_H / STRIP) }));   // done: columns baked per strip
+  function bakeStrip(side, k, w) {   // side 0: x in [-w, 0), side 1: [WW, WW + w); columns already baked are kept
+    const e = edges[side], from = e.done[k]; if (from >= w) return false;
+    const n = w - from, g = E.ctx2d(e.cv), im = g.createImageData(n, STRIP), d = im.data;
+    for (let row = 0; row < STRIP; row++) for (let i = 0; i < n; i++) {
+      const col = from + i, x = side ? WW + col + .5 : -col - .5, c = paint(x, k * STRIP + row + .5), o = (row * n + (side ? i : n - 1 - i)) * 4;
+      d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+    }
+    g.putImageData(im, side ? from : EDGE - w, k * STRIP); e.done[k] = w; return true;
+  }
+  function edgeStep(r) {   // bake what shows now, then up to two strips ahead
+    const w = Math.min(EDGE, Math.ceil((r.W - WW) / 2) + 4); if (w <= 4) return 0;
+    const k0 = Math.max(0, Math.floor((scroll - 2) / STRIP)), k1 = Math.min(MAP_H / STRIP - 1, Math.floor((scroll + r.H + 2) / STRIP));
+    for (let k = k0; k <= k1; k++) for (const side of [0, 1]) bakeStrip(side, k, w);
+    let ahead = 2; for (let k = k0 - 1; k >= 0 && ahead > 0; k--) for (const side of [0, 1]) if (bakeStrip(side, k, w)) ahead--;
+    return w;
+  }
+  const EDGE_PROPS = [];   // trees, bushes and rocks out there (their own seed: the playfield's are kept as they were)
+  for (let i = 0, rnd = E.rng(6); i < 6000; i++) {
+    const side = rnd() < .5, x = side ? WW + 4 + rnd() * EDGE : -4 - rnd() * EDGE, y = BASE_Y + 16 + rnd() * (MAP_H - BASE_Y), k = rnd(), s = Math.round(7 + rnd() * 3) / 10;
+    const name = forest(x, y) ? (k < .65 ? 'tree' : 'pine') : ['tree', 'bush', 'rock', 'flowers'][Math.floor(k * 80)];
+    if (name && river(x, y) > 6 && road(x, y) > 5 && !isField(x, y)) EDGE_PROPS.push({ name, x, y, s: /tree|pine/.test(name) ? s : .9 });
+  }
+  EDGE_PROPS.sort((a, b) => a.y - b.y);
   function building(g, r, b) {   // one-point perspective: height z pushes a point out from the screen center
     const vx = r.bw / 2, vy = r.bh * .55, Pt = (x, y, z) => { const [a, c] = r.w(x, y), k = 1 + z * PERSP; return [vx + (a - vx) * k, vy + (c - vy) * k]; };
     const { x, y, w, d, z, roof: R, wall: Q, style } = b, x1 = x + w, y1 = y + d, L2 = (A, B, k) => [lerp(A[0], B[0], k), lerp(A[1], B[1], k)];
@@ -9043,9 +9168,10 @@ const SHOOT = (() => {
     ship = { kind: 'player', art: [PLAYER, 'player', 1.2, 40], a: -D, x: WW / 2, y: scroll + H - 86, r: 2.5, inv: 0, respawn: 0, bank: 0, gun: 0, burst: 0 };   // no 'dead' field: E.Bullets skips those
     foes = []; items = []; craters = []; fx = []; shots = shots || new E.Bullets(game, { plane: 'ground', max: 1200 }); shots.clear();
     for (const [kind, x, y, a] of GROUND) unit(kind, x, y, { a: a ?? D, aim: a ?? D });
-    clouds = [0, 1, 2, 3, 4].map(i => ({ x: E.rand(-30, WW - 60), y: i * 90 - 80, art: CLOUDS[i % 3], high: i > 2 }));
+    clouds = [0, 1, 2, 3, 4, 5, 6].map(i => ({ x: cloudX(), y: i * 70 - 80, art: CLOUDS[i % 3], high: i > 3 }));
     lives = 2; bombs = 3; score = 0; power = 1; boss = null; won = 0; fireT = 0; warnT = 0; radio(PILOT, 'EAGLE 1', 'Fortress sighted over the valley. Weapons free!', { point: true, aim: .9, expr: 'smile' });
   }
+  const cloudX = () => { const m = Math.max(0, (W - WW) / 2); return E.rand(-30 - m, WW - 60 + m); };   // across the whole screen
   const shoot = (x, y, vels, art = 'orb') => shots.burst({ x, y, z: 20, r: art === 'big' ? 3 : 2, life: 7, team: 'foe', art }, vels);
   // score pops rise 14 px on screen and blink out in .6 s
   const pop = (x, y, n, big = n >= 1000) => { score += n; P.add({ kind: 'text', x, y, vy: -24 - (scroll > 0 ? SCROLL : 0), max: .6, text: '' + n, color: big ? '#ffd040' : '#fff', scale: big ? 2 : 1 }); };
@@ -9102,6 +9228,7 @@ const SHOOT = (() => {
 
   /* ---- 7. UPDATE ---- */
   function update(dt) {
+    W = game.W; H = game.H;
     const inp = game.input, move = Math.min(scroll, SCROLL * dt);
     t += dt; scroll -= move;
     for (const o of [ship, ...items, ...shots.list, ...foes.filter(f => f.air)]) o.y -= move;   // flyers move with the camera
@@ -9168,10 +9295,11 @@ const SHOOT = (() => {
       if (ship.respawn <= 0 && E.overlap(it, { x: ship.x, y: ship.y, r: 10 })) { it.gone = true; A.sfx('powerup'); P.glints(it.x, it.y, 14, 8); if (it.type === 'P' && power < 4) power++; else if (it.type === 'B' && bombs < 5) bombs++; else score += 1000; }
     }
     E.prune(foes, f => f.gone); E.prune(items, i => i.gone); E.prune(craters, c => c.y > scroll + H + 40);
-    for (const c of clouds) if ((c.y += (c.high ? 80 : 44) * (move ? 1 : .5) * dt) > H + 30) Object.assign(c, { y: -c.art.h - 20 - E.rand(0, 60), x: E.rand(-30, WW - 60) });
+    for (const c of clouds) if ((c.y += (c.high ? 80 : 44) * (move ? 1 : .5) * dt) > H + 30) Object.assign(c, { y: -c.art.h - 20 - E.rand(0, 60), x: cloudX() });
     // live portraits: the speaker acts out its line; the pilot winces while shot down
     for (const rig of [PILOT, HQ]) rig.update(dt, { x: 0, y: 0, hurt: rig === PILOT && ship.respawn > 0, ...(talk.open && rig.mood) });
-    game.focus(W / 2 + Math.round(ship.x / WW * (WW - W)), Math.round(scroll) + H / 2, 0);   // whole pixels, no lag: no shimmer
+    // a screen narrower than the playfield pans with the ship, a wider one centres it; whole pixels, no lag: no shimmer
+    game.focus(W / 2 + Math.round((WW - W) / 2 + (ship.x / WW - .5) * Math.max(0, WW - W)), Math.round(scroll) + H / 2, 0);
   }
 
   /* ---- 8. DRAW ---- */
@@ -9190,7 +9318,11 @@ const SHOOT = (() => {
     });
   }
   function draw(r) {
+    W = r.W; H = r.H;
     map.drawFloor(r);
+    const ew = edgeStep(r), [lx] = r.w(0, 0), [rx] = r.w(WW, 0);   // 2b: the valley beyond the playfield, its trees
+    if (ew) { const [, ty] = r.w(0, 0); for (const [side, x] of [[0, lx - EDGE], [1, rx]]) r.ctx.drawImage(edges[side].cv, Math.round(x), Math.round(ty));
+      for (const p of EDGE_PROPS) if (p.y > scroll - 4 && p.y < scroll + H + 44 && p.x > -ew - 16 && p.x < WW + ew + 16) r.prop(p.name, p.x, p.y, 0, { size: p.s, color: TINT[p.name] }); }
     r.decal(g => {   // craters; glints drifting downstream make the river flow
       for (const c of craters) crater(g, r, c);
       px.blend(g, .5, 'normal', () => { for (let i = 0; i < 30; i++) { const y = scroll - 10 + (i * 53 + game.time * 22) % (H + 20), x = RIVER(y) + (i * 29 % 21) - 10; if (river(x, y) < -4) px.rect(g, ...r.w(x, y), 2 + i % 3, 1, '#a8d4e8'); } });
@@ -9216,7 +9348,12 @@ const SHOOT = (() => {
     } else if (ship.respawn > 1.6) { const u = (2 - ship.respawn) / .4;   // spinning out: turns, rolls and drops (the shadow slides in), flickering red
       craft(r, { ...ship, a: u * u * 4 - D, bank: Math.sin(u * 12), art: [PLAYER, 'player', 1.2 - u * .5, 40 - u * 40] }, 12, { flash: game.real * 20 % 2 < 1 && '#ff6a40' });
     }
-    r.queue(0, scroll, 20, g => bullets(g, r, 'ship')); r.overlay(hud); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));   // never hidden by a panel
+    r.queue(0, scroll, 20, g => bullets(g, r, 'ship'));
+    if (lx > 0 || rx < r.W) r.overlay(g => {   // the curtain over what lies beyond the playfield, a gold rule at its edges
+      const a = Math.round(lx), b = Math.round(rx); px.blend(g, .55, 'normal', () => { px.rect(g, 0, 0, a, r.H, '#060a14'); px.rect(g, b, 0, r.W - b, r.H, '#060a14'); });
+      px.blend(g, .7, 'normal', () => { px.rect(g, a - 1, 0, 1, r.H, GOLD); px.rect(g, b, 0, 1, r.H, GOLD); });
+    });
+    r.overlay(hud); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));   // never hidden by a panel
   }
 
   /* ---- 9. HUD: see-through windows (E.ui.box alpha) on top, led by the pilot's live portrait. Radio chatter (Star Fox 64):
@@ -9246,23 +9383,23 @@ const SHOOT = (() => {
     txt(g, power < 4 ? 'POW' : 'MAX', W - 72, 17, '#ffd36a');
     for (let i = 0; i < 4; i++) { const x = W - 48 + i * 10, on = i < power; px.poly(g, [[x, 16], [x + 5, 16], [x + 9, 20], [x + 5, 24], [x, 24], [x + 4, 20]], on ? ['#ffd040', '#ffa030', '#ff6a30', '#ff3a5a'][i] : '#5a6494'); px.line(g, x + 1, 16, x + 5, 16, on ? '#fff4c0' : '#9aa4d0'); }
     if (boss) {   // a pale damage trail drains after the health
-      const f = boss.parts[2].hp / boss.parts[2].max, w = Math.round(118 * f); win(44, 30, 152, 13, RED); txt(g, 'BOSS', 48, 33, '#ff9a8a');
-      E.ui.bar(g, 72, 34, 120, 6, boss.trail, '#ffe8b0', { border: '#140b12', bg: '#2a0a12' }); px.rect(g, 73, 35, w, 4, boss.flash > 0 ? '#ff8a90' : '#e8404a'); px.rect(g, 73, 35, w, 1, '#ff9aa0');
+      const f = boss.parts[2].hp / boss.parts[2].max, w = Math.round(118 * f), o = Math.round(mid) - 120; win(o + 44, 30, 152, 13, RED); txt(g, 'BOSS', o + 48, 33, '#ff9a8a');
+      E.ui.bar(g, o + 72, 34, 120, 6, boss.trail, '#ffe8b0', { border: '#140b12', bg: '#2a0a12' }); px.rect(g, o + 73, 35, w, 4, boss.flash > 0 ? '#ff8a90' : '#e8404a'); px.rect(g, o + 73, 35, w, 1, '#ff9aa0');
     }
     if (t < INTRO) {   // stage card above the radio call; nobody fires until it clears
       band(40, 62, '#080a1c'); E.font.title(g, 'STAGE 1', mid, 46, { align: 'center', scale: 3 });
-      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, 'Z shot     X bomb', mid, 87, '#c8d0f0', { align: 'center' });
+      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, prompt('fire', 'shot') + '     ' + prompt('bomb', 'bomb'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys
     }
     if (warnT > 0) {
       band(60, 62, '#2a0406');
       E.font.title(g, 'WARNING', mid, 75, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(warnT * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); txt(g, 'A HUGE ENEMY APPROACHES', mid, 101, '#ffd0c0', { align: 'center' });
     }
-    if (won && t - won > 2.2) { win(12, 64, W - 24, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(score), mid, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
+    if (won && t - won > 2.2) { win(Math.round(mid) - 108, 64, 216, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(score), mid, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
   }
-  return { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [W, H], pausable: true, touch: ['fire', 'bomb'], propSize: 1,
+  return { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [240, 320], pausable: true, touch: ['fire', 'bomb'], propSize: 1,
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
-      reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
+      W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
     },
     exit() { game.cam.smooth = .18; }, update, draw };
 })();
@@ -9276,27 +9413,40 @@ scenes.shooter = SHOOT;
  * Every fighter has its own moves from E.MOVES: Rowan leaps in with an overhead chop and spins to Cleave, Lyra flings
  * sparks and casts Fire, Sera jabs with her staff, then crosses and roundhouses, and raises it to Cure; the Dread Knight
  * slashes, bashes and swings a Doom Blade, the Gargoyle dives claws first or beats up a gale, the Bomb rams or spits.
+ * ANY SCREEN: the backdrop is painted at the screen's size, its ground with the plaza's own grass and light so the plaza's
+ * edge melts into it; the HUD band sits on the bottom edge, or on a tall screen (a phone held upright) under the battle,
+ * with a deck below it for the thumbs; LAYOUT() says where, and the band slides clear of the touch buttons.
  * ===================================================================================== */
 const RPG = (() => {
-  /* ---- BACKDROP: a sunset painted once in crisp pixel shapes like the sprites (zoom and turn move only the plaza) ---- */
+  /* ---- BACKDROP: a sunset painted once per screen size in crisp pixel shapes like the sprites (zoom and turn move only
+   * the plaza). Drawn for 320 x 240 and moved: ox centres it, oy puts its horizon where the plaza's far edge is ---- */
   const SKY = ['#1c1642', '#40245f', '#8a3468', '#d4565c', '#f4935c', '#ffd08a'], skyAt = y => { const f = Math.min(y / 15, 4.99), i = f | 0; return E.mix(SKY[i], SKY[i + 1], f - i); };   // a stop every 15 rows
   const SX = 288, SY = 45, CLOUDS = [[44, 13, 60], [156, 19, 84], [246, 10, 52], [98, 33, 64], [206, 36, 74], [296, 51, 46], [22, 47, 52]];   // clouds: [x, y, width]
   const TOWERS = [[116, 9, 26, 12], [127, 15, 16, 0], [144, 8, 36, 15], [154, 13, 21, 0], [169, 7, 28, 11], [178, 12, 12, 0]];   // castle: [x, width, height, roof]
   // a range: one column per x, slopes facing the sun (right) lit
-  const range = (g, base, amp, s, col, lit) => { const h = x => amp * (.5 + .32 * (1 - Math.abs(Math.sin(x * .017 + s))) + .18 * Math.sin(x * .061 + s * 3)); for (let x = 0; x < 320; x++) px.rect(g, x, base - h(x), 1, 40, h(x + 1) < h(x - 1) ? lit : col); };
-  function paintBackdrop() {
-    const c = E.mkCanvas(320, 240), g = E.ctx2d(c);
-    for (let y = 0; y < 100; y++) {   // sky rows, a smooth sun glow (no bands, no dither)
-      const s = skyAt(y); px.rect(g, 0, y, 320, 1, s);
-      for (let x = 160; x < 320; x++) { const k = 1 - Math.hypot((x - SX) / 2.6, y - SY) / 36; if (k > 0) px.dot(g, x, y, E.mix(s, '#ffe8b8', k * k * .85)); }
+  const range = (g, base, amp, s, col, lit, x0, x1) => { const h = x => amp * (.5 + .32 * (1 - Math.abs(Math.sin(x * .017 + s))) + .18 * Math.sin(x * .061 + s * 3)); for (let x = x0; x < x1; x++) px.rect(g, x, base - h(x), 1, 40, h(x + 1) < h(x - 1) ? lit : col); };
+  function paintBackdrop(W, H, fy) {   // fy: where the camera's focus sits on screen (layout)
+    const c = E.mkCanvas(W, H), g = E.ctx2d(c), ox = Math.round((W - 320) / 2), oy = fy - 120, sx = SX + ox, sy = SY + oy, v = E.VIEWS.brawler;
+    // the ground below the treeline: the plaza's grass and light at the world point under each pixel (the camera at rest)
+    const im = g.createImageData(W, H), d = im.data;
+    for (let y = Math.max(0, 75 + oy); y < H; y++) for (let x = 0; x < W; x++) {
+      const wx = 110 + (x - W / 2) / v.ax, wy = 72 + (y - fy) / v.by, warm = clamp(.5 + (wx - PLAZA[0]) / 260 - (wy - PLAZA[1]) / 200, 0, 1), haze = clamp(1 - wy / 70, 0, 1) * .45, k = 1.08 - clamp(wy - 70, 0, 110) / 400;
+      const q = E.tex.grass(wx, wy, GRASS), o = (y * W + x) * 4; for (let i = 0; i < 3; i++) d[o + i] = lerp(lerp(q[i] * k, lerp(COOL[i], WARM[i], warm), .28), HAZE[i], haze); d[o + 3] = 255;
     }
+    g.putImageData(im, 0, 0);
+    for (let y = 0; y < 100 + oy; y++) {   // sky rows (the top's color above the painting), a smooth sun glow (no bands, no dither)
+      const s = skyAt(Math.max(0, y - oy)); px.rect(g, 0, y, W, 1, s);
+      for (let x = Math.max(0, sx - 100); x < Math.min(W, sx + 100); x++) { const k = 1 - Math.hypot((x - sx) / 2.6, y - sy) / 36; if (k > 0) px.dot(g, x, y, E.mix(s, '#ffe8b8', k * k * .85)); }
+    }
+    g.translate(ox, oy);   // the rest is drawn as for 320 x 240, the far hills and trees running on across a wide screen
+    const x0 = -ox - 4, x1 = W - ox + 6;
     px.disc(g, SX, SY, 12, '#fff0c0'); px.disc(g, SX - 1, SY - 1, 10, '#fffcec');   // a hard-edged sun
-    for (const [x, y, w] of CLOUDS) {   // flat-bottomed puffs lit from below, warmer near the horizon
+    for (const [cx, y, w] of CLOUDS) for (let x = cx - 320 * Math.ceil(ox / 320); x < x1 + w; x += 320) {   // flat-bottomed puffs lit from below, warmer near the horizon
       const k = clamp(y / 50, 0, 1), body = E.mix('#4a2a62', '#b4587a', k), lit = E.mix('#9a4a78', '#f09a88', k);
       for (const [dx, dy, rx, col] of [[0, 0, .5, body], [-.14, -2.5, .24, body], [.16, -1.5, .2, body], [.04, 1.5, .42, lit]]) px.ell(g, x + dx * w, y + dy, rx * w, 2.8, col);
       px.rect(g, x - w * .34, y + 3, w * .68, 1, E.mix('#e0808a', '#fff0c0', k));
     }
-    range(g, 66, 20, 1, '#c47c90', '#eaa4a0');   // the far range, pale with haze
+    range(g, 66, 20, 1, '#c47c90', '#eaa4a0', x0, x1);   // the far range, pale with haze
     for (const [x, w, h, roof] of TOWERS) {   // a hazy castle
       const top = 76 - h;
       px.rect(g, x, top, w, h, '#74446e'); px.rect(g, x + w - 2, top, 2, h, '#e8908e'); px.rect(g, x + (w >> 1), top + 5, 1, 2, '#ffd27a');
@@ -9304,11 +9454,14 @@ const RPG = (() => {
       else for (let bx = x; bx < x + w; bx += 3) px.rect(g, bx, top - 2, 2, 2, '#74446e');
     }
     px.blend(g, .3, 'normal', () => px.rect(g, 96, 66, 110, 10, '#ffc0a0'));   // mist at the castle's foot
-    range(g, 77, 9, 5, '#8a4a74', '#c06a7c');   // near hills in front of it
-    for (let x = -4; x < 326; x += 5) { const r = 4 + 3 * E.noise2(x * .09, 3), y = 79 - r * .7; px.disc(g, x + 1, y - 1, r, '#b25c5e'); px.disc(g, x, y, r, '#2e2040'); }   // treeline, rim-lit
-    px.rect(g, 0, 79, 320, 161, '#2e2040'); return c;   // down to the bottom: zoomed out, the plaza floats on dusk
+    range(g, 77, 9, 5, '#8a4a74', '#c06a7c', x0, x1);   // near hills in front of it
+    for (let x = x0 - ((x0 - 1) % 5 + 5) % 5; x < x1; x += 5) { const r = 4 + 3 * E.noise2(x * .09, 3), y = 79 - r * .7; px.disc(g, x + 1, y - 1, r, '#b25c5e'); px.disc(g, x, y, r, '#2e2040'); }   // treeline, rim-lit
+    px.rect(g, x0, 79, x1 - x0, 3, '#2e2040'); return c;   // its foot, on the grass
   }
-  let backdrop = null;   // painted on the first draw
+  // where things go on this screen: the HUD band's top (Y), the camera focus's height on screen (fy). A tall screen keeps
+  // the battle up top with the band under it and a deck below; a wide one puts the band on the bottom edge, as on 320 x 240
+  const layout = (W, H) => { const Y = H > 300 ? clamp(Math.round(H * .45), 167, H - 73) : H - 73; return { Y, fy: Y - 47 }; };
+  let backdrop = null;   // painted on the first draw, again for a new screen size
 
   /* ---- FLOOR: a round cobbled plaza (a ground circle projects to a wide ellipse: reads as floor). floorTex runs
    * once per pixel when the floor is baked, so light, shadows and wear cost nothing per frame ---- */
@@ -9682,7 +9835,8 @@ const RPG = (() => {
     }, { emissive: true });
   }
   function draw(r) {
-    r.ctx.drawImage(backdrop || (backdrop = paintBackdrop()), 0, 0);
+    const key = r.W + 'x' + r.H; if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, layout(r.W, r.H).fy); backdrop.key = key; }
+    r.ctx.drawImage(backdrop, 0, 0);
     plaza.drawFloor(r); plaza.queueWalls(r); for (const [name, x, y, z, o] of PROPS) r.prop(name, x, y, z, o);
     for (const c of all) drawUnit(r, c); for (const f of fx) drawFx(r, f);
     const orb = act && act.orb, m = act && MOVES[act.key];
@@ -9706,23 +9860,26 @@ const RPG = (() => {
   const txt = (g, s, x, y, c, align) => E.font.text(g, String(s), x, y, c, { shadow: '#0a0820', outline: false, align });
   const tiny = (g, s, x, y, c) => E.font.text(g, s, x, y, c, { font: 'tiny', outline: false });
   function hud(g, r) {
-    const Y = 170, choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
+    const { Y } = layout(r.W, r.H), choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
+    // the band's 316 px: centred, or left of the touch buttons where they would cover it
+    const ta = game.input.touchArea(), X = Math.max(0, Math.min(Math.round((r.W - 320) / 2), ta && ta.y0 < Y + 66 ? Math.floor(ta.x0) - 320 : 1e4));
     // an arrow over the hero on turn, the glove on the target
     if (choosing) { const [sx, sy] = r.w(actor.x, actor.y, actor.z + actor.h + 5); px.poly(g, [[sx - 5, sy - 7 + bob], [sx + 5, sy - 7 + bob], [sx, sy - 1 + bob]], '#ffe060'); px.rect(g, sx - 3, sy - 6 + bob, 6, 1, '#fff8c0'); }
     if (mode === 'target') { const c = list[cursor], [sx, sy] = r.w(c.x, c.y, c.z + c.h * .55); px.sprite(g, HAND, sx - 28 + bob, sy - 4); }
     // top banner: the move, the target, or what the command does
     const top = mode === 'command' ? MOVES[COMMANDS(actor)[menu.i]].info : mode === 'target' ? list[cursor].name : note;
-    if (top && !log.open) { const w = E.font.width(top) + 24; E.ui.box(g, 160 - w / 2, 5, w, 18, { bg: WIN }); txt(g, top, 160, 10, '#ffffff', 'center'); }
+    if (top && !log.open) { const w = E.font.width(top) + 24, c = Math.round(r.W / 2); E.ui.box(g, c - w / 2, 5, w, 18, { bg: WIN }); txt(g, top, c, 10, '#ffffff', 'center'); }
     // a near-black band under the windows; left: commands, spoils or monsters
-    px.rect(g, 0, Y - 3, 320, 73, '#0c0818'); E.ui.box(g, 4, Y, 92, 66, { bg: WIN });
+    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818'); E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });   // (down to the bottom: a tall screen's deck)
     if (choosing) {
-      menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, 89, y, '#9ad0ff', 'right'); });
-      px.sprite(g, HAND, 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10); tiny(g, 'Z OK  X BACK', 26, Y + 57, '#a8b8ff');
-    } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
-    else alive(foes).forEach((f, k) => { txt(g, f.name, 11, Y + 7 + k * 19, '#ffffff'); gauge(g, 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
+      menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
+      px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
+      if (game.input.lastDevice !== 'touch') E.font.text(g, game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK', X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
+    } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
+    else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
     // right: a card per hero (FF IX): portrait, name, MP, HP, ATB
     party.forEach((h, k) => {
-      const x = 100 + k * 72, on = h === actor && choosing, low = h.hp < h.max / 4, col = h.dead ? '#a08aa8' : low ? '#ffd060' : '#ffffff';
+      const x = X + 100 + k * 72, on = h === actor && choosing, low = h.hp < h.max / 4, col = h.dead ? '#a08aa8' : low ? '#ffd060' : '#ffffff';
       E.ui.box(g, x, Y, 70, 66, { bg: h.dead ? KO : on ? HOT : WIN, border: on ? '#ffe890' : undefined });
       const pic = h.pic || (h.pic = E.mkCanvas(30, 30));   // a whole rig draw: redrawn every third frame
       if ((frame + k) % 3 === 0) { const pg = E.ctx2d(pic); pg.clearRect(0, 0, 30, 30); h.rig.drawPortrait(pg, 3, 3, 24, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: h.dead ? '#808080' : undefined }); }
@@ -9731,17 +9888,18 @@ const RPG = (() => {
       tiny(g, 'HP', x + 6, Y + 36, '#9ad0ff'); txt(g, h.hp + '/' + h.max, x + 64, Y + 34, col, 'right'); gauge(g, x + 6, Y + 44, 58, h.hp / h.max, low ? '#e8a030' : '#58d068');
       gauge(g, x + 6, Y + 54, 58, h.atb, h.atb >= 1 || on ? '#ffe060' : '#dce0f8');
     });
-    if (mode === 'win') E.font.title(g, 'Victory!', 124, 60, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
+    if (mode === 'win') E.font.title(g, 'Victory!', Math.round(r.W / 2) - 36, layout(r.W, r.H).fy - 60, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
   }
   // propSize: props sized to the heroes; a strong warm rim light
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in, it eases to the fight (or the hero on turn) at chest height
   return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: ['confirm', 'cancel'], propSize: 1.3, camera: { zoom: [.75, 2], rotate: true },
-    enter() { start(); game.r.rimAlpha = .75; game.focus(110, 72, 0); yaw = game.yaw; },
-    exit() { game.r.rimAlpha = .28; L.enabled = false; },
+    enter() { start(); game.r.rimAlpha = .75; game.focus(110, 72, 0); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
+    exit() { game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {
       if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? 'TURN ' + yaw : 'CAMERA RESET');   // the kit's notice has a degree sign the pixel font lacks
       update(dt); const f = game.zoom > 1 && (act ? [act.who, act.target || act.who] : actor && [actor, actor]), k = Math.min(1, dt * 4);
       const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [110, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
+      game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
     state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp) }) };   // for automated tests
 })();
@@ -9754,6 +9912,8 @@ scenes.rpg = RPG;
  * strings. Heavy blows knock fighters down; they get up on one knee. Waves lock the screen. Crates hide food.
  * THE LOOK: Final Fight sized fighters (90-105 of 240 lines) in a guard stance with big gloves, lit by the nearest
  * light; building fronts drawn once over TileMap walls; solid parked cars; PS1 translucency (hard shapes, one alpha)
+ * ANY SCREEN: a wider screen shows more street (waves walk in from past its edges); a taller one (a phone held upright)
+ * lifts the street onto a FOREGROUND wall, clear of the touch buttons, under more skyline
  * ===================================================================================== */
 const BRAWL = (() => {
   const T = 16, Y0 = 30, Y1 = 136, TOP = 88, DARK = '#140c1c';   // Y0..Y1: the walkable band; TOP: rooftop room (2x zoom)
@@ -9812,8 +9972,9 @@ const BRAWL = (() => {
   function skyDetail(g, r) {
     const mx = Math.round(236 - r.ix * .01);
     px.blend(g, .125, 'add', () => { px.disc(g, mx, 30, 26, '#ffd8c0'); px.disc(g, mx, 30, 17, '#ffd8c0'); }); px.disc(g, mx, 30, 9, '#fff4e0'); px.disc(g, mx + 4, 27, 8, SKY[4]);
+    const wrap = Math.max(520, r.W + 190);   // the clouds wrap round past the widest screen
     for (const [cx, cy, w] of [[40, 50, 80], [190, 38, 54], [300, 62, 96], [420, 46, 64]]) {
-      const x = ((cx - r.ix * .03) % 520 + 520) % 520 - 90;
+      const x = ((cx - r.ix * .03) % wrap + wrap) % wrap - 90;
       px.ell(g, x, cy, w / 2, 4, '#5a2a60'); px.ell(g, x + w * .12, cy - 3, w / 3, 4, '#6a3068'); px.ell(g, x + 3, cy + 2, w / 2 - 6, 2, '#d8686c');
     }
   }
@@ -10045,8 +10206,9 @@ const BRAWL = (() => {
       // wall face material, brick course height, roof; sideLt: the lit front's color
       types: Object.fromEntries(blocks.map(b => [b.i + 1, { h: b.h, side: b.color, sideLt: b.color, top: E.shade(b.color, -.45), face: b.face, course: b.face === 'brick' ? 3 : undefined, roof: 'slab' }])) });
     SPR = { crate: E.prop('crate', { size: .8 }).frames[0], barrel: E.prop('barrel', { size: .8, color: '#9a6030' }).frames[0] };
-    // the camera scrolls sideways, the street's front edge on the screen bottom; zoomed in, it also follows the hero up the street
-    game.cam.bounds = v => { const b = map.bounds(v); return { x0: b.x0 + 8, x1: b.x1 - 8, y0: b.y1 - 9 - game.H * Math.max(1, game.zoom), y1: b.y1 - 9 }; };
+    // the camera scrolls sideways, the street's front edge on the screen bottom (or on the foreground wall); zoomed in, it
+    // also follows the hero up the street
+    game.cam.bounds = v => { const b = map.bounds(v), y1 = b.y1 - 9 + wall(game.H); return { x0: b.x0 + 8, x1: b.x1 - 8, y0: y1 - game.H * Math.max(1, game.zoom), y1 }; };
     // the hero's move set (E.MOVES, some tuned): a 4-hit punch string, a clinch (grab, knees, elbow), a kick string, a flying kick, a sweep
     hero = body(54, 58, 7, { hp: 60, max: 60, lives: 3, grip: 0, rig: fighterRig(HERO), moves: {
       punch: new E.Combo(['jab', 'cross', move('hook'), 'uppercut'], { window: .35 }), clinch: new E.Combo([GRAB, 'knee', 'knee', 'elbow'], { window: .35 }),
@@ -10061,7 +10223,7 @@ const BRAWL = (() => {
   function spawnWave(w) {                        // foes close in from both sides; the boss talks
     w.foes.forEach((kind, i) => {
       const k = FOES[kind], side = wave && i % 2 ? -1 : 1, swap = k.swap && w.foes.indexOf(kind) !== i;
-      const x = kind === 'boss' ? hero.x + 120 : clamp(w.x * T + side * (190 + i * 26), 12, LEN - 12);
+      const x = kind === 'boss' ? hero.x + 120 : clamp(w.x * T + side * (Math.max(190, game.W / 2 / game.view.ax + 24) + i * 26), 12, LEN - 12);   // just past the screen's edge, however wide
       const f = body(x, Y0 + 12 + (i * 37) % 90, k.r, { k, name: swap ? k.swapName : k.name, hp: k.hp, facing: Math.PI, t: 1 + Math.random(), friction: 5, grip: 5,
         moves: k.moves.map(s => new E.Combo(s.map((m, j) => move(m, { wind: Math.max(E.MOVES[m].wind, j ? k.wind / 2 : k.wind) })))),   // its strings
         rig: fighterRig(k.rig, swap ? { colors: Object.assign({}, k.rig.colors, k.swap) } : {}) });
@@ -10236,7 +10398,17 @@ const BRAWL = (() => {
       px.blend(g, u < .5 ? .5 : .25, 'normal', () => { px.ell(g, x, y, R * 1.5, R * .7, '#8a7e9a'); px.ell(g, x - R * .3, y - R * .3, R, R * .4, '#d0c8dc'); });
     });
     for (const s of sparks) at(s.x, s.y, s.z, (g, x, y) => star(g, x, y, s), { bias: .5 });
+    if (wall(r.H) && game.zoom <= 1) r.overlay(g => foreground(g, r));
     r.overlay(g => hud(g, r)); talk.draw(r);
+  }
+  // ANY SCREEN: how far a screen taller than the street lifts it (0 on a wide one), and the FOREGROUND wall in that band:
+  // a lit coping, dark brick, nearer and so faster than the street
+  const wall = H => Math.max(0, Math.min(130, Math.round((H - 300) * .55)));
+  function foreground(g, r) {
+    const y = Math.round(map.bounds(r.view).y1 - 9 - r.iy), o = ((Math.round(r.ix * 1.2) % 24) + 24) % 24;
+    px.rect(g, 0, y, r.W, r.H - y, '#1a1222'); px.rect(g, 0, y, r.W, 3, '#5a4258'); px.rect(g, 0, y + 3, r.W, 2, '#2e2236');
+    for (let row = 0, by = y + 5; by < r.H; row++, by += 7) { px.rect(g, 0, by, r.W, 1, '#120c18'); for (let x = -o + (row & 1) * 12; x < r.W; x += 24) px.rect(g, x, by, 1, 7, '#120c18'); }
+    px.blend(g, .5, 'normal', () => px.rect(g, 0, y + 5, r.W, 10, '#0a0610'));   // the street's shadow on the wall's face
   }
 
   /* ---- HUD: solid panels, live 3/4 rig.drawPortrait faces, two-tone bars ---- */
@@ -10264,10 +10436,11 @@ const BRAWL = (() => {
       E.font.title(g, s, 12, 53, { scale: 3, colors: ['#ffffff', '#ffe070', '#ff9a2a'] }); E.font.title(g, 'HITS', 18 + w, 63, { scale: 1, colors: ['#fff6d0', '#ffc860'] });
     }
     if (intro > 0) {                             // round card slides in and out
-      const k = Math.min(1, (INTRO - intro) * 5, intro * 5), x = Math.round(W / 2 - 90 + (1 - k) * (intro < 1 ? W : -W));
-      E.ui.box(g, x, 52, 180, 56, WIN);
-      E.font.title(g, 'ROUND 1', x + 90, 57, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
-      E.font.text(g, 'DOWNTOWN AT DUSK', x + 90, 79, '#ffe8c8', TXC); E.font.text(g, 'J punch K kick L sweep Z jump', x + 90, 92, '#b8b0e0', TXC);
+      const keys = [prompt('attack', 'punch'), prompt('kick', 'kick'), prompt('sweep', 'sweep'), prompt('jump', 'jump')].join(' '), cw = Math.max(180, E.font.width(keys) + 16);   // the player's own keys
+      const k = Math.min(1, (INTRO - intro) * 5, intro * 5), x = Math.round(W / 2 - cw / 2 + (1 - k) * (intro < 1 ? W : -W)), m = x + cw / 2;
+      E.ui.box(g, x, 52, cw, 56, WIN);
+      E.font.title(g, 'ROUND 1', m, 57, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
+      E.font.text(g, 'DOWNTOWN AT DUSK', m, 79, '#ffe8c8', TXC); E.font.text(g, keys, m, 92, '#b8b0e0', TXC);
     }
     if (go > 0 && Math.floor(game.real * 3) % 2 === 0) E.font.title(g, 'GO →', W - 14, 96, { scale: 3, align: 'right', colors: ['#fff6c0', '#ffc040', '#e06a20'] });
     if (won > 1.5) {                             // results on the left, clear of the cheering hero
@@ -10628,34 +10801,36 @@ const ANIMLAB = (() => {
   const TXT = { outline: false, shadow: '#07050e' }, TINY = Object.assign({ font: 'tiny' }, TXT), RIGHT = o => Object.assign({ align: 'right' }, o);
   const LEGEND = ['↑↓ ANIMATION  ←→ SKIN  V VIEW  - = ZOOM  [ ] TURN  0 RESET  F FLIP', 'SPACE PAUSE  . STEP  S SLOW  T TRAIL  B BONES  L LINEUP  J REPLAY  H HUD'];
   function hud(g, r) {
-    const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = anim.group + ' ▸ ';
-    E.ui.box(g, 4, 11, W - 8, 34, WIN);
-    E.font.title(g, 'ANIMATION LAB', 10, 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
-    E.font.text(g, lineup ? 'LINEUP: ALL ' + actors.length + ' SKINS' : '← ' + a.s.name + ' →', W - 10, 15, '#ffffff', RIGHT(TXT));
-    E.font.text(g, lead, 10, 26, '#a8a0d8', TXT);
-    E.font.text(g, anim.name, 10 + E.font.width(lead), 26, '#ffe070', TXT);
+    const W = r.W, H = r.H, N = ANIMS.length, a = actors[skin], lead = anim.group + ' ▸ ', T0 = Math.max(0, Math.round(corner()[1]) - 9);   // T0: under the corner's buttons (they stay up in a lab)
+    E.ui.box(g, 4, T0 + 11, W - 8, 34, WIN);
+    E.font.title(g, 'ANIMATION LAB', 10, T0 + 15, { scale: 1, colors: ['#fff6d0', '#ffd060', '#e8782a'], depth: 1 });
+    E.font.text(g, lineup ? 'LINEUP: ALL ' + actors.length + ' SKINS' : '← ' + a.s.name + ' →', W - 10, T0 + 15, '#ffffff', RIGHT(TXT));
+    E.font.text(g, lead, 10, T0 + 26, '#a8a0d8', TXT);
+    E.font.text(g, anim.name, 10 + E.font.width(lead), T0 + 26, '#ffe070', TXT);
     const cam = [game.view.label + ' view', 'zoom ' + +game.zoom.toFixed(2) + 'x', game.yaw ? 'turn ' + game.yaw + ' deg' : '', paused ? 'paused' : game.timeScale < 1 ? 'slow .25x' : 'speed 1x'];
-    E.font.text(g, cam.filter(Boolean).join('    '), 10, 37, paused ? '#ff9a7a' : '#c8c0f0', TINY);
+    E.font.text(g, cam.filter(Boolean).join('    '), 10, T0 + 37, paused ? '#ff9a7a' : '#c8c0f0', TINY);
     if (!lineup) {
       // the animation list: the neighbours of the current one, groups in alternating tints
-      E.ui.box(g, 4, 48, 100, 61, SEE);
+      E.ui.box(g, 4, T0 + 48, 100, 61, SEE);
       for (let k = -3; k <= 3; k++) {
         const n = ANIMS[(ai + k + N) % N], odd = GROUPS.indexOf(n.group) % 2;
-        E.font.text(g, (k ? '  ' : '> ') + n.name, 8, 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
+        E.font.text(g, (k ? '  ' : '> ') + n.name, 8, T0 + 52 + (k + 3) * 8, k ? (odd ? '#d0b890' : '#a8a0d8') : '#ffffff', TINY);
       }
-      E.font.text(g, (ai + 1) + '/' + N, 100, 101, '#8a82b0', RIGHT(TINY));
+      E.font.text(g, (ai + 1) + '/' + N, 100, T0 + 101, '#8a82b0', RIGHT(TINY));
       // key poses of a move; the one playing now is lit
       const cur = attack ? ['wind', 'active', 'recover'].indexOf(attack.phase) : combo && combo.busy ? combo.step : -1;
       keyPoses().forEach((k, i) => {
-        const y = 48 + i * 39, lit = i === cur;
+        const y = T0 + 48 + i * 39, lit = i === cur;
         E.ui.box(g, W - 46, y, 42, 38, lit ? { bg: ['#5a4a2a', '#1a1208'], border: '#ffe070' } : SEE);
         g.drawImage(k.cv, W - 45, y + 1);
         E.font.text(g, k.label, W - 25, y + 31, lit ? '#ffe070' : '#c8c0f0', Object.assign({ align: 'center' }, TINY));
       });
     }
-    // the timeline: one bar per phase (the current one lit), the clock as a white mark, the phase's name and the time
-    E.ui.box(g, 4, H - 36, W - 8, 33, WIN);
-    const bx = 10, bw = W - 124, by = H - 31;
+    // the timeline: one bar per phase (the current one lit), the clock as a white mark, the phase's name and the time; clear
+    // of the touch buttons when they show: beside them where there is room, else above them
+    const ta = game.input.touchArea(), side = ta && ta.x0 > 200, B = ta && !side ? Math.floor(ta.y0) - 2 : H, BW = side ? Math.floor(ta.x0) - 8 : W - 8;
+    E.ui.box(g, 4, B - 36, BW, 33, WIN);
+    const bx = 10, bw = BW - 116, by = B - 31;
     let t0 = 0, label = '';
     for (const [name, secs, c] of anim.segs) {
       const x0 = bx + Math.round(t0 / anim.len * bw), x1 = bx + Math.round((t0 + secs) / anim.len * bw), on = t > t0 && t <= t0 + secs;
@@ -10664,8 +10839,8 @@ const ANIMLAB = (() => {
       t0 += secs;
     }
     px.rect(g, bx + Math.round(Math.min(1, t / anim.len) * bw), by - 2, 1, 11, '#ffffff');
-    E.font.text(g, label + '  ' + t.toFixed(2) + ' / ' + anim.len.toFixed(2) + 's', W - 10, by + 1, '#ffe8b0', RIGHT(TINY));
-    LEGEND.forEach((s, i) => E.font.text(g, s, 10, H - 21 + i * 8, '#b8b0e0', TINY));
+    E.font.text(g, label + '  ' + t.toFixed(2) + ' / ' + anim.len.toFixed(2) + 's', BW - 2, by + 1, '#ffe8b0', RIGHT(TINY));
+    (touch() ? ['STICK ↑↓ ANIMATION   ←→ SKIN', 'THE BUTTONS: REPLAY, SLOW, HOLD'] : LEGEND).forEach((s, i) => E.font.text(g, s, 10, B - 21 + i * 8, '#b8b0e0', TINY));
   }
 
   /* ---- UPDATE: keys, then the clock (paused: . steps one 60th of a second) ---- */
@@ -10698,7 +10873,7 @@ const ANIMLAB = (() => {
     game.cam.bounds = null; game.cam.room = null; game.timeScale = 1; L.enabled = false; A.music(null);
     game.resetCamera(); game.setZoom(1.5); lineup = false; paused = false; viewKey = ''; play(ai);
   }
-  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], rotate: true },
+  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], rotate: true }, touch: ['replay', 'slow', 'hold'],   // the stick picks (up, down) and dresses (left, right)
     input: { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], replay: ['KeyJ', 'Enter'], hold: ['Space'], step: ['Period'],
       slow: ['KeyS'], trail: ['KeyT'], bones: ['KeyB'], lineup: ['KeyL'], flip: ['KeyF'], hud: ['KeyH'], turn: ['BracketLeft', 'BracketRight'], back: ['Escape'] },
     enter, exit() { game.timeScale = 1; game.resetCamera(); }, update, draw,
@@ -10902,9 +11077,15 @@ const STEALTH = (() => {
       E.ui.box(g, 4, 4, 92, 20, { alpha: .75 }); E.ui.hearts(g, 9, 9, hp, HP);
       if (ledger) px.sprite(g, BOOK, 66, 10);
       E.font.text(g, hero.exposure === 0 ? 'HIDDEN' : hero.crouch ? 'CROUCHED' : '', 9, 18, '#9ae89a', { font: 'tiny', outline: false });
-      if (msgT > 0) { const w = E.font.width(msg) + 16; E.ui.box(g, (r.W - w) / 2, r.H - 34, w, 18, { alpha: .85 }); E.font.text(g, msg, r.W / 2, r.H - 29, '#ffe7a8', { align: 'center' }); }
+      if (msgT > 0) {   // the message stays clear of the touch buttons: above them where they reach under it
+        const w = E.font.width(msg) + 16, ta = game.input.touchArea(), my = ta && (r.W + w) / 2 > ta.x0 ? Math.min(r.H - 34, Math.floor(ta.y0) - 22) : r.H - 34;
+        E.ui.box(g, (r.W - w) / 2, my, w, 18, { alpha: .85 }); E.font.text(g, msg, r.W / 2, my + 5, '#ffe7a8', { align: 'center' });
+      }
       if (won) { E.font.title(g, 'MISSION COMPLETE', r.W / 2, 60, { align: 'center', scale: 3, colors: ['#ffffff', '#ffe08a', '#e0a040'], depth: 2 }); px.sprite(g, STAR, r.W / 2 - 2, 94); }
-      E.font.text(g, 'WASD  SHIFT SPRINT  SPACE JUMP/CLIMB  C CROUCH  J STRIKE  K BLOCK  L ROLL', r.W / 2, r.H - 9, '#b8b0d8', { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+      if (!touch()) {   // the player's own keys (a touch screen's buttons name themselves)
+        const k = a => game.input.label(a).toUpperCase(), pad = game.input.lastDevice === 'gamepad', move = pad ? 'STICK' : ['up', 'left', 'down', 'right'].map(k).join('');
+        E.font.text(g, [move, k('sprint') + ' SPRINT', k('jump') + ' JUMP/CLIMB', k('crouch') + ' CROUCH', k('attack') + ' STRIKE', k('block') + ' BLOCK', k('dodge') + ' ROLL'].join('  '), r.W / 2, r.H - 9, '#b8b0d8', { align: 'center', font: 'tiny', shadow: '#000', outline: false });
+      }
     });
   }
   return { view: 'iso', views: ['iso', 'threequarter'], input: 'THIRDPERSON', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'block', 'crouch'],

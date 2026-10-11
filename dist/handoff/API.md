@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.25.5)
+# my-3D2dge API card (v0.26.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -37,7 +37,7 @@ game.start({
 
 ## Look target (read this before drawing anything)
 Aim above SNES, level with the best PS1 / N64 2D games (Symphony of the Night, Metal Slug, Legend of Mana, Klonoa). Games that skip these steps look like Atari games. **Every game should use all of them:**
-1. **Resolution** `res: 'ps1'` (320x240) or `'snes'`, and characters 40-60 px tall: `new E.Humanoid({ size: 1.3 })` (HD style is the default: shaded volumetric limbs, outfits, hair).
+1. **Resolution** `res: 'ps1'` (320x240) or `'snes'`, with `expand: true` so it fills any screen (anchor the HUD to `r.W` / `r.H`), and characters 40-60 px tall: `new E.Humanoid({ size: 1.3 })` (HD style is the default: shaded volumetric limbs, outfits, hair).
 2. **Dress the character**: `outfit: 'tunic' | 'robe' | 'coat'`, `hair: 'short' | 'spiky' | 'long' | 'ponytail'`, `hat`, `armor: true`, `cape`, `sleeves`, and a real palette in `colors` (never leave the defaults on everyone).
 3. **Backdrop behind every level**: `const bg = new E.Backdrop('castle-night')` then `bg.draw(r)` first in `draw`. Presets: `day dusk night castle-night city-night desert forest ocean cave space`, or your own `{ sky, sun | moon, stars, starsY: .7, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' | 'fog' | 'stalactites', color, y, height, parallax, fill }] }` (`starsY` = how far down the stars reach; a layer fills the screen below its skyline unless `fill: false`).
 4. **Textured tiles**: PlatformMap styles `stone` (with `moss`), `brick`, `wood`, `metal`, `ground` (with `flower`), `block`, `pipe`, `bonus`; TileMap floors from `E.tex.*`, TileMap walls with `face: 'brick' | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge'` and tops with `roof: 'tiles' | 'slab' | 'leaves' | 'grass'` (a village = timber and plaster houses with tile roofs, hedges, rock cliffs).
@@ -81,8 +81,9 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - Errors show in a red box on screen and in the console. Fix the first one first.
 
 ## Game
-`new E.Game({ canvas: 'screen', view, views, res, input, bg })`
+`new E.Game({ canvas: 'screen', view, views, res, expand, input, bg })`
 - `res`: `'nes'` 256x240, `'snes'` 256x224, `'genesis'` 320x224, `'gb'` 160x144, `'gba'` 240x160, `'ps1'` / `'n64'` 320x240, `'wide'` 400x225, or `[w, h]`. Fixed pixels, whole-number scaling. Leave it out for an adaptive size.
+- `expand: true`: full screen at any shape, no bars. `res` becomes the least the screen shows and `r.W` x `r.H` grows to fill the window (a 16:9 monitor shows about 427x240 of `'ps1'`, a phone held upright about 320x690). Anchor the HUD to `r.W` and `r.H`, and give the level something to show in the extra space (more of it, a backdrop, a HUD deck under it on a tall screen). `expand: { maxW, maxH }` caps the growth. A scene may set it too.
 - Adaptive size: `minW` / `minH` set the scale (the screen shows at least that many pixels), `maxW` / `maxH` cap the view (the rest is letterboxed). `portrait: { maxH: 1000 }` overrides them while the screen is taller than wide, so a phone held upright (9:16) is filled instead of showing a band across its middle. `game.screen.portrait` says which way it is.
 - `input`: `'DEFAULT'` (top-down action), `'PLATFORMER'`, `'SHMUP'`, or your own `{ action: ['KeyQ', 'Pad0'] }`.
 - `views`: the views your game supports; `game.nextView()` cycles them (bind it to a key).
@@ -103,7 +104,7 @@ game.start({ scene: 'title', scenes: {
           enter(data) { /* build the level */ }, exit() {}, update(dt) {}, draw(r) {} }
 } });
 ```
-`game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `touch`, `propSize` are applied on entry.
+`game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `propSize` are applied on entry.
 
 ## Standard features (every game has them: don't build your own)
 With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap, a top-right button, the menu; leaving it is remembered), **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling or zooming on the canvas).
@@ -116,8 +117,8 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - DEFAULT adds `attack` (J, X, click), `dash` (Space, Shift, K), `skill` (L, E, right click), `jump` (Z). PLATFORMER: `jump` (Space, Z, K, pad A), `attack` (X, J, click), `dash` (Shift, C, L), `skill`. SHMUP: `fire` (Space, Z, J, click), `bomb` (X, K).
 - `down(a)`, `pressed(a)`, `released(a)`, `repeat(a, delay, rate)` (menus), `buffered(a, win)` + `consume(a)`, `consumeAll()`, `anyPressed()`, `move()` (screen direction `[x, y]`, length up to 1), `use(preset)`, `touchButtons(['jump', 'attack'])`.
 - `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
-- Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`; diagnostics: `padIndex`, `padId`, `padAxes`, `padPrev`, `lastDevice`. Controllers are detected in any browser slot, and disconnects release their inputs. Bind `PadAxisUp/Down/Left/Right` to menu actions for left-stick navigation.
-- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
+- Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`; diagnostics: `padIndex`, `padId`, `padAxes`, `padPrev`, `lastDevice`. Controllers are detected in any browser slot, and disconnects release their inputs. The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
