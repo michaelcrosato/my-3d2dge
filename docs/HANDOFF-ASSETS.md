@@ -160,7 +160,10 @@ Phase 1 builds the call against these requirements:
 - **The same placement.** Collision takes the same spec and placement as `r.shape`: id or spec, position, `facing`,
   `scale`, `flip`. One placement object can feed both calls, so the collision box always matches what is drawn.
 - **Height-aware.** A solid shape is a box with a bottom (its placement's `z`) and a top (`z` plus its height).
-  - A body whose height overlaps that span collides with it.
+  - A body spans from its `z` (its feet) to `z + h`. A body whose span overlaps the shape's collides with it.
+    - `E.Body` has no height yet (F:4848), and `E.HEIGHTS` holds only eye, chest, level and step.
+    - Phase 1 adds `h` to `E.Body`, defaulting to a standing actor's height (eyes are at `E.HEIGHTS.eye`, 30). Bodies
+      that aren't people set their own.
   - A body coming down onto the top lands on it, as on a wall block.
   - A body wholly below the bottom passes under it. That matters for a shape placed on a roof or a shelf.
   - `map.block` alone is not enough: a blocked cell "stops walkers, not jumpers" (`TileMap.collide`, F:3861), so a
@@ -327,7 +330,8 @@ noise, Voronoi (Worley), brick, checker, wave, gradient. Models already know tho
   - **A contact shadow** under the footprint, darker where the shape meets the floor. The judge named "thin shadows"
     (F3.2).
 - **Steep views** draw shapes from `E.charView`'s lower angle, as they draw characters (option `charView: false`).
-- **Caching.** Each raster is cached per shape and its parameters, material set, view, facing (in 32 steps) and zoom.
+- **Caching.** Each raster is cached per shape and its parameters, material set, `flip`, view, facing (in 32 steps)
+  and zoom. `flip` mirrors the shape itself, so flipped and unflipped placements need rasters of their own.
   - The parameters are keyed by a hash of the resolved parts, so `['use', 'pine', at, { h: 30 }]` and the default pine
     never share pixels.
   - Rasters are built lazily and dropped least-recently used.

@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.25.5 (2026-10-11)
+
+Two more details in the asset store plan, from a review of v0.25.4.
+
+- **Docs**: `docs/HANDOFF-ASSETS.md`:
+  - A body's span for shape collision runs from its feet to `z + h`. `E.Body` has no height today, so Phase 1 adds `h`, defaulting to a standing actor's.
+  - `flip` is part of a raster's cache key, since it now mirrors the shape itself.
+
 ## 0.25.4 (2026-10-11)
 
 A last precision pass on the asset store plan, from a review of v0.25.3.
