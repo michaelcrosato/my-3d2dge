@@ -8,7 +8,7 @@
 //   heights        E.HEIGHTS, map.ray/sight/standable/ledge/landing/drop/arcClear, E.inArc's dz, E.sameLevel, E.targets
 //                  and FlowField over heights, on small maps (a roof edge, a kerb, a gap, a planter, a guard above)
 //   audio          audio.duck(on) is public
-// Usage: node tools/contract-test.mjs   (exit code 1 on a failure). What runs without a screen runs in Node; the game loop
+// Usage: node tools/contract-test.mjs [--node]   (exit code 1 on a failure; --node runs only the part without a browser). What runs without a screen runs in Node; the game loop
 // runs in headless Chromium on a virtual clock (CHROMIUM_PATH picks a browser).
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
@@ -190,7 +190,7 @@ const RULES = () => {
   return out;
 };
 
-if (process.argv.includes("--node")) { console.log(failures.length ? "FAILED\n  " + failures.join("\n  ") : "node part: all " + passed + " passed"); process.exit(failures.length ? 1 : 0); }
+if (process.argv.includes('--node')) { console.log(failures.length ? `\nFAILED ${failures.length} of ${passed + failures.length}:\n  ${failures.join('\n  ')}` : `\nall ${passed} checks without a browser passed`); process.exit(failures.length ? 1 : 0); }
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [ed, file] of EDITIONS) {
   console.log(`\n${ed} edition (Chromium, virtual clock)`);
