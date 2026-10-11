@@ -11,7 +11,8 @@
 //                keys and d-pad stay on the moves, bindings survive use() and are saved), resetBindings()
 //   page         the viewport (viewport-fit=cover, pinch zoom left alone) and the canvas's touch-action; a fixed
 //                resolution filling a high-density screen ('auto' scale) or kept whole ('sharp'); expand filling every
-//                shape with no bars; the touch stick pressing the directions; a bottom dialog clear of the touch buttons
+//                shape with no bars; the touch stick pressing the directions; a bottom dialog clear of the touch buttons;
+//                a tap or click on a menu entry picking it and on a dialog box turning the page
 //   corner       the menu and full-screen buttons: shown on a title and while paused, hidden in play; the menu button
 //                pauses (the agent edition: and resumes); full screen from a click, and the player's choice kept (leaving
 //                it means a phone's tap no longer takes it there)
@@ -266,6 +267,17 @@ if (!process.argv.includes('--node')) {
       const dl = await ev(q, () => { const d = new E.Dialog(game); d.say('A line long enough to cross the screen from side to side'); const b = d._dims(), t = game.input.touchArea(); return [b.x, b.y, b.w, b.h, t && [t.x0, t.y0, t.x1, t.y1]]; });
       const [dx, dy, dw, dh, ta] = dl;
       check(`${ed}: a bottom dialog keeps clear of the touch buttons`, !!ta && (dx + dw <= ta[0] || dx >= ta[2] || dy + dh <= ta[1]) && dy > 100, JSON.stringify(dl));
+      // a tap or a click on a menu entry picks it (a title can be left without keys); a tap on a dialog box turns its page
+      const at = (gx, gy) => ev(q, ([x, y]) => { const S = game.screen, rc = S.canvas.getBoundingClientRect(); return [rc.left + (x * S.S + S.OX) / S.dpr, rc.top + (y * S.S + S.OY) / S.dpr]; }, [gx, gy]);
+      const mb = await ev(q, () => { window.picked = -1; const m = window.mm = new E.Menu(game, ['ONE', 'TWO', 'THREE'], { onPick: i => { window.picked = i; } }); game.scene.update = () => m.update(); game.scene.draw = r => m.draw(r); step(2); return m._box; });
+      const t3 = await at(mb.x + 10, mb.y + mb.rowH * 2.5); await q.touchscreen.tap(t3[0], t3[1]); await ev(q, () => step(2)); const byTap = await ev(q, () => window.picked);
+      await ev(q, () => { window.picked = -1; }); const c1 = await at(mb.x + 10, mb.y + mb.rowH * .5); await q.mouse.click(c1[0], c1[1]); await ev(q, () => step(2)); const byClick = await ev(q, () => window.picked);
+      const beside = await at(mb.x - 30, mb.y - 20); await ev(q, () => { window.picked = -1; }); await q.touchscreen.tap(beside[0], beside[1]); await ev(q, () => step(2)); const outside = await ev(q, () => window.picked);
+      check(`${ed}: a tap or a click on a menu entry picks it, a tap beside the menu does not`, byTap === 2 && byClick === 0 && outside === -1, JSON.stringify([byTap, byClick, outside]));
+      const db = await ev(q, () => { const d = window.dd = new E.Dialog(game); d.say(['Page one', 'Page two']); game.scene.update = dt => d.update(dt); game.scene.draw = r => d.draw(r); step(2); return d._dims(); });
+      const dt = await at(db.x + db.w / 2, db.y + db.h / 2);
+      for (let i = 0; i < 2; i++) { await q.touchscreen.tap(dt[0], dt[1]); await ev(q, () => step(2)); }
+      check(`${ed}: a tap on a dialog box finishes the line, then turns the page`, await ev(q, () => window.dd.i === 1 && window.dd.open), await ev(q, () => JSON.stringify([window.dd.i, window.dd.shown, window.dd.open])));
       if (q.errors.length) check(`${ed}: no errors (touch)`, false, q.errors.join(' | '));
       await tc.close();
     }

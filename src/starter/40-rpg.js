@@ -454,8 +454,10 @@ const RPG = (() => {
   const tiny = (g, s, x, y, c) => E.font.text(g, s, x, y, c, { font: 'tiny', outline: false });
   function hud(g, r) {
     const { Y } = layout(r.W, r.H), choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
-    // the band's 316 px: centred, or left of the touch buttons where they would cover it
-    const ta = game.input.touchArea(), X = Math.max(0, Math.min(Math.round((r.W - 320) / 2), ta && ta.y0 < Y + 66 ? Math.floor(ta.x0) - 320 : 1e4));
+    // the band's 316 px: centred, or beside the touch buttons where they would cover it (left of them, or right of them when
+    // the player has put them on the left)
+    const ta = game.input.touchArea(), mid = Math.round((r.W - 320) / 2), X = !(ta && ta.y0 < Y + 66) ? mid
+      : ta.x0 > r.W / 2 ? Math.max(0, Math.min(mid, Math.floor(ta.x0) - 320)) : Math.min(r.W - 320, Math.max(mid, Math.ceil(ta.x1)));
     // an arrow over the hero on turn, the glove on the target
     if (choosing) { const [sx, sy] = r.w(actor.x, actor.y, actor.z + actor.h + 5); px.poly(g, [[sx - 5, sy - 7 + bob], [sx + 5, sy - 7 + bob], [sx, sy - 1 + bob]], '#ffe060'); px.rect(g, sx - 3, sy - 6 + bob, 6, 1, '#fff8c0'); }
     if (mode === 'target') { const c = list[cursor], [sx, sy] = r.w(c.x, c.y, c.z + c.h * .55); px.sprite(g, HAND, sx - 28 + bob, sy - 4); }

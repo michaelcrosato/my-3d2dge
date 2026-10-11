@@ -485,7 +485,7 @@ const ADV = (() => {
   }
   // HUD: counters; hero status and CONTROLS (the player's own keys), hidden during dialog. On a DECK when the screen is tall
   function hud(r) {
-    const npc = talkable(), foot = Math.round(r.w(0, map.h * T, 0)[1]);   // the map's front edge on screen
+    const rx = roomOf(hero.x) * ROOM[0], foot = Math.round(Math.max(r.w(rx, map.h * T, 0)[1], r.w(rx + ROOM[0], map.h * T, 0)[1])), npc = talkable();   // this room's front edge on screen (in any view)
     deck = game.cam.room && r.H - foot > 96 ? foot : 0;
     const Y = deck ? deck + 34 : r.H - 34, GX = deck ? r.W - 70 : 4, GY = deck ? deck + 10 : 4;
     r.overlay(g => {

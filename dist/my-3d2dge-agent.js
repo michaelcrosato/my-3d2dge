@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.26.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.26.1: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -370,7 +370,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.26.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.26.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -710,7 +710,7 @@ class Screen {
     if (fix) {
       const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2), x = o.expand;
       this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
-      this.W = x ? clamp(Math.ceil(pw / this.S - 1e-6), fix[0], x.maxW || 1e4) : fix[0]; this.H = x ? clamp(Math.ceil(ph / this.S - 1e-6), fix[1], x.maxH || 1e4) : fix[1];
+      this.W = x ? clamp(Math.ceil(pw / this.S - 1e-6), fix[0], Math.max(fix[0], x.maxW || 1e4)) : fix[0]; this.H = x ? clamp(Math.ceil(ph / this.S - 1e-6), fix[1], Math.max(fix[1], x.maxH || 1e4)) : fix[1];   // (a cap never cuts below res)
     }
     else { this.S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW))); this.W = Math.min(o.maxW, Math.ceil(pw / this.S)); this.H = Math.min(o.maxH, Math.ceil(ph / this.S)); }
     this.OX = Math.floor((pw - this.W * this.S) / 2); this.OY = Math.floor((ph - this.H * this.S) / 2);
