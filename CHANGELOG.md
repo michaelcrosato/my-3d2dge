@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.25.3 (2026-10-11)
+
+More corrections to the asset store plan, from a review of v0.25.2.
+
+- **Docs**: `docs/HANDOFF-ASSETS.md`:
+  - A shape's `facing` means what a rig's does: where its front points, with 0 east. It defaults to π/2 (south), the direction shapes are written facing.
+  - Collision for solid shapes is stated as requirements for Phase 1: the same placement as `r.shape`, and height-aware. `map.block` stops walkers, not jumpers, and is a whole tile wide.
+  - `r.shape` has no `solid`, since `r.prop` has none to mirror.
+  - TileMap gets `floorMat` for every floor cell, with `floorMats` per tag overriding it.
+  - Each downloaded archive is one hashed source record that its entries name.
+  - The recipe draws a set's shape by its qualified id.
+
 ## 0.25.2 (2026-10-11)
 
 Corrections to the asset store plan, from a review of v0.25.1.

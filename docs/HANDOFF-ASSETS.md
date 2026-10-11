@@ -85,9 +85,14 @@ Registries follow the house idiom, a capitalized object a game adds keys to, as 
 ### 3.2 Units and conventions
 
 - World units: 16 = 1 m = one tile. x points east, y south, z up.
-- A shape's origin is the middle of its footprint on the ground, and its front faces south (+y).
-- Angles written in asset data (`rot`) are in degrees. A facing at run time is in radians, as everywhere else in the
-  engine: `r.shape(..., { facing })` takes the same value as a body's or a rig's `facing`.
+- A shape's origin is the middle of its footprint on the ground. It is written with its front facing south (+y),
+  toward the three-quarter camera.
+- Angles written in asset data (`rot`) are in degrees.
+- A facing at run time works as everywhere else in the engine. It is in radians and points where the front points, as
+  a body's or rig's does: 0 is east and π/2 is south (`groundDir`, F:3760).
+  - `r.shape(..., { facing })` takes the same value a rig would.
+  - It defaults to π/2, so a shape drawn without a facing shows the front it was written with. The renderer turns it
+    by `facing − π/2`.
 - Use whole or half units wherever the eye can't tell the difference: a pixel at game scale is about 0.7 units.
 - The hero stands about 26 units tall.
 - Hand-written objects are drawn a little bigger than life, as props are. Phase 0 fixes the scale; for comparison,
@@ -142,15 +147,22 @@ E.SHAPES.pine = { about: 'a pine in four tiers', tags: 'tree forest nature', mat
 - **Provenance:** `src`, `orig` and `fit` (section 5.3).
 
 **Placing a shape:** `r.shape(id | spec, x, y, z, { facing, scale, mats: { wood: 'walnut' }, flip, bias, hides,
-footprint, solid, light })` mirrors `r.prop`. `facing` is in radians.
+footprint, light })`.
+- It takes `r.prop`'s placement options (`flip`, `bias`, `hides`, `footprint`, `light`; F:1521-1546), plus `facing`,
+  `scale` and `mats`.
+- It has no `solid`, because `r.prop` has none to mirror.
+- It moves no body.
 
-**Collision is gameplay, so it never comes from drawing.** `r.shape` runs while drawing and moves no body; its `solid`
-is the renderer's option, as it is for props. A game registers a solid shape before its updates:
-- `E.shapeFoot(id, x, y, facing)` gives the footprint as a world box;
-- the game blocks that box on its map (`map.block` for each cell it covers, F:3835), or tests its own bodies against
-  the box.
-
-Phase 1 settles the exact call.
+**Collision is gameplay, so it never comes from drawing.** A game registers each solid shape before its updates.
+Phase 1 builds the call against these requirements:
+- **The same placement.** Collision takes the same spec and placement as `r.shape`: id or spec, position, `facing`,
+  `scale`, `flip`. One placement object can feed both calls, so the collision box always matches what is drawn.
+- **Height-aware.** A solid shape is a box with a top. A body below the top collides with it; a body above it can land
+  on it, as on a wall block.
+  - `map.block` alone is not enough: a blocked cell "stops walkers, not jumpers" (`TileMap.collide`, F:3861), so a
+    body three units in the air would pass through a ten-unit table.
+  - Cells are also a whole tile wide, and most shapes are smaller.
+- **The test.** A hero walking into a solid table, and a hero jumping at it, each stop or land.
 
 **Sprites from shapes:** `E.shapeSprite(id, { view, facing, size, mats })` returns a sprite for inventories, HUDs and
 portraits. A bag icon is the item's shape drawn at an angle.
@@ -182,8 +194,10 @@ E.MATERIALS['mossy-stone'] = { color: '#7a7486', pattern: 'stones', size: 6, ove
   its private patch goes.
 - **Surfaces.** These take any material id. An unknown id warns with the list of names.
   - A wall type's `face` and `roof`, which only pick a look.
-  - A TileMap's new `floorMats: { tag: id }`. Not `floors`: that name is already the map's cache of baked floor
-    images (F:3796, F:4024), and Emberdeep resets it.
+  - A TileMap's new `floorMat: id` for every floor cell, and `floorMats: { tag: id }` for tagged cells, overriding
+    it. Untagged cells, and maps built in code with no floor tags, have the tag `null` (F:3786, F:3830).
+  - Not `floors`: that name is already the map's cache of baked floor images (F:3796, F:4024), and Emberdeep resets
+    it.
   - A platform tile type's new `mat`, beside its `style`. The style also picks the tile's geometry (spikes, ladders,
     liquid, pipes), so it stays as it is.
 
@@ -202,7 +216,10 @@ recolors through one material. That is the same idea as Emberdeep's `UI_GLYPHS`,
 **The engine, full edition only.**
 - Registries: `E.MATERIALS`, `E.PATTERNS`, `E.SHAPES`.
 - Calls: `r.shape`, `E.shapeSprite`, and `E.addAssets(set)`, which registers a store set and returns its ids.
-- Map options: TileMap's `floorMats`, `face` and `roof` taking any material id, and a platform tile type's `mat`.
+- Map options:
+  - TileMap's `floorMat` and `floorMats`;
+  - `face` and `roof` taking any material id;
+  - a platform tile type's `mat`.
 - The shape renderer (section 4) and the generators.
 - A small **core library**: the shapes and materials the starters and the template game use, at most 12 KB of source.
 - About 10 new public names, each with a doc comment. The index has room for about 70.
@@ -382,14 +399,16 @@ Quaternius' did.
 
 ### 5.3 Provenance and fit
 
-- **Each set** carries `credit` and a `sources` record per library: `{ label, origin, license, url, fetched,
-  licenseHash }`.
-- **The ledger keeps a content hash (sha256) of every downloaded archive or file.** Then the bytes that produced each
-  entry, and its fit, are known even if a provider replaces a file at the same URL. A re-import checks the hash first.
+- **Each set** carries `credit` and a `sources` record for each downloaded archive or file: `{ label, origin, license,
+  url, fetched, sha256, licenseHash }`.
+  - A library of many archives, such as Kenney's kits, has one record per archive.
+  - A re-import checks each record's sha256 first.
 - **Each entry** carries:
-  - `src`: the library key;
-  - `orig`: the file inside the source;
+  - `src`: exactly one `sources` record, the download it came from;
+  - `orig`: the file inside that download;
   - `fit`.
+
+  So the bytes behind each entry, and its fit, are known even if a provider replaces a file at the same URL.
 - **Fit:**
   - **Shapes:** the silhouette IoU at game scale against the source triangles drawn by the same rasterizer, as mean
     and worst over the views, plus the color ΔE.
@@ -443,14 +462,14 @@ been checked.
    - Register every existing face, roof, tile style and `E.tex` texture with its own function. Prove it is pixel for
      pixel with `tools/filmstrip.mjs --compare <before> --expect-same` on Emberdeep (town and two depths), the stealth
      starter and the platformer.
-   - Add `floorMats: { tag: id }` to TileMap, and `mat` to platform tile types.
+   - Add `floorMat` and `floorMats: { tag: id }` to TileMap, and `mat` to platform tile types.
    - Unknown face, roof and style names warn with the list of names.
 2. **Emberdeep moves to the public registry.** Its 9 faces and 8 roofs register through `E.MATERIALS`. Remove
    `_facePattern` and `_roofPattern` from `GRANDFATHERED`.
 3. **Shapes.**
-   - `E.SHAPES`, `r.shape`, `E.shapeSprite`, `E.shapeFoot`, `E.addAssets` (with qualified ids), and the renderer as
-     Phase 0 decided it.
-   - The collision call for solid shapes (section 3.3).
+   - `E.SHAPES`, `r.shape`, `E.shapeSprite`, `E.addAssets` (with qualified ids), and the renderer as Phase 0 decided
+     it.
+   - The height-aware collision call for solid shapes, built to section 3.3's requirements.
    - The generators pine, tree, bush, rock, crystal, fence and grass. Start the tree from Emberdeep's `treeThing`.
    - `r.actor`'s scratch canvas is 256 px square, with the feet at (128, 200) (`AS`, F:1346). Shapes bigger than that
      at high zoom need a path of their own.
@@ -472,7 +491,8 @@ been checked.
    - Every material draws on every kind of surface.
    - Two runs give the same pixel hash.
    - Two uses of one generator with different parameters draw different pixels.
-   - A hero can't walk through a solid table, and sorts right while walking round it.
+   - A hero can't walk through a solid table or jump into it below its top, and sorts right while walking round it.
+   - The collision box matches the drawn shape under `facing`, `scale` and `flip`.
    - Loading a set never replaces a core entry or another set's.
    - Validation errors name the entry and the field.
    - Each entry stays within the token budget.
@@ -576,8 +596,10 @@ owner's rule: don't push on where the goal can't be met.
 4. **Look:** `node tools/asset-sheet.mjs mine.js#stool` draws a PNG (every view, turning, beside the hero, on a light
    and a dark floor) and lints it: too small from above, a part under a pixel, a thin palette, low contrast with the
    floor, tokens. Read the PNG, fix it, repeat.
-5. **Use:** call `E.addAssets(window.ASSETS.MINE)`, then `r.shape('stool', x, y, 0, { facing })`. Or write the entry
-   straight into `E.SHAPES`.
+5. **Use:**
+   - From a set: `E.addAssets(window.ASSETS.MINE)` registers it under ids qualified by the set's name and returns
+     them, so draw it with `r.shape('MINE:stool', x, y, 0, { facing })`.
+   - Or write the entry straight into `E.SHAPES.stool` and draw `'stool'`.
 
 ## 9. Traps, and what is out of scope
 
