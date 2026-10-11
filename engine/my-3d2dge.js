@@ -5574,7 +5574,8 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-col{position:absolute;right:var(--pr);top:var(--pt);display:flex;flex-direction:column;align-items:flex-end;gap:8px}.esh-place{text-align:right;font:italic 13px var(--title);color:var(--muted)}
 .esh-mini{position:absolute;right:var(--pr);bottom:var(--pb);width:min(176px,28vw);border-radius:6px;border:1px solid var(--line);pointer-events:auto;cursor:pointer}
 .esh-keys{position:absolute;left:50%;bottom:var(--pb);transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap}.esh-keys kbd{margin-right:4px}
-@media (pointer:coarse){.esh-keys{display:none}}
+@media (pointer:coarse){.esh-keys{display:none}}@media (max-width:640px){.esh-obj{max-width:calc(100vw - 214px)}.esh-toast{left:var(--pl);right:var(--pr);top:auto;bottom:calc(var(--pb) + 124px);max-width:none;transform:translateY(calc(100% + 160px))}.esh-toast.on{transform:none}
+.esh-pr{bottom:calc(var(--pb) + 196px)}.esh-tip{bottom:calc(var(--pb) + 262px)}}
 .esh-sh{position:absolute;inset:0;display:grid;place-items:center;background:#04060acc;pointer-events:auto;padding:var(--pt) var(--pr) var(--pb) var(--pl);animation:esh-in .25s}
 .esh-mod{width:min(460px,100%);max-height:100%;overflow:auto;padding:22px 24px}.esh-wide{width:min(760px,100%)}
 .esh-ttl{place-items:center start;background:linear-gradient(90deg,#04060aee,#04060a99 50%,#04060a00 85%)}.esh-ttl>div{max-width:min(520px,92vw);padding-left:4vw}

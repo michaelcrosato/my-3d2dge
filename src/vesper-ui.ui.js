@@ -15,7 +15,7 @@ const ui = new E.Shell(game, {
         ['The watch', 'Guards see what lies in their cone and not behind a roof. Crouch in tall grass to vanish. Three cipher seals are hidden in the district.']] } } });
 sim.opts.cones = ui.settings.cones;
 const STEP = { survey: '01', ledger: '02', escape: '03', complete: '04', failed: '—' };
-const LABELS = [['THE BELL WARD', 64, 150], ['ARCHIVE', 176, 22], ['LANTERN ROW', 300, 22], ['OLD HARBOUR', 200, 196]];
+const LABELS = [['THE BELL WARD', 64, 150], ['ARCHIVE', 176, 22], ['LANTERN ROW', 300, 22], ['OLD HARBOUR', 200, 166]];
 sim.frozen = () => !!ui.screen;
 function title() {
   ui.show('title', { kicker: 'A city of secrets', name: 'VESPER', subtitle: 'The Ninth Bell', meta: ['STEALTH', 'PARKOUR', 'ONE COMPLETE MISSION'], footer: 'The free city of Meridian · the Old Harbour · dusk',
