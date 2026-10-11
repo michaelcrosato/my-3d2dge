@@ -13,7 +13,10 @@ The kits' title menu could only be worked with keys or a gamepad: a click on an 
   - `E.Menu` answers to the pointer: a click or tap on an entry picks it, and the mouse over one moves the cursor. Every menu drawn with `menu.draw(r)` gets it: the kits' title and game over, and any game's.
   - A tap on an `E.Dialog`'s box finishes the line, then turns the page, as confirm does (a scene with no confirm button, like the brawler's boss taunt, no longer strands a phone).
   - `input.clicked()`: where a click or tap on the canvas landed, in screen pixels, for the step after it (for a HUD button of a game's own); `input.pointer()`: the mouse in screen pixels; `input.screenPoint(cx, cy)`.
-- **Characters**: the kits' title says how on each device: "Tap a game to play it" on a touch screen, "Arrows + Enter or click" with keys.
+  - `expand: { maxW, maxH }` never cuts the screen below `res` (a cap smaller than it is lifted to it). Both editions.
+- **Characters**:
+  - The kits' title says how on each device: "Tap a game to play it" on a touch screen, "Arrows + Enter or click" with keys.
+  - From the review of v0.26.0: the brawler draws its foreground wall at every zoom (the camera keeps its band); the adventure's deck is measured from the hero's room in every view (isometric too); the RPG's HUD band moves right of the touch buttons when the player has put them on the left.
 - **Tools**: `standard-test`: a tap and a click on a menu entry pick it, a tap beside it does not, a tap on a dialog turns the page (100 checks).
 - **Docs**: `API.md`, `AI_GUIDE.md` and `docs/STANDARD-FEATURES.md` say menus and dialogs take taps and clicks.
 

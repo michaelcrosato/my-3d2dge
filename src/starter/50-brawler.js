@@ -491,7 +491,7 @@ const BRAWL = (() => {
       px.blend(g, u < .5 ? .5 : .25, 'normal', () => { px.ell(g, x, y, R * 1.5, R * .7, '#8a7e9a'); px.ell(g, x - R * .3, y - R * .3, R, R * .4, '#d0c8dc'); });
     });
     for (const s of sparks) at(s.x, s.y, s.z, (g, x, y) => star(g, x, y, s), { bias: .5 });
-    if (wall(r.H) && game.zoom <= 1) r.overlay(g => foreground(g, r));
+    if (wall(r.H)) r.overlay(g => foreground(g, r));   // (at every zoom: the camera's bounds keep its band)
     r.overlay(g => hud(g, r)); talk.draw(r);
   }
   // ANY SCREEN: how far a screen taller than the street lifts it (0 on a wide one), and the FOREGROUND wall in that band:
