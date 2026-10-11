@@ -1971,6 +1971,8 @@ const SHOOT = (() => {
   /* ---- 7. UPDATE ---- */
   function update(dt) {
     W = game.W; H = game.H;
+    const over = Math.max(0, scroll + H - MAP_H);   // a window grown taller mid-stage: keep the map's foot on the screen's bottom
+    if (over) { scroll -= over; for (const o of [ship, ...items, ...shots.list, ...foes.filter(f => f.air)]) o.y -= over; }
     const inp = game.input, move = Math.min(scroll, SCROLL * dt);
     t += dt; scroll -= move;
     for (const o of [ship, ...items, ...shots.list, ...foes.filter(f => f.air)]) o.y -= move;   // flyers move with the camera

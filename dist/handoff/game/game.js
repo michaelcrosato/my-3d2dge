@@ -7,7 +7,7 @@
 // Copy it and make it your game. Test it headless: node game/test.mjs. Check it in a browser: node tools/check.mjs game/index.html
 (() => {
 const E = My3D2dge;
-const game = new E.Game({ canvas: 'screen', res: 'snes', view: 'iso', views: ['iso', 'threequarter'],
+const game = new E.Game({ canvas: 'screen', res: 'snes', expand: true, view: 'iso', views: ['iso', 'threequarter'],   // expand: full screen at any shape (the HUD anchors to r.W, r.H)
   menu: { controls: { jump: 'Jump and climb', attack: false, dash: false, skill: false } } });   // (this game uses moves and jump only)
 const ROOF = 32;
 const map = new E.TileMap({
@@ -42,9 +42,10 @@ const title = {
   update() { if (game.input.pressed('start')) { reset(); game.go('play'); } },
   draw(r) {
     r.sky(['#141030', '#3a2a60']);
-    r.overlay(g => E.font.title(g, 'ROOFTOP', r.W / 2, 60, { scale: 3, align: 'center' }));
-    r.text(('CLIMB WITH ' + game.input.label('jump') + '  TAKE THE GEM  STAY UNSEEN').toUpperCase(), r.W / 2, 120, '#e8e0ff', { align: 'center' });
-    r.text(('PRESS ' + game.input.label('start')).toUpperCase(), r.W / 2, 150, '#ffffff', { align: 'center', shadow: '#000' });
+    const m = Math.round(r.H / 2);   // centred on any screen
+    r.overlay(g => E.font.title(g, 'ROOFTOP', r.W / 2, m - 52, { scale: 3, align: 'center' }));
+    r.text(('CLIMB WITH ' + game.input.label('jump') + '  TAKE THE GEM  STAY UNSEEN').toUpperCase(), r.W / 2, m + 8, '#e8e0ff', { align: 'center' });
+    r.text(('PRESS ' + game.input.label('start')).toUpperCase(), r.W / 2, m + 38, '#ffffff', { align: 'center', shadow: '#000' });
   }
 };
 
@@ -104,8 +105,9 @@ const end = {
   update() { if (game.input.pressed('start')) { reset(); game.go('play'); } },
   draw(r) {
     r.sky(won ? ['#103020', '#2a6a48'] : ['#301010', '#6a2a2a']);
-    r.overlay(g => E.font.title(g, won ? 'STOLEN' : 'CAUGHT', r.W / 2, 70, { scale: 3, align: 'center' }));
-    r.text('PRESS ENTER TO TRY AGAIN', r.W / 2, 140, '#ffffff', { align: 'center', shadow: '#000' });
+    const m = Math.round(r.H / 2);
+    r.overlay(g => E.font.title(g, won ? 'STOLEN' : 'CAUGHT', r.W / 2, m - 42, { scale: 3, align: 'center' }));
+    r.text(('PRESS ' + game.input.label('start') + ' TO TRY AGAIN').toUpperCase(), r.W / 2, m + 28, '#ffffff', { align: 'center', shadow: '#000' });
   }
 };
 
