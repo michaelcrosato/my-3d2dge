@@ -1191,7 +1191,9 @@ class Game {
         const k = this.timeScale > 1 ? Math.ceil(this.timeScale - 1e-9) : 1, h = step * Math.max(0, this.timeScale) / k;
         for (let i = 0; i < k; i++, n++) this._step(h);
       }
+      if (!n && !this._stepped) { n++; this._step(0); }   // the first frame updates before it draws, even when its time is short
     } catch (e) { this._acc %= step; this._fail('update', e); }
+    if (n) this._stepped = true;
     if (this._acc < 0) this._acc = 0;
     this.alpha = this._acc / step;
     return n;

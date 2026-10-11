@@ -218,6 +218,8 @@ An entry:
   change events.
 - **Answered:** yes, the owner (this round's goal).
 - **Landed in:** v0.17.0
+- **Fixed in v0.17.5:** a recording starts when the page has loaded, as a replay does. A browser's own pointer move during
+  the load was recorded but never reached the game, and its replay did, so sessions diverged on a slow load.
 
 ## D15 · 2026-10-10 · Portable math while recording and replaying
 

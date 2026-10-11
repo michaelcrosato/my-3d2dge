@@ -2,7 +2,8 @@
 // agent edition). A promise in API.md, AI_GUIDE.md or a header that no test holds drifts: the old header promised the
 // same motion at 60, 120 and 144 Hz for months while the step size followed the refresh rate.
 //   the clock      the same inputs at 60, 90, 120 and 144 Hz give the same state after the same time; steps are 1/120 s
-//                  of real time, slow motion shortens them, pause and timeScale 0 still tick input, fps reads real time
+//                  of real time, slow motion shortens them, pause and timeScale 0 still tick input, fps reads real time,
+//                  the first frame updates before it draws
 //   flow fields    a FlowField follows map.block() and map.set() at its next update
 //   audio          audio.duck(on) is public
 // Usage: node tools/contract-test.mjs   (exit code 1 on a failure). What runs without a screen runs in Node; the game loop
@@ -86,6 +87,10 @@ const RULES = () => {
   // the counter reads real time: ten frames a second reads 10 (the old counter, fed clamped time, never read under 20)
   for (let i = 0; i < 12; i++) frames(1, 100);
   out.fps = game.fps; out.frameMs = game.stats.frameMs;
+  // the first frame updates before it draws, even when it comes at once
+  const g2 = new E.Game({ canvas: 'screen', res: 'snes' }); let ready = false, drawnFirst = false;
+  g2.start({ update() { ready = true; }, draw(r) { if (!ready) drawnFirst = true; r.sky(['#000', '#000']); } });
+  window.__frame(f * 1000 / 60 + 1e-3); out.firstUpdates = !drawnFirst && ready;
   out.duck = typeof game.audio.duck === 'function' && (game.audio.duck(true), game.audio.ducked === true) && (game.audio.duck(false), game.audio.ducked === false);
   return out;
 };
@@ -118,6 +123,7 @@ for (const [ed, file] of EDITIONS) {
   check(`${ed}: paused, input still ticks (pause toggles back)`, R.unpaused);
   check(`${ed}: fps reads real time (10 frames a second reads 10)`, R.fps === 10 && Math.round(R.frameMs) === 100, 'fps ' + R.fps + ', frameMs ' + R.frameMs);
   check(`${ed}: audio.duck(on) is public`, R.duck);
+  check(`${ed}: the first frame updates before it draws, even when it comes at once`, R.firstUpdates);
 }
 await browser.close();
 

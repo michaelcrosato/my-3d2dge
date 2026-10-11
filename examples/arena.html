@@ -1766,6 +1766,7 @@ class Game {
    * timeScale > 1, so no step is longer than o.step), and the remainder waits for the next frame (game.alpha = its
    * fraction of a step). 60 Hz runs two steps a frame, 120 Hz one, 144 Hz one on most frames: the same steps at any rate.
    * Slow motion makes steps shorter, never fewer. Paused or at timeScale 0 the steps still run (dt 0), so input ticks.
+   * The first frame always updates (with dt 0 when its time is short of a step), so draw never comes before update.
    * Returns the updates run
    */
   _run(real) {
@@ -1777,7 +1778,9 @@ class Game {
         const k = this.timeScale > 1 ? Math.ceil(this.timeScale - 1e-9) : 1, h = step * Math.max(0, this.timeScale) / k;
         for (let i = 0; i < k; i++, n++) this._step(h);
       }
+      if (!n && !this._stepped) { n++; this._step(0); }   // the first frame updates before it draws, even when its time is short
     } catch (e) { this._acc %= step; this._fail('update', e); }   // an error drops the frame's other steps, as before
+    if (n) this._stepped = true;
     if (this._acc < 0) this._acc = 0;
     this.alpha = this._acc / step;
     return n;
@@ -4802,7 +4805,8 @@ E.GPULighting = GPULighting;
  *    the same frame times, inputs and seed give the same game (docs/DECISIONS.md, D12). Math.sin, cos, pow and the other
  *    functions browsers may round differently are replaced by portable ones while recording and replaying, so a session
  *    from an iPhone's Safari replays in Chromium bit for bit (D15).
- *    While recording, GPU lighting stays off (it starts up on real time) and update/draw timings read 0 ms.
+ *    While recording, GPU lighting stays off (it starts up on real time) and update/draw timings read 0 ms. A recording
+ *    starts when the page has loaded, as a replay does: frames wait for it, and the person's inputs before it are held back.
  * ============================================================================= */
 /** sin, cos, tan, atan, atan2, asin, acos, exp, log, log2, log10, pow, hypot and cbrt from exact operations only, the
  *  same bits in every browser (fdlibm 5.3's algorithms and constants for sin, cos, atan, atan2, exp and log) */
@@ -5105,10 +5109,19 @@ const SESSION = (() => {
     if (!R) { if (S.frame % 60 === 0) rec.checks.push([S.frame, checksum()]); }
     else if (CHECKS.has(S.frame)) compare(S.frame, CHECKS.get(S.frame));
   };
-  function tick(ts) { pending = false; rec.frames.push(ts); runFrame(ts); }
+  // a recording's frames start once the page has loaded, as a replay's do: a frame run while the page was still parsing saw
+  // another document (sizes, layout) than its replay, and a game that reads it played differently from its first frame
+  function tick(ts) { if (document.readyState !== 'complete') { realRAF(tick); return; } pending = false; rec.frames.push(ts); runFrame(ts); }
   if (!R) {
     // RECORDING: every wanted event, with the number of frames run before it
-    const log = e => { if (wanted(e)) rec.events.push([S.frame, e.type, pathOf(e.target), ...fields(KIND[e.type], e)]); };
+    // the person's inputs before the page has loaded (a browser's own pointer move as the page lays out under the cursor)
+    // are held back: the game's listeners may not exist yet, and a replay could only give them to a loaded page
+    const PERSON = ['key', 'pointer', 'wheel', 'mouse', 'value', 'capture'];
+    const log = e => {
+      if (!wanted(e)) return;
+      if (document.readyState !== 'complete' && PERSON.includes(KIND[e.type])) { e.stopImmediatePropagation(); return; }
+      rec.events.push([S.frame, e.type, pathOf(e.target), ...fields(KIND[e.type], e)]);
+    };
     for (const t in KIND) (ON_DOC.includes(t) ? document : window).addEventListener(t, log, { capture: true });
     const first = () => { rec.env.safe = insets(); };
     if (document.body) first(); else addEventListener('DOMContentLoaded', first);
