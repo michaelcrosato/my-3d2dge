@@ -345,3 +345,14 @@ An entry:
   the menu) is a reason to turn them off in that genre's starter, or to make the menu opt-in again.
 - **Answered:** yes: the owner's goal for this work (2026-10-11), the defaults themselves made without a response, to review
 - **Landed in:** v0.23.0
+
+## D22 · 2026-10-11 · The API index's budget rises to 37,000
+
+- **Principle:** 1 (agent-readable)
+- **Call:** the index's budget (D17, D18) rises from 34,000 to 37,000 cl100k tokens; 34,330 with the boot.
+- **Why:** the standard features (D21) and the boot (D23) added about 60 public names, every one described, as
+  `doctrine-check` requires. The index is searched, not read whole (D17); the benchmark's runs (`DOCTRINE.md`) read the
+  engine's source, never the index whole, so D18's reason to split it instead has not come. About 8% headroom. What
+  would change it: an agent reading it whole, or a next raise: then split it by area.
+- **Answered:** no: made without a response, to review (reversible: lower the number)
+- **Landed in:** v0.24.0
