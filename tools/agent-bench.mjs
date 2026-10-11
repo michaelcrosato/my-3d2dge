@@ -38,7 +38,9 @@ export function readStream(text, header) {
   const out = { agent: null, outputTokens: 0, inputTokens: 0, costUsd: null, turns: 0, ms: null, reads: [], searches: [], belowHeader: false, patched: false, result: '', error: null };
   const engine = p => typeof p === 'string' && basename(p) === ENGINE && !/\/node_modules\//.test(p);
   const shell = cmd => {
-    if (typeof cmd !== 'string' || !cmd.includes(ENGINE)) return;
+    if (typeof cmd !== 'string') return;
+    cmd = cmd.replace(/<<-?\s*(['"]?)(\w+)\1[\s\S]*?\n\2(?=\s|$)/g, '<<script').replace(/\s-e\s+(["'])[\s\S]*?\1/g, ' -e script');   // a script that loads the engine is not a read of it
+    if (!cmd.includes(ENGINE)) return;
     if (/\b(sed\s+-i|perl\s+-pi)\b|>\s*\S*my-3d2dge\.js/.test(cmd)) { out.patched = true; return; }
     if (/\b(rg|grep|ag|ast-grep|sg)\b/.test(cmd) && !/\b(cat|sed|head|tail|awk|nl|less|more)\b/.test(cmd)) { out.searches.push(cmd.slice(0, 200)); return; }
     const sed = cmd.match(/sed\s+-n\s+['"]?(\d+)(?:,(\d+))?p/), head = cmd.match(/head\s+(?:-n\s*)?-?(\d+)/);
@@ -57,7 +59,12 @@ export function readStream(text, header) {
         else if (c.name === 'Bash') shell(i.command);
       }
     }
-    if (e.type === 'result') { out.agent = out.agent || 'claude'; const u = e.usage || {}; out.outputTokens = u.output_tokens || 0; out.inputTokens = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0); out.costUsd = e.total_cost_usd ?? null; out.turns = e.num_turns || 0; out.ms = e.duration_ms ?? null; out.result = String(e.result || '').slice(0, 2000);
+    // a result ends each turn of the session: an agent woken again (its background tasks or subagents finishing) sends
+    // more than one. usage is that turn's alone; modelUsage and the cost run for the whole session, subagents included.
+    if (e.type === 'result') { out.agent = out.agent || 'claude'; const u = e.usage || {}, m = Object.values(e.modelUsage || {}), sum = k => m.reduce((n, x) => n + (x[k] || 0), 0);
+      if (m.length) { out.outputTokens = sum('outputTokens'); out.inputTokens = sum('inputTokens') + sum('cacheReadInputTokens') + sum('cacheCreationInputTokens'); }
+      else { out.outputTokens += u.output_tokens || 0; out.inputTokens += (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0); }
+      out.costUsd = e.total_cost_usd ?? out.costUsd; out.turns += e.num_turns || 0; out.ms = (out.ms || 0) + (e.duration_ms || 0); out.result = String(e.result || '').slice(0, 2000);
       if (e.is_error) out.error = (e.api_error || e.subtype || 'error') + ': ' + out.result.slice(0, 160); }   // cut off (a usage limit, a budget): the build is unfinished
     // codex exec --json: item events with commands and file changes, turn.completed with usage
     if (e.type === 'thread.started') out.agent = 'codex';
@@ -143,10 +150,15 @@ function selftest() {
   ok('sed and head inside the header are not', !s.belowHeader && s.reads.length === 2, JSON.stringify(s.reads));
   s = readStream(S(use('Bash', { command: "sed -n '2400,2460p' my-3d2dge.js" })), 70);
   ok('sed below the header is', s.belowHeader);
+  s = readStream(S(use('Bash', { command: "cat > /tmp/t.mjs <<'EOF'\nreadFileSync('my-3d2dge.js')\nEOF\nnode /tmp/t.mjs" }), use('Bash', { command: 'node -e "require(\'fs\').readFileSync(\'my-3d2dge.js\')"' })), 70);
+  ok('a script that loads the engine is not a read of it', !s.belowHeader && !s.reads.length, JSON.stringify(s.reads));
   s = readStream(S(use('Edit', { file_path: '/w/my-3d2dge.js', old_string: 'a', new_string: 'b' })), 70);
   ok('an Edit of the engine is a patch', s.patched);
   s = readStream(S({ type: 'thread.started' }, { type: 'item.completed', item: { type: 'command_execution', command: 'cat my-3d2dge.js' } }, { type: 'turn.completed', usage: { output_tokens: 500, input_tokens: 9 } }), 70);
   ok('codex: commands and usage', s.agent === 'codex' && s.belowHeader && s.outputTokens === 500 && s.turns === 1, JSON.stringify(s));
+  s = readStream(S({ type: 'result', usage: { output_tokens: 900 }, modelUsage: { a: { outputTokens: 1200, inputTokens: 5 } }, total_cost_usd: 1, num_turns: 9, duration_ms: 1000 },
+    { type: 'result', usage: { output_tokens: 50 }, modelUsage: { a: { outputTokens: 1250, inputTokens: 6 } }, total_cost_usd: 1.1, num_turns: 2, duration_ms: 500 }), 70);
+  ok('claude woken again: the session\'s tokens, subagents included, and every turn', s.outputTokens === 1250 && s.costUsd === 1.1 && s.turns === 11 && s.ms === 1500, JSON.stringify(s));
   s = readStream(S({ type: 'result', is_error: true, api_error: 'usage_limit_reached', result: 'limit', num_turns: 3 }), 70);
   ok('a run cut off by an API error says so', /^usage_limit_reached/.test(s.error), String(s.error));
   ok('the judge\'s score is read from its text', readJudge('Here: {"score": 6, "why": "flat floors"} done').score === 6 && readJudge('no score') === null);
@@ -154,7 +166,8 @@ function selftest() {
   console.log(fails ? `\n${fails} failed` : '\nall passed'); process.exit(fails ? 1 : 0);
 }
 
-if (flag('selftest')) selftest();
+if (resolve(process.argv[1] || '') !== fileURLToPath(import.meta.url)) { /* imported (readStream, codeSize, readJudge): no command line */ }
+else if (flag('selftest')) selftest();
 else if (flag('list')) console.log(briefs().join('\n'));
 else if (opt('rescore')) { const r = score(resolve(opt('rescore')), { judgeModel: opt('judge-model'), noJudge: flag('no-judge') }); console.log(HEAD + '\n' + row(r)); }
 else {

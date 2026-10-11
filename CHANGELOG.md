@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.22.2 (2026-10-11)
+
+The benchmark's other two briefs.
+
+- **Docs**: `DOCTRINE.md`'s measures get the Breath of the Wild village and the Arkham predator room. Both first builds pass the check and their own tests, neither patched the engine, both scored 6/10; about 27.9k and 26.2k tokens of game code, 209k and 278.8k output tokens, $12.75 and $16.50. The Assassin's Creed row's count of reads below the header is corrected from 18 to 13 (the stricter count below).
+- **Docs**: `docs/FEEDBACK-LOG.md` F3 (Breath of the Wild) and F4 (Arkham): the source read for the same things in all three runs (the rig's pose keys, joints and colours; how `Dialog` holds play and takes choices); the look and `E.Shell` unused now at their thresholds (three sources each); a new theme, climbing any wall and gliding written by the games (`E.Mover` climbs ledges only).
+- **Tools**: `tools/agent-bench.mjs` counts a whole session: an agent woken again by its background tasks sends a result for each turn, and the Arkham row first read 3k output tokens, its last turn alone (the session's tokens now come from `modelUsage`, its subagents included). A script that only loads the engine (a heredoc, `node -e`) no longer counts as reading its source, and importing the tool for its functions no longer runs its command line.
+
 ## 0.22.1 (2026-10-11)
 
 The benchmark's first run.
