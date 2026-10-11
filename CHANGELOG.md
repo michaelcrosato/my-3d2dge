@@ -5,6 +5,21 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.25.1 (2026-10-11)
+
+A plan for an asset store: objects, materials and pictures that agents write as data or translate from public libraries.
+
+- **Docs**: `docs/HANDOFF-ASSETS.md`, the plan for the next releases. Most art families are closed today: 38 billboard props, wall faces, roofs and tile styles. Emberdeep adds its own walls by patching private engine methods, and builders read the source to find asset names.
+  - Planning probed the idea. Eight objects written as 71 to 330 characters of data each (primitives with named materials) were drawn by a small depth-buffered renderer in every view and facing, with `E.tones` shading. Each read as itself in every view, and each with a matching prop looked at least as good as it.
+  - The plan, in five phases:
+    - a look gate with kill criteria (a Temporary lab);
+    - an open material registry for floors, walls, roofs, tiles and shapes, plus `r.shape` and a core library (full engine);
+    - a store of CC0 libraries converted with provenance and fit (Kenney, KayKit, ambientCG, CC0 pixel packs), with importers, sheets and an Asset Lab;
+    - Emberdeep, the starters and the template game using it;
+    - measuring tokens and look against canvas code and the benchmark.
+  - It recommends extra (xhigh) effort and ends with the prompt that runs it.
+- **Docs**: `docs/FEEDBACK-LOG.md` notes which parts of the two threshold themes (the look, reading the source) the plan takes up and which stay open.
+
 ## 0.25.0 (2026-10-11)
 
 Emberdeep shows the engine's newer parts: perception, paired actions, the boot, rumble and the tools' handle.

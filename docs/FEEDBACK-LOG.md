@@ -23,8 +23,8 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Melee helpers (`E.Attack`, `E.Combo`) bypassed | watch | F1 | a game built after the height-aware queries and actions still bypasses them |
 | GPU lighting unused | watch | F1 | three sources: rethink its space in the manuals |
 | One fixed custom view, views never switched | watch | F1 | three sources: make one view the default for third-person kits and their checks |
-| Reading the engine's source (F1: its size) | **threshold** | F1, F2, F3, F4 | reached: two model families. The next plan takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack |
-| The look below the PS1/N64 bar | **threshold** | F2, F3, F4 | reached: three games at 6/10. The next plan takes it up (F2.2, F3.2, F4.2) |
+| Reading the engine's source (F1: its size) | **threshold** | F1, F2, F3, F4 | reached: two model families. The next plan takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack. `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up the asset names (props, textures, presets) and four garbled index lines; the rest is still open |
+| The look below the PS1/N64 bar | **threshold** | F2, F3, F4 | reached: three games at 6/10. The next plan takes it up (F2.2, F3.2, F4.2). `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up objects, foliage, materials and contact shadows; the hero's x-ray dither and three-quarter walls stacking into flat planes are still open |
 | `E.Shell` unused, the interface drawn on the canvas | **threshold** | F2, F3, F4 | reached: three games with modern interfaces skipped it. The next plan takes it up (F4.3) |
 | Climbing any wall and gliding written by the game (`E.Mover` climbs ledges) | watch | F3, F4 | a third source, or one from another model family |
 | Not verified on physical phones or native GPUs | no | F1 | a game heads to production (principle 10) |
