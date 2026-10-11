@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.22.0 (2026-10-11)
+
+The North Star's measures get a tool. Phase 5 of the Vesper plan.
+
+- **Tools**: `tools/agent-bench.mjs` (`npm run bench`): it copies `dist/handoff/` into an empty directory outside the repository, hands a brief to a fresh coding agent there (`claude --safe-mode`: none of this machine's instructions, skills, plugins, hooks or MCP servers; or `codex exec`), and records its output tokens, cost, turns and wall time, whether its first build passes `tools/check.mjs` and its own `game/test.mjs` (the package's template game alone doesn't count), whether it read the engine below its header, searched it or patched it, and a vision judge's 1-10 score of the check's screenshots against the PS1/N64 bar. One table row per run, ready for `DOCTRINE.md`. `--dry-run` sets up and starts nothing, `--rescore` scores a finished run again, `--selftest` checks the stream reader and the scoring on fixtures.
+- **Tools**: three briefs in `tools/agent-bench/briefs/`: Assassin's Creed (Vesper's, the baseline), a Breath of the Wild village with climbing and stamina, and a Batman: Arkham predator room; the judge's rubric in `tools/agent-bench/judge.md`. `npm test` runs the selftest (suite `bench`).
+- **Docs**: `DOCTRINE.md` (the measures have a tool; runs wait on the owner, D19), `README.md`.
+
 ## 0.21.0 (2026-10-11)
 
 An HTML interface for modern adaptations, built from data. Phase 4 of the Vesper plan.

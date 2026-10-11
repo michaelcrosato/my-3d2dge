@@ -298,3 +298,16 @@ An entry:
   benchmark watches what they open), split it by area instead of raising it again.
 - **Answered:** no: made without a response, to review (reversible: lower the number and cut lines)
 - **Landed in:** v0.20.0 (#64)
+
+## D19 · 2026-10-11 · The benchmark is built; its runs wait on the owner
+
+- **Principle:** process (spending is a call that is hard to undo)
+- **Call:** `tools/agent-bench.mjs` is merged without a run. A run starts a fresh coding agent on a brief (capped at $30
+  by default) and a vision judge, so it spends money; the plan (Phase 5) says to ask the owner before running it and,
+  with no answer, to run nothing. The owner is asked as the tool lands; until a yes, nothing runs.
+- **Why:** the tool, its selftest and a dry run cost nothing and are ready. The measures stay open in `DOCTRINE.md` until
+  the runs: Assassin's Creed (the baseline against Vesper's ~50k output tokens), a Breath of the Wild village and an
+  Arkham predator room. What would change it: the owner's yes (then run the three briefs and put the rows in
+  `DOCTRINE.md` and a pull request) or a budget they set.
+- **Answered:** no: asked, waiting
+- **Landed in:** v0.22.0
