@@ -86,7 +86,8 @@ Registries follow the house idiom, a capitalized object a game adds keys to, as 
 
 - World units: 16 = 1 m = one tile. x points east, y south, z up.
 - A shape's origin is the middle of its footprint on the ground, and its front faces south (+y).
-- Angles are in degrees.
+- Angles written in asset data (`rot`) are in degrees. A facing at run time is in radians, as everywhere else in the
+  engine: `r.shape(..., { facing })` takes the same value as a body's or a rig's `facing`.
 - Use whole or half units wherever the eye can't tell the difference: a pixel at game scale is about 0.7 units.
 - The hero stands about 26 units tall.
 - Hand-written objects are drawn a little bigger than life, as props are. Phase 0 fixes the scale; for comparison,
@@ -133,7 +134,7 @@ E.SHAPES.pine = { about: 'a pine in four tiers', tags: 'tree forest nature', mat
 - **Shape:** `about`, `tags`, `mats` (slot to material id, or an inline material string), and `parts` or `make`.
 - **Optional:**
   - `scale`;
-  - `solid`, or `foot: [x0, y0, x1, y1]` for collision and sorting;
+  - `foot: [x0, y0, x1, y1]`, the footprint, for sorting and collision (it defaults to the bounds);
   - `lights: [[x, y, z, color, radius]]`;
   - `flames: [[x, y, z, w, h]]`, drawn by the engine's own flame (F:5789);
   - `glow`: the slots that ignore the light;
@@ -141,8 +142,18 @@ E.SHAPES.pine = { about: 'a pine in four tiers', tags: 'tree forest nature', mat
 - **Provenance:** `src`, `orig` and `fit` (section 5.3).
 
 **Placing a shape:** `r.shape(id | spec, x, y, z, { facing, scale, mats: { wood: 'walnut' }, flip, bias, hides,
-footprint, solid, light })` mirrors `r.prop`. `E.shapeSprite(id, { view, facing, size, mats })` returns a sprite for
-inventories, HUDs and portraits: a bag icon is the item's shape drawn at an angle.
+footprint, solid, light })` mirrors `r.prop`. `facing` is in radians.
+
+**Collision is gameplay, so it never comes from drawing.** `r.shape` runs while drawing and moves no body; its `solid`
+is the renderer's option, as it is for props. A game registers a solid shape before its updates:
+- `E.shapeFoot(id, x, y, facing)` gives the footprint as a world box;
+- the game blocks that box on its map (`map.block` for each cell it covers, F:3835), or tests its own bodies against
+  the box.
+
+Phase 1 settles the exact call.
+
+**Sprites from shapes:** `E.shapeSprite(id, { view, facing, size, mats })` returns a sprite for inventories, HUDs and
+portraits. A bag icon is the item's shape drawn at an angle.
 
 ### 3.4 Materials
 
@@ -169,8 +180,12 @@ E.MATERIALS['mossy-stone'] = { color: '#7a7486', pattern: 'stones', size: 6, ove
   (speckle, plain, tiles, slab, leaves, grass), tile styles and `E.tex` textures become registry entries that keep
   their own drawing function, so nothing they draw changes. Emberdeep's 9 faces and 8 roofs register the same way, and
   its private patch goes.
-- **Surfaces.** A wall type's `face` and `roof`, a TileMap's new `floors: { tag: id }`, and a platform tile's `style`
-  all accept any material id. An unknown id warns with the list of names.
+- **Surfaces.** These take any material id. An unknown id warns with the list of names.
+  - A wall type's `face` and `roof`, which only pick a look.
+  - A TileMap's new `floorMats: { tag: id }`. Not `floors`: that name is already the map's cache of baked floor
+    images (F:3796, F:4024), and Emberdeep resets it.
+  - A platform tile type's new `mat`, beside its `style`. The style also picks the tile's geometry (spikes, ladders,
+    liquid, pipes), so it stays as it is.
 
 ### 3.5 Sprites
 
@@ -187,7 +202,7 @@ recolors through one material. That is the same idea as Emberdeep's `UI_GLYPHS`,
 **The engine, full edition only.**
 - Registries: `E.MATERIALS`, `E.PATTERNS`, `E.SHAPES`.
 - Calls: `r.shape`, `E.shapeSprite`, and `E.addAssets(set)`, which registers a store set and returns its ids.
-- TileMap options: `floors`, and `face` and `roof` taking any material id.
+- Map options: TileMap's `floorMats`, `face` and `roof` taking any material id, and a platform tile type's `mat`.
 - The shape renderer (section 4) and the generators.
 - A small **core library**: the shapes and materials the starters and the template game use, at most 12 KB of source.
 - About 10 new public names, each with a doc comment. The index has room for about 70.
@@ -199,6 +214,12 @@ recolors through one material. That is the same idea as Emberdeep's `UI_GLYPHS`,
   materials, shapes, sprites }`.
   - A header comment carries the credit, the counts and a pointer to `docs/ASSETS.md`.
   - Node reads the file in a `vm`, as `tools/mocap-lib.mjs` reads sets.
+- **Ids never collide across sets.**
+  - Inside a set, ids are local: a set's entries find its own materials and shapes first, then the core library's.
+  - Registered, a set's ids are qualified by the set's name (`kenney-furniture:chair`), so loading one set never
+    changes another's assets, or the core's.
+  - `E.addAssets` returns the qualified names. An id that already exists warns and keeps the first.
+  - The core library's ids are bare (`barrel`).
 - `src/assets/catalogs/<library>.json`: hand-written `"id": ["tags", "what it looks like"]` entries, plus `$sources`,
   `$skip` (with reasons) and `$pick`.
 - `src/assets/catalogs/<library>.tsv`: the ledger of everything in a big source, one row per file:
@@ -285,11 +306,15 @@ noise, Voronoi (Worley), brick, checker, wave, gradient. Models already know tho
   - **A contact shadow** under the footprint, darker where the shape meets the floor. The judge named "thin shadows"
     (F3.2).
 - **Steep views** draw shapes from `E.charView`'s lower angle, as they draw characters (option `charView: false`).
-- **Caching.** Each raster is cached per shape, material set, view, facing (in 32 steps) and zoom. It is built lazily
-  and dropped least-recently used. With a fixed camera, each placed shape is rasterized once.
+- **Caching.** Each raster is cached per shape and its parameters, material set, view, facing (in 32 steps) and zoom.
+  - The parameters are keyed by a hash of the resolved parts, so `['use', 'pine', at, { h: 30 }]` and the default pine
+    never share pixels.
+  - Rasters are built lazily and dropped least-recently used.
+  - With a fixed camera, each placed shape is rasterized once.
 - **Light: a Phase 0 decision.** Either fixed in the world or fixed to the view. The probe argues for the view, from
   the camera's upper left.
-- **Sorting and collision come from the data.** The footprint and collision box come from the bounds or `foot`.
+- **Sorting comes from the data.** The footprint comes from the bounds or `foot`. Collision uses the same box, but the
+  game registers it before updates (section 3.3).
   - Sorting works as it does for props: one point plus `bias`.
   - A footprint lifts only things standing on wall blocks (`z > .5`, F:1416-1424). So a long shape on the floor (a
     bed, a table, a cart) sorts by a single point.
@@ -357,7 +382,10 @@ Quaternius' did.
 
 ### 5.3 Provenance and fit
 
-- **Each set** carries `credit` and a `sources` record per library: `{ label, origin, license, url, fetched, licenseHash }`.
+- **Each set** carries `credit` and a `sources` record per library: `{ label, origin, license, url, fetched,
+  licenseHash }`.
+- **The ledger keeps a content hash (sha256) of every downloaded archive or file.** Then the bytes that produced each
+  entry, and its fit, are known even if a provider replaces a file at the same URL. A re-import checks the hash first.
 - **Each entry** carries:
   - `src`: the library key;
   - `orig`: the file inside the source;
@@ -415,12 +443,14 @@ been checked.
    - Register every existing face, roof, tile style and `E.tex` texture with its own function. Prove it is pixel for
      pixel with `tools/filmstrip.mjs --compare <before> --expect-same` on Emberdeep (town and two depths), the stealth
      starter and the platformer.
-   - Add `floors: { tag: id }` to TileMap.
+   - Add `floorMats: { tag: id }` to TileMap, and `mat` to platform tile types.
    - Unknown face, roof and style names warn with the list of names.
 2. **Emberdeep moves to the public registry.** Its 9 faces and 8 roofs register through `E.MATERIALS`. Remove
    `_facePattern` and `_roofPattern` from `GRANDFATHERED`.
 3. **Shapes.**
-   - `E.SHAPES`, `r.shape`, `E.shapeSprite`, `E.addAssets`, and the renderer as Phase 0 decided it.
+   - `E.SHAPES`, `r.shape`, `E.shapeSprite`, `E.shapeFoot`, `E.addAssets` (with qualified ids), and the renderer as
+     Phase 0 decided it.
+   - The collision call for solid shapes (section 3.3).
    - The generators pine, tree, bush, rock, crystal, fence and grass. Start the tree from Emberdeep's `treeThing`.
    - `r.actor`'s scratch canvas is 256 px square, with the feet at (128, 200) (`AS`, F:1346). Shapes bigger than that
      at high zoom need a path of their own.
@@ -441,6 +471,9 @@ been checked.
      iso or three-quarter.
    - Every material draws on every kind of surface.
    - Two runs give the same pixel hash.
+   - Two uses of one generator with different parameters draw different pixels.
+   - A hero can't walk through a solid table, and sorts right while walking round it.
+   - Loading a set never replaces a core entry or another set's.
    - Validation errors name the entry and the field.
    - Each entry stays within the token budget.
    - `contract-test` runs the new examples on both editions (stubs on the agent edition).
@@ -459,7 +492,8 @@ been checked.
      - PNG packs to sprites.
 
      It takes `--list`, `--tol`, `--catalog`, `--credit` and `--out`.
-   - **`asset-set.mjs`** cuts a set by ids, carrying their materials and sources.
+   - **`asset-set.mjs`** cuts a set by ids. It carries the whole chain of shapes they `use`, with every material and
+     source in that chain, so the cut set draws on its own.
    - **`asset-sheet.mjs`** draws sheets and lints them, like `tools/ed-sheet.mjs`.
    - **`asset-find.mjs`** searches the catalogs and prints the entries it finds.
 2. **The first libraries**, from section 5.1's high-fit rows:
