@@ -1,10 +1,11 @@
 // my-3D2dge game checker: loads a game in a headless browser, presses start, plays it for a
 // moment, switches through the game's camera views, and reports errors, warnings, frame rate,
-// how much is actually on screen, and screenshots.
+// how much of the window the picture covers (covers: 1 = no black bars), how much is actually on screen, and screenshots.
 //
 // Setup (once):   npm install          (installs Playwright)
 //                 npx playwright install chromium
-// Usage:          node tools/check.mjs path/to/game.html[#scene] [--seconds 4] [--out check-output]
+// Usage:          node tools/check.mjs path/to/game.html[#scene] [--seconds 4] [--out check-output] [--size 390x844@3]
+//                 (--size: the window in CSS pixels and its pixel density; @2 and up is a phone or tablet, with touch)
 // Exit code is 1 if the page threw any error or never drew anything, so agents and CI can rely on it.
 // A game that sets game.debug = { snapshot() { return {...} } } gets its snapshot printed after play (its own state:
 // the hero, the objective, what an agent needs to see the game is where it should be).
@@ -18,10 +19,12 @@ const file = args.find(a => !a.startsWith('--') && !/^\d+(\.\d+)?$/.test(a));
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : def; };
 if (!file) { console.error('Usage: node tools/check.mjs path/to/game.html [--seconds 4] [--out check-output]'); process.exit(2); }
 const seconds = +opt('seconds', 4), out = resolve(opt('out', 'check-output'));
+const [, sw, sh, sd] = (opt('size', '1280x720') || '').match(/^(\d+)x(\d+)(?:@(\d+(?:\.\d+)?))?$/) || [0, 1280, 720];
+const dpr = +(sd || 1), size = { viewport: { width: +sw, height: +sh }, deviceScaleFactor: dpr, ...(dpr >= 2 && { isMobile: true, hasTouch: true }) };
 mkdirSync(out, { recursive: true });
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--autoplay-policy=no-user-gesture-required'] });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const page = await browser.newPage(size);
 const errors = [], warnings = [], engineWarnings = [], external = new Set();
 page.on('pageerror', e => errors.push(String(e && e.stack || e)));
 page.on('console', m => {
@@ -51,7 +54,7 @@ const coverage = () => page.evaluate(() => {
   return { filled: +(1 - top / N).toFixed(3), colors, flat: +(top / N).toFixed(3), checker: +(checker / Math.max(1, wins)).toFixed(3), spread };
 });
 const snap = async (tag) => {
-  const s = await page.evaluate(() => { const g = My3D2dge.current; return { scene: g.sceneName, fps: g.fps, updateMs: +g.stats.updateMs.toFixed(2), renderMs: +g.stats.renderMs.toFixed(2), items: g.stats.items, actors: g.stats.actors, resolution: g.screen.W + 'x' + g.screen.H, errorBox: !!document.querySelector('#my3d2dge-error, #e3-boot[data-failed]') }; });
+  const s = await page.evaluate(() => { const g = My3D2dge.current; return { scene: g.sceneName, fps: g.fps, updateMs: +g.stats.updateMs.toFixed(2), renderMs: +g.stats.renderMs.toFixed(2), items: g.stats.items, actors: g.stats.actors, resolution: g.screen.W + 'x' + g.screen.H, covers: +(Math.min(1, g.screen.W * g.screen.S / g.screen.canvas.width) * Math.min(1, g.screen.H * g.screen.S / g.screen.canvas.height)).toFixed(3), errorBox: !!document.querySelector('#my3d2dge-error, #e3-boot[data-failed]') }; });
   const cov = await coverage(), shot = join(out, tag + '.png');
   await page.screenshot({ path: shot });
   return { ...s, ...cov, screenshot: shot };

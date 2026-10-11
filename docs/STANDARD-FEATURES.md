@@ -38,8 +38,8 @@ production, which pays for it), **not applicable** (with the reason).
 | Prompt section | Requirement | Before (v0.22.4) | Now (v0.23.0) | Status | Verified by |
 | --- | --- | --- | --- | --- | --- |
 | 3 Display | Separate CSS size from the render buffer; a pixel-ratio limit; sharp UI text | low-res buffer, whole-number upscale, ratio capped at 3; HTML text | same | already met | existing suites |
-| 3 Display | Use the whole area without stretching | a fixed `res` letterboxed at a whole-number scale: up to a fifth of a phone's screen black | `scale`: Auto (fill on screens of 2x density and up), Sharp, Fill | built in | `standard-test` (fill at 3x, whole with Sharp); phone screenshots |
-| 3 Display | Portrait and landscape both work | adaptive size and `portrait` options; a fixed `res` letterboxes | same, and a fixed `res` fills more | already met | phone emulation, both ways |
+| 3 Display | Use the whole area without stretching | a fixed `res` letterboxed at a whole-number scale: up to a fifth of a phone's screen black | `scale`: Auto (fill on screens of 2x density and up), Sharp, Fill; since v0.26.0 `expand: true` makes `res` the least the screen shows and fills every shape with no bars (the starter kits use it) | built in | `standard-test` (fill at 3x, whole with Sharp, expand at five shapes); phone screenshots |
+| 3 Display | Portrait and landscape both work | adaptive size and `portrait` options; a fixed `res` letterboxes | same, and a fixed `res` fills more; with `expand` it fills both ways (what fills the extra space is the game's job: the kits show four ways) | already met | phone emulation, both ways |
 | 3 Display | Safe areas | the Shell's panels and Emberdeep's HUD keep out of them | the corner and the touch buttons too; the viewport reaches them (`viewport-fit=cover`) | built in; a canvas HUD under a notch is the game's job | `standard-test` (viewport) |
 | 3 Display | After a resize or rotation: rebase drags, recalculate input | canvas and mouse mapping recalculated | the touch stick is lifted on a resize, input cleared on a full-screen change | built in | code review; phone emulation |
 | 3 Display | Folds and hinges | none | none | deferred | |
@@ -60,7 +60,7 @@ production, which pays for it), **not applicable** (with the reason).
 | 6 Gamepads | Disconnects: clear its input, pause, a message, keep playing on another device | input released | a pausable scene pauses with "Controller disconnected" | built in | `standard-test` |
 | 6 Gamepads | Vibration where there is an actuator, an off and a strength setting, stopped on pause | none | `input.rumble`, `hitFx` rumbles, the Vibration slider, stopped on pause, focus loss and unplugging | built in | code review (no controller here) |
 | 6 Gamepads | Non-standard mappings, analog trigger values, adaptive triggers | standard mapping assumed | same | deferred | |
-| 7 Touch | A floating stick from the first contact, neutral on release, ownership per finger | yes | a dead zone; side, size, opacity and visibility from settings; a laptop's touch screen shows the buttons once touched | built in | `standard-test` (side, size, hidden) |
+| 7 Touch | A floating stick from the first contact, neutral on release, ownership per finger | yes | a dead zone; side, size, opacity and visibility from settings; a laptop's touch screen shows the buttons once touched; since v0.26.0 the stick past halfway presses the directions (menus, dialog choices, ladders) and a bottom dialog keeps clear of the buttons (`input.touchArea()`) | built in | `standard-test` (side, size, hidden, stick directions) |
 | 7 Touch | Camera and aim by touch, pinch zoom | Emberdeep's own | same | the game's job (the engine has no free camera) | |
 | 8 Context actions | Stable positions; hidden controls get no input; tap and hold | the touch buttons don't move | same; hidden corner buttons are `display: none` | already met; the rest is the game's job | |
 | 9 Camera comfort | Shake, flashes, motion | reduce motion (from the system) | settings for each, applied to `game.shake` and `game.flash` | built in | `standard-test` |
@@ -90,7 +90,7 @@ menu. Gamepad buttons are named by position, with the Xbox symbol (`input.label`
 
 | Action | Keyboard and mouse | Gamepad | Touch | Presets |
 | --- | --- | --- | --- | --- |
-| up / down / left / right | WASD, arrows | left stick, d-pad | the stick | all |
+| up / down / left / right | WASD, arrows | left stick (past halfway), d-pad | the stick (past halfway it presses these too) | all |
 | start | Enter | Start | START | all (menus) |
 | pause | Escape, P | Start | START, the corner's menu | all (pausable scenes) |
 | confirm | Enter, Space, J, Z | A (south) | a tap on a menu | all (menus) |
