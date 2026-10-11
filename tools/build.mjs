@@ -16,6 +16,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
@@ -79,11 +80,16 @@ const read = file => readFileSync(join(root, file), 'utf8').replaceAll('</script
 // every page may say which release it is: {{VERSION}} (package.json) and {{BUILD}}, a placeholder that tools/stamp.mjs
 // turns into the commit when the site deploys (the repo's copies keep it, so a rebuild matches them exactly)
 const GLOBAL = { VERSION: JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version, BUILD: 'dev-build' };
+// <!-- @boot Title --> becomes the boot screen's splash (the engine's own E.bootSplash, so the page's first paint and the
+// screen the engine takes it over with never drift apart): it shows while the page's scripts load
+const bootSplash = (() => { const ctx = { console }; vm.createContext(ctx); vm.runInContext(read(ENGINE), ctx); return ctx.My3D2dge.bootSplash; })();
+const boot = html => html.replace(/<!-- @boot ?(.*?) -->/g, (_, t) => bootSplash(t.trim()));
 for (const b of builds) {
   const min = b.compact ? await engineMin() : null;
   if (b.compact && !min) continue;
   let html = readFileSync(join(root, b.template), 'utf8');
   for (const [k, v] of Object.entries(Object.assign({}, GLOBAL, b.vars))) html = html.replaceAll(`{{${k}}}`, v);
+  html = boot(html);
   html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => read(file));
   // a folder of script parts joined in name order into one <script> (the starter game: shell + one file per slice)
   html = html.replace(/<!-- @inline-parts (\S+) -->/g, (_, dir) => {
@@ -136,7 +142,7 @@ const SAY = { 'README.md': 'start here: what the package holds, which page to re
   'tools/replay.mjs': 'replays a recorded play session exactly', 'game/index.html': 'the template game: play it', 'game/game.js': 'the template game: copy it',
   'game/test.mjs': 'its headless test: node game/test.mjs' };
 if (existsSync(join(root, H))) rmSync(join(root, H), { recursive: true });
-const fill = s => s.replaceAll('{{VERSION}}', GLOBAL.VERSION).replaceAll('{{BUILD}}', GLOBAL.BUILD);
+const fill = s => boot(s.replaceAll('{{VERSION}}', GLOBAL.VERSION).replaceAll('{{BUILD}}', GLOBAL.BUILD));
 for (const [to, from] of HANDOFF) {
   mkdirSync(dirname(join(root, H, to)), { recursive: true });
   const text = readFileSync(join(root, from), 'utf8');

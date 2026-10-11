@@ -22,6 +22,7 @@ features"; the API card's section of the same name; the full engine's header, po
 | Pausing by itself | a pausable scene pauses when the page is hidden, the window loses focus or the controller in use is unplugged; only the player resumes (`game.pauseReason`) | `game.pause(reason)`, `game.resume()` | `autoPause: false` |
 | The corner | menu and full-screen buttons, top right in the safe area: on titles, pauses and game overs, when the mouse nears the top, and the menu on a touch screen without touch buttons | `game.menu('settings')` from a canvas title's OPTIONS | `corner: false` |
 | Prompts | `game.input.label(action)`: the key or button on the device in use, after rebinding, in the controller's own symbols | `settings.glyphs` | |
+| Boot (v0.24.0) | a page's splash from its first paint (the built pages have it); the game's heavy setup one step a frame behind a boot screen (the system's checks, a progress bar, the game's own lines), then a warm-up frame; any error before play becomes a report to screenshot | `game.start({ boot: { title, version, steps, messages, min } })`; `E.diagnose()` | `boot: false` |
 | Phones | a viewport reaching the safe areas, no page gestures on the canvas, touch buttons in the safe areas, a stick with a dead zone, a fixed resolution filling a high-density screen | `settings.scale` | |
 
 The agent edition has `game.settings`, `game.fullscreen`, the corner, the pausing and `input.label`, not the menu screens
@@ -71,12 +72,14 @@ production, which pays for it), **not applicable** (with the reason).
 | 12 Settings | Versioned, validated, blocked storage, migration, restore defaults per group | none | `{ v: 1, values }` under `settings:<path>`; each value checked on load; a broken save loads as defaults; blocked storage plays on (`saved: false`); the Shell's older saves carried over; `reset(group)` | built in | `standard-test` |
 | 13 Saving | Atomic, versioned saves, checkpoints, confirm before loss | `E.store` | same; Quit to title asks first | the game's job | |
 | 13 Pause | Pause reasons kept apart; focus never resumes; explicit resume | Emberdeep only | `pauseReason`; focus loss and unplugging pause, nothing resumes by itself | built in | `standard-test` |
+| 13 Recovery | Clear recovery for failed loads; real progress when it can be measured, an honest indicator when not | the red box, for developers | the boot screen: each step and a bar (measured by steps), a moving bar while the page loads; a failure before play shows what failed, the error, a code and the system, with Try again, Copy report and Continue | built in (v0.24.0) | `standard-test` (the screen, the report, Continue) |
 | 13 Pause | Long suspensions: no backlog | the clock takes at most 50 ms a frame | same | already met | contract (the clock) |
 | 13 Pause | Restart and reload without leaks | `dispose()` removes every listener | the corner and menus too | already met | contract (dispose) |
 | 14 Audio | Starts after a gesture; volumes per channel; settings before the first sound | yes; the Shell's volume | master, music, effects and mute saved and applied when the game is made | built in | `standard-test` |
 | 14 Audio | The background | music kept playing, choppy, in a hidden tab | the sound sleeps while the page is hidden unless "Sound in the background" is on | built in | code review |
 | 15 Performance | No cost when unused | | the menu is built only when it opens; the corner compares one number a frame | built in | the full suite's timings |
 | 16 First use | Instructions for the active input; settings before demanding play | | `input.label`; the corner's menu on a title opens the settings | built in; tutorials are the game's job | `standard-test` |
+| 17 Verification | Evidence a player can send: environment, build, reproduction | sessions (`E.session`) for developers | the failure report and `E.diagnose()`: engine and game versions, build, browser, device, screen, canvas, GPU, sound, storage, input, scene | built in (v0.24.0) | `standard-test` |
 | 17 Verification | Physical devices, browsers, controllers | | headless Chromium on Linux, phones emulated (390 x 844 and 844 x 390 at 3x) | deferred: no physical phone, iPhone or controller was used | |
 
 ## Action coverage (the presets)
@@ -115,8 +118,9 @@ phone's notch; nothing told by color alone.
 
 | Case | Environment | Evidence | Result |
 | --- | --- | --- | --- |
-| Settings, pausing, labels, rebinding, the touch START (both editions) | Node 24 | automated (`tools/standard-test.mjs`) | pass |
-| The page, the corner, the pause menu, Settings, Controls, rebinding, Quit, saved settings, bad and blocked storage, full screen, touch buttons, a game's own Shell, `menu: false` (both editions) | headless Chromium, desk and emulated phones | automated (`tools/standard-test.mjs`, 72 checks) | pass |
+| Settings, pausing, labels, rebinding, the touch START, boot steps and their failures (both editions) | Node 24 | automated (`tools/standard-test.mjs`) | pass |
+| The boot screen, the report, an error before and after play, `boot: false` (both editions); Emberdeep's first paint on a slowed CPU (0.16 s, was 1.6 s) | headless Chromium (4x CPU slowdown for the timing) | automated (`tools/standard-test.mjs`, 94 checks in all); screenshots | pass |
+| The page, the corner, the pause menu, Settings, Controls, rebinding, Quit, saved settings, bad and blocked storage, full screen, touch buttons, a game's own Shell, `menu: false` (both editions) | headless Chromium, desk and emulated phones | automated (`tools/standard-test.mjs`) | pass |
 | The menus by eye: title, play, pause, settings, controls, rebound | Chromium at 1280 x 720; emulated phone 390 x 844 and 844 x 390 at 3x | screenshots | pass |
 | The rest of the engine, Emberdeep and the labs | headless Chromium | `npm run test:changed` (all 20 suites) | pass |
 | A physical phone, an iPhone, a physical gamepad (rumble, symbols), a screen reader, a fold | none here | none | not tested |

@@ -345,3 +345,35 @@ An entry:
   the menu) is a reason to turn them off in that genre's starter, or to make the menu opt-in again.
 - **Answered:** yes: the owner's goal for this work (2026-10-11), the defaults themselves made without a response, to review
 - **Landed in:** v0.23.0
+
+## D22 · 2026-10-11 · The API index's budget rises to 37,000
+
+- **Principle:** 1 (agent-readable)
+- **Call:** the index's budget (D17, D18) rises from 34,000 to 37,000 cl100k tokens; 34,330 with the boot.
+- **Why:** the standard features (D21) and the boot (D23) added about 60 public names, every one described, as
+  `doctrine-check` requires. The index is searched, not read whole (D17); the benchmark's runs (`DOCTRINE.md`) read the
+  engine's source, never the index whole, so D18's reason to split it instead has not come. About 8% headroom. What
+  would change it: an agent reading it whole, or a next raise: then split it by area.
+- **Answered:** no: made without a response, to review (reversible: lower the number)
+- **Landed in:** v0.24.0
+
+## D23 · 2026-10-11 · A boot for every game; errors before play become a report
+
+- **Principle:** 3 (verifiable) and 10 (the device the human reviews on)
+- **Call:** the engine has a boot (section 10c): `game.start({ boot: { title, version, steps, messages, min } })` runs the
+  game's setup one step a frame behind a boot screen (the system's checks, a progress bar, the game's lines), then a
+  warm-up frame under it. The build puts the screen's splash (`E.bootSplash`) first in every game page it makes (the
+  starter files, Emberdeep, Emberwell, Vesper's interface, the handoff template), so it shows from the first paint: on a
+  phone, Emberdeep's first paint comes at about 0.16 s instead of 1.6 s of black. Any error before play (a failing step,
+  a script error, an error in the first update or draw) turns the screen into a report a player can screenshot, in place
+  of the red box; after play, errors keep the red box, with the report's short line. A game with no steps and no splash
+  shows nothing and starts at once, as before.
+- **Why:** the owner asked for a boot "like a BIOS and an OS loading" whose failure screen a player can screenshot for a
+  diagnosis. Games here have no asset files, so most start in a fraction of a second and a fixed loading screen would
+  only slow them: the screen shows only while there is work (steps, a slow page), and `min` (a splash held on purpose)
+  is the game's choice. The report is for the owner, who reviews on a phone, and for the agents who fix what it shows.
+  What would change it: a builder fighting the report (a game that expects the red box before play), or the splash
+  showing where it shouldn't (then `boot: false`, or leave `@boot` out of that page).
+- **Answered:** yes: the owner's goal (2026-10-11); the defaults (the splash in the built pages, the report before play)
+  made without a response, to review
+- **Landed in:** v0.24.0

@@ -59,7 +59,7 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
     ['the API card (API.md)', read('API.md'), 15000, 3.1],   // (D8, D20)
-    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 34000, 3.25]   // (D17, D18)
+    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 37000, 3.25]   // (D17, D18, D22)
   ];
   const line = [];
   for (const [name, text, budget, ratio] of MANUALS) {

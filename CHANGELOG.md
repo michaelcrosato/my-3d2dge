@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.24.0 (2026-10-11)
+
+A boot for every game: a loading screen while there is work, and a report to screenshot when a game can't start.
+
+- **Engine**: `game.start({ scenes, scene, boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } })` runs the game's heavy setup one step a frame behind a boot screen: the system's checks (engine, browser, screen, canvas, GPU, sound, storage, input), each step with its time, a progress bar and lines of the game's own ("Counting the bells"; the engine's own when it gives none: "Reticulating splines"), then a warm-up frame drawn under it, so play starts without a hitch. A step may return a promise; headless and with `loop: false` the steps run at once (`game.booted`, `game.bootError`). The lines draw no numbers from the game's random stream.
+- **Engine**: any error before play (a failing step, a script error, an error in the first update or draw) turns the screen into a report a player can screenshot: what failed, the error and where, a short code (`E3-` and six hex digits), and the system's lines, with Try again, Copy report and Continue. After play, errors keep the red box, which now ends with the report's short line. `E.diagnose()` gives the report at any time (`.text`, `.short`, and each field).
+- **Engine**: `E.bootSplash(title)`: the screen's markup for the very start of a page's `<body>`. It shows from the first paint with a bar that moves while the page's scripts load (a CSS animation the browser runs on its own), and says so if the game's script never runs. The engine takes it over when it runs, and it goes once the game has drawn; `boot: false` takes it away at once. Both editions have the boot.
+- **Emberdeep**: its page shows the boot screen from its first paint: on a phone-speed CPU at about 0.16 s, where it was 1.6 s of black.
+- **Tools**: `tools/build.mjs` turns `<!-- @boot Title -->` into the splash (from the engine, so they never drift); the starter files, Emberdeep, Emberwell, Vesper's interface and the handoff template have it. `tools/check.mjs` and `tools/agent-test.mjs` count the failure report as the error box. `tools/standard-test.mjs`: 94 checks with the boot's.
+- **Docs**: the boot in `AI_GUIDE.md` ("Standard features"), the API card, the agent edition's and the full engine's headers, `README.md` and `docs/STANDARD-FEATURES.md`. `docs/DECISIONS.md` D22 (the API index's budget rises to 37,000) and D23 (the boot, and errors before play as a report).
+
 ## 0.23.0 (2026-10-11)
 
 Standard features in every game: what the owner's quality prompt asked of each game after it was built, now built in.

@@ -212,6 +212,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 - Settings saved per game, with a version, every value checked on load (`game.settings`): sound, volume, music, effects, reduce motion, screen shake and flashes, pixel scaling, and the game's own (difficulty, hints).
 - Controls the player rebinds by pressing the new key or button, conflicts said before anything changes, the menus' keys kept so nobody locks themselves out; the controller's dead zone, invert aim, button symbols (Xbox, PlayStation, Nintendo) and vibration; the touch buttons' side, size and opacity. `input.label(action)` gives prompts the right key or button.
 - Full screen (`game.fullscreen`): a phone's first tap, a corner button and the menu; leaving it is remembered. Pausing when the page is hidden or the controller is unplugged. A page set up for phones (safe areas, no scrolling or zooming on the game).
+- A boot: heavy setup runs one step a frame behind a boot screen (the system's checks, a progress bar, the game's own lines), then a warm-up frame; a failure before play shows a report a player can screenshot (`E.diagnose()`). The built pages show it from their first paint.
 - Adjusted with `new E.Game({ menu: { items, settings, controls, quit } })`, or left out (`menu: false`, `fullscreen: false`, `corner: false`, `autoPause: false`).
 
 **Input**
@@ -312,7 +313,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.23.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.24.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

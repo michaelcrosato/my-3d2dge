@@ -19,6 +19,12 @@
 //                a conflict, Escape cancels; P closes the menu and resumes; Quit asks first (Keep playing has the focus);
 //                the corner's menu on a title opens the settings and the title waits; a game's own E.Shell takes over
 //                from the engine's; touch buttons follow the player's side, size and visibility settings
+//   boot         boot steps run in order (all at once headless, waiting for a promise; game.booted); a failing step
+//                stops the start and is in game.errors; in a page the boot screen takes over the splash, shows the
+//                system's lines and each step, draws nothing from the game's random numbers and goes once the game has
+//                drawn; a failing step, or a script error before play, turns it into a report (what failed, the error,
+//                a code, the engine, the canvas) whose Continue takes it away; after play an error goes to the red box
+//                with the report's line; boot: false takes a splash away; E.diagnose()
 // Usage: node tools/standard-test.mjs [--node]   (exit code 1 on a failure; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
@@ -68,6 +74,17 @@ for (const [ed, file] of EDITIONS) {
   check(`${ed}: input.label: the key, the mouse button, the gamepad button`, I.label('attack', 'keyboard') === 'J' && I.label('attack', 'mouse') === 'Left click' && I.label('attack', 'gamepad') === 'A' && I.label('up', 'keyboard') === 'W', [I.label('attack', 'keyboard'), I.label('attack', 'mouse'), I.label('attack', 'gamepad')].join());
   S.set('glyphs', 'playstation'); const ps = I.label('attack', 'gamepad'); S.set('glyphs', 'nintendo'); const nin = I.label('attack', 'gamepad'); S.set('glyphs', 'auto'); I.padId = 'DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c)'; const auto = I.label('dash', 'gamepad'); I.padId = '';
   check(`${ed}: gamepad symbols by family (chosen, or from the controller's name)`, ps === '✕' && nin === 'B' && auto === '○', [ps, nin, auto].join());
+  // boot, headless: the steps at once, in order; a failing one stops the start; a promise is waited for
+  const order = [], gb = new E.Game({ headless: true });
+  gb.start({ scenes: scenes(), scene: 'title', boot: { steps: [['One', () => order.push(1)], ['Two', g => order.push(g === gb ? 2 : 0)]] } });
+  check(`${ed}: boot steps run in order, then the game starts (headless: at once)`, order.join() === '1,2' && gb.sceneName === 'title' && typeof gb.booted.then === 'function', order.join() + ' ' + gb.sceneName);
+  const gf = new E.Game({ headless: true }); gf.start({ scenes: scenes(), scene: 'title', boot: { steps: [['Raising the harbour', () => { throw new Error('no tiles'); }], ['Never', () => order.push(9)]] } });
+  check(`${ed}: a failing boot step stops the start and is in game.errors`, gf.sceneName === null && gf.bootError.message === 'no tiles' && /Raising the harbour/.test(gf.errors[0].where) && !order.includes(9), JSON.stringify(gf.errors.map(e => e.where)));
+  const gp = new E.Game({ headless: true }); gp.start({ scenes: scenes(), scene: 'title', boot: { steps: [['Loading', () => new Promise(r => setTimeout(r, 5))]] } });
+  const before = gp.sceneName; await gp.booted;
+  check(`${ed}: a boot step's promise is waited for (await game.booted)`, before === null && gp.sceneName === 'title');
+  const dg = E.diagnose(gb);
+  check(`${ed}: E.diagnose() gives the report: its lines and a short one`, /^Engine +my-3D2dge v/.test(dg.text) && /Canvas +none \(headless\)/.test(dg.text) && /Scene +title/.test(dg.text) && dg.short.startsWith('v' + E.version), dg.text);
   if (ed === 'full') {
     check(`${ed}: rebind: done, then a conflict and a reserved code change nothing`, I.rebind('attack', 'keys', 'KeyF') === null && I.map.attack.includes('KeyF') && !I.map.attack.includes('KeyJ') && I.rebind('dash', 'keys', 'KeyF') === 'attack' && I.rebind('attack', 'keys', 'Escape') === 'reserved' && I.rebind('pause', 'keys', 'KeyQ') === 'reserved', JSON.stringify(I.map.attack));
     check(`${ed}: rebinding saves in settings.bindings and survives input.use()`, S.bindings.attack.keys[0] === 'KeyF' && (I.use(I.preset), I.map.attack.includes('KeyF')));
@@ -84,6 +101,7 @@ if (!process.argv.includes('--node')) {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
   for (const [ed, file] of EDITIONS) {
     console.log(`\n${ed} edition (Chromium)`);
+    const splash = load(file).bootSplash('HARBOUR');
     const engine = readFileSync(join(root, file), 'utf8').replace(/<\/script/gi, '<\\/script');
     // a page on an origin of its own (localStorage works there), the engine, and a small game with a title and a pausable play scene
     const PAGE = (opts = '{}') => `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#000"><canvas id="screen" style="width:100vw;height:100vh;display:block"></canvas><script>${engine}</script><script>
@@ -225,7 +243,39 @@ if (!process.argv.includes('--node')) {
       check(`${ed}: menu: false leaves the menu out (the canvas pause instead)`, (await ev(p, () => [game.paused, game.shell, !!document.querySelector('.esh')])).join() === 'true,,false');
     }
     if (p.errors.length) check(`${ed}: no errors`, false, p.errors.join(' | '));
-    await p.close(); await phone.close(); await desk.close();
+    await p.close(); await phone.close();
+    // the boot screen, in a page with the splash and a live loop
+    const BOOTPAGE = (body, boot) => `<!doctype html><html><head><meta charset="utf-8"><title>Harbour</title></head><body style="margin:0;background:#000">${splash}<canvas id="screen" style="width:100vw;height:100vh;display:block"></canvas><script>${engine}</script><script>
+      const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: 'snes' }); window.draws = 0; window.hold = new Promise(r => { window.letGo = r; });
+      const R = Math.random; window.randoms = 0; Math.random = () => { window.randoms++; return R(); };
+      ${body}
+      game.start({ scene: 'play', scenes: { play: { pausable: true, update() { if (window.boom) throw new Error('late'); }, draw(r) { window.draws++; r.sky(['#123', '#456']); } } }, boot: ${boot} });</script></body></html>`;
+    const bootPage = async (body, boot) => { const q = await desk.newPage(), errors = []; q.on('pageerror', e => errors.push(e.message)); await q.route('http://standard.test/**', r => r.fulfill({ contentType: 'text/html', body: BOOTPAGE(body, boot) })); await q.goto('http://standard.test/boot.html'); q.errors = errors; return q; };
+    let b = await bootPage('', "{ title: 'HARBOUR', version: '0.3', messages: ['Counting the bells'], steps: [['Raising the harbour', () => 1], ['Hanging the lanterns', () => window.hold]] }");
+    await b.waitForTimeout(250);
+    const mid = await ev(b, () => { const el = document.getElementById('e3-boot'); return el ? [el.innerText, window.draws, game.sceneName] : null; });
+    await ev(b, () => window.letGo());
+    check(`${ed}: the boot screen takes over the splash: the system's lines, each step, the game's lines; the game waits`, mid && /HARBOUR/.test(mid[0]) && /Engine +my-3D2dge/.test(mid[0]) && /Canvas +256x224/.test(mid[0]) && /Hanging the lanterns · 2 \/ 2/.test(mid[0]) && /Counting the bells/.test(mid[0]) && mid[1] === 0 && mid[2] === null, JSON.stringify(mid));
+    await b.close();
+    b = await bootPage('', "{ steps: [['Quick', () => 1]] }"); await b.waitForTimeout(800);
+    const end = await ev(b, () => { const el = document.getElementById('e3-boot'); return [!!el && getComputedStyle(el).display !== 'none', window.draws > 1, game.sceneName, window.randoms]; });
+    check(`${ed}: once the game has drawn under it the boot screen goes, and it drew no random numbers of the game's`, end[0] === false && end[1] && end[2] === 'play' && end[3] === 0, JSON.stringify(end));
+    await ev(b, () => { window.boom = true; }); await b.waitForTimeout(150);
+    const late = await ev(b, () => [!!document.getElementById('my3d2dge-error'), !!document.querySelector('#e3-boot[data-failed]'), (document.getElementById('my3d2dge-error') || {}).textContent || '']);
+    check(`${ed}: after play an error goes to the red box, with the report's line`, late[0] && !late[1] && /v\d+\.\d+\.\d+ · /.test(late[2]), JSON.stringify(late));
+    await b.close();
+    b = await bootPage('', "{ title: 'HARBOUR', steps: [['Teaching the guards to look up', () => { throw new Error('guard.eyes is undefined'); }]] }"); await b.waitForTimeout(300);
+    const failed = await ev(b, () => { const el = document.querySelector('#e3-boot[data-failed]'); return el ? [el.innerText, game.sceneName] : null; });
+    check(`${ed}: a failing step turns the screen into a report: what failed, the error, a code, the engine, the canvas`, failed && /HARBOUR could not start/i.test(failed[0]) && /Teaching the guards to look up/.test(failed[0]) && /guard\.eyes is undefined/.test(failed[0]) && /E3-[0-9A-F]{6}/.test(failed[0]) && /Engine +my-3D2dge v/.test(failed[0]) && /Canvas +256x224/.test(failed[0]) && failed[1] === null, JSON.stringify(failed));
+    await b.click('#e3-boot button:has-text("Continue")'); check(`${ed}: the report's Continue takes it away`, await ev(b, () => getComputedStyle(document.getElementById('e3-boot')).display === 'none'));
+    await b.close();
+    b = await bootPage("throw new Error('bad level rows');", "{}"); await b.waitForTimeout(300);
+    const top = await ev(b, () => { const el = document.querySelector('#e3-boot[data-failed]'); return el ? el.innerText : ''; });
+    check(`${ed}: a script error before play is reported on the boot screen`, /could not start/i.test(top) && /bad level rows/.test(top), top.slice(0, 200));
+    await b.close();
+    b = await bootPage('', 'false'); await b.waitForTimeout(200);
+    check(`${ed}: boot: false takes the splash away at once`, (await ev(b, () => [getComputedStyle(document.getElementById('e3-boot')).display, game.sceneName])).join() === 'none,play');
+    await b.close(); await desk.close();
   }
   await browser.close();
 }

@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.23.0)
+# my-3D2dge API index (v0.24.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.23.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.24.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -387,11 +387,13 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.setView(v)`: switch the view: an id from E.VIEWS ('iso', 'side', ...) or a View; keeps zoom and turn
 - `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
 - `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
-- `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, touch } (all optional); view / views / input ('PLATFORMER') / res ('snes') / touch (['jump', 'attack']) are applied when it starts. start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance()
+- `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, touch } (all optional); view / views / input ('PLATFORMER') / res ('snes') / touch (['jump', 'attack']) are applied when it starts. start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance(). boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
 - `game.alpha = .5`: the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count
 - `game.audio`: chip-sound synthesizer: game.audio.sfx('jump'), game.audio.music(song)
 - `game.baseView` †: the chosen view without zoom and turn
+- `game.bootError = null`: the error a boot step failed with (the game did not start), or null
+- `game.booted`: a promise of the game once its boot (start's boot option, section 10c) has run and it has started: await it in a test whose boot steps return promises
 - `game.cam`: camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen rooms; moving = sliding between rooms; offset = [dx, dy] screen pixels from the screen's centre to where the focus sits (above a phone's touch buttons: [0, -40]); x, y: the camera's position in projected pixels (its top-left corner); vx, vy: how fast it is moving there; tx, ty, tz: the world point it is following (focus sets it); snap: true makes it jump there at the next step instead of gliding (a new level, a teleport)
 - `game.cam.x`: the camera's position in projected pixels (its top-left corner)
 - `game.cam.y`: the camera's position in projected pixels (its top-left corner)
@@ -445,7 +447,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.views`: views this game is designed for (view cycling and the checker use it). null = every view
 - `game.yaw = 0` †: its turn in degrees on top of the view (rotateView)
 - `game.zoom = 1` †: the camera's zoom (1 = as the view is; setZoom)
-- `E.showError(title, e)`: show an error in the red box at the top of the page (the engine does it for errors in update and draw); a click hides it
+- `E.showError(title, e)`: show an error in the red box at the top of the page (the engine does it for errors in update and draw); a click hides it. Before play has started it shows on the boot screen instead, as a report a player can screenshot
 
 ## 10b. Standard features
 
@@ -466,6 +468,8 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `settings.set(key, v)`: change a setting: checked (a slider kept in range, a choice among its options), saved, applied, onChange told. Returns the value kept (the old one when v is not a valid value)
 - `settings.spec(key)`: the spec a setting was defined with (its label, type, range, options), or undefined
 - `settings.saved`: false when the last save failed (storage blocked or full: the choices last for this visit
+- `E.bootSplash(title = '')`: the boot screen's markup, for the very start of a page's <body>: it shows from the first paint, its bar moving while the page's scripts load (a pure CSS animation), and says so if the game's script never runs. The engine takes it over
+- `E.diagnose(game = E.current)`: the report a bug needs, at any time (and on the boot screen when a game can't start): { engine, game, time, page, browser, device, screen, canvas, gpu, sound, storage, input, scene, errors, text (all of it, one line each, for a screenshot or a bug report), short (one line) }. game: the game to report on (E.current)
 
 ## 11. Humanoid rig
 
