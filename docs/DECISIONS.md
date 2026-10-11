@@ -75,6 +75,7 @@ An entry:
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
 - **Revised by D12** (v0.16.0): the plan for replaying recorded sessions, and sound on its own random stream.
+- **Superseded in part by D16** (v0.17.5): the clock is an exact fixed step. Emberdeep's `Math.random` stays as it is.
 
 ## D5 · 2026-10-10 · One-file pages and shared-scope sources stay (principle 7 grandfathered)
 
@@ -217,6 +218,8 @@ An entry:
   change events.
 - **Answered:** yes, the owner (this round's goal).
 - **Landed in:** v0.17.0
+- **Fixed in v0.17.5:** a recording starts when the page has loaded, as a replay does. A browser's own pointer move during
+  the load was recorded but never reached the game, and its replay did, so sessions diverged on a slow load.
 
 ## D15 · 2026-10-10 · Portable math while recording and replaying
 
@@ -239,3 +242,30 @@ An entry:
   the same bits in both.
 - **Answered:** yes, the owner (this round's goal: a bug seen on a phone, replayed headless).
 - **Landed in:** v0.17.1
+
+## D16 · 2026-10-10 · The clock is an exact fixed step
+
+- **Principle:** 5 (deterministic by construction)
+- **Call:** supersedes D4's substeps. The engine's loop (both editions, `Game._run`) adds each frame's real time, capped at
+  50 ms, to an accumulator and runs one update for each whole 1/120 s of it (`o.step`), with `dt = o.step * timeScale`;
+  the remainder waits for the next frame, and `game.alpha` is its fraction of a step. Slow motion makes steps shorter, not
+  fewer (fixed game-time steps would update on only about 60% of frames at Emberdeep's 0.3-0.4); above speed 1 a step is
+  split so none is longer than 1/120 s. Paused or at `timeScale` 0 the steps still run with `dt` 0, so input ticks. The
+  accumulator starts half a step in, so frame times that wobble around 60 or 120 Hz keep two or one steps a frame. The
+  engine doesn't interpolate drawing yet.
+- **Why:** the old loop split each frame into equal substeps, so the step size followed the refresh rate (1/144 s at 144
+  Hz, 1/180 at 90): the same `Body.jump(210)` peaked at 30.63 at 60 Hz and 30.77 at 144, though the header promised
+  identical motion. A builder (Vesper, `docs/FEEDBACK-LOG.md` F1) found it and patched it. D4 kept the substeps because
+  an exact step "needs render interpolation and touches every game"; it touches no game at 60 and 120 Hz, which run the
+  same steps as before, and interpolation can wait until someone sees judder.
+- **What it changes:** at 60 and 120 Hz a game runs the same number of steps of the same size. Under the harness the
+  old steps carried the rounding of the frame time (`(now - last) / 1000 / 2` is 0.008333333333333257, not 1/120),
+  which Emberdeep's fights grow into different pixels: a seeded Emberdeep fight and the brawler starter differ from
+  v0.17.4, and are pixel-identical to v0.17.4 with its step made exactly 1/120. At 90 and 144 Hz games now play as at
+  60. Pacing without interpolation: at 90 Hz frames advance 1, 1 and 2 steps in turn; at 144 Hz one frame in six runs
+  no step and shows the last frame again. To look at on the owner's phone; `game.alpha` is there when a game or the
+  engine wants to interpolate.
+- **Checked by:** `tools/contract-test.mjs`: the same inputs at 60, 90, 120 and 144 Hz give the same state bit for bit,
+  on both editions. `test:determinism` and `test:replay` stay green.
+- **Answered:** yes: the owner's plan (`docs/HANDOFF-VESPER-FEEDBACK.md`, Phase 0) asked for it.
+- **Landed in:** v0.17.5

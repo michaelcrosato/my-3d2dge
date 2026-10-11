@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.17.4)
+# my-3D2dge API card (v0.17.5)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -64,7 +64,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - `r.actor(x, y, z, (g, ox, oy) => ...)` calls your function with `(ox, oy)` = the buffer pixel where world point (x, y, z) lands. Draw the character around that point.
 
 ## Rules
-1. Keep game logic in world units, and use `dt` everywhere. `update(dt)` runs in fixed steps of about 1/120 s.
+1. Keep game logic in world units, and use `dt` everywhere. `update(dt)` runs in exact fixed steps: every 1/120 s of real time is one step of `dt = 1/120 * game.timeScale`, the same at any refresh rate (`game.alpha` = the part of a step left over).
 2. Draw only with `E.px.*`, `E.font`, `E.ui`, sprites, props and the `r.*` helpers. Never use `ctx.arc`, `ctx.stroke`, `ctx.fillText` or canvas gradients on the game buffer (they blur pixels). For translucency and glow use `px.blend(g, alpha, 'add' | 'multiply' | 'screen' | 'normal', () => {...})`, `px.polyDither`, `px.ddisc`, `r.glowDisc` and `r.shadow`: they use stepped alpha and blend modes like PS1 / SNES hardware (or dithering with `E.style.trans = 'dither'` for an NES / Genesis look).
 3. Anything that can overlap anything else goes through `r.actor`, `r.sprite` or `r.queue` (depth sorted). Backgrounds (`r.sky`, `map.drawFloor`, `level.draw`) come first in `draw`.
 4. Read input only in `update`. Use `pressed(a)` for one-shot actions (menus, jumps, shots), `down(a)` for held actions, and `buffered(a)` + `consume(a)` for forgiving combat input.
@@ -132,12 +132,12 @@ game.start({ scene: 'title', scenes: {
 ## Sound: `game.audio` (chip synth, no files, starts after the first key press)
 - `sfx(name, { vol, pitch })`. Presets: `jump jump2 land step coin pickup key powerup oneup heal hit hurt stomp bump swing whoosh punch kick shoot laser charge explode boom door secret warp die select confirm cancel pause text blip`.
 - Custom: `sfx({ wave: 'square' | 'pulse' | 'pulse12' | 'triangle' | 'saw' | 'sine' | 'noise', freq: 440 or 'A4', to: 880, dur: .2, vol: .3, arp: [0, 4, 7], step: .05, vib: [8, .03] })`, or `audio.define('zap', voice)`.
-- Music: `music('title' | 'adventure' | 'dungeon' | 'boss' | 'victory')` (built in; any other name is an error), or your own `{ bpm: 120, steps: 4, tracks: [{ wave: 'square', vol: .15, notes: 'C5 - E5 - G5 . . . | ...' }, { wave: 'triangle', notes: '...' }, { wave: 'drums', notes: 'k . h . s . h .' }] }`. Tokens: a note (`C4`, `F#3`, `Bb2`), `-` holds, `.` rests, `|` is ignored; drums `k s h o c t`. `music(null)` stops. `mute()`, `setVolume(0..1)`.
+- Music: `music('title' | 'adventure' | 'dungeon' | 'boss' | 'victory')` (built in; any other name is an error), or your own `{ bpm: 120, steps: 4, tracks: [{ wave: 'square', vol: .15, notes: 'C5 - E5 - G5 . . . | ...' }, { wave: 'triangle', notes: '...' }, { wave: 'drums', notes: 'k . h . s . h .' }] }`. Tokens: a note (`C4`, `F#3`, `Bb2`), `-` holds, `.` rests, `|` is ignored; drums `k s h o c t`. `music(null)` stops. `mute()`, `setVolume(0..1)`, `duck(on)` (quieter music under your own pause or map screen).
 
 ## Levels
 **TileMap** (top-down, isometric, brawler): walls stand on the ground plane.
 - `new E.TileMap({ rows, legend, types, floorTex, block: ['water', 'lava'], ao: 5 })` (`ao` = width of the contact shadow along wall bases, 0 = none). `types[id] = { h, top, side, line, course, cut: true, cutH, face, roof, beam }` (`cut` lowers walls that block the camera; `face`: `'brick'` (default) `'stone' 'rock' 'plank' 'timber' 'plaster' 'hedge' 'none'`; `roof`: `'speckle'` (default) `'plain' 'tiles' 'slab' 'leaves' 'grass'`; `beam` = timber color). `floorTex(x, y, floorTag, view)` returns `[r, g, b]` (or `[r, g, b, glow]`); ready-made: `E.tex.flagstone`, `grass`, `dirt`, `water`, `planks`, `checker`, `plain`.
-- Legend values: a number = wall type, a string = spawn tag, `{ tile, floor, spawn, block }` for both. `block: true` (or the map's `block` list of floor tags) makes deep water, lava or pits stop walkers (jumping bodies pass over); `walkable(cx, cy)`, `block(cx, cy, on)` (a bridge appears). FlowField paths go around blocked cells.
+- Legend values: a number = wall type, a string = spawn tag, `{ tile, floor, spawn, block }` for both. `block: true` (or the map's `block` list of floor tags) makes deep water, lava or pits stop walkers (jumping bodies pass over); `walkable(cx, cy)`, `block(cx, cy, on)` (a bridge appears). FlowField paths go around blocked cells and follow `block` and `set` at their next `update`.
 - `find(tag)` / `findAll(tag)` give `{ x, y, z, cx, cy }`. Also `cell(cx, cy)`, `set(cx, cy, id)` (open doors), `toCell(x, y)`, `center(cx, cy)`, `heightAt(x, y)`, `floorAt(x, y)`, `groundAt(x, y, r, z)`, `collide(body)`, `los(x0, y0, x1, y1)`, `bounds(view)`, `drawFloor(r)`, `queueWalls(r)`.
 
 **PlatformMap** (side-scrollers; 2.5D in tilted views): tiles on the x/z plane, top row first.

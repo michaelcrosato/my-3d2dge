@@ -3,7 +3,7 @@
 // broken animation; a strip shows it.
 //
 // Usage:  node tools/filmstrip.mjs game.html[?query][#scene] --steps "<steps>" [--out strip.png] [--cols 8] [--scale 2] [--crop x,y,w,h]
-//                                  [--seed 1] [--compare other.html[#scene]]
+//                                  [--seed 1] [--hz 60] [--compare other.html[#scene]]
 // Steps run in order, separated by spaces (or by ' | ' when eval: code needs spaces):
 //   wait:600          wait 600 ms
 //   press:Enter       tap a key (KeyboardEvent.code, e.g. KeyJ, Space, ArrowRight)
@@ -14,7 +14,8 @@
 // up with whole pixels; --crop takes a region of that buffer (in game pixels) to zoom on one character.
 // --seed N makes the run repeatable: time is virtual (every display frame is exactly 1/60 s, and wait:600 runs
 // 36 frames at once instead of waiting) and Math.random is seeded, so the same command gives the same frames,
-// pixel for pixel, on any machine. Use it whenever two strips will be compared.
+// pixel for pixel, on any machine. Use it whenever two strips will be compared. --hz 144 makes the virtual display run at
+// another refresh rate (frames of exactly 1/144 s; it implies --seed): the clock's steps per frame show on the strip.
 // --compare b.html records the same steps from a second page (another build, or the game after your change) and
 // lays the strips out A above B, with a third row that marks every pixel that differs. It implies --seed (1 if
 // not given) and prints which frames changed, so a visual change can be checked to do only what it should.
@@ -32,13 +33,14 @@ const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 
 if (!file) { console.error('Usage: node tools/filmstrip.mjs game.html[?query][#scene] --steps "wait:1000 rec:16:2 press:KeyJ" [--out strip.png] [--cols 8] [--scale 2] [--crop x,y,w,h] [--seed 1] [--compare other.html]'); process.exit(2); }
 const rawSteps = (opt('steps', 'wait:1000 rec:16:2') || '').trim(), steps = rawSteps.includes(' | ') ? rawSteps.split(' | ').map(x => x.trim()).filter(Boolean) : rawSteps.split(/\s+/);   // ' | ' separates steps whose eval: code has spaces
 const out = resolve(opt('out', 'filmstrip.png')), cols = +opt('cols', 8), scale = +opt('scale', 2), crop = opt('crop', null);
-const compare = opt('compare', null), seed = opt('seed', compare ? '1' : null);
+const compare = opt('compare', null), hz = +opt('hz', 60), seed = opt('seed', compare || hz !== 60 ? '1' : null);
+if (!(hz >= 10 && hz <= 1000)) { console.error('--hz takes a refresh rate, 10 to 1000'); process.exit(2); }
 if (seed !== null && !/^\d+$/.test(seed)) { console.error('--seed takes a whole number'); process.exit(2); }
 
 // Installed before the page's own scripts when --seed is given: a virtual clock that only moves when the
 // tool calls __film.tick(), and a seeded Math.random (mulberry32). Sound is switched off: it runs on real
 // time and draws its own random numbers, which would shift every random number the game draws after it.
-const repeatable = seed => {
+const repeatable = ([seed, hz]) => {
   let rnd = seed >>> 0, now = 1000, id = 0;
   const due = new Map(), fixed = (obj, key, value) => Object.defineProperty(obj, key, { value, configurable: true, writable: true });
   Math.random = () => { rnd = (rnd + 0x6D2B79F5) >>> 0; let t = rnd; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -50,7 +52,7 @@ const repeatable = seed => {
   fixed(navigator, 'gpu', undefined);           // GPU lighting starts up on real time; the canvas path is the same everywhere
   window.AudioContext = window.webkitAudioContext = undefined;
   window.__film = { onFrame: null, tick(n = 1) {
-    for (let i = 0; i < n; i++) { now += 1000 / 60; const run = [...due.values()]; due.clear(); for (const f of run) f(now); if (this.onFrame) this.onFrame(); }
+    for (let i = 0; i < n; i++) { now += 1000 / hz; const run = [...due.values()]; due.clear(); for (const f of run) f(now); if (this.onFrame) this.onFrame(); }
   } };
 };
 
@@ -79,12 +81,12 @@ const errors = [];
 async function film(target, label) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', e => errors.push(label + String(e && e.message || e)));
-  if (seed !== null) await page.addInitScript(repeatable, +seed);
+  if (seed !== null) await page.addInitScript(repeatable, [+seed, hz]);
   const [page0, hash] = target.split('#'), [filePath, query] = page0.split('?'), virtual = seed !== null;
   await page.goto(pathToFileURL(resolve(filePath)).href + (query ? '?' + query : '') + (hash ? '#' + hash : ''));
   await page.waitForFunction(() => window.My3D2dge && My3D2dge.current, null, { timeout: 10000, polling: 50 });
-  const frames60 = ms => Math.max(1, Math.round(ms * 60 / 1000));
-  const wait = ms => virtual ? page.evaluate(n => __film.tick(n), frames60(ms)) : page.waitForTimeout(ms);
+  const framesIn = ms => Math.max(1, Math.round(ms * (virtual ? hz : 60) / 1000));
+  const wait = ms => virtual ? page.evaluate(n => __film.tick(n), framesIn(ms)) : page.waitForTimeout(ms);
   let recording = null;
   for (const step of steps) {
     const [kind, ...rest] = step.split(':'), arg = rest.join(':');
