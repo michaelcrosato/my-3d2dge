@@ -116,7 +116,7 @@ phone's notch; nothing told by color alone.
 | Case | Environment | Evidence | Result |
 | --- | --- | --- | --- |
 | Settings, pausing, labels, rebinding, the touch START (both editions) | Node 24 | automated (`tools/standard-test.mjs`) | pass |
-| The page, the corner, the pause menu, Settings, Controls, rebinding, Quit, saved settings, bad and blocked storage, full screen, touch buttons, a game's own Shell, `menu: false` (both editions) | headless Chromium, desk and emulated phones | automated (`tools/standard-test.mjs`, 70 checks) | pass |
+| The page, the corner, the pause menu, Settings, Controls, rebinding, Quit, saved settings, bad and blocked storage, full screen, touch buttons, a game's own Shell, `menu: false` (both editions) | headless Chromium, desk and emulated phones | automated (`tools/standard-test.mjs`, 72 checks) | pass |
 | The menus by eye: title, play, pause, settings, controls, rebound | Chromium at 1280 x 720; emulated phone 390 x 844 and 844 x 390 at 3x | screenshots | pass |
-| The rest of the engine, Emberdeep and the labs | headless Chromium | `npm test` | see the pull request |
+| The rest of the engine, Emberdeep and the labs | headless Chromium | `npm run test:changed` (all 20 suites) | pass |
 | A physical phone, an iPhone, a physical gamepad (rumble, symbols), a screen reader, a fold | none here | none | not tested |

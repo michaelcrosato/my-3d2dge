@@ -22,7 +22,7 @@ Standard features in every game: what the owner's quality prompt asked of each g
 - **Engine**: the agent edition has `game.settings`, `game.fullscreen`, the corner (its menu button pauses and resumes), the pausing and `input.label`; the menu screens are the full engine's.
 - **Emberdeep**: its full screen goes through `game.fullscreen`; it keeps its own menus (`menu: false, corner: false, fullscreen: 'button'`), as do the labs with panels of their own.
 - **Docs**: `docs/STANDARD-FEATURES.md`: the quality prompt's requirement matrix (what is built in, already met, the game's job or deferred), the presets' action coverage and the verification. "Standard features" in `AI_GUIDE.md`, the API card (its budget rises to 15,000: D20), the agent edition's header and the full engine's header (8a): adjust them, don't rebuild them, and what stays each game's job. `docs/DECISIONS.md` D21 (on by default), `docs/FEEDBACK-LOG.md` F5.
-- **Tools**: `tools/standard-test.mjs` (`npm run test:standard`): 70 checks on both editions, in Node and in Chromium (a desk and emulated phones). The contract test's shell checks follow the new pause screen. The starter's API card button moves left of the corner.
+- **Tools**: `tools/standard-test.mjs` (`npm run test:standard`): 72 checks on both editions, in Node and in Chromium (a desk and emulated phones). The contract test's shell checks follow the new pause screen. The starter's API card button moves left of the corner.
 
 ## 0.22.4 (2026-10-11)
 
