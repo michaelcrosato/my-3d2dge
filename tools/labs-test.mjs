@@ -16,7 +16,8 @@ const fail = m => problems.push(m);
 
 /* a static server with vercel.json's rewrites: "/:page(a|b)" patterns, filled into the destination */
 const rules = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8')).rewrites.map(r => ({
-  re: new RegExp('^' + r.source.replace(/\./g, '\\.').replace(/:(\w+)\(([^)]+)\)/g, '(?<$1>$2)').replace(/:(\w+)(?![\w>])/g, '(?<$1>[^/]+)') + '$'),
+  // (a group's own pattern, :file(.+), is kept as it is: only the dots outside groups are literal)
+  re: new RegExp('^' + r.source.split(/(:\w+\([^)]+\))/).map((part, i) => i % 2 ? part.replace(/:(\w+)\(([^)]+)\)/, '(?<$1>$2)') : part.replace(/\./g, '\\.').replace(/:(\w+)(?![\w>])/g, '(?<$1>[^/]+)')).join('') + '$'),
   to: r.destination,
 }));
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png' };
@@ -66,6 +67,11 @@ if (fileLinks.length !== siteLinks.length) fail('the file copy of the Labs page 
 for (const href of fileLinks) {
   const f = fileURLToPath(href.replace(/[?#].*$/, ''));
   if (!existsSync(f)) fail('file link to a missing file: ' + f.replace(root, '.'));
+}
+
+/* the handoff package for coding agents (dist/handoff/) is served at /handoff/ */
+for (const path of ['/handoff/', '/handoff/README.md', '/handoff/game/index.html', '/handoff/tools/check.mjs']) {
+  const r = await fetch(SITE + path); if (r.status !== 200) fail(`${path} gave ${r.status}, not the handoff package's file`);
 }
 
 /* the way back: each lab's "All labs" link, and the game's Developer panel */

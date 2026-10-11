@@ -6,7 +6,8 @@
 //   --page   the page to replay on; by default the one the session was recorded on (the site's address, read through
 //            vercel.json's rewrites, or a local file's name), with the address's ?query and #hash
 //   --to     stop at this frame (default: the end); --shots saves a screenshot at each of these frames (and at the end)
-//   --log    JavaScript evaluated in the page at the end, printed (e.g. "__ed.ED.hero.x")
+//   --log    JavaScript evaluated in the page at the end, printed (e.g. "__ed.ED.hero.x"); without it, the game's own
+//            game.debug.snapshot() when it has one
 //   --keep-going  play on after the first frame whose checksum differs (by default it stops there)
 // Prints how far it played, how many checksums matched and the first frame that differed. Exit code 1 when it diverged,
 // when an input's target was missing, or when the page threw. Pictures in --out (check-output/replay/ by default).
@@ -22,15 +23,17 @@ if (!file) { console.error('Usage: node tools/replay.mjs session.json [--page pa
 const S = JSON.parse(readFileSync(file, 'utf8'));
 if (S.format !== 'my3d2dge-session') { console.error(file + ' is not a my-3D2dge session (format: ' + S.format + ')'); process.exit(2); }
 const root = resolve('.'), out = resolve(opt('out', 'check-output/replay')); mkdirSync(out, { recursive: true });
-const engine = readFileSync(join(root, 'engine/my-3d2dge.js'), 'utf8').match(/version: '([^']+)'/)[1];
+// (the repository has the engine in engine/; the handoff package, dist/handoff/, beside its tools/)
+const enginePath = ['engine/my-3d2dge.js', 'my-3d2dge.js'].map(f => join(root, f)).find(f => existsSync(f));
+const engine = enginePath ? readFileSync(enginePath, 'utf8').match(/version: '([^']+)'/)[1] : S.version;
 
 /* the page: --page, or the recorded address mapped to a file the way the site maps it */
 const href = new URL(S.href, 'http://site'), tail = href.search + href.hash;
 let page = opt('page', null);
 if (!page) {
   const p = decodeURIComponent(href.pathname);
-  if (p.endsWith('.html')) page = ['examples', 'dist', 'dist/kits'].map(d => d + '/' + basename(p)).find(f => existsSync(join(root, f)));
-  else for (const r of JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8')).rewrites) {
+  if (p.endsWith('.html')) page = ['examples', 'dist', 'dist/kits', 'game', '.'].map(d => d + '/' + basename(p)).find(f => existsSync(join(root, f)));
+  else if (existsSync(join(root, 'vercel.json'))) for (const r of JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8')).rewrites) {
     const re = new RegExp('^' + r.source.replace(/:(\w+)\(([^)]+)\)/g, '(?<$1>$2)').replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), m = re.exec(p);
     if (m) { page = r.destination.replace(/:(\w+)/g, (_, k) => m.groups[k]).replace(/^\//, ''); break; }
   }
@@ -62,12 +65,13 @@ while (r.frame < to) {
   if (r.done) break;
 }
 await tab.screenshot({ path: join(out, `frame-${r.frame}-end.png`) });
-const logged = opt('log', null) ? await tab.evaluate(code => { try { return JSON.stringify((0, eval)(code)); } catch (e) { return 'threw: ' + e.message; } }, opt('log')) : null;
+const LOG = opt('log', null) || (await tab.evaluate(() => { const d = My3D2dge.current && My3D2dge.current.debug; return !!(d && typeof d.snapshot === 'function'); }) ? 'My3D2dge.current.debug.snapshot()' : null);
+const logged = LOG ? await tab.evaluate(code => { try { return JSON.stringify((0, eval)(code)); } catch (e) { return 'threw: ' + e.message; } }, LOG) : null;
 await browser.close();
 
 console.log(`played ${r.frame} of ${S.frames.length} frames, ${r.events} inputs; ${r.checked} checksum(s) compared` + (r.diverged === undefined ? ', all matched' : `; it DIVERGED at frame ${r.diverged} (the first checksum that differed)`));
 if (r.missing) console.log(`  ${r.missing} input(s) found no element to go to (the page's elements differ from the recording's)`);
-if (logged !== null) console.log('  ' + opt('log') + ' = ' + logged);
+if (logged !== null) console.log('  ' + LOG + ' = ' + logged);
 if (errors.length) console.log('page errors:\n  ' + errors.slice(0, 5).join('\n  '));
 console.log('pictures in ' + out);
 process.exit(r.diverged !== undefined || r.missing || errors.length ? 1 : 0);

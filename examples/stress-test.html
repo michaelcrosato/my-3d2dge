@@ -247,7 +247,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.18.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.19.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -294,9 +294,14 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
  * 10. SESSIONS. E.session.record(true) records every later page load (or ?record=1 for one): the frame times, the
  *    inputs, the random seed, the screen and the save. E.session.share() saves it as a file; node tools/replay.mjs
  *    plays it back headless, exactly, and stops where it differs (game.stateHash = () => [...] sharpens that).
+ * 11. TESTS. new E.Game({ headless: true }) (the default in Node) runs with no screen: game.advance(1) runs 120 fixed
+ *    steps at once, game.input.tap('jump') and hold('right') script input, game.debug = { snapshot() { ... } } is
+ *    your game's handle for tests and tools; game.stop(), start() and dispose() stop, resume and end it.
  * Errors in your game are shown on screen and in the console (game.errors).
- * The compact API card is API.md (also embedded in the single-file edition).
- * See AI_GUIDE.md in the repo for the full guide and recipes.
+ * THE HANDOFF PACKAGE holds this file and what it needs (dist/handoff/ in the repo, my-3d2dge.vercel.app/handoff/):
+ *    API.md, the card (read it whole; the single-file editions embed it), API-INDEX.md (every public name, one line
+ *    each: search it), AI_GUIDE.md (the recipes), tools/check.mjs, filmstrip.mjs and replay.mjs, and game/, a
+ *    template game with a headless test.
  * MORE, outside this file (github.com/michaelcrosato/my-3d2dge; search it and take only what a game needs, its files
  *    are large): 325 curated motion clips and 2,548 motion-capture takes as readable key poses that play on any
  *    Humanoid (src/mocap/: the catalogs list every clip's tags and description, tools/anim-set.mjs cuts the ones you
@@ -307,41 +312,57 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 (function (root) {
 'use strict';
 
+/** TAU: 2π, a full turn in radians; DEG: π/180, one degree in radians (angle * DEG) */
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-/** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
- *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.18.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+/** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
+ *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
+ *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
+const E = { version: '0.19.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
-/** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
 const _warned = new Set();
+/** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message) */
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
 E.warn = warn;
 
 /* =============================================================================
  * 1. MATH
  * ============================================================================= */
+/** v kept between a and b */
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+/** a + (b - a) * t: the point t of the way from a to b (t 0..1) */
 const lerp = (a, b, t) => a + (b - a) * t;
+/** a moved toward b by at most s, never past it: approach(speed, top, accel * dt) */
 const approach = (a, b, s) => a < b ? Math.min(b, a + s) : Math.max(b, a - s);
+/** easing curves for u 0..1: outCubic, outQuad (fast, then settles), inQuad (slow start), inOut, outBack
+ *  (overshoots, then settles) */
 const ease = {
-  outCubic: u => 1 - Math.pow(1 - u, 3),
-  outQuad: u => 1 - (1 - u) * (1 - u),
-  inQuad: u => u * u,
-  inOut: u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2,
-  outBack: u => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); }
+  outCubic: u => 1 - Math.pow(1 - u, 3),   // fast start, smooth stop
+  outQuad: u => 1 - (1 - u) * (1 - u),   // fast start, smooth stop (gentler than outCubic)
+  inQuad: u => u * u,   // slow start, fast end
+  inOut: u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2,   // slow start and end
+  outBack: u => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); }   // overshoots past 1, then settles: pop-ups, landings
 };
+/** the shortest signed turn from angle a to angle b, -π..π (radians) */
 const angDiff = (a, b) => ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+/** an angle t of the way from a to b by the shorter way round */
 const lerpAng = (a, b, t) => a + angDiff(a, b) * t;
+/** angle a turned toward b by at most s radians: facing = approachAng(facing, target, turnSpeed * dt) */
 const approachAng = (a, b, s) => { const d = angDiff(a, b); return Math.abs(d) <= s ? b : a + Math.sign(d) * s; };
+/** a seeded random stream: const R = E.rng(42); R() gives 0..1, the same numbers for the same seed (mulberry32) */
 function rng(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/** a fixed random number 0..1 for whole-number grid coordinates (texture specks, scatter that never flickers) */
 function hash2(x, y) { let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; }
+/** smooth value noise 0..1 over the plane (one bump per whole unit): blotches, clouds, wobble */
 function noise2(x, y) {
   const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
   return lerp(lerp(hash2(xi, yi), hash2(xi + 1, yi), u), lerp(hash2(xi, yi + 1), hash2(xi + 1, yi + 1), u), v);
 }
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + .5) / 16);
+/** the 4 x 4 ordered-dither threshold 0..1 at pixel (x, y): pixel on when value > bayer(x, y) */
 const bayer = (x, y) => BAYER[((y & 3) << 2) | (x & 3)];
+/** critically damped follow: [next, nextVelocity] = smoothDamp(cur, target, vel, smoothTime, dt); settles in about
+ *  smoothTime seconds without overshoot */
 function smoothDamp(cur, target, vel, st, dt) {
   const om = 2 / st, x = om * dt, ex = 1 / (1 + x + .48 * x * x + .235 * x * x * x), ch = cur - target, tmp = (vel + om * ch) * dt;
   return [target + (ch + tmp) * ex, (vel - om * tmp) * ex];
@@ -355,27 +376,42 @@ const hex = h => {
   if (s.length < 6 || isNaN(n)) { warn('hex:' + h, 'color "' + h + '" is not a "#rrggbb" hex color; engine color helpers need hex (drawn magenta)'); return [255, 0, 255]; }
   return [n >> 16 & 255, n >> 8 & 255, n & 255];
 };
+/** [r, g, b] -> '#rrggbb' */
 const toHex = c => '#' + c.map(v => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
-/** shade('#336699', -0.3) darker, (+0.3) lighter. Hue-shifted like painted pixel art: darker drifts cool, lighter drifts warm */
 const _shades = new Map();
+/** shade('#336699', -0.3) darker, (+0.3) lighter. Hue-shifted like painted pixel art: darker drifts cool, lighter drifts warm */
 const shade = (h, a) => {
   const key = h + '|' + a; let r = _shades.get(key); if (r) return r;
   const c = hex(h), flat = toHex(c.map(v => a < 0 ? v * (1 + a) : v + (255 - v) * a)), [hh, s, l] = toHsl(flat);
   r = s < .08 ? flat : hsl(hueToward(hh, a < 0 ? 250 : 55, Math.abs(a) * 24), s + (a < 0 ? .05 : -.05) * Math.min(1, Math.abs(a) * 3), l);
   if (_shades.size > 2000) _shades.clear(); _shades.set(key, r); return r;
 };
+/** the color t of the way from h1 to h2 ('#rrggbb') */
 const mix = (h1, h2, t) => { const a = hex(h1), b = hex(h2); return toHex(a.map((v, i) => lerp(v, b[i], t))); };
-const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+/** a new canvas of w x h pixels (scratch images and sprite sheets). With no document (Node: a headless game) a stand-in
+ *  whose drawing does nothing, so sprites and other images made while a game loads don't stop it */
+const mkCanvas = (w, h) => { if (typeof document === 'undefined') return nullCanvas(w, h); const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const nullCanvas = (w, h) => {
+  const c = { width: w, height: h }, img = (iw, ih) => ({ width: iw, height: ih, data: new Uint8ClampedArray(Math.max(0, iw * ih * 4)) });
+  const made = { getImageData: (x, y, iw, ih) => img(iw, ih), createImageData: (iw, ih) => img(iw.width || iw, ih || iw.height), measureText: () => ({ width: 0 }),
+    createLinearGradient: () => ({ addColorStop() {} }), createRadialGradient: () => ({ addColorStop() {} }), createPattern: () => ({}), canvas: c };
+  const g = new Proxy({}, { get: (t, k) => k in t ? t[k] : k in made ? made[k] : () => {}, set: (t, k, v) => { t[k] = v; return true; } });
+  c.getContext = () => g;
+  return c;
+};
+/** a canvas's 2D context with smoothing off (crisp pixels) */
 const ctx2d = c => { const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return g; };
+/** small 3D vector helpers on [x, y, z] arrays: add, sub, mul(a, s), dot, len, norm, lerp(a, b, t), rz(v, angle)
+ *  (turn about z) */
 const V3 = {
-  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
-  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
-  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
-  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
-  len: a => Math.hypot(a[0], a[1], a[2]),
-  norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
-  lerp: (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)],
-  rz: (v, a) => { const c = Math.cos(a), s = Math.sin(a); return [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]]; }
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],   // a + b
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],   // a - b
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s],   // a scaled by s
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],   // dot product
+  len: a => Math.hypot(a[0], a[1], a[2]),   // length
+  norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },   // unit vector the same way
+  lerp: (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)],   // the point t of the way from a to b
+  rz: (v, a) => { const c = Math.cos(a), s = Math.sin(a); return [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]]; }   // v turned by angle a (radians) about the z axis
 };
 /** two-bone IK in 3D: returns [joint, end]. hint points the way the joint should bend. */
 function ik3(a, b, L1, L2, hint) {
@@ -398,6 +434,7 @@ function toHsl(h) {
   if (mx === r) hh = ((g - b) / d) % 6; else if (mx === g) hh = (b - r) / d + 2; else hh = (r - g) / d + 4;
   return [(hh * 60 + 360) % 360, s, l];
 }
+/** '#rrggbb' from hue (degrees), saturation and lightness (0..1) */
 function hsl(hh, s, l) {
   s = clamp(s, 0, 1); l = clamp(l, 0, 1); hh = ((hh % 360) + 360) % 360;
   const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((hh / 60) % 2 - 1)), m = l - c / 2;
@@ -432,7 +469,9 @@ Object.assign(E, { toHsl, hsl, tones, ramp });
 const rand = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 /** whole number from a to b, both included */
 const randInt = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
+/** a random item of list (Math.random) */
 const pick = list => list[(Math.random() * list.length) | 0];
+/** true with probability p (0..1) */
 const chance = p => Math.random() < p;
 /** distance between two objects with x, y (and optional z) */
 const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y, (b.z || 0) - (a.z || 0));
@@ -477,9 +516,9 @@ const targets = (from, list, o = {}) => {
 const prune = (list, fn) => { let j = 0; for (let i = 0; i < list.length; i++) if (!fn(list[i])) list[j++] = list[i]; list.length = j; return list; };
 /** saved data that survives reloads (localStorage, JSON). Never throws. */
 const store = {
-  get(key, fallback = null) { try { const v = localStorage.getItem('my3d2dge:' + key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
-  set(key, value) { try { localStorage.setItem('my3d2dge:' + key, JSON.stringify(value)); return true; } catch (e) { return false; } },
-  remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }
+  get(key, fallback = null) { try { const v = localStorage.getItem('my3d2dge:' + key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },   // the value saved under key (any JSON), or fallback
+  set(key, value) { try { localStorage.setItem('my3d2dge:' + key, JSON.stringify(value)); return true; } catch (e) { return false; } },   // save value (any JSON) under key; false when storage is blocked
+  remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }   // forget key
 };
 Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, rng, hash2, noise2, bayer, smoothDamp, hex, toHex, shade, mix, mkCanvas, ctx2d, V3, ik3,
   rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
@@ -489,12 +528,17 @@ Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, r
  *    g = CanvasRenderingContext2D, coordinates in buffer pixels.
  * ============================================================================= */
 const px = {};
+/** set the fill color (px.* do it themselves) */
 px.col = (g, c) => { const s = g._info ? g._mat : c; if (g._c !== s) { g.fillStyle = s; g._c = s; } };
 /** GPU lighting: what follows glows (0..1). No effect in Canvas mode, so call it freely. */
 px.glow = (g, e = 1) => { if (g._info && g._r) { g._mat = g._r._infoCol(g._z || 0, 10, e); g._c = null; } };
+/** forget the color cache (after drawing on g with the canvas API directly) */
 px.reset = g => { g._c = null; };
+/** a filled rectangle, snapped to whole pixels */
 px.rect = (g, x, y, w, h, c) => { px.col(g, c); g.fillRect(Math.round(x), Math.round(y), w, h); };
+/** one pixel */
 px.dot = (g, x, y, c) => { px.col(g, c); g.fillRect(Math.round(x), Math.round(y), 1, 1); };
+/** a line w pixels thick, no smoothing */
 px.line = (g, x0, y0, x1, y1, c, w = 1) => {
   px.col(g, c);
   x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
@@ -508,11 +552,13 @@ px.line = (g, x0, y0, x1, y1, c, w = 1) => {
     if (e2 <= dx) { e += dx; y0 += sy; }
   }
 };
+/** a filled circle */
 px.disc = (g, cx, cy, r, c) => {
   px.col(g, c); cx = Math.round(cx); cy = Math.round(cy);
   const R = r + .35, R2 = R * R, n = Math.floor(R);
   for (let dy = -n; dy <= n; dy++) { const hw = Math.floor(Math.sqrt(R2 - dy * dy)); g.fillRect(cx - hw, cy + dy, hw * 2 + 1, 1); }
 };
+/** a filled ellipse */
 px.ell = (g, cx, cy, rx, ry, c) => {
   px.col(g, c); cx = Math.round(cx); cy = Math.round(cy);
   const Ry = ry + .35, n = Math.floor(Ry);
@@ -537,6 +583,7 @@ function scan(pts, span) {
     for (let k = 0; k + 1 < _xs.length; k += 2) { const xa = Math.round(_xs[k]), xb = Math.round(_xs[k + 1]); span(xa, Math.max(xa, xb), y); }
   }
 }
+/** a filled polygon through [[x, y], ...] */
 px.poly = (g, pts, c) => { px.col(g, c); scan(pts, (a, b, y) => g.fillRect(a, y, b - a + 1, 1)); };
 /**
  * Translucency style. 'alpha' (default, PS1 / N64 / SNES color math): real transparency in 1/8 steps, plus blend modes.
@@ -547,6 +594,8 @@ const qa = a => Math.round(clamp(a, 0, 1) * 8) / 8;
 const useAlpha = g => E.style.trans !== 'dither' && !g._info;
 /** draw with translucency and a blend mode: px.blend(g, .5, 'add' | 'normal' | 'multiply' | 'screen' | 'sub', () => {...draws...}) */
 const BLEND = { normal: 'source-over', add: 'lighter', multiply: 'multiply', screen: 'screen', sub: 'difference', overlay: 'overlay' };
+/** draw fn() at alpha a (stepped, like PS1 hardware) with a blend mode: 'normal', 'add', 'multiply', 'screen'
+ *  (E.style.trans = 'dither' dithers instead) */
 px.blend = (g, a, mode, fn) => {
   if (g._info) { if (mode === 'normal' || !mode) fn(); return; }
   if (g._cover) { fn(); return; }   // (the renderer's glow cut mask: every pixel a glow touches counts, whatever its blend)
@@ -626,17 +675,31 @@ E.faceClass = (nx, ny) => nx > 0 ? 5 : nx < 0 ? 6 : ny > 0 ? 7 : 8;
  *      screen y = bx*x + by*y + bz*z
  * ============================================================================= */
 class View {
+  /** new E.View(id, label, yaw, pitch, scale, zBoost): an orthographic camera (degrees; scale = screen pixels per
+   *  world unit; zBoost stretches heights). id: its name ('iso', or yours); label: its name for people ('Isometric') */
   constructor(id, label, yaw, pitch, scale = 1, zBoost = 1) { this.id = id; this.label = label; this.set(yaw, pitch, scale, zBoost); }
+  /** change the angles and scale in place (game.setView and rotateView use their own copies); returns the view */
   set(yaw, pitch, scale = 1, zBoost = 1) {
+    /** yawDeg: the turn about the up axis, degrees (0: north is up the screen; iso is 45); pitchDeg: the tilt, 0
+     *  side view to 90 straight down; scale: screen pixels per world unit; zBoost: how much heights are stretched on
+     *  screen (1 = true) */
     this.yawDeg = yaw; this.pitchDeg = pitch; this.scale = scale; this.zBoost = zBoost;
     const w = yaw * DEG, p = pitch * DEG, cw = Math.cos(w), sw = Math.sin(w), cp = Math.cos(p), sp = Math.sin(p);
+    /** yaw, pitch: the same angles in radians */
     this.yaw = w; this.pitch = p;
+    /** ax, ay: screen x = ax * x + ay * y (the projection's first row) */
     this.ax = scale * cw; this.ay = -scale * sw;
+    /** bx, by, bz: screen y = bx * x + by * y + bz * z (the second row; bz < 0 lifts things up the screen) */
     this.bx = scale * sp * sw; this.by = scale * sp * cw; this.bz = -scale * cp * zBoost;
+    /** dx, dy, dz: the direction toward the camera, for true depth (view.depth); bigger is nearer */
     this.dx = sw * cp; this.dy = cw * cp; this.dz = sp;   // true camera depth (bigger = nearer)
+    /** fx, fy: the ground direction that points at the camera (the front of a wall faces it) */
     this.fx = sw; this.fy = cw;                           // ground direction that points at the camera
+    /** isTop: looking straight down (pitch 89 or more); isSide: a side view (pitch 1 or less: x right, z up, y is
+     *  depth) */
     this.isTop = pitch >= 89; this.isSide = pitch <= 1;
     const det = this.ax * this.by - this.ay * this.bx;
+    /** inv: the inverse of the ground projection (screen -> ground at z 0), null in side views */
     this.inv = Math.abs(det) > 1e-6 && pitch > 5 ? [this.by / det, -this.ay / det, -this.bx / det, this.ax / det] : null;
     return this;
   }
@@ -657,6 +720,9 @@ class View {
   }
 }
 E.View = View;
+/** the ready-made views: iso (yaw 45, pitch 30), threequarter (pitch 55), topdown (80), brawler (25), side (0) and
+ *  overhead (90, scale 1: world x/y = screen pixels); new E.Game({ view: 'iso' }) and game.setView('side') take
+ *  their names */
 E.VIEWS = {
   iso: new View('iso', 'Isometric', 45, 30, Math.SQRT2, 1),                 // Diablo, Bastion (2:1 pixel iso)
   threequarter: new View('threequarter', 'Three-quarter', 0, 55, 1.5, 1.35), // Zelda, Stardew, Enter the Gungeon
@@ -665,13 +731,14 @@ E.VIEWS = {
   side: new View('side', 'Side', 0, 0, 1.5, 1),                              // Mega Man, platformers
   overhead: new View('overhead', 'Overhead', 0, 90, 1, 1)                    // 1942, puzzles: world x/y = screen pixels
 };
+/** the order game.nextView() cycles through when a game doesn't set game.views ('overhead' is left out) */
 E.VIEW_ORDER = ['iso', 'threequarter', 'topdown', 'brawler', 'side'];   // 'overhead' is left out: it is for flat games
 /**
  * The classic SNES RPG cheat: in steep ground views (pitch 40-70, like threequarter) characters are drawn from a lower,
  * sprite-like angle so their faces show, at the same height on screen. Humanoid and Blob do this by themselves
  * (option charView: false turns it off for one rig, E.style.charPitch = false for all). E.charView(view) gives that view.
  */
-const _cviews = new Map();
+/** the view a rig in `view` is drawn from (the sprite-like angle above; the view itself outside pitch 40-89) */
 function charView(view) {
   const P = E.style.charPitch;
   if (P === false || view.pitchDeg < 40 || view.pitchDeg >= 89) return view;
@@ -682,6 +749,7 @@ function charView(view) {
   if (!v) { v = new View(view.id, view.label, view.yawDeg, cp, view.scale, h / Math.cos(cp * DEG)); _cviews.set(key, v); }
   return v;
 }
+const _cviews = new Map();
 E.charView = charView;
 
 /* =============================================================================
@@ -690,13 +758,21 @@ E.charView = charView;
 /** classic console resolutions for new Game({ res: 'snes' }) (width x height in pixels) */
 E.RES = { nes: [256, 240], snes: [256, 224], gb: [160, 144], gbc: [160, 144], gba: [240, 160], genesis: [320, 224], md: [320, 224], pce: [256, 224], n64: [320, 240], ps1: [320, 240], wide: [400, 225] };
 class Screen {
-  constructor(canvas, o) {
-    this.canvas = canvas; this.sctx = canvas.getContext('2d'); this.o = o;
-    this.buf = mkCanvas(8, 8); this.ctx = ctx2d(this.buf);
+  /** canvas null: the screen of a headless game, sized as a 1280 x 720 window would size it, with nothing to draw on */
+  constructor(canvas, o, signal) {
+    /** canvas: the page's canvas (null in a headless game); o: the sizing options (the game's o) */
+    this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this.o = o;
+    /** buf: the low-resolution buffer the game draws into (W + 2 by H + 2 pixels; null when headless); ctx: its 2D
+     *  context (r.ctx is the same) */
+    this.buf = canvas ? mkCanvas(8, 8) : null; this.ctx = canvas ? ctx2d(this.buf) : null;
+    /** W, H: the buffer's size in game pixels; S: the whole-number scale up to the canvas; OX, OY: the letterbox
+     *  margins on the canvas, in canvas pixels; dpr: the device pixel ratio used (at most 3) */
     this.W = 320; this.H = 200; this.S = 3; this.OX = 0; this.OY = 0; this.dpr = 1;
+    /** ix, iy: the camera's whole-pixel offset this frame; fx, fy: its sub-pixel part (0..1, applied when
+     *  presenting); listeners: functions called after every resize */
     this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0; this.listeners = [];
     this.resize();
-    addEventListener('resize', () => this.resize());
+    if (canvas) addEventListener('resize', () => this.resize(), { signal });
   }
   /**
    * the sizing options in force: the game's, with o.portrait's over them while the screen is taller than wide (a phone
@@ -710,36 +786,36 @@ class Screen {
     if (!v) { warn('res:' + r, 'unknown res "' + r + '". Use one of ' + Object.keys(E.RES).join(', ') + ' or [width, height]'); return null; }
     return [Math.max(16, v[0] | 0), Math.max(16, v[1] | 0)];
   }
+  /** fit the buffer to the canvas again (on window resize; after changing sizing options, setOptions does it) */
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 3), rc = this.canvas.getBoundingClientRect();
+    const c = this.canvas, dpr = c ? Math.min(window.devicePixelRatio || 1, 3) : 1, rc = c ? c.getBoundingClientRect() : { width: 1280, height: 720 };
     const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this.options(pw, ph);
-    this.canvas.width = pw; this.canvas.height = ph; this.dpr = dpr; this.portrait = ph > pw;
+    /** portrait: true while the screen is taller than wide (a phone held upright) */
+    if (c) { c.width = pw; c.height = ph; } this.dpr = dpr; this.portrait = ph > pw;
     const fix = this.fixedRes(o);
     if (fix) {
       // fixed resolution: whole-number scale, letterboxed. HUD pixel positions stay the same on every screen.
       this.W = fix[0]; this.H = fix[1]; this.S = Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
-      this.OX = Math.floor((pw - this.W * this.S) / 2); this.OY = Math.floor((ph - this.H * this.S) / 2);
-      this.buf.width = this.W + 2; this.buf.height = this.H + 2;
-      this.ctx = ctx2d(this.buf); this.ctx._c = null;
-      for (const f of this.listeners) f();
-      return;
+    } else {
+      const S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW)));
+      this.S = S; this.W = Math.min(o.maxW, Math.ceil(pw / S)); this.H = Math.min(o.maxH, Math.ceil(ph / S));
     }
-    const S = Math.max(1, Math.min(Math.floor(ph / o.minH), Math.floor(pw / o.minW)));
-    this.S = S; this.W = Math.min(o.maxW, Math.ceil(pw / S)); this.H = Math.min(o.maxH, Math.ceil(ph / S));
-    this.OX = Math.floor((pw - this.W * S) / 2); this.OY = Math.floor((ph - this.H * S) / 2);
-    this.buf.width = this.W + 2; this.buf.height = this.H + 2;
-    this.ctx = ctx2d(this.buf); this.ctx._c = null;
+    this.OX = Math.floor((pw - this.W * this.S) / 2); this.OY = Math.floor((ph - this.H * this.S) / 2);
+    if (this.buf) { this.buf.width = this.W + 2; this.buf.height = this.H + 2; this.ctx = ctx2d(this.buf); this.ctx._c = null; }
     for (const f of this.listeners) f();
   }
   /** change sizing at runtime, e.g. { minH: 400, maxW: 1080, maxH: 660 } to pull the camera back */
   setOptions(o) { Object.assign(this.o, o); this.resize(); }
+  /** start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it) */
   begin(cx, cy, bg) {
     this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
     const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
     g.fillStyle = bg; g.fillRect(0, 0, this.buf.width, this.buf.height);
   }
+  /** copy the buffer to the canvas, scaled up with whole pixels and the camera's sub-pixel offset (the renderer
+   *  calls it) */
   present() {
-    const s = this.sctx, S = this.S;
+    const s = this._sctx, S = this.S; if (!s) return;
     s.imageSmoothingEnabled = false;
     s.fillStyle = '#000'; s.fillRect(0, 0, this.canvas.width, this.canvas.height);
     s.save(); s.beginPath(); s.rect(this.OX, this.OY, this.W * S, this.H * S); s.clip();
@@ -748,6 +824,7 @@ class Screen {
   }
   /** browser client coords -> projected screen pixels (same space as view.p) */
   clientToScreen(cx, cy) {
+    if (!this.canvas) return null;
     const rc = this.canvas.getBoundingClientRect(), dx = (cx - rc.left) * this.dpr, dy = (cy - rc.top) * this.dpr;
     return [(dx - this.OX + Math.round(this.fx * this.S)) / this.S + this.ix, (dy - this.OY + Math.round(this.fy * this.S)) / this.S + this.iy];
   }
@@ -761,45 +838,64 @@ E.Screen = Screen;
  *    'Act:<name>' so DOM buttons with data-act="<name>" work automatically.
  * ============================================================================= */
 class Input {
-  constructor(screen, map) {
-    this.screen = screen;
+  /** signal: an AbortSignal that removes every listener this adds (game.dispose()). A screen without a canvas (headless)
+   *  gets no DOM listeners: input comes from press(code), release(code), tap(action) and hold(action, on) */
+  constructor(screen, map, signal) {
+    this.screen = screen; this._signal = signal;   // screen: the game's screen (mouse positions are read through it)
     this.use(map);
-    this.held = new Set(); this.clock = 0; this.pt = {}; this.used = {};
-    this.fresh = new Set(); this.now = new Set(); this.freshUp = new Set(); this.nowUp = new Set(); this.rk = {};
-    this.suppressed = new Set();
+    /** held: the key and button codes down right now ('KeyD', 'Mouse0', 'Pad0', 'Act:jump'); clock: seconds of input
+     *  time (the steps' dt added up) */
+    this.held = new Set(); this.clock = 0; this._pt = {}; this._used = {};
+    this._fresh = new Set(); this._now = new Set(); this._freshUp = new Set(); this._nowUp = new Set(); this._rk = {};
+    this._suppressed = new Set();
+    /** mouse: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last
+     *  moved */
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
+    /** stick: the touch stick's direction [x, y], length <= 1; stickOn: a finger is on it; padMove: the gamepad's
+     *  left stick after the dead zone; padAim: its right stick, or null when centered; padPrev: which gamepad buttons
+     *  were down at the last step; aimSource: what aims right now: 'move' | 'mouse' | 'pad' */
     this.stick = [0, 0]; this.stickOn = false; this.padMove = [0, 0]; this.padAim = null; this.padPrev = []; this.aimSource = 'move';
+    /** deadzone: how far a gamepad stick moves before it counts (0..0.8); padIndex, padId: the gamepad in use (null
+     *  and '' without one); lastDevice: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the
+     *  right button prompts) */
     this.deadzone = .18; this.padIndex = null; this.padId = ''; this.lastDevice = 'keyboard';
-    this.touchEnabled = true; this.stickSide = 'left'; this.stickRadius = 44; this.padAxes = [];
+    /** touchEnabled: false turns the touch stick off; stickSide: 'left' or 'right', the half of the screen the stick
+     *  lives on; stickRadius: how far (CSS pixels) a finger drags for full tilt; padAxes: the gamepad's raw axes */
+    this.touchEnabled = true; this.stickSide = 'left'; this.stickRadius = 44; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
     const el = screen.canvas;
+    if (!el) return;
+    const on = (t, type, fn) => t.addEventListener(type, fn, { signal });
     const typing = e => {
       const t = e.target; if (!t || !t.tagName) return false;
       if (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) return true;
       return t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(t.type);
     };
-    addEventListener('keydown', e => {
+    on(window, 'keydown', e => {
       if (typing(e)) return;
-      if (this.codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); }
+      if (this._codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); }
     });
-    addEventListener('keyup', e => this.release(e.code));
-    addEventListener('blur', () => this.clear());
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); });
-    el.addEventListener('contextmenu', e => e.preventDefault());
-    el.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else this._stickMove(e); });
-    el.addEventListener('pointerdown', e => {
+    on(window, 'keyup', e => this.release(e.code));
+    on(window, 'blur', () => this.clear());
+    on(document, 'visibilitychange', () => { if (document.hidden) this.clear(); });
+    on(el, 'contextmenu', e => e.preventDefault());
+    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else this._stickMove(e); });
+    on(el, 'pointerdown', e => {
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
       else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
     });
-    addEventListener('pointerup', e => { if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else this._stickEnd(e); });
-    addEventListener('pointercancel', e => this._stickEnd(e));
-    el.addEventListener('lostpointercapture', e => this._stickEnd(e));
+    on(window, 'pointerup', e => { if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else this._stickEnd(e); });
+    on(window, 'pointercancel', e => this._stickEnd(e));
+    on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP') */
   use(map) {
     if (this.held) this.clear();
     if (typeof map === 'string') map = Input[map.toUpperCase()] || Input.DEFAULT;
+    /** map: each action's codes ({ jump: ['Space', 'Pad0', 'Act:jump'] }); every action also answers to 'Act:<name>'
+     *  (DOM buttons with data-act, tap, hold) */
     this.map = {}; for (const a in map) this.map[a] = [...map[a], 'Act:' + a];
-    this.codes = {}; for (const a in this.map) for (const c of this.map[a]) (this.codes[c] = this.codes[c] || []).push(a);
+    this._codes = {}; for (const a in this.map) for (const c of this.map[a]) (this._codes[c] = this._codes[c] || []).push(a);
+    /** preset: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own) */
     this.preset = map;
     return this;
   }
@@ -808,6 +904,7 @@ class Input {
    * input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' } }). The left half of the screen is a move stick.
    */
   touchButtons(actions, o = {}) {
+    if (!this.screen.canvas) return null;
     const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
     if (this._touchEl) this._touchEl.remove();
     if (!coarse && !o.force) return null;
@@ -825,52 +922,61 @@ class Input {
     host.appendChild(box); this.bindButtons(box); this._touchEl = box;
     return box;
   }
+  /** press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input,
+   *  tests, bots */
   press(code) {
     if (this.held.has(code)) return; this.held.add(code);
     if (code.startsWith('Pad')) { this.lastDevice = 'gamepad'; this.aimSource = 'pad'; }
     else if (code.startsWith('Act:')) this.lastDevice = 'touch';
     else this.lastDevice = code.startsWith('Mouse') ? 'mouse' : 'keyboard';
-    for (const a of this.codes[code] || []) { this.pt[a] = this.clock; this.used[a] = false; this.rk[a] = -1; this.fresh.add(a); }
+    for (const a of this._codes[code] || []) { this._pt[a] = this.clock; this._used[a] = false; this._rk[a] = -1; this._fresh.add(a); }
   }
+  /** let go of a code pressed with press() */
   release(code) {
     if (!this.held.delete(code)) return;
-    for (const a of this.codes[code] || []) if (!this.down(a)) this.freshUp.add(a);
+    for (const a of this._codes[code] || []) if (!this.down(a)) this._freshUp.add(a);
   }
+  /** press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down()
+   *  are true in the next step, released() in the one after */
+  tap(a) { if (!this.map[a]) { this._check(a); return; } const c = 'Act:' + a; this.press(c); this._taps.add(c); }
+  /** hold an action down (on) or let it go (false), as its key would */
+  hold(a, on = true) { if (!this.map[a]) { this._check(a); return; } if (on) this.press('Act:' + a); else this.release('Act:' + a); }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
   /** is the action held right now? */
-  down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } if (this.suppressed.has(a)) return false; for (const c of m) if (this.held.has(c)) return true; return false; }
+  down(a) { const m = this.map[a]; if (!m) { this._check(a); return false; } if (this._suppressed.has(a)) return false; for (const c of m) if (this.held.has(c)) return true; return false; }
   /** true only during the first update step after the press (menus, jumps, one-shot actions) */
-  pressed(a) { if (!this.map[a]) this._check(a); return !this.suppressed.has(a) && this.now.has(a); }
+  pressed(a) { if (!this.map[a]) this._check(a); return !this._suppressed.has(a) && this._now.has(a); }
   /** true only during the first update step after the action was let go */
-  released(a) { return this.nowUp.has(a); }
+  released(a) { return this._nowUp.has(a); }
   /** pressed, then repeats while held (after `delay` s, every `rate` s): menu cursors, puzzle pieces */
   repeat(a, delay = .3, rate = .08) {
     if (this.pressed(a)) return true;
-    if (!this.down(a) || this.pt[a] === undefined) return false;
-    const t = this.clock - this.pt[a]; if (t < delay) return false;
-    const k = Math.floor((t - delay) / rate); if (k !== this.rk[a]) { this.rk[a] = k; return true; }
+    if (!this.down(a) || this._pt[a] === undefined) return false;
+    const t = this.clock - this._pt[a]; if (t < delay) return false;
+    const k = Math.floor((t - delay) / rate); if (k !== this._rk[a]) { this._rk[a] = k; return true; }
     return false;
   }
   /** was it pressed within the last `win` seconds and not yet consumed? (input buffering) */
-  buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this.pt[a]; return !this.suppressed.has(a) && t !== undefined && !this.used[a] && this.clock - t <= win; }
-  consume(a) { this.used[a] = true; }
+  buffered(a, win = .15) { if (!this.map[a]) this._check(a); const t = this._pt[a]; return !this._suppressed.has(a) && t !== undefined && !this._used[a] && this.clock - t <= win; }
+  /** mark a buffered press of action a as used, so buffered(a) is false until the next press */
+  consume(a) { this._used[a] = true; }
   /** Suppress a held action until the next tick (a HUD widget owns the pointer this step). */
-  suppress(a) { this.consume(a); this.suppressed.add(a); }
+  suppress(a) { this.consume(a); this._suppressed.add(a); }
   /** A widget owns this button; other devices bound to the same action still work. */
   suppressCode(code) {
-    for (const a of this.codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
+    for (const a of this._codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
-  consumeAll() { for (const a in this.map) this.used[a] = true; this.now.clear(); this.fresh.clear(); }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
-    this.held.clear(); this.consumeAll(); this.nowUp.clear(); this.freshUp.clear(); this.pt = {}; this.rk = {};
+    this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {};
     this.padMove = [0, 0]; this.padAim = null;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
   }
   /** any action pressed this step (title screens: "press any button") */
-  anyPressed() { return this.now.size > 0; }
+  anyPressed() { return this._now.size > 0; }
   /** movement intent in screen directions: x right, y down, length <= 1 */
   move() {
     let x = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0), y = (this.down('down') ? 1 : 0) - (this.down('up') ? 1 : 0);
@@ -881,8 +987,10 @@ class Input {
   }
   /** mouse position in projected screen pixels, or null */
   mouseScreen() { return this.mouse.active ? this.screen.clientToScreen(this.mouse.cx, this.mouse.cy) : null; }
+  /** advance input by one step: read the gamepad and turn presses since the last step into this step's pressed() and
+   *  released() (the engine calls it every step) */
   tick(dt) {
-    this.suppressed.clear();
+    this._suppressed.clear();
     this.clock += dt;
     let pads = [];
     try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { /* gamepads blocked */ }
@@ -906,9 +1014,12 @@ class Input {
       const dirs = [this.padMove[1] < -.5, this.padMove[1] > .5, this.padMove[0] < -.5, this.padMove[0] > .5];
       ['PadAxisUp', 'PadAxisDown', 'PadAxisLeft', 'PadAxisRight'].forEach((c, i) => dirs[i] ? this.press(c) : this.release(c));
     }
+    // a tap is held for the one step after it (its release comes the step after that)
+    for (const c of this._tapsDue) this.release(c);
+    const due = this._tapsDue; due.clear(); this._tapsDue = this._taps; this._taps = due;
     // presses since the last step become this step's pressed()/released()
-    const n = this.now; n.clear(); this.now = this.fresh; this.fresh = n;
-    const u = this.nowUp; u.clear(); this.nowUp = this.freshUp; this.freshUp = u;
+    const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
+    const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {
@@ -917,9 +1028,10 @@ class Input {
       if (b._inputPointers) return;
       const code = 'Act:' + b.dataset.act;
       b._inputPointers = new Set(); this._boundButtons.push(b);
-      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); b._inputPointers.add(e.pointerId); b.setPointerCapture(e.pointerId); this.press(code); b.classList.add('on'); });
+      const signal = this._signal;
+      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); b._inputPointers.add(e.pointerId); b.setPointerCapture(e.pointerId); this.press(code); b.classList.add('on'); }, { signal });
       const off = e => { b._inputPointers.delete(e.pointerId); if (!b._inputPointers.size) { this.release(code); b.classList.remove('on'); } };
-      b.addEventListener('pointerup', off); b.addEventListener('lostpointercapture', off); b.addEventListener('pointercancel', off);
+      b.addEventListener('pointerup', off, { signal }); b.addEventListener('lostpointercapture', off, { signal }); b.addEventListener('pointercancel', off, { signal });
     });
   }
   _stickStart(e) {
@@ -927,26 +1039,27 @@ class Input {
     const rc = this.screen.canvas.getBoundingClientRect();
     if (this.stickSide === 'right' ? e.clientX - rc.left < rc.width * .5 : e.clientX - rc.left > rc.width * .5) return;
     this.screen.canvas.setPointerCapture(e.pointerId); this.aimSource = 'move'; this.lastDevice = 'touch';
-    this.stickId = e.pointerId; this.stickOn = true; this.stickO = [e.clientX, e.clientY]; this.stick = [0, 0];
-    if (!this.stickEl) {
+    /** stickId: the pointer (finger) holding the touch stick */
+    this.stickId = e.pointerId; this.stickOn = true; this._stickO = [e.clientX, e.clientY]; this.stick = [0, 0];
+    if (!this._stickEl) {
       const mkEl = (s, css) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;pointer-events:none;border-radius:50%;z-index:3;' + css; d.style.width = d.style.height = s + 'px'; this.screen.canvas.parentElement.appendChild(d); return d; };
-      this.stickEl = mkEl(96, 'border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06)');
-      this.knobEl = mkEl(40, 'background:rgba(255,255,255,.4)');
+      this._stickEl = mkEl(96, 'border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06)');
+      this._knobEl = mkEl(40, 'background:rgba(255,255,255,.4)');
     }
     this._stickDraw();
   }
   _stickMove(e) {
     if (!this.stickOn || e.pointerId !== this.stickId) return;
-    let dx = (e.clientX - this.stickO[0]) / this.stickRadius, dy = (e.clientY - this.stickO[1]) / this.stickRadius;
+    let dx = (e.clientX - this._stickO[0]) / this.stickRadius, dy = (e.clientY - this._stickO[1]) / this.stickRadius;
     const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
     this.stick = [dx, dy]; this._stickDraw();
   }
-  _stickEnd(e) { if (e.pointerId !== this.stickId) return; this.stickOn = false; this.stick = [0, 0]; if (this.stickEl) this.stickEl.style.display = this.knobEl.style.display = 'none'; }
+  _stickEnd(e) { if (e.pointerId !== this.stickId) return; this.stickOn = false; this.stick = [0, 0]; if (this._stickEl) this._stickEl.style.display = this._knobEl.style.display = 'none'; }
   _stickDraw() {
     const rc = this.screen.canvas.getBoundingClientRect(), pr = this.screen.canvas.parentElement.getBoundingClientRect();
-    const ox = this.stickO[0] - pr.left, oy = this.stickO[1] - pr.top;
-    Object.assign(this.stickEl.style, { display: 'block', left: ox - 48 + 'px', top: oy - 48 + 'px' });
-    Object.assign(this.knobEl.style, { display: 'block', left: ox - 20 + this.stick[0] * 36 + 'px', top: oy - 20 + this.stick[1] * 36 + 'px' });
+    const ox = this._stickO[0] - pr.left, oy = this._stickO[1] - pr.top;
+    Object.assign(this._stickEl.style, { display: 'block', left: ox - 48 + 'px', top: oy - 48 + 'px' });
+    Object.assign(this._knobEl.style, { display: 'block', left: ox - 20 + this.stick[0] * 36 + 'px', top: oy - 20 + this.stick[1] * 36 + 'px' });
     void rc;
   }
 }
@@ -1038,6 +1151,7 @@ const FONTS = {
  * '\n' starts a new line. Returns { w, h } of the drawn block. title(...) draws big logo text.
  */
 E.font = {
+  /** the font used when none is named: 'normal' (5 x 7) or 'tiny' (3 x 5) */
   default: 'normal',
   _f(o) { const n = (o && typeof o === 'object' && o.font) || this.default; return FONTS[n] || FONTS.normal; },
   _o(o) { return typeof o === 'number' ? { scale: o } : (o || {}); },
@@ -1051,6 +1165,7 @@ E.font = {
   width(s, o) { o = this._o(o); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); let m = 0; for (const line of String(s).split('\n')) m = Math.max(m, this._lineW(f, line)); return m * sc; },
   /** pixels from one line to the next */
   lineHeight(o) { o = this._o(o); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); return (f.h + f.desc + (o.lineGap === undefined ? f.gap : o.lineGap)) * sc; },
+  /** the height in pixels of that many lines (with o's scale and font, and lineGap between them) */
   height(lines = 1, o, lineGap) { o = this._o(o); if (lineGap !== undefined) o = Object.assign({}, o, { lineGap }); const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)); return this.lineHeight(o) * (lines - 1) + (f.h + f.desc) * sc; },
   /** split text into lines no wider than maxW pixels */
   wrap(s, maxW, o) {
@@ -1066,6 +1181,8 @@ E.font = {
     }
     return out;
   },
+  /** draw text at (x, y) (its top-left; align: 'center' or 'right' moves it) in color. o: an outline color, or {
+   *  outline, shadow, gradient, scale, align, wrap, font }; returns { w, h } */
   text(g, s, x, y, color = '#ffffff', o = '#0b0814') {
     if (o === null || o === false || typeof o === 'string') o = { outline: o };
     const f = this._f(o), sc = Math.max(1, Math.round(o.scale || 1)), outline = o.outline === undefined ? '#0b0814' : o.outline, lh = this.lineHeight(o);
@@ -1128,18 +1245,25 @@ E.font = {
  * ============================================================================= */
 class Lighting {
   constructor(game) {
+    /** game: the game it lights; enabled: false (the default) turns the canvas lighting off; ambient: how lit unlit
+     *  places are, 0 (black) .. 1; list: this frame's lights from add() */
     this.game = game; this.enabled = false; this.ambient = .15; this.list = [];
+    /** dark: the color of darkness, [r, g, b]; levels: the darkness of each lighting band, darkest first (dithered
+     *  between them); glow: the color, [r, g, b, a], where light is brightest; glowAt: the light level (1 = fully
+     *  lit) above which it glows */
     this.dark = [10, 6, 24]; this.levels = [.9, .7, .48, .26, .08, 0]; this.glow = [255, 200, 140, 0]; this.glowAt = 1.7;
+    /** casters: this frame's shadow casters from caster(); heats: this frame's heat shimmers from heat() */
     this.casters = []; this.heats = [];
-    this.cv = mkCanvas(8, 8); this.g = this.cv.getContext('2d'); this._build();
+    if (!game.headless) { this._cv = mkCanvas(8, 8); this._g = this._cv.getContext('2d'); this._build(); }   // (a headless game never draws)
   }
   _build() {
     const L = this.levels, d = this.dark;
-    this.cols = new Uint32Array(L.length + 1);
-    L.forEach((a, i) => { this.cols[i] = ((Math.round(a * 255) << 24) | (d[2] << 16) | (d[1] << 8) | d[0]) >>> 0; });
-    const gl = this.glow; this.cols[L.length] = ((gl[3] << 24) | (gl[2] << 16) | (gl[1] << 8) | gl[0]) >>> 0;
+    this._cols = new Uint32Array(L.length + 1);
+    L.forEach((a, i) => { this._cols[i] = ((Math.round(a * 255) << 24) | (d[2] << 16) | (d[1] << 8) | d[0]) >>> 0; });
+    const gl = this.glow; this._cols[L.length] = ((gl[3] << 24) | (gl[2] << 16) | (gl[1] << 8) | gl[0]) >>> 0;
   }
-  clear() { this.list.length = 0; this.casters.length = 0; this.heats.length = 0; this.screenFrame = false; }
+  /** forget this frame's lights, casters and heat (the renderer does it every frame: add lights in draw) */
+  clear() { this.list.length = 0; this.casters.length = 0; this.heats.length = 0; this._screenFrame = false; }
   /** radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true } */
   add(x, y, z, radius, intensity = 1, o) {
     if (!(isFinite(x) && isFinite(y) && isFinite(z) && radius > 0)) { warn('light:nan', 'lights.add(x, y, z, radius, intensity) got a non-number or zero radius; light skipped'); return; }
@@ -1149,17 +1273,18 @@ class Lighting {
   caster(x, y, r, top) { this.casters.push({ x, y, r, top }); }
   /** heat shimmer above a point (GPU only). width in world units, strength ~0.5..1.5 */
   heat(x, y, z, width, strength = 1) { this.heats.push({ x, y, z, w: width, s: strength }); }
+  /** darken the frame by the lights (the renderer calls it after the queue, when enabled) */
   render(r) {
     const W = r.bw, H = r.bh, n = W * H, al = E.style.trans !== 'dither';
-    if (!this.I || this.I.length !== n) {
-      this.I = new Float32Array(n); this.cv.width = W; this.cv.height = H;
-      this.img = this.g.createImageData(W, H); this.u32 = new Uint32Array(this.img.data.buffer);
-      this.CR = new Float32Array(n); this.CG = new Float32Array(n); this.CB = new Float32Array(n);
-      this.cv2 = mkCanvas(W, H); this.g2 = this.cv2.getContext('2d'); this.img2 = this.g2.createImageData(W, H); this.u32b = new Uint32Array(this.img2.data.buffer);
+    if (!this._I || this._I.length !== n) {
+      this._I = new Float32Array(n); this._cv.width = W; this._cv.height = H;
+      this._img = this._g.createImageData(W, H); this._u32 = new Uint32Array(this._img.data.buffer);
+      this._CR = new Float32Array(n); this._CG = new Float32Array(n); this._CB = new Float32Array(n);
+      this._cv2 = mkCanvas(W, H); this._g2 = this._cv2.getContext('2d'); this._img2 = this._g2.createImageData(W, H); this._u32b = new Uint32Array(this._img2.data.buffer);
     }
-    const CR = this.CR, CG = this.CG, CB = this.CB; if (al) { CR.fill(0); CG.fill(0); CB.fill(0); }
+    const CR = this._CR, CG = this._CG, CB = this._CB; if (al) { CR.fill(0); CG.fill(0); CB.fill(0); }
     // screen-space lights when there is no ground plane to measure on (side view, or side-scroller levels)
-    const I = this.I, view = r.view, ix = r.ix, iy = r.iy, inv = (this.screen || this.screenFrame) ? null : view.inv;
+    const I = this._I, view = r.view, ix = r.ix, iy = r.iy, inv = (this.screen || this._screenFrame) ? null : view.inv;
     I.fill(this.ambient);
     for (const L of this.list) {
       const R = L.r, R2 = R * R, lc = L.color ? hex(L.color) : [255, 236, 200], cr = lc[0] / 255, cg = lc[1] / 255, cb = lc[2] / 255;
@@ -1181,10 +1306,10 @@ class Lighting {
         for (let py = Y0; py <= Y1; py++) for (let pxx = X0; pxx <= X1; pxx++) { const dx = pxx + ix - s[0], dy = py + iy - s[1], d2 = dx * dx + dy * dy; if (d2 < rr2) { const k = py * W + pxx, f = (1 - d2 / rr2) * L.i; I[k] += f; if (al) { CR[k] += f * cr; CG[k] += f * cg; CB[k] += f * cb; } } }
       }
     }
-    const u = this.u32, cols = this.cols, NL = this.levels.length - 1;
+    const u = this._u32, cols = this._cols, NL = this.levels.length - 1;
     if (al) {
       // PS1-style lighting: a smooth cool darkness where light is weak, then the lights' own colors added on top
-      const d = this.dark, maxA = this.darkness === undefined ? .9 : this.darkness, base = (d[2] << 16) | (d[1] << 8) | d[0], u2 = this.u32b, tint = (this.tint === undefined ? .32 : this.tint) * 255;
+      const d = this.dark, maxA = this.darkness === undefined ? .9 : this.darkness, base = (d[2] << 16) | (d[1] << 8) | d[0], u2 = this._u32b, tint = (this.tint === undefined ? .32 : this.tint) * 255;
       let lit = false;
       const q = x => Math.round((1 - Math.exp(-x)) * tint / 8) * 8;   // saturates: overlapping lights warm a surface, they never bleach it white
       for (let k = 0; k < n; k++) {
@@ -1196,8 +1321,8 @@ class Lighting {
         lit = true;
         u2[k] = (255 << 24 | q(bb) << 16 | q(gg) << 8 | q(rr)) >>> 0;
       }
-      this.g.putImageData(this.img, 0, 0); r.ctx.drawImage(this.cv, 0, 0);
-      if (lit) { this.g2.putImageData(this.img2, 0, 0); const c = r.ctx; c.save(); c.globalCompositeOperation = 'lighter'; c.drawImage(this.cv2, 0, 0); c.restore(); }
+      this._g.putImageData(this._img, 0, 0); r.ctx.drawImage(this._cv, 0, 0);
+      if (lit) { this._g2.putImageData(this._img2, 0, 0); const c = r.ctx; c.save(); c.globalCompositeOperation = 'lighter'; c.drawImage(this._cv2, 0, 0); c.restore(); }
       return;
     }
     for (let py = 0, k = 0; py < H; py++) for (let pxx = 0; pxx < W; pxx++, k++) {
@@ -1208,8 +1333,8 @@ class Lighting {
       const f = v * NL; let lo = f | 0; if (f - lo > bayer(pxx + ix, py + iy)) lo++;
       u[k] = cols[lo];
     }
-    this.g.putImageData(this.img, 0, 0);
-    r.ctx.drawImage(this.cv, 0, 0);
+    this._g.putImageData(this._img, 0, 0);
+    r.ctx.drawImage(this._cv, 0, 0);
   }
 }
 E.Lighting = Lighting;
@@ -1219,12 +1344,16 @@ E.Lighting = Lighting;
  *    z gravity: g > 0 pulls down. bounce: 0..1 on the floor.
  * ============================================================================= */
 class Particles {
+  /** game.particles. game: its game; list: the live particles; max: at most this many at once (add() skips the rest) */
   constructor(game) { this.game = game; this.list = []; this.max = 900; }
+  /** add one particle { x, y, z, vx, vy, vz, life, max (seconds), g (gravity, > 0 pulls down), drag, bounce (0..1),
+   *  kind: 'dust' | 'spark' | 'bit' | 'ember' | 'ring' | 'text', color, size }; returns it, or null when full */
   add(p) {
     if (this.list.length >= this.max) return null;
     const q = Object.assign({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, max: .5, g: 0, drag: 0, bounce: 0, kind: 'dust', color: '#d8c6a8', size: 1 }, p);
     this.list.push(q); return q;
   }
+  /** move and age them by dt (the engine calls it every step) */
   update(dt) {
     const L = this.list;
     for (let i = L.length - 1; i >= 0; i--) {
@@ -1239,6 +1368,7 @@ class Particles {
       if (p.z < fl && p.kind !== 'ring') { p.z = fl; if (p.bounce) { p.vz = -p.vz * p.bounce; p.vx *= .7; p.vy *= .7; } else p.vz = 0; }
     }
   }
+  /** queue them for drawing (the renderer calls it) */
   draw(r) {
     const view = r.view, s = view.scale;
     // flat overhead views have no screen height, so rising and bouncing particles lift on screen instead
@@ -1284,9 +1414,13 @@ class Particles {
       }
     }
   }
+  /** n puffs of dust from (x, y, z) that drift and fade. o: { speed: 30, color, size } */
   dust(x, y, z, n, o = {}) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = (o.speed || 30) * (.4 + Math.random()); this.add({ kind: 'dust', x: x + Math.cos(a) * 2, y: y + Math.sin(a) * 2, z: z + Math.random() * 2, vx: Math.cos(a) * sp + (o.vx || 0), vy: Math.sin(a) * sp + (o.vy || 0), vz: 8 + Math.random() * 14, g: -6, drag: 5, max: .35 + Math.random() * .35, size: (o.size || 1.2) * (.7 + Math.random() * .6), color: o.color || '#b9a88f' }); } }
+  /** n bright sparks thrown from (x, y, z), every way or around angle dir (radians). o: { color, speed } */
   sparks(x, y, z, n, dir = null, o = {}) { for (let i = 0; i < n; i++) { const a = dir === null ? Math.random() * TAU : dir + (Math.random() - .5) * 1.6, sp = 80 + Math.random() * 170; this.add({ kind: 'spark', x, y, z, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 20 + Math.random() * 110, g: 360, drag: 3, max: .15 + Math.random() * .2, color: o.color || '#ffb85c', hot: o.hot }); } }
+  /** n pieces of debris that fly, fall and bounce (colors: a list to pick from) */
   bits(x, y, z, n, colors) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 30 + Math.random() * 90; this.add({ kind: 'bit', x, y, z: z + Math.random() * 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 60 + Math.random() * 120, g: 420, bounce: .45, drag: .8, max: .7 + Math.random() * .6, size: Math.random() < .35 ? 2 : 1, color: colors[(Math.random() * colors.length) | 0] }); } }
+  /** a ring on the ground growing from radius r0 to r1 over dur seconds (shockwaves, landings) */
   ring(x, y, r0, r1, color, dur = .35, z = 0) { this.add({ kind: 'ring', x, y, z, r0, r1, color, max: dur }); }
   /** floating number or word: text(x, y, z, '12', color, { scale: 2, bounce: true }) (bounce: lands and holds, Final Fantasy style) */
   text(x, y, z, text, color = '#fff2c4', o = {}) { this.add({ kind: 'text', x, y, z, vz: o.bounce ? 70 : 38, g: o.bounce ? 260 : 40, bounce: o.bounce ? .35 : 0, floor: o.bounce ? z : undefined, text: String(text), color, max: o.bounce ? 1.1 : .8, scale: o.scale || 1 }); }
@@ -1321,52 +1455,67 @@ E.Particles = Particles;
  * ============================================================================= */
 const AS = 256, AOX = 128, AOY = 200;  // scratch image per character: room for bosses up to about 250 px, capes, lying bodies
 class Renderer {
+  /** the r handed to draw(r), made by the game */
   constructor(game) {
-    this.game = game; this.items = []; this.decals = []; this.overlays = [];
-    this.aCv = mkCanvas(AS, AS); this.aG = ctx2d(this.aCv);
+    /** game: its game; items: this frame's queue (sorted by depth when the frame ends) */
+    this.game = game; this.items = []; this._decals = []; this._overlays = [];
+    this._aCv = mkCanvas(AS, AS); this._aG = ctx2d(this._aCv);
     // track what each actor actually draws, so outlines, tints and rim light only touch that rectangle
-    const aG = this.aG, bb = this.bb = [AS, AS, 0, 0], fr = aG.fillRect.bind(aG), di = aG.drawImage.bind(aG);
+    const aG = this._aG, bb = this.bb = [AS, AS, 0, 0], fr = aG.fillRect.bind(aG), di = aG.drawImage.bind(aG);
     const grow = (x, y, w, h) => { if (x < bb[0]) bb[0] = x; if (y < bb[1]) bb[1] = y; if (x + w > bb[2]) bb[2] = x + w; if (y + h > bb[3]) bb[3] = y + h; };
     aG.fillRect = (x, y, w, h) => { grow(x, y, w, h); fr(x, y, w, h); };
     aG.drawImage = (img, ...a) => { if (a.length >= 8) grow(a[4], a[5], a[6], a[7]); else if (a.length >= 4) grow(a[0], a[1], a[2], a[3]); else grow(a[0], a[1], img.width, img.height); di(img, ...a); };
     for (const m of ['fill', 'stroke', 'fillText', 'strokeText', 'putImageData']) { const f = aG[m].bind(aG); aG[m] = (...a) => { grow(0, 0, AS, AS); return f(...a); }; }
     this._R = [0, 0, AS, AS];
-    this.mCv = mkCanvas(AS, AS); this.mG = ctx2d(this.mCv);
-    this.rCv = mkCanvas(AS, AS); this.rG = ctx2d(this.rCv);
-    this.xCv = mkCanvas(8, 8); this.xG = ctx2d(this.xCv); this.xoCv = mkCanvas(8, 8); this.xoG = ctx2d(this.xoCv);   // x-ray silhouettes (checkered fill) and their solid outlines
-    this.oCv = mkCanvas(8, 8); this.oG = ctx2d(this.oCv);
-    this.eCv = mkCanvas(8, 8); this.eG = ctx2d(this.eCv); this.sCv = mkCanvas(8, 8); this.sG = ctx2d(this.sCv);   // canvas lighting: the glow mask, a scratch layer
-    this.ghostPool = Array.from({ length: 10 }, () => { const c = mkCanvas(AS, AS); return { cv: c, g: ctx2d(c) }; });
-    this.ghostIdx = 0; this.ghosts = [];
+    this._mCv = mkCanvas(AS, AS); this._mG = ctx2d(this._mCv);
+    this._rCv = mkCanvas(AS, AS); this._rG = ctx2d(this._rCv);
+    this._xCv = mkCanvas(8, 8); this._xG = ctx2d(this._xCv); this._xoCv = mkCanvas(8, 8); this._xoG = ctx2d(this._xoCv);   // x-ray silhouettes (checkered fill) and their solid outlines
+    this._oCv = mkCanvas(8, 8); this._oG = ctx2d(this._oCv);
+    this._eCv = mkCanvas(8, 8); this._eG = ctx2d(this._eCv); this._sCv = mkCanvas(8, 8); this._sG = ctx2d(this._sCv);   // canvas lighting: the glow mask, a scratch layer
+    this._ghostPool = Array.from({ length: 10 }, () => { const c = mkCanvas(AS, AS); return { cv: c, g: ctx2d(c) }; });
+    /** ghosts: the afterimages fading out (actor option ghost) */
+    this._ghostIdx = 0; this.ghosts = [];
     const ck = mkCanvas(2, 2), cg = ck.getContext('2d'); cg.fillStyle = '#000'; cg.fillRect(0, 0, 1, 1); cg.fillRect(1, 1, 1, 1);
+    /** checker: a 2 x 2 checkerboard canvas (a pattern for x-ray and dithered fills) */
     this.checker = ck;
+    /** outline: the color of the 1-pixel outline round every actor; rim: the rim light's color on actors' lit edges;
+     *  rimAlpha: its strength 0..1; xrayColor: the default color of x-ray silhouettes */
     this.outline = '#140c1c'; this.rim = '#ffe2b8'; this.rimAlpha = .28; this.xrayColor = '#8fe3ff';
     // GPU mode: a hidden "info" image (height, surface type, glow) and an unlit overlay image
-    this.iCv = mkCanvas(8, 8); this.iG = this.iCv.getContext('2d'); this.iG._info = true; this.iG._r = this; this.iG._mat = '#000';
-    this.vCv = mkCanvas(8, 8); this.vG = ctx2d(this.vCv); this.gpu = false; this._tg = null;
+    this._iCv = mkCanvas(8, 8); this._iG = this._iCv.getContext('2d'); this._iG._info = true; this._iG._r = this; this._iG._mat = '#000';
+    /** gpu: true during a frame drawn with GPU lighting (draw code can check r.gpu) */
+    this._vCv = mkCanvas(8, 8); this._vG = ctx2d(this._vCv); this.gpu = false; this._tg = null;
   }
   /** current draw target for ground helpers (switches during GPU info and overlay passes) */
   get tgt() { return this._tg || this.ctx; }
+  /** the low-resolution buffer's 2D context: draw on it with E.px */
   get ctx() { return this.game.screen.ctx; }
+  /** the view this frame is drawn in (the game's, with zoom and turn) */
   get view() { return this.game.view; }
+  /** the screen's width in game pixels */
   get W() { return this.game.screen.W; }
+  /** the screen's height in game pixels */
   get H() { return this.game.screen.H; }
+  /** the buffer's width (W + 2: a pixel of margin each side for the sub-pixel camera) */
   get bw() { return this.game.screen.buf.width; }
+  /** the buffer's height (H + 2) */
   get bh() { return this.game.screen.buf.height; }
+  /** start a frame with the camera at (cx, cy) projected pixels (the game calls it before your draw) */
   begin(cx, cy) {
     const sc = this.game.screen;
     sc.begin(cx, cy, this.game.o.bg);
-    this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this.decals.length = 0; this.overlays.length = 0; this._map = null; (this.emis || (this.emis = [])).length = 0;
+    /** ix, iy: the camera's whole-pixel offset this frame (a world point is at r.w(x, y, z) on the buffer) */
+    this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this._decals.length = 0; this._overlays.length = 0; this._map = null; (this._emis || (this._emis = [])).length = 0;
     const st = this.game.stats; st.actors = 0; st.culled = 0;
-    if (this.xCv.width !== this.bw || this.xCv.height !== this.bh) { this.xCv.width = this.xoCv.width = this.oCv.width = this.eCv.width = this.sCv.width = this.bw; this.xCv.height = this.xoCv.height = this.oCv.height = this.eCv.height = this.sCv.height = this.bh; }
-    this.xrayUsed = false; this.xrayOl = false; this.emOn = false;
+    if (this._xCv.width !== this.bw || this._xCv.height !== this.bh) { this._xCv.width = this._xoCv.width = this._oCv.width = this._eCv.width = this._sCv.width = this.bw; this._xCv.height = this._xoCv.height = this._oCv.height = this._eCv.height = this._sCv.height = this.bh; }
+    this._xrayUsed = false; this._xrayOl = false; this._emOn = false;
     const gpu = this.game.gpu;
     this.gpu = !!(gpu && gpu.active(this.view));
     if (gpu) gpu.show(this.gpu);
     if (this.gpu) {
-      if (this.iCv.width !== this.bw || this.iCv.height !== this.bh) { this.iCv.width = this.vCv.width = this.bw; this.iCv.height = this.vCv.height = this.bh; }
-      const iG = this.iG; iG.globalCompositeOperation = 'source-over'; iG.globalAlpha = 1; iG.fillStyle = '#000'; iG.fillRect(0, 0, this.bw, this.bh); iG._c = null; iG._mat = '#000';
-      this.vG.clearRect(0, 0, this.bw, this.bh); this.vG._c = null;
+      if (this._iCv.width !== this.bw || this._iCv.height !== this.bh) { this._iCv.width = this._vCv.width = this.bw; this._iCv.height = this._vCv.height = this.bh; }
+      const iG = this._iG; iG.globalCompositeOperation = 'source-over'; iG.globalAlpha = 1; iG.fillStyle = '#000'; iG.fillRect(0, 0, this.bw, this.bh); iG._c = null; iG._mat = '#000';
+      this._vG.clearRect(0, 0, this.bw, this.bh); this._vG._c = null;
     }
   }
   /** world -> buffer pixel coords */
@@ -1380,20 +1529,24 @@ class Renderer {
     if (z > .5 && this._map && !(o && o.occluder)) k = this._map._liftOrder(this.game.view, x, y, z, k);
     const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
     this.items.push(it);
-    if (it.em) this.emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
+    if (it.em) this._emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
   }
   /** draw on the floor before the queue. opts.emissive (0..1) makes it glow under GPU lighting */
-  decal(fn, o) { this.decals.push({ fn, e: o && o.emissive || 0 }); }
-  overlay(fn) { this.overlays.push(fn); }
+  decal(fn, o) { this._decals.push({ fn, e: o && o.emissive || 0 }); }
+  /** draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus) */
+  overlay(fn) { this._overlays.push(fn); }
   /** ground helpers (all dithered, correct in every view) */
   groundPts(x, y, rad, n = 18, z = 0) { const pts = []; for (let i = 0; i < n; i++) { const a = i / n * TAU; pts.push(this.w(x + Math.cos(a) * rad, y + Math.sin(a) * rad, z)); } return pts; }
+  /** a dithered disc lying on the ground (radius in world units, z its height): shadows, auras, area attacks */
   groundDisc(x, y, rad, color, alpha = 1, z = 0) { px.polyDither(this.tgt, this.groundPts(x, y, rad, 18, z), color, alpha, this.ix, this.iy); }
+  /** a ring lying on the ground (radius in world units) */
   groundRing(x, y, rad, color, alpha = 1, z = 0) {
     const g = this.tgt, n = Math.max(16, Math.round(rad * this.view.scale * 5)), al = useAlpha(g), ga = g.globalAlpha; px.col(g, color);
     if (al) g.globalAlpha = ga * qa(alpha);
     for (let i = 0; i < n; i++) { const a = i / n * TAU, [sx, sy] = this.w(x + Math.cos(a) * rad, y + Math.sin(a) * rad, z), X = Math.round(sx), Y = Math.round(sy); if (al || alpha > bayer(X + this.ix, Y + this.iy)) g.fillRect(X, Y, 1, 1); }
     g.globalAlpha = ga;
   }
+  /** a band of a ring on the ground from radius r0 to r1 and angle a0 to a1 (radians): melee telegraphs, sight cones */
   groundArc(x, y, r0, r1, a0, a1, color, alpha = 1, z = 0, g = this.tgt) {
     const n = Math.max(3, Math.ceil(Math.abs(a1 - a0) / .18)), pts = [];
     for (let i = 0; i <= n; i++) { const a = lerp(a0, a1, i / n); pts.push(this.w(x + Math.cos(a) * r1, y + Math.sin(a) * r1, z)); }
@@ -1551,9 +1704,11 @@ class Renderer {
   _actorInfo(gI, x, y, z, o) {
     const [sx, sy] = this.w(x, y, z), bx = Math.round(sx) - AOX, by = Math.round(sy) - AOY;
     const R = this._R; if (!R[2]) return;
-    this._tint(this.mG, this.aCv, this._infoVert(this.mG, 0, 0, z, 10, o.emissive || 0, AOY), R);
-    gI.drawImage(this.mCv, R[0], R[1], R[2], R[3], bx + R[0], by + R[1], R[2], R[3]);
+    this._tint(this._mG, this._aCv, this._infoVert(this._mG, 0, 0, z, 10, o.emissive || 0, AOY), R);
+    gI.drawImage(this._mCv, R[0], R[1], R[2], R[3], bx + R[0], by + R[1], R[2], R[3]);
   }
+  /** is a world point near the visible area? margins in pixels (characters extend upward from their feet) */
+  visible(x, y, z = 0, mx = 60, up = 30, down = 90) { const [sx, sy] = this.w(x, y, z); return sx > -mx && sx < this.bw + mx && sy > -up && sy < this.bh + down; }
   /**
    * Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected
    * position of world point (x, y, z). The engine adds outline, rim light, hit flash,
@@ -1566,8 +1721,6 @@ class Renderer {
    *   hides: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
    *   ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
    */
-  /** is a world point near the visible area? margins in pixels (characters extend upward from their feet) */
-  visible(x, y, z = 0, mx = 60, up = 30, down = 90) { const [sx, sy] = this.w(x, y, z); return sx > -mx && sx < this.bw + mx && sy > -up && sy < this.bh + down; }
   actor(x, y, z, drawFn, o = {}) {
     const st = this.game.stats;
     if (!this.visible(x, y, z, o.margin || 60)) { st.culled++; return; }
@@ -1587,7 +1740,7 @@ class Renderer {
     dst.globalCompositeOperation = 'source-over';
   }
   _composite(g, x, y, z, drawFn, o) {
-    const aG = this.aG, bb = this.bb, P = this._R;
+    const aG = this._aG, bb = this.bb, P = this._R;
     aG.clearRect(P[0], P[1], P[2], P[3]); aG._c = null;
     bb[0] = AS; bb[1] = AS; bb[2] = 0; bb[3] = 0;
     drawFn(aG, AOX, AOY);
@@ -1598,47 +1751,47 @@ class Renderer {
     if (g === this.ctx) this._comp = { x0, y0, w, h, bx, by, ol: o.outline !== false };
     const put = (cv, dx, dy) => g.drawImage(cv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h);
     g.globalAlpha = al;
-    if (o.outline !== false) { this._tint(this.mG, this.aCv, o.outlineColor || this.outline, R); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(this.mCv, dx, dy); }
+    if (o.outline !== false) { this._tint(this._mG, this._aCv, o.outlineColor || this.outline, R); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(this._mCv, dx, dy); }
     if (o.flash) {   // palette flash: the tint over the sprite, so its shading still shows (flashMix: 1 = solid)
       const fm = o.flashMix === undefined ? .5 : o.flashMix;
-      if (fm < 1) put(this.aCv, 0, 0);
-      this._tint(this.mG, this.aCv, typeof o.flash === 'string' ? o.flash : '#fff6ea', R); g.globalAlpha = al * fm; put(this.mCv, 0, 0);
+      if (fm < 1) put(this._aCv, 0, 0);
+      this._tint(this._mG, this._aCv, typeof o.flash === 'string' ? o.flash : '#fff6ea', R); g.globalAlpha = al * fm; put(this._mCv, 0, 0);
     } else {
-      put(this.aCv, 0, 0);
+      put(this._aCv, 0, 0);
       if (o.rim !== false && !this.gpu) {
-        const rG = this.rG; rG.globalCompositeOperation = 'source-over'; rG.clearRect(x0, y0, w, h); rG.drawImage(this.aCv, x0, y0, w, h, x0, y0, w, h);
-        rG.globalCompositeOperation = 'destination-out'; rG.drawImage(this.aCv, x0, y0, w, h, x0 - 1, y0, w, h);
+        const rG = this._rG; rG.globalCompositeOperation = 'source-over'; rG.clearRect(x0, y0, w, h); rG.drawImage(this._aCv, x0, y0, w, h, x0, y0, w, h);
+        rG.globalCompositeOperation = 'destination-out'; rG.drawImage(this._aCv, x0, y0, w, h, x0 - 1, y0, w, h);
         rG.globalCompositeOperation = 'source-in'; rG.fillStyle = o.rimColor || this.rim; rG._c = null; rG.fillRect(x0, y0, w, h); rG.globalCompositeOperation = 'source-over';
-        g.globalAlpha = al * this.rimAlpha; put(this.rCv, 0, 0);
+        g.globalAlpha = al * this.rimAlpha; put(this._rCv, 0, 0);
       }
     }
     g.globalAlpha = 1;
     if (o.ghost) {
-      const gp = this.ghostPool[this.ghostIdx++ % this.ghostPool.length];
-      gp.g.clearRect(0, 0, AS, AS); this._tint(gp.g, this.aCv, o.ghost.color || '#62d8ff', R);
+      const gp = this._ghostPool[this._ghostIdx++ % this._ghostPool.length];
+      gp.g.clearRect(0, 0, AS, AS); this._tint(gp.g, this._aCv, o.ghost.color || '#62d8ff', R);
       this.ghosts = this.ghosts.filter(q => q.gp !== gp);
       this.ghosts.push({ gp, x, y, z, t: this.game.time, life: o.ghost.life || .22, alpha: o.ghost.alpha === undefined ? .5 : o.ghost.alpha, owner: o.ghost.owner || null });
     }
     if (o.xray) {
       const X = o.xray === true ? null : o.xray;
-      this._tint(this.mG, this.aCv, X && X.color || this.xrayColor, R); this.xG.drawImage(this.mCv, x0, y0, w, h, bx + x0, by + y0, w, h); this.xrayUsed = true;
+      this._tint(this._mG, this._aCv, X && X.color || this.xrayColor, R); this._xG.drawImage(this._mCv, x0, y0, w, h, bx + x0, by + y0, w, h); this._xrayUsed = true;
       const B = this._xrB || (this._xrB = [1e9, 1e9, -1e9, -1e9]); B[0] = Math.min(B[0], bx + x0 - 2); B[1] = Math.min(B[1], by + y0 - 2); B[2] = Math.max(B[2], bx + x0 + w + 2); B[3] = Math.max(B[3], by + y0 + h + 2);   // where silhouettes are: occluders elsewhere need not join the mask
       if (X && X.outline) {   // the ring just outside the silhouette: four shifted copies, less the silhouette itself
-        const xo = this.xoG; this._tint(this.mG, this.aCv, X.outline, R);
-        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) xo.drawImage(this.mCv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h);
-        xo.globalCompositeOperation = 'destination-out'; xo.drawImage(this.aCv, x0, y0, w, h, bx + x0, by + y0, w, h); xo.globalCompositeOperation = 'source-over';
-        this.xrayOl = true;
+        const xo = this._xoG; this._tint(this._mG, this._aCv, X.outline, R);
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) xo.drawImage(this._mCv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h);
+        xo.globalCompositeOperation = 'destination-out'; xo.drawImage(this._aCv, x0, y0, w, h, bx + x0, by + y0, w, h); xo.globalCompositeOperation = 'source-over';
+        this._xrayOl = true;
       }
     }
   }
   /** add a solid item's shape to the cut mask: a body from its composite (with its outline), a wall by drawing it again */
   _emCut(eG, it) {
     const c = this._comp;
-    if (c) { const cut = (dx, dy) => eG.drawImage(this.aCv, c.x0, c.y0, c.w, c.h, c.bx + c.x0 + dx, c.by + c.y0 + dy, c.w, c.h); cut(0, 0); if (c.ol) { cut(-1, 0); cut(1, 0); cut(0, -1); cut(0, 1); } }
+    if (c) { const cut = (dx, dy) => eG.drawImage(this._aCv, c.x0, c.y0, c.w, c.h, c.bx + c.x0 + dx, c.by + c.y0 + dy, c.w, c.h); cut(0, 0); if (c.ol) { cut(-1, 0); cut(1, 0); cut(0, -1); cut(0, 1); } }
     else if (it.occ) { this._tg = eG; try { it.fn(eG); } finally { this._tg = null; } eG.globalAlpha = 1; }
     else {   // anything else solid (a body drawn straight into the frame): drawn again on a scratch layer, in a body-sized box
       const [sx, sy] = this.w(it.x, it.y, it.z), x0 = Math.max(0, Math.round(sx) - AOX), y0 = Math.max(0, Math.round(sy) - AOY), w = Math.min(this.bw, x0 + AS) - x0, h = Math.min(this.bh, y0 + AS) - y0;
-      if (w > 0 && h > 0) { const sG = this.sG; sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(x0, y0, w, h); sG._c = null; this._tg = sG; try { it.fn(sG); } finally { this._tg = null; } eG.drawImage(this.sCv, x0, y0, w, h, x0, y0, w, h); }
+      if (w > 0 && h > 0) { const sG = this._sG; sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(x0, y0, w, h); sG._c = null; this._tg = sG; try { it.fn(sG); } finally { this._tg = null; } eG.drawImage(this._sCv, x0, y0, w, h, x0, y0, w, h); }
     }
     eG.globalAlpha = 1; eG._c = null;
   }
@@ -1656,21 +1809,22 @@ class Renderer {
       }, { bias: -.05, noInfo: true });
     }
   }
+  /** sort the queue by depth and draw it (finish() calls it) */
   flush() {
     const g = this.ctx, items = this.items;
     this.game.stats.items = items.length;
     items.sort((a, b) => a.k - b.k);
-    const pb = this._xrPrev; if (pb) { this.xG.clearRect(pb[0], pb[1], pb[2] - pb[0], pb[3] - pb[1]); this.xoG.clearRect(pb[0], pb[1], pb[2] - pb[0], pb[3] - pb[1]); this._xrPrev = null; }   // (the x-ray layers only ever hold the silhouettes' box)
-    this.oG.clearRect(0, 0, this.bw, this.bh); this.oG._c = null;
+    const pb = this._xrPrev; if (pb) { this._xG.clearRect(pb[0], pb[1], pb[2] - pb[0], pb[3] - pb[1]); this._xoG.clearRect(pb[0], pb[1], pb[2] - pb[0], pb[3] - pb[1]); this._xrPrev = null; }   // (the x-ray layers only ever hold the silhouettes' box)
+    this._oG.clearRect(0, 0, this.bw, this.bh); this._oG._c = null;
     let xr = false, xa = false, xRe = 0;   // an x-ray actor has been drawn (walls and hiding things after it cover it); one asked for bodies too
     this._xrB = null;
     const xOver = (x0, y0, x1, y1) => { const B = this._xrB; return !!B && x1 > B[0] && x0 < B[2] && y1 > B[1] && y0 < B[3]; };
-    const gpu = this.gpu, iG = this.iG;
+    const gpu = this.gpu, iG = this._iG;
     // canvas lighting draws the glows again after the darkness (so it never dims them). The cut mask K keeps that redraw
     // behind what stands in front: in depth order, a wall or a body drawn after a glow adds its shape to K, and a glow
     // drawn later still (in front of that) takes its whole footprint back out. finish() then restores K's lit pixels
     // (a coarse grid of where glows have been drawn so far lets the walls and bodies nowhere near one skip the mask)
-    const em = this.glowMask !== false && !gpu && this.game.lights.enabled && this.emis.length > 0, eG = this.eG;   // (r.glowMask = false: glows over everything, cheaper)
+    const em = this.glowMask !== false && !gpu && this.game.lights.enabled && this._emis.length > 0, eG = this._eG;   // (r.glowMask = false: glows over everything, cheaper)
     let eOn = false, kOn = false, eg = null, gw = 0;
     if (em) {
       eG.globalCompositeOperation = 'source-over'; eG.globalAlpha = 1; eG.clearRect(0, 0, this.bw, this.bh); eG._c = null;
@@ -1703,47 +1857,49 @@ class Renderer {
       else if (xr && (it.occ || it.hides || (xa && it.actor))) {   // x-ray occluders go into the mask: walls and props drawn again, bodies from their composite
         const c = this._comp;   // (props and bodies only where they overlap a silhouette: a crowd redrawn in full cost a third of the frame)
         if (it.actor && !it.occ) {
-          if (c) { if (xOver(c.bx + c.x0, c.by + c.y0, c.bx + c.x0 + c.w, c.by + c.y0 + c.h)) this.oG.drawImage(this.aCv, c.x0, c.y0, c.w, c.h, c.bx + c.x0, c.by + c.y0, c.w, c.h); }
-          else { const [sx, sy] = this.w(it.x, it.y, it.z), s = this.view.scale || 1; if (xRe < 4 && xOver(sx - 12 * s, sy - 30 * s, sx + 12 * s, sy + 4 * s)) { xRe++; this.oG.globalAlpha = 1; it.fn(this.oG); this.oG.globalAlpha = 1; } }   // a body drawn straight to the frame is drawn again: only the few right in front
-        } else if (it.box ? xOver(it.box[0], it.box[1], it.box[2], it.box[3]) : !it.occ || (() => { const [sx, sy] = this.w(it.x, it.y, 0), s = this.view.scale || 1; return xOver(sx - 24 * s, sy - 120 * s, sx + 24 * s, sy + 20 * s); })()) { this.oG.globalAlpha = 1; it.fn(this.oG); this.oG.globalAlpha = 1; }   // (a wall block far from every silhouette is skipped: a generous box, a block is 16 wide and rarely 70 tall)
+          if (c) { if (xOver(c.bx + c.x0, c.by + c.y0, c.bx + c.x0 + c.w, c.by + c.y0 + c.h)) this._oG.drawImage(this._aCv, c.x0, c.y0, c.w, c.h, c.bx + c.x0, c.by + c.y0, c.w, c.h); }
+          else { const [sx, sy] = this.w(it.x, it.y, it.z), s = this.view.scale || 1; if (xRe < 4 && xOver(sx - 12 * s, sy - 30 * s, sx + 12 * s, sy + 4 * s)) { xRe++; this._oG.globalAlpha = 1; it.fn(this._oG); this._oG.globalAlpha = 1; } }   // a body drawn straight to the frame is drawn again: only the few right in front
+        } else if (it.box ? xOver(it.box[0], it.box[1], it.box[2], it.box[3]) : !it.occ || (() => { const [sx, sy] = this.w(it.x, it.y, 0), s = this.view.scale || 1; return xOver(sx - 24 * s, sy - 120 * s, sx + 24 * s, sy + 20 * s); })()) { this._oG.globalAlpha = 1; it.fn(this._oG); this._oG.globalAlpha = 1; }   // (a wall block far from every silhouette is skipped: a generous box, a block is 16 wide and rarely 70 tall)
       }
     }
-    this.emOn = kOn;
-    if (this.xrayUsed && this._xrB) {   // every x-ray pass works inside the silhouettes' box only (full-frame composites cost more than the rest of it)
+    this._emOn = kOn;
+    if (this._xrayUsed && this._xrB) {   // every x-ray pass works inside the silhouettes' box only (full-frame composites cost more than the rest of it)
       const B = this._xrB, x0 = Math.max(0, Math.floor(B[0])), y0 = Math.max(0, Math.floor(B[1])), x1 = Math.min(this.bw, Math.ceil(B[2])), y1 = Math.min(this.bh, Math.ceil(B[3])), w = x1 - x0, h = y1 - y0;
       if (w > 0 && h > 0) {
         this._xrPrev = [x0, y0, x1, y1];
-        const xG = this.xG, dst = gpu ? this.vG : g, mask = G => { G.save(); G.beginPath(); G.rect(x0, y0, w, h); G.clip(); G.globalCompositeOperation = 'destination-in'; G.drawImage(this.oCv, x0, y0, w, h, x0, y0, w, h); };
+        const xG = this._xG, dst = gpu ? this._vG : g, mask = G => { G.save(); G.beginPath(); G.rect(x0, y0, w, h); G.clip(); G.globalCompositeOperation = 'destination-in'; G.drawImage(this._oCv, x0, y0, w, h, x0, y0, w, h); };
         mask(xG); xG.fillStyle = xG.createPattern(this.checker, 'repeat'); xG._c = null;
         xG.translate((this.ix + this.iy) & 1, 0); xG.fillRect(x0 - 2, y0, w + 2, h); xG.restore(); xG.globalCompositeOperation = 'source-over';
-        dst.drawImage(this.xCv, x0, y0, w, h, x0, y0, w, h);
-        if (this.xrayOl) { const xo = this.xoG; mask(xo); xo.restore(); xo.globalCompositeOperation = 'source-over'; dst.drawImage(this.xoCv, x0, y0, w, h, x0, y0, w, h); }
+        dst.drawImage(this._xCv, x0, y0, w, h, x0, y0, w, h);
+        if (this._xrayOl) { const xo = this._xoG; mask(xo); xo.restore(); xo.globalCompositeOperation = 'source-over'; dst.drawImage(this._xoCv, x0, y0, w, h, x0, y0, w, h); }
       } else this._xrPrev = [0, 0, this.bw, this.bh];
     }
   }
+  /** end the frame: particles, decals, the queue, lighting, overlays, then present (the game calls it after your
+   *  draw) */
   finish() {
-    const game = this.game, g = this.ctx, gpu = this.gpu, iG = this.iG;
+    const game = this.game, g = this.ctx, gpu = this.gpu, iG = this._iG;
     game.particles.draw(this); this._drawGhosts();
-    for (const d of this.decals) {
+    for (const d of this._decals) {
       this._tg = null; d.fn(g);
       if (gpu && d.e > 0) { iG._mat = this._infoCol(0, 2, d.e); iG._c = null; this._tg = iG; d.fn(iG); }
     }
     this._tg = null;
     this.flush();
     if (gpu) {
-      this._tg = this.vG; for (const f of this.overlays) f(this.vG); this._tg = null;
+      this._tg = this._vG; for (const f of this._overlays) f(this._vG); this._tg = null;
       try { game.gpu.render(this); } catch (e) { game.gpu.fail(e); game.screen.present(); }
     } else {
       if (game.lights.enabled) {
         game.lights.render(this);
-        if (this.emis.length) {
-          const sG = this.sG, cv = g.canvas;
-          if (this.emOn) { sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(0, 0, this.bw, this.bh); sG.drawImage(cv, 0, 0); sG.globalCompositeOperation = 'destination-in'; sG.drawImage(this.eCv, 0, 0); sG.globalCompositeOperation = 'source-over'; }
-          this.emis.sort((a, b) => a.k - b.k); for (const it of this.emis) it.fn(g);
-          if (this.emOn) g.drawImage(this.sCv, 0, 0);   // walls and bodies in front of a glow keep their lit pixels
+        if (this._emis.length) {
+          const sG = this._sG, cv = g.canvas;
+          if (this._emOn) { sG.globalCompositeOperation = 'source-over'; sG.globalAlpha = 1; sG.clearRect(0, 0, this.bw, this.bh); sG.drawImage(cv, 0, 0); sG.globalCompositeOperation = 'destination-in'; sG.drawImage(this._eCv, 0, 0); sG.globalCompositeOperation = 'source-over'; }
+          this._emis.sort((a, b) => a.k - b.k); for (const it of this._emis) it.fn(g);
+          if (this._emOn) g.drawImage(this._sCv, 0, 0);   // walls and bodies in front of a glow keep their lit pixels
         }
       }
-      for (const f of this.overlays) f(g);
+      for (const f of this._overlays) f(g);
       game.screen.present();
     }
   }
@@ -1755,6 +1911,8 @@ E.Renderer = Renderer;
  * ============================================================================= */
 /** on-screen error box: the fastest way for a person (or model) to see why a game broke */
 let _errBox = null;
+/** show an error in the red box at the top of the page (the engine does it for errors in update and draw); a click
+ *  hides it */
 E.showError = (title, e) => {
   if (typeof document === 'undefined') return;
   if (!document.body) { addEventListener('DOMContentLoaded', () => E.showError(title, e)); return; }
@@ -1773,31 +1931,75 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 }
 
 class Game {
+  /**
+   * new E.Game({ canvas, view, views, res, input, bg, step: 1 / 120, loop: true, headless: false }).
+   * headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes
+   * update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in
+   * a page that runs only by advance()
+   */
   constructor(o = {}) {
     o = Object.assign({}, o);
-    if (typeof o.canvas === 'string') o.canvas = document.getElementById(o.canvas.replace(/^#/, '')) || document.querySelector(o.canvas);
-    if (!o.canvas) o.canvas = document.getElementById('screen') || document.querySelector('canvas') || Game._makeCanvas();
+    /** true for a game with no display (o.headless, or no DOM: Node) */
+    this.headless = !!o.headless || typeof document === 'undefined';
+    if (this.headless) o.canvas = null;
+    else {
+      if (typeof o.canvas === 'string') o.canvas = document.getElementById(o.canvas.replace(/^#/, '')) || document.querySelector(o.canvas);
+      if (!o.canvas) o.canvas = document.getElementById('screen') || document.querySelector('canvas') || Game._makeCanvas();
+    }
     if (typeof o.input === 'string') o.input = Input[o.input.toUpperCase()] || (warn('input:' + o.input, 'unknown input preset "' + o.input + '" (use DEFAULT, PLATFORMER or SHMUP)'), Input.DEFAULT);
-    this.o = Object.assign({ view: 'iso', minH: 190, minW: 300, maxW: 560, maxH: 330, bg: '#07060d', step: 1 / 120, input: Input.DEFAULT }, o);
-    this.screen = new Screen(this.o.canvas, this.o);
-    this.input = new Input(this.screen, this.o.input);
+    /** o: the options the game was made with, the defaults filled in (view, res, minW, minH, maxW, maxH, bg, step,
+     *  input, loop, headless) */
+    this.o = Object.assign({ view: 'iso', minH: 190, minW: 300, maxW: 560, maxH: 330, bg: '#07060d', step: 1 / 120, input: Input.DEFAULT, loop: !this.headless }, o);
+    // every listener the engine adds to the window, the document, the canvas and its buttons goes through this: dispose() removes them all
+    this._abort = typeof AbortController === 'function' ? new AbortController() : null;
+    const signal = this._abort ? this._abort.signal : undefined;
+    /** screen: the low-resolution screen (its W, H, scale and buffer) */
+    this.screen = new Screen(this.o.canvas, this.o, signal);
+    /** input: keyboard, mouse, gamepad and touch, read as actions (pressed, down, move, ...) */
+    this.input = new Input(this.screen, this.o.input, signal);
+    /** view: the view the game draws in now (the chosen one, with zoom and turn: read it, change it with setView);
+     *  baseView: the chosen view without zoom and turn */
     this.view = this.baseView = this._view(this.o.view) || E.VIEWS.iso;
+    /** zoom: the camera's zoom (1 = as the view is; setZoom); yaw: its turn in degrees on top of the view
+     *  (rotateView) */
     this.zoom = 1; this.yaw = 0;   // camera zoom and turn on top of the chosen view (setZoom, rotateView)
     /** views this game is designed for (view cycling and the checker use it). null = every view */
     this.views = this.o.views || null;
-    this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this.shakeAmt = 0; this.reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-    /** camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen rooms; moving = sliding between rooms;
-     *  offset = [dx, dy] screen pixels from the screen's centre to where the focus sits (above a phone's touch buttons: [0, -40]) */
+    /** time: game seconds since start (it stops during pause and hit-stop, and slows with timeScale); real: seconds
+     *  the game has stepped through, pauses and hit-stop included (blinking HUD, notes); hitstop: seconds of
+     *  hit-stop left (freeze); timeScale: game speed, 1 normal, .25 slow motion, 0 stopped; reduceMotion: the player
+     *  asked for less motion (prefers-reduced-motion): shake and flashes are softened */
+    this.time = 0; this.real = 0; this.hitstop = 0; this.timeScale = 1; this._shakeAmt = 0; this.reduceMotion = !this.headless && !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    /** camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen
+     *  rooms; moving = sliding between rooms; offset = [dx, dy] screen pixels from the screen's centre to where the
+     *  focus sits (above a phone's touch buttons: [0, -40]); x, y: the camera's position in projected pixels (its
+     *  top-left corner); vx, vy: how fast it is moving there; tx, ty, tz: the world point it is following (focus
+     *  sets it); snap: true makes it jump there at the next step instead of gliding (a new level, a teleport) */
     this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null };
-    this.particles = new Particles(this); this.lights = new Lighting(this); this.r = new Renderer(this);
-    this.fps = 60; this.viewListeners = []; this.gpu = null;
-    this.paused = false; this.pauseOverlay = true; this.timers = []; this.errors = []; this._errKeys = new Set();
+    /** particles: dust, sparks, debris and text in the world; lights: canvas lighting (lights.enabled, lights.add in
+     *  draw); r: the renderer handed to draw(r) (null when headless) */
+    this.particles = new Particles(this); this.lights = new Lighting(this); this.r = this.headless ? null : new Renderer(this);
+    /** fps: frames per second over the last half second of real time; gpu: the WebGPU lighting after enableGPU(), or
+     *  null */
+    this.fps = 60; this._viewListeners = []; this.gpu = null;
+    /** paused: true while paused (a pausable scene toggles it on 'pause'; steps still run, scenes don't update);
+     *  pauseOverlay: false hides the engine's PAUSED overlay (a game drawing its own pause screen); errors: the
+     *  errors caught in update and draw, each { where, scene, message, stack }, once per kind */
+    this.paused = false; this.pauseOverlay = true; this._timers = []; this.errors = []; this._errKeys = new Set();
     /** seconds for the dithered fade between scenes (0 = instant cuts) */
     this.fadeTime = .22; this._fade = null;
-    this.scenes = null; this.scene = null; this.sceneName = null; this._next = null; this.hooks = null;
+    /** scenes: the scenes given to start(), by name; scene: the scene running; sceneName: its name ('main' for a
+     *  game started with one scene) */
+    this.scenes = null; this.scene = null; this.sceneName = null; this._next = null; this._hooks = null;
     /** chip-sound synthesizer: game.audio.sfx('jump'), game.audio.music(song) */
-    this.audio = new E.Audio(this);
-    /** per-frame timings (ms) and counts, for profiling overlays. frameMs: the real time since the last frame */
+    this.audio = new E.Audio(this, signal);
+    if (this.headless) this.audio.failed = 'a headless game has no sound';
+    /** a game's own handle for tools and tests: game.debug = { snapshot() { return {...} }, teleport(x, y, z) {...} }.
+     *  tools/check.mjs prints snapshot() and tools/replay.mjs logs it at the end */
+    this.debug = null;
+    /** per-frame timings (ms) and counts, for profiling overlays. frameMs: the real time since the last frame;
+     *  updateMs, renderMs: milliseconds the last frame spent updating and drawing; steps: the updates it ran; items:
+     *  what it queued for drawing; actors: actors drawn; culled: actors skipped off screen */
     this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
     /** the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth
      *  at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count */
@@ -1811,15 +2013,17 @@ class Game {
   }
   /** internal buffer size in pixels (HUD layout) */
   get W() { return this.screen.W; }
+  /** the screen's height in game pixels (W is its width) */
   get H() { return this.screen.H; }
   /** turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... } */
-  enableGPU(o = {}) { this.gpu = new E.GPULighting(this, o); return this.gpu; }
+  enableGPU(o = {}) { if (this.headless) return null; this.gpu = new E.GPULighting(this, o); return this.gpu; }
   _view(v) {
     if (v instanceof View) return v;
     const w = E.VIEWS[v];
     if (!w) warn('view:' + v, 'unknown view "' + v + '". Use one of: ' + Object.keys(E.VIEWS).join(', ') + ', or a new E.View(...)');
     return w || null;
   }
+  /** switch the view: an id from E.VIEWS ('iso', 'side', ...) or a View; keeps zoom and turn */
   setView(v) {
     const w = this._view(v); if (!w) return;
     this.baseView = w; this._applyView();
@@ -1831,6 +2035,7 @@ class Game {
   setZoom(z) { this.zoom = clamp(+z || 1, .5, 3); this._applyView(); }
   /** turn the camera around the vertical axis in ground views: game.rotateView(45) (degrees). Side views never turn */
   rotateView(deg) { this.yaw = (((this.yaw || 0) + deg) % 360 + 360) % 360; this._applyView(); }
+  /** undo setZoom and rotateView */
   resetCamera() { this.zoom = 1; this.yaw = 0; this._applyView(); }
   /** a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1) */
   note(text, seconds = 1.2) { this._note = { text: String(text), end: this.real + seconds }; }
@@ -1844,12 +2049,14 @@ class Game {
       this.view = v;
     }
     this.cam.snap = true;
-    for (const f of this.viewListeners) f(this.view);
+    for (const f of this._viewListeners) f(this.view);
   }
   /** cycle through game.views (or every view): bind it to a key for players who like to switch */
   nextView(dir = 1) { const list = this.views || E.VIEW_ORDER, i = list.indexOf(this.baseView.id); this.setView(list[((i + dir) % list.length + list.length) % list.length]); }
-  onView(f) { this.viewListeners.push(f); }
-  shake(a) { if (!this.reduceMotion) this.shakeAmt = Math.min(10, this.shakeAmt + a); }
+  /** call f(view) whenever the view changes (re-bake caches, move HUD) */
+  onView(f) { this._viewListeners.push(f); }
+  /** shake the screen by a (pixels, decaying; at most 10 in all); softened when reduceMotion */
+  shake(a) { if (!this.reduceMotion) this._shakeAmt = Math.min(10, this._shakeAmt + a); }
   /**
    * everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound,
    * and a damage number. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit' })
@@ -1865,6 +2072,7 @@ class Game {
   }
   /** flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning */
   flash(color = '#ffffff', seconds = .12, strength = 1) { if (this.reduceMotion) seconds *= .4; this._flash = { color, t: 0, dur: seconds, k: strength }; }
+  /** hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks */
   freeze(s) { this.hitstop = Math.max(this.hitstop, s); }
   /** camera follows this world point. Side-scrollers: game.focus(x, 0, z) */
   focus(x, y, z = 0) { this.cam.tx = x; this.cam.ty = y; this.cam.tz = z; }
@@ -1876,9 +2084,9 @@ class Game {
   /** mouse position on the ground (world units), or null */
   mouseGround() { const m = this.input.mouseScreen(); return m ? this.view.toGround(m[0], m[1]) : null; }
   /** run fn once after `seconds` of game time. Cleared on scene change. Returns { cancel() } */
-  after(seconds, fn) { const t = { at: this.time + seconds, fn, every: 0, dead: false }; this.timers.push(t); return { cancel() { t.dead = true; } }; }
+  after(seconds, fn) { const t = { at: this.time + seconds, fn, every: 0, dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
   /** run fn every `seconds` of game time. Cleared on scene change. Returns { cancel() } */
-  every(seconds, fn) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false }; this.timers.push(t); return { cancel() { t.dead = true; } }; }
+  every(seconds, fn) { const t = { at: this.time + seconds, fn, every: Math.max(1e-3, seconds), dead: false }; this._timers.push(t); return { cancel() { t.dead = true; } }; }
   _camStep(dt) {
     const c = this.cam; let fx = c.tx, fy = c.ty, fz = c.tz;
     if (c.room) {
@@ -1906,30 +2114,62 @@ class Game {
    * or several:  game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
    * A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, touch } (all optional);
    * view / views / input ('PLATFORMER') / res ('snes') / touch (['jump', 'attack']) are applied when it starts.
+   * start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance()
    */
   start(hooks) {
-    if (!hooks || typeof hooks !== 'object') throw new Error('game.start needs { update(dt), draw(r) } or { scenes: { name: { update, draw } }, scene: "name" }');
-    this.hooks = hooks;
-    if (hooks.scenes) {
-      this.scenes = hooks.scenes;
-      const first = hooks.scene || Object.keys(hooks.scenes)[0];
-      this._enter(first, hooks.data);
-    } else {
-      if (typeof hooks.update !== 'function' || typeof hooks.draw !== 'function') throw new Error('game.start({ update(dt), draw(r) }) needs both functions (or use { scenes, scene })');
-      this.scene = hooks; this.sceneName = 'main';
+    if (hooks !== undefined || !this._hooks) {
+      if (!hooks || typeof hooks !== 'object') throw new Error('game.start needs { update(dt), draw(r) } or { scenes: { name: { update, draw } }, scene: "name" }');
+      this._hooks = hooks;
+      if (hooks.scenes) {
+        this.scenes = hooks.scenes;
+        const first = hooks.scene || Object.keys(hooks.scenes)[0];
+        this._enter(first, hooks.data);
+      } else {
+        if (typeof hooks.update !== 'function' || typeof hooks.draw !== 'function') throw new Error('game.start({ update(dt), draw(r) }) needs both functions (or use { scenes, scene })');
+        this.scene = hooks; this.sceneName = 'main';
+      }
     }
-    if (this._running) return;
+    if (this._running || this.disposed || this.o.loop === false) return this;
     this._running = true;
     let last = performance.now(), acc = 0, n = 0;
     const frame = now => {
-      requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
+      if (!this._running) return;
+      this._raf = requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
       const raw = Math.max(0, (now - last) / 1000); last = now;
       acc += raw; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }   // real time: a slow device reads slow
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
       const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = raw * 1000; st.steps = steps;
     };
-    requestAnimationFrame(frame);
+    this._raf = requestAnimationFrame(frame);
+    return this;
+  }
+  /** stop the loop; the game keeps its state, and start() resumes it */
+  stop() { this._running = false; if (this._raf != null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this._raf); this._raf = null; return this; }
+  /**
+   * end the game for good: stop the loop and remove everything the engine added to the page (its listeners on the window,
+   * the document, the canvas and the buttons, the touch controls, the GPU lighting's canvas) and close the sound. Tests and
+   * tools that make many games call it; the canvas stays
+   */
+  dispose() {
+    /** disposed: true after dispose() */
+    this.stop(); this.disposed = true;
+    if (this._abort) this._abort.abort();
+    const A = this.audio; try { A.stopMusic(); if (A.ctx && A.ctx.close) A.ctx.close(); } catch (e) { /* already closed */ } A.ctx = null; A.failed = 'the game was disposed';
+    const I = this.input; for (const el of [I._touchEl, I._stickEl, I._knobEl]) if (el && el.remove) el.remove();
+    const G = this.gpu; if (G) { try { if (G.cv) G.cv.remove(); if (G._dev && G._dev.destroy) G._dev.destroy(); } catch (e) { /* gone */ } G.enabled = G.ready = false; this.gpu = null; }
+    if (E.current === this) E.current = null;
+  }
+  /**
+   * run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and
+   * headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
+   */
+  advance(seconds = this.o.step, o = {}) {
+    if (!this.scene && !this._next) throw new Error('game.advance() needs a started game: game.start({ update, draw }) first');
+    this._acc += Math.max(0, seconds);
+    const n = this._steps(); this.stats.steps = n;
+    if (o.draw && !this.headless) try { this._frame(); } catch (e) { this._fail('draw', e); }
+    return n;
   }
   /**
    * the clock: an exact fixed step. Real time (at most 50 ms a frame, so a stall can't run away) fills an accumulator;
@@ -1940,9 +2180,10 @@ class Game {
    * The first frame always updates (with dt 0 when its time is short of a step), so draw never comes before update.
    * Returns the updates run
    */
-  _run(real) {
+  _run(real) { this._acc += Math.min(.05, real); return this._steps(); }
+  /** run the whole steps the accumulator holds (see _run) */
+  _steps() {
     const step = this.o.step; let n = 0;
-    this._acc += Math.min(.05, real);
     try {
       while (this._acc > step - 1e-9) {   // (the tolerance absorbs the rounding in frame times: 1/60 s is two steps)
         this._acc -= step;
@@ -1976,7 +2217,7 @@ class Game {
     const old = this.scene;
     if (old && old.exit) old.exit();
     if (old && old._propWas !== undefined) { E.style.propSize = old._propWas; old._propWas = undefined; }
-    this.scene = s; this.sceneName = name; this.paused = false; this.timers.length = 0; this.hitstop = 0;
+    this.scene = s; this.sceneName = name; this.paused = false; this._timers.length = 0; this.hitstop = 0;
     this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null;
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
@@ -1997,7 +2238,7 @@ class Game {
   }
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    this.real += dt; this.shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt);
+    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt);
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
     if (this._fade) { const out = this._fade.out; this._fadeStep(dt); if (out) return; }   // the old scene freezes while it fades out
     const s = this.scene;
@@ -2006,7 +2247,7 @@ class Game {
     if (this.paused) return;
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     this.time += dt;
-    const T = this.timers;
+    const T = this._timers;
     if (T.length) {
       for (let i = 0; i < T.length; i++) { const t = T[i]; if (t.dead || this.time < t.at) continue; if (t.every) t.at += t.every; else t.dead = true; t.fn(); }
       prune(T, t => t.dead);
@@ -2022,7 +2263,7 @@ class Game {
   }
   _frame() {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    const c = this.cam, s = this.shakeAmt;
+    const c = this.cam, s = this._shakeAmt;
     const shx = s > .05 ? (Math.sin(this.real * 83) + Math.sin(this.real * 57.3)) * .5 * s : 0, shy = s > .05 ? (Math.sin(this.real * 71) + Math.sin(this.real * 49.7)) * .5 * s : 0;
     this.lights.clear();
     this.r.begin(c.x + shx, c.y + shy);
@@ -2066,31 +2307,50 @@ const BUILDS = {
   skeleton: { legUpper: 7, legLower: 7, hipZ: 13.4, torso: 9, shoulderHalf: 3.2, headR: 3.1, neck: 1.6, armUpper: 5.3, armLower: 5.2, hipHalf: 1.5, limbW: .6, torsoW: 2.6, stride: 7, hunch: .2, skeleton: true, hair: 'bald', sleeves: 'none', eyeGlow: '#ff5a40' }
 };
 class Humanoid {
+  /** new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a
+   *  character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each
+   *  step, draw(g, ox, oy, view) inside r.actor */
   constructor(o = {}) {
     if (o.build && !BUILDS[o.build]) warn('build:' + o.build, 'Humanoid build "' + o.build + '" is unknown (chibi, heroic, bulky, skeleton)');
     o = Object.assign({}, BUILDS[o.build] || {}, o);
+    /** o: its options, with the build's proportions and the defaults filled in (size, build, weapon, outfit, ...;
+     *  legUpper, torso, headR and the other lengths are at size 1) */
     this.o = Object.assign({
       legUpper: 6, legLower: 6, hipZ: 11.6, hipHalf: 1.9, footSpread: 1.9, torso: 8, shoulderHalf: 3.3, neck: 1.2, headR: 3.4,
       armUpper: 4.6, armLower: 4.6, limbW: 2, torsoW: 3, lean: 0, hunch: 0, stride: 6.5, lift: 3.4, swing: 4, speedRef: 70,
       weapon: 'sword', bladeLen: 11, cape: null, hood: false, eyeGlow: null, hat: null,
       style: 'hd', size: 1, hair: 'short', outfit: 'shirt', sleeves: 'short', armor: false, cheat: .5
     }, o);
+    /** trail: recent points of the blade (or fist) tip, for the swing's smear */
     this._cheat = 0; this.trail = [];
     if (typeof this.o.hair === 'string' || !this.o.hair) this.o.hair = { style: this.o.hair || 'short' };
+    /** hairPts: the long hair's simulated points (null until it has some) */
     this.hairPts = null;
     if (this.o.weapon && !['sword', 'gun', 'staff'].includes(this.o.weapon)) { warn('weapon:' + this.o.weapon, 'Humanoid weapon "' + this.o.weapon + '" is not built in (sword, gun, staff or null); drawing a sword'); this.o.weapon = 'sword'; }
     if (typeof this.o.hat === 'string') this.o.hat = { style: this.o.hat };
+    /** C: its colors (skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye, ...), the defaults with
+     *  o.colors over them; change one and it shows at the next draw */
     this.C = Object.assign({}, HUMAN_COLORS, o.colors || {});
     const C = this.C;
     if (this.o.skeleton) C.skin = C.pants = C.boot = C.glove = C.bone || '#e6dfc8';
     C.clothDk = C.clothDk || shade(C.cloth, -.3); C.clothLt = C.clothLt || shade(C.cloth, .25);
     C.pantsDk = C.pantsDk || shade(C.pants, -.3); C.bootDk = C.bootDk || shade(C.boot, -.3); C.skinDk = C.skinDk || shade(C.skin, -.2);
-    this.t = Math.random() * 10; this.phase = 0; this.spW = 0; this.mv = [1, 0]; this.dashW = 0; this.hurtW = 0; this.atkW = 0;
-    this.theta = 1.2; this.atkZ = 10; this.reach = 7; this.twist = 0; this.spin = 0; this.atkLean = 0;
+    /** t: seconds of its own clock (idle breathing, blinks); phase: the walk cycle's phase, radians; mv: the last
+     *  ground direction it moved, a unit vector; hurtW: 0..1, how far into the hurt flinch */
+    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this.mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
+    /** atkZ: the height of the weapon hand during an attack; reach: how far it reaches forward; spin: the body's
+     *  extra turn during a spinning move, radians */
+    this._theta = 1.2; this.atkZ = 10; this.reach = 7; this._twist = 0; this.spin = 0; this._atkLean = 0;
+    /** sq: squash and stretch, -0.45..0.45 (kick adds to it); sqV: its speed; blink: seconds to the next blink;
+     *  facing: the angle it faces, radians; x, y, z: where its feet are (from the last update); J: its joints this
+     *  step in its own frame ({ hipL, kneeL, footL, shC, head, handR, ... }; rig.worldOffset(J.handR) gives one in
+     *  the world); smear: the swing's smear arc, or null */
     this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {}; this.smear = null;
-    this.capeL = null; this.airW = 0; this.pointW = 0; this.kicking = false;
+    /** capeL: the cape's left edge points (null until it has a cape and has moved) */
+    this.capeL = null; this._airW = 0; this._pointW = 0; this._kicking = false;
     this._pose();
   }
+  /** a squash-and-stretch kick: + stretches (a jump), - squashes (a landing, a hit) */
   kick(v) { this.sqV += v; }
   /** world position of a hand ('R' holds the weapon): spawn bullets, sparks or thrown things here */
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
@@ -2112,31 +2372,32 @@ class Humanoid {
   update(dt, s = {}) {
     const o = this.o;
     if (this.t > 0 && Math.hypot((s.x || 0) - this.x, (s.y || 0) - this.y, (s.z || 0) - this.z) > 24 * o.size) { this.capeL = null; this.hairPts = null; this.trail.length = 0; }   // teleported: cloth and hair start fresh
+    /** expr: the face shown ('smile', 'shout', 'angry', 'wince'), or null */
     this.t += dt; this.x = s.x; this.y = s.y; this.z = s.z || 0; this.facing = s.facing || 0; this.expr = s.expr || null;
     const speed = s.run ? s.run * o.speedRef : Math.hypot(s.vx || 0, s.vy || 0);   // run: 0..1 runs in place (an RPG 'run away', a treadmill)
-    this.spW = approach(this.spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
+    this._spW = approach(this._spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
     if (speed > 3 && !s.run) {
       const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
       this.mv[0] = lerp(this.mv[0], (s.vx * c + s.vy * sn) / speed, k); this.mv[1] = lerp(this.mv[1], (-s.vx * sn + s.vy * c) / speed, k);
     }
-    this.phase += dt * speed / (o.stride * o.size * Math.max(.4, Math.min(1, this.spW)));
-    this.dashW = approach(this.dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
+    this.phase += dt * speed / (o.stride * o.size * Math.max(.4, Math.min(1, this._spW)));
+    this._dashW = approach(this._dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
     this.hurtW = approach(this.hurtW, s.hurt ? 1 : 0, dt * 14);
-    this.atkW = approach(this.atkW, s.attack ? 1 : 0, dt * (s.attack ? 30 : 7));
-    this.airW = approach(this.airW, s.air ? 1 : 0, dt * (s.air ? 10 : 18));
+    this._atkW = approach(this._atkW, s.attack ? 1 : 0, dt * (s.attack ? 30 : 7));
+    this._airW = approach(this._airW, s.air ? 1 : 0, dt * (s.air ? 10 : 18));
     // held poses: 'cheer' (item get, victory), 'cast' (both hands forward), 'guard' (fists up), 'kneel', 'crouch', 'wave', 'hips'
     // (hands on hips), and down: 0..1 (knocked flat). stance: 'guard' (fists up while moving) | 'ready' (weapon held forward)
     const pk = this.poseW || (this.poseW = { cheer: 0, cast: 0, guard: 0, kneel: 0, crouch: 0, wave: 0, hips: 0, block: 0 });
     for (const k in pk) pk[k] = approach(pk[k], s.pose === k ? 1 : 0, dt * 9);
-    this.stW = approach(this.stW || 0, s.stance === 'guard' ? 1 : 0, dt * 10); this.rdW = approach(this.rdW || 0, s.stance === 'ready' ? 1 : 0, dt * 10);
-    this.climbW = approach(this.climbW || 0, s.climb ? 1 : 0, dt * 12); if (s.climb) this.climbP = (this.climbP || 0) + dt * Math.abs(s.vz || 0) / (.4 * (o.armUpper + o.armLower) * o.size) * Math.PI;   // hands keep pace with the climb   // climb: hand over hand on a ladder
+    this._stW = approach(this._stW || 0, s.stance === 'guard' ? 1 : 0, dt * 10); this._rdW = approach(this._rdW || 0, s.stance === 'ready' ? 1 : 0, dt * 10);
+    this._climbW = approach(this._climbW || 0, s.climb ? 1 : 0, dt * 12); if (s.climb) this._climbP = (this._climbP || 0) + dt * Math.abs(s.vz || 0) / (.4 * (o.armUpper + o.armLower) * o.size) * Math.PI;   // hands keep pace with the climb   // climb: hand over hand on a ladder
     this.dieT = s.pose === 'die' ? (this.dieT || 0) + dt : 0;   // pose 'die': a stagger, the knees give, then the body topples
     const dT = s.down !== undefined ? clamp(+s.down, 0, 1) : s.pose === 'down' || this.dieT > .45 ? 1 : 0;
     this.downW = approach(this.downW || 0, dT, dt * (dT > (this.downW || 0) ? 2.5 + 10 * (this.downW || 0) : 3.2));   // falls faster and faster, gets up steadily
     if (this.dieT > 0) { this.hurtW = approach(this.hurtW, this.dieT < .25 ? 1 : 0, dt * 14); pk.kneel = approach(pk.kneel, this.dieT > .2 && this.dieT < .6 ? 1 : 0, dt * 10); }
-    this.pointW = approach(this.pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
+    this._pointW = approach(this._pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
     this.aimA = approach(this.aimA || 0, s.aim || 0, dt * 14);   // aim: radians above (+) or below (-) level while pointing
-    if (s.attack) this.kicking = !!s.attack.spec.kick;
+    if (s.attack) this._kicking = !!s.attack.spec.kick;
     this.blink -= dt; if (this.blink < -.12) this.blink = 2 + Math.random() * 3;
     this.sqV += (-260 * this.sq - 15 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.3, .3);
 
@@ -2153,40 +2414,41 @@ class Humanoid {
       // lunge / hop / crouch are body motion in local units, clamped so a game's own 'lunge' speed field can't stretch the rig
       const hold = sp.hold === undefined ? .3 : sp.hold, lean = sp.lean === undefined ? (sp.kick ? -.22 : .3) : clamp(sp.lean, -.8, .8), lunge = sp.lunge === undefined ? (sp.kick ? .4 : 1.2) : clamp(sp.lunge, -4, 5);
       if (A.phase === 'wind' && (this._aPh !== 'wind' || this._aSp !== sp)) {   // a chained hit starts where the arm is
-        const chain = (this.armW || 0) > .3 && this.theta !== undefined, fists = !o.weapon || sp.hand === 'L' || sp.blade === 0;
-        this._th0 = chain ? this.theta : rest; this._z0 = chain && this.atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
+        const chain = (this._armW || 0) > .3 && this._theta !== undefined, fists = !o.weapon || sp.hand === 'L' || sp.blade === 0;
+        this._th0 = chain ? this._theta : rest; this._z0 = chain && this.atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
         const J = this.J; if (J.handR) this._from = { R: J.handR.slice(), L: J.handL.slice(), bd: J.bladeDir.slice() };   // the wind blends from the real pose: no snaps
       }
-      this._aPh = A.phase; this._aSp = sp; this.atkHand = sp.hand || 'R'; if (A.phase !== 'wind') this._windK = 1;
+      this._aPh = A.phase; this._aSp = sp; this._atkHand = sp.hand || 'R'; if (A.phase !== 'wind') this._windK = 1;
       if (A.phase === 'wind') {
         const k = ease.outQuad(A.u);
-        this.theta = lerp(this._th0, sp.a0, k); this.atkZ = lerp(this._z0, z0, A.u); this.reach = lerp(this._r0, r0, k); this._windK = k;
+        this._theta = lerp(this._th0, sp.a0, k); this.atkZ = lerp(this._z0, z0, A.u); this.reach = lerp(this._r0, r0, k); this._windK = k;
         tLean = -Math.abs(lean) * .45; tLunge = -lunge * .3 * k; tCrouch = clamp(sp.crouch === undefined ? (sp.kick ? 0 : .15) : sp.crouch, 0, 1) * k;   // coil: lean back, draw back, dip
       } else if (A.phase === 'active') {
         const k = ease.outCubic(A.u);
-        this.theta = sp.spin ? sp.a0 : lerp(sp.a0, sp.a1, k); this.atkZ = lerp(z0, z1, k); this.reach = lerp(r0, r1, k);
+        this._theta = sp.spin ? sp.a0 : lerp(sp.a0, sp.a1, k); this.atkZ = lerp(z0, z1, k); this.reach = lerp(r0, r1, k);
         tLean = lean; tLunge = lunge * k; tHop = clamp(sp.hop || 0, 0, 12) * Math.sin(k * Math.PI); tCrouch = clamp(sp.crouch === undefined ? (sp.kick ? 0 : .15) : sp.crouch, 0, 1) * (1 - k);
-        if (sp.spin) { if (side) this.theta = sp.a0 - TAU * k; else this.spin = -TAU * k; }   // side views: the blade loops a full circle in front (a windmill) instead of a turn the camera sees edge-on
+        if (sp.spin) { if (side) this._theta = sp.a0 - TAU * k; else this.spin = -TAU * k; }   // side views: the blade loops a full circle in front (a windmill) instead of a turn the camera sees edge-on
       } else {
         const k = ease.outQuad(clamp(A.u / hold, 0, 1)), span = sp.spin ? 0 : sp.a1 - sp.a0;
-        this.theta = (sp.spin ? sp.a0 : sp.a1) + span * .08 * k; this.atkZ = z1; this.reach = r1;
+        this._theta = (sp.spin ? sp.a0 : sp.a1) + span * .08 * k; this.atkZ = z1; this.reach = r1;
         armT = A.u < hold ? 1 : 1 - ease.inOut((A.u - hold) / (1 - hold));
         tLean = lean * armT; tLunge = lunge * armT;
       }
-      tTwist = sp.spin ? 0 : clamp(this.theta * (side ? .08 : .32) * (sp.twist === undefined ? 1 : sp.twist) * (this.atkHand === 'L' ? -1 : 1), -.7, .7);
+      tTwist = sp.spin ? 0 : clamp(this._theta * (side ? .08 : .32) * (sp.twist === undefined ? 1 : sp.twist) * (this._atkHand === 'L' ? -1 : 1), -.7, .7);
       // smear arc in absolute ground angles
       if (this.sidePlane) this.smear = null;
       else if (sp.blade !== 0) {
         const base = this.facing, len = ((sp.reach || 7.5) + (sp.blade || o.bladeLen)) * o.size;
-        if (A.phase === 'active') this.smear = { a0: base + sp.a0, a1: base + this.spin + this.theta, r0: len * .45, r1: len, z: (this.atkZ + 1) * o.size, fade: 1 };
+        if (A.phase === 'active') this.smear = { a0: base + sp.a0, a1: base + this.spin + this._theta, r0: len * .45, r1: len, z: (this.atkZ + 1) * o.size, fade: 1 };
         else if (A.phase === 'recover' && this.smear) { const u = clamp(A.u / .5, 0, 1); const end = base + (sp.spin ? sp.a0 - TAU : sp.a1); this.smear.a0 = lerp(base + sp.a0, end, ease.inQuad(u)); this.smear.a1 = end; this.smear.fade = 1 - u; if (u >= 1) this.smear = null; }
         else if (A.phase === 'wind') this.smear = null;
       }
     } else { this.smear = null; this._windK = 1; this._aPh = null; }
-    this.armW = approach(this.armW || 0, armT, dt * (armT > (this.armW || 0) ? 30 : 12));
-    this.lunge = lerp(this.lunge || 0, tLunge, Math.min(1, dt * 22)); this.hop = lerp(this.hop || 0, tHop, Math.min(1, dt * 25)); this.crouchA = lerp(this.crouchA || 0, tCrouch, Math.min(1, dt * 20));
-    this.atkLean = lerp(this.atkLean, tLean, Math.min(1, dt * 25));
-    this.twist = lerp(this.twist, tTwist, Math.min(1, dt * 25));
+    this._armW = approach(this._armW || 0, armT, dt * (armT > (this._armW || 0) ? 30 : 12));
+    /** lunge: how far the body leans into an attack now, world units; hop: how high an attack's hop lifts it now */
+    this.lunge = lerp(this.lunge || 0, tLunge, Math.min(1, dt * 22)); this.hop = lerp(this.hop || 0, tHop, Math.min(1, dt * 25)); this._crouchA = lerp(this._crouchA || 0, tCrouch, Math.min(1, dt * 20));
+    this._atkLean = lerp(this._atkLean, tLean, Math.min(1, dt * 25));
+    this._twist = lerp(this._twist, tTwist, Math.min(1, dt * 25));
     this._pose();
     if (o.cape) this._cape(dt);
     if (o.hair.style === 'long' || o.hair.style === 'ponytail') this._hair(dt);
@@ -2224,74 +2486,74 @@ class Humanoid {
     }
   }
   _pose() {
-    const o = this.o, J = this.J, sp = Math.min(1, this.spW), mf = this.mv[0], mr = this.mv[1], ph = this.phase, dash = this.dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
+    const o = this.o, J = this.J, sp = Math.min(1, this._spW), mf = this.mv[0], mr = this.mv[1], ph = this.phase, dash = this._dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
     const breathe = Math.sin(this.t * 2.3) * (1 - sp);
     const bob = (.5 - Math.abs(Math.cos(ph)) * 1.3) * sp;
-    const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel, lg = this.lunge || 0, cw = this.climbW || 0;
-    const cr = Math.max(PW.crouch || 0, this.crouchA || 0, Math.sin(clamp(this.downW || 0, 0, 1) * Math.PI) * .85);   // falling (and getting up) buckles the knees
-    const sway = Math.sin(this.t * 1.15) * .3 * (1 - sp) * (1 - this.atkW);   // idle weight shift from foot to foot
+    const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel, lg = this.lunge || 0, cw = this._climbW || 0;
+    const cr = Math.max(PW.crouch || 0, this._crouchA || 0, Math.sin(clamp(this.downW || 0, 0, 1) * Math.PI) * .85);   // falling (and getting up) buckles the knees
+    const sway = Math.sin(this.t * 1.15) * .3 * (1 - sp) * (1 - this._atkW);   // idle weight shift from foot to foot
     const hipC = [mf * .4 * sp - .4 * hurt + lg * .55, mr * .3 * sp + sway, o.hipZ + bob + breathe * .3 - dash * 2.2 - hurt * .6 - kn * o.hipZ * .42 - PW.guard * .9 - cr * o.hipZ * .32 + (this.hop || 0)];
-    J.hipL = add(hipC, rz([0, -o.hipHalf, 0], this.twist * .4)); J.hipR = add(hipC, rz([0, o.hipHalf, 0], this.twist * .4));
+    J.hipL = add(hipC, rz([0, -o.hipHalf, 0], this._twist * .4)); J.hipR = add(hipC, rz([0, o.hipHalf, 0], this._twist * .4));
     for (const s of [-1, 1]) {
       const p = ph + (s > 0 ? Math.PI : 0), along = Math.sin(p) * o.stride * sp;
       let foot = [mf * along + (s > 0 ? .8 : -.6) * (1 - sp), s * o.footSpread + mr * along, Math.max(0, Math.cos(p)) * o.lift * sp];
       foot = V3.lerp(foot, [s > 0 ? 4 : -5, s * 2.2, s > 0 ? 1.5 : .3], dash);
-      if (this.airW > 0) foot = V3.lerp(foot, [s > 0 ? 3.2 : -2.6, s * 1.9, s > 0 ? 6 : 3.6], this.airW);
+      if (this._airW > 0) foot = V3.lerp(foot, [s > 0 ? 3.2 : -2.6, s * 1.9, s > 0 ? 6 : 3.6], this._airW);
       if (kn > 0) foot = V3.lerp(foot, [s > 0 ? 3.4 : -4.2, s * 2, s > 0 ? 0 : 0], kn);
       if (PW.guard > 0) foot = V3.lerp(foot, [s > 0 ? 2.6 : -2.8, s * 2.6, 0], PW.guard * (1 - sp));
       if (cr > 0) foot = V3.lerp(foot, [s > 0 ? 1.6 : -1.4, s * (o.footSpread + .7), foot[2] * (1 - cr)], cr * (1 - sp * .5));
-      if (lg > 0) foot[0] += (s === (this.atkHand === 'L' ? 1 : -1) ? lg * 1.3 : -lg * .15) * (1 - sp);   // the lead foot steps into the strike
+      if (lg > 0) foot[0] += (s === (this._atkHand === 'L' ? 1 : -1) ? lg * 1.3 : -lg * .15) * (1 - sp);   // the lead foot steps into the strike
       if (this.hop) foot[2] += this.hop;
-      if (cw > 0) foot = V3.lerp(foot, [.6, s * 1.5, Math.max(0, Math.sin(this.climbP + (s > 0 ? Math.PI : 0))) * 3.4], cw);
-      if (s > 0 && this.kicking && this.atkW > 0) foot = V3.lerp(foot, [Math.cos(this.theta) * (this.reach + 3), Math.sin(this.theta) * (this.reach + 3), (this.atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this.armW || 0);
+      if (cw > 0) foot = V3.lerp(foot, [.6, s * 1.5, Math.max(0, Math.sin(this._climbP + (s > 0 ? Math.PI : 0))) * 3.4], cw);
+      if (s > 0 && this._kicking && this._atkW > 0) foot = V3.lerp(foot, [Math.cos(this._theta) * (this.reach + 3), Math.sin(this._theta) * (this.reach + 3), (this.atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this._armW || 0);
       const hip = s > 0 ? J.hipR : J.hipL;
       const [knee, f2] = ik3(hip, foot, o.legUpper, o.legLower, [1, s * .15, .1]);
       J[s > 0 ? 'kneeR' : 'kneeL'] = knee; J[s > 0 ? 'footR' : 'footL'] = f2;
     }
-    const leanF = o.lean + .16 * sp * mf + .45 * dash + this.atkLean - .35 * hurt + cr * .22, leanR = .1 * sp * mr;
+    const leanF = o.lean + .16 * sp * mf + .45 * dash + this._atkLean - .35 * hurt + cr * .22, leanR = .1 * sp * mr;
     const dir = V3.norm([Math.sin(leanF), Math.sin(leanR), Math.cos(leanF)]);
     const shC = add(hipC, V3.mul(dir, o.torso));
     J.hipC = hipC; J.shC = shC;
-    J.shL = add(shC, rz([0, -o.shoulderHalf, 0], this.twist)); J.shR = add(shC, rz([0, o.shoulderHalf, 0], this.twist));
+    J.shL = add(shC, rz([0, -o.shoulderHalf, 0], this._twist)); J.shR = add(shC, rz([0, o.shoulderHalf, 0], this._twist));
     J.head = add(shC, V3.mul(V3.norm([dir[0] + o.hunch * .9, dir[1], dir[2]]), o.neck + o.headR));
-    const armLen = o.armUpper + o.armLower, aw = this.armW || 0, sA = this.atkHand === 'L' ? -1 : 1, two = this.atkHand === 'both', fists = !o.weapon || this.stW > .5;
+    const armLen = o.armUpper + o.armLower, aw = this._armW || 0, sA = this._atkHand === 'L' ? -1 : 1, two = this._atkHand === 'both', fists = !o.weapon || this._stW > .5;
     // where the striking hand goes, and the weapon's direction, for the current attack angle
-    const aT = this.sidePlane ? add(shC, [Math.cos(this.theta) * this.reach, sA * .8, Math.sin(this.theta) * this.reach]) : add(shC, [Math.cos(this.theta) * this.reach, Math.sin(this.theta) * this.reach, this.atkRel ? this.atkZ : this.atkZ - shC[2]]);
-    const aDir = this.sidePlane ? V3.norm([Math.cos(this.theta), .05, Math.sin(this.theta)]) : V3.norm([Math.cos(this.theta), Math.sin(this.theta), -.12]);
+    const aT = this.sidePlane ? add(shC, [Math.cos(this._theta) * this.reach, sA * .8, Math.sin(this._theta) * this.reach]) : add(shC, [Math.cos(this._theta) * this.reach, Math.sin(this._theta) * this.reach, this.atkRel ? this.atkZ : this.atkZ - shC[2]]);
+    const aDir = this.sidePlane ? V3.norm([Math.cos(this._theta), .05, Math.sin(this._theta)]) : V3.norm([Math.cos(this._theta), Math.sin(this._theta), -.12]);
     for (const s of [-1, 1]) {
       const sh = s > 0 ? J.shR : J.shL, q = ph + (s > 0 ? 0 : Math.PI), along = -Math.sin(q) * o.swing * sp;
       let hand = add(sh, [mf * along + .5 * (1 - sp) + o.hunch * 3, s * .9 + mr * along, -armLen * .86 + Math.abs(Math.sin(q)) * 1.2 * sp]);
       hand = V3.lerp(hand, add(sh, [-4.5, s * 1.6, -5]), dash);
       hand = V3.lerp(hand, add(sh, s > 0 ? [1.4, -.6, .6] : [-1.6, s * 2.2, -3.2]), hurt);   // a flinch: one arm up to shield the face, the other flung back
-      if (this.airW > 0) hand = V3.lerp(hand, add(sh, [1.2, s * 2.6, -1.2]), this.airW * .7);
-      if (s > 0 && this.pointW > 0) { const aa = this.aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this.pointW); }
+      if (this._airW > 0) hand = V3.lerp(hand, add(sh, [1.2, s * 2.6, -1.2]), this._airW * .7);
+      if (s > 0 && this._pointW > 0) { const aa = this.aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this._pointW); }
       if (PW.cheer > 0) hand = V3.lerp(hand, add(sh, [.6, s * 1.4, armLen * (.74 + .12 * Math.sin(this.t * 9 + (s > 0 ? 0 : .7)))]), PW.cheer);   // fists pump
       if (PW.cast > 0) hand = V3.lerp(hand, add(shC, [armLen * .82, s * 1.3, -1.2]), PW.cast);
       const guardAt = add(shC, s < 0 ? [3.8, -1, .4] : [2.3, 1.5, -.6]);   // boxer's guard: lead fist out at chin height, face stays visible
       if (PW.guard > 0) hand = V3.lerp(hand, guardAt, PW.guard);
-      if (this.stW > 0) hand = V3.lerp(hand, guardAt, this.stW * (1 - dash));
-      if (this.rdW > 0 && o.weapon) hand = V3.lerp(hand, s > 0 ? add(shC, [2.8, .9, -3]) : add(shC, [2.2, .2, -3.6]), this.rdW * (1 - dash));   // ready: weapon held forward in both hands
+      if (this._stW > 0) hand = V3.lerp(hand, guardAt, this._stW * (1 - dash));
+      if (this._rdW > 0 && o.weapon) hand = V3.lerp(hand, s > 0 ? add(shC, [2.8, .9, -3]) : add(shC, [2.2, .2, -3.6]), this._rdW * (1 - dash));   // ready: weapon held forward in both hands
       if (PW.wave > 0 && s === (o.weapon ? -1 : (this._camSide || 1))) { const w = Math.sin(this.t * 11); hand = V3.lerp(hand, add(sh, [.8 + w * 1.7, s * (2 + Math.max(0, w) * 1.4), armLen * .8]), PW.wave); }   // the free hand waves (the camera-side one when both are free)
       if (PW.hips > 0) hand = V3.lerp(hand, add(s > 0 ? J.hipR : J.hipL, [-.2, s * 1.5, 1.5]), PW.hips);
       if (PW.block > 0) hand = V3.lerp(hand, add(shC, s > 0 ? [2.6, .6, -2.4] : [2.4, -.2, -3.4]), PW.block);   // block: weapon upright across the body, both hands on it
-      if (cw > 0) hand = V3.lerp(hand, add(sh, [1.7, s * .5, armLen * (.08 + .8 * (.5 + .5 * Math.sin(this.climbP + (s > 0 ? 0 : Math.PI))))]), cw);   // hands on the rails, one reaching high above the head while the other pulls down
+      if (cw > 0) hand = V3.lerp(hand, add(sh, [1.7, s * .5, armLen * (.08 + .8 * (.5 + .5 * Math.sin(this._climbP + (s > 0 ? 0 : Math.PI))))]), cw);   // hands on the rails, one reaching high above the head while the other pulls down
       const wk = this._from && this._windK < 1 ? this._windK : 1, from = wk < 1 ? this._from[s > 0 ? 'R' : 'L'] : null;
-      if (aw > 0 && !this.kicking) {
+      if (aw > 0 && !this._kicking) {
         if (s === sA) hand = V3.lerp(hand, from ? V3.lerp(from, aT, wk) : aT, aw);                // the striking hand
         else if (two) hand = V3.lerp(hand, add(aT, V3.mul(aDir, -1.7)), aw);                      // two-handed grip below it
         else { const offT = fists ? guardAt : add(shC, [1.6, s * 1.6, -1.6]); hand = V3.lerp(hand, from ? V3.lerp(from, offT, wk) : offT, from ? aw : aw * .85); }   // the other hand guards the chin (fists) or pulls back
       }
-      if (this.kicking && aw > 0) hand = V3.lerp(hand, add(shC, [1.8, s * 2.2, .6 - (s > 0 ? 1.5 : 0)]), aw * .85);   // arms up for balance during a kick
+      if (this._kicking && aw > 0) hand = V3.lerp(hand, add(shC, [1.8, s * 2.2, .6 - (s > 0 ? 1.5 : 0)]), aw * .85);   // arms up for balance during a kick
       const [elbow, h2] = ik3(sh, hand, o.armUpper, o.armLower, [-1, s * .7, -.2]);
       J[s > 0 ? 'elbowR' : 'elbowL'] = elbow; J[s > 0 ? 'handR' : 'handL'] = h2;
     }
     const wp = o.weapon, rest = V3.norm(wp === 'staff' ? [.3, .15, 1] : wp === 'gun' ? [.8, 0, -.6] : [.55, .35, -.75]), atk = aDir;
-    let bd = V3.lerp(rest, atk, this.kicking || sA < 0 ? 0 : aw);
-    if (this._from && this._windK < 1 && !this.kicking && sA > 0) bd = V3.lerp(this._from.bd, bd, this._windK);   // the weapon turns from where it was
+    let bd = V3.lerp(rest, atk, this._kicking || sA < 0 ? 0 : aw);
+    if (this._from && this._windK < 1 && !this._kicking && sA > 0) bd = V3.lerp(this._from.bd, bd, this._windK);   // the weapon turns from where it was
     if (PW.cheer > 0) bd = V3.lerp(bd, [.15, .05, 1], PW.cheer);   // raised in triumph, point up
     if (PW.block > 0) bd = V3.lerp(bd, [.35, -.3, .9], PW.block);   // held upright across the body
-    if (this.rdW > 0) bd = V3.lerp(bd, [.62, .08, .78], this.rdW * (1 - aw));
-    if (this.pointW > 0) bd = V3.lerp(bd, [Math.cos(this.aimA || 0), 0, Math.sin(this.aimA || 0)], this.pointW);
+    if (this._rdW > 0) bd = V3.lerp(bd, [.62, .08, .78], this._rdW * (1 - aw));
+    if (this._pointW > 0) bd = V3.lerp(bd, [Math.cos(this.aimA || 0), 0, Math.sin(this.aimA || 0)], this._pointW);
     J.bladeDir = V3.norm(bd);
     const dw = this.downW || 0;
     if (dw > 0) J.bladeDir = V3.norm(V3.lerp(J.bladeDir, [0, .9, -.4], dw));   // a dropped weapon lies flat once the body is down
@@ -2343,6 +2605,7 @@ class Humanoid {
     const c = this.o.cape, sz = this.o.size, N = c.len || 6, seg = (c.seg || 2.4) * sz, W0 = (c.width || 5) * sz;
     const anchor = s => { const J = this.J, sh = s > 0 ? J.shR : J.shL, w = this._w(V3.add(sh, [-1.3, -s * .6, -.6])); return [this.x + w[0], this.y + w[1], this.z + w[2]]; };
     if (!this.capeL) {
+      /** capeR: the cape's right edge points */
       this.capeL = []; this.capeR = [];
       const bx = -Math.cos(this.facing) * (c.body || 3.4) * sz, by = -Math.sin(this.facing) * (c.body || 3.4) * sz;   // start hanging behind the back, not inside the body
       for (const s of [-1, 1]) { const a = anchor(s), ch = s < 0 ? this.capeL : this.capeR; for (let i = 0; i < N; i++) { const k = Math.min(1, i / 2); ch.push({ x: a[0] + bx * k, y: a[1] + by * k, z: a[2] - i * seg, px: a[0] + bx * k, py: a[1] + by * k, pz: a[2] - i * seg }); } }
@@ -2450,7 +2713,7 @@ class Humanoid {
     const out = o.outfit, hz = Math.max(J.hipL[2], J.hipR[2]) + .9;
     if (out === 'tunic' || out === 'robe' || out === 'coat') {
       const len = out === 'robe' ? hz - .6 : out === 'coat' ? hz * .62 : hz * .42, fl = out === 'robe' ? 1.55 : 1.3, dep = o.torsoW * .7;
-      const tail = out === 'coat' ? -1.2 - 2.2 * Math.min(1, this.spW) : 0, fwd = this.atkW * .3;
+      const tail = out === 'coat' ? -1.2 - 2.2 * Math.min(1, this._spW) : 0, fwd = this._atkW * .3;
       const lat = [Sp([J.hipC[0], -o.hipHalf * 1.25, hz]), Sp([J.hipC[0], o.hipHalf * 1.25, hz]), Sp([J.hipC[0] + tail * .5 + fwd, o.hipHalf * 1.25 * fl, hz - len]), Sp([J.hipC[0] + tail * .5 + fwd, -o.hipHalf * 1.25 * fl, hz - len])];
       const sag = [Sp([J.hipC[0] + dep, 0, hz]), Sp([J.hipC[0] + (out === 'coat' ? dep * .3 : dep * fl) + fwd, 0, hz - len * (out === 'coat' ? .45 : 1)]), Sp([J.hipC[0] - dep * fl + tail, 0, hz - len]), Sp([J.hipC[0] - dep, 0, hz])];
       const cc = out === 'coat' ? (C.coat || C.cloth) : C.cloth, trim = C.trim || (out === 'coat' ? shade(cc, -.35) : C.belt);
@@ -2778,6 +3041,9 @@ class Attack {
   constructor(spec = {}, over) {
     if (typeof spec === 'string') { const m = E.MOVES[spec]; if (!m) warn('move:' + spec, 'unknown move "' + spec + '". Moves: ' + Object.keys(E.MOVES).join(', ')); spec = Object.assign({ name: spec, hitAt: .35 }, m || E.MOVES.slash, over); }
     else if (over) spec = Object.assign({}, spec, over);
+    /** spec: the move: seconds of wind, active and recover, and its shape for the rig (a0, a1, z0, z1, reach,
+     *  hitAt); phase: 'wind' | 'active' | 'recover', or null when idle; t: seconds into the phase; hit: the targets
+     *  this swing has hit (each is hit once) */
     this.spec = Object.assign({ wind: .06, active: .1, recover: .18 }, spec); this.phase = null; this.t = 0; this.hit = new Set();
   }
   /** begin a swing if idle (or when canCancel and already recovering). Returns true if it started */
@@ -2785,12 +3051,16 @@ class Attack {
     if (this.phase && !(canCancel && this.phase === 'recover')) return false;
     this.phase = 'wind'; this.t = 0; this.hit.clear(); return true;
   }
+  /** true from the wind-up to the end of the recovery */
   get busy() { return !!this.phase; }
+  /** true while the strike can connect */
   get active() { return this.phase === 'active'; }
   /** 0..1 progress through the current phase */
   get u() { return this.phase ? clamp(this.t / this.spec[this.phase], 0, 1) : 0; }
   /** what Humanoid.update wants as `attack` (null when idle) */
   get state() { return this.phase ? { spec: this.spec, phase: this.phase, u: this.u } : null; }
+  /** advance the swing by dt seconds; returns the phase that began during it ('active' = play the swing sound), or
+   *  null */
   update(dt) {
     if (!this.phase) return null;
     this.t += dt; let began = null;
@@ -2809,6 +3079,7 @@ class Attack {
     for (const t of targets) { if (!t || t.dead || this.hit.has(t) || !test(t)) continue; this.hit.add(t); n++; fn(t); }
     return n;
   }
+  /** stop the swing at once (hurt, dodged into) */
   cancel() { this.phase = null; this.t = 0; }
 }
 E.Attack = Attack;
@@ -2822,10 +3093,17 @@ E.Attack = Attack;
  *   combo.step = index of the current hit (0, 1, 2), combo.current = its Attack
  */
 class Combo {
+  /** new E.Combo(items, { window: .3 }): items are move names, specs or Attacks. moves: the Attacks; window: seconds
+   *  after a hit ends that a press still chains; step: the index of the current hit (-1 before the first); idle:
+   *  seconds since the last hit ended */
   constructor(specs, o = {}) { this.moves = specs.map(sp => sp instanceof Attack ? sp : new Attack(sp)); this.window = o.window === undefined ? .3 : o.window; this.step = -1; this.idle = 99; }   // items: specs, Attacks or move names
+  /** the Attack of the current hit */
   get current() { return this.moves[Math.max(0, this.step)]; }
+  /** true while a hit of the chain is swinging */
   get busy() { return this.step >= 0 && this.current.busy; }
+  /** true while the current hit can connect */
   get active() { return this.busy && this.current.active; }
+  /** what Humanoid.update wants as `attack` (null when idle) */
   get state() { return this.busy ? this.current.state : null; }
   /** start or continue the chain. Returns true if a hit started */
   press() {
@@ -2835,8 +3113,11 @@ class Combo {
     if (cur && cur.busy) cur.cancel();
     this.step = next; this.idle = 0; return this.moves[next].start();
   }
+  /** advance the current hit; returns the phase that began, as Attack.update */
   update(dt) { if (this.step < 0) return null; const r = this.current.update(dt); if (!this.current.busy) this.idle += dt; return r; }
+  /** the current hit's hits(targets, test, fn): fn(target) once per swing where test(target) is true */
   hits(targets, test, fn) { return this.step >= 0 ? this.current.hits(targets, test, fn) : 0; }
+  /** stop the chain; the next press starts it over */
   cancel() { if (this.step >= 0) this.current.cancel(); this.step = -1; this.idle = 99; }
 }
 E.Combo = Combo;
@@ -2881,6 +3162,8 @@ E.MOVES = {
 };
 /** the attack state of any move at a moment, for previews: rig.update(dt, { attack: E.move('uppercut', .4, 'active') }) */
 const _moveSpecs = {};
+/** any move from E.MOVES at any moment, for previews and cutscenes: rig.update(dt, { ..., attack:
+ *  E.move('roundhouse', .5) }) (u 0..1 through phase) */
 E.move = (name, u = .5, phase = 'active') => ({ spec: _moveSpecs[name] || (_moveSpecs[name] = Object.assign({ name, wind: .06, active: .1, recover: .18 }, E.MOVES[name] || E.MOVES.slash)), phase, u });
 /** push a target away from a point (attacker): uses target.push (E.Body) or its vx / vy. up = upward speed (knock into the air) */
 E.knockback = (from, target, speed = 160, up = 0) => {
@@ -2895,10 +3178,15 @@ E.knockback = (from, target, speed = 160, up = 0) => {
  * ============================================================================= */
 class Blob {
   constructor(o = {}) {
+    /** o: its options (R: the radius, 6.5; ears, horns, wings, feet, tail, mouth, face, colors) */
     this.o = Object.assign({ R: 6.5 }, o);
+    /** C: its colors: dk, base, lt, spec, eye, pupil */
     this.C = Object.assign({ dk: '#6d2658', base: '#c95f9a', lt: '#f5a3cc', spec: '#fff2f8', eye: '#ffffff', pupil: '#2a0f24' }, o.colors || {});
+    /** sq: squash -0.45..0.45 (- flat, + tall); sqV: its speed; target: the squash it springs toward; look: where
+     *  its eyes look, a ground direction; t: its clock, seconds; squint: eyes narrowed; scale: drawing scale (1) */
     this.sq = 0; this.sqV = 0; this.target = 0; this.look = [1, 0]; this.t = 0; this.squint = false; this.scale = 1;
   }
+  /** a squash kick: + stretches (a hop), - squashes (a landing, a hit) */
   kick(v) { this.sqV += v; }
   /** s: {squash target -0.4..0.4, look:[dx,dy] ground dir, squint} */
   update(dt, s = {}) {
@@ -2906,7 +3194,9 @@ class Blob {
     const target = s.squash || 0;
     this.sqV += (-(this.sq - target) * 320 - 14 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.45, .45);
     if (s.look) { const l = Math.hypot(s.look[0], s.look[1]); if (l > .01) { this.look[0] = lerp(this.look[0], s.look[0] / l, Math.min(1, dt * 8)); this.look[1] = lerp(this.look[1], s.look[1] / l, Math.min(1, dt * 8)); } }
+    /** walk: 0..1, how fast it is walking (its feet patter) */
     this.squint = !!s.squint; this.walk = s.walk || 0;
+    /** flap: the wings' speed now, 0 (folded) .. 1; flapP: the wing beat's phase; hang: roosting upside down */
     this.flap = approach(this.flap === undefined ? 1 : this.flap, s.flap === undefined ? 1 : s.flap, dt * 6); this.flapP = (this.flapP || 0) + dt * 14 * this.flap; this.hang = !!s.hang;   // wings: flap speed 0..1 (0 folds them); hang: roost upside down
   }
   /**
@@ -3022,12 +3312,17 @@ class TileMap {
    * block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
    */
   constructor(o = {}) {
+    /** T: the tile size in world units (16) */
     this.T = o.tile || 16;
     const L = o.rows ? parseLevel(o.rows, o.legend) : o.level || null;
     if (L) o = Object.assign({}, o, { w: L.w, h: L.h, cells: L.cells });
     if (!o.w || !o.h || !o.cells) throw new Error('TileMap needs { rows, legend } or { w, h, cells }');
     if (o.cells.length !== o.w * o.h) throw new Error('TileMap: cells has ' + o.cells.length + ' entries but w * h = ' + (o.w * o.h));
+    /** w, h: the map's size in cells; cells: the wall type id of every cell, row by row (index cy * w + cx; change
+     *  one with set); types: the wall types by id ({ h, top, side, face, roof, cut, ... }) */
     this.w = o.w; this.h = o.h; this.cells = o.cells; this.types = Object.assign({}, o.types || {});
+    /** floorTags: each cell's floor tag from the legend ('water', 'lava', ...), row by row, or null for a map built
+     *  from cells */
     this.floorTags = L ? L.floor : null;
     /** cells nobody can walk on (deep water, lava, pits): legend { floor: 'water', block: true } or TileMap { block: ['water'] } */
     this.blocked = L ? L.block : new Uint8Array(this.w * this.h);
@@ -3035,27 +3330,39 @@ class TileMap {
     /** spawn points from the ASCII rows: { tag, ch, cx, cy, x, y, z } (x, y = cell center) */
     this.spawns = L ? L.spawns.map(sp => Object.assign(sp, { x: (sp.cx + .5) * this.T, y: (sp.cy + .5) * this.T, z: 0 })) : [];
     for (const id of new Set(this.cells)) if (id > 0 && !this.types[id]) { warn('walltype:' + id, 'TileMap: wall type ' + id + ' is used in the map but missing from types (using a plain grey wall)'); this.types[id] = DEFAULT_WALL; }
+    /** floorTex: floorTex(x, y, tag, view) -> [r, g, b], the floor's color per pixel; cutaway: walls between the
+     *  camera and the floor drop low (types with cut: true; false turns it off); floors: the baked floor images by
+     *  view (floors = {} re-bakes them after floorTex changes) */
     this.floorTex = o.floorTex || (() => [60, 56, 72]); this.cutaway = o.cutaway !== false; this.floors = {};
     /** contact shadow width (world units) along the foot of walls; 0 turns it off */
     this.ao = o.ao === undefined ? 5 : o.ao;
     /** animated sparkle on floor cells tagged 'water' or 'lava' */
     this.shimmer = o.shimmer !== false;
+    /** light: the direction light comes from, for shading wall faces; version: counts every change to cells and
+     *  blocked cells (set, block), so caches and flow fields know to rebuild */
     this.light = V3.norm([-.6, -.8, 0]); this.version = 0;
   }
   /** first spawn with this tag ({ x, y, z, cx, cy }), or null */
   find(tag) { return this.spawns.find(s => s.tag === tag) || null; }
+  /** every spawn with this tag */
   findAll(tag) { return this.spawns.filter(s => s.tag === tag); }
+  /** the wall type id at a cell (0 = floor, -1 outside the map) */
   cell(cx, cy) { return cx < 0 || cy < 0 || cx >= this.w || cy >= this.h ? -1 : this.cells[cy * this.w + cx]; }
+  /** put wall type v at a cell (0 opens it: a door, a broken wall); bumps version, so caches and flow fields rebuild */
   set(cx, cy, v) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) { if (v > 0 && !this.types[v]) this.types[v] = DEFAULT_WALL; this.cells[cy * this.w + cx] = v; this.floors = {}; this.version++; } }
   /** world point -> [cx, cy] cell; cell -> world center */
   toCell(x, y) { return [Math.floor(x / this.T), Math.floor(y / this.T)]; }
+  /** the world point at a cell's center */
   center(cx, cy) { return [(cx + .5) * this.T, (cy + .5) * this.T]; }
+  /** true where a cell has a wall (or is outside the map); walkable() also counts blocked floor */
   solidCell(cx, cy) { const c = this.cell(cx, cy); return c !== 0; }
   /** true where a body can walk: no wall and not a blocked floor (water, lava). Pathfinding uses this. */
   walkable(cx, cy) { return this.cell(cx, cy) === 0 && !this.blocked[cy * this.w + cx]; }
   /** mark a cell blocked or free at runtime (a bridge appears, lava cools) */
   block(cx, cy, on = true) { const i = cy * this.w + cx, v = on ? 1 : 0; if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h && this.blocked[i] !== v) { this.blocked[i] = v; this.version++; } }
+  /** solidCell at a world point */
   solidAt(x, y) { return this.solidCell(Math.floor(x / this.T), Math.floor(y / this.T)); }
+  /** a cell's top: its wall's h, 0 on the floor, 1e9 outside the map (the height rules: E.HEIGHTS) */
   height(cx, cy) { const c = this.cell(cx, cy); return c > 0 ? this.types[c].h : c < 0 ? 1e9 : 0; }
   /** wall height at a world point (0 on the floor) */
   heightAt(x, y) { return this.height(Math.floor(x / this.T), Math.floor(y / this.T)); }
@@ -3276,8 +3583,9 @@ class TileMap {
     if (ig) ig.putImageData(iimg, 0, 0);
     return (this.floors[key] = { cv, info: icv, x0, y0 });
   }
+  /** draw the baked floor (first thing in draw, after r.sky); walls come from queueWalls(r) */
   drawFloor(r) {
-    r._map = this; const f = this._floor(r.view); r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); if (r.gpu && f.info) r.iG.drawImage(f.info, f.x0 - r.ix, f.y0 - r.iy);
+    r._map = this; const f = this._floor(r.view); r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); if (r.gpu && f.info) r._iG.drawImage(f.info, f.x0 - r.ix, f.y0 - r.iy);
     if (this.shimmer && this.floorTags && r.view.inv) {
       const T = this.T, t = r.game.real, g = r.ctx;
       for (let cy = 0; cy < this.h; cy++) for (let cx = 0; cx < this.w; cx++) {
@@ -3455,7 +3763,11 @@ class FlowField {
    * walk over); a target on a roof gets a field across the roofs it connects to
    */
   constructor(map, o = {}) {
-    this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this.q = new Int32Array(n); this.top = new Float64Array(n); this.tx = -1; this.ty = -1; this.version = -1;
+    /** map: the map it paths over; d: each cell's distance in steps to the target cell (1e9 where it can't get
+     *  there), row by row; tx, ty: the target's cell; version: the map's version it was built for */
+    this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this._q = new Int32Array(n); this._tops = new Float64Array(n); this.tx = -1; this.ty = -1; this.version = -1;
+    /** step: the height difference walked over freely (2); climb: how much higher a next-door top may be (an agent
+     *  that climbs walls); drop: how much lower (an agent that hops down) */
     this.step = o.step === undefined ? HEIGHTS.step : o.step; this.climb = o.climb || 0; this.drop = o.drop || 0;
   }
   /** the height an agent stands at in a cell, or NaN where it can't (outside, a blocked floor; a wall where the map has no heights) */
@@ -3465,13 +3777,13 @@ class FlowField {
     return (m.walkable ? m.walkable(cx, cy) : !m.solidCell(cx, cy)) ? 0 : NaN;
   }
   /** can an agent step from cell i to the cell j next to it? */
-  _link(i, j) { const dz = this.top[j] - this.top[i]; return dz >= 0 ? dz <= Math.max(this.step, this.climb) : -dz <= Math.max(this.step, this.drop); }   // (NaN: false)
+  _link(i, j) { const dz = this._tops[j] - this._tops[i]; return dz >= 0 ? dz <= Math.max(this.step, this.climb) : -dz <= Math.max(this.step, this.drop); }   // (NaN: false)
   /** aim the field at a world point; it rebuilds only when the target's cell or the map (map.version) changes */
   update(x, y) {
     const m = this.map, T = m.T, W = m.w, H = m.h, tx = Math.floor(x / T), ty = Math.floor(y / T);
     if (tx === this.tx && ty === this.ty && m.version === this.version) return;
     this.tx = tx; this.ty = ty; this.version = m.version;
-    const d = this.d, q = this.q, top = this.top; d.fill(1e9);
+    const d = this.d, q = this._q, top = this._tops; d.fill(1e9);
     for (let cy = 0, i = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++, i++) top[i] = this._top(cx, cy);
     if (tx < 0 || ty < 0 || tx >= W || ty >= H || Number.isNaN(top[ty * W + tx])) return;
     let h = 0, t = 0; d[ty * W + tx] = 0; q[t++] = ty * W + tx;
@@ -3567,9 +3879,12 @@ const PT_STYLE_FOR_KIND = { oneway: 'plank', ladder: 'ladder', hazard: 'spikes',
 class PlatformMap {
   /** { rows: [...ASCII, top row first...], legend: { '#': 1, '@': 'hero' }, types: { 1: {...} }, tile: 16, depth: 16 } */
   constructor(o = {}) {
+    /** T: the tile size (16); depth: how deep tiles are drawn in tilted views, world units (the tile size) */
     this.T = o.tile || 16; this.depth = o.depth === undefined ? this.T : o.depth;
     const L = o.rows ? parseLevel(o.rows, o.legend) : o.level;
     if (!L) throw new Error('PlatformMap needs { rows: [...], legend: {...}, types: {...} }');
+    /** w, h: the level's size in cells; types: the tile types by id, with their defaults filled in ({ kind, style,
+     *  side, top, ... }) */
     this.w = L.w; this.h = L.h; this.types = {};
     for (const k in (o.types || {})) { const t = Object.assign({ kind: 'solid' }, o.types[k]); t.style = t.style || PT_STYLE_FOR_KIND[t.kind] || 'block'; t.side = t.side || t.color || PT_DEFAULT.side; this.types[k] = t; }
     // stored bottom row first: cz = 0 is the lowest row and z grows upward
@@ -3578,24 +3893,36 @@ class PlatformMap {
     for (const id of new Set(this.cells)) if (id > 0 && !this.types[id]) { warn('ptype:' + id, 'PlatformMap: tile type ' + id + ' is used but missing from types (using a plain solid block)'); this.types[id] = Object.assign({}, PT_DEFAULT); }
     /** spawn points: { tag, ch, cx, cz, x, y: 0, z } with x = cell center and z = bottom of the cell (feet) */
     this.spawns = L.spawns.map(sp => { const cz = this.h - 1 - sp.cy; return Object.assign(sp, { cz, x: (sp.cx + .5) * this.T, y: 0, z: cz * this.T }); });
+    /** version: counts every change to the cells (set); edges: 'solid' (the default) makes the level's left and
+     *  right edges walls, 'open' lets bodies walk off them */
     this.version = 0; this._bake = null; this.edges = o.edges || 'solid';
   }
+  /** the first spawn with this tag ({ x, y: 0, z, cx, cz }), or null */
   find(tag) { return this.spawns.find(s => s.tag === tag) || null; }
+  /** every spawn with this tag */
   findAll(tag) { return this.spawns.filter(s => s.tag === tag); }
   /** tile id at column cx, row cz (cz = 0 is the bottom). Left and right of the level are solid walls unless edges: 'open' */
   cell(cx, cz) { if (cx < 0 || cx >= this.w) return this.edges === 'open' ? 0 : -1; if (cz < 0 || cz >= this.h) return 0; return this.cells[cz * this.w + cx]; }
+  /** a cell's kind: 'solid', 'oneway', 'ladder', 'slope', 'hazard', 'deco' or 'back', null when empty ('solid'
+   *  outside) */
   kind(cx, cz) { const c = this.cell(cx, cz); return c < 0 ? 'solid' : c === 0 ? null : this.types[c].kind; }
+  /** put tile type id at a cell (0 clears it; cz counts from the bottom row); bumps version */
   set(cx, cz, id) {
     if (cx < 0 || cz < 0 || cx >= this.w || cz >= this.h) return;
     if (id > 0 && !this.types[id]) this.types[id] = Object.assign({}, PT_DEFAULT);
     this.cells[cz * this.w + cx] = id; this.version++;
   }
+  /** a world point -> [cx, cz] */
   toCell(x, z) { return [Math.floor(x / this.T), Math.floor(z / this.T)]; }
+  /** a cell's center -> [x, z] */
   center(cx, cz) { return [(cx + .5) * this.T, (cz + .5) * this.T]; }
+  /** kind() at a world point */
   kindAt(x, z) { return this.kind(Math.floor(x / this.T), Math.floor(z / this.T)); }
+  /** true where a world point is inside a solid tile */
   solidAt(x, z) { return this.kindAt(x, z) === 'solid'; }
   /** width and height of the level in world units */
   get width() { return this.w * this.T; }
+  /** the level's height in world units (width is its width) */
   get height() { return this.h * this.T; }
   /** top of the highest solid or one-way tile at or below height z in this column, or null over a pit */
   groundBelow(x, z) {
@@ -3727,7 +4054,7 @@ class PlatformMap {
   /** draw the level as the background layer: call right after r.sky() and before anything else */
   draw(r) {
     const view = r.view, g = r.ctx;
-    r.game.lights.screenFrame = true;   // side-scroller lighting is measured on screen, not on a ground plane
+    r.game.lights._screenFrame = true;   // side-scroller lighting is measured on screen, not on a ground plane
     if (Math.abs(view.yawDeg % 360) > 1) warn('pmap:yaw', 'PlatformMap is drawn for views with yaw 0 (side, brawler, or a custom tilted side view); other views look wrong');
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale + ':' + view.zBoost + ':' + this.version;
     if (!this._bake || this._bake.key !== key) this._bake = { key, chunks: new Map(), b: this.bounds(view) };
@@ -3891,6 +4218,17 @@ E.PlatformMap = PlatformMap;
  */
 class Platformer {
   constructor(o = {}) {
+    /** x, z: its feet's position (side view: x right, z up); y: its depth (0); vx, vz: its speed; w, h: its box (x is
+     *  its center, z its feet); run: top running speed; accel, decel, airAccel: how fast it speeds up and slows down
+     *  on the ground and in the air; jump: the jump's starting speed; gravity: while rising; fallGravity: while
+     *  falling (snappier landings); maxFall: the fastest fall; cut: the share of upward speed kept when jump is let
+     *  go early (short hops); coyote: seconds a jump still works after walking off a ledge; buffer: seconds a jump
+     *  pressed before landing is kept; climb: ladder speed; airJumps: extra jumps in the air (1 = double jump);
+     *  wallJump: jumps off walls; wallSlide: the slowest fall against a wall; dash: dash speed (0 = no dash);
+     *  dashTime: seconds a dash lasts; facing: 1 right, -1 left; onGround: standing on something; climbing: on a
+     *  ladder; jumped, landed: it jumped or landed this step; air: in the air, not climbing; stun: seconds of
+     *  knockback left (no control); drop: seconds left of dropping through a one-way platform; dashing: seconds of
+     *  dash left */
     Object.assign(this, {
       x: 0, y: 0, z: 0, vx: 0, vz: 0, w: 8, h: 22,
       run: 95, accel: 900, decel: 1100, airAccel: 650, jump: 285, gravity: 800, fallGravity: 1150, maxFall: 330,
@@ -3903,6 +4241,8 @@ class Platformer {
   knock(dir, speed = 130, up = 170, stun = .3) { this.vx = dir * speed; this.vz = up; this.stun = stun; this.climbing = false; this.dashing = 0; }
   /** state for Humanoid.update: rig.update(dt, hero.rigState({ attack })) */
   rigState(extra) { return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: 0, vz: this.vz, facing: this.facing > 0 ? 0 : Math.PI, air: this.air && !this.climbing, climb: !!this.climbing, hurt: this.stun > 0, dash: this.dashing > 0 }, extra); }
+  /** move it one step: ctl is game.input or an intent { x: -1..1, jump, jumpPressed, up, down, dash } (enemies,
+   *  bots); solids: moving platforms [{ x, z, w, h, vx, vz }] to stand on */
   update(dt, level, ctl = {}, solids) {
     let ix, jumpHeld, jumpPressed, up, down, dashPressed, consume = () => {};
     if (ctl && typeof ctl.move === 'function') {   // an E.Input
@@ -3964,12 +4304,20 @@ E.Platformer = Platformer;
  *    Walls lower than your feet (plus step) are walkable, so you can jump onto blocks.
  * ============================================================================= */
 class Body {
+  /** new E.Body({ x, y, r: 5, ... }). x, y, z: its position (z = feet); vx, vy, vz: its speed, world units per
+   *  second; r: its radius; gravity: pulls z down (world units per second squared); friction: slows vx and vy per
+   *  second (0 = none); bounce: 0..1, how much speed it keeps off walls and the floor; step: the height it walks up
+   *  without jumping (E.HEIGHTS.step); onGround: standing; groundZ: the height of what is under it; hitWall: it
+   *  touched a wall this step; landed: it landed this step */
   constructor(o = {}) { Object.assign(this, { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 5, gravity: 700, friction: 0, bounce: 0, step: 2, onGround: true, groundZ: 0, hitWall: false, landed: false }, o); }
   /** add an impulse (knockback, explosion): push(vx, vy, vz) */
   push(ix, iy, iz = 0) { this.vx += ix; this.vy += iy; if (iz) { this.vz += iz; this.onGround = false; } return this; }
   /** leave the ground with upward speed v (only when standing). Returns true if it jumped */
   jump(v = 220) { if (!this.onGround) return false; this.vz = v; this.onGround = false; return true; }
+  /** move it one step: speed, friction, walls (map.collide: lower walls are walked onto), gravity and the ground
+   *  under it (map.groundAt) */
   update(dt, map) {
+    /** bounced: it hit the ground and bounced up this step (dust, a thud) */
     this.landed = false; this.hitWall = false; this.bounced = false;
     if (this.friction) { const k = Math.exp(-this.friction * dt); this.vx *= k; this.vy *= k; }
     this.x += this.vx * dt; this.y += this.vy * dt;
@@ -4006,6 +4354,9 @@ E.Body = Body;
  *      shots.update(dt, map);  shots.hit(enemies, (b, e) => {...}, 'player');  shots.draw(r);
  * ============================================================================= */
 class Bullets {
+  /** new E.Bullets(game, { plane: 'ground' | 'side', max: 800, sparks: true }). game: its game; list: the live
+   *  bullets; max: at most this many at once; plane: 'ground' (they fly over x and y) or 'side' (x and z); sparks: a
+   *  puff of sparks where one hits a wall */
   constructor(game, o = {}) { this.game = game; this.list = []; this.max = o.max || 800; this.plane = o.plane || 'ground'; this.sparks = o.sparks !== false; }
   /** fire one bullet. Fields: x, y, z, vx, vy, vz, r, dmg, life, team, color, core, sprite, pierce, grav, data */
   fire(b) {
@@ -4015,6 +4366,7 @@ class Bullets {
   }
   /** fire several at once from a pattern list of [vx, v2] (v2 = vy on the ground plane, vz in side view) */
   burst(base, vels) { const out = []; for (const v of vels) out.push(this.fire(Object.assign({}, base, this.plane === 'side' ? { vx: v[0], vz: v[1] } : { vx: v[0], vy: v[1] }))); return out; }
+  /** move them one step; with a map they stop at walls (a TileMap, or a PlatformMap in side views) */
   update(dt, map) {
     for (const b of this.list) {
       if (b.dead) continue;
@@ -4044,7 +4396,9 @@ class Bullets {
     prune(this.list, b => b.dead);
     return n;
   }
+  /** remove every bullet, or only one team's */
   clear(team) { if (team) prune(this.list, b => b.team === team); else this.list.length = 0; }
+  /** queue them for drawing (glowing cores, or their sprites) */
   draw(r) {
     const s = r.view.scale;
     for (const b of this.list) {
@@ -4064,6 +4418,7 @@ E.pattern = {
   dir: (angle, speed) => [Math.cos(angle) * speed, Math.sin(angle) * speed],
   /** aim from a to b on the ground plane (x, y); aimSide uses x, z */
   aim: (a, b, speed) => { const an = Math.atan2(b.y - a.y, b.x - a.x); return [Math.cos(an) * speed, Math.sin(an) * speed]; },
+  /** a velocity from a toward b in a side view (x, z) */
   aimSide: (a, b, speed) => { const an = Math.atan2((b.z || 0) - (a.z || 0), b.x - a.x); return [Math.cos(an) * speed, Math.sin(an) * speed]; },
   /** n bullets fanned across `arc` radians around `angle` */
   spread: (angle, n, arc, speed) => Array.from({ length: n }, (_, i) => { const a = angle + (n < 2 ? 0 : (i / (n - 1) - .5) * arc); return [Math.cos(a) * speed, Math.sin(a) * speed]; }),
@@ -4077,10 +4432,15 @@ E.pattern = {
  *    Side-scrollers: grid.build(list, 'x', 'z') and query with (x, z).
  * ============================================================================= */
 class SpatialHash {
+  /** new E.SpatialHash(cell = 32): buckets things by position, to find what is near cheaply. cell: the bucket size
+   *  in world units; map: the buckets */
   constructor(cell = 32) { this.cell = cell; this.map = new Map(); }
   _k(cx, cy) { return (cx & 0xffff) * 65536 + (cy & 0xffff); }
+  /** empty it */
   clear() { this.map.clear(); return this; }
+  /** put o in the bucket at (x, y) */
   add(o, x = o.x, y = o.y) { const k = this._k(Math.floor(x / this.cell), Math.floor(y / this.cell)); let a = this.map.get(k); if (!a) this.map.set(k, a = []); a.push(o); return this; }
+  /** clear, then add every live thing in list (skips o.dead); do it once a step */
   build(list, xk = 'x', yk = 'y') { this.clear(); for (const o of list) if (o && !o.dead) this.add(o, o[xk], o[yk]); return this; }
   /** call fn(o) for everything in the cells touching the circle (check the exact distance yourself) */
   near(x, y, r, fn) {
@@ -4089,6 +4449,7 @@ class SpatialHash {
       const a = this.map.get(this._k(cx, cy)); if (a) for (const o of a) fn(o);
     }
   }
+  /** what lies within about r of (x, y), as a list (near() calls a function instead) */
   query(x, y, r) { const out = []; this.near(x, y, r, o => out.push(o)); return out; }
 }
 E.SpatialHash = SpatialHash;
@@ -4154,8 +4515,16 @@ const DRUMS = {
   t: [{ wave: 'triangle', freq: 180, to: 90, dur: .16, vol: .45 }]
 };
 class ChipAudio {
-  constructor(game) {
-    this.game = game; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
+  /** game.audio: a chip synthesizer, no sound files. Sound starts after the person's first tap or key (browsers'
+   *  rule); until then, and where there is no Web Audio, every call is silently skipped */
+  constructor(game, signal) {
+    /** game: the game it plays for; ctx: the Web Audio context, made at the first sound (null before, or where there
+     *  is none); volume: master volume 0..1; sfxVolume, musicVolume: 0..1 for effects and music; muted: true while
+     *  mute() is on */
+    this.game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
+    /** presets: the named sound effects, sfx(name) plays one and define(name, voice) adds one; song: the music
+     *  playing (null for none); failed: why there is no sound (a message), or null; ducked: true while duck(true)
+     *  holds the music down */
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
@@ -4166,21 +4535,22 @@ class ChipAudio {
     try {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) throw new Error('Web Audio is not available');
       const c = this.ctx = new AC();
-      this.master = c.createGain(); this.master.connect(c.destination);
-      this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
-      this.musBus = c.createGain(); this.musBus.connect(this.master);
+      this._master = c.createGain(); this._master.connect(c.destination);
+      this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
+      this._musBus = c.createGain(); this._musBus.connect(this._master);
       this._levels();
       const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
-      this.noise = nb;
+      this._noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
-      for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true });
+      for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true, signal: this._signal });
       resume();
     } catch (e) { this.failed = e.message || String(e); warn('audio', 'sound is off: ' + this.failed); }
     return this.ctx;
   }
   /** true once the browser lets the game make sound */
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
-  _levels() { if (!this.ctx) return; this.master.gain.value = this.muted ? 0 : this.volume; this.sfxBus.gain.value = this.sfxVolume; this.musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
+  _levels() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
+  /** set the master volume, 0..1 */
   setVolume(v) { this.volume = clamp(v, 0, 1); this._levels(); }
   /** toggle (or set) mute; returns the new state */
   mute(on = !this.muted) { this.muted = on; this._levels(); return on; }
@@ -4201,7 +4571,7 @@ class ChipAudio {
     else g.gain.exponentialRampToValueAtTime(.0005, end);
     let src;
     if (wave === 'noise') {
-      src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
+      src = c.createBufferSource(); src.buffer = this._noise; src.loop = true;
       const f = c.createBiquadFilter(); f.type = p.filter || 'bandpass'; f.Q.value = p.q || 1.1; f.frequency.setValueAtTime(f0, t); if (to) f.frequency.exponentialRampToValueAtTime(to, end);
       src.connect(f); f.connect(g); src.start(t, this.rnd() * .5);
     } else {
@@ -4228,7 +4598,7 @@ class ChipAudio {
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
     const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
-    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this.sfxBus, now + .005, mul); }
+    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
   /** add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 }) */
@@ -4250,10 +4620,11 @@ class ChipAudio {
     this.stopMusic();
     const tracks = (song.tracks || []).map(t => Object.assign({}, t, { tokens: String(t.notes || '').replace(/\|/g, ' ').trim().split(/\s+/).filter(Boolean) })).filter(t => t.tokens.length);
     if (!tracks.length) { warn('music:empty', 'music(song) needs song.tracks with notes'); return; }
-    const bus = this.ctx.createGain(); bus.connect(this.musBus);
+    const bus = this.ctx.createGain(); bus.connect(this._musBus);
     this.song = { src: song, tracks, spb: 60 / (song.bpm || 120) / (song.steps || 4), step: 0, next: 0, len: Math.max(...tracks.map(t => t.tokens.length)), loop: o.loop !== undefined ? o.loop : song.loop !== false, bus };
     this._timer = setInterval(() => { try { this._schedule(); } catch (e) { warn('music-fail', 'music stopped: ' + e.message); this.stopMusic(); } }, 25);
   }
+  /** stop the music (it fades out over 60 ms) */
   stopMusic() {
     if (this._timer) clearInterval(this._timer); this._timer = null;
     const S = this.song; this.song = null;
@@ -4347,10 +4718,16 @@ const BACKDROPS = {
     layers: [{ kind: 'clouds', color: '#4a2a6a', y: .5, height: .5, parallax: .03, drift: 1, nebula: true }] }
 };
 class Backdrop {
+  /** new E.Backdrop('castle-night') (a preset: E.Backdrop.presets) or new E.Backdrop({ sky: [colors top to bottom],
+   *  sun, moon, stars, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' |
+   *  'fog' | 'stalactites', color, y, height, parallax, seed }] }): a parallax sky and scenery drawn behind a level */
   constructor(o = {}) {
     if (typeof o === 'string') { const p = BACKDROPS[o]; if (!p) warn('backdrop:' + o, 'unknown backdrop preset "' + o + '". Presets: ' + Object.keys(BACKDROPS).join(', ')); o = p || BACKDROPS.day; }
+    /** o: the options it was made from; sky: the sky's gradient colors, top to bottom; layers: its scenery layers,
+     *  back to front, with their defaults filled in */
     this.o = o; this.sky = o.sky || ['#3a78d8', '#c8e4f8']; this.layers = (o.layers || []).map((l, i) => Object.assign({ seed: i * 17 + 3, parallax: .2, y: .7, height: .25 }, l)); this._bake = new Map();
   }
+  /** the preset names: day, sunset, night, castle-night, city-night, desert, forest, ocean, cave, space and more */
   static get presets() { return Object.keys(BACKDROPS); }
   _strip(l, H) {
     const key = l.kind + ':' + l.seed + ':' + l.color + ':' + H + ':' + l.height + ':' + (l.windows || '') + ':' + (l.snow || '');
@@ -4439,6 +4816,7 @@ class Backdrop {
     } else warn('bdkind:' + k, 'unknown backdrop layer kind "' + k + '" (mountains, hills, forest, city, castle, clouds, sea, fog, stalactites)');
     this._bake.set(key, cv); return cv;
   }
+  /** draw the backdrop first in draw(r), before the level; it scrolls with the camera by each layer's parallax */
   draw(r) {
     const o = this.o, g = r.ctx, W = r.bw, H = r.bh, t = this.o.time === undefined ? r.game.real : this.o.time;
     r.sky(this.sky);
@@ -4594,6 +4972,7 @@ function prop(name, o = {}) {
   return p;
 }
 E.prop = prop;
+/** the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts) */
 E.PROPS = Object.keys(PROP_DEFAULTS);
 
 /* =============================================================================
@@ -4606,6 +4985,7 @@ const heartSprites = () => _hearts || (_hearts = {
   half: sprite(['.RR.DD.', 'RWRDDDD', 'RRRDDDD', '.RRDDD.', '..RDD..', '...D...'], { R: '#e8384a', W: '#ffd0d6', D: '#3a1826' }),
   empty: sprite(['.DD.DD.', 'DDDDDDD', 'DDDDDDD', '.DDDDD.', '..DDD..', '...D...'], { D: '#3a1826' })
 });
+/** pixel-drawn interface pieces for r.overlay: box (a window), bar (a meter), hearts (life); E.ui.heartSprites */
 E.ui = {
   /**
    * window frame: ui.box(g, x, y, w, h, { bg, border, shadow, gradient })
@@ -4657,9 +5037,17 @@ E.ui = {
  * confirm (Enter, Space, J, Z, pad A) finishes the line, then turns the page.
  */
 class Dialog {
+  /** new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border }): a dialog box that types its
+   *  text; say() opens it, update(dt) and draw(r) run it */
   constructor(game, o = {}) {
+    /** game: its game */
     this.game = game;
+    /** speed: letters typed per second; lines: text lines per page; place: 'bottom' | 'top' | 'middle'; color: the
+     *  text's color; nameColor: the speaker's name's color; voice: the sound effect each letter blips ('text'; null
+     *  for silence); bg, border: the box's colors */
     Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', bg: '#141a3a', border: '#e8e4ff' }, o);
+    /** open: true while it shows; pages: the text wrapped into pages of lines; i: the page shown; shown: letters
+     *  typed so far on it; choice: the choice under the cursor */
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
   _dims() {
@@ -4673,19 +5061,29 @@ class Dialog {
    *         portraitSize: 40, portraitOpts: { zoom, turn, bg } }
    */
   say(text, o = {}) {
+    /** portrait: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size
+     *  in pixels; pOpts: its options ({ zoom, turn, bg }) */
     this.portrait = o.portrait || null; this.pSize = o.portraitSize || 40; this.pOpts = o.portraitOpts || {};
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
     const d = this._dims(), pages = [];
     for (const t of Array.isArray(text) ? text : [text]) { const L = E.font.wrap(String(t), d.w - d.tx - 5); for (let k = 0; k < L.length; k += this.lines) pages.push(L.slice(k, k + this.lines)); }
     this.pages = pages.length ? pages : [['']]; this.i = 0; this.shown = 0; this.open = true; this.choice = 0;
+    /** name: the speaker's name shown on the box; onDone: called when the last page closes; choices: the answers
+     *  offered on the last page, or null; onChoice: called with the index picked */
     this.name = o.name || null; this.onDone = o.onDone || null; this.choices = o.choices || null; this.onChoice = o.onChoice || null; this._blip = 0;
     this.auto = o.auto || 0; this.modal = o.modal !== false; this._wait = 0;   // auto: seconds each page stays after typing; modal: false lets play go on (radio chatter)
     return this;
   }
+  /** close it now (and forget pending presses, so the same press doesn't also attack) */
   close() { this.open = false; this.game.input.consumeAll(); }
+  /** the lines of the page shown */
   get page() { return this.pages[this.i] || []; }
+  /** the letters on the page shown */
   get pageLen() { return this.page.reduce((a, l) => a + l.length, 0); }
+  /** true while the page is still typing */
   get typing() { return this.shown < this.pageLen; }
+  /** type and turn pages (confirm finishes the line, then turns the page); returns true while open and modal, so
+   *  gameplay can wait: if (talk.update(dt)) return; */
   update(dt) {
     if (!this.open) return false;
     const inp = this.game.input, len = this.pageLen, prev = Math.floor(this.shown);
@@ -4709,6 +5107,7 @@ class Dialog {
     } else if (asking && inp.pressed('cancel')) { this.choice = this.choices.length - 1; }
     return true;
   }
+  /** draw it (anywhere in draw: it goes to the overlay) */
   draw(r) {
     if (!this.open) return;
     r.overlay(g => {
@@ -4742,14 +5141,22 @@ E.Dialog = Dialog;
  */
 class Menu {
   constructor(game, items, o = {}) {
+    /** game: its game; items: the entries (strings, or { label, disabled }); i: the one under the cursor; active:
+     *  false stops it reading input */
     this.game = game; this.items = items || []; this.i = 0; this.active = true;
+    /** x, y: where it sits, 'center' or pixels; title: a heading, or null; box: draw a window round it; color: the
+     *  entries' color; pick: the color of the one under the cursor; dim: disabled entries' color; bg, border: the
+     *  window's colors; onPick: called (i, item) on confirm; onCancel: called on cancel; onMove: called (i, item)
+     *  when the cursor moves; sound: false silences it */
     Object.assign(this, { x: 'center', y: 'center', title: null, box: true, color: '#ffffff', pick: '#ffd36a', dim: '#6a6488', bg: '#141a3a', border: '#e8e4ff', onPick: null, onCancel: null, onMove: null, sound: true }, o);
     this._skip(1);
   }
   _label(it) { return typeof it === 'string' ? it : it.label; }
   _off(it) { return typeof it === 'object' && it.disabled; }
   _skip(dir) { for (let k = 0; k < this.items.length && this._off(this.items[this.i]); k++) this.i = (this.i + dir + this.items.length) % this.items.length; }
+  /** the entry under the cursor */
   get selected() { return this.items[this.i]; }
+  /** move the cursor (up, down; held keys repeat) and pick or cancel; returns true when it picked or cancelled */
   update() {
     if (!this.active || !this.items.length) return false;
     const inp = this.game.input, n = this.items.length, old = this.i;
@@ -4760,6 +5167,7 @@ class Menu {
     if (inp.pressed('cancel') && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); inp.consumeAll(); this.onCancel(); return true; }
     return false;
   }
+  /** draw it to the overlay */
   draw(r) {
     r.overlay(g => {
       const labels = this.items.map(it => this._label(it)), w = Math.max(E.font.width(this.title || ''), ...labels.map(l => E.font.width(l))) + 22, rowH = E.font.lineHeight() + 2;
@@ -4951,25 +5359,38 @@ const WGSL_FINAL = /* wgsl */`
 }
 `;
 class GPULighting {
+  /** game.enableGPU({ map, bands, ambient, ... }) makes it: per-pixel WebGPU lighting with shadows and glow, falling back to
+   *  the canvas lighting where there is no WebGPU */
   constructor(game, o = {}) {
-    // offscreen: render into a texture instead of the page (automated tests; read it with snapshot())
+    /** enabled: false switches it off for now (the canvas lighting takes over); ready: true once the GPU is set up;
+     *  failed: why it couldn't start, or null; bands: how many light bands (fewer is more retro); wrap: how far
+     *  light wraps round wall corners, 0..1; ambient: the unlit color, [r, g, b] 0..1; spill: how far light spills
+     *  past its radius; glow: the strength of px.glow surfaces; shadows: casters block light; map: the TileMap it
+     *  measures walls on; onStatus: called (gpu) when its status changes; offscreen: render into a texture instead
+     *  of the page (automated tests; read it with snapshot()) */
     Object.assign(this, { enabled: true, ready: false, failed: null, bands: 6, wrap: .45, ambient: [.07, .07, .12], spill: 1.1, glow: .22, shadows: true, map: null, onStatus: null, offscreen: false }, o);
-    this.game = game; this.u = new Float32Array(352); this._colors = {};
+    /** game: its game */
+    this.game = game; this._u = new Float32Array(352); this._colors = {};
+    /** cv: the canvas it draws on, laid over the game's */
     this.cv = document.createElement('canvas');
     this.cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;image-rendering:pixelated';
     game.screen.canvas.insertAdjacentElement('afterend', this.cv);
+    /** loading: true while it starts up */
     this.loading = true;
     this._init();
   }
+  /** true where the browser has WebGPU */
   static supported() { return typeof navigator !== 'undefined' && !!navigator.gpu; }
   /** 'loading' | 'on' | 'off' | 'unavailable' */
   status() { return this.failed ? 'unavailable' : this.loading ? 'loading' : this.enabled ? 'on' : 'off'; }
+  /** true when it lights frames in this view (ready, enabled and a ground view) */
   active(view) { return this.ready && this.enabled && !!view.inv; }
+  /** show or hide its canvas */
   show(on) { const d = on && !this.offscreen ? 'block' : 'none'; if (this.cv.style.display !== d) this.cv.style.display = d; }
   /** offscreen mode only: read the last frame back as a PNG data URL */
   async snapshot() {
-    const t = this.outT; if (!t) return null;
-    const w = t.width, h = t.height, bpr = Math.ceil(w * 4 / 256) * 256, dev = this.dev;
+    const t = this._outT; if (!t) return null;
+    const w = t.width, h = t.height, bpr = Math.ceil(w * 4 / 256) * 256, dev = this._dev;
     const buf = dev.createBuffer({ size: bpr * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
     const enc = dev.createCommandEncoder(); enc.copyTextureToBuffer({ texture: t }, { buffer: buf, bytesPerRow: bpr }, [w, h]); dev.queue.submit([enc.finish()]);
     await buf.mapAsync(GPUMapMode.READ);
@@ -4978,87 +5399,91 @@ class GPULighting {
     buf.unmap(); buf.destroy(); g.putImageData(img, 0, 0);
     return c.toDataURL('image/png');
   }
+  /** give up on the GPU (an error): the canvas lighting takes over */
   fail(e) { this.failed = (e && e.message) || String(e); this.ready = false; this.loading = false; this.show(false); if (this.onStatus) this.onStatus(this); console.warn('my-3D2dge GPU lighting disabled:', this.failed); }
   async _init() {
     try {
       if (!navigator.gpu) throw new Error('WebGPU is not available in this browser');
       const ad = await navigator.gpu.requestAdapter();
       if (!ad) throw new Error('No compatible GPU was found');
-      this.adapter = ad; this.adapterInfo = ad.info || null;
-      const dev = await ad.requestDevice(); this.dev = dev;
+      /** adapterInfo: the GPU's description from the browser (vendor, architecture), or null */
+      this._adapter = ad; this.adapterInfo = ad.info || null;
+      const dev = await ad.requestDevice(); this._dev = dev;
       dev.lost.then(i => { if (!this.failed) this.fail(new Error('GPU device lost: ' + i.message)); });
       dev.addEventListener('uncapturederror', ev => this.fail(ev.error));
-      if (this.offscreen) this.fmt = 'rgba8unorm';
-      else { this.gctx = this.cv.getContext('webgpu'); this.fmt = navigator.gpu.getPreferredCanvasFormat(); this.gctx.configure({ device: dev, format: this.fmt, alphaMode: 'opaque' }); }
-      this.ubuf = dev.createBuffer({ size: this.u.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+      if (this.offscreen) this._fmt = 'rgba8unorm';
+      else { this._gctx = this.cv.getContext('webgpu'); this._fmt = navigator.gpu.getPreferredCanvasFormat(); this._gctx.configure({ device: dev, format: this._fmt, alphaMode: 'opaque' }); }
+      this._ubuf = dev.createBuffer({ size: this._u.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
       dev.pushErrorScope('validation');
       const m1 = dev.createShaderModule({ code: WGSL_COMMON + WGSL_LIGHT }), m2 = dev.createShaderModule({ code: WGSL_COMMON + WGSL_FINAL });
       for (const m of [m1, m2]) { const info = await m.getCompilationInfo(); const err = info.messages.find(x => x.type === 'error'); if (err) throw new Error('Shader: ' + err.message + ' (line ' + err.lineNum + ')'); }
       const pipe = (m, fs, format) => dev.createRenderPipeline({ layout: 'auto', vertex: { module: m, entryPoint: 'vs' }, fragment: { module: m, entryPoint: fs, targets: [{ format }] }, primitive: { topology: 'triangle-list' } });
-      this.pLight = pipe(m1, 'fsLight', 'rgba8unorm'); this.pFinal = pipe(m2, 'fsFinal', this.fmt);
+      this._pLight = pipe(m1, 'fsLight', 'rgba8unorm'); this._pFinal = pipe(m2, 'fsFinal', this._fmt);
       const err = await dev.popErrorScope(); if (err) throw new Error(err.message);
       this.ready = true;
     } catch (e) { this.failed = e.message || String(e); console.warn('my-3D2dge GPU lighting unavailable:', this.failed); }
     this.loading = false;
     if (this.onStatus) this.onStatus(this);
   }
-  _tex(w, h, format, usage) { return this.dev.createTexture({ size: [w, h], format, usage }); }
+  _tex(w, h, format, usage) { return this._dev.createTexture({ size: [w, h], format, usage }); }
   _ensure(bw, bh, hmW, hmH) {
     const U = GPUTextureUsage;
     if (this.bw !== bw || this.bh !== bh) {
-      for (const t of [this.albedoT, this.infoT, this.ovT, this.litT]) if (t) t.destroy();
+      for (const t of [this._albedoT, this._infoT, this._ovT, this._litT]) if (t) t.destroy();
       const up = U.TEXTURE_BINDING | U.COPY_DST | U.RENDER_ATTACHMENT;
-      this.albedoT = this._tex(bw, bh, 'rgba8unorm', up); this.infoT = this._tex(bw, bh, 'rgba8unorm', up); this.ovT = this._tex(bw, bh, 'rgba8unorm', up);
-      this.litT = this._tex(bw, bh, 'rgba8unorm', U.TEXTURE_BINDING | U.RENDER_ATTACHMENT);
-      this.bw = bw; this.bh = bh; this.bgL = null;
+      this._albedoT = this._tex(bw, bh, 'rgba8unorm', up); this._infoT = this._tex(bw, bh, 'rgba8unorm', up); this._ovT = this._tex(bw, bh, 'rgba8unorm', up);
+      this._litT = this._tex(bw, bh, 'rgba8unorm', U.TEXTURE_BINDING | U.RENDER_ATTACHMENT);
+      /** bw, bh: the size of the buffer it lights */
+      this.bw = bw; this.bh = bh; this._bgL = null;
     }
-    if (this.hmW !== hmW || this.hmH !== hmH) {
-      if (this.hmT) this.hmT.destroy();
-      this.hmT = this._tex(hmW, hmH, 'r8unorm', U.TEXTURE_BINDING | U.COPY_DST);
-      this.hmData = new Uint8Array(hmW * hmH); this.hmW = hmW; this.hmH = hmH; this.hmKey = null; this.bgL = null;
+    if (this._hmW !== hmW || this._hmH !== hmH) {
+      if (this._hmT) this._hmT.destroy();
+      this._hmT = this._tex(hmW, hmH, 'r8unorm', U.TEXTURE_BINDING | U.COPY_DST);
+      this._hmData = new Uint8Array(hmW * hmH); this._hmW = hmW; this._hmH = hmH; this._hmKey = null; this._bgL = null;
     }
-    if (!this.bgL) {
-      const d = this.dev, B = (t) => t.createView();
-      this.bgL = d.createBindGroup({ layout: this.pLight.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this.ubuf } }, { binding: 1, resource: B(this.albedoT) }, { binding: 2, resource: B(this.infoT) }, { binding: 3, resource: B(this.hmT) }] });
-      this.bgF = d.createBindGroup({ layout: this.pFinal.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this.ubuf } }, { binding: 1, resource: B(this.litT) }, { binding: 2, resource: B(this.ovT) }] });
+    if (!this._bgL) {
+      const d = this._dev, B = (t) => t.createView();
+      this._bgL = d.createBindGroup({ layout: this._pLight.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this._ubuf } }, { binding: 1, resource: B(this._albedoT) }, { binding: 2, resource: B(this._infoT) }, { binding: 3, resource: B(this._hmT) }] });
+      this._bgF = d.createBindGroup({ layout: this._pFinal.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: this._ubuf } }, { binding: 1, resource: B(this._litT) }, { binding: 2, resource: B(this._ovT) }] });
     }
   }
   /** heightmap of the level (1 texel per world unit): walls from the map plus this frame's casters */
   _heightmap(view) {
-    const m = this.map, W = this.hmW, H = this.hmH, key = view.id + ':' + (m ? m.version : 0);
-    if (this.hmKey !== key) {
-      this.hmStatic = new Uint8Array(W * H);
+    const m = this.map, W = this._hmW, H = this._hmH, key = view.id + ':' + (m ? m.version : 0);
+    if (this._hmKey !== key) {
+      this._hmStatic = new Uint8Array(W * H);
       if (m) for (let cy = 0; cy < m.h; cy++) for (let cx = 0; cx < m.w; cx++) {
         const id = m.cell(cx, cy); if (id <= 0) continue;
         const t = m.types[id], h = m._isFront(cx, cy, view) ? (t.cutH || 6) : t.h, v = Math.min(255, Math.round(h * 3));
-        for (let y = cy * m.T; y < (cy + 1) * m.T; y++) this.hmStatic.fill(v, y * W + cx * m.T, y * W + (cx + 1) * m.T);
+        for (let y = cy * m.T; y < (cy + 1) * m.T; y++) this._hmStatic.fill(v, y * W + cx * m.T, y * W + (cx + 1) * m.T);
       }
-      this.hmKey = key;
+      this._hmKey = key;
     }
-    const d = this.hmData; d.set(this.hmStatic);
+    const d = this._hmData; d.set(this._hmStatic);
     for (const c of this.game.lights.casters) {
       const v = Math.min(255, Math.round(c.top * 3)), r2 = c.r * c.r;
       const x0 = Math.max(0, Math.floor(c.x - c.r)), x1 = Math.min(W - 1, Math.ceil(c.x + c.r)), y0 = Math.max(0, Math.floor(c.y - c.r)), y1 = Math.min(H - 1, Math.ceil(c.y + c.r));
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const dx = x + .5 - c.x, dy = y + .5 - c.y; if (dx * dx + dy * dy <= r2) { const k = y * W + x; if (d[k] < v) d[k] = v; } }
     }
-    this.dev.queue.writeTexture({ texture: this.hmT }, d, { bytesPerRow: W }, [W, H]);
+    this._dev.queue.writeTexture({ texture: this._hmT }, d, { bytesPerRow: W }, [W, H]);
   }
   _color(c) {
     if (!c) return [1, .9, .75];
     if (typeof c !== 'string') return c;
     return this._colors[c] || (this._colors[c] = hex(c).map(v => v / 255));
   }
+  /** light and present the frame (the renderer calls it when active) */
   render(r) {
     // never queue more than two frames: a slow GPU drops frames instead of building up lag
-    if ((this.inflight || 0) >= 2) { this.skipped = (this.skipped || 0) + 1; return; }
-    const game = this.game, sc = game.screen, view = r.view, dev = this.dev, bw = r.bw, bh = r.bh, m = this.map;
+    if ((this._inflight || 0) >= 2) { this.skipped = (this.skipped || 0) + 1; return; }
+    const game = this.game, sc = game.screen, view = r.view, dev = this._dev, bw = r.bw, bh = r.bh, m = this.map;
     if (this.cv.width !== sc.canvas.width || this.cv.height !== sc.canvas.height) { this.cv.width = sc.canvas.width; this.cv.height = sc.canvas.height; }
     this._ensure(bw, bh, m ? m.w * m.T : 1, m ? m.h * m.T : 1);
     this._heightmap(view);
-    dev.queue.copyExternalImageToTexture({ source: sc.buf }, { texture: this.albedoT }, [bw, bh]);
-    dev.queue.copyExternalImageToTexture({ source: r.iCv }, { texture: this.infoT }, [bw, bh]);
-    dev.queue.copyExternalImageToTexture({ source: r.vCv }, { texture: this.ovT, premultipliedAlpha: false }, [bw, bh]);
-    const u = this.u, inv = view.inv, S = sc.S, sc_ = view.scale;
+    dev.queue.copyExternalImageToTexture({ source: sc.buf }, { texture: this._albedoT }, [bw, bh]);
+    dev.queue.copyExternalImageToTexture({ source: r._iCv }, { texture: this._infoT }, [bw, bh]);
+    dev.queue.copyExternalImageToTexture({ source: r._vCv }, { texture: this._ovT, premultipliedAlpha: false }, [bw, bh]);
+    const u = this._u, inv = view.inv, S = sc.S, sc_ = view.scale;
     const Rw = [view.ax / sc_, view.ay / sc_, 0], Cw = [view.dx, view.dy, view.dz];
     const Uw = [Rw[1] * Cw[2] - Rw[2] * Cw[1], Rw[2] * Cw[0] - Rw[0] * Cw[2], Rw[0] * Cw[1] - Rw[1] * Cw[0]];
     u.fill(0);
@@ -5078,26 +5503,27 @@ class GPULighting {
     u.set([Uw[0], Uw[1], Uw[2], this.bands], 20);
     u.set([this.ambient[0], this.ambient[1], this.ambient[2], this.wrap], 24);
     u.set([this.spill, this.glow, this.shadows ? 1 : 0, 1], 28);
-    u.set([this.hmW, this.hmH, 0, 0], 32);
+    u.set([this._hmW, this._hmH, 0, 0], 32);
     u.set([S, sc.OX - Math.round(sc.fx * S), sc.OY - Math.round(sc.fy * S), 0], 36);
     u.set([sc.OX, sc.OY, sc.OX + sc.W * S, sc.OY + sc.H * S], 40);
     u.set([bw, bh, sc.W, sc.H], 44);
     u.set([nh, 0, 0, 0], 48);
-    dev.queue.writeBuffer(this.ubuf, 0, u);
+    dev.queue.writeBuffer(this._ubuf, 0, u);
     const enc = dev.createCommandEncoder();
-    let pass = enc.beginRenderPass({ colorAttachments: [{ view: this.litT.createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }] });
-    pass.setPipeline(this.pLight); pass.setBindGroup(0, this.bgL); pass.draw(3); pass.end();
+    let pass = enc.beginRenderPass({ colorAttachments: [{ view: this._litT.createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }] });
+    pass.setPipeline(this._pLight); pass.setBindGroup(0, this._bgL); pass.draw(3); pass.end();
     let target;
     if (this.offscreen) {
       const w = this.cv.width, h = this.cv.height;
-      if (!this.outT || this.outT.width !== w || this.outT.height !== h) { if (this.outT) this.outT.destroy(); this.outT = this._tex(w, h, 'rgba8unorm', GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC); }
-      target = this.outT.createView();
-    } else target = this.gctx.getCurrentTexture().createView();
+      if (!this._outT || this._outT.width !== w || this._outT.height !== h) { if (this._outT) this._outT.destroy(); this._outT = this._tex(w, h, 'rgba8unorm', GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC); }
+      target = this._outT.createView();
+    } else target = this._gctx.getCurrentTexture().createView();
     pass = enc.beginRenderPass({ colorAttachments: [{ view: target, loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }] });
-    pass.setPipeline(this.pFinal); pass.setBindGroup(0, this.bgF); pass.draw(3); pass.end();
+    pass.setPipeline(this._pFinal); pass.setBindGroup(0, this._bgF); pass.draw(3); pass.end();
     dev.queue.submit([enc.finish()]);
-    this.inflight = (this.inflight || 0) + 1; this.frames = (this.frames || 0) + 1;
-    dev.queue.onSubmittedWorkDone().then(() => { this.inflight--; });
+    /** frames: frames it has lit */
+    this._inflight = (this._inflight || 0) + 1; this.frames = (this.frames || 0) + 1;
+    dev.queue.onSubmittedWorkDone().then(() => { this._inflight--; });
   }
 }
 E.GPULighting = GPULighting;
@@ -5308,14 +5734,19 @@ const PORTABLE_MATH = (() => {
   const tan = x => sin(x) / cos(x);
   return { sin, cos, tan, atan, atan2, asin, acos, exp, log, log2, log10, pow, hypot, cbrt };
 })();
+/** E.session: records a play session on any device and replays it exactly (this section's header says how) */
 const SESSION = (() => {
+  /** recording: true while this page load is recorded; replaying: true while it is a replay; frame: the frames run
+   *  since the page loaded */
   const S = { recording: false, replaying: false, frame: 0 };
   /** turn recording on or off for the next page loads (each load is a session of its own) */
   S.record = on => { try { if (on) localStorage.setItem('my3d2dge:record', '1'); else localStorage.removeItem('my3d2dge:record'); } catch (e) { /* no storage */ } return !!on; };
+  /** true when recording is on for page loads (record(true)) */
   S.wanted = () => { try { return localStorage.getItem('my3d2dge:record') === '1'; } catch (e) { return false; } };
   if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') return S;
   const R = window.__my3d2dgeReplay || null;
   if (!R && !(S.wanted() || /[?&]record=1\b/.test(location.search))) return S;
+  /** recording: true while this page load is recorded; replaying: true while it is a replay */
   S.recording = !R; S.replaying = !!R;
   // the session's record. Events are arrays: [frame, type, target, ...the fields SCHEMA names for their kind]
   const SCHEMA = { key: 'code key repeat mods', pointer: 'pointerId pointerType button buttons clientX clientY isPrimary mods movementX movementY pressure',

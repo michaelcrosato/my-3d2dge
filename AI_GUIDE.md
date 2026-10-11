@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.18.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.19.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -245,6 +245,27 @@ if (prey && input.pressed('attack')) takedown(prey.target);
   - uneven level rows and non-hex colors;
   - lights with bad numbers, and PlatformMaps drawn in the wrong view.
 - The checker prints them all.
+
+### Testing without a browser
+A game runs in Node with no screen, so its rules can be tested in a second, exactly:
+- `new E.Game()` is headless where there is no DOM (or with `{ headless: true }`): no screen, renderer, sound or DOM input; scenes update and `draw` is skipped. Sprites made while the game loads get a stand-in canvas.
+- `game.advance(seconds)` runs exact fixed steps at once: `advance(1)` is 120 updates. In a page, `new E.Game({ loop: false })` waits for `advance` too, and `advance(s, { draw: true })` draws a frame after.
+- Input: `game.input.tap('jump')` presses an action for one step (`pressed` and `down` in the next step, `released` in the one after); `hold('right')` holds it until `hold('right', false)`; `press(code)` and `release(code)` press keys.
+- `game.debug = { snapshot() { return { scene, hero, score } }, teleport(x, y, z) {...} }`: your game's handle. Tests read it; `tools/check.mjs` prints it after play; `tools/replay.mjs` logs it at the end of a replay.
+- `game.stop()` stops the loop, `game.start()` resumes it, `game.dispose()` ends the game and removes every listener the engine added to the page.
+
+```js
+// game/test.mjs in the handoff package: load the engine and the game into one context, then drive it
+const ctx = { console }; vm.createContext(ctx);
+for (const f of ['../my-3d2dge.js', './game.js']) vm.runInContext(readFileSync(new URL(f, import.meta.url), 'utf8'), ctx);
+const game = ctx.My3D2dge.current;
+game.input.tap('start'); game.advance(.5);
+game.debug.teleport(100, 88, 0, 0); game.input.tap('jump'); game.advance(1.1);
+if (game.debug.snapshot().hero[2] !== 32) throw new Error('the hero should have climbed onto the roof');
+```
+
+### The handoff package
+`dist/handoff/` (on the site: `/handoff/`; `node tools/handoff.mjs --zip <file>` zips it for a chat) holds what a coding agent needs to build on the full engine without the repository: both editions, `API.md`, `API-INDEX.md`, this guide, `tools/check.mjs`, `filmstrip.mjs` and `replay.mjs`, a `package.json` pinning Playwright, and `game/`, a template game with a headless test. `tools/build.mjs` writes it; its sources are `src/handoff/`.
 
 ### Recorded sessions (a bug from a phone, replayed exactly)
 - `E.session.record(true)` turns recording on for every later page load (`?record=1` does it for one load). It starts before the game's code and keeps everything a game's next frame depends on:

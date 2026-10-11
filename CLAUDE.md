@@ -13,7 +13,7 @@ my-3D2dge is a 2D game engine for AI models (`engine/my-3d2dge.js`), its agent e
 
 ## Sources and built files
 
-- Edit the sources: `engine/`, `src/`, `tools/`, the docs. Never edit `examples/` or `dist/` by hand: run `node tools/build.mjs` and commit what it writes (the site serves those files as they are).
+- Edit the sources: `engine/`, `src/`, `tools/`, the docs. Never edit `examples/`, `dist/` or `API-INDEX.md` by hand: run `node tools/build.mjs` and commit what it writes (the site serves those files as they are). Every public name in the engine needs a doc comment (`node tools/api-index.mjs --missing` lists those without), or a `_` to make it private.
 - A rebuild of an unchanged tree changes nothing: the build is byte for byte repeatable.
 - No dependencies in the engine or the games, no binary files (images, sounds, models; `node tools/doctrine-check.mjs` lists the approved ones), no network. Match the code around you (dense, commented, plain JavaScript).
 - Outside `engine/`, use the engine's public API, not its private members (names starting with `_`); a prototype may. Gameplay takes time only from `dt` and the game's clocks, and randomness only from `Math.random` or `E.rng`, so the test harness can replay it exactly.
