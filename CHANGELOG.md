@@ -5,6 +5,20 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.25.2 (2026-10-11)
+
+Corrections to the asset store plan, from a review of v0.25.1.
+
+- **Docs**: `docs/HANDOFF-ASSETS.md`:
+  - A facing at run time is in radians, as everywhere in the engine; only angles written in asset data are degrees.
+  - A raster's cache key includes the shape's parameters, so two uses of one generator never share pixels.
+  - Collision is gameplay, never drawing: a game registers a solid shape's footprint (`E.shapeFoot`) before its updates, and `r.shape`'s `solid` stays the renderer's option.
+  - A set's ids are qualified by its name, so sets never overwrite each other or the core library.
+  - Cutting a set carries the whole chain of shapes it `use`s.
+  - The ledger keeps a hash of every downloaded file.
+  - TileMap's material option is `floorMats`, since `floors` is the map's cache of baked floors.
+  - A platform tile type keeps `style`, which picks its geometry, and gains `mat`.
+
 ## 0.25.1 (2026-10-11)
 
 A plan for an asset store: objects, materials and pictures that agents write as data or translate from public libraries.
