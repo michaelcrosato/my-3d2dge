@@ -58,7 +58,7 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   const agent = read('engine/my-3d2dge-agent.js');
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
-    ['the API card (API.md)', read('API.md'), 13500, 3.1],
+    ['the API card (API.md)', read('API.md'), 15000, 3.1],   // (D8, D20)
     ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 34000, 3.25]   // (D17, D18)
   ];
   const line = [];

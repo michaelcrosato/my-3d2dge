@@ -314,3 +314,14 @@ An entry:
   sessions); the Breath of the Wild run was stopped by the machine's memory pressure; the Arkham run hasn't run.
   The owner then said to run both again (2026-10-11): both completed, and their rows are in `DOCTRINE.md` (v0.22.2).
 - **Landed in:** v0.22.0 (#66); the first results in v0.22.1; the other two in v0.22.2
+
+## D20 · 2026-10-11 · The API card's budget rises to 15,000
+
+- **Principle:** 1 (agent-readable)
+- **Call:** the API card's budget (D8) rises from 13,500 to 15,000 cl100k tokens; 14,000 with the standard features.
+- **Why:** the card is the one page a builder reads whole, and the standard features have to be on it: a builder who
+  doesn't know a pause menu, settings and full screen exist writes its own (output tokens) or ships without them. The
+  section is about 500 tokens; the card had 5 to spare. About 7% headroom. What would change it: a card that keeps
+  growing past this is a reason to move its detail into `AI_GUIDE.md` and the index, not to raise it again.
+- **Answered:** no: made without a response, to review (reversible: lower the number and cut the section)
+- **Landed in:** v0.23.0
