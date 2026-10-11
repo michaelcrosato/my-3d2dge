@@ -247,7 +247,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.17.5  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.18.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -310,7 +310,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json; node tools/version.mjs sets it everywhere). build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07') */
-const E = { version: '0.17.5', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.18.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 /** one console warning per distinct problem, prefixed so tools (and people) can spot engine advice */
@@ -442,8 +442,37 @@ const angleTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
 const overlap = (a, b) => { const dx = a.x - b.x, dy = a.y - b.y, r = (a.r || 0) + (b.r || 0); return dx * dx + dy * dy < r * r; };
 /** side-view boxes: { x (center), z (feet), w, h } (the Platformer / PlatformMap convention) */
 const overlapBox = (a, b) => Math.abs(a.x - b.x) * 2 < a.w + b.w && a.z < b.z + b.h && b.z < a.z + a.h;
-/** melee cone on the ground: is b (with optional radius r) within range of a and within halfAngle of facing? */
-const inArc = (a, facing, b, range, halfAngle) => { const dx = b.x - a.x, dy = b.y - a.y; return Math.hypot(dx, dy) <= range + (b.r || 0) && Math.abs(angDiff(facing, Math.atan2(dy, dx))) <= halfAngle; };
+/**
+ * THE HEIGHT RULES, read the same way by collision, standing, sight, reach, navigation and drawing. World units (a tile
+ * is 16), z up. A body's z is its feet; a cell's top is map.height(cx, cy) (0 = the floor; a wall is solid from 0 to its
+ * h). A body stands on the highest top within z + step under its footprint. Eyes are at z + eye and a target is seen at
+ * z + chest (a body's own eye and chest override these: crouching lowers them). Two things are on the same level when
+ * |dz| <= level. The defaults fit a size-1.3 Humanoid
+ */
+const HEIGHTS = { eye: 30, chest: 22, level: 8, step: 2 };
+/** melee cone on the ground: is b (with optional radius r) within range of a and within halfAngle of facing? dz (optional)
+ *  also limits the height difference, so a hero on a roof can't hit a guard in the street (left out, height is ignored) */
+const inArc = (a, facing, b, range, halfAngle, dz) => { const dx = b.x - a.x, dy = b.y - a.y; return Math.hypot(dx, dy) <= range + (b.r || 0) && Math.abs(angDiff(facing, Math.atan2(dy, dx))) <= halfAngle && (dz === undefined || Math.abs((b.z || 0) - (a.z || 0)) <= dz); };
+/** within tol (default E.HEIGHTS.level, 8) of the same height: sameLevel(hero, guard) */
+const sameLevel = (a, b, tol = HEIGHTS.level) => Math.abs((a.z || 0) - (b.z || 0)) <= tol;
+/**
+ * the things in list that `from` can reach, nearest first, each as { target, d (ground distance), dz, angle (from -> it) }:
+ * melee auto-aim, lock-on, takedowns, interaction prompts. o: { range, arc (half angle around facing, radians; default all
+ * round), facing (default from.facing), dz (most height difference, default E.HEIGHTS.level), sight: map (only those its
+ * eyes see), filter: t => bool }. A target's r adds to the range
+ */
+const targets = (from, list, o = {}) => {
+  const range = o.range === undefined ? Infinity : o.range, arc = o.arc === undefined ? Math.PI : o.arc, facing = o.facing === undefined ? from.facing || 0 : o.facing;
+  const dzMax = o.dz === undefined ? HEIGHTS.level : o.dz, out = [];
+  for (const t of list) {
+    if (!t || t === from || (o.filter && !o.filter(t))) continue;
+    const dx = t.x - from.x, dy = t.y - from.y, d = Math.hypot(dx, dy), dz = (t.z || 0) - (from.z || 0), angle = Math.atan2(dy, dx);
+    if (d > range + (t.r || 0) || Math.abs(dz) > dzMax || (arc < Math.PI && Math.abs(angDiff(facing, angle)) > arc)) continue;
+    if (o.sight && !o.sight.sight(from, t)) continue;
+    out.push({ target: t, d, dz, angle });
+  }
+  return out.sort((p, q) => p.d - q.d);
+};
 /** remove items in place: prune(bullets, b => b.dead) */
 const prune = (list, fn) => { let j = 0; for (let i = 0; i < list.length; i++) if (!fn(list[i])) list[j++] = list[i]; list.length = j; return list; };
 /** saved data that survives reloads (localStorage, JSON). Never throws. */
@@ -453,7 +482,7 @@ const store = {
   remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }
 };
 Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, rng, hash2, noise2, bayer, smoothDamp, hex, toHex, shade, mix, mkCanvas, ctx2d, V3, ik3,
-  rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, prune, store });
+  rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
 
 /* =============================================================================
  * 2. PIXEL PRIMITIVES  (all snap to whole pixels, never anti-aliased)
@@ -2980,6 +3009,8 @@ function parseLevel(rows, legend = {}) {
 }
 E.parseLevel = parseLevel;
 const DEFAULT_WALL = { h: 32, top: '#6a6280', side: '#4a4360' };
+/** a direction as a unit ground vector: an angle (radians) or [dx, dy] */
+const groundDir = d => { if (typeof d === 'number') return [Math.cos(d), Math.sin(d)]; const l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; };
 class TileMap {
   /**
    * Walls standing on a floor (top-down, isometric, brawler). Either
@@ -3081,8 +3112,127 @@ class TileMap {
     if (!t || z < t.h - 1) return k;
     return Math.max(k, view.order((cx + .5) * T, (cy + .5) * T, 0) + .002 + z * 1e-5);
   }
-  /** line of sight across the ground (true if nothing solid in between) */
+  /** line of sight across the ground (true if nothing solid in between). It ignores heights: sight() is the one that sees
+   *  over a low wall and from a roof */
   los(x0, y0, x1, y1) { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 4); for (let i = 1; i < n; i++) if (this.solidAt(lerp(x0, x1, i / n), lerp(y0, y1, i / n))) return false; return true; }
+  /* ---- height-aware queries: the rules are E.HEIGHTS' (section 1). dir is an angle (radians) or a ground vector [dx, dy];
+   *      `from` is a body or any { x, y, z, r } ---- */
+  /**
+   * the first cell top that rises above the straight segment from a to b ({ x, y, z } world points; o.eye and o.target lift
+   * each end): { clear, t (0..1 along it), x, y, z } where it stops (b's point when clear). It walks every cell the segment
+   * crosses, not samples; a top level with the segment doesn't block it, and outside the map is solid
+   */
+  ray(a, b, o = {}) {
+    const z0 = (a.z || 0) + (o.eye || 0), dz = (b.z || 0) + (o.target || 0) - z0, dx = b.x - a.x, dy = b.y - a.y;
+    return this._walk(a.x, a.y, b.x, b.y, (cx, cy, t0, t1) => {
+      const top = this.height(cx, cy), za = z0 + dz * t0, zb = z0 + dz * t1;
+      if (top <= Math.min(za, zb) + 1e-6) return null;   // (the segment is straight: its lowest point in a cell is at one end)
+      const t = za <= top ? t0 : (top - z0) / dz;   // it meets the cell's side, or comes down onto its top
+      return { clear: false, t, x: a.x + dx * t, y: a.y + dy * t, z: z0 + dz * t, cx, cy };
+    }) || { clear: true, t: 1, x: b.x, y: b.y, z: z0 + dz };
+  }
+  /** can a's eyes (z + eye) see b's chest (z + chest)? E.HEIGHTS gives both unless o ({ eye, target }) or the bodies' own
+   *  eye and chest say otherwise. A guard sees over a planter lower than its eyes, and down from a roof */
+  sight(a, b, o = {}) {
+    const eye = o.eye !== undefined ? o.eye : a.eye !== undefined ? a.eye : HEIGHTS.eye, target = o.target !== undefined ? o.target : b.chest !== undefined ? b.chest : HEIGHTS.chest;
+    return this.ray(a, b, { eye, target }).clear;
+  }
+  /** can a body of radius r stand at (x, y) with its feet at z? Nothing under its footprint rises above z + step (it would
+   *  collide), no blocked floor (water, lava) is under it at floor level, and a top within step below z holds it up */
+  standable(x, y, z, r = 5, step = HEIGHTS.step) {
+    const T = this.T;
+    for (let cy = Math.floor((y - r) / T); cy <= Math.floor((y + r) / T); cy++) for (let cx = Math.floor((x - r) / T); cx <= Math.floor((x + r) / T); cx++) {
+      const e = Math.hypot(x - clamp(x, cx * T, cx * T + T), y - clamp(y, cy * T, cy * T + T)); if (e > 0 && e >= r) continue;   // (a corner the circle misses)
+      const c = this.cell(cx, cy); if (c < 0) return false;
+      if ((c > 0 ? this.types[c].h : 0) > z + step) return false;
+      if (c === 0 && z <= step && this.blocked[cy * this.w + cx]) return false;
+    }
+    return this.groundAt(x, y, r, z, step) >= z - step;
+  }
+  /**
+   * a ledge to climb: in direction dir from `from`, the nearest top that rises min..rise above its feet within reach, with
+   * room to stand past the edge, looking straight ahead and spread radians to each side (a gap first means a jump: landing).
+   * { x, y, z (the spot to stand on top), rise, facing (the angle climbed), edge: [x, y] (where the hands grip) } or null.
+   * o: { reach: 18, min: 4, rise: 82, spread: .28 }
+   */
+  ledge(from, dir, o = {}) {
+    const reach = o.reach === undefined ? 18 : o.reach, min = o.min === undefined ? 4 : o.min, rise = o.rise === undefined ? 82 : o.rise, spread = o.spread === undefined ? .28 : o.spread;
+    const r = from.r || 5, z = from.z || 0, [ux, uy] = groundDir(dir), a0 = Math.atan2(uy, ux); let best = null;
+    for (const off of spread ? [0, -spread, spread] : [0]) {
+      const a = a0 + off, dx = Math.cos(a), dy = Math.sin(a), at = d => this.heightAt(from.x + dx * d, from.y + dy * d);
+      for (let d = 1, prev = 0; d <= reach; d++) {
+        const h = at(d);
+        if (h < z - HEIGHTS.step) break;   // a drop first: that is a jump, not a climb
+        if (h - z < min) { prev = d; continue; }
+        if (h - z > rise) break;           // too high to climb
+        let lo = prev, hi = d; for (let i = 0; i < 8; i++) { const mid = (lo + hi) / 2; if (at(mid) >= h) hi = mid; else lo = mid; }   // the edge
+        const ex = from.x + dx * hi, ey = from.y + dy * hi;
+        for (const k of [r + 1, this.T / 2]) {
+          const x = ex + dx * k, y = ey + dy * k, score = d + Math.abs(off) * 12;
+          if (this.standable(x, y, h, r)) { if (!best || score < best.score) best = { x, y, z: h, rise: h - z, facing: a, edge: [ex, ey], score }; break; }
+        }
+        break;
+      }
+    }
+    if (best) delete best.score;
+    return best;
+  }
+  /**
+   * where a jump from `from` in direction dir lands across a gap: past the first drop ahead (a top more than step below its
+   * feet), the nearest spot min..max away that rises at most rise and falls at most drop from its feet, stands above the
+   * gap's bottom, has room to stand, and that a jump arc peaking apex above the higher end clears (arcClear).
+   * { x, y, z, d } or null (a wall before any gap, or nowhere to land). o: { min: 35, max: 83, rise: 11, drop: 18, apex: 20 }
+   */
+  landing(from, dir, o = {}) {
+    const min = o.min === undefined ? 35 : o.min, max = o.max === undefined ? 83 : o.max, rise = o.rise === undefined ? 11 : o.rise, drop = o.drop === undefined ? 18 : o.drop;
+    const apex = o.apex === undefined ? 20 : o.apex, r = from.r || 5, z = from.z || 0, st = HEIGHTS.step, [dx, dy] = groundDir(dir);
+    let gap = false, low = 1e9;
+    for (let d = 1; d <= max; d++) {
+      const h = this.heightAt(from.x + dx * d, from.y + dy * d);
+      if (!gap) { if (h > z + st) return null; if (h < z - st) { gap = true; low = h; } continue; }
+      low = Math.min(low, h);
+      if (h <= low + st || h > z + rise || h < z - drop || d + r > max) continue;
+      const x = from.x + dx * Math.max(min, d + r), y = from.y + dy * Math.max(min, d + r), g = this.heightAt(x, y);   // a radius in from the far edge
+      if (Math.abs(g - h) <= st && this.standable(x, y, g, r) && this.arcClear(from, { x, y, z: g }, apex, r)) return { x, y, z: g, d: Math.max(min, d + r) };
+    }
+    return null;
+  }
+  /** what lies past the edge ahead: the first drop of more than step within reach (default 12) of `from` in direction dir,
+   *  and the ground a body of its radius lands on just past it: { x, y, z, fall } or null (no edge, or a wall first).
+   *  AI that won't walk off roofs, hop-downs, fall warnings */
+  drop(from, dir, o = {}) {
+    const reach = o.reach === undefined ? 12 : o.reach, r = from.r || 5, z = from.z || 0, st = HEIGHTS.step, [dx, dy] = groundDir(dir);
+    for (let d = 1; d <= reach; d++) {
+      const h = this.heightAt(from.x + dx * d, from.y + dy * d);
+      if (h > z + st) return null;
+      if (h < z - st) { const x = from.x + dx * (d + r), y = from.y + dy * (d + r), g = this.groundAt(x, y, r, z, st); return { x, y, z: g, fall: z - g }; }
+    }
+    return null;
+  }
+  /** does a jump arc from a to b (feet, { x, y, z }) clear every top on the way? The arc is a parabola peaking apex above the
+   *  higher end; r > 0 also checks a track on each side of it. Jumps, throws, aerial takedowns */
+  arcClear(a, b, apex = 20, r = 0) {
+    const za = a.z || 0, zb = b.z || 0, D = zb - za, M = Math.max(za, zb) + apex - (za + zb) / 2, k = 2 * M + Math.sqrt(Math.max(0, 4 * M * M - D * D));
+    const zAt = t => za + D * t + k * t * (1 - t), l = Math.hypot(b.x - a.x, b.y - a.y) || 1, nx = -(b.y - a.y) / l * r * .9, ny = (b.x - a.x) / l * r * .9;
+    for (const s of r > 0 ? [0, -1, 1] : [0])   // (the arc is concave: over a cell its lowest point is at one end)
+      if (this._walk(a.x + nx * s, a.y + ny * s, b.x + nx * s, b.y + ny * s, (cx, cy, t0, t1) => this.height(cx, cy) > Math.min(zAt(t0), zAt(t1)) + 1e-6)) return false;
+    return true;
+  }
+  /** every cell the segment (x0, y0) -> (x1, y1) crosses, in order, as fn(cx, cy, t0, t1) (its stretch in that cell, 0..1); stops
+   *  at the first truthy fn and returns that. Through a corner exactly, both cells beside it count */
+  _walk(x0, y0, x1, y1, fn) {
+    const T = this.T, dx = x1 - x0, dy = y1 - y0, sx = Math.sign(dx), sy = Math.sign(dy), ddx = sx ? T / Math.abs(dx) : Infinity, ddy = sy ? T / Math.abs(dy) : Infinity;
+    let cx = Math.floor(x0 / T), cy = Math.floor(y0 / T), t0 = 0, res;
+    let tx = sx > 0 ? ((cx + 1) * T - x0) / dx : sx < 0 ? (cx * T - x0) / dx : Infinity, ty = sy > 0 ? ((cy + 1) * T - y0) / dy : sy < 0 ? (cy * T - y0) / dy : Infinity;
+    for (let n = 0; n < 1e6; n++) {
+      const t1 = Math.min(tx, ty, 1);
+      if ((res = fn(cx, cy, t0, t1))) return res;
+      if (t1 >= 1) return null;
+      if (Math.abs(tx - ty) < 1e-12) { if ((res = fn(cx + sx, cy, tx, tx) || fn(cx, cy + sy, tx, tx))) return res; cx += sx; cy += sy; t0 = tx; tx += ddx; ty += ddy; }
+      else if (tx < ty) { cx += sx; t0 = tx; tx += ddx; } else { cy += sy; t0 = ty; ty += ddy; }
+    }
+    return null;
+  }
   /** projected pixel bounds of the whole map for this view (camera clamping) */
   bounds(view) {
     const W = this.w * this.T, H = this.h * this.T; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -3298,32 +3448,50 @@ TileMap.prototype._roofPattern = function (g, top, roof, t, wx0, wy0) {
  * 14. FLOW FIELD  BFS distance map toward a target: cheap pathfinding for crowds
  * ============================================================================= */
 class FlowField {
-  constructor(map) { this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this.q = new Int32Array(n); this.tx = -1; this.ty = -1; this.version = -1; }
+  /**
+   * new E.FlowField(map, { step: 2, climb: 0, drop: 0 }): distances over the tops a body can stand on (E.HEIGHTS). Next-door
+   * cells connect when their tops differ by at most step, or going up by up to climb and down by up to drop (agents that
+   * climb walls or hop down). With no options it covers the floor as before (and walls no higher than step, which bodies
+   * walk over); a target on a roof gets a field across the roofs it connects to
+   */
+  constructor(map, o = {}) {
+    this.map = map; const n = map.w * map.h; this.d = new Int32Array(n); this.q = new Int32Array(n); this.top = new Float64Array(n); this.tx = -1; this.ty = -1; this.version = -1;
+    this.step = o.step === undefined ? HEIGHTS.step : o.step; this.climb = o.climb || 0; this.drop = o.drop || 0;
+  }
+  /** the height an agent stands at in a cell, or NaN where it can't (outside, a blocked floor; a wall where the map has no heights) */
+  _top(cx, cy) {
+    const m = this.map;
+    if (m.types && m.height) { const c = m.cell(cx, cy); return c < 0 || (c === 0 && m.blocked && m.blocked[cy * m.w + cx]) ? NaN : c > 0 ? m.height(cx, cy) : 0; }
+    return (m.walkable ? m.walkable(cx, cy) : !m.solidCell(cx, cy)) ? 0 : NaN;
+  }
+  /** can an agent step from cell i to the cell j next to it? */
+  _link(i, j) { const dz = this.top[j] - this.top[i]; return dz >= 0 ? dz <= Math.max(this.step, this.climb) : -dz <= Math.max(this.step, this.drop); }   // (NaN: false)
+  /** aim the field at a world point; it rebuilds only when the target's cell or the map (map.version) changes */
   update(x, y) {
-    const m = this.map, T = m.T, tx = Math.floor(x / T), ty = Math.floor(y / T);
-    if (tx === this.tx && ty === this.ty && m.version === this.version) return;   // rebuilt when the target's cell or the map changes
+    const m = this.map, T = m.T, W = m.w, H = m.h, tx = Math.floor(x / T), ty = Math.floor(y / T);
+    if (tx === this.tx && ty === this.ty && m.version === this.version) return;
     this.tx = tx; this.ty = ty; this.version = m.version;
-    const d = this.d, q = this.q, W = m.w; d.fill(1e9);
-    const solid = m.walkable ? (cx, cy) => !m.walkable(cx, cy) : (cx, cy) => m.solidCell(cx, cy);
-    if (solid(tx, ty)) return;
+    const d = this.d, q = this.q, top = this.top; d.fill(1e9);
+    for (let cy = 0, i = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++, i++) top[i] = this._top(cx, cy);
+    if (tx < 0 || ty < 0 || tx >= W || ty >= H || Number.isNaN(top[ty * W + tx])) return;
     let h = 0, t = 0; d[ty * W + tx] = 0; q[t++] = ty * W + tx;
     while (h < t) {
       const i = q[h++], cx = i % W, cy = (i / W) | 0;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = cx + dx, ny = cy + dy; if (solid(nx, ny)) continue;
-        const j = ny * W + nx; if (d[j] > d[i] + 1) { d[j] = d[i] + 1; q[t++] = j; }
+        const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const j = ny * W + nx; if (d[j] > d[i] + 1 && this._link(j, i)) { d[j] = d[i] + 1; q[t++] = j; }   // (from j an agent can step to i)
       }
     }
   }
-  /** normalized ground direction to walk from (x, y) toward the target */
+  /** normalized ground direction to walk from (x, y) toward the target (straight at it where the field doesn't reach) */
   dir(x, y, fx, fy) {
-    const m = this.map, T = m.T, W = m.w, cx = Math.floor(x / T), cy = Math.floor(y / T), here = this.d[cy * W + cx];
+    const m = this.map, T = m.T, W = m.w, cx = Math.floor(x / T), cy = Math.floor(y / T), i = cy * W + cx, here = cx >= 0 && cy >= 0 && cx < W && cy < m.h ? this.d[i] : 1e9;
     if (here === 0 || here >= 1e9) { const dx = fx - x, dy = fy - y, l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; }
     let best = here, bx = 0, by = 0;
-    const solid = m.walkable ? (cx, cy) => !m.walkable(cx, cy) : (cx, cy) => m.solidCell(cx, cy);
+    const can = (nx, ny) => nx >= 0 && ny >= 0 && nx < W && ny < m.h && this._link(i, ny * W + nx);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-      if (dx && dy && (solid(cx + dx, cy) || solid(cx, cy + dy))) continue;
-      const nx = cx + dx, ny = cy + dy; if (solid(nx, ny)) continue;
+      if (dx && dy && (!can(cx + dx, cy) || !can(cx, cy + dy))) continue;
+      const nx = cx + dx, ny = cy + dy; if (!can(nx, ny)) continue;
       const v = this.d[ny * W + nx] + (dx && dy ? .4 : 0); if (v < best) { best = v; bx = dx; by = dy; }
     }
     const tx = (cx + bx + .5) * T - x, ty = (cy + by + .5) * T - y, l = Math.hypot(tx, ty) || 1;
