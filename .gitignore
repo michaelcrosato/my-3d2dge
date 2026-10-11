@@ -5,3 +5,5 @@ check-output/
 .vercel
 .env*
 .cache/
+# builders' feedback as it arrives (the owner's drop folder): what we keep from it goes into docs/FEEDBACK-LOG.md
+temp-feedback/

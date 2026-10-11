@@ -59,7 +59,8 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     the rig's code states met the bar on filmstrips. The store has them if a game wants captured motion: `ClimbUp_1m_RM`,
     Climb Wall, Ledge Hang, Pipe Climb, Crawl, `Walk_Stealth`, `Run_Stealth`, `Crouch_Walk`, Roll, `Dive_Roll`,
     `Land_Three_Point` and the NinjaJump pair (the Quaternius, Mesh2Motion and CMU catalogs).
-  - The benchmark's runs (Phase 5): the tool is built; the runs spend money and wait on the owner (D19).
+  - The benchmark's runs (Phase 5): the tool is built; the runs spend money and wait on the owner (D19). **Taken up in
+    v0.22.1 and v0.22.2:** the owner said yes, and all three briefs ran (F2, F3, F4; `DOCTRINE.md`'s measures).
 - **Not acted on:**
   - **F1.1** · kits unused · "PlatformMap, Platformer, Blob, bullets, and projectile patterns: these systems did not
     fit the required movement or actors." **No:** they are for other genres.
