@@ -96,7 +96,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.27.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.27.3  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -174,7 +174,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.27.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.27.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -770,8 +770,9 @@ class Input {
       }
     });
     on(window, 'pointerup', e => {
-      const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none): clicked() for a step
-      if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = [e.clientX, e.clientY];
+      const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none): clicked() for a step,
+      // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
+      if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
       if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else this._stickEnd(e);
     });
     on(window, 'pointercancel', e => { this._down = null; this._stickEnd(e); });
@@ -1037,7 +1038,7 @@ class Input {
     // presses since the last step become this step's pressed()/released()
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
-    this.clickAt = this._click && this.screenPoint(this._click[0], this._click[1]); this._click = null;
+    this.clickAt = this._click; this._click = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
   /** wire every element with data-act="<action>" inside root to the action */
@@ -2187,7 +2188,8 @@ class Game {
     on(window, 'blur', () => this._autoPause('focus'));
     on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
     on(window, 'pagehide', () => this._autoPause('focus'));
-    const fsChange = () => { this.input.clear(); if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
+    // held keys and the stick let go as the screen changes; a tap that has landed (the one that went full screen) still counts
+    const fsChange = () => { const I = this.input, c = I._click; I.clear(); I._click = c; if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
     on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
     on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one, or a game started by it)
       if (e.pointerType === 'mouse') return;

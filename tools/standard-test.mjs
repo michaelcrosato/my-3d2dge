@@ -315,6 +315,11 @@ if (!process.argv.includes('--node')) {
       await ev(q, () => { window.picked = -1; }); const c1 = await at(mb.x + 10, mb.y + mb.rowH * .5); await q.mouse.click(c1[0], c1[1]); await ev(q, () => step(2)); const byClick = await ev(q, () => window.picked);
       const beside = await at(mb.x - 30, mb.y - 20); await ev(q, () => { window.picked = -1; }); await q.touchscreen.tap(beside[0], beside[1]); await ev(q, () => step(2)); const outside = await ev(q, () => window.picked);
       check(`${ed}: a tap or a click on a menu entry picks it, a tap beside the menu does not`, byTap === 2 && byClick === 0 && outside === -1, JSON.stringify([byTap, byClick, outside]));
+      // a phone's first tap goes full screen: the change can land before the next step, and moves the canvas; the tap still picks what it touched
+      await ev(q, () => { window.picked = -1; }); await q.touchscreen.tap(c1[0], c1[1]);
+      await ev(q, () => { game.screen.canvas.style.marginTop = '60px'; document.dispatchEvent(new Event('fullscreenchange')); step(2); game.screen.canvas.style.marginTop = ''; });
+      const byFsTap = await ev(q, () => window.picked);
+      check(`${ed}: a tap whose full-screen change lands before the next step still picks the entry it touched`, byFsTap === 0, JSON.stringify(byFsTap));
       // a finger that lands on an entry and drags away (the touch stick) picks nothing; a tap anywhere makes the device touch
       await ev(q, () => { window.picked = -1; game.input.lastDevice = 'keyboard'; });
       const touchAt = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 2 }] });
