@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.31.1 (2026-10-12)
+
+Codex's review of 0.31.0: the session a phone sends must replay, and read, true.
+
+- **Engine**: a replay's pause menu has Save session too (doing nothing): the recorded tap on it landed on the next button, Quit to title, so a session saved from the menu replayed to Quit's question.
+- **Tools**: `replay.mjs --pacing`:
+  - Each second's refresh is read from that second (a phone with adaptive refresh changes it): a 60 Hz stretch after 120 Hz read as half its refreshes missed.
+  - Time the page was hidden (its recorded visibility events) is left out: a locked screen read as minutes of missed refreshes.
+  - A stall of seconds is spread over the seconds it took, each its own column (it filled one, and shifted the rest).
+- **Tools**: `phone-test`: the session saved from the menu replays exactly and ends on the pause menu (0.31.0: on Quit's question); `--pacing` on a made-up session of 120 Hz, 60 Hz, hidden time and a stall (0.31.0: 1018 refreshes missed, now 299) (43 checks).
+
 ## 0.31.0 (2026-10-12)
 
 A report of choppy play from a phone, with its evidence: the device's own refreshes, recorded and read in a second.

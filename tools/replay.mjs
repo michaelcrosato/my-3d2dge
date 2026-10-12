@@ -25,25 +25,34 @@ if (!file) { console.error('Usage: node tools/replay.mjs session.json [--page pa
 const S = JSON.parse(readFileSync(file, 'utf8'));
 if (S.format !== 'my3d2dge-session') { console.error(file + ' is not a my-3D2dge session (format: ' + S.format + ')'); process.exit(2); }
 if (args.includes('--pacing')) {
-  // each recorded frame is a refresh the browser gave the page: gaps of 2 refreshes and more are refreshes it missed. The
-  // refresh: the shortest gap that recurs (to half a millisecond, 3 times and 1% of the gaps at least: a frame's time is
-  // its refresh's, so a refresh's gaps agree); uneven: a gap a different number of refreshes long than the one before (8
-  // then 17 ms: what reads as choppy)
-  const F = S.frames, gaps = F.slice(1).map((t, i) => t - F[i]).filter(g => g > 4), bins = new Map();
-  for (const g of gaps) { const k = Math.round(g * 2) / 2; bins.set(k, (bins.get(k) || 0) + 1); }
-  const k0 = [...bins].filter(([, c]) => c >= Math.max(3, gaps.length * .01)).map(([k]) => k).sort((a, b) => a - b)[0];
-  const near = gaps.filter(g => Math.abs(g - k0) <= .5), per = near.length ? near.reduce((a, g) => a + g, 0) / near.length : 16.7, n = g => Math.max(1, Math.round(g / per));
-  console.log(`${S.href}  v${S.version} ${S.build || ''}\n${S.ua}\n${F.length} frames over ${((F[F.length - 1] - F[0]) / 1000).toFixed(1)} s; the refresh ${per.toFixed(2)} ms (${Math.round(1000 / per)} Hz)`);
-  const hist = {}; for (const g of gaps) { const k = Math.min(4, n(g)); hist[k] = (hist[k] || 0) + 1; }
-  const missed = gaps.reduce((a, g) => a + n(g) - 1, 0), uneven = gaps.slice(1).filter((g, i) => n(g) !== n(gaps[i])).length;
-  console.log(`gaps: ${Object.entries(hist).map(([k, c]) => (k === '4' ? '4+' : k) + ' refresh' + (k === '1' ? '' : 'es') + ' ' + c).join(', ')}; ${missed} refreshes missed (${(missed / (gaps.length + missed) * 100).toFixed(1)}%), ${(uneven / Math.max(1, gaps.length - 1) * 100).toFixed(1)}% of gaps unlike the one before`);
-  console.log('second by second (frames, refreshes missed, the longest gap in ms):');
-  let t0 = F[0], c = 0, m = 0, long = 0, line = [];
-  for (let i = 1; i < F.length; i++) {
-    const g = F[i] - F[i - 1]; c++; m += n(g) - 1; long = Math.max(long, g);
-    if (F[i] - t0 >= 1000 || i === F.length - 1) { line.push(`${c}/${m}/${Math.round(long)}`); if (line.length === 8) { console.log('  ' + line.join('  ')); line = []; } t0 = F[i]; c = m = long = 0; }
+  // each recorded frame is a refresh the browser gave the page. Second by second: the display's refresh there (the shortest
+  // gap that recurs in that second, to half a millisecond, 3 times at least, else in the 3 s around it: a phone with
+  // adaptive refresh changes it; a second missing every other refresh reads as half the rate, and is even), the refreshes it had that the page missed (the page or its GPU behind; a gap spanning seconds shares its misses
+  // out by time), the longest gap, and the gaps a different number of refreshes long than the one before (8 then 17 ms:
+  // what reads as choppy). Time the page was hidden (its recorded visibility events) is left out: no refresh is owed then
+  const F = S.frames, hid = new Set(); let h0 = null;
+  for (const e of S.events || []) if (e[1] === 'visibilitychange') { if (e[3] && h0 === null) h0 = e[0]; else if (!e[3] && h0 !== null) { for (let i = h0; i <= e[0]; i++) hid.add(i); h0 = null; } }
+  if (h0 !== null) for (let i = h0; i < F.length; i++) hid.add(i);
+  const G = []; for (let i = 1; i < F.length; i++) if (!hid.has(i) && F[i] - F[i - 1] > 4) G.push({ t: F[i - 1], g: F[i] - F[i - 1] });
+  const refresh = (a, b) => { const bins = new Map(); for (const { t, g } of G) if (t >= a && t < b) { const k = Math.round(g * 2) / 2; bins.set(k, (bins.get(k) || 0) + 1); }
+    const k0 = [...bins].filter(([, c]) => c >= 3).map(([k]) => k).sort((x, y) => x - y)[0]; if (k0 === undefined) return null;
+    const near = G.filter(({ t, g }) => t >= a && t < b && Math.abs(g - k0) <= .5); return near.reduce((s, { g }) => s + g, 0) / near.length; };
+  const all = refresh(-Infinity, Infinity) || 16.7, T0 = F[0], nb = Math.max(1, Math.ceil((F[F.length - 1] - T0) / 1000));
+  const B = Array.from({ length: nb }, (_, k) => ({ per: refresh(T0 + k * 1000, T0 + (k + 1) * 1000) || refresh(T0 + (k - 1) * 1000, T0 + (k + 2) * 1000) || all, frames: 0, missed: 0, long: 0, uneven: 0, seen: false }));
+  let prev = 0, frames = 0, missed = 0, uneven = 0;
+  for (const { t, g } of G) {
+    const end = t + g, kb = Math.min(nb - 1, Math.floor((end - T0) / 1000)), per = B[kb].per, n = Math.max(1, Math.round(g / per));
+    B[kb].frames++; frames++; missed += n - 1; if (prev && n !== prev) { B[kb].uneven++; uneven++; } prev = n;
+    for (let k = Math.max(0, Math.floor((t - T0) / 1000)); k <= kb; k++) {   // the gap's misses by the time it spent in each second
+      const o = Math.min(end, T0 + (k + 1) * 1000) - Math.max(t, T0 + k * 1000); if (o <= .5) continue;
+      B[k].missed += (n - 1) * o / g; B[k].long = Math.max(B[k].long, g); B[k].seen = true;
+    }
   }
-  if (line.length) console.log('  ' + line.join('  '));
+  const hz = p => Math.round(1000 / p);
+  console.log(`${S.href}  v${S.version} ${S.build || ''}\n${S.ua}\n${F.length} frames over ${((F[F.length - 1] - T0) / 1000).toFixed(1)} s${hid.size ? ' (hidden for ' + hid.size + ' gaps, left out)' : ''}; the refresh ${all.toFixed(2)} ms (${hz(all)} Hz)`);
+  console.log(`${missed} refreshes missed (${(missed / Math.max(1, frames + missed) * 100).toFixed(1)}%), ${(uneven / Math.max(1, frames - 1) * 100).toFixed(1)}% of gaps unlike the one before`);
+  console.log('second by second (frames/refreshes missed/the longest gap in ms, @Hz where the refresh differs; - hidden):');
+  for (let k = 0; k < nb; k += 8) console.log('  ' + B.slice(k, k + 8).map(b => b.seen ? `${b.frames}/${Math.round(b.missed)}/${Math.round(b.long)}${hz(b.per) !== hz(all) ? '@' + hz(b.per) : ''}` : '-').join('  '));
   process.exit(0);
 }
 const root = resolve('.'), out = resolve(opt('out', 'check-output/replay')); mkdirSync(out, { recursive: true });
