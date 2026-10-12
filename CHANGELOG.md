@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.27.3 (2026-10-12)
+
+A phone's first tap on a title sometimes did nothing: the kits' game entry needed a second tap about one time in five.
+
+- **Engine**: a phone's first tap goes full screen, and the full-screen change clears the input (held keys, the stick). When it landed before the next step it wiped the tap too. A tap that has landed now still counts, and is placed on the screen when it lifts (where it touched what was drawn), not a step later after full screen has moved the canvas.
+- **Tools**: `standard-test`: a tap whose full-screen change lands before the next step, with the canvas moved, still picks the entry it touched (108 checks).
+
 ## 0.27.2 (2026-10-12)
 
 The RPG kit's two known nits on a phone: the seam where the plaza meets the painted grass, and small fighters on a phone held upright.
