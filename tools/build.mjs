@@ -7,6 +7,11 @@
 //   dist/kits/my-3d2dge-<genre>.html  minified engine + API card + ONE slice: the smallest file to
 //                                hand a model that is making a game in that genre
 //   dist/my-3d2dge.js / .min.js  the engine alone, for multi-file projects
+//   dist/my-3d2dge-3d.html       the 3D starter: the engine and the 3D engine (engine/my-3d2dge-3d.js: three.js r182 and
+//                                Rapier 0.19.3 from vendor/, through the page's import map: served, not double-clicked),
+//                                the API card and every 3D slice (src/starter3d/)
+//   dist/kits/my-3d2dge-3d-<genre>.html  the same with ONE 3D slice: a 3D genre kit
+//   dist/my-3d2dge-3d.js         the 3D engine alone (an ES module), readable
 //   dist/my-3d2dge-agent.js      the agent edition: the essential engine plus its manual in one readable file,
 //                                for AI coding agents (source: engine/my-3d2dge-agent.js; test: node tools/agent-test.mjs)
 //   API-INDEX.md                 every public name in the engine, one line each (tools/api-index.mjs)
@@ -20,7 +25,7 @@ import vm from 'node:vm';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
-const STARTER = 'src/starter';
+const STARTER = 'src/starter', STARTER3D = 'src/starter3d', ENGINE3D = 'engine/my-3d2dge-3d.js';
 const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', rpg: 'RPG BATTLE (turn-based battle)', stealth: 'STEALTH (third-person stealth and parkour)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
 const ALL = {
   GAMES: 'six working games and an animation lab',
@@ -32,6 +37,10 @@ const kit = id => ({
   CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with all six slices is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.',
   LINKS: 'Deep link: add #' + id + ' to the address to start the slice.'
 });
+// the 3D slices: their ids and what each is (the kit's header names it)
+const SLICES3D = { action: 'ACTION (a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test)', platformer: 'PLATFORMER (a 3D course of islands, platforms and coins, Mario 64 and Spyro)' };
+const ALL3D = { EDITION: '3D edition', GAMES: 'the 3D starter games', CONTENTS: 'a title menu plus every 3D slice (' + Object.keys(SLICES3D).map(k => k.toUpperCase()).join(', ') + ').', LINKS: 'Deep links: add #' + Object.keys(SLICES3D).join(', #') + ' to the address to start a slice.' };
+const kit3d = id => ({ EDITION: '3D ' + id + ' kit', GAMES: 'one 3D game to copy', CONTENTS: 'a title menu plus the ' + SLICES3D[id] + ' slice.\n       This is a 3D genre kit. The file with every 3D slice is dist/my-3d2dge-3d.html at github.com/michaelcrosato/my-3d2dge.', LINKS: 'Deep link: add #' + id + ' to the address to start the slice.' });
 const builds = [
   // one arena page for every view: iso by default, arena.html#threequarter (or keys 1-4, V) for the others
   { template: 'src/arena.template.html', out: 'examples/arena.html', vars: { VIEW: 'iso', TITLE: 'Emberwell · my-3D2dge' } },
@@ -62,10 +71,17 @@ const builds = [
   ...readdirSync(join(root, STARTER)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
     return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id), compact: true, parts: p => /^(0|9)/.test(p) || p === f };
+  }),
+  // the 3D starter (src/starter3d/: the shell, every 3D slice, the start) and a 3D genre kit for each slice
+  { template: 'src/starter3d.template.html', out: 'dist/my-3d2dge-3d.html', vars: ALL3D, compact: true },
+  ...readdirSync(join(root, STARTER3D)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
+    const id = f.replace(/^\d+-|\.js$/g, '');
+    if (!SLICES3D[id]) throw new Error(STARTER3D + '/' + f + ': name the slice in SLICES3D (tools/build.mjs)');
+    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id), compact: true, parts: p => /^(0|9)/.test(p) || p === f };
   })
 ];
 
-let minified = null;
+let minified = null, minified3d = null;
 async function engineMin() {
   if (minified !== null) return minified;
   try {
@@ -74,6 +90,15 @@ async function engineMin() {
     minified = res.code;
   } catch (e) { console.warn('terser is not installed (npm install); skipping the compact build'); minified = false; }
   return minified;
+}
+/** the 3D engine minified as a module, its manual (the /*! header) kept */
+async function engine3dMin() {
+  if (minified3d !== null) return minified3d;
+  try {
+    const { minify } = await import('terser');
+    minified3d = (await minify(readFileSync(join(root, ENGINE3D), 'utf8'), { module: true, compress: true, mangle: true, format: { comments: /^!/ } })).code;
+  } catch (e) { minified3d = false; }
+  return minified3d;
 }
 
 const read = file => readFileSync(join(root, file), 'utf8').replaceAll('</script', '<\\/script');
@@ -96,9 +121,15 @@ for (const b of builds) {
     const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort();
     return `<script>\n/* ---- inlined from ${dir} (${parts.join(', ')}) ---- */\n${parts.map(f => read(join(dir, f))).join('\n')}\n</script>`;
   });
+  // one ES module file as a <script type="module"> (the 3D engine; minified, its manual kept, in a compact build)
+  const min3d = b.compact ? await engine3dMin() : null;
+  html = html.replace(/<!-- @inline-esm (\S+) -->/g, (_, file) => {
+    const src = file === ENGINE3D && min3d ? min3d.replaceAll('</script', '<\\/script') : read(file);
+    return `<script type="module">\n/* ---- inlined from ${file}${file === ENGINE3D && min3d ? ' (minified; the readable engine is in the repo)' : ''} ---- */\n${src}\n</script>`;
+  });
   // a folder of module parts joined in name order into one <script type="module"> (they share one scope; imports go first)
   html = html.replace(/<!-- @inline-module (\S+) -->/g, (_, dir) => {
-    const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js')).sort();
+    const parts = readdirSync(join(root, dir)).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort();
     return `<script type="module">\n/* ---- inlined from ${dir} (${parts.join(', ')}) ---- */\n${parts.map(f => read(join(dir, f))).join('\n')}\n</script>`;
   });
   // a file's first section, raw: everything before its second /* ==== banner (Dan's body, without Emberdeep's skills)
@@ -119,6 +150,8 @@ writeFileSync(join(root, 'dist/my-3d2dge.js'), readFileSync(join(root, ENGINE), 
 console.log('built dist/my-3d2dge.js');
 writeFileSync(join(root, 'dist/my-3d2dge-agent.js'), readFileSync(join(root, 'engine/my-3d2dge-agent.js'), 'utf8'));
 console.log('built dist/my-3d2dge-agent.js');
+writeFileSync(join(root, 'dist/my-3d2dge-3d.js'), readFileSync(join(root, ENGINE3D), 'utf8'));
+console.log('built dist/my-3d2dge-3d.js');
 const min = await engineMin();
 if (min) { writeFileSync(join(root, 'dist/my-3d2dge.min.js'), min); console.log('built dist/my-3d2dge.min.js'); }
 
