@@ -412,6 +412,8 @@ An entry:
 - **Answered:** no: made at once as a reversible call (it is one option and a few lines of the loop), flagged in the pull
   request, to review
 - **Landed in:** v0.29.0
+- **Confirmed:** 2026-10-12, by the owner on the Galaxy S25 (v0.31.2, with D26): the adventure smooth with Settings,
+  Display, Frame rate on Auto (the pacing's own call)
 
 ## D26 · 2026-10-12 · Refreshes missed count too, not only a frame's cost
 
@@ -435,3 +437,5 @@ An entry:
   while paced, gaps shorter than one and a half refreshes are still read, so a display that changes its rate is followed;
   and the first frame's gap (timed from `start()`, not from a refresh) is never read: it passed for a 200 Hz screen and
   locked the pacing in (since D25)
+- **Confirmed:** 2026-10-12, by the owner on the Galaxy S25 (v0.31.2): the adventure smooth with Frame rate on Auto, the
+  readings this entry waited for
