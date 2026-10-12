@@ -431,3 +431,7 @@ An entry:
 - **Answered:** no: made at once as a reversible call (a few lines of the loop beside D25's), flagged in the pull
   request, to review
 - **Landed in:** v0.29.1
+- **Amended:** v0.29.2: the hold goes back to 3 s after 10 s drawn at each refresh (it only grew, from Codex's review);
+  while paced, gaps shorter than one and a half refreshes are still read, so a display that changes its rate is followed;
+  and the first frame's gap (timed from `start()`, not from a refresh) is never read: it passed for a 200 Hz screen and
+  locked the pacing in (since D25)
