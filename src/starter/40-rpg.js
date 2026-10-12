@@ -8,25 +8,27 @@
  * slashes, bashes and swings a Doom Blade, the Gargoyle dives claws first or beats up a gale, the Bomb rams or spits.
  * ANY SCREEN: the backdrop is painted at the screen's size, its ground with the plaza's own grass and light so the plaza's
  * edge melts into it, a tall screen's sky darkening to the first stars; the HUD band sits on the bottom edge and the
- * battle in the space above it (LAYOUT()). TOUCH: no buttons; tap a command, then a foe (or the commands to go back).
+ * battle in the space above it (layout()). A phone held upright comes in to 1.5x and the two sides close up (TALL), so the
+ * fighters are as big as a wide screen shows them. TOUCH: no buttons; tap a command, then a foe (or the commands to go back).
  * ===================================================================================== */
 const RPG = (() => {
-  /* ---- BACKDROP: a sunset painted once per screen size in crisp pixel shapes like the sprites (zoom and turn move only
-   * the plaza). Drawn for 320 x 240 and moved: ox centres it, oy puts its horizon where the plaza's far edge is ---- */
+  /* ---- BACKDROP: a sunset painted once per screen size and zoom in crisp pixel shapes like the sprites (a turn, and a
+   * zoomed-in camera following the fight, move only the plaza). Drawn for 320 x 240 and moved: ox centres it, oy puts its
+   * horizon where the plaza's far edge is; the hills keep their size at any zoom, as far things do when a camera comes in ---- */
   const SKY = ['#1c1642', '#40245f', '#8a3468', '#d4565c', '#f4935c', '#ffd08a'], skyAt = y => { const f = Math.min(y / 15, 4.99), i = f | 0; return E.mix(SKY[i], SKY[i + 1], f - i); };   // a stop every 15 rows
   const SX = 288, SY = 45, CLOUDS = [[44, 13, 60], [156, 19, 84], [246, 10, 52], [98, 33, 64], [206, 36, 74], [296, 51, 46], [22, 47, 52]];   // clouds: [x, y, width]
   const TOWERS = [[116, 9, 26, 12], [127, 15, 16, 0], [144, 8, 36, 15], [154, 13, 21, 0], [169, 7, 28, 11], [178, 12, 12, 0]];   // castle: [x, width, height, roof]
   // a range: one column per x, slopes facing the sun (right) lit
   const range = (g, base, amp, s, col, lit, x0, x1) => { const h = x => amp * (.5 + .32 * (1 - Math.abs(Math.sin(x * .017 + s))) + .18 * Math.sin(x * .061 + s * 3)); for (let x = x0; x < x1; x++) px.rect(g, x, base - h(x), 1, 40, h(x + 1) < h(x - 1) ? lit : col); };
-  function paintBackdrop(W, H, fy) {   // fy: where the camera's focus sits on screen (layout)
-    const c = E.mkCanvas(W, H), g = E.ctx2d(c), ox = Math.round((W - 320) / 2), oy = fy - 120, sx = SX + ox, sy = SY + oy, v = E.VIEWS.brawler;
-    // the ground below the treeline: the plaza's grass and light at the world point under each pixel (the camera at rest)
-    const im = g.createImageData(W, H), d = im.data;
-    for (let y = Math.max(0, 75 + oy); y < H; y++) for (let x = 0; x < W; x++) {
-      const wx = 110 + (x - W / 2) / v.ax, wy = 72 + (y - fy) / v.by, warm = clamp(.5 + (wx - PLAZA[0]) / 260 - (wy - PLAZA[1]) / 200, 0, 1), haze = clamp(1 - wy / 70, 0, 1) * .45, k = 1.08 - clamp(wy - 70, 0, 110) / 400;
+  function paintBackdrop(W, H, fy, cx, Z) {   // fy: where the camera's focus sits on screen (layout); cx, Z: the camera at rest
+    const v = E.VIEWS.brawler, c = E.mkCanvas(W, H), g = E.ctx2d(c), ox = Math.round((W - 320) / 2), oy = fy - 74 - Math.round(72 * v.by * Z), sx = SX + ox, sy = SY + oy;
+    // the ground from the row the plaza's far edge is on: the plaza's grass and light at the world point under each pixel (the
+    // camera at rest). Laid last, over the hills' feet, so the horizon is one line on both sides of the plaza
+    const im = g.createImageData(W, H), d = im.data, gy = Math.max(0, Math.round(fy - 72 * v.by * Z));
+    for (let y = gy; y < H; y++) for (let x = 0; x < W; x++) {
+      const wx = cx + (x - W / 2) / (v.ax * Z), wy = 72 + (y - fy) / (v.by * Z), warm = clamp(.5 + (wx - PLAZA[0]) / 260 - (wy - PLAZA[1]) / 200, 0, 1), haze = clamp(1 - wy / 70, 0, 1) * .45, k = 1.08 - clamp(wy - 70, 0, 110) / 400;
       const q = E.tex.grass(wx, wy, GRASS), o = (y * W + x) * 4; for (let i = 0; i < 3; i++) d[o + i] = lerp(lerp(q[i] * k, lerp(COOL[i], WARM[i], warm), .28), HAZE[i], haze); d[o + 3] = 255;
     }
-    g.putImageData(im, 0, 0);
     for (let y = 0; y < 100 + oy; y++) {   // sky rows (above the painting, a tall screen's: night coming), a smooth sun glow (no bands, no dither)
       const s = y < oy ? E.mix('#07061a', SKY[0], clamp(1 - (oy - y) / 170, 0, 1)) : skyAt(y - oy); px.rect(g, 0, y, W, 1, s);
       if (y < oy + 24) for (let x = 0; x < W; x++) { const h = E.hash2(x * 3 + 1, y * 5 + 2); if (h > .9965 - clamp((oy - y) / 4000, 0, .004)) px.dot(g, x, y, h > .9993 ? '#ffffff' : E.mix(s, '#fff0d8', .6)); }   // the first stars
@@ -50,12 +52,17 @@ const RPG = (() => {
     px.blend(g, .3, 'normal', () => px.rect(g, 96, 66, 110, 10, '#ffc0a0'));   // mist at the castle's foot
     range(g, 77, 9, 5, '#8a4a74', '#c06a7c', x0, x1);   // near hills in front of it
     for (let x = x0 - ((x0 - 1) % 5 + 5) % 5; x < x1; x += 5) { const r = 4 + 3 * E.noise2(x * .09, 3), y = 79 - r * .7; px.disc(g, x + 1, y - 1, r, '#b25c5e'); px.disc(g, x, y, r, '#2e2040'); }   // treeline, rim-lit
-    px.rect(g, x0, 79, x1 - x0, 3, '#2e2040'); return c;   // its foot, on the grass
+    g.putImageData(im, 0, 0, 0, gy, W, H - gy); return c;   // the ground over its foot
   }
   // where things go on this screen: the HUD band's top (Y: on the bottom edge, a little higher on a phone, off its home
-  // bar), the camera focus's height on screen (fy: the battle just above the band, or on a tall screen 3/5 down the sky)
-  const layout = (W, H) => { const Y = H - 73 - (game.input.lastDevice === 'touch' ? 8 : 0); return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * .6)) }; };
-  let backdrop = null;   // painted on the first draw, again for a new screen size
+  // bar), the camera focus's height on screen (fy: the battle just above the band, or on a tall screen 3/5 down the sky,
+  // a phone held upright's a little lower: its fight is bigger)
+  const layout = (W, H) => { const Y = H - 73 - (game.input.lastDevice === 'touch' ? 8 : 0); return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * (fit.tall ? .66 : .6))) }; };
+  let backdrop = null;   // painted on the first draw, again for a new screen size or zoom
+  // the camera at rest: on a phone held upright (fit.tall) it comes in to 1.5x and the sides close up toward x 119 (spread),
+  // so the fight fills the narrow screen's width, each rank opening out in depth from y 84 (deep) so nobody hides behind
+  // the one in front; x: where it looks
+  const TALL = { zoom: 1.5, spread: .6, deep: 1.25, x: 111 }, WIDE = { zoom: 1, spread: 1, deep: 1, x: 110 }, rest = () => fit.tall ? TALL : WIDE;
 
   /* ---- FLOOR: a round cobbled plaza (a ground circle projects to a wide ellipse: reads as floor). floorTex runs
    * once per pixel when the floor is baked, so light, shadows and wear cost nothing per frame ---- */
@@ -201,16 +208,20 @@ const RPG = (() => {
   const alive = l => l.filter(c => !c.dead), isHero = c => party.includes(c), size = c => c.rig ? c.rig.o.size : 1.2;
   const unit = (d, hero) => {
     const body = d.rig ? new E.Humanoid(d.rig) : d.blob && new E.Blob(d.blob);   // both kick() and draw()
-    return Object.assign({}, d, { body, rig: d.rig && body, max: d.hp, mp: d.mp || 0, hx: d.x, hy: d.y, hz: d.z || 0, z: d.z || 0, px: d.x, py: d.y, atb: d.atb || (hero ? E.rand(.3, .7) : E.rand(0, .3)),
+    return Object.assign({}, d, { body, rig: d.rig && body, max: d.hp, mp: d.mp || 0, home: [d.x, d.y], hx: d.x, hy: d.y, hz: d.z || 0, z: d.z || 0, px: d.x, py: d.y, atb: d.atb || (hero ? E.rand(.3, .7) : E.rand(0, .3)),
       face: hero ? Math.PI - d.turn : .75, flash: 0, glow: 0, shake: 0, grow: 0, coil: 0, flee: 0, tilt: 0, flapT: 0, bob: 0, die: 0, fade: hero ? 1 : 0, dead: false, guard: false, h: d.h || (d.rig.build === 'bulky' ? 29 : 31) * d.rig.size });
   };
   function start() {
-    party = PARTY.map(d => unit(d, true)); foes = TROOP.map(d => unit(d, false)); all = [...party, ...foes];
-    for (const h of party) h.x = h.px = h.hx + 70;   // intro: the party runs in, the monsters fade in
+    party = PARTY.map(d => unit(d, true)); foes = TROOP.map(d => unit(d, false)); all = [...party, ...foes]; place();
+    for (const c of all) { c.x = c.px = c.hx + (isHero(c) ? 70 : 0); c.y = c.py = c.hy; }   // intro: the party runs in, the monsters fade in
     log = new E.Dialog(game, { place: 'top', lines: 2, speed: 70, bg: WIN }); menu = new E.Menu(game, [], { onPick: pick });   // E.Menu reads the keys; hud() draws it
-    act = null; fx = []; potions = 3; note = ''; t = 0; dim = 0; cam = [110, 72, 0]; mode = 'intro'; game.cam.bounds = null; L.enabled = false;
+    act = null; fx = []; potions = 3; note = ''; t = 0; dim = 0; cam = [rest().x, 72, 0]; mode = 'intro'; game.cam.bounds = null; L.enabled = false;
     A.music('boss'); game.flash('#ffffff', .25); game.after(.9, () => { mode = 'wait'; });
   }
+
+  // each fighter's place for this screen's shape (the standing walk there when it turns: animate)
+  const place = () => { placed = fit.tall; const R = rest(); for (const c of all) { c.hx = 119 + (c.home[0] - 119) * R.spread; c.hy = 84 + (c.home[1] - 84) * R.deep; } };
+  let placed;
 
   /* ---- WAIT-MODE ATB: gauges fill while nobody chooses or acts; a full gauge takes the turn ---- */
   function tick(dt) {
@@ -442,7 +453,7 @@ const RPG = (() => {
     }, { emissive: true });
   }
   function draw(r) {
-    const { fy } = layout(r.W, r.H), key = r.W + 'x' + r.H + ':' + fy; if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, fy); backdrop.key = key; }
+    const { fy } = layout(r.W, r.H), cx = rest().x, key = [r.W, r.H, fy, cx, game.zoom].join(); if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, fy, cx, game.zoom); backdrop.key = key; }
     r.ctx.drawImage(backdrop, 0, 0);
     plaza.drawFloor(r); plaza.queueWalls(r); for (const [name, x, y, z, o] of PROPS) r.prop(name, x, y, z, o);
     for (const c of all) drawUnit(r, c); for (const f of fx) drawFx(r, f);
@@ -498,15 +509,16 @@ const RPG = (() => {
     if (mode === 'win') E.font.title(g, 'Victory!', Math.round(r.W / 2) - 36, layout(r.W, r.H).fy - 60, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
   }
   // propSize: props sized to the heroes; a strong warm rim light
-  // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in, it eases to the fight (or the hero on turn) at chest height
+  // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in past rest(), it eases to the fight (or the hero on turn) at chest height
   return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: [], propSize: 1.3, camera: { zoom: [.75, 2], rotate: true },   // touch: taps, no buttons
     back() { if (mode !== 'target') return false; mode = 'command'; A.sfx('cancel'); return true; },   // a phone's back: aiming goes back to the commands
-    enter() { start(); game.r.rimAlpha = .75; game.focus(110, 72, 0); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
+    enter() { fitZoom(TALL.zoom); start(); game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
     exit() { game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {
       if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? 'TURN ' + yaw : 'CAMERA RESET');   // the kit's notice has a degree sign the pixel font lacks
-      update(dt); const f = game.zoom > 1 && (act ? [act.who, act.target || act.who] : actor && [actor, actor]), k = Math.min(1, dt * 4);
-      const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [110, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
+      fitZoom(TALL.zoom); if (placed !== fit.tall) place();   // a phone turned: in or out, and the sides close up or open out
+      update(dt); const f = game.zoom > rest().zoom + 1e-6 && (act ? [act.who, act.target || act.who] : actor && [actor, actor]), k = Math.min(1, dt * 4);
+      const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [rest().x, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
       game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
     state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp) }) };   // for automated tests
