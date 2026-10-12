@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.33.1 (2026-10-12)
+
+The Labs page in the order things were made.
+
+- **Tools**: the Labs page's first section is **The road to Emberdeep**. It numbers the line that grew the engine and led to the showcase game, in the order it was made, with the version each one came in: Scarfrunner (before the engine), Emberwell and the Perspective Lab (v0.1.0), the stress test (v0.3.0) and Emberdeep (v0.6.0). The Mocap Lab stays under Tools.
+- **Tools**: Temporary is in the order its prototypes were made, not newest first. Each card says the page it led to: Shapes vs props, then the free camera room, the 3D world lab and the stress test as a 3D world (built after the lab, `docs/LAB-3D.md`). Vesper's interface comes last.
+- **Tools**: `src/labs.json`: a section's `line` (numbered, with each page's `made`) and `short` (its name in the bar at the top); an entry's `next` (the page it led to). `labs-test` checks that each `next` is on the list and that each page of a line has its `made`.
+- **Docs**: `README.md` describes the sections.
+
 ## 0.33.0 (2026-10-12)
 
 The Labs page, restructured.

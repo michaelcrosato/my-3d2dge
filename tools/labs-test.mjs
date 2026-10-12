@@ -1,6 +1,7 @@
 // Labs check: the Labs page (examples/labs.html, built from src/labs.json) and the way back to it. It serves the repo the
 // way Vercel does (vercel.json's rewrites), opens the Labs page at /labs and /labs.html, and opens every link on it: each
-// must load (status 200) without a page error. As files on disk, every link must point at a file that exists. Each lab's
+// must load (status 200) without a page error. As files on disk, every link must point at a file that exists. The list
+// holds together: each next names a page on it, and each page of a line says when it was made. Each lab's
 // "All labs" link and the game's Developer panel button must reach the Labs page, and held upright on a phone every lab's
 // picture must fill the screen with none of its buttons running off the edge. It fails (exit code 1) on any of these.
 // Usage: node tools/labs-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
@@ -47,6 +48,12 @@ await page.goto(SITE + '/labs.html');
 if (JSON.stringify(await links()) !== JSON.stringify(siteLinks)) fail('/labs.html links differ from /labs');
 const labs = JSON.parse(readFileSync(join(root, 'src/labs.json'), 'utf8'));
 for (const S of labs.sections) if (!sections.includes(S.title)) fail('section missing: ' + S.title);
+// the list's own links: each next (the page a prototype led to) is on the list, and each page of a line says when it was made
+const pages = new Set(labs.sections.flatMap(S => S.entries.map(L => L.page)));
+for (const S of labs.sections) for (const L of S.entries) {
+  if (L.next && !pages.has(L.next)) fail(`${L.title}: next is ${L.next}, not a page on the list`);
+  if (S.line && !L.made) fail(`${L.title}: a page of the line "${S.title}" with no made`);
+}
 const want = labs.sections.reduce((n, S) => n + S.entries.reduce((m, L) => m + 1 + L.links.length, 0), 0);
 if (siteLinks.length !== want) fail(`the Labs page shows ${siteLinks.length} links, src/labs.json has ${want}`);
 let opened = 0;

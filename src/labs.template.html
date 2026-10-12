@@ -9,8 +9,9 @@
   The Labs page: one place to open every test page, lab and demo of my-3D2dge (my-3d2dge.vercel.app/labs).
   Built by tools/build.mjs from the list in src/labs.json; edit the list, not this page. tools/labs-test.mjs opens
   every link. The links work from the site (/mocap-lab) and from the files on disk (examples/mocap-lab.html).
-  A bar at the top jumps to each section (it marks the one on screen). A card opens its page from anywhere on it; its
-  chips are other places to start. The kits are small tiles; the Temporary cards lead with their question, newest first.
+  Everything is in the list's order. A bar at the top jumps to each section (it marks the one on screen). A card opens its
+  page from anywhere on it; its chips are other places to start. A line's cards are numbered, with when each was made; the
+  kits are small tiles; the Temporary cards lead with their question and say which page each one led to.
 -->
 <style>
 :root{
@@ -60,7 +61,8 @@ h2{margin:0;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
 .tiles .card{padding:10px 12px 11px;gap:4px}
 .tiles .card h3{font-size:16px}
 .tiles .card p{font-size:13px}
-.card .meta{font-size:12px;color:var(--muted)}
+.card .meta{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.card .step{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:700}
 .card .q{color:var(--ink);font-size:15px;border-left:3px solid var(--accent);padding-left:9px}
 .card .dev{font-size:13px}
 .card .dev b{color:var(--accent);font-weight:600}
@@ -97,27 +99,28 @@ const el = (tag, cls, text, parent) => { const e = document.createElement(tag); 
 // how long a prototype has been up: the doctrine deletes or graduates it once its question is settled
 const age = d => { const n = Math.floor((Date.now() - Date.parse(d + 'T00:00:00')) / 864e5); return n < 1 ? 'today' : n === 1 ? 'yesterday' : n + ' days ago'; };
 const list = document.getElementById('list'), jump = document.getElementById('jump');
+const titleOf = page => { for (const S of LABS.sections) for (const L of S.entries) if (L.page === page) return L.title; return page; };
 for (const S of LABS.sections) {
   const sec = el('section', 'sec', '', list), head = el('div', 'sec-head', '', sec);
   sec.id = S.id;
   el('h2', '', S.title, head);
   if (S.about) el('p', '', S.about, head);
-  const j = el('a', '', S.title + ' ', jump); j.href = '#' + S.id; el('span', '', String(S.entries.length), j);
+  const j = el('a', '', (S.short || S.title) + ' ', jump); j.href = '#' + S.id; el('span', '', String(S.entries.length), j);
   if (!S.entries.length) { el('p', 'empty', S.empty || 'Nothing here.', sec); continue; }
   const temp = S.id === 'temporary', kits = S.id === 'kits';
   const grid = el('div', kits ? 'grid tiles' : 'grid', '', sec);
-  // the prototypes newest first (the sort is stable: same-day ones keep the list's order)
-  const entries = temp ? S.entries.slice().sort((a, b) => (b.added || '').localeCompare(a.added || '')) : S.entries;
-  for (const L of entries) {
+  S.entries.forEach((L, i) => {
     const card = el('article', 'card', '', grid), a = el('a', '', L.title, el('h3', '', '', card));
     a.href = target(L.page, ''); el('i', '', ' →', a);
+    if (S.line) { const m = el('div', 'meta', '', card); el('span', 'step', String(i + 1), m); m.append(L.made ? 'Made ' + L.made : ''); }   // one line, in the order it was made
     if (L.added) el('div', 'meta', 'Added ' + L.added + ' · ' + age(L.added), card);
     if (L.question) el('p', 'q', L.question, card);
     if (L.deviates) { const d = el('p', 'dev', '', card); el('b', '', 'Deviates: ', d); d.append(L.deviates); }   // a prototype's departure from DOCTRINE.md, in a line
     if (temp && L.question) { const det = el('details', '', '', card); el('summary', '', 'What it is', det); el('p', '', L.what, det); }
     else el('p', '', L.what, card);
+    if (L.next) { const d = el('p', 'dev', '', card); el('b', '', 'Led to: ', d); d.append(titleOf(L.next)); }
     if (L.links.length) { const row = el('div', 'links', '', card); for (const [label, add] of L.links) el('a', '', label, row).href = target(L.page, add); }
-  }
+  });
 }
 // the jump bar marks the section in the middle of the screen
 if ('IntersectionObserver' in window) {
