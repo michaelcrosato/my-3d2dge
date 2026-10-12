@@ -4,14 +4,16 @@
  * 'overhead' maps world x/y to screen pixels; the 272 px world pans a little with the ship. z only orders the drawing:
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
  * PS1 LOOK: real alpha and additive light (px.blend), never dither; altitude shadows, one-point perspective buildings.
- * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs. TOUCH: the
- * ship follows a thumb dragged on the screen's left half one to one (input.drag()) and fires by itself; BOMB is the button.
+ * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs. TOUCH: a
+ * thumb anywhere on the screen steers (input.steer = 'drag', input.drag()), the ship going 1.5x as far as the thumb (DRAG:
+ * one swipe crosses the screen), and it fires by itself; BOMB is the button.
  * ANY SCREEN: res [240, 320] with expand. The map is WW wide; a wider screen (landscape, a desktop) shows the valley going
  * on beyond it (2b) and the playfield is the whole screen (span()): the ship flies edge to edge and the waves spread to
  * match (air() maps their x). W x H are the screen's, read each step. game.go('shooter', { at: 30 }) starts at the boss.
  * ===================================================================================== */
 const SHOOT = (() => {
   const WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // world width (the playfield), stage length, scroll px/s, building perspective, stage card seconds
+  const DRAG = 1.5;   // how far the ship goes for a thumb's move on a touch screen (2/3 of the screen's width crosses it)
   let W = 240, H = 320;   // the screen (at least 240 x 320): set from game.W, game.H every step
 
   /* ---- 1. PS1 LIGHT: px.blend draws with real alpha ('normal') or additive light ('add') ---- */
@@ -401,7 +403,7 @@ const SHOOT = (() => {
     if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { best('shooter', score); game.go('over', { from: 'shooter' }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
     else {
       const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
-      const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
+      const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] * DRAG : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] * DRAG : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
       if (inp.pressed('fire')) ship.burst = .5;
       if ((inp.down('fire') || touch() || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level; on a touch screen it fires by itself
         fireT = .07; ship.gun = .035; A.sfx('shoot', { vol: .2 });
@@ -553,8 +555,9 @@ const SHOOT = (() => {
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
       W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
-      game.input.touchSet('fire', null, false);   // a touch screen fires by itself: no button for it
+      game.input.touchSet('fire', null, false); game.input.steer = 'drag';   // a touch screen fires by itself (no button for it), a thumb anywhere steers
     },
-    exit() { game.cam.smooth = .18; }, update, draw };
+    exit() { game.cam.smooth = .18; game.input.steer = 'stick'; }, update, draw,
+    state: () => ({ ship, span: span(), score }) };   // for tests (span: the playfield's left and right ends)
 })();
 scenes.shooter = SHOOT;

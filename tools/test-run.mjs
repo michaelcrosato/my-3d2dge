@@ -22,6 +22,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['ed-tune', 'node tools/ed-tune-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-tune-test.mjs']],
   ['bench', 'node tools/agent-bench.mjs --selftest', ['tools/agent-bench']],
   ['standard', 'node tools/standard-test.mjs', ['tools/standard-test.mjs', 'src/starter/', 'src/starter.template.html', 'src/handoff/']],
+  ['phone', 'node tools/phone-test.mjs', ['src/starter/', 'tools/phone-test.mjs', 'tools/build.mjs']],
   ['contract', 'node tools/contract-test.mjs', ['API.md', 'AI_GUIDE.md', 'API-INDEX.md', 'src/handoff/', 'tools/contract-test.mjs', 'tools/api-index.mjs', 'tools/check.mjs', 'tools/replay.mjs', 'tools/filmstrip.mjs']],
   ['agent', 'node tools/agent-test.mjs', ['API.md', 'AI_GUIDE.md', 'src/mocap/', 'src/starter/', 'tools/agent-test.mjs', 'tools/anim-set.mjs', 'tools/cmu.mjs', 'tools/mocap-lib.mjs']],
   ['mocap', 'node tools/mocap-test.mjs', ['src/mocap/', 'src/mocap.template.html', 'src/mocap.game.js', 'tools/mocap-test.mjs', 'tools/mocap-lib.mjs', 'tools/anim-']],

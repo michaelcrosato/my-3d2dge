@@ -5,6 +5,21 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.28.0 (2026-10-12)
+
+The first real-phone test of the kits: four things found in ten minutes, fixed, and a phone test that finds them in one.
+
+- **Engine**: `input.steer = 'drag'`: a finger anywhere on the screen (the buttons aside) steers by `input.drag()`, with no stick drawn under it. The stick only took a finger on its own half of the screen.
+- **Characters** (the starter kits, `src/starter/`):
+  - Shooter: a thumb anywhere steers the ship, and the ship goes 1.5x as far as the thumb, so one swipe over two thirds of the screen crosses it. It took a thumb on the left half only, one to one: to cross the screen you lifted it and swiped again, and a touch on the right half did nothing.
+  - Brawler: the street on the screen is the street you can walk. The camera stops at a fight's lock, so the screen's edge is the wall (Final Fight), and a lock never falls inside the screen (a wide one starts the fight at its edge). A wave used to stop the hero at a line in the middle of the street, with more of it in sight.
+  - Adventure: Settings, Adventure, Lighting: Auto (GPU lighting on a computer, Fast on a phone), GPU or Fast. GPU lighting draws each frame twice and lights every pixel, which a phone's frame rate paid for; the floor is lit already.
+  - RPG: on a touch screen the battle is played with big buttons a thumb hits (38 px tall, 44 CSS px and more on a phone), after mobile RPGs: a 3 x 2 grid of the commands and AUTO (the party fights by itself: heals the weakest, sweeps a crowd, hits the weakest foe), then a button per target with its HP, and BACK. The party's cards sit above the grid on a phone held upright, beside it on its side. A tap on a fighter still targets it; keys and a pad keep the command list.
+- **Tools**:
+  - `npm run test:phone` (`tools/phone-test.mjs`): the kits on an emulated phone, upright and on its side, in about a minute: the first tap on each title starts it, one swipe crosses the shooter's screen from anywhere, no brawler street in sight beyond where the hero can walk, Fast lighting and a frame in budget in the adventure, the RPG's buttons thumb-sized, a turn played by taps and AUTO fighting on (24 checks). With the fixes reverted it fails where the phone did. `test:changed` runs it for any change to the kits.
+  - The shooter and the brawler have `state()` for tests, as the other kits do; `window.__game.titleMenu`.
+- **Docs**: `AI_GUIDE.md` (smart phone controls: steering from anywhere, thumb-sized buttons, a camera that shows only walkable ground), `API.md` (`steer`), the README and `CLAUDE.md` (`npm run test:phone`).
+
 ## 0.27.5 (2026-10-12)
 
 The full test after v0.27.4 failed in `stress-world` (its jump check), at random; the cause was in the check, not the game.

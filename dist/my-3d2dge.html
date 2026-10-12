@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.27.5 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.28.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.27.5)
+# my-3D2dge API card (v0.28.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -141,7 +141,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - `down(a)`, `pressed(a)`, `released(a)`, `repeat(a, delay, rate)` (menus), `buffered(a, win)` + `consume(a)`, `consumeAll()`, `anyPressed()`, `move()` (screen direction `[x, y]`, length up to 1), `use(preset)`, `touchButtons(['jump', 'attack'])`, `touchSet('confirm', 'TALK', near)` (a context button: relabel it, or hide it while it has nothing to do).
 - `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
 - Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`; diagnostics: `padIndex`, `padId`, `padAxes`, `padPrev`, `lastDevice`. Controllers are detected in any browser slot, and disconnects release their inputs. The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same.
-- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one; `steer = 'drag'`: a finger anywhere steers, no stick drawn. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
@@ -271,7 +271,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.27.5</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.28.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -299,7 +299,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.27.5  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.28.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -377,7 +377,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.27.5', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.28.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -934,8 +934,10 @@ class Input {
     this.deadzone = .18; this.padIndex = null; this.padId = ''; this.lastDevice = 'keyboard';
     /** touchEnabled: false turns the touch stick off; stickSide: 'left' or 'right', the half of the screen the stick
      *  lives on; stickRadius: how far (CSS pixels) a finger drags for full tilt; stickDeadzone: the part of that radius a
-     *  thumb moves before the stick counts (0..0.5); padAxes: the gamepad's raw axes */
-    this.touchEnabled = true; this.stickSide = 'left'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
+     *  thumb moves before the stick counts (0..0.5); steer: 'stick' (a stick drawn under the thumb) or 'drag' (a finger
+     *  anywhere on the screen but the buttons steers by drag(), with no stick drawn: a shooter's ship that follows the
+     *  thumb); padAxes: the gamepad's raw axes */
+    this.touchEnabled = true; this.stickSide = 'left'; this.steer = 'stick'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
     /** glyphs: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' |
      *  'nintendo' | 'generic' (positions); rumbleScale: vibration strength 0..1 (0 = off; game.settings.rumble sets it);
      *  padLost: true for the step after the gamepad in use was unplugged (a pausable scene pauses) */
@@ -1260,7 +1262,7 @@ class Input {
   _stickStart(e) {
     if (!this.touchEnabled || this.stickOn) return;
     const rc = this.screen.canvas.getBoundingClientRect();
-    if (this.stickSide === 'right' ? e.clientX - rc.left < rc.width * .5 : e.clientX - rc.left > rc.width * .5) return;
+    if (this.steer !== 'drag' && (this.stickSide === 'right' ? e.clientX - rc.left < rc.width * .5 : e.clientX - rc.left > rc.width * .5)) return;   // dragging: anywhere
     this.screen.canvas.setPointerCapture(e.pointerId); this.aimSource = 'move'; this.lastDevice = 'touch';
     /** stickId: the pointer (finger) holding the touch stick */
     this.stickId = e.pointerId; this.stickOn = true; this._stickO = [e.clientX, e.clientY]; this.stick = [0, 0]; this._dragAt = [e.clientX, e.clientY];
@@ -1285,6 +1287,7 @@ class Input {
     ['up', 'down', 'left', 'right'].forEach((d, i) => { if (on[i] !== was[i]) { was[i] = on[i]; if (on[i]) this.press('Act:' + d); else this.release('Act:' + d); } });
   }
   _stickDraw() {
+    if (this.steer === 'drag') { this._stickEl.style.display = this._knobEl.style.display = 'none'; return; }   // a drag steers what it moves: no stick to show
     const rc = this.screen.canvas.getBoundingClientRect(), pr = this.screen.canvas.parentElement.getBoundingClientRect();
     const ox = this._stickO[0] - pr.left, oy = this._stickO[1] - pr.top;
     Object.assign(this._stickEl.style, { display: 'block', left: ox - 48 + 'px', top: oy - 48 + 'px' });
@@ -8037,6 +8040,11 @@ const ADV = (() => {
   let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx;
   // CAMERA, the player's choice: 'rooms' slides screen by screen (Zelda), 'scroll' follows the hero (Settings, or C)
   game.settings.define({ key: 'advCamera', group: 'Adventure', label: 'Camera', options: [['rooms', 'Rooms'], ['scroll', 'Scroll']], value: 'rooms', help: 'Rooms: screen by screen, as Zelda. Scroll: it follows the hero' });
+  // LIGHTING: GPU lights (pools of light and shadows, WebGPU) draw every frame twice and light each pixel: a phone's frame
+  // rate pays for them, so Auto keeps them for a computer (a mouse or touchpad) and a phone gets Fast (the floor is lit already)
+  const gpuWanted = () => game.settings.advLight === 'gpu' || (game.settings.advLight === 'auto' && !!(window.matchMedia && matchMedia('(any-pointer: fine)').matches));
+  const lighting = () => { if (!map) return; if (gpuWanted() && !gpu) gpu = game.enableGPU({ map }); if (gpu) Object.assign(gpu, { map, enabled: gpuWanted(), bands: 24, wrap: .5 }); };
+  game.settings.define({ key: 'advLight', group: 'Adventure', label: 'Lighting', options: [['auto', 'Auto'], ['gpu', 'GPU'], ['fast', 'Fast']], value: 'auto', help: 'GPU: pools of light and shadows (slow on a phone). Fast: smooth on a phone. Auto: GPU on a computer, Fast on a phone', apply: () => { if (game.sceneName === 'adventure') lighting(); } });
   addEventListener('keydown', e => { if (e.code !== 'KeyC' || e.repeat || game.sceneName !== 'adventure' || game.paused) return; const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note('CAMERA: ' + v.toUpperCase()); });
   const sliding = () => !!game.cam.room && game.cam.moving;   // a room slide holds the world still
   const roomOf = x => Math.floor(x / ROOM[0]), mod = (a, n) => ((a % n) + n) % n, near = (cx, cy, tag) => map.floorAt((cx + .5) * T, (cy + .5) * T) === tag;
@@ -8144,7 +8152,7 @@ const ADV = (() => {
     shots = new E.Bullets(game, { plane: 'ground' }); talk = new E.Dialog(game, WIN);
     fx = []; won = false; keys = 0; gems = 0; area = { room: 0, t: 2.6 }; held = null;
     // the floor is lit already; GPU lighting (if any) adds light pools and shadows
-    L.enabled = false; gpu = gpu || game.enableGPU({ map }); Object.assign(gpu, { map, enabled: true, bands: 24, wrap: .5, ambient: MOOD[0] }); A.music('adventure');
+    L.enabled = false; lighting(); if (gpu) gpu.ambient = MOOD[0]; A.music('adventure');
     game.input.touchSet('attack', 'SWORD');
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
@@ -9007,14 +9015,16 @@ scenes.platformer = PLAT;
  * 'overhead' maps world x/y to screen pixels; the 272 px world pans a little with the ship. z only orders the drawing:
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
  * PS1 LOOK: real alpha and additive light (px.blend), never dither; altitude shadows, one-point perspective buildings.
- * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs. TOUCH: the
- * ship follows a thumb dragged on the screen's left half one to one (input.drag()) and fires by itself; BOMB is the button.
+ * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs. TOUCH: a
+ * thumb anywhere on the screen steers (input.steer = 'drag', input.drag()), the ship going 1.5x as far as the thumb (DRAG:
+ * one swipe crosses the screen), and it fires by itself; BOMB is the button.
  * ANY SCREEN: res [240, 320] with expand. The map is WW wide; a wider screen (landscape, a desktop) shows the valley going
  * on beyond it (2b) and the playfield is the whole screen (span()): the ship flies edge to edge and the waves spread to
  * match (air() maps their x). W x H are the screen's, read each step. game.go('shooter', { at: 30 }) starts at the boss.
  * ===================================================================================== */
 const SHOOT = (() => {
   const WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // world width (the playfield), stage length, scroll px/s, building perspective, stage card seconds
+  const DRAG = 1.5;   // how far the ship goes for a thumb's move on a touch screen (2/3 of the screen's width crosses it)
   let W = 240, H = 320;   // the screen (at least 240 x 320): set from game.W, game.H every step
 
   /* ---- 1. PS1 LIGHT: px.blend draws with real alpha ('normal') or additive light ('add') ---- */
@@ -9404,7 +9414,7 @@ const SHOOT = (() => {
     if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { best('shooter', score); game.go('over', { from: 'shooter' }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
     else {
       const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
-      const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
+      const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] * DRAG : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] * DRAG : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
       if (inp.pressed('fire')) ship.burst = .5;
       if ((inp.down('fire') || touch() || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level; on a touch screen it fires by itself
         fireT = .07; ship.gun = .035; A.sfx('shoot', { vol: .2 });
@@ -9556,9 +9566,10 @@ const SHOOT = (() => {
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
       W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
-      game.input.touchSet('fire', null, false);   // a touch screen fires by itself: no button for it
+      game.input.touchSet('fire', null, false); game.input.steer = 'drag';   // a touch screen fires by itself (no button for it), a thumb anywhere steers
     },
-    exit() { game.cam.smooth = .18; }, update, draw };
+    exit() { game.cam.smooth = .18; game.input.steer = 'stick'; }, update, draw,
+    state: () => ({ ship, span: span(), score }) };   // for tests (span: the playfield's left and right ends)
 })();
 scenes.shooter = SHOOT;
 
@@ -9573,7 +9584,9 @@ scenes.shooter = SHOOT;
  * ANY SCREEN: the backdrop is painted at the screen's size, its ground with the plaza's own grass and light so the plaza's
  * edge melts into it, a tall screen's sky darkening to the first stars; the HUD band sits on the bottom edge and the
  * battle in the space above it (layout()). A phone held upright comes in to 1.5x and the two sides close up (TALL), so the
- * fighters are as big as a wide screen shows them. TOUCH: no buttons; tap a command, then a foe (or the commands to go back).
+ * fighters are as big as a wide screen shows them. TOUCH, after mobile RPGs: the band is big buttons a thumb hits (pads(): the
+ * commands and AUTO, the party fighting by itself; then the targets with their HP, and BACK), the party's cards above them on
+ * a phone held upright, beside them on its side; a tap on a fighter targets it too. Keys and a pad: the FF command list.
  * ===================================================================================== */
 const RPG = (() => {
   /* ---- BACKDROP: a sunset painted once per screen size and zoom in crisp pixel shapes like the sprites (a turn, and a
@@ -9621,7 +9634,14 @@ const RPG = (() => {
   // where things go on this screen: the HUD band's top (Y: on the bottom edge, a little higher on a phone, off its home
   // bar), the camera focus's height on screen (fy: the battle just above the band, or on a tall screen 3/5 down the sky,
   // a phone held upright's a little lower: its fight is bigger)
-  const layout = (W, H) => { const Y = H - 73 - (game.input.lastDevice === 'touch' ? 8 : 0); return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * (fit.tall ? .66 : .6))) }; };
+  const layout = (W, H) => { const Y = game.input.lastDevice === 'touch' ? pads(W, H).Y : H - 73; return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * (fit.tall ? .66 : .6))) }; };
+  // TOUCH: a 3 x 2 grid of buttons 38 px tall (44 CSS px and more on a phone, an iPhone SE's too: a thumb), the party's 214 px of cards above it
+  // on a tall screen (the grid as wide as the screen), beside it on a wide one; 8 px off a phone's home bar. cell(i): pad i's box
+  const pads = (W, H) => {
+    const tall = W < 440, ch = 38, gap = 4, gh = ch * 2 + gap, cw0 = 214, gw = tall ? Math.min(W - 8, 312) : Math.min(W - cw0 - 14, 300);
+    const Y = H - (tall ? 66 + gap + gh : Math.max(66, gh)) - 8, x0 = Math.round(tall ? (W - gw) / 2 : (W - gw - 6 - cw0) / 2), gy = tall ? Y + 66 + gap : Y, cw = Math.floor((gw - gap * 2) / 3);
+    return { Y, cards: tall ? Math.round((W - cw0) / 2) : x0 + gw + 6, cell: i => ({ x: x0 + (i % 3) * (cw + gap), y: gy + Math.floor(i / 3) * (ch + gap), w: cw, h: ch }) };
+  };
   let backdrop = null;   // painted on the first draw, again for a new screen size or zoom
   // the camera at rest: on a phone held upright (fit.tall) it comes in to 1.5x and the sides close up toward x 119 (spread),
   // so the fight fills the narrow screen's width, each rank opening out in depth from y 84 (deep) so nobody hides behind
@@ -9769,7 +9789,7 @@ const RPG = (() => {
   };
   const PAUSE = { wind: .2, active: .05, recover: .35 }, GO = .35, BACK = .4, FLY = .3, DIE = .9, WAVE = 400;   // seconds: out, back, a bolt's flight, a monster's death; a wave's speed
   const COMMANDS = h => [h.attack, h.skill, 'defend', 'potion', 'run'];
-  let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, band, frame = 0;   // band: the HUD's commands box on screen (taps)
+  let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, band, frame = 0, auto = false;   // band: the HUD on screen (taps); auto: the party fights by itself
   const alive = l => l.filter(c => !c.dead), isHero = c => party.includes(c), size = c => c.rig ? c.rig.o.size : 1.2;
   const unit = (d, hero) => {
     const body = d.rig ? new E.Humanoid(d.rig) : d.blob && new E.Blob(d.blob);   // both kick() and draw()
@@ -9794,7 +9814,17 @@ const RPG = (() => {
     const c = all.find(c => !c.dead && c.atb >= 1), sk = c && MOVES[c.skill]; if (!c) return;
     c.atb = 0; c.guard = false; actor = c; if (!isHero(c)) return order(E.pick(c.moves), E.pick(alive(party)));   // monsters pick a move and a hero
     menu.items = ['Attack', { label: sk.label, note: sk.mp, disabled: c.mp < sk.mp }, 'Defend', { label: 'Potion', note: '×' + potions, disabled: !potions }, 'Run'];
+    if (auto) return order(...autoPick(c));   // AUTO: the hero picks for himself
     menu.i = 0; menu.active = true; mode = 'command'; A.sfx('blip');
+  }
+  // AUTO (mobile RPGs' battle button): heal the weakest ally under 40% (the skill, or a potion under 25%), sweep two foes or
+  // more, spend the skill on a foe that can take it, else hit the weakest foe
+  function autoPick(c) {
+    const sk = MOVES[c.skill], foe = alive(foes).sort((a, b) => a.hp - b.hp)[0], low = alive(party).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+    if (low.hp < low.max * .4 && sk.heal && c.mp >= sk.mp) return [c.skill, low];
+    if (low.hp < low.max * .25 && potions) return ['potion', low];
+    if (sk.power && c.mp >= sk.mp && (sk.all ? alive(foes).length > 1 : foe.hp > c.atk * 2)) return [c.skill, sk.all ? null : foe];
+    return [c.attack, foe];
   }
   function pick(i) {
     const key = COMMANDS(actor)[i], m = MOVES[key];
@@ -9944,7 +9974,7 @@ const RPG = (() => {
     // ambience: drifting petals, brazier embers
     if (E.chance(dt * 5)) P.add({ kind: 'bit', x: E.rand(0, 200), y: E.rand(10, 140), z: E.rand(50, 90), vx: E.rand(10, 22), vz: -4, g: 5, drag: .2, max: 6, size: E.chance(.4) ? 2 : 1, color: E.pick(['#ffc0d0', '#ffe0e8', '#ffd890']) });
     if (E.chance(dt * 6)) P.add({ kind: 'ember', x: E.pick([100, 132]) + E.rand(-3, 3), y: 8, z: 20, vz: E.rand(18, 30), vx: E.rand(-4, 4), max: 1, color: '#ff8a2a' });
-    if ((mode === 'command' || mode === 'target') && tapped()) return;
+    if (tapped()) return;
     if (mode === 'wait') tick(dt);
     else if (mode === 'act') play(act, dt);
     else if (mode === 'command') menu.update();
@@ -9955,16 +9985,30 @@ const RPG = (() => {
     }
   }
 
-  // TAPS (a click works too): a command picks it; then a foe (or ally) is the target, the commands go back
+  // TAPS (a click works too). Touch: the pads, as drawn; a mouse: the command list (a click there while aiming goes back).
+  // Aiming, a tap on a fighter targets it
   function tapped() {
     const c = game.input.clicked(); if (!c || !band) return false;
-    const [x, y] = c, onCmds = x >= band.X + 4 && x < band.X + 96 && y >= band.Y && y < band.Y + 66, k = Math.floor((y - band.Y - 3) / 10), it = menu.items[k];
-    if (mode === 'command' && onCmds && it && !it.disabled) { game.input.consumeAll(); menu.i = k; A.sfx('confirm'); pick(k); return true; }
+    const [x, y] = c, inside = b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h, use = f => { game.input.consumeAll(); f(); return true; };
+    if (band.pads) { const p = band.pads.find(p => p && p.go && !p.off && p.w && inside(p)); if (p) return use(p.go); }
+    else {
+      const onCmds = inside({ x: band.X + 4, y: band.Y, w: 92, h: 66 }), k = Math.floor((y - band.Y - 3) / 10), it = menu.items[k];
+      if (mode === 'command' && onCmds && it && !it.disabled) return use(() => { menu.i = k; A.sfx('confirm'); pick(k); });
+      if (mode === 'target' && onCmds) return use(() => { A.sfx('cancel'); mode = 'command'; });
+    }
     if (mode !== 'target') return false;
     const z = game.view.scale / E.VIEWS.brawler.scale, i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < (14 + u.h * .25) * z && Math.abs(y - sy) < (u.h * .6 + 8) * z; });   // the whole fighter, at any zoom
-    if (i >= 0) { game.input.consumeAll(); cursor = i; A.sfx('confirm'); order(pending, list[i]); return true; }
-    if (onCmds) { game.input.consumeAll(); A.sfx('cancel'); mode = 'command'; return true; }
-    return false;
+    return i >= 0 && use(() => { cursor = i; A.sfx('confirm'); order(pending, list[i]); });
+  }
+  // what the pads say and do now: the commands and AUTO on a hero's turn; aiming, the targets (with their HP) and BACK; else
+  // the foes' HP (or the spoils) and AUTO, which can be turned on or off at any time
+  function padsNow() {
+    const autoPad = { label: 'AUTO', note: auto ? 'ON' : 'OFF', on: auto, go: () => { auto = !auto; A.sfx(auto ? 'confirm' : 'cancel'); if (auto && actor && (mode === 'command' || mode === 'target')) order(...autoPick(actor)); } };
+    const fill = (a, n) => { while (a.length < n) a.push(null); return a.slice(0, n); };
+    if (mode === 'command') return [...menu.items.map((it, k) => ({ label: it.label || it, note: it.note, off: it.disabled, go: () => { menu.i = k; A.sfx('confirm'); pick(k); } })), autoPad];
+    if (mode === 'target') return [...fill(list.map((c, k) => ({ label: c.name, hp: c.hp / c.max, ally: isHero(c), on: k === cursor, go: () => { cursor = k; A.sfx('confirm'); order(pending, c); } })), 5), { label: 'BACK', go: () => { A.sfx('cancel'); mode = 'command'; } }];
+    if (mode === 'win' || mode === 'won') return fill([['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].map(([label, note]) => ({ label, note })), 6);
+    return [...fill(alive(foes).map(f => ({ label: f.name, hp: f.hp / f.max })), 5), autoPad];
   }
 
   /* ---- DRAW ---- */
@@ -10044,25 +10088,33 @@ const RPG = (() => {
   const tiny = (g, s, x, y, c) => E.font.text(g, s, x, y, c, { font: 'tiny', outline: false });
   function hud(g, r) {
     const { Y } = layout(r.W, r.H), choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
-    const X = Math.round((r.W - 320) / 2), touch = game.input.lastDevice === 'touch'; band = { X, Y };   // the band's 316 px, centred
+    const X = Math.round((r.W - 320) / 2), P = game.input.lastDevice === 'touch' && pads(r.W, r.H); band = { X, Y, pads: P && padsNow() };   // keys: the band's 316 px, centred
     // an arrow over the hero on turn, the glove on the target
     if (choosing) { const [sx, sy] = r.w(actor.x, actor.y, actor.z + actor.h + 5); px.poly(g, [[sx - 5, sy - 7 + bob], [sx + 5, sy - 7 + bob], [sx, sy - 1 + bob]], '#ffe060'); px.rect(g, sx - 3, sy - 6 + bob, 6, 1, '#fff8c0'); }
     if (mode === 'target') { const c = list[cursor], [sx, sy] = r.w(c.x, c.y, c.z + c.h * .55); px.sprite(g, HAND, sx - 28 + bob, sy - 4); }
     // top banner: the move, the target, or what the command does
     const top = mode === 'command' ? MOVES[COMMANDS(actor)[menu.i]].info : mode === 'target' ? list[cursor].name : note;
     if (top && !log.open) { const w = E.font.width(top) + 24, c = Math.round(r.W / 2); E.ui.box(g, c - w / 2, 5, w, 18, { bg: WIN }); txt(g, top, c, 10, '#ffffff', 'center'); }
-    // a near-black band under the windows; left: commands, spoils or monsters
-    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818'); E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });   // (down to the bottom edge)
-    if (choosing) {
-      menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
-      px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
-      const how = touch ? (mode === 'target' ? 'TAP HERE TO GO BACK' : 'TAP A COMMAND') : game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK';   // the player's own keys
-      E.font.text(g, how, X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });
-    } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
-    else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
-    // right: a card per hero (FF IX): portrait, name, MP, HP, ATB
+    // a near-black band under the windows (down to the bottom edge); touch: the pads; keys: commands, spoils or monsters on the left
+    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818');
+    if (P) band.pads.forEach((p, i) => {   // a pad: its label (left) and note (right), a target's HP bar under them; lit when on
+      if (!p) return; const b = Object.assign(p, P.cell(i)), ty = b.y + (p.hp === undefined ? 15 : 9);
+      E.ui.box(g, b.x, b.y, b.w, b.h, { bg: p.on ? HOT : WIN, border: p.on ? '#ffe890' : undefined });
+      txt(g, p.label, b.x + 7, ty, p.off ? '#7c7aa8' : '#ffffff'); if (p.note !== undefined) txt(g, p.note, b.x + b.w - 6, ty, p.on ? '#ffe890' : '#9ad0ff', 'right');
+      if (p.hp !== undefined) gauge(g, b.x + 7, b.y + 23, b.w - 14, p.hp, p.ally ? '#58d068' : '#e0463c');
+    });
+    else {
+      E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });
+      if (choosing) {
+        menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
+        px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
+        E.font.text(g, game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK', X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
+      } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
+      else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
+    }
+    // a card per hero (FF IX): portrait, name, MP, HP, ATB
     party.forEach((h, k) => {
-      const x = X + 100 + k * 72, on = h === actor && choosing, low = h.hp < h.max / 4, col = h.dead ? '#a08aa8' : low ? '#ffd060' : '#ffffff';
+      const x = (P ? P.cards : X + 100) + k * 72, on = h === actor && choosing, low = h.hp < h.max / 4, col = h.dead ? '#a08aa8' : low ? '#ffd060' : '#ffffff';
       E.ui.box(g, x, Y, 70, 66, { bg: h.dead ? KO : on ? HOT : WIN, border: on ? '#ffe890' : undefined });
       const pic = h.pic || (h.pic = E.mkCanvas(30, 30));   // a whole rig draw: redrawn every third frame
       if ((frame + k) % 3 === 0) { const pg = E.ctx2d(pic); pg.clearRect(0, 0, 30, 30); h.rig.drawPortrait(pg, 3, 3, 24, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: h.dead ? '#808080' : undefined }); }
@@ -10086,7 +10138,7 @@ const RPG = (() => {
       const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [rest().x, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
       game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
-    state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp) }) };   // for automated tests
+    state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }) };   // for automated tests
 })();
 scenes.rpg = RPG;
 
@@ -10321,6 +10373,9 @@ const BRAWL = (() => {
   const talk = new E.Dialog(game, { bg: ['#4a1436', '#12040c'], border: '#f0b0c8', nameColor: '#f0c850' });
   const puffs = [], sparks = [];
   let map, SPR, hero, foes, npcs, boxes, foods, wave, lockX, go, intro, score, won, target, tgtT, lag, chain, chainT;
+  // the walkable street's right end: the wave's lock, never short of the screen's right edge where the street starts (a wide
+  // screen shows more of it); the camera stops there too, so the hero can reach every bit of street on the screen
+  const lockEnd = v => Math.min(LEN - 10, Math.max(lockX, (map.bounds(v).x0 + 8 + game.W) / v.ax - 10));
 
   /* ---- DRAWING A FIGHTER ---- */
   // a Humanoid subclass adds a painted layer; drawPortrait() calls draw() too. E.charView: the rig's view
@@ -10392,8 +10447,8 @@ const BRAWL = (() => {
       types: Object.fromEntries(blocks.map(b => [b.i + 1, { h: b.h, side: b.color, sideLt: b.color, top: E.shade(b.color, -.45), face: b.face, course: b.face === 'brick' ? 3 : undefined, roof: 'slab' }])) });
     SPR = { crate: E.prop('crate', { size: .8 }).frames[0], barrel: E.prop('barrel', { size: .8, color: '#9a6030' }).frames[0] };
     // the camera scrolls sideways, the street's front edge on the screen bottom (or on the foreground wall); zoomed in, it
-    // also follows the hero up the street
-    game.cam.bounds = v => { const b = map.bounds(v), y1 = b.y1 - 9 + wall(game.H); return { x0: b.x0 + 8, x1: b.x1 - 8, y0: y1 - game.H * Math.max(1, game.zoom), y1 }; };
+    // also follows the hero up the street. It stops at the wave's lock (lockEnd), so the screen's edge is the wall (Final Fight)
+    game.cam.bounds = v => { const b = map.bounds(v), y1 = b.y1 - 9 + wall(game.H); return { x0: b.x0 + 8, x1: Math.min(b.x1 - 8, v.ax * (lockEnd(v) + 10)), y0: y1 - game.H * Math.max(1, game.zoom), y1 }; };
     // the hero's move set (E.MOVES, some tuned): a 4-hit punch string, a clinch (grab, knees, elbow), a kick string, a flying kick, a sweep
     hero = body(54, 58, 7, { hp: 60, max: 60, lives: 3, grip: 0, rig: fighterRig(HERO), moves: {
       punch: new E.Combo(['jab', 'cross', move('hook'), 'uppercut'], { window: .35 }), clinch: new E.Combo([GRAB, 'knee', 'knee', 'elbow'], { window: .35 }),
@@ -10496,7 +10551,7 @@ const BRAWL = (() => {
     lag = Math.max(h.hp / h.max, lag - dt * .35);   // the bar's pale part drains slowly
     // waves: reaching one spawns it and locks the screen until it is cleared
     const w = WAVES[wave];
-    if (w && !w.spawned && h.x > w.x * T - 60) { w.spawned = true; spawnWave(w); lockX = (w.x + 6) * T; }
+    if (w && !w.spawned && h.x > w.x * T - 60) { w.spawned = true; spawnWave(w); lockX = Math.max((w.x + 6) * T, (game.cam.x + game.W) / game.view.ax - 10); }   // never inside the screen
     if (w && w.spawned && !foes.some(f => !f.dead)) {
       wave++; go = 2.5; lockX = WAVES[wave] ? (WAVES[wave].x + 6) * T : LEN;
       if (!WAVES[wave]) { won = 1e-3; go = 0; A.music('victory'); game.follow(null); game.after(7, () => game.go('title')); } else A.sfx('confirm');
@@ -10521,7 +10576,7 @@ const BRAWL = (() => {
     const grab = t => { if (t.box) return; if (t.act) t.act.cancel(); Object.assign(t, { act: null, stun: .9, vx: 0, vy: 0, y: h.y, x: h.x + (t.x > h.x ? 20 : -20) }); };   // the collar grab: held close
     if (h.act) h.act.hits(foes.concat(boxes), inReach, t => h.act.state.spec.name === 'grab' ? grab(t) : strike(t, h.act.state));   // moves connect late in the strike (hitAt)
     h.update(dt, map); fall(h, dt);
-    h.x = clamp(h.x, 10, Math.min(lockX, LEN - 10)); h.y = clamp(h.y, Y0, Y1);
+    h.x = clamp(h.x, 10, lockEnd(game.view)); h.y = clamp(h.y, Y0, Y1);
     for (const b of boxes) if (!b.dead) solid(h, b.x, b.y, 13);
     for (const m of foods) if (!m.got && h.hp > 0 && Math.hypot(m.x - h.x, m.y - h.y) < 12) { m.got = true; h.hp = Math.min(h.max, h.hp + 20); A.sfx('heal'); }
     E.prune(foods, m => m.got);
@@ -10643,7 +10698,8 @@ const BRAWL = (() => {
   // turned street loses its fronts (painted for this side only) and its screen-space bounds
   return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: ['attack', 'kick', 'sweep', 'jump'], propSize: 2.4, camera: { zoom: [.75, 1.5] },   // props match 100 px fighters
     input: Object.assign({}, E.Input.DEFAULT, { kick: ['KeyK', 'Mouse2', 'Pad2'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad3'] }),
-    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw };
+    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw,
+    state: () => ({ hero, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }) };   // for tests (end: the walkable street's right end)
 })();
 scenes.brawler = BRAWL;
 
@@ -11295,7 +11351,7 @@ for (let i = SLICES.length - 1; i >= 0; i--) if (!scenes[SLICES[i].id]) SLICES.s
 titleMenu.items = SLICES.map(s => s.label);
 const first = (location.hash || '').slice(1);
 game.start({ scenes, scene: scenes[first] ? first : 'title' });
-window.__game = { game, scenes };
+window.__game = { game, scenes, titleMenu };   // for tests
 })();
 /* =============================== GAME END =============================== */
 

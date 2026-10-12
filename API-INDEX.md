@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.27.5)
+# my-3D2dge API index (v0.28.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.27.5"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.28.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -261,6 +261,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.preset` †: preset: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own)
 - `input.rumbleScale = .6` †: vibration strength 0..1 (0 = off; game.settings.rumble sets it)
 - `input.screen`: screen: the game's screen (mouse positions are read through it
+- `input.steer = 'stick'` †: 'stick' (a stick drawn under the thumb) or 'drag' (a finger anywhere on the screen but the buttons steers by drag(), with no stick drawn: a shooter's ship that follows the thumb)
 - `input.stick = [0, 0]` †: the touch stick's direction [x, y], length <= 1
 - `input.stickDeadzone = .12` †: the part of that radius a thumb moves before the stick counts (0..0.5)
 - `input.stickId` †: the pointer (finger) holding the touch stick
