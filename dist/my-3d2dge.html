@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.27.3 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.27.4 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.27.3)
+# my-3D2dge API card (v0.27.4)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -271,7 +271,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.27.3</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.27.4</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -299,7 +299,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.27.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.27.4  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -377,7 +377,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.27.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.27.4', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -7849,14 +7849,15 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
 const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 // a phone held upright: a side-on slice zooms in (z) so its street or level fills more of the screen, and back out on a wide
-// one; the player's own zoom (- =) holds until the screen's shape changes or another scene starts
+// one; the player's own zoom (- =) holds until the screen's shape changes or another scene starts (the title and game
+// over forget the slice, so the next game fits again)
 const fit = {}, fitZoom = z => { const tall = game.H > game.W * 1.3; if (tall !== fit.tall || game.scene !== fit.scene) { fit.tall = tall; fit.scene = game.scene; game.setZoom(tall ? z : 1); } };
 // START picks too (the touch START, a pad's Start), as Enter does
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
 const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
 scenes.title = {
   view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
-  enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
+  enter() { A.music('title'); game.resetCamera(); fit.scene = null; game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
     game.focus(MID, 0, 32 + (game.H / 2 - 42) / -game.view.bz);   // the ledge's top 42 px above the screen's bottom edge
@@ -7892,7 +7893,7 @@ const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { 
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: 'DEFAULT', res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; fit.scene = null; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
@@ -9690,10 +9691,11 @@ const RPG = (() => {
   // each of 9 wing-beat steps is painted once and reused, tilted around the torso (c.tilt: leaning into a dive, a tumble).
   // The wind-up holds the wings high, the strike beats them down. r.actor tracks the area of plain draws only, so the tilt
   // happens on a scratch canvas first
-  const GARG = [], TILT = E.ctx2d(E.mkCanvas(104, 104)), gargoyleCached = (g, x, y, c) => {
+  const GARG = [], TILT = E.ctx2d(E.mkCanvas(104, 104)), gargoyleCached = (g, x, y, c, v) => {
     const k = Math.round(lerp(Math.sin(c.flapT * 7), Math.sign(c.coil), Math.min(1, Math.abs(c.coil) * 1.5)) * 4) + 4; if (!GARG[k]) gargoyle(E.ctx2d(GARG[k] = E.mkCanvas(64, 54)), 42, 47, k / 4 - 1);
     TILT.setTransform(1, 0, 0, 1, 0, 0); TILT.clearRect(0, 0, 104, 104); TILT.translate(52, 52); TILT.rotate(c.tilt); TILT.drawImage(GARG[k], -42, -27);
-    g.drawImage(TILT.canvas, x - 52, y - 72);
+    const z = v.scale / E.VIEWS.brawler.scale;   // zoomed in (a phone held upright: 1.5x), it grows as the painted fighters do, pixels kept square
+    if (z === 1) g.drawImage(TILT.canvas, x - 52, y - 72); else g.drawImage(TILT.canvas, Math.round(x - 52 * z), Math.round(y - 72 * z), Math.round(104 * z), Math.round(104 * z));
   };
   // a Blob's body center (pixels above its feet) and radius
   const blobAt = (c, v) => { const b = c.body, R = b.o.R * b.scale; return [v.p(0, 0, R * (1 + b.sq))[1], R * v.scale]; };
@@ -9959,7 +9961,7 @@ const RPG = (() => {
     const [x, y] = c, onCmds = x >= band.X + 4 && x < band.X + 96 && y >= band.Y && y < band.Y + 66, k = Math.floor((y - band.Y - 3) / 10), it = menu.items[k];
     if (mode === 'command' && onCmds && it && !it.disabled) { game.input.consumeAll(); menu.i = k; A.sfx('confirm'); pick(k); return true; }
     if (mode !== 'target') return false;
-    const i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < 14 + u.h * .25 && Math.abs(y - sy) < u.h * .6 + 8; });
+    const z = game.view.scale / E.VIEWS.brawler.scale, i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < (14 + u.h * .25) * z && Math.abs(y - sy) < (u.h * .6 + 8) * z; });   // the whole fighter, at any zoom
     if (i >= 0) { game.input.consumeAll(); cursor = i; A.sfx('confirm'); order(pending, list[i]); return true; }
     if (onCmds) { game.input.consumeAll(); A.sfx('cancel'); mode = 'command'; return true; }
     return false;

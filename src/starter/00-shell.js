@@ -83,14 +83,15 @@ const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
 const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
 // a phone held upright: a side-on slice zooms in (z) so its street or level fills more of the screen, and back out on a wide
-// one; the player's own zoom (- =) holds until the screen's shape changes or another scene starts
+// one; the player's own zoom (- =) holds until the screen's shape changes or another scene starts (the title and game
+// over forget the slice, so the next game fits again)
 const fit = {}, fitZoom = z => { const tall = game.H > game.W * 1.3; if (tall !== fit.tall || game.scene !== fit.scene) { fit.tall = tall; fit.scene = game.scene; game.setZoom(tall ? z : 1); } };
 // START picks too (the touch START, a pad's Start), as Enter does
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
 const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
 scenes.title = {
   view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
-  enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
+  enter() { A.music('title'); game.resetCamera(); fit.scene = null; game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
     game.focus(MID, 0, 32 + (game.H / 2 - 42) / -game.view.bz);   // the ledge's top 42 px above the screen's bottom edge
@@ -126,7 +127,7 @@ const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { 
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: 'DEFAULT', res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; fit.scene = null; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen

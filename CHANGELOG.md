@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.27.4 (2026-10-12)
+
+From Codex's review of v0.27.2: three ways the RPG's portrait zoom fell short.
+
+- **Characters** (the starter kits, `src/starter/`):
+  - A phone held upright zooms in again for every new game. After the title or game over, the next RPG battle (or platformer or brawler level, after Retry) started at 1x: the shell still took it for the game it had already fitted.
+  - RPG: the Gargoyle grows with the zoom as the other fighters do (its painted frames are cached at 1x and are now drawn at the zoom, pixels kept square). On a phone held upright it stayed small.
+  - RPG: tapping a foe or ally counts anywhere on the fighter at any zoom. At 1.5x the top of the Dread Knight's helmet and the fighters' sides missed.
+
 ## 0.27.3 (2026-10-12)
 
 A phone's first tap on a title sometimes did nothing: the kits' game entry needed a second tap about one time in five.
