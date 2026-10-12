@@ -1240,7 +1240,7 @@ class Game {
     this.particles = new Particles(this); this.r = this.headless ? null : new Renderer(this); this.audio = new ChipAudio(this, signal);
     if (this.headless) this.audio.failed = 'a headless game has no sound';
     this.debug = null;   // a game's own handle for tools: game.debug = { snapshot() {...}, teleport(x, y, z) {...} }
-    this.fps = 60; this.hz = 60; this.drawEvery = 1; this.paused = false; this.pauseOverlay = true;   // drawEvery: 2 while a fast display outruns the frames this._timers = []; this.errors = []; this._errKeys = new Set();
+    this.fps = 60; this.hz = 60; this.drawEvery = 1; this.paused = false; this.pauseOverlay = true; this._timers = []; this.errors = []; this._errKeys = new Set();   // drawEvery: 2 while a fast display outruns the frames
     this.fadeTime = .22; this._fade = null; this.scenes = null; this.scene = null; this.sceneName = null; this._next = null;
     this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
     this.alpha = .5; this._acc = this.o.step / 2;   // the step left over (0..1); starting half a step in keeps a steady step count
