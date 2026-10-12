@@ -8,7 +8,8 @@
 //   4. adventure: a phone gets Fast lighting (no GPU lighting, Settings: Lighting), and a frame draws within budget;
 //      pacing: on a 120 Hz screen a frame that won't fit is drawn every other refresh, evenly (game.drawEvery), and a GPU
 //              behind (refreshes missed) the same, then each refresh again after a hold; on a virtual clock (deterministic,
-//              a minute of play in seconds): the hold's backoff, a display changing its refresh rate while paced
+//              a minute of play in seconds): the hold's backoff, a display changing its refresh rate while paced, the
+//              player's Frame rate (Auto, 60, Full)
 //   5. rpg: a whole turn is played by taps, and every tap target (commands, foes) is at least 44 CSS pixels (a thumb)
 // Usage: node tools/phone-test.mjs [kit ...]   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1
 // on failure. Each check prints what it measured, so a failure says what a player would have seen.
@@ -199,7 +200,15 @@ if (want('pacing')) {
   // still paced, it rises to 144 Hz: read at once (a shorter gap than the refresh read), every other refresh 13.9 ms apart
   const faster = await vt(() => { const tl = __vt.watch(600, 144); return { tl, gaps: __vt.gaps(200) }; });
   const f = faster.tl[faster.tl.length - 1], f13 = faster.gaps.filter(x => Math.abs(x - 13.89) < .1).length / Math.max(1, faster.gaps.length);
-  check('virtual: paced, a display that rises to 144 Hz is drawn every other refresh, 13.9 ms apart', f[1] === 2 && f[2] === 144 && f13 === 1 && !errors.length, `every ${f[1]}, ${f[2]} Hz, gaps ${[...new Set(faster.gaps)].join(', ')} ms${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+  check('virtual: paced, a display that rises to 144 Hz is drawn every other refresh, 13.9 ms apart', f[1] === 2 && f[2] === 144 && f13 === 1, `every ${f[1]}, ${f[2]} Hz, gaps ${[...new Set(faster.gaps)].join(', ')} ms`);
+  // the player's Frame rate (Settings, Display) on a 120 Hz screen, past any hold: 60 draws every other refresh with light
+  // frames and its GPU keeping up, Full every refresh with its GPU behind, Auto back to the engine's call
+  const fr = await vt(() => { const g = window.__game.game, out = {}; __vt.gpu = 0; __vt.run(5000, 120);   // (the 6 s hold from the 90 Hz check over)
+    g.settings.set('frameRate', '60'); __vt.run(1000, 120); out.sixty = [g.drawEvery, __vt.gaps(300)];
+    g.settings.set('frameRate', 'full'); __vt.gpu = 8; __vt.run(1000, 120); out.full = [g.drawEvery, __vt.gaps(300)];
+    g.settings.set('frameRate', 'auto'); __vt.run(1000, 120); out.auto = g.drawEvery; __vt.gpu = 0; return out; });
+  check('virtual: Frame rate 60 draws every other refresh of a 120 Hz screen, its frames light', fr.sixty[0] === 2 && even(fr.sixty[1]) === 100, `every ${fr.sixty[0]}, ${even(fr.sixty[1])}% of gaps 16.7 ms`);
+  check('virtual: Frame rate Full draws every refresh, its GPU behind; Auto paces it again', fr.full[0] === 1 && fr.full[1].some(x => Math.abs(x - 8.33) < .1) && fr.auto === 2 && !errors.length, `every ${fr.full[0]} (gaps ${[...new Set(fr.full[1])].join(', ')} ms), Auto: every ${fr.auto}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
   await ctx.close();
 }
 

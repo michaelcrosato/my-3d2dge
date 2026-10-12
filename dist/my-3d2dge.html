@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.29.2 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.30.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.29.2)
+# my-3D2dge API card (v0.30.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -130,7 +130,7 @@ game.start({ scene: 'title', scenes: {
 `game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `propSize` are applied on entry. A scene's `back()` takes a phone's back gesture first (return true when it went back somewhere: a sub-menu closed).
 
 ## Standard features (every game has them: don't build your own)
-With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling, a frame-rate readout), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap and each game started by a tap, a top-right button, the menu; turning it off is remembered), a **menu button** at the top right (on a touch screen it stays in play: it is the touch START), a **way out** of every menu screen (close, back, a sideways swipe), the **back gesture** stepping back in the game (`game.back()`: a menu screen closes, play pauses) before it leaves the page, **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling, zooming or pull to refresh on the canvas).
+With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling, the frame rate: Auto, 60 or Full, and its readout), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap and each game started by a tap, a top-right button, the menu; turning it off is remembered), a **menu button** at the top right (on a touch screen it stays in play: it is the touch START), a **way out** of every menu screen (close, back, a sideways swipe), the **back gesture** stepping back in the game (`game.back()`: a menu screen closes, play pauses) before it leaves the page, **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling, zooming or pull to refresh on the canvas).
 - Adjust: `new E.Game({ menu: { items: [['Restart', fn]], settings: [{ key: 'hints', label: 'Hints', value: true }, { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }], controls: { attack: 'Sword', skill: false }, quit: 'title' } })`, then read `game.settings.hints`. Leave parts out: `menu: false` (your own pause), `fullscreen: 'button' | false`, `corner: false`, `backGesture: false`, `autoPause: false`. `game.cornerArea()`: where the corner's buttons cover the screen (or null): keep a HUD clear of it.
 - Prompts: `game.input.label('jump')` is that action's key or button on the player's device, after rebinding ('Space', 'A', '✕'). A canvas title's OPTIONS: `game.menu('settings')`. From code: `game.settings.set(key, v)`, `game.fullscreen.toggle()` (from a key, click or tap), `game.pause(reason)`, `game.resume()`.
 - **Boot**: heavy setup goes in steps, run one a frame behind a boot screen (system checks, a progress bar, your lines), then a warm-up frame: `game.start({ scenes, scene, boot: { title: 'VESPER', steps: [['Raising the harbour', () => { map = build(); }]], messages: ['Counting the bells'] } })` (a step may return a promise). A failing step, or any error before play, shows a report a player can screenshot (`E.diagnose()` gives it any time). `E.bootSplash(title)`'s markup first in `<body>` shows the screen from the first paint (the starter files have it).
@@ -271,7 +271,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.29.2</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.30.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -299,7 +299,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.29.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.30.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -377,7 +377,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.29.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.30.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -2312,7 +2312,8 @@ class Game {
     /** fps: frames drawn per second over the last half second of real time; hz: the display's refresh rate, measured;
      *  drawEvery: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw (a frame's cost,
      *  or refreshes missed: its GPU behind): every other refresh is drawn, evenly, instead of random ones missed (the
-     *  updates still run every refresh); gpu: the WebGPU lighting after enableGPU(), or null */
+     *  updates still run every refresh). The player's Frame rate setting (game.settings.frameRate: 'auto', '60', 'full')
+     *  can fix it at 2 or 1; gpu: the WebGPU lighting after enableGPU(), or null */
     this.fps = 60; this.hz = 60; this.drawEvery = 1; this._viewListeners = []; this.gpu = null;
     /** paused: true while paused (a pausable scene toggles it on 'pause'; steps still run, scenes don't update);
      *  pauseOverlay: false hides the engine's PAUSED overlay (a game drawing its own pause screen); errors: the
@@ -2603,8 +2604,10 @@ class Game {
         cost += ((t2 - t0) / 1000 - cost) * .1;
         if (this.drawEvery === 1) miss += ((since > per * 1.5 ? 1 : 0) - miss) * .05;
         since = 0;
-        let e = this.drawEvery;
-        if (this.o.pace === false || per > 1 / 85) e = 1;
+        // the player's Frame rate (Settings, Display): Full draws every refresh, 60 every other one at 100 Hz and up
+        let e = this.drawEvery; const fr = this.settings.frameRate;
+        if (this.o.pace === false || fr === 'full' || per > 1 / 85) e = 1;
+        else if (fr === '60') e = per < 1 / 100 ? 2 : 1;
         else if (cost > per * .8) e = 2;
         else if (miss > .2) { if (now - full > 1e4) back = 3; e = 2; miss = 0; hold = now + back * 1000; back = Math.min(60, back * 2); }
         else if (cost < per * .55 && now >= hold) e = 1;
@@ -2819,6 +2822,7 @@ const SETTINGS_VERSION = 2;   // 2: fullscreen false means turned off (version 1
  *  Sound, Comfort (the settings screen), Controller, Touch (the controls screen) */
 const STANDARD_SETTINGS = {
   fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (turned it off), null (never chose)
+  frameRate: { group: 'Display', label: 'Frame rate', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['60', '60'], ['full', 'Full']], help: 'Auto: every refresh while the game keeps up, every other one, evenly, when it can\'t. 60: every other refresh on a 120 Hz screen. Full: every refresh' },
   showFps: { group: 'Display', label: 'Show frame rate', type: 'toggle', value: false, help: 'At the top of the screen: frames drawn a second, the screen\'s refresh and a frame\'s cost' },
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
   sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },

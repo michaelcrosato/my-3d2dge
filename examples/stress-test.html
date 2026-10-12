@@ -247,7 +247,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.29.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.30.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -325,7 +325,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.29.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.30.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -2260,7 +2260,8 @@ class Game {
     /** fps: frames drawn per second over the last half second of real time; hz: the display's refresh rate, measured;
      *  drawEvery: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw (a frame's cost,
      *  or refreshes missed: its GPU behind): every other refresh is drawn, evenly, instead of random ones missed (the
-     *  updates still run every refresh); gpu: the WebGPU lighting after enableGPU(), or null */
+     *  updates still run every refresh). The player's Frame rate setting (game.settings.frameRate: 'auto', '60', 'full')
+     *  can fix it at 2 or 1; gpu: the WebGPU lighting after enableGPU(), or null */
     this.fps = 60; this.hz = 60; this.drawEvery = 1; this._viewListeners = []; this.gpu = null;
     /** paused: true while paused (a pausable scene toggles it on 'pause'; steps still run, scenes don't update);
      *  pauseOverlay: false hides the engine's PAUSED overlay (a game drawing its own pause screen); errors: the
@@ -2551,8 +2552,10 @@ class Game {
         cost += ((t2 - t0) / 1000 - cost) * .1;
         if (this.drawEvery === 1) miss += ((since > per * 1.5 ? 1 : 0) - miss) * .05;
         since = 0;
-        let e = this.drawEvery;
-        if (this.o.pace === false || per > 1 / 85) e = 1;
+        // the player's Frame rate (Settings, Display): Full draws every refresh, 60 every other one at 100 Hz and up
+        let e = this.drawEvery; const fr = this.settings.frameRate;
+        if (this.o.pace === false || fr === 'full' || per > 1 / 85) e = 1;
+        else if (fr === '60') e = per < 1 / 100 ? 2 : 1;
         else if (cost > per * .8) e = 2;
         else if (miss > .2) { if (now - full > 1e4) back = 3; e = 2; miss = 0; hold = now + back * 1000; back = Math.min(60, back * 2); }
         else if (cost < per * .55 && now >= hold) e = 1;
@@ -2767,6 +2770,7 @@ const SETTINGS_VERSION = 2;   // 2: fullscreen false means turned off (version 1
  *  Sound, Comfort (the settings screen), Controller, Touch (the controls screen) */
 const STANDARD_SETTINGS = {
   fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (turned it off), null (never chose)
+  frameRate: { group: 'Display', label: 'Frame rate', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['60', '60'], ['full', 'Full']], help: 'Auto: every refresh while the game keeps up, every other one, evenly, when it can\'t. 60: every other refresh on a 120 Hz screen. Full: every refresh' },
   showFps: { group: 'Display', label: 'Show frame rate', type: 'toggle', value: false, help: 'At the top of the screen: frames drawn a second, the screen\'s refresh and a frame\'s cost' },
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
   sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },

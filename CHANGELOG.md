@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.30.0 (2026-10-12)
+
+The frame rate in the player's hands, as popular phone games put it: Settings, Display, Frame rate.
+
+- **Engine**: Settings, Display, Frame rate (`game.settings.frameRate`): Auto (the engine's call, as before: every refresh while the game keeps up, every other one, evenly, when it can't), 60 (every other refresh on a screen of 100 Hz and up: 60 a second on a 120 Hz phone) or Full (every refresh, always). A phone whose GPU Auto misreads gets an even 60 by the player's choice, and the three side by side show on the device what the pacing does. Full edition (the agent edition has no settings screen: Auto).
+- **Tools**: `phone-test`: on the virtual clock, Frame rate 60 draws every other refresh with light frames, Full every refresh with its GPU behind, and Auto paces it again (37 checks).
+- **Docs**: `API.md` (the standard settings), `AI_GUIDE.md` (a phone's frame), `game.drawEvery`'s doc comment.
+
 ## 0.29.2 (2026-10-12)
 
 Codex's review of 0.29.1, and a flaky check that turned out to be a bug: the frame pacing could lock itself up from the first frame.
