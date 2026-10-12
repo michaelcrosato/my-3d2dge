@@ -412,3 +412,22 @@ An entry:
 - **Answered:** no: made at once as a reversible call (it is one option and a few lines of the loop), flagged in the pull
   request, to review
 - **Landed in:** v0.29.0
+
+## D26 · 2026-10-12 · Refreshes missed count too, not only a frame's cost
+
+- **Principle:** process (the engine's frame loop, both editions: D25's default, widened)
+- **Call:** D25 paces by a frame's update and draw cost, the only time the page can clock. The loop now also counts the
+  refreshes missed between frames drawn at each refresh (a gap over 1.5 refreshes): past about one in five (an average)
+  it draws every other refresh, evenly, and holds that 3 s before trying each refresh again, then 6, 12... up to a
+  minute, so a GPU that can't keep up doesn't flicker between the two. The refresh (`game.hz`) is measured only while
+  each refresh is drawn.
+- **Why:** a phone's browser draws the canvas on its GPU after the page's code has run. A GPU slower than the refresh
+  makes the browser skip refreshes at random while the page's own cost looks small, and D25 kept drawing every refresh:
+  frames 8 and 17 ms apart again, the choppiness the owner saw on a Galaxy S25 (measured on an emulated 120 Hz screen
+  whose GPU is busy 5 and 11 ms by turns: 48% of the gaps 16.7 ms and the rest 8.3 before, 90% 16.7 ms after). While
+  paced, a GPU behind skipped the refresh between frames too, so the refresh read 60 Hz and switched the pacing off; it is
+  no longer read then. What would change it: a device where the browser skips refreshes for another reason (then the
+  game is drawn at half its refresh for a minute at most, and back), or the owner's readings on the S25 saying otherwise.
+- **Answered:** no: made at once as a reversible call (a few lines of the loop beside D25's), flagged in the pull
+  request, to review
+- **Landed in:** v0.29.1
