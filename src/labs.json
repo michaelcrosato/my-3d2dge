@@ -1,70 +1,116 @@
 {
-  "$about": "The Labs page (examples/labs.html, my-3d2dge.vercel.app/labs) is built from this list by tools/build.mjs. Each entry is one page: page is an examples/ page name (examples/<page>.html, served at /<page>) or a dist/ path; links are [label, what to add to the address]. keep: tools and demos worth keeping. temporary: the prototypes (DOCTRINE.md), one-off comparisons and experiments, each with the date it was added and the question it answers, and deviates: one line for each way it departs from the doctrine, if any; when the question is settled, delete the page and its entry, or graduate it to another section (it is then held to the engine tier). A change to a prototype alone needs no version bump. tools/labs-test.mjs opens every link.",
+  "$about": "The Labs page (examples/labs.html, my-3d2dge.vercel.app/labs) is built from this list by tools/build.mjs. Each section has a title, a line saying what it holds (about) and its entries. Each entry is one page: page is an examples/ page name (examples/<page>.html, served at /<page>) or a dist/ path; its title opens the page, and links are other places to start, [label, what to add to the address] (or another dist/ path). play, kits and keep (Tools) are kept. temporary holds the prototypes (DOCTRINE.md), one-off comparisons and experiments, each with the date it was added and the question it answers, and deviates: one line for each way it departs from the doctrine, if any; when the question is settled, delete the page and its entry, or graduate it to another section (it is then held to the engine tier). A change to a prototype alone needs no version bump. tools/labs-test.mjs opens every link.",
   "sections": [
     {
-      "id": "game",
-      "title": "The game",
+      "id": "play",
+      "title": "Play",
+      "about": "The game and the demos.",
       "entries": [
         {
           "page": "emberdeep",
           "title": "Emberdeep",
           "what": "The game itself. Its own test areas are inside it: the Proving Grounds, the Gallery (every monster, skill and pose) and the Developer panel's sandbox.",
-          "links": [["Title", ""], ["Town", "#town"], ["Depth 7", "#depth-7"], ["Proving Grounds", "#proving"], ["Gallery", "#gallery"], ["Bestiary: husk", "#gallery/bestiary/husk"], ["Three-quarter view", "?view=threequarter"]]
-        }
-      ]
-    },
-    {
-      "id": "keep",
-      "title": "Labs",
-      "entries": [
-        {
-          "page": "mocap-lab",
-          "title": "Mocap Lab",
-          "what": "Every imported animation clip, on a mannequin and on the hero, in every view, slow or frame by frame. Sets: Quaternius, Mesh2Motion, CMU motion capture, and the clips the hero uses; the CMU library holds every one of its 2,548 takes.",
-          "links": [["All sets", ""], ["CMU clips", "?set=cmu"], ["Every CMU take", "?set=library"], ["Mesh2Motion", "?set=mesh2motion"], ["Hero's clips", "?set=hero"], ["Side view", "?view=side"], ["Hero only, slow", "?cast=hero&speed=.25"]]
+          "links": [["Town", "#town"], ["Depth 7", "#depth-7"], ["Proving Grounds", "#proving"], ["Gallery", "#gallery"], ["Bestiary: husk", "#gallery/bestiary/husk"], ["Three-quarter view", "?view=threequarter"]]
         },
-        {
-          "page": "perspective-lab",
-          "title": "Perspective Lab",
-          "what": "One room in every camera view (isometric, three-quarter, top-down, brawler, side), with skeleton and lighting toggles.",
-          "links": [["Open", ""]]
-        },
-        {
-          "page": "stress-test",
-          "title": "Stress test",
-          "what": "Raise the load (up to 5,000 monsters, torches, particles) until the frame rate drops, or run the benchmark to rate this device. Any view the engine can draw (side scrolling, with depth drawn the Mode 7 way, or a custom turn and tilt), fixed in place if you like.",
-          "links": [["Open", ""], ["Three-quarter view", "?view=threequarter"], ["Side scrolling", "?view=side"], ["Side scrolling with depth (Mode 7)", "?view=side&depth=1"], ["Custom camera, fixed", "?cam=300,20,1.25,8,1.2,520,410"]]
-        }
-      ]
-    },
-    {
-      "id": "demos",
-      "title": "Demos and starters",
-      "entries": [
         {
           "page": "arena",
           "title": "Emberwell",
-          "what": "The action-RPG arena demo with GPU lighting, in four views.",
-          "links": [["Isometric", ""], ["Three-quarter", "#threequarter"], ["Top-down", "#topdown"], ["Brawler", "#brawler"]]
-        },
-        {
-          "page": "dist/my-3d2dge.html",
-          "title": "Starter games",
-          "what": "The file to hand an AI model: the engine, its API card and six small games. The kits are one game each.",
-          "links": [["All six", ""], ["Adventure kit", "dist/kits/my-3d2dge-adventure.html"], ["Platformer kit", "dist/kits/my-3d2dge-platformer.html"], ["Brawler kit", "dist/kits/my-3d2dge-brawler.html"], ["Shooter kit", "dist/kits/my-3d2dge-shooter.html"], ["RPG kit", "dist/kits/my-3d2dge-rpg.html"], ["Stealth kit", "dist/kits/my-3d2dge-stealth.html"], ["Animation kit", "dist/kits/my-3d2dge-animlab.html"]]
+          "what": "The action-RPG arena demo with GPU lighting. It opens isometric; three more views below.",
+          "links": [["Three-quarter", "#threequarter"], ["Top-down", "#topdown"], ["Brawler", "#brawler"]]
         },
         {
           "page": "scarfrunner-side",
           "title": "Scarfrunner",
           "what": "The side-scrolling prototype that came before the engine.",
-          "links": [["Open", ""]]
+          "links": []
+        }
+      ]
+    },
+    {
+      "id": "kits",
+      "title": "Starter kits",
+      "about": "Small games for an AI model to build from: one genre each, engine and API card included.",
+      "entries": [
+        {
+          "page": "dist/kits/my-3d2dge-adventure.html",
+          "title": "Adventure",
+          "what": "Top-down action adventure (Secret of Mana, Zelda): a village, ruins and a shrine.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-platformer.html",
+          "title": "Platformer",
+          "what": "Side-scroller (Castlevania, Mega Man X): a night approach to a castle, in five zones.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-brawler.html",
+          "title": "Brawler",
+          "what": "Beat-'em-up (Final Fight, Streets of Rage 2): a city block at dusk, wave after wave.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-shooter.html",
+          "title": "Shooter",
+          "what": "Vertical shoot-'em-up (Raiden, 1943): farmland, a river town and an air base.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-rpg.html",
+          "title": "RPG battle",
+          "what": "Side-view battle (Final Fantasy VI, Chrono Trigger): three heroes, three monsters.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-stealth.html",
+          "title": "Stealth",
+          "what": "Rooftops at dusk (Tenchu, Assassin's Creed): steal the ledger past three guards.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-animlab.html",
+          "title": "Animation lab",
+          "what": "Every move, pose and skin the character rigs have, from every view.",
+          "links": []
+        },
+        {
+          "page": "dist/my-3d2dge.html",
+          "title": "All in one file",
+          "what": "The engine, its API card, all six games and the animation lab, with a title menu. A kit is one game of it, small enough for a chat model.",
+          "links": [["Compact edition", "dist/my-3d2dge-compact.html"]]
+        }
+      ]
+    },
+    {
+      "id": "keep",
+      "title": "Tools",
+      "about": "For looking closely: every animation clip, every camera view, and how hard a device can be pushed.",
+      "entries": [
+        {
+          "page": "mocap-lab",
+          "title": "Mocap Lab",
+          "what": "Every imported animation clip, on a mannequin and on the hero, in every view, slow or frame by frame. Sets: Quaternius, Mesh2Motion, CMU motion capture, and the clips the hero uses; the CMU library holds every one of its 2,548 takes.",
+          "links": [["CMU clips", "?set=cmu"], ["Every CMU take", "?set=library"], ["Mesh2Motion", "?set=mesh2motion"], ["Hero's clips", "?set=hero"], ["Side view", "?view=side"], ["Hero only, slow", "?cast=hero&speed=.25"]]
+        },
+        {
+          "page": "perspective-lab",
+          "title": "Perspective Lab",
+          "what": "One room in every camera view (isometric, three-quarter, top-down, brawler, side), with skeleton and lighting toggles.",
+          "links": []
+        },
+        {
+          "page": "stress-test",
+          "title": "Stress test",
+          "what": "Raise the load (up to 5,000 monsters, torches, particles) until the frame rate drops, or run the benchmark to rate this device. Any view the engine can draw (side scrolling, with depth drawn the Mode 7 way, or a custom turn and tilt), fixed in place if you like.",
+          "links": [["Three-quarter view", "?view=threequarter"], ["Side scrolling", "?view=side"], ["Side scrolling with depth (Mode 7)", "?view=side&depth=1"], ["Custom camera, fixed", "?cam=300,20,1.25,8,1.2,520,410"]]
         }
       ]
     },
     {
       "id": "temporary",
       "title": "Temporary",
-      "empty": "Nothing here right now. One-off comparisons and experiments land here, with the date and the question each one answers, and are deleted once it is settled.",
+      "about": "Prototypes, each answering one question, newest first. Once it is answered, one is deleted or kept as a tool.",
+      "empty": "Nothing here right now. One-off comparisons and experiments land here, each with its date and the question it answers.",
       "entries": [
         {
           "page": "vesper-ui",
@@ -72,7 +118,7 @@
           "added": "2026-10-11",
           "question": "Does E.Shell bring a modern adaptation's interface (Vesper's: 15.2k tokens of HTML, CSS and glue) down to a quarter?",
           "what": "Vesper's title, HUD (objective and distance, status, health, awareness, seals, hold-to-interact prompt, tip, district name, control bar, minimap), toasts, tutorial card, pause, settings, help, district map with a waypoint and results, rebuilt on E.Shell over a small stand-in game: climb to the bell tower, take the ledger, leave by boat. Keyboard, gamepad and touch. The interface is src/vesper-ui.ui.js; the pull request that added it gives the count.",
-          "links": [["Open", ""], ["Three-quarter view", "#threequarter"]]
+          "links": [["Three-quarter view", "#threequarter"]]
         },
         {
           "page": "shapes-compare",
@@ -80,7 +126,7 @@
           "added": "2026-10-08",
           "question": "Are 3D models converted to shapes worth building, next to our flat props?",
           "what": "Twelve free 3D models (Kenney and KayKit, CC0) converted to shapes and drawn by the engine in every view and turning, beside the hero and our closest flat prop, ranked from the best case to the worst, with what is off and what would fix it.",
-          "links": [["Open", ""]]
+          "links": []
         },
         {
           "page": "free-camera",
@@ -88,7 +134,7 @@
           "added": "2026-10-08",
           "question": "What does a free camera look like in our engine, and which objects hold up when you turn it?",
           "what": "A small room with four pillars, crates and the hero walking a lap. Drag to turn and tilt, zoom, move up and down, then fix the camera anywhere and copy its code or link. The crates switch between a converted 3D shape, today's flat prop and the engine's plain box. Fly mode (G) is a first-person camera on a small renderer of its own, to show what the engine can't do and what carries over.",
-          "links": [["Open", ""], ["Fixed: low corner", "?cam=320,18,1.6,6,1,104,88"], ["Fixed: straight down", "?cam=0,90,1.2,0,1,104,88"], ["Fly: eye level", "?fly=104,150,20,-90,-7,70"]]
+          "links": [["Fixed: low corner", "?cam=320,18,1.6,6,1,104,88"], ["Fixed: straight down", "?cam=0,90,1.2,0,1,104,88"], ["Fly: eye level", "?fly=104,150,20,-90,-7,70"]]
         },
         {
           "page": "lab-3d",
@@ -97,7 +143,7 @@
           "question": "Can our characters, animation and look live in a real 3D world (three.js r182 and Rapier), with all its art drawn by code, and stay easy for AI agents to work on?",
           "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",
           "what": "A stone room in real 3D (three.js r182 on WebGPU, or WebGL 2 by itself, and Rapier physics), every texture and shape drawn by code. The hero walks a lap or you play it (move, swing, dash, knock the crates about); a mocap figure and Emberdeep's Dan stand by. Each character is a Card (the engine's own drawing on a card facing the camera) or a Puppet (3D parts on the same joints), or both side by side, in the engine's five fixed views or a free orbit, fly or chase camera. The decisions and trade-offs are in docs/LAB-3D.md.",
-          "links": [["Open", ""], ["Side by side", "?look=both&view=threequarter"], ["Puppets, fly", "?look=puppet&view=fly"], ["Play: chase camera", "?view=chase"], ["On WebGL 2", "?backend=webgl"]]
+          "links": [["Side by side", "?look=both&view=threequarter"], ["Puppets, fly", "?look=puppet&view=fly"], ["Play: chase camera", "?view=chase"], ["On WebGL 2", "?backend=webgl"]]
         },
         {
           "page": "stress-world",
@@ -106,7 +152,7 @@
           "question": "What does the stress test become built from the ground up as a 3D game (three.js r182, Rapier physics, a hall written as text), sharing only the engine's animation system, and how does it hold up?",
           "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",
           "what": "The stress test's job done as a 3D game, its own way: every monster is a Rapier body (the crowd pushes and piles up by itself, big hits throw bodies into the air, crates and barrels fly), the hero walks, dashes and jumps onto low walls and galleries, monsters find their way up the stairs after him. The hall is the 2D one's layout written as ASCII text, with a raised rune dais and two galleries. Characters are Cards (the engine draws them) or Puppets, in the engine's views (perspective or orthographic), side scrolling with depth, chase, first person, fly or fixed; filters (Comic cel or Pixel on the scene, the characters or the hall, bloom, FXAA). The benchmark adds a physics column.",
-          "links": [["Open", ""], ["Puppets", "?look=puppet"], ["400 monsters", "?monsters=400"], ["Chase camera", "?cam3=chase&look=puppet&res=balanced"], ["Side scrolling with depth", "?view=side&depth=1"], ["Orthographic three-quarter", "?view=threequarter&proj=ortho"], ["Comic cel", "?fx=cel&look=puppet&res=full"], ["On WebGL 2", "?backend=webgl"]]
+          "links": [["Puppets", "?look=puppet"], ["400 monsters", "?monsters=400"], ["Chase camera", "?cam3=chase&look=puppet&res=balanced"], ["Side scrolling with depth", "?view=side&depth=1"], ["Orthographic three-quarter", "?view=threequarter&proj=ortho"], ["Comic cel", "?fx=cel&look=puppet&res=full"], ["On WebGL 2", "?backend=webgl"]]
         }
       ]
     }
