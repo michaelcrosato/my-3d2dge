@@ -332,7 +332,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.32.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.32.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -410,7 +410,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.32.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.32.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -2380,7 +2380,7 @@ class Game {
     /** zoom: the camera's zoom now (1 = as the view is): the game's (setZoom, a scene's camera.start) times the player's
      *  (settings.zoom: the wheel, a pinch), within the scene's camera.zoom range; yaw: its turn in degrees on top of the
      *  view (rotateView) */
-    this.zoom = 1; this.yaw = 0; this._zoomBase = 1; this._zoomTo = null; this._zoomAt = 0;   // camera zoom and turn on top of the chosen view (setZoom, rotateView)
+    this.zoom = 1; this.yaw = 0; this._zoomBase = 1; this._zoomTo = null; this._zoomAt = 0; this._wall = 0;   // camera zoom and turn on top of the chosen view (setZoom, rotateView)
     /** views this game is designed for (view cycling and the checker use it). null = every view */
     this.views = this.o.views || null;
     /** time: game seconds since start (it stops during pause and hit-stop, and slows with timeScale); real: seconds
@@ -2482,9 +2482,9 @@ class Game {
    * nothing where the scene doesn't let the player zoom. Returns the zoom
    */
   zoomBy(k) {
-    const R = this.zoomRange(), b = this._zoomBase; if (!R || !(k > 0)) return this.zoom;
+    const R = this.zoomRange(), b = this._zoomBase; if (!R || !(k > 0) || !this._zoomStd()) return this.zoom;
     const lo = Math.max(ZOOM_PLAYER[0], R[0] / b), hi = Math.min(ZOOM_PLAYER[1], R[1] / b); if (lo > hi) return this.zoom;
-    const f = clamp((this.settings.zoom || 1) * k, lo, hi); this.settings.set('zoom', f);
+    const f = clamp(clamp(+this.settings.zoom || 1, lo, hi) * k, lo, hi); this.settings.set('zoom', f);   // (one carried from a scene with more room starts at this one's end: every step moves it)
     const z = this._zoomTo || this.zoom; this.note('ZOOM ' + z + 'x' + (f <= lo + 1e-9 && k < 1 ? ' MIN' : f >= hi - 1e-9 && k > 1 ? ' MAX' : ''), 1);
     return z;
   }
@@ -2494,15 +2494,16 @@ class Game {
     let z = (this._camera() || {}).zoom; if (typeof z === 'function') try { z = z(this); } catch (e) { this._fail('camera.zoom', e); z = null; }
     return Array.isArray(z) && z.length === 2 && z[0] > 0 && z[1] >= z[0] ? [clamp(z[0], .5, 3), clamp(z[1], .5, 3)] : null;
   }
-  /** true on a screen held upright (taller than 1.3 times its width: a phone in portrait), where a scene's camera.tall
-   *  zoom applies */
+  /** true while the game's screen (r.W x r.H) is upright, taller than 1.3 times its width: a phone held upright, with
+   *  expand: true (a fixed res keeps its own shape on any phone, so it is never upright there). A scene's camera.tall zoom
+   *  applies then: it zooms a tall picture in to fill it */
   get upright() { return this.H > this.W * 1.3; }
   _camera() { const s = this.scene; return (s && s.camera) || this.o.camera || null; }
   _zoomStart() { const c = this._camera(); if (!c) return 1; return clamp(+(this.upright && c.tall !== undefined ? c.tall : c.start) || 1, .5, 3); }
   // the camera's zoom: the game's (_zoomBase), times the player's where the scene allows it, snapped to twentieths (each
   // zoom is a view, its own baked floor, walls and props)
   _zoomGoal() {
-    const R = this.zoomRange(), b = this._zoomBase, f = R && this.settings ? +this.settings.zoom || 1 : 1;   // (settings: not while they are made)
+    const R = this.zoomRange(), b = this._zoomBase, f = R && this._zoomStd() ? +this.settings.zoom || 1 : 1;
     return f === 1 ? b : clamp(Math.round(b * f * 20) / 20, Math.min(R[0], b), Math.max(R[1], b));
   }
   // the zoom becomes the goal: the game's own at once; the player's (wait) drawn as a preview (_zoomTo: the world as it
@@ -2511,7 +2512,7 @@ class Game {
   // (a third of a second in the adventure): once, not at every step
   _zoomApply(force, wait) {
     const z = this._zoomGoal();
-    if (wait && z !== this.zoom) { this._zoomTo = z; this._zoomAt = this.real; return; }
+    if (wait && z !== this.zoom) { this._zoomTo = z; this._zoomAt = this._wall; return; }
     this._zoomTo = null; if (z === this.zoom && !force) return; this.zoom = z; this._applyView();
   }
   // a scene's camera.start and camera.tall: as it starts, and when the screen turns upright or back
@@ -2520,6 +2521,8 @@ class Game {
     if (c && (enter || (turned && c.tall !== undefined))) { this._zoomBase = this._zoomStart(); this._zoomApply(true); }
     else if (enter || turned) this._zoomApply();   // (a scene without a camera: the player's zoom no longer applies; turned: its range may have changed)
   }
+  // is settings.zoom the engine's Camera zoom (not a game's own setting of that name)? Not while the settings are made
+  _zoomStd() { const sp = this.settings && this.settings.spec('zoom'); return !!sp && sp.apply === STANDARD_SETTINGS.zoom.apply; }
   /** does any of the game's scenes let the player zoom (the settings screen shows Camera zoom)? */
   _zooms() { const z = c => !!c && (Array.isArray(c.zoom) || typeof c.zoom === 'function'); return z(this.o.camera) || Object.values(this.scenes || {}).some(s => s && z(s.camera)) || z(this.scene && this.scene.camera); }
   /** a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1) */
@@ -2840,7 +2843,7 @@ class Game {
     const step = this.o.step; let n = 0;
     try {
       while (this._acc > step - 1e-9) {   // (the tolerance absorbs the rounding in frame times: 1/60 s is two steps)
-        this._acc -= step;
+        this._acc -= step; this._wall += step;   // (_wall: seconds stepped through, unscaled: slow motion or a stop doesn't hold up the player's zoom)
         const k = this.timeScale > 1 ? Math.ceil(this.timeScale - 1e-9) : 1, h = step * Math.max(0, this.timeScale) / k;
         for (let i = 0; i < k; i++, n++) this._step(h);
       }
@@ -2906,7 +2909,7 @@ class Game {
     // the player's zoom: the wheel, - and = and a pinch ask for it while a scene that allows it plays (input.zoom())
     const I = this.input, zr = !this.paused && !(this.shell && this.shell.screen) && !!this.zoomRange();
     I._zoomOn = zr; I._wheelOn = zr && (this._camera() || {}).wheel !== false;
-    if (this._zoomTo && !I.pinching && this.real - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
+    if (this._zoomTo && !I.pinching && this._wall - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
     if (this.paused) return;
     this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk);
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
@@ -7031,7 +7034,7 @@ class Shell {
     if (!this._std) { for (const k of own) add(this._row(k)); return; }
     const groups = SHELL_GROUPS.concat([...new Set(S.keys().map(k => S.spec(k).group))].filter(g => !SHELL_GROUPS.includes(g) && !['Controls', 'Controller', 'Touch'].includes(g)));
     for (const g of groups) {
-      const keys = S.keys(g).filter(k => (k !== 'scale' || this.game.screen.fixedRes()) && (k !== 'fullscreen' || this.game.o.fullscreen !== false) && (k !== 'zoom' || this.game._zooms()) && S.spec(k).type !== 'value');
+      const keys = S.keys(g).filter(k => (k !== 'scale' || this.game.screen.fixedRes()) && (k !== 'fullscreen' || this.game.o.fullscreen !== false) && (k !== 'zoom' || !this.game._zoomStd() || this.game._zooms()) && S.spec(k).type !== 'value');
       if (!keys.length) continue;
       add(this._el('div', 'esh-k esh-sec', g)); for (const k of keys) add(this._row(k));
     }

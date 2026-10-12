@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.32.1 (2026-10-12)
+
+Codex's review of 0.32.0, the player's zoom.
+
+- **Engine**: the quarter second before a zoom is drawn at its new size is counted in steps unscaled by `timeScale`. In slow motion it took four times as long, and with the game stopped (`timeScale` 0) the zoom stayed a scaled preview for good.
+- **Engine**: a zoom carried into a scene with less room (2x into the brawler's 1.5x) starts from that scene's end, so the first step out moves it. It took two steps before.
+- **Engine**: a game's own setting called `zoom` stays its own: it shows on the settings screen and isn't read as the player's camera zoom. Only the engine's Camera zoom is left off where no scene lets the player zoom.
+- **Docs**: `game.upright` reads the game's screen (`r.W` x `r.H`): a phone held upright with `expand: true`. A fixed `res` keeps its own shape on any phone, so `camera.tall` has no tall picture to fill there.
+- **Tools**: `standard-test`: the zoom drawn after a quarter second at `timeScale` 0, a carried zoom moving at the first step, a game's own `zoom` setting kept, and Camera zoom left out of a game with no zoom (112 checks).
+
 ## 0.32.0 (2026-10-12)
 
 The player's own camera zoom in every kit, on top of the zoom the designer starts each scene at.
