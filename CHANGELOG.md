@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.27.5 (2026-10-12)
+
+The full test after v0.27.4 failed in `stress-world` (its jump check), at random; the cause was in the check, not the game.
+
+- **Tools**: `stress-world-test`: the jump check holds the press for 6 steps, as the game's input buffer holds one. A stray hit from the fight before it starts a hit-stop that skips steps, and swallowed a press that lasted only one (the hero "rose 0.0 units").
+
 ## 0.27.4 (2026-10-12)
 
 From Codex's review of v0.27.2: three ways the RPG's portrait zoom fell short.
