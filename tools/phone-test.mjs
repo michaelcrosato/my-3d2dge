@@ -17,6 +17,8 @@
 import { chromium } from 'playwright';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 const only = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const want = k => !only.length || only.includes(k);
@@ -231,7 +233,7 @@ if (want('session')) {
   console.log('session: saved from the menu');
   const ctx = await browser.newContext({ viewport: SIDE, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.addInitScript(() => { navigator.canShare = () => true; navigator.share = d => d.files[0].text().then(t => { window.__shared = { name: d.files[0].name, frames: JSON.parse(t).frames.length }; }); });
+  await page.addInitScript(() => { navigator.canShare = () => true; navigator.share = d => d.files[0].text().then(t => { window.__shared = { name: d.files[0].name, frames: JSON.parse(t).frames.length, text: t }; }); });
   await page.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-adventure.html')).href + '?record=1#adventure');
   await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'adventure');
   await wait(1000);
@@ -242,6 +244,23 @@ if (want('session')) {
   const got = await ev(page, () => window.__shared || null);
   check('session: a recorded page\'s pause menu has Save session; it shares the session, its frame times in it', btns.includes('Save session') && got && /^session-.*\.json$/.test(got.name) && got.frames > 30 && !errors.length, `${btns.join(', ')}; shared ${got ? got.name + ' with ' + got.frames + ' frames' : 'nothing'}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
   await ctx.close();
+  // the saved session replays exactly, the tap on Save session included (its replay has the button: it lands on it)
+  if (got) {
+    const dir = resolve('check-output/phone'), f = dir + '/session.json'; mkdirSync(dir, { recursive: true }); writeFileSync(f, got.text);
+    let out = '', ok = true; try { out = execFileSync('node', ['tools/replay.mjs', f, '--out', dir + '/replay', '--log', '"screen: " + window.__game.game.shell.screen'], { encoding: 'utf8', timeout: 120000 }); } catch (e) { ok = false; out = (e.stdout || '') + (e.stderr || ''); }
+    const last = out.trim().split('\n').filter(l => /match|diverg|missing|threw|played|screen:/i.test(l)).slice(-3).join(' | ');
+    check('session: the saved session replays exactly, its last tap on Save session (the menu still open, not Quit\'s question)', ok && /screen: pause/.test(out), last || out.trim().split('\n').slice(-2).join(' | '));
+  }
+  // replay --pacing reads a session's refreshes: one made up of 2 s at 120 Hz, 2 s at 60 Hz (adaptive refresh: nothing
+  // missed), 5 s hidden (left out), 1 s at 120 Hz and a 2.5 s stall (its 299 missed refreshes over the seconds it took)
+  const Fs = [0], evs = [], run = (n, p) => { for (let i = 0; i < n; i++) Fs.push(Fs[Fs.length - 1] + p); };
+  run(240, 1000 / 120); run(120, 1000 / 60); evs.push([Fs.length, 'visibilitychange', 'document', 1]); Fs.push(Fs[Fs.length - 1] + 5000); evs.push([Fs.length - 1, 'visibilitychange', 'document', 0]);
+  run(120, 1000 / 120); Fs.push(Fs[Fs.length - 1] + 2500); run(120, 1000 / 120);
+  const sf = resolve('check-output/phone/synthetic-session.json'); mkdirSync(resolve('check-output/phone'), { recursive: true });
+  writeFileSync(sf, JSON.stringify({ format: 'my3d2dge-session', v: 1, version: '0', build: 'synthetic', href: '/kits/adventure', ua: 'synthetic', frames: Fs, events: evs }));
+  const rep = execFileSync('node', ['tools/replay.mjs', sf, '--pacing'], { encoding: 'utf8' }), cols = rep.split('\n').slice(-3).join(' ').trim().split(/\s+/);
+  const miss = +(rep.match(/(\d+) refreshes missed/) || [])[1];
+  check('session: replay --pacing reads a 60 Hz stretch as nothing missed, leaves hidden time out, spreads a stall over its seconds', miss >= 295 && miss <= 305 && /hidden for 1 gaps/.test(rep) && cols.filter(c => /\/0\/17@60$/.test(c)).length === 2 && cols.filter(c => c === '-').length >= 4 && cols.filter(c => /\/2500$/.test(c)).length === 3, `${miss} missed; ${cols.join(' ')}`);
 }
 
 /* 5. rpg: thumb-sized buttons, a turn played by taps, AUTO */
