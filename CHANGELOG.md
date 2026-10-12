@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.29.2 (2026-10-12)
+
+Codex's review of 0.29.1, and a flaky check that turned out to be a bug: the frame pacing could lock itself up from the first frame.
+
+- **Engine** (frame pacing, both editions):
+  - The first frame's gap is no longer read as a refresh: it is timed from `start()`, not from one, and came in at 4 to 7 ms on a 120 Hz screen. Read, the refresh passed for 200 Hz, and a game whose frames turned costly within its first 90 (before others replaced it) stayed every other refresh for good, drawing each anyway, unevenly (a GPU behind: 49% of the gaps 16.7 ms). Since 0.29.0.
+  - The hold after refreshes are missed goes back to 3 s once the game has drawn every refresh for 10 s (it only grew: after a few slow moments, any later one held a minute).
+  - Drawn every other refresh, gaps shorter than one and a half refreshes are still read, so a display that changes its refresh rate meanwhile is followed (only the skipped refresh's double gap is left out).
+- **Tools**: `phone-test`: the pacing on a virtual clock, in a page of its own (the test owns `performance.now` and the display's refreshes; deterministic, a minute of play in seconds): a costly frame from the first refresh, a GPU behind, the 3 s hold, its doubling and its reset, a display that drops to 90 Hz and rises to 144 Hz while paced (on 0.29.1, 8 of those 9 checks fail). The GPU-behind check no longer follows the costly runs on one page (their history paced it whatever the GPU did), and the light frame's check moved to the virtual clock (on a busy machine, real timers miss refreshes, which the engine is right to pace) (35 checks).
+- **Docs**: D26 in `docs/DECISIONS.md` amended.
+
 ## 0.29.1 (2026-10-12)
 
 The frame pacing of 0.29.0 only saw a frame's own cost (its JavaScript). A phone's GPU draws after it, out of the page's sight: one that falls behind at 120 Hz misses refreshes at random, which reads as choppy as before.

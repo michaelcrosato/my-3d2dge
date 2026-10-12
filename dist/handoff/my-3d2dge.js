@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.29.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.29.2  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -77,7 +77,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.29.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.29.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -2280,15 +2280,17 @@ class Game {
     }
     if (this._running || this.disposed || this.o.loop === false) return this;
     this._running = true;
-    let last = performance.now(), acc = 0, n = 0, since = 0, per = 1 / 60, cost = 0, ri = 0, miss = 0, hold = 0, back = 3;
+    let last = performance.now(), acc = 0, n = 0, since = 0, per = 1 / 60, cost = 0, ri = 0, miss = 0, hold = 0, back = 3, full = 0, fresh = true;
     const ring = [];
     const frame = now => {
       if (!this._running) return;
       this._raf = requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
       const raw = Math.max(0, (now - last) / 1000); last = now; since += raw;
-      // the refresh: the shortest of the last 90 frames (late ones are longer), learnt while each is drawn (two apart, a
-      // GPU behind can skip the one between: read then, a 120 Hz screen would pass for 60)
-      if (raw > .004 && this.drawEvery === 1) { ring[ri++ % 90] = raw; per = Math.min(...ring); }
+      // the refresh: the shortest of the last 90 frames (late ones are longer). Drawn every other refresh, only gaps shorter
+      // than one and a half are read (a GPU behind skips the refresh between: read, a 120 Hz screen would pass for 60); never
+      // the first, timed from start() and not from a refresh (it read 5 ms on a 120 Hz screen: 200 Hz until 90 more)
+      if (raw > .004 && !fresh && (this.drawEvery === 1 || raw < per * 1.5)) { ring[ri++ % 90] = raw; per = Math.min(...ring); }
+      fresh = false;
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
         n++;
@@ -2296,15 +2298,17 @@ class Game {
         const st = this.stats, t2 = performance.now(); st.updateMs = t1 - t0; st.renderMs = t2 - t1; st.frameMs = since * 1000; st.steps = steps;
         // a display at 90 Hz and up that the frames won't fit: every other refresh, back to each once they fit again. Two
         // signs they won't: a frame's own cost, and refreshes missed between frames drawn at each (the GPU behind, which no
-        // clock here sees: that one holds 3 s, then 6, 12... up to a minute, before each refresh is tried again)
+        // clock here sees: that one holds 3 s, then 6, 12... up to a minute, before each refresh is tried again; 3 s again
+        // after 10 s drawn at each)
         cost += ((t2 - t0) / 1000 - cost) * .1;
         if (this.drawEvery === 1) miss += ((since > per * 1.5 ? 1 : 0) - miss) * .05;
         since = 0;
         let e = this.drawEvery;
         if (this.o.pace === false || per > 1 / 85) e = 1;
         else if (cost > per * .8) e = 2;
-        else if (miss > .2) { e = 2; miss = 0; hold = now + back * 1000; back = Math.min(60, back * 2); }
+        else if (miss > .2) { if (now - full > 1e4) back = 3; e = 2; miss = 0; hold = now + back * 1000; back = Math.min(60, back * 2); }
         else if (cost < per * .55 && now >= hold) e = 1;
+        if (e < this.drawEvery) full = now;
         this.drawEvery = e;
       }
       acc += raw; if (acc > .5) { this.fps = Math.round(n / acc); this.hz = Math.round(1 / per); acc = 0; n = 0; }   // real time: a slow device reads slow
