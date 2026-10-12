@@ -65,7 +65,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERWELL</b><span>Starting · my-3D2dge v0.28.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERWELL</b><span>Starting · my-3D2dge v0.29.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberwell, an action game in a torch-lit hall"></canvas>
   <div class="hud top">
@@ -106,7 +106,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.28.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.29.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -184,7 +184,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.28.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.29.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1570,7 +1570,7 @@ class Renderer {
   get bh() { return this.game.screen.buf.height; }
   /** start a frame with the camera at (cx, cy) projected pixels (the game calls it before your draw) */
   begin(cx, cy) {
-    const sc = this.game.screen;
+    const sc = this.game.screen; this._frameNo = (this._frameNo || 0) + 1;   // (kept actor images count frames drawn)
     sc.begin(cx, cy, this.game.o.bg);
     /** ix, iy: the camera's whole-pixel offset this frame (a world point is at r.w(x, y, z) on the buffer) */
     this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this._decals.length = 0; this._overlays.length = 0; this._map = null; (this._emis || (this._emis = [])).length = 0;
@@ -1826,6 +1826,10 @@ class Renderer {
    *     drawn in front hide it too (a hero lost in a crowd keeps his shape)
    *   hides: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
    *   ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
+   *   every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn
+   *     runs again, at the place it is now (a background character animating at a lower rate, as classic games'
+   *     townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray
+   *     or GPU lighting
    */
   actor(x, y, z, drawFn, o = {}) {
     const st = this.game.stats;
@@ -1846,6 +1850,12 @@ class Renderer {
     dst.globalCompositeOperation = 'source-over';
   }
   _composite(g, x, y, z, drawFn, o) {
+    const keep = o.every > 1 && o.key && g === this.ctx && !this.gpu && !o.flash && !o.ghost && !o.xray ? this._kept || (this._kept = new WeakMap()) : null;
+    let K = keep && keep.get(o.key);
+    if (K && this._frameNo - K.n < o.every) {   // its kept image, where it stands now
+      const [sx, sy] = this.w(x, y, z); g.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+      g.drawImage(K.cv, 0, 0, K.w, K.h, Math.round(sx) - AOX + K.x0, Math.round(sy) - AOY + K.y0, K.w, K.h); g.globalAlpha = 1; this._comp = null; return;
+    }
     const aG = this._aG, bb = this.bb, P = this._R;
     aG.clearRect(P[0], P[1], P[2], P[3]); aG._c = null;
     bb[0] = AS; bb[1] = AS; bb[2] = 0; bb[3] = 0;
@@ -1855,8 +1865,15 @@ class Renderer {
     const R = this._R = [x0, y0, x1 - x0, y1 - y0], w = R[2], h = R[3];
     const [sx, sy] = this.w(x, y, z), bx = Math.round(sx) - AOX, by = Math.round(sy) - AOY, al = o.alpha === undefined ? 1 : o.alpha;
     if (g === this.ctx) this._comp = { x0, y0, w, h, bx, by, ol: o.outline !== false };
-    const put = (cv, dx, dy) => g.drawImage(cv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h);
-    g.globalAlpha = al;
+    let T = g, tx = bx, ty = by, ta = al;   // where the layers go: the frame, or the kept image (a pixel of margin for the outline), drawn into it after
+    if (keep) {
+      if (!K) keep.set(o.key, K = { cv: mkCanvas(8, 8) });
+      if (!K.g || K.cv.width < w + 2 || K.cv.height < h + 2) { K.cv.width = Math.max(K.cv.width, w + 2); K.cv.height = Math.max(K.cv.height, h + 2); K.g = ctx2d(K.cv); }
+      Object.assign(K, { n: this._frameNo, w: w + 2, h: h + 2, x0: x0 - 1, y0: y0 - 1 }); K.g.clearRect(0, 0, K.w, K.h);
+      T = K.g; tx = 1 - x0; ty = 1 - y0; ta = 1;
+    }
+    const put = (cv, dx, dy) => T.drawImage(cv, x0, y0, w, h, tx + x0 + dx, ty + y0 + dy, w, h);
+    T.globalAlpha = ta;
     if (o.outline !== false) { this._tint(this._mG, this._aCv, o.outlineColor || this.outline, R); for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(this._mCv, dx, dy); }
     if (o.flash) {   // palette flash: the tint over the sprite, so its shading still shows (flashMix: 1 = solid)
       const fm = o.flashMix === undefined ? .5 : o.flashMix;
@@ -1868,10 +1885,11 @@ class Renderer {
         const rG = this._rG; rG.globalCompositeOperation = 'source-over'; rG.clearRect(x0, y0, w, h); rG.drawImage(this._aCv, x0, y0, w, h, x0, y0, w, h);
         rG.globalCompositeOperation = 'destination-out'; rG.drawImage(this._aCv, x0, y0, w, h, x0 - 1, y0, w, h);
         rG.globalCompositeOperation = 'source-in'; rG.fillStyle = o.rimColor || this.rim; rG._c = null; rG.fillRect(x0, y0, w, h); rG.globalCompositeOperation = 'source-over';
-        g.globalAlpha = al * this.rimAlpha; put(this._rCv, 0, 0);
+        T.globalAlpha = ta * this.rimAlpha; put(this._rCv, 0, 0);
       }
     }
-    g.globalAlpha = 1;
+    T.globalAlpha = 1;
+    if (keep) { g.globalAlpha = al; g.drawImage(K.cv, 0, 0, K.w, K.h, bx + K.x0, by + K.y0, K.w, K.h); g.globalAlpha = 1; }
     if (o.ghost) {
       const gp = this._ghostPool[this._ghostIdx++ % this._ghostPool.length];
       gp.g.clearRect(0, 0, AS, AS); this._tint(gp.g, this._aCv, o.ghost.color || '#62d8ff', R);
@@ -2552,6 +2570,8 @@ class Game {
     const sc = this.scene;
     if (sc && sc.draw) sc.draw(this.r);
     if (this._note && this.real < this._note.end) { const n = this._note; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
+    if (this.settings.showFps) { const st = this.stats, t = this.fps + ' FPS  ' + this.hz + ' HZ' + (this.drawEvery > 1 ? ' (EVERY ' + this.drawEvery + ')' : '') + '  ' + (st.updateMs + st.renderMs).toFixed(1) + ' MS';   // Settings, Display
+      this.r.overlay(g => { const w = E.font.width(t, { font: 'tiny' }) + 6; g.fillStyle = '#000000b0'; g.fillRect(Math.round(this.r.W / 2 - w / 2), 0, w, 9); g._c = null; E.font.text(g, t, this.r.W / 2, 2, '#9cff9c', { align: 'center', outline: false, font: 'tiny' }); }); }
     this._cornerSync();
     if (this.paused && this.pauseOverlay && !(this.shell && this.shell._sys && this.shell.screen)) this.r.overlay(g => {
       const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r.checker, 'repeat'); else { g.fillStyle = '#05030c'; g.globalAlpha = .55; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
@@ -2591,6 +2611,7 @@ const SETTINGS_VERSION = 2;   // 2: fullscreen false means turned off (version 1
  *  Sound, Comfort (the settings screen), Controller, Touch (the controls screen) */
 const STANDARD_SETTINGS = {
   fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (turned it off), null (never chose)
+  showFps: { group: 'Display', label: 'Show frame rate', type: 'toggle', value: false, help: 'At the top of the screen: frames drawn a second, the screen\'s refresh and a frame\'s cost' },
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
   sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },
   volume: { group: 'Sound', label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },

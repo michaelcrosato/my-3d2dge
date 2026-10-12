@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.29.0 (2026-10-12)
+
+The adventure was still choppy on a Galaxy S25 (a 120 Hz screen) with its GPU lighting off: its frame didn't fit a 120 Hz refresh, so frames came 8 and 17 ms apart at random.
+
+- **Engine**:
+  - A fast screen (90 Hz and up) that a game's frames can't keep up with is drawn every other refresh, evenly, instead of at random; the updates still run at every refresh, and a game whose frame fits keeps the full refresh. `game.hz` (the display's refresh, measured) and `game.drawEvery` (1 or 2); `new E.Game({ pace: false })` draws every refresh as before. Both editions (D25, its own commit).
+  - `r.actor(..., { every: 2, key })`: a background character's finished image (outline, rim light) is drawn again for a frame before it is drawn anew, at the place it stands now: townsfolk animate at half rate, as classic games' do, and a phone's frame goes to the hero and the foes. Not while it flashes, with a ghost, x-ray or GPU lighting.
+  - Settings, Display, Show frame rate: at the top of the screen, frames drawn a second, the screen's refresh (and EVERY 2 when paced) and a frame's cost in ms, to read a game's speed on the device itself.
+- **Characters** (the starter kits, `src/starter/`), adventure: the townsfolk and pets animate every other frame (its frame about 13 ms here before, 11 now: they were 5 of it); Lighting's Auto reads the main pointer (a phone with a stylus has a fine one too, and got GPU lighting).
+- **Tools**: `phone-test`: a 120 Hz screen (frames on an 8.33 ms grid): it reads 120 Hz, a 10 ms frame is drawn every other refresh with most gaps 16.7 ms, a light one every refresh, `pace: false` every refresh (28 checks).
+- **Docs**: `API.md` (`every`, `key`, the readout), `AI_GUIDE.md` (a phone's frame: 8.3 ms at 120 Hz, background characters at half rate, the readout), D25 in `docs/DECISIONS.md`.
+
 ## 0.28.0 (2026-10-12)
 
 The first real-phone test of the kits: four things found in ten minutes, fixed, and a phone test that finds them in one.

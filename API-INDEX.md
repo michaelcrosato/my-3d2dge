@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.28.0)
+# my-3D2dge API index (v0.29.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.28.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.29.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -325,7 +325,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `new E.Renderer(game)` †: the r handed to draw(r), made by the game
 - `r.H`: the screen's height in game pixels
 - `r.W`: the screen's width in game pixels
-- `r.actor(x, y, z, drawFn, o = {})`: Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected position of world point (x, y, z). The engine adds outline, rim light, hit flash, afterimages and x-ray silhouettes. opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias} xray: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies drawn in front hide it too (a hero lost in a crowd keeps his shape) hides: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
+- `r.actor(x, y, z, drawFn, o = {})`: Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected position of world point (x, y, z). The engine adds outline, rim light, hit flash, afterimages and x-ray silhouettes. opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias} xray: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies drawn in front hide it too (a hero lost in a crowd keeps his shape) hides: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray or GPU lighting
 - `r.begin(cx, cy)`: start a frame with the camera at (cx, cy) projected pixels (the game calls it before your draw)
 - `r.bh`: the buffer's height (H + 2)
 - `r.box(g, x0, y0, z0, x1, y1, z1, top, side)`: extruded box prop (crate, pedestal, table). Call inside a queue fn with its g.

@@ -134,8 +134,9 @@ const ADV = (() => {
   // CAMERA, the player's choice: 'rooms' slides screen by screen (Zelda), 'scroll' follows the hero (Settings, or C)
   game.settings.define({ key: 'advCamera', group: 'Adventure', label: 'Camera', options: [['rooms', 'Rooms'], ['scroll', 'Scroll']], value: 'rooms', help: 'Rooms: screen by screen, as Zelda. Scroll: it follows the hero' });
   // LIGHTING: GPU lights (pools of light and shadows, WebGPU) draw every frame twice and light each pixel: a phone's frame
-  // rate pays for them, so Auto keeps them for a computer (a mouse or touchpad) and a phone gets Fast (the floor is lit already)
-  const gpuWanted = () => game.settings.advLight === 'gpu' || (game.settings.advLight === 'auto' && !!(window.matchMedia && matchMedia('(any-pointer: fine)').matches));
+  // rate pays for them, so Auto keeps them for a computer (its main pointer a mouse or touchpad) and a phone gets Fast (the
+  // floor is lit already): the main pointer, as a phone with a stylus has a fine one too
+  const gpuWanted = () => game.settings.advLight === 'gpu' || (game.settings.advLight === 'auto' && !!(window.matchMedia && matchMedia('(pointer: fine)').matches));
   const lighting = () => { if (!map) return; if (gpuWanted() && !gpu) gpu = game.enableGPU({ map }); if (gpu) Object.assign(gpu, { map, enabled: gpuWanted(), bands: 24, wrap: .5 }); };
   game.settings.define({ key: 'advLight', group: 'Adventure', label: 'Lighting', options: [['auto', 'Auto'], ['gpu', 'GPU'], ['fast', 'Fast']], value: 'auto', help: 'GPU: pools of light and shadows (slow on a phone). Fast: smooth on a phone. Auto: GPU on a computer, Fast on a phone', apply: () => { if (game.sceneName === 'adventure') lighting(); } });
   addEventListener('keydown', e => { if (e.code !== 'KeyC' || e.repeat || game.sceneName !== 'adventure' || game.paused) return; const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note('CAMERA: ' + v.toUpperCase()); });
@@ -468,7 +469,7 @@ const ADV = (() => {
       if (it.kind === 'relic') { r.sprite(it.x, it.y, 18 + bob, CRYSTALS[0], { glow: .5 }); if (Math.random() < .08) P.glints(it.x, it.y, 22, 1, '#bff8ff', 14); }
       else { shadow(r, it.x, it.y, 3); r.sprite(it.x, it.y, 3 + bob, it.kind === 'gem' ? GEM : HEART, { glow: .5 }); }
     }
-    for (const b of [...npcs, ...pets]) r.actor(b.x, b.y, b.z || 0, (g, ox, oy) => (b.rig || b.look).draw(g, ox, oy, view));
+    for (const b of [...npcs, ...pets]) r.actor(b.x, b.y, b.z || 0, (g, ox, oy) => (b.rig || b.look).draw(g, ox, oy, view), { every: 2, key: b });   // townsfolk animate every other frame (a phone's frame time goes to the hero and foes)
     for (const f of foes) if (!f.dead) {   // tells shiver (a goblin's builds); dying foes blink before the poof
       const c = f.atk, tell = f.tell ? .7 : f.kind === 'goblin' && c.phase === 'wind' ? .3 + c.u * 1.5 : 0;
       r.actor(f.x + shiver(tell), f.y, f.z, (g, ox, oy) => f.look.draw(g, ox, oy, view), { flash: f.flash > 0 || f.dying > 0 && f.dying < .4 && Math.floor(game.time * 16) % 2 });
