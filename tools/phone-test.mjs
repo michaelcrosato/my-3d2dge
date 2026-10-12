@@ -251,16 +251,17 @@ if (want('session')) {
     const last = out.trim().split('\n').filter(l => /match|diverg|missing|threw|played|screen:/i.test(l)).slice(-3).join(' | ');
     check('session: the saved session replays exactly, its last tap on Save session (the menu still open, not Quit\'s question)', ok && /screen: pause/.test(out), last || out.trim().split('\n').slice(-2).join(' | '));
   }
-  // replay --pacing reads a session's refreshes: one made up of 2 s at 120 Hz, 2 s at 60 Hz (adaptive refresh: nothing
-  // missed), 5 s hidden (left out), 1 s at 120 Hz and a 2.5 s stall (its 299 missed refreshes over the seconds it took)
-  const Fs = [0], evs = [], run = (n, p) => { for (let i = 0; i < n; i++) Fs.push(Fs[Fs.length - 1] + p); };
-  run(240, 1000 / 120); run(120, 1000 / 60); evs.push([Fs.length, 'visibilitychange', 'document', 1]); Fs.push(Fs[Fs.length - 1] + 5000); evs.push([Fs.length - 1, 'visibilitychange', 'document', 0]);
+  // replay --pacing reads a session's refreshes: one made up of 3 s begun hidden (a frame a second; only its showing is
+  // recorded), 2 s at 120 Hz, 2 s at 60 Hz (adaptive refresh: nothing missed), 5 s hidden, 1 s at 120 Hz and a 2.5 s
+  // stall (its 299 missed refreshes over the seconds it took). The hidden time is left out
+  const Fs = [0, 1000, 2000], evs = [[3, 'visibilitychange', 'document', 0]], run = (n, p) => { for (let i = 0; i < n; i++) Fs.push(Fs[Fs.length - 1] + p); };
+  Fs.push(3000); run(240, 1000 / 120); run(120, 1000 / 60); evs.push([Fs.length, 'visibilitychange', 'document', 1]); Fs.push(Fs[Fs.length - 1] + 5000); evs.push([Fs.length - 1, 'visibilitychange', 'document', 0]);
   run(120, 1000 / 120); Fs.push(Fs[Fs.length - 1] + 2500); run(120, 1000 / 120);
   const sf = resolve('check-output/phone/synthetic-session.json'); mkdirSync(resolve('check-output/phone'), { recursive: true });
   writeFileSync(sf, JSON.stringify({ format: 'my3d2dge-session', v: 1, version: '0', build: 'synthetic', href: '/kits/adventure', ua: 'synthetic', frames: Fs, events: evs }));
-  const rep = execFileSync('node', ['tools/replay.mjs', sf, '--pacing'], { encoding: 'utf8' }), cols = rep.split('\n').slice(-3).join(' ').trim().split(/\s+/);
+  const rep = execFileSync('node', ['tools/replay.mjs', sf, '--pacing'], { encoding: 'utf8' }), cols = rep.split('second by second')[1].split('\n').slice(1).join(' ').trim().split(/\s+/);
   const miss = +(rep.match(/(\d+) refreshes missed/) || [])[1];
-  check('session: replay --pacing reads a 60 Hz stretch as nothing missed, leaves hidden time out, spreads a stall over its seconds', miss >= 295 && miss <= 305 && /hidden for 1 gaps/.test(rep) && cols.filter(c => /\/0\/17@60$/.test(c)).length === 2 && cols.filter(c => c === '-').length >= 4 && cols.filter(c => /\/2500$/.test(c)).length === 3, `${miss} missed; ${cols.join(' ')}`);
+  check('session: replay --pacing reads a 60 Hz stretch as nothing missed, leaves hidden time out, spreads a stall over its seconds', miss >= 295 && miss <= 305 && /hidden for 4 gaps/.test(rep) && cols.filter(c => /\/0\/17@60$/.test(c)).length === 2 && cols.filter(c => c === '-').length >= 7 && cols.filter(c => /\/2500$/.test(c)).length === 3, `${miss} missed; ${cols.join(' ')}`);
 }
 
 /* 5. rpg: thumb-sized buttons, a turn played by taps, AUTO */

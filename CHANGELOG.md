@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.31.2 (2026-10-12)
+
+Codex's review of 0.31.1.
+
+- **Tools**: `replay.mjs --pacing`:
+  - A stall that spans a change of refresh counts each second's share at that second's refresh: a 2.5 s stall from 60 Hz into 120 Hz read 299 refreshes missed, all at 120 Hz, and now reads 209.
+  - A session begun hidden (a tab opened in the background: only its showing is recorded) leaves that time out too, and the hidden count is of gaps.
+  - `phone-test`'s made-up session begins hidden (0.31.1: 537 refreshes missed, now 299).
+
 ## 0.31.1 (2026-10-12)
 
 Codex's review of 0.31.0: the session a phone sends must replay, and read, true.
