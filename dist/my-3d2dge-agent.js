@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.30.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.30.1: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -370,7 +370,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.30.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.30.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1362,7 +1362,7 @@ class Game {
     }
     if (this._running || this.disposed || this.o.loop === false) return this;
     this._running = true;
-    let last = performance.now(), acc = 0, n = 0, since = 0, per = 1 / 60, cost = 0, ri = 0, miss = 0, hold = 0, back = 3, full = 0, fresh = true;
+    let last = performance.now(), acc = 0, n = 0, since = 0, per = 1 / 60, cost = 0, ri = 0, miss = 0, hold = 0, back = 3, full = 0, fresh = true, long = 0;
     const ring = [];
     const frame = now => {
       if (!this._running) return;
@@ -1371,7 +1371,12 @@ class Game {
       // the refresh: the shortest of the last 90 frames (late ones are longer). Drawn every other refresh, only gaps shorter
       // than one and a half are read (a GPU behind skips the refresh between: read, a 120 Hz screen would pass for 60); never
       // the first, timed from start() and not from a refresh (it read 5 ms on a 120 Hz screen: 200 Hz until 90 more)
-      if (raw > .004 && !fresh && (this.drawEvery === 1 || raw < per * 1.5)) { ring[ri++ % 90] = raw; per = Math.min(...ring); }
+      // and 90 long ones in a row, paced, mean the display slowed (a GPU behind lets the refresh between through some of the
+      // time): read afresh
+      if (raw > .004 && !fresh) {
+        if (this.drawEvery === 1 || raw < per * 1.5) { long = 0; ring[ri++ % 90] = raw; per = Math.min(...ring); }
+        else if (++long >= 90) { long = 0; ring.length = 0; ri = 1; ring[0] = per = raw; }
+      }
       fresh = false;
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
