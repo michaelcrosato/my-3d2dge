@@ -348,6 +348,7 @@ const PLAT = (() => {
     });
   }
   function update(dt) {
+    fitZoom(1.5);   // a phone held upright: the level fills more of it
     for (const f of fx) { f.t += dt; f.x += f.vx * dt; f.z += f.vz * dt;
       if (f.kind !== 'blade') continue;               // a dropped sword falls, bounces and settles flat
       const gz = level.groundBelow(f.x, f.z + 8); f.vz -= 700 * dt; f.a += f.spin * dt;

@@ -5,6 +5,29 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.27.0 (2026-10-12)
+
+Every kit actually full screen on a phone, with a way back from every menu and controls made for thumbs.
+
+- **Engine**:
+  - On a touch screen the corner's menu button stays at the top right in play: it is the touch START (it pauses into the menu, or opens it on a title). START is no longer among the bottom touch buttons. Without the corner, a START of its own sits in the same place.
+  - Every menu screen has a close button at the top right (where the menu button was), a back arrow at the top left when it is over another screen, and a sideways swipe on it goes back a screen.
+  - The phone's back gesture steps back in the game before it leaves the page: an entry of the game's own in the page's history, added on a tap while there is somewhere to go back to. `game.back()` closes a menu screen, takes a scene's own `back()` (a sub-menu), or pauses play into the menu; at a title the next back leaves. `backGesture: false` leaves it out. The agent edition pauses.
+  - Full screen comes back when a game starts on a phone after a gesture left it; only turning it off (the corner, the menu, `fullscreen.toggle()`) is kept. Settings version 2 forgets a version-1 `fullscreen: false` once (D24, its own commit).
+  - `input.touchSet(a, label, show)`: a context button, relabelled or hidden while it has nothing to do (a hidden one lets go and leaves `touchArea()`).
+  - `input.drag()`: how far the stick's finger moved this step, to steer one to one.
+  - `game.cornerArea()`: where the corner's buttons cover the screen, to keep a HUD clear of them.
+  - Pages get `overscroll-behavior: none`: no pull to refresh, no sideways swipe off the page.
+- **Characters** (the starter kits, `src/starter/`):
+  - Adventure: the rooms sit in a world that goes on past them (forest canopy above and below, the shrine's stone under the shrine), so a phone held upright is filled with world instead of a deck. A camera setting (Settings, Adventure, or C): Rooms slides screen by screen as Zelda's does, Scroll follows the hero. The HUD sits in the corners (the hero and hearts top left, gems, keys and a map of the rooms top right); the TALK button shows only beside someone and says NEXT in a dialog.
+  - RPG: the HUD band on the bottom edge at every size and the battle in the space above it, a tall screen's sky darkening to the first stars. No touch buttons: tap a command, then a foe or ally; tap the commands (or back) to go back.
+  - Platformer and brawler: a phone held upright zooms in to 1.5x, so the level and the street fill it; the player's own zoom holds until the shape changes. The brawler's enemy panel moves clear of the menu button.
+  - Shooter: on a touch screen the ship follows the thumb one to one and fires by itself (no FIRE button); the HUD keeps clear of the menu button.
+  - Stealth: ATTACK says TAKE DOWN when a takedown is in reach, BLOCK says PARRY in a guard's wind-up.
+  - The game-over screen's back goes to the title. The page's "? API" button hides on a touch screen and fades after a few seconds on a desktop.
+- **Docs**: the API card, `AI_GUIDE.md` (filling a screen edge to edge, smart phone controls), `docs/STANDARD-FEATURES.md`, the README; D24 in `docs/DECISIONS.md`. `examples/scarfrunner-side.html` (the prototype before the engine) fills a phone held upright and goes full screen at its first tap.
+- **Tools**: `standard-test`: the corner's menu in play as the touch START, close and back buttons and a swipe on menu screens, the back gesture, `touchSet`, `drag`, full screen coming back with a new game, settings version 2 (107 checks).
+
 ## 0.26.3 (2026-10-11)
 
 Two fixes from the review of v0.26.1's clicks and taps.

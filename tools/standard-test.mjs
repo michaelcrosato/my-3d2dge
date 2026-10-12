@@ -185,7 +185,11 @@ if (!process.argv.includes('--node')) {
     await ev(p, () => { game.settings.set('volume', .3); game.settings.set('scale', 'fill'); });
     await p.close(); p = await open();
     const again = await ev(p, () => [game.settings.volume, game.settings.scale, game.audio.volume, JSON.parse(localStorage.getItem('my3d2dge:settings:/game.html')).v]);
-    check(`${ed}: settings are saved per game with a version and loaded back`, again[0] === .3 && again[1] === 'fill' && again[2] === .3 && again[3] === 1, JSON.stringify(again));
+    check(`${ed}: settings are saved per game with a version and loaded back`, again[0] === .3 && again[1] === 'fill' && again[2] === .3 && again[3] === 2, JSON.stringify(again));
+    await ev(p, () => localStorage.setItem('my3d2dge:settings:/game.html', JSON.stringify({ v: 1, values: { fullscreen: false, volume: .3 } })));
+    await p.close(); p = await open();
+    const v1 = await ev(p, () => [game.settings.fullscreen, game.settings.volume]);
+    check(`${ed}: a version 1 save's full screen false (it also meant left by a gesture) is forgotten, the rest kept`, v1[0] === null && v1[1] === .3, JSON.stringify(v1));
     await ev(p, () => localStorage.setItem('my3d2dge:settings:/game.html', JSON.stringify({ v: 1, values: { volume: 'loud', scale: 'huge', sound: 'yes', shake: 2 } })));
     await p.close(); p = await open();
     const bad = await ev(p, () => [game.settings.volume, game.settings.scale, game.settings.sound, game.settings.shake]);
@@ -208,34 +212,69 @@ if (!process.argv.includes('--node')) {
     const S1 = await ev(p, () => game.screen.S); await ev(p, () => game.settings.set('scale', 'sharp')); const S2 = await ev(p, () => game.screen.S);
     check(`${ed}: a fixed resolution fills a high-density screen ('auto'), whole pixels with 'sharp'`, S1 > 5.2 && S1 % 1 !== 0 && S2 === 5, S1 + ' / ' + S2);
     await hd.close();
-    // full screen from the corner, the player's choice kept; a phone's first tap goes full screen unless the player left it
+    // full screen: a phone's first tap goes there, and a game started by a tap goes back after a gesture left it; turning it
+    // off with the corner's button (or the menu) is the player's choice, kept: the next visit's tap leaves the page as it is
     const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     p = await open('{}', phone);
     await p.touchscreen.tap(200, 700); await p.waitForTimeout(150); await ev(p, () => step());
     const tapped = await ev(p, () => [!!document.fullscreenElement, game.settings.fullscreen]);
-    await ev(p, () => document.exitFullscreen()); await p.waitForTimeout(150); await ev(p, () => step());
+    await ev(p, () => document.exitFullscreen()); await p.waitForTimeout(150); await ev(p, () => step());   // a back gesture or Escape: not a choice
     const left = await ev(p, () => [!!document.fullscreenElement, game.settings.fullscreen]);
+    await p.touchscreen.tap(200, 700); await ev(p, () => { game.go('play', null, { fade: 0 }); step(); }); await p.waitForTimeout(150);   // a game started by a tap
+    const started = await ev(p, () => [!!document.fullscreenElement, game.sceneName]);
+    await ev(p, () => { game.go('title', null, { fade: 0 }); step(2); });
+    const lv = await p.$('#e3-corner button:last-child'), lvb = await lv.boundingBox();
+    await p.touchscreen.tap(lvb.x + 20, lvb.y + 20); await p.waitForTimeout(150); await ev(p, () => step());
+    const off = await ev(p, () => [!!document.fullscreenElement, game.settings.fullscreen]);
     await p.close(); p = await open('{}', phone);
     await p.touchscreen.tap(200, 700); await p.waitForTimeout(150);
     const stays = await ev(p, () => !!document.fullscreenElement);
     const fb = await p.$('#e3-corner button[aria-label="Full screen"]'), box = await fb.boundingBox();
     await p.touchscreen.tap(box.x + 20, box.y + 20); await p.waitForTimeout(150); await ev(p, () => step());
     const byButton = await ev(p, () => [!!document.fullscreenElement, game.settings.fullscreen, document.querySelector('#e3-corner button:last-child').getAttribute('aria-label')]);
-    check(`${ed}: a phone's first tap goes full screen; leaving it is kept (the next visit's tap leaves the page as it is); the corner's button goes back`, tapped.join() === 'true,true' && left.join() === 'false,false' && !stays && byButton.join() === 'true,true,Leave full screen', JSON.stringify([tapped, left, stays, byButton]));
+    check(`${ed}: a phone's first tap goes full screen, and a game started by a tap goes back after a gesture left it; the corner's button turning it off is kept (the next visit's tap leaves the page as it is), and turns it on`,
+      tapped.join() === 'true,' && left.join() === 'false,' && started.join() === 'true,play' && off.join() === 'false,false' && !stays && byButton.join() === 'true,true,Leave full screen', JSON.stringify([tapped, left, started, off, stays, byButton]));
     if (ed === 'full') {
-      // touch buttons: START pauses in play; the player's side, size and visibility
-      await ev(p, () => document.exitFullscreen()); await p.waitForTimeout(100);
+      // touch buttons: no START among them: the corner's menu button is it (top right, there in play on a touch screen), and
+      // it pauses into the menu; the player's side, size and visibility
+      await ev(p, () => document.fullscreenElement && document.exitFullscreen()); await p.waitForTimeout(100);
       await ev(p, () => { game.input.tap('start'); step(3); });
-      const tb = await ev(p, () => [...document.querySelectorAll('[data-sys=touch] button')].map(b => b.textContent));
-      const start = await p.$('[data-sys=touch] [data-act=menu]'), sb = await start.boundingBox();
-      await p.touchscreen.tap(sb.x + sb.width / 2, sb.y + sb.height / 2); await ev(p, () => step(2));
+      const tb = await ev(p, () => [...document.querySelectorAll('[data-sys=touch] button')].map(b => b.textContent)), inPlay = await corner();
+      const ca = await ev(p, () => { const a = game.cornerArea(); return a && [a.x0 > game.W / 2, a.y0 < 30]; });
+      const mb = await p.$('#e3-corner button[aria-label=Menu]'), mbb = await mb.boundingBox();
+      await p.touchscreen.tap(mbb.x + 22, mbb.y + 22); await ev(p, () => step(2));
       const paused = await ev(p, () => [game.paused, game.shell.screen]);
-      await ev(p, () => { game.shell.hide(); game.settings.set('hand', 'left'); game.settings.set('touchSize', 80); step(); });
+      check(`${ed}: touch buttons without START; the corner's menu button stays in play (game.cornerArea() at the top right) and pauses into the menu`, tb.join() === 'JUMP,ATTACK' && inPlay === 'Menu' && ca && ca.join() === 'true,true' && paused[0] && paused[1] === 'pause', JSON.stringify([tb, inPlay, ca, paused]));
+      // the way out of a menu screen, always in sight: close (top right), back (top left) over another screen, a sideways swipe
+      const nav = () => ev(p, () => [game.shell.screen, [...document.querySelectorAll('.esh-nav')].map(b => b.getAttribute('aria-label')).join()]);
+      const n1 = await nav(); await ev(p, () => { [...document.querySelectorAll('.esh-sh button')].find(b => b.textContent === 'Settings').click(); step(); }); const n2 = await nav();
+      await ev(p, () => {   // a finger dragged sideways over the screen (pointer events, as a touch screen sends them)
+        const el = document.querySelector('.esh-sh h2'), at = (type, x) => el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 7, clientX: x, clientY: 95, bubbles: true }));
+        at('pointerdown', 60); for (let i = 1; i <= 6; i++) at('pointermove', 60 + i * 35); at('pointerup', 270);
+      });
+      await p.waitForTimeout(300); await ev(p, () => step());
+      const n3 = await nav(); await ev(p, () => { game.shell.show('settings'); step(); });
+      const bk = await p.$('.esh-nav.bk'), bkb = await bk.boundingBox(); await p.touchscreen.tap(bkb.x + 22, bkb.y + 22); await ev(p, () => step()); const n4 = await nav();
+      const xx = await p.$('.esh-nav.x'), xb = await xx.boundingBox(); await p.touchscreen.tap(xb.x + 22, xb.y + 22); await ev(p, () => step(2));
+      const n5 = await ev(p, () => [game.shell.screen, game.paused]);
+      check(`${ed}: a menu screen has a close button, another under it a back one too; a sideways swipe and back go back a screen, close resumes`,
+        n1.join() === 'pause,Close' && n2.join() === 'settings,Close,Back' && n3[0] === 'pause' && n4[0] === 'pause' && n5.join() === ',false', JSON.stringify([n1, n2, n3, n4, n5]));
+      // the phone's back gesture: after a tap in play, back pauses into the menu instead of leaving the page
+      await p.touchscreen.tap(330, 420); await ev(p, () => step());
+      const guard = await ev(p, () => history.state && history.state.e3);
+      await ev(p, () => history.back()); await p.waitForTimeout(250); await ev(p, () => step(2));
+      const backed = await ev(p, () => [location.href, game.paused, game.shell.screen]);
+      check(`${ed}: the back gesture in play opens the menu (an entry of the game's own in the page's history) instead of leaving`, guard === 'back' && /game\.html/.test(backed[0]) && backed[1] && backed[2] === 'pause', JSON.stringify([guard, backed]));
+      await ev(p, () => { game.shell.hide(); step(); });
+      // context buttons: a label and whether one shows change as the moment does (hidden: out of the touch area)
+      const ctx1 = await ev(p, () => { const I = game.input, w0 = I.touchArea(); I.touchSet('attack', 'TALK'); I.touchSet('jump', null, false); const w1 = I.touchArea();
+        const r = [[...document.querySelectorAll('[data-sys=touch] button')].map(b => b.style.display === 'none' ? '-' : b.textContent).join(), w1.x0 > w0.x0]; I.touchSet('jump'); I.touchSet('attack'); return r.concat([...document.querySelectorAll('[data-sys=touch] button')].map(b => b.textContent).join()); });
+      check(`${ed}: input.touchSet relabels and hides a touch button (TALK beside someone), and puts it back`, ctx1.join() === '-,TALK,true,JUMP,ATTACK', JSON.stringify(ctx1));
+      await ev(p, () => { game.settings.set('hand', 'left'); game.settings.set('touchSize', 80); step(); });
       const lb = await ev(p, () => { const box = document.querySelector('[data-sys=touch]').getBoundingClientRect(), b = document.querySelector('[data-sys=touch] [data-act=jump]').getBoundingClientRect(); return [Math.round(box.left), Math.round(b.width), game.input.stickSide]; });
       await ev(p, () => { game.settings.set('touch', 'off'); step(); });
-      const off = await ev(p, () => [!!document.querySelector('[data-sys=touch]'), game.input.touchEnabled]);
-      check(`${ed}: touch buttons, START pausing a scene in play`, tb.join() === 'JUMP,ATTACK,START' && paused[0] && paused[1] === 'pause', JSON.stringify([tb, paused]));
-      check(`${ed}: touch buttons follow the player's side, size and visibility`, lb[0] < 40 && lb[1] === 80 && lb[2] === 'right' && off.join() === 'false,false', JSON.stringify([lb, off]));
+      const offT = await ev(p, () => [!!document.querySelector('[data-sys=touch]'), game.input.touchEnabled]);
+      check(`${ed}: touch buttons follow the player's side, size and visibility`, lb[0] < 40 && lb[1] === 80 && lb[2] === 'right' && offT.join() === 'false,false', JSON.stringify([lb, offT]));
       // a game's own E.Shell takes over from the engine's: one interface, the standard menu in it
       const own = await ev(p, () => { const ui = new E.Shell(game, { screens: { help: { keys: [['W', 'Up']] } } }); game.pause(); step(); return [document.querySelectorAll('.esh').length, game.shell === ui, [...document.querySelectorAll('.esh-sh button')].map(b => b.textContent).join()]; });
       check(`${ed}: a game's own E.Shell takes over from the engine's, with the standard menu`, own[0] === 1 && own[1] && /Resume,Settings,Controls/.test(own[2]) && /Help/.test(own[2]), JSON.stringify(own));
@@ -261,9 +300,11 @@ if (!process.argv.includes('--node')) {
       await ev(q, () => { game.input.tap('start'); step(3); });   // into play, where the touch buttons show
       const finger = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: 90, y, id: 1 }] });
       await finger('touchStart', 520); await finger('touchMove', 505); const nudge = await ev(q, () => game.input.down('up'));
-      await finger('touchMove', 440); const up = await ev(q, () => [game.input.down('up'), game.input.move()[1] < -.9]);
-      await finger('touchEnd'); const off = await ev(q, () => game.input.down('up'));
-      check(`${ed}: the touch stick past halfway presses up (a nudge does not), and lets go when lifted`, !nudge && up.join() === 'true,true' && !off, JSON.stringify([nudge, up, off]));
+      await ev(q, () => step(1)); await finger('touchMove', 440); const up = await ev(q, () => [game.input.down('up'), game.input.move()[1] < -.9]);
+      const drag = await ev(q, () => { const one = () => game.advance(1 / 120); one(); const d = game.input.drag(), k = game.screen.dpr / game.screen.S; one(); return [d && Math.round(d[1] / k), game.input.drag() && game.input.drag()[1]]; });   // (one update step each)
+      await finger('touchEnd'); const off = await ev(q, () => [game.input.down('up'), (game.advance(1 / 120), game.input.drag())]);
+      check(`${ed}: the touch stick past halfway presses up (a nudge does not), and lets go when lifted`, !nudge && up.join() === 'true,true' && !off[0], JSON.stringify([nudge, up, off]));
+      check(`${ed}: input.drag(): the stick finger's travel in the step it moved (screen pixels), nothing the next, null once lifted`, drag.join() === '-65,0' && off[1] === null, JSON.stringify([drag, off]));
       const dl = await ev(q, () => { const d = new E.Dialog(game); d.say('A line long enough to cross the screen from side to side'); const b = d._dims(), t = game.input.touchArea(); return [b.x, b.y, b.w, b.h, t && [t.x0, t.y0, t.x1, t.y1]]; });
       const [dx, dy, dw, dh, ta] = dl;
       check(`${ed}: a bottom dialog keeps clear of the touch buttons`, !!ta && (dx + dw <= ta[0] || dx >= ta[2] || dy + dh <= ta[1]) && dy > 100, JSON.stringify(dl));

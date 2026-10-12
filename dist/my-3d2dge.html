@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.26.3 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.27.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.26.3)
+# my-3D2dge API card (v0.27.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -127,21 +127,21 @@ game.start({ scene: 'title', scenes: {
           enter(data) { /* build the level */ }, exit() {}, update(dt) {}, draw(r) {} }
 } });
 ```
-`game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `propSize` are applied on entry.
+`game.go(name, data)` switches before the next step; timers and particles are cleared. `pausable: true` lets Escape / P / Start pause it and opens the pause menu (below). `view`, `views`, `input`, `res`, `expand`, `touch`, `propSize` are applied on entry. A scene's `back()` takes a phone's back gesture first (return true when it went back somewhere: a sub-menu closed).
 
 ## Standard features (every game has them: don't build your own)
-With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap, a top-right button, the menu; leaving it is remembered), **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling or zooming on the canvas).
-- Adjust: `new E.Game({ menu: { items: [['Restart', fn]], settings: [{ key: 'hints', label: 'Hints', value: true }, { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }], controls: { attack: 'Sword', skill: false }, quit: 'title' } })`, then read `game.settings.hints`. Leave parts out: `menu: false` (your own pause), `fullscreen: 'button' | false`, `corner: false`, `autoPause: false`.
+With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, Full screen, Quit to title; keys, mouse, gamepad and touch), **settings** saved per game (`game.settings`: volume, music, effects, mute, reduce motion, screen shake and flashes, pixel scaling), **controls** the player rebinds (conflicts said first; dead zone, invert aim, button symbols, vibration; touch button side, size, opacity), **full screen** (a phone's first tap and each game started by a tap, a top-right button, the menu; turning it off is remembered), a **menu button** at the top right (on a touch screen it stays in play: it is the touch START), a **way out** of every menu screen (close, back, a sideways swipe), the **back gesture** stepping back in the game (`game.back()`: a menu screen closes, play pauses) before it leaves the page, **pausing** when the page is hidden or the controller unplugs, and a page set up for phones (safe areas, no scrolling, zooming or pull to refresh on the canvas).
+- Adjust: `new E.Game({ menu: { items: [['Restart', fn]], settings: [{ key: 'hints', label: 'Hints', value: true }, { key: 'difficulty', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }], controls: { attack: 'Sword', skill: false }, quit: 'title' } })`, then read `game.settings.hints`. Leave parts out: `menu: false` (your own pause), `fullscreen: 'button' | false`, `corner: false`, `backGesture: false`, `autoPause: false`. `game.cornerArea()`: where the corner's buttons cover the screen (or null): keep a HUD clear of it.
 - Prompts: `game.input.label('jump')` is that action's key or button on the player's device, after rebinding ('Space', 'A', '✕'). A canvas title's OPTIONS: `game.menu('settings')`. From code: `game.settings.set(key, v)`, `game.fullscreen.toggle()` (from a key, click or tap), `game.pause(reason)`, `game.resume()`.
 - **Boot**: heavy setup goes in steps, run one a frame behind a boot screen (system checks, a progress bar, your lines), then a warm-up frame: `game.start({ scenes, scene, boot: { title: 'VESPER', steps: [['Raising the harbour', () => { map = build(); }]], messages: ['Counting the bells'] } })` (a step may return a promise). A failing step, or any error before play, shows a report a player can screenshot (`E.diagnose()` gives it any time). `E.bootSplash(title)`'s markup first in `<body>` shows the screen from the first paint (the starter files have it).
 
 ## Input: `game.input`
 - Actions in every preset: `up down left right` (WASD, arrows, d-pad), `start` (Enter, Start), `pause` (Escape, P, Start), `confirm` (Enter, Space, J, Z, pad A), `cancel` (Escape, Backspace, X, K, pad B).
 - DEFAULT adds `attack` (J, X, click), `dash` (Space, Shift, K), `skill` (L, E, right click), `jump` (Z). PLATFORMER: `jump` (Space, Z, K, pad A), `attack` (X, J, click), `dash` (Shift, C, L), `skill`. SHMUP: `fire` (Space, Z, J, click), `bomb` (X, K).
-- `down(a)`, `pressed(a)`, `released(a)`, `repeat(a, delay, rate)` (menus), `buffered(a, win)` + `consume(a)`, `consumeAll()`, `anyPressed()`, `move()` (screen direction `[x, y]`, length up to 1), `use(preset)`, `touchButtons(['jump', 'attack'])`.
+- `down(a)`, `pressed(a)`, `released(a)`, `repeat(a, delay, rate)` (menus), `buffered(a, win)` + `consume(a)`, `consumeAll()`, `anyPressed()`, `move()` (screen direction `[x, y]`, length up to 1), `use(preset)`, `touchButtons(['jump', 'attack'])`, `touchSet('confirm', 'TALK', near)` (a context button: relabel it, or hide it while it has nothing to do).
 - `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
 - Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`; diagnostics: `padIndex`, `padId`, `padAxes`, `padPrev`, `lastDevice`. Controllers are detected in any browser slot, and disconnects release their inputs. The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same.
-- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
@@ -260,7 +260,8 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 #screen{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated}
 #guideBtn{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:calc(112px + env(safe-area-inset-right,0px));z-index:5;font:600 12px/1 ui-monospace,Menlo,Consolas,monospace;color:#d8d0f0;background:rgba(20,16,40,.6);border:1px solid rgba(216,208,240,.3);border-radius:4px;padding:5px 7px;cursor:pointer;opacity:.55}
 #guideBtn:hover,#guideBtn:focus-visible{opacity:1}
-#guideBtn.away{opacity:0;transition:opacity .4s}
+#guideBtn.away{opacity:0;transition:opacity .4s;pointer-events:none}
+@media (pointer:coarse){#guideBtn{display:none}}
 #guide{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}
 #guide[hidden]{display:none}
 #guide .panel{width:min(860px,100%);max-height:100%;display:flex;flex-direction:column;background:#141226;color:#eee8ff;border:1px solid #4a4470;border-radius:6px}
@@ -270,7 +271,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.26.3</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.27.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -289,16 +290,16 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
   document.getElementById('guideBtn').addEventListener('click', e => { open(true); e.currentTarget.blur(); });
   document.getElementById('guideClose').addEventListener('click', () => open(false));
   addEventListener('keydown', e => { if (e.key === '?') open(g.hidden); else if (e.key === 'Escape' && !g.hidden) open(false); });
-  // the button steps aside while you play and comes back when the mouse moves
-  const btn = document.getElementById('guideBtn'); let hide = 0;
+  // the button steps aside while you play and comes back when the mouse moves (a phone has no use for it: hidden)
+  const btn = document.getElementById('guideBtn'); let hide = setTimeout(() => btn.classList.add('away'), 4000);
   addEventListener('keydown', () => btn.classList.add('away'));
-  addEventListener('pointermove', () => { btn.classList.remove('away'); clearTimeout(hide); hide = setTimeout(() => btn.classList.add('away'), 3000); });
+  addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; btn.classList.remove('away'); clearTimeout(hide); hide = setTimeout(() => btn.classList.add('away'), 3000); });
 })();
 </script>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.26.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.27.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -376,7 +377,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.26.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.27.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1064,20 +1065,32 @@ class Input {
    * On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide
    * them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack:
    * 'B' }, force }). The other half of the screen is a move stick (past halfway it presses up, down, left and right too,
-   * as a d-pad does: menus and ladders). START is the menu: it starts on a title and pauses a pausable scene, as a
-   * gamepad's Start does
+   * as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a
+   * pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
    */
   touchButtons(actions, o = {}) {
     if (!this.screen.canvas) return null;
-    this._touchArgs = { actions, o }; this._touchLabels = o.labels || null;
+    this._touchArgs = { actions, o }; this._touchLabels = o.labels || null; this._touchSet = {};
     return this._touchSync();
   }
-  /** where the touch buttons (START too) cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W
-   *  and r.H), or null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself) */
+  /** one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether
+   *  it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null,
+   *  near || talking) */
+  touchSet(a, label = null, show = true) {
+    const t = this._touchSet || (this._touchSet = {}); t[a] = { label, show: !!show };
+    const b = this._touchBtns && this._touchBtns[a]; if (b && b.isConnected) this._touchLook(b, a);
+  }
+  _touchLook(b, a) {
+    const t = this._touchSet && this._touchSet[a], o = this._touchArgs ? this._touchArgs.o : {}, text = (t && t.label) || (o.labels && o.labels[a]) || a.toUpperCase(), d = t && !t.show ? 'none' : '';
+    if (b.textContent !== text) b.textContent = text;
+    if (b.style.display !== d) { b.style.display = d; if (d) { b._inputPointers && b._inputPointers.clear(); b.classList.remove('on'); this.release('Act:' + a); } }   // (hidden under a finger: let go)
+  }
+  /** where the touch buttons cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W and r.H), or
+   *  null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself) */
   touchArea() {
     const el = this._touchEl, S = this.screen; if (!el || !S.canvas || !el.isConnected) return null;
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (const b of el.querySelectorAll('button')) { const q = b.getBoundingClientRect(); x0 = Math.min(x0, q.left); y0 = Math.min(y0, q.top); x1 = Math.max(x1, q.right); y1 = Math.max(y1, q.bottom); }
+    for (const b of el.querySelectorAll('button')) { const q = b.getBoundingClientRect(); if (!q.width) continue; x0 = Math.min(x0, q.left); y0 = Math.min(y0, q.top); x1 = Math.max(x1, q.right); y1 = Math.max(y1, q.bottom); }
     if (x1 < x0) return null;
     const a = this.screenPoint(x0, y0), b = this.screenPoint(x1, y1);
     return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] };
@@ -1087,23 +1100,29 @@ class Input {
     if (!this._touchArgs || !this.screen.canvas) return null;
     const { actions, o } = this._touchArgs, S = this._settings || {}, mode = S.touch || 'auto', left = S.hand === 'left', size = clamp(+S.touchSize || 62, 40, 96);
     const coarse = this._touched || (window.matchMedia && matchMedia('(pointer: coarse)').matches);   // (a laptop with a touch screen: once touched)
-    if (this._touchEl) { for (const b of this._touchEl.querySelectorAll('[data-act]')) this.release('Act:' + b.dataset.act); this._touchEl.remove(); this._touchEl = null; }
+    for (const el of [this._touchEl, this._startEl]) if (el) { for (const b of el.querySelectorAll('[data-act]')) this.release('Act:' + b.dataset.act); el.remove(); }
+    this._touchEl = this._startEl = null;
     const show = mode === 'on' || (mode === 'auto' && (coarse || !!o.force));
     this.touchEnabled = mode !== 'off'; this.stickSide = left ? 'right' : 'left';
     if (!show) { if (this.stickOn) this._stickEnd({ pointerId: this.stickId }); return null; }
     const host = this.screen.canvas.parentElement || document.body, box = document.createElement('div'), side = left ? 'left' : 'right';
     box.dataset.sys = 'touch';
     box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (left ? ';flex-direction:row-reverse' : '');
+    this._touchBtns = {};
     for (const a of actions) {
-      const b = document.createElement('button'); b.dataset.act = a; b.textContent = (o.labels && o.labels[a]) || a.toUpperCase(); b.setAttribute('aria-label', a);
-      b.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(size / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none';
-      box.appendChild(b);
+      const b = this._touchBtns[a] = document.createElement('button'); b.dataset.act = a; b.setAttribute('aria-label', a);
+      b.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(size / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;padding:0';
+      this._touchLook(b, a); box.appendChild(b);
     }
-    const st = document.createElement('button'); st.dataset.act = 'menu'; st.textContent = 'START'; st.setAttribute('aria-label', 'Start or menu');
-    st.style.cssText = 'position:absolute;' + side + ':0;bottom:' + (size + 16) + 'px;min-height:44px;padding:6px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.4);background:rgba(20,16,40,.55);color:#fff;font:600 11px system-ui,sans-serif;touch-action:none';
-    box.appendChild(st);
     if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
     host.appendChild(box); this.bindButtons(box); this._touchEl = box;
+    if (!this._cornerMenu) {   // START: the corner's menu button is it; without the corner, a button of its own in the same place
+      const st = this._startEl = document.createElement('div'), b = document.createElement('button'); st.dataset.sys = 'touch';
+      st.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1);
+      b.dataset.act = 'menu'; b.textContent = 'START'; b.setAttribute('aria-label', 'Start or menu');
+      b.style.cssText = 'min-width:44px;height:44px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,.4);background:rgba(20,16,40,.55);color:#fff;font:600 11px system-ui,sans-serif;touch-action:none';
+      st.appendChild(b); document.body.appendChild(st); this.bindButtons(st);
+    }
     return box;
   }
   /** press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input,
@@ -1122,7 +1141,8 @@ class Input {
   }
   /** press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down()
    *  are true in the next step, released() in the one after */
-  tap(a) { if (!this.map[a]) { this._check(a); return; } const c = 'Act:' + a; this.press(c); this._taps.add(c); }
+  tap(a) { if (!this.map[a]) { this._check(a); return; } this._tapCode('Act:' + a); }
+  _tapCode(c) { this.press(c); this._taps.add(c); }
   /** hold an action down (on) or let it go (false), as its key would */
   hold(a, on = true) { if (!this.map[a]) { this._check(a); return; } if (on) this.press('Act:' + a); else this.release('Act:' + a); }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
@@ -1175,6 +1195,9 @@ class Input {
    *  after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to
    *  it; a HUD button of your own can: if (hit(input.clicked())) ... */
   clicked() { return this.clickAt; }
+  /** how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while
+   *  no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction */
+  drag() { return this._drag || null; }
   /** the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas */
   pointer() { return this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null; }
   /** browser client coords -> screen pixels [x, y] (the HUD's space, with no camera), or null without a canvas */
@@ -1218,6 +1241,7 @@ class Input {
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this.clickAt = this._click && this.screenPoint(this._click[0], this._click[1]); this._click = null;
+    const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {
@@ -1238,7 +1262,7 @@ class Input {
     if (this.stickSide === 'right' ? e.clientX - rc.left < rc.width * .5 : e.clientX - rc.left > rc.width * .5) return;
     this.screen.canvas.setPointerCapture(e.pointerId); this.aimSource = 'move'; this.lastDevice = 'touch';
     /** stickId: the pointer (finger) holding the touch stick */
-    this.stickId = e.pointerId; this.stickOn = true; this._stickO = [e.clientX, e.clientY]; this.stick = [0, 0];
+    this.stickId = e.pointerId; this.stickOn = true; this._stickO = [e.clientX, e.clientY]; this.stick = [0, 0]; this._dragAt = [e.clientX, e.clientY];
     if (!this._stickEl) {
       const mkEl = (s, css) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;pointer-events:none;border-radius:50%;z-index:3;' + css; d.style.width = d.style.height = s + 'px'; this.screen.canvas.parentElement.appendChild(d); return d; };
       this._stickEl = mkEl(96, 'border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06)');
@@ -1248,6 +1272,7 @@ class Input {
   }
   _stickMove(e) {
     if (!this.stickOn || e.pointerId !== this.stickId) return;
+    const da = this._dragAcc || (this._dragAcc = [0, 0]); da[0] += e.clientX - this._dragAt[0]; da[1] += e.clientY - this._dragAt[1]; this._dragAt = [e.clientX, e.clientY];
     let dx = (e.clientX - this._stickO[0]) / this.stickRadius, dy = (e.clientY - this._stickO[1]) / this.stickRadius;
     const l = Math.hypot(dx, dy), d = clamp(this.stickDeadzone, 0, .5), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;   // a thumb resting on the glass doesn't creep
     this.stick = [dx * k, dy * k]; this._stickDirs(); this._stickDraw();
@@ -2207,16 +2232,17 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 class Game {
   /**
    * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
-   * fullscreen: 'tap', corner: true, autoPause: true, id }).
+   * fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }).
    * res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows
    * the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there).
    * headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes
    * update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in
    * a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and
    * controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone
-   * goes full screen at its first tap, until the player leaves it), 'button' (only when asked) or false; corner: the menu
-   * and full-screen buttons at the top right; autoPause: a pausable scene pauses when the page is hidden or loses focus;
-   * id: the name the player's settings are saved under (the page's path)
+   * goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when
+   * asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a
+   * phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the
+   * page is hidden or loses focus; id: the name the player's settings are saved under (the page's path)
    */
   constructor(o = {}) {
     o = Object.assign({}, o);
@@ -2364,27 +2390,64 @@ class Game {
     on(window, 'blur', () => this._autoPause('focus'));
     on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
     on(window, 'pagehide', () => this._autoPause('focus'));
-    const fsChange = () => { if (this.settings.fullscreen !== fs.on) this.settings.set('fullscreen', fs.on); this.input.clear(); if (this.shell && this.shell.screen) this.shell._render(); };   // the player's choice: kept whichever way they left it
+    const fsChange = () => { this.input.clear(); if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
     on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
-    if (this.o.fullscreen === undefined || this.o.fullscreen === 'tap') on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one)
-      if (e.pointerType === 'mouse' || this._fsAuto || this.settings.fullscreen === false || !fs.supported || fs.on || fs.standalone) return;
-      if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches) || (e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) return;
-      this._fsAuto = true; fs.enter();   // once a page load: the player who leaves it stays out
+    on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one, or a game started by it)
+      if (e.pointerType === 'mouse') return;
+      if (!this._fsAuto && !(e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) this._fsAuto = this._autoFull();   // once until a game starts: the player who leaves it mid-game stays out
+      if (!this._guard && this.o.backGesture !== false && this._canBack() && window.top === window && history.pushState) try { history.pushState({ e3: 'back' }, ''); this._guard = true; } catch (err) { /* a sandboxed page */ }
     }, { capture: true });
+    // the phone's back gesture (and the browser's back button, after a tap) steps back in the game before it leaves the page:
+    // an entry of the game's own in the page's history while there is somewhere to go back to (a menu open, a game in play)
+    on(window, 'popstate', e => { if (!this._guard || (e.state && e.state.e3 === 'back')) return; this._guard = false; if (!this.back()) this.note('BACK AGAIN TO LEAVE', 1.5); });
     on(window, 'pointermove', e => { if (e.pointerType === 'mouse' && e.clientY < 80 && (e.movementX || e.movementY)) this._mouseTop = performance.now(); }, { passive: true });   // (a real mouse moved: not a page's synthetic event)
     this.input.names = (this.o.menu && this.o.menu.controls) || null;
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
+    this.input._cornerMenu = !!this._corner;   // (on a touch screen the corner's menu button is the touch START)
     if (this.o.menu !== false) new Shell(this, { system: true });
   }
+  /** full screen by itself on a touch screen (fullscreen: 'tap', the default): at the first tap, and again when a game
+   *  starts after the player left it, unless they turned it off (settings.fullscreen false); only from a tap. True when
+   *  it is on or was asked for */
+  _autoFull() {
+    const fs = this.fullscreen, o = this.o.fullscreen, ua = typeof navigator !== 'undefined' && navigator.userActivation;
+    if (this.headless) return false; if (fs.on) return true;
+    if ((o !== undefined && o !== 'tap') || this.settings.fullscreen === false || !fs.supported || fs.standalone) return false;
+    if (!this.input._touched && !(window.matchMedia && matchMedia('(pointer: coarse)').matches)) return false;
+    if (ua && !ua.isActive) return false;   // (no tap behind this: the next one asks)
+    fs.enter(true); return true;
+  }
+  /** is there somewhere for game.back() to go (an open menu screen, a scene in play, a scene with its own back())? */
+  _canBack() { const s = this.scene; return !!(this.shell && this.shell.screen) || !!s && (!!s.pausable || this.sceneName === 'main' || !!s.back); }
+  /**
+   * a step back, as a phone's back gesture asks for (the engine calls it for one; a back button of the game's own can):
+   * the open menu screen goes back one; else the scene's own back() takes it (it returns true when it did); else a scene
+   * in play pauses into the menu, and a paused one goes on. Returns false where there is nowhere to go (a title)
+   */
+  back() {
+    const sh = this.shell, s = this.scene; if (sh && sh.screen) { sh.back(); return true; }
+    if (s && s.back && s.back()) return true;
+    if (!s || !(s.pausable || this.sceneName === 'main')) return false;
+    if (this.paused) this.resume(); else this.menu();
+    return true;
+  }
+  /** where the corner's buttons (menu and full screen, top right; the touch START) cover the screen, in screen pixels
+   *  { x0, y0, x1, y1 } (r.W and r.H's space), or null while none show: keep a HUD clear of it */
+  cornerArea() {
+    const c = this._corner && this._corner.style.display !== 'none' ? this._corner : this.input._startEl; if (!c || !c.isConnected || !this.screen.canvas) return null;
+    const q = c.getBoundingClientRect(); if (!q.width) return null;
+    const a = this.input.screenPoint(q.left, q.top), b = this.input.screenPoint(q.right, q.bottom);
+    return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] };
+  }
   /** show or hide the corner buttons: shown while the game isn't being played (a title, a game over, a pause without
-   *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen without the
-   *  engine's touch buttons; hidden under an open menu screen */
+   *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen (with the
+   *  engine's touch buttons it is their START); hidden under an open menu screen (its close button is there) */
   _cornerSync() {
     const c = this._corner; if (!c) return;
     const sh = this.shell, s = this.scene, I = this.input, fs = this.fullscreen, open = !!(sh && sh.screen);
     const main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
-    const touch = !I._touchEl && (I._touched || !!(this._coarse || (this._coarse = window.matchMedia && matchMedia('(pointer: coarse)')) || {}).matches);   // (the query kept: this runs every frame)
-    const showM = this.o.menu !== false && !open && (!!(sh && sh._menu()) || main) && (!play || near || touch);
+    const touch = I._touched || !!(this._coarse || (this._coarse = window.matchMedia && matchMedia('(pointer: coarse)')) || {}).matches;   // (the query kept: this runs every frame)
+    const showM = !open && (this.o.menu !== false ? (!!(sh && sh._menu()) || main) && (!play || near || touch) : !!I._touchEl);   // (menu: false: the touch START alone)
     const showF = this.o.fullscreen !== false && fs.supported && !fs.standalone && !open && (!play || near);
     const key = (showM ? 1 : 0) + (showF ? 2 : 0) + (fs.on ? 4 : 0);
     if (key === this._cornerKey) return; this._cornerKey = key;
@@ -2467,9 +2530,10 @@ class Game {
   /**
    * Start the loop. Either one scene:  game.start({ update(dt), draw(r) })
    * or several:  game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
-   * A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, expand, touch } (all
+   * A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch } (all
    * optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied
-   * when it starts (res and expand stay until another scene sets them).
+   * when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture (game.back())
+   * first: return true when it went back somewhere (a sub-menu closed).
    * start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance().
    * boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c):
    * the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
@@ -2616,6 +2680,7 @@ class Game {
     if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
     if (s.touch) this.input.touchButtons(s.touch);
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
+    if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
     if (s.enter) s.enter(data);
   }
   _fail(where, e) {
@@ -2685,21 +2750,24 @@ E.Game = Game;
  *    - game.settings: the player's choices (display, sound, comfort, controls), saved per game (a version, every value
  *      checked when it loads, a bad one falls back to its default), applied at once. A game adds its own with
  *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints.
- *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there; leaving it is
- *      the player's choice, kept: it never comes back by itself.
+ *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there, and a game
+ *      started by a tap does again; turning it off (the corner's button, the menu) is the player's choice, kept.
+ *    - the back gesture: a phone's back steps back in the game (game.back(): a menu screen closes, play pauses) before it
+ *      leaves the page.
  *    - pausing: a pausable scene pauses when the page is hidden or loses focus, or the controller in use is unplugged,
  *      and waits for the player (game.pause(reason), game.resume(), game.pauseReason).
- *    - the corner: a menu button and a full-screen button at the top right, inside the safe area.
+ *    - the corner: a menu button and a full-screen button at the top right, inside the safe area; on a touch screen the
+ *      menu stays there in play (it is the touch START), and over a menu screen a close button takes its place.
  *    - the page set up for phones: a viewport that reaches the safe areas, and no scrolling, zooming, text selection or
  *      callouts on the game's canvas (menus keep theirs).
  *    E.Shell draws the menu's screens (pause, settings, controls): section 21d.
  * ============================================================================= */
-const SETTINGS_VERSION = 1;
+const SETTINGS_VERSION = 2;   // 2: fullscreen false means turned off (version 1's also meant left by a gesture: forgotten)
 /** the standard settings by key: { group, label, type: 'toggle' | 'slider' | 'select', value (the default, or a
  *  function of the game), min, max, step, options: [[value, label]], help, apply(game, value) }. Groups: Display,
  *  Sound, Comfort (the settings screen), Controller, Touch (the controls screen) */
 const STANDARD_SETTINGS = {
-  fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (left it), null (never chose)
+  fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (turned it off), null (never chose)
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
   sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },
   volume: { group: 'Sound', label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
@@ -2748,6 +2816,7 @@ class Settings {
     hide('onChange', null);
     const raw = store.get(this._key, null);
     hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});   // (a newer version's values are checked like the rest)
+    if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     game.input._settings = this; game.input.onBindings = b => this.set('bindings', b);
     for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
     for (const sp of own) this.define(sp);
@@ -2808,11 +2877,12 @@ class FullScreen {
   /** true when the page was opened from a home screen as an app (no browser bars: nothing to go full screen from) */
   get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this.game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }   // (full screen from here matches display-mode: fullscreen too)
   /** go full screen. Browsers allow it only from a tap, click or key press: call it from one (a button, the menu, a
-   *  key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen) */
-  enter() {
+   *  key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen, unless
+   *  quiet) */
+  enter(quiet) {
     if (this.on || !this.supported) return Promise.resolve(this.on);
     const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
-    const no = e => { this.failed = (e && e.message) || 'refused'; this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
+    const no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
     try { const p = f.call(el, { navigationUI: 'hide' }); this.failed = null; return p && p.then ? p.then(() => true, no) : Promise.resolve(true); } catch (e) { return Promise.resolve(no(e)); }
   }
   /** leave full screen (Escape and the phone's back gesture do it too) */
@@ -2821,11 +2891,13 @@ class FullScreen {
     const f = document.exitFullscreen || document.webkitExitFullscreen;
     try { const p = f && f.call(document); return p && p.then ? p.then(() => true, () => false) : Promise.resolve(true); } catch (e) { return Promise.resolve(false); }
   }
-  /** full screen on or off */
-  toggle() { return this.on ? this.exit() : this.enter(); }
+  /** full screen on or off, as the player asked (the corner's button, the menu): their choice is kept in
+   *  settings.fullscreen, so a game starting on a phone goes full screen by itself only while they haven't turned it off */
+  toggle() { const on = this.on; if (!this.game.headless) this.game.settings.set('fullscreen', !on); return on ? this.exit() : this.enter(); }
 }
 E.FullScreen = FullScreen;
-/* the corner buttons: menu and full screen, 44 px, top right inside the safe area (Game._cornerSync shows them) */
+/* the corner buttons: menu and full screen, 44 px, top right inside the safe area (Game._cornerSync shows them); on a
+   touch screen the menu is the touch START */
 const CORNER_ICONS = { menu: 'M4 7h16M4 12h16M4 17h16', full: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', exit: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5' };
 const cornerIcon = d => '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
 function makeCorner(game) {
@@ -2837,17 +2909,19 @@ function makeCorner(game) {
     b.addEventListener('click', e => { e.stopPropagation(); b.blur(); fn(); });   // (blurred, so a later Space or Enter is the game's)
     box.appendChild(b); return b;
   };
-  btn('Menu', () => game.menu()).innerHTML = cornerIcon(CORNER_ICONS.menu);
+  btn('Menu', () => { if (game.o.menu !== false) game.menu(); else game.input._tapCode('Act:menu'); }).innerHTML = cornerIcon(CORNER_ICONS.menu);   // (menu: false: the touch START)
   btn('Full screen', () => game.fullscreen.toggle());
   document.body.appendChild(box); return box;
 }
 /* a page made for phones, once: a viewport that reaches the safe areas (pinch zoom left alone), the home-screen app tags,
-   and on each game's canvas no page gestures, text selection, callouts or tap highlights */
+   no overscroll (pull to refresh, a sideways swipe off the page), and on each game's canvas no page gestures, text
+   selection, callouts or tap highlights */
 let _paged = false;
 function pageSetup(canvas) {
   const st = canvas && canvas.style;
   if (st) { st.touchAction = 'none'; st.userSelect = 'none'; st.webkitUserSelect = 'none'; st.webkitTouchCallout = 'none'; st.webkitTapHighlightColor = 'transparent'; }
   if (_paged || !document.head) return; _paged = true;
+  for (const el of [document.documentElement, document.body]) if (el) el.style.overscrollBehavior = 'none';   // no pull to refresh, no swipe away from the page
   const meta = (name, content) => { let m = document.querySelector('meta[name="' + name + '"]'); if (!m) { m = document.createElement('meta'); m.name = name; m.content = content; document.head.appendChild(m); } return m; };
   const vp = meta('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
   if (!/viewport-fit/.test(vp.content)) vp.content += ', viewport-fit=cover';
@@ -6511,7 +6585,10 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-keys{position:absolute;left:50%;bottom:var(--pb);transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap}.esh-keys kbd{margin-right:4px}
 @media (pointer:coarse){.esh-keys{display:none}}@media (max-width:640px){.esh-obj{max-width:calc(100vw - 214px)}.esh-toast{left:var(--pl);right:var(--pr);top:auto;bottom:calc(var(--pb) + 124px);max-width:none;transform:translateY(calc(100% + 160px))}.esh-toast.on{transform:none}
 .esh-pr{bottom:calc(var(--pb) + 196px)}.esh-tip{bottom:calc(var(--pb) + 262px)}}
-.esh-sh{position:absolute;inset:0;display:grid;place-items:center;background:#04060acc;pointer-events:auto;padding:var(--pt) var(--pr) var(--pb) var(--pl);animation:esh-in .25s}
+.esh-sh{position:absolute;inset:0;display:grid;place-items:center;background:#04060acc;pointer-events:auto;padding:calc(var(--pt) + 46px) var(--pr) var(--pb) var(--pl);animation:esh-in .25s;touch-action:pan-y}.esh-ttl{padding-top:var(--pt)}
+.esh-sh *{touch-action:pan-y}.esh-sh input{touch-action:auto}
+.esh .esh-nav{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));z-index:2;width:44px;height:44px;min-height:44px;display:grid;place-items:center;padding:0;border-radius:10px;background:rgba(8,8,18,.6);border-color:rgba(255,255,255,.3);pointer-events:auto}
+.esh-nav.x{right:calc(8px + env(safe-area-inset-right,0px))}.esh-nav.bk{left:calc(8px + env(safe-area-inset-left,0px))}.esh-sw{transition:transform .2s,opacity .2s}
 .esh-mod{width:min(460px,100%);max-height:100%;overflow:auto;padding:22px 24px}.esh-wide{width:min(760px,100%)}
 .esh-ttl{place-items:center start;background:linear-gradient(90deg,#04060aee,#04060a99 50%,#04060a00 85%)}.esh-ttl>div{max-width:min(520px,92vw);padding-left:4vw}
 .esh-ttl h1{font-size:clamp(44px,10vw,92px);letter-spacing:.07em}.esh-sub{font:italic 20px var(--title);color:var(--accent);margin-top:6px}
@@ -6607,7 +6684,29 @@ class Shell {
   _closed() { if (!this._stack.length && this._ownPause) { this._ownPause = false; this.game.resume(); } }
   /** which focusable element of the open screen has the focus (its index), or -1 */
   _focusAt() { if (!this.root) return -1; const all = this._focusables(); return all.indexOf(document.activeElement); }
-  _focusables() { return [...this.els.scr.querySelectorAll('button:not(:disabled), input:not(:disabled)')]; }
+  _focusables() { return [...this.els.scr.querySelectorAll('.esh-sh button:not(:disabled), .esh-sh input:not(:disabled)')]; }
+  /** close the menu: every screen over the title (a game's own title screen stays), resuming a game the menu paused */
+  _close() { const i = this._stack.findIndex(t => t.name === 'title'); if (i < 0) return this.hide(); this._stack.length = i + 1; this._capEnd(); this._render(); return this; }
+  /** a close or back button over the screen (an icon, 44 px; the keys have Escape and Start, so it takes no focus) */
+  _navBtn(cls, label, d, fn) {
+    const b = this._el('button', 'esh-nav ' + cls); b.type = 'button'; b.tabIndex = -1; b.setAttribute('aria-label', label); b.title = label; b.innerHTML = cornerIcon(d);
+    b.onclick = e => { e.stopPropagation(); fn(); }; return b;
+  }
+  /** a sideways swipe on a screen goes back: the panel follows the finger and goes back past 70 px (a slider keeps its own) */
+  _swipe(sh, box, title) {
+    if (title) return; let s0 = null, swiped = false;
+    const end = e => { if (!s0 || e.pointerId !== s0.id) return; const dx = e.clientX - s0.x, go = s0.on && Math.abs(dx) > 70 && e.type === 'pointerup'; swiped = s0.on; s0 = null;
+      box.classList.add('esh-sw'); box.style.transform = go ? 'translateX(' + Math.sign(dx) * 110 + '%)' : ''; box.style.opacity = go ? '0' : '';
+      if (go) setTimeout(() => this.back(), 120); };
+    sh.addEventListener('pointerdown', e => { swiped = false; if (e.pointerType === 'mouse' || s0 || (e.target.closest && e.target.closest('input'))) return; s0 = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false }; box.classList.remove('esh-sw'); });
+    sh.addEventListener('click', e => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);   // (the button a swipe began on isn't pressed)
+    sh.addEventListener('pointermove', e => {
+      if (!s0 || e.pointerId !== s0.id) return; const dx = e.clientX - s0.x, dy = e.clientY - s0.y;
+      if (!s0.on && Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.3) s0.on = true;
+      if (s0.on) { box.style.transform = 'translateX(' + dx + 'px)'; box.style.opacity = String(clamp(1 - Math.abs(dx) / 300, .3, 1)); }
+    });
+    for (const t of ['pointerup', 'pointercancel']) sh.addEventListener(t, end);
+  }
   /** a message that slides in at the top for a few seconds */
   toast(title, text = '', seconds = 4) {
     if (!this.root) return this;
@@ -6803,7 +6902,13 @@ class Shell {
     if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
     add(s.footer && this._el('div', 'esh-m', v(s.footer)));
     const keep = top.focus !== undefined ? top.focus : this._shown === top ? this._focusAt() : -1; this._shown = top;   // (redrawn in place: the focus stays where it was)
-    this.els.scr.replaceChildren(sh);
+    // the way out, always in sight: close at the top right (where the menu button was), back at the top left over another
+    // screen, and a sideways swipe goes back (a phone's edge swipe would leave the page)
+    const nav = [];
+    if (!title) nav.push(this._navBtn('x', 'Close', 'M6 6l12 12M18 6L6 18', () => this._close()));
+    if (this._stack.length > 1) nav.push(this._navBtn('bk', 'Back', 'M15 5l-7 7 7 7', () => this.back()));
+    this._swipe(sh, box, title);
+    this.els.scr.replaceChildren(sh, ...nav);
     const all = this._focusables(), f = all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
     top.focus = undefined; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
   }
@@ -7739,6 +7844,11 @@ const HEROES = [   // one hero per genre slice, each dressed with the HD rig opt
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
+const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// a phone held upright: a side-on slice zooms in (z) so its street or level fills more of the screen, and back out on a wide
+// one; the player's own zoom (- =) holds until the screen's shape changes or another scene starts
+const fit = {}, fitZoom = z => { const tall = game.H > game.W * 1.3; if (tall !== fit.tall || game.scene !== fit.scene) { fit.tall = tall; fit.scene = game.scene; game.setZoom(tall ? z : 1); } };
 // START picks too (the touch START, a pad's Start), as Enter does
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
 const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
@@ -7782,6 +7892,7 @@ scenes.over = {
   view: 'side', input: 'DEFAULT', res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
     overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
@@ -7792,9 +7903,9 @@ scenes.over = {
  * SLICE 1  ADVENTURE  (Secret of Mana, Zelda: ALttP). Three rooms: village, ruins, shrine. Talk, clear the ruins for
  * the key, open the great door, claim the crystal. THE LOOK: wall MATERIALS, ONE floorTex with PAINTED LIGHT, pitched
  * roofs, leaf-clump bushes, light shafts, dialog PORTRAITS.
- * ANY SCREEN: rooms are 4:3. A wider screen shows the rooms beside this one under a dim CURTAIN (they wait, as their
- * monsters do); a taller one (a phone held upright) keeps the room at the top and lays the HUD out on a DECK below it,
- * where the thumbs and the touch buttons go.
+ * ANY SCREEN: rooms are 4:3 in a world that goes on past them (forest above and below, the next rooms beside), so a
+ * screen of any shape is filled. CAMERA (Settings, or C): ROOMS slides screen by screen as Zelda's does, the rooms beside
+ * this one under a dim CURTAIN (they wait, as their monsters do); SCROLL follows the hero. The HUD sits in the corners.
  * ===================================================================================== */
 const ADV = (() => {
   const T = 16, ROOM = [14 * T, 12 * T], AREAS = ['Mana Village', 'Mossy Ruins', 'Shrine of Mana'];
@@ -7813,9 +7924,14 @@ const ADV = (() => {
     ['#..........~~#', 'H...bK...b.xRH', 'X.....E+.....X'],
     ['##############', 'RRRRRRRRRRRRRR', 'XXXXXX++XXXXXX']
   ].map(r => r.join(''));
+  // the world AROUND the rooms: PAD rows of forest canopy above and below (a meadow's edge first, the shrine's stone under
+  // the shrine), so a screen of any shape is filled. The rooms' rows start at OY
+  const PAD = 12, OY = PAD * T, wood = (cx, cy) => cx >= 28 ? 'X' : E.hash2(cx * 7, cy * 5) < .18 ? '2' : '1';
+  const AROUND = (cy0, meadow) => Array.from({ length: PAD }, (_, i) => Array.from({ length: 42 }, (_, cx) => meadow && i < 2 && cx < 28 ? '.' : wood(cx, cy0 + i)).join(''));
+  ROWS.unshift(...AROUND(0)); ROWS.push(...AROUND(PAD + 12, true));
   const LEGEND = {
     // walls: a wall type (TYPES), or { tile, spawn } = a wall with a prop on its face (THINGS)
-    '#': 1, 'U': 5, 'Z': 8, 'R': 9, 'H': 3, 'K': 4, 'F': 6, 'X': 2, 'A': 7,
+    '#': 1, 'U': 5, 'Z': 8, 'R': 9, 'H': 3, 'K': 4, 'F': 6, 'X': 2, 'A': 7, '1': 10, '2': { tile: 10, spawn: 'tree' },
     '^': { tile: 1, spawn: 'tree' }, 'G': { tile: 5, spawn: 'ivy' }, 'Q': { tile: 5, spawn: 'pane' }, 'O': { tile: 5, spawn: 'door' },
     'z': { tile: 8, spawn: 'pane' }, 'N': { tile: 8, spawn: 'shop' }, 'h': { tile: 3, spawn: 'vines' }, 'J': { tile: 3, spawn: 'cobweb' }, 'Y': { tile: 6, spawn: 'moss' }, 'D': { tile: 6, spawn: 'gate' },
     'w': { tile: 2, spawn: 'window' }, 'W': { tile: 2, spawn: 'rose' }, 'i': { tile: 2, spawn: 'torch' }, 'n': { tile: 2, spawn: 'banner' }, 'j': { tile: 2, spawn: 'cobweb' }, 'r': { tile: 7, spawn: 'relic' },
@@ -7837,7 +7953,8 @@ const ADV = (() => {
     6: { h: 36, ...SLAB, top: '#5a5480', side: '#7a7298', course: 9 },   // shrine facade
     7: { h: 9, ...SLAB, top: '#8a84b4', side: '#5a5484', course: 4 },   // altar
     8: { h: 36, face: 'plaster', roof: 'tiles', top: '#3a7ab4', side: '#f4e6c8' },   // shop
-    9: { h: 30, cut: true, cutH: 8, face: 'rock', roof: 'grass', top: '#5a9a44', side: '#8a7462' }   // cliff
+    9: { h: 30, cut: true, cutH: 8, face: 'rock', roof: 'grass', top: '#5a9a44', side: '#8a7462' },   // cliff
+    10: { h: 22, face: 'hedge', roof: 'leaves', top: '#2c6a36', side: '#1f4a2a' }   // the forest round the rooms
   };
   // set dressing: tag -> prop(s). r = solid, cut = breakable (debris), drop = loot, face = on the wall at z (anchor
   // 'top' hangs it), light = GPU light, dx = nudge, hidden = appears later
@@ -7914,7 +8031,11 @@ const ADV = (() => {
   // BACKDROP (iso view): a sea of clouds
   const bg = new E.Backdrop({ sky: ['#3a74c8', '#8ac2ea', '#e4f2f4', '#9ccae6', '#5a90c8'], layers: [{ kind: 'clouds', color: '#ffffff', y: .3, height: .16, parallax: .04, drift: 3 },
     { kind: 'clouds', color: '#ffffff', y: .98, height: .4, parallax: .1, drift: 3, seed: 9 }] });
-  let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx, deck = 0;   // deck: its top on screen (0: none)
+  let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx;
+  // CAMERA, the player's choice: 'rooms' slides screen by screen (Zelda), 'scroll' follows the hero (Settings, or C)
+  game.settings.define({ key: 'advCamera', group: 'Adventure', label: 'Camera', options: [['rooms', 'Rooms'], ['scroll', 'Scroll']], value: 'rooms', help: 'Rooms: screen by screen, as Zelda. Scroll: it follows the hero' });
+  addEventListener('keydown', e => { if (e.code !== 'KeyC' || e.repeat || game.sceneName !== 'adventure' || game.paused) return; const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note('CAMERA: ' + v.toUpperCase()); });
+  const sliding = () => !!game.cam.room && game.cam.moving;   // a room slide holds the world still
   const roomOf = x => Math.floor(x / ROOM[0]), mod = (a, n) => ((a % n) + n) % n, near = (cx, cy, tag) => map.floorAt((cx + .5) * T, (cy + .5) * T) === tag;
   const txt = (g, s, x, y, c, o) => E.font.text(g, s, x, y, c, { shadow: '#07040c', outline: false, ...o });
   const talkable = () => npcs.find(n => E.dist(hero, n) < 34);
@@ -7981,8 +8102,8 @@ const ADV = (() => {
   function start() {
     map = new E.TileMap({ rows: ROWS, legend: LEGEND, types: TYPES, floorTex, ao: 8 });
     relic = map.find('relic'); entry = map.find('entry'); relic.x += T / 2; entry.x += T / 2;   // on the room's center line
-    // screen-by-screen camera inside the map; a screen taller than the map keeps it at the top (the DECK goes below)
-    game.cam.bounds = v => { const b = map.bounds(v); return Object.assign({}, b, { y1: Math.max(b.y1, b.y0 + game.H) }); }; game.cam.room = ROOM;
+    // the camera stays inside the map (the forest round the rooms fills a tall screen); update() sets rooms or scroll
+    game.cam.bounds = v => { const b = map.bounds(v); return { x0: b.x0 + 9, y0: b.y0 + 9, x1: b.x1 - 9, y1: b.y1 - 9 }; }; game.cam.room = game.settings.advCamera === 'scroll' ? null : ROOM;
     const at = map.find('hero');
     // SWORD (Secret of Mana): J chains slash, backslash, spin, kept low (a raised blade crosses his face); short holds (hold)
     // let the follow-through settle instead of freezing; hold J to CHARGE
@@ -8000,7 +8121,7 @@ const ADV = (() => {
       const c = map.cell(cx, cy), v = E.hash2(cx * 3, cy * 7 + 1), X = (cx + .5) * T, Y = (cy + .5) * T, tag = map.floorAt(X, Y), add = o => things.push(Object.assign({ x: X, y: Y }, o));
       if (c === 5 || c === 8) { const b = box[c] || (box[c] = [cx, cy, cx, cy]); b[2] = cx; b[3] = cy; }
       if (map.spawns.some(s => s.cx === cx && s.cy === cy)) continue;
-      if (c === 9 && cy === 0 && v < .5) add(tree(cx, cy, true));
+      if (c === 9 && cy === PAD && v < .5) add(tree(cx, cy, true));
       else if ((c === 3 || c === 4) && v < .45) add({ prop: 'bush', size: .7 + v * .6, color: '#5a8a44' });
       else if (tag === 'bed') {
         for (const k of [-3, 3]) add({ prop: 'flowers', size: 1.1, x: X + k, y: Y + k, color: k < 0 ? ['#f06a9a', '#f0a040', '#ffffff'][cx % 3] : '#8ab0ff', color2: '#fff4a0' });
@@ -8021,9 +8142,10 @@ const ADV = (() => {
     fx = []; won = false; keys = 0; gems = 0; area = { room: 0, t: 2.6 }; held = null;
     // the floor is lit already; GPU lighting (if any) adds light pools and shadows
     L.enabled = false; gpu = gpu || game.enableGPU({ map }); Object.assign(gpu, { map, enabled: true, bands: 24, wrap: .5, ambient: MOOD[0] }); A.music('adventure');
+    game.input.touchSet('attack', 'SWORD');
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
-  const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG }, y: deck ? deck + 6 : undefined }); };   // on the deck: clear of the touch buttons
+  const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };   // (at the bottom, clear of the touch buttons)
   function hurtHero(ang) {   // flinch, knockback, blink; true if it hurt
     if (hero.inv > 0 || won || hero.hp <= 0) return false; hero.hp -= .5; hero.inv = 1; hero.hurt = .25; hero.charge = 0; hero.combo.cancel(); hero.spin.cancel(); hero.push(Math.cos(ang) * 160, Math.sin(ang) * 160);
     game.hitFx(hero.x + Math.cos(ang) * 3, hero.y + Math.sin(ang) * 3, 12, { power: .9, angle: ang + Math.PI, color: '#ff8a6a', sound: 'hurt' }); game.flash('#ff4a3a', .06, .4);
@@ -8049,7 +8171,7 @@ const ADV = (() => {
   const settle = b => { for (const t of things) if (t.r && !t.dead && !t.hidden) { const dx = b.x - t.x, dy = b.y - t.y, dd = Math.hypot(dx, dy) || 1, m = b.r + t.r; if (dd < m) { b.x = t.x + dx / dd * m; b.y = t.y + dy / dd * m; } } };
   // prize: face the camera and CHEER. Charging holds CHARGE's wind-up, deeper as it builds
   function poseHero(dt) {
-    const h = hero, cheer = held && held.t > 0, still = talk.open || game.cam.moving || cheer, v = game.view;
+    const h = hero, cheer = held && held.t > 0, still = talk.open || sliding() || cheer, v = game.view;
     h.rig.update(dt, { x: h.x, y: h.y, z: h.z, vx: still ? 0 : h.vx, vy: still ? 0 : h.vy, facing: cheer ? Math.atan2(v.fy, v.fx) : h.facing, hurt: h.hurt > 0, pose: cheer ? 'cheer' : null,
       attack: cheer ? null : h.charge > .15 ? { spec: CHARGE, phase: 'wind', u: Math.min(1, (h.charge - .15) / .45) } : h.sw.state });
   }
@@ -8069,12 +8191,13 @@ const ADV = (() => {
   }
   function update(dt) {
     const h = hero, room = roomOf(h.x), inp = game.input, npc = talkable();
+    inp.touchSet('confirm', talk.open ? 'NEXT' : 'TALK', talk.open || !!npc);   // a CONTEXT button: there only when there is someone to talk to
     if (held) held.t -= dt;
     for (const n of npcs) npcLife(n, dt);
     if (talk.update(dt)) { poseHero(dt); return; }   // dialog pauses the world
     if (gpu) gpu.ambient = MOOD[room];
     if (room !== area.room) area = { room, t: 2.6 }; else area.t -= dt;
-    if (game.cam.moving || won || held && held.t > 0) { poseHero(dt); return; }   // the room slides or the hero cheers
+    if (sliding() || won || held && held.t > 0) { poseHero(dt); return; }   // the room slides or the hero cheers
     h.inv -= dt; h.hurt -= dt; if (h.hp <= 0) return;
     if (npc && inp.pressed('confirm')) return void say(npc, npc.name, npc.lines[npc.said++ % npc.lines.length]);
     // screen-relative keys become a ground direction; swings root the hero
@@ -8168,15 +8291,16 @@ const ADV = (() => {
       c.look.update(dt, { look: walk ? [c.vx, c.vy] : [h.x - c.x, h.y - c.y], walk, squint: !walk && E.dist(c, h) > 50, squash: walk ? 0 : .12 });
     }
     // ambient life: petals, fireflies, embers, smoke, fountain spray, river foam
-    const rx = (room + Math.random()) * ROOM[0], ry = E.rand(T, ROOM[1] - T);
+    const rx = (room + Math.random()) * ROOM[0], ry = OY + E.rand(T, ROOM[1] - T);
     if (Math.random() < dt * 4) P.add(room === 0 ? { kind: 'bit', x: rx, y: ry, z: 50, vx: 14, vy: 5, vz: -9, g: 3, max: 5, color: E.pick(['#ffb0c8', '#fff0f4']) }
       : room === 1 ? { kind: 'ember', x: rx, y: ry, z: E.rand(6, 26), vx: E.rand(-5, 5), vy: E.rand(-5, 5), vz: 3, max: 2.5, color: '#d8ff6a' }
       : { kind: 'ember', x: rx, y: ry, z: 2, vz: 16, vx: E.rand(-4, 4), max: 2, color: '#ff8a3a' });
     for (const f of roofs) if (roomOf(f.x1) === room && Math.random() < dt * 2.5) P.smoke(f.x1 - 12, f.y0 + 14, f.h + 16, 1, { size: 2.2, color: '#e4e2ee', dark: '#b0acc0', light: '#ffffff' });
     for (const t of things) if (t.tag === 'fountain' && t.room === room && Math.random() < dt * 14) P.add({ kind: 'bit', x: t.x, y: t.y, z: 22, vx: E.rand(-15, 15), vy: E.rand(-6, 6), vz: 40, g: 260, max: .5, color: E.pick(['#ffffff', '#a8e0ff']) });
-    if (room === 0 && Math.random() < dt * 6) P.add({ kind: 'bit', x: E.rand(11.3, 12.7) * T, y: E.pick([2, 8]) * T + E.rand(0, 46), z: 0, vy: 26, max: 1.2, color: '#d8f0ff' });
+    if (room === 0 && Math.random() < dt * 6) P.add({ kind: 'bit', x: E.rand(11.3, 12.7) * T, y: OY + E.pick([2, 8]) * T + E.rand(0, 46), z: 0, vy: 26, max: 1.2, color: '#d8f0ff' });
     poseHero(dt); game.focus(h.x, h.y, 10);
-    game.cam.room = game.zoom > 1 || game.yaw ? null : ROOM;   // zoomed or turned: follow the hero
+    const rooms = game.settings.advCamera !== 'scroll' && game.zoom <= 1 && !game.yaw;   // zoomed or turned: it follows the hero
+    game.cam.room = rooms ? ROOM : null; game.cam.smooth = rooms ? .18 : .12;
   }
 
   /* ---- DRAWING ---- */
@@ -8217,7 +8341,7 @@ const ADV = (() => {
   function shafts(r, room) {
     const [xs, c, lean] = BEAMS[room], t = game.real;
     if (r.view.pitchDeg < 70) r.overlay(g => { for (const bx of xs) {
-      const [x, y] = r.w(room * ROOM[0] + bx, 12, 40), w = 5 + Math.sin(t * .5 + bx) * 1.5, L = 120;
+      const [x, y] = r.w(room * ROOM[0] + bx, OY + 12, 40), w = 5 + Math.sin(t * .5 + bx) * 1.5, L = 120;
       px.blend(g, 1 / 8, 'add', () => { for (const k of [1, .6, .3]) { const X = x + lean * k, Y = y + L * k, s = w * (1 + k); px.poly(g, [[x - w, y], [x + w, y], [X + s, Y], [X - s, Y]], c); } });
       px.blend(g, 1, 'add', () => { for (let i = 0; i < 6; i++) { const u = (i * .17 + t * .025 + bx * .01) % 1; px.dot(g, x + lean * u + Math.sin(t * .7 + i * 2) * w, y + L * u, c); } });
     } });
@@ -8265,33 +8389,33 @@ const ADV = (() => {
     }
     shots.draw(r); drawFx(r); shafts(r, room); if (game.cam.room) curtain(r, room); hud(r); talk.draw(r);
   }
-  // the CURTAIN: what a wide screen shows beyond the hero's room, dimmed (the room's box: its floor and its walls' height)
+  // the CURTAIN: what the screen shows beyond the hero's room, dimmed a little (the room's box: its floor, its walls' height)
   function curtain(r, room) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (const x of [room * ROOM[0], (room + 1) * ROOM[0]]) for (const y of [0, ROOM[1]]) for (const z of [0, 48]) { const [sx, sy] = r.w(x, y, z); x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+    for (const x of [room * ROOM[0], (room + 1) * ROOM[0]]) for (const y of [OY, OY + ROOM[1]]) for (const z of [0, 48]) { const [sx, sy] = r.w(x, y, z); x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
     [x0, y0, x1, y1] = [x0, y0, x1, y1].map(Math.round);
     if (x0 <= 0 && y0 <= 0 && x1 >= r.W && y1 >= r.H) return;
-    r.overlay(g => px.blend(g, .62, 'normal', () => { const D = '#0a0818'; px.rect(g, 0, 0, r.W, y0, D); px.rect(g, 0, y1, r.W, r.H - y1, D); px.rect(g, 0, y0, x0, y1 - y0, D); px.rect(g, x1, y0, r.W - x1, y1 - y0, D); }));
+    r.overlay(g => px.blend(g, .4, 'normal', () => { const D = '#0a0818'; px.rect(g, 0, 0, r.W, y0, D); px.rect(g, 0, y1, r.W, r.H - y1, D); px.rect(g, 0, y0, x0, y1 - y0, D); px.rect(g, x1, y0, r.W - x1, y1 - y0, D); }));
   }
-  // HUD: counters; hero status and CONTROLS (the player's own keys), hidden during dialog. On a DECK when the screen is tall
+  // HUD in the corners, over the world: the hero and his hearts top left; gems, keys and a map of the rooms top right
+  // (clear of the corner's buttons); the CONTROLS (the player's own keys) bottom right, not on a touch screen (its buttons
+  // say it); the area's name drops in under them as he enters
   function hud(r) {
-    const rx = roomOf(hero.x) * ROOM[0], foot = Math.round(Math.max(r.w(rx, map.h * T, 0)[1], r.w(rx + ROOM[0], map.h * T, 0)[1])), npc = talkable();   // this room's front edge on screen (in any view)
-    deck = game.cam.room && r.H - foot > 96 ? foot : 0;
-    const Y = deck ? deck + 34 : r.H - 34, GX = deck ? r.W - 70 : 4, GY = deck ? deck + 10 : 4;
+    const npc = talkable(), R = Math.min(r.W, cornerX()) - 4;
     r.overlay(g => {
-      if (deck) { E.ui.box(g, -3, deck, r.W + 6, r.H - deck + 3, WIN); minimap(g, Math.round(r.W / 2) - 70, deck + 80, 2); }   // the deck: a window under the room, a map of the rooms
-      E.ui.box(g, GX, GY, 66, 17, WIN); px.sprite(g, GEM, GX + 6, GY + 5); px.sprite(g, KEYS[0], GX + 39, GY + 6);
-      txt(g, String(gems).padStart(3, '0'), GX + 14, GY + 5, '#ffffff'); txt(g, 'x' + keys, GX + 48, GY + 5, '#ffffff');
+      E.ui.box(g, 4, 4, 84, 30, WIN); hero.rig.drawPortrait(g, 9, 9, 20, { zoom: 1.5, cape: false, bg: FACE_BG });
+      txt(g, 'HERO', 36, 8, '#ffe08a', { gradient: ['#fff4c0', '#e8a040'] }); E.ui.hearts(g, 36, 19, hero.hp, hero.max);
+      const GX = R - 70; E.ui.box(g, GX, 4, 70, 17, WIN); px.sprite(g, GEM, GX + 6, 9); px.sprite(g, KEYS[0], GX + 41, 10);
+      txt(g, String(gems).padStart(3, '0'), GX + 14, 9, '#ffffff'); txt(g, 'x' + keys, GX + 50, 9, '#ffffff');
+      minimap(g, GX, 24);
       if (won) {
-        const wy = deck ? deck + 70 : r.H - 62;
+        const wy = Math.round(r.H / 2) - 24;
         E.ui.box(g, r.W / 2 - 90, wy, 180, 48, WIN); E.font.title(g, 'MANA CRYSTAL!', r.W / 2, wy + 7, { align: 'center', scale: 2, colors: ['#ffffff', '#bff8ff', '#4ac8e8'], depth: 1 });
         return txt(g, 'Gems ' + gems + '    Best ' + best('adventure', gems), r.W / 2, wy + 34, '#ffe08a', { align: 'center' });
       }
       if (talk.open) return;
-      E.ui.box(g, 4, Y, 84, 30, WIN); hero.rig.drawPortrait(g, 9, Y + 5, 20, { zoom: 1.5, cape: false, bg: FACE_BG });
-      txt(g, 'HERO', 36, Y + 4, '#ffe08a', { gradient: ['#fff4c0', '#e8a040'] }); E.ui.hearts(g, 36, Y + 15, hero.hp, hero.max);
-      if (!touch()) {   // (a touch screen's buttons sit in that corner and say it themselves)
-        const a = prompt('attack', 'Sword'), b = prompt('confirm', 'Talk'), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = Y + 12;
+      if (!touch()) {
+        const a = prompt('attack', 'Sword'), b = prompt('confirm', 'Talk'), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = r.H - 22;
         E.ui.box(g, cx, cy, w, 18, WIN); txt(g, a, cx + 8, cy + 5, '#d8d0f0');
         txt(g, b, cx + w - 8 - E.font.width(b), cy + 5, npc && Math.floor(game.real * 3) % 2 ? '#ffe08a' : '#d8d0f0');   // 'Talk' blinks near a villager
       }
@@ -8300,23 +8424,22 @@ const ADV = (() => {
         E.ui.box(g, x - 11, y - 14, 22, 12, WIN); px.poly(g, [[x - 4, y - 3], [x + 2, y - 3], [x - 3, y + 1]], WIN.border);
         for (let k = 0; k < 3; k++) px.rect(g, x - 6 + k * 5, y - 9 - (Math.floor(game.real * 3) % 3 === k ? 1 : 0), 2, 2, '#ffe08a');
       }
-      if (deck) E.font.title(g, AREAS[area.room], Math.round(r.W / 2), deck + 138, { align: 'center', scale: 2, colors: ['#ffffff', '#d8e8ff', '#8ab0e8'], depth: 1 });   // on the deck the area's name stays, under the map
-      else if (area.t > 0) {   // area name card slides down, then up
-        const w = E.font.width(AREAS[area.room]) + 20, y = Math.round(4 - (Math.max(0, area.t - 2.3) + Math.max(0, .3 - area.t)) * 90);
+      if (area.t > 0) {   // the area's name drops in, then goes
+        const w = E.font.width(AREAS[area.room]) + 20, y = Math.round(42 - (Math.max(0, area.t - 2.3) + Math.max(0, .3 - area.t)) * 120);
         E.ui.box(g, (r.W - w) / 2, y, w, 18, WIN); txt(g, AREAS[area.room], r.W / 2, y + 5, '#ffffff', { align: 'center' });
       }
     });
   }
-  // a map of the three rooms on the deck (s: its scale): the hero's lit, where he stands blinking
-  function minimap(g, x, y, s = 1) {
-    const room = roomOf(hero.x), C = ['#4a9a4a', '#7a8a56', '#5a5486'], w = 22 * s, h = 16 * s;
+  // a map of the three rooms, 70 x 12: the hero's lit, where he stands blinking
+  function minimap(g, x, y) {
+    const room = roomOf(hero.x), C = ['#4a9a4a', '#7a8a56', '#5a5486'], w = 22, h = 12;
     for (let i = 0; i < 3; i++) { px.rect(g, x + i * (w + 2), y, w, h, i === room ? '#fff4c0' : '#1a1838'); px.rect(g, x + i * (w + 2) + 1, y + 1, w - 2, h - 2, i === room ? C[i] : E.shade(C[i], -.45)); }
-    if (Math.floor(game.real * 3) % 2) px.rect(g, x + Math.round(hero.x / ROOM[0] * (w + 2)) - s, y + 1 + Math.round(clamp(hero.y / ROOM[1], 0, 1) * (h - 4)), 2 * s, 2 * s, '#ffffff');
+    if (Math.floor(game.real * 3) % 2) px.rect(g, x + Math.round(hero.x / ROOM[0] * (w + 2)) - 1, y + 1 + Math.round(clamp((hero.y - OY) / ROOM[1], 0, 1) * (h - 4)), 2, 2, '#ffffff');
   }
   return { view: 'threequarter', views: ['threequarter', 'topdown', 'iso'], input: 'DEFAULT', res: 'ps1', propSize: 1.25, pausable: true, touch: ['attack', 'confirm'], enter: start, update, draw,
     camera: { zoom: [.75, 2], rotate: true },   // a TileMap scene rotates cleanly
     state: () => ({ hero, foes, things, items, map, npcs, pets, talk }),   // for tests
-    exit() { game.cam.room = null; if (gpu) gpu.enabled = false; L.enabled = false; } };
+    exit() { game.cam.room = null; game.cam.smooth = .18; if (gpu) gpu.enabled = false; L.enabled = false; } };
 })();
 scenes.adventure = ADV;
 
@@ -8670,6 +8793,7 @@ const PLAT = (() => {
     });
   }
   function update(dt) {
+    fitZoom(1.5);   // a phone held upright: the level fills more of it
     for (const f of fx) { f.t += dt; f.x += f.vx * dt; f.z += f.vz * dt;
       if (f.kind !== 'blade') continue;               // a dropped sword falls, bounces and settles flat
       const gz = level.groundBelow(f.x, f.z + 8); f.vz -= 700 * dt; f.a += f.spin * dt;
@@ -8880,7 +9004,8 @@ scenes.platformer = PLAT;
  * 'overhead' maps world x/y to screen pixels; the 272 px world pans a little with the ship. z only orders the drawing:
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
  * PS1 LOOK: real alpha and additive light (px.blend), never dither; altitude shadows, one-point perspective buildings.
- * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs.
+ * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs. TOUCH: the
+ * ship follows a thumb dragged on the screen's left half one to one (input.drag()) and fires by itself; BOMB is the button.
  * ANY SCREEN: res [240, 320] with expand. The playfield stays WW wide, so the game plays the same; the screen's height is
  * the playfield's (W x H are the screen's, read each step). A screen wider than the playfield shows the valley going on
  * beyond it (2b), dimmed: out of play. game.go('shooter', { at: 30 }) starts at the boss.
@@ -9273,10 +9398,10 @@ const SHOOT = (() => {
     }
     if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { best('shooter', score); game.go('over', { from: 'shooter' }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
     else {
-      const mv = inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);
-      ship.x = clamp(ship.x + mv[0] * 125 * dt, 10, WW - 10); ship.y = clamp(ship.y + mv[1] * 125 * dt, scroll + 30, scroll + H - 20);
+      const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
+      ship.x = clamp(ship.x + (d ? d[0] : mv[0] * 125 * dt), 10, WW - 10); ship.y = clamp(ship.y + (d ? d[1] : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
       if (inp.pressed('fire')) ship.burst = .5;
-      if ((inp.down('fire') || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level
+      if ((inp.down('fire') || touch() || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level; on a touch screen it fires by itself
         fireT = .07; ship.gun = .035; A.sfx('shoot', { vol: .2 });
         for (const [dx, da] of [[-5, 0], [5, 0], [-10, -.08], [10, .08], [-13, -.2], [13, .2], [-4, -.34], [4, .34]].slice(0, power * 2)) shots.fire({ x: ship.x + dx, y: ship.y - 16, z: 20, vx: Math.sin(da) * 440, vy: -Math.cos(da) * 440, r: 3, life: .9, team: 'ship' });
       }
@@ -9408,16 +9533,17 @@ const SHOOT = (() => {
     win(27, 2, 74, 25, BLUE); txt(g, '1P', 31, 5, '#ffd36a'); txt(g, pad(score), 46, 5, '#fff', { gradient: ['#ffffff', '#9ac0ff'] });
     for (let i = 0; i < lives; i++) px.sprite(g, LIFE, 31 + i * 10, 16); for (let i = 0; i < bombs; i++) px.sprite(g, BOMBI, 94 - i * 7, 17);
     // hi-score; lit power chevrons run hot
-    win(W - 76, 2, 74, 25, RED); txt(g, 'HI', W - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(score, E.store.get('best:shooter', 0))), W - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
-    txt(g, power < 4 ? 'POW' : 'MAX', W - 72, 17, '#ffd36a');
-    for (let i = 0; i < 4; i++) { const x = W - 48 + i * 10, on = i < power; px.poly(g, [[x, 16], [x + 5, 16], [x + 9, 20], [x + 5, 24], [x, 24], [x + 4, 20]], on ? ['#ffd040', '#ffa030', '#ff6a30', '#ff3a5a'][i] : '#5a6494'); px.line(g, x + 1, 16, x + 5, 16, on ? '#fff4c0' : '#9aa4d0'); }
+    const R = Math.min(W, cornerX());   // (clear of the corner's menu button)
+    win(R - 76, 2, 74, 25, RED); txt(g, 'HI', R - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(score, E.store.get('best:shooter', 0))), R - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
+    txt(g, power < 4 ? 'POW' : 'MAX', R - 72, 17, '#ffd36a');
+    for (let i = 0; i < 4; i++) { const x = R - 48 + i * 10, on = i < power; px.poly(g, [[x, 16], [x + 5, 16], [x + 9, 20], [x + 5, 24], [x, 24], [x + 4, 20]], on ? ['#ffd040', '#ffa030', '#ff6a30', '#ff3a5a'][i] : '#5a6494'); px.line(g, x + 1, 16, x + 5, 16, on ? '#fff4c0' : '#9aa4d0'); }
     if (boss) {   // a pale damage trail drains after the health
       const f = boss.parts[2].hp / boss.parts[2].max, w = Math.round(118 * f), o = Math.round(mid) - 120; win(o + 44, 30, 152, 13, RED); txt(g, 'BOSS', o + 48, 33, '#ff9a8a');
       E.ui.bar(g, o + 72, 34, 120, 6, boss.trail, '#ffe8b0', { border: '#140b12', bg: '#2a0a12' }); px.rect(g, o + 73, 35, w, 4, boss.flash > 0 ? '#ff8a90' : '#e8404a'); px.rect(g, o + 73, 35, w, 1, '#ff9aa0');
     }
     if (t < INTRO) {   // stage card above the radio call; nobody fires until it clears
       band(40, 62, '#080a1c'); E.font.title(g, 'STAGE 1', mid, 46, { align: 'center', scale: 3 });
-      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, prompt('fire', 'shot') + '     ' + prompt('bomb', 'bomb'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys
+      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, (touch() ? 'DRAG to fly, AUTO-FIRE' : prompt('fire', 'shot')) + '     ' + prompt('bomb', 'bomb'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys
     }
     if (warnT > 0) {
       band(60, 62, '#2a0406');
@@ -9429,6 +9555,7 @@ const SHOOT = (() => {
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
       W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
+      game.input.touchSet('fire', null, false);   // a touch screen fires by itself: no button for it
     },
     exit() { game.cam.smooth = .18; }, update, draw };
 })();
@@ -9443,8 +9570,8 @@ scenes.shooter = SHOOT;
  * sparks and casts Fire, Sera jabs with her staff, then crosses and roundhouses, and raises it to Cure; the Dread Knight
  * slashes, bashes and swings a Doom Blade, the Gargoyle dives claws first or beats up a gale, the Bomb rams or spits.
  * ANY SCREEN: the backdrop is painted at the screen's size, its ground with the plaza's own grass and light so the plaza's
- * edge melts into it; the HUD band sits on the bottom edge, or on a tall screen (a phone held upright) under the battle,
- * with a deck below it for the thumbs; LAYOUT() says where, and the band slides clear of the touch buttons.
+ * edge melts into it, a tall screen's sky darkening to the first stars; the HUD band sits on the bottom edge and the
+ * battle in the space above it (LAYOUT()). TOUCH: no buttons; tap a command, then a foe (or the commands to go back).
  * ===================================================================================== */
 const RPG = (() => {
   /* ---- BACKDROP: a sunset painted once per screen size in crisp pixel shapes like the sprites (zoom and turn move only
@@ -9463,8 +9590,9 @@ const RPG = (() => {
       const q = E.tex.grass(wx, wy, GRASS), o = (y * W + x) * 4; for (let i = 0; i < 3; i++) d[o + i] = lerp(lerp(q[i] * k, lerp(COOL[i], WARM[i], warm), .28), HAZE[i], haze); d[o + 3] = 255;
     }
     g.putImageData(im, 0, 0);
-    for (let y = 0; y < 100 + oy; y++) {   // sky rows (the top's color above the painting), a smooth sun glow (no bands, no dither)
-      const s = skyAt(Math.max(0, y - oy)); px.rect(g, 0, y, W, 1, s);
+    for (let y = 0; y < 100 + oy; y++) {   // sky rows (above the painting, a tall screen's: night coming), a smooth sun glow (no bands, no dither)
+      const s = y < oy ? E.mix('#07061a', SKY[0], clamp(1 - (oy - y) / 170, 0, 1)) : skyAt(y - oy); px.rect(g, 0, y, W, 1, s);
+      if (y < oy + 24) for (let x = 0; x < W; x++) { const h = E.hash2(x * 3 + 1, y * 5 + 2); if (h > .9965 - clamp((oy - y) / 4000, 0, .004)) px.dot(g, x, y, h > .9993 ? '#ffffff' : E.mix(s, '#fff0d8', .6)); }   // the first stars
       for (let x = Math.max(0, sx - 100); x < Math.min(W, sx + 100); x++) { const k = 1 - Math.hypot((x - sx) / 2.6, y - sy) / 36; if (k > 0) px.dot(g, x, y, E.mix(s, '#ffe8b8', k * k * .85)); }
     }
     g.translate(ox, oy);   // the rest is drawn as for 320 x 240, the far hills and trees running on across a wide screen
@@ -9487,9 +9615,9 @@ const RPG = (() => {
     for (let x = x0 - ((x0 - 1) % 5 + 5) % 5; x < x1; x += 5) { const r = 4 + 3 * E.noise2(x * .09, 3), y = 79 - r * .7; px.disc(g, x + 1, y - 1, r, '#b25c5e'); px.disc(g, x, y, r, '#2e2040'); }   // treeline, rim-lit
     px.rect(g, x0, 79, x1 - x0, 3, '#2e2040'); return c;   // its foot, on the grass
   }
-  // where things go on this screen: the HUD band's top (Y), the camera focus's height on screen (fy). A tall screen keeps
-  // the battle up top with the band under it and a deck below; a wide one puts the band on the bottom edge, as on 320 x 240
-  const layout = (W, H) => { const Y = H > 300 ? clamp(Math.round(H * .45), 167, H - 73) : H - 73; return { Y, fy: Y - 47 }; };
+  // where things go on this screen: the HUD band's top (Y: on the bottom edge, a little higher on a phone, off its home
+  // bar), the camera focus's height on screen (fy: the battle just above the band, or on a tall screen 3/5 down the sky)
+  const layout = (W, H) => { const Y = H - 73 - (game.input.lastDevice === 'touch' ? 8 : 0); return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * .6)) }; };
   let backdrop = null;   // painted on the first draw, again for a new screen size
 
   /* ---- FLOOR: a round cobbled plaza (a ground circle projects to a wide ellipse: reads as floor). floorTex runs
@@ -9632,7 +9760,7 @@ const RPG = (() => {
   };
   const PAUSE = { wind: .2, active: .05, recover: .35 }, GO = .35, BACK = .4, FLY = .3, DIE = .9, WAVE = 400;   // seconds: out, back, a bolt's flight, a monster's death; a wave's speed
   const COMMANDS = h => [h.attack, h.skill, 'defend', 'potion', 'run'];
-  let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, frame = 0;
+  let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, band, frame = 0;   // band: the HUD's commands box on screen (taps)
   const alive = l => l.filter(c => !c.dead), isHero = c => party.includes(c), size = c => c.rig ? c.rig.o.size : 1.2;
   const unit = (d, hero) => {
     const body = d.rig ? new E.Humanoid(d.rig) : d.blob && new E.Blob(d.blob);   // both kick() and draw()
@@ -9803,6 +9931,7 @@ const RPG = (() => {
     // ambience: drifting petals, brazier embers
     if (E.chance(dt * 5)) P.add({ kind: 'bit', x: E.rand(0, 200), y: E.rand(10, 140), z: E.rand(50, 90), vx: E.rand(10, 22), vz: -4, g: 5, drag: .2, max: 6, size: E.chance(.4) ? 2 : 1, color: E.pick(['#ffc0d0', '#ffe0e8', '#ffd890']) });
     if (E.chance(dt * 6)) P.add({ kind: 'ember', x: E.pick([100, 132]) + E.rand(-3, 3), y: 8, z: 20, vz: E.rand(18, 30), vx: E.rand(-4, 4), max: 1, color: '#ff8a2a' });
+    if ((mode === 'command' || mode === 'target') && tapped()) return;
     if (mode === 'wait') tick(dt);
     else if (mode === 'act') play(act, dt);
     else if (mode === 'command') menu.update();
@@ -9811,6 +9940,18 @@ const RPG = (() => {
       if (d) { cursor = (cursor + n + d) % n; A.sfx('select'); }
       if (inp.pressed('confirm')) { inp.consumeAll(); A.sfx('confirm'); order(pending, list[cursor]); } else if (inp.pressed('cancel')) { inp.consumeAll(); A.sfx('cancel'); mode = 'command'; }
     }
+  }
+
+  // TAPS (a click works too): a command picks it; then a foe (or ally) is the target, the commands go back
+  function tapped() {
+    const c = game.input.clicked(); if (!c || !band) return false;
+    const [x, y] = c, onCmds = x >= band.X + 4 && x < band.X + 96 && y >= band.Y && y < band.Y + 66, k = Math.floor((y - band.Y - 3) / 10), it = menu.items[k];
+    if (mode === 'command' && onCmds && it && !it.disabled) { game.input.consumeAll(); menu.i = k; A.sfx('confirm'); pick(k); return true; }
+    if (mode !== 'target') return false;
+    const i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < 14 + u.h * .25 && Math.abs(y - sy) < u.h * .6 + 8; });
+    if (i >= 0) { game.input.consumeAll(); cursor = i; A.sfx('confirm'); order(pending, list[i]); return true; }
+    if (onCmds) { game.input.consumeAll(); A.sfx('cancel'); mode = 'command'; return true; }
+    return false;
   }
 
   /* ---- DRAW ---- */
@@ -9864,7 +10005,7 @@ const RPG = (() => {
     }, { emissive: true });
   }
   function draw(r) {
-    const key = r.W + 'x' + r.H; if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, layout(r.W, r.H).fy); backdrop.key = key; }
+    const { fy } = layout(r.W, r.H), key = r.W + 'x' + r.H + ':' + fy; if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, fy); backdrop.key = key; }
     r.ctx.drawImage(backdrop, 0, 0);
     plaza.drawFloor(r); plaza.queueWalls(r); for (const [name, x, y, z, o] of PROPS) r.prop(name, x, y, z, o);
     for (const c of all) drawUnit(r, c); for (const f of fx) drawFx(r, f);
@@ -9890,10 +10031,7 @@ const RPG = (() => {
   const tiny = (g, s, x, y, c) => E.font.text(g, s, x, y, c, { font: 'tiny', outline: false });
   function hud(g, r) {
     const { Y } = layout(r.W, r.H), choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
-    // the band's 316 px: centred, or beside the touch buttons where they would cover it (left of them, or right of them when
-    // the player has put them on the left)
-    const ta = game.input.touchArea(), mid = Math.round((r.W - 320) / 2), X = !(ta && ta.y0 < Y + 66) ? mid
-      : ta.x0 > r.W / 2 ? Math.max(0, Math.min(mid, Math.floor(ta.x0) - 320)) : Math.min(r.W - 320, Math.max(mid, Math.ceil(ta.x1)));
+    const X = Math.round((r.W - 320) / 2), touch = game.input.lastDevice === 'touch'; band = { X, Y };   // the band's 316 px, centred
     // an arrow over the hero on turn, the glove on the target
     if (choosing) { const [sx, sy] = r.w(actor.x, actor.y, actor.z + actor.h + 5); px.poly(g, [[sx - 5, sy - 7 + bob], [sx + 5, sy - 7 + bob], [sx, sy - 1 + bob]], '#ffe060'); px.rect(g, sx - 3, sy - 6 + bob, 6, 1, '#fff8c0'); }
     if (mode === 'target') { const c = list[cursor], [sx, sy] = r.w(c.x, c.y, c.z + c.h * .55); px.sprite(g, HAND, sx - 28 + bob, sy - 4); }
@@ -9901,11 +10039,12 @@ const RPG = (() => {
     const top = mode === 'command' ? MOVES[COMMANDS(actor)[menu.i]].info : mode === 'target' ? list[cursor].name : note;
     if (top && !log.open) { const w = E.font.width(top) + 24, c = Math.round(r.W / 2); E.ui.box(g, c - w / 2, 5, w, 18, { bg: WIN }); txt(g, top, c, 10, '#ffffff', 'center'); }
     // a near-black band under the windows; left: commands, spoils or monsters
-    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818'); E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });   // (down to the bottom: a tall screen's deck)
+    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818'); E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });   // (down to the bottom edge)
     if (choosing) {
       menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
       px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
-      if (game.input.lastDevice !== 'touch') E.font.text(g, game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK', X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
+      const how = touch ? (mode === 'target' ? 'TAP HERE TO GO BACK' : 'TAP A COMMAND') : game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK';   // the player's own keys
+      E.font.text(g, how, X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });
     } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
     else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
     // right: a card per hero (FF IX): portrait, name, MP, HP, ATB
@@ -9923,7 +10062,8 @@ const RPG = (() => {
   }
   // propSize: props sized to the heroes; a strong warm rim light
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in, it eases to the fight (or the hero on turn) at chest height
-  return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: ['confirm', 'cancel'], propSize: 1.3, camera: { zoom: [.75, 2], rotate: true },
+  return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: [], propSize: 1.3, camera: { zoom: [.75, 2], rotate: true },   // touch: taps, no buttons
+    back() { if (mode !== 'target') return false; mode = 'command'; A.sfx('cancel'); return true; },   // a phone's back: aiming goes back to the commands
     enter() { start(); game.r.rimAlpha = .75; game.focus(110, 72, 0); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
     exit() { game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {
@@ -9944,7 +10084,7 @@ scenes.rpg = RPG;
  * THE LOOK: Final Fight sized fighters (90-105 of 240 lines) in a guard stance with big gloves, lit by the nearest
  * light; building fronts drawn once over TileMap walls; solid parked cars; PS1 translucency (hard shapes, one alpha)
  * ANY SCREEN: a wider screen shows more street (waves walk in from past its edges); a taller one (a phone held upright)
- * lifts the street onto a FOREGROUND wall, clear of the touch buttons, under more skyline
+ * zooms in to 1.5x (fitZoom) and lifts the street onto a FOREGROUND wall, clear of the touch buttons, under the skyline
  * ===================================================================================== */
 const BRAWL = (() => {
   const T = 16, Y0 = 30, Y1 = 136, TOP = 88, DARK = '#140c1c';   // Y0..Y1: the walkable band; TOP: rooftop room (2x zoom)
@@ -10320,6 +10460,7 @@ const BRAWL = (() => {
     else game.after(1.8, () => game.go('over', { from: 'brawler' }));
   }
   function update(dt) {
+    fitZoom(1.5);   // a phone held upright: the street fills more of it
     const inp = game.input, h = hero, truce = talk.update(dt);   // truce: nobody punches while the boss talks
     // a fighter's body from its state: the guard stance while it can fight, hurt while flinching or flying, tipping back
     // (down: 0..1) from the first airborne frame to flat at the landing, 'down' on the floor, 'kneel' then 'crouch' getting
@@ -10444,7 +10585,8 @@ const BRAWL = (() => {
 
   /* ---- HUD: solid panels, live 3/4 rig.drawPortrait faces, two-tone bars ---- */
   const WIN = { bg: ['#3a2a5c', '#0e0a1c'], border: '#a89ad8' };
-  function panel(g, x, c, name, f, lagF, color, right) {
+  function panel(g, x, c, name, f, lagF, color, right, y = 4) {
+    g.save(); g.translate(0, y - 4);   // (drawn for y = 4)
     E.ui.box(g, x, 4, 154, 40, Object.assign({}, WIN, right ? { bg: ['#4a1e3a', '#12060e'], border: '#d08aa8' } : {}));
     c.rig.drawPortrait(g, right ? x + 118 : x + 6, 9, 30, { zoom: 2.1, turn: right ? -.6 : .6, bg: right ? ['#a83a5a', '#2a0c1c'] : ['#5a6ac0', '#161030'],
       border: right ? '#f0b0c8' : '#d0c8f8', shadow: false, tint: c.hp > 0 ? undefined : '#808080' });   // KO'd: grey
@@ -10453,6 +10595,7 @@ const BRAWL = (() => {
     if (!right) { E.font.text(g, '×' + c.lives, tx + E.font.width(name) + 5, 11, '#ffffff', TXT); E.font.text(g, String(score).padStart(6, '0'), x + 150, 11, '#e8e4ff', TXR); }
     E.ui.bar(g, tx, 27, 108, 10, lagF, '#fff0e0');   // the frame, with the pale drain as its fill
     if (n > 0) { px.rect(g, tx + 1, 28, n, 8, color); px.rect(g, tx + 1, 28, n, 2, t.hi); px.rect(g, tx + 1, 34, n, 2, t.sh); }
+    g.restore(); g._c = null;
   }
   function hud(g, r) {
     const W = r.W, H = r.H;
@@ -10460,7 +10603,8 @@ const BRAWL = (() => {
     panel(g, 4, hero, 'MAX', hero.hp / hero.max, lag, '#ffd23a');
     // enemy panel: the last one hit (KO'd: briefly), else the nearest, else the boss
     const foe = tgtT > 0 && target && (!target.dead || tgtT > 2.4) ? target : foes.find(f => !f.dead && Math.abs(f.x - hero.x) < 56 && Math.abs(f.y - hero.y) < 16) || foes.find(f => f.k === FOES.boss && !f.dead);
-    if (foe && !won) panel(g, W - 158, foe, foe.name, foe.hp / foe.k.hp, 0, '#e8463c', true);
+    const fx = Math.min(W, cornerX()) - 158;   // clear of the corner's menu button: beside it, or under it on a narrow screen
+    if (foe && !won) panel(g, fx < 162 ? W - 158 : fx, foe, foe.name, foe.hp / foe.k.hp, 0, '#e8463c', true, fx < 162 ? 48 : 4);
     if (chain > 1 && chainT > 0) {               // the HITS counter on a gradient plate
       const s = String(chain), w = E.font.width(s, 3);
       E.ui.box(g, 6, 50, w + 44, 28, { bg: ['#d8402a', '#4a0a1a'], border: '#ffd070' });
@@ -11032,18 +11176,21 @@ const STEALTH = (() => {
     game.cam.snap = true; say('BACK AT THE CHECKPOINT');
   }
   function lose() { if (checkpoint) { A.sfx('die'); respawnAt(checkpoint); } else { over = true; game.after(.8, () => game.go('over', { from: 'stealth' })); } }
-  function tryTakedown() {
+  // a takedown within reach: [guard, from above] or null
+  function takedown() {
     for (const g of guards) {
       if (g.dead || g.action) continue;
       const dz = hero.z - g.z, d = Math.hypot(g.x - hero.x, g.y - hero.y);
       // from above: the hero stands over a guard below, close enough to drop onto them
-      if (dz > 14 && d < 44 && hero.onGround) { hero.play('takedown', { other: g, aerial: true, map }); return finishGuard(g, hero.action); }
+      if (dz > 14 && d < 44 && hero.onGround) return [g, true];
       // from behind: close, on the same level, outside the guard's view and not yet hunting
       const behind = Math.abs(E.angDiff(g.facing, Math.atan2(g.y - hero.y, g.x - hero.x))) < 1.1;
-      if (E.sameLevel(hero, g) && d < 18 && behind && g.mind.state !== 'alert') { hero.play('takedown', { other: g, map }); return finishGuard(g, hero.action); }
+      if (E.sameLevel(hero, g) && d < 18 && behind && g.mind.state !== 'alert') return [g, false];
     }
-    return false;
+    return null;
   }
+  function tryTakedown() { const t = takedown(); if (!t) return false; hero.play('takedown', { other: t[0], aerial: t[1], map }); return finishGuard(t[0], hero.action); }
+  const parrying = () => guards.some(g => !g.dead && g.swing.phase === 'wind' && g.swing.u > .35 && Math.hypot(g.x - hero.x, g.y - hero.y) < 26);
   function finishGuard(g, act) { g.dead = true; g.action = act; A.sfx('punch'); game.freeze(.06); return true; }
   function heroUpdate(dt) {
     const I = game.input;
@@ -11058,6 +11205,8 @@ const STEALTH = (() => {
       if (g.stun > 0 || --g.hp <= 0) { g.dead = true; g.action = null; A.sfx('die', { vol: .5 }); } else g.mind.level = 1.2;
     });
     // a parry: block in the last moments of a guard's wind-up
+    // CONTEXT touch buttons: ATTACK says TAKE DOWN when one is in reach, BLOCK says PARRY in a guard's wind-up
+    I.touchSet('attack', !hero.action && takedown() ? 'TAKE DOWN' : null); I.touchSet('block', parrying() ? 'PARRY' : null);
     if (I.pressed('block')) for (const g of guards) if (!g.dead && g.swing.phase === 'wind' && g.swing.u > .35 && Math.hypot(g.x - hero.x, g.y - hero.y) < 26) {
       g.swing.cancel(); g.stun = 1.3; A.sfx('kick'); game.flash('#ffffff', .08); P.sparks(g.x, g.y, g.z + 18, 10, hero.facing); say('PARRIED', 1);
     }
