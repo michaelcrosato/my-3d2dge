@@ -164,7 +164,8 @@ for (const want of ['webgl', 'webgpu']) {
   const phys = await page.evaluate(() => {
     const W = __sw, H = W.hero, out = {};
     W.setMonsters(0); W.step(30);
-    const z0 = H.z; let top = z0; W.step(1, { jump: 1 }); for (let i = 0; i < 60; i++) { W.step(1); top = Math.max(top, H.z); }
+    // the press held 6 steps, as the game's input buffer holds one: a stray hit from the fight starts a hit-stop that skips steps
+    const z0 = H.z; let top = z0; W.step(6, { jump: 1 }); for (let i = 0; i < 60; i++) { W.step(1); top = Math.max(top, H.z); }
     out.jump = top - z0;
     const go = (x, y, n) => { for (let i = 0; i < n; i++) { const dx = x - H.x, dy = y - H.y, d = Math.hypot(dx, dy); if (d < 4) return true; W.step(1, { move: [dx / d, dy / d] }); } return false; };
     // (each check starts from a known place: the fight before leaves the hero and the props anywhere)
