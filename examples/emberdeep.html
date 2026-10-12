@@ -29,14 +29,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.29.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.29.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.29.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.29.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -114,7 +114,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.29.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.29.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -2047,9 +2047,9 @@ class Game {
      *  draw); r: the renderer handed to draw(r) (null when headless) */
     this.particles = new Particles(this); this.lights = new Lighting(this); this.r = this.headless ? null : new Renderer(this);
     /** fps: frames drawn per second over the last half second of real time; hz: the display's refresh rate, measured;
-     *  drawEvery: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw: every other
-     *  refresh is drawn, evenly, instead of random ones missed (the updates still run every refresh); gpu: the WebGPU
-     *  lighting after enableGPU(), or null */
+     *  drawEvery: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw (a frame's cost,
+     *  or refreshes missed: its GPU behind): every other refresh is drawn, evenly, instead of random ones missed (the
+     *  updates still run every refresh); gpu: the WebGPU lighting after enableGPU(), or null */
     this.fps = 60; this.hz = 60; this.drawEvery = 1; this._viewListeners = []; this.gpu = null;
     /** paused: true while paused (a pausable scene toggles it on 'pause'; steps still run, scenes don't update);
      *  pauseOverlay: false hides the engine's PAUSED overlay (a game drawing its own pause screen); errors: the
@@ -2317,21 +2317,32 @@ class Game {
     }
     if (this._running || this.disposed || this.o.loop === false) return this;
     this._running = true;
-    let last = performance.now(), acc = 0, n = 0, since = 0, per = 1 / 60, cost = 0, ri = 0;
+    let last = performance.now(), acc = 0, n = 0, since = 0, per = 1 / 60, cost = 0, ri = 0, miss = 0, hold = 0, back = 3;
     const ring = [];
     const frame = now => {
       if (!this._running) return;
       this._raf = requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
       const raw = Math.max(0, (now - last) / 1000); last = now; since += raw;
-      if (raw > .004) { ring[ri++ % 90] = raw; per = Math.min(...ring); }   // the refresh: the shortest of the last 90 frames (late ones are longer)
+      // the refresh: the shortest of the last 90 frames (late ones are longer), learnt while each is drawn (two apart, a
+      // GPU behind can skip the one between: read then, a 120 Hz screen would pass for 60)
+      if (raw > .004 && this.drawEvery === 1) { ring[ri++ % 90] = raw; per = Math.min(...ring); }
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
         n++;
         try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
-        const st = this.stats, t2 = performance.now(); st.updateMs = t1 - t0; st.renderMs = t2 - t1; st.frameMs = since * 1000; st.steps = steps; since = 0;
-        // a display at 90 Hz and up that a frame's cost won't fit: every other refresh, back to each once it fits again
+        const st = this.stats, t2 = performance.now(); st.updateMs = t1 - t0; st.renderMs = t2 - t1; st.frameMs = since * 1000; st.steps = steps;
+        // a display at 90 Hz and up that the frames won't fit: every other refresh, back to each once they fit again. Two
+        // signs they won't: a frame's own cost, and refreshes missed between frames drawn at each (the GPU behind, which no
+        // clock here sees: that one holds 3 s, then 6, 12... up to a minute, before each refresh is tried again)
         cost += ((t2 - t0) / 1000 - cost) * .1;
-        this.drawEvery = this.o.pace === false || per > 1 / 85 ? 1 : cost > per * .8 ? 2 : cost < per * .55 ? 1 : this.drawEvery;
+        if (this.drawEvery === 1) miss += ((since > per * 1.5 ? 1 : 0) - miss) * .05;
+        since = 0;
+        let e = this.drawEvery;
+        if (this.o.pace === false || per > 1 / 85) e = 1;
+        else if (cost > per * .8) e = 2;
+        else if (miss > .2) { e = 2; miss = 0; hold = now + back * 1000; back = Math.min(60, back * 2); }
+        else if (cost < per * .55 && now >= hold) e = 1;
+        this.drawEvery = e;
       }
       acc += raw; if (acc > .5) { this.fps = Math.round(n / acc); this.hz = Math.round(1 / per); acc = 0; n = 0; }   // real time: a slow device reads slow
     };

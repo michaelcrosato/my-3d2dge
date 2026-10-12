@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.29.1 (2026-10-12)
+
+The frame pacing of 0.29.0 only saw a frame's own cost (its JavaScript). A phone's GPU draws after it, out of the page's sight: one that falls behind at 120 Hz misses refreshes at random, which reads as choppy as before.
+
+- **Engine**: frame pacing also counts the refreshes missed between frames drawn at each: when more than about one in five is missed (the GPU behind), it draws every other refresh, evenly, for 3 s, then tries each again (6 s the next time, 12... up to a minute). The display's refresh is measured only while each refresh is drawn (two apart, a GPU behind skips the one between and a 120 Hz screen passed for 60, turning the pacing off). Both editions (D26).
+- **Tools**: `phone-test`: the 120 Hz screen's GPU falls behind (busy 5 and 11 ms by turns after each light frame, a refresh while busy skipped): drawn every other refresh, 90% of the gaps 16.7 ms (0.29.0: every refresh, 48% 16.7 ms and the rest 8.3), and every refresh again once it keeps up (30 checks).
+- **Docs**: `game.drawEvery`'s doc comment and `AI_GUIDE.md` (a frame that misses the refresh, its GPU's part too), D26 in `docs/DECISIONS.md`.
+
 ## 0.29.0 (2026-10-12)
 
 The adventure was still choppy on a Galaxy S25 (a 120 Hz screen) with its GPU lighting off: its frame didn't fit a 120 Hz refresh, so frames came 8 and 17 ms apart at random.
