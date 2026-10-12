@@ -42,27 +42,19 @@ const SLICES = [
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW' }
 ];
-/* keys every slice shares: V changes the camera view, - and = (or the mouse wheel) zoom, [ and ] turn the camera,
-   0 resets it, G toggles GPU lighting, M mutes. A scene limits the camera with camera: { zoom: [min, max] | false, rotate: true } */
-const ZOOMS = [.5, .75, 1, 1.25, 1.5, 2, 2.5, 3];
+/* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
+   engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
+   top of the slice's start: tall on a phone held upright). Keys every slice shares besides: V changes the camera view,
+   [ and ] turn it (camera.rotate), 0 resets it (the player's zoom too), G toggles GPU lighting, M mutes */
 const camOpt = () => (game.scene && game.scene.camera) || {};
-const zoomStep = d => {
-  const lim = camOpt().zoom; if (lim === false) return;
-  const [lo, hi] = lim || [.75, 2], i = ZOOMS.findIndex(z => z >= game.zoom - 1e-6), z = clamp(ZOOMS[clamp(i + d, 0, ZOOMS.length - 1)], lo, hi);
-  game.setZoom(z); game.note('ZOOM ' + z + 'x');
-};
 addEventListener('keydown', e => {
   if (e.repeat) return;
   if (e.code === 'KeyV') { game.nextView(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
-  else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomStep(-1);
-  else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomStep(1);
-  else if (e.code === 'Digit0') { game.resetCamera(); game.note('CAMERA RESET'); }
+  else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }   // (resetCamera draws it at once)
   else if ((e.code === 'BracketLeft' || e.code === 'BracketRight') && camOpt().rotate) { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyG' && gpu) gpu.enabled = !gpu.enabled;
 });
-let wheelT = 0;
-addEventListener('wheel', e => { const t = performance.now(); if (t - wheelT > 120) { wheelT = t; zoomStep(e.deltaY < 0 ? 1 : -1); } }, { passive: true });
 
 /* ---- TITLE: a lineup of HD heroes on a torch-lit castle ledge under a dusk sky. The ledge is wide enough for a wide
  * screen and sits on the screen's bottom edge whatever its height; the logo and menu hang from the top ---- */
@@ -82,16 +74,12 @@ HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
 const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
-// a phone held upright: a side-on slice zooms in (z) so its street or level fills more of the screen, and back out on a wide
-// one; the player's own zoom (- =) holds until the screen's shape changes or another scene starts (the title and game
-// over forget the slice, so the next game fits again)
-const fit = {}, fitZoom = z => { const tall = game.H > game.W * 1.3; if (tall !== fit.tall || game.scene !== fit.scene) { fit.tall = tall; fit.scene = game.scene; game.setZoom(tall ? z : 1); } };
 // START picks too (the touch START, a pad's Start), as Enter does
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
 const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
 scenes.title = {
   view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
-  enter() { A.music('title'); game.resetCamera(); fit.scene = null; game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
+  enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) {
     if (!titleMenu.update(dt)) pickOnStart(titleMenu);
     game.focus(MID, 0, 32 + (game.H / 2 - 42) / -game.view.bz);   // the ledge's top 42 px above the screen's bottom edge
@@ -127,7 +115,7 @@ const overBg = new E.Backdrop({ sky: ['#12040c', '#3a0c1c', '#6a1a28'], moon: { 
   layers: [{ kind: 'mountains', color: '#2a0c16', y: .72, height: .3, parallax: 0 }, { kind: 'fog', color: '#8a2a3a', y: .9, height: .12, parallax: 0, drift: 4 }] });
 scenes.over = {
   view: 'side', input: 'DEFAULT', res: 'ps1',
-  enter(d) { overMenu.from = d.from; overMenu.i = 0; fit.scene = null; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
+  enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
   back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen

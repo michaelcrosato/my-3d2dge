@@ -411,9 +411,9 @@ const ANIMLAB = (() => {
   }
   function enter() {
     game.cam.bounds = null; game.cam.room = null; game.timeScale = 1; L.enabled = false; A.music(null);
-    game.resetCamera(); game.setZoom(1.5); lineup = false; paused = false; viewKey = ''; play(ai);
+    game.resetCamera(); lineup = false; paused = false; viewKey = ''; play(ai);
   }
-  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], rotate: true }, touch: ['replay', 'slow', 'hold'],   // the stick picks (up, down) and dresses (left, right)
+  return { view: 'side', views: ['side', 'brawler', 'threequarter', 'iso', 'topdown'], res: 'ps1', propSize: 1.3, camera: { zoom: [.5, 3], start: 1.5, rotate: true }, touch: ['replay', 'slow', 'hold'],   // the stick picks (up, down) and dresses (left, right)
     input: { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], replay: ['KeyJ', 'Enter'], hold: ['Space'], step: ['Period'],
       slow: ['KeyS'], trail: ['KeyT'], bones: ['KeyB'], lineup: ['KeyL'], flip: ['KeyF'], hud: ['KeyH'], turn: ['BracketLeft', 'BracketRight'], back: ['Escape'] },
     enter, exit() { game.timeScale = 1; game.resetCamera(); }, update, draw,

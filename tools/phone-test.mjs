@@ -12,6 +12,10 @@
 //              player's Frame rate (Auto, 60, Full)
 //      session: a recorded page (?record=1) saves its session from the pause menu (its frame times: the device's refreshes)
 //   5. rpg: a whole turn is played by taps, and every tap target (commands, foes) is at least 44 CSS pixels (a thumb)
+//   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
+//      pinch it (not the stick: a thumb steering beside a resting finger doesn't), kept; none where a slice has it off
+//      (the shooter); a phone held upright starts at the slice's tall zoom; Settings, Camera zoom; the wheel and - = on a
+//      computer
 // Usage: node tools/phone-test.mjs [kit ...]   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1
 // on failure. Each check prints what it measured, so a failure says what a player would have seen.
 import { chromium } from 'playwright';
@@ -44,6 +48,13 @@ const toCss = (p, x, y) => ev(p, ([x, y]) => { const S = window.__game.game.scre
 async function drag(cdp, pts, ms = 25) {
   const at = (type, q) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: q ? [{ x: q[0], y: q[1], id: 1 }] : [] });
   await at('touchStart', pts[0]); for (const q of pts.slice(1)) { await at('touchMove', q); await wait(ms); } await at('touchEnd');
+}
+/** fingers (one [x, y] each, ids 1, 2, ...) pressed at their first points, moved together through n steps to their last */
+async function fingers(cdp, from, to, n = 12, ms = 20) {
+  const at = k => from.map((p, i) => ({ x: p[0] + (to[i][0] - p[0]) * k, y: p[1] + (to[i][1] - p[1]) * k, id: i + 1 }));
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(0) });
+  for (let i = 1; i <= n; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(i / n) }); await wait(ms); }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]);
 
@@ -290,6 +301,59 @@ if (want('rpg')) {
     check(`rpg ${label}: no page errors`, !errors.length, errors.join(' | '));
     await ctx.close();
   }
+}
+
+/* 6. zoom: the player zooms the camera, on top of the slice's own */
+if (want('zoom')) {
+  console.log('zoom: the player\'s camera zoom');
+  const { page, ctx, cdp, errors } = await open('adventure', UP);
+  await wait(800);
+  const st = () => ev(page, () => { const g = window.__game.game, h = g.scene.state().hero; return { zoom: g.zoom, f: +g.settings.zoom.toFixed(3), x: h.x, y: h.y }; });
+  const s0 = await st();
+  // apart: while the fingers move, the world drawn is scaled (a preview: no new size baked at every step); a quarter second
+  // after they lift it is drawn at the new zoom
+  await fingers(cdp, [[160, 420], [230, 420]], [[70, 420], [320, 420]]); await wait(400); const s1 = await st();
+  await fingers(cdp, [[60, 420], [330, 420]], [[100, 420], [290, 420]], 6); await wait(400); const s2 = await st();   // together, a little
+  const walked = Math.max(Math.hypot(s1.x - s0.x, s1.y - s0.y), Math.hypot(s2.x - s1.x, s2.y - s1.y));
+  check('zoom: two fingers apart zoom in, together out, the hero standing (not the stick)', s0.zoom === 1 && s1.zoom >= 1.8 && s2.zoom < s1.zoom - .3 && s2.zoom > 1 && Math.abs(s2.f - s2.zoom) < .05 && walked < 3, `${s0.zoom}x, apart ${s1.zoom}x, together ${s2.zoom}x, the hero moved ${walked.toFixed(1)}`);
+  // a thumb steering (the stick, left half) while another finger rests on the glass: the hero walks, the zoom stays
+  await fingers(cdp, [[100, 600], [300, 600]], [[30, 600], [300, 600]], 12, 40); await wait(400); const s3 = await st();
+  check('zoom: a thumb on the stick beside a resting finger steers, and zooms nothing', s3.zoom === s2.zoom && s2.x - s3.x > 4, `${s3.zoom}x, the hero walked ${(s2.x - s3.x).toFixed(1)} left`);
+  await page.reload(); await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'adventure'); await wait(300);
+  const s4 = await st();
+  check('zoom: the player\'s zoom is kept (the page loaded again)', s4.zoom === s2.zoom && s4.f === s2.f && !errors.length, `${s4.zoom}x (factor ${s4.f})${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+  // Settings, Camera zoom: its slider zooms the camera under the menu
+  await page.tap('#e3-corner button[aria-label=Menu]'); await wait(300);
+  const sb = await page.$('.esh-sh button:has-text("Settings")'); if (sb) await sb.tap(); await wait(300);
+  let row = await ev(page, () => { const r = [...document.querySelectorAll('.esh-row')].find(r => /^Camera zoom/.test(r.textContent)), i = r && r.querySelector('input[type=range]'); if (!i) return null; i.value = '1.5'; i.dispatchEvent(new Event('input')); return { out: r.querySelector('output').textContent }; });
+  if (row) { await wait(400); row.zoom = await ev(page, () => window.__game.game.zoom); }
+  check('zoom: Settings has Camera zoom; its slider zooms the camera', !!row && row.out === '1.5×' && row.zoom === 1.5, row ? `${row.out}: ${row.zoom}x` : 'no Camera zoom row');
+  await ctx.close();
+  // the shooter's playfield is the whole screen (camera: { zoom: false }): a pinch leaves it as it is
+  const sh = await open('shooter', UP); await wait(600);
+  await fingers(sh.cdp, [[160, 420], [230, 420]], [[70, 420], [320, 420]]); await wait(400);
+  const shz = await ev(sh.page, () => window.__game.game.zoom);
+  check('zoom: none where the slice has it off (the shooter)', shz === 1 && !sh.errors.length, `${shz}x${sh.errors.length ? ', errors: ' + sh.errors.join(' | ') : ''}`);
+  await sh.ctx.close();
+  // the brawler: a phone held upright starts at its tall 1.5x, on its side at 1x; the player's zoom multiplies either
+  const br = await open('brawler', UP); await wait(600);
+  const bz = () => ev(br.page, () => window.__game.game.zoom), up0 = await bz();
+  await br.page.setViewportSize(SIDE); await wait(400); const side0 = await bz();
+  await ev(br.page, () => window.__game.game.settings.set('zoom', .8)); await wait(400); const side1 = await bz();
+  await br.page.setViewportSize(UP); await wait(400); const up1 = await bz();
+  check('zoom: the brawler starts at 1.5x upright, 1x on its side; the player\'s .8 makes them 1.2x and .8x', up0 === 1.5 && side0 === 1 && side1 === .8 && up1 === 1.2 && !br.errors.length, `upright ${up0}x, on its side ${side0}x; at .8: ${side1}x, upright ${up1}x${br.errors.length ? ', errors: ' + br.errors.join(' | ') : ''}`);
+  await br.ctx.close();
+  // a computer: the wheel (a notch 10%), - and =, 0 resets
+  const dctx = await browser.newContext({ viewport: { width: 1280, height: 720 } }), dp = await dctx.newPage(), derr = [];
+  dp.on('pageerror', e => derr.push(e.message));
+  await dp.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-adventure.html')).href + '#adventure');
+  await dp.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'adventure'); await wait(400);
+  const dz = () => ev(dp, () => window.__game.game.zoom);
+  await dp.mouse.move(640, 360); for (let i = 0; i < 3; i++) { await dp.mouse.wheel(0, -100); await wait(50); } await wait(400); const w3 = await dz();
+  await dp.keyboard.press('Minus'); await wait(400); const m1 = await dz();
+  await dp.keyboard.press('Digit0'); await wait(100); const r0 = await dz();
+  check('zoom: on a computer the wheel zooms (3 notches: 1.35x), - steps out, 0 resets', w3 === 1.35 && m1 === 1.25 && r0 === 1 && !derr.length, `${w3}x, ${m1}x, ${r0}x${derr.length ? ', errors: ' + derr.join(' | ') : ''}`);
+  await dctx.close();
 }
 
 await browser.close();

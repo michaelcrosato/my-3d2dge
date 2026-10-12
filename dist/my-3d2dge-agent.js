@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.31.3: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.32.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -370,7 +370,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.31.3', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.32.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1257,6 +1257,8 @@ class Game {
   }
   get W() { return this.screen.W; }
   get H() { return this.screen.H; }
+  /** true on a screen held upright (taller than 1.3 times its width: a phone in portrait) */
+  get upright() { return this.H > this.W * 1.3; }
   _view(v) {
     if (v instanceof View) return v;
     const w = E.VIEWS[v];
@@ -3532,7 +3534,7 @@ Renderer.prototype.sightCone = fullOnly('r.sightCone');
 for (const k of ['Mover', 'Action', 'Suspicion']) E[k] = class { constructor() { throw new Error('E.' + k + ' is only in the full engine (dist/my-3d2dge.js), with the rest of the third-person kit'); } };
 E.Shell = class { constructor(game) { fullOnly('E.Shell')(); this.game = game; this.root = null; } get settings() { return this.game.settings; } get screen() { return null; } show() { return this; } back() { return this; } hide() { return this; } toast() { return this; } tutorial() { return this; } hud() { return this; } dispose() {} };
 E.Backdrop = class { constructor() { fullOnly('E.Backdrop')(); } draw() {} };
-for (const m of ['enableGPU', 'setZoom', 'rotateView', 'resetCamera']) Game.prototype[m] = fullOnly('game.' + m);
+for (const m of ['enableGPU', 'setZoom', 'rotateView', 'resetCamera', 'zoomBy', 'zoomRange']) Game.prototype[m] = fullOnly('game.' + m);
 for (const m of ['drawPortrait', 'drawSmear', 'debug']) Humanoid.prototype[m] = fullOnly('rig.' + m);
 Input.prototype.touchButtons = fullOnly('input.touchButtons');
 Object.defineProperty(Game.prototype, 'lights', { get() { return this._lights || (this._lights = { enabled: false, ambient: 1, add: fullOnly('game.lights'), caster() {}, heat() {} }); } });

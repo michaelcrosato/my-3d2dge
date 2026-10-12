@@ -6,7 +6,7 @@
  * THE LOOK: Final Fight sized fighters (90-105 of 240 lines) in a guard stance with big gloves, lit by the nearest
  * light; building fronts drawn once over TileMap walls; solid parked cars; PS1 translucency (hard shapes, one alpha)
  * ANY SCREEN: a wider screen shows more street (waves walk in from past its edges); a taller one (a phone held upright)
- * zooms in to 1.5x (fitZoom) and lifts the street onto a FOREGROUND wall, clear of the touch buttons, under the skyline
+ * starts at 1.5x (camera.tall) and lifts the street onto a FOREGROUND wall, clear of the touch buttons, under the skyline
  * ===================================================================================== */
 const BRAWL = (() => {
   const T = 16, Y0 = 30, Y1 = 136, TOP = 88, DARK = '#140c1c';   // Y0..Y1: the walkable band; TOP: rooftop room (2x zoom)
@@ -385,7 +385,6 @@ const BRAWL = (() => {
     else game.after(1.8, () => game.go('over', { from: 'brawler' }));
   }
   function update(dt) {
-    fitZoom(1.5);   // a phone held upright: the street fills more of it
     const inp = game.input, h = hero, truce = talk.update(dt);   // truce: nobody punches while the boss talks
     // a fighter's body from its state: the guard stance while it can fight, hurt while flinching or flying, tipping back
     // (down: 0..1) from the first airborne frame to flat at the landing, 'down' on the floor, 'kneel' then 'crouch' getting
@@ -550,9 +549,10 @@ const BRAWL = (() => {
       [['SCORE', score], ['BEST', best('brawler', score)]].forEach(([k, v], i) => { E.font.text(g, k, X - 46, 76 + i * 16, '#b8b0d8', TXT); E.font.text(g, String(v), X + 92, 76 + i * 16, '#ffe070', TXR); });
     }
   }
-  // camera: zoom .75x to 1.5x (- = wheel); at 2x a 100 px fighter no longer fits under the HUD. Turning stays off: tried, a
-  // turned street loses its fronts (painted for this side only) and its screen-space bounds
-  return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: ['attack', 'kick', 'sweep', 'jump'], propSize: 2.4, camera: { zoom: [.75, 1.5] },   // props match 100 px fighters
+  // camera: the player zooms .75x to 1.5x (at 2x a 100 px fighter no longer fits under the HUD); a phone held upright
+  // starts at 1.5x, so the street fills more of it. Turning stays off: tried, a turned street loses its fronts (painted for
+  // this side only) and its screen-space bounds
+  return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: ['attack', 'kick', 'sweep', 'jump'], propSize: 2.4, camera: { zoom: [.75, 1.5], tall: 1.5 },   // props match 100 px fighters
     input: Object.assign({}, E.Input.DEFAULT, { kick: ['KeyK', 'Mouse2', 'Pad2'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad3'] }),
     enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw,
     state: () => ({ hero, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }) };   // for tests (end: the walkable street's right end)

@@ -542,7 +542,9 @@ const ADV = (() => {
     if (Math.floor(game.real * 3) % 2) px.rect(g, x + Math.round(hero.x / ROOM[0] * (w + 2)) - 1, y + 1 + Math.round(clamp((hero.y - OY) / ROOM[1], 0, 1) * (h - 4)), 2, 2, '#ffffff');
   }
   return { view: 'threequarter', views: ['threequarter', 'topdown', 'iso'], input: 'DEFAULT', res: 'ps1', propSize: 1.25, pausable: true, touch: ['attack', 'confirm'], enter: start, update, draw,
-    camera: { zoom: [.75, 2], rotate: true },   // a TileMap scene rotates cleanly
+    // the player zooms in to 2x, and out as far as the world round the rooms fills the screen: to .85x on a wide one, not
+    // at all held upright (its forest is sized for 1x there). A TileMap scene rotates cleanly
+    camera: { zoom: g => [g.upright ? 1 : .85, 2], rotate: true },
     state: () => ({ hero, foes, things, items, map, npcs, pets, talk }),   // for tests
     exit() { game.cam.room = null; game.cam.smooth = .18; if (gpu) gpu.enabled = false; L.enabled = false; } };
 })();

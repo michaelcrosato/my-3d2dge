@@ -348,7 +348,6 @@ const PLAT = (() => {
     });
   }
   function update(dt) {
-    fitZoom(1.5);   // a phone held upright: the level fills more of it
     for (const f of fx) { f.t += dt; f.x += f.vx * dt; f.z += f.vz * dt;
       if (f.kind !== 'blade') continue;               // a dropped sword falls, bounces and settles flat
       const gz = level.groundBelow(f.x, f.z + 8); f.vz -= 700 * dt; f.a += f.spin * dt;
@@ -546,7 +545,7 @@ const PLAT = (() => {
     }
     if (clear) { ribbon(40, 30, .6); E.font.title(g, 'STAGE CLEAR', r.W / 2, 46, { scale: 2, align: 'center', colors: ['#fffbe8', '#ffd36a', '#e0662a'] }); }   // a translucent ribbon keeps the lit gate visible
   }
-  return { view: 'side', views: ['side', 'brawler'], input: 'PLATFORMER', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2] },   // props at the hero's scale; zoom limits, no turning
+  return { view: 'side', views: ['side', 'brawler'], input: 'PLATFORMER', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2], tall: 1.5 },   // props at the hero's scale; the player zooms .75x to 2x (no turning), a phone held upright starts at 1.5x: the level fills more of it
     enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => { const b = level.bounds(v); return Object.assign({}, b, { y1: b.y1 + soilFor(b, game.H) }); }; A.music('adventure'); L.enabled = false; rimWas = game.r.rimAlpha; game.r.rimAlpha = .5;   // a stronger, zone-colored rim light
       P.ground = (x, y, z) => level.groundBelow(x, z + 1); },              // sparks and debris land and bounce on the platform under them
     exit() { game.r.rimAlpha = rimWas; P.ground = null; }, update, draw };

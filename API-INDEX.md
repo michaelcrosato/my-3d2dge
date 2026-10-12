@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.31.3)
+# my-3D2dge API index (v0.32.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.31.3"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.32.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -240,6 +240,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.touchSet(a, label = null, show = true)` †: one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null, near || talking)
 - `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
 - `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it
+- `input.zoom()` †: the camera zoom the player asked for since the last step, as a factor (1.1: 10% closer, .9: farther; 1: none): the wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy)
 - `input.aimSource = 'move'` †: what aims right now: 'move' | 'mouse' | 'pad'
 - `input.clickAt = null` †: clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked())
 - `input.clock = 0`: seconds of input time (the steps' dt added up)
@@ -258,6 +259,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `input.padLost = false`: true for the step after the gamepad in use was unplugged (a pausable scene pauses)
 - `input.padMove = [0, 0]`: the gamepad's left stick after the dead zone
 - `input.padPrev = []`: which gamepad buttons were down at the last step
+- `input.pinching = false` †: pinching: two fingers on the canvas are pinching the camera's zoom (they moved apart or together: not the stick, not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no action uses) and a pinch ask for it, read by zoom()
 - `input.preset` †: preset: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own)
 - `input.rumbleScale = .6` †: vibration strength 0..1 (0 = off; game.settings.rumble sets it)
 - `input.screen`: screen: the game's screen (mouse positions are read through it
@@ -369,7 +371,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 10. Game
 
-- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }). res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly), unless the player picks Frame rate 60
+- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }). res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly), unless the player picks Frame rate 60; camera: the camera of every scene without its own (a scene's camera option: the player's zoom, start)
 - `game.H`: the screen's height in game pixels (W is its width)
 - `game.W`: internal buffer size in pixels (HUD layout)
 - `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
@@ -391,14 +393,17 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.note(text, seconds = 1.2)`: a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1)
 - `game.onView(f)` †: call f(view) whenever the view changes (re-bake caches, move HUD)
 - `game.pause(reason = 'player')`: pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused. The player resumes (Escape, Start, Resume); resume() does it from code
-- `game.resetCamera()` †: undo setZoom and rotateView
+- `game.resetCamera()` †: undo setZoom and rotateView: the scene's own zoom again (camera.start, or camera.tall on a screen held upright; 1 without), no turn. The player's zoom stays (settings.zoom)
 - `game.resume()`: take the game out of pause (and close the pause screen)
 - `game.rotateView(deg)` †: turn the camera around the vertical axis in ground views: game.rotateView(45) (degrees). Side views never turn
 - `game.setView(v)`: switch the view: an id from E.VIEWS ('iso', 'side', ...) or a View; keeps zoom and turn
-- `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
+- `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3), the game's own; where the scene lets the player zoom (camera.zoom), theirs multiplies it (game.zoom is the two together). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
 - `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
-- `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch } (all optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a sub-menu closed). start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance(). boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
+- `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera } (all optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a sub-menu closed). camera: { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the wheel, - and =, a pinch, Settings, Camera zoom: theirs, kept, on top of the game's; false or none: they can't; a function of the game: a range per screen shape, g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at (tall: on a screen held upright, game.upright; 1 without); wheel: false leaves the mouse wheel to the game start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance(). boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
+- `game.upright`: true on a screen held upright (taller than 1.3 times its width: a phone in portrait), where a scene's camera.tall zoom applies
+- `game.zoomBy(k)` †: the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does nothing where the scene doesn't let the player zoom. Returns the zoom
+- `game.zoomRange()` †: the zooms the player may take the camera to here, [min, max] (the scene's camera.zoom, or the game's; a function of the game gives one per screen shape or level), or null where they can't (camera.zoom false or none)
 - `game.alpha = .5`: the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count
 - `game.audio`: chip-sound synthesizer: game.audio.sfx('jump'), game.audio.music(song)
 - `game.baseView` †: the chosen view without zoom and turn
@@ -458,7 +463,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.view`: the view the game draws in now (the chosen one, with zoom and turn: read it, change it with setView)
 - `game.views`: views this game is designed for (view cycling and the checker use it). null = every view
 - `game.yaw = 0` †: its turn in degrees on top of the view (rotateView)
-- `game.zoom = 1` †: the camera's zoom (1 = as the view is; setZoom)
+- `game.zoom = 1` †: the camera's zoom now (1 = as the view is): the game's (setZoom, a scene's camera.start) times the player's (settings.zoom: the wheel, a pinch), within the scene's camera.zoom range
 - `E.showError(title, e)`: show an error in the red box at the top of the page (the engine does it for errors in update and draw); a click hides it. Before play has started it shows on the boot screen instead, as a report a player can screenshot
 
 ## 10b. Standard features
