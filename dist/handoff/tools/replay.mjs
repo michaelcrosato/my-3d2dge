@@ -9,6 +9,8 @@
 //   --log    JavaScript evaluated in the page at the end, printed (e.g. "__ed.ED.hero.x"); without it, the game's own
 //            game.debug.snapshot() when it has one
 //   --keep-going  play on after the first frame whose checksum differs (by default it stops there)
+//   --pacing      no replay: the device's refreshes as recorded (a frame's time is its refresh's): the refresh, how many
+//                 were missed (the page or its GPU behind) second by second, and how unevenly (choppy play's evidence)
 // Prints how far it played, how many checksums matched and the first frame that differed. Exit code 1 when it diverged,
 // when an input's target was missing, or when the page threw. Pictures in --out (check-output/replay/ by default).
 // A session recorded on another build may play differently: it says so when the version or the build differs.
@@ -19,9 +21,31 @@ import { pathToFileURL } from 'node:url';
 
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
 const file = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--') && args[i - 1] !== '--keep-going'));
-if (!file) { console.error('Usage: node tools/replay.mjs session.json [--page page.html] [--to frame] [--shots f1,f2] [--out dir] [--log "<js>"] [--keep-going]'); process.exit(2); }
+if (!file) { console.error('Usage: node tools/replay.mjs session.json [--page page.html] [--to frame] [--shots f1,f2] [--out dir] [--log "<js>"] [--keep-going] [--pacing]'); process.exit(2); }
 const S = JSON.parse(readFileSync(file, 'utf8'));
 if (S.format !== 'my3d2dge-session') { console.error(file + ' is not a my-3D2dge session (format: ' + S.format + ')'); process.exit(2); }
+if (args.includes('--pacing')) {
+  // each recorded frame is a refresh the browser gave the page: gaps of 2 refreshes and more are refreshes it missed. The
+  // refresh: the shortest gap that recurs (to half a millisecond, 3 times and 1% of the gaps at least: a frame's time is
+  // its refresh's, so a refresh's gaps agree); uneven: a gap a different number of refreshes long than the one before (8
+  // then 17 ms: what reads as choppy)
+  const F = S.frames, gaps = F.slice(1).map((t, i) => t - F[i]).filter(g => g > 4), bins = new Map();
+  for (const g of gaps) { const k = Math.round(g * 2) / 2; bins.set(k, (bins.get(k) || 0) + 1); }
+  const k0 = [...bins].filter(([, c]) => c >= Math.max(3, gaps.length * .01)).map(([k]) => k).sort((a, b) => a - b)[0];
+  const near = gaps.filter(g => Math.abs(g - k0) <= .5), per = near.length ? near.reduce((a, g) => a + g, 0) / near.length : 16.7, n = g => Math.max(1, Math.round(g / per));
+  console.log(`${S.href}  v${S.version} ${S.build || ''}\n${S.ua}\n${F.length} frames over ${((F[F.length - 1] - F[0]) / 1000).toFixed(1)} s; the refresh ${per.toFixed(2)} ms (${Math.round(1000 / per)} Hz)`);
+  const hist = {}; for (const g of gaps) { const k = Math.min(4, n(g)); hist[k] = (hist[k] || 0) + 1; }
+  const missed = gaps.reduce((a, g) => a + n(g) - 1, 0), uneven = gaps.slice(1).filter((g, i) => n(g) !== n(gaps[i])).length;
+  console.log(`gaps: ${Object.entries(hist).map(([k, c]) => (k === '4' ? '4+' : k) + ' refresh' + (k === '1' ? '' : 'es') + ' ' + c).join(', ')}; ${missed} refreshes missed (${(missed / (gaps.length + missed) * 100).toFixed(1)}%), ${(uneven / Math.max(1, gaps.length - 1) * 100).toFixed(1)}% of gaps unlike the one before`);
+  console.log('second by second (frames, refreshes missed, the longest gap in ms):');
+  let t0 = F[0], c = 0, m = 0, long = 0, line = [];
+  for (let i = 1; i < F.length; i++) {
+    const g = F[i] - F[i - 1]; c++; m += n(g) - 1; long = Math.max(long, g);
+    if (F[i] - t0 >= 1000 || i === F.length - 1) { line.push(`${c}/${m}/${Math.round(long)}`); if (line.length === 8) { console.log('  ' + line.join('  ')); line = []; } t0 = F[i]; c = m = long = 0; }
+  }
+  if (line.length) console.log('  ' + line.join('  '));
+  process.exit(0);
+}
 const root = resolve('.'), out = resolve(opt('out', 'check-output/replay')); mkdirSync(out, { recursive: true });
 // (the repository has the engine in engine/; the handoff package, dist/handoff/, beside its tools/)
 const enginePath = ['engine/my-3d2dge.js', 'my-3d2dge.js'].map(f => join(root, f)).find(f => existsSync(f));

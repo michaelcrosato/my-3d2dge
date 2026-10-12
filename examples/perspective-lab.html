@@ -96,7 +96,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.30.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.31.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -174,7 +174,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.30.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.31.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -6414,8 +6414,8 @@ E.Menu = Menu;
  *    variables theme it (ink, paper, accent, muted, danger, line, font, titleFont), and a headless game keeps its screens'
  *    names and draws nothing.
  *    THE STANDARD MENU: every game gets one (new E.Game makes this shell for itself, and a game's own E.Shell takes over
- *    from it): the pause screen (Resume, the game's items, Settings, Controls, Full screen, Help, Quit to title with a
- *    confirmation), the settings screen (Display, Sound, Comfort and the game's own settings, from game.settings) and the
+ *    from it): the pause screen (Resume, the game's items, Settings, Controls, Full screen, Help, Save session while the
+ *    page is recorded, Quit to title with a confirmation), the settings screen (Display, Sound, Comfort and the game's own settings, from game.settings) and the
  *    controls screen (every action's keys and buttons, rebound by pressing the new one, conflicts said before anything
  *    changes; the controller's dead zone, aim, symbols and vibration; the touch buttons' side, size and opacity; restore
  *    defaults). new E.Game({ menu: { items: [['Restart', fn]], settings: [...], controls: { attack: 'Sword', skill:
@@ -6772,7 +6772,8 @@ class Shell {
     const all = this._focusables(), f = all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
     top.focus = undefined; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
   }
-  /** the standard pause screen's buttons after Resume and the game's own: Settings, Controls, Full screen, Help, Quit */
+  /** the standard pause screen's buttons after Resume and the game's own: Settings, Controls, Full screen, Help, Save
+   *  session (while the page is recorded: E.session), Quit */
   _pauseActs(acts) {
     const g = this.game, fs = g.fullscreen, M = g.o.menu || {}, quit = M.quit === false ? null : M.quit || 'title', help = this.o.screens && this.o.screens.help;
     if (this._std || this._items().length) acts.push(['Settings', () => this.show('settings')]);
@@ -6780,6 +6781,8 @@ class Shell {
     acts.push(['Controls', () => this.show('controls')]);
     if (g.o.fullscreen !== false && fs.supported && !fs.standalone) acts.push([fs.on ? 'Leave full screen' : 'Full screen', () => { fs.toggle(); }]);
     if (help) acts.push(['Help', () => this.show('help')]);
+    // a recorded page (?record=1) saves its session from the menu: a phone has no console (the share sheet, or a download)
+    if (E.session && E.session.recording) acts.push(['Save session', () => { E.session.share(); }]);
     if (quit && g.scenes && g.scenes[quit] && g.sceneName !== quit) acts.push(['Quit to ' + (quit === 'title' ? 'title' : actionName(quit).toLowerCase()), () => this.show('confirm', { kicker: 'Quit', title: 'Leave this game?', text: 'Progress since the last save is lost.',
       actions: [{ label: 'Keep playing', fn: () => this.back() }, { label: 'Quit', fn: () => { this.hide(); g.go(quit); } }] })]);
   }
