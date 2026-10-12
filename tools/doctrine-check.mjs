@@ -8,9 +8,10 @@
 // 1. assets (principle 4): no binary file in the repository outside the approved list: fonts anywhere, and the pictures
 //    our own tools draw for the docs (docs/assets/, written by tools/ed-codex-showcase.mjs). A binary is a file with a zero
 //    byte in its first 8 KB, or a picture, sound, model or archive by its extension.
-// 2. the manuals' budgets (principle 1): the agent edition's header, the API card and the API index, in cl100k tokens
-//    (exact when the optional gpt-tokenizer package is installed, otherwise estimated from each manual's own characters a
-//    token, measured and rounded down so the estimate errs high: the header 2.97, the API card 3.15, the index 3.29).
+// 2. the manuals' budgets (principle 1): the agent edition's header, the API card, the API index and the 3D engine's
+//    header (its manual), in cl100k tokens (exact when the optional gpt-tokenizer package is installed, otherwise
+//    estimated from each manual's own characters a token, measured and rounded down so the estimate errs high: the header
+//    2.97, the API card 3.15, the index 3.29, the 3D manual's estimate at 2.9).
 // 3. the API boundary (principle 8): engine-private members (names starting with _ that engine/my-3d2dge.js defines) used
 //    outside engine/. The uses that were there when the doctrine was adopted are grandfathered by area (GRANDFATHERED);
 //    a new one in the engine tier fails. A prototype (a Temporary lab in src/labs.json) may reach past the API: its uses
@@ -59,7 +60,8 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
     ['the API card (API.md)', read('API.md'), 15000, 3.1],   // (D8, D20)
-    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 37000, 3.25]   // (D17, D18, D22)
+    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 37000, 3.25],   // (D17, D18, D22)
+    ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 6000, 2.9]   // (D27)
   ];
   const line = [];
   for (const [name, text, budget, ratio] of MANUALS) {

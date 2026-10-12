@@ -32,10 +32,12 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['labs', 'node tools/labs-test.mjs', ['src/', 'vercel.json', 'tools/labs-test.mjs']],
   ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'vercel.json', 'tools/stress-test.mjs']],
   ['lab3d', 'node tools/lab3d-test.mjs', ['src/lab3d', 'vendor/', 'vercel.json', 'tools/lab3d-test.mjs', 'tools/vendor-3d.mjs']],
-  ['stress-world', 'node tools/stress-world-test.mjs', ['src/stress-world', 'vendor/', 'vercel.json', 'tools/stress-world-test.mjs']]
+  ['stress-world', 'node tools/stress-world-test.mjs', ['src/stress-world', 'vendor/', 'vercel.json', 'tools/stress-world-test.mjs']],
+  ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'vercel.json', 'API.md', 'tools/kit3d-test.mjs']]
 ];
-// changes that run everything: the engine (every page and suite uses it), the build, the dependencies (the lockfile)
-const EVERYTHING = ['engine/', 'tools/build.mjs', 'package-lock.json'];
+// changes that run everything: the engine (every page and suite uses it), the build, the dependencies (the lockfile);
+// not the 3D engine (only the 3D starter and kits load it: kit3d covers it)
+const EVERYTHING = ['engine/', 'tools/build.mjs', 'package-lock.json'], NOT_EVERYTHING = ['engine/my-3d2dge-3d.js'];
 // what is not a source: the build's output, the changelog, test pictures
 const IGNORE = ['examples/', 'dist/', 'check-output/', 'CHANGELOG.md'];
 
@@ -69,7 +71,7 @@ function versionOnly(base, f) {
   }
   return minus.length === plus.length && minus.sort().join('\n') === plus.sort().join('\n');
 }
-const covers = (paths, f) => paths.some(p => p === '*' || f === p || f.startsWith(p));
+const covers = (paths, f) => paths.some(p => p === '*' || f === p || f.startsWith(p)) && !(paths === EVERYTHING && NOT_EVERYTHING.includes(f));
 
 let chosen, why = {};
 if (opt('all')) chosen = SUITES;

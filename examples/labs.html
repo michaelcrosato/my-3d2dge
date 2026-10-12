@@ -140,7 +140,7 @@ const LABS = {
       "id": "kits",
       "title": "Starter kits",
       "short": "Kits",
-      "about": "Small games for an AI model to build from: one genre each, engine and API card included.",
+      "about": "Small games for an AI model to build from: one genre each, engine and API card included. The 3D ones put a real 3D world (three.js and Rapier) under the game.",
       "entries": [
         {
           "page": "dist/kits/my-3d2dge-adventure.html",
@@ -189,6 +189,24 @@ const LABS = {
           "title": "All in one file",
           "what": "The engine, its API card, all six games and the animation lab, with a title menu. A kit is one game of it, small enough for a chat model.",
           "links": [["Compact edition", "dist/my-3d2dge-compact.html"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-3d-action.html",
+          "title": "3D action",
+          "what": "A torch-lit hall in real 3D (Zelda 64, Diablo): a combo, a dash, a jump and a bolt against five waves, then a knight.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-3d-platformer.html",
+          "title": "3D platformer",
+          "what": "A sunlit course of islands over the void (Mario 64, Spyro): double jumps, moving platforms, springs, coins and three stars.",
+          "links": []
+        },
+        {
+          "page": "dist/my-3d2dge-3d.html",
+          "title": "3D in one file",
+          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and both 3D games. Served, not opened from a disk.",
+          "links": []
         }
       ]
     },
@@ -246,7 +264,8 @@ const LABS = {
           "question": "What does the stress test become built from the ground up as a 3D game (three.js r182, Rapier physics, a hall written as text), sharing only the engine's animation system, and how does it hold up?",
           "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",
           "what": "The stress test's job done as a 3D game, its own way: every monster is a Rapier body (the crowd pushes and piles up by itself, big hits throw bodies into the air, crates and barrels fly), the hero walks, dashes and jumps onto low walls and galleries, monsters find their way up the stairs after him. The hall is the 2D one's layout written as ASCII text, with a raised rune dais and two galleries. Characters are Cards (the engine draws them) or Puppets, in the engine's views (perspective or orthographic), side scrolling with depth, chase, first person, fly or fixed; filters (Comic cel or Pixel on the scene, the characters or the hall, bloom, FXAA). The benchmark adds a physics column.",
-          "links": [["Puppets", "?look=puppet"], ["400 monsters", "?monsters=400"], ["Chase camera", "?cam3=chase&look=puppet&res=balanced"], ["Side scrolling with depth", "?view=side&depth=1"], ["Orthographic three-quarter", "?view=threequarter&proj=ortho"], ["Comic cel", "?fx=cel&look=puppet&res=full"], ["On WebGL 2", "?backend=webgl"]]
+          "links": [["Puppets", "?look=puppet"], ["400 monsters", "?monsters=400"], ["Chase camera", "?cam3=chase&look=puppet&res=balanced"], ["Side scrolling with depth", "?view=side&depth=1"], ["Orthographic three-quarter", "?view=threequarter&proj=ortho"], ["Comic cel", "?fx=cel&look=puppet&res=full"], ["On WebGL 2", "?backend=webgl"]],
+          "next": "dist/my-3d2dge-3d.html"
         },
         {
           "page": "vesper-ui",
@@ -309,7 +328,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Developer panel.');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.33.1 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.34.0 · dev-build', foot);
 </script>
 </body>
 </html>

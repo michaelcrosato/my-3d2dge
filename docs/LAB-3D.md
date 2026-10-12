@@ -12,6 +12,10 @@ It is a test, not a new engine. Nothing in `engine/` or `src/emberdeep/` changes
 the mocap player and Dan's body as they are. When the question is settled, the lab, its vendored libraries and its
 Labs entry are deleted or promoted.
 
+**Since v0.34.0 the stress world's parts are an engine:** `engine/my-3d2dge-3d.js` (the level as text, the physics,
+cards and puppets, the cameras, the filters) puts a 3D world under any my-3D2dge game, with its own starter kits
+(`docs/ENGINE-3D.md`, D27). The vendored libraries are the engine's now too; the labs stay as the prototypes it came from.
+
 ## Running and checking it (since v0.9.0)
 
 The lab is at `/lab-3d` (Labs → Temporary → 3D world lab); locally, run

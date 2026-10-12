@@ -2,7 +2,7 @@
 
 **My "3D" 2D Game Engine.** A general-purpose, retro-modern 2D game engine built for AI models (LLMs). Everything is drawn by code, with no image or sound files, and the whole engine fits in one self-contained HTML file you can hand to any model.
 
-**Play it live: [my-3d2dge.vercel.app](https://my-3d2dge.vercel.app)** (Emberdeep, the signature game). The other demos are [/arena](https://my-3d2dge.vercel.app/arena), [/stress-test](https://my-3d2dge.vercel.app/stress-test) and [/perspective-lab](https://my-3d2dge.vercel.app/perspective-lab), and the starter kits are at /kits/&lt;adventure|animlab|brawler|platformer|rpg|shooter|stealth&gt;. The engine for a script tag is [/dist/my-3d2dge.min.js](https://my-3d2dge.vercel.app/dist/my-3d2dge.min.js), and the one-file edition for AI coding agents is [/dist/my-3d2dge-agent.js](https://my-3d2dge.vercel.app/dist/my-3d2dge-agent.js). Every merge to `main` redeploys the site (see `vercel.json`).
+**Play it live: [my-3d2dge.vercel.app](https://my-3d2dge.vercel.app)** (Emberdeep, the signature game). The other demos are [/arena](https://my-3d2dge.vercel.app/arena), [/stress-test](https://my-3d2dge.vercel.app/stress-test) and [/perspective-lab](https://my-3d2dge.vercel.app/perspective-lab), and the starter kits are at /kits/&lt;adventure|animlab|brawler|platformer|rpg|shooter|stealth&gt;; the 3D kits, a real 3D world under the game, are at [/kits/3d-action](https://my-3d2dge.vercel.app/kits/3d-action) and [/kits/3d-platformer](https://my-3d2dge.vercel.app/kits/3d-platformer), both in [/3d](https://my-3d2dge.vercel.app/3d). The engine for a script tag is [/dist/my-3d2dge.min.js](https://my-3d2dge.vercel.app/dist/my-3d2dge.min.js), and the one-file edition for AI coding agents is [/dist/my-3d2dge-agent.js](https://my-3d2dge.vercel.app/dist/my-3d2dge-agent.js). Every merge to `main` redeploys the site (see `vercel.json`).
 
 ## North star
 
@@ -23,6 +23,7 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 | **`dist/handoff/`** ([on the site](https://my-3d2dge.vercel.app/handoff/); `node tools/handoff.mjs --zip <file>` for a chat) | **Coding agents that need the full engine** (props, lighting, x-ray, sessions: what the agent edition leaves out). The readable engine and the agent edition, `API.md`, `API-INDEX.md` (every public name), `AI_GUIDE.md`, the tools that check, film and replay a game, and a template game with a headless test. Its `README.md` says where to start. | text only, ~890 KB; read `API.md`, search the rest |
 | **`dist/my-3d2dge-agent.js`** | **AI coding agents** (Claude Code, Codex, Cursor and the like). The [agent edition](#the-agent-edition-for-ai-coding-agents): the essential engine in one readable file whose header is the whole manual, with three complete example games. An agent reads the header and nothing else. | header ~9k tokens, whole file ~83k |
 | **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `shooter`, `rpg`, `stealth`), or `animlab` to explore the animation system. Fits a 200k context with room to work. | ~119k-130k tokens |
+| **`dist/kits/my-3d2dge-3d-<genre>.html`** | A [3D kit](#real-3d-the-3d-engine): the same, with the 3D engine and its manual and one 3D slice (`action`, `platformer`). Served, not opened from a disk: it loads three.js and Rapier from `vendor/`. | ~200k-205k tokens |
 | **`dist/my-3d2dge-compact.html`** | All six slices and the animation lab, engine minified. | ~229k tokens |
 | **`dist/my-3d2dge.html`** | The complete reference: readable engine, all six slices and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~275k tokens |
 
@@ -53,10 +54,26 @@ The model copies the closest slice and replaces the code between `GAME START` an
 
 The file is 83k tokens in all (140k for the readable full engine, 128k-133k for a genre kit). The header ends with a map of what lies outside the file and how to take from it: the store of motion clips (search the catalogs, cut the clips a game needs into a small set, play them on any Humanoid), Emberdeep's worked examples and the genre kits. `API.md`, `AI_GUIDE.md` and the full engine's header carry the same map, and `npm run test:agent` checks that every path it names exists and that its recipe works. Its source is `engine/my-3d2dge-agent.js`, a curated copy of the engine, so fixes to the full engine are ported to it by hand. `node tools/build.mjs` copies it to `dist/`.
 
+### Real 3D: the 3D engine
+
+`engine/my-3d2dge-3d.js` (`dist/my-3d2dge-3d.js`) puts a real 3D world under a game, built from the stress test's 3D
+world: three.js r182 draws it and Rapier 0.19.3 simulates it, both vendored in `vendor/`. The 2D engine still runs the
+game (`new E.Game({ ..., bg: null })`: its canvas is clear, the HUD and menus draw over the 3D picture), so a 3D game
+keeps the pause menu, settings, touch buttons, boot screen and sound. `new E.World3D(game, { level })` gives a level
+written as text (walls, raised floors, stairs, platforms in the air, pits, pillars, braziers), heroes walked by Rapier's
+character controller and mobs that are physics bodies, the 2D engine's rigs as cards or 3D puppets, pickups and set
+dressing drawn by code, moving platforms, a camera with the 2D views in real 3D plus chase, first person and fly, torches,
+a sun, a sky, the game's particles in 3D, and filters (Comic cel, Pixel). The same inputs give the same `world.hash()` on
+WebGPU and WebGL 2. Its header is the whole manual (about 5,000 tokens, with a complete game). The 3D starter
+(`dist/my-3d2dge-3d.html`, [/3d](https://my-3d2dge.vercel.app/3d)) has two slices, each a 3D kit: ACTION (a torch-lit hall,
+a combo, a dash, a jump and a bolt against five waves and a knight) and PLATFORMER (a course of islands over the void:
+double jumps, moving platforms, springs, coins and three stars). See `docs/ENGINE-3D.md`.
+
 ## Try it
 
 | File | What it shows |
 |---|---|
+| `dist/my-3d2dge-3d.html` | The 3D starter (served: `npx serve`, then `/dist/my-3d2dge-3d.html`): a title stage in 3D and the two 3D slices. `C` changes the camera (the view, chase, first person), `V` the view, `[` / `]` turn it, the wheel zooms; the pause menu's Display picks cards or puppets, the picture's resolution, shadows and a filter. Deep links: `#action`, `#platformer`. |
 | `dist/my-3d2dge.html` | Title menu plus the six vertical slices and the animation lab. Arrows and Enter; `V` changes the view, `-` / `=` or the mouse wheel zoom, `[` / `]` turn the camera where a scene allows it, `0` resets it, `M` mutes. |
 | **`examples/emberdeep.html`** | **Emberdeep**, the engine's signature game: a hack-and-slash that goes down forever (see below). Deep links: `#town`, `#depth-7`, `#proving`, `#gallery`, or one gallery entry such as `#gallery/bestiary/husk`, `#gallery/skills/whirlwind`, `#gallery/poses/fall` or `#gallery/moves/climb-up`. |
 | `examples/arena.html` | **Emberwell**, an action-RPG arena with WebGPU lighting. One game in four views: isometric (Diablo, Bastion), three-quarter (Zelda, Stardew Valley), top-down and brawler. Keys `1`-`4` or `V` switch, or open `arena.html#threequarter`. |
@@ -272,9 +289,10 @@ node tools/build.mjs
 This writes:
 - the `examples/`;
 - `dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`;
-- the genre kits in `dist/kits/`;
+- the genre kits in `dist/kits/`, and the 3D starter `dist/my-3d2dge-3d.html` with a 3D kit per slice;
 - the engine alone as `dist/my-3d2dge.js` and `dist/my-3d2dge.min.js`, for multi-file projects;
-- the agent edition as `dist/my-3d2dge-agent.js` (copied from `engine/my-3d2dge-agent.js`).
+- the agent edition as `dist/my-3d2dge-agent.js` (copied from `engine/my-3d2dge-agent.js`);
+- the 3D engine as `dist/my-3d2dge-3d.js` (copied from `engine/my-3d2dge-3d.js`).
 
 To test any game file in a headless browser, run the checker:
 
@@ -290,6 +308,7 @@ npm run test:mocap                # both animation sets on the mannequin and the
 npm run doctrine:check            # the doctrine's quick checks: binary files, the manuals' token budgets, the API boundary, the decisions log
 npm run test:determinism          # a fight in Emberdeep and in a starter game, played twice under the harness: the same pixels
 npm run test:replay               # sessions recorded in real time (desk, phone touch, a starter) replay to the same state
+npm run test:kit3d                # the 3D engine and kits: their rules, the manual's quick start, every 3D kit on WebGL 2 and WebGPU (the same proof hash), a phone
 npm run test:phone                # the starter kits on an emulated phone, upright and on its side (about a minute): first tap, steering, reach, frame time, thumb-sized buttons
 node tools/replay.mjs session.json --shots 600   # replay a recorded session (a bug report) headless, with pictures
 npm run bench -- --brief assassins-creed --dry-run   # the North Star's measures: a fresh agent, a brief, the handoff package (a real run spends money: ask first)
@@ -315,7 +334,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.33.1**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.34.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Developer panel, the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
@@ -325,6 +344,7 @@ One version number covers the engine, its agent edition, the docs and the games:
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 9,000 tokens, with three complete example games.
 - `API-INDEX.md`: every public name in the engine, one line each (signature, units, defaults, what it does), with the height rules at the top. Written by `tools/api-index.mjs` from the engine; search it.
 - `AI_GUIDE.md`: the full guide for models and people. It covers frame order, every system, genre recipes, the remake workflow and a pre-handoff checklist.
+- `docs/ENGINE-3D.md`: the 3D engine (`engine/my-3d2dge-3d.js`) and the 3D kits: how they sit on the 2D engine, what they hold, how they are checked, and what three.js and Rapier taught.
 - `docs/CHARACTERS.md`: adding a playable character to Emberdeep, from a brief to a checked hero: the scaffold, the body contract, the character test, the character sheet and the balance run.
 - `CHANGELOG.md`: what each version changed, by part (rendering, animation, art, mocap, Emberdeep, characters, tools, docs). `CLAUDE.md`: the rules every change follows (versioning, building, testing).
 - `docs/MOCAP.md`: importing ready-made skeletal animation into the readable key-pose format: a step-by-step guide to adding a library (`tools/to-glb.py` converts Blender, FBX and BVH files, `tools/anim-import.mjs` imports, `tools/anim-sheet.mjs` draws contact sheets for the catalog, `tools/anim-set.mjs` picks a game's clips), where to get more animation and what it costs, retargeting onto the engine's rigs, and the hero's captured moments.

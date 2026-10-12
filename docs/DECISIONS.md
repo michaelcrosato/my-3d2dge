@@ -439,3 +439,25 @@ An entry:
   locked the pacing in (since D25)
 - **Confirmed:** 2026-10-12, by the owner on the Galaxy S25 (v0.31.2): the adventure smooth with Frame rate on Auto, the
   readings this entry waited for
+
+## D27 · 2026-10-12 · A 3D engine on three.js and Rapier, with its own kits
+
+- **Principle:** 7 (common ground: here, no dependencies in the engine or the games; every page one self-contained file,
+  D5), 6 (WebGPU only), and D3's note that the 3D labs were leaving for their own repository
+- **Call:** `engine/my-3d2dge-3d.js` is an engine-tier module that depends on the two libraries the 3D labs pinned and
+  vendored (three.js r182, Rapier 0.19.3; D9), and its kits (`src/starter3d/`, `dist/kits/my-3d2dge-3d-*.html`,
+  `dist/my-3d2dge-3d.html`) depend on it. It keeps three.js's WebGL 2 fallback, as the 3D labs do (D3): the code is
+  WebGPU's (WebGPURenderer, node materials, TSL), and three falls back by itself where a browser has no WebGPU. A 3D kit
+  is not one self-contained file: it loads the libraries from `/vendor/` through its import map, so it is served. Its
+  manual is its header, held to 6,000 tokens by `tools/doctrine-check.mjs` (5,000 when it landed); it is not in
+  `API-INDEX.md`, whose budget is the 2D engine's. The 3D labs stay here, the stress world as the prototype the engine was
+  built from.
+- **Why:** the owner asked for the equivalent of the starter kits on the stress world's 3D engine. A kit is what models
+  copy, so the engine under it is the engine tier, with versions, a changelog, a check and a manual. The libraries are
+  the ones the doctrine already chose for what models know (principle 9), and nothing in the 2D engine or its games
+  changes: a 2D page loads none of it. The fallback keeps the kits playable on every phone that reviews them (principle
+  10). What would change it: the owner moving the 3D work to its own repository (D3), or WebGPU on every device the games
+  are judged on (then the fallback goes).
+- **Answered:** the kits, yes (the owner asked for them, 2026-10-12); the dependency, the fallback, the served pages and
+  the budget: no, made at once as reversible calls, flagged in the pull request, to review
+- **Landed in:** v0.34.0
