@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.30.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.31.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -340,7 +340,7 @@ if (game.debug.snapshot().hero[2] !== 32) throw new Error('the hero should have 
   - every input and the frame it arrived before: keys, pointer and touch, wheel, clicks and form edits, focus, visibility, resize, full screen;
   - gamepad readings, the media queries the game asked, the safe-area insets, the screen, and the save (`localStorage`) at the start;
   - a checksum every 60 frames.
-- `E.session.share()` saves the session: the share sheet on a phone, a download elsewhere. In Emberdeep it is Developer → Guide → Record a session.
+- `E.session.share()` saves the session: the share sheet on a phone, a download elsewhere. In Emberdeep it is Developer → Guide → Record a session; on any recorded page the standard pause menu has Save session (a phone has no console). `node tools/replay.mjs <file> --pacing` reads the device's refreshes from it without replaying: the refresh, the ones missed second by second, how unevenly (a report of choppy play).
 - `node tools/replay.mjs session.json` replays it in headless Chromium at the recorded screen size, frame by frame, and reports the first checksum that differs. Useful options:
   - `--to 1800` stops at a frame; `--shots 600,1200` saves screenshots;
   - `--log "__ed.ED.hero"` prints any state at the end;

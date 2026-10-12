@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.31.0 (2026-10-12)
+
+A report of choppy play from a phone, with its evidence: the device's own refreshes, recorded and read in a second.
+
+- **Engine**: a recorded page (`?record=1`, `E.session.record(true)`) has Save session in the standard pause menu: the session to the share sheet on a phone (a download elsewhere). A phone has no console to call `E.session.share()` from.
+- **Tools**:
+  - `replay.mjs --pacing`: no replay, the device's refreshes as the session recorded them (a frame's time is its refresh's): the refresh (the shortest gap that recurs), how many were missed and how unevenly, second by second. A 120 Hz phone dropping frames reads at a glance.
+  - `phone-test`: a recorded adventure's pause menu, tapped on an emulated phone, has Save session, and it shares the session with its frame times (41 checks).
+- **Docs**: `AI_GUIDE.md` (sessions), `CLAUDE.md` (bug reports).
+
 ## 0.30.1 (2026-10-12)
 
 Codex's review of 0.30.0.

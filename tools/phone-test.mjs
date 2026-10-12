@@ -10,6 +10,7 @@
 //              behind (refreshes missed) the same, then each refresh again after a hold; on a virtual clock (deterministic,
 //              a minute of play in seconds): the hold's backoff, a display changing its refresh rate while paced, the
 //              player's Frame rate (Auto, 60, Full)
+//      session: a recorded page (?record=1) saves its session from the pause menu (its frame times: the device's refreshes)
 //   5. rpg: a whole turn is played by taps, and every tap target (commands, foes) is at least 44 CSS pixels (a thumb)
 // Usage: node tools/phone-test.mjs [kit ...]   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1
 // on failure. Each check prints what it measured, so a failure says what a player would have seen.
@@ -221,6 +222,25 @@ if (want('pacing')) {
   const nopace = await vt(() => { const g = window.__game.game, out = {}; g.o.pace = false; __vt.gpu = 8; __vt.run(1500, 120); out.auto = g.drawEvery;
     g.settings.set('frameRate', '60'); __vt.run(500, 120); out.sixty = g.drawEvery; g.settings.set('frameRate', 'auto'); g.o.pace = undefined; __vt.gpu = 0; return out; });
   check('virtual: pace: false draws every refresh, unless the player picks 60', nopace.auto === 1 && nopace.sixty === 2 && !errors.length, `Auto: every ${nopace.auto}, 60: every ${nopace.sixty}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+  await ctx.close();
+}
+
+/* 4d. a recorded page (?record=1) saves its session from the pause menu (a phone has no console): its frame times, the
+   device's own refreshes, are what a report of choppy play needs */
+if (want('session')) {
+  console.log('session: saved from the menu');
+  const ctx = await browser.newContext({ viewport: SIDE, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => { navigator.canShare = () => true; navigator.share = d => d.files[0].text().then(t => { window.__shared = { name: d.files[0].name, frames: JSON.parse(t).frames.length }; }); });
+  await page.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-adventure.html')).href + '?record=1#adventure');
+  await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'adventure');
+  await wait(1000);
+  await page.tap('#e3-corner button[aria-label=Menu]'); await wait(300);
+  const btns = await ev(page, () => [...document.querySelectorAll('.esh-sh button')].map(b => b.textContent));
+  const save = await page.$('.esh-sh button:has-text("Save session")'); if (save) await save.tap();
+  await page.waitForFunction(() => window.__shared, null, { timeout: 3000 }).catch(() => {});
+  const got = await ev(page, () => window.__shared || null);
+  check('session: a recorded page\'s pause menu has Save session; it shares the session, its frame times in it', btns.includes('Save session') && got && /^session-.*\.json$/.test(got.name) && got.frames > 30 && !errors.length, `${btns.join(', ')}; shared ${got ? got.name + ' with ' + got.frames + ' frames' : 'nothing'}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
   await ctx.close();
 }
 
