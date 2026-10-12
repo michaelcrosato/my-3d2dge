@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.26.3: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.27.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -370,7 +370,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.26.3', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.27.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1285,7 +1285,9 @@ class Game {
     on(window, 'pointerup', e => {
       if (e.pointerType === 'mouse') return;
       if (!this._fsAuto && !(e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) this._fsAuto = this._autoFull();
+      const s = this.scene; if (!this._guard && this.o.backGesture !== false && s && (s.pausable || this.sceneName === 'main') && window.top === window && history.pushState) try { history.pushState({ e3: 'back' }, ''); this._guard = true; } catch (err) { /* sandboxed */ }
     }, { capture: true });
+    on(window, 'popstate', e => { if (!this._guard || (e.state && e.state.e3 === 'back')) return; this._guard = false; if (!this.back()) this.note('BACK AGAIN TO LEAVE', 1.5); });   // a phone's back pauses play first
     on(window, 'pointermove', e => { if (e.pointerType === 'mouse' && e.clientY < 80 && (e.movementX || e.movementY)) this._mouseTop = performance.now(); }, { passive: true });
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
   }
@@ -1295,6 +1297,7 @@ class Game {
     if ((o !== undefined && o !== 'tap') || this.settings.fullscreen === false || !fs.supported || fs.standalone || !(window.matchMedia && matchMedia('(pointer: coarse)').matches) || (ua && !ua.isActive)) return false;
     fs.enter(true); return true;
   }
+  back() { const s = this.scene; if (!s || !(s.pausable || this.sceneName === 'main')) return false; if (this.paused) this.resume(); else this.pause('player'); return true; }   // (the full engine's: a menu screen first)
   _cornerSync() {   // shown while the game isn't being played (a title, a pause), after the mouse comes near the top, the menu always on a touch screen
     const c = this._corner; if (!c) return;
     const s = this.scene, fs = this.fullscreen, main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
@@ -1615,6 +1618,7 @@ function pageSetup(canvas) {   // no page gestures, selection or callouts on the
   const st = canvas && canvas.style;
   if (st) { st.touchAction = 'none'; st.userSelect = 'none'; st.webkitUserSelect = 'none'; st.webkitTouchCallout = 'none'; st.webkitTapHighlightColor = 'transparent'; }
   if (_paged || !document.head) return; _paged = true;
+  for (const el of [document.documentElement, document.body]) if (el) el.style.overscrollBehavior = 'none';   // no pull to refresh or swipe off the page
   const meta = (name, content) => { let m = document.querySelector('meta[name="' + name + '"]'); if (!m) { m = document.createElement('meta'); m.name = name; m.content = content; document.head.appendChild(m); } return m; };
   const vp = meta('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover'); if (!/viewport-fit/.test(vp.content)) vp.content += ', viewport-fit=cover';
   meta('mobile-web-app-capable', 'yes'); meta('apple-mobile-web-app-capable', 'yes');

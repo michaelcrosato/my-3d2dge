@@ -7,8 +7,8 @@
  * sparks and casts Fire, Sera jabs with her staff, then crosses and roundhouses, and raises it to Cure; the Dread Knight
  * slashes, bashes and swings a Doom Blade, the Gargoyle dives claws first or beats up a gale, the Bomb rams or spits.
  * ANY SCREEN: the backdrop is painted at the screen's size, its ground with the plaza's own grass and light so the plaza's
- * edge melts into it; the HUD band sits on the bottom edge, or on a tall screen (a phone held upright) under the battle,
- * with a deck below it for the thumbs; LAYOUT() says where, and the band slides clear of the touch buttons.
+ * edge melts into it, a tall screen's sky darkening to the first stars; the HUD band sits on the bottom edge and the
+ * battle in the space above it (LAYOUT()). TOUCH: no buttons; tap a command, then a foe (or the commands to go back).
  * ===================================================================================== */
 const RPG = (() => {
   /* ---- BACKDROP: a sunset painted once per screen size in crisp pixel shapes like the sprites (zoom and turn move only
@@ -27,8 +27,9 @@ const RPG = (() => {
       const q = E.tex.grass(wx, wy, GRASS), o = (y * W + x) * 4; for (let i = 0; i < 3; i++) d[o + i] = lerp(lerp(q[i] * k, lerp(COOL[i], WARM[i], warm), .28), HAZE[i], haze); d[o + 3] = 255;
     }
     g.putImageData(im, 0, 0);
-    for (let y = 0; y < 100 + oy; y++) {   // sky rows (the top's color above the painting), a smooth sun glow (no bands, no dither)
-      const s = skyAt(Math.max(0, y - oy)); px.rect(g, 0, y, W, 1, s);
+    for (let y = 0; y < 100 + oy; y++) {   // sky rows (above the painting, a tall screen's: night coming), a smooth sun glow (no bands, no dither)
+      const s = y < oy ? E.mix('#07061a', SKY[0], clamp(1 - (oy - y) / 170, 0, 1)) : skyAt(y - oy); px.rect(g, 0, y, W, 1, s);
+      if (y < oy + 24) for (let x = 0; x < W; x++) { const h = E.hash2(x * 3 + 1, y * 5 + 2); if (h > .9965 - clamp((oy - y) / 4000, 0, .004)) px.dot(g, x, y, h > .9993 ? '#ffffff' : E.mix(s, '#fff0d8', .6)); }   // the first stars
       for (let x = Math.max(0, sx - 100); x < Math.min(W, sx + 100); x++) { const k = 1 - Math.hypot((x - sx) / 2.6, y - sy) / 36; if (k > 0) px.dot(g, x, y, E.mix(s, '#ffe8b8', k * k * .85)); }
     }
     g.translate(ox, oy);   // the rest is drawn as for 320 x 240, the far hills and trees running on across a wide screen
@@ -51,9 +52,9 @@ const RPG = (() => {
     for (let x = x0 - ((x0 - 1) % 5 + 5) % 5; x < x1; x += 5) { const r = 4 + 3 * E.noise2(x * .09, 3), y = 79 - r * .7; px.disc(g, x + 1, y - 1, r, '#b25c5e'); px.disc(g, x, y, r, '#2e2040'); }   // treeline, rim-lit
     px.rect(g, x0, 79, x1 - x0, 3, '#2e2040'); return c;   // its foot, on the grass
   }
-  // where things go on this screen: the HUD band's top (Y), the camera focus's height on screen (fy). A tall screen keeps
-  // the battle up top with the band under it and a deck below; a wide one puts the band on the bottom edge, as on 320 x 240
-  const layout = (W, H) => { const Y = H > 300 ? clamp(Math.round(H * .45), 167, H - 73) : H - 73; return { Y, fy: Y - 47 }; };
+  // where things go on this screen: the HUD band's top (Y: on the bottom edge, a little higher on a phone, off its home
+  // bar), the camera focus's height on screen (fy: the battle just above the band, or on a tall screen 3/5 down the sky)
+  const layout = (W, H) => { const Y = H - 73 - (game.input.lastDevice === 'touch' ? 8 : 0); return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * .6)) }; };
   let backdrop = null;   // painted on the first draw, again for a new screen size
 
   /* ---- FLOOR: a round cobbled plaza (a ground circle projects to a wide ellipse: reads as floor). floorTex runs
@@ -196,7 +197,7 @@ const RPG = (() => {
   };
   const PAUSE = { wind: .2, active: .05, recover: .35 }, GO = .35, BACK = .4, FLY = .3, DIE = .9, WAVE = 400;   // seconds: out, back, a bolt's flight, a monster's death; a wave's speed
   const COMMANDS = h => [h.attack, h.skill, 'defend', 'potion', 'run'];
-  let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, frame = 0;
+  let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, band, frame = 0;   // band: the HUD's commands box on screen (taps)
   const alive = l => l.filter(c => !c.dead), isHero = c => party.includes(c), size = c => c.rig ? c.rig.o.size : 1.2;
   const unit = (d, hero) => {
     const body = d.rig ? new E.Humanoid(d.rig) : d.blob && new E.Blob(d.blob);   // both kick() and draw()
@@ -367,6 +368,7 @@ const RPG = (() => {
     // ambience: drifting petals, brazier embers
     if (E.chance(dt * 5)) P.add({ kind: 'bit', x: E.rand(0, 200), y: E.rand(10, 140), z: E.rand(50, 90), vx: E.rand(10, 22), vz: -4, g: 5, drag: .2, max: 6, size: E.chance(.4) ? 2 : 1, color: E.pick(['#ffc0d0', '#ffe0e8', '#ffd890']) });
     if (E.chance(dt * 6)) P.add({ kind: 'ember', x: E.pick([100, 132]) + E.rand(-3, 3), y: 8, z: 20, vz: E.rand(18, 30), vx: E.rand(-4, 4), max: 1, color: '#ff8a2a' });
+    if ((mode === 'command' || mode === 'target') && tapped()) return;
     if (mode === 'wait') tick(dt);
     else if (mode === 'act') play(act, dt);
     else if (mode === 'command') menu.update();
@@ -375,6 +377,18 @@ const RPG = (() => {
       if (d) { cursor = (cursor + n + d) % n; A.sfx('select'); }
       if (inp.pressed('confirm')) { inp.consumeAll(); A.sfx('confirm'); order(pending, list[cursor]); } else if (inp.pressed('cancel')) { inp.consumeAll(); A.sfx('cancel'); mode = 'command'; }
     }
+  }
+
+  // TAPS (a click works too): a command picks it; then a foe (or ally) is the target, the commands go back
+  function tapped() {
+    const c = game.input.clicked(); if (!c || !band) return false;
+    const [x, y] = c, onCmds = x >= band.X + 4 && x < band.X + 96 && y >= band.Y && y < band.Y + 66, k = Math.floor((y - band.Y - 3) / 10), it = menu.items[k];
+    if (mode === 'command' && onCmds && it && !it.disabled) { game.input.consumeAll(); menu.i = k; A.sfx('confirm'); pick(k); return true; }
+    if (mode !== 'target') return false;
+    const i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < 14 + u.h * .25 && Math.abs(y - sy) < u.h * .6 + 8; });
+    if (i >= 0) { game.input.consumeAll(); cursor = i; A.sfx('confirm'); order(pending, list[i]); return true; }
+    if (onCmds) { game.input.consumeAll(); A.sfx('cancel'); mode = 'command'; return true; }
+    return false;
   }
 
   /* ---- DRAW ---- */
@@ -428,7 +442,7 @@ const RPG = (() => {
     }, { emissive: true });
   }
   function draw(r) {
-    const key = r.W + 'x' + r.H; if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, layout(r.W, r.H).fy); backdrop.key = key; }
+    const { fy } = layout(r.W, r.H), key = r.W + 'x' + r.H + ':' + fy; if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, fy); backdrop.key = key; }
     r.ctx.drawImage(backdrop, 0, 0);
     plaza.drawFloor(r); plaza.queueWalls(r); for (const [name, x, y, z, o] of PROPS) r.prop(name, x, y, z, o);
     for (const c of all) drawUnit(r, c); for (const f of fx) drawFx(r, f);
@@ -454,10 +468,7 @@ const RPG = (() => {
   const tiny = (g, s, x, y, c) => E.font.text(g, s, x, y, c, { font: 'tiny', outline: false });
   function hud(g, r) {
     const { Y } = layout(r.W, r.H), choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
-    // the band's 316 px: centred, or beside the touch buttons where they would cover it (left of them, or right of them when
-    // the player has put them on the left)
-    const ta = game.input.touchArea(), mid = Math.round((r.W - 320) / 2), X = !(ta && ta.y0 < Y + 66) ? mid
-      : ta.x0 > r.W / 2 ? Math.max(0, Math.min(mid, Math.floor(ta.x0) - 320)) : Math.min(r.W - 320, Math.max(mid, Math.ceil(ta.x1)));
+    const X = Math.round((r.W - 320) / 2), touch = game.input.lastDevice === 'touch'; band = { X, Y };   // the band's 316 px, centred
     // an arrow over the hero on turn, the glove on the target
     if (choosing) { const [sx, sy] = r.w(actor.x, actor.y, actor.z + actor.h + 5); px.poly(g, [[sx - 5, sy - 7 + bob], [sx + 5, sy - 7 + bob], [sx, sy - 1 + bob]], '#ffe060'); px.rect(g, sx - 3, sy - 6 + bob, 6, 1, '#fff8c0'); }
     if (mode === 'target') { const c = list[cursor], [sx, sy] = r.w(c.x, c.y, c.z + c.h * .55); px.sprite(g, HAND, sx - 28 + bob, sy - 4); }
@@ -465,11 +476,12 @@ const RPG = (() => {
     const top = mode === 'command' ? MOVES[COMMANDS(actor)[menu.i]].info : mode === 'target' ? list[cursor].name : note;
     if (top && !log.open) { const w = E.font.width(top) + 24, c = Math.round(r.W / 2); E.ui.box(g, c - w / 2, 5, w, 18, { bg: WIN }); txt(g, top, c, 10, '#ffffff', 'center'); }
     // a near-black band under the windows; left: commands, spoils or monsters
-    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818'); E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });   // (down to the bottom: a tall screen's deck)
+    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818'); E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });   // (down to the bottom edge)
     if (choosing) {
       menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
       px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
-      if (game.input.lastDevice !== 'touch') E.font.text(g, game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK', X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
+      const how = touch ? (mode === 'target' ? 'TAP HERE TO GO BACK' : 'TAP A COMMAND') : game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK';   // the player's own keys
+      E.font.text(g, how, X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });
     } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
     else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
     // right: a card per hero (FF IX): portrait, name, MP, HP, ATB
@@ -487,7 +499,8 @@ const RPG = (() => {
   }
   // propSize: props sized to the heroes; a strong warm rim light
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in, it eases to the fight (or the hero on turn) at chest height
-  return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: ['confirm', 'cancel'], propSize: 1.3, camera: { zoom: [.75, 2], rotate: true },
+  return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: [], propSize: 1.3, camera: { zoom: [.75, 2], rotate: true },   // touch: taps, no buttons
+    back() { if (mode !== 'target') return false; mode = 'command'; A.sfx('cancel'); return true; },   // a phone's back: aiming goes back to the commands
     enter() { start(); game.r.rimAlpha = .75; game.focus(110, 72, 0); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
     exit() { game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {

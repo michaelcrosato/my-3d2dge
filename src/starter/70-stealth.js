@@ -114,18 +114,21 @@ const STEALTH = (() => {
     game.cam.snap = true; say('BACK AT THE CHECKPOINT');
   }
   function lose() { if (checkpoint) { A.sfx('die'); respawnAt(checkpoint); } else { over = true; game.after(.8, () => game.go('over', { from: 'stealth' })); } }
-  function tryTakedown() {
+  // a takedown within reach: [guard, from above] or null
+  function takedown() {
     for (const g of guards) {
       if (g.dead || g.action) continue;
       const dz = hero.z - g.z, d = Math.hypot(g.x - hero.x, g.y - hero.y);
       // from above: the hero stands over a guard below, close enough to drop onto them
-      if (dz > 14 && d < 44 && hero.onGround) { hero.play('takedown', { other: g, aerial: true, map }); return finishGuard(g, hero.action); }
+      if (dz > 14 && d < 44 && hero.onGround) return [g, true];
       // from behind: close, on the same level, outside the guard's view and not yet hunting
       const behind = Math.abs(E.angDiff(g.facing, Math.atan2(g.y - hero.y, g.x - hero.x))) < 1.1;
-      if (E.sameLevel(hero, g) && d < 18 && behind && g.mind.state !== 'alert') { hero.play('takedown', { other: g, map }); return finishGuard(g, hero.action); }
+      if (E.sameLevel(hero, g) && d < 18 && behind && g.mind.state !== 'alert') return [g, false];
     }
-    return false;
+    return null;
   }
+  function tryTakedown() { const t = takedown(); if (!t) return false; hero.play('takedown', { other: t[0], aerial: t[1], map }); return finishGuard(t[0], hero.action); }
+  const parrying = () => guards.some(g => !g.dead && g.swing.phase === 'wind' && g.swing.u > .35 && Math.hypot(g.x - hero.x, g.y - hero.y) < 26);
   function finishGuard(g, act) { g.dead = true; g.action = act; A.sfx('punch'); game.freeze(.06); return true; }
   function heroUpdate(dt) {
     const I = game.input;
@@ -140,6 +143,8 @@ const STEALTH = (() => {
       if (g.stun > 0 || --g.hp <= 0) { g.dead = true; g.action = null; A.sfx('die', { vol: .5 }); } else g.mind.level = 1.2;
     });
     // a parry: block in the last moments of a guard's wind-up
+    // CONTEXT touch buttons: ATTACK says TAKE DOWN when one is in reach, BLOCK says PARRY in a guard's wind-up
+    I.touchSet('attack', !hero.action && takedown() ? 'TAKE DOWN' : null); I.touchSet('block', parrying() ? 'PARRY' : null);
     if (I.pressed('block')) for (const g of guards) if (!g.dead && g.swing.phase === 'wind' && g.swing.u > .35 && Math.hypot(g.x - hero.x, g.y - hero.y) < 26) {
       g.swing.cancel(); g.stun = 1.3; A.sfx('kick'); game.flash('#ffffff', .08); P.sparks(g.x, g.y, g.z + 18, 10, hero.facing); say('PARRIED', 1);
     }

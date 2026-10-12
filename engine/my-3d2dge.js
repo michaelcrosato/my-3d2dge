@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.26.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.27.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -77,7 +77,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.26.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.27.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -765,20 +765,32 @@ class Input {
    * On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide
    * them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack:
    * 'B' }, force }). The other half of the screen is a move stick (past halfway it presses up, down, left and right too,
-   * as a d-pad does: menus and ladders). START is the menu: it starts on a title and pauses a pausable scene, as a
-   * gamepad's Start does
+   * as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a
+   * pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
    */
   touchButtons(actions, o = {}) {
     if (!this.screen.canvas) return null;
-    this._touchArgs = { actions, o }; this._touchLabels = o.labels || null;
+    this._touchArgs = { actions, o }; this._touchLabels = o.labels || null; this._touchSet = {};
     return this._touchSync();
   }
-  /** where the touch buttons (START too) cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W
-   *  and r.H), or null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself) */
+  /** one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether
+   *  it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null,
+   *  near || talking) */
+  touchSet(a, label = null, show = true) {
+    const t = this._touchSet || (this._touchSet = {}); t[a] = { label, show: !!show };
+    const b = this._touchBtns && this._touchBtns[a]; if (b && b.isConnected) this._touchLook(b, a);
+  }
+  _touchLook(b, a) {
+    const t = this._touchSet && this._touchSet[a], o = this._touchArgs ? this._touchArgs.o : {}, text = (t && t.label) || (o.labels && o.labels[a]) || a.toUpperCase(), d = t && !t.show ? 'none' : '';
+    if (b.textContent !== text) b.textContent = text;
+    if (b.style.display !== d) { b.style.display = d; if (d) { b._inputPointers && b._inputPointers.clear(); b.classList.remove('on'); this.release('Act:' + a); } }   // (hidden under a finger: let go)
+  }
+  /** where the touch buttons cover the screen, in screen pixels { x0, y0, x1, y1 } (the same space as r.W and r.H), or
+   *  null while none show: keep a prompt or a box clear of it (a bottom E.Dialog does by itself) */
   touchArea() {
     const el = this._touchEl, S = this.screen; if (!el || !S.canvas || !el.isConnected) return null;
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (const b of el.querySelectorAll('button')) { const q = b.getBoundingClientRect(); x0 = Math.min(x0, q.left); y0 = Math.min(y0, q.top); x1 = Math.max(x1, q.right); y1 = Math.max(y1, q.bottom); }
+    for (const b of el.querySelectorAll('button')) { const q = b.getBoundingClientRect(); if (!q.width) continue; x0 = Math.min(x0, q.left); y0 = Math.min(y0, q.top); x1 = Math.max(x1, q.right); y1 = Math.max(y1, q.bottom); }
     if (x1 < x0) return null;
     const a = this.screenPoint(x0, y0), b = this.screenPoint(x1, y1);
     return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] };
@@ -788,23 +800,29 @@ class Input {
     if (!this._touchArgs || !this.screen.canvas) return null;
     const { actions, o } = this._touchArgs, S = this._settings || {}, mode = S.touch || 'auto', left = S.hand === 'left', size = clamp(+S.touchSize || 62, 40, 96);
     const coarse = this._touched || (window.matchMedia && matchMedia('(pointer: coarse)').matches);   // (a laptop with a touch screen: once touched)
-    if (this._touchEl) { for (const b of this._touchEl.querySelectorAll('[data-act]')) this.release('Act:' + b.dataset.act); this._touchEl.remove(); this._touchEl = null; }
+    for (const el of [this._touchEl, this._startEl]) if (el) { for (const b of el.querySelectorAll('[data-act]')) this.release('Act:' + b.dataset.act); el.remove(); }
+    this._touchEl = this._startEl = null;
     const show = mode === 'on' || (mode === 'auto' && (coarse || !!o.force));
     this.touchEnabled = mode !== 'off'; this.stickSide = left ? 'right' : 'left';
     if (!show) { if (this.stickOn) this._stickEnd({ pointerId: this.stickId }); return null; }
     const host = this.screen.canvas.parentElement || document.body, box = document.createElement('div'), side = left ? 'left' : 'right';
     box.dataset.sys = 'touch';
     box.style.cssText = 'position:absolute;' + side + ':calc(14px + env(safe-area-inset-' + side + ',0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1) + (left ? ';flex-direction:row-reverse' : '');
+    this._touchBtns = {};
     for (const a of actions) {
-      const b = document.createElement('button'); b.dataset.act = a; b.textContent = (o.labels && o.labels[a]) || a.toUpperCase(); b.setAttribute('aria-label', a);
-      b.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(size / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none';
-      box.appendChild(b);
+      const b = this._touchBtns[a] = document.createElement('button'); b.dataset.act = a; b.setAttribute('aria-label', a);
+      b.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(20,16,40,.55);color:#fff;font:600 ' + Math.round(size / 5) + 'px system-ui,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden;padding:0';
+      this._touchLook(b, a); box.appendChild(b);
     }
-    const st = document.createElement('button'); st.dataset.act = 'menu'; st.textContent = 'START'; st.setAttribute('aria-label', 'Start or menu');
-    st.style.cssText = 'position:absolute;' + side + ':0;bottom:' + (size + 16) + 'px;min-height:44px;padding:6px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.4);background:rgba(20,16,40,.55);color:#fff;font:600 11px system-ui,sans-serif;touch-action:none';
-    box.appendChild(st);
     if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
     host.appendChild(box); this.bindButtons(box); this._touchEl = box;
+    if (!this._cornerMenu) {   // START: the corner's menu button is it; without the corner, a button of its own in the same place
+      const st = this._startEl = document.createElement('div'), b = document.createElement('button'); st.dataset.sys = 'touch';
+      st.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:4;touch-action:none;opacity:' + clamp(+S.touchOpacity || .8, .2, 1);
+      b.dataset.act = 'menu'; b.textContent = 'START'; b.setAttribute('aria-label', 'Start or menu');
+      b.style.cssText = 'min-width:44px;height:44px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,.4);background:rgba(20,16,40,.55);color:#fff;font:600 11px system-ui,sans-serif;touch-action:none';
+      st.appendChild(b); document.body.appendChild(st); this.bindButtons(st);
+    }
     return box;
   }
   /** press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input,
@@ -823,7 +841,8 @@ class Input {
   }
   /** press an action for one update step, as a quick tap of its key (scripted input, tests, an AI): pressed() and down()
    *  are true in the next step, released() in the one after */
-  tap(a) { if (!this.map[a]) { this._check(a); return; } const c = 'Act:' + a; this.press(c); this._taps.add(c); }
+  tap(a) { if (!this.map[a]) { this._check(a); return; } this._tapCode('Act:' + a); }
+  _tapCode(c) { this.press(c); this._taps.add(c); }
   /** hold an action down (on) or let it go (false), as its key would */
   hold(a, on = true) { if (!this.map[a]) { this._check(a); return; } if (on) this.press('Act:' + a); else this.release('Act:' + a); }
   _check(a) { if (!this.map[a]) warn('action:' + a, 'unknown input action "' + a + '". Known actions: ' + Object.keys(this.map).join(', ') + '. Add your own with new E.Game({ input: { ...E.Input.DEFAULT, ' + a + ": ['KeyQ'] } })"); }
@@ -876,6 +895,9 @@ class Input {
    *  after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to
    *  it; a HUD button of your own can: if (hit(input.clicked())) ... */
   clicked() { return this.clickAt; }
+  /** how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while
+   *  no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction */
+  drag() { return this._drag || null; }
   /** the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas */
   pointer() { return this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null; }
   /** browser client coords -> screen pixels [x, y] (the HUD's space, with no camera), or null without a canvas */
@@ -919,6 +941,7 @@ class Input {
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this.clickAt = this._click && this.screenPoint(this._click[0], this._click[1]); this._click = null;
+    const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
   /** wire every element with data-act="<action>" inside root to the action */
   bindButtons(root) {
@@ -939,7 +962,7 @@ class Input {
     if (this.stickSide === 'right' ? e.clientX - rc.left < rc.width * .5 : e.clientX - rc.left > rc.width * .5) return;
     this.screen.canvas.setPointerCapture(e.pointerId); this.aimSource = 'move'; this.lastDevice = 'touch';
     /** stickId: the pointer (finger) holding the touch stick */
-    this.stickId = e.pointerId; this.stickOn = true; this._stickO = [e.clientX, e.clientY]; this.stick = [0, 0];
+    this.stickId = e.pointerId; this.stickOn = true; this._stickO = [e.clientX, e.clientY]; this.stick = [0, 0]; this._dragAt = [e.clientX, e.clientY];
     if (!this._stickEl) {
       const mkEl = (s, css) => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;pointer-events:none;border-radius:50%;z-index:3;' + css; d.style.width = d.style.height = s + 'px'; this.screen.canvas.parentElement.appendChild(d); return d; };
       this._stickEl = mkEl(96, 'border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06)');
@@ -949,6 +972,7 @@ class Input {
   }
   _stickMove(e) {
     if (!this.stickOn || e.pointerId !== this.stickId) return;
+    const da = this._dragAcc || (this._dragAcc = [0, 0]); da[0] += e.clientX - this._dragAt[0]; da[1] += e.clientY - this._dragAt[1]; this._dragAt = [e.clientX, e.clientY];
     let dx = (e.clientX - this._stickO[0]) / this.stickRadius, dy = (e.clientY - this._stickO[1]) / this.stickRadius;
     const l = Math.hypot(dx, dy), d = clamp(this.stickDeadzone, 0, .5), k = l <= d ? 0 : Math.min(1, (l - d) / (1 - d)) / l;   // a thumb resting on the glass doesn't creep
     this.stick = [dx * k, dy * k]; this._stickDirs(); this._stickDraw();
@@ -1908,7 +1932,7 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 class Game {
   /**
    * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
-   * fullscreen: 'tap', corner: true, autoPause: true, id }).
+   * fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }).
    * res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows
    * the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there).
    * headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes
@@ -1916,9 +1940,9 @@ class Game {
    * a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and
    * controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone
    * goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when
-   * asked) or false; corner: the menu
-   * and full-screen buttons at the top right; autoPause: a pausable scene pauses when the page is hidden or loses focus;
-   * id: the name the player's settings are saved under (the page's path)
+   * asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a
+   * phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the
+   * page is hidden or loses focus; id: the name the player's settings are saved under (the page's path)
    */
   constructor(o = {}) {
     o = Object.assign({}, o);
@@ -2071,10 +2095,15 @@ class Game {
     on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one, or a game started by it)
       if (e.pointerType === 'mouse') return;
       if (!this._fsAuto && !(e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) this._fsAuto = this._autoFull();   // once until a game starts: the player who leaves it mid-game stays out
+      if (!this._guard && this.o.backGesture !== false && this._canBack() && window.top === window && history.pushState) try { history.pushState({ e3: 'back' }, ''); this._guard = true; } catch (err) { /* a sandboxed page */ }
     }, { capture: true });
+    // the phone's back gesture (and the browser's back button, after a tap) steps back in the game before it leaves the page:
+    // an entry of the game's own in the page's history while there is somewhere to go back to (a menu open, a game in play)
+    on(window, 'popstate', e => { if (!this._guard || (e.state && e.state.e3 === 'back')) return; this._guard = false; if (!this.back()) this.note('BACK AGAIN TO LEAVE', 1.5); });
     on(window, 'pointermove', e => { if (e.pointerType === 'mouse' && e.clientY < 80 && (e.movementX || e.movementY)) this._mouseTop = performance.now(); }, { passive: true });   // (a real mouse moved: not a page's synthetic event)
     this.input.names = (this.o.menu && this.o.menu.controls) || null;
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
+    this.input._cornerMenu = !!this._corner;   // (on a touch screen the corner's menu button is the touch START)
     if (this.o.menu !== false) new Shell(this, { system: true });
   }
   /** full screen by itself on a touch screen (fullscreen: 'tap', the default): at the first tap, and again when a game
@@ -2088,15 +2117,37 @@ class Game {
     if (ua && !ua.isActive) return false;   // (no tap behind this: the next one asks)
     fs.enter(true); return true;
   }
+  /** is there somewhere for game.back() to go (an open menu screen, a scene in play, a scene with its own back())? */
+  _canBack() { const s = this.scene; return !!(this.shell && this.shell.screen) || !!s && (!!s.pausable || this.sceneName === 'main' || !!s.back); }
+  /**
+   * a step back, as a phone's back gesture asks for (the engine calls it for one; a back button of the game's own can):
+   * the open menu screen goes back one; else the scene's own back() takes it (it returns true when it did); else a scene
+   * in play pauses into the menu, and a paused one goes on. Returns false where there is nowhere to go (a title)
+   */
+  back() {
+    const sh = this.shell, s = this.scene; if (sh && sh.screen) { sh.back(); return true; }
+    if (s && s.back && s.back()) return true;
+    if (!s || !(s.pausable || this.sceneName === 'main')) return false;
+    if (this.paused) this.resume(); else this.menu();
+    return true;
+  }
+  /** where the corner's buttons (menu and full screen, top right; the touch START) cover the screen, in screen pixels
+   *  { x0, y0, x1, y1 } (r.W and r.H's space), or null while none show: keep a HUD clear of it */
+  cornerArea() {
+    const c = this._corner && this._corner.style.display !== 'none' ? this._corner : this.input._startEl; if (!c || !c.isConnected || !this.screen.canvas) return null;
+    const q = c.getBoundingClientRect(); if (!q.width) return null;
+    const a = this.input.screenPoint(q.left, q.top), b = this.input.screenPoint(q.right, q.bottom);
+    return { x0: a[0], y0: a[1], x1: b[0], y1: b[1] };
+  }
   /** show or hide the corner buttons: shown while the game isn't being played (a title, a game over, a pause without
-   *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen without the
-   *  engine's touch buttons; hidden under an open menu screen */
+   *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen (with the
+   *  engine's touch buttons it is their START); hidden under an open menu screen (its close button is there) */
   _cornerSync() {
     const c = this._corner; if (!c) return;
     const sh = this.shell, s = this.scene, I = this.input, fs = this.fullscreen, open = !!(sh && sh.screen);
     const main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
-    const touch = !I._touchEl && (I._touched || !!(this._coarse || (this._coarse = window.matchMedia && matchMedia('(pointer: coarse)')) || {}).matches);   // (the query kept: this runs every frame)
-    const showM = this.o.menu !== false && !open && (!!(sh && sh._menu()) || main) && (!play || near || touch);
+    const touch = I._touched || !!(this._coarse || (this._coarse = window.matchMedia && matchMedia('(pointer: coarse)')) || {}).matches;   // (the query kept: this runs every frame)
+    const showM = !open && (this.o.menu !== false ? (!!(sh && sh._menu()) || main) && (!play || near || touch) : !!I._touchEl);   // (menu: false: the touch START alone)
     const showF = this.o.fullscreen !== false && fs.supported && !fs.standalone && !open && (!play || near);
     const key = (showM ? 1 : 0) + (showF ? 2 : 0) + (fs.on ? 4 : 0);
     if (key === this._cornerKey) return; this._cornerKey = key;
@@ -2179,9 +2230,10 @@ class Game {
   /**
    * Start the loop. Either one scene:  game.start({ update(dt), draw(r) })
    * or several:  game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
-   * A scene is { enter(data), exit(), update(dt), draw(r), pausable, view, views, input, res, expand, touch } (all
+   * A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch } (all
    * optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied
-   * when it starts (res and expand stay until another scene sets them).
+   * when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture (game.back())
+   * first: return true when it went back somewhere (a sub-menu closed).
    * start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance().
    * boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c):
    * the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
@@ -2400,9 +2452,12 @@ E.Game = Game;
  *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints.
  *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there, and a game
  *      started by a tap does again; turning it off (the corner's button, the menu) is the player's choice, kept.
+ *    - the back gesture: a phone's back steps back in the game (game.back(): a menu screen closes, play pauses) before it
+ *      leaves the page.
  *    - pausing: a pausable scene pauses when the page is hidden or loses focus, or the controller in use is unplugged,
  *      and waits for the player (game.pause(reason), game.resume(), game.pauseReason).
- *    - the corner: a menu button and a full-screen button at the top right, inside the safe area.
+ *    - the corner: a menu button and a full-screen button at the top right, inside the safe area; on a touch screen the
+ *      menu stays there in play (it is the touch START), and over a menu screen a close button takes its place.
  *    - the page set up for phones: a viewport that reaches the safe areas, and no scrolling, zooming, text selection or
  *      callouts on the game's canvas (menus keep theirs).
  *    E.Shell draws the menu's screens (pause, settings, controls): section 21d.
@@ -2541,7 +2596,8 @@ class FullScreen {
   toggle() { const on = this.on; if (!this.game.headless) this.game.settings.set('fullscreen', !on); return on ? this.exit() : this.enter(); }
 }
 E.FullScreen = FullScreen;
-/* the corner buttons: menu and full screen, 44 px, top right inside the safe area (Game._cornerSync shows them) */
+/* the corner buttons: menu and full screen, 44 px, top right inside the safe area (Game._cornerSync shows them); on a
+   touch screen the menu is the touch START */
 const CORNER_ICONS = { menu: 'M4 7h16M4 12h16M4 17h16', full: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', exit: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5' };
 const cornerIcon = d => '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
 function makeCorner(game) {
@@ -2553,17 +2609,19 @@ function makeCorner(game) {
     b.addEventListener('click', e => { e.stopPropagation(); b.blur(); fn(); });   // (blurred, so a later Space or Enter is the game's)
     box.appendChild(b); return b;
   };
-  btn('Menu', () => game.menu()).innerHTML = cornerIcon(CORNER_ICONS.menu);
+  btn('Menu', () => { if (game.o.menu !== false) game.menu(); else game.input._tapCode('Act:menu'); }).innerHTML = cornerIcon(CORNER_ICONS.menu);   // (menu: false: the touch START)
   btn('Full screen', () => game.fullscreen.toggle());
   document.body.appendChild(box); return box;
 }
 /* a page made for phones, once: a viewport that reaches the safe areas (pinch zoom left alone), the home-screen app tags,
-   and on each game's canvas no page gestures, text selection, callouts or tap highlights */
+   no overscroll (pull to refresh, a sideways swipe off the page), and on each game's canvas no page gestures, text
+   selection, callouts or tap highlights */
 let _paged = false;
 function pageSetup(canvas) {
   const st = canvas && canvas.style;
   if (st) { st.touchAction = 'none'; st.userSelect = 'none'; st.webkitUserSelect = 'none'; st.webkitTouchCallout = 'none'; st.webkitTapHighlightColor = 'transparent'; }
   if (_paged || !document.head) return; _paged = true;
+  for (const el of [document.documentElement, document.body]) if (el) el.style.overscrollBehavior = 'none';   // no pull to refresh, no swipe away from the page
   const meta = (name, content) => { let m = document.querySelector('meta[name="' + name + '"]'); if (!m) { m = document.createElement('meta'); m.name = name; m.content = content; document.head.appendChild(m); } return m; };
   const vp = meta('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
   if (!/viewport-fit/.test(vp.content)) vp.content += ', viewport-fit=cover';
@@ -6227,7 +6285,10 @@ const SHELL_CSS = `.esh{position:fixed;inset:0;pointer-events:none;z-index:20;fo
 .esh-keys{position:absolute;left:50%;bottom:var(--pb);transform:translateX(-50%);display:flex;gap:14px;font-size:12px;color:var(--muted);white-space:nowrap}.esh-keys kbd{margin-right:4px}
 @media (pointer:coarse){.esh-keys{display:none}}@media (max-width:640px){.esh-obj{max-width:calc(100vw - 214px)}.esh-toast{left:var(--pl);right:var(--pr);top:auto;bottom:calc(var(--pb) + 124px);max-width:none;transform:translateY(calc(100% + 160px))}.esh-toast.on{transform:none}
 .esh-pr{bottom:calc(var(--pb) + 196px)}.esh-tip{bottom:calc(var(--pb) + 262px)}}
-.esh-sh{position:absolute;inset:0;display:grid;place-items:center;background:#04060acc;pointer-events:auto;padding:var(--pt) var(--pr) var(--pb) var(--pl);animation:esh-in .25s}
+.esh-sh{position:absolute;inset:0;display:grid;place-items:center;background:#04060acc;pointer-events:auto;padding:calc(var(--pt) + 46px) var(--pr) var(--pb) var(--pl);animation:esh-in .25s;touch-action:pan-y}.esh-ttl{padding-top:var(--pt)}
+.esh-sh *{touch-action:pan-y}.esh-sh input{touch-action:auto}
+.esh .esh-nav{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));z-index:2;width:44px;height:44px;min-height:44px;display:grid;place-items:center;padding:0;border-radius:10px;background:rgba(8,8,18,.6);border-color:rgba(255,255,255,.3);pointer-events:auto}
+.esh-nav.x{right:calc(8px + env(safe-area-inset-right,0px))}.esh-nav.bk{left:calc(8px + env(safe-area-inset-left,0px))}.esh-sw{transition:transform .2s,opacity .2s}
 .esh-mod{width:min(460px,100%);max-height:100%;overflow:auto;padding:22px 24px}.esh-wide{width:min(760px,100%)}
 .esh-ttl{place-items:center start;background:linear-gradient(90deg,#04060aee,#04060a99 50%,#04060a00 85%)}.esh-ttl>div{max-width:min(520px,92vw);padding-left:4vw}
 .esh-ttl h1{font-size:clamp(44px,10vw,92px);letter-spacing:.07em}.esh-sub{font:italic 20px var(--title);color:var(--accent);margin-top:6px}
@@ -6323,7 +6384,29 @@ class Shell {
   _closed() { if (!this._stack.length && this._ownPause) { this._ownPause = false; this.game.resume(); } }
   /** which focusable element of the open screen has the focus (its index), or -1 */
   _focusAt() { if (!this.root) return -1; const all = this._focusables(); return all.indexOf(document.activeElement); }
-  _focusables() { return [...this.els.scr.querySelectorAll('button:not(:disabled), input:not(:disabled)')]; }
+  _focusables() { return [...this.els.scr.querySelectorAll('.esh-sh button:not(:disabled), .esh-sh input:not(:disabled)')]; }
+  /** close the menu: every screen over the title (a game's own title screen stays), resuming a game the menu paused */
+  _close() { const i = this._stack.findIndex(t => t.name === 'title'); if (i < 0) return this.hide(); this._stack.length = i + 1; this._capEnd(); this._render(); return this; }
+  /** a close or back button over the screen (an icon, 44 px; the keys have Escape and Start, so it takes no focus) */
+  _navBtn(cls, label, d, fn) {
+    const b = this._el('button', 'esh-nav ' + cls); b.type = 'button'; b.tabIndex = -1; b.setAttribute('aria-label', label); b.title = label; b.innerHTML = cornerIcon(d);
+    b.onclick = e => { e.stopPropagation(); fn(); }; return b;
+  }
+  /** a sideways swipe on a screen goes back: the panel follows the finger and goes back past 70 px (a slider keeps its own) */
+  _swipe(sh, box, title) {
+    if (title) return; let s0 = null, swiped = false;
+    const end = e => { if (!s0 || e.pointerId !== s0.id) return; const dx = e.clientX - s0.x, go = s0.on && Math.abs(dx) > 70 && e.type === 'pointerup'; swiped = s0.on; s0 = null;
+      box.classList.add('esh-sw'); box.style.transform = go ? 'translateX(' + Math.sign(dx) * 110 + '%)' : ''; box.style.opacity = go ? '0' : '';
+      if (go) setTimeout(() => this.back(), 120); };
+    sh.addEventListener('pointerdown', e => { swiped = false; if (e.pointerType === 'mouse' || s0 || (e.target.closest && e.target.closest('input'))) return; s0 = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false }; box.classList.remove('esh-sw'); });
+    sh.addEventListener('click', e => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);   // (the button a swipe began on isn't pressed)
+    sh.addEventListener('pointermove', e => {
+      if (!s0 || e.pointerId !== s0.id) return; const dx = e.clientX - s0.x, dy = e.clientY - s0.y;
+      if (!s0.on && Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.3) s0.on = true;
+      if (s0.on) { box.style.transform = 'translateX(' + dx + 'px)'; box.style.opacity = String(clamp(1 - Math.abs(dx) / 300, .3, 1)); }
+    });
+    for (const t of ['pointerup', 'pointercancel']) sh.addEventListener(t, end);
+  }
   /** a message that slides in at the top for a few seconds */
   toast(title, text = '', seconds = 4) {
     if (!this.root) return this;
@@ -6519,7 +6602,13 @@ class Shell {
     if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
     add(s.footer && this._el('div', 'esh-m', v(s.footer)));
     const keep = top.focus !== undefined ? top.focus : this._shown === top ? this._focusAt() : -1; this._shown = top;   // (redrawn in place: the focus stays where it was)
-    this.els.scr.replaceChildren(sh);
+    // the way out, always in sight: close at the top right (where the menu button was), back at the top left over another
+    // screen, and a sideways swipe goes back (a phone's edge swipe would leave the page)
+    const nav = [];
+    if (!title) nav.push(this._navBtn('x', 'Close', 'M6 6l12 12M18 6L6 18', () => this._close()));
+    if (this._stack.length > 1) nav.push(this._navBtn('bk', 'Back', 'M15 5l-7 7 7 7', () => this.back()));
+    this._swipe(sh, box, title);
+    this.els.scr.replaceChildren(sh, ...nav);
     const all = this._focusables(), f = all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
     top.focus = undefined; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
   }

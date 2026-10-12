@@ -6,7 +6,7 @@
  * THE LOOK: Final Fight sized fighters (90-105 of 240 lines) in a guard stance with big gloves, lit by the nearest
  * light; building fronts drawn once over TileMap walls; solid parked cars; PS1 translucency (hard shapes, one alpha)
  * ANY SCREEN: a wider screen shows more street (waves walk in from past its edges); a taller one (a phone held upright)
- * lifts the street onto a FOREGROUND wall, clear of the touch buttons, under more skyline
+ * zooms in to 1.5x (fitZoom) and lifts the street onto a FOREGROUND wall, clear of the touch buttons, under the skyline
  * ===================================================================================== */
 const BRAWL = (() => {
   const T = 16, Y0 = 30, Y1 = 136, TOP = 88, DARK = '#140c1c';   // Y0..Y1: the walkable band; TOP: rooftop room (2x zoom)
@@ -382,6 +382,7 @@ const BRAWL = (() => {
     else game.after(1.8, () => game.go('over', { from: 'brawler' }));
   }
   function update(dt) {
+    fitZoom(1.5);   // a phone held upright: the street fills more of it
     const inp = game.input, h = hero, truce = talk.update(dt);   // truce: nobody punches while the boss talks
     // a fighter's body from its state: the guard stance while it can fight, hurt while flinching or flying, tipping back
     // (down: 0..1) from the first airborne frame to flat at the landing, 'down' on the floor, 'kneel' then 'crouch' getting
@@ -506,7 +507,8 @@ const BRAWL = (() => {
 
   /* ---- HUD: solid panels, live 3/4 rig.drawPortrait faces, two-tone bars ---- */
   const WIN = { bg: ['#3a2a5c', '#0e0a1c'], border: '#a89ad8' };
-  function panel(g, x, c, name, f, lagF, color, right) {
+  function panel(g, x, c, name, f, lagF, color, right, y = 4) {
+    g.save(); g.translate(0, y - 4);   // (drawn for y = 4)
     E.ui.box(g, x, 4, 154, 40, Object.assign({}, WIN, right ? { bg: ['#4a1e3a', '#12060e'], border: '#d08aa8' } : {}));
     c.rig.drawPortrait(g, right ? x + 118 : x + 6, 9, 30, { zoom: 2.1, turn: right ? -.6 : .6, bg: right ? ['#a83a5a', '#2a0c1c'] : ['#5a6ac0', '#161030'],
       border: right ? '#f0b0c8' : '#d0c8f8', shadow: false, tint: c.hp > 0 ? undefined : '#808080' });   // KO'd: grey
@@ -515,6 +517,7 @@ const BRAWL = (() => {
     if (!right) { E.font.text(g, '×' + c.lives, tx + E.font.width(name) + 5, 11, '#ffffff', TXT); E.font.text(g, String(score).padStart(6, '0'), x + 150, 11, '#e8e4ff', TXR); }
     E.ui.bar(g, tx, 27, 108, 10, lagF, '#fff0e0');   // the frame, with the pale drain as its fill
     if (n > 0) { px.rect(g, tx + 1, 28, n, 8, color); px.rect(g, tx + 1, 28, n, 2, t.hi); px.rect(g, tx + 1, 34, n, 2, t.sh); }
+    g.restore(); g._c = null;
   }
   function hud(g, r) {
     const W = r.W, H = r.H;
@@ -522,7 +525,8 @@ const BRAWL = (() => {
     panel(g, 4, hero, 'MAX', hero.hp / hero.max, lag, '#ffd23a');
     // enemy panel: the last one hit (KO'd: briefly), else the nearest, else the boss
     const foe = tgtT > 0 && target && (!target.dead || tgtT > 2.4) ? target : foes.find(f => !f.dead && Math.abs(f.x - hero.x) < 56 && Math.abs(f.y - hero.y) < 16) || foes.find(f => f.k === FOES.boss && !f.dead);
-    if (foe && !won) panel(g, W - 158, foe, foe.name, foe.hp / foe.k.hp, 0, '#e8463c', true);
+    const fx = Math.min(W, cornerX()) - 158;   // clear of the corner's menu button: beside it, or under it on a narrow screen
+    if (foe && !won) panel(g, fx < 162 ? W - 158 : fx, foe, foe.name, foe.hp / foe.k.hp, 0, '#e8463c', true, fx < 162 ? 48 : 4);
     if (chain > 1 && chainT > 0) {               // the HITS counter on a gradient plate
       const s = String(chain), w = E.font.width(s, 3);
       E.ui.box(g, 6, 50, w + 44, 28, { bg: ['#d8402a', '#4a0a1a'], border: '#ffd070' });

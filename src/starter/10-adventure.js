@@ -2,9 +2,9 @@
  * SLICE 1  ADVENTURE  (Secret of Mana, Zelda: ALttP). Three rooms: village, ruins, shrine. Talk, clear the ruins for
  * the key, open the great door, claim the crystal. THE LOOK: wall MATERIALS, ONE floorTex with PAINTED LIGHT, pitched
  * roofs, leaf-clump bushes, light shafts, dialog PORTRAITS.
- * ANY SCREEN: rooms are 4:3. A wider screen shows the rooms beside this one under a dim CURTAIN (they wait, as their
- * monsters do); a taller one (a phone held upright) keeps the room at the top and lays the HUD out on a DECK below it,
- * where the thumbs and the touch buttons go.
+ * ANY SCREEN: rooms are 4:3 in a world that goes on past them (forest above and below, the next rooms beside), so a
+ * screen of any shape is filled. CAMERA (Settings, or C): ROOMS slides screen by screen as Zelda's does, the rooms beside
+ * this one under a dim CURTAIN (they wait, as their monsters do); SCROLL follows the hero. The HUD sits in the corners.
  * ===================================================================================== */
 const ADV = (() => {
   const T = 16, ROOM = [14 * T, 12 * T], AREAS = ['Mana Village', 'Mossy Ruins', 'Shrine of Mana'];
@@ -23,9 +23,14 @@ const ADV = (() => {
     ['#..........~~#', 'H...bK...b.xRH', 'X.....E+.....X'],
     ['##############', 'RRRRRRRRRRRRRR', 'XXXXXX++XXXXXX']
   ].map(r => r.join(''));
+  // the world AROUND the rooms: PAD rows of forest canopy above and below (a meadow's edge first, the shrine's stone under
+  // the shrine), so a screen of any shape is filled. The rooms' rows start at OY
+  const PAD = 12, OY = PAD * T, wood = (cx, cy) => cx >= 28 ? 'X' : E.hash2(cx * 7, cy * 5) < .18 ? '2' : '1';
+  const AROUND = (cy0, meadow) => Array.from({ length: PAD }, (_, i) => Array.from({ length: 42 }, (_, cx) => meadow && i < 2 && cx < 28 ? '.' : wood(cx, cy0 + i)).join(''));
+  ROWS.unshift(...AROUND(0)); ROWS.push(...AROUND(PAD + 12, true));
   const LEGEND = {
     // walls: a wall type (TYPES), or { tile, spawn } = a wall with a prop on its face (THINGS)
-    '#': 1, 'U': 5, 'Z': 8, 'R': 9, 'H': 3, 'K': 4, 'F': 6, 'X': 2, 'A': 7,
+    '#': 1, 'U': 5, 'Z': 8, 'R': 9, 'H': 3, 'K': 4, 'F': 6, 'X': 2, 'A': 7, '1': 10, '2': { tile: 10, spawn: 'tree' },
     '^': { tile: 1, spawn: 'tree' }, 'G': { tile: 5, spawn: 'ivy' }, 'Q': { tile: 5, spawn: 'pane' }, 'O': { tile: 5, spawn: 'door' },
     'z': { tile: 8, spawn: 'pane' }, 'N': { tile: 8, spawn: 'shop' }, 'h': { tile: 3, spawn: 'vines' }, 'J': { tile: 3, spawn: 'cobweb' }, 'Y': { tile: 6, spawn: 'moss' }, 'D': { tile: 6, spawn: 'gate' },
     'w': { tile: 2, spawn: 'window' }, 'W': { tile: 2, spawn: 'rose' }, 'i': { tile: 2, spawn: 'torch' }, 'n': { tile: 2, spawn: 'banner' }, 'j': { tile: 2, spawn: 'cobweb' }, 'r': { tile: 7, spawn: 'relic' },
@@ -47,7 +52,8 @@ const ADV = (() => {
     6: { h: 36, ...SLAB, top: '#5a5480', side: '#7a7298', course: 9 },   // shrine facade
     7: { h: 9, ...SLAB, top: '#8a84b4', side: '#5a5484', course: 4 },   // altar
     8: { h: 36, face: 'plaster', roof: 'tiles', top: '#3a7ab4', side: '#f4e6c8' },   // shop
-    9: { h: 30, cut: true, cutH: 8, face: 'rock', roof: 'grass', top: '#5a9a44', side: '#8a7462' }   // cliff
+    9: { h: 30, cut: true, cutH: 8, face: 'rock', roof: 'grass', top: '#5a9a44', side: '#8a7462' },   // cliff
+    10: { h: 22, face: 'hedge', roof: 'leaves', top: '#2c6a36', side: '#1f4a2a' }   // the forest round the rooms
   };
   // set dressing: tag -> prop(s). r = solid, cut = breakable (debris), drop = loot, face = on the wall at z (anchor
   // 'top' hangs it), light = GPU light, dx = nudge, hidden = appears later
@@ -124,7 +130,11 @@ const ADV = (() => {
   // BACKDROP (iso view): a sea of clouds
   const bg = new E.Backdrop({ sky: ['#3a74c8', '#8ac2ea', '#e4f2f4', '#9ccae6', '#5a90c8'], layers: [{ kind: 'clouds', color: '#ffffff', y: .3, height: .16, parallax: .04, drift: 3 },
     { kind: 'clouds', color: '#ffffff', y: .98, height: .4, parallax: .1, drift: 3, seed: 9 }] });
-  let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx, deck = 0;   // deck: its top on screen (0: none)
+  let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx;
+  // CAMERA, the player's choice: 'rooms' slides screen by screen (Zelda), 'scroll' follows the hero (Settings, or C)
+  game.settings.define({ key: 'advCamera', group: 'Adventure', label: 'Camera', options: [['rooms', 'Rooms'], ['scroll', 'Scroll']], value: 'rooms', help: 'Rooms: screen by screen, as Zelda. Scroll: it follows the hero' });
+  addEventListener('keydown', e => { if (e.code !== 'KeyC' || e.repeat || game.sceneName !== 'adventure' || game.paused) return; const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note('CAMERA: ' + v.toUpperCase()); });
+  const sliding = () => !!game.cam.room && game.cam.moving;   // a room slide holds the world still
   const roomOf = x => Math.floor(x / ROOM[0]), mod = (a, n) => ((a % n) + n) % n, near = (cx, cy, tag) => map.floorAt((cx + .5) * T, (cy + .5) * T) === tag;
   const txt = (g, s, x, y, c, o) => E.font.text(g, s, x, y, c, { shadow: '#07040c', outline: false, ...o });
   const talkable = () => npcs.find(n => E.dist(hero, n) < 34);
@@ -191,8 +201,8 @@ const ADV = (() => {
   function start() {
     map = new E.TileMap({ rows: ROWS, legend: LEGEND, types: TYPES, floorTex, ao: 8 });
     relic = map.find('relic'); entry = map.find('entry'); relic.x += T / 2; entry.x += T / 2;   // on the room's center line
-    // screen-by-screen camera inside the map; a screen taller than the map keeps it at the top (the DECK goes below)
-    game.cam.bounds = v => { const b = map.bounds(v); return Object.assign({}, b, { y1: Math.max(b.y1, b.y0 + game.H) }); }; game.cam.room = ROOM;
+    // the camera stays inside the map (the forest round the rooms fills a tall screen); update() sets rooms or scroll
+    game.cam.bounds = v => { const b = map.bounds(v); return { x0: b.x0 + 9, y0: b.y0 + 9, x1: b.x1 - 9, y1: b.y1 - 9 }; }; game.cam.room = game.settings.advCamera === 'scroll' ? null : ROOM;
     const at = map.find('hero');
     // SWORD (Secret of Mana): J chains slash, backslash, spin, kept low (a raised blade crosses his face); short holds (hold)
     // let the follow-through settle instead of freezing; hold J to CHARGE
@@ -210,7 +220,7 @@ const ADV = (() => {
       const c = map.cell(cx, cy), v = E.hash2(cx * 3, cy * 7 + 1), X = (cx + .5) * T, Y = (cy + .5) * T, tag = map.floorAt(X, Y), add = o => things.push(Object.assign({ x: X, y: Y }, o));
       if (c === 5 || c === 8) { const b = box[c] || (box[c] = [cx, cy, cx, cy]); b[2] = cx; b[3] = cy; }
       if (map.spawns.some(s => s.cx === cx && s.cy === cy)) continue;
-      if (c === 9 && cy === 0 && v < .5) add(tree(cx, cy, true));
+      if (c === 9 && cy === PAD && v < .5) add(tree(cx, cy, true));
       else if ((c === 3 || c === 4) && v < .45) add({ prop: 'bush', size: .7 + v * .6, color: '#5a8a44' });
       else if (tag === 'bed') {
         for (const k of [-3, 3]) add({ prop: 'flowers', size: 1.1, x: X + k, y: Y + k, color: k < 0 ? ['#f06a9a', '#f0a040', '#ffffff'][cx % 3] : '#8ab0ff', color2: '#fff4a0' });
@@ -231,9 +241,10 @@ const ADV = (() => {
     fx = []; won = false; keys = 0; gems = 0; area = { room: 0, t: 2.6 }; held = null;
     // the floor is lit already; GPU lighting (if any) adds light pools and shadows
     L.enabled = false; gpu = gpu || game.enableGPU({ map }); Object.assign(gpu, { map, enabled: true, bands: 24, wrap: .5, ambient: MOOD[0] }); A.music('adventure');
+    game.input.touchSet('attack', 'SWORD');
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
-  const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG }, y: deck ? deck + 6 : undefined }); };   // on the deck: clear of the touch buttons
+  const say = (who, name, text) => { speaker = who; talk.say(typeof text === 'function' ? text() : text, { name, portrait: who.rig, portraitSize: 50, portraitOpts: { zoom: 2.6, turn: -.25, cape: false, bg: FACE_BG } }); };   // (at the bottom, clear of the touch buttons)
   function hurtHero(ang) {   // flinch, knockback, blink; true if it hurt
     if (hero.inv > 0 || won || hero.hp <= 0) return false; hero.hp -= .5; hero.inv = 1; hero.hurt = .25; hero.charge = 0; hero.combo.cancel(); hero.spin.cancel(); hero.push(Math.cos(ang) * 160, Math.sin(ang) * 160);
     game.hitFx(hero.x + Math.cos(ang) * 3, hero.y + Math.sin(ang) * 3, 12, { power: .9, angle: ang + Math.PI, color: '#ff8a6a', sound: 'hurt' }); game.flash('#ff4a3a', .06, .4);
@@ -259,7 +270,7 @@ const ADV = (() => {
   const settle = b => { for (const t of things) if (t.r && !t.dead && !t.hidden) { const dx = b.x - t.x, dy = b.y - t.y, dd = Math.hypot(dx, dy) || 1, m = b.r + t.r; if (dd < m) { b.x = t.x + dx / dd * m; b.y = t.y + dy / dd * m; } } };
   // prize: face the camera and CHEER. Charging holds CHARGE's wind-up, deeper as it builds
   function poseHero(dt) {
-    const h = hero, cheer = held && held.t > 0, still = talk.open || game.cam.moving || cheer, v = game.view;
+    const h = hero, cheer = held && held.t > 0, still = talk.open || sliding() || cheer, v = game.view;
     h.rig.update(dt, { x: h.x, y: h.y, z: h.z, vx: still ? 0 : h.vx, vy: still ? 0 : h.vy, facing: cheer ? Math.atan2(v.fy, v.fx) : h.facing, hurt: h.hurt > 0, pose: cheer ? 'cheer' : null,
       attack: cheer ? null : h.charge > .15 ? { spec: CHARGE, phase: 'wind', u: Math.min(1, (h.charge - .15) / .45) } : h.sw.state });
   }
@@ -279,12 +290,13 @@ const ADV = (() => {
   }
   function update(dt) {
     const h = hero, room = roomOf(h.x), inp = game.input, npc = talkable();
+    inp.touchSet('confirm', talk.open ? 'NEXT' : 'TALK', talk.open || !!npc);   // a CONTEXT button: there only when there is someone to talk to
     if (held) held.t -= dt;
     for (const n of npcs) npcLife(n, dt);
     if (talk.update(dt)) { poseHero(dt); return; }   // dialog pauses the world
     if (gpu) gpu.ambient = MOOD[room];
     if (room !== area.room) area = { room, t: 2.6 }; else area.t -= dt;
-    if (game.cam.moving || won || held && held.t > 0) { poseHero(dt); return; }   // the room slides or the hero cheers
+    if (sliding() || won || held && held.t > 0) { poseHero(dt); return; }   // the room slides or the hero cheers
     h.inv -= dt; h.hurt -= dt; if (h.hp <= 0) return;
     if (npc && inp.pressed('confirm')) return void say(npc, npc.name, npc.lines[npc.said++ % npc.lines.length]);
     // screen-relative keys become a ground direction; swings root the hero
@@ -378,15 +390,16 @@ const ADV = (() => {
       c.look.update(dt, { look: walk ? [c.vx, c.vy] : [h.x - c.x, h.y - c.y], walk, squint: !walk && E.dist(c, h) > 50, squash: walk ? 0 : .12 });
     }
     // ambient life: petals, fireflies, embers, smoke, fountain spray, river foam
-    const rx = (room + Math.random()) * ROOM[0], ry = E.rand(T, ROOM[1] - T);
+    const rx = (room + Math.random()) * ROOM[0], ry = OY + E.rand(T, ROOM[1] - T);
     if (Math.random() < dt * 4) P.add(room === 0 ? { kind: 'bit', x: rx, y: ry, z: 50, vx: 14, vy: 5, vz: -9, g: 3, max: 5, color: E.pick(['#ffb0c8', '#fff0f4']) }
       : room === 1 ? { kind: 'ember', x: rx, y: ry, z: E.rand(6, 26), vx: E.rand(-5, 5), vy: E.rand(-5, 5), vz: 3, max: 2.5, color: '#d8ff6a' }
       : { kind: 'ember', x: rx, y: ry, z: 2, vz: 16, vx: E.rand(-4, 4), max: 2, color: '#ff8a3a' });
     for (const f of roofs) if (roomOf(f.x1) === room && Math.random() < dt * 2.5) P.smoke(f.x1 - 12, f.y0 + 14, f.h + 16, 1, { size: 2.2, color: '#e4e2ee', dark: '#b0acc0', light: '#ffffff' });
     for (const t of things) if (t.tag === 'fountain' && t.room === room && Math.random() < dt * 14) P.add({ kind: 'bit', x: t.x, y: t.y, z: 22, vx: E.rand(-15, 15), vy: E.rand(-6, 6), vz: 40, g: 260, max: .5, color: E.pick(['#ffffff', '#a8e0ff']) });
-    if (room === 0 && Math.random() < dt * 6) P.add({ kind: 'bit', x: E.rand(11.3, 12.7) * T, y: E.pick([2, 8]) * T + E.rand(0, 46), z: 0, vy: 26, max: 1.2, color: '#d8f0ff' });
+    if (room === 0 && Math.random() < dt * 6) P.add({ kind: 'bit', x: E.rand(11.3, 12.7) * T, y: OY + E.pick([2, 8]) * T + E.rand(0, 46), z: 0, vy: 26, max: 1.2, color: '#d8f0ff' });
     poseHero(dt); game.focus(h.x, h.y, 10);
-    game.cam.room = game.zoom > 1 || game.yaw ? null : ROOM;   // zoomed or turned: follow the hero
+    const rooms = game.settings.advCamera !== 'scroll' && game.zoom <= 1 && !game.yaw;   // zoomed or turned: it follows the hero
+    game.cam.room = rooms ? ROOM : null; game.cam.smooth = rooms ? .18 : .12;
   }
 
   /* ---- DRAWING ---- */
@@ -427,7 +440,7 @@ const ADV = (() => {
   function shafts(r, room) {
     const [xs, c, lean] = BEAMS[room], t = game.real;
     if (r.view.pitchDeg < 70) r.overlay(g => { for (const bx of xs) {
-      const [x, y] = r.w(room * ROOM[0] + bx, 12, 40), w = 5 + Math.sin(t * .5 + bx) * 1.5, L = 120;
+      const [x, y] = r.w(room * ROOM[0] + bx, OY + 12, 40), w = 5 + Math.sin(t * .5 + bx) * 1.5, L = 120;
       px.blend(g, 1 / 8, 'add', () => { for (const k of [1, .6, .3]) { const X = x + lean * k, Y = y + L * k, s = w * (1 + k); px.poly(g, [[x - w, y], [x + w, y], [X + s, Y], [X - s, Y]], c); } });
       px.blend(g, 1, 'add', () => { for (let i = 0; i < 6; i++) { const u = (i * .17 + t * .025 + bx * .01) % 1; px.dot(g, x + lean * u + Math.sin(t * .7 + i * 2) * w, y + L * u, c); } });
     } });
@@ -475,33 +488,33 @@ const ADV = (() => {
     }
     shots.draw(r); drawFx(r); shafts(r, room); if (game.cam.room) curtain(r, room); hud(r); talk.draw(r);
   }
-  // the CURTAIN: what a wide screen shows beyond the hero's room, dimmed (the room's box: its floor and its walls' height)
+  // the CURTAIN: what the screen shows beyond the hero's room, dimmed a little (the room's box: its floor, its walls' height)
   function curtain(r, room) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (const x of [room * ROOM[0], (room + 1) * ROOM[0]]) for (const y of [0, ROOM[1]]) for (const z of [0, 48]) { const [sx, sy] = r.w(x, y, z); x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+    for (const x of [room * ROOM[0], (room + 1) * ROOM[0]]) for (const y of [OY, OY + ROOM[1]]) for (const z of [0, 48]) { const [sx, sy] = r.w(x, y, z); x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
     [x0, y0, x1, y1] = [x0, y0, x1, y1].map(Math.round);
     if (x0 <= 0 && y0 <= 0 && x1 >= r.W && y1 >= r.H) return;
-    r.overlay(g => px.blend(g, .62, 'normal', () => { const D = '#0a0818'; px.rect(g, 0, 0, r.W, y0, D); px.rect(g, 0, y1, r.W, r.H - y1, D); px.rect(g, 0, y0, x0, y1 - y0, D); px.rect(g, x1, y0, r.W - x1, y1 - y0, D); }));
+    r.overlay(g => px.blend(g, .4, 'normal', () => { const D = '#0a0818'; px.rect(g, 0, 0, r.W, y0, D); px.rect(g, 0, y1, r.W, r.H - y1, D); px.rect(g, 0, y0, x0, y1 - y0, D); px.rect(g, x1, y0, r.W - x1, y1 - y0, D); }));
   }
-  // HUD: counters; hero status and CONTROLS (the player's own keys), hidden during dialog. On a DECK when the screen is tall
+  // HUD in the corners, over the world: the hero and his hearts top left; gems, keys and a map of the rooms top right
+  // (clear of the corner's buttons); the CONTROLS (the player's own keys) bottom right, not on a touch screen (its buttons
+  // say it); the area's name drops in under them as he enters
   function hud(r) {
-    const rx = roomOf(hero.x) * ROOM[0], foot = Math.round(Math.max(r.w(rx, map.h * T, 0)[1], r.w(rx + ROOM[0], map.h * T, 0)[1])), npc = talkable();   // this room's front edge on screen (in any view)
-    deck = game.cam.room && r.H - foot > 96 ? foot : 0;
-    const Y = deck ? deck + 34 : r.H - 34, GX = deck ? r.W - 70 : 4, GY = deck ? deck + 10 : 4;
+    const npc = talkable(), R = Math.min(r.W, cornerX()) - 4;
     r.overlay(g => {
-      if (deck) { E.ui.box(g, -3, deck, r.W + 6, r.H - deck + 3, WIN); minimap(g, Math.round(r.W / 2) - 70, deck + 80, 2); }   // the deck: a window under the room, a map of the rooms
-      E.ui.box(g, GX, GY, 66, 17, WIN); px.sprite(g, GEM, GX + 6, GY + 5); px.sprite(g, KEYS[0], GX + 39, GY + 6);
-      txt(g, String(gems).padStart(3, '0'), GX + 14, GY + 5, '#ffffff'); txt(g, 'x' + keys, GX + 48, GY + 5, '#ffffff');
+      E.ui.box(g, 4, 4, 84, 30, WIN); hero.rig.drawPortrait(g, 9, 9, 20, { zoom: 1.5, cape: false, bg: FACE_BG });
+      txt(g, 'HERO', 36, 8, '#ffe08a', { gradient: ['#fff4c0', '#e8a040'] }); E.ui.hearts(g, 36, 19, hero.hp, hero.max);
+      const GX = R - 70; E.ui.box(g, GX, 4, 70, 17, WIN); px.sprite(g, GEM, GX + 6, 9); px.sprite(g, KEYS[0], GX + 41, 10);
+      txt(g, String(gems).padStart(3, '0'), GX + 14, 9, '#ffffff'); txt(g, 'x' + keys, GX + 50, 9, '#ffffff');
+      minimap(g, GX, 24);
       if (won) {
-        const wy = deck ? deck + 70 : r.H - 62;
+        const wy = Math.round(r.H / 2) - 24;
         E.ui.box(g, r.W / 2 - 90, wy, 180, 48, WIN); E.font.title(g, 'MANA CRYSTAL!', r.W / 2, wy + 7, { align: 'center', scale: 2, colors: ['#ffffff', '#bff8ff', '#4ac8e8'], depth: 1 });
         return txt(g, 'Gems ' + gems + '    Best ' + best('adventure', gems), r.W / 2, wy + 34, '#ffe08a', { align: 'center' });
       }
       if (talk.open) return;
-      E.ui.box(g, 4, Y, 84, 30, WIN); hero.rig.drawPortrait(g, 9, Y + 5, 20, { zoom: 1.5, cape: false, bg: FACE_BG });
-      txt(g, 'HERO', 36, Y + 4, '#ffe08a', { gradient: ['#fff4c0', '#e8a040'] }); E.ui.hearts(g, 36, Y + 15, hero.hp, hero.max);
-      if (!touch()) {   // (a touch screen's buttons sit in that corner and say it themselves)
-        const a = prompt('attack', 'Sword'), b = prompt('confirm', 'Talk'), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = Y + 12;
+      if (!touch()) {
+        const a = prompt('attack', 'Sword'), b = prompt('confirm', 'Talk'), w = E.font.width(a) + E.font.width(b) + 26, cx = r.W - w - 4, cy = r.H - 22;
         E.ui.box(g, cx, cy, w, 18, WIN); txt(g, a, cx + 8, cy + 5, '#d8d0f0');
         txt(g, b, cx + w - 8 - E.font.width(b), cy + 5, npc && Math.floor(game.real * 3) % 2 ? '#ffe08a' : '#d8d0f0');   // 'Talk' blinks near a villager
       }
@@ -510,22 +523,21 @@ const ADV = (() => {
         E.ui.box(g, x - 11, y - 14, 22, 12, WIN); px.poly(g, [[x - 4, y - 3], [x + 2, y - 3], [x - 3, y + 1]], WIN.border);
         for (let k = 0; k < 3; k++) px.rect(g, x - 6 + k * 5, y - 9 - (Math.floor(game.real * 3) % 3 === k ? 1 : 0), 2, 2, '#ffe08a');
       }
-      if (deck) E.font.title(g, AREAS[area.room], Math.round(r.W / 2), deck + 138, { align: 'center', scale: 2, colors: ['#ffffff', '#d8e8ff', '#8ab0e8'], depth: 1 });   // on the deck the area's name stays, under the map
-      else if (area.t > 0) {   // area name card slides down, then up
-        const w = E.font.width(AREAS[area.room]) + 20, y = Math.round(4 - (Math.max(0, area.t - 2.3) + Math.max(0, .3 - area.t)) * 90);
+      if (area.t > 0) {   // the area's name drops in, then goes
+        const w = E.font.width(AREAS[area.room]) + 20, y = Math.round(42 - (Math.max(0, area.t - 2.3) + Math.max(0, .3 - area.t)) * 120);
         E.ui.box(g, (r.W - w) / 2, y, w, 18, WIN); txt(g, AREAS[area.room], r.W / 2, y + 5, '#ffffff', { align: 'center' });
       }
     });
   }
-  // a map of the three rooms on the deck (s: its scale): the hero's lit, where he stands blinking
-  function minimap(g, x, y, s = 1) {
-    const room = roomOf(hero.x), C = ['#4a9a4a', '#7a8a56', '#5a5486'], w = 22 * s, h = 16 * s;
+  // a map of the three rooms, 70 x 12: the hero's lit, where he stands blinking
+  function minimap(g, x, y) {
+    const room = roomOf(hero.x), C = ['#4a9a4a', '#7a8a56', '#5a5486'], w = 22, h = 12;
     for (let i = 0; i < 3; i++) { px.rect(g, x + i * (w + 2), y, w, h, i === room ? '#fff4c0' : '#1a1838'); px.rect(g, x + i * (w + 2) + 1, y + 1, w - 2, h - 2, i === room ? C[i] : E.shade(C[i], -.45)); }
-    if (Math.floor(game.real * 3) % 2) px.rect(g, x + Math.round(hero.x / ROOM[0] * (w + 2)) - s, y + 1 + Math.round(clamp(hero.y / ROOM[1], 0, 1) * (h - 4)), 2 * s, 2 * s, '#ffffff');
+    if (Math.floor(game.real * 3) % 2) px.rect(g, x + Math.round(hero.x / ROOM[0] * (w + 2)) - 1, y + 1 + Math.round(clamp((hero.y - OY) / ROOM[1], 0, 1) * (h - 4)), 2, 2, '#ffffff');
   }
   return { view: 'threequarter', views: ['threequarter', 'topdown', 'iso'], input: 'DEFAULT', res: 'ps1', propSize: 1.25, pausable: true, touch: ['attack', 'confirm'], enter: start, update, draw,
     camera: { zoom: [.75, 2], rotate: true },   // a TileMap scene rotates cleanly
     state: () => ({ hero, foes, things, items, map, npcs, pets, talk }),   // for tests
-    exit() { game.cam.room = null; if (gpu) gpu.enabled = false; L.enabled = false; } };
+    exit() { game.cam.room = null; game.cam.smooth = .18; if (gpu) gpu.enabled = false; L.enabled = false; } };
 })();
 scenes.adventure = ADV;

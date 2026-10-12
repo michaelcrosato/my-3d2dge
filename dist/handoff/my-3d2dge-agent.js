@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.26.3: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.27.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -370,7 +370,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.26.3', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.27.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1280,16 +1280,24 @@ class Game {
     pageSetup(this.screen.canvas);
     on(window, 'blur', () => this._autoPause('focus'));
     on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
-    const fsChange = () => { if (this.settings.fullscreen !== fs.on) this.settings.set('fullscreen', fs.on); this.input.clear(); };
+    const fsChange = () => this.input.clear();   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
     on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
-    if (this.o.fullscreen === undefined || this.o.fullscreen === 'tap') on(window, 'pointerup', e => {
-      if (e.pointerType === 'mouse' || this._fsAuto || this.settings.fullscreen === false || !fs.supported || fs.on || fs.standalone) return;
-      if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches) || (e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) return;
-      this._fsAuto = true; fs.enter();
+    on(window, 'pointerup', e => {
+      if (e.pointerType === 'mouse') return;
+      if (!this._fsAuto && !(e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) this._fsAuto = this._autoFull();
+      const s = this.scene; if (!this._guard && this.o.backGesture !== false && s && (s.pausable || this.sceneName === 'main') && window.top === window && history.pushState) try { history.pushState({ e3: 'back' }, ''); this._guard = true; } catch (err) { /* sandboxed */ }
     }, { capture: true });
+    on(window, 'popstate', e => { if (!this._guard || (e.state && e.state.e3 === 'back')) return; this._guard = false; if (!this.back()) this.note('BACK AGAIN TO LEAVE', 1.5); });   // a phone's back pauses play first
     on(window, 'pointermove', e => { if (e.pointerType === 'mouse' && e.clientY < 80 && (e.movementX || e.movementY)) this._mouseTop = performance.now(); }, { passive: true });
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
   }
+  _autoFull() {   // a phone's first tap, and a game started by a tap, go full screen unless the player turned it off
+    const fs = this.fullscreen, o = this.o.fullscreen, ua = typeof navigator !== 'undefined' && navigator.userActivation;
+    if (this.headless) return false; if (fs.on) return true;
+    if ((o !== undefined && o !== 'tap') || this.settings.fullscreen === false || !fs.supported || fs.standalone || !(window.matchMedia && matchMedia('(pointer: coarse)').matches) || (ua && !ua.isActive)) return false;
+    fs.enter(true); return true;
+  }
+  back() { const s = this.scene; if (!s || !(s.pausable || this.sceneName === 'main')) return false; if (this.paused) this.resume(); else this.pause('player'); return true; }   // (the full engine's: a menu screen first)
   _cornerSync() {   // shown while the game isn't being played (a title, a pause), after the mouse comes near the top, the menu always on a touch screen
     const c = this._corner; if (!c) return;
     const s = this.scene, fs = this.fullscreen, main = !!s && (!!s.pausable || this.sceneName === 'main'), play = main && !this.paused, near = performance.now() - (this._mouseTop || -1e9) < 2500;
@@ -1451,6 +1459,7 @@ class Game {
     if (s.views) this.views = s.views;
     if (s.input) this.input.use(s.input);
     if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
+    if (s.pausable || name === 'main') this._fsAuto = this._autoFull();
     if (s.enter) s.enter(data);
   }
   _fail(where, e) {
@@ -1518,7 +1527,7 @@ class Game {
 E.Game = Game;
 
 // ---- 9b. STANDARD FEATURES: the player's settings (saved, versioned, checked), full screen, pausing when the page is hidden, the corner's buttons, a page made for phones ----
-const SETTINGS_VERSION = 1;
+const SETTINGS_VERSION = 2;   // 2: fullscreen false means turned off (version 1's also meant left by a gesture: forgotten)
 // the standard settings by key: { group, label, type: 'toggle' | 'slider' | 'select', value (or a function of the game), min, max, options, apply(game, v) }
 const STANDARD_SETTINGS = {
   fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (left it), null (never chose)
@@ -1547,6 +1556,7 @@ class Settings {
     const hide = (k, v) => Object.defineProperty(this, k, { value: v, writable: true });
     hide('_g', game); hide('_specs', {}); hide('_saved', {}); hide('_key', 'settings:' + (game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game')); hide('saved', true); hide('onChange', null);
     const raw = store.get(this._key, null); hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});
+    if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
     for (const sp of own) this.define(sp);
   }
@@ -1580,13 +1590,13 @@ class FullScreen {
   get supported() { if (this.game.headless) return false; const d = document, el = d.documentElement; return !!((d.fullscreenEnabled || d.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen)); }
   get on() { return !this.game.headless && !!(document.fullscreenElement || document.webkitFullscreenElement); }
   get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this.game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }
-  enter() {
+  enter(quiet) {
     if (this.on || !this.supported) return Promise.resolve(this.on);
-    const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen, no = e => { this.failed = (e && e.message) || 'refused'; this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
+    const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen, no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
     try { const p = f.call(el, { navigationUI: 'hide' }); this.failed = null; return p && p.then ? p.then(() => true, no) : Promise.resolve(true); } catch (e) { return Promise.resolve(no(e)); }
   }
   exit() { if (!this.on) return Promise.resolve(false); const f = document.exitFullscreen || document.webkitExitFullscreen; try { const p = f && f.call(document); return p && p.then ? p.then(() => true, () => false) : Promise.resolve(true); } catch (e) { return Promise.resolve(false); } }
-  toggle() { return this.on ? this.exit() : this.enter(); }
+  toggle() { const on = this.on; if (!this.game.headless) this.game.settings.set('fullscreen', !on); return on ? this.exit() : this.enter(); }   // the player's choice, kept
 }
 E.FullScreen = FullScreen;
 const CORNER_ICONS = { menu: 'M4 7h16M4 12h16M4 17h16', full: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', exit: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5' };
@@ -1608,6 +1618,7 @@ function pageSetup(canvas) {   // no page gestures, selection or callouts on the
   const st = canvas && canvas.style;
   if (st) { st.touchAction = 'none'; st.userSelect = 'none'; st.webkitUserSelect = 'none'; st.webkitTouchCallout = 'none'; st.webkitTapHighlightColor = 'transparent'; }
   if (_paged || !document.head) return; _paged = true;
+  for (const el of [document.documentElement, document.body]) if (el) el.style.overscrollBehavior = 'none';   // no pull to refresh or swipe off the page
   const meta = (name, content) => { let m = document.querySelector('meta[name="' + name + '"]'); if (!m) { m = document.createElement('meta'); m.name = name; m.content = content; document.head.appendChild(m); } return m; };
   const vp = meta('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover'); if (!/viewport-fit/.test(vp.content)) vp.content += ', viewport-fit=cover';
   meta('mobile-web-app-capable', 'yes'); meta('apple-mobile-web-app-capable', 'yes');

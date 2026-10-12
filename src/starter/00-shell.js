@@ -80,6 +80,11 @@ const HEROES = [   // one hero per genre slice, each dressed with the HD rig opt
 HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 // the corner's buttons (menu, full screen, the page's ? API) in game pixels: about 170 x 60 CSS pixels at the top right
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
+// where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
+const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+// a phone held upright: a side-on slice zooms in (z) so its street or level fills more of the screen, and back out on a wide
+// one; the player's own zoom (- =) holds until the screen's shape changes or another scene starts
+const fit = {}, fitZoom = z => { const tall = game.H > game.W * 1.3; if (tall !== fit.tall || game.scene !== fit.scene) { fit.tall = tall; fit.scene = game.scene; game.setZoom(tall ? z : 1); } };
 // START picks too (the touch START, a pad's Start), as Enter does
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
 const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
@@ -123,6 +128,7 @@ scenes.over = {
   view: 'side', input: 'DEFAULT', res: 'ps1',
   enter(d) { overMenu.from = d.from; overMenu.i = 0; A.music(null); A.sfx('die'); game.follow(null); game.focus(0, 0, 0); if (gpu) gpu.enabled = false; L.enabled = false; },
   update(dt) { if (!overMenu.update(dt)) pickOnStart(overMenu); },
+  back() { game.go('title'); return true; },   // a phone's back gesture: to the title, not off the page
   draw(r) {   // centred on any screen
     const y = Math.round(r.H / 2) - 60; overMenu.y = y + 58;
     overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);

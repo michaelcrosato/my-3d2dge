@@ -1321,7 +1321,8 @@ function resize() {
   const pw = Math.max(1, Math.round(r.width * dpr)), ph = Math.max(1, Math.round(r.height * dpr));
   screen.width = pw; screen.height = ph;
   S = Math.max(1, Math.min(Math.floor(ph / 190), Math.floor(pw / 300)));
-  W = Math.min(560, Math.ceil(pw / S)); H = Math.min(300, Math.ceil(ph / S));
+  if (ph / S > 300) S = Math.max(S, Math.ceil(ph / (WH + 40)));   // a tall screen (a phone held upright) zooms in until the level fills it: no bars
+  W = Math.min(560, Math.ceil(pw / S)); H = Math.min(WH + 40, Math.ceil(ph / S));
   OX = Math.floor((pw - W * S) / 2); OY = Math.floor((ph - H * S) / 2);
   buf.width = W + 2; buf.height = H + 2; ctx._c = null; ctx.imageSmoothingEnabled = false;
   skyHQ = buildSkyHQ(W, H); skyStd = buildSkyStd(W + 1, H + 1);
@@ -1372,6 +1373,13 @@ document.querySelectorAll('.touch [data-act]').forEach(b => {
 });
 
 addEventListener('resize', resize);
+// a phone's first tap takes the page full screen (no browser bars), where the browser allows it
+let fsAsked = false;
+addEventListener('pointerup', e => {
+  const el = document.documentElement, go = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (e.pointerType === 'mouse' || fsAsked || !go || document.fullscreenElement || document.webkitFullscreenElement || !(document.fullscreenEnabled || document.webkitFullscreenEnabled)) return;
+  fsAsked = true; try { const p = go.call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); } catch (err) { /* not allowed here */ }
+}, { capture: true });
 resize();
 initScarf();
 updatePose(0);

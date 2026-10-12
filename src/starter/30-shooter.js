@@ -4,7 +4,8 @@
  * 'overhead' maps world x/y to screen pixels; the 272 px world pans a little with the ship. z only orders the drawing:
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
  * PS1 LOOK: real alpha and additive light (px.blend), never dither; altitude shadows, one-point perspective buildings.
- * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs.
+ * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs. TOUCH: the
+ * ship follows a thumb dragged on the screen's left half one to one (input.drag()) and fires by itself; BOMB is the button.
  * ANY SCREEN: res [240, 320] with expand. The playfield stays WW wide, so the game plays the same; the screen's height is
  * the playfield's (W x H are the screen's, read each step). A screen wider than the playfield shows the valley going on
  * beyond it (2b), dimmed: out of play. game.go('shooter', { at: 30 }) starts at the boss.
@@ -397,10 +398,10 @@ const SHOOT = (() => {
     }
     if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { best('shooter', score); game.go('over', { from: 'shooter' }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
     else {
-      const mv = inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);
-      ship.x = clamp(ship.x + mv[0] * 125 * dt, 10, WW - 10); ship.y = clamp(ship.y + mv[1] * 125 * dt, scroll + 30, scroll + H - 20);
+      const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
+      ship.x = clamp(ship.x + (d ? d[0] : mv[0] * 125 * dt), 10, WW - 10); ship.y = clamp(ship.y + (d ? d[1] : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
       if (inp.pressed('fire')) ship.burst = .5;
-      if ((inp.down('fire') || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level
+      if ((inp.down('fire') || touch() || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level; on a touch screen it fires by itself
         fireT = .07; ship.gun = .035; A.sfx('shoot', { vol: .2 });
         for (const [dx, da] of [[-5, 0], [5, 0], [-10, -.08], [10, .08], [-13, -.2], [13, .2], [-4, -.34], [4, .34]].slice(0, power * 2)) shots.fire({ x: ship.x + dx, y: ship.y - 16, z: 20, vx: Math.sin(da) * 440, vy: -Math.cos(da) * 440, r: 3, life: .9, team: 'ship' });
       }
@@ -532,16 +533,17 @@ const SHOOT = (() => {
     win(27, 2, 74, 25, BLUE); txt(g, '1P', 31, 5, '#ffd36a'); txt(g, pad(score), 46, 5, '#fff', { gradient: ['#ffffff', '#9ac0ff'] });
     for (let i = 0; i < lives; i++) px.sprite(g, LIFE, 31 + i * 10, 16); for (let i = 0; i < bombs; i++) px.sprite(g, BOMBI, 94 - i * 7, 17);
     // hi-score; lit power chevrons run hot
-    win(W - 76, 2, 74, 25, RED); txt(g, 'HI', W - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(score, E.store.get('best:shooter', 0))), W - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
-    txt(g, power < 4 ? 'POW' : 'MAX', W - 72, 17, '#ffd36a');
-    for (let i = 0; i < 4; i++) { const x = W - 48 + i * 10, on = i < power; px.poly(g, [[x, 16], [x + 5, 16], [x + 9, 20], [x + 5, 24], [x, 24], [x + 4, 20]], on ? ['#ffd040', '#ffa030', '#ff6a30', '#ff3a5a'][i] : '#5a6494'); px.line(g, x + 1, 16, x + 5, 16, on ? '#fff4c0' : '#9aa4d0'); }
+    const R = Math.min(W, cornerX());   // (clear of the corner's menu button)
+    win(R - 76, 2, 74, 25, RED); txt(g, 'HI', R - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(score, E.store.get('best:shooter', 0))), R - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
+    txt(g, power < 4 ? 'POW' : 'MAX', R - 72, 17, '#ffd36a');
+    for (let i = 0; i < 4; i++) { const x = R - 48 + i * 10, on = i < power; px.poly(g, [[x, 16], [x + 5, 16], [x + 9, 20], [x + 5, 24], [x, 24], [x + 4, 20]], on ? ['#ffd040', '#ffa030', '#ff6a30', '#ff3a5a'][i] : '#5a6494'); px.line(g, x + 1, 16, x + 5, 16, on ? '#fff4c0' : '#9aa4d0'); }
     if (boss) {   // a pale damage trail drains after the health
       const f = boss.parts[2].hp / boss.parts[2].max, w = Math.round(118 * f), o = Math.round(mid) - 120; win(o + 44, 30, 152, 13, RED); txt(g, 'BOSS', o + 48, 33, '#ff9a8a');
       E.ui.bar(g, o + 72, 34, 120, 6, boss.trail, '#ffe8b0', { border: '#140b12', bg: '#2a0a12' }); px.rect(g, o + 73, 35, w, 4, boss.flash > 0 ? '#ff8a90' : '#e8404a'); px.rect(g, o + 73, 35, w, 1, '#ff9aa0');
     }
     if (t < INTRO) {   // stage card above the radio call; nobody fires until it clears
       band(40, 62, '#080a1c'); E.font.title(g, 'STAGE 1', mid, 46, { align: 'center', scale: 3 });
-      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, prompt('fire', 'shot') + '     ' + prompt('bomb', 'bomb'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys
+      txt(g, 'EMERALD VALLEY', mid, 74, '#fff', { align: 'center', gradient: ['#ffffff', '#b8f0c0'] }); txt(g, (touch() ? 'DRAG to fly, AUTO-FIRE' : prompt('fire', 'shot')) + '     ' + prompt('bomb', 'bomb'), mid, 87, '#c8d0f0', { align: 'center' });   // the player's own keys
     }
     if (warnT > 0) {
       band(60, 62, '#2a0406');
@@ -553,6 +555,7 @@ const SHOOT = (() => {
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
       W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
+      game.input.touchSet('fire', null, false);   // a touch screen fires by itself: no button for it
     },
     exit() { game.cam.smooth = .18; }, update, draw };
 })();
