@@ -1,6 +1,6 @@
 # my-3D2dge: rules for every change
 
-my-3D2dge is a 2D game engine for AI models (`engine/my-3d2dge.js`), its agent edition (`engine/my-3d2dge-agent.js`), the starter games (`src/starter/`), the labs, and Emberdeep, the signature game (`src/emberdeep/`). Start with `README.md`; Emberdeep's contract is `src/emberdeep/DESIGN.md`.
+my-3D2dge is a 2D game engine for AI models (`engine/my-3d2dge.js`), its agent edition (`engine/my-3d2dge-agent.js`), the 3D engine that puts a real 3D world under a game (`engine/my-3d2dge-3d.js`, `docs/ENGINE-3D.md`), the starter games (`src/starter/`, `src/starter3d/`), the labs, and Emberdeep, the signature game (`src/emberdeep/`). Start with `README.md`; Emberdeep's contract is `src/emberdeep/DESIGN.md`.
 
 ## The doctrine
 
@@ -17,7 +17,7 @@ my-3D2dge is a 2D game engine for AI models (`engine/my-3d2dge.js`), its agent e
 - A rebuild of an unchanged tree changes nothing: the build is byte for byte repeatable.
 - No dependencies in the engine or the games, no binary files (images, sounds, models; `node tools/doctrine-check.mjs` lists the approved ones), no network. Match the code around you (dense, commented, plain JavaScript).
 - Outside `engine/`, use the engine's public API, not its private members (names starting with `_`); a prototype may. Gameplay takes time only from `dt` and the game's clocks, and randomness only from `Math.random` or `E.rng`, so the test harness can replay it exactly.
-- `vendor/` holds the 3D world lab's two pinned libraries (three.js r182, Rapier 0.19.3; `docs/LAB-3D.md`), loaded by that lab only. Never edit them: `node tools/vendor-3d.mjs` fetches them, `--check` verifies them.
+- `vendor/` holds the two pinned libraries of the 3D labs and the 3D engine (three.js r182, Rapier 0.19.3; `docs/LAB-3D.md`, D27), loaded by those pages only (the 3D starter and kits among them, which are served for it). Never edit them: `node tools/vendor-3d.mjs` fetches them, `--check` verifies them. The 3D engine's header is its manual (a budget of 6,000 tokens); keep it true when the engine changes.
 
 ## Versioning: every engine-tier change merged to main
 

@@ -140,7 +140,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.33.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.34.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -218,7 +218,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.33.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.34.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -718,18 +718,23 @@ class Screen {
   setOptions(o) { Object.assign(this.o, o); this.resize(); }
   /** how a fixed resolution fills the screen: 'sharp' | 'fill' | 'auto' (see scale) */
   setScale(v) { this.scale = v === 'sharp' || v === 'fill' ? v : 'auto'; this.resize(); }
+  /** clear: true when the game's bg is null (or 'transparent'): the buffer and the canvas are cleared instead of filled,
+   *  so a picture under the canvas shows through the game's (a 3D world drawn by engine/my-3d2dge-3d.js) */
+  get clear() { return this.o.bg == null || this.o.bg === 'transparent'; }
   /** start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it) */
   begin(cx, cy, bg) {
     this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
     const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
-    g.fillStyle = bg; g.fillRect(0, 0, this.buf.width, this.buf.height);
+    if (bg == null || bg === 'transparent') g.clearRect(0, 0, this.buf.width, this.buf.height);
+    else { g.fillStyle = bg; g.fillRect(0, 0, this.buf.width, this.buf.height); }
   }
   /** copy the buffer to the canvas, scaled up with whole pixels and the camera's sub-pixel offset (the renderer
    *  calls it) */
   present() {
     const s = this._sctx, S = this.S; if (!s) return;
     s.imageSmoothingEnabled = false;
-    s.fillStyle = '#000'; s.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.clear) s.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    else { s.fillStyle = '#000'; s.fillRect(0, 0, this.canvas.width, this.canvas.height); }
     s.save(); s.beginPath(); s.rect(this.OX, this.OY, this.W * S, this.H * S); s.clip();
     s.drawImage(this.buf, 0, 0, this.W + 1, this.H + 1, this.OX - Math.round(this.fx * S), this.OY - Math.round(this.fy * S), (this.W + 1) * S, (this.H + 1) * S);
     s.restore();
@@ -1482,8 +1487,10 @@ E.Lighting = Lighting;
  *    z gravity: g > 0 pulls down. bounce: 0..1 on the floor.
  * ============================================================================= */
 class Particles {
-  /** game.particles. game: its game; list: the live particles; max: at most this many at once (add() skips the rest) */
-  constructor(game) { this.game = game; this.list = []; this.max = 900; }
+  /** game.particles. game: its game; list: the live particles; max: at most this many at once (add() skips the rest);
+   *  ground: null (the floor is z 0), or (x, y, z) -> the floor's height under a particle (a side-scroller's platforms,
+   *  a 3D level: engine/my-3d2dge-3d.js sets it), asked again when a particle enters a new 8-unit cell */
+  constructor(game) { this.game = game; this.list = []; this.max = 900; this.ground = null; }
   /** add one particle { x, y, z, vx, vy, vz, life, max (seconds), g (gravity, > 0 pulls down), drag, bounce (0..1),
    *  kind: 'dust' | 'spark' | 'bit' | 'ember' | 'ring' | 'text', color, size }; returns it, or null when full */
   add(p) {
@@ -1500,9 +1507,9 @@ class Particles {
       const k = Math.exp(-p.drag * dt);
       p.vx *= k; p.vy *= k; p.vz = p.vz * k - p.g * dt;
       p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-      let fl = 0;   // particles.ground(x, y, z) -> floor height (side-scroller platforms), looked up again whenever a particle enters a new column
+      let fl = 0;   // particles.ground(x, y, z) -> floor height (side-scroller platforms, a 3D level), looked up again whenever a particle enters a new 8-unit cell
       if (p.floor !== undefined) fl = p.floor;
-      else if (this.ground) { const c = Math.floor(p.x / 8); if (p._fc !== c) { p._fc = c; p._fl = this.ground(p.x, p.y, p.z) || 0; } fl = p._fl; }
+      else if (this.ground) { const c = Math.floor(p.x / 8) + Math.floor(p.y / 8) * 65536; if (p._fc !== c) { p._fc = c; p._fl = this.ground(p.x, p.y, p.z) || 0; } fl = p._fl; }
       if (p.z < fl && p.kind !== 'ring') { p.z = fl; if (p.bounce) { p.vz = -p.vz * p.bounce; p.vx *= .7; p.vy *= .7; } else p.vz = 0; }
     }
   }
@@ -2079,7 +2086,8 @@ class Renderer {
     for (const g of this.gpu ? [this.ctx, this._iG] : [this.ctx]) {
       tg.clearRect(0, 0, t.width, t.height); tg.drawImage(g.canvas, 0, 0);
       g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.imageSmoothingEnabled = false;
-      g.fillStyle = g === this.ctx ? this.game.o.bg : '#000'; g.fillRect(0, 0, this.bw, this.bh);
+      if (g === this.ctx && this.game.screen.clear) g.clearRect(0, 0, this.bw, this.bh);
+      else { g.fillStyle = g === this.ctx ? this.game.o.bg : '#000'; g.fillRect(0, 0, this.bw, this.bh); }
       g.setTransform(k, 0, 0, k, fx * (1 - k), fy * (1 - k)); g.drawImage(t, 0, 0); g.restore(); g._c = null;
     }
   }
@@ -2149,7 +2157,9 @@ class Game {
    * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
    * fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }).
    * res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows
-   * the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there).
+   * the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). bg: the color
+   * behind everything, or null: the canvas is clear, and the game draws its HUD and menus over a picture under it (a 3D
+   * world, engine/my-3d2dge-3d.js).
    * headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes
    * update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in
    * a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and
@@ -2448,6 +2458,9 @@ class Game {
   /** shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's
    *  settings.shake */
   shake(a) { if (!this.reduceMotion) this._shakeAmt = Math.min(10, this._shakeAmt + a * clamp(this.settings.shake, 0, 1)); }
+  /** how hard the screen shakes now (0 still, up to 10): shake() adds to it and it dies away. A camera of the game's own
+   *  (a 3D world's) shakes by it */
+  get shaking() { return this._shakeAmt; }
   /**
    * everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound,
    * a damage number and a rumble on a gamepad. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit', rumble: true })
