@@ -247,7 +247,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.31.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.32.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -325,7 +325,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.31.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.32.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -886,6 +886,10 @@ class Input {
      *  anywhere on the screen but the buttons steers by drag(), with no stick drawn: a shooter's ship that follows the
      *  thumb); padAxes: the gamepad's raw axes */
     this.touchEnabled = true; this.stickSide = 'left'; this.steer = 'stick'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
+    /** pinching: two fingers on the canvas are pinching the camera's zoom (they moved apart or together: not the stick,
+     *  not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no
+     *  action uses) and a pinch ask for it, read by zoom() */
+    this.pinching = false; this._zoomAcc = 1; this._zoomNow = 1; this._zoomOn = false; this._wheelOn = false; this._fingers = new Map();
     /** glyphs: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' |
      *  'nintendo' | 'generic' (positions); rumbleScale: vibration strength 0..1 (0 = off; game.settings.rumble sets it);
      *  padLost: true for the step after the gamepad in use was unplugged (a pausable scene pauses) */
@@ -907,18 +911,27 @@ class Input {
     on(window, 'keydown', e => {
       if (typing(e)) return;
       if (this._codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); }
+      else if (this._zoomOn && ZOOM_KEYS[e.code] && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (!e.repeat) this._zoomAcc *= ZOOM_KEYS[e.code]; }   // - and =, where no action uses them
     });
+    // the wheel zooms where the game lets it (a mouse's notch 10%; a trackpad's pinch comes as the wheel with ctrlKey);
+    // not over a menu, which scrolls
+    el.addEventListener('wheel', e => {
+      if (!this._wheelOn) return; e.preventDefault();
+      const d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 100 : 1);
+      this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25);
+    }, { signal, passive: false });
     on(window, 'keyup', e => this.release(e.code));
     on(window, 'blur', () => this.clear());
     on(document, 'visibilitychange', () => { if (document.hidden) this.clear(); });
     on(el, 'contextmenu', e => e.preventDefault());
-    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else this._stickMove(e); });
+    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else { this._pinchMove(e); this._stickMove(e); } });
     on(el, 'pointerdown', e => {
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
       if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
       if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.aimSource = 'mouse'; this.press('Mouse' + e.button); }
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
+        this._fingers.set(e.pointerId, { x: e.clientX, y: e.clientY }); this._pinchArm();
         if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
     });
@@ -926,9 +939,9 @@ class Input {
       const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none): clicked() for a step,
       // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
       if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
-      if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else this._stickEnd(e);
+      if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); }
     });
-    on(window, 'pointercancel', e => { this._down = null; this._stickEnd(e); });
+    on(window, 'pointercancel', e => { this._down = null; this._fingerUp(e); this._stickEnd(e); });
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
@@ -1126,7 +1139,7 @@ class Input {
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
-    this.padMove = [0, 0]; this.padAim = null;
+    this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this.pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
   }
@@ -1149,6 +1162,9 @@ class Input {
   /** how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while
    *  no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction */
   drag() { return this._drag || null; }
+  /** the camera zoom the player asked for since the last step, as a factor (1.1: 10% closer, .9: farther; 1: none): the
+   *  wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy) */
+  zoom() { return this._zoomNow; }
   /** the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas */
   pointer() { return this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null; }
   /** browser client coords -> screen pixels [x, y] (the HUD's space, with no camera), or null without a canvas */
@@ -1191,7 +1207,7 @@ class Input {
     // presses since the last step become this step's pressed()/released()
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
-    this.clickAt = this._click; this._click = null;
+    this.clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
   /** wire every element with data-act="<action>" inside root to the action */
@@ -1206,6 +1222,24 @@ class Input {
       const off = e => { b._inputPointers.delete(e.pointerId); if (!b._inputPointers.size) { this.release(code); b.classList.remove('on'); } };
       b.addEventListener('pointerup', off, { signal }); b.addEventListener('lostpointercapture', off, { signal }); b.addEventListener('pointercancel', off, { signal });
     });
+  }
+  // two fingers on the canvas: where each was as the second landed (a pinch is measured from there)
+  _pinchArm() { this.pinching = false; if (this._fingers.size === 2) for (const f of this._fingers.values()) { f.x0 = f.x; f.y0 = f.y; } }
+  _fingerUp(e) { if (this._fingers.delete(e.pointerId)) { if (this._fingers.size < 2) this.pinching = false; else this._pinchArm(); } }
+  // a pinch: both fingers moving along the line between them, opposite ways (apart or together). A thumb on the stick
+  // with another finger resting on the glass, or two moving the same way, is none. It takes over the stick and the tap
+  _pinchMove(e) {
+    const f = this._fingers.get(e.pointerId); if (!f) return; f.x = e.clientX; f.y = e.clientY;
+    if (this._fingers.size !== 2 || !this._zoomOn) return;
+    const [a, b] = [...this._fingers.values()], d = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    if (!this.pinching) {
+      const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, pa = (a.x - a.x0) * ux + (a.y - a.y0) * uy, pb = (b.x - b.x0) * ux + (b.y - b.y0) * uy;
+      if (Math.abs(pa) < 4 || Math.abs(pb) < 4 || pa * pb >= 0 || Math.abs(d - Math.hypot(b.x0 - a.x0, b.y0 - a.y0)) < 16) return;
+      this.pinching = true; this._pinchD = d; this._down = null;
+      if (this.stickOn && this._fingers.has(this.stickId)) this._stickEnd({ pointerId: this.stickId });
+      return;
+    }
+    this._zoomAcc *= d / this._pinchD; this._pinchD = d;
   }
   _stickStart(e) {
     if (!this.touchEnabled || this.stickOn) return;
@@ -1243,6 +1277,8 @@ class Input {
     void rc;
   }
 }
+/* the player's zoom keys (Input: where no action uses them): - farther, = closer, and the numpad's */
+const ZOOM_KEYS = { Minus: 1 / 1.1, NumpadSubtract: 1 / 1.1, Equal: 1.1, NumpadAdd: 1.1 };
 /* menu actions shared by every preset. Pad9 = Start, Pad0 = A (bottom), Pad1 = B (right). use() adds 'Act:menu', the
    touch START button, to start and pause in any layout: like Start, it starts on a title and pauses a pausable scene */
 const MENU_KEYS = {
@@ -2140,6 +2176,20 @@ class Renderer {
       } else this._xrPrev = [0, 0, this.bw, this.bh];
     }
   }
+  // the player's zoom while they ask for it (game._zoomTo): the world drawn so far (at the zoom it has, from what is
+  // cached) scaled about the camera's focus by k, under the HUD, nearest pixels; the edges a zoom out uncovers are the
+  // background. Once they stop, the frame is drawn at the new size
+  _zoomPreview(k) {
+    const c = this.game.cam, f = this.w(c.tx, c.ty, c.tz), fx = clamp(f[0], 0, this.bw), fy = clamp(f[1], 0, this.bh);
+    const t = this._pvCv || (this._pvCv = mkCanvas(this.bw, this.bh)), tg = ctx2d(t);
+    if (t.width !== this.bw || t.height !== this.bh) { t.width = this.bw; t.height = this.bh; }
+    for (const g of this.gpu ? [this.ctx, this._iG] : [this.ctx]) {
+      tg.clearRect(0, 0, t.width, t.height); tg.drawImage(g.canvas, 0, 0);
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.imageSmoothingEnabled = false;
+      g.fillStyle = g === this.ctx ? this.game.o.bg : '#000'; g.fillRect(0, 0, this.bw, this.bh);
+      g.setTransform(k, 0, 0, k, fx * (1 - k), fy * (1 - k)); g.drawImage(t, 0, 0); g.restore(); g._c = null;
+    }
+  }
   /** end the frame: particles, decals, the queue, lighting, overlays, then present (the game calls it after your
    *  draw) */
   finish() {
@@ -2152,6 +2202,7 @@ class Renderer {
     this._tg = null;
     this.flush();
     if (gpu) {
+      if (game._zoomTo) this._zoomPreview(game._zoomTo / game.zoom);   // (the lights stay where they were until it is drawn at the new size)
       this._tg = this._vG; for (const f of this._overlays) f(this._vG); this._tg = null;
       try { game.gpu.render(this); } catch (e) { game.gpu.fail(e); game.screen.present(); }
     } else {
@@ -2164,6 +2215,7 @@ class Renderer {
           if (this._emOn) g.drawImage(this._sCv, 0, 0);   // walls and bodies in front of a glow keep their lit pixels
         }
       }
+      if (game._zoomTo) this._zoomPreview(game._zoomTo / game.zoom);
       for (const f of this._overlays) f(g);
       game.screen.present();
     }
@@ -2214,7 +2266,8 @@ class Game {
    * phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the
    * page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false
    * draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly),
-   * unless the player picks Frame rate 60
+   * unless the player picks Frame rate 60; camera: the camera of every scene without its own (a scene's camera option:
+   * the player's zoom, start)
    */
   constructor(o = {}) {
     o = Object.assign({}, o);
@@ -2239,9 +2292,10 @@ class Game {
     /** view: the view the game draws in now (the chosen one, with zoom and turn: read it, change it with setView);
      *  baseView: the chosen view without zoom and turn */
     this.view = this.baseView = this._view(this.o.view) || E.VIEWS.iso;
-    /** zoom: the camera's zoom (1 = as the view is; setZoom); yaw: its turn in degrees on top of the view
-     *  (rotateView) */
-    this.zoom = 1; this.yaw = 0;   // camera zoom and turn on top of the chosen view (setZoom, rotateView)
+    /** zoom: the camera's zoom now (1 = as the view is): the game's (setZoom, a scene's camera.start) times the player's
+     *  (settings.zoom: the wheel, a pinch), within the scene's camera.zoom range; yaw: its turn in degrees on top of the
+     *  view (rotateView) */
+    this.zoom = 1; this.yaw = 0; this._zoomBase = 1; this._zoomTo = null; this._zoomAt = 0;   // camera zoom and turn on top of the chosen view (setZoom, rotateView)
     /** views this game is designed for (view cycling and the checker use it). null = every view */
     this.views = this.o.views || null;
     /** time: game seconds since start (it stops during pause and hit-stop, and slows with timeScale); real: seconds
@@ -2326,14 +2380,63 @@ class Game {
     this.baseView = w; this._applyView();
   }
   /**
-   * camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3). Characters, maps, props, particles and lights are drawn
-   * by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
+   * camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3), the game's own; where the scene lets the player zoom
+   * (camera.zoom), theirs multiplies it (game.zoom is the two together). Characters, maps, props, particles and lights are
+   * drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
    */
-  setZoom(z) { this.zoom = clamp(+z || 1, .5, 3); this._applyView(); }
+  setZoom(z) { this._zoomBase = clamp(+z || 1, .5, 3); this._zoomApply(true); }
   /** turn the camera around the vertical axis in ground views: game.rotateView(45) (degrees). Side views never turn */
   rotateView(deg) { this.yaw = (((this.yaw || 0) + deg) % 360 + 360) % 360; this._applyView(); }
-  /** undo setZoom and rotateView */
-  resetCamera() { this.zoom = 1; this.yaw = 0; this._applyView(); }
+  /** undo setZoom and rotateView: the scene's own zoom again (camera.start, or camera.tall on a screen held upright; 1
+   *  without), no turn. The player's zoom stays (settings.zoom) */
+  resetCamera() { this.yaw = 0; this._zoomBase = this._zoomStart(); this._zoomApply(true); }
+  /**
+   * the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom
+   * button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of
+   * the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does
+   * nothing where the scene doesn't let the player zoom. Returns the zoom
+   */
+  zoomBy(k) {
+    const R = this.zoomRange(), b = this._zoomBase; if (!R || !(k > 0)) return this.zoom;
+    const lo = Math.max(ZOOM_PLAYER[0], R[0] / b), hi = Math.min(ZOOM_PLAYER[1], R[1] / b); if (lo > hi) return this.zoom;
+    const f = clamp((this.settings.zoom || 1) * k, lo, hi); this.settings.set('zoom', f);
+    const z = this._zoomTo || this.zoom; this.note('ZOOM ' + z + 'x' + (f <= lo + 1e-9 && k < 1 ? ' MIN' : f >= hi - 1e-9 && k > 1 ? ' MAX' : ''), 1);
+    return z;
+  }
+  /** the zooms the player may take the camera to here, [min, max] (the scene's camera.zoom, or the game's; a function of
+   *  the game gives one per screen shape or level), or null where they can't (camera.zoom false or none) */
+  zoomRange() {
+    let z = (this._camera() || {}).zoom; if (typeof z === 'function') try { z = z(this); } catch (e) { this._fail('camera.zoom', e); z = null; }
+    return Array.isArray(z) && z.length === 2 && z[0] > 0 && z[1] >= z[0] ? [clamp(z[0], .5, 3), clamp(z[1], .5, 3)] : null;
+  }
+  /** true on a screen held upright (taller than 1.3 times its width: a phone in portrait), where a scene's camera.tall
+   *  zoom applies */
+  get upright() { return this.H > this.W * 1.3; }
+  _camera() { const s = this.scene; return (s && s.camera) || this.o.camera || null; }
+  _zoomStart() { const c = this._camera(); if (!c) return 1; return clamp(+(this.upright && c.tall !== undefined ? c.tall : c.start) || 1, .5, 3); }
+  // the camera's zoom: the game's (_zoomBase), times the player's where the scene allows it, snapped to twentieths (each
+  // zoom is a view, its own baked floor, walls and props)
+  _zoomGoal() {
+    const R = this.zoomRange(), b = this._zoomBase, f = R && this.settings ? +this.settings.zoom || 1 : 1;   // (settings: not while they are made)
+    return f === 1 ? b : clamp(Math.round(b * f * 20) / 20, Math.min(R[0], b), Math.max(R[1], b));
+  }
+  // the zoom becomes the goal: the game's own at once; the player's (wait) drawn as a preview (_zoomTo: the world as it
+  // was drawn, scaled about the focus, Renderer._zoomPreview) while they pinch, turn the wheel or slide the setting, and
+  // re-rasterized at its new size a quarter second after they stop. A new size bakes the floor, walls and props again
+  // (a third of a second in the adventure): once, not at every step
+  _zoomApply(force, wait) {
+    const z = this._zoomGoal();
+    if (wait && z !== this.zoom) { this._zoomTo = z; this._zoomAt = this.real; return; }
+    this._zoomTo = null; if (z === this.zoom && !force) return; this.zoom = z; this._applyView();
+  }
+  // a scene's camera.start and camera.tall: as it starts, and when the screen turns upright or back
+  _zoomFit(enter) {
+    const c = this._camera(), up = this.upright, turned = up !== this._up; enter = enter || this._up === undefined; this._up = up;   // (a game without scenes: its first step)
+    if (c && (enter || (turned && c.tall !== undefined))) { this._zoomBase = this._zoomStart(); this._zoomApply(true); }
+    else if (enter || turned) this._zoomApply();   // (a scene without a camera: the player's zoom no longer applies; turned: its range may have changed)
+  }
+  /** does any of the game's scenes let the player zoom (the settings screen shows Camera zoom)? */
+  _zooms() { const z = c => !!c && (Array.isArray(c.zoom) || typeof c.zoom === 'function'); return z(this.o.camera) || Object.values(this.scenes || {}).some(s => s && z(s.camera)) || z(this.scene && this.scene.camera); }
   /** a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1) */
   note(text, seconds = 1.2) { this._note = { text: String(text), end: this.real + seconds }; }
   /** pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused.
@@ -2506,10 +2609,14 @@ class Game {
   /**
    * Start the loop. Either one scene:  game.start({ update(dt), draw(r) })
    * or several:  game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
-   * A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch } (all
-   * optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied
-   * when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture (game.back())
-   * first: return true when it went back somewhere (a sub-menu closed).
+   * A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera }
+   * (all optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are
+   * applied when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture
+   * (game.back()) first: return true when it went back somewhere (a sub-menu closed). camera: { zoom: [.75, 2], start: 1,
+   * tall: 1.5, wheel: true }: the player zooms the camera within zoom (the wheel, - and =, a pinch, Settings, Camera zoom:
+   * theirs, kept, on top of the game's; false or none: they can't; a function of the game: a range per screen shape,
+   * g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at (tall: on a screen held upright, game.upright; 1
+   * without); wheel: false leaves the mouse wheel to the game
    * start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance().
    * boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c):
    * the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
@@ -2687,6 +2794,7 @@ class Game {
     if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
     if (s.touch) this.input.touchButtons(s.touch);
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
+    this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
     if (s.enter) s.enter(data);
   }
@@ -2710,7 +2818,12 @@ class Game {
     if (s && s.pausable && this.input.pressed('pause')) { this.paused = !this.paused; this.pauseReason = this.paused ? 'player' : null; this.audio.sfx('pause'); }
     if (!this.paused) this.pauseReason = null;
     this.audio._duck(this.paused);
+    // the player's zoom: the wheel, - and = and a pinch ask for it while a scene that allows it plays (input.zoom())
+    const I = this.input, zr = !this.paused && !(this.shell && this.shell.screen) && !!this.zoomRange();
+    I._zoomOn = zr; I._wheelOn = zr && (this._camera() || {}).wheel !== false;
+    if (this._zoomTo && !I.pinching && this.real - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
     if (this.paused) return;
+    this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk);
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     this.time += dt;
     const T = this._timers;
@@ -2771,12 +2884,14 @@ E.Game = Game;
  *      callouts on the game's canvas (menus keep theirs).
  *    E.Shell draws the menu's screens (pause, settings, controls): section 21d.
  * ============================================================================= */
+const ZOOM_PLAYER = [.5, 2];   // the player's zoom (settings.zoom): half to twice the game's, within each scene's range
 const SETTINGS_VERSION = 2;   // 2: fullscreen false means turned off (version 1's also meant left by a gesture: forgotten)
 /** the standard settings by key: { group, label, type: 'toggle' | 'slider' | 'select', value (the default, or a
  *  function of the game), min, max, step, options: [[value, label]], help, apply(game, value) }. Groups: Display,
  *  Sound, Comfort (the settings screen), Controller, Touch (the controls screen) */
 const STANDARD_SETTINGS = {
   fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (turned it off), null (never chose)
+  zoom: { group: 'Display', label: 'Camera zoom', type: 'slider', value: 1, min: ZOOM_PLAYER[0], max: ZOOM_PLAYER[1], step: .05, unit: '×', help: 'Closer or farther than the game frames it. In play: the mouse wheel, - and =, or a pinch', apply: g => g._zoomApply(false, true) },
   frameRate: { group: 'Display', label: 'Frame rate', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['60', '60'], ['full', 'Full']], help: 'Auto: every refresh while the game keeps up, every other one, evenly, when it can\'t. 60: every other refresh on a 120 Hz screen. Full: every refresh' },
   showFps: { group: 'Display', label: 'Show frame rate', type: 'toggle', value: false, help: 'At the top of the screen: frames drawn a second, the screen\'s refresh and a frame\'s cost' },
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
@@ -4520,16 +4635,17 @@ class TileMap {
       r.queue(cx * T + T / 2, cy * T + T / 2, 0, g => this._boxCached(g, r, cx, cy, t, h), { occluder: true });
     }
   }
-  /** each wall block is baked once per view into a small image (pixel-identical: camera offsets are whole pixels) */
+  /** each wall block is baked once per view into a small image (pixel-identical: camera offsets are whole pixels), for the
+   *  last four views (a zoom or turn and back is drawn from them) */
   _boxCached(g, r, cx, cy, t, h) {
-    const view = r.view, key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale + ':' + this.version;
-    if (!this._wc || this._wc.key !== key) this._wc = { key, m: new Map() };
-    const idx = cy * this.w + cx; let e = this._wc.m.get(idx);
+    const view = r.view, key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale + ':' + this.version, wc = this._wcs || (this._wcs = new Map());
+    let c = wc.get(key); if (!c) { if (wc.size >= 4) wc.delete(wc.keys().next().value); wc.set(key, c = { m: new Map() }); }
+    const idx = cy * this.w + cx; let e = c.m.get(idx);
     if (!e || e.h !== h) {
       const T = this.T; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
       for (const z of [0, h]) for (const [x, y] of [[cx * T, cy * T], [cx * T + T, cy * T], [cx * T, cy * T + T], [cx * T + T, cy * T + T]]) { const q = view.p(x, y, z); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
       e = { h, x0: Math.floor(x0) - 2, y0: Math.floor(y0) - 2, w: Math.ceil(x1) - Math.floor(x0) + 5, hh: Math.ceil(y1) - Math.floor(y0) + 5, cv: null, info: null };
-      this._wc.m.set(idx, e);
+      c.m.set(idx, e);
     }
     const bake = info => {
       const c = mkCanvas(e.w, e.hh), cg = info ? c.getContext('2d') : ctx2d(c);
@@ -6830,7 +6946,7 @@ class Shell {
     if (!this._std) { for (const k of own) add(this._row(k)); return; }
     const groups = SHELL_GROUPS.concat([...new Set(S.keys().map(k => S.spec(k).group))].filter(g => !SHELL_GROUPS.includes(g) && !['Controls', 'Controller', 'Touch'].includes(g)));
     for (const g of groups) {
-      const keys = S.keys(g).filter(k => (k !== 'scale' || this.game.screen.fixedRes()) && (k !== 'fullscreen' || this.game.o.fullscreen !== false) && S.spec(k).type !== 'value');
+      const keys = S.keys(g).filter(k => (k !== 'scale' || this.game.screen.fixedRes()) && (k !== 'fullscreen' || this.game.o.fullscreen !== false) && (k !== 'zoom' || this.game._zooms()) && S.spec(k).type !== 'value');
       if (!keys.length) continue;
       add(this._el('div', 'esh-k esh-sec', g)); for (const k of keys) add(this._row(k));
     }

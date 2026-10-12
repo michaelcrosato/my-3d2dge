@@ -8,7 +8,7 @@
  * slashes, bashes and swings a Doom Blade, the Gargoyle dives claws first or beats up a gale, the Bomb rams or spits.
  * ANY SCREEN: the backdrop is painted at the screen's size, its ground with the plaza's own grass and light so the plaza's
  * edge melts into it, a tall screen's sky darkening to the first stars; the HUD band sits on the bottom edge and the
- * battle in the space above it (layout()). A phone held upright comes in to 1.5x and the two sides close up (TALL), so the
+ * battle in the space above it (layout()). A phone held upright comes in to 1.5x (camera.tall) and the two sides close up (TALL), so the
  * fighters are as big as a wide screen shows them. TOUCH, after mobile RPGs: the band is big buttons a thumb hits (pads(): the
  * commands and AUTO, the party fighting by itself; then the targets with their HP, and BACK), the party's cards above them on
  * a phone held upright, beside them on its side; a tap on a fighter targets it too. Keys and a pad: the FF command list.
@@ -59,7 +59,7 @@ const RPG = (() => {
   // where things go on this screen: the HUD band's top (Y: on the bottom edge, a little higher on a phone, off its home
   // bar), the camera focus's height on screen (fy: the battle just above the band, or on a tall screen 3/5 down the sky,
   // a phone held upright's a little lower: its fight is bigger)
-  const layout = (W, H) => { const Y = game.input.lastDevice === 'touch' ? pads(W, H).Y : H - 73; return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * (fit.tall ? .66 : .6))) }; };
+  const layout = (W, H) => { const Y = game.input.lastDevice === 'touch' ? pads(W, H).Y : H - 73; return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * (game.upright ? .66 : .6))) }; };
   // TOUCH: a 3 x 2 grid of buttons 38 px tall (44 CSS px and more on a phone, an iPhone SE's too: a thumb), the party's 214 px of cards above it
   // on a tall screen (the grid as wide as the screen), beside it on a wide one; 8 px off a phone's home bar. cell(i): pad i's box
   const pads = (W, H) => {
@@ -68,10 +68,10 @@ const RPG = (() => {
     return { Y, cards: tall ? Math.round((W - cw0) / 2) : x0 + gw + 6, cell: i => ({ x: x0 + (i % 3) * (cw + gap), y: gy + Math.floor(i / 3) * (ch + gap), w: cw, h: ch }) };
   };
   let backdrop = null;   // painted on the first draw, again for a new screen size or zoom
-  // the camera at rest: on a phone held upright (fit.tall) it comes in to 1.5x and the sides close up toward x 119 (spread),
+  // the camera at rest: on a phone held upright (game.upright) it comes in to 1.5x and the sides close up toward x 119 (spread),
   // so the fight fills the narrow screen's width, each rank opening out in depth from y 84 (deep) so nobody hides behind
   // the one in front; x: where it looks
-  const TALL = { zoom: 1.5, spread: .6, deep: 1.25, x: 111 }, WIDE = { zoom: 1, spread: 1, deep: 1, x: 110 }, rest = () => fit.tall ? TALL : WIDE;
+  const TALL = { zoom: 1.5, spread: .6, deep: 1.25, x: 111 }, WIDE = { zoom: 1, spread: 1, deep: 1, x: 110 }, rest = () => game.upright ? TALL : WIDE;
 
   /* ---- FLOOR: a round cobbled plaza (a ground circle projects to a wide ellipse: reads as floor). floorTex runs
    * once per pixel when the floor is baked, so light, shadows and wear cost nothing per frame ---- */
@@ -230,7 +230,7 @@ const RPG = (() => {
   }
 
   // each fighter's place for this screen's shape (the standing walk there when it turns: animate)
-  const place = () => { placed = fit.tall; const R = rest(); for (const c of all) { c.hx = 119 + (c.home[0] - 119) * R.spread; c.hy = 84 + (c.home[1] - 84) * R.deep; } };
+  const place = () => { placed = game.upright; const R = rest(); for (const c of all) { c.hx = 119 + (c.home[0] - 119) * R.spread; c.hy = 84 + (c.home[1] - 84) * R.deep; } };
   let placed;
 
   /* ---- WAIT-MODE ATB: gauges fill while nobody chooses or acts; a full gauge takes the turn ---- */
@@ -552,13 +552,13 @@ const RPG = (() => {
   }
   // propSize: props sized to the heroes; a strong warm rim light
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in past rest(), it eases to the fight (or the hero on turn) at chest height
-  return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: [], propSize: 1.3, camera: { zoom: [.75, 2], rotate: true },   // touch: taps, no buttons
+  return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: [], propSize: 1.3, camera: { zoom: [.75, 2], tall: TALL.zoom, rotate: true },   // touch: taps, no buttons
     back() { if (mode !== 'target') return false; mode = 'command'; A.sfx('cancel'); return true; },   // a phone's back: aiming goes back to the commands
-    enter() { fitZoom(TALL.zoom); start(); game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
+    enter() { start(); game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
     exit() { game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {
       if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? 'TURN ' + yaw : 'CAMERA RESET');   // the kit's notice has a degree sign the pixel font lacks
-      fitZoom(TALL.zoom); if (placed !== fit.tall) place();   // a phone turned: in or out, and the sides close up or open out
+      if (placed !== game.upright) place();   // a phone turned: the camera comes in or out (camera.tall), and the sides close up or open out
       update(dt); const f = game.zoom > rest().zoom + 1e-6 && (act ? [act.who, act.target || act.who] : actor && [actor, actor]), k = Math.min(1, dt * 4);
       const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [rest().x, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
       game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is

@@ -5,6 +5,30 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.32.0 (2026-10-12)
+
+The player's own camera zoom in every kit, on top of the zoom the designer starts each scene at.
+
+- **Engine**: a scene's `camera: { zoom: [min, max], start, tall, wheel }` (or the game's, `new E.Game({ camera })`). Within `zoom` the player zooms the camera with the mouse wheel (a trackpad's pinch too), `-` and `=` (keys no action uses), a two-finger pinch on a phone, and Settings, Display, Camera zoom. `zoom: false` turns it off; a function of the game gives a range per screen shape.
+  - The player's zoom is kept (`settings.zoom`, a factor on top of the game's: it carries across scenes and screen shapes), and `game.zoom` is the two together.
+  - Each change shows `ZOOM 1.65x` (`MIN`, `MAX` at the ends): the number to give `start` when tuning by feel.
+  - `start` is the zoom a scene starts at, `tall` the one on a screen held upright (`game.upright`), applied again as the phone turns. `resetCamera()` goes back to it.
+  - `wheel: false` leaves the wheel to the game. `game.zoomBy(k)` zooms as the player would (a button of the game's own), `game.zoomRange()` reads the range, `input.zoom()` the zoom asked for since the last step, `input.pinching` a pinch in progress.
+- **Engine**: a pinch is two fingers on the canvas moving apart or together, both of them. A thumb steering the stick beside a resting finger isn't one, and the stick and taps go on as they were. Once it is one, it takes over the stick and the tap.
+- **Rendering**: while the player pinches, turns the wheel or slides the setting, the world already drawn is scaled about the camera's focus under the HUD, a preview. The new zoom is drawn a quarter second after they stop. A new size bakes the floor, walls and props again (about 0.4 s in the adventure), so it happens once, not at every step: a pinch with every step drawn hitched for up to 0.9 s in the adventure.
+- **Rendering**: a `TileMap` keeps its baked wall blocks for its last four views, not one: back to a zoom or turn already seen is about 20 ms, not 120.
+- **Engine** (agent edition): `game.upright`; `zoomBy` and `zoomRange` do nothing there, as `setZoom` doesn't.
+- **Characters** (the starter kits, `src/starter/`): the kits declare their cameras.
+  - The adventure zooms .85x to 2x on a wide screen and 1x to 2x held upright, where its forest is sized for 1x. The platformer zooms .75x to 2x and starts at 1.5x upright (`tall`), the brawler .75x to 1.5x and starts at 1.5x upright, and the RPG .75x to 2x, 1.5x upright.
+  - The animation lab starts at 1.5x (`start`), the stealth kit zooms .75x to 2x, and the shooter's is off (its playfield is the screen).
+  - The shell's own wheel, `-` and `=` and its upright fit (`fitZoom`) are gone: the engine does them. `0` resets the player's zoom too.
+- **Tools**: `phone-test` section 6, zoom (50 checks):
+  - Two fingers apart and together zoom, the hero standing; a thumb steering beside a resting finger zooms nothing; the zoom is kept across a reload.
+  - Settings' slider zooms; the shooter has none.
+  - The brawler starts at 1.5x upright and 1x on its side, and the player's .8 makes them 1.2x and .8x.
+  - On a computer the wheel, `-` and `0` work.
+- **Docs**: `API.md`, `AI_GUIDE.md` (Scenes, Camera), `README.md` and `docs/STANDARD-FEATURES.md` (touch, settings): the player's zoom and the `camera` option.
+
 ## 0.31.3 (2026-10-12)
 
 The owner tested the adventure on the Galaxy S25: smooth with Frame rate on Auto.
