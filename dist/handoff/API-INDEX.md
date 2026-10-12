@@ -369,7 +369,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 10. Game
 
-- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }). res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path)
+- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }). res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly)
 - `game.H`: the screen's height in game pixels (W is its width)
 - `game.W`: internal buffer size in pixels (HUD layout)
 - `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
@@ -420,13 +420,15 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.cam.offset`: [dx, dy] screen pixels from the screen's centre to where the focus sits (above a phone's touch buttons: [0, -40])
 - `game.debug = null`: a game's own handle for tools and tests: game.debug = { snapshot() { return {...} }, teleport(x, y, z) {...} }. tools/check.mjs prints snapshot() and tools/replay.mjs logs it at the end
 - `game.disposed = true`: disposed: true after dispose()
+- `game.drawEvery = 1`: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw: every other refresh is drawn, evenly, instead of random ones missed (the updates still run every refresh)
 - `game.errors = []`: the errors caught in update and draw, each { where, scene, message, stack }, once per kind
 - `game.fadeTime = .22`: seconds for the dithered fade between scenes (0 = instant cuts)
-- `game.fps = 60`: frames per second over the last half second of real time
+- `game.fps = 60`: frames drawn per second over the last half second of real time
 - `game.fullscreen`: full screen: game.fullscreen.toggle(), .on, .supported
 - `game.gpu = null` †: the WebGPU lighting after enableGPU(), or null
 - `game.headless`: true for a game with no display (o.headless, or no DOM: Node)
 - `game.hitstop = 0`: seconds of hit-stop left (freeze)
+- `game.hz = 60`: the display's refresh rate, measured
 - `game.input`: input: keyboard, mouse, gamepad and touch, read as actions (pressed, down, move, ...)
 - `game.lights` †: canvas lighting (lights.enabled, lights.add in draw)
 - `game.o`: o: the options the game was made with, the defaults filled in (view, res, expand, minW, minH, maxW, maxH, bg, step, input, loop, headless)

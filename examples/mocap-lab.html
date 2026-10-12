@@ -2117,7 +2117,8 @@ class Game {
    * goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when
    * asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a
    * phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the
-   * page is hidden or loses focus; id: the name the player's settings are saved under (the page's path)
+   * page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false
+   * draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly)
    */
   constructor(o = {}) {
     o = Object.assign({}, o);
@@ -2161,9 +2162,11 @@ class Game {
     /** particles: dust, sparks, debris and text in the world; lights: canvas lighting (lights.enabled, lights.add in
      *  draw); r: the renderer handed to draw(r) (null when headless) */
     this.particles = new Particles(this); this.lights = new Lighting(this); this.r = this.headless ? null : new Renderer(this);
-    /** fps: frames per second over the last half second of real time; gpu: the WebGPU lighting after enableGPU(), or
-     *  null */
-    this.fps = 60; this._viewListeners = []; this.gpu = null;
+    /** fps: frames drawn per second over the last half second of real time; hz: the display's refresh rate, measured;
+     *  drawEvery: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw: every other
+     *  refresh is drawn, evenly, instead of random ones missed (the updates still run every refresh); gpu: the WebGPU
+     *  lighting after enableGPU(), or null */
+    this.fps = 60; this.hz = 60; this.drawEvery = 1; this._viewListeners = []; this.gpu = null;
     /** paused: true while paused (a pausable scene toggles it on 'pause'; steps still run, scenes don't update);
      *  pauseOverlay: false hides the engine's PAUSED overlay (a game drawing its own pause screen); errors: the
      *  errors caught in update and draw, each { where, scene, message, stack }, once per kind */
@@ -2430,15 +2433,23 @@ class Game {
     }
     if (this._running || this.disposed || this.o.loop === false) return this;
     this._running = true;
-    let last = performance.now(), acc = 0, n = 0;
+    let last = performance.now(), acc = 0, n = 0, since = 0, per = 1 / 60, cost = 0, ri = 0;
+    const ring = [];
     const frame = now => {
       if (!this._running) return;
       this._raf = requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
-      const raw = Math.max(0, (now - last) / 1000); last = now;
-      acc += raw; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }   // real time: a slow device reads slow
+      const raw = Math.max(0, (now - last) / 1000); last = now; since += raw;
+      if (raw > .004) { ring[ri++ % 90] = raw; per = Math.min(...ring); }   // the refresh: the shortest of the last 90 frames (late ones are longer)
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
-      try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
-      const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = raw * 1000; st.steps = steps;
+      if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
+        n++;
+        try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
+        const st = this.stats, t2 = performance.now(); st.updateMs = t1 - t0; st.renderMs = t2 - t1; st.frameMs = since * 1000; st.steps = steps; since = 0;
+        // a display at 90 Hz and up that a frame's cost won't fit: every other refresh, back to each once it fits again
+        cost += ((t2 - t0) / 1000 - cost) * .1;
+        this.drawEvery = this.o.pace === false || per > 1 / 85 ? 1 : cost > per * .8 ? 2 : cost < per * .55 ? 1 : this.drawEvery;
+      }
+      acc += raw; if (acc > .5) { this.fps = Math.round(n / acc); this.hz = Math.round(1 / per); acc = 0; n = 0; }   // real time: a slow device reads slow
     };
     this._raf = requestAnimationFrame(frame);
     return this;
