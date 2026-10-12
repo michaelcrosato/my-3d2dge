@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.32.0)
+# my-3D2dge API index (v0.32.1)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.32.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.32.1"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -401,7 +401,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
 - `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera } (all optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a sub-menu closed). camera: { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the wheel, - and =, a pinch, Settings, Camera zoom: theirs, kept, on top of the game's; false or none: they can't; a function of the game: a range per screen shape, g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at (tall: on a screen held upright, game.upright; 1 without); wheel: false leaves the mouse wheel to the game start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance(). boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
-- `game.upright`: true on a screen held upright (taller than 1.3 times its width: a phone in portrait), where a scene's camera.tall zoom applies
+- `game.upright`: true while the game's screen (r.W x r.H) is upright, taller than 1.3 times its width: a phone held upright, with expand: true (a fixed res keeps its own shape on any phone, so it is never upright there). A scene's camera.tall zoom applies then: it zooms a tall picture in to fill it
 - `game.zoomBy(k)` †: the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does nothing where the scene doesn't let the player zoom. Returns the zoom
 - `game.zoomRange()` †: the zooms the player may take the camera to here, [min, max] (the scene's camera.zoom, or the game's; a function of the game gives one per screen shape or level), or null where they can't (camera.zoom false or none)
 - `game.alpha = .5`: the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count

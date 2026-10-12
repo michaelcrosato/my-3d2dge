@@ -95,6 +95,16 @@ for (const [ed, file] of EDITIONS) {
     I.resetBindings(); check(`${ed}: resetBindings() puts every action back`, I.map.attack.includes('KeyJ') && I.map.up.includes('KeyW') && JSON.stringify(S.bindings) === '{}');
     const g2 = new E.Game({ headless: true, menu: { controls: { skill: false, attack: 'Sword' } } }); g2.input.names = { skill: false, attack: 'Sword' };
     check(`${ed}: menu.controls hides an action from rebinding`, !g2.input.rebindable('skill') && g2.input.rebindable('attack') && !g2.input.rebindable('confirm'));
+    // the player's zoom (camera: { zoom }): applied a quarter second after they stop, in steps unscaled by timeScale; a
+    // factor carried from a scene with more room moves at the first step; a game's own setting called zoom is its own
+    const gz = new E.Game({ headless: true }), zs = { a: { camera: { zoom: [.75, 2] }, update() {}, draw() {} }, b: { camera: { zoom: [.75, 1.5] }, update() {}, draw() {} } };
+    gz.start({ scenes: zs, scene: 'a' }); gz.advance(1 / 60); gz.timeScale = 0; gz.zoomBy(1.2); const held = gz.zoom; gz.advance(.4);
+    check(`${ed}: the player's zoom is drawn a quarter second after they stop, slow motion or stopped (timeScale 0) too`, held === 1 && gz.zoom === 1.2, `${held} then ${gz.zoom}`);
+    gz.timeScale = 1; gz.settings.set('zoom', 2); gz.advance(.4); gz.go('b', null, { fade: 0 }); gz.advance(.1); const top = gz.zoom; gz.zoomBy(1 / 1.1); gz.advance(.4);
+    check(`${ed}: a zoom carried into a scene with less room (2x into a 1.5x one) moves at the first step out`, top === 1.5 && gz.zoom < 1.5, `${top} then ${gz.zoom}`);
+    const go = new E.Game({ headless: true, menu: { settings: [{ key: 'zoom', label: 'Map zoom', options: ['near', 'far'], value: 'near' }] } });
+    go.start({ scenes: zs, scene: 'a' }); go.advance(1 / 60); go.zoomBy(1.2); go.advance(.4);
+    check(`${ed}: a game's own setting called zoom stays its own (no camera zoom from it)`, go.settings.zoom === 'near' && go.zoom === 1 && !go._zoomStd(), `${go.settings.zoom}, ${go.zoom}x`);
   }
 }
 
@@ -282,6 +292,11 @@ if (!process.argv.includes('--node')) {
       await p.close(); p = await open('{ menu: false }');
       await p.keyboard.press('Enter'); await ev(p, () => step(2)); await p.keyboard.press('Escape'); await ev(p, () => step(2));
       check(`${ed}: menu: false leaves the menu out (the canvas pause instead)`, (await ev(p, () => [game.paused, game.shell, !!document.querySelector('.esh')])).join() === 'true,,false');
+      // Camera zoom shows only where a scene lets the player zoom; a game's own setting called zoom always shows
+      const rows = () => ev(p, () => { game.shell.show('settings'); step(); return [...document.querySelectorAll('.esh-row > span:first-child')].map(s => s.firstChild.textContent); });
+      await p.close(); p = await open(); const plain = await rows();
+      await p.close(); p = await open("{ menu: { settings: [{ key: 'zoom', label: 'Map zoom', options: ['near', 'far'], value: 'near' }] } }"); const ownZoom = await rows();
+      check(`${ed}: Camera zoom is left out of a game with no zoom; a game's own setting called zoom stays on the screen`, !plain.includes('Camera zoom') && plain.includes('Volume') && ownZoom.includes('Map zoom') && !ownZoom.includes('Camera zoom'), `${plain.join(', ')} | ${ownZoom.join(', ')}`);
     }
     if (p.errors.length) check(`${ed}: no errors`, false, p.errors.join(' | '));
     await p.close(); await phone.close();
