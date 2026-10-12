@@ -4,6 +4,6 @@ for (let i = SLICES.length - 1; i >= 0; i--) if (!scenes[SLICES[i].id]) SLICES.s
 titleMenu.items = SLICES.map(s => s.label);
 const first = (location.hash || '').slice(1);
 game.start({ scenes, scene: scenes[first] ? first : 'title' });
-window.__game = { game, scenes };
+window.__game = { game, scenes, titleMenu };   // for tests
 })();
 /* =============================== GAME END =============================== */

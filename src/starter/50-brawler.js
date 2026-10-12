@@ -229,6 +229,9 @@ const BRAWL = (() => {
   const talk = new E.Dialog(game, { bg: ['#4a1436', '#12040c'], border: '#f0b0c8', nameColor: '#f0c850' });
   const puffs = [], sparks = [];
   let map, SPR, hero, foes, npcs, boxes, foods, wave, lockX, go, intro, score, won, target, tgtT, lag, chain, chainT;
+  // the walkable street's right end: the wave's lock, never short of the screen's right edge where the street starts (a wide
+  // screen shows more of it); the camera stops there too, so the hero can reach every bit of street on the screen
+  const lockEnd = v => Math.min(LEN - 10, Math.max(lockX, (map.bounds(v).x0 + 8 + game.W) / v.ax - 10));
 
   /* ---- DRAWING A FIGHTER ---- */
   // a Humanoid subclass adds a painted layer; drawPortrait() calls draw() too. E.charView: the rig's view
@@ -300,8 +303,8 @@ const BRAWL = (() => {
       types: Object.fromEntries(blocks.map(b => [b.i + 1, { h: b.h, side: b.color, sideLt: b.color, top: E.shade(b.color, -.45), face: b.face, course: b.face === 'brick' ? 3 : undefined, roof: 'slab' }])) });
     SPR = { crate: E.prop('crate', { size: .8 }).frames[0], barrel: E.prop('barrel', { size: .8, color: '#9a6030' }).frames[0] };
     // the camera scrolls sideways, the street's front edge on the screen bottom (or on the foreground wall); zoomed in, it
-    // also follows the hero up the street
-    game.cam.bounds = v => { const b = map.bounds(v), y1 = b.y1 - 9 + wall(game.H); return { x0: b.x0 + 8, x1: b.x1 - 8, y0: y1 - game.H * Math.max(1, game.zoom), y1 }; };
+    // also follows the hero up the street. It stops at the wave's lock (lockEnd), so the screen's edge is the wall (Final Fight)
+    game.cam.bounds = v => { const b = map.bounds(v), y1 = b.y1 - 9 + wall(game.H); return { x0: b.x0 + 8, x1: Math.min(b.x1 - 8, v.ax * (lockEnd(v) + 10)), y0: y1 - game.H * Math.max(1, game.zoom), y1 }; };
     // the hero's move set (E.MOVES, some tuned): a 4-hit punch string, a clinch (grab, knees, elbow), a kick string, a flying kick, a sweep
     hero = body(54, 58, 7, { hp: 60, max: 60, lives: 3, grip: 0, rig: fighterRig(HERO), moves: {
       punch: new E.Combo(['jab', 'cross', move('hook'), 'uppercut'], { window: .35 }), clinch: new E.Combo([GRAB, 'knee', 'knee', 'elbow'], { window: .35 }),
@@ -404,7 +407,7 @@ const BRAWL = (() => {
     lag = Math.max(h.hp / h.max, lag - dt * .35);   // the bar's pale part drains slowly
     // waves: reaching one spawns it and locks the screen until it is cleared
     const w = WAVES[wave];
-    if (w && !w.spawned && h.x > w.x * T - 60) { w.spawned = true; spawnWave(w); lockX = (w.x + 6) * T; }
+    if (w && !w.spawned && h.x > w.x * T - 60) { w.spawned = true; spawnWave(w); lockX = Math.max((w.x + 6) * T, (game.cam.x + game.W) / game.view.ax - 10); }   // never inside the screen
     if (w && w.spawned && !foes.some(f => !f.dead)) {
       wave++; go = 2.5; lockX = WAVES[wave] ? (WAVES[wave].x + 6) * T : LEN;
       if (!WAVES[wave]) { won = 1e-3; go = 0; A.music('victory'); game.follow(null); game.after(7, () => game.go('title')); } else A.sfx('confirm');
@@ -429,7 +432,7 @@ const BRAWL = (() => {
     const grab = t => { if (t.box) return; if (t.act) t.act.cancel(); Object.assign(t, { act: null, stun: .9, vx: 0, vy: 0, y: h.y, x: h.x + (t.x > h.x ? 20 : -20) }); };   // the collar grab: held close
     if (h.act) h.act.hits(foes.concat(boxes), inReach, t => h.act.state.spec.name === 'grab' ? grab(t) : strike(t, h.act.state));   // moves connect late in the strike (hitAt)
     h.update(dt, map); fall(h, dt);
-    h.x = clamp(h.x, 10, Math.min(lockX, LEN - 10)); h.y = clamp(h.y, Y0, Y1);
+    h.x = clamp(h.x, 10, lockEnd(game.view)); h.y = clamp(h.y, Y0, Y1);
     for (const b of boxes) if (!b.dead) solid(h, b.x, b.y, 13);
     for (const m of foods) if (!m.got && h.hp > 0 && Math.hypot(m.x - h.x, m.y - h.y) < 12) { m.got = true; h.hp = Math.min(h.max, h.hp + 20); A.sfx('heal'); }
     E.prune(foods, m => m.got);
@@ -551,6 +554,7 @@ const BRAWL = (() => {
   // turned street loses its fronts (painted for this side only) and its screen-space bounds
   return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: ['attack', 'kick', 'sweep', 'jump'], propSize: 2.4, camera: { zoom: [.75, 1.5] },   // props match 100 px fighters
     input: Object.assign({}, E.Input.DEFAULT, { kick: ['KeyK', 'Mouse2', 'Pad2'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad3'] }),
-    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw };
+    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw,
+    state: () => ({ hero, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }) };   // for tests (end: the walkable street's right end)
 })();
 scenes.brawler = BRAWL;

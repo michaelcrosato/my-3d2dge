@@ -9,7 +9,9 @@
  * ANY SCREEN: the backdrop is painted at the screen's size, its ground with the plaza's own grass and light so the plaza's
  * edge melts into it, a tall screen's sky darkening to the first stars; the HUD band sits on the bottom edge and the
  * battle in the space above it (layout()). A phone held upright comes in to 1.5x and the two sides close up (TALL), so the
- * fighters are as big as a wide screen shows them. TOUCH: no buttons; tap a command, then a foe (or the commands to go back).
+ * fighters are as big as a wide screen shows them. TOUCH, after mobile RPGs: the band is big buttons a thumb hits (pads(): the
+ * commands and AUTO, the party fighting by itself; then the targets with their HP, and BACK), the party's cards above them on
+ * a phone held upright, beside them on its side; a tap on a fighter targets it too. Keys and a pad: the FF command list.
  * ===================================================================================== */
 const RPG = (() => {
   /* ---- BACKDROP: a sunset painted once per screen size and zoom in crisp pixel shapes like the sprites (a turn, and a
@@ -57,7 +59,14 @@ const RPG = (() => {
   // where things go on this screen: the HUD band's top (Y: on the bottom edge, a little higher on a phone, off its home
   // bar), the camera focus's height on screen (fy: the battle just above the band, or on a tall screen 3/5 down the sky,
   // a phone held upright's a little lower: its fight is bigger)
-  const layout = (W, H) => { const Y = H - 73 - (game.input.lastDevice === 'touch' ? 8 : 0); return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * (fit.tall ? .66 : .6))) }; };
+  const layout = (W, H) => { const Y = game.input.lastDevice === 'touch' ? pads(W, H).Y : H - 73; return { Y, fy: Math.round(Math.min(Y - 47, 40 + (Y - 40) * (fit.tall ? .66 : .6))) }; };
+  // TOUCH: a 3 x 2 grid of buttons 38 px tall (44 CSS px and more on a phone, an iPhone SE's too: a thumb), the party's 214 px of cards above it
+  // on a tall screen (the grid as wide as the screen), beside it on a wide one; 8 px off a phone's home bar. cell(i): pad i's box
+  const pads = (W, H) => {
+    const tall = W < 440, ch = 38, gap = 4, gh = ch * 2 + gap, cw0 = 214, gw = tall ? Math.min(W - 8, 312) : Math.min(W - cw0 - 14, 300);
+    const Y = H - (tall ? 66 + gap + gh : Math.max(66, gh)) - 8, x0 = Math.round(tall ? (W - gw) / 2 : (W - gw - 6 - cw0) / 2), gy = tall ? Y + 66 + gap : Y, cw = Math.floor((gw - gap * 2) / 3);
+    return { Y, cards: tall ? Math.round((W - cw0) / 2) : x0 + gw + 6, cell: i => ({ x: x0 + (i % 3) * (cw + gap), y: gy + Math.floor(i / 3) * (ch + gap), w: cw, h: ch }) };
+  };
   let backdrop = null;   // painted on the first draw, again for a new screen size or zoom
   // the camera at rest: on a phone held upright (fit.tall) it comes in to 1.5x and the sides close up toward x 119 (spread),
   // so the fight fills the narrow screen's width, each rank opening out in depth from y 84 (deep) so nobody hides behind
@@ -205,7 +214,7 @@ const RPG = (() => {
   };
   const PAUSE = { wind: .2, active: .05, recover: .35 }, GO = .35, BACK = .4, FLY = .3, DIE = .9, WAVE = 400;   // seconds: out, back, a bolt's flight, a monster's death; a wave's speed
   const COMMANDS = h => [h.attack, h.skill, 'defend', 'potion', 'run'];
-  let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, band, frame = 0;   // band: the HUD's commands box on screen (taps)
+  let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, band, frame = 0, auto = false;   // band: the HUD on screen (taps); auto: the party fights by itself
   const alive = l => l.filter(c => !c.dead), isHero = c => party.includes(c), size = c => c.rig ? c.rig.o.size : 1.2;
   const unit = (d, hero) => {
     const body = d.rig ? new E.Humanoid(d.rig) : d.blob && new E.Blob(d.blob);   // both kick() and draw()
@@ -230,7 +239,17 @@ const RPG = (() => {
     const c = all.find(c => !c.dead && c.atb >= 1), sk = c && MOVES[c.skill]; if (!c) return;
     c.atb = 0; c.guard = false; actor = c; if (!isHero(c)) return order(E.pick(c.moves), E.pick(alive(party)));   // monsters pick a move and a hero
     menu.items = ['Attack', { label: sk.label, note: sk.mp, disabled: c.mp < sk.mp }, 'Defend', { label: 'Potion', note: '×' + potions, disabled: !potions }, 'Run'];
+    if (auto) return order(...autoPick(c));   // AUTO: the hero picks for himself
     menu.i = 0; menu.active = true; mode = 'command'; A.sfx('blip');
+  }
+  // AUTO (mobile RPGs' battle button): heal the weakest ally under 40% (the skill, or a potion under 25%), sweep two foes or
+  // more, spend the skill on a foe that can take it, else hit the weakest foe
+  function autoPick(c) {
+    const sk = MOVES[c.skill], foe = alive(foes).sort((a, b) => a.hp - b.hp)[0], low = alive(party).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+    if (low.hp < low.max * .4 && sk.heal && c.mp >= sk.mp) return [c.skill, low];
+    if (low.hp < low.max * .25 && potions) return ['potion', low];
+    if (sk.power && c.mp >= sk.mp && (sk.all ? alive(foes).length > 1 : foe.hp > c.atk * 2)) return [c.skill, sk.all ? null : foe];
+    return [c.attack, foe];
   }
   function pick(i) {
     const key = COMMANDS(actor)[i], m = MOVES[key];
@@ -380,7 +399,7 @@ const RPG = (() => {
     // ambience: drifting petals, brazier embers
     if (E.chance(dt * 5)) P.add({ kind: 'bit', x: E.rand(0, 200), y: E.rand(10, 140), z: E.rand(50, 90), vx: E.rand(10, 22), vz: -4, g: 5, drag: .2, max: 6, size: E.chance(.4) ? 2 : 1, color: E.pick(['#ffc0d0', '#ffe0e8', '#ffd890']) });
     if (E.chance(dt * 6)) P.add({ kind: 'ember', x: E.pick([100, 132]) + E.rand(-3, 3), y: 8, z: 20, vz: E.rand(18, 30), vx: E.rand(-4, 4), max: 1, color: '#ff8a2a' });
-    if ((mode === 'command' || mode === 'target') && tapped()) return;
+    if (tapped()) return;
     if (mode === 'wait') tick(dt);
     else if (mode === 'act') play(act, dt);
     else if (mode === 'command') menu.update();
@@ -391,16 +410,30 @@ const RPG = (() => {
     }
   }
 
-  // TAPS (a click works too): a command picks it; then a foe (or ally) is the target, the commands go back
+  // TAPS (a click works too). Touch: the pads, as drawn; a mouse: the command list (a click there while aiming goes back).
+  // Aiming, a tap on a fighter targets it
   function tapped() {
     const c = game.input.clicked(); if (!c || !band) return false;
-    const [x, y] = c, onCmds = x >= band.X + 4 && x < band.X + 96 && y >= band.Y && y < band.Y + 66, k = Math.floor((y - band.Y - 3) / 10), it = menu.items[k];
-    if (mode === 'command' && onCmds && it && !it.disabled) { game.input.consumeAll(); menu.i = k; A.sfx('confirm'); pick(k); return true; }
+    const [x, y] = c, inside = b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h, use = f => { game.input.consumeAll(); f(); return true; };
+    if (band.pads) { const p = band.pads.find(p => p && p.go && !p.off && p.w && inside(p)); if (p) return use(p.go); }
+    else {
+      const onCmds = inside({ x: band.X + 4, y: band.Y, w: 92, h: 66 }), k = Math.floor((y - band.Y - 3) / 10), it = menu.items[k];
+      if (mode === 'command' && onCmds && it && !it.disabled) return use(() => { menu.i = k; A.sfx('confirm'); pick(k); });
+      if (mode === 'target' && onCmds) return use(() => { A.sfx('cancel'); mode = 'command'; });
+    }
     if (mode !== 'target') return false;
     const z = game.view.scale / E.VIEWS.brawler.scale, i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < (14 + u.h * .25) * z && Math.abs(y - sy) < (u.h * .6 + 8) * z; });   // the whole fighter, at any zoom
-    if (i >= 0) { game.input.consumeAll(); cursor = i; A.sfx('confirm'); order(pending, list[i]); return true; }
-    if (onCmds) { game.input.consumeAll(); A.sfx('cancel'); mode = 'command'; return true; }
-    return false;
+    return i >= 0 && use(() => { cursor = i; A.sfx('confirm'); order(pending, list[i]); });
+  }
+  // what the pads say and do now: the commands and AUTO on a hero's turn; aiming, the targets (with their HP) and BACK; else
+  // the foes' HP (or the spoils) and AUTO, which can be turned on or off at any time
+  function padsNow() {
+    const autoPad = { label: 'AUTO', note: auto ? 'ON' : 'OFF', on: auto, go: () => { auto = !auto; A.sfx(auto ? 'confirm' : 'cancel'); if (auto && actor && (mode === 'command' || mode === 'target')) order(...autoPick(actor)); } };
+    const fill = (a, n) => { while (a.length < n) a.push(null); return a.slice(0, n); };
+    if (mode === 'command') return [...menu.items.map((it, k) => ({ label: it.label || it, note: it.note, off: it.disabled, go: () => { menu.i = k; A.sfx('confirm'); pick(k); } })), autoPad];
+    if (mode === 'target') return [...fill(list.map((c, k) => ({ label: c.name, hp: c.hp / c.max, ally: isHero(c), on: k === cursor, go: () => { cursor = k; A.sfx('confirm'); order(pending, c); } })), 5), { label: 'BACK', go: () => { A.sfx('cancel'); mode = 'command'; } }];
+    if (mode === 'win' || mode === 'won') return fill([['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].map(([label, note]) => ({ label, note })), 6);
+    return [...fill(alive(foes).map(f => ({ label: f.name, hp: f.hp / f.max })), 5), autoPad];
   }
 
   /* ---- DRAW ---- */
@@ -480,25 +513,33 @@ const RPG = (() => {
   const tiny = (g, s, x, y, c) => E.font.text(g, s, x, y, c, { font: 'tiny', outline: false });
   function hud(g, r) {
     const { Y } = layout(r.W, r.H), choosing = mode === 'command' || mode === 'target', bob = Math.round(Math.sin(t * 10) * 1.5); frame++;
-    const X = Math.round((r.W - 320) / 2), touch = game.input.lastDevice === 'touch'; band = { X, Y };   // the band's 316 px, centred
+    const X = Math.round((r.W - 320) / 2), P = game.input.lastDevice === 'touch' && pads(r.W, r.H); band = { X, Y, pads: P && padsNow() };   // keys: the band's 316 px, centred
     // an arrow over the hero on turn, the glove on the target
     if (choosing) { const [sx, sy] = r.w(actor.x, actor.y, actor.z + actor.h + 5); px.poly(g, [[sx - 5, sy - 7 + bob], [sx + 5, sy - 7 + bob], [sx, sy - 1 + bob]], '#ffe060'); px.rect(g, sx - 3, sy - 6 + bob, 6, 1, '#fff8c0'); }
     if (mode === 'target') { const c = list[cursor], [sx, sy] = r.w(c.x, c.y, c.z + c.h * .55); px.sprite(g, HAND, sx - 28 + bob, sy - 4); }
     // top banner: the move, the target, or what the command does
     const top = mode === 'command' ? MOVES[COMMANDS(actor)[menu.i]].info : mode === 'target' ? list[cursor].name : note;
     if (top && !log.open) { const w = E.font.width(top) + 24, c = Math.round(r.W / 2); E.ui.box(g, c - w / 2, 5, w, 18, { bg: WIN }); txt(g, top, c, 10, '#ffffff', 'center'); }
-    // a near-black band under the windows; left: commands, spoils or monsters
-    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818'); E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });   // (down to the bottom edge)
-    if (choosing) {
-      menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
-      px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
-      const how = touch ? (mode === 'target' ? 'TAP HERE TO GO BACK' : 'TAP A COMMAND') : game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK';   // the player's own keys
-      E.font.text(g, how, X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });
-    } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
-    else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
-    // right: a card per hero (FF IX): portrait, name, MP, HP, ATB
+    // a near-black band under the windows (down to the bottom edge); touch: the pads; keys: commands, spoils or monsters on the left
+    px.rect(g, 0, Y - 3, r.W, r.H - Y + 3, '#0c0818');
+    if (P) band.pads.forEach((p, i) => {   // a pad: its label (left) and note (right), a target's HP bar under them; lit when on
+      if (!p) return; const b = Object.assign(p, P.cell(i)), ty = b.y + (p.hp === undefined ? 15 : 9);
+      E.ui.box(g, b.x, b.y, b.w, b.h, { bg: p.on ? HOT : WIN, border: p.on ? '#ffe890' : undefined });
+      txt(g, p.label, b.x + 7, ty, p.off ? '#7c7aa8' : '#ffffff'); if (p.note !== undefined) txt(g, p.note, b.x + b.w - 6, ty, p.on ? '#ffe890' : '#9ad0ff', 'right');
+      if (p.hp !== undefined) gauge(g, b.x + 7, b.y + 23, b.w - 14, p.hp, p.ally ? '#58d068' : '#e0463c');
+    });
+    else {
+      E.ui.box(g, X + 4, Y, 92, 66, { bg: WIN });
+      if (choosing) {
+        menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
+        px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
+        E.font.text(g, game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK', X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
+      } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
+      else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
+    }
+    // a card per hero (FF IX): portrait, name, MP, HP, ATB
     party.forEach((h, k) => {
-      const x = X + 100 + k * 72, on = h === actor && choosing, low = h.hp < h.max / 4, col = h.dead ? '#a08aa8' : low ? '#ffd060' : '#ffffff';
+      const x = (P ? P.cards : X + 100) + k * 72, on = h === actor && choosing, low = h.hp < h.max / 4, col = h.dead ? '#a08aa8' : low ? '#ffd060' : '#ffffff';
       E.ui.box(g, x, Y, 70, 66, { bg: h.dead ? KO : on ? HOT : WIN, border: on ? '#ffe890' : undefined });
       const pic = h.pic || (h.pic = E.mkCanvas(30, 30));   // a whole rig draw: redrawn every third frame
       if ((frame + k) % 3 === 0) { const pg = E.ctx2d(pic); pg.clearRect(0, 0, 30, 30); h.rig.drawPortrait(pg, 3, 3, 24, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: h.dead ? '#808080' : undefined }); }
@@ -522,6 +563,6 @@ const RPG = (() => {
       const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [rest().x, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
       game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
-    state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp) }) };   // for automated tests
+    state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }) };   // for automated tests
 })();
 scenes.rpg = RPG;

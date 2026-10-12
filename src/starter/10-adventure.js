@@ -133,6 +133,11 @@ const ADV = (() => {
   let map, relic, entry, hero, npcs, foes, pets, items, things, roofs, shots, talk, speaker, won, keys, gems, area, held, fx;
   // CAMERA, the player's choice: 'rooms' slides screen by screen (Zelda), 'scroll' follows the hero (Settings, or C)
   game.settings.define({ key: 'advCamera', group: 'Adventure', label: 'Camera', options: [['rooms', 'Rooms'], ['scroll', 'Scroll']], value: 'rooms', help: 'Rooms: screen by screen, as Zelda. Scroll: it follows the hero' });
+  // LIGHTING: GPU lights (pools of light and shadows, WebGPU) draw every frame twice and light each pixel: a phone's frame
+  // rate pays for them, so Auto keeps them for a computer (a mouse or touchpad) and a phone gets Fast (the floor is lit already)
+  const gpuWanted = () => game.settings.advLight === 'gpu' || (game.settings.advLight === 'auto' && !!(window.matchMedia && matchMedia('(any-pointer: fine)').matches));
+  const lighting = () => { if (!map) return; if (gpuWanted() && !gpu) gpu = game.enableGPU({ map }); if (gpu) Object.assign(gpu, { map, enabled: gpuWanted(), bands: 24, wrap: .5 }); };
+  game.settings.define({ key: 'advLight', group: 'Adventure', label: 'Lighting', options: [['auto', 'Auto'], ['gpu', 'GPU'], ['fast', 'Fast']], value: 'auto', help: 'GPU: pools of light and shadows (slow on a phone). Fast: smooth on a phone. Auto: GPU on a computer, Fast on a phone', apply: () => { if (game.sceneName === 'adventure') lighting(); } });
   addEventListener('keydown', e => { if (e.code !== 'KeyC' || e.repeat || game.sceneName !== 'adventure' || game.paused) return; const v = game.settings.advCamera === 'rooms' ? 'scroll' : 'rooms'; game.settings.set('advCamera', v); game.note('CAMERA: ' + v.toUpperCase()); });
   const sliding = () => !!game.cam.room && game.cam.moving;   // a room slide holds the world still
   const roomOf = x => Math.floor(x / ROOM[0]), mod = (a, n) => ((a % n) + n) % n, near = (cx, cy, tag) => map.floorAt((cx + .5) * T, (cy + .5) * T) === tag;
@@ -240,7 +245,7 @@ const ADV = (() => {
     shots = new E.Bullets(game, { plane: 'ground' }); talk = new E.Dialog(game, WIN);
     fx = []; won = false; keys = 0; gems = 0; area = { room: 0, t: 2.6 }; held = null;
     // the floor is lit already; GPU lighting (if any) adds light pools and shadows
-    L.enabled = false; gpu = gpu || game.enableGPU({ map }); Object.assign(gpu, { map, enabled: true, bands: 24, wrap: .5, ambient: MOOD[0] }); A.music('adventure');
+    L.enabled = false; lighting(); if (gpu) gpu.ambient = MOOD[0]; A.music('adventure');
     game.input.touchSet('attack', 'SWORD');
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
