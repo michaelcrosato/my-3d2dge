@@ -127,10 +127,11 @@ const RPG = (() => {
   // each of 9 wing-beat steps is painted once and reused, tilted around the torso (c.tilt: leaning into a dive, a tumble).
   // The wind-up holds the wings high, the strike beats them down. r.actor tracks the area of plain draws only, so the tilt
   // happens on a scratch canvas first
-  const GARG = [], TILT = E.ctx2d(E.mkCanvas(104, 104)), gargoyleCached = (g, x, y, c) => {
+  const GARG = [], TILT = E.ctx2d(E.mkCanvas(104, 104)), gargoyleCached = (g, x, y, c, v) => {
     const k = Math.round(lerp(Math.sin(c.flapT * 7), Math.sign(c.coil), Math.min(1, Math.abs(c.coil) * 1.5)) * 4) + 4; if (!GARG[k]) gargoyle(E.ctx2d(GARG[k] = E.mkCanvas(64, 54)), 42, 47, k / 4 - 1);
     TILT.setTransform(1, 0, 0, 1, 0, 0); TILT.clearRect(0, 0, 104, 104); TILT.translate(52, 52); TILT.rotate(c.tilt); TILT.drawImage(GARG[k], -42, -27);
-    g.drawImage(TILT.canvas, x - 52, y - 72);
+    const z = v.scale / E.VIEWS.brawler.scale;   // zoomed in (a phone held upright: 1.5x), it grows as the painted fighters do, pixels kept square
+    if (z === 1) g.drawImage(TILT.canvas, x - 52, y - 72); else g.drawImage(TILT.canvas, Math.round(x - 52 * z), Math.round(y - 72 * z), Math.round(104 * z), Math.round(104 * z));
   };
   // a Blob's body center (pixels above its feet) and radius
   const blobAt = (c, v) => { const b = c.body, R = b.o.R * b.scale; return [v.p(0, 0, R * (1 + b.sq))[1], R * v.scale]; };
@@ -396,7 +397,7 @@ const RPG = (() => {
     const [x, y] = c, onCmds = x >= band.X + 4 && x < band.X + 96 && y >= band.Y && y < band.Y + 66, k = Math.floor((y - band.Y - 3) / 10), it = menu.items[k];
     if (mode === 'command' && onCmds && it && !it.disabled) { game.input.consumeAll(); menu.i = k; A.sfx('confirm'); pick(k); return true; }
     if (mode !== 'target') return false;
-    const i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < 14 + u.h * .25 && Math.abs(y - sy) < u.h * .6 + 8; });
+    const z = game.view.scale / E.VIEWS.brawler.scale, i = list.findIndex(u => { const [sx, sy] = game.r.w(u.x, u.y, u.z + u.h * .5); return Math.abs(x - sx) < (14 + u.h * .25) * z && Math.abs(y - sy) < (u.h * .6 + 8) * z; });   // the whole fighter, at any zoom
     if (i >= 0) { game.input.consumeAll(); cursor = i; A.sfx('confirm'); order(pending, list[i]); return true; }
     if (onCmds) { game.input.consumeAll(); A.sfx('cancel'); mode = 'command'; return true; }
     return false;
