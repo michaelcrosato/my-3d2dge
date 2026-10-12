@@ -37,7 +37,8 @@ screen, sound. The 3D engine adds `E.World3D` (and `E.THREE`, `E.TSL`, `E.RAPIER
 - **Things**: pickups and set dressing drawn by code from four shapes with a pen (`world.thing('coin', ...)`, chests,
   doors, flags, springs, trees...), and a registry a game adds kinds to.
 - **The camera**: the 2D engine's views as real 3D cameras (`game.view`, `game.yaw`, `game.zoom`: V, [ ], the wheel, a
-  pinch and Settings work as in 2D), a chase camera that swings round behind the hero, first person, fly and fixed. Its
+  pinch and Settings work as in 2D), a chase camera that swings round behind the hero, first person, fly and fixed (in those a click captures the mouse to
+  turn the camera; not while a session is recorded, whose record has no pointer lock). Its
   pose is worked out in the fixed steps, so the controls that read it replay the same.
 - **The picture**: torches that light the nearest action (one casting shadows), a sun with shadows, a sky, fog,
   the game's particles in 3D, ground arcs (telegraphs), glows, weapon trails, and the stress world's filters (Comic cel,

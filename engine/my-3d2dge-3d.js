@@ -217,7 +217,7 @@ const HERO_QUERY = ig(4, 1 | 2 | 64);   // a hero's controller steers round the 
 const LEVEL_ONLY = ig(0xffff, 1 | 64);  // sight lines and camera checks: the level and platforms
 
 /** the page's one renderer and 3D canvas, shared by every world (World3D.init makes them) */
-const PAGE = { ready: null, renderer: null, canvas: null, backend: 'none', game: null, worlds: new Set() };
+const PAGE = { ready: null, renderer: null, canvas: null, backend: 'none', game: null, worlds: new Set(), active: null };
 async function init(game, o = {}) {
   if (PAGE.ready) return PAGE.ready;
   return (PAGE.ready = (async () => {
@@ -239,8 +239,30 @@ async function init(game, o = {}) {
     r.toneMapping = THREE.NoToneMapping; r.outputColorSpace = THREE.SRGBColorSpace;
     r.info.autoReset = false; r.setPixelRatio(1);
     Object.assign(PAGE, { renderer: r, canvas: cv, backend: r.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL 2' });
+    mouseLook(gc);
     return PAGE;
   })());
+}
+
+/** the mouse turns the chase, first-person and fly cameras of the world drawn last: a click on the game's canvas in
+ *  play captures it (pointer lock; Esc or a pause frees it), then each move turns the camera (camera.mouseLook false:
+ *  never). Off while a session is recorded or replayed: the lock is not in its record, so the replay would turn apart */
+function mouseLook(gc) {
+  const cam = () => { const w = PAGE.active; return w && w.camera; }, S = E.session;
+  gc.addEventListener('pointerdown', e => {
+    const c = cam(); if (!c || e.pointerType !== 'mouse' || !c.mouseLook || !['chase', 'first', 'fly'].includes(c.mode) || document.pointerLockElement) return;
+    if (PAGE.game.paused || (S && (S.recording || S.replaying))) return;
+    try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* refused: [ and ] still turn it */ }
+  });
+  document.addEventListener('pointerlockchange', () => { for (const w of PAGE.worlds) w.camera.locked = document.pointerLockElement === gc; });
+  document.addEventListener('mousemove', e => {
+    const c = cam(); if (!c || !c.locked || PAGE.game.paused) return;
+    const k = .0024, dx = e.movementX || 0, dy = e.movementY || 0;
+    c.yaw += dx * k; c._held = 1.5;
+    if (c.mode === 'chase') c.chase.pitch = clamp(c.chase.pitch - dy * k, -1.3, .15);
+    else if (c.mode === 'first') c.first.pitch = clamp(c.first.pitch - dy * k, -1.2, 1.1);
+    else if (c.mode === 'fly') c.fly.pitch = clamp(c.fly.pitch - dy * k, -1.5, 1.5);
+  });
 }
 
 /* =============================================================================
@@ -1144,7 +1166,7 @@ class Camera3D {
     if (mode === 'fly' && p) Object.assign(this.fly, was === 'first' ? { x: p.x - Math.cos(p.yaw) * 56, y: p.y - Math.sin(p.yaw) * 56, z: p.z + 26, yaw: p.yaw, pitch: Math.min(p.pitch, -.3), fov: 70 } : { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, fov: p.fov || 70 });
     if (mode === 'fixed' && !this.fixed && p) this.fixed = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, fov: p.fov || 60 };
     this.mode = mode; this.smooth = null;
-    if ((mode === 'view' || mode === 'fixed') && typeof document !== 'undefined' && document.pointerLockElement) document.exitPointerLock();
+    if ((mode === 'view' || mode === 'fixed') && typeof document !== 'undefined' && document.pointerLockElement) { document.exitPointerLock(); this.locked = false; }
     return this;
   }
   /** follow an actor (or any { x, y, z }) */
@@ -1768,6 +1790,7 @@ Object.assign(World3D.prototype, {
    *  and notes go on the HUD) */
   draw(r) {
     const R = PAGE.renderer; if (!R) { this._queue.arcs.length = this._queue.glows.length = 0; return; }
+    PAGE.active = this; if (this.camera.locked && this.game.paused) document.exitPointerLock();   // a pause frees the mouse
     const t0 = performance.now(), g = this.game;
     g.particles.ground = (x, y, z) => this.level.floorAt(x, y, z);
     // the 2D renderer draws the game's particles after the scene's draw: a frame the world drew, it puts only their text
