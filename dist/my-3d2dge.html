@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.27.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.27.1 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.27.0)
+# my-3D2dge API card (v0.27.1)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -271,7 +271,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.27.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.27.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -299,7 +299,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.27.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.27.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -377,7 +377,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.27.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.27.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -9006,9 +9006,9 @@ scenes.platformer = PLAT;
  * PS1 LOOK: real alpha and additive light (px.blend), never dither; altitude shadows, one-point perspective buildings.
  * HUD on top, radio calls in a see-through box at the bottom edge. Z / Space fires (a tap: a burst), X bombs. TOUCH: the
  * ship follows a thumb dragged on the screen's left half one to one (input.drag()) and fires by itself; BOMB is the button.
- * ANY SCREEN: res [240, 320] with expand. The playfield stays WW wide, so the game plays the same; the screen's height is
- * the playfield's (W x H are the screen's, read each step). A screen wider than the playfield shows the valley going on
- * beyond it (2b), dimmed: out of play. game.go('shooter', { at: 30 }) starts at the boss.
+ * ANY SCREEN: res [240, 320] with expand. The map is WW wide; a wider screen (landscape, a desktop) shows the valley going
+ * on beyond it (2b) and the playfield is the whole screen (span()): the ship flies edge to edge and the waves spread to
+ * match (air() maps their x). W x H are the screen's, read each step. game.go('shooter', { at: 30 }) starts at the boss.
  * ===================================================================================== */
 const SHOOT = (() => {
   const WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // world width (the playfield), stage length, scroll px/s, building perspective, stage card seconds
@@ -9298,7 +9298,9 @@ const SHOOT = (() => {
   const ART = { jet: [JET, 'jet', 1.15, 40], jet2: [JET2, 'jet2', 1.15, 40], heli: [HELI, 'heli', 1.3, 30, 12], bomber: [BOMBER, 'bomber', 1.5, 64, 18], parked: [JET, 'parked', 1.3] };   // parts, palette, scale, altitude (shadow offset), nose gun (v)
   const muzzle = f => frame(f.x, f.y, f.a, f.art[2])(0, f.art[4]), TELL = .4;   // heli, bomber guns glow TELL s before a volley
   const unit = (kind, x, y, o) => { const [hp, r, pts, size] = STATS[kind]; return foes.push(Object.assign({ kind, x, y, vx: 0, vy: 0, a: D, aim: D, hp, r, pts, size, t: 0, flash: -1, fire: .6 + Math.random(), bank: 0, odo: 0, kick: 0, n: 0, art: ART[kind], air: !/tank|gun|parked/.test(kind) }, o)); };
-  const air = (kind, x, sy, o) => unit(kind, x, scroll + sy, o);   // relative to the top of the screen
+  // the PLAYFIELD: the map's width, or the whole screen where it is wider (the camera then rests on the map's middle)
+  const span = () => { const e = Math.max(0, (W - WW) / 2); return [-e, WW + e]; };
+  const air = (kind, x, sy, o) => { const [a, b] = span(); return unit(kind, a + x * (b - a) / WW, scroll + sy, o); };   // x in map units, spread across the playfield; sy from the screen's top
   // jets fly in single file on the leader's path (the 34 px gaps hold through the turn) and loop back up (turn = rad/s, a U
   // 240 / turn px wide) or dive straight; helicopters hover and aim
   const swoop = (n, x, turn, w = .7) => { for (let i = 0; i < n; i++) air('jet', x, -14 - i * 34, { sp: 120, turn, wait: w + i * 34 / 120, turned: 0 }); };
@@ -9338,7 +9340,7 @@ const SHOOT = (() => {
   }
   function bomb() {   // a carpet of blasts sweeps up the screen and scorches it
     bombs--; ship.inv = Math.max(ship.inv, 2); shots.clear('foe'); game.flash('#fff0d0', .4, .8); game.shake(5); A.sfx('boom');
-    for (let i = 0; i < 9; i++) game.after(i * .06, () => { const x = E.rand(24, WW - 24), y = scroll + H - 50 - i * 30; boom(x, y, 1.5, { sound: i % 4 === 0, shake: 0, freeze: false }); if (i % 2) craters.push(crater0(x, y, 6, 2)); });
+    for (let i = 0; i < 9; i++) game.after(i * .06, () => { const [a, b] = span(), x = E.rand(a + 24, b - 24), y = scroll + H - 50 - i * 30; boom(x, y, 1.5, { sound: i % 4 === 0, shake: 0, freeze: false }); if (i % 2) craters.push(crater0(x, y, 6, 2)); });
     for (const f of foes) if (f.seen) f.hp -= 40; if (boss && !boss.dying) for (const p of boss.parts) if (p.hp > 0) p.hp -= 30;
   }
   // every boss attack is telegraphed: the gun charges (drawn in bossLayers), then fires
@@ -9399,7 +9401,7 @@ const SHOOT = (() => {
     if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { best('shooter', score); game.go('over', { from: 'shooter' }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
     else {
       const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
-      ship.x = clamp(ship.x + (d ? d[0] : mv[0] * 125 * dt), 10, WW - 10); ship.y = clamp(ship.y + (d ? d[1] : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
+      const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
       if (inp.pressed('fire')) ship.burst = .5;
       if ((inp.down('fire') || touch() || (ship.burst -= dt) > 0) && (fireT -= dt) <= 0) {   // more guns, a wider fan per power level; on a touch screen it fires by itself
         fireT = .07; ship.gun = .035; A.sfx('shoot', { vol: .2 });
@@ -9410,7 +9412,7 @@ const SHOOT = (() => {
     for (const f of foes) {
       f.t += dt; f.flash -= dt; f.fire -= dt; f.kick = Math.max(0, f.kick - dt * 4);
       if (f.kind === 'boss') { bossStep(f, dt); continue; }
-      const sy = f.y - scroll, seen = f.seen = sy > -8 && sy < H + 8 && f.x > -8 && f.x < WW + 8, aim = E.angleTo(f, ship);
+      const sy = f.y - scroll, seen = f.seen = sy > -8 && sy < H + 8 && f.x > span()[0] - 8 && f.x < span()[1] + 8, aim = E.angleTo(f, ship);
       if (/jet/.test(f.kind)) {   // the jet rolls in a moment before the turn (anticipation), loops 218 degrees (the files peel apart), rolls out
         if (f.t > f.wait && f.turned < 3.8) { f.a += f.turn * dt; f.turned += Math.abs(f.turn) * dt; }
         f.bank = approach(f.bank, f.t > f.wait - .25 && f.turned < 3.8 ? Math.sign(f.turn) : 0, 4 * dt); f.vx = Math.cos(f.a) * f.sp; f.vy = Math.sin(f.a) * f.sp;
@@ -9431,7 +9433,7 @@ const SHOOT = (() => {
         else { f.fire = f.kind === 'gun' ? 1.5 : 2.2; f.kick = 1; const m = frame(f.x, f.y, f.aim)(0, 16); add({ k: 'flash', x: m[0], y: m[1], r: 4, life: .08 }); shoot(m[0], m[1], E.pattern.spread(f.aim, f.kind === 'gun' ? 3 : 1, .25, 100)); }
       }
       if (f.air && ship.respawn <= 0 && E.overlap(f, ship)) { hitShip(); if (f.kind !== 'bomber') f.hp = 0; }
-      if (sy > H + 40 || (f.air && (sy < -90 && f.t > 4 || f.x < -40 || f.x > WW + 40))) f.gone = true;
+      if (sy > H + 40 || (f.air && (sy < -90 && f.t > 4 || f.x < span()[0] - 40 || f.x > span()[1] + 40))) f.gone = true;
     }
     shots.update(dt);
     const targets = foes.filter(f => f.seen).concat(boss && !boss.dying && boss.y > scroll ? boss.parts.filter(p => p.hp > 0) : []);
@@ -9503,10 +9505,6 @@ const SHOOT = (() => {
       craft(r, { ...ship, a: u * u * 4 - D, bank: Math.sin(u * 12), art: [PLAYER, 'player', 1.2 - u * .5, 40 - u * 40] }, 12, { flash: game.real * 20 % 2 < 1 && '#ff6a40' });
     }
     r.queue(0, scroll, 20, g => bullets(g, r, 'ship'));
-    if (lx > 0 || rx < r.W) r.overlay(g => {   // the curtain over what lies beyond the playfield, a gold rule at its edges
-      const a = Math.round(lx), b = Math.round(rx); px.blend(g, .55, 'normal', () => { px.rect(g, 0, 0, a, r.H, '#060a14'); px.rect(g, b, 0, r.W - b, r.H, '#060a14'); });
-      px.blend(g, .7, 'normal', () => { px.rect(g, a - 1, 0, 1, r.H, GOLD); px.rect(g, b, 0, 1, r.H, GOLD); });
-    });
     r.overlay(hud); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));   // never hidden by a panel
   }
 

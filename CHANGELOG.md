@@ -5,6 +5,11 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.27.1 (2026-10-12)
+
+- **Characters** (the starter kits, `src/starter/`): the shooter's playfield is the whole screen on a wide one (a phone on its side, a desktop): the ship flies edge to edge and the waves spread to match, with no dimmed sides or gold rules. It was a 272-pixel column in the middle.
+- **Docs**: `AI_GUIDE.md` says so.
+
 ## 0.27.0 (2026-10-12)
 
 Every kit actually full screen on a phone, with a way back from every menu and controls made for thumbs.
