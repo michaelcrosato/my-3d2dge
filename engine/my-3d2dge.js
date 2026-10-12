@@ -1915,7 +1915,8 @@ class Game {
    * update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in
    * a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and
    * controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone
-   * goes full screen at its first tap, until the player leaves it), 'button' (only when asked) or false; corner: the menu
+   * goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when
+   * asked) or false; corner: the menu
    * and full-screen buttons at the top right; autoPause: a pausable scene pauses when the page is hidden or loses focus;
    * id: the name the player's settings are saved under (the page's path)
    */
@@ -2065,17 +2066,27 @@ class Game {
     on(window, 'blur', () => this._autoPause('focus'));
     on(document, 'visibilitychange', () => { if (document.hidden) this._autoPause('focus'); this.audio._background(document.hidden && !this.settings.background); });   // a hidden page sleeps its sound
     on(window, 'pagehide', () => this._autoPause('focus'));
-    const fsChange = () => { if (this.settings.fullscreen !== fs.on) this.settings.set('fullscreen', fs.on); this.input.clear(); if (this.shell && this.shell.screen) this.shell._render(); };   // the player's choice: kept whichever way they left it
+    const fsChange = () => { this.input.clear(); if (this.shell && this.shell.screen) this.shell._render(); };   // (the player's choice is what they asked for: fullscreen.toggle() keeps it)
     on(document, 'fullscreenchange', fsChange); on(document, 'webkitfullscreenchange', fsChange);
-    if (this.o.fullscreen === undefined || this.o.fullscreen === 'tap') on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one)
-      if (e.pointerType === 'mouse' || this._fsAuto || this.settings.fullscreen === false || !fs.supported || fs.on || fs.standalone) return;
-      if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches) || (e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) return;
-      this._fsAuto = true; fs.enter();   // once a page load: the player who leaves it stays out
+    on(window, 'pointerup', e => {   // (a browser goes full screen only from a tap: this one, or a game started by it)
+      if (e.pointerType === 'mouse') return;
+      if (!this._fsAuto && !(e.target && e.target.closest && e.target.closest('[data-sys="corner"]'))) this._fsAuto = this._autoFull();   // once until a game starts: the player who leaves it mid-game stays out
     }, { capture: true });
     on(window, 'pointermove', e => { if (e.pointerType === 'mouse' && e.clientY < 80 && (e.movementX || e.movementY)) this._mouseTop = performance.now(); }, { passive: true });   // (a real mouse moved: not a page's synthetic event)
     this.input.names = (this.o.menu && this.o.menu.controls) || null;
     if (this.o.corner !== false && (this.o.menu !== false || this.o.fullscreen !== false)) this._corner = makeCorner(this);
     if (this.o.menu !== false) new Shell(this, { system: true });
+  }
+  /** full screen by itself on a touch screen (fullscreen: 'tap', the default): at the first tap, and again when a game
+   *  starts after the player left it, unless they turned it off (settings.fullscreen false); only from a tap. True when
+   *  it is on or was asked for */
+  _autoFull() {
+    const fs = this.fullscreen, o = this.o.fullscreen, ua = typeof navigator !== 'undefined' && navigator.userActivation;
+    if (this.headless) return false; if (fs.on) return true;
+    if ((o !== undefined && o !== 'tap') || this.settings.fullscreen === false || !fs.supported || fs.standalone) return false;
+    if (!this.input._touched && !(window.matchMedia && matchMedia('(pointer: coarse)').matches)) return false;
+    if (ua && !ua.isActive) return false;   // (no tap behind this: the next one asks)
+    fs.enter(true); return true;
   }
   /** show or hide the corner buttons: shown while the game isn't being played (a title, a game over, a pause without
    *  the menu), for a moment after the mouse comes near the top, and the menu always on a touch screen without the
@@ -2317,6 +2328,7 @@ class Game {
     if (s.res || s.expand !== undefined) this.screen.setOptions(Object.assign(s.res ? { res: s.res } : {}, s.expand !== undefined ? { expand: s.expand } : {}));
     if (s.touch) this.input.touchButtons(s.touch);
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
+    if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
     if (s.enter) s.enter(data);
   }
   _fail(where, e) {
@@ -2386,8 +2398,8 @@ E.Game = Game;
  *    - game.settings: the player's choices (display, sound, comfort, controls), saved per game (a version, every value
  *      checked when it loads, a bad one falls back to its default), applied at once. A game adds its own with
  *      new E.Game({ menu: { settings: [{ key: 'hints', label: 'Hints', value: true }] } }) and reads game.settings.hints.
- *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there; leaving it is
- *      the player's choice, kept: it never comes back by itself.
+ *    - game.fullscreen: the page full screen from a tap, click or key. A phone's first tap takes it there, and a game
+ *      started by a tap does again; turning it off (the corner's button, the menu) is the player's choice, kept.
  *    - pausing: a pausable scene pauses when the page is hidden or loses focus, or the controller in use is unplugged,
  *      and waits for the player (game.pause(reason), game.resume(), game.pauseReason).
  *    - the corner: a menu button and a full-screen button at the top right, inside the safe area.
@@ -2395,12 +2407,12 @@ E.Game = Game;
  *      callouts on the game's canvas (menus keep theirs).
  *    E.Shell draws the menu's screens (pause, settings, controls): section 21d.
  * ============================================================================= */
-const SETTINGS_VERSION = 1;
+const SETTINGS_VERSION = 2;   // 2: fullscreen false means turned off (version 1's also meant left by a gesture: forgotten)
 /** the standard settings by key: { group, label, type: 'toggle' | 'slider' | 'select', value (the default, or a
  *  function of the game), min, max, step, options: [[value, label]], help, apply(game, value) }. Groups: Display,
  *  Sound, Comfort (the settings screen), Controller, Touch (the controls screen) */
 const STANDARD_SETTINGS = {
-  fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (left it), null (never chose)
+  fullscreen: { group: 'Display', label: 'Full screen', type: 'fullscreen', value: null },   // the player's choice: true, false (turned it off), null (never chose)
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
   sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },
   volume: { group: 'Sound', label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
@@ -2449,6 +2461,7 @@ class Settings {
     hide('onChange', null);
     const raw = store.get(this._key, null);
     hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});   // (a newer version's values are checked like the rest)
+    if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
     game.input._settings = this; game.input.onBindings = b => this.set('bindings', b);
     for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
     for (const sp of own) this.define(sp);
@@ -2509,11 +2522,12 @@ class FullScreen {
   /** true when the page was opened from a home screen as an app (no browser bars: nothing to go full screen from) */
   get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this.game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }   // (full screen from here matches display-mode: fullscreen too)
   /** go full screen. Browsers allow it only from a tap, click or key press: call it from one (a button, the menu, a
-   *  key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen) */
-  enter() {
+   *  key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen, unless
+   *  quiet) */
+  enter(quiet) {
     if (this.on || !this.supported) return Promise.resolve(this.on);
     const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
-    const no = e => { this.failed = (e && e.message) || 'refused'; this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
+    const no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
     try { const p = f.call(el, { navigationUI: 'hide' }); this.failed = null; return p && p.then ? p.then(() => true, no) : Promise.resolve(true); } catch (e) { return Promise.resolve(no(e)); }
   }
   /** leave full screen (Escape and the phone's back gesture do it too) */
@@ -2522,8 +2536,9 @@ class FullScreen {
     const f = document.exitFullscreen || document.webkitExitFullscreen;
     try { const p = f && f.call(document); return p && p.then ? p.then(() => true, () => false) : Promise.resolve(true); } catch (e) { return Promise.resolve(false); }
   }
-  /** full screen on or off */
-  toggle() { return this.on ? this.exit() : this.enter(); }
+  /** full screen on or off, as the player asked (the corner's button, the menu): their choice is kept in
+   *  settings.fullscreen, so a game starting on a phone goes full screen by itself only while they haven't turned it off */
+  toggle() { const on = this.on; if (!this.game.headless) this.game.settings.set('fullscreen', !on); return on ? this.exit() : this.enter(); }
 }
 E.FullScreen = FullScreen;
 /* the corner buttons: menu and full screen, 44 px, top right inside the safe area (Game._cornerSync shows them) */

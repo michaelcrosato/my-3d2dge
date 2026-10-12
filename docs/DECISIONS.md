@@ -377,3 +377,19 @@ An entry:
 - **Answered:** yes: the owner's goal (2026-10-11); the defaults (the splash in the built pages, the report before play)
   made without a response, to review
 - **Landed in:** v0.24.0
+
+## D24 · 2026-10-12 · Full screen comes back when a game starts
+
+- **Principle:** process (a standard feature's rule: `docs/STANDARD-FEATURES.md`, 4 Full screen, "never force it back
+  after the player leaves")
+- **Call:** on a phone, a game started by a tap goes full screen again after a back gesture or Escape left it; only
+  turning it off (the corner's button, the menu, `fullscreen.toggle()`) is the player's choice, kept in
+  `settings.fullscreen` and honored. Mid-game, the player who leaves it stays out until the next game starts. Settings
+  move to version 2: a version-1 `fullscreen: false` (which also meant "left by a gesture") is forgotten once.
+- **Why:** the owner, testing the kits on a phone, found none of them full screen: one exit by an edge swipe (the same
+  swipe that leaves a page, which the owner said players make when they can't find the way back) turned it off for good,
+  and the save kept it off on every later visit. A gesture is not a choice; a button is. What would change it: players
+  reporting full screen coming back when they didn't want it; then a toggle in Settings for the auto behaviour.
+- **Answered:** yes: the owner's goal ("each of these need to be actually full screen") on 2026-10-11; the line between
+  a gesture and a choice drawn without a response, to review
+- **Landed in:** v0.27.0
