@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.33.1)
+# my-3D2dge API index (v0.34.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.33.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.34.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -171,6 +171,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.RES: nes, snes, gb, gbc, gba, genesis, md, pce, n64, ps1, wide`: classic console resolutions for new Game({ res: 'snes' }) (width x height in pixels)
 - `new E.Screen(canvas, o, signal)` †: canvas null: the screen of a headless game, sized as a 1280 x 720 window would size it, with nothing to draw on
 - `game.screen.begin(cx, cy, bg)`: start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it)
+- `game.screen.clear` †: clear: true when the game's bg is null (or 'transparent'): the buffer and the canvas are cleared instead of filled, so a picture under the canvas shows through the game's (a 3D world drawn by engine/my-3d2dge-3d.js)
 - `game.screen.clientToScreen(cx, cy)`: browser client coords -> projected screen pixels (same space as view.p)
 - `game.screen.fixedRes(o = this.o)`: fixed internal size from o.res ('snes', [256, 224], ...) or null for the adaptive size
 - `game.screen.options(pw, ph)`: the sizing options in force: the game's, with o.portrait's over them while the screen is taller than wide (a phone held upright). new Game({ maxH: 330, portrait: { maxH: 1000 } }) lets the picture grow to fill a 9:16 screen
@@ -304,7 +305,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 8. Particles
 
-- `new E.Particles(game)` †: game.particles. game: its game; list: the live particles; max: at most this many at once (add() skips the rest)
+- `new E.Particles(game)` †: game.particles. game: its game; list: the live particles; max: at most this many at once (add() skips the rest); ground: null (the floor is z 0), or (x, y, z) -> the floor's height under a particle (a side-scroller's platforms, a 3D level: engine/my-3d2dge-3d.js sets it), asked again when a particle enters a new 8-unit cell
 - `game.particles.add(p)`: add one particle { x, y, z, vx, vy, vz, life, max (seconds), g (gravity, > 0 pulls down), drag, bounce (0..1), kind: 'dust' | 'spark' | 'bit' | 'ember' | 'ring' | 'text', color, size }; returns it, or null when full
 - `game.particles.bits(x, y, z, n, colors)`: n pieces of debris that fly, fall and bounce (colors: a list to pick from)
 - `game.particles.draw(r)`: queue them for drawing (the renderer calls it)
@@ -319,6 +320,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.particles.text(x, y, z, text, color = '#fff2c4', o = {})`: floating number or word: text(x, y, z, '12', color, { scale: 2, bounce: true }) (bounce: lands and holds, Final Fantasy style)
 - `game.particles.update(dt)`: move and age them by dt (the engine calls it every step)
 - `game.particles.game`: its game
+- `game.particles.ground = null` †: null (the floor is z 0), or (x, y, z) -> the floor's height under a particle (a side-scroller's platforms, a 3D level: engine/my-3d2dge-3d.js sets it), asked again when a particle enters a new 8-unit cell
 - `game.particles.list = []`: the live particles
 - `game.particles.max = 900`: at most this many at once (add() skips the rest)
 
@@ -371,7 +373,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 10. Game
 
-- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }). res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly), unless the player picks Frame rate 60; camera: the camera of every scene without its own (a scene's camera option: the player's zoom, start)
+- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }). res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). bg: the color behind everything, or null: the canvas is clear, and the game draws its HUD and menus over a picture under it (a 3D world, engine/my-3d2dge-3d.js). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly), unless the player picks Frame rate 60; camera: the camera of every scene without its own (a scene's camera option: the player's zoom, start)
 - `game.H`: the screen's height in game pixels (W is its width)
 - `game.W`: internal buffer size in pixels (HUD layout)
 - `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
@@ -399,6 +401,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.setView(v)`: switch the view: an id from E.VIEWS ('iso', 'side', ...) or a View; keeps zoom and turn
 - `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3), the game's own; where the scene lets the player zoom (camera.zoom), theirs multiplies it (game.zoom is the two together). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
 - `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
+- `game.shaking` †: how hard the screen shakes now (0 still, up to 10): shake() adds to it and it dies away. A camera of the game's own (a 3D world's) shakes by it
 - `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera } (all optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a sub-menu closed). camera: { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the wheel, - and =, a pinch, Settings, Camera zoom: theirs, kept, on top of the game's; false or none: they can't; a function of the game: a range per screen shape, g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at (tall: on a screen held upright, game.upright; 1 without); wheel: false leaves the mouse wheel to the game start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance(). boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
 - `game.upright`: true while the game's screen (r.W x r.H) is upright, taller than 1.3 times its width: a phone held upright, with expand: true (a fixed res keeps its own shape on any phone, so it is never upright there). A scene's camera.tall zoom applies then: it zooms a tall picture in to fill it
