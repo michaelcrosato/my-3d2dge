@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.33.0 (2026-10-12)
+
+The Labs page, restructured.
+
+- **Tools**: the Labs page has four sections. **Play** holds Emberdeep, Emberwell and Scarfrunner. **Starter kits** has a tile for each kit, plus the all-in-one file and its compact edition. **Tools** holds the Mocap Lab, the Perspective Lab and the stress test. **Temporary** follows them.
+- **Tools**: each section has a line saying what it holds. A bar at the top jumps to each section, with its count, and marks the one on screen.
+- **Tools**: a card opens its page from anywhere on it. The button that repeated the title is gone (54 links, not 65), and the chips are only the other places to start. On a desktop the cards sit in columns.
+- **Tools**: Temporary cards come newest first and lead with their question, with the date and how long ago it was. What each one is folds under "What it is".
+- **Tools**: `src/labs.json`: a section's `about` line. An entry's `links` are only the other places to start (the title opens the page).
+- **Docs**: `README.md` describes the new Labs page.
+
 ## 0.32.1 (2026-10-12)
 
 Codex's review of 0.32.0, the player's zoom.
