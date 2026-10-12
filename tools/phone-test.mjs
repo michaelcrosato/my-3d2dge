@@ -208,7 +208,19 @@ if (want('pacing')) {
     g.settings.set('frameRate', 'full'); __vt.gpu = 8; __vt.run(1000, 120); out.full = [g.drawEvery, __vt.gaps(300)];
     g.settings.set('frameRate', 'auto'); __vt.run(1000, 120); out.auto = g.drawEvery; __vt.gpu = 0; return out; });
   check('virtual: Frame rate 60 draws every other refresh of a 120 Hz screen, its frames light', fr.sixty[0] === 2 && even(fr.sixty[1]) === 100, `every ${fr.sixty[0]}, ${even(fr.sixty[1])}% of gaps 16.7 ms`);
-  check('virtual: Frame rate Full draws every refresh, its GPU behind; Auto paces it again', fr.full[0] === 1 && fr.full[1].some(x => Math.abs(x - 8.33) < .1) && fr.auto === 2 && !errors.length, `every ${fr.full[0]} (gaps ${[...new Set(fr.full[1])].join(', ')} ms), Auto: every ${fr.auto}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+  check('virtual: Frame rate Full draws every refresh, its GPU behind; Auto paces it again', fr.full[0] === 1 && fr.full[1].some(x => Math.abs(x - 8.33) < .1) && fr.auto === 2, `every ${fr.full[0]} (gaps ${[...new Set(fr.full[1])].join(', ')} ms), Auto: every ${fr.auto}`);
+  // 60 on a screen of exactly 100 Hz: every other refresh; then, still 60, the display drops to 60 Hz: after 90 long gaps
+  // in a row the refresh is read afresh (60 Hz, every refresh: not 120 HZ EVERY 2 for good)
+  const drop = await vt(() => { const g = window.__game.game, out = {}; __vt.run(5000, 120); g.settings.set('frameRate', '60');
+    __vt.run(2000, 100); out.hundred = [g.drawEvery, g.hz]; __vt.run(2000, 120); __vt.run(2500, 60); out.sixty = [g.drawEvery, g.hz, __vt.gaps(300)];
+    g.settings.set('frameRate', 'auto'); __vt.run(2000, 120); return out; });
+  check('virtual: Frame rate 60 halves a 100 Hz screen too', drop.hundred[0] === 2 && drop.hundred[1] === 100, `every ${drop.hundred[0]}, ${drop.hundred[1]} Hz`);
+  check('virtual: at 60, a display that drops to 60 Hz is read afresh: every refresh, 60 Hz', drop.sixty[0] === 1 && drop.sixty[1] === 60 && drop.sixty[2].every(x => Math.abs(x - 16.67) < .1), `every ${drop.sixty[0]}, ${drop.sixty[1]} Hz, gaps ${[...new Set(drop.sixty[2])].join(', ')} ms`);
+  // a game made with pace: false, its GPU behind (Auto would pace it): every refresh with Auto, every other one when the
+  // player picks 60
+  const nopace = await vt(() => { const g = window.__game.game, out = {}; g.o.pace = false; __vt.gpu = 8; __vt.run(1500, 120); out.auto = g.drawEvery;
+    g.settings.set('frameRate', '60'); __vt.run(500, 120); out.sixty = g.drawEvery; g.settings.set('frameRate', 'auto'); g.o.pace = undefined; __vt.gpu = 0; return out; });
+  check('virtual: pace: false draws every refresh, unless the player picks 60', nopace.auto === 1 && nopace.sixty === 2 && !errors.length, `Auto: every ${nopace.auto}, 60: every ${nopace.sixty}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
   await ctx.close();
 }
 
