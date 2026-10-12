@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.28.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.29.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -370,7 +370,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.28.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.29.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1240,7 +1240,7 @@ class Game {
     this.particles = new Particles(this); this.r = this.headless ? null : new Renderer(this); this.audio = new ChipAudio(this, signal);
     if (this.headless) this.audio.failed = 'a headless game has no sound';
     this.debug = null;   // a game's own handle for tools: game.debug = { snapshot() {...}, teleport(x, y, z) {...} }
-    this.fps = 60; this.paused = false; this.pauseOverlay = true; this._timers = []; this.errors = []; this._errKeys = new Set();
+    this.fps = 60; this.hz = 60; this.drawEvery = 1; this.paused = false; this.pauseOverlay = true; this._timers = []; this.errors = []; this._errKeys = new Set();   // drawEvery: 2 while a fast display outruns the frames
     this.fadeTime = .22; this._fade = null; this.scenes = null; this.scene = null; this.sceneName = null; this._next = null;
     this.stats = { updateMs: 0, renderMs: 0, frameMs: 16.7, steps: 0, items: 0, actors: 0, culled: 0 };
     this.alpha = .5; this._acc = this.o.step / 2;   // the step left over (0..1); starting half a step in keeps a steady step count
@@ -1362,15 +1362,22 @@ class Game {
     }
     if (this._running || this.disposed || this.o.loop === false) return this;
     this._running = true;
-    let last = performance.now(), acc = 0, n = 0;
+    let last = performance.now(), acc = 0, n = 0, since = 0, per = 1 / 60, cost = 0, ri = 0;
+    const ring = [];
     const frame = now => {
       if (!this._running) return;
       this._raf = requestAnimationFrame(frame);   // scheduled first, so an error never stops the loop
-      const raw = Math.max(0, (now - last) / 1000); last = now;
-      acc += raw; n++; if (acc > .5) { this.fps = Math.round(n / acc); acc = 0; n = 0; }   // real time: a slow device reads slow
+      const raw = Math.max(0, (now - last) / 1000); last = now; since += raw;
+      if (raw > .004) { ring[ri++ % 90] = raw; per = Math.min(...ring); }   // the refresh: the shortest of the last 90 frames (late ones are longer)
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
-      try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
-      const st = this.stats; st.updateMs = t1 - t0; st.renderMs = performance.now() - t1; st.frameMs = raw * 1000; st.steps = steps;
+      if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
+        n++;
+        try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
+        const st = this.stats, t2 = performance.now(); st.updateMs = t1 - t0; st.renderMs = t2 - t1; st.frameMs = since * 1000; st.steps = steps; since = 0;
+        cost += ((t2 - t0) / 1000 - cost) * .1;   // a 90 Hz+ display the frames don't fit: every other refresh, evenly
+        this.drawEvery = this.o.pace === false || per > 1 / 85 ? 1 : cost > per * .8 ? 2 : cost < per * .55 ? 1 : this.drawEvery;
+      }
+      acc += raw; if (acc > .5) { this.fps = Math.round(n / acc); this.hz = Math.round(1 / per); acc = 0; n = 0; }   // real time: a slow device reads slow
     };
     this._raf = requestAnimationFrame(frame);
     return this;

@@ -5,7 +5,8 @@
 //      playfield to the other and back (no lifting the thumb to go on)
 //   3. brawler: walking right, no street is ever on screen beyond where the hero can walk (the camera stops at a fight's
 //      lock, so the screen's edge is the wall)
-//   4. adventure: a phone gets Fast lighting (no GPU lighting, Settings: Lighting), and a frame draws within budget
+//   4. adventure: a phone gets Fast lighting (no GPU lighting, Settings: Lighting), and a frame draws within budget;
+//      pacing: on a 120 Hz screen a frame that won't fit is drawn every other refresh, evenly (game.drawEvery)
 //   5. rpg: a whole turn is played by taps, and every tap target (commands, foes) is at least 44 CSS pixels (a thumb)
 // Usage: node tools/phone-test.mjs [kit ...]   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1
 // on failure. Each check prints what it measured, so a failure says what a player would have seen.
@@ -101,6 +102,36 @@ if (want('adventure')) {
   }));
   check('adventure: a phone gets Fast lighting (no GPU lighting)', r.light === 'auto' && !r.gpu, `setting ${r.light}, GPU lighting ${r.gpu ? 'on' : 'off'}`);
   check('adventure: a frame updates and draws within 30 ms (median)', r.ms < 30 && !errors.length, `${r.ms.toFixed(1)} ms${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+  await ctx.close();
+}
+
+/* 4b. a 120 Hz phone (frames on an 8.33 ms grid; a late frame waits for the next): a frame that won't fit is drawn every
+   other refresh, evenly, instead of at random; a light one every refresh */
+if (want('pacing')) {
+  console.log('pacing: a 120 Hz screen');
+  const ctx = await browser.newContext({ viewport: UP, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => {
+    const P = 1000 / 120, t0 = performance.now(), q = new Map(); let id = 0;
+    const at = () => t0 + Math.ceil((performance.now() - t0 + .01) / P) * P;
+    const pump = () => { const v = at() - P, run = [...q.values()]; q.clear(); for (const f of run) f(v); setTimeout(pump, Math.max(0, at() - performance.now())); };
+    window.requestAnimationFrame = f => { q.set(++id, f); return id; }; window.cancelAnimationFrame = i => q.delete(i); setTimeout(pump, P);
+  });
+  await page.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-stealth.html')).href + '#stealth');
+  await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'stealth');
+  // the scene's frame made to cost ms (busy), then measured over 2 s: the refresh read, every how many refreshes, the gaps
+  const run = (ms, pace) => ev(page, ([ms, pace]) => new Promise(res => {
+    const g = window.__game.game, d0 = g.__d0 || (g.__d0 = g.scene.draw); g.o.pace = pace;
+    g.scene.draw = ms ? r => { const t = performance.now() + ms; while (performance.now() < t); } : () => {};
+    const f0 = g.__f0 || (g.__f0 = g._frame.bind(g)), gaps = []; let last = 0;
+    g._frame = () => { const now = performance.now(); if (last) gaps.push(now - last); last = now; f0(); };
+    setTimeout(() => { const s = gaps.slice(gaps.length >> 1), even = s.filter(x => x > 12 && x < 21).length / s.length; res({ hz: g.hz, every: g.drawEvery, even: Math.round(even * 100) }); }, 2000);
+  }), [ms, pace]);
+  const heavy = await run(10, undefined), light = await run(0, undefined), off = await run(10, false);
+  check('pacing: the screen reads 120 Hz', heavy.hz >= 110 && heavy.hz <= 130, `${heavy.hz} Hz`);
+  check('pacing: a 10 ms frame is drawn every other refresh, evenly (16.7 ms apart)', heavy.every === 2 && heavy.even >= 80, `every ${heavy.every}, ${heavy.even}% of gaps 16.7 ms`);
+  check('pacing: a light frame is drawn every refresh', light.every === 1, `every ${light.every}`);
+  check('pacing: pace: false draws every refresh', off.every === 1 && !errors.length, `every ${off.every}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
   await ctx.close();
 }
 

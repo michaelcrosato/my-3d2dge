@@ -393,3 +393,22 @@ An entry:
 - **Answered:** yes: the owner's goal ("each of these need to be actually full screen") on 2026-10-11; the line between
   a gesture and a choice drawn without a response, to review
 - **Landed in:** v0.27.0
+
+## D25 · 2026-10-12 · A fast screen the frames can't keep up with is drawn every other refresh
+
+- **Principle:** process (the engine's frame loop, both editions: a default every game gets)
+- **Call:** the loop measures the display's refresh (the shortest of the last 90 frame gaps: `game.hz`). On a display of
+  90 Hz and up, when a frame's update and draw cost more than 0.8 of a refresh (an average), it draws every other
+  refresh, evenly (`game.drawEvery` 2), and back to every refresh once the cost is under 0.55 of one. The updates still
+  run at every refresh (120 steps a second); only drawing skips. `new E.Game({ pace: false })` keeps the old way: draw
+  every refresh. A 60 Hz screen is never halved.
+- **Why:** the owner, testing the kits on a Galaxy S25 (a 120 Hz screen), found the adventure choppy after its GPU
+  lighting was turned off for phones. Its frame (about 11 to 13 ms here, its townsfolk most of it) doesn't fit a 120 Hz
+  refresh (8.3 ms), so some frames made the refresh and some missed it: frames 8 and 17 ms apart at random, which reads
+  as choppy. Drawn every other refresh they come 16.7 ms apart, evenly (measured on an emulated 120 Hz screen: 90% of the
+  gaps 16.7 ms paced, against a mix of 8, 17 and 25 ms not). A game that fits its frame stays at the full refresh. What
+  would change it: a game that wants every refresh drawn even when it can't keep up (then `pace: false`, or make it
+  the default), or a player who sees 60 frames where there were more.
+- **Answered:** no: made at once as a reversible call (it is one option and a few lines of the loop), flagged in the pull
+  request, to review
+- **Landed in:** v0.29.0
