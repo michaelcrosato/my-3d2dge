@@ -7,7 +7,8 @@
 //      lock, so the screen's edge is the wall)
 //   4. adventure: a phone gets Fast lighting (no GPU lighting, Settings: Lighting), and a frame draws within budget;
 //      pacing: on a 120 Hz screen a frame that won't fit is drawn every other refresh, evenly (game.drawEvery), and a GPU
-//              behind (refreshes missed) the same
+//              behind (refreshes missed) the same, then each refresh again after a hold; on a virtual clock (deterministic,
+//              a minute of play in seconds): the hold's backoff, a display changing its refresh rate while paced
 //   5. rpg: a whole turn is played by taps, and every tap target (commands, foes) is at least 44 CSS pixels (a thumb)
 // Usage: node tools/phone-test.mjs [kit ...]   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1
 // on failure. Each check prints what it measured, so a failure says what a player would have seen.
@@ -106,9 +107,9 @@ if (want('adventure')) {
   await ctx.close();
 }
 
-/* 4b. a 120 Hz phone (frames on an 8.33 ms grid; a late frame waits for the next): a frame that won't fit is drawn every
-   other refresh, evenly, instead of at random; a light one every refresh. Its GPU can fall behind too (window.__busy: a
-   refresh while it draws is skipped), which no clock in the page sees: the refreshes missed are the sign */
+/* 4b. a 120 Hz phone (frames on an 8.33 ms grid, real timers; a late frame waits for the next): a frame that won't fit is
+   drawn every other refresh, evenly, instead of at random. (A light frame drawn every refresh is checked on 4c's virtual
+   clock: here a busy machine's late timers miss refreshes, which the engine is right to pace) */
 if (want('pacing')) {
   console.log('pacing: a 120 Hz screen');
   const ctx = await browser.newContext({ viewport: UP, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = [];
@@ -116,31 +117,89 @@ if (want('pacing')) {
   await page.addInitScript(() => {
     const P = 1000 / 120, t0 = performance.now(), q = new Map(); let id = 0;
     const at = () => t0 + Math.ceil((performance.now() - t0 + .01) / P) * P;
-    const pump = () => {
-      if (performance.now() >= (window.__busy || 0)) { const v = at() - P, run = [...q.values()]; q.clear(); for (const f of run) f(v); }
-      setTimeout(pump, Math.max(0, at() - performance.now()));
-    };
+    const pump = () => { const v = at() - P, run = [...q.values()]; q.clear(); for (const f of run) f(v); setTimeout(pump, Math.max(0, at() - performance.now())); };
     window.requestAnimationFrame = f => { q.set(++id, f); return id; }; window.cancelAnimationFrame = i => q.delete(i); setTimeout(pump, P);
   });
   await page.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-stealth.html')).href + '#stealth');
   await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'stealth');
-  // the scene's frame made to cost ms (busy) and its GPU gpu ms after it (5 and 11 by turns: some frames fit a refresh,
-  // some don't), then measured over 2 s (or wait ms): the refresh read, every how many refreshes, the gaps
-  const run = (ms, pace, gpu, wait = 2000) => ev(page, ([ms, pace, gpu, wait]) => new Promise(res => {
+  // the scene's frame made to cost ms (busy), then measured over 2 s: the refresh read, every how many refreshes, the gaps
+  const run = (ms, pace) => ev(page, ([ms, pace]) => new Promise(res => {
     const g = window.__game.game, d0 = g.__d0 || (g.__d0 = g.scene.draw); g.o.pace = pace;
     g.scene.draw = ms ? r => { const t = performance.now() + ms; while (performance.now() < t); } : () => {};
     const f0 = g.__f0 || (g.__f0 = g._frame.bind(g)), gaps = []; let last = 0;
-    let k = 0; window.__busy = 0;
-    g._frame = () => { const now = performance.now(); if (last) gaps.push(now - last); last = now; f0(); if (gpu) window.__busy = performance.now() + (k++ % 2 ? 11 : 5); };
-    setTimeout(() => { const s = gaps.slice(gaps.length >> 1), even = s.filter(x => x > 12 && x < 21).length / s.length; res({ hz: g.hz, every: g.drawEvery, even: Math.round(even * 100) }); }, wait);
-  }), [ms, pace, gpu, wait]);
-  const heavy = await run(10, undefined), light = await run(0, undefined), off = await run(10, false), behind = await run(0, undefined, true), after = await run(0, undefined, false, 4000);
+    g._frame = () => { const now = performance.now(); if (last) gaps.push(now - last); last = now; f0(); };
+    setTimeout(() => { const s = gaps.slice(gaps.length >> 1), even = s.filter(x => x > 12 && x < 21).length / s.length; res({ hz: g.hz, every: g.drawEvery, even: Math.round(even * 100) }); }, 2000);
+  }), [ms, pace]);
+  const heavy = await run(10, undefined), off = await run(10, false);
   check('pacing: the screen reads 120 Hz', heavy.hz >= 110 && heavy.hz <= 130, `${heavy.hz} Hz`);
   check('pacing: a 10 ms frame is drawn every other refresh, evenly (16.7 ms apart)', heavy.every === 2 && heavy.even >= 80, `every ${heavy.every}, ${heavy.even}% of gaps 16.7 ms`);
-  check('pacing: a light frame is drawn every refresh', light.every === 1, `every ${light.every}`);
-  check('pacing: pace: false draws every refresh', off.every === 1, `every ${off.every}`);
-  check('pacing: a GPU behind (light frames, refreshes missed) is drawn every other refresh, evenly', behind.every === 2 && behind.even >= 80 && behind.hz >= 110, `every ${behind.every}, ${behind.even}% of gaps 16.7 ms, ${behind.hz} Hz`);
-  check('pacing: once the GPU keeps up, every refresh again (after 3 s)', after.every === 1 && !errors.length, `every ${after.every}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+  check('pacing: pace: false draws every refresh', off.every === 1 && !errors.length, `every ${off.every}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+  await ctx.close();
+}
+
+/* 4c. pacing on a virtual clock (a fresh page: no history from 4b): the test owns performance.now and the display's
+   refreshes (__vt.run(ms, hz)), a frame drawn costs vt.cost ms and then its GPU vt.gpu ms (gpu - 3 and gpu + 3 by turns:
+   some frames fit a refresh, some don't), a refresh comes when both are free. Deterministic, and faster than real time
+   (the scene's drawing stubbed after the first check): a GPU that falls behind (no clock in the page sees it: the refreshes missed are the sign), the hold
+   before each refresh is tried again and its backoff, and a display that changes its refresh rate while paced */
+if (want('pacing')) {
+  console.log('pacing: a virtual clock');
+  const ctx = await browser.newContext({ viewport: UP, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), page = await ctx.newPage(), errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => {
+    let T = 0, V = -10 / 3, busy = 0, id = 0, k = 0; const q = new Map();   // (the first refresh 5 ms after start(): no refresh's gap)
+    performance.now = () => T;
+    window.requestAnimationFrame = f => { q.set(++id, f); return id; }; window.cancelAnimationFrame = i => q.delete(i);
+    const vt = window.__vt = { cost: 1, gpu: 0, draws: [],
+      hook(g) { const f0 = g._frame.bind(g); g._frame = () => { vt.draws.push(T); f0(); T += vt.cost; if (vt.gpu) busy = T + vt.gpu + (k++ % 2 ? 3 : -3); }; },
+      // ms of refreshes at hz (the refresh grid carries on from the last one); a refresh while the frame before it is
+      // still running, or its GPU still drawing, is skipped
+      run(ms, hz) { const P = 1000 / hz, end = V + ms; while (V + P <= end + 1e-6) { V += P; if (T > V || V < busy) continue; T = V; const fs = [...q.values()]; q.clear(); for (const f of fs) f(V); } },
+      // the same in steps of 50 ms: [ms from now, drawEvery, hz] after each
+      watch(ms, hz) { const g = window.__game.game, out = []; for (let t = 50; t <= ms; t += 50) { vt.run(50, hz); out.push([t, g.drawEvery, g.hz]); } return out; },
+      // the gaps between frames drawn in the last ms
+      gaps(ms) { const d = vt.draws, t0 = d[d.length - 1] - ms, out = []; for (let i = 1; i < d.length; i++) if (d[i - 1] >= t0) out.push(+(d[i] - d[i - 1]).toFixed(2)); return out; } };
+  });
+  await page.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-stealth.html')).href + '#stealth');
+  await page.waitForFunction(() => window.__vt && window.__game && window.__game.game, null, { polling: 50 });
+  const vt = (fn, arg) => ev(page, fn, arg);
+  // when drawEvery turned 2 in a watch's timeline (ms from its start, to 50 ms; null: never)
+  const on = tl => (tl.find(e => e[1] === 2) || [null])[0];
+  const even = gs => Math.round(gs.filter(x => Math.abs(x - 16.67) < .1).length / Math.max(1, gs.length) * 100);
+  const state = () => vt(() => { const g = window.__game.game; return { scene: g.sceneName, every: g.drawEvery, hz: g.hz, gaps: __vt.gaps(300) }; });
+  // a 10 ms frame from the first refresh (which came 5 ms after start(): read as one, 200 Hz until 90 more were)
+  await vt(() => { __vt.hook(window.__game.game); __vt.cost = 10; __vt.run(1000, 120); });
+  const first = await state();
+  check('virtual: a 10 ms frame from the first refresh: every other refresh, the screen read 120 Hz', first.scene === 'stealth' && first.every === 2 && first.hz === 120 && even(first.gaps) === 100, `${first.scene}, every ${first.every}, ${first.hz} Hz, ${even(first.gaps)}% of gaps 16.7 ms`);
+  // light frames from then on: every refresh again once the 3 s hold the first frames' missed refreshes started is over
+  // (14 s: the hold back to 3 s for the next, below)
+  await vt(() => { window.__game.game.scene.draw = () => {}; __vt.cost = 1; __vt.run(14000, 120); });   // (the scene's own drawing off: its cost is vt.cost)
+  const start = await state();
+  check('virtual: a light frame, its GPU keeping up: every refresh', start.every === 1 && start.hz === 120, `every ${start.every}, ${start.hz} Hz`);
+  // a GPU behind: paced within a quarter second, frames evenly 16.7 ms apart, the refresh still read 120 Hz
+  const behind = await vt(() => { __vt.gpu = 8; return { tl: __vt.watch(1000, 120), gaps: __vt.gaps(500) }; });
+  const b = behind.tl[behind.tl.length - 1];
+  check('virtual: a GPU behind is drawn every other refresh within 0.25 s, evenly', on(behind.tl) <= 250 && b[1] === 2 && even(behind.gaps) === 100 && b[2] === 120, `paced at ${on(behind.tl)} ms, every ${b[1]}, ${even(behind.gaps)}% of gaps 16.7 ms, ${b[2]} Hz`);
+  // the GPU keeps up again: every refresh after the hold (3 s from pacing), not before
+  const back1 = await vt(() => { __vt.gpu = 0; return __vt.watch(5000, 120); });
+  const r1 = back1.find(e => e[1] === 1), at1 = r1 ? r1[0] + 1000 - on(behind.tl) : null;   // (the hold's first part spent in behind's watch)
+  check('virtual: the GPU keeping up again, every refresh after a 3 s hold', at1 !== null && at1 >= 3000 && at1 <= 3300, `every refresh again ${at1} ms after pacing`);
+  // behind again at once: the hold doubles (6 s)
+  const twice = await vt(() => { __vt.gpu = 8; const a = __vt.watch(500, 120); __vt.gpu = 0; return { a, b: __vt.watch(8000, 120) }; });
+  const r2 = twice.b.find(e => e[1] === 1), at2 = r2 ? r2[0] + 500 - on(twice.a) : null;
+  check('virtual: behind again soon after, the hold doubles (6 s)', on(twice.a) !== null && at2 >= 6000 && at2 <= 6300, `paced at ${on(twice.a)} ms, every refresh again ${at2} ms after`);
+  // 11 s drawn at each refresh, then behind: the hold is 3 s again
+  const reset = await vt(() => { __vt.run(11000, 120); __vt.gpu = 8; const a = __vt.watch(500, 120); __vt.gpu = 0; return { a, b: __vt.watch(8000, 120) }; });
+  const r3 = reset.b.find(e => e[1] === 1), at3 = r3 ? r3[0] + 500 - on(reset.a) : null;
+  check('virtual: after 10 s at each refresh, the hold is 3 s again', on(reset.a) !== null && at3 >= 3000 && at3 <= 3300, `paced at ${on(reset.a)} ms, every refresh again ${at3} ms after`);
+  // paced (a 6 s hold), the display drops to 90 Hz: its refresh is learnt again while paced
+  const slower = await vt(() => { __vt.gpu = 8; __vt.watch(500, 120); __vt.gpu = 0; return __vt.watch(2000, 90); });
+  const s = slower[slower.length - 1];
+  check('virtual: paced, a display that drops to 90 Hz reads 90 Hz within 2 s', s[1] === 2 && s[2] === 90, `every ${s[1]}, ${s[2]} Hz`);
+  // still paced, it rises to 144 Hz: read at once (a shorter gap than the refresh read), every other refresh 13.9 ms apart
+  const faster = await vt(() => { const tl = __vt.watch(600, 144); return { tl, gaps: __vt.gaps(200) }; });
+  const f = faster.tl[faster.tl.length - 1], f13 = faster.gaps.filter(x => Math.abs(x - 13.89) < .1).length / Math.max(1, faster.gaps.length);
+  check('virtual: paced, a display that rises to 144 Hz is drawn every other refresh, 13.9 ms apart', f[1] === 2 && f[2] === 144 && f13 === 1 && !errors.length, `every ${f[1]}, ${f[2]} Hz, gaps ${[...new Set(faster.gaps)].join(', ')} ms${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
   await ctx.close();
 }
 
