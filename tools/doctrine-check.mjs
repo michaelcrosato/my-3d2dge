@@ -79,7 +79,7 @@ const PRIVATE = new Set([...ENGINE.matchAll(/(?:\bthis\.|^\s+|[{,]\s*)(_[A-Za-z]
 // the uses before the doctrine (v0.15.0), by area: a folder of src/ or a single file. Remove a name once its area stops
 // using it (the check says when); never add one: promote the member to the public API instead, or make it a prototype's.
 const GRANDFATHERED = {
-  'src/emberdeep/': ['_build', '_composite', '_facePattern', '_fail', '_isFront', '_lastView', '_levels', '_roofPattern', '_w'],
+  'src/emberdeep/': ['_build', '_composite', '_fail', '_isFront', '_lastView', '_levels', '_w'],
   'src/mocap/': ['_pose'],
   'src/stress.game.js': ['_note']
 };

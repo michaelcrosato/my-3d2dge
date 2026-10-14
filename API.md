@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.34.2)
+# my-3D2dge API card (v0.35.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -219,6 +219,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 ## More: animation and examples outside this card
 The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubusercontent.com/michaelcrosato/my-3d2dge/main/<path>`) holds more to take from. Its files are large: search them and take only what the game needs.
 - **Motion clips**: 325 curated (idles, walks, runs, jumps, fights, hits, deaths, chores, dances) and 2,548 motion-capture takes, as readable key poses that play on any Humanoid. Find one in `src/mocap/catalogs/quaternius.json`, `mesh2motion.json` or `cmu.json` (each clip's name, tags and description; a few thousand tokens each) or `src/mocap/catalogs/cmu-takes.tsv` (every take, one a line). `node tools/anim-set.mjs src/mocap/sets/quaternius.js --clips Idle_Loop,Punch_Jab --name MINE --out mine.js` cuts the clips you want into a small set (a take `NN_xx` is in `examples/cmu-lib/CMU_NN.js`); paste `src/mocap/readable.js`, `src/mocap/mocap.js` and that set, in this order, before your game's code, then `const lib = Mocap.load(MOCAP.MINE); Mocap.drive(rig, lib);` and each step `rig.mocap = lib.sample(lib.clip('Idle_Loop'), t)`. `docs/MOCAP.md` explains the format and blending.
+- **Objects and materials** (full engine): `r.shape('barrel', x, y, 0, { facing })` draws a still object from any view and facing, `map.solid(...)` makes it solid; `E.MATERIALS` dresses floors (`floorMat`), walls (`face`, `roof`) and platform tiles (`mat`). `docs/ASSETS.md` is the card: the format, the library, writing one and checking it with `node tools/asset-sheet.mjs`.
 - **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 28 monster, boss and dummy bodies, 3 heroes (one a living book, one a scythed beast) and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 

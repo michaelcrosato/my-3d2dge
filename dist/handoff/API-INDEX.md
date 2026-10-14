@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.34.2)
+# my-3D2dge API index (v0.35.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.34.2"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.35.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -109,13 +109,13 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.store.set(key, value)`: save value (any JSON) under key; false when storage is blocked
 - `E.targets(from, list, o = {})`: the things in list that `from` can reach, nearest first, each as { target, d (ground distance), dz, angle (from -> it) }: melee auto-aim, lock-on, takedowns, interaction prompts. o: { range, arc (half angle around facing, radians; default all round), facing (default from.facing), dz (most height difference, default E.HEIGHTS.level), sight: map (only those its eyes see), filter: t => bool }. A target's r adds to the range
 - `E.toHex(c)`: [r, g, b] -> '#rrggbb'
-- `E.toHsl(h)`: two-bone IK in 3D: returns [joint, end]. hint points the way the joint should bend. */ function ik3(a, b, L1, L2, hint) { let d = V3.sub(b, a), dist = V3.len(d); const max = L1 + L2 - .01; if (dist > max) { d = V3.mul(d, max / dist); b = V3.add(a, d); dist = max; } dist = Math.max(dist, .01); const n = V3.mul(d, 1 / dist); let h = V3.sub(hint, V3.mul(n, V3.dot(hint, n))); const hl = V3.len(h); h = hl < 1e-4 ? [n[1], -n[0], 0] : V3.mul(h, 1 / hl); const x = (L1 * L1 - L2 * L2 + dist * dist) / (2 * dist), y = Math.sqrt(Math.max(0, L1 * L1 - x * x)); return [V3.add(V3.add(a, V3.mul(n, x)), V3.mul(h, y)), b]; } /* ---- color ramps: hue-shifted shading, the way pixel artists shade (shadows cooler, highlights warmer) ----
+- `E.toHsl(h)`: a color's hue (degrees), saturation and lightness (0..1): toHsl('#e05a3a') -> [h, s, l]
 - `E.tones(c, strength = 1)`: five shades of a color for painted-looking pixel art: { deep, sh, base, lt, hi }. Shadows drift toward blue-violet, highlights toward warm yellow (strength 0..2, default 1).
 
 ## 2. Pixel primitives
 
 - `E.faceClass(nx, ny)` †: GPU surface class for a vertical face normal: 5 +x, 6 -x, 7 +y, 8 -y
-- `E.px`: saved data that survives reloads (localStorage, JSON). Never throws. */ const store = { get(key, fallback = null) { try { const v = localStorage.getItem('my3d2dge:' + key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } }, // the value saved under key (any JSON), or fallback set(key, value) { try { localStorage.setItem('my3d2dge:' + key, JSON.stringify(value)); return true; } catch (e) { return false; } }, // save value (any JSON) under key; false when storage is blocked remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } } // forget key }; Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, rng, hash2, noise2, bayer, smoothDamp, hex, toHex, shade, mix, mkCanvas, ctx2d, V3, ik3, rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store }); /* ============================================================================= 2. PIXEL PRIMITIVES (all snap to whole pixels, never anti-aliased) g = CanvasRenderingContext2D, coordinates in buffer pixels. =============================================================================
+- `E.px`: the pixel primitives: px.rect, px.line, px.dot, px.disc, px.poly, px.sprite, ... (each snaps to whole pixels)
 - `E.px.blend(g, a, mode, fn)`: draw fn() at alpha a (stepped, like PS1 hardware) with a blend mode: 'normal', 'add', 'multiply', 'screen' (E.style.trans = 'dither' dithers instead)
 - `E.px.col(g, c)`: set the fill color (px.* do it themselves)
 - `E.px.ddisc(g, cx, cy, r, c, a, wx = 0, wy = 0)`: soft disc that fades toward its edge (glows, smoke, dust): stepped alpha rings, or dithering in 'dither' style
@@ -286,7 +286,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 7. Lighting
 
-- `new E.Lighting(game)` †: Big logo text for title screens: scaled glyphs with a vertical color gradient, an outline and an extruded 3D edge. title(g, 'CASTLE OF NIGHT', x, y, { scale: 3, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], outline: '#1a0c10', depth: 3, depthColor: '#6a2a1a', align: 'center' }) / title(g, s, x, y, o = {}) { const sc = Math.max(1, Math.round(o.scale || 3)), colors = o.colors || ['#fff6c8', '#ffe08a', '#ffb347', '#e0662a'], outline = o.outline === undefined ? '#1a0c10' : o.outline; const depth = o.depth === undefined ? Math.max(1, sc - 1) : o.depth, dc = o.depthColor || shade(colors[colors.length - 1], -.55), f = this._f(o); const base = Object.assign({}, o, { scale: sc, outline: false, shadow: false, gradient: null }); for (let d = depth; d >= 1; d--) this.text(g, s, x + d, y + d, dc, base); if (outline) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) this.text(g, s, x + ox, y + oy, outline, base); // smooth gradient: one color band per scaled pixel row const rows = f.h * sc, bands = []; for (let k = 0; k < rows; k++) { const t = k / Math.max(1, rows - 1) * (colors.length - 1), i = Math.min(colors.length - 2, Math.floor(t)); bands.push(colors.length < 2 ? colors[0] : mix(colors[i], colors[i + 1], t - i)); } const lines = String(s).split('\n'), lh = this.lineHeight(base); lines.forEach((line, li) => { const lw = this._lineW(f, line) * sc, lx = Math.round(x) + (o.align === 'center' ? -Math.round(lw / 2) : o.align === 'right' ? -lw : 0), ly = Math.round(y) + li * lh; let cx = 0; for (const ch of line) { if (ch === ' ') { cx += f.space + 1; continue; } const gl = this._glyph(f, ch); for (const [rx, ry, rn] of gl.runs) for (let sy = 0; sy < sc; sy++) { px.col(g, bands[Math.min(rows - 1, ry * sc + sy)] || colors[0]); g.fillRect(lx + (cx + rx) * sc, ly + ry * sc + sy, rn * sc, 1); } if (o.shine !== false) for (const [rx, ry, rn] of gl.runs) if (ry === 0) { px.col(g, o.shine || '#ffffff'); g.fillRect(lx + (cx + rx) * sc, ly, rn * sc, 1); } cx += (f.mono || gl.w) + 1; } }); return { w: this.width(s, base), h: this.height(lines.length, base) }; } }; /* ============================================================================= 7. LIGHTING per-pixel darkness with dithered bands, lights measured on the ground =============================================================================
+- `new E.Lighting(game)` †: game.lights (made by the game): canvas lighting, darkness over the frame with lights cut out of it; turn it on with game.lights.enabled = true and add lights each frame with game.lights.add(x, y, z, radius, intensity, o)
 - `game.lights.add(x, y, z, radius, intensity = 1, o)` †: radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true }
 - `game.lights.caster(x, y, r, top)` †: something that blocks light (GPU shadows): a cylinder of radius r from the floor up to height top
 - `game.lights.clear()` †: forget this frame's lights, casters and heat (the renderer does it every frame: add lights in draw)
@@ -348,6 +348,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `r.prop(name, x, y, z, o = {})` †: set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint }) feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights. A prop drawn in front of an x-ray actor (a pillar, a statue, a brazier) shows the actor's silhouette through it; hides: false opts a prop out.
 - `r.queue(x, y, z, fn, o)`: queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show through it (props, sprites, bodies), nothing else changes
 - `r.shadow(x, y, rad, alpha = .5, color = '#0c0818', z = 0)`: soft contact shadow under a character: a cached dithered ellipse, correct for the current view. z = height of the surface it falls on (0 = floor; the top of a block or platform otherwise)
+- `r.shape(id, x, y, z = 0, o = {})` †: Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o). o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material }, flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (default true: x-ray silhouettes show through it), footprint, light (add its lights to game.lights), shadow (default true), charView (default true: steep views draw it from the characters' lower angle), flash, alpha, xray }
 - `r.sightCone(obs, o = {})` †: an observer's view on the ground: a dithered fan fov wide (radians) about its facing, out to range, cut short where the map hides a body's chest (map.ray, the height rules), draped over the ground below. o: { range: 120, fov: 1.6, facing, map, eye, color: '#ffe080', alpha: .3, rays }. Call it in draw (it is a decal: under walls and bodies)
 - `r.sky(colors, o = {})`: background of dithered color bands, top to bottom: r.sky(['#0b1030', '#3b2d6b', '#e0806a']). Call first in draw.
 - `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost } (the last five use the actor path)
@@ -568,7 +569,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 12. Blob rig
 
-- `new E.Blob(o = {})`: push a target away from a point (attacker): uses target.push (E.Body) or its vx / vy. up = upward speed (knock into the air) */ E.knockback = (from, target, speed = 160, up = 0) => { const dx = target.x - from.x, dy = (target.y || 0) - (from.y || 0), d = Math.hypot(dx, dy) || 1, ix = dx / d * speed, iy = dy / d * speed; if (typeof target.push === 'function') target.push(ix, iy, up); else { target.vx = (target.vx || 0) + ix; target.vy = (target.vy || 0) + iy; if (up) target.vz = (target.vz || 0) + up; } return target; }; /* ============================================================================= 12. BLOB RIG (slimes, jellies) squash-and-stretch sphere that looks at a target =============================================================================
+- `new E.Blob(o = {})`: new E.Blob({ R: 6.5, colors, ears, horns, wings, feet, tail, mouth, face }): a squash-and-stretch rig for slimes and jellies; blob.update(dt, state) each step, blob.draw(g, ox, oy, view) in an r.actor
 - `blob.draw(g, ox, oy, view)`: draw(g, ox, oy, view). Creature features from the constructor options: ears: 'rabbit' | 'cat', horns: true, wings: true (flapping bat wings), feet: true, tail: true, mouth: true | 'fangs', face: 'front' (eyes always on the camera side, for Mana-style monsters) update(dt, { flap: 0..1, hang: true }) slows or folds the wings and hangs a bat upside down from its anchor.
 - `blob.kick(v)`: a squash kick: + stretches (a hop), - squashes (a landing, a hit)
 - `blob.update(dt, s = {})`: s: {squash target -0.4..0.4, look:[dx,dy] ground dir, squint}
@@ -588,7 +589,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 13. Tile map
 
-- `new E.TileMap(o = {})`: Walls standing on a floor (top-down, isometric, brawler). Either { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex } (recommended) or { w, h, cells: [ids...], floor: [tags...], blocked: [0 | 1...], types, floorTex } (built in code: fill, setFloor; with no cells it starts as open floor). types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow] face: wall pattern 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none' roof: top pattern 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass' block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
+- `new E.TileMap(o = {})`: Walls standing on a floor (top-down, isometric, brawler). Either { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex } (recommended) or { w, h, cells: [ids...], floor: [tags...], blocked: [0 | 1...], types, floorTex } (built in code: fill, setFloor; with no cells it starts as open floor). types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow] face: the wall's material (E.MATERIALS): 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none' | any material id or '#hex pattern' roof: the top's material: 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass' | any material id or '#hex pattern' floorMat: a material for the floor, floorMats: { tag: material } for tagged cells (in place of floorTex). block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
 - `map.arcClear(a, b, apex = 20, r = 0)`: does a jump arc from a to b (feet, { x, y, z }) clear every top on the way? The arc is a parabola peaking apex above the higher end; r > 0 also checks a track on each side of it. Jumps, throws, aerial takedowns
 - `map.block(cx, cy, on = true)`: mark a cell blocked or free at runtime (a bridge appears, lava cools)
 - `map.bounds(view)`: projected pixel bounds of the whole map for this view (camera clamping)
@@ -612,6 +613,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `map.set(cx, cy, v)`: put wall type v at a cell (0 opens it: a door, a broken wall); bumps version, so caches and flow fields rebuild
 - `map.setFloor(cx, cy, tag, block)`: give a cell a floor tag ('water', 'grass', what floorTex and floorAt read), and block it (deep water, lava) or not
 - `map.sight(a, b, o = {})`: can a's eyes (z + eye) see b's chest (z + chest)? E.HEIGHTS gives both unless o ({ eye, target }) or the bodies' own eye and chest say otherwise. A guard sees over a planter lower than its eyes, and down from a roof
+- `map.solid(id, x, y, z = 0, o = {})` †: make a shape solid in this map: map.solid(id | entry, x, y, z, o) with r.shape's placement (facing, scale, flip, params) -> the solid ({ x, y, z, top, hx, hy, c, s }; map.solids holds them). A body overlapping its span in height is pushed out of its footprint; one coming down onto it lands on its top; one wholly below passes under. Register solids before the bodies' updates; drawing never sets them
 - `map.solidAt(x, y)`: solidCell at a world point
 - `map.solidCell(cx, cy)`: true where a cell has a wall (or is outside the map); walkable() also counts blocked floor
 - `map.standable(x, y, z, r = 5, step = HEIGHTS.step)`: can a body of radius r stand at (x, y) with its feet at z? Nothing under its footprint rises above z + step (it would collide), no blocked floor (water, lava) is under it at floor level, and a top within step below z holds it up
@@ -622,6 +624,8 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `map.blocked`: cells nobody can walk on (deep water, lava, pits): legend { floor: 'water', block: true } or TileMap { block: ['water'] }
 - `map.cells`: the wall type id of every cell, row by row (index cy * w + cx; change one with set)
 - `map.cutaway`: walls between the camera and the floor drop low (types with cut: true; false turns it off)
+- `map.floorMat` †: a material (E.MATERIALS id or '#hex pattern') for every floor cell
+- `map.floorMats` †: { tag: material } for the cells with that floor tag, over floorMat (untagged cells have the tag null). Either stands in for floorTex
 - `map.floorTags`: floorTags: each cell's floor tag from the legend ('water', 'lava', ...), row by row, or null for a map built from cells
 - `map.floorTex`: floorTex(x, y, tag, view) -> [r, g, b], the floor's color per pixel
 - `map.floors`: the baked floor images by view (floors = {} re-bakes them after floorTex changes)
@@ -633,6 +637,27 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `map.version = 0`: counts every change to cells and blocked cells (set, block), so caches and flow fields know to rebuild
 - `map.w`: the map's size in cells
 - `E.parseLevel(rows, legend = {})`: Parse an ASCII level (top row first; every character is one tile). legend maps a character to a number -> tile / wall type id (0 = empty) a string -> a spawn tag; the cell stays empty and spawns[] gets { tag, ch, cx, cy } an object -> any of { tile: id, floor: 'water', spawn: 'hero', block: true } (block: nobody can walk on this cell) '.' and ' ' are empty unless the legend says otherwise. Unknown characters warn once and become empty.
+
+## 13b. Materials
+
+- `E.MATERIALS: brick, stone, rock, plank, timber, plaster, hedge, speckle, plain, tiles, slab, leaves, grass, flagstone, ... (59)` †: the materials by id: { color, pattern, ...its numbers, ramp, glow } or a painter of a surface (face, roof, floor, tile); add your own: E.MATERIALS.oak = { color: '#8a5a36', pattern: 'planks', bw: 3 }. Any material id takes '#hex pattern key=value' too
+- `E.PATTERNS` †: the patterns, by name: (s, m) => a tone step (-1 .. +2) at a point s of a surface, for a material m's numbers. Add your own: E.PATTERNS.waves = (s, m) => Math.sin(s.u / (m.size || 3)) > .8 ? 1 : 0
+- `E.PATTERNS.bark(s)` †: bark: fissures running up a trunk; a cut end shows its rings
+- `E.PATTERNS.bricks(s, m)` †: bricks: running bond, bw x bh (6 x 3), mortar a step darker (mortar: its step)
+- `E.PATTERNS.cloth(s, m)` †: cloth: a fine weave and soft folds (fold .9)
+- `E.PATTERNS.crate(s, m)` †: crate: a framed and braced crate side (frame 2 wide, a diagonal brace, boards bw 3 inside); lids are planks
+- `E.PATTERNS.foliage(s, m)` †: foliage: leaf clumps (size 3.5), each lit at its top and dark at its foot, a few bright leaves
+- `E.PATTERNS.glaze(s)` †: glaze: a glossy shine where the light is strongest, a few specks
+- `E.PATTERNS.metal(s, m)` †: metal: hard light (a shine where lit, darker in shade); rivet: a rivet every rivet units
+- `E.PATTERNS.noise(s, m)` †: noise: soft patches (scale 4)
+- `E.PATTERNS.none()` †: none: the light's bands alone
+- `E.PATTERNS.planks(s, m)` †: planks: boards bw wide (3) with joints and butt ends every len (14); along u on lids and flat sides, along v (staves) on turned surfaces; dir: 'v' turns them on flat faces
+- `E.PATTERNS.shingles(s, m)` †: shingles: staggered rows of roof tiles (course 2.5, bw 4)
+- `E.PATTERNS.speck(s, m)` †: speck: dark and light specks (amount .08)
+- `E.PATTERNS.stones(s, m)` †: stones: irregular stones (Voronoi cells about size across, 5) with dark joints and a lit rim
+- `E.PATTERNS.thatch(s, m)` †: thatch: straw in overlapping courses (course 3)
+- `E.PATTERNS.tiles(s, m)` †: tiles: square tiles size (4) with grout
+- `E.material(id, local, kind = 'material')` †: a material ready to draw: { q (its entry), ramp (five [r, g, b], dark to light), hexes (the same as '#rrggbb'), pat (its pattern), glow }. id: an id (looked up in local first, a set's own, then E.MATERIALS), a shorthand string or an entry; kind names the surface, for the warning when the id is unknown (then null)
 
 ## 14. Flow field
 
@@ -654,7 +679,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 15. Texture helpers for floortex functions
 
-- `E.tex`: normalized ground direction to walk from (x, y) toward the target (straight at it where the field doesn't reach) */ dir(x, y, fx, fy) { const m = this.map, T = m.T, W = m.w, cx = Math.floor(x / T), cy = Math.floor(y / T), i = cy * W + cx, here = cx >= 0 && cy >= 0 && cx < W && cy < m.h ? this.d[i] : 1e9; if (here === 0 || here >= 1e9) { const dx = fx - x, dy = fy - y, l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; } let best = here, bx = 0, by = 0; const can = (nx, ny) => nx >= 0 && ny >= 0 && nx < W && ny < m.h && this._link(i, ny * W + nx); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) { if (dx && dy && (!can(cx + dx, cy) || !can(cx, cy + dy))) continue; const nx = cx + dx, ny = cy + dy; if (!can(nx, ny)) continue; const v = this.d[ny * W + nx] + (dx && dy ? .4 : 0); if (v < best) { best = v; bx = dx; by = dy; } } const tx = (cx + bx + .5) * T - x, ty = (cy + by + .5) * T - y, l = Math.hypot(tx, ty) || 1; return [tx / l, ty / l]; } } E.FlowField = FlowField; /* ============================================================================= 15. TEXTURE HELPERS for floorTex functions =============================================================================
+- `E.tex`: floor textures for a TileMap's floorTex(x, y): flagstone, grass, dirt, water, planks, checker, plain (each gives [r, g, b] at a world point); as materials too: floorMat: 'grass'
 - `E.tex.checker(x, y, o = {})`: checkerboard tiles (castle floors, bonus rooms). o: { a, b, size }
 - `E.tex.dirt(x, y, o = {})`: dirt, sand or snow: base color with soft noise and specks. o: { base, dark, light }
 - `E.tex.flagstone(x, y, pal, size = 16)`: stone flagstones with running-bond rows. pal: {stones:[hex..], mortar, hi, lo, speck}
@@ -734,7 +759,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 17. Body
 
-- `new E.Body(o = {})`: new E.Body({ x, y, r: 5, ... }). x, y, z: its position (z = feet); vx, vy, vz: its speed, world units per second; r: its radius; gravity: pulls z down (world units per second squared); friction: slows vx and vy per second (0 = none); bounce: 0..1, how much speed it keeps off walls and the floor; step: the height it walks up without jumping (E.HEIGHTS.step); onGround: standing; groundZ: the height of what is under it; hitWall: it touched a wall this step; landed: it landed this step
+- `new E.Body(o = {})`: new E.Body({ x, y, r: 5, ... }). x, y, z: its position (z = feet); vx, vy, vz: its speed, world units per second; r: its radius; h: its height (32, a standing actor's: it spans z to z + h, so it passes under a solid shape above that and walks into one in that span); gravity: pulls z down (world units per second squared); friction: slows vx and vy per second (0 = none); bounce: 0..1, how much speed it keeps off walls and the floor; step: the height it walks up without jumping (E.HEIGHTS.step); onGround: standing; groundZ: the height of what is under it; hitWall: it touched a wall this step; landed: it landed this step
 - `body.jump(v = 220)`: leave the ground with upward speed v (only when standing). Returns true if it jumped
 - `body.push(ix, iy, iz = 0)`: add an impulse (knockback, explosion): push(vx, vy, vz)
 - `body.update(dt, map)`: move it one step: speed, friction, walls (map.collide: lower walls are walked onto), gravity and the ground under it (map.groundAt)
@@ -743,6 +768,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `body.friction = 0`: slows vx and vy per second (0 = none)
 - `body.gravity = 700`: pulls z down (world units per second squared)
 - `body.groundZ = 0`: the height of what is under it
+- `body.h = 32` †: its height (32, a standing actor's: it spans z to z + h, so it passes under a solid shape above that and walks into one in that span)
 - `body.hitWall = false`: it touched a wall this step
 - `body.landed = false`: it landed this step
 - `body.onGround = true`: standing
@@ -885,18 +911,22 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.audio.song = null`: the music playing (null for none)
 - `game.audio.volume = .7`: master volume 0..1
 - `E.note(n)`: note name -> frequency: E.note('A4') = 440, E.note('C#5'), E.note('Bb2'). Numbers pass through
-- `E.songs: title, adventure, dungeon, boss, victory`: stop the music (it fades out over 60 ms) */ stopMusic() { if (this._timer) clearInterval(this._timer); this._timer = null; const S = this.song; this.song = null; if (S && this.ctx) { const t = this.ctx.currentTime; S.bus.gain.setValueAtTime(S.bus.gain.value, t); S.bus.gain.linearRampToValueAtTime(0, t + .06); setTimeout(() => { try { S.bus.disconnect(); } catch (e) { /* gone */ } }, 300); } } _schedule() { const S = this.song, c = this.ctx; if (!S || !c) return; if (c.state !== 'running') { S.next = 0; return; } if (!S.next || S.next < c.currentTime - .2) S.next = c.currentTime + .05; while (S.next < c.currentTime + .12) { if (S.step >= S.len && !S.loop) { const end = S.next; setTimeout(() => { if (this.song === S) this.stopMusic(); }, Math.max(0, (end - c.currentTime) * 1000 + 400)); S.next = 1e9; return; } const pos = S.step % S.len; for (const t of S.tracks) this._note(t, pos % t.tokens.length, S.next, S.spb, S.bus); S.step++; S.next += S.spb; } } _note(t, i, time, spb, bus) { const tok = t.tokens[i]; if (tok === '.' || tok === '-' || tok === '_') return; const vol = t.vol === undefined ? .18 : t.vol; if (t.wave === 'drums' || t.wave === 'noise') { const kit = DRUMS[tok[0].toLowerCase()]; if (!kit) { warn('drum:' + tok, 'music: drum token "' + tok + '" is unknown (k s h o c t or .)'); return; } for (const v of kit) this._voice(Object.assign({}, v, { vol: v.vol * vol / .18 }), bus, time); return; } let n = 1; while (i + n < t.tokens.length && t.tokens[i + n] === '-') n++; const f = noteFreq(tok); if (!f) { warn('note:' + tok, 'music: "' + tok + '" is not a note (use C4, F#3, Bb2, "." for rest, "-" to hold)'); return; } this._voice({ wave: t.wave || 'square', freq: f * Math.pow(2, t.octave || 0), dur: n * spb * (t.gate || .9), vol, hold: true, attack: .006, vib: t.vib }, bus, time); } } E.Audio = ChipAudio; /* ready-made chiptune loops (original compositions). Use: game.audio.music('adventure')
+- `E.songs: title, adventure, dungeon, boss, victory`: ready-made chiptune loops (original compositions): title, adventure, dungeon, boss, victory. game.audio.music('adventure')
 
 ## 21b. Backdrops
 
 - `new E.Backdrop(o = {})`: new E.Backdrop('castle-night') (a preset: E.Backdrop.presets) or new E.Backdrop({ sky: [colors top to bottom], sun, moon, stars, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' | 'fog' | 'stalactites', color, y, height, parallax, seed }] }): a parallax sky and scenery drawn behind a level
-- `E.Backdrop.presets` †: the preset names: day, sunset, night, castle-night, city-night, desert, forest, ocean, cave, space and more
+- `E.Backdrop.presets` †: the preset names, all ten: day, dusk, night, castle-night, city-night, desert, forest, ocean, cave, space
 - `backdrop.draw(r)` †: draw the backdrop first in draw(r), before the level; it scrolls with the camera by each layer's parallax
 - `backdrop.layers` †: its scenery layers, back to front, with their defaults filled in
 - `backdrop.o` †: the options it was made from
 - `backdrop.sky` †: the sky's gradient colors, top to bottom
 - `E.PROPS: 38 entries` †: the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts)
+- `E.SHAPES: barrel, crate, chest, table, chair, stool, bench, bed, bookcase, shelf, pot, jar, sack, cart, ... (25)` †: the shapes by id: { about, tags, mats: { slot: material }, parts | make(params), params, foot, lights, flames } (the core library's, the sets' as 'SET:id' from E.addAssets, and your own: E.SHAPES.stool = {...})
+- `E.addAssets(set)` †: register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries are named 'SET:id' (so one set never changes another's, or the core's) and find their own set's materials and shapes first. An id that is already there warns and keeps the first. Returns { shapes: [ids], materials: [ids], sprites: { id: sprite } } (sprites are E.sprite data; a color may be 'material:tone', tone deep | sh | base | lt | hi)
 - `E.prop(name, o = {})`: build (and cache) a prop: { frames: [sprite], glow: [sprite] | null, w, h }
+- `E.shapeInfo(id, o = {})` †: what a shape draws, for tools and tests: E.shapeInfo(id, { view: 'iso', facing, scale, mats, params }) -> { w, h, ox, oy, tris, prims (its primitives), parts (each primitive's pixels on screen: 0 is never seen there), colors (distinct), pixels, bounds [x0, y0, z0, x1, y1, z1], rgba }; null for an unknown shape
+- `E.shapeSprite(id, o = {})` †: a shape as a sprite (E.sprite's kind: r.sprite, px.sprite, inventories, HUDs, portraits): E.shapeSprite(id, { view: 'iso', facing, size (its scale, 1), mats, params, outline: true }). The view is a name or a View; a bag icon is the item's shape seen at an angle
 
 ## 21. Ui
 

@@ -186,17 +186,7 @@ function WLD_bridge(L0, x, y, C, stone) {
   return v < .3 ? C.plank_s : v > .85 ? C.plank_l : C.plank;
 }
 
-/* ---------- wall masonry: patterns the engine's TileMap does not have (per map, the engine's own still work) ---------- */
-function WLD_scan(pts, span) {
-  let y0 = 1e9, y1 = -1e9; for (const p of pts) { if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
-  const n = pts.length, xs = [];
-  for (let y = Math.round(y0); y <= Math.round(y1); y++) {
-    xs.length = 0;
-    for (let i = 0, j = n - 1; i < n; j = i++) { const a = pts[i], b = pts[j]; if ((a[1] <= y && b[1] > y) || (b[1] <= y && a[1] > y)) xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); }
-    xs.sort((p, q) => p - q);
-    for (let k = 0; k + 1 < xs.length; k += 2) span(Math.round(xs[k]), Math.max(Math.round(xs[k]), Math.round(xs[k + 1])), y);
-  }
-}
+/* ---------- wall masonry: wall faces and tops the engine does not have, as materials (WLD_patterns, below) ---------- */
 const WLD_FACES = {
   /** stone blocks with moss creeping down from the top in drips, and a green foot */
   mossy(wx, z, ct, t, cx, cy, fi, nh, h) {
@@ -346,26 +336,13 @@ const WLD_ROOFS = {
   /** polished slabs framed in gold */
   marble(wx, wy, tt, t) { const fx = ((wx % 16) + 16) % 16, fy = ((wy % 16) + 16) % 16; if (fx < 1 || fy < 1) return E.tones(t.accent || '#d8b04a').base; if (fx < 1.8 || fy < 1.8) return tt.hi; return null; }
 };
-/** the extra masonry, installed once for every TileMap (the title's and the gallery's crypt halls too). The names
- *  differ from the engine's own (brick stone rock plank timber plaster hedge / speckle plain tiles slab leaves grass),
- *  and an unknown name falls back to the engine, so the town's hedges are untouched. WLD_patterns(m) is kept callable */
+/** the extra masonry, registered as materials (E.MATERIALS: a face(...) for wall faces, a roof(...) for wall tops), so every
+ *  TileMap draws it (the title's and the gallery's crypt halls too). A name the engine also has gets the painter added to
+ *  its entry, the rest of the entry kept; the engine's own (brick stone rock plank timber plaster hedge / speckle plain
+ *  tiles slab leaves grass) are untouched, so the town's hedges stay as they are. WLD_patterns() is kept callable */
 function WLD_patterns() {
-  const m = E.TileMap.prototype; if (m._wpat) return; m._wpat = true;
-  const face = m._facePattern, roof = m._roofPattern;
-  m._facePattern = function (g, r, fc, pat, t, col, cx, cy, fi, nh, h, A, B) {
-    const f = WLD_FACES[pat]; if (!f) return face.call(this, g, r, fc, pat, t, col, cx, cy, fi, nh, h, A, B);
-    const view = r.view, T = this.T, PA = fc[0], ex = fc[1][0] - PA[0], ey = fc[1][1] - PA[1], bz = view.bz, ct = E.tones(col);
-    if (Math.abs(ex) < .3 || Math.abs(bz) < .05) return;
-    const along = A[0] === B[0] ? (A[1] < B[1] ? 1 : -1) : (A[0] < B[0] ? 1 : -1), base0 = A[0] === B[0] ? A[1] : A[0];
-    WLD_scan(fc, (xa, xb, y) => { for (let x = xa; x <= xb; x++) { const u = clamp((x + .5 - PA[0]) / ex, 0, 1), z = nh + (y + .5 - PA[1] - u * ey) / bz, c = f(base0 + along * u * T, z, ct, t, cx, cy, fi, nh, h); if (c) { px.col(g, c); g.fillRect(x, y, 1, 1); } } });
-  };
-  m._roofPattern = function (g, top, pat, t, wx0, wy0) {
-    const f = WLD_ROOFS[pat]; if (!f) return roof.call(this, g, top, pat, t, wx0, wy0);
-    const T = this.T, P0 = top[0], ex = top[1][0] - P0[0], ey = top[1][1] - P0[1], fx = top[3][0] - P0[0], fy = top[3][1] - P0[1], det = ex * fy - fx * ey;
-    if (Math.abs(det) < .5) return;
-    const tt = E.tones(t.top);
-    WLD_scan(top, (xa, xb, y) => { for (let x = xa; x <= xb; x++) { const dx = x + .5 - P0[0], dy = y + .5 - P0[1], c = f(wx0 + (dx * fy - fx * dy) / det * T, wy0 + (ex * dy - dx * ey) / det * T, tt, t); if (c) { px.col(g, c); g.fillRect(x, y, 1, 1); } } });
-  };
+  for (const k in WLD_FACES) E.MATERIALS[k] = Object.assign({}, E.MATERIALS[k], { face: WLD_FACES[k] });
+  for (const k in WLD_ROOFS) E.MATERIALS[k] = Object.assign({}, E.MATERIALS[k], { roof: WLD_ROOFS[k] });
 }
 WLD_patterns();
 

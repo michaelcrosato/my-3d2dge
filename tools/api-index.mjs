@@ -60,6 +60,8 @@ function scan(src) {
         if (/\}\s*,\s*o\)/.test(L[j])) break;
       }
     }
+    // methods added after the class: TileMap.prototype.solid = function (...) (an engine section that extends a class)
+    for (let i = 0; i < L.length; i++) { const m = /^(\w+)\.prototype\.(\w+) = function\s*\(/.exec(L[i]); if (m && m[1] === name && !methods.has(m[2])) methods.set(m[2], i); }
     // a subclass lists only what it adds: the fields its parent sets are the parent's
     if (c.parent) { const P = members(c.parent); if (P) for (const f of P.fields.keys()) if (!/Object\.assign/.test(L[fields.get(f)] || '')) fields.delete(f); else if (P.fields.has(f)) fields.delete(f); }
     return { methods, fields, defaults };
@@ -73,8 +75,10 @@ function docAt(S, i, name, shared) {
   const L = S.L; let doc = '';
   let j = i - 1;
   if (j >= 0 && /\*\/\s*$/.test(L[j])) {
-    const end = j; while (j >= 0 && !/^\s*\/\*\*/.test(L[j])) j--;
-    if (j >= 0) doc = L.slice(j, end + 1).join('\n').replace(/^\s*\/\*\*\s?/, '').replace(/\s*\*\/\s*$/, '').split('\n').map(l => l.replace(/^\s*\*\s?/, '')).join(' ');
+    // up to the comment's opening: a doc comment (/**) describes the name; a section banner (/* ====) or any other block
+    // comment doesn't (a name right under a banner once took the doc comment above the banner)
+    const end = j; while (j >= 0 && !/^\s*\/\*/.test(L[j])) j--;
+    if (j >= 0 && /^\s*\/\*\*/.test(L[j])) doc = L.slice(j, end + 1).join('\n').replace(/^\s*\/\*\*\s?/, '').replace(/\s*\*\/\s*$/, '').split('\n').map(l => l.replace(/^\s*\*\s?/, '')).join(' ');
   } else if (j >= 0 && /^\s*\/\/(?! -{4})/.test(L[j])) {
     const out = []; while (j >= 0 && /^\s*\/\/(?! -{4})/.test(L[j])) out.unshift(L[j--].replace(/^\s*\/\/\s?/, ''));
     doc = out.join(' ');

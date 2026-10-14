@@ -16,6 +16,9 @@
 //                  menu's Settings, Controls and Full screen), the game's input moves the focus and is held back while a
 //                  screen is open, a button's act reaches the game, settings apply, toasts time out, dispose() takes it
 //                  away; headless it keeps its screens' names (the standard features in depth: tools/standard-test.mjs)
+//   the asset card docs/ASSETS.md's examples: on the full engine the shapes draw, the solid is placed, the sprite made, the
+//                  surfaces take their materials and every worked entry draws; on the agent edition they run, the
+//                  registries keep what a game adds and the calls warn (the suite in depth: tools/assets-test.mjs)
 // Usage: node tools/contract-test.mjs [--node]   (exit code 1 on a failure; --node runs only the part without a browser). What runs without a screen runs in Node; the game loop
 // runs in headless Chromium on a virtual clock (CHROMIUM_PATH picks a browser).
 import { chromium } from 'playwright';
@@ -441,6 +444,26 @@ const SHELL = () => {
   game.dispose(); out.gone = !q('.esh') && game.shell === null;
   return out;
 };
+// docs/ASSETS.md's examples in a game: the surfaces (on a small map), the stool, the worked entries (as card-<id>), and
+// the use block in draw (its shape, its solid and its sprite); what is drawn with and without it, and every warning
+const CARD = ([use, surf, entry, worked]) => {
+  const E = My3D2dge, out = { warns: [] }, warn = console.warn; console.warn = (...a) => { out.warns.push(a.join(' ')); warn(...a); };
+  const rows = ['#####', '#.~.#', '#...#', '#####'], legend = { '#': 1, '~': { floor: 'water' } };
+  const { map, level } = new Function('E', 'rows', 'legend', surf + '\nreturn { map, level };')(E, rows, legend);
+  new Function('E', entry)(E);
+  const cards = new Function('return {' + worked + '}')(); for (const k in cards) E.SHAPES['card-' + k] = cards[k];
+  const game = new E.Game({ canvas: 'screen', res: 'snes', view: 'iso', loop: false }), mode = {}, made = new Function('E', 'r', 'map', 'x', 'y', use + '\nreturn icon;');
+  const lit = () => { const c = game.screen.buf, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2]) n++; return n; };
+  game.start({ update() {}, draw(r) { r.sky(['#000', '#000']); map.drawFloor(r); map.queueWalls(r); if (mode.use) out.icon = made(E, r, map, 40, 30); } });
+  game.follow({ x: 40, y: 32, z: 0 });
+  game.advance(1 / 120, { draw: true }); out.floor = lit();
+  mode.use = true; game.advance(1 / 120, { draw: true }); out.withUse = lit();
+  out.solids = (map.solids || []).length; out.icon = !!(out.icon && out.icon.width);
+  out.stool = !!E.SHAPES.stool; out.cards = Object.keys(cards);
+  if (E.shapeInfo && E.SHAPES.barrel) { out.drawn = ['stool', ...out.cards.map(k => 'card-' + k)].filter(id => (E.shapeInfo(id, { view: E.VIEWS.iso }) || {}).pixels > 20); }
+  out.level = !!(level && level.w); out.mossy = !!E.MATERIALS.mossy;
+  console.warn = warn; return out;
+};
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [ed, file] of EDITIONS) {
   console.log(`\n${ed} edition (Chromium, virtual clock)`);
@@ -492,6 +515,13 @@ for (const [ed, file] of EDITIONS) {
     check(`${ed}: a footprint sorts a canopy over every block under it`, D.footprint > D.plain + 20, D.plain + ' -> ' + D.footprint);
     check(`${ed}: r.sightCone stops at a wall (with map)`, D.coneMap > 0 && D.coneMap < D.coneOpen / 4, D.coneOpen + ' -> ' + D.coneMap);
   }
+  const CODE = FENCED('docs/ASSETS.md').map(x => x.code), K = await run(CARD, CODE);
+  console.log('  the asset card:', JSON.stringify(Object.assign({}, K, { warns: K.warns.length })));
+  check(`${ed}: docs/ASSETS.md has its four examples (use, surfaces, an entry, worked entries)`, CODE.length === 4 && K.cards.length >= 6, CODE.length + ' blocks, ' + K.cards.length + ' worked entries');
+  check(`${ed}: docs/ASSETS.md's examples keep what they add (E.SHAPES, E.MATERIALS) and build their maps`, K.stool && K.mossy && K.level, JSON.stringify(K));
+  if (ed === 'full') {
+    check(`${ed}: docs/ASSETS.md's examples draw without a warning: the shape, the solid, the sprite, the stool and every worked entry`, !K.warns.length && K.withUse > K.floor + 40 && K.solids >= 1 && K.icon && K.drawn.length === K.cards.length + 1, K.warns.join(' | ') + ' ' + JSON.stringify(K));
+  } else check(`${ed}: docs/ASSETS.md's examples draw nothing and say so (r.shape, map.solid, E.shapeSprite are the full engine's)`, K.withUse === K.floor && !K.solids && !K.icon && ['r.shape', 'map.solid', 'E.shapeSprite'].every(n => K.warns.some(w => w.includes(n))), K.warns.join(' | ') + ' ' + JSON.stringify(K));
   // the complete games among the examples (API.md's quick start): they start, take a start press and play, without errors
   for (const x of EXAMPLES.filter(x => /^\(\(\) => \{/.test(x.code.trim()))) {
     const page = await browser.newPage(), errors = [];

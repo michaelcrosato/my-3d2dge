@@ -96,7 +96,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.34.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.35.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -164,7 +164,8 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
  *    Humanoid (src/mocap/: the catalogs list every clip's tags and description, tools/anim-set.mjs cuts the ones you
  *    want into a small set, src/mocap/mocap.js plays them), and Emberdeep (src/emberdeep/), a whole game of worked
  *    examples: monsters, bosses, heroes with bodies that are not people, skills. AI_GUIDE.md, "Where to find more",
- *    says how to search them and take what you need.
+ *    says how to search them and take what you need. Still objects and materials as data (r.shape, E.MATERIALS):
+ *    docs/ASSETS.md, its recipe checked with tools/asset-sheet.mjs.
  */
 (function (root) {
 'use strict';
@@ -174,7 +175,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.34.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.35.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -284,6 +285,7 @@ function ik3(a, b, L1, L2, hint) {
   return [V3.add(V3.add(a, V3.mul(n, x)), V3.mul(h, y)), b];
 }
 /* ---- color ramps: hue-shifted shading, the way pixel artists shade (shadows cooler, highlights warmer) ---- */
+/** a color's hue (degrees), saturation and lightness (0..1): toHsl('#e05a3a') -> [h, s, l] */
 function toHsl(h) {
   const [r, g, b] = hex(h).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
   if (!d) return [0, 0, l];
@@ -384,6 +386,7 @@ Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, r
  * 2. PIXEL PRIMITIVES  (all snap to whole pixels, never anti-aliased)
  *    g = CanvasRenderingContext2D, coordinates in buffer pixels.
  * ============================================================================= */
+/** the pixel primitives: px.rect, px.line, px.dot, px.disc, px.poly, px.sprite, ... (each snaps to whole pixels) */
 const px = {};
 /** set the fill color (px.* do it themselves) */
 px.col = (g, c) => { const s = g._info ? g._mat : c; if (g._c !== s) { g.fillStyle = s; g._c = s; } };
@@ -1343,6 +1346,8 @@ E.font = {
  * 7. LIGHTING  per-pixel darkness with dithered bands, lights measured on the ground
  * ============================================================================= */
 class Lighting {
+  /** game.lights (made by the game): canvas lighting, darkness over the frame with lights cut out of it; turn it on with
+   *  game.lights.enabled = true and add lights each frame with game.lights.add(x, y, z, radius, intensity, o) */
   constructor(game) {
     /** game: the game it lights; enabled: false (the default) turns the canvas lighting off; ambient: how lit unlit
      *  places are, 0 (black) .. 1; list: this frame's lights from add() */
@@ -4001,6 +4006,8 @@ E.knockback = (from, target, speed = 160, up = 0) => {
  * 12. BLOB RIG  (slimes, jellies) squash-and-stretch sphere that looks at a target
  * ============================================================================= */
 class Blob {
+  /** new E.Blob({ R: 6.5, colors, ears, horns, wings, feet, tail, mouth, face }): a squash-and-stretch rig for slimes and
+   *  jellies; blob.update(dt, state) each step, blob.draw(g, ox, oy, view) in an r.actor */
   constructor(o = {}) {
     /** o: its options (R: the radius, 6.5; ears, horns, wings, feet, tail, mouth, face, colors) */
     this.o = Object.assign({ R: 6.5 }, o);
@@ -4176,8 +4183,11 @@ class TileMap {
    * or { w, h, cells: [ids...], floor: [tags...], blocked: [0 | 1...], types, floorTex } (built in code: fill, setFloor;
    * with no cells it starts as open floor).
    * types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow]
-   *   face: wall pattern 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none'
-   *   roof: top pattern 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass'
+   *   face: the wall's material (E.MATERIALS): 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' |
+   *     'hedge' | 'none' | any material id or '#hex pattern'
+   *   roof: the top's material: 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' |
+   *     'grass' | any material id or '#hex pattern'
+   * floorMat: a material for the floor, floorMats: { tag: material } for tagged cells (in place of floorTex).
    * block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
    */
   constructor(o = {}) {
@@ -4204,6 +4214,9 @@ class TileMap {
      *  camera and the floor drop low (types with cut: true; false turns it off); floors: the baked floor images by
      *  view (floors = {} re-bakes them after floorTex changes) */
     this.floorTex = o.floorTex || (() => [60, 56, 72]); this.cutaway = o.cutaway !== false; this.floors = {};
+    /** floorMat: a material (E.MATERIALS id or '#hex pattern') for every floor cell; floorMats: { tag: material } for
+     *  the cells with that floor tag, over floorMat (untagged cells have the tag null). Either stands in for floorTex */
+    this.floorMat = o.floorMat || null; this.floorMats = o.floorMats || null;
     /** contact shadow width (world units) along the foot of walls; 0 turns it off */
     this.ao = o.ao === undefined ? 5 : o.ao;
     /** animated sparkle on floor cells tagged 'water' or 'lava' */
@@ -4447,7 +4460,8 @@ class TileMap {
       else { gx = (pxx + x0 + .5) / view.ax; gy = H * .5 + py * 2; }
       if (gx < 0 || gy < 0 || gx >= W || gy >= H) continue;
       if (view.inv && this.cell(Math.floor(gx / T), Math.floor(gy / T)) !== 0) continue;
-      let c = this.floorTex(gx, gy, this.floorTags ? this.floorTags[Math.floor(gy / T) * this.w + Math.floor(gx / T)] : null, view); if (!c) continue;
+      const tag = this.floorTags ? this.floorTags[Math.floor(gy / T) * this.w + Math.floor(gx / T)] : null, fmat = (this.floorMats && tag !== null && this.floorMats[tag]) || this.floorMat;
+      let c = fmat ? this._floorColor(fmat, gx, gy, tag, view) : this.floorTex(gx, gy, tag, view); if (!c) continue;
       if (this.ao) {   // soft contact shadow where the floor meets a wall (not at the map's edge: a floor can run on past it)
         const fcx = Math.floor(gx / T), fcy = Math.floor(gy / T), lx = gx - fcx * T, ly = gy - fcy * T, R = this.ao;
         let ao = 0;
@@ -4552,8 +4566,8 @@ class TileMap {
         const col = lit > .2 ? t.sideLt || shade(t.side, .12) : lit < -.2 ? t.sideDk || shade(t.side, -.25) : t.side;
         const face = [P(A[0], A[1], nh), P(B[0], B[1], nh), P(B[0], B[1], h), P(A[0], A[1], h)];
         px.poly(g, face, col);
-        const pat = t.texture === false ? 'none' : t.face || 'brick';
-        if (!g._info && pat !== 'brick' && pat !== 'none') this._facePattern(g, r, face, pat, t, col, cx, cy, nx * 3 + ny, nh, h, A, B);
+        const pat = t.texture === false ? 'none' : t.face || 'brick', fm = pat === 'brick' || pat === 'none' ? null : MATERIALS[pat] || (material(pat, null, 'wall face') && pat);
+        if (!g._info && fm) this._paintFace(g, r, face, fm, t, col, cx, cy, nx * 3 + ny, nh, h, A, B, lit > .2 ? 3 : lit < -.2 ? 1 : 2);
         if (!g._info && (t.decorate || t.windows || t.door || t.shutters || t.balcony || t.arch)) this._dressFace(g, r, t, cx, cy, nx, ny, A, B, nh, h, col);
         if (!g._info && pat === 'brick') {   // per-brick color variation, speckle and lit brick tops, anchored to the wall
           const PA = face[0], ex = face[1][0] - PA[0], ey = face[1][1] - PA[1], bz = view.bz, ct = tones(col), course0 = t.course || 8, fi = nx * 3 + ny;
@@ -4581,8 +4595,8 @@ class TileMap {
     px.poly(g, top, t.top);
     const roof = t.texture === false ? 'plain' : t.roof || 'speckle';
     if (!g._info && roof === 'speckle') { const tt = tones(t.top); scan(top, (xa, xb, y) => { for (let x = xa; x <= xb; x++) { const v = hash2(x * 3 + cx * 71, y * 5 + cy * 37); if (v < .08 || v > .96) { px.col(g, v < .08 ? tt.sh : tt.lt); g.fillRect(x, y, 1, 1); } } }); }
-    else if (!g._info && roof !== 'plain') this._roofPattern(g, top, roof, t, x0, y0);
-    const edge = t.edge || shade(t.top, roof === 'leaves' || roof === 'grass' ? .12 : .22);
+    else if (!g._info && roof !== 'plain') { const rm = MATERIALS[roof] || (material(roof, null, 'wall top') && roof); if (rm) this._paintRoof(g, top, rm, t, x0, y0, r); }
+    const re = MATERIALS[roof], edge = t.edge || shade(t.top, re && re.edge !== undefined ? re.edge : .22);
     for (const [ax, ay, bx, by, nx, ny] of [[x0, y0, x1, y0, 0, -1], [x0, y1, x0, y0, -1, 0]]) {
       const nb = this.cell(cx + nx, cy + ny); if (nb > 0 && this.height(cx + nx, cy + ny) >= h) continue;
       const a = P(ax, ay, h), b = P(bx, by, h); px.line(g, a[0], a[1], b[0], b[1], edge);
@@ -4590,68 +4604,243 @@ class TileMap {
   }
 }
 E.TileMap = TileMap;
-/** wall face patterns (types[id].face): per pixel, anchored to the wall so they never swim */
-TileMap.prototype._facePattern = function (g, r, face, pat, t, col, cx, cy, fi, nh, h, A, B) {
+/* =============================================================================
+ * 13b. MATERIALS  one open registry for every surface: wall faces, wall tops, floors, platform tiles and the faces of
+ *    shapes (21e). A material is data: { color, pattern, ...the pattern's numbers, ramp, glow } or the shorthand
+ *    '#8a5a36 planks bw=3'. Its pattern (E.PATTERNS) gives a tone step at each point of a surface and the light gives
+ *    the band, so a material works on every surface and in every palette, keeps the house's hue-shifted shading
+ *    (E.tones, or its own ramp of five), and recolors with one hex.
+ *      E.MATERIALS.oak = { color: '#8a5a36', pattern: 'planks', bw: 3 };
+ *      types: { 1: { h: 32, top: '#6a6280', side: '#4a4360', face: 'oak', roof: 'slab' } }   // a TileMap's walls
+ *      new E.TileMap({ rows, legend, types, floorMat: 'flagstone', floorMats: { water: 'water' } })
+ *      platform types: { 1: { style: 'block', mat: 'mossy-stone' } }
+ * A material may also paint a surface its own way, per pixel (null keeps the surface's color): face(wx, z, tones, type,
+ * cx, cy, fi, nh, h) for wall faces (wx along the wall, z up), roof(wx, wy, tones, type) for wall tops, floor(x, y, tag,
+ * view) -> [r, g, b] for floors, tile(g, f) for platform tiles. The engine's own wall faces (brick stone rock plank
+ * timber plaster hedge), wall tops (speckle plain tiles slab leaves grass), floor textures (E.tex) and tile styles are
+ * entries of this kind, so they draw exactly as they always have, and a game's own register the same way.
+ * ============================================================================= */
+/** the materials by id: { color, pattern, ...its numbers, ramp, glow } or a painter of a surface (face, roof, floor,
+ *  tile); add your own: E.MATERIALS.oak = { color: '#8a5a36', pattern: 'planks', bw: 3 }. Any material id takes
+ *  '#hex pattern key=value' too */
+const MATERIALS = E.MATERIALS = {};
+/** '#8a5a36 planks bw=3' -> { color: '#8a5a36', pattern: 'planks', bw: 3 } */
+function parseMat(s) {
+  const w = String(s).trim().split(/\s+/), o = { color: w[0] };
+  for (const t of w.slice(1)) { const i = t.indexOf('='); if (i < 0) o.pattern = t; else { const v = t.slice(i + 1); o[t.slice(0, i)] = isNaN(+v) ? v : +v; } }
+  return o;
+}
+const _mats = new Map(), _matOf = new WeakMap();
+/** a material ready to draw: { q (its entry), ramp (five [r, g, b], dark to light), hexes (the same as '#rrggbb'), pat
+ *  (its pattern), glow }. id: an id (looked up in local first, a set's own, then E.MATERIALS), a shorthand string or an
+ *  entry; kind names the surface, for the warning when the id is unknown (then null) */
+function material(id, local, kind = 'material') {
+  if (typeof id === 'string' && id[0] === '#') { let m = _mats.get(id); if (!m) { if (_mats.size > 500) _mats.clear(); _mats.set(id, m = resolveMat(parseMat(id))); } return m; }
+  let q = typeof id === 'string' ? (local && local[id]) || MATERIALS[id] : id;
+  if (typeof q === 'string') return material(q, local, kind);
+  if (!q || typeof q !== 'object') { warn(kind + ':' + id, 'unknown ' + kind + ' "' + id + '". Materials: ' + Object.keys(MATERIALS).join(', ') + ' (or "#hex pattern", or your own E.MATERIALS entry)'); return null; }
+  let m = _matOf.get(q); if (m && m.color === q.color && m.pattern === q.pattern && m.r0 === q.ramp) return m;
+  _matOf.set(q, m = resolveMat(q)); return m;
+}
+function resolveMat(q) {
+  const t = q.ramp ? null : tones(q.color || '#808080'), pat = PATTERNS[q.pattern || 'none'];
+  if (!pat) warn('pattern:' + q.pattern, 'unknown pattern "' + q.pattern + '". Patterns: ' + Object.keys(PATTERNS).join(', '));
+  const hexes = q.ramp || [t.deep, t.sh, t.base, t.lt, t.hi];
+  return { q, ramp: hexes.map(hex), hexes, pat: pat || PATTERNS.none, glow: !!q.glow, color: q.color, pattern: q.pattern, r0: q.ramp };
+}
+E.material = material;
+const _S = { u: 0, v: 0, W: 16, H: 16, lid: true, curved: false, lit: .5, px: 1, part: 0 };
+/** a data material's tone (0..4) at a point of a flat surface (u, v world units across and up; band 0..4 from the light) */
+const matTone = (m, u, v, W, H, lid, band, px1) => { _S.u = u; _S.v = v; _S.W = W; _S.H = H; _S.lid = lid; _S.curved = false; _S.lit = band > 2 ? .8 : band < 2 ? -.2 : .5; _S.px = px1; return clamp((m.glow ? 3 : band) + m.pat(_S, m.q), 0, 4); };
+
+/* ---- patterns: a tone step (-1 dark .. +2 bright) at a point of a surface ----
+ * s: { u, v (world units on the surface: across and up a side; x and y on a lid), W, H (the face's size), lid (it looks up
+ *   or down), curved (turned or round), lit (the light on it, -1..1), px (world units per pixel there), part };
+ * m: the material's numbers. Names and numbers follow MaterialX's and Blender's texture nodes where they overlap. */
+const seam = s => Math.max(.62, s.px * .98);   // a joint: never thinner than a pixel, so it never drops out
+const _V = { id: 0, e: 0, dx: 0, dy: 0 };
+/** Voronoi (Worley) cells of size S: { id (the cell's own value 0..1), e (distance to its edge), dx, dy (from its heart) } */
+function worley(x, y, S, jit = .85) {
+  const gx = Math.floor(x / S), gy = Math.floor(y / S); let d1 = 1e9, d2 = 1e9, ax = 0, ay = 0, bx = 0, by = 0, id = 0;
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const cx = gx + i, cy = gy + j, qx = (cx + .5 + (hash2(cx, cy) - .5) * jit) * S, qy = (cy + .5 + (hash2(cy + 71, cx + 13) - .5) * jit) * S, ex = x - qx, ey = y - qy, d = ex * ex + ey * ey;
+    if (d < d1) { d2 = d1; bx = ax; by = ay; d1 = d; ax = qx; ay = qy; id = hash2(cx * 7 + 3, cy * 11 + 5); } else if (d < d2) { d2 = d; bx = qx; by = qy; }
+  }
+  _V.id = id; _V.e = (d2 - d1) / (2 * (Math.hypot(bx - ax, by - ay) || 1)); _V.dx = x - ax; _V.dy = y - ay; return _V;
+}
+/** the patterns, by name: (s, m) => a tone step (-1 .. +2) at a point s of a surface, for a material m's numbers. Add your
+ *  own: E.PATTERNS.waves = (s, m) => Math.sin(s.u / (m.size || 3)) > .8 ? 1 : 0 */
+E.PATTERNS = {
+  /** none: the light's bands alone */
+  none: () => 0,
+  /** planks: boards bw wide (3) with joints and butt ends every len (14); along u on lids and flat sides, along v (staves)
+   *  on turned surfaces; dir: 'v' turns them on flat faces */
+  planks(s, m) {
+    const bw = m.bw || 3, len = m.len || 14, vert = s.curved || m.dir === 'v', along = vert ? s.v : s.u, across = vert ? s.u : s.v;
+    const row = Math.floor(across / bw), w = seam(s);
+    if (across - row * bw < w) return -1;
+    const off = hash2(row, 7) * len, k = Math.floor((along + off) / len);
+    if (!s.curved && along + off - k * len < w) return -1;
+    const h = hash2(row, k + 3); return h > .78 ? 1 : h < .22 ? -1 : 0;
+  },
+  /** crate: a framed and braced crate side (frame 2 wide, a diagonal brace, boards bw 3 inside); lids are planks */
+  crate(s, m) {
+    if (s.lid || s.curved) return PATTERNS.planks(s, m);
+    const f = m.frame || 2, w = seam(s), W = s.W, H = s.H, u = s.u, v = s.v, e = Math.min(u, W - u, v, H - v);
+    if (e < f) return e > f - w ? -1 : 1;
+    const iw = W - 2 * f, ih = H - 2 * f, d = Math.abs((u - f) * ih - (v - f) * iw) / (Math.hypot(iw, ih) || 1);
+    if (d < f * .7) return d > f * .7 - w ? -1 : 1;
+    const bw = m.bw || 3, r = Math.floor((v - f) / bw); return v - f - r * bw < w ? -1 : hash2(r, 5) > .7 ? -1 : 0;
+  },
+  /** bricks: running bond, bw x bh (6 x 3), mortar a step darker (mortar: its step) */
+  bricks(s, m) {
+    const bh = m.bh || 3, bw = m.bw || 6, w = seam(s), row = Math.floor(s.v / bh), u = s.u + (row & 1) * bw / 2, col = Math.floor(u / bw);
+    if (s.v - row * bh < w || u - col * bw < w) return m.mortar === undefined ? -1 : m.mortar;
+    const h = hash2(col, row); return h > .86 ? 1 : h < .14 ? -1 : 0;
+  },
+  /** stones: irregular stones (Voronoi cells about size across, 5) with dark joints and a lit rim */
+  stones(s, m) {
+    const c = worley(s.u, s.v, m.size || 5), w = seam(s);
+    if (c.e < w * .8) return -1;
+    if (c.e < w * 1.8 && c.dy > 0) return 1;
+    return c.id > .82 ? 1 : c.id < .22 ? -1 : 0;
+  },
+  /** tiles: square tiles size (4) with grout */
+  tiles(s, m) { const S = m.size || 4, w = seam(s), a = s.u / S, b = s.v / S; if ((a - Math.floor(a)) * S < w || (b - Math.floor(b)) * S < w) return -1; return hash2(Math.floor(a), Math.floor(b)) > .8 ? 1 : 0; },
+  /** speck: dark and light specks (amount .08) */
+  speck(s, m) { const h = hash2(Math.floor(s.u * 1.4), Math.floor(s.v * 1.4)), a = m.amount || .08; return h < a ? -1 : h > 1 - a * .5 ? 1 : 0; },
+  /** noise: soft patches (scale 4) */
+  noise(s, m) { const n = noise2(s.u / (m.scale || 4), s.v / (m.scale || 4)); return n > .66 ? 1 : n < .34 ? -1 : 0; },
+  /** foliage: leaf clumps (size 3.5), each lit at its top and dark at its foot, a few bright leaves */
+  foliage(s, m) {
+    const S = m.size || 3.5, c = worley(s.u, s.v * 1.15, S, 1), r = c.dy / S;
+    if (c.e < seam(s) * .7) return -1;
+    if (hash2(Math.floor(s.u * 2), Math.floor(s.v * 2)) > .94) return 1;
+    return r > .18 ? 1 : r < -.22 ? -1 : 0;
+  },
+  /** bark: fissures running up a trunk; a cut end shows its rings */
+  bark(s) { if (s.lid) { const r = Math.hypot(s.u - s.W / 2, s.v - s.H / 2); return (r % 1.6) < seam(s) ? -1 : 1; } const n = noise2(s.u * 1.1, s.v * .16); return n > .64 ? -1 : n < .22 ? 1 : 0; },
+  /** metal: hard light (a shine where lit, darker in shade); rivet: a rivet every rivet units */
+  metal(s, m) { if (m.rivet && s.v % m.rivet < .9 && s.u % m.rivet < .9) return 1; return s.lit > .8 ? 1 : s.lit < .05 ? -1 : 0; },
+  /** cloth: a fine weave and soft folds (fold .9) */
+  cloth(s, m) {
+    const f = Math.sin(s.u * (m.fold || .9) + noise2(s.u * .3, s.v * .2) * 3);
+    if (f > .82) return -1; if (f < -.9) return 1;
+    return (Math.floor(s.u * 1.2) + Math.floor(s.v * 1.2)) & 1 && hash2(Math.floor(s.u), Math.floor(s.v)) > .7 ? -1 : 0;
+  },
+  /** glaze: a glossy shine where the light is strongest, a few specks */
+  glaze(s) { if (s.lit > .86) return 2; if (s.lit > .74) return 1; return hash2(Math.floor(s.u * 1.5), Math.floor(s.v * 1.5)) < .04 ? -1 : 0; },
+  /** thatch: straw in overlapping courses (course 3) */
+  thatch(s, m) { const c = m.course || 3, row = Math.floor(s.v / c); if (s.v - row * c < seam(s)) return -1; const n = hash2(Math.floor(s.u * 1.6 + row * 5), row); return n > .7 ? 1 : n < .25 ? -1 : 0; },
+  /** shingles: staggered rows of roof tiles (course 2.5, bw 4) */
+  shingles(s, m) {
+    const c = m.course || 2.5, bw = m.bw || 4, row = Math.floor(s.v / c), u = s.u + (row & 1) * bw / 2, col = Math.floor(u / bw), w = seam(s);
+    if (s.v - row * c < w || u - col * bw < w) return -1; return hash2(col, row) > .8 ? 1 : 0;
+  }
+};
+const PATTERNS = E.PATTERNS;
+
+/* ---- the engine's own wall faces (types[id].face) and wall tops (types[id].roof): per pixel, anchored to the wall so they
+ *      never swim; f carries the map's tile size T ---- */
+const FACES = {
+  /** big ashlar blocks with offset joints, lit top edges and chipped corners */
+  stone(wx, z, ct, t, cx, cy, fi, nh, h, f) {
+    const T = f.T, course = t.course || 10, seed = cx * 7 + cy * 13 + fi * 31, ci = Math.floor(z / course), fz = z / course - ci, off = hash2(ci * 3 + cx * 5 + cy * 11, 7) * T, bwid = T * .7, q = (wx + off) / bwid, bi = Math.floor(q), fq = q - bi;
+    const v = hash2(bi * 5 + cx, ci + cy * 17);
+    let c2 = fz < .1 || fq < .06 ? ct.deep : fz > .86 || fq < .14 ? ct.lt : fq > .93 ? ct.sh : v < .3 ? ct.sh : v > .8 ? shade(ct.base, .06) : null;
+    if (!c2 && hash2(Math.floor(wx * 1.3), Math.floor(z * 1.3) + seed) < .05) c2 = ct.sh;
+    return c2;
+  },
+  /** natural cliff: layered blotches and cracks */
+  rock(wx, z, ct, t, cx, cy) {
+    const n = noise2(wx / 6 + cx * 3, z / 4 + cy * 5) * .7 + noise2(wx / 2.5, z / 2) * .3, strata = Math.sin(z * .9 + noise2(wx / 5, z / 8) * 4);
+    return n < .28 ? ct.deep : n < .42 ? ct.sh : n > .72 ? ct.lt : strata > .92 ? ct.sh : null;
+  },
+  /** vertical boards with dark gaps, grain and nail heads */
+  plank(wx, z, ct, t, cx, cy, fi, nh, h, f) {
+    const seed = cx * 7 + cy * 13 + fi * 31, bw = f.T / 4, q = wx / bw, bi = Math.floor(q), fq = q - bi, v = hash2(bi * 13 + cx, cy * 7);
+    let c2 = fq < .14 ? ct.deep : fq > .86 ? ct.sh : fq < .3 ? ct.lt : hash2(bi, Math.floor(z / 2.5) + seed) < .18 ? ct.sh : v < .3 ? shade(ct.base, -.06) : null;
+    if (Math.abs(z - (nh + 2.5)) < .6 || Math.abs(z - (h - 2.5)) < .6) if (fq > .4 && fq < .6) c2 = '#d8d0c0';
+    return c2;
+  },
+  /** tudor: plaster between dark posts, a mid rail and braces */
+  timber(wx, z, ct, t, cx, cy, fi, nh, h, f) {
+    const T = f.T, beam = tones(t.beam || '#4a3222'), seed = cx * 7 + cy * 13 + fi * 31, lx = ((wx % T) + T) % T, mid = nh + (h - nh) * .5, post = lx < 1.6 || lx > T - 1.6, rail = Math.abs(z - mid) < 1.1 || z > h - 1.6 || z < nh + 1.4;
+    const brace = z < mid && Math.abs(lx - (z - nh) / (mid - nh) * T * ((cx + cy + fi) & 1 ? 1 : -1) - ((cx + cy + fi) & 1 ? 0 : T)) < 1.1;
+    if (post || rail || brace) return (post && lx < .8) || (rail && z > mid) ? beam.base : beam.sh;
+    const n = noise2(wx / 3, z / 3 + seed); return n < .25 ? ct.sh : n > .78 ? ct.lt : null;
+  },
+  /** smooth render with soft mottling, a skirting band and a cornice line */
+  plaster(wx, z, ct, t, cx, cy, fi, nh, h) {
+    const seed = cx * 7 + cy * 13 + fi * 31, n = noise2(wx / 4 + seed, z / 4);
+    let c2 = z < nh + 2.5 ? ct.sh : z > h - 1.5 ? ct.lt : n < .22 ? shade(ct.base, -.07) : n > .8 ? shade(ct.base, .06) : null;
+    if (!c2 && hash2(Math.floor(wx * 2), Math.floor(z * 2) + seed) < .015) c2 = ct.sh;
+    return c2;
+  },
+  /** leafy clumps: dark hollows, lit leaves on the upper side */
+  hedge(wx, z, ct, t, cx, cy, fi) {
+    const seed = cx * 7 + cy * 13 + fi * 31, n = noise2(wx / 3.2 + seed, z / 3.2) * .65 + noise2(wx / 1.6, z / 1.6) * .35, m = noise2(wx / 6, z / 6 + 9);
+    return n < .3 ? ct.deep : n < .43 ? ct.sh : n > .64 && m > .35 ? ct.lt : null;
+  }
+};
+const leafRoof = sc => (wx, wy, tt) => { const n = noise2(wx / sc, wy / sc) * .65 + noise2(wx / 1.6 + 5, wy / 1.6) * .35, k = hash2(Math.floor(wx), Math.floor(wy)); return n < .34 ? tt.sh : n > .66 ? tt.lt : k > .975 ? tt.hi : null; };
+const ROOFS = {
+  /** overlapping shingles in rows running east-west */
+  tiles(wx, wy, tt, t) {
+    const row = Math.floor(wy / 4), fr = wy / 4 - row, q = (wx + (row & 1) * 3) / 6, col = Math.floor(q), fq = q - col, v = hash2(col * 7 + row, 3);
+    return fr > .72 ? tt.deep : fr < .22 ? tt.lt : fq < .1 ? tt.sh : v < .25 ? tt.sh : v > .85 ? shade(t.top, .08) : null;
+  },
+  /** square paving slabs */
+  slab(wx, wy, tt, t) {
+    const q = wx / 8, s = wy / 8, fq = q - Math.floor(q), fs = s - Math.floor(s), v = hash2(Math.floor(q) * 11, Math.floor(s) * 7);
+    return fq < .08 || fs < .08 ? tt.sh : fq > .92 || fs > .92 ? tt.lt : v < .25 ? shade(t.top, -.06) : v > .8 ? shade(t.top, .05) : null;
+  },
+  leaves: leafRoof(3), grass: leafRoof(3.4)
+};
+// the entries: each surface it paints its own way, and a color and pattern for every other surface (a shape's faces)
+Object.assign(MATERIALS, {
+  brick: { color: '#9a5a4a', pattern: 'bricks' },   // (wall faces: the TileMap's own brick courses, its default face)
+  stone: { color: '#8a8490', pattern: 'stones', face: FACES.stone }, rock: { color: '#7c7688', pattern: 'noise', face: FACES.rock },
+  plank: { color: '#8a5a36', pattern: 'planks', dir: 'v', face: FACES.plank }, timber: { color: '#d8ccb0', pattern: 'noise', face: FACES.timber },
+  plaster: { color: '#d8ccb0', pattern: 'noise', face: FACES.plaster }, hedge: { color: '#3f7a3a', pattern: 'foliage', face: FACES.hedge },
+  speckle: { color: '#6a6280', pattern: 'speck' },  // (wall tops: the TileMap's default speckle)
+  plain: { color: '#6a6280', pattern: 'none' },     // (wall tops: no pattern)
+  tiles: { color: '#8a4a3a', pattern: 'shingles', roof: ROOFS.tiles }, slab: { color: '#8a8490', pattern: 'tiles', size: 8, roof: ROOFS.slab },
+  leaves: { color: '#3f8a45', pattern: 'foliage', roof: ROOFS.leaves, edge: .12 }, grass: { color: '#55a94a', pattern: 'foliage', roof: ROOFS.grass, edge: .12 }
+});
+/** paint a wall face with a material's face(...) per pixel (or a data material's pattern), over the face's own color */
+TileMap.prototype._paintFace = function (g, r, face, m, t, col, cx, cy, fi, nh, h, A, B, band) {
   const view = r.view, T = this.T, PA = face[0], ex = face[1][0] - PA[0], ey = face[1][1] - PA[1], bz = view.bz, ct = tones(col);
   if (Math.abs(ex) < .3 || Math.abs(bz) < .05) return;
-  const beam = tones(t.beam || '#4a3222'), seed = cx * 7 + cy * 13 + fi * 31, course = t.course || (pat === 'stone' ? 10 : 8);
-  // walls whose faces run along x or y: continue the pattern across neighbouring blocks
-  const along = A[0] === B[0] ? (A[1] < B[1] ? 1 : -1) : (A[0] < B[0] ? 1 : -1), base0 = A[0] === B[0] ? A[1] : A[0];
+  const along = A[0] === B[0] ? (A[1] < B[1] ? 1 : -1) : (A[0] < B[0] ? 1 : -1), base0 = A[0] === B[0] ? A[1] : A[0], q = m.face ? null : material(m), f = { T, view, band };
+  const paint = q ? (wx, z) => q.hexes[matTone(q, wx, z, T, h - nh, false, band, 1 / view.scale)] : m.face;
   scan(face, (xa, xb, y) => {
     for (let x = xa; x <= xb; x++) {
-      const u = clamp((x + .5 - PA[0]) / ex, 0, 1), z = nh + (y + .5 - PA[1] - u * ey) / bz, wx = base0 + along * u * T;
-      let c2 = null;
-      if (pat === 'stone') {           // big ashlar blocks with offset joints, lit top edges and chipped corners
-        const ci = Math.floor(z / course), fz = z / course - ci, off = hash2(ci * 3 + cx * 5 + cy * 11, 7) * T, bwid = T * .7, q = (wx + off) / bwid, bi = Math.floor(q), fq = q - bi;
-        const v = hash2(bi * 5 + cx, ci + cy * 17);
-        c2 = fz < .1 || fq < .06 ? ct.deep : fz > .86 || fq < .14 ? ct.lt : fq > .93 ? ct.sh : v < .3 ? ct.sh : v > .8 ? shade(col, .06) : null;
-        if (!c2 && hash2(Math.floor(wx * 1.3), Math.floor(z * 1.3) + seed) < .05) c2 = ct.sh;
-      } else if (pat === 'rock') {     // natural cliff: layered blotches and cracks
-        const n = noise2(wx / 6 + cx * 3, z / 4 + cy * 5) * .7 + noise2(wx / 2.5, z / 2) * .3, strata = Math.sin(z * .9 + noise2(wx / 5, z / 8) * 4);
-        c2 = n < .28 ? ct.deep : n < .42 ? ct.sh : n > .72 ? ct.lt : strata > .92 ? ct.sh : null;
-      } else if (pat === 'plank') {    // vertical boards with dark gaps, grain and nail heads
-        const bw = T / 4, q = wx / bw, bi = Math.floor(q), fq = q - bi, v = hash2(bi * 13 + cx, cy * 7);
-        c2 = fq < .14 ? ct.deep : fq > .86 ? ct.sh : fq < .3 ? ct.lt : hash2(bi, Math.floor(z / 2.5) + seed) < .18 ? ct.sh : v < .3 ? shade(col, -.06) : null;
-        if (Math.abs(z - (nh + 2.5)) < .6 || Math.abs(z - (h - 2.5)) < .6) if (fq > .4 && fq < .6) c2 = '#d8d0c0';
-      } else if (pat === 'timber') {   // tudor: plaster between dark posts, a mid rail and braces
-        const lx = ((wx % T) + T) % T, mid = nh + (h - nh) * .5, post = lx < 1.6 || lx > T - 1.6, rail = Math.abs(z - mid) < 1.1 || z > h - 1.6 || z < nh + 1.4;
-        const brace = z < mid && Math.abs(lx - (z - nh) / (mid - nh) * T * ((cx + cy + fi) & 1 ? 1 : -1) - ((cx + cy + fi) & 1 ? 0 : T)) < 1.1;
-        if (post || rail || brace) c2 = (post && lx < .8) || (rail && z > mid) ? beam.base : beam.sh;
-        else { const n = noise2(wx / 3, z / 3 + seed); c2 = n < .25 ? ct.sh : n > .78 ? ct.lt : null; }
-      } else if (pat === 'plaster') {  // smooth render with soft mottling, a skirting band and a cornice line
-        const n = noise2(wx / 4 + seed, z / 4);
-        c2 = z < nh + 2.5 ? ct.sh : z > h - 1.5 ? ct.lt : n < .22 ? shade(col, -.07) : n > .8 ? shade(col, .06) : null;
-        if (!c2 && hash2(Math.floor(wx * 2), Math.floor(z * 2) + seed) < .015) c2 = ct.sh;
-      } else if (pat === 'hedge') {    // leafy clumps: dark hollows, lit leaves on the upper side
-        const n = noise2(wx / 3.2 + seed, z / 3.2) * .65 + noise2(wx / 1.6, z / 1.6) * .35, m = noise2(wx / 6, z / 6 + 9);
-        c2 = n < .3 ? ct.deep : n < .43 ? ct.sh : n > .64 && m > .35 ? ct.lt : null;
-      }
-      if (c2) { px.col(g, c2); g.fillRect(x, y, 1, 1); }
-    }
-  });
-};
-/** wall top patterns (types[id].roof), in world coordinates through the projected top quad */
-TileMap.prototype._roofPattern = function (g, top, roof, t, wx0, wy0) {
-  const T = this.T, P0 = top[0], ex = top[1][0] - P0[0], ey = top[1][1] - P0[1], fx = top[3][0] - P0[0], fy = top[3][1] - P0[1], det = ex * fy - fx * ey;
-  if (Math.abs(det) < .5) return;
-  const tt = tones(t.top);
-  scan(top, (xa, xb, y) => {
-    for (let x = xa; x <= xb; x++) {
-      const dx = x + .5 - P0[0], dy = y + .5 - P0[1], wx = wx0 + (dx * fy - fx * dy) / det * T, wy = wy0 + (ex * dy - dx * ey) / det * T;
-      let c = null;
-      if (roof === 'tiles') {          // overlapping shingles in rows running east-west
-        const row = Math.floor(wy / 4), fr = wy / 4 - row, q = (wx + (row & 1) * 3) / 6, col = Math.floor(q), fq = q - col, v = hash2(col * 7 + row, 3);
-        c = fr > .72 ? tt.deep : fr < .22 ? tt.lt : fq < .1 ? tt.sh : v < .25 ? tt.sh : v > .85 ? shade(t.top, .08) : null;
-      } else if (roof === 'slab') {    // square paving slabs
-        const q = wx / 8, s = wy / 8, fq = q - Math.floor(q), fs = s - Math.floor(s), v = hash2(Math.floor(q) * 11, Math.floor(s) * 7);
-        c = fq < .08 || fs < .08 ? tt.sh : fq > .92 || fs > .92 ? tt.lt : v < .25 ? shade(t.top, -.06) : v > .8 ? shade(t.top, .05) : null;
-      } else if (roof === 'leaves' || roof === 'grass') {
-        const sc = roof === 'grass' ? 3.4 : 3, n = noise2(wx / sc, wy / sc) * .65 + noise2(wx / 1.6 + 5, wy / 1.6) * .35, k = hash2(Math.floor(wx), Math.floor(wy));
-        c = n < .34 ? tt.sh : n > .66 ? tt.lt : k > .975 ? tt.hi : null;
-      }
+      const u = clamp((x + .5 - PA[0]) / ex, 0, 1), z = nh + (y + .5 - PA[1] - u * ey) / bz, c = paint(base0 + along * u * T, z, ct, t, cx, cy, fi, nh, h, f);
       if (c) { px.col(g, c); g.fillRect(x, y, 1, 1); }
     }
   });
+};
+/** paint a wall top with a material's roof(...) per pixel (or a data material's pattern), in world coordinates */
+TileMap.prototype._paintRoof = function (g, top, m, t, wx0, wy0, r) {
+  const T = this.T, P0 = top[0], ex = top[1][0] - P0[0], ey = top[1][1] - P0[1], fx = top[3][0] - P0[0], fy = top[3][1] - P0[1], det = ex * fy - fx * ey;
+  if (Math.abs(det) < .5) return;
+  const tt = tones(t.top), q = m.roof ? null : material(m), pxu = 1 / ((r && r.view.scale) || 1);
+  const paint = q ? (wx, wy) => q.hexes[matTone(q, wx, wy, T, T, true, 2, pxu)] : m.roof;
+  scan(top, (xa, xb, y) => {
+    for (let x = xa; x <= xb; x++) {
+      const dx = x + .5 - P0[0], dy = y + .5 - P0[1], c = paint(wx0 + (dx * fy - fx * dy) / det * T, wy0 + (ex * dy - dx * ey) / det * T, tt, t);
+      if (c) { px.col(g, c); g.fillRect(x, y, 1, 1); }
+    }
+  });
+};
+/** a floor's color at (x, y): the material for the cell's tag (floorMats), else floorMat; its floor(...) or its pattern */
+TileMap.prototype._floorColor = function (id, x, y, tag, view) {
+  const e = typeof id === 'string' && id[0] !== '#' ? MATERIALS[id] : null;
+  if (e && e.floor) return e.floor(x, y, tag, view);
+  const m = material(id, null, 'floor material'); if (!m) return null;
+  const c = m.ramp[matTone(m, x, y, this.T, this.T, true, 2, 1 / (view.scale || 1))];
+  return m.glow ? [c[0], c[1], c[2], 1] : c;
 };
 
 /* =============================================================================
@@ -4768,6 +4957,8 @@ E.FlowField = FlowField;
 /* =============================================================================
  * 15. TEXTURE HELPERS for floorTex functions
  * ============================================================================= */
+/** floor textures for a TileMap's floorTex(x, y): flagstone, grass, dirt, water, planks, checker, plain (each gives
+ *  [r, g, b] at a world point); as materials too: floorMat: 'grass' */
 E.tex = {
   /** stone flagstones with running-bond rows. pal: {stones:[hex..], mortar, hi, lo, speck} */
   flagstone(x, y, pal, size = 16) {
@@ -4814,17 +5005,29 @@ E.tex = {
   plain(x, y, o = {}) { const c = hex(o.base || '#4a4458'), k = 1 + (Math.round((noise2(x * .15, y * .15) - .5) * 4) / 4) * (o.amount === undefined ? .14 : o.amount); return c.map(v => v * k); }
 };
 
+// the floor textures as materials: floorMat: 'dirt' draws E.tex.dirt, and the same names work on every other surface
+const FLAG_PAL = { stones: ['#6b6f5a', '#767a63', '#626653'].map(hex), mortar: hex('#3a3c31'), hi: hex('#8b8f75'), lo: hex('#51543f'), speck: hex('#45473a') };
+Object.assign(MATERIALS, {
+  flagstone: { color: '#6b6f5a', pattern: 'stones', size: 8, floor: (x, y) => E.tex.flagstone(x, y, FLAG_PAL) },
+  dirt: { color: '#9a7048', pattern: 'speck', floor: (x, y) => E.tex.dirt(x, y) },
+  water: { color: '#2f7fd0', pattern: 'glaze', floor: (x, y) => E.tex.water(x, y) },
+  planks: { color: '#9d6a3f', pattern: 'planks', bw: 6, floor: (x, y) => E.tex.planks(x, y) },
+  checker: { color: '#d8d0e8', pattern: 'tiles', size: 16, floor: (x, y) => E.tex.checker(x, y) }
+});
+MATERIALS.grass.floor = (x, y) => E.tex.grass(x, y); MATERIALS.plain.floor = (x, y) => E.tex.plain(x, y);
+
 /* =============================================================================
  * 16. PLATFORM MAP  side-scroller levels (Mario, Mega Man, Castlevania, Metroid).
  *    Tiles sit on the x/z plane (x right, z up) and are extruded a little in y, so the
  *    'side' view looks like an NES/SNES game and a tilted view ('brawler', or any
  *    View with yaw 0) looks like a 2.5D N64/PS1 remake. The play plane is y = 0.
- *    types[id] = { kind, style, side, top, line }
+ *    types[id] = { kind, style, side, top, line, mat }
  *      kind:  'solid' (default) | 'oneway' (jump up through, stand on top) | 'ladder'
  *             | 'slope' (dir: 1 rises to the right, -1 to the left; or from/to heights 0..1 for gentle slopes)
  *             | 'hazard' (spikes, lava: not solid, test with level.touching(body, 'hazard'))
  *             | 'deco' (drawn in the play plane, not solid) | 'back' (background wall, not solid)
  *      style: 'stone' | 'brick' | 'block' | 'ground' | 'wood' | 'metal' | 'plank' | 'spikes' | 'ladder' | 'pipe' | 'bonus' | 'liquid' | 'plain'
+ *      mat:   a material (E.MATERIALS id or '#hex pattern') for the tile's face in place of its style's look
  *      extra: moss: '#4a7a3a' (stone), flower: '#ffe070' (ground), glyph (bonus)
  * ============================================================================= */
 const PT_DEFAULT = { kind: 'solid', style: 'block', side: '#8a7a9a' };
@@ -4839,7 +5042,7 @@ class PlatformMap {
     /** w, h: the level's size in cells; types: the tile types by id, with their defaults filled in ({ kind, style,
      *  side, top, ... }) */
     this.w = L.w; this.h = L.h; this.types = {};
-    for (const k in (o.types || {})) { const t = Object.assign({ kind: 'solid' }, o.types[k]); t.style = t.style || PT_STYLE_FOR_KIND[t.kind] || 'block'; t.side = t.side || t.color || PT_DEFAULT.side; this.types[k] = t; }
+    for (const k in (o.types || {})) { const t = Object.assign({ kind: 'solid' }, o.types[k]); t.style = t.style || PT_STYLE_FOR_KIND[t.kind] || 'block'; t.side = t.side || t.color || (t.mat && (material(t.mat, null, 'tile material') || {}).color) || PT_DEFAULT.side; this.types[k] = t; }
     // stored bottom row first: cz = 0 is the lowest row and z grows upward
     this.cells = new Array(this.w * this.h).fill(0);
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) this.cells[(this.h - 1 - y) * this.w + x] = L.cells[y * this.w + x];
@@ -5082,73 +5285,11 @@ class PlatformMap {
     const tt = tones(col), open = k2 => { const c2 = this.cell(k2[0], k2[1]); const t2 = c2 > 0 ? this.types[c2] : null; return !t2 || (t2.kind !== 'solid' && t2.kind !== 'back' && t2.kind !== 'slope') || c2 < 0; };
     const openB = open([cx, cz - 1]) && cz > 0, openL = open([cx - 1, cz]) && cx > 0, openR = open([cx + 1, cz]) && cx < this.w - 1;
     const wx0 = cx * W, wy0 = (this.h - cz) * H;   // world-anchored pixel origin, so textures continue across tiles
-    if (st === 'brick') {
-      const course = Math.max(3, Math.round((t.course || 8) / T * H)), bw = Math.max(4, Math.round(W / 2));
-      for (let y = 0; y < H; y++) {
-        const k = Math.floor((wy0 + y) / course), cy2 = (wy0 + y) % course, off = (k & 1) ? Math.round(bw / 2) : 0;
-        for (let x = 0; x < W; x++) {
-          const bx = Math.floor((wx0 + x + off) / bw), cxb = (wx0 + x + off) % bw, v = hash2(bx * 7 + 3, k * 13 + 1);
-          let c = v < .25 ? tt.sh : v > .8 ? tt.lt : col;
-          if (cy2 === 0 || cxb === 0) c = t.line || tt.deep; else if (cy2 === 1) c = v > .8 ? tt.hi : tt.lt; else if (cy2 === course - 1 || cxb === bw - 1) c = tt.sh;
-          else if (hash2(wx0 + x, wy0 + y) < .05) c = tt.sh;
-          if (c !== col) px.dot(g, X0 + x, Y0 + y, c);
-        }
-      }
-    } else if (st === 'stone') {   // castle blocks: two courses per tile, offset joints, chipped edges, cracks
-      const course = Math.max(4, Math.round(H / 2)), bw = W;
-      for (let y = 0; y < H; y++) {
-        const k = Math.floor((wy0 + y) / course), cy2 = (wy0 + y) % course, off = (k & 1) ? Math.round(bw / 2) : 0;
-        for (let x = 0; x < W; x++) {
-          const bx = Math.floor((wx0 + x + off) / bw), cxb = (wx0 + x + off) % bw, v = hash2(bx * 11 + 5, k * 17 + 3), n = noise2((wx0 + x) * .35, (wy0 + y) * .35);
-          let c = v < .3 ? tt.sh : v > .78 ? tt.lt : col;
-          if (n > .72) c = c === tt.lt ? col : c === col ? tt.sh : tt.deep;
-          if (cy2 === 0 || cxb === 0) c = t.line || tt.deep;
-          else if (cy2 === 1 || cxb === 1) c = hash2(wx0 + x, 3) > .15 ? tt.lt : col;
-          else if (cy2 === course - 1 || cxb === bw - 1) c = tt.sh;
-          else if (v > .9 && Math.abs(cxb - cy2 * 1.3 - bw * .3) < .6) c = tt.deep;   // a crack
-          if (t.moss && cy2 < 3 && hash2(wx0 + x, wy0 + y) < .25 + (cy2 === 1 ? .2 : 0)) c = t.moss;
-          if (c !== col) px.dot(g, X0 + x, Y0 + y, c);
-        }
-      }
-    } else if (st === 'wood') {    // vertical planks with grain and nails
-      const pw = Math.max(3, Math.round(W / 3));
-      for (let x = 0; x < W; x++) {
-        const pl = Math.floor((wx0 + x) / pw), cxp = (wx0 + x) % pw, v = hash2(pl, 7);
-        for (let y = 0; y < H; y++) {
-          let c = v < .3 ? tt.sh : v > .75 ? tt.lt : col;
-          if (cxp === 0) c = tt.deep; else if (cxp === 1) c = tt.lt;
-          else if (noise2((wx0 + x) * .5, (wy0 + y) * .08 + pl * 3) > .66) c = tt.sh;
-          if ((y === 2 || y === H - 3) && cxp === Math.floor(pw / 2)) c = tt.hi;
-          if (c !== col) px.dot(g, X0 + x, Y0 + y, c);
-        }
-      }
-    } else if (st === 'metal') {   // riveted plate with a diagonal sheen
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        let c = col; const d = (x + y) % Math.max(6, W);
-        if (d < 2) c = tt.lt; else if (d === 2) c = tt.hi;
-        if (x === 0 || y === 0) c = tt.hi; else if (x === W - 1 || y === H - 1) c = tt.deep;
-        if ((x === 2 || x === W - 3) && (y === 2 || y === H - 3)) c = tt.hi;
-        if (c !== col) px.dot(g, X0 + x, Y0 + y, c);
-      }
-    } else if (st === 'ground') {
-      for (let y = Y0; y < Y1; y++) for (let x = X0; x < X1; x++) {   // soil: soft patches and small stones, anchored to the world
-        const X = wx0 + x - X0, Y = wy0 + y - Y0, n = noise2(X * .2, Y * .2) * .7 + noise2(X * .5, Y * .5) * .3, st = noise2(X * .42 + 5, Y * .42 + 11);
-        if (st > .83) px.dot(g, x, y, noise2(X * .42 + 5, (Y - 1) * .42 + 11) > .83 ? tt.sh : tt.lt); else if (n > .64) px.dot(g, x, y, tt.sh); else if (n < .28) px.dot(g, x, y, tt.lt);
-      }
-      if (openTop) {
-        const grass = t.top || '#5fbf4a', gt = tones(grass);
-        for (let x = X0; x < X1; x++) { const L = 3 + (hash2(x, 11) > .6 ? 1 : 0) + (hash2(x, 23) > .9 ? 2 : 0); px.rect(g, x, Y0, 1, L, gt.base); px.dot(g, x, Y0 + L, gt.deep); if (hash2(x, 5) > .7) px.dot(g, x, Y0 + L - 1, gt.sh); if (hash2(x, 31) > .96) { px.dot(g, x, Y0 - 1, gt.lt); px.dot(g, x, Y0 - 2, t.flower || '#ffe070'); } }
-        px.rect(g, X0, Y0, W, 1, gt.lt);
-      }
-    } else if (st === 'pipe') {
-      const bw = Math.max(1, Math.round(W * .18)); px.rect(g, X0 + 1, Y0, bw, H, hi); px.rect(g, X1 - bw - 1, Y0, bw, H, lo); px.rect(g, X0, Y0, 1, H, lo); px.rect(g, X1 - 1, Y0, 1, H, lo);
-      if (openTop) { px.rect(g, X0, Y0, W, Math.max(2, Math.round(H * .28)), hi); px.rect(g, X0, Y0 + Math.max(2, Math.round(H * .28)), W, 1, lo); }
-    } else if (st !== 'plain') {   // block and bonus: bevelled block
-      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const n = noise2((wx0 + x) * .3, (wy0 + y) * .3); if (n > .7) px.dot(g, X0 + x, Y0 + y, tt.sh); else if (n < .22) px.dot(g, X0 + x, Y0 + y, tt.lt); }
-      px.rect(g, X0, Y0, W, 1, hi); px.rect(g, X0, Y0, 1, H, hi); px.rect(g, X0, Y1 - 1, W, 1, lo); px.rect(g, X1 - 1, Y0, 1, H, lo);
-      if (st === 'bonus') { const sc = Math.max(1, Math.round(W / 12)); E.font.text(g, t.glyph || '?', X0 + W / 2, Y0 + Math.round(H / 2) - Math.round(3.5 * sc), t.glyphColor || '#fff4c8', { align: 'center', outline: lo, scale: sc }); }
-      else { const q = Math.max(1, Math.round(W * .15)); for (const [qx, qy] of [[X0 + q, Y0 + q], [X1 - q - 1, Y0 + q], [X0 + q, Y1 - q - 1], [X1 - q - 1, Y1 - q - 1]]) px.dot(g, qx, qy, lo); }
-    }
+    // the face: the type's material (mat) per pixel, else the style's own painter (E.MATERIALS[style].tile)
+    const f = { X0, Y0, X1, Y1, W, H, col, tt, hi, lo, wx0, wy0, t, openTop, cz, T };
+    const tm = t.mat ? material(t.mat, null, 'tile material') : null;
+    if (tm) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) px.dot(g, X0 + x, Y0 + y, tm.hexes[matTone(tm, (wx0 + x) * T / W, (cz * H + H - y - .5) * T / H, T, T, false, 2, T / W)]);
+    else if (st !== 'plain') { const e = MATERIALS[st]; if (!e || !e.tile) warn('style:' + st, 'unknown tile style "' + st + '" (drawn as a block). Styles: ' + Object.keys(MATERIALS).filter(k => MATERIALS[k].tile).concat(['plain', 'plank', 'spikes', 'ladder', 'liquid']).join(', ') + ' (or mat: a material)'); (e && e.tile || TILES.block)(g, f); }
     // carved edges: light where the tile meets open air above, shadow below and on the sides
     if (st !== 'ground' && st !== 'pipe' && st !== 'plain') {
       if (openTop) px.rect(g, X0, Y0, W, 1, tt.hi);
@@ -5159,6 +5300,98 @@ class PlatformMap {
   }
 }
 E.PlatformMap = PlatformMap;
+
+/* ---- the platform tile styles' faces (types[id].style), as material entries' tile(g, f): f = { X0, Y0, X1, Y1, W, H (the
+ *      face's screen rectangle), col (its color), tt (its tones), hi, lo, wx0, wy0 (its world-anchored pixel origin), t (the
+ *      type), openTop, cz, T } ---- */
+const TILES = {
+  brick(g, f) {
+    const { X0, Y0, W, H, col, tt, wx0, wy0, t, T } = f, course = Math.max(3, Math.round((t.course || 8) / T * H)), bw = Math.max(4, Math.round(W / 2));
+    for (let y = 0; y < H; y++) {
+      const k = Math.floor((wy0 + y) / course), cy2 = (wy0 + y) % course, off = (k & 1) ? Math.round(bw / 2) : 0;
+      for (let x = 0; x < W; x++) {
+        const bx = Math.floor((wx0 + x + off) / bw), cxb = (wx0 + x + off) % bw, v = hash2(bx * 7 + 3, k * 13 + 1);
+        let c = v < .25 ? tt.sh : v > .8 ? tt.lt : col;
+        if (cy2 === 0 || cxb === 0) c = t.line || tt.deep; else if (cy2 === 1) c = v > .8 ? tt.hi : tt.lt; else if (cy2 === course - 1 || cxb === bw - 1) c = tt.sh;
+        else if (hash2(wx0 + x, wy0 + y) < .05) c = tt.sh;
+        if (c !== col) px.dot(g, X0 + x, Y0 + y, c);
+      }
+    }
+  },
+  /** castle blocks: two courses per tile, offset joints, chipped edges, cracks */
+  stone(g, f) {
+    const { X0, Y0, W, H, col, tt, wx0, wy0, t } = f, course = Math.max(4, Math.round(H / 2)), bw = W;
+    for (let y = 0; y < H; y++) {
+      const k = Math.floor((wy0 + y) / course), cy2 = (wy0 + y) % course, off = (k & 1) ? Math.round(bw / 2) : 0;
+      for (let x = 0; x < W; x++) {
+        const bx = Math.floor((wx0 + x + off) / bw), cxb = (wx0 + x + off) % bw, v = hash2(bx * 11 + 5, k * 17 + 3), n = noise2((wx0 + x) * .35, (wy0 + y) * .35);
+        let c = v < .3 ? tt.sh : v > .78 ? tt.lt : col;
+        if (n > .72) c = c === tt.lt ? col : c === col ? tt.sh : tt.deep;
+        if (cy2 === 0 || cxb === 0) c = t.line || tt.deep;
+        else if (cy2 === 1 || cxb === 1) c = hash2(wx0 + x, 3) > .15 ? tt.lt : col;
+        else if (cy2 === course - 1 || cxb === bw - 1) c = tt.sh;
+        else if (v > .9 && Math.abs(cxb - cy2 * 1.3 - bw * .3) < .6) c = tt.deep;   // a crack
+        if (t.moss && cy2 < 3 && hash2(wx0 + x, wy0 + y) < .25 + (cy2 === 1 ? .2 : 0)) c = t.moss;
+        if (c !== col) px.dot(g, X0 + x, Y0 + y, c);
+      }
+    }
+  },
+  /** vertical planks with grain and nails */
+  wood(g, f) {
+    const { X0, Y0, W, H, col, tt, wx0, wy0 } = f, pw = Math.max(3, Math.round(W / 3));
+    for (let x = 0; x < W; x++) {
+      const pl = Math.floor((wx0 + x) / pw), cxp = (wx0 + x) % pw, v = hash2(pl, 7);
+      for (let y = 0; y < H; y++) {
+        let c = v < .3 ? tt.sh : v > .75 ? tt.lt : col;
+        if (cxp === 0) c = tt.deep; else if (cxp === 1) c = tt.lt;
+        else if (noise2((wx0 + x) * .5, (wy0 + y) * .08 + pl * 3) > .66) c = tt.sh;
+        if ((y === 2 || y === H - 3) && cxp === Math.floor(pw / 2)) c = tt.hi;
+        if (c !== col) px.dot(g, X0 + x, Y0 + y, c);
+      }
+    }
+  },
+  /** riveted plate with a diagonal sheen */
+  metal(g, f) {
+    const { X0, Y0, W, H, col, tt } = f;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let c = col; const d = (x + y) % Math.max(6, W);
+      if (d < 2) c = tt.lt; else if (d === 2) c = tt.hi;
+      if (x === 0 || y === 0) c = tt.hi; else if (x === W - 1 || y === H - 1) c = tt.deep;
+      if ((x === 2 || x === W - 3) && (y === 2 || y === H - 3)) c = tt.hi;
+      if (c !== col) px.dot(g, X0 + x, Y0 + y, c);
+    }
+  },
+  /** soil: soft patches and small stones, anchored to the world; grass on an open top */
+  ground(g, f) {
+    const { X0, Y0, X1, Y1, W, tt, wx0, wy0, t, openTop } = f;
+    for (let y = Y0; y < Y1; y++) for (let x = X0; x < X1; x++) {   // soil: soft patches and small stones, anchored to the world
+      const X = wx0 + x - X0, Y = wy0 + y - Y0, n = noise2(X * .2, Y * .2) * .7 + noise2(X * .5, Y * .5) * .3, st = noise2(X * .42 + 5, Y * .42 + 11);
+      if (st > .83) px.dot(g, x, y, noise2(X * .42 + 5, (Y - 1) * .42 + 11) > .83 ? tt.sh : tt.lt); else if (n > .64) px.dot(g, x, y, tt.sh); else if (n < .28) px.dot(g, x, y, tt.lt);
+    }
+    if (openTop) {
+      const grass = t.top || '#5fbf4a', gt = tones(grass);
+      for (let x = X0; x < X1; x++) { const L = 3 + (hash2(x, 11) > .6 ? 1 : 0) + (hash2(x, 23) > .9 ? 2 : 0); px.rect(g, x, Y0, 1, L, gt.base); px.dot(g, x, Y0 + L, gt.deep); if (hash2(x, 5) > .7) px.dot(g, x, Y0 + L - 1, gt.sh); if (hash2(x, 31) > .96) { px.dot(g, x, Y0 - 1, gt.lt); px.dot(g, x, Y0 - 2, t.flower || '#ffe070'); } }
+      px.rect(g, X0, Y0, W, 1, gt.lt);
+    }
+  },
+  pipe(g, f) {
+    const { X0, Y0, X1, W, H, hi, lo, openTop } = f;
+    const bw = Math.max(1, Math.round(W * .18)); px.rect(g, X0 + 1, Y0, bw, H, hi); px.rect(g, X1 - bw - 1, Y0, bw, H, lo); px.rect(g, X0, Y0, 1, H, lo); px.rect(g, X1 - 1, Y0, 1, H, lo);
+    if (openTop) { px.rect(g, X0, Y0, W, Math.max(2, Math.round(H * .28)), hi); px.rect(g, X0, Y0 + Math.max(2, Math.round(H * .28)), W, 1, lo); }
+  },
+  /** a bevelled block with a speck of noise and four rivets */
+  block(g, f) { TILES._bevel(g, f); const { X0, Y0, X1, Y1, W, lo } = f, q = Math.max(1, Math.round(W * .15)); for (const [qx, qy] of [[X0 + q, Y0 + q], [X1 - q - 1, Y0 + q], [X0 + q, Y1 - q - 1], [X1 - q - 1, Y1 - q - 1]]) px.dot(g, qx, qy, lo); },
+  /** the block with a glyph on it (t.glyph, '?'; t.glyphColor) */
+  bonus(g, f) { TILES._bevel(g, f); const { X0, Y0, W, H, lo, t } = f, sc = Math.max(1, Math.round(W / 12)); E.font.text(g, t.glyph || '?', X0 + W / 2, Y0 + Math.round(H / 2) - Math.round(3.5 * sc), t.glyphColor || '#fff4c8', { align: 'center', outline: lo, scale: sc }); },
+  _bevel(g, f) {
+    const { X0, Y0, X1, Y1, W, H, tt, hi, lo, wx0, wy0 } = f;
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const n = noise2((wx0 + x) * .3, (wy0 + y) * .3); if (n > .7) px.dot(g, X0 + x, Y0 + y, tt.sh); else if (n < .22) px.dot(g, X0 + x, Y0 + y, tt.lt); }
+    px.rect(g, X0, Y0, W, 1, hi); px.rect(g, X0, Y0, 1, H, hi); px.rect(g, X0, Y1 - 1, W, 1, lo); px.rect(g, X1 - 1, Y0, 1, H, lo);
+  }
+};
+for (const k of ['brick', 'stone', 'wood', 'metal', 'ground', 'pipe', 'block', 'bonus']) MATERIALS[k] = Object.assign(MATERIALS[k] || {}, { tile: TILES[k] });
+Object.assign(MATERIALS.wood, { color: '#8a5a36', pattern: 'planks', dir: 'v' }); Object.assign(MATERIALS.metal, { color: '#6a6e7a', pattern: 'metal' }); Object.assign(MATERIALS.ground, { color: '#7a5838', pattern: 'speck' });
+Object.assign(MATERIALS.pipe, { color: '#3a9a4a', pattern: 'metal' }); Object.assign(MATERIALS.block, { color: '#8a7a9a', pattern: 'noise' }); Object.assign(MATERIALS.bonus, { color: '#d8a838', pattern: 'noise' });
 
 /**
  * Platformer: a side-scroller character body with modern, forgiving controls (coyote time,
@@ -5258,11 +5491,12 @@ E.Platformer = Platformer;
  * ============================================================================= */
 class Body {
   /** new E.Body({ x, y, r: 5, ... }). x, y, z: its position (z = feet); vx, vy, vz: its speed, world units per
-   *  second; r: its radius; gravity: pulls z down (world units per second squared); friction: slows vx and vy per
+   *  second; r: its radius; h: its height (32, a standing actor's: it spans z to z + h, so it passes under a solid shape
+   *  above that and walks into one in that span); gravity: pulls z down (world units per second squared); friction: slows vx and vy per
    *  second (0 = none); bounce: 0..1, how much speed it keeps off walls and the floor; step: the height it walks up
    *  without jumping (E.HEIGHTS.step); onGround: standing; groundZ: the height of what is under it; hitWall: it
    *  touched a wall this step; landed: it landed this step */
-  constructor(o = {}) { Object.assign(this, { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 5, gravity: 700, friction: 0, bounce: 0, step: 2, onGround: true, groundZ: 0, hitWall: false, landed: false }, o); }
+  constructor(o = {}) { Object.assign(this, { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 5, h: 32, gravity: 700, friction: 0, bounce: 0, step: 2, onGround: true, groundZ: 0, hitWall: false, landed: false }, o); }
   /** add an impulse (knockback, explosion): push(vx, vy, vz) */
   push(ix, iy, iz = 0) { this.vx += ix; this.vy += iy; if (iz) { this.vz += iz; this.onGround = false; } return this; }
   /** leave the ground with upward speed v (only when standing). Returns true if it jumped */
@@ -5983,7 +6217,7 @@ class ChipAudio {
   }
 }
 E.Audio = ChipAudio;
-/* ready-made chiptune loops (original compositions). Use: game.audio.music('adventure') */
+/** ready-made chiptune loops (original compositions): title, adventure, dungeon, boss, victory. game.audio.music('adventure') */
 E.songs = {
   title: { bpm: 112, steps: 4, tracks: [
     { wave: 'square', vol: .16, notes: 'C5 - - - G4 - C5 - E5 - - - D5 - C5 - | D5 - - - G4 - B4 - D5 - - - F5 - E5 - | E5 - - - C5 - E5 - G5 - - - A5 - G5 - | F5 - E5 - D5 - B4 - C5 - - - - - . .' },
@@ -6055,7 +6289,7 @@ class Backdrop {
      *  back to front, with their defaults filled in */
     this.o = o; this.sky = o.sky || ['#3a78d8', '#c8e4f8']; this.layers = (o.layers || []).map((l, i) => Object.assign({ seed: i * 17 + 3, parallax: .2, y: .7, height: .25 }, l)); this._bake = new Map();
   }
-  /** the preset names: day, sunset, night, castle-night, city-night, desert, forest, ocean, cave, space and more */
+  /** the preset names, all ten: day, dusk, night, castle-night, city-night, desert, forest, ocean, cave, space */
   static get presets() { return Object.keys(BACKDROPS); }
   _strip(l, H) {
     const key = l.kind + ':' + l.seed + ':' + l.color + ':' + H + ':' + l.height + ':' + (l.windows || '') + ':' + (l.snow || '');
@@ -6302,6 +6536,546 @@ function prop(name, o = {}) {
 E.prop = prop;
 /** the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts) */
 E.PROPS = Object.keys(PROP_DEFAULTS);
+
+/* =============================================================================
+ * 21e. SHAPES  still 3D objects written as data: named parts, each a primitive with a material, drawn from any view and
+ *    facing at game size (a depth buffer per shape, shaded with the material's five tones and pattern, creases where parts
+ *    meet, lit top edges, the actors' outline), with a contact shadow. docs/ASSETS.md is the card: the parts, the
+ *    materials, the library, how to make one and check it headless.
+ *      r.shape('barrel', x, y, 0, { facing })                          // feet on (x, y, z), front toward facing
+ *      E.SHAPES.stool = { about: 'a three-legged stool', mats: { w: 'oak' },
+ *        parts: [['cyl','w',[0,0,8],5,1.5], ['ring',3,3,['box','w',[0,0,0],[1.5,1.5,8]]]] };
+ *      map.solid('table', x, y, 0, { facing })                         // collision: bodies stop at it, land on it
+ *    Units: 16 = 1 m = one tile; x east, y south, z up. A shape's origin is the middle of its footprint on the ground; it
+ *    is written facing south (+y). Parts ([kind, material slot, at, ...sizes, { options }]; at is the bottom middle,
+ *    except a ball's and a rock's, which is their centre):
+ *      ['box', m, at, [w, d, h], { rot }]     ['cyl', m, at, r, h, { r2, seg, sq }]     ['lathe', m, at, [[r, z]...], { seg }]
+ *      ['ball', m, at, r, { sz }]             ['prism', m, at, [[a, b]...], h, { axis: 'z' | 'y' | 'x' }]
+ *      ['wedge', m, at, [w, d, h]]            ['rock', m, at, r, { sz, seed, rough }]
+ *      ['use', id, at, { rot, scale, mats, ...params }]   ['mirror', 'x' | 'y' | 'xy', part]   ['ring', n, radius, part]
+ *      ['row', n, [dx, dy, dz], part]          ['group', at, rot, [parts]]
+ *    rot: a yaw in degrees, or [x, y, z] degrees. Nothing below the floor is drawn (a half-sunk rock).
+ * ============================================================================= */
+/** the shapes by id: { about, tags, mats: { slot: material }, parts | make(params), params, foot, lights, flames } (the
+ *  core library's, the sets' as 'SET:id' from E.addAssets, and your own: E.SHAPES.stool = {...}) */
+const SHAPES = E.SHAPES = {};
+const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+const mm3 = (A, B) => [
+  A[0] * B[0] + A[1] * B[3] + A[2] * B[6], A[0] * B[1] + A[1] * B[4] + A[2] * B[7], A[0] * B[2] + A[1] * B[5] + A[2] * B[8],
+  A[3] * B[0] + A[4] * B[3] + A[5] * B[6], A[3] * B[1] + A[4] * B[4] + A[5] * B[7], A[3] * B[2] + A[4] * B[5] + A[5] * B[8],
+  A[6] * B[0] + A[7] * B[3] + A[8] * B[6], A[6] * B[1] + A[7] * B[4] + A[8] * B[7], A[6] * B[2] + A[7] * B[5] + A[8] * B[8]];
+const mv3 = (A, v) => [A[0] * v[0] + A[1] * v[1] + A[2] * v[2], A[3] * v[0] + A[4] * v[1] + A[5] * v[2], A[6] * v[0] + A[7] * v[1] + A[8] * v[2]];
+const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const crs3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+const rz3 = a => { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; };
+const rx3 = a => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, c, -s, 0, s, c]; };
+const ry3 = a => { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; };
+const rot3 = r => !r ? I3 : typeof r === 'number' ? rz3(r * DEG) : mm3(rz3((r[2] || 0) * DEG), mm3(ry3((r[1] || 0) * DEG), rx3((r[0] || 0) * DEG)));
+const dg3 = (x, y, z) => [x, 0, 0, 0, y, 0, 0, 0, z];
+function invT3(M) {   // the inverse transpose (normals), sign kept so a mirrored part's normals still point out
+  const [a, b, c, d, e, f, g, h, i] = M, A = e * i - f * h, B = f * g - d * i, C = d * h - e * g, det = a * A + b * B + c * C || 1e-9;
+  return [A / det, B / det, C / det, (c * h - b * i) / det, (a * i - c * g) / det, (b * g - a * h) / det, (b * f - c * e) / det, (c * d - a * f) / det, (a * e - b * d) / det];
+}
+/** a shape entry from an id ('barrel', 'SET:chair', a set's own id when local is that set's shapes) or an entry */
+function shapeOf(id, local) {
+  if (id && typeof id === 'object') return id;
+  const S = (local && local[id]) || SHAPES[id];
+  if (!S) warn('shape:' + id, 'unknown shape "' + id + '". Shapes: ' + Object.keys(SHAPES).join(', ') + ' (or your own E.SHAPES entry)');
+  return S || null;
+}
+const SHAPE_PARTS = { box: 4, cyl: 5, lathe: 4, ball: 4, prism: 5, wedge: 4, rock: 4 };   // where each primitive's options are
+/** a shape with its placement's params and mats -> { prims, mats, parts } (every part as a primitive with its transform) */
+function resolveShape(S, o = {}, name) {
+  const out = { prims: [], mats: [], idx: new Map(), parts: 0 };
+  if (S) addShape(S, o, I3, [0, 0, 0], k => o.mats && o.mats[k], out, 0, name);
+  return out;
+}
+/** the problems with a shape's parts, each naming the entry and the field: ['stool: parts[1] (box): its size is [w, d, h]'] */
+function checkParts(name, parts, where = 'parts') {
+  const out = [], num = v => typeof v === 'number' && isFinite(v), vec = (v, n) => Array.isArray(v) && v.length === n && v.every(num), pairs = (v, n) => Array.isArray(v) && v.length >= n && v.every(q => vec(q, 2));
+  if (!Array.isArray(parts)) return [name + ': ' + where + ' is a list of parts'];
+  parts.forEach((p, i) => {
+    const at = where + '[' + i + ']', k = Array.isArray(p) ? p[0] : null, bad = what => out.push(name + ': ' + at + ' (' + k + '): ' + what);
+    if (!Array.isArray(p)) { out.push(name + ': ' + at + ' is a part: [kind, ...]'); return; }
+    if (k === 'mirror') { if (!['x', 'y', 'xy'].includes(p[1])) bad("its axis is 'x', 'y' or 'xy'"); out.push(...checkParts(name, [p[2]], at + '[2]')); return; }
+    if (k === 'ring' || k === 'row') { if (!(p[1] >= 1)) bad('its count is a whole number, 1 or more'); if (k === 'ring' ? !num(p[2]) : !vec(p[2], 3)) bad(k === 'ring' ? 'its radius is a number' : 'its step is [dx, dy, dz]'); out.push(...checkParts(name, [p[3]], at + '[3]')); return; }
+    if (k === 'group') { if (!vec(p[1], 3)) bad('its at is [x, y, z]'); out.push(...checkParts(name, p[3], at + '[3]')); return; }
+    if (k === 'use') { if (typeof p[1] !== 'string' && !(p[1] && typeof p[1] === 'object')) bad('it names a shape'); if (!vec(p[2], 3)) bad('its at is [x, y, z]'); return; }
+    if (!SHAPE_PARTS[k]) { out.push(name + ': ' + at + ': unknown part "' + k + '" (parts: ' + Object.keys(SHAPE_PARTS).join(', ') + ', use, mirror, ring, row, group)'); return; }
+    if (typeof p[1] !== 'string') bad('its material is a slot name or a material');
+    if (!vec(p[2], 3)) bad('its at is [x, y, z]');
+    const sz = { box: () => vec(p[3], 3) || 'its size is [w, d, h]', wedge: () => vec(p[3], 3) || 'its size is [w, d, h]', cyl: () => (num(p[3]) && num(p[4])) || 'its radius and height are numbers',
+      lathe: () => pairs(p[3], 2) || 'its profile is [[r, z], ...], two points or more', ball: () => num(p[3]) || 'its radius is a number', rock: () => num(p[3]) || 'its radius is a number',
+      prism: () => (pairs(p[3], 3) && num(p[4])) || 'its outline is [[a, b], ...], three points or more, then its depth' }[k]();
+    if (sz !== true) bad(sz);
+  });
+  return out;
+}
+const _checked = new WeakSet();
+function addShape(S, params, M, t, outer, out, depth, name = S.about || 'a shape') {
+  if (depth > 8) { warn('shape:deep', 'shapes nested more than 8 deep (a shape that uses itself?)'); return; }
+  const P = Object.assign({}, S.params, params), parts = S.make ? S.make(P) : S.parts || [], set = S._set;
+  if (!_checked.has(S)) { _checked.add(S); const bad = checkParts(name, parts); if (!S.parts && !S.make) bad.unshift(name + ': an entry has parts, or make(params)'); for (const b of bad) warn('check:' + b, 'shape ' + b); }
+  // a slot: the placement's (or the using shape's) choice, then the shape's own mats, then the name as a material
+  const slot = name => outer(name) || (S.mats && S.mats[name]) || name;
+  const mi = name => { const id = slot(name), key = (set && set.materials && set.materials[id] ? set.set + ':' : '') + (typeof id === 'string' ? id : JSON.stringify(id));
+    let i = out.idx.get(key); if (i === undefined) { i = out.mats.length; out.mats.push(material(id, set && set.materials, 'material') || material('#ff00ff')); out.idx.set(key, i); } return i; };
+  const part = (p, M, t) => {
+    const k = p[0];
+    if (k === 'mirror') {
+      const ax = p[1], q = p[2]; part(q, M, t);
+      if (ax.includes('x')) part(q, mm3(M, dg3(-1, 1, 1)), t);
+      if (ax.includes('y')) part(q, mm3(M, dg3(1, -1, 1)), t);
+      if (ax.includes('x') && ax.includes('y')) part(q, mm3(M, dg3(-1, -1, 1)), t);
+      return;
+    }
+    if (k === 'ring') { for (let i = 0; i < p[1]; i++) { const Mi = mm3(M, rz3(i * TAU / p[1])); part(p[3], Mi, add3(t, mv3(Mi, [p[2], 0, 0]))); } return; }
+    if (k === 'row') { const n = p[1], d = p[2]; for (let i = 0; i < n; i++) { const f = i - (n - 1) / 2; part(p[3], M, add3(t, mv3(M, [d[0] * f, d[1] * f, d[2] * f]))); } return; }
+    if (k === 'group') { const M2 = mm3(M, rot3(p[2])), t2 = add3(t, mv3(M, p[1])); for (const q of p[3]) part(q, M2, t2); return; }
+    if (k === 'use') {
+      const S2 = shapeOf(p[1], set && set.shapes), uo = p[3] || {}; if (!S2) return;
+      const sc = uo.scale || 1, M2 = mm3(mm3(M, rot3(uo.rot)), dg3(sc, sc, sc)), t2 = add3(t, mv3(M, p[2]));
+      const params = Object.assign({}, uo); delete params.rot; delete params.scale; delete params.mats;
+      // the used shape's slots: this part's mats (a material, or one of this shape's slots), else its own
+      addShape(S2, params, M2, t2, k2 => { const v = uo.mats && uo.mats[k2]; return v ? slot(v) : null; }, out, depth + 1, typeof p[1] === 'string' ? p[1] : undefined);
+      return;
+    }
+    if (!SHAPE_PARTS[k]) { warn('part:' + k, 'unknown part "' + k + '". Parts: ' + Object.keys(SHAPE_PARTS).join(', ') + ', use, mirror, ring, row, group'); return; }
+    const o = p[SHAPE_PARTS[k]] || {};
+    out.prims.push({ k, p, o, mi: mi(p[1]), part: out.parts++, M: mm3(M, rot3(o.rot)), t: add3(t, mv3(M, p[2] || [0, 0, 0])) });
+  };
+  for (const p of parts) part(p, M, t);
+}
+
+/* ---- tessellation: faces with surface coordinates (u, v world units: round or across a side and up it; x and y on a
+ *      lid), in a primitive's own frame. emit({ v: [[x, y, z]...], n: normal | [normals], uv, W, H, lid, curved }) ---- */
+function planarUV(v, n) {
+  let us, vs;
+  if (Math.abs(n[2]) > .7) { us = v.map(p => p[0]); vs = v.map(p => p[1]); }
+  else { const l = Math.hypot(n[0], n[1]) || 1, tx = -n[1] / l, ty = n[0] / l; us = v.map(p => p[0] * tx + p[1] * ty); vs = v.map(p => p[2]); }
+  const u0 = Math.min(...us), v0 = Math.min(...vs);
+  return { uv: us.map((u, i) => [u - u0, vs[i] - v0]), W: Math.max(...us) - u0, H: Math.max(...vs) - v0, lid: Math.abs(n[2]) > .7 };
+}
+/** a flat face; frame: the vertices whose planar coordinates it shares (a cap cut into triangles keeps one frame) */
+function flatFace(emit, v, n, frame) { const P = planarUV(frame ? frame.concat(v) : v, n), k = frame ? frame.length : 0; emit({ v, n, uv: P.uv.slice(k), W: P.W, H: P.H, lid: P.lid, curved: false }); }
+/** a profile [[r, z]...] turned about z in n segments: steps across become flat lids (planks run straight across a barrel's
+ *  top), the rest smooth bands whose normals are shared where neighbours meet at under 40 degrees */
+function latheFaces(emit, pr, n, sq = 1, ball = false, sz = 1) {
+  let R = 0; for (const q of pr) R = Math.max(R, q[0]);
+  const cs = [], sn = []; for (let i = 0; i <= n; i++) { cs.push(Math.cos(i / n * TAU)); sn.push(Math.sin(i / n * TAU)); }
+  const segN = [], len = [0];
+  for (let j = 0; j + 1 < pr.length; j++) { const dr = pr[j + 1][0] - pr[j][0], dz = pr[j + 1][1] - pr[j][1], l = Math.hypot(dr, dz) || 1; segN.push([dz / l, -dr / l]); len.push(len[j] + l); }
+  const vn = (j, end) => {
+    if (ball) { const q = pr[j + end]; const l = Math.hypot(q[0], q[1] / (sz * sz)) || 1; return [q[0] / l, q[1] / (sz * sz) / l]; }
+    const a = segN[j], b = segN[end ? j + 1 : j - 1];
+    if (!b || a[0] * b[0] + a[1] * b[1] < .77) return a;
+    const l = Math.hypot(a[0] + b[0], a[1] + b[1]) || 1; return [(a[0] + b[0]) / l, (a[1] + b[1]) / l];
+  };
+  for (let j = 0; j + 1 < pr.length; j++) {
+    const [r0, z0] = pr[j], [r1, z1] = pr[j + 1]; if (r0 < 1e-6 && r1 < 1e-6) continue;
+    if (Math.abs(z1 - z0) < 1e-6 && !ball) {   // a flat ring or disc
+      const up = r1 < r0 ? 1 : -1, rA = Math.max(r0, r1), rB = Math.min(r0, r1);
+      for (let i = 0; i < n; i++) {
+        const a = [cs[i] * rA, sn[i] * rA * sq, z0], b = [cs[i + 1] * rA, sn[i + 1] * rA * sq, z0];
+        const v = rB > 1e-6 ? [a, b, [cs[i + 1] * rB, sn[i + 1] * rB * sq, z0], [cs[i] * rB, sn[i] * rB * sq, z0]] : [a, b, [0, 0, z0]], vv = up > 0 ? v : v.slice().reverse();
+        emit({ v: vv, n: [0, 0, up], uv: vv.map(p => [p[0] + R, p[1] + R]), W: 2 * R, H: 2 * R, lid: true, curved: false });
+      }
+      continue;
+    }
+    const nA = vn(j, 0), nB = vn(j, 1), P = (r, z, k) => [cs[k] * r, sn[k] * r * sq, z], N = (q, k) => [cs[k] * q[0], sn[k] * q[0] / sq, q[1]];
+    for (let i = 0; i < n; i++) emit({ v: [P(r0, z0, i), P(r0, z0, i + 1), P(r1, z1, i + 1), P(r1, z1, i)], n: [N(nA, i), N(nA, i + 1), N(nB, i + 1), N(nB, i)],
+      uv: [[i / n * TAU * R, len[j]], [(i + 1) / n * TAU * R, len[j]], [(i + 1) / n * TAU * R, len[j + 1]], [i / n * TAU * R, len[j + 1]]], W: TAU * R, H: len[len.length - 1], lid: false, curved: true });
+  }
+}
+let _ico = null;
+function icosphere() {
+  if (_ico) return _ico;
+  const t = (1 + Math.sqrt(5)) / 2, v = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(nrm3);
+  let f = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+  const mid = new Map(), m = (a, b) => { const k = a < b ? a + ',' + b : b + ',' + a; if (!mid.has(k)) { mid.set(k, v.length); v.push(nrm3(add3(v[a], v[b]))); } return mid.get(k); };
+  f = f.flatMap(([a, b, c]) => { const ab = m(a, b), bc = m(b, c), ca = m(c, a); return [[a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]]; });
+  return (_ico = { v, f });
+}
+/** ear clipping for a counter-clockwise outline: [[i, j, k]...] */
+function earClip(pts) {
+  const idx = pts.map((_, i) => i), out = [], cr = (a, b, c) => (pts[b][0] - pts[a][0]) * (pts[c][1] - pts[a][1]) - (pts[b][1] - pts[a][1]) * (pts[c][0] - pts[a][0]);
+  const inside = (p, a, b, c) => cr(a, b, p) >= 0 && cr(b, c, p) >= 0 && cr(c, a, p) >= 0;
+  for (let guard = 0; idx.length > 3 && guard < 500; guard++) {
+    let cut = false;
+    for (let i = 0; i < idx.length; i++) {
+      const a = idx[(i + idx.length - 1) % idx.length], b = idx[i], c = idx[(i + 1) % idx.length];
+      if (cr(a, b, c) <= 1e-9 || idx.some(p => p !== a && p !== b && p !== c && inside(p, a, b, c))) continue;
+      out.push([a, b, c]); idx.splice(i, 1); cut = true; break;
+    }
+    if (!cut) break;
+  }
+  for (let i = 1; i + 1 < idx.length; i++) out.push([idx[0], idx[i], idx[i + 1]]);
+  return out;
+}
+const AXIS3 = { z: I3, y: [1, 0, 0, 0, 0, 1, 0, 1, 0], x: [0, 0, 1, 1, 0, 0, 0, 1, 0] };
+const TESS = {
+  box(emit, P) {
+    const [w, d, h] = P.p[3], x = w / 2, y = d / 2, c = (i, j, k) => [i ? x : -x, j ? y : -y, k ? h : 0];
+    emit({ v: [c(0, 0, 1), c(1, 0, 1), c(1, 1, 1), c(0, 1, 1)], n: [0, 0, 1], uv: [[0, 0], [w, 0], [w, d], [0, d]], W: w, H: d, lid: true });
+    emit({ v: [c(0, 0, 0), c(0, 1, 0), c(1, 1, 0), c(1, 0, 0)], n: [0, 0, -1], uv: [[0, 0], [0, d], [w, d], [w, 0]], W: w, H: d, lid: true });
+    emit({ v: [c(0, 1, 0), c(1, 1, 0), c(1, 1, 1), c(0, 1, 1)], n: [0, 1, 0], uv: [[0, 0], [w, 0], [w, h], [0, h]], W: w, H: h });
+    emit({ v: [c(1, 0, 0), c(0, 0, 0), c(0, 0, 1), c(1, 0, 1)], n: [0, -1, 0], uv: [[0, 0], [w, 0], [w, h], [0, h]], W: w, H: h });
+    emit({ v: [c(1, 1, 0), c(1, 0, 0), c(1, 0, 1), c(1, 1, 1)], n: [1, 0, 0], uv: [[0, 0], [d, 0], [d, h], [0, h]], W: d, H: h });
+    emit({ v: [c(0, 0, 0), c(0, 1, 0), c(0, 1, 1), c(0, 0, 1)], n: [-1, 0, 0], uv: [[0, 0], [d, 0], [d, h], [0, h]], W: d, H: h });
+  },
+  wedge(emit, P) {   // h tall at the back (-y), down to the floor at the front (+y): a ramp facing the front
+    const [w, d, h] = P.p[3], x = w / 2, y = d / 2;
+    flatFace(emit, [[-x, y, 0], [-x, -y, 0], [x, -y, 0], [x, y, 0]], [0, 0, -1]);
+    flatFace(emit, [[x, -y, 0], [-x, -y, 0], [-x, -y, h], [x, -y, h]], [0, -1, 0]);
+    flatFace(emit, [[-x, y, 0], [x, y, 0], [x, -y, h], [-x, -y, h]], nrm3([0, h, d]));
+    flatFace(emit, [[x, y, 0], [x, -y, 0], [x, -y, h]], [1, 0, 0]);
+    flatFace(emit, [[-x, -y, 0], [-x, y, 0], [-x, -y, h]], [-1, 0, 0]);
+  },
+  cyl(emit, P, seg) { const r = P.p[3], h = P.p[4], r2 = P.o.r2 === undefined ? r : P.o.r2; latheFaces(emit, r2 > 0 ? [[0, 0], [r, 0], [r2, h], [0, h]] : [[0, 0], [r, 0], [0, h]], P.o.seg || seg(Math.max(r, r2)), P.o.sq || 1); },
+  lathe(emit, P, seg) { const pr = P.p[3]; latheFaces(emit, pr, P.o.seg || seg(Math.max(...pr.map(q => q[0]))), P.o.sq || 1); },
+  ball(emit, P, seg) {   // (fewer segments than a turned profile: the shading hides the facets, and leaf clumps come by the dozen)
+    const r = P.p[3], sz = P.o.sz || 1, n = P.o.seg || Math.max(8, Math.min(20, Math.round(seg(r) * .6 / 2) * 2)), m = Math.max(3, n >> 1), pts = [];
+    for (let j = 0; j <= m; j++) { const a = -Math.PI / 2 + j / m * Math.PI; pts.push([j && j < m ? Math.cos(a) * r : 0, Math.sin(a) * r * sz]); }
+    latheFaces(emit, pts, n, 1, true, sz);
+  },
+  rock(emit, P) {   // an icosahedron split once, its corners pushed in and out by the seed, faceted
+    const r = P.p[3], sz = P.o.sz || .75, rough = P.o.rough === undefined ? .28 : P.o.rough, rnd = rng(((P.o.seed || 0) + 1) * 7919 + P.part * 131);
+    const { v, f } = icosphere(), k = v.map(() => 1 - rough / 2 + rnd() * rough), at = i => [v[i][0] * r * k[i], v[i][1] * r * k[i], v[i][2] * r * k[i] * sz];
+    for (const [a, b, c] of f) { const A = at(a), B = at(b), C = at(c); flatFace(emit, [A, B, C], nrm3(crs3(sub3(B, A), sub3(C, A)))); }
+  },
+  prism(emit, P) {   // an outline pushed h along z (up from at), y or x (centred on at)
+    const ol = P.p[3], h = P.p[4], ax = P.o.axis || 'z', A = AXIS3[ax] || I3;
+    const to = ax === 'z' ? (a, b, c) => [a, b, c] : ax === 'y' ? (a, b, c) => [a, c - h / 2, b] : (a, b, c) => [c - h / 2, a, b];
+    let area = 0; for (let i = 0; i < ol.length; i++) { const a = ol[i], b = ol[(i + 1) % ol.length]; area += a[0] * b[1] - b[0] * a[1]; }
+    const pts = area < 0 ? ol.slice().reverse() : ol, capT = pts.map(q => to(q[0], q[1], h)), capB = pts.map(q => to(q[0], q[1], 0)), nT = mv3(A, [0, 0, 1]), nB = mv3(A, [0, 0, -1]);
+    for (const tr of earClip(pts)) { flatFace(emit, tr.map(i => capT[i]), nT, capT); flatFace(emit, tr.map(i => capB[i]).reverse(), nB, capB); }
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length], ex = b[0] - a[0], ey = b[1] - a[1], l = Math.hypot(ex, ey) || 1;
+      flatFace(emit, [to(a[0], a[1], 0), to(b[0], b[1], 0), to(b[0], b[1], h), to(a[0], a[1], h)], nrm3(mv3(A, [ey / l, -ex / l, 0])));
+    }
+  }
+};
+
+/* ---- the raster: every face into a depth buffer at game size (whole pixels, nearer wins), shaded afterwards ---- */
+const SHAPE_BANDS = [-.38, .3, .7];   // the light above each picks sh, base, lt (deep below the first)
+let _tri = new Float64Array(28 * 512);   // the triangles of the shape being drawn (grown as needed, reused)
+/** the light's direction for a view: from the viewer's upper left, so a shape's top and left face are lit in every view */
+function shapeLight(view) {
+  const w = view.yaw, p = view.pitch, cw = Math.cos(w), sw = Math.sin(w), cp = Math.cos(p), sp = Math.sin(p);
+  return nrm3([-.45 * cw - .45 * sp * sw + .77 * sw * cp, .45 * sw - .45 * sp * cw + .77 * cw * cp, .45 * cp + .77 * sp]);
+}
+/** draw a shape at game size: { w, h, ox, oy (its origin's pixel), rgba, tris, prims, part (per pixel, -1 empty) } */
+function rasterShape(S, view, o = {}) {
+  const R = resolveShape(S, Object.assign({}, o.params, { mats: o.mats }), o.name), facing = o.facing === undefined ? Math.PI / 2 : o.facing, k = o.scale || 1, a = facing - Math.PI / 2;
+  const F = mm3(rz3(a), dg3(o.flip ? -k : k, k, k)), D = [view.dx, view.dy, view.dz], L = shapeLight(view), vs = Math.hypot(view.ax, view.ay) || 1, pxu = 1 / (vs * k);
+  const faces = [], P9 = new Float64Array(9 * 64); let T = _tri, tn = 0;
+  for (const P of R.prims) {
+    const Mw = mm3(F, P.M), N = invT3(Mw), tw = mv3(F, P.t), sMax = Math.max(Math.hypot(Mw[0], Mw[3], Mw[6]), Math.hypot(Mw[1], Mw[4], Mw[7]));
+    const seg = r => Math.max(6, Math.min(48, Math.round(TAU * r * sMax * vs / 3 / 2) * 2));   // a segment every 3 pixels or so
+    TESS[P.k](f => {
+      const fi = faces.length, smooth = Array.isArray(f.n[0]), nv = Math.min(64, f.v.length);
+      faces.push({ mi: P.mi, part: P.part, W: f.W, H: f.H, lid: !!f.lid, curved: !!f.curved });
+      let fx = 0, fy = 0, fz = 0;
+      if (!smooth) { const q = f.n; fx = N[0] * q[0] + N[1] * q[1] + N[2] * q[2]; fy = N[3] * q[0] + N[4] * q[1] + N[5] * q[2]; fz = N[6] * q[0] + N[7] * q[1] + N[8] * q[2]; const l = Math.sqrt(fx * fx + fy * fy + fz * fz) || 1; fx /= l; fy /= l; fz /= l; }
+      for (let i = 0; i < nv; i++) {
+        const p = f.v[i], wx = Mw[0] * p[0] + Mw[1] * p[1] + Mw[2] * p[2] + tw[0], wy = Mw[3] * p[0] + Mw[4] * p[1] + Mw[5] * p[2] + tw[1], wz = Mw[6] * p[0] + Mw[7] * p[1] + Mw[8] * p[2] + tw[2], o9 = i * 9;
+        P9[o9] = view.ax * wx + view.ay * wy; P9[o9 + 1] = view.bx * wx + view.by * wy + view.bz * wz; P9[o9 + 2] = D[0] * wx + D[1] * wy + D[2] * wz; P9[o9 + 3] = wz;
+        if (smooth) { const q = f.n[i], a1 = N[0] * q[0] + N[1] * q[1] + N[2] * q[2], b1 = N[3] * q[0] + N[4] * q[1] + N[5] * q[2], c1 = N[6] * q[0] + N[7] * q[1] + N[8] * q[2], l = Math.sqrt(a1 * a1 + b1 * b1 + c1 * c1) || 1; P9[o9 + 4] = a1 / l; P9[o9 + 5] = b1 / l; P9[o9 + 6] = c1 / l; }
+        else { P9[o9 + 4] = fx; P9[o9 + 5] = fy; P9[o9 + 6] = fz; }
+        P9[o9 + 7] = f.uv[i][0]; P9[o9 + 8] = f.uv[i][1];
+      }
+      for (let i = 1; i + 1 < nv; i++) {   // a fan: [face (negative: seen from behind, the inside of an open part), A, B, C]
+        if (tn + 28 > T.length) { const T2 = new Float64Array(T.length * 2); T2.set(T); T = _tri = T2; }
+        const back = (P9[4] + P9[i * 9 + 4] + P9[i * 9 + 13]) * D[0] + (P9[5] + P9[i * 9 + 5] + P9[i * 9 + 14]) * D[1] + (P9[6] + P9[i * 9 + 6] + P9[i * 9 + 15]) * D[2] < 0;
+        T[tn] = back ? -1 - fi : fi;
+        for (let j = 0; j < 9; j++) { T[tn + 1 + j] = P9[j]; T[tn + 10 + j] = P9[i * 9 + j]; T[tn + 19 + j] = P9[i * 9 + 9 + j]; }
+        tn += 28;
+      }
+    }, P, seg);
+  }
+  let x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+  for (let i = 0; i < tn; i += 28) for (let j = 1; j < 28; j += 9) { if (T[i + j + 3] < -.01) continue; const qx = T[i + j], qy = T[i + j + 1]; if (qx < x0) x0 = qx; if (qx > x1) x1 = qx; if (qy < y0) y0 = qy; if (qy > y1) y1 = qy; }
+  const ox = 2 - Math.floor(x0), oy = 2 - Math.floor(y0), W = Math.ceil(x1) + ox + 3, H = Math.ceil(y1) + oy + 3, n = W * H;
+  const zb = new Float32Array(n).fill(-Infinity), fid = new Int32Array(n).fill(-1), bk = new Uint8Array(n), Nx = new Float32Array(n), Ny = new Float32Array(n), Nz = new Float32Array(n), U = new Float32Array(n), Vv = new Float32Array(n);
+  let tris = 0;
+  for (let i = 0; i < tn; i += 28) {
+    const fb = T[i], fi = fb < 0 ? -1 - fb : fb, A = i + 1, B = i + 10, C = i + 19, ax = T[A] + ox, ay = T[A + 1] + oy, bx = T[B] + ox, by = T[B + 1] + oy, cx = T[C] + ox, cy = T[C + 1] + oy;
+    const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax); if (area * area < 1e-12) continue;
+    tris++;
+    // the weights of A and B as planes over the screen (C's is 1 - both)
+    const ia = 1 / area, a0 = -(cy - by) * ia, b0 = (cx - bx) * ia, c0 = ((cy - by) * bx - (cx - bx) * by) * ia, a1 = -(ay - cy) * ia, b1 = (ax - cx) * ia, c1 = ((ay - cy) * cx - (ax - cx) * cy) * ia;
+    const za = T[A + 2], zbb = T[B + 2], zc = T[C + 2], ga = T[A + 3], gb = T[B + 3], gc = T[C + 3];
+    const mx = Math.max(0, Math.floor(Math.min(ax, bx, cx))), Mx = Math.min(W - 1, Math.ceil(Math.max(ax, bx, cx))), my = Math.max(0, Math.floor(Math.min(ay, by, cy))), My = Math.min(H - 1, Math.ceil(Math.max(ay, by, cy)));
+    for (let y = my; y <= My; y++) {
+      const qy = y + .5; let l0 = a0 * (mx + .5) + b0 * qy + c0, l1 = a1 * (mx + .5) + b1 * qy + c1;
+      for (let x = mx; x <= Mx; x++, l0 += a0, l1 += a1) {
+        const l2 = 1 - l0 - l1; if (l0 < -1e-7 || l1 < -1e-7 || l2 < -1e-7) continue;
+        const z = l0 * za + l1 * zbb + l2 * zc, j = y * W + x;
+        if (z <= zb[j] + 1e-5 || l0 * ga + l1 * gb + l2 * gc < -.01) continue;   // (nearer wins; below the floor is not drawn)
+        zb[j] = z; fid[j] = fi; bk[j] = fb < 0 ? 1 : 0;
+        Nx[j] = l0 * T[A + 4] + l1 * T[B + 4] + l2 * T[C + 4]; Ny[j] = l0 * T[A + 5] + l1 * T[B + 5] + l2 * T[C + 5]; Nz[j] = l0 * T[A + 6] + l1 * T[B + 6] + l2 * T[C + 6];
+        U[j] = l0 * T[A + 7] + l1 * T[B + 7] + l2 * T[C + 7]; Vv[j] = l0 * T[A + 8] + l1 * T[B + 8] + l2 * T[C + 8];
+      }
+    }
+  }
+  // shade: the light's band, the pattern's step, a step darker on an inside
+  const tone = new Int8Array(n).fill(-1), part = new Int32Array(n).fill(-1), Sx = { u: 0, v: 0, W: 0, H: 0, lid: false, curved: false, lit: 0, px: pxu, part: 0 };
+  for (let j = 0; j < n; j++) {
+    const fi = fid[j]; if (fi < 0) continue;
+    const f = faces[fi], m = R.mats[f.mi];
+    let nx = Nx[j], ny = Ny[j], nz = Nz[j]; const l = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1; nx /= l; ny /= l; nz /= l;
+    let inner = 0; if (bk[j]) { nx = -nx; ny = -ny; nz = -nz; inner = 1; }
+    const lit = nx * L[0] + ny * L[1] + nz * L[2]; Nz[j] = nz; part[j] = f.part;
+    Sx.u = U[j]; Sx.v = Vv[j]; Sx.W = f.W; Sx.H = f.H; Sx.lid = f.lid; Sx.curved = f.curved; Sx.lit = lit; Sx.part = f.part;
+    tone[j] = clamp((m.glow ? 3 : lit > SHAPE_BANDS[2] ? 3 : lit > SHAPE_BANDS[1] ? 2 : lit > SHAPE_BANDS[0] ? 1 : 0) + m.pat(Sx, m.q) - inner, 0, 4);
+  }
+  // creases: a pixel just behind a nearer part darkens a step; lit edges: the top silhouette of a face looking up brightens
+  const out = new Int8Array(tone), near = (j, q) => part[q] >= 0 && part[q] !== part[j] && zb[q] > zb[j] + 1.2;
+  for (let y = 1; y < H - 1; y++) for (let x = 1, j = y * W + 1; x < W - 1; x++, j++) if (part[j] >= 0 && (near(j, j - 1) || near(j, j + 1) || near(j, j - W) || near(j, j + W))) out[j] = Math.max(0, tone[j] - 1);
+  for (let j = W; j < n; j++) if (tone[j] >= 0 && Nz[j] >= .5 && (tone[j - W] < 0 || zb[j - W] < zb[j] - 2.5)) out[j] = Math.min(4, out[j] + 1);
+  const rgba = new Uint8ClampedArray(n * 4);
+  for (let j = 0; j < n; j++) { if (out[j] < 0) continue; const c = R.mats[faces[fid[j]].mi].ramp[out[j]]; rgba[j * 4] = c[0]; rgba[j * 4 + 1] = c[1]; rgba[j * 4 + 2] = c[2]; rgba[j * 4 + 3] = 255; }
+  return { w: W, h: H, ox, oy, rgba, tris, prims: R.prims.length, part };
+}
+/** a raster as a canvas (outline: the actors' 1-px outline round it, for the paths that don't go through r.actor) */
+function rasterCanvas(r, outline) {
+  const W = r.w, H = r.h, cv = mkCanvas(W, H), g = cv.getContext('2d'), img = g.createImageData(W, H), a = img.data; a.set(r.rgba);
+  if (outline) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x; if (r.rgba[i * 4 + 3]) continue;
+    if ((x > 0 && r.rgba[(i - 1) * 4 + 3]) || (x < W - 1 && r.rgba[(i + 1) * 4 + 3]) || (y > 0 && r.rgba[(i - W) * 4 + 3]) || (y < H - 1 && r.rgba[(i + W) * 4 + 3])) { a[i * 4] = 20; a[i * 4 + 1] = 12; a[i * 4 + 2] = 28; a[i * 4 + 3] = 255; }
+  }
+  g.putImageData(img, 0, 0); return cv;
+}
+/** a shape's resolved size in its own frame: the bounds [x0, y0, z0, x1, y1, z1], and its footprint and contact
+ *  polygons for the shadow (ground points of every part, and of the parts that touch the floor) */
+function shapeGeom(S, o = {}) {
+  const key = 'geom|' + JSON.stringify([o.params, o.mats]);
+  const c = S._geom || (S._geom = new Map()); let G = c.get(key); if (G) return G;
+  const R = resolveShape(S, Object.assign({}, o.params, { mats: o.mats })), b = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9], all = [], contact = [];
+  for (const P of R.prims) {
+    const pts = []; TESS[P.k](f => { for (const p of f.v) pts.push(add3(mv3(P.M, p), P.t)); }, P, () => 12);
+    for (const w of pts) { for (let i = 0; i < 3; i++) { b[i] = Math.min(b[i], w[i]); b[i + 3] = Math.max(b[i + 3], w[i]); } all.push([w[0], w[1]]); }
+    const low = pts.filter(w => w[2] < .8 && w[2] > -1e9).map(w => [w[0], w[1]]); if (low.length >= 3) contact.push(hull2(low));
+  }
+  if (b[0] > b[3]) b.fill(0);
+  b[2] = Math.max(0, b[2]);
+  if (c.size > 16) c.clear();
+  c.set(key, G = { bounds: b, foot: S.foot || [b[0], b[1], b[3], b[4]], hull: hull2(all), contact: contact.filter(q => q.length >= 3) }); return G;
+}
+/** the convex hull of 2D points (monotone chain) */
+function hull2(P) {
+  const p = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (p.length < 3) return p;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], hi = [];
+  for (const q of p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (hi.length >= 2 && cr(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
+  return lo.slice(0, -1).concat(hi.slice(0, -1));
+}
+/** a placement's turn: shape frame -> world ground (scale, mirror, facing) */
+const placeXY = (o, px0, py0) => { const k = o.scale || 1, a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return ([x, y]) => { x *= o.flip ? -k : k; y *= k; return [px0 + x * c - y * s, py0 + x * s + y * c]; }; };
+const _rasters = new Map(), RASTER_CAP = 800; let _specN = 0;
+const viewKey = v => v.id + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + v.scale + ':' + v.zBoost;
+/** a shape's raster for a view and placement, cached (facing in 32 steps); null for an unknown shape */
+function shapeRaster(id, view, o = {}) {
+  const S = shapeOf(id); if (!S) return null;
+  const step = ((Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / TAU * 32) % 32) + 32) % 32;
+  const sk = typeof id === 'string' ? id : S._key || (S._key = 'spec' + ++_specN);   // (an entry passed in keeps a key of its own)
+  const key = sk + '|' + viewKey(view) + '|' + step + '|' + (o.scale || 1) + '|' + (o.flip ? 1 : 0) + '|' + (o.mats ? JSON.stringify(o.mats) : '') + '|' + (o.params ? JSON.stringify(o.params) : '') + '|' + (o.outline ? 1 : 0);
+  let r = _rasters.get(key);
+  if (r) { _rasters.delete(key); _rasters.set(key, r); return r; }   // (most recently used last)
+  r = rasterShape(S, view, Object.assign({}, o, { facing: step / 32 * TAU, name: typeof id === 'string' ? id : undefined }));
+  r.cv = rasterCanvas(r, !!o.outline); r.rgba = null; r.part = null;
+  if (_rasters.size >= RASTER_CAP) _rasters.delete(_rasters.keys().next().value);
+  _rasters.set(key, r); return r;
+}
+/**
+ * Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o).
+ * o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material },
+ * flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (default true: x-ray
+ * silhouettes show through it), footprint, light (add its lights to game.lights), shadow (default true), charView (default
+ * true: steep views draw it from the characters' lower angle), flash, alpha, xray }
+ */
+Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
+  const S = shapeOf(id); if (!S) return;
+  const view = this.view, rv = o.charView !== false && view.pitchDeg >= 70 ? charView(view) : view, r = shapeRaster(id, rv, o); if (!r) return;
+  if (!this.visible(x, y, z, r.w + 20, r.oy + 20, r.h - r.oy + 20)) return;
+  const G = shapeGeom(S, o), place = placeXY(o, x, y);
+  if (o.shadow !== false) {   // the footprint, soft, and darker where parts meet the floor
+    const sh = g => { const P = pts => pts.map(q => { const w = place(q); return this.w(w[0], w[1], z); }); if (G.hull.length >= 3) px.polyDither(g, P(G.hull), '#0c0818', .26, this.ix, this.iy); for (const c of G.contact) px.polyDither(g, P(c), '#0c0818', .4, this.ix, this.iy); };
+    if (z > .5) this.queue(x, y, z - .01, g => { if (!g._info) sh(g); }, { bias: -.001, noInfo: true }); else this.decal(g => { if (!g._info) sh(g); });
+  }
+  const fp = o.footprint || (z > .5 ? (() => { const c = [[G.foot[0], G.foot[1]], [G.foot[2], G.foot[1]], [G.foot[2], G.foot[3]], [G.foot[0], G.foot[3]]].map(place); return [Math.min(...c.map(q => q[0])), Math.min(...c.map(q => q[1])), Math.max(...c.map(q => q[0])), Math.max(...c.map(q => q[1]))]; })() : undefined);
+  const draw = (g, ox, oy) => g.drawImage(r.cv, ox - r.ox, oy - r.oy), hides = o.hides !== false;
+  if (r.w <= AS - 8 && r.oy <= AOY - 4 && r.h - r.oy <= AS - AOY - 4 && r.ox <= AOX - 4 && r.w - r.ox <= AS - AOX - 4) this.actor(x, y, z, draw, { rim: false, hides, bias: o.bias, flash: o.flash, alpha: o.alpha, xray: o.xray, margin: r.w });
+  else {   // bigger than an actor's scratch image: drawn straight, its outline baked in
+    const big = shapeRaster(id, rv, Object.assign({}, o, { outline: true }));
+    this.queue(x, y, z, g => { const [sx, sy] = this.w(x, y, z); g.drawImage(big.cv, Math.round(sx) - big.ox, Math.round(sy) - big.oy); }, { bias: o.bias, hides, footprint: fp, solid: true });
+  }
+  if (o.light && S.lights) for (const [lx, ly, lz, c, rad] of S.lights) { const w = place([lx, ly]); this.game.lights.add(w[0], w[1], z + lz * (o.scale || 1), rad || 60, 1, { color: c }); }
+  if (S.flames) for (const [fx, fy, fz, fw, fh] of S.flames) {
+    const w = place([fx, fy]), k = (o.scale || 1) * view.scale, t = this.game.real * 9 + x * .37;
+    this.queue(w[0], w[1], z + fz + .01, g => { const [sx, sy] = this.w(w[0], w[1], z + fz * (o.scale || 1)); px.glow(g, 1); drawFlame(g, sx, sy, fw * k, fh * k, t); }, { emissive: true, bias: (o.bias || 0) + .002 });
+  }
+};
+/**
+ * a shape as a sprite (E.sprite's kind: r.sprite, px.sprite, inventories, HUDs, portraits): E.shapeSprite(id, { view:
+ * 'iso', facing, size (its scale, 1), mats, params, outline: true }). The view is a name or a View; a bag icon is the item's
+ * shape seen at an angle
+ */
+E.shapeSprite = (id, o = {}) => {
+  const v = typeof o.view === 'object' ? o.view : VIEWS_BY_ID(o.view || 'iso'), r = shapeRaster(id, v, { facing: o.facing === undefined ? Math.PI / 2 + .6 : o.facing, scale: o.size || 1, mats: o.mats, params: o.params, outline: o.outline !== false });
+  if (!r) return null;
+  const W = r.w, H = r.h, cv = r.cv, fl = mkCanvas(W, H), fg = ctx2d(fl), d = cv.getContext('2d').getImageData(0, 0, W, H).data, runs = [];
+  fg.save(); fg.scale(-1, 1); fg.drawImage(cv, -W, 0); fg.restore();
+  for (let y = 0; y < H; y++) for (let x = 0; x < W;) { if (!d[(y * W + x) * 4 + 3]) { x++; continue; } let n = 1; while (x + n < W && d[(y * W + x + n) * 4 + 3]) n++; runs.push([x, y, n, 1]); x += n; }
+  return { w: W, h: H, cv, fl, runs, isSprite: true, ox: r.ox, oy: r.oy };
+};
+/** what a shape draws, for tools and tests: E.shapeInfo(id, { view: 'iso', facing, scale, mats, params }) -> { w, h, ox,
+ *  oy, tris, prims (its primitives), parts (each primitive's pixels on screen: 0 is never seen there), colors (distinct),
+ *  pixels, bounds [x0, y0, z0, x1, y1, z1], rgba }; null for an unknown shape */
+E.shapeInfo = (id, o = {}) => {
+  const S = shapeOf(id); if (!S) return null;
+  const v = typeof o.view === 'object' ? o.view : VIEWS_BY_ID(o.view || 'iso'), r = rasterShape(S, v, Object.assign({ name: typeof id === 'string' ? id : undefined }, o)), parts = new Array(r.prims).fill(0), cols = new Set(); let pixels = 0;
+  for (let j = 0; j < r.part.length; j++) if (r.part[j] >= 0) { parts[r.part[j]]++; pixels++; cols.add((r.rgba[j * 4] << 16) | (r.rgba[j * 4 + 1] << 8) | r.rgba[j * 4 + 2]); }
+  return { w: r.w, h: r.h, ox: r.ox, oy: r.oy, tris: r.tris, prims: r.prims, parts, colors: cols.size, pixels, bounds: shapeGeom(S, o).bounds.slice(), rgba: r.rgba };
+};
+const VIEWS_BY_ID = id => E.VIEWS[id] || (warn('view:' + id, 'unknown view "' + id + '": ' + Object.keys(E.VIEWS).join(', ')), E.VIEWS.iso);
+/**
+ * register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries
+ * are named 'SET:id' (so one set never changes another's, or the core's) and find their own set's materials and shapes
+ * first. An id that is already there warns and keeps the first. Returns { shapes: [ids], materials: [ids], sprites: {
+ * id: sprite } } (sprites are E.sprite data; a color may be 'material:tone', tone deep | sh | base | lt | hi)
+ */
+E.addAssets = set => {
+  const name = set && set.set, out = { shapes: [], materials: [], sprites: {} };
+  if (!name) { warn('assets:name', 'E.addAssets(set): a set needs its name (set.set)'); return out; }
+  const local = { set: name, materials: set.materials || {}, shapes: {} };
+  for (const [id, q] of Object.entries(set.materials || {})) { const k = name + ':' + id; if (MATERIALS[k]) { warn('asset:' + k, 'E.addAssets: ' + k + ' is already there (the first is kept)'); continue; } MATERIALS[k] = q; out.materials.push(k); }
+  for (const [id, q] of Object.entries(set.shapes || {})) {
+    const k = name + ':' + id; if (SHAPES[k]) { warn('asset:' + k, 'E.addAssets: ' + k + ' is already there (the first is kept)'); continue; }
+    const e = Object.assign({}, q); Object.defineProperty(e, '_set', { value: local }); local.shapes[id] = e; SHAPES[k] = e; out.shapes.push(k);
+  }
+  const TONE = { deep: 0, sh: 1, base: 2, lt: 3, hi: 4 };
+  for (const [id, q] of Object.entries(set.sprites || {})) {
+    const colors = {};
+    for (const [ch, c] of Object.entries(q.colors || {})) { const [m, t] = String(c).split(':'); if (!t && m[0] === '#') { colors[ch] = m; continue; } const mt = material(m, local.materials, 'sprite color') || material(m.startsWith('#') ? m : '#ff00ff'); colors[ch] = mt.hexes[TONE[t || 'base'] === undefined ? 2 : TONE[t || 'base']]; }
+    out.sprites[name + ':' + id] = sprite(q.rows, colors, q.scale || 1);
+  }
+  return out;
+};
+
+/* ---- collision: a solid shape is a box with a bottom and a top, turned with the shape ---- */
+/** make a shape solid in this map: map.solid(id | entry, x, y, z, o) with r.shape's placement (facing, scale, flip, params)
+ *  -> the solid ({ x, y, z, top, hx, hy, c, s }; map.solids holds them). A body overlapping its span in height is pushed
+ *  out of its footprint; one coming down onto it lands on its top; one wholly below passes under. Register solids before
+ *  the bodies' updates; drawing never sets them */
+TileMap.prototype.solid = function (id, x, y, z = 0, o = {}) {
+  const S = shapeOf(id); if (!S) return null;
+  const G = shapeGeom(S, o), k = o.scale || 1, a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), f = G.foot;
+  // the footprint's middle, turned into place, and its half sizes (mirroring only moves the middle)
+  const mx = (f[0] + f[2]) / 2 * (o.flip ? -k : k), my = (f[1] + f[3]) / 2 * k;
+  const sol = { x: x + mx * c - my * s, y: y + mx * s + my * c, z, top: z + G.bounds[5] * k, hx: (f[2] - f[0]) / 2 * k, hy: (f[3] - f[1]) / 2 * k, c, s, shape: id };
+  (this.solids || (this.solids = [])).push(sol); this.version++;
+  return sol;
+};
+/** where a circle (x, y, r) meets a solid's footprint: the push out [dx, dy] (0, 0 when they don't touch) */
+function solidPush(sol, x, y, r) {
+  const lx = (x - sol.x) * sol.c + (y - sol.y) * sol.s, ly = -(x - sol.x) * sol.s + (y - sol.y) * sol.c;
+  const qx = clamp(lx, -sol.hx, sol.hx), qy = clamp(ly, -sol.hy, sol.hy); let dx = lx - qx, dy = ly - qy, d = Math.hypot(dx, dy);
+  if (d >= r) return null;
+  if (d < 1e-6) { const ex = sol.hx - Math.abs(lx), ey = sol.hy - Math.abs(ly); if (ex < ey) { dx = Math.sign(lx) || 1; dy = 0; d = -ex; } else { dx = 0; dy = Math.sign(ly) || 1; d = -ey; } }
+  else { dx /= d; dy /= d; }
+  const m = r - d; return [(dx * sol.c - dy * sol.s) * m, (dx * sol.s + dy * sol.c) * m];
+}
+const _collide = TileMap.prototype.collide, _groundAt = TileMap.prototype.groundAt, _heightAt = TileMap.prototype.heightAt;
+TileMap.prototype.collide = function (b) {
+  let hit = _collide.call(this, b);
+  if (this.solids && this.solids.length) {
+    const zA = typeof b.z === 'number', z = zA ? b.z : 0, h = b.h || HEIGHTS.eye + 2, step = b.step === undefined ? HEIGHTS.step : b.step;
+    for (const s of this.solids) {
+      if (z >= s.top - step || z + h <= s.z) continue;   // on top of it (or a step below its top), or wholly below it
+      const p = solidPush(s, b.x, b.y, b.r || 0); if (p) { b.x += p[0]; b.y += p[1]; hit = true; }
+    }
+  }
+  return hit;
+};
+TileMap.prototype.groundAt = function (x, y, r = 0, z = 1e9, step = 2) {
+  let g = _groundAt.call(this, x, y, r, z, step);
+  if (this.solids) for (const s of this.solids) if (s.top <= z + step && s.top > g && solidPush(s, x, y, Math.max(.01, r * .6))) g = s.top;
+  return g;
+};
+TileMap.prototype.heightAt = function (x, y) {
+  let h = _heightAt.call(this, x, y);
+  if (this.solids) for (const s of this.solids) if (s.top > h && solidPush(s, x, y, .01)) h = s.top;
+  return h;
+};
+
+/* =============================================================================
+ * 21f. THE CORE LIBRARY  the materials and shapes every game has (docs/ASSETS.md lists them; the store, src/assets/, has
+ *    the rest). Written as the store's entries are: parts in whole or half units, dense arrays. Generators (make) seed
+ *    their noise from their params, never from Math.random, so an entry draws the same pixels everywhere
+ * ============================================================================= */
+const LIB_MATS = {
+  oak: '#8a5a36 planks bw=3', walnut: '#5e3c26 planks bw=2', birch: '#b08050 planks bw=3', crate: '#9a6a3a crate',
+  cobble: '#7a7486 stones size=4', marble: '#c8c0b8 noise', granite: '#6e6a74 speck', sandstone: '#c8a878 bricks bw=8 bh=4', slate: '#4a4e5a tiles size=6',
+  iron: '#5e6274 metal', steel: '#8a92a0 metal', gold: '#d0a038 metal', copper: '#b06a3a metal', bronze: '#9a7a3a metal',
+  clay: '#b0603a glaze', glazed: '#3a6a8a glaze', porcelain: '#e8e4dc glaze',
+  linen: '#d8ccb0 cloth', burlap: '#a88a58 cloth fold=1.4', wool: '#9a2a3a cloth', velvet: '#4a2a6a cloth', leather: '#6a4028 cloth fold=.6',
+  bark: '#6a4a2e bark', needles: '#2f6a4a foliage size=3', shrub: '#4a8a3e foliage size=3', moss: '#5f7a3a foliage size=2', straw: '#c8a850 thatch',
+  sand: '#c8b080 speck', snow: '#e8ecf4 noise', mud: '#5a4632 noise',
+  shingle: '#6a4a4a shingles', bone: '#d8ceb4 noise', ice: '#a8d0e8 glaze', crystal: '#6ad8f0 glaze glow=1', flame: '#ffd070 none glow=1'
+};
+for (const [k, v] of Object.entries(LIB_MATS)) MATERIALS[k] = parseMat(v);
+Object.assign(SHAPES, {
+barrel: { about: 'oak barrel, two iron hoops', tags: 'container wood', mats: { w: 'oak', h: 'iron' },
+  parts: [['lathe','w',[0,0,0],[[0,0],[5,0],[6,3],[6.5,8],[6,13],[5,16],[0,16]]], ['row',2,[0,0,9],['cyl','h',[0,0,7.5],6.5,1.5]]] },
+crate: { about: 'wooden crate, framed and braced', tags: 'container wood', mats: { c: 'crate' }, parts: [['box','c',[0,0,0],[15,15,14]]] },
+chest: { about: 'oak chest, round lid, iron bands', tags: 'container treasure', mats: { w: 'oak', b: 'iron', l: 'gold' },
+  parts: [['box','w',[0,0,0],[16,10,8]], ['prism','w',[0,0,8],[[-5,0],[5,0],[4,3],[0,5],[-4,3]],16,{axis:'x'}], ['mirror','x',['box','b',[5.5,0,0],[1.5,11,8.5]]], ['box','l',[0,5,5],[3,1,3]]] },
+table: { about: 'plank table, four legs', tags: 'furniture tavern', mats: { t: 'oak', l: 'walnut' }, parts: [['box','t',[0,0,10],[24,14,2]], ['mirror','xy',['box','l',[10,5,0],[2,2,10]]]] },
+chair: { about: 'wooden chair', tags: 'furniture tavern', mats: { w: 'oak', l: 'walnut' },
+  parts: [['box','w',[0,0,7],[9,9,1.5]], ['mirror','xy',['box','l',[3.5,3.5,0],[1.5,1.5,7]]], ['mirror','x',['box','l',[3.5,-3.5,8.5],[1.5,1.5,10]]], ['box','w',[0,-3.5,13],[6,1,4]]] },
+stool: { about: 'round three-legged stool', tags: 'furniture tavern', mats: { w: 'oak', l: 'walnut' }, parts: [['cyl','w',[0,0,8],5,1.5], ['ring',3,3,['box','l',[0,0,0],[1.5,1.5,8],{rot:[0,-8,0]}]]] },
+bench: { about: 'plank bench on two trestles', tags: 'furniture tavern', mats: { w: 'oak', l: 'walnut' }, parts: [['box','w',[0,0,7],[26,7,1.5]], ['mirror','x',['wedge','l',[10,0,0],[2,6,7],{rot:90}]]] },
+bed: { about: 'wooden bed, red blanket, head at the back', tags: 'furniture inn', mats: { f: 'oak', s: 'linen', b: 'wool' },
+  parts: [['box','f',[0,0,0],[17,30,5]], ['box','s',[0,-1,5],[15,26,2]], ['box','b',[0,4,6],[16,19,1.5]], ['box','s',[0,-9.5,7],[11,5,2]], ['box','f',[0,-14.5,5],[17,2,9]]] },
+bookcase: { about: 'tall bookcase full of books', tags: 'furniture library', mats: { w: 'walnut', a: '#8a2a2a', b: '#2a4a8a' },
+  parts: [['box','w',[0,-3.5,0],[17,1,30]], ['mirror','x',['box','w',[8,0,0],[1.5,8,30]]], ['row',4,[0,0,9.5],['box','w',[0,0,14],[16,8,1.5]]],
+    ['row',3,[0,0,9.5],['row',3,[5,0,0],['group',[0,0,10.5],0,[['box','a',[-1,0,0],[2,6,7]],['box','b',[1.5,0,0],[2,6,6]]]]]]] },
+shelf: { about: 'low shelf with a jar and a pot', tags: 'furniture shop', mats: { w: 'birch' },
+  parts: [['mirror','x',['box','w',[8,0,0],[1.5,6,16]]], ['row',2,[0,0,7.5],['box','w',[0,0,7],[17,6,1.5]]], ['use','jar',[-4,0,5],{scale:.7}], ['use','pot',[4,0,12.5],{scale:.5}]] },
+pot: { about: 'round glazed clay pot', tags: 'container breakable', mats: { c: 'clay' }, parts: [['lathe','c',[0,0,0],[[0,0],[3,0],[5,3],[5,6],[3.5,9],[4,10],[3,10],[2.5,9],[0,9]]]] },
+jar: { about: 'blue glazed jar, corked', tags: 'container shop', mats: { g: 'glazed', c: '#a87850' }, parts: [['lathe','g',[0,0,0],[[0,0],[2.5,0],[3.5,4],[3,7],[2,8],[2,9],[0,9]]], ['cyl','c',[0,0,9],1.5,1.5]] },
+sack: { about: 'full burlap sack, tied', tags: 'container farm', mats: { b: 'burlap', t: '#6a4a2e' },
+  parts: [['ball','b',[0,0,5],5.5,{sz:.9}], ['lathe','b',[0,0,8.5],[[2.5,0],[1,2.5],[2.5,4.5],[0,5]]], ['cyl','t',[0,0,10.5],1.5,1]] },
+cart: { about: 'hand cart, two wheels, shafts forward', tags: 'vehicle farm', mats: { w: 'birch', d: 'walnut', r: 'iron' },
+  parts: [['box','w',[0,-2,6],[13,18,1.5]], ['mirror','x',['box','w',[6,-2,7.5],[1,18,4]]], ['box','w',[0,-10.5,7.5],[13,1,4]], ['mirror','x',['box','d',[3.5,13,5.5],[1,16,1.5]]], ['mirror','x',['cyl','r',[7,-1,6],6,1.5,{rot:[0,90,0]}]]] },
+well: { about: 'stone well, shingled roof, crank', tags: 'village water', mats: { s: 'stone', w: 'walnut', r: 'shingle', a: 'water' },
+  parts: [['lathe','s',[0,0,0],[[9,0],[9,8],[6.5,8],[6.5,2]]], ['cyl','a',[0,0,0],7,2], ['mirror','x',['box','w',[8,0,8],[1.5,1.5,15]]], ['prism','r',[0,0,22],[[-9,0],[9,0],[0,7]],20,{axis:'x'}], ['box','w',[0,0,18],[16,1,1]]] },
+sign: { about: 'signpost with a blank board', tags: 'village road', mats: { p: 'walnut', b: 'birch' }, parts: [['box','p',[0,0,0],[2,2,22]], ['box','b',[0,1.5,11],[14,1,8]]] },
+lamppost: { about: 'iron street lamp, glowing head', tags: 'town light', mats: { m: 'iron', g: 'flame' }, lights: [[0,0,40,'#ffd070',70]],
+  parts: [['cyl','m',[0,0,0],2.5,3], ['cyl','m',[0,0,3],1,34], ['box','g',[0,0,37],[4,4,5]], ['cyl','m',[0,0,42],3.5,3,{r2:0,seg:4}]] },
+anvil: { about: 'iron anvil on a wooden block', tags: 'forge smithy', mats: { m: 'iron', w: 'walnut' },
+  parts: [['cyl','w',[0,0,0],6,7,{sq:.8}], ['box','m',[0,0,7],[4,3.5,5]], ['prism','m',[0,0,0],[[-7,12],[6,12],[11,14],[6,15.5],[-7,15.5]],5,{axis:'y'}]] },
+fence: { about: 'rail fence, len long (16)', tags: 'village farm', mats: { w: 'oak' }, params: { len: 16 },
+  make: p => [['mirror','x',['box','w',[p.len / 2 - 1,0,0],[2,2,12]]], ['row',2,[0,0,5],['box','w',[0,0,6],[p.len - 2,1,1.5]]]] },
+pine: { about: 'pine of tiers (4), h tall (41)', tags: 'tree forest', mats: { b: 'bark', l: 'needles' }, params: { h: 41, tiers: 4 },
+  make: ({ h, tiers: n }) => [['cyl','b',[0,0,0],h / 18,h / 3], ...[...Array(n)].map((_, i) => {
+    const z = h * (.17 + .6 * i / n), r = h * (.3 - .19 * i / n); return ['lathe','l',[0,0,z],[[0,0],[r * .6,0],[r,h / 25],[0,h * (.35 - .03 * i)]]]; })] },
+tree: { about: 'broadleaf tree: a crown of leaf clumps, h tall (40)', tags: 'tree forest', mats: { b: 'bark', l: 'leaves' }, params: { h: 40, seed: 1 },
+  make: ({ h, seed }) => { const r = rng(seed * 977 + 13), t = h * .62, out = [['cyl','b',[0,0,0],h / 14,t,{r2:h / 25}]];
+    for (let i = 0, n = 9 + Math.floor(r() * 4); i < n; i++) { const a = r() * TAU, d = i && h * (.09 + r() * .16); out.push(['ball','l',[Math.cos(a) * d,Math.sin(a) * d,t + (r() - .3) * h / 4 - d / 3],h * (.14 + r() * .07),{sz:.85}]); }
+    return out; } },
+bush: { about: 'round bush, r wide (7)', tags: 'plant garden', mats: { l: 'shrub' }, params: { r: 7 },
+  make: ({ r }) => [['ball','l',[0,0,r * .55],r * .65,{sz:.85}], ['ring',5,r * .5,['ball','l',[0,0,r * .5],r * .55,{sz:.85}]]] },
+grass: { about: 'tuft of grass, h tall (6)', tags: 'plant nature', mats: { l: 'shrub' }, params: { h: 6, n: 6 },
+  make: ({ h, n }) => [['cyl','l',[0,0,0],.8,h,{r2:0,seg:4}], ['ring',n,1.2,['cyl','l',[0,0,0],.7,h * .8,{r2:0,seg:4,rot:[0,24,0]}]]] },
+rock: { about: 'boulder, half sunk, r across (7.5)', tags: 'nature cave', mats: { s: 'rock' }, params: { r: 7.5, seed: 2 },
+  make: ({ r, seed }) => [['rock','s',[0,0,r / 8],r,{sz:.7,seed}], ['rock','s',[r * .8,r * .4,0],r * .45,{seed:seed + 3}]] },
+crystal: { about: 'cluster of glowing crystals, h tall (18)', tags: 'cave magic', mats: { c: 'crystal' }, params: { h: 18, seed: 1 },
+  make: ({ h, seed }) => { const q = rng(seed * 31 + 5); return [0, 1, 2].map(i => { const k = i ? .45 + q() * .2 : 1, w = h / 7 * (i ? .75 : 1), a = i * 2.2 + q();
+    return ['lathe','c',[Math.cos(a) * (i && h / 5),Math.sin(a) * (i && h / 7),0],[[0,0],[w,0],[w,h * k * .78],[0,h * k]],{seg:6,rot:[0,i ? 28 * (i === 1 ? 1 : -1) : -10,a * 30]}]; }); } }
+});
 
 /* =============================================================================
  * 21. UI  window frames, bars, hearts, dialog boxes and menus (all pixel-drawn,

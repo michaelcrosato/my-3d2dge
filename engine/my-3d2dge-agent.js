@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.34.2: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.35.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -360,6 +360,8 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
           and each step rig.mocap = lib.sample(lib.clip(name), t) (rig.mocapW 0..1 fades it over the rig's own motion;
           rig.mocapMask = 'upper' keeps the rig's own legs)
     docs/MOCAP.md: the format, retargeting, and where every clip came from.
+- Objects and materials as data (full engine): r.shape('barrel', x, y, 0, { facing }) draws a still object from any
+  view; materials dress floors, walls and tiles. docs/ASSETS.md: the format, the library, tools/asset-sheet.mjs.
 - Worked examples: Emberdeep (src/emberdeep/), a whole game on the full engine, one line per part:
   grep -nE "def\(['\"](archetypes|characters|skills)" src/emberdeep/*.js   (28 monster, boss and dummy bodies with
   tags, 3 heroes, 30 skills: Codex's six come from one helper); bodies that are not people: grep -n "^class "
@@ -370,7 +372,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.34.2', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.35.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
