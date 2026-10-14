@@ -158,7 +158,7 @@
         },
         {
           "page": "lab-3d",
-          "title": "3D world lab",
+          "title": "3D Proof",
           "added": "2026-10-08",
           "question": "Can our characters, animation and look live in a real 3D world (three.js r182 and Rapier), with all its art drawn by code, and stay easy for AI agents to work on?",
           "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",
@@ -168,7 +168,7 @@
         },
         {
           "page": "stress-world",
-          "title": "Stress test: 3D world",
+          "title": "3D Prototype",
           "added": "2026-10-09",
           "question": "What does the stress test become built from the ground up as a 3D game (three.js r182, Rapier physics, a hall written as text), sharing only the engine's animation system, and how does it hold up?",
           "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",

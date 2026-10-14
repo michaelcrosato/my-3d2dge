@@ -1,8 +1,8 @@
-# The 3D world labs: our characters in a fully 3D world
+# The 3D Proof and the 3D Prototype: our characters in a fully 3D world
 
-Two temporary, self-contained experiments on the Labs page: the 3D world lab (`/lab-3d`) and, built after it, the
-stress test as a 3D world (`/stress-world`, [below](#the-stress-test-as-a-3d-world-v0130)). The first answers one
-question:
+Two temporary, self-contained experiments on the Labs page: the 3D Proof (`/lab-3d`) and, built after it, the 3D
+Prototype, the stress test as a 3D world (`/stress-world`, [below](#the-3d-prototype-the-stress-test-as-a-3d-world-v0130)).
+Until v0.34.2 they were called the 3D world lab and Stress test: 3D world. The first answers one question:
 
 > Can our character system (rigs, animation, the mocap store, combat poses and their look) live in a real 3D world
 > built with three.js and Rapier, with every piece of art drawn by code or made procedurally, while staying as easy
@@ -12,13 +12,13 @@ It is a test, not a new engine. Nothing in `engine/` or `src/emberdeep/` changes
 the mocap player and Dan's body as they are. When the question is settled, the lab, its vendored libraries and its
 Labs entry are deleted or promoted.
 
-**Since v0.34.0 the stress world's parts are an engine:** `engine/my-3d2dge-3d.js` (the level as text, the physics,
+**Since v0.34.0 the 3D Prototype's parts are an engine:** `engine/my-3d2dge-3d.js` (the level as text, the physics,
 cards and puppets, the cameras, the filters) puts a 3D world under any my-3D2dge game, with its own starter kits
 (`docs/ENGINE-3D.md`, D27). The vendored libraries are the engine's now too; the labs stay as the prototypes it came from.
 
 ## Running and checking it (since v0.9.0)
 
-The lab is at `/lab-3d` (Labs → Temporary → 3D world lab); locally, run
+The lab is at `/lab-3d` (Labs → Temporary → 3D Proof); locally, run
 `node tools/build.mjs`, serve the repository's root (`npx serve`, `python3 -m http.server`) and open
 `examples/lab-3d.html`. `node tools/lab3d-test.mjs` (part of `npm test`) checks it: the vendored files' checksums, the
 rules below, the same state hash on WebGL 2 and WebGPU, a short session of play, and a picture of every camera and look
@@ -179,9 +179,9 @@ every character back to front, each drawn by the engine at the size its distance
 so near and far stay sharp. `node tools/stress-test.mjs` checks the 2D page's cameras: a `?cam=` link, a fixed camera
 staying put, side scrolling, and the depth view (the hero shrinks and grows).
 
-## The stress test as a 3D world (v0.13.0)
+## The 3D Prototype: the stress test as a 3D world (v0.13.0)
 
-`/stress-world` (Labs → Temporary → Stress test: 3D world; locally `examples/stress-world.html`) is the stress test built
+`/stress-world` (Labs → Temporary → 3D Prototype; locally `examples/stress-world.html`) is the stress test built
 again from the ground up as a 3D game. It is not a fair head-to-head and isn't meant to be: it tries to do what the 2D
 stress test does (a torch-lit hall, a crowd that takes turns to attack, waves, a particle storm, the same panel and
 benchmark) the way a 3D game would, and may look and feel different. What it shares with the 2D games is what is
@@ -205,7 +205,7 @@ the pixel font) and the 2D hall's floor texture and layout. Everything else is i
   barrels (0 to 300) are knocked about by swings, bolts and the crowd. Swarming monsters follow a flow field over the
   walkable grid, which knows that stairs and the dais's edge climb gently while a gallery's edge is a wall from below
   and a drop from above: they find their way up the stairs after the hero; slimes hop, wisps fly.
-- **The proof** is the 3D world lab's: `SIM.run(600)` resets and plays a scripted fight (40 mixed monsters, the hero
+- **The proof** works as the 3D Proof's does: `SIM.run(600)` resets and plays a scripted fight (40 mixed monsters, the hero
   walking a square, swinging, dashing, jumping and throwing) and hashes the state. The hash is the same on WebGPU and
   WebGL 2 and when run again: the game reads its controls as input and never the renderer. Its randomness is seeded;
   only particles and the rigs' idle motion use `Math.random` (looks, never read back).

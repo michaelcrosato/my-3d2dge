@@ -248,7 +248,7 @@ function benchReport() {
   const summary = smoothText + playText;
   $('benchSummary').textContent = summary; $('benchStatus').textContent = 'Done.';
   lastReport = [
-    'my-3D2dge stress test, 3D world: ' + rendererDesc(),
+    'my-3D2dge 3D Prototype: ' + rendererDesc(),
     'Result: ' + summary,
     'Settings: ' + camDesc() + ', picture ' + SCR.rw + '×' + SCR.rh + ', ' + (S.torchLights ? S.lights + ' torch lights' + (S.shadows ? ' (2 with shadows)' : '') : 'torch lights off (' + S.lights + ' braziers)') + ', ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior +
       ', ' + S.props + ' props, ' + S.iters + ' solver iterations, launches ' + (S.launch ? 'on' : 'off') + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on') + ', fog ' + (S.fog ? 'on' : 'off') +
