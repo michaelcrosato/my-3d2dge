@@ -61,7 +61,8 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
     ['the API card (API.md)', read('API.md'), 15000, 3.1],   // (D8, D20)
     ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 40000, 3.25],   // (D17, D18, D22, D28)
-    ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 6000, 2.9]   // (D27)
+    ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 6000, 2.9],   // (D27)
+    ['the asset card (docs/ASSETS.md)', read('docs/ASSETS.md'), 4000, 3.1]   // (D30)
   ];
   const line = [];
   for (const [name, text, budget, ratio] of MANUALS) {

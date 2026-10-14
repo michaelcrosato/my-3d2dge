@@ -492,3 +492,16 @@ An entry:
   manual of its own beyond the header.
 - **Answered:** no; made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.35.0
+
+## D30 · 2026-10-14 · The asset card has a budget of 4,000 tokens
+
+- **Principle:** 1 (agent-readable: a manual with a measured budget)
+- **Call:** `docs/ASSETS.md`, the card for objects and materials, is held to 4,000 cl100k tokens by
+  `tools/doctrine-check.mjs`, as the other manuals are (D8, D20, D27, D28); 3,256 when it landed. The other manuals each
+  get one line pointing to it.
+- **Why:** the card is what a model reads whole before writing an object (its recipe says so), so its cost is paid on
+  every object a game makes; the format, the library and the recipe fit in this, and the store's catalogs carry the
+  rest (docs/HANDOFF-ASSETS.md, section 7). What would change it: the Phase 4 authoring test showing models miss something
+  the card left out.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.35.0
