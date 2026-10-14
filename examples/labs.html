@@ -274,6 +274,15 @@ const LABS = {
           "question": "Does E.Shell bring a modern adaptation's interface (Vesper's: 15.2k tokens of HTML, CSS and glue) down to a quarter?",
           "what": "Vesper's title, HUD (objective and distance, status, health, awareness, seals, hold-to-interact prompt, tip, district name, control bar, minimap), toasts, tutorial card, pause, settings, help, district map with a waypoint and results, rebuilt on E.Shell over a small stand-in game: climb to the bell tower, take the ledger, leave by boat. Keyboard, gamepad and touch. The interface is src/vesper-ui.ui.js; the pull request that added it gives the count.",
           "links": [["Three-quarter view", "#threequarter"]]
+        },
+        {
+          "page": "asset-probe",
+          "title": "Asset probe",
+          "added": "2026-10-14",
+          "question": "Do short part lists with named materials draw objects at least as well as our props, in every view?",
+          "what": "24 objects written by hand as a few lines of named parts and materials (a barrel is three turned profiles of oak and iron), 8 converted from Kenney's CC0 3D kits and 6 materials fitted from ambientCG's CC0 texture sets, drawn by a small renderer at game size in every view and turning, beside the hero and our closest flat prop, on a light and a dark Emberdeep floor, with their tokens, parts and raster time. The bar holds the look decisions (light, steep views, colors, size, lit edges, dithering); Room draws them in the engine beside the props they would replace.",
+          "deviates": "its renderer is the lab's own (src/asset-probe.raster.js), not the engine's API: Phase 1 of docs/HANDOFF-ASSETS.md moves it into the engine.",
+          "links": [["Converted models", "?show=converted"], ["Fitted materials", "?show=materials"], ["Room", "?mode=room"], ["True top-down, world light", "?steep=true&light=world"]]
         }
       ]
     }

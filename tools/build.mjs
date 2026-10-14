@@ -60,6 +60,9 @@ const builds = [
   { template: 'src/stress-world.template.html', out: 'examples/stress-world.html', vars: {} },
   // temporary (src/labs.json): Vesper's interface rebuilt on E.Shell, to count its tokens; delete with its labs.json entry
   { template: 'src/vesper-ui.template.html', out: 'examples/vesper-ui.html', vars: {} },
+  // temporary (src/labs.json, docs/HANDOFF-ASSETS.md Phase 0): objects as named parts and materials, in every view beside
+  // our props; delete with its labs.json entry when the Asset Lab lands (Phase 2)
+  { template: 'src/asset-probe.template.html', out: 'examples/asset-probe.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
