@@ -505,3 +505,20 @@ An entry:
   the card left out.
 - **Answered:** no; made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.35.0
+
+## D31 · 2026-10-14 · How shapes look: the asset probe's decisions
+
+- **Principle:** 3 (judged from pictures) and the North Star (the look is the open threshold theme: F2.2, F3.2, F4.2)
+- **Call:** the engine draws shapes the way the asset probe decided (Phase 0 of docs/HANDOFF-ASSETS.md, one commit each in
+  the pull request that added the probe): the light from the viewer's upper left in every view (not fixed in the world);
+  views of pitch 70 and up draw shapes from the characters' lower angle (`E.charView`); lit top edges and creases on,
+  dithering at band edges off. Converted models keep their kit's own colors on the nearest library material's pattern,
+  each kit scaled once so its objects stand beside the hero as the hand-written ones do; hand-written objects are about
+  1.2 times life, as props are drawn bigger than life. Asset data is written densely (`[0,0,8]`): a third fewer tokens.
+- **Why:** the probe's sheets: fixed in the world the light shows iso's camera the shadow side of everything; true
+  top-down, a pine is a dark disc; without edges and creases the parts merge; dithering added noise. Remapped colors
+  drifted dE 8 to 24 from the source, kept ones 0 to 5. The gate's numbers (median 127 tokens, at most 2.5 ms a shape, 8
+  of 8 conversions at IoU .87 or better) are in that pull request. What would change it: the owner on the preview, or the
+  benchmark judge's next look.
+- **Answered:** no; made at once as reversible calls, flagged in the pull requests
+- **Landed in:** v0.35.0 (the probe: Phase 0, unversioned)
