@@ -356,6 +356,7 @@ An entry:
   would change it: an agent reading it whole, or a next raise: then split it by area.
 - **Answered:** no: made without a response, to review (reversible: lower the number)
 - **Landed in:** v0.24.0
+- **Superseded by D28** (v0.34.2): the budget is 40,000, counted exactly.
 
 ## D23 · 2026-10-11 · A boot for every game; errors before play become a report
 
@@ -461,3 +462,18 @@ An entry:
 - **Answered:** the kits, yes (the owner asked for them, 2026-10-12); the dependency, the fallback, the served pages and
   the budget: no, made at once as reversible calls, flagged in the pull request, to review
 - **Landed in:** v0.34.0
+
+## D28 · 2026-10-14 · The API index's budget rises to 40,000, counted exactly
+
+- **Principle:** 1 (agent-readable)
+- **Call:** the index's budget (D17, D18, D22) rises from 37,000 to 40,000 cl100k tokens; 35,697 at the raise. The
+  budgets are counted exactly: `gpt-tokenizer` (MIT, a tool) is a dev dependency beside Playwright and terser, so
+  `doctrine-check` counts cl100k tokens wherever `npm install` ran, and estimates (erring high) only without it. Nothing
+  in the engine or the games depends on it, and the site installs nothing (`vercel.json`).
+- **Why:** the estimate had read the index at 36,748 of 37,000 and the API card at 14,998 of 15,000, which made the
+  asset store plan (`docs/HANDOFF-ASSETS.md`, about 10 new names in its Phase 1) look blocked; counted exactly they were
+  35,697 and 14,543. The owner chose the raise over splitting the index by area (D22's next step), for headroom as the 2D
+  engine keeps growing. About 11% headroom. What would change it: the owner's analysis of 34,000, 37,000 and 40,000 (what
+  each costs an agent and what it buys), planned for after the asset store; an agent seen reading the index whole.
+- **Answered:** yes: the owner chose it (2026-10-14)
+- **Landed in:** v0.34.2
