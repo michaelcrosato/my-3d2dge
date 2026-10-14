@@ -10,6 +10,7 @@ One version number covers the engine, its agent edition, the docs and the games 
 Exact token counts, room in the API index, and clearer names for the 3D labs.
 
 - **Tools**: `tools/doctrine-check.mjs` counts the manuals' tokens exactly: `gpt-tokenizer` is a dev dependency beside Playwright and terser. Its fallback estimate errs high, and had read the API index at 36,748 and the API card at 14,998 tokens, against 35,697 and 14,543. The API index's budget rises from 37,000 to 40,000 (D28).
+- **Tools**: `npm run test:changed` runs every suite when `package.json`'s dependencies change. It only watched a lockfile, which installs here never write, so adding or upgrading a dependency ran only the suites of the other files changed. A bump of the package's own version still counts as unchanged.
 - **Tools**: the Labs page's 3D line has clearer names. The 3D world lab is the **3D Proof**, and Stress test: 3D world is the **3D Prototype**, the game the 3D engine was built from, kept as its record. Their URLs stay.
 - **Docs**: `docs/HANDOFF-ASSETS.md` has the owner's answers and a Phase 3b: after the 2D engine, the 3D engine draws the same shapes, with their materials and colliders, and its kits use them. `docs/LAB-3D.md`, `docs/ENGINE-3D.md`, `README.md` and `DOCTRINE.md` use the new names and budget.
 

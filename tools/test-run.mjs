@@ -35,9 +35,10 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['stress-world', 'node tools/stress-world-test.mjs', ['src/stress-world', 'vendor/', 'vercel.json', 'tools/stress-world-test.mjs']],
   ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'vercel.json', 'API.md', 'tools/kit3d-test.mjs']]
 ];
-// changes that run everything: the engine (every page and suite uses it), the build, the dependencies (the lockfile);
+// changes that run everything: the engine (every page and suite uses it), the build, the dependencies (package.json:
+// installs keep no lockfile, and a bump that changes only its version counts as unchanged; or a lockfile if one comes);
 // not the 3D engine (only the 3D starter and kits load it: kit3d covers it)
-const EVERYTHING = ['engine/', 'tools/build.mjs', 'package-lock.json'], NOT_EVERYTHING = ['engine/my-3d2dge-3d.js'];
+const EVERYTHING = ['engine/', 'tools/build.mjs', 'package.json', 'package-lock.json'], NOT_EVERYTHING = ['engine/my-3d2dge-3d.js'];
 // what is not a source: the build's output, the changelog, test pictures
 const IGNORE = ['examples/', 'dist/', 'check-output/', 'CHANGELOG.md'];
 
@@ -67,6 +68,8 @@ function versionOnly(base, f) {
   const norm = l => l.slice(1).replace(/\d+\.\d+\.\d+/g, 'V'), minus = [], plus = [];
   for (const l of d.split('\n')) {
     if (l.startsWith('---') || l.startsWith('+++')) continue;
+    // (package.json: only its own version line; a dependency's new version is a dependency change)
+    if (f === 'package.json' && /^[-+]/.test(l) && !/^\s*"version":/.test(l.slice(1))) return false;
     if (l.startsWith('-')) minus.push(norm(l)); else if (l.startsWith('+')) plus.push(norm(l));
   }
   return minus.length === plus.length && minus.sort().join('\n') === plus.sort().join('\n');
