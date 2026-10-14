@@ -522,3 +522,19 @@ An entry:
   benchmark judge's next look.
 - **Answered:** no; made at once as reversible calls, flagged in the pull requests
 - **Landed in:** v0.35.0 (the probe: Phase 0, unversioned)
+
+## D32 · 2026-10-14 · The kits carry the shape renderer and the core library: about 18k tokens more
+
+- **Principle:** 1 (agent-readable: a genre kit is the usual choice for chat models, sold as fitting a 200k context)
+- **Call:** the kits embed the full engine minified, so the asset store's Phase 1 grows each one by about 18,000 cl100k
+  tokens: the shape renderer about 10,600, the core library about 3,500, the material registry about 4,100 (part of it
+  the old faces and roofs, moved). The genre kits go from 163k-182k to 181k-200k tokens, the 3D kits from 200k-205k to
+  218k-223k. terser's stronger options save under 100 tokens. README's table had stale estimates (119k-130k for a
+  genre kit); it now gives exact counts.
+- **Why:** the starters, the kits and the template game are to draw their objects from the store (Phase 3 of
+  docs/HANDOFF-ASSETS.md), so the renderer has to be in the engine they embed, and an object then costs a game about a
+  hundred tokens of data instead of 236-480 characters of drawing code per prop. What would change it: the owner wanting
+  kits back under about 180k, by a kit engine without the props' old drawing code once shapes replace it (Phase 3), the
+  API card trimmed, or kits built per genre without the parts their slice never calls.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.35.0
