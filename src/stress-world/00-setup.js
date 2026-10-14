@@ -1,5 +1,5 @@
 /* =============================================================================
- * STRESS TEST, 3D WORLD (temporary lab; docs/LAB-3D.md): the stress test built again from the ground up as a 3D game.
+ * THE 3D PROTOTYPE, once "Stress test: 3D world" (temporary lab; docs/LAB-3D.md): the stress test built again from the ground up as a 3D game.
  * It tries to do the same things (a torch-lit hall, the hero, a crowd of walkers, slimes and wisps that take turns to
  * attack, waves, a particle storm, the panel, the numbers and the benchmark) the way a 3D game would, and is allowed
  * to feel different:
@@ -26,7 +26,7 @@
  *   45-filters  Clean, Comic cel or Pixel on the scene, the characters and objects, or the hall; bloom; FXAA
  *   50-frame    the loop (game steps, then one picture), lights, the resolution, the warm-up
  *   60-panel    the panel, the metrics, presets, the benchmark, window.__sw
- * The rules (tools/stress-world-test.mjs checks them, as for the 3D world lab): WebGPURenderer and node materials
+ * The rules (tools/stress-world-test.mjs checks them, as for the 3D Proof): WebGPURenderer and node materials
  * only, no compute shaders or storage buffers, nothing read back from the GPU into gameplay. Gameplay (20-sim) never
  * reads the renderer: the same inputs give the same state and the same hash on WebGPU, WebGL 2 or no renderer.
  * ============================================================================= */

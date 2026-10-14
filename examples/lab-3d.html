@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>3D world lab · my-3D2dge</title>
+<title>3D Proof · my-3D2dge</title>
 <link rel="icon" href="data:,">
 <!--
   A temporary lab (src/labs.json, "Temporary"; docs/LAB-3D.md): our characters (the hero, a mocap figure,
@@ -93,12 +93,12 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 </head>
 <body>
 <div id="stage">
-  <canvas id="view" role="img" aria-label="3D world lab: a stone room with four pillars, crates, torches, the hero, a mocap figure and Dan, drawn by three.js from the camera you choose"></canvas>
+  <canvas id="view" role="img" aria-label="3D Proof: a stone room with four pillars, crates, torches, the hero, a mocap figure and Dan, drawn by three.js from the camera you choose"></canvas>
   <div id="divider" hidden></div>
   <div class="half" id="halfL" hidden>Card: the engine draws</div>
   <div class="half" id="halfR" hidden>Puppet: 3D parts</div>
   <div class="brand panel">
-    <h1>3D world lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
+    <h1>3D Proof <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
     <p id="brandNote">Our characters in a real 3D room: three.js r182 and Rapier, every piece of art drawn by code.</p>
     <div class="tags"><span class="tag" id="backendTag">Starting…</span><span class="tag" id="camTag">Isometric</span><span class="tag hot" id="playTag" hidden>You play</span></div>
   </div>
@@ -140,7 +140,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.34.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.34.2  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -218,7 +218,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.34.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.34.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -19432,7 +19432,7 @@ return Object.assign(DanRig, { COL: DAN_COL });   // (its colors, for the 3D lab
 <script type="module">
 /* ---- inlined from src/lab3d (00-setup.js, 10-materials.js, 20-world.js, 30-physics.js, 40-characters.js, 50-cameras.js, 60-panel.js) ---- */
 /* =============================================================================
- * LAB 3D (temporary lab; docs/LAB-3D.md): our characters in a fully 3D world.
+ * THE 3D PROOF, once "3D world lab" (temporary lab; docs/LAB-3D.md): our characters in a fully 3D world.
  * three.js r182 (WebGPURenderer: WebGPU, falling back to WebGL 2 by itself) and Rapier 0.19.3 (SIMD), vendored in
  * vendor/ and loaded through the import map in src/lab3d.template.html. The engine (window.My3D2dge), the mocap
  * player (Mocap, window.MOCAP) and Dan's body (window.DanRig) are classic scripts inlined above this module,

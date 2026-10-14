@@ -1,6 +1,6 @@
 {
   "name": "my-3d2dge",
-  "version": "0.34.1",
+  "version": "0.34.2",
   "description": "my-3D2dge (My \"3D\" 2D Game Engine): a general-purpose retro-modern 2D game engine built for AI models. Port, remaster, reimagine and remix 8-bit to 64-bit era games in every classic view, from one self-contained HTML file.",
   "type": "module",
   "license": "MIT",
@@ -48,6 +48,7 @@
     "showcase:codex": "node tools/ed-codex-showcase.mjs"
   },
   "devDependencies": {
+    "gpt-tokenizer": "^4.0.0",
     "playwright": "^1.56.0",
     "terser": "^5.51.2"
   }

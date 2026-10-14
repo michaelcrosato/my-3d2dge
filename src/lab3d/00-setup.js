@@ -1,5 +1,5 @@
 /* =============================================================================
- * LAB 3D (temporary lab; docs/LAB-3D.md): our characters in a fully 3D world.
+ * THE 3D PROOF, once "3D world lab" (temporary lab; docs/LAB-3D.md): our characters in a fully 3D world.
  * three.js r182 (WebGPURenderer: WebGPU, falling back to WebGL 2 by itself) and Rapier 0.19.3 (SIMD), vendored in
  * vendor/ and loaded through the import map in src/lab3d.template.html. The engine (window.My3D2dge), the mocap
  * player (Mocap, window.MOCAP) and Dan's body (window.DanRig) are classic scripts inlined above this module,

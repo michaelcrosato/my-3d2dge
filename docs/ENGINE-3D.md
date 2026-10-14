@@ -32,7 +32,7 @@ screen, sound. The 3D engine adds `E.World3D` (and `E.THREE`, `E.TSL`, `E.RAPIER
   knockback is momentum. Each step the game sets what it wants (a ground velocity, a jump, its rig's move) and
   `world.step` moves it and poses its rig from the 2D engine's rigs and moves (`E.Humanoid`, `E.Blob`, `E.Attack`,
   `E.Combo`, `E.MOVES`).
-- **Characters** are drawn as the stress world drew them: cards (the 2D engine draws each rig from the camera's own turn
+- **Characters** are drawn as the 3D Prototype drew them: cards (the 2D engine draws each rig from the camera's own turn
   and tilt onto a card in an atlas) or puppets (3D parts on the same joints, in instanced batches with outlines).
 - **Things**: pickups and set dressing drawn by code from four shapes with a pen (`world.thing('coin', ...)`, chests,
   doors, flags, springs, trees...), and a registry a game adds kinds to.
@@ -41,7 +41,7 @@ screen, sound. The 3D engine adds `E.World3D` (and `E.THREE`, `E.TSL`, `E.RAPIER
   turn the camera; not while a session is recorded, whose record has no pointer lock). Its
   pose is worked out in the fixed steps, so the controls that read it replay the same.
 - **The picture**: torches that light the nearest action (one casting shadows), a sun with shadows, a sky, fog,
-  the game's particles in 3D, ground arcs (telegraphs), glows, weapon trails, and the stress world's filters (Comic cel,
+  the game's particles in 3D, ground arcs (telegraphs), glows, weapon trails, and the 3D Prototype's filters (Comic cel,
   Pixel, bloom, FXAA); the player picks cards or puppets, the resolution, shadows and the filter in the pause menu
   (`E.World3D.SETTINGS`). Every shader is built in a warm-up frame behind the boot screen, so none stalls the game.
 - **The proof**: `world.hash()` after a scripted run is the same on WebGPU, WebGL 2 and run again: the game never reads
@@ -83,8 +83,9 @@ to its budget; `tools/version.mjs` keeps its version line with the rest.
 - **Rapier's character controller follows a moving floor on some steps and not others.** `world.step` carries a hero on
   a moving platform by the platform's own step, unless the controller has already added it that step.
 - **Point lights' shadows are expensive**: each renders the scene six times. A world makes one torch shadow by default
-  (`torchShadows`), the stress world two; a sun's shadow is one pass.
+  (`torchShadows`), the 3D Prototype two; a sun's shadow is one pass.
 - **An `InstancedMesh` of more than 1,000 instances** never uses `DynamicDrawUsage` (three r182 drops its updates); with
   1,000 or fewer each such mesh's shader is its own, so the card atlas pages keep room for 1,001.
-- The stress world (`/stress-world`) stays a Temporary lab: the engine was built from its parts, and the lab keeps its
-  own copy (its panel, benchmark and hall) until it is settled.
+- The 3D Prototype (`/stress-world`, once Stress test: 3D world) stays on the Labs page as the record of what the
+  engine was built from, with its own copy of the panel, benchmark and hall. New 3D work goes into the engine and its kits
+  (the owner's call, 2026-10-14).

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Stress test, 3D world · my-3D2dge</title>
+<title>3D Prototype · my-3D2dge</title>
 <link rel="icon" href="data:,">
 <!--
   A temporary lab (src/labs.json, "Temporary"; docs/LAB-3D.md): the stress test built again from the ground up as a 3D
@@ -120,7 +120,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 
   <aside id="panel" class="panel" aria-label="Stress test controls">
     <header>
-      <h1>Stress test: 3D world <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
+      <h1>3D Prototype <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a></h1>
       <button type="button" id="hidePanel">Hide <kbd>H</kbd></button>
     </header>
     <p class="lede">The stress test built from the ground up as a 3D game: Rapier physics, a hall made of code, the engine's animation system on every character. It tries to do what the <a href="stress-test.html" id="to2d">2D stress test</a> does, its own way.</p>
@@ -332,7 +332,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.34.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.34.2  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -410,7 +410,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.34.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.34.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -7995,7 +7995,7 @@ root.My3D2dge = E;
 <script type="module">
 /* ---- inlined from src/stress-world (00-setup.js, 10-hall.js, 20-sim.js, 30-crowd.js, 35-effects.js, 40-cameras.js, 45-filters.js, 50-frame.js, 60-panel.js) ---- */
 /* =============================================================================
- * STRESS TEST, 3D WORLD (temporary lab; docs/LAB-3D.md): the stress test built again from the ground up as a 3D game.
+ * THE 3D PROTOTYPE, once "Stress test: 3D world" (temporary lab; docs/LAB-3D.md): the stress test built again from the ground up as a 3D game.
  * It tries to do the same things (a torch-lit hall, the hero, a crowd of walkers, slimes and wisps that take turns to
  * attack, waves, a particle storm, the panel, the numbers and the benchmark) the way a 3D game would, and is allowed
  * to feel different:
@@ -8022,7 +8022,7 @@ root.My3D2dge = E;
  *   45-filters  Clean, Comic cel or Pixel on the scene, the characters and objects, or the hall; bloom; FXAA
  *   50-frame    the loop (game steps, then one picture), lights, the resolution, the warm-up
  *   60-panel    the panel, the metrics, presets, the benchmark, window.__sw
- * The rules (tools/stress-world-test.mjs checks them, as for the 3D world lab): WebGPURenderer and node materials
+ * The rules (tools/stress-world-test.mjs checks them, as for the 3D Proof): WebGPURenderer and node materials
  * only, no compute shaders or storage buffers, nothing read back from the GPU into gameplay. Gameplay (20-sim) never
  * reads the renderer: the same inputs give the same state and the same hash on WebGPU, WebGL 2 or no renderer.
  * ============================================================================= */
@@ -10540,7 +10540,7 @@ function benchReport() {
   const summary = smoothText + playText;
   $('benchSummary').textContent = summary; $('benchStatus').textContent = 'Done.';
   lastReport = [
-    'my-3D2dge stress test, 3D world: ' + rendererDesc(),
+    'my-3D2dge 3D Prototype: ' + rendererDesc(),
     'Result: ' + summary,
     'Settings: ' + camDesc() + ', picture ' + SCR.rw + '×' + SCR.rh + ', ' + (S.torchLights ? S.lights + ' torch lights' + (S.shadows ? ' (2 with shadows)' : '') : 'torch lights off (' + S.lights + ' braziers)') + ', ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior +
       ', ' + S.props + ' props, ' + S.iters + ' solver iterations, launches ' + (S.launch ? 'on' : 'off') + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on') + ', fog ' + (S.fog ? 'on' : 'off') +
