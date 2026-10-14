@@ -7012,9 +7012,9 @@ pine: { about: 'pine of tiers (4), h tall (41)', tags: 'tree forest', mats: { b:
   make: ({ h, tiers: n }) => [['cyl','b',[0,0,0],h / 18,h / 3], ...[...Array(n)].map((_, i) => {
     const z = h * (.17 + .6 * i / n), r = h * (.3 - .19 * i / n); return ['lathe','l',[0,0,z],[[0,0],[r * .6,0],[r,h / 25],[0,h * (.35 - .03 * i)]]]; })] },
 tree: { about: 'broadleaf tree: a crown of leaf clumps, h tall (40)', tags: 'tree forest', mats: { b: 'bark', l: 'leaves' }, params: { h: 40, seed: 1 },
-  make: ({ h, seed }) => { const r = rng(seed * 977 + 13), t = h * .62, out = [['cyl','b',[0,0,0],h / 14,t,{r2:h / 25}]];
-    for (let i = 0, n = 9 + Math.floor(r() * 4); i < n; i++) { const a = r() * TAU, d = i && h * (.09 + r() * .16); out.push(['ball','l',[Math.cos(a) * d,Math.sin(a) * d,t + (r() - .3) * h / 4 - d / 3],h * (.14 + r() * .07),{sz:.85}]); }
-    return out; } },
+  make: ({ h, seed }) => { const r = rng(seed * 977 + 13), t = h * .62, out = [['cyl','b',[0,0,0],h / 14,t,{r2:h / 25}], ['ball','l',[0,0,t + h * .16],h * .2,{sz:.85}]];
+    for (let i = 0, n = 7 + Math.floor(r() * 3); i < n; i++) { const a = i * 2.4 + r() * .6, d = h * (.16 + r() * .08); out.push(['ball','l',[Math.cos(a) * d,Math.sin(a) * d,t + (r() - .4) * h / 4],h * (.13 + r() * .05),{sz:.85}]); }
+    return out; } },   // (a crown round a raised middle: every clump shows from some side)
 bush: { about: 'round bush, r wide (7)', tags: 'plant garden', mats: { l: 'shrub' }, params: { r: 7 },
   make: ({ r }) => [['ball','l',[0,0,r * .55],r * .65,{sz:.85}], ['ring',5,r * .5,['ball','l',[0,0,r * .5],r * .55,{sz:.85}]]] },
 grass: { about: 'tuft of grass, h tall (6)', tags: 'plant nature', mats: { l: 'shrub' }, params: { h: 6, n: 6 },
