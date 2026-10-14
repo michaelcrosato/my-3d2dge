@@ -137,7 +137,10 @@ if (want('pacing')) {
   });
   await page.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-stealth.html')).href + '#stealth');
   await page.waitForFunction(() => window.__game && window.__game.game && window.__game.game.sceneName === 'stealth');
-  // the scene's frame made to cost ms (busy), then measured over 2 s: the refresh read, every how many refreshes, the gaps
+  // the scene's frame made to cost ms (busy, or nothing: light), then measured over 2 s: the refresh read, every how many
+  // refreshes, the gaps. Light first, as a phone's title would be: the engine reads the refresh from frames that fit one, and
+  // the scene's own may not on a slow machine (8 to 16 ms on a 4-core cloud box), where busy frames from the start read
+  // 60 Hz but for timers that happen to fire early (a 10 ms frame from the first refresh is checked on 4c's virtual clock)
   const run = (ms, pace) => ev(page, ([ms, pace]) => new Promise(res => {
     const g = window.__game.game, d0 = g.__d0 || (g.__d0 = g.scene.draw); g.o.pace = pace;
     g.scene.draw = ms ? r => { const t = performance.now() + ms; while (performance.now() < t); } : () => {};
@@ -145,6 +148,7 @@ if (want('pacing')) {
     g._frame = () => { const now = performance.now(); if (last) gaps.push(now - last); last = now; f0(); };
     setTimeout(() => { const s = gaps.slice(gaps.length >> 1), even = s.filter(x => x > 12 && x < 21).length / s.length; res({ hz: g.hz, every: g.drawEvery, even: Math.round(even * 100) }); }, 2000);
   }), [ms, pace]);
+  await run(0, undefined);
   const heavy = await run(10, undefined), off = await run(10, false);
   check('pacing: the screen reads 120 Hz', heavy.hz >= 110 && heavy.hz <= 130, `${heavy.hz} Hz`);
   check('pacing: a 10 ms frame is drawn every other refresh, evenly (16.7 ms apart)', heavy.every === 2 && heavy.even >= 80, `every ${heavy.every}, ${heavy.even}% of gaps 16.7 ms`);
