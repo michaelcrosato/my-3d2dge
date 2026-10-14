@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.34.1 (2026-10-14)
+
+The phone suite's 120 Hz check, steady on a slow machine.
+
+- **Tools**: `tools/phone-test.mjs`'s 120 Hz screen (real timers) shows the engine light frames for 2 s before the 10 ms ones, as a phone's title would. On a 4-core cloud box the stealth scene's own frames take 8 to 16 ms, so the engine had only seen refreshes missed: it read 120 Hz just when the fake screen's timers fired early, and `npm test` failed about one run in five (60 Hz, every refresh). A 10 ms frame from the first refresh stays checked on the virtual clock.
+
 ## 0.34.0 (2026-10-12)
 
 A 3D engine from the stress test's 3D world, and 3D starter kits on it.
