@@ -640,8 +640,8 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 13b. Materials
 
-- `E.MATERIALS: brick, stone, rock, plank, timber, plaster, hedge, speckle, plain, tiles, slab, leaves, grass, flagstone, ... (59)` †: the materials by id: { color, pattern, ...its numbers, ramp, glow } or a painter of a surface (face, roof, floor, tile); add your own: E.MATERIALS.oak = { color: '#8a5a36', pattern: 'planks', bw: 3 }. Any material id takes '#hex pattern key=value' too
-- `E.PATTERNS` †: the patterns, by name: (s, m) => a tone step (-1 .. +2) at a point s of a surface, for a material m's numbers. Add your own: E.PATTERNS.waves = (s, m) => Math.sin(s.u / (m.size || 3)) > .8 ? 1 : 0
+- `E.MATERIALS: brick, stone, rock, plank, timber, plaster, hedge, speckle, plain, tiles, slab, leaves, grass, flagstone, ... (59)`: the materials by id: { color, pattern, ...its numbers, ramp, glow } or a painter of a surface (face, roof, floor, tile); add your own: E.MATERIALS.oak = { color: '#8a5a36', pattern: 'planks', bw: 3 }. Any material id takes '#hex pattern key=value' too
+- `E.PATTERNS`: the patterns, by name: (s, m) => a tone step (-1 .. +2) at a point s of a surface, for a material m's numbers. Add your own: E.PATTERNS.waves = (s, m) => Math.sin(s.u / (m.size || 3)) > .8 ? 1 : 0
 - `E.PATTERNS.bark(s)` †: bark: fissures running up a trunk; a cut end shows its rings
 - `E.PATTERNS.bricks(s, m)` †: bricks: running bond, bw x bh (6 x 3), mortar a step darker (mortar: its step)
 - `E.PATTERNS.cloth(s, m)` †: cloth: a fine weave and soft folds (fold .9)
@@ -657,7 +657,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.PATTERNS.stones(s, m)` †: stones: irregular stones (Voronoi cells about size across, 5) with dark joints and a lit rim
 - `E.PATTERNS.thatch(s, m)` †: thatch: straw in overlapping courses (course 3)
 - `E.PATTERNS.tiles(s, m)` †: tiles: square tiles size (4) with grout
-- `E.material(id, local, kind = 'material')` †: a material ready to draw: { q (its entry), ramp (five [r, g, b], dark to light), hexes (the same as '#rrggbb'), pat (its pattern), glow }. id: an id (looked up in local first, a set's own, then E.MATERIALS), a shorthand string or an entry; kind names the surface, for the warning when the id is unknown (then null)
+- `E.material(id, local, kind = 'material')`: a material ready to draw: { q (its entry), ramp (five [r, g, b], dark to light), hexes (the same as '#rrggbb'), pat (its pattern), glow }. id: an id (looked up in local first, a set's own, then E.MATERIALS), a shorthand string or an entry; kind names the surface, for the warning when the id is unknown (then null)
 
 ## 14. Flow field
 
@@ -922,11 +922,11 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `backdrop.o` †: the options it was made from
 - `backdrop.sky` †: the sky's gradient colors, top to bottom
 - `E.PROPS: 38 entries` †: the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts)
-- `E.SHAPES: barrel, crate, chest, table, chair, stool, bench, bed, bookcase, shelf, pot, jar, sack, cart, ... (25)` †: the shapes by id: { about, tags, mats: { slot: material }, parts | make(params), params, foot, lights, flames } (the core library's, the sets' as 'SET:id' from E.addAssets, and your own: E.SHAPES.stool = {...})
-- `E.addAssets(set)` †: register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries are named 'SET:id' (so one set never changes another's, or the core's) and find their own set's materials and shapes first. An id that is already there warns and keeps the first. Returns { shapes: [ids], materials: [ids], sprites: { id: sprite } } (sprites are E.sprite data; a color may be 'material:tone', tone deep | sh | base | lt | hi)
+- `E.SHAPES: barrel, crate, chest, table, chair, stool, bench, bed, bookcase, shelf, pot, jar, sack, cart, ... (25)`: the shapes by id: { about, tags, mats: { slot: material }, parts | make(params), params, foot, lights, flames } (the core library's, the sets' as 'SET:id' from E.addAssets, and your own: E.SHAPES.stool = {...})
+- `E.addAssets(set)`: register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries are named 'SET:id' (so one set never changes another's, or the core's) and find their own set's materials and shapes first. An id that is already there warns and keeps the first. Returns { shapes: [ids], materials: [ids], sprites: { id: sprite } } (sprites are E.sprite data; a color may be 'material:tone', tone deep | sh | base | lt | hi)
 - `E.prop(name, o = {})`: build (and cache) a prop: { frames: [sprite], glow: [sprite] | null, w, h }
-- `E.shapeInfo(id, o = {})` †: what a shape draws, for tools and tests: E.shapeInfo(id, { view: 'iso', facing, scale, mats, params }) -> { w, h, ox, oy, tris, prims (its primitives), parts (each primitive's pixels on screen: 0 is never seen there), colors (distinct), pixels, bounds [x0, y0, z0, x1, y1, z1], rgba }; null for an unknown shape
-- `E.shapeSprite(id, o = {})` †: a shape as a sprite (E.sprite's kind: r.sprite, px.sprite, inventories, HUDs, portraits): E.shapeSprite(id, { view: 'iso', facing, size (its scale, 1), mats, params, outline: true }). The view is a name or a View; a bag icon is the item's shape seen at an angle
+- `E.shapeInfo(id, o = {})`: what a shape draws, for tools and tests: E.shapeInfo(id, { view: 'iso', facing, scale, mats, params }) -> { w, h, ox, oy, tris, prims (its primitives), parts (each primitive's pixels on screen: 0 is never seen there), colors (distinct), pixels, bounds [x0, y0, z0, x1, y1, z1], rgba }; null for an unknown shape
+- `E.shapeSprite(id, o = {})`: a shape as a sprite (E.sprite's kind: r.sprite, px.sprite, inventories, HUDs, portraits): E.shapeSprite(id, { view: 'iso', facing, size (its scale, 1), mats, params, outline: true }). The view is a name or a View; a bag icon is the item's shape seen at an angle
 
 ## 21. Ui
 

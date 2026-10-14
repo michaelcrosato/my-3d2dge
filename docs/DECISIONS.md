@@ -477,3 +477,18 @@ An entry:
   each costs an agent and what it buys), planned for after the asset store; an agent seen reading the index whole.
 - **Answered:** yes: the owner chose it (2026-10-14)
 - **Landed in:** v0.34.2
+
+## D29 · 2026-10-14 · Shapes and materials are the full engine's; the agent edition keeps stubs
+
+- **Principle:** 1 (agent-readable: the agent edition's header is the whole manual, 10,000 tokens) and 8 (the agent
+  edition's API is a strict subset of the full engine's)
+- **Call:** the shape renderer, `r.shape`, `map.solid`, `E.shapeSprite`, `E.shapeInfo`, `E.addAssets` and the material
+  painters live in `engine/my-3d2dge.js` only. The agent edition has the registries (`E.SHAPES`, `E.MATERIALS`,
+  `E.PATTERNS`, empty objects a game may fill) and calls that warn once and return null, as `r.prop` does; its header
+  gets one line pointing to `docs/ASSETS.md`.
+- **Why:** the renderer and the core library are about 30 KB of source, and the agent edition's header had 271 tokens
+  left; a game written for the full engine still runs on the agent edition, without its objects (docs/HANDOFF-ASSETS.md,
+  section 10). What would change it: games built on the agent edition asking for objects, or the agent edition taking a
+  manual of its own beyond the header.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.35.0

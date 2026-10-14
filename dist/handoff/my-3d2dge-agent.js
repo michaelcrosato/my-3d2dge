@@ -3532,6 +3532,10 @@ const fullOnly = name => function () { warn('full:' + name, name + ' is only in 
 px.glow = () => {};
 E.prop = fullOnly('E.prop');
 Renderer.prototype.prop = fullOnly('r.prop');
+// shapes and materials (docs/ASSETS.md): the registries are here (entries a game adds are kept), nothing draws them
+Object.assign(E, { SHAPES: {}, MATERIALS: {}, PATTERNS: {}, shapeSprite: fullOnly('E.shapeSprite'), shapeInfo: fullOnly('E.shapeInfo'), addAssets: fullOnly('E.addAssets'), material: fullOnly('E.material') });
+Renderer.prototype.shape = fullOnly('r.shape');
+TileMap.prototype.solid = fullOnly('map.solid');
 Renderer.prototype.sightCone = fullOnly('r.sightCone');
 for (const k of ['Mover', 'Action', 'Suspicion']) E[k] = class { constructor() { throw new Error('E.' + k + ' is only in the full engine (dist/my-3d2dge.js), with the rest of the third-person kit'); } };
 E.Shell = class { constructor(game) { fullOnly('E.Shell')(); this.game = game; this.root = null; } get settings() { return this.game.settings; } get screen() { return null; } show() { return this; } back() { return this; } hide() { return this; } toast() { return this; } tutorial() { return this; } hud() { return this; } dispose() {} };
