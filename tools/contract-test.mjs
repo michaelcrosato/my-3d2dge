@@ -448,17 +448,17 @@ const SHELL = () => {
 // the use block in draw (its shape, its solid and its sprite); what is drawn with and without it, and every warning
 const CARD = ([use, surf, entry, worked]) => {
   const E = My3D2dge, out = { warns: [] }, warn = console.warn; console.warn = (...a) => { out.warns.push(a.join(' ')); warn(...a); };
-  const rows = ['#####', '#.~.#', '#...#', '#####'], legend = { '#': 1, '~': { floor: 'water' } };
+  const rows = ['#####', '#.~..', '#....', '#....'], legend = { '#': 1, '~': { floor: 'water' } };
   const { map, level } = new Function('E', 'rows', 'legend', surf + '\nreturn { map, level };')(E, rows, legend);
   new Function('E', entry)(E);
   const cards = new Function('return {' + worked + '}')(); for (const k in cards) E.SHAPES['card-' + k] = cards[k];
   const game = new E.Game({ canvas: 'screen', res: 'snes', view: 'iso', loop: false }), mode = {}, made = new Function('E', 'r', 'map', 'x', 'y', use + '\nreturn icon;');
-  const lit = () => { const c = game.screen.buf, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2]) n++; return n; };
+  let last = null; const lit = () => { const c = game.screen.buf, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (last && (d[i] !== last[i] || d[i + 1] !== last[i + 1] || d[i + 2] !== last[i + 2])) n++; last = d; return n; };   // (pixels changed since the last frame)
   game.start({ update() {}, draw(r) { r.sky(['#000', '#000']); map.drawFloor(r); map.queueWalls(r); if (mode.use) out.icon = made(E, r, map, 40, 30); } });
   game.follow({ x: 40, y: 32, z: 0 });
-  game.advance(1 / 120, { draw: true }); out.floor = lit();
+  game.advance(1 / 120, { draw: true }); lit(); game.advance(1 / 120, { draw: true }); out.still = lit();
   mode.use = true; game.advance(1 / 120, { draw: true }); out.withUse = lit();
-  out.solids = (map.solids || []).length; out.icon = !!(out.icon && out.icon.width);
+  out.solids = (map.solids || []).length; out.icon = !!(out.icon && out.icon.w);
   out.stool = !!E.SHAPES.stool; out.cards = Object.keys(cards);
   if (E.shapeInfo && E.SHAPES.barrel) { out.drawn = ['stool', ...out.cards.map(k => 'card-' + k)].filter(id => (E.shapeInfo(id, { view: E.VIEWS.iso }) || {}).pixels > 20); }
   out.level = !!(level && level.w); out.mossy = !!E.MATERIALS.mossy;
@@ -520,8 +520,8 @@ for (const [ed, file] of EDITIONS) {
   check(`${ed}: docs/ASSETS.md has its four examples (use, surfaces, an entry, worked entries)`, CODE.length === 4 && K.cards.length >= 6, CODE.length + ' blocks, ' + K.cards.length + ' worked entries');
   check(`${ed}: docs/ASSETS.md's examples keep what they add (E.SHAPES, E.MATERIALS) and build their maps`, K.stool && K.mossy && K.level, JSON.stringify(K));
   if (ed === 'full') {
-    check(`${ed}: docs/ASSETS.md's examples draw without a warning: the shape, the solid, the sprite, the stool and every worked entry`, !K.warns.length && K.withUse > K.floor + 40 && K.solids >= 1 && K.icon && K.drawn.length === K.cards.length + 1, K.warns.join(' | ') + ' ' + JSON.stringify(K));
-  } else check(`${ed}: docs/ASSETS.md's examples draw nothing and say so (r.shape, map.solid, E.shapeSprite are the full engine's)`, K.withUse === K.floor && !K.solids && !K.icon && ['r.shape', 'map.solid', 'E.shapeSprite'].every(n => K.warns.some(w => w.includes(n))), K.warns.join(' | ') + ' ' + JSON.stringify(K));
+    check(`${ed}: docs/ASSETS.md's examples draw without a warning: the shape, the solid, the sprite, the stool and every worked entry`, !K.warns.length && !K.still && K.withUse > 120 && K.solids >= 1 && K.icon && K.drawn.length === K.cards.length + 1, K.warns.join(' | ') + ' ' + JSON.stringify(K));
+  } else check(`${ed}: docs/ASSETS.md's examples draw nothing and say so (r.shape, map.solid, E.shapeSprite are the full engine's)`, !K.still && !K.withUse && !K.solids && !K.icon && ['r.shape', 'map.solid', 'E.shapeSprite'].every(n => K.warns.some(w => w.includes(n))), K.warns.join(' | ') + ' ' + JSON.stringify(K));
   // the complete games among the examples (API.md's quick start): they start, take a start press and play, without errors
   for (const x of EXAMPLES.filter(x => /^\(\(\) => \{/.test(x.code.trim()))) {
     const page = await browser.newPage(), errors = [];

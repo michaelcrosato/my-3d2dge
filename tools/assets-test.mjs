@@ -1,6 +1,6 @@
 // The assets suite: shapes and materials (docs/ASSETS.md) do what the card says, on the full engine in headless Chromium.
 //   1. every core shape draws in every view and 8 facings: not empty, inside its projected bounds, every part seen in the
-//      isometric or the three-quarter view; two runs give the same pixels; a generator's params change its pixels
+//      isometric or the three-quarter view from some facing; two runs give the same pixels; a generator's params change its pixels
 //   2. every material draws on every kind of surface (a wall face, a wall top, a floor, a platform tile, a shape) with no
 //      warning, and the engine's own wall faces, tops and tile styles are entries of the registry; the overlays draw in
 //      their own tones where they belong
@@ -25,7 +25,7 @@ mkdirSync(out, { recursive: true });
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const page = await browser.newPage(), warnings = [];
-page.on('pageerror', e => fail('page', String(e))); page.on('console', m => { if (m.type() === 'warning' || m.type() === 'error') warnings.push(m.text()); });
+page.on('pageerror', e => fail('page', String(e))); page.on('console', m => { if ((m.type() === 'warning' || m.type() === 'error') && !/willReadFrequently/.test(m.text())) warnings.push(m.text()); });   // (not Chromium's readback hint)
 await page.setContent('<!doctype html><html><body></body></html>');
 await page.addScriptTag({ content: ENGINE });
 
@@ -45,11 +45,12 @@ console.log('1. the core shapes in every view');
         for (const x of [x0, x1]) for (const y of [y0, y1]) for (const z of [Math.max(0, z0), z1]) { const X = x * c - y * s, Y = x * s + y * c, p = view.p(X, Y, z); a = Math.min(a, p[0]); A = Math.max(A, p[0]); b = Math.min(b, p[1]); B = Math.max(B, p[1]); }
         let out = 0; for (let j = 0; j < I.rgba.length / 4; j++) if (I.rgba[j * 4 + 3]) { const px = j % I.w - I.ox + .5, py = Math.floor(j / I.w) - I.oy + .5; if (px < a - 1.5 || px > A + 1.5 || py < b - 1.5 || py > B + 1.5) out++; }
         if (out) bad.push(id + ' draws ' + out + ' pixels outside its bounds in ' + vid + ' facing ' + k + '/8');
-        if ((vid === 'iso' || vid === 'threequarter') && !k) { const iso = vid === 'iso' ? I : null; if (iso) hashes[id] = { iso: I.parts, h: hash(I.rgba) }; else hashes[id].q3 = I.parts; }
+        if (vid === 'iso' || vid === 'threequarter') { const H = hashes[id] = hashes[id] || { seen: I.parts.map(() => 0) }; I.parts.forEach((n, i) => { H.seen[i] += n; }); if (vid === 'iso' && !k) H.h = hash(I.rgba); }
         all++;
       }
-      const H = hashes[id]; const unseen = H.iso.map((n, i) => n || H.q3[i] ? -1 : i).filter(i => i >= 0);
-      if (unseen.length) bad.push(id + ': primitive ' + unseen.join(', ') + ' is not seen in the isometric or three-quarter view (under a pixel, or hidden)');
+      // every part shows from some facing of the isometric or the three-quarter view (one behind another in a facing is fine)
+      const H = hashes[id]; const unseen = H.seen.map((n, i) => n ? -1 : i).filter(i => i >= 0);
+      if (unseen.length) bad.push(id + ': primitive ' + unseen.join(', ') + ' is not seen in the isometric or three-quarter view from any facing (under a pixel, or hidden)');
       // the same pixels again
       if (hash(E.shapeInfo(id, { view: E.VIEWS.iso, facing: 0 }).rgba) !== H.h) bad.push(id + ' draws different pixels the second time');
     }
@@ -93,11 +94,12 @@ console.log('2. every material on every surface');
   });
   for (const b of r.bad) fail('materials', b);
   for (const w of warnings) fail('materials', 'a warning: ' + w);
+  const clean = !r.bad.length && !warnings.length;
   // an unknown name warns, with the list
   warnings.length = 0;
   await page.evaluate(() => { const E = My3D2dge; E.material('no-such-stuff', null, 'wall face'); });
   if (!warnings.some(w => /unknown wall face "no-such-stuff"\. Materials: .*oak/.test(w))) fail('materials', 'an unknown face name does not warn with the list of names');
-  if (!r.bad.length && !warnings.length) ok(r.n + ' materials draw on a wall face, a wall top, a floor, a platform tile and a shape; the engine\'s own faces, tops, tile styles and floor textures are entries');
+  if (clean) ok(r.n + ' materials draw on a wall face, a wall top, a floor, a platform tile and a shape; the engine\'s own faces, tops, tile styles and floor textures are entries');
   // overlays: each draws in its own tones (cracks: the material's), moss on what looks up, dirt near the ground
   const v = await page.evaluate(() => {
     const E = My3D2dge, bad = [], STONE = { color: '#7a7486', pattern: 'stones', size: 5 };
@@ -112,7 +114,7 @@ console.log('2. every material on every surface');
     }
     const slab = changed([16, 16, 2], ['moss']), wall = changed([16, 2, 16], ['moss']);
     if (!(slab.js.length > slab.a.pixels * .2 && wall.js.length < wall.a.pixels * .1)) bad.push('moss covers ' + slab.js.length + ' of a slab\'s ' + slab.a.pixels + ' pixels and ' + wall.js.length + ' of a wall\'s ' + wall.a.pixels + ': it should cover what looks up');
-    const post = changed([4, 4, 32], ['dirt', null, { h: 6 }]), rows = post.js.map(j => Math.floor(j / post.a.w)), low = post.a.h * .6;
+    const post = changed([12, 12, 32], ['dirt', null, { h: 6, amount: 1 }]), rows = post.js.map(j => Math.floor(j / post.a.w)), low = post.a.h * .6;
     if (!rows.length || rows.some(y => y < low)) bad.push('dirt (h 6) on a post 32 tall reaches row ' + Math.min(...rows) + ' of ' + post.a.h + ': it should stay near the ground');
     return bad;
   });

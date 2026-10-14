@@ -31,7 +31,7 @@ let tok = s => Math.ceil(s.length / 3.2); try { const { encode } = await import(
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const page = await browser.newPage(), problems = [];
-page.on('pageerror', e => problems.push(String(e))); page.on('console', m => { if (m.type() === 'warning' || m.type() === 'error') problems.push(m.text()); });
+page.on('pageerror', e => problems.push(String(e))); page.on('console', m => { if ((m.type() === 'warning' || m.type() === 'error') && !/willReadFrequently/.test(m.text())) problems.push(m.text()); });   // (not Chromium's readback hint)
 await page.setContent('<!doctype html><html><body></body></html>');
 await page.addScriptTag({ content: readFileSync(join(root, 'engine/my-3d2dge.js'), 'utf8') });
 const before = await page.evaluate(() => Object.keys(My3D2dge.SHAPES));
@@ -52,8 +52,8 @@ const report = [];
 for (const id of ids) {
   const res = await page.evaluate(([id, zoom]) => {
     const E = My3D2dge, S = E.SHAPES[id], FACE = Math.PI / 2 + .45;
-    const VIEWS = [['Isometric', E.VIEWS.iso, FACE], ['Three-quarter', E.VIEWS.threequarter, FACE], ['Top-down', E.charView(E.VIEWS.topdown), FACE], ['Brawler', E.VIEWS.brawler, FACE], ['Side', E.VIEWS.side, FACE],
-      ['Turned 90°', E.VIEWS.iso, FACE + Math.PI / 2], ['Turned 180°', E.VIEWS.iso, FACE + Math.PI], ['Turned 270°', E.VIEWS.iso, FACE + Math.PI * 1.5]];
+    const VIEWS = [['Isometric', E.VIEWS.iso, FACE], ['3/4 view', E.VIEWS.threequarter, FACE], ['Top-down', E.charView(E.VIEWS.topdown), FACE], ['Brawler', E.VIEWS.brawler, FACE], ['Side', E.VIEWS.side, FACE],
+      ['Iso +90', E.VIEWS.iso, FACE + Math.PI / 2], ['Iso +180', E.VIEWS.iso, FACE + Math.PI], ['Iso +270', E.VIEWS.iso, FACE + Math.PI * 1.5]];
     const info = VIEWS.map(([, v, f]) => E.shapeInfo(id, { view: v, facing: f }));
     const FLOORS = { light: ['#8c8472', '#958b76', '#3e3a32'], dark: ['#3a3234', '#433a3b', '#1a1416'] };
     const hero = new E.Humanoid({ cape: { len: 6, width: 5, seg: 2.5 }, colors: { cloth: '#2f8f86', cape: '#c8452f' } }); for (let i = 0; i < 30; i++) hero.update(1 / 60, { x: 0, y: 0, z: 0, vx: 0, vy: 0, facing: .6 });
