@@ -8427,7 +8427,7 @@ const E = My3D2dge, AP = window.AssetProbe, $ = id => document.getElementById(id
 const CONV = AP.CONVERTED || {}, KIT = { 'kenney-survival': 3.5, 'kenney-graveyard': 2, 'kenney-furniture': 2 };   // each kit's prop scale (the converter's)
 const HAND = Object.keys(AP.SHAPES), CONVERTED = Object.keys(CONV), FITTED = AP.FITTED || [];
 // the look decisions (docs/HANDOFF-ASSETS.md section 6, Phase 0, step 5), not yet made: the renderer plain; the bar changes them live
-const S = { light: 'view', steep: 'tilt', colors: 'library', size: 'kit', edges: false, dither: false, zoom: 2, show: 'all', mode: 'sheets', view: 'iso', floor: 'light' };
+const S = { light: 'view', steep: 'tilt', colors: 'own', size: 'kit', edges: false, dither: false, zoom: 2, show: 'all', mode: 'sheets', view: 'iso', floor: 'light' };
 const q = new URLSearchParams(location.search); for (const k of Object.keys(S)) if (q.has(k)) { const v = q.get(k); S[k] = v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v; }
 const FLOORS = {
   light: { name: 'Ruins (light)', pal: { stones: ['#8c8472', '#958b76', '#827a6a'], mortar: '#3e3a32', hi: '#a39a84', lo: '#6f685a', speck: '#5f7a3a' } },
