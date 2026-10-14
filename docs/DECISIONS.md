@@ -477,3 +477,64 @@ An entry:
   each costs an agent and what it buys), planned for after the asset store; an agent seen reading the index whole.
 - **Answered:** yes: the owner chose it (2026-10-14)
 - **Landed in:** v0.34.2
+
+## D29 · 2026-10-14 · Shapes and materials are the full engine's; the agent edition keeps stubs
+
+- **Principle:** 1 (agent-readable: the agent edition's header is the whole manual, 10,000 tokens) and 8 (the agent
+  edition's API is a strict subset of the full engine's)
+- **Call:** the shape renderer, `r.shape`, `map.solid`, `E.shapeSprite`, `E.shapeInfo`, `E.addAssets` and the material
+  painters live in `engine/my-3d2dge.js` only. The agent edition has the registries (`E.SHAPES`, `E.MATERIALS`,
+  `E.PATTERNS`, empty objects a game may fill) and calls that warn once and return null, as `r.prop` does; its header
+  gets one line pointing to `docs/ASSETS.md`.
+- **Why:** the renderer and the core library are about 30 KB of source, and the agent edition's header had 271 tokens
+  left; a game written for the full engine still runs on the agent edition, without its objects (docs/HANDOFF-ASSETS.md,
+  section 10). What would change it: games built on the agent edition asking for objects, or the agent edition taking a
+  manual of its own beyond the header.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.35.0
+
+## D30 · 2026-10-14 · The asset card has a budget of 4,000 tokens
+
+- **Principle:** 1 (agent-readable: a manual with a measured budget)
+- **Call:** `docs/ASSETS.md`, the card for objects and materials, is held to 4,000 cl100k tokens by
+  `tools/doctrine-check.mjs`, as the other manuals are (D8, D20, D27, D28); 3,256 when it landed. The other manuals each
+  get one line pointing to it.
+- **Why:** the card is what a model reads whole before writing an object (its recipe says so), so its cost is paid on
+  every object a game makes; the format, the library and the recipe fit in this, and the store's catalogs carry the
+  rest (docs/HANDOFF-ASSETS.md, section 7). What would change it: the Phase 4 authoring test showing models miss something
+  the card left out.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.35.0
+
+## D31 · 2026-10-14 · How shapes look: the asset probe's decisions
+
+- **Principle:** 3 (judged from pictures) and the North Star (the look is the open threshold theme: F2.2, F3.2, F4.2)
+- **Call:** the engine draws shapes the way the asset probe decided (Phase 0 of docs/HANDOFF-ASSETS.md, one commit each in
+  the pull request that added the probe): the light from the viewer's upper left in every view (not fixed in the world);
+  views of pitch 70 and up draw shapes from the characters' lower angle (`E.charView`); lit top edges and creases on,
+  dithering at band edges off. Converted models keep their kit's own colors on the nearest library material's pattern,
+  each kit scaled once so its objects stand beside the hero as the hand-written ones do; hand-written objects are about
+  1.2 times life, as props are drawn bigger than life. Asset data is written densely (`[0,0,8]`): a third fewer tokens.
+- **Why:** the probe's sheets: fixed in the world the light shows iso's camera the shadow side of everything; true
+  top-down, a pine is a dark disc; without edges and creases the parts merge; dithering added noise. Remapped colors
+  drifted dE 8 to 24 from the source, kept ones 0 to 5. The gate's numbers (median 127 tokens, at most 2.5 ms a shape, 8
+  of 8 conversions at IoU .87 or better) are in that pull request. What would change it: the owner on the preview, or the
+  benchmark judge's next look.
+- **Answered:** no; made at once as reversible calls, flagged in the pull requests
+- **Landed in:** v0.35.0 (the probe: Phase 0, unversioned)
+
+## D32 · 2026-10-14 · The kits carry the shape renderer and the core library: about 18k tokens more
+
+- **Principle:** 1 (agent-readable: a genre kit is the usual choice for chat models, sold as fitting a 200k context)
+- **Call:** the kits embed the full engine minified, so the asset store's Phase 1 grows each one by about 18,000 cl100k
+  tokens: the shape renderer about 10,600, the core library about 3,500, the material registry about 4,100 (part of it
+  the old faces and roofs, moved). The genre kits go from 163k-182k to 181k-200k tokens, the 3D kits from 200k-205k to
+  218k-223k. terser's stronger options save under 100 tokens. README's table had stale estimates (119k-130k for a
+  genre kit); it now gives exact counts.
+- **Why:** the starters, the kits and the template game are to draw their objects from the store (Phase 3 of
+  docs/HANDOFF-ASSETS.md), so the renderer has to be in the engine they embed, and an object then costs a game about a
+  hundred tokens of data instead of 236-480 characters of drawing code per prop. What would change it: the owner wanting
+  kits back under about 180k, by a kit engine without the props' old drawing code once shapes replace it (Phase 3), the
+  API card trimmed, or kits built per genre without the parts their slice never calls.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.35.0

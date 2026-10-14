@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.34.2: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.35.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -360,6 +360,8 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
           and each step rig.mocap = lib.sample(lib.clip(name), t) (rig.mocapW 0..1 fades it over the rig's own motion;
           rig.mocapMask = 'upper' keeps the rig's own legs)
     docs/MOCAP.md: the format, retargeting, and where every clip came from.
+- Objects and materials as data (full engine): r.shape('barrel', x, y, 0, { facing }) draws a still object from any
+  view; materials dress floors, walls and tiles. docs/ASSETS.md: the format, the library, tools/asset-sheet.mjs.
 - Worked examples: Emberdeep (src/emberdeep/), a whole game on the full engine, one line per part:
   grep -nE "def\(['\"](archetypes|characters|skills)" src/emberdeep/*.js   (28 monster, boss and dummy bodies with
   tags, 3 heroes, 30 skills: Codex's six come from one helper); bodies that are not people: grep -n "^class "
@@ -370,7 +372,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.34.2', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.35.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -3530,6 +3532,10 @@ const fullOnly = name => function () { warn('full:' + name, name + ' is only in 
 px.glow = () => {};
 E.prop = fullOnly('E.prop');
 Renderer.prototype.prop = fullOnly('r.prop');
+// shapes and materials (docs/ASSETS.md): the registries are here (entries a game adds are kept), nothing draws them
+Object.assign(E, { SHAPES: {}, MATERIALS: {}, PATTERNS: {}, shapeSprite: fullOnly('E.shapeSprite'), shapeInfo: fullOnly('E.shapeInfo'), addAssets: fullOnly('E.addAssets'), material: fullOnly('E.material') });
+Renderer.prototype.shape = fullOnly('r.shape');
+TileMap.prototype.solid = fullOnly('map.solid');
 Renderer.prototype.sightCone = fullOnly('r.sightCone');
 for (const k of ['Mover', 'Action', 'Suspicion']) E[k] = class { constructor() { throw new Error('E.' + k + ' is only in the full engine (dist/my-3d2dge.js), with the rest of the third-person kit'); } };
 E.Shell = class { constructor(game) { fullOnly('E.Shell')(); this.game = game; this.root = null; } get settings() { return this.game.settings; } get screen() { return null; } show() { return this; } back() { return this; } hide() { return this; } toast() { return this; } tutorial() { return this; } hud() { return this; } dispose() {} };
