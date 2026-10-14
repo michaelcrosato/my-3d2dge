@@ -1,0 +1,5 @@
+{
+  "$sources": {
+    "kenney-food": {"label":"Kenney Food Kit","origin":"Kenney (kenney.nl), food-kit","license":"CC0 1.0","url":"https://kenney.nl/media/pages/assets/food-kit/83086fa91c-1719418518/kenney_food-kit.zip","page":"https://kenney.nl/assets/food-kit","fetched":"2026-10-14","sha256":"cdad90853682499b94c9fda2f87678b24bfd8f3264e0ed323f6b6a27fd7c6f6f","licenseHash":"32a081c2035dd4db","dir":"food-kit"}
+  }
+}

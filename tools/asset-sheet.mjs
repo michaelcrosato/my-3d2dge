@@ -6,6 +6,10 @@
 //                                                         finds MINE:stool)
 //   node tools/asset-sheet.mjs mine.js                    every shape the file adds
 //   [--out check-output/asset-sheet] [--zoom 3] [--json]  (--json prints the numbers and lints as JSON)
+//   node tools/asset-sheet.mjs src/assets/sets/kenney-furniture.js --grid
+//                                                         contact sheets of a whole set, 30 to a page, for curating it:
+//                                                         each entry in the isometric and three-quarter views (a sprite
+//                                                         as it is), with its id, tokens and fit
 // Each sheet (a PNG per shape): every view (isometric, three-quarter, top-down as games draw it, brawler, side) and three
 // more facings, beside the hero, on a light and a dark floor, the contact shadow under it. The lints:
 //   small from above   under 30 pixels seen from the top-down view
@@ -48,6 +52,32 @@ const ids = await page.evaluate(([before, want]) => {
 if (!ids.length) { console.error((want ? 'no shape "' + want + '"' : 'no shapes') + (file ? ' in ' + file : ' in the core library')); await browser.close(); process.exit(1); }
 
 mkdirSync(out, { recursive: true });
+// --grid: contact sheets of every shape and sprite the file adds, 30 to a page
+if (args.includes('--grid')) {
+  const sprites = await page.evaluate(() => Object.values(window.ASSETS || {}).flatMap(S => Object.keys(S.sprites || {}).map(k => S.set + ':' + k)));
+  const all = ids.concat(want ? [] : sprites), name = basename(file || 'core', '.js'), PER = 30;
+  for (let p0 = 0; p0 < all.length; p0 += PER) {
+    const png = await page.evaluate(([list, srcText]) => {
+      const E = My3D2dge, sets = Object.values(window.ASSETS || {}), entry = id => { const [sn, k] = id.split(':'); const S = sets.find(x => x.set === sn); return S ? (S.shapes || {})[k] || (S.sprites || {})[k] : E.SHAPES[id]; };
+      const CW = 300, CH = 168, COLS = 5, cv = document.createElement('canvas'); cv.width = CW * COLS; cv.height = CH * Math.ceil(list.length / COLS) + 4;
+      const g = cv.getContext('2d'); g.fillStyle = '#2a2632'; g.fillRect(0, 0, cv.width, cv.height); g.imageSmoothingEnabled = false;
+      const reg = E.addAssets ? null : null, sprites = {}; for (const S of sets) Object.assign(sprites, E.addAssets(Object.assign({}, S, { set: S.set + '~g', shapes: {}, materials: S.materials })).sprites);
+      list.forEach((id, i) => {
+        const x = (i % COLS) * CW, y = Math.floor(i / COLS) * CH, e = entry(id) || {};
+        g.fillStyle = i % 2 ? '#5b5548' : '#625c4e'; g.fillRect(x + 2, y + 2, CW - 4, CH - 4);
+        const draw = (sp, cx, cy, maxW, maxH) => { if (!sp) return; const k = Math.max(1, Math.min(4, Math.floor(Math.min(maxW / sp.w, maxH / sp.h)))); g.drawImage(sp.cv, Math.round(cx - sp.w * k / 2), Math.round(cy - sp.h * k / 2), sp.w * k, sp.h * k); };
+        if (e.rows) { const k = id.replace(':', '~g:'); const sp = sprites[k]; if (sp) { const c = sp.cv || sp.canvas || sp; const w = c.width, h = c.height, z = Math.max(1, Math.floor(Math.min(130 / w, 120 / h))); g.drawImage(c, x + CW / 2 - w * z / 2, y + 12 + 60 - h * z / 2, w * z, h * z); } }
+        else { draw(E.shapeSprite(id, { view: 'iso' }), x + CW * .27, y + 72, CW * .5, 120); draw(E.shapeSprite(id, { view: 'threequarter' }), x + CW * .75, y + 72, CW * .45, 120); }
+        g.fillStyle = '#f4ead2'; g.font = '13px monospace'; g.fillText(id.split(':').pop().slice(0, 34), x + 8, y + CH - 24);
+        g.fillStyle = '#c8bca0'; g.font = '11px monospace'; const f = e.fit; g.fillText((f && f.iou !== undefined ? 'IoU ' + f.iou + ' (worst ' + f.worst + ')  ' : '') + (e.parts ? e.parts.length + ' parts' : e.rows ? e.rows[0].length + 'x' + e.rows.length : ''), x + 8, y + CH - 9);
+      });
+      return cv.toDataURL('image/png');
+    }, [all.slice(p0, p0 + PER), null]);
+    const f = join(out, name + '-grid-' + (p0 / PER + 1) + '.png'); writeFileSync(f, Buffer.from(png.split(',')[1], 'base64')); console.log(f);
+  }
+  if (problems.length) console.log('engine warnings and page errors:\n  ' + [...new Set(problems)].join('\n  '));
+  await browser.close(); process.exit(problems.length ? 1 : 0);
+}
 const report = [];
 for (const id of ids) {
   const res = await page.evaluate(([id, zoom]) => {

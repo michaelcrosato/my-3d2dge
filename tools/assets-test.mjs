@@ -11,9 +11,13 @@
 //      first, and its sprites take 'material:tone' colors
 //   5. validation: a broken entry warns, naming the entry and the field
 //   6. size: each core entry within 300 tokens, the median within 150; the core library within 12 KB of source
+//   7. the store (src/assets/): every download CC0 (or the public-domain mark) with its record; every entry's src, orig and
+//      fit; every entry in its set's catalog and ledger; shapes at a mean IoU of .8, no view under .6; sprites exact against
+//      their source images (where the download is in .cache); a set cut by asset-set equal to the entries it was cut from;
+//      every set loads (E.addAssets) and every shape in it draws
 // Usage: node tools/assets-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -219,6 +223,67 @@ console.log('6. the library\'s size');
   if (lib.length > 12 * 1024) fail('size', 'the core library is ' + (lib.length / 1024).toFixed(1) + ' KB of source (over 12)');
   if (!big.length && med <= 150 && lib.length <= 12 * 1024) ok(sizes.length + ' core shapes, median ' + med + ' tokens, largest ' + Math.max(...sizes.map(s => s[1])) + '; the core library ' + (lib.length / 1024).toFixed(1) + ' KB');
   writeFileSync(join(out, 'sizes.json'), JSON.stringify(Object.fromEntries(sizes), null, 1));
+}
+
+/* 7. the store: provenance, licenses, catalogs, ledgers, fit, sprites exact, cut sets equal to their sources */
+console.log('7. the store (src/assets/)');
+{
+  const { readSet, readCatalog, readLedger, LICENSES, cacheDir, decodePNG } = await import('./asset-lib.mjs');
+  const dir = join(root, 'src/assets/sets'), files = existsSync(dir) ? readdirSync(dir).filter(f => f.endsWith('.js')).sort() : [], sets = files.map(f => [f, readSet(join(dir, f))]);
+  const bySrc = new Map(), counts = { shapes: 0, materials: 0, sprites: 0 }, fits = [];
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // the sets the importer wrote are the ones with a catalog of their own name; the others are cut from them (asset-set)
+  const imported = sets.filter(([, S]) => existsSync(join(root, 'src/assets/catalogs', S.set + '.json')));
+  for (const [f, S] of imported) for (const kind of ['shapes', 'materials', 'sprites']) for (const [id, e] of Object.entries(S[kind] || {})) if (e && e.src) bySrc.set(e.src + '|' + kind + '|' + id, e);
+  for (const [f, S] of sets) {
+    const where = 'src/assets/sets/' + f;
+    if (S.format !== 1 || !S.set || !S.credit) fail('store', where + ': a set needs set, format: 1 and credit');
+    if (f !== S.set + '.js') fail('store', where + ': the file is named after its set (' + S.set + '.js)');
+    for (const [k, r] of Object.entries(S.sources || {})) {
+      if (!LICENSES.includes(r.license)) fail('store', where + ': the download ' + k + ' is licensed ' + r.license + ' (the store takes ' + LICENSES.join(' or ') + ')');
+      for (const field of ['label', 'origin', 'url', 'fetched', 'licenseHash']) if (!r[field]) fail('store', where + ': the download ' + k + ' has no ' + field);
+      if (!r.sha256 && !r.commit) fail('store', where + ': the download ' + k + ' has neither a sha256 nor a commit');
+    }
+    const cut = !imported.some(([g]) => g === f), cat = cut ? null : readCatalog(S.set);
+    for (const kind of ['shapes', 'materials', 'sprites']) for (const [id, e] of Object.entries(S[kind] || {})) {
+      if (typeof e === 'string') continue;   // (a kit's material: a hex on a core pattern, no provenance of its own)
+      counts[kind]++;
+      if (!e.src || !S.sources[e.src]) { fail('store', where + ' ' + id + ': its src ' + e.src + ' is not one of the set\'s downloads'); continue; }
+      if (!e.orig) fail('store', where + ' ' + id + ': no orig (the file in its download)');
+      if (e.fit === undefined) fail('store', where + ' ' + id + ': no fit');
+      if (kind === 'shapes' && e.fit) { fits.push(e.fit.iou); if (e.fit.worst < .6) fail('store', where + ' ' + id + ': a view fits at ' + e.fit.worst + ' (under .6)'); }
+      if (cat && !Array.isArray(cat[id])) fail('store', where + ' ' + id + ': not in its catalog (src/assets/catalogs/' + S.set + '.json: "' + id + '": ["tags", "what it looks like"])');
+      if (cut) { const o = bySrc.get(e.src + '|' + kind + '|' + id); if (!o) fail('store', where + ' ' + id + ': cut from no set the importer wrote'); else if (!same(o, e)) fail('store', where + ' ' + id + ': differs from the entry it was cut from'); }
+    }
+    if (cat) {
+      for (const id of Object.keys(cat)) if (id[0] !== '$' && !(S.shapes || {})[id] && !(S.materials || {})[id] && !(S.sprites || {})[id]) fail('store', 'src/assets/catalogs/' + S.set + '.json describes ' + id + ', which is not in the set (or in $skip)');
+      // the ledger: every download on record has rows, every row names a download, the rows the set uses are its entries
+      const L = readLedger(S.set), srcs = Object.keys(cat.$sources || {});
+      if (!L.length) fail('store', S.set + ': no ledger (src/assets/catalogs/' + S.set + '.tsv)');
+      for (const k of srcs) if (!L.some(r => r.src === k)) fail('store', S.set + ': the download ' + k + ' has no rows in its ledger');
+      for (const r of L) if (!srcs.includes(r.src)) fail('store', S.set + ': a ledger row names ' + r.src + ', which is not on record');
+      const usedRows = L.filter(r => r.used === '1').length, n = ['shapes', 'materials', 'sprites'].reduce((t, k) => t + Object.values(S[k] || {}).filter(e => typeof e !== 'string').length, 0);
+      if (usedRows !== n) fail('store', S.set + ': its ledger marks ' + usedRows + ' files used, the set has ' + n + ' entries');
+      for (const k of Object.keys(cat.$skip || {})) if (!cat.$skip[k]) fail('store', S.set + ': $skip ' + k + ' gives no reason');
+      // sprites are exact: each one drawn from its rows matches its source image, where the download is in .cache
+      for (const [id, e] of Object.entries(S.sprites || {})) {
+        const file = join(cacheDir(S.set.split('-')[0]), (S.sources[e.src] || {}).dir || '', e.orig); if (!existsSync(file)) continue;
+        const im = decodePNG(readFileSync(file)); let bad = im.w !== e.rows[0].length || im.h !== e.rows.length;
+        for (let y = 0; y < im.h && !bad; y++) for (let x = 0; x < im.w && !bad; x++) { const i = (y * im.w + x) * 4, ch = e.rows[y][x]; if (!im.rgba[i + 3]) bad = ch !== '.'; else bad = (e.colors[ch] || '').toLowerCase() !== '#' + [0, 1, 2].map(k => im.rgba[i + k].toString(16).padStart(2, '0')).join(''); }
+        if (bad) fail('store', S.set + ' ' + id + ': its rows do not match ' + e.orig + ' pixel for pixel');
+      }
+    }
+  }
+  const mean = fits.length ? fits.reduce((a, b) => a + b, 0) / fits.length : 1;
+  if (mean < .8) fail('store', 'the shapes fit at a mean IoU of ' + mean.toFixed(2) + ' (under .8)');
+  // every set loads in the engine: its ids qualified, nothing replaced, every shape draws
+  warnings.length = 0;
+  const loaded = await page.evaluate(texts => { const E = My3D2dge, bad = []; for (const t of texts) { (0, eval)(t); }
+    for (const S of Object.values(window.ASSETS || {})) { const r = E.addAssets(S); for (const k of r.shapes) { const I = E.shapeInfo(k, { view: E.VIEWS.iso }); if (!I || !I.pixels) bad.push(k + ' draws nothing'); } }
+    return bad; }, files.map(f => readFileSync(join(dir, f), 'utf8')));
+  for (const b of loaded) fail('store', b);
+  for (const w of warnings.filter(w => /asset|unknown/.test(w))) fail('store', 'a warning loading the sets: ' + w);
+  if (!problems.some(p => p.startsWith('store'))) ok(sets.length + ' sets (' + counts.shapes + ' shapes, ' + counts.materials + ' materials, ' + counts.sprites + ' sprites): every download CC0 and on record, every entry in its catalog and ledger, shapes at a mean IoU of ' + mean.toFixed(2) + ' with no view under .6, sprites exact, cut sets equal to their sources, every set loads and draws');
 }
 
 await browser.close();

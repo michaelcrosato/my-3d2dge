@@ -1,0 +1,5 @@
+{
+  "$sources": {
+    "kenney-tiny-town": {"label":"Kenney Tiny Town","origin":"Kenney (kenney.nl), tiny-town","license":"CC0 1.0","url":"https://kenney.nl/media/pages/assets/tiny-town/a415fbeb49-1735736916/kenney_tiny-town.zip","page":"https://kenney.nl/assets/tiny-town","fetched":"2026-10-14","sha256":"9768692dccff1d706408a5aedd6ca4f6cd1409506cbc84cb2f862919764be977","licenseHash":"c483c167cc3bdfe1","dir":"tiny-town"}
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "$sources": {
+    "kaykit-furniture-bits": {"label":"KayKit Furniture Bits","origin":"Kay Lousberg (kaylousberg.com), KayKit-Furniture-Bits-1.0","license":"CC0 1.0","url":"https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0","commit":"96d5930a8dbdb363409bbc2d3341718b00e17c9c","fetched":"2026-10-14","licenseHash":"cd675f2adc31eb5f","dir":"KayKit-Furniture-Bits-1.0","scale":0.6}
+  }
+}

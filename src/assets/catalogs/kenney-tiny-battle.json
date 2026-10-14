@@ -1,0 +1,5 @@
+{
+  "$sources": {
+    "kenney-tiny-battle": {"label":"Kenney Tiny Battle","origin":"Kenney (kenney.nl), tiny-battle","license":"CC0 1.0","url":"https://kenney.nl/media/pages/assets/tiny-battle/c1c25ac1f3-1691487575/kenney_tiny-battle.zip","page":"https://kenney.nl/assets/tiny-battle","fetched":"2026-10-14","sha256":"7751ec7d9a07e57baa9fa1174d6f78fcd779a050377227afee77993c73cb5f9e","licenseHash":"a3c76aa4832fcf26","dir":"tiny-battle"}
+  }
+}

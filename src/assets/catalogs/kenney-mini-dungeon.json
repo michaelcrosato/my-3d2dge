@@ -1,0 +1,5 @@
+{
+  "$sources": {
+    "kenney-mini-dungeon": {"label":"Kenney Mini Dungeon","origin":"Kenney (kenney.nl), mini-dungeon","license":"CC0 1.0","url":"https://kenney.nl/media/pages/assets/mini-dungeon/6cd72dc849-1785314274/kenney_mini-dungeon.zip","page":"https://kenney.nl/assets/mini-dungeon","fetched":"2026-10-14","sha256":"19c4648680cb1d2e8836cade96cbf9781c0c1f45fbc6d2ce41cee8239a3ec4d8","licenseHash":"f8b470068a1c0438","dir":"mini-dungeon"}
+  }
+}

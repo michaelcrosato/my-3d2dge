@@ -1,0 +1,5 @@
+{
+  "$sources": {
+    "kenney-pirate": {"label":"Kenney Pirate Kit","origin":"Kenney (kenney.nl), pirate-kit","license":"CC0 1.0","url":"https://kenney.nl/media/pages/assets/pirate-kit/e6d4bb1525-1771333093/kenney_pirate-kit.zip","page":"https://kenney.nl/assets/pirate-kit","fetched":"2026-10-14","sha256":"667ed2caf92954ddb98f7b7cede831fe99ab75063c26b25e23d32715bee9c943","licenseHash":"5e99246a5a65fa34","dir":"pirate-kit"}
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "$sources": {
+    "kenney-furniture": {"label":"Kenney Furniture Kit","origin":"Kenney (kenney.nl), furniture-kit","license":"CC0 1.0","url":"https://kenney.nl/media/pages/assets/furniture-kit/440e0608a4-1677580847/kenney_furniture-kit.zip","page":"https://kenney.nl/assets/furniture-kit","fetched":"2026-10-14","sha256":"e67652d0932cee41683f74711c03d3e192a2af9979ef8e6b237711f5482d46b0","licenseHash":"bc0de1a0742cb490","dir":"furniture-kit"}
+  }
+}
