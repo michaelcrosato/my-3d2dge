@@ -640,7 +640,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 13b. Materials
 
-- `E.MATERIALS: brick, stone, rock, plank, timber, plaster, hedge, speckle, plain, tiles, slab, leaves, grass, flagstone, ... (59)`: the materials by id: { color, pattern, ...its numbers, ramp, glow } or a painter of a surface (face, roof, floor, tile); add your own: E.MATERIALS.oak = { color: '#8a5a36', pattern: 'planks', bw: 3 }. Any material id takes '#hex pattern key=value' too
+- `E.MATERIALS: brick, stone, rock, plank, timber, plaster, hedge, speckle, plain, tiles, slab, leaves, grass, flagstone, ... (61)`: the materials by id: { color, pattern, ...its numbers, ramp, glow } or a painter of a surface (face, roof, floor, tile); add your own: E.MATERIALS.oak = { color: '#8a5a36', pattern: 'planks', bw: 3 }. Any material id takes '#hex pattern key=value' too
 - `E.PATTERNS`: the patterns, by name: (s, m) => a tone step (-1 .. +2) at a point s of a surface, for a material m's numbers. Add your own: E.PATTERNS.waves = (s, m) => Math.sin(s.u / (m.size || 3)) > .8 ? 1 : 0
 - `E.PATTERNS.bark(s)` †: bark: fissures running up a trunk; a cut end shows its rings
 - `E.PATTERNS.bricks(s, m)` †: bricks: running bond, bw x bh (6 x 3), mortar a step darker (mortar: its step)

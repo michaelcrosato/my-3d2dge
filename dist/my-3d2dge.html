@@ -4850,13 +4850,35 @@ function material(id, local, kind = 'material') {
 function resolveMat(q) {
   const t = q.ramp ? null : tones(q.color || '#808080'), pat = PATTERNS[q.pattern || 'none'];
   if (!pat) warn('pattern:' + q.pattern, 'unknown pattern "' + q.pattern + '". Patterns: ' + Object.keys(PATTERNS).join(', '));
-  const hexes = q.ramp || [t.deep, t.sh, t.base, t.lt, t.hi];
-  return { q, ramp: hexes.map(hex), hexes, pat: pat || PATTERNS.none, glow: !!q.glow, color: q.color, pattern: q.pattern, r0: q.ramp };
+  const base = q.ramp || [t.deep, t.sh, t.base, t.lt, t.hi], hexes = base.slice(), over = [];
+  // overlays: each brings five tones of its own after the material's (a tone index k * 5 + 0..4 picks the k-th's)
+  for (const [kind, col, o] of q.over || []) {
+    const f = OVERLAYS[kind]; if (!f) { warn('overlay:' + kind, 'unknown overlay "' + kind + '". Overlays: ' + Object.keys(OVERLAYS).join(', ')); continue; }
+    const c = col || OVER_COLOR[kind], u = c && tones(c);
+    hexes.push(...(u ? [u.deep, u.sh, u.base, u.lt, u.hi] : [base[0], base[0], base[1], base[2], base[3]])); over.push({ f, o: o || {} });
+  }
+  return { q, ramp: hexes.map(hex), hexes, pat: pat || PATTERNS.none, glow: !!q.glow, color: q.color, pattern: q.pattern, r0: q.ramp, over: over.length ? over : null };
 }
 E.material = material;
-const _S = { u: 0, v: 0, W: 16, H: 16, lid: true, curved: false, lit: .5, px: 1, part: 0 };
-/** a data material's tone (0..4) at a point of a flat surface (u, v world units across and up; band 0..4 from the light) */
-const matTone = (m, u, v, W, H, lid, band, px1) => { _S.u = u; _S.v = v; _S.W = W; _S.H = H; _S.lid = lid; _S.curved = false; _S.lit = band > 2 ? .8 : band < 2 ? -.2 : .5; _S.px = px1; return clamp((m.glow ? 3 : band) + m.pat(_S, m.q), 0, 4); };
+/* ---- overlays: over: [[kind, color, { amount, size, up, h }]] on any material, the last on top; each draws in its own
+ * color's tones (cracks without one: the material's own, a step darker) ---- */
+const OVERLAYS = {
+  moss: (s, o) => s.nz > 1 - (o.up || .6) && noise2(s.u / (o.size || 4), s.v / (o.size || 4)) < (o.amount || .55),   // on what looks up
+  cracks: (s, o) => { const c = worley(s.u + 31, s.v + 17, o.size || 7); return c.id < (o.amount || .4) && c.e < seam(s) * .5; },
+  dirt: (s, o) => noise2(s.u / (o.size || 3), s.v / (o.size || 3) + 7) < (o.amount || .6) * (1 - s.z / (o.h || 6)),   // near the ground
+  rust: (s, o) => noise2(s.u / (o.size || 3) + 13, s.v / (o.size || 3)) > 1 - (o.amount || .35)
+}, OVER_COLOR = { moss: '#5f7a3a', dirt: '#6a5038', rust: '#9a4a22' };
+/** which overlay covers a point (0: none; k: the k-th, its tones at k * 5): s with nz (the normal's z) and z (height) */
+const overAt = (m, s) => { for (let k = m.over.length - 1; k >= 0; k--) if (m.over[k].f(s, m.over[k].o)) return k + 1; return 0; };
+const _S = { u: 0, v: 0, W: 16, H: 16, lid: true, curved: false, lit: .5, px: 1, part: 0, nz: 1, z: 0 };
+/** a data material's tone (0..4, plus 5 per overlay) at a point of a flat surface (u, v world units across and up; band
+ *  0..4 from the light; z the height there: by default v on a side, 0 on a lid) */
+const matTone = (m, u, v, W, H, lid, band, px1, z) => {
+  _S.u = u; _S.v = v; _S.W = W; _S.H = H; _S.lid = lid; _S.curved = false; _S.lit = band > 2 ? .8 : band < 2 ? -.2 : .5; _S.px = px1;
+  const t = clamp((m.glow ? 3 : band) + m.pat(_S, m.q), 0, 4);
+  if (!m.over) return t;
+  _S.nz = lid ? 1 : 0; _S.z = z === undefined ? (lid ? 0 : v) : z; return t + 5 * overAt(m, _S);
+};
 
 /* ---- patterns: a tone step (-1 dark .. +2 bright) at a point of a surface ----
  * s: { u, v (world units on the surface: across and up a side; x and y on a lid), W, H (the face's size), lid (it looks up
@@ -5031,7 +5053,7 @@ TileMap.prototype._paintRoof = function (g, top, m, t, wx0, wy0, r) {
   const T = this.T, P0 = top[0], ex = top[1][0] - P0[0], ey = top[1][1] - P0[1], fx = top[3][0] - P0[0], fy = top[3][1] - P0[1], det = ex * fy - fx * ey;
   if (Math.abs(det) < .5) return;
   const tt = tones(t.top), q = m.roof ? null : material(m), pxu = 1 / ((r && r.view.scale) || 1);
-  const paint = q ? (wx, wy) => q.hexes[matTone(q, wx, wy, T, T, true, 2, pxu)] : m.roof;
+  const paint = q ? (wx, wy) => q.hexes[matTone(q, wx, wy, T, T, true, 2, pxu, t.h || 32)] : m.roof;
   scan(top, (xa, xb, y) => {
     for (let x = xa; x <= xb; x++) {
       const dx = x + .5 - P0[0], dy = y + .5 - P0[1], c = paint(wx0 + (dx * fy - fx * dy) / det * T, wy0 + (ex * dy - dx * ey) / det * T, tt, t);
@@ -7002,7 +7024,7 @@ function rasterShape(S, view, o = {}) {
   let x0 = 0, y0 = 0, x1 = 0, y1 = 0;
   for (let i = 0; i < tn; i += 28) for (let j = 1; j < 28; j += 9) { if (T[i + j + 3] < -.01) continue; const qx = T[i + j], qy = T[i + j + 1]; if (qx < x0) x0 = qx; if (qx > x1) x1 = qx; if (qy < y0) y0 = qy; if (qy > y1) y1 = qy; }
   const ox = 2 - Math.floor(x0), oy = 2 - Math.floor(y0), W = Math.ceil(x1) + ox + 3, H = Math.ceil(y1) + oy + 3, n = W * H;
-  const zb = new Float32Array(n).fill(-Infinity), fid = new Int32Array(n).fill(-1), bk = new Uint8Array(n), Nx = new Float32Array(n), Ny = new Float32Array(n), Nz = new Float32Array(n), U = new Float32Array(n), Vv = new Float32Array(n);
+  const zb = new Float32Array(n).fill(-Infinity), fid = new Int32Array(n).fill(-1), bk = new Uint8Array(n), Nx = new Float32Array(n), Ny = new Float32Array(n), Nz = new Float32Array(n), U = new Float32Array(n), Vv = new Float32Array(n), G = new Float32Array(n);
   let tris = 0;
   for (let i = 0; i < tn; i += 28) {
     const fb = T[i], fi = fb < 0 ? -1 - fb : fb, A = i + 1, B = i + 10, C = i + 19, ax = T[A] + ox, ay = T[A + 1] + oy, bx = T[B] + ox, by = T[B + 1] + oy, cx = T[C] + ox, cy = T[C + 1] + oy;
@@ -7016,16 +7038,16 @@ function rasterShape(S, view, o = {}) {
       const qy = y + .5; let l0 = a0 * (mx + .5) + b0 * qy + c0, l1 = a1 * (mx + .5) + b1 * qy + c1;
       for (let x = mx; x <= Mx; x++, l0 += a0, l1 += a1) {
         const l2 = 1 - l0 - l1; if (l0 < -1e-7 || l1 < -1e-7 || l2 < -1e-7) continue;
-        const z = l0 * za + l1 * zbb + l2 * zc, j = y * W + x;
-        if (z <= zb[j] + 1e-5 || l0 * ga + l1 * gb + l2 * gc < -.01) continue;   // (nearer wins; below the floor is not drawn)
-        zb[j] = z; fid[j] = fi; bk[j] = fb < 0 ? 1 : 0;
+        const z = l0 * za + l1 * zbb + l2 * zc, j = y * W + x, gz = l0 * ga + l1 * gb + l2 * gc;
+        if (z <= zb[j] + 1e-5 || gz < -.01) continue;   // (nearer wins; below the floor is not drawn)
+        zb[j] = z; fid[j] = fi; bk[j] = fb < 0 ? 1 : 0; G[j] = gz;
         Nx[j] = l0 * T[A + 4] + l1 * T[B + 4] + l2 * T[C + 4]; Ny[j] = l0 * T[A + 5] + l1 * T[B + 5] + l2 * T[C + 5]; Nz[j] = l0 * T[A + 6] + l1 * T[B + 6] + l2 * T[C + 6];
         U[j] = l0 * T[A + 7] + l1 * T[B + 7] + l2 * T[C + 7]; Vv[j] = l0 * T[A + 8] + l1 * T[B + 8] + l2 * T[C + 8];
       }
     }
   }
   // shade: the light's band, the pattern's step, a step darker on an inside
-  const tone = new Int8Array(n).fill(-1), part = new Int32Array(n).fill(-1), Sx = { u: 0, v: 0, W: 0, H: 0, lid: false, curved: false, lit: 0, px: pxu, part: 0 };
+  const tone = new Int8Array(n).fill(-1), part = new Int32Array(n).fill(-1), ov = new Uint8Array(n), Sx = { u: 0, v: 0, W: 0, H: 0, lid: false, curved: false, lit: 0, px: pxu, part: 0, nz: 0, z: 0 };
   for (let j = 0; j < n; j++) {
     const fi = fid[j]; if (fi < 0) continue;
     const f = faces[fi], m = R.mats[f.mi];
@@ -7034,13 +7056,14 @@ function rasterShape(S, view, o = {}) {
     const lit = nx * L[0] + ny * L[1] + nz * L[2]; Nz[j] = nz; part[j] = f.part;
     Sx.u = U[j]; Sx.v = Vv[j]; Sx.W = f.W; Sx.H = f.H; Sx.lid = f.lid; Sx.curved = f.curved; Sx.lit = lit; Sx.part = f.part;
     tone[j] = clamp((m.glow ? 3 : lit > SHAPE_BANDS[2] ? 3 : lit > SHAPE_BANDS[1] ? 2 : lit > SHAPE_BANDS[0] ? 1 : 0) + m.pat(Sx, m.q) - inner, 0, 4);
+    if (m.over) { Sx.nz = nz; Sx.z = G[j]; ov[j] = overAt(m, Sx); }
   }
   // creases: a pixel just behind a nearer part darkens a step; lit edges: the top silhouette of a face looking up brightens
   const out = new Int8Array(tone), near = (j, q) => part[q] >= 0 && part[q] !== part[j] && zb[q] > zb[j] + 1.2;
   for (let y = 1; y < H - 1; y++) for (let x = 1, j = y * W + 1; x < W - 1; x++, j++) if (part[j] >= 0 && (near(j, j - 1) || near(j, j + 1) || near(j, j - W) || near(j, j + W))) out[j] = Math.max(0, tone[j] - 1);
   for (let j = W; j < n; j++) if (tone[j] >= 0 && Nz[j] >= .5 && (tone[j - W] < 0 || zb[j - W] < zb[j] - 2.5)) out[j] = Math.min(4, out[j] + 1);
   const rgba = new Uint8ClampedArray(n * 4);
-  for (let j = 0; j < n; j++) { if (out[j] < 0) continue; const c = R.mats[faces[fid[j]].mi].ramp[out[j]]; rgba[j * 4] = c[0]; rgba[j * 4 + 1] = c[1]; rgba[j * 4 + 2] = c[2]; rgba[j * 4 + 3] = 255; }
+  for (let j = 0; j < n; j++) { if (out[j] < 0) continue; const c = R.mats[faces[fid[j]].mi].ramp[out[j] + 5 * ov[j]]; rgba[j * 4] = c[0]; rgba[j * 4 + 1] = c[1]; rgba[j * 4 + 2] = c[2]; rgba[j * 4 + 3] = 255; }
   return { w: W, h: H, ox, oy, rgba, tris, prims: R.prims.length, part };
 }
 /** a raster as a canvas (outline: the actors' 1-px outline round it, for the paths that don't go through r.actor) */
@@ -7228,9 +7251,10 @@ const LIB_MATS = {
   linen: '#d8ccb0 cloth', burlap: '#a88a58 cloth fold=1.4', wool: '#9a2a3a cloth', velvet: '#4a2a6a cloth', leather: '#6a4028 cloth fold=.6',
   bark: '#6a4a2e bark', needles: '#2f6a4a foliage size=3', shrub: '#4a8a3e foliage size=3', moss: '#5f7a3a foliage size=2', straw: '#c8a850 thatch',
   sand: '#c8b080 speck', snow: '#e8ecf4 noise', mud: '#5a4632 noise',
-  shingle: '#6a4a4a shingles', bone: '#d8ceb4 noise', ice: '#a8d0e8 glaze', crystal: '#6ad8f0 glaze glow=1', flame: '#ffd070 none glow=1'
+  shingle: '#6a4a4a shingles', bone: '#d8ceb4 noise', ice: '#a8d0e8 glaze', crystal: '#6ad8f0 glaze glow=1', flame: '#ffd070 none glow=1',
+  ruin: { color: '#7a7486', pattern: 'stones', size: 5, over: [['cracks'], ['moss'], ['dirt']] }, rusted: { color: '#5e6274', pattern: 'metal', over: [['rust']] }
 };
-for (const [k, v] of Object.entries(LIB_MATS)) MATERIALS[k] = parseMat(v);
+for (const [k, v] of Object.entries(LIB_MATS)) MATERIALS[k] = typeof v === 'string' ? parseMat(v) : v;
 Object.assign(SHAPES, {
 barrel: { about: 'oak barrel, two iron hoops', tags: 'container wood', mats: { w: 'oak', h: 'iron' },
   parts: [['lathe','w',[0,0,0],[[0,0],[5,0],[6,3],[6.5,8],[6,13],[5,16],[0,16]]], ['row',2,[0,0,9],['cyl','h',[0,0,7.5],6.5,1.5]]] },

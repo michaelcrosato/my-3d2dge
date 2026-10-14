@@ -2,7 +2,8 @@
 //   1. every core shape draws in every view and 8 facings: not empty, inside its projected bounds, every part seen in the
 //      isometric or the three-quarter view; two runs give the same pixels; a generator's params change its pixels
 //   2. every material draws on every kind of surface (a wall face, a wall top, a floor, a platform tile, a shape) with no
-//      warning, and the engine's own wall faces, tops and tile styles are entries of the registry
+//      warning, and the engine's own wall faces, tops and tile styles are entries of the registry; the overlays draw in
+//      their own tones where they belong
 //   3. collision: a body walks into a solid table and stops, jumps at it below its top and is stopped, comes down on it
 //      and lands, passes under a shape set above its head; the solid's box turns, scales and mirrors with the shape;
 //      a hero walking round a table sorts in front of it on its near side and behind it on its far side
@@ -97,6 +98,26 @@ console.log('2. every material on every surface');
   await page.evaluate(() => { const E = My3D2dge; E.material('no-such-stuff', null, 'wall face'); });
   if (!warnings.some(w => /unknown wall face "no-such-stuff"\. Materials: .*oak/.test(w))) fail('materials', 'an unknown face name does not warn with the list of names');
   if (!r.bad.length && !warnings.length) ok(r.n + ' materials draw on a wall face, a wall top, a floor, a platform tile and a shape; the engine\'s own faces, tops, tile styles and floor textures are entries');
+  // overlays: each draws in its own tones (cracks: the material's), moss on what looks up, dirt near the ground
+  const v = await page.evaluate(() => {
+    const E = My3D2dge, bad = [], STONE = { color: '#7a7486', pattern: 'stones', size: 5 };
+    const draw = (size, over) => E.shapeInfo({ mats: { m: Object.assign({}, STONE, over ? { over: [over] } : {}) }, parts: [['box', 'm', [0, 0, 0], size]] }, { view: E.VIEWS.iso });
+    const ramp = c => { const t = E.tones(c); return new Set([t.deep, t.sh, t.base, t.lt, t.hi].map(h => h.toLowerCase())); }, hx = (d, j) => '#' + [0, 1, 2].map(i => d[j * 4 + i].toString(16).padStart(2, '0')).join('');
+    const changed = (size, over) => { const a = draw(size), b = draw(size, over), js = []; for (let j = 0; j < a.rgba.length / 4; j++) if (a.rgba[j * 4 + 3] && (a.rgba[j * 4] !== b.rgba[j * 4] || a.rgba[j * 4 + 1] !== b.rgba[j * 4 + 1] || a.rgba[j * 4 + 2] !== b.rgba[j * 4 + 2])) js.push(j); return { a, b, js }; };
+    for (const [k, col] of [['moss', '#5f7a3a'], ['cracks', null], ['dirt', '#6a5038'], ['rust', '#9a4a22']]) {
+      const { b, js } = changed([16, 16, 16], [k, col]);
+      if (!js.length) { bad.push('the ' + k + ' overlay changes nothing on a stone box'); continue; }
+      const own = col ? ramp(col) : ramp(STONE.color), off = js.filter(j => !own.has(hx(b.rgba, j)));
+      if (off.length) bad.push('the ' + k + ' overlay draws ' + off.length + ' pixels outside its tones (' + hx(b.rgba, off[0]) + ')');
+    }
+    const slab = changed([16, 16, 2], ['moss']), wall = changed([16, 2, 16], ['moss']);
+    if (!(slab.js.length > slab.a.pixels * .2 && wall.js.length < wall.a.pixels * .1)) bad.push('moss covers ' + slab.js.length + ' of a slab\'s ' + slab.a.pixels + ' pixels and ' + wall.js.length + ' of a wall\'s ' + wall.a.pixels + ': it should cover what looks up');
+    const post = changed([4, 4, 32], ['dirt', null, { h: 6 }]), rows = post.js.map(j => Math.floor(j / post.a.w)), low = post.a.h * .6;
+    if (!rows.length || rows.some(y => y < low)) bad.push('dirt (h 6) on a post 32 tall reaches row ' + Math.min(...rows) + ' of ' + post.a.h + ': it should stay near the ground');
+    return bad;
+  });
+  for (const b of v) fail('materials', b);
+  if (!v.length) ok('the overlays moss, cracks, dirt and rust draw in their own tones; moss on what looks up, dirt near the ground');
 }
 
 /* 3. collision and sorting */

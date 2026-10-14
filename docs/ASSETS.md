@@ -33,7 +33,7 @@ tree { h: 40, seed: 1 }, bush { r: 7 }, grass { h: 6, n: 6 }, rock { r: 7.5, see
 `r.shape('pine', x, y, 0, { params: { h: 30 } })`; `E.SHAPES.barrel.about` says what each is.
 
 **Materials:** woods oak walnut birch crate plank planks wood; stones stone cobble marble granite sandstone slate rock
-brick flagstone; metals iron steel gold copper bronze metal; clay glazed porcelain; cloth linen burlap wool velvet leather;
+brick flagstone ruin; metals iron steel gold copper bronze metal rusted; clay glazed porcelain; cloth linen burlap wool velvet leather;
 plants bark needles leaves shrub moss straw hedge grass; ground dirt sand snow mud; water ice crystal flame bone shingle;
 walls timber plaster; tops speckle plain tiles slab; tiles block bonus ground pipe checker.
 
@@ -48,9 +48,11 @@ const level = new E.PlatformMap({ rows, legend, types: { 1: { kind: 'solid', sty
 
 floorMats is keyed by the floor tags of the legend ('~': { floor: 'water' }); either stands in for floorTex.
 
-A material is `{ color, pattern, ...the pattern's numbers, ramp, glow }`. Its five tones come from `E.tones(color)` (or
-its own `ramp` of five, dark to light); the light picks a band, the pattern moves it a step, so a material works on every
-surface and in every palette and recolors with one hex. An unknown name warns with the list of names.
+A material is `{ color, pattern, ...the pattern's numbers, ramp, glow, over }`. Its five tones come from `E.tones(color)`
+(or its own `ramp` of five, dark to light); the light picks a band, the pattern moves it a step, so a material works on
+every surface and in every palette and recolors with one hex. An unknown name warns with the list of names.
+Overlays, the last on top, each in its own color's tones: `over: [['moss', '#5f7a3a', { up: .6 }], ['cracks']]`; moss on
+what looks up, cracks (the material a step darker), dirt near the ground (h 6), rust; each takes amount and size.
 
 | Pattern | Numbers | What |
 | --- | --- | --- |
