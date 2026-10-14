@@ -1,8 +1,9 @@
 # Handoff: the asset store (objects, materials and pictures agents can make and import)
 
 The plan for a format, tools and a library that let agents add art to games as text: objects, surface materials and 2D
-pictures, written by hand or translated from public libraries. Made on 2026-10-11 against v0.25.0 (`f3d9e8d`). It is
-for the agent that implements it. It is temporary: when the work lands, fold what lasts into `docs/ASSETS.md` and
+pictures, written by hand or translated from public libraries. Made on 2026-10-11 against v0.25.0 (`f3d9e8d`), and
+updated on 2026-10-14 (v0.34.2) with the owner's answers (section 10) and Phase 3b, the 3D engine. It is for the agent
+that implements it. It is temporary: when the work lands, fold what lasts into `docs/ASSETS.md` and
 `docs/ASSET-IMPORT.md` and delete this file, as v0.14.1 and v0.22.0 did with finished plans.
 
 **Verdict: go, behind a gate.** Planning included a probe (section 3.7): eight objects written as 71 to 330 characters
@@ -22,10 +23,10 @@ report instead of building the rest.
 - Run it at **extra (xhigh)** effort (section 11), one phase per pull request, in order. The prompt is in section 12.
 - Engine work goes into the **full engine only**. The agent edition gets stubs that warn once, as it does for props
   (A:3488-3489), plus one line in its map. `npm run test:agent` keeps it a subset.
-- The manuals are nearly full. Estimated at v0.26.1:
-  - the agent edition's header: 9,903 of 10,000 tokens (about 97 left);
-  - `API.md`: 14,580 of 15,000;
-  - `API-INDEX.md`: 34,764 of 37,000.
+- The manuals, counted exactly at v0.34.2 (`gpt-tokenizer`, a dev dependency since D28):
+  - the agent edition's header: 9,729 of 10,000 tokens (271 left);
+  - `API.md`: 14,543 of 15,000 (457 left);
+  - `API-INDEX.md`: 35,697 of 40,000 (4,303 left: about 100 names at its mean of 38 tokens a line).
 
   Detail goes into the new `docs/ASSETS.md`, which gets its own budget, and into the index; each card gets one line.
 - Line numbers are as of v0.25.0, and v0.26.x moved some engine lines, so search by name. `F:` is
@@ -232,7 +233,7 @@ recolors through one material. That is the same idea as Emberdeep's `UI_GLYPHS`,
   - a platform tile type's `mat`.
 - The shape renderer (section 4) and the generators.
 - A small **core library**: the shapes and materials the starters and the template game use, at most 12 KB of source.
-- About 10 new public names, each with a doc comment. The index has room for about 70.
+- About 10 new public names, each with a doc comment. The index has room for about 100 (D28).
 
 **The agent edition.** Stubs that warn once and return null, as for props.
 
@@ -569,6 +570,36 @@ been checked.
 4. **Proof.** A filmstrip with `--compare` for every scene that changed, and `tools/check.mjs` look notes before and
    after.
 
+### Phase 3b: the same shapes in the 3D engine (the next minor version)
+
+Added 2026-10-14, with the owner's answer (section 10): the 2D engine first, then the 3D engine (`engine/my-3d2dge-3d.js`,
+`docs/ENGINE-3D.md`, D27, which came after this plan was written) draws the same store entries. Read
+`docs/ENGINE-3D.md` and the 3D engine's header before starting.
+
+1. **One format, two renderers.** A store entry draws in a 3D world unchanged, from the same resolved parts the 2D
+   renderer uses (one resolver for `use`, `mirror`, `ring`, `row` and `group`, in the 2D engine, which the 3D engine sits
+   on). `world.shape(id | spec, x, y, z, { facing, scale, mats, flip })` takes the 2D placement's options and units.
+   - The pen (`world.pen`: instanced boxes, balls and tubes, drawn each frame) covers box, cyl and ball. Lathe, prism,
+     wedge and rock need geometry of their own (`LatheGeometry`, `ExtrudeGeometry`, a seeded faceted ball).
+   - Still set dressing is built once: geometry merged per material within a shape, instanced across placements, and
+     every pipeline built in the warm-up frame behind the boot screen.
+   - `World3D.THINGS` stays: things are animated pickups and dressing drawn by code. Shapes are still objects.
+2. **Materials in 3D.** A material reads as itself in both engines: its pattern (`E.PATTERNS`, tone steps on its ramp)
+   is drawn by code into a small texture per material at world scale, on a node material. Under the Comic cel and Pixel
+   filters it keeps its bands.
+3. **Collision in 3D.** A solid shape gets a Rapier collider from the same placement box as the 2D collision call
+   (section 3.3), so a hero stops at a table and lands on it in both engines.
+4. **The 3D kits use it.** The action hall and the platformer course dress their levels with core shapes where the
+   current dressing is flat or drawn ad hoc.
+5. **The manual.** The 3D engine's header gets the API lines (6,000 tokens; 4,597 at v0.34.2). `docs/ASSETS.md` gets one
+   line pointing to it.
+6. **Tests** in the 3D kits' suite (`tools/kit3d-test.mjs`), under its existing rules (node materials only, no compute,
+   nothing read back, no pipeline built mid-game):
+   - every core shape builds and draws on WebGPU and on WebGL 2;
+   - each slice's proof hash is the same twice and on both backends, with shapes and their colliders in place;
+   - a sheet of each core shape in 3D beside its 2D raster (read it: they should read as the same object).
+7. **Version and changelog:** the next minor version, with lines under Rendering, Engine, Tools and Docs.
+
 ### Phase 4: measure it
 
 1. **Free, in the session.** Fresh subagents get only `docs/ASSETS.md`, the catalogs and the tools, and write 10
@@ -628,7 +659,7 @@ owner's rule: don't push on where the goal can't be met.
 - **Kits must fit a 200k context.** Kits embed the full engine, so the renderer and the core library grow every kit.
   Keep both lean, measure the kits before and after (README's table), and never inline the store into a kit.
 - **`fetch()` doesn't work from `file://`.** Sets are `.js` files that assign a global.
-- **The agent header has about 97 tokens left.** Keep its map line short, or trim another line.
+- **The agent header has 271 tokens left, the API card 457** (counted exactly). Keep each map line short.
 - **Emberdeep's core files stay as they are** (`DESIGN.md`).
 - **Quaternius' license drifts.** Its site-wide license (QAL v1.0, 2026-08-28) forbids repackaging "regardless of how
   much the Assets have been modified", while most of its pack pages still say CC0. So: no Quaternius models unless the
@@ -642,7 +673,7 @@ owner's rule: don't push on where the goal can't be met.
 - Shapes with states (lids and doors that open).
 - New backdrop kinds, fonts, sound.
 - CC BY libraries such as game-icons.net (section 10).
-- The 3D world labs: they are leaving for their own repository (D3).
+- The 3D Proof and the 3D Prototype (Temporary labs, `docs/LAB-3D.md`). The 3D engine itself is in scope from Phase 3b.
 
 ## 10. Decisions to log, and questions for the owner
 
@@ -660,6 +691,13 @@ owner's rule: don't push on where the goal can't be met.
 2. Pull request michaelcrosato/my-3d2dge#53, the Asset Studio? **Leave it.** If revived, it can edit store entries.
 3. The benchmark re-run in Phase 4 (about $15)? **Ask when Phase 3 lands.** Spending is hard to undo.
 4. Delete the Shapes vs props and Free camera labs in Phase 2? **Yes**: their question is answered.
+
+**The owner's answers, 2026-10-14** (v0.34.2):
+- **The 3D engine:** the store is built on the 2D engine first, as planned; then Phase 3b draws the same entries in the 3D
+  engine, and its kits use them.
+- **The index's budget:** 40,000, counted exactly (D28). An analysis of 34,000, 37,000 and 40,000 comes after this plan.
+- **The 3D labs** are now called the 3D Proof (`/lab-3d`) and the 3D Prototype (`/stress-world`); the 3D Prototype stays
+  as the record of what the 3D engine was built from.
 
 ## 11. Effort: extra (xhigh), Opus 5.5
 
@@ -689,10 +727,10 @@ owner's rule: don't push on where the goal can't be met.
 Run it at extra (xhigh) effort, in a fresh session:
 
 ```
-Run docs/HANDOFF-ASSETS.md to completion: Phases 0 to 4 in order, each its own pull request, merged as CLAUDE.md
-says (npm run test:changed green, squash merge, then the full npm test in the background, fixing forward). Start from
-the latest origin/main, and read CLAUDE.md, DOCTRINE.md, docs/MOCAP.md and the whole plan first. If section 14 shows
-phases already done, resume from the first phase not done.
+Run docs/HANDOFF-ASSETS.md to completion: Phases 0, 1, 2, 3, 3b and 4 in order, each its own pull request, merged
+as CLAUDE.md says (npm run test:changed green, squash merge, then the full npm test in the background, fixing
+forward). Start from the latest origin/main, and read CLAUDE.md, DOCTRINE.md, docs/MOCAP.md, docs/ENGINE-3D.md and
+the whole plan first. If section 14 shows phases already done, resume from the first phase not done.
 - Phase 0 ends at the gate in section 7. Judge it yourself from the sheets and numbers. If any kill criterion holds,
   stop and report. Otherwise go straight on to Phase 1 without waiting for me.
 - Make reversible calls at once and log them (D13).
@@ -717,6 +755,7 @@ phases already done, resume from the first phase not done.
 - The store holds the section 7 targets, each entry with provenance and fit, searchable by catalog. The Asset Lab shows
   every entry.
 - The starters and the template game use it. The four manuals point to it in a line each, within their budgets.
+- The 3D engine draws the same entries, with the same materials and colliders, and its kits use them (Phase 3b).
 - Phase 4's numbers are in `DOCTRINE.md` or the pull request, and this file is deleted.
 
 ## 14. Progress
@@ -726,3 +765,4 @@ One row per merged phase, added by whoever merges it, so a fresh session knows w
 | Phase | Version | Pull request, commit | Gate numbers and notes | Next |
 | --- | --- | --- | --- | --- |
 | The plan | v0.25.1 to v0.26.2 | #74 to #78, and this plan's prompt update | The probe: 8 objects at 71-330 characters, right in every view. Reviews: 20 findings, all fixed. | Phase 0 |
+| The plan, updated | v0.34.2 | the pull request that adds D28 | The owner's answers (section 10): Phase 3b for the 3D engine; the index at 40,000, counted exactly. | Phase 0 |
