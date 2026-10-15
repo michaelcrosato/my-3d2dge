@@ -20,6 +20,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['ed-character', 'node tools/ed-character-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-character-test.mjs', 'tools/character-check.mjs', 'docs/CHARACTERS.md']],
   ['new-character', 'node tools/new-character.mjs --test', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/new-character.mjs', 'docs/CHARACTERS.md']],
   ['ed-tune', 'node tools/ed-tune-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'tools/ed-tune-test.mjs']],
+  ['ed-scenes', 'node tools/ed-scenes-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/assets/sets/emberdeep.js', 'tools/ed-scenes-test.mjs']],
   ['bench', 'node tools/agent-bench.mjs --selftest', ['tools/agent-bench']],
   ['standard', 'node tools/standard-test.mjs', ['tools/standard-test.mjs', 'src/starter/', 'src/starter.template.html', 'src/handoff/']],
   ['phone', 'node tools/phone-test.mjs', ['src/starter/', 'tools/phone-test.mjs', 'tools/build.mjs']],
