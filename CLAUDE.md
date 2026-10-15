@@ -26,14 +26,14 @@ A change confined to prototypes (a Temporary lab's own sources and its `labs.jso
 1. Bump the version: `node tools/version.mjs X.Y.Z` (minor for features, patch for fixes, while the major number is 0). It writes the number everywhere it lives and opens a section in `CHANGELOG.md`.
 2. Fill in that section: one line for each change, under the parts it touched (**Rendering**, **Animation**, **Art**, **Mocap**, **Engine**, **Emberdeep**, **Characters**, **Tools**, **Docs**).
 3. Rebuild (`node tools/build.mjs`). `npm test` fails while any place disagrees with `package.json` or the changelog has no section.
-4. When you report work, give the version and the commit (`v0.7.0`, `a1b2c3d`). The deployed site shows its own build: `My3D2dge.versionLabel()`, the Emberdeep title, its Developer panel, the Labs page.
+4. When you report work, give the version and the commit (`v0.7.0`, `a1b2c3d`). The deployed site shows its own build: `My3D2dge.versionLabel()`, the Emberdeep title, its Settings (Keys & help), the Labs page.
 
 ## Checks
 
 - Before pushing: `npm run test:changed`. It runs the version, syntax and doctrine checks and every suite that covers a file you changed (read from git against main; a change that only bumps version numbers doesn't count), says why it chose each and how long each took. A change to the engine, the build or the dependencies runs them all (the 3D engine alone runs the 3D kits' suite: only its pages load it). `npm run test:which` shows the choice without running it.
 - Push and merge as soon as it passes (squash merge; the Vercel preview needn't finish first). Then run the full `npm test` (every suite, about 25 minutes) in the background: a failure there is fixed forward at once, or the merge reverted. In cloud sessions `CHROMIUM_PATH` is set for you.
 - Fast ones while working: `node tools/ed-syntax.mjs --all`, `npm run version:check`, `npm run doctrine:check` (binaries, the manuals' token budgets, the API boundary, the decisions log), `node tools/check.mjs <page>`, `npm run test:phone` (the kits on an emulated phone, a minute: what a player finds in ten).
-- A bug report with a session file (Developer → Guide → Record a session in Emberdeep; anywhere else `?record=1`, then the pause menu's Save session): `node tools/replay.mjs <file> --shots <frames> --log "<js>"` plays it back exactly, headless (`--pacing`: the device's refreshes, missed ones second by second, for choppy play); replay it again after the fix.
+- A bug report with a session file (Settings → Tools → Record a session in Emberdeep; anywhere else `?record=1`, then the pause menu's Save session): `node tools/replay.mjs <file> --shots <frames> --log "<js>"` plays it back exactly, headless (`--pacing`: the device's refreshes, missed ones second by second, for choppy play); replay it again after the fix.
 - Look at what you changed: read the screenshots, record a filmstrip for any animation (`node tools/filmstrip.mjs ... --seed 1`, `--compare <the page before>` to prove a change touches only what it should).
 
 ## Emberdeep

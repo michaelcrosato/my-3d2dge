@@ -1,9 +1,9 @@
 /* =============================================================================
- * TUNE: the game's rule numbers, gathered in one place so the Developer panel can change them while you play
+ * TUNE: the game's rule numbers, gathered in one place so Settings' tuning pages can change them while you play
  * Every knob is a plain number that the system it belongs to reads where the rule lives (TUNE.dodgeRecharge in
  * 20-hero.js, TUNE.gravity wherever something falls, ...). Its default is the shipped game, so a game with no
- * changes plays exactly as before. The panel (62-developer.js) lists them by section, explains them, and saves
- * the ones you change in this browser (ed:tune). Changes count in the real game too, not just the sandbox.
+ * changes plays exactly as before. Settings (64-menu.js, 62-developer.js) lists them by section, explains them, and saves
+ * the ones you change in this browser (ed:tune). Changes count at once, in the game you play.
  *
  * knob(section, group, tier, id, label, default, min, max, step, unit, about, where)
  *   tier 1 = Simple (the few that change the game's feel the most), 2 = Advanced (everything else)
@@ -36,7 +36,7 @@ knob('hero', 'Getting hit', 2, 'hurtInv', 'Mercy invulnerability', .35, 0, 2, .0
 knob('hero', 'Potions', 1, 'potionHeal', 'Potion healing', .45, .05, 1, .01, 'x', 'Share of maximum life one potion restores (0.45 = 45%). A third lands at once, the rest over 1.5 s.', '20-hero.js (drinkPotion)');
 knob('hero', 'Potions', 2, 'levelHeal', 'Level-up heal', .35, 0, 1, .01, 'x', 'Share of maximum life restored when you level up (ember always refills).', '20-hero.js (gainXp)');
 knob('hero', 'Potions', 2, 'potionCharges', 'Extra potion charges', 0, -2, 10, 1, '+', 'Potions you carry (3 to start). Refilled in town and from potion drops.', '15-stats.js (baseStats)');
-knob('hero', 'Base stats', 1, 'baseLife', 'Starting life', 70, 1, 2000, 1, '', 'Life at level 0 before gear and passives (the Settings "Hero life" slider multiplies the final total).', '15-stats.js (baseStats)');
+knob('hero', 'Base stats', 1, 'baseLife', 'Starting life', 70, 1, 2000, 1, '', 'Life at level 0 before gear and passives (Difficulty’s "Hero life" multiplies the final total).', '15-stats.js (baseStats)');
 knob('hero', 'Base stats', 2, 'lifePerLevel', 'Life per level', 12, 0, 500, 1, '', 'Life gained each hero level.', '15-stats.js (baseStats)');
 knob('hero', 'Base stats', 2, 'lifeRegen', 'Life regeneration', .4, 0, 100, .1, '', 'Life per second at level 0. Grows by "regen per level" each level.', '15-stats.js (baseStats)');
 knob('hero', 'Base stats', 2, 'regenPerLevel', 'Regen per level', .08, 0, 10, .01, '', 'Extra life per second gained each level.', '15-stats.js (baseStats)');
@@ -73,7 +73,7 @@ knob('monsters', 'Aggression', 1, 'maxAttackers', 'Attackers at once', 1, 0, 4, 
 knob('monsters', 'Aggression', 1, 'sight', 'Sight range', 1, .2, 4, .05, 'x', 'How far away a monster notices you (150 units, about 9 tiles, for most; it also needs a clear line unless you are very close). When one sees you, its whole pack wakes.', '30-monsters-core.js (AI.aware)');
 knob('monsters', 'Aggression', 2, 'turnGap', 'Gap between attacks', 1, 0, 5, .05, 'x', 'Minimum pause between one monster starting an attack and the next one starting (0.22 s, a little random). Lower is relentless.', '30-monsters-core.js (AI.takeTurn)');
 knob('monsters', 'Aggression', 2, 'windUp', 'Attack wind-up', 1, .2, 4, .05, 'x', 'How long monsters telegraph a melee swing before it lands (never under 0.36 s by default). Longer is easier to read and dodge.', '30-monsters-core.js (foeSpec)');
-knob('monsters', 'Packs', 1, 'packSize', 'Pack size', 1, .2, 5, .05, 'x', 'Monsters per pack (4 to 8 before the Settings "Monster density" slider).', '30-monsters-core.js (spawnPack)');
+knob('monsters', 'Packs', 1, 'packSize', 'Pack size', 1, .2, 5, .05, 'x', 'Monsters per pack (4 to 8 before Difficulty’s "Monster density").', '30-monsters-core.js (spawnPack)');
 knob('monsters', 'Packs', 2, 'packsPerRoom', 'Packs per room', 1, .1, 5, .05, 'x', 'How many packs each room of a level holds. Takes hold from the next level.', '50-levels-core.js (populate)');
 knob('monsters', 'Packs', 2, 'championPacks', 'Champion packs', 0, -5, 20, 1, '+', 'Extra champion packs per level (1, plus 1 every 4 depths, by default).', '50-levels-core.js (populate)');
 knob('monsters', 'Elites', 1, 'eliteHp', 'Elite life', 1, .1, 10, .05, 'x', 'Scales the extra life of champions (2.6x a normal monster) and rares (4.2x).', '30-monsters-core.js (spawnMonster)');
@@ -90,7 +90,7 @@ knob('bosses', 'Strength', 1, 'bossDmg', 'Boss damage', 1, .05, 20, .05, 'x', 'M
 knob('bosses', 'Tempo', 2, 'bossTempo', 'Boss pattern speed', 1, .25, 4, .05, 'x', 'How fast bosses think and chain their patterns (slams, charges, novas...). Higher is a faster fight with less rest between attacks.', '35-bosses-core.js');
 
 /* ---------- Loot ---------- */
-knob('loot', 'Drops', 1, 'dropChance', 'Item drop chance', 1, 0, 10, .05, 'x', 'How often monsters drop an item (the Settings "Loot drops" slider multiplies this too).', '40-loot-core.js (rollDrops)');
+knob('loot', 'Drops', 1, 'dropChance', 'Item drop chance', 1, 0, 10, .05, 'x', 'How often monsters drop an item (Difficulty’s "Loot drops" multiplies this too).', '40-loot-core.js (rollDrops)');
 knob('loot', 'Drops', 1, 'goldDrop', 'Gold amount', 1, 0, 20, .05, 'x', 'How much gold each pile is worth.', '40-loot-core.js (rollDrops)');
 knob('loot', 'Drops', 2, 'potionDrop', 'Potion drop chance', 1, 0, 10, .05, 'x', 'How often monsters drop a potion.', '40-loot-core.js (rollDrops)');
 knob('loot', 'Drops', 2, 'eliteLoot', 'Elite & boss items', 1, 0, 10, .05, 'x', 'Items from champions (60% chance of 1), rares (2 to 3) and bosses (5 to 8).', '40-loot-core.js');
@@ -108,10 +108,10 @@ knob('progress', 'Skills', 2, 'rankBonus', 'Damage per skill rank', .12, 0, 2, .
 /* ---------- Physics & world ---------- */
 knob('world', 'Physics', 1, 'gravity', 'Gravity', 1, .1, 5, .05, 'x', 'How hard things fall: monsters thrown into the air, the hero’s falls, hopping slimes, lobbed shots (bone javelins, spit, mortar orbs) and loot bouncing out of corpses. Low gravity floats; lobbed shots overshoot. High gravity slams; they fall short.', '10-combat.js, 20-hero.js, 30-monsters-core.js, 40-loot-core.js');
 knob('world', 'Physics', 2, 'projSpeed', 'Projectile speed', 1, .2, 4, .05, 'x', 'Speed of every projectile, yours and theirs (bolts, arrows, orbs).', '10-combat.js (FX.bolt)');
-knob('world', 'Time', 1, 'gameSpeed', 'Game speed', 1, .1, 4, .05, 'x', 'The whole world’s clock, like the sandbox speed but kept in the real game. Under 1 is slow motion.', '00-core.js (slowMo)');
+knob('world', 'Time', 1, 'gameSpeed', 'Game speed', 1, .1, 4, .05, 'x', 'The whole world’s clock, like Tools’ simulation speed but kept for your next visit. Under 1 is slow motion.', '00-core.js (slowMo)');
 knob('world', 'Time', 2, 'perfectSlow', 'Perfect-dodge slow motion', 1, 0, 3, .05, 'x', 'How long the world slows after a perfect dodge (rolling through a blow). 0 turns it off.', '20-hero.js');
 knob('world', 'Feel', 1, 'hitStop', 'Hit stop', 1, 0, 4, .05, 'x', 'The tiny freeze on a solid hit that sells its weight. 0 turns it off.', 'engine game.freeze');
-knob('world', 'Feel', 2, 'shake', 'Screen shake', 1, 0, 4, .05, 'x', 'Scales every screen shake (the Shake option in Settings still turns it off entirely).', 'engine game.shake');
+knob('world', 'Feel', 2, 'shake', 'Screen shake strength', 1, 0, 4, .05, 'x', 'Scales every screen shake (the Screen shake switch in Graphics still turns it off entirely).', 'engine game.shake');
 knob('world', 'Light & camera', 1, 'ambient', 'Darkness', 1, 0, 6, .05, 'x', 'Scales each place’s ambient light. Higher shows more of the level outside torchlight; 0 is pitch black.', '90-scenes.js (enterWorld)');
 knob('world', 'Light & camera', 2, 'camSmooth', 'Camera smoothing', .18, 0, 1, .01, 's', 'How long the camera takes to catch up with you. 0 locks it on you.', 'engine game.cam.smooth');
 knob('world', 'Light & camera', 2, 'reveal', 'Map reveal radius', 1, .3, 5, .05, 'x', 'How much of the map around you is uncovered as you explore (9 tiles).', '60-ui-core.js (reveal)');

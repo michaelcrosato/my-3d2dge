@@ -184,6 +184,21 @@ function openForm(title, build) {
 	});
 	el.addEventListener("keydown", (e) => e.stopPropagation());
 	el.addEventListener("contextmenu", (e) => e.preventDefault());
+	// the tap that opened this window lifts over it: a click whose press was not on the window (a pointer's click,
+	// detail > 0, with no press here since it opened) is the finger leaving the canvas, not a press of what lies under
+	// it now (it hit PLAY AS on the character window). Keys and a pad click with detail 0
+	let downAt = -1;
+	el.addEventListener("pointerdown", () => (downAt = performance.now()), true);
+	el.addEventListener(
+		"click",
+		(e) => {
+			if (e.detail && (downAt < 0 || performance.now() - downAt > 5000)) {
+				e.preventDefault();
+				e.stopImmediatePropagation();
+			}
+		},
+		true,
+	);
 	build(el);
 	el.showModal();
 	el.querySelector("button").focus();
@@ -241,7 +256,7 @@ function setBinding(code) {
 		.concat(code);
 	FORM.capture = null;
 	applyControls();
-	renderControls();
+	menuRender();
 	formStatus("Saved " + codeLabel(code) + ".");
 }
 addEventListener(
@@ -326,12 +341,15 @@ function updateForm() {
 		all[ix].click();
 	}
 }
-function renderControls() {
-	openForm("Controls", (el) => {
+/** Settings > Controls: every action's keyboard and controller bindings, then the controller's and the touch
+ *  buttons' settings. A binding is changed by choosing it and pressing the new key or button */
+function controlsPage(el) {
+	{
 		formElement(
 			"p",
-			"Rebind keyboard, mouse, and controller buttons. Menu navigation always works with arrows / D-pad / left stick, Enter / A, and Escape / Menu. Backspace / B performs secondary actions in inventory and skill panels.",
+			"Choose a binding to change it; changes save at once. Menu navigation always works with arrows / D-pad / left stick, Enter / A, and Escape / Menu. Backspace / B performs secondary actions in inventory and skill panels.",
 			el,
+			{ class: "ed-dev-intro" },
 		);
 		formElement(
 			"p",
@@ -339,12 +357,6 @@ function renderControls() {
 			el,
 		);
 		formElement("p", "", el, { "data-pad": "", class: "ed-meter" });
-		formElement(
-			"p",
-			"Choose a binding to change it. Changes save automatically.",
-			el,
-			{ "data-status": "", role: "status", class: "ed-status" },
-		);
 		const table = formElement("div", "", el, { class: "ed-bindings" });
 		for (const [a, label] of CONTROL_ACTIONS) {
 			const row = formElement("div", "", table, { class: "ed-binding" });
@@ -369,7 +381,7 @@ function renderControls() {
 						(c) => c.startsWith("Pad") !== (kind === "pad"),
 					);
 					applyControls();
-					renderControls();
+					menuRender();
 				});
 				clear.setAttribute("aria-label", "Clear " + label + " " + kind);
 			}
@@ -472,17 +484,10 @@ function renderControls() {
 		formButton(el, "Reset all controls", () => {
 			Object.assign(CONTROL, CONTROL_DEFAULT, { bindings: {} });
 			applyControls();
-			renderControls();
+			menuRender();
 		});
-	});
+	}
 }
-UI.def("controls", {
-	dom: true,
-	captureKeys: true,
-	open: renderControls,
-	close: closeForm,
-	update: updateForm,
-});
 
 /* Touch taps hit the same canvas widgets as a mouse. Only open world space starts a stick. */
 game.input.touchFilter = (e) => {

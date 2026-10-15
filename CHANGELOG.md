@@ -3,7 +3,37 @@
 One version number covers the engine, its agent edition, the docs and the games (semantic versioning while the major number is 0: the minor number for features, the patch for fixes). Every change merged to `main` bumps it and adds its lines here (except a change confined to a prototype, a Temporary lab: `DOCTRINE.md`), sorted under the parts it touched: **Rendering**, **Animation**, **Art**, **Mocap**, **Engine** (the rest of it), **Emberdeep**, **Characters**, **Tools**, **Docs**.
 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
-- Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
+- Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
+
+## 0.45.0 (2026-10-15)
+
+Emberdeep's menus rebuilt: one Settings window for everything, every graphics option on one page, and the whole game a test bench (no sandbox).
+
+- **Emberdeep**: Settings is one window for everything the game can change (`64-menu.js`), opened from the title or the pause menu. Its pages run down the side:
+  - Game: Graphics, Sound, Interface, Controls.
+  - Playtest: Difficulty and Tools.
+  - Tuning: a page per section.
+  - Help: every key as bound now, where to change what, the build and the labs.
+
+  A search box finds a setting on any page, the page last open comes back, and a pad's LB and RB turn the page. It replaces the canvas Settings panel and the Controls and Developer windows: the title and the pause menu lose CONTROLS and DEVELOPER, and the pause menu gains TOOLS.
+- **Emberdeep**: Graphics holds every option of the look, kept with the options, and lets the game show through while it is open:
+  - the camera: the view, the zoom (the default marked), the turn, a reset, smoothing and look-ahead;
+  - the picture: pixel size (new: Large, Medium, Small), frame rate, full screen;
+  - light: GPU lighting, full lighting, the darkness;
+  - effects: outlines, particles, screen shake and its strength, automatic quality (new: the governor can be turned off);
+  - overlays: frame rate and timings, collision circles.
+
+  The zoom's note says why a saved zoom above 1.25× looks blockier: the floor and walls are scaled, the characters redrawn. Pixel size: Medium and Small take three quarters and half of the game's own scale, never under two CSS pixels a game pixel (a phone keeps Large).
+- **Emberdeep**: no developer mode. The tools act on the hero you play, and he saves as usual (the sandbox's throwaway copy is gone). The switches last until a reload, and the top of the screen names the ones in force (INVULNERABLE • 2X), under TUNED. Tools on the title travel; the ones that act on the world wait for a game.
+- **Emberdeep**: 0 resets the camera to the game's own (1.25×, no turn), as Graphics' Reset the camera does; it used to keep a changed zoom.
+- **Emberdeep**: a tap that opens a window no longer clicks what lies under the finger in it (on a phone, CHARACTER on the title could press PLAY AS).
+- **Emberdeep**: the tuning knob Screen shake is Screen shake strength, beside Graphics' Screen shake switch.
+- **Tools**: the controls, tuning, character, Codex and labs suites drive the Settings window:
+  - Tools act on the real hero (the granted gold saves with him);
+  - the overlays and full lighting are set in Graphics;
+  - difficulty is kept as it changes;
+  - the character and Codex suites keep the hero's save and put it back after their experiments.
+- **Docs**: `TUNING.md` opens with the Settings window. README (the fixed keys, Settings), `DESIGN.md`, `CODEX.md`, `CHARACTERS.md`, `DOCTRINE.md`, `AI_GUIDE.md` and `CLAUDE.md` name the new places (Settings → Tools → Record a session).
 
 ## 0.44.0 (2026-10-15)
 

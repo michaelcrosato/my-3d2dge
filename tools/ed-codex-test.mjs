@@ -49,6 +49,29 @@ async function button(p, label, touch = false) {
 	else await p.mouse.click(...xy);
 	await p.waitForTimeout(150);
 }
+/* the experiments run on the hero himself (the tools act on the real game): his save is kept first and put back after,
+   with the switches off, back in town */
+const keepHero = (p) =>
+	p.evaluate(() => {
+		const X = __ed;
+		X.saveGame();
+		X.kept = JSON.stringify(My3D2dge.store.get(X.characterSaveKey(X.ED.hero.character)));
+		X.UI.closeAll();
+		X.goTown();
+	});
+const restoreHero = (p) =>
+	p.evaluate(() => {
+		const X = __ed,
+			id = X.ED.hero.character;
+		X.ED.hero.bot = null;
+		Object.assign(X.DEV, { god: false, resources: false, cooldowns: false, freezeFoes: false, paused: false });
+		My3D2dge.store.set(X.characterSaveKey(id), JSON.parse(X.kept));
+		X.ED.hero = X.loadHeroOrNew(id);
+		X.ED.savedLevel = null;
+		X.UI.closeAll();
+		X.goTown();
+		return X.kept;
+	});
 async function check(name, fn) {
 	await fn();
 	checks.push(name);
@@ -196,13 +219,9 @@ try {
 		},
 	);
 	await check(
-		"Every signature spell, Manuscript empowerment, rune effects and save-safe sandbox",
+		"Every signature spell, Manuscript empowerment, rune effects, and the hero put back after",
 		async () => {
-			const normal = await page.evaluate(() => {
-				__ed.saveGame();
-				return JSON.stringify(My3D2dge.store.get("ed:save:codex"));
-			});
-			await page.evaluate(() => __ed.devEnable());
+			await keepHero(page);
 			await page.waitForTimeout(800);
 			const result = await page.evaluate(() => {
 				const { ED, game, DEV } = __ed,
@@ -354,17 +373,17 @@ try {
 			])
 				assert.ok(result.skills.includes(id), id + " dealt damage");
 			assert.deepEqual(result.errors, []);
+			const kept = await restoreHero(page);
+			await page.evaluate(() => {
+				__ed.game.paused = false;
+			});
+			await page.waitForTimeout(900);
 			assert.equal(
 				await page.evaluate(() =>
 					JSON.stringify(My3D2dge.store.get("ed:save:codex")),
 				),
-				normal,
+				kept,
 			);
-			await page.evaluate(() => {
-				__ed.devDisable();
-				__ed.game.paused = false;
-			});
-			await page.waitForTimeout(900);
 			assert.equal(
 				await page.evaluate(() => __ed.ED.hero.rig.constructor.name),
 				"CodexRig",
@@ -374,7 +393,7 @@ try {
 	await check(
 		"Shared skills, equipment upgrades, passives and spectral-copy compatibility",
 		async () => {
-			await page.evaluate(() => __ed.devEnable());
+			await keepHero(page);
 			await page.waitForTimeout(800);
 			const result = await page.evaluate(() => {
 				const { ED, game, DEV, REG } = __ed,
@@ -449,7 +468,7 @@ try {
 			assert.ok(result.equipment && result.echo);
 			assert.deepEqual(result.cast, result.ids);
 			assert.deepEqual(result.errors, []);
-			await page.evaluate(() => __ed.devDisable());
+			await restoreHero(page);
 			await page.waitForTimeout(900);
 		},
 	);

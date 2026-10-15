@@ -65,10 +65,12 @@ const ED = {
 
 /* ---------- difficulty and options (the playtest sliders live in the pause menu and on the title) ---------- */
 const DIFF_DEFAULT = { heroDmg: 1, heroHp: 1, heroSpeed: 1, foeDmg: 1, foeHp: 1, foeSpeed: 1, density: 1, xp: 1, loot: 1 };
-const OPT_DEFAULT = { numbers: true, shake: true, labels: 1, music: .5, sfx: 1, gpu: false, view: 'iso', zoom: 1.25, bars: true };
+// the player's options (Settings, 64-menu.js): the interface's, the sound's and the graphics' (view, zoom, pixel size,
+// lighting, outlines, particles fx 0-2, the automatic quality, the overlays)
+const OPT_DEFAULT = { numbers: true, shake: true, labels: 1, music: .5, sfx: 1, gpu: false, view: 'iso', zoom: 1.25, bars: true, pixels: 0, fullLight: false, autoQuality: true, perfOverlay: false, hitboxes: false };
 const DIFF = Object.assign({}, DIFF_DEFAULT, E.store.get('ed:diff', {}));
 const OPT = Object.assign({}, OPT_DEFAULT, E.store.get('ed:opt', {}));
-const saveOpts = () => { if (!DEV.enabled) E.store.set('ed:diff', DIFF); E.store.set('ed:opt', OPT); };
+const saveOpts = () => { E.store.set('ed:diff', DIFF); E.store.set('ed:opt', OPT); };
 const applyAudioOpts = () => { A.musicVolume = OPT.music; A.sfxVolume = OPT.sfx; A._levels(); };
 applyAudioOpts(); P.max = [500, 1000, 1600][OPT.fx === undefined ? 2 : OPT.fx];
 

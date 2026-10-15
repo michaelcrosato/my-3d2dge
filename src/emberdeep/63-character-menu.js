@@ -1,6 +1,5 @@
 /* Character choice is a native, scrollable dialog for mouse, keyboard, touch and gamepad. */
 function selectCharacter(id) {
-	if (DEV.enabled) return false;
 	CHAR.selected = characterId(id);
 	E.store.set("ed:character", CHAR.selected);
 	ED.hero = loadHeroOrNew(CHAR.selected);

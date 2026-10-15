@@ -61,6 +61,14 @@ async function canvasButton(p, label, touch = false) {
 	else await p.mouse.click(x, y);
 	await p.waitForTimeout(130);
 }
+/* a page of the Settings window, opened from the pause menu (or the title) */
+async function settingsPage(p, tab, touch = false) {
+	await canvasButton(p, "SETTINGS", touch);
+	const t = p.getByRole("tab", { name: tab, exact: true });
+	if (touch) await t.tap();
+	else await t.click();
+	await p.waitForTimeout(100);
+}
 const save = (p) =>
 	p.evaluate(() => JSON.stringify(My3D2dge.store.get("ed:save")));
 /* the phone layout, in page pixels: whether the picture fills the screen, where the HUD bar, the action buttons, the
@@ -107,7 +115,7 @@ try {
 		"Menu access, keyboard rebinding, conflicts, reset and persistence",
 		async () => {
 			await key(page, "Escape");
-			await canvasButton(page, "CONTROLS");
+			await settingsPage(page, "Controls");
 			await page
 				.getByRole("button", {
 					name: "Move right keyboard / mouse",
@@ -148,7 +156,7 @@ try {
 				await page.evaluate(() => __ed.game.input.map.right.includes("KeyR")),
 			);
 			await key(page, "Escape");
-			await canvasButton(page, "CONTROLS");
+			await settingsPage(page, "Controls");
 			await page
 				.getByRole("button", { name: "Skill 1 keyboard / mouse", exact: true })
 				.click();
@@ -253,7 +261,7 @@ try {
 			assert.equal(await page.evaluate(() => __ed.UI.top().id), "waystone");
 			await padButton(9);
 			await key(page, "Escape");
-			await canvasButton(page, "CONTROLS");
+			await settingsPage(page, "Controls");
 			await page
 				.getByRole("button", { name: "Clear Interact pad", exact: true })
 				.click();
@@ -312,24 +320,17 @@ try {
 		await key(page, "Escape");
 	});
 	await check(
-		"Developer tools, stepping, travel and normal-save isolation",
+		"Tools act on the hero you play: switches, stepping, spawning, travel, and the save keeps it",
 		async () => {
 			await page.evaluate(() => __ed.saveGame());
-			const original = await save(page);
 			const gold = await page.evaluate(() => __ed.ED.hero.gold);
-			const difficulty = await page.evaluate(() => ({
-				live: { ...__ed.DIFF },
-				saved: My3D2dge.store.get("ed:diff"),
-			}));
 			await key(page, "Escape");
-			await canvasButton(page, "DEVELOPER");
-			await page
-				.getByRole("button", { name: "Enable developer mode", exact: true })
-				.click();
-			await page.waitForTimeout(500);
-			assert.ok(await page.evaluate(() => __ed.DEV.enabled));
-			await key(page, "Escape");
-			await canvasButton(page, "DEVELOPER");
+			await canvasButton(page, "TOOLS");
+			await page.getByRole("tab", { name: "Tools", exact: true }).waitFor();
+			assert.equal(
+				await page.getByRole("tab", { name: "Tools", exact: true }).getAttribute("aria-selected"),
+				"true",
+			);
 			await page
 				.getByRole("checkbox", { name: "Invulnerable", exact: true })
 				.check();
@@ -452,6 +453,8 @@ try {
 				})
 				.click();
 			assert.equal(await page.evaluate(() => __ed.ED.foes.length), 0);
+			// the overlays and the full lighting are Graphics settings now, kept with the options
+			await page.getByRole("tab", { name: "Graphics", exact: true }).click();
 			await page
 				.getByRole("checkbox", { name: "Full lighting", exact: true })
 				.check();
@@ -460,6 +463,19 @@ try {
 				.check();
 			await page.waitForTimeout(100);
 			assert.equal(await page.evaluate(() => __ed.game.lights.enabled), false);
+			assert.ok(
+				await page.evaluate(() => {
+					const o = My3D2dge.store.get("ed:opt");
+					return o.fullLight === true && o.hitboxes === true;
+				}),
+			);
+			await page
+				.getByRole("checkbox", { name: "Full lighting", exact: true })
+				.uncheck();
+			await page
+				.getByRole("checkbox", { name: "Collision circles", exact: true })
+				.uncheck();
+			await page.getByRole("tab", { name: "Tools", exact: true }).click();
 			await page
 				.getByRole("combobox", { name: "Simulation speed", exact: true })
 				.selectOption("2");
@@ -471,12 +487,15 @@ try {
 				.getByRole("button", { name: "Travel to depth", exact: true })
 				.click();
 			await page.waitForFunction(() => __ed.ED.depth === 7);
-			assert.equal(await save(page), original);
 			await page.evaluate(() => __ed.saveGame());
-			assert.equal(await save(page), original);
+			assert.equal(
+				JSON.parse(await save(page)).gold,
+				gold + 10000,
+				"the granted gold is the hero's own, and saves with him",
+			);
 			await key(page, "Escape");
-			await canvasButton(page, "DEVELOPER");
-			await page.screenshot({ path: out + "/developer.png" });
+			await canvasButton(page, "TOOLS");
+			await page.screenshot({ path: out + "/tools.png" });
 			await page
 				.getByRole("button", { name: "Start autopilot", exact: true })
 				.click();
@@ -485,35 +504,40 @@ try {
 				.getByRole("button", { name: "Stop autopilot", exact: true })
 				.click();
 			assert.ok(await page.evaluate(() => !__ed.ED.hero.bot));
+			// difficulty: a page of its own, kept as soon as it changes
+			await page.getByRole("tab", { name: "Difficulty", exact: true }).click();
+			await page.getByRole("slider", { name: "Hero damage", exact: true }).focus();
+			await page.keyboard.press("ArrowRight");
+			assert.ok(await page.evaluate(() => __ed.DIFF.heroDmg > 1));
+			assert.ok(
+				await page.evaluate(() => My3D2dge.store.get("ed:diff").heroDmg > 1),
+			);
 			await page
-				.getByRole("button", { name: "Difficulty sliders", exact: true })
+				.getByRole("button", { name: "Reset difficulty", exact: true })
 				.click();
-			await key(page, "ArrowRight");
-			assert.notDeepEqual(
-				await page.evaluate(() => ({ ...__ed.DIFF })),
-				difficulty.live,
-			);
-			assert.deepEqual(
-				await page.evaluate(() => My3D2dge.store.get("ed:diff")),
-				difficulty.saved,
-			);
-			await canvasButton(page, "DEVELOPER");
+			assert.equal(await page.evaluate(() => __ed.DIFF.heroDmg), 1);
+			// the switches off again, and home
+			await page.getByRole("tab", { name: "Tools", exact: true }).click();
+			for (const name of [
+				"Invulnerable",
+				"Unlimited ember, potions & dodges",
+				"No skill cooldowns",
+				"Pause simulation",
+			])
+				await page.getByRole("checkbox", { name, exact: true }).uncheck();
 			await page
-				.getByRole("button", { name: "Leave sandbox", exact: true })
+				.getByRole("combobox", { name: "Simulation speed", exact: true })
+				.selectOption("1");
+			await page
+				.getByRole("button", { name: "Return to town", exact: true })
 				.click();
 			await page.waitForFunction(() => __ed.ED.mode === "town");
-			assert.equal(await page.evaluate(() => __ed.ED.hero.gold), gold);
-			assert.equal(await page.evaluate(() => __ed.DEV.enabled), false);
 			assert.equal(await page.evaluate(() => __ed.SLOW.base), 1);
-			assert.deepEqual(
-				await page.evaluate(() => ({ ...__ed.DIFF })),
-				difficulty.live,
+			assert.ok(
+				await page.evaluate(
+					() => !__ed.DEV.god && !__ed.DEV.paused && !__ed.UI.stack.length,
+				),
 			);
-			// Returning to town refills potions, just like a normal portal trip.
-			const restored = JSON.parse(await save(page));
-			const expected = JSON.parse(original);
-			expected.potions = await page.evaluate(() => __ed.ED.hero.maxPotions);
-			assert.deepEqual(restored, expected);
 		},
 	);
 	await check(
@@ -533,20 +557,17 @@ try {
 			);
 			await key(page, "Escape");
 			assert.equal(await page.evaluate(() => __ed.UI.top().id), "pause");
-			await canvasButton(page, "DEVELOPER");
+			await canvasButton(page, "TOOLS");
 			await page
-				.getByRole("button", { name: "Enable developer mode", exact: true })
+				.getByRole("button", { name: "Return to town", exact: true })
 				.click();
 			await page.waitForTimeout(700);
 			const t = await page.evaluate(() => __ed.ED.t);
 			await page.waitForTimeout(150);
 			assert.ok(
 				await page.evaluate((t) => __ed.ED.t > t, t),
-				"old dialog does not block sandbox world updates",
+				"the old conversation does not hold the world after travel",
 			);
-			await key(page, "Escape");
-			await canvasButton(page, "LEAVE SANDBOX");
-			await page.waitForTimeout(700);
 		},
 	);
 	await check(
@@ -564,7 +585,7 @@ try {
 			// held upright, the title fills the phone, and a touch screen that can go full screen offers it
 			assert.ok((await phoneLayout(p)).fills);
 			assert.ok(await p.evaluate(() => __ed.UI.hot.some((h) => h.label === "FULL SCREEN")));
-			await canvasButton(p, "CONTROLS", true);
+			await settingsPage(p, "Controls", true);
 			// any tap on the title menu takes a phone full screen (a browser only allows it from a tap)
 			assert.ok(await p.evaluate(() => !!document.fullscreenElement));
 			assert.equal(await p.locator("dialog").count(), 1);
@@ -648,7 +669,7 @@ try {
 			await canvasButton(p, "LEAVE FULL SCREEN", true);
 			await p.waitForFunction(() => !document.fullscreenElement);
 			assert.equal(await p.evaluate(() => My3D2dge.store.get("ed:opt").fullscreen), false);
-			await canvasButton(p, "CONTROLS", true);
+			await settingsPage(p, "Controls", true);
 			await p
 				.getByRole("combobox", { name: "Action buttons on", exact: true })
 				.selectOption("left");
@@ -684,7 +705,7 @@ try {
 		out + "/results.json",
 		JSON.stringify({ checks, errors }, null, 2),
 	);
-	console.log("All", checks.length, "control / developer scenarios passed.");
+	console.log("All", checks.length, "control / tools scenarios passed.");
 } catch (error) {
 	await page.screenshot({ path: out + "/failure.png" });
 	console.error("Browser errors:", errors);

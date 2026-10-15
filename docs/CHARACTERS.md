@@ -48,7 +48,7 @@ Write it before any code, in the entry's `desc` and `style` and the file's heade
 | `clips: false` | No captured clips (a Humanoid hero plays the HERO set's moments by default) |
 | `head`, `r` | How tall it is (bars and effects sit there) and its collision radius (26 and 4.5) |
 | `stats(h, add)` | Flat bonuses: `add('ember', 25)` (stat names: `15-stats.js`) |
-| `prime(h)` | Fill its own resource for a cast outside real play: the gallery's demos, the sandbox's unlimited resources and the character test call it (Dan: a ripe brood) |
+| `prime(h)` | Fill its own resource for a cast outside real play: the gallery's demos, Tools' unlimited resources and the character test call it (Dan: a ripe brood) |
 | `init(h)` | Fields of its own on every new or loaded hero (Codex: its manuscript pages) |
 | `kit(h)` | Its starting gear, over the shared kit (longsword, tunic, shoes, cape) |
 | `dropIn(h, from)` | Its arrival in a depth (returns an action, see `20-hero.js`) |

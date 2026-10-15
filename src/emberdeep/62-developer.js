@@ -1,4 +1,8 @@
-/* Developer mode uses a disposable hero; autosaves never write this session. */
+/* =============================================================================
+ * TOOLS: the playtester's switches (invulnerable, unlimited resources, no cooldowns, frozen AI, a paused or faster
+ * world), travel, spawning and build experiments. They act on the hero you play, and he saves as usual: the whole game
+ * is a test bench. The switches last for this visit; Settings > Tools sets them (64-menu.js draws the pages).
+ * ============================================================================= */
 const DEV_DEFAULT = {
 	god: false,
 	resources: false,
@@ -6,12 +10,8 @@ const DEV_DEFAULT = {
 	freezeFoes: false,
 	paused: false,
 	speed: 1,
-	bright: false,
-	hitboxes: false,
-	stats: true,
 };
 const DEV = {
-	enabled: false,
 	...DEV_DEFAULT,
 	steps: 0,
 	depth: 1,
@@ -22,57 +22,17 @@ const DEV = {
 	itemLevel: 1,
 	boss: null,
 };
-function devEnable() {
-	if (DEV.enabled) return;
-	const source = ED.hero || loadHeroOrNew(),
-		data = {};
-	for (const k of SAVE_KEYS) if (source[k] !== undefined) data[k] = source[k];
-	DEV.original = source;
-	DEV.diff = { ...DIFF };
-	DEV.savedLevel = ED.savedLevel;
-	DEV.enabled = true;
-	ED.hero = makeHero(JSON.parse(JSON.stringify(data)));
-	refreshPowers(ED.hero);
-	computeStats(ED.hero);
-	ED.savedLevel = null;
-	UI.closeAll();
-	goTown();
-	notify("DEVELOPER SANDBOX • NORMAL SAVE KEPT", "#8fe3ff", 5);
-}
-function devDisable() {
-	if (!DEV.enabled) return;
-	UI.closeAll();
-	BOT_RUN.on = false;
-	ED.hero = DEV.original;
-	ED.savedLevel = DEV.savedLevel;
-	Object.assign(DIFF, DEV.diff);
-	Object.assign(DEV, DEV_DEFAULT, {
-		enabled: false,
-		steps: 0,
-		original: null,
-		diff: null,
-		savedLevel: null,
-	});
-	slowMoReset(1);
-	UI.hideHud = false;
-	computeStats(ED.hero);
-	goTown();
-	notify("NORMAL GAME RESTORED", "#8affb0");
-}
+/** true while the hero is in a world the tools can act on (the town, a depth, the Proving Grounds) */
+const devInWorld = () => !!ED.hero && !!ED.L && ["town", "level", "proving"].includes(ED.mode);
 function devRestore() {
-	if (!DEV.enabled || !ED.hero) return;
+	if (!ED.hero) return;
 	reviveHero(ED.hero);
 	ED.hero.cds = {};
 	ED.hero.dodges = ED.hero.maxDodge;
 	ED.hero.inv = 1;
 }
 function devStep() {
-	if (
-		!DEV.enabled ||
-		!DEV.paused ||
-		!["town", "level", "proving"].includes(ED.mode)
-	)
-		return;
+	if (!DEV.paused || !devInWorld()) return;
 	// Step the same scene update used by live play, with panels temporarily detached.
 	const stack = UI.stack;
 	UI.stack = [];
@@ -86,16 +46,16 @@ function devStep() {
 	}
 }
 function devTravel(depth) {
-	if (!DEV.enabled || !Number.isFinite(depth)) return;
+	if (!Number.isFinite(depth)) return;
 	DEV.depth = clamp(Math.round(depth), 1, 500);
+	if (!ED.hero || ED.mode === "title") ED.hero = loadHeroOrNew(); // from the title: the chosen character's hero
 	ED.savedLevel = null;
 	devRestore();
 	UI.closeAll();
 	descend(DEV.depth);
 }
 function devSpawn(boss = false) {
-	if (!DEV.enabled || !ED.L || !["town", "level", "proving"].includes(ED.mode))
-		return;
+	if (!devInWorld()) return;
 	if (ED.foes.length >= 300) {
 		formStatus("Spawn limit reached (300). Clear enemies first.");
 		return;
@@ -130,17 +90,13 @@ function devSpawn(boss = false) {
 	);
 }
 /* =============================================================================
- * THE DEVELOPER PANEL: a guide, the sandbox, and the game's tuning (01-tune.js), section by section
+ * THE TUNING PAGES: the game's rule numbers (01-tune.js), section by section, in Settings (64-menu.js)
  * Simple shows the few settings that change the game the most; Advanced shows every one. Each setting says what it
  * changes, its default, and which source file reads it. The inspectors change one monster, boss, item or skill:
  * those edits are kept as overrides (ed:tune:ovr) and laid over the registries when the game loads.
  * ============================================================================= */
-const DEV_UI = { tab: null, tier: E.store.get("ed:dev:tier", 1), find: "", pick: {}, flash: null };
-const DEV_TABS = [
-	{ id: "guide", name: "Guide", icon: "📖" },
-	{ id: "sandbox", name: "Sandbox", icon: "🧪" },
-	...TUNE_SECTIONS,
-];
+// tab: the Settings page open (kept for the next time); tier: Simple (1) or Advanced (2); find: the search box
+const DEV_UI = { tab: E.store.get("ed:menu:tab", "graphics"), tier: E.store.get("ed:dev:tier", 1), find: "", pick: {}, flash: null };
 /* ---------- overrides: one field of one registered part (monster, boss, item base, affix, skill) ---------- */
 const TUNE_OVR = {};
 const TUNE_ORIG = {};
@@ -306,8 +262,8 @@ const devFmt = (v, K) => {
 function devStatus(msg) {
 	formStatus(msg);
 }
-function devSection(el, title, blurb) {
-	formElement("h3", title, el);
+function devSection(el, title, blurb, tag = "h3") {
+	formElement(tag, title, el);
 	if (blurb) formElement("p", blurb, el, { class: "ed-dev-blurb" });
 }
 /** one knob: name, what it does, a slider with a number box, its default and source, and a reset */
@@ -379,7 +335,7 @@ function devInspector(el, I) {
 	devSection(el, I.name + " inspector", I.note);
 	formField(el, I.name, "select", pick, (v) => {
 		DEV_UI.pick[I.kind] = v;
-		devRenderTab();
+		menuRender();
 	}, {
 		options: parts.map((p) => {
 			const n = ovrCount(I.kind + "." + p.id + ".");
@@ -402,7 +358,7 @@ function devInspector(el, I) {
 		inp.value = cur;
 		const rb = formButton(row, "↺", () => {
 			ovrSet(key, undefined);
-			devRenderTab();
+			menuRender();
 			devStatus(path + " back to " + (def === undefined ? "the default" : def) + ".");
 		});
 		rb.setAttribute("aria-label", "Reset " + path);
@@ -422,10 +378,10 @@ function devInspector(el, I) {
 	const acts = formElement("div", "", el, { class: "ed-row" });
 	formButton(acts, "Reset this " + I.name.toLowerCase(), () => {
 		for (const k of Object.keys(TUNE_OVR)) if (k.startsWith(I.kind + "." + pick + ".")) ovrSet(k, undefined);
-		devRenderTab();
+		menuRender();
 		devStatus((spec.name || pick) + " is back to its shipped numbers.");
 	});
-	if (I.kind === "archetypes" && DEV.enabled)
+	if (I.kind === "archetypes" && devInWorld())
 		formButton(acts, "Spawn one to test", () => {
 			const was = DEV.monster, n = DEV.count;
 			DEV.monster = pick;
@@ -434,23 +390,24 @@ function devInspector(el, I) {
 			DEV.monster = was;
 			DEV.count = n;
 		});
-	if (I.kind === "bosses" && DEV.enabled)
+	if (I.kind === "bosses" && devInWorld())
 		formButton(acts, "Spawn it to test", () => {
 			const was = DEV.boss;
 			DEV.boss = pick;
 			devSpawn(true);
 			DEV.boss = was;
 		});
-	if (I.kind === "itemBases" && DEV.enabled)
+	if (I.kind === "itemBases" && devInWorld())
 		formButton(acts, "Create one in the bag", () => {
 			if (ED.hero.bag.length >= BAG_MAX) return devStatus("Bag full. Make room first.");
 			ED.hero.bag.push(makeItem({ base: pick, ilvl: DEV.itemLevel, rarity: DEV.rarity }));
 			devStatus("Added a " + (spec.name || pick) + " to the bag.");
 		});
 }
-/* ---------- the tabs ---------- */
+/* ---------- the tuning pages' counts ---------- */
+/** how many of a tuning page's numbers are changed from the shipped game (0 for the other pages) */
 function devTabCount(id) {
-	if (id === "guide" || id === "sandbox") return 0;
+	if (!TUNE_SECTIONS.some((S) => S.id === id)) return 0;
 	const kinds = (DEV_INSPECT[id] || []).map((I) => I.kind + ".");
 	return TUNE_KNOBS.filter((K) => K.sec === id && tuneChanged(K.id)).length + Object.keys(TUNE_OVR).filter((k) => kinds.some((p) => k.startsWith(p))).length;
 }
@@ -468,20 +425,7 @@ function devBadges() {
 		t.textContent = n ? n + " change" + (n === 1 ? "" : "s") + " from the shipped game, saved in this browser." : "The game is as shipped.";
 	}
 }
-function devGo(tab, knobId) {
-	DEV_UI.tab = tab;
-	DEV_UI.flash = knobId || null;
-	if (knobId) {
-		const K = tuneKnob(knobId);
-		if (K && K.tier === 2) DEV_UI.tier = 2;
-	}
-	devRenderTab();
-	if (knobId && FORM.el) {
-		const r = FORM.el.querySelector('[data-knob="' + knobId + '"]');
-		if (r) r.scrollIntoView({ block: "center" });
-	}
-	DEV_UI.flash = null;
-}
+
 const DEV_GUIDE = [
 	["Change how a monster behaves", "How aggressive monsters are lives in Monsters > Aggression: how far they see you, how many may attack at once, the pause between attacks, and how long they telegraph a swing. To change one monster (its life, speed, damage, each attack's wind-up and cooldown), use the Monster inspector at the bottom of Monsters.", "monsters", "sight"],
 	["Make a monster tougher, weaker or faster", "Monsters > Monster inspector: pick it, then change hp, dmg or speed. For all monsters at once, use the Settings difficulty sliders, or Monsters > Strength for how they grow with depth.", "monsters"],
@@ -494,7 +438,7 @@ const DEV_GUIDE = [
 	["A skill is too strong, weak or slow", "Skills > Skill inspector: its damage multiplier, ember cost, cooldown and ember generated.", "skills"],
 	["Level up faster or slower", "Progression: XP needed per level, points per level, and damage per skill rank.", "progress", "xpCurve"],
 	["Make hits feel heavier or calmer", "Physics & world > Feel (hit stop and screen shake) and Combat > Knockback.", "world", "hitStop"],
-	["Test changes safely", "Sandbox: a throwaway copy of your hero. Spawn any monster or boss, jump to any depth, make items, go invulnerable. Your normal save is kept.", "sandbox"],
+	["Spawn monsters, travel, make items", "Tools: go invulnerable, freeze or pause the world, jump to any depth, spawn any monster or boss, grant points and gold, make any item. They act on the hero you play.", "tools"],
 ];
 /* ---------- recording a session for a bug report (E.session: the engine records, tools/replay.mjs replays) ---------- */
 // a sharper checksum for the recording: the hero, the level and the crowd, so a replay stops at the first frame that differs
@@ -505,10 +449,10 @@ game.stateHash = () => {
 function devSessionBlock(el) {
 	const S = E.session,
 		live = S.recording || S.replaying; // (a replay lays the panel out as the recording did, so its taps land on the same buttons)
-	devSection(el, "Record a session for a bug report", "Turn recording on and play. When something goes wrong, save the session and send it to Claude: it replays your exact game, frame by frame, and sees what you saw. Recording starts with the next load and goes on until you turn it off. While recording, the GPU lighting is off.");
+	devSection(el, "Record a session for a bug report", "Turn recording on and play. When something goes wrong, save the session and send it to Claude: it replays your exact game, frame by frame, and sees what you saw. Recording starts with the next load and goes on until you turn it off. While recording, the GPU lighting is off.", "h4");
 	formField(el, "Record sessions (from the next load)", "checkbox", S.wanted(), (v) => {
 		S.record(v);
-		devRenderTab();
+		menuRender();
 	});
 	if (live) {
 		const d = S.data, secs = d.frames.length ? (d.frames[d.frames.length - 1] - d.frames[0]) / 1000 : 0;
@@ -518,34 +462,50 @@ function devSessionBlock(el) {
 		});
 	} else if (S.wanted()) formButton(el, "Start recording now (reloads the page)", () => location.reload());
 }
-function devGuideTab(el) {
-	devSessionBlock(el);
-	devSection(el, "How this panel works", null);
-	const ul = formElement("ul", "", el, { class: "ed-dev-list" });
-	for (const t of [
-		"Each tab is one part of the game. It starts with what that part does, then its settings, grouped.",
-		"Simple shows the settings that change the game the most. Advanced shows every one (and Simple always shows any you changed).",
-		"Every setting says what it changes in plain words, its default, and the source file that reads it, if you want to go further than the slider.",
-		"Drag a slider or type an exact number. ↺ puts one setting back; each tab also has a reset for the whole tab.",
-		"Changes count at once in the real game, and stay in this browser until you reset them. They do not touch your save; the Sandbox is the place to try things on a throwaway hero.",
-		"Copy settings puts all your changes on the clipboard, so you can keep them, share them, or hand them to Claude to make them the game's new defaults.",
-	])
-		formElement("li", t, ul);
+/** Help's guide to the tuning: how its pages work, and where each common change lives */
+function devGuide(el) {
 	devSection(el, "Where do I change…?", "Tap a question to jump to the right place.");
 	for (const [q, a, tab, knobId] of DEV_GUIDE) {
 		const card = formElement("div", "", el, { class: "ed-guide" });
-		formButton(card, q + " →", () => devGo(tab, knobId)).className = "ed-guide-q";
+		formButton(card, q + " →", () => menuGo(tab, knobId)).className = "ed-guide-q";
 		formElement("p", a, card, { class: "ed-about" });
 	}
-	devSection(el, "Not here?", "Some things are code, not numbers: a brand-new attack, a different way for one monster to move, a new item power. Ask Claude, and name the part (for example “make skeletons circle around me before attacking”). The source file listed under each setting is where that part lives.");
-	devSection(el, "The difficulty sliders", "The quick 0.25× to 4× multipliers (hero and monster damage, life, speed, density, experience, loot) stay in Settings, for playtesting.");
-	formButton(el, "Open the difficulty sliders", () => {
-		UI.close("developer");
-		UI.open("settings");
-	});
+	devSection(el, "How the tuning pages work", null);
+	const ul = formElement("ul", "", el, { class: "ed-dev-list" });
+	for (const t of [
+		"Each page under Tuning is one part of the game. It starts with what that part does, then its settings, grouped.",
+		"Simple shows the settings that change the game the most. Advanced shows every one (and Simple always shows any you changed).",
+		"Every setting says what it changes in plain words, its default, and the source file that reads it, if you want to go further than the slider.",
+		"Drag a slider or type an exact number. ↺ puts one setting back; each page also has a reset for the whole page.",
+		"Changes count at once and stay in this browser until you reset them. While any is in force, TUNED shows at the top of the screen.",
+		"Copy tuning puts all your changes on the clipboard, so you can keep them, share them, or hand them to Claude to make them the game's new defaults.",
+	])
+		formElement("li", t, ul);
+	devSection(el, "Not here?", "Some things are code, not numbers: a brand-new attack, a different way for one monster to move, a new item power. Ask Claude, and name the part (for example “make skeletons circle around me before attacking”).");
 }
+/** a tuning page: Simple or Advanced, the copy, paste and reset of all the tuning, then the section's knobs and inspectors */
 function devTuneTab(el, sec) {
 	const S = TUNE_SECTIONS.find((s) => s.id === sec);
+	const bar = formElement("div", "", el, { class: "ed-dev-bar" });
+	const tiers = formElement("div", "", bar, { class: "ed-seg", role: "group", "aria-label": "Detail" });
+	for (const [t, name] of [[1, "Simple"], [2, "Advanced"]]) {
+		const b = formButton(tiers, name, () => {
+			DEV_UI.tier = t;
+			E.store.set("ed:dev:tier", t);
+			menuRender();
+		});
+		b.setAttribute("aria-pressed", String(DEV_UI.tier === t));
+	}
+	formButton(bar, "Copy tuning", () => devCopy());
+	formButton(bar, "Paste tuning", () => devPaste());
+	formButton(bar, "Reset all tuning", () => {
+		if (!confirm("Put every tuning setting and inspector change back to the shipped game?")) return;
+		tuneReset();
+		for (const k of Object.keys(TUNE_OVR)) ovrSet(k, undefined);
+		menuRender();
+		devStatus("Everything is back to the shipped game.");
+	});
+	formElement("p", "", el, { class: "ed-meta", "data-tuned": "" });
 	formElement("p", S.blurb, el, { class: "ed-dev-intro" });
 	devKnobs(el, sec);
 	for (const I of DEV_INSPECT[sec] || []) devInspector(el, I);
@@ -554,98 +514,18 @@ function devTuneTab(el, sec) {
 		tuneReset(TUNE_KNOBS.filter((K) => K.sec === sec).map((K) => K.id));
 		const kinds = (DEV_INSPECT[sec] || []).map((I) => I.kind + ".");
 		for (const k of Object.keys(TUNE_OVR)) if (kinds.some((p) => k.startsWith(p))) ovrSet(k, undefined);
-		devRenderTab();
+		menuRender();
 		devStatus(S.name + " is back to the shipped game.");
 	});
 }
-/** everything the old panel had: the sandbox hero, simulation switches, travel, encounters and build experiments */
-function devSandboxTab(el) {
-	if (!DEV.enabled) {
-		formElement("p", "The sandbox swaps in a throwaway copy of your hero. Try builds, any monster or boss, any depth, any item; nothing you do there is saved, and leaving it brings your normal hero back to town. Use the button at the top to start it.", el, { class: "ed-dev-intro" });
-		return;
-	}
-	devSandboxBody(el);
-}
-function devRenderTab() {
-	const el = FORM.el;
-	if (!el) return;
-	const tabs = el.querySelector(".ed-tabs"),
-		body = el.querySelector(".ed-tab-body");
-	if (!tabs || !body) return;
-	const tab = DEV_UI.tab || (DEV.enabled ? "sandbox" : "guide");
-	for (const b of tabs.querySelectorAll("[data-tab]")) b.setAttribute("aria-selected", b.dataset.tab === tab ? "true" : "false");
-	for (const b of el.querySelectorAll("[data-tier]")) b.setAttribute("aria-pressed", +b.dataset.tier === DEV_UI.tier ? "true" : "false");
-	const y = body.scrollTop;
-	body.textContent = "";
-	if (DEV_UI.find.trim()) devSearchTab(body);
-	else if (tab === "guide") devGuideTab(body);
-	else if (tab === "sandbox") devSandboxTab(body);
-	else devTuneTab(body, tab);
-	body.scrollTop = DEV_UI.flash ? 0 : y;
-	devBadges();
-}
-function renderDeveloper() {
-	openForm("Developer", (el) => {
-		el.classList.add("ed-dev");
-		formElement("p", "", el, { "data-status": "", role: "status", class: "ed-status" });
-		const top = formElement("div", "", el, { class: "ed-dev-top" });
-		formElement("p", DEV.enabled ? "Sandbox active: a throwaway hero. Leave to restore your normal hero in town." : "Change how the game plays, section by section. Start the sandbox to test on a throwaway hero.", top);
-		formButton(top, DEV.enabled ? "Leave sandbox" : "Enable developer mode", () => (DEV.enabled ? devDisable() : devEnable()));
-		// every lab, test page and demo (examples/labs.html, /labs on the site); "labs.html" works from both
-		formButton(top, "All labs ↗", () => location.assign("labs.html")).title = "The Labs page: every lab, test page and demo";
-		formElement("p", "", el, { class: "ed-meta", "data-tuned": "" });
-		formElement("p", "Emberdeep on my-3D2dge " + E.versionLabel(), el, { class: "ed-meta ed-version" });   // the release and the commit it was built from
-		const bar = formElement("div", "", el, { class: "ed-dev-bar" });
-		const tiers = formElement("div", "", bar, { class: "ed-seg", role: "group", "aria-label": "Detail" });
-		for (const [t, name] of [[1, "Simple"], [2, "Advanced"]]) {
-			const b = formButton(tiers, name, () => {
-				DEV_UI.tier = t;
-				E.store.set("ed:dev:tier", t);
-				devRenderTab();
-			});
-			b.dataset.tier = t;
-		}
-		const find = formElement("input", "", bar, { type: "search", placeholder: "Find a setting…", "aria-label": "Find a setting" });
-		find.value = DEV_UI.find;
-		find.oninput = () => {
-			DEV_UI.find = find.value;
-			devRenderTab();
-		};
-		const tabs = formElement("div", "", el, { class: "ed-tabs", role: "tablist", "aria-label": "Sections" });
-		for (const T of DEV_TABS) {
-			const b = formButton(tabs, "", () => {
-				DEV_UI.tab = T.id;
-				devRenderTab();
-			});
-			b.dataset.tab = T.id;
-			b.setAttribute("role", "tab");
-			b.setAttribute("aria-label", T.name);
-			formElement("span", T.icon + " " + T.name, b);
-			formElement("span", "", b, { class: "ed-badge" });
-		}
-		formElement("div", "", el, { class: "ed-tab-body", role: "tabpanel" });
-		const foot = formElement("div", "", el, { class: "ed-row ed-dev-foot" });
-		formButton(foot, "Copy settings", () => devCopy());
-		formButton(foot, "Paste settings", () => devPaste());
-		formButton(foot, "Reset everything", () => {
-			if (!confirm("Put every tuning setting and inspector change back to the shipped game?")) return;
-			tuneReset();
-			for (const k of Object.keys(TUNE_OVR)) ovrSet(k, undefined);
-			devRenderTab();
-			devStatus("Everything is back to the shipped game.");
-		});
-	});
-	devRenderTab();
-}
-/** the search box looks through every section's settings, and every monster, boss, item and skill by name */
-function devSearchTab(el) {
-	const q = DEV_UI.find.trim().toLowerCase();
-	formElement("p", "Results for \u201c" + DEV_UI.find.trim() + "\u201d in every section (Simple and Advanced). Clear the search to go back to the tabs.", el, { class: "ed-dev-intro" });
+/** the tuning's part of Settings' search: every section's knobs (Simple and Advanced), and every monster, boss, item
+ *  and skill by name in the inspectors; returns how many it found */
+function devSearch(el, q) {
 	let n = 0;
 	for (const S of TUNE_SECTIONS) {
 		const list = TUNE_KNOBS.filter((K) => K.sec === S.id && (K.label + " " + K.about + " " + K.group + " " + K.id).toLowerCase().includes(q));
 		if (!list.length) continue;
-		formElement("h3", S.icon + " " + S.name, el);
+		formElement("h3", "Tuning › " + S.name, el);
 		for (const K of list) devKnobRow(el, K);
 		n += list.length;
 	}
@@ -660,16 +540,12 @@ function devSearchTab(el) {
 		for (const [sec, I, p] of parts.slice(0, 40))
 			formButton(box, I.name + ": " + (p.name || p.id), () => {
 				DEV_UI.pick[I.kind] = p.id;
-				DEV_UI.tab = sec;
-				DEV_UI.find = "";
-				const f = FORM.el && FORM.el.querySelector("input[type=search]");
-				if (f) f.value = "";
-				devRenderTab();
+				menuGo(sec);
 				const sel = FORM.el && [...FORM.el.querySelectorAll(".ed-field select")].find((s) => s.value === p.id);
 				if (sel) sel.scrollIntoView({ block: "start" });
 			});
 	}
-	if (!n && !parts.length) formElement("p", "Nothing matches. Try a simpler word (speed, life, drop, boss...), or ask Claude where it lives.", el, { class: "ed-dev-blurb" });
+	return n + parts.length;
 }
 function devExport() {
 	const tune = {};
@@ -678,42 +554,47 @@ function devExport() {
 }
 function devCopy() {
 	const text = devExport();
-	const done = () => devStatus("Settings copied. Paste them back here later, or hand them to Claude to bake in as the defaults.");
-	if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => prompt("Copy these settings:", text));
-	else prompt("Copy these settings:", text);
+	const done = () => devStatus("Tuning copied. Paste it back later, or hand it to Claude to bake in as the defaults.");
+	if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => prompt("Copy this tuning:", text));
+	else prompt("Copy this tuning:", text);
 }
 function devPaste() {
-	const text = prompt("Paste settings copied from this panel:");
+	const text = prompt("Paste tuning copied from Settings:");
 	if (!text) return;
 	try {
 		const o = JSON.parse(text);
-		if (!o || o.emberdeepTuning !== 1) throw new Error("not panel settings");
+		if (!o || o.emberdeepTuning !== 1) throw new Error("not copied tuning");
 		tuneReset();
 		for (const k of Object.keys(TUNE_OVR)) ovrSet(k, undefined);
 		for (const id in o.tune || {}) tuneSet(id, +o.tune[id]);
 		for (const k in o.overrides || {}) if (Number.isFinite(o.overrides[k])) ovrSet(k, o.overrides[k]);
-		devRenderTab();
-		devStatus("Settings loaded.");
+		menuRender();
+		devStatus("Tuning loaded.");
 	} catch (err) {
-		devStatus("Those are not settings from this panel (" + err.message + ").");
+		devStatus("That is not tuning copied from Settings (" + err.message + ").");
 	}
 }
-/** the sandbox tab: the simulation switches, travel, encounters and build experiments */
-function devSandboxBody(el) {
-	formElement("h3", "Simulation", el);
+/** Settings > Tools: the switches, travel, encounters, build experiments and recording. The world's tools wait for a
+ *  game (the town, a depth, the Proving Grounds); travel starts one from the title */
+function devToolsPage(el) {
+	const live = devInWorld(),
+		h = ED.hero,
+		world = (b) => {
+			b.disabled = !live;
+			return b;
+		};
+	formElement("p", "These act on the hero you play, and he saves as usual. The switches last until you reload." + (live ? "" : " Start or continue a game to use the ones that act on the world."), el, { class: "ed-dev-intro" });
+	formElement("h4", "Simulation", el);
 	for (const [key, label] of [
 		["god", "Invulnerable"],
 		["resources", "Unlimited ember, potions & dodges"],
 		["cooldowns", "No skill cooldowns"],
 		["freezeFoes", "Freeze enemy AI"],
 		["paused", "Pause simulation"],
-		["bright", "Full lighting"],
-		["hitboxes", "Collision circles"],
-		["stats", "Performance overlay"],
 	]) {
 		formField(el, label, "checkbox", DEV[key], (v) => {
 			DEV[key] = v;
-			if (key === "cooldowns" && v) ED.hero.cds = {};
+			if (key === "cooldowns" && v && ED.hero) ED.hero.cds = {};
 		});
 	}
 	formField(
@@ -727,16 +608,21 @@ function devSandboxBody(el) {
 		},
 		{ options: [0.25, 0.5, 1, 2, 4].map((v) => [v, v + "×"]) },
 	);
-	formButton(el, "Step 1 frame (while paused)", devStep);
-	formButton(el, "Restore life & resources", () => {
-		devRestore();
-		formStatus("Life, ember, potions, dodges and cooldowns restored.");
-	});
-	formButton(el, ED.hero.bot ? "Stop autopilot" : "Start autopilot", () => {
-		botOn(ED.hero, !ED.hero.bot);
-		renderDeveloper();
-	});
-	formElement("h3", "Travel & encounters", el);
+	const sim = formElement("div", "", el, { class: "ed-row" });
+	world(formButton(sim, "Step 1 frame (while paused)", devStep));
+	world(
+		formButton(sim, "Restore life & resources", () => {
+			devRestore();
+			formStatus("Life, ember, potions, dodges and cooldowns restored.");
+		}),
+	);
+	world(
+		formButton(sim, live && h.bot ? "Stop autopilot" : "Start autopilot", () => {
+			botOn(ED.hero, !ED.hero.bot);
+			menuRender();
+		}),
+	);
+	formElement("h4", "Travel", el);
 	formField(
 		el,
 		"Depth (1–500)",
@@ -747,97 +633,68 @@ function devSandboxBody(el) {
 		},
 		{ min: 1, max: 500, step: 1 },
 	);
-	formButton(el, "Travel to depth", () => devTravel(DEV.depth));
-	formButton(el, "Return to town", () => {
+	const go = formElement("div", "", el, { class: "ed-row" });
+	formButton(go, "Travel to depth", () => devTravel(DEV.depth));
+	const away = (fn) => () => {
+		if (!ED.hero || ED.mode === "title") ED.hero = loadHeroOrNew();
 		UI.closeAll();
 		devRestore();
-		goTown();
+		fn();
+	};
+	formButton(go, "Return to town", away(() => goTown()));
+	formButton(go, "Proving grounds", away(() => game.go("proving")));
+	formButton(go, "Gallery", away(() => game.go("gallery")));
+	formElement("h4", "Encounters", el);
+	formField(el, "Monster", "select", DEV.monster, (v) => (DEV.monster = v), { options: Object.values(REG.archetypes).map((m) => [m.id, m.name || m.id]) });
+	formField(el, "Count", "select", DEV.count, (v) => (DEV.count = +v), { options: [1, 5, 10, 25].map((n) => [n, n]) });
+	formField(el, "Monster tier", "select", DEV.elite, (v) => (DEV.elite = +v), {
+		options: [
+			[0, "Normal"],
+			[1, "Champion"],
+			[2, "Rare"],
+		],
 	});
-	formButton(el, "Proving grounds", () => {
-		UI.closeAll();
-		devRestore();
-		game.go("proving");
-	});
-	formField(
-		el,
-		"Monster",
-		"select",
-		DEV.monster,
-		(v) => {
-			DEV.monster = v;
-		},
-		{
-			options: Object.values(REG.archetypes).map((m) => [
-				m.id,
-				m.name || m.id,
-			]),
-		},
+	world(formButton(el, "Spawn monsters", () => devSpawn()));
+	formField(el, "Boss", "select", DEV.boss || Object.keys(REG.bosses)[0], (v) => (DEV.boss = v), { options: Object.values(REG.bosses).map((b) => [b.id, b.name || b.id]) });
+	world(formButton(el, "Spawn boss", () => devSpawn(true)));
+	const enc = formElement("div", "", el, { class: "ed-row" });
+	world(
+		formButton(enc, "Clear enemies & projectiles", () => {
+			ED.foes.length = 0;
+			ED.boss = null;
+			ED.fx.length = 0;
+			GRID.build([]);
+			formStatus("Enemies cleared without kill rewards.");
+		}),
 	);
-	formField(
-		el,
-		"Count",
-		"select",
-		DEV.count,
-		(v) => {
-			DEV.count = +v;
-		},
-		{ options: [1, 5, 10, 25].map((n) => [n, n]) },
+	world(
+		formButton(enc, "Reveal map", () => {
+			ED.L.seen.fill(1);
+			ED.L.seenV = (ED.L.seenV || 0) + 1;
+			formStatus("Map revealed.");
+		}),
 	);
-	formField(
-		el,
-		"Monster tier",
-		"select",
-		DEV.elite,
-		(v) => {
-			DEV.elite = +v;
-		},
-		{
-			options: [
-				[0, "Normal"],
-				[1, "Champion"],
-				[2, "Rare"],
-			],
-		},
+	formElement("h4", "Build experiments", el);
+	const build = formElement("div", "", el, { class: "ed-row" });
+	world(
+		formButton(build, "Grant 10 skill & passive points", () => {
+			ED.hero.pts.skill += 10;
+			ED.hero.pts.passive += 10;
+			formStatus("Granted 10 points of each type.");
+		}),
 	);
-	formButton(el, "Spawn monsters", () => devSpawn());
-	formField(
-		el,
-		"Boss",
-		"select",
-		DEV.boss || Object.keys(REG.bosses)[0],
-		(v) => {
-			DEV.boss = v;
-		},
-		{ options: Object.values(REG.bosses).map((b) => [b.id, b.name || b.id]) },
+	world(
+		formButton(build, "Unlock all skills", () => {
+			for (const id in REG.skills) if (!ED.hero.skills[id]) ED.hero.skills[id] = { rank: 1 };
+			formStatus("All skills unlocked. Assign them in Skills.");
+		}),
 	);
-	formButton(el, "Spawn boss", () => devSpawn(true));
-	formButton(el, "Clear enemies & projectiles", () => {
-		ED.foes.length = 0;
-		ED.boss = null;
-		ED.fx.length = 0;
-		GRID.build([]);
-		formStatus("Enemies cleared without kill rewards.");
-	});
-	formButton(el, "Reveal map", () => {
-		ED.L.seen.fill(1);
-		ED.L.seenV = (ED.L.seenV || 0) + 1;
-		formStatus("Map revealed.");
-	});
-	formElement("h3", "Build experiments", el);
-	formButton(el, "Grant 10 skill & passive points", () => {
-		ED.hero.pts.skill += 10;
-		ED.hero.pts.passive += 10;
-		formStatus("Granted 10 points of each type.");
-	});
-	formButton(el, "Unlock all skills", () => {
-		for (const id in REG.skills)
-			if (!ED.hero.skills[id]) ED.hero.skills[id] = { rank: 1 };
-		formStatus("All skills unlocked. Assign them in Skills.");
-	});
-	formButton(el, "Grant 10,000 gold", () => {
-		ED.hero.gold += 10000;
-		formStatus("Granted 10,000 gold.");
-	});
+	world(
+		formButton(build, "Grant 10,000 gold", () => {
+			ED.hero.gold += 10000;
+			formStatus("Granted 10,000 gold.");
+		}),
+	);
 	formField(
 		el,
 		"Item level",
@@ -848,43 +705,27 @@ function devSandboxBody(el) {
 		},
 		{ min: 1, max: 500, step: 1 },
 	);
-	formField(
-		el,
-		"Item rarity",
-		"select",
-		DEV.rarity,
-		(v) => {
-			DEV.rarity = +v;
-		},
-		{
-			options: [
-				[0, "Common"],
-				[1, "Magic"],
-				[2, "Rare"],
-				[3, "Legendary"],
-			],
-		},
+	formField(el, "Item rarity", "select", DEV.rarity, (v) => (DEV.rarity = +v), {
+		options: [
+			[0, "Common"],
+			[1, "Magic"],
+			[2, "Rare"],
+			[3, "Legendary"],
+		],
+	});
+	world(
+		formButton(el, "Create item in bag", () => {
+			if (ED.hero.bag.length >= BAG_MAX) return formStatus("Bag full. Make room first.");
+			ED.hero.bag.push(makeItem({ ilvl: DEV.itemLevel, rarity: DEV.rarity }));
+			formStatus("Item added to inventory.");
+		}),
 	);
-	formButton(el, "Create item in bag", () => {
-		if (ED.hero.bag.length >= BAG_MAX)
-			return formStatus("Bag full. Make room first.");
-		ED.hero.bag.push(makeItem({ ilvl: DEV.itemLevel, rarity: DEV.rarity }));
-		formStatus("Item added to inventory.");
-	});
-	formButton(el, "Difficulty sliders", () => {
-		UI.close("developer");
-		UI.open("settings");
-	});
+	devSessionBlock(el);
+	devSection(el, "Labs", "Every lab, test page and demo of the engine.", "h4");
+	formButton(el, "All labs ↗", () => location.assign("labs.html")).title = "The Labs page: every lab, test page and demo"; // examples/labs.html, /labs on the site: "labs.html" works from both
 }
-UI.def("developer", {
-	dom: true,
-	captureKeys: true,
-	open: renderDeveloper,
-	close: closeForm,
-	update: updateForm,
-});
+/** every step before the world moves: the switches that keep the hero topped up */
 function devBeforeWorld() {
-	if (!DEV.enabled) return;
 	const h = ED.hero;
 	if (DEV.resources && h && h.alive) {
 		h.ember = h.maxEmber;
@@ -895,49 +736,24 @@ function devBeforeWorld() {
 	}
 	if (DEV.cooldowns && h) h.cds = {};
 }
+/** what the screen says about a game that is not as shipped: TUNED (the tuning), the switches in force, and the
+ *  overlays Settings > Graphics turns on (the collision circles, the frame rate and timings) */
 function devDraw(r) {
-	if (!DEV.enabled) {
-		// a quiet reminder that the rules are not the shipped ones (the Developer panel's tuning)
-		if (ED.mode !== "title" && (Object.keys(TUNE_OVR).length || TUNE_KNOBS.some((K) => tuneChanged(K.id))))
-			r.overlay((g) => E.font.text(g, "TUNED", r.W / 2, 4, "#8fe3ff", { align: "center", font: "tiny" }));
-		return;
-	}
-	if (DEV.hitboxes)
+	if (ED.mode === "title" || ED.demo) return;
+	if (OPT.hitboxes)
 		for (const u of [ED.hero, ...ED.foes])
-			if (u && u.alive)
-				r.decal(
-					() =>
-						r.groundRing(
-							u.x,
-							u.y,
-							u.r,
-							u === ED.hero ? "#8fe3ff" : "#ff8a6a",
-							0.9,
-						),
-					{ emissive: true },
-				);
+			if (u && u.alive) r.decal(() => r.groundRing(u.x, u.y, u.r, u === ED.hero ? "#8fe3ff" : "#ff8a6a", 0.9), { emissive: true });
+	const tuned = Object.keys(TUNE_OVR).length || TUNE_KNOBS.some((K) => tuneChanged(K.id)),
+		on = [DEV.god && "INVULNERABLE", DEV.resources && "UNLIMITED", DEV.cooldowns && "NO COOLDOWNS", DEV.freezeFoes && "AI FROZEN", DEV.paused && "PAUSED", DEV.speed !== 1 && DEV.speed + "X"].filter(Boolean);
+	if (!tuned && !on.length && !OPT.perfOverlay) return;
 	r.overlay((g) => {
-		const label =
-			"SANDBOX" + (DEV.paused ? " • PAUSED" : "") + " • " + DEV.speed + "x";
-		E.font.text(g, label, r.W / 2, 15, "#8fe3ff", {
-			align: "center",
-			font: "tiny",
-		});
-		if (DEV.stats)
-			E.font.text(
-				g,
-				Math.round(game.fps) +
-					" FPS • " +
-					game.stats.updateMs.toFixed(1) +
-					"ms UPDATE • " +
-					game.stats.renderMs.toFixed(1) +
-					"ms DRAW • " +
-					ED.foes.length +
-					" FOES",
-				r.W / 2,
-				24,
-				"#e8e0f8",
-				{ align: "center", font: "tiny" },
-			);
+		let y = 4 + UI.frame.t;
+		const line = (t, c) => {
+			E.font.text(g, t, r.W / 2, y, c, { align: "center", font: "tiny" });
+			y += 9;
+		};
+		if (tuned) line("TUNED", "#8fe3ff");
+		if (on.length) line(on.join(" • "), "#ffc06a");
+		if (OPT.perfOverlay) line(Math.round(game.fps) + " FPS • " + game.stats.updateMs.toFixed(1) + "ms UPDATE • " + game.stats.renderMs.toFixed(1) + "ms DRAW • " + ED.foes.length + " FOES", "#e8e0f8");
 	});
 }
