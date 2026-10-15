@@ -404,11 +404,12 @@ const WLD_awake = t => { const h = ED.hero; return !h || (Math.abs(t.x - h.x) < 
 const WLD_tn = (L0, c) => E.tones(WLD_c(L0, c));
 /** every room, plus the open spaces that are not rooms (an arena's antechamber) */
 const WLD_spaces = L0 => L0.rooms.concat(L0.rooms.extra || []);
-/** dress a level from a weighted list: items [{ w, edge, rim, open, f(L, R, x, y, nx, ny) }], n per room by area */
+/** dress a level from a weighted list: items [{ w, edge, rim, open, f(L, R, x, y, nx, ny) }], n per room by area (w is
+ *  the item's weight: RNG's weighted pick reads .weight unless told) */
 function WLD_dress(L0, R, items, perArea = 14, min = 3, max = 8) {
   for (const rm of WLD_spaces(L0)) {
     const n = clamp(Math.round(rm.w * rm.h / perArea), min, max);
-    for (let k = 0; k < n; k++) { const it = R.weighted(items); const s = WLD_spot(L0, R, rm, it); if (s) it.f(L0, R, s[0], s[1], s[2], s[3], rm); }
+    for (let k = 0; k < n; k++) { const it = R.weighted(items, x => x.w === undefined ? 1 : x.w); const s = WLD_spot(L0, R, rm, it); if (s) it.f(L0, R, s[0], s[1], s[2], s[3], rm); }
   }
 }
 /** something on the faces of the pillars (type 2 cells): fn(L, R, x, y, nx, ny) at the middle of a free face */
