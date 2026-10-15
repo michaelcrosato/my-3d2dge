@@ -107,7 +107,7 @@ for (const lab of ['mocap-lab', 'perspective-lab', 'stress-test', 'arena']) {
 }
 // the Asset Lab is a page, not a picture: upright on a phone, nothing runs off its side, and picking an entry draws it
 await phone.goto(SITE + '/asset-lab#barrel');
-await phone.waitForTimeout(800);
+await phone.waitForTimeout(500); await phone.evaluate(() => document.getElementById('grid').scrollIntoView()); await phone.waitForTimeout(500);   // (a tile draws as it comes into view)
 const wide = await phone.evaluate(() => ({ over: document.documentElement.scrollWidth - innerWidth, shown: !document.getElementById('pick').hidden, tiles: document.querySelectorAll('#grid .tile canvas').length }));
 if (wide.over > 1) fail('asset-lab: the page is ' + wide.over + ' pixels wider than an upright phone');
 if (!wide.shown || !wide.tiles) fail('asset-lab: #barrel did not show the barrel, or the grid drew nothing: ' + JSON.stringify(wide));

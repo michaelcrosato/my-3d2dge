@@ -560,11 +560,11 @@ An entry:
 ## D34 · 2026-10-15 · The Asset Lab inlines every set; the kits never do
 
 - **Principle:** 1 (agent-readable kits within their contexts) and 3 (judged from pictures)
-- **Call:** the Asset Lab (`/asset-lab`, kept) is one page with the engine and every set of the store inlined, about 1.8
+- **Call:** the Asset Lab (`/asset-lab`, kept) is one page with the engine and every set of the store inlined, about 1.4
   MB, as the Mocap Lab inlines its sets; the kits and the template game embed the engine only, and a game loads the sets
   it uses (or cuts its own with `asset-set`).
 - **Why:** browsing and search need every entry at once, and a page that works from a file needs no fetch (which `file://`
-  forbids); a kit is read whole by a model, and the store is about 350k tokens. What would change it: the store outgrowing
+  forbids); a kit is read whole by a model, and the store is about 700 KB. What would change it: the store outgrowing
   one page (then the lab loads sets on demand, as the Mocap Lab's CMU library does).
 - **Answered:** no; made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.36.0

@@ -17,7 +17,7 @@ asset-fetch  ->  .cache/assets/<lib>/        the downloads, and a record of each
 asset-sheet --grid                            contact sheets of a set, for curating it
 (curate)     ->  src/assets/catalogs/<set>.json  "id": ["tags", "what it looks like"], $skip with reasons, $mats
 asset-import ->  src/assets/sets/<set>.js     the set: sources, materials, shapes, sprites, each entry with src, orig, fit
-asset-set    ->  a smaller set (a game's own), with the shapes and materials its entries use
+asset-set    ->  a smaller set (a game's own), with the shapes and materials its entries use (src/assets/sets/tavern.js)
 asset-find   ->  search every set and the core library
 ```
 

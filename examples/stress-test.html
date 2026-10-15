@@ -247,7 +247,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.35.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.36.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -326,7 +326,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.35.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.36.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -7021,11 +7021,12 @@ function rasterCanvas(r, outline) {
   }
   g.putImageData(img, 0, 0); return cv;
 }
+const _geomOf = new WeakMap();
 /** a shape's resolved size in its own frame: the bounds [x0, y0, z0, x1, y1, z1], and its footprint and contact
  *  polygons for the shadow (ground points of every part, and of the parts that touch the floor) */
 function shapeGeom(S, o = {}) {
   const key = 'geom|' + JSON.stringify([o.params, o.mats]);
-  const c = S._geom || (S._geom = new Map()); let G = c.get(key); if (G) return G;
+  let c = _geomOf.get(S); if (!c) _geomOf.set(S, c = new Map()); let G = c.get(key); if (G) return G;   // (kept beside the entry, never on it)
   const R = resolveShape(S, Object.assign({}, o.params, { mats: o.mats })), b = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9], all = [], contact = [];
   for (const P of R.prims) {
     const pts = []; TESS[P.k](f => { for (const p of f.v) pts.push(add3(mv3(P.M, p), P.t)); }, P, () => 12);

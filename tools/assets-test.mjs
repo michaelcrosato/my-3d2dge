@@ -241,7 +241,13 @@ console.log('7. the store (src/assets/)');
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   // the sets the importer wrote are the ones with a catalog of their own name; the others are cut from them (asset-set)
   const imported = sets.filter(([, S]) => existsSync(join(root, 'src/assets/catalogs', S.set + '.json')));
-  for (const [f, S] of imported) for (const kind of ['shapes', 'materials', 'sprites']) for (const [id, e] of Object.entries(S[kind] || {})) if (e && e.src) bySrc.set(e.src + '|' + kind + '|' + id, e);
+  const setOf = new Map();
+  for (const [f, S] of imported) for (const kind of ['shapes', 'materials', 'sprites']) for (const [id, e] of Object.entries(S[kind] || {})) if (e && e.src) { bySrc.set(e.src + '|' + kind + '|' + id, e); setOf.set(e, S); }
+  // an entry with its slots' materials written out (a cut set may rename a kit color that two sets share: oak-2)
+  const resolved = (e, S) => { const c = JSON.parse(JSON.stringify(e)), m = n => (S.materials || {})[n] !== undefined ? S.materials[n] : n;
+    if (c.mats) for (const k of Object.keys(c.mats)) c.mats[k] = m(c.mats[k]);
+    if (c.colors) for (const k of Object.keys(c.colors)) { const [a, t] = String(c.colors[k]).split(':'); c.colors[k] = [m(a), t]; }
+    return c; };
   for (const [f, S] of sets) {
     const where = 'src/assets/sets/' + f;
     if (S.format !== 1 || !S.set || !S.credit) fail('store', where + ': a set needs set, format: 1 and credit');
@@ -260,7 +266,7 @@ console.log('7. the store (src/assets/)');
       if (e.fit === undefined) fail('store', where + ' ' + id + ': no fit');
       if (kind === 'shapes' && e.fit) { fits.push(e.fit.iou); if (e.fit.worst < .6) fail('store', where + ' ' + id + ': a view fits at ' + e.fit.worst + ' (under .6)'); }
       if (cat && !Array.isArray(cat[id])) fail('store', where + ' ' + id + ': not in its catalog (src/assets/catalogs/' + S.set + '.json: "' + id + '": ["tags", "what it looks like"])');
-      if (cut) { const o = bySrc.get(e.src + '|' + kind + '|' + id); if (!o) fail('store', where + ' ' + id + ': cut from no set the importer wrote'); else if (!same(o, e)) fail('store', where + ' ' + id + ': differs from the entry it was cut from'); }
+      if (cut) { const o = bySrc.get(e.src + '|' + kind + '|' + id); if (!o) fail('store', where + ' ' + id + ': cut from no set the importer wrote'); else if (!same(resolved(o, setOf.get(o)), resolved(e, S))) fail('store', where + ' ' + id + ': differs from the entry it was cut from'); }
     }
     if (cat) {
       // the ledger: every download on record has rows, every row names a download, the rows the set uses are its entries
