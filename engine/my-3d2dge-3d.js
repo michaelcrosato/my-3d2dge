@@ -462,6 +462,13 @@ class Level {
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { this.stairOf[y * mw + x] = this.stairs.length; this.base[y * mw + x] = s.high; }
       this.stairs.push(s);
     }
+    // the tiles a solid shape's turned footprint covers (shrunk by a unit: one flush with a tile's edge stays out of it)
+    this.shapeBlock = new Uint8Array(n);
+    for (const [id, x, y, z, sp] of this.shapes) {
+      const b = sp.solid === false ? null : E.shapeBox(id, x, y, z, sp); if (!b) continue;
+      const ex = Math.abs(b.c) * b.hx + Math.abs(b.s) * b.hy - 1, ey = Math.abs(b.s) * b.hx + Math.abs(b.c) * b.hy - 1;
+      for (let cy = Math.floor((b.y - ey) / T); cy <= Math.floor((b.y + ey) / T); cy++) for (let cx = Math.floor((b.x - ex) / T); cx <= Math.floor((b.x + ex) / T); cx++) if (cx >= 0 && cy >= 0 && cx < mw && cy < mh) this.shapeBlock[cy * mw + cx] = 1;
+    }
     this.pass = this._pass();
   }
   chars(i) { return this.rows[(i / this.mw) | 0][i % this.mw]; }
@@ -511,8 +518,8 @@ class Level {
    * centres never climbs a step higher than STEP_UP (stairs climb gently; a raised floor's edge is a wall from below,
    * a drop from above) */
   _pass() {
-    const { mw, mh } = this, pass = new Uint8Array(mw * mh), sp = (cx, cy) => this.specs[cy * mw + cx];
-    const open = (cx, cy) => !this.solidTile(cx, cy) && this.kind[cy * mw + cx] !== PIT && !(sp(cx, cy).shape && sp(cx, cy).solid !== false);   // (a solid shape's tile: walked round)
+    const { mw, mh } = this, pass = new Uint8Array(mw * mh);
+    const open = (cx, cy) => !this.solidTile(cx, cy) && this.kind[cy * mw + cx] !== PIT && !this.shapeBlock[cy * mw + cx];   // (a solid shape's tiles: walked round)
     for (let cy = 0; cy < mh; cy++) for (let cx = 0; cx < mw; cx++) {
       if (!open(cx, cy)) continue;
       let bits = 0;
@@ -929,7 +936,20 @@ const THING_R = { coin: 5, gem: 5, heart: 5, key: 5, star: 7, potion: 5, chest: 
  *     so a new kind or placement builds no shader. A solid one gets a fixed collider from the box the 2D engine collides
  *     with (E.shapeBox)
  * ============================================================================= */
-const SH_TILE = 32, SH_PX = 2, SH_N = SH_TILE * SH_PX, SH_ATLAS = 1024, SH_PER = SH_ATLAS / SH_N;   // 256 tiles, each 32 units square
+const SH_TILE = 32, SH_PX = 2, SH_N = SH_TILE * SH_PX, SH_ATLAS = 1024, SH_PER = SH_ATLAS / SH_N, SH_CAP = 1024;   // 256 tiles, each 32 units square
+/** the shapes' outline: outlineMat's inverted hull, pushed along the normals averaged where faces meet ('onrm'), so a
+ *  box's outline closes round its corners */
+function shellMat() {
+  const { Fn, vec4, positionLocal, attribute, modelViewMatrix, cameraProjectionMatrix } = TSL;
+  const m = new THREE.MeshBasicNodeMaterial({ color: OUTLINE, side: THREE.BackSide, fog: false });
+  m.vertexNode = Fn(() => {
+    const mvp = cameraProjectionMatrix.mul(modelViewMatrix), pos = mvp.mul(vec4(positionLocal, 1));
+    const pos2 = mvp.mul(vec4(positionLocal.add(attribute('onrm', 'vec3').normalize().mul(.01)), 1));
+    const dir = pos2.xy.div(pos2.w).sub(pos.xy.div(pos.w)).normalize();
+    return vec4(pos.xy.add(dir.mul(OUTLINE_PX).mul(pos.w)), pos.z, pos.w);
+  })();
+  return m;
+}
 function shapeKit(world) {
   const cv = document.createElement('canvas'); cv.width = cv.height = SH_ATLAS;
   const g = cv.getContext('2d'), tex = world._own(canvasTex(cv, false)), { attribute, texture, fract } = TSL;
@@ -937,11 +957,12 @@ function shapeKit(world) {
   const tile = attribute('tile', 'vec4'), col = texture(tex, tile.xy.add(fract(attribute('uv', 'vec2')).mul(tile.zw)));
   const mat = world._obj(new THREE.MeshToonNodeMaterial({ gradientMap: TOON_BANDS }));
   mat.colorNode = col; mat.emissiveNode = col.rgb.mul(attribute('glow', 'float'));
-  const shell = world._obj(outlineMat('normal')), tiles = new Map(), ids = new WeakMap(); let nTile = 0, nId = 0;
-  /** a material's tile (its pattern on a side, or on a lid), drawn into the atlas the first time: [x, y, w, h] in uv */
-  const tileOf = (m, lid) => {
-    const key = (ids.get(m.q) || (ids.set(m.q, ++nId), nId)) + (lid ? 'L' : 'S'); let t = tiles.get(key); if (t) return t;
-    const i = nTile++ % (SH_PER * SH_PER), tx = i % SH_PER, ty = Math.floor(i / SH_PER), px = E.materialTile(m.q, { size: SH_TILE, px: SH_PX, lid });
+  const shell = world._obj(shellMat()), tiles = new Map(), ids = new WeakMap(); let nTile = 0, nId = 0;
+  /** a material's tile (its pattern on a side or a lid, turned or flat; a face pattern's whole face, 16 units), drawn into
+   *  the atlas the first time: [x, y, w, h] in uv */
+  const tileOf = (m, lid, curved, face) => {
+    const key = (ids.get(m.q) || (ids.set(m.q, ++nId), nId)) + (lid ? 'L' : 'S') + (curved ? 'C' : '') + (face ? 'F' : ''); let t = tiles.get(key); if (t) return t;
+    const i = nTile++ % (SH_PER * SH_PER), tx = i % SH_PER, ty = Math.floor(i / SH_PER), px = E.materialTile(m.q, { size: face ? 16 : SH_TILE, px: face ? SH_N / 16 : SH_PX, lid, curved });
     if (nTile > SH_PER * SH_PER) E.warn('3d:shape-tiles', 'more than ' + SH_PER * SH_PER + ' materials on shapes: the first are drawn over');
     if (px) { const img = g.createImageData(px.w, px.h); img.data.set(px.rgba); g.putImageData(img, tx * SH_N, ty * SH_N); tex.needsUpdate = true; }
     tiles.set(key, t = [(tx * SH_N + .5) / SH_ATLAS, 1 - (ty * SH_N + SH_N - .5) / SH_ATLAS, (SH_N - 1) / SH_ATLAS, (SH_N - 1) / SH_ATLAS]); return t;
@@ -950,17 +971,21 @@ function shapeKit(world) {
   const build = (M, flip) => {
     const pos = [], nrm = [], uv = [], tl = [], gl = [], fx = flip ? -1 : 1;
     for (const G of M.groups) {
-      const t = tileOf(G.mat, G.lid), glow = G.mat.glow ? 1 : 0, P = G.pos, N = G.nrm, V = G.uv;
+      const t = tileOf(G.mat, G.lid, G.curved, G.face), glow = G.mat.glow ? 1 : 0, P = G.pos, N = G.nrm, V = G.uv;
+      const uvOf = q => G.face ? clamp(q, .001, .999) : q / SH_TILE;   // (a face pattern: once across its face)
       for (let i = 0; i < P.length; i += 9) {
         const c = [0, 1, 2].map(k => [P[i + k * 3] * fx / U, P[i + k * 3 + 2] / U, P[i + k * 3 + 1] / U]), n = [0, 1, 2].map(k => [N[i + k * 3] * fx, N[i + k * 3 + 2], N[i + k * 3 + 1]]);
         const a = c[0], e1 = [c[1][0] - a[0], c[1][1] - a[1], c[1][2] - a[2]], e2 = [c[2][0] - a[0], c[2][1] - a[1], c[2][2] - a[2]];
         const cx = e1[1] * e2[2] - e1[2] * e2[1], cy = e1[2] * e2[0] - e1[0] * e2[2], cz = e1[0] * e2[1] - e1[1] * e2[0];
         const order = cx * (n[0][0] + n[1][0] + n[2][0]) + cy * (n[0][1] + n[1][1] + n[2][1]) + cz * (n[0][2] + n[1][2] + n[2][2]) < 0 ? [0, 2, 1] : [0, 1, 2];
-        for (const k of order) { pos.push(...c[k]); nrm.push(...n[k]); const j = (i / 3 + k) * 2; uv.push(V[j] / SH_TILE, V[j + 1] / SH_TILE); tl.push(...t); gl.push(glow); }
+        for (const k of order) { pos.push(...c[k]); nrm.push(...n[k]); const j = (i / 3 + k) * 2; uv.push(uvOf(V[j]), uvOf(V[j + 1])); tl.push(...t); gl.push(glow); }
       }
     }
+    const at = new Map(), onrm = new Float32Array(nrm.length), kk = i => Math.round(pos[i] * 1e4) + ',' + Math.round(pos[i + 1] * 1e4) + ',' + Math.round(pos[i + 2] * 1e4);
+    for (let i = 0; i < pos.length; i += 3) { const k = kk(i), a = at.get(k) || [0, 0, 0]; a[0] += nrm[i]; a[1] += nrm[i + 1]; a[2] += nrm[i + 2]; at.set(k, a); }
+    for (let i = 0; i < pos.length; i += 3) { const a = at.get(kk(i)), l = Math.hypot(a[0], a[1], a[2]) || 1; onrm[i] = a[0] / l; onrm[i + 1] = a[1] / l; onrm[i + 2] = a[2] / l; }
     const geo = world._own(new THREE.BufferGeometry());
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); geo.setAttribute('onrm', new THREE.BufferAttribute(onrm, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('tile', new THREE.Float32BufferAttribute(tl, 4)); geo.setAttribute('glow', new THREE.Float32BufferAttribute(gl, 1));
     return geo;
   };
@@ -973,8 +998,10 @@ function shapeKit(world) {
   const kinds = new Map(), _m = new THREE.Matrix4(), _s = new THREE.Vector3();
   // the probe: one empty triangle in the same material, so the warm-up builds the shapes' shaders before any is placed
   const pg = new THREE.BufferGeometry(), z3 = n => new THREE.Float32BufferAttribute(new Array(n * 3).fill(0), n);
-  for (const [k, n] of [['position', 3], ['normal', 3], ['uv', 2], ['tile', 4], ['glow', 1]]) pg.setAttribute(k, new THREE.Float32BufferAttribute(new Array(3 * n).fill(0), n));
-  const [probe, probeShell] = meshes(world._own(pg), 1);
+  for (const [k, n] of [['position', 3], ['normal', 3], ['uv', 2], ['tile', 4], ['glow', 1], ['onrm', 3]]) pg.setAttribute(k, new THREE.Float32BufferAttribute(new Array(3 * n).fill(0), n));
+  // (every mesh starts with SH_CAP slots: three reads more than 1,000 instances from an attribute, the same shader at any
+  // count; fewer come from a uniform array sized in the shader's code, a new pipeline at each size)
+  const [probe, probeShell] = meshes(world._own(pg), SH_CAP);
   return {
     probe, probeShell, kinds,
     /** the kind for an id and placement (made once): { mesh, shell, list (its placements), cap } */
@@ -982,7 +1009,7 @@ function shapeKit(world) {
       const key = (typeof id === 'string' ? id : 'e' + (ids.get(id) || (ids.set(id, ++nId), nId))) + '|' + JSON.stringify([o.params || null, o.mats || null, !!o.flip]);
       let K = kinds.get(key); if (K) return K;
       const M = E.shapeMesh(id, { params: o.params, mats: o.mats }); if (!M) return null;
-      const [mesh, sh] = meshes(build(M, o.flip), 16); kinds.set(key, K = { mesh, shell: sh, list: [], cap: 16, bounds: M.bounds }); return K;
+      const [mesh, sh] = meshes(build(M, o.flip), SH_CAP); kinds.set(key, K = { mesh, shell: sh, list: [], cap: SH_CAP, bounds: M.bounds }); return K;
     },
     /** write a placement's slot: at (x, y, z), turned to its facing, scaled */
     put(K, p) {
