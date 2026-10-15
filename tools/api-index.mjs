@@ -213,16 +213,21 @@ export function build() {
       const ci = ctor >= 0 ? F.classes.get(cname).at + ctor : -1, cdoc = cut((ci >= 0 && docAt(F, ci, 'constructor')) || docOf(F, d), mem ? [...mem.fields.keys()].filter(f => !f.startsWith('_')) : []);
       add(sec, `new E.${k}(${ci >= 0 ? params(F.L[ci], 'constructor') || '' : ''}) → ${inst}`, cdoc, inAgent, 'E.' + k, ci >= 0 ? ci : d && d[0]);
       addOpts(sec, `new E.${k}`, true, ci >= 0 && docAt(F, ci, 'constructor') ? ci : d && d[0], inAgent, 'E.' + k); insts.push({ sec, name: 'E.' + k, inst });
-      for (const s of Object.getOwnPropertyNames(v).filter(s => !['length', 'name', 'prototype'].includes(s) && !s.startsWith('_')).sort()) {
-        const i = F.top.get(cname + '.' + s) ?? (mem && mem.methods.get(s)), val = v[s];
-        add(sec, `E.${k}.${s}` + (typeof val === 'function' ? `(${i !== undefined ? params(F.L[i], s) || '' : ''})` : ''), i !== undefined ? docAt(F, i, s) : '', inAgent && EA[k] && s in EA[k], `E.${k}.${s}`, i);
+      const statics = Object.getOwnPropertyNames(v).filter(s => !['length', 'name', 'prototype'].includes(s) && !s.startsWith('_')).sort();
+      // a key map (E.Input.THIRDPERSON: each action's codes) names its actions, but those every key map of the class has
+      const keymap = x => x && typeof x === 'object' && !Array.isArray(x) && Object.values(x).every(Array.isArray), maps = statics.filter(s => keymap(v[s]));
+      const common = maps.length > 1 ? Object.keys(v[maps[0]]).filter(a => maps.every(s => a in v[s])) : [];
+      for (const s of statics) {
+        const i = F.top.get(cname + '.' + s) ?? (mem && mem.methods.get(s)), val = v[s], own = keymap(val) && Object.keys(val).filter(a => !common.includes(a));
+        add(sec, `E.${k}.${s}` + (typeof val === 'function' ? `(${i !== undefined ? params(F.L[i], s) || '' : ''})` : own && own.length ? ` { ${own.join(', ')} }` : ''), i !== undefined ? docAt(F, i, s) : '', inAgent && EA[k] && s in EA[k], `E.${k}.${s}`, i);
       }
       if (!mem) continue;
       exported.add(cname);
       instance(k, cname, inst, sec, Object.getOwnPropertyNames(v.prototype).filter(m => m !== 'constructor' && !m.startsWith('_')), mem, amem);
     } else if (v && typeof v === 'object' && !Array.isArray(v) && Object.values(v).some(x => typeof x === 'function') && !Object.values(v).every(x => x && typeof x === 'object')) {
-      // a namespace of helpers: one line for it, one for each member
-      const space = F.spaces.get(d ? d[1] : k) || new Map();
+      // a namespace of helpers: one line for it, one for each member (px's as games write them: the card's first line is
+      // const E = My3D2dge, { px, clamp } = E)
+      const space = F.spaces.get(d ? d[1] : k) || new Map(), pre = k === 'px' ? 'px' : 'E.' + k;
       add(sec, `E.${k}`, docOf(F, d), inAgent, 'E.' + k, d && d[0]);
       const ms = Object.keys(v).filter(m => !m.startsWith('_')).sort(), at = new Map();
       for (const m of ms) {
@@ -232,7 +237,7 @@ export function build() {
       }
       for (const m of ms) {
         const i = at.get(m), fn = typeof v[m] === 'function', shared = i !== undefined && ms.some(n => n !== m && at.get(n) === i);   // (E.session's frame, recording and replaying: one comment)
-        add(sec, `E.${k}.${m}` + (fn ? `(${i !== undefined ? params(F.L[i], m) || '' : ''})` : ''), i === undefined ? '' : shared && docAt(F, i, m, true) || docAt(F, i, m), inAgent && !!EA[k] && m in EA[k], `E.${k}.${m}`, i);
+        add(sec, `${pre}.${m}` + (fn ? `(${i !== undefined ? params(F.L[i], m) || '' : ''})` : ''), i === undefined ? '' : shared && docAt(F, i, m, true) || docAt(F, i, m), inAgent && !!EA[k] && m in EA[k], `E.${k}.${m}`, i);
       }
     } else if (typeof v === 'function') {
       add(sec, `E.${k}(${d ? params(F.L[d[0]], d[1]) ?? params(F.L[d[2]], k) ?? '' : ''})`, docOf(F, d), inAgent, 'E.' + k, d && d[0]);

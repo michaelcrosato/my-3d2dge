@@ -26,6 +26,8 @@
     { "n": 23, "from": "the platformer kit", "need": "the side-scroller input preset", "grep": ["PLATFORMER"], "facts": ["E.Input.PLATFORMER", "input ('PLATFORMER')"] },
     { "n": 24, "from": "the adventure kit", "need": "a contact shadow", "grep": ["r.shadow"], "facts": ["r.shadow(x, y, rad"] },
     { "n": 25, "from": "the template game", "need": "a headless test", "grep": ["advance\\|input.tap"], "facts": ["game.advance(seconds", "input.tap(a)", "headless"] },
-    { "n": 26, "from": "F6.1", "need": "what map.bounds gives the camera", "grep": ["map.bounds"], "facts": ["{ x0, y0, x1, y1 }", "game.cam.bounds = v => map.bounds(v)"] }
+    { "n": 26, "from": "F6.1", "need": "what map.bounds gives the camera", "grep": ["map.bounds"], "facts": ["{ x0, y0, x1, y1 }", "game.cam.bounds = v => map.bounds(v)"] },
+    { "n": 27, "from": "F6.1", "need": "the pixel primitives, searched as games write them", "grep": ["^- `px\\.\\(disc\\|poly\\)"], "facts": ["px.disc(g, cx, cy, r, c)", "px.poly(g, pts, c)"] },
+    { "n": 28, "from": "F6.1", "need": "the actions of the third-person preset", "grep": ["THIRDPERSON\\|input\\.use"], "facts": ["E.Input.THIRDPERSON { sprint, jump, crouch, interact, attack, block, dodge, use, map }", "up, down, left, right", "start, pause, confirm, cancel"] }
   ]
 }

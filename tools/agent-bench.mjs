@@ -10,8 +10,9 @@
 //     tail, Grep, grep or rg of one, as a whole read, a range or a search, with the lines and tokens its result held
 //     (the stream's tool results) and whether the Read tool cut it short; and, for each read of the engine below its
 //     header, whether a search of the index came in the three tool calls before it (a lookup the index didn't answer).
-//     The split of the index is reopened (D38, D41) when a run reads it whole or through ranges covering most of it, or
-//     when more than a third of its searches are followed by a read of the source;
+//     A run trips the index's split rule (D38, D41) when it reads it whole or through ranges covering most of it, or
+//     when more than a third of its searches are followed by a read of the source; two runs in a row that trip it
+//     reopen the split (D43);
 //   - a vision judge's score of the check's screenshots against the PS1/N64-era 2D bar (tools/agent-bench/judge.md).
 // It writes result.json and prints one table row per run (the format DOCTRINE.md's open measures take).
 //
@@ -201,15 +202,15 @@ export function readStream(text, header, o = {}) {
 }
 
 /** the index's reads in sum: by search, range and whole (how many, their tokens), how much of it the ranges and whole reads
- *  covered, how many searches a read of the source followed; and whether that reopens the split (D38: a whole read, ranges
- *  over most of it, or more than a third of its searches followed by the source) */
+ *  covered, how many searches a read of the source followed; and whether that trips the split rule (D38: a whole read,
+ *  ranges over most of it, or more than a third of its searches followed by the source; two runs in a row reopen it, D43) */
 export function indexReads(manuals, total) {
   const ix = manuals.filter(m => m.file === INDEX), by = how => { const l = ix.filter(m => m.how === how); return { n: l.length, tokens: l.reduce((a, m) => a + (m.tokens || 0), 0) }; };
   const seen = new Set();
   for (const m of ix) if (m.how !== 'search') { const a = m.how === 'whole' && !m.cut ? 1 : m.from || 1, b = m.how === 'whole' && !m.cut ? total || 0 : m.to || a; for (let k = a; k <= b; k++) seen.add(k); }
   const s = ix.filter(m => m.how === 'search'), after = s.filter(m => m.thenSource).length, coverage = total ? Math.min(1, seen.size / total) : null;
-  const whole = ix.some(m => m.how === 'whole'), reopen = whole || (coverage !== null && coverage > .5) || (s.length > 0 && after / s.length > 1 / 3);
-  return { search: by('search'), range: by('range'), whole: by('whole'), cut: ix.filter(m => m.cut).length, coverage, searchesThenSource: after, reopensSplit: reopen };
+  const whole = ix.some(m => m.how === 'whole'), trips = whole || (coverage !== null && coverage > .5) || (s.length > 0 && after / s.length > 1 / 3);
+  return { search: by('search'), range: by('range'), whole: by('whole'), cut: ix.filter(m => m.cut).length, coverage, searchesThenSource: after, tripsSplit: trips };
 }
 
 /** the size of the game an agent wrote: characters and estimated cl100k tokens of game/'s code, its tests apart (dense
@@ -274,7 +275,7 @@ function score(dir, o = {}) {
 const row = r => `| ${r.brief} | ${r.agent} ${r.model} | ${r.code ? '~' + Math.round(r.code.tokens / 100) / 10 + 'k (+' + Math.round(r.code.testTokens / 100) / 10 + 'k tests)' : '-'} | ${Math.round(r.outputTokens / 100) / 10}k | ${r.wallSeconds ? Math.round(r.wallSeconds / 60) + ' min' : '?'} | ${r.costUsd !== null && r.costUsd !== undefined ? '$' + r.costUsd.toFixed(2) : '?'} | ${r.game ? (r.checkPasses ? 'yes' : 'no') : 'no game (the template unchanged)'}${r.error ? ' (cut off: ' + r.error.split(':')[0] + ')' : ''} | ${r.belowHeader ? 'yes' : 'no'}${r.patched ? ', patched it' : ''} | ${indexCell(r.index)} | ${r.judge ? r.judge.score + '/10' : '-'} |`;
 const k = n => n >= 1000 ? Math.round(n / 100) / 10 + 'k' : String(n);
 /** the index's column: searches / ranges / whole reads (their tokens), and what followed */
-const indexCell = x => !x ? '-' : `${x.search.n} / ${x.range.n} / ${x.whole.n} (${k(x.search.tokens)} / ${k(x.range.tokens)} / ${k(x.whole.tokens)})${x.cut ? `, ${x.cut} cut short` : ''}${x.search.n ? `; ${x.searchesThenSource} of ${x.search.n} searches then read the source` : ''}${x.reopensSplit ? '; reopens the split' : ''}`;
+const indexCell = x => !x ? '-' : `${x.search.n} / ${x.range.n} / ${x.whole.n} (${k(x.search.tokens)} / ${k(x.range.tokens)} / ${k(x.whole.tokens)})${x.cut ? `, ${x.cut} cut short` : ''}${x.search.n ? `; ${x.searchesThenSource} of ${x.search.n} searches then read the source` : ''}${x.tripsSplit ? '; trips the split rule' : ''}`;
 const HEAD = '| brief | agent | game code | output tokens (thinking included) | wall time | cost | first build passes check | read the engine below its header | the index read by search / range / whole (tokens) | judge (PS1/N64 bar) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |';
 
 function selftest() {
@@ -316,20 +317,20 @@ function selftest() {
   ok('a Grep of the index is a search, with its hits\' lines and tokens', g && g.file === 'API-INDEX.md' && g.how === 'search' && g.lines === 2 && g.tokens > 10, JSON.stringify(g));
   ok('a Read with a range is a range, from and to', rg && rg.how === 'range' && rg.from === 600 && rg.to === 639 && rg.lines === 40 && !rg.cut, JSON.stringify(rg));
   ok('a Read of a whole manual is whole, not cut when every line came back', w && w.file === 'API.md' && w.how === 'whole' && !w.cut && w.lines === 210, JSON.stringify(w));
-  ok('the index in sum: 1 search, 1 range, no whole read; 4% covered', s.index.search.n === 1 && s.index.range.n === 1 && s.index.whole.n === 0 && Math.abs(s.index.coverage - .04) < 1e-9 && !s.index.reopensSplit, JSON.stringify(s.index));
+  ok('the index in sum: 1 search, 1 range, no whole read; 4% covered', s.index.search.n === 1 && s.index.range.n === 1 && s.index.whole.n === 0 && Math.abs(s.index.coverage - .04) < 1e-9 && !s.index.tripsSplit, JSON.stringify(s.index));
   s = readStream(S(useId('a', 'Read', { file_path: '/w/API-INDEX.md' }), res('a', numbered(1, 445) + '\n\n[File truncated: the file is 49996 tokens, more than the maximum allowed tokens (25000) for one read. Use offset and limit to read the rest.]')), 70, { lines: { 'API-INDEX.md': 1047 } });
-  ok('a whole Read the tool cut short says so, and reopens the split', s.manuals[0].how === 'whole' && s.manuals[0].cut && s.manuals[0].lines === 445 && s.index.whole.n === 1 && s.index.cut === 1 && s.index.reopensSplit, JSON.stringify(s.manuals[0]));
+  ok('a whole Read the tool cut short says so, and trips the split rule', s.manuals[0].how === 'whole' && s.manuals[0].cut && s.manuals[0].lines === 445 && s.index.whole.n === 1 && s.index.cut === 1 && s.index.tripsSplit, JSON.stringify(s.manuals[0]));
   s = readStream(S(useId('a', 'Read', { file_path: '/w/API-INDEX.md' }), res('a', numbered(1, 300))), 70, { lines: { 'API-INDEX.md': 1047 } });
   ok('a whole Read that came back with fewer lines than the file is cut', s.manuals[0].cut, JSON.stringify(s.manuals[0]));
   s = readStream(S(useId('a', 'Bash', { command: 'cat API-INDEX.md | head -n 200' }), res('a', 'x\n'.repeat(200)), useId('b', 'Bash', { command: "sed -n '300,420p' API-INDEX.md" }), res('b', 'y\n'.repeat(121)),
     useId('c', 'Bash', { command: 'grep -n "stamina\\|meter" API-INDEX.md' }), res('c', '1065:- bars\n1084:- E.ui'), useId('d', 'Bash', { command: 'cat AI_GUIDE.md' }), res('d', 'z\n'.repeat(50))), 70, { lines: { 'API-INDEX.md': 1000 } });
   ok('cat | head, sed -n and grep of the index: range, range, search; cat of a manual: whole', s.manuals.map(m => m.file + ':' + m.how).join(' ') === 'API-INDEX.md:range API-INDEX.md:range API-INDEX.md:search AI_GUIDE.md:whole', s.manuals.map(m => m.file + ':' + m.how).join(' '));
-  ok('ranges cover what they read: 1-200 and 300-420, 321 of 1,000 lines (most of it would reopen the split)', Math.abs(s.index.coverage - .321) < 1e-9 && !s.index.reopensSplit, JSON.stringify(s.index));
+  ok('ranges cover what they read: 1-200 and 300-420, 321 of 1,000 lines (most of it would trip the split rule)', Math.abs(s.index.coverage - .321) < 1e-9 && !s.index.tripsSplit, JSON.stringify(s.index));
   const IX = Array.from({ length: 100 }, (_, k) => '- `x' + (k + 1) + '`: ' + (k % 10 === 0 ? 'climb a ledge' : 'a line')).join('\n');
   s = readStream(S(useId('a', 'Bash', { command: 'cd /w; cat API.md; wc -l game/* AI_GUIDE.md API-INDEX.md' }), res('a', 'card\n 100 API-INDEX.md'),
     useId('b', 'Bash', { command: 'cd /w; grep -n -i "climb\\|glide" API-INDEX.md | head -4; head -40 API-INDEX.md; sed -n 50,59p API-INDEX.md' }), res('b', 'mixed output')), 70, { lines: { 'API-INDEX.md': 100 }, files: { 'API-INDEX.md': IX, 'API.md': 'card' } });
   ok('a chain: cat a manual is whole, wc is no read; grep | head a search, head and sed ranges, each from the file itself', s.manuals.map(m => m.file + ':' + m.how + ':' + m.lines).join(' ') === 'API.md:whole:1 API-INDEX.md:search:4 API-INDEX.md:range:40 API-INDEX.md:range:10', s.manuals.map(m => m.file + ':' + m.how + ':' + m.lines).join(' '));
-  ok('their tokens are what the file gives them, and the coverage the ranges\' lines', s.manuals[2].tokens > s.manuals[3].tokens * 3 && Math.abs(s.index.coverage - .5) < 1e-9 && !s.index.reopensSplit, JSON.stringify(s.index));
+  ok('their tokens are what the file gives them, and the coverage the ranges\' lines', s.manuals[2].tokens > s.manuals[3].tokens * 3 && Math.abs(s.index.coverage - .5) < 1e-9 && !s.index.tripsSplit, JSON.stringify(s.index));
   s = readStream(S(useId('a', 'Bash', { command: 'grep -n "jump" API-INDEX.md | head -20' }), res('a', '1: jump\n2: jump')), 70);
   ok('grep ... | head is a search, its output trimmed', s.manuals.length === 1 && s.manuals[0].how === 'search' && s.manuals[0].lines === 2, JSON.stringify(s.manuals));
   s = readStream(S(useId('a', 'Bash', { command: 'grep -rn "takedown" .' }), res('a', './API-INDEX.md:817:- `E.ACTIONS`: takedown\n./API.md:168:- Mover: takedown\n./game/game.js:12: takedown')), 70);
@@ -339,9 +340,9 @@ function selftest() {
     useId('e', 'Read', { file_path: '/w/README.md' }), res('e', 'r'), useId('f', 'Read', { file_path: '/w/game/index.html' }), res('f', 'h'), useId('g', 'Read', { file_path: '/w/game/test.mjs' }), res('g', 't'),
     useId('h', 'Bash', { command: "sed -n '4100,4180p' my-3d2dge.js" }), res('h', 'source')), 70);
   ok('a read of the source within three calls of an index search is a lookup it missed; one later is not', s.reads.length === 2 && s.reads[0].afterIndexSearch === true && s.reads[1].afterIndexSearch === false, JSON.stringify(s.reads));
-  ok('so 1 of 2 index searches then read the source: over a third reopens the split', s.index.search.n === 2 && s.index.searchesThenSource === 1 && s.index.reopensSplit, JSON.stringify(s.index));
+  ok('so 1 of 2 index searches then read the source: over a third trips the split rule', s.index.search.n === 2 && s.index.searchesThenSource === 1 && s.index.tripsSplit, JSON.stringify(s.index));
   ok('a game\'s own README is not a manual', !readStream(S(useId('a', 'Read', { file_path: '/w/game/README.md' })), 70).manuals.length);
-  ok('the row\'s index column', indexCell(indexReads([{ file: 'API-INDEX.md', how: 'search', tokens: 1200 }, { file: 'API-INDEX.md', how: 'search', tokens: 300, thenSource: true }, { file: 'API-INDEX.md', how: 'range', tokens: 2100, from: 1, to: 40 }], 1000)) === '2 / 1 / 0 (1.5k / 2.1k / 0); 1 of 2 searches then read the source; reopens the split',
+  ok('the row\'s index column', indexCell(indexReads([{ file: 'API-INDEX.md', how: 'search', tokens: 1200 }, { file: 'API-INDEX.md', how: 'search', tokens: 300, thenSource: true }, { file: 'API-INDEX.md', how: 'range', tokens: 2100, from: 1, to: 40 }], 1000)) === '2 / 1 / 0 (1.5k / 2.1k / 0); 1 of 2 searches then read the source; trips the split rule',
     indexCell(indexReads([{ file: 'API-INDEX.md', how: 'search', tokens: 1200 }, { file: 'API-INDEX.md', how: 'search', tokens: 300, thenSource: true }, { file: 'API-INDEX.md', how: 'range', tokens: 2100, from: 1, to: 40 }], 1000)));
   const ce = childEnv({ PATH: '/bin', HOME: '/h', ANTHROPIC_BASE_URL: 'u', CLAUDECODE: '1', CLAUDE_CODE_SESSION_ID: 's', CLAUDE_EFFORT: 'max', CLAUDE_CODE_REMOTE: 'true', CLAUDE_SESSION_INGRESS_TOKEN_FILE: 't', CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST: '1' });
   ok('the agent starts without the calling session\'s variables, its sign-in kept', ce.PATH && ce.ANTHROPIC_BASE_URL && ce.CLAUDE_SESSION_INGRESS_TOKEN_FILE && ce.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST && !ce.CLAUDECODE && !ce.CLAUDE_CODE_SESSION_ID && !ce.CLAUDE_EFFORT && !ce.CLAUDE_CODE_REMOTE, JSON.stringify(ce));
