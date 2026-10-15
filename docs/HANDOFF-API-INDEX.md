@@ -409,6 +409,8 @@ Each is a yes or no; the recommended answer is in bold.
    about $13 to $15. It also answers D36. **Yes.**
 4. **The handoff keeps the full index**, with no index of the agent edition's names alone? **Yes.**
 
+**The owner's answers, 2026-10-15:** yes to all four, so Phase 3 and Phase 4's paid run go ahead.
+
 ## Appendix A: the 25 lookups
 
 Each lookup is `grep -n "<pattern>" API-INDEX.md`, the handoff README's own form. "Yes" means the hits hold every fact
