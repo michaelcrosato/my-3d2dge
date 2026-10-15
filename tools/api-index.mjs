@@ -27,9 +27,11 @@ const FULL = 'engine/my-3d2dge.js', AGENT = 'engine/my-3d2dge-agent.js', OUT = '
 const args = process.argv.slice(2), has = k => args.includes('--' + k);
 const load = file => { const ctx = { console: { log() {}, warn() {}, error() {} } }; vm.createContext(ctx); vm.runInContext(readFileSync(join(root, file), 'utf8'), ctx, { filename: file }); return ctx.My3D2dge; };
 // the name an instance of each class goes by in games (game.input, r.queue, map.ray, ...)
+// (a class only the game makes, not on E, is listed by its instance's name alone: game.screen, r, game.lights, ...)
 const INST = { Game: 'game', Input: 'input', Screen: 'game.screen', Renderer: 'r', View: 'view', Lighting: 'game.lights', Particles: 'game.particles',
   TileMap: 'map', PlatformMap: 'level', Humanoid: 'rig', Blob: 'blob', Body: 'body', Platformer: 'hero', FlowField: 'flow', Bullets: 'shots',
-  SpatialHash: 'grid', Attack: 'slash', Combo: 'combo', Audio: 'game.audio', Dialog: 'talk', Menu: 'menu', Backdrop: 'backdrop', GPULighting: 'game.gpu' };
+  SpatialHash: 'grid', Attack: 'slash', Combo: 'combo', ChipAudio: 'game.audio', Dialog: 'talk', Menu: 'menu', Backdrop: 'backdrop', GPULighting: 'game.gpu',
+  FullScreen: 'fullscreen', Settings: 'settings' };
 // objects inside a class whose own fields are part of the API: game.cam.offset, game.stats.frameMs
 const NESTED = { Game: ['cam', 'stats'] };
 
@@ -186,6 +188,23 @@ export function build() {
     return i >= 0 ? [i, k, i, true] : null;
   };
   const docOf = (S, d) => d ? docAt(S, d[0], d[1], d[3]) || (d[2] !== d[0] ? docAt(S, d[2], d[1]) : '') : '';
+  const exported = new Set();
+  // an instance's lines: its public methods (protoNames), then its fields
+  const instance = (k, cname, inst, sec, protoNames, mem, amem) => {
+    for (const m of protoNames.sort()) {
+      const i = mem.methods.get(m), get = i !== undefined && /^ {2}(?:static\s+)?get\s/.test(F.L[i]);
+      add(sec, `${inst}.${m}` + (get ? '' : `(${i !== undefined ? params(F.L[i], m) || '' : ''})`), i !== undefined ? docAt(F, i, m) : '', !!(amem && amem.methods.has(m)), `${k}#${m}`, i);
+      addOpts(sec, `${inst}.${m}`, !get, i, !!(amem && amem.methods.has(m)), `${k}#${m}`);
+    }
+    for (const [f, i] of [...mem.fields].filter(([f]) => !f.startsWith('_') && !protoNames.includes(f)).sort((a, b) => a[0] < b[0] ? -1 : 1)) {
+      const shared = (F.L[i].match(/this\.(?!_)\w+\s*=(?![=>])/g) || []).length > 1 || /Object\.assign\(this/.test(F.L[i]), dv = mem.defaults.get(f);
+      const init = initial(F.L[i], f) || (dv && /^(-?[\d.]+|'[^']*'|true|false|null)$/.test(dv) ? dv : '');
+      // a nested object's own fields: one clause each in the comment above (its own line keeps the rest)
+      const lit = (NESTED[k] || []).includes(f) && /=\s*\{(.*)\};?/.exec(F.L[i]), sub = lit ? [...lit[1].matchAll(/(?:^|,)\s*(\w+)\s*:/g)].map(m => m[1]).filter(n => !n.startsWith('_')) : [];
+      add(sec, `${inst}.${f}` + (init ? ' = ' + init : ''), cut(docAt(F, i, f, shared), sub), !!(amem && amem.fields.has(f)), `${k}.${f}`, i);
+      for (const n of sub) add(sec, `${inst}.${f}.${n}`, docAt(F, i, n, true), !!(amem && amem.fields.has(f)), `${k}.${f}.${n}`, i);
+    }
+  };
   for (const k of Object.keys(E).sort()) {
     if (k.startsWith('_')) continue;
     const v = E[k], d = defOf(F, k), sec = d ? F.section(d[0]) : null, inAgent = k in EA;
@@ -199,20 +218,8 @@ export function build() {
         add(sec, `E.${k}.${s}` + (typeof val === 'function' ? `(${i !== undefined ? params(F.L[i], s) || '' : ''})` : ''), i !== undefined ? docAt(F, i, s) : '', inAgent && EA[k] && s in EA[k], `E.${k}.${s}`, i);
       }
       if (!mem) continue;
-      const protoNames = Object.getOwnPropertyNames(v.prototype).filter(m => m !== 'constructor' && !m.startsWith('_'));
-      for (const m of protoNames.sort()) {
-        const i = mem.methods.get(m), get = i !== undefined && /^ {2}(?:static\s+)?get\s/.test(F.L[i]);
-        add(sec, `${inst}.${m}` + (get ? '' : `(${i !== undefined ? params(F.L[i], m) || '' : ''})`), i !== undefined ? docAt(F, i, m) : '', !!(amem && amem.methods.has(m)), `${k}#${m}`, i);
-        addOpts(sec, `${inst}.${m}`, !get, i, !!(amem && amem.methods.has(m)), `${k}#${m}`);
-      }
-      for (const [f, i] of [...mem.fields].filter(([f]) => !f.startsWith('_') && !protoNames.includes(f)).sort((a, b) => a[0] < b[0] ? -1 : 1)) {
-        const shared = (F.L[i].match(/this\.(?!_)\w+\s*=(?![=>])/g) || []).length > 1 || /Object\.assign\(this/.test(F.L[i]), dv = mem.defaults.get(f);
-        const init = initial(F.L[i], f) || (dv && /^(-?[\d.]+|'[^']*'|true|false|null)$/.test(dv) ? dv : '');
-        // a nested object's own fields: one clause each in the comment above (its own line keeps the rest)
-        const lit = (NESTED[k] || []).includes(f) && /=\s*\{(.*)\};?/.exec(F.L[i]), sub = lit ? [...lit[1].matchAll(/(?:^|,)\s*(\w+)\s*:/g)].map(m => m[1]).filter(n => !n.startsWith('_')) : [];
-        add(sec, `${inst}.${f}` + (init ? ' = ' + init : ''), cut(docAt(F, i, f, shared), sub), !!(amem && amem.fields.has(f)), `${k}.${f}`, i);
-        for (const n of sub) add(sec, `${inst}.${f}.${n}`, docAt(F, i, n, true), !!(amem && amem.fields.has(f)), `${k}.${f}.${n}`, i);
-      }
+      exported.add(cname);
+      instance(k, cname, inst, sec, Object.getOwnPropertyNames(v.prototype).filter(m => m !== 'constructor' && !m.startsWith('_')), mem, amem);
     } else if (v && typeof v === 'object' && !Array.isArray(v) && Object.values(v).some(x => typeof x === 'function') && !Object.values(v).every(x => x && typeof x === 'object')) {
       // a namespace of helpers: one line for it, one for each member
       const space = F.spaces.get(d ? d[1] : k) || new Map();
@@ -238,6 +245,14 @@ export function build() {
       add(sec, `E.${k}` + (keys ? ': ' + keys : ''), once, inAgent, 'E.' + k, d && d[0]);
       if (d) addOpts(sec, `E.${k}`, false, d[0], inAgent, 'E.' + k);
     }
+  }
+  // the classes only the game makes, not on E (game.screen, r, game.lights, game.audio, ...): their instances' lines, with no
+  // constructor's (INST names the instance; a static is the class's own)
+  for (const [cname, c] of F.classes) {
+    if (exported.has(cname) || !INST[cname]) continue;
+    const mem = F.members(cname), amem = A.members(cname), sec = F.section(c.at);
+    insts.push({ sec, name: '', inst: INST[cname] });
+    instance(cname, cname, INST[cname], sec, [...mem.methods].filter(([m, i]) => !m.startsWith('_') && !/^ {2}static\s/.test(F.L[i])).map(([m]) => m), mem, amem);
   }
   for (const e of entries) {
     const n = e.opt ? !e.key.includes(',') && (/ ([\w.[\]]+)$/.exec(e.key) || [])[1] : e.key.split(/[.#]/).pop();
@@ -302,7 +317,7 @@ export function render({ E, F, entries, insts }) {
   const intro = ['## Contents', '', 'The line each section starts on, and the name its classes\' instances go by: `E.Attack: slash` lists its members as `slash.start`.', ''];
   const first = out.length + intro.length + at.length + 1;   // (the contents' own lines, and a blank one, come first)
   out.push(...intro, ...at.map(({ sec, title, line }) => {
-    const own = (insts || []).filter(c => c.sec === sec).map(c => c.name + ': ' + c.inst);
+    const own = (insts || []).filter(c => c.sec === sec).map(c => c.name ? c.name + ': ' + c.inst : c.inst);
     return `- ${first + line + 1} ${title}${own.length ? '; ' + own.join(', ') : ''}`;
   }), '', ...body);
   return out.join('\n');

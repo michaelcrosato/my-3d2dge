@@ -5,6 +5,22 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.43.0 (2026-10-15)
+
+Machinery names leave the API (Phase 3 of `docs/HANDOFF-API-INDEX.md`): 60 names in all. 51 members nothing outside the engine uses are private; the seven constructors only the game makes, with `E.GPULighting.supported`, leave `E`; and `E.faceClass` is the engine's own. The API index lists 857 names in 33,906 cl100k tokens.
+
+- **Engine**: private in both editions (a leading `_`):
+  - what the engine calls itself: `game.screen.begin`, `present`, `fixedRes` and `options`; `r.begin`, `finish` and `flush`; `game.lights.clear`; `game.gpu.render`, `fail` and `show`;
+  - inner state, caches and back references: `game.screen.o`, `r.bb`, `checker`, `ghosts` and `items`, `game.lights.casters`, `heats` and `game`, `game.particles.game`, `game.gpu.game`, `cv`, `bh`, `bw`, `frames` and `loading`, `shots.game`, `grid.map`, `game.audio.game` and `rnd`, `fullscreen.game`, `shell.els`, `game` and `o`, `backdrop.o`, `input.clickAt`, `pinching` and `onBindings`, `talk.page`, `pOpts` and `pSize`, `rig.atkRel`, `hairPts`, `sidePlane`, `aimA`, `mv` and `smear`, `action.shadowZ`, `vx`, `vy` and `vz`.
+- **Engine**: `E.Screen`, `E.Renderer`, `E.Lighting`, `E.Audio`, `E.FullScreen`, `E.Settings` and `E.GPULighting` leave `E`, and `E.faceClass` is the engine's own. Their instances (`game.screen`, `r`, `game.lights`, `game.audio`, `game.fullscreen`, `game.settings`, `game.gpu`) are as they were. A game that read one of the names above gets `undefined` now; none in the repository does.
+- **Engine**: kept public, against the plan's list, because something outside the engine uses them:
+  - `game.screen.fx` and `fy`: the Emberdeep suites and `tools/ed-play.mjs` turn a buffer pixel into a click with them;
+  - `game.lights.list`: Emberdeep and the stress test;
+  - `game.particles.draw` and `update`: the 3D engine, the stress test and the stress world wrap them;
+  - `action.start`, with `action.o` and `beats`: a game's own action (`E.ACTIONS.name = { setup(A), at(A, beat, u) }`) reads its options and start and may set its beats, as the contract suite's own action does.
+- **Tools**: `tools/api-index.mjs` lists the members of the classes only the game makes under their instances' names, with no constructor's line, and the contents block names those instances.
+- **Docs**: `AI_GUIDE.md`'s frame order no longer names `r.begin()` and `r.finish()`. `E.ACTIONS`' line says what a game's own action gets.
+
 ## 0.42.3 (2026-10-15)
 
 The API index says each thing once (Phase 2 of `docs/HANDOFF-API-INDEX.md`): 1,612 tokens fewer, every lookup still answered.

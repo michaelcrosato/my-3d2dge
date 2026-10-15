@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.42.3.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.43.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -124,9 +124,9 @@ What stays your game's job, because only the game knows it:
 1. The clock adds the frame's real time (at most 50 ms) to what is left from the last frame, and runs one step for each whole 1/120 s of it: 2 steps a frame at 60 Hz, 1 at 120 Hz, 1 or 0 at 144 Hz. Each step ticks input, then (except during hit-stop and pause) runs the timers, the current scene's `update(dt)`, particles and the camera. The rest waits for the next frame: `game.alpha` (0..1) is how much of a step it holds, for interpolating drawing.
    - Slow motion (`game.timeScale = .3`) makes each step shorter (`dt = 1/120 * .3`), never fewer, so it stays smooth. Above 1 a step is split so none is longer than 1/120 s.
    - Paused, or at `timeScale` 0, the steps still run with `dt` 0, so input keeps ticking.
-2. `r.begin()` clears the buffer and positions the camera.
+2. The renderer clears the buffer and positions the camera.
 3. The scene's `draw(r)`. Draw backgrounds first, then register decals, queue items, actors, sprites, overlays and lights.
-4. `r.finish()` runs these steps in order:
+4. The renderer finishes the frame, in this order:
    1. particles and afterimages are queued;
    2. decals draw (ground marks, shadows, telegraphs);
    3. the queue sorts and draws by depth;
