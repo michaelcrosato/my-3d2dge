@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.36.0)
+# my-3D2dge API index (v0.37.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.36.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.37.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -351,7 +351,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `r.shape(id, x, y, z = 0, o = {})` †: Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o). o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material }, flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (default true: x-ray silhouettes show through it), footprint, light (add its lights to game.lights), shadow (default true), charView (default true: steep views draw it from the characters' lower angle), flash, alpha, xray }
 - `r.sightCone(obs, o = {})` †: an observer's view on the ground: a dithered fan fov wide (radians) about its facing, out to range, cut short where the map hides a body's chest (map.ray, the height rules), draped over the ground below. o: { range: 120, fov: 1.6, facing, map, eye, color: '#ffe080', alpha: .3, rays }. Call it in draw (it is a decal: under walls and bodies)
 - `r.sky(colors, o = {})`: background of dithered color bands, top to bottom: r.sky(['#0b1030', '#3b2d6b', '#e0806a']). Call first in draw.
-- `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost } (the last five use the actor path)
+- `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost } (the last five use the actor path)
 - `r.starfield(o = {})`: scrolling star dots for space and night skies. opts: { count: 70, speed: 30 px/s, dir: 'down' | 'up' | 'left' | 'right', colors, layers: 3, seed }
 - `r.text(str, x, y, color = '#ffffff', o)`: HUD text in screen pixels, drawn on top and never lit: r.text('SCORE 120', 4, 4, '#fff', { align, scale, outline })
 - `r.textAt(x, y, z, str, color = '#ffffff', o = {})`: text floating at a world point (names, prompts): r.textAt(x, y, z, 'OPEN', '#ffe08a')
@@ -613,7 +613,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `map.set(cx, cy, v)`: put wall type v at a cell (0 opens it: a door, a broken wall); bumps version, so caches and flow fields rebuild
 - `map.setFloor(cx, cy, tag, block)`: give a cell a floor tag ('water', 'grass', what floorTex and floorAt read), and block it (deep water, lava) or not
 - `map.sight(a, b, o = {})`: can a's eyes (z + eye) see b's chest (z + chest)? E.HEIGHTS gives both unless o ({ eye, target }) or the bodies' own eye and chest say otherwise. A guard sees over a planter lower than its eyes, and down from a roof
-- `map.solid(id, x, y, z = 0, o = {})` †: make a shape solid in this map: map.solid(id | entry, x, y, z, o) with r.shape's placement (facing, scale, flip, params) -> the solid ({ x, y, z, top, hx, hy, c, s }; map.solids holds them). A body overlapping its span in height is pushed out of its footprint; one coming down onto it lands on its top; one wholly below passes under. Register solids before the bodies' updates; drawing never sets them
+- `map.solid(id, x, y, z = 0, o = {})` †: make a shape solid in this map: map.solid(id | entry, x, y, z, o) with r.shape's placement (facing, scale, flip, params) -> the solid ({ x, y (the footprint's middle), z, top, hx, hy, c, s, shape, px, py (where it was placed) }; map.solids holds them; what stands on one sorts after it). A body overlapping its span in height is pushed out of its footprint; one coming down onto it lands on its top; one wholly below passes under. Register solids before the bodies' updates; drawing never sets them
 - `map.solidAt(x, y)`: solidCell at a world point
 - `map.solidCell(cx, cy)`: true where a cell has a wall (or is outside the map); walkable() also counts blocked floor
 - `map.standable(x, y, z, r = 5, step = HEIGHTS.step)`: can a body of radius r stand at (x, y) with its feet at z? Nothing under its footprint rises above z + step (it would collide), no blocked floor (water, lava) is under it at floor level, and a top within step below z holds it up
@@ -657,7 +657,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.PATTERNS.stones(s, m)` †: stones: irregular stones (Voronoi cells about size across, 5) with dark joints and a lit rim
 - `E.PATTERNS.thatch(s, m)` †: thatch: straw in overlapping courses (course 3)
 - `E.PATTERNS.tiles(s, m)` †: tiles: square tiles size (4) with grout
-- `E.material(id, local, kind = 'material')`: a material ready to draw: { q (its entry), ramp (five [r, g, b], dark to light), hexes (the same as '#rrggbb'), pat (its pattern), glow }. id: an id (looked up in local first, a set's own, then E.MATERIALS), a shorthand string or an entry; kind names the surface, for the warning when the id is unknown (then null)
+- `E.material(id, local, kind = 'material', depth = 0)`: a material ready to draw: { q (its entry), ramp (five [r, g, b], dark to light), hexes (the same as '#rrggbb'), pat (its pattern), glow }. id: an id (looked up in local first, a set's own, then E.MATERIALS), a shorthand string or an entry; kind names the surface, for the warning when the id is unknown (then null)
 
 ## 14. Flow field
 
@@ -926,7 +926,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.addAssets(set)`: register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries are named 'SET:id' (so one set never changes another's, or the core's) and find their own set's materials and shapes first. An id that is already there warns and keeps the first. Returns { shapes: [ids], materials: [ids], sprites: { id: sprite } } (sprites are E.sprite data; a color may be 'material:tone', tone deep | sh | base | lt | hi)
 - `E.prop(name, o = {})`: build (and cache) a prop: { frames: [sprite], glow: [sprite] | null, w, h }
 - `E.shapeInfo(id, o = {})`: what a shape draws, for tools and tests: E.shapeInfo(id, { view: 'iso', facing, scale, mats, params }) -> { w, h, ox, oy, tris, prims (its primitives), parts (each primitive's pixels on screen: 0 is never seen there), colors (distinct), pixels, bounds [x0, y0, z0, x1, y1, z1], rgba }; null for an unknown shape
-- `E.shapeSprite(id, o = {})`: a shape as a sprite (E.sprite's kind: r.sprite, px.sprite, inventories, HUDs, portraits): E.shapeSprite(id, { view: 'iso', facing, size (its scale, 1), mats, params, outline: true }). The view is a name or a View; a bag icon is the item's shape seen at an angle
+- `E.shapeSprite(id, o = {})`: a shape as a sprite (E.sprite's kind: r.sprite, px.sprite, inventories, HUDs, portraits): E.shapeSprite(id, { view: 'iso', facing, size (its scale, 1), mats, params, outline: true | a color | false }). The view is a name or a View, as given (r.shape draws steep views from the characters' angle: E.charView(view) gives that); a bag icon is the item's shape seen at an angle. r.sprite stands it on its feet (foot: [x, y] in the sprite) unless an anchor is given
 
 ## 21. Ui
 

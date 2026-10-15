@@ -1,7 +1,8 @@
 // The handoff package's template game: a rooftop thief in the isometric view. Climb onto the roof, take the gem, and
 // don't let the guard in the street watch you for long. It shows what a game is made of (scenes, a TileMap with roofs, a
 // Body and a Humanoid, input, the camera, a HUD) and the height-aware API: map.ledge to climb, map.sight and E.inArc for
-// the guard's eyes (they see over the planter, not through the roof), and game.debug for tests and tools. The pause menu,
+// the guard's eyes (they see over the planter, not through the roof), shapes and materials (docs/ASSETS.md: barrels and
+// crates as data, solid with map.solid; the street's cobbles a material), and game.debug for tests and tools. The pause menu,
 // settings, rebinding and full screen come with every game: menu: { controls } names the actions on its Controls screen,
 // and input.label() puts the player's own key or button in a prompt.
 // Copy it and make it your game. Test it headless: node game/test.mjs. Check it in a browser: node tools/check.mjs game/index.html
@@ -24,8 +25,11 @@ const map = new E.TileMap({
   types: { 1: { h: 48, top: '#5a5068', side: '#3e3650', cut: true },
            2: { h: ROOF, top: '#9a4a3a', side: '#c8b89a', face: 'plaster', roof: 'tiles' },
            3: { h: 10, top: '#3e7a3a', side: '#5a4a32', face: 'plank', roof: 'leaves' } },
-  floorTex: (x, y) => E.tex.dirt(x, y, { base: '#7a6a58', dark: '#665848', light: '#8a7a66' })
+  floorMat: 'cobble'   // a material (E.MATERIALS, or '#hex pattern'): the floor, wall faces and tops, shapes' parts all take them
 });
+// set dressing: shapes (E.SHAPES: objects as data, right in every view), solid where they stand (map.solid: walk into one, land on it)
+const DRESS = [['barrel', 152, 30, { facing: .5 }], ['barrel', 166, 26, { facing: 2 }], ['crate', 22, 120, { facing: .3 }], ['cart', 72, 26, { facing: 0 }]];
+for (const [id, x, y, o] of DRESS) map.solid(id, x, y, 0, o);
 const GEM = E.sprite(['.c.', 'cCc', '.c.'], { c: '#48c8f0', C: '#e8faff' }, 2);
 let hero, heroRig, guard, guardRig, climb, alert, got, won;
 
@@ -87,6 +91,7 @@ const play = {
   draw(r) {
     r.sky(['#101828', '#28304a']);
     map.drawFloor(r); map.queueWalls(r);
+    for (const [id, x, y, o] of DRESS) r.shape(id, x, y, 0, o);
     r.decal(() => r.groundArc(guard.x, guard.y, 6, 110, guard.facing - .6, guard.facing + .6, alert > 0 ? '#ff6040' : '#ffe080', .4));   // its sight cone
     const gem = map.find('gem');
     if (!got) r.sprite(gem.x, gem.y, ROOF + 6 + Math.sin(game.time * 3) * 2, GEM);

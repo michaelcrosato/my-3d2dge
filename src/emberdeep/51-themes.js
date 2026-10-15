@@ -375,6 +375,19 @@ function WLD_spot(L0, R, rm, o = {}) {
 }
 /** a prop in the level's colours: WLD_prop(L, 'pillar', x, y, { color, size, broken, z, anchor }) */
 function WLD_prop(L0, name, x, y, o = {}) { const oo = Object.assign({}, o); if (oo.color) oo.color = WLD_c(L0, oo.color); delete oo.z; L0.props.push({ name, x, y, z: o.z || 0, o: oo }); }
+/** a shape as set dressing (docs/ASSETS.md: a core shape or a store set's 'SET:id'): a prop's record (spaced, sunk and
+ *  drawn in its turn as props are, by r.shape), facing a way of its own from where it stands. o: { size (its scale), color
+ *  (its main slot's material in this color, hue-shifted for the level: o.slot, else the entry's first), facing, mats,
+ *  params } */
+const WLD_SHAPE_K = { barrel: .8, crate: .75 };
+function WLD_shape(L0, id, x, y, o = {}) {
+  const S = E.SHAPES[id]; if (!S) return;
+  const mats = Object.assign({}, o.mats), slot = o.slot || Object.keys(S.mats || {})[0], m = slot && E.material(S.mats[slot]);
+  if (o.color && m) mats[slot] = Object.assign({}, m.q, { color: WLD_c(L0, o.color), ramp: undefined });
+  // (sizes in steps of a sixteenth: one picture serves many; barrels and crates a little under the shapes' own size, as the props were)
+  const k = (o.size || 1) * (WLD_SHAPE_K[id] || 1), so = { facing: o.facing === undefined ? E.hash2(Math.round(x), Math.round(y)) * TAU : o.facing, scale: Math.round(k * 16) / 16, mats, params: o.params };
+  L0.props.push({ name: id, shape: id, x, y, z: o.z || 0, o: { size: o.size || 1 }, so });
+}
 /** a living decoration: a thing that draws and ticks. Never hittable; solid only when it is big enough to walk around */
 function WLD_deco(L0, kind, x, y, o = {}) {
   const D = WLD_DECO[kind]; if (!D) return null;
@@ -1145,6 +1158,7 @@ def('songs', 'dirge', { bpm: 58, steps: 4, tracks: [
  * pal: flat colours (so the deep hue shift reaches all of them); walls 1 outer rock, 2 pillar, 3 low wall; torch and
  * light; ambient light and the colour of the dark; back: what shows through the void; decorate(L, R); ambience(L, dt). */
 const WLD_pp = (name, o) => (L1, R, x, y) => WLD_prop(L1, name, x, y, typeof o === 'function' ? o(R) : o || {});
+const WLD_ps = (id, o) => (L1, R, x, y) => WLD_shape(L1, id, x, y, typeof o === 'function' ? o(R) : o || {});   // (a shape, as WLD_pp places a prop)
 const WLD_dd = (kind, o) => (L1, R, x, y, nx, ny) => WLD_deco(L1, kind, x, y, Object.assign({ nx, ny }, typeof o === 'function' ? o(R) : o || {}));
 const WLD_rim = (L0, R, n, kind, o) => { for (const rm of L0.rooms) for (let k = R.int(n[0], n[1]); k > 0; k--) { const s = WLD_spot(L0, R, rm, { rim: 1, gap: 22, startGap: 24 }); if (s) WLD_deco(L0, kind, s[0], s[1], Object.assign({ overVoid: true, nx: s[2], ny: s[3] }, typeof o === 'function' ? o(R) : o)); } };
 
@@ -1166,11 +1180,11 @@ def('themes', 'ruins', { name: 'Ruins', nouns: ['Ruins', 'Colonnades', 'Fallen C
       { w: 1.4, edge: 1, f: WLD_pp('statue', R => ({ color: '#8a8474', size: R.range(1.1, 1.4), flip: R.chance(.5) })) },
       { w: 3, gap: 8, f: WLD_pp('grass', R => ({ color: '#7a9a4a', size: R.range(1, 1.6) })) },
       { w: 2, edge: 1, f: WLD_pp('bush', R => ({ color: '#5a7a3a', size: R.range(1, 1.3) })) },
-      { w: 2, f: WLD_pp('rock', R => ({ color: '#8a8270', size: R.range(.8, 1.3) })) },
+      { w: 2, f: WLD_ps('rock', R => ({ color: '#8a8270', size: R.range(.8, 1.3) })) },
       { w: 1, f: WLD_pp('flowers', { color: '#e8c85a', color2: '#f0eef4' }) },
       { w: 1.3, open: 1, f: WLD_dd('runestone') },
       { w: .8, edge: 1, f: WLD_dd('banner', R => ({ color: '#6a4a8a', color2: '#c8b088', pole: '#8a7a5a', h: 42, wind: .5, flip: R.chance(.5) })) },
-      { w: 1, f: WLD_pp('pot', { color: '#9a6a4a' }) }
+      { w: 1, f: WLD_ps('pot', { color: '#9a6a4a' }) }
     ]);
     WLD_rim(L0, R, [1, 2], 'rubble', { color: '#6a6254', lip: '#6f8a44' });
     for (const rm of L0.rooms) if (rm.hole) { WLD_deco(L0, 'rubble', rm.hole.x, rm.hole.y, { color: '#6a6254', lip: '#6f8a44', overVoid: true }); WLD_deco(L0, 'rift', rm.hole.x, rm.hole.y, { rad: rm.hole.r, glow: '#ff8a3a', glow2: '#ffd070', rate: 6, overVoid: true }); }
@@ -1200,8 +1214,8 @@ def('themes', 'forge', { name: 'Forge', nouns: ['Forge', 'Foundry', 'Smelteries'
       { w: 2, f: WLD_dd('chain', R => ({ len: R.range(30, 56) })) },
       { w: .7, f: WLD_dd('chain', { cage: true, len: 44 }) },
       { w: 1.4, open: 1, f: WLD_dd('vent', { steam: '#8a7a7a' }) },
-      { w: 2, edge: 1, f: WLD_pp('barrel', R => ({ color: '#5a3a2a', size: R.range(1, 1.2) })) },
-      { w: 2, edge: 1, f: WLD_pp('crate', R => ({ color: '#6a4a32', size: R.range(1, 1.3) })) }
+      { w: 2, edge: 1, f: WLD_ps('barrel', R => ({ color: '#5a3a2a', size: R.range(1, 1.2) })) },
+      { w: 2, edge: 1, f: WLD_ps('crate', R => ({ color: '#6a4a32', size: R.range(1, 1.3) })) }
     ]);
   },
   ambience(L0, dt) {
@@ -1228,8 +1242,8 @@ def('themes', 'frost', { name: 'Frost', nouns: ['Rime', 'Glaciers', 'Hoarfrost H
     WLD_dress(L0, R, [
       { w: 3, edge: 1, f: WLD_dd('spikes', R => ({ solid: true, color: '#a8d8f8', h: R.range(14, 28) })) },
       { w: 1.3, open: 1, f: WLD_dd('spikes', R => ({ color: '#b8e4fc', h: R.range(8, 12), n: 2 })) },
-      { w: 2, f: WLD_pp('crystal', R => ({ color: '#9ad8ff', size: R.range(.8, 1.3) })) },
-      { w: 2, edge: 1, f: WLD_pp('rock', R => ({ color: '#b0c4d8', size: R.range(.9, 1.4) })) },
+      { w: 2, f: WLD_ps('crystal', R => ({ color: '#9ad8ff', size: R.range(.8, 1.3) })) },
+      { w: 2, edge: 1, f: WLD_ps('rock', R => ({ color: '#b0c4d8', size: R.range(.9, 1.4) })) },
       { w: 1, f: WLD_pp('skull', { color: '#dde6ee' }) }, { w: 1, f: WLD_pp('bones', { color: '#dde6ee' }) }
     ]);
     const ph = this.walls[2].h; WLD_pillars(L0, R, .85, (L1, R1, x, y, nx, ny) => WLD_deco(L1, 'icicles', x, y, { nx, ny, top: ph }));
@@ -1283,11 +1297,11 @@ def('themes', 'mine', { name: 'Mine', nouns: ['Mines', 'Diggings', 'Shafts', 'Lo
     WLD_setup(L0, this); WLD_rails(L0, R);
     WLD_dress(L0, R, [
       { w: 2.5, edge: 1, inset: 3.5, f: WLD_dd('post', { solid: true }) },
-      { w: 2, edge: 1, f: WLD_pp('crate', R => ({ color: '#8a6a3a', size: R.range(1, 1.3) })) },
-      { w: 2, edge: 1, f: WLD_pp('barrel', R => ({ color: '#7a5030', size: R.range(1, 1.2) })) },
-      { w: 2, edge: 1, f: WLD_pp('crystal', R => ({ color: '#6ad8ff', size: R.range(.7, 1.1) })) },
-      { w: 2, f: WLD_pp('rock', R => ({ color: '#7a6e62', size: R.range(.8, 1.4) })) },
-      { w: 1, f: WLD_pp('pot', { color: '#8a5a3a' }) }, { w: .8, edge: 1, f: WLD_pp('sign', { color: '#8a6a3a' }) }
+      { w: 2, edge: 1, f: WLD_ps('crate', R => ({ color: '#8a6a3a', size: R.range(1, 1.3) })) },
+      { w: 2, edge: 1, f: WLD_ps('barrel', R => ({ color: '#7a5030', size: R.range(1, 1.2) })) },
+      { w: 2, edge: 1, f: WLD_ps('crystal', R => ({ color: '#6ad8ff', size: R.range(.7, 1.1) })) },
+      { w: 2, f: WLD_ps('rock', R => ({ color: '#7a6e62', size: R.range(.8, 1.4) })) },
+      { w: 1, f: WLD_ps('pot', { color: '#8a5a3a' }) }, { w: .8, edge: 1, f: WLD_pp('sign', { color: '#8a6a3a' }) }
     ]);
   },
   ambience(L0, dt) {
@@ -1313,7 +1327,7 @@ def('themes', 'clockwork', { name: 'Clockwork', nouns: ['Clockworks', 'Engines',
       { w: 2, edge: 1, inset: 6, f: WLD_dd('cog', R => ({ solid: true, pair: R.chance(.45), rad: R.range(9, 12) })) },
       { w: 1.8, open: 1, f: WLD_dd('vent') },
       { w: 1.2, f: WLD_dd('chain', R => ({ len: R.range(26, 48), color: '#6a6a78' })) },
-      { w: 1.5, edge: 1, f: WLD_pp('crate', { color: '#6a5a4a' }) }, { w: 1, edge: 1, f: WLD_pp('barrel', { color: '#5a5a66' }) }
+      { w: 1.5, edge: 1, f: WLD_ps('crate', { color: '#6a5a4a' }) }, { w: 1, edge: 1, f: WLD_ps('barrel', { color: '#5a5a66' }) }
     ]);
   },
   ambience(L0, dt) {
@@ -1340,7 +1354,7 @@ def('themes', 'abyss', { name: 'Abyss', nouns: ['Maw', 'Abyss', 'Void Halls', 'R
       { w: 2.5, edge: 1, f: WLD_dd('spikes', R => ({ solid: true, color: '#8a5ad8', h: R.range(14, 26), glow: true })) },
       { w: 1.6, open: 1, f: WLD_dd('shard') },
       { w: 2, f: WLD_pp('skull', { color: '#b8b0c8' }) }, { w: 1.5, f: WLD_pp('bones', { color: '#b8b0c8' }) },
-      { w: 2, edge: 1, f: WLD_pp('rock', R => ({ color: '#3a3048', size: R.range(.9, 1.5) })) }
+      { w: 2, edge: 1, f: WLD_ps('rock', R => ({ color: '#3a3048', size: R.range(.9, 1.5) })) }
     ]);
     for (const rm of L0.rooms) if (rm.hole) { WLD_deco(L0, 'rubble', rm.hole.x, rm.hole.y, { color: '#2e2640', lip: '#5a3a8a', overVoid: true }); WLD_deco(L0, 'rift', rm.hole.x, rm.hole.y, { rad: rm.hole.r, overVoid: true }); }
     WLD_rim(L0, R, [0, 1], 'rubble', { color: '#2e2640', lip: '#5a3a8a' });
@@ -1402,7 +1416,7 @@ def('themes', 'sky', { name: 'Sky', nouns: ['Spires', 'Sky Gardens', 'Aeries', '
       { w: 1.4, edge: 1, f: WLD_pp('statue', R => ({ color: '#e0dad0', size: R.range(1.1, 1.4), flip: R.chance(.5) })) },
       { w: 2, gap: 8, f: WLD_pp('flowers', { color: '#f08aa8', color2: '#fff4a0' }) },
       { w: 1.5, f: WLD_pp('bush', { color: '#5a9a4a', berries: '#f0a0c0' }) },
-      { w: 1, edge: 1, f: WLD_pp('tree', R => ({ color: '#e8a0c0', size: R.range(1.1, 1.4) })) },
+      { w: 1, edge: 1, f: WLD_ps('tree', R => ({ color: '#e8a0c0', slot: 'l', size: R.range(1.1, 1.4) })) },
       { w: 1.5, gap: 8, f: WLD_pp('grass', { color: '#7ab05a' }) }
     ]);
     WLD_rim(L0, R, [1, 2], 'rubble', { color: '#9a8e84', lip: '#7ab05a' });
@@ -1427,10 +1441,10 @@ def('themes', 'aqueduct', { name: 'Aqueduct', nouns: ['Aqueduct', 'Cisterns', 'W
     WLD_setup(L0, this); WLD_channels(L0, R);
     WLD_dress(L0, R, [
       { w: 1.6, edge: 1, back: 1, inset: 3, gap: 30, startGap: 64, f: WLD_dd('waterfall') },
-      { w: 2, f: WLD_pp('pot', { color: '#8a6a5a' }) }, { w: 2, gap: 8, f: WLD_pp('grass', { color: '#4a8a5a' }) },
-      { w: 1.5, edge: 1, f: WLD_pp('barrel', { color: '#6a5a44' }) },
+      { w: 2, f: WLD_ps('pot', { color: '#8a6a5a' }) }, { w: 2, gap: 8, f: WLD_pp('grass', { color: '#4a8a5a' }) },
+      { w: 1.5, edge: 1, f: WLD_ps('barrel', { color: '#6a5a44' }) },
       { w: 1.5, edge: 1, f: WLD_pp('pillar', R => ({ color: '#8a928e', size: R.range(1, 1.3), broken: R.chance(.5) })) },
-      { w: 1, f: WLD_pp('rock', { color: '#6a7270' }) }
+      { w: 1, f: WLD_ps('rock', { color: '#6a7270' }) }
     ]);
     WLD_pillars(L0, R, .6, (L1, R1, x, y) => WLD_prop(L1, 'vines', x, y, { z: 42, anchor: 'top', color: '#3a6a4a', size: R1.range(.9, 1.2) }));
   },
@@ -1458,7 +1472,7 @@ def('themes', 'cavern', { name: 'Cavern', nouns: ['Caverns', 'Hollows', 'Grottoe
       { w: 1.6, edge: 1, f: WLD_dd('spikes', R => ({ solid: true, color: '#e8a04a', h: R.range(12, 20), glow: true })) },
       { w: 3, edge: 1, back: 1, inset: 2, gap: 22, f: WLD_dd('glowworms', { glow: '#a8ffe8' }) },
       { w: .6, edge: 1, back: 1, inset: 3, gap: 30, startGap: 64, f: WLD_dd('waterfall', { color: '#3a7aa0' }) },
-      { w: 2, f: WLD_pp('rock', R => ({ color: '#7a7068', size: R.range(.8, 1.5) })) },
+      { w: 2, f: WLD_ps('rock', R => ({ color: '#7a7068', size: R.range(.8, 1.5) })) },
       { w: 1.2, f: WLD_pp('bones', { color: '#c8bca8' }) }, { w: 1.2, gap: 8, f: WLD_pp('mushroom', R => ({ color: '#a07a5a', size: R.range(.6, 1) })) }
     ]);
     WLD_glowPillars(L0, R, .25, { glow: '#a8ffe8' });

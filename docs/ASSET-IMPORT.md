@@ -23,8 +23,8 @@ asset-find   ->  search every set and the core library
 
 | Tool | npm | What |
 | --- | --- | --- |
-| `tools/asset-fetch.mjs <lib> <name> ...` | `assets:fetch` | Downloads into `.cache/assets/<lib>/`, checks the license (CC0 1.0 or the public-domain mark, or it stops), records the download and surveys every file into the set's ledger. `--survey` rewrites the ledgers, keeping their notes. |
-| `tools/asset-import.mjs <set> [--catalog] [--scale k] [--tol .9] [--only a,b] [--list]` | `assets:import` | Converts the set's downloads (below) and writes `src/assets/sets/<set>.js`; `--catalog` takes only the ids its catalog describes, with their descriptions and `$mats`; `--list` prints the ledger. |
+| `tools/asset-fetch.mjs <lib> <name> ...` | `assets:fetch` | Downloads into `.cache/assets/<lib>/`, checks the license (its text names CC0 1.0 or the public-domain mark, and no other license, or it stops), records the download and surveys every file into the set's ledger. `--survey` rewrites the ledgers, keeping their notes (and the rows of downloads not in `.cache`). |
+| `tools/asset-import.mjs <set> [--catalog] [--scale k] [--tol .9] [--only a,b] [--list]` | `assets:import` | Converts the set's downloads (below) and writes `src/assets/sets/<set>.js`; `--catalog` takes only the ids its catalog describes, with their descriptions and `$mats`; `--only` converts those ids and leaves the rest of the set and its ledger as they are; `--list` prints the ledger. |
 | `tools/asset-sheet.mjs <set file> --grid` | `assets:sheet` | Contact sheets, 30 entries a page, and a page of the kit's colors with the entries using each. `tools/asset-sheet.mjs file.js#id` draws one entry in every view and lints it. |
 | `tools/asset-set.mjs a.js b.js --ids x,set:y --name n --out f.js` | `assets:set` | Cuts a set by ids, with every shape they place (`use`) and every material those name, and their downloads' records. |
 | `tools/asset-find.mjs "tavern table" [--kind shape] [--show set:id]` | `assets:find` | Searches ids, tags and descriptions; `--show` prints an entry to copy. |

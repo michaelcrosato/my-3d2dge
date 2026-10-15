@@ -3,7 +3,7 @@
 The full engine draws still objects (barrels, tables, trees, wells) from a few lines of data, in every view and facing,
 with the house shading and outline, and gives every surface (floors, wall faces, wall tops, platform tiles, the objects'
 own faces) a material from one open registry. An object costs about a hundred tokens of data; you check it headless with
-one command. Read this card whole before you write one. (The agent edition keeps the registries and ignores the calls.)
+one command. Read this card whole before you write one. (The agent edition keeps the registries and ignores the calls: `E.addAssets` returns empty lists, the others null.)
 
 ## Use one
 
@@ -86,8 +86,9 @@ E.SHAPES.stool = { about: 'round three-legged stool', tags: 'furniture tavern', 
 ```
 
 An entry: `about`, `tags`, `mats` (slot to material; a slot name that is not in mats is a material itself), and `parts`, or
-`make(params)` returning parts with `params` its defaults. Optional: `scale`, `foot: [x0, y0, x1, y1]` (the footprint for
-collision and sorting; the bounds by default), `lights: [[x, y, z, color, radius]]`, `flames: [[x, y, z, w, h]]`.
+`make(params)` returning parts with `params` its defaults. Optional: `scale` (times the placement's), `foot: [x0, y0,
+x1, y1]` (the footprint for collision, and for sorting when it stands raised; the bounds by default), `lights: [[x, y,
+z, color, radius]]`, `flames: [[x, y, z, w, h]]`.
 
 | Part | Form | Notes |
 | --- | --- | --- |

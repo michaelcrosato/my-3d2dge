@@ -40,11 +40,14 @@ const STEALTH = (() => {
       6: { h: 48, top: '#6a5a6a', side: '#7a7a8a', face: 'stone', roof: 'plain', windows: { w: 4, h: 12, lit: .15 } },
       7: { h: 40, top: '#8a5a3a', side: '#c8a888', face: 'plaster', roof: 'tiles', windows: true, shutters: '#6a3a2a', balcony: { z: 24 } },
       8: { h: 24, top: '#4a6a3a', side: '#a89878', face: 'timber', roof: 'tiles', arch: { chance: .6 } },
-      9: { h: 72, top: '#7a6a5a', side: '#a89878', face: 'stone', roof: 'plain', windows: { w: 3, h: 10, step: 22, lit: .5 } },
+      9: { h: 72, top: '#7a6a5a', side: '#a89878', face: 'sandstone', roof: 'plain', windows: { w: 3, h: 10, step: 22, lit: .5 } },   // the belfry: face, a MATERIAL (docs/ASSETS.md)
       10: { h: 10, top: '#3e7a3a', side: '#5a4a32', face: 'plank', roof: 'leaves' } },
     floorTex: (x, y, tag) => tag === 'grass' ? E.tex.grass(x, y, { base: '#3e6a32', dark: '#2a5226', light: '#5a8a42' }) : E.tex.flagstone(x, y, PAVE)
   });
   const LEDGER = { x: 11.5 * T, y: 3.5 * T, z: 48 }, EXIT = map.find('exit'), GRASS = [];
+  // set dressing: SHAPES (E.SHAPES, docs/ASSETS.md: objects as data, right in every view) along the north street, out of the patrols' way
+  const DRESS = [['barrel', 1.5 * T, 1.4 * T, { facing: .4 }], ['barrel', 2.5 * T, 1.3 * T, { facing: 2 }], ['crate', 7.4 * T, 1.4 * T, { scale: .8, facing: .2 }],
+    ['cart', 15.5 * T, 1.5 * T, { facing: 0 }], ['sack', 16.9 * T, 1.3 * T, { facing: 1 }], ['barrel', 22.6 * T, 1.4 * T, { facing: 3 }]];
   for (let cy = 0; cy < map.h; cy++) for (let cx = 0; cx < map.w; cx++) if (map.floorAt((cx + .5) * T, (cy + .5) * T) === 'grass') GRASS.push([(cx + .5) * T, (cy + .5) * T]);
   const BOOK = E.sprite(['.bbbb.', 'bBBBBb', 'bBwwBb', 'bBBBBb', '.bbbb.'], { b: '#3a2010', B: '#8a3a20', w: '#f0e0b0' });
   const STAR = E.sprite(['..y..', '.yYy.', 'yYYYy', '.yYy.', '..y..'], { y: '#e8a830', Y: '#fff0a0' });
@@ -175,6 +178,7 @@ const STEALTH = (() => {
     r.sky(['#141030', '#3a2a5a', '#7a4a5a']);
     map.drawFloor(r); map.queueWalls(r);
     for (const [x, y] of GRASS) r.prop('grass', x, y, 0, { size: 1.3 });
+    for (const [id, x, y, o] of DRESS) r.shape(id, x, y, 0, o);
     // the belfry: a canopy wider than the tower, sorted by its whole footprint (over every tower block)
     const bx = 25 * T, by = 5 * T, w = 21, H = 20, z = 72;
     r.queue(bx, by, z, g => { const P2 = (x, y, zz) => r.w(x, y, zz), c = [P2(bx - w, by - w, z), P2(bx + w, by - w, z), P2(bx + w, by + w, z), P2(bx - w, by + w, z)], tip = P2(bx, by, z + H);

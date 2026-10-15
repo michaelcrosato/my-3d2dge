@@ -46,7 +46,7 @@ const ADV = (() => {
   const SLAB = { face: 'stone', roof: 'slab' }, TYPES = {
     1: { h: 16, cut: true, cutH: 7, face: 'hedge', roof: 'leaves', top: '#3f8c3c', side: '#2e6a34' },   // hedge
     2: { h: 34, cut: true, cutH: 8, ...SLAB, top: '#4e4670', side: '#6a6294', course: 9 },   // shrine stone
-    3: { h: 26, cut: true, cutH: 8, ...SLAB, top: '#7a8a66', side: '#8e8a98', course: 7 },   // ruin wall, mossy top
+    3: { h: 26, cut: true, cutH: 8, face: 'ruin', roof: 'slab', top: '#7a8a66', side: '#8e8a98' },   // ruin wall, mossy top: the 'ruin' MATERIAL (stones, cracks, moss, dirt; docs/ASSETS.md)
     4: { h: 12, cut: true, ...SLAB, top: '#72845e', side: '#8e8a98', course: 6 },   // crumbled ruin
     5: { h: 36, face: 'timber', roof: 'tiles', top: '#c4583a', side: '#f0e0c0', beam: '#6a4228' },   // cottage
     6: { h: 36, ...SLAB, top: '#5a5480', side: '#7a7298', course: 9 },   // shrine facade
@@ -56,7 +56,8 @@ const ADV = (() => {
     10: { h: 22, face: 'hedge', roof: 'leaves', top: '#2c6a36', side: '#1f4a2a' }   // the forest round the rooms
   };
   // set dressing: tag -> prop(s). r = solid, cut = breakable (debris), drop = loot, face = on the wall at z (anchor
-  // 'top' hangs it), light = GPU light, dx = nudge, hidden = appears later
+  // 'top' hangs it), light = GPU light, dx = nudge, hidden = appears later; shape = a SHAPE (E.SHAPES, docs/ASSETS.md:
+  // right in every view and turn, no drawing code) in place of a prop, size its scale
   const THINGS = {
     // village
     door: [{ face: true, size: 1.1, color: '#7a4222' }, { prop: 'lantern', face: true, z: 33, dx: 14, anchor: 'top', light: '#ffb060' }],
@@ -64,7 +65,7 @@ const ADV = (() => {
     pane: { prop: 'window', face: true, z: 12, size: .65, color: '#6a4424', colors: ['#fff0b0', '#ffd070'] }, ivy: { prop: 'vines', face: true, z: 35, anchor: 'top', color: '#3a8a3a', blossom: '#f890b0' },
     fountain: { prop: 'statue', size: .8, color: '#a8a6c0', dx: 8 }, lamp: { prop: 'streetlamp', r: 3, size: .8, halo: false }, oak: { prop: 'tree', size: 1.45, r: 8 },   // lamp: unlit by day
     bush: { r: 6, cut: ['#2f7a34', '#5ab04a', '#9ad86a'] }, pot: { size: .95, r: 5, cut: ['#7a3a22', '#c07040', '#e8a878'], drop: 'gem' }, sign: { r: 4 },
-    mushroom: { size: .75, color: '#e0503a' }, barrel: { r: 5, size: .85 }, crate: { r: 6, size: .85 },
+    mushroom: { size: .75, color: '#e0503a' }, barrel: { shape: 'barrel', r: 5, size: .75 }, crate: { shape: 'crate', r: 6, size: .65 },
     // ruins
     vines: { face: true, z: 25, anchor: 'top', color: '#4a8a3a', blossom: '#f890b0' }, moss: { prop: 'vines', face: true, z: 35, anchor: 'top', size: .8, color: '#5a8a3a', blossom: '#f890b0' },
     gate: { prop: 'door', face: true, size: 1.1, color: '#5a3a6a' }, ruin: { prop: 'pillar', broken: true, r: 7 }, rock: { r: 5, color: '#8a8698' }, skull: { prop: 'bones' },
@@ -458,9 +459,10 @@ const ADV = (() => {
     for (const f of roofs) roof(r, f);
     for (const t of things) {
       if (t.dead || t.hidden) continue; const y = t.face ? t.y + T / 2 + 1 : t.y, z = t.face ? t.z || 0 : map.heightAt(t.x, t.y);
-      if (t.r) shadow(r, t.x, t.y + 1, t.r);
+      if (t.r && !t.shape) shadow(r, t.x, t.y + 1, t.r);   // (a shape casts its own)
       if (t.prop === 'bush') r.queue(t.x, t.y, z, g => { const [X, Y] = r.w(t.x, t.y, z), k = Math.floor(t.x * 3 + t.y);
         bush(g, Math.round(X), Math.round(Y), t.size || 1, t.C || (t.C = E.ramp(t.color || ['#4a9a4a', '#3a8a52', '#5a9a3a'][k % 3], 5, 1.2)), k); });
+      else if (t.shape) r.shape(t.shape, t.x, y, z, { scale: t.size, facing: E.hash2(t.x, t.y) * E.TAU });   // each turned its own way
       else r.prop(t.prop, t.x, y, z, { ...t, light: false });   // its fields style the prop
       // GPU lights in the hero's room only; wall lights cast shadows
       if (t.light && t.room === room) L.add(t.x, y + (t.prop === 'window' ? 30 : 0), z + 14, t.face ? 90 : 60, .9, { color: t.light, shadow: t.face });

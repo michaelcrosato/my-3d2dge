@@ -12,7 +12,7 @@
 // plan; the assets suite holds every record to the same allowlist).
 // Usage: node tools/asset-fetch.mjs <lib> <name> [<name> ...] [--top N] [--category A,B] [--force]
 //        node tools/asset-fetch.mjs <lib> --survey      (rewrites the ledger from what is in .cache, keeping the notes)
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, lstatSync } from 'node:fs';
 import { join, dirname, relative, extname, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -27,8 +27,16 @@ const sha = b => createHash('sha256').update(b).digest('hex');
 const get = (url, out) => { execFileSync('curl', ['-sSfL', '--retry', '5', '--retry-delay', '3', '--retry-all-errors', '-m', '600', '-A', 'my-3d2dge-asset-fetch (github.com/michaelcrosato/my-3d2dge)', '-o', out, url], { stdio: ['ignore', 'ignore', 'inherit'] }); return readFileSync(out); };
 const text = url => execFileSync('curl', ['-sSfL', '--retry', '5', '--retry-delay', '3', '--retry-all-errors', '-m', '60', '-A', 'my-3d2dge-asset-fetch', url], { encoding: 'utf8', maxBuffer: 64 << 20 });
 const unzip = (zip, to) => { mkdirSync(to, { recursive: true }); execFileSync('unzip', ['-oq', zip, '-d', to]); };
-/** the license a text states, as one of LICENSES' labels, or null */
-const licenseOf = t => /CC0|Creative Commons Zero|creativecommons\.org\/publicdomain\/zero/i.test(t) ? 'CC0 1.0' : /public domain mark|publicdomain\/mark/i.test(t) ? 'Public Domain Mark 1.0' : null;
+/** the license a text states, as one of LICENSES' labels, or null: its words (a page's, without its scripts, styles and
+ *  tags) name CC0 or the public-domain mark as a word, and no other Creative Commons license anywhere */
+const licenseOf = raw => {
+  const t = String(raw).replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ');
+  if (/\bCC[- ]?BY\b|\bAttribution\b|NonCommercial|NoDerivatives|ShareAlike|\bCC[- ]?(NC|ND|SA)\b/i.test(t)) return null;
+  return /\bCC0\b|Creative Commons Zero|creativecommons\.org\/publicdomain\/zero\b/i.test(t) ? 'CC0 1.0' : /\bpublic domain mark\b|creativecommons\.org\/publicdomain\/mark\b/i.test(t) ? 'Public Domain Mark 1.0' : null;
+};
+/** an id from a library's API, safe as a file name, and a download from that library's own host */
+const safeId = id => { if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error('not an id: ' + JSON.stringify(id)); return id; };
+const fromHost = (url, host) => { const u = new URL(url); if (u.protocol !== 'https:' || (u.hostname !== host && !u.hostname.endsWith('.' + host))) throw new Error('not a download from ' + host + ': ' + url); return url; };
 const setOf = key => lib === 'ambientcg' ? 'ambientcg' : key, cats = {}, catOf = set => cats[set] || (cats[set] = readCatalog(set));
 const known = key => (catOf(setOf(key)).$sources || {})[key];
 const record = (key, rec) => {
@@ -71,17 +79,17 @@ if (lib === 'ambientcg') {
     const cats = (opt('category') || '').split(',').filter(Boolean), out = [];
     for (const c of cats.length ? cats : ['']) {
       const q = 'https://ambientcg.com/api/v3/assets?type=material&sort=popular&limit=' + opt('top') + (c ? '&q=' + encodeURIComponent(c) : '');
-      for (const a of JSON.parse(text(q)).assets) if (!c || a.id.startsWith(c)) out.push(a.id);
+      for (const a of JSON.parse(text(q)).assets) if (/^[A-Za-z0-9_-]+$/.test(a.id) && (!c || a.id.startsWith(c))) out.push(a.id);
     }
     ids = [...new Set(out.concat(ids))];
   }
   for (const id of ids) each(id, () => {
-    const key = 'ambientcg-' + id, to = join(dir, id), zip = join(dir, id + '.zip');
+    const key = 'ambientcg-' + safeId(id), to = join(dir, id), zip = join(dir, id + '.zip');
     if (existsSync(to) && known(key) && !force) return;
     const info = JSON.parse(text('https://ambientcg.com/api/v3/assets?id=' + id + '&include=downloads,tags,dimensions')).assets[0];
     if (!info) throw new Error('not on ambientCG');
     const dl = info.downloads.find(d => d.attributes === '1K-JPG') || info.downloads.find(d => /1K/.test(d.attributes));
-    const buf = get(dl.url, zip); unzip(zip, to);
+    const buf = get(fromHost(dl.url, 'ambientcg.com'), zip); unzip(zip, to);
     record(key, { label: 'ambientCG ' + id, origin: 'ambientCG (ambientcg.com), ' + (info.displayName || id), license, url: dl.url, page: 'https://ambientcg.com/view?id=' + id, fetched: today, sha256: sha(buf), licenseHash: sha(lt).slice(0, 16), dir: id,
       tags: (info.tags || []).join(' '), dims: info.dimensions && info.dimensions.width ? [info.dimensions.width, info.dimensions.height] : undefined });
   });
@@ -94,8 +102,9 @@ for (const [set, cat] of Object.entries(cats)) {
   writeCatalog(set, cat);
   const keep = new Map(readLedger(set).map(r => [r.file, r])), out = [];
   for (const [key, rec] of Object.entries(cat.$sources || {})) {
-    const base = join(dir, rec.dir || ''); if (!existsSync(base)) continue;
-    const walk = d => { for (const f of readdirSync(d).sort()) { const p = join(d, f); if (f.startsWith('.')) continue; if (statSync(p).isDirectory()) walk(p); else {
+    // a download not in .cache (a fresh clone) keeps its rows as they are
+    const base = join(dir, rec.dir || ''); if (!existsSync(base)) { out.push(...[...keep.values()].filter(r => r.src === key)); continue; }
+    const walk = d => { for (const f of readdirSync(d).sort()) { const p = join(d, f), st = lstatSync(p); if (f.startsWith('.') || st.isSymbolicLink()) continue; if (st.isDirectory()) walk(p); else {   // (links skipped: nothing read outside the download)
       const s = surveyFile(p); if (!s) continue;
       const file = relative(dir, p), old = keep.get(file) || {};
       out.push(Object.assign({ src: key, file, bytes: statSync(p).size }, s, { fit: old.fit || '', used: old.used || '', flags: old.flags || s.flags || '', note: old.note || '' }));

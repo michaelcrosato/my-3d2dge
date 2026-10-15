@@ -477,7 +477,7 @@ function drawTorches(L0, r) {
     L.caster(b.x, b.y, 4.5, 11);
   }
 }
-function drawProps(L0, r) { for (const p of L0.props) r.prop(p.name, p.x, p.y, p.z || 0, p.o || {}); }
+function drawProps(L0, r) { for (const p of L0.props) if (p.shape) r.shape(p.shape, p.x, p.y, p.z || 0, p.so); else r.prop(p.name, p.x, p.y, p.z || 0, p.o || {}); }   // (p.shape: WLD_shape's)
 /** the exit waystone: a crystal floating over its rune circle, a faint beam of light rising from it so it can be found
  *  across a room. While the level's boss lives it lies dormant, sunk in the floor (dark, small, no glow: the boss
  *  stands over it); when the boss falls it rises out of the floor and wakes */

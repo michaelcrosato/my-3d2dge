@@ -568,3 +568,19 @@ An entry:
   one page (then the lab loads sets on demand, as the Mocap Lab's CMU library does).
 - **Answered:** no; made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.36.0
+
+## D35 · 2026-10-15 · Emberdeep dresses with shapes one for one, so no level moves
+
+- **Principle:** 5 (deterministic: the same seed builds the same level) and Emberdeep's contract (`DESIGN.md`: shared
+  files stay as they are wherever a registry or a BUS event will do)
+- **Call:** a theme's dressing list names a shape with `WLD_ps` where it named a prop with `WLD_pp` (barrels, crates,
+  pots, rocks, crystals, the Sky's blossom trees), drawing the same random numbers, and the shape is kept as a prop's
+  record (`L.props`, with `shape`), so every rule that spaces mechanics from props still sees it. The core file's
+  `drawProps` gains one branch that draws a record's shape. The town's still pieces (barrels, crates, sacks, tables,
+  stools, benches, hay, the well) and its pines become shapes and keep their collision circles; the animated ones (the
+  trees that sway, the scarecrow, the stash chest) stay as they are.
+- **Why:** a shape as a new kind of thing would be spaced by the things' rules, not the props', and every level after the
+  first converted one would be laid out differently: the seeds the tests and the players know would change. One line in
+  a core file keeps them. What would change it: a registry for what draws a level's records.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.37.0
