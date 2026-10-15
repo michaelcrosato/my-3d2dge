@@ -4223,10 +4223,14 @@ class TileMap {
   /** renderer hook: something standing on a solid shape (map.solid: a jar on a table, a crate on a crate) sorts after it,
    *  even on its back half, where its own point sorts before the shape's */
   _liftSolids(view, x, y, z, k) {
+    const own = view.order(x, y, z);
     for (const so of this.solids) {
       if (z < so.top - 1) continue;
       const dx = x - so.x, dy = y - so.y, lx = dx * so.c + dy * so.s, ly = -dx * so.s + dy * so.c;
-      if (Math.abs(lx) <= so.hx && Math.abs(ly) <= so.hy) k = Math.max(k, view.order(so.x, so.y, so.z) + .002 + z * 1e-5, view.order(so.px, so.py, so.z) + .002 + z * 1e-5);
+      if (Math.abs(lx) <= so.hx && Math.abs(ly) <= so.hy) {   // (just after the shape, and the things on it in their own order)
+        const base = Math.max(view.order(so.x, so.y, so.z), view.order(so.px, so.py, so.z));
+        k = Math.max(k, base + .002 + z * 1e-5 + Math.max(-150, own - base) * 1e-5);
+      }
     }
     return k;
   }
@@ -6796,9 +6800,9 @@ function rasterShape(S, view, o = {}) {
   const out = new Int8Array(tone), near = (j, q) => part[q] >= 0 && part[q] !== part[j] && zb[q] > zb[j] + 1.2;
   for (let y = 1; y < H - 1; y++) for (let x = 1, j = y * W + 1; x < W - 1; x++, j++) if (part[j] >= 0 && (near(j, j - 1) || near(j, j + 1) || near(j, j - W) || near(j, j + W))) out[j] = Math.max(0, tone[j] - 1);
   for (let j = W; j < n; j++) if (tone[j] >= 0 && Nz[j] >= .5 && (tone[j - W] < 0 || zb[j - W] < zb[j] - 2.5)) out[j] = Math.min(4, out[j] + 1);
-  const rgba = new Uint8ClampedArray(n * 4);
-  for (let j = 0; j < n; j++) { if (out[j] < 0) continue; const c = R.mats[faces[fid[j]].mi].ramp[out[j] + 5 * ov[j]]; rgba[j * 4] = c[0]; rgba[j * 4 + 1] = c[1]; rgba[j * 4 + 2] = c[2]; rgba[j * 4 + 3] = 255; }
-  return { w: W, h: H, ox, oy, rgba, tris, prims: R.prims.length, part, mq: R.mq };
+  const rgba = new Uint8ClampedArray(n * 4), glow = R.mats.some(m => m.glow) ? new Uint8Array(n) : null;   // (glow: the pixels of glowing materials)
+  for (let j = 0; j < n; j++) { if (out[j] < 0) continue; const m = R.mats[faces[fid[j]].mi], c = m.ramp[out[j] + 5 * ov[j]]; rgba[j * 4] = c[0]; rgba[j * 4 + 1] = c[1]; rgba[j * 4 + 2] = c[2]; rgba[j * 4 + 3] = 255; if (glow && m.glow) glow[j] = 1; }
+  return { w: W, h: H, ox, oy, rgba, tris, prims: R.prims.length, part, mq: R.mq, glow };
 }
 /** a raster as a canvas, with the actors' 1-px outline round it in a color ('#140c1c', the renderer's) or none */
 function rasterCanvas(r, outline) {
@@ -6809,11 +6813,17 @@ function rasterCanvas(r, outline) {
   }
   g.putImageData(img, 0, 0); return cv;
 }
-/** a raster's opaque pixels as runs [x, y, n] (the lighting pass fills them with its own colors) */
-function rasterRuns(r) {
-  const out = [], W = r.w, A = r.rgba;
-  for (let y = 0; y < r.h; y++) for (let x = 0; x < W;) { if (!A[(y * W + x) * 4 + 3]) { x++; continue; } let n = 1; while (x + n < W && A[(y * W + x + n) * 4 + 3]) n++; out.push(x, y, n); x += n; }
+/** a raster's opaque pixels (or those keep(j) picks) as runs [x, y, n] (the lighting pass fills them with its own colors) */
+function rasterRuns(r, keep) {
+  const out = [], W = r.w, A = r.rgba, on = j => A[j * 4 + 3] && (!keep || keep(j));
+  for (let y = 0; y < r.h; y++) for (let x = 0; x < W;) { if (!on(y * W + x)) { x++; continue; } let n = 1; while (x + n < W && on(y * W + x + n)) n++; out.push(x, y, n); x += n; }
   return out;
+}
+/** a raster's glowing pixels alone, as a canvas and runs (drawn again after the lighting, so the dark never dims them) */
+function rasterGlow(r) {
+  const cv = mkCanvas(r.w, r.h), g = cv.getContext('2d'), img = g.createImageData(r.w, r.h);
+  for (let j = 0; j < r.w * r.h; j++) if (r.glow[j]) for (let k = 0; k < 4; k++) img.data[j * 4 + k] = r.rgba[j * 4 + k];
+  g.putImageData(img, 0, 0); return { cv, runs: rasterRuns(r, j => r.glow[j]) };
 }
 const _geomOf = new WeakMap();
 /** a shape's resolved size in its own frame: the bounds [x0, y0, z0, x1, y1, z1], and its footprint and contact
@@ -6856,7 +6866,7 @@ function shapeRaster(id, view, o = {}) {
   if (r && r.mq.every(q => material(q[0], q[1]) === q[2])) { _rasters.delete(key); _rasters.set(key, r); return r; }   // (most recently used last; one whose materials were edited since is drawn again)
   if (r) _rasters.delete(key);
   r = rasterShape(S, view, Object.assign({}, o, { facing: step / 32 * TAU, name: typeof id === 'string' ? id : undefined }));
-  r.cv = rasterCanvas(r, ol); r.runs = rasterRuns(r); r.rgba = null; r.part = null;
+  r.cv = rasterCanvas(r, ol); r.runs = rasterRuns(r); if (r.glow && r.glow.some(Boolean)) r.lit = rasterGlow(r); r.rgba = null; r.part = null; r.glow = null;
   if (_rasters.size >= RASTER_CAP) _rasters.delete(_rasters.keys().next().value);
   _rasters.set(key, r); return r;
 }
@@ -6909,6 +6919,9 @@ Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
       const [bx, by] = at(), R = b.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
     };
     this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.cv, bx, by); }, { bias: o.bias, hides, footprint: fp, solid: true, info });
+    if (b.lit) this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.lit.cv, bx, by); }, { bias: (o.bias || 0) + .0005, footprint: fp, emissive: true, info: gI => {   // its glowing parts (a crystal, a flame): unlit
+      gI._mat = this._infoCol(z, 10, 1); gI._c = null; px.col(gI, '#000'); const [bx, by] = at(), R = b.lit.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
+    } });
   }
   if (o.light && S.lights) for (const [lx, ly, lz, c, rad] of S.lights) { const w = place([lx, ly]); this.game.lights.add(w[0], w[1], z + lz * k, rad || 60, 1, { color: c }); }
   if (S.flames) for (const [fx, fy, fz, fw, fh] of S.flames) {

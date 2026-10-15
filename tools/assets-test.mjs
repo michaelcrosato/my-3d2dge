@@ -324,7 +324,11 @@ console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sortin
     }
     tryDraw('parts {}', { parts: {} }); tryDraw('make() returning nothing', { make: () => undefined });
     // a set's material naming the registry's by its own id; a loop of two
-    try { E.addAssets({ set: 'L', format: 1, materials: { oak: 'oak' }, shapes: { b: { parts: [['box', 'oak', [0, 0, 0], [8, 8, 8]]] } } }); if (!E.shapeInfo('L:b', { view: E.VIEWS.iso }).pixels) bad.push("a set's oak: 'oak' draws nothing"); } catch (e) { bad.push("a set's oak: 'oak' throws: " + e.message); }
+    try {   // (drawn in the registry's oak: the same pixels as a box in oak outside any set)
+      E.addAssets({ set: 'L', format: 1, materials: { oak: 'oak' }, shapes: { b: { parts: [['box', 'oak', [0, 0, 0], [8, 8, 8]]] } } });
+      const a = E.shapeInfo('L:b', { view: E.VIEWS.iso }).rgba, b = E.shapeInfo({ parts: [['box', 'oak', [0, 0, 0], [8, 8, 8]]] }, { view: E.VIEWS.iso }).rgba;
+      if (a.length !== b.length || a.some((v, i) => v !== b[i])) bad.push("a set's oak: 'oak' does not draw as the registry's oak");
+    } catch (e) { bad.push("a set's oak: 'oak' throws: " + e.message); }
     E.MATERIALS.__l1 = '__l2'; E.MATERIALS.__l2 = '__l1'; try { if (E.material('__l1') !== null) bad.push('a material loop resolves to something'); } catch (e) { bad.push('a material loop throws: ' + e.message); }
     // an edited material redraws a cached picture
     const red = () => { const s = E.shapeSprite('__paint', { view: 'iso', outline: false }), d = s.cv.getContext('2d').getImageData(0, 0, s.w, s.h).data; let n = 0, r = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3]) { n++; r += d[i] - d[i + 2]; } return r / n; };
@@ -348,7 +352,9 @@ console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sortin
     return { bad };
   });
   for (const b of r.bad) fail('edges', b);
-  const loud = warnings.filter(w => /parts\[|loop/.test(w)); if (!loud.length) fail('edges', 'the broken parts and the loop warned nothing');
+  // each kind warned of: the parts, the rot, the loop
+  for (const re of [/is a part: \[kind/, /its part is \[kind/, /its parts are a list/, /its at is \[x, y, z\]/, /its size is \[w, d, h\]/, /its rot is degrees/, /is a list of parts/, /names materials in a loop/])
+    if (!warnings.some(w => re.test(w))) fail('edges', 'no warning matching ' + re);
   if (!r.bad.length) ok('broken parts skipped with a warning, never thrown (9 kinds); a material naming itself or a loop ends; an edited material redraws; parts below the floor whole; scale on an entry; the crate repeats; heights under and over raised solids');
 }
 {
@@ -363,6 +369,7 @@ console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sortin
       map.drawFloor(r); map.queueWalls(r);
       if (scene === 'jar') { if (table) r.shape('table', 240, 240, 0, { facing: 0, shadow: false }); r.shape('jar', 236, 236, 12, { mats: { c: '#ff00ff none', g: '#ff00ff none', w: '#ff00ff none' }, shadow: false }); }
       else if (scene === 'outline') r.shape('crate', 240, 240, 0, { shadow: false });
+      else if (scene === 'glow' || scene === 'dull') r.shape(scene === 'glow' ? 'crystal' : 'crate', 240, 240, 0, { shadow: false });
       else if (scene === 'room') for (const [id, x, y, o] of room) r.shape(id, x, y, 0, o);
     } });
     const shot = () => { game.advance(1 / 120, { draw: true }); const b = game.screen.buf; return b.getContext('2d').getImageData(0, 0, b.width, b.height).data; };
@@ -371,6 +378,10 @@ console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sortin
     if (on < alone * .97) bad.push('a jar on a table\'s back half shows ' + on + ' of its ' + alone + ' pixels: the table draws over it');
     scene = 'outline'; game.r.outline = '#00ff00'; const green = count(shot(), (r, g, b) => r === 0 && g === 255 && b === 0); game.r.outline = '#140c1c';
     if (green < 20) bad.push('a crate\'s outline is not in the renderer\'s color (' + green + ' green pixels)');
+    // in the dark (canvas lighting, ambient .05) a crystal's glowing material stays bright; a crate does not
+    const brightest = d => { let m = 0; for (let i = 0; i < d.length; i += 4) m = Math.max(m, d[i] + d[i + 1] + d[i + 2]); return m; };
+    game.lights.enabled = true; game.lights.ambient = .05; scene = 'glow'; const lit = brightest(shot()); scene = 'dull'; const dull = brightest(shot()); game.lights.enabled = false;
+    if (!(lit > 400 && lit > dull * 2)) bad.push('in the dark a crystal is as dim as a crate (brightest ' + lit + ' against ' + dull + '): its glow is lit like the rest');
     // 300 shapes in view: the first frame (every picture made), the steady frames, the cache
     scene = 'room'; game.focus(240, 220, 0); game.setZoom && game.setZoom(.5);
     let t = performance.now(); shot(); const first = performance.now() - t;
@@ -381,7 +392,7 @@ console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sortin
   });
   for (const b of r.bad) fail('edges', b);
   if (r.steady - r.empty > 12) fail('speed', '300 shapes in view cost ' + (r.steady - r.empty).toFixed(1) + ' ms a frame (over 12)');
-  if (!r.bad.length) ok('a jar on a table\'s back half draws over it; the outline takes the renderer\'s color');
+  if (!r.bad.length) ok('a jar on a table\'s back half draws over it; the outline takes the renderer\'s color; a crystal glows in the dark');
   console.log('  300 shapes in view (' + r.pictures + ' pictures, the cache holds 800): first frame ' + r.first.toFixed(0) + ' ms, steady ' + r.steady.toFixed(1) + ' ms a frame (' + r.empty.toFixed(1) + ' without them)');
   writeFileSync(join(out, 'speed.json'), JSON.stringify({ pictures: r.pictures, first: +r.first.toFixed(1), steady: +r.steady.toFixed(2), empty: +r.empty.toFixed(2) }, null, 1));
 }
