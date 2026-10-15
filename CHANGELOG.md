@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.43.3 (2026-10-15)
+
+The API index plan, folded into the decisions and deleted, as v0.38.1 did with the asset plan.
+
+- **Docs**: `docs/HANDOFF-API-INDEX.md` is deleted. Its decisions are D38 to D41, and its lookups `tools/api-index-lookups.json`. D42 keeps what it measured: the six options' sizes and answers, the budget's cost to an agent, the † marks, the index's growth. D42 also records the split reopened for the owner: the first instrumented run followed 3 of its 8 searches of the index with the source (F6). `DOCTRINE.md`'s principle 1 and the feedback log point to D38 to D42.
+
 ## 0.43.2 (2026-10-15)
 
 The Breath of the Wild brief, run again (the owner's yes, D36, D38): the instrumented benchmark's first run, and what it says.
