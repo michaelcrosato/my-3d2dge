@@ -6970,13 +6970,13 @@ function hull2(P) {
 }
 /** a placement's turn: shape frame -> world ground (scale, mirror, facing) */
 const placeXY = (o, px0, py0) => { const k = o.scale || 1, a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return ([x, y]) => { x *= o.flip ? -k : k; y *= k; return [px0 + x * c - y * s, py0 + x * s + y * c]; }; };
-const _rasters = new Map(), RASTER_CAP = 800; let _specN = 0;
+const _rasters = new Map(), RASTER_CAP = 800, _specKey = new WeakMap(); let _specN = 0;
 const viewKey = v => v.id + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + v.scale + ':' + v.zBoost;
 /** a shape's raster for a view and placement, cached (facing in 32 steps); null for an unknown shape */
 function shapeRaster(id, view, o = {}) {
   const S = shapeOf(id); if (!S) return null;
   const step = ((Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / TAU * 32) % 32) + 32) % 32;
-  const sk = typeof id === 'string' ? id : S._key || (S._key = 'spec' + ++_specN);   // (an entry passed in keeps a key of its own)
+  let sk = _specKey.get(S); if (!sk) _specKey.set(S, sk = 'spec' + ++_specN);   // (each entry object its own key: one redefined under the same id draws afresh)
   const key = sk + '|' + viewKey(view) + '|' + step + '|' + (o.scale || 1) + '|' + (o.flip ? 1 : 0) + '|' + (o.mats ? JSON.stringify(o.mats) : '') + '|' + (o.params ? JSON.stringify(o.params) : '') + '|' + (o.outline ? 1 : 0);
   let r = _rasters.get(key);
   if (r) { _rasters.delete(key); _rasters.set(key, r); return r; }   // (most recently used last)
