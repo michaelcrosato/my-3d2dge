@@ -78,7 +78,7 @@ Pick one to see it drawn by the engine beside the hero, turn it, edit its text a
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.42.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.43.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -157,7 +157,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.42.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.43.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -502,7 +502,7 @@ function scaleSprite(spr, z) {
   return (c[z] = Object.assign({}, spr, { w, h, cv, fl, runs, _zc: null, mx: (spr.mx || 0) * z, my: (spr.my || 0) * z }, spr.foot ? { foot: [Math.round(spr.foot[0] * z), Math.round(spr.foot[1] * z)] } : null));
 }
 /** GPU surface class for a vertical face normal: 5 +x, 6 -x, 7 +y, 8 -y */
-E.faceClass = (nx, ny) => nx > 0 ? 5 : nx < 0 ? 6 : ny > 0 ? 7 : 8;
+const faceClass = (nx, ny) => nx > 0 ? 5 : nx < 0 ? 6 : ny > 0 ? 7 : 8;
 
 /* =============================================================================
  * 3. VIEWS (projections)
@@ -600,7 +600,7 @@ class Screen {
    *  headless game's, sized as a 1280 x 720 window would size it, with nothing to draw on */
   constructor(canvas, o, signal) {
     /** canvas: the page's canvas (null in a headless game); o: the sizing options (the game's o) */
-    this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this.o = o;
+    this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this._o = o;
     /** buf: the low-resolution buffer the game draws into (W + 2 by H + 2 pixels; null when headless); ctx: its 2D
      *  context (r.ctx is the same) */
     this.buf = canvas ? mkCanvas(8, 8) : null; this.ctx = canvas ? ctx2d(this.buf) : null;
@@ -622,9 +622,9 @@ class Screen {
    * the sizing options in force: the game's, with o.portrait's over them while the screen is taller than wide (a phone
    * held upright). new Game({ maxH: 330, portrait: { maxH: 1000 } }) lets the picture grow to fill a 9:16 screen
    */
-  options(pw, ph) { const o = this.o; return o.portrait && ph > pw ? Object.assign({}, o, o.portrait) : o; }
+  _options(pw, ph) { const o = this._o; return o.portrait && ph > pw ? Object.assign({}, o, o.portrait) : o; }
   /** fixed internal size from o.res ('snes', [256, 224], ...) or null for the adaptive size */
-  fixedRes(o = this.o) {
+  _fixedRes(o = this._o) {
     const r = o.res; if (!r) return null;
     const v = Array.isArray(r) ? r : E.RES[String(r).toLowerCase()];
     if (!v) { warn('res:' + r, 'unknown res "' + r + '". Use one of ' + Object.keys(E.RES).join(', ') + ' or [width, height]'); return null; }
@@ -633,10 +633,10 @@ class Screen {
   /** fit the buffer to the canvas again (on window resize; after changing sizing options, setOptions does it) */
   resize() {
     const c = this.canvas, dpr = c ? Math.min(window.devicePixelRatio || 1, 3) : 1, rc = c ? c.getBoundingClientRect() : { width: 1280, height: 720 };
-    const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this.options(pw, ph);
+    const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this._options(pw, ph);
     /** portrait: true while the screen is taller than wide (a phone held upright) */
     if (c) { c.width = pw; c.height = ph; } this.dpr = dpr; this.portrait = ph > pw;
-    const fix = this.fixedRes(o);
+    const fix = this._fixedRes(o);
     if (fix) {
       // fixed resolution: whole-number scale, letterboxed (or the largest fit: scale). HUD pixel positions stay the same on every screen.
       // o.expand: the resolution is the least the screen shows, and the picture grows on both sides to fill the window
@@ -653,14 +653,14 @@ class Screen {
     for (const f of this.listeners) f();
   }
   /** change sizing at runtime, e.g. { minH: 400, maxW: 1080, maxH: 660 } to pull the camera back */
-  setOptions(o) { Object.assign(this.o, o); this.resize(); }
+  setOptions(o) { Object.assign(this._o, o); this.resize(); }
   /** how a fixed resolution fills the screen: 'sharp' | 'fill' | 'auto' (see scale) */
   setScale(v) { this.scale = v === 'sharp' || v === 'fill' ? v : 'auto'; this.resize(); }
   /** clear: true when the game's bg is null (or 'transparent'): the buffer and the canvas are cleared instead of filled,
    *  so a picture under the canvas shows through the game's (a 3D world drawn by engine/my-3d2dge-3d.js) */
-  get clear() { return this.o.bg == null || this.o.bg === 'transparent'; }
+  get clear() { return this._o.bg == null || this._o.bg === 'transparent'; }
   /** start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it) */
-  begin(cx, cy, bg) {
+  _begin(cx, cy, bg) {
     this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
     const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
     if (bg == null || bg === 'transparent') g.clearRect(0, 0, this.buf.width, this.buf.height);
@@ -668,7 +668,7 @@ class Screen {
   }
   /** copy the buffer to the canvas, scaled up with whole pixels and the camera's sub-pixel offset (the renderer
    *  calls it) */
-  present() {
+  _present() {
     const s = this._sctx, S = this.S; if (!s) return;
     s.imageSmoothingEnabled = false;
     if (this.clear) s.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -684,7 +684,6 @@ class Screen {
     return [(dx - this.OX + Math.round(this.fx * this.S)) / this.S + this.ix, (dy - this.OY + Math.round(this.fy * this.S)) / this.S + this.iy];
   }
 }
-E.Screen = Screen;
 
 /* =============================================================================
  * 5. INPUT  keyboard, mouse, gamepad, touch stick, on-screen buttons
@@ -707,7 +706,7 @@ class Input {
      *  moved */
     this.mouse = { cx: 0, cy: 0, active: false, t: -99 };
     /** clickAt: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked()) */
-    this.clickAt = null; this._click = null; this._down = null;
+    this._clickAt = null; this._click = null; this._down = null;
     /** stick: the touch stick's direction [x, y], length <= 1; stickOn: a finger is on it; padMove: the gamepad's
      *  left stick after the dead zone; padAim: its right stick, or null when centered; padPrev: which gamepad buttons
      *  were down at the last step; aimSource: what aims right now: 'move' | 'mouse' | 'pad' */
@@ -725,14 +724,14 @@ class Input {
     /** pinching: two fingers on the canvas are pinching the camera's zoom (they moved apart or together: not the stick,
      *  not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no
      *  action uses) and a pinch ask for it, read by zoom() */
-    this.pinching = false; this._zoomAcc = 1; this._zoomNow = 1; this._zoomOn = false; this._wheelOn = false; this._fingers = new Map();
+    this._pinching = false; this._zoomAcc = 1; this._zoomNow = 1; this._zoomOn = false; this._wheelOn = false; this._fingers = new Map();
     /** glyphs: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' |
      *  'nintendo' | 'generic' (positions); rumbleScale: vibration strength 0..1 (0 = off; game.settings.rumble sets it);
      *  padLost: true for the step after the gamepad in use was unplugged (a pausable scene pauses) */
     this.glyphs = 'auto'; this.rumbleScale = .6; this.padLost = false;
     /** names: the actions' names on the Controls screen ({ attack: 'Sword' }; false hides one from rebinding: the
      *  game's menu.controls); onBindings(b): called with the player's new bindings (the game saves and applies them) */
-    this.names = null; this.onBindings = null;
+    this.names = null; this._onBindings = null;
     const el = screen.canvas;
     if (!el) return;
     // the keyboard's own letters for labels (an AZERTY Z where the code says KeyW), where the browser tells them
@@ -824,7 +823,7 @@ class Input {
   unbind(a, device) { if (this.rebindable(a)) this._setBindings(Object.assign({}, this.bindings, { [a]: Object.assign({}, this.bindings[a], { [device]: [] }) })); }
   /** forget the player's bindings: every action back to its preset's codes */
   resetBindings() { this._setBindings({}); }
-  _setBindings(b) { if (this.onBindings) this.onBindings(b); else this.bindings = b; }   // (the game saves them in its settings)
+  _setBindings(b) { if (this._onBindings) this._onBindings(b); else this.bindings = b; }   // (the game saves them in its settings)
   /** a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad
    *  button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family) */
   codeLabel(code) {
@@ -971,11 +970,11 @@ class Input {
     for (const a of this._codes[code] || []) if (!this.map[a].some(c => c !== code && this.held.has(c))) this.suppress(a);
   }
   /** forget every pending press (after closing a menu or dialog, so the same press does not also attack) */
-  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this.clickAt = this._click = null; }
+  consumeAll() { for (const a in this.map) this._used[a] = true; this._now.clear(); this._fresh.clear(); this._clickAt = this._click = null; }
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
-    this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this.pinching = false; this._zoomAcc = 1;
+    this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
   }
@@ -994,7 +993,7 @@ class Input {
   /** where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step
    *  after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to
    *  it; a HUD button of your own can: if (hit(input.clicked())) ... */
-  clicked() { return this.clickAt; }
+  clicked() { return this._clickAt; }
   /** how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while
    *  no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction */
   drag() { return this._drag || null; }
@@ -1043,7 +1042,7 @@ class Input {
     // presses since the last step become this step's pressed()/released()
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
-    this.clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
+    this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
   /** wire every element with data-act="<action>" inside root to the action */
@@ -1060,18 +1059,18 @@ class Input {
     });
   }
   // two fingers on the canvas: where each was as the second landed (a pinch is measured from there)
-  _pinchArm() { this.pinching = false; if (this._fingers.size === 2) for (const f of this._fingers.values()) { f.x0 = f.x; f.y0 = f.y; } }
-  _fingerUp(e) { if (this._fingers.delete(e.pointerId)) { if (this._fingers.size < 2) this.pinching = false; else this._pinchArm(); } }
+  _pinchArm() { this._pinching = false; if (this._fingers.size === 2) for (const f of this._fingers.values()) { f.x0 = f.x; f.y0 = f.y; } }
+  _fingerUp(e) { if (this._fingers.delete(e.pointerId)) { if (this._fingers.size < 2) this._pinching = false; else this._pinchArm(); } }
   // a pinch: both fingers moving along the line between them, opposite ways (apart or together). A thumb on the stick
   // with another finger resting on the glass, or two moving the same way, is none. It takes over the stick and the tap
   _pinchMove(e) {
     const f = this._fingers.get(e.pointerId); if (!f) return; f.x = e.clientX; f.y = e.clientY;
     if (this._fingers.size !== 2 || !this._zoomOn) return;
     const [a, b] = [...this._fingers.values()], d = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    if (!this.pinching) {
+    if (!this._pinching) {
       const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, pa = (a.x - a.x0) * ux + (a.y - a.y0) * uy, pb = (b.x - b.x0) * ux + (b.y - b.y0) * uy;
       if (Math.abs(pa) < 4 || Math.abs(pb) < 4 || pa * pb >= 0 || Math.abs(d - Math.hypot(b.x0 - a.x0, b.y0 - a.y0)) < 16) return;
-      this.pinching = true; this._pinchD = d; this._down = null;
+      this._pinching = true; this._pinchD = d; this._down = null;
       if (this.stickOn && this._fingers.has(this.stickId)) this._stickEnd({ pointerId: this.stickId });
       return;
     }
@@ -1330,13 +1329,13 @@ class Lighting {
   constructor(game) {
     /** game: the game it lights; enabled: false (the default) turns the canvas lighting off; ambient: how lit unlit
      *  places are, 0 (black) .. 1; list: this frame's lights from add() */
-    this.game = game; this.enabled = false; this.ambient = .15; this.list = [];
+    this._game = game; this.enabled = false; this.ambient = .15; this.list = [];
     /** dark: the color of darkness, [r, g, b]; levels: the darkness of each lighting band, darkest first (dithered
      *  between them); glow: the color, [r, g, b, a], where light is brightest; glowAt: the light level (1 = fully
      *  lit) above which it glows */
     this.dark = [10, 6, 24]; this.levels = [.9, .7, .48, .26, .08, 0]; this.glow = [255, 200, 140, 0]; this.glowAt = 1.7;
     /** casters: this frame's shadow casters from caster(); heats: this frame's heat shimmers from heat() */
-    this.casters = []; this.heats = [];
+    this._casters = []; this._heats = [];
     if (!game.headless) { this._cv = mkCanvas(8, 8); this._g = this._cv.getContext('2d'); this._build(); }   // (a headless game never draws)
   }
   _build() {
@@ -1346,16 +1345,16 @@ class Lighting {
     const gl = this.glow; this._cols[L.length] = ((gl[3] << 24) | (gl[2] << 16) | (gl[1] << 8) | gl[0]) >>> 0;
   }
   /** forget this frame's lights, casters and heat (the renderer does it every frame: add lights in draw) */
-  clear() { this.list.length = 0; this.casters.length = 0; this.heats.length = 0; this._screenFrame = false; }
+  _clear() { this.list.length = 0; this._casters.length = 0; this._heats.length = 0; this._screenFrame = false; }
   /** radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true } */
   add(x, y, z, radius, intensity = 1, o) {
     if (!(isFinite(x) && isFinite(y) && isFinite(z) && radius > 0)) { warn('light:nan', 'lights.add(x, y, z, radius, intensity) got a non-number or zero radius; light skipped'); return; }
     this.list.push({ x, y, z, r: radius, i: intensity, color: o && o.color, shadow: !!(o && o.shadow) });
   }
   /** something that blocks light (GPU shadows): a cylinder of radius r from the floor up to height top */
-  caster(x, y, r, top) { this.casters.push({ x, y, r, top }); }
+  caster(x, y, r, top) { this._casters.push({ x, y, r, top }); }
   /** heat shimmer above a point (GPU only). width in world units, strength ~0.5..1.5 */
-  heat(x, y, z, width, strength = 1) { this.heats.push({ x, y, z, w: width, s: strength }); }
+  heat(x, y, z, width, strength = 1) { this._heats.push({ x, y, z, w: width, s: strength }); }
   /** darken the frame by the lights (the renderer calls it after the queue, when enabled) */
   render(r) {
     const W = r.bw, H = r.bh, n = W * H, al = E.style.trans !== 'dither';
@@ -1420,7 +1419,6 @@ class Lighting {
     r.ctx.drawImage(this._cv, 0, 0);
   }
 }
-E.Lighting = Lighting;
 
 /* =============================================================================
  * 8. PARTICLES  3D, projected. kinds: dust, spark, bit, ember, ring, text
@@ -1430,7 +1428,7 @@ class Particles {
   /** game.particles. game: its game; list: the live particles; max: at most this many at once (add() skips the rest);
    *  ground: null (the floor is z 0), or (x, y, z) -> the floor's height under a particle (a side-scroller's platforms,
    *  a 3D level: engine/my-3d2dge-3d.js sets it), asked again when a particle enters a new 8-unit cell */
-  constructor(game) { this.game = game; this.list = []; this.max = 900; this.ground = null; }
+  constructor(game) { this._game = game; this.list = []; this.max = 900; this.ground = null; }
   /** add one particle { x, y, z, vx, vy, vz, life, max (seconds), g (gravity, > 0 pulls down), drag, bounce (0..1),
    *  kind: 'dust' | 'spark' | 'bit' | 'ember' | 'ring' | 'text', color, size }; returns it, or null when full */
   add(p) {
@@ -1522,7 +1520,7 @@ class Particles {
    * explosion(x, y, z, size = 1, { debris: ['#6a5a4a'], sound: true, flash: true })
    */
   explosion(x, y, z, size = 1, o = {}) {
-    const G = this.game;
+    const G = this._game;
     this.fire(x, y, z, Math.round(7 * size), { size: 5 * size, speed: 45 * size });
     this.smoke(x, y, z + 4 * size, Math.round(5 * size), { size: 5 * size });
     this.sparks(x, y, z, Math.round(10 * size));
@@ -1543,10 +1541,10 @@ class Renderer {
   /** the r handed to draw(r), made by the game */
   constructor(game) {
     /** game: its game; items: this frame's queue (sorted by depth when the frame ends) */
-    this.game = game; this.items = []; this._decals = []; this._overlays = [];
+    this.game = game; this._items = []; this._decals = []; this._overlays = [];
     this._aCv = mkCanvas(AS, AS); this._aG = ctx2d(this._aCv);
     // track what each actor actually draws, so outlines, tints and rim light only touch that rectangle
-    const aG = this._aG, bb = this.bb = [AS, AS, 0, 0], fr = aG.fillRect.bind(aG), di = aG.drawImage.bind(aG);
+    const aG = this._aG, bb = this._bb = [AS, AS, 0, 0], fr = aG.fillRect.bind(aG), di = aG.drawImage.bind(aG);
     const grow = (x, y, w, h) => { if (x < bb[0]) bb[0] = x; if (y < bb[1]) bb[1] = y; if (x + w > bb[2]) bb[2] = x + w; if (y + h > bb[3]) bb[3] = y + h; };
     aG.fillRect = (x, y, w, h) => { grow(x, y, w, h); fr(x, y, w, h); };
     aG.drawImage = (img, ...a) => { if (a.length >= 8) grow(a[4], a[5], a[6], a[7]); else if (a.length >= 4) grow(a[0], a[1], a[2], a[3]); else grow(a[0], a[1], img.width, img.height); di(img, ...a); };
@@ -1559,10 +1557,10 @@ class Renderer {
     this._eCv = mkCanvas(8, 8); this._eG = ctx2d(this._eCv); this._sCv = mkCanvas(8, 8); this._sG = ctx2d(this._sCv);   // canvas lighting: the glow mask, a scratch layer
     this._ghostPool = Array.from({ length: 10 }, () => { const c = mkCanvas(AS, AS); return { cv: c, g: ctx2d(c) }; });
     /** ghosts: the afterimages fading out (actor option ghost) */
-    this._ghostIdx = 0; this.ghosts = [];
+    this._ghostIdx = 0; this._ghosts = [];
     const ck = mkCanvas(2, 2), cg = ck.getContext('2d'); cg.fillStyle = '#000'; cg.fillRect(0, 0, 1, 1); cg.fillRect(1, 1, 1, 1);
     /** checker: a 2 x 2 checkerboard canvas (a pattern for x-ray and dithered fills) */
-    this.checker = ck;
+    this._checker = ck;
     /** outline: the color of the 1-pixel outline round every actor; rim: the rim light's color on actors' lit edges;
      *  rimAlpha: its strength 0..1; xrayColor: the default color of x-ray silhouettes */
     this.outline = '#140c1c'; this.rim = '#ffe2b8'; this.rimAlpha = .28; this.xrayColor = '#8fe3ff';
@@ -1586,17 +1584,17 @@ class Renderer {
   /** the buffer's height (H + 2) */
   get bh() { return this.game.screen.buf.height; }
   /** start a frame with the camera at (cx, cy) projected pixels (the game calls it before your draw) */
-  begin(cx, cy) {
+  _begin(cx, cy) {
     const sc = this.game.screen; this._frameNo = (this._frameNo || 0) + 1;   // (kept actor images count frames drawn)
-    sc.begin(cx, cy, this.game.o.bg);
+    sc._begin(cx, cy, this.game.o.bg);
     /** ix, iy: the camera's whole-pixel offset this frame (a world point is at r.w(x, y, z) on the buffer) */
-    this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this._decals.length = 0; this._overlays.length = 0; this._map = null; (this._emis || (this._emis = [])).length = 0;
+    this.ix = sc.ix; this.iy = sc.iy; this._items.length = 0; this._decals.length = 0; this._overlays.length = 0; this._map = null; (this._emis || (this._emis = [])).length = 0;
     const st = this.game.stats; st.actors = 0; st.culled = 0;
     if (this._xCv.width !== this.bw || this._xCv.height !== this.bh) { this._xCv.width = this._xoCv.width = this._oCv.width = this._eCv.width = this._sCv.width = this.bw; this._xCv.height = this._xoCv.height = this._oCv.height = this._eCv.height = this._sCv.height = this.bh; }
     this._xrayUsed = false; this._xrayOl = false; this._emOn = false;
     const gpu = this.game.gpu;
     this.gpu = !!(gpu && gpu.active(this.view));
-    if (gpu) gpu.show(this.gpu);
+    if (gpu) gpu._show(this.gpu);
     if (this.gpu) {
       if (this._iCv.width !== this.bw || this._iCv.height !== this.bh) { this._iCv.width = this._vCv.width = this.bw; this._iCv.height = this._vCv.height = this.bh; }
       const iG = this._iG; iG.globalCompositeOperation = 'source-over'; iG.globalAlpha = 1; iG.fillStyle = '#000'; iG.fillRect(0, 0, this.bw, this.bh); iG._c = null; iG._mat = '#000';
@@ -1619,7 +1617,7 @@ class Renderer {
       if (M.solids && M.solids.length) k = M._liftSolids(this.game.view, x, y, z, k);
     }
     const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
-    this.items.push(it);
+    this._items.push(it);
     if (it.em) this._emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
   }
   /** draw on the floor before the queue. opts.emissive (0..1) makes it glow under GPU lighting */
@@ -1801,7 +1799,7 @@ class Renderer {
     if (!view.isTop) {
       for (const [nx, ny, A, B] of [[0, -1, [x1, y0], [x0, y0]], [0, 1, [x0, y1], [x1, y1]], [-1, 0, [x0, y0], [x0, y1]], [1, 0, [x1, y1], [x1, y0]]]) {
         if (nx * view.fx + ny * view.fy <= .02) continue;
-        if (inf) { g._mat = this._faceMat(g, A, B, z0, z1, E.faceClass(nx, ny)); g._c = null; }
+        if (inf) { g._mat = this._faceMat(g, A, B, z0, z1, faceClass(nx, ny)); g._c = null; }
         const lit = .6 * nx + .8 * ny, col = lit < -.2 ? shade(side, .12) : lit > .5 ? shade(side, -.25) : side;
         px.poly(g, [P(A[0], A[1], z0), P(B[0], B[1], z0), P(B[0], B[1], z1), P(A[0], A[1], z1)], col);
       }
@@ -1876,7 +1874,7 @@ class Renderer {
       const [sx, sy] = this.w(x, y, z); g.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
       g.drawImage(K.cv, 0, 0, K.w, K.h, Math.round(sx) - AOX + K.x0, Math.round(sy) - AOY + K.y0, K.w, K.h); g.globalAlpha = 1; this._comp = null; return;
     }
-    const aG = this._aG, bb = this.bb, P = this._R;
+    const aG = this._aG, bb = this._bb, P = this._R;
     aG.clearRect(P[0], P[1], P[2], P[3]); aG._c = null;
     bb[0] = AS; bb[1] = AS; bb[2] = 0; bb[3] = 0;
     drawFn(aG, AOX, AOY);
@@ -1913,8 +1911,8 @@ class Renderer {
     if (o.ghost) {
       const gp = this._ghostPool[this._ghostIdx++ % this._ghostPool.length];
       gp.g.clearRect(0, 0, AS, AS); this._tint(gp.g, this._aCv, o.ghost.color || '#62d8ff', R);
-      this.ghosts = this.ghosts.filter(q => q.gp !== gp);
-      this.ghosts.push({ gp, x, y, z, t: this.game.time, life: o.ghost.life || .22, alpha: o.ghost.alpha === undefined ? .5 : o.ghost.alpha, owner: o.ghost.owner || null });
+      this._ghosts = this._ghosts.filter(q => q.gp !== gp);
+      this._ghosts.push({ gp, x, y, z, t: this.game.time, life: o.ghost.life || .22, alpha: o.ghost.alpha === undefined ? .5 : o.ghost.alpha, owner: o.ghost.owner || null });
     }
     if (o.xray) {
       const X = o.xray === true ? null : o.xray;
@@ -1944,8 +1942,8 @@ class Renderer {
    *  so a trail never covers the live body with a blob of tinted copies */
   _drawGhosts() {
     const t = this.game.time, v = this.game.view;
-    this.ghosts = this.ghosts.filter(q => t - q.t < q.life);
-    for (const q of this.ghosts) {
+    this._ghosts = this._ghosts.filter(q => t - q.t < q.life);
+    for (const q of this._ghosts) {
       const w = q.owner, ahead = w && v.order(q.x, q.y, q.z) > v.order(w.x, w.y, w.z || 0) - .05, at = ahead ? [w.x, w.y, w.z || 0] : [q.x, q.y, q.z];
       this.queue(at[0], at[1], at[2], g => {
         const [sx, sy] = this.w(q.x, q.y, q.z);
@@ -1954,8 +1952,8 @@ class Renderer {
     }
   }
   /** sort the queue by depth and draw it (finish() calls it) */
-  flush() {
-    const g = this.ctx, items = this.items;
+  _flush() {
+    const g = this.ctx, items = this._items;
     this.game.stats.items = items.length;
     items.sort((a, b) => a.k - b.k);
     const pb = this._xrPrev; if (pb) { this._xG.clearRect(pb[0], pb[1], pb[2] - pb[0], pb[3] - pb[1]); this._xoG.clearRect(pb[0], pb[1], pb[2] - pb[0], pb[3] - pb[1]); this._xrPrev = null; }   // (the x-ray layers only ever hold the silhouettes' box)
@@ -2012,7 +2010,7 @@ class Renderer {
       if (w > 0 && h > 0) {
         this._xrPrev = [x0, y0, x1, y1];
         const xG = this._xG, dst = gpu ? this._vG : g, mask = G => { G.save(); G.beginPath(); G.rect(x0, y0, w, h); G.clip(); G.globalCompositeOperation = 'destination-in'; G.drawImage(this._oCv, x0, y0, w, h, x0, y0, w, h); };
-        mask(xG); xG.fillStyle = xG.createPattern(this.checker, 'repeat'); xG._c = null;
+        mask(xG); xG.fillStyle = xG.createPattern(this._checker, 'repeat'); xG._c = null;
         xG.translate((this.ix + this.iy) & 1, 0); xG.fillRect(x0 - 2, y0, w + 2, h); xG.restore(); xG.globalCompositeOperation = 'source-over';
         dst.drawImage(this._xCv, x0, y0, w, h, x0, y0, w, h);
         if (this._xrayOl) { const xo = this._xoG; mask(xo); xo.restore(); xo.globalCompositeOperation = 'source-over'; dst.drawImage(this._xoCv, x0, y0, w, h, x0, y0, w, h); }
@@ -2036,7 +2034,7 @@ class Renderer {
   }
   /** end the frame: particles, decals, the queue, lighting, overlays, then present (the game calls it after your
    *  draw) */
-  finish() {
+  _finish() {
     const game = this.game, g = this.ctx, gpu = this.gpu, iG = this._iG;
     game.particles.draw(this); this._drawGhosts();
     for (const d of this._decals) {
@@ -2044,11 +2042,11 @@ class Renderer {
       if (gpu && d.e > 0) { iG._mat = this._infoCol(0, 2, d.e); iG._c = null; this._tg = iG; d.fn(iG); }
     }
     this._tg = null;
-    this.flush();
+    this._flush();
     if (gpu) {
       if (game._zoomTo) this._zoomPreview(game._zoomTo / game.zoom);   // (the lights stay where they were until it is drawn at the new size)
       this._tg = this._vG; for (const f of this._overlays) f(this._vG); this._tg = null;
-      try { game.gpu.render(this); } catch (e) { game.gpu.fail(e); game.screen.present(); }
+      try { game.gpu._render(this); } catch (e) { game.gpu._fail(e); game.screen._present(); }
     } else {
       if (game.lights.enabled) {
         game.lights.render(this);
@@ -2061,11 +2059,10 @@ class Renderer {
       }
       if (game._zoomTo) this._zoomPreview(game._zoomTo / game.zoom);
       for (const f of this._overlays) f(g);
-      game.screen.present();
+      game.screen._present();
     }
   }
 }
-E.Renderer = Renderer;
 
 /* =============================================================================
  * 10. GAME  loop, clock, camera, hit-stop, shake, slow motion
@@ -2180,7 +2177,7 @@ class Game {
      *  game started with one scene) */
     this.scenes = null; this.scene = null; this.sceneName = null; this._next = null; this._hooks = null;
     /** chip-sound synthesizer: game.audio.sfx('jump'), game.audio.music(song) */
-    this.audio = new E.Audio(this, signal);
+    this.audio = new ChipAudio(this, signal);
     if (this.headless) this.audio.failed = 'a headless game has no sound';
     /** a game's own handle for tools and tests: game.debug = { snapshot() { return {...} }, teleport(x, y, z) {...} }.
      *  tools/check.mjs prints snapshot() and tools/replay.mjs logs it at the end */
@@ -2217,7 +2214,7 @@ class Game {
   /** the screen's height in game pixels (W is its width) */
   get H() { return this.screen.H; }
   /** turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... } */
-  enableGPU(o = {}) { if (this.headless) return null; this.gpu = new E.GPULighting(this, o); return this.gpu; }
+  enableGPU(o = {}) { if (this.headless) return null; this.gpu = new GPULighting(this, o); return this.gpu; }
   _view(v) {
     if (v instanceof View) return v;
     const w = E.VIEWS[v];
@@ -2514,7 +2511,7 @@ class Game {
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
         n++;
-        try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
+        try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen._present(); } catch (e2) { /* nothing to show */ } }
         const st = this.stats, t2 = performance.now(); st.updateMs = t1 - t0; st.renderMs = t2 - t1; st.frameMs = since * 1000; st.steps = steps;
         // a display at 90 Hz and up that the frames won't fit: every other refresh, back to each once they fit again. Two
         // signs they won't: a frame's own cost, and refreshes missed between frames drawn at each (the GPU behind, which no
@@ -2584,7 +2581,7 @@ class Game {
     const A = this.audio; try { A.stopMusic(); if (A.ctx && A.ctx.close) A.ctx.close(); } catch (e) { /* already closed */ } A.ctx = null; A.failed = 'the game was disposed';
     const I = this.input; I.stopRumble(); for (const el of [I._touchEl, I._stickEl, I._knobEl, this._corner]) if (el && el.remove) el.remove();
     this._corner = null;
-    const G = this.gpu; if (G) { try { if (G.cv) G.cv.remove(); if (G._dev && G._dev.destroy) G._dev.destroy(); } catch (e) { /* gone */ } G.enabled = G.ready = false; this.gpu = null; }
+    const G = this.gpu; if (G) { try { if (G._cv) G._cv.remove(); if (G._dev && G._dev.destroy) G._dev.destroy(); } catch (e) { /* gone */ } G.enabled = G.ready = false; this.gpu = null; }
     if (E.current === this) E.current = null;
   }
   /**
@@ -2679,7 +2676,7 @@ class Game {
     // the player's zoom: the wheel, - and = and a pinch ask for it while a scene that allows it plays (input.zoom())
     const I = this.input, zr = !this.paused && !(this.shell && this.shell.screen) && !!this.zoomRange();
     I._zoomOn = zr; I._wheelOn = zr && (this._camera() || {}).wheel !== false;
-    if (this._zoomTo && !I.pinching && this._wall - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
+    if (this._zoomTo && !I._pinching && this._wall - this._zoomAt > .25) this._zoomApply();   // they stopped: the new zoom, drawn crisp
     if (this.paused) return;
     this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk);
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
@@ -2702,8 +2699,8 @@ class Game {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
     const c = this.cam, s = this._shakeAmt;
     const shx = s > .05 ? (Math.sin(this.real * 83) + Math.sin(this.real * 57.3)) * .5 * s : 0, shy = s > .05 ? (Math.sin(this.real * 71) + Math.sin(this.real * 49.7)) * .5 * s : 0;
-    this.lights.clear();
-    this.r.begin(c.x + shx, c.y + shy);
+    this.lights._clear();
+    this.r._begin(c.x + shx, c.y + shy);
     const sc = this.scene;
     if (sc && sc.draw) sc.draw(this.r);
     if (this._note && this.real < this._note.end) { const n = this._note; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
@@ -2711,7 +2708,7 @@ class Game {
       this.r.overlay(g => { const w = E.font.width(t, { font: 'tiny' }) + 6; g.fillStyle = '#000000b0'; g.fillRect(Math.round(this.r.W / 2 - w / 2), 0, w, 9); g._c = null; E.font.text(g, t, this.r.W / 2, 2, '#9cff9c', { align: 'center', outline: false, font: 'tiny' }); }); }
     this._cornerSync();
     if (this.paused && this.pauseOverlay && !(this.shell && this.shell._sys && this.shell.screen)) this.r.overlay(g => {
-      const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r.checker, 'repeat'); else { g.fillStyle = '#05030c'; g.globalAlpha = .55; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
+      const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r._checker, 'repeat'); else { g.fillStyle = '#05030c'; g.globalAlpha = .55; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
       E.font.text(g, 'PAUSED', r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });
       E.font.text(g, 'PRESS ESC OR START', r.W / 2, r.H / 2 + 8, '#c9c0e0', { align: 'center' });
     });
@@ -2719,7 +2716,7 @@ class Game {
     if (fx) { const a = (1 - fx.t / fx.dur) * (fx.k === undefined ? 1 : fx.k); if (a <= 0) this._flash = null; else this.r.overlay(g => { const r = this.r; g.save(); if (E.style.trans === 'dither') { const pat = r._fadePattern(a * .85), c = mkCanvas(4, 4), cg = c.getContext('2d'); cg.drawImage(pat, 0, 0); cg.globalCompositeOperation = 'source-in'; cg.fillStyle = fx.color; cg.fillRect(0, 0, 4, 4); g.fillStyle = g.createPattern(c, 'repeat'); } else { g.fillStyle = fx.color; g.globalAlpha = qa(a * .75); g.globalCompositeOperation = 'lighter'; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; }); }
     const fl = this._fadeLevel();
     if (fl > 0) this.r.overlay(g => { const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r._fadePattern(fl), 'repeat'); else { g.fillStyle = '#000000'; g.globalAlpha = Math.round(fl * 16) / 16; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; });
-    this.r.finish();
+    this.r._finish();
     if (!BOOT.played && !this._booting && (this._drawn = (this._drawn || 0) + 1) >= 2) BOOT._finish();   // play has begun (two frames drawn under the boot screen: the caches are warm)
   }
 }
@@ -2801,7 +2798,7 @@ class Settings {
     const raw = store.get(this._key, null);
     hide('_raw', raw && typeof raw === 'object' && raw.values && typeof raw.values === 'object' ? raw.values : {});   // (a newer version's values are checked like the rest)
     if (!(raw && raw.v >= 2) && this._raw.fullscreen === false) delete this._raw.fullscreen;
-    game.input._settings = this; game.input.onBindings = b => this.set('bindings', b);
+    game.input._settings = this; game.input._onBindings = b => this.set('bindings', b);
     for (const k in STANDARD_SETTINGS) this.define(Object.assign({ key: k }, STANDARD_SETTINGS[k]));
     for (const sp of own) this.define(sp);
   }
@@ -2846,27 +2843,26 @@ class Settings {
     if (!this.saved) warn('settings:save', 'the settings could not be saved (storage is blocked or full): they last for this visit');
   }
 }
-E.Settings = Settings;
 class FullScreen {
   /** game.fullscreen: the whole page full screen (the game, its menus and buttons), where the browser can */
   constructor(game) {
     /** game: the game it serves; failed: why the last request was refused (a message), or null */
-    this.game = game; this.failed = null;
+    this._game = game; this.failed = null;
   }
   /** true where this page can go full screen (not an iPhone, which has Add to Home Screen instead; not a frame
    *  without permission; not headless) */
-  get supported() { if (this.game.headless) return false; const d = document, el = d.documentElement; return !!((d.fullscreenEnabled || d.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen)); }
+  get supported() { if (this._game.headless) return false; const d = document, el = d.documentElement; return !!((d.fullscreenEnabled || d.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen)); }
   /** true while the page is full screen */
-  get on() { return !this.game.headless && !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  get on() { return !this._game.headless && !!(document.fullscreenElement || document.webkitFullscreenElement); }
   /** true when the page was opened from a home screen as an app (no browser bars: nothing to go full screen from) */
-  get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this.game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }   // (full screen from here matches display-mode: fullscreen too)
+  get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this._game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }   // (full screen from here matches display-mode: fullscreen too)
   /** go full screen. Browsers allow it only from a tap, click or key press: call it from one (a button, the menu, a
    *  key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen, unless
    *  quiet) */
   enter(quiet) {
     if (this.on || !this.supported) return Promise.resolve(this.on);
     const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
-    const no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
+    const no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this._game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
     try { const p = f.call(el, { navigationUI: 'hide' }); this.failed = null; return p && p.then ? p.then(() => true, no) : Promise.resolve(true); } catch (e) { return Promise.resolve(no(e)); }
   }
   /** leave full screen (Escape and the phone's back gesture do it too) */
@@ -2877,9 +2873,8 @@ class FullScreen {
   }
   /** full screen on or off, as the player asked (the corner's button, the menu): their choice is kept in
    *  settings.fullscreen, so a game starting on a phone goes full screen by itself only while they haven't turned it off */
-  toggle() { const on = this.on; if (!this.game.headless) this.game.settings.set('fullscreen', !on); return on ? this.exit() : this.enter(); }
+  toggle() { const on = this.on; if (!this._game.headless) this._game.settings.set('fullscreen', !on); return on ? this.exit() : this.enter(); }
 }
-E.FullScreen = FullScreen;
 /* the corner buttons: menu and full screen, 44 px, top right inside the safe area (Game._cornerSync shows them); on a
    touch screen the menu is the touch START */
 const CORNER_ICONS = { menu: 'M4 7h16M4 12h16M4 17h16', full: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', exit: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5' };
@@ -3102,7 +3097,7 @@ class Humanoid {
     this._cheat = 0; this.trail = [];
     if (typeof this.o.hair === 'string' || !this.o.hair) this.o.hair = { style: this.o.hair || 'short' };
     /** hairPts: the long hair's simulated points (null until it has some) */
-    this.hairPts = null;
+    this._hairPts = null;
     if (this.o.weapon && !['sword', 'gun', 'staff'].includes(this.o.weapon)) { warn('weapon:' + this.o.weapon, 'Humanoid weapon "' + this.o.weapon + '" is not built in (sword, gun, staff or null); drawing a sword'); this.o.weapon = 'sword'; }
     if (typeof this.o.hat === 'string') this.o.hat = { style: this.o.hat };
     /** C: its colors (skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye, ...), the defaults with
@@ -3114,7 +3109,7 @@ class Humanoid {
     C.pantsDk = C.pantsDk || shade(C.pants, -.3); C.bootDk = C.bootDk || shade(C.boot, -.3); C.skinDk = C.skinDk || shade(C.skin, -.2);
     /** t: seconds of its own clock (idle breathing, blinks); phase: the walk cycle's phase, radians; mv: the last
      *  ground direction it moved, a unit vector; hurtW: 0..1, how far into the hurt flinch */
-    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this.mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
+    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this._mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
     /** atkZ: the height of the weapon hand during an attack; reach: how far it reaches forward; spin: the body's
      *  extra turn during a spinning move, radians */
     this._theta = 1.2; this.atkZ = 10; this.reach = 7; this._twist = 0; this.spin = 0; this._atkLean = 0;
@@ -3122,7 +3117,7 @@ class Humanoid {
      *  facing: the angle it faces, radians; x, y, z: where its feet are (from the last update); J: its joints this
      *  step in its own frame ({ hipL, kneeL, footL, shC, head, handR, ... }; rig.worldOffset(J.handR) gives one in
      *  the world); smear: the swing's smear arc, or null */
-    this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {}; this.smear = null;
+    this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {}; this._smear = null;
     /** capeL: the cape's left edge points (null until it has a cape and has moved) */
     this.capeL = null; this._airW = 0; this._pointW = 0; this._kicking = false;
     this._pose();
@@ -3145,7 +3140,7 @@ class Humanoid {
     for (const k in J) { const p = J[k]; if (p && k !== 'bladeDir') J[k] = T(p); }
     const b = J.bladeDir; if (b) J.bladeDir = [b[0] * c - b[2] * s, b[1], b[0] * s + b[2] * c];
     const an = this.facing + this.spin + this._cheat, ca = Math.cos(an), sa = Math.sin(an), k = (1 - this.sq * .4) * o.size, kz = (1 + this.sq) * o.size, keep = this._unroll = [];
-    for (const ch of [this.capeL, this.capeR, this.hairPts]) if (ch) for (const n of ch) {
+    for (const ch of [this.capeL, this.capeR, this._hairPts]) if (ch) for (const n of ch) {
       keep.push(n, n.x, n.y, n.z);
       const dx = n.x - this.x, dy = n.y - this.y, q = T([(dx * ca + dy * sa) / k, (-dx * sa + dy * ca) / k, (n.z - this.z) / kz]);
       n.x = this.x + (q[0] * ca - q[1] * sa) * k; n.y = this.y + (q[0] * sa + q[1] * ca) * k; n.z = this.z + q[2] * kz;
@@ -3174,7 +3169,7 @@ class Humanoid {
   update(dt, s = {}) {
     const o = this.o;
     const un = this._unroll; if (un) { this._unroll = null; for (let i = 0; i < un.length; i += 4) { un[i].x = un[i + 1]; un[i].y = un[i + 2]; un[i].z = un[i + 3]; } }   // last step's roll turned the cloth for drawing only
-    if (this.t > 0 && Math.hypot((s.x || 0) - this.x, (s.y || 0) - this.y, (s.z || 0) - this.z) > 24 * o.size) { this.capeL = null; this.hairPts = null; this.trail.length = 0; }   // teleported: cloth and hair start fresh
+    if (this.t > 0 && Math.hypot((s.x || 0) - this.x, (s.y || 0) - this.y, (s.z || 0) - this.z) > 24 * o.size) { this.capeL = null; this._hairPts = null; this.trail.length = 0; }   // teleported: cloth and hair start fresh
     /** expr: the face shown ('smile', 'shout', 'angry', 'wince'), or null */
     this.t += dt; this.x = s.x; this.y = s.y; this.z = s.z || 0; this.facing = s.facing || 0; this.expr = s.expr || null;
     const speed = s.run ? s.run * o.speedRef : Math.hypot(s.vx || 0, s.vy || 0);   // run: 0..1 runs in place (an RPG 'run away', a treadmill)
@@ -3191,7 +3186,7 @@ class Humanoid {
     this._spW = approach(this._spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
     if (speed > 3 && !s.run) {
       const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
-      this.mv[0] = lerp(this.mv[0], (s.vx * c + s.vy * sn) / speed, k); this.mv[1] = lerp(this.mv[1], (-s.vx * sn + s.vy * c) / speed, k);
+      this._mv[0] = lerp(this._mv[0], (s.vx * c + s.vy * sn) / speed, k); this._mv[1] = lerp(this._mv[1], (-s.vx * sn + s.vy * c) / speed, k);
     }
     this.phase += dt * speed / (o.stride * o.size * this._strideK() * Math.max(.4, Math.min(1, this._spW)));
     this._dashW = approach(this._dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
@@ -3210,7 +3205,7 @@ class Humanoid {
     this.downW = approach(this.downW || 0, dT, dt * (dT > (this.downW || 0) ? 2.5 + 10 * (this.downW || 0) : 3.2));
     if (this.dieT > 0) { this.hurtW = approach(this.hurtW, this.dieT < .25 ? 1 : 0, dt * 14); pk.kneel = approach(pk.kneel, this.dieT > .2 && this.dieT < .6 ? 1 : 0, dt * 10); }
     this._pointW = approach(this._pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
-    this.aimA = approach(this.aimA || 0, s.aim || 0, dt * 14);   // aim: radians above (+) or below (-) level while pointing
+    this._aimA = approach(this._aimA || 0, s.aim || 0, dt * 14);   // aim: radians above (+) or below (-) level while pointing
     if (s.attack) this._kicking = !!s.attack.spec.kick;
     this.blink -= dt; if (this.blink < -.12) this.blink = 2 + Math.random() * 3;
     this.sqV += (-260 * this.sq - 15 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.3, .3);
@@ -3219,18 +3214,18 @@ class Humanoid {
     this.spin = 0;
     // side views swing weapons in the screen plane (an overhead chop), ground views in the ground plane.
     // spec.plane or the rig option swingPlane ('side' | 'ground') choose it yourself.
-    this.sidePlane = !!A && !A.spec.kick && (A.spec.plane ? A.spec.plane === 'side' : o.swingPlane ? o.swingPlane === 'side' : this._pitch !== undefined && this._pitch < 15 && !!o.weapon && A.spec.blade !== 0 && A.spec.hand !== 'L');
+    this._sidePlane = !!A && !A.spec.kick && (A.spec.plane ? A.spec.plane === 'side' : o.swingPlane ? o.swingPlane === 'side' : this._pitch !== undefined && this._pitch < 15 && !!o.weapon && A.spec.blade !== 0 && A.spec.hand !== 'L');
     if (A) {
       // wind: anticipation (pull back, crouch). active: the strike, with a lunge, lead-foot step, lean, twist and hop.
       // recover: follow through, hold the end pose, then blend back to the stance by position (never swing backwards)
-      const sp = A.spec, side = this.sidePlane, rest = side ? -.9 : 1.1, RS = sp.rel ? (o.armUpper + o.armLower) / 9.2 : 1, R = (sp.reach || 7.5) * RS, r0 = sp.r0 === undefined ? R : sp.r0 * RS, r1 = sp.r1 === undefined ? R : sp.r1 * RS;
+      const sp = A.spec, side = this._sidePlane, rest = side ? -.9 : 1.1, RS = sp.rel ? (o.armUpper + o.armLower) / 9.2 : 1, R = (sp.reach || 7.5) * RS, r0 = sp.r0 === undefined ? R : sp.r0 * RS, r1 = sp.r1 === undefined ? R : sp.r1 * RS;
       /** atkRel: the attack's heights are relative to the shoulders (its spec's rel) */
-      this.atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9, z0 = sp.z0 === undefined ? zRest : sp.z0, z1 = sp.z1 === undefined ? z0 : sp.z1;   // side-plane moves have no heights
+      this._atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9, z0 = sp.z0 === undefined ? zRest : sp.z0, z1 = sp.z1 === undefined ? z0 : sp.z1;   // side-plane moves have no heights
       // lunge / hop / crouch are body motion in local units, clamped so a game's own 'lunge' speed field can't stretch the rig
       const hold = sp.hold === undefined ? .3 : sp.hold, lean = sp.lean === undefined ? (sp.kick ? -.22 : .3) : clamp(sp.lean, -.8, .8), lunge = sp.lunge === undefined ? (sp.kick ? .4 : 1.2) : clamp(sp.lunge, -4, 5);
       if (A.phase === 'wind' && (this._aPh !== 'wind' || this._aSp !== sp)) {   // a chained hit starts where the arm is
         const chain = (this._armW || 0) > .3 && this._theta !== undefined, fists = !o.weapon || sp.hand === 'L' || sp.blade === 0;
-        this._th0 = chain ? this._theta : rest; this._z0 = chain && this.atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
+        this._th0 = chain ? this._theta : rest; this._z0 = chain && this._atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
         const J = this.J; if (J.handR) this._from = { R: J.handR.slice(), L: J.handL.slice(), bd: J.bladeDir.slice() };   // the wind blends from the real pose: no snaps
       }
       this._aPh = A.phase; this._aSp = sp; this._atkHand = sp.hand || 'R'; if (A.phase !== 'wind') this._windK = 1;
@@ -3251,14 +3246,14 @@ class Humanoid {
       }
       tTwist = sp.spin ? 0 : clamp(this._theta * (side ? .08 : .32) * (sp.twist === undefined ? 1 : sp.twist) * (this._atkHand === 'L' ? -1 : 1), -.7, .7);
       // smear arc in absolute ground angles
-      if (this.sidePlane) this.smear = null;
+      if (this._sidePlane) this._smear = null;
       else if (sp.blade !== 0) {
         const base = this.facing, len = ((sp.reach || 7.5) + (sp.blade || o.bladeLen)) * o.size;
-        if (A.phase === 'active') this.smear = { a0: base + sp.a0, a1: base + this.spin + this._theta, r0: len * .45, r1: len, z: (this.atkZ + 1) * o.size, fade: 1 };
-        else if (A.phase === 'recover' && this.smear) { const u = clamp(A.u / .5, 0, 1); const end = base + (sp.spin ? sp.a0 - TAU : sp.a1); this.smear.a0 = lerp(base + sp.a0, end, ease.inQuad(u)); this.smear.a1 = end; this.smear.fade = 1 - u; if (u >= 1) this.smear = null; }
-        else if (A.phase === 'wind') this.smear = null;
+        if (A.phase === 'active') this._smear = { a0: base + sp.a0, a1: base + this.spin + this._theta, r0: len * .45, r1: len, z: (this.atkZ + 1) * o.size, fade: 1 };
+        else if (A.phase === 'recover' && this._smear) { const u = clamp(A.u / .5, 0, 1); const end = base + (sp.spin ? sp.a0 - TAU : sp.a1); this._smear.a0 = lerp(base + sp.a0, end, ease.inQuad(u)); this._smear.a1 = end; this._smear.fade = 1 - u; if (u >= 1) this._smear = null; }
+        else if (A.phase === 'wind') this._smear = null;
       }
-    } else { this.smear = null; this._windK = 1; this._aPh = null; }
+    } else { this._smear = null; this._windK = 1; this._aPh = null; }
     this._armW = approach(this._armW || 0, armT, dt * (armT > (this._armW || 0) ? 30 : 12));
     /** lunge: how far the body leans into an attack now, world units; hop: how high an attack's hop lifts it now */
     this.lunge = lerp(this.lunge || 0, tLunge, Math.min(1, dt * 22)); this.hop = lerp(this.hop || 0, tHop, Math.min(1, dt * 25)); this._crouchA = lerp(this._crouchA || 0, tCrouch, Math.min(1, dt * 20));
@@ -3287,8 +3282,8 @@ class Humanoid {
   _hair(dt) {
     const o = this.o, long = o.hair.style === 'long', N = o.hair.len || (long ? 6 : 4), seg = (long ? 1.9 : 1.6) * o.size;
     const J = this.J, anchor = () => { const w = this._w([J.head[0] - o.headR * .8, 0, J.head[2] + (long ? o.headR * .1 : o.headR * .55)]); return [this.x + w[0], this.y + w[1], this.z + w[2]]; };
-    if (!this.hairPts) { const a = anchor(), hx = -Math.cos(this.facing) * .8 * o.size, hy = -Math.sin(this.facing) * .8 * o.size; this.hairPts = Array.from({ length: N }, (_, i) => ({ x: a[0] + hx * i * .3, y: a[1] + hy * i * .3, z: a[2] - i * seg, px: a[0] + hx * i * .3, py: a[1] + hy * i * .3, pz: a[2] - i * seg })); }
-    const P = this.hairPts, a = anchor(), damp = Math.pow(.97, dt * 120), fx = Math.cos(this.facing + this.spin), fy = Math.sin(this.facing + this.spin), dt2 = dt * dt;   // trails behind the body's turn
+    if (!this._hairPts) { const a = anchor(), hx = -Math.cos(this.facing) * .8 * o.size, hy = -Math.sin(this.facing) * .8 * o.size; this._hairPts = Array.from({ length: N }, (_, i) => ({ x: a[0] + hx * i * .3, y: a[1] + hy * i * .3, z: a[2] - i * seg, px: a[0] + hx * i * .3, py: a[1] + hy * i * .3, pz: a[2] - i * seg })); }
+    const P = this._hairPts, a = anchor(), damp = Math.pow(.97, dt * 120), fx = Math.cos(this.facing + this.spin), fy = Math.sin(this.facing + this.spin), dt2 = dt * dt;   // trails behind the body's turn
     Object.assign(P[0], { x: a[0], y: a[1], z: a[2], px: a[0], py: a[1], pz: a[2] });
     for (let i = 1; i < P.length; i++) { const n = P[i], vx = (n.x - n.px) * damp, vy = (n.y - n.py) * damp, vz = (n.z - n.pz) * damp; n.px = n.x; n.py = n.y; n.pz = n.z; n.x += vx - fx * 20 * dt2; n.y += vy - fy * 20 * dt2; n.z += vz - 200 * dt2; }
     const shZ = this.z + J.shC[2] * o.size, bodyR = (o.torsoW * .75 + .6) * o.size, headTop = this.z + (J.head[2] + o.headR * .6) * o.size;
@@ -3302,7 +3297,7 @@ class Humanoid {
     }
   }
   _pose() {
-    const o = this.o, J = this.J, sp = Math.min(1, this._spW), mf = this.mv[0], mr = this.mv[1], ph = this.phase, dash = this._dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
+    const o = this.o, J = this.J, sp = Math.min(1, this._spW), mf = this._mv[0], mr = this._mv[1], ph = this.phase, dash = this._dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
     const breathe = Math.sin(this.t * 2.3) * (1 - sp);
     const bob = (.5 - Math.abs(Math.cos(ph)) * 1.3) * sp;
     const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel, lg = this.lunge || 0, cw = this._climbW || 0;
@@ -3325,7 +3320,7 @@ class Humanoid {
       if (snk > 0) foot[1] += s * .6 * snk;                                                                     // a wider, lower stance
       if (ld > 0) foot = V3.lerp(foot, [s > 0 ? 2.6 : -2.4, s * (o.footSpread + 1), 0], Math.min(1, ld));      // planted wide
       if (hw > 0) foot = V3.lerp(foot, [1.3, s * 1.3, o.hipZ * .08 + (s > 0 ? .8 : 0)], hw);                   // dangling against the wall
-      if (s > 0 && this._kicking && this._atkW > 0) foot = V3.lerp(foot, [Math.cos(this._theta) * (this.reach + 3), Math.sin(this._theta) * (this.reach + 3), (this.atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this._armW || 0);
+      if (s > 0 && this._kicking && this._atkW > 0) foot = V3.lerp(foot, [Math.cos(this._theta) * (this.reach + 3), Math.sin(this._theta) * (this.reach + 3), (this._atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this._armW || 0);
       const hip = s > 0 ? J.hipR : J.hipL;
       const [knee, f2] = ik3(hip, foot, o.legUpper, o.legLower, [1, s * .15, .1]);
       J[s > 0 ? 'kneeR' : 'kneeL'] = knee; J[s > 0 ? 'footR' : 'footL'] = f2;
@@ -3338,15 +3333,15 @@ class Humanoid {
     J.head = add(shC, V3.mul(V3.norm([dir[0] + o.hunch * .9, dir[1], dir[2]]), o.neck + o.headR));
     const armLen = o.armUpper + o.armLower, aw = this._armW || 0, sA = this._atkHand === 'L' ? -1 : 1, two = this._atkHand === 'both', fists = !o.weapon || this._stW > .5;
     // where the striking hand goes, and the weapon's direction, for the current attack angle
-    const aT = this.sidePlane ? add(shC, [Math.cos(this._theta) * this.reach, sA * .8, Math.sin(this._theta) * this.reach]) : add(shC, [Math.cos(this._theta) * this.reach, Math.sin(this._theta) * this.reach, this.atkRel ? this.atkZ : this.atkZ - shC[2]]);
-    const aDir = this.sidePlane ? V3.norm([Math.cos(this._theta), .05, Math.sin(this._theta)]) : V3.norm([Math.cos(this._theta), Math.sin(this._theta), -.12]);
+    const aT = this._sidePlane ? add(shC, [Math.cos(this._theta) * this.reach, sA * .8, Math.sin(this._theta) * this.reach]) : add(shC, [Math.cos(this._theta) * this.reach, Math.sin(this._theta) * this.reach, this._atkRel ? this.atkZ : this.atkZ - shC[2]]);
+    const aDir = this._sidePlane ? V3.norm([Math.cos(this._theta), .05, Math.sin(this._theta)]) : V3.norm([Math.cos(this._theta), Math.sin(this._theta), -.12]);
     for (const s of [-1, 1]) {
       const sh = s > 0 ? J.shR : J.shL, q = ph + (s > 0 ? 0 : Math.PI), along = -Math.sin(q) * o.swing * sp * (1 + .6 * spr) * (1 - .4 * snk);
       let hand = add(sh, [mf * along + .5 * (1 - sp) + o.hunch * 3, s * .9 + mr * along, -armLen * .86 + Math.abs(Math.sin(q)) * 1.2 * sp]);
       hand = V3.lerp(hand, add(sh, [-4.5, s * 1.6, -5]), dash);
       hand = V3.lerp(hand, add(sh, s > 0 ? [1.4, -.6, .6] : [-1.6, s * 2.2, -3.2]), hurt);   // a flinch: one arm up to shield the face, the other flung back
       if (this._airW > 0) hand = V3.lerp(hand, add(sh, [1.2, s * 2.6, -1.2]), this._airW * .7);
-      if (s > 0 && this._pointW > 0) { const aa = this.aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this._pointW); }
+      if (s > 0 && this._pointW > 0) { const aa = this._aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this._pointW); }
       if (PW.cheer > 0) hand = V3.lerp(hand, add(sh, [.6, s * 1.4, armLen * (.74 + .12 * Math.sin(this.t * 9 + (s > 0 ? 0 : .7)))]), PW.cheer);   // fists pump
       if (PW.cast > 0) hand = V3.lerp(hand, add(shC, [armLen * .82, s * 1.3, -1.2]), PW.cast);
       const guardAt = add(shC, s < 0 ? [3.8, -1, .4] : [2.3, 1.5, -.6]);   // boxer's guard: lead fist out at chin height, face stays visible
@@ -3376,7 +3371,7 @@ class Humanoid {
     if (PW.cheer > 0) bd = V3.lerp(bd, [.15, .05, 1], PW.cheer);   // raised in triumph, point up
     if (PW.block > 0) bd = V3.lerp(bd, [.35, -.3, .9], PW.block);   // held upright across the body
     if (this._rdW > 0) bd = V3.lerp(bd, [.62, .08, .78], this._rdW * (1 - aw));
-    if (this._pointW > 0) bd = V3.lerp(bd, [Math.cos(this.aimA || 0), 0, Math.sin(this.aimA || 0)], this._pointW);
+    if (this._pointW > 0) bd = V3.lerp(bd, [Math.cos(this._aimA || 0), 0, Math.sin(this._aimA || 0)], this._pointW);
     J.bladeDir = V3.norm(bd);
     const dw = this.downW || 0;
     if (dw > 0) J.bladeDir = V3.norm(V3.lerp(J.bladeDir, [0, .9, -.4], dw));   // a dropped weapon lies flat once the body is down
@@ -3590,8 +3585,8 @@ class Humanoid {
       }
     }
     // ---- flowing hair (long / ponytail) ----
-    if (this.hairPts) {
-      const P = this.hairPts, x0 = this.x, y0 = this.y, z0 = this.z, ht = tones(C.hair), w0 = (this.o.hair.style === 'ponytail' ? .9 : 1.5) * u;
+    if (this._hairPts) {
+      const P = this._hairPts, x0 = this.x, y0 = this.y, z0 = this.z, ht = tones(C.hair), w0 = (this.o.hair.style === 'ponytail' ? .9 : 1.5) * u;
       const PW = n => { const wx = n.x - x0, wy = n.y - y0, wz = n.z - z0; return [ox + vax * wx + vay * wy, oy + vbx * wx + vby * wy + vbz * wz, vdx * wx + vdy * wy + vdz * wz]; };
       const pts = P.map(PW);
       for (let i = 0; i < pts.length - 1; i++) { const r0 = w0 * (1 - i / pts.length * .75), r1 = w0 * (1 - (i + 1) / pts.length * .75); ops.push({ d: (pts[i][2] + pts[i + 1][2]) / 2 - .4, f: () => { cap(pts[i], pts[i + 1], r0, r1, ht.sh); cap(pts[i], pts[i + 1], Math.max(.4, r0 - .8), Math.max(.4, r1 - .8), i % 2 ? ht.base : ht.lt, -.5, -.5); } }); }
@@ -3820,7 +3815,7 @@ class Humanoid {
       }, { bias: .6, emissive: true });
       return;
     }
-    const s = this.smear; if (!s || s.fade <= 0 || r.view.pitchDeg < 30) return;
+    const s = this._smear; if (!s || s.fade <= 0 || r.view.pitchDeg < 30) return;
     const x = this.x, y = this.y, z = this.z + s.z, span = s.a1 - s.a0;
     if (Math.abs(span) < .05) return;
     r.queue(x, y, this.z + 1, g => {
@@ -4573,7 +4568,7 @@ class TileMap {
         if (nx * view.fx + ny * view.fy <= .02) continue;
         const nh = this.cell(cx + nx, cy + ny) > 0 ? (this._isFront(cx + nx, cy + ny, view) ? (this.types[this.cell(cx + nx, cy + ny)].cutH || 6) : this.height(cx + nx, cy + ny)) : 0;
         if (nh >= h) continue;
-        if (g._info) { g._mat = r._faceMat(g, A, B, nh, h, E.faceClass(nx, ny)); g._c = null; }
+        if (g._info) { g._mat = r._faceMat(g, A, B, nh, h, faceClass(nx, ny)); g._c = null; }
         const lit = -(nx * this.light[0] + ny * this.light[1]);
         const col = lit > .2 ? t.sideLt || shade(t.side, .12) : lit < -.2 ? t.sideDk || shade(t.side, -.25) : t.side;
         const face = [P(A[0], A[1], nh), P(B[0], B[1], nh), P(B[0], B[1], h), P(A[0], A[1], h)];
@@ -5589,8 +5584,9 @@ E.Body = Body;
  * ============================================================================= */
 const _dir = d => typeof d === 'number' ? d : Math.atan2(d[1], d[0]);
 const _p = (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), z: lerp(a.z || 0, b.z || 0, u) });
-/** the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at }.
- *  Play one: mover.play('takedown', { other }) */
+/** the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at };
+ *  setup(A) and at(A, beat, u) get the action: its options A.o, A.start (where the body began), A.body; setup may change
+ *  A.beats. Play one: mover.play('takedown', { other }) */
 const ACTIONS = {
   /** onto a ledge (o.to: a map.ledge result): reach and hang below the edge, pull up, stand. reverse: climb down from it to o.from */
   climbUp: {
@@ -5631,7 +5627,7 @@ const ACTIONS = {
     }
   },
   /** a ledge hop down (o.to: a map.drop result, or any spot below): a small rise, then the fall, the shadow staying on the
-   *  ground below (act.shadowZ). The beat lasts longer the deeper it goes */
+   *  ground below. The beat lasts longer the deeper it goes */
   hopDown: {
     beats: [['hop', .34]],
     setup(A) {
@@ -5704,7 +5700,7 @@ class Action {
     this.name = typeof name === 'string' ? name : spec.name || 'action'; this.spec = spec; this.o = o; this.body = o.body; this.other = o.other || null;
     /** start: where the body was when it began; beats: [[name, seconds], ...]; t: seconds played; done: it has ended (or
      *  was cancelled); vx, vy, vz: the body's speed this step, for the rig */
-    this.start = { x: o.body.x, y: o.body.y, z: o.body.z || 0 }; this.beats = spec.beats; this.t = 0; this.done = false; this.vx = this.vy = this.vz = 0;
+    this.start = { x: o.body.x, y: o.body.y, z: o.body.z || 0 }; this.beats = spec.beats; this.t = 0; this.done = false; this._vx = this._vy = this._vz = 0;
     spec.setup(this);
     /** the action's length in seconds (o.speed shortens it) */
     this.duration = this.beats.reduce((a, b) => a + b[1], 0) / (o.speed || 1);
@@ -5719,14 +5715,14 @@ class Action {
   }
   _apply(dt) {
     const [beat, bu] = this._at(this.t), r = this.spec.at(this, beat, bu), b = this.body;
-    if (dt > 0) { this.vx = (r.x - b.x) / dt; this.vy = (r.y - b.y) / dt; this.vz = ((r.z || 0) - (b.z || 0)) / dt; }
+    if (dt > 0) { this._vx = (r.x - b.x) / dt; this._vy = (r.y - b.y) / dt; this._vz = ((r.z || 0) - (b.z || 0)) / dt; }
     b.x = r.x; b.y = r.y; b.z = r.z || 0;
     if (b.vx !== undefined) { b.vx = 0; b.vy = 0; b.vz = 0; }
     if (r.state && r.state.facing !== undefined) b.facing = r.state.facing;
     /** the name of the beat playing now */
     this.beat = beat; this._state = r.state || {}; this._other = r.other || null;
     if (this.other && r.other) { const v = this.other; v.x = r.other.x; v.y = r.other.y; v.z = r.other.z || 0; if (v.vx !== undefined) { v.vx = v.vy = 0; } }
-    if (this.o.map) this.shadowZ = this.o.map.groundAt(b.x, b.y, b.r || 0, b.z, HEIGHTS.step);   // the ground under the body (with o.map), for its shadow
+    if (this.o.map) this._shadowZ = this.o.map.groundAt(b.x, b.y, b.r || 0, b.z, HEIGHTS.step);   // the ground under the body (with o.map), for its shadow
   }
   /** move the bodies one step; returns true while the action runs (false once it has ended) */
   update(dt) {
@@ -5749,7 +5745,7 @@ class Action {
   /** stop now: the bodies stay where they are */
   cancel() { this.done = true; }
   /** the rig state for the body (merge extra over it): x, y, z, its speed, facing and the beat's pose */
-  rigState(extra) { const b = this.body; return Object.assign({ x: b.x, y: b.y, z: b.z, vx: this.vx, vy: this.vy, vz: this.vz }, this._state, extra); }
+  rigState(extra) { const b = this.body; return Object.assign({ x: b.x, y: b.y, z: b.z, vx: this._vx, vy: this._vy, vz: this._vz }, this._state, extra); }
   /** the rig state for the other body of a paired action (the victim of a takedown) */
   otherState(extra) { const v = this.other || {}; return Object.assign({ x: v.x, y: v.y, z: v.z, vx: 0, vy: 0 }, this._other && this._other.state, extra); }
 }
@@ -5961,7 +5957,7 @@ class Bullets {
   /** new E.Bullets(game, { plane: 'ground' | 'side', max: 800, sparks: true }). game: its game; list: the live
    *  bullets; max: at most this many at once; plane: 'ground' (they fly over x and y) or 'side' (x and z); sparks: a
    *  puff of sparks where one hits a wall */
-  constructor(game, o = {}) { this.game = game; this.list = []; this.max = o.max || 800; this.plane = o.plane || 'ground'; this.sparks = o.sparks !== false; }
+  constructor(game, o = {}) { this._game = game; this.list = []; this.max = o.max || 800; this.plane = o.plane || 'ground'; this.sparks = o.sparks !== false; }
   /** fire one bullet. Fields: x, y, z, vx, vy, vz, r, dmg, life, team, color, core, sprite, pierce, grav, data */
   fire(b) {
     if (this.list.length >= this.max) return null;
@@ -5978,7 +5974,7 @@ class Bullets {
       b.vz -= b.grav * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
       if (map) {
         const wall = map instanceof PlatformMap ? map.solidAt(b.x, b.z) : (map.heightAt ? map.heightAt(b.x, b.y) > b.z : false);
-        if (wall) { b.dead = true; if (this.sparks) this.game.particles.sparks(b.x, b.y, b.z, 3, null, { color: b.color }); if (b.onWall) b.onWall(b); }
+        if (wall) { b.dead = true; if (this.sparks) this._game.particles.sparks(b.x, b.y, b.z, 3, null, { color: b.color }); if (b.onWall) b.onWall(b); }
       }
     }
     prune(this.list, b => b.dead);
@@ -6038,19 +6034,19 @@ E.pattern = {
 class SpatialHash {
   /** new E.SpatialHash(cell = 32): buckets things by position, to find what is near cheaply. cell: the bucket size
    *  in world units; map: the buckets */
-  constructor(cell = 32) { this.cell = cell; this.map = new Map(); }
+  constructor(cell = 32) { this.cell = cell; this._map = new Map(); }
   _k(cx, cy) { return (cx & 0xffff) * 65536 + (cy & 0xffff); }
   /** empty it */
-  clear() { this.map.clear(); return this; }
+  clear() { this._map.clear(); return this; }
   /** put o in the bucket at (x, y) */
-  add(o, x = o.x, y = o.y) { const k = this._k(Math.floor(x / this.cell), Math.floor(y / this.cell)); let a = this.map.get(k); if (!a) this.map.set(k, a = []); a.push(o); return this; }
+  add(o, x = o.x, y = o.y) { const k = this._k(Math.floor(x / this.cell), Math.floor(y / this.cell)); let a = this._map.get(k); if (!a) this._map.set(k, a = []); a.push(o); return this; }
   /** clear, then add every live thing in list (skips o.dead); do it once a step */
   build(list, xk = 'x', yk = 'y') { this.clear(); for (const o of list) if (o && !o.dead) this.add(o, o[xk], o[yk]); return this; }
   /** call fn(o) for everything in the cells touching the circle (check the exact distance yourself) */
   near(x, y, r, fn) {
     const C = this.cell;
     for (let cy = Math.floor((y - r) / C); cy <= Math.floor((y + r) / C); cy++) for (let cx = Math.floor((x - r) / C); cx <= Math.floor((x + r) / C); cx++) {
-      const a = this.map.get(this._k(cx, cy)); if (a) for (const o of a) fn(o);
+      const a = this._map.get(this._k(cx, cy)); if (a) for (const o of a) fn(o);
     }
   }
   /** what lies within about r of (x, y), as a list (near() calls a function instead) */
@@ -6125,14 +6121,14 @@ class ChipAudio {
     /** game: the game it plays for; ctx: the Web Audio context, made at the first sound (null before, or where there
      *  is none); volume: master volume 0..1; sfxVolume, musicVolume: 0..1 for effects and music; muted: true while
      *  mute() is on */
-    this.game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
+    this._game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
     /** presets: the named sound effects, sfx(name) plays one and define(name, voice) adds one; song: the music
      *  playing (null for none); failed: why there is no sound (a message), or null; ducked: true while duck(true)
      *  holds the music down */
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
-    this.rnd = rng(0x51A7E);
+    this._rnd = rng(0x51A7E);
   }
   _init() {
     if (this.ctx || this.failed) return this.ctx;
@@ -6143,7 +6139,7 @@ class ChipAudio {
       this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
       this._musBus = c.createGain(); this._musBus.connect(this._master);
       this._levels();
-      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
+      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this._rnd() * 2 - 1;
       this._noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
       for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true, signal: this._signal });
@@ -6179,7 +6175,7 @@ class ChipAudio {
     if (wave === 'noise') {
       src = c.createBufferSource(); src.buffer = this._noise; src.loop = true;
       const f = c.createBiquadFilter(); f.type = p.filter || 'bandpass'; f.Q.value = p.q || 1.1; f.frequency.setValueAtTime(f0, t); if (to) f.frequency.exponentialRampToValueAtTime(to, end);
-      src.connect(f); f.connect(g); src.start(t, this.rnd() * .5);
+      src.connect(f); f.connect(g); src.start(t, this._rnd() * .5);
     } else {
       src = c.createOscillator();
       if (wave === 'pulse' || wave === 'pulse12') src.setPeriodicWave(this._pulse(wave === 'pulse' ? .25 : .125));
@@ -6203,7 +6199,7 @@ class ChipAudio {
     if (this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
-    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
+    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this._rnd() * 2 - 1));
     try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
@@ -6260,7 +6256,6 @@ class ChipAudio {
     this._voice({ wave: t.wave || 'square', freq: f * Math.pow(2, t.octave || 0), dur: n * spb * (t.gate || .9), vol, hold: true, attack: .006, vib: t.vib }, bus, time);
   }
 }
-E.Audio = ChipAudio;
 /** ready-made chiptune loops (original compositions): title, adventure, dungeon, boss, victory. game.audio.music('adventure') */
 E.songs = {
   title: { bpm: 112, steps: 4, tracks: [
@@ -6332,7 +6327,7 @@ class Backdrop {
     if (typeof o === 'string') { const p = BACKDROPS[o]; if (!p) warn('backdrop:' + o, 'unknown backdrop preset "' + o + '". Presets: ' + Object.keys(BACKDROPS).join(', ')); o = p || BACKDROPS.day; }
     /** o: the options it was made from; sky: the sky's gradient colors, top to bottom; layers: its scenery layers,
      *  back to front, with their defaults filled in */
-    this.o = o; this.sky = o.sky || ['#3a78d8', '#c8e4f8']; this.layers = (o.layers || []).map((l, i) => Object.assign({ seed: i * 17 + 3, parallax: .2, y: .7, height: .25 }, l)); this._bake = new Map();
+    this._o = o; this.sky = o.sky || ['#3a78d8', '#c8e4f8']; this.layers = (o.layers || []).map((l, i) => Object.assign({ seed: i * 17 + 3, parallax: .2, y: .7, height: .25 }, l)); this._bake = new Map();
   }
   /** the preset names, all ten: day, dusk, night, castle-night, city-night, desert, forest, ocean, cave, space */
   static get presets() { return Object.keys(BACKDROPS); }
@@ -6425,7 +6420,7 @@ class Backdrop {
   }
   /** draw the backdrop first in draw(r), before the level; it scrolls with the camera by each layer's parallax */
   draw(r) {
-    const o = this.o, g = r.ctx, W = r.bw, H = r.bh, t = this.o.time === undefined ? r.game.real : this.o.time;
+    const o = this._o, g = r.ctx, W = r.bw, H = r.bh, t = this._o.time === undefined ? r.game.real : this._o.time;
     r.sky(this.sky);
     if (o.stars) r.starfield({ count: o.stars, speed: 0, layers: 3, height: o.starsY || .7 });
     const orb = o.sun || o.moon;
@@ -7316,7 +7311,7 @@ class Dialog {
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
   _dims() {
-    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this.pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
+    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
     const pl = this._place || this.place; let x = Math.round((W - w) / 2), y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
     const t = this._y === undefined && pl === 'bottom' && this.game.input.touchArea && this.game.input.touchArea();
     if (t && x + w > t.x0 && x < t.x1 && y + h > t.y0) {   // clear of the touch buttons: beside them where it fits, else above them
@@ -7333,7 +7328,7 @@ class Dialog {
   say(text, o = {}) {
     /** portrait: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size
      *  in pixels; pOpts: its options ({ zoom, turn, bg }) */
-    this.portrait = o.portrait || null; this.pSize = o.portraitSize || 40; this.pOpts = o.portraitOpts || {};
+    this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {};
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
     const d = this._dims(), pages = [];
     for (const t of Array.isArray(text) ? text : [text]) { const L = E.font.wrap(String(t), d.w - d.tx - 5); for (let k = 0; k < L.length; k += this.lines) pages.push(L.slice(k, k + this.lines)); }
@@ -7347,9 +7342,9 @@ class Dialog {
   /** close it now (and forget pending presses, so the same press doesn't also attack) */
   close() { this.open = false; this.game.input.consumeAll(); }
   /** the lines of the page shown */
-  get page() { return this.pages[this.i] || []; }
+  get _page() { return this.pages[this.i] || []; }
   /** the letters on the page shown */
-  get pageLen() { return this.page.reduce((a, l) => a + l.length, 0); }
+  get pageLen() { return this._page.reduce((a, l) => a + l.length, 0); }
   /** true while the page is still typing */
   get typing() { return this.shown < this.pageLen; }
   /** type and turn pages (confirm finishes the line, then turns the page); returns true while open and modal, so
@@ -7387,11 +7382,11 @@ class Dialog {
       if (this.portrait) {
         const px0 = d.x + 5, py0 = d.y + Math.round((d.h - d.P) / 2);
         if (typeof this.portrait === 'function') this.portrait(g, px0, py0, d.P);
-        else { this.portrait._talk = this.typing; this.portrait.drawPortrait(g, px0, py0, d.P, Object.assign({ bg: shade(Array.isArray(this.bg) ? this.bg[0] : this.bg, .12), border: this.border, shadow: false }, this.pOpts)); this.portrait._talk = false; }   // the mouth moves while the text types
+        else { this.portrait._talk = this.typing; this.portrait.drawPortrait(g, px0, py0, d.P, Object.assign({ bg: shade(Array.isArray(this.bg) ? this.bg[0] : this.bg, .12), border: this.border, shadow: false }, this._pOpts)); this.portrait._talk = false; }   // the mouth moves while the text types
       }
       if (this.name) { const nw = E.font.width(this.name) + 12, nx = d.x + (this.portrait ? d.tx - 6 : 4); ui.box(g, nx, d.y - 12, nw, 14, { bg: this.bg, border: this.border }); E.font.text(g, this.name, nx + 6, d.y - 9, this.nameColor, { outline: false, shadow: '#05040a' }); }
       let left = Math.floor(this.shown);
-      this.page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, { outline: false, shadow: '#05040a' }); });
+      this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, { outline: false, shadow: '#05040a' }); });
       const blink = Math.floor(this.game.real * 3) % 2 === 0, last = this.i >= this.pages.length - 1;
       if (!this.typing && !(last && this.choices) && blink) px.poly(g, [[d.x + d.w - 10, d.y + d.h - 6], [d.x + d.w - 5, d.y + d.h - 6], [d.x + d.w - 7.5, d.y + d.h - 3]], this.color);
       if (last && this.choices && !this.typing) {
@@ -7558,7 +7553,7 @@ class Shell {
   constructor(game, o = {}) {
     if (game.shell && game.shell._sys && !o.system) game.shell.dispose();   // the game's own shell takes over from the engine's
     /** game: the game it is over; o: its options; root: its DOM element (null in a headless game) */
-    this.game = game; this.o = o; this.root = null; this._stack = []; this._keep = new Set(); this._held = new Set(); this._last = {};
+    this._game = game; this._o = o; this.root = null; this._stack = []; this._keep = new Set(); this._held = new Set(); this._last = {};
     this._sys = !!o.system; this._std = o.standard !== false && game.o.menu !== false;
     const old = store.get(o.store || 'shell-settings', null) || {}, S = game.settings;   // (settings saved by an older version are kept)
     for (const it of this._items()) if (!S.spec(it.key)) { if (S._raw[it.key] === undefined && old[it.key] !== undefined) S._raw[it.key] = old[it.key]; S.define(Object.assign({ group: 'Game' }, it)); }
@@ -7578,17 +7573,17 @@ class Shell {
     const E2 = (cls, parent = r, tag = 'div') => { const e = this._el(tag, cls); e.hidden = true; parent.appendChild(e); return e; };
     const col = this._el('div', 'esh-col'); r.appendChild(col);
     /** the HUD's elements, by piece (hb, obj, vit, toast, tut, pr, tip, place, mini, keys) and the screen layer (scr) */
-    this.els = { hb: E2('esh-hb', col), obj: E2('esh-obj esh-pan'), vit: E2('esh-vit esh-pan', col), place: E2('esh-place', col), tip: E2('esh-tip esh-pan'), pr: E2('esh-pr esh-pan'), keys: E2('esh-keys'),
+    this._els = { hb: E2('esh-hb', col), obj: E2('esh-obj esh-pan'), vit: E2('esh-vit esh-pan', col), place: E2('esh-place', col), tip: E2('esh-tip esh-pan'), pr: E2('esh-pr esh-pan'), keys: E2('esh-keys'),
       tut: E2('esh-tut esh-pan'), mini: E2('esh-mini', r, 'canvas'), toast: E2('esh-toast esh-pan'), scr: this._el('div', '') };
-    r.appendChild(this.els.scr); this.els.toast.hidden = false;
-    const mini = this.els.mini; mini.width = 176; mini.height = 158; mini.onclick = () => { const m = this._miniLast; if (m && m.onClick) m.onClick(); };
+    r.appendChild(this._els.scr); this._els.toast.hidden = false;
+    const mini = this._els.mini; mini.width = 176; mini.height = 158; mini.onclick = () => { const m = this._miniLast; if (m && m.onClick) m.onClick(); };
   }
   /** the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays */
   get screen() { const t = this._stack[this._stack.length - 1]; return t ? t.name : null; }
   /** the player's settings: game.settings (the standard ones and the game's own, by key) */
-  get settings() { return this.game.settings; }
+  get settings() { return this._game.settings; }
   /** the pause screen's spec ({} for the standard one), or null without one */
-  _pauseSpec() { const sc = this.o.screens; return sc && 'pause' in sc ? sc.pause || null : this._std ? {} : null; }
+  _pauseSpec() { const sc = this._o.screens; return sc && 'pause' in sc ? sc.pause || null : this._std ? {} : null; }
   /** does this shell give the standard menu (the corner's menu button and game.menu() open it)? */
   _menu() { return this._std; }
   /** open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over
@@ -7600,7 +7595,7 @@ class Shell {
    *  - 'results': { emblem, stats: [[value, label]], medals: [[label, earned]] }
    *  - 'map': { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) } */
   show(name, spec = {}) {
-    const top = this._stack[this._stack.length - 1], again = top && top.name === name, s = Object.assign({}, this.o.screens && this.o.screens[name], again ? top.s : null, spec);
+    const top = this._stack[this._stack.length - 1], again = top && top.name === name, s = Object.assign({}, this._o.screens && this._o.screens[name], again ? top.s : null, spec);
     if (again) this._stack.pop();   // the same screen again: updated in place
     else { if (top) top.focus = this._focusAt(); this._status = ''; }   // (the focus comes back here when the new screen closes)
     this._stack.push({ name, s, focus: again ? top.focus : undefined }); this._capEnd(); this._render(); return this;
@@ -7609,16 +7604,16 @@ class Shell {
   back() {
     const top = this._stack[this._stack.length - 1]; if (!top) return this;
     if (top.s.back) { top.s.back(); return this; }
-    this._stack.pop(); this._capEnd(); if (top.name === 'pause') this.game.resume();
+    this._stack.pop(); this._capEnd(); if (top.name === 'pause') this._game.resume();
     this._closed(); this._render(); return this;
   }
   /** close every screen (and resume, when the menu paused the game) */
-  hide() { const p = this._stack.some(t => t.name === 'pause'); this._stack.length = 0; this._capEnd(); if (p) this.game.resume(); this._closed(); this._render(); return this; }
+  hide() { const p = this._stack.some(t => t.name === 'pause'); this._stack.length = 0; this._capEnd(); if (p) this._game.resume(); this._closed(); this._render(); return this; }
   /** the last screen closed: a game the menu paused (a title under its settings) goes on */
-  _closed() { if (!this._stack.length && this._ownPause) { this._ownPause = false; this.game.resume(); } }
+  _closed() { if (!this._stack.length && this._ownPause) { this._ownPause = false; this._game.resume(); } }
   /** which focusable element of the open screen has the focus (its index), or -1 */
   _focusAt() { if (!this.root) return -1; const all = this._focusables(); return all.indexOf(document.activeElement); }
-  _focusables() { return [...this.els.scr.querySelectorAll('.esh-sh button:not(:disabled), .esh-sh input:not(:disabled)')]; }
+  _focusables() { return [...this._els.scr.querySelectorAll('.esh-sh button:not(:disabled), .esh-sh input:not(:disabled)')]; }
   /** close the menu: every screen over the title (a game's own title screen stays), resuming a game the menu paused */
   _close() { const i = this._stack.findIndex(t => t.name === 'title'); if (i < 0) return this.hide(); this._stack.length = i + 1; this._capEnd(); this._render(); return this; }
   /** a close or back button over the screen (an icon, 44 px; the keys have Escape and Start, so it takes no focus) */
@@ -7644,13 +7639,13 @@ class Shell {
   /** a message that slides in at the top for a few seconds */
   toast(title, text = '', seconds = 4) {
     if (!this.root) return this;
-    const e = this.els.toast; e.replaceChildren(this._el('b', '', title)); if (text) e.appendChild(this._el('p', 'esh-m', text));
-    e.classList.add('on'); this._toastEnd = this.game.real + seconds; return this;
+    const e = this._els.toast; e.replaceChildren(this._el('b', '', title)); if (text) e.appendChild(this._el('p', 'esh-m', text));
+    e.classList.add('on'); this._toastEnd = this._game.real + seconds; return this;
   }
   /** a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away */
   tutorial(title, text = '', seconds = 15) {
     if (!this.root) return this;
-    const e = this.els.tut; e.hidden = !title; this._tutEnd = title ? this.game.real + seconds : 0; if (!title) return this;
+    const e = this._els.tut; e.hidden = !title; this._tutEnd = title ? this._game.real + seconds : 0; if (!title) return this;
     const x = this._el('button', 'esh-x', '×'); x.setAttribute('aria-label', 'Dismiss'); x.onclick = () => this.tutorial(null);
     e.replaceChildren(this._el('div', 'esh-k', 'Tutorial'), this._el('b', '', title), this._el('p', 'esh-m', text), x); return this;
   }
@@ -7667,9 +7662,9 @@ class Shell {
    */
   hud(st = {}) {
     if (!this.root) return this;
-    const s = st || {}, E3 = this.els, play = !this.screen;
+    const s = st || {}, E3 = this._els, play = !this.screen;
     this._piece('obj', play && s.objective, o => {
-      const d = o.at && o.from ? Math.round(Math.hypot(o.at.x - o.from.x, o.at.y - o.from.y) * (this.o.meters || .125)) : null, dz = o.at && o.from ? (o.at.z || 0) - (o.from.z || 0) : 0;
+      const d = o.at && o.from ? Math.round(Math.hypot(o.at.x - o.from.x, o.at.y - o.from.y) * (this._o.meters || .125)) : null, dz = o.at && o.from ? (o.at.z || 0) - (o.from.z || 0) : 0;
       return [o.step && this._el('div', 'esh-k', o.step), this._el('b', '', o.title), o.text && this._el('p', 'esh-m', o.text),
         d !== null && this._el('div', 'esh-dist', d + ' m' + (dz > 12 ? '  ·  ABOVE YOU' : dz < -12 ? '  ·  BELOW YOU' : ''))];
     });
@@ -7686,7 +7681,7 @@ class Shell {
       for (const [k, v] of cnt || []) { const e = this._el('div', 'esh-cnt', k); e.appendChild(this._el('b', '', v)); out.push(e); }
       return out;
     });
-    const pr = s.prompt && Object.assign({}, s.prompt, { key: s.prompt.key || (s.prompt.act ? this.game.input.label(s.prompt.act) : 'E') });   // (the key follows the device in use)
+    const pr = s.prompt && Object.assign({}, s.prompt, { key: s.prompt.key || (s.prompt.act ? this._game.input.label(s.prompt.act) : 'E') });   // (the key follows the device in use)
     this._piece('pr', play && pr, p => {
       const box = this._el('div'), bar = this._el('div', 'esh-bar'), f = this._el('i'); f.style.width = clamp(p.progress || 0, 0, 1) * 100 + '%'; bar.appendChild(f);
       box.append(this._el('div', 'esh-k', p.hint || (p.progress !== undefined ? 'Hold to interact' : 'Interact')), this._el('b', '', p.label || ''));
@@ -7694,33 +7689,33 @@ class Shell {
       return [this._el('kbd', '', p.key), box];
     });
     this._btns = s.buttons || [];   // (clicks call this step's: the functions may be new every step)
-    this._piece('hb', play && s.buttons && s.buttons.map(b => b[0]), labels => labels.map((l, i) => { const b = this._el('button', '', l); b.onclick = () => { const f = this._btns[i] && this._btns[i][1]; if (typeof f === 'function') f(); else if (f) { this.game.input.tap(f); this._held.add(f); } }; return b; }));
+    this._piece('hb', play && s.buttons && s.buttons.map(b => b[0]), labels => labels.map((l, i) => { const b = this._el('button', '', l); b.onclick = () => { const f = this._btns[i] && this._btns[i][1]; if (typeof f === 'function') f(); else if (f) { this._game.input.tap(f); this._held.add(f); } }; return b; }));
     this._piece('tip', play && s.tip, t => typeof t === 'string' ? [this._el('b', '', t)] : [this._el('b', '', t.title), t.text && this._el('p', 'esh-m', t.text)]);
     this._piece('place', play && s.place, p => [p]);
     this._piece('keys', play && s.keys, ks => ks.map(([k, w]) => { const e = this._el('span'); e.append(this._el('kbd', '', k), w); return e; }));
     const m = play && s.minimap; E3.mini.hidden = !m; if (m) this._miniLast = m;
-    if (m && (this.game.real - (this._miniT || -1) > .1)) { this._miniT = this.game.real; this._map(E3.mini, m, false); }
+    if (m && (this._game.real - (this._miniT || -1) > .1)) { this._miniT = this._game.real; this._map(E3.mini, m, false); }
     return this;
   }
   /** take its elements away and let go of the game (game.dispose() does it) */
-  dispose() { if (this.root) this.root.remove(); this.root = null; if (this.game.shell === this) this.game.shell = null; }
+  dispose() { if (this.root) this.root.remove(); this.root = null; if (this._game.shell === this) this._game.shell = null; }
   /** the settings items the game gave (a name is a standard setting: 'sound', 'volume', 'motion', ...) */
-  _items() { const it = this.o.settings && this.o.settings.items || []; return it.map(i => typeof i === 'string' ? Object.assign({ key: i }, STANDARD_SETTINGS[i]) : i).filter(i => i && i.key); }
+  _items() { const it = this._o.settings && this._o.settings.items || []; return it.map(i => typeof i === 'string' ? Object.assign({ key: i }, STANDARD_SETTINGS[i]) : i).filter(i => i && i.key); }
   /** an element with a class and text (text is never parsed as HTML) */
   _el(tag, cls = '', text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null && text !== false) e.textContent = String(text); return e; }
   /** redraw one HUD piece when its state changed: build(state) -> its children */
   _piece(k, state, build) {
-    const e = this.els[k], key = state ? JSON.stringify(state, (n, v) => n === 'from' || n === 'at' ? (v ? [Math.round(v.x), Math.round(v.y), Math.round(v.z || 0)] : v) : v) : '';
+    const e = this._els[k], key = state ? JSON.stringify(state, (n, v) => n === 'from' || n === 'at' ? (v ? [Math.round(v.x), Math.round(v.y), Math.round(v.z || 0)] : v) : v) : '';
     if (key === this._last[k]) return; this._last[k] = key; e.hidden = !state;
     if (state) e.replaceChildren(...build(state).filter(Boolean).map(c => typeof c === 'string' ? document.createTextNode(c) : c));
   }
   /** a settings value changed: game.settings checks, saves and applies it, and tells the game */
-  _set(key, v) { return this.game.settings.set(key, v); }
+  _set(key, v) { return this._game.settings.set(key, v); }
   /** one settings row: its label (and help), and a control for its type: a switch, a slider with its value, a choice
    *  that turns with left and right, full screen (with why not, where it can't) */
   _row(key) {
-    const S = this.game.settings, sp = S.spec(key); if (!sp) return null;
-    const row = this._el('div', 'esh-row'), lab = this._el('span', '', sp.label || actionName(key)), fs = this.game.fullscreen;
+    const S = this._game.settings, sp = S.spec(key); if (!sp) return null;
+    const row = this._el('div', 'esh-row'), lab = this._el('span', '', sp.label || actionName(key)), fs = this._game.fullscreen;
     row.appendChild(lab);
     const help = t => { if (t) lab.appendChild(this._el('small', '', t)); };
     if (sp.type === 'fullscreen') {
@@ -7750,11 +7745,11 @@ class Shell {
   }
   /** the settings screen's rows: Display, Sound and Comfort, then the game's own (standard: false, the game's items only) */
   _settingsRows(add) {
-    const S = this.game.settings, own = this._items().map(i => i.key);
+    const S = this._game.settings, own = this._items().map(i => i.key);
     if (!this._std) { for (const k of own) add(this._row(k)); return; }
     const groups = SHELL_GROUPS.concat([...new Set(S.keys().map(k => S.spec(k).group))].filter(g => !SHELL_GROUPS.includes(g) && !['Controls', 'Controller', 'Touch'].includes(g)));
     for (const g of groups) {
-      const keys = S.keys(g).filter(k => (k !== 'scale' || this.game.screen.fixedRes()) && (k !== 'fullscreen' || this.game.o.fullscreen !== false) && (k !== 'zoom' || !this.game._zoomStd() || this.game._zooms()) && S.spec(k).type !== 'value');
+      const keys = S.keys(g).filter(k => (k !== 'scale' || this._game.screen._fixedRes()) && (k !== 'fullscreen' || this._game.o.fullscreen !== false) && (k !== 'zoom' || !this._game._zoomStd() || this._game._zooms()) && S.spec(k).type !== 'value');
       if (!keys.length) continue;
       add(this._el('div', 'esh-k esh-sec', g)); for (const k of keys) add(this._row(k));
     }
@@ -7762,9 +7757,9 @@ class Shell {
   /** the controls screen: each action's keys and buttons (press a new one to rebind), the controller's and the touch
    *  buttons' settings */
   _controls(add) {
-    const I = this.game.input, names = I.names || {}, st = this._el('div', 'esh-status', this._status || ''); st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite');
+    const I = this._game.input, names = I.names || {}, st = this._el('div', 'esh-status', this._status || ''); st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite');
     add(this._el('p', 'esh-m', 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.'), st);
-    const S = this.game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = I._touchArgs && (coarse || I._touched || S.touch === 'on');
+    const S = this._game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = I._touchArgs && (coarse || I._touched || S.touch === 'on');
     const touchRows = () => { add(this._el('div', 'esh-k esh-sec', 'Touch')); for (const k of S.keys('Touch')) add(this._row(k)); }, first = touch && I.lastDevice === 'touch';
     if (first) touchRows();   // (a phone in hand: its buttons first)
     const grid = this._el('div', 'esh-bind'); grid.append(this._el('span'), this._el('small', '', 'Keyboard'), this._el('small', '', 'Controller'));
@@ -7784,32 +7779,32 @@ class Shell {
     if (touch && !first) touchRows();
   }
   _capStart(a, device, name) {
-    this._cap = { a, device, name, prev: this.game.input.padPrev.slice() };
+    this._cap = { a, device, name, prev: this._game.input.padPrev.slice() };
     this._status = device === 'pad' ? 'Press a controller button for ' + name + ' (Start cancels).' : 'Press a key or mouse button for ' + name + ' (Escape cancels).';
     this._render();
   }
   _capBind(code) {
     const c = this._cap; if (!c) return;
-    const I = this.game.input, r = I.rebind(c.a, c.device, code), names = I.names || {}, nm = a => typeof names[a] === 'string' ? names[a] : actionName(a);
+    const I = this._game.input, r = I.rebind(c.a, c.device, code), names = I.names || {}, nm = a => typeof names[a] === 'string' ? names[a] : actionName(a);
     if (r === 'reserved') { this._status = I.codeLabel(code) + ' is kept for the menus. Choose another, or press Escape.'; this._render(); return; }
     if (r) { this._status = I.codeLabel(code) + ' is already ' + nm(r) + '. Rebind ' + nm(r) + ' first, or choose another.'; this._render(); return; }
     this._capEnd(nm(c.a) + ': ' + I.codeLabel(code) + '. Saved.');
   }
   /** stop listening for a new binding (msg: what the status line says) */
-  _capEnd(msg) { if (!this._cap) { if (msg !== undefined) this._status = msg; return; } this._cap = null; this._status = msg || ''; this.game.input.clear(); this._render(); }
+  _capEnd(msg) { if (!this._cap) { if (msg !== undefined) this._status = msg; return; } this._cap = null; this._status = msg || ''; this._game.input.clear(); this._render(); }
   /** a button: [label, fn] or { label, fn, act, primary, disabled } */
   _btn(a, i, pri = true) {
     const b = Array.isArray(a) ? { label: a[0], fn: a[1] } : a, e = this._el('button', b.primary || (b.primary === undefined && i === 0 && pri) ? 'pri' : '', b.label);
     e.disabled = !!b.disabled;
-    e.onclick = () => { if (b.fn) b.fn(); else if (b.act) { this.game.input.tap(b.act); this._held.add(b.act); } };
+    e.onclick = () => { if (b.fn) b.fn(); else if (b.act) { this._game.input.tap(b.act); this._held.add(b.act); } };
     return e;
   }
   /** build the open screen */
   _render() {
     if (!this.root) return;
-    const scr = this.els.scr, top = this._stack[this._stack.length - 1];
+    const scr = this._els.scr, top = this._stack[this._stack.length - 1];
     if (!top) { scr.replaceChildren(); return; }
-    for (const k of ['hb', 'obj', 'vit', 'place', 'tip', 'pr', 'keys', 'mini']) { this.els[k].hidden = true; this._last[k] = null; }   // the HUD hides under a screen (a paused game calls no hud())
+    for (const k of ['hb', 'obj', 'vit', 'place', 'tip', 'pr', 'keys', 'mini']) { this._els[k].hidden = true; this._last[k] = null; }   // the HUD hides under a screen (a paused game calls no hud())
     const { name, s } = top, v = x => typeof x === 'function' ? x() : x, title = name === 'title';
     const sh = this._el('div', 'esh-sh' + (title ? ' esh-ttl' : '')), box = this._el('div', title ? '' : 'esh-pan esh-mod' + (name === 'map' ? ' esh-wide' : ''));
     sh.appendChild(box); sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-label', v(s.title || s.name) || name);
@@ -7828,10 +7823,10 @@ class Shell {
       const cv = this._el('canvas', 'esh-map'); cv.width = 720; cv.height = Math.round(720 * s.map.h / s.map.w); this._map(cv, s, true); add(cv);
       if (s.onPick) cv.onclick = e => { const b = cv.getBoundingClientRect(), t = cv._xf, x = ((e.clientX - b.left) * cv.width / b.width - t.ox) / t.k, y = ((e.clientY - b.top) * cv.height / b.height - t.oy) / t.k; s.onPick(x, y); this._map(cv, s, true); };
     }
-    const acts = (name === 'pause' ? [['Resume', () => this.hide()]] : []).concat(v(s.actions) || [], name === 'pause' && this._std && v(this.game.o.menu && this.game.o.menu.items) || []).filter(Boolean);
+    const acts = (name === 'pause' ? [['Resume', () => this.hide()]] : []).concat(v(s.actions) || [], name === 'pause' && this._std && v(this._game.o.menu && this._game.o.menu.items) || []).filter(Boolean);
     if (name === 'pause') this._pauseActs(acts);
-    if (name === 'settings' && this._std) acts.push(['Controls', () => this.show('controls')], ['Restore defaults', () => { for (const g of SHELL_GROUPS.concat('Game')) this.game.settings.reset(g); this.show('settings'); }]);
-    if (name === 'controls') acts.push(['Restore defaults', () => { this.game.input.resetBindings(); this.game.settings.reset('Controller'); this.game.settings.reset('Touch'); this._status = 'Every control is back to its default.'; this.show('controls'); }]);
+    if (name === 'settings' && this._std) acts.push(['Controls', () => this.show('controls')], ['Restore defaults', () => { for (const g of SHELL_GROUPS.concat('Game')) this._game.settings.reset(g); this.show('settings'); }]);
+    if (name === 'controls') acts.push(['Restore defaults', () => { this._game.input.resetBindings(); this._game.settings.reset('Controller'); this._game.settings.reset('Touch'); this._status = 'Every control is back to its default.'; this.show('controls'); }]);
     if (!acts.length && !title || name === 'settings' || name === 'controls') acts.push(['Back', () => this.back()]);
     const btns = this._el('div', 'esh-btns'), lists = name === 'settings' || name === 'controls'; acts.forEach((a, i) => btns.appendChild(this._btn(a, i, !lists))); add(btns);
     if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
@@ -7843,14 +7838,14 @@ class Shell {
     if (!title) nav.push(this._navBtn('x', 'Close', 'M6 6l12 12M18 6L6 18', () => this._close()));
     if (this._stack.length > 1) nav.push(this._navBtn('bk', 'Back', 'M15 5l-7 7 7 7', () => this.back()));
     this._swipe(sh, box, title);
-    this.els.scr.replaceChildren(sh, ...nav);
+    this._els.scr.replaceChildren(sh, ...nav);
     const all = this._focusables(), f = all[keep] || (name === 'settings' || name === 'controls' ? null : sh.querySelector('button.pri:not(:disabled)')) || all[0];
     top.focus = undefined; if (f) { f.focus({ preventScroll: true }); if (f.scrollIntoView) f.scrollIntoView({ block: 'nearest' }); }
   }
   /** the standard pause screen's buttons after Resume and the game's own: Settings, Controls, Full screen, Help, Save
    *  session (while the page is recorded: E.session), Quit */
   _pauseActs(acts) {
-    const g = this.game, fs = g.fullscreen, M = g.o.menu || {}, quit = M.quit === false ? null : M.quit || 'title', help = this.o.screens && this.o.screens.help;
+    const g = this._game, fs = g.fullscreen, M = g.o.menu || {}, quit = M.quit === false ? null : M.quit || 'title', help = this._o.screens && this._o.screens.help;
     if (this._std || this._items().length) acts.push(['Settings', () => this.show('settings')]);
     if (!this._std) { if (help) acts.push(['Help', () => this.show('help')]); return; }
     acts.push(['Controls', () => this.show('controls')]);
@@ -7878,7 +7873,7 @@ class Shell {
       m._shellBase = { v: m.version, w: W, cv: b };
     }
     g.drawImage(m._shellBase.cv, 0, 0);
-    g.textAlign = 'center'; g.font = (large ? 12 : 7) + 'px ' + (this.o.theme && this.o.theme.font || 'sans-serif');
+    g.textAlign = 'center'; g.font = (large ? 12 : 7) + 'px ' + (this._o.theme && this._o.theme.font || 'sans-serif');
     if (large) for (const [t, x, y] of s.labels || []) { g.fillStyle = '#cbbf9e'; g.fillText(t, ...P(x, y)); }
     for (const q of (typeof s.markers === 'function' ? s.markers() : s.markers) || []) {
       const [x, y] = P(q.x, q.y), r = (q.size || (large ? 6 : 3)); g.strokeStyle = g.fillStyle = q.color || '#ffe0a0'; g.lineWidth = large ? 2 : 1; g.beginPath();
@@ -7897,12 +7892,12 @@ class Shell {
   /** each step (the game calls it after reading input): follow game.paused, time out the toast and the card, and while a
    *  screen is open, move the focus with the game's input and hold the rest of it back from the game */
   _step() {
-    const g = this.game, I = g.input, now = g.real, sc = g.scene, play = !!sc && (!!sc.pausable || g.sceneName === 'main');
+    const g = this._game, I = g.input, now = g.real, sc = g.scene, play = !!sc && (!!sc.pausable || g.sceneName === 'main');
     const pause = this._pauseSpec() && (!this._sys || (g.pauseOverlay !== false && play));   // (the engine's own menu stays out of a game that draws its own pause)
     if (pause && g.paused && !this._stack.length) this.show('pause');
     if (!g.paused && this._stack.length && (this._ownPause || (pause && this._stack.some(t => t.name === 'pause')))) { this._stack.length = 0; this._ownPause = false; this._capEnd(); this._render(); }   // resumed from code
     if (this.root) {
-      if (this._toastEnd && now > this._toastEnd) { this.els.toast.classList.remove('on'); this._toastEnd = 0; }
+      if (this._toastEnd && now > this._toastEnd) { this._els.toast.classList.remove('on'); this._toastEnd = 0; }
       if (this._tutEnd && now > this._tutEnd) this.tutorial(null);
       this.root.classList.toggle('esh-still', !!g.reduceMotion);
     }
@@ -7916,14 +7911,14 @@ class Shell {
     if (hit) { this._dir = hit; this._dirT = now + .35; this._nav(hit); }   // a press (however short), then the held direction repeats
     else if (dir !== this._dir) { this._dir = dir; this._dirT = now + .35; if (dir) this._nav(dir); }
     else if (dir && now > this._dirT) { this._dirT = now + .09; this._nav(dir); }
-    const f = document.activeElement, mine = f && this.els.scr.contains(f);
+    const f = document.activeElement, mine = f && this._els.scr.contains(f);
     if (confirm && mine && f.tagName === 'BUTTON') f.click();
     else if (cancel) this.back();
     else if (closeAll) this.hide();   // Start (or P) closes the whole menu; Escape and B go back one screen
   }
   /** binding a controller button: the first one pressed since binding began (Start cancels) */
   _capPad() {
-    const c = this._cap, I = this.game.input; if (!c || c.device !== 'pad') return;
+    const c = this._cap, I = this._game.input; if (!c || c.device !== 'pad') return;
     const i = I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
     if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i);
   }
@@ -8120,23 +8115,23 @@ class GPULighting {
      *  of the page (automated tests; read it with snapshot()) */
     Object.assign(this, { enabled: true, ready: false, failed: null, bands: 6, wrap: .45, ambient: [.07, .07, .12], spill: 1.1, glow: .22, shadows: true, map: null, onStatus: null, offscreen: false }, o);
     /** game: its game */
-    this.game = game; this._u = new Float32Array(352); this._colors = {};
+    this._game = game; this._u = new Float32Array(352); this._colors = {};
     /** cv: the canvas it draws on, laid over the game's */
-    this.cv = document.createElement('canvas');
-    this.cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;image-rendering:pixelated';
-    game.screen.canvas.insertAdjacentElement('afterend', this.cv);
+    this._cv = document.createElement('canvas');
+    this._cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;image-rendering:pixelated';
+    game.screen.canvas.insertAdjacentElement('afterend', this._cv);
     /** loading: true while it starts up */
-    this.loading = true;
+    this._loading = true;
     this._init();
   }
   /** true where the browser has WebGPU */
   static supported() { return typeof navigator !== 'undefined' && !!navigator.gpu; }
   /** 'loading' | 'on' | 'off' | 'unavailable' */
-  status() { return this.failed ? 'unavailable' : this.loading ? 'loading' : this.enabled ? 'on' : 'off'; }
+  status() { return this.failed ? 'unavailable' : this._loading ? 'loading' : this.enabled ? 'on' : 'off'; }
   /** true when it lights frames in this view (ready, enabled and a ground view) */
   active(view) { return this.ready && this.enabled && !!view.inv; }
   /** show or hide its canvas */
-  show(on) { const d = on && !this.offscreen ? 'block' : 'none'; if (this.cv.style.display !== d) this.cv.style.display = d; }
+  _show(on) { const d = on && !this.offscreen ? 'block' : 'none'; if (this._cv.style.display !== d) this._cv.style.display = d; }
   /** offscreen mode only: read the last frame back as a PNG data URL */
   async snapshot() {
     const t = this._outT; if (!t) return null;
@@ -8150,7 +8145,7 @@ class GPULighting {
     return c.toDataURL('image/png');
   }
   /** give up on the GPU (an error): the canvas lighting takes over */
-  fail(e) { this.failed = (e && e.message) || String(e); this.ready = false; this.loading = false; this.show(false); if (this.onStatus) this.onStatus(this); console.warn('my-3D2dge GPU lighting disabled:', this.failed); }
+  _fail(e) { this.failed = (e && e.message) || String(e); this.ready = false; this._loading = false; this._show(false); if (this.onStatus) this.onStatus(this); console.warn('my-3D2dge GPU lighting disabled:', this.failed); }
   async _init() {
     try {
       if (!navigator.gpu) throw new Error('WebGPU is not available in this browser');
@@ -8159,10 +8154,10 @@ class GPULighting {
       /** adapterInfo: the GPU's description from the browser (vendor, architecture), or null */
       this._adapter = ad; this.adapterInfo = ad.info || null;
       const dev = await ad.requestDevice(); this._dev = dev;
-      dev.lost.then(i => { if (!this.failed) this.fail(new Error('GPU device lost: ' + i.message)); });
-      dev.addEventListener('uncapturederror', ev => this.fail(ev.error));
+      dev.lost.then(i => { if (!this.failed) this._fail(new Error('GPU device lost: ' + i.message)); });
+      dev.addEventListener('uncapturederror', ev => this._fail(ev.error));
       if (this.offscreen) this._fmt = 'rgba8unorm';
-      else { this._gctx = this.cv.getContext('webgpu'); this._fmt = navigator.gpu.getPreferredCanvasFormat(); this._gctx.configure({ device: dev, format: this._fmt, alphaMode: 'opaque' }); }
+      else { this._gctx = this._cv.getContext('webgpu'); this._fmt = navigator.gpu.getPreferredCanvasFormat(); this._gctx.configure({ device: dev, format: this._fmt, alphaMode: 'opaque' }); }
       this._ubuf = dev.createBuffer({ size: this._u.byteLength, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
       dev.pushErrorScope('validation');
       const m1 = dev.createShaderModule({ code: WGSL_COMMON + WGSL_LIGHT }), m2 = dev.createShaderModule({ code: WGSL_COMMON + WGSL_FINAL });
@@ -8172,19 +8167,19 @@ class GPULighting {
       const err = await dev.popErrorScope(); if (err) throw new Error(err.message);
       this.ready = true;
     } catch (e) { this.failed = e.message || String(e); console.warn('my-3D2dge GPU lighting unavailable:', this.failed); }
-    this.loading = false;
+    this._loading = false;
     if (this.onStatus) this.onStatus(this);
   }
   _tex(w, h, format, usage) { return this._dev.createTexture({ size: [w, h], format, usage }); }
   _ensure(bw, bh, hmW, hmH) {
     const U = GPUTextureUsage;
-    if (this.bw !== bw || this.bh !== bh) {
+    if (this._bw !== bw || this._bh !== bh) {
       for (const t of [this._albedoT, this._infoT, this._ovT, this._litT]) if (t) t.destroy();
       const up = U.TEXTURE_BINDING | U.COPY_DST | U.RENDER_ATTACHMENT;
       this._albedoT = this._tex(bw, bh, 'rgba8unorm', up); this._infoT = this._tex(bw, bh, 'rgba8unorm', up); this._ovT = this._tex(bw, bh, 'rgba8unorm', up);
       this._litT = this._tex(bw, bh, 'rgba8unorm', U.TEXTURE_BINDING | U.RENDER_ATTACHMENT);
       /** bw, bh: the size of the buffer it lights */
-      this.bw = bw; this.bh = bh; this._bgL = null;
+      this._bw = bw; this._bh = bh; this._bgL = null;
     }
     if (this._hmW !== hmW || this._hmH !== hmH) {
       if (this._hmT) this._hmT.destroy();
@@ -8210,7 +8205,7 @@ class GPULighting {
       this._hmKey = key;
     }
     const d = this._hmData; d.set(this._hmStatic);
-    for (const c of this.game.lights.casters) {
+    for (const c of this._game.lights._casters) {
       const v = Math.min(255, Math.round(c.top * 3)), r2 = c.r * c.r;
       const x0 = Math.max(0, Math.floor(c.x - c.r)), x1 = Math.min(W - 1, Math.ceil(c.x + c.r)), y0 = Math.max(0, Math.floor(c.y - c.r)), y1 = Math.min(H - 1, Math.ceil(c.y + c.r));
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const dx = x + .5 - c.x, dy = y + .5 - c.y; if (dx * dx + dy * dy <= r2) { const k = y * W + x; if (d[k] < v) d[k] = v; } }
@@ -8223,11 +8218,11 @@ class GPULighting {
     return this._colors[c] || (this._colors[c] = hex(c).map(v => v / 255));
   }
   /** light and present the frame (the renderer calls it when active) */
-  render(r) {
+  _render(r) {
     // never queue more than two frames: a slow GPU drops frames instead of building up lag
     if ((this._inflight || 0) >= 2) { this.skipped = (this.skipped || 0) + 1; return; }
-    const game = this.game, sc = game.screen, view = r.view, dev = this._dev, bw = r.bw, bh = r.bh, m = this.map;
-    if (this.cv.width !== sc.canvas.width || this.cv.height !== sc.canvas.height) { this.cv.width = sc.canvas.width; this.cv.height = sc.canvas.height; }
+    const game = this._game, sc = game.screen, view = r.view, dev = this._dev, bw = r.bw, bh = r.bh, m = this.map;
+    if (this._cv.width !== sc.canvas.width || this._cv.height !== sc.canvas.height) { this._cv.width = sc.canvas.width; this._cv.height = sc.canvas.height; }
     this._ensure(bw, bh, m ? m.w * m.T : 1, m ? m.h * m.T : 1);
     this._heightmap(view);
     dev.queue.copyExternalImageToTexture({ source: sc.buf }, { texture: this._albedoT }, [bw, bh]);
@@ -8244,7 +8239,7 @@ class GPULighting {
       u[b] = l.x; u[b + 1] = l.y; u[b + 2] = l.z; u[b + 3] = l.r; u[b + 4] = c[0]; u[b + 5] = c[1]; u[b + 6] = c[2]; u[b + 7] = l.shadow ? l.i : -l.i; n++;
     }
     let nh = 0;
-    for (const h of game.lights.heats) { if (nh >= 8) break; const [x, y] = r.w(h.x, h.y, h.z), b = 320 + nh * 4; u[b] = x; u[b + 1] = y; u[b + 2] = h.w * sc_; u[b + 3] = h.s; nh++; }
+    for (const h of game.lights._heats) { if (nh >= 8) break; const [x, y] = r.w(h.x, h.y, h.z), b = 320 + nh * 4; u[b] = x; u[b + 1] = y; u[b + 2] = h.w * sc_; u[b + 3] = h.s; nh++; }
     u.set([view.ax, view.ay, view.bx, view.by], 0);
     u.set([view.bz, inv[0], inv[1], inv[2]], 4);
     u.set([inv[3], sc_, r.ix, r.iy], 8);
@@ -8264,7 +8259,7 @@ class GPULighting {
     pass.setPipeline(this._pLight); pass.setBindGroup(0, this._bgL); pass.draw(3); pass.end();
     let target;
     if (this.offscreen) {
-      const w = this.cv.width, h = this.cv.height;
+      const w = this._cv.width, h = this._cv.height;
       if (!this._outT || this._outT.width !== w || this._outT.height !== h) { if (this._outT) this._outT.destroy(); this._outT = this._tex(w, h, 'rgba8unorm', GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC); }
       target = this._outT.createView();
     } else target = this._gctx.getCurrentTexture().createView();
@@ -8272,11 +8267,10 @@ class GPULighting {
     pass.setPipeline(this._pFinal); pass.setBindGroup(0, this._bgF); pass.draw(3); pass.end();
     dev.queue.submit([enc.finish()]);
     /** frames: frames it has lit */
-    this._inflight = (this._inflight || 0) + 1; this.frames = (this.frames || 0) + 1;
+    this._inflight = (this._inflight || 0) + 1; this._frames = (this._frames || 0) + 1;
     dev.queue.onSubmittedWorkDone().then(() => { this._inflight--; });
   }
 }
-E.GPULighting = GPULighting;
 
 /* =============================================================================
  * 23. SESSIONS  record a play session on any device, replay it exactly in a headless browser

@@ -650,3 +650,39 @@ An entry:
   more than they save.
 - **Answered:** yes: the owner approved the plan (D38)
 - **Landed in:** v0.42.2
+
+## D40 · 2026-10-15 · Machinery names leave the API
+
+- **Principle:** 8 (quality under the hood: what games don't use stays behind the API) and 1 (the index lists what a
+  builder can use)
+- **Call:** 60 names of `docs/HANDOFF-API-INDEX.md`'s appendix B leave the API, in both editions.
+  - 51 members are private (a leading `_`, every use inside the engines renamed):
+    - what the engine calls itself (`game.screen._begin`, `r._finish`, `game.gpu._render`, ...);
+    - inner state, caches and back references (`r._items`, `game.gpu._cv`, `shots._game`, `rig._mv`, `talk._page`, ...).
+  - The constructors only the game makes leave `E`: `E.Screen`, `E.Renderer`, `E.Lighting`, `E.Audio`, `E.FullScreen`,
+    `E.Settings` and `E.GPULighting` (with its `supported`). `E.faceClass` is a local of the engine.
+  - Their instances stay public: `game.screen`, `r`, `game.lights`, `game.audio`, `game.fullscreen`, `game.settings`,
+    `game.gpu`. The index lists their members under the instances' names.
+- **The rule:** a name goes private when nothing outside the engine uses it through the receiver games give it, and
+  either the engine calls it or it is inner state. The 3D engine is inside the engine: it may use private names.
+- **Kept public, against the plan's list:** eight of its 68 stay public.
+  - Six are used outside the engine. Temporary traps found them: a getter under each old name that threw, run through
+    every suite. They are read through aliases the plan's receiver-by-receiver check couldn't see:
+    - `game.screen.fx` and `fy`: the Emberdeep suites and `tools/ed-play.mjs` read them as `sc.fx` to turn a buffer pixel
+      into a click;
+    - `game.lights.list`: Emberdeep's `L.list` and the stress test;
+    - `game.particles.draw` and `update`: the stress test and the stress world wrap them;
+    - `action.start`: the contract suite's own action reads `A.start`.
+  - Two are kept as a reversible call, in their own commit: `action.o` and `action.beats`. With `start`, they are what
+    a game's own action needs (`E.ACTIONS.name = { setup(A), at(A, beat, u) }`): its options, and its beats, which a
+    setup may change (the aerial takedown does). `E.ACTIONS`' line now says so.
+  - The traps were run again on the 60 left: nothing outside the engine read one.
+- **Why:** the index lists what a builder can use. 60 lines that no game needs cost 1,540 tokens, and each was a name
+  an agent might take for API. A revert restores the names, and no game in the repository needs a change either way.
+  What would change it: a game that needs one of them (then make that one public again, with a doc comment).
+- **Cost outside the repository:** a game built from the handoff before v0.43.0 that reads one of the 60 gets
+  `undefined` when it takes the new engine, with no error to point at it. The handoff is five days old, and the
+  benchmark's games aren't kept, so how many such games exist can't be checked.
+- **Answered:** yes: the owner approved Phase 3 (D38, decision 2). The eight kept public were made at once, flagged in
+  the pull request: six by the plan's own rule, two as a reversible call in their own commit.
+- **Landed in:** v0.43.0

@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.42.3)
+# my-3D2dge API index (v0.43.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,31 +51,31 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 80 The engine object (E = My3D2dge)
 - 91 Math
 - 148 Pixel primitives
-- 168 Views (projections); E.View: view
-- 195 Screen; E.Screen: game.screen
-- 222 Input; E.Input: input
-- 297 Pixel font
-- 308 Lighting; E.Lighting: game.lights
-- 327 Particles; E.Particles: game.particles
-- 348 Renderer; E.Renderer: r
-- 399 Game; E.Game: game
-- 508 Standard features; E.FullScreen: fullscreen, E.Settings: settings
-- 530 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 607 Blob rig; E.Blob: blob
-- 627 Tile map; E.TileMap: map
-- 683 Materials
-- 704 Flow field; E.FlowField: flow
-- 722 Texture helpers for floortex functions
-- 733 Platform map; E.PlatformMap: level, E.Platformer: hero
-- 795 Body; E.Body: body
-- 815 Actions; E.Action: action, E.Mover: mover, E.Suspicion: suspicion
-- 877 Bullets; E.Bullets: shots
-- 898 Spatial hash; E.SpatialHash: grid
-- 909 Audio; E.Audio: game.audio
-- 933 Backdrops; E.Backdrop: backdrop
-- 953 Ui; E.Dialog: talk, E.Menu: menu, E.Shell: shell
-- 1039 Gpu lighting (webgpu); E.GPULighting: game.gpu
-- 1069 Sessions
+- 167 Views (projections); E.View: view
+- 194 Screen; game.screen
+- 215 Input; E.Input: input
+- 287 Pixel font
+- 298 Lighting; game.lights
+- 312 Particles; E.Particles: game.particles
+- 332 Renderer; r
+- 375 Game; E.Game: game
+- 484 Standard features; settings, fullscreen
+- 503 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 574 Blob rig; E.Blob: blob
+- 594 Tile map; E.TileMap: map
+- 650 Materials
+- 671 Flow field; E.FlowField: flow
+- 689 Texture helpers for floortex functions
+- 700 Platform map; E.PlatformMap: level, E.Platformer: hero
+- 762 Body; E.Body: body
+- 782 Actions; E.Action: action, E.Mover: mover, E.Suspicion: suspicion
+- 842 Bullets; E.Bullets: shots
+- 862 Spatial hash; E.SpatialHash: grid
+- 872 Audio; game.audio
+- 893 Backdrops; E.Backdrop: backdrop
+- 912 Ui; E.Dialog: talk, E.Menu: menu, E.Shell: shell
+- 992 Gpu lighting (webgpu); game.gpu
+- 1012 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -84,7 +84,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.42.3"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.43.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -147,7 +147,6 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 2. Pixel primitives
 
-- `E.faceClass(nx, ny)` †: GPU surface class for a vertical face normal: 5 +x, 6 -x, 7 +y, 8 -y
 - `E.px`: the pixel primitives: px.rect, px.line, px.dot, px.disc, px.poly, px.sprite, ... (each snaps to whole pixels)
 - `E.px.blend(g, a, mode, fn)`: draw fn() at alpha a (stepped, like PS1 hardware) with a blend mode: 'normal', 'add', 'multiply', 'screen' (E.style.trans = 'dither' dithers instead)
 - `E.px.col(g, c)`: set the fill color (px.* do it themselves)
@@ -195,13 +194,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 ## 4. Screen
 
 - `E.RES: nes, snes, gb, gbc, gba, genesis, md, pce, n64, ps1, wide`: classic console resolutions for new Game({ res: 'snes' }) (width x height in pixels)
-- `new E.Screen(canvas, o, signal) → game.screen` †: the game's low-resolution screen (game.screen: the game makes it): its buffer, scale and letterbox. canvas null: a headless game's, sized as a 1280 x 720 window would size it, with nothing to draw on
-- `game.screen.begin(cx, cy, bg)`: start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it)
 - `game.screen.clear` †: true when the game's bg is null (or 'transparent'): the buffer and the canvas are cleared instead of filled, so a picture under the canvas shows through the game's (a 3D world drawn by engine/my-3d2dge-3d.js)
 - `game.screen.clientToScreen(cx, cy)`: browser client coords -> projected screen pixels (same space as view.p)
-- `game.screen.fixedRes(o = this.o)`: fixed internal size from o.res ('snes', [256, 224], ...) or null for the adaptive size
-- `game.screen.options(pw, ph)`: the sizing options in force: the game's, with o.portrait's over them while the screen is taller than wide (a phone held upright). new Game({ maxH: 330, portrait: { maxH: 1000 } }) lets the picture grow to fill a 9:16 screen
-- `game.screen.present()`: copy the buffer to the canvas, scaled up with whole pixels and the camera's sub-pixel offset (the renderer calls it)
 - `game.screen.resize()`: fit the buffer to the canvas again (on window resize; after changing sizing options, setOptions does it)
 - `game.screen.setOptions(o)`: change sizing at runtime, e.g. { minH: 400, maxW: 1080, maxH: 660 } to pull the camera back
 - `game.screen.setScale(v)`: how a fixed resolution fills the screen: 'sharp' | 'fill' | 'auto' (see scale)
@@ -209,13 +203,12 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.screen.OX = 0`, `game.screen.OY = 0`: the letterbox margins on the canvas, in canvas pixels
 - `game.screen.S = 3`: the whole-number scale up to the canvas
 - `game.screen.buf`: the low-resolution buffer the game draws into (W + 2 by H + 2 pixels; null when headless)
-- `game.screen.canvas`: the page's canvas (null in a headless game)
+- `game.screen.canvas`: the page's canvas (null in a headless game); o: the sizing options (the game's o)
 - `game.screen.ctx`: its 2D context (r.ctx is the same)
 - `game.screen.dpr = 1`: the device pixel ratio used (at most 3)
 - `game.screen.fx = 0`, `game.screen.fy = 0`: its sub-pixel part (0..1, applied when presenting)
 - `game.screen.ix = 0`, `game.screen.iy = 0`: the camera's whole-pixel offset this frame
 - `game.screen.listeners = []` †: functions called after every resize
-- `game.screen.o`: the sizing options (the game's o)
 - `game.screen.portrait`: true while the screen is taller than wide (a phone held upright)
 - `game.screen.scale = 'auto'`: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black bars unless o.expand grows the picture into them), 'fill' (the largest fit, pixels a device pixel apart in size) or 'auto' (fill on high-density screens, phones and tablets, where that difference can't be seen; sharp elsewhere). game.settings.scale sets it
 
@@ -265,7 +258,6 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it
 - `input.zoom()` †: the camera zoom the player asked for since the last step, as a factor (1.1: 10% closer, .9: farther; 1: none): the wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy)
 - `input.aimSource = 'move'` †: what aims right now: 'move' | 'mouse' | 'pad'
-- `input.clickAt = null` †: where a click or tap on the canvas landed, in screen pixels [x, y], for the one step after it (clicked())
 - `input.clock = 0`: seconds of input time (the steps' dt added up)
 - `input.deadzone = .18`: how far a gamepad stick moves before it counts (0..0.8)
 - `input.glyphs = 'auto'`: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' | 'nintendo' | 'generic' (positions)
@@ -273,15 +265,13 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.lastDevice = 'keyboard'`: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the right button prompts)
 - `input.map`: each action's codes ({ jump: ['Space', 'Pad0', 'Act:jump'] }); every action also answers to 'Act:<name>' (DOM buttons with data-act, tap, hold)
 - `input.mouse`: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last moved
-- `input.names = null` †: the actions' names on the Controls screen ({ attack: 'Sword' }; false hides one from rebinding: the game's menu.controls)
-- `input.onBindings = null` †: called with the player's new bindings (the game saves and applies them)
+- `input.names = null` †: the actions' names on the Controls screen ({ attack: 'Sword' }; false hides one from rebinding: the game's menu.controls); onBindings(b): called with the player's new bindings (the game saves and applies them)
 - `input.padAim = null` †: its right stick, or null when centered
 - `input.padAxes = []` †: the gamepad's raw axes
 - `input.padId = ''`, `input.padIndex = null`: the gamepad in use (null and '' without one)
 - `input.padLost = false`: true for the step after the gamepad in use was unplugged (a pausable scene pauses)
 - `input.padMove = [0, 0]`: the gamepad's left stick after the dead zone
 - `input.padPrev = []`: which gamepad buttons were down at the last step
-- `input.pinching = false` †: two fingers on the canvas are pinching the camera's zoom (they moved apart or together: not the stick, not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no action uses) and a pinch ask for it, read by zoom()
 - `input.preset` †: the layout last given to use() (E.Input.DEFAULT, PLATFORMER, SHMUP or your own)
 - `input.rumbleScale = .6` †: vibration strength 0..1 (0 = off; game.settings.rumble sets it)
 - `input.screen`: the game's screen (mouse positions are read through it)
@@ -307,26 +297,21 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 7. Lighting
 
-- `new E.Lighting(game) → game.lights` †: game.lights (made by the game): canvas lighting, darkness over the frame with lights cut out of it; turn it on with game.lights.enabled = true and add lights each frame with game.lights.add(x, y, z, radius, intensity, o)
 - `game.lights.add(x, y, z, radius, intensity = 1, o)` †: radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true }
 - `game.lights.caster(x, y, r, top)` †: something that blocks light (GPU shadows): a cylinder of radius r from the floor up to height top
-- `game.lights.clear()` †: forget this frame's lights, casters and heat (the renderer does it every frame: add lights in draw)
 - `game.lights.heat(x, y, z, width, strength = 1)` †: heat shimmer above a point (GPU only). width in world units, strength ~0.5..1.5
 - `game.lights.render(r)` †: darken the frame by the lights (the renderer calls it after the queue, when enabled)
 - `game.lights.ambient = .15` †: how lit unlit places are, 0 (black) .. 1
-- `game.lights.casters = []` †: this frame's shadow casters from caster()
 - `game.lights.dark = [10, 6, 24]` †: the color of darkness, [r, g, b]
 - `game.lights.enabled = false` †: false (the default) turns the canvas lighting off
-- `game.lights.game` †: the game it lights
 - `game.lights.glow = [255, 200, 140, 0]` †: the color, [r, g, b, a], where light is brightest
 - `game.lights.glowAt = 1.7` †: the light level (1 = fully lit) above which it glows
-- `game.lights.heats = []` †: this frame's heat shimmers from heat()
 - `game.lights.levels = [.9, .7, .48, .26, .08, 0]` †: the darkness of each lighting band, darkest first (dithered between them)
 - `game.lights.list = []` †: this frame's lights from add()
 
 ## 8. Particles
 
-- `new E.Particles(game) → game.particles` †: game.particles
+- `new E.Particles(game) → game.particles` †: game.particles; game: its game
 - `game.particles.add(p)`: add one particle { x, y, z, vx, vy, vz, life, max (seconds), g (gravity, > 0 pulls down), drag, bounce (0..1), kind: 'dust' | 'spark' | 'bit' | 'ember' | 'ring' | 'text', color, size }; returns it, or null when full
 - `game.particles.bits(x, y, z, n, colors)`: n pieces of debris that fly, fall and bounce (colors: a list to pick from)
 - `game.particles.draw(r)`: queue them for drawing (the renderer calls it)
@@ -340,14 +325,12 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.particles.sparks(x, y, z, n, dir = null, o = {})`: n bright sparks thrown from (x, y, z), every way or around angle dir (radians). o: { color, speed }
 - `game.particles.text(x, y, z, text, color = '#fff2c4', o = {})`: floating number or word: text(x, y, z, '12', color, { scale: 2, bounce: true }) (bounce: lands and holds, Final Fantasy style)
 - `game.particles.update(dt)`: move and age them by dt (the engine calls it every step)
-- `game.particles.game`: its game
 - `game.particles.ground = null` †: null (the floor is z 0), or (x, y, z) -> the floor's height under a particle (a side-scroller's platforms, a 3D level: engine/my-3d2dge-3d.js sets it), asked again when a particle enters a new 8-unit cell
 - `game.particles.list = []`: the live particles
 - `game.particles.max = 900`: at most this many at once (add() skips the rest)
 
 ## 9. Renderer
 
-- `new E.Renderer(game) → r` †: the r handed to draw(r), made by the game
 - `r.H`: the screen's height in game pixels
 - `r.W`: the screen's width in game pixels
 - `r.actor(x, y, z, drawFn, o = {})`: Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected position of world point (x, y, z). The engine adds outline, rim light, hit flash, afterimages and x-ray silhouettes. opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key}
@@ -355,14 +338,11 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.actor({ hides })`: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
 - `r.actor({ ghost })`: ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
 - `r.actor({ every, key })`: every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray or GPU lighting
-- `r.begin(cx, cy)`: start a frame with the camera at (cx, cy) projected pixels (the game calls it before your draw)
 - `r.bh`: the buffer's height (H + 2)
 - `r.box(g, x0, y0, z0, x1, y1, z1, top, side)`: extruded box prop (crate, pedestal, table). Call inside a queue fn with its g.
 - `r.bw`: the buffer's width (W + 2: a pixel of margin each side for the sub-pixel camera)
 - `r.ctx`: the low-resolution buffer's 2D context: draw on it with E.px
 - `r.decal(fn, o)`: draw on the floor before the queue. opts.emissive (0..1) makes it glow under GPU lighting
-- `r.finish()`: end the frame: particles, decals, the queue, lighting, overlays, then present (the game calls it after your draw)
-- `r.flush()` †: sort the queue by depth and draw it (finish() calls it)
 - `r.glowDisc(g, cx, cy, rad, color, a)`: glow halo from a cache: additive light rings (alpha style) or a dithered disc (dither style). a = 0..1 strength
 - `r.groundArc(x, y, r0, r1, a0, a1, color, alpha = 1, z = 0, g = this.tgt)`: a band of a ring on the ground from radius r0 to r1 and angle a0 to a1 (radians): melee telegraphs, sight cones
 - `r.groundDisc(x, y, rad, color, alpha = 1, z = 0)`: a dithered disc lying on the ground (radius in world units, z its height): shadows, auras, area attacks
@@ -384,12 +364,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.view`: the view this frame is drawn in (the game's, with zoom and turn)
 - `r.visible(x, y, z = 0, mx = 60, up = 30, down = 90)`: is a world point near the visible area? margins in pixels (characters extend upward from their feet)
 - `r.w(x, y, z = 0)`: world -> buffer pixel coords
-- `r.bb`: track what each actor actually draws, so outlines, tints and rim light only touch that rectangle
-- `r.checker` †: a 2 x 2 checkerboard canvas (a pattern for x-ray and dithered fills)
-- `r.game`: its game
-- `r.ghosts = []` †: the afterimages fading out (actor option ghost)
+- `r.game`: its game; items: this frame's queue (sorted by depth when the frame ends)
 - `r.gpu = false` †: true during a frame drawn with GPU lighting (draw code can check r.gpu)
-- `r.items = []`: this frame's queue (sorted by depth when the frame ends)
 - `r.ix`, `r.iy`: the camera's whole-pixel offset this frame (a world point is at r.w(x, y, z) on the buffer)
 - `r.outline = '#140c1c'`: the color of the 1-pixel outline round every actor
 - `r.rim = '#ffe2b8'` †: the rim light's color on actors' lit edges
@@ -507,16 +483,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 10b. Standard features
 
-- `new E.FullScreen(game) → fullscreen`: game.fullscreen: the whole page full screen (the game, its menus and buttons), where the browser can
-- `fullscreen.enter(quiet)`: go full screen. Browsers allow it only from a tap, click or key press: call it from one (a button, the menu, a key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen, unless quiet)
-- `fullscreen.exit()`: leave full screen (Escape and the phone's back gesture do it too)
-- `fullscreen.on`: true while the page is full screen
-- `fullscreen.standalone`: true when the page was opened from a home screen as an app (no browser bars: nothing to go full screen from)
-- `fullscreen.supported`: true where this page can go full screen (not an iPhone, which has Add to Home Screen instead; not a frame without permission; not headless)
-- `fullscreen.toggle()`: full screen on or off, as the player asked (the corner's button, the menu): their choice is kept in settings.fullscreen, so a game starting on a phone goes full screen by itself only while they haven't turned it off
-- `fullscreen.failed = null`: why the last request was refused (a message), or null
-- `fullscreen.game`: the game it serves
-- `new E.Settings(game, own = []) → settings`: game.settings: the player's choices, one property each (game.settings.volume), with the game's own (o.menu.settings) beside the standard ones (STANDARD_SETTINGS). Saved with E.store under 'settings:' + the game's id, with a version; on load every value is checked and a bad one falls back to its default. Where storage is blocked the game plays on with the defaults (saved: false)
+- `E.bootSplash(title = '')`: the boot screen's markup, for the very start of a page's <body>: it shows from the first paint, its bar moving while the page's scripts load (a pure CSS animation), and says so if the game's script never runs. The engine takes it over
+- `E.diagnose(game = E.current)`: the report a bug needs, at any time (and on the boot screen when a game can't start): { engine, game, time, page, browser, device, screen, canvas, gpu, sound, storage, input, scene, errors, text (all of it, one line each, for a screenshot or a bug report), short (one line) }. game: the game to report on (E.current)
 - `settings.default(key)`: a setting's default value
 - `settings.define(sp)`: add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value, label]] or [value], help, group: 'Game', apply(game, value) }. Its saved value is loaded (when it is a valid one) and applied; it shows on the settings screen. Returns its value
 - `settings.keys(group)`: the keys of a group's settings, in order ('Display', 'Sound', 'Comfort', 'Controller', 'Touch', 'Game'), or every key
@@ -524,8 +492,13 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `settings.set(key, v)`: change a setting: checked (a slider kept in range, a choice among its options), saved, applied, onChange told. Returns the value kept (the old one when v is not a valid value)
 - `settings.spec(key)`: the spec a setting was defined with (its label, type, range, options), or undefined
 - `settings.saved`: false when the last save failed (storage blocked or full: the choices last for this visit)
-- `E.bootSplash(title = '')`: the boot screen's markup, for the very start of a page's <body>: it shows from the first paint, its bar moving while the page's scripts load (a pure CSS animation), and says so if the game's script never runs. The engine takes it over
-- `E.diagnose(game = E.current)`: the report a bug needs, at any time (and on the boot screen when a game can't start): { engine, game, time, page, browser, device, screen, canvas, gpu, sound, storage, input, scene, errors, text (all of it, one line each, for a screenshot or a bug report), short (one line) }. game: the game to report on (E.current)
+- `fullscreen.enter(quiet)`: go full screen. Browsers allow it only from a tap, click or key press: call it from one (a button, the menu, a key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen, unless quiet)
+- `fullscreen.exit()`: leave full screen (Escape and the phone's back gesture do it too)
+- `fullscreen.on`: true while the page is full screen
+- `fullscreen.standalone`: true when the page was opened from a home screen as an app (no browser bars: nothing to go full screen from)
+- `fullscreen.supported`: true where this page can go full screen (not an iPhone, which has Add to Home Screen instead; not a frame without permission; not headless)
+- `fullscreen.toggle()`: full screen on or off, as the player asked (the corner's button, the menu): their choice is kept in settings.fullscreen, so a game starting on a phone goes full screen by itself only while they haven't turned it off
+- `fullscreen.failed = null`: game: the game it serves; failed: why the last request was refused (a message), or null
 
 ## 11. Humanoid rig
 
@@ -569,8 +542,6 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `rig.worldOffset(p)`: where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it) sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint
 - `rig.C`: its colors (skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye, ...), the defaults with o.colors over them; change one and it shows at the next draw
 - `rig.J`: its joints this step in its own frame ({ hipL, kneeL, footL, shC, head, handR, ... }; rig.worldOffset(J.handR) gives one in the world)
-- `rig.aimA`: aim: radians above (+) or below (-) level while pointing
-- `rig.atkRel`: the attack's heights are relative to the shoulders (its spec's rel)
 - `rig.atkZ = 10`: the height of the weapon hand during an attack
 - `rig.blink = 2`: seconds to the next blink
 - `rig.capeL = null`: the cape's left edge points (null until it has a cape and has moved)
@@ -579,17 +550,13 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `rig.downW`: how far down it is, 0..1 (state down, pose 'down' or 'die'): it falls faster and faster and gets up steadily
 - `rig.expr` †: the face shown ('smile', 'shout', 'angry', 'wince'), or null
 - `rig.facing = 0`: the angle it faces, radians
-- `rig.hairPts = null` †: the long hair's simulated points (null until it has some)
 - `rig.hop`: how high an attack's hop lifts it now
 - `rig.hurtW = 0`: 0..1, how far into the hurt flinch
 - `rig.lunge`: how far the body leans into an attack now, world units
-- `rig.mv = [1, 0]`: the last ground direction it moved, a unit vector
 - `rig.o`: its options, with the build's proportions and the defaults filled in (size, build, weapon, outfit, ...; legUpper, torso, headR and the other lengths are at size 1)
 - `rig.phase = 0`: the walk cycle's phase, radians
 - `rig.poseW`: held poses: 'cheer' (item get, victory), 'cast' (both hands forward), 'guard' (fists up), 'kneel', 'crouch', 'wave', 'hips' (hands on hips), and down: 0..1 (knocked flat). stance: 'guard' (fists up while moving) | 'ready' (weapon held forward)
 - `rig.reach = 7`: how far it reaches forward
-- `rig.sidePlane`: side views swing weapons in the screen plane (an overhead chop), ground views in the ground plane. spec.plane or the rig option swingPlane ('side' | 'ground') choose it yourself.
-- `rig.smear = null` †: the swing's smear arc, or null
 - `rig.spin = 0`: the body's extra turn during a spinning move, radians
 - `rig.sq = 0`: squash and stretch, -0.45..0.45 (kick adds to it)
 - `rig.sqV = 0`: its speed
@@ -814,7 +781,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 17b. Actions
 
-- `E.ACTIONS: climbUp, vault, hopDown, roll, getUp, takedown` †: the actions E.Action plays. Add your own: E.ACTIONS.name = { beats, setup, at }. Play one: mover.play('takedown', { other })
+- `E.ACTIONS: climbUp, vault, hopDown, roll, getUp, takedown` †: the actions E.Action plays. Add your own: E.ACTIONS.name = { beats, setup, at }; setup(A) and at(A, beat, u) get the action: its options A.o, A.start (where the body began), A.body; setup may change A.beats. Play one: mover.play('takedown', { other })
 - `new E.Action(name, o = {}) → action`: new E.Action(name, { body, to, other, dir, dist, top, aerial, reverse, speed: 1 }): play E.ACTIONS[name] on a body (and on o.other for a paired action). It moves them itself: run update(dt) every step instead of their physics, and feed rigState() to the rig. Each body ends standing where the action put it
 - `action.canCancel` †: true during a beat marked as one the action may be cut short in (spec.cancel)
 - `action.cancel()` †: stop now: the bodies stay where they are
@@ -830,11 +797,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `action.duration` †: the action's length in seconds (o.speed shortens it)
 - `action.name` †: the action's name
 - `action.o` †: the options it was given
-- `action.shadowZ` †: the ground under the body (with o.map), for its shadow
 - `action.spec` †: its E.ACTIONS entry
 - `action.start` †: where the body was when it began
 - `action.t = 0` †: seconds played
-- `action.vx`, `action.vy`, `action.vz = 0` †: the body's speed this step, for the rig
 - `new E.Mover(o = {}) → mover`: new E.Mover({ x, y, z, r: 5, ... }): any of its fields, below, as options. An E.Body: it has body.jump, push and the body's fields too
 - `mover.dodge(dir, dist = 34)` †: a dodge roll toward dir (an angle or [dx, dy]; default its facing) when it stands free. Returns the action, or null
 - `mover.play(name, o = {})` †: start an action now (E.ACTIONS name, its options): it moves the body until it ends
@@ -876,14 +841,13 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 18. Bullets
 
-- `new E.Bullets(game, o = {}) → shots`: new E.Bullets(game, { plane: 'ground' | 'side', max: 800, sparks: true })
+- `new E.Bullets(game, o = {}) → shots`: new E.Bullets(game, { plane: 'ground' | 'side', max: 800, sparks: true }); game: its game
 - `shots.burst(base, vels)`: fire several at once from a pattern list of [vx, v2] (v2 = vy on the ground plane, vz in side view)
 - `shots.clear(team)`: remove every bullet, or only one team's
 - `shots.draw(r)`: queue them for drawing (glowing cores, or their sprites)
 - `shots.fire(b)`: fire one bullet. Fields: x, y, z, vx, vy, vz, r, dmg, life, team, color, core, sprite, pierce, grav, data
 - `shots.hit(targets, fn, team)`: test bullets of `team` against targets (objects with x, y, z and r, or w/h in side view). fn(bullet, target). Returns hits
 - `shots.update(dt, map)`: move them one step; with a map they stop at walls (a TileMap, or a PlatformMap in side views)
-- `shots.game`: its game
 - `shots.list = []`: the live bullets
 - `shots.max`: at most this many at once
 - `shots.plane`: 'ground' (they fly over x and y) or 'side' (x and z)
@@ -897,18 +861,18 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 19. Spatial hash
 
-- `new E.SpatialHash(cell = 32) → grid`: new E.SpatialHash(cell = 32): buckets things by position, to find what is near cheaply
+- `new E.SpatialHash(cell = 32) → grid`: new E.SpatialHash(cell = 32): buckets things by position, to find what is near cheaply; map: the buckets
 - `grid.add(o, x = o.x, y = o.y)`: put o in the bucket at (x, y)
 - `grid.build(list, xk = 'x', yk = 'y')`: clear, then add every live thing in list (skips o.dead); do it once a step
 - `grid.clear()`: empty it
 - `grid.near(x, y, r, fn)`: call fn(o) for everything in the cells touching the circle (check the exact distance yourself)
 - `grid.query(x, y, r)`: what lies within about r of (x, y), as a list (near() calls a function instead)
-- `grid.cell`: the bucket size in world units
-- `grid.map`: the buckets
+- `grid.cell`: new E.SpatialHash(cell = 32): buckets things by position, to find what is near cheaply. cell: the bucket size in world units; map: the buckets
 
 ## 20. Audio
 
-- `new E.Audio(game, signal) → game.audio`: game.audio: a chip synthesizer, no sound files. Sound starts after the person's first tap or key (browsers' rule); until then, and where there is no Web Audio, every call is silently skipped
+- `E.note(n)`: note name -> frequency: E.note('A4') = 440, E.note('C#5'), E.note('Bb2'). Numbers pass through
+- `E.songs: title, adventure, dungeon, boss, victory`: ready-made chiptune loops (original compositions). game.audio.music('adventure')
 - `game.audio.define(name, voice)`: add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 })
 - `game.audio.duck(on = true)`: quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused
 - `game.audio.music(song, o = {})`: Loop a song (or play once with { loop: false }). song = { bpm: 120, steps: 4, tracks: [ { wave: 'square', vol: .2, notes: 'C5 - E5 - G5 - . . | ...' }, one token per step { wave: 'triangle', notes: 'C3 . C3 . G2 . G2 .' }, { wave: 'drums', notes: 'k . h . s . h . k k h . s . h .' } ] } tokens: C4 F#3 Bb2 = note, '-' holds the previous note, '.' = rest, '|' is ignored (bar lines). steps = steps per beat (4 = sixteenth notes). Each track loops on its own length. E.songs has ready-made loops: title, adventure, dungeon, boss, victory.
@@ -920,15 +884,11 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.audio.ctx = null`: the Web Audio context, made at the first sound (null before, or where there is none)
 - `game.audio.ducked = false`: true while duck(true) holds the music down
 - `game.audio.failed = null`: why there is no sound (a message), or null
-- `game.audio.game`: the game it plays for
 - `game.audio.musicVolume = .5`, `game.audio.sfxVolume = 1`: 0..1 for effects and music
 - `game.audio.muted = false`: true while mute() is on
 - `game.audio.presets`: the named sound effects, sfx(name) plays one and define(name, voice) adds one
-- `game.audio.rnd`: sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
 - `game.audio.song = null`: the music playing (null for none)
 - `game.audio.volume = .7`: master volume 0..1
-- `E.note(n)`: note name -> frequency: E.note('A4') = 440, E.note('C#5'), E.note('Bb2'). Numbers pass through
-- `E.songs: title, adventure, dungeon, boss, victory`: ready-made chiptune loops (original compositions). game.audio.music('adventure')
 
 ## 21b. Backdrops
 
@@ -936,7 +896,6 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.Backdrop.presets` †: the preset names, all ten: day, dusk, night, castle-night, city-night, desert, forest, ocean, cave, space
 - `backdrop.draw(r)` †: draw the backdrop first in draw(r), before the level; it scrolls with the camera by each layer's parallax
 - `backdrop.layers` †: its scenery layers, back to front, with their defaults filled in
-- `backdrop.o` †: the options it was made from
 - `backdrop.sky` †: the sky's gradient colors, top to bottom
 - `E.PROPS: torch, candle, candelabra, chandelier, brazier, window, banner, pillar, statue, crate, barrel, chest, pot, sign, fence, lamp, door, tree, pine, bush, flowers, grass, rock, crystal, bones, skull, vines, cobweb, lantern, streetlamp, awning, hydrant, trashcan, firedrum, sandbags, cactus, palm, mushroom` †: the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts)
 - `E.SHAPES: barrel, crate, chest, table, chair, stool, bench, bed, bookcase, shelf, pot, jar, sack, cart, ... (25)`: the shapes by id: { about, tags, mats: { slot: material }, parts | make(params), params, foot, lights, flames } (the core library's, the sets' as 'SET:id' from E.addAssets, and your own: E.SHAPES.stool = {...})
@@ -955,7 +914,6 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.Dialog(game, o = {}) → talk`: new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border }): a dialog box that types its text; say() opens it, update(dt) and draw(r) run it
 - `talk.close()`: close it now (and forget pending presses, so the same press doesn't also attack)
 - `talk.draw(r)`: draw it (anywhere in draw: it goes to the overlay)
-- `talk.page`: the lines of the page shown
 - `talk.pageLen`: the letters on the page shown
 - `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg } } choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked
 - `talk.typing`: true while the page is still typing
@@ -974,11 +932,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `talk.onChoice`: called with the index picked
 - `talk.onDone`: called when the last page closes
 - `talk.open = false`: true while it shows
-- `talk.pOpts` †: its options ({ zoom, turn, bg })
-- `talk.pSize`: its size in pixels
 - `talk.pages = []`: the text wrapped into pages of lines
 - `talk.place = 'bottom'`: 'bottom' | 'top' | 'middle'
-- `talk.portrait`: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null
+- `talk.portrait`: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size in pixels; pOpts: its options ({ zoom, turn, bg })
 - `talk.shown = 0`: letters typed so far on it
 - `talk.speed = 50`: letters typed per second
 - `talk.voice = 'text'`: the sound effect each letter blips ('text'; null for silence)
@@ -1026,10 +982,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `shell.show('map')` †: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }
 - `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds
 - `shell.tutorial(title, text = '', seconds = 15)` †: a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away
-- `shell.els` †: the HUD's elements, by piece (hb, obj, vit, toast, tut, pr, tip, place, mini, keys) and the screen layer (scr)
-- `shell.game` †: the game it is over
-- `shell.o` †: its options
-- `shell.root = null` †: its DOM element (null in a headless game)
+- `shell.root = null` †: game: the game it is over; o: its options; root: its DOM element (null in a headless game)
 - `E.ui`: pixel-drawn interface pieces for r.overlay
 - `E.ui.bar(g, x, y, w, h, frac, color = '#e0463c', o = {})`: a bar (a meter: health, magic, stamina, a boss's): ui.bar(g, x, y, w, h, 0..1, '#e0463c')
 - `E.ui.box(g, x, y, w, h, o = {})`: window frame: ui.box(g, x, y, w, h, { bg, border, shadow, gradient }) bg: one color (drawn as a soft top-to-bottom gradient, like Final Fantasy windows) or [top, bottom] colors. gradient: false for a flat fill.
@@ -1038,25 +991,15 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 22. Gpu lighting (webgpu)
 
-- `new E.GPULighting(game, o = {}) → game.gpu` †: game.enableGPU({ map, bands, ambient, ... }) makes it: per-pixel WebGPU lighting with shadows and glow, falling back to the canvas lighting where there is no WebGPU
-- `E.GPULighting.supported()` †: true where the browser has WebGPU
 - `game.gpu.active(view)` †: true when it lights frames in this view (ready, enabled and a ground view)
-- `game.gpu.fail(e)` †: give up on the GPU (an error): the canvas lighting takes over
-- `game.gpu.render(r)` †: light and present the frame (the renderer calls it when active)
-- `game.gpu.show(on)` †: show or hide its canvas
 - `game.gpu.snapshot()` †: offscreen mode only: read the last frame back as a PNG data URL
 - `game.gpu.status()` †: 'loading' | 'on' | 'off' | 'unavailable'
 - `game.gpu.adapterInfo` †: the GPU's description from the browser (vendor, architecture), or null
 - `game.gpu.ambient` †: the unlit color, [r, g, b] 0..1
 - `game.gpu.bands = 6` †: how many light bands (fewer is more retro)
-- `game.gpu.bh`, `game.gpu.bw` †: the size of the buffer it lights
-- `game.gpu.cv` †: the canvas it draws on, laid over the game's
 - `game.gpu.enabled = true` †: false switches it off for now (the canvas lighting takes over)
 - `game.gpu.failed = null` †: why it couldn't start, or null
-- `game.gpu.frames` †: frames it has lit
-- `game.gpu.game` †: its game
 - `game.gpu.glow = .22` †: the strength of px.glow surfaces
-- `game.gpu.loading = true` †: true while it starts up
 - `game.gpu.map = null` †: the TileMap it measures walls on
 - `game.gpu.offscreen = false` †: render into a texture instead of the page (automated tests; read it with snapshot())
 - `game.gpu.onStatus = null` †: called (gpu) when its status changes

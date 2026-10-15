@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.42.3: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.43.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -372,7 +372,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.42.3', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.43.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -687,7 +687,7 @@ E.RES = { nes: [256, 240], snes: [256, 224], gb: [160, 144], gba: [240, 160], ge
 class Screen {
   // canvas null: a headless game's screen, sized as a 1280 x 720 window would size it, with nothing to draw on
   constructor(canvas, o, signal) {
-    this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this.o = o;
+    this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this._o = o;
     this.buf = canvas ? mkCanvas(8, 8) : null; this.ctx = canvas ? ctx2d(this.buf) : null;
     this.W = 320; this.H = 200; this.S = 3; this.OX = 0; this.OY = 0; this.dpr = 1;
     this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0;
@@ -697,8 +697,8 @@ class Screen {
     if (canvas) addEventListener('resize', () => this.resize(), { signal });
   }
   /** the sizing options in force: o.portrait's fields over the game's while the screen is taller than wide */
-  options(pw, ph) { const o = this.o; return o.portrait && ph > pw ? Object.assign({}, o, o.portrait) : o; }
-  fixedRes(o = this.o) {
+  _options(pw, ph) { const o = this._o; return o.portrait && ph > pw ? Object.assign({}, o, o.portrait) : o; }
+  _fixedRes(o = this._o) {
     const r = o.res; if (!r) return null;
     const v = Array.isArray(r) ? r : E.RES[String(r).toLowerCase()];
     if (!v) { warn('res:' + r, 'unknown res "' + r + '". Use one of ' + Object.keys(E.RES).join(', ') + ' or [width, height]'); return null; }
@@ -706,9 +706,9 @@ class Screen {
   }
   resize() {
     const c = this.canvas, dpr = c ? Math.min(window.devicePixelRatio || 1, 3) : 1, rc = c ? c.getBoundingClientRect() : { width: 1280, height: 720 };
-    const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this.options(pw, ph);
+    const pw = Math.max(1, Math.round(rc.width * dpr)), ph = Math.max(1, Math.round(rc.height * dpr)), o = this._options(pw, ph);
     if (c) { c.width = pw; c.height = ph; } this.dpr = dpr; this.portrait = ph > pw;
-    const fix = this.fixedRes(o);
+    const fix = this._fixedRes(o);
     if (fix) {
       const fit = Math.min(pw / fix[0], ph / fix[1]), fill = this.scale === 'fill' || (this.scale === 'auto' && dpr >= 2 && fit >= 2), x = o.expand;
       this.S = fill ? Math.max(1, fit) : Math.max(1, Math.min(Math.floor(pw / fix[0]), Math.floor(ph / fix[1])));
@@ -718,14 +718,14 @@ class Screen {
     this.OX = Math.floor((pw - this.W * this.S) / 2); this.OY = Math.floor((ph - this.H * this.S) / 2);
     if (this.buf) { this.buf.width = this.W + 2; this.buf.height = this.H + 2; this.ctx = ctx2d(this.buf); this.ctx._c = null; }
   }
-  setOptions(o) { Object.assign(this.o, o); this.resize(); }
+  setOptions(o) { Object.assign(this._o, o); this.resize(); }
   setScale(v) { this.scale = v === 'sharp' || v === 'fill' ? v : 'auto'; this.resize(); }
-  begin(cx, cy, bg) {
+  _begin(cx, cy, bg) {
     this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
     const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
     g.fillStyle = bg; g.fillRect(0, 0, this.buf.width, this.buf.height);
   }
-  present() {
+  _present() {
     const s = this._sctx, S = this.S; if (!s) return;
     s.imageSmoothingEnabled = false;
     s.fillStyle = '#000'; s.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -933,7 +933,7 @@ E.font = {
 
 // ---- 7. PARTICLES: 3D, projected. kinds: dust spark bit ember ring text fire smoke impact glint. g > 0 pulls down, bounce 0..1 ----
 class Particles {
-  constructor(game) { this.game = game; this.list = []; this.max = 900; }
+  constructor(game) { this._game = game; this.list = []; this.max = 900; }
   add(p) {
     if (this.list.length >= this.max) return null;
     const q = Object.assign({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, max: .5, g: 0, drag: 0, bounce: 0, kind: 'dust', color: '#d8c6a8', size: 1 }, p);
@@ -996,7 +996,7 @@ class Particles {
   glints(x, y, z, n = 5, color = '#fff6c0', spread = 10) { for (let i = 0; i < n; i++) this.add({ kind: 'glint', x: x + (Math.random() - .5) * spread, y: y + (Math.random() - .5) * spread, z: z + Math.random() * spread, vz: 6, max: .35 + Math.random() * .4, size: 1 + Math.random(), color }); }
   // fireball, smoke, sparks, debris, shockwave ring, shake, hit-stop, flash and sound in one call. o: { debris: [colors] | false, sound, flash, shake, freeze }
   explosion(x, y, z, size = 1, o = {}) {
-    const G = this.game;
+    const G = this._game;
     this.fire(x, y, z, Math.round(7 * size), { size: 5 * size, speed: 45 * size });
     this.smoke(x, y, z + 4 * size, Math.round(5 * size), { size: 5 * size });
     this.sparks(x, y, z, Math.round(10 * size));
@@ -1012,10 +1012,10 @@ class Particles {
 const AS = 256, AOX = 128, AOY = 200;   // scratch image per actor: room for figures up to about 250 px tall
 class Renderer {
   constructor(game) {
-    this.game = game; this.items = []; this._decals = []; this._overlays = []; this.outline = '#140c1c';
+    this.game = game; this._items = []; this._decals = []; this._overlays = []; this.outline = '#140c1c';
     this._aCv = mkCanvas(AS, AS); this._aG = ctx2d(this._aCv); this._mCv = mkCanvas(AS, AS); this._mG = ctx2d(this._mCv);
     // track what each actor draws, so outline and flash only touch that rectangle
-    const aG = this._aG, bb = this.bb = [AS, AS, 0, 0], fr = aG.fillRect.bind(aG), di = aG.drawImage.bind(aG);
+    const aG = this._aG, bb = this._bb = [AS, AS, 0, 0], fr = aG.fillRect.bind(aG), di = aG.drawImage.bind(aG);
     const grow = (x, y, w, h) => { if (x < bb[0]) bb[0] = x; if (y < bb[1]) bb[1] = y; if (x + w > bb[2]) bb[2] = x + w; if (y + h > bb[3]) bb[3] = y + h; };
     aG.fillRect = (x, y, w, h) => { grow(x, y, w, h); fr(x, y, w, h); };
     aG.drawImage = (img, ...a) => { if (a.length >= 8) grow(a[4], a[5], a[6], a[7]); else if (a.length >= 4) grow(a[0], a[1], a[2], a[3]); else grow(a[0], a[1], img.width, img.height); di(img, ...a); };
@@ -1028,17 +1028,17 @@ class Renderer {
   get H() { return this.game.screen.H; }
   get bw() { return this.game.screen.buf.width; }
   get bh() { return this.game.screen.buf.height; }
-  begin(cx, cy) {
+  _begin(cx, cy) {
     const sc = this.game.screen, st = this.game.stats;
-    sc.begin(cx, cy, this.game.o.bg);
-    this.ix = sc.ix; this.iy = sc.iy; this.items.length = 0; this._decals.length = 0; this._overlays.length = 0; this._map = null; st.actors = 0; st.culled = 0;
+    sc._begin(cx, cy, this.game.o.bg);
+    this.ix = sc.ix; this.iy = sc.iy; this._items.length = 0; this._decals.length = 0; this._overlays.length = 0; this._map = null; st.actors = 0; st.culled = 0;
   }
   // world -> buffer pixel
   w(x, y, z = 0) { const v = this.game.view; return [v.ax * x + v.ay * y - this.ix, v.bx * x + v.by * y + v.bz * z - this.iy]; }
   queue(x, y, z, fn, o) {
     let k = this.game.view.order(x, y, z) + (o && o.bias || 0);
     if (z > .5 && this._map && !(o && o.occluder)) k = this._map._liftOrder(this.game.view, x, y, z, k);   // standing on a TileMap block: sort after it
-    this.items.push({ k, fn });
+    this._items.push({ k, fn });
   }
   decal(fn) { this._decals.push(fn); }
   overlay(fn) { this._overlays.push(fn); }
@@ -1164,7 +1164,7 @@ class Renderer {
     dst.globalCompositeOperation = 'source-over';
   }
   _composite(g, x, y, z, drawFn, o) {
-    const aG = this._aG, bb = this.bb, P = this._R;
+    const aG = this._aG, bb = this._bb, P = this._R;
     aG.clearRect(P[0], P[1], P[2], P[3]); aG._c = null;
     bb[0] = AS; bb[1] = AS; bb[2] = 0; bb[3] = 0;
     drawFn(aG, AOX, AOY);
@@ -1182,15 +1182,15 @@ class Renderer {
     } else put(this._aCv);
     g.globalAlpha = 1;
   }
-  finish() {
-    const g = this.ctx, items = this.items;
+  _finish() {
+    const g = this.ctx, items = this._items;
     this.game.particles.draw(this);
     for (const d of this._decals) d(g);
     items.sort((a, b) => a.k - b.k);
     for (const it of items) it.fn(g);
     for (const f of this._overlays) f(g);
     this.game.stats.items = items.length;
-    this.game.screen.present();
+    this.game.screen._present();
   }
 }
 
@@ -1535,7 +1535,7 @@ class Game {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
     const c = this.cam, s = this._shakeAmt, r = this.r;
     const shx = s > .05 ? (Math.sin(this.real * 83) + Math.sin(this.real * 57.3)) * .5 * s : 0, shy = s > .05 ? (Math.sin(this.real * 71) + Math.sin(this.real * 49.7)) * .5 * s : 0;
-    r.begin(c.x + shx, c.y + shy);
+    r._begin(c.x + shx, c.y + shy);
     if (this.scene && this.scene.draw) this.scene.draw(r);
     const fill = (g, color, alpha, mode) => { g.save(); g.fillStyle = color; g.globalAlpha = alpha; if (mode) g.globalCompositeOperation = mode; g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; };
     if (this._note && this.real < this._note.end) { const n = this._note; r.overlay(g => E.font.text(g, n.text, r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false })); }
@@ -1549,7 +1549,7 @@ class Game {
     if (fx) { const a = (1 - fx.t / fx.dur) * (fx.k === undefined ? 1 : fx.k); if (a <= 0) this._flash = null; else r.overlay(g => fill(g, fx.color, qa(a * .75), 'lighter')); }
     const fd = this._fade, fl = fd ? clamp(fd.out ? fd.t / fd.dur : 1 - fd.t / fd.dur, 0, 1) : 0;
     if (fl > 0) r.overlay(g => fill(g, '#000000', Math.round(fl * 16) / 16));
-    r.finish();
+    r._finish();
     if (!BOOT.played && !this._booting && (this._drawn = (this._drawn || 0) + 1) >= 2) BOOT._finish();   // play has begun: the boot screen goes
   }
 }
@@ -1612,22 +1612,20 @@ class Settings {
   _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g._fail('setting "' + key + '"', e); } }
   _save() { if (this._g.headless) return; this.saved = store.set(this._key, { v: SETTINGS_VERSION, values: this._saved }); if (!this.saved) warn('settings:save', 'the settings could not be saved (storage is blocked or full): they last for this visit'); }
 }
-E.Settings = Settings;
 // game.fullscreen: the whole page full screen where the browser can (supported, on, standalone; enter, exit, toggle from a tap, click or key)
 class FullScreen {
-  constructor(game) { this.game = game; this.failed = null; }
-  get supported() { if (this.game.headless) return false; const d = document, el = d.documentElement; return !!((d.fullscreenEnabled || d.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen)); }
-  get on() { return !this.game.headless && !!(document.fullscreenElement || document.webkitFullscreenElement); }
-  get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this.game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }
+  constructor(game) { this._game = game; this.failed = null; }
+  get supported() { if (this._game.headless) return false; const d = document, el = d.documentElement; return !!((d.fullscreenEnabled || d.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen)); }
+  get on() { return !this._game.headless && !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  get standalone() { const Q = this._mq || (this._mq = {}), m = q => !!(window.matchMedia && (Q[q] || (Q[q] = matchMedia(q))).matches); return !this._game.headless && (m('(display-mode: standalone)') || (m('(display-mode: fullscreen)') && !this.on) || navigator.standalone === true); }
   enter(quiet) {
     if (this.on || !this.supported) return Promise.resolve(this.on);
-    const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen, no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this.game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
+    const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen, no = e => { this.failed = (e && e.message) || 'refused'; if (!quiet) this._game.note('FULL SCREEN NOT ALLOWED HERE', 2); return false; };
     try { const p = f.call(el, { navigationUI: 'hide' }); this.failed = null; return p && p.then ? p.then(() => true, no) : Promise.resolve(true); } catch (e) { return Promise.resolve(no(e)); }
   }
   exit() { if (!this.on) return Promise.resolve(false); const f = document.exitFullscreen || document.webkitExitFullscreen; try { const p = f && f.call(document); return p && p.then ? p.then(() => true, () => false) : Promise.resolve(true); } catch (e) { return Promise.resolve(false); } }
-  toggle() { const on = this.on; if (!this.game.headless) this.game.settings.set('fullscreen', !on); return on ? this.exit() : this.enter(); }   // the player's choice, kept
+  toggle() { const on = this.on; if (!this._game.headless) this._game.settings.set('fullscreen', !on); return on ? this.exit() : this.enter(); }   // the player's choice, kept
 }
-E.FullScreen = FullScreen;
 const CORNER_ICONS = { menu: 'M4 7h16M4 12h16M4 17h16', full: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', exit: 'M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5' };
 const cornerIcon = d => '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
 function makeCorner(game) {   // the menu and full-screen buttons, 44 px, top right inside the safe area
@@ -1818,7 +1816,7 @@ class Humanoid {
     this.C = Object.assign({}, HUMAN_COLORS, o.colors || {});
     const C = this.C;
     C.clothLt = C.clothLt || shade(C.cloth, .25);
-    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this.mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
+    this.t = Math.random() * 10; this.phase = 0; this._spW = 0; this._mv = [1, 0]; this._dashW = 0; this.hurtW = 0; this._atkW = 0;
     this._theta = 1.2; this.atkZ = 10; this.reach = 7; this._twist = 0; this.spin = 0; this._atkLean = 0;
     this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {};
     this.capeL = null; this._airW = 0; this._pointW = 0; this._kicking = false;
@@ -1842,7 +1840,7 @@ class Humanoid {
     this._spW = approach(this._spW, clamp(speed / o.speedRef, 0, 1.25), dt * 7);
     if (speed > 3 && !s.run) {
       const c = Math.cos(this.facing), sn = Math.sin(this.facing), k = Math.min(1, dt * 10);
-      this.mv[0] = lerp(this.mv[0], (s.vx * c + s.vy * sn) / speed, k); this.mv[1] = lerp(this.mv[1], (-s.vx * sn + s.vy * c) / speed, k);
+      this._mv[0] = lerp(this._mv[0], (s.vx * c + s.vy * sn) / speed, k); this._mv[1] = lerp(this._mv[1], (-s.vx * sn + s.vy * c) / speed, k);
     }
     this.phase += dt * speed / (o.stride * o.size * Math.max(.4, Math.min(1, this._spW)));
     this._dashW = approach(this._dashW, s.dash ? 1 : 0, dt * (s.dash ? 24 : 8));
@@ -1858,20 +1856,20 @@ class Humanoid {
     this.downW = approach(this.downW || 0, dT, dt * (dT > (this.downW || 0) ? 2.5 + 10 * (this.downW || 0) : 3.2));
     if (this.dieT > 0) { this.hurtW = approach(this.hurtW, this.dieT < .25 ? 1 : 0, dt * 14); pk.kneel = approach(pk.kneel, this.dieT > .2 && this.dieT < .6 ? 1 : 0, dt * 10); }
     this._pointW = approach(this._pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
-    this.aimA = approach(this.aimA || 0, s.aim || 0, dt * 14);
+    this._aimA = approach(this._aimA || 0, s.aim || 0, dt * 14);
     if (s.attack) this._kicking = !!s.attack.spec.kick;
     this.blink -= dt; if (this.blink < -.12) this.blink = 2 + Math.random() * 3;
     this.sqV += (-260 * this.sq - 15 * this.sqV) * dt; this.sq = clamp(this.sq + this.sqV * dt, -.3, .3);
     const A = s.attack; let tLean = 0, tTwist = 0, tLunge = 0, tHop = 0, tCrouch = 0, armT = A ? 1 : 0;
     this.spin = 0;
-    this.sidePlane = !!A && !A.spec.kick && (A.spec.plane ? A.spec.plane === 'side' : o.swingPlane ? o.swingPlane === 'side' : this._pitch !== undefined && this._pitch < 15 && !!o.weapon && A.spec.blade !== 0 && A.spec.hand !== 'L');
+    this._sidePlane = !!A && !A.spec.kick && (A.spec.plane ? A.spec.plane === 'side' : o.swingPlane ? o.swingPlane === 'side' : this._pitch !== undefined && this._pitch < 15 && !!o.weapon && A.spec.blade !== 0 && A.spec.hand !== 'L');
     if (A) {
-      const sp = A.spec, side = this.sidePlane, rest = side ? -.9 : 1.1, RS = sp.rel ? (o.armUpper + o.armLower) / 9.2 : 1, R = (sp.reach || 7.5) * RS, r0 = sp.r0 === undefined ? R : sp.r0 * RS, r1 = sp.r1 === undefined ? R : sp.r1 * RS;
-      this.atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9, z0 = sp.z0 === undefined ? zRest : sp.z0, z1 = sp.z1 === undefined ? z0 : sp.z1;
+      const sp = A.spec, side = this._sidePlane, rest = side ? -.9 : 1.1, RS = sp.rel ? (o.armUpper + o.armLower) / 9.2 : 1, R = (sp.reach || 7.5) * RS, r0 = sp.r0 === undefined ? R : sp.r0 * RS, r1 = sp.r1 === undefined ? R : sp.r1 * RS;
+      this._atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9, z0 = sp.z0 === undefined ? zRest : sp.z0, z1 = sp.z1 === undefined ? z0 : sp.z1;
       const hold = sp.hold === undefined ? .3 : sp.hold, lean = sp.lean === undefined ? (sp.kick ? -.22 : .3) : clamp(sp.lean, -.8, .8), lunge = sp.lunge === undefined ? (sp.kick ? .4 : 1.2) : clamp(sp.lunge, -4, 5);
       if (A.phase === 'wind' && (this._aPh !== 'wind' || this._aSp !== sp)) {
         const chain = (this._armW || 0) > .3 && this._theta !== undefined, fists = !o.weapon || sp.hand === 'L' || sp.blade === 0;
-        this._th0 = chain ? this._theta : rest; this._z0 = chain && this.atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
+        this._th0 = chain ? this._theta : rest; this._z0 = chain && this._atkRel === !!sp.rel && isFinite(this.atkZ) ? this.atkZ : fists ? z0 : zRest; this._r0 = chain ? this.reach : R * .75;
         const J = this.J; if (J.handR) this._from = { R: J.handR.slice(), L: J.handL.slice(), bd: J.bladeDir.slice() };
       }
       this._aPh = A.phase; this._aSp = sp; this._atkHand = sp.hand || 'R'; if (A.phase !== 'wind') this._windK = 1;
@@ -1900,7 +1898,7 @@ class Humanoid {
     if (o.cape) this._cape(dt);
   }
   _pose() {
-    const o = this.o, J = this.J, sp = Math.min(1, this._spW), mf = this.mv[0], mr = this.mv[1], ph = this.phase, dash = this._dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
+    const o = this.o, J = this.J, sp = Math.min(1, this._spW), mf = this._mv[0], mr = this._mv[1], ph = this.phase, dash = this._dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
     const breathe = Math.sin(this.t * 2.3) * (1 - sp);
     const bob = (.5 - Math.abs(Math.cos(ph)) * 1.3) * sp;
     const PW = this.poseW || { cheer: 0, cast: 0, guard: 0, kneel: 0 }, kn = PW.kneel, lg = this.lunge || 0, cw = this._climbW || 0;
@@ -1919,7 +1917,7 @@ class Humanoid {
       if (lg > 0) foot[0] += (s === (this._atkHand === 'L' ? 1 : -1) ? lg * 1.3 : -lg * .15) * (1 - sp);
       if (this.hop) foot[2] += this.hop;
       if (cw > 0) foot = V3.lerp(foot, [.6, s * 1.5, Math.max(0, Math.sin(this._climbP + (s > 0 ? Math.PI : 0))) * 3.4], cw);
-      if (s > 0 && this._kicking && this._atkW > 0) foot = V3.lerp(foot, [Math.cos(this._theta) * (this.reach + 3), Math.sin(this._theta) * (this.reach + 3), (this.atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this._armW || 0);
+      if (s > 0 && this._kicking && this._atkW > 0) foot = V3.lerp(foot, [Math.cos(this._theta) * (this.reach + 3), Math.sin(this._theta) * (this.reach + 3), (this._atkRel ? this.atkZ * o.hipZ : this.atkZ) + (this.hop || 0)], this._armW || 0);
       const hip = s > 0 ? J.hipR : J.hipL;
       const [knee, f2] = ik3(hip, foot, o.legUpper, o.legLower, [1, s * .15, .1]);
       J[s > 0 ? 'kneeR' : 'kneeL'] = knee; J[s > 0 ? 'footR' : 'footL'] = f2;
@@ -1931,15 +1929,15 @@ class Humanoid {
     J.shL = add(shC, rz([0, -o.shoulderHalf, 0], this._twist)); J.shR = add(shC, rz([0, o.shoulderHalf, 0], this._twist));
     J.head = add(shC, V3.mul(V3.norm([dir[0] + o.hunch * .9, dir[1], dir[2]]), o.neck + o.headR));
     const armLen = o.armUpper + o.armLower, aw = this._armW || 0, sA = this._atkHand === 'L' ? -1 : 1, two = this._atkHand === 'both', fists = !o.weapon || this._stW > .5;
-    const aT = this.sidePlane ? add(shC, [Math.cos(this._theta) * this.reach, sA * .8, Math.sin(this._theta) * this.reach]) : add(shC, [Math.cos(this._theta) * this.reach, Math.sin(this._theta) * this.reach, this.atkRel ? this.atkZ : this.atkZ - shC[2]]);
-    const aDir = this.sidePlane ? V3.norm([Math.cos(this._theta), .05, Math.sin(this._theta)]) : V3.norm([Math.cos(this._theta), Math.sin(this._theta), -.12]);
+    const aT = this._sidePlane ? add(shC, [Math.cos(this._theta) * this.reach, sA * .8, Math.sin(this._theta) * this.reach]) : add(shC, [Math.cos(this._theta) * this.reach, Math.sin(this._theta) * this.reach, this._atkRel ? this.atkZ : this.atkZ - shC[2]]);
+    const aDir = this._sidePlane ? V3.norm([Math.cos(this._theta), .05, Math.sin(this._theta)]) : V3.norm([Math.cos(this._theta), Math.sin(this._theta), -.12]);
     for (const s of [-1, 1]) {
       const sh = s > 0 ? J.shR : J.shL, q = ph + (s > 0 ? 0 : Math.PI), along = -Math.sin(q) * o.swing * sp;
       let hand = add(sh, [mf * along + .5 * (1 - sp) + o.hunch * 3, s * .9 + mr * along, -armLen * .86 + Math.abs(Math.sin(q)) * 1.2 * sp]);
       hand = V3.lerp(hand, add(sh, [-4.5, s * 1.6, -5]), dash);
       hand = V3.lerp(hand, add(sh, s > 0 ? [1.4, -.6, .6] : [-1.6, s * 2.2, -3.2]), hurt);
       if (this._airW > 0) hand = V3.lerp(hand, add(sh, [1.2, s * 2.6, -1.2]), this._airW * .7);
-      if (s > 0 && this._pointW > 0) { const aa = this.aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this._pointW); }
+      if (s > 0 && this._pointW > 0) { const aa = this._aimA || 0; hand = V3.lerp(hand, add(sh, [armLen * .92 * Math.cos(aa), -.6, armLen * .92 * Math.sin(aa) - .4]), this._pointW); }
       if (PW.cheer > 0) hand = V3.lerp(hand, add(sh, [.6, s * 1.4, armLen * (.74 + .12 * Math.sin(this.t * 9 + (s > 0 ? 0 : .7)))]), PW.cheer);
       if (PW.cast > 0) hand = V3.lerp(hand, add(shC, [armLen * .82, s * 1.3, -1.2]), PW.cast);
       const guardAt = add(shC, s < 0 ? [3.8, -1, .4] : [2.3, 1.5, -.6]);
@@ -1966,7 +1964,7 @@ class Humanoid {
     if (PW.cheer > 0) bd = V3.lerp(bd, [.15, .05, 1], PW.cheer);
     if (PW.block > 0) bd = V3.lerp(bd, [.35, -.3, .9], PW.block);
     if (this._rdW > 0) bd = V3.lerp(bd, [.62, .08, .78], this._rdW * (1 - aw));
-    if (this._pointW > 0) bd = V3.lerp(bd, [Math.cos(this.aimA || 0), 0, Math.sin(this.aimA || 0)], this._pointW);
+    if (this._pointW > 0) bd = V3.lerp(bd, [Math.cos(this._aimA || 0), 0, Math.sin(this._aimA || 0)], this._pointW);
     J.bladeDir = V3.norm(bd);
     const dw = this.downW || 0;
     if (dw > 0) J.bladeDir = V3.norm(V3.lerp(J.bladeDir, [0, .9, -.4], dw));
@@ -3115,7 +3113,7 @@ class Body {
 }
 E.Body = Body;
 class Bullets {
-  constructor(game, o = {}) { this.game = game; this.list = []; this.max = o.max || 800; this.plane = o.plane || 'ground'; this.sparks = o.sparks !== false; }
+  constructor(game, o = {}) { this._game = game; this.list = []; this.max = o.max || 800; this.plane = o.plane || 'ground'; this.sparks = o.sparks !== false; }
   fire(b) {
     if (this.list.length >= this.max) return null;
     const q = Object.assign({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 2, dmg: 1, life: 3, t: 0, team: 'player', color: '#ffe066', core: '#ffffff', pierce: false, grav: 0, dead: false }, b);
@@ -3129,7 +3127,7 @@ class Bullets {
       b.vz -= b.grav * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
       if (map) {
         const wall = map instanceof PlatformMap ? map.solidAt(b.x, b.z) : (map.heightAt ? map.heightAt(b.x, b.y) > b.z : false);
-        if (wall) { b.dead = true; if (this.sparks) this.game.particles.sparks(b.x, b.y, b.z, 3, null, { color: b.color }); if (b.onWall) b.onWall(b); }
+        if (wall) { b.dead = true; if (this.sparks) this._game.particles.sparks(b.x, b.y, b.z, 3, null, { color: b.color }); if (b.onWall) b.onWall(b); }
       }
     }
     prune(this.list, b => b.dead);
@@ -3172,15 +3170,15 @@ E.pattern = {
   ring: (n, speed, offset = 0) => Array.from({ length: n }, (_, i) => { const a = offset + i / n * TAU; return [Math.cos(a) * speed, Math.sin(a) * speed]; })
 };
 class SpatialHash {
-  constructor(cell = 32) { this.cell = cell; this.map = new Map(); }
+  constructor(cell = 32) { this.cell = cell; this._map = new Map(); }
   _k(cx, cy) { return (cx & 0xffff) * 65536 + (cy & 0xffff); }
-  clear() { this.map.clear(); return this; }
-  add(o, x = o.x, y = o.y) { const k = this._k(Math.floor(x / this.cell), Math.floor(y / this.cell)); let a = this.map.get(k); if (!a) this.map.set(k, a = []); a.push(o); return this; }
+  clear() { this._map.clear(); return this; }
+  add(o, x = o.x, y = o.y) { const k = this._k(Math.floor(x / this.cell), Math.floor(y / this.cell)); let a = this._map.get(k); if (!a) this._map.set(k, a = []); a.push(o); return this; }
   build(list, xk = 'x', yk = 'y') { this.clear(); for (const o of list) if (o && !o.dead) this.add(o, o[xk], o[yk]); return this; }
   near(x, y, r, fn) {
     const C = this.cell;
     for (let cy = Math.floor((y - r) / C); cy <= Math.floor((y + r) / C); cy++) for (let cx = Math.floor((x - r) / C); cx <= Math.floor((x + r) / C); cx++) {
-      const a = this.map.get(this._k(cx, cy)); if (a) for (const o of a) fn(o);
+      const a = this._map.get(this._k(cx, cy)); if (a) for (const o of a) fn(o);
     }
   }
   query(x, y, r) { const out = []; this.near(x, y, r, o => out.push(o)); return out; }
@@ -3242,11 +3240,11 @@ const DRUMS = {
 };
 class ChipAudio {
   constructor(game, signal) {
-    this.game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
+    this._game = game; this._signal = signal; this.ctx = null; this.volume = .7; this.sfxVolume = 1; this.musicVolume = .5; this.muted = false;
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
-    this.rnd = rng(0x51A7E);
+    this._rnd = rng(0x51A7E);
   }
   _init() {
     if (this.ctx || this.failed) return this.ctx;
@@ -3257,7 +3255,7 @@ class ChipAudio {
       this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
       this._musBus = c.createGain(); this._musBus.connect(this._master);
       this._levels();
-      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this.rnd() * 2 - 1;
+      const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this._rnd() * 2 - 1;
       this._noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
       for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, resume, { capture: true, signal: this._signal });
@@ -3309,7 +3307,7 @@ class ChipAudio {
     if (this.ctx.state !== 'running') return;
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
-    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this.rnd() * 2 - 1));
+    const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this._rnd() * 2 - 1));
     try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, now + .005, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
@@ -3355,7 +3353,6 @@ class ChipAudio {
     this._voice({ wave: t.wave || 'square', freq: f * Math.pow(2, t.octave || 0), dur: n * spb * (t.gate || .9), vol, hold: true, attack: .006, vib: t.vib }, bus, time);
   }
 }
-E.Audio = ChipAudio;
 E.songs = {
   title: { bpm: 112, steps: 4, tracks: [
     { wave: 'square', vol: .16, notes: 'C5 - - - G4 - C5 - E5 - - - D5 - C5 - | D5 - - - G4 - B4 - D5 - - - F5 - E5 - | E5 - - - C5 - E5 - G5 - - - A5 - G5 - | F5 - E5 - D5 - B4 - C5 - - - - - . .' },
@@ -3426,12 +3423,12 @@ class Dialog {
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
   _dims() {
-    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this.pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
+    const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
     const pl = this._place || this.place, y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
     return { x: Math.round((W - w) / 2), y, w, h, lh, tx, P };
   }
   say(text, o = {}) {
-    this.portrait = typeof o.portrait === 'function' ? o.portrait : null; this.pSize = o.portraitSize || 40;
+    this.portrait = typeof o.portrait === 'function' ? o.portrait : null; this._pSize = o.portraitSize || 40;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;
     const d = this._dims(), pages = [];
     for (const t of Array.isArray(text) ? text : [text]) { const L = E.font.wrap(String(t), d.w - d.tx - 5); for (let k = 0; k < L.length; k += this.lines) pages.push(L.slice(k, k + this.lines)); }
@@ -3441,8 +3438,8 @@ class Dialog {
     return this;
   }
   close() { this.open = false; this.game.input.consumeAll(); }
-  get page() { return this.pages[this.i] || []; }
-  get pageLen() { return this.page.reduce((a, l) => a + l.length, 0); }
+  get _page() { return this.pages[this.i] || []; }
+  get pageLen() { return this._page.reduce((a, l) => a + l.length, 0); }
   get typing() { return this.shown < this.pageLen; }
   update(dt) {
     if (!this.open) return false;
@@ -3475,7 +3472,7 @@ class Dialog {
       if (this.portrait) this.portrait(g, d.x + 5, d.y + Math.round((d.h - d.P) / 2), d.P);
       if (this.name) { const nw = E.font.width(this.name) + 12, nx = d.x + (this.portrait ? d.tx - 6 : 4); ui.box(g, nx, d.y - 12, nw, 14, { bg: this.bg, border: this.border }); E.font.text(g, this.name, nx + 6, d.y - 9, this.nameColor, { outline: false, shadow: '#05040a' }); }
       let left = Math.floor(this.shown);
-      this.page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, { outline: false, shadow: '#05040a' }); });
+      this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, { outline: false, shadow: '#05040a' }); });
       const blink = Math.floor(this.game.real * 3) % 2 === 0, last = this.i >= this.pages.length - 1;
       if (!this.typing && !(last && this.choices) && blink) px.poly(g, [[d.x + d.w - 10, d.y + d.h - 6], [d.x + d.w - 5, d.y + d.h - 6], [d.x + d.w - 7.5, d.y + d.h - 3]], this.color);
       if (last && this.choices && !this.typing) {
