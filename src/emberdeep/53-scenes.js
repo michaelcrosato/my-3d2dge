@@ -32,27 +32,28 @@ const SCN_SIZE = { 'emberdeep:barrel-small-stack': .62, 'emberdeep:keg': .55, 'e
   'emberdeep:gravestone-cross': .62, 'emberdeep:gravestone-broken': .8, 'emberdeep:gravestone-debris': .8, 'emberdeep:pillar-obelisk': .8, 'emberdeep:rocks': .55, 'emberdeep:rocks-tall': .6,
   'emberdeep:shovel': .8, 'emberdeep:urn-round': .9, 'emberdeep:trunk': .6, 'emberdeep:bucket': .55, 'emberdeep:box-open': .55, 'emberdeep:resource-planks': .5, 'emberdeep:workbench': .8,
   'emberdeep:workbench-grind': .8, 'emberdeep:workbench-anvil': .75, 'emberdeep:campfire-stand': .8, 'emberdeep:tree-log': .5, 'emberdeep:bedroll': .6, 'emberdeep:statue-head': .7,
-  'emberdeep:statue-column-damaged': .9, 'emberdeep:tent-small-closed': 1, 'emberdeep:bed-floor': .8, 'emberdeep:coffin-decorated': .55, 'emberdeep:shrine-candles': .7,
-  'emberdeep:plaque-candles': .55, 'emberdeep:pot': .35, 'emberdeep:whole-ham': .3, 'emberdeep:wine-red': .3, 'emberdeep:loaf-round': .3, 'emberdeep:mug': .4 };
+  'emberdeep:statue-column-damaged': .9, 'emberdeep:tent-small-closed': 1, 'emberdeep:coffin-decorated': .55, 'emberdeep:shrine-candles': .7,
+  'emberdeep:plaque-candles': .55, 'emberdeep:pot': .35, 'emberdeep:wine-red': .3 };
 
 /* ---------- the scenes ----------
  * A scene: { w (its weight), edge (against a wall: F points into the room; else on open ground, turned any way), parts }.
  * A part: [id, u, v, o]: u across (along the wall), v forward (into the room), in world units from the anchor. id: a
  * shape, or with o.prop an engine prop (a candle's flame, bones). o: { t (a turn from facing forward, radians), s (scale),
  * mats ({ slot: material }; a '#hex pattern' turns with the level's hue), color (a prop's), z, opt (may be left out),
- * r (its room, units: 6) }. A scene goes down whole, its opt parts where they fit, or not at all. */
+ * r (the floor it needs round it, units: 6) }. A scene goes down whole, its opt parts where they fit, or not at all. */
 const D = 'emberdeep:', st = c => c + ' speck amount=.1';   // (the store's grey stone came as steel or ice: here the theme's own)
 const OPT = { opt: true };
 const SC = {
   // the treasure nook: any theme, rare
   hoard: { w: .5, edge: 1, parts: [[D + 'trunk-large-c', 0, 9, { r: 8 }], [D + 'box-small-decorated', 14, 10], [D + 'bottle-c-green', -11, 8, OPT], [D + 'trunk-small-c', -8, 18, { t: .7, opt: 1 }], ['candle', 16, 2, { prop: 1, opt: 1 }]] },
-  camp: { w: 1, parts: [['ed:campfire', 0, 0, { r: 7 }], [D + 'bedroll', -20, 2, { t: Math.PI / 2 + .2, r: 9 }], [D + 'pot', 8, -9, { s: .3, opt: 1 }], [D + 'trunk-small-c', 16, 8, OPT], [D + 'bottle-c-green', 13, -4, OPT]] }
+  camp: { w: 1, parts: [['ed:campfire', 0, 0, { r: 7 }], [D + 'campfire-stand', 0, 0, { t: Math.PI / 2, opt: 1 }], [D + 'bedroll', -20, 2, { t: Math.PI / 2 + .2, r: 9 }], [D + 'pot', 8, -9, { s: .3, opt: 1 }], [D + 'trunk-small-c', 16, 8, OPT], [D + 'bottle-c-green', 13, -4, OPT]] }
 };
 const SCENES = {
   crypt: { scenes: [
     { w: 1.2, edge: 1, parts: [[D + 'crypt', 0, 17, { r: 13, mats: { a: st('#5d566f') } }], [D + 'debris', 15, 24, { mats: { a: st('#6a6280') } }], [D + 'shovel', -13, 21, { t: .7 }], [D + 'trunk-small-c', 13, 7, OPT], ['bones', -10, 34, { prop: 1, opt: 1, color: '#d8d0c0' }]] },   // a robbed tomb
     { w: 1, parts: [[D + 'altar-stone', 0, 0, { r: 11, mats: { a: st('#5d566f') } }], [D + 'urn-round', -17, 4], [D + 'urn-round', 17, 4], ['candle', -7, -7, { prop: 1 }], ['candle', 7, -7, { prop: 1 }], ['skull', 0, 11, { prop: 1, opt: 1, color: '#d8d0c0' }]] },   // a vigil at an altar
     { w: 1, edge: 1, parts: [[D + 'barrel-small-stack', 0, 7], [D + 'keg', 17, 9], [D + 'box-open', -15, 8], [D + 'bucket', -6, 19, OPT]] },   // the vault's stores
+    { w: .7, parts: [[D + 'table-long-broken', 0, 0, { r: 12 }], [D + 'chair', 17, 5, { t: 1.9 }], [D + 'bottle-c-green', -11, 12, OPT], ['bones', 6, -14, { prop: 1, opt: 1, color: '#d8d0c0' }]] },   // a hall looted long ago
     { w: .8, edge: 1, parts: [[D + 'shrine-candles', 0, 8, { mats: { a: st('#6a6280') } }], [D + 'gravestone-cross', -16, 7, { mats: { a: st('#5d566f') } }], [D + 'urn-round', 14, 9], ['candle', 9, 17, { prop: 1, opt: 1 }]] },
     SC.hoard ],
     scatter: [[D + 'urn-round'], [D + 'gravestone-broken', { mats: { a: st('#5d566f') } }], [D + 'debris', { mats: { a: st('#6a6280') } }], [D + 'trunk-small-c'], [D + 'bottle-c-green']] },
