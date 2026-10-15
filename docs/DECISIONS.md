@@ -584,3 +584,15 @@ An entry:
   a core file keeps them. What would change it: a registry for what draws a level's records.
 - **Answered:** no; made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.37.0
+
+## D36 · 2026-10-15 · The benchmark re-run is skipped: no answer in fifteen minutes
+
+- **Principle:** process (spending is a call that is hard to undo; D19)
+- **Call:** Phase 4 of the asset plan re-runs one `agent-bench` brief (Breath of the Wild, about $15) to see whether
+  shapes move the judge's look score (6/10) and the art share of a game's code. The owner was asked at 02:03 UTC with a
+  fifteen-minute wake-up; with no answer, the paid run is skipped, as the owner's goal for the plan said. The free half of
+  Phase 4 ran: the authoring test (its numbers are in `docs/ASSET-IMPORT.md`, Measures, and `DOCTRINE.md`).
+- **Why:** the owner set the rule: ask, and with no answer skip it and finish the rest. What would change it: the owner's
+  yes, then `node tools/agent-bench.mjs --brief botw-village` and a row in `DOCTRINE.md`'s table.
+- **Answered:** no answer within the wake-up
+- **Landed in:** v0.38.1
