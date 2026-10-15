@@ -1,10 +1,10 @@
 /* ---------- START: powers listen, the title (or a deep link: #town, #depth-7, #proving, #gallery, #gallery/bestiary/husk) ---------- */
 installPowers();
 const scenes = { title: titleScene, town: townScene, level: levelScene, proving: provingScene, gallery: galleryScene };
-game.views = ['iso', 'threequarter', 'topdown', 'brawler'];
+game.views = VIEW_IDS.slice();
 const link = (location.hash || '').slice(1), dm = /^depth-(\d+)$/.exec(link), gm = /^gallery(?:\/([\w-]+)(?:\/([\w:.-]+))?)?$/.exec(link);
 if (link === 'town' || dm || link === 'proving' || gm) { ED.hero = loadHeroOrNew(); }
-if (!qs.has('view') && ['iso', 'threequarter', 'topdown', 'brawler'].includes(OPT.view)) game.setView(OPT.view);
+if (!qs.has('view') && VIEW_IDS.includes(OPT.view)) game.setView(OPT.view);
 /* the boot (the engine's, section 10c): the page's splash becomes Emberdeep's boot screen, the system's checks and two real
    steps (each monster's reach measured once, instead of on its first spawn; the composed depths' order worked out ahead),
    with lines of its own while it runs */

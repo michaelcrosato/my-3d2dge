@@ -443,7 +443,7 @@ const ZOOMS = [.75, 1, 1.25, 1.5, 2, 2.5];
 function zoomStep(d) { const i = ZOOMS.findIndex(z => z >= game.zoom - 1e-6), z = ZOOMS[clamp((i < 0 ? 2 : i) + d, 0, ZOOMS.length - 1)]; game.setZoom(z); OPT.zoom = z; saveOpts(); game.note('ZOOM ' + z + 'x'); }
 addEventListener('keydown', e => {
   if (e.repeat || UI.modal) return;
-  if (e.code === 'KeyV') { const V = ['iso', 'threequarter', 'topdown', 'brawler']; game.setView(V[(V.indexOf(game.baseView.id) + 1) % V.length]); OPT.view = game.baseView.id; saveOpts(); game.note(game.view.label.toUpperCase() + ' VIEW'); }
+  if (e.code === 'KeyV') { chooseView(VIEW_IDS[(VIEW_IDS.indexOf(game.baseView.id) + 1) % VIEW_IDS.length]); game.note(game.view.label.toUpperCase() + ' VIEW'); }
   else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomStep(-1);
   else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomStep(1);
   else if (e.code === 'BracketLeft' || e.code === 'BracketRight') { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
