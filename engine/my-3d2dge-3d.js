@@ -97,6 +97,7 @@ level: { rows, legend, ground, side, colors, bottom }. A legend entry says what 
   { pit: true }       no floor: a body that falls in is lost (actor.fell)
   { torch: true }     a brazier with a flickering light (the lights go to the torches nearest the target)
   { mark: 'name' }    a spot: world.marks.name -> [{ x, y, z, cx, cy }] (the tile's centre, on its surface)
+  { shape: 'bench', facing, scale, mats, solid }   a shape standing on the tile (world.shape), walked round when solid
 and its look: ground ('flagstone' 'grass' 'dirt' 'sand' 'snow' 'planks' 'tiles' 'plain' 'water' 'lava', or (x, y) =>
 [r, g, b]) with colors { base, dark, light }, side ('brick' 'block' 'earth' 'planks' 'metal') with color (and top, line).
 The level's own ground and side are every tile's default. Add looks: E.World3D.GROUND.name, E.World3D.SIDE.name.
@@ -135,6 +136,9 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   half), e => ...) on actors.
 
 ## Props, platforms and things
+  world.shape(id, x, y, z, { facing, scale, mats, flip, params, solid: true }): a shape (docs/ASSETS.md: an E.SHAPES id,
+  a store set's 'SET:id' after E.addAssets, or an entry) in 3D, from the 2D engine's parts and materials, solid as
+  map.solid's box. A reset takes yours away (the legend's stand again); world.shapes holds them; world.remove(s)
   world.crate(x, y, z, yaw), world.barrel(x, y, z): dynamic bodies; world.knock(p, fromX, fromY, dv, up) throws one;
   world.box({ x, y, z, w, d, h, color, side, fixed, mass }); a prop has x, y, z, q (its rotation), data
   world.platform({ w, d, h, path: [[x, y, z], ...] (its top's points), speed, wait, loop, side, color }): a platform that
@@ -436,7 +440,7 @@ class Level {
     if (rows.some(r => r.length !== mw)) E.warn('3d:rows', 'a level\'s rows are not all the same length: the short ones end in pits');
     Object.assign(this, { world, def, rows, mw, mh, width: mw * T, depth: mh * T, bottom: def.bottom ?? -96 });
     this.specs = new Array(n); this.kind = new Uint8Array(n); this.base = new Float32Array(n); this.plat = new Float32Array(n).fill(-1e9); this.platLo = new Float32Array(n);
-    this.stairOf = new Int16Array(n).fill(-1); this.marks = {}; this.torches = []; this.stairs = [];
+    this.stairOf = new Int16Array(n).fill(-1); this.marks = {}; this.torches = []; this.stairs = []; this.shapes = [];
     for (let cy = 0; cy < mh; cy++) for (let cx = 0; cx < mw; cx++) {
       const i = cy * mw + cx, ch = rows[cy][cx] ?? ' ';
       let sp = legend[ch]; if (!sp) { E.warn('3d:legend:' + ch, 'the level uses "' + ch + '", which its legend does not say: it is floor'); sp = {}; }
@@ -446,6 +450,7 @@ class Level {
       this.kind[i] = k;
       this.base[i] = k === WALL ? fl + sp.wall : k === PILLAR ? fl + sp.pillar : k === PIT ? this.bottom : fl;
       if (sp.platform) { this.plat[i] = sp.platform; this.platLo[i] = sp.platform - (sp.thick || 4); }
+      if (sp.shape) this.shapes.push([sp.shape, (cx + .5) * T, (cy + .5) * T, sp.platform || (k === PIT ? this.bottom : fl), sp]);
       if (sp.mark) (this.marks[sp.mark] ||= []).push({ x: (cx + .5) * T, y: (cy + .5) * T, z: sp.platform || (k === PIT ? this.bottom : fl), cx, cy });
       if (k === TORCH) this.torches.push({ x: (cx + .5) * T, y: (cy + .5) * T, z: fl, t: E.hash2(cx, cy) * 9 });
     }
@@ -506,7 +511,8 @@ class Level {
    * centres never climbs a step higher than STEP_UP (stairs climb gently; a raised floor's edge is a wall from below,
    * a drop from above) */
   _pass() {
-    const { mw, mh } = this, pass = new Uint8Array(mw * mh), open = (cx, cy) => !this.solidTile(cx, cy) && this.kind[cy * mw + cx] !== PIT;
+    const { mw, mh } = this, pass = new Uint8Array(mw * mh), sp = (cx, cy) => this.specs[cy * mw + cx];
+    const open = (cx, cy) => !this.solidTile(cx, cy) && this.kind[cy * mw + cx] !== PIT && !(sp(cx, cy).shape && sp(cx, cy).solid !== false);   // (a solid shape's tile: walked round)
     for (let cy = 0; cy < mh; cy++) for (let cx = 0; cx < mw; cx++) {
       if (!open(cx, cy)) continue;
       let bits = 0;
@@ -915,6 +921,89 @@ const THINGS = {
 };
 /** a thing's size from its kind: where its base sits and how wide it is (for pickups' reach: world.touching) */
 const THING_R = { coin: 5, gem: 5, heart: 5, key: 5, star: 7, potion: 5, chest: 9, door: 18, flag: 4, sign: 7, lever: 5, pad: 8, spring: 7 };
+
+/* =============================================================================
+ * 5b. SHAPES  the 2D engine's shapes (docs/ASSETS.md: E.SHAPES ids, a store set's 'SET:id', or an entry) in 3D, from the
+ *     same resolved parts (E.shapeMesh): each kind (an entry with its params, mats and mirror) is one instanced mesh, all
+ *     of them in one toon material whose texture is an atlas of the materials' patterns (E.materialTile) at world scale,
+ *     so a new kind or placement builds no shader. A solid one gets a fixed collider from the box the 2D engine collides
+ *     with (E.shapeBox)
+ * ============================================================================= */
+const SH_TILE = 32, SH_PX = 2, SH_N = SH_TILE * SH_PX, SH_ATLAS = 1024, SH_PER = SH_ATLAS / SH_N;   // 256 tiles, each 32 units square
+function shapeKit(world) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = SH_ATLAS;
+  const g = cv.getContext('2d'), tex = world._own(canvasTex(cv, false)), { attribute, texture, fract } = TSL;
+  // a corner's tile in the atlas (x, y, w, h in uv) and its own uv in tiles: the pattern repeats inside its tile
+  const tile = attribute('tile', 'vec4'), col = texture(tex, tile.xy.add(fract(attribute('uv', 'vec2')).mul(tile.zw)));
+  const mat = world._obj(new THREE.MeshToonNodeMaterial({ gradientMap: TOON_BANDS }));
+  mat.colorNode = col; mat.emissiveNode = col.rgb.mul(attribute('glow', 'float'));
+  const shell = world._obj(outlineMat('normal')), tiles = new Map(), ids = new WeakMap(); let nTile = 0, nId = 0;
+  /** a material's tile (its pattern on a side, or on a lid), drawn into the atlas the first time: [x, y, w, h] in uv */
+  const tileOf = (m, lid) => {
+    const key = (ids.get(m.q) || (ids.set(m.q, ++nId), nId)) + (lid ? 'L' : 'S'); let t = tiles.get(key); if (t) return t;
+    const i = nTile++ % (SH_PER * SH_PER), tx = i % SH_PER, ty = Math.floor(i / SH_PER), px = E.materialTile(m.q, { size: SH_TILE, px: SH_PX, lid });
+    if (nTile > SH_PER * SH_PER) E.warn('3d:shape-tiles', 'more than ' + SH_PER * SH_PER + ' materials on shapes: the first are drawn over');
+    if (px) { const img = g.createImageData(px.w, px.h); img.data.set(px.rgba); g.putImageData(img, tx * SH_N, ty * SH_N); tex.needsUpdate = true; }
+    tiles.set(key, t = [(tx * SH_N + .5) / SH_ATLAS, 1 - (ty * SH_N + SH_N - .5) / SH_ATLAS, (SH_N - 1) / SH_ATLAS, (SH_N - 1) / SH_ATLAS]); return t;
+  };
+  /** a geometry from E.shapeMesh's groups: three's axes (metres, y up), each triangle wound to face its normal */
+  const build = (M, flip) => {
+    const pos = [], nrm = [], uv = [], tl = [], gl = [], fx = flip ? -1 : 1;
+    for (const G of M.groups) {
+      const t = tileOf(G.mat, G.lid), glow = G.mat.glow ? 1 : 0, P = G.pos, N = G.nrm, V = G.uv;
+      for (let i = 0; i < P.length; i += 9) {
+        const c = [0, 1, 2].map(k => [P[i + k * 3] * fx / U, P[i + k * 3 + 2] / U, P[i + k * 3 + 1] / U]), n = [0, 1, 2].map(k => [N[i + k * 3] * fx, N[i + k * 3 + 2], N[i + k * 3 + 1]]);
+        const a = c[0], e1 = [c[1][0] - a[0], c[1][1] - a[1], c[1][2] - a[2]], e2 = [c[2][0] - a[0], c[2][1] - a[1], c[2][2] - a[2]];
+        const cx = e1[1] * e2[2] - e1[2] * e2[1], cy = e1[2] * e2[0] - e1[0] * e2[2], cz = e1[0] * e2[1] - e1[1] * e2[0];
+        const order = cx * (n[0][0] + n[1][0] + n[2][0]) + cy * (n[0][1] + n[1][1] + n[2][1]) + cz * (n[0][2] + n[1][2] + n[2][2]) < 0 ? [0, 2, 1] : [0, 1, 2];
+        for (const k of order) { pos.push(...c[k]); nrm.push(...n[k]); const j = (i / 3 + k) * 2; uv.push(V[j] / SH_TILE, V[j + 1] / SH_TILE); tl.push(...t); gl.push(glow); }
+      }
+    }
+    const geo = world._own(new THREE.BufferGeometry());
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('tile', new THREE.Float32BufferAttribute(tl, 4)); geo.setAttribute('glow', new THREE.Float32BufferAttribute(gl, 1));
+    return geo;
+  };
+  /** an instanced mesh (and its outline) for a geometry, its slots growing as placements come */
+  const meshes = (geo, cap) => {
+    const m = new THREE.InstancedMesh(geo, mat, cap), o = new THREE.InstancedMesh(geo, shell, cap);
+    m.frustumCulled = o.frustumCulled = false; m.castShadow = m.receiveShadow = true; m.count = o.count = 0; o.instanceMatrix = m.instanceMatrix;
+    world.scene.add(m); world.scene.add(o); return [m, o];
+  };
+  const kinds = new Map(), _m = new THREE.Matrix4(), _s = new THREE.Vector3();
+  // the probe: one empty triangle in the same material, so the warm-up builds the shapes' shaders before any is placed
+  const pg = new THREE.BufferGeometry(), z3 = n => new THREE.Float32BufferAttribute(new Array(n * 3).fill(0), n);
+  for (const [k, n] of [['position', 3], ['normal', 3], ['uv', 2], ['tile', 4], ['glow', 1]]) pg.setAttribute(k, new THREE.Float32BufferAttribute(new Array(3 * n).fill(0), n));
+  const [probe, probeShell] = meshes(world._own(pg), 1);
+  return {
+    probe, probeShell, kinds,
+    /** the kind for an id and placement (made once): { mesh, shell, list (its placements), cap } */
+    kind(id, o) {
+      const key = (typeof id === 'string' ? id : 'e' + (ids.get(id) || (ids.set(id, ++nId), nId))) + '|' + JSON.stringify([o.params || null, o.mats || null, !!o.flip]);
+      let K = kinds.get(key); if (K) return K;
+      const M = E.shapeMesh(id, { params: o.params, mats: o.mats }); if (!M) return null;
+      const [mesh, sh] = meshes(build(M, o.flip), 16); kinds.set(key, K = { mesh, shell: sh, list: [], cap: 16, bounds: M.bounds }); return K;
+    },
+    /** write a placement's slot: at (x, y, z), turned to its facing, scaled */
+    put(K, p) {
+      if (p.i >= K.cap) {   // more slots: a bigger mesh with the same geometry (the old one's placements copied over)
+        const [m2, o2] = meshes(K.mesh.geometry, K.cap * 2); m2.instanceMatrix.array.set(K.mesh.instanceMatrix.array);
+        for (const x of [K.mesh, K.shell]) { world.scene.remove(x); x.dispose(); }
+        K.mesh = m2; K.shell = o2; K.cap *= 2;
+      }
+      const k = p.scale, a = p.facing - Math.PI / 2;   // (three's y is the engine's z: a turn about z is one about y, the other way)
+      _m.makeRotationY(-a).scale(_s.set(k, k, k)).setPosition(p.x / U, p.z / U, p.y / U);
+      K.mesh.setMatrixAt(p.i, _m); K.mesh.count = K.shell.count = Math.max(K.mesh.count, p.i + 1); K.mesh.instanceMatrix.needsUpdate = true;
+    },
+    /** take a placement out: the last one moves into its slot */
+    take(K, p) {
+      const last = K.list.pop(); if (last !== p) { K.list[p.i] = last; last.i = p.i; K.mesh.getMatrixAt(K.list.length, _m); K.mesh.setMatrixAt(p.i, _m); }
+      K.mesh.count = K.shell.count = K.list.length; K.mesh.instanceMatrix.needsUpdate = true;
+    },
+    clear() { for (const K of kinds.values()) { K.list.length = 0; K.mesh.count = K.shell.count = 0; } },
+    outlines(on) { for (const K of kinds.values()) K.shell.visible = on; }
+  };
+}
 
 /* =============================================================================
  * 6. CHARACTERS DRAWN  each rig as it stands (the game poses it; this only reads it), as a Puppet (3D parts on the
@@ -1346,7 +1435,7 @@ class World3D {
     const L = this.level = new Level(this, o.level);
     Object.assign(this, { width: L.width, depth: L.depth, mw: L.mw, mh: L.mh, bottom: L.bottom, marks: L.marks, torches: L.torches });
     /** actors, props, platforms, things: what is in the world now (read them; add and remove with the methods below) */
-    this.actors = []; this.props = []; this.platforms = []; this.things = [];
+    this.actors = []; this.props = []; this.platforms = []; this.things = []; this.shapes = [];
     this.B = makeBatches(this); this.capes = makeCapes(this); this.atlas = makeAtlas(this);
     /** pen: draw your own 3D shapes for this frame (in draw, before world.draw(r)): world.pen.at(x, y, z, yaw).box(...) */
     this.pen = new Pen(this); this.pen.B = this.B;
@@ -1356,7 +1445,7 @@ class World3D {
       bit: new Batch(this.scene, new THREE.PlaneGeometry(2, 2), this._obj(new THREE.MeshBasicNodeMaterial({ color: '#ffffff' })), { cap: 1024 })
     };
     this._arcs = floorPool(this, 12); this._rings = floorPool(this, 24); this._ribbons = ribbons(this);
-    this._propMesh = propMeshes(this);
+    this._propMesh = propMeshes(this); this._shapeKit = shapeKit(this);
     L.meshes(this);
     this._lights(o);
     this._sky(o);
@@ -1372,8 +1461,8 @@ class World3D {
   _own(x) { this._owned.push(x); return x; }
   _mat(key, make) { let m = this._mats.get(key); if (!m) { m = this._own(make()); this._mats.set(key, m); } return m; }
   _obj(m) { this._objMats.add(m); return m; }
-  /** a fresh physics world: the level's colliders, nothing else (actors, props, platforms and things are gone: add them
-   *  again). The same seed and the same inputs from here give the same state (world.hash) */
+  /** a fresh physics world: the level's colliders and shapes, nothing else (actors, props, platforms, things and the
+   *  shapes you placed are gone: add them again). The same seed and the same inputs from here give the same state (world.hash) */
   reset() {
     if (this.pw) this.pw.free();
     const pw = this.pw = new RAPIER.World({ x: 0, y: 0, z: -this.gravity });
@@ -1382,6 +1471,8 @@ class World3D {
     for (const p of this.props) if (p.mesh) this.scene.remove(p.mesh);
     this.actors.length = 0; this.props.length = 0; this.platforms.length = 0; this.things.length = 0;
     this.level.colliders(pw);
+    // the level's own shapes (a legend's { shape }) stand again; a game's are gone with the rest
+    this.shapes.length = 0; this._shapeKit.clear(); for (const [id, x, y, z, sp] of this.level.shapes) this.shape(id, x, y, z, sp);
     this.time = 0; this.n = 0; this.camera && (this.camera.focus = null, this.camera.smooth = null);
     return this;
   }
@@ -1444,9 +1535,10 @@ class World3D {
   /** take an actor, prop, platform or thing out of the world */
   remove(x) {
     if (!x) return;
-    const from = x instanceof Actor ? this.actors : x.isThing ? this.things : x.isPlatform ? this.platforms : this.props, i = from.indexOf(x);
-    if (i >= 0) from.splice(i, 1);
+    const from = x instanceof Actor ? this.actors : x.isThing ? this.things : x.isPlatform ? this.platforms : x.isShape ? this.shapes : this.props, i = from.indexOf(x);
+    if (i >= 0) from.splice(i, 1); else if (x.isShape) return;
     if (x.body && this.pw) { try { this.pw.removeRigidBody(x.body); } catch (e) { /* gone with a reset */ } x.body = null; }
+    if (x.isShape) this._shapeKit.take(x.kind, x);
     if (x.mesh) { this.scene.remove(x.mesh); x.mesh = null; }
   }
   /** actors of a kind ('hero' | 'mob' | null for all) within r of (x, y) (and of z when given: 24 up or down) */
@@ -1540,6 +1632,23 @@ class World3D {
     const out = [];
     for (const t of this.things) if (t.visible && (!kind || t.kind === kind) && Math.hypot(t.x - a.x, t.y - a.y) < a.r + t.r && t.z + t.bob + 2 > a.z - 6 && t.z < a.z + 2 * a.foot + 4) out.push(t);
     return out;
+  }
+
+  /* ---- shapes (section 5b) ---- */
+  /** a shape (an E.SHAPES id, a store set's 'SET:id' after E.addAssets, or an entry) standing at (x, y), on the floor
+   *  there or at z, with the 2D placement's options and units: { facing (where its front points; PI/2 south), scale,
+   *  mats, flip, params, solid (default true: a fixed collider from the box map.solid uses; false: bodies pass) } -> its
+   *  placement { id, x, y, z, facing, scale, body }; null for an unknown shape. world.remove(it) takes it away */
+  shape(id, x, y, z, o = {}) {
+    const K = this._shapeKit.kind(id, o); if (!K) return null;
+    const p = { isShape: true, id, x, y, z: z ?? this.floorAt(x, y), facing: o.facing ?? Math.PI / 2, scale: o.scale || 1, kind: K, i: K.list.length, body: null, data: o.data || {} };
+    K.list.push(p); this._shapeKit.put(K, p); this.shapes.push(p);
+    if (o.solid !== false) {   // the 2D engine's box: its footprint turned with it, from its base to its top
+      const b = E.shapeBox(id, x, y, p.z, o), hz = Math.max(.5, (b.top - p.z) / 2), a = Math.atan2(b.s, b.c);
+      p.body = this.pw.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(b.x, b.y, p.z + hz).setRotation({ x: 0, y: 0, z: Math.sin(a / 2), w: Math.cos(a / 2) }));
+      this.pw.createCollider(RAPIER.ColliderDesc.cuboid(Math.max(.5, b.hx), Math.max(.5, b.hy), hz).setCollisionGroups(GROUPS.level), p.body);
+    }
+    return p;
   }
 
   /* ---- a step of the game: platforms, the heroes' controllers, the mobs' wishes, Rapier, then where all is ---- */
@@ -1824,6 +1933,7 @@ Object.assign(World3D.prototype, {
     this._effects(cam.cv);
     this.atlas.end(this.outlines, cam.cv.thick);
     for (const b of Object.values(this.B)) b.end(this.outlines);
+    this._shapeKit.outlines(this.outlines);
     this.capes.end();
     if (this._fx || fxOn(this.filter)) { this._fx = this._fx || makeFX(this); this._fx.tag(fxOn(this.filter)); }
     if (!this._warm) this._warmUp(c3, view);
@@ -1952,6 +2062,7 @@ Object.assign(World3D.prototype, {
     const Z = new THREE.Matrix4().makeScale(0, 0, 0), M = this._propMesh, inst = [M.crate, M.barrel];
     for (const b of [...Object.values(this.B), ...Object.values(this.part)]) { inst.push(b.mesh); if (b.shell) inst.push(b.shell); }
     for (const pg of this.atlas.pages) inst.push(pg.mesh);
+    inst.push(this._shapeKit.probe, this._shapeKit.probeShell);   // (the shapes' shaders, before any is placed)
     const counts = inst.map(m => m.count), pools = [...this._arcs.list, ...this._rings.list, ...this._ribbons.list], vis = pools.map(m => m.visible);
     for (const m of inst) { m.setMatrixAt(0, Z); m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.needsUpdate = true; m.count = 1; }
     for (const m of pools) m.visible = true;
