@@ -32,7 +32,7 @@ const STEALTH = (() => {
     '############################'],
     legend: { '#': 1, A: 2, B: 3, C: 4, D: 5, E: 6, F: 7, G: 8, T: 9, p: 10, ',': { floor: 'grass' }, '@': 'hero', X: 'exit' },
     types: {
-      1: { h: 64, top: '#3a3448', side: '#5a5068', face: 'stone', roof: 'plain', cut: true, cutH: 6 },   // the city wall drops low on the camera's side
+      1: { h: 64, top: '#3a3448', side: '#5a5068', face: 'cobble', roof: 'plain', cut: true, cutH: 6 },   // the city wall drops low on the camera's side; face: a MATERIAL (docs/ASSETS.md)
       2: { h: 40, top: '#8a4a3a', side: '#c8b89a', face: 'plaster', roof: 'tiles', windows: { lit: .3 }, shutters: '#2a5a8a', door: { chance: .4 } },
       3: { h: 48, top: '#5a4a3a', side: '#9a6a4a', face: 'brick', roof: 'slab', windows: { lit: .2 }, balcony: { z: 30, color: '#3a2a1e' } },
       4: { h: 40, top: '#4a6a3a', side: '#b8a888', face: 'timber', roof: 'tiles', arch: { chance: .5 }, windows: true },
@@ -45,6 +45,9 @@ const STEALTH = (() => {
     floorTex: (x, y, tag) => tag === 'grass' ? E.tex.grass(x, y, { base: '#3e6a32', dark: '#2a5226', light: '#5a8a42' }) : E.tex.flagstone(x, y, PAVE)
   });
   const LEDGER = { x: 11.5 * T, y: 3.5 * T, z: 48 }, EXIT = map.find('exit'), GRASS = [];
+  // set dressing: SHAPES (E.SHAPES, docs/ASSETS.md: objects as data, right in every view) along the north street, out of the patrols' way
+  const DRESS = [['barrel', 1.5 * T, 1.4 * T, { facing: .4 }], ['barrel', 2.5 * T, 1.3 * T, { facing: 2 }], ['crate', 7.4 * T, 1.4 * T, { scale: .8, facing: .2 }],
+    ['cart', 15.5 * T, 1.5 * T, { facing: 0 }], ['sack', 16.9 * T, 1.3 * T, { facing: 1 }], ['barrel', 22.6 * T, 1.4 * T, { facing: 3 }]];
   for (let cy = 0; cy < map.h; cy++) for (let cx = 0; cx < map.w; cx++) if (map.floorAt((cx + .5) * T, (cy + .5) * T) === 'grass') GRASS.push([(cx + .5) * T, (cy + .5) * T]);
   const BOOK = E.sprite(['.bbbb.', 'bBBBBb', 'bBwwBb', 'bBBBBb', '.bbbb.'], { b: '#3a2010', B: '#8a3a20', w: '#f0e0b0' });
   const STAR = E.sprite(['..y..', '.yYy.', 'yYYYy', '.yYy.', '..y..'], { y: '#e8a830', Y: '#fff0a0' });
@@ -175,6 +178,7 @@ const STEALTH = (() => {
     r.sky(['#141030', '#3a2a5a', '#7a4a5a']);
     map.drawFloor(r); map.queueWalls(r);
     for (const [x, y] of GRASS) r.prop('grass', x, y, 0, { size: 1.3 });
+    for (const [id, x, y, o] of DRESS) r.shape(id, x, y, 0, o);
     // the belfry: a canopy wider than the tower, sorted by its whole footprint (over every tower block)
     const bx = 25 * T, by = 5 * T, w = 21, H = 20, z = 72;
     r.queue(bx, by, z, g => { const P2 = (x, y, zz) => r.w(x, y, zz), c = [P2(bx - w, by - w, z), P2(bx + w, by - w, z), P2(bx + w, by + w, z), P2(bx - w, by + w, z)], tip = P2(bx, by, z + H);

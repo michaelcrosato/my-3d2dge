@@ -99,15 +99,18 @@ const RPG = (() => {
     return c.map((v, i) => lerp(lerp(v * k, shade ? COOL[i] : lerp(COOL[i], WARM[i], warm), shade ? .3 : .28), HAZE[i], haze));   // warm toward the sun, cool shadows, hazy far edge
   };
   // broken wall stubs at the back left
-  const WALL = { top: '#8a9a5a', side: '#7a6478', line: '#4a3848', face: 'stone', roof: 'grass' };
+  const WALL = { top: '#8a9a5a', side: '#7a6478', line: '#4a3848', face: 'ruin', roof: 'grass' };   // face: a MATERIAL (stones, cracks, moss, dirt; docs/ASSETS.md)
   const plaza = new E.TileMap({ rows: ['21............', ...Array(11).fill('..............')], legend: { 1: 1, 2: 2 }, types: { 1: { ...WALL, h: 12 }, 2: { ...WALL, h: 24 } }, floorTex });
   // [prop, x, y, z, options]: pillars frame the sides; braziers stand clear of the fighters (a dimmed scene lights their glow)
   const PROPS = [['vines', 26, 17, 12, { anchor: 'top', size: .5 }], ['pillar', 8, 46, 0], ['vines', 9, 47, 44, { anchor: 'top' }], ['pillar', 212, 8, 0, { broken: true }],
     ['brazier', 100, 8, 0, { haloR: 16 }], ['brazier', 132, 6, 0, { haloR: 16 }],
-    ['tree', -2, 22, 0, { size: 1.15, color: '#3e6a3a' }], ['pine', 220, 20, 0, { size: 1.15, color: '#2e5a44' }], ['bush', 22, 26, 0, { color: '#4a7a3a' }], ['bush', 196, 28, 0, { color: '#4a7a3a', berries: '#e04a6a' }],
-    ['mushroom', 18, 60, 0, { size: .7, color: '#c8603a' }], ['mushroom', 206, 42, 0, { size: .5, color: '#c8a0e8' }], ['rock', 10, 140, 0],
-    ['skull', 34, 150, 0], ['bones', 128, 150, 0], ['crystal', 212, 58, 0, { color: '#8ad8ff' }],
-    ['grass', 150, 146, 0], ['flowers', 16, 110, 0, { color: '#b08aff' }]];
+    ['bush', 22, 26, 0, { color: '#4a7a3a' }], ['bush', 196, 28, 0, { color: '#4a7a3a', berries: '#e04a6a' }],
+    ['mushroom', 18, 60, 0, { size: .7, color: '#c8603a' }], ['mushroom', 206, 42, 0, { size: .5, color: '#c8a0e8' }],
+    ['skull', 34, 150, 0], ['bones', 128, 150, 0], ['grass', 150, 146, 0], ['flowers', 16, 110, 0, { color: '#b08aff' }]];
+  // [shape, x, y, options]: SHAPES (docs/ASSETS.md) are objects as data, right in every view and turn: the trees grow from
+  // a generator's params, the mats recolor a slot ('#hex pattern', or any material id)
+  const SHAPES = [['tree', -2, 22, { params: { h: 46, seed: 3 }, mats: { l: '#3e6a3a foliage size=3' } }], ['pine', 220, 20, { scale: 1.1, mats: { l: '#2e5a44 foliage size=3' } }],
+    ['rock', 10, 140, { facing: 1 }], ['crystal', 212, 58, { params: { h: 14 } }], ['barrel', 196, 150, { scale: .8, facing: 2 }], ['crate', 210, 140, { scale: .7, facing: .3 }]];
 
   /* ---- MONSTERS: extras painted inside the same r.actor get the engine's outline, rim light and hit flash.
    * (x, y) = the feet on screen, v = the view ---- */
@@ -490,6 +493,7 @@ const RPG = (() => {
     const { fy } = layout(r.W, r.H), cx = rest().x, key = [r.W, r.H, fy, cx, game.zoom].join(); if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, fy, cx, game.zoom); backdrop.key = key; }
     r.ctx.drawImage(backdrop, 0, 0);
     plaza.drawFloor(r); plaza.queueWalls(r); for (const [name, x, y, z, o] of PROPS) r.prop(name, x, y, z, o);
+    for (const [id, x, y, o] of SHAPES) r.shape(id, x, y, 0, o);
     for (const c of all) drawUnit(r, c); for (const f of fx) drawFx(r, f);
     const orb = act && act.orb, m = act && MOVES[act.key];
     if (orb) r.queue(orb[0], orb[1], orb[2], g => {   // the bolt: additive halo, ball, hot core
