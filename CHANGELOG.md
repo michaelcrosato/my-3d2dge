@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.42.2 (2026-10-15)
+
+The API index answers the lookups the benchmark's agents read the engine's source for (Phase 1 of `docs/HANDOFF-API-INDEX.md`): grep finds 24 of 25 of them in one search, against 15 before.
+
+- **Docs**: the index says what it didn't: the state `rig.update` takes (`aim`, `crouch`, `sprint`, `climb`, `hang`, `flip`, `pose: 'cheer'` and the rest, `stance`, `down`), the Humanoid's hats and hood, the backdrop's `sun` and `moon`, `talk.say`'s `choices`, the step that feeds `E.Suspicion`, `E.PlatformMap`'s tile kinds, playing an action (`mover.play('takedown', { other })`), and that an `E.Mover` is an `E.Body`. They are doc comments in the engine; no code changed.
+- **Docs**: a constructor's line names what its instances go by (`new E.Attack(...) → slash`: its methods are `slash.*`), and a contents block after the examples gives each section's line and its classes' instance names. `E.PROPS` and `E.VIEW_ORDER` are listed in full.
+- **Docs**: the ten lines over 200 tokens split: a doc comment's options, one to a line as `- name: what it does`, become lines of their own named by their owner (`new E.Game({ expand })`, `shell.hud({ bars, counts })`, `shell.show('help')`), so a search returns the clause it hit, not the whole description. The index is 37,058 cl100k tokens of its 40,000.
+- **Tools**: a lookup check: `tools/api-index-lookups.json` holds 25 lookups (the plan's appendix A), each a grep and the facts its hits must hold; `node tools/api-index.mjs --check`, and so `doctrine-check`, fails when one stops answering, and `--lookups` shows each one's hits and tokens. On v0.42.1's index it finds 15 answered.
+
 ## 0.42.1 (2026-10-15)
 
 The plan for the API index, with the owner's answers: optimize it for answers, don't overhaul it.

@@ -1,6 +1,6 @@
-# my-3D2dge API index (v0.42.1)
+# my-3D2dge API index (v0.42.2)
 
-Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
+Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
 ## Units and the height rules
 
@@ -44,6 +44,39 @@ const up = map.ledge(hero, 0);   // east, toward the roof
 if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 ```
 
+## Contents
+
+The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
+
+- 80 The engine object (E = My3D2dge)
+- 91 Math
+- 148 Pixel primitives
+- 168 Views (projections); E.View: view
+- 202 Screen; E.Screen: game.screen
+- 233 Input; E.Input: input
+- 309 Pixel font
+- 320 Lighting; E.Lighting: game.lights
+- 339 Particles; E.Particles: game.particles
+- 360 Renderer; E.Renderer: r
+- 412 Game; E.Game: game
+- 526 Standard features; E.FullScreen: fullscreen, E.Settings: settings
+- 548 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 627 Blob rig; E.Blob: blob
+- 647 Tile map; E.TileMap: map
+- 704 Materials
+- 725 Flow field; E.FlowField: flow
+- 745 Texture helpers for floortex functions
+- 756 Platform map; E.PlatformMap: level, E.Platformer: hero
+- 825 Body; E.Body: body
+- 849 Actions; E.Action: action, E.Mover: mover, E.Suspicion: suspicion
+- 924 Bullets; E.Bullets: shots
+- 945 Spatial hash; E.SpatialHash: grid
+- 956 Audio; E.Audio: game.audio
+- 981 Backdrops; E.Backdrop: backdrop
+- 1001 Ui; E.Dialog: talk, E.Menu: menu, E.Shell: shell
+- 1090 Gpu lighting (webgpu); E.GPULighting: game.gpu
+- 1121 Sessions
+
 ## The engine object (E = My3D2dge)
 
 - `E.DEG: 0.017453292519943295`: π/180, one degree in radians (angle * DEG)
@@ -51,7 +84,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.42.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.42.2"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -135,8 +168,8 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 ## 3. Views (projections)
 
 - `E.VIEWS: iso, threequarter, topdown, brawler, side, overhead`: the ready-made views: iso (yaw 45, pitch 30), threequarter (pitch 55), topdown (80), brawler (25), side (0) and overhead (90, scale 1: world x/y = screen pixels); new E.Game({ view: 'iso' }) and game.setView('side') take their names
-- `E.VIEW_ORDER: 5 entries`: the order game.nextView() cycles through when a game doesn't set game.views ('overhead' is left out)
-- `new E.View(id, label, yaw, pitch, scale = 1, zBoost = 1)`: new E.View(id, label, yaw, pitch, scale, zBoost): an orthographic camera (degrees; scale = screen pixels per world unit; zBoost stretches heights). id: its name ('iso', or yours); label: its name for people ('Isometric')
+- `E.VIEW_ORDER: iso, threequarter, topdown, brawler, side`: the order game.nextView() cycles through when a game doesn't set game.views ('overhead' is left out)
+- `new E.View(id, label, yaw, pitch, scale = 1, zBoost = 1) → view`: new E.View(id, label, yaw, pitch, scale, zBoost): an orthographic camera (degrees; scale = screen pixels per world unit; zBoost stretches heights). id: its name ('iso', or yours); label: its name for people ('Isometric')
 - `view.depth(x, y, z = 0)`: true camera depth: use it to sort parts inside one object
 - `view.order(x, y, z = 0)`: painter's order for whole objects standing on the ground
 - `view.p(x, y, z = 0)`: world -> projected screen pixels (not yet camera-relative)
@@ -169,7 +202,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 ## 4. Screen
 
 - `E.RES: nes, snes, gb, gbc, gba, genesis, md, pce, n64, ps1, wide`: classic console resolutions for new Game({ res: 'snes' }) (width x height in pixels)
-- `new E.Screen(canvas, o, signal)` †: canvas null: the screen of a headless game, sized as a 1280 x 720 window would size it, with nothing to draw on
+- `new E.Screen(canvas, o, signal) → game.screen` †: canvas null: the screen of a headless game, sized as a 1280 x 720 window would size it, with nothing to draw on
 - `game.screen.begin(cx, cy, bg)`: start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it)
 - `game.screen.clear` †: clear: true when the game's bg is null (or 'transparent'): the buffer and the canvas are cleared instead of filled, so a picture under the canvas shows through the game's (a 3D world drawn by engine/my-3d2dge-3d.js)
 - `game.screen.clientToScreen(cx, cy)`: browser client coords -> projected screen pixels (same space as view.p)
@@ -199,7 +232,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 5. Input
 
-- `new E.Input(screen, map, signal)`: signal: an AbortSignal that removes every listener this adds (game.dispose()). A screen without a canvas (headless) gets no DOM listeners: input comes from press(code), release(code), tap(action) and hold(action, on)
+- `new E.Input(screen, map, signal) → input`: signal: an AbortSignal that removes every listener this adds (game.dispose()). A screen without a canvas (headless) gets no DOM listeners: input comes from press(code), release(code), tap(action) and hold(action, on)
 - `E.Input.DEFAULT`: top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks
 - `E.Input.PLATFORMER`: side-scrollers (Mario, Mega Man): Space / Z / K jump, X / J attack or shoot, Shift / C dash
 - `E.Input.SHMUP`: shoot-'em-ups (1942, Gradius): Space / Z / J fire (hold for autofire), X / K bomb
@@ -286,7 +319,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 7. Lighting
 
-- `new E.Lighting(game)` †: game.lights (made by the game): canvas lighting, darkness over the frame with lights cut out of it; turn it on with game.lights.enabled = true and add lights each frame with game.lights.add(x, y, z, radius, intensity, o)
+- `new E.Lighting(game) → game.lights` †: game.lights (made by the game): canvas lighting, darkness over the frame with lights cut out of it; turn it on with game.lights.enabled = true and add lights each frame with game.lights.add(x, y, z, radius, intensity, o)
 - `game.lights.add(x, y, z, radius, intensity = 1, o)` †: radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true }
 - `game.lights.caster(x, y, r, top)` †: something that blocks light (GPU shadows): a cylinder of radius r from the floor up to height top
 - `game.lights.clear()` †: forget this frame's lights, casters and heat (the renderer does it every frame: add lights in draw)
@@ -305,7 +338,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 8. Particles
 
-- `new E.Particles(game)` †: game.particles. game: its game; list: the live particles; max: at most this many at once (add() skips the rest); ground: null (the floor is z 0), or (x, y, z) -> the floor's height under a particle (a side-scroller's platforms, a 3D level: engine/my-3d2dge-3d.js sets it), asked again when a particle enters a new 8-unit cell
+- `new E.Particles(game) → game.particles` †: game.particles. game: its game; list: the live particles; max: at most this many at once (add() skips the rest); ground: null (the floor is z 0), or (x, y, z) -> the floor's height under a particle (a side-scroller's platforms, a 3D level: engine/my-3d2dge-3d.js sets it), asked again when a particle enters a new 8-unit cell
 - `game.particles.add(p)`: add one particle { x, y, z, vx, vy, vz, life, max (seconds), g (gravity, > 0 pulls down), drag, bounce (0..1), kind: 'dust' | 'spark' | 'bit' | 'ember' | 'ring' | 'text', color, size }; returns it, or null when full
 - `game.particles.bits(x, y, z, n, colors)`: n pieces of debris that fly, fall and bounce (colors: a list to pick from)
 - `game.particles.draw(r)`: queue them for drawing (the renderer calls it)
@@ -326,10 +359,14 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 9. Renderer
 
-- `new E.Renderer(game)` †: the r handed to draw(r), made by the game
+- `new E.Renderer(game) → r` †: the r handed to draw(r), made by the game
 - `r.H`: the screen's height in game pixels
 - `r.W`: the screen's width in game pixels
-- `r.actor(x, y, z, drawFn, o = {})`: Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected position of world point (x, y, z). The engine adds outline, rim light, hit flash, afterimages and x-ray silhouettes. opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias} xray: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies drawn in front hide it too (a hero lost in a crowd keeps his shape) hides: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray or GPU lighting
+- `r.actor(x, y, z, drawFn, o = {})`: Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected position of world point (x, y, z). The engine adds outline, rim light, hit flash, afterimages and x-ray silhouettes. opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key}
+- `r.actor({ xray })`: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies drawn in front hide it too (a hero lost in a crowd keeps his shape)
+- `r.actor({ hides })`: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
+- `r.actor({ ghost })`: ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
+- `r.actor({ every, key })`: every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray or GPU lighting
 - `r.begin(cx, cy)`: start a frame with the camera at (cx, cy) projected pixels (the game calls it before your draw)
 - `r.bh`: the buffer's height (H + 2)
 - `r.box(g, x0, y0, z0, x1, y1, z1, top, side)`: extruded box prop (crate, pedestal, table). Call inside a queue fn with its g.
@@ -374,7 +411,19 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 10. Game
 
-- `new E.Game(o = {})`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }). res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). bg: the color behind everything, or null: the canvas is clear, and the game draws its HUD and menus over a picture under it (a 3D world, engine/my-3d2dge-3d.js). headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly), unless the player picks Frame rate 60; camera: the camera of every scene without its own (a scene's camera option: the player's zoom, start)
+- `new E.Game(o = {}) → game`: new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu, fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id, pace, camera }). The standard features (section 10b) every game gets: menu, fullscreen, corner, backGesture, autoPause.
+- `new E.Game({ res })`: a fixed resolution ('ps1' or [w, h]), whole pixels
+- `new E.Game({ expand })`: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there)
+- `new E.Game({ bg })`: the color behind everything, or null: the canvas is clear, and the game draws its HUD and menus over a picture under it (a 3D world, engine/my-3d2dge-3d.js)
+- `new E.Game({ headless })`: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold
+- `new E.Game({ loop })`: false makes a game in a page that runs only by advance()
+- `new E.Game({ menu })`: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out)
+- `new E.Game({ fullscreen })`: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when asked) or false
+- `new E.Game({ corner, backGesture })`: corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a phone's back steps back in the game first (false: it leaves the page)
+- `new E.Game({ autoPause })`: a pausable scene pauses when the page is hidden or loses focus
+- `new E.Game({ id })`: the name the player's settings are saved under (the page's path)
+- `new E.Game({ pace })`: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly), unless the player picks Frame rate 60
+- `new E.Game({ camera })`: the camera of every scene without its own (a scene's camera option: the player's zoom, start)
 - `game.H`: the screen's height in game pixels (W is its width)
 - `game.W`: internal buffer size in pixels (HUD layout)
 - `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
@@ -403,7 +452,11 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3), the game's own; where the scene lets the player zoom (camera.zoom), theirs multiplies it (game.zoom is the two together). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
 - `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
 - `game.shaking` †: how hard the screen shakes now (0 still, up to 10): shake() adds to it and it dies away. A camera of the game's own (a 3D world's) shakes by it
-- `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera } (all optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are applied when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a sub-menu closed). camera: { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the wheel, - and =, a pinch, Settings, Camera zoom: theirs, kept, on top of the game's; false or none: they can't; a function of the game: a range per screen shape, g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at (tall: on a screen held upright, game.upright; 1 without); wheel: false leaves the mouse wheel to the game start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance(). boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
+- `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera } (all optional). start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance().
+- `game.start({ view, views, input, res, expand, touch })`: a scene's, applied when it starts: input ('PLATFORMER'), res ('snes'), expand (true), touch (['jump', 'attack']); res and expand stay until another scene sets them
+- `game.start({ back })`: a scene's back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a sub-menu closed)
+- `game.start({ camera })`: a scene's { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the wheel, - and =, a pinch, Settings, Camera zoom: theirs, kept, on top of the game's; false or none: they can't; a function of the game: a range per screen shape, g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at (tall: on a screen held upright, game.upright; 1 without); wheel: false leaves the mouse wheel to the game
+- `game.start({ boot })`: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
 - `game.upright`: true while the game's screen (r.W x r.H) is upright, taller than 1.3 times its width: a phone held upright, with expand: true (a fixed res keeps its own shape on any phone, so it is never upright there). A scene's camera.tall zoom applies then: it zooms a tall picture in to fill it
 - `game.zoomBy(k)` †: the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does nothing where the scene doesn't let the player zoom. Returns the zoom
@@ -472,7 +525,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 10b. Standard features
 
-- `new E.FullScreen(game)`: game.fullscreen: the whole page full screen (the game, its menus and buttons), where the browser can
+- `new E.FullScreen(game) → fullscreen`: game.fullscreen: the whole page full screen (the game, its menus and buttons), where the browser can
 - `fullscreen.enter(quiet)`: go full screen. Browsers allow it only from a tap, click or key press: call it from one (a button, the menu, a key's update step). Returns a promise of whether it worked (a refusal is kept in failed and noted on screen, unless quiet)
 - `fullscreen.exit()`: leave full screen (Escape and the phone's back gesture do it too)
 - `fullscreen.on`: true while the page is full screen
@@ -481,7 +534,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `fullscreen.toggle()`: full screen on or off, as the player asked (the corner's button, the menu): their choice is kept in settings.fullscreen, so a game starting on a phone goes full screen by itself only while they haven't turned it off
 - `fullscreen.failed = null`: why the last request was refused (a message), or null
 - `fullscreen.game`: the game it serves
-- `new E.Settings(game, own = [])`: game.settings: the player's choices, one property each (game.settings.volume), with the game's own (o.menu.settings) beside the standard ones (STANDARD_SETTINGS). Saved with E.store under 'settings:' + the game's id, with a version; on load every value is checked and a bad one falls back to its default. Where storage is blocked the game plays on with the defaults (saved: false)
+- `new E.Settings(game, own = []) → settings`: game.settings: the player's choices, one property each (game.settings.volume), with the game's own (o.menu.settings) beside the standard ones (STANDARD_SETTINGS). Saved with E.store under 'settings:' + the game's id, with a version; on load every value is checked and a bad one falls back to its default. Where storage is blocked the game plays on with the defaults (saved: false)
 - `settings.default(key)`: a setting's default value
 - `settings.define(sp)`: add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value, label]] or [value], help, group: 'Game', apply(game, value) }. Its saved value is loaded (when it is a valid one) and applied; it shows on the settings screen. Returns its value
 - `settings.keys(group)`: the keys of a group's settings, in order ('Display', 'Sound', 'Comfort', 'Controller', 'Touch', 'Game'), or every key
@@ -494,7 +547,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 11. Humanoid rig
 
-- `new E.Attack(spec = {}, over)`: new E.Attack(spec) or new E.Attack('slash', { reach: 9 }): a name from E.MOVES plus overrides
+- `new E.Attack(spec = {}, over) → slash`: new E.Attack(spec) or new E.Attack('slash', { reach: 9 }): a name from E.MOVES plus overrides
 - `slash.active`: true while the strike can connect
 - `slash.busy`: true from the wind-up to the end of the recovery
 - `slash.cancel()`: stop the swing at once (hurt, dodged into)
@@ -507,7 +560,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `slash.phase = null`: 'wind' | 'active' | 'recover', or null when idle
 - `slash.spec`: the move: seconds of wind, active and recover, and its shape for the rig (a0, a1, z0, z1, reach, hitAt)
 - `slash.t = 0`: seconds into the phase
-- `new E.Combo(specs, o = {})`: new E.Combo(items, { window: .3 }): items are move names, specs or Attacks. moves: the Attacks; window: seconds after a hit ends that a press still chains; step: the index of the current hit (-1 before the first); idle: seconds since the last hit ended
+- `new E.Combo(specs, o = {}) → combo`: new E.Combo(items, { window: .3 }): items are move names, specs or Attacks. moves: the Attacks; window: seconds after a hit ends that a press still chains; step: the index of the current hit (-1 before the first); idle: seconds since the last hit ended
 - `combo.active`: true while the current hit can connect
 - `combo.busy`: true while a hit of the chain is swinging
 - `combo.cancel()`: stop the chain; the next press starts it over
@@ -520,7 +573,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `combo.moves`: the Attacks
 - `combo.step = -1`: the index of the current hit (-1 before the first)
 - `combo.window`: seconds after a hit ends that a press still chains
-- `new E.Humanoid(o = {})`: new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each step, draw(g, ox, oy, view) inside r.actor
+- `new E.Humanoid(o = {}) → rig`: new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style, color }); hood: true
 - `rig.debug(r)` †: skeleton overlay for debugging, draws straight into the buffer
 - `rig.draw(g, ox, oy, view)`: draw into g with (ox, oy) = projected position of the rig's root
 - `rig.drawPortrait(g, x, y, size = 40, o = {})` †: a close-up bust for dialog boxes and menus, drawn live from the rig (blinks, hair and hats included): rig.drawPortrait(g, x, y, 40, { zoom: 3, turn: .6, bg: '#1a2050', frame: true }) // inside r.overlay(g => ...) zoom: pixels per world unit (3 = face fills the frame), turn: 0 = facing you, .6 = three-quarter. The bust stays upright while the rig kneels or lies down (upright: false shows the real pose); cape: false hides the cape; tint: '#808080' greys it out (a KO'd party member).
@@ -530,7 +583,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `rig.kick(v)`: a squash-and-stretch kick: + stretches (a jump), - squashes (a landing, a hit)
 - `rig.land(strength = 1)` †: a heavy landing: knees bend deep and spring back over a moment; strength 1 or more drops a hand to the ground (a three-point landing), .3-.6 is a soft one. Call it on the step the body lands
 - `rig.tip()`: world position of the weapon tip (sword tip, gun muzzle, staff orb)
-- `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand
+- `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll), pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die', stance: 'guard' | 'ready', down: 0..1
 - `rig.worldOffset(p)`: where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it) sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint
 - `rig.C`: C: its colors (skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye, ...), the defaults with o.colors over them; change one and it shows at the next draw
 - `rig.J`: its joints this step in its own frame ({ hipL, kneeL, footL, shC, head, handR, ... }; rig.worldOffset(J.handR) gives one in the world)
@@ -563,13 +616,17 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `rig.x = 0`: where its feet are (from the last update)
 - `rig.y = 0`: where its feet are (from the last update)
 - `rig.z = 0`: where its feet are (from the last update)
-- `E.MOVES: slash, backslash, overhead, rising, thrust, spin, plunge, twohand, jab, cross, hook, uppercut, haymaker, elbow, ... (24)`: E.MOVES: a library of named attacks with timing and body motion (anticipation, lunge, step, twist, hop). new E.Attack('overhead'), new E.Attack('thrust', { reach: 10 }), new E.Combo(['jab', 'cross', 'hook', 'uppercut']) rig.update(dt, { ..., attack: E.move('roundhouse', .5) }) // any move at any moment, for previews and cutscenes The same move works on every build and in every view: heights are relative to the shoulders (rel: true), reaches scale with arm length, and horizontal swings turn into screen-plane swings in side views. Spec fields: a0 / a1 angles (+ = the right side, or up in the screen plane), z0 / z1 heights, reach or r0 / r1 (an extending thrust), hand: 'R' | 'L' | 'both', plane: 'side' (always vertical), kick, spin, lunge, hop, crouch, lean, twist, hold, blade: 0 (no trail), wind / active / recover.
+- `E.MOVES: slash, backslash, overhead, rising, thrust, spin, plunge, twohand, jab, cross, hook, uppercut, haymaker, elbow, ... (24)`: E.MOVES: a library of named attacks with timing and body motion (anticipation, lunge, step, twist, hop). new E.Attack('overhead'), new E.Attack('thrust', { reach: 10 }), new E.Combo(['jab', 'cross', 'hook', 'uppercut']) rig.update(dt, { ..., attack: E.move('roundhouse', .5) }) // any move at any moment, for previews and cutscenes The same move works on every build and in every view: heights are relative to the shoulders (rel: true), reaches scale with arm length, and horizontal swings turn into screen-plane swings in side views. A move's spec fields:
+- `E.MOVES { a0, a1, z0, z1 }`: a0 / a1 angles (+ = the right side, or up in the screen plane), z0 / z1 heights
+- `E.MOVES { reach, r0, r1, hand, plane, blade }`: reach, or r0 / r1 (an extending thrust); hand: 'R' | 'L' | 'both', plane: 'side' (always vertical), blade: 0 (no trail)
+- `E.MOVES { wind, active, recover }`: the phases' seconds
+- `E.MOVES { kick, spin, lunge, hop, crouch, lean, twist, hold }`: the body's motion (kick: true swings the right foot)
 - `E.knockback(from, target, speed = 160, up = 0)`: push a target away from a point (attacker): uses target.push (E.Body) or its vx / vy. up = upward speed (knock into the air)
 - `E.move(name, u = .5, phase = 'active')`: any move from E.MOVES at any moment, for previews and cutscenes: rig.update(dt, { ..., attack: E.move('roundhouse', .5) }) (u 0..1 through phase)
 
 ## 12. Blob rig
 
-- `new E.Blob(o = {})`: new E.Blob({ R: 6.5, colors, ears, horns, wings, feet, tail, mouth, face }): a squash-and-stretch rig for slimes and jellies; blob.update(dt, state) each step, blob.draw(g, ox, oy, view) in an r.actor
+- `new E.Blob(o = {}) → blob`: new E.Blob({ R: 6.5, colors, ears, horns, wings, feet, tail, mouth, face }): a squash-and-stretch rig for slimes and jellies; blob.update(dt, state) each step, blob.draw(g, ox, oy, view) in an r.actor
 - `blob.draw(g, ox, oy, view)`: draw(g, ox, oy, view). Creature features from the constructor options: ears: 'rabbit' | 'cat', horns: true, wings: true (flapping bat wings), feet: true, tail: true, mouth: true | 'fangs', face: 'front' (eyes always on the camera side, for Mana-style monsters) update(dt, { flap: 0..1, hang: true }) slows or folds the wings and hangs a bat upside down from its anchor.
 - `blob.kick(v)`: a squash kick: + stretches (a hop), - squashes (a landing, a hit)
 - `blob.update(dt, s = {})`: s: {squash target -0.4..0.4, look:[dx,dy] ground dir, squint}
@@ -589,7 +646,13 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 13. Tile map
 
-- `new E.TileMap(o = {})`: Walls standing on a floor (top-down, isometric, brawler). Either { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex } (recommended) or { w, h, cells: [ids...], floor: [tags...], blocked: [0 | 1...], types, floorTex } (built in code: fill, setFloor; with no cells it starts as open floor). types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow] face: the wall's material (E.MATERIALS): 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none' | any material id or '#hex pattern' roof: the top's material: 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass' | any material id or '#hex pattern' floorMat: a material for the floor, floorMats: { tag: material } for tagged cells (in place of floorTex). block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
+- `new E.TileMap(o = {}) → map`: Walls standing on a floor (top-down, isometric, brawler). Either { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex } (recommended) or { w, h, cells: [ids...], floor: [tags...], blocked: [0 | 1...], types, floorTex } (built in code: fill, setFloor; with no cells it starts as open floor).
+- `new E.TileMap({ types })`: types[id] = { h, top, side, line, course, cut, cutH, face, roof }
+- `new E.TileMap({ types[id].face })`: the wall's material (E.MATERIALS): 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge' | 'none' | any material id or '#hex pattern'
+- `new E.TileMap({ types[id].roof })`: the top's material: 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' | 'grass' | any material id or '#hex pattern'
+- `new E.TileMap({ floorTex })`: floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow]
+- `new E.TileMap({ floorMat, floorMats })`: a material for the floor, floorMats: { tag: material } for tagged cells (in place of floorTex)
+- `new E.TileMap({ block })`: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry)
 - `map.arcClear(a, b, apex = 20, r = 0)`: does a jump arc from a to b (feet, { x, y, z }) clear every top on the way? The arc is a parabola peaking apex above the higher end; r > 0 also checks a track on each side of it. Jumps, throws, aerial takedowns
 - `map.block(cx, cy, on = true)`: mark a cell blocked or free at runtime (a bridge appears, lava cools)
 - `map.bounds(view)`: projected pixel bounds of the whole map for this view (camera clamping)
@@ -661,7 +724,9 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 14. Flow field
 
-- `new E.FlowField(map, o = {})`: new E.FlowField(map, { step: 2, climb: 0, drop: 0, jump: 0 }): distances over the tops a body can stand on (E.HEIGHTS). Next-door cells connect when their tops differ by at most step, or going up by up to climb and down by up to drop (agents that climb walls or hop down). jump (world units) links tops across a gap that a jump clears, straight along a row or column, by map.landing's rules (up to jumpRise higher, 11, and jumpDrop lower, 18): an agent with E.Mover's leap chases across roofs. With jump, distances are travel: a jump of k cells costs k, and a climb 1 plus its rise in cells (climbing is slow), so a chase leaps a gap rather than drop into the street and climb back up. With no options it covers the floor as before (and walls no higher than step, which bodies walk over); a target on a roof gets a field across the roofs it connects to
+- `new E.FlowField(map, o = {}) → flow`: new E.FlowField(map, { step: 2, climb: 0, drop: 0, jump: 0 }): distances over the tops a body can stand on (E.HEIGHTS). With no options it covers the floor (and walls no higher than step, which bodies walk over); a target on a roof gets a field across the roofs it connects to
+- `new E.FlowField({ step, climb, drop })`: next-door cells connect when their tops differ by at most step, or going up by up to climb and down by up to drop (agents that climb walls or hop down)
+- `new E.FlowField({ jump })`: (world units) links tops across a gap that a jump clears, straight along a row or column, by map.landing's rules (up to jumpRise higher, 11, and jumpDrop lower, 18): an agent with E.Mover's leap chases across roofs. With jump, distances are travel: a jump of k cells costs k, and a climb 1 plus its rise in cells (climbing is slow), so a chase leaps a gap rather than drop into the street and climb back up
 - `flow.dir(x, y, fx, fy)`: normalized ground direction to walk from (x, y) toward the target (straight at it where the field doesn't reach)
 - `flow.next(x, y)` †: the next cell to head for from (x, y): { x, y, z (its center and top), kind: 'walk' | 'climb' | 'drop' | 'jump', edge (how far (x, y) is from the side of its cell it leaves by) }, or null where the field doesn't reach (or at the target). An AI standing on the ground presses jump for a 'climb' or a 'jump' once edge is under its radius plus a little (E.Mover climbs or leaps; a press in the air would be kept for the landing)
 - `flow.update(x, y)`: aim the field at a world point; it rebuilds only when the target's cell or the map (map.version) changes
@@ -690,7 +755,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 16. Platform map
 
-- `new E.PlatformMap(o = {})`: { rows: [...ASCII, top row first...], legend: { '#': 1, '@': 'hero' }, types: { 1: {...} }, tile: 16, depth: 16 }
+- `new E.PlatformMap(o = {}) → level`: { rows: [...ASCII, top row first...], legend: { '#': 1, '@': 'hero' }, types: { 1: {...} }, tile: 16, depth: 16 }. Tile kinds: 'solid' (default) | 'oneway' | 'ladder' | 'slope' | 'hazard' | 'deco' | 'back'
 - `level.bounds(view)`: projected pixel bounds of the level for this view (use for game.cam.bounds)
 - `level.cell(cx, cz)`: tile id at column cx, row cz (cz = 0 is the bottom). Left and right of the level are solid walls unless edges: 'open'
 - `level.cellsTouching(b, what)`: tiles overlapped by a body box { x, z, w, h }: [{ cx, cz, id, kind }] (optionally only one kind or id)
@@ -718,7 +783,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `level.types`: the tile types by id, with their defaults filled in ({ kind, style, side, top, ... })
 - `level.version = 0`: counts every change to the cells (set)
 - `level.w`: the level's size in cells
-- `new E.Platformer(o = {})`: Platformer: a side-scroller character body with modern, forgiving controls (coyote time, jump buffering, variable jump height, optional double jump, wall jump, dash, ladders, knockback). const hero = new E.Platformer({ x, z, w: 8, h: 22 }); update: hero.update(dt, level, game.input) (or an intent object for enemies: { x: -1..1, jump, jumpPressed, up, down, dash }) then read hero.onGround, hero.jumped, hero.landed, hero.facing (1 or -1), hero.climbing, hero.air draw a Humanoid with rig.update(dt, hero.rigState()) Units: world units per second. One tile = 16. A 285 jump with gravity 800 clears about 3 tiles.
+- `new E.Platformer(o = {}) → hero`: Platformer: a side-scroller character body with modern, forgiving controls (coyote time, jump buffering, variable jump height, optional double jump, wall jump, dash, ladders, knockback). const hero = new E.Platformer({ x, z, w: 8, h: 22 }); update: hero.update(dt, level, game.input) (or an intent object for enemies: { x: -1..1, jump, jumpPressed, up, down, dash }) then read hero.onGround, hero.jumped, hero.landed, hero.facing (1 or -1), hero.climbing, hero.air draw a Humanoid with rig.update(dt, hero.rigState()) Units: world units per second. One tile = 16. A 285 jump with gravity 800 clears about 3 tiles.
 - `hero.knock(dir, speed = 130, up = 170, stun = .3)`: push the body (getting hit): dir = -1 / 1
 - `hero.rigState(extra)`: state for Humanoid.update: rig.update(dt, hero.rigState({ attack }))
 - `hero.update(dt, level, ctl = {}, solids)`: move it one step: ctl is game.input or an intent { x: -1..1, jump, jumpPressed, up, down, dash } (enemies, bots); solids: moving platforms [{ x, z, w, h, vx, vz }] to stand on
@@ -759,7 +824,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 17. Body
 
-- `new E.Body(o = {})`: new E.Body({ x, y, r: 5, ... }). x, y, z: its position (z = feet); vx, vy, vz: its speed, world units per second; r: its radius; h: its height (32, a standing actor's: it spans z to z + h, so it passes under a solid shape above that and walks into one in that span); gravity: pulls z down (world units per second squared); friction: slows vx and vy per second (0 = none); bounce: 0..1, how much speed it keeps off walls and the floor; step: the height it walks up without jumping (E.HEIGHTS.step); onGround: standing; groundZ: the height of what is under it; hitWall: it touched a wall this step; landed: it landed this step
+- `new E.Body(o = {}) → body`: new E.Body({ x, y, r: 5, ... }). x, y, z: its position (z = feet); vx, vy, vz: its speed, world units per second; r: its radius; h: its height (32, a standing actor's: it spans z to z + h, so it passes under a solid shape above that and walks into one in that span); gravity: pulls z down (world units per second squared); friction: slows vx and vy per second (0 = none); bounce: 0..1, how much speed it keeps off walls and the floor; step: the height it walks up without jumping (E.HEIGHTS.step); onGround: standing; groundZ: the height of what is under it; hitWall: it touched a wall this step; landed: it landed this step
 - `body.jump(v = 220)`: leave the ground with upward speed v (only when standing). Returns true if it jumped
 - `body.push(ix, iy, iz = 0)`: add an impulse (knockback, explosion): push(vx, vy, vz)
 - `body.update(dt, map)`: move it one step: speed, friction, walls (map.collide: lower walls are walked onto), gravity and the ground under it (map.groundAt)
@@ -783,8 +848,8 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 17b. Actions
 
-- `E.ACTIONS: climbUp, vault, hopDown, roll, getUp, takedown` †: the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at }
-- `new E.Action(name, o = {})`: new E.Action(name, { body, to, other, dir, dist, top, aerial, reverse, speed: 1 }): play E.ACTIONS[name] on a body (and on o.other for a paired action). It moves them itself: run update(dt) every step instead of their physics, and feed rigState() to the rig. Each body ends standing where the action put it
+- `E.ACTIONS: climbUp, vault, hopDown, roll, getUp, takedown` †: the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at }. Play one: mover.play('takedown', { other })
+- `new E.Action(name, o = {}) → action`: new E.Action(name, { body, to, other, dir, dist, top, aerial, reverse, speed: 1 }): play E.ACTIONS[name] on a body (and on o.other for a paired action). It moves them itself: run update(dt) every step instead of their physics, and feed rigState() to the rig. Each body ends standing where the action put it
 - `action.canCancel` †: true during a beat marked as one the action may be cut short in (spec.cancel)
 - `action.cancel()` †: stop now: the bodies stay where they are
 - `action.invulnerable` †: true while hits should miss (spec.safe: [from, to] of the action's progress)
@@ -807,7 +872,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `action.vx` †: the body's speed this step, for the rig
 - `action.vy` †: the body's speed this step, for the rig
 - `action.vz = 0` †: the body's speed this step, for the rig
-- `new E.Mover(o = {})`: new E.Mover({ x, y, z, r: 5, walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220, coyote: .1, buffer: .12, climb: true, climbMax: 82, vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14 })
+- `new E.Mover(o = {}) → mover`: new E.Mover({ x, y, z, r: 5, walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220, coyote: .1, buffer: .12, climb: true, climbMax: 82, vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14 }). An E.Body: it has body.jump, push and the body's fields too
 - `mover.dodge(dir, dist = 34)` †: a dodge roll toward dir (an angle or [dx, dy]; default its facing) when it stands free. Returns the action, or null
 - `mover.play(name, o = {})` †: start an action now (E.ACTIONS name, its options): it moves the body until it ends
 - `mover.respawn()` †: back to the last safe spot (after water, a pit, a fall it shouldn't survive)
@@ -838,7 +903,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `mover.turn = 14` †: how fast it turns, radians a second
 - `mover.vault = 14` †: walls up to this high are vaulted at a run
 - `mover.walk = 50` †: top speeds (world units a second)
-- `new E.Suspicion(o = {})`: new E.Suspicion({ rise: 1.5, decay: .3, notice: .3, search: .65, alert: 1, forget: 6 }): a guard's mind. Its level rises while it sees the target (faster the more exposed and nearer), decays while it doesn't, and names a state: 'calm', 'notice' (turn and look), 'search' (go to last), 'alert' (chase). An alert guard that loses the target searches for forget seconds
+- `new E.Suspicion(o = {}) → suspicion`: new E.Suspicion({ rise: 1.5, decay: .3, notice: .3, search: .65, alert: 1, forget: 6 }): a guard's mind. Its level rises while it sees the target (faster the more exposed and nearer), decays while it doesn't, and names a state: 'calm', 'notice' (turn and look), 'search' (go to last), 'alert' (chase). An alert guard that loses the target searches for forget seconds. Each step: suspicion.update(dt, seen, target)
 - `suspicion.hear(strength, at)` †: a noise heard (strength 0..1, from E.hears) at a point: at least noticed, never more than searching
 - `suspicion.reset()` †: back to calm
 - `suspicion.update(dt, seen, target)` †: one step: seen is E.sees' result (or true / false), target the body seen. Returns the state
@@ -858,7 +923,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 18. Bullets
 
-- `new E.Bullets(game, o = {})`: new E.Bullets(game, { plane: 'ground' | 'side', max: 800, sparks: true }). game: its game; list: the live bullets; max: at most this many at once; plane: 'ground' (they fly over x and y) or 'side' (x and z); sparks: a puff of sparks where one hits a wall
+- `new E.Bullets(game, o = {}) → shots`: new E.Bullets(game, { plane: 'ground' | 'side', max: 800, sparks: true }). game: its game; list: the live bullets; max: at most this many at once; plane: 'ground' (they fly over x and y) or 'side' (x and z); sparks: a puff of sparks where one hits a wall
 - `shots.burst(base, vels)`: fire several at once from a pattern list of [vx, v2] (v2 = vy on the ground plane, vz in side view)
 - `shots.clear(team)`: remove every bullet, or only one team's
 - `shots.draw(r)`: queue them for drawing (glowing cores, or their sprites)
@@ -879,7 +944,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 19. Spatial hash
 
-- `new E.SpatialHash(cell = 32)`: new E.SpatialHash(cell = 32): buckets things by position, to find what is near cheaply. cell: the bucket size in world units; map: the buckets
+- `new E.SpatialHash(cell = 32) → grid`: new E.SpatialHash(cell = 32): buckets things by position, to find what is near cheaply. cell: the bucket size in world units; map: the buckets
 - `grid.add(o, x = o.x, y = o.y)`: put o in the bucket at (x, y)
 - `grid.build(list, xk = 'x', yk = 'y')`: clear, then add every live thing in list (skips o.dead); do it once a step
 - `grid.clear()`: empty it
@@ -890,7 +955,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 20. Audio
 
-- `new E.Audio(game, signal)`: game.audio: a chip synthesizer, no sound files. Sound starts after the person's first tap or key (browsers' rule); until then, and where there is no Web Audio, every call is silently skipped
+- `new E.Audio(game, signal) → game.audio`: game.audio: a chip synthesizer, no sound files. Sound starts after the person's first tap or key (browsers' rule); until then, and where there is no Web Audio, every call is silently skipped
 - `game.audio.define(name, voice)`: add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 })
 - `game.audio.duck(on = true)`: quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused
 - `game.audio.music(song, o = {})`: Loop a song (or play once with { loop: false }). song = { bpm: 120, steps: 4, tracks: [ { wave: 'square', vol: .2, notes: 'C5 - E5 - G5 - . . | ...' }, one token per step { wave: 'triangle', notes: 'C3 . C3 . G2 . G2 .' }, { wave: 'drums', notes: 'k . h . s . h . k k h . s . h .' } ] } tokens: C4 F#3 Bb2 = note, '-' holds the previous note, '.' = rest, '|' is ignored (bar lines). steps = steps per beat (4 = sixteenth notes). Each track loops on its own length. E.songs has ready-made loops: title, adventure, dungeon, boss, victory.
@@ -915,30 +980,32 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 21b. Backdrops
 
-- `new E.Backdrop(o = {})`: new E.Backdrop('castle-night') (a preset: E.Backdrop.presets) or new E.Backdrop({ sky: [colors top to bottom], sun, moon, stars, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' | 'fog' | 'stalactites', color, y, height, parallax, seed }] }): a parallax sky and scenery drawn behind a level
+- `new E.Backdrop(o = {}) → backdrop`: new E.Backdrop('castle-night') (a preset: E.Backdrop.presets) or new E.Backdrop({ sky: [colors top to bottom], sun, moon, stars, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' | 'fog' | 'stalactites', color, y, height, parallax, seed }] }): a parallax sky and scenery drawn behind a level. sun, moon: { x, y (0..1 of the screen), r, color }
 - `E.Backdrop.presets` †: the preset names, all ten: day, dusk, night, castle-night, city-night, desert, forest, ocean, cave, space
 - `backdrop.draw(r)` †: draw the backdrop first in draw(r), before the level; it scrolls with the camera by each layer's parallax
 - `backdrop.layers` †: its scenery layers, back to front, with their defaults filled in
 - `backdrop.o` †: the options it was made from
 - `backdrop.sky` †: the sky's gradient colors, top to bottom
-- `E.PROPS: 38 entries` †: the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts)
+- `E.PROPS: torch, candle, candelabra, chandelier, brazier, window, banner, pillar, statue, crate, barrel, chest, pot, sign, fence, lamp, door, tree, pine, bush, flowers, grass, rock, crystal, bones, skull, vines, cobweb, lantern, streetlamp, awning, hydrant, trashcan, firedrum, sandbags, cactus, palm, mushroom` †: the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts)
 - `E.SHAPES: barrel, crate, chest, table, chair, stool, bench, bed, bookcase, shelf, pot, jar, sack, cart, ... (25)`: the shapes by id: { about, tags, mats: { slot: material }, parts | make(params), params, foot, lights, flames } (the core library's, the sets' as 'SET:id' from E.addAssets, and your own: E.SHAPES.stool = {...})
 - `E.addAssets(set)`: register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries are named 'SET:id' (so one set never changes another's, or the core's) and find their own set's materials and shapes first. An id that is already there warns and keeps the first. Returns { shapes: [ids], materials: [ids], sprites: { id: sprite } } (sprites are E.sprite data; a color may be 'material:tone', tone deep | sh | base | lt | hi)
 - `E.materialTile(id, o = {})`: a material's pattern as a tile of pixels, for a 3D renderer's texture: E.materialTile(id, { size: 32 (world units square: it repeats every size; a face pattern's whole face), px: 2 (pixels a unit), lid: false (true: as on a face looking up), curved (as on a turned face), band: 2 (the light: 0 dark .. 4 bright) }) -> { w, h, rgba (Uint8ClampedArray, top row first, v up the tile) }; null for an unknown material
 - `E.prop(name, o = {})`: build (and cache) a prop: { frames: [sprite], glow: [sprite] | null, w, h }
 - `E.shapeBox(id, x, y, z = 0, o = {})`: where a placed shape stands, as both engines collide with it: E.shapeBox(id | entry, x, y, z, { facing, scale, flip, params }) -> { x, y (its footprint's middle), z, top, hx, hy (half its footprint, along its own x and y), c, s (the turn's cosine and sine) }; null for an unknown shape. map.solid makes one solid; world.shape gives it a collider
 - `E.shapeInfo(id, o = {})`: what a shape draws, for tools and tests: E.shapeInfo(id, { view: 'iso', facing, scale, mats, params }) -> { w, h, ox, oy, tris, prims (its primitives), parts (each primitive's pixels on screen: 0 is never seen there), colors (distinct), pixels, bounds [x0, y0, z0, x1, y1, z1], rgba }; null for an unknown shape
-- `E.shapeMesh(id, o = {})`: a shape's triangles, for a 3D renderer (the 3D engine's world.shape): E.shapeMesh(id | entry, { params, mats, seg }) -> { groups: [{ mat (the material ready to draw: E.material's), key (its id), lid (true: the faces looking up or down, which some patterns draw their own way), curved (turned or round faces: planks run up them), face (a pattern drawn once per face, the crate's sides and bark's ends: uv runs 0 to 1 across each face), pos, nrm, uv (Float32Arrays: three numbers a corner, three corners a triangle; uv two a corner, world units across the surface) }], bounds [x0, y0, z0, x1, y1, z1] } in the entry's own units and frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). seg(r): the segments round a radius r (default 8 to 24). The same parts as r.shape draws; null for an unknown shape
+- `E.shapeMesh(id, o = {})`: a shape's triangles, for a 3D renderer (the 3D engine's world.shape): E.shapeMesh(id | entry, { params, mats, seg }) -> { groups: [{ mat, key, lid, curved, face, pos, nrm, uv }], bounds [x0, y0, z0, x1, y1, z1] } in the entry's own units and frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). The same parts as r.shape draws; null for an unknown shape
+- `E.shapeMesh({ seg })`: seg(r): the segments round a radius r (default 8 to 24)
+- `E.shapeMesh() → groups`: each one's mat (the material ready to draw: E.material's), key (its id), lid (true: the faces looking up or down, which some patterns draw their own way), curved (turned or round faces: planks run up them), face (a pattern drawn once per face, the crate's sides and bark's ends: uv runs 0 to 1 across each face), pos, nrm, uv (Float32Arrays: three numbers a corner, three corners a triangle; uv two a corner, world units across the surface)
 - `E.shapeSprite(id, o = {})`: a shape as a sprite (E.sprite's kind: r.sprite, px.sprite, inventories, HUDs, portraits): E.shapeSprite(id, { view: 'iso', facing, size (its scale, 1), mats, params, outline: true | a color | false }). The view is a name or a View, as given (r.shape draws steep views from the characters' angle: E.charView(view) gives that); a bag icon is the item's shape seen at an angle. r.sprite stands it on its feet (foot: [x, y] in the sprite) unless an anchor is given
 
 ## 21. Ui
 
-- `new E.Dialog(game, o = {})`: new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border }): a dialog box that types its text; say() opens it, update(dt) and draw(r) run it
+- `new E.Dialog(game, o = {}) → talk`: new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border }): a dialog box that types its text; say() opens it, update(dt) and draw(r) run it
 - `talk.close()`: close it now (and forget pending presses, so the same press doesn't also attack)
 - `talk.draw(r)`: draw it (anywhere in draw: it goes to the overlay)
 - `talk.page`: the lines of the page shown
 - `talk.pageLen`: the letters on the page shown
-- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg } }
+- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg } } choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked
 - `talk.typing`: true while the page is still typing
 - `talk.update(dt)`: type and turn pages (confirm finishes the line, then turns the page); returns true while open and modal, so gameplay can wait: if (talk.update(dt)) return;
 - `talk.auto`: seconds each page stays after typing
@@ -964,7 +1031,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `talk.shown = 0`: letters typed so far on it
 - `talk.speed = 50`: letters typed per second
 - `talk.voice = 'text'`: the sound effect each letter blips ('text'; null for silence)
-- `new E.Menu(game, items, o = {})`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
+- `new E.Menu(game, items, o = {}) → menu`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
 - `menu.draw(r)`: draw it to the overlay
 - `menu.selected`: the entry under the cursor
 - `menu.update()`: move the cursor (up, down; held keys repeat; the mouse over an entry) and pick (confirm, or a click or tap on an entry) or cancel; returns true when it picked or cancelled
@@ -985,14 +1052,29 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `menu.title = null`: a heading, or null
 - `menu.x = 'center'`: where it sits, 'center' or pixels
 - `menu.y = 'center'`: where it sits, 'center' or pixels
-- `new E.Shell(game, o = {})`: new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings', meters: .125, standard: true }): an HTML interface over the game (see the section's header). theme: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont); screens: specs ui.show(name) starts from (the pause screen follows game.paused; screens: { pause: false } leaves it out); settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max, step, options, value } (kept in game.settings, beside the standard ones); store: where an older version saved them; meters: meters per world unit for distances; standard: false leaves out the standard menu (the pause screen's Settings, Controls, Full screen and Quit, and the settings' groups)
+- `new E.Shell(game, o = {}) → shell`: new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings', meters: .125, standard: true }): an HTML interface over the game (see the section's header)
+- `new E.Shell({ theme })`: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont)
+- `new E.Shell({ screens })`: specs ui.show(name) starts from (the pause screen follows game.paused; screens: { pause: false } leaves it out)
+- `new E.Shell({ settings })`: settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max, step, options, value } (kept in game.settings, beside the standard ones)
+- `new E.Shell({ store, meters })`: store: where an older version saved them; meters: meters per world unit for distances
+- `new E.Shell({ standard })`: false leaves out the standard menu (the pause screen's Settings, Controls, Full screen and Quit, and the settings' groups)
 - `shell.back()` †: what cancel does: the screen's own back(), or close it (back to the screen under it; closing the pause screen resumes)
 - `shell.dispose()` †: take its elements away and let go of the game (game.dispose() does it)
 - `shell.hide()` †: close every screen (and resume, when the menu paused the game)
-- `shell.hud(st = {})` †: the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn): { objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below), status: 'UNSEEN' or { text, color }, bars: [{ label, value, max, kind: 'bar' | 'pips', color }], counts: [[label, value]], prompt: { key: 'E' (or act: 'interact': its key on the player's device), label, hint, progress: 0..1 }, tip: 'text' or { title, text }, place: 'The Old Harbour', keys: [['WASD', 'Move'], ...] (hidden on touch screens), buttons: [[label, fn or action]] (top right: pause and map where there is no Escape key), minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick } }
+- `shell.hud(st = {})` †: the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn): { objective, status, bars, counts, prompt, tip, place, keys, buttons, minimap }
+- `shell.hud({ objective })` †: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below)
+- `shell.hud({ status, place, tip })` †: status: 'UNSEEN' or { text, color }; place: 'The Old Harbour'; tip: 'text' or { title, text }
+- `shell.hud({ bars, counts })` †: bars: [{ label, value, max, kind: 'bar' | 'pips', color }] (health, stamina, a meter); counts: [[label, value]]
+- `shell.hud({ prompt })` †: { key: 'E' (or act: 'interact': its key on the player's device), label, hint, progress: 0..1 }
+- `shell.hud({ keys, buttons })` †: keys: [['WASD', 'Move'], ...] (hidden on touch screens); buttons: [[label, fn or action]] (top right: pause and map where there is no Escape key)
+- `shell.hud({ minimap })` †: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick }
 - `shell.screen` †: the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays
 - `shell.settings` †: the player's settings: game.settings (the standard ones and the game's own, by key)
-- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel) }; title: { name, subtitle, meta: [...], footer }; settings: its items; help: { keys: [[key, what]], sections: [[heading, text]] }; results: { emblem, stats: [[value, label]], medals: [[label, earned]] }; map: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old)
+- `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old). 'settings' takes its items
+- `shell.show('title')` †: { name, subtitle, meta: [...], footer }
+- `shell.show('help')` †: { keys: [[key, what]], sections: [[heading, text]] }
+- `shell.show('results')` †: { emblem, stats: [[value, label]], medals: [[label, earned]] }
+- `shell.show('map')` †: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }
 - `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds
 - `shell.tutorial(title, text = '', seconds = 15)` †: a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away
 - `shell.els` †: the HUD's elements, by piece (hb, obj, vit, toast, tut, pr, tip, place, mini, keys) and the screen layer (scr)
@@ -1007,7 +1089,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 ## 22. Gpu lighting (webgpu)
 
-- `new E.GPULighting(game, o = {})` †: game.enableGPU({ map, bands, ambient, ... }) makes it: per-pixel WebGPU lighting with shadows and glow, falling back to the canvas lighting where there is no WebGPU
+- `new E.GPULighting(game, o = {}) → game.gpu` †: game.enableGPU({ map, bands, ambient, ... }) makes it: per-pixel WebGPU lighting with shadows and glow, falling back to the canvas lighting where there is no WebGPU
 - `E.GPULighting.supported()` †: true where the browser has WebGPU
 - `game.gpu.active(view)` †: true when it lights frames in this view (ready, enabled and a ground view)
 - `game.gpu.fail(e)` †: give up on the GPU (an error): the canvas lighting takes over
