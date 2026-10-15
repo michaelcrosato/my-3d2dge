@@ -202,7 +202,9 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     the input presets' code (it grepped the engine for `THIRDPERSON` first; the index names that preset's keys and
     actions in prose), how the pixel primitives fill (the index gives their signatures), and what `map.bounds` returns
     (not in the index: taken up in v0.43.2, lookup 26). That is 3 of its 8 searches followed by the source, which
-    reopens the index's split by D38's rule. **Threshold** (the theme's).
+    reopens the index's split by D38's rule. **Threshold** (the theme's). Taken up in v0.43.4: the index names `px`'s
+    members as games write them (`px.disc`, not `E.px.disc`) and each input preset's actions (lookups 27, 28); the
+    owner kept the index whole, and the split now reopens only on two runs in a row (D43).
   - **F6.2** · the look · 5/10 against F3's 6/10 on the same brief and model, with objects from the core library
     (no store set): the judge saw empty fields, flat lighting, and the iso view's black void under the backdrop and
     flat building faces. **Threshold** (the theme's).

@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.43.4 (2026-10-15)
+
+The API index stays whole (the owner's answer to D42, D43): the two facts the benchmark's agent went to the source for are found in the index now, and a split reopens only when two runs in a row trip the rule.
+
+- **Tools**: `tools/api-index.mjs` lists `px`'s members as games write them, `px.disc(g, cx, cy, r, c)`, not `E.px.disc` (the card's first line makes `px` a local; the agent searched `^- \`px\.disc` and missed).
+- **Tools**: a key map among a class's statics names its own actions, from the code: `E.Input.THIRDPERSON { sprint, jump, crouch, interact, attack, block, dodge, use, map }`, and likewise `DEFAULT`, `PLATFORMER` and `SHMUP`.
+- **Engine**: `input.use`'s doc comment names the four presets and the actions every one has (up, down, left, right; start, pause, confirm, cancel).
+- **Tools**: lookups 27 (the pixel primitives, searched as games write them) and 28 (the third-person preset's actions) in `tools/api-index-lookups.json`: 28 of 28 answered, 27 in one search. The index is 34,010 cl100k tokens (from 33,937).
+- **Tools**: `tools/agent-bench.mjs` says a run *trips* the split rule (`tripsSplit` in `result.json`, "trips the split rule" in the row); two runs in a row that trip it reopen the split (D43).
+- **Docs**: D43 records the answer and the tightened rule, D42 notes it, `DOCTRINE.md`'s paragraph on the run says the index was kept whole, and `docs/FEEDBACK-LOG.md` F6.1 says what was taken up.
+
 ## 0.43.3 (2026-10-15)
 
 The API index plan, folded into the decisions and deleted, as v0.38.1 did with the asset plan.

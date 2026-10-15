@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.43.3)
+# my-3D2dge API index (v0.43.4)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -84,7 +84,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.43.3"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.43.4"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -148,19 +148,19 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 ## 2. Pixel primitives
 
 - `E.px`: the pixel primitives: px.rect, px.line, px.dot, px.disc, px.poly, px.sprite, ... (each snaps to whole pixels)
-- `E.px.blend(g, a, mode, fn)`: draw fn() at alpha a (stepped, like PS1 hardware) with a blend mode: 'normal', 'add', 'multiply', 'screen' (E.style.trans = 'dither' dithers instead)
-- `E.px.col(g, c)`: set the fill color (px.* do it themselves)
-- `E.px.ddisc(g, cx, cy, r, c, a, wx = 0, wy = 0)`: soft disc that fades toward its edge (glows, smoke, dust): stepped alpha rings, or dithering in 'dither' style
-- `E.px.disc(g, cx, cy, r, c)`: a filled circle
-- `E.px.dot(g, x, y, c)`: one pixel
-- `E.px.ell(g, cx, cy, rx, ry, c)`: a filled ellipse
-- `E.px.glow(g, e = 1)`: GPU lighting: what follows glows (0..1). No effect in Canvas mode, so call it freely.
-- `E.px.line(g, x0, y0, x1, y1, c, w = 1)`: a line w pixels thick, no smoothing
-- `E.px.poly(g, pts, c)`: a filled polygon through [[x, y], ...]
-- `E.px.polyDither(g, pts, c, a, wx = 0, wy = 0)`: translucent polygon: a = 0..1 opacity (stepped alpha, or a dither pattern in 'dither' style). wx/wy = world pixel offset for the pattern
-- `E.px.rect(g, x, y, w, h, c)`: a filled rectangle, snapped to whole pixels
-- `E.px.reset(g)`: forget the color cache (after drawing on g with the canvas API directly)
-- `E.px.sprite(g, spr, x, y, flip = false)`: draw a sprite with its top-left corner at buffer pixel (x, y). flip mirrors it left-right.
+- `px.blend(g, a, mode, fn)`: draw fn() at alpha a (stepped, like PS1 hardware) with a blend mode: 'normal', 'add', 'multiply', 'screen' (E.style.trans = 'dither' dithers instead)
+- `px.col(g, c)`: set the fill color (px.* do it themselves)
+- `px.ddisc(g, cx, cy, r, c, a, wx = 0, wy = 0)`: soft disc that fades toward its edge (glows, smoke, dust): stepped alpha rings, or dithering in 'dither' style
+- `px.disc(g, cx, cy, r, c)`: a filled circle
+- `px.dot(g, x, y, c)`: one pixel
+- `px.ell(g, cx, cy, rx, ry, c)`: a filled ellipse
+- `px.glow(g, e = 1)`: GPU lighting: what follows glows (0..1). No effect in Canvas mode, so call it freely.
+- `px.line(g, x0, y0, x1, y1, c, w = 1)`: a line w pixels thick, no smoothing
+- `px.poly(g, pts, c)`: a filled polygon through [[x, y], ...]
+- `px.polyDither(g, pts, c, a, wx = 0, wy = 0)`: translucent polygon: a = 0..1 opacity (stepped alpha, or a dither pattern in 'dither' style). wx/wy = world pixel offset for the pattern
+- `px.rect(g, x, y, w, h, c)`: a filled rectangle, snapped to whole pixels
+- `px.reset(g)`: forget the color cache (after drawing on g with the canvas API directly)
+- `px.sprite(g, spr, x, y, flip = false)`: draw a sprite with its top-left corner at buffer pixel (x, y). flip mirrors it left-right.
 - `E.sprite(rows, colors = {}, scale = 1)`: Pixel sprite written as strings. Each character is one pixel; colors maps a character to a hex color; '.' and ' ' are transparent. scale (whole number) enlarges each pixel. const COIN = E.sprite(['.yy.', 'yYYy', 'yYYy', '.yy.'], { y: '#f0b020', Y: '#fff0a0' }); Draw it with r.sprite(x, y, z, COIN) (depth sorted) or px.sprite(g, COIN, sx, sy).
 - `E.style: trans`: Translucency style. 'alpha' (default, PS1 / N64 / SNES color math): real transparency in 1/8 steps, plus blend modes. 'dither' (NES, Game Boy, Genesis look): ordered-dither patterns. Set E.style.trans = 'dither' for the older look.
 
@@ -215,10 +215,10 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 ## 5. Input
 
 - `new E.Input(screen, map, signal) → input`: signal: an AbortSignal that removes every listener this adds (game.dispose()). A screen without a canvas (headless) gets no DOM listeners: input comes from press(code), release(code), tap(action) and hold(action, on)
-- `E.Input.DEFAULT`: top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks
-- `E.Input.PLATFORMER`: side-scrollers (Mario, Mega Man): Space / Z / K jump, X / J attack or shoot, Shift / C dash
-- `E.Input.SHMUP`: shoot-'em-ups (1942, Gradius): Space / Z / J fire (hold for autofire), X / K bomb
-- `E.Input.THIRDPERSON` †: third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour, C crouch (a toggle), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map
+- `E.Input.DEFAULT { attack, dash, skill, jump }`: top-down / isometric action (Zelda, Diablo): Space dashes, J or click attacks
+- `E.Input.PLATFORMER { jump, attack, dash, skill }`: side-scrollers (Mario, Mega Man): Space / Z / K jump, X / J attack or shoot, Shift / C dash
+- `E.Input.SHMUP { fire, bomb }`: shoot-'em-ups (1942, Gradius): Space / Z / J fire (hold for autofire), X / K bomb
+- `E.Input.THIRDPERSON { sprint, jump, crouch, interact, attack, block, dodge, use, map }` †: third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour, C crouch (a toggle), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map
 - `input.anyPressed()`: any action pressed this step (title screens: "press any button")
 - `input.bindButtons(root)` †: wire every element with data-act="<action>" inside root to the action
 - `input.bindings` †: the player's bindings over the preset: { action: { keys: [codes], pad: [codes] } } (game.settings.bindings keeps them)
@@ -255,7 +255,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.touchButtons(actions, o = {})` †: On-screen buttons for phones and tablets (shown on touch screens; the player's settings can show them always or hide them, put them on the left, and size them): input.touchButtons(['jump', 'attack'], { labels: { jump: 'A', attack: 'B' }, force }). The other half of the screen is a move stick (past halfway it presses up, down, left and right too, as a d-pad does: menus and ladders). START is the corner's menu button, top right: it opens the menu, or pauses a pausable scene into it (without the corner a START button there starts a title and pauses, as a gamepad's Start)
 - `input.touchSet(a, label = null, show = true)` †: one touch button as the moment changes: its label (TALK beside someone, NEXT in a dialog; null: its own) and whether it shows (false: nothing for it to do here). Cheap to call every step: input.touchSet('confirm', near ? 'TALK' : null, near || talking)
 - `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
-- `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it
+- `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it. Every preset (E.Input.DEFAULT, PLATFORMER, THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel)
 - `input.zoom()` †: the camera zoom the player asked for since the last step, as a factor (1.1: 10% closer, .9: farther; 1: none): the wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy)
 - `input.aimSource = 'move'` †: what aims right now: 'move' | 'mouse' | 'pad'
 - `input.clock = 0`: seconds of input time (the steps' dt added up)

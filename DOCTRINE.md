@@ -216,7 +216,10 @@ F3's code in a third of its time and a quarter of its cost ($3.43), the source r
 searched, never read whole (D41 records the manuals' reads). Its props were the core library's shapes, placed from a
 268-token list (4.6% of its code draws by hand), yet the judge gave 5/10 against F3's 6/10: empty grass, flat lighting,
 and a black void under the backdrop in the iso view (F6). 3 of its 8 searches of the index were followed by a read of
-the source, more than D38's third, so the index's split is reopened for the owner (D38's rule).
+the source, more than D38's third, which tripped D38's rule for splitting the index. The owner kept it whole (D43): two
+of those searches missed facts the index held under other names (`E.px.disc` for the `px.disc` games write) or in prose
+(the third-person preset's actions), filled in v0.43.4, and the third, `map.bounds`, in v0.43.2; one run is a signal, so
+the split now reopens only when two runs in a row trip the rule.
 
 ### The checks here
 

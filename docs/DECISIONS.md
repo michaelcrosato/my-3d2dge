@@ -761,4 +761,32 @@ An entry:
 - **What would change it:** the owner's answer on the split; a second run that reads the index whole or pages through
   it; the index past 38,000 tokens; the lookup check unable to keep its lookups answered.
 - **Answered:** the plan's decisions, yes (D38). The split's reopening goes to the owner with this pull request.
+- **Answered since:** the owner kept the index whole and asked for the gaps filled (2026-10-15, D43).
 - **Landed in:** v0.43.3
+
+## D43 · 2026-10-15 · The API index stays whole; the split reopens only on two runs in a row
+
+- **Principle:** 1 (agent-readable: an agent finds a name in one search of one file), and process (a rule that acts on one
+  run acts on noise)
+- **Call:** the owner's answer to D42: the index is not split. The run's three reads of the source are answered in the
+  index instead, and the rule is tightened.
+  - Two of them were facts the index held, but not where the agent looked:
+    - The pixel primitives were listed as `E.px.disc`, and the agent searched `^- \`px\.disc`, as games write them
+      (the card's first line is `const E = My3D2dge, { px, clamp } = E`; the repository writes `px.` 2,679 times and
+      `E.px.` 3). The index lists `px`'s members as `px.disc` now (lookup 27).
+    - The third-person preset's actions were in prose ("Shift sprint, ... E interact"). A key map among a class's
+      statics names its own actions now, from the code (`E.Input.THIRDPERSON { sprint, jump, crouch, ... }`), and
+      `input.use` names the presets and the actions every one has (lookup 28).
+  - The third, what `map.bounds` returns, was answered in v0.43.2 (lookup 26).
+  - A run that reads the index whole, covers most of it in ranges, or follows more than a third of its searches with a
+    read of the source now *trips* the split rule (the benchmark's row says so); two runs in a row that trip it reopen
+    the split, which then goes to the owner as D42 did.
+- **Why:** the run met the rule's third trigger by one search (3 of 8 against a third), never read the index whole and
+  read 4% of it as a range: the failures a split fixes didn't happen. A split answered no more lookups when it was
+  measured (option C, D42) and made each one about 3% dearer; what was missing was content and naming, which a split
+  doesn't change. It cost the index 73 tokens: 34,010 (from 33,937), with 28 of 28 lookups, 27 in one search.
+- **What would change it:** two benchmark runs in a row that trip the rule; the index past 38,000 tokens; the lookup check
+  unable to keep its lookups answered.
+- **Answered:** yes: the owner, 2026-10-15 ("take care of the api index thing"), after the recommendation to fill the
+  index and not split it
+- **Landed in:** v0.43.4
