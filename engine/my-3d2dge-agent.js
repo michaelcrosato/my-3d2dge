@@ -690,7 +690,7 @@ class Screen {
     this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this._o = o;
     this.buf = canvas ? mkCanvas(8, 8) : null; this.ctx = canvas ? ctx2d(this.buf) : null;
     this.W = 320; this.H = 200; this.S = 3; this.OX = 0; this.OY = 0; this.dpr = 1;
-    this.ix = 0; this.iy = 0; this._fx = 0; this._fy = 0;
+    this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0;
     this.scale = 'auto';   // a fixed res: 'sharp' (whole-number scale), 'fill' (the largest fit), 'auto' (fill on high-density screens)
     // o.expand: res is the least the screen shows; the picture grows on both sides to fill it (no bars; up to expand.maxW x maxH)
     this.resize();
@@ -721,7 +721,7 @@ class Screen {
   setOptions(o) { Object.assign(this._o, o); this.resize(); }
   setScale(v) { this.scale = v === 'sharp' || v === 'fill' ? v : 'auto'; this.resize(); }
   _begin(cx, cy, bg) {
-    this.ix = Math.floor(cx); this.iy = Math.floor(cy); this._fx = cx - this.ix; this._fy = cy - this.iy;
+    this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
     const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
     g.fillStyle = bg; g.fillRect(0, 0, this.buf.width, this.buf.height);
   }
@@ -730,13 +730,13 @@ class Screen {
     s.imageSmoothingEnabled = false;
     s.fillStyle = '#000'; s.fillRect(0, 0, this.canvas.width, this.canvas.height);
     s.save(); s.beginPath(); s.rect(this.OX, this.OY, this.W * S, this.H * S); s.clip();
-    s.drawImage(this.buf, 0, 0, this.W + 1, this.H + 1, this.OX - Math.round(this._fx * S), this.OY - Math.round(this._fy * S), (this.W + 1) * S, (this.H + 1) * S);
+    s.drawImage(this.buf, 0, 0, this.W + 1, this.H + 1, this.OX - Math.round(this.fx * S), this.OY - Math.round(this.fy * S), (this.W + 1) * S, (this.H + 1) * S);
     s.restore();
   }
   clientToScreen(cx, cy) {
     if (!this.canvas) return null;
     const rc = this.canvas.getBoundingClientRect(), dx = (cx - rc.left) * this.dpr, dy = (cy - rc.top) * this.dpr;
-    return [(dx - this.OX + Math.round(this._fx * this.S)) / this.S + this.ix, (dy - this.OY + Math.round(this._fy * this.S)) / this.S + this.iy];
+    return [(dx - this.OX + Math.round(this.fx * this.S)) / this.S + this.ix, (dy - this.OY + Math.round(this.fy * this.S)) / this.S + this.iy];
   }
 }
 
@@ -939,7 +939,7 @@ class Particles {
     const q = Object.assign({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, max: .5, g: 0, drag: 0, bounce: 0, kind: 'dust', color: '#d8c6a8', size: 1 }, p);
     this.list.push(q); return q;
   }
-  _update(dt) {
+  update(dt) {
     const L = this.list;
     for (let i = L.length - 1; i >= 0; i--) {
       const p = L[i]; p.life += dt;
@@ -953,7 +953,7 @@ class Particles {
       if (p.z < fl && p.kind !== 'ring') { p.z = fl; if (p.bounce) { p.vz = -p.vz * p.bounce; p.vx *= .7; p.vy *= .7; } else p.vz = 0; }
     }
   }
-  _draw(r) {
+  draw(r) {
     const view = r.view, s = view.scale;
     // flat overhead views have no screen height, so rising particles lift on screen instead
     if (view.isTop) r = Object.create(r, { w: { value: (x, y, z) => { const q = Renderer.prototype.w.call(r, x, y, 0); q[1] -= z * .5; return q; } } });
@@ -1184,7 +1184,7 @@ class Renderer {
   }
   _finish() {
     const g = this.ctx, items = this._items;
-    this.game.particles._draw(this);
+    this.game.particles.draw(this);
     for (const d of this._decals) d(g);
     items.sort((a, b) => a.k - b.k);
     for (const it of items) it.fn(g);
@@ -1528,7 +1528,7 @@ class Game {
       const t = fo.target, sp = Math.hypot(t.vx || 0, t.vy || 0), dir = typeof t.facing === 'number' && Math.abs(t.facing) === 1 && !t.vy ? [t.facing, 0] : sp > 1 ? [(t.vx || 0) / sp, (t.vy || 0) / sp] : [0, 0];
       this.focus(t.x + dir[0] * fo.lead, (t.y || 0) + dir[1] * fo.lead, (t.z || 0) + fo.z);
     }
-    this.particles._update(dt);
+    this.particles.update(dt);
     this._camStep(dt);
   }
   _frame() {

@@ -530,7 +530,7 @@ class Screen {
     this.W = 320; this.H = 200; this.S = 3; this.OX = 0; this.OY = 0; this.dpr = 1;
     /** ix, iy: the camera's whole-pixel offset this frame; fx, fy: its sub-pixel part (0..1, applied when
      *  presenting); listeners: functions called after every resize */
-    this.ix = 0; this.iy = 0; this._fx = 0; this._fy = 0; this.listeners = [];
+    this.ix = 0; this.iy = 0; this.fx = 0; this.fy = 0; this.listeners = [];
     /** scale: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black
      *  bars unless o.expand grows the picture into them), 'fill' (the largest fit, pixels a device pixel apart in size)
      *  or 'auto' (fill on high-density screens, phones and tablets, where that difference can't be seen; sharp
@@ -582,7 +582,7 @@ class Screen {
   get clear() { return this._o.bg == null || this._o.bg === 'transparent'; }
   /** start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it) */
   _begin(cx, cy, bg) {
-    this.ix = Math.floor(cx); this.iy = Math.floor(cy); this._fx = cx - this.ix; this._fy = cy - this.iy;
+    this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
     const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
     if (bg == null || bg === 'transparent') g.clearRect(0, 0, this.buf.width, this.buf.height);
     else { g.fillStyle = bg; g.fillRect(0, 0, this.buf.width, this.buf.height); }
@@ -595,14 +595,14 @@ class Screen {
     if (this.clear) s.clearRect(0, 0, this.canvas.width, this.canvas.height);
     else { s.fillStyle = '#000'; s.fillRect(0, 0, this.canvas.width, this.canvas.height); }
     s.save(); s.beginPath(); s.rect(this.OX, this.OY, this.W * S, this.H * S); s.clip();
-    s.drawImage(this.buf, 0, 0, this.W + 1, this.H + 1, this.OX - Math.round(this._fx * S), this.OY - Math.round(this._fy * S), (this.W + 1) * S, (this.H + 1) * S);
+    s.drawImage(this.buf, 0, 0, this.W + 1, this.H + 1, this.OX - Math.round(this.fx * S), this.OY - Math.round(this.fy * S), (this.W + 1) * S, (this.H + 1) * S);
     s.restore();
   }
   /** browser client coords -> projected screen pixels (same space as view.p) */
   clientToScreen(cx, cy) {
     if (!this.canvas) return null;
     const rc = this.canvas.getBoundingClientRect(), dx = (cx - rc.left) * this.dpr, dy = (cy - rc.top) * this.dpr;
-    return [(dx - this.OX + Math.round(this._fx * this.S)) / this.S + this.ix, (dy - this.OY + Math.round(this._fy * this.S)) / this.S + this.iy];
+    return [(dx - this.OX + Math.round(this.fx * this.S)) / this.S + this.ix, (dy - this.OY + Math.round(this.fy * this.S)) / this.S + this.iy];
   }
 }
 
@@ -1250,7 +1250,7 @@ class Lighting {
   constructor(game) {
     /** game: the game it lights; enabled: false (the default) turns the canvas lighting off; ambient: how lit unlit
      *  places are, 0 (black) .. 1; list: this frame's lights from add() */
-    this._game = game; this.enabled = false; this.ambient = .15; this._list = [];
+    this._game = game; this.enabled = false; this.ambient = .15; this.list = [];
     /** dark: the color of darkness, [r, g, b]; levels: the darkness of each lighting band, darkest first (dithered
      *  between them); glow: the color, [r, g, b, a], where light is brightest; glowAt: the light level (1 = fully
      *  lit) above which it glows */
@@ -1266,11 +1266,11 @@ class Lighting {
     const gl = this.glow; this._cols[L.length] = ((gl[3] << 24) | (gl[2] << 16) | (gl[1] << 8) | gl[0]) >>> 0;
   }
   /** forget this frame's lights, casters and heat (the renderer does it every frame: add lights in draw) */
-  _clear() { this._list.length = 0; this._casters.length = 0; this._heats.length = 0; this._screenFrame = false; }
+  _clear() { this.list.length = 0; this._casters.length = 0; this._heats.length = 0; this._screenFrame = false; }
   /** radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true } */
   add(x, y, z, radius, intensity = 1, o) {
     if (!(isFinite(x) && isFinite(y) && isFinite(z) && radius > 0)) { warn('light:nan', 'lights.add(x, y, z, radius, intensity) got a non-number or zero radius; light skipped'); return; }
-    this._list.push({ x, y, z, r: radius, i: intensity, color: o && o.color, shadow: !!(o && o.shadow) });
+    this.list.push({ x, y, z, r: radius, i: intensity, color: o && o.color, shadow: !!(o && o.shadow) });
   }
   /** something that blocks light (GPU shadows): a cylinder of radius r from the floor up to height top */
   caster(x, y, r, top) { this._casters.push({ x, y, r, top }); }
@@ -1289,7 +1289,7 @@ class Lighting {
     // screen-space lights when there is no ground plane to measure on (side view, or side-scroller levels)
     const I = this._I, view = r.view, ix = r.ix, iy = r.iy, inv = (this.screen || this._screenFrame) ? null : view.inv;
     I.fill(this.ambient);
-    for (const L of this._list) {
+    for (const L of this.list) {
       const R = L.r, R2 = R * R, lc = L.color ? hex(L.color) : [255, 236, 200], cr = lc[0] / 255, cg = lc[1] / 255, cb = lc[2] / 255;
       let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
       for (let k = 0; k < 16; k++) {
@@ -1358,7 +1358,7 @@ class Particles {
     this.list.push(q); return q;
   }
   /** move and age them by dt (the engine calls it every step) */
-  _update(dt) {
+  update(dt) {
     const L = this.list;
     for (let i = L.length - 1; i >= 0; i--) {
       const p = L[i]; p.life += dt;
@@ -1373,7 +1373,7 @@ class Particles {
     }
   }
   /** queue them for drawing (the renderer calls it) */
-  _draw(r) {
+  draw(r) {
     const view = r.view, s = view.scale;
     // flat overhead views have no screen height, so rising and bouncing particles lift on screen instead
     if (view.isTop) r = Object.create(r, { w: { value: (x, y, z) => { const q = Renderer.prototype.w.call(r, x, y, 0); q[1] -= z * .5; return q; } } });
@@ -1957,7 +1957,7 @@ class Renderer {
    *  draw) */
   _finish() {
     const game = this.game, g = this.ctx, gpu = this.gpu, iG = this._iG;
-    game.particles._draw(this); this._drawGhosts();
+    game.particles.draw(this); this._drawGhosts();
     for (const d of this._decals) {
       this._tg = null; d.fn(g);
       if (gpu && d.e > 0) { iG._mat = this._infoCol(0, 2, d.e); iG._c = null; this._tg = iG; d.fn(iG); }
@@ -2613,7 +2613,7 @@ class Game {
       const t = f.target, sp = Math.hypot(t.vx || 0, t.vy || 0), dir = typeof t.facing === 'number' && Math.abs(t.facing) === 1 && !t.vy ? [t.facing, 0] : sp > 1 ? [(t.vx || 0) / sp, (t.vy || 0) / sp] : [0, 0];
       this.focus(t.x + dir[0] * f.lead, (t.y || 0) + dir[1] * f.lead, (t.z || 0) + f.z);
     }
-    this.particles._update(dt);
+    this.particles.update(dt);
     this._camStep(dt);
   }
   _frame() {
@@ -5513,7 +5513,7 @@ const ACTIONS = {
     beats: [['hang', .28], ['pull', .42], ['stand', .2]], cancel: ['hang'],
     setup(A) {
       if (!A._o.to) throw new Error('E.Action("climbUp") needs { to }: a ledge, as map.ledge(body, dir) gives it (null means there is none to climb)');
-      const L = A._o.to, f = A._o.from || A._start, a = L.facing !== undefined ? L.facing : Math.atan2(L.y - f.y, L.x - f.x), c = Math.cos(a), s = Math.sin(a), r = A.body.r || 5;
+      const L = A._o.to, f = A._o.from || A.start, a = L.facing !== undefined ? L.facing : Math.atan2(L.y - f.y, L.x - f.x), c = Math.cos(a), s = Math.sin(a), r = A.body.r || 5;
       const reach = A._o.reach === undefined ? 30 : A._o.reach, ex = L.edge ? L.edge[0] : L.x - c * (r + 1), ey = L.edge ? L.edge[1] : L.y - s * (r + 1);
       A.facing = a; A.top = L.z; A.from = f;
       A.hang = { x: ex - c * r * .8, y: ey - s * r * .8, z: Math.max(f.z || 0, L.z - reach) };   // against the wall, the hands on its top
@@ -5535,7 +5535,7 @@ const ACTIONS = {
     beats: [['plant', .1], ['over', .26], ['land', .14]],
     setup(A) {
       if (!A._o.to) throw new Error('E.Action("vault") needs { to }: the spot beyond the wall');
-      const f = A._start, t = A._o.to, top = A._o.top === undefined ? Math.max(f.z || 0, t.z || 0) + 8 : A._o.top;
+      const f = A.start, t = A._o.to, top = A._o.top === undefined ? Math.max(f.z || 0, t.z || 0) + 8 : A._o.top;
       A.facing = Math.atan2(t.y - f.y, t.x - f.x); A.from = f; A.end = t;
       A.near = Object.assign(_p(f, t, .3), { z: top }); A.far = Object.assign(_p(f, t, .72), { z: top });
     },
@@ -5552,7 +5552,7 @@ const ACTIONS = {
     beats: [['hop', .34]],
     setup(A) {
       if (!A._o.to) throw new Error('E.Action("hopDown") needs { to }: the spot below, as map.drop(body, dir) gives it');
-      const f = A._start, t = A._o.to; A.from = f; A.end = t; A.facing = Math.atan2(t.y - f.y, t.x - f.x) || A.body.facing || 0;
+      const f = A.start, t = A._o.to; A.from = f; A.end = t; A.facing = Math.atan2(t.y - f.y, t.x - f.x) || A.body.facing || 0;
       A.scale = Math.sqrt(1 + Math.max(0, (f.z || 0) - (t.z || 0)) / 30);   // deeper drops take longer (falls go as the square root)
     },
     at(A, b, u) {
@@ -5563,7 +5563,7 @@ const ACTIONS = {
   /** a roll: a dodge (o.dir, o.dist: 34) or a landing roll that carries the body on. Hits miss in its middle */
   roll: {
     beats: [['roll', .48], ['rise', .12]], cancel: ['rise'], safe: [.06, .4],
-    setup(A) { const a = A._o.dir === undefined ? A.body.facing || 0 : _dir(A._o.dir), d = A._o.dist === undefined ? 34 : A._o.dist; A.facing = a; A.from = A._start; A.end = { x: A._start.x + Math.cos(a) * d, y: A._start.y + Math.sin(a) * d, z: A._start.z }; },
+    setup(A) { const a = A._o.dir === undefined ? A.body.facing || 0 : _dir(A._o.dir), d = A._o.dist === undefined ? 34 : A._o.dist; A.facing = a; A.from = A.start; A.end = { x: A.start.x + Math.cos(a) * d, y: A.start.y + Math.sin(a) * d, z: A.start.z }; },
     at(A, b, u) {
       if (b === 'roll') return Object.assign(_p(A.from, A.end, ease.outQuad(u)), { state: { facing: A.facing, flip: u, crouch: true } });
       return Object.assign({ x: A.end.x, y: A.end.y, z: A.end.z }, { state: { facing: A.facing, crouch: u < .6 } });
@@ -5574,7 +5574,7 @@ const ACTIONS = {
     beats: [['lie', .22], ['sit', .3], ['kneel', .28], ['stand', .22]], safe: [0, .92],
     setup(A) { A.facing = A.body.facing || 0; },
     at(A, b, u) {
-      const p = { x: A._start.x, y: A._start.y, z: A._start.z }, st = { facing: A.facing };
+      const p = { x: A.start.x, y: A.start.y, z: A.start.z }, st = { facing: A.facing };
       if (b === 'lie') st.down = 1; else if (b === 'sit') st.down = 1 - .55 * ease.inOut(u); else if (b === 'kneel') { st.down = .45 * (1 - u); st.pose = 'kneel'; } else st.pose = u < .45 ? 'kneel' : null;
       return Object.assign(p, { state: st });
     }
@@ -5585,9 +5585,9 @@ const ACTIONS = {
     beats: [['reach', .2], ['strike', .22], ['drop', .45], ['recover', .2]],
     setup(A) {
       if (!A._o.other) throw new Error('E.Action("takedown") needs { other }: the body taken down');
-      const v = A._o.other, a = A._o.aerial ? Math.atan2(v.y - A._start.y, v.x - A._start.x) : v.facing !== undefined ? v.facing : Math.atan2(v.y - A._start.y, v.x - A._start.x);
+      const v = A._o.other, a = A._o.aerial ? Math.atan2(v.y - A.start.y, v.x - A.start.x) : v.facing !== undefined ? v.facing : Math.atan2(v.y - A.start.y, v.x - A.start.x);
       const gap = (A.body.r || 5) + (v.r || 5) - 2;
-      A.facing = a; A.vic = { x: v.x, y: v.y, z: v.z || 0, facing: v.facing || 0 }; A.from = A._start;
+      A.facing = a; A.vic = { x: v.x, y: v.y, z: v.z || 0, facing: v.facing || 0 }; A.from = A.start;
       A.behind = { x: v.x - Math.cos(a) * gap, y: v.y - Math.sin(a) * gap, z: v.z || 0 };
       if (A._o.aerial) A._beats = [['leap', .38], ['strike', .18], ['drop', .45], ['recover', .25]];
     },
@@ -5620,7 +5620,7 @@ class Action {
     this.name = typeof name === 'string' ? name : spec.name || 'action'; this.spec = spec; this._o = o; this.body = o.body; this.other = o.other || null;
     /** start: where the body was when it began; beats: [[name, seconds], ...]; t: seconds played; done: it has ended (or
      *  was cancelled); vx, vy, vz: the body's speed this step, for the rig */
-    this._start = { x: o.body.x, y: o.body.y, z: o.body.z || 0 }; this._beats = spec.beats; this.t = 0; this.done = false; this._vx = this._vy = this._vz = 0;
+    this.start = { x: o.body.x, y: o.body.y, z: o.body.z || 0 }; this._beats = spec.beats; this.t = 0; this.done = false; this._vx = this._vy = this._vz = 0;
     spec.setup(this);
     /** the action's length in seconds (o.speed shortens it) */
     this.duration = this._beats.reduce((a, b) => a + b[1], 0) / (o.speed || 1);
@@ -8152,7 +8152,7 @@ class GPULighting {
     const Rw = [view.ax / sc_, view.ay / sc_, 0], Cw = [view.dx, view.dy, view.dz];
     const Uw = [Rw[1] * Cw[2] - Rw[2] * Cw[1], Rw[2] * Cw[0] - Rw[0] * Cw[2], Rw[0] * Cw[1] - Rw[1] * Cw[0]];
     u.fill(0);
-    const L = game.lights._list; let n = 0;
+    const L = game.lights.list; let n = 0;
     for (const l of L) {
       if (n >= 32) break; if (!(l.i > 0)) continue;
       const c = this._color(l.color), b = 64 + n * 8;
@@ -8169,7 +8169,7 @@ class GPULighting {
     u.set([this.ambient[0], this.ambient[1], this.ambient[2], this.wrap], 24);
     u.set([this.spill, this.glow, this.shadows ? 1 : 0, 1], 28);
     u.set([this._hmW, this._hmH, 0, 0], 32);
-    u.set([S, sc.OX - Math.round(sc._fx * S), sc.OY - Math.round(sc._fy * S), 0], 36);
+    u.set([S, sc.OX - Math.round(sc.fx * S), sc.OY - Math.round(sc.fy * S), 0], 36);
     u.set([sc.OX, sc.OY, sc.OX + sc.W * S, sc.OY + sc.H * S], 40);
     u.set([bw, bh, sc.W, sc.H], 44);
     u.set([nh, 0, 0, 0], 48);
