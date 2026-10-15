@@ -332,7 +332,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.37.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.38.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -411,7 +411,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.37.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.38.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -4556,10 +4556,14 @@ class TileMap {
   /** renderer hook: something standing on a solid shape (map.solid: a jar on a table, a crate on a crate) sorts after it,
    *  even on its back half, where its own point sorts before the shape's */
   _liftSolids(view, x, y, z, k) {
+    const own = view.order(x, y, z);
     for (const so of this.solids) {
       if (z < so.top - 1) continue;
       const dx = x - so.x, dy = y - so.y, lx = dx * so.c + dy * so.s, ly = -dx * so.s + dy * so.c;
-      if (Math.abs(lx) <= so.hx && Math.abs(ly) <= so.hy) k = Math.max(k, view.order(so.x, so.y, so.z) + .002 + z * 1e-5, view.order(so.px, so.py, so.z) + .002 + z * 1e-5);
+      if (Math.abs(lx) <= so.hx && Math.abs(ly) <= so.hy) {   // (just after the shape, and the things on it in their own order)
+        const base = Math.max(view.order(so.x, so.y, so.z), view.order(so.px, so.py, so.z));
+        k = Math.max(k, base + .002 + z * 1e-5 + Math.max(-150, own - base) * 1e-5);
+      }
     }
     return k;
   }
@@ -7129,9 +7133,9 @@ function rasterShape(S, view, o = {}) {
   const out = new Int8Array(tone), near = (j, q) => part[q] >= 0 && part[q] !== part[j] && zb[q] > zb[j] + 1.2;
   for (let y = 1; y < H - 1; y++) for (let x = 1, j = y * W + 1; x < W - 1; x++, j++) if (part[j] >= 0 && (near(j, j - 1) || near(j, j + 1) || near(j, j - W) || near(j, j + W))) out[j] = Math.max(0, tone[j] - 1);
   for (let j = W; j < n; j++) if (tone[j] >= 0 && Nz[j] >= .5 && (tone[j - W] < 0 || zb[j - W] < zb[j] - 2.5)) out[j] = Math.min(4, out[j] + 1);
-  const rgba = new Uint8ClampedArray(n * 4);
-  for (let j = 0; j < n; j++) { if (out[j] < 0) continue; const c = R.mats[faces[fid[j]].mi].ramp[out[j] + 5 * ov[j]]; rgba[j * 4] = c[0]; rgba[j * 4 + 1] = c[1]; rgba[j * 4 + 2] = c[2]; rgba[j * 4 + 3] = 255; }
-  return { w: W, h: H, ox, oy, rgba, tris, prims: R.prims.length, part, mq: R.mq };
+  const rgba = new Uint8ClampedArray(n * 4), glow = R.mats.some(m => m.glow) ? new Uint8Array(n) : null;   // (glow: the pixels of glowing materials)
+  for (let j = 0; j < n; j++) { if (out[j] < 0) continue; const m = R.mats[faces[fid[j]].mi], c = m.ramp[out[j] + 5 * ov[j]]; rgba[j * 4] = c[0]; rgba[j * 4 + 1] = c[1]; rgba[j * 4 + 2] = c[2]; rgba[j * 4 + 3] = 255; if (glow && m.glow) glow[j] = 1; }
+  return { w: W, h: H, ox, oy, rgba, tris, prims: R.prims.length, part, mq: R.mq, glow };
 }
 /** a raster as a canvas, with the actors' 1-px outline round it in a color ('#140c1c', the renderer's) or none */
 function rasterCanvas(r, outline) {
@@ -7142,11 +7146,17 @@ function rasterCanvas(r, outline) {
   }
   g.putImageData(img, 0, 0); return cv;
 }
-/** a raster's opaque pixels as runs [x, y, n] (the lighting pass fills them with its own colors) */
-function rasterRuns(r) {
-  const out = [], W = r.w, A = r.rgba;
-  for (let y = 0; y < r.h; y++) for (let x = 0; x < W;) { if (!A[(y * W + x) * 4 + 3]) { x++; continue; } let n = 1; while (x + n < W && A[(y * W + x + n) * 4 + 3]) n++; out.push(x, y, n); x += n; }
+/** a raster's opaque pixels (or those keep(j) picks) as runs [x, y, n] (the lighting pass fills them with its own colors) */
+function rasterRuns(r, keep) {
+  const out = [], W = r.w, A = r.rgba, on = j => A[j * 4 + 3] && (!keep || keep(j));
+  for (let y = 0; y < r.h; y++) for (let x = 0; x < W;) { if (!on(y * W + x)) { x++; continue; } let n = 1; while (x + n < W && on(y * W + x + n)) n++; out.push(x, y, n); x += n; }
   return out;
+}
+/** a raster's glowing pixels alone, as a canvas and runs (drawn again after the lighting, so the dark never dims them) */
+function rasterGlow(r) {
+  const cv = mkCanvas(r.w, r.h), g = cv.getContext('2d'), img = g.createImageData(r.w, r.h);
+  for (let j = 0; j < r.w * r.h; j++) if (r.glow[j]) for (let k = 0; k < 4; k++) img.data[j * 4 + k] = r.rgba[j * 4 + k];
+  g.putImageData(img, 0, 0); return { cv, runs: rasterRuns(r, j => r.glow[j]) };
 }
 const _geomOf = new WeakMap();
 /** a shape's resolved size in its own frame: the bounds [x0, y0, z0, x1, y1, z1], and its footprint and contact
@@ -7189,7 +7199,7 @@ function shapeRaster(id, view, o = {}) {
   if (r && r.mq.every(q => material(q[0], q[1]) === q[2])) { _rasters.delete(key); _rasters.set(key, r); return r; }   // (most recently used last; one whose materials were edited since is drawn again)
   if (r) _rasters.delete(key);
   r = rasterShape(S, view, Object.assign({}, o, { facing: step / 32 * TAU, name: typeof id === 'string' ? id : undefined }));
-  r.cv = rasterCanvas(r, ol); r.runs = rasterRuns(r); r.rgba = null; r.part = null;
+  r.cv = rasterCanvas(r, ol); r.runs = rasterRuns(r); if (r.glow && r.glow.some(Boolean)) r.lit = rasterGlow(r); r.rgba = null; r.part = null; r.glow = null;
   if (_rasters.size >= RASTER_CAP) _rasters.delete(_rasters.keys().next().value);
   _rasters.set(key, r); return r;
 }
@@ -7242,6 +7252,9 @@ Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
       const [bx, by] = at(), R = b.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
     };
     this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.cv, bx, by); }, { bias: o.bias, hides, footprint: fp, solid: true, info });
+    if (b.lit) this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.lit.cv, bx, by); }, { bias: (o.bias || 0) + .0005, footprint: fp, emissive: true, info: gI => {   // its glowing parts (a crystal, a flame): unlit
+      gI._mat = this._infoCol(z, 10, 1); gI._c = null; px.col(gI, '#000'); const [bx, by] = at(), R = b.lit.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
+    } });
   }
   if (o.light && S.lights) for (const [lx, ly, lz, c, rad] of S.lights) { const w = place([lx, ly]); this.game.lights.add(w[0], w[1], z + lz * k, rad || 60, 1, { color: c }); }
   if (S.flames) for (const [fx, fy, fz, fw, fh] of S.flames) {
@@ -7271,6 +7284,54 @@ E.shapeInfo = (id, o = {}) => {
   const v = typeof o.view === 'object' ? o.view : VIEWS_BY_ID(o.view || 'iso'), r = rasterShape(S, v, Object.assign({ name: typeof id === 'string' ? id : undefined }, o)), parts = new Array(r.prims).fill(0), cols = new Set(); let pixels = 0;
   for (let j = 0; j < r.part.length; j++) if (r.part[j] >= 0) { parts[r.part[j]]++; pixels++; cols.add((r.rgba[j * 4] << 16) | (r.rgba[j * 4 + 1] << 8) | r.rgba[j * 4 + 2]); }
   return { w: r.w, h: r.h, ox: r.ox, oy: r.oy, tris: r.tris, prims: r.prims, parts, colors: cols.size, pixels, bounds: shapeGeom(S, o).bounds.slice(), rgba: r.rgba };
+};
+/**
+ * a shape's triangles, for a 3D renderer (the 3D engine's world.shape): E.shapeMesh(id | entry, { params, mats, seg })
+ * -> { groups: [{ mat (the material ready to draw: E.material's), key (its id), lid (true: the faces looking up or down,
+ * which some patterns draw their own way), pos, nrm, uv (Float32Arrays: three numbers a corner, three corners a triangle;
+ * uv two a corner, world units across the surface) }], bounds [x0, y0, z0, x1, y1, z1] } in the entry's own units and
+ * frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). seg(r): the
+ * segments round a radius r (default 8 to 24). The same parts as r.shape draws; null for an unknown shape
+ */
+E.shapeMesh = (id, o = {}) => {
+  const S = shapeOf(id); if (!S) return null;
+  const R = resolveShape(S, Object.assign({}, o.params, { mats: o.mats }), typeof id === 'string' ? id : undefined), k = S.scale || 1, groups = new Map(), b = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9];
+  const seg = o.seg || (r => Math.max(8, Math.min(24, Math.round(r * k * .8) * 2)));
+  for (const P of R.prims) {
+    const N = invT3(P.M);
+    TESS[P.k](f => {
+      const key = P.mi + (f.lid ? 'L' : 'S'); let G = groups.get(key);
+      if (!G) groups.set(key, G = { mat: R.mats[P.mi], key: R.mq[P.mi] && typeof R.mq[P.mi][0] === 'string' ? R.mq[P.mi][0] : 'm' + P.mi, lid: !!f.lid, pos: [], nrm: [], uv: [] });
+      const nv = f.v.length, W = f.v.map(p => add3(mv3(P.M, p), P.t).map(c => c * k)), nn = i => { const q = Array.isArray(f.n[0]) ? f.n[i] : f.n, m = mv3(N, q), l = Math.hypot(m[0], m[1], m[2]) || 1; return [m[0] / l, m[1] / l, m[2] / l]; };
+      for (const w of W) for (let i = 0; i < 3; i++) { b[i] = Math.min(b[i], w[i]); b[i + 3] = Math.max(b[i + 3], w[i]); }
+      for (let i = 1; i + 1 < nv; i++) for (const j of [0, i, i + 1]) { G.pos.push(...W[j]); G.nrm.push(...nn(j)); G.uv.push(f.uv[j][0], f.uv[j][1]); }
+    }, P, seg);
+  }
+  if (b[0] > b[3]) b.fill(0);
+  return { groups: [...groups.values()].map(G => Object.assign(G, { pos: new Float32Array(G.pos), nrm: new Float32Array(G.nrm), uv: new Float32Array(G.uv) })), bounds: b };
+};
+/** a material's pattern as a tile of pixels, for a 3D renderer's texture: E.materialTile(id, { size: 32 (world units
+ *  square: it repeats every size), px: 2 (pixels a unit), lid: false (true: as on a face looking up), band: 2 (the
+ *  light: 0 dark .. 4 bright) }) -> { w, h, rgba (Uint8ClampedArray, top row first, v up the tile) }; null for an
+ *  unknown material */
+E.materialTile = (id, o = {}) => {
+  const m = material(id); if (!m) return null;
+  const size = o.size || 32, k = o.px || 2, n = Math.round(size * k), rgba = new Uint8ClampedArray(n * n * 4), band = o.band === undefined ? 2 : o.band;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const u = (x + .5) / k, v = (n - 1 - y + .5) / k, c = m.ramp[matTone(m, u, v, size, size, !!o.lid, band, 1 / k, o.lid ? 0 : v)], j = (y * n + x) * 4;
+    rgba[j] = c[0]; rgba[j + 1] = c[1]; rgba[j + 2] = c[2]; rgba[j + 3] = 255;
+  }
+  return { w: n, h: n, rgba };
+};
+/** where a placed shape stands, as both engines collide with it: E.shapeBox(id | entry, x, y, z, { facing, scale, flip,
+ *  params }) -> { x, y (its footprint's middle), z, top, hx, hy (half its footprint, along its own x and y), c, s (the
+ *  turn's cosine and sine) }; null for an unknown shape. map.solid makes one solid; world.shape gives it a collider */
+E.shapeBox = (id, x, y, z = 0, o = {}) => {
+  const S = shapeOf(id); if (!S) return null;
+  const G = shapeGeom(S, o), k = scaleOf(S, o), a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), f = G.foot;
+  // the footprint's middle, turned into place, and its half sizes (mirroring only moves the middle)
+  const mx = (f[0] + f[2]) / 2 * (o.flip ? -k : k), my = (f[1] + f[3]) / 2 * k;
+  return { x: x + mx * c - my * s, y: y + mx * s + my * c, z, top: z + G.bounds[5] * k, hx: (f[2] - f[0]) / 2 * k, hy: (f[3] - f[1]) / 2 * k, c, s };
 };
 const VIEWS_BY_ID = id => E.VIEWS[id] || (warn('view:' + id, 'unknown view "' + id + '": ' + Object.keys(E.VIEWS).join(', ')), E.VIEWS.iso);
 /**
@@ -7304,11 +7365,8 @@ E.addAssets = set => {
  *  out of its footprint; one coming down onto it lands on its top; one wholly below passes under. Register solids before
  *  the bodies' updates; drawing never sets them */
 TileMap.prototype.solid = function (id, x, y, z = 0, o = {}) {
-  const S = shapeOf(id); if (!S) return null;
-  const G = shapeGeom(S, o), k = scaleOf(S, o), a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), f = G.foot;
-  // the footprint's middle, turned into place, and its half sizes (mirroring only moves the middle)
-  const mx = (f[0] + f[2]) / 2 * (o.flip ? -k : k), my = (f[1] + f[3]) / 2 * k;
-  const sol = { x: x + mx * c - my * s, y: y + mx * s + my * c, z, top: z + G.bounds[5] * k, hx: (f[2] - f[0]) / 2 * k, hy: (f[3] - f[1]) / 2 * k, c, s, shape: id, px: x, py: y };
+  const b = E.shapeBox(id, x, y, z, o); if (!b) return null;
+  const sol = Object.assign(b, { shape: id, px: x, py: y });
   (this.solids || (this.solids = [])).push(sol); this.version++;
   return sol;
 };

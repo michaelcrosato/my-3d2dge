@@ -5,6 +5,19 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.38.0 (2026-10-15)
+
+The same shapes in 3D: the 3D engine draws the 2D engine's entries with their materials and collides with them, and its kits use them (Phase 3b of `docs/HANDOFF-ASSETS.md`).
+
+- **Rendering**: `world.shape(id, x, y, z, { facing, scale, mats, flip, params, solid })` draws a shape (a core id, a store set's `SET:id`, or an entry) in a 3D world, and a level's legend may stand one on a tile (`{ shape: 'bench' }`). It uses the 2D placement's options and units. Each kind is one instanced mesh, with an outline. Every shape shares one toon material, whose texture is an atlas of the materials' patterns at world scale, so a new shape builds no shader; the warm-up builds it before any shape is placed. The patterns keep their bands under the Comic cel and Pixel filters.
+- **Rendering**: a 2D shape's glowing material (the crystal's) glows: its pixels are drawn again after the lighting and lit in GPU lighting's pass, as the crystal props were (fixes a review of v0.37.0 found). Things on a solid shape's back half keep their own depth order.
+- **Engine**: `E.shapeMesh(id, o)` gives a shape's triangles, grouped by material and by sides and lids, from the same resolved parts the 2D renderer draws. `E.materialTile(id, o)` gives a material's pattern as pixels. `E.shapeBox(id, x, y, z, o)` gives the box both engines collide with: `map.solid` uses it, and a solid 3D shape gets a fixed Rapier collider from it, so a hero stops at a crate and lands on a table in both. On the agent edition they return null.
+- **Art**: the 3D action hall stands bookcases, benches, sacks and an anvil along its walls (in its level text), walked round by the flow fields. The 3D platformer's trees (the tree generator), bushes and rocks are shapes; the rocks are solid.
+- **Tools**: the 3D kits' suite checks that every core shape builds and draws on WebGL 2 and WebGPU, that a hero stops at a solid crate and lands on a table, and draws a sheet of every core shape in 3D beside its 2D picture (`check-output/kit3d/shapes-<backend>.png`). The slices' proof hashes, now with shapes and their colliders, are the same twice and on both backends.
+- **Emberdeep**: the town draws its pines itself, so the town builds with the core alone (`ed-build --mine 56-town.js`).
+- **Tools**: `asset-fetch` refuses a license text that names any other license (MIT, GPL, Apache, royalty-free, proprietary, all rights reserved) or says "not CC0". The 3D kits' play check measures the farthest the hero got: a fall respawns him at the start, and the check failed by chance.
+- **Docs**: the 3D engine's header (its manual) gains `world.shape` and the legend's `shape`. `docs/ASSETS.md` points to it in a line. `docs/ENGINE-3D.md` covers shapes, the kits' dressing and the checks.
+
 ## 0.37.0 (2026-10-15)
 
 Shapes in the games: Emberdeep, the starters and the template game dress their scenes with objects as data, and shapes draw faster (Phase 3 of `docs/HANDOFF-ASSETS.md`, with the fixes a review of Phase 1 found).
