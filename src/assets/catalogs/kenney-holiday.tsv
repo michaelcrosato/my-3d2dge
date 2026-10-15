@@ -51,7 +51,7 @@ kenney-holiday	holiday-kit/Models/GLB format/lantern.glb	17636	model	172	1			0.7
 kenney-holiday	holiday-kit/Models/GLB format/lights-colored.glb	78172	model	760	1			0.44/0.37		boxes fit	
 kenney-holiday	holiday-kit/Models/GLB format/lights-green.glb	78164	model	760	1			0.49/0.39		boxes fit	
 kenney-holiday	holiday-kit/Models/GLB format/lights-red.glb	78160	model	760	1			0.41/0.35		boxes fit	
-kenney-holiday	holiday-kit/Models/GLB format/nutcracker.glb	74528	model	812	1			0.81/0.72	1	budget boxes	
+kenney-holiday	holiday-kit/Models/GLB format/nutcracker.glb	74528	model	812	1			0.82/0.73	1	budget boxes	
 kenney-holiday	holiday-kit/Models/GLB format/present-a-cube.glb	18944	model	238	1			0.8/0.76	1	boxes	
 kenney-holiday	holiday-kit/Models/GLB format/present-a-rectangle.glb	18960	model	238	1			0.82/0.73	1	boxes	
 kenney-holiday	holiday-kit/Models/GLB format/present-a-round.glb	18960	model	238	1			0.77/0.73		boxes fit	
@@ -72,7 +72,7 @@ kenney-holiday	holiday-kit/Models/GLB format/snowflake-a.glb	24204	model	284	1		
 kenney-holiday	holiday-kit/Models/GLB format/snowflake-b.glb	18556	model	212	1			0.55/0.52		boxes fit	
 kenney-holiday	holiday-kit/Models/GLB format/snowflake-c.glb	14352	model	164	1			0.56/0.54		boxes fit	
 kenney-holiday	holiday-kit/Models/GLB format/snowman-hat.glb	56284	model	555	1			0.89/0.87	1	boxes	
-kenney-holiday	holiday-kit/Models/GLB format/snowman.glb	46492	model	446	1			0.88/0.87	1	boxes	
+kenney-holiday	holiday-kit/Models/GLB format/snowman.glb	46492	model	446	1			0.89/0.87	1		
 kenney-holiday	holiday-kit/Models/GLB format/sock-green-cane.glb	20824	model	252	1			0.73/0.67		boxes fit	
 kenney-holiday	holiday-kit/Models/GLB format/sock-green.glb	13848	model	168	1			0.87/0.83	1	boxes	
 kenney-holiday	holiday-kit/Models/GLB format/sock-red-cane.glb	20916	model	252	1			0.65/0.56		boxes fit	
@@ -90,10 +90,10 @@ kenney-holiday	holiday-kit/Models/GLB format/trainset-rail-detailed-bend.glb	192
 kenney-holiday	holiday-kit/Models/GLB format/trainset-rail-detailed-corner.glb	10300	model	96	1			0.52/0.43		boxes fit	
 kenney-holiday	holiday-kit/Models/GLB format/trainset-rail-detailed-straight.glb	7724	model	60	1			0.94/0.91		skip	
 kenney-holiday	holiday-kit/Models/GLB format/trainset-rail-straight.glb	4120	model	24	1			0.82/0		fit	
-kenney-holiday	holiday-kit/Models/GLB format/tree-decorated-snow.glb	85204	model	810	1			0.82/0.77	1	budget boxes	
+kenney-holiday	holiday-kit/Models/GLB format/tree-decorated-snow.glb	85204	model	810	1			0.84/0.79	1	budget boxes	
 kenney-holiday	holiday-kit/Models/GLB format/tree-decorated.glb	71292	model	670	1			0.77/0.72		budget boxes fit	
 kenney-holiday	holiday-kit/Models/GLB format/tree-snow-a.glb	34484	model	378	1			0.91/0.88		skip	
-kenney-holiday	holiday-kit/Models/GLB format/tree-snow-b.glb	38296	model	374	1			0.93/0.91	1	boxes	
+kenney-holiday	holiday-kit/Models/GLB format/tree-snow-b.glb	38296	model	374	1			0.93/0.92	1	boxes	
 kenney-holiday	holiday-kit/Models/GLB format/tree-snow-c.glb	24400	model	234	1			0.95/0.93	1		
 kenney-holiday	holiday-kit/Models/GLB format/tree.glb	24380	model	234	1			0.93/0.92	1	boxes	
 kenney-holiday	holiday-kit/Models/GLB format/wreath-decorated.glb	93416	model	828	1			0.75/0.74		boxes fit	
