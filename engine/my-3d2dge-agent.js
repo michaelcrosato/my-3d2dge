@@ -3532,8 +3532,9 @@ const fullOnly = name => function () { warn('full:' + name, name + ' is only in 
 px.glow = () => {};
 E.prop = fullOnly('E.prop');
 Renderer.prototype.prop = fullOnly('r.prop');
-// shapes and materials (docs/ASSETS.md): the registries are here (entries a game adds are kept), nothing draws them
-Object.assign(E, { SHAPES: {}, MATERIALS: {}, PATTERNS: {}, shapeSprite: fullOnly('E.shapeSprite'), shapeInfo: fullOnly('E.shapeInfo'), addAssets: fullOnly('E.addAssets'), material: fullOnly('E.material') });
+// shapes and materials (docs/ASSETS.md): the registries are here (entries a game adds are kept), nothing draws them;
+// E.addAssets registers nothing and returns empty lists, the rest null
+Object.assign(E, { SHAPES: {}, MATERIALS: {}, PATTERNS: {}, shapeSprite: fullOnly('E.shapeSprite'), shapeInfo: fullOnly('E.shapeInfo'), addAssets: (...a) => (fullOnly('E.addAssets')(...a), { shapes: [], materials: [], sprites: {} }), material: fullOnly('E.material') });
 Renderer.prototype.shape = fullOnly('r.shape');
 TileMap.prototype.solid = fullOnly('map.solid');
 Renderer.prototype.sightCone = fullOnly('r.sightCone');

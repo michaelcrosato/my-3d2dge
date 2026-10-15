@@ -42,14 +42,15 @@ await page.addScriptTag({ content: readFileSync(join(root, 'engine/my-3d2dge.js'
 const before = await page.evaluate(() => Object.keys(My3D2dge.SHAPES));
 if (src) await page.addScriptTag({ content: src });
 // the shapes to draw: the file's sets (registered), the shapes it added to E.SHAPES, or the core id asked for
-const ids = await page.evaluate(([before, want]) => {
+const ids = await page.evaluate(([before, want, own]) => {
   const E = My3D2dge, added = [];
   for (const set of Object.values(window.ASSETS || {})) added.push(...E.addAssets(set).shapes);
   for (const k of Object.keys(E.SHAPES)) if (!before.includes(k) && !added.includes(k)) added.push(k);
   if (!want) return added;
-  const hit = [want, ...added.filter(k => k.endsWith(':' + want))].find(k => E.SHAPES[k]);
+  const mine = added.filter(k => k === want || k.endsWith(':' + want));   // (file.js#id: the file's own entry before the core's)
+  const hit = (own ? [...mine, want] : [want, ...mine]).find(k => E.SHAPES[k]);
   return hit ? [hit] : [];
-}, [before, want]);
+}, [before, want, !!file]);
 if (!ids.length && !args.includes('--grid')) { console.error((want ? 'no shape "' + want + '"' : 'no shapes') + (file ? ' in ' + file : ' in the core library')); await browser.close(); process.exit(1); }
 
 mkdirSync(out, { recursive: true });

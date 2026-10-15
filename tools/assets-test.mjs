@@ -15,6 +15,10 @@
 //      fit; every entry in its set's catalog and ledger; shapes at a mean IoU of .8, no view under .6; sprites exact against
 //      their source images (where the download is in .cache); a set cut by asset-set equal to the entries it was cut from;
 //      every set loads (E.addAssets) and every shape in it draws
+//   8. edge cases a review found: broken parts are skipped (never thrown), a material naming itself or a loop ends, an
+//      edited material redraws cached pictures, parts below the floor are not clipped, an entry's scale applies, the
+//      crate pattern repeats past its face, the outline takes the renderer's color, a raised solid is no wall under it,
+//      what stands on a shape's back half sorts after it, and 300 shapes in view: the first frame, the steady ones, the cache
 // Usage: node tools/assets-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
@@ -300,6 +304,81 @@ console.log('7. the store (src/assets/)');
   for (const b of loaded) fail('store', b);
   for (const w of warnings.filter(w => /asset|unknown/.test(w))) fail('store', 'a warning loading the sets: ' + w);
   if (!problems.some(p => p.startsWith('store'))) ok(sets.length + ' sets (' + counts.shapes + ' shapes, ' + counts.materials + ' materials, ' + counts.sprites + ' sprites): every download CC0 and on record, every entry in its catalog and ledger, shapes at a mean IoU of ' + mean.toFixed(2) + ' with no view under .6, sprites exact, cut sets equal to their sources, every set loads and draws');
+}
+
+/* 8. edge cases from the review of Phase 1, and the speed of a full room */
+console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sorting on top, speed');
+{
+  warnings.length = 0;
+  const r = await page.evaluate(() => {
+    const E = My3D2dge, bad = [], good = ['box', 'oak', [0, 0, 0], [8, 8, 8]];
+    const tryDraw = (name, S) => { try { E.SHAPES['__b_' + name] = S; const I = E.shapeInfo('__b_' + name, { view: E.VIEWS.iso }); E.shapeSprite('__b_' + name); return I; } catch (e) { bad.push('a shape with ' + name + ' throws: ' + e.message); } };
+    // broken parts are skipped: the good part beside each still draws
+    for (const [name, parts] of [['a null part', [null, good]], ['a mirror without its part', [['mirror', 'x'], good]], ['a ring without its part', [['ring', 3, 3], good]], ['a group without parts', [['group', [0, 0, 0], 0], good]],
+      ['a use without at', [['use', 'barrel'], good]], ['a box without a size', [['box', 'oak', [0, 0, 0]], good]], ["rot: 'x'", [['box', 'oak', [0, 0, 0], [4, 4, 4], { rot: 'x' }], good]]]) {
+      const I = tryDraw(name, { parts }); if (I && !I.pixels) bad.push('beside ' + name + ', the good part draws nothing');
+    }
+    tryDraw('parts {}', { parts: {} }); tryDraw('make() returning nothing', { make: () => undefined });
+    // a set's material naming the registry's by its own id; a loop of two
+    try { E.addAssets({ set: 'L', format: 1, materials: { oak: 'oak' }, shapes: { b: { parts: [['box', 'oak', [0, 0, 0], [8, 8, 8]]] } } }); if (!E.shapeInfo('L:b', { view: E.VIEWS.iso }).pixels) bad.push("a set's oak: 'oak' draws nothing"); } catch (e) { bad.push("a set's oak: 'oak' throws: " + e.message); }
+    E.MATERIALS.__l1 = '__l2'; E.MATERIALS.__l2 = '__l1'; try { if (E.material('__l1') !== null) bad.push('a material loop resolves to something'); } catch (e) { bad.push('a material loop throws: ' + e.message); }
+    // an edited material redraws a cached picture
+    const red = () => { const s = E.shapeSprite('__paint', { view: 'iso', outline: false }), d = s.cv.getContext('2d').getImageData(0, 0, s.w, s.h).data; let n = 0, r = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3]) { n++; r += d[i] - d[i + 2]; } return r / n; };
+    E.MATERIALS.__p = { color: '#c02020', pattern: 'none' }; E.SHAPES.__paint = { parts: [['box', '__p', [0, 0, 0], [12, 12, 12]]] };
+    const r0 = red(); E.MATERIALS.__p.color = '#2020c0'; const r1 = red(); if (!(r0 > 50 && r1 < -50)) bad.push('a material edited after drawing still draws its old color (red minus blue ' + r0.toFixed(0) + ' then ' + r1.toFixed(0) + ')');
+    // a part below the floor: drawn as the part above it, not clipped at the old bounds
+    const px = parts => E.shapeInfo({ parts }, { view: E.VIEWS.iso, facing: .6 }).pixels, sunk = px([['box', 'oak', [0, 0, -8], [16, 16, 16]]]), half = px([['box', 'oak', [0, 0, 0], [16, 16, 8]]]);
+    if (Math.abs(sunk - half) > half * .03) bad.push('a box half below the floor draws ' + sunk + ' pixels, the half above it ' + half);
+    // an entry's own scale, times the placement's
+    E.SHAPES.__s1 = { parts: [good] }; E.SHAPES.__s2 = { scale: 2, parts: [good] };
+    const w1 = E.shapeInfo('__s1', { view: E.VIEWS.side }).w, w2 = E.shapeInfo('__s2', { view: E.VIEWS.side }).w, w3 = E.shapeInfo('__s2', { view: E.VIEWS.side, scale: 1.5 }).w;
+    if (Math.abs(w2 - 2 * w1) > 4 || Math.abs(w3 - 3 * w1) > 5) bad.push('an entry with scale: 2 draws ' + w2 + ' wide (and at scale 1.5, ' + w3 + '), the same at 1 ' + w1);
+    const sm = new E.TileMap({ w: 8, h: 8 }), so = sm.solid('__s2', 64, 64, 0); if (Math.abs(so.hx - 8) > .5 || Math.abs(so.top - 16) > .5) bad.push('the solid of an entry with scale: 2 is ' + so.hx * 2 + ' wide and ' + so.top + ' tall (want 16 and 16)');
+    // the crate pattern repeats past its face (a wall face, a tile past the first)
+    const cr = (u, v) => E.PATTERNS.crate({ u, v, W: 14, H: 13, lid: false, curved: false, px: 1, lit: .5 }, { frame: 2, bw: 3 });
+    let diff = 0; for (let u = 0; u < 14; u += .5) for (let v = 0; v < 13; v += .5) if (cr(u, v) !== cr(u + 28, v + 13)) diff++; if (diff) bad.push('the crate pattern does not repeat past its face (' + diff + ' points differ)');
+    // a raised solid (a crate on a shelf at z 40) is no wall under it; two crates stacked are as tall as both
+    const hm = new E.TileMap({ w: 12, h: 12 }); hm.solid('crate', 96, 96, 40); if (hm.heightAt(96, 96) !== 0) bad.push('under a crate at z 40 the height is ' + hm.heightAt(96, 96) + ', not 0');
+    const st = new E.TileMap({ w: 12, h: 12 }), c2 = st.solid('crate', 96, 96, 14), c1 = st.solid('crate', 96, 96, 0); if (st.heightAt(96, 96) !== c2.top) bad.push('two crates stacked are ' + st.heightAt(96, 96) + ' tall, not ' + c2.top);
+    return { bad };
+  });
+  for (const b of r.bad) fail('edges', b);
+  const loud = warnings.filter(w => /parts\[|loop/.test(w)); if (!loud.length) fail('edges', 'the broken parts and the loop warned nothing');
+  if (!r.bad.length) ok('broken parts skipped with a warning, never thrown (9 kinds); a material naming itself or a loop ends; an edited material redraws; parts below the floor whole; scale on an entry; the crate repeats; heights under and over raised solids');
+}
+{
+  // sorting on top: a jar on a table's back half draws whole over it; the outline in the renderer's color; 300 shapes in view
+  const r = await page.evaluate(() => {
+    const E = My3D2dge, bad = [], cv = document.createElement('canvas'); document.body.appendChild(cv);
+    const game = new E.Game({ canvas: cv, menu: false, corner: false, res: [480, 270], view: 'threequarter', bg: '#000000' });
+    let scene = 'jar', table = true, map = new E.TileMap({ w: 30, h: 30 }); map.solid('table', 240, 240, 0, { facing: 0 });
+    const ids = Object.keys(E.SHAPES).filter(k => !k.startsWith('__') && !k.includes(':')), room = [];
+    for (let i = 0; i < 300; i++) room.push([ids[i % ids.length], 32 + (i % 20) * 22, 32 + Math.floor(i / 20) * 26, { facing: (i * 2.4) % 6.28 }]);
+    game.start({ update() {}, draw(r) {
+      map.drawFloor(r); map.queueWalls(r);
+      if (scene === 'jar') { if (table) r.shape('table', 240, 240, 0, { facing: 0, shadow: false }); r.shape('jar', 236, 236, 12, { mats: { c: '#ff00ff none', g: '#ff00ff none', w: '#ff00ff none' }, shadow: false }); }
+      else if (scene === 'outline') r.shape('crate', 240, 240, 0, { shadow: false });
+      else for (const [id, x, y, o] of room) r.shape(id, x, y, 0, o);
+    } });
+    const shot = () => { game.advance(1 / 120, { draw: true }); const b = game.screen.buf; return b.getContext('2d').getImageData(0, 0, b.width, b.height).data; };
+    const count = (d, f) => { let n = 0; for (let i = 0; i < d.length; i += 4) if (f(d[i], d[i + 1], d[i + 2])) n++; return n; }, mag = (r, g, b) => r > 200 && g < 60 && b > 200;
+    game.focus(240, 240, 0); table = false; const alone = count(shot(), mag); table = true; const on = count(shot(), mag);
+    if (on < alone * .97) bad.push('a jar on a table\'s back half shows ' + on + ' of its ' + alone + ' pixels: the table draws over it');
+    scene = 'outline'; game.renderer.outline = '#00ff00'; const green = count(shot(), (r, g, b) => r === 0 && g === 255 && b === 0); game.renderer.outline = '#140c1c';
+    if (green < 20) bad.push('a crate\'s outline is not in the renderer\'s color (' + green + ' green pixels)');
+    // 300 shapes in view: the first frame (every picture made), the steady frames, the cache
+    scene = 'room'; game.focus(240, 220, 0); game.setZoom && game.setZoom(.5);
+    let t = performance.now(); shot(); const first = performance.now() - t;
+    for (let i = 0; i < 5; i++) shot(); t = performance.now(); for (let i = 0; i < 20; i++) shot(); const steady = (performance.now() - t) / 20;
+    scene = 'none'; t = performance.now(); for (let i = 0; i < 20; i++) shot(); const empty = (performance.now() - t) / 20;
+    const drawn = game.stats ? game.stats.actors : 0; game.stop(); cv.remove();
+    return { bad, first, steady, empty };
+  });
+  for (const b of r.bad) fail('edges', b);
+  if (r.steady - r.empty > 12) fail('speed', '300 shapes in view cost ' + (r.steady - r.empty).toFixed(1) + ' ms a frame (over 12)');
+  if (!r.bad.length) ok('a jar on a table\'s back half draws over it; the outline takes the renderer\'s color');
+  console.log('  300 shapes in view: first frame ' + r.first.toFixed(0) + ' ms, steady ' + r.steady.toFixed(1) + ' ms a frame (' + r.empty.toFixed(1) + ' without them)');
+  writeFileSync(join(out, 'speed.json'), JSON.stringify({ first: +r.first.toFixed(1), steady: +r.steady.toFixed(2), empty: +r.empty.toFixed(2) }, null, 1));
 }
 
 await browser.close();
