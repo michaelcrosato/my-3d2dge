@@ -61,10 +61,17 @@ console.log('1. the core shapes in every view');
     // a generator's params change its pixels; the same params give the same pixels
     const gen = [['pine', { h: 30 }], ['tree', { seed: 2 }], ['bush', { r: 10 }], ['rock', { seed: 9 }], ['crystal', { seed: 4 }], ['fence', { len: 32 }], ['grass', { n: 4 }]];
     for (const [id, p] of gen) { const a = E.shapeInfo(id, { view: E.VIEWS.iso }), b = E.shapeInfo(id, { view: E.VIEWS.iso, params: p }); if (hash(a.rgba) === hash(b.rgba) && a.w === b.w) bad.push(id + ' draws the same pixels with params ' + JSON.stringify(p)); }
+    // an entry redefined under the same id draws afresh (the cache keys each entry object, not its id), and keeps no
+    // property of the engine's on it
+    E.SHAPES.__t = { mats: { m: 'oak' }, parts: [['box', 'm', [0, 0, 0], [8, 8, 8]]] }; const a1 = E.shapeInfo('__t', { view: E.VIEWS.iso }).pixels; E.shapeSprite('__t', { view: 'iso' });
+    E.SHAPES.__t = { mats: { m: 'oak' }, parts: [['box', 'm', [0, 0, 0], [16, 16, 16]]] }; const sp = E.shapeSprite('__t', { view: 'iso' });
+    if (!(sp && E.shapeInfo('__t', { view: E.VIEWS.iso }).pixels > a1 * 2 && sp.w > 20)) bad.push('a shape redefined under the same id still draws the old entry');
+    if (Object.keys(E.SHAPES.__t).some(k => k[0] === '_')) bad.push('drawing a shape leaves a property on its entry: ' + Object.keys(E.SHAPES.__t).join(', '));
+    delete E.SHAPES.__t;
     return { bad, n: Object.keys(E.SHAPES).length, gens: gen.length };
   });
   for (const b of r.bad) fail('shapes', b);
-  if (!r.bad.length) ok(r.n + ' shapes draw in 5 views and 8 facings, inside their bounds, every part seen; the same pixels twice; ' + r.gens + ' generators change with their params');
+  if (!r.bad.length) ok(r.n + ' shapes draw in 5 views and 8 facings, inside their bounds, every part seen; the same pixels twice; ' + r.gens + ' generators change with their params; one redefined draws afresh');
 }
 
 /* 2. every material on every surface */
@@ -256,9 +263,12 @@ console.log('7. the store (src/assets/)');
       if (cut) { const o = bySrc.get(e.src + '|' + kind + '|' + id); if (!o) fail('store', where + ' ' + id + ': cut from no set the importer wrote'); else if (!same(o, e)) fail('store', where + ' ' + id + ': differs from the entry it was cut from'); }
     }
     if (cat) {
-      for (const id of Object.keys(cat)) if (id[0] !== '$' && !(S.shapes || {})[id] && !(S.materials || {})[id] && !(S.sprites || {})[id]) fail('store', 'src/assets/catalogs/' + S.set + '.json describes ' + id + ', which is not in the set (or in $skip)');
       // the ledger: every download on record has rows, every row names a download, the rows the set uses are its entries
       const L = readLedger(S.set), srcs = Object.keys(cat.$sources || {});
+      // a described entry is in the set, unless the importer left it out for its fit (the ledger says so)
+      const idOf = f => f.split('/').pop().replace(/(\.gltf)?\.(glb|gltf|png|jpe?g)$/i, '').replace(/([a-z])([A-Z])/g, '$1-$2').replace(/[_\s]+/g, '-').toLowerCase();
+      const unfit = new Set(L.filter(r => /\bfit\b/.test(r.flags)).map(r => idOf(r.file)));
+      for (const id of Object.keys(cat)) if (id[0] !== '$' && !(S.shapes || {})[id] && !(S.materials || {})[id] && !(S.sprites || {})[id] && !unfit.has(id)) fail('store', 'src/assets/catalogs/' + S.set + '.json describes ' + id + ', which is not in the set (or in $skip, or left out for its fit)');
       if (!L.length) fail('store', S.set + ': no ledger (src/assets/catalogs/' + S.set + '.tsv)');
       for (const k of srcs) if (!L.some(r => r.src === k)) fail('store', S.set + ': the download ' + k + ' has no rows in its ledger');
       for (const r of L) if (!srcs.includes(r.src)) fail('store', S.set + ': a ledger row names ' + r.src + ', which is not on record');

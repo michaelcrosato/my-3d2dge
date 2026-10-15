@@ -26,7 +26,7 @@ const cat = readCatalog(set), sources = cat.$sources || {}, ledger = readLedger(
 if (!Object.keys(sources).length) { console.error(set + ': no downloads on record (node tools/asset-fetch.mjs first)'); process.exit(1); }
 const skip = cat.$skip || {}, only = opt('only') ? new Set(opt('only').split(',')) : null, byCat = args.includes('--catalog');
 const E = engine(), r2 = v => Math.round(v * 100) / 100;
-const idOf = file => basename(file, extname(file)).replace(/([a-z])([A-Z])/g, '$1-$2').replace(/[_\s]+/g, '-').toLowerCase();
+const idOf = file => basename(file).replace(/(\.gltf)?\.(glb|gltf|png|jpe?g)$/i, '').replace(/([a-z])([A-Z])/g, '$1-$2').replace(/[_\s]+/g, '-').toLowerCase();
 const wanted = id => (!only || only.has(id)) && !skip[id] && (!byCat || Array.isArray(cat[id]));
 
 if (args.includes('--list')) {
@@ -68,18 +68,24 @@ function paletteName() {
   PALETTE.sort((a, b) => b.area - a.area);
   const taken = new Set(), over = cat.$mats || {};
   for (const p of PALETTE) { const L = nearestLib(p.rgb).L; let id = L.id, n = 1; while (taken.has(id)) id = L.id + '-' + String.fromCharCode(97 + n++); taken.add(id); p.id = id;
-    const B = over[id] ? LIB.find(x => x.id === over[id]) : L; if (over[id] && !B) { console.error(set + ': $mats ' + id + ' -> ' + over[id] + ', not a core data material'); process.exit(1); }
+    const B = over[id] === 'none' ? { m: { pattern: 'none' } } : over[id] ? LIB.find(x => x.id === over[id]) : L;   // ('none': a flat color, paint or plastic)
+    if (over[id] && !B) { console.error(set + ': $mats ' + id + ' -> ' + over[id] + ', not a core data material (or none)'); process.exit(1); }
     const nums = Object.entries(B.m).filter(([k]) => !['color', 'pattern', 'ramp'].includes(k)).map(([k, v]) => k + '=' + v).join(' ');
     p.mat = [hex(p.rgb), B.m.pattern, nums].filter(Boolean).join(' '); }
 }
 /** a kit color's set material (its palette entry's id; the material joins the set when an entry uses it) */
 function setMaterial(rgb) { let best = PALETTE[0], bd = 1e9; for (const p of PALETTE) { const d = dE(rgb, p.rgb); if (d < bd) { bd = d; best = p; } } setMats[best.id] = best.mat; return best.id; }
 
+/** points on a part's surface about `step` apart: rows parallel to each triangle's longest edge, up to its apex (as many
+ *  points as its area and edges need: a long sliver of a triangle is a few rows, not a square of them) */
 function samples(T, step) {
-  const out = [];
-  for (const [a, b, d] of T) {
-    const e = Math.max(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), Math.hypot(d[0] - a[0], d[1] - a[1], d[2] - a[2]), Math.hypot(d[0] - b[0], d[1] - b[1], d[2] - b[2])), st = Math.max(1, Math.ceil(e / step));
-    for (let i = 0; i <= st; i++) for (let j = 0; j <= st - i; j++) { const u = i / st, w = j / st; out.push([a[0] + (b[0] - a[0]) * u + (d[0] - a[0]) * w, a[1] + (b[1] - a[1]) * u + (d[1] - a[1]) * w, a[2] + (b[2] - a[2]) * u + (d[2] - a[2]) * w]); }
+  const out = [], L = (p, q) => Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]), at = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+  for (const tri of T) {
+    let [a, b, d] = tri;
+    if (L(b, d) >= L(a, b) && L(b, d) >= L(d, a)) [a, b, d] = [b, d, a]; else if (L(d, a) >= L(a, b)) [a, b, d] = [d, a, b];   // (a-b the longest edge)
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [d[0] - a[0], d[1] - a[1], d[2] - a[2]], base = L(a, b) || 1e-9;
+    const h = Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) / base, rows = Math.max(1, Math.ceil(h / step));
+    for (let r = 0; r <= rows; r++) { const t = r / rows, p = at(a, d, t), q = at(b, d, t), n = Math.max(1, Math.ceil(L(p, q) / step)); for (let i = 0; i <= n; i++) out.push(at(p, q, i / n)); }
   }
   return out;
 }
@@ -149,8 +155,10 @@ const TOL = +(opt('tol') || .9);
 function fitPart(T, mat, o = {}) {
   const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9]; for (const t of T) for (const v of t) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[k]); hi[k] = Math.max(hi[k], v[k]); }
   for (let k = 0; k < 3; k++) if (hi[k] - lo[k] < .5) { const m = (hi[k] + lo[k]) / 2; lo[k] = m - .25; hi[k] = m + .25; }   // a plate under a pixel: half a unit
-  const dim = hi.map((v, k) => v - lo[k]), c = Math.min(1, Math.max(.06, Math.min(Math.max(...dim) / 36, Math.min(...dim) / 5)));
-  const S = samples(T, c * .45).map(v => v.map((x, k) => Math.min(hi[k], Math.max(lo[k], x)))), vx = voxelize(S.concat([lo, hi]), c), ctr = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], cands = [];
+  const dim = hi.map((v, k) => v - lo[k]), c = Math.max(Math.min(1, Math.max(.06, Math.min(Math.max(...dim) / 36, Math.min(...dim) / 5))), Math.cbrt(dim[0] * dim[1] * dim[2] / 4e5));   // (at most about 400,000 cells: a wide, thin plate would ask for a billion)
+  const surf = T.reduce((a, [p, q, r]) => a + Math.hypot((q[1] - p[1]) * (r[2] - p[2]) - (q[2] - p[2]) * (r[1] - p[1]), (q[2] - p[2]) * (r[0] - p[0]) - (q[0] - p[0]) * (r[2] - p[2]), (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])) / 2, 0);
+  // (points on the surface: at most about 300,000)
+  const S = samples(T, Math.max(c * .45, Math.sqrt(surf / 3e5))).map(v => v.map((x, k) => Math.min(hi[k], Math.max(lo[k], x)))), vx = voxelize(S.concat([lo, hi]), c), ctr = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], cands = [];
   cands.push({ iou: iou(vx, (x, y, z) => x >= lo[0] && x <= hi[0] && y >= lo[1] && y <= hi[1] && z >= lo[2] && z <= hi[2]), part: ['box', mat, [rd(ctr[0]), rd(ctr[1]), rd(lo[2])], dim.map(rd)] });
   { const R = (dim[0] + dim[1]) / 4, H = dim[2] / 2; cands.push({ iou: iou(vx, (x, y, z) => ((x - ctr[0]) ** 2 + (y - ctr[1]) ** 2) / (R * R) + ((z - ctr[2]) / H) ** 2 <= 1), part: ['ball', mat, [rd(ctr[0]), rd(ctr[1]), rd(ctr[2])], rd(R), Math.abs(H / R - 1) > .05 ? { sz: r2(H / R) } : undefined] }); }
   for (const ax of ['z', 'x', 'y']) {
@@ -185,7 +193,7 @@ function fitPart(T, mat, o = {}) {
   if (ok.length) return Object.assign(ok[0], { size: vx.N * c ** 3 });
   const best = cands.sort((x, y) => y.iou - x.iou)[0];
   if (o.noBoxes) return Object.assign(best, { size: vx.N * c ** 3 });
-  const v1 = voxelize(S, Math.max(.5, c, Math.min(1, Math.min(...dim) / 1.5))), boxes = greedy(v1, mat), bc = tok(js(boxes));
+  const v1 = voxelize(S, Math.max(.5, c, Math.min(1, Math.min(...dim) / 1.5), Math.cbrt(dim[0] * dim[1] * dim[2] / 4e5))), boxes = greedy(v1, mat), bc = tok(js(boxes));
   if (best.iou >= .7 && best.cost * 2 < bc) return Object.assign(best, { size: vx.N * c ** 3 });
   return { iou: 1, part: null, parts: boxes, cost: bc, size: vx.N * c ** 3, boxes: boxes.length };
 }
@@ -272,7 +280,7 @@ function colorsOf(tris) {
 }
 /** one model -> { entry, fit, flags, tris } */
 function convert(file, o) {
-  const { tris } = readGlb(file); if (!tris.length) throw new Error('no triangles');
+  const { tris } = readGlb(file, { srgbFactors: o.srgb }); if (!tris.length) throw new Error('no triangles');
   const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9]; for (const t of tris) for (const v of t.v) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[k]); hi[k] = Math.max(hi[k], v[k]); }
   const sc = o.scale || 1, sh = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2]];
   for (const t of tris) t.v = t.v.map(v => [(v[0] - sh[0]) * sc, (v[1] - sh[1]) * sc, (v[2] - sh[2]) * sc]);
@@ -319,12 +327,13 @@ function convert(file, o) {
 }
 if (kind === 'shapes') {
   for (const [key, rec] of Object.entries(sources)) if (opt('scale')) rec.scale = +opt('scale');
-  for (const row of ledger.filter(r => r.kind === 'model' && !skip[idOf(r.file)])) { try { const { tris } = readGlb(join(dir, row.file)); for (const c of colorsOf(tris).values()) paletteAdd(c.rgb, c.area); } catch (e) { /* (flagged below) */ } }
+  // the palette from every model, skipped or not, so the names $mats uses never move
+  for (const row of ledger.filter(r => r.kind === 'model')) { try { const { tris } = readGlb(join(dir, row.file), { srgbFactors: (sources[row.src] || {}).factors === 'srgb' }); for (const c of colorsOf(tris).values()) paletteAdd(c.rgb, c.area); } catch (e) { /* (flagged below) */ } }
   paletteName();
   for (const row of ledger.filter(r => r.kind === 'model')) {
     const id = idOf(row.file); if (!wanted(id)) { row.used = ''; if (skip[id]) row.flags = 'skip'; continue; }
     const rec = sources[row.src] || {}, c = Array.isArray(cat[id]) ? cat[id] : null;
-    let r; try { r = convert(join(dir, row.file), { scale: rec.scale || 1, about: c ? c[1] : id.replace(/-/g, ' '), tags: c ? c[0] : '' }); }
+    let r; try { r = convert(join(dir, row.file), { scale: rec.scale || 1, srgb: rec.factors === 'srgb', about: c ? c[1] : id.replace(/-/g, ' '), tags: c ? c[0] : '' }); }
     catch (e) { row.flags = 'unreadable: ' + e.message.slice(0, 60); row.used = ''; console.log(`  ${id}: ${row.flags}`); continue; }
     const ok = r.fit.iou >= .8 && r.fit.worst >= .6;
     row.fit = r.fit.iou + '/' + r.fit.worst; row.used = ok ? '1' : ''; row.flags = [...r.flags, ok ? '' : 'fit'].filter(Boolean).join(' ');
@@ -367,8 +376,8 @@ if (kind === 'materials') {
     [/^roofingtiles/, 'shingles'], [/^(fabric|carpet|leather|wicker)/, 'cloth'], [/^(grass|foliage|moss|ground0(3|4))/, 'foliage'], [/^bark/, 'bark'], [/^(marble|concrete|plaster|asphalt|snow|ice)/, 'noise'], [/^(ground|sand|terrazzo|gravel)/, 'speck'], [/^thatch/, 'thatch']];
   const LIFE = 2;   // drawn twice life, as props are
   const { chromium } = await import('playwright'), browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined }), page = await browser.newPage();
-  // a JPEG (or PNG) decoded by Chromium, shrunk to at most 512 pixels a side
-  const decode = async f => { const b64 = readFileSync(f).toString('base64'); return page.evaluate(async ([d, t]) => { const bm = await createImageBitmap(await (await fetch('data:image/' + t + ';base64,' + d)).blob()), k = Math.min(1, 512 / Math.max(bm.width, bm.height)), w = Math.round(bm.width * k), h = Math.round(bm.height * k), c = new OffscreenCanvas(w, h), g = c.getContext('2d'); g.drawImage(bm, 0, 0, w, h); return { w, h, rgba: Array.from(g.getImageData(0, 0, w, h).data) }; }, [b64, /png$/i.test(f) ? 'png' : 'jpeg']); };
+  // a JPEG (or PNG) decoded by Chromium, shrunk to at most 1024 pixels a side
+  const decode = async f => { const b64 = readFileSync(f).toString('base64'); return page.evaluate(async ([d, t]) => { const bm = await createImageBitmap(await (await fetch('data:image/' + t + ';base64,' + d)).blob()), k = Math.min(1, 1024 / Math.max(bm.width, bm.height)), w = Math.round(bm.width * k), h = Math.round(bm.height * k), c = new OffscreenCanvas(w, h), g = c.getContext('2d'); g.drawImage(bm, 0, 0, w, h); const px = g.getImageData(0, 0, w, h).data; let s = ''; for (let i = 0; i < px.length; i += 32768) s += String.fromCharCode.apply(null, px.subarray(i, i + 32768)); return { w, h, b64: btoa(s) }; }, [b64, /png$/i.test(f) ? 'png' : 'jpeg']).then(r => ({ w: r.w, h: r.h, rgba: new Uint8Array(Buffer.from(r.b64, 'base64')) })); };   // (pixels back as base64: a JSON array of millions of numbers is slow)
   const ramp = im => {
     const P = []; for (let y = 0; y < im.h; y += 4) for (let x = 0; x < im.w; x += 4) { const i = (y * im.w + x) * 4; P.push([im.rgba[i], im.rgba[i + 1], im.rgba[i + 2]]); }
     P.sort((a, b) => lum(a) - lum(b)); let C = [0, 1, 2, 3, 4].map(k => P[Math.floor((k + .5) / 5 * P.length)].slice());
@@ -396,7 +405,8 @@ if (kind === 'materials') {
   // our material on a flat face lit evenly, k pixels a unit (the engine's own pattern and ramp)
   const render = (m, w, h, k) => { const mt = E.material(m), out = new Uint8ClampedArray(w * h * 4), s = { u: 0, v: 0, W: w / k, H: h / k, lid: false, curved: false, lit: .5, px: 1 / k, part: 0, nz: 0, z: 8 }; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { s.u = (x + .5) / k; s.v = (h - y - .5) / k; const c = mt.ramp[Math.max(0, Math.min(4, 2 + mt.pat(s, mt.q)))]; out.set([c[0], c[1], c[2], 255], (y * w + x) * 4); } return { w, h, rgba: out }; };
   for (const [key, rec] of Object.entries(sources)) {
-    const src = rec.dir, id = src.toLowerCase(); if (!wanted(id)) continue;
+    const src = rec.dir, id = src.toLowerCase();
+    if (!wanted(id)) { for (const r of ledger) if (r.src === key) { r.used = ''; if (skip[id]) r.flags = 'skip'; } continue; }
     const base = join(dir, src), files = existsSync(base) ? (await import('node:fs')).readdirSync(base) : [], pick = re => files.find(f => re.test(f));
     const cf = pick(/_Color\.(jpg|png)$/i), hf = pick(/_Displacement\.(jpg|png)$/i);
     const row = ledger.find(r => r.src === key && cf && r.file.endsWith(cf)); if (!cf) { console.log('  ' + id + ': no color map'); continue; }
@@ -411,7 +421,7 @@ if (kind === 'materials') {
     else if (fam === 'stones' && ok(U + V)) m.size = r1((U + V) / 2);
     else if (fam === 'tiles' && ok(Math.min(U, V))) m.size = r1(Math.min(U, V));
     else if (fam === 'shingles' && ok(U) && ok(V)) { m.bw = r1(U); m.course = r1(V); }
-    else if (fam === 'metal' && px.n > 1 && ok(Math.min(U, V))) m.rivet = r1(Math.min(U, V));
+    else if (fam === 'metal' && /^metalplates/.test(id) && px.n > 1 && Math.min(U, V) >= 6 && Math.min(U, V) <= 24) m.rivet = r1(Math.min(U, V));   // (rivets on riveted plates only, far enough apart to read)
     if (miss > 8) m.ramp = R.map((c, k) => hex(unlab([lab(tr[k])[0], lab(c)[1], lab(c)[2]])));
     const gw = Math.round(wcm / 100 * 16 * LIFE * 1.5), gh = Math.round(hcm / 100 * 16 * LIFE * 1.5), sc = shrink(col, Math.max(8, gw), Math.max(8, gh)), ours = render(m, sc.w, sc.h, 1.5), a = stats(sc), b = stats(ours);
     const sim = (x, y) => x && y ? Math.min(x, y) / Math.max(x, y) : x === y ? 1 : 0, pa = [joints(sc, 0).lag, joints(sc, 1).lag], pb = [joints(ours, 0).lag, joints(ours, 1).lag];
@@ -426,6 +436,8 @@ if (kind === 'materials') {
 }
 
 /* =================== the set, the ledger, the source records =================== */
+// a kit's materials: only those the set's shapes use (an entry left out for its fit took its colors with it)
+if (kind === 'shapes') { const used = new Set(Object.values(entries).flatMap(e => Object.values(e.mats))); for (const k of Object.keys(setMats)) if (!used.has(k)) delete setMats[k]; }
 const usedSrc = new Set(Object.values(entries).map(e => e.src)), S = { set, credit, sources: Object.fromEntries(Object.entries(sources).filter(([k]) => usedSrc.has(k))), materials: kind === 'shapes' ? setMats : kind === 'materials' ? entries : {}, shapes: kind === 'shapes' ? entries : {}, sprites: kind === 'sprites' ? entries : {} };
 const out = opt('out') || join(root, 'src/assets/sets', set + '.js');
 // a re-import of only some ids keeps the set's other entries

@@ -49,7 +49,7 @@ if (lib === 'kenney') for (const name of rest) each(name, () => {
   if (known(key) && known(key).sha256 && known(key).sha256 !== sha(buf)) console.warn('  ' + key + ': the archive changed since ' + known(key).fetched + ' (a new version at the same page)');
   unzip(zip, to);
   const lic = ['License.txt', 'license.txt', 'LICENSE.txt'].map(f => join(to, f)).find(existsSync), lt = lic ? readFileSync(lic) : Buffer.from('');
-  record(key, { label: 'Kenney ' + label.replace(/^Kenney\s*[-·:]?\s*/i, ''), origin: 'Kenney (kenney.nl), ' + name, license: licenseOf(lt.toString()) || 'unknown: no License.txt', url, page: 'https://kenney.nl/assets/' + name, fetched: today, sha256: sha(buf), licenseHash: sha(lt).slice(0, 16), dir: relative(dir, to) });
+  record(key, { label: 'Kenney ' + label.replace(/^Kenney\s*[-·:]?\s*/i, ''), origin: 'Kenney (kenney.nl), ' + name, license: licenseOf(lt.toString()) || 'unknown: no License.txt', url, page: 'https://kenney.nl/assets/' + name, fetched: today, sha256: sha(buf), licenseHash: sha(lt).slice(0, 16), dir: relative(dir, to), factors: 'srgb' });   // (Kenney writes its flat colors as sRGB: checked against the kit's own renders)
 });
 
 if (lib === 'kaykit') for (const repo of rest) each(repo, () => {

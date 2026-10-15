@@ -26,13 +26,14 @@ export function engine() {
   return (_E = globalThis.My3D2dge);
 }
 
-/* ---- catalogs: hand-written "id": ["tags", "what it looks like"], with $sources, $skip { id: reason } and $pick ---- */
+/* ---- catalogs: hand-written "id": ["tags", "what it looks like"], with $sources, $skip { id: reason }, $mats { kit color:
+ * core material whose pattern it takes } and $pick ---- */
 export function readCatalog(lib) { const f = catalogFile(lib); return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {}; }
 /** one key a line: $sources (one record a line), $skip, $pick, then the entries */
 export function writeCatalog(lib, cat) {
   mkdirSync(dirname(catalogFile(lib)), { recursive: true });
   const lines = [], obj = o => '{\n' + Object.entries(o).map(([k, v]) => '    ' + JSON.stringify(k) + ': ' + JSON.stringify(v)).join(',\n') + '\n  }';
-  for (const k of ['$sources', '$skip']) if (cat[k] && Object.keys(cat[k]).length) lines.push('  ' + JSON.stringify(k) + ': ' + obj(cat[k]));
+  for (const k of ['$sources', '$skip', '$mats']) if (cat[k] && Object.keys(cat[k]).length) lines.push('  ' + JSON.stringify(k) + ': ' + obj(cat[k]));
   if (cat.$pick) lines.push('  "$pick": ' + JSON.stringify(cat.$pick));
   for (const [k, v] of Object.entries(cat)) if (k[0] !== '$') lines.push('  ' + JSON.stringify(k) + ': ' + JSON.stringify(v));
   writeFileSync(catalogFile(lib), '{\n' + lines.join(',\n') + '\n}\n');
@@ -131,7 +132,7 @@ export function decodePNG(buf) {
 }
 
 /* ---- glTF (binary .glb, or .gltf with its buffer): every triangle in game units (z up, 16 a metre, the front toward +y),
- * with its color ---- */
+ * with its color. o: { noTextures, srgbFactors (a library that writes its colors' factors as sRGB) } ---- */
 export function readGlb(file, o = {}) {
   const buf = readFileSync(file); let G = null, bin = null;
   if (/\.gltf$/i.test(file)) {   // a .gltf: the JSON, its buffer beside it (or inline as a data: URI)
@@ -146,11 +147,13 @@ export function readGlb(file, o = {}) {
   const acc = i => { const a = G.accessors[i], bv = G.bufferViews[a.bufferView], [b, rd] = RD[a.componentType], n = SIZE[a.type], start = (bv.byteOffset || 0) + (a.byteOffset || 0), st = bv.byteStride || n * b, out = [];
     for (let k = 0; k < a.count; k++) { const row = []; for (let c = 0; c < n; c++) row.push(rd(start + k * st + c * b)); out.push(n === 1 ? row[0] : row); } return out; };
   // textures: a kit's palette (colormap.png), read from the file the glTF names beside it, or embedded
-  const near = u => [join(dirname(file), u), join(dirname(file), '..', 'texture', u), join(dirname(file), '..', 'Textures', u), join(dirname(file), 'Textures', u)].find(existsSync) || join(dirname(file), u);   // (beside it, or in the kit's texture folder)
+  const near = u => [join(dirname(file), u), ...['texture', 'textures', 'Textures'].map(d => join(dirname(file), '..', d, u)), join(dirname(file), 'Textures', u)].find(existsSync) || join(dirname(file), u);   // (beside it, or in the kit's texture folder)
   const images = o.noTextures ? [] : (G.images || []).map(im => { try { if (im.uri) return decodePNG(readFileSync(near(decodeURIComponent(im.uri))));
     if (im.bufferView !== undefined && /png/.test(im.mimeType || '')) { const bv = G.bufferViews[im.bufferView]; return decodePNG(Buffer.from(bin.subarray(bv.byteOffset || 0, (bv.byteOffset || 0) + bv.byteLength))); } } catch (e) { /* unreadable: flat colors */ } return null; });
   const mats = (G.materials || []).map(m => { const p = m.pbrMetallicRoughness || {}, f = p.baseColorFactor || [1, 1, 1, 1], t = p.baseColorTexture;
-    return { name: m.name || '', rgb: f.slice(0, 3).map(v => Math.round(255 * Math.pow(v, 1 / 2.2))), tex: t && G.textures ? images[G.textures[t.index].source] : null, factor: f }; });
+    // (the spec's factors are linear; o.srgbFactors reads them as sRGB, as Kenney's exporter writes them: its renders agree)
+    const lin = v => o.srgbFactors ? v : Math.pow(v, 1 / 2.2);
+    return { name: m.name || '', rgb: f.slice(0, 3).map(v => Math.round(255 * lin(v))), tex: t && G.textures ? images[G.textures[t.index].source] : null, factor: f.map(lin) }; });
   const mul = (A, B) => { const C = new Array(16).fill(0); for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) for (let k = 0; k < 4; k++) C[c * 4 + r] += A[k * 4 + r] * B[c * 4 + k]; return C; };
   const local = n => { if (n.matrix) return n.matrix; const t = n.translation || [0, 0, 0], q = n.rotation || [0, 0, 0, 1], s = n.scale || [1, 1, 1], [x, y, z, w] = q;
     return [(1 - 2 * (y * y + z * z)) * s[0], 2 * (x * y + z * w) * s[0], 2 * (x * z - y * w) * s[0], 0, 2 * (x * y - z * w) * s[1], (1 - 2 * (x * x + z * z)) * s[1], 2 * (y * z + x * w) * s[1], 0, 2 * (x * z + y * w) * s[2], 2 * (y * z - x * w) * s[2], (1 - 2 * (x * x + y * y)) * s[2], 0, t[0], t[1], t[2], 1]; };
@@ -165,7 +168,7 @@ export function readGlb(file, o = {}) {
         let rgb = m.rgb;
         if (m.tex && UV) { const u = (UV[I[i]][0] + UV[I[i + 1]][0] + UV[I[i + 2]][0]) / 3, v = (UV[I[i]][1] + UV[I[i + 1]][1] + UV[I[i + 2]][1]) / 3, T = m.tex;
           const x = Math.min(T.w - 1, Math.max(0, Math.floor((u - Math.floor(u)) * T.w))), y = Math.min(T.h - 1, Math.max(0, Math.floor((v - Math.floor(v)) * T.h))), k = (y * T.w + x) * 4;
-          rgb = [T.rgba[k], T.rgba[k + 1], T.rgba[k + 2]].map((c, j) => Math.round(c * (m.factor ? Math.pow(m.factor[j], 1 / 2.2) : 1))); }
+          rgb = [T.rgba[k], T.rgba[k + 1], T.rgba[k + 2]].map((c, j) => Math.round(c * (m.factor ? m.factor[j] : 1))); }
         tris.push({ rgb, mat: m.name, v: [tf(P[I[i]]), tf(P[I[i + 1]]), tf(P[I[i + 2]])] });
       }
     }
