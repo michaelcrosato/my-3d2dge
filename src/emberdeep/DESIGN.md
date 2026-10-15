@@ -23,7 +23,7 @@ The **core** files, which you must NOT edit, are:
 
 ```
 00-core.js          setup, input, ED state, DIFF/OPT, REG registries, def(), BUS events, RNG, helpers, SCALE curves
-01-tune.js          TUNE: the rule numbers the Developer panel changes (knob(...) defaults = the shipped game); see TUNING.md
+01-tune.js          TUNE: the rule numbers Settings' tuning pages change (knob(...) defaults = the shipped game); see TUNING.md
 05-elements.js      elements (phys fire frost storm void venom), statuses, dot(), applyStatus(), statusSpeed(), statusTint()
 10-combat.js        units, dealDamage(), killUnit(), knock(), GRID, eachEnemy(), hitCircle(), hitCone(), elBurst(), FX verbs
 15-stats.js         STATS, statText(), statSource(), computeStats(), skillRank(), heroHit()
@@ -36,7 +36,8 @@ The **core** files, which you must NOT edit, are:
 45-mechanics-core.js things (addThing), blast(), heroHitAmount(), the Powder Kegs mechanic (the reference)
 50-levels-core.js   PLAN (the planned depths), recipe(), levelName(), the 'halls' layout, the 'crypt' theme, buildLevel()
 55-town-core.js     heldItem(), NPC framework (makeNPC/updateNPC/drawNPC/say), TOWN.build hook + fallback, the Waykeeper
-60-ui-core.js       UI kit (UI.def/open/close, hot(), button, slider, tipBox, panelBox, menuKeys), HUD, minimap, panels
+60-ui-core.js       UI kit (UI.def/open/close, hot(), button, slider, tipBox, panelBox, menuKeys), HUD, minimap, the pause,
+                    death and waystone panels (Settings, the HTML window for everything, is 64-menu.js)
 70-audio.js         extra sfx (zap freeze portal clang thud crack bloop roar chime slash2), songs: town deep deep2 title
 90-scenes.js        scenes: title, town, level, proving; worldStep/worldDraw; save/load; portals; camera keys
 99-start.js         starts the game; window.__ed debug handle
@@ -46,7 +47,7 @@ If you need a core change, don't edit the file. Work around it through the regis
 
 ## Tuning numbers
 
-A rule number that a designer may want to change (a speed, a chance, a growth rate, a timing) belongs in `01-tune.js` as a `knob(...)`, read as `TUNE.<id>` where the rule lives. Each knob's default is the shipped value. The Developer panel (`62-developer.js`) lists, explains, saves and resets every knob. Its inspectors also change any number in a registered spec (monsters, bosses, item bases and affixes, skills). See `TUNING.md`.
+A rule number that a designer may want to change (a speed, a chance, a growth rate, a timing) belongs in `01-tune.js` as a `knob(...)`, read as `TUNE.<id>` where the rule lives. Each knob's default is the shipped value. Settings' tuning pages (`64-menu.js`, `62-developer.js`) list, explain, save and reset every knob. Its inspectors also change any number in a registered spec (monsters, bosses, item bases and affixes, skills). See `TUNING.md`.
 
 ## The language (registries)
 
@@ -225,10 +226,10 @@ Emberdeep is the engine's showcase: when the engine gains something a hack-and-s
 | `E.Backdrop`, themes, wall materials, `E.tones` | the themes (51-themes.js) |
 | shapes and the asset store (`r.shape`, `E.addAssets`, `docs/ASSETS.md`) | the themes' barrels, crates, rocks and crystals (51-themes.js); scenes in every room and a scatter of objects, from the page's cut of the store, `src/assets/sets/emberdeep.js` (53-scenes.js); the town's barrels, tables, well, crops, graves and yards (56-town.js) |
 | `FlowField`, `TileMap` floors and tags | every level; the mechanics' floors (ice, water, lava, webs, pits) |
-| `E.session`, `game.debug`, the boot (`game.start({ boot })`) | Developer → Record a session; the tools' snapshot; the boot screen |
+| `E.session`, `game.debug`, the boot (`game.start({ boot })`) | Settings → Tools → Record a session; the tools' snapshot; the boot screen |
 | `game.fullscreen`, `game.settings` (rumble), `input.rumble` | FULL SCREEN; the Vibration slider; rumble (97-rumble.js) |
 
-Left out on purpose: the standard pause menu, corner and `E.Shell` (Emberdeep keeps its own canvas menus, D21); `E.Mover`, heights and roofs (its levels are flat: a hack-and-slash's floor), `E.Bullets` (its projectiles are `FX.bolt`, which carry elements and hits).
+Left out on purpose: the standard pause menu, corner and `E.Shell` (Emberdeep keeps its own menus, D21: the canvas pause menu and the Settings window); `E.Mover`, heights and roofs (its levels are flat: a hack-and-slash's floor), `E.Bullets` (its projectiles are `FX.bolt`, which carry elements and hits).
 
 ## Quality bar (read this)
 

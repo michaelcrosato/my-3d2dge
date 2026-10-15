@@ -2,7 +2,7 @@
 // way Vercel does (vercel.json's rewrites), opens the Labs page at /labs and /labs.html, and opens every link on it: each
 // must load (status 200) without a page error. As files on disk, every link must point at a file that exists. The list
 // holds together: each next names a page on it, and each page of a line says when it was made. Each lab's
-// "All labs" link and the game's Developer panel button must reach the Labs page, and held upright on a phone every lab's
+// "All labs" link and the game's Settings button (Keys & help) must reach the Labs page, and held upright on a phone every lab's
 // picture must fill the screen with none of its buttons running off the edge (the Asset Lab, a page: nothing off its side). It fails (exit code 1) on any of these.
 // Usage: node tools/labs-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
@@ -81,7 +81,7 @@ for (const path of ['/handoff/', '/handoff/README.md', '/handoff/game/index.html
   const r = await fetch(SITE + path); if (r.status !== 200) fail(`${path} gave ${r.status}, not the handoff package's file`);
 }
 
-/* the way back: each lab's "All labs" link, and the game's Developer panel */
+/* the way back: each lab's "All labs" link, and the game's Settings (Keys & help) */
 for (const lab of ['mocap-lab', 'asset-lab', 'perspective-lab', 'stress-test', 'arena']) {
   await page.goto(SITE + '/' + lab);
   const a = page.locator('a.to-labs');
@@ -91,9 +91,9 @@ for (const lab of ['mocap-lab', 'asset-lab', 'perspective-lab', 'stress-test', '
 }
 await page.goto(SITE + '/');
 await page.waitForFunction(() => window.__ed && __ed.UI);
-await page.evaluate(() => __ed.UI.open('developer'));
+await page.evaluate(() => __ed.UI.open('settings', { tab: 'help' }));
 await Promise.all([page.waitForURL(/\/labs\.html$/), page.getByRole('button', { name: 'All labs ↗' }).click()]);
-if (await page.textContent('h1') !== 'Labs') fail('the Developer panel button did not open the Labs page');
+if (await page.textContent('h1') !== 'Labs') fail('the Settings button did not open the Labs page');
 
 /* held upright on a phone, every lab's picture fills the screen (the engine's portrait sizing) */
 const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });

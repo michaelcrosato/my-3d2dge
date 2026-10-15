@@ -5,6 +5,7 @@ game.views = VIEW_IDS.slice();
 const link = (location.hash || '').slice(1), dm = /^depth-(\d+)$/.exec(link), gm = /^gallery(?:\/([\w-]+)(?:\/([\w:.-]+))?)?$/.exec(link);
 if (link === 'town' || dm || link === 'proving' || gm) { ED.hero = loadHeroOrNew(); }
 if (!qs.has('view') && VIEW_IDS.includes(OPT.view)) game.setView(OPT.view);
+if (OPT.pixels) applyPixels();   // Settings > Graphics > Pixel size (Large, the game's own sizing, needs nothing)
 /* the boot (the engine's, section 10c): the page's splash becomes Emberdeep's boot screen, the system's checks and two real
    steps (each monster's reach measured once, instead of on its first spawn; the composed depths' order worked out ahead),
    with lines of its own while it runs */
@@ -25,5 +26,5 @@ game.debug = {
   teleport(x, y) { const h = ED.hero; if (!h) return; h.x = x; h.y = y; h.vx = h.vy = 0; game.cam.snap = true; }
 };
 /* a handle for tools, tests and the curious: window.__ed */
-window.__ed = { TUNE, TUNE_OVR, TUNE_KNOBS, tuneSet, tuneReset, ovrSet, CHAR, CHARACTERS, CodexRig, charRig, checkRig, CHAR_STATES, CHAR_VIEWS, LOT_dollRig, characterSaveKey, characterOf, selectCharacter, useSlot, skillCtx, skillRank, startGame, loadHeroOrNew, dressHero, reviveHero, game, ED, REG, UI, DIFF, OPT, CONTROL, DEV, actionLabel, applyControls, devEnable, devDisable, devTravel, devStep, devSpawn, BUS, FX, SLOW, slowMo, levelCardInfo, comboAt, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, GAL, galItems, galOpen, galReset, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
+window.__ed = { TUNE, TUNE_OVR, TUNE_KNOBS, tuneSet, tuneReset, ovrSet, CHAR, CHARACTERS, CodexRig, charRig, checkRig, CHAR_STATES, CHAR_VIEWS, LOT_dollRig, characterSaveKey, characterOf, selectCharacter, useSlot, skillCtx, skillRank, startGame, loadHeroOrNew, dressHero, reviveHero, game, ED, REG, UI, DIFF, OPT, CONTROL, DEV, actionLabel, applyControls, devTravel, devStep, devSpawn, menuGo, chooseView, resetCamera, applyPixels, BUS, FX, SLOW, slowMo, levelCardInfo, comboAt, spawnMonster, spawnPack, spawnBoss, makeItem, equip, recipe, buildLevel, descend, goTown, saveGame, newHero, computeStats, gainXp, dealDamage, heroHit, RNG, GAL, galItems, galOpen, galReset, bot: on => botOn(ED.hero, on !== false), botRun, BOT_RUN };
 })();

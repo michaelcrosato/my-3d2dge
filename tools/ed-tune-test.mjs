@@ -46,7 +46,6 @@ await check("Knobs and overrides change the game, persist, and reset", async () 
 		o.hp0 = h.maxHp;
 		X.tuneSet("baseLife", 500);
 		o.hp1 = h.maxHp;
-		X.devEnable();
 		const at = (lvl) => X.spawnMonster("husk", X.ED.hero.x + 40, X.ED.hero.y, { level: lvl, instant: true }).maxHp;
 		o.m0 = at(1);
 		X.ovrSet("archetypes.husk.hp", 300);
@@ -74,11 +73,10 @@ await check("Knobs and overrides change the game, persist, and reset", async () 
 	assert.deepEqual(reset, [1, 30, undefined, 70]);
 });
 
-await check("Panel: tabs, tiers, search, guide jump, inspector", async () => {
-	await page.evaluate(() => window.__ed.UI.open("developer"));
-	await page.getByRole("tab", { name: "Guide", exact: true }).waitFor();
-	await page.getByRole("button", { name: "Simple", exact: true }).click();
+await check("Settings: tuning pages, tiers, search, guide jump, inspector", async () => {
+	await page.evaluate(() => window.__ed.UI.open("settings"));
 	await page.getByRole("tab", { name: "Combat", exact: true }).click();
+	await page.getByRole("button", { name: "Simple", exact: true }).click();
 	const simple = await page.locator(".ed-knob").count();
 	await page.getByRole("button", { name: "Advanced", exact: true }).click();
 	const advanced = await page.locator(".ed-knob").count();
@@ -88,7 +86,7 @@ await check("Panel: tabs, tiers, search, guide jump, inspector", async () => {
 	assert.equal(await page.evaluate(() => window.__ed.TUNE.knockback), 2);
 	await page.getByRole("button", { name: "Reset Knockback strength", exact: true }).click();
 	assert.equal(await page.evaluate(() => window.__ed.TUNE.knockback), 1);
-	await page.getByRole("tab", { name: "Guide", exact: true }).click();
+	await page.getByRole("tab", { name: "Keys & help", exact: true }).click();
 	await page.getByRole("button", { name: "Change gravity →" }).click();
 	await page.getByRole("slider", { name: "Gravity", exact: true }).waitFor();
 	await page.getByRole("searchbox", { name: "Find a setting" }).fill("skeleton");

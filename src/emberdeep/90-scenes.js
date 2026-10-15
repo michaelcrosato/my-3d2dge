@@ -9,7 +9,7 @@ function setupGPU(map) {
 }
 /* ---------- save / load ---------- */
 const SAVE_KEYS = ['character', 'level', 'xp', 'gold', 'pts', 'gear', 'bag', 'skills', 'slots', 'tree', 'potions', 'maxDepth', 'seenMech', 'kills', 'visits', 'stash', 'best', 'tips'];
-function saveGame() { const h = ED.hero; if (!h || ED.demo || DEV.enabled || ED.mode === 'gallery') return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set(characterSaveKey(h.character), o); }
+function saveGame() { const h = ED.hero; if (!h || ED.demo || ED.mode === 'gallery') return; const o = {}; for (const k of SAVE_KEYS) if (h[k] !== undefined) o[k] = h[k]; o.v = 1; E.store.set(characterSaveKey(h.character), o); }
 function loadSave(identity = CHAR.selected) { const s = characterSave(identity); if (!s || !s.v) return null; let mx = 0; const scan = it => { if (it && it.uid > mx) mx = it.uid; }; Object.values(s.gear || {}).forEach(scan); (s.bag || []).forEach(scan); const st = s.stash; (st && Array.isArray(st.tabs) ? st.tabs.flat() : Array.isArray(st) ? st : []).forEach(scan); itemUid = Math.max(itemUid, mx + 1); return s; }
 function newHero(identity = CHAR.selected) {
   const h = makeHero(null, identity);
@@ -56,7 +56,7 @@ function worldStep(dt, o = {}) {
   UI.prompt = null;
   floorEffects(h, dt); for (const m of ED.foes) if (m.alive && m.spawnT <= 0) floorEffects(m, dt);
   updateHero(h, dt, o);
-  if (!(DEV.enabled && DEV.freezeFoes)) updateFoes(dt); else GRID.build(ED.foes);
+  if (!DEV.freezeFoes) updateFoes(dt); else GRID.build(ED.foes);
   updateCorpses(dt); updateFx(dt); updateThings(L0, dt); updateDrops(dt);
   for (let i = ED.allies.length - 1; i >= 0; i--) { const a = ED.allies[i]; if (a.update && a.update(dt) === false) ED.allies.splice(i, 1); }
   for (const id of L0.mechs || []) { const M = REG.mechanics[id]; if (M && M.update) M.update(L0, dt); }
@@ -69,7 +69,7 @@ function worldStep(dt, o = {}) {
   game.focus(h.x + Math.cos(a) * 16 * TUNE.camLead, h.y + Math.sin(a) * 16 * TUNE.camLead, 8 + (h.z || 0) * .7);   // the camera rises with leaps and flights
 }
 function worldDraw(r) {
-  L.enabled = !(DEV.enabled && DEV.bright); if (gpu) gpu.enabled = OPT.gpu && L.enabled;
+  L.enabled = !OPT.fullLight; if (gpu) gpu.enabled = OPT.gpu && L.enabled;
   const L0 = ED.L, h = ED.hero;
   if (L0.sky) r.sky(L0.sky);
   if (L0.drawBack) L0.drawBack(r);   // behind the floor: backdrops, the abyss under chasms
@@ -115,11 +115,11 @@ function dropIn(h, from = 150) {
 const TITLE = { menu: 0, t: 0 };
 function titleItems() {
   const save = characterSave();
-  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS AGAIN TO RESTART ' + CHARACTERS[CHAR.selected].name.toUpperCase() + ' (THIS CHARACTER SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['CHARACTER', () => UI.open('characters')], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')],
+  return [save ? ['CONTINUE', () => startGame(false)] : null, ['NEW GAME', () => { if (save && !TITLE.confirmNew) { TITLE.confirmNew = true; notify('PRESS AGAIN TO RESTART ' + CHARACTERS[CHAR.selected].name.toUpperCase() + ' (THIS CHARACTER SAVE IS LOST)', '#ff9a7a', 3); return; } startGame(true); }], ['CHARACTER', () => UI.open('characters')], ['PROVING GROUNDS', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('proving'); }], ['GALLERY', () => { if (!ED.hero) ED.hero = loadHeroOrNew(); game.go('gallery'); }], ['SETTINGS', () => UI.open('settings')],
     TOUCH.el && FS.can() && !FS.on() ? ['FULL SCREEN', () => FS.toggle()] : null].filter(Boolean);   // on a touch screen that can
 }
 function loadHeroOrNew(identity = CHAR.selected) { const s = loadSave(identity); if (s) { const h = makeHero(s, identity); refreshPowers(h); computeStats(h); h.hp = h.maxHp; dressHero(h); return h; } return newHero(identity); }
-function startGame(fresh) { if (fresh) { if (!DEV.enabled) E.store.remove(characterSaveKey()); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
+function startGame(fresh) { if (fresh) { E.store.remove(characterSaveKey()); ED.hero = newHero(); ED.hero.visits = {}; saveGame(); } else ED.hero = loadHeroOrNew(); ED.savedLevel = null; goTown({ arrive: fresh ? 'intro' : 'waystone' }); }
 /** The title menu grows upward from the key legend; shorter windows use tighter rows. */
 function titleMenu(n) { const step = game.H < 260 ? 14 : 16, y = game.H - UI.frame.b - 29 - n * step; return { y, step }; }
 /** the title hero's kata, a 12 s loop: he looks round, flows through slash, backslash, spin and thrust, holds a guard, cheers */
@@ -159,7 +159,7 @@ const titleScene = {
     if (game.zoom !== titleZoom) game.setZoom(titleZoom);
     const mm = UI.mouse.cx + ',' + UI.mouse.cy, moved = mm !== TITLE.mm; TITLE.mm = mm;   // a hand on the mouse is not idle either
     if (game.input.anyPressed() || UI.mouse.down || moved) TITLE.idle = 0; else TITLE.idle = (TITLE.idle || 0) + dt;
-    if (TITLE.idle > 28 && !UI.stack.length && !DEV.enabled) { TITLE.idle = 0; startDemo(); return; }
+    if (TITLE.idle > 28 && !UI.stack.length) { TITLE.idle = 0; startDemo(); return; }
     const pose = C.titlePose ? C.titlePose(TITLE.t) : titleKata(TITLE.t);   // the Wanderer's kata, or the character's own loop
     h.rig.update(dt, Object.assign({ x: h.x, y: h.y, z: 0, facing: E.lerpAng(h.facing, Math.PI / 2 + Math.sin(TITLE.t * .4) * .5, .02) }, pose));
     h.facing = h.rig.facing;
@@ -231,11 +231,11 @@ const townScene = {
   },
   update(dt) {
     if (talk.open && game.input.pressed('pause') && !UI.modal) UI.open('pause');
-    if (talk.open && UI.modal) { updateUI(dt); if (!(DEV.enabled && DEV.paused)) townLife(dt); return; }
+    if (talk.open && UI.modal) { updateUI(dt); if (!DEV.paused) townLife(dt); return; }
     if (talkStep(dt)) { UI.prompt = null; if (UI.modal) updateUI(dt); townLife(dt); return; }   // (worldStep, which clears the prompt, does not run: clear it here, or it draws under the box)
     const waiting = updateUI(dt);
     const L0 = ED.L, h = ED.hero, inp = game.input;
-    if (waiting) { UI.prompt = null; if (!(DEV.enabled && DEV.paused)) { townLife(dt); townServed(L0); } return; }
+    if (waiting) { UI.prompt = null; if (!DEV.paused) { townLife(dt); townServed(L0); } return; }
     if ((L0.saveT = (L0.saveT || 0) + dt) > 20) { L0.saveT = 0; saveGame(); }   // purchases, crafting and gambling are kept even if the tab closes
     // a click on a person in reach starts a chat (the way to talk to the shopkeepers, whose E opens the shop at once).
     // Checked before the world step, so the same click does not also swing the sword
@@ -447,7 +447,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomStep(-1);
   else if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomStep(1);
   else if (e.code === 'BracketLeft' || e.code === 'BracketRight') { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
-  else if (e.code === 'Digit0') { game.resetCamera(); game.setZoom(OPT.zoom); game.note('CAMERA RESET'); }
+  else if (e.code === 'Digit0') { resetCamera(); game.note('CAMERA RESET'); }
   else if (e.code === 'KeyM') A.mute();
   else if (e.code === 'KeyH') UI.hideHud = !UI.hideHud;
 });

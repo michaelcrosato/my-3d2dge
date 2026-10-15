@@ -115,7 +115,15 @@ for (const C of list) {
       must(!(await finiteRig(page)).length, 'its joints are not numbers after the dodge');
     });
 
-    // the sandbox: a throwaway copy of the hero, a lane of open floor and a dummy that cannot die
+    // the experiments run on the hero himself (the tools act on the real game): his save is kept first and put back after,
+    // with the switches off, back in town
+    const keepHero = () => page.evaluate(() => { const X = __ed; X.saveGame(); X.kept = JSON.stringify(My3D2dge.store.get(X.characterSaveKey(X.ED.hero.character))); X.UI.closeAll(); X.goTown(); });
+    const restoreHero = () => page.evaluate(() => {
+      const X = __ed, id = X.ED.hero.character; X.ED.hero.bot = null;
+      Object.assign(X.DEV, { god: false, resources: false, cooldowns: false, freezeFoes: false, paused: false });
+      My3D2dge.store.set(X.characterSaveKey(id), JSON.parse(X.kept)); X.ED.hero = X.loadHeroOrNew(id); X.ED.savedLevel = null; X.UI.closeAll(); X.goTown();
+    });
+    // the test bench: the switches on, a lane of open floor and a dummy that cannot die
     const sandbox = () => page.evaluate(() => {
       const { ED, DEV } = __ed, h = ED.hero, map = ED.L.map;
       DEV.god = DEV.resources = DEV.cooldowns = DEV.freezeFoes = true; __ed.game.input.clear(); __ed.UI.closeAll();
@@ -152,7 +160,7 @@ for (const C of list) {
     }, [ids, dist, frames]);
 
     await check('every starting skill casts, and its attacks hurt', async () => {
-      await page.evaluate(() => __ed.devEnable()); await page.waitForTimeout(800);
+      await keepHero(); await page.waitForTimeout(800);
       await sandbox();
       const r = await castAll(C.skills, 34, 110);
       info.skills = r.out;
@@ -168,7 +176,7 @@ for (const C of list) {
       const dud = ids.filter(id => !r.out[id].cast); must(!dud.length, 'these shared skills did not cast: ' + dud.join(', '));
       if (r.out.echo) must(r.out.echo.echo === true, 'its Echo (the shared skill) does not have its body');
     });
-    await page.evaluate(() => { __ed.ED.hero.bot = null; __ed.devDisable(); }); await page.waitForTimeout(900);
+    await restoreHero(); await page.waitForTimeout(900);
 
     await check('shows on the paper doll in its own body', async () => {
       await key(page, 'KeyI'); await page.waitForTimeout(300);

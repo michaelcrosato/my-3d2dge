@@ -1,26 +1,26 @@
-# Tuning Emberdeep: the Developer panel
+# Tuning Emberdeep: Settings' tuning pages
 
-Open it from **Settings → DEVELOPER**. It is the place to change how the game plays without touching code. This page is the same information in one place, plus where to look when something is code rather than a number.
+Open **Settings** from the title or the pause menu (Esc). It is one window for everything the game can change, its pages listed down the side:
 
-## How it is laid out
-
-- **Guide**: how the panel works, and a "Where do I change…?" list. Each question jumps straight to the right setting.
-- **Sandbox**: a throwaway copy of your hero (the button at the top starts it). You can:
+- **Game**: Graphics (the view, the camera's zoom and turn, pixel size, frame rate, full screen, lighting, outlines, particles, screen shake, the automatic quality, the overlays), Sound, Interface (damage numbers, health bars, loot labels, the HUD, the tips), Controls.
+- **Playtest**: Difficulty (the quick 0.25× to 4× multipliers) and **Tools**. Tools act on the hero you play, and he saves as usual: the whole game is a test bench. You can:
   - spawn any monster or boss
-  - jump to any depth
-  - make items
-  - turn on invulnerability, unlimited resources, no cooldowns, frozen AI, pause and step frame by frame, slow or fast time, collision circles, and the performance overlay
+  - jump to any depth, the town, the Proving Grounds or the Gallery
+  - grant points and gold, unlock every skill, make items
+  - turn on invulnerability, unlimited resources, no cooldowns, frozen AI, pause and step frame by frame, slow or fast time (the switches last until you reload, and the screen names the ones in force)
+  - record a session for a bug report
+- **Tuning**: the game's rule numbers, a page per part of the game (below).
+- **Help**: every key as bound now, and a "Where do I change…?" list; each question jumps straight to the right setting.
 
-  Your normal save is never touched.
-- **Hero, Combat, Monsters, Bosses, Loot & gold, Progression, Physics & world, Skills**: one tab for each part of the game. Each tab:
+- **Hero, Combat, Monsters, Bosses, Loot & gold, Progression, Physics & world, Skills**: one page for each part of the game. Each page:
   - opens with a short description of what that part does
   - lists its settings in groups, and each setting says:
     - what it changes, in plain words
     - its default and range
     - the source file that reads it
-  - has a reset for the whole tab
+  - has a reset for the whole page
 - **Simple / Advanced**: Simple shows the settings that change the game the most, plus any you have changed. Advanced shows every setting.
-- **Find a setting…**: searches every section at once. It also finds monsters, bosses, items and skills by name, and opens them in their inspector.
+- **Find a setting…**: searches every page at once, Graphics to Tuning. It also finds monsters, bosses, items and skills by name, and opens them in their inspector.
 - **Inspectors** (in Monsters, Bosses, Loot and Skills): pick one part and change any number in its definition. For example:
   - a husk's life
   - a skeleton's second swing wind-up
@@ -30,13 +30,13 @@ Open it from **Settings → DEVELOPER**. It is the place to change how the game 
   - a skill's cooldown, ember cost or damage
 
   Each field is explained, and **↺** puts it back.
-- **Copy settings / Paste settings** move every change you made as a block of JSON. Paste it back later, share it, or give it to Claude and ask to "make these the new defaults".
+- **Copy tuning / Paste tuning** (on every tuning page) move every change you made as a block of JSON. Paste it back later, share it, or give it to Claude and ask to "make these the new defaults".
 
-Changes take effect at once and are saved in this browser (`ed:tune` for the settings, `ed:tune:ovr` for inspector edits) until you reset them. They apply in the real game too, not only the sandbox. While anything differs from the shipped game, a small **TUNED** marker shows at the top of the screen. The Settings difficulty sliders (0.25× to 4×) are separate, and still the quickest way to make playtesting easier or harder.
+Changes take effect at once and are saved in this browser (`ed:tune` for the settings, `ed:tune:ovr` for inspector edits) until you reset them. While anything differs from the shipped game, a small **TUNED** marker shows at the top of the screen. The Difficulty page (0.25× to 4×) is separate, and still the quickest way to make playtesting easier or harder.
 
 **When changes apply**
 - **At once:** hero stats, combat rules, gravity and the AI.
-- **From the next spawn:** inspector edits to monster life, damage and size. In the sandbox, use **Clear enemies** and then **Spawn**, or the inspector's own **Spawn one to test** button.
+- **From the next spawn:** inspector edits to monster life, damage and size. In Tools, use **Clear enemies** and then **Spawn**, or the inspector's own **Spawn one to test** button.
 - **From the next level:** pack counts per room.
 
 ## Where do I change…?
@@ -81,7 +81,7 @@ How your character moves, survives and recovers: running, the dodge roll, potion
 | **Potion healing** (Potions) | Simple | 0.45× (0.05× to 1×) | Share of maximum life one potion restores (0.45 = 45%). A third lands at once, the rest over 1.5 s. |
 | **Level-up heal** (Potions) | Advanced | 0.35× (0× to 1×) | Share of maximum life restored when you level up (ember always refills). |
 | **Extra potion charges** (Potions) | Advanced | 0 (-2 to +10) | Potions you carry (3 to start). Refilled in town and from potion drops. |
-| **Starting life** (Base stats) | Simple | 70 (1 to 2000) | Life at level 0 before gear and passives (the Settings "Hero life" slider multiplies the final total). |
+| **Starting life** (Base stats) | Simple | 70 (1 to 2000) | Life at level 0 before gear and passives (Difficulty’s "Hero life" multiplies the final total). |
 | **Life per level** (Base stats) | Advanced | 12 (0 to 500) | Life gained each hero level. |
 | **Life regeneration** (Base stats) | Advanced | 0.4 (0 to 100) | Life per second at level 0. Grows by "regen per level" each level. |
 | **Regen per level** (Base stats) | Advanced | 0.08 (0 to 10) | Extra life per second gained each level. |
@@ -125,7 +125,7 @@ How monsters are built and how they fight: their life and damage, how they grow 
 | **Sight range** (Aggression) | Simple | 1× (0.2× to 4×) | How far away a monster notices you (150 units, about 9 tiles, for most; it also needs a clear line unless you are very close). When one sees you, its whole pack wakes. |
 | **Gap between attacks** (Aggression) | Advanced | 1× (0× to 5×) | Minimum pause between one monster starting an attack and the next one starting (0.22 s, a little random). Lower is relentless. |
 | **Attack wind-up** (Aggression) | Advanced | 1× (0.2× to 4×) | How long monsters telegraph a melee swing before it lands (never under 0.36 s by default). Longer is easier to read and dodge. |
-| **Pack size** (Packs) | Simple | 1× (0.2× to 5×) | Monsters per pack (4 to 8 before the Settings "Monster density" slider). |
+| **Pack size** (Packs) | Simple | 1× (0.2× to 5×) | Monsters per pack (4 to 8 before Difficulty’s "Monster density"). |
 | **Packs per room** (Packs) | Advanced | 1× (0.1× to 5×) | How many packs each room of a level holds. Takes hold from the next level. |
 | **Champion packs** (Packs) | Advanced | 0 (-5 to +20) | Extra champion packs per level (1, plus 1 every 4 depths, by default). |
 | **Elite life** (Elites) | Simple | 1× (0.1× to 10×) | Scales the extra life of champions (2.6x a normal monster) and rares (4.2x). |
@@ -149,7 +149,7 @@ What drops and how good it is: drop chances, how often items roll magic, rare or
 
 | Setting | Tier | Default (range) | What it changes |
 |---|---|---|---|
-| **Item drop chance** (Drops) | Simple | 1× (0× to 10×) | How often monsters drop an item (the Settings "Loot drops" slider multiplies this too). |
+| **Item drop chance** (Drops) | Simple | 1× (0× to 10×) | How often monsters drop an item (Difficulty’s "Loot drops" multiplies this too). |
 | **Gold amount** (Drops) | Simple | 1× (0× to 20×) | How much gold each pile is worth. |
 | **Potion drop chance** (Drops) | Advanced | 1× (0× to 10×) | How often monsters drop a potion. |
 | **Elite & boss items** (Drops) | Advanced | 1× (0× to 10×) | Items from champions (60% chance of 1), rares (2 to 3) and bosses (5 to 8). |
@@ -177,10 +177,10 @@ The world itself: gravity (falling, lobbed shots, loot bounce), how far knocks p
 |---|---|---|---|
 | **Gravity** (Physics) | Simple | 1× (0.1× to 5×) | How hard things fall: monsters thrown into the air, the hero’s falls, hopping slimes, lobbed shots (bone javelins, spit, mortar orbs) and loot bouncing out of corpses. Low gravity floats; lobbed shots overshoot. High gravity slams; they fall short. |
 | **Projectile speed** (Physics) | Advanced | 1× (0.2× to 4×) | Speed of every projectile, yours and theirs (bolts, arrows, orbs). |
-| **Game speed** (Time) | Simple | 1× (0.1× to 4×) | The whole world’s clock, like the sandbox speed but kept in the real game. Under 1 is slow motion. |
+| **Game speed** (Time) | Simple | 1× (0.1× to 4×) | The whole world’s clock, like Tools’ simulation speed but kept for your next visit. Under 1 is slow motion. |
 | **Perfect-dodge slow motion** (Time) | Advanced | 1× (0× to 3×) | How long the world slows after a perfect dodge (rolling through a blow). 0 turns it off. |
 | **Hit stop** (Feel) | Simple | 1× (0× to 4×) | The tiny freeze on a solid hit that sells its weight. 0 turns it off. |
-| **Screen shake** (Feel) | Advanced | 1× (0× to 4×) | Scales every screen shake (the Shake option in Settings still turns it off entirely). |
+| **Screen shake strength** (Feel) | Advanced | 1× (0× to 4×) | Scales every screen shake (the Screen shake switch in Graphics still turns it off entirely). |
 | **Darkness** (Light & camera) | Simple | 1× (0× to 6×) | Scales each place’s ambient light. Higher shows more of the level outside torchlight; 0 is pitch black. |
 | **Camera smoothing** (Light & camera) | Advanced | 0.18 s (0 s to 1 s) | How long the camera takes to catch up with you. 0 locks it on you. |
 | **Map reveal radius** (Light & camera) | Advanced | 1× (0.3× to 5×) | How much of the map around you is uncovered as you explore (9 tiles). |
