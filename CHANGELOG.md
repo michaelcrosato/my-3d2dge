@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.44.0 (2026-10-15)
+
+Emberdeep's view in Settings: the four views side by side, so a player sees which one the camera is in and picks any in one click.
+
+- **Emberdeep**: Settings has a VIEW row under the options: Isometric, Three-quarter, Top-down and Brawler, the one in use lit, each with a tip on how its camera looks. A pick is saved with the options, as V's is; the keys and a pad reach the row (up and down move a row, left and right along it). On a short screen the difficulty rows close up so the row clears the footer.
+- **Emberdeep**: the V key and the VIEW row share one list of views and one way to choose (`VIEW_IDS`, `chooseView` in `60-ui-core.js`); V still names the new view at the top of the screen.
+- **Docs**: `src/emberdeep/DESIGN.md` names Settings' VIEW row beside V.
+
 ## 0.43.4 (2026-10-15)
 
 The API index stays whole (the owner's answer to D42, D43): the two facts the benchmark's agent went to the source for are found in the index now, and a split reopens only when two runs in a row trip the rule.

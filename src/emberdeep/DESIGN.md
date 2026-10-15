@@ -246,7 +246,7 @@ Left out on purpose: the standard pause menu, corner and `E.Shell` (Emberdeep ke
   - Every hit gets hit-stop (`game.freeze(.03-.06)`), `shake()`, sparks and sound. Deaths and big hits get more.
   - Fast, readable, fair.
 - **Modularity:**
-  - Your parts must work in any theme, at any depth (scale damage and life with the core curves: monsters via `m.dmg`, hero hits via `heroHit` / `heroHitAmount`), in any view (`V` cycles iso / three-quarter / top-down / brawler), and at any zoom.
+  - Your parts must work in any theme, at any depth (scale damage and life with the core curves: monsters via `m.dmg`, hero hits via `heroHit` / `heroHitAmount`), in any view (`V` cycles iso / three-quarter / top-down / brawler; Settings' VIEW row picks one), and at any zoom.
   - They must combine with anything else.
 - **Performance:** 100-200 monsters in a level; keep per-frame work small and cull off-screen drawing with `r.visible`.
 - **No external files and no network.** Keep the house style: dense, commented code like the rest of the repo, no TypeScript.

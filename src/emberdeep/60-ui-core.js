@@ -560,6 +560,12 @@ function settingsToggles() {
     ['Particles ' + ['low', 'mid', 'high'][OPT.fx === undefined ? 2 : OPT.fx], null, () => { OPT.fx = ((OPT.fx === undefined ? 2 : OPT.fx) + 1) % 3; P.max = [500, 1000, 1600][OPT.fx]; saveOpts(); }],
     ['Sound ' + Math.round(OPT.sfx * 10), null, () => { OPT.sfx = OPT.sfx >= 1 ? 0 : Math.round((OPT.sfx + .2) * 10) / 10; saveOpts(); applyAudioOpts(); sfx('coin'); }]];
 }
+/* the views Emberdeep plays in, in V's order (the engine's side view sees the floor edge on; overhead is for flat games) */
+const VIEW_IDS = ['iso', 'threequarter', 'topdown', 'brawler'];
+const VIEW_TIPS = { iso: 'Turned 45 degrees and tilted 30, as in Diablo and Bastion. The default.', threequarter: 'Straight on and tilted 55, as in Zelda and Stardew Valley.',
+  topdown: 'Straight on and nearly overhead, as in Hotline Miami.', brawler: 'Straight on and tilted only 25, as in Streets of Rage.' };
+/** look from another view (an id of VIEW_IDS), kept with the options: Settings' VIEW row and the V key (which names it) */
+function chooseView(id) { game.setView(id); OPT.view = game.baseView.id; saveOpts(); }
 /* typing a difficulty value: click it (or Enter or a digit on a focused slider), type 1.4 or 140%, Enter sets it, Esc
  * leaves it. The keys are caught before the game's own input sees them; Shift makes the arrow keys step 10% */
 const SET_EDIT = { k: null, text: '', rect: null, shift: false };
@@ -581,11 +587,13 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { SET_EDIT.shift = e.shiftKey; });
 canvas.addEventListener('pointerdown', () => { const s = SET_EDIT; if (s.k && s.rect && !inRect(mouseHUD(), s.rect)) settingsCommit(); });   // a click anywhere else sets the typed value
 const settingsReset = () => { for (const k in DIFF_DEFAULT) setDiff(k, DIFF_DEFAULT[k]); };
-/* keyboard focus in settings: 0-8 the sliders, 9-17 the option buttons (a 3 x 3 grid), 18 RESET */
-const SET_N = DIFF_ROWS.length, SET_RESET = SET_N + 9;
+/* keyboard focus in settings: 0-8 the sliders, 9-17 the option buttons (a 3 x 3 grid), 18-21 the views, 22 RESET; up and
+ * down move a row of SET_ROWS, left and right along it */
+const SET_N = DIFF_ROWS.length, SET_VIEW = SET_N + 9, SET_RESET = SET_VIEW + VIEW_IDS.length;
+const SET_ROWS = [...DIFF_ROWS.map((r, i) => [i]), ...[0, 3, 6].map(i => [i, i + 1, i + 2].map(j => SET_N + j)), VIEW_IDS.map((v, i) => SET_VIEW + i), [0, 1, 2].map(i => SET_RESET + i)];
 const settingsFooter = () => [['RESET', settingsReset], ['CONTROLS', () => UI.open('controls')], ['DEVELOPER', () => UI.open('developer')]];
 UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H) => Math.min(240, H - 6), draw(g, x, y, w, h) {
-  const rows = DIFF_ROWS, lh = 12, sx = x + 104, sw = w - 150;
+  const rows = DIFF_ROWS, lh = Math.max(9, Math.min(12, Math.floor((h - 124) / rows.length))), sx = x + 104, sw = w - 150;   // closer rows on a short screen, so the views clear the footer
   E.font.text(g, 'DIFFICULTY  (for playtesting: 0.25x to 4x)', x + 10, y + 20, '#9a90b0', { font: 'tiny', outline: false });
   const ez = Math.round(rows.reduce((a, [k, , , up]) => a + Math.log2(DIFF[k] || 1) * up, 0) * 2);   // a one-glance summary: how far from the default, and which way
   if (ez) E.font.text(g, ez > 0 ? 'EASIER' : 'HARDER', x + w - 10, y + 20, ez > 0 ? '#8affb0' : '#ff9a7a', { font: 'tiny', outline: false, align: 'right' });
@@ -610,18 +618,29 @@ UI.def('settings', { title: 'SETTINGS', w: (W) => Math.min(300, W - 8), h: (W, H
   const oy = y + 30 + rows.length * lh + 4;
   E.font.text(g, 'OPTIONS', x + 10, oy, '#9a90b0', { font: 'tiny', outline: false });
   settingsToggles().forEach(([label, on, fn], i) => button(g, x + 10 + (i % 3) * Math.floor((w - 20) / 3), oy + 8 + Math.floor(i / 3) * 16, Math.floor((w - 20) / 3) - 3, 13, label + (on === null ? '' : on ? ': ON' : ': OFF'), fn, { active: !!on, focus: UI.keyNav && UI.focus === SET_N + i }));
+  // the views below the three rows of options: a button each, sized to its name, the one in use lit
+  const vy = oy + 56, vx0 = x + 15 + E.font.width('VIEW', { font: 'tiny' }), vx1 = x + 7 + 3 * Math.floor((w - 20) / 3), names = VIEW_IDS.map(id => E.VIEWS[id].label), tw = names.map(s => E.font.width(s));
+  const pad = (vx1 - vx0 - 3 * (names.length - 1) - tw.reduce((a, b) => a + b, 0)) / names.length;
+  E.font.text(g, 'VIEW', x + 10, vy + 4, '#9a90b0', { font: 'tiny', outline: false });
+  let bx = vx0;
+  VIEW_IDS.forEach((id, i) => {
+    const bw = i === names.length - 1 ? vx1 - bx : Math.round(tw[i] + pad);
+    button(g, bx, vy, bw, 13, names[i], () => chooseView(id), { active: game.baseView.id === id, focus: UI.keyNav && UI.focus === SET_VIEW + i, tip: [{ t: names[i], c: GOLD }, { t: VIEW_TIPS[id], c: '#c8c0d8' }, { t: 'V cycles the views in play.', c: '#8a80a8' }] });
+    bx += bw + 3;
+  });
   settingsFooter().forEach(([label, fn], i) => button(g, x + 10 + i * (w - 20) / 3, y + h - 18, (w - 20) / 3 - 3, 13, label, fn, { focus: UI.keyNav && UI.focus === SET_RESET + i }));
 }, close() { settingsCommit(); }, update() {
   const inp = game.input, f = UI.focus || 0, nav = nf => { UI.focus = nf; UI.keyNav = true; };
-  if (inp.repeat('menuUp')) nav(f === 0 ? SET_RESET : f < SET_N ? f - 1 : f < SET_N + 3 ? SET_N - 1 : f - 3);
-  else if (inp.repeat('menuDown')) nav(f < SET_N - 1 ? f + 1 : f === SET_N - 1 ? SET_N : f >= SET_RESET ? 0 : f + 3);
+  const r = Math.max(0, SET_ROWS.findIndex(row => row.includes(f))), row = SET_ROWS[r], c = Math.max(0, row.indexOf(f)), toRow = d => { const n = SET_ROWS[(r + d + SET_ROWS.length) % SET_ROWS.length]; nav(n[Math.min(c, n.length - 1)]); };
+  if (inp.repeat('menuUp')) toRow(-1);
+  else if (inp.repeat('menuDown')) toRow(1);
   else if (inp.repeat('menuLeft') || inp.repeat('menuRight')) {
     const d = inp.down('menuLeft') ? -1 : 1;
     if (f < SET_N) { const k = DIFF_ROWS[f][0]; setDiff(k, DIFF[k] + d * (SET_EDIT.shift ? .1 : .01)); UI.keyNav = true; }
-    else { const base = SET_N + Math.floor((f - SET_N) / 3) * 3; nav(base + (f - base + d + 3) % 3); }
+    else nav(row[(c + d + row.length) % row.length]);
   }
   if (inp.pressed('confirm') && f < SET_N && inp.lastDevice !== 'gamepad') { inp.consumeAll(); settingsEdit(DIFF_ROWS[f][0]); }   // (a pad has nothing to type with)
-  if (inp.pressed('confirm') && f >= SET_N) { inp.consumeAll(); if (f >= SET_RESET) settingsFooter()[f - SET_RESET][1](); else settingsToggles()[f - SET_N][2](); }
+  if (inp.pressed('confirm') && f >= SET_N) { inp.consumeAll(); if (f >= SET_RESET) settingsFooter()[f - SET_RESET][1](); else if (f >= SET_VIEW) chooseView(VIEW_IDS[f - SET_VIEW]); else settingsToggles()[f - SET_N][2](); }
 
 } });
 /* ---------- the descent's record, for the death screen: from leaving town (or entering the Proving Grounds) ----------
