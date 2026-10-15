@@ -3,7 +3,7 @@
 // must load (status 200) without a page error. As files on disk, every link must point at a file that exists. The list
 // holds together: each next names a page on it, and each page of a line says when it was made. Each lab's
 // "All labs" link and the game's Developer panel button must reach the Labs page, and held upright on a phone every lab's
-// picture must fill the screen with none of its buttons running off the edge. It fails (exit code 1) on any of these.
+// picture must fill the screen with none of its buttons running off the edge (the Asset Lab, a page: nothing off its side). It fails (exit code 1) on any of these.
 // Usage: node tools/labs-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -82,7 +82,7 @@ for (const path of ['/handoff/', '/handoff/README.md', '/handoff/game/index.html
 }
 
 /* the way back: each lab's "All labs" link, and the game's Developer panel */
-for (const lab of ['mocap-lab', 'perspective-lab', 'stress-test', 'arena']) {
+for (const lab of ['mocap-lab', 'asset-lab', 'perspective-lab', 'stress-test', 'arena']) {
   await page.goto(SITE + '/' + lab);
   const a = page.locator('a.to-labs');
   if (await a.count() !== 1) { fail(lab + ': no All labs link'); continue; }
@@ -105,8 +105,14 @@ for (const lab of ['mocap-lab', 'perspective-lab', 'stress-test', 'arena']) {
   const cut = await phone.evaluate(() => [...document.querySelectorAll('.controls button, .top button')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.left < -1); }).map(e => e.textContent.trim()));
   if (cut.length) fail(lab + ': buttons run off an upright phone: ' + cut.join(', '));
 }
+// the Asset Lab is a page, not a picture: upright on a phone, nothing runs off its side, and picking an entry draws it
+await phone.goto(SITE + '/asset-lab#barrel');
+await phone.waitForTimeout(800);
+const wide = await phone.evaluate(() => ({ over: document.documentElement.scrollWidth - innerWidth, shown: !document.getElementById('pick').hidden, tiles: document.querySelectorAll('#grid .tile canvas').length }));
+if (wide.over > 1) fail('asset-lab: the page is ' + wide.over + ' pixels wider than an upright phone');
+if (!wide.shown || !wide.tiles) fail('asset-lab: #barrel did not show the barrel, or the grid drew nothing: ' + JSON.stringify(wide));
 
 await browser.close();
 server.close();
 if (problems.length) { console.error('labs check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files), the way back from 4 labs and the game, 4 labs fill an upright phone, their buttons on screen`);
+console.log(`labs check passed: ${siteLinks.length} links (${opened} pages opened on the site, all found as files), the way back from 5 labs and the game, 4 labs fill an upright phone, their buttons on screen, the Asset Lab fits one`);
