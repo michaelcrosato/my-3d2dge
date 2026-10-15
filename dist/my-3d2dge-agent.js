@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.36.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.37.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -372,7 +372,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.36.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.37.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -3532,8 +3532,9 @@ const fullOnly = name => function () { warn('full:' + name, name + ' is only in 
 px.glow = () => {};
 E.prop = fullOnly('E.prop');
 Renderer.prototype.prop = fullOnly('r.prop');
-// shapes and materials (docs/ASSETS.md): the registries are here (entries a game adds are kept), nothing draws them
-Object.assign(E, { SHAPES: {}, MATERIALS: {}, PATTERNS: {}, shapeSprite: fullOnly('E.shapeSprite'), shapeInfo: fullOnly('E.shapeInfo'), addAssets: fullOnly('E.addAssets'), material: fullOnly('E.material') });
+// shapes and materials (docs/ASSETS.md): the registries are here (entries a game adds are kept), nothing draws them;
+// E.addAssets registers nothing and returns empty lists, the rest null
+Object.assign(E, { SHAPES: {}, MATERIALS: {}, PATTERNS: {}, shapeSprite: fullOnly('E.shapeSprite'), shapeInfo: fullOnly('E.shapeInfo'), addAssets: (...a) => (fullOnly('E.addAssets')(...a), { shapes: [], materials: [], sprites: {} }), material: fullOnly('E.material') });
 Renderer.prototype.shape = fullOnly('r.shape');
 TileMap.prototype.solid = fullOnly('map.solid');
 Renderer.prototype.sightCone = fullOnly('r.sightCone');

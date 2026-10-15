@@ -5,6 +5,26 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.37.0 (2026-10-15)
+
+Shapes in the games: Emberdeep, the starters and the template game dress their scenes with objects as data, and shapes draw faster (Phase 3 of `docs/HANDOFF-ASSETS.md`, with the fixes a review of Phase 1 found).
+
+- **Rendering**: `r.shape` draws a shape's picture with its outline baked in, queued as it is, and its shadow as a picture made once per view: 300 shapes in view cost about 4 ms a frame headless (a hundred barrels cost about 57 ms through the actor composite). A flash, an x-ray or see-through still go through `r.actor`'s composite, and the pictures are the same pixel for pixel (the Asset Lab's filmstrip is identical). GPU lighting gets the shape's own pixels in its height pass. A shape off the screen is skipped before its picture is made. The first frame makes each picture once (about 0.7 ms each: 300 different ones, about 230 ms).
+- **Rendering**: what stands on a solid shape (`map.solid`: a jar on a table, a crate on a crate) sorts after it, on the shape's back half too.
+- **Rendering**: a cached picture is drawn again when one of its materials is edited (`E.MATERIALS.oak.color = ...`). Parts below the floor are no longer clipped at the picture's edge. The outline takes the renderer's color (`r.outline`), and `E.shapeSprite`'s `outline` takes a color.
+- **Rendering**: the crate pattern repeats past its face, on a wall face or a tile past the first.
+- **Rendering**: `r.sprite` stands a shape's sprite (`E.shapeSprite`) on its own feet unless an anchor is given.
+- **Art**: the starters (adventure, rpg, stealth) and the template game dress their rooms with core shapes and one material each (`ruin` walls in the adventure's ruins and the rpg's plaza, the stealth belfry in `sandstone`, the template's street floored in `cobble`, its barrels, crates and cart solid): what builders copy.
+- **Engine**: a broken part (null, a mirror or ring without its part, a group without parts, a use without `at`, a box without a size, a `rot` that is not degrees) is skipped after its warning, never thrown; so are `parts: {}` and a `make` that returns nothing. A material naming itself in a set means the registry's; a loop of names ends with a warning.
+- **Engine**: an entry's own `scale` applies, times the placement's (drawing, collision, lights and flames). A shape's geometry is cached on its params alone, the 64 most recent per entry.
+- **Engine**: `map.heightAt` counts a raised solid (a crate on a shelf) only from what reaches it: a shot under the shelf flies on. `map.solid`'s solid also records where it was placed (`px`, `py`).
+- **Engine**: on the agent edition, `E.addAssets` returns empty lists, as the card says.
+- **Emberdeep**: the themes' barrels, crates, pots, rocks, crystals and the Sky's blossom trees are shapes, turned their own ways and recolored for the depth, from the same random draws: every level is laid out as before (D35). The town's barrels, crates, sacks, tables (round, with mugs), stools, benches, hay, the well and the pines beyond the wall are shapes; their collision is unchanged.
+- **Emberdeep**: the Gallery has an OBJECTS reel: every core shape turning beside the hero, with what it is and where the Asset Lab is. The reels' names fit a phone held upright.
+- **Tools**: `tools/asset-sheet.mjs file.js#id` draws the file's own entry where the core has one of the same id. The assets suite checks the review's edge cases and times 300 shapes in view.
+- **Tools**: fixes a review of Phase 2 found. `asset-fetch`'s license check wants CC0 or the public-domain mark as a word in a page's own words, and refuses a text naming another Creative Commons license; `--survey` keeps the ledger rows of downloads not in `.cache`; API ids and download hosts are checked, links skipped. `asset-import --only` touches only the ids asked for; gravel is speck, as documented (the three gravels now fit at dE 0-2). The assets suite checks each shape's fit; the labs suite checks that `#barrel` shows the barrel.
+- **Docs**: `docs/ASSETS.md`: an entry's `scale` and `foot` as they now work; the agent edition's returns. The PlatformMap's `mat` is documented for the square tiles it covers.
+
 ## 0.36.0 (2026-10-15)
 
 The asset store: objects, materials and sprites converted from CC0 libraries, each with where it came from and how closely it fits, searchable, and the Asset Lab to browse them (Phase 2 of `docs/HANDOFF-ASSETS.md`).
