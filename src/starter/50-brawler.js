@@ -22,6 +22,11 @@ const BRAWL = (() => {
   const STREET = [['trashcan', 46, 25, 1.25], ['firedrum', 84, 27, 1.3], ['hydrant', 196, 146], ['mailbox', 214, 26], ['dumpster', 250, 22], ['bags', 290, 24],
     ['trashcan', 312, 25, 1.25], ['car', 20, 130, '#3a7ac8'], ['dumpster', 566, 22], ['car', 560, 130, '#d8a830'], ['trashcan', 626, 25, 1.25], ['bags', 642, 22],
     ['hydrant', 690, 146], ['firedrum', 700, 26, 1.3]];
+  // shapes (docs/ASSETS.md) [id, x, y, facing, scale]: the diner's patio and its delivery crate from the core library, clear
+  // of the breakables; cardboard boxes by the second dumpster from the asset store, cut into the page's 'brawler' set
+  // (src/assets/sets/brawler.js: none without it)
+  const DRESS = [['table', 157, 29, 0, .7], ['chair', 145, 28, 0, .8], ['chair', 169, 31, Math.PI, .8], ['crate', 231, 25, .15, .7], ['sack', 236, 37, .4, .8],
+    ...(E.addAssets((window.ASSETS || {}).brawler || { set: 'brawler' }).shapes.length ? [['brawler:box', 586, 21, .4, .95], ['brawler:box-open', 599, 31, -.5, .95]] : [])];
   const DRUMS = STREET.filter(s => s[0] === 'firedrum'), CARS = STREET.filter(s => s[0] === 'car');
   const LIGHTS = [...LAMPS.map(x => ({ x, y: 46, r: 46, c: '#ffb45a' })), ...SIGNS.map(s => ({ x: blocks[s.b].x0 + s.u, y: 20, r: 40, c: s.c })), ...DRUMS.map(([, x, y]) => ({ x, y: y + 6, r: 34, c: '#ff7a2a' }))];
   LIGHTS.forEach(L => { L.rgb = E.hex(L.c); });
@@ -482,6 +487,7 @@ const BRAWL = (() => {
     for (const [, x, y] of DRUMS) at(x, y, 0, (g, sx, sy) => { const f = (20 + (Math.floor(game.real * 8 + x) % 3) * 2) * Z, fy = sy - 56 * Z;   // fire: two flat rings flickering in 2 px steps
       px.blend(g, .125, 'add', () => px.disc(g, sx, fy, f, '#ff5a1a')); px.blend(g, .25, 'add', () => px.disc(g, sx, fy, f * .55, '#ffb040')); }, { bias: .01 });
     for (const [kind, x, y, size] of STREET) if (FURN[kind]) at(x, y, 0, (g, sx, sy) => art(g, kind + size, sx, sy, (c, a, b) => FURN[kind](c, a, b, size))); else r.prop(kind, x, y, 0, { size, color: kind === 'firedrum' ? '#7a4630' : undefined, halo: false });
+    for (const [id, x, y, facing, scale] of DRESS) r.shape(id, x, y, 0, { facing, scale });
     for (const b of boxes) if (!b.dead) r.sprite(b.x, b.y, 0, SPR[b.kind], { flash: b.flash > game.real });
     for (const m of foods) r.sprite(m.x, m.y, 0, MEAT);
     for (const n of npcs) fighter(r, n);

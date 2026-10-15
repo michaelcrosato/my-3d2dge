@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.41.0 (2026-10-15)
+
+Every kit and lab draws from the asset store: the shooter, brawler and animation lab, Emberwell, the Perspective Lab and the stress test.
+
+- **Art**: the shooter's fields gain hay bales (kenney-graveyard, CC0, in the page's `src/assets/sets/shooter.js`) on a seed of their own, and carts parked by the farm road (the core cart). The brawler's diner gains a patio (the core table and chairs) and a delivery crate, clear of the breakables, and cardboard boxes by the second dumpster (kenney-survival, `brawler.js`). The animation lab racks five spears against its wall (kenney-mini-dungeon, `animlab.js`), turning with the view like the rigs. Each set is inlined only with its slice (`<!-- @inline-with ... -->`) and costs its kit 600 to 900 tokens; each kit draws nothing from a missing set.
+- **Art**: Emberwell heaps its stores in the corners (barrels, crates, a chest, sacks, a pot, a jar: the core library), each pushing bodies off a circle as the braziers do, and waves never spawn on them. The Perspective Lab furnishes its room (a bookcase, a table and stools, barrels, a chest), right in every one of its five views.
+- **Tools**: the stress test has a Shapes slider: up to 400 of the engine's core shapes strewn through the hall, in its own views (not the depth view). It starts at 0, so a benchmark run as before measures what it did, and the report names the count when it is set. The stress suite checks that the slider at 400 adds draw items (on v0.40.0's page it fails).
+- **Tools**: the assets suite checks the games' cut sets (emberdeep, platformer, shooter, brawler, animlab): every entry a game's code names is in the set its page loads, and every entry of the set is named, so a typo draws nothing silently no more and a kit carries no dead weight (a misspelt id fails it both ways).
+- **Docs**: the README gives the kits' measured sizes (184k to 204k tokens; two were over 200k before this change) and names their cut sets; `docs/ASSET-IMPORT.md` lists the games' cut sets.
+
 ## 0.40.0 (2026-10-15)
 
 More detail in Emberdeep's dungeons and town, from the asset store.

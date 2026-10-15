@@ -94,6 +94,16 @@ const SHOOT = (() => {
   for (let y = 24; y < BASE_Y; y += 56) PROPS.push({ name: 'lamp', x: 119, y, s: .7 }, { name: 'lamp', x: 153, y, s: .7 });
   for (let x = 6; x < WW; x += 15) if (Math.abs(x - 136) > 20) PROPS.push({ name: 'fence', x, y: BASE_Y + 4, s: .9 });
   PROPS.sort((a, b) => a.y - b.y);
+  // shapes (docs/ASSETS.md), on a seed of their own (the props stay as they were): hay in the fields from the asset store,
+  // cut into the page's 'shooter' set (src/assets/sets/shooter.js: none without it); carts parked by the farm road from the
+  // core library
+  const DRESS = [], STRAW = { a: '#c8a456 thatch' };   // (the kit's straw came pink at this size)
+  if (E.addAssets((window.ASSETS || {}).shooter || { set: 'shooter' }).shapes.length) for (let i = 0, rnd = E.rng(23); i < 500 && DRESS.length < 24; i++) {
+    const x = 10 + rnd() * (WW - 20), y = TOWN_Y + 30 + rnd() * (MAP_H - TOWN_Y - 60), a = rnd() < .5 ? 0 : D, id = rnd() < .5 ? 'shooter:hay-bale' : 'shooter:hay-bale-bundled';
+    if ([-10, 0, 10].every(d => isField(x + d, y) && isField(x, y + d)) && !DRESS.some(p => Math.hypot(p.x - x, p.y - y) < 36)) DRESS.push({ id, x, y, o: { facing: a, scale: .6, mats: STRAW } });
+  }
+  for (const [x, y, a] of [[116, 880, D], [157, 1046, -D], [116, 1196, D]]) if (river(x, y) > 12 && !isField(x, y)) DRESS.push({ id: 'cart', x, y, o: { facing: a, scale: .8 } });
+  DRESS.sort((a, b) => a.y - b.y);
   const BAND = [];   // shadow casters per 32 px band
   for (const o of [...BLDS, ...PROPS.filter(p => p.sh)]) for (let b = Math.floor((o.y - 14) / 32); b <= (o.y + (o.d || 0) + (o.z || 0) * SUN[1] + 14) / 32; b++) (BAND[b] = BAND[b] || []).push(o);
   const map = new E.TileMap({ rows: Array(MAP_H / 16).fill('.'.repeat(WW / 16)), floorTex: ground, ao: 0, shimmer: false });
@@ -487,6 +497,7 @@ const SHOOT = (() => {
     });
     for (const b of BLDS) if (b.y < scroll + H + 20 && b.y + b.d > scroll - 30) r.queue(b.x + b.w / 2, b.y + b.d, 1, g => building(g, r, b));
     for (const p of PROPS) if (p.y > scroll - 4 && p.y < scroll + H + 44) r.prop(p.name, p.x, p.y, 0, { size: p.s, color: TINT[p.name] });
+    for (const p of DRESS) if (p.y > scroll - 10 && p.y < scroll + H + 50) r.shape(p.id, p.x, p.y, 0, p.o);
     for (const c of clouds) {   // two solid parallax layers under the planes, and their shadows
       const x = c.x, y = scroll + c.y;
       r.queue(x, y, 1.6, g => px.blend(g, .25, 'normal', () => g.drawImage(c.art.s, ...r.w(x + 26, y + 36).map(Math.round))));

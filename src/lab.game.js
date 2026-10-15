@@ -23,6 +23,10 @@ const map = new E.TileMap({
 });
 game.cam.bounds = v => map.bounds(v);
 
+/* 2b. Objects: the engine's core shapes (docs/ASSETS.md), a line of data each, right in every view [id, x, y, facing]. */
+const OBJECTS = [['bookcase', 2.6 * T, 1.45 * T, Math.PI / 2], ['table', 7.5 * T, 2.1 * T, 0], ['stool', 6.4 * T, 2.4 * T, 0], ['stool', 8.6 * T, 1.9 * T, 0],
+  ['barrel', 12.25 * T, 1.75 * T, 0], ['barrel', 12.3 * T, 2.85 * T, 1.2], ['chest', 2.1 * T, 8.2 * T, -Math.PI / 2]];
+
 /* 3. Characters: a rig is just math + colors. */
 const hero = { x: 7 * T, y: 6 * T, vx: 0, vy: 0, r: 4.5, facing: 0, atk: null, dashT: 0,
   rig: new E.Humanoid({ cape: { len: 6, width: 5, seg: 2.5 } }) };
@@ -74,6 +78,7 @@ function draw(r) {
   r.shadow(slime.x, slime.y, 6, .45);
   map.queueWalls(r);
   r.queue(10.5 * T, 7 * T, 0, g => { r.box(g, 10 * T, 6.6 * T, 0, 11 * T, 7.4 * T, 10, '#b08a58', '#7a5a36'); });
+  for (const [id, x, y, facing] of OBJECTS) r.shape(id, x, y, 0, { facing });
   r.actor(hero.x, hero.y, 0, (g, ox, oy) => hero.rig.draw(g, ox, oy, view), { xray: true, ghost: hero.dashT > 0 ? { color: '#62d8ff' } : null });
   hero.rig.drawSmear(r);
   r.actor(walker.x, walker.y, 0, (g, ox, oy) => walker.rig.draw(g, ox, oy, view));

@@ -5,6 +5,7 @@
 //   3. the side scrolling view
 //   4. side scrolling with depth (Mode 7): drawn at the screen's own resolution, the crowd draws, the hero shrinks walking
 //      into the hall and grows coming back, and the engine's pixel size comes back with depth off
+//   5. the Shapes slider draws the engine's core shapes through the hall (more draw items, no error)
 // Pictures in check-output/stress/. Usage: node tools/stress-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH
 // picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
@@ -70,10 +71,20 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PAT
   if (!(s1 < s0 * .85 && s2 > s1 * 1.4)) fail(`stress-test: with depth the hero did not shrink and grow (${[s0, s1, s2].map(v => (v * 1000).toFixed(2)).join(', ')})`);
   await page.evaluate(() => __game.setDepth(false)); await page.waitForTimeout(300);
   if (await page.evaluate(() => __game.game.screen.S) !== flatS) fail('stress-test: the engine\'s pixel size did not come back with depth off');
+  // 5. the Shapes slider: the engine's core shapes strewn through the hall, drawn in its views (0 by default)
+  await page.evaluate(() => document.querySelector('[data-view=iso]').click()); await page.waitForTimeout(400);
+  const items = () => page.evaluate(() => +document.getElementById('mItems').textContent.replace(/\D/g, '') || 0);
+  const before = await items();
+  await page.evaluate(() => { const el = document.getElementById('shapes'); if (el) { el.value = 400; el.dispatchEvent(new Event('input')); } });
+  await page.waitForTimeout(1200);
+  const after = await items(), n = await page.evaluate(() => __game.S.shapes);
+  await page.screenshot({ path: join(OUT, 'shapes.png') });
+  if (n !== 400 || after < before + 8) fail(`stress-test: the Shapes slider at 400 drew ${after - before} more items (${before} to ${after}); its shapes do not show`);
+  await page.evaluate(() => { const el = document.getElementById('shapes'); if (el) { el.value = 0; el.dispatchEvent(new Event('input')); } });
   for (const e of errors) fail(`stress-test: ${e}`);
   await page.close();
 }
 await browser.close();
 server.close();
 if (problems.length) { console.error('stress test check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log('stress test check passed: a ?cam= link, a fixed camera, side scrolling, and side scrolling with depth (the hero shrinks and grows); pictures in check-output/stress/');
+console.log('stress test check passed: a ?cam= link, a fixed camera, side scrolling, side scrolling with depth (the hero shrinks and grows), and the Shapes slider; pictures in check-output/stress/');

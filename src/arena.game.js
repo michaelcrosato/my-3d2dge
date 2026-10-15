@@ -67,7 +67,12 @@ function pushFromCircle(a, b, rad) {
   const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy), m = a.r + rad;
   if (d < m && d > .001) { a.x = b.x + dx / d * m; a.y = b.y + dy / d * m; }
 }
-function collideWorld(a) { map.collide(a); for (const b of braziers) pushFromCircle(a, b, b.r); }
+// the arena's stores: the engine's core shapes (docs/ASSETS.md: a few lines of data each, right in every view), heaped in
+// the corners; each pushes bodies off a circle, as the braziers do [id, x, y (tiles), facing, scale, radius]
+const stores = [['barrel', 2, 2.1, 0, .85, 6], ['barrel', 3.1, 1.8, 1, .85, 6], ['crate', 2.2, 3.3, .3, .8, 7], ['crate', 27.7, 2, -.2, .8, 7], ['crate', 27.75, 2, -.5, .62, 0, 11],
+  ['sack', 26.6, 1.9, .5, .9, 4], ['chest', 2.4, 19.6, -Math.PI / 2, .9, 7], ['pot', 3.6, 20, 0, 1, 3], ['jar', 4.3, 19.7, 0, 1, 2.5], ['barrel', 27.6, 19.8, 2, .85, 6], ['sack', 26.5, 20, 0, .9, 4]]
+  .map(([id, x, y, facing, scale, r, z]) => ({ id, x: x * T, y: y * T, r, o: { facing, scale, z: z || 0 } }));
+function collideWorld(a) { map.collide(a); for (const b of braziers) pushFromCircle(a, b, b.r); for (const s of stores) if (s.r) pushFromCircle(a, s, s.r); }
 
 /* ---------- hero ---------- */
 const SPEED = 78;
@@ -370,7 +375,7 @@ function spawnPoint() {
     if (map.cell(cx, cy) !== 0) continue;
     const x = (cx + .5) * T, y = (cy + .5) * T;
     if (Math.hypot(x - hero.x, y - hero.y) < 110) continue;
-    if (braziers.some(b => Math.hypot(b.x - x, b.y - y) < 14)) continue;
+    if (braziers.some(b => Math.hypot(b.x - x, b.y - y) < 14) || stores.some(b => Math.hypot(b.x - x, b.y - y) < 16)) continue;
     return [x, y];
   }
   return [CX, 2.5 * T];
@@ -457,6 +462,7 @@ function draw(r) {
   }
   for (const o of orbs) shadow(o.x, o.y, 2.5);
   map.queueWalls(r);
+  for (const s of stores) r.shape(s.id, s.x, s.y, s.o.z, s.o);
   for (const b of braziers) {
     r.queue(b.x, b.y, 0, g => drawBrazier(g, r, b));
     L.add(b.x, b.y, 16, 124, 1.25 * flicker(b.t), { color: '#ff9a4a', shadow: true });

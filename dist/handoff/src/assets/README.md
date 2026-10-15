@@ -6,6 +6,8 @@ and the hand-written catalogs that describe them. `docs/ASSETS.md` is the card;
 `E.addAssets(window.ASSETS['<set>'])`, or cuts the few it uses with `node tools/asset-set.mjs`.
 
 - [ambientcg.js](sets/ambientcg.js): 0 shapes, 68 materials, 0 sprites ([catalog](catalogs/ambientcg.json))
+- [animlab.js](sets/animlab.js): 1 shapes, 2 materials, 0 sprites (a game's own cut)
+- [brawler.js](sets/brawler.js): 2 shapes, 2 materials, 0 sprites (a game's own cut)
 - [emberdeep.js](sets/emberdeep.js): 49 shapes, 58 materials, 0 sprites (a game's own cut)
 - [kaykit-dungeon-remastered.js](sets/kaykit-dungeon-remastered.js): 37 shapes, 39 materials, 0 sprites ([catalog](catalogs/kaykit-dungeon-remastered.json))
 - [kaykit-furniture-bits.js](sets/kaykit-furniture-bits.js): 34 shapes, 35 materials, 0 sprites ([catalog](catalogs/kaykit-furniture-bits.json))
@@ -25,4 +27,5 @@ and the hand-written catalogs that describe them. `docs/ASSETS.md` is the card;
 - [kenney-tiny-dungeon.js](sets/kenney-tiny-dungeon.js): 0 shapes, 0 materials, 130 sprites ([catalog](catalogs/kenney-tiny-dungeon.json))
 - [kenney-tiny-town.js](sets/kenney-tiny-town.js): 0 shapes, 0 materials, 132 sprites ([catalog](catalogs/kenney-tiny-town.json))
 - [platformer.js](sets/platformer.js): 3 shapes, 2 materials, 0 sprites (a game's own cut)
+- [shooter.js](sets/shooter.js): 2 shapes, 2 materials, 0 sprites (a game's own cut)
 - [tavern.js](sets/tavern.js): 6 shapes, 8 materials, 0 sprites (a game's own cut)

@@ -21,7 +21,7 @@ const game = new E.Game(Object.assign({ canvas, menu: false, corner: false, full
 const P = game.particles;
 game.lights.enabled = true; game.lights.ambient = .12;
 
-const S = { monsters: 0, mix: 'balanced', skin: 'hd', behavior: 'swarm', lights: 12, rate: 0, pcap: 2000, distance: 1, god: true, outlines: true, capes: false, lod: false, monsterLights: false };
+const S = { monsters: 0, mix: 'balanced', skin: 'hd', behavior: 'swarm', lights: 12, rate: 0, pcap: 2000, distance: 1, god: true, outlines: true, capes: false, lod: false, monsterLights: false, shapes: 0 };
 
 /* ---------- map: a large hall with a grid of pillars ---------- */
 const MW = 64, MH = 44, T = 16, CX = MW * T / 2, CY = MH * T / 2;
@@ -82,6 +82,18 @@ const TORCHES = [];
   TORCHES.push(...cand.slice(0, 30));
 }
 const activeTorches = () => TORCHES.slice(0, S.lights);
+/* ---------- shapes: the engine's core objects (docs/ASSETS.md) strewn through the hall, the first N drawn (the Shapes
+ * slider; 0 by default, so a benchmark run as before measures what it did). In the engine's views; the depth view leaves
+ * them out ---------- */
+const SHAPE_SPOTS = [];
+{
+  const R = E.rng(17), ids = ['barrel', 'crate', 'chest', 'table', 'chair', 'stool', 'bench', 'pot', 'jar', 'sack', 'cart', 'well', 'sign', 'lamppost', 'anvil', 'bookcase', 'shelf', 'rock', 'crystal', 'bush', 'pine', 'tree', 'grass', 'fence'];
+  for (let k = 0; k < 4000 && SHAPE_SPOTS.length < 400; k++) {
+    const cx = 2 + ((R() * (MW - 4)) | 0), cy = 2 + ((R() * (MH - 4)) | 0), x = (cx + .5) * T, y = (cy + .5) * T;
+    if (cells[cy * MW + cx] !== 0 || Math.hypot(cx - MW / 2, cy - MH / 2) < 6 || TORCHES.some(b => Math.hypot(b.x - x, b.y - y) < 20) || SHAPE_SPOTS.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < 20)) continue;
+    SHAPE_SPOTS.push({ id: ids[SHAPE_SPOTS.length % ids.length], x, y, o: { facing: R() * TAU } });
+  }
+}
 function pushFromCircle(a, b, rad) { const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy), m = a.r + rad; if (d < m && d > .001) { a.x = b.x + dx / d * m; a.y = b.y + dy / d * m; } }
 function collideWorld(a) { map.collide(a); for (let i = 0; i < S.lights; i++) pushFromCircle(a, TORCHES[i], TORCHES[i].r); }
 
@@ -559,6 +571,7 @@ function draw(r) {
     L.add(b.x, b.y, 16, 124, 1.25 * flicker(b.t), { color: '#ff9a4a', shadow: true });
     L.caster(b.x, b.y, 4.5, 11);
   }
+  for (let i = 0; i < Math.min(S.shapes, SHAPE_SPOTS.length); i++) { const p = SHAPE_SPOTS[i]; r.shape(p.id, p.x, p.y, 0, p.o); }
   L.add(CX, CY, 3, 78, .5 + .12 * Math.sin(t * 1.7), { color: '#4fe0cc', shadow: true });
   let monsterLights = 0;
   const outline = S.outlines;
@@ -963,6 +976,7 @@ function syncUI() {
   $('mix').value = S.mix; $('skin').value = S.skin; $('behavior').value = S.behavior;
   $('zoomOut').textContent = game.zoom + '×'; $('turnOut').textContent = game.yaw + '°';
   $('lights').value = S.lights; $('lightsOut').textContent = S.lights;
+  $('shapes').value = S.shapes; $('shapesOut').textContent = S.shapes;
   $('rate').value = S.rate; $('rateOut').textContent = S.rate.toLocaleString() + '/s';
   $('pcap').value = S.pcap; $('pcapOut').textContent = S.pcap.toLocaleString();
   $('distance').value = S.distance; $('distanceOut').textContent = S.distance.toFixed(2).replace(/\.?0+$/, '') + '×';
@@ -990,6 +1004,7 @@ on('mix', 'change', e => { S.mix = e.target.value; respawn(); e.target.blur(); }
 on('skin', 'change', e => { S.skin = e.target.value; respawn(); e.target.blur(); });
 on('behavior', 'change', e => { S.behavior = e.target.value; e.target.blur(); });
 on('lights', 'input', e => { S.lights = +e.target.value; });
+on('shapes', 'input', e => { S.shapes = +e.target.value; });
 on('rate', 'input', e => { S.rate = +e.target.value; });
 on('pcap', 'input', e => { S.pcap = +e.target.value; P.max = S.pcap; });
 on('distance', 'input', e => setDistance(+e.target.value));
@@ -1024,7 +1039,7 @@ const PRESETS = {
   medium: { monsters: 400, lights: 16, rate: 400, pcap: 3000, distance: 1.5, capes: false, monsterLights: false, outlines: true },
   heavy: { monsters: 1200, lights: 24, rate: 1000, pcap: 5000, distance: 2.5, capes: true, monsterLights: false, outlines: true },
   extreme: { monsters: 3000, lights: 30, rate: 2500, pcap: 9000, distance: 4, capes: true, monsterLights: true, outlines: true },
-  reset: { monsters: 0, lights: 12, rate: 0, pcap: 2000, distance: 1, capes: false, monsterLights: false, outlines: true }
+  reset: { monsters: 0, lights: 12, rate: 0, pcap: 2000, distance: 1, capes: false, monsterLights: false, outlines: true, shapes: 0 }
 };
 document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
   const p = PRESETS[b.dataset.preset];
@@ -1096,7 +1111,7 @@ function benchReport() {
     'my-3D2dge stress test',
     'Result: ' + summary,
     'Settings: ' + camDesc() + ', camera distance ' + S.distance + 'x (' + sc.W + '×' + sc.H + ' internal), zoom ' + game.zoom + 'x, turn ' + game.yaw + '°, ' + (gpu.active(v) ? 'GPU lighting' + (gpu.shadows ? ' with shadows' : ' without shadows') : 'Canvas lighting' + (game.lights.enabled ? '' : ' off')) +
-      ', ' + S.lights + ' torches, ' + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on') +
+      ', ' + S.lights + ' torches, ' + (S.shapes ? S.shapes + ' shapes, ' : '') + S.rate + ' particles/s, mix ' + S.mix + ', rig ' + S.skin + ', behavior ' + S.behavior + ', outlines ' + (S.outlines ? 'on' : 'off') + ', monster capes ' + (S.capes ? 'on' : 'off') + ', off-screen animation ' + (S.lod ? 'skipped' : 'on') +
       (E.style.trans === 'dither' ? ', dithered translucency' : '') + (E.style.charPitch === false ? ', characters as the camera sees them' : ''),
     ...(hwLines || hwInfo()),
     '',

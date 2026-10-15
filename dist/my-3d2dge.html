@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.40.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.41.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.40.0)
+# my-3D2dge API card (v0.41.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -273,7 +273,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.40.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.41.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -301,7 +301,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.40.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.41.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -380,7 +380,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.40.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.41.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -8896,7 +8896,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
-<!-- the platformer's graveyard stones: a set cut from the asset store (docs/ASSETS.md, "Use it"), only with its slice -->
+<!-- the slices' objects: sets cut from the asset store (docs/ASSETS.md, "Use it"), each only with its slice -->
 <script>
 /* ---- inlined from src/assets/sets/platformer.js ---- */
 /* platformer: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
@@ -8914,6 +8914,65 @@ shapes: {
 'crypt-a': {about:'stone sarcophagus with gabled lid on a low base',tags:'grave graveyard crypt',mats:{a:'steel'},parts:[['prism','a',[0,0,0],[[-5.5,8],[-6,9.5],[-8,9.5],[-8,12.5],[-1.3,17],[1.3,17],[8.5,12.5],[8.5,10],[6,9.5],[6,8]],31.5,{axis:'y'}],['box','a',[0,0,0],[20,35.5,4]],['box','a',[0,0,4],[16,31.5,4]]],src:'kenney-graveyard',orig:'Models/GLB format/crypt-a.glb',fit:{iou:0.95,worst:0.93,dE:5}},
 cross: {about:'grey stone cross with flared arms on a square base',tags:'grave graveyard',mats:{a:'steel'},parts:[['box','a',[0,0,3],[6,4,26]],['mirror','x',['box','a',[4.5,0,21],[3,4,5]]],['box','a',[0,0,0],[8,8,3.2]],['prism','a',[0,0,0],[[-7,20],[-10.5,22.5],[-10.5,24.5],[-7,27.5],[-6.5,27.5],[-6,27],[-6,20]],5,{axis:'y'}],['prism','a',[0,0,0],[[6.5,20],[6,20],[6,27],[6.5,27.5],[7,27.5],[10.5,24.5],[10.5,22.5],[7.5,20]],5,{axis:'y'}],['prism','a',[0,0,0],[[-3.3,29],[-3.7,29],[-3.7,30],[-0.8,33.5],[0.8,33.5],[3.8,30],[3.8,29],[3.4,29]],5,{axis:'y'}],['prism','a',[0,2.5,0],[[0,21],[-2.6,23.5],[-0.1,26],[2.7,23.5]],1.4,{axis:'y'}]],src:'kenney-graveyard',orig:'Models/GLB format/cross.glb',fit:{iou:0.9,worst:0.88,dE:5}},
 'urn-round': {about:'dark grey lidded funeral urn on a footed base',tags:'decoration graveyard crypt',mats:{a:'iron',b:'steel'},parts:[['lathe','a',[0,0,4],[[0,0],[2.6,0],[3.2,1.5],[3.7,4.5],[3.7,5],[0,5]]],['lathe','a',[0,0,0],[[0,0],[3.2,0],[3.1,1.8],[2.4,2.5],[1.6,2.5],[1.9,4],[0,4]]],['lathe','a',[0,0,9],[[0,0],[4,0],[4,0.9],[3.6,1.6],[1,1.6],[1.4,2.5],[0,2.5]]],['lathe','b',[0,0,5.5],[[0,0],[2.4,0],[2.9,3.2],[0,3.3],[0,4.5],[0.9,4.5],[1.4,5.5],[1,6.5],[0,6.5]]],['box','b',[0,0,2],[2,5,0.5]],['mirror','x',['box','b',[1.5,0,2],[1,4,0.5]]],['mirror','x',['box','b',[2.3,0,2],[0.5,2,0.5]]]],src:'kenney-graveyard',orig:'Models/GLB format/urn-round.glb',fit:{iou:0.93,worst:0.92,dE:4}}},
+sprites: {
+}};
+
+</script>
+<script>
+/* ---- inlined from src/assets/sets/shooter.js ---- */
+/* shooter: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
+ * The shooter starter's hay in the fields (src/starter/30-shooter.js)
+ * 2 shapes, 2 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
+ * "sources" records each download (its url, date, sha256 and license); an entry's src names its download, orig the file in
+ * it, and fit how close it is: a shape's silhouette IoU at game scale (mean and worst view) and color dE.
+ * Load it with E.addAssets(window.ASSETS['shooter']): its ids become 'shooter:id'. */
+(window.ASSETS = window.ASSETS || {})['shooter'] = { set: 'shooter', format: 1, credit: 'The shooter starter\'s hay in the fields (src/starter/30-shooter.js)',
+sources: {'kenney-graveyard':{label:'Kenney Graveyard Kit',origin:'Kenney (kenney.nl), graveyard-kit',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/graveyard-kit/ba8d4b4517-1760691807/kenney_graveyard-kit_5.0.zip',page:'https://kenney.nl/assets/graveyard-kit',fetched:'2026-10-14',sha256:'1a93613f2e5675f3310acf49ec9ef13ae7adeb756ac3b205bfb6cc9311a81062',licenseHash:'a48e274258386c6b',dir:'graveyard-kit',scale:2,factors:'srgb'}},
+materials: {
+birch: '#d99972 thatch',
+wool: '#c5575d cloth'},
+shapes: {
+'hay-bale-bundled': {about:'golden hay bale tied with two red bands',tags:'farm graveyard barn',mats:{a:'birch',b:'wool'},parts:[['box','a',[0,0,0.4],[19.5,13,11.5]],['lathe','b',[-7,0,6],[[0,0],[8,0.4],[7.5,3.1],[0,3.1],[0,11],[7.5,11],[7.5,14],[0,14]],{rot:[0,90,0]}]],src:'kenney-graveyard',orig:'Models/GLB format/hay-bale-bundled.glb',fit:{iou:0.87,worst:0.84,dE:5}},
+'hay-bale': {about:'rectangular golden hay bale',tags:'farm graveyard barn',mats:{a:'birch'},parts:[['box','a',[0,0,0],[19.5,13,11.5]]],src:'kenney-graveyard',orig:'Models/GLB format/hay-bale.glb',fit:{iou:0.85,worst:0.81,dE:6}}},
+sprites: {
+}};
+
+</script>
+<script>
+/* ---- inlined from src/assets/sets/brawler.js ---- */
+/* brawler: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
+ * The brawler starter's alley boxes (src/starter/50-brawler.js)
+ * 2 shapes, 2 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
+ * "sources" records each download (its url, date, sha256 and license); an entry's src names its download, orig the file in
+ * it, and fit how close it is: a shape's silhouette IoU at game scale (mean and worst view) and color dE.
+ * Load it with E.addAssets(window.ASSETS['brawler']): its ids become 'brawler:id'. */
+(window.ASSETS = window.ASSETS || {})['brawler'] = { set: 'brawler', format: 1, credit: 'The brawler starter\'s alley boxes (src/starter/50-brawler.js)',
+sources: {'kenney-survival':{label:'Kenney Survival Kit',origin:'Kenney (kenney.nl), survival-kit',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/survival-kit/4065a8185b-1712149243/kenney_survival-kit.zip',page:'https://kenney.nl/assets/survival-kit',fetched:'2026-10-14',sha256:'c3586341b5932c87eb43d75d915434f47daed168b17ed36a03e8ca9977c7443e',licenseHash:'62c8356876481204',dir:'survival-kit',scale:3.5,factors:'srgb'}},
+materials: {
+clay: '#cc7853 planks bw=3',
+sandstone: '#e9b18b bark'},
+shapes: {
+box: {about:'brown box with a pale tape strip',tags:'container camp survival',mats:{a:'clay',b:'sandstone'},parts:[['box','a',[0,0,0],[14,14,14]],['mirror','y',['box','b',[0,6.5,10],[4,1,5]]],['box','b',[0,7.5,13],[4,1,1]],['box','b',[0,0,14],[4,12,1]],['box','b',[0,7,0.5],[4,1,0.5]],['box','b',[0,7,1],[4,0.5,3]]],src:'kenney-survival',orig:'Models/GLB format/box.glb',fit:{iou:0.93,worst:0.89,dE:5}},
+'box-open': {about:'open brown box, top flaps folded out',tags:'container camp survival',mats:{a:'clay',c:'sandstone'},parts:[['box','a',[0,0,0],[14,14,16.5]],['mirror','x',['box','c',[2.9,0,16],[0.5,13,1.1]]],['mirror','x',['box','c',[2.1,0,16.5],[1.1,13,0.5]]],['mirror','x',['box','c',[1.9,0,17],[0.5,13,0.5]]],['box','c',[0,7,10.5],[4,0.5,3.5]],['box','c',[0,7.5,13],[4,0.5,0.5]],['box','c',[0,7,0.5],[4,1,0.5]],['box','c',[0,7,1],[4,0.5,3]]],src:'kenney-survival',orig:'Models/GLB format/box-open.glb',fit:{iou:0.87,worst:0.82,dE:4}}},
+sprites: {
+}};
+
+</script>
+<script>
+/* ---- inlined from src/assets/sets/animlab.js ---- */
+/* animlab: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
+ * The animation lab's spears (src/starter/60-animlab.js)
+ * 1 shapes, 2 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
+ * "sources" records each download (its url, date, sha256 and license); an entry's src names its download, orig the file in
+ * it, and fit how close it is: a shape's silhouette IoU at game scale (mean and worst view) and color dE.
+ * Load it with E.addAssets(window.ASSETS['animlab']): its ids become 'animlab:id'. */
+(window.ASSETS = window.ASSETS || {})['animlab'] = { set: 'animlab', format: 1, credit: 'The animation lab\'s spears (src/starter/60-animlab.js)',
+sources: {'kenney-mini-dungeon':{label:'Kenney Mini Dungeon',origin:'Kenney (kenney.nl), mini-dungeon',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/mini-dungeon/6cd72dc849-1785314274/kenney_mini-dungeon.zip',page:'https://kenney.nl/assets/mini-dungeon',fetched:'2026-10-14',sha256:'19c4648680cb1d2e8836cade96cbf9781c0c1f45fbc6d2ce41cee8239a3ec4d8',licenseHash:'f8b470068a1c0438',dir:'mini-dungeon',scale:2.5,factors:'srgb'}},
+materials: {
+steel: '#9da4c5 metal',
+'clay-b': '#ca704e planks bw=3'},
+shapes: {
+'weapon-spear': {about:'upright spear, grey steel head, wooden shaft',tags:'weapon dungeon',mats:{a:'steel',b:'clay-b'},parts:[['prism','a',[0,0,0],[[-1.4,16],[-2.9,20],[-0.8,24],[0.7,24],[3,20],[1.5,16]],2.8,{axis:'y'}],['cyl','a',[0,0,12],2.7,4],['box','b',[0,0,0],[2.8,2.8,12]]],src:'kenney-mini-dungeon',orig:'Models/GLB format/weapon-spear.glb',fit:{iou:0.88,worst:0.82,dE:3}}},
 sprites: {
 }};
 
@@ -10258,6 +10317,16 @@ const SHOOT = (() => {
   for (let y = 24; y < BASE_Y; y += 56) PROPS.push({ name: 'lamp', x: 119, y, s: .7 }, { name: 'lamp', x: 153, y, s: .7 });
   for (let x = 6; x < WW; x += 15) if (Math.abs(x - 136) > 20) PROPS.push({ name: 'fence', x, y: BASE_Y + 4, s: .9 });
   PROPS.sort((a, b) => a.y - b.y);
+  // shapes (docs/ASSETS.md), on a seed of their own (the props stay as they were): hay in the fields from the asset store,
+  // cut into the page's 'shooter' set (src/assets/sets/shooter.js: none without it); carts parked by the farm road from the
+  // core library
+  const DRESS = [], STRAW = { a: '#c8a456 thatch' };   // (the kit's straw came pink at this size)
+  if (E.addAssets((window.ASSETS || {}).shooter || { set: 'shooter' }).shapes.length) for (let i = 0, rnd = E.rng(23); i < 500 && DRESS.length < 24; i++) {
+    const x = 10 + rnd() * (WW - 20), y = TOWN_Y + 30 + rnd() * (MAP_H - TOWN_Y - 60), a = rnd() < .5 ? 0 : D, id = rnd() < .5 ? 'shooter:hay-bale' : 'shooter:hay-bale-bundled';
+    if ([-10, 0, 10].every(d => isField(x + d, y) && isField(x, y + d)) && !DRESS.some(p => Math.hypot(p.x - x, p.y - y) < 36)) DRESS.push({ id, x, y, o: { facing: a, scale: .6, mats: STRAW } });
+  }
+  for (const [x, y, a] of [[116, 880, D], [157, 1046, -D], [116, 1196, D]]) if (river(x, y) > 12 && !isField(x, y)) DRESS.push({ id: 'cart', x, y, o: { facing: a, scale: .8 } });
+  DRESS.sort((a, b) => a.y - b.y);
   const BAND = [];   // shadow casters per 32 px band
   for (const o of [...BLDS, ...PROPS.filter(p => p.sh)]) for (let b = Math.floor((o.y - 14) / 32); b <= (o.y + (o.d || 0) + (o.z || 0) * SUN[1] + 14) / 32; b++) (BAND[b] = BAND[b] || []).push(o);
   const map = new E.TileMap({ rows: Array(MAP_H / 16).fill('.'.repeat(WW / 16)), floorTex: ground, ao: 0, shimmer: false });
@@ -10651,6 +10720,7 @@ const SHOOT = (() => {
     });
     for (const b of BLDS) if (b.y < scroll + H + 20 && b.y + b.d > scroll - 30) r.queue(b.x + b.w / 2, b.y + b.d, 1, g => building(g, r, b));
     for (const p of PROPS) if (p.y > scroll - 4 && p.y < scroll + H + 44) r.prop(p.name, p.x, p.y, 0, { size: p.s, color: TINT[p.name] });
+    for (const p of DRESS) if (p.y > scroll - 10 && p.y < scroll + H + 50) r.shape(p.id, p.x, p.y, 0, p.o);
     for (const c of clouds) {   // two solid parallax layers under the planes, and their shadows
       const x = c.x, y = scroll + c.y;
       r.queue(x, y, 1.6, g => px.blend(g, .25, 'normal', () => g.drawImage(c.art.s, ...r.w(x + 26, y + 36).map(Math.round))));
@@ -11323,6 +11393,11 @@ const BRAWL = (() => {
   const STREET = [['trashcan', 46, 25, 1.25], ['firedrum', 84, 27, 1.3], ['hydrant', 196, 146], ['mailbox', 214, 26], ['dumpster', 250, 22], ['bags', 290, 24],
     ['trashcan', 312, 25, 1.25], ['car', 20, 130, '#3a7ac8'], ['dumpster', 566, 22], ['car', 560, 130, '#d8a830'], ['trashcan', 626, 25, 1.25], ['bags', 642, 22],
     ['hydrant', 690, 146], ['firedrum', 700, 26, 1.3]];
+  // shapes (docs/ASSETS.md) [id, x, y, facing, scale]: the diner's patio and its delivery crate from the core library, clear
+  // of the breakables; cardboard boxes by the second dumpster from the asset store, cut into the page's 'brawler' set
+  // (src/assets/sets/brawler.js: none without it)
+  const DRESS = [['table', 157, 29, 0, .7], ['chair', 145, 28, 0, .8], ['chair', 169, 31, Math.PI, .8], ['crate', 231, 25, .15, .7], ['sack', 236, 37, .4, .8],
+    ...(E.addAssets((window.ASSETS || {}).brawler || { set: 'brawler' }).shapes.length ? [['brawler:box', 586, 21, .4, .95], ['brawler:box-open', 599, 31, -.5, .95]] : [])];
   const DRUMS = STREET.filter(s => s[0] === 'firedrum'), CARS = STREET.filter(s => s[0] === 'car');
   const LIGHTS = [...LAMPS.map(x => ({ x, y: 46, r: 46, c: '#ffb45a' })), ...SIGNS.map(s => ({ x: blocks[s.b].x0 + s.u, y: 20, r: 40, c: s.c })), ...DRUMS.map(([, x, y]) => ({ x, y: y + 6, r: 34, c: '#ff7a2a' }))];
   LIGHTS.forEach(L => { L.rgb = E.hex(L.c); });
@@ -11783,6 +11858,7 @@ const BRAWL = (() => {
     for (const [, x, y] of DRUMS) at(x, y, 0, (g, sx, sy) => { const f = (20 + (Math.floor(game.real * 8 + x) % 3) * 2) * Z, fy = sy - 56 * Z;   // fire: two flat rings flickering in 2 px steps
       px.blend(g, .125, 'add', () => px.disc(g, sx, fy, f, '#ff5a1a')); px.blend(g, .25, 'add', () => px.disc(g, sx, fy, f * .55, '#ffb040')); }, { bias: .01 });
     for (const [kind, x, y, size] of STREET) if (FURN[kind]) at(x, y, 0, (g, sx, sy) => art(g, kind + size, sx, sy, (c, a, b) => FURN[kind](c, a, b, size))); else r.prop(kind, x, y, 0, { size, color: kind === 'firedrum' ? '#7a4630' : undefined, halo: false });
+    for (const [id, x, y, facing, scale] of DRESS) r.shape(id, x, y, 0, { facing, scale });
     for (const b of boxes) if (!b.dead) r.sprite(b.x, b.y, 0, SPR[b.kind], { flash: b.flash > game.real });
     for (const m of foods) r.sprite(m.x, m.y, 0, MEAT);
     for (const n of npcs) fighter(r, n);
@@ -12159,6 +12235,10 @@ const ANIMLAB = (() => {
   }
   const PROPS = [['torch', 60, 17, 8], ['torch', 324, 17, 8], ['banner', 132, 17, 0, { color: '#8a2a4a' }], ['banner', 252, 17, 0, { color: '#2a4a8a' }],
     ['barrel', 16, 118, 0], ['barrel', 20, 132, 0], ['crate', 368, 124, 0], ['pot', 356, 140, 0]];
+  // spears racked against the wall, from the asset store (docs/ASSETS.md), cut into the page's 'animlab' set
+  // (src/assets/sets/animlab.js), turning with the view like the rigs [id, x, y, facing, scale]; none without the set
+  const SHAFT = { b: '#7a5634 none' };   // (the kit's shaft is a plank pattern: on a pole it reads as stripes)
+  const RACK = E.addAssets((window.ASSETS || {}).animlab || { set: 'animlab' }).shapes.length ? [88, 95, 102, 280, 287].map((x, i) => ['animlab:weapon-spear', x, 19 + (i & 1), 1.5 + i * .07, 1.1]) : [];
 
   /* ---- KEY POSES: each extreme of a move frozen at a phase and u, drawn once into small images ---- */
   function keyPoses() {
@@ -12184,6 +12264,7 @@ const ANIMLAB = (() => {
     for (const a of list) r.shadow(a.x, a.y, (a.rig ? 6 : a.blob.o.R) * Math.max(.4, 1 - a.z / 60), .45);
     map.queueWalls(r); rack(r);
     for (const [kind, x, y, z, o] of PROPS) r.prop(kind, x, y, z, o);
+    for (const [id, x, y, facing, scale] of RACK) r.shape(id, x, y, 0, { facing, scale, mats: SHAFT });
     if (anim.ladder) for (const a of list) ladder(r, a.x);
     if (dummyOn()) dummy(r);
     for (const a of list) {
