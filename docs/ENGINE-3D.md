@@ -36,6 +36,10 @@ screen, sound. The 3D engine adds `E.World3D` (and `E.THREE`, `E.TSL`, `E.RAPIER
   and tilt onto a card in an atlas) or puppets (3D parts on the same joints, in instanced batches with outlines).
 - **Things**: pickups and set dressing drawn by code from four shapes with a pen (`world.thing('coin', ...)`, chests,
   doors, flags, springs, trees...), and a registry a game adds kinds to.
+- **Shapes**: the 2D engine's objects as data (`docs/ASSETS.md`: the core library, the store's sets, a game's own
+  entries) drawn in 3D from the same resolved parts (`E.shapeMesh`), each material's pattern a tile of one atlas texture
+  (`E.materialTile`) on one toon material, so a new shape builds no shader; a solid one gets a fixed collider from the
+  box the 2D engine collides with (`E.shapeBox`). `world.shape(id, x, y, z, o)`, or `{ shape: 'bench' }` in a legend.
 - **The camera**: the 2D engine's views as real 3D cameras (`game.view`, `game.yaw`, `game.zoom`: V, [ ], the wheel, a
   pinch and Settings work as in 2D), a chase camera that swings round behind the hero, first person, fly and fixed (in those a click captures the mouse to
   turn the camera; not while a session is recorded, whose record has no pointer lock). Its
@@ -55,11 +59,12 @@ Each 3D slice is a complete small game in the style of the 2D slices (dense, com
 - **Action** (`src/starter3d/10-action.js`): the stress test's game cut down to a kit. A torch-lit hall with pillars,
   low walls and a raised dais; a three-hit combo, a dash and the thrust out of it, a jump, an ember bolt; husks,
   skeletons, slimes and wisps in five waves that take turns to attack (at most three at once) and telegraph their swings,
-  then a knight; big hits throw bodies; crates and barrels break and drop hearts.
+  then a knight; big hits throw bodies; crates and barrels break and drop hearts. Bookcases, benches, sacks and an anvil
+  (shapes, in the level's legend) stand along its walls.
 - **Platformer** (`src/starter3d/20-platformer.js`): a sunlit course of grass islands over the void, from the start to
   the flag: plank platforms, a terrace and a tower of stone steps, a platform that rides across a gap, a spring up to a
   high deck; a jump held for height, a double jump, a dash on the ground and once in the air; slimes to stomp; coins,
-  three stars, checkpoint flags.
+  three stars, checkpoint flags. Its trees (the 2D engine's tree generator), bushes and rocks are shapes.
 
 A kit is the minified 2D engine, the API card, the minified 3D engine with its manual, the shell and one slice: about
 200,000 cl100k tokens (a 2D kit is about 180,000 on the same count), so a 200k-token chat holds it with little room; a
@@ -72,7 +77,8 @@ self-contained file: it loads the two vendored libraries through its import map,
 materials only, no compute or storage buffers, nothing read back from the GPU, vendored imports); the manual's quick start
 run as the manual hosts it; every 3D page on WebGL 2 and WebGPU (SwiftShader, through the stand-in canvas the 3D labs'
 tests use): the title draws, each slice starts, its proof gives the same hash twice and on both backends, a few seconds
-of scripted play move the hero and build no GPU pipeline mid-game; an upright phone (the 3D picture lies exactly under
+of scripted play move the hero and build no GPU pipeline mid-game; every core shape built and drawn on both backends,
+solid where it stands (a hero stops at a crate, lands on a table), and a sheet of each beside its 2D picture; an upright phone (the 3D picture lies exactly under
 the game's, the touch buttons are there). Pictures in `check-output/kit3d/`. `tools/doctrine-check.mjs` holds the manual
 to its budget; `tools/version.mjs` keeps its version line with the rest.
 

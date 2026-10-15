@@ -20,6 +20,7 @@ const icon = E.shapeSprite('chest', { view: 'iso' });
   material }), flip (mirrors it x to -x, collision too), params (a generator's: { h: 30 }), bias, hides (default true),
   light (adds its lights to game.lights), shadow (default true).
 - **map.solid** takes the same id and placement, so one object can feed both calls. Bodies span z to z + h (E.Body's h, 32).
+- **In 3D** the 3D engine draws the same entries, materials and boxes: `world.shape(id, x, y, z, o)` (its header).
 - **Steep views** (top-down) draw shapes from the characters' lower angle, as rigs are drawn. The light comes from the
   viewer's upper left in every view.
 - **Glow and fire:** a material with glow: 1 ignores the light; an entry's flames ([[x, y, z, w, h]]) draw the engine's

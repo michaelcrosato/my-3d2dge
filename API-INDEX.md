@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.37.0)
+# my-3D2dge API index (v0.38.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says. Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -51,7 +51,7 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.37.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.38.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -924,8 +924,11 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 - `E.PROPS: 38 entries` †: the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts)
 - `E.SHAPES: barrel, crate, chest, table, chair, stool, bench, bed, bookcase, shelf, pot, jar, sack, cart, ... (25)`: the shapes by id: { about, tags, mats: { slot: material }, parts | make(params), params, foot, lights, flames } (the core library's, the sets' as 'SET:id' from E.addAssets, and your own: E.SHAPES.stool = {...})
 - `E.addAssets(set)`: register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries are named 'SET:id' (so one set never changes another's, or the core's) and find their own set's materials and shapes first. An id that is already there warns and keeps the first. Returns { shapes: [ids], materials: [ids], sprites: { id: sprite } } (sprites are E.sprite data; a color may be 'material:tone', tone deep | sh | base | lt | hi)
+- `E.materialTile(id, o = {})`: a material's pattern as a tile of pixels, for a 3D renderer's texture: E.materialTile(id, { size: 32 (world units square: it repeats every size), px: 2 (pixels a unit), lid: false (true: as on a face looking up), band: 2 (the light: 0 dark .. 4 bright) }) -> { w, h, rgba (Uint8ClampedArray, top row first, v up the tile) }; null for an unknown material
 - `E.prop(name, o = {})`: build (and cache) a prop: { frames: [sprite], glow: [sprite] | null, w, h }
+- `E.shapeBox(id, x, y, z = 0, o = {})`: where a placed shape stands, as both engines collide with it: E.shapeBox(id | entry, x, y, z, { facing, scale, flip, params }) -> { x, y (its footprint's middle), z, top, hx, hy (half its footprint, along its own x and y), c, s (the turn's cosine and sine) }; null for an unknown shape. map.solid makes one solid; world.shape gives it a collider
 - `E.shapeInfo(id, o = {})`: what a shape draws, for tools and tests: E.shapeInfo(id, { view: 'iso', facing, scale, mats, params }) -> { w, h, ox, oy, tris, prims (its primitives), parts (each primitive's pixels on screen: 0 is never seen there), colors (distinct), pixels, bounds [x0, y0, z0, x1, y1, z1], rgba }; null for an unknown shape
+- `E.shapeMesh(id, o = {})`: a shape's triangles, for a 3D renderer (the 3D engine's world.shape): E.shapeMesh(id | entry, { params, mats, seg }) -> { groups: [{ mat (the material ready to draw: E.material's), key (its id), lid (true: the faces looking up or down, which some patterns draw their own way), pos, nrm, uv (Float32Arrays: three numbers a corner, three corners a triangle; uv two a corner, world units across the surface) }], bounds [x0, y0, z0, x1, y1, z1] } in the entry's own units and frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). seg(r): the segments round a radius r (default 8 to 24). The same parts as r.shape draws; null for an unknown shape
 - `E.shapeSprite(id, o = {})`: a shape as a sprite (E.sprite's kind: r.sprite, px.sprite, inventories, HUDs, portraits): E.shapeSprite(id, { view: 'iso', facing, size (its scale, 1), mats, params, outline: true | a color | false }). The view is a name or a View, as given (r.shape draws steep views from the characters' angle: E.charView(view) gives that); a bag icon is the item's shape seen at an angle. r.sprite stands it on its feet (foot: [x, y] in the sprite) unless an anchor is given
 
 ## 21. Ui

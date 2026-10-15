@@ -728,6 +728,8 @@ const shapePiece = (kind, id, x, y, rr, o = {}) => ({ kind, x, y, r: rr, solid: 
 /** a material in another color (a darker oak for one barrel), its pattern and numbers kept */
 const recolor = (id, c) => Object.assign({}, E.material(id).q, { color: c, ramp: undefined });
 const turned = (x, y) => E.hash2(Math.round(x), Math.round(y)) * TAU;   // (each piece faces a way of its own)
+/** a pine beyond the wall: the pine generator, as a prop's record drawProps draws (this file needs nothing but the core) */
+const pineAt = (Lv, x, y, size, color) => Lv.props.push({ name: 'pine', shape: 'pine', x, y, z: 0, o: { size }, so: { facing: turned(x, y), scale: Math.round(size * 16) / 16, mats: { l: recolor('needles', color) } } });
 /** the town's own entries, written as the store's are */
 const TOWN_SHAPES = {
   table: { about: 'round tavern table on a post, two full mugs and an empty one', mats: { t: 'oak', l: 'walnut', m: '#b08850', f: '#f8f0d8', e: '#6a3a1a' },
@@ -1743,8 +1745,8 @@ function dressOutskirts(Lv) {
     const q = W3(r, P0(0, 18)); E.font.text(g, 'EMBERHOLD', Math.round(q[0]), Math.round(q[1]) - 2, '#3a2010', { align: 'center', font: 'tiny', outline: false });
   }));
   add(lampThing(360, 668));
-  for (let i = 0; i < 14; i++) WLD_shape(Lv, 'pine', 20 + i * 62 + hs(i, 21) * 30, OMH + 104 + hs(i, 22) * 60, { size: 1.4 + hs(i, 23) * .7, color: i % 3 ? '#1e3c34' : '#24463a', slot: 'l' });
-  for (let i = 0; i < 11; i++) WLD_shape(Lv, 'pine', OMW + 96 + hs(i, 24) * 70, 30 + i * 56 + hs(i, 25) * 26, { size: 1.4 + hs(i, 26) * .7, color: i % 3 ? '#1e3c34' : '#24463a', slot: 'l' });
+  for (let i = 0; i < 14; i++) pineAt(Lv, 20 + i * 62 + hs(i, 21) * 30, OMH + 104 + hs(i, 22) * 60, 1.4 + hs(i, 23) * .7, i % 3 ? '#1e3c34' : '#24463a');
+  for (let i = 0; i < 11; i++) pineAt(Lv, OMW + 96 + hs(i, 24) * 70, 30 + i * 56 + hs(i, 25) * 26, 1.4 + hs(i, 26) * .7, i % 3 ? '#1e3c34' : '#24463a');
   for (const [x, y] of [[180, 668], [470, 676], [690, 700], [812, 520], [836, 300], [800, 160]]) add(bushThing(x, y, 1, '#2e5236', null));
 }
 /* ---------- set dressing: where every piece stands ---------- */
@@ -1782,8 +1784,8 @@ function dressTown(Lv) {
   for (let x = SOIL.x0; x <= SOIL.x1; x += 15) { prop('fence', x + 7, SOIL.y0 - 2, { size: 1 }); prop('fence', x + 7, SOIL.y1 + 2, { size: 1 }); }
   // trees (with trunks you bump into), pines beyond the wall, bushes, flowers and tufts
   for (const [x, y, sz, c] of [[228, 188, 1.1, '#3e7a48'], [586, 300, 1.25, '#3a6e44'], [700, 250, 1.3, '#447a44'], [716, 360, 1.2, '#3a6a40'], [598, 480, 1.1, '#3e7040'], [724, 580, 1.25, '#3a6a44'], [470, 590, 1.05, '#447848'], [290, 590, 1.2, '#3a6a40'], [196, 404, 1.1, '#3e7448'], [60, 370, 1.2, '#3a6a42'], [44, 580, 1.25, '#447444'], [300, 486, 1, '#3e7040'], [660, 330, 1, '#447a48'], [520, 200, .9, '#3e7244']]) add(treeThing(x, y, sz, c));
-  for (let i = 0; i < 20; i++) WLD_shape(Lv, 'pine', 10 + i * 40 + hs(i, 1) * 16, -6 - hs(i, 2) * 26, { size: 1.5 + hs(i, 3) * .8, color: i % 3 ? '#23473c' : '#2a5040', slot: 'l' });
-  for (let i = 0; i < 16; i++) WLD_shape(Lv, 'pine', -8 - hs(i, 4) * 24, 12 + i * 40 + hs(i, 5) * 14, { size: 1.5 + hs(i, 6) * .8, color: i % 3 ? '#23473c' : '#2a5040', slot: 'l' });
+  for (let i = 0; i < 20; i++) pineAt(Lv, 10 + i * 40 + hs(i, 1) * 16, -6 - hs(i, 2) * 26, 1.5 + hs(i, 3) * .8, i % 3 ? '#23473c' : '#2a5040');
+  for (let i = 0; i < 16; i++) pineAt(Lv, -8 - hs(i, 4) * 24, 12 + i * 40 + hs(i, 5) * 14, 1.5 + hs(i, 6) * .8, i % 3 ? '#23473c' : '#2a5040');
   for (const [x, y, s0, c, b] of [[230, 120, 1, '#3e6e40', '#e87aa0'], [334, 94, .8, '#3a6a3e', null], [480, 94, .9, '#3e6e40', '#f0d060'], [572, 104, 1.1, '#3a6a40', '#c890ff'], [700, 150, 1.2, '#3e6e40', null], [728, 206, 1, '#3a6a3e', '#e87aa0'],
     [120, 400, 1, '#3e6e40', '#f0d060'], [124, 520, 1.1, '#3a6a40', null], [260, 540, .9, '#3e6e40', '#e87aa0'], [344, 574, 1, '#3a6a3e', null], [440, 574, 1, '#3e6e40', '#f0d060'], [640, 560, 1, '#3a6a40', '#e87aa0'], [734, 424, 1, '#3e6e40', null], [30, 216, .9, '#3a6a3e', null], [248, 360, .9, '#3e6e40', '#e87aa0']]) add(bushThing(x, y, s0, c, b));
   for (const Hs of HOUSES) { Hs.flowers = true; }

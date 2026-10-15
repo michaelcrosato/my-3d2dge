@@ -98,7 +98,11 @@ const PLAT = (() => {
     for (const c of M.goal || []) world.thing('flag', c.x, c.y, c.z, { color: '#ffd34a', size: 1.4, goal: true });
     for (const c of M.spring || []) world.thing('spring', c.x, c.y, c.z, { color: '#ff4a3a' });
     for (const c of M.sign || []) world.thing('sign', c.x, c.y, c.z, { yaw: -Math.PI / 2, solid: [14, 4, 16] });
-    for (const [kind, k] of [['tree', 'tree'], ['bush', 'bush'], ['rock', 'rock'], ['mushroom', 'mushroom']]) for (const c of M[kind] || []) world.thing(k, c.x, c.y, c.z, { yaw: rnd() * TAU, big: kind === 'tree' ? .9 + rnd() * .4 : 1 });
+    // the trees, bushes and rocks are shapes (E.SHAPES, docs/ASSETS.md: the same entries as the 2D games'); rocks are solid
+    for (const [kind, k] of [['tree', 'tree'], ['bush', 'bush'], ['rock', 'rock'], ['mushroom', 'mushroom']]) for (const c of M[kind] || []) {
+      const yaw = rnd() * TAU, big = kind === 'tree' ? .9 + rnd() * .4 : 1;
+      if (kind === 'mushroom') world.thing(k, c.x, c.y, c.z, { yaw, big }); else world.shape(k, c.x, c.y, c.z, { facing: yaw, scale: kind === 'tree' ? big * 1.1 : 1.2, solid: kind === 'rock' });
+    }
     for (const c of M.mover || []) world.platform({ w: 32, d: 32, h: 6, path: [[c.x + 8, c.y + 40, 0], [c.x + 8, c.y - 8, 0]], speed: 26, wait: .8 });
     for (const c of M.slime || []) slimes.push(Object.assign(world.mob({ x: c.x, y: c.y, blob: new E.Blob({ R: 6.2, face: 'front', colors: { base: '#5ac85a', dk: '#2a7a3a', lt: '#a8f0a0' } }) }), { state: 'idle', t: rnd() * 2, home: [c.x, c.y], squashT: 0, flap: 0 }));
     world.camera.follow(hero); world.camera.yaw = -Math.PI / 2;

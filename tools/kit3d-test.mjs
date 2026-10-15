@@ -11,6 +11,9 @@
 //      draws, each slice starts; each slice's proof run gives the same hash twice and on both backends (the game never
 //      reads the renderer); a minute of scripted play builds no GPU pipeline mid-game (the warm-up's job) and moves
 //      the hero; pictures in check-output/kit3d/ (read them)
+//   3b. shapes (world.shape: the 2D engine's entries in 3D): every core shape builds and draws on WebGL 2 and on WebGPU (its
+//      pixels change where it stands), a hero walking into a solid one stops and one dropped on a table lands on it; a
+//      sheet of every core shape in 3D beside its 2D picture (check-output/kit3d/shapes-<backend>.png: read it)
 //   4. on an emulated phone held upright (390 x 844 at 3x, touch): a kit starts, the 3D picture lies exactly under the
 //      game's, the touch buttons are there
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
@@ -62,10 +65,23 @@ const QUICK = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="view
 <script src="/dist/my-3d2dge.js"></script><script type="module" src="/dist/my-3d2dge-3d.js"></script>
 <script type="module">${code}
 window.__quick = { game, get world() { return world; }, get hero() { return hero; }, get gems() { return gems; } };</script></body></html>`;
+// the shapes' page: every core shape in a row in 3D, the camera close on one at a time (__sheet.look(i))
+const SHAPES_PAGE = QUICK.split('<script type="module">')[0] + `<script type="module">
+const E = My3D2dge, IDS = Object.keys(E.SHAPES).filter(k => !k.includes(':')), SP = 112, T = 16, FACING = Math.PI / 2 + .6;
+const game = new E.Game({ canvas: 'screen', res: [400, 300], bg: null, menu: false });
+const rows = Array.from({ length: 9 }, () => '.'.repeat(Math.ceil((IDS.length * SP + 64) / T)));
+let world; const focus = { x: 0, y: 72, z: 12 }, at = i => [32 + (i + .5) * SP, 72];
+const sheet = { view: 'iso', enter() { world.reset(); IDS.forEach((id, i) => world.shape(id, at(i)[0], at(i)[1], 0, { facing: FACING })); world.camera.follow(focus); },
+  update(dt) { world.step(dt); }, draw(r) { world.draw(r); } };
+game.start({ scenes: { sheet }, scene: 'sheet', boot: { steps: [['3D', () => E.World3D.init(game)], ['level', () => { world = new E.World3D(game, { level: { rows, legend: {}, ground: 'plain', colors: { base: '#4a4458' } }, fog: false, sky: '#1c1826',
+  ambient: ['#ffffff', '#8a8aa0', 2.2], sun: { color: '#fff1d6', intensity: 2.4, dir: [-.5, .6, -.8], area: 400 }, torchLights: 0, camera: { mode: 'view', proj: 'ortho', dist: .45, lag: 0 } }); world.prepare(); }]] } });
+window.__sheet = { game, IDS, at, FACING, get world() { return world; }, look(i) { const [x, y] = at(i); Object.assign(focus, { x, y, z: 12 }); } };
+</script></body></html>`;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json' };
 const server = createServer((req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (path === '/check/quickstart.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(QUICK); return; }
+  if (path === '/check/shapes.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(SHAPES_PAGE); return; }
   for (const r of rules) { const m = path.match(r.re); if (m) { path = r.to.replace(/:(\w+)/g, (_, k) => m.groups[k]); break; } }
   const file = join(root, path);
   if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end('not found'); return; }
@@ -168,9 +184,10 @@ for (const want of ['webgl', 'webgpu']) for (const [name, path] of pages) {
       const h0 = S.hero, x0 = h0.x, y0 = h0.y, p0 = pipes(), f0 = S.world.stats.frames;
       const keys = id === 'action' ? ['attack', 'dash', 'jump', 'skill'] : ['jump', 'dash'];
       g.input.hold('up', true);
-      for (let i = 0; i < 24; i++) { g.input.tap(keys[i % keys.length]); if (i === 8) { g.input.hold('up', false); g.input.hold('left', true); } await new Promise(r => setTimeout(r, 120)); }
+      // (the farthest it got: the course's edge is a second's run north, and a fall puts the hero back at the start)
+      let moved = 0; for (let i = 0; i < 24; i++) { g.input.tap(keys[i % keys.length]); if (i === 8) { g.input.hold('up', false); g.input.hold('left', true); } await new Promise(r => setTimeout(r, 120)); moved = Math.max(moved, Math.hypot(S.hero.x - x0, S.hero.y - y0)); }
       g.input.hold('left', false);
-      return { moved: Math.hypot(S.hero.x - x0, S.hero.y - y0), p0, p1: pipes(), frames: S.world.stats.frames - f0, calls: S.world.stats.calls };
+      return { moved, p0, p1: pipes(), frames: S.world.stats.frames - f0, calls: S.world.stats.calls };
     }, s);
     if (play.frames < 5) fail(`${label}: ${s} drew only ${play.frames} frames in about 3 s of play`);
     if (play.moved < 20) fail(`${label}: ${s}: the hero moved only ${play.moved.toFixed(1)} units under the held stick`);
@@ -181,6 +198,67 @@ for (const want of ['webgl', 'webgpu']) for (const [name, path] of pages) {
   await page.close();
 }
 for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl !== h.webgpu) fail(`${s}: the proof's hash differs between WebGL 2 (${h.webgl}) and WebGPU (${h.webgpu})`);
+
+/* 3b. shapes in 3D: built, drawn, solid; the sheet beside the 2D pictures */
+{
+  const { decodePNG } = await import('./asset-lib.mjs');
+  for (const want of ['webgl', 'webgpu']) {
+    const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+    if (want === 'webgpu') await page.addInitScript(standInCanvas);
+    const errors = watch(page), label = 'shapes ' + want;
+    await page.goto(SITE + '/check/shapes.html' + (want === 'webgl' ? '?backend=webgl' : ''));
+    try {
+      await page.waitForFunction(() => window.__sheet && __sheet.world && __sheet.world.stats.frames > 2, null, { timeout: 120000 });
+      if (want === 'webgpu' && await page.evaluate(() => My3D2dge.World3D.backend) !== 'WebGPU') { notes.push('WebGPU is not available in this browser: the WebGPU runs fell back to WebGL 2'); await page.close(); continue; }
+      const shot = async () => { await page.waitForTimeout(300); if (want === 'webgl') return page.screenshot(); const d = await page.evaluate(() => __readFrame(1)); return Buffer.from(d.split(',')[1], 'base64'); };
+      const ids = await page.evaluate(() => { const w = __sheet.world, k = w._shapeKit; k._keep = k.outlines; k.outlines = () => {}; return __sheet.IDS; });   // (the frame's own pass would show a hidden shape's outline)
+      const info = await page.evaluate(() => ({ n: __sheet.world.shapes.length, kinds: __sheet.world._shapeKit.kinds.size }));
+      if (info.n !== ids.length || info.kinds !== ids.length) fail(`${label}: ${info.n} placements and ${info.kinds} kinds for ${ids.length} core shapes`);
+      // each shape up close, then without it: its pixels must change where it stands
+      const shots = [];
+      for (let i = 0; i < ids.length; i++) {
+        await page.evaluate(i => __sheet.look(i), i); const a = await shot();
+        await page.evaluate(i => { const K = __sheet.world.shapes[i].kind; K.mesh.visible = K.shell.visible = false; }, i); const b = await shot();
+        await page.evaluate(i => { const K = __sheet.world.shapes[i].kind; K.mesh.visible = K.shell.visible = true; }, i);
+        const A = decodePNG(a), B = decodePNG(b); let changed = 0;
+        for (let y = Math.round(A.h * .2); y < Math.round(A.h * .8); y++) for (let x = Math.round(A.w * .3); x < Math.round(A.w * .7); x++) { const j = (y * A.w + x) * 4; if (Math.abs(A.rgba[j] - B.rgba[j]) + Math.abs(A.rgba[j + 1] - B.rgba[j + 1]) + Math.abs(A.rgba[j + 2] - B.rgba[j + 2]) > 24) changed++; }
+        if (changed < A.w * A.h / 2000) fail(`${label}: ${ids[i]} draws nothing where it stands (${changed} pixels changed)`);
+        shots.push('data:image/png;base64,' + a.toString('base64'));
+      }
+      // the sheet: each shape's 2D picture (E.shapeSprite, the isometric view) beside its 3D one, drawn on a page of the 2D engine
+      const sheet = await browser.newPage(); await sheet.setContent('<!doctype html><html><body></body></html>');
+      await sheet.addScriptTag({ content: read('dist/my-3d2dge.js') });
+      const png = await sheet.evaluate(async ([ids, shots, facing]) => {
+        const E = My3D2dge, C = 5, CW = 300, CH = 170, cv = document.createElement('canvas'); cv.width = C * CW; cv.height = Math.ceil(ids.length / C) * CH; const g = cv.getContext('2d');
+        g.fillStyle = '#1c1826'; g.fillRect(0, 0, cv.width, cv.height); g.imageSmoothingEnabled = false; g.font = '13px sans-serif';
+        for (let i = 0; i < ids.length; i++) {
+          const x = (i % C) * CW, y = Math.floor(i / C) * CH, im = new Image(); im.src = shots[i]; await im.decode();
+          const s = E.shapeSprite(ids[i], { view: 'iso', facing }); if (s) { const k = Math.max(1, Math.min(4, Math.floor(Math.min(130 / s.w, 130 / s.h)))); g.drawImage(s.cv, x + 75 - s.w * k / 2, y + 150 - s.h * k, s.w * k, s.h * k); }
+          const sw = im.width * .4, sh = im.height * .6; g.drawImage(im, im.width * .3, im.height * .2, sw, sh, x + 150, y + 10, 140, 140 * sh / sw);
+          g.fillStyle = '#e8e0f0'; g.fillText(ids[i] + '  (2D | 3D)', x + 8, y + 164);
+        }
+        return cv.toDataURL('image/png');
+      }, [ids, shots, await page.evaluate(() => __sheet.FACING)]);
+      writeFileSync(join(OUT, `shapes-${want}.png`), Buffer.from(png.split(',')[1], 'base64')); pictures++; await sheet.close();
+      await page.evaluate(() => { const k = __sheet.world._shapeKit; k.outlines = k._keep; });
+      // solid: a hero walks east into a crate and stops; one dropped over a table lands on its top
+      const solid = await page.evaluate(() => {
+        const w = __sheet.world, g = __sheet.game; g.stop(); w.reset();
+        const c = w.shape('crate', 120, 72, 0, { facing: Math.PI / 2 }), t = w.shape('table', 220, 72, 0, { facing: Math.PI / 2 }), b = My3D2dge.shapeBox('crate', 120, 72, 0, { facing: Math.PI / 2 });
+        const h = w.hero({ x: 80, y: 72, rig: new My3D2dge.Humanoid() }); for (let i = 0; i < 120; i++) { h.vx = 60; h.vy = 0; w.step(1 / 60); }
+        const stop = h.x, edge = b.x - b.hx;
+        h.place(220, 72, 40); h.vx = h.vy = 0; for (let i = 0; i < 120; i++) { h.vx = h.vy = 0; w.step(1 / 60); }
+        const top = My3D2dge.shapeBox('table', 220, 72, 0, { facing: Math.PI / 2 }).top;
+        return { stop, edge, z: h.z, top, bodies: !!(c.body && t.body) };
+      });
+      if (!solid.bodies) fail(`${label}: a solid shape has no collider`);
+      if (solid.stop > solid.edge) fail(`${label}: a hero walking into a crate passed its edge (x ${solid.stop.toFixed(1)}, the edge at ${solid.edge.toFixed(1)})`);
+      if (Math.abs(solid.z - solid.top) > 2) fail(`${label}: a hero dropped on a table stands at z ${solid.z.toFixed(1)}, its top is ${solid.top.toFixed(1)}`);
+    } catch (e) { fail(label + ': ' + e.message.split('\n')[0]); }
+    for (const e of errors) fail(label + ': ' + e);
+    await page.close();
+  }
+}
 
 /* 4. an upright phone */
 {
