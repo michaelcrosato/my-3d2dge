@@ -6860,6 +6860,25 @@ function shapeRaster(id, view, o = {}) {
   if (_rasters.size >= RASTER_CAP) _rasters.delete(_rasters.keys().next().value);
   _rasters.set(key, r); return r;
 }
+const _shadows = new Map();
+/** a placed shape's shadow for a view, as a picture: its footprint's hull soft, darker where parts meet the floor ({ cv,
+ *  ox, oy }: the placement's point in it), at the picture's facing step; cached as the pictures are */
+function shapeShadow(S, view, o, k, G) {
+  const step = ((Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / TAU * 32) % 32) + 32) % 32;
+  const key = _specKey.get(S) + '|' + viewKey(view) + '|' + step + '|' + k + '|' + (o.flip ? 1 : 0) + '|' + (o.params ? JSON.stringify(o.params) : '') + '|' + E.style.trans;
+  let sw = _shadows.get(key); if (sw) { _shadows.delete(key); _shadows.set(key, sw); return sw; }
+  const place = placeXY(Object.assign({}, o, { facing: step / 32 * TAU }), 0, 0, k), rel = q => { const w = place(q); return [view.ax * w[0] + view.ay * w[1], view.bx * w[0] + view.by * w[1]]; };
+  const polys = [[G.hull, .26], ...G.contact.map(c => [c, .4])].filter(p => p[0].length >= 3).map(([p, a]) => [p.map(rel), a]);
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [P] of polys) for (const [a, b] of P) { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, a); y1 = Math.max(y1, b); }
+  if (!polys.length) sw = { cv: null };
+  else {
+    const ox = 1 - Math.floor(x0), oy = 1 - Math.floor(y0), cv = mkCanvas(Math.ceil(x1) + ox + 2, Math.ceil(y1) + oy + 2), g = ctx2d(cv);
+    for (const [P, a] of polys) px.polyDither(g, P.map(([a2, b]) => [a2 + ox, b + oy]), '#0c0818', a, 0, 0);
+    sw = { cv, ox, oy };
+  }
+  if (_shadows.size >= RASTER_CAP) _shadows.delete(_shadows.keys().next().value);
+  _shadows.set(key, sw); return sw;
+}
 /**
  * Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o).
  * o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material },
@@ -6876,9 +6895,9 @@ Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
   const r = shapeRaster(id, rv, comp ? o : Object.assign({}, o, { outline: this.outline })); if (!r) return;
   if (!this.visible(x, y, z, r.w + 20, r.oy + 20, r.h - r.oy + 20)) return;
   const place = placeXY(o, x, y, k);
-  if (o.shadow !== false) {   // the footprint, soft, and darker where parts meet the floor
-    const sh = g => { const P = pts => pts.map(q => { const w = place(q); return this.w(w[0], w[1], z); }); if (G.hull.length >= 3) px.polyDither(g, P(G.hull), '#0c0818', .26, this.ix, this.iy); for (const c of G.contact) px.polyDither(g, P(c), '#0c0818', .4, this.ix, this.iy); };
-    if (z > .5) this.queue(x, y, z - .01, g => { if (!g._info) sh(g); }, { bias: -.001, noInfo: true }); else this.decal(g => { if (!g._info) sh(g); });
+  if (o.shadow !== false) {   // the footprint, soft, and darker where parts meet the floor: a picture made once per view, then copied
+    const sw = shapeShadow(S, view, o, k, G), sh = g => { const [sx, sy] = this.w(x, y, z); g.drawImage(sw.cv, Math.round(sx) - sw.ox, Math.round(sy) - sw.oy); };
+    if (sw.cv) { if (z > .5) this.queue(x, y, z - .01, g => { if (!g._info) sh(g); }, { bias: -.001, noInfo: true }); else this.decal(g => { if (!g._info) sh(g); }); }
   }
   const fp = o.footprint || (z > .5 ? (() => { const c = [[G.foot[0], G.foot[1]], [G.foot[2], G.foot[1]], [G.foot[2], G.foot[3]], [G.foot[0], G.foot[3]]].map(place); return [Math.min(...c.map(q => q[0])), Math.min(...c.map(q => q[1])), Math.max(...c.map(q => q[0])), Math.max(...c.map(q => q[1]))]; })() : undefined);
   const hides = o.hides !== false;

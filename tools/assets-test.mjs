@@ -331,8 +331,9 @@ console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sortin
     if (Math.abs(sunk - half) > half * .03) bad.push('a box half below the floor draws ' + sunk + ' pixels, the half above it ' + half);
     // an entry's own scale, times the placement's
     E.SHAPES.__s1 = { parts: [good] }; E.SHAPES.__s2 = { scale: 2, parts: [good] };
-    const w1 = E.shapeInfo('__s1', { view: E.VIEWS.side }).w, w2 = E.shapeInfo('__s2', { view: E.VIEWS.side }).w, w3 = E.shapeInfo('__s2', { view: E.VIEWS.side, scale: 1.5 }).w;
-    if (Math.abs(w2 - 2 * w1) > 4 || Math.abs(w3 - 3 * w1) > 5) bad.push('an entry with scale: 2 draws ' + w2 + ' wide (and at scale 1.5, ' + w3 + '), the same at 1 ' + w1);
+    const span = I => { let a = 1e9, b = -1; for (let j = 0; j < I.w * I.h; j++) if (I.rgba[j * 4 + 3]) { const x = j % I.w; a = Math.min(a, x); b = Math.max(b, x); } return b - a + 1; };   // (its drawn width, not the picture's margin)
+    const w1 = span(E.shapeInfo('__s1', { view: E.VIEWS.side })), w2 = span(E.shapeInfo('__s2', { view: E.VIEWS.side })), w3 = span(E.shapeInfo('__s2', { view: E.VIEWS.side, scale: 1.5 }));
+    if (Math.abs(w2 - 2 * w1) > 2 || Math.abs(w3 - 3 * w1) > 3) bad.push('an entry with scale: 2 draws ' + w2 + ' wide (and at scale 1.5, ' + w3 + '), the same at 1 ' + w1);
     const sm = new E.TileMap({ w: 8, h: 8 }), so = sm.solid('__s2', 64, 64, 0); if (Math.abs(so.hx - 8) > .5 || Math.abs(so.top - 16) > .5) bad.push('the solid of an entry with scale: 2 is ' + so.hx * 2 + ' wide and ' + so.top + ' tall (want 16 and 16)');
     // the crate pattern repeats past its face (a wall face, a tile past the first)
     const cr = (u, v) => E.PATTERNS.crate({ u, v, W: 14, H: 13, lid: false, curved: false, px: 1, lit: .5 }, { frame: 2, bw: 3 });
@@ -358,27 +359,27 @@ console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sortin
       map.drawFloor(r); map.queueWalls(r);
       if (scene === 'jar') { if (table) r.shape('table', 240, 240, 0, { facing: 0, shadow: false }); r.shape('jar', 236, 236, 12, { mats: { c: '#ff00ff none', g: '#ff00ff none', w: '#ff00ff none' }, shadow: false }); }
       else if (scene === 'outline') r.shape('crate', 240, 240, 0, { shadow: false });
-      else for (const [id, x, y, o] of room) r.shape(id, x, y, 0, o);
+      else if (scene === 'room') for (const [id, x, y, o] of room) r.shape(id, x, y, 0, o);
     } });
     const shot = () => { game.advance(1 / 120, { draw: true }); const b = game.screen.buf; return b.getContext('2d').getImageData(0, 0, b.width, b.height).data; };
     const count = (d, f) => { let n = 0; for (let i = 0; i < d.length; i += 4) if (f(d[i], d[i + 1], d[i + 2])) n++; return n; }, mag = (r, g, b) => r > 200 && g < 60 && b > 200;
     game.focus(240, 240, 0); table = false; const alone = count(shot(), mag); table = true; const on = count(shot(), mag);
     if (on < alone * .97) bad.push('a jar on a table\'s back half shows ' + on + ' of its ' + alone + ' pixels: the table draws over it');
-    scene = 'outline'; game.renderer.outline = '#00ff00'; const green = count(shot(), (r, g, b) => r === 0 && g === 255 && b === 0); game.renderer.outline = '#140c1c';
+    scene = 'outline'; game.r.outline = '#00ff00'; const green = count(shot(), (r, g, b) => r === 0 && g === 255 && b === 0); game.r.outline = '#140c1c';
     if (green < 20) bad.push('a crate\'s outline is not in the renderer\'s color (' + green + ' green pixels)');
     // 300 shapes in view: the first frame (every picture made), the steady frames, the cache
     scene = 'room'; game.focus(240, 220, 0); game.setZoom && game.setZoom(.5);
     let t = performance.now(); shot(); const first = performance.now() - t;
     for (let i = 0; i < 5; i++) shot(); t = performance.now(); for (let i = 0; i < 20; i++) shot(); const steady = (performance.now() - t) / 20;
     scene = 'none'; t = performance.now(); for (let i = 0; i < 20; i++) shot(); const empty = (performance.now() - t) / 20;
-    const drawn = game.stats ? game.stats.actors : 0; game.stop(); cv.remove();
-    return { bad, first, steady, empty };
+    game.stop(); cv.remove();
+    return { bad, first, steady, empty, pictures: new Set(room.map(([id, , , o]) => id + ':' + Math.round(o.facing / 6.283 * 32) % 32)).size };
   });
   for (const b of r.bad) fail('edges', b);
   if (r.steady - r.empty > 12) fail('speed', '300 shapes in view cost ' + (r.steady - r.empty).toFixed(1) + ' ms a frame (over 12)');
   if (!r.bad.length) ok('a jar on a table\'s back half draws over it; the outline takes the renderer\'s color');
-  console.log('  300 shapes in view: first frame ' + r.first.toFixed(0) + ' ms, steady ' + r.steady.toFixed(1) + ' ms a frame (' + r.empty.toFixed(1) + ' without them)');
-  writeFileSync(join(out, 'speed.json'), JSON.stringify({ first: +r.first.toFixed(1), steady: +r.steady.toFixed(2), empty: +r.empty.toFixed(2) }, null, 1));
+  console.log('  300 shapes in view (' + r.pictures + ' pictures, the cache holds 800): first frame ' + r.first.toFixed(0) + ' ms, steady ' + r.steady.toFixed(1) + ' ms a frame (' + r.empty.toFixed(1) + ' without them)');
+  writeFileSync(join(out, 'speed.json'), JSON.stringify({ pictures: r.pictures, first: +r.first.toFixed(1), steady: +r.steady.toFixed(2), empty: +r.empty.toFixed(2) }, null, 1));
 }
 
 await browser.close();
