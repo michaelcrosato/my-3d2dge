@@ -28,10 +28,12 @@ const get = (url, out) => { execFileSync('curl', ['-sSfL', '--retry', '5', '--re
 const text = url => execFileSync('curl', ['-sSfL', '--retry', '5', '--retry-delay', '3', '--retry-all-errors', '-m', '60', '-A', 'my-3d2dge-asset-fetch', url], { encoding: 'utf8', maxBuffer: 64 << 20 });
 const unzip = (zip, to) => { mkdirSync(to, { recursive: true }); execFileSync('unzip', ['-oq', zip, '-d', to]); };
 /** the license a text states, as one of LICENSES' labels, or null: its words (a page's, without its scripts, styles and
- *  tags) name CC0 or the public-domain mark as a word, and no other Creative Commons license anywhere */
+ *  tags) name CC0 or the public-domain mark as a word, and no other license anywhere (another Creative Commons one, MIT,
+ *  GPL, Apache, royalty-free, proprietary, all rights reserved) nor "not CC0" */
 const licenseOf = raw => {
   const t = String(raw).replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ');
   if (/\bCC[- ]?BY\b|\bAttribution\b|NonCommercial|NoDerivatives|ShareAlike|\bCC[- ]?(NC|ND|SA)\b/i.test(t)) return null;
+  if (/all rights reserved|royalty[- ]free|proprietary|\bMIT\b|\bL?GPL|\bApache\b|\bnot\s+(?:licensed\s+(?:under\s+)?)?(?:the\s+)?CC0/i.test(t)) return null;
   return /\bCC0\b|Creative Commons Zero|creativecommons\.org\/publicdomain\/zero\b/i.test(t) ? 'CC0 1.0' : /\bpublic domain mark\b|creativecommons\.org\/publicdomain\/mark\b/i.test(t) ? 'Public Domain Mark 1.0' : null;
 };
 /** an id from a library's API, safe as a file name, and a download from that library's own host */
