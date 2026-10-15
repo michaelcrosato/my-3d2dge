@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.38.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.38.2: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -937,19 +937,6 @@ const THING_R = { coin: 5, gem: 5, heart: 5, key: 5, star: 7, potion: 5, chest: 
  *     with (E.shapeBox)
  * ============================================================================= */
 const SH_TILE = 32, SH_PX = 2, SH_N = SH_TILE * SH_PX, SH_ATLAS = 1024, SH_PER = SH_ATLAS / SH_N, SH_CAP = 1024;   // 256 tiles, each 32 units square
-/** the shapes' outline: outlineMat's inverted hull, pushed along the normals averaged where faces meet ('onrm'), so a
- *  box's outline closes round its corners */
-function shellMat() {
-  const { Fn, vec4, positionLocal, attribute, modelViewMatrix, cameraProjectionMatrix } = TSL;
-  const m = new THREE.MeshBasicNodeMaterial({ color: OUTLINE, side: THREE.BackSide, fog: false });
-  m.vertexNode = Fn(() => {
-    const mvp = cameraProjectionMatrix.mul(modelViewMatrix), pos = mvp.mul(vec4(positionLocal, 1));
-    const pos2 = mvp.mul(vec4(positionLocal.add(attribute('onrm', 'vec3').normalize().mul(.01)), 1));
-    const dir = pos2.xy.div(pos2.w).sub(pos.xy.div(pos.w)).normalize();
-    return vec4(pos.xy.add(dir.mul(OUTLINE_PX).mul(pos.w)), pos.z, pos.w);
-  })();
-  return m;
-}
 function shapeKit(world) {
   const cv = document.createElement('canvas'); cv.width = cv.height = SH_ATLAS;
   const g = cv.getContext('2d'), tex = world._own(canvasTex(cv, false)), { attribute, texture, fract } = TSL;
@@ -957,7 +944,7 @@ function shapeKit(world) {
   const tile = attribute('tile', 'vec4'), col = texture(tex, tile.xy.add(fract(attribute('uv', 'vec2')).mul(tile.zw)));
   const mat = world._obj(new THREE.MeshToonNodeMaterial({ gradientMap: TOON_BANDS }));
   mat.colorNode = col; mat.emissiveNode = col.rgb.mul(attribute('glow', 'float'));
-  const shell = world._obj(shellMat()), tiles = new Map(), ids = new WeakMap(); let nTile = 0, nId = 0;
+  const shell = world._obj(outlineMat('normal')), tiles = new Map(), ids = new WeakMap(); let nTile = 0, nId = 0;
   /** a material's tile (its pattern on a side or a lid, turned or flat; a face pattern's whole face, 16 units), drawn into
    *  the atlas the first time: [x, y, w, h] in uv */
   const tileOf = (m, lid, curved, face) => {
@@ -967,7 +954,9 @@ function shapeKit(world) {
     if (px) { const img = g.createImageData(px.w, px.h); img.data.set(px.rgba); g.putImageData(img, tx * SH_N, ty * SH_N); tex.needsUpdate = true; }
     tiles.set(key, t = [(tx * SH_N + .5) / SH_ATLAS, 1 - (ty * SH_N + SH_N - .5) / SH_ATLAS, (SH_N - 1) / SH_ATLAS, (SH_N - 1) / SH_ATLAS]); return t;
   };
-  /** a geometry from E.shapeMesh's groups: three's axes (metres, y up), each triangle wound to face its normal */
+  /** the geometries from E.shapeMesh's groups: three's axes (metres, y up), each triangle wound to face its normal; and
+   *  the outline's, the same corners with the normals averaged where faces meet (a box's outline closes round its corners;
+   *  as 'normal', instancing turns them with the placement) */
   const build = (M, flip) => {
     const pos = [], nrm = [], uv = [], tl = [], gl = [], fx = flip ? -1 : 1;
     for (const G of M.groups) {
@@ -983,25 +972,30 @@ function shapeKit(world) {
     }
     const at = new Map(), onrm = new Float32Array(nrm.length), kk = i => Math.round(pos[i] * 1e4) + ',' + Math.round(pos[i + 1] * 1e4) + ',' + Math.round(pos[i + 2] * 1e4);
     for (let i = 0; i < pos.length; i += 3) { const k = kk(i), a = at.get(k) || [0, 0, 0]; a[0] += nrm[i]; a[1] += nrm[i + 1]; a[2] += nrm[i + 2]; at.set(k, a); }
-    for (let i = 0; i < pos.length; i += 3) { const a = at.get(kk(i)), l = Math.hypot(a[0], a[1], a[2]) || 1; onrm[i] = a[0] / l; onrm[i + 1] = a[1] / l; onrm[i + 2] = a[2] / l; }
-    const geo = world._own(new THREE.BufferGeometry());
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); geo.setAttribute('onrm', new THREE.BufferAttribute(onrm, 3));
+    for (let i = 0; i < pos.length; i += 3) {   // (faces that cancel, two discs back to back: the corner's own normal)
+      let a = at.get(kk(i)), l = Math.hypot(a[0], a[1], a[2]); if (l < 1e-4) { a = nrm.slice(i, i + 3); l = 1; }
+      onrm[i] = a[0] / l; onrm[i + 1] = a[1] / l; onrm[i + 2] = a[2] / l;
+    }
+    const geo = world._own(new THREE.BufferGeometry()), sgeo = world._own(new THREE.BufferGeometry());
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('tile', new THREE.Float32BufferAttribute(tl, 4)); geo.setAttribute('glow', new THREE.Float32BufferAttribute(gl, 1));
-    return geo;
+    sgeo.setAttribute('position', geo.attributes.position); sgeo.setAttribute('normal', new THREE.BufferAttribute(onrm, 3));
+    return [geo, sgeo];
   };
-  /** an instanced mesh (and its outline) for a geometry, its slots growing as placements come */
-  const meshes = (geo, cap) => {
-    const m = new THREE.InstancedMesh(geo, mat, cap), o = new THREE.InstancedMesh(geo, shell, cap);
+  /** an instanced mesh and its outline for the geometries, its slots growing as placements come */
+  const meshes = ([geo, sgeo], cap) => {
+    const m = new THREE.InstancedMesh(geo, mat, cap), o = new THREE.InstancedMesh(sgeo, shell, cap);
     m.frustumCulled = o.frustumCulled = false; m.castShadow = m.receiveShadow = true; m.count = o.count = 0; o.instanceMatrix = m.instanceMatrix;
     world.scene.add(m); world.scene.add(o); return [m, o];
   };
   const kinds = new Map(), _m = new THREE.Matrix4(), _s = new THREE.Vector3();
   // the probe: one empty triangle in the same material, so the warm-up builds the shapes' shaders before any is placed
-  const pg = new THREE.BufferGeometry(), z3 = n => new THREE.Float32BufferAttribute(new Array(n * 3).fill(0), n);
-  for (const [k, n] of [['position', 3], ['normal', 3], ['uv', 2], ['tile', 4], ['glow', 1], ['onrm', 3]]) pg.setAttribute(k, new THREE.Float32BufferAttribute(new Array(3 * n).fill(0), n));
+  const pg = new THREE.BufferGeometry(), psg = new THREE.BufferGeometry(), z3 = n => new THREE.Float32BufferAttribute(new Array(n * 3).fill(0), n);
+  for (const [k, n] of [['position', 3], ['normal', 3], ['uv', 2], ['tile', 4], ['glow', 1]]) pg.setAttribute(k, z3(n));
+  for (const k of ['position', 'normal']) psg.setAttribute(k, z3(3));
   // (every mesh starts with SH_CAP slots: three reads more than 1,000 instances from an attribute, the same shader at any
   // count; fewer come from a uniform array sized in the shader's code, a new pipeline at each size)
-  const [probe, probeShell] = meshes(world._own(pg), SH_CAP);
+  const [probe, probeShell] = meshes([world._own(pg), world._own(psg)], SH_CAP);
   return {
     probe, probeShell, kinds,
     /** the kind for an id and placement (made once): { mesh, shell, list (its placements), cap } */
@@ -1014,7 +1008,7 @@ function shapeKit(world) {
     /** write a placement's slot: at (x, y, z), turned to its facing, scaled */
     put(K, p) {
       if (p.i >= K.cap) {   // more slots: a bigger mesh with the same geometry (the old one's placements copied over)
-        const [m2, o2] = meshes(K.mesh.geometry, K.cap * 2); m2.instanceMatrix.array.set(K.mesh.instanceMatrix.array);
+        const [m2, o2] = meshes([K.mesh.geometry, K.shell.geometry], K.cap * 2); m2.instanceMatrix.array.set(K.mesh.instanceMatrix.array);
         for (const x of [K.mesh, K.shell]) { world.scene.remove(x); x.dispose(); }
         K.mesh = m2; K.shell = o2; K.cap *= 2;
       }
