@@ -631,3 +631,22 @@ An entry:
   area, each file under one read), the index passing 38,000 tokens, or the lookup check unable to keep 24 of 25.
 - **Answered:** yes: the owner (2026-10-15)
 - **Landed in:** v0.42.1
+
+## D39 · 2026-10-15 · The index answers its lookups
+
+- **Principle:** 1 (agent-readable: a builder finds what it needs without reading the engine's source)
+- **Call:** `API-INDEX.md` is held to answering lookups, not only to listing names. A constructor's line names the name
+  its instances go by (`new E.Attack(...) → slash`), and a contents block after the examples gives each section's line
+  and its classes' instance names. A doc comment's options, one to a line as `- name: what it does`, become index lines
+  of their own named by their owner (`new E.Game({ expand })`); the ten lines over 200 tokens are written that way. A
+  short list of names is given in full (`E.PROPS`). The facts the benchmark's agents read the source for are doc
+  comments where a search finds them. `tools/api-index-lookups.json` holds 25 lookups, each a grep and the facts its hits
+  must hold, and `doctrine-check` fails when one stops answering; a lookup an agent is later seen to miss is added there.
+- **Why:** measured at v0.42.0, grep answered 15 of the 25, and no cut, split or denser format changed one
+  (`docs/HANDOFF-API-INDEX.md`, section 2.3). Now 24 answer in one search and the 25th (`E.Attack`'s methods) in two;
+  their hits hold 5,984 tokens, against 7,110. The index is 37,058 tokens: 264 more than the plan's 36,794, which counted
+  three of the ten lines split (the plan says so), while its text asks for all ten; the contents block is the plan's size.
+  What would change it: Phase 4's run showing agents reading the index whole (then split it, D38), or the lookups costing
+  more than they save.
+- **Answered:** yes: the owner approved the plan (D38)
+- **Landed in:** v0.42.2

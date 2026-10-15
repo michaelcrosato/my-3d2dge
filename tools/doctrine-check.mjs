@@ -20,7 +20,8 @@
 //    ## D<n>, on main is still there) and docs/FEEDBACK-LOG.md (CLAUDE.md, "Feedback from a builder": every source, ### F<n>,
 //    and every point, F<n>.<m>).
 // 5. the API index (principle 1): API-INDEX.md is what tools/api-index.mjs makes of the engine today (node tools/build.mjs
-//    writes it), and every public name in it has a description.
+//    writes it), every public name in it has a description, and it answers the lookups of tools/api-index-lookups.json
+//    (D39).
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
@@ -155,11 +156,12 @@ if (opt('baseline')) {
 
 /* 5. the API index */
 {
-  const { build, render } = await import(pathToFileURL(join(root, 'tools/api-index.mjs')).href), r = build(), want = render(r);
+  const { build, render, names, lookupReport } = await import(pathToFileURL(join(root, 'tools/api-index.mjs')).href), r = build(), want = render(r), lk = lookupReport(want);
   const have = existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '';
   if (r.missing.length) fail('index', `${r.missing.length} public name(s) have no description (a doc comment above, or a // comment at the end of its line): ${r.missing.slice(0, 10).map(m => m.key).join(', ')}${r.missing.length > 10 ? ', ...' : ''}. node tools/api-index.mjs --missing lists them: document each, or make it private (_)`);
   if (have !== want) fail('index', 'API-INDEX.md is not what the engine gives today: run node tools/build.mjs (it writes the index)');
-  console.log(`5. the API index: ${r.entries.length} public names, ${r.missing.length ? r.missing.length + ' without a description' : 'every one described'}${have === want ? '' : ', out of date'}`);
+  for (const p of lk.problems) fail('index', p);
+  console.log(`5. the API index: ${names(r)} public names, ${r.missing.length ? r.missing.length + ' without a description' : 'every one described'}${have === want ? '' : ', out of date'}; ${lk.line}`);
 }
 
 for (const n of notes) console.log('   note: ' + n);

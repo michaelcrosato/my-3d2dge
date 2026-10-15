@@ -29,14 +29,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.42.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.42.2</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.42.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.42.2  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -115,7 +115,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.42.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.42.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1799,17 +1799,17 @@ class Renderer {
    * Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected
    * position of world point (x, y, z). The engine adds outline, rim light, hit flash,
    * afterimages and x-ray silhouettes.
-   * opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias}
-   *   xray: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in
+   * opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key}
+   * - xray: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in
    *     front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that
    *     color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies
    *     drawn in front hide it too (a hero lost in a crowd keeps his shape)
-   *   hides: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
-   *   ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
-   *   every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn
-   *     runs again, at the place it is now (a background character animating at a lower rate, as classic games'
-   *     townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray
-   *     or GPU lighting
+   * - hides: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
+   * - ghost: ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
+   * - every, key: every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames
+   *     before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic
+   *     games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a
+   *     ghost, x-ray or GPU lighting
    */
   actor(x, y, z, drawFn, o = {}) {
     const st = this.game.stats;
@@ -2058,22 +2058,26 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 class Game {
   /**
    * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
-   * fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id }).
-   * res: a fixed resolution ('ps1' or [w, h]), whole pixels; expand: true makes res the least the screen shows and grows
-   * the picture to fill the window, any shape, no bars (expand: { maxW, maxH } stops it growing there). bg: the color
-   * behind everything, or null: the canvas is clear, and the game draws its HUD and menus over a picture under it (a 3D
-   * world, engine/my-3d2dge-3d.js).
-   * headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default): scenes
-   * update and draw is skipped; drive it with advance() and input.press / release / tap / hold. loop: false makes a game in
-   * a page that runs only by advance(). The standard features (section 10b) every game gets: menu: the pause, settings and
-   * controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out); fullscreen: 'tap' (a phone
-   * goes full screen at its first tap and when a game starts, unless the player turned it off), 'button' (only when
-   * asked) or false; corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a
-   * phone's back steps back in the game first (false: it leaves the page); autoPause: a pausable scene pauses when the
-   * page is hidden or loses focus; id: the name the player's settings are saved under (the page's path); pace: false
-   * draws every refresh of a fast display even when the frames can't keep up (by default it draws every other one, evenly),
-   * unless the player picks Frame rate 60; camera: the camera of every scene without its own (a scene's camera option:
-   * the player's zoom, start)
+   * fullscreen: 'tap', corner: true, backGesture: true, autoPause: true, id, pace, camera }). The standard features
+   * (section 10b) every game gets: menu, fullscreen, corner, backGesture, autoPause.
+   * - res: a fixed resolution ('ps1' or [w, h]), whole pixels
+   * - expand: true makes res the least the screen shows and grows the picture to fill the window, any shape, no bars
+   *   (expand: { maxW, maxH } stops it growing there)
+   * - bg: the color behind everything, or null: the canvas is clear, and the game draws its HUD and menus over a picture
+   *   under it (a 3D world, engine/my-3d2dge-3d.js)
+   * - headless: no screen, renderer, sound or DOM input (tests, tools, a simulation in Node, where it is the default):
+   *   scenes update and draw is skipped; drive it with advance() and input.press / release / tap / hold
+   * - loop: false makes a game in a page that runs only by advance()
+   * - menu: the pause, settings and controls screens ({ items, settings, controls, quit } adjusts them, false leaves them out)
+   * - fullscreen: 'tap' (a phone goes full screen at its first tap and when a game starts, unless the player turned it
+   *   off), 'button' (only when asked) or false
+   * - corner, backGesture: corner: the menu and full-screen buttons (top right; top left on a touch screen); backGesture: a
+   *   phone's back steps back in the game first (false: it leaves the page)
+   * - autoPause: a pausable scene pauses when the page is hidden or loses focus
+   * - id: the name the player's settings are saved under (the page's path)
+   * - pace: false draws every refresh of a fast display even when the frames can't keep up (by default it draws every
+   *   other one, evenly), unless the player picks Frame rate 60
+   * - camera: the camera of every scene without its own (a scene's camera option: the player's zoom, start)
    */
   constructor(o = {}) {
     o = Object.assign({}, o);
@@ -2422,16 +2426,18 @@ class Game {
    * Start the loop. Either one scene:  game.start({ update(dt), draw(r) })
    * or several:  game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' })
    * A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera }
-   * (all optional); view / views / input ('PLATFORMER') / res ('snes') / expand (true) / touch (['jump', 'attack']) are
-   * applied when it starts (res and expand stay until another scene sets them); back() takes a phone's back gesture
-   * (game.back()) first: return true when it went back somewhere (a sub-menu closed). camera: { zoom: [.75, 2], start: 1,
-   * tall: 1.5, wheel: true }: the player zooms the camera within zoom (the wheel, - and =, a pinch, Settings, Camera zoom:
-   * theirs, kept, on top of the game's; false or none: they can't; a function of the game: a range per screen shape,
-   * g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at (tall: on a screen held upright, game.upright; 1
-   * without); wheel: false leaves the mouse wheel to the game
-   * start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance().
-   * boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c):
-   * the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
+   * (all optional). start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only
+   * by advance().
+   * - view, views, input, res, expand, touch: a scene's, applied when it starts: input ('PLATFORMER'), res ('snes'),
+   *   expand (true), touch (['jump', 'attack']); res and expand stay until another scene sets them
+   * - back: a scene's back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a
+   *   sub-menu closed)
+   * - camera: a scene's { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the
+   *   wheel, - and =, a pinch, Settings, Camera zoom: theirs, kept, on top of the game's; false or none: they can't; a
+   *   function of the game: a range per screen shape, g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at
+   *   (tall: on a screen held upright, game.upright; 1 without); wheel: false leaves the mouse wheel to the game
+   * - boot: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the
+   *   steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
    */
   start(hooks) {
     if (hooks && hooks.boot !== undefined && !this._booting) return this._boot(hooks);
@@ -3039,7 +3045,8 @@ const BUILDS = {
 class Humanoid {
   /** new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a
    *  character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each
-   *  step, draw(g, ox, oy, view) inside r.actor */
+   *  step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style,
+   *  color }); hood: true */
   constructor(o = {}) {
     if (o.build && !BUILDS[o.build]) warn('build:' + o.build, 'Humanoid build "' + o.build + '" is unknown (chibi, heroic, bulky, skeleton)');
     o = Object.assign({}, BUILDS[o.build] || {}, o);
@@ -3120,6 +3127,9 @@ class Humanoid {
    * s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point }
    *   air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun)
    *   attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand
+   *   also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll),
+   *   pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die', stance: 'guard' | 'ready',
+   *   down: 0..1
    */
   update(dt, s = {}) {
     const o = this.o;
@@ -3897,9 +3907,12 @@ E.Combo = Combo;
  *   new E.Attack('overhead'), new E.Attack('thrust', { reach: 10 }), new E.Combo(['jab', 'cross', 'hook', 'uppercut'])
  *   rig.update(dt, { ..., attack: E.move('roundhouse', .5) })   // any move at any moment, for previews and cutscenes
  * The same move works on every build and in every view: heights are relative to the shoulders (rel: true), reaches scale
- * with arm length, and horizontal swings turn into screen-plane swings in side views. Spec fields: a0 / a1 angles (+ = the
- * right side, or up in the screen plane), z0 / z1 heights, reach or r0 / r1 (an extending thrust), hand: 'R' | 'L' | 'both',
- * plane: 'side' (always vertical), kick, spin, lunge, hop, crouch, lean, twist, hold, blade: 0 (no trail), wind / active / recover.
+ * with arm length, and horizontal swings turn into screen-plane swings in side views. A move's spec fields:
+ * - a0, a1, z0, z1: a0 / a1 angles (+ = the right side, or up in the screen plane), z0 / z1 heights
+ * - reach, r0, r1, hand, plane, blade: reach, or r0 / r1 (an extending thrust); hand: 'R' | 'L' | 'both', plane: 'side'
+ *   (always vertical), blade: 0 (no trail)
+ * - wind, active, recover: the phases' seconds
+ * - kick, spin, lunge, hop, crouch, lean, twist, hold: the body's motion (kick: true swings the right foot)
  */
 E.MOVES = {
   // blades, staves and clubs (the right hand)
@@ -4124,13 +4137,14 @@ class TileMap {
    *   { rows: [...ASCII...], legend: { '#': 1, '@': 'hero' }, types, floorTex }   (recommended)
    * or { w, h, cells: [ids...], floor: [tags...], blocked: [0 | 1...], types, floorTex } (built in code: fill, setFloor;
    * with no cells it starts as open floor).
-   * types[id] = { h, top, side, line, course, cut, cutH, face, roof }. floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow]
-   *   face: the wall's material (E.MATERIALS): 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' |
-   *     'hedge' | 'none' | any material id or '#hex pattern'
-   *   roof: the top's material: 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) | 'leaves' |
-   *     'grass' | any material id or '#hex pattern'
-   * floorMat: a material for the floor, floorMats: { tag: material } for tagged cells (in place of floorTex).
-   * block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry).
+   * - types: types[id] = { h, top, side, line, course, cut, cutH, face, roof }
+   * - types[id].face: the wall's material (E.MATERIALS): 'brick' (default) | 'stone' | 'rock' | 'plank' | 'timber' |
+   *     'plaster' | 'hedge' | 'none' | any material id or '#hex pattern'
+   * - types[id].roof: the top's material: 'speckle' (default) | 'plain' | 'tiles' (roof shingles) | 'slab' (paving) |
+   *     'leaves' | 'grass' | any material id or '#hex pattern'
+   * - floorTex: floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow]
+   * - floorMat, floorMats: a material for the floor, floorMats: { tag: material } for tagged cells (in place of floorTex)
+   * - block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry)
    */
   constructor(o = {}) {
     /** T: the tile size in world units (16) */
@@ -4832,12 +4846,14 @@ TileMap.prototype._floorColor = function (id, x, y, tag, view) {
 class FlowField {
   /**
    * new E.FlowField(map, { step: 2, climb: 0, drop: 0, jump: 0 }): distances over the tops a body can stand on (E.HEIGHTS).
-   * Next-door cells connect when their tops differ by at most step, or going up by up to climb and down by up to drop (agents
-   * that climb walls or hop down). jump (world units) links tops across a gap that a jump clears, straight along a row or
-   * column, by map.landing's rules (up to jumpRise higher, 11, and jumpDrop lower, 18): an agent with E.Mover's leap chases
-   * across roofs. With jump, distances are travel: a jump of k cells costs k, and a climb 1 plus its rise in cells (climbing
-   * is slow), so a chase leaps a gap rather than drop into the street and climb back up. With no options it covers the floor as before (and walls no higher than step, which bodies walk over); a
-   * target on a roof gets a field across the roofs it connects to
+   * With no options it covers the floor (and walls no higher than step, which bodies walk over); a target on a roof gets a
+   * field across the roofs it connects to
+   * - step, climb, drop: next-door cells connect when their tops differ by at most step, or going up by up to climb and
+   *   down by up to drop (agents that climb walls or hop down)
+   * - jump: (world units) links tops across a gap that a jump clears, straight along a row or column, by map.landing's
+   *   rules (up to jumpRise higher, 11, and jumpDrop lower, 18): an agent with E.Mover's leap chases across roofs. With
+   *   jump, distances are travel: a jump of k cells costs k, and a climb 1 plus its rise in cells (climbing is slow), so a
+   *   chase leaps a gap rather than drop into the street and climb back up
    */
   constructor(map, o = {}) {
     /** map: the map it paths over; d: each cell's distance in steps to the target cell (1e9 where it can't get
@@ -5017,7 +5033,8 @@ MATERIALS.grass.floor = (x, y) => E.tex.grass(x, y); MATERIALS.plain.floor = (x,
 const PT_DEFAULT = { kind: 'solid', style: 'block', side: '#8a7a9a' };
 const PT_STYLE_FOR_KIND = { oneway: 'plank', ladder: 'ladder', hazard: 'spikes', slope: 'ground' };
 class PlatformMap {
-  /** { rows: [...ASCII, top row first...], legend: { '#': 1, '@': 'hero' }, types: { 1: {...} }, tile: 16, depth: 16 } */
+  /** { rows: [...ASCII, top row first...], legend: { '#': 1, '@': 'hero' }, types: { 1: {...} }, tile: 16, depth: 16 }.
+   *  Tile kinds: 'solid' (default) | 'oneway' | 'ladder' | 'slope' | 'hazard' | 'deco' | 'back' */
   constructor(o = {}) {
     /** T: the tile size (16); depth: how deep tiles are drawn in tilted views, world units (the tile size) */
     this.T = o.tile || 16; this.depth = o.depth === undefined ? this.T : o.depth;
@@ -5531,7 +5548,8 @@ E.Body = Body;
  * ============================================================================= */
 const _dir = d => typeof d === 'number' ? d : Math.atan2(d[1], d[0]);
 const _p = (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), z: lerp(a.z || 0, b.z || 0, u) });
-/** the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at } */
+/** the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at }.
+ *  Play one: mover.play('takedown', { other }) */
 const ACTIONS = {
   /** onto a ledge (o.to: a map.ledge result): reach and hang below the edge, pull up, stand. reverse: climb down from it to o.from */
   climbUp: {
@@ -5711,7 +5729,8 @@ E.Action = Action;
 class Mover extends Body {
   /**
    * new E.Mover({ x, y, z, r: 5, walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220,
-   * coyote: .1, buffer: .12, climb: true, climbMax: 82, vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14 })
+   * coyote: .1, buffer: .12, climb: true, climbMax: 82, vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14 }).
+   * An E.Body: it has body.jump, push and the body's fields too
    */
   constructor(o = {}) {
     super(Object.assign({ r: 5 }, o));
@@ -5864,7 +5883,8 @@ class Suspicion {
   /**
    * new E.Suspicion({ rise: 1.5, decay: .3, notice: .3, search: .65, alert: 1, forget: 6 }): a guard's mind. Its level rises
    * while it sees the target (faster the more exposed and nearer), decays while it doesn't, and names a state: 'calm', 'notice'
-   * (turn and look), 'search' (go to last), 'alert' (chase). An alert guard that loses the target searches for forget seconds
+   * (turn and look), 'search' (go to last), 'alert' (chase). An alert guard that loses the target searches for forget seconds.
+   * Each step: suspicion.update(dt, seen, target)
    */
   constructor(o = {}) {
     /** level: 0..1.2, how suspicious; rise, decay: per second; notice, search, alert: the levels where each state starts;
@@ -6266,7 +6286,8 @@ const BACKDROPS = {
 class Backdrop {
   /** new E.Backdrop('castle-night') (a preset: E.Backdrop.presets) or new E.Backdrop({ sky: [colors top to bottom],
    *  sun, moon, stars, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' |
-   *  'fog' | 'stalactites', color, y, height, parallax, seed }] }): a parallax sky and scenery drawn behind a level */
+   *  'fog' | 'stalactites', color, y, height, parallax, seed }] }): a parallax sky and scenery drawn behind a level.
+   *  sun, moon: { x, y (0..1 of the screen), r, color } */
   constructor(o = {}) {
     if (typeof o === 'string') { const p = BACKDROPS[o]; if (!p) warn('backdrop:' + o, 'unknown backdrop preset "' + o + '". Presets: ' + Object.keys(BACKDROPS).join(', ')); o = p || BACKDROPS.day; }
     /** o: the options it was made from; sky: the sky's gradient colors, top to bottom; layers: its scenery layers,
@@ -6992,13 +7013,14 @@ E.shapeInfo = (id, o = {}) => {
 };
 /**
  * a shape's triangles, for a 3D renderer (the 3D engine's world.shape): E.shapeMesh(id | entry, { params, mats, seg })
- * -> { groups: [{ mat (the material ready to draw: E.material's), key (its id), lid (true: the faces looking up or down,
- * which some patterns draw their own way), curved (turned or round faces: planks run up them), face (a pattern drawn
- * once per face, the crate's sides and bark's ends: uv runs 0 to 1 across each face), pos, nrm, uv (Float32Arrays: three
- * numbers a corner, three corners a triangle; uv two a corner, world units across the surface) }], bounds [x0, y0, z0,
- * x1, y1, z1] } in the entry's own units and
- * frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). seg(r): the
- * segments round a radius r (default 8 to 24). The same parts as r.shape draws; null for an unknown shape
+ * -> { groups: [{ mat, key, lid, curved, face, pos, nrm, uv }], bounds [x0, y0, z0, x1, y1, z1] } in the entry's own
+ * units and frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). The
+ * same parts as r.shape draws; null for an unknown shape
+ * - seg: seg(r): the segments round a radius r (default 8 to 24)
+ * - → groups: each one's mat (the material ready to draw: E.material's), key (its id), lid (true: the faces looking up or
+ *   down, which some patterns draw their own way), curved (turned or round faces: planks run up them), face (a pattern
+ *   drawn once per face, the crate's sides and bark's ends: uv runs 0 to 1 across each face), pos, nrm, uv
+ *   (Float32Arrays: three numbers a corner, three corners a triangle; uv two a corner, world units across the surface)
  */
 E.shapeMesh = (id, o = {}) => {
   const S = shapeOf(id); if (!S) return null;
@@ -7266,6 +7288,7 @@ class Dialog {
    * open with one string or a list of strings (each starts a new page).
    * opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size),
    *         portraitSize: 40, portraitOpts: { zoom, turn, bg } }
+   * choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked
    */
   say(text, o = {}) {
     /** portrait: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size
@@ -7483,12 +7506,14 @@ const actionName = a => { const t = String(a).replace(/([a-z])([A-Z0-9])/g, '$1 
 class Shell {
   /**
    * new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings',
-   * meters: .125, standard: true }): an HTML interface over the game (see the section's header). theme: CSS variables (ink,
-   * paper, accent, muted, danger, line, font, titleFont); screens: specs ui.show(name) starts from (the pause screen
-   * follows game.paused; screens: { pause: false } leaves it out); settings.items: the game's own settings, { key, label,
-   * type: 'toggle' | 'slider' | 'select', min, max, step, options, value } (kept in game.settings, beside the standard
-   * ones); store: where an older version saved them; meters: meters per world unit for distances; standard: false leaves
-   * out the standard menu (the pause screen's Settings, Controls, Full screen and Quit, and the settings' groups)
+   * meters: .125, standard: true }): an HTML interface over the game (see the section's header)
+   * - theme: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont)
+   * - screens: specs ui.show(name) starts from (the pause screen follows game.paused; screens: { pause: false } leaves it out)
+   * - settings: settings.items: the game's own settings, { key, label, type: 'toggle' | 'slider' | 'select', min, max,
+   *   step, options, value } (kept in game.settings, beside the standard ones)
+   * - store, meters: store: where an older version saved them; meters: meters per world unit for distances
+   * - standard: false leaves out the standard menu (the pause screen's Settings, Controls, Full screen and Quit, and the
+   *   settings' groups)
    */
   constructor(game, o = {}) {
     if (game.shell && game.shell._sys && !o.system) game.shell.dispose();   // the game's own shell takes over from the engine's
@@ -7528,10 +7553,12 @@ class Shell {
   _menu() { return this._std; }
   /** open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over
    *  o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act,
-   *  primary, disabled }], back (fn for cancel) }; title: { name, subtitle, meta: [...], footer }; settings: its items;
-   *  help: { keys: [[key, what]], sections: [[heading, text]] }; results: { emblem, stats: [[value, label]], medals:
-   *  [[label, earned]] }; map: { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) }. From
-   *  another screen it stacks (back() returns); shown again, it updates (the new spec over the old) */
+   *  primary, disabled }], back (fn for cancel) }. From another screen it stacks (back() returns); shown again, it updates
+   *  (the new spec over the old). 'settings' takes its items
+   *  - 'title': { name, subtitle, meta: [...], footer }
+   *  - 'help': { keys: [[key, what]], sections: [[heading, text]] }
+   *  - 'results': { emblem, stats: [[value, label]], medals: [[label, earned]] }
+   *  - 'map': { map, at, markers (a list or a function), labels: [[text, x, y]], onPick(x, y) } */
   show(name, spec = {}) {
     const top = this._stack[this._stack.length - 1], again = top && top.name === name, s = Object.assign({}, this.o.screens && this.o.screens[name], again ? top.s : null, spec);
     if (again) this._stack.pop();   // the same screen again: updated in place
@@ -7589,13 +7616,15 @@ class Shell {
   }
   /**
    * the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn):
-   * { objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below),
-   *   status: 'UNSEEN' or { text, color }, bars: [{ label, value, max, kind: 'bar' | 'pips', color }],
-   *   counts: [[label, value]], prompt: { key: 'E' (or act: 'interact': its key on the player's device), label, hint,
-   *   progress: 0..1 }, tip: 'text' or { title, text },
-   *   place: 'The Old Harbour', keys: [['WASD', 'Move'], ...] (hidden on touch screens), buttons: [[label, fn or action]]
-   *   (top right: pause and map where there is no Escape key),
-   *   minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick } }
+   * { objective, status, bars, counts, prompt, tip, place, keys, buttons, minimap }
+   * - objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below)
+   * - status, place, tip: status: 'UNSEEN' or { text, color }; place: 'The Old Harbour'; tip: 'text' or { title, text }
+   * - bars, counts: bars: [{ label, value, max, kind: 'bar' | 'pips', color }] (health, stamina, a meter); counts: [[label,
+   *   value]]
+   * - prompt: { key: 'E' (or act: 'interact': its key on the player's device), label, hint, progress: 0..1 }
+   * - keys, buttons: keys: [['WASD', 'Move'], ...] (hidden on touch screens); buttons: [[label, fn or action]] (top right:
+   *   pause and map where there is no Escape key)
+   * - minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick }
    */
   hud(st = {}) {
     if (!this.root) return this;

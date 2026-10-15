@@ -5,11 +5,18 @@
 // Names the agent edition doesn't have are marked. Agents search it; nobody reads it whole. The cards (API.md, the agent
 // edition's header) stay the overviews and point here.
 //   node tools/api-index.mjs            write API-INDEX.md
-//   node tools/api-index.mjs --check    exit 1 when API-INDEX.md is not what the engine gives, or a public name has no
-//                                      description (doctrine-check runs this): document the name, or make it private (_)
+//   node tools/api-index.mjs --check    exit 1 when API-INDEX.md is not what the engine gives, a public name has no
+//                                      description (document the name, or make it private: _), or a lookup of
+//                                      tools/api-index-lookups.json stops answering (doctrine-check runs all three)
+//   node tools/api-index.mjs --lookups  each lookup: its searches, the lines and tokens its hits hold, the facts missing
 //   node tools/api-index.mjs --missing  list the public names without a description, by section
 // A doc comment above a line that defines several fields describes each one in a clause of its own: "name: what it is;"
 // or "name = what it is;" (the camera's fields are written this way).
+// A doc comment's options, one to a line as "- name: what it does" (or "- a, b: ...", with the lines under it that start
+// no other), become lines of their own named by their owner: `new E.Game({ expand })`, `shell.show('help')` for
+// "- 'help': ...", `E.shapeMesh() → groups` for "- → groups: ..."; a long description splits so a search finds the clause.
+// A constructor's line ends with the name its instances go by (`new E.Attack(...) → slash`: its methods are slash.*), and
+// a contents block after the examples gives each section's line and its classes' instance names.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,16 +76,29 @@ function scan(src) {
   return { L, sections, section, top, classes, spaces, members };
 }
 
+// an option's line in a doc comment: "- name: what it does", "- a, b: ...", "- 'title': ...", "- → result: ..."
+const OPT = /^- ((?:→ )?[\w.[\]']+(?:, [\w.[\]']+)*): (.*)$/;
+/** the doc comment ending just above line i, its lines without the stars: [the description's lines, [names, text] for each
+ *  option], or null. Up to the comment's opening: a doc comment (/**) describes the name; a section banner (/* ====) or
+ *  any other block comment doesn't (a name right under a banner once took the doc comment above the banner) */
+function block(L, i) {
+  let j = i - 1; if (!(j >= 0 && /\*\/\s*$/.test(L[j]))) return null;
+  const end = j; while (j >= 0 && !/^\s*\/\*/.test(L[j])) j--;
+  if (!(j >= 0 && /^\s*\/\*\*/.test(L[j]))) return null;
+  const lines = L.slice(j, end + 1).join('\n').replace(/^\s*\/\*\*\s?/, '').replace(/\s*\*\/\s*$/, '').split('\n').map(l => l.replace(/^\s*\*\s?/, ''));
+  const main = [], opts = [];
+  for (const l of lines) { const m = OPT.exec(l.trim()); if (m) opts.push([m[1], m[2]]); else if (opts.length) opts[opts.length - 1][1] += ' ' + l; else main.push(l); }
+  return [main, opts.map(([n, t]) => [n, clean(t)])];
+}
+/** the options of the doc comment above line i (block's), [] without */
+const optsAt = (S, i) => { const b = i === undefined || i === null ? null : block(S.L, i); return b ? b[1] : []; };
 /** the doc comment above line i (/** ... *\/ or // lines), or the // comment at its end. For a line that defines several
  *  names, only the clause about `name` ("name: ..." or "name = ...") */
 function docAt(S, i, name, shared) {
   const L = S.L; let doc = '';
   let j = i - 1;
   if (j >= 0 && /\*\/\s*$/.test(L[j])) {
-    // up to the comment's opening: a doc comment (/**) describes the name; a section banner (/* ====) or any other block
-    // comment doesn't (a name right under a banner once took the doc comment above the banner)
-    const end = j; while (j >= 0 && !/^\s*\/\*/.test(L[j])) j--;
-    if (j >= 0 && /^\s*\/\*\*/.test(L[j])) doc = L.slice(j, end + 1).join('\n').replace(/^\s*\/\*\*\s?/, '').replace(/\s*\*\/\s*$/, '').split('\n').map(l => l.replace(/^\s*\*\s?/, '')).join(' ');
+    const b = block(L, i); if (b) doc = b[0].join(' ');
   } else if (j >= 0 && /^\s*\/\/(?! -{4})/.test(L[j])) {
     const out = []; while (j >= 0 && /^\s*\/\/(?! -{4})/.test(L[j])) out.unshift(L[j--].replace(/^\s*\/\/\s?/, ''));
     doc = out.join(' ');
@@ -136,9 +156,17 @@ function initial(line, name) {
 /* ---- the index ---- */
 export function build() {
   const F = scan(readFileSync(join(root, FULL), 'utf8')), A = scan(readFileSync(join(root, AGENT), 'utf8'));
-  const E = load(FULL), EA = load(AGENT), entries = [], missing = [];
+  const E = load(FULL), EA = load(AGENT), entries = [], missing = [], insts = [];
   const isClass = v => typeof v === 'function' && /^class\b/.test(Function.prototype.toString.call(v));
   const add = (sec, sig, doc, agent, key, line) => { entries.push({ sec, sig, doc, agent, key, line }); if (!doc) missing.push({ sec: sec ? sec.n + '. ' + sec.title : '?', key, line }); };
+  // the options in the doc comment above line i, each a line of its own after its owner's: owner({ a, b }) for a call,
+  // owner { a, b } for a table, owner('title') for a quoted name, owner() → x for what it returns
+  const addOpts = (sec, owner, call, i, agent, key) => {
+    for (const [n, text] of optsAt(F, i)) {
+      const sig = n.startsWith('→ ') ? `${owner}() ${n}` : /^'/.test(n) ? `${owner}(${n})` : call ? `${owner}({ ${n} })` : `${owner} { ${n} }`;
+      add(sec, sig, text, agent, key + ' ' + n, i); entries[entries.length - 1].opt = true;
+    }
+  };
   // where E.k is defined: E.k = ..., or a local that Object.assign(E, { k }) or E.k = k exported
   const defOf = (S, k) => {
     if (S.top.has('E.' + k)) { const i = S.top.get('E.' + k), id = /^E\.\w+ = (\w+);/.exec(S.L[i]); return id && S.top.has(id[1]) ? [S.top.get(id[1]), id[1], i] : [i, k, i]; }
@@ -154,7 +182,8 @@ export function build() {
     if (isClass(v)) {
       const cname = d ? d[1] : k, inst = INST[k] || k.toLowerCase(), mem = F.members(cname), amem = A.members(cname), ctor = mem && [...F.L.slice(F.classes.get(cname).at, F.classes.get(cname).end)].findIndex(l => /^ {2}constructor\s*\(/.test(l));
       const ci = ctor >= 0 ? F.classes.get(cname).at + ctor : -1, cdoc = (ci >= 0 && docAt(F, ci, 'constructor')) || docOf(F, d);
-      add(sec, `new E.${k}(${ci >= 0 ? params(F.L[ci], 'constructor') || '' : ''})`, cdoc, inAgent, 'E.' + k, ci >= 0 ? ci : d && d[0]);
+      add(sec, `new E.${k}(${ci >= 0 ? params(F.L[ci], 'constructor') || '' : ''}) → ${inst}`, cdoc, inAgent, 'E.' + k, ci >= 0 ? ci : d && d[0]);
+      addOpts(sec, `new E.${k}`, true, ci >= 0 && docAt(F, ci, 'constructor') ? ci : d && d[0], inAgent, 'E.' + k); insts.push({ sec, name: 'E.' + k, inst });
       for (const s of Object.getOwnPropertyNames(v).filter(s => !['length', 'name', 'prototype'].includes(s) && !s.startsWith('_')).sort()) {
         const i = F.top.get(cname + '.' + s) ?? (mem && mem.methods.get(s)), val = v[s];
         add(sec, `E.${k}.${s}` + (typeof val === 'function' ? `(${i !== undefined ? params(F.L[i], s) || '' : ''})` : ''), i !== undefined ? docAt(F, i, s) : '', inAgent && EA[k] && s in EA[k], `E.${k}.${s}`, i);
@@ -164,6 +193,7 @@ export function build() {
       for (const m of protoNames.sort()) {
         const i = mem.methods.get(m), get = i !== undefined && /^ {2}(?:static\s+)?get\s/.test(F.L[i]);
         add(sec, `${inst}.${m}` + (get ? '' : `(${i !== undefined ? params(F.L[i], m) || '' : ''})`), i !== undefined ? docAt(F, i, m) : '', !!(amem && amem.methods.has(m)), `${k}#${m}`, i);
+        addOpts(sec, `${inst}.${m}`, !get, i, !!(amem && amem.methods.has(m)), `${k}#${m}`);
       }
       for (const [f, i] of [...mem.fields].filter(([f]) => !f.startsWith('_') && !protoNames.includes(f)).sort((a, b) => a[0] < b[0] ? -1 : 1)) {
         const shared = (F.L[i].match(/this\.(?!_)\w+\s*=(?![=>])/g) || []).length > 1 || /Object\.assign\(this/.test(F.L[i]), dv = mem.defaults.get(f);
@@ -186,20 +216,22 @@ export function build() {
       }
     } else if (typeof v === 'function') {
       add(sec, `E.${k}(${d ? params(F.L[d[0]], d[1]) ?? params(F.L[d[2]], k) ?? '' : ''})`, docOf(F, d), inAgent, 'E.' + k, d && d[0]);
+      if (d) addOpts(sec, `E.${k}`, true, docAt(F, d[0], d[1], d[3]) ? d[0] : d[2], inAgent, 'E.' + k);
     } else {
-      // a value or a table: its keys, briefly
-      const keys = Array.isArray(v) ? v.length + ' entries' : v && typeof v === 'object' ? Object.keys(v).slice(0, 14).join(', ') + (Object.keys(v).length > 14 ? ', ... (' + Object.keys(v).length + ')' : '') : JSON.stringify(v);
+      // a value or a table: its keys, briefly; a short list of names in full (E.PROPS, E.VIEW_ORDER)
+      const keys = Array.isArray(v) ? (v.every(x => typeof x === 'string') && v.join(', ').length <= 400 ? v.join(', ') : v.length + ' entries') : v && typeof v === 'object' ? Object.keys(v).slice(0, 14).join(', ') + (Object.keys(v).length > 14 ? ', ... (' + Object.keys(v).length + ')' : '') : JSON.stringify(v);
       add(sec, `E.${k}` + (keys ? ': ' + keys : ''), docOf(F, d), inAgent, 'E.' + k, d && d[0]);
+      if (d) addOpts(sec, `E.${k}`, false, d[0], inAgent, 'E.' + k);
     }
   }
-  return { E, F, entries, missing };
+  return { E, F, entries, missing, insts };
 }
 
 /** the index's text */
-export function render({ E, F, entries }) {
+export function render({ E, F, entries, insts }) {
   const H = E.HEIGHTS, out = [];
   out.push(`# my-3D2dge API index (v${E.version})`, '',
-    `Every public name in \`engine/my-3d2dge.js\`, one line each: its signature (and default, for a field) and what its doc comment says. Written by \`node tools/api-index.mjs\` from the engine itself; \`doctrine-check\` fails when a public name has no description here. Search it for a name; \`API.md\` and the agent edition's header are the overviews. † marks a name the agent edition (\`my-3d2dge-agent.js\`) doesn't have.`, '',
+    `Every public name in \`engine/my-3d2dge.js\`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: \`new E.Game({ expand })\`). Written by \`node tools/api-index.mjs\` from the engine itself; \`doctrine-check\` fails when a public name has no description here. Search it for a name; \`API.md\` and the agent edition's header are the overviews. † marks a name the agent edition (\`my-3d2dge-agent.js\`) doesn't have.`, '',
     '## Units and the height rules', '',
     '| Quantity | Unit |', '| --- | --- |',
     '| Distances, positions, sizes in the world | world units: one floor tile is 16; x east, y south, z up |',
@@ -232,13 +264,52 @@ export function render({ E, F, entries }) {
   const bySec = new Map();
   for (const e of entries) { const k = e.sec ? e.sec.n : '?'; if (!bySec.has(k)) bySec.set(k, { sec: e.sec, list: [] }); bySec.get(k).list.push(e); }
   const order = [...bySec.values()].sort((a, b) => (a.sec ? F.sections.indexOf(a.sec) : -1) - (b.sec ? F.sections.indexOf(b.sec) : -1));
+  const body = [], at = [];
   for (const { sec, list } of order) {
-    out.push(`## ${sec ? sec.n + '. ' + sec.title.charAt(0) + sec.title.slice(1).toLowerCase() : 'The engine object (E = My3D2dge)'}`, '');
-    for (const e of list) out.push(`- \`${e.sig.replace(/`/g, "'")}\`${e.agent ? '' : ' †'}${e.doc ? ': ' + e.doc : ''}`);
-    out.push('');
+    const title = sec ? sec.n + '. ' + sec.title.charAt(0) + sec.title.slice(1).toLowerCase() : 'The engine object (E = My3D2dge)';
+    at.push({ sec, title: sec ? title.replace(/^\d+b?\. /, '') : title, line: body.length }); body.push(`## ${title}`, '');
+    for (const e of list) body.push(`- \`${e.sig.replace(/`/g, "'")}\`${e.agent ? '' : ' †'}${e.doc ? ': ' + e.doc : ''}`);
+    body.push('');
   }
+  // the contents: each section's line, and the name its classes' instances go by (their members are listed under it)
+  const intro = ['## Contents', '', 'The line each section starts on, and the name its classes\' instances go by: `E.Attack: slash` lists its members as `slash.start`.', ''];
+  const first = out.length + intro.length + at.length + 1;   // (the contents' own lines, and a blank one, come first)
+  out.push(...intro, ...at.map(({ sec, title, line }) => {
+    const own = (insts || []).filter(c => c.sec === sec).map(c => c.name + ': ' + c.inst);
+    return `- ${first + line + 1} ${title}${own.length ? '; ' + own.join(', ') : ''}`;
+  }), '', ...body);
   return out.join('\n');
 }
+
+/** a grep pattern (basic regular expressions, as grep -n "<pattern>" reads it: \\| is or) as a JavaScript one */
+function bre(p) {
+  let out = '';
+  for (let k = 0; k < p.length; k++) {
+    const ch = p[k];
+    if (ch === '\\' && k + 1 < p.length) { const nx = p[++k]; out += '|(){}+?'.includes(nx) ? nx : '\\' + nx; }
+    else out += '|(){}+?'.includes(ch) ? '\\' + ch : ch;
+  }
+  return new RegExp(out);
+}
+/** the lookups of tools/api-index-lookups.json against the index's text: for each, its hits (grep -n's lines) and the
+ *  facts they don't hold */
+export function lookups(text, file = join(root, 'tools/api-index-lookups.json')) {
+  const L = text.split('\n'), spec = JSON.parse(readFileSync(file, 'utf8'));
+  return spec.lookups.map(q => {
+    const hits = q.grep.map(g => { const re = bre(g); return L.map((l, i) => re.test(l) ? `${i + 1}:${l}` : null).filter(Boolean); });
+    const all = hits.flat().join('\n');
+    return Object.assign({}, q, { hits, missing: q.facts.filter(f => !all.includes(f)) });
+  });
+}
+/** a line about the lookups (and the problems: the ones that stop answering) */
+export function lookupReport(text) {
+  const R = lookups(text), bad = R.filter(r => r.missing.length || r.hits.some(h => !h.length)), one = R.filter(r => r.grep.length === 1 && !bad.includes(r)).length;
+  return { line: `${R.length - bad.length} of ${R.length} lookups answered (${one} by one search)`,
+    problems: bad.map(r => `lookup ${r.n} (${r.need}: ${r.grep.map(g => `grep "${g}"`).join(', then ')}) no longer finds ${r.missing.length ? r.missing.map(f => JSON.stringify(f)).join(', ') : 'anything'}: give the index those facts again (a doc comment in the engine), or change the lookup in tools/api-index-lookups.json if the API changed`) };
+}
+
+/** how many public names (an option's line is not one) */
+export const names = r => r.entries.filter(e => !e.opt).length;
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
@@ -250,15 +321,23 @@ if (isMain) {
     console.log(`${r.missing.length} of ${r.entries.length} public names have no description`);
     process.exit(0);
   }
+  if (has('lookups')) {
+    let tok = s => Math.ceil(s.length / 3.29); try { const { encode } = await import('gpt-tokenizer/encoding/cl100k_base'); tok = s => encode(s).length; } catch (e) { /* estimated */ }
+    let sum = 0;
+    for (const q of lookups(text)) { const t = q.hits.map(h => tok(h.join('\n') + '\n')); sum += t.reduce((a, b) => a + b, 0); console.log(`${String(q.n).padStart(2)} ${q.need}: ${q.grep.map((g, i) => `"${g}" ${q.hits[i].length} lines, ${t[i]} tokens`).join('; then ')}${q.missing.length ? '; MISSING ' + q.missing.join(', ') : ''}`); }
+    console.log(lookupReport(text).line + `; their hits hold ${sum} tokens`);
+    process.exit(0);
+  }
   if (has('check')) {
     const now = existsSync(join(root, OUT)) ? readFileSync(join(root, OUT), 'utf8') : '';
-    const problems = [];
+    const problems = [], lk = lookupReport(text);
     if (r.missing.length) problems.push(`${r.missing.length} public name(s) have no description (a doc comment above, or a // comment at the end of the line): ${r.missing.slice(0, 12).map(m => m.key).join(', ')}${r.missing.length > 12 ? ', ...' : ''} (node tools/api-index.mjs --missing lists them; document them, or make them private with _)`);
     if (now !== text) problems.push(`${OUT} is out of date with the engine: run node tools/api-index.mjs`);
+    problems.push(...lk.problems);
     if (problems.length) { console.log(problems.join('\n')); process.exit(1); }
-    console.log(`${OUT}: ${r.entries.length} public names, every one described`);
+    console.log(`${OUT}: ${names(r)} public names, every one described; ${lk.line}`);
     process.exit(0);
   }
   writeFileSync(join(root, OUT), text);
-  console.log(`wrote ${OUT}: ${r.entries.length} public names${r.missing.length ? `, ${r.missing.length} without a description (--missing lists them)` : ''}`);
+  console.log(`wrote ${OUT}: ${names(r)} public names${r.missing.length ? `, ${r.missing.length} without a description (--missing lists them)` : ''}`);
 }
