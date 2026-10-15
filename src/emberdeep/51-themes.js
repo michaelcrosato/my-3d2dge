@@ -379,12 +379,13 @@ function WLD_prop(L0, name, x, y, o = {}) { const oo = Object.assign({}, o); if 
  *  drawn in its turn as props are, by r.shape), facing a way of its own from where it stands. o: { size (its scale), color
  *  (its main slot's material in this color, hue-shifted for the level: o.slot, else the entry's first), facing, mats,
  *  params } */
+const WLD_SHAPE_K = { barrel: .8, crate: .75 };
 function WLD_shape(L0, id, x, y, o = {}) {
   const S = E.SHAPES[id]; if (!S) return;
   const mats = Object.assign({}, o.mats), slot = o.slot || Object.keys(S.mats || {})[0], m = slot && E.material(S.mats[slot]);
   if (o.color && m) mats[slot] = Object.assign({}, m.q, { color: WLD_c(L0, o.color), ramp: undefined });
-  // (sizes in steps of a sixteenth: one picture serves many)
-  const so = { facing: o.facing === undefined ? E.hash2(Math.round(x), Math.round(y)) * TAU : o.facing, scale: Math.round((o.size || 1) * 16) / 16, mats, params: o.params };
+  // (sizes in steps of a sixteenth: one picture serves many; barrels and crates a little under the shapes' own size, as the props were)
+  const k = (o.size || 1) * (WLD_SHAPE_K[id] || 1), so = { facing: o.facing === undefined ? E.hash2(Math.round(x), Math.round(y)) * TAU : o.facing, scale: Math.round(k * 16) / 16, mats, params: o.params };
   L0.props.push({ name: id, shape: id, x, y, z: o.z || 0, o: { size: o.size || 1 }, so });
 }
 /** a living decoration: a thing that draws and ticks. Never hittable; solid only when it is big enough to walk around */

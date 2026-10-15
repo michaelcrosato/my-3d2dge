@@ -32,7 +32,7 @@ const STEALTH = (() => {
     '############################'],
     legend: { '#': 1, A: 2, B: 3, C: 4, D: 5, E: 6, F: 7, G: 8, T: 9, p: 10, ',': { floor: 'grass' }, '@': 'hero', X: 'exit' },
     types: {
-      1: { h: 64, top: '#3a3448', side: '#5a5068', face: 'cobble', roof: 'plain', cut: true, cutH: 6 },   // the city wall drops low on the camera's side; face: a MATERIAL (docs/ASSETS.md)
+      1: { h: 64, top: '#3a3448', side: '#5a5068', face: 'stone', roof: 'plain', cut: true, cutH: 6 },   // the city wall drops low on the camera's side
       2: { h: 40, top: '#8a4a3a', side: '#c8b89a', face: 'plaster', roof: 'tiles', windows: { lit: .3 }, shutters: '#2a5a8a', door: { chance: .4 } },
       3: { h: 48, top: '#5a4a3a', side: '#9a6a4a', face: 'brick', roof: 'slab', windows: { lit: .2 }, balcony: { z: 30, color: '#3a2a1e' } },
       4: { h: 40, top: '#4a6a3a', side: '#b8a888', face: 'timber', roof: 'tiles', arch: { chance: .5 }, windows: true },
@@ -40,7 +40,7 @@ const STEALTH = (() => {
       6: { h: 48, top: '#6a5a6a', side: '#7a7a8a', face: 'stone', roof: 'plain', windows: { w: 4, h: 12, lit: .15 } },
       7: { h: 40, top: '#8a5a3a', side: '#c8a888', face: 'plaster', roof: 'tiles', windows: true, shutters: '#6a3a2a', balcony: { z: 24 } },
       8: { h: 24, top: '#4a6a3a', side: '#a89878', face: 'timber', roof: 'tiles', arch: { chance: .6 } },
-      9: { h: 72, top: '#7a6a5a', side: '#a89878', face: 'stone', roof: 'plain', windows: { w: 3, h: 10, step: 22, lit: .5 } },
+      9: { h: 72, top: '#7a6a5a', side: '#a89878', face: 'sandstone', roof: 'plain', windows: { w: 3, h: 10, step: 22, lit: .5 } },   // the belfry: face, a MATERIAL (docs/ASSETS.md)
       10: { h: 10, top: '#3e7a3a', side: '#5a4a32', face: 'plank', roof: 'leaves' } },
     floorTex: (x, y, tag) => tag === 'grass' ? E.tex.grass(x, y, { base: '#3e6a32', dark: '#2a5226', light: '#5a8a42' }) : E.tex.flagstone(x, y, PAVE)
   });
