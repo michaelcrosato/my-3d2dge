@@ -5512,9 +5512,9 @@ const ACTIONS = {
   climbUp: {
     beats: [['hang', .28], ['pull', .42], ['stand', .2]], cancel: ['hang'],
     setup(A) {
-      if (!A._o.to) throw new Error('E.Action("climbUp") needs { to }: a ledge, as map.ledge(body, dir) gives it (null means there is none to climb)');
-      const L = A._o.to, f = A._o.from || A.start, a = L.facing !== undefined ? L.facing : Math.atan2(L.y - f.y, L.x - f.x), c = Math.cos(a), s = Math.sin(a), r = A.body.r || 5;
-      const reach = A._o.reach === undefined ? 30 : A._o.reach, ex = L.edge ? L.edge[0] : L.x - c * (r + 1), ey = L.edge ? L.edge[1] : L.y - s * (r + 1);
+      if (!A.o.to) throw new Error('E.Action("climbUp") needs { to }: a ledge, as map.ledge(body, dir) gives it (null means there is none to climb)');
+      const L = A.o.to, f = A.o.from || A.start, a = L.facing !== undefined ? L.facing : Math.atan2(L.y - f.y, L.x - f.x), c = Math.cos(a), s = Math.sin(a), r = A.body.r || 5;
+      const reach = A.o.reach === undefined ? 30 : A.o.reach, ex = L.edge ? L.edge[0] : L.x - c * (r + 1), ey = L.edge ? L.edge[1] : L.y - s * (r + 1);
       A.facing = a; A.top = L.z; A.from = f;
       A.hang = { x: ex - c * r * .8, y: ey - s * r * .8, z: Math.max(f.z || 0, L.z - reach) };   // against the wall, the hands on its top
       A.lip = { x: ex + c * 2, y: ey + s * 2, z: L.z };   // a knee on the edge
@@ -5534,8 +5534,8 @@ const ACTIONS = {
   vault: {
     beats: [['plant', .1], ['over', .26], ['land', .14]],
     setup(A) {
-      if (!A._o.to) throw new Error('E.Action("vault") needs { to }: the spot beyond the wall');
-      const f = A.start, t = A._o.to, top = A._o.top === undefined ? Math.max(f.z || 0, t.z || 0) + 8 : A._o.top;
+      if (!A.o.to) throw new Error('E.Action("vault") needs { to }: the spot beyond the wall');
+      const f = A.start, t = A.o.to, top = A.o.top === undefined ? Math.max(f.z || 0, t.z || 0) + 8 : A.o.top;
       A.facing = Math.atan2(t.y - f.y, t.x - f.x); A.from = f; A.end = t;
       A.near = Object.assign(_p(f, t, .3), { z: top }); A.far = Object.assign(_p(f, t, .72), { z: top });
     },
@@ -5551,8 +5551,8 @@ const ACTIONS = {
   hopDown: {
     beats: [['hop', .34]],
     setup(A) {
-      if (!A._o.to) throw new Error('E.Action("hopDown") needs { to }: the spot below, as map.drop(body, dir) gives it');
-      const f = A.start, t = A._o.to; A.from = f; A.end = t; A.facing = Math.atan2(t.y - f.y, t.x - f.x) || A.body.facing || 0;
+      if (!A.o.to) throw new Error('E.Action("hopDown") needs { to }: the spot below, as map.drop(body, dir) gives it');
+      const f = A.start, t = A.o.to; A.from = f; A.end = t; A.facing = Math.atan2(t.y - f.y, t.x - f.x) || A.body.facing || 0;
       A.scale = Math.sqrt(1 + Math.max(0, (f.z || 0) - (t.z || 0)) / 30);   // deeper drops take longer (falls go as the square root)
     },
     at(A, b, u) {
@@ -5563,7 +5563,7 @@ const ACTIONS = {
   /** a roll: a dodge (o.dir, o.dist: 34) or a landing roll that carries the body on. Hits miss in its middle */
   roll: {
     beats: [['roll', .48], ['rise', .12]], cancel: ['rise'], safe: [.06, .4],
-    setup(A) { const a = A._o.dir === undefined ? A.body.facing || 0 : _dir(A._o.dir), d = A._o.dist === undefined ? 34 : A._o.dist; A.facing = a; A.from = A.start; A.end = { x: A.start.x + Math.cos(a) * d, y: A.start.y + Math.sin(a) * d, z: A.start.z }; },
+    setup(A) { const a = A.o.dir === undefined ? A.body.facing || 0 : _dir(A.o.dir), d = A.o.dist === undefined ? 34 : A.o.dist; A.facing = a; A.from = A.start; A.end = { x: A.start.x + Math.cos(a) * d, y: A.start.y + Math.sin(a) * d, z: A.start.z }; },
     at(A, b, u) {
       if (b === 'roll') return Object.assign(_p(A.from, A.end, ease.outQuad(u)), { state: { facing: A.facing, flip: u, crouch: true } });
       return Object.assign({ x: A.end.x, y: A.end.y, z: A.end.z }, { state: { facing: A.facing, crouch: u < .6 } });
@@ -5584,12 +5584,12 @@ const ACTIONS = {
   takedown: {
     beats: [['reach', .2], ['strike', .22], ['drop', .45], ['recover', .2]],
     setup(A) {
-      if (!A._o.other) throw new Error('E.Action("takedown") needs { other }: the body taken down');
-      const v = A._o.other, a = A._o.aerial ? Math.atan2(v.y - A.start.y, v.x - A.start.x) : v.facing !== undefined ? v.facing : Math.atan2(v.y - A.start.y, v.x - A.start.x);
+      if (!A.o.other) throw new Error('E.Action("takedown") needs { other }: the body taken down');
+      const v = A.o.other, a = A.o.aerial ? Math.atan2(v.y - A.start.y, v.x - A.start.x) : v.facing !== undefined ? v.facing : Math.atan2(v.y - A.start.y, v.x - A.start.x);
       const gap = (A.body.r || 5) + (v.r || 5) - 2;
       A.facing = a; A.vic = { x: v.x, y: v.y, z: v.z || 0, facing: v.facing || 0 }; A.from = A.start;
       A.behind = { x: v.x - Math.cos(a) * gap, y: v.y - Math.sin(a) * gap, z: v.z || 0 };
-      if (A._o.aerial) A._beats = [['leap', .38], ['strike', .18], ['drop', .45], ['recover', .25]];
+      if (A.o.aerial) A.beats = [['leap', .38], ['strike', .18], ['drop', .45], ['recover', .25]];
     },
     at(A, b, u) {
       const st = { facing: A.facing }, vs = { facing: A.vic.facing }, V = { x: A.vic.x, y: A.vic.y, z: A.vic.z };
@@ -5599,8 +5599,8 @@ const ACTIONS = {
         return Object.assign(p, { state: Object.assign(st, { air: true }), other: Object.assign(V, { state: vs }) });
       }
       const p = { x: A.behind.x, y: A.behind.y, z: A.behind.z };
-      if (b === 'strike') return Object.assign(p, { state: Object.assign(st, { attack: E.move(A._o.aerial ? 'overhead' : 'thrust', u), land: A._o.aerial && u < .2 ? 1 : 0 }), other: Object.assign(V, { state: Object.assign(vs, { hurt: u > .4, expr: 'wince' }) }) });
-      if (b === 'drop') return Object.assign(p, { state: Object.assign(st, { attack: E.move(A._o.aerial ? 'overhead' : 'thrust', 1, 'recover') }), other: Object.assign(V, { state: Object.assign(vs, { down: ease.inQuad(u) }) }) });
+      if (b === 'strike') return Object.assign(p, { state: Object.assign(st, { attack: E.move(A.o.aerial ? 'overhead' : 'thrust', u), land: A.o.aerial && u < .2 ? 1 : 0 }), other: Object.assign(V, { state: Object.assign(vs, { hurt: u > .4, expr: 'wince' }) }) });
+      if (b === 'drop') return Object.assign(p, { state: Object.assign(st, { attack: E.move(A.o.aerial ? 'overhead' : 'thrust', 1, 'recover') }), other: Object.assign(V, { state: Object.assign(vs, { down: ease.inQuad(u) }) }) });
       return Object.assign(p, { state: Object.assign(st, { crouch: u < .5 }), other: Object.assign(V, { state: Object.assign(vs, { down: 1 }) }) });
     }
   }
@@ -5617,21 +5617,21 @@ class Action {
     if (!spec) throw new Error('E.Action: no action "' + name + '". Actions: ' + Object.keys(ACTIONS).join(', '));
     if (!o.body) throw new Error('E.Action("' + name + '") needs { body } (a Body, a Mover or any { x, y, z })');
     /** name: the action's name; spec: its E.ACTIONS entry; o: the options it was given; body, other: the bodies it moves */
-    this.name = typeof name === 'string' ? name : spec.name || 'action'; this.spec = spec; this._o = o; this.body = o.body; this.other = o.other || null;
+    this.name = typeof name === 'string' ? name : spec.name || 'action'; this.spec = spec; this.o = o; this.body = o.body; this.other = o.other || null;
     /** start: where the body was when it began; beats: [[name, seconds], ...]; t: seconds played; done: it has ended (or
      *  was cancelled); vx, vy, vz: the body's speed this step, for the rig */
-    this.start = { x: o.body.x, y: o.body.y, z: o.body.z || 0 }; this._beats = spec.beats; this.t = 0; this.done = false; this._vx = this._vy = this._vz = 0;
+    this.start = { x: o.body.x, y: o.body.y, z: o.body.z || 0 }; this.beats = spec.beats; this.t = 0; this.done = false; this._vx = this._vy = this._vz = 0;
     spec.setup(this);
     /** the action's length in seconds (o.speed shortens it) */
-    this.duration = this._beats.reduce((a, b) => a + b[1], 0) / (o.speed || 1);
+    this.duration = this.beats.reduce((a, b) => a + b[1], 0) / (o.speed || 1);
     this._apply(0);
   }
   /** the beat playing now and how far through it (0..1): [name, u] */
   _at(t) {
-    const k = clamp(t / this.duration, 0, 1), T = this._beats.reduce((a, b) => a + b[1], 0), raw = (this._o.reverse ? 1 - k : k) * T;
+    const k = clamp(t / this.duration, 0, 1), T = this.beats.reduce((a, b) => a + b[1], 0), raw = (this.o.reverse ? 1 - k : k) * T;
     let acc = 0;
-    for (const [n, d] of this._beats) { if (raw <= acc + d || n === this._beats[this._beats.length - 1][0]) return [n, clamp((raw - acc) / d, 0, 1)]; acc += d; }
-    return [this._beats[0][0], 0];
+    for (const [n, d] of this.beats) { if (raw <= acc + d || n === this.beats[this.beats.length - 1][0]) return [n, clamp((raw - acc) / d, 0, 1)]; acc += d; }
+    return [this.beats[0][0], 0];
   }
   _apply(dt) {
     const [beat, bu] = this._at(this.t), r = this.spec.at(this, beat, bu), b = this.body;
@@ -5642,7 +5642,7 @@ class Action {
     /** the name of the beat playing now */
     this.beat = beat; this._state = r.state || {}; this._other = r.other || null;
     if (this.other && r.other) { const v = this.other; v.x = r.other.x; v.y = r.other.y; v.z = r.other.z || 0; if (v.vx !== undefined) { v.vx = v.vy = 0; } }
-    if (this._o.map) this._shadowZ = this._o.map.groundAt(b.x, b.y, b.r || 0, b.z, HEIGHTS.step);   // the ground under the body (with o.map), for its shadow
+    if (this.o.map) this._shadowZ = this.o.map.groundAt(b.x, b.y, b.r || 0, b.z, HEIGHTS.step);   // the ground under the body (with o.map), for its shadow
   }
   /** move the bodies one step; returns true while the action runs (false once it has ended) */
   update(dt) {
