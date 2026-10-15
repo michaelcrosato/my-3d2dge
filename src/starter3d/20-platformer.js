@@ -12,6 +12,7 @@ const PLAT = (() => {
   const T = 16;
   /* ---- THE COURSE: one character per 1-metre tile; row 0 is the north (the goal). ' ' is the void ---- */
   const PLANK = { platform: 0, thick: 6, pit: true, ground: 'planks', side: 'planks' }, DECK = { platform: 48, thick: 8, pit: true, ground: 'planks', side: 'planks' }, STONE = '#8a8478';
+  const SIGNS = E.addAssets((window.ASSETS || {}).platformer3d || { set: 'platformer3d' }).shapes.length > 0;   // (the page's set: reset() places its signposts)
   const LEVEL = {
     rows: [
       '             ..............             ',
@@ -103,6 +104,9 @@ const PLAT = (() => {
       const yaw = rnd() * TAU, big = kind === 'tree' ? .9 + rnd() * .4 : 1;
       if (kind === 'mushroom') world.thing(k, c.x, c.y, c.z, { yaw, big }); else world.shape(k, c.x, c.y, c.z, { facing: yaw, scale: kind === 'tree' ? big * 1.1 : 1.2, solid: kind === 'rock' });
     }
+    // signposts from the asset store (kenney-platformer, cut into the page's 'platformer3d' set: none without it) at the
+    // start and beside each checkpoint flag, pointing on north
+    if (SIGNS) for (const c of [s, ...(M.flag || [])]) world.shape('platformer3d:arrows', c.x + 14, c.y + 6, c.z || 0, { facing: -Math.PI / 2, scale: .8 });
     for (const c of M.mover || []) world.platform({ w: 32, d: 32, h: 6, path: [[c.x + 8, c.y + 40, 0], [c.x + 8, c.y - 8, 0]], speed: 26, wait: .8 });
     for (const c of M.slime || []) slimes.push(Object.assign(world.mob({ x: c.x, y: c.y, blob: new E.Blob({ R: 6.2, face: 'front', colors: { base: '#5ac85a', dk: '#2a7a3a', lt: '#a8f0a0' } }) }), { state: 'idle', t: rnd() * 2, home: [c.x, c.y], squashT: 0, flap: 0 }));
     world.camera.follow(hero); world.camera.yaw = -Math.PI / 2;

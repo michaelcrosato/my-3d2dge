@@ -43,6 +43,9 @@ SIM.reset = function () {
   // the floor, then a box for every wall and pillar cell (the map's own heights)
   world.createCollider(RAPIER.ColliderDesc.cuboid(ROOM.W / 2, .5, ROOM.H / 2).setFriction(.8), fixed(ROOM.W / 2, -.5, ROOM.H / 2));
   for (const c of ROOM.cells) { const h = c.kind === 'pillar' ? PILLAR_H : WALL_H; world.createCollider(RAPIER.ColliderDesc.cuboid(.5, h / 2, .5), fixed(c.x + .5, h / 2, c.z + .5)); }
+  // the stores (20-world): a box each from E.shapeBox, turned about three's y as the shape turns about the engine's z
+  for (const st of STORES) { const b = E.shapeBox(st.id, st.x, st.y, st.z, st.o), h = (b.top - b.z) / U, t = -Math.atan2(b.s, b.c) / 2;
+    world.createCollider(RAPIER.ColliderDesc.cuboid(b.hx / U, h / 2, b.hy / U).setRotation({ x: 0, y: Math.sin(t), z: 0, w: Math.cos(t) }).setFriction(.8), fixed(b.x / U, h / 2, b.y / U)); }
   // the crates: dynamic boxes (about 20 kg each)
   SIM.crates = ROOM.crates.map(k => {
     const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), k.yaw);

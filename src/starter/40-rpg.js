@@ -110,7 +110,9 @@ const RPG = (() => {
   // [shape, x, y, options]: SHAPES (docs/ASSETS.md) are objects as data, right in every view and turn: the trees grow from
   // a generator's params, the mats recolor a slot ('#hex pattern', or any material id)
   const SHAPES = [['tree', -2, 22, { params: { h: 46, seed: 3 }, mats: { l: '#3e6a3a foliage size=3' } }], ['pine', 220, 20, { scale: 1.1, mats: { l: '#2e5a44 foliage size=3' } }],
-    ['rock', 10, 140, { facing: 1 }], ['crystal', 212, 58, { params: { h: 14 } }], ['barrel', 146, 14, { scale: .8, facing: 2 }], ['crate', 158, 4, { scale: .7, facing: .3 }]];
+    ['rock', 10, 140, { facing: 1 }], ['crystal', 212, 58, { params: { h: 14 } }], ['barrel', 146, 14, { scale: .8, facing: 2 }], ['crate', 158, 4, { scale: .7, facing: .3 }],
+    // a broken column from the asset store, cut into the page's 'rpg' set (src/assets/sets/rpg.js; none without it)
+    ...(E.addAssets((window.ASSETS || {}).rpg || { set: 'rpg' }).shapes.length ? [['rpg:statue-column-damaged', 190, 8, { scale: 1.15, facing: 1.3, mats: { a: '#9a9282 speck' } }]] : [])];
 
   /* ---- MONSTERS: extras painted inside the same r.actor get the engine's outline, rim light and hit flash.
    * (x, y) = the feet on screen, v = the view ---- */

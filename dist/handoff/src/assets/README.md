@@ -5,6 +5,8 @@ and the hand-written catalogs that describe them. `docs/ASSETS.md` is the card;
 `node tools/asset-find.mjs "words"` searches them; a game loads one with its script and
 `E.addAssets(window.ASSETS['<set>'])`, or cuts the few it uses with `node tools/asset-set.mjs`.
 
+- [action3d.js](sets/action3d.js): 1 shapes, 2 materials, 0 sprites (a game's own cut)
+- [adventure.js](sets/adventure.js): 2 shapes, 2 materials, 0 sprites (a game's own cut)
 - [ambientcg.js](sets/ambientcg.js): 0 shapes, 68 materials, 0 sprites ([catalog](catalogs/ambientcg.json))
 - [animlab.js](sets/animlab.js): 1 shapes, 2 materials, 0 sprites (a game's own cut)
 - [brawler.js](sets/brawler.js): 2 shapes, 2 materials, 0 sprites (a game's own cut)
@@ -27,5 +29,8 @@ and the hand-written catalogs that describe them. `docs/ASSETS.md` is the card;
 - [kenney-tiny-dungeon.js](sets/kenney-tiny-dungeon.js): 0 shapes, 0 materials, 130 sprites ([catalog](catalogs/kenney-tiny-dungeon.json))
 - [kenney-tiny-town.js](sets/kenney-tiny-town.js): 0 shapes, 0 materials, 132 sprites ([catalog](catalogs/kenney-tiny-town.json))
 - [platformer.js](sets/platformer.js): 3 shapes, 2 materials, 0 sprites (a game's own cut)
+- [platformer3d.js](sets/platformer3d.js): 1 shapes, 2 materials, 0 sprites (a game's own cut)
+- [rpg.js](sets/rpg.js): 1 shapes, 1 materials, 0 sprites (a game's own cut)
 - [shooter.js](sets/shooter.js): 2 shapes, 2 materials, 0 sprites (a game's own cut)
+- [stealth.js](sets/stealth.js): 1 shapes, 1 materials, 0 sprites (a game's own cut)
 - [tavern.js](sets/tavern.js): 6 shapes, 8 materials, 0 sprites (a game's own cut)

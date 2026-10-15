@@ -47,7 +47,9 @@ const STEALTH = (() => {
   const LEDGER = { x: 11.5 * T, y: 3.5 * T, z: 48 }, EXIT = map.find('exit'), GRASS = [];
   // set dressing: SHAPES (E.SHAPES, docs/ASSETS.md: objects as data, right in every view) along the north street, out of the patrols' way
   const DRESS = [['barrel', 1.5 * T, 1.4 * T, { facing: .4 }], ['barrel', 2.5 * T, 1.3 * T, { facing: 2 }], ['crate', 7.4 * T, 1.4 * T, { scale: .8, facing: .2 }],
-    ['cart', 15.5 * T, 1.5 * T, { facing: 0 }], ['sack', 16.9 * T, 1.3 * T, { facing: 1 }], ['barrel', 22.6 * T, 1.4 * T, { facing: 3 }]];
+    ['cart', 15.5 * T, 1.5 * T, { facing: 0 }], ['sack', 16.9 * T, 1.3 * T, { facing: 1 }], ['barrel', 22.6 * T, 1.4 * T, { facing: 3 }],
+    // stacked planks from the asset store, cut into the page's 'stealth' set (src/assets/sets/stealth.js; none without it)
+    ...(E.addAssets((window.ASSETS || {}).stealth || { set: 'stealth' }).shapes.length ? [['stealth:resource-planks', 12.2 * T, 1.4 * T, { scale: .7, facing: Math.PI / 2 + .1 }]] : [])];
   for (let cy = 0; cy < map.h; cy++) for (let cx = 0; cx < map.w; cx++) if (map.floorAt((cx + .5) * T, (cy + .5) * T) === 'grass') GRASS.push([(cx + .5) * T, (cy + .5) * T]);
   const BOOK = E.sprite(['.bbbb.', 'bBBBBb', 'bBwwBb', 'bBBBBb', '.bbbb.'], { b: '#3a2010', B: '#8a3a20', w: '#f0e0b0' });
   const STAR = E.sprite(['..y..', '.yYy.', 'yYYYy', '.yYy.', '..y..'], { y: '#e8a830', Y: '#fff0a0' });

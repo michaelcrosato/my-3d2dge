@@ -5,6 +5,23 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.42.0 (2026-10-15)
+
+The last pages that drew a world without the asset store now take from it: the adventure, RPG and stealth kits, both 3D kits, the Mocap Lab and the two 3D prototypes. A review of what still draws by its own code.
+
+- **Art**: each remaining kit loads a cut of the store of its own, inlined only with its slice:
+  - the adventure: a stump in the village and two obelisks flanking the shrine's carpet (kenney-nature, kenney-graveyard; `adventure.js`, 907 tokens);
+  - the RPG battle: a broken column on the ruined plaza (`rpg.js`, 597);
+  - the stealth: stacked planks on the north street (`stealth.js`, 728);
+  - the 3D action: two dungeon barrels against the hall's north wall, by a legend letter (`action3d.js`, 623);
+  - the 3D platformer: a signpost at the start and beside each checkpoint flag (kenney-platformer; `platformer3d.js`, 700).
+
+  Each kit draws a fallback, or nothing, without its set. The kits grow by 600 to 1,100 tokens.
+- **Art**: the two 3D prototypes (temporary labs) put core shapes in their corners as one three.js mesh each, built from `E.shapeMesh` and coloured by material, never culled so the warm-up builds its pipeline, and solid (Rapier boxes from `E.shapeBox`). The 3D proof's run is unchanged (it keeps clear of them); the 3D prototype's proof hash changes with its new colliders, and is still the same on WebGL and WebGPU.
+- **Tools**: the Mocap Lab has a Props button (O, or `?props`), off by default: a table, a stool, a crate and a barrel beside the stage, for scale and for clips that sit or lean.
+- **Tools**: the assets suite's check of the games' cut sets covers every kit's set.
+- **Docs**: `docs/ASSET-IMPORT.md` says who uses the store and reviews what still draws by its own code. The core library stays, being in every page at no cost. Emberdeep's moving and interactive pieces stay code, by the card's limit. Its still ones have no counterpart in the store or keep their drawn look, with the store's objects beside them.
+
 ## 0.41.0 (2026-10-15)
 
 Every kit and lab draws from the asset store: the shooter, brawler and animation lab, Emberwell, the Perspective Lab and the stress test.

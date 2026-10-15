@@ -140,7 +140,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.41.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.42.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -219,7 +219,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.41.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.42.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -20564,6 +20564,10 @@ MAP.forEach((row, z) => [...row].forEach((ch, x) => {
   else if (ch === 'C') ROOM.crates.push({ x: x + .5, y: CRATE / 2, z: z + .5, yaw: 0 }, { x: x + .45, y: CRATE * 1.5 + .002, z: z + .52, yaw: .35 });
   else if (ch === 'm' || ch === 'd') ROOM.spots[ch] = { x: x + .5, z: z + .5 };
 }));
+/** the room's stores in its four corners, clear of the hero's lap and the proof run: the engine's core shapes
+ *  (docs/ASSETS.md) as meshes from E.shapeMesh, solid in 30-physics [id, x, z (metres), facing, scale] */
+const STORES = [['barrel', 1.45, 1.45, 0, .9], ['crate', 11.5, 1.5, .3, .9], ['sack', 1.5, 9.5, .6, 1], ['chest', 11.45, 9.5, -Math.PI / 2, 1]]
+  .map(([id, x, z, facing, scale]) => ({ id, x: x * U, y: z * U, z: 0, o: { facing, scale } }));
 const solid = (x, z) => { const r = MAP[z]; return !r || x < 0 || x >= r.length || r[x] === '#' || r[x] === 'T'; };
 
 const scene = new THREE.Scene();
@@ -20603,6 +20607,29 @@ scene.add(floor);
 
 /* crates: meshes only; 30-physics owns their bodies, and syncCrates() puts each mesh where its body is, every frame */
 const CRATE_GEO = new THREE.BoxGeometry(CRATE, CRATE, CRATE);
+/** shapes from the engine's library (docs/ASSETS.md) as ONE three.js mesh: E.shapeMesh's triangles (engine units, z up,
+ *  its front +y), each turned to its facing (0 east, PI/2 south), scaled and stood at (x, y, z) engine units, coloured by
+ *  its material (the middle tone): one draw call and one pipeline, never culled, so the warm-up builds it. (Engine z up
+ *  to three's y up mirrors: each triangle's last two corners swap, so the faces still look out) */
+function shapesMesh(list) {
+  const P = [], N = [], C = [], col = new THREE.Color();
+  for (const { id, x, y, z, o } of list) {
+    const M = E.shapeMesh(id), a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), k = o.scale || 1;
+    for (const g of M ? M.groups : []) {
+      col.set(g.mat.hexes[2]);
+      for (let i = 0, n = g.pos.length / 3; i < n; i++) {
+        const j = (i % 3 === 1 ? i + 1 : i % 3 === 2 ? i - 1 : i) * 3, px = g.pos[j], py = g.pos[j + 1], nx = g.nrm[j], ny = g.nrm[j + 1];
+        P.push((x + (px * c - py * s) * k) / U, (z + g.pos[j + 2] * k) / U, (y + (px * s + py * c) * k) / U);
+        N.push(nx * c - ny * s, g.nrm[j + 2], nx * s + ny * c); C.push(col.r, col.g, col.b);
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertNodeMaterial({ vertexColors: true })); m.castShadow = m.receiveShadow = true; m.frustumCulled = false;
+  return m;
+}
+scene.add(shapesMesh(STORES));
 const crateMeshes = ROOM.crates.map(k => { const m = new THREE.Mesh(CRATE_GEO, MAT.crate); m.position.set(k.x, k.y, k.z); m.rotation.y = k.yaw; m.castShadow = m.receiveShadow = true; scene.add(m); return m; });
 function syncCrates(bodies) {
   bodies.forEach((c, i) => { const t = c.body.translation(), r = c.body.rotation(); crateMeshes[i].position.set(t.x, t.y, t.z); crateMeshes[i].quaternion.set(r.x, r.y, r.z, r.w); });
@@ -20687,6 +20714,9 @@ SIM.reset = function () {
   // the floor, then a box for every wall and pillar cell (the map's own heights)
   world.createCollider(RAPIER.ColliderDesc.cuboid(ROOM.W / 2, .5, ROOM.H / 2).setFriction(.8), fixed(ROOM.W / 2, -.5, ROOM.H / 2));
   for (const c of ROOM.cells) { const h = c.kind === 'pillar' ? PILLAR_H : WALL_H; world.createCollider(RAPIER.ColliderDesc.cuboid(.5, h / 2, .5), fixed(c.x + .5, h / 2, c.z + .5)); }
+  // the stores (20-world): a box each from E.shapeBox, turned about three's y as the shape turns about the engine's z
+  for (const st of STORES) { const b = E.shapeBox(st.id, st.x, st.y, st.z, st.o), h = (b.top - b.z) / U, t = -Math.atan2(b.s, b.c) / 2;
+    world.createCollider(RAPIER.ColliderDesc.cuboid(b.hx / U, h / 2, b.hy / U).setRotation({ x: 0, y: Math.sin(t), z: 0, w: Math.cos(t) }).setFriction(.8), fixed(b.x / U, h / 2, b.y / U)); }
   // the crates: dynamic boxes (about 20 kg each)
   SIM.crates = ROOM.crates.map(k => {
     const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), k.yaw);

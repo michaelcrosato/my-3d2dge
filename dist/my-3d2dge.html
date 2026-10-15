@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.41.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.42.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.41.0)
+# my-3D2dge API card (v0.42.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -273,7 +273,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.41.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.42.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -301,7 +301,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.41.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.42.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -380,7 +380,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.41.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.42.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -8898,6 +8898,26 @@ root.My3D2dge = E;
 </script>
 <!-- the slices' objects: sets cut from the asset store (docs/ASSETS.md, "Use it"), each only with its slice -->
 <script>
+/* ---- inlined from src/assets/sets/adventure.js ---- */
+/* adventure: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
+ * The adventure starter's village stump and shrine obelisks (src/starter/10-adventure.js)
+ * 2 shapes, 2 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
+ * "sources" records each download (its url, date, sha256 and license); an entry's src names its download, orig the file in
+ * it, and fit how close it is: a shape's silhouette IoU at game scale (mean and worst view) and color dE.
+ * Load it with E.addAssets(window.ASSETS['adventure']): its ids become 'adventure:id'. */
+(window.ASSETS = window.ASSETS || {})['adventure'] = { set: 'adventure', format: 1, credit: 'The adventure starter\'s village stump and shrine obelisks (src/starter/10-adventure.js)',
+sources: {'kenney-nature':{label:'Kenney Nature Kit',origin:'Kenney (kenney.nl), nature-kit',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/nature-kit/37ac38a37b-1677698939/kenney_nature-kit.zip',page:'https://kenney.nl/assets/nature-kit',fetched:'2026-10-14',sha256:'fa7974a0d342bfe63c38664ba9f8ec1a4aab8ea25f099bdc56870e33588c4d9d',licenseHash:'cb96b75e3560ac78',dir:'nature-kit',scale:2.2,factors:'srgb'},'kenney-graveyard':{label:'Kenney Graveyard Kit',origin:'Kenney (kenney.nl), graveyard-kit',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/graveyard-kit/ba8d4b4517-1760691807/kenney_graveyard-kit_5.0.zip',page:'https://kenney.nl/assets/graveyard-kit',fetched:'2026-10-14',sha256:'1a93613f2e5675f3310acf49ec9ef13ae7adeb756ac3b205bfb6cc9311a81062',licenseHash:'a48e274258386c6b',dir:'graveyard-kit',scale:2,factors:'srgb'}},
+materials: {
+copper: '#e68458 bark',
+steel: '#99a0c0 speck'},
+shapes: {
+'stump-round': {about:'round brown tree stump, flared base',tags:'stump forest',mats:{a:'copper'},parts:[['lathe','a',[0,0,0],[[0,0],[6.5,0],[5,2.5],[5,7.5],[0,7.5]]]],src:'kenney-nature',orig:'Models/GLTF format/stump_round.glb',fit:{iou:0.89,worst:0.84,dE:0}},
+'pillar-obelisk': {about:'stepped grey stone obelisk on a round base',tags:'decoration graveyard monument',mats:{a:'steel'},parts:[['box','a',[0.5,0.5,3],[9,9,1]],['box','a',[0,0,4],[8,8,16]],['box','a',[0,0,20],[6,6,9]],['box','a',[0,0,29],[4,4,2]],['box','a',[0,0,31],[2,2,2]],['cyl','a',[0,0,0],7,3.2],['cyl','a',[0,0,6.5],6,3.2]],src:'kenney-graveyard',orig:'Models/GLB format/pillar-obelisk.glb',fit:{iou:0.86,worst:0.84,dE:4}}},
+sprites: {
+}};
+
+</script>
+<script>
 /* ---- inlined from src/assets/sets/platformer.js ---- */
 /* platformer: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
  * A night graveyard's stones for the platformer starter (src/starter/20-platformer.js)
@@ -8939,6 +8959,24 @@ sprites: {
 
 </script>
 <script>
+/* ---- inlined from src/assets/sets/rpg.js ---- */
+/* rpg: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
+ * The RPG battle starter's broken column on the plaza (src/starter/40-rpg.js)
+ * 1 shapes, 1 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
+ * "sources" records each download (its url, date, sha256 and license); an entry's src names its download, orig the file in
+ * it, and fit how close it is: a shape's silhouette IoU at game scale (mean and worst view) and color dE.
+ * Load it with E.addAssets(window.ASSETS['rpg']): its ids become 'rpg:id'. */
+(window.ASSETS = window.ASSETS || {})['rpg'] = { set: 'rpg', format: 1, credit: 'The RPG battle starter\'s broken column on the plaza (src/starter/40-rpg.js)',
+sources: {'kenney-nature':{label:'Kenney Nature Kit',origin:'Kenney (kenney.nl), nature-kit',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/nature-kit/37ac38a37b-1677698939/kenney_nature-kit.zip',page:'https://kenney.nl/assets/nature-kit',fetched:'2026-10-14',sha256:'fa7974a0d342bfe63c38664ba9f8ec1a4aab8ea25f099bdc56870e33588c4d9d',licenseHash:'cb96b75e3560ac78',dir:'nature-kit',scale:2.2,factors:'srgb'}},
+materials: {
+'ice-e': '#add2d8 noise'},
+shapes: {
+'statue-column-damaged': {about:'broken grey stone column, jagged top',tags:'ruin column temple',mats:{a:'ice-e'},parts:[['box','a',[0,0,0],[12,12,6]],['box','a',[0,0,6],[10,10,1]],['box','a',[0,0,7],[8,8,11]],['box','a',[-3,-3,18],[2,2,7]],['mirror','y',['box','a',[3,3,18],[2,2,4]]],['box','a',[-3,3,18],[2,2,5]]],src:'kenney-nature',orig:'Models/GLTF format/statue_columnDamaged.glb',fit:{iou:0.9,worst:0.86,dE:8}}},
+sprites: {
+}};
+
+</script>
+<script>
 /* ---- inlined from src/assets/sets/brawler.js ---- */
 /* brawler: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
  * The brawler starter's alley boxes (src/starter/50-brawler.js)
@@ -8973,6 +9011,24 @@ steel: '#9da4c5 metal',
 'clay-b': '#ca704e planks bw=3'},
 shapes: {
 'weapon-spear': {about:'upright spear, grey steel head, wooden shaft',tags:'weapon dungeon',mats:{a:'steel',b:'clay-b'},parts:[['prism','a',[0,0,0],[[-1.4,16],[-2.9,20],[-0.8,24],[0.7,24],[3,20],[1.5,16]],2.8,{axis:'y'}],['cyl','a',[0,0,12],2.7,4],['box','b',[0,0,0],[2.8,2.8,12]]],src:'kenney-mini-dungeon',orig:'Models/GLB format/weapon-spear.glb',fit:{iou:0.88,worst:0.82,dE:3}}},
+sprites: {
+}};
+
+</script>
+<script>
+/* ---- inlined from src/assets/sets/stealth.js ---- */
+/* stealth: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
+ * The stealth starter's stacked planks on the roofs (src/starter/70-stealth.js)
+ * 1 shapes, 1 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
+ * "sources" records each download (its url, date, sha256 and license); an entry's src names its download, orig the file in
+ * it, and fit how close it is: a shape's silhouette IoU at game scale (mean and worst view) and color dE.
+ * Load it with E.addAssets(window.ASSETS['stealth']): its ids become 'stealth:id'. */
+(window.ASSETS = window.ASSETS || {})['stealth'] = { set: 'stealth', format: 1, credit: 'The stealth starter\'s stacked planks on the roofs (src/starter/70-stealth.js)',
+sources: {'kenney-survival':{label:'Kenney Survival Kit',origin:'Kenney (kenney.nl), survival-kit',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/survival-kit/4065a8185b-1712149243/kenney_survival-kit.zip',page:'https://kenney.nl/assets/survival-kit',fetched:'2026-10-14',sha256:'c3586341b5932c87eb43d75d915434f47daed168b17ed36a03e8ca9977c7443e',licenseHash:'62c8356876481204',dir:'survival-kit',scale:3.5,factors:'srgb'}},
+materials: {
+clay: '#cc7853 planks bw=3'},
+shapes: {
+'resource-planks': {about:'small pile of loose wooden planks',tags:'item camp survival',mats:{a:'clay'},parts:[['prism','a',[0,-0.5,0],[[-2.3,0],[-2.7,1.7],[-7,1.7],[-7,3.8],[0.1,3.8],[0.1,1.7],[3.3,1.7],[3.3,0]],29,{axis:'y'}],['box','a',[4,-1.3,1.7],[5.5,32.5,1.7]],['prism','a',[0,0,0],[[-8,-12],[-10.5,16],[-5,16.5],[-2.4,-11.5]],1.7],['prism','a',[0,0,0],[[5.5,-10.5],[3.5,-10.5],[4.5,17],[10.5,17.5],[9,-10.5]],1.7],['prism','a',[0,0,3.5],[[2.3,-12.5],[-5,9.5],[0,12],[7.5,-10.5]],1.7]],src:'kenney-survival',orig:'Models/GLB format/resource-planks.glb',fit:{iou:0.96,worst:0.95,dE:6}}},
 sprites: {
 }};
 
@@ -9123,11 +9179,11 @@ const ADV = (() => {
     ['#GQOQbzNzZu~~#', 'H.KK....x....H', 'X.....rA.....X'],
     ['#ccccV~ccLe~~#', 'K..s.q::::.s.H', 'X..I..++..I..X'],
     ['#cM@cPccac=~~#', 'H.....::::k..K', 'X....m++m....X'],
-    ['#,,,,,,,,,,__,', ',,....::C:...H', 'X..I..++..I..X'],
+    ['#,,,,,,,,,,__,', ',,....::C:...H', 'X4.I..++..I.4X'],
     ['#.b...b.g,d__,', ',,..o.::::.s.H', 'X.....++.....X'],
     ['#...%%%f..s~~#', 'Hb.K..::::q.KH', 'X..I..++..I..X'],
     ['#T..%%%.u..~~#', 'H.u..s....y.RH', 'X.p...++...p.X'],
-    ['#..........~~#', 'H...bK...b.xRH', 'X.....E+.....X'],
+    ['#.3........~~#', 'H...bK...b.xRH', 'X.....E+.....X'],
     ['##############', 'RRRRRRRRRRRRRR', 'XXXXXX++XXXXXX']
   ].map(r => r.join(''));
   // the world AROUND the rooms: PAD rows of forest canopy above and below (a meadow's edge first, the shrine's stone under
@@ -9147,7 +9203,7 @@ const ADV = (() => {
     'V': { floor: 'water', block: true, spawn: 'fountain' }, 'C': { floor: 'pave', spawn: 'chest' }, 'E': { floor: 'carpet', spawn: 'entry' }, 'd': { floor: 'path', spawn: 'villager' },
     // people, creatures and props
     'f': 'florist', 'a': { floor: 'plaza', spawn: 'cat' }, 's': 'rabite', 'v': 'bat', 'k': 'goblin', 'm': 'mage', 'b': 'bush', 'p': 'pot', 'T': 'oak', 'g': 'sign', 'u': 'mushroom',
-    'e': 'barrel', '=': 'crate', 'q': 'ruin', 'I': 'pillar', 'S': 'statue', 'o': 'rock', 'x': 'crystal', 'y': 'skull', 'B': 'brazier', '*': 'candelabra'
+    'e': 'barrel', '=': 'crate', '3': 'stump', '4': 'obelisk', 'q': 'ruin', 'I': 'pillar', 'S': 'statue', 'o': 'rock', 'x': 'crystal', 'y': 'skull', 'B': 'brazier', '*': 'candelabra'
   };
   // wall MATERIALS: face = side, roof = top pattern (beam = timber); cut = lowered to cutH in front of the camera
   const SLAB = { face: 'stone', roof: 'slab' }, TYPES = {
@@ -9173,6 +9229,9 @@ const ADV = (() => {
     fountain: { prop: 'statue', size: .8, color: '#a8a6c0', dx: 8 }, lamp: { prop: 'streetlamp', r: 3, size: .8, halo: false }, oak: { prop: 'tree', size: 1.45, r: 8 },   // lamp: unlit by day
     bush: { r: 6, cut: ['#2f7a34', '#5ab04a', '#9ad86a'] }, pot: { size: .95, r: 5, cut: ['#7a3a22', '#c07040', '#e8a878'], drop: 'gem' }, sign: { r: 4 },
     mushroom: { size: .75, color: '#e0503a' }, barrel: { shape: 'barrel', r: 5, size: .75 }, crate: { shape: 'crate', r: 6, size: .65 },
+    // from the asset store, cut into the page's 'adventure' set (src/assets/sets/adventure.js); without it, props
+    ...(E.addAssets((window.ASSETS || {}).adventure || { set: 'adventure' }).shapes.length ? { stump: { shape: 'adventure:stump-round', r: 5, size: .7 },
+      obelisk: { shape: 'adventure:pillar-obelisk', r: 6, size: .8 } } : { stump: { prop: 'rock', r: 5, color: '#8a5a3a' }, obelisk: { prop: 'pillar', r: 6 } }),
     // ruins
     vines: { face: true, z: 25, anchor: 'top', color: '#4a8a3a', blossom: '#f890b0' }, moss: { prop: 'vines', face: true, z: 35, anchor: 'top', size: .8, color: '#5a8a3a', blossom: '#f890b0' },
     gate: { prop: 'door', face: true, size: 1.1, color: '#5a3a6a' }, ruin: { prop: 'pillar', broken: true, r: 7 }, rock: { r: 5, color: '#8a8698' }, skull: { prop: 'bones' },
@@ -10908,7 +10967,9 @@ const RPG = (() => {
   // [shape, x, y, options]: SHAPES (docs/ASSETS.md) are objects as data, right in every view and turn: the trees grow from
   // a generator's params, the mats recolor a slot ('#hex pattern', or any material id)
   const SHAPES = [['tree', -2, 22, { params: { h: 46, seed: 3 }, mats: { l: '#3e6a3a foliage size=3' } }], ['pine', 220, 20, { scale: 1.1, mats: { l: '#2e5a44 foliage size=3' } }],
-    ['rock', 10, 140, { facing: 1 }], ['crystal', 212, 58, { params: { h: 14 } }], ['barrel', 146, 14, { scale: .8, facing: 2 }], ['crate', 158, 4, { scale: .7, facing: .3 }]];
+    ['rock', 10, 140, { facing: 1 }], ['crystal', 212, 58, { params: { h: 14 } }], ['barrel', 146, 14, { scale: .8, facing: 2 }], ['crate', 158, 4, { scale: .7, facing: .3 }],
+    // a broken column from the asset store, cut into the page's 'rpg' set (src/assets/sets/rpg.js; none without it)
+    ...(E.addAssets((window.ASSETS || {}).rpg || { set: 'rpg' }).shapes.length ? [['rpg:statue-column-damaged', 190, 8, { scale: 1.15, facing: 1.3, mats: { a: '#9a9282 speck' } }]] : [])];
 
   /* ---- MONSTERS: extras painted inside the same r.actor get the engine's outline, rim light and hit flash.
    * (x, y) = the feet on screen, v = the view ---- */
@@ -12417,7 +12478,9 @@ const STEALTH = (() => {
   const LEDGER = { x: 11.5 * T, y: 3.5 * T, z: 48 }, EXIT = map.find('exit'), GRASS = [];
   // set dressing: SHAPES (E.SHAPES, docs/ASSETS.md: objects as data, right in every view) along the north street, out of the patrols' way
   const DRESS = [['barrel', 1.5 * T, 1.4 * T, { facing: .4 }], ['barrel', 2.5 * T, 1.3 * T, { facing: 2 }], ['crate', 7.4 * T, 1.4 * T, { scale: .8, facing: .2 }],
-    ['cart', 15.5 * T, 1.5 * T, { facing: 0 }], ['sack', 16.9 * T, 1.3 * T, { facing: 1 }], ['barrel', 22.6 * T, 1.4 * T, { facing: 3 }]];
+    ['cart', 15.5 * T, 1.5 * T, { facing: 0 }], ['sack', 16.9 * T, 1.3 * T, { facing: 1 }], ['barrel', 22.6 * T, 1.4 * T, { facing: 3 }],
+    // stacked planks from the asset store, cut into the page's 'stealth' set (src/assets/sets/stealth.js; none without it)
+    ...(E.addAssets((window.ASSETS || {}).stealth || { set: 'stealth' }).shapes.length ? [['stealth:resource-planks', 12.2 * T, 1.4 * T, { scale: .7, facing: Math.PI / 2 + .1 }]] : [])];
   for (let cy = 0; cy < map.h; cy++) for (let cx = 0; cx < map.w; cx++) if (map.floorAt((cx + .5) * T, (cy + .5) * T) === 'grass') GRASS.push([(cx + .5) * T, (cy + .5) * T]);
   const BOOK = E.sprite(['.bbbb.', 'bBBBBb', 'bBwwBb', 'bBBBBb', '.bbbb.'], { b: '#3a2010', B: '#8a3a20', w: '#f0e0b0' });
   const STAR = E.sprite(['..y..', '.yYy.', 'yYYYy', '.yYy.', '..y..'], { y: '#e8a830', Y: '#fff0a0' });

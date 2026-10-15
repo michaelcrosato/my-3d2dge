@@ -56,7 +56,7 @@ const CASTS = ['mannequin', 'hero', 'both'];
 const S = {
   set: SETS[qs.get('set')] || qs.get('set') === LIB ? qs.get('set') : SET_IDS[0], clip: null, t: 0, hold: 0, playing: true,
   speed: clamp(+qs.get('speed') || 1, .1, 2), cast: CASTS.includes(qs.get('cast')) ? qs.get('cast') : 'both',
-  facing: qs.has('facing') ? +qs.get('facing') * E.DEG : null, spin: qs.has('spin'), bones: false, trueCam: qs.has('true'), caption: qs.has('caption'), sword: qs.get('sword') !== '0',
+  facing: qs.has('facing') ? +qs.get('facing') * E.DEG : null, spin: qs.has('spin'), bones: false, props: qs.has('props'), trueCam: qs.has('true'), caption: qs.has('caption'), sword: qs.get('sword') !== '0',
   fade: 0, pose: new Float32Array(lib.P * 3), prev: new Float32Array(lib.P * 3), order: []
 };
 
@@ -119,13 +119,16 @@ function panelShift() {
   return ppu > 0 ? (left - right) / 2 / ppu : 0;
 }
 
-/* 6. Draw */
+/* 6. Draw. Props (off by default, ?props or O): the engine's core shapes behind the cast, for scale [id, x, y, facing, scale] */
+const PROPS = [['table', -80, -14, Math.PI / 2, .9], ['stool', -62, -2, Math.PI / 2, .8], ['crate', 66, -12, Math.PI / 2 + .3, .8], ['barrel', 84, -2, 0, .8]];
+
 function draw(r) {
   const view = r.view, mv = camFor(view), f = facing(), lift = groundLift(S.pose);
   map.drawFloor(r);
   for (const a of actors()) r.shadow(pos[a][0], pos[a][1], 7, .35);
   if (pos.mannequin) r.actor(pos.mannequin[0], pos.mannequin[1], lift * man.k, (g, ox, oy) => man.draw(g, ox, oy, mv, S.pose, f), { outlineColor: '#3a2a1c' });
   if (pos.hero) r.actor(pos.hero[0], pos.hero[1], 0, (g, ox, oy) => hero.draw(g, ox, oy, view));   // (Mocap.drive lifts a clip that dips below the floor itself)
+  if (S.props) for (const [id, x, y, facing, scale] of PROPS) r.shape(id, CX + x, CY + y, 0, { facing, scale });
   if (S.bones) r.overlay(g => drawBones(r, g, f));
   if (S.caption) r.overlay(g => {   // for recordings, which capture the game's own image
     E.font.text(g, pretty(S.clip.name).toUpperCase(), 6, 6, '#2a2140');
@@ -275,6 +278,7 @@ function setSpeed(v) { S.speed = v; speedBtns.forEach(b => b.setAttribute('aria-
 speedBtns.forEach(b => b.addEventListener('click', () => { setSpeed(+b.dataset.speed); b.blur(); }));
 const tog = (id, get, set) => { const b = $(id); const sync = () => b.setAttribute('aria-pressed', String(get())); b.addEventListener('click', () => { set(!get()); sync(); b.blur(); }); sync(); return sync; };
 const syncBones = tog('boneBtn', () => S.bones, v => { S.bones = v; });
+const syncProps = tog('propsBtn', () => S.props, v => { S.props = v; });
 const syncSpin = tog('spinBtn', () => S.spin, v => { S.spin = v; if (!v) S.facing = null; });
 const syncTrue = tog('trueBtn', () => S.trueCam, v => { S.trueCam = v; hero.o.charView = !v; });
 const syncAI = tog('aiBtn', () => !$('ai').hidden, v => { $('ai').hidden = !v; });
@@ -343,6 +347,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyC') setCast(CASTS[(CASTS.indexOf(S.cast) + 1) % CASTS.length]);
   else if (e.code === 'KeyT') setSpeed(S.speed === 1 ? .5 : S.speed === .5 ? .25 : 1);
   else if (e.code === 'KeyB') { S.bones = !S.bones; syncBones(); }
+  else if (e.code === 'KeyO') { S.props = !S.props; syncProps(); }
   else if (e.code === 'KeyP') { S.spin = !S.spin; if (!S.spin) S.facing = null; syncSpin(); }
   else if (e.code === 'KeyH') { S.trueCam = !S.trueCam; hero.o.charView = !S.trueCam; syncTrue(); }
   else if (e.code === 'KeyA') { $('ai').hidden = !$('ai').hidden; syncAI(); }

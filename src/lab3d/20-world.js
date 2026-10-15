@@ -33,6 +33,10 @@ MAP.forEach((row, z) => [...row].forEach((ch, x) => {
   else if (ch === 'C') ROOM.crates.push({ x: x + .5, y: CRATE / 2, z: z + .5, yaw: 0 }, { x: x + .45, y: CRATE * 1.5 + .002, z: z + .52, yaw: .35 });
   else if (ch === 'm' || ch === 'd') ROOM.spots[ch] = { x: x + .5, z: z + .5 };
 }));
+/** the room's stores in its four corners, clear of the hero's lap and the proof run: the engine's core shapes
+ *  (docs/ASSETS.md) as meshes from E.shapeMesh, solid in 30-physics [id, x, z (metres), facing, scale] */
+const STORES = [['barrel', 1.45, 1.45, 0, .9], ['crate', 11.5, 1.5, .3, .9], ['sack', 1.5, 9.5, .6, 1], ['chest', 11.45, 9.5, -Math.PI / 2, 1]]
+  .map(([id, x, z, facing, scale]) => ({ id, x: x * U, y: z * U, z: 0, o: { facing, scale } }));
 const solid = (x, z) => { const r = MAP[z]; return !r || x < 0 || x >= r.length || r[x] === '#' || r[x] === 'T'; };
 
 const scene = new THREE.Scene();
@@ -72,6 +76,29 @@ scene.add(floor);
 
 /* crates: meshes only; 30-physics owns their bodies, and syncCrates() puts each mesh where its body is, every frame */
 const CRATE_GEO = new THREE.BoxGeometry(CRATE, CRATE, CRATE);
+/** shapes from the engine's library (docs/ASSETS.md) as ONE three.js mesh: E.shapeMesh's triangles (engine units, z up,
+ *  its front +y), each turned to its facing (0 east, PI/2 south), scaled and stood at (x, y, z) engine units, coloured by
+ *  its material (the middle tone): one draw call and one pipeline, never culled, so the warm-up builds it. (Engine z up
+ *  to three's y up mirrors: each triangle's last two corners swap, so the faces still look out) */
+function shapesMesh(list) {
+  const P = [], N = [], C = [], col = new THREE.Color();
+  for (const { id, x, y, z, o } of list) {
+    const M = E.shapeMesh(id), a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), k = o.scale || 1;
+    for (const g of M ? M.groups : []) {
+      col.set(g.mat.hexes[2]);
+      for (let i = 0, n = g.pos.length / 3; i < n; i++) {
+        const j = (i % 3 === 1 ? i + 1 : i % 3 === 2 ? i - 1 : i) * 3, px = g.pos[j], py = g.pos[j + 1], nx = g.nrm[j], ny = g.nrm[j + 1];
+        P.push((x + (px * c - py * s) * k) / U, (z + g.pos[j + 2] * k) / U, (y + (px * s + py * c) * k) / U);
+        N.push(nx * c - ny * s, g.nrm[j + 2], nx * s + ny * c); C.push(col.r, col.g, col.b);
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertNodeMaterial({ vertexColors: true })); m.castShadow = m.receiveShadow = true; m.frustumCulled = false;
+  return m;
+}
+scene.add(shapesMesh(STORES));
 const crateMeshes = ROOM.crates.map(k => { const m = new THREE.Mesh(CRATE_GEO, MAT.crate); m.position.set(k.x, k.y, k.z); m.rotation.y = k.yaw; m.castShadow = m.receiveShadow = true; scene.add(m); return m; });
 function syncCrates(bodies) {
   bodies.forEach((c, i) => { const t = c.body.translation(), r = c.body.rotation(); crateMeshes[i].position.set(t.x, t.y, t.z); crateMeshes[i].quaternion.set(r.x, r.y, r.z, r.w); });
