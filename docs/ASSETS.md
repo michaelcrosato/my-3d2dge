@@ -2,8 +2,9 @@
 
 The full engine draws still objects (barrels, tables, trees, wells) from a few lines of data, in every view and facing,
 with the house shading and outline, and gives every surface (floors, wall faces, wall tops, platform tiles, the objects'
-own faces) a material from one open registry. An object costs about a hundred tokens of data; you check it headless with
-one command. Read this card whole before you write one. (The agent edition keeps the registries and ignores the calls: `E.addAssets` returns empty lists, the others null.)
+own faces) a material from one open registry. An object costs one to a few hundred tokens of data (the core's median is
+125); you check it headless with one command. Read this card whole before you write one. (The agent edition keeps the
+registries and ignores the calls: `E.addAssets` returns empty lists, the others null.)
 
 ## Use one
 
@@ -23,8 +24,9 @@ const icon = E.shapeSprite('chest', { view: 'iso' });
 - **In 3D** the 3D engine draws the same entries, materials and boxes: `world.shape(id, x, y, z, o)` (its header).
 - **Steep views** (top-down) draw shapes from the characters' lower angle, as rigs are drawn. The light comes from the
   viewer's upper left in every view.
-- **Glow and fire:** a material with glow: 1 ignores the light; an entry's flames ([[x, y, z, w, h]]) draw the engine's
-  animated flame. Anything else that moves stays a prop (r.prop) or your own code.
+- **Glow and fire:** a material with glow: 1 ignores the light and stays bright in the dark; an entry's flames ([[x, y, z,
+  w, h]]) draw the engine's animated flame (r.shape only: a sprite has none). Anything else that moves stays a prop
+  (r.prop) or your own code.
 
 ## The core library
 
@@ -133,7 +135,9 @@ A generator seeds its noise from its params (`E.rng(seed)`), never `Math.random`
 2. **Find** the nearest entry: `node tools/asset-find.mjs "tavern table"` searches the core library and the store's sets
    (`src/assets/sets/`, about a thousand objects, materials and sprites converted from CC0 libraries, each with where it
    came from) and `--show set:id` prints one; the Asset Lab (`/asset-lab`) shows them all.
-3. **Copy** it and change its names, parts and materials, or write a new one from the parts above.
+3. **Copy** it and change its names, parts and materials, or write a new one from the parts above. Give the cue a player
+   knows it by parts of its own (a skep's coils as stacked rings, an anvil's horn, a barrow's open tub dark inside), and
+   keep small parts plain ('none', 'glaze'): a busy pattern on a part a few pixels wide reads as speckle.
 4. **Look:** `node tools/asset-sheet.mjs mine.js#stool` (a file that sets `E.SHAPES.stool`, or a store set; a core id
    alone works too: `node tools/asset-sheet.mjs barrel`). It draws `check-output/asset-sheet/stool.png`: every view and
    four facings, beside the hero, on a light and a dark floor. It lints what reads badly: too small from above, a part

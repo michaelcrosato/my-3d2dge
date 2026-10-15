@@ -78,7 +78,7 @@ Pick one to see it drawn by the engine beside the hero, turn it, edit its text a
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.38.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.38.1  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -157,7 +157,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.38.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.38.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -4669,8 +4669,8 @@ const overAt = (m, s) => { for (let k = m.over.length - 1; k >= 0; k--) if (m.ov
 const _S = { u: 0, v: 0, W: 16, H: 16, lid: true, curved: false, lit: .5, px: 1, part: 0, nz: 1, z: 0 };
 /** a data material's tone (0..4, plus 5 per overlay) at a point of a flat surface (u, v world units across and up; band
  *  0..4 from the light; z the height there: by default v on a side, 0 on a lid) */
-const matTone = (m, u, v, W, H, lid, band, px1, z) => {
-  _S.u = u; _S.v = v; _S.W = W; _S.H = H; _S.lid = lid; _S.curved = false; _S.lit = band > 2 ? .8 : band < 2 ? -.2 : .5; _S.px = px1;
+const matTone = (m, u, v, W, H, lid, band, px1, z, curved = false) => {
+  _S.u = u; _S.v = v; _S.W = W; _S.H = H; _S.lid = lid; _S.curved = curved; _S.lit = band > 2 ? .8 : band < 2 ? -.2 : .5; _S.px = px1;
   const t = clamp((m.glow ? 3 : band) + m.pat(_S, m.q), 0, 4);
   if (!m.over) return t;
   _S.nz = lid ? 1 : 0; _S.z = z === undefined ? (lid ? 0 : v) : z; return t + 5 * overAt(m, _S);
@@ -4680,7 +4680,8 @@ const matTone = (m, u, v, W, H, lid, band, px1, z) => {
  * s: { u, v (world units on the surface: across and up a side; x and y on a lid), W, H (the face's size), lid (it looks up
  *   or down), curved (turned or round), lit (the light on it, -1..1), px (world units per pixel there), part };
  * m: the material's numbers. Names and numbers follow MaterialX's and Blender's texture nodes where they overlap. */
-const seam = s => Math.max(.62, s.px * .98);   // a joint: never thinner than a pixel, so it never drops out
+const seam = s => Math.max(.62, s.px * .98);
+const FACE_PATTERNS = { crate: 'side', bark: 'lid' };   // (patterns drawn once per face, from its size: a 3D tile covers one face)   // a joint: never thinner than a pixel, so it never drops out
 const _V = { id: 0, e: 0, dx: 0, dy: 0 };
 /** Voronoi (Worley) cells of size S: { id (the cell's own value 0..1), e (distance to its edge), dx, dy (from its heart) } */
 function worley(x, y, S, jit = .85) {
@@ -7034,8 +7035,10 @@ E.shapeInfo = (id, o = {}) => {
 /**
  * a shape's triangles, for a 3D renderer (the 3D engine's world.shape): E.shapeMesh(id | entry, { params, mats, seg })
  * -> { groups: [{ mat (the material ready to draw: E.material's), key (its id), lid (true: the faces looking up or down,
- * which some patterns draw their own way), pos, nrm, uv (Float32Arrays: three numbers a corner, three corners a triangle;
- * uv two a corner, world units across the surface) }], bounds [x0, y0, z0, x1, y1, z1] } in the entry's own units and
+ * which some patterns draw their own way), curved (turned or round faces: planks run up them), face (a pattern drawn
+ * once per face, the crate's sides and bark's ends: uv runs 0 to 1 across each face), pos, nrm, uv (Float32Arrays: three
+ * numbers a corner, three corners a triangle; uv two a corner, world units across the surface) }], bounds [x0, y0, z0,
+ * x1, y1, z1] } in the entry's own units and
  * frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). seg(r): the
  * segments round a radius r (default 8 to 24). The same parts as r.shape draws; null for an unknown shape
  */
@@ -7046,25 +7049,25 @@ E.shapeMesh = (id, o = {}) => {
   for (const P of R.prims) {
     const N = invT3(P.M);
     TESS[P.k](f => {
-      const key = P.mi + (f.lid ? 'L' : 'S'); let G = groups.get(key);
-      if (!G) groups.set(key, G = { mat: R.mats[P.mi], key: R.mq[P.mi] && typeof R.mq[P.mi][0] === 'string' ? R.mq[P.mi][0] : 'm' + P.mi, lid: !!f.lid, pos: [], nrm: [], uv: [] });
+      const m = R.mats[P.mi], face = FACE_PATTERNS[m.pattern] === (f.lid ? 'lid' : 'side'), key = P.mi + (f.lid ? 'L' : 'S') + (f.curved ? 'C' : '') + (face ? 'F' : ''); let G = groups.get(key);
+      if (!G) groups.set(key, G = { mat: m, key: R.mq[P.mi] && typeof R.mq[P.mi][0] === 'string' ? R.mq[P.mi][0] : 'm' + P.mi, lid: !!f.lid, curved: !!f.curved, face, pos: [], nrm: [], uv: [] });
       const nv = f.v.length, W = f.v.map(p => add3(mv3(P.M, p), P.t).map(c => c * k)), nn = i => { const q = Array.isArray(f.n[0]) ? f.n[i] : f.n, m = mv3(N, q), l = Math.hypot(m[0], m[1], m[2]) || 1; return [m[0] / l, m[1] / l, m[2] / l]; };
       for (const w of W) for (let i = 0; i < 3; i++) { b[i] = Math.min(b[i], w[i]); b[i + 3] = Math.max(b[i + 3], w[i]); }
-      for (let i = 1; i + 1 < nv; i++) for (const j of [0, i, i + 1]) { G.pos.push(...W[j]); G.nrm.push(...nn(j)); G.uv.push(f.uv[j][0], f.uv[j][1]); }
+      for (let i = 1; i + 1 < nv; i++) for (const j of [0, i, i + 1]) { G.pos.push(...W[j]); G.nrm.push(...nn(j)); G.uv.push(face ? f.uv[j][0] / (f.W || 1) : f.uv[j][0], face ? f.uv[j][1] / (f.H || 1) : f.uv[j][1]); }
     }, P, seg);
   }
   if (b[0] > b[3]) b.fill(0);
   return { groups: [...groups.values()].map(G => Object.assign(G, { pos: new Float32Array(G.pos), nrm: new Float32Array(G.nrm), uv: new Float32Array(G.uv) })), bounds: b };
 };
 /** a material's pattern as a tile of pixels, for a 3D renderer's texture: E.materialTile(id, { size: 32 (world units
- *  square: it repeats every size), px: 2 (pixels a unit), lid: false (true: as on a face looking up), band: 2 (the
- *  light: 0 dark .. 4 bright) }) -> { w, h, rgba (Uint8ClampedArray, top row first, v up the tile) }; null for an
- *  unknown material */
+ *  square: it repeats every size; a face pattern's whole face), px: 2 (pixels a unit), lid: false (true: as on a face
+ *  looking up), curved (as on a turned face), band: 2 (the light: 0 dark .. 4 bright) }) -> { w, h, rgba
+ *  (Uint8ClampedArray, top row first, v up the tile) }; null for an unknown material */
 E.materialTile = (id, o = {}) => {
   const m = material(id); if (!m) return null;
   const size = o.size || 32, k = o.px || 2, n = Math.round(size * k), rgba = new Uint8ClampedArray(n * n * 4), band = o.band === undefined ? 2 : o.band;
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const u = (x + .5) / k, v = (n - 1 - y + .5) / k, c = m.ramp[matTone(m, u, v, size, size, !!o.lid, band, 1 / k, o.lid ? 0 : v)], j = (y * n + x) * 4;
+    const u = (x + .5) / k, v = (n - 1 - y + .5) / k, c = m.ramp[matTone(m, u, v, size, size, !!o.lid, band, 1 / k, o.lid ? 0 : v, !!o.curved)], j = (y * n + x) * 4;
     rgba[j] = c[0]; rgba[j + 1] = c[1]; rgba[j + 2] = c[2]; rgba[j + 3] = 255;
   }
   return { w: n, h: n, rgba };

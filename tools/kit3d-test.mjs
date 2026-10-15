@@ -75,7 +75,7 @@ const sheet = { view: 'iso', enter() { world.reset(); IDS.forEach((id, i) => wor
   update(dt) { world.step(dt); }, draw(r) { world.draw(r); } };
 game.start({ scenes: { sheet }, scene: 'sheet', boot: { steps: [['3D', () => E.World3D.init(game)], ['level', () => { world = new E.World3D(game, { level: { rows, legend: {}, ground: 'plain', colors: { base: '#4a4458' } }, fog: false, sky: '#1c1826',
   ambient: ['#ffffff', '#8a8aa0', 2.2], sun: { color: '#fff1d6', intensity: 2.4, dir: [-.5, .6, -.8], area: 400 }, torchLights: 0, camera: { mode: 'view', proj: 'ortho', dist: .45, lag: 0 } }); world.prepare(); }]] } });
-window.__sheet = { game, IDS, at, FACING, get world() { return world; }, look(i) { const [x, y] = at(i); Object.assign(focus, { x, y, z: 12 }); } };
+window.__sheet = { game, IDS, at, FACING, get world() { return world; }, look(i) { const [x, y] = at(i); Object.assign(focus, { x, y, z: 12 }); }, lookAt(x, y) { Object.assign(focus, { x, y, z: 6 }); } };
 </script></body></html>`;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json' };
 const server = createServer((req, res) => {
@@ -241,6 +241,23 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
       }, [ids, shots, await page.evaluate(() => __sheet.FACING)]);
       writeFileSync(join(OUT, `shapes-${want}.png`), Buffer.from(png.split(',')[1], 'base64')); pictures++; await sheet.close();
       await page.evaluate(() => { const k = __sheet.world._shapeKit; k.outlines = k._keep; });
+      // more of one kind than its first slots, and a kind not seen before: no GPU pipeline built (one shader for all)
+      const pipes = await page.evaluate(async () => {
+        const w = __sheet.world, R = My3D2dge.World3D.renderer, n = () => { const p = R._pipelines; return p && p.caches ? p.caches.size : null; };
+        const p0 = n(); for (let i = 0; i < 40; i++) w.shape('barrel', 40 + (i % 10) * 12, 20 + Math.floor(i / 10) * 12, 0, { solid: false }); w.shape('crate', 60, 120, 0, { mats: { c: '#4a8a3a crate' } });
+        await new Promise(r => setTimeout(r, 600)); return { p0, p1: n() };
+      });
+      if (pipes.p0 !== null && pipes.p1 > pipes.p0) fail(`${label}: placing more shapes built ${pipes.p1 - pipes.p0} GPU pipeline(s)`);
+      // turned as its box: a bench at facing .9 covers the picture at its two ends and leaves it clear just past its sides
+      await page.evaluate(() => { const w = __sheet.world; w.reset(); w.shape('bench', 120, 72, 0, { facing: .9, solid: false }); __sheet.lookAt(120, 72); });
+      const oa = decodePNG(await shot()); await page.evaluate(() => { const K = __sheet.world.shapes[0].kind; K.mesh.visible = K.shell.visible = false; }); const ob = decodePNG(await shot());
+      await page.evaluate(() => { const K = __sheet.world.shapes[0].kind; K.mesh.visible = K.shell.visible = true; });
+      const marks = await page.evaluate(() => {
+        const w = __sheet.world, sc = __sheet.game.screen, B = My3D2dge.shapeBox('bench', 120, 72, 0, { facing: .9 }), z = B.top - 1, at = (lx, ly) => w.project(B.x + lx * B.c - ly * B.s, B.y + lx * B.s + ly * B.c, z);
+        return { ends: [at(B.hx - 2, 0), at(2 - B.hx, 0)].map(p => p && [p[0] / sc.W, p[1] / sc.H]), sides: [at(0, B.hy + 5), at(0, -B.hy - 5)].map(p => p && [p[0] / sc.W, p[1] / sc.H]) };
+      });
+      const near = ([u, v]) => { let n = 0; const cx = Math.round(u * oa.w), cy = Math.round(v * oa.h), R = Math.max(1, Math.round(oa.w / 400)); for (let y = cy - R; y <= cy + R; y++) for (let x = cx - R; x <= cx + R; x++) { const j = (y * oa.w + x) * 4; if (Math.abs(oa.rgba[j] - ob.rgba[j]) + Math.abs(oa.rgba[j + 1] - ob.rgba[j + 1]) + Math.abs(oa.rgba[j + 2] - ob.rgba[j + 2]) > 24) n++; } return n; };
+      if (marks.ends.some(p => !p || !near(p)) || marks.sides.some(p => p && near(p))) fail(`${label}: a bench turned to .9 is not drawn where its box is (its ends ${marks.ends.map(p => p ? near(p) : 'off').join(', ')} pixels changed, beside it ${marks.sides.map(p => p ? near(p) : 'off').join(', ')})`);
       // solid: a hero walks east into a crate and stops; one dropped over a table lands on its top
       const solid = await page.evaluate(() => {
         const w = __sheet.world, g = __sheet.game; g.stop(); w.reset();
@@ -249,11 +266,19 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
         const stop = h.x, edge = b.x - b.hx;
         h.place(220, 72, 40); h.vx = h.vy = 0; for (let i = 0; i < 120; i++) { h.vx = h.vy = 0; w.step(1 / 60); }
         const top = My3D2dge.shapeBox('table', 220, 72, 0, { facing: Math.PI / 2 }).top;
-        return { stop, edge, z: h.z, top, bodies: !!(c.body && t.body) };
+        // a long bench turned two ways: a small hero dropped over its far end lands on it, one dropped beside it reaches the floor
+        const turned = [0, Math.PI / 2 + .6].map(f => {
+          w.reset(); const B = My3D2dge.shapeBox('bench', 160, 72, 0, { facing: f }), at = (lx, ly) => [B.x + lx * B.c - ly * B.s, B.y + lx * B.s + ly * B.c];
+          w.shape('bench', 160, 72, 0, { facing: f });
+          const drop = ([x, y]) => { const a = w.hero({ x, y, z: 30, r: 1.2, half: 3, rig: new My3D2dge.Humanoid() }); for (let i = 0; i < 90; i++) { a.vx = a.vy = 0; w.step(1 / 60); } const z = a.z; w.remove(a); return z; };
+          return { f, on: drop(at(B.hx - 2, 0)), beside: drop(at(0, B.hy + 4)), top: B.top };
+        });
+        return { stop, edge, z: h.z, top, bodies: !!(c.body && t.body), turned };
       });
       if (!solid.bodies) fail(`${label}: a solid shape has no collider`);
       if (solid.stop > solid.edge) fail(`${label}: a hero walking into a crate passed its edge (x ${solid.stop.toFixed(1)}, the edge at ${solid.edge.toFixed(1)})`);
       if (Math.abs(solid.z - solid.top) > 2) fail(`${label}: a hero dropped on a table stands at z ${solid.z.toFixed(1)}, its top is ${solid.top.toFixed(1)}`);
+      for (const t of solid.turned) if (Math.abs(t.on - t.top) > 2 || t.beside > 2) fail(`${label}: a bench turned to ${t.f.toFixed(2)}: a hero over its end stands at z ${t.on.toFixed(1)} (its top ${t.top.toFixed(1)}), one beside it at ${t.beside.toFixed(1)}: its collider is not where it is drawn`);
     } catch (e) { fail(label + ': ' + e.message.split('\n')[0]); }
     for (const e of errors) fail(label + ': ' + e);
     await page.close();

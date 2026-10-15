@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.38.1 (2026-10-15)
+
+The asset plan's last phase: what it measured, the fixes a review of v0.38.0 found, and the plan folded into the docs it leaves (Phase 4 of `docs/HANDOFF-ASSETS.md`, now deleted).
+
+- **Rendering**: 3D shapes build one shader at any count: each mesh starts with 1,024 slots, which three reads from an attribute (with 16, each kind's count was a pipeline of its own, built mid-game when shapes came after the warm-up or a kind grew). Planks run up a turned face as staves; the crate's frame and bark's end rings are drawn once per face; a box's outline closes round its corners.
+- **Engine**: `E.shapeMesh`'s groups say which faces are turned (`curved`) and which patterns are drawn once per face (`face`, uv across the face); `E.materialTile` takes `curved`. The 3D flow fields walk round every tile a solid legend shape's turned footprint covers.
+- **Tools**: the 3D kits' suite checks that placing more shapes (past a kind's first slots, and a new kind) builds no pipeline, and that a turned bench is drawn and solid where its box is; both fail on an engine with the old slots and a flipped turn.
+- **Docs**: the authoring test: fresh agents wrote ten objects from one-line briefs, as shapes from `docs/ASSETS.md` (10 of 10 valid on the first try, 2,966 tokens) and as canvas code from `API.md` (10 of 10 ran, 15,784 tokens: shapes cost 81% fewer); two blind judges scored the look 5.9 and 5.7 against canvas code's 7.4 and 6.6. The numbers are in `docs/ASSET-IMPORT.md` and `DOCTRINE.md`; the card's recipe gains what the judges saw. The paid benchmark re-run was skipped with no answer from the owner in time (D36).
+- **Docs**: `docs/HANDOFF-ASSETS.md` is deleted: how the engine draws a shape, why the format is data, the traps and the measures are in `docs/ASSET-IMPORT.md`; the decisions in `docs/DECISIONS.md` (D28 to D36).
+
 ## 0.38.0 (2026-10-15)
 
 The same shapes in 3D: the 3D engine draws the 2D engine's entries with their materials and collides with them, and its kits use them (Phase 3b of `docs/HANDOFF-ASSETS.md`).
