@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.38.2 (2026-10-15)
+
+The fixes a review of v0.38.1 found.
+
+- **Rendering**: a 3D shape's outline turns with the shape. It pushed along normals that three's instancing never turns, so at any facing but a quarter turn it slid off its sides, and a crate turned the other way lost it along both (the 3D platformer turns every tree, bush and rock at random). Where two faces cancel (two discs back to back: a jar's cork, a muffin's base) the outline keeps the corner's own normal, and its fan is drawn.
+- **Tools**: the 3D kits' suite checks that a turned crate's and barrel's outlines reach past them on both sides, row by row; on v0.38.1's engine the crate's reach 18% of its rows against 76% now.
+
 ## 0.38.1 (2026-10-15)
 
 The asset plan's last phase: what it measured, the fixes a review of v0.38.0 found, and the plan folded into the docs it leaves (Phase 4 of `docs/HANDOFF-ASSETS.md`, now deleted).
