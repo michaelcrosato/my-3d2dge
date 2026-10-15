@@ -5,6 +5,29 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.43.2 (2026-10-15)
+
+The Breath of the Wild brief, run again (the owner's yes, D36, D38): the instrumented benchmark's first run, and what it says.
+
+- **Docs**: its row in `DOCTRINE.md`: about 14k tokens of game code in 13 minutes and $3.43, the first build passing, the
+  source read 3 times (F3: 11), and the index searched 8 times, never read whole. The judge gave 5/10 against F3's 6/10:
+  its objects were the core library's shapes (4.6% of its code draws by hand), but its fields were empty, its lighting
+  flat, and its iso view had a void.
+- **Docs**: `docs/FEEDBACK-LOG.md` logs it as F6. Climbing and gliding written by the game reaches its threshold (three
+  games), and so does lighting unused (two model families).
+- **Docs**: D36 notes that the run answers it.
+- **Docs**: 3 of the run's 8 searches of the index were followed by a read of the source, which reopens the index's split
+  for the owner (D38's rule). `map.bounds` now says what it returns, `{ x0, y0, x1, y1 }`, and lookup 26 keeps it
+  answered.
+- **Tools**: `tools/agent-bench.mjs` reads a chained Bash call (`cd W; cat API.md; wc -l ... API-INDEX.md`) one pipeline
+  at a time, split outside quotes:
+  - a pipeline with grep in it is a search; `sed -n`, `head` and `tail` read ranges; `cat`, `nl` and `awk` read whole;
+    `wc`, `ls` and the like read nothing;
+  - a read whose result is shared takes its lines and tokens from the manual itself;
+  - `--rescore --no-judge` keeps the judge's earlier score.
+
+  The run was scored again with it: the first reader had counted the `wc` as a whole read of the index.
+
 ## 0.43.1 (2026-10-15)
 
 The benchmark records how the manuals are read (Phase 4 of `docs/HANDOFF-API-INDEX.md`), so the next run says whether agents grep the API index, page through it or read it whole.

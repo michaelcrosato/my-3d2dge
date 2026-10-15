@@ -20,7 +20,8 @@
 //
 // Usage: node tools/agent-bench.mjs --brief assassins-creed [--agent claude|codex] [--model M] [--judge-model M]
 //          [--budget 30] [--runs ~/.cache/my-3d2dge-bench] [--dry-run]
-//        node tools/agent-bench.mjs --rescore <run dir>      (score a finished run again; runs no agent)
+//        node tools/agent-bench.mjs --rescore <run dir> [--no-judge]   (score a finished run again; runs no agent;
+//                                                         --no-judge keeps the judge's earlier score)
 //        node tools/agent-bench.mjs --selftest               (the stream reader and the scoring on fixtures)
 //        node tools/agent-bench.mjs --list                   (the briefs)
 // Briefs: tools/agent-bench/briefs/<name>.md (assassins-creed: Vesper's brief, the baseline; botw-village; arkham-predator).
@@ -44,6 +45,60 @@ const hash = f => existsSync(f) ? createHash('sha1').update(readFileSync(f)).dig
 /** the line where the engine's header ends (the IIFE that opens its code): reading past it is reading the source */
 export const headerEnd = src => { const i = src.split('\n').findIndex(l => /^\(function \(root\) \{/.test(l)); return i < 0 ? 80 : i; };
 
+const GREP = /^(rg|grep|egrep|fgrep|ag|ast-grep|sg)$/;
+/** a shell command line's pipelines: [[[program, ...args] per stage] per pipeline], split outside quotes, quotes taken off
+ *  (a leading VAR=x, sudo or time is not the program) */
+export function pipelines(cmd) {
+  const out = []; let P = [], st = [], w = null, q = null;
+  const word = () => { if (w !== null) st.push(w); w = null; }, stage = () => { word(); if (st.length) P.push(st); st = []; }, pipe = () => { stage(); if (P.length) out.push(P); P = []; };
+  for (let k = 0; k < cmd.length; k++) {
+    const ch = cmd[k];
+    // (in double quotes a backslash escapes only $ ` " \ and a new line: "a\|b" is grep's a\|b)
+    if (q) { if (ch === q) q = null; else if (ch === '\\' && q === '"' && '$`"\\\n'.includes(cmd[k + 1])) w += cmd[++k]; else w += ch; continue; }
+    if (ch === "'" || ch === '"') { q = ch; w = w === null ? '' : w; continue; }
+    if (ch === '\\' && k + 1 < cmd.length) { w = (w || '') + cmd[++k]; continue; }
+    if (ch === '\n' || ch === ';') { pipe(); continue; }
+    if ((ch === '&' || ch === '|') && cmd[k + 1] === ch) { pipe(); k++; continue; }
+    if (ch === '|') { stage(); continue; }
+    if (ch === '&') { pipe(); continue; }
+    if (/\s/.test(ch)) { word(); continue; }
+    w = (w || '') + ch;
+  }
+  pipe();
+  return out.map(P => P.map(st => { while (st.length && (/^\w+=/.test(st[0]) || ['sudo', 'command', 'time', 'nice'].includes(st[0]))) st = st.slice(1); return st; }).filter(st => st.length)).filter(P => P.length);
+}
+/** what a pipeline does to the file its first program names: { how: 'search' | 'range' | 'whole', from, to, grep: the
+ *  search's pattern and flags, cap: a head after it, tailN: the last lines a tail keeps }, or null when it reads nothing */
+export function classify(P) {
+  const prog = basename(P[0][0] || ''), later = P.slice(1), head = st => { const a = st.slice(1).join(' '), m = a.match(/(?:-n\s*|-)(\d+)/); return m ? +m[1] : 10; };
+  const cap = (later.find(st => basename(st[0]) === 'head') || null), capN = cap ? head(cap) : null;
+  if (GREP.test(prog) || later.some(st => GREP.test(basename(st[0])))) {
+    const st = GREP.test(prog) ? P[0] : later.find(st => GREP.test(basename(st[0]))), flags = st.slice(1).filter(a => /^-/.test(a)).join(' ');
+    const ei = st.indexOf('-e'), pat = ei > 0 ? st[ei + 1] : st.slice(1).find(a => !/^-/.test(a));
+    return { how: 'search', grep: { pat, i: /(^|\s)-\w*i/.test(flags), E: /(^|\s)-\w*E/.test(flags) || basename(st[0]) !== 'grep', n: /(^|\s)-\w*n/.test(flags), c: /(^|\s)-\w*c/.test(flags) }, cap: capN };
+  }
+  const sedR = st => { const m = st.slice(1).join(' ').match(/-n\s+['"]?(\d+)(?:,(\d+))?p/); return m ? [+m[1], +(m[2] || m[1])] : null; };
+  if (prog === 'sed') { const r = sedR(P[0]); return r ? { how: 'range', from: r[0], to: r[1] } : { how: 'whole' }; }
+  if (prog === 'head') return { how: 'range', from: 1, to: head(P[0]) };
+  if (prog === 'tail') { const m = P[0].slice(1).join(' ').match(/(?:-n\s*|-)\+?(\d+)/), plus = /\+\d/.test(P[0].join(' ')), from = m ? +m[1] : 1; return plus ? { how: 'range', from, to: capN ? from + capN - 1 : null } : { how: 'range', from: null, to: null, tailN: m ? +m[1] : 10 }; }
+  if (['cat', 'nl', 'less', 'more', 'bat', 'awk'].includes(prog)) {
+    const st = later.find(st => ['head', 'tail', 'sed'].includes(basename(st[0])));
+    if (!st) return { how: 'whole' };
+    const b = basename(st[0]); if (b === 'head') return { how: 'range', from: 1, to: head(st) };
+    if (b === 'sed') { const r = sedR(st); return r ? { how: 'range', from: r[0], to: r[1] } : { how: 'whole' }; }
+    return { how: 'range', from: null, to: null, tailN: head(st) };
+  }
+  return null;
+}
+/** a grep's output on a text, as near as a simple reading of its pattern gets (basic patterns: \| is or; -E: extended) */
+function grepLines(text, g) {
+  if (!g || !g.pat) return [];
+  let src = g.pat; if (!g.E) src = src.replace(/\\([|(){}+?])|([|(){}+?])/g, (m, esc, raw) => esc ? esc : '\\' + raw);
+  let re; try { re = new RegExp(src, g.i ? 'i' : ''); } catch (e) { return []; }
+  const L = text.split('\n'), out = []; L.forEach((l, i) => { if (re.test(l)) out.push(g.n ? `${i + 1}:${l}` : l); });
+  return g.c ? [String(out.length)] : out;
+}
+
 /** read an agent's JSON stream (claude stream-json or codex --json) into what the bench measures. o.lines: each manual's
  *  line count in the workspace ({ 'API-INDEX.md': 1077 }), for how much of it a read covers and whether a Read was cut */
 export function readStream(text, header, o = {}) {
@@ -55,31 +110,46 @@ export function readStream(text, header, o = {}) {
   const call = id => { const c = { at: calls.length, manuals: [] }; calls.push(c); if (id) byId.set(id, c); return c; };
   const readMan = (c, file, how, tool, x = {}) => { const m = Object.assign({ file, how, tool, lines: null, tokens: null, cut: false }, x); out.manuals.push(m); c.manuals.push(m); };
   const engineRead = (c, r) => { out.reads.push(r); if (r.to > header) { out.belowHeader = true; c.below = r; } };
+  // a shell command line: each of its pipelines (chained by ;, &&, || or new lines) on its own, by its programs. A pipeline
+  // that greps is a search (grep ... | head too); sed -n a,bp, head and tail (or cat piped into them) read a range; cat,
+  // nl, less or awk read the file whole; anything else (wc, ls, cp, node ...) reads nothing. A search of a folder: its
+  // result says which manuals it hit
   const shell = (id, cmd) => {
     const c = call(id); if (typeof cmd !== 'string') return;
     cmd = cmd.replace(/<<-?\s*(['"]?)(\w+)\1[\s\S]*?\n\2(?=\s|$)/g, '<<script').replace(/\s-e\s+(["'])[\s\S]*?\1/g, ' -e script');   // a script that loads the engine is not a read of it
-    const search = /\b(rg|grep|ag|ast-grep|sg)\b/.test(cmd) && !/\b(cat|sed|head|tail|awk|nl|less|more)\b/.test(cmd);
-    const sed = cmd.match(/sed\s+-n\s+['"]?(\d+)(?:,(\d+))?p/), head = cmd.match(/head\s+(?:-n\s*)?-?(\d+)/), tail = /\btail\b/.test(cmd);
-    // a manual: searched, read in a range, or read whole, by the first program of the pipe (grep ... | head is a search);
-    // a search of a folder: its result says which manuals it hit
-    const mans = MANUALS.filter(f => new RegExp('(^|[\\s/\'"])' + f.replace(/[.]/g, '\\.') + '\\b').test(cmd)), first = (cmd.trim().split(/\s*(?:\||&&|;)\s*/)[0].match(/^(?:cd\s+\S+\s*)?(\S+)/) || [])[1] || '';
-    const grepFirst = /^(rg|grep|egrep|ag|ast-grep|sg)$/.test(basename(first));
-    for (const f of mans) readMan(c, f, search || grepFirst ? 'search' : sed || head || tail ? 'range' : 'whole', 'shell', { cmd: cmd.slice(0, 200), from: sed ? +sed[1] : head ? 1 : null, to: sed ? +(sed[2] || sed[1]) : head ? +head[1] : null });
-    if (!mans.length && search && !cmd.includes(ENGINE)) c.grep = cmd;
-    if (!cmd.includes(ENGINE)) return;
-    if (/\b(sed\s+-i|perl\s+-pi)\b|>\s*\S*my-3d2dge\.js/.test(cmd)) { out.patched = true; return; }
-    if (search) { out.searches.push(cmd.slice(0, 200)); return; }
-    const last = sed ? +(sed[2] || sed[1]) : head ? +head[1] : Infinity;   // cat, tail, awk, nl: the whole file or its end
-    engineRead(c, { how: 'shell', cmd: cmd.slice(0, 200), to: last });
+    if (/\b(sed\s+-i|perl\s+-pi)\b[^;|&]*my-3d2dge\.js|>\s*\S*my-3d2dge\.js/.test(cmd)) { out.patched = true; return; }
+    const pipes = pipelines(cmd); c.reads = 0;
+    // (the pipelines that print something: the result is one read's alone only when nothing else in the call prints)
+    c.prints = pipes.filter(P => !['cd', 'export', 'mkdir', 'cp', 'mv', 'rm', 'touch', 'set', 'true', 'pushd', 'popd', 'unset', 'source', '.'].includes(basename(P[0][0] || ''))).length;
+    for (const P of pipes) {
+      const r = classify(P), named = P[0].slice(1).map(a => basename(a)).filter(a => a === ENGINE || MANUALS.includes(a));
+      if (!r) continue;   // (not a read)
+      if (r.how === 'search' && !named.length) { c.grep = cmd; continue; }   // (a folder's: its result says which manuals)
+      for (const f of named) {
+        c.reads++;
+        if (f === ENGINE) { if (r.how === 'search') out.searches.push(cmd.slice(0, 200)); else engineRead(c, { how: 'shell', cmd: cmd.slice(0, 200), from: r.from || 1, to: r.how === 'whole' || r.to === null ? Infinity : r.to }); continue; }
+        readMan(c, f, r.how, 'shell', { cmd: cmd.slice(0, 200), from: r.from, to: r.to, grep: r.grep, cap: r.cap, tailN: r.tailN });
+      }
+    }
   };
   // what a tool's result held: its lines and tokens; a Read cut short (the tool's cap, or fewer lines than asked); a folder
   // search's hits in the manuals
+  // a read's lines and tokens from the manual's own text (o.files), when its result is shared with other reads
+  const fromFile = m => {
+    const text = (o.files || {})[m.file]; if (text === undefined) { m.lines = 0; m.tokens = 0; return; }
+    const L = text.split('\n'); let got;
+    if (m.how === 'whole') got = L;
+    else if (m.how === 'range') { const a = m.tailN ? Math.max(1, L.length - m.tailN + 1) : m.from || 1, b = m.tailN ? L.length : m.to || L.length; m.from = a; m.to = b; got = L.slice(a - 1, b); }
+    else { got = grepLines(text, m.grep); if (m.cap) got = got.slice(0, m.cap); }
+    m.lines = got.length; m.tokens = tokens(got.join('\n'));
+  };
   const result = (id, content, isError) => {
     const c = byId.get(id); if (!c) return;
     const t = typeof content === 'string' ? content : Array.isArray(content) ? content.map(x => x && x.type === 'text' ? x.text : '').join('\n') : '';
     if (c.grep) { for (const f of MANUALS) { const re = new RegExp('(^|/)' + f.replace(/[.]/g, '\\.') + '(:|$)'), hits = t.split('\n').filter(l => re.test(l)); if (hits.length) readMan(c, f, 'search', c.grep.startsWith('Grep ') ? 'Grep' : 'shell', { cmd: c.grep.slice(0, 200), lines: hits.length, tokens: tokens(hits.join('\n')) }); } return; }
-    if (c.manuals.length !== 1) { for (const m of c.manuals) if (m.lines === null) { m.lines = t.split('\n').length; m.tokens = Math.round(tokens(t) / c.manuals.length); } return; }   // (several at once: shared)
-    const m = c.manuals[0]; if (m.lines !== null) return;
+    // a shell call that read several things: each read's share from the file itself (its range, its search's hits)
+    if (c.manuals.length > 1 || (c.manuals.length && (c.reads > 1 || c.prints > 1))) { for (const m of c.manuals) if (m.lines === null) fromFile(m); return; }
+    const m = c.manuals[0]; if (!m || m.lines !== null) return;
     const lines = t ? t.replace(/\n$/, '').split('\n') : [];
     m.lines = isError ? 0 : lines.length; m.tokens = tokens(t);
     if (m.tool === 'Read') {
@@ -176,8 +246,8 @@ const agentCmd = (agent, prompt, o) => agent === 'codex'
 /** score a run directory: the stream, the game's check and test, the judge */
 function score(dir, o = {}) {
   const work = join(dir, 'work'), meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8'));
-  const lines = {}; for (const f of MANUALS) { const p = [join(work, f), join(work, 'docs', f)].find(existsSync); if (p) lines[f] = readFileSync(p, 'utf8').replace(/\n$/, '').split('\n').length; }
-  const s = readStream(existsSync(join(dir, 'stream.jsonl')) ? readFileSync(join(dir, 'stream.jsonl'), 'utf8') : '', meta.header, { lines });
+  const lines = {}, files = {}; for (const f of MANUALS) { const p = [join(work, f), join(work, 'docs', f)].find(existsSync); if (p) { files[f] = readFileSync(p, 'utf8'); lines[f] = files[f].replace(/\n$/, '').split('\n').length; } }
+  const s = readStream(existsSync(join(dir, 'stream.jsonl')) ? readFileSync(join(dir, 'stream.jsonl'), 'utf8') : '', meta.header, { lines, files });
   const page = join(work, 'game/index.html'), res = Object.assign({ brief: meta.brief, agent: meta.agent, model: meta.model || 'default', wallSeconds: meta.wallSeconds || (s.ms ? s.ms / 1000 : null) }, s);
   res.game = existsSync(page) && hash(join(work, 'game/game.js')) !== meta.template;   // (the package's template game alone is not a build)
   res.code = codeSize(join(work, 'game'));
@@ -189,6 +259,8 @@ function score(dir, o = {}) {
     const t = existsSync(join(work, 'game/test.mjs')) ? run(process.execPath, [join(work, 'game/test.mjs')], { cwd: work, timeout: 120000 }) : null;
     res.testPasses = t ? t.status === 0 : null;
     const shots = rep ? rep.scenes.concat(rep.views).map(x => x.screenshot).filter(f => f && existsSync(f)).slice(-5) : [];
+    const before = o.noJudge && existsSync(join(dir, 'result.json')) ? JSON.parse(readFileSync(join(dir, 'result.json'), 'utf8')) : null;
+    if (before && before.judge) Object.assign(res, { judge: before.judge, judgeCostUsd: before.judgeCostUsd });   // (--rescore --no-judge keeps the judge's score)
     if (shots.length && !o.noJudge) {
       const prompt = readFileSync(join(BENCH, 'judge.md'), 'utf8') + '\n\nThe screenshots: ' + shots.join(', ');
       const j = run('claude', ['-p', prompt, '--safe-mode', '--output-format', 'json', '--allowedTools', 'Read', '--permission-mode', 'dontAsk', '--no-session-persistence', '--add-dir', join(dir, 'check'), ...(o.judgeModel ? ['--model', o.judgeModel] : [])], { cwd: dir, timeout: 600000 });
@@ -253,6 +325,11 @@ function selftest() {
     useId('c', 'Bash', { command: 'grep -n "stamina\\|meter" API-INDEX.md' }), res('c', '1065:- bars\n1084:- E.ui'), useId('d', 'Bash', { command: 'cat AI_GUIDE.md' }), res('d', 'z\n'.repeat(50))), 70, { lines: { 'API-INDEX.md': 1000 } });
   ok('cat | head, sed -n and grep of the index: range, range, search; cat of a manual: whole', s.manuals.map(m => m.file + ':' + m.how).join(' ') === 'API-INDEX.md:range API-INDEX.md:range API-INDEX.md:search AI_GUIDE.md:whole', s.manuals.map(m => m.file + ':' + m.how).join(' '));
   ok('ranges cover what they read: 1-200 and 300-420, 321 of 1,000 lines (most of it would reopen the split)', Math.abs(s.index.coverage - .321) < 1e-9 && !s.index.reopensSplit, JSON.stringify(s.index));
+  const IX = Array.from({ length: 100 }, (_, k) => '- `x' + (k + 1) + '`: ' + (k % 10 === 0 ? 'climb a ledge' : 'a line')).join('\n');
+  s = readStream(S(useId('a', 'Bash', { command: 'cd /w; cat API.md; wc -l game/* AI_GUIDE.md API-INDEX.md' }), res('a', 'card\n 100 API-INDEX.md'),
+    useId('b', 'Bash', { command: 'cd /w; grep -n -i "climb\\|glide" API-INDEX.md | head -4; head -40 API-INDEX.md; sed -n 50,59p API-INDEX.md' }), res('b', 'mixed output')), 70, { lines: { 'API-INDEX.md': 100 }, files: { 'API-INDEX.md': IX, 'API.md': 'card' } });
+  ok('a chain: cat a manual is whole, wc is no read; grep | head a search, head and sed ranges, each from the file itself', s.manuals.map(m => m.file + ':' + m.how + ':' + m.lines).join(' ') === 'API.md:whole:1 API-INDEX.md:search:4 API-INDEX.md:range:40 API-INDEX.md:range:10', s.manuals.map(m => m.file + ':' + m.how + ':' + m.lines).join(' '));
+  ok('their tokens are what the file gives them, and the coverage the ranges\' lines', s.manuals[2].tokens > s.manuals[3].tokens * 3 && Math.abs(s.index.coverage - .5) < 1e-9 && !s.index.reopensSplit, JSON.stringify(s.index));
   s = readStream(S(useId('a', 'Bash', { command: 'grep -n "jump" API-INDEX.md | head -20' }), res('a', '1: jump\n2: jump')), 70);
   ok('grep ... | head is a search, its output trimmed', s.manuals.length === 1 && s.manuals[0].how === 'search' && s.manuals[0].lines === 2, JSON.stringify(s.manuals));
   s = readStream(S(useId('a', 'Bash', { command: 'grep -rn "takedown" .' }), res('a', './API-INDEX.md:817:- `E.ACTIONS`: takedown\n./API.md:168:- Mover: takedown\n./game/game.js:12: takedown')), 70);

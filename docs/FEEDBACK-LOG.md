@@ -21,12 +21,12 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Passages under roofs and bridges (one column per cell) | deferred | F1 | a second source asks; the stealth starter needs a bridge it can't fake |
 | Side-scroller and shooter kits unused by modern third-person games | no | F1 | if third-person games keep skipping them, give their package a leaner manual |
 | Melee helpers (`E.Attack`, `E.Combo`) bypassed | watch | F1 | a game built after the height-aware queries and actions still bypasses them |
-| GPU lighting unused | watch | F1 | three sources: rethink its space in the manuals |
+| GPU lighting unused | **threshold** | F1, F6 | reached: two model families (F6.5: no lighting of any kind). The next plan takes it up: rethink its space in the manuals |
 | One fixed custom view, views never switched | watch | F1 | three sources: make one view the default for third-person kits and their checks |
-| Reading the engine's source (F1: its size) | **threshold** | F1, F2, F3, F4 | reached: two model families. The next plan takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack. `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up the asset names (props, textures, presets) and four garbled index lines; `docs/HANDOFF-API-INDEX.md` takes up the index's part in v0.42.2: the facts F2.1, F3.1 and F4.1 went to the source for, the instance names, and a check that keeps 25 such lookups answered (D39); the cards' part is still open |
-| The look below the PS1/N64 bar | **threshold** | F2, F3, F4 | reached: three games at 6/10. The next plan takes it up (F2.2, F3.2, F4.2). `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up objects, foliage, materials and contact shadows (done in v0.35.0 to v0.38.0, the plan folded into `docs/ASSETS.md` and `docs/ASSET-IMPORT.md`; the judge's re-run waits on the owner, D36); the hero's x-ray dither and three-quarter walls stacking into flat planes are still open |
-| `E.Shell` unused, the interface drawn on the canvas | **threshold** | F2, F3, F4 | reached: three games with modern interfaces skipped it. The next plan takes it up (F4.3) |
-| Climbing any wall and gliding written by the game (`E.Mover` climbs ledges) | watch | F3, F4 | a third source, or one from another model family |
+| Reading the engine's source (F1: its size) | **threshold** | F1, F2, F3, F4, F6 | reached: two model families. The next plan takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack. `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up the asset names (props, textures, presets) and four garbled index lines; `docs/HANDOFF-API-INDEX.md` takes up the index's part in v0.42.2: the facts F2.1, F3.1 and F4.1 went to the source for, the instance names, and a check that keeps 25 such lookups answered (D39); F6 read the source 3 times (F3: 11), each after a search of the index (F6.1), and `map.bounds`' return is taken up in v0.43.2 (lookup 26); the cards' part is still open |
+| The look below the PS1/N64 bar | **threshold** | F2, F3, F4, F6 | reached: three games at 6/10. The next plan takes it up (F2.2, F3.2, F4.2). `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up objects, foliage, materials and contact shadows (done in v0.35.0 to v0.38.0, the plan folded into `docs/ASSETS.md` and `docs/ASSET-IMPORT.md`; the judge's re-run, F6: 5/10 with the core library's shapes, D36); the hero's x-ray dither and three-quarter walls stacking into flat planes are still open |
+| `E.Shell` unused, the interface drawn on the canvas | **threshold** | F2, F3, F4, F6 | reached: three games with modern interfaces skipped it. The next plan takes it up (F4.3) |
+| Climbing any wall and gliding written by the game (`E.Mover` climbs ledges) | **threshold** | F3, F4, F6 | reached: three games wrote their own (F6.4). The next plan takes it up |
 | Not verified on physical phones or native GPUs | no | F1 | a game heads to production (principle 10) |
 | Saves, checkpoints and objectives written by the game | watch | F1 | three sources write the same checkpoint or objective code |
 | Music written by the game for stealth and chases | watch | F1 | two more sources: built-in `stealth` and `chase` songs |
@@ -181,3 +181,34 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   - **F5.3** · assists and gameplay accessibility · aim assist, auto-fire, hold or toggle for sustained actions,
     subtitles and sound captions, target lock: only the game knows its mechanics; `menu.settings` gives them a place and
     the manuals ask for them. **Watch.**
+
+### F6 · 2026-10-15 · the benchmark's Breath of the Wild re-run ("Hateno Heights")
+
+- **Builder:** Claude Code (Opus 5.5) with `--safe-mode`, run by the instrumented `tools/agent-bench.mjs` (D41) from a
+  cloud session; the minimal Breath of the Wild village brief, the brief of F3, approved by the owner (D36, D38).
+- **Handed:** the handoff package v0.43.1 (the asset store, the answering index) in an empty directory.
+- **Built:** a hillside village in three-quarter view (M for iso): plaster and timber houses with tile roofs from the
+  materials, a watchtower, a pond, a plateau and a 176-high spire; climb any wall on a stamina wheel, climb-jumps,
+  vaulting, sprinting, a paraglider from an elder on the plateau, falls that hurt, four orbs to find, a title and win or
+  game-over screens; a village elder in a dialog box. It placed its benches, signs, crates and trees as core shapes from
+  a data list (`r.shape`, `map.solid`). About 14k tokens of game code and a 2.5k-token headless test (31 checks), in 13
+  minutes, 66.1k output tokens and $3.43 (the judge $0.12); its first build passes the check and its test. No engine
+  patch. The judge: 5/10, "solid SNES level": clean sprites, props and tiles, but mostly empty grass, flat lighting, and
+  in iso a black void under a clipped sky, buildings as flat cutouts, a lone hedge block.
+- **Read:** the index 8 times by search (4.8k tokens) and once by its first 40 lines, never whole; `API.md` whole (twice),
+  `AI_GUIDE.md` in four ranges and by search, `docs/ASSETS.md` in one range.
+- **Not acted on (yet):**
+  - **F6.1** · reading the source · 3 reads below the header (F3: 11), each within three calls of a search of the index:
+    the input presets' code (it grepped the engine for `THIRDPERSON` first; the index names that preset's keys and
+    actions in prose), how the pixel primitives fill (the index gives their signatures), and what `map.bounds` returns
+    (not in the index: taken up in v0.43.2, lookup 26). That is 3 of its 8 searches followed by the source, which
+    reopens the index's split by D38's rule. **Threshold** (the theme's).
+  - **F6.2** · the look · 5/10 against F3's 6/10 on the same brief and model, with objects from the core library
+    (no store set): the judge saw empty fields, flat lighting, and the iso view's black void under the backdrop and
+    flat building faces. **Threshold** (the theme's).
+  - **F6.3** · `E.Shell` unused · hearts, the orb counter and the objective drawn on the canvas with `E.ui`; the elder
+    talks in `E.Dialog`. **Threshold** (the theme's).
+  - **F6.4** · climbing and gliding · its own climb-any-wall, climb-jump, stamina and paraglider on `E.Body`, without
+    `E.Mover`. **Threshold** (the theme's: the third source).
+  - **F6.5** · lighting unused · neither `game.lights` nor GPU lighting; the judge: "almost no lighting depth".
+    **Threshold** (the theme's: F1 and F6, two model families).
