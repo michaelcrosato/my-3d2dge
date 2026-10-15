@@ -715,3 +715,50 @@ An entry:
   misread (then fix the reader and `--rescore` the run).
 - **Answered:** yes: the owner approved Phase 4's tool and its run (D38, decisions 1 and 3)
 - **Landed in:** v0.43.1
+
+## D42 · 2026-10-15 · The API index plan, folded: what it measured, and the split reopened
+
+- **Principle:** 1 (agent-readable) and process (a finished plan's decisions live here; the plan is deleted)
+- **Call:** `docs/HANDOFF-API-INDEX.md` is deleted, as v0.38.1 did with the asset plan.
+  - Its decisions are D38 (the owner's answers), D39 (the lookups), D40 (the machinery names) and D41 (the benchmark's
+    reads).
+  - Its lookups are `tools/api-index-lookups.json`: the 25 of its appendix A, and a 26th from the run.
+  - What it measured is kept below.
+- **The options**, measured at v0.42.0 (35,669 tokens, 917 names; grep answered 15 of the 25 lookups, 8 partly, 2 not):
+  - A, let it be;
+  - B, trim (the 68 names private, each thing said once): 32,204 tokens, the same 15;
+  - C, split by area (a contents file and 3 files, or 29): 35,888 in 4 files and 36,895 in 29, the same 15, each hit 3%
+    dearer;
+  - D, the agent edition's 677 names alone in the handoff: 26,772, answering 12 / 6 / 7, without the props, the kit and
+    the HUD;
+  - E, a denser format (no bullets or backticks): 32,678, the same 15;
+  - F, answers first (chosen): the plan counted 36,794, 35,053 and 33,226 for its three phases.
+    - It landed at 37,058, 35,446 and 33,906: Phase 1 split all ten long lines where the count split three, and eight
+      of the 68 names stayed public (D39, D40).
+    - With lookup 26, 33,937.
+    - 25 of 26 lookups answer in one search, and the other in two.
+- **The budget** (D28's question):
+  - For grepping, which the manuals tell agents to do, every budget costs an agent the same; only a whole read differs.
+  - Claude Code's Read tool caps a read at 25,000 tokens of its own count, about 1.4 times cl100k: at 34,000 a whole read
+    is 2 reads, at 37,000 or 40,000 it is 3.
+  - 40,000 is kept (D38).
+- **The † marks** (names the agent edition lacks) stay. They cost about 500 tokens and tell a builder which names are the
+  essential engine. The handoff keeps the full index: its template game and the briefs use marked names.
+- **Growth:**
+  - From v0.19.0 to v0.42.0, 192 names and 8,330 tokens over 23 minor releases: 362 tokens a minor release on average,
+    127 since v0.23.0, none from v0.38.1 to v0.42.0.
+  - The third-person kit and the standard features made 60% of it.
+  - The work in view (the source theme's remedy, live tuning, climbing and gliding, saves) adds about 1,500 to 3,500.
+- **The split, reopened:** the plan's triggers were a whole read, ranges over most of the index, or more than a third of
+  its searches followed by a read of the source.
+  - The first instrumented run (v0.43.1, F6) met the third: 3 of its 8 searches were followed by the source.
+  - It met neither of the others: no whole read, and only the first 40 lines (4%) read as a range.
+  - Its three reads were for facts the index lacked or gave only in prose: the input presets' actions, how the pixel
+    primitives fill, and what `map.bounds` returns. The last is answered now (lookup 26).
+  - So by the plan's own rule the split (option C) is open again. The evidence points to index content rather than a
+    split, and it is one run.
+  - The owner decides. Nothing is split until then.
+- **What would change it:** the owner's answer on the split; a second run that reads the index whole or pages through
+  it; the index past 38,000 tokens; the lookup check unable to keep its lookups answered.
+- **Answered:** the plan's decisions, yes (D38). The split's reopening goes to the owner with this pull request.
+- **Landed in:** v0.43.3
