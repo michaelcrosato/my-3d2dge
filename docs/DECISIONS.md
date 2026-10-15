@@ -686,3 +686,26 @@ An entry:
 - **Answered:** yes: the owner approved Phase 3 (D38, decision 2). The eight kept public were made at once, flagged in
   the pull request: six by the plan's own rule, two as a reversible call in their own commit.
 - **Landed in:** v0.43.0
+
+## D41 · 2026-10-15 · The benchmark records how the manuals are read
+
+- **Principle:** process (the North Star's measures, D19), and 1 (agent-readable: whether agents grep the index or read
+  it whole decides whether it is split, D38)
+- **Call:** `tools/agent-bench.mjs` records every read of the manuals (`API-INDEX.md`, `API.md`, `AI_GUIDE.md`,
+  `docs/ASSETS.md`, `README.md`), not only of the engine.
+  - Each read is classed whole, range or search, with the lines and tokens its result held and whether the Read tool cut
+    it short.
+  - Each read of the engine below its header records whether a search of the index came in the three tool calls before
+    it: a lookup the index didn't answer.
+  - `result.json` and the row sum the index's reads, and say when a run reopens the split: a whole read, ranges over
+    most of the index, or more than a third of its searches followed by a read of the source.
+  - The agent and the judge start without the variables of a Claude Code session that runs the bench (its session id,
+    its effort, its messaging); a cloud session's sign-in is kept.
+- **Why:** the index's budget and its split rest on a guess the benchmark had never measured: that agents grep it. It
+  recorded reads of the engine alone, and the three runs' streams stayed on the machine that ran them. Run from inside a
+  Claude Code session (as in a cloud session), a child agent took that session's id, its effort and, in this container,
+  another default model: probed at $0.05, it ran as Sonnet 5.5 under this session's id. With the variables left out it
+  is a fresh session; the model is the run's `--model`. What would change it: a run read by hand that the classes
+  misread (then fix the reader and `--rescore` the run).
+- **Answered:** yes: the owner approved Phase 4's tool and its run (D38, decisions 1 and 3)
+- **Landed in:** v0.43.1

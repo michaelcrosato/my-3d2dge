@@ -5,6 +5,18 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.43.1 (2026-10-15)
+
+The benchmark records how the manuals are read (Phase 4 of `docs/HANDOFF-API-INDEX.md`), so the next run says whether agents grep the API index, page through it or read it whole.
+
+- **Tools**: `tools/agent-bench.mjs` watches the manuals as well as the engine (`API-INDEX.md`, `API.md`, `AI_GUIDE.md`, `docs/ASSETS.md`, `README.md`):
+  - each Read, `cat`, `sed`, `head`, `tail`, Grep, `grep` or `rg` of one is a whole read, a range or a search (a pipe that starts with grep is a search; a search of a folder counts for each manual its result hit);
+  - each records the lines and tokens its result held, from the stream's tool results, and whether the Read tool cut it short;
+  - each read of the engine below its header records whether a search of the index came in the three tool calls before it: a lookup the index didn't answer.
+- **Tools**: `result.json` gets `manuals` and `index` (searches, ranges and whole reads with their tokens, how much of the index they covered, how many searches a read of the source followed), and the table row a column: "the index read by search / range / whole (tokens)", with "reopens the split" when a run reads the index whole, covers most of it in ranges, or follows more than a third of its searches with the source (D38).
+- **Tools**: the agent and the judge start without the variables of a Claude Code session that runs the bench (its session id, its effort, its messaging), so a run from inside a session, a cloud one included, is a fresh session of its own; a cloud session's sign-in is kept. `--selftest` has a fixture for each class of read, the cut Read, the folder search, the lookup the index missed, and the environment.
+- **Docs**: `DOCTRINE.md`'s measures table gets the column (the earlier runs: not recorded).
+
 ## 0.43.0 (2026-10-15)
 
 Machinery names leave the API (Phase 3 of `docs/HANDOFF-API-INDEX.md`): 60 names in all. 51 members nothing outside the engine uses are private; the seven constructors only the game makes, with `E.GPULighting.supported`, leave `E`; and `E.faceClass` is the engine's own. The API index lists 857 names in 33,906 cl100k tokens.
