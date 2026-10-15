@@ -20,7 +20,7 @@
     { "n": 17, "from": "F4.1", "need": "a pausable scene, hit-stop, the fade", "grep": ["pausable\\|hitstop\\|fade"], "facts": ["pausable", "game.hitstop", "game.fadeTime", "opts.fade"] },
     { "n": 18, "from": "F4.1", "need": "r.sightCone's options", "grep": ["sightCone"], "facts": ["r.sightCone(obs", "range: 120"] },
     { "n": 19, "from": "the Breath of the Wild brief", "need": "climb onto a ledge", "grep": ["ledge"], "facts": ["map.ledge(from, dir", "mover.climbMax"] },
-    { "n": 20, "from": "the Breath of the Wild brief", "need": "a stamina meter", "grep": ["stamina\\|meter"], "facts": ["bars: [{ label, value, max", "bar (a meter)"] },
+    { "n": 20, "from": "the Breath of the Wild brief", "need": "a stamina meter", "grep": ["stamina\\|meter"], "facts": ["bars: [{ label, value, max", "E.ui.bar(g, x, y, w, h", "stamina"] },
     { "n": 21, "from": "the Arkham brief", "need": "a takedown from behind", "grep": ["takedown"], "facts": ["mover.play('takedown', { other })", "E.targets"] },
     { "n": 22, "from": "the Arkham brief", "need": "guards that grow suspicious", "grep": ["Suspicion"], "facts": ["E.Suspicion: suspicion", "suspicion.update(dt, seen, target)", "'alert'"] },
     { "n": 23, "from": "the platformer kit", "need": "the side-scroller input preset", "grep": ["PLATFORMER"], "facts": ["E.Input.PLATFORMER", "input ('PLATFORMER')"] },

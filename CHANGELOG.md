@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.42.3 (2026-10-15)
+
+The API index says each thing once (Phase 2 of `docs/HANDOFF-API-INDEX.md`): 1,612 tokens fewer, every lookup still answered.
+
+- **Docs**: one object's lines that say the same thing are one line (`body.x = 0`, `body.y = 0`, `body.z = 0`: its position): 40 lines in place of 92.
+- **Docs**: a parent's line leaves out what its members' own lines say (`game.cam`, `game.stats`, `new E.Body`, `new E.Mover`, `new E.Suspicion`, `E.V3`, `E.ease`, `E.tex`, `E.ui`, `shell.hud`). No description starts with its own name again ("inv: the inverse ..."), and a table's keys are given once (`E.ACTIONS`, `E.songs`). `E.HEIGHTS` points to the height rules (the index's head, `API.md`) instead of restating them.
+- **Docs**: the wrong descriptions are fixed. A comment's last `)` stays (`E.ease.outQuad`, `talk.modal`, `input.screen`, `settings.saved`). `E.session`'s `frame`, `recording` and `replaying` each get their own clause. `game.stats.updateMs` and `renderMs` share their line. `r.groundPts`, `map.toCell`, `rig.atkRel`, `rig.downW` and `new E.Screen` get wording of their own in place of a neighbor's comment or a fragment. `E.ui`'s line no longer names `E.ui.heartSprites`, which doesn't exist.
+- **Docs**: `E.ui.bar` says it is a meter (health, magic, stamina), and lookup 20 (a stamina meter) checks it there. The index is 35,446 cl100k tokens of its 40,000.
+- **Tools**: `tools/api-index.mjs` merges the same-saying lines, cuts a parent's clauses that its members' lines give, gives a namespace's members that share one comment their own clause of it, and keeps a final `)` unless the parentheses wrap the whole comment.
+
 ## 0.42.2 (2026-10-15)
 
 The API index answers the lookups the benchmark's agents read the engine's source for (Phase 1 of `docs/HANDOFF-API-INDEX.md`): grep finds 24 of 25 of them in one search, against 15 before.
