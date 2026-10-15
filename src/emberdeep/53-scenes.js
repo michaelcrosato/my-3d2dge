@@ -131,11 +131,11 @@ function SCN_free(L0, x, y, rr) {
 }
 /** a part, placed: an engine prop (o.prop) or a shape as a prop's record (drawProps draws it; a shape with lights adds them) */
 function SCN_put(L0, id, x, y, fa, o) {
-  if (o.prop) return WLD_prop(L0, id, x, y, { color: o.color, size: o.s || 1, z: o.z });
+  if (o.prop) { WLD_prop(L0, id, x, y, { color: o.color, size: o.s || 1, z: o.z }); L0.props[L0.props.length - 1].scn = 1; return; }
   const S = E.SHAPES[id]; if (!S) return;
   const mats = {}; for (const k in o.mats || {}) { const v = o.mats[k]; mats[k] = typeof v === 'string' && v[0] === '#' ? v.replace(/^#[0-9a-fA-F]{6}/, c => WLD_c(L0, c)) : v; }
   const so = { facing: fa, scale: Math.round((o.s || SCN_SIZE[id] || 1) * 16) / 16, mats, light: !!S.lights };
-  L0.props.push({ name: id, shape: id, x, y, z: o.z || 0, o: { size: 1 }, so });
+  L0.props.push({ name: id, shape: id, x, y, z: o.z || 0, o: { size: 1 }, so, scn: 1 });
 }
 /** one scene in a room: an anchor (a wall spot, F into the room; or open ground, F any way), then each part checked */
 function SCN_scene(L0, R, rm, sc) {
@@ -168,6 +168,9 @@ function SCN_dress(L0, th) {
     }
   }
 }
+// the mechanics place their things after the dressing, wherever the floor is free (a powder keg, a pylon): a scene's part
+// under one goes when the level starts
+BUS.on('levelStart', ({ L: L0 }) => { if (L0 && L0.scenery) L0.props = L0.props.filter(p => !p.scn || !L0.things.some(t => t.kind !== 'deco' && (t.solid || t.hittable) && (t.x - p.x) ** 2 + (t.y - p.y) ** 2 < ((t.r || 6) + 6) ** 2)); });
 // every theme, wrapped once (a theme registered later is not: the planned ones all sort before this file)
 for (const id in REG.themes) {
   const th = REG.themes[id], base = th.decorate; if (!base || th._scenes) continue;
