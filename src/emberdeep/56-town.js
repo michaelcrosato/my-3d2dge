@@ -1800,6 +1800,33 @@ function dressTown(Lv) {
   add(lanternThing(346, 143, 29, null)); add(lanternThing(378, 117, 24, null, '#ffc860')); add(lanternThing(438, 117, 24, null, '#ffc860'));   // two hang from the awning's valance over Cobb's lane
   add(piece('tavernSign', 186, 130, 0, (r, g) => signBoard(r, g, 186, 131, 26, 's', 'mug')));
   add(piece('smithySign', 114, 316, 0, (r, g) => signBoard(r, g, 113, 316, 25, 'e', 'anvil')));
+  dressDetails(Lv, add);
+}
+/** the town's smaller stories, from the asset store (the page's 'emberdeep' set, which 53-scenes.js registers; docs/ASSETS.md):
+ *  the garden's crops, graves by the memorial stones, a woodpile, the coop's feed, a grindstone in the forge yard, a
+ *  produce cart, a signpost on the south road. Each stands clear of the townsfolk's rounds; without the set, none */
+function dressDetails(Lv, add) {
+  const D = 'emberdeep:', put = (id, x, y, s, rr = 0, o = {}) => { if (E.SHAPES[id]) add(shapePiece('detail', id, x, y, rr, Object.assign({ scale: s, facing: turned(x, y) }, o))); };
+  // the garden: cabbages, onions, cabbages, then a row of pumpkins, round the scarecrow (the fenced soil is not walked)
+  for (let row = 0; row < 4; row++) for (let i = 0; i < 6; i++) {
+    const x = SOIL.x0 + 12 + i * 14 + (row & 1) * 5, y = SOIL.y0 + 10 + row * 16;
+    if (Math.hypot(x - 192, y - 552) < 13) continue;   // (the scarecrow's post)
+    put(D + ['cabbage', 'onion', 'cabbage', 'crop-pumpkin'][row], x, y, [.42, .55, .42, .5][row]);
+  }
+  // beside the memorial stones: two headstones, a mound with flowers on it
+  put(D + 'gravestone-round', 612, 534, .75, 4, { facing: Math.PI / 2 - .1 }); put(D + 'grave', 612, 549, .45, 0, { facing: Math.PI / 2 - .1, mats: { a: '#4e4434 noise' } });   // (the kit's earth came as copper)
+  put(D + 'gravestone-cross', 632, 543, .5, 4, { facing: Math.PI / 2 + .25 });
+  Lv.props.push({ name: 'flowers', x: 611, y: 551, z: 0, o: { color: '#e8e0f0', color2: '#f0d060', size: .8 } });
+  // the south-west corner: a chopping stump, a log waiting for it, chips
+  put(D + 'trunk', 52, 532, .5, 6, { mats: { a: '#7a5638 bark' } }); put(D + 'tree-log', 74, 520, .42, 0, { facing: .35, mats: { a: '#6e4c32 bark' } }); put(D + 'debris-wood', 62, 546, .45);
+  // the coop's feed and water; the smith's grindstone; Cobb's produce cart, laden, south of the plaza
+  add(sack(658, 456, '#b8a078')); put(D + 'bucket', 667, 489, .5, 3);
+  put(D + 'workbench-grind', 206, 250, .75, 6, { facing: .3 });
+  put('cart', 456, 506, 1, 10, { facing: -.45 }); put(D + 'crop-pumpkin', 438, 520, .5, 3); put(D + 'cabbage', 447, 528, .42); add(sack(476, 496, '#c8b890'));
+  put(D + 'signpost-single', 418, 548, .8, 2, { facing: Math.PI });
+  // out past the wall: pumpkins by the hay, a cart left on the verge
+  for (const [x, y] of [[534, 700], [548, 709], [561, 699], [544, 692]]) put(D + 'crop-pumpkin', x, y, .5);
+  put('cart', 458, 702, 1, 10, { facing: 1.2 });
 }
 /** a hanging signboard on an iron bracket, with a painted icon */
 function signBoard(r, g, x, y, z, f, icon) {

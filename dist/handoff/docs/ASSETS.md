@@ -27,6 +27,9 @@ const icon = E.shapeSprite('chest', { view: 'iso' });
 - **Glow and fire:** a material with glow: 1 ignores the light and stays bright in the dark; an entry's flames ([[x, y, z,
   w, h]]) draw the engine's animated flame (r.shape only: a sprite has none). Anything else that moves stays a prop
   (r.prop) or your own code.
+- **Dressing a generated level:** a scene is a few entries as [id, across, forward] from an anchor (a wall spot, forward
+  into the room); place it whole or not at all, each part on free floor, after the level's own random picks and from a
+  seeded stream of its own, so the level stays as its seed builds it (Emberdeep's `src/emberdeep/53-scenes.js`).
 
 ## The core library
 
@@ -146,7 +149,8 @@ A generator seeds its noise from its params (`E.rng(seed)`), never `Math.random`
    (`(window.ASSETS = window.ASSETS || {}).MINE = { set: 'MINE', format: 1, materials, shapes }`) and
    `E.addAssets(window.ASSETS.MINE)`, which names its entries 'MINE:stool' so they never collide, and returns the names.
    A store set loads the same way (its script, then `E.addAssets(window.ASSETS['kenney-furniture'])`);
-   `node tools/asset-set.mjs <sets> --ids a,b --name mine --out mine.js` cuts the few a game uses, with what they need.
+   `node tools/asset-set.mjs <sets> --ids a,b --name mine --out mine.js` cuts the few a game uses, with what they need
+   (Emberdeep's set dressing loads `src/assets/sets/emberdeep.js`, cut so).
 
 ## Limits
 
