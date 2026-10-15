@@ -297,6 +297,10 @@ const ANIMLAB = (() => {
   }
   const PROPS = [['torch', 60, 17, 8], ['torch', 324, 17, 8], ['banner', 132, 17, 0, { color: '#8a2a4a' }], ['banner', 252, 17, 0, { color: '#2a4a8a' }],
     ['barrel', 16, 118, 0], ['barrel', 20, 132, 0], ['crate', 368, 124, 0], ['pot', 356, 140, 0]];
+  // spears racked against the wall, from the asset store (docs/ASSETS.md), cut into the page's 'animlab' set
+  // (src/assets/sets/animlab.js), turning with the view like the rigs [id, x, y, facing, scale]; none without the set
+  const SHAFT = { b: '#7a5634 none' };   // (the kit's shaft is a plank pattern: on a pole it reads as stripes)
+  const RACK = E.addAssets((window.ASSETS || {}).animlab || { set: 'animlab' }).shapes.length ? [88, 95, 102, 280, 287].map((x, i) => ['animlab:weapon-spear', x, 19 + (i & 1), 1.5 + i * .07, 1.1]) : [];
 
   /* ---- KEY POSES: each extreme of a move frozen at a phase and u, drawn once into small images ---- */
   function keyPoses() {
@@ -322,6 +326,7 @@ const ANIMLAB = (() => {
     for (const a of list) r.shadow(a.x, a.y, (a.rig ? 6 : a.blob.o.R) * Math.max(.4, 1 - a.z / 60), .45);
     map.queueWalls(r); rack(r);
     for (const [kind, x, y, z, o] of PROPS) r.prop(kind, x, y, z, o);
+    for (const [id, x, y, facing, scale] of RACK) r.shape(id, x, y, 0, { facing, scale, mats: SHAFT });
     if (anim.ladder) for (const a of list) ladder(r, a.x);
     if (dummyOn()) dummy(r);
     for (const a of list) {

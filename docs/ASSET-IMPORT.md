@@ -19,7 +19,7 @@ asset-sheet --grid                            contact sheets of a set, for curat
 (curate)     ->  src/assets/catalogs/<set>.json  "id": ["tags", "what it looks like"], $skip with reasons, $mats
 asset-import ->  src/assets/sets/<set>.js     the set: sources, materials, shapes, sprites, each entry with src, orig, fit
 asset-set    ->  a smaller set (a game's own), with the shapes and materials its entries use (src/assets/sets/tavern.js;
-                 emberdeep.js, Emberdeep's set dressing; platformer.js, the platformer kit's graveyard)
+                 emberdeep.js, Emberdeep's set dressing; platformer.js, shooter.js, brawler.js, animlab.js, the kits')
 asset-find   ->  search every set and the core library
 ```
 

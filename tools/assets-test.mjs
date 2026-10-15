@@ -19,6 +19,8 @@
 //      edited material redraws cached pictures, parts below the floor are not clipped, an entry's scale applies, the
 //      crate pattern repeats past its face, the outline takes the renderer's color, a raised solid is no wall under it,
 //      what stands on a shape's back half sorts after it, and 300 shapes in view: the first frame, the steady ones, the cache
+//   9. the games' cut sets (emberdeep, platformer, shooter, brawler, animlab): every entry the code names is in the set its
+//      page loads, and every entry of the set is named
 // Usage: node tools/assets-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
@@ -395,6 +397,27 @@ console.log('8. edge cases: broken parts, loops, edits, the floor, scale, sortin
   if (!r.bad.length) ok('a jar on a table\'s back half draws over it; the outline takes the renderer\'s color; a crystal glows in the dark');
   console.log('  300 shapes in view (' + r.pictures + ' pictures, the cache holds 800): first frame ' + r.first.toFixed(0) + ' ms, steady ' + r.steady.toFixed(1) + ' ms a frame (' + r.empty.toFixed(1) + ' without them)');
   writeFileSync(join(out, 'speed.json'), JSON.stringify({ pictures: r.pictures, first: +r.first.toFixed(1), steady: +r.steady.toFixed(2), empty: +r.empty.toFixed(2) }, null, 1));
+}
+
+/* 9. the games' cut sets: every entry a page's code names from the set it loads is in that set (a typo, or an entry left
+ * out of a re-cut, would draw nothing and say nothing), and every entry of a game's cut set is named (no dead weight in a
+ * kit that a model reads whole) */
+console.log('9. the games\' cut sets: what the code names is there, and nothing more');
+{
+  const { readSet } = await import('./asset-lib.mjs');
+  const GAMES = { platformer: ['src/starter/20-platformer.js'], shooter: ['src/starter/30-shooter.js'], brawler: ['src/starter/50-brawler.js'], animlab: ['src/starter/60-animlab.js'],
+    emberdeep: ['src/emberdeep/53-scenes.js', 'src/emberdeep/56-town.js'] };
+  for (const [set, files] of Object.entries(GAMES)) {
+    const S = readSet(join(root, 'src/assets/sets', set + '.js')), ids = new Set(Object.keys(S.shapes || {})), src = files.map(f => readFileSync(join(root, f), 'utf8')).join('\n');
+    // named: 'set:id' written out, or D + 'id' where the file says const D = 'set:'
+    const named = [...src.matchAll(new RegExp("'" + set + ":([a-z0-9-]+)'", 'g'))].map(m => m[1]);
+    for (const f of files) { const t = readFileSync(join(root, f), 'utf8'); if (new RegExp("const D = '" + set + ":'").test(t)) named.push(...[...t.matchAll(/D \+ '([a-z0-9-]+)'/g)].map(m => m[1])); }
+    const missing = [...new Set(named.filter(id => !ids.has(id)))], unused = [...ids].filter(id => !src.includes("'" + id + "'") && !src.includes(':' + id + "'"));
+    if (!named.length) fail('cut sets', set + ': ' + files.join(', ') + ' name nothing from it');
+    if (missing.length) fail('cut sets', set + ': named but not in src/assets/sets/' + set + '.js: ' + missing.join(', '));
+    if (unused.length) fail('cut sets', set + ': in the set but named nowhere in ' + files.join(', ') + ': ' + unused.join(', '));
+    if (named.length && !missing.length && !unused.length) ok(set + ': ' + ids.size + ' entries, each named by its game');
+  }
 }
 
 await browser.close();
