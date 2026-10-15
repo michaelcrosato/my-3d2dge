@@ -1,4 +1,4 @@
-# my-3D2dge handoff package (v0.38.2)
+# my-3D2dge handoff package (v0.39.0)
 
 Everything a coding agent needs to build, run, test and check a game on the full my-3D2dge engine, in one folder of text
 files. You don't need the engine's repository, and you don't need to read the engine's source below its header.
@@ -13,7 +13,12 @@ files. You don't need the engine's repository, and you don't need to read the en
 4. **Don't build a pause menu, settings, key rebinding, full screen or a loading screen**: every game has them (`API.md`,
    "Standard features"). Adjust them with `new E.Game({ menu: { items, settings, controls, quit } })`; heavy setup goes in
    `game.start({ boot: { steps } })`.
-5. **Copy `game/`** and make it yours: `game/game.js` is a small complete game (climbing, a guard with sight, a HUD,
+5. **Objects without drawing code:** read `docs/ASSETS.md` whole before you draw a barrel, a table or a tree.
+   `r.shape('barrel', x, y, 0, { facing })` draws one of the core library's in every view; `node tools/asset-find.mjs
+   "market stall"` searches it and the store (`src/assets/sets/`: about a thousand objects, materials and sprites,
+   each with where it came from), and `node tools/asset-sheet.mjs mine.js#stool` draws one you wrote, to look at
+   before you use it.
+6. **Copy `game/`** and make it yours: `game/game.js` is a small complete game (climbing, a guard with sight, a HUD,
    scenes), `game/index.html` plays it, and `game/test.mjs` tests it without a browser.
 
 ## What is here
@@ -27,6 +32,9 @@ files. You don't need the engine's repository, and you don't need to read the en
 | `tools/check.mjs` | plays a game in headless Chromium, switches its views, and reports errors, what is on screen, and `game.debug.snapshot()` |
 | `tools/filmstrip.mjs` | records frames into one picture, to judge motion (`--seed 1` makes it repeatable, `--compare` marks what changed) |
 | `tools/replay.mjs` | replays a recorded play session exactly (`E.session`, a bug seen on a phone) |
+| `docs/ASSETS.md` | the asset card: still objects and materials as data (`r.shape`, `map.solid`, `E.MATERIALS`), the core library, writing one |
+| `tools/asset-find.mjs`, `asset-sheet.mjs`, `asset-set.mjs` | search the core library and the store; draw an object in every view and lint it; cut the few entries a game uses into a set of its own (`asset-lib.mjs` is theirs) |
+| `src/assets/` | the asset store: sets of objects and materials converted from CC0 libraries (Kenney, KayKit, ambientCG), with their catalogs. A game loads one with its script and `E.addAssets(window.ASSETS['kenney-furniture'])`; the Asset Lab shows them all at my-3d2dge.vercel.app/asset-lab |
 | `package.json` | pins Playwright for the tools |
 
 ## Run, test, check

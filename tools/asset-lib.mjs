@@ -8,6 +8,8 @@ import zlib from 'node:zlib';
 import vm from 'node:vm';
 
 export const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+/** the full engine's file: the repository's, or the handoff package's (its engine sits at the top, beside src/assets/) */
+export const engineFile = ['engine/my-3d2dge.js', 'my-3d2dge.js'].map(f => join(root, f)).find(f => existsSync(f)) || join(root, 'engine/my-3d2dge.js');
 /** the only licenses the store takes (the assets suite fails on any other) */
 export const LICENSES = ['CC0 1.0', 'Public Domain Mark 1.0'];
 export const cacheDir = lib => join(root, '.cache/assets', lib);
@@ -22,7 +24,7 @@ let _E = null;
 export function engine() {
   if (_E) return _E;
   globalThis.window = globalThis.window || globalThis;
-  vm.runInThisContext(readFileSync(join(root, 'engine/my-3d2dge.js'), 'utf8'), { filename: 'engine/my-3d2dge.js' });
+  vm.runInThisContext(readFileSync(engineFile, 'utf8'), { filename: engineFile });
   return (_E = globalThis.My3D2dge);
 }
 

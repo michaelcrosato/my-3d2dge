@@ -545,6 +545,9 @@ if (existsSync(join(root, 'dist/handoff/game/test.mjs'))) {
     run(30); const g = My3D2dge.current; g.input.tap('start'); run(40); g.input.hold('right'); run(90); return g.debug.snapshot(); });
   await page.close();
   check('handoff: game/index.html plays in a browser', !errors.length && snap.scene === 'play', errors.join(' | ') + JSON.stringify(snap));
+  // the asset card's tools run on the package alone (its engine and its copy of the store), as the card says
+  const f = spawnSync(process.execPath, [join(root, 'dist/handoff/tools/asset-find.mjs'), 'graveyard urn', '--top', '3'], { encoding: 'utf8', cwd: join(root, 'dist/handoff') });
+  check('handoff: docs/ASSETS.md is there and tools/asset-find.mjs finds a store entry', existsSync(join(root, 'dist/handoff/docs/ASSETS.md')) && f.status === 0 && /kenney-graveyard:urn-round/.test(f.stdout), (f.stdout + f.stderr).slice(0, 300));
 }
 await browser.close();
 

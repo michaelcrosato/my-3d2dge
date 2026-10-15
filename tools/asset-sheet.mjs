@@ -38,7 +38,8 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PAT
 const page = await browser.newPage(), problems = [];
 page.on('pageerror', e => problems.push(String(e))); page.on('console', m => { if ((m.type() === 'warning' || m.type() === 'error') && !/willReadFrequently/.test(m.text())) problems.push(m.text()); });   // (not Chromium's readback hint)
 await page.setContent('<!doctype html><html><body></body></html>');
-await page.addScriptTag({ content: readFileSync(join(root, 'engine/my-3d2dge.js'), 'utf8') });
+// (the repository's engine, or the handoff package's beside this folder)
+await page.addScriptTag({ content: readFileSync(['engine/my-3d2dge.js', 'my-3d2dge.js'].map(f => join(root, f)).find(f => existsSync(f)), 'utf8') });
 const before = await page.evaluate(() => Object.keys(My3D2dge.SHAPES));
 if (src) await page.addScriptTag({ content: src });
 // the shapes to draw: the file's sets (registered), the shapes it added to E.SHAPES, or the core id asked for

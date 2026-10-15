@@ -18,7 +18,7 @@
 <body>
 <main>
 <h1>my-3D2dge handoff package</h1>
-<p>v0.38.2 · dev-build. Everything a coding agent needs to build, run, test and check a game on the full engine, as text files. Start with <a href="README.md">README.md</a>, then read <a href="API.md">API.md</a>. <a href="game/index.html">Play the template game</a>.</p>
+<p>v0.39.0 · dev-build. Everything a coding agent needs to build, run, test and check a game on the full engine, as text files. Start with <a href="README.md">README.md</a>, then read <a href="API.md">API.md</a>. <a href="game/index.html">Play the template game</a>.</p>
 <ul>
 <li><a href="README.md">README.md</a><span>start here: what the package holds, which page to read, how to run and test a game</span></li>
 <li><a href="package.json">package.json</a><span>pins Playwright for the tools</span></li>
@@ -30,9 +30,15 @@
 <li><a href="tools/check.mjs">tools/check.mjs</a><span>plays a game headless and reports errors, screenshots and its snapshot</span></li>
 <li><a href="tools/filmstrip.mjs">tools/filmstrip.mjs</a><span>records frames into one picture</span></li>
 <li><a href="tools/replay.mjs">tools/replay.mjs</a><span>replays a recorded play session exactly</span></li>
+<li><a href="docs/ASSETS.md">docs/ASSETS.md</a><span>the asset card: objects and materials as data (r.shape), the core library, writing one</span></li>
+<li><a href="tools/asset-find.mjs">tools/asset-find.mjs</a><span>searches the core library and the store: node tools/asset-find.mjs "tavern table"</span></li>
+<li><a href="tools/asset-sheet.mjs">tools/asset-sheet.mjs</a><span>draws an object in every view and says what reads badly</span></li>
+<li><a href="tools/asset-set.mjs">tools/asset-set.mjs</a><span>cuts the few entries a game uses from the store's sets</span></li>
+<li><a href="tools/asset-lib.mjs">tools/asset-lib.mjs</a><span>shared by the asset tools</span></li>
 <li><a href="game/game.js">game/game.js</a><span>the template game: copy it</span></li>
 <li><a href="game/index.html">game/index.html</a><span>the template game: play it</span></li>
 <li><a href="game/test.mjs">game/test.mjs</a><span>its headless test: node game/test.mjs</span></li>
+<li><a href="src/assets/sets/">src/assets/</a><span>the asset store: 20 sets of objects and materials converted from CC0 libraries, and their catalogs (docs/ASSETS.md, "Make one")</span></li>
 </ul>
 </main>
 </body>

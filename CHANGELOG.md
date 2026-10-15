@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.39.0 (2026-10-15)
+
+The asset store goes where builders work: the handoff package carries it, and a starter kit loads a cut of it.
+
+- **Art**: the platformer's graveyard gains a stone cross, an urn and a sarcophagus from the store (kenney-graveyard, CC0), cut by `tools/asset-set.mjs` into the page's own set (`src/assets/sets/platformer.js`, 3 shapes, 1,391 tokens) and placed by letters in its back row like its props: the first kit to load a set as `docs/ASSETS.md` says a game does.
+- **Tools**: the handoff package (`dist/handoff/`) carries the asset card (`docs/ASSETS.md`), `asset-find`, `asset-sheet` and `asset-set`, and the store (`src/assets/`: every set and its catalog, at the repository's own paths). Its `API.md`, `AI_GUIDE.md` and template game already pointed at the card and `asset-sheet`, which it did not hold. The asset tools find the engine in either layout. The contract suite checks that `asset-find` runs on the package alone and finds a store entry.
+- **Docs**: the handoff README says where objects come from (step 5 of "Start here") and lists the card, the tools and the store.
+
 ## 0.38.2 (2026-10-15)
 
 The fixes a review of v0.38.1 found.

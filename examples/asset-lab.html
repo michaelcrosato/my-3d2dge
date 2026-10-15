@@ -78,7 +78,7 @@ Pick one to see it drawn by the engine beside the hero, turn it, edit its text a
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.38.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.39.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -157,7 +157,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.38.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.39.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -8674,7 +8674,7 @@ root.My3D2dge = E;
 
 </script>
 <script>
-/* ---- inlined from src/assets/sets (ambientcg.js, kaykit-dungeon-remastered.js, kaykit-furniture-bits.js, kaykit-halloween-bits.js, kaykit-restaurant-bits.js, kenney-fantasy-town.js, kenney-food.js, kenney-furniture.js, kenney-graveyard.js, kenney-holiday.js, kenney-mini-dungeon.js, kenney-nature.js, kenney-pirate.js, kenney-platformer.js, kenney-survival.js, kenney-tiny-battle.js, kenney-tiny-dungeon.js, kenney-tiny-town.js, tavern.js) ---- */
+/* ---- inlined from src/assets/sets (ambientcg.js, kaykit-dungeon-remastered.js, kaykit-furniture-bits.js, kaykit-halloween-bits.js, kaykit-restaurant-bits.js, kenney-fantasy-town.js, kenney-food.js, kenney-furniture.js, kenney-graveyard.js, kenney-holiday.js, kenney-mini-dungeon.js, kenney-nature.js, kenney-pirate.js, kenney-platformer.js, kenney-survival.js, kenney-tiny-battle.js, kenney-tiny-dungeon.js, kenney-tiny-town.js, platformer.js, tavern.js) ---- */
 /* ambientcg: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
  * ambientCG Bricks105, ambientCG Bricks104, ambientCG Bricks097 and more (ambientcg.com), CC0 1.0
  * 0 shapes, 68 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
@@ -10263,6 +10263,24 @@ sprites: {
 'tile-0129': {about:'hoe, grey blade, wooden handle',tags:'tool farm',rows:['......0000000...','....0000000000..','...0000hhe3300..','..000hhhhe3300..','..00hhhhhe3300..','.000hhhooe3300..','.00hhoo0005500..','.00oo000005500..','.0000000005500..','.00000..001100..','........005500..','........001100..','........005500..','........005500..','........000000..','.........0000...'],colors:{0:'#3f2631',1:'#eaa56c',3:'#8b9bb4',5:'#bd6c4a',h:'#8c9cb5',e:'#52607c',o:'#c1ccdd'},src:'kenney-tiny-town',orig:'Tiles/tile_0129.png',fit:0},
 'tile-0130': {about:'open wooden barrel, empty',tags:'container town',rows:['...0000000000...','..000000000000..','.00022e33e22000.','0002000000002000','0020555555550200','00255kkkkkk55200','0025k000000k5200','0025k000000k5200','0025500000055200','000k55555555k000','.005kkkkkkkk500.','.00555555555500.','.00555555555500.','.00055555555000.','..000000000000..','...0000000000...'],colors:{0:'#3f2631',2:'#c0cbdc',3:'#8b9bb4',5:'#bd6c4a',e:'#52607c',k:'#773833'},src:'kenney-tiny-town',orig:'Tiles/tile_0130.png',fit:0},
 'tile-0131': {about:'wooden barrel filled with blue water',tags:'container town',rows:['...0000000000...','..000000000000..','.00022e33e22000.','0002000000002000','0020555555550200','00255kkkkkk55200','0025krrrrrrk5200','0025knnnnnnk5200','00255nnnnnn55200','000k55555555k000','.005kkkkkkkk500.','.00555555555500.','.00555555555500.','.00055555555000.','..000000000000..','...0000000000...'],colors:{0:'#3f2631',2:'#c0cbdc',3:'#8b9bb4',5:'#bd6c4a',e:'#52607c',k:'#773833',r:'#76e4ff',n:'#009adc'},src:'kenney-tiny-town',orig:'Tiles/tile_0131.png',fit:0}}};
+
+/* platformer: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
+ * A night graveyard's stones for the platformer starter (src/starter/20-platformer.js)
+ * 3 shapes, 2 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
+ * "sources" records each download (its url, date, sha256 and license); an entry's src names its download, orig the file in
+ * it, and fit how close it is: a shape's silhouette IoU at game scale (mean and worst view) and color dE.
+ * Load it with E.addAssets(window.ASSETS['platformer']): its ids become 'platformer:id'. */
+(window.ASSETS = window.ASSETS || {})['platformer'] = { set: 'platformer', format: 1, credit: 'A night graveyard\'s stones for the platformer starter (src/starter/20-platformer.js)',
+sources: {'kenney-graveyard':{label:'Kenney Graveyard Kit',origin:'Kenney (kenney.nl), graveyard-kit',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/graveyard-kit/ba8d4b4517-1760691807/kenney_graveyard-kit_5.0.zip',page:'https://kenney.nl/assets/graveyard-kit',fetched:'2026-10-14',sha256:'1a93613f2e5675f3310acf49ec9ef13ae7adeb756ac3b205bfb6cc9311a81062',licenseHash:'a48e274258386c6b',dir:'graveyard-kit',scale:2,factors:'srgb'}},
+materials: {
+steel: '#99a0c0 speck',
+iron: '#636982 speck'},
+shapes: {
+'crypt-a': {about:'stone sarcophagus with gabled lid on a low base',tags:'grave graveyard crypt',mats:{a:'steel'},parts:[['prism','a',[0,0,0],[[-5.5,8],[-6,9.5],[-8,9.5],[-8,12.5],[-1.3,17],[1.3,17],[8.5,12.5],[8.5,10],[6,9.5],[6,8]],31.5,{axis:'y'}],['box','a',[0,0,0],[20,35.5,4]],['box','a',[0,0,4],[16,31.5,4]]],src:'kenney-graveyard',orig:'Models/GLB format/crypt-a.glb',fit:{iou:0.95,worst:0.93,dE:5}},
+cross: {about:'grey stone cross with flared arms on a square base',tags:'grave graveyard',mats:{a:'steel'},parts:[['box','a',[0,0,3],[6,4,26]],['mirror','x',['box','a',[4.5,0,21],[3,4,5]]],['box','a',[0,0,0],[8,8,3.2]],['prism','a',[0,0,0],[[-7,20],[-10.5,22.5],[-10.5,24.5],[-7,27.5],[-6.5,27.5],[-6,27],[-6,20]],5,{axis:'y'}],['prism','a',[0,0,0],[[6.5,20],[6,20],[6,27],[6.5,27.5],[7,27.5],[10.5,24.5],[10.5,22.5],[7.5,20]],5,{axis:'y'}],['prism','a',[0,0,0],[[-3.3,29],[-3.7,29],[-3.7,30],[-0.8,33.5],[0.8,33.5],[3.8,30],[3.8,29],[3.4,29]],5,{axis:'y'}],['prism','a',[0,2.5,0],[[0,21],[-2.6,23.5],[-0.1,26],[2.7,23.5]],1.4,{axis:'y'}]],src:'kenney-graveyard',orig:'Models/GLB format/cross.glb',fit:{iou:0.9,worst:0.88,dE:5}},
+'urn-round': {about:'dark grey lidded funeral urn on a footed base',tags:'decoration graveyard crypt',mats:{a:'iron',b:'steel'},parts:[['lathe','a',[0,0,4],[[0,0],[2.6,0],[3.2,1.5],[3.7,4.5],[3.7,5],[0,5]]],['lathe','a',[0,0,0],[[0,0],[3.2,0],[3.1,1.8],[2.4,2.5],[1.6,2.5],[1.9,4],[0,4]]],['lathe','a',[0,0,9],[[0,0],[4,0],[4,0.9],[3.6,1.6],[1,1.6],[1.4,2.5],[0,2.5]]],['lathe','b',[0,0,5.5],[[0,0],[2.4,0],[2.9,3.2],[0,3.3],[0,4.5],[0.9,4.5],[1.4,5.5],[1,6.5],[0,6.5]]],['box','b',[0,0,2],[2,5,0.5]],['mirror','x',['box','b',[1.5,0,2],[1,4,0.5]]],['mirror','x',['box','b',[2.3,0,2],[0.5,2,0.5]]]],src:'kenney-graveyard',orig:'Models/GLB format/urn-round.glb',fit:{iou:0.93,worst:0.92,dE:4}}},
+sprites: {
+}};
 
 /* tavern: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
  * A tavern's furniture, cut by tools/asset-set.mjs from kaykit-furniture-bits, kaykit-restaurant-bits, kenney-food, kenney-fantasy-town and ambientcg (KayKit by Kay Lousberg, Kenney, ambientCG; all CC0 1.0): what a game carries instead of the whole store

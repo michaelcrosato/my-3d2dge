@@ -164,6 +164,10 @@ const H = 'dist/handoff', HANDOFF = [
   ['my-3d2dge.js', ENGINE], ['my-3d2dge-agent.js', 'engine/my-3d2dge-agent.js'],
   ['API.md', 'API.md'], ['API-INDEX.md', 'API-INDEX.md'], ['AI_GUIDE.md', 'AI_GUIDE.md'],
   ['tools/check.mjs', 'tools/check.mjs'], ['tools/filmstrip.mjs', 'tools/filmstrip.mjs'], ['tools/replay.mjs', 'tools/replay.mjs'],
+  // the asset card, its tools and the store, at the repository's own paths so the card's commands work as written
+  ['docs/ASSETS.md', 'docs/ASSETS.md'], ...['find', 'sheet', 'set', 'lib'].map(t => ['tools/asset-' + t + '.mjs', 'tools/asset-' + t + '.mjs']),
+  ...readdirSync(join(root, 'src/assets/sets')).filter(f => f.endsWith('.js')).sort().map(f => ['src/assets/sets/' + f, 'src/assets/sets/' + f]),
+  ...readdirSync(join(root, 'src/assets/catalogs')).filter(f => f.endsWith('.json')).sort().map(f => ['src/assets/catalogs/' + f, 'src/assets/catalogs/' + f]),
   ...readdirSync(join(root, 'src/handoff/game')).sort().map(f => ['game/' + f, 'src/handoff/game/' + f])
 ];
 const SAY = { 'README.md': 'start here: what the package holds, which page to read, how to run and test a game', 'package.json': 'pins Playwright for the tools',
@@ -171,7 +175,9 @@ const SAY = { 'README.md': 'start here: what the package holds, which page to re
   'API.md': 'the API card: read it whole', 'API-INDEX.md': 'every public name, one line each: search it', 'AI_GUIDE.md': 'the guide: recipes, the look, heights, sessions',
   'tools/check.mjs': 'plays a game headless and reports errors, screenshots and its snapshot', 'tools/filmstrip.mjs': 'records frames into one picture',
   'tools/replay.mjs': 'replays a recorded play session exactly', 'game/index.html': 'the template game: play it', 'game/game.js': 'the template game: copy it',
-  'game/test.mjs': 'its headless test: node game/test.mjs' };
+  'game/test.mjs': 'its headless test: node game/test.mjs', 'docs/ASSETS.md': 'the asset card: objects and materials as data (r.shape), the core library, writing one',
+  'tools/asset-find.mjs': 'searches the core library and the store: node tools/asset-find.mjs "tavern table"', 'tools/asset-sheet.mjs': 'draws an object in every view and says what reads badly',
+  'tools/asset-set.mjs': 'cuts the few entries a game uses from the store\'s sets', 'tools/asset-lib.mjs': 'shared by the asset tools' };
 if (existsSync(join(root, H))) rmSync(join(root, H), { recursive: true });
 const fill = s => boot(s.replaceAll('{{VERSION}}', GLOBAL.VERSION).replaceAll('{{BUILD}}', GLOBAL.BUILD));
 for (const [to, from] of HANDOFF) {
@@ -179,6 +185,8 @@ for (const [to, from] of HANDOFF) {
   const text = readFileSync(join(root, from), 'utf8');
   writeFileSync(join(root, H, to), from.startsWith('src/handoff/') && !from.endsWith('.js') && !from.endsWith('.mjs') ? fill(text) : text);
 }
-const list = HANDOFF.map(([to]) => `<li><a href="${to}">${to}</a><span>${SAY[to] || ''}</span></li>`).join('\n');
+// (the store's files as one line: its sets and catalogs)
+const store = HANDOFF.filter(([to]) => to.startsWith('src/assets/')), list = HANDOFF.filter(([to]) => !to.startsWith('src/assets/')).map(([to]) => `<li><a href="${to}">${to}</a><span>${SAY[to] || ''}</span></li>`)
+  .concat(`<li><a href="src/assets/sets/">src/assets/</a><span>the asset store: ${store.filter(([to]) => to.endsWith('.js')).length} sets of objects and materials converted from CC0 libraries, and their catalogs (docs/ASSETS.md, "Make one")</span></li>`).join('\n');
 writeFileSync(join(root, H, 'index.html'), fill(readFileSync(join(root, 'src/handoff/index.html'), 'utf8')).replace('{{FILES}}', list));
 console.log('built ' + H + '/ (' + (HANDOFF.length + 1) + ' files)');
