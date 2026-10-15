@@ -3,9 +3,10 @@
  * lost expedition's camp, a miners' table), and a scatter of single objects. Drawn from the asset store as shapes
  * (docs/ASSETS.md): the page's 'emberdeep' set (src/assets/sets/emberdeep.js, cut from the CC0 libraries by
  * tools/asset-set.mjs), the core library, and a few entries of Emberdeep's own below ('ed:campfire').
- * Every theme's decorate is wrapped once: after it runs, scenes come from a random stream of their own (the level's
- * seed, turned), so the theme's dressing, the mechanics' things and the monsters stand exactly where they did. A
- * theme without a SCENES entry is left as it is. Set dressing only: nothing here is solid or hittable.
+ * They are laid out when a level starts (BUS 'levelStart'), from a random stream of their own (the level's seed,
+ * turned), clear of everything the level placed: its theme's dressing, the mechanics' things and floors and the
+ * monsters stand exactly where they would without them. A theme without a SCENES entry is left as it is. Set dressing
+ * only: nothing here is solid or hittable.
  * ============================================================================= */
 {
 /** the store's colours in this game's light: its kits are brighter, so every colour a little less saturated, and the
@@ -131,11 +132,11 @@ function SCN_free(L0, x, y, rr) {
 }
 /** a part, placed: an engine prop (o.prop) or a shape as a prop's record (drawProps draws it; a shape with lights adds them) */
 function SCN_put(L0, id, x, y, fa, o) {
-  if (o.prop) { WLD_prop(L0, id, x, y, { color: o.color, size: o.s || 1, z: o.z }); L0.props[L0.props.length - 1].scn = 1; return; }
+  if (o.prop) return WLD_prop(L0, id, x, y, { color: o.color, size: o.s || 1, z: o.z });
   const S = E.SHAPES[id]; if (!S) return;
   const mats = {}; for (const k in o.mats || {}) { const v = o.mats[k]; mats[k] = typeof v === 'string' && v[0] === '#' ? v.replace(/^#[0-9a-fA-F]{6}/, c => WLD_c(L0, c)) : v; }
   const so = { facing: fa, scale: Math.round((o.s || SCN_SIZE[id] || 1) * 16) / 16, mats, light: !!S.lights };
-  L0.props.push({ name: id, shape: id, x, y, z: o.z || 0, o: { size: 1 }, so, scn: 1 });
+  L0.props.push({ name: id, shape: id, x, y, z: o.z || 0, o: { size: 1 }, so });
 }
 /** one scene in a room: an anchor (a wall spot, F into the room; or open ground, F any way), then each part checked */
 function SCN_scene(L0, R, rm, sc) {
@@ -168,13 +169,7 @@ function SCN_dress(L0, th) {
     }
   }
 }
-// the mechanics place their things after the dressing, wherever the floor is free (a powder keg, a pylon): a scene's part
-// under one goes when the level starts
-BUS.on('levelStart', ({ L: L0 }) => { if (L0 && L0.scenery) L0.props = L0.props.filter(p => !p.scn || !L0.things.some(t => t.kind !== 'deco' && (t.solid || t.hittable) && (t.x - p.x) ** 2 + (t.y - p.y) ** 2 < ((t.r || 6) + 6) ** 2)); });
-// every theme, wrapped once (a theme registered later is not: the planned ones all sort before this file)
-for (const id in REG.themes) {
-  const th = REG.themes[id], base = th.decorate; if (!base || th._scenes) continue;
-  th._scenes = true;
-  th.decorate = function (L0, R) { base.call(this, L0, R); SCN_dress(L0, this); };
-}
+// laid out when a level starts: after its theme's dressing, its mechanics' things and their floors (lava, canals,
+// chasms), which a scene keeps clear of, so the level's own random stream and everything it placed stay as they were
+BUS.on('levelStart', ({ L: L0 }) => { if (L0 && L0.kind === 'level' && !L0._scn) { L0._scn = true; SCN_dress(L0, L0.theme); } });
 }
