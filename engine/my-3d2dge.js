@@ -6939,6 +6939,54 @@ E.shapeInfo = (id, o = {}) => {
   for (let j = 0; j < r.part.length; j++) if (r.part[j] >= 0) { parts[r.part[j]]++; pixels++; cols.add((r.rgba[j * 4] << 16) | (r.rgba[j * 4 + 1] << 8) | r.rgba[j * 4 + 2]); }
   return { w: r.w, h: r.h, ox: r.ox, oy: r.oy, tris: r.tris, prims: r.prims, parts, colors: cols.size, pixels, bounds: shapeGeom(S, o).bounds.slice(), rgba: r.rgba };
 };
+/**
+ * a shape's triangles, for a 3D renderer (the 3D engine's world.shape): E.shapeMesh(id | entry, { params, mats, seg })
+ * -> { groups: [{ mat (the material ready to draw: E.material's), key (its id), lid (true: the faces looking up or down,
+ * which some patterns draw their own way), pos, nrm, uv (Float32Arrays: three numbers a corner, three corners a triangle;
+ * uv two a corner, world units across the surface) }], bounds [x0, y0, z0, x1, y1, z1] } in the entry's own units and
+ * frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). seg(r): the
+ * segments round a radius r (default 8 to 24). The same parts as r.shape draws; null for an unknown shape
+ */
+E.shapeMesh = (id, o = {}) => {
+  const S = shapeOf(id); if (!S) return null;
+  const R = resolveShape(S, Object.assign({}, o.params, { mats: o.mats }), typeof id === 'string' ? id : undefined), k = S.scale || 1, groups = new Map(), b = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9];
+  const seg = o.seg || (r => Math.max(8, Math.min(24, Math.round(r * k * .8) * 2)));
+  for (const P of R.prims) {
+    const N = invT3(P.M);
+    TESS[P.k](f => {
+      const key = P.mi + (f.lid ? 'L' : 'S'); let G = groups.get(key);
+      if (!G) groups.set(key, G = { mat: R.mats[P.mi], key: R.mq[P.mi] && typeof R.mq[P.mi][0] === 'string' ? R.mq[P.mi][0] : 'm' + P.mi, lid: !!f.lid, pos: [], nrm: [], uv: [] });
+      const nv = f.v.length, W = f.v.map(p => add3(mv3(P.M, p), P.t).map(c => c * k)), nn = i => { const q = Array.isArray(f.n[0]) ? f.n[i] : f.n, m = mv3(N, q), l = Math.hypot(m[0], m[1], m[2]) || 1; return [m[0] / l, m[1] / l, m[2] / l]; };
+      for (const w of W) for (let i = 0; i < 3; i++) { b[i] = Math.min(b[i], w[i]); b[i + 3] = Math.max(b[i + 3], w[i]); }
+      for (let i = 1; i + 1 < nv; i++) for (const j of [0, i, i + 1]) { G.pos.push(...W[j]); G.nrm.push(...nn(j)); G.uv.push(f.uv[j][0], f.uv[j][1]); }
+    }, P, seg);
+  }
+  if (b[0] > b[3]) b.fill(0);
+  return { groups: [...groups.values()].map(G => Object.assign(G, { pos: new Float32Array(G.pos), nrm: new Float32Array(G.nrm), uv: new Float32Array(G.uv) })), bounds: b };
+};
+/** a material's pattern as a tile of pixels, for a 3D renderer's texture: E.materialTile(id, { size: 32 (world units
+ *  square: it repeats every size), px: 2 (pixels a unit), lid: false (true: as on a face looking up), band: 2 (the
+ *  light: 0 dark .. 4 bright) }) -> { w, h, rgba (Uint8ClampedArray, top row first, v up the tile) }; null for an
+ *  unknown material */
+E.materialTile = (id, o = {}) => {
+  const m = material(id); if (!m) return null;
+  const size = o.size || 32, k = o.px || 2, n = Math.round(size * k), rgba = new Uint8ClampedArray(n * n * 4), band = o.band === undefined ? 2 : o.band;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const u = (x + .5) / k, v = (n - 1 - y + .5) / k, c = m.ramp[matTone(m, u, v, size, size, !!o.lid, band, 1 / k, o.lid ? 0 : v)], j = (y * n + x) * 4;
+    rgba[j] = c[0]; rgba[j + 1] = c[1]; rgba[j + 2] = c[2]; rgba[j + 3] = 255;
+  }
+  return { w: n, h: n, rgba };
+};
+/** where a placed shape stands, as both engines collide with it: E.shapeBox(id | entry, x, y, z, { facing, scale, flip,
+ *  params }) -> { x, y (its footprint's middle), z, top, hx, hy (half its footprint, along its own x and y), c, s (the
+ *  turn's cosine and sine) }; null for an unknown shape. map.solid makes one solid; world.shape gives it a collider */
+E.shapeBox = (id, x, y, z = 0, o = {}) => {
+  const S = shapeOf(id); if (!S) return null;
+  const G = shapeGeom(S, o), k = scaleOf(S, o), a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), f = G.foot;
+  // the footprint's middle, turned into place, and its half sizes (mirroring only moves the middle)
+  const mx = (f[0] + f[2]) / 2 * (o.flip ? -k : k), my = (f[1] + f[3]) / 2 * k;
+  return { x: x + mx * c - my * s, y: y + mx * s + my * c, z, top: z + G.bounds[5] * k, hx: (f[2] - f[0]) / 2 * k, hy: (f[3] - f[1]) / 2 * k, c, s };
+};
 const VIEWS_BY_ID = id => E.VIEWS[id] || (warn('view:' + id, 'unknown view "' + id + '": ' + Object.keys(E.VIEWS).join(', ')), E.VIEWS.iso);
 /**
  * register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries
@@ -6971,11 +7019,8 @@ E.addAssets = set => {
  *  out of its footprint; one coming down onto it lands on its top; one wholly below passes under. Register solids before
  *  the bodies' updates; drawing never sets them */
 TileMap.prototype.solid = function (id, x, y, z = 0, o = {}) {
-  const S = shapeOf(id); if (!S) return null;
-  const G = shapeGeom(S, o), k = scaleOf(S, o), a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), f = G.foot;
-  // the footprint's middle, turned into place, and its half sizes (mirroring only moves the middle)
-  const mx = (f[0] + f[2]) / 2 * (o.flip ? -k : k), my = (f[1] + f[3]) / 2 * k;
-  const sol = { x: x + mx * c - my * s, y: y + mx * s + my * c, z, top: z + G.bounds[5] * k, hx: (f[2] - f[0]) / 2 * k, hy: (f[3] - f[1]) / 2 * k, c, s, shape: id, px: x, py: y };
+  const b = E.shapeBox(id, x, y, z, o); if (!b) return null;
+  const sol = Object.assign(b, { shape: id, px: x, py: y });
   (this.solids || (this.solids = [])).push(sol); this.version++;
   return sol;
 };
