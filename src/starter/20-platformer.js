@@ -51,7 +51,7 @@ const PLAT = (() => {
     '                    --------------------------          ####   ||     ||    ####R#########C#######U#######U#',
     '          eV        ##########################          ####   P|     P|    ################################',
     '                    ##T#####T#######T####T####          #T##   ||     ||    ################################',
-    'l tgpgi g   xtigpfflI##########C##A##########I          ####   ||     ||    #Z#A############################',
+    'lutgpgicg  xKtigpfflI##########C##A##########I          ####   ||     ||    #Z#A############################',
     '                                                                                                            ',
     '                                                                                                            '
   ];
@@ -61,7 +61,14 @@ const PLAT = (() => {
   const on = (spawn, tile = 1) => ({ tile, spawn }), back = new E.PlatformMap({ rows: BACK, types: { 1: { kind: 'back', style: 'brick', side: '#6e6890', course: 6 },
     2: { kind: 'back', style: 'stone', side: '#7e789c' }, 3: { kind: 'back', style: 'stone', side: '#9a94b8' } }, legend: { '#': 1, '-': 2, '|': 3, W: on('glass'), A: on('arch'), v: on('vines'),
     T: on('torch'), N: on('banner'), C: on('candelabra'), I: on('pillar'), Z: on('brazier'), P: on('torch', 3), R: on('ruin'), F: on('rail'), U: on('statue'), h: on('chandelier'), q: on('web'), Q: on('webR'),
-    t: 'tree', g: 'grave', f: 'fence', ',': 'grass', l: 'lamp', x: 'bones', p: 'ruin', k: 'skull', m: 'mushroom', i: 'offering', V: 'vines', w: 'web', e: 'webR', j: 'lantern' } });
+    t: 'tree', g: 'grave', f: 'fence', ',': 'grass', l: 'lamp', x: 'bones', p: 'ruin', k: 'skull', m: 'mushroom', i: 'offering', V: 'vines', w: 'web', e: 'webR', j: 'lantern',
+    c: 'cross', u: 'urn', K: 'tomb' } });
+  // shapes from the asset store (docs/ASSETS.md): a stone cross, an urn and a sarcophagus, cut from kenney-graveyard into
+  // the page's 'platformer' set (src/assets/sets/platformer.js); r.shape options per BACK tag, y as PROP's
+  const STONES = E.addAssets((window.ASSETS || {}).platformer || { set: 'platformer', shapes: {} }).shapes.length ? {
+    cross: { id: 'platformer:cross', y: -4, scale: 1.1, facing: Math.PI / 2, mats: { a: '#5a566e speck' } },
+    urn: { id: 'platformer:urn-round', y: -2, scale: 1.3, facing: Math.PI / 2 },
+    tomb: { id: 'platformer:crypt-a', y: -5, scale: .9, facing: 0, mats: { a: '#605c74 speck' } } } : {};
   // 3. DRESS: r.prop options per BACK tag (y < 0: against the wall; top: hangs from its cell; name: a variant).
   const PROP = { torch: { y: -7 }, banner: { y: -8, color: '#6a1830', emblem: '#d8a040' }, candelabra: { y: -4 }, pillar: { y: -6, color: '#8a84a0' }, ruin: { name: 'pillar', broken: true, y: -5, color: '#7c7892' },
     statue: { y: -6, color: '#8e8aa4' }, brazier: { y: -4, size: 1.2 }, fence: { y: -3, color: '#34304a' }, grass: { y: -2, color: '#3e6a58' }, lamp: { y: -2, halo: false }, bones: { y: -2, color: '#b8b0a8' },
@@ -433,6 +440,7 @@ const PLAT = (() => {
       else if (s.tag === 'arch') { g.drawImage(arch(44, 76), x - 10, y - 76); if (Math.sin(game.real * .7 + s.cx) > .8) blend(g, 'lighter', 1, () => { px.dot(g, x + 9, y - 40, '#ff4030'); px.dot(g, x + 13, y - 40, '#ff4030'); }); }   // eyes in the dark
       else if (s.tag === 'tree') g.drawImage(tree(s.cx), x - 40, y - 100);
       else if (s.tag === 'grave') g.drawImage(grave(s.cx % 2), x - 9, y - 26);
+      else if (STONES[s.tag] || !PROP[s.tag]) { const o = STONES[s.tag]; if (o) r.shape(o.id, s.x, o.y, s.z, o); }   // (no set on the page: no stones)
       else { const o = PROP[s.tag], z = o.top ? s.z + T : s.z; r.prop(o.name || s.tag, s.x, o.y, z, o); if (fl) lit(r, s.x, z + fl, s.tag === 'lamp' ? 44 : s.tag === 'offering' ? 30 : 56, '#ff9a40', .45 * flick(s.x), -6); }
     }
     for (let i = 0; i < FRONT.length; i++) { const o = FP[FRONT[i]]; if (o) r.prop(o.name, i * T + 8 + (o.dx || 0), 7, 2 * T, o); }   // the FRONT row, in front of the path

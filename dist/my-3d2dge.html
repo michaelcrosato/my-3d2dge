@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.38.2 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.39.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.38.2)
+# my-3D2dge API card (v0.39.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -273,7 +273,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.38.2</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.39.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -301,7 +301,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.38.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.39.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -380,7 +380,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.38.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.39.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -8896,6 +8896,28 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
+<!-- the platformer's graveyard stones: a set cut from the asset store (docs/ASSETS.md, "Use it") -->
+<script>
+/* ---- inlined from src/assets/sets/platformer.js ---- */
+/* platformer: a set of my-3D2dge's asset store (written by tools/asset-*.mjs; entries may be edited by hand).
+ * A night graveyard's stones for the platformer starter (src/starter/20-platformer.js)
+ * 3 shapes, 2 materials, 0 sprites. docs/ASSETS.md is the format; docs/ASSET-IMPORT.md how it was made.
+ * "sources" records each download (its url, date, sha256 and license); an entry's src names its download, orig the file in
+ * it, and fit how close it is: a shape's silhouette IoU at game scale (mean and worst view) and color dE.
+ * Load it with E.addAssets(window.ASSETS['platformer']): its ids become 'platformer:id'. */
+(window.ASSETS = window.ASSETS || {})['platformer'] = { set: 'platformer', format: 1, credit: 'A night graveyard\'s stones for the platformer starter (src/starter/20-platformer.js)',
+sources: {'kenney-graveyard':{label:'Kenney Graveyard Kit',origin:'Kenney (kenney.nl), graveyard-kit',license:'CC0 1.0',url:'https://kenney.nl/media/pages/assets/graveyard-kit/ba8d4b4517-1760691807/kenney_graveyard-kit_5.0.zip',page:'https://kenney.nl/assets/graveyard-kit',fetched:'2026-10-14',sha256:'1a93613f2e5675f3310acf49ec9ef13ae7adeb756ac3b205bfb6cc9311a81062',licenseHash:'a48e274258386c6b',dir:'graveyard-kit',scale:2,factors:'srgb'}},
+materials: {
+steel: '#99a0c0 speck',
+iron: '#636982 speck'},
+shapes: {
+'crypt-a': {about:'stone sarcophagus with gabled lid on a low base',tags:'grave graveyard crypt',mats:{a:'steel'},parts:[['prism','a',[0,0,0],[[-5.5,8],[-6,9.5],[-8,9.5],[-8,12.5],[-1.3,17],[1.3,17],[8.5,12.5],[8.5,10],[6,9.5],[6,8]],31.5,{axis:'y'}],['box','a',[0,0,0],[20,35.5,4]],['box','a',[0,0,4],[16,31.5,4]]],src:'kenney-graveyard',orig:'Models/GLB format/crypt-a.glb',fit:{iou:0.95,worst:0.93,dE:5}},
+cross: {about:'grey stone cross with flared arms on a square base',tags:'grave graveyard',mats:{a:'steel'},parts:[['box','a',[0,0,3],[6,4,26]],['mirror','x',['box','a',[4.5,0,21],[3,4,5]]],['box','a',[0,0,0],[8,8,3.2]],['prism','a',[0,0,0],[[-7,20],[-10.5,22.5],[-10.5,24.5],[-7,27.5],[-6.5,27.5],[-6,27],[-6,20]],5,{axis:'y'}],['prism','a',[0,0,0],[[6.5,20],[6,20],[6,27],[6.5,27.5],[7,27.5],[10.5,24.5],[10.5,22.5],[7.5,20]],5,{axis:'y'}],['prism','a',[0,0,0],[[-3.3,29],[-3.7,29],[-3.7,30],[-0.8,33.5],[0.8,33.5],[3.8,30],[3.8,29],[3.4,29]],5,{axis:'y'}],['prism','a',[0,2.5,0],[[0,21],[-2.6,23.5],[-0.1,26],[2.7,23.5]],1.4,{axis:'y'}]],src:'kenney-graveyard',orig:'Models/GLB format/cross.glb',fit:{iou:0.9,worst:0.88,dE:5}},
+'urn-round': {about:'dark grey lidded funeral urn on a footed base',tags:'decoration graveyard crypt',mats:{a:'iron',b:'steel'},parts:[['lathe','a',[0,0,4],[[0,0],[2.6,0],[3.2,1.5],[3.7,4.5],[3.7,5],[0,5]]],['lathe','a',[0,0,0],[[0,0],[3.2,0],[3.1,1.8],[2.4,2.5],[1.6,2.5],[1.9,4],[0,4]]],['lathe','a',[0,0,9],[[0,0],[4,0],[4,0.9],[3.6,1.6],[1,1.6],[1.4,2.5],[0,2.5]]],['lathe','b',[0,0,5.5],[[0,0],[2.4,0],[2.9,3.2],[0,3.3],[0,4.5],[0.9,4.5],[1.4,5.5],[1,6.5],[0,6.5]]],['box','b',[0,0,2],[2,5,0.5]],['mirror','x',['box','b',[1.5,0,2],[1,4,0.5]]],['mirror','x',['box','b',[2.3,0,2],[0.5,2,0.5]]]],src:'kenney-graveyard',orig:'Models/GLB format/urn-round.glb',fit:{iou:0.93,worst:0.92,dE:4}}},
+sprites: {
+}};
+
+</script>
 <script>
 /* ---- inlined from src/starter (00-shell.js, 10-adventure.js, 20-platformer.js, 30-shooter.js, 40-rpg.js, 50-brawler.js, 60-animlab.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
@@ -9631,7 +9653,7 @@ const PLAT = (() => {
     '                    --------------------------          ####   ||     ||    ####R#########C#######U#######U#',
     '          eV        ##########################          ####   P|     P|    ################################',
     '                    ##T#####T#######T####T####          #T##   ||     ||    ################################',
-    'l tgpgi g   xtigpfflI##########C##A##########I          ####   ||     ||    #Z#A############################',
+    'lutgpgicg  xKtigpfflI##########C##A##########I          ####   ||     ||    #Z#A############################',
     '                                                                                                            ',
     '                                                                                                            '
   ];
@@ -9641,7 +9663,14 @@ const PLAT = (() => {
   const on = (spawn, tile = 1) => ({ tile, spawn }), back = new E.PlatformMap({ rows: BACK, types: { 1: { kind: 'back', style: 'brick', side: '#6e6890', course: 6 },
     2: { kind: 'back', style: 'stone', side: '#7e789c' }, 3: { kind: 'back', style: 'stone', side: '#9a94b8' } }, legend: { '#': 1, '-': 2, '|': 3, W: on('glass'), A: on('arch'), v: on('vines'),
     T: on('torch'), N: on('banner'), C: on('candelabra'), I: on('pillar'), Z: on('brazier'), P: on('torch', 3), R: on('ruin'), F: on('rail'), U: on('statue'), h: on('chandelier'), q: on('web'), Q: on('webR'),
-    t: 'tree', g: 'grave', f: 'fence', ',': 'grass', l: 'lamp', x: 'bones', p: 'ruin', k: 'skull', m: 'mushroom', i: 'offering', V: 'vines', w: 'web', e: 'webR', j: 'lantern' } });
+    t: 'tree', g: 'grave', f: 'fence', ',': 'grass', l: 'lamp', x: 'bones', p: 'ruin', k: 'skull', m: 'mushroom', i: 'offering', V: 'vines', w: 'web', e: 'webR', j: 'lantern',
+    c: 'cross', u: 'urn', K: 'tomb' } });
+  // shapes from the asset store (docs/ASSETS.md): a stone cross, an urn and a sarcophagus, cut from kenney-graveyard into
+  // the page's 'platformer' set (src/assets/sets/platformer.js); r.shape options per BACK tag, y as PROP's
+  const STONES = E.addAssets((window.ASSETS || {}).platformer || { set: 'platformer', shapes: {} }).shapes.length ? {
+    cross: { id: 'platformer:cross', y: -4, scale: 1.1, facing: Math.PI / 2, mats: { a: '#5a566e speck' } },
+    urn: { id: 'platformer:urn-round', y: -2, scale: 1.3, facing: Math.PI / 2 },
+    tomb: { id: 'platformer:crypt-a', y: -5, scale: .9, facing: 0, mats: { a: '#605c74 speck' } } } : {};
   // 3. DRESS: r.prop options per BACK tag (y < 0: against the wall; top: hangs from its cell; name: a variant).
   const PROP = { torch: { y: -7 }, banner: { y: -8, color: '#6a1830', emblem: '#d8a040' }, candelabra: { y: -4 }, pillar: { y: -6, color: '#8a84a0' }, ruin: { name: 'pillar', broken: true, y: -5, color: '#7c7892' },
     statue: { y: -6, color: '#8e8aa4' }, brazier: { y: -4, size: 1.2 }, fence: { y: -3, color: '#34304a' }, grass: { y: -2, color: '#3e6a58' }, lamp: { y: -2, halo: false }, bones: { y: -2, color: '#b8b0a8' },
@@ -10013,6 +10042,7 @@ const PLAT = (() => {
       else if (s.tag === 'arch') { g.drawImage(arch(44, 76), x - 10, y - 76); if (Math.sin(game.real * .7 + s.cx) > .8) blend(g, 'lighter', 1, () => { px.dot(g, x + 9, y - 40, '#ff4030'); px.dot(g, x + 13, y - 40, '#ff4030'); }); }   // eyes in the dark
       else if (s.tag === 'tree') g.drawImage(tree(s.cx), x - 40, y - 100);
       else if (s.tag === 'grave') g.drawImage(grave(s.cx % 2), x - 9, y - 26);
+      else if (STONES[s.tag] || !PROP[s.tag]) { const o = STONES[s.tag]; if (o) r.shape(o.id, s.x, o.y, s.z, o); }   // (no set on the page: no stones)
       else { const o = PROP[s.tag], z = o.top ? s.z + T : s.z; r.prop(o.name || s.tag, s.x, o.y, z, o); if (fl) lit(r, s.x, z + fl, s.tag === 'lamp' ? 44 : s.tag === 'offering' ? 30 : 56, '#ff9a40', .45 * flick(s.x), -6); }
     }
     for (let i = 0; i < FRONT.length; i++) { const o = FP[FRONT[i]]; if (o) r.prop(o.name, i * T + 8 + (o.dx || 0), 7, 2 * T, o); }   // the FRONT row, in front of the path
