@@ -140,7 +140,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.16)}
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.42.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.42.3  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -219,7 +219,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.42.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.42.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -236,8 +236,7 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
 /** a moved toward b by at most s, never past it: approach(speed, top, accel * dt) */
 const approach = (a, b, s) => a < b ? Math.min(b, a + s) : Math.max(b, a - s);
-/** easing curves for u 0..1: outCubic, outQuad (fast, then settles), inQuad (slow start), inOut, outBack
- *  (overshoots, then settles) */
+/** easing curves for u 0..1 */
 const ease = {
   outCubic: u => 1 - Math.pow(1 - u, 3),   // fast start, smooth stop
   outQuad: u => 1 - (1 - u) * (1 - u),   // fast start, smooth stop (gentler than outCubic)
@@ -303,8 +302,7 @@ const nullCanvas = (w, h) => {
 };
 /** a canvas's 2D context with smoothing off (crisp pixels) */
 const ctx2d = c => { const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return g; };
-/** small 3D vector helpers on [x, y, z] arrays: add, sub, mul(a, s), dot, len, norm, lerp(a, b, t), rz(v, angle)
- *  (turn about z) */
+/** small 3D vector helpers on [x, y, z] arrays */
 const V3 = {
   add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],   // a + b
   sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],   // a - b
@@ -385,11 +383,9 @@ const overlap = (a, b) => { const dx = a.x - b.x, dy = a.y - b.y, r = (a.r || 0)
 /** side-view boxes: { x (center), z (feet), w, h } (the Platformer / PlatformMap convention) */
 const overlapBox = (a, b) => Math.abs(a.x - b.x) * 2 < a.w + b.w && a.z < b.z + b.h && b.z < a.z + a.h;
 /**
- * THE HEIGHT RULES, read the same way by collision, standing, sight, reach, navigation and drawing. World units (a tile
- * is 16), z up. A body's z is its feet; a cell's top is map.height(cx, cy) (0 = the floor; a wall is solid from 0 to its
- * h). A body stands on the highest top within z + step under its footprint. Eyes are at z + eye and a target is seen at
- * z + chest (a body's own eye and chest override these: crouching lowers them). Two things are on the same level when
- * |dz| <= level. The defaults fit a size-1.3 Humanoid
+ * the numbers of THE HEIGHT RULES, which collision, standing, sight, reach, navigation and drawing all read (API.md,
+ * "Heights", and the API index's head give the rules), in world units above a body's feet. The defaults fit a size-1.3
+ * Humanoid; a body's own eye and chest override these (crouching lowers them)
  */
 const HEIGHTS = { eye: 30, chest: 22, level: 8, step: 2 };
 /** melee cone on the ground: is b (with optional radius r) within range of a and within halfAngle of facing? dz (optional)
@@ -662,7 +658,8 @@ E.charView = charView;
 /** classic console resolutions for new Game({ res: 'snes' }) (width x height in pixels) */
 E.RES = { nes: [256, 240], snes: [256, 224], gb: [160, 144], gbc: [160, 144], gba: [240, 160], genesis: [320, 224], md: [320, 224], pce: [256, 224], n64: [320, 240], ps1: [320, 240], wide: [400, 225] };
 class Screen {
-  /** canvas null: the screen of a headless game, sized as a 1280 x 720 window would size it, with nothing to draw on */
+  /** the game's low-resolution screen (game.screen: the game makes it): its buffer, scale and letterbox. canvas null: a
+   *  headless game's, sized as a 1280 x 720 window would size it, with nothing to draw on */
   constructor(canvas, o, signal) {
     /** canvas: the page's canvas (null in a headless game); o: the sizing options (the game's o) */
     this.canvas = canvas; this._sctx = canvas ? canvas.getContext('2d') : null; this.o = o;
@@ -1691,7 +1688,8 @@ class Renderer {
   decal(fn, o) { this._decals.push({ fn, e: o && o.emissive || 0 }); }
   /** draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus) */
   overlay(fn) { this._overlays.push(fn); }
-  /** ground helpers (all dithered, correct in every view) */
+  // ground helpers (all dithered, correct in every view)
+  /** n screen points round a circle of radius rad on the ground at (x, y), height z: the outline of a ring or a fan */
   groundPts(x, y, rad, n = 18, z = 0) { const pts = []; for (let i = 0; i < n; i++) { const a = i / n * TAU; pts.push(this.w(x + Math.cos(a) * rad, y + Math.sin(a) * rad, z)); } return pts; }
   /** a dithered disc lying on the ground (radius in world units, z its height): shadows, auras, area attacks */
   groundDisc(x, y, rad, color, alpha = 1, z = 0) { px.polyDither(this.tgt, this.groundPts(x, y, rad, 18, z), color, alpha, this.ix, this.iy); }
@@ -3270,7 +3268,8 @@ class Humanoid {
     this._climbW = approach(this._climbW || 0, s.climb ? 1 : 0, dt * 12); if (s.climb) this._climbP = (this._climbP || 0) + dt * Math.abs(s.vz || 0) / (.4 * (o.armUpper + o.armLower) * o.size) * Math.PI;   // hands keep pace with the climb   // climb: hand over hand on a ladder
     this.dieT = s.pose === 'die' ? (this.dieT || 0) + dt : 0;   // pose 'die': a stagger, the knees give, then the body topples
     const dT = s.down !== undefined ? clamp(+s.down, 0, 1) : s.pose === 'down' || this.dieT > .45 ? 1 : 0;
-    this.downW = approach(this.downW || 0, dT, dt * (dT > (this.downW || 0) ? 2.5 + 10 * (this.downW || 0) : 3.2));   // falls faster and faster, gets up steadily
+    /** downW: how far down it is, 0..1 (state down, pose 'down' or 'die'): it falls faster and faster and gets up steadily */
+    this.downW = approach(this.downW || 0, dT, dt * (dT > (this.downW || 0) ? 2.5 + 10 * (this.downW || 0) : 3.2));
     if (this.dieT > 0) { this.hurtW = approach(this.hurtW, this.dieT < .25 ? 1 : 0, dt * 14); pk.kneel = approach(pk.kneel, this.dieT > .2 && this.dieT < .6 ? 1 : 0, dt * 10); }
     this._pointW = approach(this._pointW, s.point ? 1 : 0, dt * (s.point ? 30 : 8));
     this.aimA = approach(this.aimA || 0, s.aim || 0, dt * 14);   // aim: radians above (+) or below (-) level while pointing
@@ -3287,6 +3286,7 @@ class Humanoid {
       // wind: anticipation (pull back, crouch). active: the strike, with a lunge, lead-foot step, lean, twist and hop.
       // recover: follow through, hold the end pose, then blend back to the stance by position (never swing backwards)
       const sp = A.spec, side = this.sidePlane, rest = side ? -.9 : 1.1, RS = sp.rel ? (o.armUpper + o.armLower) / 9.2 : 1, R = (sp.reach || 7.5) * RS, r0 = sp.r0 === undefined ? R : sp.r0 * RS, r1 = sp.r1 === undefined ? R : sp.r1 * RS;
+      /** atkRel: the attack's heights are relative to the shoulders (its spec's rel) */
       this.atkRel = !!sp.rel; const zRest = sp.rel ? (sp.kick ? .1 : -7) : 9, z0 = sp.z0 === undefined ? zRest : sp.z0, z1 = sp.z1 === undefined ? z0 : sp.z1;   // side-plane moves have no heights
       // lunge / hop / crouch are body motion in local units, clamped so a game's own 'lunge' speed field can't stretch the rig
       const hold = sp.hold === undefined ? .3 : sp.hold, lean = sp.lean === undefined ? (sp.kick ? -.22 : .3) : clamp(sp.lean, -.8, .8), lunge = sp.lunge === undefined ? (sp.kick ? .4 : 1.2) : clamp(sp.lunge, -4, 5);
@@ -4293,7 +4293,7 @@ class TileMap {
   cell(cx, cy) { return cx < 0 || cy < 0 || cx >= this.w || cy >= this.h ? -1 : this.cells[cy * this.w + cx]; }
   /** put wall type v at a cell (0 opens it: a door, a broken wall); bumps version, so caches and flow fields rebuild */
   set(cx, cy, v) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) { if (v > 0 && !this.types[v]) this.types[v] = DEFAULT_WALL; this.cells[cy * this.w + cx] = v; this.floors = {}; this.version++; } }
-  /** world point -> [cx, cy] cell; cell -> world center */
+  /** world point -> [cx, cy] cell (center(cx, cy) goes back) */
   toCell(x, y) { return [Math.floor(x / this.T), Math.floor(y / this.T)]; }
   /** the world point at a cell's center */
   center(cx, cy) { return [(cx + .5) * this.T, (cy + .5) * this.T]; }
@@ -5060,8 +5060,7 @@ E.FlowField = FlowField;
 /* =============================================================================
  * 15. TEXTURE HELPERS for floorTex functions
  * ============================================================================= */
-/** floor textures for a TileMap's floorTex(x, y): flagstone, grass, dirt, water, planks, checker, plain (each gives
- *  [r, g, b] at a world point); as materials too: floorMat: 'grass' */
+/** floor textures for a TileMap's floorTex(x, y), each giving [r, g, b] at a world point; as materials too: floorMat: 'grass' */
 E.tex = {
   /** stone flagstones with running-bond rows. pal: {stones:[hex..], mortar, hi, lo, speck} */
   flagstone(x, y, pal, size = 16) {
@@ -5832,9 +5831,8 @@ E.Action = Action;
  * ============================================================================= */
 class Mover extends Body {
   /**
-   * new E.Mover({ x, y, z, r: 5, walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220,
-   * coyote: .1, buffer: .12, climb: true, climbMax: 82, vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14 }).
-   * An E.Body: it has body.jump, push and the body's fields too
+   * new E.Mover({ x, y, z, r: 5, ... }): any of its fields, below, as options. An E.Body: it has body.jump, push and the
+   * body's fields too
    */
   constructor(o = {}) {
     super(Object.assign({ r: 5 }, o));
@@ -5985,7 +5983,7 @@ const hears = (lis, noise, map) => {
 Object.assign(E, { sees, hears });
 class Suspicion {
   /**
-   * new E.Suspicion({ rise: 1.5, decay: .3, notice: .3, search: .65, alert: 1, forget: 6 }): a guard's mind. Its level rises
+   * new E.Suspicion({ rise, decay, notice, search, alert, forget }): a guard's mind (its fields, below, are its options). Its level rises
    * while it sees the target (faster the more exposed and nearer), decays while it doesn't, and names a state: 'calm', 'notice'
    * (turn and look), 'search' (go to last), 'alert' (chase). An alert guard that loses the target searches for forget seconds.
    * Each step: suspicion.update(dt, seen, target)
@@ -7314,7 +7312,7 @@ const heartSprites = () => _hearts || (_hearts = {
   half: sprite(['.RR.DD.', 'RWRDDDD', 'RRRDDDD', '.RRDDD.', '..RDD..', '...D...'], { R: '#e8384a', W: '#ffd0d6', D: '#3a1826' }),
   empty: sprite(['.DD.DD.', 'DDDDDDD', 'DDDDDDD', '.DDDDD.', '..DDD..', '...D...'], { D: '#3a1826' })
 });
-/** pixel-drawn interface pieces for r.overlay: box (a window), bar (a meter), hearts (life); E.ui.heartSprites */
+/** pixel-drawn interface pieces for r.overlay */
 E.ui = {
   /**
    * window frame: ui.box(g, x, y, w, h, { bg, border, shadow, gradient })
@@ -7341,7 +7339,7 @@ E.ui = {
     }
     px.rect(g, x + 2, y + 2, w - 4, 1, shade(c0, .15));
   },
-  /** health / magic / boss bar: ui.bar(g, x, y, w, h, 0..1, '#e0463c') */
+  /** a bar (a meter: health, magic, stamina, a boss's): ui.bar(g, x, y, w, h, 0..1, '#e0463c') */
   bar(g, x, y, w, h, frac, color = '#e0463c', o = {}) {
     const f = Math.round((w - 2) * clamp(frac, 0, 1));
     px.rect(g, x, y, w, h, o.border || '#140b12'); px.rect(g, x + 1, y + 1, w - 2, h - 2, o.bg || '#3a1a26');
@@ -7719,8 +7717,7 @@ class Shell {
     e.replaceChildren(this._el('div', 'esh-k', 'Tutorial'), this._el('b', '', title), this._el('p', 'esh-m', text), x); return this;
   }
   /**
-   * the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn):
-   * { objective, status, bars, counts, prompt, tip, place, keys, buttons, minimap }
+   * the HUD, from this step's state (call it every step; a piece left out is hidden, and only what changed is redrawn)
    * - objective: { step: '01 / 04', title, text, at: { x, y, z }, from: hero } (the distance in meters, and above or below)
    * - status, place, tip: status: 'UNSEEN' or { text, color }; place: 'The Old Harbour'; tip: 'text' or { title, text }
    * - bars, counts: bars: [{ label, value, max, kind: 'bar' | 'pips', color }] (health, stamina, a meter); counts: [[label,

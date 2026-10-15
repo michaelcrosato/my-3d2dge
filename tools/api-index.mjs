@@ -105,12 +105,16 @@ function docAt(S, i, name, shared) {
   }
   const tail = trailing(L[i]);
   if (shared) {   // several names on the line: the clause that names this one
-    // "name: what", "name = what", "a, b, c: what they are" (each name of the group gets it)
-    const clause = text => { for (const c of splitTop(text)) { const m = new RegExp('^\\s*(?:`?\\w+`?\\s*,\\s*)*`?' + name + '`?(?:\\([^)]*\\))?(?:\\s*,\\s*`?\\w+`?)*\\s*(?:[:=]|\\s-)\\s*(.+)$').exec(c); if (m) return m[1]; } return ''; };
+    const clause = text => { for (const c of splitTop(text)) { const m = describes(c, name); if (m) return m[1]; } return ''; };
     return clean(clause(doc) || clause(tail));
   }
   return clean(doc || tail);
 }
+/** does clause c describe `name`? "name: what", "name = what", "a, b, c: what they are" (each name of the group gets it):
+ *  the match, with what it says as [1] */
+const describes = (c, name) => new RegExp('^\\s*(?:`?\\w+`?\\s*,\\s*)*`?' + name + '`?(?:\\([^)]*\\))?(?:\\s*,\\s*`?\\w+`?)*\\s*(?:[:=]|\\s-)\\s*(.+)$').exec(c);
+/** a parent's description without the clauses its members' own lines give (game.cam's camera fields, new E.Body's) */
+const cut = (doc, members) => { if (!doc || !members.length) return doc; const all = splitTop(doc), keep = all.filter(c => !members.some(m => describes(c, m))); return keep.length && keep.length < all.length ? clean(keep.join('; ')) : doc; };
 /** a shared comment's clauses: split at '; ' and at '. ' before the next name, outside parentheses and brackets */
 function splitTop(text) {
   const out = []; let depth = 0, cur = '';
@@ -129,9 +133,15 @@ function trailing(line) {
     const ch = line[k];
     if (q) { if (ch === '\\') k++; else if (ch === q) q = null; continue; }
     if (ch === "'" || ch === '"' || ch === '`') q = ch;
-    else if (ch === '/' && line[k + 1] === '/' && /\s/.test(line[k - 1] || ' ') && k > 0 && line.slice(0, k).trim()) return line.slice(k + 2).trim().replace(/^\(|\)$/g, '');
+    else if (ch === '/' && line[k + 1] === '/' && /\s/.test(line[k - 1] || ' ') && k > 0 && line.slice(0, k).trim()) return unwrap(line.slice(k + 2).trim());
   }
   return '';
+}
+/** "(a note)" -> "a note", when the parentheses hold the whole text; "fast (then settles)" keeps its own */
+function unwrap(t) {
+  if (!/^\(.*\)$/.test(t)) return t;
+  let depth = 0; for (let k = 1; k < t.length - 1; k++) { if (t[k] === '(') depth++; else if (t[k] === ')' && --depth < 0) return t; }
+  return depth ? t : t.slice(1, -1);
 }
 const clean = s => s.replace(/\s+/g, ' ').replace(/\{@link ([^}]+)\}/g, '$1').trim();
 
@@ -181,7 +191,7 @@ export function build() {
     const v = E[k], d = defOf(F, k), sec = d ? F.section(d[0]) : null, inAgent = k in EA;
     if (isClass(v)) {
       const cname = d ? d[1] : k, inst = INST[k] || k.toLowerCase(), mem = F.members(cname), amem = A.members(cname), ctor = mem && [...F.L.slice(F.classes.get(cname).at, F.classes.get(cname).end)].findIndex(l => /^ {2}constructor\s*\(/.test(l));
-      const ci = ctor >= 0 ? F.classes.get(cname).at + ctor : -1, cdoc = (ci >= 0 && docAt(F, ci, 'constructor')) || docOf(F, d);
+      const ci = ctor >= 0 ? F.classes.get(cname).at + ctor : -1, cdoc = cut((ci >= 0 && docAt(F, ci, 'constructor')) || docOf(F, d), mem ? [...mem.fields.keys()].filter(f => !f.startsWith('_')) : []);
       add(sec, `new E.${k}(${ci >= 0 ? params(F.L[ci], 'constructor') || '' : ''}) → ${inst}`, cdoc, inAgent, 'E.' + k, ci >= 0 ? ci : d && d[0]);
       addOpts(sec, `new E.${k}`, true, ci >= 0 && docAt(F, ci, 'constructor') ? ci : d && d[0], inAgent, 'E.' + k); insts.push({ sec, name: 'E.' + k, inst });
       for (const s of Object.getOwnPropertyNames(v).filter(s => !['length', 'name', 'prototype'].includes(s) && !s.startsWith('_')).sort()) {
@@ -198,21 +208,24 @@ export function build() {
       for (const [f, i] of [...mem.fields].filter(([f]) => !f.startsWith('_') && !protoNames.includes(f)).sort((a, b) => a[0] < b[0] ? -1 : 1)) {
         const shared = (F.L[i].match(/this\.(?!_)\w+\s*=(?![=>])/g) || []).length > 1 || /Object\.assign\(this/.test(F.L[i]), dv = mem.defaults.get(f);
         const init = initial(F.L[i], f) || (dv && /^(-?[\d.]+|'[^']*'|true|false|null)$/.test(dv) ? dv : '');
-        add(sec, `${inst}.${f}` + (init ? ' = ' + init : ''), docAt(F, i, f, shared), !!(amem && amem.fields.has(f)), `${k}.${f}`, i);
-        for (const n of (NESTED[k] || []).filter(n => n === f)) {   // its own fields: one clause each in the comment above
-          const lit = /=\s*\{(.*)\};?/.exec(F.L[i]); if (!lit) continue;
-          for (const km of lit[1].matchAll(/(?:^|,)\s*(\w+)\s*:/g)) if (!km[1].startsWith('_')) add(sec, `${inst}.${f}.${km[1]}`, docAt(F, i, km[1], true), !!(amem && amem.fields.has(f)), `${k}.${f}.${km[1]}`, i);
-        }
+        // a nested object's own fields: one clause each in the comment above (its own line keeps the rest)
+        const lit = (NESTED[k] || []).includes(f) && /=\s*\{(.*)\};?/.exec(F.L[i]), sub = lit ? [...lit[1].matchAll(/(?:^|,)\s*(\w+)\s*:/g)].map(m => m[1]).filter(n => !n.startsWith('_')) : [];
+        add(sec, `${inst}.${f}` + (init ? ' = ' + init : ''), cut(docAt(F, i, f, shared), sub), !!(amem && amem.fields.has(f)), `${k}.${f}`, i);
+        for (const n of sub) add(sec, `${inst}.${f}.${n}`, docAt(F, i, n, true), !!(amem && amem.fields.has(f)), `${k}.${f}.${n}`, i);
       }
     } else if (v && typeof v === 'object' && !Array.isArray(v) && Object.values(v).some(x => typeof x === 'function') && !Object.values(v).every(x => x && typeof x === 'object')) {
       // a namespace of helpers: one line for it, one for each member
       const space = F.spaces.get(d ? d[1] : k) || new Map();
       add(sec, `E.${k}`, docOf(F, d), inAgent, 'E.' + k, d && d[0]);
-      for (const m of Object.keys(v).filter(m => !m.startsWith('_')).sort()) {
+      const ms = Object.keys(v).filter(m => !m.startsWith('_')).sort(), at = new Map();
+      for (const m of ms) {
         // (or set inside the function that builds it: S.record = ... in E.session's)
         const inner = () => { if (!d) return undefined; for (let j = d[0] + 1; j < Math.min(F.L.length, d[0] + 600); j++) if (new RegExp('^\\s+\\w+\\.' + m + '\\s*=(?!=)|^\\s+const \\w+ = \\{[^}]*\\b' + m + '\\s*:').test(F.L[j])) return j; return undefined; };
-        const i = F.top.get((d ? d[1] : k) + '.' + m) ?? F.top.get('E.' + k + '.' + m) ?? space.get(m) ?? inner(), fn = typeof v[m] === 'function';
-        add(sec, `E.${k}.${m}` + (fn ? `(${i !== undefined ? params(F.L[i], m) || '' : ''})` : ''), i !== undefined ? docAt(F, i, m) : '', inAgent && !!EA[k] && m in EA[k], `E.${k}.${m}`, i);
+        at.set(m, F.top.get((d ? d[1] : k) + '.' + m) ?? F.top.get('E.' + k + '.' + m) ?? space.get(m) ?? inner());
+      }
+      for (const m of ms) {
+        const i = at.get(m), fn = typeof v[m] === 'function', shared = i !== undefined && ms.some(n => n !== m && at.get(n) === i);   // (E.session's frame, recording and replaying: one comment)
+        add(sec, `E.${k}.${m}` + (fn ? `(${i !== undefined ? params(F.L[i], m) || '' : ''})` : ''), i === undefined ? '' : shared && docAt(F, i, m, true) || docAt(F, i, m), inAgent && !!EA[k] && m in EA[k], `E.${k}.${m}`, i);
       }
     } else if (typeof v === 'function') {
       add(sec, `E.${k}(${d ? params(F.L[d[0]], d[1]) ?? params(F.L[d[2]], k) ?? '' : ''})`, docOf(F, d), inAgent, 'E.' + k, d && d[0]);
@@ -220,9 +233,15 @@ export function build() {
     } else {
       // a value or a table: its keys, briefly; a short list of names in full (E.PROPS, E.VIEW_ORDER)
       const keys = Array.isArray(v) ? (v.every(x => typeof x === 'string') && v.join(', ').length <= 400 ? v.join(', ') : v.length + ' entries') : v && typeof v === 'object' ? Object.keys(v).slice(0, 14).join(', ') + (Object.keys(v).length > 14 ? ', ... (' + Object.keys(v).length + ')' : '') : JSON.stringify(v);
-      add(sec, `E.${k}` + (keys ? ': ' + keys : ''), docOf(F, d), inAgent, 'E.' + k, d && d[0]);
+      // (its keys said again after a colon, as a whole list: "the actions E.Action plays: climbUp, vault, ...")
+      const own = docOf(F, d), once = keys && !/\.\.\.|entries$/.test(keys) ? clean(own.replace(new RegExp(':\\s*' + keys.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=[.;]|$)'), '')) : own;
+      add(sec, `E.${k}` + (keys ? ': ' + keys : ''), once, inAgent, 'E.' + k, d && d[0]);
       if (d) addOpts(sec, `E.${k}`, false, d[0], inAgent, 'E.' + k);
     }
+  }
+  for (const e of entries) {
+    const n = e.opt ? !e.key.includes(',') && (/ ([\w.[\]]+)$/.exec(e.key) || [])[1] : e.key.split(/[.#]/).pop();
+    if (n && e.doc) e.doc = e.doc.replace(new RegExp('^(?:E\\.)?' + n.replace(/[.[\]]/g, '\\$&') + '\\s*[:=]\\s+'), '');
   }
   return { E, F, entries, missing, insts };
 }
@@ -268,7 +287,15 @@ export function render({ E, F, entries, insts }) {
   for (const { sec, list } of order) {
     const title = sec ? sec.n + '. ' + sec.title.charAt(0) + sec.title.slice(1).toLowerCase() : 'The engine object (E = My3D2dge)';
     at.push({ sec, title: sec ? title.replace(/^\d+b?\. /, '') : title, line: body.length }); body.push(`## ${title}`, '');
-    for (const e of list) body.push(`- \`${e.sig.replace(/`/g, "'")}\`${e.agent ? '' : ' †'}${e.doc ? ': ' + e.doc : ''}`);
+    // one object's lines that say the same thing are one line: `body.x = 0`, `body.y = 0`, `body.z = 0`: its position
+    const of = e => !e.opt && e.doc && /^(?:E\.\w+|[^.#\s]+)[.#]/.test(e.key) && !/^E\.\w+$/.test(e.key) ? e.key.replace(/[.#][^.#]*$/, '') + '\n' + e.doc : null, groups = new Map();
+    for (const e of list) { const g = of(e); if (g) groups.set(g, (groups.get(g) || []).concat(e)); }
+    const sig = e => `\`${e.sig.replace(/`/g, "'")}\`${e.agent ? '' : ' †'}`;
+    for (const e of list) {
+      const g = of(e), same = g ? groups.get(g) : [e]; if (same[0] !== e) continue;
+      const one = same.every(x => x.agent === e.agent);   // (one † for them all, when they agree)
+      body.push(`- ${one ? same.map(x => `\`${x.sig.replace(/`/g, "'")}\``).join(', ') + (e.agent ? '' : ' †') : same.map(sig).join(', ')}${e.doc ? ': ' + e.doc : ''}`);
+    }
     body.push('');
   }
   // the contents: each section's line, and the name its classes' instances go by (their members are listed under it)
