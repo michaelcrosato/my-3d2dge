@@ -268,7 +268,11 @@ console.log('7. the store (src/assets/)');
       if (!e.src || !S.sources[e.src]) { fail('store', where + ' ' + id + ': its src ' + e.src + ' is not one of the set\'s downloads'); continue; }
       if (!e.orig) fail('store', where + ' ' + id + ': no orig (the file in its download)');
       if (e.fit === undefined) fail('store', where + ' ' + id + ': no fit');
-      if (kind === 'shapes' && e.fit) { fits.push(e.fit.iou); if (e.fit.worst < .6) fail('store', where + ' ' + id + ': a view fits at ' + e.fit.worst + ' (under .6)'); }
+      if (kind === 'shapes' && e.fit) {   // each entry as the importer keeps it: a mean of .8 or better, no view under .6
+        if (!cut) fits.push(e.fit.iou);   // (a cut set's entries are counted in their own sets)
+        if (!(e.fit.iou >= .8)) fail('store', where + ' ' + id + ': it fits at a mean IoU of ' + e.fit.iou + ' (under .8)');
+        if (!(e.fit.worst >= .6)) fail('store', where + ' ' + id + ': a view fits at ' + e.fit.worst + ' (under .6)');
+      }
       if (cat && !Array.isArray(cat[id])) fail('store', where + ' ' + id + ': not in its catalog (src/assets/catalogs/' + S.set + '.json: "' + id + '": ["tags", "what it looks like"])');
       if (cut) { const o = bySrc.get(e.src + '|' + kind + '|' + id); if (!o) fail('store', where + ' ' + id + ': cut from no set the importer wrote'); else if (!same(resolved(o, setOf.get(o)), resolved(e, S))) fail('store', where + ' ' + id + ': differs from the entry it was cut from'); }
     }

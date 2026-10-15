@@ -28,6 +28,7 @@ const skip = cat.$skip || {}, only = opt('only') ? new Set(opt('only').split(','
 const E = engine(), r2 = v => Math.round(v * 100) / 100;
 const idOf = file => basename(file).replace(/(\.gltf)?\.(glb|gltf|png|jpe?g)$/i, '').replace(/([a-z])([A-Z])/g, '$1-$2').replace(/[_\s]+/g, '-').toLowerCase();
 const wanted = id => (!only || only.has(id)) && !skip[id] && (!byCat || Array.isArray(cat[id]));
+const outside = id => only && !only.has(id), dropped = new Set();   // (--only: the other ids' rows and entries stay as they are; a wanted one that no longer fits leaves)
 
 if (args.includes('--list')) {
   for (const r of ledger) { const id = idOf(r.file); console.log([id.padEnd(30), (r.kind || '').padEnd(6), String(r.tris || r.w && r.w + 'x' + r.h || '').padStart(6), (r.fit || '-').padEnd(10), r.used ? 'used' : skip[id] ? 'skip: ' + skip[id] : '    ', r.flags, Array.isArray(cat[id]) ? cat[id][1] : ''].join(' ')); }
@@ -292,7 +293,7 @@ function convert(file, o) {
   const groups = new Map(); tris.forEach((t, i) => { const r = find(vi[i][0]); if (!groups.has(r)) groups.set(r, { ck: t.ck, T: [] }); groups.get(r).T.push(t.v); });
   // slots: a letter per color, the set's material for it
   const slots = {}, mats = {}; let sl = 0;
-  for (const [k, col] of [...colors].sort((x, y) => y[1].area - x[1].area)) { const s = String.fromCharCode(97 + sl++); slots[k] = s; mats[s] = setMaterial(col.rgb); }
+  for (const [k, col] of [...colors].sort((x, y) => y[1].area - x[1].area)) { const s = String.fromCharCode(97 + sl % 26) + (sl >= 26 ? Math.floor(sl / 26) : ''); sl++; slots[k] = s; mats[s] = setMaterial(col.rgb); }
   // fit: all the pieces of a color together first; what does not fit is split where its pieces spread most, down to
   // single pieces (which may become boxes). Pieces under a pixel are left out
   const fitted = [], tiny = .6;
@@ -317,7 +318,8 @@ function convert(file, o) {
   const used = new Set(); entry.parts = visible(entry);
   const flags = []; if (entry.parts.length > 40) { entry.parts = entry.parts.slice(0, 40); flags.push('budget'); }
   if (fitted.some(f => f.boxes)) flags.push('boxes');
-  for (const p of entry.parts) JSON.stringify(p).replace(/"([a-z])"/g, (m, s) => { used.add(s); return m; });
+  const slotsIn = p => { if (!Array.isArray(p)) return; const k = p[0]; if (k === 'mirror') slotsIn(p[2]); else if (k === 'ring' || k === 'row') slotsIn(p[3]); else if (k === 'group') (p[3] || []).forEach(slotsIn); else if (k !== 'use' && typeof p[1] === 'string') used.add(p[1]); };
+  entry.parts.forEach(slotsIn);
   for (const s of Object.keys(mats)) if (!used.has(s)) delete mats[s];
   // the fit: silhouettes at game scale in 8 views, and the color (each triangle's own against its slot's)
   const ious = VIEWS().map(([view, f]) => jac(drawn(entry, view, f).px, silhouette(tris, view, f)));
@@ -331,13 +333,13 @@ if (kind === 'shapes') {
   for (const row of ledger.filter(r => r.kind === 'model')) { try { const { tris } = readGlb(join(dir, row.file), { srgbFactors: (sources[row.src] || {}).factors === 'srgb' }); for (const c of colorsOf(tris).values()) paletteAdd(c.rgb, c.area); } catch (e) { /* (flagged below) */ } }
   paletteName();
   for (const row of ledger.filter(r => r.kind === 'model')) {
-    const id = idOf(row.file); if (!wanted(id)) { row.used = ''; if (skip[id]) row.flags = 'skip'; continue; }
+    const id = idOf(row.file); if (outside(id)) continue; if (!wanted(id)) { row.used = ''; if (skip[id]) row.flags = 'skip'; continue; }
     const rec = sources[row.src] || {}, c = Array.isArray(cat[id]) ? cat[id] : null;
     let r; try { r = convert(join(dir, row.file), { scale: rec.scale || 1, srgb: rec.factors === 'srgb', about: c ? c[1] : id.replace(/-/g, ' '), tags: c ? c[0] : '' }); }
     catch (e) { row.flags = 'unreadable: ' + e.message.slice(0, 60); row.used = ''; console.log(`  ${id}: ${row.flags}`); continue; }
     const ok = r.fit.iou >= .8 && r.fit.worst >= .6;
     row.fit = r.fit.iou + '/' + r.fit.worst; row.used = ok ? '1' : ''; row.flags = [...r.flags, ok ? '' : 'fit'].filter(Boolean).join(' ');
-    if (ok) entries[id] = Object.assign(r.entry, { src: row.src, orig: row.file.split('/').slice(1).join('/'), fit: r.fit });
+    if (ok) entries[id] = Object.assign(r.entry, { src: row.src, orig: row.file.split('/').slice(1).join('/'), fit: r.fit }); else dropped.add(id);
     report.push([id, r.tris, r.entry.parts.length, tok(js(r.entry)), r.fit.iou, r.fit.worst, r.fit.dE, row.flags]);
     console.log(`  ${id.padEnd(28)} ${String(r.tris).padStart(5)} tris -> ${String(r.entry.parts.length).padStart(2)} parts, ${String(tok(js(r.entry))).padStart(4)} tokens; IoU ${r.fit.iou} (worst ${r.fit.worst}), dE ${r.fit.dE}${row.flags ? '  [' + row.flags + ']' : ''}`);
   }
@@ -351,7 +353,7 @@ if (kind === 'sprites') {
   const CH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&*+-/<=>?@^_~', pal = new Map(), decoded = [];
   for (const r of imgs) {
     const id = idOf(r.file); if (r.w + 'x' + r.h !== tile) { r.used = ''; r.flags = 'not a ' + tile + ' tile'; continue; }
-    if (!wanted(id)) { r.used = ''; if (skip[id]) r.flags = 'skip'; continue; }
+    if (outside(id)) continue; if (!wanted(id)) { r.used = ''; if (skip[id]) r.flags = 'skip'; continue; }
     const im = decodePNG(readFileSync(join(dir, r.file)));
     if ([...Array(im.w * im.h).keys()].some(i => im.rgba[i * 4 + 3] > 0 && im.rgba[i * 4 + 3] < 255)) { r.used = ''; r.flags = 'translucent'; continue; }
     if (![...Array(im.w * im.h).keys()].some(i => im.rgba[i * 4 + 3])) { r.used = ''; r.flags = 'empty'; continue; }
@@ -372,7 +374,7 @@ if (kind === 'sprites') {
 
 /* =================== PBR sets -> materials =================== */
 if (kind === 'materials') {
-  const FAMILY = [[/^bricks/, 'bricks'], [/^(woodfloor|planks|woodsiding|wood)/, 'planks'], [/^(pavingstones|rock|cobble|stonewall|gravel)/, 'stones'], [/^(tiles|tile)/, 'tiles'], [/^(metalplates|metal|diamondplate|corrugatedsteel|rust)/, 'metal'],
+  const FAMILY = [[/^bricks/, 'bricks'], [/^(woodfloor|planks|woodsiding|wood)/, 'planks'], [/^(pavingstones|rock|cobble|stonewall)/, 'stones'], [/^(tiles|tile)/, 'tiles'], [/^(metalplates|metal|diamondplate|corrugatedsteel|rust)/, 'metal'],
     [/^roofingtiles/, 'shingles'], [/^(fabric|carpet|leather|wicker)/, 'cloth'], [/^(grass|foliage|moss|ground0(3|4))/, 'foliage'], [/^bark/, 'bark'], [/^(marble|concrete|plaster|asphalt|snow|ice)/, 'noise'], [/^(ground|sand|terrazzo|gravel)/, 'speck'], [/^thatch/, 'thatch']];
   const LIFE = 2;   // drawn twice life, as props are
   const { chromium } = await import('playwright'), browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined }), page = await browser.newPage();
@@ -406,7 +408,7 @@ if (kind === 'materials') {
   const render = (m, w, h, k) => { const mt = E.material(m), out = new Uint8ClampedArray(w * h * 4), s = { u: 0, v: 0, W: w / k, H: h / k, lid: false, curved: false, lit: .5, px: 1 / k, part: 0, nz: 0, z: 8 }; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { s.u = (x + .5) / k; s.v = (h - y - .5) / k; const c = mt.ramp[Math.max(0, Math.min(4, 2 + mt.pat(s, mt.q)))]; out.set([c[0], c[1], c[2], 255], (y * w + x) * 4); } return { w, h, rgba: out }; };
   for (const [key, rec] of Object.entries(sources)) {
     const src = rec.dir, id = src.toLowerCase();
-    if (!wanted(id)) { for (const r of ledger) if (r.src === key) { r.used = ''; if (skip[id]) r.flags = 'skip'; } continue; }
+    if (outside(id)) continue; if (!wanted(id)) { for (const r of ledger) if (r.src === key) { r.used = ''; if (skip[id]) r.flags = 'skip'; } continue; }
     const base = join(dir, src), files = existsSync(base) ? (await import('node:fs')).readdirSync(base) : [], pick = re => files.find(f => re.test(f));
     const cf = pick(/_Color\.(jpg|png)$/i), hf = pick(/_Displacement\.(jpg|png)$/i);
     const row = ledger.find(r => r.src === key && cf && r.file.endsWith(cf)); if (!cf) { console.log('  ' + id + ': no color map'); continue; }
@@ -441,7 +443,7 @@ if (kind === 'shapes') { const used = new Set(Object.values(entries).flatMap(e =
 const usedSrc = new Set(Object.values(entries).map(e => e.src)), S = { set, credit, sources: Object.fromEntries(Object.entries(sources).filter(([k]) => usedSrc.has(k))), materials: kind === 'shapes' ? setMats : kind === 'materials' ? entries : {}, shapes: kind === 'shapes' ? entries : {}, sprites: kind === 'sprites' ? entries : {} };
 const out = opt('out') || join(root, 'src/assets/sets', set + '.js');
 // a re-import of only some ids keeps the set's other entries
-if (only && existsSync(out)) { const old = readSet(out); for (const k of ['materials', 'shapes', 'sprites']) S[k] = Object.assign({}, old[k], S[k]); Object.assign(S.sources, old.sources); }
+if (only && existsSync(out)) { const old = readSet(out); for (const k of ['materials', 'shapes', 'sprites']) S[k] = Object.assign({}, old[k], S[k]); for (const id of dropped) delete S.shapes[id]; Object.assign(S.sources, old.sources); }
 const text = writeSet(S, out);
 writeLedger(set, ledger); writeCatalog(set, cat);
 const n = Object.keys(entries).length, fits = Object.values(S.shapes).map(e => e.fit.iou);

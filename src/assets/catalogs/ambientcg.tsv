@@ -593,21 +593,21 @@ ambientcg-Ground103	Ground103/Ground103_1K-JPG_NormalGL.jpg	2136725	image			1024
 ambientcg-Ground103	Ground103/Ground103_1K-JPG_Roughness.jpg	853705	image			1024	1024			skip	
 ambientcg-Gravel043	Gravel043/Gravel043.png	511259	image			512	512				
 ambientcg-Gravel043	Gravel043/Gravel043_1K-JPG_AmbientOcclusion.jpg	855969	image			1024	1024				
-ambientcg-Gravel043	Gravel043/Gravel043_1K-JPG_Color.jpg	1667560	image			1024	1024	10/0.18	1		
+ambientcg-Gravel043	Gravel043/Gravel043_1K-JPG_Color.jpg	1667560	image			1024	1024	0/0.38	1		
 ambientcg-Gravel043	Gravel043/Gravel043_1K-JPG_Displacement.jpg	702099	image			1024	1024				
 ambientcg-Gravel043	Gravel043/Gravel043_1K-JPG_NormalDX.jpg	2273110	image			1024	1024				
 ambientcg-Gravel043	Gravel043/Gravel043_1K-JPG_NormalGL.jpg	2272547	image			1024	1024				
 ambientcg-Gravel043	Gravel043/Gravel043_1K-JPG_Roughness.jpg	790275	image			1024	1024				
 ambientcg-Gravel023	Gravel023/Gravel023.png	457025	image			512	512				
 ambientcg-Gravel023	Gravel023/Gravel023_1K-JPG_AmbientOcclusion.jpg	880985	image			1024	1024				
-ambientcg-Gravel023	Gravel023/Gravel023_1K-JPG_Color.jpg	1244622	image			1024	1024	11/0.2	1		
+ambientcg-Gravel023	Gravel023/Gravel023_1K-JPG_Color.jpg	1244622	image			1024	1024	2/0.41	1		
 ambientcg-Gravel023	Gravel023/Gravel023_1K-JPG_Displacement.jpg	706454	image			1024	1024				
 ambientcg-Gravel023	Gravel023/Gravel023_1K-JPG_NormalDX.jpg	2467946	image			1024	1024				
 ambientcg-Gravel023	Gravel023/Gravel023_1K-JPG_NormalGL.jpg	2464864	image			1024	1024				
 ambientcg-Gravel023	Gravel023/Gravel023_1K-JPG_Roughness.jpg	538605	image			1024	1024				
 ambientcg-Gravel041	Gravel041/Gravel041.png	554705	image			512	512				
 ambientcg-Gravel041	Gravel041/Gravel041_1K-JPG_AmbientOcclusion.jpg	833911	image			1024	1024				
-ambientcg-Gravel041	Gravel041/Gravel041_1K-JPG_Color.jpg	1587447	image			1024	1024	8/0.28	1		
+ambientcg-Gravel041	Gravel041/Gravel041_1K-JPG_Color.jpg	1587447	image			1024	1024	1/0.4	1		
 ambientcg-Gravel041	Gravel041/Gravel041_1K-JPG_Displacement.jpg	700924	image			1024	1024				
 ambientcg-Gravel041	Gravel041/Gravel041_1K-JPG_NormalDX.jpg	2293481	image			1024	1024				
 ambientcg-Gravel041	Gravel041/Gravel041_1K-JPG_NormalGL.jpg	2292846	image			1024	1024				
