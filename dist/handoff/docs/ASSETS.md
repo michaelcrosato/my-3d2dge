@@ -146,7 +146,8 @@ A generator seeds its noise from its params (`E.rng(seed)`), never `Math.random`
    (`(window.ASSETS = window.ASSETS || {}).MINE = { set: 'MINE', format: 1, materials, shapes }`) and
    `E.addAssets(window.ASSETS.MINE)`, which names its entries 'MINE:stool' so they never collide, and returns the names.
    A store set loads the same way (its script, then `E.addAssets(window.ASSETS['kenney-furniture'])`);
-   `node tools/asset-set.mjs <sets> --ids a,b --name mine --out mine.js` cuts the few a game uses, with what they need.
+   `node tools/asset-set.mjs <sets> --ids a,b --name mine --out mine.js` cuts the few a game uses, with what they need
+   (Emberdeep's set dressing loads `src/assets/sets/emberdeep.js`, cut so).
 
 ## Limits
 

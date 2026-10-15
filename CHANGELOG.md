@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.40.0 (2026-10-15)
+
+More detail in Emberdeep's dungeons and town, from the asset store.
+
+- **Emberdeep**: every dungeon room gets a scene on top of its theme's own dressing, two in a big room: a robbed tomb, a vigil at an altar, a smith's corner, a camp the cold took, a cairn, rotwood, a dig, the miners' table, a tinker's bench, a shrine to the dark, a wake, a garden seat in the clouds, the aqueduct keepers' stores, an explorers' camp with a lit fire, and a rare hoard in any theme. One to three single objects are scattered in each room. They are drawn from the page's own cut of the store (`src/assets/sets/emberdeep.js`, 54 shapes from KayKit and Kenney, CC0), its colours toned to the game's once at load, and from Emberdeep's own camp fire, which lights the room (53-scenes.js). They are laid out when a level starts, from a random stream of their own and clear of everything the level placed (its dressing, the mechanics' things and floors), so the level stands as it would without them. Set dressing only: nothing in them is solid or hittable.
+- **Emberdeep**: Emberhold gains the town's smaller stories: cabbages, onions and pumpkins in rows in the garden round the scarecrow; two headstones and a mound with flowers by the memorial stones; a chopping stump, a log and chips in the south-west corner; feed and water by the coop; a grindstone in the forge yard; Cobb's produce cart, laden, south of the plaza; a signpost on the south road; pumpkins and a cart out past the wall. They stand clear of the townsfolk's rounds (each walks as far in 40 seconds as before).
+- **Emberdeep**: the themes' dressing lists weigh their items as written. `WLD_dress` picked with RNG's weighted pick, which reads `.weight`, while the lists give `w`, so every item came equally often (a ruin's pillars, weighted 3, as often as its pots, weighted 1).
+- **Tools**: the Emberdeep smoke test fails when a planned depth lays out no scenes, a placed shape is unknown, or the engine warns of an unknown shape, material or pattern. On v0.39.0's build it fails ("no scenes laid out on depth 1").
+- **Docs**: `src/emberdeep/DESIGN.md` describes the scenes (53-scenes.js) and maps shapes and the asset store to where Emberdeep shows them; `docs/ASSETS.md` and `docs/ASSET-IMPORT.md` name the games' cut sets.
+
 ## 0.39.0 (2026-10-15)
 
 The asset store goes where builders work: the handoff package carries it, and a starter kit loads a cut of it.

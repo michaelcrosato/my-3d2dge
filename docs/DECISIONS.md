@@ -596,3 +596,19 @@ An entry:
   yes, then `node tools/agent-bench.mjs --brief botw-village` and a row in `DOCTRINE.md`'s table.
 - **Answered:** no answer within the wake-up
 - **Landed in:** v0.38.1
+
+## D37 · 2026-10-15 · The themes' dressing weights apply, so every level dresses afresh
+
+- **Principle:** 5 (deterministic: the same seed builds the same level) and Emberdeep's contract (`DESIGN.md`: a theme's
+  dressing list weighs its items)
+- **Call:** `WLD_dress` (51-themes.js) picks from a theme's list with the levels' `RNG.weighted`, which reads `.weight`;
+  every list gives its weights as `w`, so every item came equally often (a ruin's pillars, weighted 3, as often as its
+  pots, weighted 1). The pick now reads `w`. The same seed still builds the same level, but not the level it built
+  before: a different item asks `WLD_spot` for a different spot, and the random numbers after it (the mechanics' things,
+  the packs) land differently. The scenes added with it (53-scenes.js) are laid out at `levelStart` from a stream of their
+  own, so they move nothing.
+- **Why:** the weights are the theme's design as written, and nothing kept a level's layout from one version to the next
+  (the replay suite records its sessions afresh). A reversible call, in its own commit: revert it to have the old levels
+  back.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.40.0
