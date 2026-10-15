@@ -15,7 +15,7 @@ const ACTION = (() => {
   const LEVEL = {
     rows: [
       '########################################',
-      '#t....K.....b..............b.....K....t#',
+      '#tr...K.....b..............b.....K...rt#',
       '#.k..................................k.#',
       '#...PP.......PP..........PP.......PP...#',
       '#...PP.......PP..........PP.......PP...#',
@@ -44,7 +44,9 @@ const ACTION = (() => {
       '########################################'],
     legend: { '=': { floor: 8 }, '^': { stairs: 's', floor: 8 }, 'v': { stairs: 'n', floor: 8 }, h: { mark: 'hero' },
       // shapes (E.SHAPES, docs/ASSETS.md) stand on their tiles: bookcases and benches along the north wall, sacks, an anvil
-      K: { shape: 'bookcase' }, b: { shape: 'bench' }, k: { shape: 'sack', facing: 1 }, a: { shape: 'anvil', facing: .4 } }
+      K: { shape: 'bookcase' }, b: { shape: 'bench' }, k: { shape: 'sack', facing: 1 }, a: { shape: 'anvil', facing: .4 },
+      // a dungeon barrel from the asset store, cut into the page's 'action3d' set (src/assets/sets/action3d.js); the core's without it
+      r: { shape: E.addAssets((window.ASSETS || {}).action3d || { set: 'action3d' }).shapes.length ? 'action3d:barrel' : 'barrel', facing: .5 } }
   };
 
   /* ---- THE CAST: the stress test's monsters (its skins, colors and takes on E.MOVES) ---- */

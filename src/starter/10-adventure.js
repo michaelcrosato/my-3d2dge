@@ -16,11 +16,11 @@ const ADV = (() => {
     ['#GQOQbzNzZu~~#', 'H.KK....x....H', 'X.....rA.....X'],
     ['#ccccV~ccLe~~#', 'K..s.q::::.s.H', 'X..I..++..I..X'],
     ['#cM@cPccac=~~#', 'H.....::::k..K', 'X....m++m....X'],
-    ['#,,,,,,,,,,__,', ',,....::C:...H', 'X..I..++..I..X'],
+    ['#,,,,,,,,,,__,', ',,....::C:...H', 'X4.I..++..I.4X'],
     ['#.b...b.g,d__,', ',,..o.::::.s.H', 'X.....++.....X'],
     ['#...%%%f..s~~#', 'Hb.K..::::q.KH', 'X..I..++..I..X'],
     ['#T..%%%.u..~~#', 'H.u..s....y.RH', 'X.p...++...p.X'],
-    ['#..........~~#', 'H...bK...b.xRH', 'X.....E+.....X'],
+    ['#.3........~~#', 'H...bK...b.xRH', 'X.....E+.....X'],
     ['##############', 'RRRRRRRRRRRRRR', 'XXXXXX++XXXXXX']
   ].map(r => r.join(''));
   // the world AROUND the rooms: PAD rows of forest canopy above and below (a meadow's edge first, the shrine's stone under
@@ -40,7 +40,7 @@ const ADV = (() => {
     'V': { floor: 'water', block: true, spawn: 'fountain' }, 'C': { floor: 'pave', spawn: 'chest' }, 'E': { floor: 'carpet', spawn: 'entry' }, 'd': { floor: 'path', spawn: 'villager' },
     // people, creatures and props
     'f': 'florist', 'a': { floor: 'plaza', spawn: 'cat' }, 's': 'rabite', 'v': 'bat', 'k': 'goblin', 'm': 'mage', 'b': 'bush', 'p': 'pot', 'T': 'oak', 'g': 'sign', 'u': 'mushroom',
-    'e': 'barrel', '=': 'crate', 'q': 'ruin', 'I': 'pillar', 'S': 'statue', 'o': 'rock', 'x': 'crystal', 'y': 'skull', 'B': 'brazier', '*': 'candelabra'
+    'e': 'barrel', '=': 'crate', '3': 'stump', '4': 'obelisk', 'q': 'ruin', 'I': 'pillar', 'S': 'statue', 'o': 'rock', 'x': 'crystal', 'y': 'skull', 'B': 'brazier', '*': 'candelabra'
   };
   // wall MATERIALS: face = side, roof = top pattern (beam = timber); cut = lowered to cutH in front of the camera
   const SLAB = { face: 'stone', roof: 'slab' }, TYPES = {
@@ -66,6 +66,9 @@ const ADV = (() => {
     fountain: { prop: 'statue', size: .8, color: '#a8a6c0', dx: 8 }, lamp: { prop: 'streetlamp', r: 3, size: .8, halo: false }, oak: { prop: 'tree', size: 1.45, r: 8 },   // lamp: unlit by day
     bush: { r: 6, cut: ['#2f7a34', '#5ab04a', '#9ad86a'] }, pot: { size: .95, r: 5, cut: ['#7a3a22', '#c07040', '#e8a878'], drop: 'gem' }, sign: { r: 4 },
     mushroom: { size: .75, color: '#e0503a' }, barrel: { shape: 'barrel', r: 5, size: .75 }, crate: { shape: 'crate', r: 6, size: .65 },
+    // from the asset store, cut into the page's 'adventure' set (src/assets/sets/adventure.js); without it, props
+    ...(E.addAssets((window.ASSETS || {}).adventure || { set: 'adventure' }).shapes.length ? { stump: { shape: 'adventure:stump-round', r: 5, size: .7 },
+      obelisk: { shape: 'adventure:pillar-obelisk', r: 6, size: .8 } } : { stump: { prop: 'rock', r: 5, color: '#8a5a3a' }, obelisk: { prop: 'pillar', r: 6 } }),
     // ruins
     vines: { face: true, z: 25, anchor: 'top', color: '#4a8a3a', blossom: '#f890b0' }, moss: { prop: 'vines', face: true, z: 35, anchor: 'top', size: .8, color: '#5a8a3a', blossom: '#f890b0' },
     gate: { prop: 'door', face: true, size: 1.1, color: '#5a3a6a' }, ruin: { prop: 'pillar', broken: true, r: 7 }, rock: { r: 5, color: '#8a8698' }, skull: { prop: 'bones' },

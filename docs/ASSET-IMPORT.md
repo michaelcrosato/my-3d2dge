@@ -190,6 +190,25 @@ better built (the wheelbarrow, the rack, the stall, the trough, crisp outlines) 
 that makes an object (a skep's coils, an anvil's horn) and smoother at small sizes, where a busy pattern on a small part
 read as speckle; the card's recipe now says so. The first sheet drew shapes as sprites, without their flames.
 
+## Who uses the store, and what still draws by its own code
+Every page that draws a world takes from the store or the core library:
+- **Emberdeep:** its set `emberdeep.js` dresses the dungeons (`53-scenes.js`) and the town.
+- **The 2D kits:** each loads a cut of its own (`src/assets/sets/<genre>.js`, 597 to 1,391 tokens), next to the core shapes it draws.
+- **The 3D kits:** `action3d.js` and `platformer3d.js`, through `world.shape`.
+- **Emberwell and the Perspective Lab:** the core library.
+- **The stress test:** its Shapes slider.
+- **The Mocap Lab:** its Props button, off by default.
+- **The two 3D prototypes:** core shapes as one three.js mesh each, from `E.shapeMesh`, solid from `E.shapeBox`.
+- **The handoff package:** carries the whole store.
+
+What still draws by its own code was reviewed against the store (v0.42.0):
+- **The core library (25 shapes, median 125 tokens).** Every one has counterparts in the store, at two to five times the tokens and in a kit's own colours. The core stays: it is in every page at no cost and tuned to the house look. A game cuts store entries for variety.
+- **Emberdeep's town, the moving and the used.** The forge (fire, bellows, anvil, quench), the stall's awning and the stash's lid, the waystone, the lamps, lanterns and swinging signs, the trees and the scarecrow that sway. They move or open, so they stay code, by the card's limit (still objects only).
+- **Emberdeep's town, the still.** The coop, the coal heap and the weapon rack have no counterpart in the 23 sets. The log pile (the store has logs and planks) and the memorial's standing stones (stone-tall-c) keep their drawn look: the log ends in the forge's palette, and the candles' glow on the stones. The store's woodpile and graves stand beside them.
+- **Emberdeep's dungeons.** The props are the engine's procedural ones: bones, skulls, broken pillars and statues, candles, grass, banners, recoloured per theme and depth. The store has no bones or skulls, and a store candle has no flame. The decorations (runestones, crucibles, chains, icicles, glow-worms, gears, vents, waterfalls, rifts) animate. All of them stay. The store comes in as scenes beside them.
+
+Nothing that draws well by its own code was replaced. The store fills what nothing drew.
+
 ## Tests
 
 `npm run test:assets` (`tools/assets-test.mjs`), section 7: every download CC0 or the public-domain mark with its record;

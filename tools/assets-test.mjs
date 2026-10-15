@@ -19,7 +19,7 @@
 //      edited material redraws cached pictures, parts below the floor are not clipped, an entry's scale applies, the
 //      crate pattern repeats past its face, the outline takes the renderer's color, a raised solid is no wall under it,
 //      what stands on a shape's back half sorts after it, and 300 shapes in view: the first frame, the steady ones, the cache
-//   9. the games' cut sets (emberdeep, platformer, shooter, brawler, animlab): every entry the code names is in the set its
+//   9. the games' cut sets (emberdeep and every kit's): every entry the code names is in the set its
 //      page loads, and every entry of the set is named
 // Usage: node tools/assets-test.mjs        (run node tools/build.mjs first; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
@@ -406,7 +406,8 @@ console.log('9. the games\' cut sets: what the code names is there, and nothing 
 {
   const { readSet } = await import('./asset-lib.mjs');
   const GAMES = { platformer: ['src/starter/20-platformer.js'], shooter: ['src/starter/30-shooter.js'], brawler: ['src/starter/50-brawler.js'], animlab: ['src/starter/60-animlab.js'],
-    emberdeep: ['src/emberdeep/53-scenes.js', 'src/emberdeep/56-town.js'] };
+    adventure: ['src/starter/10-adventure.js'], rpg: ['src/starter/40-rpg.js'], stealth: ['src/starter/70-stealth.js'], action3d: ['src/starter3d/10-action.js'],
+    platformer3d: ['src/starter3d/20-platformer.js'], emberdeep: ['src/emberdeep/53-scenes.js', 'src/emberdeep/56-town.js'] };
   for (const [set, files] of Object.entries(GAMES)) {
     const S = readSet(join(root, 'src/assets/sets', set + '.js')), ids = new Set(Object.keys(S.shapes || {})), src = files.map(f => readFileSync(join(root, f), 'utf8')).join('\n');
     // named: 'set:id' written out, or D + 'id' where the file says const D = 'set:'
