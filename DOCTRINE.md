@@ -202,6 +202,12 @@ code. All three still read the source below the header, for the same things (F2.
 interface on the canvas rather than with `E.Shell`; and the judge put all three at 6/10, short of the PS1/N64 bar.
 Those are the next plan's three themes (`docs/FEEDBACK-LOG.md`). The runs cost $40.40 together.
 
+The look theme's answer (v0.35.0 to v0.38.0): objects, materials and sprites as data, from a core library and a store of
+CC0 libraries converted to text (`docs/ASSETS.md`, `docs/ASSET-IMPORT.md`). Its authoring test (2026-10-15, fresh
+agents, ten one-line briefs): shapes written from the asset card were all valid on the first try at 81% fewer tokens
+than canvas code from the API card (2,966 against 15,784), and two blind judges scored their look 5.9 and 5.7 against
+canvas code's 7.4 and 6.6. The paid re-run of the Breath of the Wild brief waits on the owner (D36).
+
 ### The checks here
 
 - `node tools/doctrine-check.mjs`: assets, the manuals' budgets (the index's too), the API boundary, the logs that are never cleaned up (decisions and feedback), and the API index (current, every public name described). Quick, no
