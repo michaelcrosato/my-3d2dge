@@ -722,26 +722,27 @@ function stashThing() {
 /* ---------- small set pieces: barrels, crates, sacks, tables, stools, the well, benches, hay, the coop, stones ---------- */
 /** one static piece: kind, position, a collision radius, a painter (r, g, x, y), and o.light(r) for any glow it gives */
 const piece = (kind, x, y, rr, paint, o = {}) => ({ kind, x, y, r: rr, solid: rr > 0, keep: true, draw(r) { if (!r.visible(x, y, 0, 60, 80, 50)) return; r.queue(x, y, 0, g => paint(r, g, x, y)); if (o.light) o.light(r); } });
-const barrel = (x, y, c = '#8a5a32') => piece('barrel', x, y, 5.5, (r, g) => cyl(r, g, x, y, 0, 12, 5.5, c, { n: 12, staves: true, bands: [2, 6, 10], band: '#4a4a58', top: E.tones(c).sh }));
-const crate = (x, y, a = 0, s = 1, z = 0) => piece('crate', x, y, z ? 0 : 6 * s, (r, g) => { obox(r, g, x, y, z, z + 10 * s, 6 * s, 6 * s, a, '#a0764a', '#8a6038', { grain: 3 }); const c = Math.cos(a), sn = Math.sin(a); line3(r, g, [x - 6 * s * c + 6 * s * sn, y - 6 * s * sn - 6 * s * c, z + 10 * s], [x + 6 * s * c - 6 * s * sn, y + 6 * sn * s + 6 * s * c, z + 10 * s], '#6a4428'); });
-const sack = (x, y, c = '#c8b088') => piece('sack', x, y, 4, (r, g) => { const [sx, sy] = r.w(x, y, 0), s = r.view.scale, t = E.tones(c); px.ell(g, sx, sy - 4 * s, 4.4 * s, 4.6 * s, t.sh); px.ell(g, sx - .6, sy - 4.6 * s, 3.6 * s, 3.8 * s, t.base); px.ell(g, sx - 1.5 * s, sy - 6 * s, 1.5 * s, 1.3 * s, t.lt); px.rect(g, sx - 1.5 * s, sy - 9.4 * s, 3 * s, 1.5 * s, t.sh); px.rect(g, sx - 1 * s, sy - 10.5 * s, 2 * s, 1.2 * s, t.base); });
-function table(x, y) { return piece('table', x, y, 7.5, (r, g) => { cyl(r, g, x, y, 0, 9, 1.6, '#5a3a24', { n: 6 }); cyl(r, g, x, y, 9, 10.5, 8, '#8a5a36', { n: 14, top: '#a06a40' }); for (const [dx, dy, full] of [[-3, -2, 1], [3, 1, 0], [0, 4, 1]]) { cyl(r, g, x + dx, y + dy, 10.5, 14, 1.3, '#b08850', { n: 8, top: full ? '#f8f0d8' : '#6a3a1a' }); } }); }
-const stool = (x, y) => piece('stool', x, y, 3, (r, g) => { cyl(r, g, x, y, 0, 6, 2.8, '#7a4e2e', { n: 8, top: '#9a6a40' }); });
-const bench = (x, y, a) => piece('bench', x, y, 5, (r, g) => { const c = Math.cos(a), s = Math.sin(a); for (const k of [-6, 6]) obox(r, g, x + c * k, y + s * k, 0, 5, 1, 3, a, '#5a3a24', '#4a2e1c'); obox(r, g, x, y, 5, 6.5, 9, 3.2, a, '#9a6a40', '#6a4428'); });
-function hay(x, y, a = 0) { return piece('hay', x, y, 7, (r, g) => { obox(r, g, x, y, 0, 8, 8, 5, a, '#e0c070', '#c8a050', { grain: 3 }); const c = Math.cos(a), s = Math.sin(a); for (const k of [-3, 3]) line3(r, g, [x + c * k + s * 5.1, y + s * k - c * 5.1, 0], [x + c * k + s * 5.1, y + s * k - c * 5.1, 8], '#8a6a3a'); }); }
+/** a still piece drawn as a shape (docs/ASSETS.md: a core id or an entry): r.shape's placement in o; the piece's circle
+ *  is still its collision, so the town plays as it did */
+const shapePiece = (kind, id, x, y, rr, o = {}) => ({ kind, x, y, r: rr, solid: rr > 0, keep: true, draw(r) { r.shape(id, x, y, o.z || 0, o); } });
+/** a material in another color (a darker oak for one barrel), its pattern and numbers kept */
+const recolor = (id, c) => Object.assign({}, E.material(id).q, { color: c, ramp: undefined });
+const turned = (x, y) => E.hash2(Math.round(x), Math.round(y)) * TAU;   // (each piece faces a way of its own)
+/** the town's own entries, written as the store's are */
+const TOWN_SHAPES = {
+  table: { about: 'round tavern table on a post, two full mugs and an empty one', mats: { t: 'oak', l: 'walnut', m: '#b08850', f: '#f8f0d8', e: '#6a3a1a' },
+    parts: [['cyl','l',[0,0,0],1.6,9], ['cyl','t',[0,0,9],8,1.5], ['cyl','m',[-3,-2,10.5],1.3,3.5], ['cyl','f',[-3,-2,14],1.1,.2], ['cyl','m',[0,4,10.5],1.3,3.5], ['cyl','f',[0,4,14],1.1,.2], ['cyl','m',[3,1,10.5],1.3,3.5], ['cyl','e',[3,1,14],1.1,.2]] },
+  hay: { about: 'hay bale bound with two bands of twine', mats: { s: 'straw', t: '#8a6a3a' }, parts: [['box','s',[0,0,0],[16,10,8]], ['mirror','x',['box','t',[3,0,0],[.8,10.2,8.2]]]] }
+};
+const barrel = (x, y, c = '#8a5a32') => shapePiece('barrel', 'barrel', x, y, 5.5, { scale: .75, facing: turned(x, y), mats: { w: recolor('oak', c) } });
+const crate = (x, y, a = 0, s = 1, z = 0) => shapePiece('crate', 'crate', x, y, z ? 0 : 6 * s, { z, scale: .72 * s, facing: a + Math.PI / 2 });
+const sack = (x, y, c = '#c8b088') => shapePiece('sack', 'sack', x, y, 4, { scale: .9, facing: turned(x, y), mats: { b: recolor('burlap', c) } });
+const table = (x, y) => shapePiece('table', TOWN_SHAPES.table, x, y, 7.5, { facing: turned(x, y) });
+const stool = (x, y) => shapePiece('stool', 'stool', x, y, 3, { scale: .6, facing: turned(x, y) });
+const bench = (x, y, a) => shapePiece('bench', 'bench', x, y, 5, { scale: .7, facing: a + Math.PI / 2 });
+function hay(x, y, a = 0) { return shapePiece('hay', TOWN_SHAPES.hay, x, y, 7, { facing: a + Math.PI / 2 }); }
 function stone(x, y, h, w, c = '#7a7688') { return piece('stone', x, y, w + 1, (r, g) => { frustum(r, g, x, y, 0, h, w, w * .78, .3, c, { top: E.tones(c).lt }); const tq = W3(r, [x, y, h]); px.dot(g, tq[0], tq[1] + 2, E.tones(c).deep); }); }
-function wellThing() {
-  return piece('well', WELL.x, WELL.y, 13, (r, g, x, y) => {
-    cyl(r, g, x, y, 0, 10, 11, '#8a8494', { n: 16, top: null, bands: [3.5, 7], band: '#5a5468' });
-    cyl(r, g, x, y, 9.4, 10.6, 11.6, '#9a94a4', { n: 16, top: '#aaa4b4' }); cyl(r, g, x, y, 9.4, 10.62, 8.6, '#1a1824', { n: 16, top: '#10141e' });
-    const [wx, wy] = r.w(x, y, 8), s = r.view.scale; px.ell(g, wx, wy, 5 * s, 1.8 * s, '#2a4a6e'); px.dot(g, wx - 2 * s, wy, '#8ac0e8');
-    for (const k of [-1, 1]) obox(r, g, x + k * 10, y, 10, 30, 1.4, 1.4, 0, '#7a5232', '#5a3a22');                             // posts, the crossbeam, a little roof, the rope and bucket
-    obox(r, g, x, y, 27, 29, 12, 1.2, 0, '#8a6040', '#6a4428');
-    const rt = E.tones('#6a3a2a'); quad(r, g, [[x - 13, y - 7, 29], [x + 13, y - 7, 29], [x + 13, y, 35], [x - 13, y, 35]], rt.sh); quad(r, g, [[x - 13, y + 7, 29], [x + 13, y + 7, 29], [x + 13, y, 35], [x - 13, y, 35]], rt.base);
-    line3(r, g, [x - 13, y + 7, 29], [x + 13, y + 7, 29], rt.deep); line3(r, g, [x - 13, y, 35], [x + 13, y, 35], rt.lt);
-    line3(r, g, [x + 2, y, 27], [x + 2, y, 17], '#c8b89a'); cyl(r, g, x + 2, y, 13, 17, 2.2, '#7a5a3a', { n: 8, top: '#3a2a1a', bands: [16], band: '#4a4a58' });
-  });
-}
+function wellThing() { return shapePiece('well', 'well', WELL.x, WELL.y, 13, { scale: 1.2 }); }
 function coopThing(x, y) {
   return piece('coop', x, y, 12, (r, g) => {
     obox(r, g, x, y, 0, 3, 11, 8, 0, '#5a4a3a', '#4a3a2a'); obox(r, g, x, y, 3, 15, 10, 7, 0, '#9a7048', '#8a6038', { grain: 4 });
@@ -1742,8 +1743,8 @@ function dressOutskirts(Lv) {
     const q = W3(r, P0(0, 18)); E.font.text(g, 'EMBERHOLD', Math.round(q[0]), Math.round(q[1]) - 2, '#3a2010', { align: 'center', font: 'tiny', outline: false });
   }));
   add(lampThing(360, 668));
-  for (let i = 0; i < 14; i++) Lv.props.push({ name: 'pine', x: 20 + i * 62 + hs(i, 21) * 30, y: OMH + 104 + hs(i, 22) * 60, z: 0, o: { size: 1.4 + hs(i, 23) * .7, color: i % 3 ? '#1e3c34' : '#24463a' } });
-  for (let i = 0; i < 11; i++) Lv.props.push({ name: 'pine', x: OMW + 96 + hs(i, 24) * 70, y: 30 + i * 56 + hs(i, 25) * 26, z: 0, o: { size: 1.4 + hs(i, 26) * .7, color: i % 3 ? '#1e3c34' : '#24463a' } });
+  for (let i = 0; i < 14; i++) WLD_shape(Lv, 'pine', 20 + i * 62 + hs(i, 21) * 30, OMH + 104 + hs(i, 22) * 60, { size: 1.4 + hs(i, 23) * .7, color: i % 3 ? '#1e3c34' : '#24463a', slot: 'l' });
+  for (let i = 0; i < 11; i++) WLD_shape(Lv, 'pine', OMW + 96 + hs(i, 24) * 70, 30 + i * 56 + hs(i, 25) * 26, { size: 1.4 + hs(i, 26) * .7, color: i % 3 ? '#1e3c34' : '#24463a', slot: 'l' });
   for (const [x, y] of [[180, 668], [470, 676], [690, 700], [812, 520], [836, 300], [800, 160]]) add(bushThing(x, y, 1, '#2e5236', null));
 }
 /* ---------- set dressing: where every piece stands ---------- */
@@ -1781,8 +1782,8 @@ function dressTown(Lv) {
   for (let x = SOIL.x0; x <= SOIL.x1; x += 15) { prop('fence', x + 7, SOIL.y0 - 2, { size: 1 }); prop('fence', x + 7, SOIL.y1 + 2, { size: 1 }); }
   // trees (with trunks you bump into), pines beyond the wall, bushes, flowers and tufts
   for (const [x, y, sz, c] of [[228, 188, 1.1, '#3e7a48'], [586, 300, 1.25, '#3a6e44'], [700, 250, 1.3, '#447a44'], [716, 360, 1.2, '#3a6a40'], [598, 480, 1.1, '#3e7040'], [724, 580, 1.25, '#3a6a44'], [470, 590, 1.05, '#447848'], [290, 590, 1.2, '#3a6a40'], [196, 404, 1.1, '#3e7448'], [60, 370, 1.2, '#3a6a42'], [44, 580, 1.25, '#447444'], [300, 486, 1, '#3e7040'], [660, 330, 1, '#447a48'], [520, 200, .9, '#3e7244']]) add(treeThing(x, y, sz, c));
-  for (let i = 0; i < 20; i++) { prop('pine', 10 + i * 40 + hs(i, 1) * 16, -6 - hs(i, 2) * 26, { size: 1.5 + hs(i, 3) * .8, color: i % 3 ? '#23473c' : '#2a5040' }); }
-  for (let i = 0; i < 16; i++) { prop('pine', -8 - hs(i, 4) * 24, 12 + i * 40 + hs(i, 5) * 14, { size: 1.5 + hs(i, 6) * .8, color: i % 3 ? '#23473c' : '#2a5040' }); }
+  for (let i = 0; i < 20; i++) WLD_shape(Lv, 'pine', 10 + i * 40 + hs(i, 1) * 16, -6 - hs(i, 2) * 26, { size: 1.5 + hs(i, 3) * .8, color: i % 3 ? '#23473c' : '#2a5040', slot: 'l' });
+  for (let i = 0; i < 16; i++) WLD_shape(Lv, 'pine', -8 - hs(i, 4) * 24, 12 + i * 40 + hs(i, 5) * 14, { size: 1.5 + hs(i, 6) * .8, color: i % 3 ? '#23473c' : '#2a5040', slot: 'l' });
   for (const [x, y, s0, c, b] of [[230, 120, 1, '#3e6e40', '#e87aa0'], [334, 94, .8, '#3a6a3e', null], [480, 94, .9, '#3e6e40', '#f0d060'], [572, 104, 1.1, '#3a6a40', '#c890ff'], [700, 150, 1.2, '#3e6e40', null], [728, 206, 1, '#3a6a3e', '#e87aa0'],
     [120, 400, 1, '#3e6e40', '#f0d060'], [124, 520, 1.1, '#3a6a40', null], [260, 540, .9, '#3e6e40', '#e87aa0'], [344, 574, 1, '#3a6a3e', null], [440, 574, 1, '#3e6e40', '#f0d060'], [640, 560, 1, '#3a6a40', '#e87aa0'], [734, 424, 1, '#3e6e40', null], [30, 216, .9, '#3a6a3e', null], [248, 360, .9, '#3e6e40', '#e87aa0']]) add(bushThing(x, y, s0, c, b));
   for (const Hs of HOUSES) { Hs.flowers = true; }

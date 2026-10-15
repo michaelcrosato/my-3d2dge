@@ -6,6 +6,7 @@
  *   BOSSES   the bosses wake on the stage and run their patterns (the hero cannot be hurt here)
  *   MOVES    the engine's actions (E.ACTIONS) on the hero: an execution and a takedown on real monsters, getting up,
  *            climbing up and down a stone block, hopping down, vaulting a low wall, a roll
+ *   OBJECTS  the engine's core shapes (docs/ASSETS.md), turning beside the hero; the Asset Lab (/asset-lab) has the store
  * Left / Right pick, Up / Down change the reel, Enter replays, Z toggles slow motion, V view, [ ] turn, Esc leaves.
  * The gallery plays with a COPY of the saved hero (skills are ranked up for the show), so nothing here reaches the save.
  * A deep link opens one entry, so a tool can film it: #gallery/bestiary/husk, #gallery/skills/<skill id>,
@@ -39,7 +40,7 @@ def('archetypes', 'dummy', { name: 'Training Dummy', tags: ['object'], minDepth:
   react(m, hit) { if (m.body) m.body.hit(hit.ang || 0, 3 + (hit.kb || 0) * .02); m.hp = m.maxHp; P.add({ kind: 'bit', x: m.x, y: m.y, z: 16, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, vz: 60, g: 300, max: .8, color: '#d8b25a' }); }
 });
 
-const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES', 'MOVES'], cam: null };
+const GAL = { reel: 0, i: 0, t: 0, slow: false, cur: null, key: null, reels: ['SKILLS', 'BESTIARY', 'BOSSES', 'POSES', 'MOVES', 'OBJECTS'], cam: null };
 
 const GAL_POSES = [
   ['Idle', {}, 'He breathes and shifts his weight.'], ['Walk', { run: .55 }, 'A gait driven by velocity, not frames.'], ['Run', { run: 1.1 }, 'The cape streams behind.'],
@@ -101,6 +102,7 @@ function galItems() {
   if (GAL.reel === 1) return Object.keys(REG.archetypes).filter(id => { const A0 = REG.archetypes[id]; return id !== 'dummy' && !A0.bossBody && !(A0.tags || []).includes('boss'); });   // bosses have their own reel
   if (GAL.reel === 2) return galBosses();
   if (GAL.reel === 4) return GAL_MOVES.map((p, i) => i);
+  if (GAL.reel === 5) return Object.keys(E.SHAPES).filter(id => !id.includes(':'));   // (the core library: a set's entries are 'SET:id')
   return GAL_POSES.map((p, i) => i);
 }
 /** point the gallery at a reel by name and an entry by id (a pose by its name, spaces as dashes); unknown names warn and are ignored */
@@ -176,9 +178,10 @@ function galReset() {
       if (S.k === 'climbDown' || S.k === 'hopDown') h.z = S.B.top;
       galMove(h);
     }
-  } else { h.x = cx; h.y = cy; }   // poses: centre stage
+  } else if (GAL.reel === 5) { h.x = cx - 26; h.y = cy; h.facing = h.aim = 0; }   // objects: the hero beside it, for its size
+  else { h.x = cx; h.y = cy; }   // poses: centre stage
   if (GAL.reel !== 2) playSong('title');
-  game.setZoom(GAL.reel === 3 ? 2.5 : GAL.reel === 2 ? 1.25 : GAL.reel === 4 ? 2 : 1.75);
+  game.setZoom(GAL.reel === 3 ? 2.5 : GAL.reel === 2 ? 1.25 : GAL.reel === 4 || GAL.reel === 5 ? 2 : 1.75);
   GAL.cam = null;
 }
 /** the SKILLS reel's autopilot: walk back to the mark, face the dummies, cast (holding channels), let combos run on */
@@ -251,7 +254,7 @@ const galleryScene = {
     // the camera frames what matters: the hero and the dummies, the monster (at its height: flyers too), or the hero alone
     const m = GAL.mon, tgt = GAL.reel === 0 ? [(GAL.markX + cx + GAL_K) / 2 + 4, cy, 10]
       : (GAL.reel === 1 || GAL.reel === 2) && m ? [(h.x + m.x) / 2, (h.y + m.y) / 2, 8 + Math.max(0, (m.z || 0)) * .5 + (GAL.reel === 2 ? 14 : 0)]
-      : GAL.reel === 4 ? [ED.L.w * 8 - 4, ED.L.h * 8, 16] : [h.x, h.y, 19];
+      : GAL.reel === 4 ? [ED.L.w * 8 - 4, ED.L.h * 8, 16] : GAL.reel === 5 ? [cx - 10, cy, 14] : [h.x, h.y, 19];
     const c = GAL.cam || (GAL.cam = tgt.slice()), k = Math.min(1, dt * 3); for (let i = 0; i < 3; i++) c[i] += (tgt[i] - c[i]) * k;
     game.focus(c[0], c[1], c[2]);
     if (inp.pressed('labels')) { GAL.slow = !GAL.slow; }
@@ -261,6 +264,7 @@ const galleryScene = {
     const L0 = ED.L;
     L0.map.drawFloor(r); L0.map.queueWalls(r); drawTorches(L0, r);
     if (GAL.reel === 4) galSetDraw(r);
+    if (GAL.reel === 5 && E.SHAPES[GAL.cur]) r.shape(GAL.cur, L0.w * 8 + 6, L0.h * 8, 0, { facing: Math.PI / 2 + GAL.t * .6 });   // (turning, so every side shows)
     for (const m of ED.corpses) drawFoe(m, r);
     for (const m of ED.foes) drawFoe(m, r);
     for (const a of ED.allies) if (a.draw) a.draw(r);
@@ -271,12 +275,14 @@ const galleryScene = {
       const W = f.W, H = f.H, cx = W / 2, items = galItems(), T = HUD_under();
       px.blend(g, .6, 'normal', () => { px.rect(g, 0, -UI.frame.t, W, 31 + T + UI.frame.t, '#05040a'); px.rect(g, 0, H - 38, W, 38 + UI.frame.b, '#05040a'); });   // bands behind the text, so it reads on any floor
       E.font.title(g, 'GALLERY', cx, 4 + T, { scale: 2, colors: ['#fff6c8', '#ffd36a', '#e07a2a'], depth: 2, align: 'center' });
-      GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - (GAL.reels.length - 1) / 2) * 60, 22 + T, i === GAL.reel ? GOLD : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }));
+      const sp = Math.min(60, (W - 16) / GAL.reels.length);   // (six reels fit a phone held upright)
+      GAL.reels.forEach((n, i) => E.font.text(g, n, cx + (i - (GAL.reels.length - 1) / 2) * sp, 22 + T, i === GAL.reel ? GOLD : '#8a80a8', { align: 'center', font: 'tiny', outline: '#0c0818' }));
       let title = '', sub = '';
       if (GAL.reel === 0) { const S = REG.skills[GAL.cur]; if (S) { const rn = GAL.rune; title = S.name + (rn ? '  -  ' + rn.name.toUpperCase() : ''); sub = rn ? rn.desc : typeof S.desc === 'function' ? S.desc(3, null) : S.desc || ''; drawSkillIcon(g, GAL.cur, 8, H - 32, 1); } }
       else if (GAL.reel === 1) { const A0 = REG.archetypes[GAL.cur]; if (A0) { title = A0.name; sub = (A0.tags || []).join(', ') + (A0.themes ? '  ·  lives in: ' + A0.themes.join(', ') : '  ·  found everywhere'); } }
       else if (GAL.reel === 2) { const B = REG.bosses[GAL.boss]; if (B) { const A0 = REG.archetypes[B.arch]; title = B.name + (B.composed && B.title ? ', ' + B.title : ''); sub = (B.composed ? (A0 ? A0.name : 'a body') + ', composed in ' + EL(B.el).name.toLowerCase() + ' for the endless descent  ·  ' : B.title ? B.title + '  ·  ' : '') + (B.depth ? 'depth ' + B.depth + '  ·  ' : '') + 'patterns: ' + ((GAL.mon && GAL.mon.patterns) || (B.phases || []).flatMap(p => p.patterns || []).filter((v, i, a) => a.indexOf(v) === i)).join(', '); } }
       else if (GAL.reel === 4) { const p = GAL_MOVES[GAL.cur] || GAL_MOVES[0]; title = p[0]; sub = p[1]; }
+      else if (GAL.reel === 5) { const S = E.SHAPES[GAL.cur]; title = String(GAL.cur); sub = (S && S.about || '') + '  ·  r.shape(\'' + GAL.cur + '\', x, y, z), docs/ASSETS.md; the Asset Lab (/asset-lab) has the whole store'; }
       else { const p = GAL_POSES[GAL.cur] || GAL_POSES[0]; title = p[0]; sub = p[2]; }
       E.font.text(g, title.toUpperCase(), cx, H - 35, '#ffffff', { align: 'center', scale: 1, shadow: '#05040a', outline: '#0c0818' });
       E.font.wrap(sub.replace(/·/g, '•'), W - 60).slice(0, 2).forEach((l, i) => E.font.text(g, l, cx, H - 25 + i * 9, '#d8d0e8', { align: 'center', shadow: '#05040a', outline: false }));
