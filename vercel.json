@@ -6,11 +6,12 @@
   "outputDirectory": ".",
   "redirects": [
     { "source": "/stress-3d", "destination": "/stress-world", "permanent": true },
-    { "source": "/handoff", "destination": "/handoff/", "permanent": false }
+    { "source": "/handoff", "destination": "/handoff/", "permanent": false },
+    { "source": "/:page(shapes-compare|free-camera|asset-probe)", "destination": "/asset-lab", "permanent": true }
   ],
   "rewrites": [
     { "source": "/", "destination": "/examples/emberdeep.html" },
-    { "source": "/:page(emberdeep|arena|stress-test|perspective-lab|mocap-lab|scarfrunner-side|labs|shapes-compare|free-camera|lab-3d|stress-world|vesper-ui|asset-probe)", "destination": "/examples/:page.html" },
+    { "source": "/:page(emberdeep|arena|stress-test|perspective-lab|mocap-lab|scarfrunner-side|labs|asset-lab|lab-3d|stress-world|vesper-ui)", "destination": "/examples/:page.html" },
     { "source": "/labs.html", "destination": "/examples/labs.html" },
     { "source": "/cmu-lib/:file", "destination": "/examples/cmu-lib/:file" },
     { "source": "/kits/:kit(adventure|animlab|brawler|platformer|rpg|shooter|stealth|3d-action|3d-platformer)", "destination": "/dist/kits/my-3d2dge-:kit.html" },

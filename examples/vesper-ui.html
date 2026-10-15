@@ -16,12 +16,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">VESPER</b><span>Starting · my-3D2dge v0.35.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">VESPER</b><span>Starting · my-3D2dge v0.36.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <canvas id="screen" role="img" aria-label="The district"></canvas>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.35.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.36.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -100,7 +100,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.35.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.36.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -6795,11 +6795,12 @@ function rasterCanvas(r, outline) {
   }
   g.putImageData(img, 0, 0); return cv;
 }
+const _geomOf = new WeakMap();
 /** a shape's resolved size in its own frame: the bounds [x0, y0, z0, x1, y1, z1], and its footprint and contact
  *  polygons for the shadow (ground points of every part, and of the parts that touch the floor) */
 function shapeGeom(S, o = {}) {
   const key = 'geom|' + JSON.stringify([o.params, o.mats]);
-  const c = S._geom || (S._geom = new Map()); let G = c.get(key); if (G) return G;
+  let c = _geomOf.get(S); if (!c) _geomOf.set(S, c = new Map()); let G = c.get(key); if (G) return G;   // (kept beside the entry, never on it)
   const R = resolveShape(S, Object.assign({}, o.params, { mats: o.mats })), b = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9], all = [], contact = [];
   for (const P of R.prims) {
     const pts = []; TESS[P.k](f => { for (const p of f.v) pts.push(add3(mv3(P.M, p), P.t)); }, P, () => 12);
@@ -6821,13 +6822,13 @@ function hull2(P) {
 }
 /** a placement's turn: shape frame -> world ground (scale, mirror, facing) */
 const placeXY = (o, px0, py0) => { const k = o.scale || 1, a = (o.facing === undefined ? Math.PI / 2 : o.facing) - Math.PI / 2, c = Math.cos(a), s = Math.sin(a); return ([x, y]) => { x *= o.flip ? -k : k; y *= k; return [px0 + x * c - y * s, py0 + x * s + y * c]; }; };
-const _rasters = new Map(), RASTER_CAP = 800; let _specN = 0;
+const _rasters = new Map(), RASTER_CAP = 800, _specKey = new WeakMap(); let _specN = 0;
 const viewKey = v => v.id + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + v.scale + ':' + v.zBoost;
 /** a shape's raster for a view and placement, cached (facing in 32 steps); null for an unknown shape */
 function shapeRaster(id, view, o = {}) {
   const S = shapeOf(id); if (!S) return null;
   const step = ((Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / TAU * 32) % 32) + 32) % 32;
-  const sk = typeof id === 'string' ? id : S._key || (S._key = 'spec' + ++_specN);   // (an entry passed in keeps a key of its own)
+  let sk = _specKey.get(S); if (!sk) _specKey.set(S, sk = 'spec' + ++_specN);   // (each entry object its own key: one redefined under the same id draws afresh)
   const key = sk + '|' + viewKey(view) + '|' + step + '|' + (o.scale || 1) + '|' + (o.flip ? 1 : 0) + '|' + (o.mats ? JSON.stringify(o.mats) : '') + '|' + (o.params ? JSON.stringify(o.params) : '') + '|' + (o.outline ? 1 : 0);
   let r = _rasters.get(key);
   if (r) { _rasters.delete(key); _rasters.set(key, r); return r; }   // (most recently used last)

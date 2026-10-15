@@ -101,7 +101,7 @@ const PROTOTYPES = new Set();
   for (const p of pages) if (tempPages.has(p.page)) for (const f of sources(p.template)) if (!shared.has(f)) PROTOTYPES.add(f);
 }
 const uses = {};   // area -> name -> [files]
-for (const f of walk('src').filter(f => /\.(js|html)$/.test(f) && !f.startsWith('src/mocap/sets/'))) {
+for (const f of walk('src').filter(f => /\.(js|html)$/.test(f) && !f.startsWith('src/mocap/sets/') && !f.startsWith('src/assets/sets/'))) {
   const code = read(f).split('\n').map(l => /^\s*\*/.test(l) ? '' : l.replace(/(^|\s)\/\/.*$/, '')).join('\n');   // comments may name them
   for (const m of code.matchAll(/(?<!\bthis)\.(_[A-Za-z]\w*)\b/g)) {
     if (!PRIVATE.has(m[1])) continue;

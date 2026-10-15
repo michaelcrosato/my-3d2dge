@@ -6,6 +6,11 @@
 //                                                         finds MINE:stool)
 //   node tools/asset-sheet.mjs mine.js                    every shape the file adds
 //   [--out check-output/asset-sheet] [--zoom 3] [--json]  (--json prints the numbers and lints as JSON)
+//   node tools/asset-sheet.mjs src/assets/sets/kenney-furniture.js --grid
+//                                                         contact sheets of a whole set, 30 to a page, for curating it:
+//                                                         each entry in the isometric and three-quarter views (a sprite
+//                                                         as it is), with its id, parts and fit; and a page of the
+//                                                         set's materials, each with the entries that use it
 // Each sheet (a PNG per shape): every view (isometric, three-quarter, top-down as games draw it, brawler, side) and three
 // more facings, beside the hero, on a light and a dark floor, the contact shadow under it. The lints:
 //   small from above   under 30 pixels seen from the top-down view
@@ -45,9 +50,58 @@ const ids = await page.evaluate(([before, want]) => {
   const hit = [want, ...added.filter(k => k.endsWith(':' + want))].find(k => E.SHAPES[k]);
   return hit ? [hit] : [];
 }, [before, want]);
-if (!ids.length) { console.error((want ? 'no shape "' + want + '"' : 'no shapes') + (file ? ' in ' + file : ' in the core library')); await browser.close(); process.exit(1); }
+if (!ids.length && !args.includes('--grid')) { console.error((want ? 'no shape "' + want + '"' : 'no shapes') + (file ? ' in ' + file : ' in the core library')); await browser.close(); process.exit(1); }
 
 mkdirSync(out, { recursive: true });
+// --grid: contact sheets of every shape and sprite the file adds, 30 to a page
+if (args.includes('--grid')) {
+  const sprites = await page.evaluate(() => Object.values(window.ASSETS || {}).flatMap(S => Object.keys(S.sprites || {}).map(k => S.set + ':' + k)));
+  // a set of materials only (ambientCG): each drawn on a box and a slab of floor
+  const matIds = await page.evaluate(() => Object.values(window.ASSETS || {}).filter(S => !Object.keys(S.shapes || {}).length && !Object.keys(S.sprites || {}).length).flatMap(S => Object.keys(S.materials || {}).map(k => S.set + ':' + k)));
+  const all = ids.concat(want ? [] : sprites).concat(want ? [] : matIds), name = basename(file || 'core', '.js'), PER = 30;
+  for (let p0 = 0; p0 < all.length; p0 += PER) {
+    const png = await page.evaluate(([list, srcText]) => {
+      const E = My3D2dge, sets = Object.values(window.ASSETS || {}), entry = id => { const [sn, k] = id.split(':'); const S = sets.find(x => x.set === sn); return S ? (S.shapes || {})[k] || (S.sprites || {})[k] : E.SHAPES[id]; };
+      const CW = 300, CH = 168, COLS = 5, cv = document.createElement('canvas'); cv.width = CW * COLS; cv.height = CH * Math.ceil(list.length / COLS) + 4;
+      const g = cv.getContext('2d'); g.fillStyle = '#2a2632'; g.fillRect(0, 0, cv.width, cv.height); g.imageSmoothingEnabled = false;
+      // (the sets' sprites, drawn once: E.addAssets returns them; a copy under another name, as the shapes are registered)
+      const sprites = window.__gridSprites || (window.__gridSprites = {}); if (!window.__gridDone) { window.__gridDone = true; for (const S of sets) if (Object.keys(S.sprites || {}).length) Object.assign(sprites, E.addAssets({ set: S.set + '~g', materials: S.materials, sprites: S.sprites }).sprites); }
+      list.forEach((id, i) => {
+        const x = (i % COLS) * CW, y = Math.floor(i / COLS) * CH, e = entry(id) || {};
+        g.fillStyle = i % 2 ? '#5b5548' : '#625c4e'; g.fillRect(x + 2, y + 2, CW - 4, CH - 4);
+        const draw = (sp, cx, cy, maxW, maxH) => { if (!sp) return; const k = Math.max(1, Math.min(4, Math.floor(Math.min(maxW / sp.w, maxH / sp.h)))); g.drawImage(sp.cv, Math.round(cx - sp.w * k / 2), Math.round(cy - sp.h * k / 2), sp.w * k, sp.h * k); };
+        const mat = !e.rows && !e.parts && E.MATERIALS[id];
+        if (mat) { draw(E.shapeSprite({ mats: { m: id }, parts: [['box', 'm', [0, 0, 0], [14, 14, 12]]] }, { view: 'iso' }), x + CW * .27, y + 72, CW * .5, 120); draw(E.shapeSprite({ mats: { m: id }, parts: [['box', 'm', [0, 0, 0], [40, 40, 1]]] }, { view: 'threequarter' }), x + CW * .73, y + 72, CW * .5, 120); }
+        else if (e.rows) { const k = id.replace(':', '~g:'); const sp = sprites[k]; if (sp) { const c = sp.cv || sp.canvas || sp; const w = c.width, h = c.height, z = Math.max(1, Math.floor(Math.min(130 / w, 120 / h))); g.drawImage(c, x + CW / 2 - w * z / 2, y + 12 + 60 - h * z / 2, w * z, h * z); } }
+        else { draw(E.shapeSprite(id, { view: 'iso' }), x + CW * .27, y + 72, CW * .5, 120); draw(E.shapeSprite(id, { view: 'threequarter' }), x + CW * .75, y + 72, CW * .45, 120); }
+        g.fillStyle = '#f4ead2'; g.font = '13px monospace'; g.fillText(id.split(':').pop().slice(0, 34), x + 8, y + CH - 24);
+        g.fillStyle = '#c8bca0'; g.font = '11px monospace'; const f = e.fit; g.fillText((f && f.iou !== undefined ? 'IoU ' + f.iou + ' (worst ' + f.worst + ')  ' : '') + (e.parts ? e.parts.length + ' parts' : e.rows ? e.rows[0].length + 'x' + e.rows.length : ''), x + 8, y + CH - 9);
+      });
+      return cv.toDataURL('image/png');
+    }, [all.slice(p0, p0 + PER), null]);
+    const f = join(out, name + '-grid-' + (p0 / PER + 1) + '.png'); writeFileSync(f, Buffer.from(png.split(',')[1], 'base64')); console.log(f);
+  }
+  // the legend: each of the set's materials, its swatch drawn on a box, its pattern and the entries that use it
+  const legend = await page.evaluate(() => {
+    const E = My3D2dge, rows = [];
+    for (const S of Object.values(window.ASSETS || {})) for (const [id, m] of Object.entries(S.materials || {})) {
+      const users = Object.entries(S.shapes || {}).filter(([, e]) => Object.values(e.mats || {}).includes(id)).map(([k]) => k);
+      rows.push({ set: S.set, id, m: typeof m === 'string' ? m : [m.color, m.pattern].join(' '), users });
+    }
+    if (!rows.length) return null;
+    const W = 1500, RH = 54, cv = document.createElement('canvas'); cv.width = W; cv.height = rows.length * RH + 10; const g = cv.getContext('2d'); g.fillStyle = '#2a2632'; g.fillRect(0, 0, W, cv.height); g.imageSmoothingEnabled = false;
+    rows.forEach((r, i) => {
+      const y = i * RH + 5, sp = E.shapeSprite({ mats: { m: r.set + ':' + r.id }, parts: [['box', 'm', [0, 0, 0], [12, 12, 8]]] }, { view: 'iso' });
+      if (sp) g.drawImage(sp.cv, 10, y + 2, sp.w * 2, sp.h * 2);
+      g.fillStyle = '#f4ead2'; g.font = '14px monospace'; g.fillText(r.id.padEnd(14) + '  ' + r.m, 80, y + 20);
+      g.fillStyle = '#c8bca0'; g.font = '12px monospace'; g.fillText((r.users.length + ' entries: ' + r.users.slice(0, 12).join(', ')).slice(0, 190), 80, y + 40);
+    });
+    return cv.toDataURL('image/png');
+  });
+  if (legend) { const f = join(out, name + '-materials.png'); writeFileSync(f, Buffer.from(legend.split(',')[1], 'base64')); console.log(f); }
+  if (problems.length) console.log('engine warnings and page errors:\n  ' + [...new Set(problems)].join('\n  '));
+  await browser.close(); process.exit(problems.length ? 1 : 0);
+}
 const report = [];
 for (const id of ids) {
   const res = await page.evaluate(([id, zoom]) => {

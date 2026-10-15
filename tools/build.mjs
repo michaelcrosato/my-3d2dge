@@ -48,10 +48,8 @@ const builds = [
   { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} },
   // imported animation clips (tools/anim-import.mjs) on a look-alike mannequin and on the hero
   { template: 'src/mocap.template.html', out: 'examples/mocap-lab.html', vars: {} },
-  // temporary (src/labs.json): our flat props beside converted 3D shapes; delete with its labs.json entry once settled
-  { template: 'src/shapes-compare.template.html', out: 'examples/shapes-compare.html', vars: {} },
-  // temporary (src/labs.json): a small room and a free camera (turn, tilt, zoom, move, fix); delete with its labs.json entry
-  { template: 'src/free-camera.template.html', out: 'examples/free-camera.html', vars: {} },
+  // every entry of the asset store (src/assets/sets/, inlined) and the core library, to browse, search and copy
+  { template: 'src/asset-lab.template.html', out: 'examples/asset-lab.html', vars: {} },
   // temporary (src/labs.json, docs/LAB-3D.md): our characters in a fully 3D world (three.js r182 + Rapier from vendor/,
   // loaded through the page's import map, so it is served, not double-clicked); delete with its labs.json entry and vendor/
   { template: 'src/lab3d.template.html', out: 'examples/lab-3d.html', vars: {} },
@@ -60,9 +58,6 @@ const builds = [
   { template: 'src/stress-world.template.html', out: 'examples/stress-world.html', vars: {} },
   // temporary (src/labs.json): Vesper's interface rebuilt on E.Shell, to count its tokens; delete with its labs.json entry
   { template: 'src/vesper-ui.template.html', out: 'examples/vesper-ui.html', vars: {} },
-  // temporary (src/labs.json, docs/HANDOFF-ASSETS.md Phase 0): objects as named parts and materials, in every view beside
-  // our props; delete with its labs.json entry when the Asset Lab lands (Phase 2)
-  { template: 'src/asset-probe.template.html', out: 'examples/asset-probe.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
