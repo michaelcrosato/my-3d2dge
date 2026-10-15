@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Developer panel, on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.42.1 (2026-10-15)
+
+The plan for the API index, with the owner's answers: optimize it for answers, don't overhaul it.
+
+- **Docs**: `docs/HANDOFF-API-INDEX.md`, the analysis D28 asked for (a budget of 34,000, 37,000 or 40,000), measured at v0.42.0: grep answers 15 of 25 real lookups, and no cut, split or denser format changes one; the plan adds the answers (Phase 1), says each thing once (Phase 2), makes 68 machinery names private (Phase 3) and has the benchmark record how the manuals are read (Phase 4). The owner said yes to all four of its decisions: one file and the 40,000 budget kept, Phase 3, Phase 4's paid run, and the full index in the handoff (D38).
+
 ## 0.42.0 (2026-10-15)
 
 The last pages that drew a world without the asset store now take from it: the adventure, RPG and stealth kits, both 3D kits, the Mocap Lab and the two 3D prototypes. A review of what still draws by its own code.

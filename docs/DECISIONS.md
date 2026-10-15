@@ -612,3 +612,22 @@ An entry:
   back.
 - **Answered:** no; made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.40.0
+
+## D38 · 2026-10-15 · The API index is optimized for answers, not overhauled: the owner's answers
+
+- **Principle:** 1 (agent-readable) and 8 (quality under the hood: what leaves the API)
+- **Call:** the owner's answers to the four decisions of `docs/HANDOFF-API-INDEX.md` (section 4), all yes:
+  1. optimize the index, don't overhaul it: one file, and the 40,000-token budget kept (not lowered to 37,000 or
+     34,000); Phases 1 (the answers), 2 (each thing said once) and 4's tool go ahead;
+  2. Phase 3: the 68 machinery names nothing outside the engine uses become private, a minor version;
+  3. Phase 4's run: one run of the Breath of the Wild brief on the instrumented benchmark, after Phases 1 and 2,
+     about $13 to $15, which also answers D36;
+  4. the handoff keeps the full index, with no index of the agent edition's names alone.
+- **Why:** measured at v0.42.0, the index was 35,669 tokens; grep answered 15 of 25 lookups taken from what the
+  benchmark's agents read the source for, the briefs and the kits, and no cut, split or denser format changed one of
+  them. What fails is facts the index lacks and members filed under an instance's name. While agents grep, every budget
+  costs an agent the same; only a whole read differs. This answers D28's "what would change it"; D28 stays as it is.
+  What would change it: Phase 4's run showing an agent reading the index whole or paging through it (then split it by
+  area, each file under one read), the index passing 38,000 tokens, or the lookup check unable to keep 24 of 25.
+- **Answered:** yes: the owner (2026-10-15)
+- **Landed in:** v0.42.1
