@@ -595,6 +595,12 @@ An entry:
 - **Why:** the owner set the rule: ask, and with no answer skip it and finish the rest. What would change it: the owner's
   yes, then `node tools/agent-bench.mjs --brief botw-village` and a row in `DOCTRINE.md`'s table.
 - **Answered:** no answer within the wake-up
+- **Answered since:** the owner's yes (2026-10-15, D38), and the run (v0.43.1, `docs/FEEDBACK-LOG.md` F6, the row in
+  `DOCTRINE.md`): the same brief on the same model (Opus 5.5) scored 5/10 against F3's 6/10. The game placed its
+  objects as the core library's shapes, from a 268-token list, and 4.6% of its code draws by hand (F3's code wasn't
+  kept, so its share can't be counted). It was half F3's size, at a quarter of the cost ($3.43). So the store moved the
+  art out of the code, but not the judge's score; one run is a signal, not a measure. The judge's complaints were no
+  longer the objects: empty fields, flat lighting, the iso view's void.
 - **Landed in:** v0.38.1
 
 ## D37 · 2026-10-15 · The themes' dressing weights apply, so every level dresses afresh

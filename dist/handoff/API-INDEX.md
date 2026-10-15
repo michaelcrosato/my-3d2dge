@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.43.1)
+# my-3D2dge API index (v0.43.2)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -84,7 +84,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.43.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.43.2"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -602,7 +602,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.TileMap({ block })`: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry)
 - `map.arcClear(a, b, apex = 20, r = 0)`: does a jump arc from a to b (feet, { x, y, z }) clear every top on the way? The arc is a parabola peaking apex above the higher end; r > 0 also checks a track on each side of it. Jumps, throws, aerial takedowns
 - `map.block(cx, cy, on = true)`: mark a cell blocked or free at runtime (a bridge appears, lava cools)
-- `map.bounds(view)`: projected pixel bounds of the whole map for this view (camera clamping)
+- `map.bounds(view)`: projected pixel bounds of the whole map for this view, { x0, y0, x1, y1 } with an 8-pixel margin (camera clamping: game.cam.bounds = v => map.bounds(v))
 - `map.cell(cx, cy)`: the wall type id at a cell (0 = floor, -1 outside the map)
 - `map.center(cx, cy)`: the world point at a cell's center
 - `map.collide(b)`: push a circle { x, y, r } out of walls. If the body has a number z, walls lower than z + step (default 2) do not block it (it is standing or jumping above them). Returns true when it touched a wall.

@@ -198,6 +198,7 @@ The first runs (D19; one run per brief, so read them as signals):
 | 2026-10-11 | Assassin's Creed | Claude Code (Opus 5.5) | ~27.5k (+4.3k tests) | 185.6k | 39 min | yes, and its own test (cut off by a usage limit in its last read-through) | yes, 13 times; no patch (F2) | not recorded | 6/10 |
 | 2026-10-11 | Breath of the Wild village | Claude Code (Opus 5.5) | ~27.9k (+4.3k tests) | 209k | 38 min | yes, and its own test | yes, 11 times; no patch (F3) | not recorded | 6/10 |
 | 2026-10-11 | Arkham predator room | Claude Code (Opus 5.5) | ~26.2k (+4.1k tests) | 278.8k (its subagents included) | 77 min (41 working; the rest waiting on a reviewing subagent that never reported) | yes, and its own test | yes, 29 times; no patch (F4) | not recorded | 6/10 |
+| 2026-10-15 | Breath of the Wild village, again (v0.43.1: the asset store; D36) | Claude Code (Opus 5.5) | ~14k (+2.5k tests) | 66.1k | 13 min | yes, and its own test | yes, 3 times, each right after a search of the index; no patch (F6) | 8 / 1 / 0 (4.8k / 866 / 0): 3 of the 8 searches then read the source | 5/10 |
 
 What the three say together: every first build runs, none patched the engine, and each game is about half of Vesper's
 code. All three still read the source below the header, for the same things (F2.1, F3.1, F4.1); all three drew their
@@ -208,7 +209,14 @@ The look theme's answer (v0.35.0 to v0.38.0): objects, materials and sprites as 
 CC0 libraries converted to text (`docs/ASSETS.md`, `docs/ASSET-IMPORT.md`). Its authoring test (2026-10-15, fresh
 agents, ten one-line briefs): shapes written from the asset card were all valid on the first try at 81% fewer tokens
 than canvas code from the API card (2,966 against 15,784), and two blind judges scored their look 5.9 and 5.7 against
-canvas code's 7.4 and 6.6. The paid re-run of the Breath of the Wild brief waits on the owner (D36).
+canvas code's 7.4 and 6.6.
+
+The re-run of the Breath of the Wild brief (2026-10-15, v0.43.1, the owner's yes: D36, D38; one run, a signal): half of
+F3's code in a third of its time and a quarter of its cost ($3.43), the source read 3 times against 11, and the index
+searched, never read whole (D41 records the manuals' reads). Its props were the core library's shapes, placed from a
+268-token list (4.6% of its code draws by hand), yet the judge gave 5/10 against F3's 6/10: empty grass, flat lighting,
+and a black void under the backdrop in the iso view (F6). 3 of its 8 searches of the index were followed by a read of
+the source, more than D38's third, so the index's split is reopened for the owner (D38's rule).
 
 ### The checks here
 
