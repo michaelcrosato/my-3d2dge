@@ -113,6 +113,8 @@ for (const b of builds) {
   let html = readFileSync(join(root, b.template), 'utf8');
   for (const [k, v] of Object.entries(Object.assign({}, GLOBAL, b.vars))) html = html.replaceAll(`{{${k}}}`, v);
   html = boot(html);
+  // a file one part needs, only where that part is (a kit of one slice leaves out the others' sets)
+  html = html.replace(/<!-- @inline-with (\S+) (\S+) -->/g, (_, part, file) => !b.parts || b.parts(part) ? `<!-- @inline ${file} -->` : '');
   html = html.replace(/<!-- @inline-raw (\S+) -->/g, (_, file) => read(file));
   // a folder of script parts joined in name order into one <script> (the starter game: shell + one file per slice)
   html = html.replace(/<!-- @inline-parts (\S+) -->/g, (_, dir) => {
@@ -185,8 +187,12 @@ for (const [to, from] of HANDOFF) {
   const text = readFileSync(join(root, from), 'utf8');
   writeFileSync(join(root, H, to), from.startsWith('src/handoff/') && !from.endsWith('.js') && !from.endsWith('.mjs') ? fill(text) : text);
 }
-// (the store's files as one line: its sets and catalogs)
-const store = HANDOFF.filter(([to]) => to.startsWith('src/assets/')), list = HANDOFF.filter(([to]) => !to.startsWith('src/assets/')).map(([to]) => `<li><a href="${to}">${to}</a><span>${SAY[to] || ''}</span></li>`)
-  .concat(`<li><a href="src/assets/sets/">src/assets/</a><span>the asset store: ${store.filter(([to]) => to.endsWith('.js')).length} sets of objects and materials converted from CC0 libraries, and their catalogs (docs/ASSETS.md, "Make one")</span></li>`).join('\n');
+// the store: a page of its own listing every set (what each holds, from its header; the folder itself has no page), and
+// one line for it on the index
+const sets = HANDOFF.filter(([to]) => to.startsWith('src/assets/sets/')).map(([to, from]) => { const t = readFileSync(join(root, from), 'utf8'), n = /(\d+) shapes, (\d+) materials, (\d+) sprites/.exec(t);
+  return `- [${to.split('/').pop()}](sets/${to.split('/').pop()}): ${n ? n[0] : ''}${existsSync(join(root, 'src/assets/catalogs', to.split('/').pop().replace(/\.js$/, '.json'))) ? ` ([catalog](catalogs/${to.split('/').pop().replace(/\.js$/, '.json')}))` : ' (a game\'s own cut)'}`; });
+writeFileSync(join(root, H, 'src/assets/README.md'), '# The asset store\n\nSets of still objects, materials and sprites converted from CC0 libraries (each entry says where it came from),\nand the hand-written catalogs that describe them. `docs/ASSETS.md` is the card;\n`node tools/asset-find.mjs \"words\"` searches them; a game loads one with its script and\n`E.addAssets(window.ASSETS[\'<set>\'])`, or cuts the few it uses with `node tools/asset-set.mjs`.\n\n' + sets.join('\n') + '\n');
+const list = HANDOFF.filter(([to]) => !to.startsWith('src/assets/')).map(([to]) => `<li><a href="${to}">${to}</a><span>${SAY[to] || ''}</span></li>`)
+  .concat(`<li><a href="src/assets/README.md">src/assets/</a><span>the asset store: ${sets.length} sets of objects and materials converted from CC0 libraries, and their catalogs (docs/ASSETS.md, "Make one")</span></li>`).join('\n');
 writeFileSync(join(root, H, 'index.html'), fill(readFileSync(join(root, 'src/handoff/index.html'), 'utf8')).replace('{{FILES}}', list));
-console.log('built ' + H + '/ (' + (HANDOFF.length + 1) + ' files)');
+console.log('built ' + H + '/ (' + (HANDOFF.length + 2) + ' files)');
