@@ -187,15 +187,17 @@ case, it is part of what the engine is.
 **The North Star's measures** (the time from a brief to a playable link, and how often a fresh agent's first build
 runs) have a tool, `tools/agent-bench.mjs` (v0.22.0): it hands a brief and the handoff package to a fresh coding agent in
 an empty directory and records the game code it wrote, its output tokens and wall time, whether its first build passes
-`tools/check.mjs`, whether it read the engine below its header, and a vision judge's score against the PS1/N64 bar.
+`tools/check.mjs`, whether it read the engine below its header, how it read the manuals (each read of the index a
+search, a range or a whole read, with the tokens it returned, and whether a read of the source followed a search of the
+index: a lookup it didn't answer; v0.43.1, D41), and a vision judge's score against the PS1/N64 bar.
 The first runs (D19; one run per brief, so read them as signals):
 
-| date | brief | agent | game code | output tokens (thinking included) | wall time | first build passes check | read the engine below its header | judge |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| baseline | Assassin's Creed: Vesper, given the engine file alone (F1) | GPT-6 Astra Pro | ~50k | ? | ? | (its own checks) | read the source, patched it | - |
-| 2026-10-11 | Assassin's Creed | Claude Code (Opus 5.5) | ~27.5k (+4.3k tests) | 185.6k | 39 min | yes, and its own test (cut off by a usage limit in its last read-through) | yes, 13 times; no patch (F2) | 6/10 |
-| 2026-10-11 | Breath of the Wild village | Claude Code (Opus 5.5) | ~27.9k (+4.3k tests) | 209k | 38 min | yes, and its own test | yes, 11 times; no patch (F3) | 6/10 |
-| 2026-10-11 | Arkham predator room | Claude Code (Opus 5.5) | ~26.2k (+4.1k tests) | 278.8k (its subagents included) | 77 min (41 working; the rest waiting on a reviewing subagent that never reported) | yes, and its own test | yes, 29 times; no patch (F4) | 6/10 |
+| date | brief | agent | game code | output tokens (thinking included) | wall time | first build passes check | read the engine below its header | the index read by search / range / whole (tokens) | judge |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | Assassin's Creed: Vesper, given the engine file alone (F1) | GPT-6 Astra Pro | ~50k | ? | ? | (its own checks) | read the source, patched it | not recorded | - |
+| 2026-10-11 | Assassin's Creed | Claude Code (Opus 5.5) | ~27.5k (+4.3k tests) | 185.6k | 39 min | yes, and its own test (cut off by a usage limit in its last read-through) | yes, 13 times; no patch (F2) | not recorded | 6/10 |
+| 2026-10-11 | Breath of the Wild village | Claude Code (Opus 5.5) | ~27.9k (+4.3k tests) | 209k | 38 min | yes, and its own test | yes, 11 times; no patch (F3) | not recorded | 6/10 |
+| 2026-10-11 | Arkham predator room | Claude Code (Opus 5.5) | ~26.2k (+4.1k tests) | 278.8k (its subagents included) | 77 min (41 working; the rest waiting on a reviewing subagent that never reported) | yes, and its own test | yes, 29 times; no patch (F4) | not recorded | 6/10 |
 
 What the three say together: every first build runs, none patched the engine, and each game is about half of Vesper's
 code. All three still read the source below the header, for the same things (F2.1, F3.1, F4.1); all three drew their
