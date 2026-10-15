@@ -1,5 +1,5 @@
 {
   "$sources": {
-    "kaykit-dungeon-remastered": {"label":"KayKit Dungeon Remastered","origin":"Kay Lousberg (kaylousberg.com), KayKit-Dungeon-Remastered-1.0","license":"CC0 1.0","url":"https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0","commit":"b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07","fetched":"2026-10-14","licenseHash":"c5f17abf619731f5","dir":"KayKit-Dungeon-Remastered-1.0"}
+    "kaykit-dungeon-remastered": {"label":"KayKit Dungeon Remastered","origin":"Kay Lousberg (kaylousberg.com), KayKit-Dungeon-Remastered-1.0","license":"CC0 1.0","url":"https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0","commit":"b0ca9bd96a8072ab36a3a5464f00ed1e06a16d07","fetched":"2026-10-14","licenseHash":"c5f17abf619731f5","dir":"KayKit-Dungeon-Remastered-1.0","scale":0.6}
   }
 }

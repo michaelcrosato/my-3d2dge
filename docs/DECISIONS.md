@@ -538,3 +538,21 @@ An entry:
   API card trimmed, or kits built per genre without the parts their slice never calls.
 - **Answered:** no; made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.35.0
+
+## D33 · 2026-10-15 · The asset store: CC0 libraries converted to text, with provenance, binaries never committed
+
+- **Principle:** 4 (agent-accessible assets), as D7 is for the mocap store
+- **Call:** `src/assets/` holds objects, materials and sprites converted from CC0 libraries (Kenney's kits and pixel packs,
+  KayKit, ambientCG) into the text format of `docs/ASSETS.md`. Downloads stay in `.cache/assets/`; each set records every
+  download (url, date, sha256 or commit, the license as read and its hash), each entry its download, its file and its fit,
+  and each set's ledger every file of its sources. The store takes CC0 1.0 and the public-domain mark only, enforced by
+  `asset-fetch` and the assets suite. Kenney's flat colors are read as sRGB, as its own renders show them, though the glTF
+  spec calls those factors linear (recorded per download: `factors: 'srgb'`). Curation is a person's or a subagent's
+  call from contact sheets: what to keep (described, so it can be found), what to leave out and why, and which pattern
+  each kit color takes (`$mats`).
+- **Why:** an agent can read, search, cut and edit text, not a binary; a source can change at the same URL, so the bytes
+  behind each entry are named; a license added later is hard to undo (docs/HANDOFF-ASSETS.md, sections 5.3 and 10). What
+  would change it: the owner allowing CC BY with credit per author (game-icons.net, the Icosa Gallery), or a library whose
+  terms a re-check finds changed.
+- **Answered:** no; made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.36.0

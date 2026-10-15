@@ -128,7 +128,9 @@ A generator seeds its noise from its params (`E.rng(seed)`), never `Math.random`
 ## Make one: the recipe
 
 1. **Read this card whole.**
-2. **Find** the nearest entry in the core library (`E.SHAPES`) or the store's catalogs (`src/assets/`).
+2. **Find** the nearest entry: `node tools/asset-find.mjs "tavern table"` searches the core library and the store's sets
+   (`src/assets/sets/`, about a thousand objects, materials and sprites converted from CC0 libraries, each with where it
+   came from) and `--show set:id` prints one; the Asset Lab (`/asset-lab`) shows them all.
 3. **Copy** it and change its names, parts and materials, or write a new one from the parts above.
 4. **Look:** `node tools/asset-sheet.mjs mine.js#stool` (a file that sets `E.SHAPES.stool`, or a store set; a core id
    alone works too: `node tools/asset-sheet.mjs barrel`). It draws `check-output/asset-sheet/stool.png`: every view and
@@ -137,6 +139,8 @@ A generator seeds its noise from its params (`E.rng(seed)`), never `Math.random`
 5. **Use** it: `E.SHAPES.stool = {...}` and `r.shape('stool', ...)`; or a set file
    (`(window.ASSETS = window.ASSETS || {}).MINE = { set: 'MINE', format: 1, materials, shapes }`) and
    `E.addAssets(window.ASSETS.MINE)`, which names its entries 'MINE:stool' so they never collide, and returns the names.
+   A store set loads the same way (its script, then `E.addAssets(window.ASSETS['kenney-furniture'])`);
+   `node tools/asset-set.mjs <sets> --ids a,b --name mine --out mine.js` cuts the few a game uses, with what they need.
 
 ## Limits
 
