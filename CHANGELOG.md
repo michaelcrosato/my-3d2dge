@@ -5,6 +5,19 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.46.0 (2026-10-16)
+
+The menus' audit, finished: every feature Emberdeep has is reached from a menu, and `DESIGN.md` maps where each lives.
+
+- **Emberdeep**: Settings > Graphics > Effects gets Screen flashes, Reduce motion (the engine's own, which Emberdeep's flashes and shake already honored) and Skip off-screen animation (the option `OPT.lod` had since the first build, with no switch).
+- **Emberdeep**: Settings > Sound gets Master volume and Sound in the background (the engine's).
+- **Emberdeep**: Settings > Tools gets:
+  - the autopilot run: depth after depth at 3×, logged per depth (`__ed.botRun`, a console call until now);
+  - extra mechanics on every depth (`?mechs=`, a link until now);
+  - Gain a level: exactly one, whatever the experience bonus or Difficulty;
+  - the attract demo, from the title.
+- **Docs**: `src/emberdeep/DESIGN.md` has a section "Where everything is: the menus": the title, play's keys, the pause menu, every Settings page, the town, the links. A new feature takes its place there and in a menu.
+
 ## 0.45.0 (2026-10-15)
 
 Emberdeep's menus rebuilt: one Settings window for everything, every graphics option on one page, and the whole game a test bench (no sandbox).
