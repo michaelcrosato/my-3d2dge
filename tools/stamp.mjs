@@ -1,5 +1,5 @@
 // The deploy-time build stamp. Vercel runs this (vercel.json "buildCommand") on the commit it deploys: every built
-// page and engine file says 'dev-build' where the build goes (My3D2dge.build, the Emberdeep title, the Developer panel,
+// page and engine file says 'dev-build' where the build goes (My3D2dge.build, the Emberdeep title, its Settings,
 // the Labs page, the Mocap Lab), and this replaces it with '<commit> <date>', so the live site and every branch
 // preview show exactly which commit they run. The repo's own copies keep the placeholder, so a rebuild still matches
 // them byte for byte.

@@ -523,7 +523,7 @@ def('characters', 'dan', {
   head: 34, r: 5,   // (its hitbox is slimmer than its silhouette, like Codex's: a looming body that rolls out of a boss's blows)
   stats(h, add) { add('life', 30); add('lifeOnKill', 2); add('atkSpeed', 8); },
   init(h) { h.brood = 0; },
-  prime(h) { h.brood = DAN_SACS; },   // a ripe brood for the gallery, the sandbox and the tests
+  prime(h) { h.brood = DAN_SACS; },   // a ripe brood for the gallery, Tools' unlimited resources and the tests
   kit(h) {   // the scythes are its own forearms; the starting gear is named for the carapace it grows
     h.gear.weapon.name = 'Bone Scythes'; h.gear.chest.name = 'Brood Carapace'; h.gear.boots.name = 'Talons'; h.gear.cloak.name = 'Membrane';
   },

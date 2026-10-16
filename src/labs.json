@@ -40,7 +40,7 @@
           "page": "emberdeep",
           "title": "Emberdeep",
           "made": "in v0.6.0",
-          "what": "The showcase game. Its own test areas are inside it: the Proving Grounds, the Gallery (every monster, skill and pose) and the Developer panel's sandbox.",
+          "what": "The showcase game. Its own test areas are inside it: the Proving Grounds, the Gallery (every monster, skill and pose) and Settings' Tools (spawn any monster, jump to any depth, make any item).",
           "links": [["Town", "#town"], ["Depth 7", "#depth-7"], ["Proving Grounds", "#proving"], ["Gallery", "#gallery"], ["Bestiary: husk", "#gallery/bestiary/husk"], ["Three-quarter view", "?view=threequarter"]]
         }
       ]

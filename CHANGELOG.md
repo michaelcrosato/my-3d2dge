@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.46.1 (2026-10-16)
+
+The last places that still named Emberdeep's Developer panel and sandbox, gone since v0.45.0, name the Settings window.
+
+- **Emberdeep**: three notes on the Tuning pages pointed to the sandbox and the Developer panel: the Monster note now says Tools' Clear enemies & projectiles, then Spawn monsters, and the Item base note Tools' Create item in bag.
+- **Emberdeep**: the code's comments say Tuning and Tools where they said the Developer panel and the sandbox.
+- **Docs**: the Labs page says the game links to it from Settings (Keys & help, and Tools), and Emberdeep's entry names Tools for its test areas, not the Developer panel's sandbox.
+- **Tools**: `tools/stamp.mjs` and `tools/ed-tune-test.mjs` describe the Settings window.
+
 ## 0.46.0 (2026-10-16)
 
 The menus' audit, finished: every feature Emberdeep has is reached from a menu, and `DESIGN.md` maps where each lives.

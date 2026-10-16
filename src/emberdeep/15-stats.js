@@ -44,7 +44,7 @@ function statSource(fn) { STAT_SOURCES.push(fn); }
 function statFinal(fn) { STAT_FINAL.push(fn); }
 /** base stats at a hero level */
 function baseStats(lvl) {
-  const T = TUNE;   // (the Developer panel's Hero > Base stats)
+  const T = TUNE;   // (Settings > Tuning: Hero > Base stats)
   return { life: T.baseLife + lvl * T.lifePerLevel, ember: T.baseEmber, emberRegen: T.emberRegen, lifeRegen: T.lifeRegen + lvl * T.regenPerLevel, crit: T.baseCrit, critDmg: T.baseCritDmg, armor: T.baseArmor + lvl * T.armorPerLevel, dmgFlat: 0, potionCharges: 3 + T.potionCharges, dodgeCharges: 2 + T.dodgeCharges };
 }
 function computeStats(h) {
@@ -87,6 +87,6 @@ function heroHit(h, scale, o = {}) {
   if (tags.includes('aoe')) inc += s.incAoe || 0;
   if (tags.includes('dot')) inc += s.incDot || 0;
   const rank = o.skill ? skillRank(h, o.skill) : 1, rankMul = 1 + Math.max(0, rank - 1) * TUNE.rankBonus;
-  const SK = o.skill && REG.skills[o.skill], amount = base * scale * (1 + inc / 100) * (1 + (s.moreDmg || 0) / 100) * rankMul * (SK && SK.dmgMul !== undefined ? SK.dmgMul : 1);   // (dmgMul: the Developer panel's Skill inspector)
+  const SK = o.skill && REG.skills[o.skill], amount = base * scale * (1 + inc / 100) * (1 + (s.moreDmg || 0) / 100) * rankMul * (SK && SK.dmgMul !== undefined ? SK.dmgMul : 1);   // (dmgMul: Tuning's skill inspector)
   return Object.assign({ src: h, amount, el, tags, kb: (o.kb || 0) * (1 + (s.knockback || 0) / 100), statusPower: amount * .45 * (1 + (s.statusDmg || 0) / 100), skill: o.skill }, o.extra || {});
 }

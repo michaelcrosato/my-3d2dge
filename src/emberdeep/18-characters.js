@@ -13,8 +13,8 @@
  *   saveKey ('ed:save:<id>')           its save slot (the Wanderer keeps the original 'ed:save')
  *   stats(h, add)                      flat bonuses: add('ember', 25) (stat names: 15-stats.js)
  *   init(h)                            fields of its own on every new or loaded hero (Codex: its manuscript pages)
- *   prime(h)                           fill its own resource for a cast outside real play: the gallery's demos, the
- *                                      sandbox's unlimited resources and the character test call it (Dan: a ripe brood)
+ *   prime(h)                           fill its own resource for a cast outside real play: the gallery's demos,
+ *                                      Tools' unlimited resources and the character test call it (Dan: a ripe brood)
  *   kit(h)                             the starting gear, over the shared kit (longsword, tunic, shoes, cape)
  *   look: { build, hair, outfit, colors: { skin, hair, cloth, ... } }   its own look under the gear: E.Humanoid options
  *                                      over the classic look (HERO_LOOK, 20-hero.js); gear still changes it, the Echo and

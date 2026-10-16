@@ -198,7 +198,7 @@ const DEV_FIELD = {
 		cap: "The most one line of it can ever reach.",
 	},
 	skills: {
-		dmgMul: "A damage multiplier for this skill only (a Developer panel setting: 1 is the shipped damage).",
+		dmgMul: "A damage multiplier for this skill only (a tuning setting: 1 is the shipped damage).",
 		cost: "Ember spent each use.",
 		cd: "Cooldown in seconds.",
 		gen: "Ember gained per hit (generators).",
@@ -210,10 +210,10 @@ const DEV_FIELD = {
 	},
 };
 const DEV_INSPECT = {
-	monsters: [{ kind: "archetypes", name: "Monster", note: "Changes count for monsters that appear after the change (in the sandbox: Clear enemies, then Spawn). Attack timings re-measure on the next swing." },
+	monsters: [{ kind: "archetypes", name: "Monster", note: "Changes count for monsters that appear after the change (in Tools: Clear enemies & projectiles, then Spawn monsters). Attack timings re-measure on the next swing." },
 		{ kind: "affixes", name: "Elite affix", note: "Champion and rare affixes (Hasted, Stoneskin, Vampiric...). Their effects are code; their rarity is here." }],
 	bosses: [{ kind: "bosses", name: "Boss", note: "Life, damage and size count from the next time it spawns. Phase thresholds and pattern gaps count at once, even mid-fight." }],
-	loot: [{ kind: "itemBases", name: "Item base", note: "Counts for items made after the change (drops, the vendor, the sandbox's Create item)." },
+	loot: [{ kind: "itemBases", name: "Item base", note: "Counts for items made after the change (drops, the vendor, Tools' Create item in bag)." },
 		{ kind: "itemAffixes", name: "Item affix", note: "Counts for items made after the change." }],
 	skills: [{ kind: "skills", name: "Skill", note: "Counts at once." }],
 };
