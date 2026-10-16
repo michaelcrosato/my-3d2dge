@@ -509,7 +509,7 @@ function dropLoot(kind, x, y, o = {}) {
 /** what a dead monster leaves: gold, potions, items (champions, rares and bosses much more) */
 BUS.on('kill', e => {
   const m = e.tgt; if (m.team !== 'foe' || m.noLoot) return;
-  const h = ED.hero, mf = ((h && h.stats.magicFind) || 0) + TUNE.rarityBoost, gf = (h && h.stats.goldFind) || 0, depth = m.level || ED.depth || 1, lk = DIFF.loot * TUNE.dropChance;   // (TUNE: the Developer panel's Loot)
+  const h = ED.hero, mf = ((h && h.stats.magicFind) || 0) + TUNE.rarityBoost, gf = (h && h.stats.goldFind) || 0, depth = m.level || ED.depth || 1, lk = DIFF.loot * TUNE.dropChance;   // (TUNE: Tuning's Loot)
   const nItems = m.elite ? Math.round((m.boss ? 5 + rnd.int(0, 3) : m.elite === 2 ? 2 + rnd.int(0, 1) : rnd.chance(.6) ? 1 : 0) * TUNE.eliteLoot) : rnd.chance(.1 * lk) ? 1 : 0;
   for (let i = 0; i < nItems; i++) dropLoot('item', m.x, m.y, { item: makeItem({ ilvl: depth + (m.elite ? 1 : 0), el: m.el, rarity: m.boss && i === 0 ? 3 : rollRarity(depth, rnd, mf, m.boss ? .6 : m.elite === 2 ? .35 : m.elite ? .15 : 0) }) });   // (el: deep loot leans to its killer's element)
   if (rnd.chance(m.elite ? .9 : .32 * lk)) { const n = Math.max(1, Math.round((3 + rnd() * 7) * TUNE.goldDrop * SCALE.gold(depth) * (1 + gf / 100) * (m.elite ? 3 : 1) * (m.boss ? 8 : 1))); const piles = m.boss ? 6 : m.elite ? 3 : 1; for (let i = 0; i < piles; i++) dropLoot('gold', m.x, m.y, { n: Math.ceil(n / piles) }); }

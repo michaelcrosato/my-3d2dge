@@ -1,5 +1,5 @@
-// Developer panel tuning: every knob sits at the shipped default, knobs and inspector overrides change the game, persist,
-// and reset; the panel's tabs, tiers, search and guide links work. Run after npm run build.
+// Tuning in the Settings window: every knob sits at the shipped default, knobs and inspector overrides change the game,
+// persist, and reset; the pages, tiers, search and guide links work. Run after npm run build.
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";

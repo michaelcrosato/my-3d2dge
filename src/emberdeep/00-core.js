@@ -160,7 +160,7 @@ function slowMoStep() {
   const now = wallClock(); for (let i = l.length; i--;) if (now >= l[i].until) l.splice(i, 1);
   game.timeScale = SLOW.base * l.reduce((a, q) => Math.min(a, q.k), 1); SLOW.live = l.length > 0;
 }
-function slowMoReset(base = 1) { SLOW.list.length = 0; SLOW.live = false; SLOW.raw = base; SLOW.base = base * TUNE.gameSpeed; game.timeScale = SLOW.base; }   // (TUNE.gameSpeed: the Developer panel's world clock)
+function slowMoReset(base = 1) { SLOW.list.length = 0; SLOW.live = false; SLOW.raw = base; SLOW.base = base * TUNE.gameSpeed; game.timeScale = SLOW.base; }   // (TUNE.gameSpeed: Tuning's world clock)
 
 /* ---------- scaling: the curves that let depth go on forever ---------- */
 // Both sides grow exponentially and the monsters' base is a little higher, so every depth is a touch harder than the

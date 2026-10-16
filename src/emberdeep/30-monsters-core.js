@@ -55,7 +55,7 @@ function spawnMonster(id, x, y, o = {}) {
   const arch = REG.archetypes[id]; if (!arch) { E.warn('ed:arch:' + id, 'EMBERDEEP: no archetype "' + id + '"'); return null; }
   measureAttacks(arch);
   const depth = o.level || ED.depth || 1, R = o.rng || rnd, elite = o.elite || 0, el = o.el || arch.el || 'phys';
-  const eK = (b, k) => 1 + (b - 1) * k;   // (the Developer panel scales an elite's extra life and damage)
+  const eK = (b, k) => 1 + (b - 1) * k;   // (Tuning scales an elite's extra life and damage)
   const hpK = SCALE.foeHp(depth) * DIFF.foeHp * eK([1, 2.6, 4.2, 1][elite], TUNE.eliteHp) * (o.hpMul || 1), dmgK = SCALE.foeDmg(depth) * eK([1, 1.25, 1.45, 1][elite], TUNE.eliteDmg) * (o.dmgMul || 1);
   const m = {
     team: 'foe', arch, kind: id, name: arch.name, x, y, z: 0, vx: 0, vy: 0, vz: 0, r: arch.r || 5, alive: true, spawnT: o.instant ? 0 : .6, facing: R() * TAU,
