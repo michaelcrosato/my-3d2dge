@@ -1,5 +1,8 @@
 # Handoff: co-op (up to four players, each free to go anywhere)
 
+> **Status: TBD, on hold (2026-10-16).** The owner is thinking it over. Nothing here is to be built until they say
+> go and answer section 13.
+
 The plan for co-op multiplayer in Emberdeep: up to four players in one game, each going wherever they like, against
 monsters whose life and damage grow with the players around them. It was made on 2026-10-16 against v0.46.1
 (`cfa866a`). It draws on five audits of the game and the engine (quoted here by file and line) and on three
@@ -1093,7 +1096,7 @@ in the pull request.
 
 | Phase | State | Version and commit | Notes |
 | --- | --- | --- | --- |
-| this plan | written | v0.46.2 | the facts from five audits of v0.46.1 and three measurements (2.3) |
+| this plan | written; on hold (TBD) | v0.46.2 | the facts from five audits of v0.46.1 and three measurements (2.3) |
 | 0 feel the delay | not started | | |
 | 1 one world on every screen | not started | | |
 | 2 more than one hero | not started | | |
