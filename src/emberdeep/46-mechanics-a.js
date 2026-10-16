@@ -238,7 +238,8 @@ BUS.on('draw', e => {
 }, 'global');
 BUS.on('levelStart', e => {
   const L0 = e.L; MKA.falls.length = 0; MKA.motes.length = 0; MKA.chips.length = 0;
-  const want = String(qs.get('mechs') || (typeof window !== 'undefined' && window.__mkaMechs) || '').split(',').map(s => s.trim()).filter(Boolean);
+  // the mechanics a link (?mechs=a,b) or Settings > Tools > Extra mechanics (DEV.mechs) adds to every depth
+  const want = String(qs.get('mechs') || DEV.mechs.join(',') || (typeof window !== 'undefined' && window.__mkaMechs) || '').split(',').map(s => s.trim()).filter(Boolean);
   let k = 0;
   for (const id of want) {
     const M = REG.mechanics[id]; if (!M || L0.mechs.includes(id)) continue;

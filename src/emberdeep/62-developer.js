@@ -21,6 +21,9 @@ const DEV = {
 	rarity: 3,
 	itemLevel: 1,
 	boss: null,
+	mechs: [], // the mechanics added to every depth from the next one (46-mechanics-a.js reads them)
+	runFrom: 1,
+	runTo: 10,
 };
 /** true while the hero is in a world the tools can act on (the town, a depth, the Proving Grounds) */
 const devInWorld = () => !!ED.hero && !!ED.L && ["town", "level", "proving"].includes(ED.mode);
@@ -644,6 +647,46 @@ function devToolsPage(el) {
 	formButton(go, "Return to town", away(() => goTown()));
 	formButton(go, "Proving grounds", away(() => game.go("proving")));
 	formButton(go, "Gallery", away(() => game.go("gallery")));
+	if (ED.mode === "title")
+		formButton(go, "Watch the attract demo", () => {
+			UI.closeAll();
+			startDemo();
+		}).title = "The autopilot plays a random depth, as the title does when left alone; any key comes back";
+	formElement("h4", "Autopilot run", el);
+	formElement("p", "The autopilot plays depth after depth at 3× speed and logs each one: a soak or balance run (__ed.botRun). It revives and goes on after a death, up to 10.", el, { class: "ed-about" });
+	formField(el, "From depth", "number", DEV.runFrom, (v) => Number.isFinite(v) && (DEV.runFrom = clamp(Math.round(v), 1, 500)), { min: 1, max: 500, step: 1 });
+	formField(el, "To depth", "number", DEV.runTo, (v) => Number.isFinite(v) && (DEV.runTo = clamp(Math.round(v), 1, 500)), { min: 1, max: 500, step: 1 });
+	const run = formElement("div", "", el, { class: "ed-row" });
+	formButton(run, BOT_RUN.on ? "Stop the run" : "Start the run", () => {
+		if (BOT_RUN.on) {
+			BOT_RUN.on = false;
+			slowMoReset(DEV.speed);
+			if (ED.hero) botOn(ED.hero, false);
+			formStatus("Run stopped.");
+		} else {
+			if (!ED.hero || ED.mode === "title") ED.hero = loadHeroOrNew();
+			UI.closeAll();
+			botRun({ from: DEV.runFrom, to: Math.max(DEV.runFrom, DEV.runTo) });
+		}
+		menuRender();
+	});
+	if (BOT_RUN.log.length) {
+		const t = formElement("div", "", el, { class: "ed-keys ed-run" });
+		for (const r of BOT_RUN.log.slice(-12)) {
+			formElement("span", "Depth " + r.depth + " · " + r.name, t);
+			formElement("span", "level " + r.level + " · " + r.hp + "% life · " + r.deaths + " deaths" + (r.cleared ? "" : " · died"), t);
+		}
+	}
+	formElement("h4", "Extra mechanics", el);
+	formElement("p", "Mechanics added to every depth from the next one on, beside the depth's own (a ?mechs= link does the same). Until you reload.", el, { class: "ed-about" });
+	const mech = formElement("div", "", el, { class: "ed-seg ed-seg-wrap", role: "group", "aria-label": "Extra mechanics" });
+	for (const M of Object.values(REG.mechanics)) {
+		const b = formButton(mech, M.name || M.id, () => {
+			DEV.mechs = DEV.mechs.includes(M.id) ? DEV.mechs.filter((x) => x !== M.id) : DEV.mechs.concat(M.id);
+			menuRender();
+		});
+		b.setAttribute("aria-pressed", String(DEV.mechs.includes(M.id)));
+	}
 	formElement("h4", "Encounters", el);
 	formField(el, "Monster", "select", DEV.monster, (v) => (DEV.monster = v), { options: Object.values(REG.archetypes).map((m) => [m.id, m.name || m.id]) });
 	formField(el, "Count", "select", DEV.count, (v) => (DEV.count = +v), { options: [1, 5, 10, 25].map((n) => [n, n]) });
@@ -687,6 +730,14 @@ function devToolsPage(el) {
 		formButton(build, "Unlock all skills", () => {
 			for (const id in REG.skills) if (!ED.hero.skills[id]) ED.hero.skills[id] = { rank: 1 };
 			formStatus("All skills unlocked. Assign them in Skills.");
+		}),
+	);
+	world(
+		formButton(build, "Gain a level", () => {
+			const h = ED.hero,
+				k = (1 + (h.stats.xpGain || 0) / 100) * DIFF.xp; // (gainXp scales by the hero's bonus and Difficulty's)
+			gainXp(h, Math.max(1, SCALE.xpNeed(h.level) - h.xp) / k + 0.01);
+			formStatus("Level " + h.level + ".");
 		}),
 	);
 	world(

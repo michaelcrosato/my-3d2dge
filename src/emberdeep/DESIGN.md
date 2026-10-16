@@ -231,6 +231,25 @@ Emberdeep is the engine's showcase: when the engine gains something a hack-and-s
 
 Left out on purpose: the standard pause menu, corner and `E.Shell` (Emberdeep keeps its own menus, D21: the canvas pause menu and the Settings window); `E.Mover`, heights and roofs (its levels are flat: a hack-and-slash's floor), `E.Bullets` (its projectiles are `FX.bolt`, which carry elements and hits).
 
+## Where everything is: the menus
+
+Every feature the player or a playtester can reach, and where. A new feature takes its place here, in a menu (a Settings page's data in `64-menu.js`, a Tools button in `62-developer.js`) and in Help's keys when it has one; nothing is left to the console alone.
+
+- **Title**: Continue, New game, Character (each character's own save; play as, view in the gallery), Proving Grounds, Gallery, Settings, Full screen (on a touch screen). Left alone for 28 s it plays the attract demo.
+- **In play**: WASD or the arrows move, the mouse aims; LMB, RMB and 1-4 the six skill slots; Space or Shift dodge, Q potion, E use (talk, pick up, execute, take down), T town portal; I bag, K skills, P passives, hold Tab the map, hold Z every loot label; V view, - and = zoom (and the wheel), [ and ] turn, 0 reset the camera, M mute, H hide the HUD; Esc the pause menu. A pad and touch buttons do the same (Settings > Controls).
+- **Pause menu** (Esc): Resume, Inventory, Skills, Passives, Settings, Tools, Full screen, Town portal (in a depth), Save and quit.
+- **Settings** (`64-menu.js`), a search box over every page:
+  - *Graphics*: the camera (view, zoom with its default, turn, reset, smoothing, look-ahead); the picture (pixel size, frame rate, full screen); light (GPU lighting, full lighting, darkness); effects (outlines, particles, screen shake and its strength, screen flashes, reduce motion, skip off-screen animation, automatic quality); overlays (frame rate and timings, collision circles).
+  - *Sound*: master volume, music, effects, mute, sound in the background.
+  - *Interface*: damage numbers, health bars, loot labels, hide the HUD, the tips again.
+  - *Controls*: every action's key and pad binding; stick dead zone, inverted aim, vibration, aim assist; touch buttons (shown, side, size, opacity); a live controller monitor.
+  - *Difficulty*: the nine 0.25× to 4× multipliers.
+  - *Tools*: invulnerable, unlimited resources, no cooldowns, frozen AI, pause, step a frame, simulation speed, restore life, autopilot; travel (any depth, the town, the Proving Grounds, the Gallery; the attract demo from the title); the autopilot run (depth after depth, logged: `__ed.botRun`); extra mechanics on every depth (`?mechs=`); spawn monsters (kind, count, tier) and bosses, clear them, reveal the map; points, every skill, a level, gold, an item of any level and rarity; record a session; the labs.
+  - *Tuning*: a page per section of `01-tune.js` with its inspectors; Simple or Advanced; copy, paste and reset.
+  - *Help*: every key as bound now, where to change what, the build, the labs.
+- **In town, by walking up**: the vendors, the smith, the mystic, the stash, the waystone (any depth reached, in fives).
+- **Links**: `?view=`, `?character=`, `?mechs=`, `?record=1`; `#town`, `#depth-N`, `#proving`, `#gallery/<reel>/<id>`. `window.__ed` for tools and tests.
+
 ## Quality bar (read this)
 
 - **Look:** PS1 / N64-era 2D (Symphony of the Night, Legend of Mana), not NES.

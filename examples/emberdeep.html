@@ -33,14 +33,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.45.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.46.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.45.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.46.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -119,7 +119,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.45.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.46.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -24952,7 +24952,8 @@ BUS.on('draw', e => {
 }, 'global');
 BUS.on('levelStart', e => {
   const L0 = e.L; MKA.falls.length = 0; MKA.motes.length = 0; MKA.chips.length = 0;
-  const want = String(qs.get('mechs') || (typeof window !== 'undefined' && window.__mkaMechs) || '').split(',').map(s => s.trim()).filter(Boolean);
+  // the mechanics a link (?mechs=a,b) or Settings > Tools > Extra mechanics (DEV.mechs) adds to every depth
+  const want = String(qs.get('mechs') || DEV.mechs.join(',') || (typeof window !== 'undefined' && window.__mkaMechs) || '').split(',').map(s => s.trim()).filter(Boolean);
   let k = 0;
   for (const id of want) {
     const M = REG.mechanics[id]; if (!M || L0.mechs.includes(id)) continue;
@@ -32632,6 +32633,9 @@ const DEV = {
 	rarity: 3,
 	itemLevel: 1,
 	boss: null,
+	mechs: [], // the mechanics added to every depth from the next one (46-mechanics-a.js reads them)
+	runFrom: 1,
+	runTo: 10,
 };
 /** true while the hero is in a world the tools can act on (the town, a depth, the Proving Grounds) */
 const devInWorld = () => !!ED.hero && !!ED.L && ["town", "level", "proving"].includes(ED.mode);
@@ -33255,6 +33259,46 @@ function devToolsPage(el) {
 	formButton(go, "Return to town", away(() => goTown()));
 	formButton(go, "Proving grounds", away(() => game.go("proving")));
 	formButton(go, "Gallery", away(() => game.go("gallery")));
+	if (ED.mode === "title")
+		formButton(go, "Watch the attract demo", () => {
+			UI.closeAll();
+			startDemo();
+		}).title = "The autopilot plays a random depth, as the title does when left alone; any key comes back";
+	formElement("h4", "Autopilot run", el);
+	formElement("p", "The autopilot plays depth after depth at 3× speed and logs each one: a soak or balance run (__ed.botRun). It revives and goes on after a death, up to 10.", el, { class: "ed-about" });
+	formField(el, "From depth", "number", DEV.runFrom, (v) => Number.isFinite(v) && (DEV.runFrom = clamp(Math.round(v), 1, 500)), { min: 1, max: 500, step: 1 });
+	formField(el, "To depth", "number", DEV.runTo, (v) => Number.isFinite(v) && (DEV.runTo = clamp(Math.round(v), 1, 500)), { min: 1, max: 500, step: 1 });
+	const run = formElement("div", "", el, { class: "ed-row" });
+	formButton(run, BOT_RUN.on ? "Stop the run" : "Start the run", () => {
+		if (BOT_RUN.on) {
+			BOT_RUN.on = false;
+			slowMoReset(DEV.speed);
+			if (ED.hero) botOn(ED.hero, false);
+			formStatus("Run stopped.");
+		} else {
+			if (!ED.hero || ED.mode === "title") ED.hero = loadHeroOrNew();
+			UI.closeAll();
+			botRun({ from: DEV.runFrom, to: Math.max(DEV.runFrom, DEV.runTo) });
+		}
+		menuRender();
+	});
+	if (BOT_RUN.log.length) {
+		const t = formElement("div", "", el, { class: "ed-keys ed-run" });
+		for (const r of BOT_RUN.log.slice(-12)) {
+			formElement("span", "Depth " + r.depth + " · " + r.name, t);
+			formElement("span", "level " + r.level + " · " + r.hp + "% life · " + r.deaths + " deaths" + (r.cleared ? "" : " · died"), t);
+		}
+	}
+	formElement("h4", "Extra mechanics", el);
+	formElement("p", "Mechanics added to every depth from the next one on, beside the depth's own (a ?mechs= link does the same). Until you reload.", el, { class: "ed-about" });
+	const mech = formElement("div", "", el, { class: "ed-seg ed-seg-wrap", role: "group", "aria-label": "Extra mechanics" });
+	for (const M of Object.values(REG.mechanics)) {
+		const b = formButton(mech, M.name || M.id, () => {
+			DEV.mechs = DEV.mechs.includes(M.id) ? DEV.mechs.filter((x) => x !== M.id) : DEV.mechs.concat(M.id);
+			menuRender();
+		});
+		b.setAttribute("aria-pressed", String(DEV.mechs.includes(M.id)));
+	}
 	formElement("h4", "Encounters", el);
 	formField(el, "Monster", "select", DEV.monster, (v) => (DEV.monster = v), { options: Object.values(REG.archetypes).map((m) => [m.id, m.name || m.id]) });
 	formField(el, "Count", "select", DEV.count, (v) => (DEV.count = +v), { options: [1, 5, 10, 25].map((n) => [n, n]) });
@@ -33298,6 +33342,14 @@ function devToolsPage(el) {
 		formButton(build, "Unlock all skills", () => {
 			for (const id in REG.skills) if (!ED.hero.skills[id]) ED.hero.skills[id] = { rank: 1 };
 			formStatus("All skills unlocked. Assign them in Skills.");
+		}),
+	);
+	world(
+		formButton(build, "Gain a level", () => {
+			const h = ED.hero,
+				k = (1 + (h.stats.xpGain || 0) / 100) * DIFF.xp; // (gainXp scales by the hero's bonus and Difficulty's)
+			gainXp(h, Math.max(1, SCALE.xpNeed(h.level) - h.xp) / k + 0.01);
+			formStatus("Level " + h.level + ".");
 		}),
 	);
 	world(
@@ -33574,12 +33626,17 @@ const MENU_SET = [
   { page: 'graphics', group: 'Effects', label: 'Particles', about: 'How many sparks, embers and dust motes can be alive at once: 500, 1,000 or 1,600.', ctl: (row, l) => menuSeg(row, l, [[0, 'Low'], [1, 'Medium'], [2, 'High (default)']], OPT.fx === undefined ? 2 : OPT.fx, v => { OPT.fx = v; P.max = [500, 1000, 1600][v]; saveOpts(); }) },
   { page: 'graphics', group: 'Effects', label: 'Screen shake', about: 'The screen shakes with big hits, explosions and bosses.', ctl: (row, l) => menuSwitch(row, l, OPT.shake, v => { OPT.shake = v; saveOpts(); }) },
   { page: 'graphics', group: 'Effects', knob: 'shake' },
+  { page: 'graphics', group: 'Effects', label: 'Screen flashes', about: 'The flash that lights the screen on a death, a boss\'s rage, a big spell. 0 turns them off.', ctl: (row, l) => menuSlider(row, l, game.settings.flashes, 0, 1, .1, v => Math.round(v * 100) + '%', v => game.settings.set('flashes', v)) },
+  { page: 'graphics', group: 'Effects', label: 'Reduce motion', about: 'No screen shake, and shorter flashes. It starts on when your system asks for reduced motion.', ctl: (row, l) => menuSwitch(row, l, game.reduceMotion, v => game.settings.set('motion', v)) },
+  { page: 'graphics', group: 'Effects', label: 'Skip off-screen animation', about: 'Monsters out of sight are not posed every frame: faster with a big crowd, and a monster takes up its pose as it comes into view.', ctl: (row, l) => menuSwitch(row, l, OPT.lod, v => { OPT.lod = v; saveOpts(); }) },
   { page: 'graphics', group: 'Effects', label: 'Automatic quality', about: () => 'When frames run long, ordinary monsters lose their outlines and particles are capped until there is room again. ' + (PERF.low ? 'Reduced now: frames have been running long.' : 'Full quality now.'), ctl: (row, l) => menuSwitch(row, l, OPT.autoQuality !== false, v => { OPT.autoQuality = v; saveOpts(); if (!v) perfRestore(); }) },
   { page: 'graphics', group: 'Overlays', label: 'Frame rate and timings', about: 'At the top of the screen: frames a second, the update\'s and the drawing\'s cost, and how many monsters are alive.', ctl: (row, l) => menuSwitch(row, l, OPT.perfOverlay, v => { OPT.perfOverlay = v; saveOpts(); }) },
   { page: 'graphics', group: 'Overlays', label: 'Collision circles', about: 'The circle every body collides with: yours blue, the monsters\' red.', ctl: (row, l) => menuSwitch(row, l, OPT.hitboxes, v => { OPT.hitboxes = v; saveOpts(); }) },
+  { page: 'sound', group: 'Volume', label: 'Master volume', about: 'Everything at once; music and effects are mixed under it.', ctl: (row, l) => menuSlider(row, l, game.settings.volume, 0, 1, .05, v => Math.round(v * 100) + '%', v => game.settings.set('volume', v)) },
   { page: 'sound', group: 'Volume', label: 'Music', ctl: (row, l) => menuSlider(row, l, OPT.music, 0, 1, .1, v => Math.round(v * 10) + ' / 10', v => { OPT.music = v; saveOpts(); applyAudioOpts(); }) },
   { page: 'sound', group: 'Volume', label: 'Sound effects', ctl: (row, l) => menuSlider(row, l, OPT.sfx, 0, 1, .1, v => Math.round(v * 10) + ' / 10', v => { OPT.sfx = v; saveOpts(); applyAudioOpts(); }) },
   { page: 'sound', group: 'Volume', label: 'Mute', keys: 'M', about: 'Silences everything. Not kept after a reload.', ctl: (row, l) => menuSwitch(row, l, A.muted, v => A.mute(v)) },
+  { page: 'sound', group: 'Volume', label: 'Sound in the background', about: 'Keep playing sound while the page is hidden (another tab, the phone locked).', ctl: (row, l) => menuSwitch(row, l, game.settings.background, v => game.settings.set('background', v)) },
   { page: 'interface', group: 'Combat', label: 'Damage numbers', about: 'The numbers that rise from every hit.', ctl: (row, l) => menuSwitch(row, l, OPT.numbers, v => { OPT.numbers = v; saveOpts(); }) },
   { page: 'interface', group: 'Combat', label: 'Health bars', about: 'Bars over hurt monsters and elites (a boss always has its own bar).', ctl: (row, l) => menuSwitch(row, l, OPT.bars, v => { OPT.bars = v; saveOpts(); }) },
   { page: 'interface', group: 'Loot', label: 'Loot labels', keys: 'Z shows all while held', about: 'Which items on the ground show their names.', ctl: (row, l) => menuSeg(row, l, [[0, 'All'], [1, 'Magic and better'], [2, 'Rare and better']], OPT.labels, v => { OPT.labels = v; saveOpts(); }) },
