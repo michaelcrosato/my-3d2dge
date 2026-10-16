@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.46.2 (2026-10-16)
+
+The plan for co-op: up to four players in one Emberdeep, each free to go anywhere, against monsters whose life and damage grow with the players around them.
+
+- **Docs**: `docs/HANDOFF-COOP.md`, the plan, made from five audits of v0.46.1 (the single-hero code, the hero's input, scenes and saves, time and randomness, combat and loot) and three measurements (the world simulates at 3 to 25 times real time with nothing drawn; posing rigs is a third of a step; two headless pages open a WebRTC channel with a 0.9 ms round trip).
+  - Every depth and the Proving Grounds is a place that its players simulate in deterministic lockstep, with a delay that covers the network: none when alone, so single player is unchanged. Emberhold is each player's own, with the others in it.
+  - Players connect directly; a relay with no game introduces them. Monster life rises 100% and damage 50% for each extra hero in the place, as knobs. Loot is personal.
+  - Ten phases: a lab where the owner feels the delay on a phone first, then one world on every screen, several heroes (with autopilot companions), the network, moving anywhere, the lead that shows walking at once, emotes and pings, the relay online, snapshots if joins prove slow, and folding the plan in. It ends with nine questions for the owner.
+
 ## 0.46.1 (2026-10-16)
 
 The last places that still named Emberdeep's Developer panel and sandbox, gone since v0.45.0, name the Settings window.
