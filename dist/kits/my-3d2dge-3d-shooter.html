@@ -1938,6 +1938,18 @@ const SHOOT = (() => {
     const a = I.stick2; if (a) { const mag = Math.hypot(a[0], a[1]), rate = (1.2 + 2.6 * mag * mag) * lerp(1, .55, ease(S.adsB)); S.yaw += a[0] / mag * rate * mag * dt; S.pitch = clamp(S.pitch - a[1] / mag * rate * .8 * mag * dt, -1.45, 1.45); }
     if (S.recP || S.recY) { const r = Math.min(1, dt * lerp(1.6, 6, clamp((S.time - S.lastShot - .06) / .12, 0, 1))); S.pitch -= S.recP * r; S.yaw -= S.recY * r; S.recP -= S.recP * r; S.recY -= S.recY * r; }   // (some comes back even mid-burst)
   }
+  /** the soldiers standing in the way: the player stops against them (the engine's heroes pass through each other; the
+   *  camera went inside a body), and steps over the fallen */
+  function bump() {
+    const h = hero;
+    for (const e of raiders) {
+      if (!e.alive || Math.abs(e.a.z - h.z) > 20) continue;
+      const dx = h.x - e.a.x, dy = h.y - e.a.y, d = Math.hypot(dx, dy) || 1, min = RADIUS + e.a.r + 1; if (d > min + 2) continue;
+      const nx = dx / d, ny = dy / d, vn = h.vx * nx + h.vy * ny;
+      if (vn < 0) { h.vx -= nx * vn; h.vy -= ny * vn; }   // (the way into them is taken out; along them is kept)
+      if (d < min) { h.vx += nx * (min - d) * 30; h.vy += ny * (min - d) * 30; }   // (and overlapping, eased apart)
+    }
+  }
   /** a ledge ahead (yaw) of feet at (x, y, z) within reach: a wall at the knees or chest, a top to stand on with room
    *  above it; thin: the ground drops away again beyond (a vault) */
   function findLedge(x, y, z, yaw, reach) {
@@ -2682,7 +2694,7 @@ const SHOOT = (() => {
   function step(dt, I) {
     if (!(dt > 0)) { ip.still = true; world.step(0); return; }   // (time stopped, timeScale 0: nothing moves)
     keepPrev(dt); I0 = I; S.time += dt;
-    if (S.alive && !S.won) { look(dt, I); move(dt, I); actions(dt, I); }
+    if (S.alive && !S.won) { look(dt, I); move(dt, I); actions(dt, I); bump(); }
     else { hero.vx = approach(hero.vx, 0, 600 * dt); hero.vy = approach(hero.vy, 0, 600 * dt); S.act = null; S.ads = false; }
     S.near = S.alive ? nearUse() : null;
     streamRaiders(); for (const e of raiders.slice()) raiderStep(e, dt);
@@ -2751,6 +2763,7 @@ const SHOOT = (() => {
     if (S.view === 'third' || !S.alive) { pose(w, pb, dt); if (pb.gun.mag === 1) pb.gun.magP = add(pb.J.hands[0], pb.G.u, 2.1); drawSoldier(pen, pb); }
     for (const e of raiders) {
       const d = Math.hypot(e.a.x - cam.x, e.a.y - cam.y); if (d > 320 * M || !w.camera.sees(e.a.x, e.a.y, e.a.z, 40)) continue;
+      if (S.view === 'first' && e.alive && d < 8 && cam.z > e.a.z && cam.z < e.a.z + 32 * e.b.k) continue;   // (a body the eye is inside isn't drawn)
       syncRaider(e, dt, al); e.b.visible = d < 110 * M; pose(w, e.b, dt); drawSoldier(pen, e.b);
       if (e.flash > .6 && e.b.G) w.glow(...at(e.b.G, 12.8, .55), 1.2, '#ffc870', { light: true, core: '#fff4d0' });
     }
