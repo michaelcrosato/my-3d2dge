@@ -723,6 +723,7 @@ const SHOOT = (() => {
     const ap = (v, t, r) => v + (t - v) * Math.min(1, dt * r);
     b.cr = ap(b.cr, b.move === 'crouch' ? 1 : 0, 10); b.sl = ap(b.sl, b.move === 'slide' ? 1 : 0, 12); b.air = ap(b.air, b.move === 'air' ? 1 : 0, 9);
     b.adsB = ap(b.adsB, b.ads ? 1 : 0, 12); b.spB = ap(b.spB, b.sprint && b.move === 'stand' && !b.act ? 1 : 0, 8);
+    b.trB = ap(b.trB || 0, ['mantle', 'climb', 'ladder'].includes(b.move) ? 1 : 0, 14);
     b.lowB = ap(b.lowB, b.low && !b.ads && !b.sprint && !b.act && (b.move === 'stand' || b.move === 'crouch') ? 1 : 0, 7);
     const walking = (b.move === 'stand' || b.move === 'crouch') && b.grounded;
     b.amp = ap(b.amp, walking ? clamp(sp / 34, 0, 1) : 0, 8);
@@ -760,6 +761,7 @@ const SHOOT = (() => {
     };
     // ---- the feet on the ground (the gait, standing, crouched, sliding, on a rung), before the pelvis settles to them ----
     const footZ = (x, y) => fine ? footGround(world, b, x, y) : b.z, A = [null, null], toe = [fw, fw];
+    if (!(walking && b.amp > .02)) b.feetW = null;
     for (let i = 0; i < 2; i++) {
       const side = i ? 1 : -1;
       if (b.move === 'slide') {   // the lead leg out ahead, the other tucked under
@@ -774,7 +776,12 @@ const SHOOT = (() => {
         if (q < duty) { const t = q / duty; along = reach * (1 - 2 * t); lift = 0; roll = t > .7 ? -(t - .7) / .3 * .6 : 0; }   // (the heel rises as it pushes off)
         else { const t = (q - duty) / (1 - duty); along = -reach + 2 * reach * ease(t); lift = Math.sin(t * Math.PI) * (2 + run * 3.2) * k; roll = lerp(-.7, .45, t); }   // (toe down off the ground, up to meet it)
         const base = add(add([b.x, b.y, 0], rt, side * (2.1 - run * .5) * k * (1 + b.cr * .25)), md, along * b.amp);
-        A[i] = [base[0], base[1], footZ(base[0], base[1]) + 1.15 * k + lift * b.amp]; toe[i] = nrm(add(add(fw, md, .5), UP, roll * b.amp));
+        // (the foot on the ground stays where it was put down while the body turns, slows or changes way over it, up
+        // to a stride from where the gait would have it; a swing carries it on from where it left the ground)
+        const FW = b.feetW || (b.feetW = [null, null]); let f = FW[i], p = [base[0], base[1]];
+        if (q < duty) { if (!f || !f.st) f = FW[i] = { st: true, p }; else { const dx = f.p[0] - p[0], dy = f.p[1] - p[1], dd = Math.hypot(dx, dy), lim = reach * 1.2 + 2 * k; if (dd > lim) f.p = [p[0] + dx * lim / dd, p[1] + dy * lim / dd]; p = f.p; } }
+        else { if (!f || f.st) f = FW[i] = { st: false, from: f ? f.p : p }; const u = ease((q - duty) / (1 - duty)); p = [lerp(f.from[0], p[0], u), lerp(f.from[1], p[1], u)]; }
+        A[i] = [p[0], p[1], footZ(p[0], p[1]) + 1.15 * k + lift * b.amp]; toe[i] = nrm(add(add(fw, md, .5), UP, roll * b.amp));
       } else if (b.move === 'stand' || b.move === 'crouch') {   // standing: feet apart, the rear one turned out; crouched: wider, a knee forward
         const S0 = b.stance, now = standFoot(i, S0.yaw, S0.x, S0.y); let base = now.p, lift = 0, tq = now.toe;
         if (S0.t < 1 && S0.from) {   // a step round: lifted, carried, put down
@@ -847,7 +854,7 @@ const SHOOT = (() => {
       else if (a === 'melee' || a === 'throw' || a === 'kick') { const d = a === 'melee' ? win(t, 0, .07) * (1 - win(t, .32, .5)) : win(t, 0, .12) * (1 - win(t, .4, .6)); F = turn(F, -.7 * d, .5 * d, .6 * d); F.o = add(add(F.o, F.r, 1.5 * d * k), F.u, -2.2 * d * k); }
       else if (a === 'swap') { const d = Math.sin(Math.min(1, t / .5) * Math.PI); F = turn(F, -1.1 * d, 0, .3 * d); F.o = add(F.o, F.u, -3 * d * k); }
     }
-    if (['mantle', 'climb', 'ladder'].includes(b.move)) { const d = 1; F = turn(F, -1.3 * d, .9 * d, .3); F.o = add(add(C, rtT, 2 * k), [0, 0, -3 * k]); }
+    if (b.trB > .01) { const d = b.trB, o = F.o; F = turn(F, -1.3 * d, .9 * d, .3 * d); F.o = mixv(o, add(add(C, rtT, 2 * k), [0, 0, -3 * k]), d); }   // (slung for a climb, eased)
     if (b.move === 'zip') { F.o = add(add(C, fC, 3 * k), rtT, 2 * k); }
     F.o = add(F.o, F.f, -b.rec.x * 1.1 * k);
     if (b.rec.x) F = turn(F, b.rec.x * .06, 0, 0);
@@ -1674,7 +1681,7 @@ const SHOOT = (() => {
    * as the view turns, the walk's bob, each shot's kick, a landing's dip; reloads, swaps, punches, kicks, throws; hands
    * that grab ledges, rungs and the cable; brass that flies out. Drawn each frame (the picture only)
    * ===================================================================== */
-  const vm = { sx: SPR(), sy: SPR(), kick: SPR(), kp: SPR(), kr: SPR(), dip: SPR(), ly: null, lp: 0, ph: 0, spr: 0, cr: 0, sl: 0, trav: 0, shots: 0, land: 0, brass: [], pump: 9 };
+  const vm = { travS: SPR(), lh: null, sx: SPR(), sy: SPR(), kick: SPR(), kp: SPR(), kr: SPR(), dip: SPR(), ly: null, lp: 0, ph: 0, spr: 0, cr: 0, sl: 0, trav: 0, shots: 0, land: 0, brass: [], pump: 9 };
   const VM = { rifle: { hip: [8.6, 4.4, -5.7], ads: [6, 0, -2.32] }, shotgun: { hip: [7.6, 4.5, -5.5], ads: [6.6, 0, -1.41] } };
   const SH = [[0, -4.4, -9.4], [0, 4.4, -9.4]], VLU = 8.6, VLF = 8.6;
   /** the keyframes of a path: [[t, point], ...] eased between, held past the ends */
@@ -1694,7 +1701,7 @@ const SHOOT = (() => {
     if (S.landT && S.landT !== vm.land) { vm.land = S.landT; vm.dip.v -= Math.min(60, S.landV * .16); }
     spring(vm.kick, 0, 300, 26, dt); spring(vm.kp, 0, 240, 22, dt); spring(vm.kr, 0, 220, 20, dt);   // (two thirds back by the next shot: at 13 a second the gun chatters) spring(vm.dip, 0, 150, 13, dt);
     const ap = (v, to, r2) => v + (to - v) * Math.min(1, dt * r2), trav = ['mantle', 'vault', 'climb', 'ladder'].includes(S.move);
-    vm.spr = ap(vm.spr, S.sprint && S.move === 'stand' && !S.act ? 1 : 0, 9); vm.cr = ap(vm.cr, S.move === 'crouch' ? 1 : 0, 9); vm.sl = ap(vm.sl, S.move === 'slide' ? 1 : 0, 11); vm.trav = ap(vm.trav, trav ? 1 : 0, 12);
+    vm.spr = ap(vm.spr, S.sprint && S.move === 'stand' && !S.act ? 1 : 0, 9); vm.cr = ap(vm.cr, S.move === 'crouch' ? 1 : 0, 9); vm.sl = ap(vm.sl, S.move === 'slide' ? 1 : 0, 11); spring(vm.travS, trav ? 1 : 0, 300, 34.6, dt); vm.trav = clamp(vm.travS.x, 0, 1);
     // the walk's bob (a figure of eight), stronger at a sprint, small down the sights; breathing when still
     const walking = h.grounded && (S.move === 'stand' || S.move === 'crouch') && sp > 5;
     if (walking) vm.ph = (vm.ph + sp / (30 + sp * .26) * dt) % 1;
@@ -1722,12 +1729,13 @@ const SHOOT = (() => {
     let L2 = Lh || guard, R2 = grip;
     if (S.act === 'melee') L2 = keysAt([[0, guard], [.035, [6, -5.8, -3.9]], [.058, [5.6, -5.6, -4.2]], [.085, [13.5, -1.1, -1.3]], [.1, [12.4, -1.5, -1.9]], [.13, [9.6, -2.8, -3.2]], [.19, [7.2, -3.9, -4.1]], [.32, guard]], t);   // (cocked low left, a straight jab to the middle, held through the hit-stop, home)
     if (S.act === 'throw') { L2 = keysAt([[0, guard], [.16, [6.5, -3.6, -4]], [.36, [1.6, -7.2, 1.6]], [.47, [13, -1.6, .6]], [.78, guard]], t); nade = t < .46; }
-    if (vm.trav > .05 && pb.ledge && (S.move === 'mantle' || S.move === 'vault' || S.move === 'climb')) {
+    if (pb.ledge && (S.move === 'mantle' || S.move === 'vault' || S.move === 'climb')) {
       const e = pb.ledge, wn = pb.wallN || [0, 0, 0], sd = nrm(cross(UP, wn)), up = S.move === 'climb' ? drawT * 7 : 0;
       const hl = add(add(e, sd, 3), wn, .6), hr = add(add(e, sd, -3), wn, .6);
       if (S.move === 'climb') { const hz = cam.z; hl[2] = hz + 3 + Math.max(0, Math.sin(up)) * 5; hr[2] = hz + 3 + Math.max(0, Math.sin(up + Math.PI)) * 5; }
-      L2 = mixv(L2, cs(hl), vm.trav); R2 = mixv(R2, cs(hr), vm.trav);
-    }
+      vm.lh = [hl, hr];
+    } else if (vm.trav < .05) vm.lh = null;
+    if (vm.trav > .05 && vm.lh) { L2 = mixv(L2, cs(vm.lh[0]), vm.trav); R2 = mixv(R2, cs(vm.lh[1]), vm.trav); }   // (over the top, the hands leave the ledge as the arms come back)
     if (S.move === 'ladder' && S.ladder) { const Ld = S.ladder, f = [Math.cos(Ld.yaw), Math.sin(Ld.yaw), 0], s = [-f[1], f[0], 0], st2 = .3 * M, rung = i => { const z = Math.floor((cam.z + (i ? st2 / 2 : 0)) / st2) * st2 + (i ? 0 : st2 / 2) + 2; return cs(add(add([Ld.x, Ld.y, 0], s, (i ? 1 : -1) * .24 * M), [0, 0, Math.min(Ld.z1 + .8 * M, z)])); }; L2 = mixv(L2, rung(0), vm.trav); R2 = mixv(R2, rung(1), vm.trav); }
     if (S.move === 'zip' && pb.zipP) L2 = cs(pb.zipP);
     // draw: the gun, the arms (sleeves, bracers, gloves), a grenade, the kicking leg, the brass

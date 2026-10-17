@@ -5,6 +5,19 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.50.0 (2026-10-17)
+
+The shooter measured at real speed, frame by frame at 60, 90, 144 and 240 Hz with scripted mouse and keys, instead of judged from stills: what moved unevenly or jumped in a frame is fixed.
+
+- **Rendering**: the shooter draws the camera, the soldiers and grenades part way between the last two steps (`game.alpha`) and runs its drawing on that clock (`drawT`): the steps run 120 times a second, so a 144 Hz display showed one frame in six again and motion juddered (the camera's move from frame to frame varied by 45% at 144 Hz; now 0.2% at 90, 144 and 240 Hz, as at 60). A pause or a hit-stop shows the last step as it is.
+- **Engine**: third person turns with the newest mouse moves on the frame they arrive, as first person did (it waited for the next step).
+- **Engine**: the camera over the shoulder takes what a wall behind asks fast and gives it back slowly, and never goes past the wall: a stone passing behind it made it jump in half a unit for a frame.
+- **Engine**: aiming down the sights slows the mouse and the stick with the zoom (it changed all at once halfway in), and the view's recovery after a burst speeds up gradually (it changed rate at a stroke 0.12 s after the last shot).
+- **Engine**: the 3D engine's heroes no longer stop dead for a step: Rapier's character controller, pressed by a step's gravity into a floor it already touches, now and then slid nowhere, and the move is then tried again along the floor (4 steps in 3,856 on the drop point's pad, one every few seconds of walking; now none).
+- **Animation**: feet and hands blend into a new job over a tenth of a second (a stride ending, a slide, a jump, a ledge caught or let go) instead of jumping there; a foot on the ground stays where it was put down while the body turns, slows or changes way over it, and the swing carries it on from where it left; in first person the hands leave the ledge as the arms come back over the top (they jumped 25 units in a frame), and the gun goes down for a climb and comes back on a spring; in third person the rifle is slung for a climb and back, eased.
+- **Tools**: the shooter scene exposes `player` (the soldier's joints) and `viewModel` (the first-person gun's frame and hands) for tools that measure motion.
+- **Docs**: `docs/ENGINE-3D.md` says a world draws its last step as it is, and what a game does about it.
+
 ## 0.49.1 (2026-10-17)
 
 The shooter's motion made readable at its resolution (an independent reviewer's third and fourth passes: under two or three pixels, a motion reads as nothing), and the 3D kits' play check made steady on a slow renderer.
