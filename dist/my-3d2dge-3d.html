@@ -2154,8 +2154,10 @@ const SHOOT = (() => {
         // (the foot on the ground stays where it was put down while the body turns, slows or changes way over it, up
         // to a stride from where the gait would have it; a swing carries it on from where it left the ground)
         const FW = b.feetW || (b.feetW = [null, null]); let f = FW[i], p = [base[0], base[1]];
-        if (q < duty) { if (!f || !f.st) f = FW[i] = { st: true, p }; else { const dx = f.p[0] - p[0], dy = f.p[1] - p[1], dd = Math.hypot(dx, dy), lim = reach * 1.2 + 2 * k; if (dd > lim) f.p = [p[0] + dx * lim / dd, p[1] + dy * lim / dd]; p = f.p; } }
+        if (q < duty) { if (!f || !f.st) f = FW[i] = { st: true, p }; else p = f.p; }
         else { if (!f || f.st) f = FW[i] = { st: false, from: f ? f.p : p }; const u = ease((q - duty) / (1 - duty)); p = [lerp(f.from[0], p[0], u), lerp(f.from[1], p[1], u)]; }
+        { const dx = p[0] - base[0], dy = p[1] - base[1], dd = Math.hypot(dx, dy), lim = (reach * 1.2 + 2 * k) * Math.min(1, b.amp * 1.5);   // (as the body stops, the feet come in under it)
+          if (dd > lim) { p = [base[0] + dx * lim / dd, base[1] + dy * lim / dd]; if (f.st) f.p = p; } }
         A[i] = [p[0], p[1], footZ(p[0], p[1]) + 1.15 * k + lift * b.amp]; toe[i] = nrm(add(add(fw, md, .5), UP, roll * b.amp));
       } else if (b.move === 'stand' || b.move === 'crouch') {   // standing: feet apart, the rear one turned out; crouched: wider, a knee forward
         const S0 = b.stance, now = standFoot(i, S0.yaw, S0.x, S0.y); let base = now.p, lift = 0, tq = now.toe;
