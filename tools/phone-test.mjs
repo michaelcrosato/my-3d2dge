@@ -148,9 +148,9 @@ if (want('pacing')) {
     g._frame = () => { const now = performance.now(); if (last) gaps.push(now - last); last = now; f0(); };
     setTimeout(() => { const s = gaps.slice(gaps.length >> 1), even = s.filter(x => x > 12 && x < 21).length / s.length; res({ hz: g.hz, every: g.drawEvery, even: Math.round(even * 100) }); }, 2000);
   }), [ms, pace]);
-  await run(0, undefined);
-  let heavy = await run(10, undefined);
-  if (!(heavy.every === 2 && heavy.even >= 80)) heavy = await run(10, undefined);   // (measured once more: on a busy machine the browser can fall to 60 Hz itself for a window, before the pacer has chosen; a pacer that never paces fails both)
+  // (light then heavy, and once more if either reading misses: on a busy machine a window of either can fall to 60 Hz
+  // in the browser itself, so the refresh reads 60 or the pacer hasn't chosen yet; one that never reads it fails both)
+  let heavy; for (let k = 0; k < 2; k++) { await run(0, undefined); heavy = await run(10, undefined); if (heavy.hz >= 110 && heavy.hz <= 130 && heavy.every === 2 && heavy.even >= 80) break; }
   const off = await run(10, false);
   check('pacing: the screen reads 120 Hz', heavy.hz >= 110 && heavy.hz <= 130, `${heavy.hz} Hz`);
   check('pacing: a 10 ms frame is drawn every other refresh, evenly (16.7 ms apart)', heavy.every === 2 && heavy.even >= 80, `every ${heavy.every}, ${heavy.even}% of gaps 16.7 ms`);

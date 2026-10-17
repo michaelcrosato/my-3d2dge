@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.51.1 (2026-10-17)
+
+Drawing between steps finished, after a review of v0.51.0.
+
+- **Rendering**: between steps the engine also interpolates moving platforms (riders slid on them), each actor's facing, the camera's roll, and orthographic cameras; a cape, hair and a blade's ribbon move with their body (they detached); time stopped (`timeScale` 0) and the frame a hit-stop starts show the last step whole (they were drawn part way, then jumped); a pose `onDraw` changes in place counts as the game's; and the actors' positions are put back even if drawing throws. The shooter shows a hit-stop's first frame whole too.
+- **Tools**: `tools/phone-test.mjs` measures the whole real-clock pacing sequence (a light run, then a heavy one) once more when a reading misses: the full suite on v0.51.0 failed once with the screen read as 60 Hz (the light run that reads it fell to 60 Hz on a busy machine); v0.51.0 re-measured only the heavy run.
+
 ## 0.51.0 (2026-10-17)
 
 The 3D engine draws every kit evenly at any refresh rate, as the shooter already did.

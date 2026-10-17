@@ -1981,7 +1981,7 @@ const SHOOT = (() => {
   function onDraw(w) {
     if (!S) return;
     // (a frame after a step that didn't run the game, paused or in a hit-stop, shows the last step as it is)
-    const al = ip.still || ip.real !== game.real || !ip.h ? 1 : clamp(game.alpha, 0, 1), hp = between(ip.h, hero.x, hero.y, hero.z, al);
+    const al = ip.still || ip.real !== game.real || game.hitstop > 0 || !ip.h ? 1 : clamp(game.alpha, 0, 1), hp = between(ip.h, hero.x, hero.y, hero.z, al);
     drawT = w.time - (1 - al) * ip.dt;
     const dt = clamp(drawT - (lastDraw ?? drawT), 0, .05); lastDraw = drawT;
     let cam = S.cam || w.camera.fixed;
