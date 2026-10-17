@@ -88,7 +88,7 @@ Each 3D slice is a complete small game in the style of the 2D slices (dense, com
   spread and bloom, a learnable recoil pattern, reloads with the mag in the hand), a punch with a lunge, grenades;
   hitscan with tracers, impacts and holes by surface, muzzle flashes and hits as stars that last two frames, shields
   before health, headshots, hit markers (shield, health, head, a broken shield, a kill) and damage numbers.
-  Raiders hold five outposts (they spawn as you near them, see and hear, fight in bursts, strafe, hunt); the drop point
+  Raiders hold five outposts (they spawn as you near them, see and hear, fight in bursts with an aim that lags a fifth of a second, so moving matters, strafe, hunt); the drop point
   is a firing range with targets that stand up again. Every soldier is drawn with the pen on a procedural skeleton (feet
   planted by IK on whatever is under them and stepping round as it turns on the spot, the pelvis lowering for long strides, a spine that leans and twists, hands on
   the gun by IK; slides, vaults, climbs, a death that folds and falls); first person draws its arms and guns with the

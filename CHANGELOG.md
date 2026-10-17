@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.49.0 (2026-10-17)
+
+The shooter's second feel pass, after an independent frame-by-frame review: recoil you see, a punch with weight, raiders whose aim lags (moving matters), a rifle that shows in third person, and the balance measured and tuned.
+
+- **Engine**: recoil reads: each shot punches the view about half a degree (two for the shotgun) on a stiff spring that peaks in two frames and is gone in eight, on top of the climbing pattern, with a one-degree kick of the field of view; the first-person gun kicks back about 4 cm, tips up and rolls at random, so at 13 rounds a second it chatters.
+- **Engine**: the punch lands on its fastest frame (0.095 s, the fist overshooting by a tenth), freezes 50 ms, and jolts the view along the blow; the target rocks back and aside; its star sits where the fist meets the chest, half again as big on the first frame, and with the white flash runs on real time, so the hit-stop no longer stretches them to seven frames.
+- **Engine**: raiders aim where the player was a fifth of a second ago: standing still is hit, moving across their sights is missed. Their hits do 10 (were 8) and their bursts come closer together. Measured, standing still in the open 25 m from an outpost: dead in 4.7 to 12.8 s (median 7.5 s, about half their shots hit); strafing: 9.9 to 16.9 s (median 14.4 s, about a fifth hit), before shooting back (the rifle kills a raider in 0.85 s).
+- **Animation**: third person: at rest the rifle is held at the low ready at the right side, where the camera over the shoulder sees it (raiders hold it so until they fight); the sprint carries it at port arms across the chest with the torso leaning in; down the sights the gun sits right of the head and the camera stands a third further back. Standing, the knees are soft, not squatting; a step round on the spot lifts the foot higher and the hips dip as each foot lands.
+- **Animation**: first person: crouched, the gun comes a little lower and closer; a slide cants it hard with the muzzle up; a jump drops it on take-off and a landing dips it harder; the reload turns the gun further to show the well, and the new mag seats with a jolt.
+- **Art**: the muzzle light washes a third as much of the picture in first person; each shot's star is its own (its seed hashed); the brass is half the size and darker.
+
 ## 0.48.0 (2026-10-17)
 
 The shooter's feel and animation pass, judged frame by frame: the first shot no longer blacks out the world, muzzle flashes and hits are sharp stars, hit markers say what they hit, the punch lands, sprinting shows the gun, reloads stay in view, soldiers step round as they turn.
