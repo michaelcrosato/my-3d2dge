@@ -86,10 +86,11 @@ Each 3D slice is a complete small game in the style of the 2D slices (dense, com
   watch towers with ladders and ziplines, supply bins. Sprint, crouch, slide (faster downhill), jump, vault, mantle,
   climb, ladders, ziplines, doors opened or kicked off their hinges; a rifle and a pump shotgun (hip fire and sights,
   spread and bloom, a learnable recoil pattern, reloads with the mag in the hand), a punch with a lunge, grenades;
-  hitscan with tracers, impacts and holes by surface, shields before health, headshots, hit markers and damage numbers.
+  hitscan with tracers, impacts and holes by surface, muzzle flashes and hits as stars that last two frames, shields
+  before health, headshots, hit markers (shield, health, head, a broken shield, a kill) and damage numbers.
   Raiders hold five outposts (they spawn as you near them, see and hear, fight in bursts, strafe, hunt); the drop point
   is a firing range with targets that stand up again. Every soldier is drawn with the pen on a procedural skeleton (feet
-  planted by IK on whatever is under them, the pelvis lowering for long strides, a spine that leans and twists, hands on
+  planted by IK on whatever is under them and stepping round as it turns on the spot, the pelvis lowering for long strides, a spine that leans and twists, hands on
   the gun by IK; slides, vaults, climbs, a death that folds and falls); first person draws its arms and guns with the
   overlay's pen in layers (stance, sway, bob, kick, reloads, punches, kicks, hands on ledges and rungs).
 
@@ -123,6 +124,12 @@ to its budget; `tools/version.mjs` keeps its version line with the rest.
   until v0.47.0 a game's own pen drawing was wiped by `world.draw` itself).
 - **An `InstancedMesh` of more than 1,000 instances** never uses `DynamicDrawUsage` (three r182 drops its updates); with
   1,000 or fewer each such mesh's shader is its own, so the card atlas pages keep room for 1,001.
+- **Such a mesh's matrices upload in the ranges of the frame before** (three r182 uploads a render object's geometry,
+  then updates its nodes, which copy the mesh's update ranges), so a slot past the last frame's count drew, for one
+  frame, whatever it last held: zeros, or a part from frames ago. On the overlay, whose camera is the origin, a zero
+  matrix put an outline's corners at the eye and filled the screen with ink on the first shot (until v0.48.0). So the pen's
+  batches and the card pages upload up to the most slots ever drawn and some room past them, and a slot never drawn holds
+  a part a hundred kilometres away and a millimetre across; a part of no width (no normals: a NaN outline) isn't drawn.
 - The 3D Prototype (`/stress-world`, once Stress test: 3D world) stays on the Labs page as the record of what the
   engine was built from, with its own copy of the panel, benchmark and hall. New 3D work goes into the engine and its kits
   (the owner's call, 2026-10-14).
