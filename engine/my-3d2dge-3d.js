@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.50.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.51.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -28,7 +28,8 @@ moves, E.font, E.ui, E.Menu, audio). Read the code below only to debug: its sect
   E.ui, E.font) in game pixels, r.W x r.H. res: 'ps1', expand: true as in the 2D games.
 - await E.World3D.init(game) once (a boot step), then new E.World3D(game, { level, ... }) for each level. In a scene:
   update(dt) { your rules, then world.step(dt) } and draw(r) { world.draw(r), then your HUD }. Paused or frozen
-  (game.freeze), update doesn't run, so the world holds still and still draws.
+  (game.freeze), update doesn't run, so the world holds still and still draws. A frame between steps draws the actors
+  and the camera part way from the step before (game.alpha: even motion at 144 Hz); a pose set in onDraw is placed as set.
 - Deterministic: the world steps in the game's fixed steps; gameplay randomness comes from E.rng(seed); the camera's
   pose is worked out in the steps. world.reset() then the same inputs give the same world.hash() on WebGPU, WebGL 2 and
   run again. Gameplay never reads the picture or the GPU: it reads actors, props and the level.
@@ -2022,6 +2023,8 @@ class World3D {
     if (!(dt > 0)) { this.camera.update(0); return; }
     const t0 = performance.now(), pw = this.pw;
     this.time += dt; this.n++;
+    for (const a of this.actors) (a._ip || (a._ip = [0, 0, 0])).splice(0, 3, a.x, a.y, a.z || 0);   // (where each was before the step: a frame between steps draws them part way)
+    this.camera._was = this.camera.pose; this._stepAt = this.game.real;
     if (this.level.stream) this.level.stream(this);   // (a terrain: the heightfields near the actors)
     // where the platforms go this step (worked out first, given to Rapier after the heroes' controllers have looked:
     // a controller that saw a platform's next place would carry its rider some steps and not others)
@@ -2034,7 +2037,7 @@ class World3D {
     for (const p of this.platforms) p.body.setNextKinematicTranslation({ x: p.x, y: p.y, z: p.z - p.h / 2 });
     pw.timestep = dt; pw.step();
     this._readBack(dt);
-    this.camera.update(dt);
+    this.camera.update(dt); this.camera._stepPose = this.camera.pose;
     this.stats.physicsMs = performance.now() - t0;
   }
   _moveHero(a, dt) {
@@ -2331,7 +2334,15 @@ Object.assign(World3D.prototype, {
     const rw = this._fit(), cam = this.camera;
     if (!cam.pose) cam.update(0);
     if (this.onDraw) this.onDraw(this, r);   // (the game's own drawing for every frame, whichever scene draws the world)
-    const c3 = cam.place(rw[0], rw[1]), p = cam.pose, tg = cam._target();
+    // the steps run 120 times a second: a frame between two draws the camera and the actors part way (game.alpha), so
+    // motion is even at 90, 144 or 240 Hz; after a step that didn't run the world (paused, a hit-stop) it shows the last
+    // as it is. A pose the game set itself (onDraw) is the game's to place
+    const al = this._al = this._stepAt === g.real ? clamp(g.alpha, 0, 1) : 1, sp = cam.pose, wp0 = cam._was;
+    if (al < 1 && wp0 && sp === cam._stepPose && !sp.ortho && Math.abs(sp.x - wp0.x) + Math.abs(sp.y - wp0.y) + Math.abs(sp.z - wp0.z) < 60) {
+      const k = 1 - al, dy = ((sp.yaw - wp0.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      cam.pose = Object.assign({}, sp, { x: sp.x + (wp0.x - sp.x) * k, y: sp.y + (wp0.y - sp.y) * k, z: sp.z + (wp0.z - sp.z) * k, yaw: sp.yaw - dy * k, pitch: sp.pitch + (wp0.pitch - sp.pitch) * k, fov: sp.fov + ((wp0.fov ?? sp.fov) - sp.fov) * k });
+    }
+    const c3 = cam.place(rw[0], rw[1]), p = cam.pose, tg = cam._target(); cam.pose = sp;
     OUTLINE_PX.value.set(2 / rw[0] * cam.cv.thick, 2 / rw[1] * cam.cv.thick);
     // fog from a little past the target, however far the camera stands
     if (this._fog) { const dH = Math.hypot(c3.position.x - tg.x / U, c3.position.y - (tg.z || 0) / U, c3.position.z - tg.y / U); this.scene.fog.near = dH + this._fog.near / U; this.scene.fog.far = dH + this._fog.far / U; }
@@ -2398,19 +2409,27 @@ Object.assign(World3D.prototype, {
   },
   /** every actor the camera sees, as cards or puppets, with their shadows, capes and trails; returns how many */
   _drawActors(view, firstOf) {
-    const B = this.B, cam = this.camera, v = cam.cv, t = this.time; let drawn = 0, nr = 0;
-    for (const a of this.actors) {
-      if (!a.visible || a.fade <= 0 || !cam.sees(a.x, a.y, a.z)) continue;
-      if (firstOf && (a === firstOf || Math.hypot(a.x - firstOf.x, a.y - firstOf.y) < 12)) continue;   // (first person: its own body, and one pressed against the camera, would fill the picture)
+    const B = this.B, cam = this.camera, v = cam.cv, t = this.time, k = 1 - (this._al ?? 1); let drawn = 0, nr = 0;
+    const one = a => {
+      if (!a.visible || a.fade <= 0 || !cam.sees(a.x, a.y, a.z)) return;
+      if (firstOf && (a === firstOf || Math.hypot(a.x - firstOf.x, a.y - firstOf.y) < 12)) return;   // (first person: its own body, and one pressed against the camera, would fill the picture)
       const flash = a.flash > 0, sink = -a.sink, alpha = clamp(a.fade, 0, 1);
-      if (a.orb) { orbParts(B, a, t); drawn++; continue; }
+      if (a.orb) { orbParts(B, a, t); drawn++; return; }
       if (a.shadow) shadowAt(this, a.x, a.y, a.z, a.blob ? a.blob.o.R || 6 : a.r + 1, alpha);
       drawn++;
       const look = a.look || this.look;
-      if (look === 'card' && this.atlas.add(a.x, a.y, a.z - a.sink, (g, ox, oy) => a.rig ? a.rig.draw(g, ox, oy, view) : a.blob.draw(g, ox, oy, view), flash, alpha, v)) { if (a.trail && a.rig && a.rig.trail.length > 1 && nr < 24) this._ribbons.set(nr++, a.rig.trail, typeof a.trail === 'string' ? lin(a.trail) : a.trail); continue; }
+      if (look === 'card' && this.atlas.add(a.x, a.y, a.z - a.sink, (g, ox, oy) => a.rig ? a.rig.draw(g, ox, oy, view) : a.blob.draw(g, ox, oy, view), flash, alpha, v)) { if (a.trail && a.rig && a.rig.trail.length > 1 && nr < 24) this._ribbons.set(nr++, a.rig.trail, typeof a.trail === 'string' ? lin(a.trail) : a.trail); return; }
       if (a.rig) { a.rig._cheat = 0; _sink = sink; humanParts(B, a.rig, flash); if (a.rig.capeL && a.rig.o.cape) this.capes.add(a.rig, sink, flash); _sink = 0; }
       else if (a.blob) blobParts(B, a, flash, sink);
       if (a.trail && a.rig && a.rig.trail.length > 1 && nr < 24) this._ribbons.set(nr++, a.rig.trail, typeof a.trail === 'string' ? lin(a.trail) : a.trail);
+    };
+    for (const a of this.actors) {   // (each drawn part way from where it was before the last step, then put back; one that jumped is where it is)
+      const w = a._ip, dx = w && k ? (w[0] - a.x) * k : 0, dy = w && k ? (w[1] - a.y) * k : 0, dz = w && k ? (w[2] - (a.z || 0)) * k : 0, m = Math.abs(dx) + Math.abs(dy) + Math.abs(dz) < 40 * k;
+      if (!m) { one(a); continue; }
+      const ax = a.x, ay = a.y, az = a.z, R = a.rig, rx = R && R.x, ry = R && R.y, rz = R && R.z;   // (put back exactly: the steps read them)
+      a.x += dx; a.y += dy; a.z = (az || 0) + dz; if (R) { R.x += dx; R.y += dy; R.z = (rz || 0) + dz; }
+      one(a);
+      a.x = ax; a.y = ay; a.z = az; if (R) { R.x = rx; R.y = ry; R.z = rz; }
     }
     this._ribbons.hideFrom(nr);
     this.stats.culled = this.actors.length - drawn;

@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.51.0 (2026-10-17)
+
+The 3D engine draws every kit evenly at any refresh rate, as the shooter already did.
+
+- **Rendering**: `world.draw` puts the actors and the camera part way between the last two steps (`game.alpha`): the steps run 120 times a second, so a 144 Hz display showed one frame in six again in every 3D kit (measured at 144 Hz, the camera's move from frame to frame varied by 45% in the platformer and the action kit, with 33 of 198 frames repeated; now 2.3% and 4.0%, none repeated). A pause or a hit-stop shows the last step as it is, an actor that jumped (a respawn) is drawn where it is, and a camera pose the game sets in `onDraw` is placed as set; actors' positions are put back exactly after the frame, so the steps never see them moved.
+- **Tools**: `tools/phone-test.mjs` measures the real-clock pacing once more when the first reading misses (the full suite on v0.50.1 failed once with the browser itself at 60 Hz before the pacer had chosen, and passed when run again); a pacer that never paces still fails.
+- **Docs**: the 3D engine's manual and `docs/ENGINE-3D.md` say a frame between steps is drawn part way.
+
 ## 0.50.1 (2026-10-17)
 
 - **Tools**: `tools/ed-clips-test.mjs`'s gallery check waits, frame by frame, for each take to start (up to 3 s) before it reads the hero: it waited half a second of wall time, and the full suite on v0.50.0 failed once with the previous take still on (it passed when run again).
