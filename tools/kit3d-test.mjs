@@ -187,11 +187,18 @@ for (const want of ['webgl', 'webgpu']) for (const [name, path] of pages) {
       const keys = id === 'action' ? ['attack', 'dash', 'jump', 'skill'] : id === 'shooter' ? ['swap', 'swap', 'jump', 'swap', 'fire', 'melee'] : ['jump', 'dash'], run = id === 'shooter' ? 'sprint' : null;
       g.input.hold('up', true); if (run) g.input.hold(run, true);
       // (the farthest it got: the course's edge is a second's run north, and a fall puts the hero back at the start)
-      let moved = 0; for (let i = 0; i < 24; i++) { g.input.tap(keys[i % keys.length]); if (i === 8) { g.input.hold('up', false); g.input.hold('left', true); } await new Promise(r => setTimeout(r, 120)); moved = Math.max(moved, Math.hypot(S.hero.x - x0, S.hero.y - y0)); }
+      // (each step waits for a frame too: a software renderer drawing slowly, or a busy machine, gives the game fewer frames in
+      // the same wall time, and the hero less game time to move in)
+      let moved = 0; for (let i = 0; i < 24; i++) {
+        g.input.tap(keys[i % keys.length]); if (i === 8) { g.input.hold('up', false); g.input.hold('left', true); }
+        const f = S.world.stats.frames, t0 = performance.now(); await new Promise(r => setTimeout(r, 120));
+        while (S.world.stats.frames === f && performance.now() - t0 < 3000) await new Promise(r => setTimeout(r, 15));
+        moved = Math.max(moved, Math.hypot(S.hero.x - x0, S.hero.y - y0));
+      }
       g.input.hold('left', false); if (run) g.input.hold(run, false);
       return { moved, p0, p1: pipes(), frames: S.world.stats.frames - f0, calls: S.world.stats.calls };
     }, s);
-    if (play.frames < 5) fail(`${label}: ${s} drew only ${play.frames} frames in about 3 s of play`);
+    if (play.frames < 5) fail(`${label}: ${s} drew only ${play.frames} frames in 24 steps of play`);
     if (play.moved < 20) fail(`${label}: ${s}: the hero moved only ${play.moved.toFixed(1)} units under the held stick`);
     if (play.p0 !== null && play.p1 > play.p0) fail(`${label}: ${s}: ${play.p1 - play.p0} GPU pipeline(s) built mid-game (the warm-up should have built them)`);
     await picture(s);

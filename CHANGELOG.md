@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.49.1 (2026-10-17)
+
+The shooter's motion made readable at its resolution (an independent reviewer's third and fourth passes: under two or three pixels, a motion reads as nothing), and the 3D kits' play check made steady on a slow renderer.
+
+- **Engine**: the shot's punch is a displacement on the shot's own frame (it was a velocity, a frame late and invisible in a hit-stop): about a degree for the rifle and four for the shotgun with a jitter aside, back in four frames, over the climbing pattern; the field of view kicks a degree and a half.
+- **Animation**: the first-person gun's kick is displaced on the shot (the muzzle up six degrees, back, a roll) and settles over five frames, so a burst chatters; the muzzle light shows on the shot's frame only, and the flash's lit air is smaller and on its first frame only.
+- **Engine**: the punch lands as the fist arrives (0.085 s); the view's jolt (mostly roll: 2.4 degrees, and 1.3 aside) and the target's rock are displacements, so the 50 ms freeze shows them; the fist starts home as the freeze lets go; in first person the star is drawn on the overlay over the knuckles (at the contact in the world, the glove drawn over it hid its core), half again as big on its first frame and, the same shape in the hit's colour, smaller on its second, then seven chips fly off the body (they stay with the target as the fist pulls away) and arc down for six frames; first-person flashes draw over the gun and the fist (the overlay's flashes are not depth-tested); star, chips and the target's white flash (two frames) run on the clock, not the game's time.
+- **Animation**: third person: the sprint's rifle at port arms rises against world up (it pointed ahead, the torso leaning into the run) at about 60 degrees, held high, so from behind its barrel and muzzle stand clear above and left of the helmet; the head drives forward and down, the elbows swing out, and the camera bobs with the footfalls; turning on the spot, the hips shift over the planted foot while the other lifts and dip only as each foot lands; a step aims past the turn, and a last step squares the hips once the body stops turning.
+- **Animation**: first person: crouched, the gun comes lower and closer and cants; a slide pushes it down and out to the right, canted the way the camera rolls (7.5 degrees), with a rumble over the ground; a jump drops it on take-off and a landing dips it.
+- **Tools**: `tools/kit3d-test.mjs`'s play check waits for a drawn frame at each of its 24 steps (it sampled wall-clock time, so a software WebGPU drawing slowly, or a busy machine, gave the hero too little game time to move: the full suite failed on v0.49.0 with the hero 3.5 to 12.4 units short of 20, and passed on a rerun).
+
 ## 0.49.0 (2026-10-17)
 
 The shooter's second feel pass, after an independent frame-by-frame review: recoil you see, a punch with weight, raiders whose aim lags (moving matters), a rifle that shows in third person, and the balance measured and tuned.

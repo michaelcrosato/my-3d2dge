@@ -546,7 +546,7 @@ const SHOOT = (() => {
   /* =====================================================================
    * FX: tracers (streaks that fly from the muzzle to what was hit), bullet holes (a ring of decals), impacts by surface
    * ===================================================================== */
-  const TR_MAX = 64, DC_MAX = 160, FL_MAX = 16, FL_V = 3 * (16 + 6 * 2 + 2), fx = { tracers: [], decals: 0, trMesh: null, dcMesh: null, flW: null, flO: null, cam: [0, 0, 0], flashes: { world: [], ov: [] }, stars: [] };
+  const TR_MAX = 64, DC_MAX = 160, FL_MAX = 24, FL_V = 3 * (16 + 6 * 2 + 2), fx = { tracers: [], decals: 0, trMesh: null, dcMesh: null, flW: null, flO: null, cam: [0, 0, 0], flashes: { world: [], ov: [] }, stars: [] };
   function fxMeshes(world) {
     const T3 = E.THREE, { attribute } = E.TSL;
     const tg = new T3.BufferGeometry(), ti = [];
@@ -562,11 +562,12 @@ const SHOOT = (() => {
     const dm = new T3.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: T3.DoubleSide });
     dm.colorNode = attribute('dc', 'vec4').rgb; dm.opacityNode = attribute('dc', 'vec4').a;
     fx.dcMesh = new T3.Mesh(dg, dm); fx.dcMesh.frustumCulled = false; fx.dcMesh.renderOrder = 1; world.scene.add(fx.dcMesh);
-    const flashMesh = sc => {
+    const flashMesh = (sc, mat) => {
       const g = new T3.BufferGeometry(); for (const a of ['position', 'color', 'normal']) g.setAttribute(a, new T3.BufferAttribute(new Float32Array(FL_MAX * FL_V * 3), 3));
-      g.setDrawRange(0, 3); const m = new T3.Mesh(g, tm); m.frustumCulled = false; m.renderOrder = 4; sc.add(m); return m;
+      g.setDrawRange(0, 3); const m = new T3.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = 4; sc.add(m); return m;
     };
-    fx.flW = flashMesh(world.scene); fx.flO = flashMesh(world.overlay.scene);
+    const tmO = tm.clone(); tmO.colorNode = tm.colorNode; tmO.depthTest = false;   // (on the overlay a flash draws over the gun or the fist that made it)
+    fx.flW = flashMesh(world.scene, tm); fx.flO = flashMesh(world.overlay.scene, tmO);
   }
   /** a tracer from a to b (engine units): a bright streak flying at `speed` units a second */
   function tracer(a, b, color = '#ffd890', speed = 9000, width = .5) {
@@ -609,8 +610,13 @@ const SHOOT = (() => {
    *  lengths turned at random, a plume along the barrel; additive, so each fades to nothing at its edges and tips. They
    *  last two frames: the shot's, full, and one fading (each its own shape) */
   const FL_PAL = { fire: [[1.7, 1.45, 1], [1.3, .7, .22], [.5, .17, .03]], white: [[1.6, 1.6, 1.55], [1.1, 1, .85], [.35, .3, .26]], blue: [[1.3, 1.6, 1.8], [.45, .9, 1.4], [.08, .24, .5]], purple: [[1.6, 1.4, 1.8], [.95, .55, 1.4], [.3, .1, .5]] };
-  /** a hit's star at p (facing d's way, size s, palette 'white', 'blue' or 'purple'): two frames, held through a hit-stop */
-  function impactStar(p, d, s, pal) { if (fx.stars.length < 12) fx.stars.push({ p: p.slice(), f: d.slice(), s, pal, t: 0, seed: 1 + Math.floor(Math.abs(p[0] * 31 + p[1] * 17 + p[2] * 7)) % 2147483000 }); }
+  /** a hit's star at p (facing d's way, size s, palette 'white', 'blue' or 'purple'): two frames, held through a hit-stop;
+   *  (s 0: chips only); shards: chips thrown off it; ov: p is in the eye's frame, drawn on the overlay (over the fist that threw it) */
+  function impactStar(p, d, s, pal, shards = 0, ov = false) {
+    if (s > 0 && fx.stars.length < 12) fx.stars.push({ p: p.slice(), f: d.slice(), s, pal, t: 0, ov, seed: 1 + Math.floor(Math.abs(p[0] * 31 + p[1] * 17 + p[2] * 7)) % 2147483000 });
+    const sd = [-d[1], d[0], 0];
+    for (let i = 0; i < shards && fx.stars.length < 24; i++) { const a = (i % 2 ? 1 : -1) * (.4 + Math.random() * .8), v = [(sd[0] * a * 1.6 - d[0] * .4) * 45, (sd[1] * a * 1.6 - d[1] * .4) * 45, 20 + Math.random() * 30]; fx.stars.push({ p: p.slice(), f: d.slice(), s: ov ? .22 : .45, pal, t: 0, v: ov ? mul(v, .5) : v, ov, life: .1, seed: 7 + i * 131 }); }   // (chips thrown aside and back toward the eye, arcing down for six frames)
+  }
   function drawFlashes(mesh, list, cam) {
     const g = mesh.geometry, P = g.attributes.position.array, C = g.attributes.color.array, K = [0, 0, 0]; let v = 0;
     const put = (q, c) => { P[v * 3] = q[0] / M; P[v * 3 + 1] = q[2] / M; P[v * 3 + 2] = q[1] / M; C[v * 3] = c[0]; C[v * 3 + 1] = c[1]; C[v * 3 + 2] = c[2]; v++; };
@@ -618,13 +624,13 @@ const SHOOT = (() => {
     for (const fl of list) {
       const { p, s } = fl, h = fl.heat, view = nrm(sub(p, cam)), a = nrm(cross(view, Math.abs(view[2]) < .95 ? UP : [1, 0, 0])), b = cross(a, view);
       let r = fl.seed; const rn = () => (r = (r * 16807) % 2147483647) / 2147483647;
-      const pal = FL_PAL[fl.pal || 'fire'], hot = mul(pal[0], h), warm = mul(pal[1], h), tip = mul(pal[2], h), ring = (rr, t) => add(add(p, a, Math.cos(t) * rr), b, Math.sin(t) * rr);
-      const rc = s * (.55 + rn() * .2), dim = mul(warm, .3);
-      for (let i = 0; i < 8; i++) { tri(p, hot, ring(rc, i / 8 * TAU), K, ring(rc, (i + 1) / 8 * TAU), K); tri(p, dim, ring(rc * 3.4, i / 8 * TAU), K, ring(rc * 3.4, (i + 1) / 8 * TAU), K); }   // (and the air round it, lit)
+      const pal = FL_PAL[fl.pal || 'fire'], hot = mul(pal[fl.thin && fl.pal !== 'fire' ? 1 : 0], h * (fl.thin ? 1.6 : 1)), warm = mul(pal[1], h * (fl.thin ? 1.6 : 1)), tip = mul(pal[2], h), ring = (rr, t) => add(add(p, a, Math.cos(t) * rr), b, Math.sin(t) * rr);
+      const rc = s * (.55 + rn() * .2), dim = mul(warm, h >= 1 ? .16 : 0);
+      for (let i = 0; i < 8; i++) { tri(p, hot, ring(rc, i / 8 * TAU), K, ring(rc, (i + 1) / 8 * TAU), K); tri(p, dim, ring(rc * 2.1, i / 8 * TAU), K, ring(rc * 2.1, (i + 1) / 8 * TAU), K); }   // (and the air round it, lit, on the first frame)
       const n = 4 + Math.floor(rn() * 3), rot = rn() * TAU;
       for (let i = 0; i < n; i++) {
         const t = rot + i / n * TAU + (rn() - .5) * .6, d = add(mul(a, Math.cos(t)), b, Math.sin(t)), pp = add(mul(a, -Math.sin(t)), b, Math.cos(t));
-        const len = s * (1 + rn() * 1.9) * (i % 2 ? .7 : 1), w = s * (.16 + rn() * .1), e = add(p, d, len), m = add(p, d, len * .2);
+        const len = s * (1 + rn() * 1.9) * (i % 2 ? .7 : 1), w = s * (.16 + rn() * .1) * (fl.thin ? .6 : 1), e = add(p, d, len), m = add(p, d, len * .2);
         tri(p, warm, add(m, pp, w), K, e, tip); tri(p, warm, e, tip, add(m, pp, -w), K);
       }
       const wa = cross(fl.f, view), wl = Math.hypot(...wa);
@@ -730,9 +736,14 @@ const SHOOT = (() => {
     if (!((b.move === 'stand' || b.move === 'crouch') && !(walking && b.amp > .02))) b.stance = null;
     else {
       if (!b.stance || Math.hypot(b.x - b.stance.x, b.y - b.stance.y) > 3 * k) b.stance = { yaw: b.yaw, x: b.x, y: b.y, from: null, t: 1, lead: 0 };
-      const S0 = b.stance, dyaw = ((b.yaw - S0.yaw + Math.PI * 3) % TAU) - Math.PI;
-      if (S0.t >= 1 && Math.abs(dyaw) > .55) Object.assign(S0, { from: { yaw: S0.yaw, x: S0.x, y: S0.y }, yaw: b.yaw + dyaw * .15, x: b.x, y: b.y, t: 0, lead: dyaw > 0 ? 1 : 0 });
-      if (S0.t < 1) { S0.t = Math.min(1, S0.t + dt / .32); P[2] -= Math.sin(S0.t * TAU) ** 2 * .5 * k; }   // (the hips dip as each foot lands)
+      const S0 = b.stance, dyaw = ((b.yaw - S0.yaw + Math.PI * 3) % TAU) - Math.PI, turning = Math.abs(((b.yaw - (b.pyaw ?? b.yaw) + Math.PI * 3) % TAU) - Math.PI) > dt * .3;
+      S0.still = turning ? 0 : (S0.still || 0) + dt; b.pyaw = b.yaw;
+      if (S0.t >= 1 && (Math.abs(dyaw) > .48 || (Math.abs(dyaw) > .2 && S0.still > .3)))   // (past the feet: step round, aiming past the turn; stopped turning askew: a last step squares them)
+        Object.assign(S0, { from: { yaw: S0.yaw, x: S0.x, y: S0.y }, yaw: b.yaw + (turning ? Math.sign(dyaw) * Math.min(.35, Math.abs(dyaw) * .45) : 0), x: b.x, y: b.y, t: 0, lead: dyaw > 0 ? 1 : 0 });
+      if (S0.t < 1) {   // (the hips shift over the planted foot while the other lifts, and dip a little as each lands)
+        S0.t = Math.min(1, S0.t + dt / .32); const t = S0.t, u0 = clamp(t / .58, 0, 1), u1 = clamp((t - .42) / .58, 0, 1), sh = (Math.sin(u0 * Math.PI) * (S0.lead ? -1 : 1) + Math.sin(u1 * Math.PI) * (S0.lead ? 1 : -1)) * .5 * k;
+        P[0] += rt[0] * sh; P[1] += rt[1] * sh; P[2] -= (Math.max(0, 1 - Math.abs(t - .6) / .1) + Math.max(0, 1 - Math.abs(t - .96) / .08)) * .3 * k;
+      }
     }
     const standFoot = (i, yaw, x, y) => {
       const f = [Math.cos(yaw), Math.sin(yaw), 0], r = [-f[1], f[0], 0], side = i ? 1 : -1;
@@ -777,7 +788,7 @@ const SHOOT = (() => {
     let rtT = nrm(cross(upT, cf)); rtT = nrm(sub(rtT, mul(upT, dot(rtT, upT)))); const fT = nrm(cross(rtT, upT));
     const pitchBend = b.aimPitch * (.42 + b.adsB * .1) * (1 - b.spB);
     const upC = nrm(add(mul(upT, Math.cos(pitchBend)), fT, Math.sin(pitchBend))), fC = nrm(cross(rtT, upC));
-    const C = add(add(P, upT, 5.2 * k), [b.jx.x, b.jy.x, b.jz.x]), N = add(C, upC, 4.4 * k), Hd = add(N, nrm(add(upC, fC, Math.sin(b.aimPitch) * .3)), 2.3 * k);
+    const C = add(add(P, upT, 5.2 * k), [b.jx.x, b.jy.x, b.jz.x]), N = add(C, upC, 4.4 * k), Hd = add(N, nrm(add(upC, fC, Math.sin(b.aimPitch) * .3 + b.spB * .45)), 2.3 * k);   // (a sprint drives the head forward and down)
     const S = [add(add(N, upC, -1.3 * k), rtT, -3.15 * k), add(add(N, upC, -1.3 * k), rtT, 3.15 * k)];
     const Hp = [add(P, rt, -1.85 * k), add(P, rt, 1.85 * k)];
     // ---- the legs: the feet that hang from the body (in the air, vaulting, at a wall, on a cable), then the knees by IK ----
@@ -798,7 +809,7 @@ const SHOOT = (() => {
     // ---- the gun and the hands ----
     const G = gunFrame(b, C, N, Hd, upC, fC, rtT);
     const hands = handTargets(b, G, C, Hd, fC, rtT, upC);
-    const hintR = nrm(add(add(rtT, upC, -.9), fC, -.3)), hintL = nrm(add(add(rtT, upC, -1.4), fC, -.2));
+    const hintR = nrm(add(add(rtT, upC, -.9 + b.spB * .5), fC, -.3)), hintL = nrm(add(add(rtT, upC, -1.4 + b.spB * .5), fC, -.2 - b.spB * .4));   // (a sprint swings the elbows out)
     const arms = [ik(S[0], hands[0], LU, LF, hintL), ik(S[1], hands[1], LU, LF, hintR)];
     b.J = { P, C, N, Hd, S, Hp, feet, arms, hands, upT, upC, rtT, fT, fC, fw, rt };
     b.G = G;
@@ -812,9 +823,10 @@ const SHOOT = (() => {
     if (b.adsB > .01) F.o = mixv(F.o, add(add(add(Hd, aim.f, 3 * k), aim.u, -2.6 * k), aim.r, 1.2 * k), b.adsB);
     if (b.lowB > .01) { const lo = turn(F, -.32 * b.lowB, .16 * b.lowB, .12 * b.lowB); lo.o = mixv(F.o, add(add(add(C, fC, 2.4 * k), rtT, 4.3 * k), upC, -1.8 * k), b.lowB); F = lo; }   // (the low ready: at the right side, muzzle down, where a camera over the shoulder sees it)
     if (b.spB > .01) {   // a sprint at port arms: the rifle across the chest, muzzle up past the left shoulder, swinging with the stride
-      const sw = Math.sin(b.ph * TAU) * b.amp, pf = nrm(add(add(mul(rtT, -.72), upC, .62 + sw * .06), fC, .3)), pu = nrm(sub(fC, mul(pf, dot(fC, pf))));
+      // (the rifle rises against world up: the torso leans into the run)
+      const sw = Math.sin(b.ph * TAU) * b.amp, pf = nrm(add(add(mul(rtT, -.5), UP, .87 + sw * .05), fC, .04)), pu = nrm(sub(fC, mul(pf, dot(fC, pf))));
       const f = nrm(mixv(F.f, pf, b.spB)), u0 = mixv(F.u, pu, b.spB), u = nrm(sub(u0, mul(f, dot(u0, f))));
-      F = { o: mixv(F.o, add(add(add(C, fC, 3.2 * k), rtT, (2.2 + sw * .3) * k), upC, -1.8 * k), b.spB), f, u, r: cross(u, f) };
+      F = { o: mixv(F.o, add(add(add(C, fC, 3.2 * k), rtT, (2.4 + sw * .3) * k), upC, 1.6 * k), b.spB), f, u, r: cross(u, f) };   // (high port arms: from behind, the barrel's top stands clear beside and above the helmet)
     }
     if (b.move === 'slide') F = turn(F, 0, 0, -.35 * b.sl);
     const a = b.act;
@@ -837,7 +849,7 @@ const SHOOT = (() => {
     const a = b.act, t = b.actT;
     if (a === 'reload') { const R2 = reloadCurve(b.weapon, t, b.reloadDur, b.reloadEmpty); if (R2.hand) Lh = at(G, R2.hand[0] * k, R2.hand[1] * k, R2.hand[2] * k); }
     if (a === 'melee') {   // the left fist: back, then out across the front at chest height, then home
-      const wind = win(t, 0, .05), hit = win(t, .05, .095), back = win(t, .22, .45), aim = [Math.cos(b.aimYaw), Math.sin(b.aimYaw), Math.sin(b.aimPitch) * .6];
+      const wind = win(t, 0, .045), hit = win(t, .045, .085), back = win(t, .16, .38), aim = [Math.cos(b.aimYaw), Math.sin(b.aimYaw), Math.sin(b.aimPitch) * .6];
       const cock = add(add(C, rtT, -3.5 * k), fC, -.5 * k), strike = add(add(C, aim, 9 * k), upC, 1.6 * k);
       Lh = mixv(mixv(mixv(Lh, cock, wind), strike, hit), Lh, back);
     }
@@ -1067,8 +1079,8 @@ const SHOOT = (() => {
     let res = 'hit', toShield = Math.min(e.shield, dmg); e.shield -= toShield; let rest = dmg - toShield;
     if (toShield > 0) { res = e.shield <= 0 ? 'break' : 'shield'; if (!melee) { P.sparks(p[0], p[1], p[2], 3, Math.atan2(-d[1], -d[0]), { color: e.heavy ? '#c88aff' : '#7ac8ff', hot: '#e8f6ff' }); impactStar(p, d, res === 'break' ? 3.2 : 1.1, e.heavy ? 'purple' : 'blue'); } }
     if (res === 'break') { rest *= .5; e.stun = .5; P.glints(p[0], p[1], p[2], 10, e.heavy ? '#d8a8ff' : '#a8e0ff', 14); A.sfx('shieldbreak'); }
-    e.hp -= rest; e.lastHit = S.time; e.hitReal = game.real; e.flinch = Math.max(e.flinch, melee ? .5 : head ? .3 : .16);
-    e.b.leanF.v -= melee ? 3.2 : head ? 1.6 : .7; e.b.leanS.v += (S.shots % 2 ? 1 : -1) * (melee ? 1.6 : .5);   // (rocked back by the blow, a little aside)
+    e.hp -= rest; e.lastHit = S.time; e.flinch = Math.max(e.flinch, melee ? .5 : head ? .3 : .16);
+    e.b.leanF.x -= melee ? .24 : head ? .1 : .04; e.b.leanS.x += (S.shots % 2 ? 1 : -1) * (melee ? .2 : .05); e.hitNew = true;   // (rocked back by the blow and aside, at once: a hit-stop shows it)
     const push = melee ? 9 : head ? 5 : 2.6; e.b.hit[0] += d[0] * push * 20; e.b.hit[1] += d[1] * push * 20; e.b.hit[2] += head ? 30 : 0;
     dmgNumber(p, dmg, head, toShield > 0 && res !== 'break' ? (e.heavy ? '#d8a8ff' : '#8ad8ff') : null);
     if (toShield > 0 && res !== 'break') A.sfx('shieldhit', { vol: .8 });
@@ -1313,7 +1325,7 @@ const SHOOT = (() => {
           for (let i = 0; i < S.shells; i++) if (crossed(.15 + i * W.shell + W.shell * .62) && am[1] > 0) { am[0]++; am[1]--; A.sfx('shell'); }
           if (I.pressed('fire') && am[0] > 0) { S.act = null; S.pumpT = S.reloadEmpty ? 0 : 9; }
         }
-      } else if (S.act === 'melee') { if (crossed(.095)) punchHit(); }
+      } else if (S.act === 'melee') { if (crossed(.085)) punchHit(); }
       else if (S.act === 'kick') { if (crossed(.22)) kickHit(); }
       else if (S.act === 'throw') { if (crossed(.46)) throwNade(); }
       else if (S.act === 'swap') { if (crossed(.24)) { S.cur = S.cur === 'rifle' ? 'shotgun' : 'rifle'; S.pumpT = 9; } }
@@ -1345,7 +1357,7 @@ const SHOOT = (() => {
     if (I.pressed('swap') && S.act !== 'swap' && !busyMove) { I.use('swap'); S.act = null; startAct('swap', .5); A.sfx('swapw'); }
     if (I.pressed('melee') && !['melee', 'kick'].includes(S.act) && !busyMove && S.move !== 'zip') {
       I.use('melee'); S.act = null; const d = doorAhead();
-      if (d) startAct('kick', .72); else { startAct('melee', .55); A.sfx('swing'); const e = raiders.find(q => q.alive && Math.hypot(q.a.x - hero.x, q.a.y - hero.y) < 4.6 * M && Math.abs(q.a.z - hero.z) < 20 && Math.cos(Math.atan2(q.a.y - hero.y, q.a.x - hero.x) - S.yaw) > .75); if (e) S.lunge = { e, t: .095 }; }
+      if (d) startAct('kick', .72); else { startAct('melee', .55); A.sfx('swing'); const e = raiders.find(q => q.alive && Math.hypot(q.a.x - hero.x, q.a.y - hero.y) < 4.6 * M && Math.abs(q.a.z - hero.z) < 20 && Math.cos(Math.atan2(q.a.y - hero.y, q.a.x - hero.x) - S.yaw) > .75); if (e) S.lunge = { e, t: .085 }; }
     }
     if (I.pressed('grenade') && S.nades > 0 && !S.act && !busyMove) { I.use('grenade'); startAct('throw', .78); A.sfx('pin'); }
     if (I.pressed('view')) { I.use('view'); S.view = S.view === 'first' ? 'third' : 'first'; game.note(S.view === 'first' ? 'FIRST PERSON' : 'THIRD PERSON', 1.2); }
@@ -1364,11 +1376,12 @@ const SHOOT = (() => {
     if (!best) return;
     const d = nrm([best.a.x - hero.x, best.a.y - hero.y, 0]), res = hurtRaider(best, 30, false, d, [best.a.x, best.a.y, best.a.z + 20], true);
     best.a.push(d[0] * 190, d[1] * 190, 60); if (res) hitmark(res); A.sfx('punch'); game.freeze(.05); game.shake(3);
-    S.punchY.v += 60; S.punchR.v -= 52; S.punchP.v += 24; S.vmEvent = 'impact';   // (the view jolts along the blow)
-    // the star where the fist meets the body: along the eye's line to the fist (the overlay's lens mapped to the world's)
-    const Fe = frameYP([hero.x, hero.y, hero.z + S.eye], S.yaw, S.pitch), lens = Math.tan((S.cam ? S.cam.fov : FOV) * Math.PI / 360) / Math.tan(world.overlay.camera.fov * Math.PI / 360);
-    const fd = nrm(add(add(Fe.f, Fe.r, -1.1 / 13.5 * lens), Fe.u, -1.3 / 13.5 * lens)), along = (bd - 5.5) / Math.max(.4, fd[0] * d[0] + fd[1] * d[1]);
-    impactStar(add(Fe.o, fd, along), d, 2.6, res === 'shield' ? 'blue' : res === 'break' ? 'purple' : 'white');
+    S.punchY.x += 2.2; S.punchR.x -= 4.2; S.punchP.x += 1.4; S.vmEvent = 'impact';   // (the view jolts along the blow, at once: the freeze holds it there)
+    // the star where the fist meets the body: in first person just ahead of the knuckles in the eye's frame, drawn on the
+    // overlay over the fist (behind it in the world, the glove hid it); in third person on the body, chest high
+    const pal = res === 'shield' ? 'blue' : res === 'break' ? 'purple' : 'white';
+    const onBody = [best.a.x - d[0] * 6, best.a.y - d[1] * 6, best.a.z + 24];   // (the chips fly off the body, whichever view: they stay with the target as the fist pulls away)
+    if (S.view === 'first') { impactStar([14.4, -1.1, -1.2], [1, 0, 0], 1.3, pal, 0, true); impactStar(onBody, d, 0, pal, 7); } else impactStar(onBody, d, 2.6, pal, 7);
   }
   /** the kick lands: a door in front bursts off its hinges; raiders in front are thrown back */
   function kickHit() {
@@ -1387,17 +1400,19 @@ const SHOOT = (() => {
   function camStep(dt) {
     const h = hero, want = S.move === 'slide' ? EYE_SLIDE : S.crouch ? EYE_CROUCH : EYE; S.eye = approach(S.eye, want, dt * 80);
     spring(S.punchP, 0, 900, 40, dt); spring(S.punchY, 0, 900, 40, dt); spring(S.punchR, 0, 800, 36, dt); spring(S.dipC, 0, 180, 16, dt);   // (stiff: a punch peaks in two frames and is gone in eight)
-    for (const [k, side] of S.kicks.splice(0)) { S.punchP.v += k * 30; S.punchY.v += side * k * 8; S.punchR.v += (rnd() - .5) * k * 12; }   // (a punch you see each shot: half a degree for the rifle, two for the shotgun, back in four frames)
+    for (const [k, side] of S.kicks.splice(0)) { const j = rnd() - .5; S.punchP.x += k * 1.25; S.punchY.x += side * k * .25 + j * k; S.punchR.x += j * k * .6; }   // (a punch you see on the shot's own frame: a degree for the rifle, four for the shotgun, a jitter aside, back in four frames)
     S.fovK = Math.max(0, (S.fovK || 0) - dt * 14);
     const str = clamp((h.vx * -Math.sin(S.yaw) + h.vy * Math.cos(S.yaw)) / RUN, -1, 1);
-    S.lean = approach(S.lean || 0, (S.move === 'slide' ? -.1 : 0) + str * -.018 + (S.move === 'zip' ? Math.sin(S.time * 2) * .03 : 0) + (S.move === 'climb' ? Math.sin(S.time * 14) * .02 : 0), dt * .6);
-    const W = WEAPONS[S.cur], fov = lerp(FOV * (S.move === 'slide' ? 1.1 : S.sprint ? 1.06 : 1), W.adsFov, ease(S.adsB)) + (S.fovK || 0) * (S.cur === 'rifle' ? 1 : 2.5);
-    const pitch = clamp(S.pitch + S.punchP.x * .012, -1.5, 1.5), yaw = S.yaw + S.punchY.x * .01, roll = S.lean + S.punchR.x * .01;
+    S.lean = approach(S.lean || 0, (S.move === 'slide' ? -.13 : 0) + str * -.018 + (S.move === 'zip' ? Math.sin(S.time * 2) * .03 : 0) + (S.move === 'climb' ? Math.sin(S.time * 14) * .02 : 0), dt * .6);
+    const W = WEAPONS[S.cur], fov = lerp(FOV * (S.move === 'slide' ? 1.1 : S.sprint ? 1.06 : 1), W.adsFov, ease(S.adsB)) + (S.fovK || 0) * (S.cur === 'rifle' ? 1.5 : 3);
+    const rumble = S.move === 'slide' && h.grounded ? (Math.sin(S.time * 97) * .6 + Math.sin(S.time * 151) * .4) * .0035 : 0;   // (a slide rumbles over the ground)
+    const pitch = clamp(S.pitch + S.punchP.x * .012 + rumble, -1.5, 1.5), yaw = S.yaw + S.punchY.x * .01, roll = S.lean + S.punchR.x * .01;
     if (S.view === 'first') S.cam = { x: h.x, y: h.y, z: h.z + S.eye + S.dipC.x * .1, yaw, pitch, roll, fov, near: 1.2 };
     else {
       const F = frameYP([0, 0, 0], yaw, pitch), piv = add([h.x, h.y, h.z + S.eye + lerp(3, 4.5, S.adsB)], F.r, lerp(16, 14, S.adsB)), dist = lerp(48, 36, ease(S.adsB));
       const back = mul(F.f, -1), hit = world.ray(piv[0], piv[1], piv[2], back[0], back[1], back[2], dist + 4, { skip: hero, level: true }), d = hit ? Math.max(6, hit.dist - 4) : dist;
-      const c = add(piv, back, d); S.cam = { x: c[0], y: c[1], z: c[2], yaw, pitch, roll: roll * .5, fov: fov * .92, near: 2 };
+      // (a sprint bobs the camera with the footfalls)
+      const c = add(add(piv, back, d), UP, S.sprint && h.grounded ? (Math.abs(Math.sin(S.stepPh * Math.PI)) - .5) * 1.1 : 0); S.cam = { x: c[0], y: c[1], z: c[2], yaw, pitch, roll: roll * .5, fov: fov * .92, near: 2 };
     }
     world.camera.fixed = S.cam; world.camera.near = S.cam.near;
     // its focus (what the outlines are sized for, the sun's shadow centred on): ahead of the eye
@@ -1482,7 +1497,7 @@ const SHOOT = (() => {
           if (e.heavy && d > 30 * M) { /* (a shotgun: it closes first) */ }
           else { raiderShoot(e, d); e.burst--; if (e.burst <= 0) { e.burst = (e.heavy ? 1 : 3 + Math.floor(rnd() * 4)); e.fireCd = e.heavy ? 1.1 : .45 + rnd() * .6; e.burstN = 0; } else e.fireCd = e.heavy ? .9 : 1 / 8.5; }
         }
-        if (d < 2.4 * M && e.melee <= 0 && Math.abs(hero.z - a.z) < 20) { e.melee = 1.3; e.b.act = 'melee'; e.b.actT = 0; e.meleeHit = .095; }
+        if (d < 2.4 * M && e.melee <= 0 && Math.abs(hero.z - a.z) < 20) { e.melee = 1.3; e.b.act = 'melee'; e.b.actT = 0; e.meleeHit = .085; }
       } else if (lost < 9) {   // hunt: to where it was last seen
         if (e.last && !e.post) { goal = e.last; speed = 62; if (Math.hypot(e.last[0] - a.x, e.last[1] - a.y) < 14) e.last = null; }
         face = e.last ? Math.atan2(e.last[1] - a.y, e.last[0] - a.x) : e.yaw;
@@ -1653,12 +1668,12 @@ const SHOOT = (() => {
     const sw = 1 - S.adsB * .7, rate = dt > 0 ? 1 / dt : 0;
     spring(vm.sx, clamp(-dyaw * rate * .3, -1.8, 1.8) * sw, 110, 13, dt); spring(vm.sy, clamp(dpit * rate * .3, -1.4, 1.4) * sw, 110, 13, dt);
     for (; vm.shots < S.shots; vm.shots++) {
-      vm.kick.v += W.punch * (S.cur === 'rifle' ? 11 : 9) * (1 - S.adsB * .35); vm.kp.v += W.punch * (S.cur === 'rifle' ? 7 : 5); vm.kr.v += (Math.random() - .5) * W.punch * 9;
+      const kq = W.punch / 1.1; vm.kick.x += Math.min(2.4, .55 * kq) * (1 - S.adsB * .35); vm.kp.x += Math.min(1.6, .95 * kq) * (1 - S.adsB * .4); vm.kr.x += (Math.random() - .5) * Math.min(2, kq);   // (back, the muzzle up six degrees, a roll: big enough to read at a low resolution)
       if (S.cur === 'rifle') vm.brass.push({ p: null, v: [11 + Math.random() * 5, 46 + Math.random() * 12, 40 + Math.random() * 10], t: 0, s: Math.random() * 6 });
     }
     if (S.cur === 'shotgun' && S.pumpT < vm.pump && S.pumpT < .2) vm.brass.push({ p: null, v: [14, 36, 40], t: 0, s: 2, shell: true }); vm.pump = S.pumpT;
     if (S.landT && S.landT !== vm.land) { vm.land = S.landT; vm.dip.v -= Math.min(60, S.landV * .16); }
-    spring(vm.kick, 0, 300, 24, dt); spring(vm.kp, 0, 240, 20, dt); spring(vm.kr, 0, 200, 18, dt); spring(vm.dip, 0, 150, 13, dt);
+    spring(vm.kick, 0, 300, 26, dt); spring(vm.kp, 0, 240, 22, dt); spring(vm.kr, 0, 220, 20, dt);   // (two thirds back by the next shot: at 13 a second the gun chatters) spring(vm.dip, 0, 150, 13, dt);
     const ap = (v, to, r2) => v + (to - v) * Math.min(1, dt * r2), trav = ['mantle', 'vault', 'climb', 'ladder'].includes(S.move);
     vm.spr = ap(vm.spr, S.sprint && S.move === 'stand' && !S.act ? 1 : 0, 9); vm.cr = ap(vm.cr, S.move === 'crouch' ? 1 : 0, 9); vm.sl = ap(vm.sl, S.move === 'slide' ? 1 : 0, 11); vm.trav = ap(vm.trav, trav ? 1 : 0, 12);
     // the walk's bob (a figure of eight), stronger at a sprint, small down the sights; breathing when still
@@ -1670,7 +1685,7 @@ const SHOOT = (() => {
     o = add(o, [-Math.min(2.4, vm.kick.x * 1.8), vm.sx.x * .7 + s1 * .42 * amp, vm.sy.x * .5 - Math.abs(c1) * .5 * amp + br * .07 - vm.dip.x * .09 - clamp(h.vz * .012, -1.8, 1.8) * (S.move === 'air' ? 1 : 0)]);
     pit += vm.kp.x * .12 - (S.move === 'air' ? clamp(h.vz * .0003, -.04, .04) : 0) - vm.sy.x * .02 + Math.cos(vm.ph * TAU * 2) * .012 * amp + br * .004; yw += vm.sx.x * .025; rl += vm.kr.x * .08 + vm.sx.x * .05 + s1 * .03 * amp;
     o = mixv(o, add([7.6, 3.2, -3.9], [0, s1 * .8, -Math.abs(c1) * .9]), vm.spr); pit -= (.2 + c1 * .03) * vm.spr; yw -= (.72 + s1 * .04) * vm.spr; rl -= (.78 + s1 * .06) * vm.spr;   // (the sprint: canted across the body, muzzle down and left, swinging with the stride)
-    o = add(o, [-.35 * vm.cr - .3 * vm.sl, -.25 * vm.cr - .7 * vm.sl, -.3 * vm.cr - .45 * vm.sl - 14 * vm.trav]); rl += .16 * vm.cr - .48 * vm.sl + .5 * vm.trav; yw -= .16 * vm.sl; pit += .03 * vm.cr + .1 * vm.sl - .9 * vm.trav;   // (crouched: a little lower and closer; a slide: canted hard, the muzzle up, kept in view)
+    o = add(o, [-.8 * vm.cr - .2 * vm.sl, -.4 * vm.cr + .6 * vm.sl, -.7 * vm.cr - 1.1 * vm.sl - 14 * vm.trav]); rl += .34 * vm.cr - .5 * vm.sl + .5 * vm.trav; yw -= .1 * vm.sl; pit += .06 * vm.cr + .12 * vm.sl - .9 * vm.trav;   // (crouched: low and central; a slide: down and out to the right, canted the camera's way)   // (crouched: a little lower and closer; a slide: canted hard, the muzzle up, kept in view)
     let F = turn({ o, f: [1, 0, 0], u: [0, 0, 1], r: [0, 1, 0] }, pit, yw, rl), st = { mag: 0, bolt: 0, pump: S.cur === 'shotgun' ? pumpCurve(S.pumpT) : 0, flash: S.flash };
     // the actions move the gun (and the left hand)
     let Lh = null, leg = null, nade = null;
@@ -1680,13 +1695,13 @@ const SHOOT = (() => {
       Lh = at(F, ...R.hand); st.mag = R.mag; st.bolt = R.bolt; if (R.mag === 1) st.magP = add(add(Lh, F.u, 2.1), F.f, -.35); if (R.shell) st.shellP = add(Lh, F.f, -.4);
     } else if (S.act === 'swap') { const lo = Math.sin(clamp(t / .5, 0, 1) * Math.PI); F = turn(F, -.9 * lo, 0, .3 * lo); F.o = add(F.o, [0, 0, -10 * lo]); }
     else if (S.act === 'melee' || S.act === 'kick' || S.act === 'throw') {
-      const d = S.act === 'melee' ? win(t, 0, .06) * (1 - win(t, .32, .5)) : win(t, 0, .1) * (1 - win(t, S.act === 'kick' ? .45 : .38, S.act === 'kick' ? .7 : .6)); F = turn(F, -.6 * d, .45 * d, .8 * d); F.o = add(F.o, [-.8 * d, 1.6 * d, (S.act === 'kick' ? -7 : -4.5) * d]);
+      const d = S.act === 'melee' ? win(t, 0, .06) * (1 - win(t, .26, .44)) : win(t, 0, .1) * (1 - win(t, S.act === 'kick' ? .45 : .38, S.act === 'kick' ? .7 : .6)); F = turn(F, -.6 * d, .45 * d, .8 * d); F.o = add(F.o, [-.8 * d, 1.6 * d, (S.act === 'kick' ? -7 : -4.5) * d]);
       if (S.act === 'kick') leg = keysAt([[0, [1.5, 1.6, -20]], [.12, [6.5, 1.3, -12.5]], [.22, [13.6, .6, -5.6]], [.36, [10, 1, -9.5]], [.7, [1.5, 1.6, -20]]], t);
     }
     // the hands: the right on the grip; the left on the handguard (the pump), the mag, a fist, or what the body holds
     const pump = S.cur === 'shotgun' ? st.pump * 2.3 : 0, grip = at(F, -.5, -1.5, 0), guard = at(F, W.fore - pump, -.35, -.2);
     let L2 = Lh || guard, R2 = grip;
-    if (S.act === 'melee') L2 = keysAt([[0, guard], [.04, [6, -5.8, -3.9]], [.065, [5.6, -5.6, -4.2]], [.095, [13.5, -1.1, -1.3]], [.125, [12.3, -1.3, -1.6]], [.18, [11.4, -1.8, -2.2]], [.34, [8.2, -3.8, -4]], [.48, guard]], t);   // (cocked low left, a straight jab to the middle, held through the hit-stop, home)
+    if (S.act === 'melee') L2 = keysAt([[0, guard], [.035, [6, -5.8, -3.9]], [.058, [5.6, -5.6, -4.2]], [.085, [13.5, -1.1, -1.3]], [.1, [12.4, -1.5, -1.9]], [.13, [9.6, -2.8, -3.2]], [.19, [7.2, -3.9, -4.1]], [.32, guard]], t);   // (cocked low left, a straight jab to the middle, held through the hit-stop, home)
     if (S.act === 'throw') { L2 = keysAt([[0, guard], [.16, [6.5, -3.6, -4]], [.36, [1.6, -7.2, 1.6]], [.47, [13, -1.6, .6]], [.78, guard]], t); nade = t < .46; }
     if (vm.trav > .05 && pb.ledge && (S.move === 'mantle' || S.move === 'vault' || S.move === 'climb')) {
       const e = pb.ledge, wn = pb.wallN || [0, 0, 0], sd = nrm(cross(UP, wn)), up = S.move === 'climb' ? world.time * 7 : 0;
@@ -1700,7 +1715,7 @@ const SHOOT = (() => {
     pen.at();
     if (vm.trav < .9) drawGun(pen, F, S.cur, st, 1);
     const tube = (a, b, r, col) => pen.tube(a[0], a[1], a[2], b[0], b[1], b[2], r, col), ball = (p, r, col) => pen.ball(p[0], p[1], p[2], r, r, r, col);
-    const jab = S.act === 'melee' ? win(t, 0, .05) * (1 - win(t, .36, .5)) : 0, shL = add(SH[0], [-1.5, -1.2, -2.6], jab);   // (a jab drops the shoulder: the upper arm stays under the picture)
+    const jab = S.act === 'melee' ? win(t, 0, .05) * (1 - win(t, .2, .32)) : 0, shL = add(SH[0], [-1.5, -1.2, -2.6], jab);   // (a jab drops the shoulder: the upper arm stays under the picture)
     [[shL, L2, nrm([-.2, -1, -1 - jab])], [SH[1], R2, nrm([-.3, 1, -1])]].forEach(([sh, hand, hint], i) => {
       const [el] = ik(sh, hand, VLU, VLF, hint), fd = nrm(sub(hand, el));
       tube(sh, el, 1.25, c.cloth); ball(el, 1.05, c.dark); tube(el, hand, .98, c.cloth);
@@ -1901,7 +1916,7 @@ const SHOOT = (() => {
   }
   function syncRaider(e, dt) {
     const a = e.a, b = e.b;
-    Object.assign(b, { x: a.x, y: a.y, z: a.z, vx: a.vx, vy: a.vy, vz: a.vz, grounded: a.grounded, aimYaw: e.yaw, aimPitch: e.pitch, ads: e.sees && e.state === 'combat', low: !e.dummy && !(e.sees && e.state === 'combat'), flash: game.real - (e.hitReal ?? -9) < .034 ? 1 : 0 });
+    Object.assign(b, { x: a.x, y: a.y, z: a.z, vx: a.vx, vy: a.vy, vz: a.vz, grounded: a.grounded, aimYaw: e.yaw, aimPitch: e.pitch, ads: e.sees && e.state === 'combat', low: !e.dummy && !(e.sees && e.state === 'combat'), flash: (e.hitNew ? (e.hitReal = performance.now() / 1000, e.hitNew = false, 1) : performance.now() / 1000 - (e.hitReal ?? -9) < .025) ? 1 : 0 });   // (two frames white, on the clock: the hit-stop doesn't stretch it)
     if (e.alive) b.move = !a.grounded ? 'air' : e.crouch ? 'crouch' : 'stand';
     b.yaw = E.approachAng(b.yaw, e.yaw, dt * 8); b.sprint = Math.hypot(a.vx, a.vy) > 64;
     b.gun = { mag: 0, bolt: 0, pump: 0, flash: e.flash };
@@ -1928,15 +1943,21 @@ const SHOOT = (() => {
     }
     drawWorks(pen, cam.x, cam.y);
     const L = lights, F = frameYP([cam.x, cam.y, cam.z], S.yaw, S.pitch), mz = muzzlePoint(F);
-    Object.assign(L.muzzle, { x: mz[0], y: mz[1], z: mz[2], on: S.flash > .15, power: (S.view === 'third' ? 11 : 9) * S.flash, reach: S.view === 'third' ? 160 : 130 });
+    Object.assign(L.muzzle, { x: mz[0], y: mz[1], z: mz[2], on: S.flash > .6, power: (S.view === 'third' ? 11 : 6) * S.flash, reach: S.view === 'third' ? 160 : 100 });   // (the shot's own frame only: no strobe)
     if (S.boom && S.boom.t > 0) { Object.assign(L.boom, { x: S.boom.x, y: S.boom.y, z: S.boom.z + 20, on: true, power: 90 * S.boom.t / .35 }); S.boom.t -= dt; } else L.boom.on = false;
     const fire = OP.ridge.fire; if (fire) { const fl = .85 + Math.sin(w.time * 13) * .08 + Math.sin(w.time * 29) * .06; Object.assign(L.fire, { x: fire[0], y: fire[1], z: fire[2] + 10, on: Math.hypot(fire[0] - cam.x, fire[1] - cam.y) < 140 * M, power: 18 * fl }); w.glow(fire[0], fire[1], fire[2] + 3, 2.6 * fl, '#ff9a3a', { core: '#fff0b0' }); }
     for (const o of OUTPOSTS) if (o.beacon && (w.time % 1.6) < .8) w.glow(...o.beacon, 4, '#ff3a2a', { core: '#ffd0c0' });
     w.overlay.on = S.view === 'first' && S.alive;
     if (w.overlay.on) { w.overlay.camera.fov = lerp(54, 44, ease(S.adsB)); drawViewModel(w.overlay.pen, dt, cam); }
-    const rdt = clamp(game.real - (lastReal ?? game.real), 0, .05); lastReal = game.real;   // (a hit's star runs on real time: the hit-stop freezes the world, not the spark)
-    for (const st of fx.stars) { const first = st.t < 1 / 60; if (fx.flashes.world.length < FL_MAX) fx.flashes.world.push({ p: st.p, f: st.f, s: st.s * (first ? 1.5 : .8), heat: first ? 1 : .45, seed: st.seed + (first ? 0 : 97), pal: st.pal }); st.t += rdt; }
-    fx.stars = fx.stars.filter(st => st.t < 2 / 60);
+    const now = performance.now() / 1000, rdt = clamp(now - (lastReal ?? now), 0, .05); lastReal = now;   // (hits' stars run on the clock: a hit-stop freezes the world, not the spark)
+    for (const st of fx.stars) {
+      const list = st.ov ? fx.flashes.ov : fx.flashes.world; if (list.length >= FL_MAX) continue;
+      if (st.v) { const u = st.t / st.life, q = add(st.p, st.v, st.t); q[2] -= (st.ov ? 450 : 900) * st.t * st.t; list.push({ p: q, f: st.f, s: st.s * (1 - u * .5), heat: .7 * (1 - u * .7), seed: st.seed + Math.floor(st.t * 60), pal: st.pal, thin: true }); }
+      // (the first frame is anything under half a frame old: a frame of clock time can compare as a hair under 1/60)
+      else { const first = st.t < .5 / 60; list.push({ p: st.p, f: st.f, s: st.s * (first ? 1.5 : .85), heat: first ? 1 : .5, seed: st.seed, pal: st.pal, thin: !first }); }
+    }
+    for (const st of fx.stars) st.t += rdt;
+    fx.stars = fx.stars.filter(st => st.t < (st.life || 1.5 / 60));
     drawFlashes(fx.flW, fx.flashes.world, fx.cam); drawFlashes(fx.flO, fx.flashes.ov, [0, 0, 0]);
   }
   /** a fresh run: the world reset, the structures' blocks, doors shut, bins full, crews home, the player at the drop
