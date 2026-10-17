@@ -5,6 +5,10 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.50.1 (2026-10-17)
+
+- **Tools**: `tools/ed-clips-test.mjs`'s gallery check waits, frame by frame, for each take to start (up to 3 s) before it reads the hero: it waited half a second of wall time, and the full suite on v0.50.0 failed once with the previous take still on (it passed when run again).
+
 ## 0.50.0 (2026-10-17)
 
 The shooter measured at real speed, frame by frame at 60, 90, 144 and 240 Hz with scripted mouse and keys, instead of judged from stills: what moved unevenly or jumped in a frame is fixed.

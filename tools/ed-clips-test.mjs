@@ -122,7 +122,7 @@ const ids = ['death', 'rise', 'wait', 'chest', 'stone', 'pickup', 'hitChest', 'h
 await open('gallery/poses/' + names[0]);
 for (let i = 0; i < names.length; i++) {
   await page.evaluate(n => { __ed.galOpen('poses', n); __ed.galReset(); }, names[i]);
-  await wait(500);
+  await plays(ids[i], 3000); await wait(100);   // (frame by frame: half a second of wall time on a busy machine drew too few frames, and the last take was still on)
   s = await state();
   check(s.id === ids[i] && s.mask === null && s.finite, 'gallery ' + names[i] + ' plays ' + ids[i] + ' (' + s.id + ')');
 }
