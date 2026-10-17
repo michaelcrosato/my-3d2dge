@@ -38,7 +38,7 @@ const kit = id => ({
   LINKS: 'Deep link: add #' + id + ' to the address to start the slice.'
 });
 // the 3D slices: their ids and what each is (the kit's header names it)
-const SLICES3D = { action: 'ACTION (a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test)', platformer: 'PLATFORMER (a 3D course of islands, platforms and coins, Mario 64 and Spyro)' };
+const SLICES3D = { action: 'ACTION (a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test)', platformer: 'PLATFORMER (a 3D course of islands, platforms and coins, Mario 64 and Spyro)', shooter: 'SHOOTER (an open world to move through and fight in, first or third person: Apex Legends without the multiplayer)' };
 const ALL3D = { EDITION: '3D edition', GAMES: 'the 3D starter games', CONTENTS: 'a title menu plus every 3D slice (' + Object.keys(SLICES3D).map(k => k.toUpperCase()).join(', ') + ').', LINKS: 'Deep links: add #' + Object.keys(SLICES3D).join(', #') + ' to the address to start a slice.' };
 const kit3d = id => ({ EDITION: '3D ' + id + ' kit', GAMES: 'one 3D game to copy', CONTENTS: 'a title menu plus the ' + SLICES3D[id] + ' slice.\n       This is a 3D genre kit. The file with every 3D slice is dist/my-3d2dge-3d.html at github.com/michaelcrosato/my-3d2dge.', LINKS: 'Deep link: add #' + id + ' to the address to start the slice.' });
 const builds = [

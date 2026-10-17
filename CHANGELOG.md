@@ -5,6 +5,31 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.47.0 (2026-10-17)
+
+A third 3D kit, SHOOTER: Apex Legends' movement and gunplay without the multiplayer, in an open world two kilometres across, played in first or third person; and what the 3D engine needed for it: open-world terrain, rays, the overlay for a first-person view model.
+
+- **Rendering**: `terrain: { height, color, ... }` makes an open world instead of a level: the game's height function sampled into 64 m chunks as they are first asked about; Rapier heightfields streamed near actors; a quadtree of meshes from one pool (fine near the camera, coarse to `far`, skirts on the seams), the game's colors per vertex and rock in strata where it steepens, in one material. `sky: { top, horizon, ground, sun, haze }` is a dome round the camera; the sun's shadow square moves a whole texel at a time (no crawling edges).
+- **Rendering**: `overlay: { fov }` gives a world a scene drawn over it after its depth is cleared, from its own camera, lit by the world's sun and sky, with its own pen in the eye's frame (`world.overlay.pen`: x ahead, y right, z up): a first-person gun never sinks into a wall.
+- **Rendering**: `onDraw(world, r)` runs a game's own 3D drawing each frame, whichever scene draws the world. `world.pen` now keeps what a game drew before `world.draw` (it was wiped by the frame itself) and `pen.slab` draws a box leaning any way.
+- **Engine**: `world.ray(x, y, z, dx, dy, dz, len, { skip, level, down })` returns the first thing hit (point, normal, distance, the actor or prop, or the ground); `world.block` makes an invisible fixed box or cylinder; `actor.resize(half)` shortens a capsule (crouch, slide); the `'fixed'` camera takes a roll, `capture` keeps the mouse's moves for the game (`camera.takeMouse()`), and `near` and `far` set its planes.
+- **Engine**: the 3D starter's shell leaves V, [ ], and 0 to a slice that runs its own camera.
+- **Animation**: the shooter's soldiers are posed every frame on a procedural skeleton: a gait whose stance feet stay planted (on whatever a short ray finds under them) and roll heel to toe, the pelvis lowering for long strides, a spine that leans into acceleration and twists to the aim, hands on the gun by IK; a sprint with the gun low in one hand and the off arm pumping, crouch, slide, air, vault, mantle, climb, ladder, zipline, a reload with the mag in the hand, a punch, a door kick, a throw, a flinch, and a death that folds at the knees and falls back from the hips while the gun clatters down.
+- **Animation**: first person draws its arms and guns in layers: the stance (hip, down the sights, a sprint's low ready, a crouch's cant, a slide's roll), sway that lags the turn, a figure-eight bob, each shot's kick, a landing's dip, reloads, swaps, punches, the leg that kicks a door in, hands that grab ledges, rungs and the cable, brass from the port.
+- **Art**: the badlands: golden grass in merged tufts that sway and part round the player's feet (TSL), red mesas, dry riverbeds, roads routed round the steep ground, junipers, pines, snags and boulders streamed by chunk; outposts built from boxes and cylinders in one material whose kinds draw poured concrete, corrugated metal, container ribs, planks and sandbags; a radio mast, a water tower, tents round a fire, a warehouse; the RANGER rifle (holo sight with its dot and ring) and the BREACHER pump shotgun.
+- **Engine**: the shooter's play: sprint, crouch, slide (faster downhill), jump, vault, mantle, climb, ladders, ziplines, doors (E) and kicks (V); hitscan with spread, bloom, a recoil pattern that partly recovers, tracers, holes and impacts by surface, shields before health, headshots, hit markers and damage numbers that add up; a punch with a lunge, frag grenades, supply bins and loot; raiders at five outposts that spawn as you near them, see and hear, fight in bursts, strafe and hunt; the drop point's firing range; a HUD with a compass of the outposts. `SHOOT.run(n)` is its proof.
+- **Tools**: `tools/kit3d-test.mjs` plays the shooter with its own buttons; `tools/build.mjs` and `vercel.json` know the slice (`/kits/3d-shooter`).
+- **Docs**: the 3D engine's manual covers open worlds, rays, blocks, resizing, the camera's capture and the overlay (5,376 of its 6,000 tokens); `docs/ENGINE-3D.md` describes the shooter and the new parts.
+
+## 0.46.2 (2026-10-16)
+
+The plan for co-op: up to four players in one Emberdeep, each free to go anywhere, against monsters whose life and damage grow with the players around them.
+
+- **Docs**: `docs/HANDOFF-COOP.md`, the plan, made from five audits of v0.46.1 (the single-hero code, the hero's input, scenes and saves, time and randomness, combat and loot) and three measurements (the world simulates at 3 to 25 times real time with nothing drawn; posing rigs is a third of a step; two headless pages open a WebRTC channel with a 0.9 ms round trip).
+  - Every depth and the Proving Grounds is a place that its players simulate in deterministic lockstep, with a delay that covers the network: none when alone, so single player is unchanged. Emberhold is each player's own, with the others in it.
+  - Players connect directly; a relay with no game introduces them. Monster life rises 100% and damage 50% for each extra hero in the place, as knobs. Loot is personal.
+  - Ten phases: a lab where the owner feels the delay on a phone first, then one world on every screen, several heroes (with autopilot companions), the network, moving anywhere, the lead that shows walking at once, emotes and pings, the relay online, snapshots if joins prove slow, and folding the plan in. It ends with nine questions for the owner.
+
 ## 0.46.1 (2026-10-16)
 
 The last places that still named Emberdeep's Developer panel and sandbox, gone since v0.45.0, name the Settings window.

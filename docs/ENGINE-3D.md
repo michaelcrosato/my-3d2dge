@@ -1,6 +1,6 @@
 # The 3D engine and the 3D kits
 
-`engine/my-3d2dge-3d.js` (v0.34.0) puts a real 3D world under a my-3D2dge game: a level written as text, its physics,
+`engine/my-3d2dge-3d.js` (v0.34.0) puts a real 3D world under a my-3D2dge game: a level written as text (or an open world's terrain), its physics,
 its characters, its camera and its picture, drawn by three.js r182 and simulated by Rapier 0.19.3. It is the stress
 test's 3D world (`/stress-world`, `docs/LAB-3D.md`) taken apart and made general, so that a game can be built on it the
 way the 2D starter kits are built on the engine. Its header is its manual: an agent reads that and the API card, never
@@ -11,7 +11,7 @@ the code below them.
 | The 3D engine (an ES module) | `engine/my-3d2dge-3d.js`; built copy `dist/my-3d2dge-3d.js` |
 | Its manual | its header (the `/*! ... */` comment), with a complete quick-start game; a budget of 6,000 tokens (D27) |
 | The 3D starter: a title stage and every 3D slice | `src/starter3d/` and `src/starter3d.template.html`, built into `dist/my-3d2dge-3d.html` ([/3d](https://my-3d2dge.vercel.app/3d)) |
-| The 3D kits, one slice each | `dist/kits/my-3d2dge-3d-action.html` ([/kits/3d-action](https://my-3d2dge.vercel.app/kits/3d-action)), `dist/kits/my-3d2dge-3d-platformer.html` ([/kits/3d-platformer](https://my-3d2dge.vercel.app/kits/3d-platformer)) |
+| The 3D kits, one slice each | `dist/kits/my-3d2dge-3d-action.html` ([/kits/3d-action](https://my-3d2dge.vercel.app/kits/3d-action)), `dist/kits/my-3d2dge-3d-platformer.html` ([/kits/3d-platformer](https://my-3d2dge.vercel.app/kits/3d-platformer)), `dist/kits/my-3d2dge-3d-shooter.html` ([/kits/3d-shooter](https://my-3d2dge.vercel.app/kits/3d-shooter)) |
 | The check | `node tools/kit3d-test.mjs` (in `npm test`) |
 | The libraries | `vendor/three-0.182.0/`, `vendor/rapier3d-simd-compat-0.19.3/` (pinned, with checksums: `node tools/vendor-3d.mjs --check`) |
 
@@ -48,6 +48,20 @@ screen, sound. The 3D engine adds `E.World3D` (and `E.THREE`, `E.TSL`, `E.RAPIER
   the game's particles in 3D, ground arcs (telegraphs), glows, weapon trails, and the 3D Prototype's filters (Comic cel,
   Pixel, bloom, FXAA); the player picks cards or puppets, the resolution, shadows and the filter in the pause menu
   (`E.World3D.SETTINGS`). Every shader is built in a warm-up frame behind the boot screen, so none stalls the game.
+- **Open worlds** (v0.47.0): `terrain: { height, color, ... }` in place of a level. The ground is the game's height
+  function sampled every 2 m into 64 m chunks, each sampled the first time anything asks about it, so a map kilometres
+  across costs only where someone goes. The same samples make the three things the ground is: Rapier heightfields for the
+  chunks near actors (streamed in `world.step`, so a replay streams the same), the queries (`ground`, `floorAt`, `topH`,
+  `terrain.normal`) on exactly the triangles Rapier collides with, and the picture: a quadtree of meshes from one pool,
+  fine near the camera and coarser out to `far`, skirts hiding the seams, the game's colors per vertex and red rock in
+  strata where it steepens, all in one material (streaming never builds a shader). A dome sky follows the camera.
+- **Shooters** (v0.47.0): `world.ray` (hitscan, ledges, feet on the ground: the first thing hit, its normal, the actor or
+  prop), `world.block` (fixed colliders for things a game draws its own way), `actor.resize` (a crouch, a slide), a
+  `'fixed'` camera with roll and a mouse it can capture for the game to turn itself (`camera.takeMouse()`), and the
+  overlay: a scene drawn over the world after its depth is cleared, from its own camera, lit like the world, with its own
+  pen in the eye's frame, so a first-person gun never sinks into a wall. `onDraw` runs the game's own drawing every
+  frame, whichever scene draws the world (a game over over it). `camera.target` sizes the outlines and centres the sun's
+  shadow, so a shooter points it ahead of the eye.
 - **The proof**: `world.hash()` after a scripted run is the same on WebGPU, WebGL 2 and run again: the game never reads
   the renderer.
 
@@ -65,6 +79,19 @@ Each 3D slice is a complete small game in the style of the 2D slices (dense, com
   the flag: plank platforms, a terrace and a tower of stone steps, a platform that rides across a gap, a spring up to a
   high deck; a jump held for height, a double jump, a dash on the ground and once in the air; slimes to stomp; coins,
   three stars, checkpoint flags. Its trees (the 2D engine's tree generator), bushes and rocks are shapes.
+- **Shooter** (`src/starter3d/30-shooter.js`): Apex Legends' movement and gunplay without the multiplayer, in first or
+  third person (T). A badlands two kilometres across on a terrain (golden grass that sways, red mesas in strata, dry
+  riverbeds, junipers and pines streamed by chunk), six outposts on flat pads joined by roads routed round the steep
+  ground (A*), each laid out in metres as one merged mesh over fixed blocks: buildings with doors and windows, containers,
+  watch towers with ladders and ziplines, supply bins. Sprint, crouch, slide (faster downhill), jump, vault, mantle,
+  climb, ladders, ziplines, doors opened or kicked off their hinges; a rifle and a pump shotgun (hip fire and sights,
+  spread and bloom, a learnable recoil pattern, reloads with the mag in the hand), a punch with a lunge, grenades;
+  hitscan with tracers, impacts and holes by surface, shields before health, headshots, hit markers and damage numbers.
+  Raiders hold five outposts (they spawn as you near them, see and hear, fight in bursts, strafe, hunt); the drop point
+  is a firing range with targets that stand up again. Every soldier is drawn with the pen on a procedural skeleton (feet
+  planted by IK on whatever is under them, the pelvis lowering for long strides, a spine that leans and twists, hands on
+  the gun by IK; slides, vaults, climbs, a death that folds and falls); first person draws its arms and guns with the
+  overlay's pen in layers (stance, sway, bob, kick, reloads, punches, kicks, hands on ledges and rungs).
 
 A kit is the minified 2D engine, the API card, the minified 3D engine with its manual, the shell and one slice: about
 200,000 cl100k tokens (a 2D kit is about 180,000 on the same count), so a 200k-token chat holds it with little room; a
@@ -90,6 +117,10 @@ to its budget; `tools/version.mjs` keeps its version line with the rest.
   a moving platform by the platform's own step, unless the controller has already added it that step.
 - **Point lights' shadows are expensive**: each renders the scene six times. A world makes one torch shadow by default
   (`torchShadows`), the 3D Prototype two; a sun's shadow is one pass.
+- **Nested TSL `select()`** chains rendered a material black on WebGL 2 here (each branch alone was right); a sum of
+  weights (1 for the matching kind, 0 for the rest) picks a pattern instead.
+- **`world.pen` and `overlay.pen` hold what a frame drew until it rendered** (they empty after the render, not before it:
+  until v0.47.0 a game's own pen drawing was wiped by `world.draw` itself).
 - **An `InstancedMesh` of more than 1,000 instances** never uses `DynamicDrawUsage` (three r182 drops its updates); with
   1,000 or fewer each such mesh's shader is its own, so the card atlas pages keep room for 1,001.
 - The 3D Prototype (`/stress-world`, once Stress test: 3D world) stays on the Labs page as the record of what the

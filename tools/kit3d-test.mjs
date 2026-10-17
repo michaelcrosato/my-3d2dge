@@ -182,11 +182,13 @@ for (const want of ['webgl', 'webgpu']) for (const [name, path] of pages) {
       const g = __game.game, S = __game.scenes[id], R = My3D2dge.World3D.renderer, pipes = () => { const p = R._pipelines; return p && p.caches ? p.caches.size : null; };
       g.go(id, null, { fade: 0 }); await new Promise(r => setTimeout(r, 400));
       const h0 = S.hero, x0 = h0.x, y0 = h0.y, p0 = pipes(), f0 = S.world.stats.frames;
-      const keys = id === 'action' ? ['attack', 'dash', 'jump', 'skill'] : ['jump', 'dash'];
-      g.input.hold('up', true);
+      // (the shooter walks at Apex's pace, slower than the other heroes: it sprints, as a player would, and leaves the ground
+      // only once it is moving: a jump from a standstill keeps it slow in the air)
+      const keys = id === 'action' ? ['attack', 'dash', 'jump', 'skill'] : id === 'shooter' ? ['swap', 'swap', 'jump', 'swap', 'fire', 'melee'] : ['jump', 'dash'], run = id === 'shooter' ? 'sprint' : null;
+      g.input.hold('up', true); if (run) g.input.hold(run, true);
       // (the farthest it got: the course's edge is a second's run north, and a fall puts the hero back at the start)
       let moved = 0; for (let i = 0; i < 24; i++) { g.input.tap(keys[i % keys.length]); if (i === 8) { g.input.hold('up', false); g.input.hold('left', true); } await new Promise(r => setTimeout(r, 120)); moved = Math.max(moved, Math.hypot(S.hero.x - x0, S.hero.y - y0)); }
-      g.input.hold('left', false);
+      g.input.hold('left', false); if (run) g.input.hold(run, false);
       return { moved, p0, p1: pipes(), frames: S.world.stats.frames - f0, calls: S.world.stats.calls };
     }, s);
     if (play.frames < 5) fail(`${label}: ${s} drew only ${play.frames} frames in about 3 s of play`);

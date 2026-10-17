@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.46.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.47.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -106,7 +106,9 @@ The level's own ground and side are every tile's default. Add looks: E.World3D.G
 o: { level, look: 'card' | 'puppet', res: 'pixels' | 'balanced' | 'full', gravity: 480, sky: '#06050b' or [top,
 horizon], fog: { color, near, far } (units past the target) or false, ambient: [sky, ground, intensity], sun: { color,
 intensity, dir: [x, y, z] (it shines along it), area, shadow }, torchLights: 6, torchShadows: 1, torchPower: 30,
-lights: 2 (your own), glowLights: 4, shadows, outlines, filter, camera: { mode, proj, fov, chase, ... } }
+lights: 2 (your own), glowLights: 4, shadows, outlines, filter, camera: { mode, proj, fov, chase, ... }, terrain (an open
+world instead of the level: below), overlay: { fov } (first person: below), onDraw: (world, r) => {} (your own 3D drawing
+each frame, whichever scene draws the world) }
   world.step(dt) / world.draw(r) / world.reset() / world.hash([your numbers]) / world.prepare() (build the shaders now)
   world.width, depth (units), mw, mh (tiles), bottom, marks, torches, actors, props, platforms, things, time, stats
   world.ground(x, y)   the ground's height (a wall's top on a wall; bottom over a pit)
@@ -116,6 +118,9 @@ lights: 2 (your own), glowLights: 4, shadows, outlines, filter, camera: { mode, 
   world.flow() -> flow: flow.to(x, y) aims it; flow.dir(x, y, out) -> the way there ([x, y], or null: go straight);
       it climbs stairs and gentle slopes and drops off ledges, never jumps
   world.randomFloor(rnd, minDist, fx, fy) -> [x, y]; world.clear(x0, y0, z0, x1, y1, z1) -> a clear line of sight?
+  world.ray(x, y, z, dx, dy, dz, len, { skip: actor(s), level: true (sight lines), down }) -> the first hit { x, y, z, nx,
+      ny, nz, dist, actor, prop, ground } or null: hitscan, ledges, feet on the ground
+  world.block({ x, y, z, w, d, h, yaw } | { x, y, z, r, h }): an invisible fixed collider (walls you draw your own way)
   world.near(x, y, r, kind) -> actors within r; world.touching(actor, kind) -> things it touches
   world.project(x, y, z) -> [x, y] in game pixels for the HUD (null behind the camera)
   world.remove(actor | prop | platform | thing)
@@ -130,7 +135,8 @@ Each step you set what it wants: a.vx, a.vy (units a second on the ground: E.app
 or a.vz, a.facing, a.anim (what its rig does: { attack: move.state, pose: 'cheer' | 'die' | 'cast', hurt, dash, expr };
 a blob's { squash, look: [dx, dy], squint, flap }); world.step moves it, reads back a.x, a.y, a.z (its feet), a.vx,
 a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), and poses its rig.
-  a.place(x, y, z), a.push(vx, vy, vz) (knockback), a.setSolid(false) (fallen: it stops blocking the others), a.remove()
+  a.place(x, y, z), a.push(vx, vy, vz) (knockback), a.setSolid(false) (fallen: it stops blocking the others), a.remove(),
+  a.resize(half) (a crouch, a slide: the capsule shorter, the feet kept; look up with world.ray before standing)
   a.flash (seconds of hit flash), a.fade (0..1), a.sink (units drawn into the floor: spawning, sinking away), a.visible,
   a.data (yours). E.Attack, E.Combo and E.MOVES work as in 2D: attack.hits(list, e => E.inArc(a, a.facing, e, range,
   half), e => ...) on actors.
@@ -153,6 +159,7 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   world.glow(x, y, z, r, color, { core, light: true }): a glowing ball (a bolt); the first four asked for light the scene
   world.pen.at(x, y, z, yaw, size).box(x, y, z, w, d, h, color).ball(x, y, z, rx, ry, rz, color).tube(x0, y0, z0, x1,
       y1, z1, r, color).cone(...base to tip).bar(x0, y0, z0, x1, y1, z1, w, t, color).glow(x, y, z, r, color)
+      .slab(x0, y0, z0, x1, y1, z1, ax, ay, az, w, t, color) (a box from one point to the other, w wide along a: any lean)
   world.light({ color, reach, power }) (made once, with the world): a light; set its x, y, z and on each frame
   game.particles (sparks, dust, bits, rings, glints, fire, text): drawn in 3D; they land on the level; text goes on the HUD
   game.shake(n), game.flash(color), game.freeze(s), game.note(text): as in 2D
@@ -161,10 +168,26 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   modes: 'view' (the 2D engine's views as real 3D cameras following camera.target: game.view (V: game.nextView()),
   game.yaw ([ ]: game.rotateView(45)), game.zoom (the wheel, a pinch, Settings); proj 'persp' | 'ortho'; dist; walls in
   front cut low), 'chase' (behind the target; it swings round behind as the target moves; a click captures the mouse to
-  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, fov })
+  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own)
+  camera: { capture: true (a click captures the mouse in any mode; camera.takeMouse(out) -> its [dx, dy] since the last
+  call: turn your own camera), near, far (units) }; camera.target also sizes the outlines and centres the sun's shadow
   camera.set(mode), camera.follow(actor), camera.ground(move, out) -> the stick turned to the ground,
   camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it, or null; camera.heading,
   camera.pose, camera.chase = { pitch, dist, fov, height, auto }, camera.first = { pitch, fov }
+
+## Open worlds: new E.World3D(game, { terrain: { height: (x, y) => z, ... } })
+terrain: { size (32768: two kilometres), height, color: (x, y, z, nz, out) => [r, g, b] (0..255), cell (32), chunk (32
+cells), far (draw distance), physics (heightfields this near an actor), detail (1.7), rock: { colors, band, slope: [s0,
+s1] } (strata where it steepens), speckle, mottle, bottom }. Streamed: a chunk is sampled when first asked about, its
+collider made near actors (world.step), its meshes near the camera (world.draw: finer near). world.ground, floorAt, topH
+and world.terrain.normal(x, y) read the triangles Rapier collides with; flow() goes straight. sky: { top, horizon, ground,
+sun, haze } is a dome; fog: { color, near, far }. Keep height() fast: it runs per sample.
+
+## First person and third: a shooter (the starter's SHOOTER slice shows it all)
+camera 'fixed' with capture: each step turn by camera.takeMouse(), set camera.fixed (the eyes, or over the shoulder pulled
+in by world.ray). overlay: { fov } makes world.overlay = { scene, camera, pen, on }: drawn after the world, its depth
+cleared (the gun never sinks into a wall), lit like the world. overlay.pen is a pen in the eye's frame (engine units: x
+ahead, y right, z up): draw the arms and gun in onDraw; world.pen there draws bodies (the pens empty after each frame).
 
 ## The look
   world.look = 'card' | 'puppet'; world.res = 'pixels' | 'balanced' | 'full'; world.shadows; world.outlines
@@ -254,7 +277,7 @@ async function init(game, o = {}) {
 function mouseLook(gc) {
   const cam = () => { const w = PAGE.active; return w && w.camera; }, S = E.session;
   gc.addEventListener('pointerdown', e => {
-    const c = cam(); if (!c || e.pointerType !== 'mouse' || !c.mouseLook || !['chase', 'first', 'fly'].includes(c.mode) || document.pointerLockElement) return;
+    const c = cam(); if (!c || e.pointerType !== 'mouse' || !c.mouseLook || !(c.capture || ['chase', 'first', 'fly'].includes(c.mode)) || document.pointerLockElement) return;
     if (PAGE.game.paused || (S && (S.recording || S.replaying))) return;
     try { const r = gc.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* refused: [ and ] still turn it */ }
   });
@@ -262,6 +285,7 @@ function mouseLook(gc) {
   document.addEventListener('mousemove', e => {
     const c = cam(); if (!c || !c.locked || PAGE.game.paused) return;
     const k = .0024, dx = e.movementX || 0, dy = e.movementY || 0;
+    if (c.capture) { c.mouse[0] += dx; c.mouse[1] += dy; return; }   // (the game turns its own camera with them)
     c.yaw += dx * k; c._held = 1.5;
     if (c.mode === 'chase') c.chase.pitch = clamp(c.chase.pitch - dy * k, -1.3, .15);
     else if (c.mode === 'first') c.first.pitch = clamp(c.first.pitch - dy * k, -1.2, 1.1);
@@ -787,6 +811,246 @@ Level.prototype.animateBraziers = function (dt) {
 };
 
 /* =============================================================================
+ * 3b. TERRAIN  an open world instead of a level: new E.World3D(game, { terrain: { size, height, color, ... } })
+ *    The ground is the game's height function (x, y) -> z in engine units, sampled every `cell` units (32: 2 m) into
+ *    chunks of `chunk` cells (32: 64 m square), each chunk sampled the first time anything asks about it, so a world
+ *    kilometres across costs only where someone goes. The same samples make all three of what the ground is:
+ *      physics  a Rapier heightfield per chunk, for the chunks within `physics` units of any actor (world.step streams
+ *               them: the same moves stream the same colliders, so a run replays exactly)
+ *      queries  world.ground, floorAt, topH (and terrain.normal, slope) read the same triangles Rapier collides with (each
+ *               cell split from its north-west corner to its south-east), and world.ray marches the height out where
+ *               no collider is made yet
+ *      picture  a quadtree of meshes, 2 m cells near the camera, coarser with distance out to `far`, a few built a frame
+ *               (world.draw streams them; a coarser one stands in until its finer ones are ready), skirts hiding the
+ *               seams between sizes, vertex colors from the game's color(x, y, z, nz) and, where the slope is steep,
+ *               rock in strata (rock: { colors, band }), with a fine speckle and a broad mottle over all of it
+ *    Everything in one material, every mesh from one pool made with the world: streaming never builds a shader
+ * ============================================================================= */
+const TERRAIN_POOL = 220, TERRAIN_BUILDS = 6;
+class Terrain {
+  constructor(world, def) {
+    if (typeof def.height !== 'function') throw new Error('my-3D2dge 3D: a terrain needs height: (x, y) => z, the ground\'s height in engine units');
+    const cell = def.cell || 32, n = def.chunk || 32, cs = cell * n, size = Array.isArray(def.size) ? def.size : [def.size || 32768, def.size || 32768];
+    // chunks across: a power of two, so the quadtree's root covers the map exactly
+    const cw = 2 ** Math.ceil(Math.log2(Math.max(1, Math.ceil(Math.max(size[0], size[1]) / cs))));
+    Object.assign(this, { isTerrain: true, world, def, cell, n, cs, cw, ch: cw, gw: cw * n, width: cw * cs, depth: cw * cs, levels: Math.log2(cw) });
+    /** mw, mh: the map in 1-metre tiles (as a level's); bottom: below every valley (a fall past it is lost) */
+    this.mw = this.width / T; this.mh = this.depth / T; this.bottom = def.bottom ?? -800;
+    this.marks = def.marks || {}; this.torches = []; this.shapes = []; this.rows = [];
+    this.far = def.far || 24000; this.physics = def.physics || 2400; this.split = def.detail || 1.7;
+    this._h = new Map(); this._cols = new Map(); this._pw = null;
+  }
+  /* ---- the samples ---- */
+  /** chunk (cx, cy)'s heights, (n + 1) x (n + 1) samples, row by row from its north-west corner (made when first asked for) */
+  heights(cx, cy) {
+    const key = cy * this.cw + cx; let H = this._h.get(key); if (H) return H;
+    const n = this.n, c = this.cell, x0 = cx * this.cs, y0 = cy * this.cs, f = this.def.height; H = new Float32Array((n + 1) * (n + 1));
+    for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) H[j * (n + 1) + i] = f(x0 + i * c, y0 + j * c);
+    this._h.set(key, H); return H;
+  }
+  /** the height at grid point (gx, gy) (whole cells from the map's north-west corner): a made chunk's sample, else the
+   *  function itself (the same number: far meshes read it without making the chunks they span) */
+  sample(gx, gy) {
+    const g = this.gw; gx = gx < 0 ? 0 : gx > g ? g : gx; gy = gy < 0 ? 0 : gy > g ? g : gy;
+    const n = this.n, cx = Math.min(this.cw - 1, Math.floor(gx / n)), cy = Math.min(this.cw - 1, Math.floor(gy / n)), H = this._h.get(cy * this.cw + cx);
+    return H ? H[(gy - cy * n) * (n + 1) + gx - cx * n] : this.def.height(gx * this.cell, gy * this.cell);
+  }
+  _corners(x, y, need) {
+    const c = this.cell, gx = clamp(x / c, 0, this.gw - 1e-6), gy = clamp(y / c, 0, this.gw - 1e-6), i = Math.floor(gx), j = Math.floor(gy);
+    if (need) { const n = this.n; this.heights(Math.min(this.cw - 1, Math.floor(i / n)), Math.min(this.cw - 1, Math.floor(j / n))); if ((i + 1) % n === 0 || (j + 1) % n === 0) { this.heights(Math.min(this.cw - 1, Math.floor((i + 1) / n)), Math.min(this.cw - 1, Math.floor((j + 1) / n))); this.heights(Math.min(this.cw - 1, Math.floor((i + 1) / n)), Math.min(this.cw - 1, Math.floor(j / n))); this.heights(Math.min(this.cw - 1, Math.floor(i / n)), Math.min(this.cw - 1, Math.floor((j + 1) / n))); } }
+    const C = _tc; C[0] = this.sample(i, j); C[1] = this.sample(i + 1, j); C[2] = this.sample(i, j + 1); C[3] = this.sample(i + 1, j + 1); C[4] = gx - i; C[5] = gy - j;
+    return C;
+  }
+  /** the ground's height at (x, y): the triangle Rapier collides with (a cell is split from its north-west corner to its
+   *  south-east one) */
+  ground(x, y) {
+    const [nw, ne, sw, se, u, s] = this._corners(x, y, true);
+    return u <= s ? sw + (se - sw) * u + (nw - sw) * (1 - s) : ne + (nw - ne) * (1 - u) + (se - ne) * s;
+  }
+  /** the ground's normal at (x, y): [x, y, z], length 1, z up (the triangle's) */
+  normal(x, y, out = [0, 0, 1]) {
+    const [nw, ne, sw, se, u, s] = this._corners(x, y, true), c = this.cell;
+    const gx = (u <= s ? se - sw : ne - nw) / c, gy = (u <= s ? sw - nw : se - ne) / c, l = Math.hypot(gx, gy, 1);
+    out[0] = -gx / l; out[1] = -gy / l; out[2] = 1 / l; return out;
+  }
+  /** how steep the ground is at (x, y): 0 flat .. 1 a cliff */
+  slope(x, y) { return 1 - this.normal(x, y, _tn)[2]; }
+  floorAt(x, y, z = 1e9) { const g = this.ground(x, y); return g <= z + 4 ? g : this.bottom; }
+  topH(x, y) { return this.ground(x, y); }
+  index() { return -1; }
+  spec() { return null; }
+  solidTile() { return false; }
+  placeWalls() {}
+  placePillars() {}
+  animateBraziers() {}
+  /** the first point a ray (unit direction) meets the ground within len units, as its distance, or null: marched a cell at
+   *  a time, then narrowed down */
+  rayDist(x, y, z, dx, dy, dz, len) {
+    const st = this.cell * .5; let t0 = 0, above = z - this.ground(x, y);
+    if (above < 0) return 0;
+    for (let t = st; t <= len + st; t += st) {
+      const tt = Math.min(t, len), h = z + dz * tt - this.ground(x + dx * tt, y + dy * tt);
+      if (h < 0) { let a = t0, b = tt; for (let k = 0; k < 12; k++) { const m = (a + b) / 2; if (z + dz * m - this.ground(x + dx * m, y + dy * m) < 0) b = m; else a = m; } return (a + b) / 2; }
+      t0 = tt; if (tt >= len) break;
+    }
+    return null;
+  }
+
+  /* ---- physics: the chunks near the actors ---- */
+  colliders(pw) { this._pw = pw; this._cols.clear(); }
+  /** a step of world.step: a heightfield for every chunk within `physics` of an actor, none for the rest (with room to
+   *  spare, so one walking along a chunk's edge doesn't make and drop it every step) */
+  stream(world) {
+    const pw = this._pw; if (!pw) return;
+    const R = this.physics, cs = this.cs, want = this._want || (this._want = new Set()); want.clear();
+    for (const a of world.actors) {
+      if (!a.body) continue;
+      const x0 = Math.max(0, Math.floor((a.x - R) / cs)), x1 = Math.min(this.cw - 1, Math.floor((a.x + R) / cs)), y0 = Math.max(0, Math.floor((a.y - R) / cs)), y1 = Math.min(this.cw - 1, Math.floor((a.y + R) / cs));
+      for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) want.add(cy * this.cw + cx);
+    }
+    for (const k of want) if (!this._cols.has(k)) this._cols.set(k, this._collider(pw, k % this.cw, Math.floor(k / this.cw)));
+    for (const [k, b] of this._cols) {
+      if (want.has(k)) continue;
+      const cx = k % this.cw, cy = Math.floor(k / this.cw), x = (cx + .5) * cs, y = (cy + .5) * cs;
+      if (world.actors.some(a => a.body && Math.max(Math.abs(a.x - x), Math.abs(a.y - y)) < R + cs)) continue;
+      pw.removeRigidBody(b); this._cols.delete(k);
+    }
+  }
+  _collider(pw, cx, cy) {
+    const n = this.n, H = this.heights(cx, cy), F = new Float32Array((n + 1) * (n + 1));
+    // Rapier's heightfield lies in its own x-z plane, y up, rows along +z; turned to stand z up (Z_UP), its +z is our -y,
+    // so row i is the samples' row n - i (from the chunk's south edge north)
+    for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) F[i + j * (n + 1)] = H[(n - i) * (n + 1) + j];
+    const b = pw.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation((cx + .5) * this.cs, (cy + .5) * this.cs, 0).setRotation(Z_UP));
+    const flags = RAPIER.HeightFieldFlags ? RAPIER.HeightFieldFlags.FIX_INTERNAL_EDGES : undefined;
+    const col = pw.createCollider(RAPIER.ColliderDesc.heightfield(n, n, F, { x: this.cs, y: 1, z: this.cs }, flags).setFriction(.8).setCollisionGroups(GROUPS.level), b);
+    this.world._owners.set(col.handle, this);
+    return b;
+  }
+}
+const _tc = new Float64Array(6), _tn = [0, 0, 1];
+/* ---- the terrain's picture: one material (vertex colors, rock strata by height where it is steep, a speckle and a
+ *      mottle), a pool of meshes sharing one index, and the quadtree that picks which to draw ---- */
+Terrain.prototype.meshes = function (world) {
+  const def = this.def, n = this.n, V = (n + 1) * (n + 1) + 4 * (n + 1), own = x => world._own(x);
+  const { attribute, positionWorld, normalWorld, texture, vec2, vec3, mix, smoothstep, float } = TSL;
+  // the speckle and mottle: value noise in grey (linear filtering, mipmaps: it is seen from far off)
+  const noiseTex = (w, f) => { const cv = document.createElement('canvas'); cv.width = cv.height = w; const g = cv.getContext('2d'), img = g.createImageData(w, w);
+    for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) { const v = f(x, y) * 255, i = (y * w + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+    g.putImageData(img, 0, 0); const t = own(new THREE.CanvasTexture(cv)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4; return t; };
+  // value noise that wraps every `per` lattice cells (the texture repeats without a seam)
+  const wrapNoise = (x, y, per) => {
+    const xi = Math.floor(x), yi = Math.floor(y), u = x - xi, v = y - yi, su = u * u * (3 - 2 * u), sv = v * v * (3 - 2 * v), m = a => ((a % per) + per) % per;
+    const h = (a, b) => E.hash2(m(a) + 91, m(b) + 37);
+    return lerp(lerp(h(xi, yi), h(xi + 1, yi), su), lerp(h(xi, yi + 1), h(xi + 1, yi + 1), su), sv);
+  };
+  const fbm = (x, y, oct) => { let v = 0, a = .5, t = 0; for (let o = 0, f = 4; o < oct; o++, f *= 2) { v += a * wrapNoise(x / 64 * f, y / 64 * f, f); t += a; a *= .5; } return v / t; };
+  const speck = noiseTex(64, (x, y) => clamp(.5 + (E.hash2(x, y) - .5) * .65 + (fbm(x, y, 2) - .5) * .7, 0, 1));
+  const mottle = noiseTex(64, (x, y) => clamp((fbm(x, y, 4) - .5) * 1.6 + .5, 0, 1));
+  // the strata: a column of bands (rock.colors repeated, each band split by a thin darker line), read by world height
+  const R = def.rock || {}, bands = (R.colors || ['#9c6a4c', '#b98058', '#8a5a40', '#c49268', '#a87050', '#7c5038']).map(c => E.hex(c)), bh = 16;
+  const scv = document.createElement('canvas'); scv.width = 1; scv.height = bands.length * bh; const sg = scv.getContext('2d'), simg = sg.createImageData(1, scv.height);
+  for (let y = 0; y < scv.height; y++) { const c = bands[Math.floor(y / bh)], k = y % bh === 0 ? .72 : y % bh === 1 ? .86 : 1 + (E.hash2(y, 3) - .5) * .12, i = y * 4; simg.data[i] = clamp(c[0] * k, 0, 255); simg.data[i + 1] = clamp(c[1] * k, 0, 255); simg.data[i + 2] = clamp(c[2] * k, 0, 255); simg.data[i + 3] = 255; }
+  sg.putImageData(simg, 0, 0); const strata = own(new THREE.CanvasTexture(scv)); strata.wrapS = strata.wrapT = THREE.RepeatWrapping; strata.colorSpace = THREE.SRGBColorSpace; strata.magFilter = THREE.LinearFilter;
+  const band = (R.band || 40) / U * bands.length, s0 = R.slope ? R.slope[0] : .32, s1 = R.slope ? R.slope[1] : .5, dk = def.speckle ?? .22, mk = def.mottle ?? .3;
+  const wp = positionWorld, vcol = attribute('color', 'vec3');
+  const fine = texture(speck, wp.xz.mul(.75)).r.sub(.5).mul(dk).add(1), broad = texture(mottle, wp.xz.mul(.012)).r.sub(.5).mul(mk).add(1);
+  const wob = texture(mottle, wp.xz.mul(.05)).r.sub(.5).mul(.35);
+  const rockC = texture(strata, vec2(.5, wp.y.div(band).add(wob))).rgb.mul(texture(speck, vec2(wp.x.add(wp.z), wp.y).mul(.9)).r.sub(.5).mul(.3).add(1));
+  const steep = smoothstep(float(s0), float(s1), float(1).sub(normalWorld.y));
+  const mat = this.mat = world._obj(new THREE.MeshLambertNodeMaterial({ color: '#ffffff' }));
+  mat.colorNode = mix(vcol.mul(fine).mul(broad), rockC.mul(broad), steep);
+  world._own(mat);
+  // one index for every mesh: the grid's two triangles a cell (NW-SW-SE, NW-SE-NE: the colliders' split), then the skirts
+  const idx = [], at = (i, j) => j * (n + 1) + i, sk = (side, k) => (n + 1) * (n + 1) + side * (n + 1) + k;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const nw = at(i, j), ne = at(i + 1, j), sw = at(i, j + 1), se = at(i + 1, j + 1); idx.push(nw, sw, se, nw, se, ne); }
+  const edge = [k => at(k, 0), k => at(n, k), k => at(n - k, n), k => at(0, n - k)];   // north, east, south, west, each running round clockwise
+  for (let side = 0; side < 4; side++) for (let k = 0; k < n; k++) { const a = edge[side](k), b = edge[side](k + 1), a2 = sk(side, k), b2 = sk(side, k + 1); idx.push(a, b, b2, a, b2, a2, a, b2, b, a, a2, b2); }
+  const index = new THREE.BufferAttribute(new Uint32Array(idx), 1);
+  this._pool = []; this._nodes = new Map(); this._edge = edge; this._V = V; this._frame = 0;
+  for (let k = 0, np = def.pool || (n <= 16 ? 400 : TERRAIN_POOL); k < np; k++) {
+    const geo = own(new THREE.BufferGeometry());
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V * 3), 3)); geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(V * 3), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(V * 3), 3)); geo.setIndex(index);
+    geo.boundingSphere = new THREE.Sphere(); geo.boundingBox = new THREE.Box3();
+    const m = new THREE.Mesh(geo, mat); m.visible = false; m.receiveShadow = true; m.matrixAutoUpdate = false; world.scene.add(m);
+    this._pool.push({ mesh: m, key: null, used: -1, shown: -1 });
+  }
+};
+/** fill a pooled mesh with node (L, nx, ny): (n + 1)^2 vertices 2^L cells apart, their normals from the samples round
+ *  them, their colors from the game, and the skirts hanging below its edges */
+Terrain.prototype._build = function (slot, L, nx, ny) {
+  const n = this.n, s = 2 ** L, gx0 = nx * n * s, gy0 = ny * n * s, c = this.cell, colorOf = this.def.color, geo = slot.mesh.geometry;
+  const P = geo.attributes.position.array, N = geo.attributes.normal.array, C = geo.attributes.color.array, hs = this._hs || (this._hs = new Float32Array((n + 3) * (n + 3)));
+  // the heights, one sample beyond each edge for the normals
+  for (let j = -1; j <= n + 1; j++) for (let i = -1; i <= n + 1; i++) hs[(j + 1) * (n + 3) + i + 1] = this.sample(gx0 + i * s, gy0 + j * s);
+  let lo = 1e9, hi = -1e9; const nm = [0, 0, 1], col = [0, 0, 0], k2 = 1 / 255;
+  for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+    const v = j * (n + 1) + i, h = hs[(j + 1) * (n + 3) + i + 1], x = (gx0 + i * s) * c, y = (gy0 + j * s) * c;
+    const ddx = (hs[(j + 1) * (n + 3) + i + 2] - hs[(j + 1) * (n + 3) + i]) / (2 * s * c), ddy = (hs[(j + 2) * (n + 3) + i + 1] - hs[j * (n + 3) + i + 1]) / (2 * s * c), l = Math.hypot(ddx, ddy, 1);
+    nm[0] = -ddx / l; nm[1] = -ddy / l; nm[2] = 1 / l;
+    P[v * 3] = x / U; P[v * 3 + 1] = h / U; P[v * 3 + 2] = y / U; N[v * 3] = nm[0]; N[v * 3 + 1] = nm[2]; N[v * 3 + 2] = nm[1];
+    col[0] = 150; col[1] = 140; col[2] = 110;
+    const r = (colorOf && colorOf(x, y, h, nm[2], col)) || col;
+    C[v * 3] = srgbLin(r[0] * k2); C[v * 3 + 1] = srgbLin(r[1] * k2); C[v * 3 + 2] = srgbLin(r[2] * k2);
+    if (h < lo) lo = h; if (h > hi) hi = h;
+  }
+  const drop = (s * c) * .75 + 6;
+  for (let side = 0; side < 4; side++) for (let k = 0; k <= n; k++) {
+    const a = this._edge[side](k), b = (n + 1) * (n + 1) + side * (n + 1) + k;
+    P[b * 3] = P[a * 3]; P[b * 3 + 1] = P[a * 3 + 1] - drop / U; P[b * 3 + 2] = P[a * 3 + 2];
+    for (let q = 0; q < 3; q++) { N[b * 3 + q] = N[a * 3 + q]; C[b * 3 + q] = C[a * 3 + q] * .8; }
+  }
+  for (const a of ['position', 'normal', 'color']) geo.attributes[a].needsUpdate = true;
+  const x0 = gx0 * c / U, y0 = gy0 * c / U, w = n * s * c / U;
+  geo.boundingBox.min.set(x0, (lo - drop) / U, y0); geo.boundingBox.max.set(x0 + w, hi / U, y0 + w); geo.boundingBox.getBoundingSphere(geo.boundingSphere);
+  slot.mesh.castShadow = L <= 1; slot.key = L + ':' + nx + ':' + ny; slot.L = L;
+};
+/** world.draw's step: pick the quadtree's nodes for a camera at (x, y, z) (engine units), build up to `budget` missing
+ *  ones (all of them when budget is Infinity: the first frame), show those and hide the rest */
+Terrain.prototype.drawStream = function (world, x, y, z, budget = TERRAIN_BUILDS, again = false) {
+  // frame: what this frame built or showed is never taken for another node in it; pass: what the last look showed
+  const frame = again ? this._frame : ++this._frame, pass = this._pass = (this._pass || 0) + 1, show = this._show || (this._show = []), queue = this._queue || (this._queue = []); show.length = 0; queue.length = 0;
+  const nodes = this._nodes, n = this.n, cs = this.cs, far = this.far, K = this.split;
+  const ready = (L, nx, ny) => nodes.get(L + ':' + nx + ':' + ny);
+  // nearest first, so what stands closest is built first
+  // a node splits into its four when the camera is within K of its size; one whose four aren't all built yet stands in
+  // for them (and they are queued); one not built itself is queued, and its parent stands in
+  const visit = (L, nx, ny) => {
+    const size = cs * 2 ** L, x0 = nx * size, y0 = ny * size, dx = Math.max(x0 - x, 0, x - x0 - size), dy = Math.max(y0 - y, 0, y - y0 - size), d = Math.hypot(dx, dy);
+    if (d > far) return;
+    const me = ready(L, nx, ny);
+    if (L > 0 && d < size * K) {
+      const kids = [[2 * nx, 2 * ny], [2 * nx + 1, 2 * ny], [2 * nx, 2 * ny + 1], [2 * nx + 1, 2 * ny + 1]];
+      const missing = kids.filter(([a, b]) => !ready(L - 1, a, b) && !this._outside(L - 1, a, b, x, y));
+      if (!missing.length) { for (const [a, b] of kids) visit(L - 1, a, b); return; }
+      for (const [a, b] of missing) queue.push([d, L - 1, a, b]);
+    }
+    if (!me) { queue.push([d, L, nx, ny]); return; }
+    me.used = frame; me.shown = pass; show.push(me);
+  };
+  visit(this.levels, 0, 0);
+  queue.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let built = 0;
+  for (const [, L, nx, ny] of queue) {
+    if (built >= budget) break;
+    const key = L + ':' + nx + ':' + ny; if (nodes.has(key)) continue;
+    // the slot touched longest ago (never one shown or built this frame)
+    let slot = null; for (const p of this._pool) if (p.used < frame && (!slot || p.used < slot.used)) slot = p;
+    if (!slot) break;
+    if (slot.key) nodes.delete(slot.key);
+    this._build(slot, L, nx, ny); slot.used = frame; nodes.set(key, slot); built++;
+  }
+  for (const p of this._pool) p.mesh.visible = p.shown === pass;
+  if (built && budget === Infinity) return this.drawStream(world, x, y, z, Infinity, true);
+  return built;
+};
+Terrain.prototype._outside = function (L, nx, ny, x, y) { const size = this.cs * 2 ** L, dx = Math.max(nx * size - x, 0, x - nx * size - size), dy = Math.max(ny * size - y, 0, y - ny * size - size); return Math.hypot(dx, dy) > this.far; };
+/** straight lines over open ground: a terrain's flow field (world.flow()) never steers */
+class TerrainFlow { to() { return this; } dir() { return null; } distance(x, y) { return 1e9; } }
+const srgbLin = c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4);
+
+/* =============================================================================
  * 4. PARTS DRAWN BY CODE  instanced batches of four shapes (tube, ball, box, cone) in a toon look with outlines, and
  *    two that glow (glow, halo); a pen that draws with them in engine units. Puppets, things and anything a game draws
  *    in 3D go through them, so thousands of parts cost a handful of draw calls
@@ -840,13 +1104,16 @@ class Batch {
     if (this.shell) this.shell.count = outlines ? this.n : 0;
   }
 }
-function makeBatches(world) {
-  const sc = world.scene, obj = m => world._obj(m), TOON = obj(new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS })), shell = { normal: obj(outlineMat('normal')), center: obj(outlineMat('center')) };
+/** the pen's batches in a scene: the world's own (shadows, tagged for the filters' mask), or the overlay's (sc: its scene;
+ *  no shadows, untagged: the overlay draws straight to the screen after the filter) */
+function makeBatches(world, sc = world.scene) {
+  const main = sc === world.scene, obj = m => main ? world._obj(m) : m, sh = main;
+  const TOON = obj(new THREE.MeshToonNodeMaterial({ color: '#ffffff', gradientMap: TOON_BANDS })), shell = { normal: obj(outlineMat('normal')), center: obj(outlineMat('center')) };
   return {
-    tube: new Batch(sc, new THREE.CylinderGeometry(.85, 1, 1, 7, 1, true), TOON, { outline: 'normal', shellMat: shell.normal, shadow: true, cap: 2048 }),
-    ball: new Batch(sc, new THREE.SphereGeometry(1, 9, 6), TOON, { outline: 'normal', shellMat: shell.normal, shadow: true, cap: 2048 }),
-    box: new Batch(sc, new THREE.BoxGeometry(1, 1, 1), TOON, { outline: 'center', shellMat: shell.center, shadow: true }),
-    cone: new Batch(sc, new THREE.ConeGeometry(1, 1, 6), TOON, { outline: 'normal', shellMat: shell.normal, shadow: true }),
+    tube: new Batch(sc, new THREE.CylinderGeometry(.85, 1, 1, 7, 1, true), TOON, { outline: 'normal', shellMat: shell.normal, shadow: sh, cap: 2048 }),
+    ball: new Batch(sc, new THREE.SphereGeometry(1, 9, 6), TOON, { outline: 'normal', shellMat: shell.normal, shadow: sh, cap: 2048 }),
+    box: new Batch(sc, new THREE.BoxGeometry(1, 1, 1), TOON, { outline: 'center', shellMat: shell.center, shadow: sh }),
+    cone: new Batch(sc, new THREE.ConeGeometry(1, 1, 6), TOON, { outline: 'normal', shellMat: shell.normal, shadow: sh }),
     glow: new Batch(sc, new THREE.SphereGeometry(1, 8, 6), obj(new THREE.MeshBasicNodeMaterial({ color: '#ffffff' }))),
     halo: new Batch(sc, new THREE.SphereGeometry(1, 10, 7), new THREE.MeshBasicNodeMaterial({ color: '#ffffff', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), { order: 2 }),
     blob: new Batch(sc, new THREE.CircleGeometry(1, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicNodeMaterial({ color: '#ffffff', transparent: true, opacity: .45, depthWrite: false }), { order: 1 })
@@ -860,6 +1127,7 @@ const _pa = [0, 0, 0], _pb = [0, 0, 0];
  *   box(x, y, z, w, d, h, color, yaw)  a box centred at (x, y, z): w along x, d along y, h up, turned by yaw more
  *   tube(x0, y0, z0, x1, y1, z1, r, color), cone(x0, y0, z0, x1, y1, z1, r, color) (base to tip)
  *   bar(x0, y0, z0, x1, y1, z1, w, t, color)   a flat bar from one point to the other (a blade, a plank), w wide, t thick
+ *   slab(x0, y0, z0, x1, y1, z1, ax, ay, az, w, t, color)   the same, w wide along (ax, ay, az): any way it leans
  *   glow(x, y, z, r, color), halo(x, y, z, r, color)   unlit: a glowing ball, and light that adds round it
  */
 class Pen {
@@ -880,6 +1148,12 @@ class Pen {
   bar(x0, y0, z0, x1, y1, z1, w, t, color = '#ffffff') {
     const a = this._p(x0, y0, z0, _pa), b = this._p(x1, y1, z1, _pb), hx = b[0] - a[0], hz = b[2] - a[2], l = Math.hypot(hx, hz);
     this.B.box.box(a, b, l > 1e-6 ? [-hz / l, 0, hx / l] : [1, 0, 0], w * this.k / U, t * this.k / U, this._c(color)); return this;
+  }
+  /** a box from (x0, y0, z0) to (x1, y1, z1) (its length), w wide along the direction (ax, ay, az) (in the pen's frame;
+   *  only its part square to the length counts) and t thick: a torso leaning any way, a gun's receiver along its aim */
+  slab(x0, y0, z0, x1, y1, z1, ax, ay, az, w, t, color = '#ffffff') {
+    const a = this._p(x0, y0, z0, _pa), b = this._p(x1, y1, z1, _pb), across = [ax * this.ca - ay * this.sa, az, ax * this.sa + ay * this.ca];
+    this.B.box.box(a, b, across, w * this.k / U, t * this.k / U, this._c(color)); return this;
   }
   glow(x, y, z, r, color = '#ffffff') { const k = r * this.k / U; this.B.glow.ball(this._p(x, y, z, _pa), k, k, k, typeof color === 'string' ? lin(color) : color); return this; }
   halo(x, y, z, r, color = '#ffffff') { const k = r * this.k / U; this.B.halo.ball(this._p(x, y, z, _pa), k, k, k, typeof color === 'string' ? lin(color) : color); return this; }
@@ -1239,7 +1513,8 @@ function makeAtlas(world) {
  *               [ ], the mouse once a click captures it (Esc frees it); game.zoom pulls it in; it slides in front of
  *               walls rather than through them
  *      'first'  the target's eyes (its body isn't drawn), 'fly' a free camera the move stick flies (jump up, dash
- *               down), 'fixed' stays where camera.fixed says ({ x, y, z, yaw, pitch, fov })
+ *               down), 'fixed' stays where camera.fixed says ({ x, y, z, yaw, pitch, roll, fov }): a game that runs its
+ *               own camera (a shooter's eyes, its over-the-shoulder view) sets it every step
  *    camera.ground(move) -> the move stick turned to the ground ([x, y], W walks away from the camera);
  *    camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it, or null;
  *    camera.heading: the ground angle it looks along; camera.pose: { x, y, z, yaw, pitch, fov, ortho } now
@@ -1262,6 +1537,10 @@ class Camera3D {
     /** yaw: the heading of the chase, first and fly cameras (radians, the ground angle they look along); locked: the
      *  mouse is captured (pointer lock) and turns them; mouseLook: false never captures it */
     this.yaw = o.yaw ?? -Math.PI / 2; this.locked = false; this.mouseLook = o.mouseLook !== false;
+    /** far: how far it sees (units; a terrain's far); near: its near plane (units; null: the mode's own); capture: a click
+     *  captures the mouse in any mode and its moves collect in camera.mouse ([dx, dy] pixels) for the game to take
+     *  (camera.takeMouse()) instead of turning the camera: a shooter turns its own (fixed) camera */
+    this.far = o.far || 9600; this.near = o.near || null; this.capture = !!o.capture; this.mouse = [0, 0];
     this.focus = null; this.smooth = null; this.eyeZ = 24; this.pose = null; this._gyaw = null; this._held = 0;
     this.persp = new THREE.PerspectiveCamera(40, 1, .1, 600); this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 2000); this.cam = this.persp;
     /** the cards' view of the world: the camera's axes in three.js space, the cards' pixels per metre, its turn and tilt */
@@ -1276,9 +1555,11 @@ class Camera3D {
     if (mode === 'fly' && p) Object.assign(this.fly, was === 'first' ? { x: p.x - Math.cos(p.yaw) * 56, y: p.y - Math.sin(p.yaw) * 56, z: p.z + 26, yaw: p.yaw, pitch: Math.min(p.pitch, -.3), fov: 70 } : { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, fov: p.fov || 70 });
     if (mode === 'fixed' && !this.fixed && p) this.fixed = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, fov: p.fov || 60 };
     this.mode = mode; this.smooth = null;
-    if ((mode === 'view' || mode === 'fixed') && typeof document !== 'undefined' && document.pointerLockElement) { document.exitPointerLock(); this.locked = false; }
+    if ((mode === 'view' || mode === 'fixed') && !this.capture && typeof document !== 'undefined' && document.pointerLockElement) { document.exitPointerLock(); this.locked = false; }
     return this;
   }
+  /** the mouse's moves since the last call ([dx, dy] in pixels, into out), with capture on: zeroed as it is taken */
+  takeMouse(out = [0, 0]) { out[0] = this.mouse[0]; out[1] = this.mouse[1]; this.mouse[0] = this.mouse[1] = 0; return out; }
   /** follow an actor (or any { x, y, z }) */
   follow(t) { this.target = t; this.focus = null; this.smooth = null; return this; }
   _target() { const w = this.world; return this.target || w.actors.find(a => a.kind === 'hero') || { x: w.width / 2, y: w.depth / 2, z: 0 }; }
@@ -1353,11 +1634,12 @@ class Camera3D {
     const p = this.pose || this.update(0), g = this.world.game, cam = p.ortho ? this.ortho : this.persp, aspect = w / h, sh = g.shaking || 0, t = g.real || 0;
     const shx = sh > .05 ? (Math.sin(t * 83) + Math.sin(t * 57.3)) * .5 * sh : 0, shy = sh > .05 ? (Math.sin(t * 71) + Math.sin(t * 49.7)) * .5 * sh : 0;
     if (p.ortho) { const hh = p.Hf / U / 2; Object.assign(this.ortho, { left: -hh * aspect, right: hh * aspect, top: hh, bottom: -hh, near: .1, far: 3000 }); }
-    else Object.assign(this.persp, { fov: p.fov, aspect, near: this.mode === 'first' ? .3 : .1, far: 600 });
+    else Object.assign(this.persp, { fov: p.fov, aspect, near: this.near ? this.near / U : this.mode === 'first' ? .3 : .1, far: this.far / U });
     const cp = Math.cos(p.pitch), fx = Math.cos(p.yaw) * cp, fz = Math.sin(p.yaw) * cp, fy = Math.sin(p.pitch), rx = -Math.sin(p.yaw), rz = Math.cos(p.yaw), k = .05 / U * 4;
     cam.position.set(p.x / U + rx * shx * k, p.z / U - shy * k, p.y / U + rz * shx * k);
     cam.up.set(0, 1, 0); if (Math.abs(fy) > .999) cam.up.set(Math.cos(p.yaw), 0, Math.sin(p.yaw));   // (straight down: up on the screen is where it heads)
     cam.lookAt(_v0.set(cam.position.x + fx, cam.position.y + fy, cam.position.z + fz));
+    if (p.roll) cam.rotateZ(p.roll);   // (a fixed pose may lean: a slide, a wall run)
     cam.updateMatrixWorld(); cam.updateProjectionMatrix();
     const CV = this.cv; cam.getWorldQuaternion(CV.q);
     CV.right.set(1, 0, 0).applyQuaternion(CV.q); CV.up.set(0, 1, 0).applyQuaternion(CV.q); CV.back.set(0, 0, 1).applyQuaternion(CV.q);
@@ -1428,6 +1710,16 @@ class Actor {
     if (!on && this.kind === 'mob') { this.col.setFriction(.9); this.col.setFrictionCombineRule(RAPIER.CoefficientCombineRule.Average); }
     return this;
   }
+  /** a new half for its capsule (its straight part), the feet kept where they are: a crouch, a slide, standing up again
+   *  (check the room above first: world.ray up from its head) */
+  resize(half) {
+    if (half === this.half || !this.col || !this.half) return this;
+    const d = half - this.half; this.half = half; this.foot = half + this.r; this.col.setHalfHeight(half);
+    const p = this.body.translation(); this.body.setTranslation({ x: p.x, y: p.y, z: p.z + d }, true);
+    if (this.kind === 'hero') this.body.setNextKinematicTranslation({ x: p.x, y: p.y, z: p.z + d });
+    this.world.pw.propagateModifiedBodyPositionsToColliders();
+    return this;
+  }
   /** take it out of the world */
   remove() { this.world.remove(this); }
 }
@@ -1440,7 +1732,7 @@ const RES = ['pixels', 'balanced', 'full'];
 class World3D {
   constructor(game, o = {}) {
     if (!PAGE.ready) throw new Error('my-3D2dge 3D: await E.World3D.init(game) (a boot step) before new E.World3D(game, ...)');
-    if (!o.level || !o.level.rows) throw new Error('my-3D2dge 3D: new E.World3D(game, { level: { rows: [...], legend: {...} } }) needs a level written as text');
+    if (!o.terrain && (!o.level || !o.level.rows)) throw new Error('my-3D2dge 3D: new E.World3D(game, { level: { rows: [...], legend: {...} } }) needs a level written as text (or { terrain: { height: (x, y) => z, ... } }: an open world)');
     /** game: the 2D engine's game that runs it; scene: its three.js scene (add your own meshes: E.THREE); o: its options */
     this.game = game; this.o = o; this.scene = new THREE.Scene(); this._owned = []; this._mats = new Map(); this._objMats = new Set();
     const st = game.settings || {};
@@ -1452,8 +1744,11 @@ class World3D {
     this.outlines = o.outlines !== false; this.gravity = o.gravity ?? 480; this.shadows = o.shadows ?? (st.shadows3d !== false);
     /** filter: a look over the whole picture (section 10b): { look: 'clean' | 'cel' | 'pixel', apply, bloom, fxaa, ... } */
     this.filter = Object.assign({}, FX_DEFAULT, st.filter3d && st.filter3d !== 'clean' ? { look: st.filter3d } : null, o.filter);
-    /** the level: its size (width, depth in units; mw, mh in tiles), bottom (where a fall is lost), marks */
-    const L = this.level = new Level(this, o.level);
+    /** the level: its size (width, depth in units; mw, mh in tiles), bottom (where a fall is lost), marks; terrain: the
+     *  open world's ground (section 3b) when the world was made with one, else null */
+    this._owners = new Map(); this.blocks = [];
+    const L = this.level = o.terrain ? new Terrain(this, o.terrain) : new Level(this, o.level);
+    this.terrain = o.terrain ? L : null;
     Object.assign(this, { width: L.width, depth: L.depth, mw: L.mw, mh: L.mh, bottom: L.bottom, marks: L.marks, torches: L.torches });
     /** actors, props, platforms, things: what is in the world now (read them; add and remove with the methods below) */
     this.actors = []; this.props = []; this.platforms = []; this.things = []; this.shapes = [];
@@ -1471,7 +1766,15 @@ class World3D {
     this._lights(o);
     this._sky(o);
     /** camera: see section 7 */
-    this.camera = new Camera3D(this, o.camera);
+    this.camera = new Camera3D(this, Object.assign({ far: this.terrain ? this.terrain.far * 1.1 : 9600 }, o.camera));
+    /** overlay: a scene of your own drawn over the world after it (its depth cleared first), from its own camera at the
+     *  origin: a first-person view model (the arms and the gun) that never sinks into a wall. { scene, camera (fov: set
+     *  it), pen (the world's pen, in this scene: engine units round the eye, x ahead, y right, z up), on }; lit by the
+     *  world's sun and sky as the world's camera sees them */
+    if (o.overlay) this._makeOverlay(o.overlay);
+    /** onDraw(world, r): called as each frame starts drawing, before the camera is placed: the game's own 3D drawing
+     *  (world.pen, overlay.pen, glows; a last touch to camera.pose) for every frame, whichever scene draws the world */
+    this.onDraw = o.onDraw || null;
     /** time: seconds stepped; n: steps; stats: the last frame's numbers (draw calls, triangles, actors drawn, physics
      *  and draw milliseconds) */
     this.time = 0; this.n = 0; this.stats = { calls: 0, tris: 0, drawn: 0, culled: 0, physicsMs: 0, drawMs: 0, bodies: 0, frames: 0 };
@@ -1490,7 +1793,7 @@ class World3D {
     pw.lengthUnit = U; pw.numSolverIterations = this.o.iterations || 4;
     for (const p of this.platforms) if (p.mesh) this.scene.remove(p.mesh);
     for (const p of this.props) if (p.mesh) this.scene.remove(p.mesh);
-    this.actors.length = 0; this.props.length = 0; this.platforms.length = 0; this.things.length = 0;
+    this.actors.length = 0; this.props.length = 0; this.platforms.length = 0; this.things.length = 0; this.blocks.length = 0; this._owners.clear();
     this.level.colliders(pw);
     // the level's own shapes (a legend's { shape }) stand again; a game's are gone with the rest
     this.shapes.length = 0; this._shapeKit.clear(); for (const [id, x, y, z, sp] of this.level.shapes) this.shape(id, x, y, z, sp);
@@ -1510,10 +1813,11 @@ class World3D {
   spec(cx, cy) { return this.level.spec(cx, cy); }
   solidTile(cx, cy) { return this.level.solidTile(cx, cy); }
   /** a new flow field over the walkable grid: flow.to(x, y) aims it, flow.dir(x, y, out) is the way there from (x, y) */
-  flow() { return new Flow(this.level); }
+  flow() { return this.terrain ? new TerrainFlow() : new Flow(this.level); }
   /** a random walkable spot ([x, y]): rnd (E.rng) picks it, at least minDist from (fx, fy) if given */
   randomFloor(rnd, minDist = 0, fx = 0, fy = 0) {
     const L = this.level;
+    if (this.terrain) { for (let k = 0; k < 60; k++) { const x = rnd() * L.width, y = rnd() * L.depth; if (!minDist || Math.hypot(x - fx, y - fy) >= minDist) return [x, y]; } return [L.width / 2, L.depth / 2]; }
     for (let k = 0; k < 60; k++) {
       const cx = (rnd() * L.mw) | 0, cy = (rnd() * L.mh) | 0, i = cy * L.mw + cx;
       if (!L.pass[i] || L.kind[i] === STAIRS) continue;
@@ -1527,7 +1831,36 @@ class World3D {
   clear(x0, y0, z0, x1, y1, z1) {
     const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0, L = Math.hypot(dx, dy, dz); if (L < 1e-6) return true;
     const hit = this.pw.castRay(new RAPIER.Ray({ x: x0, y: y0, z: z0 }, { x: dx / L, y: dy / L, z: dz / L }), L, true, undefined, LEVEL_ONLY);
-    return !hit;
+    return !hit && !(this.terrain && this.terrain.rayDist(x0, y0, z0, dx / L, dy / L, dz / L, L) !== null);
+  }
+  /** the first thing a ray from (x, y, z) along (dx, dy, dz) meets within len units: { x, y, z (the point), nx, ny, nz
+   *  (the surface's normal), dist, actor (a hero or mob hit, or null), prop (a crate, barrel, box or block, or null),
+   *  ground (true: the level or the terrain) } or null. o: { skip: an actor (or several) it passes through (the shooter),
+   *  level: true (only the level and platforms: a sight line), down: true (bodies laid down count) } */
+  ray(x, y, z, dx, dy, dz, len, o = {}) {
+    const l = Math.hypot(dx, dy, dz); if (l < 1e-9 || !(len > 0)) return null; dx /= l; dy /= l; dz /= l;
+    const skip = o.skip ? (Array.isArray(o.skip) ? o.skip : [o.skip]) : [], skipCol = skip.map(a => a && a.col).filter(Boolean);
+    const groups = o.level ? LEVEL_ONLY : ig(0xffff, 1 | 2 | 4 | 8 | 16 | 64 | (o.down ? 32 : 0));
+    const pred = skipCol.length > 1 ? c => !skipCol.includes(c) : undefined;
+    const h = this.pw.castRayAndGetNormal(new RAPIER.Ray({ x, y, z }, { x: dx, y: dy, z: dz }), len, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, groups, skipCol.length === 1 ? skipCol[0] : undefined, undefined, pred);
+    let t = h ? h.timeOfImpact : null, owner = h ? this._owners.get(h.collider.handle) : null, n = h ? [h.normal.x, h.normal.y, h.normal.z] : null;
+    if (this.terrain) {   // the ground beyond the colliders made so far (and under them: the same triangles)
+      const tt = this.terrain.rayDist(x, y, z, dx, dy, dz, t === null ? len : t);
+      if (tt !== null && (t === null || tt < t - .01)) { t = tt; owner = this.terrain; n = this.terrain.normal(x + dx * tt, y + dy * tt, [0, 0, 1]); }
+    }
+    if (t === null) return null;
+    const isActor = owner instanceof Actor;
+    return { x: x + dx * t, y: y + dy * t, z: z + dz * t, nx: n[0], ny: n[1], nz: n[2], dist: t, actor: isActor ? owner : null, prop: owner && !isActor && owner !== this.terrain ? owner : null, ground: !owner || owner === this.terrain };
+  }
+  /** an invisible fixed collider (a tree's trunk, a building's wall drawn your own way): { x, y, z (its base), w, d, h,
+   *  yaw } a box, or { x, y, z, r, h } a standing cylinder; it is in world.blocks until world.remove(it) or a reset */
+  block(o) {
+    const h = o.h || 16, z = (o.z ?? this.floorAt(o.x, o.y)) + h / 2, yaw = o.yaw || 0;
+    const body = this.pw.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(o.x, o.y, z).setRotation(o.r ? Z_UP : { x: 0, y: 0, z: Math.sin(yaw / 2), w: Math.cos(yaw / 2) }));
+    const desc = o.r ? RAPIER.ColliderDesc.cylinder(h / 2, o.r) : RAPIER.ColliderDesc.cuboid((o.w || 16) / 2, (o.d || 16) / 2, h / 2);
+    const col = this.pw.createCollider(desc.setFriction(o.friction ?? .6).setCollisionGroups(GROUPS.level), body);
+    const b = { isBlock: true, kind: 'block', x: o.x, y: o.y, z: z - h / 2, w: o.w || o.r * 2, d: o.d || o.r * 2, h, yaw, body, col, data: o.data || {} };
+    this._owners.set(col.handle, b); this.blocks.push(b); return b;
   }
 
   /* ---- actors ---- */
@@ -1539,7 +1872,7 @@ class World3D {
     const cc = a.cc = pw.createCharacterController(.3);
     cc.setUp({ x: 0, y: 0, z: 1 }); cc.enableSnapToGround(o.snap ?? 4); cc.enableAutostep(o.step ?? 4, 2, false); cc.setMaxSlopeClimbAngle((o.slope ?? 50) * DEG); cc.setSlideEnabled(true);
     cc.setApplyImpulsesToDynamicBodies(true); cc.setCharacterMass(o.mass ?? 2500);
-    a.z = z; a.grounded = true; this.actors.push(a);
+    a.z = z; a.grounded = true; this.actors.push(a); this._owners.set(a.col.handle, a);
     return a;
   }
   /** a mob: { x, y, rig | blob | orb, r, half, mass, fly (no gravity: it holds its own height), facing, look } */
@@ -1550,13 +1883,14 @@ class World3D {
     a.body = pw.createRigidBody(desc);
     const shape = a.half ? RAPIER.ColliderDesc.capsule(a.half, a.r).setRotation(Z_UP) : RAPIER.ColliderDesc.ball(a.r);
     a.col = pw.createCollider(shape.setFriction(0).setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min).setRestitution(0).setDensity(a.mass).setCollisionGroups(a.fly ? GROUPS.flyer : GROUPS.mob), a.body);
-    a.z = z; this.actors.push(a);
+    a.z = z; this.actors.push(a); this._owners.set(a.col.handle, a);
     return a;
   }
   /** take an actor, prop, platform or thing out of the world */
   remove(x) {
     if (!x) return;
-    const from = x instanceof Actor ? this.actors : x.isThing ? this.things : x.isPlatform ? this.platforms : x.isShape ? this.shapes : this.props, i = from.indexOf(x);
+    const from = x instanceof Actor ? this.actors : x.isThing ? this.things : x.isPlatform ? this.platforms : x.isShape ? this.shapes : x.isBlock ? this.blocks : this.props, i = from.indexOf(x);
+    if (x.col) this._owners.delete(x.col.handle);
     if (i >= 0) from.splice(i, 1); else if (x.isShape) return;
     if (x.body && this.pw) { try { this.pw.removeRigidBody(x.body); } catch (e) { /* gone with a reset */ } x.body = null; }
     if (x.isShape) this._shapeKit.take(x.kind, x);
@@ -1585,8 +1919,9 @@ class World3D {
   _prop(kind, x, y, z, yaw, shape, upright = false, fixed = false, mass = .5) {
     const half = yaw / 2, rot = upright ? Z_UP : { x: 0, y: 0, z: Math.sin(half), w: Math.cos(half) };
     const body = this.pw.createRigidBody((fixed ? RAPIER.RigidBodyDesc.fixed() : RAPIER.RigidBodyDesc.dynamic()).setTranslation(x, y, z).setRotation(rot).setLinearDamping(.3).setAngularDamping(.8));
-    this.pw.createCollider(shape.setDensity(mass).setFriction(.7).setRestitution(.05).setCollisionGroups(fixed ? GROUPS.level : GROUPS.prop), body);
-    const p = { kind, x, y, z, q: [rot.x, rot.y, rot.z, rot.w], body, hit: 0, mesh: null, data: {} };
+    const col = this.pw.createCollider(shape.setDensity(mass).setFriction(.7).setRestitution(.05).setCollisionGroups(fixed ? GROUPS.level : GROUPS.prop), body);
+    const p = { kind, x, y, z, q: [rot.x, rot.y, rot.z, rot.w], body, col, hit: 0, mesh: null, data: {} };
+    this._owners.set(col.handle, p);
     this.props.push(p); return p;
   }
   /** knock a prop: a push of dv units a second away from (fx, fy), and up by up */
@@ -1678,6 +2013,7 @@ class World3D {
     if (!(dt > 0)) { this.camera.update(0); return; }
     const t0 = performance.now(), pw = this.pw;
     this.time += dt; this.n++;
+    if (this.level.stream) this.level.stream(this);   // (a terrain: the heightfields near the actors)
     // where the platforms go this step (worked out first, given to Rapier after the heroes' controllers have looked:
     // a controller that saw a platform's next place would carry its rider some steps and not others)
     for (const p of this.platforms) this._movePlatform(p, dt);
@@ -1863,7 +2199,9 @@ Object.assign(World3D.prototype, {
     if (o.sun) {
       const s = o.sun, L = this._sun = new THREE.DirectionalLight(s.color || '#fff4e0', s.intensity ?? 2.4);
       L.castShadow = s.shadow !== false; const area = (s.area || 220) / U;
-      Object.assign(L.shadow.camera, { left: -area, right: area, top: area, bottom: -area, near: .5, far: 200 }); L.shadow.mapSize.set(s.map || 1024, s.map || 1024); L.shadow.bias = -.0015; L.shadow.normalBias = .02;
+      this._sunBack = (s.back || Math.max(960, (s.area || 220) * 1.5)) / U;   // (metres from the focus back toward the sun: what stands that far casts)
+      Object.assign(L.shadow.camera, { left: -area, right: area, top: area, bottom: -area, near: .5, far: Math.max(200, this._sunBack + area * 2.5) }); L.shadow.mapSize.set(s.map || 1024, s.map || 1024); L.shadow.bias = s.bias ?? -.0015; L.shadow.normalBias = s.normalBias ?? .02;
+      this._sunTexel = area * 2 / (s.map || 1024);
       const d = s.dir || [-.5, -.7, -.6]; this._sunDir = new THREE.Vector3(d[0], d[2], d[1]).normalize().negate();   // (engine axes -> three's; it shines along dir)
       sc.add(L); sc.add(L.target);
     }
@@ -1875,12 +2213,50 @@ Object.assign(World3D.prototype, {
     const h = Object.assign({ x: 0, y: 0, z: 0, color: '#ffffff', reach: 120, power: 12, on: true }, o); h._L = L; this._handles.push(h); return h;
   },
   _sky(o) {
-    const sky = o.sky || '#06050b', top = Array.isArray(sky) ? sky[0] : sky, bot = Array.isArray(sky) ? sky[1] : sky;
+    const sky = o.sky || '#06050b';
+    if (sky && typeof sky === 'object' && !Array.isArray(sky)) return this._dome(sky, o);
+    const top = Array.isArray(sky) ? sky[0] : sky, bot = Array.isArray(sky) ? sky[1] : sky;
     if (top === bot) this.scene.background = new THREE.Color(top);
     else this.scene.backgroundNode = TSL.mix(TSL.color(bot), TSL.color(top), TSL.screenUV.y.oneMinus().pow(.8));
     const f = o.fog === undefined ? { color: bot, near: 190, far: 1120 } : o.fog;
     this._fog = f ? { color: f.color || bot, near: f.near ?? 190, far: f.far ?? 1120 } : null;
     this.scene.fog = this._fog ? new THREE.Fog(this._fog.color, 30, 90) : null;
+  },
+  /** sky: { top, horizon, ground, sun (a disc and its glow where the sun is: true, or its color), haze }: a dome round the
+   *  camera whose colors follow where it looks (up: top; level: horizon; down: ground), for a world seen from inside
+   *  it (first person, an open world); the fog takes the horizon's color unless it says its own */
+  _dome(sky, o) {
+    const { positionLocal, mix, max, pow, dot, clamp: cl, smoothstep, color, uniform, float, select, vec3 } = TSL;
+    const dir = positionLocal.normalize(), y = dir.y, top = color(sky.top || '#3f74c4'), hor = color(sky.horizon || '#cfe0ee'), gnd = color(sky.ground || sky.horizon || '#8a8a88');
+    const above = mix(hor, top, pow(cl(y, 0, 1), float(sky.curve ?? .55))), below = mix(hor, gnd, cl(y.negate().mul(4), 0, 1));
+    let col = select(y.greaterThan(0), above, below);
+    this._sunU = uniform(new THREE.Vector3(0, 1, 0));
+    if (sky.sun !== false && o.sun) {
+      const sc = color(typeof sky.sun === 'string' ? sky.sun : '#fff1c8'), c = max(dot(dir, this._sunU), 0);
+      col = col.add(sc.mul(pow(c, 6).mul(.18).add(pow(c, 64).mul(.35)).add(smoothstep(float(.9993), float(.9996), c).mul(2.2))));
+    }
+    if (sky.haze) col = mix(col, hor, float(sky.haze).mul(float(1).sub(cl(y.abs().mul(6), 0, 1))));
+    const mat = this._obj(new THREE.MeshBasicNodeMaterial({ side: THREE.BackSide, depthWrite: false, fog: false })); mat.colorNode = vec3(col);
+    const dome = this._skyDome = new THREE.Mesh(this._own(new THREE.SphereGeometry(1, 40, 20)), mat); dome.frustumCulled = false; dome.renderOrder = -1000; this.scene.add(dome);
+    const f = o.fog === undefined ? { color: sky.horizon || '#cfe0ee', near: 3200, far: 22000 } : o.fog;
+    this._fog = f ? { color: f.color || sky.horizon || '#cfe0ee', near: f.near ?? 3200, far: f.far ?? 22000 } : null;
+    this.scene.fog = this._fog ? new THREE.Fog(this._fog.color, 30, 90) : null;
+  },
+  /* the overlay (a view model): its own scene and camera, lit by the world's sky and sun as the camera sees them */
+  _makeOverlay(o) {
+    const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(o.fov || 62, 1, o.near || .01, o.far || 40);
+    cam.lookAt(1, 0, 0);   // (along three's +x, the engine's +x: the pen's x is ahead, its y right, its z up)
+    const amb = new THREE.HemisphereLight('#ffffff', '#555555', 1.5), sun = new THREE.DirectionalLight('#ffffff', 2.2);
+    sc.add(amb); sc.add(sun); sc.add(sun.target); sc.add(cam);
+    const pen = new Pen(this); pen.B = makeBatches(this, sc);
+    this.overlay = { scene: sc, camera: cam, pen, on: o.on !== false, light: o.light ?? 1, _amb: amb, _sun: sun };
+  },
+  _lightOverlay(c3) {
+    const ov = this.overlay, A = this._ambient, q = _q0.copy(c3.quaternion).invert().premultiply(ov.camera.quaternion);
+    ov._amb.color.copy(A.color); ov._amb.groundColor.copy(A.groundColor); ov._amb.intensity = A.intensity * ov.light;
+    ov._amb.position.set(0, 1, 0).applyQuaternion(q);   // (the sky is up in the world, wherever the camera turns)
+    if (this._sun) { ov._sun.color.copy(this._sun.color); ov._sun.intensity = this._sun.intensity * ov.light; ov._sun.position.copy(this._sunDir).negate().applyQuaternion(q).multiplyScalar(5); }
+    else ov._sun.intensity = 0;
   },
   /** the torches nearest the focus lit (two of them through the shadow casters when shadows are on), your lights, the sun */
   _light(fx, fy, fz) {
@@ -1891,7 +2267,13 @@ Object.assign(World3D.prototype, {
     const rest = near.slice(sh.length);
     this._torchLights.forEach((L, k) => { const i = rest[k], on = i !== undefined; L.intensity = on ? P * FLICKER(t + T0[i].t) : 0; if (on) L.position.set(T0[i].x / U, (T0[i].z + 16) / U, T0[i].y / U); });
     for (const h of this._handles) { const L = h._L; L.intensity = h.on ? h.power : 0; if (h.on) { L.position.set(h.x / U, h.z / U, h.y / U); L.color.set(h.color); L.distance = h.reach / U; } }
-    if (this._sun) { const s = this._sun, d = this._sunDir; s.target.position.set(fx / U, fz / U, fy / U); s.position.copy(s.target.position).addScaledVector(d, -60); s.castShadow = this.shadows && this.o.sun.shadow !== false; }
+    if (this._sun) {
+      // the shadow's square follows the focus a whole texel at a time (in the light's own frame), so its edges never crawl
+      const s = this._sun, d = this._sunDir, tp = s.target.position.set(fx / U, fz / U, fy / U), tx = this._sunTexel;
+      const rt = _v0.set(0, 1, 0).cross(d); if (rt.lengthSq() < 1e-6) rt.set(1, 0, 0); rt.normalize(); const up = _s0.copy(d).cross(rt).normalize();
+      const a = tp.dot(rt), b = tp.dot(up); tp.addScaledVector(rt, Math.round(a / tx) * tx - a).addScaledVector(up, Math.round(b / tx) * tx - b);
+      s.position.copy(tp).addScaledVector(d, -this._sunBack); s.castShadow = this.shadows && this.o.sun.shadow !== false;
+    }
   },
 
   /* ---- effects for this frame: call them in your draw, before world.draw(r) ---- */
@@ -1919,7 +2301,7 @@ Object.assign(World3D.prototype, {
   /** draw the world as it stands (in your scene's draw; your HUD on r after it). r: the 2D renderer (its damage numbers
    *  and notes go on the HUD) */
   draw(r) {
-    const R = PAGE.renderer; if (!R) { this._queue.arcs.length = this._queue.glows.length = 0; return; }
+    const R = PAGE.renderer; if (!R) { this._queue.arcs.length = this._queue.glows.length = 0; for (const b of Object.values(this.B)) b.begin(); if (this.overlay) for (const b of Object.values(this.overlay.pen.B)) b.begin(); return; }
     PAGE.active = this; if (this.camera.locked && this.game.paused) document.exitPointerLock();   // a pause frees the mouse
     const t0 = performance.now(), g = this.game;
     g.particles.ground = (x, y, z) => this.level.floorAt(x, y, z);
@@ -1935,6 +2317,7 @@ Object.assign(World3D.prototype, {
     }
     const rw = this._fit(), cam = this.camera;
     if (!cam.pose) cam.update(0);
+    if (this.onDraw) this.onDraw(this, r);   // (the game's own drawing for every frame, whichever scene draws the world)
     const c3 = cam.place(rw[0], rw[1]), p = cam.pose, tg = cam._target();
     OUTLINE_PX.value.set(2 / rw[0] * cam.cv.thick, 2 / rw[1] * cam.cv.thick);
     // fog from a little past the target, however far the camera stands
@@ -1944,7 +2327,8 @@ Object.assign(World3D.prototype, {
     const fdt = clamp(g.real - (this._real ?? g.real), 0, .1); this._real = g.real;
     this.level.animateBraziers(fdt);
     const view = cam.cardView(), first = cam.mode === 'first';
-    for (const b of Object.values(this.B)) b.begin();
+    // (the pens' batches hold what the game drew with world.pen and overlay.pen before this; they empty after the render)
+    const OB = this.overlay && this.overlay.pen.B;
     this.capes.begin();
     const look = this.look;
     if (look === 'card' || this.actors.some(a => a.look === 'card')) this.atlas.begin(view);
@@ -1954,16 +2338,27 @@ Object.assign(World3D.prototype, {
     this._effects(cam.cv);
     this.atlas.end(this.outlines, cam.cv.thick);
     for (const b of Object.values(this.B)) b.end(this.outlines);
+    if (OB) for (const b of Object.values(OB)) b.end(this.outlines);
     this._shapeKit.outlines(this.outlines);
     this.capes.end();
     if (this._fx || fxOn(this.filter)) { this._fx = this._fx || makeFX(this); this._fx.tag(fxOn(this.filter)); }
+    this._frameExtras(c3, rw);
     if (!this._warm) this._warmUp(c3, view);
     R.info.reset();
     const t1 = performance.now();
     this._render(c3);
+    for (const b of Object.values(this.B)) b.begin(); if (OB) for (const b of Object.values(OB)) b.begin();
     const info = R.info.render, t2 = performance.now();
     Object.assign(this.stats, { calls: info.drawCalls, tris: info.triangles, drawn, bodies: this.pw.bodies.len(), drawMs: t2 - t0, renderMs: t2 - t1 });
     this.stats.frames++;
+  },
+  /** what a frame needs before it draws: the terrain's meshes for where the camera is (all of them the first time), the
+   *  sky's dome round the camera, the overlay's light and shape */
+  _frameExtras(c3, rw) {
+    const cp = c3.position;
+    if (this.terrain) this.terrain.drawStream(this, cp.x * U, cp.z * U, cp.y * U, this._warm ? TERRAIN_BUILDS : Infinity);
+    if (this._skyDome) { this._skyDome.position.copy(cp); this._skyDome.scale.setScalar(this.camera.far / U * .92); if (this._sun) this._sunU.value.copy(this._sunDir).negate(); }
+    if (this.overlay) { const oc = this.overlay.camera; oc.aspect = rw[0] / rw[1]; oc.updateProjectionMatrix(); this._lightOverlay(c3); }
   },
   /** the picture's size: the game's pixels ('pixels'), half the screen's or all of it, the 3D canvas laid exactly under
    *  the game's picture (so the HUD's game pixels and project() agree) */
@@ -2081,7 +2476,7 @@ Object.assign(World3D.prototype, {
     this._warm = true;
     this._arcs.prepare(8); this._rings.prepare(12); this._ribbons.prepare(6); this.atlas.prepare(view, 1);
     const Z = new THREE.Matrix4().makeScale(0, 0, 0), M = this._propMesh, inst = [M.crate, M.barrel];
-    for (const b of [...Object.values(this.B), ...Object.values(this.part)]) { inst.push(b.mesh); if (b.shell) inst.push(b.shell); }
+    for (const b of [...Object.values(this.B), ...Object.values(this.part), ...(this.overlay ? Object.values(this.overlay.pen.B) : [])]) { inst.push(b.mesh); if (b.shell) inst.push(b.shell); }
     for (const pg of this.atlas.pages) inst.push(pg.mesh);
     inst.push(this._shapeKit.probe, this._shapeKit.probeShell);   // (the shapes' shaders, before any is placed)
     const counts = inst.map(m => m.count), pools = [...this._arcs.list, ...this._rings.list, ...this._ribbons.list], vis = pools.map(m => m.visible);
@@ -2091,7 +2486,10 @@ Object.assign(World3D.prototype, {
     for (const L of [...this._shadowLights, ...this._glowLights, ...this._userLights]) { L.intensity = Math.max(L.intensity, .001); }
     this._shadowLights.forEach(L => { L.castShadow = true; });
     const capes = this.capes.mesh, cd = capes.geometry.drawRange.count, cv = capes.visible; capes.geometry.setDrawRange(0, 6); capes.visible = true;
+    const ovHid = []; if (this.overlay) this.overlay.scene.traverse(x => { if (!x.visible) { ovHid.push(x); x.visible = true; } });
+    const ovOn = this.overlay && this.overlay.on; if (this.overlay) this.overlay.on = true;
     this._render(cam);
+    for (const x of ovHid) x.visible = false; if (this.overlay) this.overlay.on = ovOn;
     capes.geometry.setDrawRange(0, cd); capes.visible = cv;
     this._shadowLights.forEach((L, i) => { L.castShadow = sh[i][0]; L.intensity = sh[i][1]; }); this._glowLights.forEach((L, i) => { L.intensity = gl[i]; }); this._userLights.forEach((L, i) => { L.intensity = ul[i]; });
     inst.forEach((m, i) => { m.count = counts[i]; }); pools.forEach((m, i) => { m.visible = vis[i]; });
@@ -2101,6 +2499,7 @@ Object.assign(World3D.prototype, {
   prepare() {
     if (!PAGE.renderer) return this;
     const rw = this._fit(); this.camera.update(0); const cam = this.camera.place(rw[0], rw[1]);
+    this._frameExtras(cam, rw);
     if (!this._warm) this._warmUp(cam, this.camera.cardView());
     return this;
   },
@@ -2211,6 +2610,8 @@ Object.assign(World3D.prototype, {
     const on = fxOn(this.filter);
     if (on || this._fx) { this._fx = this._fx || makeFX(this); this._fx.tag(on); }
     if (on) this._fx.render(cam); else PAGE.renderer.render(this.scene, cam);
+    const ov = this.overlay;
+    if (ov && ov.on) { const R = PAGE.renderer; R.autoClear = false; R.clearDepth(); R.render(ov.scene, ov.camera); R.autoClear = true; }
   }
 });
 
