@@ -7,6 +7,9 @@ One version number covers the engine, its agent edition, the docs and the games 
 
 ## 0.51.1 (2026-10-17)
 
+Drawing between steps finished, after a review of v0.51.0.
+
+- **Rendering**: between steps the engine also interpolates moving platforms (riders slid on them), each actor's facing, the camera's roll, and orthographic cameras; a cape, hair and a blade's ribbon move with their body (they detached); time stopped (`timeScale` 0) and the frame a hit-stop starts show the last step whole (they were drawn part way, then jumped); a pose `onDraw` changes in place counts as the game's; and the actors' positions are put back even if drawing throws. The shooter shows a hit-stop's first frame whole too.
 - **Tools**: `tools/phone-test.mjs` measures the whole real-clock pacing sequence (a light run, then a heavy one) once more when a reading misses: the full suite on v0.51.0 failed once with the screen read as 60 Hz (the light run that reads it fell to 60 Hz on a busy machine); v0.51.0 re-measured only the heavy run.
 
 ## 0.51.0 (2026-10-17)

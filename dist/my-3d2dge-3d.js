@@ -2020,10 +2020,11 @@ class World3D {
   /* ---- a step of the game: platforms, the heroes' controllers, the mobs' wishes, Rapier, then where all is ---- */
   /** advance the world by dt (the game's fixed step): call it once in your scene's update, after your rules */
   step(dt) {
-    if (!(dt > 0)) { this.camera.update(0); return; }
+    if (!(dt > 0)) { this._stepAt = -1; this.camera.update(0); return; }   // (time stopped: frames show the last step as it is)
     const t0 = performance.now(), pw = this.pw;
     this.time += dt; this.n++;
-    for (const a of this.actors) (a._ip || (a._ip = [0, 0, 0])).splice(0, 3, a.x, a.y, a.z || 0);   // (where each was before the step: a frame between steps draws them part way)
+    for (const a of this.actors) (a._ip || (a._ip = [0, 0, 0, 0])).splice(0, 4, a.x, a.y, a.z || 0, a.rig ? a.rig.facing : a.facing || 0);   // (where each was, and its facing, before the step: a frame between steps draws them part way)
+    for (const q of this.platforms) (q._ip || (q._ip = [0, 0, 0])).splice(0, 3, q.x, q.y, q.z);
     this.camera._was = this.camera.pose; this._stepAt = this.game.real;
     if (this.level.stream) this.level.stream(this);   // (a terrain: the heightfields near the actors)
     // where the platforms go this step (worked out first, given to Rapier after the heroes' controllers have looked:
@@ -2333,14 +2334,15 @@ Object.assign(World3D.prototype, {
     }
     const rw = this._fit(), cam = this.camera;
     if (!cam.pose) cam.update(0);
+    const p0 = cam.pose, pk = p0 && [p0.x, p0.y, p0.z, p0.yaw, p0.pitch, p0.fov, p0.roll].join();   // (a pose onDraw changes, replaced or in place, is the game's)
     if (this.onDraw) this.onDraw(this, r);   // (the game's own drawing for every frame, whichever scene draws the world)
     // the steps run 120 times a second: a frame between two draws the camera and the actors part way (game.alpha), so
     // motion is even at 90, 144 or 240 Hz; after a step that didn't run the world (paused, a hit-stop) it shows the last
     // as it is. A pose the game set itself (onDraw) is the game's to place
-    const al = this._al = this._stepAt === g.real ? clamp(g.alpha, 0, 1) : 1, sp = cam.pose, wp0 = cam._was;
-    if (al < 1 && wp0 && sp === cam._stepPose && !sp.ortho && Math.abs(sp.x - wp0.x) + Math.abs(sp.y - wp0.y) + Math.abs(sp.z - wp0.z) < 60) {
+    const al = this._al = this._stepAt === g.real && !(g.hitstop > 0) ? clamp(g.alpha, 0, 1) : 1, sp = cam.pose, wp0 = cam._was;   // (the frame a hit-stop starts shows the blow's step whole)
+    if (al < 1 && wp0 && sp === cam._stepPose && sp === p0 && [sp.x, sp.y, sp.z, sp.yaw, sp.pitch, sp.fov, sp.roll].join() === pk && Math.abs(sp.x - wp0.x) + Math.abs(sp.y - wp0.y) + Math.abs(sp.z - wp0.z) < 60) {
       const k = 1 - al, dy = ((sp.yaw - wp0.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-      cam.pose = Object.assign({}, sp, { x: sp.x + (wp0.x - sp.x) * k, y: sp.y + (wp0.y - sp.y) * k, z: sp.z + (wp0.z - sp.z) * k, yaw: sp.yaw - dy * k, pitch: sp.pitch + (wp0.pitch - sp.pitch) * k, fov: sp.fov + ((wp0.fov ?? sp.fov) - sp.fov) * k });
+      cam.pose = Object.assign({}, sp, { x: sp.x + (wp0.x - sp.x) * k, y: sp.y + (wp0.y - sp.y) * k, z: sp.z + (wp0.z - sp.z) * k, yaw: sp.yaw - dy * k, pitch: sp.pitch + (wp0.pitch - sp.pitch) * k, fov: sp.fov + ((wp0.fov ?? sp.fov) - sp.fov) * k, roll: (sp.roll || 0) + ((wp0.roll || 0) - (sp.roll || 0)) * k });
     }
     const c3 = cam.place(rw[0], rw[1]), p = cam.pose, tg = cam._target(); cam.pose = sp;
     OUTLINE_PX.value.set(2 / rw[0] * cam.cv.thick, 2 / rw[1] * cam.cv.thick);
@@ -2426,10 +2428,21 @@ Object.assign(World3D.prototype, {
     for (const a of this.actors) {   // (each drawn part way from where it was before the last step, then put back; one that jumped is where it is)
       const w = a._ip, dx = w && k ? (w[0] - a.x) * k : 0, dy = w && k ? (w[1] - a.y) * k : 0, dz = w && k ? (w[2] - (a.z || 0)) * k : 0, m = Math.abs(dx) + Math.abs(dy) + Math.abs(dz) < 40 * k;
       if (!m) { one(a); continue; }
-      const ax = a.x, ay = a.y, az = a.z, R = a.rig, rx = R && R.x, ry = R && R.y, rz = R && R.z;   // (put back exactly: the steps read them)
-      a.x += dx; a.y += dy; a.z = (az || 0) + dz; if (R) { R.x += dx; R.y += dy; R.z = (rz || 0) + dz; }
-      one(a);
-      a.x = ax; a.y = ay; a.z = az; if (R) { R.x = rx; R.y = ry; R.z = rz; }
+      // (the body, its facing, and what hangs off it in the world: the cape, the hair, the blade's ribbon; all put back
+      // exactly, even if drawing throws: the steps read them)
+      const ax = a.x, ay = a.y, az = a.z, af = a.facing, R = a.rig, rx = R && R.x, ry = R && R.y, rz = R && R.z, rf = R && R.facing, f1 = R ? rf : af || 0;
+      const df = ((w[3] - f1 + Math.PI * 3) % (Math.PI * 2)) - Math.PI, pts = [], arr = [];
+      if (R) { for (const ch of [R.capeL, R.capeR, R._hairPts]) if (ch) for (const n of ch) pts.push(n, n.x, n.y, n.z); for (const q of R.trail || []) for (const v of [q.b, q.t, q.o]) if (v) arr.push(v, v[0], v[1], v[2]); }
+      try {
+        a.x += dx; a.y += dy; a.z = (az || 0) + dz; if (R) { R.x += dx; R.y += dy; R.z = (rz || 0) + dz; R.facing = rf + df * k; } else if (af !== undefined) a.facing = af + df * k;
+        for (let i = 0; i < pts.length; i += 4) { pts[i].x += dx; pts[i].y += dy; pts[i].z += dz; }
+        for (let i = 0; i < arr.length; i += 4) { arr[i][0] += dx; arr[i][1] += dy; arr[i][2] += dz; }
+        one(a);
+      } finally {
+        a.x = ax; a.y = ay; a.z = az; a.facing = af; if (R) { R.x = rx; R.y = ry; R.z = rz; R.facing = rf; }
+        for (let i = 0; i < pts.length; i += 4) { pts[i].x = pts[i + 1]; pts[i].y = pts[i + 2]; pts[i].z = pts[i + 3]; }
+        for (let i = 0; i < arr.length; i += 4) { arr[i][0] = arr[i + 1]; arr[i][1] = arr[i + 2]; arr[i][2] = arr[i + 3]; }
+      }
     }
     this._ribbons.hideFrom(nr);
     this.stats.culled = this.actors.length - drawn;
@@ -2456,7 +2469,8 @@ Object.assign(World3D.prototype, {
       if (p.kind === 'crate') M.crate.setMatrixAt(nc++, _m4); else M.barrel.setMatrixAt(nb++, _m4);
     }
     M.crate.count = nc; M.barrel.count = nb; M.crate.instanceMatrix.needsUpdate = M.barrel.instanceMatrix.needsUpdate = true;
-    for (const q of this.platforms) toThree(q.x, q.y, q.z - q.h / 2, q.mesh.position);
+    const k = 1 - (this._al ?? 1);   // (moving platforms part way between steps, as their riders are)
+    for (const q of this.platforms) { const w = q._ip, m = w && k && Math.abs(w[0] - q.x) + Math.abs(w[1] - q.y) + Math.abs(w[2] - q.z) < 40 ? k : 0; toThree(q.x + (m ? (w[0] - q.x) * m : 0), q.y + (m ? (w[1] - q.y) * m : 0), q.z - q.h / 2 + (m ? (w[2] - q.z) * m : 0), q.mesh.position); }
   },
   /** the frame's arcs, glows (the first four lit) and the game's particles; your lights */
   _effects(v) {
