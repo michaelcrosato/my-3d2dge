@@ -1539,7 +1539,7 @@ const SHOOT = (() => {
         let along, lift, roll = 0;
         if (q < duty) { const t = q / duty; along = reach * (1 - 2 * t); lift = 0; roll = t > .7 ? -(t - .7) / .3 * .6 : 0; }   // (the heel rises as it pushes off)
         else { const t = (q - duty) / (1 - duty); along = -reach + 2 * reach * ease(t); lift = Math.sin(t * Math.PI) * (2 + run * 3.2) * k; roll = lerp(-.7, .45, t); }   // (toe down off the ground, up to meet it)
-        const base = add(add([b.x, b.y, 0], rt, side * (2.1 - run * .5) * k * (1 + b.cr * .25)), md, along * b.amp);
+        const base = add(add([b.x, b.y, 0], rt, side * (2.1 - run * .5) * k * (1 + b.cr * .25)), md, along * b.amp * Math.min(1, sp / 24));   // (the stride shrinks to nothing as the body turns back through a stop: its way flips there)
         // (the foot on the ground stays where it was put down while the body turns, slows or changes way over it, up
         // to a stride from where the gait would have it; a swing carries it on from where it left the ground)
         const FW = b.feetW || (b.feetW = [null, null]); let f = FW[i], p = [base[0], base[1]];
