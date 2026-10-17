@@ -112,9 +112,15 @@
           "links": []
         },
         {
+          "page": "dist/kits/my-3d2dge-3d-shooter.html",
+          "title": "3D shooter",
+          "what": "An open world two kilometres across (Apex Legends without the multiplayer), first or third person: sprint, slide, vault, mantle, climb, ziplines, kick doors in; a rifle, a shotgun, a punch and grenades against raiders holding five outposts.",
+          "links": []
+        },
+        {
           "page": "dist/my-3d2dge-3d.html",
           "title": "3D in one file",
-          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and both 3D games. Served, not opened from a disk.",
+          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and all three 3D games. Served, not opened from a disk.",
           "links": []
         }
       ]

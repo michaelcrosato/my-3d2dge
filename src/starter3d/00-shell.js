@@ -7,6 +7,9 @@
  *   SLICE 2  PLATFORMER  a sunlit course over the void (Mario 64, Spyro): run, jump, double jump, a dash in the air;
  *                        stairs, ledges, floating and moving platforms, springs; slimes to stomp, coins, three stars,
  *                        checkpoint flags and a goal
+ *   SLICE 3  SHOOTER     an open world two kilometres across (Apex Legends without the multiplayer, first or third
+ *                        person): sprint, slide, vault, mantle, climb, ladders, ziplines, doors to kick in; a rifle and
+ *                        a shotgun with recoil and reloads, a punch, grenades; raiders holding five outposts
  * THE 3D WORLD UNDER THE GAME: E.Game runs the game as it runs a 2D one (scenes, exact fixed steps, input, the pause
  * menu, settings, sound) with bg: null, so its canvas is clear; E.World3D draws the 3D world under it (three.js r182 and
  * Rapier 0.19.3). A slice's scene steps its world in update (world.step(dt)) and draws it in draw (world.draw(r)), then
@@ -15,7 +18,7 @@
  * wheel, - and = (a pinch on a phone) zoom, 0 resets it, M mutes; the pause menu's Display has the 3D settings
  * (characters as cards or puppets, the picture's resolution, shadows).
  * To make your own game: copy the slice closest to your genre, then replace everything between GAME START and GAME END
- * with ONLY your game: its own title, play and game-over scenes. Deep links: #action, #platformer.
+ * with ONLY your game: its own title, play and game-over scenes. Deep links: #action, #platformer, #shooter.
  * ======================================================================== */
 const E = My3D2dge, W3 = E.World3D, { clamp, lerp, approach, TAU } = E;
 
@@ -27,7 +30,8 @@ const P = game.particles, A = game.audio;
 const scenes = {}, BOOT = [];    // BOOT: the slices' heavy setup, [label, fn] steps run behind the boot screen
 const SLICES = [
   { id: 'action', label: 'ACTION', about: 'A 3D ARENA: COMBOS, DASHES AND WAVES' },
-  { id: 'platformer', label: 'PLATFORMER', about: 'A 3D COURSE: ISLANDS, PLATFORMS AND COINS' }
+  { id: 'platformer', label: 'PLATFORMER', about: 'A 3D COURSE: ISLANDS, PLATFORMS AND COINS' },
+  { id: 'shooter', label: 'SHOOTER', about: 'AN OPEN WORLD: MOVE, CLIMB AND FIGHT, FIRST OR THIRD PERSON' }
 ];
 // a prompt in the player's own controls ('J Sword', 'X Sword', 'ATTACK Sword' on a touch screen)
 // (a phone or tablet before its first touch counts too: a coarse pointer and nothing else used yet)
@@ -48,10 +52,11 @@ function cameraKey(world) {
 }
 addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || game.paused) return;
+  if (e.code === 'KeyM') { A.mute(); return; }
+  if (active && active.camera.mode === 'fixed') return;   // (a slice that runs its own camera: its keys are its own)
   if (e.code === 'KeyV') { game.nextView(); if (active) active.camera.set('view'); game.note(viewName()); }
   else if (e.code === 'Digit0') { game.settings.set('zoom', 1); game.resetCamera(); game.note('CAMERA RESET'); }
   else if (e.code === 'BracketLeft' || e.code === 'BracketRight') { game.rotateView(e.code === 'BracketLeft' ? -45 : 45); game.note('TURN ' + game.yaw); }
-  else if (e.code === 'KeyM') A.mute();
 });
 /** a dark veil over the 3D picture (the title's lower third, a game over) */
 const veil = (g, r, y0, a = .55) => { g.save(); g.fillStyle = '#05030c'; g.globalAlpha = a; g.fillRect(0, y0, r.bw, r.bh - y0); g.restore(); g._c = null; };
