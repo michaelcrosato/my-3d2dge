@@ -2040,7 +2040,11 @@ class World3D {
   _moveHero(a, dt) {
     if (!a.fly) a.vz = Math.max(-600, a.vz - this.gravity * dt);
     a.cc.computeColliderMovement(a.col, { x: a.vx * dt, y: a.vy * dt, z: a.vz * dt }, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, HERO_QUERY);
-    const m = a.cc.computedMovement(), p = a.body.translation(), on = a.on, ground = a.cc.computedGrounded() || (on && a.vz <= 0);
+    let m = a.cc.computedMovement(); const p = a.body.translation(), on = a.on, ground = a.cc.computedGrounded() || (on && a.vz <= 0);
+    // Rapier's controller, pressed by a step's gravity into a floor it already touches (a hit at time 0), now and then
+    // slides nowhere: a walking hero stopped dead for a step every few seconds. Then the move is tried along the floor
+    const want = Math.hypot(a.vx, a.vy) * dt;
+    if (ground && a.vz <= 0 && want > .02 && Math.hypot(m.x, m.y) < want * .01) { a.cc.computeColliderMovement(a.col, { x: a.vx * dt, y: a.vy * dt, z: 0 }, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, HERO_QUERY); m = a.cc.computedMovement(); }
     if (ground && a.vz <= 0) a.vz = 0;
     if (!ground && a.vz > 0 && m.z < a.vz * dt * .5) a.vz = 0;   // a head bump
     a.landed = ground && !a.grounded; a.grounded = !!ground;
