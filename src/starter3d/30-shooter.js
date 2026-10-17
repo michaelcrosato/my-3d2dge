@@ -9,8 +9,9 @@
  * THE 3D: the ground is a terrain (world terrain: a height and a color function, streamed in chunks for the physics
  * and the picture); the structures are one merged mesh over fixed blocks; grass is merged tufts that sway (TSL); trees
  * and rocks are shapes streamed by chunk. Every soldier is drawn by code with the pen on a procedural skeleton (feet
- * planted by IK on the ground under them, a spine that leans and twists, hands on the gun); first person draws its arms
- * and guns with the overlay's pen, which never sinks into a wall. SHOOT.run(n): the proof's hash
+ * planted by IK on the ground under them, stepping round as it turns on the spot, a spine that leans and twists, hands
+ * on the gun); first person draws its arms and guns with the overlay's pen, which never sinks into a wall. Muzzle
+ * flashes and hits are stars of additive streaks facing the eye. SHOOT.run(n): the proof's hash
  * ===================================================================================== */
 const SHOOT = (() => {
   const M = 16;   // engine units a metre
@@ -545,7 +546,7 @@ const SHOOT = (() => {
   /* =====================================================================
    * FX: tracers (streaks that fly from the muzzle to what was hit), bullet holes (a ring of decals), impacts by surface
    * ===================================================================== */
-  const TR_MAX = 64, DC_MAX = 160, fx = { tracers: [], decals: 0, trMesh: null, dcMesh: null, cam: [0, 0, 0] };
+  const TR_MAX = 64, DC_MAX = 160, FL_MAX = 16, FL_V = 3 * (16 + 6 * 2 + 2), fx = { tracers: [], decals: 0, trMesh: null, dcMesh: null, flW: null, flO: null, cam: [0, 0, 0], flashes: { world: [], ov: [] }, stars: [] };
   function fxMeshes(world) {
     const T3 = E.THREE, { attribute } = E.TSL;
     const tg = new T3.BufferGeometry(), ti = [];
@@ -561,6 +562,11 @@ const SHOOT = (() => {
     const dm = new T3.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: T3.DoubleSide });
     dm.colorNode = attribute('dc', 'vec4').rgb; dm.opacityNode = attribute('dc', 'vec4').a;
     fx.dcMesh = new T3.Mesh(dg, dm); fx.dcMesh.frustumCulled = false; fx.dcMesh.renderOrder = 1; world.scene.add(fx.dcMesh);
+    const flashMesh = sc => {
+      const g = new T3.BufferGeometry(); for (const a of ['position', 'color', 'normal']) g.setAttribute(a, new T3.BufferAttribute(new Float32Array(FL_MAX * FL_V * 3), 3));
+      g.setDrawRange(0, 3); const m = new T3.Mesh(g, tm); m.frustumCulled = false; m.renderOrder = 4; sc.add(m); return m;
+    };
+    fx.flW = flashMesh(world.scene); fx.flO = flashMesh(world.overlay.scene);
   }
   /** a tracer from a to b (engine units): a bright streak flying at `speed` units a second */
   function tracer(a, b, color = '#ffd890', speed = 9000, width = .5) {
@@ -598,6 +604,37 @@ const SHOOT = (() => {
     }
     g.setDrawRange(0, Math.max(6, n * 6)); if (!n) P.fill(0, 0, 12);
     g.attributes.position.needsUpdate = g.attributes.color.needsUpdate = true;
+  }
+  /** a frame's muzzle flashes as stars facing the eye at cam: a white-hot core, four to six spikes of flame of different
+   *  lengths turned at random, a plume along the barrel; additive, so each fades to nothing at its edges and tips. They
+   *  last two frames: the shot's, full, and one fading (each its own shape) */
+  const FL_PAL = { fire: [[1.7, 1.45, 1], [1.3, .7, .22], [.5, .17, .03]], white: [[1.6, 1.6, 1.55], [1.1, 1, .85], [.35, .3, .26]], blue: [[1.3, 1.6, 1.8], [.45, .9, 1.4], [.08, .24, .5]], purple: [[1.6, 1.4, 1.8], [.95, .55, 1.4], [.3, .1, .5]] };
+  /** a hit's star at p (facing d's way, size s, palette 'white', 'blue' or 'purple'): two frames, held through a hit-stop */
+  function impactStar(p, d, s, pal) { if (fx.stars.length < 12) fx.stars.push({ p: p.slice(), f: d.slice(), s, pal, t: 0, seed: 1 + Math.floor(Math.abs(p[0] * 31 + p[1] * 17 + p[2] * 7)) % 2147483000 }); }
+  function drawFlashes(mesh, list, cam) {
+    const g = mesh.geometry, P = g.attributes.position.array, C = g.attributes.color.array, K = [0, 0, 0]; let v = 0;
+    const put = (q, c) => { P[v * 3] = q[0] / M; P[v * 3 + 1] = q[2] / M; P[v * 3 + 2] = q[1] / M; C[v * 3] = c[0]; C[v * 3 + 1] = c[1]; C[v * 3 + 2] = c[2]; v++; };
+    const tri = (a, ca, b, cb, c, cc) => { put(a, ca); put(b, cb); put(c, cc); };
+    for (const fl of list) {
+      const { p, s } = fl, h = fl.heat, view = nrm(sub(p, cam)), a = nrm(cross(view, Math.abs(view[2]) < .95 ? UP : [1, 0, 0])), b = cross(a, view);
+      let r = fl.seed; const rn = () => (r = (r * 16807) % 2147483647) / 2147483647;
+      const pal = FL_PAL[fl.pal || 'fire'], hot = mul(pal[0], h), warm = mul(pal[1], h), tip = mul(pal[2], h), ring = (rr, t) => add(add(p, a, Math.cos(t) * rr), b, Math.sin(t) * rr);
+      const rc = s * (.55 + rn() * .2), dim = mul(warm, .3);
+      for (let i = 0; i < 8; i++) { tri(p, hot, ring(rc, i / 8 * TAU), K, ring(rc, (i + 1) / 8 * TAU), K); tri(p, dim, ring(rc * 3.4, i / 8 * TAU), K, ring(rc * 3.4, (i + 1) / 8 * TAU), K); }   // (and the air round it, lit)
+      const n = 4 + Math.floor(rn() * 3), rot = rn() * TAU;
+      for (let i = 0; i < n; i++) {
+        const t = rot + i / n * TAU + (rn() - .5) * .6, d = add(mul(a, Math.cos(t)), b, Math.sin(t)), pp = add(mul(a, -Math.sin(t)), b, Math.cos(t));
+        const len = s * (1 + rn() * 1.9) * (i % 2 ? .7 : 1), w = s * (.16 + rn() * .1), e = add(p, d, len), m = add(p, d, len * .2);
+        tri(p, warm, add(m, pp, w), K, e, tip); tri(p, warm, e, tip, add(m, pp, -w), K);
+      }
+      const wa = cross(fl.f, view), wl = Math.hypot(...wa);
+      if (wl > .05) {
+        const len = s * (1.8 + rn() * 1.2), e = add(p, fl.f, len), m = add(p, fl.f, len * .3), w = mul(wa, s * .34 / wl);
+        tri(p, hot, add(m, w), K, e, tip); tri(p, hot, e, tip, sub(m, w), K);
+      }
+    }
+    g.setDrawRange(0, Math.max(3, v)); if (!v) P.fill(0, 0, 9);
+    g.attributes.position.needsUpdate = g.attributes.color.needsUpdate = true; list.length = 0;
   }
 
   /* =====================================================================
@@ -656,7 +693,7 @@ const SHOOT = (() => {
     return { look: LOOKS[look], k, x: 0, y: 0, z: 0, yaw: 0, aimYaw: 0, aimPitch: 0, vx: 0, vy: 0, vz: 0, grounded: true, move: 'stand', sprint: false, ads: false, weapon: 'rifle',
       act: null, actT: 0, ledge: null, wallN: null, zipP: null, ladder: null, dead: null, hit: [0, 0, 0], flinch: 0, fire: 0, visible: true, onGround: null,
       // pose state
-      ph: 0, amp: 0, cr: 0, sl: 0, air: 0, adsB: 0, spB: 0, leanF: SPR(), leanS: SPR(), dip: SPR(), jx: SPR(), jy: SPR(), jz: SPR(), rec: SPR(), pvx: 0, pvy: 0, twist: 0, J: null, G: null, feet: [null, null] };
+      ph: 0, amp: 0, cr: 0, sl: 0, air: 0, adsB: 0, spB: 0, leanF: SPR(), leanS: SPR(), dip: SPR(), jx: SPR(), jy: SPR(), jz: SPR(), rec: SPR(), pvx: 0, pvy: 0, twist: 0, J: null, G: null, feet: [null, null], stance: null };
   }
   /** the ground under a foot: the level's (the terrain, a floor, a roof) by a short ray down, else the body's own */
   function footGround(world, b, x, y) {
@@ -687,6 +724,19 @@ const SHOOT = (() => {
     if (b.move === 'stand' && !walking) pz += Math.sin(world.time * 1.6) * .12 * k;   // breathing
     const P = [b.x + b.jx.x * .3, b.y + b.jy.x * .3, b.z + pz];
     if (walking) { const sw = Math.sin(b.ph * TAU) * (.35 + run * .25) * b.amp * k; P[0] += rt[0] * sw; P[1] += rt[1] * sw; }
+    // turning on the spot: the feet keep the heading they planted at (the hips turn over them) until the body has turned
+    // past it, then step round one after the other, the foot on the side it turns to first
+    if (!((b.move === 'stand' || b.move === 'crouch') && !(walking && b.amp > .02))) b.stance = null;
+    else {
+      if (!b.stance || Math.hypot(b.x - b.stance.x, b.y - b.stance.y) > 3 * k) b.stance = { yaw: b.yaw, x: b.x, y: b.y, from: null, t: 1, lead: 0 };
+      const S0 = b.stance, dyaw = ((b.yaw - S0.yaw + Math.PI * 3) % TAU) - Math.PI;
+      if (S0.t >= 1 && Math.abs(dyaw) > .55) Object.assign(S0, { from: { yaw: S0.yaw, x: S0.x, y: S0.y }, yaw: b.yaw + dyaw * .15, x: b.x, y: b.y, t: 0, lead: dyaw > 0 ? 1 : 0 });
+      if (S0.t < 1) S0.t = Math.min(1, S0.t + dt / .32);
+    }
+    const standFoot = (i, yaw, x, y) => {
+      const f = [Math.cos(yaw), Math.sin(yaw), 0], r = [-f[1], f[0], 0], side = i ? 1 : -1;
+      return { p: add(add([x, y, 0], r, side * (2.1 + b.cr * .7) * k), f, (i ? 1.2 : -.9) * k * (1 + b.cr)), toe: nrm(add(f, r, side * .25)) };
+    };
     // ---- the feet on the ground (the gait, standing, crouched, sliding, on a rung), before the pelvis settles to them ----
     const footZ = (x, y) => fine ? footGround(world, b, x, y) : b.z, A = [null, null], toe = [fw, fw];
     for (let i = 0; i < 2; i++) {
@@ -705,8 +755,12 @@ const SHOOT = (() => {
         const base = add(add([b.x, b.y, 0], rt, side * (2.1 - run * .5) * k * (1 + b.cr * .25)), md, along * b.amp);
         A[i] = [base[0], base[1], footZ(base[0], base[1]) + 1.15 * k + lift * b.amp]; toe[i] = nrm(add(add(fw, md, .5), UP, roll * b.amp));
       } else if (b.move === 'stand' || b.move === 'crouch') {   // standing: feet apart, the rear one turned out; crouched: wider, a knee forward
-        const base = add(add([b.x, b.y, 0], rt, side * (2.1 + b.cr * .7) * k), fw, (i ? 1.2 : -.9) * k * (1 + b.cr));
-        A[i] = [base[0], base[1], footZ(base[0], base[1]) + 1.15 * k]; toe[i] = nrm(add(fw, rt, side * .25));
+        const S0 = b.stance, now = standFoot(i, S0.yaw, S0.x, S0.y); let base = now.p, lift = 0, tq = now.toe;
+        if (S0.t < 1 && S0.from) {   // a step round: lifted, carried, put down
+          const u = clamp((S0.t - (i === S0.lead ? 0 : .42)) / .58, 0, 1), was = standFoot(i, S0.from.yaw, S0.from.x, S0.from.y);
+          base = mixv(was.p, now.p, ease(u)); lift = Math.sin(u * Math.PI) * 1.5 * k; tq = nrm(mixv(was.toe, now.toe, u));
+        }
+        A[i] = [base[0], base[1], footZ(base[0], base[1]) + 1.15 * k + lift]; toe[i] = tq;
       }
     }
     // a kick: the right leg snaps out ahead at the waist and back (the torso leans away to balance)
@@ -753,7 +807,7 @@ const SHOOT = (() => {
    *  dipped for a punch or a throw, tilted for a reload; pushed back by recoil */
   function gunFrame(b, C, N, Hd, upC, fC, rtT) {
     const k = b.k, aim = frameYP([0, 0, 0], b.aimYaw, b.aimPitch);
-    let F = { o: add(add(add(N, fC, 3.1 * k), rtT, 2.3 * k), upC, -3 * k), f: aim.f, u: aim.u, r: aim.r };
+    let F = { o: add(add(add(N, fC, 3.1 * k), rtT, 3 * k), upC, -3 * k), f: aim.f, u: aim.u, r: aim.r };   // (the stock in the right shoulder's pocket)
     if (b.adsB > .01) F.o = mixv(F.o, add(add(add(Hd, aim.f, 3 * k), aim.u, -2.6 * k), aim.r, .5 * k), b.adsB);
     if (b.spB > .01) { const sw = Math.sin(b.ph * TAU) * b.amp, lo = turn(F, (-.75 + sw * .08) * b.spB, -.35 * b.spB, -.25 * b.spB); lo.o = mixv(F.o, add(add(add(C, fC, 1.6 * k + sw * .8 * k), rtT, 3.2 * k), upC, -3.6 * k), b.spB); F = lo; }   // (low at the hip, in the right hand, swinging with the stride)
     if (b.move === 'slide') F = turn(F, 0, 0, -.35 * b.sl);
@@ -761,7 +815,7 @@ const SHOOT = (() => {
     if (a) {
       const t = b.actT;
       if (a === 'reload') { const R = reloadCurve(b.weapon, t, b.reloadDur, b.reloadEmpty); F = turn(F, R.pitch, R.yaw, R.roll); F.o = add(F.o, F.u, R.lift * k); }
-      else if (a === 'melee' || a === 'throw' || a === 'kick') { const d = win(t, 0, .12) * (1 - win(t, .4, .6)); F = turn(F, -.7 * d, .5 * d, .6 * d); F.o = add(add(F.o, F.r, 1.5 * d * k), F.u, -2.2 * d * k); }
+      else if (a === 'melee' || a === 'throw' || a === 'kick') { const d = a === 'melee' ? win(t, 0, .07) * (1 - win(t, .32, .5)) : win(t, 0, .12) * (1 - win(t, .4, .6)); F = turn(F, -.7 * d, .5 * d, .6 * d); F.o = add(add(F.o, F.r, 1.5 * d * k), F.u, -2.2 * d * k); }
       else if (a === 'swap') { const d = Math.sin(Math.min(1, t / .5) * Math.PI); F = turn(F, -1.1 * d, 0, .3 * d); F.o = add(F.o, F.u, -3 * d * k); }
     }
     if (['mantle', 'climb', 'ladder'].includes(b.move)) { const d = 1; F = turn(F, -1.3 * d, .9 * d, .3); F.o = add(add(C, rtT, 2 * k), [0, 0, -3 * k]); }
@@ -781,7 +835,7 @@ const SHOOT = (() => {
     }
     if (a === 'reload') { const R2 = reloadCurve(b.weapon, t, b.reloadDur, b.reloadEmpty); if (R2.hand) Lh = at(G, R2.hand[0] * k, R2.hand[1] * k, R2.hand[2] * k); }
     if (a === 'melee') {   // the left fist: back, then out across the front at chest height, then home
-      const wind = win(t, 0, .1), hit = win(t, .1, .17), back = win(t, .3, .55), aim = [Math.cos(b.aimYaw), Math.sin(b.aimYaw), Math.sin(b.aimPitch) * .6];
+      const wind = win(t, 0, .05), hit = win(t, .05, .11), back = win(t, .28, .5), aim = [Math.cos(b.aimYaw), Math.sin(b.aimYaw), Math.sin(b.aimPitch) * .6];
       const cock = add(add(C, rtT, -3.5 * k), fC, -.5 * k), strike = add(add(C, aim, 9 * k), upC, 1.6 * k);
       Lh = mixv(mixv(mixv(Lh, cock, wind), strike, hit), Lh, back);
     }
@@ -911,14 +965,15 @@ const SHOOT = (() => {
       slab(L(-1.3, -.3), L(-2.4, -2.1), F.r, .85, 1.1, WOOD); slab(L(.2, -.35), L(1.6, -.35), F.r, .25, .2, DK);
       slab(L(2.4, 1.4), L(2.9, 1.4), F.r, .7, .3, DK); pen.glow(...L(13.3, 1.42), .11 * k, '#ffe08a');
       if (st.shellP) tube(st.shellP, add(st.shellP, F.f, 1.2 * k), .3 * k, '#c83a2a');
-      if (st.flash > 0) muzzleFlash(pen, L(14, .95), F, st.flash * 1.4, k);
+      if (st.flash > 0) muzzleFlash(pen, L(14, .95), F, st.flash, k * 1.45);
     }
   }
-  /** a muzzle flash: a hot core, petals of flame out to the sides and ahead (unlit) */
+  /** a muzzle flash at p (the gun's frame F, flash 1 on the shot's frame fading to 0 by the next but one), queued for
+   *  the world's flashes or the overlay's (drawFlashes) by the pen that draws the gun */
   function muzzleFlash(pen, p, F, s, k) {
-    const r = 1.6 * s * k; pen.glow(p[0], p[1], p[2], r * .6, '#fff4c8').halo(p[0], p[1], p[2], r * 2.4, [.9, .5, .15]);
-    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + .4, d = add(add(F.f, F.u, Math.cos(a) * .9), F.r, Math.sin(a) * .9), q = add(p, d, r * 1.2); pen.glow(q[0], q[1], q[2], r * .38, '#ffc860'); }
-    const q = add(p, F.f, r * 1.8); pen.glow(q[0], q[1], q[2], r * .45, '#ffe6a0');
+    const q = pen === world.overlay.pen ? fx.flashes.ov : fx.flashes.world; if (q.length >= FL_MAX) return;
+    const full = s > .6, seed = (Math.floor(world.time * 240) * 7919 + Math.floor(Math.abs(p[0] * 13 + p[1] * 7))) % 2147483646 + 1;
+    q.push({ p: p.slice(), f: F.f.slice(), s: 1.7 * k * (full ? 1 : .75) * (s > 1 ? s : 1), heat: full ? 1 : .5, seed });
   }
 
   /* =====================================================================
@@ -942,12 +997,12 @@ const SHOOT = (() => {
     const W = WEAPONS[weapon], hg = [W.fore, -.35, -.2];
     if (weapon === 'rifle') {
       const tilt = win(t, 0, .18) * (1 - win(t, dur - .25, dur));
-      const keys = [[0, hg], [.18, hg], [.38, [2.8, -2.6, -.7]], [.55, [3.6, -6.8, -1.4]], [.66, [.5, -9, -4]], [.8, [1.8, -6.2, -1.8]], [1.02, [2.9, -3.2, -.7]], [1.1, [2.9, -2.3, -.6]]];
+      const keys = [[0, hg], [.18, hg], [.38, [2.8, -2.6, -.7]], [.55, [3.4, -5.4, -1.3]], [.66, [2, -6, -2.3]], [.8, [2.4, -5, -1.5]], [1.02, [2.9, -3.2, -.7]], [1.1, [2.9, -2.3, -.6]]];
       if (empty) keys.push([1.25, [-1.2, 1.4, 1.5]], [1.42, [-1.6, 1.25, 1.2]], [1.55, [-3.6, 1.25, 1.2]], [1.66, [-3.2, 1.6, 1.6]], [2.0, hg]); else keys.push([1.45, hg]);
       let hand = hg; for (let i = 0; i < keys.length - 1; i++) if (t >= keys[i][0]) hand = mixv(keys[i][1], keys[i + 1][1], win(t, keys[i][0], keys[i + 1][0]));
       if (t >= keys[keys.length - 1][0]) hand = keys[keys.length - 1][1];
       const mag = t < .38 ? 0 : t < .6 ? 1 : t < .64 ? 2 : t < 1.05 ? 1 : 0, bolt = empty ? win(t, 1.42, 1.55) * (1 - win(t, 1.6, 1.68)) : 0;
-      return { pitch: .2 * tilt, yaw: -.12 * tilt, roll: .5 * tilt, lift: 1 * tilt, hand, mag, bolt };
+      return { pitch: .24 * tilt, yaw: -.18 * tilt, roll: .72 * tilt, lift: 1.8 * tilt, hand, mag, bolt };   // (turned to show the well: the old mag out, the new one in)
     }
     // the shotgun: tilt in, a shell at a time (from the side saddle into the port under the receiver), tilt out
     const n = Math.round((dur - .3) / W.shell), tilt = win(t, 0, .15) * (1 - win(t, dur - .15, dur)), c = clamp(t - .15, 0, n * W.shell), q = (c % W.shell) / W.shell;
@@ -966,7 +1021,7 @@ const SHOOT = (() => {
     am[0]--; S.fireCd = 1 / W.rate; S.lastShot = S.time; S.shots++;
     const moving = Math.hypot(hero.vx, hero.vy), sp = lerp(W.hip, W.adsSpread, S.adsB) + (W.pellets > 1 ? 0 : clamp(moving / RUN, 0, 1) * .03 * (1 - S.adsB * .7) + (hero.grounded ? 0 : .05) + S.bloom);
     S.bloom = Math.min(W.maxBloom, S.bloom + W.bloom);
-    let hitAny = false, headAny = false, killed = false;
+    let mark = null;   // (the strongest of what the pellets did: a kill, a shield broken, a head, flesh, shield)
     for (let p = 0; p < W.pellets; p++) {
       // a pellet's way: the pattern ring for the shotgun (fixed, so it reads), random within the spread for the rifle
       const a = W.pellets > 1 ? (p ? (p - 1) / (W.pellets - 1) * TAU + S.shots : 0) : rnd() * TAU, rr = W.pellets > 1 ? (p ? sp * (.55 + .45 * (p % 2)) : 0) + rnd() * sp * .2 : Math.sqrt(rnd()) * sp;
@@ -978,10 +1033,10 @@ const SHOOT = (() => {
       const e = h.actor && raiders.find(r => r.a === h.actor);
       if (e && e.alive) {
         const head = h.z > e.a.z + (e.b.move === 'crouch' ? 15 : 22.5) * e.b.k, dmg = W.dmg * falloff(W, h.dist) * (head ? W.head : 1);
-        const res = hurtRaider(e, dmg, head, d, [h.x, h.y, h.z]); hitAny = true; headAny = headAny || head; killed = killed || res === 'kill';
+        const res = hurtRaider(e, dmg, head, d, [h.x, h.y, h.z]); mark = strongest(mark, res === 'hit' && head ? 'head' : res);
       } else impact(h, W.pellets > 1 ? .5 : 1);
     }
-    if (hitAny) hitmark(killed ? 'kill' : headAny ? 'head' : 'hit');
+    if (mark) hitmark(mark);
     // the kick: the view climbs (part of it comes back after), the gun and the camera punch
     const kk = S.cur === 'rifle' ? PATTERN[Math.min(S.burst, PATTERN.length - 1)] : (rnd() - .5) * 2, damp = 1 - S.adsB * .25 - (S.move === 'crouch' ? .15 : 0);
     const kp = W.kick[0] * damp * (S.cur === 'rifle' ? (S.burst < 4 ? 1.2 : S.burst < 9 ? .7 : .4) : 1), ky = W.kick[1] * kk * damp;   // (the climb settles after the first shots)
@@ -1007,7 +1062,7 @@ const SHOOT = (() => {
   function hurtRaider(e, dmg, head, d, p, melee = false) {
     if (!e.alive) return null;
     let res = 'hit', toShield = Math.min(e.shield, dmg); e.shield -= toShield; let rest = dmg - toShield;
-    if (toShield > 0) { res = e.shield <= 0 ? 'break' : 'shield'; P.sparks(p[0], p[1], p[2], 3, Math.atan2(-d[1], -d[0]), { color: e.heavy ? '#c88aff' : '#7ac8ff', hot: '#e8f6ff' }); }
+    if (toShield > 0) { res = e.shield <= 0 ? 'break' : 'shield'; if (!melee) { P.sparks(p[0], p[1], p[2], 3, Math.atan2(-d[1], -d[0]), { color: e.heavy ? '#c88aff' : '#7ac8ff', hot: '#e8f6ff' }); impactStar(p, d, res === 'break' ? 3.2 : 1.1, e.heavy ? 'purple' : 'blue'); } }
     if (res === 'break') { rest *= .5; e.stun = .5; P.glints(p[0], p[1], p[2], 10, e.heavy ? '#d8a8ff' : '#a8e0ff', 14); A.sfx('shieldbreak'); }
     e.hp -= rest; e.lastHit = S.time; e.flinch = Math.max(e.flinch, melee ? .5 : head ? .3 : .16);
     const push = melee ? 9 : head ? 5 : 2.6; e.b.hit[0] += d[0] * push * 20; e.b.hit[1] += d[1] * push * 20; e.b.hit[2] += head ? 30 : 0;
@@ -1034,7 +1089,7 @@ const SHOOT = (() => {
     decal([x, y, z], [0, 0, 1], 3.2 * M / 16 * 1.8, '#18120c', .85);
     for (const e of raiders) {
       if (!e.alive) continue; const dd = Math.hypot(e.a.x - x, e.a.y - y, e.a.z + 14 - z); if (dd > r || !world.clear(x, y, z + 6, e.a.x, e.a.y, e.a.z + 16)) continue;
-      const d = nrm([e.a.x - x, e.a.y - y, 6]); if (hurtRaider(e, dmg * (1 - dd / r), false, d, [e.a.x, e.a.y, e.a.z + 16]) === 'kill') hitmark('kill'); else hitmark('hit');
+      const d = nrm([e.a.x - x, e.a.y - y, 6]), res = hurtRaider(e, dmg * (1 - dd / r), false, d, [e.a.x, e.a.y, e.a.z + 16]); if (res) hitmark(res);
       e.a.push(d[0] * 160 * (1 - dd / r), d[1] * 160 * (1 - dd / r), 0);
     }
     const dp = Math.hypot(hero.x - x, hero.y - y, hero.z + 14 - z);
@@ -1242,7 +1297,7 @@ const SHOOT = (() => {
   }
   const doorAhead = () => doors.find(d => d.state !== 'broken' && Math.hypot(d.x - hero.x, d.y - hero.y) < 40 && Math.abs(d.z - hero.z) < 20 && Math.cos(Math.atan2(d.y - hero.y, d.x - hero.x) - S.yaw) > .45);
   function actions(dt, I) {
-    const W = WEAPONS[S.cur], t0 = S.actT; S.fireCd -= dt; S.bloom = Math.max(0, S.bloom - dt * .05); S.flash = Math.max(0, S.flash - dt * 16); S.pumpT += dt;
+    const W = WEAPONS[S.cur], t0 = S.actT; S.fireCd -= dt; S.bloom = Math.max(0, S.bloom - dt * .05); S.flash = Math.max(0, S.flash - dt * 30); S.pumpT += dt;
     const busyMove = ['mantle', 'vault', 'climb', 'ladder'].includes(S.move);
     if (S.act) {
       S.actT += dt; const t = S.actT, crossed = x => t0 < x && t >= x;
@@ -1254,13 +1309,17 @@ const SHOOT = (() => {
           for (let i = 0; i < S.shells; i++) if (crossed(.15 + i * W.shell + W.shell * .62) && am[1] > 0) { am[0]++; am[1]--; A.sfx('shell'); }
           if (I.pressed('fire') && am[0] > 0) { S.act = null; S.pumpT = S.reloadEmpty ? 0 : 9; }
         }
-      } else if (S.act === 'melee') { if (crossed(.14)) punchHit(); }
+      } else if (S.act === 'melee') { if (crossed(.11)) punchHit(); }
       else if (S.act === 'kick') { if (crossed(.22)) kickHit(); }
       else if (S.act === 'throw') { if (crossed(.46)) throwNade(); }
       else if (S.act === 'swap') { if (crossed(.24)) { S.cur = S.cur === 'rifle' ? 'shotgun' : 'rifle'; S.pumpT = 9; } }
       if (S.act && S.actT >= S.actDur) { if (S.act === 'reload' && S.cur === 'shotgun' && S.reloadEmpty) S.pumpT = 0; S.act = null; }
     }
-    if (S.lunge) { const L = S.lunge; L.t -= dt; const e = L.e, d = Math.hypot(e.a.x - hero.x, e.a.y - hero.y); if (L.t <= 0 || d < 20) S.lunge = null; else { hero.vx = (e.a.x - hero.x) / d * 280; hero.vy = (e.a.y - hero.y) / d * 280; } }
+    if (S.lunge) {   // the lunge closes to a fist's length and stops there (what it carried would run on through the target)
+      const L = S.lunge; L.t -= dt; const e = L.e, d = Math.hypot(e.a.x - hero.x, e.a.y - hero.y) || 1, ux = (e.a.x - hero.x) / d, uy = (e.a.y - hero.y) / d;
+      if (L.t <= 0 || d < 24) { S.lunge = null; const c = Math.max(0, hero.vx * ux + hero.vy * uy); hero.vx -= ux * c; hero.vy -= uy * c; }
+      else { const sp = Math.min(440, (d - 22) / dt); hero.vx = ux * sp; hero.vy = uy * sp; }
+    }
     S.ads = I.down('aim') && !busyMove && !S.act;   // (not mid-reload, mid-punch, mid-throw or mid-swap)
     S.adsB = approach(S.adsB, S.ads ? 1 : 0, dt / .16); if (S.ads) S.sprint = false;
     // fire: held (the rifle) or each press (the shotgun, once its pump is back)
@@ -1282,7 +1341,7 @@ const SHOOT = (() => {
     if (I.pressed('swap') && S.act !== 'swap' && !busyMove) { I.use('swap'); S.act = null; startAct('swap', .5); A.sfx('swapw'); }
     if (I.pressed('melee') && !['melee', 'kick'].includes(S.act) && !busyMove && S.move !== 'zip') {
       I.use('melee'); S.act = null; const d = doorAhead();
-      if (d) startAct('kick', .72); else { startAct('melee', .62); A.sfx('swing'); const e = raiders.find(q => q.alive && Math.hypot(q.a.x - hero.x, q.a.y - hero.y) < 4.6 * M && Math.abs(q.a.z - hero.z) < 20 && Math.cos(Math.atan2(q.a.y - hero.y, q.a.x - hero.x) - S.yaw) > .75); if (e) S.lunge = { e, t: .16 }; }
+      if (d) startAct('kick', .72); else { startAct('melee', .55); A.sfx('swing'); const e = raiders.find(q => q.alive && Math.hypot(q.a.x - hero.x, q.a.y - hero.y) < 4.6 * M && Math.abs(q.a.z - hero.z) < 20 && Math.cos(Math.atan2(q.a.y - hero.y, q.a.x - hero.x) - S.yaw) > .75); if (e) S.lunge = { e, t: .11 }; }
     }
     if (I.pressed('grenade') && S.nades > 0 && !S.act && !busyMove) { I.use('grenade'); startAct('throw', .78); A.sfx('pin'); }
     if (I.pressed('view')) { I.use('view'); S.view = S.view === 'first' ? 'third' : 'first'; game.note(S.view === 'first' ? 'FIRST PERSON' : 'THIRD PERSON', 1.2); }
@@ -1300,14 +1359,15 @@ const SHOOT = (() => {
     for (const e of raiders) { if (!e.alive) continue; const dx = e.a.x - hero.x, dy = e.a.y - hero.y, d = Math.hypot(dx, dy); if (d < 2.9 * M && Math.abs(e.a.z - hero.z) < 20 && Math.cos(Math.atan2(dy, dx) - S.yaw) > .55 && d < bd) { best = e; bd = d; } }
     if (!best) return;
     const d = nrm([best.a.x - hero.x, best.a.y - hero.y, 0]), res = hurtRaider(best, 30, false, d, [best.a.x, best.a.y, best.a.z + 20], true);
-    best.a.push(d[0] * 190, d[1] * 190, 60); hitmark(res === 'kill' ? 'kill' : 'hit'); A.sfx('punch'); game.freeze(.07); game.shake(3);
-    S.punchY.v += 3.5; S.punchR.v -= 2.5; S.vmEvent = 'impact'; P.dust(best.a.x, best.a.y, best.a.z + 18, 4, { speed: 30, color: '#e8e0d0' });
+    best.a.push(d[0] * 190, d[1] * 190, 60); if (res) hitmark(res); A.sfx('punch'); game.freeze(.07); game.shake(3);
+    S.punchY.v += 3.5; S.punchR.v -= 2.5; S.vmEvent = 'impact';
+    impactStar([best.a.x - d[0] * 6, best.a.y - d[1] * 6, best.a.z + 19], d, 2.4, res === 'shield' ? 'blue' : res === 'break' ? 'purple' : 'white');
   }
   /** the kick lands: a door in front bursts off its hinges; raiders in front are thrown back */
   function kickHit() {
     const d = doorAhead(), f = [Math.cos(S.yaw), Math.sin(S.yaw), 0];
     if (d) breakDoor(d, f);
-    for (const e of raiders) if (e.alive && Math.hypot(e.a.x - hero.x, e.a.y - hero.y) < 3 * M && Math.cos(Math.atan2(e.a.y - hero.y, e.a.x - hero.x) - S.yaw) > .5) { hurtRaider(e, 40, false, f, [e.a.x, e.a.y, e.a.z + 12], true); e.a.push(f[0] * 260, f[1] * 260, 80); hitmark('hit'); }
+    for (const e of raiders) if (e.alive && Math.hypot(e.a.x - hero.x, e.a.y - hero.y) < 3 * M && Math.cos(Math.atan2(e.a.y - hero.y, e.a.x - hero.x) - S.yaw) > .5) { const res = hurtRaider(e, 40, false, f, [e.a.x, e.a.y, e.a.z + 12], true); e.a.push(f[0] * 260, f[1] * 260, 80); if (res) hitmark(res); impactStar([e.a.x - f[0] * 6, e.a.y - f[1] * 6, e.a.z + 12], f, 2.8, 'white'); }
     A.sfx('kickdoor'); game.shake(4); game.freeze(.05); S.punchP.v -= 3;
   }
   function throwNade() {
@@ -1327,7 +1387,7 @@ const SHOOT = (() => {
     const pitch = clamp(S.pitch + S.punchP.x * .012, -1.5, 1.5), yaw = S.yaw + S.punchY.x * .01, roll = S.lean + S.punchR.x * .01;
     if (S.view === 'first') S.cam = { x: h.x, y: h.y, z: h.z + S.eye + S.dipC.x * .1, yaw, pitch, roll, fov, near: 1.2 };
     else {
-      const F = frameYP([0, 0, 0], yaw, pitch), piv = add([h.x, h.y, h.z + S.eye + 3], F.r, lerp(11, 7, S.adsB)), dist = lerp(46, 24, ease(S.adsB));
+      const F = frameYP([0, 0, 0], yaw, pitch), piv = add([h.x, h.y, h.z + S.eye + lerp(3, 4.5, S.adsB)], F.r, lerp(16, 13, S.adsB)), dist = lerp(48, 27, ease(S.adsB));
       const back = mul(F.f, -1), hit = world.ray(piv[0], piv[1], piv[2], back[0], back[1], back[2], dist + 4, { skip: hero, level: true }), d = hit ? Math.max(6, hit.dist - 4) : dist;
       const c = add(piv, back, d); S.cam = { x: c[0], y: c[1], z: c[2], yaw, pitch, roll: roll * .5, fov: fov * .92, near: 2 };
     }
@@ -1382,7 +1442,7 @@ const SHOOT = (() => {
       a.vx = approach(a.vx, 0, 400 * dt); a.vy = approach(a.vy, 0, 400 * dt);
       return;
     }
-    e.flinch -= dt; e.stun -= dt; e.fireCd -= dt; e.think -= dt; e.melee -= dt; e.flash = Math.max(0, e.flash - dt * 14);
+    e.flinch -= dt; e.stun -= dt; e.fireCd -= dt; e.think -= dt; e.melee -= dt; e.flash = Math.max(0, e.flash - dt * 30);
     const dx = hero.x - a.x, dy = hero.y - a.y, d = Math.hypot(dx, dy), toP = Math.atan2(dy, dx);
     if (e.dummy) { if (S.time - e.lastHit > 3 && e.shield < e.maxShield) e.shield = Math.min(e.maxShield, e.shield + dt * 40); a.vx = a.vy = 0; b.move = 'stand'; return; }
     // sight, a few times a second: in front (or close, or already fighting), in range, a clear line to the head
@@ -1412,7 +1472,7 @@ const SHOOT = (() => {
           if (e.heavy && d > 30 * M) { /* (a shotgun: it closes first) */ }
           else { raiderShoot(e, d); e.burst--; if (e.burst <= 0) { e.burst = (e.heavy ? 1 : 3 + Math.floor(rnd() * 4)); e.fireCd = e.heavy ? 1.1 : .6 + rnd() * .8; e.burstN = 0; } else e.fireCd = e.heavy ? .9 : 1 / 8.5; }
         }
-        if (d < 2.4 * M && e.melee <= 0 && Math.abs(hero.z - a.z) < 20) { e.melee = 1.3; e.b.act = 'melee'; e.b.actT = 0; e.meleeHit = .14; }
+        if (d < 2.4 * M && e.melee <= 0 && Math.abs(hero.z - a.z) < 20) { e.melee = 1.3; e.b.act = 'melee'; e.b.actT = 0; e.meleeHit = .11; }
       } else if (lost < 9) {   // hunt: to where it was last seen
         if (e.last && !e.post) { goal = e.last; speed = 62; if (Math.hypot(e.last[0] - a.x, e.last[1] - a.y) < 14) e.last = null; }
         face = e.last ? Math.atan2(e.last[1] - a.y, e.last[0] - a.x) : e.yaw;
@@ -1422,7 +1482,7 @@ const SHOOT = (() => {
       e.meleeHit = undefined;
       if (Math.hypot(hero.x - a.x, hero.y - a.y) < 3 * M && S.alive) { hurtPlayer(20, a.x, a.y); const n = nrm([dx, dy, 0]); hero.vx += n[0] * 160; hero.vy += n[1] * 160; A.sfx('punch'); game.shake(3); }
     }
-    if (e.b.act === 'melee' && (e.b.actT += dt) > .62) e.b.act = null;
+    if (e.b.act === 'melee' && (e.b.actT += dt) > .55) e.b.act = null;
     // turning, then walking: round obstacles (a ray at the knees; it tries either side), slowed by a flinch
     e.yaw = E.approachAng(e.yaw, face, dt * (e.state === 'combat' ? 5 : 2.4)); e.pitch = e.sees ? Math.atan2(hero.z + 16 - (a.z + 24), d) : 0;
     let vx = 0, vy = 0;
@@ -1584,9 +1644,9 @@ const SHOOT = (() => {
     spring(vm.sx, clamp(-dyaw * rate * .3, -1.8, 1.8) * sw, 110, 13, dt); spring(vm.sy, clamp(dpit * rate * .3, -1.4, 1.4) * sw, 110, 13, dt);
     for (; vm.shots < S.shots; vm.shots++) {
       vm.kick.v += W.punch * (S.cur === 'rifle' ? 11 : 9) * (1 - S.adsB * .35); vm.kp.v += W.punch * (S.cur === 'rifle' ? 7 : 5); vm.kr.v += (Math.random() - .5) * W.punch * 9;
-      if (S.cur === 'rifle') vm.brass.push({ p: null, v: [-14 + Math.random() * 6, 42 + Math.random() * 14, 30 + Math.random() * 14], t: 0, s: Math.random() * 6 });
+      if (S.cur === 'rifle') vm.brass.push({ p: null, v: [10 + Math.random() * 5, 46 + Math.random() * 12, 26 + Math.random() * 8], t: 0, s: Math.random() * 6 });
     }
-    if (S.cur === 'shotgun' && S.pumpT < vm.pump && S.pumpT < .2) vm.brass.push({ p: null, v: [-8, 40, 34], t: 0, s: 2, shell: true }); vm.pump = S.pumpT;
+    if (S.cur === 'shotgun' && S.pumpT < vm.pump && S.pumpT < .2) vm.brass.push({ p: null, v: [16, 22, 34], t: 0, s: 2, shell: true }); vm.pump = S.pumpT;
     if (S.landT && S.landT !== vm.land) { vm.land = S.landT; vm.dip.v -= Math.min(36, S.landV * .1); }
     spring(vm.kick, 0, 300, 24, dt); spring(vm.kp, 0, 240, 20, dt); spring(vm.kr, 0, 200, 18, dt); spring(vm.dip, 0, 150, 13, dt);
     const ap = (v, to, r2) => v + (to - v) * Math.min(1, dt * r2), trav = ['mantle', 'vault', 'climb', 'ladder'].includes(S.move);
@@ -1599,24 +1659,24 @@ const SHOOT = (() => {
     let o = mixv(V.hip, V.ads, ease(S.adsB)), pit = .02 * (1 - S.adsB), yw = -.035 * (1 - S.adsB), rl = 0;
     o = add(o, [-vm.kick.x * .5, vm.sx.x * .7 + s1 * .42 * amp, vm.sy.x * .5 - Math.abs(c1) * .5 * amp + br * .07 - vm.dip.x * .09 - clamp(h.vz * .005, -1, 1) * (S.move === 'air' ? 1 : 0)]);
     pit += vm.kp.x * .022 - vm.sy.x * .02 + Math.cos(vm.ph * TAU * 2) * .012 * amp + br * .004; yw += vm.sx.x * .025; rl += vm.kr.x * .012 + vm.sx.x * .05 + s1 * .03 * amp;
-    o = mixv(o, add([7, 3, -6.6], [0, s1 * .7, -Math.abs(c1) * .7]), vm.spr); pit -= .36 * vm.spr; yw -= .58 * vm.spr; rl -= .6 * vm.spr;
+    o = mixv(o, add([7.6, 3.2, -3.9], [0, s1 * .8, -Math.abs(c1) * .9]), vm.spr); pit -= (.2 + c1 * .03) * vm.spr; yw -= (.72 + s1 * .04) * vm.spr; rl -= (.78 + s1 * .06) * vm.spr;   // (the sprint: canted across the body, muzzle down and left, swinging with the stride)
     o = add(o, [0, -.3 * vm.cr - .8 * vm.sl, -.5 * vm.cr - 1 * vm.sl - 14 * vm.trav]); rl += .12 * vm.cr - .35 * vm.sl + .5 * vm.trav; yw -= .12 * vm.sl; pit -= .9 * vm.trav;
     let F = turn({ o, f: [1, 0, 0], u: [0, 0, 1], r: [0, 1, 0] }, pit, yw, rl), st = { mag: 0, bolt: 0, pump: S.cur === 'shotgun' ? pumpCurve(S.pumpT) : 0, flash: S.flash };
     // the actions move the gun (and the left hand)
     let Lh = null, leg = null, nade = null;
     if (S.act === 'reload') {
       const R = reloadCurve(S.cur, t, S.actDur, S.reloadEmpty), k = Math.max(0, Math.min(1, R.roll / .5));
-      F = turn(F, R.pitch, R.yaw, R.roll); F.o = add(add(F.o, F.u, R.lift * .5), [0, -1.1 * k, .5 * k]);
+      F = turn(F, R.pitch, R.yaw, R.roll); F.o = add(add(F.o, F.u, R.lift * .5), [0, -2 * k, .9 * k]);
       Lh = at(F, ...R.hand); st.mag = R.mag; st.bolt = R.bolt; if (R.mag === 1) st.magP = add(add(Lh, F.u, 2.1), F.f, -.35); if (R.shell) st.shellP = add(Lh, F.f, -.4);
     } else if (S.act === 'swap') { const lo = Math.sin(clamp(t / .5, 0, 1) * Math.PI); F = turn(F, -.9 * lo, 0, .3 * lo); F.o = add(F.o, [0, 0, -10 * lo]); }
     else if (S.act === 'melee' || S.act === 'kick' || S.act === 'throw') {
-      const d = win(t, 0, .1) * (1 - win(t, S.act === 'kick' ? .45 : .38, S.act === 'kick' ? .7 : .6)); F = turn(F, -.6 * d, .45 * d, .8 * d); F.o = add(F.o, [-.8 * d, 1.6 * d, (S.act === 'kick' ? -7 : -4.5) * d]);
+      const d = S.act === 'melee' ? win(t, 0, .06) * (1 - win(t, .32, .5)) : win(t, 0, .1) * (1 - win(t, S.act === 'kick' ? .45 : .38, S.act === 'kick' ? .7 : .6)); F = turn(F, -.6 * d, .45 * d, .8 * d); F.o = add(F.o, [-.8 * d, 1.6 * d, (S.act === 'kick' ? -7 : -4.5) * d]);
       if (S.act === 'kick') leg = keysAt([[0, [1.5, 1.6, -20]], [.12, [6.5, 1.3, -12.5]], [.22, [13.6, .6, -5.6]], [.36, [10, 1, -9.5]], [.7, [1.5, 1.6, -20]]], t);
     }
     // the hands: the right on the grip; the left on the handguard (the pump), the mag, a fist, or what the body holds
     const pump = S.cur === 'shotgun' ? st.pump * 2.3 : 0, grip = at(F, -.5, -1.5, 0), guard = at(F, W.fore - pump, -.35, -.2);
     let L2 = Lh || guard, R2 = grip;
-    if (S.act === 'melee') L2 = keysAt([[0, guard], [.1, [4.4, -6, -4.8]], [.17, [11.6, .5, -1.4]], [.3, [10.4, 1.2, -2.3]], [.6, guard]], t);
+    if (S.act === 'melee') L2 = keysAt([[0, guard], [.05, [6.4, -5.6, -3.6]], [.11, [12.4, -1.3, -1.5]], [.2, [11.9, -.9, -1.8]], [.36, [8.6, -3.6, -3.8]], [.5, guard]], t);   // (cocked low left, a straight jab to the middle, held through the hit-stop, home)
     if (S.act === 'throw') { L2 = keysAt([[0, guard], [.16, [6.5, -3.6, -4]], [.36, [1.6, -7.2, 1.6]], [.47, [13, -1.6, .6]], [.78, guard]], t); nade = t < .46; }
     if (vm.trav > .05 && pb.ledge && (S.move === 'mantle' || S.move === 'vault' || S.move === 'climb')) {
       const e = pb.ledge, wn = pb.wallN || [0, 0, 0], sd = nrm(cross(UP, wn)), up = S.move === 'climb' ? world.time * 7 : 0;
@@ -1630,12 +1690,19 @@ const SHOOT = (() => {
     pen.at();
     if (vm.trav < .9) drawGun(pen, F, S.cur, st, 1);
     const tube = (a, b, r, col) => pen.tube(a[0], a[1], a[2], b[0], b[1], b[2], r, col), ball = (p, r, col) => pen.ball(p[0], p[1], p[2], r, r, r, col);
-    [[SH[0], L2, nrm([-.2, -1, -1])], [SH[1], R2, nrm([-.3, 1, -1])]].forEach(([sh, hand, hint], i) => {
+    const jab = S.act === 'melee' ? win(t, 0, .05) * (1 - win(t, .36, .5)) : 0, shL = add(SH[0], [-1.5, -1.2, -2.6], jab);   // (a jab drops the shoulder: the upper arm stays under the picture)
+    [[shL, L2, nrm([-.2, -1, -1 - jab])], [SH[1], R2, nrm([-.3, 1, -1])]].forEach(([sh, hand, hint], i) => {
       const [el] = ik(sh, hand, VLU, VLF, hint), fd = nrm(sub(hand, el));
       tube(sh, el, 1.25, c.cloth); ball(el, 1.05, c.dark); tube(el, hand, .98, c.cloth);
       pen.slab(...add(el, fd, 1.6), ...add(el, fd, 5.4), ...nrm(cross(fd, [0, 0, 1])), 1.75, 1.85, c.plate);   // a bracer
       const knu = add(hand, fd, .85), side = nrm(cross(fd, i ? F.f : [0, 0, 1]));
-      pen.slab(...add(hand, fd, -1.1), ...knu, ...side, 1.55, 1.05, c.glove); ball(knu, .68, c.glove); tube(add(hand, fd, -1.5), add(hand, fd, -.6), .98, c.dark);
+      if (i === 0 && jab > .2) {   // a fist: wide across the knuckles, a guard on its back, the thumb across the front
+        const up = nrm(cross(side, fd)), z = 1 + .2 * jab;
+        pen.slab(...add(hand, fd, -1.2), ...add(hand, fd, 1.25), ...side, 2.1 * z, 1.7 * z, c.glove); tube(add(hand, fd, -1.7), add(hand, fd, -.7), 1.05, c.dark);
+        for (let q = 0; q < 4; q++) ball(add(add(add(hand, fd, 1.3), side, (q - 1.5) * .5 * z), up, .32 * z), .4 * z, c.dark);
+        pen.slab(...add(add(hand, fd, -.7), up, .88 * z), ...add(add(hand, fd, .95), up, .88 * z), ...side, 1.5 * z, .22, E.shade(c.glove, .22));
+        tube(add(add(hand, fd, .55), up, -.75 * z), add(add(add(hand, fd, .85), up, -.55 * z), side, .85 * z), .36 * z, c.glove);
+      } else { pen.slab(...add(hand, fd, -1.1), ...knu, ...side, 1.55, 1.05, c.glove); ball(knu, .68, c.glove); tube(add(hand, fd, -1.5), add(hand, fd, -.6), .98, c.dark); }
       if (i === 0 && nade) { const g = add(knu, fd, 1); pen.ball(...g, 1.6, 1.6, 1.9, '#4a6a34'); }
     });
     if (leg) {
@@ -1646,9 +1713,10 @@ const SHOOT = (() => {
       pen.slab(...add(add(leg, toe, -1.6), top, -1.15), ...add(add(leg, toe, 3.1), top, -1.15), ...fr, 2.5, .55, '#4a4038'); pen.slab(...add(add(leg, toe, -.6), top, .95), ...add(add(leg, toe, 2), top, .9), ...fr, .9, .25, '#6a6052');   // (the sole, the laces)
     }
     for (let i = vm.brass.length - 1; i >= 0; i--) {   // brass from the ejection port (the shotgun's red shell from the pump)
-      const b = vm.brass[i]; if (!b.p) b.p = at(F, .9, 1.05, .65); b.t += dt; if (b.t > .7) { vm.brass.splice(i, 1); continue; }
-      b.v[2] -= 260 * dt; b.p = add(b.p, b.v, dt); b.s += dt * 18;
-      const ax = [Math.cos(b.s), Math.sin(b.s), .3]; pen.tube(...b.p, ...add(b.p, ax, b.shell ? 1.4 : .9), b.shell ? .38 : .2, b.shell ? '#c83a2a' : '#d8a838');
+      const b = vm.brass[i]; if (!b.p) b.p = at(F, .9, 1.05, .65); b.t += dt; if (b.t > .42) { vm.brass.splice(i, 1); continue; }
+      b.v[2] -= 300 * dt; b.p = add(b.p, b.v, dt); b.s += dt * 22;
+      const ax = [Math.cos(b.s) * .4, Math.cos(b.s * .7), Math.sin(b.s)], l = b.shell ? .9 : .42; pen.tube(...b.p, ...add(b.p, ax, l), b.shell ? .25 : .09, b.shell ? '#c83a2a' : '#e0b040');
+      if (b.shell) pen.tube(...b.p, ...add(b.p, ax, .24), .27, '#c8a040');   // (its brass head)
     }
   }
 
@@ -1658,7 +1726,10 @@ const SHOOT = (() => {
    * outposts on it, the feed, what's in reach, where a hit came from, red edges when hurt
    * ===================================================================== */
   function spreadNow() { const W = WEAPONS[S.cur]; return lerp(W.hip, W.adsSpread, S.adsB) + (W.pellets > 1 ? 0 : clamp(Math.hypot(hero.vx, hero.vy) / RUN, 0, 1) * .03 * (1 - S.adsB * .7) + (hero.grounded ? 0 : .05) + S.bloom); }
-  function hitmark(kind) { if (!S.mark || S.mark.kind !== 'kill' || S.mark.t <= 0) S.mark = { kind, t: kind === 'kill' ? .5 : .22 }; }
+  const MARKS = ['shield', 'hit', 'head', 'break', 'kill'], strongest = (a, b) => !a || MARKS.indexOf(b) > MARKS.indexOf(a) ? b : a;
+  /** a hit marker (an X round the crosshair that pops out and settles): 'shield' blue, 'hit' white, 'head' yellow,
+   *  'break' (a shield broken) purple and wide, 'kill' red, thick and longer; a kill's stays over the next hits */
+  function hitmark(kind) { if (!S.mark || S.mark.kind !== 'kill' || S.mark.t <= 0) S.mark = { kind, t: kind === 'kill' ? .5 : kind === 'break' ? .32 : .24, dur: kind === 'kill' ? .5 : kind === 'break' ? .32 : .24 }; }
   function dmgNumber(p, v, head, col) {
     const q = S.nums.find(n => n.t < .6 && Math.hypot(n.p[0] - p[0], n.p[1] - p[1]) < 30);
     if (q) { q.v += v; q.t = Math.min(q.t, .1); q.head = q.head || head; q.col = col || null; q.p = p; } else S.nums.push({ p, v, head, col, t: 0 });
@@ -1680,8 +1751,12 @@ const SHOOT = (() => {
       g.globalAlpha = 1;
     }
     if (S.mark && S.mark.t > 0) {
-      const k = S.mark.kind, c = k === 'kill' ? '#ff3a2a' : k === 'head' ? '#ffd23a' : '#ffffff', n = k === 'kill' ? 7 : 5;
-      for (let i = 3; i <= n; i++) for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) rect(cx + sx * i - (sx < 0 ? 1 : 0), cy + sy * i - (sy < 0 ? 1 : 0), k === 'kill' ? 2 : 1, k === 'kill' ? 2 : 1, c);
+      const k = S.mark.kind, c = { shield: '#8ad8ff', hit: '#ffffff', head: '#ffd23a', break: '#c89aff', kill: '#ff3a2a' }[k], u = 1 - S.mark.t / S.mark.dur;
+      const pop = Math.round(3 * Math.max(0, 1 - u * 5)), big = k === 'kill' || k === 'break', i0 = 4 + pop + (big ? 1 : 0), i1 = (big ? 10 : 8) + pop, th = k === 'kill' ? 2 : 1;
+      g.globalAlpha = u > .7 ? (1 - u) / .3 : 1;
+      for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) for (let i = i0; i <= i1; i++) rect(cx + sx * i - (sx < 0 ? th : 0) - 1, cy + sy * i - (sy < 0 ? th : 0) - 1, th + 2, th + 2, OL);
+      for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) for (let i = i0; i <= i1; i++) rect(cx + sx * i - (sx < 0 ? th : 0), cy + sy * i - (sy < 0 ? th : 0), th, th, c);
+      g.globalAlpha = 1;
     }
     // where hits came from: red arcs round the middle
     for (const hd of S.hitDirs) {
@@ -1690,8 +1765,8 @@ const SHOOT = (() => {
     }
     // damage numbers, where they were dealt
     for (const n of S.nums) {
-      const p = world.project(n.p[0], n.p[1], n.p[2] + 8 + n.t * 18); if (!p || (n.t > .8 && Math.floor(n.t * 20) % 2)) continue;
-      F.text(g, String(Math.round(n.v)), p[0], p[1], n.head ? '#ffd23a' : n.col || '#ffffff', { align: 'center', outline: OL, scale: n.head ? 2 : 1 });
+      const p = world.project(n.p[0], n.p[1], n.p[2] + 8 + n.t * 18); if (!p || (n.t > .8 && Math.floor(n.t * 20) % 2)) continue;   // (beside the hit, not over it)
+      F.text(g, String(Math.round(n.v)), p[0] + 10 + n.t * 6, p[1] - 5, n.head ? '#ffd23a' : n.col || '#ffffff', { align: 'left', outline: OL, scale: n.head ? 2 : 1 });
     }
     // the compass: bearings every 15 degrees, the outposts (red: held, grey: cleared) with their distance
     const CW = Math.min(170, W - 120), x0 = cx - CW / 2, span = 110, yb = 5;
@@ -1806,7 +1881,8 @@ const SHOOT = (() => {
   /** the player's body follows the player (its heading along the run at a sprint, else with the view) */
   function syncBody(dt) {
     const b = pb, h = hero;
-    Object.assign(b, { x: h.x, y: h.y, z: h.z, vx: h.vx, vy: h.vy, vz: h.vz, grounded: h.grounded, sprint: S.sprint, ads: S.ads, weapon: S.cur, act: S.act, actT: S.actT, reloadDur: S.actDur, reloadEmpty: S.reloadEmpty, aimYaw: S.yaw, aimPitch: S.pitch });
+    // (a shot from the hip shoulders the gun for a moment, so the gun and its flash are seen in third person)
+    Object.assign(b, { x: h.x, y: h.y, z: h.z, vx: h.vx, vy: h.vy, vz: h.vz, grounded: h.grounded, sprint: S.sprint, ads: S.ads || S.time - S.lastShot < .5, weapon: S.cur, act: S.act, actT: S.actT, reloadDur: S.actDur, reloadEmpty: S.reloadEmpty, aimYaw: S.yaw, aimPitch: S.pitch });
     if (S.alive) b.move = (S.move === 'stand' || S.move === 'crouch') && !h.grounded ? 'air' : S.move;
     const want = S.sprint && Math.hypot(h.vx, h.vy) > 40 && S.view === 'third' ? Math.atan2(h.vy, h.vx) : S.yaw; b.yaw = E.approachAng(b.yaw, want, dt * 10);
     const R = S.act === 'reload' ? reloadCurve(S.cur, S.actT, S.actDur, S.reloadEmpty) : null;
@@ -1842,18 +1918,21 @@ const SHOOT = (() => {
     }
     drawWorks(pen, cam.x, cam.y);
     const L = lights, F = frameYP([cam.x, cam.y, cam.z], S.yaw, S.pitch), mz = muzzlePoint(F);
-    Object.assign(L.muzzle, { x: mz[0], y: mz[1], z: mz[2], on: S.flash > .15, power: 26 * S.flash });
+    Object.assign(L.muzzle, { x: mz[0], y: mz[1], z: mz[2], on: S.flash > .15, power: (S.view === 'third' ? 11 : 20) * S.flash });
     if (S.boom && S.boom.t > 0) { Object.assign(L.boom, { x: S.boom.x, y: S.boom.y, z: S.boom.z + 20, on: true, power: 90 * S.boom.t / .35 }); S.boom.t -= dt; } else L.boom.on = false;
     const fire = OP.ridge.fire; if (fire) { const fl = .85 + Math.sin(w.time * 13) * .08 + Math.sin(w.time * 29) * .06; Object.assign(L.fire, { x: fire[0], y: fire[1], z: fire[2] + 10, on: Math.hypot(fire[0] - cam.x, fire[1] - cam.y) < 140 * M, power: 18 * fl }); w.glow(fire[0], fire[1], fire[2] + 3, 2.6 * fl, '#ff9a3a', { core: '#fff0b0' }); }
     for (const o of OUTPOSTS) if (o.beacon && (w.time % 1.6) < .8) w.glow(...o.beacon, 4, '#ff3a2a', { core: '#ffd0c0' });
     w.overlay.on = S.view === 'first' && S.alive;
     if (w.overlay.on) { w.overlay.camera.fov = lerp(54, 44, ease(S.adsB)); drawViewModel(w.overlay.pen, dt, cam); }
+    for (const st of fx.stars) { const first = st.t < 1 / 60; if (fx.flashes.world.length < FL_MAX) fx.flashes.world.push({ p: st.p, f: st.f, s: st.s * (first ? 1 : .7), heat: first ? 1 : .45, seed: st.seed + (first ? 0 : 97), pal: st.pal }); st.t += dt; }
+    fx.stars = fx.stars.filter(st => st.t < 2 / 60);
+    drawFlashes(fx.flW, fx.flashes.world, fx.cam); drawFlashes(fx.flO, fx.flashes.ov, [0, 0, 0]);
   }
   /** a fresh run: the world reset, the structures' blocks, doors shut, bins full, crews home, the player at the drop
    *  point facing the range, the scatter round them at once */
   function reset(seed = 1) {
     world.reset(); rnd = E.rng(seed);
-    raiders.length = loot.length = nades.length = 0; placed.clear(); fx.tracers.length = 0; lastDraw = null;
+    raiders.length = loot.length = nades.length = 0; placed.clear(); fx.tracers.length = fx.stars.length = 0; lastDraw = null;
     for (const s of solids) world.block(s);
     for (const d of doors) Object.assign(d, { state: 'shut', ang: 0, want: 0, block: null, deb: null });
     for (const b of bins) Object.assign(b, { open: 0, want: 0, used: false });

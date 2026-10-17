@@ -5,6 +5,20 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.48.0 (2026-10-17)
+
+The shooter's feel and animation pass, judged frame by frame: the first shot no longer blacks out the world, muzzle flashes and hits are sharp stars, hit markers say what they hit, the punch lands, sprinting shows the gun, reloads stay in view, soldiers step round as they turn.
+
+- **Rendering**: a fix for every 3D page: three r182 uploads an instanced mesh's matrices (over 1,000 slots) in the ranges of the frame before, so a slot past the last frame's count drew what it last held for a frame: zeros (on the overlay, a screen of outline ink: the world went black on the first shot) or a part from frames ago (a ghost). The pen's batches and the card pages now upload up to the most slots ever drawn plus room, slots never drawn hold a part too far and too small to see, and parts of no width aren't drawn.
+- **Art**: the shooter's muzzle flashes are stars of additive streaks facing the eye (a white-hot core, four to six spikes turned at random, a plume along the barrel, the air round them lit): one frame full, one fading, each its own shape, in the world and on the overlay; the muzzle light goes with them, gentler in third person. Hits on a shield flash a blue star (purple on a heavy), a broken shield a big one, a punch or a kick a white one held through the hit-stop.
+- **Art**: brass flies out to the right and up, small and spinning, instead of back at the eye over the ammo count; the shotgun's red shell has its brass head; the tracer reads.
+- **Engine**: hit markers pop and settle, outlined, coloured by what the shot did (shield blue, health white, head yellow, a broken shield purple and wide, a kill red); damage numbers stand beside the hit, not over it.
+- **Engine**: the punch's lunge stops at a fist's length (it ran on through the target, so the punch never landed); the punch lands at 0.11 s (was 0.14) and is over at 0.55 s, for the player and the raiders.
+- **Animation**: first person: a jab you see from the first frames (the fist cocked low left, straight to the middle, held through the hit-stop, home) with a fist that reads (knuckles, thumb, a guard on its back) and the shoulder dropped so the arm isn't a pipe; the sprint carries the gun canted across the bottom of the picture (it vanished below it); the rifle's reload turns the gun to show its well and keeps the hand in view.
+- **Animation**: soldiers turning on the spot keep their feet planted while the hips turn over them, then step round one foot after the other (they slid). A hip shot in third person shoulders the gun for a moment, so the gun and its flash are seen.
+- **Engine**: the third-person camera stands further right of the shoulder (more down the sights), so the middle of the picture is clear: the head no longer covers the crosshair when aiming.
+- **Docs**: `docs/ENGINE-3D.md` records three r182's upload ranges and what the engine does about them, and the shooter's new parts.
+
 ## 0.47.0 (2026-10-17)
 
 A third 3D kit, SHOOTER: Apex Legends' movement and gunplay without the multiplayer, in an open world two kilometres across, played in first or third person; and what the 3D engine needed for it: open-world terrain, rays, the overlay for a first-person view model.

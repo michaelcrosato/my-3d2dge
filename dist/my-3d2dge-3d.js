@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.47.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.48.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -1056,13 +1056,21 @@ const srgbLin = c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4)
  *    in 3D go through them, so thousands of parts cost a handful of draw calls
  * ============================================================================= */
 const FLASH = lin('#ffe6d8'), BLACKISH = lin('#1a1320');
+/* three r182 uploads an instanced mesh's matrices and colors (over 1,000 slots) in the ranges its node copied from the
+ * mesh the frame before (a render uploads the geometry, then updates the nodes), so a slot past the last frame's count
+ * drew, for one frame, what it last held: zeros (on the overlay, whose camera is the origin, a screen of outline ink) or
+ * a part from frames ago. So each upload reaches the most slots ever drawn and some room past them, and a slot never
+ * drawn holds a part too far away and too small to see */
+const HIDDEN = new THREE.Matrix4().makeScale(1e-3, 1e-3, 1e-3).setPosition(-1e5, -1e5, -1e5);
+const hideSlots = (arr, from, to) => { for (let i = from; i < to; i++) HIDDEN.toArray(arr, i * 16); };
+const reachOf = (attr, n) => (attr._reach = Math.min(attr.count, Math.max(attr._reach || 0, Math.ceil(n * 1.25) + 16)));
 /** an instanced batch of one shape: parts are written between begin() and end() */
 class Batch {
   constructor(scene, geo, mat, o = {}) { this.scene = scene; this.geo = geo; this.mat = mat; this.o = o; this.cap = 0; this.n = 0; this.grow(o.cap || 1024); }
   grow(cap) {
     const old = this.mesh, sc = this.scene;
     const mk = mat => { const m = new THREE.InstancedMesh(this.geo, mat, cap); m.frustumCulled = false; m.count = 0; sc.add(m); return m; };
-    const mesh = mk(this.mat);
+    const mesh = mk(this.mat); hideSlots(mesh.instanceMatrix.array, 0, cap);
     // (no DynamicDrawUsage: in r182 an instanced mesh over 1,000 slots marked dynamic never uploads its changes)
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
     mesh.castShadow = mesh.receiveShadow = !!this.o.shadow; mesh.renderOrder = this.o.order || 0;
@@ -1083,24 +1091,25 @@ class Batch {
   }
   /** a tube (or the cone) from a to b, radius r (metres) */
   tube(a, b, r, col) {
-    let dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2]; const L = Math.hypot(dx, dy, dz); if (L < 1e-5) return;
+    let dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2]; const L = Math.hypot(dx, dy, dz); if (L < 1e-5 || !r) return;   // (a part with no width has no normals: its outline would be NaN)
     dx /= L; dy /= L; dz /= L;
     let px = Math.abs(dy) < .95 ? -dz : 0, py = Math.abs(dy) < .95 ? 0 : dz, pz = Math.abs(dy) < .95 ? dx : -dy; const pl = Math.hypot(px, py, pz); px /= pl; py /= pl; pz /= pl;
     const qx = py * dz - pz * dy, qy = pz * dx - px * dz, qz = px * dy - py * dx;
     this.put(px * r, py * r, pz * r, dx * L, dy * L, dz * L, qx * r, qy * r, qz * r, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, col);
   }
-  ball(p, rx, ry, rz, col) { this.put(rx, 0, 0, 0, ry, 0, 0, 0, rz, p[0], p[1], p[2], col); }
+  ball(p, rx, ry, rz, col) { if (rx && ry && rz) this.put(rx, 0, 0, 0, ry, 0, 0, 0, rz, p[0], p[1], p[2], col); }
   /** a box from a to b (its length), w wide along `across` (a unit vector), t thick (metres) */
   box(a, b, across, w, t, col) {
+    if (!w || !t) return;
     let dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2]; const L = Math.hypot(dx, dy, dz) || 1e-4; dx /= L; dy /= L; dz /= L;
     let zx = across[1] * dz - across[2] * dy, zy = across[2] * dx - across[0] * dz, zz = across[0] * dy - across[1] * dx; const zl = Math.hypot(zx, zy, zz) || 1; zx /= zl; zy /= zl; zz /= zl;
     const xx = dy * zz - dz * zy, xy = dz * zx - dx * zz, xz = dx * zy - dy * zx;
     this.put(xx * w, xy * w, xz * w, dx * L, dy * L, dz * L, zx * t, zy * t, zz * t, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, col);
   }
   end(outlines) {
-    const m = this.mesh; m.count = this.n;
-    m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, Math.max(1, this.n) * 16); m.instanceMatrix.needsUpdate = true;
-    m.instanceColor.clearUpdateRanges(); m.instanceColor.addUpdateRange(0, Math.max(1, this.n) * 3); m.instanceColor.needsUpdate = true;
+    const m = this.mesh, k = reachOf(m.instanceMatrix, this.n); m.count = this.n;
+    m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, k * 16); m.instanceMatrix.needsUpdate = true;
+    m.instanceColor.clearUpdateRanges(); m.instanceColor.addUpdateRange(0, k * 3); m.instanceColor.needsUpdate = true;
     if (this.shell) this.shell.count = outlines ? this.n : 0;
   }
 }
@@ -1441,7 +1450,7 @@ function makeAtlas(world) {
     const tex = canvasTex(out, false), room = Math.max(per, 1001), rect = new THREE.InstancedBufferAttribute(new Float32Array(room * 4), 4), geo = CARD_QUAD.clone(); geo.setAttribute('cardRect', rect);
     const mat = world._obj(new THREE.MeshBasicNodeMaterial({ alphaTest: .5 }));
     mat.colorNode = TSL.texture(tex).sample(TSL.uv().mul(CARD_RECT.zw).add(CARD_RECT.xy));
-    const mesh = new THREE.InstancedMesh(geo, mat, room); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh);
+    const mesh = new THREE.InstancedMesh(geo, mat, room); mesh.frustumCulled = false; mesh.count = 0; scene.add(mesh); hideSlots(mesh.instanceMatrix.array, 0, room);
     return (pages[i] = { cv, out, g: cv.getContext('2d'), go: out.getContext('2d'), tex, rect, mesh, M: mesh.instanceMatrix.array, n: 0, rows: 0 });
   }
   function reset() { for (const pg of pages) { scene.remove(pg.mesh); pg.mesh.dispose(); pg.mesh.geometry.dispose(); pg.mesh.material.dispose(); pg.tex.dispose(); } pages.length = 0; }
@@ -1490,7 +1499,7 @@ function makeAtlas(world) {
         if (pg.n || hWas) pg.tex.needsUpdate = true;
         pg.rows = rows; pg.mesh.count = pg.n;
         if (pg.n) {
-          pg.mesh.instanceMatrix.clearUpdateRanges(); pg.mesh.instanceMatrix.addUpdateRange(0, pg.n * 16); pg.mesh.instanceMatrix.needsUpdate = true;
+          pg.mesh.instanceMatrix.clearUpdateRanges(); pg.mesh.instanceMatrix.addUpdateRange(0, reachOf(pg.mesh.instanceMatrix, pg.n) * 16); pg.mesh.instanceMatrix.needsUpdate = true;
           pg.rect.clearUpdateRanges(); pg.rect.addUpdateRange(0, pg.n * 4); pg.rect.needsUpdate = true;
         }
       }
