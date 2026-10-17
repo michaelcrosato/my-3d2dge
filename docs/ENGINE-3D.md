@@ -130,6 +130,12 @@ to its budget; `tools/version.mjs` keeps its version line with the rest.
   matrix put an outline's corners at the eye and filled the screen with ink on the first shot (until v0.48.0). So the pen's
   batches and the card pages upload up to the most slots ever drawn and some room past them, and a slot never drawn holds
   a part a hundred kilometres away and a millimetre across; a part of no width (no normals: a NaN outline) isn't drawn.
+- **A world draws its last step as it is.** The steps run 120 times a second, so a 144 Hz display shows one frame in
+  six again (no step ran) and a 90 Hz one alternates one and two steps a frame: every still is right and the motion
+  judders (the shooter's camera, measured: the move from frame to frame varied by 45% at 144 Hz, 0.2% at 60, until
+  v0.50.0). A game that draws its own bodies and camera draws them part way between the last two steps by
+  `game.alpha`, as the shooter does (`keepPrev`, `between`, the frame's clock `drawT`); the built-in cameras and actors
+  don't yet.
 - The 3D Prototype (`/stress-world`, once Stress test: 3D world) stays on the Labs page as the record of what the
   engine was built from, with its own copy of the panel, benchmark and hall. New 3D work goes into the engine and its kits
   (the owner's call, 2026-10-14).
