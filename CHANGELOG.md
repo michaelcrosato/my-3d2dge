@@ -5,6 +5,11 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.51.2 (2026-10-18)
+
+- **Docs**: the co-op plan (`docs/HANDOFF-COOP.md`, still on hold) gives each phase the next minor version when it merges: the numbers it first gave them (v0.47.0 to v0.52.0) went to the 3D shooter kit.
+- **Tools**: a comment in `tools/build.mjs` no longer says `vendor/` goes with the 3D Proof lab (the 3D engine and its kits load it, D27).
+
 ## 0.51.1 (2026-10-17)
 
 Drawing between steps finished, after a review of v0.51.0.

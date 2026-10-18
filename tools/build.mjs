@@ -51,7 +51,8 @@ const builds = [
   // every entry of the asset store (src/assets/sets/, inlined) and the core library, to browse, search and copy
   { template: 'src/asset-lab.template.html', out: 'examples/asset-lab.html', vars: {} },
   // temporary (src/labs.json, docs/LAB-3D.md): our characters in a fully 3D world (three.js r182 + Rapier from vendor/,
-  // loaded through the page's import map, so it is served, not double-clicked); delete with its labs.json entry and vendor/
+  // loaded through the page's import map, so it is served, not double-clicked); delete with its labs.json entry (vendor/
+  // stays: the 3D engine and its kits load it, D27)
   { template: 'src/lab3d.template.html', out: 'examples/lab-3d.html', vars: {} },
   // temporary (src/labs.json): the stress test built again as a 3D game (src/stress-world/: three.js r182 and Rapier from
   // vendor/, the engine's animation system); delete with its labs.json entry

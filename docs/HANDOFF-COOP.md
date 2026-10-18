@@ -2,6 +2,10 @@
 
 > **Status: TBD, on hold (2026-10-16).** The owner is thinking it over. Nothing here is to be built until they say
 > go and answer section 13.
+>
+> **Since it was written (2026-10-18):** v0.47.0 to v0.51.1 went to the 3D shooter kit, so each phase takes the next
+> minor version when it merges, not the number it was first given; check the facts it relies on against the code of
+> the day (section 17's prompt says how).
 
 The plan for co-op multiplayer in Emberdeep: up to four players in one game, each going wherever they like, against
 monsters whose life and damage grow with the players around them. It was made on 2026-10-16 against v0.46.1
@@ -895,7 +899,7 @@ time against the place's age, and bandwidth per member.
   - deviates: "reaches into the game through `window.__ed` and the autopilot's input (principle 8)".
 - **Done when** the owner has played it on their phone and answered question 13.1.
 
-### Phase 1: one world on every screen (v0.47.0)
+### Phase 1: one world on every screen (the next minor version)
 
 - **Engine:**
   - the world's and the screen's random streams, with `Math.random` routed by phase, and particles on the screen's
@@ -917,7 +921,7 @@ time against the place's age, and bandwidth per member.
   - single player plays as before;
   - the pull request reports the step cost with portable math on.
 
-### Phase 2: more than one hero (v0.48.0)
+### Phase 2: more than one hero (the next minor version)
 
 - **Emberdeep:**
   - `ED.heroes` and `ED.me`, and the strict guard (5.1);
@@ -936,7 +940,7 @@ time against the place's age, and bandwidth per member.
   - the balance runs are within 15% of solo;
   - single player is unchanged.
 
-### Phase 3: the network: a party, the town, the depths (v0.49.0)
+### Phase 3: the network: a party, the town, the depths (the next minor version)
 
 - **Engine:**
   - `E.net`: party codes, the relay's client, WebRTC peers with the two channels, the relay as fallback, codes by
@@ -964,7 +968,7 @@ time against the place's age, and bandwidth per member.
   - the owner has played on two devices on the same Wi-Fi;
   - join times are measured.
 
-### Phase 4: anywhere, anytime (v0.50.0)
+### Phase 4: anywhere, anytime (the next minor version)
 
 - the town portal in co-op: suspended places, friends' portals, resuming with a fast-forward (3.7);
 - away and back; leader and host taking over; reconnecting (3.8);
@@ -974,7 +978,7 @@ time against the place's age, and bandwidth per member.
 
 **Done when** every `coop-test` scenario passes.
 
-### Phase 5: lag free (v0.51.0)
+### Phase 5: lag free (the next minor version)
 
 - the lead (7.3);
 - the adaptive delay and frame advantage tuned (7.2);
@@ -989,7 +993,7 @@ The escape hatch replaces or joins this phase if 13.1 says so.
 
 Phases 5 and 6 may swap.
 
-### Phase 6: emotes and pings (v0.52.0)
+### Phase 6: emotes and pings (the next minor version)
 
 - section 9: the wheel, eight emotes with the bow and the dance, pings, map pings, markers, sounds and limits;
 - the characters' emote specs, with `npm run character:check` for each character.
@@ -1071,9 +1075,9 @@ The prompt, for each phase:
 
 ```
 Read CLAUDE.md, DOCTRINE.md and src/emberdeep/DESIGN.md, then docs/HANDOFF-COOP.md. Implement Phase <N> exactly as
-it says, on one branch and in one pull request, with the version its heading names. Before writing code, check the
-facts it relies on against the code (line numbers are as of v0.46.1; search by name) and fix the plan where it is
-wrong, in the same pull request. Keep single player exactly as it plays today: every suite passes, and filmstrips
+it says, on one branch and in one pull request, with the next minor version (Phase 0 takes none; 7 and 9 a patch).
+Before writing code, check the facts it relies on against the code (line numbers are as of v0.46.1; search by name)
+and fix the plan where it is wrong, in the same pull request. Keep single player exactly as it plays today: every suite passes, and filmstrips
 change only where the phase says. Add the tests the phase names and make them pass. When you are done, update section
 19 of the plan (what landed, the version and commit, what you measured, anything left over), and report the measures
 in the pull request.
