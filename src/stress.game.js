@@ -523,7 +523,7 @@ function update(dt) {
   else game.focus(hero.x + Math.cos(a) * 16, hero.y + Math.sin(a) * 16, 8);
   if (depthActive()) depthFollow(dt);
   depthResolution(depthActive());
-  if (DEPTH.note) { if (!game._note) game._note = DEPTH.note; DEPTH.note = null; }   // (the note, borrowed by the depth view to draw it large)
+  if (DEPTH.note) { if (!game.shownNote) game.shownNote = DEPTH.note; DEPTH.note = null; }   // (the note, borrowed by the depth view to draw it large)
 }
 
 /* ---------- draw ---------- */
@@ -739,7 +739,7 @@ function drawDepth(r) {
   for (const s of shots) items.push([s.y, g => { const p = proj(s.x, s.y, s.z); if (!p) return; glow7(g, p[0], p[1], 5 * p[2], s.color, .5); disc7(g, p[0], p[1], Math.max(1, 2 * p[2]), s.core); }]);
   items.sort((a, b) => a[0] - b[0]);
   game.stats.actors = drawn; game.stats.culled = culled; frameStats.lights = S.lights + 2;
-  if (game._note && game.real < game._note.end) { DEPTH.note = game._note; game._note = null; }   // (drawn below, at the text's size)
+  if (game.shownNote && game.real < game.shownNote.end) { DEPTH.note = game.shownNote; game.shownNote = null; }   // (drawn below, at the text's size)
   const note = DEPTH.note, tx = Math.max(1, Math.round(DEPTH.text));
   r.overlay(g => {   // (an overlay: drawn over the engine's empty world, after its lighting pass)
     g.save(); g.imageSmoothingEnabled = false;

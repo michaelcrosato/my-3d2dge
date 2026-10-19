@@ -1089,4 +1089,4 @@ function PRG_install() {
     api: { K: PRG_K, rows: PRG_skillRows, pagePt: PRG_pagePt, rankUp: id => PRG_rankUp(ED.hero, id), assign: (i, id) => PRG_assign(ED.hero, i, id), rune: (id, r) => PRG_setRune(ED.hero, id, r),
       mastery: () => autoAllocateMastery(ED.hero), tier: id => PRG_tier(ED.hero, id), canSpend: () => PRG_canSpend(ED.hero) } });
 }
-queueMicrotask(() => { try { PRG_install(); } catch (e) { game._fail('28-progression install', e); } });
+queueMicrotask(() => { try { PRG_install(); } catch (e) { game.fail('28-progression install', e); } });

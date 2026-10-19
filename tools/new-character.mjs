@@ -136,7 +136,7 @@ class ${Rig} {
   }
   draw(g, ox, oy, sourceView) {
     const view = E.charView ? E.charView(sourceView) : sourceView, J = this.J, z = view.zoom || 1, k = this.o.size * (view.scale || 1);
-    this._lastView = view;   // (rigScreen and held items project with it)
+    this.lastView = view;   // (rigScreen and held items project with it)
     const S = p => { const w = this.worldOffset(p), s = view.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], view.depth(w[0], w[1], w[2])]; };
     const robe = E.tones(this.C.robe), trim = E.tones(this.C.trim), glow = E.tones(this.C.glow), parts = [];
     const hip = S(J.hipC), sh = S(J.shC), hd = S(J.head), r = Math.max(1, 3.4 * k);

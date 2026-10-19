@@ -387,7 +387,7 @@ function foeGlowSeen(x, y, z) {
   const reach = Math.min(90, -v.bz * Math.max(0, 50 - z) / g), T = map.T || 16;
   for (let s = 5; s <= reach; s += 5) {
     const cx = Math.floor((x + ux * s) / T), cy = Math.floor((y + uy * s) / T), c = map.cell(cx, cy); if (c === 0) continue; if (c < 0 || !map.types[c]) return true;
-    const h = map._isFront && map._isFront(cx, cy, v) ? (map.types[c].cutH || 6) : map.types[c].h;
+    const h = map.isFront && map.isFront(cx, cy, v) ? (map.types[c].cutH || 6) : map.types[c].h;
     if (g * s < -v.bz * (h - z)) return false;
   }
   return true;

@@ -466,8 +466,8 @@ function WLD_voids(L0) {
 const WLD_DARK0 = L.dark.slice();
 /** th.tint: how much colour the lights add on top of the floor (the engine's default is .32). Pale places (snow, marble)
  *  take less, so the hero's own light warms them instead of bleaching them white */
-function WLD_mood(th) { const d = th.dark || WLD_DARK0; if (L.dark[0] !== d[0] || L.dark[1] !== d[1] || L.dark[2] !== d[2]) { L.dark = d.slice(); L._build(); } L.tint = th.tint; }
-BUS.on('levelEnd', () => { L.dark = WLD_DARK0.slice(); L._build(); L.tint = undefined; }, 'global');
+function WLD_mood(th) { const d = th.dark || WLD_DARK0; if (L.dark[0] !== d[0] || L.dark[1] !== d[1] || L.dark[2] !== d[2]) { L.dark = d.slice(); L.refresh(); } L.tint = th.tint; }
+BUS.on('levelEnd', () => { L.dark = WLD_DARK0.slice(); L.refresh(); L.tint = undefined; }, 'global');
 /** drifting motes near the hero: rate per second, mk(x, y) returns the particle */
 function WLD_motes(dt, rate, mk, spread = 300) {
   const h = ED.hero; if (!h) return;
@@ -696,7 +696,7 @@ const WLD_DECO = {
       t.th = Array.from({ length: 5 }, (_, i) => ({ s: (i - 2) * 4.5 + (Math.random() - .5) * 3, out: Math.random() * 2, l: 7 + Math.random() * 15, ph: Math.random() * TAU }));
     },
     draw(t, r) {
-      const m = t.lv.map; if (t.top === undefined || (m.cutaway && m._isFront && m._isFront(t.wx, t.wy, r.view))) return;   // (its wall is cut down in this view)
+      const m = t.lv.map; if (t.top === undefined || (m.cutaway && m.isFront && m.isFront(t.wx, t.wy, r.view))) return;   // (its wall is cut down in this view)
       const gl = WLD_c(t.lv, t.glow || '#8affe0'), gt = E.tones(gl), knot = WLD_tn(t.lv, '#4a5a56');
       r.queue(t.ax, t.ay, t.top - 10, g => {
         const zm = WLD_zm(r), kw = Math.max(1, Math.round(zm));

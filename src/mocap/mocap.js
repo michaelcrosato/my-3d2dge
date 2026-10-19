@@ -172,11 +172,11 @@ function frameMix(m, a, w) {
  * rig.mocapW fades the clip over the rig's own pose; rig.mocapMask = 'upper' leaves the hips and legs to the rig.
  */
 function drive(rig, lib) {
-  const base = E.Humanoid.prototype._pose, update = E.Humanoid.prototype.update, R = lib.rest, hipH = R.hipZ, ankleH = R.ankleZ;
+  const base = E.Humanoid.prototype.solvePose, update = E.Humanoid.prototype.update, R = lib.rest, hipH = R.hipZ, ankleH = R.ankleZ;
   const legSrc = R.thigh + R.shin, armSrc = R.up + R.fore + R.fist * .6;
-  // the rig's own turn this step (an attack's spin), read before the clip turns it: _pose can run more than once a step
+  // the rig's own turn this step (an attack's spin), read before the clip turns it: solvePose can run more than once a step
   rig.update = function (dt, s) { this._ownSpin = null; return update.call(this, dt, s); };
-  rig._pose = function () {
+  rig.solvePose = function () {
     base.call(this);
     const pose = this.mocap, w = this.mocapW === undefined ? 1 : Math.max(0, Math.min(1, this.mocapW));
     if (this._ownSpin == null) this._ownSpin = this.spin || 0;

@@ -221,7 +221,7 @@ function MKA_drawFall(r, m, queued) {
   if (!fn || o.alpha <= 0) return;
   const z = (queued ? m.z * .3 : m.z) + f.hh * (1 - k) * .5;   // it shrinks about its middle, not its feet (and sinks less where nothing hides it)
   if (queued) r.actor(m.x, m.y, z, fn, o);   // over a theme's own painted void: in the normal pass, shrinking and fading
-  else if (r._composite) r._composite(r.ctx, m.x, m.y, z, fn, o);
+  else if (r.actorNow) r.actorNow(m.x, m.y, z, fn, o);
   else { const [ox, oy] = r.w(m.x, m.y, z); fn(r.ctx, Math.round(ox), Math.round(oy)); }
 }
 

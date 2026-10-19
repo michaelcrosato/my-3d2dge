@@ -676,7 +676,7 @@ function cxRun(ev, e) {
     const T = CX_T[c.t]; if (T.ev !== ev) continue;
     const S = T.test(e, h, c); if (!S) continue;
     if (T.cd) { if ((c.ready || 0) > game.time) continue; c.ready = game.time + T.cd; }
-    try { CX_E[c.e].fire(h, S, c.el, T.k * c.k, c); } catch (err) { game._fail('power ' + c.id, err); }
+    try { CX_E[c.e].fire(h, S, c.el, T.k * c.k, c); } catch (err) { game.fail('power ' + c.id, err); }
     P.glints(h.x, h.y, 18, 2, EL(c.el).light, 8);   // a spark on him: his gear did that
   }
 }

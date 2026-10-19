@@ -133,7 +133,7 @@ class CodexRig {
 	draw(g, ox, oy, sourceView) {
 		// Keep the face readable from a high camera, as the engine does for its other characters.
 		const view = E.charView ? E.charView(sourceView) : sourceView;
-		this._lastView = view;
+		this.lastView = view;
 		const q = [],
 			h = this.hero,
 			t = this.t,
