@@ -822,7 +822,8 @@ An entry:
   lighting leads (it draws the same in every browser and every check), GPU lighting is the upgrade for ground views.
   `game.enableGPU()` falls back to canvas lighting by itself where it can't draw (`game.lights.on`; `gpu.fallback = false`
   keeps such frames unlit), where before a game that only called `enableGPU` had none without WebGPU. The template game
-  and the STEALTH slice are lit.
+  and the STEALTH slice are lit (the slice on a computer only: the pass costs it 4 to 6 ms a frame, and a phone keeps
+  its frame rate, as the ADVENTURE slice's Auto lighting does).
 - **Why:** two model families built games with no lighting at all (F1.3, F6.5), and judges marked the look down for flat
   lighting (F2, F3, F6). The builders' reason, that "a single Canvas view kept rendering and verification consistent",
   holds for GPU lighting, which headless checks don't see, and not for canvas lighting. The step cost about 100 tokens of

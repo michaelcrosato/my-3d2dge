@@ -3923,7 +3923,8 @@ scenes.animlab = ANIMLAB;
  * guard's eyes are E.sees through the map's heights, its mind an E.Suspicion, its legs a FlowField that climbs, drops and
  * jumps. Climbs, vaults, rolls and takedowns are E.ACTIONS; the facades are wall-type options; the belfry's canopy sorts by
  * its footprint; r.sightCone and r.marker draw the cones and the objective. Dusk is canvas lighting (game.lights): an
- * ambient and the lights added each draw (street lamps, the ledger's glow, the gate).
+ * ambient and the lights added each draw (street lamps, the ledger's glow, the gate), on a computer: its pass costs a
+ * few milliseconds a frame, so a phone keeps its frame rate and an unlit street (as the ADVENTURE slice's Auto does).
  * ===================================================================================== */
 const STEALTH = (() => {
   const T = 16, HP = 3;
@@ -4025,7 +4026,7 @@ const STEALTH = (() => {
     rig = rig || new E.Humanoid({ size: 1.2, build: 'heroic', hood: true, weapon: 'sword', bladeLen: 7, outfit: 'coat', sleeves: 'long', cape: { len: 6, width: 5, seg: 2.4 }, colors: { cloth: '#d8d2c4', coat: '#d8d2c4', cape: '#8a2a2a', capeIn: '#5a1a1a', pants: '#3a3448', metal: '#e8e8f0' } });
     attack = new E.Attack('slash', { reach: 9 }); guards = ROUTES.map(makeGuard);
     checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; say('STEAL THE LEDGER FROM THE BRICK ROOF', 3.5);
-    game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = true; L.ambient = .6; A.music('dungeon');
+    game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = !!(window.matchMedia && matchMedia('(pointer: fine)').matches); L.ambient = .6; A.music('dungeon');
   }
   function respawnAt(cp) {
     Object.assign(hero, { x: cp.x, y: cp.y, z: cp.z, vx: 0, vy: 0, vz: 0, onGround: true, action: null }); hp = HP;
