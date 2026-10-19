@@ -11,7 +11,8 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   - **deferred**: valid, but not now, with when to take it up;
   - **watch**: handled indirectly, or too early to tell.
 - **Patterns.** The themes table counts sources. A theme reaches its threshold at three sources, or at two from different
-  model families. Then the next plan takes it up and decides again.
+  model families. Then the next plan takes it up and decides again. When that plan is done, the theme says **taken up**
+  and its row and points say in which version; a later source on it counts afresh.
 - **Never cleaned up**, like `docs/DECISIONS.md`. A point taken up later is marked **Taken up in v0.x.y** and kept.
 
 ## Themes
@@ -21,18 +22,22 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | Passages under roofs and bridges (one column per cell) | deferred | F1 | a second source asks; the stealth starter needs a bridge it can't fake |
 | Side-scroller and shooter kits unused by modern third-person games | no | F1 | if third-person games keep skipping them, give their package a leaner manual |
 | Melee helpers (`E.Attack`, `E.Combo`) bypassed | watch | F1 | a game built after the height-aware queries and actions still bypasses them |
-| GPU lighting unused | **threshold** | F1, F6 | reached: two model families (F6.5: no lighting of any kind). The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5) takes it up: rethink its space in the manuals. **Taken up in v0.54.0**: lighting is the Look target's step 9 and the hand-back checklist's; canvas lighting leads, GPU lighting falls back to it by itself; the template and the STEALTH slice are lit (D45, `docs/HANDOFF-NEXT.md`, phase 2) |
+| GPU lighting unused | taken up | F1, F6 | reached: two model families (F6.5: no lighting of any kind). The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up: rethink its space in the manuals. **Taken up in v0.54.0**: lighting is the Look target's step 9 and the hand-back checklist's; canvas lighting leads, GPU lighting falls back to it by itself; the template and the STEALTH slice are lit (D45, `docs/HANDOFF-NEXT.md`, phase 2) |
 | One fixed custom view, views never switched | watch | F1 | three sources: make one view the default for third-person kits and their checks |
-| Reading the engine's source (F1: its size) | **threshold** | F1, F2, F3, F4, F6 | reached: two model families. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5) takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack. `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up the asset names (props, textures, presets) and four garbled index lines; `docs/HANDOFF-API-INDEX.md` (folded into D38 to D42 in v0.43.3) takes up the index's part in v0.42.2: the facts F2.1, F3.1 and F4.1 went to the source for, the instance names, and a check that keeps 25 such lookups answered (D39); F6 read the source 3 times (F3: 11), each after a search of the index (F6.1), and `map.bounds`' return is taken up in v0.43.2 (lookup 26); the cards' part is still open. **Taken up in v0.53.0**: the card says where to look a name up and gains what the runs read the source for (the rig's traversal keys, THIRDPERSON's keys, `map.bounds`, the fade, `game.hitstop`, `Dialog`'s modality and constructor, the hood's colour), and the index heads its lettered sections (`docs/HANDOFF-NEXT.md`, phase 1) |
-| The look below the PS1/N64 bar | **threshold** | F2, F3, F4, F6 | reached: three games at 6/10. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5) takes it up (F2.2, F3.2, F4.2). `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up objects, foliage, materials and contact shadows (done in v0.35.0 to v0.38.0, the plan folded into `docs/ASSETS.md` and `docs/ASSET-IMPORT.md`; the judge's re-run, F6: 5/10 with the core library's shapes, D36); the hero's x-ray dither and three-quarter walls stacking into flat planes are still open. **Taken up in v0.56.0**: the x-ray (F2.2, F3.2): in the smooth style a translucent tint with an outline, shown only when something taller than the knees hides the body; grass, crates and barrels don't hide by default (D46, `docs/HANDOFF-NEXT.md`, phase 4). **Taken up in v0.57.0**: wall faces take the shapes' light, with lit top edges and corner creases, so iso's two faces differ and a pillar stands off the wall behind it (F4.2); a ground view's floor runs past the map into one colour, so no view shows a void (F6.2) (D47, `docs/HANDOFF-NEXT.md`, phase 5) |
-| `E.Shell` unused, the interface drawn on the canvas | **threshold** | F2, F3, F4, F6 | reached: three games with modern interfaces skipped it. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5) takes it up (F4.3). **Taken up in v0.55.0**: the STEALTH slice's and the template game's HUDs are `E.Shell`'s HTML (the objective with its distance, health, status, a takedown prompt, toasts, the results); `AI_GUIDE.md` says when a HUD is HTML (`docs/HANDOFF-NEXT.md`, phase 3) |
-| Climbing any wall and gliding written by the game (`E.Mover` climbs ledges) | **threshold** | F3, F4, F6 | reached: three games wrote their own (F6.4). The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5) takes it up. **Taken up in v0.58.0**: `E.Mover` climbs any wall, opt-in (`climbAny`: take hold on the ground or in the air, climb up and along as the screen shows it, round corners, climb jumps, pull up, let go; `map.wall` finds the face); the STEALTH slice's hero climbs any wall and the template's hero is a Mover that climbs its roof (D48, `docs/HANDOFF-NEXT.md`, phase 6). **Taken up in v0.59.0**: `E.Mover` glides, opt-in (`glide`: sink, steer, updrafts with `lift`, no fall damage; a glider at a wall takes hold), and climbing, climb jumps, gliding and sprinting spend stamina (`staminaMax`); the template's hero glides off its roof under a sail, with a stamina bar (D48, `docs/HANDOFF-NEXT.md`, phase 7) |
+| Reading the engine's source (F1: its size) | taken up | F1, F2, F3, F4, F6 | reached: two model families. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up: F2.1, F3.1 and F4.1 list what the index and cards lack. `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up the asset names (props, textures, presets) and four garbled index lines; `docs/HANDOFF-API-INDEX.md` (folded into D38 to D42 in v0.43.3) takes up the index's part in v0.42.2: the facts F2.1, F3.1 and F4.1 went to the source for, the instance names, and a check that keeps 25 such lookups answered (D39); F6 read the source 3 times (F3: 11), each after a search of the index (F6.1), and `map.bounds`' return is taken up in v0.43.2 (lookup 26); the cards' part is still open. **Taken up in v0.53.0**: the card says where to look a name up and gains what the runs read the source for (the rig's traversal keys, THIRDPERSON's keys, `map.bounds`, the fade, `game.hitstop`, `Dialog`'s modality and constructor, the hood's colour), and the index heads its lettered sections (`docs/HANDOFF-NEXT.md`, phase 1) |
+| The look below the PS1/N64 bar | taken up | F2, F3, F4, F6 | reached: three games at 6/10. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up (F2.2, F3.2, F4.2). `docs/HANDOFF-ASSETS.md` (v0.25.1) takes up objects, foliage, materials and contact shadows (done in v0.35.0 to v0.38.0, the plan folded into `docs/ASSETS.md` and `docs/ASSET-IMPORT.md`; the judge's re-run, F6: 5/10 with the core library's shapes, D36); the hero's x-ray dither and three-quarter walls stacking into flat planes are still open. **Taken up in v0.56.0**: the x-ray (F2.2, F3.2): in the smooth style a translucent tint with an outline, shown only when something taller than the knees hides the body; grass, crates and barrels don't hide by default (D46, `docs/HANDOFF-NEXT.md`, phase 4). **Taken up in v0.57.0**: wall faces take the shapes' light, with lit top edges and corner creases, so iso's two faces differ and a pillar stands off the wall behind it (F4.2); a ground view's floor runs past the map into one colour, so no view shows a void (F6.2) (D47, `docs/HANDOFF-NEXT.md`, phase 5) |
+| `E.Shell` unused, the interface drawn on the canvas | taken up | F2, F3, F4, F6 | reached: three games with modern interfaces skipped it. The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up (F4.3). **Taken up in v0.55.0**: the STEALTH slice's and the template game's HUDs are `E.Shell`'s HTML (the objective with its distance, health, status, a takedown prompt, toasts, the results); `AI_GUIDE.md` says when a HUD is HTML (`docs/HANDOFF-NEXT.md`, phase 3) |
+| Climbing any wall and gliding written by the game (`E.Mover` climbs ledges) | taken up | F3, F4, F6 | reached: three games wrote their own (F6.4). The next plan (`docs/HANDOFF-NEXT.md`, v0.51.5; folded in v0.59.1, `git show 4746448:docs/HANDOFF-NEXT.md`) takes it up. **Taken up in v0.58.0**: `E.Mover` climbs any wall, opt-in (`climbAny`: take hold on the ground or in the air, climb up and along as the screen shows it, round corners, climb jumps, pull up, let go; `map.wall` finds the face); the STEALTH slice's hero climbs any wall and the template's hero is a Mover that climbs its roof (D48, `docs/HANDOFF-NEXT.md`, phase 6). **Taken up in v0.59.0**: `E.Mover` glides, opt-in (`glide`: sink, steer, updrafts with `lift`, no fall damage; a glider at a wall takes hold), and climbing, climb jumps, gliding and sprinting spend stamina (`staminaMax`); the template's hero glides off its roof under a sail, with a stamina bar (D48, `docs/HANDOFF-NEXT.md`, phase 7) |
 | Not verified on physical phones or native GPUs | no | F1 | a game heads to production (principle 10) |
 | Saves, checkpoints and objectives written by the game | watch | F1 | three sources write the same checkpoint or objective code |
 | Music written by the game for stealth and chases | watch | F1 | two more sources: built-in `stealth` and `chase` songs |
 | Production hardening asked of every game (PWA, wake lock, folds, physical devices, other gamepad mappings) | deferred | F5 | a game heads to production (principle 10) |
 | Settings nothing honors yet (frame-rate limit, brightness, text size, HUD scale) | deferred | F5 | the engine or a game has something they would change |
 | Assists each game writes (aim assist, auto-fire, hold or toggle, captions) | watch | F5 | two builders write the same assist: the engine gets it, as a standard setting |
+| A dialogue piece in `E.Shell` (talking characters are `E.Dialog` on the canvas) | watch | F4 | a source built after v0.55.0 still draws its interface on the canvas, or its prompts collide with the dialogue (F4.3) |
+| A turned three-quarter view (yaw 0: pillars lay their tops on the wall behind) | watch | F4 | a source after v0.57.0 still sees three-quarter walls and pillars as flat planes (F4.2): a small yaw is the owner's call |
+| Pitched roofs for `TileMap` types (the stealth starter's belfry draws one with `r.queue`) | deferred | none yet | a source asks for roofs |
+| GPU lighting in headless checks (WebGPU in `tools/check.mjs`'s browser) | deferred | F1 | a game leads with GPU lighting and its checks need to see it; canvas lighting shows in every check (D45) |
 
 ## Sources
 
@@ -70,6 +75,7 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   - **F1.2** · melee helpers bypassed · "Combat needed explicit rules for height, perception, and takedowns."
     **Watch:** the plan fixes the cause (height-aware tests, actions, perception) and leaves the helpers as they are.
   - **F1.3** · GPU lighting unused · "A single Canvas view kept rendering and verification consistent." **Watch.**
+    **Taken up in v0.54.0.**
   - **F1.4** · one fixed custom view, for the same reason. It made its own view (yaw 45, pitch 35, scale 1.27) and
     never switched. **Watch.**
   - **F1.5** · passages under things · "The single-column map model also prevents walkable passages beneath roofs or
@@ -105,11 +111,12 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     and fields, not what `rig.update` takes); the backdrop and prop preset names and the backdrop's `sun`; `emissive`;
     `px.blend`; the song format (`steps`, `bpm`); `E.Combo`, `E.Attack` and `game.hitFx`; how `Dialog` holds play;
     hats and hoods; the actor box's size. **Threshold** (with F1): the next plan takes it up, likely as index entries
-    for option and state keys, preset lists and the song format.
+    for option and state keys, preset lists and the song format. **Taken up in v0.53.0.**
   - **F2.2** · the look · flat lighting, unshaded foliage, and the hero drawn as cyan x-ray dither while he stands in a
     rooftop recess (the stealth starter's `xray` default). **Watch.**
+    **Taken up in v0.54.0 (the lighting) and v0.56.0 (the x-ray).**
   - **F2.3** · `E.Shell` unused · it drew its interface on the canvas (`Dialog` with portraits, `E.ui` boxes). The brief
-    didn't ask for HTML. **Watch.**
+    didn't ask for HTML. **Watch.** **Taken up in v0.55.0.**
 
 ### F3 · 2026-10-11 · the benchmark's Breath of the Wild run ("Wild Heights")
 
@@ -126,14 +133,15 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   - **F3.1** · reading the source · 11 reads below the header, for: the rig's pose weights (`cheer`, `kneel`) and limb
     poses; the level legend; the song format; the pixel scale and the touch stick; the view's camera (`set`); `Body`'s
     collision and ground; the backdrop's drawing; the texture names; the Mover's `dir`; `Dialog.say` and its choices.
-    The rig and `Dialog` are what all three runs looked up. **Threshold** (the theme's).
+    The rig and `Dialog` are what all three runs looked up. **Threshold** (the theme's). **Taken up in v0.53.0.**
   - **F3.2** · the look · flat pines, thin shadows, and the x-ray dither on the hero behind trees, which the judge took
-    for a rendering glitch (as in F2.2). **Threshold** (the theme's).
+    for a rendering glitch (as in F2.2). **Threshold** (the theme's). **Taken up in v0.56.0 (the x-ray).**
   - **F3.3** · `E.Shell` unused · its HUD (hearts, orb and rupee counters, the objective line) and dialog are drawn on
-    the canvas, and they collide with world labels. **Threshold** (the theme's).
+    the canvas, and they collide with world labels. **Threshold** (the theme's). **Taken up in v0.55.0.**
   - **F3.4** · climbing and gliding · it wrote its own climb-any-wall (latching, moving round corners, climb jumps,
     pulling up onto the top: about an eighth of its code) and its own ground movement and paraglider on `E.Body`;
     `E.Mover` climbs ledges and vaults but has no free climbing on a wall face and no glide. **Watch.**
+    **Taken up in v0.58.0 and v0.59.0.**
 
 ### F4 · 2026-10-11 · the benchmark's Arkham run (the Great Hall)
 
@@ -155,15 +163,15 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
   - **F4.1** · reading the source · 29 reads below the header, most for the third-person kit's own code (`Mover`, the
     actions, perception: lines 4320-4790, twice) rather than its index lines; then the rig's joints, colours and hood;
     `Dialog`'s modality and its options; the game's lifecycle (`pausable`, `hitstop`, the fade); `r.actor`'s box;
-    `hitFx`; `sightCone`; `FlowField`; `E.Attack`. **Threshold** (the theme's).
+    `hitFx`; `sightCone`; `FlowField`; `E.Attack`. **Threshold** (the theme's). **Taken up in v0.53.0.**
   - **F4.2** · the look · small, lightly shaded figures that merge when they overlap; in three-quarter, walls and
-    pillars stack into flat planes. **Threshold** (the theme's).
+    pillars stack into flat planes. **Threshold** (the theme's). **Taken up in v0.57.0 (the walls).**
   - **F4.3** · `E.Shell` unused · its prompt bar, threat panel and portrait dialogue are canvas boxes, and the prompts
     overlap the dialogue. The three games all wanted a modern interface and none found `E.Shell` worth it: the package
     names it in `API.md` and `AI_GUIDE.md` but the starters and the template game don't use it. **Threshold** (the
-    theme's): the next plan decides whether the template and the stealth starter should.
+    theme's): the next plan decides whether the template and the stealth starter should. **Taken up in v0.55.0.**
   - **F4.4** · gliding · its glide is its own, on top of `E.Mover`; the grapple it wrote as an `E.ACTIONS` entry, as the
-    kit means. **Watch** (with F3.4).
+    kit means. **Watch** (with F3.4). **Taken up in v0.59.0.**
 
 ### F5 · 2026-10-11 · the owner's quality prompt (controls, display, accessibility)
 
@@ -204,13 +212,14 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
     (not in the index: taken up in v0.43.2, lookup 26). That is 3 of its 8 searches followed by the source, which
     reopens the index's split by D38's rule. **Threshold** (the theme's). Taken up in v0.43.4: the index names `px`'s
     members as games write them (`px.disc`, not `E.px.disc`) and each input preset's actions (lookups 27, 28); the
-    owner kept the index whole, and the split now reopens only on two runs in a row (D43).
+    owner kept the index whole, and the split now reopens only on two runs in a row (D43). **Taken up in v0.53.0.**
   - **F6.2** · the look · 5/10 against F3's 6/10 on the same brief and model, with objects from the core library
     (no store set): the judge saw empty fields, flat lighting, and the iso view's black void under the backdrop and
     flat building faces. **Threshold** (the theme's).
+    **Taken up in v0.54.0 (the lighting) and v0.57.0 (the void, the walls).**
   - **F6.3** · `E.Shell` unused · hearts, the orb counter and the objective drawn on the canvas with `E.ui`; the elder
-    talks in `E.Dialog`. **Threshold** (the theme's).
+    talks in `E.Dialog`. **Threshold** (the theme's). **Taken up in v0.55.0.**
   - **F6.4** · climbing and gliding · its own climb-any-wall, climb-jump, stamina and paraglider on `E.Body`, without
-    `E.Mover`. **Threshold** (the theme's: the third source).
+    `E.Mover`. **Threshold** (the theme's: the third source). **Taken up in v0.58.0 and v0.59.0.**
   - **F6.5** · lighting unused · neither `game.lights` nor GPU lighting; the judge: "almost no lighting depth".
-    **Threshold** (the theme's: F1 and F6, two model families).
+    **Threshold** (the theme's: F1 and F6, two model families). **Taken up in v0.54.0.**

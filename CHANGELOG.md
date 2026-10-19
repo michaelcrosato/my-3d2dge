@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.59.1 (2026-10-19)
+
+The next plan is done: folded into the docs and deleted.
+
+- **Docs**: `docs/HANDOFF-NEXT.md` is deleted (`git show 4746448:docs/HANDOFF-NEXT.md` reads it). Its calls are D45 to D48, its user-facing parts are in `API.md` and `AI_GUIDE.md`, and what it left out is in `docs/FEEDBACK-LOG.md` as themes of their own: a dialogue piece in `E.Shell` and a turned three-quarter view as **watch**, pitched roofs for `TileMap` types and GPU lighting in headless checks as **deferred**. The five threshold themes there say **taken up**, and each point they counted says the version that took it up.
+
 ## 0.59.0 (2026-10-19)
 
 Phase 7 of the next plan: `E.Mover` glides, and climbing, gliding and sprinting spend stamina (D48).
