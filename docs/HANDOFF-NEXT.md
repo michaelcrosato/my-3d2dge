@@ -270,5 +270,5 @@ file's progress table updated.
 | 4 the x-ray | done | v0.56.0 | |
 | 5 walls with depth, the floor to the edge | done | v0.57.0 | |
 | 6 climbing any wall | done | v0.58.0 | |
-| 7 gliding and stamina | not started | | |
+| 7 gliding and stamina | done | v0.59.0 | |
 | 8 fold this plan in | not started | | |
