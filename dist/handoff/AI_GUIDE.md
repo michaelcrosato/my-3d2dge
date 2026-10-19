@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.52.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.53.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -238,12 +238,12 @@ if (prey && input.pressed('attack')) takedown(prey.target);
 
 ### Mover and actions (third-person ground controller)
 `E.Mover` is the ground views' answer to `Platformer`: a `Body` with a third-person game's movement.
-- `new E.Mover({ x, y, z })`; each step `hero.update(dt, map, game.input)` with `input: 'THIRDPERSON'` (move, Shift sprint, Space jump and parkour, C crouch, J attack, K block, L dodge; touch buttons), or an AI's intent `{ move: [dx, dy], sprint, crouch, jumpPressed }`. Screen directions turn into ground ones through the view.
+- `const mover = new E.Mover({ x, y, z })` (the index files its members as `mover.`); each step `mover.update(dt, map, game.input)` with `input: 'THIRDPERSON'` (move, Shift sprint, Space jump and parkour, C crouch, J attack, K block, L dodge; touch buttons), or an AI's intent `{ move: [dx, dy], sprint, crouch, jumpPressed }`. Screen directions turn into ground ones through the view.
 - Walk 50, run 85, sprint 125 and sneak 32 with acceleration; a jump with coyote time and a buffer, once a press.
 - A jump press is parkour first: a ledge up to `climbMax` (82) is climbed (`climbUp`; crouch while hanging lets go), a wall up to `vault` (14) is vaulted at a run, a gap ahead is leapt (it aims for the far side's landing), a drop up to `hopMax` (48) is hopped down; otherwise it jumps.
 - Falls: past `rollAt` (26) at speed it rolls, past `hurtAt` (72) it sets `hurt`. `lastSafe` and `respawn()` bring it back from water and pits (`inHazard`).
-- `hero.rigState(extra)` feeds `rig.update`: its crouch (a sneaking gait), sprint lean, air, landing, or the playing action's pose.
-- Actions (`E.ACTIONS`): `climbUp` (played backwards to climb down), `vault`, `hopDown`, `roll` (invulnerable in its middle), `getUp`, and `takedown`, a paired action that moves two bodies: `hero.play('takedown', { other: guard, aerial, map })`. While `hero.action` plays it moves the body instead of physics; `act.beat`, `act.u`, `act.canCancel`, `act.invulnerable`, `act.otherState()` for the victim's rig. Your own: `E.ACTIONS.slide = { beats: [['go', .4]], setup(A) {}, at(A, beat, u) { return { x, y, z, state } } }`.
+- `mover.rigState(extra)` feeds `rig.update`: its crouch (a sneaking gait), sprint lean, air, landing, or the playing action's pose.
+- Actions (`E.ACTIONS`): `climbUp` (played backwards to climb down), `vault`, `hopDown`, `roll` (invulnerable in its middle), `getUp`, and `takedown`, a paired action that moves two bodies: `mover.play('takedown', { other: guard, aerial, map })`. While `mover.action` plays it moves the body instead of physics; `act.beat`, `act.u`, `act.canCancel`, `act.invulnerable`, `act.otherState()` for the victim's rig. Your own: `E.ACTIONS.slide = { beats: [['go', .4]], setup(A) {}, at(A, beat, u) { return { x, y, z, state } } }`.
 
 ### Perception (sight, hearing, suspicion)
 - `E.sees(guard, hero, { map, range: 120, fov: 1.6, eye })` → `{ seen, d, angle, exposure }`: inside the cone, and three points on the hero (feet, chest, head) checked against every top with `map.ray`. Crouching shows less and lower; `hero.exposure` (0..1) is cover you set: tall grass, shadow.

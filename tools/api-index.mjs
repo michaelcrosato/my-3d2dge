@@ -39,7 +39,7 @@ const NESTED = { Game: ['cam', 'stats'] };
 function scan(src) {
   const L = src.split('\n'), sections = [], top = new Map(), classes = new Map(), spaces = new Map();
   for (let i = 0; i < L.length; i++) {
-    const m = /^\/\* ={10,}/.test(L[i]) && /^ \* (\d+b?)\. (.+?)(?:\s{2,}(.*))?$/.exec(L[i + 1] || '');
+    const m = /^\/\* ={10,}/.test(L[i]) && /^ \* (\d+[a-z]?)\. (.+?)(?:\s{2,}(.*))?$/.exec(L[i + 1] || '');
     if (m) sections.push({ at: i, n: m[1], title: m[2].trim(), gloss: (m[3] || '').trim() });
     let d;
     if ((d = /^class (\w+)(?: extends (\w+))?/.exec(L[i]))) { let j = i + 1; while (j < L.length && L[j] !== '}') j++; classes.set(d[1], { at: i, end: j, parent: d[2] || null }); top.set(d[1], i); }

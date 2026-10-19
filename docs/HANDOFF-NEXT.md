@@ -264,7 +264,7 @@ file's progress table updated.
 | Phase | State | Version and commit | Notes |
 | --- | --- | --- | --- |
 | 0 this plan | written | v0.51.5 | the facts checked against v0.51.4 |
-| 1 the cards | not started | | |
+| 1 the cards | done | v0.53.0 | |
 | 2 lighting in the look | not started | | |
 | 3 `E.Shell` in the template and the stealth starter | not started | | |
 | 4 the x-ray | not started | | |

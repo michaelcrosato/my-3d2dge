@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.52.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.53.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -8,7 +8,8 @@ unchanged on the full engine, which adds the pause, settings and controls menus,
 backdrops, touch controls, camera zoom and turn, dialog portraits, x-ray silhouettes, replayable sessions, and more.
 
 AGENTS: this header is the whole manual. Build games from it; you do not need to read the code below.
-Read a section only to debug: each starts with "// ---- N. NAME" (grep "// ---- 10." for the Humanoid).
+Read a section only to debug: each starts with "// ---- N. NAME" (grep "// ---- 10." for the Humanoid). With the
+handoff package, grep API-INDEX.md for a name first: one line each (a † marks the full engine's only).
 
 ## Host it
 <!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
@@ -211,7 +212,7 @@ Humanoid: new E.Humanoid({ size: 1.3, build: 'chibi' | 'heroic' | 'bulky', weapo
   outfit: 'shirt' | 'tunic' | 'robe' | 'coat', hair: 'short' | 'bald', hat: 'cap' | 'pointed' | 'helmet' | 'crown'
   (or { style, color }), cape: { len: 6 }, hood: true, sleeves: 'short' | 'long' | 'none', eyeGlow: '#ff4030', hunch,
   colors: { skin, hair, cloth, coat, pants, boot, belt, trim, glove, cape, capeIn, metal, hilt } })
-  rig.update(dt, { x, y, z, vx, vy, facing, attack, hurt, dash, air, point, aim, climb, vz, pose, stance, run })
+  rig.update(dt, { x, y, z, vx, vy, facing, attack, hurt, dash, air, point, aim, climb, vz, pose, stance, run, down })
     facing in radians (side view: 0 right, Math.PI left); air tucks the legs; point holds a gun out, aim tilts it
     (+ = up); pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'block' | 'die' | 'down';
     stance: 'guard' (fists up) | 'ready' (weapon forward); run: 0..1 runs in place
@@ -372,7 +373,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.52.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.53.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };

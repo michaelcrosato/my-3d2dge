@@ -65,7 +65,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERWELL</b><span>Starting · my-3D2dge v0.52.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERWELL</b><span>Starting · my-3D2dge v0.53.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberwell, an action game in a torch-lit hall"></canvas>
   <div class="hud top">
@@ -106,7 +106,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.52.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.53.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -185,7 +185,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.52.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.53.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1867,7 +1867,8 @@ class Renderer {
    * Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected
    * position of world point (x, y, z). The engine adds outline, rim light, hit flash,
    * afterimages and x-ray silhouettes.
-   * opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key}
+   * opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key,
+   *   emissive (it stays bright under lighting, as r.queue's)}
    * - xray: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in
    *     front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that
    *     color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies
@@ -3118,7 +3119,7 @@ class Humanoid {
   /** new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a
    *  character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each
    *  step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style,
-   *  color }); hood: true */
+   *  color }); hood: true (drawn in colors.hair) */
   constructor(o = {}) {
     if (o.build && !BUILDS[o.build]) warn('build:' + o.build, 'Humanoid build "' + o.build + '" is unknown (chibi, heroic, bulky, skeleton)');
     o = Object.assign({}, BUILDS[o.build] || {}, o);
@@ -3200,8 +3201,9 @@ class Humanoid {
    *   air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun)
    *   attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand
    *   also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll),
-   *   pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die', stance: 'guard' | 'ready',
-   *   down: 0..1
+   *   pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die' | 'block',
+   *   stance: 'guard' | 'ready', down: 0..1, vz (with climb: the climbing speed), land: k (a heavy landing),
+   *   expr: 'smile' | 'shout' | 'angry' | 'wince', run: 0..1 (run in place)
    */
   update(dt, s = {}) {
     const o = this.o;
@@ -7365,8 +7367,10 @@ class Dialog {
   /**
    * open with one string or a list of strings (each starts a new page).
    * opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size),
-   *         portraitSize: 40, portraitOpts: { zoom, turn, bg } }
-   * choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked
+   *         portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself,
+   *         modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha }
+   * choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked. update(dt) returns true while a
+   * modal box is open: return from your update then, and play waits
    */
   say(text, o = {}) {
     /** portrait: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size

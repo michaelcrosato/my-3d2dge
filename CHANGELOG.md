@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.53.0 (2026-10-19)
+
+Phase 1 of the next plan (`docs/HANDOFF-NEXT.md`): the cards answer what the benchmark runs read the engine's source for.
+
+- **Docs**: `API.md` says where to look a name up (grep `API-INDEX.md`, members under instance names, not the engine's source), and gains the facts the runs went to the source for: the rig's traversal keys (`crouch`, `sprint`, `hang` and `hangZ`, `flip`, `land`), the third-person preset's keys and actions, what `map.bounds` returns, the scene fade (`game.fadeTime`, `{ fade: 0 }`), `game.hitstop`, `Dialog`'s modality, its last-page choices and its constructor, and that a hood takes `colors.hair`. The Mover is `mover` on the card and in `AI_GUIDE.md`, as the index files it. Room came from the sessions and motion-clip bullets, now pointers to `AI_GUIDE.md` (14,843 tokens of 15,000).
+- **Docs**: the agent edition's header names `API-INDEX.md` (a † marks the full engine's names) and `down` among the rig's keys.
+- **Tools**: `tools/api-index.mjs` makes headings of the lettered sections (10c BOOT, 17c MOVER, 17d PERCEPTION, 21c PROPS, 21d SHELL, 21e SHAPES, 21f CORE LIBRARY), which the engine's header cites; they were filed under 10b, 17b and 21b.
+- **Engine**: the doc comments the index is built from gain `talk.say`'s `auto`, `modal`, `place`, `y` and `alpha` and when `update` returns true, `rig.update`'s `vz`, `land`, `expr`, `run` and pose `'block'`, `r.actor`'s `emissive`, and the hood's colour.
+
 ## 0.52.0 (2026-10-19)
 
 The engine's private names that the engine tier still used are public now, so nothing outside `engine/` reaches past the API: the grandfathered list is empty.

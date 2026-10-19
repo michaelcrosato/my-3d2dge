@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.52.0)
+# my-3D2dge API index (v0.53.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,34 +48,40 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 80 The engine object (E = My3D2dge)
-- 91 Math
-- 148 Pixel primitives
-- 167 Views (projections); E.View: view
-- 194 Screen; game.screen
-- 215 Input; E.Input: input
-- 287 Pixel font
-- 298 Lighting; game.lights
-- 313 Particles; E.Particles: game.particles
-- 333 Renderer; r
-- 377 Game; E.Game: game
-- 487 Standard features; settings, fullscreen
-- 506 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 579 Blob rig; E.Blob: blob
-- 599 Tile map; E.TileMap: map
-- 656 Materials
-- 677 Flow field; E.FlowField: flow
-- 695 Texture helpers for floortex functions
-- 706 Platform map; E.PlatformMap: level, E.Platformer: hero
-- 768 Body; E.Body: body
-- 788 Actions; E.Action: action, E.Mover: mover, E.Suspicion: suspicion
-- 848 Bullets; E.Bullets: shots
-- 868 Spatial hash; E.SpatialHash: grid
-- 878 Audio; game.audio
-- 900 Backdrops; E.Backdrop: backdrop
-- 919 Ui; E.Dialog: talk, E.Menu: menu, E.Shell: shell
-- 999 Gpu lighting (webgpu); game.gpu
-- 1019 Sessions
+- 86 The engine object (E = My3D2dge)
+- 97 Math
+- 154 Pixel primitives
+- 173 Views (projections); E.View: view
+- 200 Screen; game.screen
+- 221 Input; E.Input: input
+- 293 Pixel font
+- 304 Lighting; game.lights
+- 319 Particles; E.Particles: game.particles
+- 339 Renderer; r
+- 383 Game; E.Game: game
+- 493 Standard features; settings, fullscreen
+- 510 10c. Boot
+- 515 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 588 Blob rig; E.Blob: blob
+- 608 Tile map; E.TileMap: map
+- 665 Materials
+- 686 Flow field; E.FlowField: flow
+- 704 Texture helpers for floortex functions
+- 715 Platform map; E.PlatformMap: level, E.Platformer: hero
+- 777 Body; E.Body: body
+- 797 Actions; E.Action: action
+- 819 17c. Mover; E.Mover: mover
+- 846 17d. Perception; E.Suspicion: suspicion
+- 863 Bullets; E.Bullets: shots
+- 883 Spatial hash; E.SpatialHash: grid
+- 893 Audio; game.audio
+- 915 Backdrops; E.Backdrop: backdrop
+- 923 21c. Props
+- 928 21e. Shapes
+- 940 Ui; E.Dialog: talk, E.Menu: menu
+- 994 21d. Shell; E.Shell: shell
+- 1023 Gpu lighting (webgpu); game.gpu
+- 1043 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -84,7 +90,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.52.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.53.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -334,7 +340,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `r.H`: the screen's height in game pixels
 - `r.W`: the screen's width in game pixels
-- `r.actor(x, y, z, drawFn, o = {})`: Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected position of world point (x, y, z). The engine adds outline, rim light, hit flash, afterimages and x-ray silhouettes. opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key}
+- `r.actor(x, y, z, drawFn, o = {})`: Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected position of world point (x, y, z). The engine adds outline, rim light, hit flash, afterimages and x-ray silhouettes. opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key, emissive (it stays bright under lighting, as r.queue's)}
 - `r.actor({ xray })`: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies drawn in front hide it too (a hero lost in a crowd keeps his shape)
 - `r.actor({ hides })`: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
 - `r.actor({ ghost })`: ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
@@ -486,8 +492,6 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 10b. Standard features
 
-- `E.bootSplash(title = '')`: the boot screen's markup, for the very start of a page's <body>: it shows from the first paint, its bar moving while the page's scripts load (a pure CSS animation), and says so if the game's script never runs. The engine takes it over
-- `E.diagnose(game = E.current)`: the report a bug needs, at any time (and on the boot screen when a game can't start): { engine, game, time, page, browser, device, screen, canvas, gpu, sound, storage, input, scene, errors, text (all of it, one line each, for a screenshot or a bug report), short (one line) }. game: the game to report on (E.current)
 - `settings.default(key)`: a setting's default value
 - `settings.define(sp)`: add a setting: { key, label, type: 'toggle' | 'slider' | 'select', value, min, max, step, options: [[value, label]] or [value], help, group: 'Game', apply(game, value) }. Its saved value is loaded (when it is a valid one) and applied; it shows on the settings screen. Returns its value
 - `settings.keys(group)`: the keys of a group's settings, in order ('Display', 'Sound', 'Comfort', 'Controller', 'Touch', 'Game'), or every key
@@ -502,6 +506,11 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `fullscreen.supported`: true where this page can go full screen (not an iPhone, which has Add to Home Screen instead; not a frame without permission; not headless)
 - `fullscreen.toggle()`: full screen on or off, as the player asked (the corner's button, the menu): their choice is kept in settings.fullscreen, so a game starting on a phone goes full screen by itself only while they haven't turned it off
 - `fullscreen.failed = null`: game: the game it serves; failed: why the last request was refused (a message), or null
+
+## 10c. Boot
+
+- `E.bootSplash(title = '')`: the boot screen's markup, for the very start of a page's <body>: it shows from the first paint, its bar moving while the page's scripts load (a pure CSS animation), and says so if the game's script never runs. The engine takes it over
+- `E.diagnose(game = E.current)`: the report a bug needs, at any time (and on the boot screen when a game can't start): { engine, game, time, page, browser, device, screen, canvas, gpu, sound, storage, input, scene, errors, text (all of it, one line each, for a screenshot or a bug report), short (one line) }. game: the game to report on (E.current)
 
 ## 11. Humanoid rig
 
@@ -531,7 +540,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `combo.moves`: the Attacks
 - `combo.step = -1`: the index of the current hit (-1 before the first)
 - `combo.window`: seconds after a hit ends that a press still chains
-- `new E.Humanoid(o = {}) → rig`: new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style, color }); hood: true
+- `new E.Humanoid(o = {}) → rig`: new E.Humanoid({ size: 1.3, build, weapon, outfit, hair, hat, sleeves, armor, hood, cape, colors, ... }): a character rig posed from math every step (API.md, "Characters", lists the options); update(dt, state) each step, draw(g, ox, oy, view) inside r.actor. hat: 'cap' | 'band' | 'crown' | 'helmet' | 'pointed' (or { style, color }); hood: true (drawn in colors.hair)
 - `rig.debug(r)` †: skeleton overlay for debugging, draws straight into the buffer
 - `rig.draw(g, ox, oy, view)`: draw into g with (ox, oy) = projected position of the rig's root
 - `rig.drawPortrait(g, x, y, size = 40, o = {})` †: a close-up bust for dialog boxes and menus, drawn live from the rig (blinks, hair and hats included): rig.drawPortrait(g, x, y, 40, { zoom: 3, turn: .6, bg: '#1a2050', frame: true }) // inside r.overlay(g => ...) zoom: pixels per world unit (3 = face fills the frame), turn: 0 = facing you, .6 = three-quarter. The bust stays upright while the rig kneels or lies down (upright: false shows the real pose); cape: false hides the cape; tint: '#808080' greys it out (a KO'd party member).
@@ -542,7 +551,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `rig.land(strength = 1)` †: a heavy landing: knees bend deep and spring back over a moment; strength 1 or more drops a hand to the ground (a three-point landing), .3-.6 is a soft one. Call it on the step the body lands
 - `rig.solvePose()`: set the joints J from the rig's state this step (update and setPose call it); a clip player may wrap it on one rig: const base = rig.solvePose; rig.solvePose = function () { base.call(this); ...move J... }
 - `rig.tip()`: world position of the weapon tip (sword tip, gun muzzle, staff orb)
-- `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll), pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die', stance: 'guard' | 'ready', down: 0..1
+- `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll), pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die' | 'block', stance: 'guard' | 'ready', down: 0..1, vz (with climb: the climbing speed), land: k (a heavy landing), expr: 'smile' | 'shout' | 'angry' | 'wince', run: 0..1 (run in place)
 - `rig.worldOffset(p)`: where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it) sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint
 - `rig.C`: its colors (skin, hair, cloth, pants, boot, belt, cape, capeIn, metal, hilt, eye, ...), the defaults with o.colors over them; change one and it shows at the next draw
 - `rig.J`: its joints this step in its own frame ({ hipL, kneeL, footL, shC, head, handR, ... }; rig.worldOffset(J.handR) gives one in the world)
@@ -806,6 +815,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `action.spec` †: its E.ACTIONS entry
 - `action.start` †: where the body was when it began
 - `action.t = 0` †: seconds played
+
+## 17c. Mover
+
 - `new E.Mover(o = {}) → mover`: new E.Mover({ x, y, z, r: 5, ... }): any of its fields, below, as options. An E.Body: it has body.jump, push and the body's fields too
 - `mover.dodge(dir, dist = 34)` †: a dodge roll toward dir (an angle or [dx, dy]; default its facing) when it stands free. Returns the action, or null
 - `mover.play(name, o = {})` †: start an action now (E.ACTIONS name, its options): it moves the body until it ends
@@ -830,6 +842,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `mover.sprinting = false` †: sprinting now
 - `mover.turn = 14` †: how fast it turns, radians a second
 - `mover.vault = 14` †: walls up to this high are vaulted at a run
+
+## 17d. Perception
+
 - `new E.Suspicion(o = {}) → suspicion`: new E.Suspicion({ rise, decay, notice, search, alert, forget }): a guard's mind (its fields, below, are its options). Its level rises while it sees the target (faster the more exposed and nearer), decays while it doesn't, and names a state: 'calm', 'notice' (turn and look), 'search' (go to last), 'alert' (chase). An alert guard that loses the target searches for forget seconds. Each step: suspicion.update(dt, seen, target)
 - `suspicion.hear(strength, at)` †: a noise heard (strength 0..1, from E.hears) at a point: at least noticed, never more than searching
 - `suspicion.reset()` †: back to calm
@@ -904,11 +919,17 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `backdrop.draw(r)` †: draw the backdrop first in draw(r), before the level; it scrolls with the camera by each layer's parallax
 - `backdrop.layers` †: its scenery layers, back to front, with their defaults filled in
 - `backdrop.sky` †: the sky's gradient colors, top to bottom
+
+## 21c. Props
+
 - `E.PROPS: torch, candle, candelabra, chandelier, brazier, window, banner, pillar, statue, crate, barrel, chest, pot, sign, fence, lamp, door, tree, pine, bush, flowers, grass, rock, crystal, bones, skull, vines, cobweb, lantern, streetlamp, awning, hydrant, trashcan, firedrum, sandbags, cactus, palm, mushroom` †: the names of the built-in props for r.prop(name, x, y, z, opts) and E.prop(name, opts)
+- `E.prop(name, o = {})`: build (and cache) a prop: { frames: [sprite], glow: [sprite] | null, w, h }
+
+## 21e. Shapes
+
 - `E.SHAPES: barrel, crate, chest, table, chair, stool, bench, bed, bookcase, shelf, pot, jar, sack, cart, ... (25)`: the shapes by id: { about, tags, mats: { slot: material }, parts | make(params), params, foot, lights, flames } (the core library's, the sets' as 'SET:id' from E.addAssets, and your own: E.SHAPES.stool = {...})
 - `E.addAssets(set)`: register a store set (src/assets/sets/*.js: { set, format: 1, credit, sources, materials, shapes, sprites }): its entries are named 'SET:id' (so one set never changes another's, or the core's) and find their own set's materials and shapes first. An id that is already there warns and keeps the first. Returns { shapes: [ids], materials: [ids], sprites: { id: sprite } } (sprites are E.sprite data; a color may be 'material:tone', tone deep | sh | base | lt | hi)
 - `E.materialTile(id, o = {})`: a material's pattern as a tile of pixels, for a 3D renderer's texture: E.materialTile(id, { size: 32 (world units square: it repeats every size; a face pattern's whole face), px: 2 (pixels a unit), lid: false (true: as on a face looking up), curved (as on a turned face), band: 2 (the light: 0 dark .. 4 bright) }) -> { w, h, rgba (Uint8ClampedArray, top row first, v up the tile) }; null for an unknown material
-- `E.prop(name, o = {})`: build (and cache) a prop: { frames: [sprite], glow: [sprite] | null, w, h }
 - `E.shapeBox(id, x, y, z = 0, o = {})`: where a placed shape stands, as both engines collide with it: E.shapeBox(id | entry, x, y, z, { facing, scale, flip, params }) -> { x, y (its footprint's middle), z, top, hx, hy (half its footprint, along its own x and y), c, s (the turn's cosine and sine) }; null for an unknown shape. map.solid makes one solid; world.shape gives it a collider
 - `E.shapeInfo(id, o = {})`: what a shape draws, for tools and tests: E.shapeInfo(id, { view: 'iso', facing, scale, mats, params }) -> { w, h, ox, oy, tris, prims (its primitives), parts (each primitive's pixels on screen: 0 is never seen there), colors (distinct), pixels, bounds [x0, y0, z0, x1, y1, z1], rgba }; null for an unknown shape
 - `E.shapeMesh(id, o = {})`: a shape's triangles, for a 3D renderer (the 3D engine's world.shape): E.shapeMesh(id | entry, { params, mats, seg }) -> { groups: [{ mat, key, lid, curved, face, pos, nrm, uv }], bounds [x0, y0, z0, x1, y1, z1] } in the entry's own units and frame (z up, its front +y, its own scale applied: place it with the placement's facing, scale and flip). The same parts as r.shape draws; null for an unknown shape
@@ -922,7 +943,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `talk.close()`: close it now (and forget pending presses, so the same press doesn't also attack)
 - `talk.draw(r)`: draw it (anywhere in draw: it goes to the overlay)
 - `talk.pageLen`: the letters on the page shown
-- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg } } choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked
+- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself, modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha } choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
 - `talk.typing`: true while the page is still typing
 - `talk.update(dt)`: type and turn pages (confirm finishes the line, then turns the page); returns true while open and modal, so gameplay can wait: if (talk.update(dt)) return;
 - `talk.auto`: seconds each page stays after typing
@@ -964,6 +985,14 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `menu.sound = true`: false silences it
 - `menu.title = null`: a heading, or null
 - `menu.x = 'center'`, `menu.y = 'center'`: where it sits, 'center' or pixels
+- `E.ui`: pixel-drawn interface pieces for r.overlay
+- `E.ui.bar(g, x, y, w, h, frac, color = '#e0463c', o = {})`: a bar (a meter: health, magic, stamina, a boss's): ui.bar(g, x, y, w, h, 0..1, '#e0463c')
+- `E.ui.box(g, x, y, w, h, o = {})`: window frame: ui.box(g, x, y, w, h, { bg, border, shadow, gradient }) bg: one color (drawn as a soft top-to-bottom gradient, like Final Fantasy windows) or [top, bottom] colors. gradient: false for a flat fill.
+- `E.ui.counter(g, x, y, label, value, color = '#ffffff', o = {})`: label + value, e.g. ui.counter(g, 4, 4, 'RUPEES', 12)
+- `E.ui.hearts(g, x, y, hp, max, o = {})`: row of hearts: hp and max in hearts (halves allowed, e.g. 2.5 of 3)
+
+## 21d. Shell
+
 - `new E.Shell(game, o = {}) → shell`: new E.Shell(game, { theme, screens: { name: spec }, settings: { items, onChange(settings, key) }, store: 'shell-settings', meters: .125, standard: true }): an HTML interface over the game (see the section's header)
 - `new E.Shell({ theme })`: CSS variables (ink, paper, accent, muted, danger, line, font, titleFont)
 - `new E.Shell({ screens })`: specs ui.show(name) starts from (the pause screen follows game.paused; screens: { pause: false } leaves it out)
@@ -990,11 +1019,6 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `shell.toast(title, text = '', seconds = 4)` †: a message that slides in at the top for a few seconds
 - `shell.tutorial(title, text = '', seconds = 15)` †: a tutorial card (bottom left, dismissable) for some seconds; tutorial(null) takes it away
 - `shell.root = null` †: game: the game it is over; o: its options; root: its DOM element (null in a headless game)
-- `E.ui`: pixel-drawn interface pieces for r.overlay
-- `E.ui.bar(g, x, y, w, h, frac, color = '#e0463c', o = {})`: a bar (a meter: health, magic, stamina, a boss's): ui.bar(g, x, y, w, h, 0..1, '#e0463c')
-- `E.ui.box(g, x, y, w, h, o = {})`: window frame: ui.box(g, x, y, w, h, { bg, border, shadow, gradient }) bg: one color (drawn as a soft top-to-bottom gradient, like Final Fantasy windows) or [top, bottom] colors. gradient: false for a flat fill.
-- `E.ui.counter(g, x, y, label, value, color = '#ffffff', o = {})`: label + value, e.g. ui.counter(g, 4, 4, 'RUPEES', 12)
-- `E.ui.hearts(g, x, y, hp, max, o = {})`: row of hearts: hp and max in hearts (halves allowed, e.g. 2.5 of 3)
 
 ## 22. Gpu lighting (webgpu)
 
