@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.55.0)
+# my-3D2dge API card (v0.56.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -130,7 +130,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - Floor marks: `r.shadow(x, y, radius, alpha, color, surfaceZ)`, `r.decal(g => r.groundArc(...))`, `r.groundDisc`, `r.groundRing`, `r.groundPts(x, y, rad, n, z)`.
 - On top, unlit, screen pixels: `r.text(str, x, y, color, { align, scale, outline })`, `r.textAt(x, y, z, str, color)`, `r.overlay(g => {...})`.
 - `r.w(x, y, z)` = buffer pixel of a world point. `r.W`, `r.H`, `r.ix`, `r.iy` (pass to dither functions), `r.view`, `r.visible(x, y, z)`.
-- X-ray: `r.actor(..., { xray: true })` shows a checkered silhouette of the actor wherever a wall, a prop (`r.prop` hides by default; `hides: false` opts one out) or anything queued with `{ hides: true }` is drawn in front of it. `xray: { color, outline: '#e8fdff', actors: true }` picks the fill color, adds a solid 1-px outline around the hidden part (reads on busy or light surfaces), and with `actors: true` other bodies drawn in front hide it too (a hero stays findable inside a crowd). Afterimages: `ghost: { color, life, alpha, owner }`; `owner` (the actor's `{x, y, z}`) keeps a trail left nearer the camera sorted behind the live body.
+- X-ray: `r.actor(..., { xray: true })` shows the actor's hidden part, a translucent tint with a 1-px outline (a checker in `E.style.trans = 'dither'`), wherever a wall, a prop or shape at least chest high (22; `hides: true | false` says otherwise) or anything queued with `{ hides: true }` is drawn in front of it; not by one rising less than 8 above its feet (the roof it stands on, a cut-down wall). `xray: { color, outline (false: none), actors: true }`: with `actors` other bodies in front hide it too (a hero stays findable in a crowd). Afterimages: `ghost: { color, life, alpha, owner }`; `owner` (the actor's `{x, y, z}`) keeps a trail left nearer the camera sorted behind the live body.
 - Glowing things you draw yourself: `r.queue(x, y, z, fn, { emissive: true })` is drawn again after lighting so darkness never dims it (flames, lasers, magic, neon). It still hides behind whatever stands in front of it: walls and `r.actor` bodies do this on their own, and any other queued draw can join them with `{ solid: true }`. (Canvas lighting builds a depth-ordered mask for this; `game.r.glowMask = false` skips it on slow machines.)
 
 ## Pixels, sprites, text, UI

@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.55.0)
+# my-3D2dge API index (v0.56.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -58,30 +58,30 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 304 Lighting; game.lights
 - 323 Particles; E.Particles: game.particles
 - 343 Renderer; r
-- 388 Game; E.Game: game
-- 498 Standard features; settings, fullscreen
-- 515 10c. Boot
-- 520 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 593 Blob rig; E.Blob: blob
-- 613 Tile map; E.TileMap: map
-- 670 Materials
-- 691 Flow field; E.FlowField: flow
-- 709 Texture helpers for floortex functions
-- 720 Platform map; E.PlatformMap: level, E.Platformer: hero
-- 782 Body; E.Body: body
-- 802 Actions; E.Action: action
-- 824 17c. Mover; E.Mover: mover
-- 851 17d. Perception; E.Suspicion: suspicion
-- 868 Bullets; E.Bullets: shots
-- 888 Spatial hash; E.SpatialHash: grid
-- 898 Audio; game.audio
-- 920 Backdrops; E.Backdrop: backdrop
-- 928 21c. Props
-- 933 21e. Shapes
-- 945 Ui; E.Dialog: talk, E.Menu: menu
-- 999 21d. Shell; E.Shell: shell
-- 1028 Gpu lighting (webgpu); game.gpu
-- 1049 Sessions
+- 389 Game; E.Game: game
+- 499 Standard features; settings, fullscreen
+- 516 10c. Boot
+- 521 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 594 Blob rig; E.Blob: blob
+- 614 Tile map; E.TileMap: map
+- 671 Materials
+- 692 Flow field; E.FlowField: flow
+- 710 Texture helpers for floortex functions
+- 721 Platform map; E.PlatformMap: level, E.Platformer: hero
+- 783 Body; E.Body: body
+- 803 Actions; E.Action: action
+- 825 17c. Mover; E.Mover: mover
+- 852 17d. Perception; E.Suspicion: suspicion
+- 869 Bullets; E.Bullets: shots
+- 889 Spatial hash; E.SpatialHash: grid
+- 899 Audio; game.audio
+- 921 Backdrops; E.Backdrop: backdrop
+- 929 21c. Props
+- 934 21e. Shapes
+- 946 Ui; E.Dialog: talk, E.Menu: menu
+- 1000 21d. Shell; E.Shell: shell
+- 1029 Gpu lighting (webgpu); game.gpu
+- 1050 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -90,7 +90,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.55.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.56.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -345,7 +345,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.H`: the screen's height in game pixels
 - `r.W`: the screen's width in game pixels
 - `r.actor(x, y, z, drawFn, o = {})`: Queue a character. drawFn(g, ox, oy) must draw with (ox, oy) as the projected position of world point (x, y, z). The engine adds outline, rim light, hit flash, afterimages and x-ray silhouettes. opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key, emissive (it stays bright under lighting, as r.queue's)}
-- `r.actor({ xray })`: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies drawn in front hide it too (a hero lost in a crowd keeps his shape)
+- `r.actor({ xray })`: true shows the actor's hidden part (a translucent tint with a 1-px outline, r.xrayColor and r.xrayOutline; a checker in E.style.trans 'dither') wherever a wall, a prop or shape at least chest high, or anything queued with hides is drawn in front of it (not one rising less than E.HEIGHTS.level, 8, above its feet: the roof it stands on, a cut-down wall); xray: { color, outline (false: none), actors } picks the colors, and with actors: true other bodies drawn in front hide it too (a hero lost in a crowd keeps his shape)
 - `r.actor({ hides })`: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
 - `r.actor({ ghost })`: ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
 - `r.actor({ every, key })`: every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray or GPU lighting
@@ -362,10 +362,10 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.groundRing(x, y, rad, color, alpha = 1, z = 0)`: a ring lying on the ground (radius in world units)
 - `r.marker(x, y, z = 0, o = {})`: an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' }
 - `r.overlay(fn)`: draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus)
-- `r.prop(name, x, y, z, o = {})` †: set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint }) feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights. A prop drawn in front of an x-ray actor (a pillar, a statue, a brazier) shows the actor's silhouette through it; hides: false opts a prop out.
+- `r.prop(name, x, y, z, o = {})` †: set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint }) feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights. A prop at least chest high (E.HEIGHTS.chest, 22: a pillar, a statue, a lamp) drawn in front of an x-ray actor shows the actor's silhouette through it; a lower one (grass, a crate, a barrel) doesn't; hides: true or false says so.
 - `r.queue(x, y, z, fn, o)`: queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show through it (props, sprites, bodies), nothing else changes
 - `r.shadow(x, y, rad, alpha = .5, color = '#0c0818', z = 0)`: soft contact shadow under a character: a cached dithered ellipse, correct for the current view. z = height of the surface it falls on (0 = floor; the top of a block or platform otherwise)
-- `r.shape(id, x, y, z = 0, o = {})` †: Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o). o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material }, flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (default true: x-ray silhouettes show through it), footprint, light (add its lights to game.lights), shadow (default true), charView (default true: steep views draw it from the characters' lower angle), flash, alpha, xray }
+- `r.shape(id, x, y, z = 0, o = {})` †: Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o). o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material }, flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (x-ray silhouettes show through it: by default when it stands at least E.HEIGHTS.chest, 22, high), footprint, light (add its lights to game.lights), shadow (default true), charView (default true: steep views draw it from the characters' lower angle), flash, alpha, xray }
 - `r.sightCone(obs, o = {})` †: an observer's view on the ground: a dithered fan fov wide (radians) about its facing, out to range, cut short where the map hides a body's chest (map.ray, the height rules), draped over the ground below. o: { range: 120, fov: 1.6, facing, map, eye, color: '#ffe080', alpha: .3, rays }. Call it in draw (it is a decal: under walls and bodies)
 - `r.sky(colors, o = {})`: background of dithered color bands, top to bottom: r.sky(['#0b1030', '#3b2d6b', '#e0806a']). Call first in draw.
 - `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost } (the last five use the actor path)
@@ -384,6 +384,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.rim = '#ffe2b8'` †: the rim light's color on actors' lit edges
 - `r.rimAlpha = .28` †: its strength 0..1
 - `r.xrayColor = '#8fe3ff'` †: the default color of x-ray silhouettes
+- `r.xrayOutline = '#e8fdff'` †: the default 1-px outline round a silhouette's hidden part (null for none)
 
 ## 10. Game
 
