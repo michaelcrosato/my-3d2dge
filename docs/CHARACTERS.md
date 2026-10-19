@@ -62,12 +62,12 @@ Its own rules (a resource, a passive) go in its file as `BUS.on(...)` listeners 
 
 ## 4. A custom body
 
-The body contract is the comment block at the top of `18-characters.js`: `update(dt, s)`, `draw(g, ox, oy, view)`, `drawSmear(r)`, `drawPortrait(g, x, y, size)`, `kick(v)`, `hand(side)`, `head()`, `tip()`, `_w(p)`, joints `J` (at least `hipC`, `shC`, `head`, `handL`, `handR`, `bladeDir`), options `o` (at least `size`), colors `C`, and `x, y, z, facing, t, phase`. `__ed.checkRig('<id>')` drives it through every state and view and names what is missing; the character test runs it first.
+The body contract is the comment block at the top of `18-characters.js`: `update(dt, s)`, `draw(g, ox, oy, view)`, `drawSmear(r)`, `drawPortrait(g, x, y, size)`, `kick(v)`, `hand(side)`, `head()`, `tip()`, `worldOffset(p)`, joints `J` (at least `hipC`, `shC`, `head`, `handL`, `handR`, `bladeDir`), options `o` (at least `size`), colors `C`, and `x, y, z, facing, t, phase`. `__ed.checkRig('<id>')` drives it through every state and view and names what is missing; the character test runs it first.
 
 What makes a custom body look like it belongs:
 
 - **Ease every weight.** Each state (`dash`, `down`, `pose`, `attack`) moves a number toward its target with `approach(w, target, dt * rate)`, and the joints are built from those numbers. A pose that sets a joint directly snaps, and the sheet flags it as a pop.
-- **Project through the view.** Points in its own frame go through `_w`, then `view.p(...)`; use `E.charView(view)` so faces stay readable in steep views, and keep it in `this._lastView` (held items and effects use it).
+- **Project through the view.** Points in its own frame go through `worldOffset`, then `view.p(...)`; use `E.charView(view)` so faces stay readable in steep views, and keep it in `this._lastView` (held items and effects use it).
 - **Sort its parts** by `view.depth(...)` and draw far to near, so an arm passes behind the body when it turns away.
 - **Pixel rules**: only `px.*` and the engine's primitives, whole pixels, `E.tones` for every material. No `ctx.arc`, no gradients.
 - **Keep bones rigid.** Solve a limb with `E.ik3` (a hip to a hock, a shoulder to a wrist) and build a spine as one length at an angle, then list those pairs in `rig.bones` (`[['hipL', 'kneeL'], ...]`): the sheet measures exactly those for stretching. A Humanoid's limbs are measured without it; a custom body that lists none has nothing measured.

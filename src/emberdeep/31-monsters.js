@@ -132,7 +132,7 @@ function MON_fight(m, dt, o = {}) {
 /** a melee hit lands on the hero: damage, an impact star where the fist, foot or blade is, the affixes' reactions */
 function MON_land(m, h, at, A, ang) {
   if (!dealDamage(h, { src: m, amount: m.dmg * (at.dmg || 1), el: at.el || m.el, kb: at.kb || 80, ang, knockdown: at.knockdown })) return;
-  const p = !m.rig ? [m.x, m.y, 10] : A.spec.kick ? (w => [m.x + w[0], m.y + w[1], m.z + w[2]])(m.rig._w(m.rig.J.footR)) : strikePt(m.rig, A.spec);
+  const p = !m.rig ? [m.x, m.y, 10] : A.spec.kick ? (w => [m.x + w[0], m.y + w[1], m.z + w[2]])(m.rig.worldOffset(m.rig.J.footR)) : strikePt(m.rig, A.spec);
   P.impact(p[0], p[1], p[2], at.big ? 9 : 6, at.color || '#ffb08a'); if (at.big) shake(3);
   if (at.hitSfx) sfx(at.hitSfx, { vol: .5 });
   onFoeHit(m, h);
@@ -186,9 +186,6 @@ function MON_riseStep(m, dt) {
   if (Math.random() < dt * 16 * (1 - k)) { P.dust(m.x + (Math.random() - .5) * 14, m.y + (Math.random() - .5) * 14, 0, 1, { speed: 20, color: '#5a4a3a' }); if (Math.random() < .3) P.bits(m.x, m.y, 1, 2, ['#4a3a2a', '#2a2018']); }
 }
 BUS.on('step', e => { for (const m of ED.foes) if (m.MON_rise && m.alive) MON_riseStep(m, e.dt); }, 'global');
-// spawnMonster leaves stunT unset, and `m.stunT -= dt` turns it into NaN, so `m.stunT <= 0` never holds and no AI acts
-// until something hits it. Every new monster starts unstunned (a workaround for the core; see the report)
-BUS.on('spawn', e => { const m = e.m; if (typeof m.stunT !== 'number' || m.stunT !== m.stunT) m.stunT = 0; }, 'global');
 
 /* =============================================================================
  * BONETHROWER: a skeleton that keeps its distance, backs away from you, circles, and throws bone javelins

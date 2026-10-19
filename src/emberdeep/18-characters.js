@@ -40,7 +40,7 @@
  *   drawSmear(r, smear)    its weapon trail this step (it may draw nothing); drawPortrait(g, x, y, size) a bust for menus
  *   kick(v)                a jolt (squash, recoil): blows, landings, swings
  *   hand('L' | 'R'), head(), tip()   world points [x, y, z]: where effects start, bolts leave and held things sit
- *   _w(p)                  a point of its own frame (f forward, r right, z up) -> the world offset from (x, y, z)
+ *   worldOffset(p)         a point of its own frame (f forward, r right, z up) -> the world offset from (x, y, z)
  *   J                      joints in its own frame: at least hipC, shC, head, handL, handR, and bladeDir (a direction)
  *   o                      options: at least size; the hero writes o.hunch and o.lean (wounded), skills read o.weapon
  *   C                      its colors (skills borrow C.metal and C.hilt); x, y, z, facing, t, phase (the gait clock)
@@ -99,7 +99,7 @@ function checkRig(make, o = {}) {
   const fin = p => Array.isArray(p) && p.length >= 3 && p.every(Number.isFinite);
   const tryIt = (what, fn) => { try { return fn(); } catch (e) { say(what, what + ' threw: ' + (e && e.message || e)); return undefined; } };
   let rig = tryIt('building the body', make); if (!rig) return { ok: false, problems };
-  for (const m of ['update', 'draw', 'drawSmear', 'drawPortrait', 'kick', 'hand', 'head', 'tip', '_w']) if (typeof rig[m] !== 'function') say('m:' + m, 'it has no ' + m + '() (see the BODY CONTRACT in 18-characters.js)');
+  for (const m of ['update', 'draw', 'drawSmear', 'drawPortrait', 'kick', 'hand', 'head', 'tip', 'worldOffset']) if (typeof rig[m] !== 'function') say('m:' + m, 'it has no ' + m + '() (see the BODY CONTRACT in 18-characters.js)');
   if (problems.length) return { ok: false, problems };
   const base = { x: 0, y: 0, z: 0, vx: 0, vy: 0 };
   tryIt('update', () => rig.update(0, Object.assign({ facing: 0 }, base)));

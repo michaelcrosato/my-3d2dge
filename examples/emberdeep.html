@@ -33,14 +33,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.51.2</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.51.3</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.51.2  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.51.3  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -119,7 +119,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.51.2', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.51.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -11501,7 +11501,7 @@ function heroHit(h, scale, o = {}) {
  *   drawSmear(r, smear)    its weapon trail this step (it may draw nothing); drawPortrait(g, x, y, size) a bust for menus
  *   kick(v)                a jolt (squash, recoil): blows, landings, swings
  *   hand('L' | 'R'), head(), tip()   world points [x, y, z]: where effects start, bolts leave and held things sit
- *   _w(p)                  a point of its own frame (f forward, r right, z up) -> the world offset from (x, y, z)
+ *   worldOffset(p)         a point of its own frame (f forward, r right, z up) -> the world offset from (x, y, z)
  *   J                      joints in its own frame: at least hipC, shC, head, handL, handR, and bladeDir (a direction)
  *   o                      options: at least size; the hero writes o.hunch and o.lean (wounded), skills read o.weapon
  *   C                      its colors (skills borrow C.metal and C.hilt); x, y, z, facing, t, phase (the gait clock)
@@ -11560,7 +11560,7 @@ function checkRig(make, o = {}) {
   const fin = p => Array.isArray(p) && p.length >= 3 && p.every(Number.isFinite);
   const tryIt = (what, fn) => { try { return fn(); } catch (e) { say(what, what + ' threw: ' + (e && e.message || e)); return undefined; } };
   let rig = tryIt('building the body', make); if (!rig) return { ok: false, problems };
-  for (const m of ['update', 'draw', 'drawSmear', 'drawPortrait', 'kick', 'hand', 'head', 'tip', '_w']) if (typeof rig[m] !== 'function') say('m:' + m, 'it has no ' + m + '() (see the BODY CONTRACT in 18-characters.js)');
+  for (const m of ['update', 'draw', 'drawSmear', 'drawPortrait', 'kick', 'hand', 'head', 'tip', 'worldOffset']) if (typeof rig[m] !== 'function') say('m:' + m, 'it has no ' + m + '() (see the BODY CONTRACT in 18-characters.js)');
   if (problems.length) return { ok: false, problems };
   const base = { x: 0, y: 0, z: 0, vx: 0, vy: 0 };
   tryIt('update', () => rig.update(0, Object.assign({ facing: 0 }, base)));
@@ -12028,22 +12028,22 @@ class CodexRig {
 	kick(v) {
 		this.recoil = clamp(this.recoil + v * 0.15, -2, 2);
 	}
-	_w(p) {
+	worldOffset(p) {
 		const c = Math.cos(this.facing),
 			s = Math.sin(this.facing),
 			k = this.o.size;
 		return [(p[0] * c - p[1] * s) * k, (p[0] * s + p[1] * c) * k, p[2] * k];
 	}
 	hand(side = "R") {
-		const p = this._w(this.J["hand" + side]);
+		const p = this.worldOffset(this.J["hand" + side]);
 		return [this.x + p[0], this.y + p[1], this.z + p[2]];
 	}
 	head() {
-		const p = this._w(this.J.head);
+		const p = this.worldOffset(this.J.head);
 		return [this.x + p[0], this.y + p[1], this.z + p[2]];
 	}
 	tip() {
-		const p = this._w(E.V3.add(this.J.handR, E.V3.mul(this.J.bladeDir, 13)));
+		const p = this.worldOffset(E.V3.add(this.J.handR, E.V3.mul(this.J.bladeDir, 13)));
 		return [this.x + p[0], this.y + p[1], this.z + p[2]];
 	}
 	update(dt, s = {}) {
@@ -12171,7 +12171,7 @@ class CodexRig {
 			const a = fall * 1.4,
 				cf = Math.cos(a),
 				sf = Math.sin(a);
-			return this._w([
+			return this.worldOffset([
 				f * cf + (z - 3) * sf,
 				r,
 				Math.max(1, (z - 3) * cf - f * sf + 3),
@@ -12561,8 +12561,8 @@ class DanRig {
     this.update(0, {});
   }
   kick(v) { this.recoil = clamp(this.recoil + v * .2, -2.5, 2.5); }
-  _w(p) { const a = this.facing + this.spin, c = Math.cos(a), s = Math.sin(a), k = this.o.size; return [(p[0] * c - p[1] * s) * k, (p[0] * s + p[1] * c) * k, p[2] * k]; }
-  _at(p) { const w = this._w(p); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
+  worldOffset(p) { const a = this.facing + this.spin, c = Math.cos(a), s = Math.sin(a), k = this.o.size; return [(p[0] * c - p[1] * s) * k, (p[0] * s + p[1] * c) * k, p[2] * k]; }
+  _at(p) { const w = this.worldOffset(p); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   hand(side = 'R') { return this._at(this.J['hand' + side] || this.J.handR); }
   head() { return this._at(this.J.head); }
   tip(side = 'R') { return this._at(side === 'L' ? this.J.tipL : this.J.tipR); }
@@ -12670,7 +12670,7 @@ class DanRig {
   draw(g, ox, oy, sourceView) {
     const view = E.charView ? E.charView(sourceView) : sourceView, J = this.J, k = this.o.size * (view.scale || 1);   // (a zoomed view's scale carries the zoom)
     this._lastView = view;   // (rigScreen and held items project with it)
-    const S = p => { const w = this._w(p), s = view.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], view.depth(w[0], w[1], w[2])]; };
+    const S = p => { const w = this.worldOffset(p), s = view.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], view.depth(w[0], w[1], w[2])]; };
     const C = DAN_COL, ch = E.tones(C.chitin), un = E.tones(C.under), pl = E.tones(C.plate), bn = E.tones(C.bone), vn = E.tones(C.vein), parts = [];
     const add = (p, f) => parts.push({ d: p[2], f });
     const W1 = Math.max(1, Math.round(k * .8));
@@ -17545,7 +17545,7 @@ function MON_fight(m, dt, o = {}) {
 /** a melee hit lands on the hero: damage, an impact star where the fist, foot or blade is, the affixes' reactions */
 function MON_land(m, h, at, A, ang) {
   if (!dealDamage(h, { src: m, amount: m.dmg * (at.dmg || 1), el: at.el || m.el, kb: at.kb || 80, ang, knockdown: at.knockdown })) return;
-  const p = !m.rig ? [m.x, m.y, 10] : A.spec.kick ? (w => [m.x + w[0], m.y + w[1], m.z + w[2]])(m.rig._w(m.rig.J.footR)) : strikePt(m.rig, A.spec);
+  const p = !m.rig ? [m.x, m.y, 10] : A.spec.kick ? (w => [m.x + w[0], m.y + w[1], m.z + w[2]])(m.rig.worldOffset(m.rig.J.footR)) : strikePt(m.rig, A.spec);
   P.impact(p[0], p[1], p[2], at.big ? 9 : 6, at.color || '#ffb08a'); if (at.big) shake(3);
   if (at.hitSfx) sfx(at.hitSfx, { vol: .5 });
   onFoeHit(m, h);
@@ -17599,9 +17599,6 @@ function MON_riseStep(m, dt) {
   if (Math.random() < dt * 16 * (1 - k)) { P.dust(m.x + (Math.random() - .5) * 14, m.y + (Math.random() - .5) * 14, 0, 1, { speed: 20, color: '#5a4a3a' }); if (Math.random() < .3) P.bits(m.x, m.y, 1, 2, ['#4a3a2a', '#2a2018']); }
 }
 BUS.on('step', e => { for (const m of ED.foes) if (m.MON_rise && m.alive) MON_riseStep(m, e.dt); }, 'global');
-// spawnMonster leaves stunT unset, and `m.stunT -= dt` turns it into NaN, so `m.stunT <= 0` never holds and no AI acts
-// until something hits it. Every new monster starts unstunned (a workaround for the core; see the report)
-BUS.on('spawn', e => { const m = e.m; if (typeof m.stunT !== 'number' || m.stunT !== m.stunT) m.stunT = 0; }, 'global');
 
 /* =============================================================================
  * BONETHROWER: a skeleton that keeps its distance, backs away from you, circles, and throws bone javelins
@@ -21376,7 +21373,7 @@ function BOS_kingGlow(m, r) {
       r.glowDisc(g, q[0], q[1], 7 * zm * s0, '#ff7a2a', .45 * p); px.ell(g, q[0], q[1], 4 * zm * s0, 1.3 * zm * s0, '#ff8a3a'); px.ell(g, q[0], q[1], 2.2 * zm * s0, .7 * zm * s0, '#fff0b0');
     }
   }, { emissive: !BOS_coveredAt(r, m.x, m.y, m.z || 0, 28 * (m.scale || 1) * (r.view.zoom || 1), 60 * (m.scale || 1) * (r.view.zoom || 1)) && foeGlowSeen(m.x, m.y, (m.head || 30) * (m.scale || 1) * .6), bias: .05 });
-  const w = rig._w(V.add(J.handR, V.mul(J.bladeDir, Lb * .5)));
+  const w = rig.worldOffset(V.add(J.handR, V.mul(J.bladeDir, Lb * .5)));
   L.add(m.x + w[0], m.y + w[1], m.z + w[2], hot ? 90 : 64, .75, { color: '#ff8a3a' });
   if (alive) L.add(m.x + 6, m.y + 10, (m.head || 60) * .8, 70, .55, { color: '#ffc890' });   // the fire he carries lights his own armor
 }
@@ -22609,7 +22606,7 @@ function LOT_rigPt(r, h, p) {
   return [s[0] + q[0], s[1] + q[1]];
 }
 /** a joint of the hero's rig in world space (chest 'shC', feet 'footL' / 'footR'...) */
-const LOT_joint = (h, k) => { const rig = h.rig, J = rig.J[k]; if (!J) return [h.x, h.y, h.z + 12]; const w = rig._w(J); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
+const LOT_joint = (h, k) => { const rig = h.rig, J = rig.J[k]; if (!J) return [h.x, h.y, h.z + 12]; const w = rig.worldOffset(J); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
 const LOT_town = () => !!(ED.L && ED.L.kind === 'town');
 
 /* the hero's strikes: the hero emits 'strike' as any action's rig attack enters its 'active' phase (a Blade Dance combo
@@ -23878,7 +23875,7 @@ function LOT_dollDraw(g, x, y, w, h, hero) {
   const T = rig.trail, P0 = q => { const s = V.p(q[0], q[1], q[2]); return [x + ox + s[0], y + oy + s[1]]; }, sm = D.smear || LOT_STRESS_SMEAR;
   for (let i = 0; i < T.length - 1; i++) { const a = T[i], b = T[i + 1], f = 1 - b.age / .14, u = (i + 1) / T.length; px.polyDither(g, [P0(a.b), P0(a.t), P0(b.t), P0(b.b)], sm[u > .85 ? 1 : u > .5 ? 2 : 3], (.3 + .6 * u) * clamp(f, 0, 1)); }
   // a gear change: sparkles where the piece sits on the body
-  if (D.burst) { const b = D.burst, j = LOT_JOINT[b.slot], w0 = j === 'tip' ? (() => { const q = rig.tip(); return [q[0] - rig.x, q[1] - rig.y, q[2] - rig.z]; })() : rig._w(rig.J[j] || rig.J.shC), s = V.p(w0[0], w0[1], w0[2]); LOT_burst(x + ox + s[0], y + oy + s[1], b.c, b.n); D.burst = null; }
+  if (D.burst) { const b = D.burst, j = LOT_JOINT[b.slot], w0 = j === 'tip' ? (() => { const q = rig.tip(); return [q[0] - rig.x, q[1] - rig.y, q[2] - rig.z]; })() : rig.worldOffset(rig.J[j] || rig.J.shC), s = V.p(w0[0], w0[1], w0[2]); LOT_burst(x + ox + s[0], y + oy + s[1], b.c, b.n); D.burst = null; }
   // drag to turn him around
   const over = LOT_hot(x, y, w, h, { drag: mx => { if (D.dragX !== undefined && UI.mouse.down) D.face -= (mx - D.dragX) * .045; D.dragX = mx; D.user = 3; }, tip: [{ t: 'Drag to turn', c: '#c8c0d8' }] });
   if (!UI.mouse.down) D.dragX = undefined;
@@ -29318,7 +29315,7 @@ BUS.on('levelStart', ({ L: L0 }) => { if (L0 && L0.kind === 'level' && !L0._scn)
  * rig's hand from its real joints, so held things follow every animation.
  * ============================================================================= */
 /** a point in a rig's local frame (f forward, r right, z up) -> screen pixels, with the view the rig was drawn in */
-function rigScreen(rig, p, ox, oy, view) { const v = rig._lastView || view, w = rig._w(p), s = v.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], v.depth(w[0], w[1], w[2])]; }
+function rigScreen(rig, p, ox, oy, view) { const v = rig._lastView || view, w = rig.worldOffset(p), s = v.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], v.depth(w[0], w[1], w[2])]; }
 function heldItem(g, rig, ox, oy, view, spec) {
   const J = rig.J, hand = spec.hand === 'L' ? 'L' : 'R', H = J['hand' + hand], El = J['elbow' + hand]; if (!H || !El) return;
   const fdir = E.V3.norm(E.V3.sub(H, El)), s = rig.o.size, z = (view.zoom || 1) * s;
@@ -30197,7 +30194,7 @@ const V3 = E.V3;
 const HEAT = ['#5a5a6a', '#7a3a2a', '#c8402a', '#ff7a2a', '#ffc050', '#fff0b0'];
 const heatCol = k => HEAT[clamp(Math.round(k * (HEAT.length - 1)), 0, HEAT.length - 1)];
 /** a local rig point (f, r, z) -> world */
-const rigWorld = (rig, p) => { const w = rig._w(p); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
+const rigWorld = (rig, p) => { const w = rig.worldOffset(p); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
 /** install the hook on an NPC's rig: before the body, hands move to their targets (two-bone IK from the shoulder) and
  *  the items in the far hand are painted; after it, the near hand's items and the face extras */
 function hookRig(n) {
@@ -30212,8 +30209,8 @@ function hookRig(n) {
       J['elbow' + sd] = el; J['hand' + sd] = hd;
     }
     if (n.bladeDir && n.bladeW > .01) J.bladeDir = V3.norm(V3.lerp(J.bladeDir, n.bladeDir, n.bladeW));
-    const v = this._lastView || view, c = this._w(V3.lerp(J.hipC, J.shC, .5)), dc = v.depth(c[0], c[1], c[2]);
-    const far = it => { const hd = J['hand' + (it.hand || 'R')], w = this._w(hd); return v.depth(w[0], w[1], w[2]) < dc - .4 * o.size; };
+    const v = this._lastView || view, c = this.worldOffset(V3.lerp(J.hipC, J.shC, .5)), dc = v.depth(c[0], c[1], c[2]);
+    const far = it => { const hd = J['hand' + (it.hand || 'R')], w = this.worldOffset(hd); return v.depth(w[0], w[1], w[2]) < dc - .4 * o.size; };
     if (!port) for (const it of n.items) if (far(it)) paintItem(g, this, ox, oy, view, it, n);
     base.call(this, g, ox, oy, view);
     if (!port) for (const it of n.items) if (!far(it)) paintItem(g, this, ox, oy, view, it, n);
@@ -30424,8 +30421,8 @@ townNPC('harrow', {
 });
 function harrowBeard(g, rig, ox, oy, view, n) {
   // a big ginger beard and moustache, painted over the jaw when the face is toward the camera
-  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view, P = (f, r, z) => { const w = rig._w([H[0] + f * R, H[1] + r * R, H[2] + z * R]), q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
-  const c0 = rig._w(H), c1 = rig._w([H[0] + R, H[1], H[2]]); if (v.depth(c1[0], c1[1], c1[2]) < v.depth(c0[0], c0[1], c0[2]) - .1) return;
+  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view, P = (f, r, z) => { const w = rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
+  const c0 = rig.worldOffset(H), c1 = rig.worldOffset([H[0] + R, H[1], H[2]]); if (v.depth(c1[0], c1[1], c1[2]) < v.depth(c0[0], c0[1], c0[2]) - .1) return;
   const ht = E.tones(rig.C.hair), pts = [P(.75, -.72, -.05), P(.7, -.8, -.55), P(.62, -.45, -1.12), P(.72, 0, -1.3), P(.62, .45, -1.12), P(.7, .8, -.55), P(.75, .72, -.05), P(.96, 0, -.3)];
   px.poly(g, pts, ht.sh); px.poly(g, pts.slice(1, 6).concat([P(.95, 0, -.55)]).map(p => [p[0] - .4, p[1] - .6]), ht.base);
   const m0 = P(1, -.42, -.35), m1 = P(1, .42, -.35), mm = P(1.02, 0, -.28); px.line(g, m0[0], m0[1], mm[0], mm[1], ht.deep); px.line(g, mm[0], mm[1], m1[0], m1[1], ht.deep);
@@ -30620,8 +30617,8 @@ const ILSA_AT = [440, 304], ILSA_PRAY = [412, 296];
 /** a gold circlet round her brow with a teal gem at the front (the gem brightens as she prays) */
 function ilsaCirclet(g, rig, ox, oy, view, n) {
   const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view;
-  const W = (f, r, z) => rig._w([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
-  const c = rig._w(H), dc = v.depth(c[0], c[1], c[2]), c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]), lw = Math.max(1, Math.round(rs * .22));
+  const W = (f, r, z) => rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
+  const c = rig.worldOffset(H), dc = v.depth(c[0], c[1], c[2]), c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]), lw = Math.max(1, Math.round(rs * .22));
   let prev = null;
   for (let i = 0; i <= 20; i++) {   // the band: only the arc on the camera's side of the head
     const a = i / 20 * TAU, w = W(Math.cos(a) * 1.02, Math.sin(a) * 1.02, .4), d = v.depth(w[0], w[1], w[2]), p = S(w);
@@ -30784,8 +30781,8 @@ const bramBeat = {
 /** his kettle hat (a wide iron brim, a riveted dome with a ridge) and a walrus moustache, painted over the head */
 function bramKettle(g, rig, ox, oy, view, n) {
   const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view;
-  const W = (f, r, z) => rig._w([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; }, D = w => v.depth(w[0], w[1], w[2]);
-  const c = rig._w(H), dc = D(c), fr = W(1, 0, 0), faceOn = D(fr) >= dc - .1, c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]);
+  const W = (f, r, z) => rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; }, D = w => v.depth(w[0], w[1], w[2]);
+  const c = rig.worldOffset(H), dc = D(c), fr = W(1, 0, 0), faceOn = D(fr) >= dc - .1, c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]);
   const ht = E.tones(rig.C.hair), mt = E.tones('#7a8290');
   if (faceOn) {   // the moustache: two drooping wings under the nose
     for (const sd of [-1, 1]) { const pts = [W(1.02, 0, -.22), W(1, sd * .5, -.3), W(.9, sd * .72, -.72), W(.94, sd * .52, -.62), W(1.04, sd * .12, -.46)].map(S); px.poly(g, pts, ht.sh); px.line(g, pts[0][0], pts[0][1], pts[1][0], pts[1][1], ht.base); }

@@ -1,6 +1,6 @@
 {
   "name": "my-3d2dge-handoff",
-  "version": "0.51.2",
+  "version": "0.51.3",
   "private": true,
   "type": "module",
   "description": "my-3D2dge for coding agents: the engine, its card, index and guide, the tools and a template game",

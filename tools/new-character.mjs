@@ -101,8 +101,8 @@ class ${Rig} {
     this.update(0, {});
   }
   kick(v) { this.recoil = clamp(this.recoil + v * .15, -2, 2); }
-  _w(p) { const c = Math.cos(this.facing), s = Math.sin(this.facing), k = this.o.size; return [(p[0] * c - p[1] * s) * k, (p[0] * s + p[1] * c) * k, p[2] * k]; }
-  _at(p) { const w = this._w(p); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
+  worldOffset(p) { const c = Math.cos(this.facing), s = Math.sin(this.facing), k = this.o.size; return [(p[0] * c - p[1] * s) * k, (p[0] * s + p[1] * c) * k, p[2] * k]; }
+  _at(p) { const w = this.worldOffset(p); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
   hand(side = 'R') { return this._at(this.J['hand' + side] || this.J.handR); }
   head() { return this._at(this.J.head); }
   tip() { return this._at(E.V3.add(this.J.handR, E.V3.mul(this.J.bladeDir, this.o.bladeLen))); }
@@ -137,7 +137,7 @@ class ${Rig} {
   draw(g, ox, oy, sourceView) {
     const view = E.charView ? E.charView(sourceView) : sourceView, J = this.J, z = view.zoom || 1, k = this.o.size * (view.scale || 1);
     this._lastView = view;   // (rigScreen and held items project with it)
-    const S = p => { const w = this._w(p), s = view.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], view.depth(w[0], w[1], w[2])]; };
+    const S = p => { const w = this.worldOffset(p), s = view.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], view.depth(w[0], w[1], w[2])]; };
     const robe = E.tones(this.C.robe), trim = E.tones(this.C.trim), glow = E.tones(this.C.glow), parts = [];
     const hip = S(J.hipC), sh = S(J.shC), hd = S(J.head), r = Math.max(1, 3.4 * k);
     // the robe: a cone from the shoulders to a wide hem, its side away from the light a tone darker

@@ -84,7 +84,7 @@ function LOT_rigPt(r, h, p) {
   return [s[0] + q[0], s[1] + q[1]];
 }
 /** a joint of the hero's rig in world space (chest 'shC', feet 'footL' / 'footR'...) */
-const LOT_joint = (h, k) => { const rig = h.rig, J = rig.J[k]; if (!J) return [h.x, h.y, h.z + 12]; const w = rig._w(J); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
+const LOT_joint = (h, k) => { const rig = h.rig, J = rig.J[k]; if (!J) return [h.x, h.y, h.z + 12]; const w = rig.worldOffset(J); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
 const LOT_town = () => !!(ED.L && ED.L.kind === 'town');
 
 /* the hero's strikes: the hero emits 'strike' as any action's rig attack enters its 'active' phase (a Blade Dance combo
