@@ -25,22 +25,22 @@ class CodexRig {
 	kick(v) {
 		this.recoil = clamp(this.recoil + v * 0.15, -2, 2);
 	}
-	_w(p) {
+	worldOffset(p) {
 		const c = Math.cos(this.facing),
 			s = Math.sin(this.facing),
 			k = this.o.size;
 		return [(p[0] * c - p[1] * s) * k, (p[0] * s + p[1] * c) * k, p[2] * k];
 	}
 	hand(side = "R") {
-		const p = this._w(this.J["hand" + side]);
+		const p = this.worldOffset(this.J["hand" + side]);
 		return [this.x + p[0], this.y + p[1], this.z + p[2]];
 	}
 	head() {
-		const p = this._w(this.J.head);
+		const p = this.worldOffset(this.J.head);
 		return [this.x + p[0], this.y + p[1], this.z + p[2]];
 	}
 	tip() {
-		const p = this._w(E.V3.add(this.J.handR, E.V3.mul(this.J.bladeDir, 13)));
+		const p = this.worldOffset(E.V3.add(this.J.handR, E.V3.mul(this.J.bladeDir, 13)));
 		return [this.x + p[0], this.y + p[1], this.z + p[2]];
 	}
 	update(dt, s = {}) {
@@ -168,7 +168,7 @@ class CodexRig {
 			const a = fall * 1.4,
 				cf = Math.cos(a),
 				sf = Math.sin(a);
-			return this._w([
+			return this.worldOffset([
 				f * cf + (z - 3) * sf,
 				r,
 				Math.max(1, (z - 3) * cf - f * sf + 3),

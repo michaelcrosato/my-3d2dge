@@ -302,7 +302,7 @@ function LOT_dollDraw(g, x, y, w, h, hero) {
   const T = rig.trail, P0 = q => { const s = V.p(q[0], q[1], q[2]); return [x + ox + s[0], y + oy + s[1]]; }, sm = D.smear || LOT_STRESS_SMEAR;
   for (let i = 0; i < T.length - 1; i++) { const a = T[i], b = T[i + 1], f = 1 - b.age / .14, u = (i + 1) / T.length; px.polyDither(g, [P0(a.b), P0(a.t), P0(b.t), P0(b.b)], sm[u > .85 ? 1 : u > .5 ? 2 : 3], (.3 + .6 * u) * clamp(f, 0, 1)); }
   // a gear change: sparkles where the piece sits on the body
-  if (D.burst) { const b = D.burst, j = LOT_JOINT[b.slot], w0 = j === 'tip' ? (() => { const q = rig.tip(); return [q[0] - rig.x, q[1] - rig.y, q[2] - rig.z]; })() : rig._w(rig.J[j] || rig.J.shC), s = V.p(w0[0], w0[1], w0[2]); LOT_burst(x + ox + s[0], y + oy + s[1], b.c, b.n); D.burst = null; }
+  if (D.burst) { const b = D.burst, j = LOT_JOINT[b.slot], w0 = j === 'tip' ? (() => { const q = rig.tip(); return [q[0] - rig.x, q[1] - rig.y, q[2] - rig.z]; })() : rig.worldOffset(rig.J[j] || rig.J.shC), s = V.p(w0[0], w0[1], w0[2]); LOT_burst(x + ox + s[0], y + oy + s[1], b.c, b.n); D.burst = null; }
   // drag to turn him around
   const over = LOT_hot(x, y, w, h, { drag: mx => { if (D.dragX !== undefined && UI.mouse.down) D.face -= (mx - D.dragX) * .045; D.dragX = mx; D.user = 3; }, tip: [{ t: 'Drag to turn', c: '#c8c0d8' }] });
   if (!UI.mouse.down) D.dragX = undefined;

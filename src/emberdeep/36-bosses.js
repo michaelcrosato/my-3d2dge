@@ -985,7 +985,7 @@ function BOS_kingGlow(m, r) {
       r.glowDisc(g, q[0], q[1], 7 * zm * s0, '#ff7a2a', .45 * p); px.ell(g, q[0], q[1], 4 * zm * s0, 1.3 * zm * s0, '#ff8a3a'); px.ell(g, q[0], q[1], 2.2 * zm * s0, .7 * zm * s0, '#fff0b0');
     }
   }, { emissive: !BOS_coveredAt(r, m.x, m.y, m.z || 0, 28 * (m.scale || 1) * (r.view.zoom || 1), 60 * (m.scale || 1) * (r.view.zoom || 1)) && foeGlowSeen(m.x, m.y, (m.head || 30) * (m.scale || 1) * .6), bias: .05 });
-  const w = rig._w(V.add(J.handR, V.mul(J.bladeDir, Lb * .5)));
+  const w = rig.worldOffset(V.add(J.handR, V.mul(J.bladeDir, Lb * .5)));
   L.add(m.x + w[0], m.y + w[1], m.z + w[2], hot ? 90 : 64, .75, { color: '#ff8a3a' });
   if (alive) L.add(m.x + 6, m.y + 10, (m.head || 60) * .8, 70, .55, { color: '#ffc890' });   // the fire he carries lights his own armor
 }

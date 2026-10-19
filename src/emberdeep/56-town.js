@@ -780,7 +780,7 @@ const V3 = E.V3;
 const HEAT = ['#5a5a6a', '#7a3a2a', '#c8402a', '#ff7a2a', '#ffc050', '#fff0b0'];
 const heatCol = k => HEAT[clamp(Math.round(k * (HEAT.length - 1)), 0, HEAT.length - 1)];
 /** a local rig point (f, r, z) -> world */
-const rigWorld = (rig, p) => { const w = rig._w(p); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
+const rigWorld = (rig, p) => { const w = rig.worldOffset(p); return [rig.x + w[0], rig.y + w[1], rig.z + w[2]]; };
 /** install the hook on an NPC's rig: before the body, hands move to their targets (two-bone IK from the shoulder) and
  *  the items in the far hand are painted; after it, the near hand's items and the face extras */
 function hookRig(n) {
@@ -795,8 +795,8 @@ function hookRig(n) {
       J['elbow' + sd] = el; J['hand' + sd] = hd;
     }
     if (n.bladeDir && n.bladeW > .01) J.bladeDir = V3.norm(V3.lerp(J.bladeDir, n.bladeDir, n.bladeW));
-    const v = this._lastView || view, c = this._w(V3.lerp(J.hipC, J.shC, .5)), dc = v.depth(c[0], c[1], c[2]);
-    const far = it => { const hd = J['hand' + (it.hand || 'R')], w = this._w(hd); return v.depth(w[0], w[1], w[2]) < dc - .4 * o.size; };
+    const v = this._lastView || view, c = this.worldOffset(V3.lerp(J.hipC, J.shC, .5)), dc = v.depth(c[0], c[1], c[2]);
+    const far = it => { const hd = J['hand' + (it.hand || 'R')], w = this.worldOffset(hd); return v.depth(w[0], w[1], w[2]) < dc - .4 * o.size; };
     if (!port) for (const it of n.items) if (far(it)) paintItem(g, this, ox, oy, view, it, n);
     base.call(this, g, ox, oy, view);
     if (!port) for (const it of n.items) if (!far(it)) paintItem(g, this, ox, oy, view, it, n);
@@ -1007,8 +1007,8 @@ townNPC('harrow', {
 });
 function harrowBeard(g, rig, ox, oy, view, n) {
   // a big ginger beard and moustache, painted over the jaw when the face is toward the camera
-  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view, P = (f, r, z) => { const w = rig._w([H[0] + f * R, H[1] + r * R, H[2] + z * R]), q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
-  const c0 = rig._w(H), c1 = rig._w([H[0] + R, H[1], H[2]]); if (v.depth(c1[0], c1[1], c1[2]) < v.depth(c0[0], c0[1], c0[2]) - .1) return;
+  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view, P = (f, r, z) => { const w = rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
+  const c0 = rig.worldOffset(H), c1 = rig.worldOffset([H[0] + R, H[1], H[2]]); if (v.depth(c1[0], c1[1], c1[2]) < v.depth(c0[0], c0[1], c0[2]) - .1) return;
   const ht = E.tones(rig.C.hair), pts = [P(.75, -.72, -.05), P(.7, -.8, -.55), P(.62, -.45, -1.12), P(.72, 0, -1.3), P(.62, .45, -1.12), P(.7, .8, -.55), P(.75, .72, -.05), P(.96, 0, -.3)];
   px.poly(g, pts, ht.sh); px.poly(g, pts.slice(1, 6).concat([P(.95, 0, -.55)]).map(p => [p[0] - .4, p[1] - .6]), ht.base);
   const m0 = P(1, -.42, -.35), m1 = P(1, .42, -.35), mm = P(1.02, 0, -.28); px.line(g, m0[0], m0[1], mm[0], mm[1], ht.deep); px.line(g, mm[0], mm[1], m1[0], m1[1], ht.deep);
@@ -1203,8 +1203,8 @@ const ILSA_AT = [440, 304], ILSA_PRAY = [412, 296];
 /** a gold circlet round her brow with a teal gem at the front (the gem brightens as she prays) */
 function ilsaCirclet(g, rig, ox, oy, view, n) {
   const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view;
-  const W = (f, r, z) => rig._w([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
-  const c = rig._w(H), dc = v.depth(c[0], c[1], c[2]), c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]), lw = Math.max(1, Math.round(rs * .22));
+  const W = (f, r, z) => rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
+  const c = rig.worldOffset(H), dc = v.depth(c[0], c[1], c[2]), c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]), lw = Math.max(1, Math.round(rs * .22));
   let prev = null;
   for (let i = 0; i <= 20; i++) {   // the band: only the arc on the camera's side of the head
     const a = i / 20 * TAU, w = W(Math.cos(a) * 1.02, Math.sin(a) * 1.02, .4), d = v.depth(w[0], w[1], w[2]), p = S(w);
@@ -1367,8 +1367,8 @@ const bramBeat = {
 /** his kettle hat (a wide iron brim, a riveted dome with a ridge) and a walrus moustache, painted over the head */
 function bramKettle(g, rig, ox, oy, view, n) {
   const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view;
-  const W = (f, r, z) => rig._w([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; }, D = w => v.depth(w[0], w[1], w[2]);
-  const c = rig._w(H), dc = D(c), fr = W(1, 0, 0), faceOn = D(fr) >= dc - .1, c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]);
+  const W = (f, r, z) => rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; }, D = w => v.depth(w[0], w[1], w[2]);
+  const c = rig.worldOffset(H), dc = D(c), fr = W(1, 0, 0), faceOn = D(fr) >= dc - .1, c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]);
   const ht = E.tones(rig.C.hair), mt = E.tones('#7a8290');
   if (faceOn) {   // the moustache: two drooping wings under the nose
     for (const sd of [-1, 1]) { const pts = [W(1.02, 0, -.22), W(1, sd * .5, -.3), W(.9, sd * .72, -.72), W(.94, sd * .52, -.62), W(1.04, sd * .12, -.46)].map(S); px.poly(g, pts, ht.sh); px.line(g, pts[0][0], pts[0][1], pts[1][0], pts[1][1], ht.base); }
