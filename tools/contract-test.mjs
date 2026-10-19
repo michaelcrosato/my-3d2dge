@@ -416,6 +416,33 @@ const DRAW3P = () => {
   frame({ cone: 'map' }); out.coneMap = count('#00ffff');
   return out;
 };
+// the x-ray (full edition): a hero behind a tall wall or a tall prop shows through it (a checker of its color in the
+// 'dither' style, so it can be counted), not behind a cut-down wall or low grass; hides: true makes a low prop hide; the
+// outline is on by default and outline: false leaves it out
+const XRAY = () => {
+  const E = My3D2dge, out = {}, mode = {}, T = 16, C = 3.5 * T, trans = E.style.trans;
+  const map = new E.TileMap({ rows: ['.......', '.......', '.......', '.......', '.......', '.......', '.......'], legend: {}, types: { 2: { h: 48 }, 3: { h: 6 } } });
+  const game = new E.Game({ canvas: 'screen', res: 'snes', view: 'iso', loop: false });
+  const count = hex => { const c = game.screen.buf, d = c.getContext('2d').getImageData(0, 0, game.screen.W, game.screen.H).data, [R, G, B] = E.hex(hex); let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] === R && d[i + 1] === G && d[i + 2] === B) n++; return n; };
+  game.start({ update() {}, draw(r) {
+    r.sky(['#000', '#000']); map.drawFloor(r); map.queueWalls(r);
+    r.actor(C, C, 0, (g, ox, oy) => E.px.rect(g, ox - 4, oy - 30, 8, 30, '#00ff00'), { xray: { color: '#ff00ff', outline: mode.ol } });
+    if (mode.prop) r.prop(mode.prop, C + 9, C + 9, 0, Object.assign({ size: 2 }, mode.po));
+  } });
+  game.follow({ x: C, y: C, z: 0 }, { z: 16 });
+  const frame = (cell, m) => { map.set(4, 4, cell); for (const k in mode) delete mode[k]; Object.assign(mode, { ol: false }, m); game.advance(1 / 120, { draw: true }); };
+  E.style.trans = 'dither';
+  frame(2, {}); out.tall = count('#ff00ff');
+  frame(3, {}); out.low = count('#ff00ff');
+  frame(0, { prop: 'grass' }); out.grass = count('#ff00ff');
+  frame(0, { prop: 'grass', po: { hides: true } }); out.grassHides = count('#ff00ff');
+  frame(0, { prop: 'pillar', po: { size: 1 } }); out.pillar = count('#ff00ff');
+  frame(2, { ol: undefined }); out.outline = count('#e8fdff');
+  frame(2, { ol: false }); out.noOutline = count('#e8fdff');
+  E.style.trans = trans; game.dispose();
+  return out;
+};
 // E.Shell over a game run by advance(): the HUD, the pause screen, focus moved by the game's input, input held back from
 // the game while a screen is open, a button's act, settings, the toast's time, dispose
 const SHELL = () => {
@@ -514,6 +541,12 @@ for (const [ed, file] of EDITIONS) {
     check(`${ed}: types[id].decorate(face) is called for each face with its side, u0..u1, z1, at and quad, and paints it`, D.faces.length >= 4 && new Set(D.faces.map(f => f.side)).size >= 2 && D.faces.every(f => f.du === 16 && f.z1 === 60 && f.fns === 'functionfunction') && D.green > 20, JSON.stringify(D.faces.slice(0, 2)) + ' green ' + D.green);
     check(`${ed}: a footprint sorts a canopy over every block under it`, D.footprint > D.plain + 20, D.plain + ' -> ' + D.footprint);
     check(`${ed}: r.sightCone stops at a wall (with map)`, D.coneMap > 0 && D.coneMap < D.coneOpen / 4, D.coneOpen + ' -> ' + D.coneMap);
+  }
+  if (ed === 'full') {
+    const X = await run(XRAY);
+    console.log('  x-ray:', JSON.stringify(X));
+    check(`${ed}: x-ray: a tall wall or a tall prop in front shows the hero through it; a cut-down wall or low grass doesn't`, X.tall > 20 && X.pillar > 20 && X.low === 0 && X.grass === 0, JSON.stringify(X));
+    check(`${ed}: x-ray: hides: true makes a low prop hide; the outline is on by default, outline: false leaves it out`, X.grassHides > 0 && X.outline > 10 && X.noOutline === 0, JSON.stringify(X));
   }
   const CODE = FENCED('docs/ASSETS.md').map(x => x.code), K = await run(CARD, CODE);
   console.log('  the asset card:', JSON.stringify(Object.assign({}, K, { warns: K.warns.length })));

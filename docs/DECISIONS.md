@@ -832,3 +832,17 @@ An entry:
 - **Answered:** yes: the owner's goal asked for the next plan to be implemented (2026-10-19); the calls in it were made at
   once as reversible ones, flagged in the pull request
 - **Landed in:** v0.54.0
+
+## D46 · 2026-10-19 · The x-ray: a tint with an outline, shown only when something hides the body
+
+- **Principle:** the look (the North Star's PS1/N64 bar)
+- **Call:** in the smooth style (the default) an x-ray's hidden part is a translucent tint with a 1-px outline, both by
+  default; the checker stays for the 'dither' style. An occluder rising less than `E.HEIGHTS.level` above the actor's
+  feet doesn't hide it, and a prop or shape lower than `E.HEIGHTS.chest` doesn't hide by default: a change to `r.prop`'s
+  and `r.shape`'s documented `hides` default (`hides: true` still makes a low one hide).
+- **Why:** judges took the hero's cyan dither for a rendering glitch (F2.2, F3.2): a NES-era checker on a smooth frame,
+  shown whenever a blade of grass, a barrel, the roof under his feet or a cut-down wall overlapped him. Emberdeep had
+  already added an outline because "the checker alone read as a faint dither"; the starters hadn't. What would change it:
+  a game that wants low things to hide its hero says `hides: true`; one that wants the old look sets `E.style.trans`.
+- **Answered:** yes: the owner's goal (2026-10-19); made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.56.0

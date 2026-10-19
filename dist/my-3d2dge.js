@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.55.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.56.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -78,7 +78,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.55.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.56.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1493,10 +1493,11 @@ class Renderer {
     /** checker: a 2 x 2 checkerboard canvas (a pattern for x-ray and dithered fills) */
     this._checker = ck;
     /** outline: the color of the 1-pixel outline round every actor; rim: the rim light's color on actors' lit edges;
-     *  rimAlpha: its strength 0..1; xrayColor: the default color of x-ray silhouettes; glowMask: false lets emissive
+     *  rimAlpha: its strength 0..1; xrayColor: the default color of x-ray silhouettes; xrayOutline: the default 1-px
+     *  outline round a silhouette's hidden part (null for none); glowMask: false lets emissive
      *  glows show over everything under canvas lighting (cheaper: the default keeps walls and bodies in front of a glow
      *  dark) */
-    this.outline = '#140c1c'; this.rim = '#ffe2b8'; this.rimAlpha = .28; this.xrayColor = '#8fe3ff'; this.glowMask = true;
+    this.outline = '#140c1c'; this.rim = '#ffe2b8'; this.rimAlpha = .28; this.xrayColor = '#8fe3ff'; this.xrayOutline = '#e8fdff'; this.glowMask = true;
     // GPU mode: a hidden "info" image (height, surface type, glow) and an unlit overlay image
     this._iCv = mkCanvas(8, 8); this._iG = this._iCv.getContext('2d'); this._iG._info = true; this._iG._r = this; this._iG._mat = '#000';
     /** gpu: true during a frame drawn with GPU lighting (draw code can check r.gpu) */
@@ -1549,7 +1550,7 @@ class Renderer {
       else k = M._liftOrder(this.game.view, x, y, z, k);
       if (M.solids && M.solids.length) k = M._liftSolids(this.game.view, x, y, z, k);
     }
-    const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
+    const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, top: o && o.top, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
     this._items.push(it);
     if (it.em) this._emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
   }
@@ -1650,8 +1651,8 @@ class Renderer {
   /**
    * set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint })
    * feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights.
-   * A prop drawn in front of an x-ray actor (a pillar, a statue, a brazier) shows the actor's silhouette through it;
-   * hides: false opts a prop out.
+   * A prop at least chest high (E.HEIGHTS.chest, 22: a pillar, a statue, a lamp) drawn in front of an x-ray actor shows
+   * the actor's silhouette through it; a lower one (grass, a crate, a barrel) doesn't; hides: true or false says so.
    */
   prop(name, x, y, z, o = {}) {
     const zm = this.view.zoom || 1, p = E.prop(name, zm !== 1 ? Object.assign({}, o, { size: (o.size || 1) * zm }) : o); if (!p) return;
@@ -1660,7 +1661,8 @@ class Renderer {
     const gf = p.glow ? p.glow[Math.floor((t * 9 + x * .37) % p.glow.length)] : null;
     const at = () => { const [sx, sy] = this.w(x, y, z); return [Math.round(sx) - ax, Math.round(sy) - ay]; };
     const [bX, bY] = at();
-    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, hides: o.hides !== false, box: [bX, bY, bX + spr.w, bY + spr.h], footprint: o.footprint });
+    const hw = spr.h / Math.max(.1, (this.view.scale || 1) * zm);   // its height in world units
+    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, hides: o.hides !== undefined ? !!o.hides : hw >= HEIGHTS.chest, top: z + hw, box: [bX, bY, bX + spr.w, bY + spr.h], footprint: o.footprint });
     if (p.glowAt && o.halo !== false) this.queue(x, y, z, g => {   // lamps, lanterns and crystals glow even with lighting off; cone: true adds a light cone below
       if (g._info) return;
       const [X, Y] = at(), gx = X + spr.w * p.glowAt[0], gy = Y + spr.h * p.glowAt[1], R = o.haloR || Math.max(6, spr.w * .9), c = o.haloColor || p.glowAt[2];
@@ -1772,10 +1774,12 @@ class Renderer {
    * afterimages and x-ray silhouettes.
    * opts: {outline=true, rim=true, flash=false, alpha=1, xray=false, ghost:{color, life, alpha, owner}, hides, bias, every, key,
    *   emissive (it stays bright under lighting, as r.queue's)}
-   * - xray: true shows a checkered silhouette wherever a wall (or a prop, or anything queued with hides) is drawn in
-   *     front of the actor; xray: { color, outline, actors } picks the fill color, adds a solid 1-px outline in that
-   *     color around the hidden part (reads through busy pillars and dark walls), and with actors: true other bodies
-   *     drawn in front hide it too (a hero lost in a crowd keeps his shape)
+   * - xray: true shows the actor's hidden part (a translucent tint with a 1-px outline, r.xrayColor and r.xrayOutline; a
+   *     checker in E.style.trans 'dither') wherever a wall, a prop or shape at least chest high, or anything queued with
+   *     hides is drawn in front of it (not one rising less than E.HEIGHTS.level, 8, above its feet: the roof it stands on,
+   *     a cut-down wall); xray: { color,
+   *     outline (false: none), actors } picks the colors, and with actors: true other bodies drawn in front hide it too
+   *     (a hero lost in a crowd keeps his shape)
    * - hides: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
    * - ghost: ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
    * - every, key: every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames
@@ -1793,7 +1797,7 @@ class Renderer {
       this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info, solid: true, actor: true, hides: o.hides });
       return;
     }
-    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5, actor: !o.xray, hides: o.hides });
+    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5, actor: !o.xray, hides: o.hides, top: o.top });
   }
   /** draw an actor at once, over what is drawn so far, not sorted by depth (a pass of the game's own: a body falling into
    *  a void painted over the level), with r.actor's options (outline, flash, alpha, ...) */
@@ -1855,8 +1859,9 @@ class Renderer {
       const X = o.xray === true ? null : o.xray;
       this._tint(this._mG, this._aCv, X && X.color || this.xrayColor, R); this._xG.drawImage(this._mCv, x0, y0, w, h, bx + x0, by + y0, w, h); this._xrayUsed = true;
       const B = this._xrB || (this._xrB = [1e9, 1e9, -1e9, -1e9]); B[0] = Math.min(B[0], bx + x0 - 2); B[1] = Math.min(B[1], by + y0 - 2); B[2] = Math.max(B[2], bx + x0 + w + 2); B[3] = Math.max(B[3], by + y0 + h + 2);   // where silhouettes are: occluders elsewhere need not join the mask
-      if (X && X.outline) {   // the ring just outside the silhouette: four shifted copies, less the silhouette itself
-        const xo = this._xoG; this._tint(this._mG, this._aCv, X.outline, R);
+      const ol = X && X.outline !== undefined ? X.outline : this.xrayOutline;
+      if (ol) {   // the ring just outside the silhouette: four shifted copies, less the silhouette itself
+        const xo = this._xoG; this._tint(this._mG, this._aCv, ol, R);
         for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) xo.drawImage(this._mCv, x0, y0, w, h, bx + x0 + dx, by + y0 + dy, w, h);
         xo.globalCompositeOperation = 'destination-out'; xo.drawImage(this._aCv, x0, y0, w, h, bx + x0, by + y0, w, h); xo.globalCompositeOperation = 'source-over';
         this._xrayOl = true;
@@ -1895,7 +1900,7 @@ class Renderer {
     items.sort((a, b) => a.k - b.k);
     const pb = this._xrPrev; if (pb) { this._xG.clearRect(pb[0], pb[1], pb[2] - pb[0], pb[3] - pb[1]); this._xoG.clearRect(pb[0], pb[1], pb[2] - pb[0], pb[3] - pb[1]); this._xrPrev = null; }   // (the x-ray layers only ever hold the silhouettes' box)
     this._oG.clearRect(0, 0, this.bw, this.bh); this._oG._c = null;
-    let xr = false, xa = false, xRe = 0;   // an x-ray actor has been drawn (walls and hiding things after it cover it); one asked for bodies too
+    let xr = false, xa = false, xRe = 0, xz = Infinity;   // an x-ray actor has been drawn (walls and hiding things after it cover it); one asked for bodies too
     this._xrB = null;
     const xOver = (x0, y0, x1, y1) => { const B = this._xrB; return !!B && x1 > B[0] && x0 < B[2] && y1 > B[1] && y0 < B[3]; };
     const gpu = this.gpu, iG = this._iG;
@@ -1932,8 +1937,8 @@ class Renderer {
         if (it.info) it.info(iG);
         else { iG._mat = this._infoVert(iG, it.x, it.y, it.z, 10, 0); iG._z = it.z; iG._c = null; it.fn(iG); }
       }
-      if (it.xray) { xr = true; if (it.xray.actors) xa = true; }
-      else if (xr && (it.occ || it.hides || (xa && it.actor))) {   // x-ray occluders go into the mask: walls and props drawn again, bodies from their composite
+      if (it.xray) { xr = true; xz = Math.min(xz, it.z); if (it.xray.actors) xa = true; }
+      else if (xr && (it.occ || it.hides || (xa && it.actor)) && !(it.top !== undefined && it.top < xz + HEIGHTS.level)) {   // (a top under the knees hides nothing: the roof he stands on, a cut-down wall)   // x-ray occluders go into the mask: walls and props drawn again, bodies from their composite
         const c = this._comp;   // (props and bodies only where they overlap a silhouette: a crowd redrawn in full cost a third of the frame)
         if (it.actor && !it.occ) {
           if (c) { if (xOver(c.bx + c.x0, c.by + c.y0, c.bx + c.x0 + c.w, c.by + c.y0 + c.h)) this._oG.drawImage(this._aCv, c.x0, c.y0, c.w, c.h, c.bx + c.x0, c.by + c.y0, c.w, c.h); }
@@ -1947,9 +1952,11 @@ class Renderer {
       if (w > 0 && h > 0) {
         this._xrPrev = [x0, y0, x1, y1];
         const xG = this._xG, dst = gpu ? this._vG : g, mask = G => { G.save(); G.beginPath(); G.rect(x0, y0, w, h); G.clip(); G.globalCompositeOperation = 'destination-in'; G.drawImage(this._oCv, x0, y0, w, h, x0, y0, w, h); };
-        mask(xG); xG.fillStyle = xG.createPattern(this._checker, 'repeat'); xG._c = null;
-        xG.translate((this.ix + this.iy) & 1, 0); xG.fillRect(x0 - 2, y0, w + 2, h); xG.restore(); xG.globalCompositeOperation = 'source-over';
-        dst.drawImage(this._xCv, x0, y0, w, h, x0, y0, w, h);
+        // the hidden part: a translucent tint in the smooth style (E.style.trans 'alpha', the default), a checker in 'dither'
+        const dith = E.style.trans === 'dither';
+        mask(xG); if (dith) { xG.fillStyle = xG.createPattern(this._checker, 'repeat'); xG._c = null; xG.translate((this.ix + this.iy) & 1, 0); xG.fillRect(x0 - 2, y0, w + 2, h); }
+        xG.restore(); xG.globalCompositeOperation = 'source-over';
+        if (!dith) dst.globalAlpha = .45; dst.drawImage(this._xCv, x0, y0, w, h, x0, y0, w, h); dst.globalAlpha = 1;
         if (this._xrayOl) { const xo = this._xoG; mask(xo); xo.restore(); xo.globalCompositeOperation = 'source-over'; dst.drawImage(this._xoCv, x0, y0, w, h, x0, y0, w, h); }
       } else this._xrPrev = [0, 0, this.bw, this.bh];
     }
@@ -4466,7 +4473,7 @@ class TileMap {
       const t = this.types[id], h = this.isFront(cx, cy, view) ? (t.cutH || 6) : t.h;
       const [sx, sy] = r.w(cx * T + T / 2, cy * T + T / 2, 0);
       if (sx < -40 || sx > r.W + 40 || sy < -20 || sy > r.H + 90) continue;
-      r.queue(cx * T + T / 2, cy * T + T / 2, 0, g => this._boxCached(g, r, cx, cy, t, h), { occluder: true });
+      r.queue(cx * T + T / 2, cy * T + T / 2, 0, g => this._boxCached(g, r, cx, cy, t, h), { occluder: true, top: h });
     }
   }
   /** each wall block is baked once per view into a small image (pixel-identical: camera offsets are whole pixels), for the
@@ -6935,8 +6942,8 @@ function shapeShadow(S, view, o, k, G) {
 /**
  * Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o).
  * o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material },
- * flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (default true: x-ray
- * silhouettes show through it), footprint, light (add its lights to game.lights), shadow (default true), charView (default
+ * flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (x-ray silhouettes show through
+ * it: by default when it stands at least E.HEIGHTS.chest, 22, high), footprint, light (add its lights to game.lights), shadow (default true), charView (default
  * true: steep views draw it from the characters' lower angle), flash, alpha, xray }
  */
 Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
@@ -6953,15 +6960,15 @@ Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
     if (sw.cv) { if (z > .5) this.queue(x, y, z - .01, g => { if (!g._info) sh(g); }, { bias: -.001, noInfo: true }); else this.decal(g => { if (!g._info) sh(g); }); }
   }
   const fp = o.footprint || (z > .5 ? (() => { const c = [[G.foot[0], G.foot[1]], [G.foot[2], G.foot[1]], [G.foot[2], G.foot[3]], [G.foot[0], G.foot[3]]].map(place); return [Math.min(...c.map(q => q[0])), Math.min(...c.map(q => q[1])), Math.max(...c.map(q => q[0])), Math.max(...c.map(q => q[1]))]; })() : undefined);
-  const hides = o.hides !== false;
-  if (comp && r.w <= AS - 8 && r.oy <= AOY - 4 && r.h - r.oy <= AS - AOY - 4 && r.ox <= AOX - 4 && r.w - r.ox <= AS - AOX - 4) this.actor(x, y, z, (g, ox, oy) => g.drawImage(r.cv, ox - r.ox, oy - r.oy), { rim: false, hides, bias: o.bias, flash: o.flash, alpha: o.alpha, xray: o.xray, margin: r.w });
+  const hides = o.hides !== undefined ? !!o.hides : B[5] * k >= HEIGHTS.chest, top = z + B[5] * k;   // (low things hide no x-ray: a barrel, a crate)
+  if (comp && r.w <= AS - 8 && r.oy <= AOY - 4 && r.h - r.oy <= AS - AOY - 4 && r.ox <= AOX - 4 && r.w - r.ox <= AS - AOX - 4) this.actor(x, y, z, (g, ox, oy) => g.drawImage(r.cv, ox - r.ox, oy - r.oy), { rim: false, hides, top, bias: o.bias, flash: o.flash, alpha: o.alpha, xray: o.xray, margin: r.w });
   else {   // (one bigger than an actor's scratch image is drawn this way too, flash or not)
     const b = comp ? shapeRaster(id, rv, Object.assign({}, o, { outline: this.outline })) : r, at = () => { const [sx, sy] = this.w(x, y, z); return [Math.round(sx) - b.ox, Math.round(sy) - b.oy]; };
     const info = gI => {   // GPU lighting's pass: its pixels in the height gradient, as r.actor's composite gives them
       gI._mat = this._infoVert(gI, x, y, z, 10, 0); gI._c = null; px.col(gI, '#000');
       const [bx, by] = at(), R = b.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
     };
-    this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.cv, bx, by); }, { bias: o.bias, hides, footprint: fp, solid: true, info });
+    this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.cv, bx, by); }, { bias: o.bias, hides, top, footprint: fp, solid: true, info });
     if (b.lit) this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.lit.cv, bx, by); }, { bias: (o.bias || 0) + .0005, footprint: fp, emissive: true, info: gI => {   // its glowing parts (a crystal, a flame): unlit
       gI._mat = this._infoCol(z, 10, 1); gI._c = null; px.col(gI, '#000'); const [bx, by] = at(), R = b.lit.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
     } });

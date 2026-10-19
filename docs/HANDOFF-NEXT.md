@@ -267,7 +267,7 @@ file's progress table updated.
 | 1 the cards | done | v0.53.0 | |
 | 2 lighting in the look | done | v0.54.0 | |
 | 3 `E.Shell` in the template and the stealth starter | done | v0.55.0 | |
-| 4 the x-ray | not started | | |
+| 4 the x-ray | done | v0.56.0 | |
 | 5 walls with depth, the floor to the edge | not started | | |
 | 6 climbing any wall | not started | | |
 | 7 gliding and stamina | not started | | |

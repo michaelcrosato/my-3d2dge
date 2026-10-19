@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.56.0 (2026-10-19)
+
+Phase 4 of the next plan: the x-ray shows a hidden body clearly, and only when something hides it (D46).
+
+- **Rendering**: in the smooth style (`E.style.trans` 'alpha', the default) the hidden part is a translucent tint (45%) with a 1-px outline (`r.xrayOutline`, '#e8fdff'; `xray.outline: false` for none); the checker stays for 'dither'. An occluder rising less than `E.HEIGHTS.level` (8) above the actor's feet hides nothing (the roof it stands on, a cut-down wall), and a prop or shape lower than `E.HEIGHTS.chest` (22: grass, crates, barrels) doesn't hide by default (`hides: true` still makes one). Judges took the old cyan dither on the hero's feet for a glitch (F2.2, F3.2).
+- **Tools**: `tools/contract-test.mjs` pins the rules: a tall wall or a pillar shows the hero through it, a cut-down wall or low grass doesn't, `hides: true` makes a low prop hide, the outline is on by default and `outline: false` leaves it out.
+
 ## 0.55.0 (2026-10-19)
 
 Phase 3 of the next plan: `E.Shell` in the template and the stealth starter.
