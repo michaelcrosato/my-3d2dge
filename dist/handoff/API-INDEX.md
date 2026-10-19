@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.56.0)
+# my-3D2dge API index (v0.57.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -64,24 +64,24 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 521 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
 - 594 Blob rig; E.Blob: blob
 - 614 Tile map; E.TileMap: map
-- 671 Materials
-- 692 Flow field; E.FlowField: flow
-- 710 Texture helpers for floortex functions
-- 721 Platform map; E.PlatformMap: level, E.Platformer: hero
-- 783 Body; E.Body: body
-- 803 Actions; E.Action: action
-- 825 17c. Mover; E.Mover: mover
-- 852 17d. Perception; E.Suspicion: suspicion
-- 869 Bullets; E.Bullets: shots
-- 889 Spatial hash; E.SpatialHash: grid
-- 899 Audio; game.audio
-- 921 Backdrops; E.Backdrop: backdrop
-- 929 21c. Props
-- 934 21e. Shapes
-- 946 Ui; E.Dialog: talk, E.Menu: menu
-- 1000 21d. Shell; E.Shell: shell
-- 1029 Gpu lighting (webgpu); game.gpu
-- 1050 Sessions
+- 672 Materials
+- 693 Flow field; E.FlowField: flow
+- 711 Texture helpers for floortex functions
+- 722 Platform map; E.PlatformMap: level, E.Platformer: hero
+- 784 Body; E.Body: body
+- 804 Actions; E.Action: action
+- 826 17c. Mover; E.Mover: mover
+- 853 17d. Perception; E.Suspicion: suspicion
+- 870 Bullets; E.Bullets: shots
+- 890 Spatial hash; E.SpatialHash: grid
+- 900 Audio; game.audio
+- 922 Backdrops; E.Backdrop: backdrop
+- 930 21c. Props
+- 935 21e. Shapes
+- 947 Ui; E.Dialog: talk, E.Menu: menu
+- 1001 21d. Shell; E.Shell: shell
+- 1030 Gpu lighting (webgpu); game.gpu
+- 1051 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -90,7 +90,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.56.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.57.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -661,7 +661,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `map.floorTex`: floorTex(x, y, tag, view) -> [r, g, b], the floor's color per pixel
 - `map.floors`: the baked floor images by view (floors = {} re-bakes them after floorTex changes)
 - `map.h`, `map.w`: the map's size in cells
-- `map.light`: the direction light comes from, for shading wall faces
+- `map.light`: null shades wall faces with the shapes' light (from the viewer's upper left: a face toward it lit, the other face of a corner a shade darker, in every view), or a direction [x, y, 0] the light comes from
+- `map.outside`: the ground beyond the map (ground views): undefined continues the map's floor past its edge, darkening into one color that fills the rest of the screen, a color ('#2a2630') fades into that, false leaves it empty
 - `map.shimmer` †: animated sparkle on floor cells tagged 'water' or 'lava'
 - `map.spawns`: spawn points from the ASCII rows: { tag, ch, cx, cy, x, y, z } (x, y = cell center)
 - `map.types`: the wall types by id ({ h, top, side, face, roof, cut, ... })

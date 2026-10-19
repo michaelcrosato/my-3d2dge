@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.56.0: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.57.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -374,7 +374,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.56.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.57.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -2399,7 +2399,7 @@ class TileMap {
     for (const id of new Set(this.cells)) if (id > 0 && !this.types[id]) { warn('walltype:' + id, 'TileMap: wall type ' + id + ' is used in the map but missing from types (using a plain grey wall)'); this.types[id] = DEFAULT_WALL; }
     this.floorTex = o.floorTex || (() => [60, 56, 72]); this.cutaway = o.cutaway !== false; this.floors = {};
     this.ao = o.ao === undefined ? 5 : o.ao;
-    this.light = V3.norm([-.6, -.8, 0]); this.version = 0;
+    this.light = o.light || null; this.version = 0; this.outside = o.outside;
   }
   find(tag) { return this.spawns.find(s => s.tag === tag) || null; }
   findAll(tag) { return this.spawns.filter(s => s.tag === tag); }
@@ -2577,18 +2577,24 @@ class TileMap {
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale;
     if (this.floors[key]) return this.floors[key];
     if (Object.keys(this.floors).length > 6) this.floors = {};
-    const T = this.T, W = this.w * T, H = this.h * T;
+    const T = this.T, W = this.w * T, H = this.h * T, out = !!view.inv && this.outside !== false, M = out ? 96 : 0, oc = out && this._outsideCol(view);
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const s = view.p(x, y, 0); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
-    x0 = Math.floor(x0); y0 = Math.floor(y0);
-    let cw = Math.ceil(x1) - x0 + 1, ch = Math.ceil(y1) - y0 + 1;
+    x0 = Math.floor(x0) - M; y0 = Math.floor(y0) - M;
+    let cw = Math.ceil(x1) + M - x0 + 1, ch = Math.ceil(y1) + M - y0 + 1;
     if (!view.inv) ch = 24;
     const cv = mkCanvas(cw, ch), g = cv.getContext('2d'), img = g.createImageData(cw, ch), d = img.data;
     for (let py = 0; py < ch; py++) for (let pxx = 0; pxx < cw; pxx++) {
       let gx, gy;
       if (view.inv) { const q = view.toGround(pxx + x0 + .5, py + y0 + .5); gx = q[0]; gy = q[1]; }
       else { gx = (pxx + x0 + .5) / view.ax; gy = H * .5 + py * 2; }
-      if (gx < 0 || gy < 0 || gx >= W || gy >= H) continue;
+      if (gx < 0 || gy < 0 || gx >= W || gy >= H) {   // past the edge: the floor mirrored, darkening into the outside color
+        if (!out) continue;
+        const mx = clamp(gx < 0 ? -gx : gx >= W ? 2 * W - gx : gx, 0, W - .01), my = clamp(gy < 0 ? -gy : gy >= H ? 2 * H - gy : gy, 0, H - .01);
+        const f = Math.min(1, Math.hypot(Math.max(0, -gx, gx - W), Math.max(0, -gy, gy - H)) / 48), s = this.floorTex(mx, my, null, view) || oc, k = (py * cw + pxx) * 4;
+        for (let i = 0; i < 3; i++) d[k + i] = lerp(s[i] * .7, oc[i], f); d[k + 3] = 255;
+        continue;
+      }
       if (view.inv && this.cell(Math.floor(gx / T), Math.floor(gy / T)) !== 0) continue;
       let c = this.floorTex(gx, gy, this.floorTags ? this.floorTags[Math.floor(gy / T) * this.w + Math.floor(gx / T)] : null, view); if (!c) continue;
       if (this.ao) {
@@ -2607,7 +2613,24 @@ class TileMap {
     g.putImageData(img, 0, 0);
     return (this.floors[key] = { cv, x0, y0 });
   }
-  drawFloor(r) { r._map = this; const f = this._floor(r.view); r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); }
+  drawFloor(r) {
+    r._map = this; const f = this._floor(r.view);
+    if (r.view.inv && this.outside !== false) {   // the outside color around the bake (inside it, what was drawn first shows through holes)
+      const c = this._outsideCol(r.view), g = r.ctx, x0 = Math.round(f.x0 - r.ix), y0 = Math.round(f.y0 - r.iy), x1 = x0 + f.cv.width, y1 = y0 + f.cv.height, W = r.bw, H = r.bh;
+      g.fillStyle = 'rgb(' + c.map(Math.round).join(',') + ')'; g._c = null;
+      if (y0 > 0) g.fillRect(0, 0, W, Math.min(H, y0)); if (y1 < H) g.fillRect(0, Math.max(0, y1), W, H - Math.max(0, y1));
+      const a = Math.max(0, y0), b = Math.min(H, y1); if (b > a) { if (x0 > 0) g.fillRect(0, a, Math.min(W, x0), b - a); if (x1 < W) g.fillRect(Math.max(0, x1), a, W - Math.max(0, x1), b - a); }
+    }
+    r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy);
+  }
+  // the ground beyond the map, [r, g, b]: map.outside, or the floor's average darkened
+  _outsideCol(view) {
+    if (typeof this.outside === 'string') return hex(this.outside);
+    if (this._oc) return this._oc;
+    const T = this.T, a = [0, 0, 0]; let n = 0;
+    for (let j = 0; j < 7; j++) for (let i = 0; i < 7; i++) { const c = this.floorTex((i + .5) / 7 * this.w * T, (j + .5) / 7 * this.h * T, null, view); if (c) { a[0] += c[0]; a[1] += c[1]; a[2] += c[2]; n++; } }
+    return (this._oc = n ? a.map(v => v / n * .38) : [12, 10, 18]);
+  }
   /** is wall cell (cx, cy) in front in this view, so cutaway cuts it to cutH? A game may replace it on its map */
   isFront(cx, cy, view) {
     if (!this.cutaway || view.isTop || view.pitchDeg > 75) return false;
@@ -2644,15 +2667,16 @@ class TileMap {
   }
   _box(g, r, cx, cy, t, h) {
     const view = r.view, T = this.T, x0 = cx * T, y0 = cy * T, x1 = x0 + T, y1 = y0 + T, P = (x, y, z) => r.w(x, y, z);
+    const Lv = this.light ? null : wallLight(view), drawn = [];
     if (!view.isTop) {
       const faces = [[0, -1, [x1, y0], [x0, y0]], [0, 1, [x0, y1], [x1, y1]], [-1, 0, [x0, y0], [x0, y1]], [1, 0, [x1, y1], [x1, y0]]];
       for (const [nx, ny, A, B] of faces) {
         if (nx * view.fx + ny * view.fy <= .02) continue;
         const nh = this.cell(cx + nx, cy + ny) > 0 ? (this.isFront(cx + nx, cy + ny, view) ? (this.types[this.cell(cx + nx, cy + ny)].cutH || 6) : this.height(cx + nx, cy + ny)) : 0;
         if (nh >= h) continue;
-        const lit = -(nx * this.light[0] + ny * this.light[1]);
-        const col = lit > .2 ? t.sideLt || shade(t.side, .12) : lit < -.2 ? t.sideDk || shade(t.side, -.25) : t.side;
-        const face = [P(A[0], A[1], nh), P(B[0], B[1], nh), P(B[0], B[1], h), P(A[0], A[1], h)];
+        const lit = Lv ? nx * Lv[0] + ny * Lv[1] : -(nx * this.light[0] + ny * this.light[1]), hi = Lv ? .3 : .2, lo = Lv ? -.38 : -.2;
+        const col = lit > hi ? t.sideLt || shade(t.side, .12) : lit < lo ? t.sideDk || shade(t.side, -.25) : t.side;
+        const face = [P(A[0], A[1], nh), P(B[0], B[1], nh), P(B[0], B[1], h), P(A[0], A[1], h)]; drawn.push([A, B, nh, col]);
         px.poly(g, face, col);
         const pat = t.texture === false || t.face === 'none' ? 'none' : 'brick';
         if (pat === 'brick') {
@@ -2684,7 +2708,19 @@ class TileMap {
       const nb = this.cell(cx + nx, cy + ny); if (nb > 0 && this.height(cx + nx, cy + ny) >= h) continue;
       const a = P(ax, ay, h), b = P(bx, by, h); px.line(g, a[0], a[1], b[0], b[1], edge);
     }
+    // depth: a lit edge where the top meets each face drawn, a crease down a corner where two faces meet
+    for (const [A, B] of drawn) { const a = P(A[0], A[1], h), b = P(B[0], B[1], h); px.line(g, a[0], a[1], b[0], b[1], edge); }
+    for (let i = 0; i < drawn.length; i++) for (let j = i + 1; j < drawn.length; j++) {
+      const [A1, B1, n1, c1] = drawn[i], [A2, B2, n2, c2] = drawn[j], q = B1[0] === A2[0] && B1[1] === A2[1] ? B1 : B2[0] === A1[0] && B2[1] === A1[1] ? A1 : null; if (!q) continue;
+      const sum = c => { const v = hex(c); return v[0] + v[1] + v[2]; }, a = P(q[0], q[1], Math.max(n1, n2) + .6), b = P(q[0], q[1], h - .6);
+      px.line(g, a[0], a[1], b[0], b[1], shade(sum(c1) < sum(c2) ? c1 : c2, -.3));
+    }
   }
+}
+// the light on wall faces for a view: from the viewer's upper left, as the full engine's shapes have it
+function wallLight(view) {
+  const w = view.yaw, p = view.pitch, cw = Math.cos(w), sw = Math.sin(w), cp = Math.cos(p), sp = Math.sin(p);
+  return V3.norm([-.45 * cw - .45 * sp * sw + .77 * sw * cp, .45 * sw - .45 * sp * cw + .77 * cw * cp, .45 * cp + .77 * sp]);
 }
 E.TileMap = TileMap;
 class FlowField {

@@ -98,8 +98,7 @@ const play = {
       keys: [[['up', 'left', 'down', 'right'].map(a => I.label(a)).join(''), 'Move'], [I.label('jump'), 'Jump and climb']] });
   },
   draw(r) {
-    r.sky(['#101828', '#28304a']);
-    map.drawFloor(r); map.queueWalls(r);
+    map.drawFloor(r); map.queueWalls(r);   // (the floor runs on past the map to the screen's edges: map.outside)
     for (const [id, x, y, o] of DRESS) r.shape(id, x, y, 0, o);
     r.prop('lamp', 88, 88, 0, { light: true });   // a street lamp: its glow and a pool of light
     r.decal(() => r.groundArc(guard.x, guard.y, 6, 110, guard.facing - .6, guard.facing + .6, alert > 0 ? '#ff6040' : '#ffe080', .4));   // its sight cone
