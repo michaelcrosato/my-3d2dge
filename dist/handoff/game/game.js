@@ -5,12 +5,15 @@
 // crates as data, solid with map.solid; the street's cobbles a material), and game.debug for tests and tools. The pause menu,
 // settings, rebinding and full screen come with every game: menu: { controls } names the actions on its Controls screen,
 // and input.label() puts the player's own key or button in a prompt. The night is canvas lighting (game.lights): an
-// ambient, and lights added every draw (a street lamp, the gem's glow), the same in every browser and every check.
+// ambient, and lights added every draw (a street lamp, the gem's glow), the same in every browser and every check. The
+// HUD is HTML (E.Shell: the objective with its distance, the guard's alert, your keys), over the pixels; the title and
+// end screens are pixel art.
 // Copy it and make it your game. Test it headless: node game/test.mjs. Check it in a browser: node tools/check.mjs game/index.html
 (() => {
 const E = My3D2dge;
 const game = new E.Game({ canvas: 'screen', res: 'snes', expand: true, view: 'iso', views: ['iso', 'threequarter'],   // expand: full screen at any shape (the HUD anchors to r.W, r.H)
   menu: { controls: { jump: 'Jump and climb', attack: false, dash: false, skill: false } } });   // (this game uses moves and jump only)
+const ui = new E.Shell(game);   // the HTML HUD (it keeps the standard pause menu); headless, it draws nothing
 const ROOF = 32;
 const map = new E.TileMap({
   rows: ['############',
@@ -57,7 +60,7 @@ const title = {
 const play = {
   pausable: true,
   enter() { game.follow(hero, { z: 16 }); game.cam.bounds = v => map.bounds(v); game.lights.enabled = true; game.lights.ambient = .5; },
-  exit() { game.lights.enabled = false; },
+  exit() { game.lights.enabled = false; ui.hud({}); },
   update(dt) {
     const I = game.input;
     if (climb) {   // pull up onto the ledge: rise along the wall, then step over the edge
@@ -89,6 +92,10 @@ const play = {
     // the rigs are posed every step from the bodies' motion; draw only draws them
     heroRig.update(dt, { x: hero.x, y: hero.y, z: hero.z, vx: climb ? 0 : hero.vx, vy: climb ? 0 : hero.vy, vz: climb ? 60 : hero.vz, facing: hero.facing, air: !hero.onGround && !climb, climb: !!climb });
     guardRig.update(dt, { x: guard.x, y: guard.y, z: guard.z, vx: guard.vx, vy: 0, facing: guard.facing, stance: 'ready' });
+    // the HUD, from this step's state (E.Shell redraws only what changed; the keys hide on a touch screen)
+    ui.hud({ objective: got ? { title: 'Bring it down', text: 'Back to the street with it' } : { title: 'Take the gem', text: 'It lies on the roof', at: { x: gem.x, y: gem.y, z: ROOF }, from: hero },
+      bars: [{ label: 'Seen', value: Math.min(alert, 1.2), max: 1.2, color: '#ff6040' }],
+      keys: [[['up', 'left', 'down', 'right'].map(a => I.label(a)).join(''), 'Move'], [I.label('jump'), 'Jump and climb']] });
   },
   draw(r) {
     r.sky(['#101828', '#28304a']);
@@ -102,10 +109,6 @@ const play = {
       r.shadow(b.x, b.y, 7, .35, undefined, b.groundZ || 0);
       r.actor(b.x, b.y, b.z, (g, ox, oy) => rig.draw(g, ox, oy, r.view));
     }
-    r.overlay(g => {
-      E.font.text(g, got ? 'GEM: BRING IT DOWN' : 'GEM: ON THE ROOF', 6, 6, got ? '#80e8ff' : '#ffffff');
-      E.ui.bar(g, r.W - 70, 6, 64, 6, Math.min(1, alert / 1.2), '#ff6040');
-    });
   }
 };
 

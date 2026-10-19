@@ -12,6 +12,8 @@
  * its footprint; r.sightCone and r.marker draw the cones and the objective. Dusk is canvas lighting (game.lights): an
  * ambient and the lights added each draw (street lamps, the ledger's glow, the gate), on a computer: its pass costs a
  * few milliseconds a frame, so a phone keeps its frame rate and an unlit street (as the ADVENTURE slice's Auto does).
+ * The interface is HTML, E.Shell's: the objective with its distance, health, status, the takedown prompt, toasts and
+ * the results; the guards' marks stay in the world.
  * ===================================================================================== */
 const STEALTH = (() => {
   const T = 16, HP = 3;
@@ -54,14 +56,13 @@ const STEALTH = (() => {
     ...(E.addAssets((window.ASSETS || {}).stealth || { set: 'stealth' }).shapes.length ? [['stealth:resource-planks', 12.2 * T, 1.4 * T, { scale: .7, facing: Math.PI / 2 + .1 }]] : [])];
   for (let cy = 0; cy < map.h; cy++) for (let cx = 0; cx < map.w; cx++) if (map.floorAt((cx + .5) * T, (cy + .5) * T) === 'grass') GRASS.push([(cx + .5) * T, (cy + .5) * T]);
   const BOOK = E.sprite(['.bbbb.', 'bBBBBb', 'bBwwBb', 'bBBBBb', '.bbbb.'], { b: '#3a2010', B: '#8a3a20', w: '#f0e0b0' });
-  const STAR = E.sprite(['..y..', '.yYy.', 'yYYYy', '.yYy.', '..y..'], { y: '#e8a830', Y: '#fff0a0' });
   const ROUTES = [   // [start, ...patrol points] in cells, and the guard's roof height
     [[19.5, 3.5, 40], [21.5, 3.5, 40], [21.5, 5.5, 40], [18.5, 5.5, 40]],
     [[6.5, 6.5, 0], [20.5, 6.5, 0], [20.5, 8.5, 0], [6.5, 8.5, 0]],
     [[11.5, 12.2, 0], [20.5, 12.2, 0], [20.5, 8.2, 0], [11.5, 8.2, 0]]
   ];
-  let hero, rig, guards, attack, msg, msgT, checkpoint, ledger, won, over, hp, hurtT, alertT;
-  const say = (m, t = 2.5) => { msg = m; msgT = t; };
+  let hero, rig, guards, attack, checkpoint, ledger, won, over, hp, hurtT, alertT, ui = null;
+  const say = (title, text) => ui.toast(title, text, 3);
   const inGrass = b => b.z < 2 && map.floorAt(b.x, b.y) === 'grass';
 
   /* ---- GUARDS: a Mover with patrol points, eyes, a mind and a flow field that climbs, drops and jumps ---- */
@@ -112,13 +113,14 @@ const STEALTH = (() => {
     hero = new E.Mover({ x: s.x, y: s.y, r: 5 }); hero.facing = 0;
     rig = rig || new E.Humanoid({ size: 1.2, build: 'heroic', hood: true, weapon: 'sword', bladeLen: 7, outfit: 'coat', sleeves: 'long', cape: { len: 6, width: 5, seg: 2.4 }, colors: { cloth: '#d8d2c4', coat: '#d8d2c4', cape: '#8a2a2a', capeIn: '#5a1a1a', pants: '#3a3448', metal: '#e8e8f0' } });
     attack = new E.Attack('slash', { reach: 9 }); guards = ROUTES.map(makeGuard);
-    checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; say('STEAL THE LEDGER FROM THE BRICK ROOF', 3.5);
+    ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: it takes over from the engine's own, keeping the pause menu)
+    checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; say('Steal the ledger', 'It lies on the brick roof');
     game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = !!(window.matchMedia && matchMedia('(pointer: fine)').matches); L.ambient = .6; A.music('dungeon');
   }
   function respawnAt(cp) {
     Object.assign(hero, { x: cp.x, y: cp.y, z: cp.z, vx: 0, vy: 0, vz: 0, onGround: true, action: null }); hp = HP;
     guards.forEach((g, i) => { if (!g.dead) { const [x, y, z] = ROUTES[i][0]; Object.assign(g, { x: x * T, y: y * T, z, vx: 0, vy: 0, vz: 0, at: 1, stun: 0, action: null }); g.mind.reset(); g.swing.cancel(); } });
-    game.cam.snap = true; say('BACK AT THE CHECKPOINT');
+    game.cam.snap = true; say('Back at the checkpoint');
   }
   function lose() { if (checkpoint) { A.sfx('die'); respawnAt(checkpoint); } else { over = true; game.after(.8, () => game.go('over', { from: 'stealth' })); } }
   // a takedown within reach: [guard, from above] or null
@@ -153,18 +155,36 @@ const STEALTH = (() => {
     // CONTEXT touch buttons: ATTACK says TAKE DOWN when one is in reach, BLOCK says PARRY in a guard's wind-up
     I.touchSet('attack', !hero.action && takedown() ? 'TAKE DOWN' : null); I.touchSet('block', parrying() ? 'PARRY' : null);
     if (I.pressed('block')) for (const g of guards) if (!g.dead && g.swing.phase === 'wind' && g.swing.u > .35 && Math.hypot(g.x - hero.x, g.y - hero.y) < 26) {
-      g.swing.cancel(); g.stun = 1.3; A.sfx('kick'); game.flash('#ffffff', .08); P.sparks(g.x, g.y, g.z + 18, 10, hero.facing); say('PARRIED', 1);
+      g.swing.cancel(); g.stun = 1.3; A.sfx('kick'); game.flash('#ffffff', .08); P.sparks(g.x, g.y, g.z + 18, 10, hero.facing); say('Parried');
     }
     hero.update(dt, map, attack.busy ? { move: [0, 0] } : I);
     if (hero.hurt) { hp--; hurtT = .4; game.shake(3); if (hp <= 0) lose(); }
     if (hero.inHazard) hero.respawn();
-    if (!ledger && E.dist(hero, LEDGER) < 12) { ledger = true; checkpoint = { x: hero.x, y: hero.y, z: hero.z }; A.sfx('powerup'); say('LEDGER TAKEN: CHECKPOINT. NOW TO THE EAST GATE'); }
-    if (ledger && !won && Math.hypot(hero.x - EXIT.x, hero.y - EXIT.y) < 14 && hero.z < 2) { won = true; A.music('victory'); say('MISSION COMPLETE', 99); best('stealth', guards.filter(g => !g.dead).length); }
+    if (!ledger && E.dist(hero, LEDGER) < 12) { ledger = true; checkpoint = { x: hero.x, y: hero.y, z: hero.z }; A.sfx('powerup'); say('Checkpoint', 'The ledger is yours: now the east gate'); }
+    if (ledger && !won && Math.hypot(hero.x - EXIT.x, hero.y - EXIT.y) < 14 && hero.z < 2) { won = true; A.music('victory'); results(); }
+  }
+
+  function results() {
+    const alive = guards.filter(g => !g.dead).length, top = best('stealth', alive);
+    ui.show('results', { kicker: 'Mission complete', title: 'The ledger is out', stats: [[String(alive), 'guards who never fell'], [String(top), 'the best yet'], [String(HP - hp), 'wounds taken']],
+      actions: [{ label: 'Back to the title', primary: true, fn: () => { ui.hide(); game.go('title'); } }] });
+  }
+  // the HUD, from this step's state: E.Shell redraws only what changed (keys hide by themselves on a touch screen)
+  function hud() {
+    const k = a => game.input.label(a).toUpperCase(), pad = game.input.lastDevice === 'gamepad', td = !hero.action && takedown();
+    ui.hud(won || over ? {} : {
+      objective: ledger ? { step: '02 / 02', title: 'Slip out by the east gate', text: 'Down in the street, at the far end', at: { x: EXIT.x, y: EXIT.y, z: 0 }, from: hero }
+        : { step: '01 / 02', title: 'Steal the ledger', text: 'On the brick roof', at: LEDGER, from: hero },
+      status: hero.exposure === 0 ? { text: 'Hidden', color: '#9ae89a' } : alertT > 0 ? { text: 'Hunted', color: '#ff4a3a' } : hero.crouch ? 'Crouched' : null,
+      bars: [{ label: 'Health', value: hp, max: HP, kind: 'pips', color: '#e8505a' }], counts: [['Guards down', guards.filter(g => g.dead).length]],
+      prompt: touch() ? null : td ? { act: 'attack', label: 'Take down', hint: td[1] ? 'From above' : 'From behind' } : parrying() ? { act: 'block', label: 'Parry' } : null,
+      keys: [[pad ? 'STICK' : ['up', 'left', 'down', 'right'].map(k).join(''), 'Move'], [k('sprint'), 'Sprint'], [k('jump'), 'Jump, climb'], [k('crouch'), 'Crouch'], [k('attack'), 'Strike'], [k('block'), 'Block'], [k('dodge'), 'Roll']]
+    });
   }
 
   function update(dt) {
-    if (msgT > 0) msgT -= dt; if (hurtT > 0) hurtT -= dt;
-    if (won || over) { if (won && game.input.pressed('start')) game.go('title'); rig.update(dt, hero.rigState({ pose: won ? 'cheer' : null })); return; }
+    if (hurtT > 0) hurtT -= dt;
+    if (won || over) { hud(); rig.update(dt, hero.rigState({ pose: won ? 'cheer' : null })); return; }
     heroUpdate(dt);
     for (const g of guards) guardUpdate(g, dt);
     const alert = guards.some(g => !g.dead && g.mind.state === 'alert');
@@ -175,6 +195,7 @@ const STEALTH = (() => {
       g.rig.update(dt, g.rigState({ attack: g.swing.state, stance: g.mind.state === 'alert' ? 'ready' : null, hurt: g.stun > 0 }));
       if (g.bark > 0) g.bark -= dt;
     }
+    hud();
   }
 
   const MOOD = { calm: '#ffe080', notice: '#ffc040', search: '#ff9a40', alert: '#ff4a3a' };
@@ -203,23 +224,11 @@ const STEALTH = (() => {
         E.font.text(g, a ? '!' : '?', Math.round(sx), Math.round(sy) - 8, MOOD[gd.mind.state], { align: 'center', shadow: '#000' });
         E.ui.bar(g, Math.round(sx) - 6, Math.round(sy) + 2, 12, 2, Math.min(1, gd.mind.level), MOOD[gd.mind.state]);
       }
-      E.ui.box(g, 4, 4, 92, 20, { alpha: .75 }); E.ui.hearts(g, 9, 9, hp, HP);
-      if (ledger) px.sprite(g, BOOK, 66, 10);
-      E.font.text(g, hero.exposure === 0 ? 'HIDDEN' : hero.crouch ? 'CROUCHED' : '', 9, 18, '#9ae89a', { font: 'tiny', outline: false });
-      if (msgT > 0) {   // the message stays clear of the touch buttons: above them where they reach under it
-        const w = E.font.width(msg) + 16, ta = game.input.touchArea(), my = ta && (r.W + w) / 2 > ta.x0 ? Math.min(r.H - 34, Math.floor(ta.y0) - 22) : r.H - 34;
-        E.ui.box(g, (r.W - w) / 2, my, w, 18, { alpha: .85 }); E.font.text(g, msg, r.W / 2, my + 5, '#ffe7a8', { align: 'center' });
-      }
-      if (won) { E.font.title(g, 'MISSION COMPLETE', r.W / 2, 60, { align: 'center', scale: 3, colors: ['#ffffff', '#ffe08a', '#e0a040'], depth: 2 }); px.sprite(g, STAR, r.W / 2 - 2, 94); }
-      if (!touch()) {   // the player's own keys (a touch screen's buttons name themselves)
-        const k = a => game.input.label(a).toUpperCase(), pad = game.input.lastDevice === 'gamepad', move = pad ? 'STICK' : ['up', 'left', 'down', 'right'].map(k).join('');
-        E.font.text(g, [move, k('sprint') + ' SPRINT', k('jump') + ' JUMP/CLIMB', k('crouch') + ' CROUCH', k('attack') + ' STRIKE', k('block') + ' BLOCK', k('dodge') + ' ROLL'].join('  '), r.W / 2, r.H - 9, '#b8b0d8', { align: 'center', font: 'tiny', shadow: '#000', outline: false });
-      }
     });
   }
   return { view: 'iso', views: ['iso', 'threequarter'], input: 'THIRDPERSON', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'block', 'crouch'],
     camera: { zoom: [.75, 2], rotate: true }, enter: start, update, draw,
     state: () => ({ hero, guards, map, ledger, won, hp }),   // for tests
-    exit() { game.cam.offset = null; L.enabled = false; } };
+    exit() { game.cam.offset = null; L.enabled = false; if (ui) ui.hud({}); } };
 })();
 scenes.stealth = STEALTH;
