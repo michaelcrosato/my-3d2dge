@@ -495,5 +495,5 @@ FX.scorch = (x, y, r0, color = '#1a1016', dur = 4) => {
 /* ---- simple timed visual: FX.visual(dur, draw(r, u)) for one-off flourishes ---- */
 FX.visual = (dur, drawFn, upd) => { const f = addFx({ kind: 'visual', t: 0, update: dt => { f.t += dt; if (upd) upd(f, dt); return f.t < dur; }, draw: r => drawFn(r, f.t / dur, f) }); return f; };
 
-function updateFx(dt) { const L0 = ED.fx; for (let i = L0.length - 1; i >= 0; i--) { let keep = false; try { keep = L0[i].update(dt); } catch (e) { game._fail('fx ' + L0[i].kind, e); } if (!keep) L0.splice(i, 1); } }
+function updateFx(dt) { const L0 = ED.fx; for (let i = L0.length - 1; i >= 0; i--) { let keep = false; try { keep = L0[i].update(dt); } catch (e) { game.fail('fx ' + L0[i].kind, e); } if (!keep) L0.splice(i, 1); } }
 function drawFx(r) { for (const f of ED.fx) if (f.draw) f.draw(r); }

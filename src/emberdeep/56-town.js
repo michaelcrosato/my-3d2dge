@@ -795,7 +795,7 @@ function hookRig(n) {
       J['elbow' + sd] = el; J['hand' + sd] = hd;
     }
     if (n.bladeDir && n.bladeW > .01) J.bladeDir = V3.norm(V3.lerp(J.bladeDir, n.bladeDir, n.bladeW));
-    const v = this._lastView || view, c = this.worldOffset(V3.lerp(J.hipC, J.shC, .5)), dc = v.depth(c[0], c[1], c[2]);
+    const v = this.lastView || view, c = this.worldOffset(V3.lerp(J.hipC, J.shC, .5)), dc = v.depth(c[0], c[1], c[2]);
     const far = it => { const hd = J['hand' + (it.hand || 'R')], w = this.worldOffset(hd); return v.depth(w[0], w[1], w[2]) < dc - .4 * o.size; };
     if (!port) for (const it of n.items) if (far(it)) paintItem(g, this, ox, oy, view, it, n);
     base.call(this, g, ox, oy, view);
@@ -1007,7 +1007,7 @@ townNPC('harrow', {
 });
 function harrowBeard(g, rig, ox, oy, view, n) {
   // a big ginger beard and moustache, painted over the jaw when the face is toward the camera
-  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view, P = (f, r, z) => { const w = rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
+  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig.lastView || view, P = (f, r, z) => { const w = rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
   const c0 = rig.worldOffset(H), c1 = rig.worldOffset([H[0] + R, H[1], H[2]]); if (v.depth(c1[0], c1[1], c1[2]) < v.depth(c0[0], c0[1], c0[2]) - .1) return;
   const ht = E.tones(rig.C.hair), pts = [P(.75, -.72, -.05), P(.7, -.8, -.55), P(.62, -.45, -1.12), P(.72, 0, -1.3), P(.62, .45, -1.12), P(.7, .8, -.55), P(.75, .72, -.05), P(.96, 0, -.3)];
   px.poly(g, pts, ht.sh); px.poly(g, pts.slice(1, 6).concat([P(.95, 0, -.55)]).map(p => [p[0] - .4, p[1] - .6]), ht.base);
@@ -1202,7 +1202,7 @@ const COBB_CALLS = ['Potions! Fresh potions!', 'Bargains, delver!', 'Rope! Never
 const ILSA_AT = [440, 304], ILSA_PRAY = [412, 296];
 /** a gold circlet round her brow with a teal gem at the front (the gem brightens as she prays) */
 function ilsaCirclet(g, rig, ox, oy, view, n) {
-  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view;
+  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig.lastView || view;
   const W = (f, r, z) => rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; };
   const c = rig.worldOffset(H), dc = v.depth(c[0], c[1], c[2]), c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]), lw = Math.max(1, Math.round(rs * .22));
   let prev = null;
@@ -1366,7 +1366,7 @@ const bramBeat = {
 };
 /** his kettle hat (a wide iron brim, a riveted dome with a ridge) and a walrus moustache, painted over the head */
 function bramKettle(g, rig, ox, oy, view, n) {
-  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig._lastView || view;
+  const J = rig.J, R = rig.o.headR, H = J.head, v = view.id === 'portrait' ? view : rig.lastView || view;
   const W = (f, r, z) => rig.worldOffset([H[0] + f * R, H[1] + r * R, H[2] + z * R]), S = w => { const q = v.p(w[0], w[1], w[2]); return [ox + q[0], oy + q[1]]; }, D = w => v.depth(w[0], w[1], w[2]);
   const c = rig.worldOffset(H), dc = D(c), fr = W(1, 0, 0), faceOn = D(fr) >= dc - .1, c0 = S(c), c1 = S(W(0, 1, 0)), rs = Math.hypot(c1[0] - c0[0], c1[1] - c0[1]);
   const ht = E.tones(rig.C.hair), mt = E.tones('#7a8290');

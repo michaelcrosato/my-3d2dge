@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.51.5)
+# my-3D2dge API index (v0.52.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -56,26 +56,26 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 215 Input; E.Input: input
 - 287 Pixel font
 - 298 Lighting; game.lights
-- 312 Particles; E.Particles: game.particles
-- 332 Renderer; r
-- 375 Game; E.Game: game
-- 484 Standard features; settings, fullscreen
-- 503 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 574 Blob rig; E.Blob: blob
-- 594 Tile map; E.TileMap: map
-- 650 Materials
-- 671 Flow field; E.FlowField: flow
-- 689 Texture helpers for floortex functions
-- 700 Platform map; E.PlatformMap: level, E.Platformer: hero
-- 762 Body; E.Body: body
-- 782 Actions; E.Action: action, E.Mover: mover, E.Suspicion: suspicion
-- 842 Bullets; E.Bullets: shots
-- 862 Spatial hash; E.SpatialHash: grid
-- 872 Audio; game.audio
-- 893 Backdrops; E.Backdrop: backdrop
-- 912 Ui; E.Dialog: talk, E.Menu: menu, E.Shell: shell
-- 992 Gpu lighting (webgpu); game.gpu
-- 1012 Sessions
+- 313 Particles; E.Particles: game.particles
+- 333 Renderer; r
+- 377 Game; E.Game: game
+- 487 Standard features; settings, fullscreen
+- 506 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 579 Blob rig; E.Blob: blob
+- 599 Tile map; E.TileMap: map
+- 656 Materials
+- 677 Flow field; E.FlowField: flow
+- 695 Texture helpers for floortex functions
+- 706 Platform map; E.PlatformMap: level, E.Platformer: hero
+- 768 Body; E.Body: body
+- 788 Actions; E.Action: action, E.Mover: mover, E.Suspicion: suspicion
+- 848 Bullets; E.Bullets: shots
+- 868 Spatial hash; E.SpatialHash: grid
+- 878 Audio; game.audio
+- 900 Backdrops; E.Backdrop: backdrop
+- 919 Ui; E.Dialog: talk, E.Menu: menu, E.Shell: shell
+- 999 Gpu lighting (webgpu); game.gpu
+- 1019 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -84,7 +84,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.51.5"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.52.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -300,6 +300,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.lights.add(x, y, z, radius, intensity = 1, o)` †: radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true }
 - `game.lights.caster(x, y, r, top)` †: something that blocks light (GPU shadows): a cylinder of radius r from the floor up to height top
 - `game.lights.heat(x, y, z, width, strength = 1)` †: heat shimmer above a point (GPU only). width in world units, strength ~0.5..1.5
+- `game.lights.refresh()` †: rebuild the darkness bands after changing dark, levels or glow (lights.dark = [r, g, b]; lights.refresh())
 - `game.lights.render(r)` †: darken the frame by the lights (the renderer calls it after the queue, when enabled)
 - `game.lights.ambient = .15` †: how lit unlit places are, 0 (black) .. 1
 - `game.lights.dark = [10, 6, 24]` †: the color of darkness, [r, g, b]
@@ -338,6 +339,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.actor({ hides })`: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
 - `r.actor({ ghost })`: ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
 - `r.actor({ every, key })`: every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray or GPU lighting
+- `r.actorNow(x, y, z, drawFn, o = {})`: draw an actor at once, over what is drawn so far, not sorted by depth (a pass of the game's own: a body falling into a void painted over the level), with r.actor's options (outline, flash, alpha, ...)
 - `r.bh`: the buffer's height (H + 2)
 - `r.box(g, x0, y0, z0, x1, y1, z1, top, side)`: extruded box prop (crate, pedestal, table). Call inside a queue fn with its g.
 - `r.bw`: the buffer's width (W + 2: a pixel of margin each side for the sub-pixel camera)
@@ -396,6 +398,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.dispose()`: end the game for good: stop the loop and remove everything the engine added to the page (its listeners on the window, the document, the canvas and the buttons, the touch controls, the GPU lighting's canvas) and close the sound. Tests and tools that make many games call it; the canvas stays
 - `game.enableGPU(o = {})` †: turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... }
 - `game.every(seconds, fn)`: run fn every `seconds` of game time. Cleared on scene change. Returns { cancel() }
+- `game.fail(where, e)`: report an error in game code without stopping the game: logged once per place and message, kept in game.errors and shown on the error panel (the engine reports its own callbacks' errors this way): game.fail('power ' + id, err)
 - `game.flash(color = '#ffffff', seconds = .12, strength = 1)`: flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning. Shorter when reduceMotion, dimmer by the player's settings.flashes
 - `game.focus(x, y, z = 0)`: camera follows this world point. Side-scrollers: game.focus(x, 0, z)
 - `game.follow(target, o = {})`: keep the camera on an object automatically (instead of calling focus every update). opts: { z: extra height to look at (default 16), lead: look ahead in the facing / moving direction }. follow(null) stops.
@@ -405,7 +408,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.menu(name)`: open the menu (the corner's menu button and the touch START do it): a pausable scene (or a game started without scenes) pauses on its pause screen; any other scene, a title, waits under the settings. menu('settings') or menu('controls') opens that screen. Without a menu (menu: false, or the agent edition) it pauses a scene in play. Returns true when a menu opened
 - `game.mouseGround()`: mouse position on the ground (world units), or null
 - `game.nextView(dir = 1)`: cycle through game.views (or every view): bind it to a key for players who like to switch
-- `game.note(text, seconds = 1.2)`: a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1)
+- `game.note(text, seconds = 1.2)`, `game.shownNote`: a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1). game.shownNote is the one showing, { text, end } (end in game.real seconds), or null: a game that draws it its own way takes it and sets shownNote to null
 - `game.onView(f)` †: call f(view) whenever the view changes (re-bake caches, move HUD)
 - `game.pause(reason = 'player')`: pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused. The player resumes (Escape, Start, Resume); resume() does it from code
 - `game.resetCamera()` †: undo setZoom and rotateView: the scene's own zoom again (camera.start, or camera.tall on a screen held upright; 1 without), no turn. The player's zoom stays (settings.zoom)
@@ -537,6 +540,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `rig.head()`: world position of the head (for speech bubbles, portraits, halos)
 - `rig.kick(v)`: a squash-and-stretch kick: + stretches (a jump), - squashes (a landing, a hit)
 - `rig.land(strength = 1)` †: a heavy landing: knees bend deep and spring back over a moment; strength 1 or more drops a hand to the ground (a three-point landing), .3-.6 is a soft one. Call it on the step the body lands
+- `rig.solvePose()`: set the joints J from the rig's state this step (update and setPose call it); a clip player may wrap it on one rig: const base = rig.solvePose; rig.solvePose = function () { base.call(this); ...move J... }
 - `rig.tip()`: world position of the weapon tip (sword tip, gun muzzle, staff orb)
 - `rig.update(dt, s = {})`: s: { x, y, z, vx, vy, facing, dash, hurt, attack, air, point } air: true while jumping or falling (legs tuck), point: true to hold the weapon hand forward (aiming a gun) attack: { spec, phase: 'wind' | 'active' | 'recover', u: 0..1 }. spec.kick = true swings the right foot instead of the hand also aim (radians up), crouch, sprint, climb, hang (hangZ: the top it hangs from, above the feet), flip: 0..1 (a roll), pose: 'cheer' | 'cast' | 'guard' | 'kneel' | 'crouch' | 'wave' | 'hips' | 'down' | 'die', stance: 'guard' | 'ready', down: 0..1
 - `rig.worldOffset(p)`: where a point in the rig's own frame ([forward, right, up]; a joint such as rig.J.head, or one offset from it) sits, in world units from the rig's feet: add rig.x, y, z for the world point, or project it to draw at a joint
@@ -552,6 +556,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `rig.facing = 0`: the angle it faces, radians
 - `rig.hop`: how high an attack's hop lifts it now
 - `rig.hurtW = 0`: 0..1, how far into the hurt flinch
+- `rig.lastView` †: drawSmear projects the trail with the same view
 - `rig.lunge`: how far the body leans into an attack now, world units
 - `rig.o`: its options, with the build's proportions and the defaults filled in (size, build, weapon, outfit, ...; legUpper, torso, headR and the other lengths are at size 1)
 - `rig.phase = 0`: the walk cycle's phase, radians
@@ -615,6 +620,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `map.groundAt(x, y, r = 0, z = 1e9, step = 2)`: highest surface under a circle footprint that a body at height z can stand on (floor = 0)
 - `map.height(cx, cy)`: a cell's top: its wall's h, 0 on the floor, 1e9 outside the map (the height rules: E.HEIGHTS)
 - `map.heightAt(x, y)`: wall height at a world point (0 on the floor)
+- `map.isFront(cx, cy, view)`: is wall cell (cx, cy) in front of what the camera looks at, so cutaway cuts it down to its type's cutH (6 by default) in this view? A game may replace it on its map (map.isFront = (cx, cy, view) => ...)
 - `map.landing(from, dir, o = {})`: where a jump from `from` in direction dir lands across a gap: past the first drop ahead (a top more than step below its feet), the nearest spot min..max away that rises at most rise and falls at most drop from its feet, stands above the gap's bottom, has room to stand, and that a jump arc peaking apex above the higher end clears (arcClear). { x, y, z, d } or null (a wall before any gap, or nowhere to land). o: { min: 35, max: 83, rise: 11, drop: 18, apex: 20 }
 - `map.ledge(from, dir, o = {})`: a ledge to climb: in direction dir from `from`, the nearest top that rises min..rise above its feet within reach, with room to stand past the edge, looking straight ahead and spread radians to each side (a gap first means a jump: landing). { x, y, z (the spot to stand on top), rise, facing (the angle climbed), edge: [x, y] (where the hands grip) } or null. o: { reach: 18, min: 4, rise: 82, spread: .28 }
 - `map.los(x0, y0, x1, y1)`: line of sight across the ground (true if nothing solid in between). It ignores heights: sight() is the one that sees over a low wall and from a roof
@@ -873,6 +879,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `E.note(n)`: note name -> frequency: E.note('A4') = 440, E.note('C#5'), E.note('Bb2'). Numbers pass through
 - `E.songs: title, adventure, dungeon, boss, victory`: ready-made chiptune loops (original compositions). game.audio.music('adventure')
+- `game.audio.applyVolume()`: apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it)
 - `game.audio.define(name, voice)`: add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 })
 - `game.audio.duck(on = true)`: quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused
 - `game.audio.music(song, o = {})`: Loop a song (or play once with { loop: false }). song = { bpm: 120, steps: 4, tracks: [ { wave: 'square', vol: .2, notes: 'C5 - E5 - G5 - . . | ...' }, one token per step { wave: 'triangle', notes: 'C3 . C3 . G2 . G2 .' }, { wave: 'drums', notes: 'k . h . s . h . k k h . s . h .' } ] } tokens: C4 F#3 Bb2 = note, '-' holds the previous note, '.' = rest, '|' is ignored (bar lines). steps = steps per beat (4 = sixteenth notes). Each track loops on its own length. E.songs has ready-made loops: title, adventure, dungeon, boss, victory.

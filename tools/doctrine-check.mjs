@@ -80,13 +80,13 @@ const ENGINE = read('engine/my-3d2dge.js');
 const PRIVATE = new Set([...ENGINE.matchAll(/(?:\bthis\.|^\s+|[{,]\s*)(_[A-Za-z]\w*)\s*(?:=[^=]|\(|:)/gm)].map(m => m[1]));
 // the uses before the doctrine (v0.15.0), by area: a folder of src/ or a single file. Remove a name once its area stops
 // using it (the check says when); never add one: promote the member to the public API instead, or make it a prototype's.
-const GRANDFATHERED = {
-  'src/emberdeep/': ['_build', '_composite', '_fail', '_isFront', '_lastView', '_levels'],
-  'src/mocap/': ['_pose'],
-  'src/stress.game.js': ['_note']
-};
+const GRANDFATHERED = {};   // (empty: every name it held was promoted, PROMOTED)
 // private names that have a public twin now: a new use is pointed at it
-const PROMOTED = { _w: 'rig.worldOffset(p)' };
+const PROMOTED = {
+  _w: 'rig.worldOffset(p)', _lastView: 'rig.lastView', _pose: 'rig.solvePose()', _build: 'game.lights.refresh()',
+  _composite: 'r.actorNow(x, y, z, drawFn, o)', _fail: 'game.fail(where, err)', _isFront: 'map.isFront(cx, cy, view)',
+  _levels: 'game.audio.applyVolume()', _note: 'game.shownNote'
+};
 const area = f => { const p = f.split('/'); return p.length > 2 ? p.slice(0, 2).join('/') + '/' : f; };
 const walk = d => readdirSync(join(root, d), { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(d + '/' + e.name) : [d + '/' + e.name]);
 // the prototypes: each Temporary lab's template and the sources it inlines that no other page does
@@ -129,7 +129,7 @@ if (opt('baseline')) {
   const ranked = Object.entries(wanted).sort((x, y) => y[1].length - x[1].length || (x[0] < y[0] ? -1 : 1));
   const protoUses = Object.keys(uses).filter(a => PROTOTYPES.has(a));
   console.log(`3. boundary: ${fresh ? fresh + ' new use(s) of engine-private members' : 'no new use of engine-private members'} (${PROTOTYPES.size} prototype file(s) may reach past the API; ${protoUses.length} do)`);
-  console.log(`   the engine's to-do list, most wanted first: ${ranked.slice(0, 6).map(([n, as]) => `${n} (${as.length})`).join(', ')}${ranked.length > 6 ? ` and ${ranked.length - 6} more` : ''}${opt('todo') ? '' : ' (--todo for where)'}`);
+  console.log(ranked.length ? `   the engine's to-do list, most wanted first: ${ranked.slice(0, 6).map(([n, as]) => `${n} (${as.length})`).join(', ')}${ranked.length > 6 ? ` and ${ranked.length - 6} more` : ''}${opt('todo') ? '' : ' (--todo for where)'}` : '   the engine\'s to-do list is empty: nothing outside engine/ uses its private members');
   if (opt('todo')) for (const [n, as] of ranked) console.log(`     ${n.padEnd(14)} ${as.map(a => a + (PROTOTYPES.has(a) ? ' (prototype)' : '')).join(', ')}`);
 }
 

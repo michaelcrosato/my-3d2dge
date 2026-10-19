@@ -69,7 +69,7 @@ function BOS_wrapRig(m, under, over) {
 /** the root of a unit on screen, rounded like r.actor rounds it (for rigScreen overlays in r.queue) */
 const BOS_root = (r, m) => { const [x, y] = r.w(m.x, m.y, m.z || 0); return [Math.round(x), Math.round(y)]; };
 /** screen pixels per rig unit (for line widths and radii of rig extras) */
-const BOS_u = (rig, view) => (rig._lastView || view).scale * rig.o.size;
+const BOS_u = (rig, view) => (rig.lastView || view).scale * rig.o.size;
 
 /* ---------- sounds ---------- */
 A.define('bos_rumble', { wave: 'noise', freq: 220, to: 60, dur: .9, vol: .3, filter: 'lowpass' });

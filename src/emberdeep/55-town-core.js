@@ -12,7 +12,7 @@
  * rig's hand from its real joints, so held things follow every animation.
  * ============================================================================= */
 /** a point in a rig's local frame (f forward, r right, z up) -> screen pixels, with the view the rig was drawn in */
-function rigScreen(rig, p, ox, oy, view) { const v = rig._lastView || view, w = rig.worldOffset(p), s = v.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], v.depth(w[0], w[1], w[2])]; }
+function rigScreen(rig, p, ox, oy, view) { const v = rig.lastView || view, w = rig.worldOffset(p), s = v.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], v.depth(w[0], w[1], w[2])]; }
 function heldItem(g, rig, ox, oy, view, spec) {
   const J = rig.J, hand = spec.hand === 'L' ? 'L' : 'R', H = J['hand' + hand], El = J['elbow' + hand]; if (!H || !El) return;
   const fdir = E.V3.norm(E.V3.sub(H, El)), s = rig.o.size, z = (view.zoom || 1) * s;

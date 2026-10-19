@@ -71,7 +71,7 @@ const OPT_DEFAULT = { numbers: true, shake: true, labels: 1, music: .5, sfx: 1, 
 const DIFF = Object.assign({}, DIFF_DEFAULT, E.store.get('ed:diff', {}));
 const OPT = Object.assign({}, OPT_DEFAULT, E.store.get('ed:opt', {}));
 const saveOpts = () => { E.store.set('ed:diff', DIFF); E.store.set('ed:opt', OPT); };
-const applyAudioOpts = () => { A.musicVolume = OPT.music; A.sfxVolume = OPT.sfx; A._levels(); };
+const applyAudioOpts = () => { A.musicVolume = OPT.music; A.sfxVolume = OPT.sfx; A.applyVolume(); };
 applyAudioOpts(); P.max = [500, 1000, 1600][OPT.fx === undefined ? 2 : OPT.fx];
 
 /* ---------- registries: the parts of the language ---------- */
@@ -97,7 +97,7 @@ const BUS = {
   L: {},
   on(ev, fn, scope = 'global') { (this.L[ev] || (this.L[ev] = [])).push({ fn, scope }); return fn; },
   off(ev, fn) { const l = this.L[ev]; if (l) this.L[ev] = l.filter(x => x.fn !== fn); },
-  emit(ev, d) { const l = this.L[ev]; if (!l) return d; for (let i = 0; i < l.length; i++) { try { l[i].fn(d); } catch (e) { game._fail('BUS ' + ev, e); } } return d; },
+  emit(ev, d) { const l = this.L[ev]; if (!l) return d; for (let i = 0; i < l.length; i++) { try { l[i].fn(d); } catch (e) { game.fail('BUS ' + ev, e); } } return d; },
   clear(scope) { for (const k in this.L) this.L[k] = this.L[k].filter(x => x.scope !== scope); }
 };
 

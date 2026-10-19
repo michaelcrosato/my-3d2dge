@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.52.0 (2026-10-19)
+
+The engine's private names that the engine tier still used are public now, so nothing outside `engine/` reaches past the API: the grandfathered list is empty.
+
+- **Engine**: `game.fail(where, err)` reports an error in game code without stopping the game (logged once, in `game.errors`, on the error panel; it was `_fail`). `game.shownNote` is the note `game.note()` shows, for a game that draws it its own way (was `_note`). `game.audio.applyVolume()` applies `musicVolume`, `sfxVolume`, `volume` and `mute` after setting them directly (was `_levels`). `game.lights.refresh()` rebuilds the darkness bands after `dark`, `levels` or `glow` change (was `_build`). `map.isFront(cx, cy, view)` says which walls cutaway lowers, and a map may replace it (was `_isFront`).
+- **Rendering**: `r.actorNow(x, y, z, drawFn, o)` draws an actor at once over what is drawn so far, with `r.actor`'s options (it wrapped `_composite`).
+- **Animation**: `rig.solvePose()` sets `rig.J` from the rig's state each step, and a clip player wraps it on one rig (was `_pose`); `rig.lastView` is the view the rig last drew with (was `_lastView`; Emberdeep's own rigs set it too).
+- **Emberdeep**, **Mocap**, **Tools**: Emberdeep, the mocap player and the 2D stress test use the public names; `tools/doctrine-check.mjs` grandfathers nothing and points a new use of each old name at its public twin.
+- **Docs**: `API.md` names the new members; the body contract (`docs/CHARACTERS.md`) says `this.lastView`.
+
 ## 0.51.5 (2026-10-19)
 
 - **Docs**: the next plan (`docs/HANDOFF-NEXT.md`) takes up the five themes the feedback log has at their threshold: lighting's place in the manuals, the cards' part of reading the source, the look (the x-ray, three-quarter walls, the iso void), `E.Shell` in the template and the stealth starter, and climbing any wall and gliding in `E.Mover`. Each is checked against the code and split into eight phases. The feedback log's rows point to it.

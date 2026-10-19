@@ -138,7 +138,7 @@ class DanRig {
   }
   draw(g, ox, oy, sourceView) {
     const view = E.charView ? E.charView(sourceView) : sourceView, J = this.J, k = this.o.size * (view.scale || 1);   // (a zoomed view's scale carries the zoom)
-    this._lastView = view;   // (rigScreen and held items project with it)
+    this.lastView = view;   // (rigScreen and held items project with it)
     const S = p => { const w = this.worldOffset(p), s = view.p(w[0], w[1], w[2]); return [ox + s[0], oy + s[1], view.depth(w[0], w[1], w[2])]; };
     const C = DAN_COL, ch = E.tones(C.chitin), un = E.tones(C.under), pl = E.tones(C.plate), bn = E.tones(C.bone), vn = E.tones(C.vein), parts = [];
     const add = (p, f) => parts.push({ d: p[2], f });

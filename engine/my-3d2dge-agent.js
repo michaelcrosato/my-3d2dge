@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.51.5: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.52.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -372,7 +372,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.51.5', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.52.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -1163,6 +1163,9 @@ class Renderer {
     dst.globalCompositeOperation = 'source-in'; dst.fillStyle = color; dst._c = null; dst.fillRect(x0, y0, w, h);
     dst.globalCompositeOperation = 'source-over';
   }
+  /** draw an actor at once, over what is drawn so far, not sorted by depth (a pass of the game's own: a body falling into
+   *  a void painted over the level), with r.actor's options (outline, flash, alpha, ...) */
+  actorNow(x, y, z, drawFn, o = {}) { this._composite(this.ctx, x, y, z, drawFn, o); }
   _composite(g, x, y, z, drawFn, o) {
     const aG = this._aG, bb = this._bb, P = this._R;
     aG.clearRect(P[0], P[1], P[2], P[3]); aG._c = null;
@@ -1269,7 +1272,7 @@ class Game {
   }
   setView(v) { const w = this._view(v); if (w) { this.view = w; this.cam.snap = true; } }
   nextView(dir = 1) { const list = this.views || E.VIEW_ORDER, i = list.indexOf(this.view.id); this.setView(list[((i + dir) % list.length + list.length) % list.length]); }
-  note(text, seconds = 1.2) { this._note = { text: String(text), end: this.real + seconds }; }
+  note(text, seconds = 1.2) { this.shownNote = { text: String(text), end: this.real + seconds }; }
   // pause, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); resume() takes it out of pause
   pause(reason = 'player') { if (this.paused) return false; this.paused = true; this.pauseReason = reason; return true; }
   resume() { this.paused = false; this.pauseReason = null; }
@@ -1385,7 +1388,7 @@ class Game {
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
         n++;
-        try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
+        try { this._frame(); } catch (e) { this.fail('draw', e); try { this.screen.present(); } catch (e2) { /* nothing to show */ } }
         const st = this.stats, t2 = performance.now(); st.updateMs = t1 - t0; st.renderMs = t2 - t1; st.frameMs = since * 1000; st.steps = steps;
         // a 90 Hz+ display the frames don't fit (their cost, or refreshes missed: the GPU behind): every other refresh, evenly
         cost += ((t2 - t0) / 1000 - cost) * .1;
@@ -1416,7 +1419,7 @@ class Game {
     if (live) { BOOT._open(this, o); BOOT._checks(this); }
     const now = () => typeof performance !== 'undefined' ? performance.now() : 0, t0 = now(), n = steps.length;   // (no clock in a bare Node context)
     let i = 0;
-    const fail = (label, e) => { this._booting = false; this.bootError = e; this._fail('boot step "' + label + '"', e); BOOT.fail('boot step "' + label + '"', e); res(this); };
+    const fail = (label, e) => { this._booting = false; this.bootError = e; this.fail('boot step "' + label + '"', e); BOOT.fail('boot step "' + label + '"', e); res(this); };
     const next = () => {
       if (this.disposed) return;
       while (i < n) {
@@ -1448,7 +1451,7 @@ class Game {
     if (!this.scene && !this._next) throw new Error('game.advance() needs a started game: game.start({ update, draw }) first');
     this._acc += Math.max(0, seconds);
     const n = this._steps(); this.stats.steps = n;
-    if (o.draw && !this.headless) try { this._frame(); } catch (e) { this._fail('draw', e); }
+    if (o.draw && !this.headless) try { this._frame(); } catch (e) { this.fail('draw', e); }
     return n;
   }
   // the clock, an exact fixed step: real time (at most 50 ms a frame) fills an accumulator, each whole o.step (1/120 s)
@@ -1464,7 +1467,7 @@ class Game {
         for (let i = 0; i < k; i++, n++) this._step(h);
       }
       if (!n && !this._stepped) { n++; this._step(0); }   // the first frame updates before it draws, even when its time is short
-    } catch (e) { this._acc %= step; this._fail('update', e); }
+    } catch (e) { this._acc %= step; this.fail('update', e); }
     if (n) this._stepped = true;
     if (this._acc < 0) this._acc = 0;
     this.alpha = this._acc / step;
@@ -1491,7 +1494,8 @@ class Game {
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();
     if (s.enter) s.enter(data);
   }
-  _fail(where, e) {
+  /** report an error in game code without stopping the game: logged once, kept in game.errors, shown on the error panel */
+  fail(where, e) {
     const msg = (e && e.message) || String(e), key = where + ':' + msg;
     if (!this._errKeys.has(key)) {
       this._errKeys.add(key); this.errors.push({ where, scene: this.sceneName, message: msg, stack: e && e.stack });
@@ -1538,7 +1542,7 @@ class Game {
     r._begin(c.x + shx, c.y + shy);
     if (this.scene && this.scene.draw) this.scene.draw(r);
     const fill = (g, color, alpha, mode) => { g.save(); g.fillStyle = color; g.globalAlpha = alpha; if (mode) g.globalCompositeOperation = mode; g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; };
-    if (this._note && this.real < this._note.end) { const n = this._note; r.overlay(g => E.font.text(g, n.text, r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false })); }
+    if (this.shownNote && this.real < this.shownNote.end) { const n = this.shownNote; r.overlay(g => E.font.text(g, n.text, r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false })); }
     this._cornerSync();
     if (this.paused && this.pauseOverlay) r.overlay(g => {
       fill(g, '#05030c', .55);
@@ -1563,8 +1567,8 @@ const STANDARD_SETTINGS = {
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], apply: (g, v) => g.screen.setScale(v) },
   sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },
   volume: { group: 'Sound', label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
-  music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio._levels(); } },
-  effects: { group: 'Sound', label: 'Effects', type: 'slider', value: 1, apply: (g, v) => { g.audio.sfxVolume = v; g.audio._levels(); } },
+  music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio.applyVolume(); } },
+  effects: { group: 'Sound', label: 'Effects', type: 'slider', value: 1, apply: (g, v) => { g.audio.sfxVolume = v; g.audio.applyVolume(); } },
   background: { group: 'Sound', label: 'Sound in the background', type: 'toggle', value: false },
   motion: { group: 'Comfort', label: 'Reduce motion', type: 'toggle', value: g => !!g.reduceMotion, apply: (g, v) => { g.reduceMotion = !!v; } },
   shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
@@ -1609,7 +1613,7 @@ class Settings {
     return ok;
   }
   reset(group) { for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; this[k] = this.default(k); this._apply(k); } this._save(); }
-  _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g._fail('setting "' + key + '"', e); } }
+  _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g.fail('setting "' + key + '"', e); } }
   _save() { if (this._g.headless) return; this.saved = store.set(this._key, { v: SETTINGS_VERSION, values: this._saved }); if (!this.saved) warn('settings:save', 'the settings could not be saved (storage is blocked or full): they last for this visit'); }
 }
 // game.fullscreen: the whole page full screen where the browser can (supported, on, standalone; enter, exit, toggle from a tap, click or key)
@@ -1820,7 +1824,7 @@ class Humanoid {
     this._theta = 1.2; this.atkZ = 10; this.reach = 7; this._twist = 0; this.spin = 0; this._atkLean = 0;
     this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {};
     this.capeL = null; this._airW = 0; this._pointW = 0; this._kicking = false;
-    this._pose();
+    this.solvePose();
   }
   kick(v) { this.sqV += v; }
   hand(which = 'R') { const w = this._w(this.J['hand' + which] || this.J.handR); return [this.x + w[0], this.y + w[1], this.z + w[2]]; }
@@ -1894,10 +1898,11 @@ class Humanoid {
     this.lunge = lerp(this.lunge || 0, tLunge, Math.min(1, dt * 22)); this.hop = lerp(this.hop || 0, tHop, Math.min(1, dt * 25)); this._crouchA = lerp(this._crouchA || 0, tCrouch, Math.min(1, dt * 20));
     this._atkLean = lerp(this._atkLean, tLean, Math.min(1, dt * 25));
     this._twist = lerp(this._twist, tTwist, Math.min(1, dt * 25));
-    this._pose();
+    this.solvePose();
     if (o.cape) this._cape(dt);
   }
-  _pose() {
+  /** set the joints J from the rig's state this step (update calls it); a clip player may wrap it on one rig */
+  solvePose() {
     const o = this.o, J = this.J, sp = Math.min(1, this._spW), mf = this._mv[0], mr = this._mv[1], ph = this.phase, dash = this._dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
     const breathe = Math.sin(this.t * 2.3) * (1 - sp);
     const bob = (.5 - Math.abs(Math.cos(ph)) * 1.3) * sp;
@@ -2601,7 +2606,8 @@ class TileMap {
     return (this.floors[key] = { cv, x0, y0 });
   }
   drawFloor(r) { r._map = this; const f = this._floor(r.view); r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); }
-  _isFront(cx, cy, view) {
+  /** is wall cell (cx, cy) in front in this view, so cutaway cuts it to cutH? A game may replace it on its map */
+  isFront(cx, cy, view) {
     if (!this.cutaway || view.isTop || view.pitchDeg > 75) return false;
     const t = this.types[this.cell(cx, cy)]; if (!t || !t.cut) return false;
     const bx = -Math.round(view.fx), by = -Math.round(view.fy);
@@ -2612,7 +2618,7 @@ class TileMap {
     const view = r.view, T = this.T; r._map = this;
     for (let cy = 0; cy < this.h; cy++) for (let cx = 0; cx < this.w; cx++) {
       const id = this.cell(cx, cy); if (id <= 0) continue;
-      const t = this.types[id], h = this._isFront(cx, cy, view) ? (t.cutH || 6) : t.h;
+      const t = this.types[id], h = this.isFront(cx, cy, view) ? (t.cutH || 6) : t.h;
       const [sx, sy] = r.w(cx * T + T / 2, cy * T + T / 2, 0);
       if (sx < -40 || sx > r.W + 40 || sy < -20 || sy > r.H + 90) continue;
       r.queue(cx * T + T / 2, cy * T + T / 2, 0, g => this._boxCached(g, r, cx, cy, t, h), { occluder: true });
@@ -2640,7 +2646,7 @@ class TileMap {
       const faces = [[0, -1, [x1, y0], [x0, y0]], [0, 1, [x0, y1], [x1, y1]], [-1, 0, [x0, y0], [x0, y1]], [1, 0, [x1, y1], [x1, y0]]];
       for (const [nx, ny, A, B] of faces) {
         if (nx * view.fx + ny * view.fy <= .02) continue;
-        const nh = this.cell(cx + nx, cy + ny) > 0 ? (this._isFront(cx + nx, cy + ny, view) ? (this.types[this.cell(cx + nx, cy + ny)].cutH || 6) : this.height(cx + nx, cy + ny)) : 0;
+        const nh = this.cell(cx + nx, cy + ny) > 0 ? (this.isFront(cx + nx, cy + ny, view) ? (this.types[this.cell(cx + nx, cy + ny)].cutH || 6) : this.height(cx + nx, cy + ny)) : 0;
         if (nh >= h) continue;
         const lit = -(nx * this.light[0] + ny * this.light[1]);
         const col = lit > .2 ? t.sideLt || shade(t.side, .12) : lit < -.2 ? t.sideDk || shade(t.side, -.25) : t.side;
@@ -3254,7 +3260,7 @@ class ChipAudio {
       this._master = c.createGain(); this._master.connect(c.destination);
       this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
       this._musBus = c.createGain(); this._musBus.connect(this._master);
-      this._levels();
+      this.applyVolume();
       const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this._rnd() * 2 - 1;
       this._noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
@@ -3264,13 +3270,14 @@ class ChipAudio {
     return this.ctx;
   }
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
-  _levels() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
-  setVolume(v) { this.volume = clamp(v, 0, 1); this._levels(); }
-  mute(on = !this.muted) { this.muted = on; this._levels(); return on; }
+  /** apply volume, musicVolume, sfxVolume and mute after setting them directly */
+  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
+  setVolume(v) { this.volume = clamp(v, 0, 1); this.applyVolume(); }
+  mute(on = !this.muted) { this.muted = on; this.applyVolume(); return on; }
   // quiet the music (to 35%) under a game's own pause or map screen; the engine also ducks it while game.paused
-  duck(on = true) { on = !!on; if (this.ducked === on) return; this.ducked = on; this._levels(); }
+  duck(on = true) { on = !!on; if (this.ducked === on) return; this.ducked = on; this.applyVolume(); }
   _background(sleep) { const c = this.ctx; if (!c) return; try { if (sleep && c.state === 'running') { this._slept = true; c.suspend().catch(() => {}); } else if (!sleep && this._slept) { this._slept = false; c.resume().catch(() => {}); } } catch (e) { /* closed */ } }   // a hidden page's sound sleeps
-  _duck(on) { if (this._ducked === on) return; this._ducked = on; this._levels(); }
+  _duck(on) { if (this._ducked === on) return; this._ducked = on; this.applyVolume(); }
   _pulse(duty) {
     if (this._waves[duty]) return this._waves[duty];
     const N = 40, re = new Float32Array(N), im = new Float32Array(N);

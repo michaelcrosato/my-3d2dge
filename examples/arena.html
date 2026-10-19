@@ -65,7 +65,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERWELL</b><span>Starting · my-3D2dge v0.51.5</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERWELL</b><span>Starting · my-3D2dge v0.52.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberwell, an action game in a torch-lit hall"></canvas>
   <div class="hud top">
@@ -106,7 +106,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.51.5  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.52.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -185,7 +185,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.51.5', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.52.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1365,9 +1365,10 @@ class Lighting {
     this.dark = [10, 6, 24]; this.levels = [.9, .7, .48, .26, .08, 0]; this.glow = [255, 200, 140, 0]; this.glowAt = 1.7;
     /** casters: this frame's shadow casters from caster(); heats: this frame's heat shimmers from heat() */
     this._casters = []; this._heats = [];
-    if (!game.headless) { this._cv = mkCanvas(8, 8); this._g = this._cv.getContext('2d'); this._build(); }   // (a headless game never draws)
+    if (!game.headless) { this._cv = mkCanvas(8, 8); this._g = this._cv.getContext('2d'); this.refresh(); }   // (a headless game never draws)
   }
-  _build() {
+  /** rebuild the darkness bands after changing dark, levels or glow (lights.dark = [r, g, b]; lights.refresh()) */
+  refresh() {
     const L = this.levels, d = this.dark;
     this._cols = new Uint32Array(L.length + 1);
     L.forEach((a, i) => { this._cols[i] = ((Math.round(a * 255) << 24) | (d[2] << 16) | (d[1] << 8) | d[0]) >>> 0; });
@@ -1890,6 +1891,9 @@ class Renderer {
     }
     this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5, actor: !o.xray, hides: o.hides });
   }
+  /** draw an actor at once, over what is drawn so far, not sorted by depth (a pass of the game's own: a body falling into
+   *  a void painted over the level), with r.actor's options (outline, flash, alpha, ...) */
+  actorNow(x, y, z, drawFn, o = {}) { this._composite(this.ctx, x, y, z, drawFn, o); }
   _tint(dst, src, color, R = [0, 0, AS, AS]) {
     const [x0, y0, w, h] = R;
     dst.globalCompositeOperation = 'source-over'; dst.clearRect(x0, y0, w, h); dst.drawImage(src, x0, y0, w, h, x0, y0, w, h);
@@ -2282,7 +2286,7 @@ class Game {
   /** the zooms the player may take the camera to here, [min, max] (the scene's camera.zoom, or the game's; a function of
    *  the game gives one per screen shape or level), or null where they can't (camera.zoom false or none) */
   zoomRange() {
-    let z = (this._camera() || {}).zoom; if (typeof z === 'function') try { z = z(this); } catch (e) { this._fail('camera.zoom', e); z = null; }
+    let z = (this._camera() || {}).zoom; if (typeof z === 'function') try { z = z(this); } catch (e) { this.fail('camera.zoom', e); z = null; }
     return Array.isArray(z) && z.length === 2 && z[0] > 0 && z[1] >= z[0] ? [clamp(z[0], .5, 3), clamp(z[1], .5, 3)] : null;
   }
   /** true while the game's screen (r.W x r.H) is upright, taller than 1.3 times its width: a phone held upright, with
@@ -2316,8 +2320,10 @@ class Game {
   _zoomStd() { const sp = this.settings && this.settings.spec('zoom'); return !!sp && sp.apply === STANDARD_SETTINGS.zoom.apply; }
   /** does any of the game's scenes let the player zoom (the settings screen shows Camera zoom)? */
   _zooms() { const z = c => !!c && (Array.isArray(c.zoom) || typeof c.zoom === 'function'); return z(this.o.camera) || Object.values(this.scenes || {}).some(s => s && z(s.camera)) || z(this.scene && this.scene.camera); }
-  /** a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1) */
-  note(text, seconds = 1.2) { this._note = { text: String(text), end: this.real + seconds }; }
+  /** a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1). game.shownNote is the
+   *  one showing, { text, end } (end in game.real seconds), or null: a game that draws it its own way takes it and sets
+   *  shownNote to null */
+  note(text, seconds = 1.2) { this.shownNote = { text: String(text), end: this.real + seconds }; }
   /** pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused.
    *  The player resumes (Escape, Start, Resume); resume() does it from code */
   pause(reason = 'player') { this.input.stopRumble(); if (this.paused) return false; this.paused = true; this.pauseReason = reason; return true; }
@@ -2540,7 +2546,7 @@ class Game {
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
       if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
         n++;
-        try { this._frame(); } catch (e) { this._fail('draw', e); try { this.screen._present(); } catch (e2) { /* nothing to show */ } }
+        try { this._frame(); } catch (e) { this.fail('draw', e); try { this.screen._present(); } catch (e2) { /* nothing to show */ } }
         const st = this.stats, t2 = performance.now(); st.updateMs = t1 - t0; st.renderMs = t2 - t1; st.frameMs = since * 1000; st.steps = steps;
         // a display at 90 Hz and up that the frames won't fit: every other refresh, back to each once they fit again. Two
         // signs they won't: a frame's own cost, and refreshes missed between frames drawn at each (the GPU behind, which no
@@ -2577,7 +2583,7 @@ class Game {
     if (live) { BOOT._open(this, o); BOOT._checks(this); }
     const now = () => typeof performance !== 'undefined' ? performance.now() : 0, t0 = now(), n = steps.length;   // (no clock in a bare Node context)
     let i = 0;
-    const fail = (label, e) => { this._booting = false; this.bootError = e; this._fail('boot step "' + label + '"', e); BOOT.fail('boot step "' + label + '"', e); res(this); };
+    const fail = (label, e) => { this._booting = false; this.bootError = e; this.fail('boot step "' + label + '"', e); BOOT.fail('boot step "' + label + '"', e); res(this); };
     const next = () => {
       if (this.disposed) return;
       while (i < n) {
@@ -2621,7 +2627,7 @@ class Game {
     if (!this.scene && !this._next) throw new Error('game.advance() needs a started game: game.start({ update, draw }) first');
     this._acc += Math.max(0, seconds);
     const n = this._steps(); this.stats.steps = n;
-    if (o.draw && !this.headless) try { this._frame(); } catch (e) { this._fail('draw', e); }
+    if (o.draw && !this.headless) try { this._frame(); } catch (e) { this.fail('draw', e); }
     return n;
   }
   /**
@@ -2644,7 +2650,7 @@ class Game {
         for (let i = 0; i < k; i++, n++) this._step(h);
       }
       if (!n && !this._stepped) { n++; this._step(0); }   // the first frame updates before it draws, even when its time is short
-    } catch (e) { this._acc %= step; this._fail('update', e); }   // an error drops the frame's other steps, as before
+    } catch (e) { this._acc %= step; this.fail('update', e); }   // an error drops the frame's other steps, as before
     if (n) this._stepped = true;
     if (this._acc < 0) this._acc = 0;
     this.alpha = this._acc / step;
@@ -2682,7 +2688,9 @@ class Game {
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
     if (s.enter) s.enter(data);
   }
-  _fail(where, e) {
+  /** report an error in game code without stopping the game: logged once per place and message, kept in game.errors
+   *  and shown on the error panel (the engine reports its own callbacks' errors this way): game.fail('power ' + id, err) */
+  fail(where, e) {
     const msg = (e && e.message) || String(e), key = where + ':' + msg;
     if (!this._errKeys.has(key)) {
       this._errKeys.add(key); this.errors.push({ where, scene: this.sceneName, message: msg, stack: e && e.stack });
@@ -2732,7 +2740,7 @@ class Game {
     this.r._begin(c.x + shx, c.y + shy);
     const sc = this.scene;
     if (sc && sc.draw) sc.draw(this.r);
-    if (this._note && this.real < this._note.end) { const n = this._note; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
+    if (this.shownNote && this.real < this.shownNote.end) { const n = this.shownNote; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
     if (this.settings.showFps) { const st = this.stats, t = this.fps + ' FPS  ' + this.hz + ' HZ' + (this.drawEvery > 1 ? ' (EVERY ' + this.drawEvery + ')' : '') + '  ' + (st.updateMs + st.renderMs).toFixed(1) + ' MS';   // Settings, Display
       this.r.overlay(g => { const w = E.font.width(t, { font: 'tiny' }) + 6; g.fillStyle = '#000000b0'; g.fillRect(Math.round(this.r.W / 2 - w / 2), 0, w, 9); g._c = null; E.font.text(g, t, this.r.W / 2, 2, '#9cff9c', { align: 'center', outline: false, font: 'tiny' }); }); }
     this._cornerSync();
@@ -2781,8 +2789,8 @@ const STANDARD_SETTINGS = {
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
   sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },
   volume: { group: 'Sound', label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
-  music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio._levels(); } },
-  effects: { group: 'Sound', label: 'Effects', type: 'slider', value: 1, apply: (g, v) => { g.audio.sfxVolume = v; g.audio._levels(); } },
+  music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio.applyVolume(); } },
+  effects: { group: 'Sound', label: 'Effects', type: 'slider', value: 1, apply: (g, v) => { g.audio.sfxVolume = v; g.audio.applyVolume(); } },
   background: { group: 'Sound', label: 'Sound in the background', type: 'toggle', value: false, help: 'Keep playing sound while the page is hidden' },
   motion: { group: 'Comfort', label: 'Reduce motion', type: 'toggle', value: g => !!g.reduceMotion, help: 'No screen shake, shorter flashes, still menus', apply: (g, v) => { g.reduceMotion = !!v; } },
   shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
@@ -2857,7 +2865,7 @@ class Settings {
     const s = this._specs[key]; if (!s) { warn('setting:' + key, 'unknown setting "' + key + '". Settings: ' + this.keys().join(', ')); return undefined; }
     const ok = settingValue(s, v); if (ok === undefined) return this[key];
     this[key] = ok; this._saved[key] = ok; this._save(); this._apply(key);
-    if (this.onChange) try { this.onChange(key, ok); } catch (e) { this._g._fail('settings.onChange', e); }
+    if (this.onChange) try { this.onChange(key, ok); } catch (e) { this._g.fail('settings.onChange', e); }
     return ok;
   }
   /** put a group's settings (or all of them) back to their defaults; a game's saves are not touched */
@@ -2865,7 +2873,7 @@ class Settings {
     for (const k of this.keys(group)) { if (k === 'fullscreen') continue; delete this._saved[k]; this[k] = this.default(k); this._apply(k); if (this.onChange) this.onChange(k, this[k]); }
     this._save();
   }
-  _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g._fail('setting "' + key + '"', e); } }
+  _apply(key) { const s = this._specs[key]; if (s && s.apply) try { s.apply(this._g, this[key]); } catch (e) { this._g.fail('setting "' + key + '"', e); } }
   _save() {
     if (this._g.headless) return;
     this.saved = store.set(this._key, { v: SETTINGS_VERSION, values: this._saved });   // false when the last save failed (storage blocked or full: the choices last for this visit)
@@ -3149,7 +3157,7 @@ class Humanoid {
     this.sq = 0; this.sqV = 0; this.blink = 2; this.facing = 0; this.x = 0; this.y = 0; this.z = 0; this.J = {}; this._smear = null;
     /** capeL: the cape's left edge points (null until it has a cape and has moved) */
     this.capeL = null; this._airW = 0; this._pointW = 0; this._kicking = false;
-    this._pose();
+    this.solvePose();
   }
   /** a squash-and-stretch kick: + stretches (a jump), - squashes (a landing, a hit) */
   kick(v) { this.sqV += v; }
@@ -3288,7 +3296,7 @@ class Humanoid {
     this.lunge = lerp(this.lunge || 0, tLunge, Math.min(1, dt * 22)); this.hop = lerp(this.hop || 0, tHop, Math.min(1, dt * 25)); this._crouchA = lerp(this._crouchA || 0, tCrouch, Math.min(1, dt * 20));
     this._atkLean = lerp(this._atkLean, tLean, Math.min(1, dt * 25));
     this._twist = lerp(this._twist, tTwist, Math.min(1, dt * 25));
-    this._pose();
+    this.solvePose();
     if (o.cape) this._cape(dt);
     if (o.hair.style === 'long' || o.hair.style === 'ponytail') this._hair(dt);
     if (s.flip > 0 && s.flip < 1) this._roll(s.flip);
@@ -3325,7 +3333,9 @@ class Humanoid {
       if (B.z > headTop) B.z = headTop;   // no plume over the head on attacks and knockbacks
     }
   }
-  _pose() {
+  /** set the joints J from the rig's state this step (update and setPose call it); a clip player may wrap it on one rig:
+   *  const base = rig.solvePose; rig.solvePose = function () { base.call(this); ...move J... } */
+  solvePose() {
     const o = this.o, J = this.J, sp = Math.min(1, this._spW), mf = this._mv[0], mr = this._mv[1], ph = this.phase, dash = this._dashW, hurt = this.hurtW, rz = V3.rz, add = V3.add;
     const breathe = Math.sin(this.t * 2.3) * (1 - sp);
     const bob = (.5 - Math.abs(Math.cos(ph)) * 1.3) * sp;
@@ -3429,7 +3439,7 @@ class Humanoid {
     cg.clearRect(0, 0, S, S); g2.clearRect(0, 0, S, S);
     const PW = this.poseW || {}, keep = { trail: this.trail, cheat: this._cheat, pitch: this._pitch, cape: this.o.cape, weapon: this.o.weapon, down: this.downW, kneel: PW.kneel, cheer: PW.cheer, cast: PW.cast, hurt: this.hurtW };
     const pose = o.upright !== false && (keep.down > 0 || keep.kneel > 0 || keep.cheer > 0 || keep.cast > 0 || keep.hurt > 0);
-    if (pose) { this.downW = 0; this.hurtW = 0; if (this.poseW) PW.kneel = PW.cheer = PW.cast = 0; this._pose(); }
+    if (pose) { this.downW = 0; this.hurtW = 0; if (this.poseW) PW.kneel = PW.cheer = PW.cast = 0; this.solvePose(); }
     if (o.cape === false) this.o.cape = null;
     if (o.weapon === false) this.o.weapon = null;
     { const st = clamp(1 - v.pitchDeg / 45, 0, 1), camA = Math.atan2(v.fy, v.fx); this._cheat = st > 0 && this.o.cheat ? clamp(angDiff(this.facing, camA), -this.o.cheat, this.o.cheat) * st : 0; }   // frame the head where draw() will put it
@@ -3439,7 +3449,7 @@ class Humanoid {
       this.draw(cg, Math.round(S / 2 - hp[0]), Math.round(S * (o.headY || .46) - hp[1]), v);
     } finally {
       this.trail = keep.trail; this._cheat = keep.cheat; this._pitch = keep.pitch; this.o.cape = keep.cape; this.o.weapon = keep.weapon;
-      if (pose) { this.downW = keep.down; this.hurtW = keep.hurt; if (this.poseW) { PW.kneel = keep.kneel; PW.cheer = keep.cheer; PW.cast = keep.cast; } this._pose(); }
+      if (pose) { this.downW = keep.down; this.hurtW = keep.hurt; if (this.poseW) { PW.kneel = keep.kneel; PW.cheer = keep.cheer; PW.cast = keep.cast; } this.solvePose(); }
     }
     if (o.tint) { cg.globalCompositeOperation = 'source-atop'; cg.globalAlpha = .6; cg.fillStyle = o.tint; cg.fillRect(0, 0, S, S); cg.globalAlpha = 1; cg.globalCompositeOperation = 'source-over'; }
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) g2.drawImage(cv, dx, dy);   // outline like the in-game sprite
@@ -3505,7 +3515,7 @@ class Humanoid {
   draw(g, ox, oy, view) {
     this._pitch = view.pitchDeg;
     if (this.o.charView !== false) view = charView(view);
-    if (view.id !== 'portrait') this._lastView = view;   // drawSmear projects the trail with the same view
+    if (view.id !== 'portrait') this.lastView = view;   // drawSmear projects the trail with the same view
     // cheated 3/4 pose: in side-ish views turn the body partly toward the camera, like hand-drawn sprites
     const st = clamp(1 - view.pitchDeg / 45, 0, 1), camA = Math.atan2(view.fy, view.fx);
     this._camSide = Math.cos(camA - this.facing - Math.PI / 2) >= 0 ? 1 : -1;   // which hand the camera sees
@@ -3826,7 +3836,7 @@ class Humanoid {
     const T = this.trail;
     if (T.length >= 2) {   // ribbon along the real blade path: correct in side, top-down and every other view
       r.queue(this.x, this.y, this.z + 1, g => {
-        const lv = this._lastView, cv = lv && lv.id === r.view.id ? lv : this.o.charView !== false ? charView(r.view) : r.view;   // the angle the rig was drawn from
+        const lv = this.lastView, cv = lv && lv.id === r.view.id ? lv : this.o.charView !== false ? charView(r.view) : r.view;   // the angle the rig was drawn from
         const W = cv === r.view ? (p, w) => r.w(w[0], w[1], w[2]) : (p, w) => { const s = r.w(p.o[0], p.o[1], p.o[2]), q = cv.p(w[0] - p.o[0], w[1] - p.o[1], w[2] - p.o[2]); return [s[0] + q[0], s[1] + q[1]]; };
         px.glow(g, .85);
         const n = T.length - 1, taper = (p, u) => V3.lerp(p.t, p.b, .25 + .75 * u);   // older samples are narrower
@@ -4533,7 +4543,9 @@ class TileMap {
       }
     }
   }
-  _isFront(cx, cy, view) {
+  /** is wall cell (cx, cy) in front of what the camera looks at, so cutaway cuts it down to its type's cutH (6 by
+   *  default) in this view? A game may replace it on its map (map.isFront = (cx, cy, view) => ...) */
+  isFront(cx, cy, view) {
     if (!this.cutaway || view.isTop || view.pitchDeg > 75) return false;
     const t = this.types[this.cell(cx, cy)]; if (!t || !t.cut) return false;
     const bx = -Math.round(view.fx), by = -Math.round(view.fy);
@@ -4545,7 +4557,7 @@ class TileMap {
     const view = r.view, T = this.T; r._map = this;
     for (let cy = 0; cy < this.h; cy++) for (let cx = 0; cx < this.w; cx++) {
       const id = this.cell(cx, cy); if (id <= 0) continue;
-      const t = this.types[id], h = this._isFront(cx, cy, view) ? (t.cutH || 6) : t.h;
+      const t = this.types[id], h = this.isFront(cx, cy, view) ? (t.cutH || 6) : t.h;
       const [sx, sy] = r.w(cx * T + T / 2, cy * T + T / 2, 0);
       if (sx < -40 || sx > r.W + 40 || sy < -20 || sy > r.H + 90) continue;
       r.queue(cx * T + T / 2, cy * T + T / 2, 0, g => this._boxCached(g, r, cx, cy, t, h), { occluder: true });
@@ -4596,7 +4608,7 @@ class TileMap {
       const faces = [[0, -1, [x1, y0], [x0, y0]], [0, 1, [x0, y1], [x1, y1]], [-1, 0, [x0, y0], [x0, y1]], [1, 0, [x1, y1], [x1, y0]]];
       for (const [nx, ny, A, B] of faces) {
         if (nx * view.fx + ny * view.fy <= .02) continue;
-        const nh = this.cell(cx + nx, cy + ny) > 0 ? (this._isFront(cx + nx, cy + ny, view) ? (this.types[this.cell(cx + nx, cy + ny)].cutH || 6) : this.height(cx + nx, cy + ny)) : 0;
+        const nh = this.cell(cx + nx, cy + ny) > 0 ? (this.isFront(cx + nx, cy + ny, view) ? (this.types[this.cell(cx + nx, cy + ny)].cutH || 6) : this.height(cx + nx, cy + ny)) : 0;
         if (nh >= h) continue;
         if (g._info) { g._mat = r._faceMat(g, A, B, nh, h, faceClass(nx, ny)); g._c = null; }
         const lit = -(nx * this.light[0] + ny * this.light[1]);
@@ -6168,7 +6180,7 @@ class ChipAudio {
       this._master = c.createGain(); this._master.connect(c.destination);
       this._sfxBus = c.createGain(); this._sfxBus.connect(this._master);
       this._musBus = c.createGain(); this._musBus.connect(this._master);
-      this._levels();
+      this.applyVolume();
       const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = this._rnd() * 2 - 1;
       this._noise = nb;
       const resume = () => { if (c.state !== 'running') c.resume().catch(() => {}); };
@@ -6179,16 +6191,17 @@ class ChipAudio {
   }
   /** true once the browser lets the game make sound */
   get ready() { return !!this.ctx && this.ctx.state === 'running'; }
-  _levels() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
+  /** apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it) */
+  applyVolume() { if (!this.ctx) return; this._master.gain.value = this.muted ? 0 : this.volume; this._sfxBus.gain.value = this.sfxVolume; this._musBus.gain.value = this.musicVolume * (this._ducked || this.ducked ? .35 : 1); }
   /** set the master volume, 0..1 */
-  setVolume(v) { this.volume = clamp(v, 0, 1); this._levels(); }
+  setVolume(v) { this.volume = clamp(v, 0, 1); this.applyVolume(); }
   /** toggle (or set) mute; returns the new state */
-  mute(on = !this.muted) { this.muted = on; this._levels(); return on; }
+  mute(on = !this.muted) { this.muted = on; this.applyVolume(); return on; }
   /** the page is hidden (sleep true) or back: the sound sleeps with it unless the player keeps it on (settings.background) */
   _background(sleep) { const c = this.ctx; if (!c) return; try { if (sleep && c.state === 'running') { this._slept = true; c.suspend().catch(() => {}); } else if (!sleep && this._slept) { this._slept = false; c.resume().catch(() => {}); } } catch (e) { /* closed */ } }
   /** quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused */
-  duck(on = true) { on = !!on; if (this.ducked === on) return; this.ducked = on; this._levels(); }
-  _duck(on) { if (this._ducked === on) return; this._ducked = on; this._levels(); }   // (the engine's own: game.paused)
+  duck(on = true) { on = !!on; if (this.ducked === on) return; this.ducked = on; this.applyVolume(); }
+  _duck(on) { if (this._ducked === on) return; this._ducked = on; this.applyVolume(); }   // (the engine's own: game.paused)
   _pulse(duty) {
     if (this._waves[duty]) return this._waves[duty];
     const N = 40, re = new Float32Array(N), im = new Float32Array(N);
@@ -8229,7 +8242,7 @@ class GPULighting {
       this._hmStatic = new Uint8Array(W * H);
       if (m) for (let cy = 0; cy < m.h; cy++) for (let cx = 0; cx < m.w; cx++) {
         const id = m.cell(cx, cy); if (id <= 0) continue;
-        const t = m.types[id], h = m._isFront(cx, cy, view) ? (t.cutH || 6) : t.h, v = Math.min(255, Math.round(h * 3));
+        const t = m.types[id], h = m.isFront(cx, cy, view) ? (t.cutH || 6) : t.h, v = Math.min(255, Math.round(h * 3));
         for (let y = cy * m.T; y < (cy + 1) * m.T; y++) this._hmStatic.fill(v, y * W + cx * m.T, y * W + (cx + 1) * m.T);
       }
       this._hmKey = key;

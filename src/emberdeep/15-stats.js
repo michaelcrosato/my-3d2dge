@@ -50,9 +50,9 @@ function baseStats(lvl) {
 function computeStats(h) {
   const s = baseStats(h.level);
   const add = (k, v) => { if (!v) return; s[k] = (s[k] || 0) + v; };
-  for (const src of STAT_SOURCES) { try { src(h, add); } catch (e) { game._fail('stat source', e); } }
+  for (const src of STAT_SOURCES) { try { src(h, add); } catch (e) { game.fail('stat source', e); } }
   for (const b of h.buffs) if (b.stats) for (const k in b.stats) add(k, b.stats[k]);
-  for (const fn of STAT_FINAL) { try { fn(h, s); } catch (e) { game._fail('stat final', e); } }
+  for (const fn of STAT_FINAL) { try { fn(h, s); } catch (e) { game.fail('stat final', e); } }
   h.stats = s;
   // derived values the combat code reads directly
   const ra = s.resAll || 0, rc = TUNE.resCap;

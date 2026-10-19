@@ -413,7 +413,7 @@ function buildLevel(rec) {
 /** walls that stand in front of any floor within a few cells drop to their cut height (not just the first row),
  *  so the solid rock between rooms never hides the hero in the tilted views */
 function deepCutaway(map, reach = 4) {
-  map._isFront = function (cx, cy, view) {
+  map.isFront = function (cx, cy, view) {
     if (!this.cutaway || view.isTop || view.pitchDeg > 75) return false;
     const t = this.types[this.cell(cx, cy)]; if (!t || !t.cut) return false;
     const bx = -Math.round(view.fx), by = -Math.round(view.fy);

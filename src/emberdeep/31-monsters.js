@@ -727,7 +727,7 @@ function MON_roost(m) {
   m.x = m.homeX = x; m.y = m.homeY = y; m.z = Math.min(best.hh - 7, 32); m.MON_roost = true; m.MON_roostCell = best.c; m.facing = best.a + Math.PI;
 }
 /** is a wall cell drawn cut down to a stub in this view (a wall in front of the floor)? A bat can't hang from one */
-const MON_cutWall = (map, c) => !!(map.cutaway && map._isFront && map._isFront(c[0], c[1], game.view));
+const MON_cutWall = (map, c) => !!(map.cutaway && map.isFront && map.isFront(c[0], c[1], game.view));
 def('ai', 'bat', { update(m, dt) {
   const h = ED.hero, a = m.ai, dx = h.x - m.x, dy = h.y - m.y, d = Math.hypot(dx, dy) || 1, k = statusSpeed(m);
   a.t = (a.t || Math.random() * 9) + dt;
