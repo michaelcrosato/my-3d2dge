@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.58.0 (2026-10-19)
+
+Phase 6 of the next plan: `E.Mover` climbs any wall (D48).
+
+- **Engine**: `climbAny: true`: a jump press at a wall too tall for a ledge, on the ground or in the air, takes hold (`mover.wall`); the stick climbs it as the screen shows it (up the screen is up the wall; an AI's intent: `move: [along, -up]`), it turns outer and inner corners, a jump press leaps up (`E.ACTIONS.climbJump`, which ends on the wall: an action's `hold: true`) or, pulled away, pushes off; near the top it pulls up (`climbUp`), at the floor it stands, crouch lets go. `map.wall(from, dir)` gives the face ahead: its point, normal, top and facing.
+- **Animation**: the rig's climb cycle advances with sideways speed too, so climbing along a wall animates.
+- **Engine**: the STEALTH slice's hero climbs any wall (`climbMax: 30`: higher roofs are climbed, not jumped onto); the template game's hero is a Mover that climbs its roof, where it had its own pull-up on a Body (its test takes hold, climbs and pulls up).
+- **Tools**: `tools/contract-test.mjs` checks taking hold (and a plain Mover jumping instead), climbing up and along, rounding a corner, the climb jump, pulling up, letting go, and `map.wall`.
+- **Docs**: `API.md` and `AI_GUIDE.md` (Mover and actions) describe it.
+
 ## 0.57.0 (2026-10-19)
 
 Phase 5 of the next plan: walls with depth, and the floor to the edge of the screen (D47).

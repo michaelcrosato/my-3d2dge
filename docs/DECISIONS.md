@@ -862,3 +862,17 @@ An entry:
   coordinates and art: logged as **watch**, the owner's call if shading and edges don't separate pillars.
 - **Answered:** yes: the owner's goal (2026-10-19); made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.57.0
+
+## D48 · 2026-10-19 · E.Mover climbs any wall and glides, opt-in, on stamina; the template is a Mover
+
+- **Principle:** 1 (agent-readable: the kit does what three games wrote by hand), 7 (common ground)
+- **Call:** `E.Mover` gains `climbAny` (climbing any wall face: latch, climb, corners, climb jumps, pull-up, let go),
+  `glide` (a sail: sink, steer, updrafts, no fall damage) and `staminaMax` (what climbing, gliding and sprinting spend),
+  all off by default, so the stealth guards and every existing Mover move as before; `map.wall(from, dir)` finds a face;
+  an action's `hold: true` ends it on a wall. Full engine only, as the rest of the kit (D18). The template game's hero
+  is a Mover that climbs its roof and glides off it; the STEALTH slice's hero climbs any wall.
+- **Why:** three games wrote their own climb-any-wall, stamina and paraglider on `E.Body` (F3.4, F4.4, F6.4: an eighth of
+  F3's code), the template's own pull-up on a Body being the pattern they extended. What would change it: a game whose
+  climbing needs what this doesn't give (overhangs, ropes), taken up when a source asks.
+- **Answered:** yes: the owner's goal (2026-10-19); made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.58.0 (climbing), v0.59.0 (gliding and stamina)

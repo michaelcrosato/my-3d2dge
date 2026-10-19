@@ -33,14 +33,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.57.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.58.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.57.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.58.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -119,7 +119,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.57.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.58.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -3189,7 +3189,7 @@ class Humanoid {
     const pk = this.poseW || (this.poseW = { cheer: 0, cast: 0, guard: 0, kneel: 0, crouch: 0, wave: 0, hips: 0, block: 0 });
     for (const k in pk) pk[k] = approach(pk[k], s.pose === k ? 1 : 0, dt * 9);
     this._stW = approach(this._stW || 0, s.stance === 'guard' ? 1 : 0, dt * 10); this._rdW = approach(this._rdW || 0, s.stance === 'ready' ? 1 : 0, dt * 10);
-    this._climbW = approach(this._climbW || 0, s.climb ? 1 : 0, dt * 12); if (s.climb) this._climbP = (this._climbP || 0) + dt * Math.abs(s.vz || 0) / (.4 * (o.armUpper + o.armLower) * o.size) * Math.PI;   // hands keep pace with the climb   // climb: hand over hand on a ladder
+    this._climbW = approach(this._climbW || 0, s.climb ? 1 : 0, dt * 12); if (s.climb) this._climbP = (this._climbP || 0) + dt * Math.hypot(s.vz || 0, s.vx || 0, s.vy || 0) / (.4 * (o.armUpper + o.armLower) * o.size) * Math.PI;   // hands keep pace with the climb   // climb: hand over hand on a ladder
     this.dieT = s.pose === 'die' ? (this.dieT || 0) + dt : 0;   // pose 'die': a stagger, the knees give, then the body topples
     const dT = s.down !== undefined ? clamp(+s.down, 0, 1) : s.pose === 'down' || this.dieT > .45 ? 1 : 0;
     /** downW: how far down it is, 0..1 (state down, pose 'down' or 'die'): it falls faster and faster and gets up steadily */
@@ -4388,6 +4388,26 @@ class TileMap {
     }
     if (best) delete best.score;
     return best;
+  }
+  /**
+   * the wall face a body touches or faces: from `from`, in direction dir (an angle or [dx, dy]), the first point within
+   * reach whose top rises more than a step above its feet. { x, y (on the face), nx, ny (the face's normal, out toward the
+   * body), top (how high it rises there), bottom (the floor at its foot), facing (the angle into it) } or null. Cells give
+   * axis faces; a map.solid box, the face back along dir. o: { reach: from.r + 4 }
+   */
+  wall(from, dir, o = {}) {
+    const r = from.r || 5, z = from.z || 0, reach = o.reach === undefined ? r + 4 : o.reach, [dx, dy] = groundDir(dir), T = this.T, hit = d => this.heightAt(from.x + dx * d, from.y + dy * d) > z + HEIGHTS.step;
+    for (let d = .5; d <= reach; d += .5) {
+      if (!hit(d)) continue;
+      let lo = d - .5, hi = d; for (let i = 0; i < 6; i++) { const m = (lo + hi) / 2; if (hit(m)) hi = m; else lo = m; }   // the edge
+      const ax = from.x + dx * lo, ay = from.y + dy * lo, ex = from.x + dx * hi, ey = from.y + dy * hi, c0x = Math.floor(ax / T), c0y = Math.floor(ay / T), c1x = Math.floor(ex / T), c1y = Math.floor(ey / T);
+      let nx = 0, ny = 0, fx = ex, fy = ey;
+      if (c0x !== c1x && c0y === c1y) { nx = Math.sign(ax - ex); fx = (nx > 0 ? c1x + 1 : c1x) * T; }   // a cell's side: its boundary
+      else if (c0y !== c1y && c0x === c1x) { ny = Math.sign(ay - ey); fy = (ny > 0 ? c1y + 1 : c1y) * T; }
+      else if (Math.abs(dx) >= Math.abs(dy)) nx = -Math.sign(dx); else ny = -Math.sign(dy);
+      return { x: fx, y: fy, nx, ny, top: this.heightAt(ex, ey), bottom: this.groundAt(fx + nx * (r + 1), fy + ny * (r + 1), r, z + HEIGHTS.step), facing: Math.atan2(-ny, -nx) };
+    }
+    return null;
   }
   /**
    * where a jump from `from` in direction dir lands across a gap: past the first drop ahead (a top more than step below its
@@ -5618,12 +5638,13 @@ E.Body = Body;
  *    act.canCancel says the action may be cut short now (a marked beat), act.invulnerable that hits should miss (a roll's
  *    middle, a get-up). { reverse: true } plays it backwards (climb down). Timings are seeded from classic games
  *    (Prince of Persia's 14 frames to hang and 17 to climb up, KOF's 39-frame dodge) and quickened for modern pacing.
- *    Your own: E.ACTIONS.myMove = { beats: [['name', seconds], ...], cancel: ['name'], setup(A) {...}, at(A, beat, u) {...} },
- *    where at() returns { x, y, z, state: {...rig state...}, other: { x, y, z, state } }
+ *    Your own: E.ACTIONS.myMove = { beats: [['name', seconds], ...], cancel: ['name'], hold, setup(A) {...}, at(A, beat, u) {...} },
+ *    where at() returns { x, y, z, state: {...rig state...}, other: { x, y, z, state } }; hold: true ends it where it holds
+ *    on (a wall) instead of standing
  * ============================================================================= */
 const _dir = d => typeof d === 'number' ? d : Math.atan2(d[1], d[0]);
 const _p = (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), z: lerp(a.z || 0, b.z || 0, u) });
-/** the actions E.Action plays: climbUp, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at };
+/** the actions E.Action plays: climbUp, climbJump, vault, hopDown, roll, getUp, takedown. Add your own: E.ACTIONS.name = { beats, setup, at };
  *  setup(A) and at(A, beat, u) get the action: its options A.o, A.start (where the body began), A.body; setup may change
  *  A.beats. Play one: mover.play('takedown', { other }) */
 const ACTIONS = {
@@ -5648,6 +5669,12 @@ const ACTIONS = {
       }
       return Object.assign(_p(A.lip, A.end, ease.outQuad(u)), { state: Object.assign(st, { crouch: u < .55 }) });
     }
+  },
+  /** up a wall face while climbing it (mover.climbAny): a leap from the hands, o.rise high (24), ending still on the wall */
+  climbJump: {
+    beats: [['leap', .34]], hold: true,
+    setup(A) { A.facing = A.body.facing || 0; A.from = A.start; A.end = { x: A.start.x, y: A.start.y, z: A.start.z + (A.o.rise === undefined ? 24 : A.o.rise) }; },
+    at(A, b, u) { return Object.assign(_p(A.from, A.end, ease.outQuad(u)), { state: { facing: A.facing, climb: u > .7, hang: u <= .7, hangZ: 30 - 12 * u } }); }
   },
   /** over a low wall at a run: a hand on its top, the body swings over, land beyond. o.to: the spot beyond; o.top: the wall's top */
   vault: {
@@ -5770,7 +5797,7 @@ class Action {
     this._apply(dt);
     if (this.t >= this.duration) {
       this.done = true; const b = this.body;
-      if (b.onGround !== undefined) { b.onGround = true; b.vz = 0; b.groundZ = b.z; }
+      if (b.onGround !== undefined && !this.spec.hold) { b.onGround = true; b.vz = 0; b.groundZ = b.z; }   // (spec.hold: it ends where it holds on, a wall)
       if (this.other && this.other.onGround !== undefined) this.other.onGround = true;
     }
     return !this.done;
@@ -5801,6 +5828,10 @@ E.Action = Action;
  *    read: onGround, action (the E.Action playing: climbing, vaulting, rolling; null when free), crouch, sprinting,
  *    fell (how far it fell, on the step it lands), hurt (that fall was over hurtAt), inHazard (it landed in deep water
  *    or a pit: call respawn()), lastSafe
+ *    CLIMBING ANY WALL (climbAny: true): a jump press at a wall too tall for a ledge, on the ground or in the air, latches
+ *    on (mover.wall: the face, map.wall's); the stick moves it up, down and along the face as the screen shows it (up the
+ *    screen is up the wall; an AI's intent: move [along, -up]); it turns outer and inner corners, a jump press leaps up
+ *    (climbJump) or, pulling away, pushes off; at the top it pulls up (climbUp), at the floor it stands, crouch lets go.
  * ============================================================================= */
 class Mover extends Body {
   /**
@@ -5815,10 +5846,11 @@ class Mover extends Body {
      *  aims for the far side; hopMax: drops up to this deep are hopped down; rollAt, hurtAt: fall heights that roll and that
      *  hurt; turn: how fast it turns, radians a second; facing: the angle it faces; crouch: sneaking (a toggle); sprinting:
      *  sprinting now; action: the E.Action playing, or null; fell, hurt, inHazard: what happened this step; lastSafe: the
-     *  last spot it stood safely, for respawn() */
+     *  last spot it stood safely, for respawn(); climbAny: climbs any wall face (see the section's header); climbSpeed:
+     *  its climbing speed; wall: the face it holds on to (map.wall's), or null */
     Object.assign(this, { walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220, coyote: .1, buffer: .12, climb: true, climbMax: 82,
       vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14, facing: 0, crouch: false, sprinting: false, action: null, fell: 0, hurt: false,
-      inHazard: false, lastSafe: null }, o);
+      inHazard: false, lastSafe: null, climbAny: false, climbSpeed: 34, wall: null }, o);
     this._coy = 0; this._jb = 0; this._peak = this.z; this._land = 0; this._leap = false;
   }
   /** start an action now (E.ACTIONS name, its options): it moves the body until it ends */
@@ -5826,17 +5858,18 @@ class Mover extends Body {
   /** a dodge roll toward dir (an angle or [dx, dy]; default its facing) when it stands free. Returns the action, or null */
   dodge(dir, dist = 34) { if (this.action || !this.onGround) return null; return this.play('roll', { dir: dir === undefined ? this.facing : dir, dist }); }
   /** back to the last safe spot (after water, a pit, a fall it shouldn't survive) */
-  respawn() { if (this.lastSafe) Object.assign(this, this.lastSafe); Object.assign(this, { vx: 0, vy: 0, vz: 0, onGround: true, action: null, inHazard: false }); this._peak = this.z; return this; }
+  respawn() { if (this.lastSafe) Object.assign(this, this.lastSafe); Object.assign(this, { vx: 0, vy: 0, vz: 0, onGround: true, action: null, inHazard: false, wall: null }); this._peak = this.z; return this; }
   /** one step. ctl: game.input (needs the actions move, jump, and sprint / crouch if it has them; screen directions turn into
    *  ground ones through view, the game's by default) or an intent { move: [dx, dy], sprint, crouch, jumpPressed } */
   update(dt, map, ctl = {}, view) {
     this.fell = 0; this.hurt = false; this._land = 0;
-    let mx = 0, my = 0, sprint = false, jumpPressed = false;
+    let mx = 0, my = 0, sprint = false, jumpPressed = false, crouchPressed = false, raw = [0, 0];
+    const v = view || (E.current && E.current.view);
     if (ctl && typeof ctl.move === 'function') {
-      const v = view || (E.current && E.current.view), m = ctl.move(), g = v ? v.screenDirToGround(m[0], m[1]) : m, has = a => !!ctl.map[a];
-      mx = g[0]; my = g[1]; sprint = has('sprint') && ctl.down('sprint'); jumpPressed = has('jump') && ctl.pressed('jump');
-      if (has('crouch') && ctl.pressed('crouch')) this.crouch = !this.crouch;
-    } else if (ctl) { const m = ctl.move || [0, 0]; mx = m[0]; my = m[1]; sprint = !!ctl.sprint; jumpPressed = !!ctl.jumpPressed; if (ctl.crouch !== undefined) this.crouch = !!ctl.crouch; }
+      const m = ctl.move(), g = v ? v.screenDirToGround(m[0], m[1]) : m, has = a => !!ctl.map[a];
+      mx = g[0]; my = g[1]; raw = m; sprint = has('sprint') && ctl.down('sprint'); jumpPressed = has('jump') && ctl.pressed('jump');
+      crouchPressed = has('crouch') && ctl.pressed('crouch'); if (crouchPressed && !this.wall) this.crouch = !this.crouch;
+    } else if (ctl) { const m = ctl.move || [0, 0]; mx = m[0]; my = m[1]; raw = [m[0], m[1], true]; sprint = !!ctl.sprint; jumpPressed = !!ctl.jumpPressed; crouchPressed = !!ctl.crouch; if (ctl.crouch !== undefined && !this.wall) this.crouch = !!ctl.crouch; }
     this._jb = jumpPressed ? this.buffer : Math.max(0, this._jb - dt);
     if (this.action) {
       if (this.action.canCancel && this.action.name === 'climbUp' && this.crouch) { this.action.cancel(); this.crouch = false; this.onGround = false; }   // let go of the ledge
@@ -5844,6 +5877,8 @@ class Mover extends Body {
       this.action = null; this._peak = this.z;
       if (!this.onGround) return this;
     }
+    if (this.wall) { this._climbStep(dt, map, raw, v, jumpPressed, crouchPressed); return this; }
+    if (this._jb > 0 && !this.onGround && this._coy <= 0 && this.climbAny && map && this._latch(map)) { this._jb = 0; return this; }   // a jump press in the air at a wall
     const len = Math.min(1, Math.hypot(mx, my)), moving = len > .08;
     if (moving) this.facing = approachAng(this.facing, Math.atan2(my, mx), this.turn * dt);
     this.sprinting = sprint && moving && !this.crouch;
@@ -5851,7 +5886,7 @@ class Mover extends Body {
     this._coy = this.onGround ? this.coyote : Math.max(0, this._coy - dt);
     if (this._jb > 0 && (this.onGround || this._coy > 0) && map) {
       this._jb = 0; this._coy = 0;   // (one jump a press: a leap or a climb ends coyote time too)
-      if (this._parkour(map, moving)) return this;
+      if (this._parkour(map, moving) || (this.climbAny && this._latch(map))) return this;
       this.vz = this.jumpSpeed; this.onGround = false; this._peak = this.z;
     }
     if (!this._leap) {
@@ -5901,6 +5936,52 @@ class Mover extends Body {
     }
     return false;
   }
+  /** take hold of the wall face ahead (climbAny): true when it latched on */
+  _latch(map) {
+    const W = map.wall(this, this.facing, { reach: (this.r || 5) + 8 }); if (!W || W.top - this.z <= this.vault) return false;   // (not a kerb)
+    this._hold(W); this.vx = this.vy = this.vz = 0; this.onGround = false; this._peak = this.z; return true;
+  }
+  /** hold on to face W: facing into it, the body's radius off it */
+  _hold(W) { this.wall = W; this.facing = W.facing; const k = (this.r || 5) + 1; if (W.nx) this.x = W.x + W.nx * k; if (W.ny) this.y = W.y + W.ny * k; }
+  /** one step on a wall: raw is the stick as the screen shows it ([along, down] for an AI's intent) */
+  _climbStep(dt, map, raw, view, jumpPressed, crouchPressed) {
+    const W = this.wall, r = this.r || 5, sp = this.climbSpeed, up = -clamp(raw[1] || 0, -1, 1), side = clamp(raw[0] || 0, -1, 1);
+    // along the face: the tangent that goes right on the screen (an intent: right of facing into the wall)
+    let tx = W.ny, ty = -W.nx;
+    if (!raw[2] && view) { const a = view.p(this.x, this.y, this.z), b = view.p(this.x + tx, this.y + ty, this.z); if (b[0] < a[0]) { tx = -tx; ty = -ty; } }
+    if (crouchPressed) { this.wall = null; this.crouch = false; this.vz = 0; return; }   // let go: it falls
+    if (jumpPressed) {
+      if (up < -.5) { this.wall = null; this.vz = this.jumpSpeed * .7; this.vx = W.nx * 80; this.vy = W.ny * 80; this.facing = Math.atan2(W.ny, W.nx); this._peak = this.z; return; }   // push off
+      const room = W.top - this.z, L = room <= 30 && this._top(map);
+      if (L) { this.wall = null; this.play('climbUp', { to: L, map }); return; }
+      if (room > 10) this.play('climbJump', { rise: Math.min(24, room - 8), map }); return;
+    }
+    const al = side * sp * .8, nz = Math.min(this.z + up * sp * dt, W.top - 6);   // (the hands stay below the top)
+    let nx = this.x + tx * al * dt, ny = this.y + ty * al * dt;
+    this.vx = tx * al; this.vy = ty * al; this.vz = up * sp;
+    // an inner corner ahead: turn onto the wall across the way
+    if (al) { const I = map.wall({ x: this.x, y: this.y, z: this.z, r }, [tx * Math.sign(al), ty * Math.sign(al)], { reach: r + 1.5 }); if (I) { this._hold(I); return; } }
+    // the top: pull up onto it
+    if (W.top - nz <= 22 && up > 0) { const L = this._top(map); if (L) { this.wall = null; this.play('climbUp', { to: L, map }); return; } }
+    // the floor: stand on it
+    const floor = map.groundAt(nx, ny, r, nz + HEIGHTS.step);
+    if (nz <= floor + .5 && up < 0) { this.wall = null; this.z = floor; this.onGround = true; this.vz = 0; this._peak = floor; return; }
+    const at = { x: nx, y: ny, z: Math.max(nz, floor), r }, H = map.wall(at, W.facing, { reach: r + 4 });
+    if (H) { this.z = at.z; this.x = nx; this.y = ny; this._hold(H); return; }
+    // an outer corner: round it onto the side face
+    if (al) {
+      const d = Math.sign(al), cx = nx - W.nx * (r + 3) + tx * d * (r + 1), cy = ny - W.ny * (r + 3) + ty * d * (r + 1), O = map.wall({ x: cx, y: cy, z: at.z, r }, [-tx * d, -ty * d], { reach: r + 4 });
+      if (O) { this.z = at.z; this.x = cx; this.y = cy; this._hold(O); return; }
+      this.vx = this.vy = 0; return;   // (the face ends: hold where it is)
+    }
+    this.wall = null; this.vz = 0;   // nothing to hold on to: it falls
+  }
+  /** where it stands after pulling up over the top of the wall it holds (a ledge, as map.ledge gives one), or null */
+  _top(map) {
+    const W = this.wall, r = this.r || 5;
+    for (const k of [r + 1, map.T / 2]) { const x = W.x - W.nx * k, y = W.y - W.ny * k, h = map.heightAt(x, y); if (Math.abs(h - W.top) <= HEIGHTS.step && map.standable(x, y, h, r)) return { x, y, z: h, rise: h - this.z, facing: W.facing, edge: [W.x, W.y] }; }
+    return null;
+  }
   /** past a low wall: floor at its own level beyond it, room to stand */
   _beyond(map, L) {
     const c = Math.cos(L.facing), s = Math.sin(L.facing);
@@ -5916,6 +5997,7 @@ class Mover extends Body {
    *  action's pose; extra is merged over it */
   rigState(extra) {
     if (this.action) return this.action.rigState(extra);
+    if (this.wall) return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: this.vy, vz: this.vz, facing: this.facing, climb: true }, extra);
     return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: this.vy, vz: this.vz, facing: this.facing, air: !this.onGround, crouch: this.crouch, sprint: this.sprinting, land: this._land }, extra);
   }
 }
