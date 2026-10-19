@@ -1,9 +1,9 @@
-// Vendors the 3D lab's two libraries into vendor/ (docs/LAB-3D.md): exact versions, fetched once with npm pack, the
-// files the lab loads copied out, with their sizes and sha256 checksums in VERSION.json. The lab then needs no network.
+// Vendors the 3D engine's two libraries into vendor/ (docs/ENGINE-3D.md, D27): exact versions, fetched once with npm pack,
+// the files it loads copied out, with their sizes and sha256 checksums in VERSION.json. Its pages then need no network.
 // The versions are pinned on purpose: releases the models know well (the last stable three.js of 2025, Rapier 0.19.3),
-// not the newest. Upgrading is a deliberate change: edit LIBS, run this, update the import map in src/lab3d.template.html.
+// not the newest. Upgrading is a deliberate change: edit LIBS, run this, update the import map in src/starter3d.template.html.
 // Usage: node tools/vendor-3d.mjs           fetch and write vendor/ (needs npm, tar and the network)
-//        node tools/vendor-3d.mjs --check   verify the files on disk against VERSION.json (no network; tools/lab3d-test.mjs runs it)
+//        node tools/vendor-3d.mjs --check   verify the files on disk against VERSION.json (no network; tools/kit3d-test.mjs runs it)
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync, rmSync, copyFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';

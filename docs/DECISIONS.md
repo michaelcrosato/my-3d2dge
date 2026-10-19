@@ -790,3 +790,27 @@ An entry:
 - **Answered:** yes: the owner, 2026-10-15 ("take care of the api index thing"), after the recommendation to fill the
   index and not split it
 - **Landed in:** v0.43.4
+
+## D44 · 2026-10-19 · Temporary emptied: the three answered prototypes are deleted, none graduates
+
+- **Principle:** the two tiers (a prototype answers its question, then is deleted or graduates), 7 (common ground: one
+  way to do a thing)
+- **Call:** the 3D Proof (`/lab-3d`), the 3D Prototype (`/stress-world`) and Vesper's interface on `E.Shell`
+  (`/vesper-ui`) are deleted with their sources, their checks (`tools/lab3d-test.mjs`, `tools/stress-world-test.mjs`)
+  and their Labs entries; none is graduated. The vendored libraries' checksums move to `tools/kit3d-test.mjs`.
+  `/lab-3d`, `/stress-world` (and `/stress-3d`) lead to the 3D starter at `/3d`, `/vesper-ui` to the Labs page; the 2D
+  stress test's link for real 3D cameras goes to the 3D starter. `docs/LAB-3D.md` stays as the 3D labs' record, and says
+  where their code is in git.
+- **Why:** each question is answered. Vesper's interface came down to 2.1k tokens from 15.2k in v0.21.0 (`AI_GUIDE.md`
+  keeps the number). The 3D Proof and the 3D Prototype answered yes, and became the 3D engine in v0.34.0 (D27): its
+  cards and puppets, cameras, filters, physics and level text are theirs, made general. Graduating either would hold a
+  second, private 3D engine to the engine tier: 2,606 lines of sources (the stress world) and 1,060 (the proof) that reach into the
+  2D engine's private `_w`, `_cheat`, `_lastView` and `_offsets`, with their own copies of the panel, benchmark and hall,
+  and two suites in `npm test` that cover nothing a game is built on. The owner's call of 2026-10-14 kept the stress
+  world on the Labs page as the record of what the engine was built from; the record is kept, as a document and in git,
+  not as a page that has to keep working. What would change it: a need for a 3D stress test or benchmark, which is then
+  built on the 3D engine as one of its pages.
+- **Answered:** yes: the owner asked for Temporary to be emptied, graduating or deleting the two 3D labs (2026-10-19);
+  graduate or delete was left to this call, made at once as a reversible one (a revert restores the pages) and flagged in
+  the pull request
+- **Landed in:** v0.51.4

@@ -169,7 +169,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
       </div>
       <div class="btnrow"><button type="button" id="fixBtn" aria-pressed="false">Fix camera here <kbd>F</kbd></button><button type="button" id="camLinkBtn">Copy camera link</button></div>
       <p class="note">Fixed, the camera stays where it is while the hero moves on, in any view. The link opens this camera (view, turn, tilt, zoom, and where it is fixed).</p>
-      <p class="note">Chase, first-person and fly cameras need real 3D: they are on the <a href="stress-world.html" id="toWorld">3D world stress test</a>.</p>
+      <p class="note">Chase, first-person and fly cameras need real 3D: they are in the <a href="../dist/my-3d2dge-3d.html" id="toWorld">3D engine's starter</a>.</p>
     </section>
 
     <section>
@@ -249,7 +249,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.51.3  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.51.4  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -328,7 +328,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.51.3', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.51.4', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -10023,8 +10023,8 @@ $('fsBtn').hidden = !document.documentElement.requestFullscreen;
 $('fsBtn').addEventListener('click', e => { fullScreen(!document.fullscreenElement); e.currentTarget.blur(); });
 $('fsStart').addEventListener('change', e => { fsStart = e.target.checked; try { localStorage.setItem(FS_KEY, fsStart ? '1' : '0'); } catch (err) { /* not remembered */ } e.target.blur(); });
 document.addEventListener('fullscreenchange', () => syncUI());
-// the 3D world stress test's address (the site serves pages without .html, a local server as files)
-for (const [id, page] of [['toWorld', 'stress-world']]) { const a = $(id); if (a) a.href = /\.html$/.test(location.pathname) ? page + '.html' : '/' + page; }
+// the 3D starter's address (the site serves it at /3d, a local server as the built file)
+{ const a = $('toWorld'); if (a) a.href = /\.html$/.test(location.pathname) ? '../dist/my-3d2dge-3d.html' : '/3d'; }
 syncUI();
 game.start({ update, draw: r => { draw(r); hud(); } });
 window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; },

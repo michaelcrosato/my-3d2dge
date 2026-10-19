@@ -3,11 +3,11 @@
 //   1. the rules, read from the 3D engine's and the kits' own sources (not the vendored libraries): three.js through
 //      WebGPURenderer and node materials only (no WebGLRenderer, ShaderMaterial, onBeforeCompile, EffectComposer,
 //      addons), no WebGPU-only compute or storage buffers, nothing read back from the GPU; the import map points at
-//      vendored files that exist
+//      vendored files that exist, and those files match their checksums (tools/vendor-3d.mjs --check)
 //   2. the manual's quick start (the ```js quickstart block in the engine's header) runs as the manual hosts it: no
 //      errors, a hero that walks and jumps, gems to take
 //   3. every 3D kit, served as Vercel serves it (/kits/3d-<slice>, /3d), on WebGL 2 and on WebGPU (headless Chromium runs
-//      WebGPU on SwiftShader, through a stand-in canvas as tools/stress-world-test.mjs does): no page errors, the title
+//      WebGPU on SwiftShader, through a stand-in canvas): no page errors, the title
 //      draws, each slice starts; each slice's proof run gives the same hash twice and on both backends (the game never
 //      reads the renderer); a minute of scripted play builds no GPU pipeline mid-game (the warm-up's job) and moves
 //      the hero; pictures in check-output/kit3d/ (read them)
@@ -20,6 +20,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { resolve, join, extname } from 'node:path';
 
 const root = resolve('.');
@@ -28,6 +29,7 @@ const fail = m => problems.push(m);
 const read = f => readFileSync(join(root, f), 'utf8');
 
 /* 1. the rules */
+try { execFileSync('node', ['tools/vendor-3d.mjs', '--check'], { cwd: root, stdio: 'pipe' }); } catch (e) { fail(String(e.stderr || e.message).trim()); }   // the vendored files
 const BANNED = [
   [/\bWebGLRenderer\b/, 'WebGLRenderer (use WebGPURenderer: it falls back to WebGL 2 by itself)'],
   [/\b(Raw)?ShaderMaterial\b/, 'ShaderMaterial (write node materials or TSL)'],
@@ -93,7 +95,7 @@ const SITE = 'http://127.0.0.1:' + server.address().port;
 const OUT = join(root, 'check-output/kit3d'); mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-vulkan=swiftshader', '--use-webgpu-adapter=swiftshader', '--disable-vulkan-surface'] });
-/** test-only (as tools/stress-world-test.mjs): a WebGPU canvas context that renders into a plain texture (headless
+/** test-only: a WebGPU canvas context that renders into a plain texture (headless
  *  Chromium can't present), and a way to read the last frame back as a PNG. Installed before the page's scripts run */
 function standInCanvas() {
   const real = HTMLCanvasElement.prototype.getContext;

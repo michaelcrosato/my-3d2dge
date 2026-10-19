@@ -2,7 +2,7 @@
 
 `engine/my-3d2dge-3d.js` (v0.34.0) puts a real 3D world under a my-3D2dge game: a level written as text (or an open world's terrain), its physics,
 its characters, its camera and its picture, drawn by three.js r182 and simulated by Rapier 0.19.3. It is the stress
-test's 3D world (`/stress-world`, `docs/LAB-3D.md`) taken apart and made general, so that a game can be built on it the
+test's 3D world (the 3D Prototype, deleted in v0.51.4; `docs/LAB-3D.md`) taken apart and made general, so that a game can be built on it the
 way the 2D starter kits are built on the engine. Its header is its manual: an agent reads that and the API card, never
 the code below them.
 
@@ -137,6 +137,7 @@ to its budget; `tools/version.mjs` keeps its version line with the rest.
   (`game.alpha`), and a pause or a hit-stop shows the last step as it is; a camera pose the game sets itself in `onDraw`
   is the game's to place, and what a game draws with the pen is drawn where its own numbers say: the shooter draws its
   soldiers and camera part way itself (`keepPrev`, `between`, the frame's clock `drawT`).
-- The 3D Prototype (`/stress-world`, once Stress test: 3D world) stays on the Labs page as the record of what the
-  engine was built from, with its own copy of the panel, benchmark and hall. New 3D work goes into the engine and its kits
-  (the owner's call, 2026-10-14).
+- The 3D Prototype (`/stress-world`, once Stress test: 3D world) stayed on the Labs page as the record of what the
+  engine was built from (the owner's call, 2026-10-14) until v0.51.4, when it was deleted with the 3D Proof (D44): its
+  code is in git, its record in `docs/LAB-3D.md`, and its addresses lead to `/3d`. New 3D work goes into the engine and
+  its kits.
