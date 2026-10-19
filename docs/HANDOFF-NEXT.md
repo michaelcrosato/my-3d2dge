@@ -266,7 +266,7 @@ file's progress table updated.
 | 0 this plan | written | v0.51.5 | the facts checked against v0.51.4 |
 | 1 the cards | done | v0.53.0 | |
 | 2 lighting in the look | done | v0.54.0 | |
-| 3 `E.Shell` in the template and the stealth starter | not started | | |
+| 3 `E.Shell` in the template and the stealth starter | done | v0.55.0 | |
 | 4 the x-ray | not started | | |
 | 5 walls with depth, the floor to the edge | not started | | |
 | 6 climbing any wall | not started | | |

@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.54.0)
+# my-3D2dge API card (v0.55.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -229,7 +229,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
 ## Before you hand the game back
 - One IIFE between the markers, starting with `const E = My3D2dge`. Only your game: no leftover starter menu or unused slices. No other files, no network, no libraries.
 - Title screen and game-over screen as scenes; `pausable: true` on gameplay scenes. No pause, settings, rebinding or full-screen code of your own (they're standard); prompts from `game.input.label(action)`.
-- The camera follows the player (`game.focus` every update) and shows the level; the HUD uses screen pixels.
+- The camera follows the player (`game.focus` every update) and shows the level; the HUD uses screen pixels, or `E.Shell`'s HTML for a modern game (the STEALTH slice).
 - Sound effects on jump, hit, pickup and death; music per scene.
 - The look target list above: backdrop, textured tiles, props, sized and dressed HD characters, effects, title font, lights. Compare your screenshots with Symphony of the Night or Metal Slug, not with NES games.
 - If you can run commands: `node tools/check.mjs game.html` (add `#scene` to jump to a scene). It presses start, plays, cycles the views, prints how much of the screen is filled and how many colors it uses, adds look notes (flat areas, checkerboard dithering, low contrast, a thin palette), and fails on any error. Act on every look note. `node tools/filmstrip.mjs game.html#scene --steps "wait:1500 press:Enter wait:800 rec:16:2 press:KeyJ" --crop x,y,w,h` records an animation frame by frame into one contact sheet: check every attack with it (a swing must wind up, strike, and settle back without jerks or backward sweeps).

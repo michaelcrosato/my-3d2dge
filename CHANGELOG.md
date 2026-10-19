@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.55.0 (2026-10-19)
+
+Phase 3 of the next plan: `E.Shell` in the template and the stealth starter.
+
+- **Engine**: the STEALTH slice's interface is `E.Shell`'s HTML: the objective with its distance (ABOVE YOU), health as pips, guards down, Hidden, Hunted or Crouched, a Take down or Parry prompt with the player's own key, the keys, toasts for its messages and a results screen at the end. The guards' marks stay in the world. The template game's HUD is `ui.hud` too (the objective with its distance, the alert bar, the keys); its title and end screens stay pixel art.
+- **Rendering**: `E.Shell`'s keys row has a dark backing, so it reads over bright walls.
+- **Docs**: `AI_GUIDE.md` says when a HUD is pixels and when it is `E.Shell`'s HTML (a modern adaptation), and points to the STEALTH slice; `API.md`'s hand-back checklist says the same. The plan's template line is amended: its end screen stays pixel art, which its headless test presses start on.
+
 ## 0.54.0 (2026-10-19)
 
 Phase 2 of the next plan: lighting is a step of the look, shown working where builders copy from (D45).
