@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.57.0 (2026-10-19)
+
+Phase 5 of the next plan: walls with depth, and the floor to the edge of the screen (D47).
+
+- **Rendering**: wall faces take the shapes' view-relative light (`map.light` null, the default; a direction still works): in iso the south face is lit and the east face a shade darker, where both were the same colour, and in three-quarter the front faces sit below the bright tops. A lit edge runs where a top meets each face drawn below it, and a crease down each corner where two faces meet, so a pillar in front of a wall no longer reads as one flat plane (F4.2). Both editions.
+- **Rendering**: a ground view's floor runs on past the map: the floor mirrored back over the edge, darkening over 48 units into one colour that fills the rest of the screen (`map.outside`: a colour, or `false` for the old empty edge). No ground view shows a void around the level (F6.2's black void under a clipped sky). Both editions.
+- **Docs**: `API.md`'s backdrop step is for side views (a ground view's floor runs to the screen's edges) and names `outside`. The template and the STEALTH slice no longer draw a sky the floor covers.
+
 ## 0.56.0 (2026-10-19)
 
 Phase 4 of the next plan: the x-ray shows a hidden body clearly, and only when something hides it (D46).

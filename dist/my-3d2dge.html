@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.56.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.57.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.56.0)
+# my-3D2dge API card (v0.57.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -64,7 +64,7 @@ game.start({
 Aim above SNES, level with the best PS1 / N64 2D games (Symphony of the Night, Metal Slug, Legend of Mana, Klonoa). Games that skip these steps look like Atari games. **Every game should use all of them:**
 1. **Resolution** `res: 'ps1'` (320x240) or `'snes'`, with `expand: true` so it fills any screen (anchor the HUD to `r.W` / `r.H`), and characters 40-60 px tall: `new E.Humanoid({ size: 1.3 })` (HD style is the default: shaded volumetric limbs, outfits, hair).
 2. **Dress the character**: `outfit: 'tunic' | 'robe' | 'coat'`, `hair: 'short' | 'spiky' | 'long' | 'ponytail'`, `hat`, `armor: true`, `cape`, `sleeves`, and a real palette in `colors` (never leave the defaults on everyone).
-3. **Backdrop behind every level**: `const bg = new E.Backdrop('castle-night')` then `bg.draw(r)` first in `draw`. Presets: `day dusk night castle-night city-night desert forest ocean cave space`, or your own `{ sky, sun | moon, stars, starsY: .7, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' | 'fog' | 'stalactites', color, y, height, parallax, fill }] }` (`starsY` = how far down the stars reach; a layer fills the screen below its skyline unless `fill: false`).
+3. **Backdrop behind every side-view level**: `const bg = new E.Backdrop('castle-night')` then `bg.draw(r)` first in `draw` (a ground view's floor runs on to the screen's edges: `map.outside`). Presets: `day dusk night castle-night city-night desert forest ocean cave space`, or your own `{ sky, sun | moon, stars, starsY: .7, layers: [{ kind: 'mountains' | 'hills' | 'forest' | 'city' | 'castle' | 'clouds' | 'sea' | 'fog' | 'stalactites', color, y, height, parallax, fill }] }` (`starsY` = how far down the stars reach; a layer fills the screen below its skyline unless `fill: false`).
 4. **Textured tiles**: PlatformMap styles `stone` (with `moss`), `brick`, `wood`, `metal`, `ground` (with `flower`), `block`, `pipe`, `bonus`; TileMap floors from `E.tex.*`, TileMap walls with `face: 'brick' | 'stone' | 'rock' | 'plank' | 'timber' | 'plaster' | 'hedge'` and tops with `roof: 'tiles' | 'slab' | 'leaves' | 'grass'` (a village = timber and plaster houses with tile roofs, hedges, rock cliffs).
 5. **Props in every room** (3-8 per screen): `r.prop(name, x, y, z, { size, color, light: true })` with `torch candle candelabra chandelier brazier window banner pillar statue crate barrel chest pot sign fence lamp door tree pine bush flowers grass rock crystal bones skull vines cobweb lantern streetlamp awning hydrant trashcan firedrum sandbags cactus palm mushroom`. Flames animate, glow and can light the scene. `chest` / `door` take `{ open: true }`, `pillar` takes `{ broken: true }`, `window` is a gothic rose window with lead cames (`colors: [...]` for the glass, `size: 2-3` for a cathedral); hang `vines`, `cobweb`, `lantern` with `{ anchor: 'top' }`. With heroes at size 1.2+, give the scene `propSize: 1.4` (or set `E.style.propSize`) so props match them.
 6. **Effects on every hit**: `particles.explosion(x, y, z, size)`, `smoke`, `fire`, `glints`, `sparks`, `game.flash(color, s)`, `game.freeze`, `game.shake`.
@@ -172,7 +172,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 
 ## Levels
 **TileMap** (top-down, isometric, brawler): walls stand on the ground plane.
-- `new E.TileMap({ rows, legend, types, floorTex, block: ['water', 'lava'], ao: 5 })` (`ao` = width of the contact shadow along wall bases, 0 = none). `types[id] = { h, top, side, line, course, cut: true, cutH, face, roof, beam }` (`cut` lowers walls that block the camera, those `map.isFront(cx, cy, view)` says; a map may replace it; `face`: `'brick'` (default) `'stone' 'rock' 'plank' 'timber' 'plaster' 'hedge' 'none'`; `roof`: `'speckle'` (default) `'plain' 'tiles' 'slab' 'leaves' 'grass'`; `beam` = timber color). `floorTex(x, y, floorTag, view)` returns `[r, g, b]` (or `[r, g, b, glow]`); ready-made: `E.tex.flagstone`, `grass`, `dirt`, `water`, `planks`, `checker`, `plain`.
+- `new E.TileMap({ rows, legend, types, floorTex, block: ['water', 'lava'], ao: 5, outside })` (`ao` = width of the contact shadow along wall bases, 0 = none; `outside`: the ground past the map, a color, or `false` for none). `types[id] = { h, top, side, line, course, cut: true, cutH, face, roof, beam }` (`cut` lowers walls that block the camera, those `map.isFront(cx, cy, view)` says; a map may replace it; `face`: `'brick'` (default) `'stone' 'rock' 'plank' 'timber' 'plaster' 'hedge' 'none'`; `roof`: `'speckle'` (default) `'plain' 'tiles' 'slab' 'leaves' 'grass'`; `beam` = timber color). `floorTex(x, y, floorTag, view)` returns `[r, g, b]` (or `[r, g, b, glow]`); ready-made: `E.tex.flagstone`, `grass`, `dirt`, `water`, `planks`, `checker`, `plain`.
 - Legend values: a number = wall type, a string = spawn tag, `{ tile, floor, spawn, block }` for both. `block: true` (or the map's `block` list of floor tags) makes deep water, lava or pits stop walkers (jumping bodies pass over); `walkable(cx, cy)`, `block(cx, cy, on)` (a bridge appears). FlowField paths go around blocked cells and follow `block` and `set` at their next `update`.
 - `find(tag)` / `findAll(tag)` give `{ x, y, z, cx, cy }`. Also `cell(cx, cy)`, `set(cx, cy, id)` (open doors), `toCell(x, y)`, `center(cx, cy)`, `heightAt(x, y)`, `floorAt(x, y)`, `groundAt(x, y, r, z)`, `collide(body)`, `los(x0, y0, x1, y1)` (ground only), `bounds(view)` (`{ x0, y0, x1, y1 }`, buffer pixels), `drawFloor(r)`, `queueWalls(r)`.
 
@@ -276,7 +276,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.56.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.57.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -304,7 +304,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.56.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.57.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -383,7 +383,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.56.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.57.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -4425,6 +4425,12 @@ function facade(f, t) {
 }
 /** a direction as a unit ground vector: an angle (radians) or [dx, dy] */
 const groundDir = d => { if (typeof d === 'number') return [Math.cos(d), Math.sin(d)]; const l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; };
+/** the screen around a baked floor f ({ cv, x0, y0 }): up to four rectangles, rect(x, y, w, h) in buffer pixels */
+function outsideRects(r, f, rect) {
+  const x0 = Math.round(f.x0 - r.ix), y0 = Math.round(f.y0 - r.iy), x1 = x0 + f.cv.width, y1 = y0 + f.cv.height, W = r.bw, H = r.bh;
+  if (y0 > 0) rect(0, 0, W, Math.min(H, y0)); if (y1 < H) rect(0, Math.max(0, y1), W, H - Math.max(0, y1));
+  const a = Math.max(0, y0), b = Math.min(H, y1); if (b > a) { if (x0 > 0) rect(0, a, Math.min(W, x0), b - a); if (x1 < W) rect(Math.max(0, x1), a, W - Math.max(0, x1), b - a); }
+}
 class TileMap {
   /**
    * Walls standing on a floor (top-down, isometric, brawler). Either
@@ -4471,9 +4477,12 @@ class TileMap {
     this.ao = o.ao === undefined ? 5 : o.ao;
     /** animated sparkle on floor cells tagged 'water' or 'lava' */
     this.shimmer = o.shimmer !== false;
-    /** light: the direction light comes from, for shading wall faces; version: counts every change to cells and
-     *  blocked cells (set, block), so caches and flow fields know to rebuild */
-    this.light = V3.norm([-.6, -.8, 0]); this.version = 0;
+    /** light: null shades wall faces with the shapes' light (from the viewer's upper left: a face toward it lit, the
+     *  other face of a corner a shade darker, in every view), or a direction [x, y, 0] the light comes from; version:
+     *  counts every change to cells and blocked cells (set, block), so caches and flow fields know to rebuild;
+     *  outside: the ground beyond the map (ground views): undefined continues the map's floor past its edge, darkening
+     *  into one color that fills the rest of the screen, a color ('#2a2630') fades into that, false leaves it empty */
+    this.light = o.light || null; this.version = 0; this.outside = o.outside;
   }
   /** first spawn with this tag ({ x, y, z, cx, cy }), or null */
   find(tag) { return this.spawns.find(s => s.tag === tag) || null; }
@@ -4707,15 +4716,25 @@ class TileMap {
     for (const [x, y, z] of [[0, 0, 0], [W, 0, 0], [0, H, 0], [W, H, 0], [0, 0, 48], [W, 0, 48], [0, H, 48], [W, H, 48]]) { const s = view.p(x, y, z); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
     return { x0: x0 - 8, y0: y0 - 8, x1: x1 + 8, y1: y1 + 8 };
   }
+  /** the floor's color at a ground point (its material or floorTex, without its tag), or null */
+  _ground(gx, gy, view) { return this.floorMat ? this._floorColor(this.floorMat, gx, gy, null, view) : this.floorTex(gx, gy, null, view); }
+  /** the ground beyond the map, [r, g, b]: map.outside, or the floor's average darkened */
+  _outsideCol(view) {
+    if (typeof this.outside === 'string') return hex(this.outside);
+    if (this._oc) return this._oc;
+    const T = this.T, a = [0, 0, 0]; let n = 0;
+    for (let j = 0; j < 7; j++) for (let i = 0; i < 7; i++) { const c = this._ground((i + .5) / 7 * this.w * T, (j + .5) / 7 * this.h * T, view); if (c) { a[0] += c[0]; a[1] += c[1]; a[2] += c[2]; n++; } }
+    return (this._oc = n ? a.map(v => v / n * .38) : [12, 10, 18]);
+  }
   _floor(view) {
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale;
     if (this.floors[key]) return this.floors[key];
     if (Object.keys(this.floors).length > 6) this.floors = {};
-    const T = this.T, W = this.w * T, H = this.h * T;
+    const T = this.T, W = this.w * T, H = this.h * T, out = !!view.inv && this.outside !== false, M = out ? 96 : 0, oc = out && this._outsideCol(view);   // (M: the ground baked past the edge, in pixels)
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const s = view.p(x, y, 0); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
-    x0 = Math.floor(x0); y0 = Math.floor(y0);
-    let cw = Math.ceil(x1) - x0 + 1, ch = Math.ceil(y1) - y0 + 1;
+    x0 = Math.floor(x0) - M; y0 = Math.floor(y0) - M;
+    let cw = Math.ceil(x1) + M - x0 + 1, ch = Math.ceil(y1) + M - y0 + 1;
     if (!view.inv) ch = 24;
     const cv = mkCanvas(cw, ch), g = cv.getContext('2d'), img = g.createImageData(cw, ch), d = img.data;
     const icv = view.inv ? mkCanvas(cw, ch) : null, ig = icv && icv.getContext('2d'), iimg = ig && ig.createImageData(cw, ch), id = iimg && iimg.data;
@@ -4723,7 +4742,15 @@ class TileMap {
       let gx, gy;
       if (view.inv) { const q = view.toGround(pxx + x0 + .5, py + y0 + .5); gx = q[0]; gy = q[1]; }
       else { gx = (pxx + x0 + .5) / view.ax; gy = H * .5 + py * 2; }
-      if (gx < 0 || gy < 0 || gx >= W || gy >= H) continue;
+      if (gx < 0 || gy < 0 || gx >= W || gy >= H) {
+        if (!out) continue;
+        // past the edge: the floor mirrored back over it, darkening over 48 units into the outside color
+        const mx = clamp(gx < 0 ? -gx : gx >= W ? 2 * W - gx : gx, 0, W - .01), my = clamp(gy < 0 ? -gy : gy >= H ? 2 * H - gy : gy, 0, H - .01);
+        const f = Math.min(1, Math.hypot(Math.max(0, -gx, gx - W), Math.max(0, -gy, gy - H)) / 48), s = this._ground(mx, my, view) || oc, k = (py * cw + pxx) * 4;
+        for (let i = 0; i < 3; i++) d[k + i] = lerp(s[i] * .7, oc[i], f); d[k + 3] = 255;
+        if (id) { id[k] = 0; id[k + 1] = 40; id[k + 2] = 0; id[k + 3] = 255; }
+        continue;
+      }
       if (view.inv && this.cell(Math.floor(gx / T), Math.floor(gy / T)) !== 0) continue;
       const tag = this.floorTags ? this.floorTags[Math.floor(gy / T) * this.w + Math.floor(gx / T)] : null, fmat = (this.floorMats && tag !== null && this.floorMats[tag]) || this.floorMat;
       let c = fmat ? this._floorColor(fmat, gx, gy, tag, view) : this.floorTex(gx, gy, tag, view); if (!c) continue;
@@ -4747,7 +4774,12 @@ class TileMap {
   }
   /** draw the baked floor (first thing in draw, after r.sky); walls come from queueWalls(r) */
   drawFloor(r) {
-    r._map = this; const f = this._floor(r.view); r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); if (r.gpu && f.info) r._iG.drawImage(f.info, f.x0 - r.ix, f.y0 - r.iy);
+    r._map = this; const f = this._floor(r.view);
+    if (r.view.inv && this.outside !== false) {   // the ground the bake doesn't reach: the outside color out to the screen's edges, around the bake
+      const c = this._outsideCol(r.view), fill = (g, col) => { g.fillStyle = col; g._c = null; outsideRects(r, f, (x, y, w, h) => g.fillRect(x, y, w, h)); };
+      fill(r.ctx, 'rgb(' + c.map(Math.round).join(',') + ')'); if (r.gpu) fill(r._iG, 'rgb(0,40,0)');   // (inside it, what a game drew first shows through the map's holes: a chasm's abyss)
+    }
+    r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); if (r.gpu && f.info) r._iG.drawImage(f.info, f.x0 - r.ix, f.y0 - r.iy);
     if (this.shimmer && this.floorTags && r.view.inv) {
       const T = this.T, t = r.game.real, g = r.ctx;
       for (let cy = 0; cy < this.h; cy++) for (let cx = 0; cx < this.w; cx++) {
@@ -4784,7 +4816,7 @@ class TileMap {
   /** each wall block is baked once per view into a small image (pixel-identical: camera offsets are whole pixels), for the
    *  last four views (a zoom or turn and back is drawn from them) */
   _boxCached(g, r, cx, cy, t, h) {
-    const view = r.view, key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale + ':' + this.version, wc = this._wcs || (this._wcs = new Map());
+    const view = r.view, key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale + ':' + this.version + ':' + (this.light || ''), wc = this._wcs || (this._wcs = new Map());
     let c = wc.get(key); if (!c) { if (wc.size >= 4) wc.delete(wc.keys().next().value); wc.set(key, c = { m: new Map() }); }
     const idx = cy * this.w + cx; let e = c.m.get(idx);
     if (!e || e.h !== h) {
@@ -4822,6 +4854,7 @@ class TileMap {
   }
   _box(g, r, cx, cy, t, h) {
     const view = r.view, T = this.T, x0 = cx * T, y0 = cy * T, x1 = x0 + T, y1 = y0 + T, P = (x, y, z) => r.w(x, y, z);
+    const Lv = this.light ? null : shapeLight(view), drawn = [];   // (drawn: the faces drawn, for the corner and top edges)
     if (!view.isTop) {
       const faces = [[0, -1, [x1, y0], [x0, y0]], [0, 1, [x0, y1], [x1, y1]], [-1, 0, [x0, y0], [x0, y1]], [1, 0, [x1, y1], [x1, y0]]];
       for (const [nx, ny, A, B] of faces) {
@@ -4829,12 +4862,13 @@ class TileMap {
         const nh = this.cell(cx + nx, cy + ny) > 0 ? (this.isFront(cx + nx, cy + ny, view) ? (this.types[this.cell(cx + nx, cy + ny)].cutH || 6) : this.height(cx + nx, cy + ny)) : 0;
         if (nh >= h) continue;
         if (g._info) { g._mat = r._faceMat(g, A, B, nh, h, faceClass(nx, ny)); g._c = null; }
-        const lit = -(nx * this.light[0] + ny * this.light[1]);
-        const col = lit > .2 ? t.sideLt || shade(t.side, .12) : lit < -.2 ? t.sideDk || shade(t.side, -.25) : t.side;
-        const face = [P(A[0], A[1], nh), P(B[0], B[1], nh), P(B[0], B[1], h), P(A[0], A[1], h)];
+        // the face's light: the shapes' bands (SHAPE_BANDS) for the view's light, or the map's own direction
+        const lit = Lv ? nx * Lv[0] + ny * Lv[1] : -(nx * this.light[0] + ny * this.light[1]), hi = Lv ? SHAPE_BANDS[1] : .2, lo = Lv ? SHAPE_BANDS[0] : -.2;
+        const col = lit > hi ? t.sideLt || shade(t.side, .12) : lit < lo ? t.sideDk || shade(t.side, -.25) : t.side;
+        const face = [P(A[0], A[1], nh), P(B[0], B[1], nh), P(B[0], B[1], h), P(A[0], A[1], h)]; drawn.push([A, B, nh, col]);
         px.poly(g, face, col);
         const pat = t.texture === false ? 'none' : t.face || 'brick', fm = pat === 'brick' || pat === 'none' ? null : MATERIALS[pat] || (material(pat, null, 'wall face') && pat);
-        if (!g._info && fm) this._paintFace(g, r, face, fm, t, col, cx, cy, nx * 3 + ny, nh, h, A, B, lit > .2 ? 3 : lit < -.2 ? 1 : 2);
+        if (!g._info && fm) this._paintFace(g, r, face, fm, t, col, cx, cy, nx * 3 + ny, nh, h, A, B, lit > hi ? 3 : lit < lo ? 1 : 2);
         if (!g._info && (t.decorate || t.windows || t.door || t.shutters || t.balcony || t.arch)) this._dressFace(g, r, t, cx, cy, nx, ny, A, B, nh, h, col);
         if (!g._info && pat === 'brick') {   // per-brick color variation, speckle and lit brick tops, anchored to the wall
           const PA = face[0], ex = face[1][0] - PA[0], ey = face[1][1] - PA[1], bz = view.bz, ct = tones(col), course0 = t.course || 8, fi = nx * 3 + ny;
@@ -4867,6 +4901,15 @@ class TileMap {
     for (const [ax, ay, bx, by, nx, ny] of [[x0, y0, x1, y0, 0, -1], [x0, y1, x0, y0, -1, 0]]) {
       const nb = this.cell(cx + nx, cy + ny); if (nb > 0 && this.height(cx + nx, cy + ny) >= h) continue;
       const a = P(ax, ay, h), b = P(bx, by, h); px.line(g, a[0], a[1], b[0], b[1], edge);
+    }
+    if (g._info) return;
+    // depth: a lit edge where the top meets each face drawn below it, and a crease down a corner where two faces meet, so
+    // a pillar in front of a wall (or the two faces of a block) never read as one flat plane
+    for (const [A, B] of drawn) { const a = P(A[0], A[1], h), b = P(B[0], B[1], h); px.line(g, a[0], a[1], b[0], b[1], edge); }
+    for (let i = 0; i < drawn.length; i++) for (let j = i + 1; j < drawn.length; j++) {
+      const [A1, B1, n1, c1] = drawn[i], [A2, B2, n2, c2] = drawn[j], q = B1[0] === A2[0] && B1[1] === A2[1] ? B1 : B2[0] === A1[0] && B2[1] === A1[1] ? A1 : null; if (!q) continue;
+      const a = P(q[0], q[1], Math.max(n1, n2) + .6), b = P(q[0], q[1], h - .6); const sum = c => { const v = hex(c); return v[0] + v[1] + v[2]; };
+      px.line(g, a[0], a[1], b[0], b[1], shade(sum(c1) < sum(c2) ? c1 : c2, -.3));
     }
   }
 }
@@ -12694,8 +12737,7 @@ const STEALTH = (() => {
   const MOOD = { calm: '#ffe080', notice: '#ffc040', search: '#ff9a40', alert: '#ff4a3a' };
   const LAMPS = [[8.5, 6.2], [16, 8.8], [23.5, 6.2], [12.5, 10.5], [19.5, 1.3]].map(([x, y]) => [x * T, y * T]);   // street lamps, clear of the patrols
   function draw(r) {
-    r.sky(['#141030', '#3a2a5a', '#7a4a5a']);
-    map.drawFloor(r); map.queueWalls(r);
+    map.drawFloor(r); map.queueWalls(r);   // (the street runs on past the walls to the screen's edges: map.outside)
     for (const [x, y] of GRASS) r.prop('grass', x, y, 0, { size: 1.3 });
     for (const [id, x, y, o] of DRESS) r.shape(id, x, y, 0, o);
     for (const [x, y] of LAMPS) r.prop('lamp', x, y, 0, { light: true });   // each glows and lights the street (game.lights)

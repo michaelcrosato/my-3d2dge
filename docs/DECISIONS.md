@@ -846,3 +846,19 @@ An entry:
   a game that wants low things to hide its hero says `hides: true`; one that wants the old look sets `E.style.trans`.
 - **Answered:** yes: the owner's goal (2026-10-19); made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.56.0
+
+## D47 · 2026-10-19 · Walls take the shapes' light; the floor runs past the map; three-quarter keeps yaw 0
+
+- **Principle:** the look (the North Star's PS1/N64 bar)
+- **Call:** `TileMap` wall faces are shaded with the shapes' view-relative light by default (`map.light` null; a game's
+  own direction still works), with a lit edge where a top meets a face and a crease down each corner; a ground view's
+  floor continues past the map, darkening into one colour that fills the screen (`map.outside`, `false` for the old
+  empty edge). Every game's walls and edges change colour; Emberdeep's, the starters' and the arena's included. The
+  three-quarter view keeps yaw 0.
+- **Why:** in iso both visible faces came out the same colour (`map.light` lit the south and east faces alike), and in
+  three-quarter a pillar's top landed on the face behind it in the same colour: "walls and pillars stack into flat planes"
+  (F4.2), "buildings as flat cutouts" and "a black void under a clipped sky" (F6.2). Shapes already had a light that
+  separates every face in every view. A turned three-quarter view would show side faces too, but it moves every game's
+  coordinates and art: logged as **watch**, the owner's call if shading and edges don't separate pillars.
+- **Answered:** yes: the owner's goal (2026-10-19); made at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.57.0

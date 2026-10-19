@@ -201,8 +201,7 @@ const STEALTH = (() => {
   const MOOD = { calm: '#ffe080', notice: '#ffc040', search: '#ff9a40', alert: '#ff4a3a' };
   const LAMPS = [[8.5, 6.2], [16, 8.8], [23.5, 6.2], [12.5, 10.5], [19.5, 1.3]].map(([x, y]) => [x * T, y * T]);   // street lamps, clear of the patrols
   function draw(r) {
-    r.sky(['#141030', '#3a2a5a', '#7a4a5a']);
-    map.drawFloor(r); map.queueWalls(r);
+    map.drawFloor(r); map.queueWalls(r);   // (the street runs on past the walls to the screen's edges: map.outside)
     for (const [x, y] of GRASS) r.prop('grass', x, y, 0, { size: 1.3 });
     for (const [id, x, y, o] of DRESS) r.shape(id, x, y, 0, o);
     for (const [x, y] of LAMPS) r.prop('lamp', x, y, 0, { light: true });   // each glows and lights the street (game.lights)
