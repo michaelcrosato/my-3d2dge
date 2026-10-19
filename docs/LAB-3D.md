@@ -1,5 +1,11 @@
 # The 3D Proof and the 3D Prototype: our characters in a fully 3D world
 
+> **Deleted in v0.51.4 (D44).** Both questions were answered, and their parts became the 3D engine
+> (`engine/my-3d2dge-3d.js`, `docs/ENGINE-3D.md`). This file stays as their record. Their code is in git:
+> `git show 3d0dac0:src/lab3d.template.html`, `git ls-tree -r 3d0dac0 src/lab3d src/stress-world`, and the checks
+> `tools/lab3d-test.mjs` and `tools/stress-world-test.mjs` at the same commit. `/lab-3d` and `/stress-world` now lead
+> to `/3d`. The rest of this file describes them as they were.
+
 Two temporary, self-contained experiments on the Labs page: the 3D Proof (`/lab-3d`) and, built after it, the 3D
 Prototype, the stress test as a 3D world (`/stress-world`, [below](#the-3d-prototype-the-stress-test-as-a-3d-world-v0130)).
 Until v0.34.2 they were called the 3D world lab and Stress test: 3D world. The first answers one question:

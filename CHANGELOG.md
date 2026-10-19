@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.51.4 (2026-10-19)
+
+Temporary is empty: the three prototypes on the Labs page answered their questions and are deleted (D44).
+
+- **Tools**: the 3D Proof (`/lab-3d`), the 3D Prototype (`/stress-world`) and Vesper's interface on `E.Shell` (`/vesper-ui`) are gone with their sources, their checks (`tools/lab3d-test.mjs`, `tools/stress-world-test.mjs`) and their Labs entries. Their addresses lead to the 3D starter (`/3d`) or the Labs page. The 2D stress test's link for chase, first-person and fly cameras opens the 3D starter. `tools/kit3d-test.mjs` checks the vendored libraries' checksums now (`tools/vendor-3d.mjs --check`), and runs when that tool changes.
+- **Docs**: `docs/LAB-3D.md` stays as the 3D labs' record and says where their code is in git. `docs/ENGINE-3D.md`, `DOCTRINE.md`, `AI_GUIDE.md` and `CLAUDE.md` stop pointing at the deleted pages. D44 gives the call: none graduates, because each would be a second, private 3D engine held to the engine tier.
+
 ## 0.51.3 (2026-10-19)
 
 - **Emberdeep**: the game reads where a point of a rig sits through the public `rig.worldOffset(p)`, not the engine's private `_w` (loot, monsters, bosses, the town's NPCs and held items, the inventory's paper doll); a dead workaround that set every new monster's `stunT` to 0 is gone (`spawnMonster` sets it).

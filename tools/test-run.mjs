@@ -33,9 +33,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['assets', 'node tools/assets-test.mjs', ['docs/ASSETS.md', 'docs/ASSET-IMPORT.md', 'tools/assets-test.mjs', 'tools/asset-', 'src/assets/']],
   ['labs', 'node tools/labs-test.mjs', ['src/', 'vercel.json', 'tools/labs-test.mjs']],
   ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'vercel.json', 'tools/stress-test.mjs']],
-  ['lab3d', 'node tools/lab3d-test.mjs', ['src/lab3d', 'vendor/', 'vercel.json', 'tools/lab3d-test.mjs', 'tools/vendor-3d.mjs']],
-  ['stress-world', 'node tools/stress-world-test.mjs', ['src/stress-world', 'vendor/', 'vercel.json', 'tools/stress-world-test.mjs']],
-  ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'vercel.json', 'API.md', 'tools/kit3d-test.mjs']]
+  ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'vercel.json', 'API.md', 'tools/kit3d-test.mjs', 'tools/vendor-3d.mjs']]
 ];
 // changes that run everything: the engine (every page and suite uses it), the build, the dependencies (package.json:
 // installs keep no lockfile, and a bump that changes only its version counts as unchanged; or a lockfile if one comes);

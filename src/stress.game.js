@@ -1153,8 +1153,8 @@ $('fsBtn').hidden = !document.documentElement.requestFullscreen;
 $('fsBtn').addEventListener('click', e => { fullScreen(!document.fullscreenElement); e.currentTarget.blur(); });
 $('fsStart').addEventListener('change', e => { fsStart = e.target.checked; try { localStorage.setItem(FS_KEY, fsStart ? '1' : '0'); } catch (err) { /* not remembered */ } e.target.blur(); });
 document.addEventListener('fullscreenchange', () => syncUI());
-// the 3D world stress test's address (the site serves pages without .html, a local server as files)
-for (const [id, page] of [['toWorld', 'stress-world']]) { const a = $(id); if (a) a.href = /\.html$/.test(location.pathname) ? page + '.html' : '/' + page; }
+// the 3D starter's address (the site serves it at /3d, a local server as the built file)
+{ const a = $('toWorld'); if (a) a.href = /\.html$/.test(location.pathname) ? '../dist/my-3d2dge-3d.html' : '/3d'; }
 syncUI();
 game.start({ update, draw: r => { draw(r); hud(); } });
 window.__game = { game, hero, enemies, corpses, S, SKINS, setMonsters, setDistance, gpu, benchStart, get bench() { return bench; }, get report() { return lastReport; },

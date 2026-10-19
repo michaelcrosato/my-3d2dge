@@ -149,36 +149,7 @@
       "title": "Temporary",
       "about": "Prototypes, each answering one question, in the order they were made. Once a question is answered, its page is deleted or kept as a tool.",
       "empty": "Nothing here right now. One-off comparisons and experiments land here, each with its date and the question it answers.",
-      "entries": [
-        {
-          "page": "lab-3d",
-          "title": "3D Proof",
-          "added": "2026-10-08",
-          "question": "Can our characters, animation and look live in a real 3D world (three.js r182 and Rapier), with all its art drawn by code, and stay easy for AI agents to work on?",
-          "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",
-          "next": "stress-world",
-          "what": "A stone room in real 3D (three.js r182 on WebGPU, or WebGL 2 by itself, and Rapier physics), every texture and shape drawn by code. The hero walks a lap or you play it (move, swing, dash, knock the crates about); a mocap figure and Emberdeep's Dan stand by. Each character is a Card (the engine's own drawing on a card facing the camera) or a Puppet (3D parts on the same joints), or both side by side, in the engine's five fixed views or a free orbit, fly or chase camera. The decisions and trade-offs are in docs/LAB-3D.md.",
-          "links": [["Side by side", "?look=both&view=threequarter"], ["Puppets, fly", "?look=puppet&view=fly"], ["Play: chase camera", "?view=chase"], ["On WebGL 2", "?backend=webgl"]]
-        },
-        {
-          "page": "stress-world",
-          "title": "3D Prototype",
-          "added": "2026-10-09",
-          "question": "What does the stress test become built from the ground up as a 3D game (three.js r182, Rapier physics, a hall written as text), sharing only the engine's animation system, and how does it hold up?",
-          "deviates": "keeps three.js's WebGL 2 fallback as its cross-check that gameplay never reads the renderer (principle 6: WebGPU only).",
-          "what": "The stress test's job done as a 3D game, its own way: every monster is a Rapier body (the crowd pushes and piles up by itself, big hits throw bodies into the air, crates and barrels fly), the hero walks, dashes and jumps onto low walls and galleries, monsters find their way up the stairs after him. The hall is the 2D one's layout written as ASCII text, with a raised rune dais and two galleries. Characters are Cards (the engine draws them) or Puppets, in the engine's views (perspective or orthographic), side scrolling with depth, chase, first person, fly or fixed; filters (Comic cel or Pixel on the scene, the characters or the hall, bloom, FXAA). The benchmark adds a physics column.",
-          "links": [["Puppets", "?look=puppet"], ["400 monsters", "?monsters=400"], ["Chase camera", "?cam3=chase&look=puppet&res=balanced"], ["Side scrolling with depth", "?view=side&depth=1"], ["Orthographic three-quarter", "?view=threequarter&proj=ortho"], ["Comic cel", "?fx=cel&look=puppet&res=full"], ["On WebGL 2", "?backend=webgl"]],
-          "next": "dist/my-3d2dge-3d.html"
-        },
-        {
-          "page": "vesper-ui",
-          "title": "Vesper's interface on E.Shell",
-          "added": "2026-10-11",
-          "question": "Does E.Shell bring a modern adaptation's interface (Vesper's: 15.2k tokens of HTML, CSS and glue) down to a quarter?",
-          "what": "Vesper's title, HUD (objective and distance, status, health, awareness, seals, hold-to-interact prompt, tip, district name, control bar, minimap), toasts, tutorial card, pause, settings, help, district map with a waypoint and results, rebuilt on E.Shell over a small stand-in game: climb to the bell tower, take the ledger, leave by boat. Keyboard, gamepad and touch. The interface is src/vesper-ui.ui.js; the pull request that added it gives the count.",
-          "links": [["Three-quarter view", "#threequarter"]]
-        }
-      ]
+      "entries": []
     }
   ]
 }

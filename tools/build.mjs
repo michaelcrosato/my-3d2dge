@@ -50,15 +50,6 @@ const builds = [
   { template: 'src/mocap.template.html', out: 'examples/mocap-lab.html', vars: {} },
   // every entry of the asset store (src/assets/sets/, inlined) and the core library, to browse, search and copy
   { template: 'src/asset-lab.template.html', out: 'examples/asset-lab.html', vars: {} },
-  // temporary (src/labs.json, docs/LAB-3D.md): our characters in a fully 3D world (three.js r182 + Rapier from vendor/,
-  // loaded through the page's import map, so it is served, not double-clicked); delete with its labs.json entry (vendor/
-  // stays: the 3D engine and its kits load it, D27)
-  { template: 'src/lab3d.template.html', out: 'examples/lab-3d.html', vars: {} },
-  // temporary (src/labs.json): the stress test built again as a 3D game (src/stress-world/: three.js r182 and Rapier from
-  // vendor/, the engine's animation system); delete with its labs.json entry
-  { template: 'src/stress-world.template.html', out: 'examples/stress-world.html', vars: {} },
-  // temporary (src/labs.json): Vesper's interface rebuilt on E.Shell, to count its tokens; delete with its labs.json entry
-  { template: 'src/vesper-ui.template.html', out: 'examples/vesper-ui.html', vars: {} },
   // one page that links to every lab, test page and demo, from the list in src/labs.json (my-3d2dge.vercel.app/labs)
   { template: 'src/labs.template.html', out: 'examples/labs.html', vars: {} },
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
