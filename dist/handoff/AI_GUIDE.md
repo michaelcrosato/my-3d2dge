@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.53.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.54.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -295,13 +295,13 @@ A modern adaptation (Assassin's Creed, Breath of the Wild) wants readable HTML s
 - It honors reduced motion and the safe-area insets, is headless-safe (it keeps its screens' names and draws nothing), and `game.dispose()` takes it away. A prototype rebuilt a model's hand-written 15.2k-token interface (Vesper's, F1) on it in 2.1k tokens (deleted in v0.51.4: `git show 3d0dac0:src/vesper-ui.ui.js`).
 
 ### Lighting
-- Canvas lighting: set `lights.enabled` and `ambient`, then call `lights.add(x, y, z, radius, intensity)` every frame. Light is measured on the ground in ground views, and on screen in side views and for PlatformMaps.
+- Light every scene (the Look target's step 9): a dark game with no lights reads flat, and a judge says so. Canvas lighting leads because it draws the same in every browser and every headless check: set `lights.enabled` and `ambient` (.4-.6 for dusk and interiors) in the scene's `enter`, then call `lights.add(x, y, z, radius, intensity, { color })` every frame where light would come from (lamps, torches, windows, the objective's glow). Light is measured on the ground in ground views, and on screen in side views and for PlatformMaps. The template game and the STEALTH slice show it. Its pass costs a few milliseconds a frame at 320x240 (more on a phone): a heavy scene can keep it for a computer, `matchMedia('(pointer: fine)').matches`, as the STEALTH slice does.
 - GPU lighting (`game.enableGPU({ map })`) needs WebGPU and a TileMap. It adds:
   - colored lights, and soft shadows cast by walls and `lights.caster(...)`;
   - light that wraps around characters;
   - glow from `px.glow`, emissive decals and actors, and `[r, g, b, glow]` floor texels;
   - bloom and heat shimmer (`lights.heat`).
-- GPU lighting falls back to Canvas lighting by itself. Tune the settings, not the shaders.
+- Where GPU lighting can't draw (no WebGPU, still loading, a side view) the canvas lighting stands in, with `lights.ambient` and the same lights: set both ambients (`gpu.ambient = [r, g, b]`, `lights.ambient`) so the two look alike (the ADVENTURE slice does); `gpu.fallback = false` leaves such frames unlit. Tune the settings, not the shaders.
 
 ### Errors and warnings
 - Runtime errors appear in a red box (click to hide) and in the console, labeled with `update` or `draw` and the scene.

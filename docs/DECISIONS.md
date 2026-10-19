@@ -814,3 +814,21 @@ An entry:
   graduate or delete was left to this call, made at once as a reversible one (a revert restores the pages) and flagged in
   the pull request
 - **Landed in:** v0.51.4
+
+## D45 · 2026-10-19 · Lighting is a step of the look; canvas lighting leads, GPU lighting falls back to it
+
+- **Principle:** 3 (verifiable without a display: what a headless check sees), and the look (the North Star's PS1/N64 bar)
+- **Call:** `API.md`'s Look target gains step 9, "Light every scene", and the hand-back checklist names lights; canvas
+  lighting leads (it draws the same in every browser and every check), GPU lighting is the upgrade for ground views.
+  `game.enableGPU()` falls back to canvas lighting by itself where it can't draw (`game.lights.on`; `gpu.fallback = false`
+  keeps such frames unlit), where before a game that only called `enableGPU` had none without WebGPU. The template game
+  and the STEALTH slice are lit (the slice on a computer only: the pass costs it 4 to 6 ms a frame, and a phone keeps
+  its frame rate, as the ADVENTURE slice's Auto lighting does).
+- **Why:** two model families built games with no lighting at all (F1.3, F6.5), and judges marked the look down for flat
+  lighting (F2, F3, F6). The builders' reason, that "a single Canvas view kept rendering and verification consistent",
+  holds for GPU lighting, which headless checks don't see, and not for canvas lighting. The step cost about 100 tokens of
+  the card, made by moving the boot and the player's zoom to `AI_GUIDE.md` (D20). What would change it: a benchmark run
+  that lights its game and still reads flat, or one whose lights cost a phone its frame rate.
+- **Answered:** yes: the owner's goal asked for the next plan to be implemented (2026-10-19); the calls in it were made at
+  once as reversible ones, flagged in the pull request
+- **Landed in:** v0.54.0
