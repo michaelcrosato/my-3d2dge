@@ -1,7 +1,8 @@
 // The handoff package's template game: a rooftop thief in the isometric view. Climb onto the roof, take the gem, and
 // don't let the guard in the street watch you for long. It shows what a game is made of (scenes, a TileMap with roofs, a
 // Mover and a Humanoid, input, the camera, a HUD) and the height-aware API: E.Mover climbs any wall (climbAny: jump at
-// it, the stick climbs, jump leaps up, it pulls up at the top), the guard is a plain Body, map.sight and E.inArc for
+// it, the stick climbs, jump leaps up, it pulls up at the top) and glides (glide: jump again in the air; a sail drawn
+// over it), both on its stamina, the guard is a plain Body, map.sight and E.inArc for
 // the guard's eyes (they see over the planter, not through the roof), shapes and materials (docs/ASSETS.md: barrels and
 // crates as data, solid with map.solid; the street's cobbles a material), and game.debug for tests and tools. The pause menu,
 // settings, rebinding and full screen come with every game: menu: { controls } names the actions on its Controls screen,
@@ -40,7 +41,7 @@ let hero, heroRig, guard, guardRig, alert, got, won;
 
 function reset() {
   const h = map.find('hero'), g = map.find('guard');
-  hero = new E.Mover({ x: h.x, y: h.y, r: 5, climbAny: true, climbMax: 24 }); hero.facing = 0;   // (the roof, 32 high, is climbed)
+  hero = new E.Mover({ x: h.x, y: h.y, r: 5, climbAny: true, climbMax: 24, glide: true, staminaMax: 100 }); hero.facing = 0;   // (the roof, 32 high, is climbed)
   heroRig = heroRig || new E.Humanoid({ size: 1.2, build: 'heroic', weapon: null, hood: true, outfit: 'coat', colors: { cloth: '#3a4a6a', cape: '#2a3a52' } });
   guard = new E.Body({ x: g.x, y: g.y, r: 5 }); guard.facing = 0; guard.dir = 1;
   guardRig = guardRig || new E.Humanoid({ size: 1.2, build: 'heroic', weapon: 'sword', hat: 'helmet', colors: { cloth: '#8a3a32' } });
@@ -81,8 +82,8 @@ const play = {
     guardRig.update(dt, { x: guard.x, y: guard.y, z: guard.z, vx: guard.vx, vy: 0, facing: guard.facing, stance: 'ready' });
     // the HUD, from this step's state (E.Shell redraws only what changed; the keys hide on a touch screen)
     ui.hud({ objective: got ? { title: 'Bring it down', text: 'Back to the street with it' } : { title: 'Take the gem', text: hero.wall ? 'Climb: up, and jump to leap' : 'It lies on the roof', at: { x: gem.x, y: gem.y, z: ROOF }, from: hero },
-      bars: [{ label: 'Seen', value: Math.min(alert, 1.2), max: 1.2, color: '#ff6040' }],
-      keys: [[['up', 'left', 'down', 'right'].map(a => I.label(a)).join(''), 'Move'], [I.label('jump'), 'Jump and climb']] });
+      bars: [{ label: 'Seen', value: Math.min(alert, 1.2), max: 1.2, color: '#ff6040' }, { label: 'Stamina', value: hero.stamina, max: hero.staminaMax, color: hero.exhausted ? '#ff6040' : '#7ad06a' }],
+      keys: [[['up', 'left', 'down', 'right'].map(a => I.label(a)).join(''), 'Move'], [I.label('jump'), 'Jump, climb, glide']] });
   },
   draw(r) {
     map.drawFloor(r); map.queueWalls(r);   // (the floor runs on past the map to the screen's edges: map.outside)
@@ -91,6 +92,12 @@ const play = {
     r.decal(() => r.groundArc(guard.x, guard.y, 6, 110, guard.facing - .6, guard.facing + .6, alert > 0 ? '#ff6040' : '#ffe080', .4));   // its sight cone
     const gem = map.find('gem');
     if (!got) { r.sprite(gem.x, gem.y, ROOF + 6 + Math.sin(game.time * 3) * 2, GEM, { glow: .8 }); game.lights.add(gem.x, gem.y, ROOF + 6, 44, .9, { color: '#80d8ff' }); }
+    if (hero.gliding) r.queue(hero.x, hero.y, hero.z + 40, g => {   // the sail, over the hands the rig holds up
+      const c = Math.cos(hero.facing), s = Math.sin(hero.facing), P = (f, w, z) => r.w(hero.x + c * f - s * w, hero.y + s * f + c * w, hero.z + z);
+      const q = [P(9, -17, 43), P(9, 17, 43), P(-7, 15, 37), P(-7, -15, 37)], h = P(0, 0, 30);
+      for (const t of [q[0], q[1]]) E.px.line(g, t[0], t[1], h[0], h[1], '#3a2a20');
+      E.px.poly(g, q, '#d8603a'); E.px.line(g, q[0][0], q[0][1], q[1][0], q[1][1], '#f4a070');
+    });
     for (const [b, rig] of [[hero, heroRig], [guard, guardRig]]) {
       r.shadow(b.x, b.y, 7, .35, undefined, b.groundZ || 0);
       r.actor(b.x, b.y, b.z, (g, ox, oy) => rig.draw(g, ox, oy, r.view));

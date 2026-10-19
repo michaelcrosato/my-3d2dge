@@ -268,6 +268,21 @@ function thirdPerson(E, ed) {
     const d = new E.Mover({ x: 4.5 * T, y: 5.6 * T, climbAny: true }); d.facing = -Math.PI / 2; go(d, 1 / 120, { jumpPressed: true }); go(d, 1, { move: [0, -1] });
     go(d, 1 / 120, { crouch: true }); go(d, 1.5);
     check(`${ed}: crouch lets go, and it falls to the floor`, !d.wall && d.onGround && d.z === 0, [d.wall, d.z].join(' '));
+    // gliding (glide) off the tower's top: a press in the air opens it, it sinks slowly, lands unhurt; a plain fall hurts
+    const off = m => { m.facing = 0; go(m, .2); go(m, .55, { move: [1, 0] }); return m; };
+    const gl = off(new E.Mover({ x: 4.5 * T, y: 3.5 * T, z: 90, glide: true }));
+    go(gl, 1 / 120, { jumpPressed: true, move: [1, 0] }); go(gl, .3, { move: [1, 0] }); const open = gl.gliding, sink = gl.vz;
+    let hurt = false; for (let i = 0; i < 1200 && !gl.onGround; i++) { gl.update(1 / 120, tower, { move: [1, 0] }); hurt = hurt || gl.hurt; } go(gl, .05);
+    const fall = off(new E.Mover({ x: 4.5 * T, y: 3.5 * T, z: 90 })); let fh = false; for (let i = 0; i < 600; i++) { fall.update(1 / 120, tower, { move: [1, 0] }); fh = fh || fall.hurt; }
+    check(`${ed}: Mover (glide): a jump press in the air opens a glide that sinks at glideSink and lands unhurt, where a plain fall hurts`, open && Math.abs(sink + gl.glideSink) < 1 && !hurt && gl.onGround && !gl.gliding && fh, JSON.stringify([open, sink, hurt, gl.onGround, gl.gliding, fh]));
+    const g2 = off(new E.Mover({ x: 4.5 * T, y: 3.5 * T, z: 90, glide: true })); go(g2, 1 / 120, { jumpPressed: true }); go(g2, .2); go(g2, 1 / 120, { jumpPressed: true }); go(g2, .05);
+    const up = off(new E.Mover({ x: 4.5 * T, y: 3.5 * T, z: 90, glide: true, lift: 30 })); go(up, 1 / 120, { jumpPressed: true }); go(up, .2); const z0 = up.z; go(up, .5);
+    check(`${ed}: a second press closes the glide; an updraft (lift) raises it`, !g2.gliding && g2.vz < -g2.glideSink && up.gliding && up.z > z0 + 5, JSON.stringify([g2.gliding, g2.vz, up.z - z0]));
+    // stamina: climbing spends it; at 0 it lets go and is exhausted, standing refills it
+    const st = new E.Mover({ x: 4.5 * T, y: 5.6 * T, climbAny: true, staminaMax: 12 }); st.facing = -Math.PI / 2; go(st, 1 / 120, { jumpPressed: true });
+    let out = null; for (let i = 0; i < 600 && !out; i++) { st.update(1 / 120, tower, { move: [0, -1] }); if (!st.wall) out = { z: st.z, stamina: st.stamina, exhausted: st.exhausted }; }
+    go(st, 3);
+    check(`${ed}: stamina: climbing spends it, at 0 it lets go (exhausted), and standing refills it`, out && out.stamina === 0 && out.exhausted && out.z > 20 && st.onGround && st.stamina === 12 && !st.exhausted, JSON.stringify([out, st.stamina, st.exhausted]));
     const W = tower.wall({ x: 4.5 * T, y: 5.6 * T, z: 0, r: 5 }, -Math.PI / 2, { reach: 12 });
     check(`${ed}: map.wall gives the face ahead: its point, normal, top and facing`, W && W.y === 5 * T && W.nx === 0 && W.ny === 1 && W.top === 90 && Math.abs(W.facing + Math.PI / 2) < 1e-9, JSON.stringify(W));
   }

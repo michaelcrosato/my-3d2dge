@@ -33,14 +33,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.58.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.59.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.58.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.59.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -119,7 +119,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.58.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.59.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -5832,7 +5832,13 @@ E.Action = Action;
  *    on (mover.wall: the face, map.wall's); the stick moves it up, down and along the face as the screen shows it (up the
  *    screen is up the wall; an AI's intent: move [along, -up]); it turns outer and inner corners, a jump press leaps up
  *    (climbJump) or, pulling away, pushes off; at the top it pulls up (climbUp), at the floor it stands, crouch lets go.
+ *    GLIDING (glide: true): a jump press in the air, glideMin over the ground, opens it: it sinks at glideSink, steers at
+ *    glideSpeed, takes no fall damage, rises over an updraft (lift: a speed, or a function of the mover), and closes on a
+ *    press, on landing, or at a wall (where a climber takes hold). STAMINA (staminaMax > 0): climbing, climb jumps, gliding
+ *    and sprinting draw on it (tire: per second, a climb jump each), standing refills it (staminaRegen); at 0 it lets go of
+ *    the wall, closes the glide and can't sprint (exhausted) until a third is back.
  * ============================================================================= */
+const MOVER_TIRE = { climb: 9, climbJump: 14, glide: 6, sprint: 7 };   // stamina a Mover spends: a second climbing, gliding, sprinting; a climb jump
 class Mover extends Body {
   /**
    * new E.Mover({ x, y, z, r: 5, ... }): any of its fields, below, as options. An E.Body: it has body.jump, push and the
@@ -5847,10 +5853,16 @@ class Mover extends Body {
      *  hurt; turn: how fast it turns, radians a second; facing: the angle it faces; crouch: sneaking (a toggle); sprinting:
      *  sprinting now; action: the E.Action playing, or null; fell, hurt, inHazard: what happened this step; lastSafe: the
      *  last spot it stood safely, for respawn(); climbAny: climbs any wall face (see the section's header); climbSpeed:
-     *  its climbing speed; wall: the face it holds on to (map.wall's), or null */
+     *  its climbing speed; wall: the face it holds on to (map.wall's), or null; glide: opens a glide in the air (see the
+     *  header); glideMin, glideSink, glideSpeed: how high over the ground it opens, how fast it sinks and flies; lift: an
+     *  updraft's rising speed (a number, or a function of the mover); gliding: gliding now; staminaMax: its stamina (0: none);
+     *  stamina: what is left; staminaRegen: refilled a second standing; tire: { climb, climbJump, glide, sprint } it costs;
+     *  exhausted: out of stamina until a third is back */
     Object.assign(this, { walk: 50, run: 85, sprintSpeed: 125, sneak: 32, accel: 700, airAccel: 260, jumpSpeed: 220, coyote: .1, buffer: .12, climb: true, climbMax: 82,
       vault: 14, gapAssist: true, hopMax: 48, rollAt: 26, hurtAt: 72, turn: 14, facing: 0, crouch: false, sprinting: false, action: null, fell: 0, hurt: false,
-      inHazard: false, lastSafe: null, climbAny: false, climbSpeed: 34, wall: null }, o);
+      inHazard: false, lastSafe: null, climbAny: false, climbSpeed: 34, wall: null, glide: false, glideMin: 24, glideSink: 26, glideSpeed: 72, lift: 0, gliding: false,
+      staminaMax: 0, staminaRegen: 35, tire: Object.assign({}, MOVER_TIRE), exhausted: false }, o);
+    if (this.stamina === undefined) this.stamina = this.staminaMax;   // stamina: what is left (full to start)
     this._coy = 0; this._jb = 0; this._peak = this.z; this._land = 0; this._leap = false;
   }
   /** start an action now (E.ACTIONS name, its options): it moves the body until it ends */
@@ -5858,7 +5870,13 @@ class Mover extends Body {
   /** a dodge roll toward dir (an angle or [dx, dy]; default its facing) when it stands free. Returns the action, or null */
   dodge(dir, dist = 34) { if (this.action || !this.onGround) return null; return this.play('roll', { dir: dir === undefined ? this.facing : dir, dist }); }
   /** back to the last safe spot (after water, a pit, a fall it shouldn't survive) */
-  respawn() { if (this.lastSafe) Object.assign(this, this.lastSafe); Object.assign(this, { vx: 0, vy: 0, vz: 0, onGround: true, action: null, inHazard: false, wall: null }); this._peak = this.z; return this; }
+  respawn() { if (this.lastSafe) Object.assign(this, this.lastSafe); Object.assign(this, { vx: 0, vy: 0, vz: 0, onGround: true, action: null, inHazard: false, wall: null, gliding: false }); this._peak = this.z; return this; }
+  /** spend stamina (kind: a key of tire; k: seconds, or 1 for a climb jump): false when there was none to spend */
+  _tire(kind, k) {
+    if (!this.staminaMax) return true;
+    this.stamina = Math.max(0, this.stamina - (this.tire[kind] || 0) * k); if (this.stamina <= 0) this.exhausted = true;
+    return this.stamina > 0;
+  }
   /** one step. ctl: game.input (needs the actions move, jump, and sprint / crouch if it has them; screen directions turn into
    *  ground ones through view, the game's by default) or an intent { move: [dx, dy], sprint, crouch, jumpPressed } */
   update(dt, map, ctl = {}, view) {
@@ -5878,10 +5896,15 @@ class Mover extends Body {
       if (!this.onGround) return this;
     }
     if (this.wall) { this._climbStep(dt, map, raw, v, jumpPressed, crouchPressed); return this; }
-    if (this._jb > 0 && !this.onGround && this._coy <= 0 && this.climbAny && map && this._latch(map)) { this._jb = 0; return this; }   // a jump press in the air at a wall
+    if (this._jb > 0 && !this.onGround && this._coy <= 0 && this.climbAny && map && this._latch(map)) { this._jb = 0; this.gliding = false; return this; }   // a jump press in the air at a wall
+    if (this.gliding && (this.onGround || this._jb > 0 || !this._tire('glide', dt))) { this.gliding = false; if (!this.onGround) this._jb = 0; }   // a press closes it
+    else if (this.glide && !this.gliding && this._jb > 0 && !this.onGround && this._coy <= 0 && map && this.z - map.groundAt(this.x, this.y, this.r, this.z) >= this.glideMin && !this.exhausted) { this.gliding = true; this._jb = 0; }
+    if (this.gliding && this.climbAny && map && this._latch(map, (this.r || 5) + 2)) { this.gliding = false; return this; }   // flown into a wall: take hold
     const len = Math.min(1, Math.hypot(mx, my)), moving = len > .08;
     if (moving) this.facing = approachAng(this.facing, Math.atan2(my, mx), this.turn * dt);
-    this.sprinting = sprint && moving && !this.crouch;
+    this.sprinting = sprint && moving && !this.crouch && !this.exhausted && this.onGround;
+    if (this.sprinting) this._tire('sprint', dt);
+    else if (this.staminaMax && this.onGround) { this.stamina = Math.min(this.staminaMax, this.stamina + this.staminaRegen * dt); if (this.stamina >= this.staminaMax / 3) this.exhausted = false; }
     // coyote time and a buffered jump: parkour first (a ledge, a wall to vault, a gap), else an ordinary jump
     this._coy = this.onGround ? this.coyote : Math.max(0, this._coy - dt);
     if (this._jb > 0 && (this.onGround || this._coy > 0) && map) {
@@ -5890,14 +5913,18 @@ class Mover extends Body {
       this.vz = this.jumpSpeed; this.onGround = false; this._peak = this.z;
     }
     if (!this._leap) {
-      const top = !moving ? 0 : this.crouch ? this.sneak : this.sprinting ? this.sprintSpeed : len < .55 ? this.walk : this.run, a = (this.onGround ? this.accel : this.airAccel) * dt;
+      const top = !moving ? 0 : this.gliding ? this.glideSpeed * len : this.crouch ? this.sneak : this.sprinting ? this.sprintSpeed : len < .55 ? this.walk : this.run, a = (this.onGround ? this.accel : this.airAccel) * dt;
       const tx = moving ? mx / Math.hypot(mx, my) * top : 0, ty = moving ? my / Math.hypot(mx, my) * top : 0, dx = tx - this.vx, dy = ty - this.vy, dl = Math.hypot(dx, dy);
       if (dl <= a) { this.vx = tx; this.vy = ty; } else { this.vx += dx / dl * a; this.vy += dy / dl * a; }
     }
     // deep water or a pit under a body coming down onto it
     const wasOver = map && this.z > HEIGHTS.step && map.blocked && (() => { const cx = Math.floor(this.x / map.T), cy = Math.floor(this.y / map.T); return map.cell(cx, cy) === 0 && map.blocked[cy * map.w + cx]; })();
-    const before = this.onGround;
-    super.update(dt, map);
+    const before = this.onGround, g0 = this.gravity;
+    if (this.gliding) {   // no gravity: it sinks at glideSink, or rises at an updraft's lift
+      const L = typeof this.lift === 'function' ? this.lift(this) : this.lift; this.gravity = 0;
+      this.vz = approach(this.vz, L > 0 ? L : -this.glideSink, 900 * dt); this._peak = this.z;   // (the sail bites at once)
+    }
+    super.update(dt, map); this.gravity = g0;
     if (wasOver && this.z <= HEIGHTS.step) this.inHazard = true;
     if (!this.onGround) this._peak = Math.max(this._peak, this.z);
     else if (!before || this.landed) {
@@ -5937,8 +5964,8 @@ class Mover extends Body {
     return false;
   }
   /** take hold of the wall face ahead (climbAny): true when it latched on */
-  _latch(map) {
-    const W = map.wall(this, this.facing, { reach: (this.r || 5) + 8 }); if (!W || W.top - this.z <= this.vault) return false;   // (not a kerb)
+  _latch(map, reach = (this.r || 5) + 8) {
+    const W = map.wall(this, this.facing, { reach }); if (!W || W.top - this.z <= this.vault || this.exhausted) return false;   // (not a kerb; not when out of stamina)
     this._hold(W); this.vx = this.vy = this.vz = 0; this.onGround = false; this._peak = this.z; return true;
   }
   /** hold on to face W: facing into it, the body's radius off it */
@@ -5949,12 +5976,12 @@ class Mover extends Body {
     // along the face: the tangent that goes right on the screen (an intent: right of facing into the wall)
     let tx = W.ny, ty = -W.nx;
     if (!raw[2] && view) { const a = view.p(this.x, this.y, this.z), b = view.p(this.x + tx, this.y + ty, this.z); if (b[0] < a[0]) { tx = -tx; ty = -ty; } }
-    if (crouchPressed) { this.wall = null; this.crouch = false; this.vz = 0; return; }   // let go: it falls
+    if (crouchPressed || !this._tire('climb', dt * (up || side ? 1 : .25))) { this.wall = null; this.crouch = false; this.vz = 0; return; }   // let go (or out of stamina): it falls
     if (jumpPressed) {
       if (up < -.5) { this.wall = null; this.vz = this.jumpSpeed * .7; this.vx = W.nx * 80; this.vy = W.ny * 80; this.facing = Math.atan2(W.ny, W.nx); this._peak = this.z; return; }   // push off
       const room = W.top - this.z, L = room <= 30 && this._top(map);
       if (L) { this.wall = null; this.play('climbUp', { to: L, map }); return; }
-      if (room > 10) this.play('climbJump', { rise: Math.min(24, room - 8), map }); return;
+      if (room > 10 && this._tire('climbJump', 1)) this.play('climbJump', { rise: Math.min(24, room - 8), map }); return;
     }
     const al = side * sp * .8, nz = Math.min(this.z + up * sp * dt, W.top - 6);   // (the hands stay below the top)
     let nx = this.x + tx * al * dt, ny = this.y + ty * al * dt;
@@ -5998,6 +6025,7 @@ class Mover extends Body {
   rigState(extra) {
     if (this.action) return this.action.rigState(extra);
     if (this.wall) return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: this.vy, vz: this.vz, facing: this.facing, climb: true }, extra);
+    if (this.gliding) return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: this.vy, vz: 0, facing: this.facing, hang: true, hangZ: 36 }, extra);   // under the sail
     return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: this.vy, vz: this.vz, facing: this.facing, air: !this.onGround, crouch: this.crouch, sprint: this.sprinting, land: this._land }, extra);
   }
 }

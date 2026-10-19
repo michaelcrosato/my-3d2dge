@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.58.0)
+# my-3D2dge API index (v0.59.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -71,17 +71,17 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 785 Body; E.Body: body
 - 805 Actions; E.Action: action
 - 827 17c. Mover; E.Mover: mover
-- 857 17d. Perception; E.Suspicion: suspicion
-- 874 Bullets; E.Bullets: shots
-- 894 Spatial hash; E.SpatialHash: grid
-- 904 Audio; game.audio
-- 926 Backdrops; E.Backdrop: backdrop
-- 934 21c. Props
-- 939 21e. Shapes
-- 951 Ui; E.Dialog: talk, E.Menu: menu
-- 1005 21d. Shell; E.Shell: shell
-- 1034 Gpu lighting (webgpu); game.gpu
-- 1055 Sessions
+- 866 17d. Perception; E.Suspicion: suspicion
+- 883 Bullets; E.Bullets: shots
+- 903 Spatial hash; E.SpatialHash: grid
+- 913 Audio; game.audio
+- 935 Backdrops; E.Backdrop: backdrop
+- 943 21c. Props
+- 948 21e. Shapes
+- 960 Ui; E.Dialog: talk, E.Menu: menu
+- 1014 21d. Shell; E.Shell: shell
+- 1043 Gpu lighting (webgpu); game.gpu
+- 1064 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -90,7 +90,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.58.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.59.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -841,15 +841,24 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `mover.climbSpeed = 34` †: its climbing speed
 - `mover.coyote = .1` †: seconds a jump still works after leaving an edge
 - `mover.crouch = false` †: sneaking (a toggle)
+- `mover.exhausted = false` †: out of stamina until a third is back
 - `mover.facing = 0` †: the angle it faces
 - `mover.fell = 0`, `mover.hurt = false`, `mover.inHazard = false` †: what happened this step
 - `mover.gapAssist = true` †: a jump at a gap aims for the far side
+- `mover.glide = false` †: opens a glide in the air (see the header)
+- `mover.glideMin = 24`, `mover.glideSink = 26`, `mover.glideSpeed = 72` †: how high over the ground it opens, how fast it sinks and flies
+- `mover.gliding = false` †: gliding now
 - `mover.hopMax = 48` †: drops up to this deep are hopped down
 - `mover.hurtAt = 72`, `mover.rollAt = 26` †: fall heights that roll and that hurt
 - `mover.jumpSpeed = 220` †: a jump's upward speed
 - `mover.lastSafe = null` †: the last spot it stood safely, for respawn()
+- `mover.lift = 0` †: an updraft's rising speed (a number, or a function of the mover)
 - `mover.run = 85`, `mover.sneak = 32`, `mover.sprintSpeed = 125`, `mover.walk = 50` †: top speeds (world units a second)
 - `mover.sprinting = false` †: sprinting now
+- `mover.stamina` †: what is left (full to start)
+- `mover.staminaMax = 0` †: its stamina (0: none)
+- `mover.staminaRegen = 35` †: refilled a second standing
+- `mover.tire` †: { climb, climbJump, glide, sprint } it costs
 - `mover.turn = 14` †: how fast it turns, radians a second
 - `mover.vault = 14` †: walls up to this high are vaulted at a run
 - `mover.wall = null` †: the face it holds on to (map.wall's), or null

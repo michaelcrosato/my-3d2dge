@@ -5,6 +5,16 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.59.0 (2026-10-19)
+
+Phase 7 of the next plan: `E.Mover` glides, and climbing, gliding and sprinting spend stamina (D48).
+
+- **Engine**: `glide: true`: a jump press in the air, `glideMin` over the ground, opens a glide (`mover.gliding`): it sinks at `glideSink`, flies at `glideSpeed`, takes no fall damage, rises over an updraft (`lift`: a speed, or a function of the mover), and closes on a press, on landing, or at a wall (a climber takes hold). `rigState()` hangs the rig under it, hands up.
+- **Engine**: `staminaMax`: climbing, climb jumps, gliding and sprinting spend `mover.stamina` (`tire`), standing refills it (`staminaRegen`); at 0 it lets go of the wall, closes the glide and can't sprint (`mover.exhausted`) until a third is back.
+- **Engine**: the template game's hero glides off the roof under a sail it draws, with a stamina bar in its HUD.
+- **Tools**: `tools/contract-test.mjs` checks opening a glide, its sink, an unhurt landing (where a plain fall hurts), closing it with a press, an updraft, and stamina running out on a wall and refilling.
+- **Docs**: `API.md` and `AI_GUIDE.md` describe both; `API.md`'s controller diagnostics are the index's now, for room (14,960 tokens of 15,000).
+
 ## 0.58.0 (2026-10-19)
 
 Phase 6 of the next plan: `E.Mover` climbs any wall (D48).
