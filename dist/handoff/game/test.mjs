@@ -16,12 +16,13 @@ check('the title waits for start', snap().scene === 'title', JSON.stringify(snap
 I.tap('start'); game.advance(.5);
 check('start begins play', snap().scene === 'play', JSON.stringify(snap()));
 
-// climb: stand facing the roof's west wall (cells 7-9 of rows 4-6: x 112-160, y 64-112) and press jump
+// climb: stand facing the roof's west wall (cells 7-9 of rows 4-6: x 112-160, y 64-112), press jump to take hold, then
+// climb with up (up the screen is up the wall) until it pulls up onto the top
 game.debug.teleport(100, 88, 0, 0);
 I.tap('jump'); game.advance(.1);
-check('jump next to a wall starts a climb', snap().climbing, JSON.stringify(snap()));
-game.advance(1);
-check('the climb ends on the roof', !snap().climbing && snap().hero[2] === 32, JSON.stringify(snap()));
+check('jump next to a wall takes hold of it', snap().climbing, JSON.stringify(snap()));
+I.hold('up'); game.advance(.6); I.hold('up', false); game.advance(1);
+check('climbing up pulls up onto the roof', !snap().climbing && snap().hero[2] === 32, JSON.stringify(snap()));
 
 // take the gem (on the roof's middle cell), then hop down into the street with it
 game.debug.teleport(136, 88, 32, 0); game.advance(.1);

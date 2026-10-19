@@ -1,6 +1,7 @@
 // The handoff package's template game: a rooftop thief in the isometric view. Climb onto the roof, take the gem, and
 // don't let the guard in the street watch you for long. It shows what a game is made of (scenes, a TileMap with roofs, a
-// Body and a Humanoid, input, the camera, a HUD) and the height-aware API: map.ledge to climb, map.sight and E.inArc for
+// Mover and a Humanoid, input, the camera, a HUD) and the height-aware API: E.Mover climbs any wall (climbAny: jump at
+// it, the stick climbs, jump leaps up, it pulls up at the top), the guard is a plain Body, map.sight and E.inArc for
 // the guard's eyes (they see over the planter, not through the roof), shapes and materials (docs/ASSETS.md: barrels and
 // crates as data, solid with map.solid; the street's cobbles a material), and game.debug for tests and tools. The pause menu,
 // settings, rebinding and full screen come with every game: menu: { controls } names the actions on its Controls screen,
@@ -35,15 +36,15 @@ const map = new E.TileMap({
 const DRESS = [['barrel', 152, 30, { facing: .5 }], ['barrel', 166, 26, { facing: 2 }], ['crate', 22, 120, { facing: .3 }], ['cart', 72, 26, { facing: 0 }]];
 for (const [id, x, y, o] of DRESS) map.solid(id, x, y, 0, o);
 const GEM = E.sprite(['.c.', 'cCc', '.c.'], { c: '#48c8f0', C: '#e8faff' }, 2);
-let hero, heroRig, guard, guardRig, climb, alert, got, won;
+let hero, heroRig, guard, guardRig, alert, got, won;
 
 function reset() {
   const h = map.find('hero'), g = map.find('guard');
-  hero = new E.Body({ x: h.x, y: h.y, r: 5 }); hero.facing = 0;
+  hero = new E.Mover({ x: h.x, y: h.y, r: 5, climbAny: true, climbMax: 24 }); hero.facing = 0;   // (the roof, 32 high, is climbed)
   heroRig = heroRig || new E.Humanoid({ size: 1.2, build: 'heroic', weapon: null, hood: true, outfit: 'coat', colors: { cloth: '#3a4a6a', cape: '#2a3a52' } });
   guard = new E.Body({ x: g.x, y: g.y, r: 5 }); guard.facing = 0; guard.dir = 1;
   guardRig = guardRig || new E.Humanoid({ size: 1.2, build: 'heroic', weapon: 'sword', hat: 'helmet', colors: { cloth: '#8a3a32' } });
-  climb = null; alert = 0; got = false; won = false;
+  alert = 0; got = false; won = false;
 }
 
 const title = {
@@ -62,23 +63,9 @@ const play = {
   enter() { game.follow(hero, { z: 16 }); game.cam.bounds = v => map.bounds(v); game.lights.enabled = true; game.lights.ambient = .5; },
   exit() { game.lights.enabled = false; ui.hud({}); },
   update(dt) {
-    const I = game.input;
-    if (climb) {   // pull up onto the ledge: rise along the wall, then step over the edge
-      climb.t += dt; const u = Math.min(1, climb.t / climb.dur), rise = Math.min(1, u / .7), over = Math.max(0, (u - .7) / .3);
-      hero.z = E.lerp(climb.z0, climb.to.z, E.ease.outQuad(rise));
-      hero.x = E.lerp(climb.x0, climb.to.x, over); hero.y = E.lerp(climb.y0, climb.to.y, over);
-      if (u >= 1) { hero.onGround = true; hero.vz = 0; climb = null; game.audio.sfx('land'); }
-    } else {
-      const [mx, my] = I.move(), [dx, dy] = game.view.screenDirToGround(mx, my);
-      hero.vx = dx * 80; hero.vy = dy * 80;
-      if (dx || dy) hero.facing = Math.atan2(dy, dx);
-      if (I.pressed('jump')) {
-        const up = map.ledge(hero, hero.facing);   // a top to pull up onto, straight ahead or a little to the side
-        if (up && hero.onGround) { climb = { t: 0, dur: .3 + up.rise / 80, x0: hero.x, y0: hero.y, z0: hero.z, to: up }; hero.facing = up.facing; hero.vx = hero.vy = 0; game.audio.sfx('jump'); }
-        else if (hero.jump(230)) game.audio.sfx('jump');
-      }
-      hero.update(dt, map);
-    }
+    const I = game.input, was = !!(hero.wall || hero.action);
+    hero.update(dt, map, I);   // walks, jumps, climbs: the stick and the jump button, through the view
+    if (!was && (hero.wall || hero.action)) game.audio.sfx('jump');
     // the guard walks the street and watches ahead: its eyes see over the planter, not through the roof
     guard.vx = guard.dir * 30; guard.update(dt, map);
     if (guard.x > 112 || guard.hitWall) guard.dir = -1; else if (guard.x < 40) guard.dir = 1;
@@ -90,10 +77,10 @@ const play = {
     if (got && hero.z < 2) { won = true; game.go('end'); }   // back down in the street with it
     else if (alert > 1.2) { won = false; game.audio.sfx('hurt'); game.go('end'); }
     // the rigs are posed every step from the bodies' motion; draw only draws them
-    heroRig.update(dt, { x: hero.x, y: hero.y, z: hero.z, vx: climb ? 0 : hero.vx, vy: climb ? 0 : hero.vy, vz: climb ? 60 : hero.vz, facing: hero.facing, air: !hero.onGround && !climb, climb: !!climb });
+    heroRig.update(dt, hero.rigState());
     guardRig.update(dt, { x: guard.x, y: guard.y, z: guard.z, vx: guard.vx, vy: 0, facing: guard.facing, stance: 'ready' });
     // the HUD, from this step's state (E.Shell redraws only what changed; the keys hide on a touch screen)
-    ui.hud({ objective: got ? { title: 'Bring it down', text: 'Back to the street with it' } : { title: 'Take the gem', text: 'It lies on the roof', at: { x: gem.x, y: gem.y, z: ROOF }, from: hero },
+    ui.hud({ objective: got ? { title: 'Bring it down', text: 'Back to the street with it' } : { title: 'Take the gem', text: hero.wall ? 'Climb: up, and jump to leap' : 'It lies on the roof', at: { x: gem.x, y: gem.y, z: ROOF }, from: hero },
       bars: [{ label: 'Seen', value: Math.min(alert, 1.2), max: 1.2, color: '#ff6040' }],
       keys: [[['up', 'left', 'down', 'right'].map(a => I.label(a)).join(''), 'Move'], [I.label('jump'), 'Jump and climb']] });
   },
@@ -124,9 +111,9 @@ const end = {
 reset();
 // a handle for tests and tools (node game/test.mjs, tools/check.mjs prints snapshot(), tools/replay.mjs logs it)
 game.debug = {
-  snapshot: () => ({ scene: game.sceneName, hero: [hero.x, hero.y, hero.z].map(v => Math.round(v * 10) / 10), climbing: !!climb,
+  snapshot: () => ({ scene: game.sceneName, hero: [hero.x, hero.y, hero.z].map(v => Math.round(v * 10) / 10), climbing: !!(hero.wall || hero.action),
     guard: [Math.round(guard.x), Math.round(guard.y), guard.facing], alert: Math.round(alert * 100) / 100, got, won }),
-  teleport(x, y, z = 0, facing = hero.facing) { Object.assign(hero, { x, y, z, vx: 0, vy: 0, vz: 0, onGround: true, facing }); climb = null; }
+  teleport(x, y, z = 0, facing = hero.facing) { Object.assign(hero, { x, y, z, vx: 0, vy: 0, vz: 0, onGround: true, facing, wall: null, action: null }); }
 };
 game.start({ scenes: { title, play, end }, scene: 'title' });
 })();

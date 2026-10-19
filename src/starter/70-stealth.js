@@ -5,7 +5,8 @@
  * crouched, take a guard down silently from behind (J), or from a roof above (J as you stand over them). In a fight their
  * swings are telegraphed: K just before the blow parries and stuns them.
  * Keys (E.Input.THIRDPERSON): WASD move, Shift sprint, Space jump, climb a wall, vault, leap a gap, C crouch, J attack or
- * take down, K block or parry, L dodge roll, V view. The ledger is a checkpoint.
+ * take down, K block or parry, L dodge roll, V view. The ledger is a checkpoint. The hero climbs any wall: Space at a
+ * face latches on, the stick climbs (up the screen is up the wall), Space leaps up, C lets go.
  * HOW IT WORKS: the hero and the guards are E.Mover bodies (the same climbing, vaulting and gap-leaping for both); a
  * guard's eyes are E.sees through the map's heights, its mind an E.Suspicion, its legs a FlowField that climbs, drops and
  * jumps. Climbs, vaults, rolls and takedowns are E.ACTIONS; the facades are wall-type options; the belfry's canopy sorts by
@@ -110,7 +111,7 @@ const STEALTH = (() => {
   /* ---- THE HERO: a Mover, a hidden blade, a parry, two takedowns ---- */
   function start() {
     const s = map.find('hero');
-    hero = new E.Mover({ x: s.x, y: s.y, r: 5 }); hero.facing = 0;
+    hero = new E.Mover({ x: s.x, y: s.y, r: 5, climbAny: true, climbMax: 30 }); hero.facing = 0;   // (walls up to 30 are pulled up at once, higher ones climbed)
     rig = rig || new E.Humanoid({ size: 1.2, build: 'heroic', hood: true, weapon: 'sword', bladeLen: 7, outfit: 'coat', sleeves: 'long', cape: { len: 6, width: 5, seg: 2.4 }, colors: { cloth: '#d8d2c4', coat: '#d8d2c4', cape: '#8a2a2a', capeIn: '#5a1a1a', pants: '#3a3448', metal: '#e8e8f0' } });
     attack = new E.Attack('slash', { reach: 9 }); guards = ROUTES.map(makeGuard);
     ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: it takes over from the engine's own, keeping the pause menu)

@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.57.0)
+# my-3D2dge API index (v0.58.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -64,24 +64,24 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 521 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
 - 594 Blob rig; E.Blob: blob
 - 614 Tile map; E.TileMap: map
-- 672 Materials
-- 693 Flow field; E.FlowField: flow
-- 711 Texture helpers for floortex functions
-- 722 Platform map; E.PlatformMap: level, E.Platformer: hero
-- 784 Body; E.Body: body
-- 804 Actions; E.Action: action
-- 826 17c. Mover; E.Mover: mover
-- 853 17d. Perception; E.Suspicion: suspicion
-- 870 Bullets; E.Bullets: shots
-- 890 Spatial hash; E.SpatialHash: grid
-- 900 Audio; game.audio
-- 922 Backdrops; E.Backdrop: backdrop
-- 930 21c. Props
-- 935 21e. Shapes
-- 947 Ui; E.Dialog: talk, E.Menu: menu
-- 1001 21d. Shell; E.Shell: shell
-- 1030 Gpu lighting (webgpu); game.gpu
-- 1051 Sessions
+- 673 Materials
+- 694 Flow field; E.FlowField: flow
+- 712 Texture helpers for floortex functions
+- 723 Platform map; E.PlatformMap: level, E.Platformer: hero
+- 785 Body; E.Body: body
+- 805 Actions; E.Action: action
+- 827 17c. Mover; E.Mover: mover
+- 857 17d. Perception; E.Suspicion: suspicion
+- 874 Bullets; E.Bullets: shots
+- 894 Spatial hash; E.SpatialHash: grid
+- 904 Audio; game.audio
+- 926 Backdrops; E.Backdrop: backdrop
+- 934 21c. Props
+- 939 21e. Shapes
+- 951 Ui; E.Dialog: talk, E.Menu: menu
+- 1005 21d. Shell; E.Shell: shell
+- 1034 Gpu lighting (webgpu); game.gpu
+- 1055 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -90,7 +90,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.57.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.58.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -650,6 +650,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `map.standable(x, y, z, r = 5, step = HEIGHTS.step)`: can a body of radius r stand at (x, y) with its feet at z? Nothing under its footprint rises above z + step (it would collide), no blocked floor (water, lava) is under it at floor level, and a top within step below z holds it up
 - `map.toCell(x, y)`: world point -> [cx, cy] cell (center(cx, cy) goes back)
 - `map.walkable(cx, cy)`: true where a body can walk: no wall and not a blocked floor (water, lava). Pathfinding uses this.
+- `map.wall(from, dir, o = {})` †: the wall face a body touches or faces: from `from`, in direction dir (an angle or [dx, dy]), the first point within reach whose top rises more than a step above its feet. { x, y (on the face), nx, ny (the face's normal, out toward the body), top (how high it rises there), bottom (the floor at its foot), facing (the angle into it) } or null. Cells give axis faces; a map.solid box, the face back along dir. o: { reach: from.r + 4 }
 - `map.T`: the tile size in world units (16)
 - `map.ao`: contact shadow width (world units) along the foot of walls; 0 turns it off
 - `map.blocked`: cells nobody can walk on (deep water, lava, pits): legend { floor: 'water', block: true } or TileMap { block: ['water'] }
@@ -803,7 +804,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 17b. Actions
 
-- `E.ACTIONS: climbUp, vault, hopDown, roll, getUp, takedown` †: the actions E.Action plays. Add your own: E.ACTIONS.name = { beats, setup, at }; setup(A) and at(A, beat, u) get the action: its options A.o, A.start (where the body began), A.body; setup may change A.beats. Play one: mover.play('takedown', { other })
+- `E.ACTIONS: climbUp, climbJump, vault, hopDown, roll, getUp, takedown` †: the actions E.Action plays. Add your own: E.ACTIONS.name = { beats, setup, at }; setup(A) and at(A, beat, u) get the action: its options A.o, A.start (where the body began), A.body; setup may change A.beats. Play one: mover.play('takedown', { other })
 - `new E.Action(name, o = {}) → action`: new E.Action(name, { body, to, other, dir, dist, top, aerial, reverse, speed: 1 }): play E.ACTIONS[name] on a body (and on o.other for a paired action). It moves them itself: run update(dt) every step instead of their physics, and feed rigState() to the rig. Each body ends standing where the action put it
 - `action.canCancel` †: true during a beat marked as one the action may be cut short in (spec.cancel)
 - `action.cancel()` †: stop now: the bodies stay where they are
@@ -835,7 +836,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `mover.action = null` †: the E.Action playing, or null
 - `mover.buffer = .12` †: seconds a jump press is kept
 - `mover.climb = true` †: climbs ledges (true)
+- `mover.climbAny = false` †: climbs any wall face (see the section's header)
 - `mover.climbMax = 82` †: the highest ledge it climbs
+- `mover.climbSpeed = 34` †: its climbing speed
 - `mover.coyote = .1` †: seconds a jump still works after leaving an edge
 - `mover.crouch = false` †: sneaking (a toggle)
 - `mover.facing = 0` †: the angle it faces
@@ -849,6 +852,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `mover.sprinting = false` †: sprinting now
 - `mover.turn = 14` †: how fast it turns, radians a second
 - `mover.vault = 14` †: walls up to this high are vaulted at a run
+- `mover.wall = null` †: the face it holds on to (map.wall's), or null
 
 ## 17d. Perception
 

@@ -248,7 +248,29 @@ function thirdPerson(E, ed) {
   Object.assign(sf, { x: 1, y: 1 }); sf.respawn();
   check(`${ed}: Mover.respawn() goes back to the last safe spot`, safe === 6.5 * T && sf.x === 6.5 * T && sf.onGround, JSON.stringify(sf.lastSafe));
   // actions: the built-in names, your own, a paired takedown, invulnerable frames, a cancellable beat
-  check(`${ed}: E.ACTIONS has climbUp, vault, hopDown, roll, getUp, takedown`, ['climbUp', 'vault', 'hopDown', 'roll', 'getUp', 'takedown'].every(n => E.ACTIONS[n]));
+  check(`${ed}: E.ACTIONS has climbUp, climbJump, vault, hopDown, roll, getUp, takedown`, ['climbUp', 'climbJump', 'vault', 'hopDown', 'roll', 'getUp', 'takedown'].every(n => E.ACTIONS[n]));
+  // climbing any wall (climbAny): a tower of 90 in the open, 3 x 3 cells; an AI's intent climbs it ([along, -up])
+  {
+    const tower = new E.TileMap({ rows: ['.........', '.........', '...TTT...', '...TTT...', '...TTT...', '.........', '.........'], legend: { T: 1 }, types: { 1: { h: 90 } } });
+    const go = (m, sec, ctl = still) => { for (let i = 0; i < Math.round(sec * 120); i++) m.update(1 / 120, tower, ctl); return m; };
+    const w = new E.Mover({ x: 4.5 * T, y: 5.6 * T, climbAny: true }); w.facing = -Math.PI / 2;
+    const plain = new E.Mover({ x: 4.5 * T, y: 5.6 * T }); plain.facing = -Math.PI / 2; go(plain, .1, { jumpPressed: true });
+    go(w, 1 / 120, { jumpPressed: true }); go(w, .1); const held = !!w.wall && w.wall.ny === 1 && w.y === 5 * T + 6, rs = w.rigState();
+    check(`${ed}: Mover (climbAny) takes hold of a wall too tall for a ledge with a jump press; without climbAny it jumps`, held && !plain.wall && plain.z > 2 && rs.climb === true, JSON.stringify([w.wall, w.y, plain.z, rs.climb]));
+    go(w, 1, { move: [0, -1] }); const z1 = w.z; go(w, .5, { move: [1, 0] }); const x1 = w.x;
+    check(`${ed}: the stick climbs up and along the face`, z1 > 30 && x1 > 4.5 * T + 8 && !!w.wall, [z1, x1].join(' '));
+    go(w, 2, { move: [1, 0] });
+    check(`${ed}: it rounds the corner onto the side face`, !!w.wall && w.wall.nx === 1 && w.x === 6 * T + 6, JSON.stringify([w.wall, w.x, w.y]));
+    const zj = w.z; go(w, 1 / 120, { jumpPressed: true }); const leap = w.action && w.action.name; go(w, .5);
+    check(`${ed}: a jump press leaps up the wall (climbJump) and it holds on after`, leap === 'climbJump' && w.z > zj + 15 && !!w.wall && !w.onGround, [leap, zj, w.z].join(' '));
+    go(w, .5, { move: [0, -1] }); const pull = w.action && w.action.name; go(w, 1.2);
+    check(`${ed}: near the top it pulls up (climbUp) and stands on it`, pull === 'climbUp' && w.z === 90 && w.onGround && !w.wall, [pull, w.z, w.onGround].join(' '));
+    const d = new E.Mover({ x: 4.5 * T, y: 5.6 * T, climbAny: true }); d.facing = -Math.PI / 2; go(d, 1 / 120, { jumpPressed: true }); go(d, 1, { move: [0, -1] });
+    go(d, 1 / 120, { crouch: true }); go(d, 1.5);
+    check(`${ed}: crouch lets go, and it falls to the floor`, !d.wall && d.onGround && d.z === 0, [d.wall, d.z].join(' '));
+    const W = tower.wall({ x: 4.5 * T, y: 5.6 * T, z: 0, r: 5 }, -Math.PI / 2, { reach: 12 });
+    check(`${ed}: map.wall gives the face ahead: its point, normal, top and facing`, W && W.y === 5 * T && W.nx === 0 && W.ny === 1 && W.top === 90 && Math.abs(W.facing + Math.PI / 2) < 1e-9, JSON.stringify(W));
+  }
   E.ACTIONS.slide = { beats: [['go', .5]], setup() {}, at: (A, b, u) => ({ x: A.start.x + 20 * u, y: A.start.y, z: 0, state: { pose: 'crouch' } }) };
   const body = { x: 10, y: 10, z: 0 }, s = new E.Action('slide', { body }); let n = 0; while (s.update(1 / 120)) n++;
   delete E.ACTIONS.slide;

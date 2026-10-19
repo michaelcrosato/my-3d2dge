@@ -269,6 +269,6 @@ file's progress table updated.
 | 3 `E.Shell` in the template and the stealth starter | done | v0.55.0 | |
 | 4 the x-ray | done | v0.56.0 | |
 | 5 walls with depth, the floor to the edge | done | v0.57.0 | |
-| 6 climbing any wall | not started | | |
+| 6 climbing any wall | done | v0.58.0 | |
 | 7 gliding and stamina | not started | | |
 | 8 fold this plan in | not started | | |
