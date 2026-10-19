@@ -9,7 +9,8 @@
  * HOW IT WORKS: the hero and the guards are E.Mover bodies (the same climbing, vaulting and gap-leaping for both); a
  * guard's eyes are E.sees through the map's heights, its mind an E.Suspicion, its legs a FlowField that climbs, drops and
  * jumps. Climbs, vaults, rolls and takedowns are E.ACTIONS; the facades are wall-type options; the belfry's canopy sorts by
- * its footprint; r.sightCone and r.marker draw the cones and the objective.
+ * its footprint; r.sightCone and r.marker draw the cones and the objective. Dusk is canvas lighting (game.lights): an
+ * ambient and the lights added each draw (street lamps, the ledger's glow, the gate).
  * ===================================================================================== */
 const STEALTH = (() => {
   const T = 16, HP = 3;
@@ -111,7 +112,7 @@ const STEALTH = (() => {
     rig = rig || new E.Humanoid({ size: 1.2, build: 'heroic', hood: true, weapon: 'sword', bladeLen: 7, outfit: 'coat', sleeves: 'long', cape: { len: 6, width: 5, seg: 2.4 }, colors: { cloth: '#d8d2c4', coat: '#d8d2c4', cape: '#8a2a2a', capeIn: '#5a1a1a', pants: '#3a3448', metal: '#e8e8f0' } });
     attack = new E.Attack('slash', { reach: 9 }); guards = ROUTES.map(makeGuard);
     checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; say('STEAL THE LEDGER FROM THE BRICK ROOF', 3.5);
-    game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = false; A.music('dungeon');
+    game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = true; L.ambient = .6; A.music('dungeon');
   }
   function respawnAt(cp) {
     Object.assign(hero, { x: cp.x, y: cp.y, z: cp.z, vx: 0, vy: 0, vz: 0, onGround: true, action: null }); hp = HP;
@@ -176,11 +177,14 @@ const STEALTH = (() => {
   }
 
   const MOOD = { calm: '#ffe080', notice: '#ffc040', search: '#ff9a40', alert: '#ff4a3a' };
+  const LAMPS = [[8.5, 6.2], [16, 8.8], [23.5, 6.2], [12.5, 10.5], [19.5, 1.3]].map(([x, y]) => [x * T, y * T]);   // street lamps, clear of the patrols
   function draw(r) {
     r.sky(['#141030', '#3a2a5a', '#7a4a5a']);
     map.drawFloor(r); map.queueWalls(r);
     for (const [x, y] of GRASS) r.prop('grass', x, y, 0, { size: 1.3 });
     for (const [id, x, y, o] of DRESS) r.shape(id, x, y, 0, o);
+    for (const [x, y] of LAMPS) r.prop('lamp', x, y, 0, { light: true });   // each glows and lights the street (game.lights)
+    if (!ledger) L.add(LEDGER.x, LEDGER.y, LEDGER.z + 6, 40, .8, { color: '#ffd060' }); else L.add(EXIT.x, EXIT.y, 12, 56, .9, { color: '#80e0ff' });
     // the belfry: a canopy wider than the tower, sorted by its whole footprint (over every tower block)
     const bx = 25 * T, by = 5 * T, w = 21, H = 20, z = 72;
     r.queue(bx, by, z, g => { const P2 = (x, y, zz) => r.w(x, y, zz), c = [P2(bx - w, by - w, z), P2(bx + w, by - w, z), P2(bx + w, by + w, z), P2(bx - w, by + w, z)], tip = P2(bx, by, z + H);
@@ -215,6 +219,6 @@ const STEALTH = (() => {
   return { view: 'iso', views: ['iso', 'threequarter'], input: 'THIRDPERSON', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'block', 'crouch'],
     camera: { zoom: [.75, 2], rotate: true }, enter: start, update, draw,
     state: () => ({ hero, guards, map, ledger, won, hp }),   // for tests
-    exit() { game.cam.offset = null; } };
+    exit() { game.cam.offset = null; L.enabled = false; } };
 })();
 scenes.stealth = STEALTH;

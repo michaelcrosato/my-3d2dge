@@ -86,6 +86,7 @@ const ADV = (() => {
   const SKY = rgb(['#a8dcf4', '#e8f8ff']), REFLECT = E.hex('#1e5a5a');   // sky glints, the hedge's reflection
   const TUFT = ['.l.l.', '.dld.', '..d..'], BLOOM = ['.w.', 'wyw', '.w.'];   // grass stamps
   const MOOD = [[.92, .9, .84], [.8, .88, .8], [.34, .3, .46]];   // GPU ambient light per room
+  const mood = m => { if (gpu) gpu.ambient = m; L.ambient = (m[0] + m[1] + m[2]) / 3; };   // (and the canvas lighting's, where WebGPU is missing and it stands in)
   // light shafts per room: beam x, tint (a dark tint = a faint beam), lean
   const BEAMS = [[[34, 128, 196], '#7a5a26', 60], [[50, 150], '#566a22', 60], [[24, 120, 200], '#4a3a8a', 12]];
   const WIN = { bg: ['#3a4a9e', '#12163e'], border: '#f0e0a8' }, FACE_BG = ['#7aa4e8', '#1e2a66'];
@@ -250,7 +251,7 @@ const ADV = (() => {
     shots = new E.Bullets(game, { plane: 'ground' }); talk = new E.Dialog(game, WIN);
     fx = []; won = false; keys = 0; gems = 0; area = { room: 0, t: 2.6 }; held = null;
     // the floor is lit already; GPU lighting (if any) adds light pools and shadows
-    L.enabled = false; lighting(); if (gpu) gpu.ambient = MOOD[0]; A.music('adventure');
+    L.enabled = false; lighting(); mood(MOOD[0]); A.music('adventure');
     game.input.touchSet('attack', 'SWORD');
   }
   // DIALOG: E.Dialog types and pages; portrait: a live close-up of the speaker
@@ -304,7 +305,7 @@ const ADV = (() => {
     if (held) held.t -= dt;
     for (const n of npcs) npcLife(n, dt);
     if (talk.update(dt)) { poseHero(dt); return; }   // dialog pauses the world
-    if (gpu) gpu.ambient = MOOD[room];
+    mood(MOOD[room]);
     if (room !== area.room) area = { room, t: 2.6 }; else area.t -= dt;
     if (sliding() || won || held && held.t > 0) { poseHero(dt); return; }   // the room slides or the hero cheers
     h.inv -= dt; h.hurt -= dt; if (h.hp <= 0) return;

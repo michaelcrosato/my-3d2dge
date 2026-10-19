@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.53.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.54.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -78,7 +78,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.53.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.54.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1256,10 +1256,17 @@ class Lighting {
      *  between them); glow: the color, [r, g, b, a], where light is brightest; glowAt: the light level (1 = fully
      *  lit) above which it glows */
     this.dark = [10, 6, 24]; this.levels = [.9, .7, .48, .26, .08, 0]; this.glow = [255, 200, 140, 0]; this.glowAt = 1.7;
+    /** darkness: how dark the darkest places get, 0..1 (the smooth style, E.style.trans 'alpha'); tint: how strongly
+     *  lights add their own color, 0..1; screen: true measures lights on the screen, not the ground (side views and
+     *  PlatformMaps do it by themselves) */
+    this.darkness = .9; this.tint = .32; this.screen = false;
     /** casters: this frame's shadow casters from caster(); heats: this frame's heat shimmers from heat() */
     this._casters = []; this._heats = [];
     if (!game.headless) { this._cv = mkCanvas(8, 8); this._g = this._cv.getContext('2d'); this.refresh(); }   // (a headless game never draws)
   }
+  /** true when the canvas lighting draws this frame: enabled, or standing in for GPU lighting the game turned on that
+   *  can't draw (no WebGPU, still loading, a side view); gpu.fallback = false keeps such a frame unlit */
+  get on() { const G = this._game.gpu; return this.enabled || !!(G && G.enabled && G.fallback !== false); }
   /** rebuild the darkness bands after changing dark, levels or glow (lights.dark = [r, g, b]; lights.refresh()) */
   refresh() {
     const L = this.levels, d = this.dark;
@@ -1269,7 +1276,8 @@ class Lighting {
   }
   /** forget this frame's lights, casters and heat (the renderer does it every frame: add lights in draw) */
   _clear() { this.list.length = 0; this._casters.length = 0; this._heats.length = 0; this._screenFrame = false; }
-  /** radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true } */
+  /** radius in world units; intensity ~0.5..1.5. opts: { color: '#ffaa55' (both lightings), shadow: true (GPU lighting:
+   *  walls and casters block it) } */
   add(x, y, z, radius, intensity = 1, o) {
     if (!(isFinite(x) && isFinite(y) && isFinite(z) && radius > 0)) { warn('light:nan', 'lights.add(x, y, z, radius, intensity) got a non-number or zero radius; light skipped'); return; }
     this.list.push({ x, y, z, r: radius, i: intensity, color: o && o.color, shadow: !!(o && o.shadow) });
@@ -1485,8 +1493,10 @@ class Renderer {
     /** checker: a 2 x 2 checkerboard canvas (a pattern for x-ray and dithered fills) */
     this._checker = ck;
     /** outline: the color of the 1-pixel outline round every actor; rim: the rim light's color on actors' lit edges;
-     *  rimAlpha: its strength 0..1; xrayColor: the default color of x-ray silhouettes */
-    this.outline = '#140c1c'; this.rim = '#ffe2b8'; this.rimAlpha = .28; this.xrayColor = '#8fe3ff';
+     *  rimAlpha: its strength 0..1; xrayColor: the default color of x-ray silhouettes; glowMask: false lets emissive
+     *  glows show over everything under canvas lighting (cheaper: the default keeps walls and bodies in front of a glow
+     *  dark) */
+    this.outline = '#140c1c'; this.rim = '#ffe2b8'; this.rimAlpha = .28; this.xrayColor = '#8fe3ff'; this.glowMask = true;
     // GPU mode: a hidden "info" image (height, surface type, glow) and an unlit overlay image
     this._iCv = mkCanvas(8, 8); this._iG = this._iCv.getContext('2d'); this._iG._info = true; this._iG._r = this; this._iG._mat = '#000';
     /** gpu: true during a frame drawn with GPU lighting (draw code can check r.gpu) */
@@ -1893,7 +1903,7 @@ class Renderer {
     // behind what stands in front: in depth order, a wall or a body drawn after a glow adds its shape to K, and a glow
     // drawn later still (in front of that) takes its whole footprint back out. finish() then restores K's lit pixels
     // (a coarse grid of where glows have been drawn so far lets the walls and bodies nowhere near one skip the mask)
-    const em = this.glowMask !== false && !gpu && this.game.lights.enabled && this._emis.length > 0, eG = this._eG;   // (r.glowMask = false: glows over everything, cheaper)
+    const em = this.glowMask !== false && !gpu && this.game.lights.on && this._emis.length > 0, eG = this._eG;   // (r.glowMask = false: glows over everything, cheaper)
     let eOn = false, kOn = false, eg = null, gw = 0;
     if (em) {
       eG.globalCompositeOperation = 'source-over'; eG.globalAlpha = 1; eG.clearRect(0, 0, this.bw, this.bh); eG._c = null;
@@ -1975,7 +1985,7 @@ class Renderer {
       this._tg = this._vG; for (const f of this._overlays) f(this._vG); this._tg = null;
       try { game.gpu._render(this); } catch (e) { game.gpu._fail(e); game.screen._present(); }
     } else {
-      if (game.lights.enabled) {
+      if (game.lights.on) {
         game.lights.render(this);
         if (this._emis.length) {
           const sG = this._sG, cv = g.canvas;
@@ -2140,7 +2150,8 @@ class Game {
   get W() { return this.screen.W; }
   /** the screen's height in game pixels (W is its width) */
   get H() { return this.screen.H; }
-  /** turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... } */
+  /** turn on WebGPU lighting: where it can't draw (no WebGPU, a side view) the canvas lighting stands in, with its own
+   *  ambient (game.lights.ambient) and the same lights. opts: { map, bands, ambient, fallback, ... } */
   enableGPU(o = {}) { if (this.headless) return null; this.gpu = new GPULighting(this, o); return this.gpu; }
   _view(v) {
     if (v instanceof View) return v;
@@ -8047,13 +8058,14 @@ class GPULighting {
   /** game.enableGPU({ map, bands, ambient, ... }) makes it: per-pixel WebGPU lighting with shadows and glow, falling back to
    *  the canvas lighting where there is no WebGPU */
   constructor(game, o = {}) {
-    /** enabled: false switches it off for now (the canvas lighting takes over); ready: true once the GPU is set up;
+    /** enabled: false switches it off for now (and the canvas lighting with it, unless game.lights.enabled); fallback:
+     *  false keeps a frame it can't draw unlit (by default the canvas lighting stands in, game.lights.on); ready: true once the GPU is set up;
      *  failed: why it couldn't start, or null; bands: how many light bands (fewer is more retro); wrap: how far
      *  light wraps round wall corners, 0..1; ambient: the unlit color, [r, g, b] 0..1; spill: how far light spills
      *  past its radius; glow: the strength of px.glow surfaces; shadows: casters block light; map: the TileMap it
      *  measures walls on; onStatus: called (gpu) when its status changes; offscreen: render into a texture instead
      *  of the page (automated tests; read it with snapshot()) */
-    Object.assign(this, { enabled: true, ready: false, failed: null, bands: 6, wrap: .45, ambient: [.07, .07, .12], spill: 1.1, glow: .22, shadows: true, map: null, onStatus: null, offscreen: false }, o);
+    Object.assign(this, { enabled: true, ready: false, failed: null, bands: 6, wrap: .45, ambient: [.07, .07, .12], spill: 1.1, glow: .22, shadows: true, map: null, onStatus: null, offscreen: false, fallback: true }, o);
     /** game: its game */
     this._game = game; this._u = new Float32Array(352); this._colors = {};
     /** cv: the canvas it draws on, laid over the game's */

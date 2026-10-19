@@ -4,7 +4,8 @@
 // the guard's eyes (they see over the planter, not through the roof), shapes and materials (docs/ASSETS.md: barrels and
 // crates as data, solid with map.solid; the street's cobbles a material), and game.debug for tests and tools. The pause menu,
 // settings, rebinding and full screen come with every game: menu: { controls } names the actions on its Controls screen,
-// and input.label() puts the player's own key or button in a prompt.
+// and input.label() puts the player's own key or button in a prompt. The night is canvas lighting (game.lights): an
+// ambient, and lights added every draw (a street lamp, the gem's glow), the same in every browser and every check.
 // Copy it and make it your game. Test it headless: node game/test.mjs. Check it in a browser: node tools/check.mjs game/index.html
 (() => {
 const E = My3D2dge;
@@ -55,7 +56,8 @@ const title = {
 
 const play = {
   pausable: true,
-  enter() { game.follow(hero, { z: 16 }); game.cam.bounds = v => map.bounds(v); },
+  enter() { game.follow(hero, { z: 16 }); game.cam.bounds = v => map.bounds(v); game.lights.enabled = true; game.lights.ambient = .5; },
+  exit() { game.lights.enabled = false; },
   update(dt) {
     const I = game.input;
     if (climb) {   // pull up onto the ledge: rise along the wall, then step over the edge
@@ -92,9 +94,10 @@ const play = {
     r.sky(['#101828', '#28304a']);
     map.drawFloor(r); map.queueWalls(r);
     for (const [id, x, y, o] of DRESS) r.shape(id, x, y, 0, o);
+    r.prop('lamp', 88, 88, 0, { light: true });   // a street lamp: its glow and a pool of light
     r.decal(() => r.groundArc(guard.x, guard.y, 6, 110, guard.facing - .6, guard.facing + .6, alert > 0 ? '#ff6040' : '#ffe080', .4));   // its sight cone
     const gem = map.find('gem');
-    if (!got) r.sprite(gem.x, gem.y, ROOF + 6 + Math.sin(game.time * 3) * 2, GEM);
+    if (!got) { r.sprite(gem.x, gem.y, ROOF + 6 + Math.sin(game.time * 3) * 2, GEM, { glow: .8 }); game.lights.add(gem.x, gem.y, ROOF + 6, 44, .9, { color: '#80d8ff' }); }
     for (const [b, rig] of [[hero, heroRig], [guard, guardRig]]) {
       r.shadow(b.x, b.y, 7, .35, undefined, b.groundZ || 0);
       r.actor(b.x, b.y, b.z, (g, ox, oy) => rig.draw(g, ox, oy, r.view));

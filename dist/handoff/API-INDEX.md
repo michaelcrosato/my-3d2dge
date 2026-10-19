@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.53.0)
+# my-3D2dge API index (v0.54.0)
 
 Every public name in `engine/my-3d2dge.js`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -56,32 +56,32 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 221 Input; E.Input: input
 - 293 Pixel font
 - 304 Lighting; game.lights
-- 319 Particles; E.Particles: game.particles
-- 339 Renderer; r
-- 383 Game; E.Game: game
-- 493 Standard features; settings, fullscreen
-- 510 10c. Boot
-- 515 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 588 Blob rig; E.Blob: blob
-- 608 Tile map; E.TileMap: map
-- 665 Materials
-- 686 Flow field; E.FlowField: flow
-- 704 Texture helpers for floortex functions
-- 715 Platform map; E.PlatformMap: level, E.Platformer: hero
-- 777 Body; E.Body: body
-- 797 Actions; E.Action: action
-- 819 17c. Mover; E.Mover: mover
-- 846 17d. Perception; E.Suspicion: suspicion
-- 863 Bullets; E.Bullets: shots
-- 883 Spatial hash; E.SpatialHash: grid
-- 893 Audio; game.audio
-- 915 Backdrops; E.Backdrop: backdrop
-- 923 21c. Props
-- 928 21e. Shapes
-- 940 Ui; E.Dialog: talk, E.Menu: menu
-- 994 21d. Shell; E.Shell: shell
-- 1023 Gpu lighting (webgpu); game.gpu
-- 1043 Sessions
+- 323 Particles; E.Particles: game.particles
+- 343 Renderer; r
+- 388 Game; E.Game: game
+- 498 Standard features; settings, fullscreen
+- 515 10c. Boot
+- 520 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 593 Blob rig; E.Blob: blob
+- 613 Tile map; E.TileMap: map
+- 670 Materials
+- 691 Flow field; E.FlowField: flow
+- 709 Texture helpers for floortex functions
+- 720 Platform map; E.PlatformMap: level, E.Platformer: hero
+- 782 Body; E.Body: body
+- 802 Actions; E.Action: action
+- 824 17c. Mover; E.Mover: mover
+- 851 17d. Perception; E.Suspicion: suspicion
+- 868 Bullets; E.Bullets: shots
+- 888 Spatial hash; E.SpatialHash: grid
+- 898 Audio; game.audio
+- 920 Backdrops; E.Backdrop: backdrop
+- 928 21c. Props
+- 933 21e. Shapes
+- 945 Ui; E.Dialog: talk, E.Menu: menu
+- 999 21d. Shell; E.Shell: shell
+- 1028 Gpu lighting (webgpu); game.gpu
+- 1049 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -90,7 +90,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.53.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.54.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -303,18 +303,22 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 7. Lighting
 
-- `game.lights.add(x, y, z, radius, intensity = 1, o)` †: radius in world units; intensity ~0.5..1.5. opts (GPU lighting only): { color: '#ffaa55', shadow: true }
+- `game.lights.add(x, y, z, radius, intensity = 1, o)` †: radius in world units; intensity ~0.5..1.5. opts: { color: '#ffaa55' (both lightings), shadow: true (GPU lighting: walls and casters block it) }
 - `game.lights.caster(x, y, r, top)` †: something that blocks light (GPU shadows): a cylinder of radius r from the floor up to height top
 - `game.lights.heat(x, y, z, width, strength = 1)` †: heat shimmer above a point (GPU only). width in world units, strength ~0.5..1.5
+- `game.lights.on` †: true when the canvas lighting draws this frame: enabled, or standing in for GPU lighting the game turned on that can't draw (no WebGPU, still loading, a side view); gpu.fallback = false keeps such a frame unlit
 - `game.lights.refresh()` †: rebuild the darkness bands after changing dark, levels or glow (lights.dark = [r, g, b]; lights.refresh())
 - `game.lights.render(r)` †: darken the frame by the lights (the renderer calls it after the queue, when enabled)
 - `game.lights.ambient = .15` †: how lit unlit places are, 0 (black) .. 1
 - `game.lights.dark = [10, 6, 24]` †: the color of darkness, [r, g, b]
+- `game.lights.darkness = .9` †: how dark the darkest places get, 0..1 (the smooth style, E.style.trans 'alpha')
 - `game.lights.enabled = false` †: false (the default) turns the canvas lighting off
 - `game.lights.glow = [255, 200, 140, 0]` †: the color, [r, g, b, a], where light is brightest
 - `game.lights.glowAt = 1.7` †: the light level (1 = fully lit) above which it glows
 - `game.lights.levels = [.9, .7, .48, .26, .08, 0]` †: the darkness of each lighting band, darkest first (dithered between them)
 - `game.lights.list = []` †: this frame's lights from add()
+- `game.lights.screen = false` †: true measures lights on the screen, not the ground (side views and PlatformMaps do it by themselves)
+- `game.lights.tint = .32` †: how strongly lights add their own color, 0..1
 
 ## 8. Particles
 
@@ -373,6 +377,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.visible(x, y, z = 0, mx = 60, up = 30, down = 90)`: is a world point near the visible area? margins in pixels (characters extend upward from their feet)
 - `r.w(x, y, z = 0)`: world -> buffer pixel coords
 - `r.game`: its game; items: this frame's queue (sorted by depth when the frame ends)
+- `r.glowMask = true` †: false lets emissive glows show over everything under canvas lighting (cheaper: the default keeps walls and bodies in front of a glow dark)
 - `r.gpu = false` †: true during a frame drawn with GPU lighting (draw code can check r.gpu)
 - `r.ix`, `r.iy`: the camera's whole-pixel offset this frame (a world point is at r.w(x, y, z) on the buffer)
 - `r.outline = '#140c1c'`: the color of the 1-pixel outline round every actor
@@ -402,7 +407,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.back()`: a step back, as a phone's back gesture asks for (the engine calls it for one; a back button of the game's own can): the open menu screen goes back one; else the scene's own back() takes it (it returns true when it did); else a scene in play pauses into the menu, and a paused one goes on. Returns false where there is nowhere to go (a title)
 - `game.cornerArea()` †: where the corner's buttons (menu and full screen, top right; the touch START) cover the screen, in screen pixels { x0, y0, x1, y1 } (r.W and r.H's space), or null while none show: keep a HUD clear of it
 - `game.dispose()`: end the game for good: stop the loop and remove everything the engine added to the page (its listeners on the window, the document, the canvas and the buttons, the touch controls, the GPU lighting's canvas) and close the sound. Tests and tools that make many games call it; the canvas stays
-- `game.enableGPU(o = {})` †: turn on WebGPU lighting (falls back to Canvas lighting automatically). opts: { map, bands, ambient, ... }
+- `game.enableGPU(o = {})` †: turn on WebGPU lighting: where it can't draw (no WebGPU, a side view) the canvas lighting stands in, with its own ambient (game.lights.ambient) and the same lights. opts: { map, bands, ambient, fallback, ... }
 - `game.every(seconds, fn)`: run fn every `seconds` of game time. Cleared on scene change. Returns { cancel() }
 - `game.fail(where, e)`: report an error in game code without stopping the game: logged once per place and message, kept in game.errors and shown on the error panel (the engine reports its own callbacks' errors this way): game.fail('power ' + id, err)
 - `game.flash(color = '#ffffff', seconds = .12, strength = 1)`: flash the whole screen with a color for `seconds` (dithered fade out): hits, explosions, lightning. Shorter when reduceMotion, dimmer by the player's settings.flashes
@@ -1028,8 +1033,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.gpu.adapterInfo` †: the GPU's description from the browser (vendor, architecture), or null
 - `game.gpu.ambient` †: the unlit color, [r, g, b] 0..1
 - `game.gpu.bands = 6` †: how many light bands (fewer is more retro)
-- `game.gpu.enabled = true` †: false switches it off for now (the canvas lighting takes over)
+- `game.gpu.enabled = true` †: false switches it off for now (and the canvas lighting with it, unless game.lights.enabled)
 - `game.gpu.failed = null` †: why it couldn't start, or null
+- `game.gpu.fallback = true` †: false keeps a frame it can't draw unlit (by default the canvas lighting stands in, game.lights.on)
 - `game.gpu.glow = .22` †: the strength of px.glow surfaces
 - `game.gpu.map = null` †: the TileMap it measures walls on
 - `game.gpu.offscreen = false` †: render into a texture instead of the page (automated tests; read it with snapshot())

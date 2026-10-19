@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.54.0 (2026-10-19)
+
+Phase 2 of the next plan: lighting is a step of the look, shown working where builders copy from (D45).
+
+- **Docs**: `API.md`'s Look target has a step 9, "Light every scene" (canvas lighting in a scene's `enter`, a few lights each draw, `game.enableGPU` for shadows in ground views), and the hand-back checklist says "lights"; the boot and the player's zoom are pointers to `AI_GUIDE.md` now, to make room. `AI_GUIDE.md`'s Lighting says why canvas lighting leads (it draws the same in every browser and check) and how to match the two ambients. The agent edition's header names `game.lights` and `game.enableGPU` among the full engine's extras.
+- **Rendering**: GPU lighting falls back to canvas lighting by itself where it can't draw (no WebGPU, still loading, a side view): `game.lights.on` is true then, and `gpu.fallback = false` keeps such frames unlit. A game that only called `enableGPU` had no lighting at all without WebGPU. The fields canvas lighting reads are set and documented (`darkness`, `tint`, `screen`, `r.glowMask`), and `lights.add`'s comment says `color` works in both lightings.
+- **Art**: the template game and the STEALTH slice are lit at dusk: an ambient, street lamps (`r.prop('lamp', ..., { light: true })`), the gem's and the ledger's glow, the gate. The ADVENTURE slice gives its canvas fallback the same mood as its GPU ambient.
+
 ## 0.53.0 (2026-10-19)
 
 Phase 1 of the next plan (`docs/HANDOFF-NEXT.md`): the cards answer what the benchmark runs read the engine's source for.
