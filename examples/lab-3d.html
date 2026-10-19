@@ -20909,7 +20909,7 @@ function localPoint(rig, p, sp) {
   return sp ? sp(a, p[2], p[3], p[4]) : [a[0] + p[2], a[1] + p[3], a[2] + p[4]];
 }
 /** local (f, r, z) -> three.js world (metres) */
-function worldPoint(rig, local, out = new THREE.Vector3()) { const w = rig._w(local); return toThree(rig.x + w[0], rig.y + w[1], rig.z + w[2], out); }
+function worldPoint(rig, local, out = new THREE.Vector3()) { const w = rig.worldOffset(local); return toThree(rig.x + w[0], rig.y + w[1], rig.z + w[2], out); }
 
 /* ---- Puppet: meshes for the parts, moved onto the joints every frame ---- */
 const _geo = new Map();
@@ -21099,7 +21099,7 @@ function poseCast(dt) {
   danRig.update(dt, { x: D.x * U, y: D.z * U, z: 0, facing: D.facing, attack: atk, dan: D.roar > 0 ? 'roar' : null, hurt: D.hurt > 0 });
   if (atk && atk.phase === 'active') {
     const side = atk.spec.hand === 'L' ? 'L' : 'R', J = danRig.J, base = E.V3.lerp(J['hand' + side], J['tip' + side], .4);
-    const at = p => { const w = danRig._w(p); return [danRig.x + w[0], danRig.y + w[1], danRig.z + w[2]]; };
+    const at = p => { const w = danRig.worldOffset(p); return [danRig.x + w[0], danRig.y + w[1], danRig.z + w[2]]; };
     DANC.pairs.push([at(base), at(J['tip' + side])]); if (DANC.pairs.length > 8) DANC.pairs.shift();
   } else if (DANC.pairs.length) DANC.pairs.shift();
 }
