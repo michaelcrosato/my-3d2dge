@@ -3,9 +3,12 @@
 > **Status: TBD, on hold (2026-10-16).** The owner is thinking it over. Nothing here is to be built until they say
 > go and answer section 13.
 >
-> **Since it was written (2026-10-18):** v0.47.0 to v0.51.1 went to the 3D shooter kit, so each phase takes the next
-> minor version when it merges, not the number it was first given; check the facts it relies on against the code of
-> the day (section 17's prompt says how).
+> **Since it was written (2026-10-18; checked again 2026-10-21 at v0.59.1):** v0.47.0 to v0.51.1 went to the 3D shooter
+> kit, and v0.51.2 to v0.59.1 emptied Temporary (D44), made the engine tier's private names public (v0.52.0: the
+> `_lastView` of section 4's row 4 is `rig.lastView`) and carried out the next plan (lighting, `E.Shell` HUDs, the x-ray,
+> walls, `E.Mover`'s climbing and gliding; D45 to D48). So each phase takes the next minor version when it merges, not
+> the number it was first given; check the facts it relies on against the code of the day (section 17's prompt says
+> how). The budgets below are as of v0.59.1.
 
 The plan for co-op multiplayer in Emberdeep: up to four players in one game, each going wherever they like, against
 monsters whose life and damage grow with the players around them. It was made on 2026-10-16 against v0.46.1
@@ -65,9 +68,10 @@ then delete this file, as v0.38.1 and v0.43.3 did with finished plans.
 - **Engine work goes into the full engine only.** The agent edition stays a strict subset (`npm run test:agent`) and
   gets no co-op until a kit needs it.
 - **The co-op card.** The manual's budgets are nearly full:
-  - API card: 14,649 of 15,000;
-  - agent header: 9,792 of 10,000;
-  - API index: 34,010 of 40,000.
+  - API card: 14,960 of 15,000 (40 left: make room for the one line to `docs/COOP.md` first, as v0.59.0 did by
+    moving the controller diagnostics to the index);
+  - agent header: 9,833 of 10,000;
+  - API index: 35,566 of 40,000.
 
   Co-op gets its own card, `docs/COOP.md`, with a budget of 3,000 that `doctrine-check` counts, as D30 did for the
   asset card. API.md gets one line pointing to it, and the index gets the public names.

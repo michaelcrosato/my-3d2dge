@@ -198,7 +198,7 @@ Every page that draws a world takes from the store or the core library:
 - **Emberwell and the Perspective Lab:** the core library.
 - **The stress test:** its Shapes slider.
 - **The Mocap Lab:** its Props button, off by default.
-- **The two 3D prototypes:** core shapes as one three.js mesh each, from `E.shapeMesh`, solid from `E.shapeBox`.
+- **The 3D engine:** core shapes as one three.js mesh each (`world.shape`, from `E.shapeMesh`), solid from `E.shapeBox`; the two 3D prototypes that first did this were deleted in v0.51.4 (D44).
 - **The handoff package:** carries the whole store.
 
 What still draws by its own code was reviewed against the store (v0.42.0):

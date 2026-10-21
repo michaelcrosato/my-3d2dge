@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.59.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.59.2.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -481,7 +481,7 @@ The engine files carry the engine; the repo (github.com/michaelcrosato/my-3d2dge
 
 **Starters**: `dist/kits/my-3d2dge-<adventure|platformer|brawler|shooter|rpg|stealth|animlab>.html`, one vertical slice per genre, each a complete game to copy from.
 
-**Real 3D**: `dist/my-3d2dge-3d.js` puts a three.js and Rapier world under a game (make the game with `bg: null`); its header is its manual, with a complete game. Its kits, `dist/kits/my-3d2dge-3d-<action|platformer>.html`, are served, not opened from a disk (they load `vendor/`). `docs/ENGINE-3D.md` says how it fits the engine.
+**Real 3D**: `dist/my-3d2dge-3d.js` puts a three.js and Rapier world under a game (make the game with `bg: null`); its header is its manual, with a complete game. Its kits, `dist/kits/my-3d2dge-3d-<action|platformer|shooter>.html`, are served, not opened from a disk (they load `vendor/`). `docs/ENGINE-3D.md` says how it fits the engine.
 
 ## Performance
 - **Rigs:** projection costs microseconds. The outline composite is the expensive part, so crowds should use `outline: false`.
