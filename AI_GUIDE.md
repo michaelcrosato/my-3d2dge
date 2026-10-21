@@ -481,7 +481,7 @@ The engine files carry the engine; the repo (github.com/michaelcrosato/my-3d2dge
 
 **Starters**: `dist/kits/my-3d2dge-<adventure|platformer|brawler|shooter|rpg|stealth|animlab>.html`, one vertical slice per genre, each a complete game to copy from.
 
-**Real 3D**: `dist/my-3d2dge-3d.js` puts a three.js and Rapier world under a game (make the game with `bg: null`); its header is its manual, with a complete game. Its kits, `dist/kits/my-3d2dge-3d-<action|platformer>.html`, are served, not opened from a disk (they load `vendor/`). `docs/ENGINE-3D.md` says how it fits the engine.
+**Real 3D**: `dist/my-3d2dge-3d.js` puts a three.js and Rapier world under a game (make the game with `bg: null`); its header is its manual, with a complete game. Its kits, `dist/kits/my-3d2dge-3d-<action|platformer|shooter>.html`, are served, not opened from a disk (they load `vendor/`). `docs/ENGINE-3D.md` says how it fits the engine.
 
 ## Performance
 - **Rigs:** projection costs microseconds. The outline composite is the expensive part, so crowds should use `outline: false`.

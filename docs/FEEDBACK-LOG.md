@@ -38,6 +38,7 @@ coming back from later sources is how a pattern shows, so it can be weighed agai
 | A turned three-quarter view (yaw 0: pillars lay their tops on the wall behind) | watch | F4 | a source after v0.57.0 still sees three-quarter walls and pillars as flat planes (F4.2): a small yaw is the owner's call |
 | Pitched roofs for `TileMap` types (the stealth starter's belfry draws one with `r.queue`) | deferred | none yet | a source asks for roofs |
 | GPU lighting in headless checks (WebGPU in `tools/check.mjs`'s browser) | deferred | F1 | a game leads with GPU lighting and its checks need to see it; canvas lighting shows in every check (D45) |
+| The look's remainder: small figures that merge when they overlap (F4.2), empty fields (F6.2) | watch | none yet (the parts of F4.2 and F6.2 the next plan left; they predate it, so they don't count afresh; F2.2's foliage and F3.2's pines and thin shadows predate the asset store's foliage and contact shadows, v0.35.0 to v0.38.0, and F6 didn't repeat them) | a source after v0.59.0 still sees them |
 
 ## Sources
 

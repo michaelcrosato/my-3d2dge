@@ -58,6 +58,8 @@ An entry:
   renderer and every game's look for no gain in what the engine is for.
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
+- **Superseded in part by D44** (v0.51.4): the two 3D labs were deleted, not moved to a repository of their own; the 3D
+  engine keeps three.js's WebGL 2 fallback (D27). The rest holds.
 
 ## D4 · 2026-10-10 · Determinism comes from the harness (principle 5 grandfathered)
 
@@ -101,7 +103,9 @@ An entry:
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
 - **Progress:** v0.16.0 made `rig._w` public as `rig.worldOffset(p)` in both editions; the starters and the arena use
-  it, and their entries left `GRANDFATHERED`. A new use of `_w` is told to use the public name.
+  it, and their entries left `GRANDFATHERED`. A new use of `_w` is told to use the public name. v0.51.3 moved
+  Emberdeep onto it, and v0.52.0 made the rest public (`rig.lastView`, `game.fail`, `rig.solvePose()` and the others):
+  `GRANDFATHERED` is empty, and nothing outside `engine/` uses a private member.
 
 ## D7 · 2026-10-10 · Approved binaries and imported data
 
@@ -133,6 +137,8 @@ An entry:
 - **Why:** the choice already follows the adopted principle.
 - **Answered:** yes, part of D1.
 - **Landed in:** v0.15.0
+- **Superseded in part by D44** (v0.51.4): the 3D labs and their tests are deleted; the 3D engine keeps the pins (D27),
+  and `tools/kit3d-test.mjs` holds the checksums and bans the same APIs.
 
 ## D10 · 2026-10-10 · The owner reviewed D3 to D6 and kept them
 
@@ -462,6 +468,8 @@ An entry:
 - **Answered:** the kits, yes (the owner asked for them, 2026-10-12); the dependency, the fallback, the served pages and
   the budget: no, made at once as reversible calls, flagged in the pull request, to review
 - **Landed in:** v0.34.0
+- **Superseded in part by D44** (v0.51.4): the 3D labs did not stay; they were deleted (`docs/LAB-3D.md` is their record),
+  and the 3D engine is the only 3D code. The rest holds.
 
 ## D28 · 2026-10-14 · The API index's budget rises to 40,000, counted exactly
 
