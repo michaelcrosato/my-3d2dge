@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.59.2 (2026-10-21)
+
+The docs brought up to date with v0.59.1: the 3D labs are gone, the 3D shooter kit is listed, the sizes are measured again.
+
+- **Docs**: `DOCTRINE.md`'s principles table no longer names the 3D labs (deleted in v0.51.4, D44) or a grandfathered `_w`: the 3D proof hash and the banned-API check are `kit3d-test`'s, and v0.52.0 emptied the private-name list; its benchmark paragraph says the next plan took its themes up and no run has measured it yet.
+- **Docs**: `README.md` and `AI_GUIDE.md` list the 3D shooter kit beside action and platformer (`#shooter`); README's token counts are measured at v0.59.1 (2D kits 188k to 208k, 3D kits 236k to 311k, compact 329k, full 434k, the agent edition 105k), and it says Temporary is empty and the API card is just under its 15,000.
+- **Docs**: `docs/DECISIONS.md` marks D3, D9 and D27 superseded in part by D44 (the 3D labs were deleted, not kept or moved) and finishes D6's progress (v0.52.0); `docs/FEEDBACK-LOG.md` has a watch theme for the look's remainder (F4.2's merging figures, F6.2's empty fields); `docs/ASSET-IMPORT.md` names the 3D engine where it named the deleted prototypes.
+- **Docs**: `docs/HANDOFF-COOP.md`, still on hold, says what changed since it was written and gives its budgets as of v0.59.1 (the API card has 40 tokens left for co-op's one line).
+
 ## 0.59.1 (2026-10-19)
 
 The next plan is done: folded into the docs and deleted.
