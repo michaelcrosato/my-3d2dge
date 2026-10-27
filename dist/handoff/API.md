@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.59.4)
+# my-3D2dge API card (v0.60.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -224,6 +224,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
 - **Motion clips**: 325 curated and 2,548 motion-capture takes that play on any Humanoid: find one in `src/mocap/catalogs/`, cut a small set with `tools/anim-set.mjs`, then `Mocap.drive(rig, lib)` (`AI_GUIDE.md`, Where to find more; `docs/MOCAP.md`).
 - **Objects and materials** (full engine): `r.shape('barrel', x, y, 0, { facing })` draws a still object from any view and facing, `map.solid(...)` makes it solid; `E.MATERIALS` dresses floors (`floorMat`), walls (`face`, `roof`) and platform tiles (`mat`). `docs/ASSETS.md` is the card: the format, the library, writing one and checking it with `node tools/asset-sheet.mjs`.
 - **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 28 monster, boss and dummy bodies, 3 heroes (one a living book, one a scythed beast) and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
+- **Modules** (`engine/modules/<name>.js`, `engine/modules/README.md`): general systems in files of their own, each a `<script>` after the engine, its header its manual. A kit carries the modules its slice names (`@modules` in its header); `dist/my-3d2dge.js` carries them all.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
 ## Before you hand the game back

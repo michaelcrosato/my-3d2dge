@@ -68,10 +68,10 @@ then delete this file, as v0.38.1 and v0.43.3 did with finished plans.
 - **Engine work goes into the full engine only.** The agent edition stays a strict subset (`npm run test:agent`) and
   gets no co-op until a kit needs it.
 - **The co-op card.** The manual's budgets are nearly full:
-  - API card: 14,960 of 15,000 (40 left: make room for the one line to `docs/COOP.md` first, as v0.59.0 did by
-    moving the controller diagnostics to the index);
+  - API card: 14,960 of 15,000 at v0.59.3 (the budget is 18,000 since v0.60.0, D50, shared with the genre plan,
+    `docs/HANDOFF-GENRES.md`: keep the one line to `docs/COOP.md` short);
   - agent header: 9,833 of 10,000;
-  - API index: 35,566 of 40,000.
+  - API index: 35,566 of 40,000 at v0.59.3 (52,000 since v0.60.0, D50).
 
   Co-op gets its own card, `docs/COOP.md`, with a budget of 3,000 that `doctrine-check` counts, as D30 did for the
   asset card. API.md gets one line pointing to it, and the index gets the public names.

@@ -6,14 +6,16 @@
 //   4. the store it points to (its "More" section, and the same in the full engine, API.md and AI_GUIDE.md): every path
 //      named exists, and its recipe works: the ledger search, the cut of a curated clip and a motion-capture take into a
 //      set of its own, and both clips playing on the agent edition's Humanoid
-//   5. its size, in bytes and tokens (cl100k when the optional gpt-tokenizer package is installed, otherwise an estimate)
-// Usage: node tools/agent-test.mjs [--out check-output/agent] [--only quickstart]    (exit code 1 on any failure)
+//   5. the modules (engine/modules/) that load after it: each, after the agent edition, runs its manual's examples there
+//   6. its size, in bytes and tokens (cl100k when the optional gpt-tokenizer package is installed, otherwise an estimate)
+// Usage: node tools/agent-test.mjs [--out check-output/agent] [--only quickstart | --only modules]    (exit code 1 on any failure)
 // Setup: npm install (Playwright). Set CHROMIUM_PATH to use an already installed Chromium.
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { modules as allModules, forEdition, examplesOf } from './engine-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const AGENT = join(root, 'engine/my-3d2dge-agent.js'), FULL = join(root, 'engine/my-3d2dge.js');
@@ -226,9 +228,29 @@ if (!only) {
     if (!moved.length && !errors.length) console.log('  ok   ' + named + ' paths named in 4 places exist; the ledger search, the cut (' + clips.join(', ') + ') and both clips on the agent edition work');
   }
 }
+// a module that loads after the agent edition (its manual says so) runs there: the agent edition, the modules it needs, then
+// each of its manual's examples (a snippet in the page, a whole game as the page's game)
+const AFTER = forEdition('agent', 'all', allModules());
+if ((!only || only === 'modules') && AFTER.length) {
+  console.log('5. the modules that load after the agent edition: their manuals\' examples, there');
+  for (const m of AFTER) {
+    const mods = forEdition('agent', [m.name]).map(x => '<script src="' + pathToFileURL(join(root, x.file)).href + '"></script>').join('');
+    for (const ex of examplesOf(m.manual)) {
+      const game = /^\(\(\) => \{/.test(ex.code.trim()), dir = join(out, 'module-' + m.name + '-' + ex.name.replace('#', '')); mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'game.js'), game ? ex.code : 'window.__ran = (() => { try { new Function("My3D2dge", ' + JSON.stringify(ex.code) + ')(My3D2dge); return "ok"; } catch (e) { return e.message; } })();');
+      writeFileSync(join(dir, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0"><canvas id="screen" style="width:100vw;height:100vh;display:block"></canvas><script src="' + pathToFileURL(AGENT).href + '"></script>' + mods + '<script src="game.js"></script></body></html>\n');
+      const p = await browser.newPage(), errors = [];
+      p.on('pageerror', e => errors.push(String(e && e.message || e))); p.on('console', c => { if (c.type() === 'error') errors.push(c.text()); });
+      await p.goto(pathToFileURL(join(dir, 'index.html')).href); await p.waitForTimeout(game ? 600 : 50);
+      const ran = await p.evaluate(g => g ? (My3D2dge.current ? 'ok' : 'no game started') : window.__ran, game); await p.close();
+      if (ran !== 'ok' || errors.length) fail('module ' + m.name, ex.name + ': ' + [ran !== 'ok' ? ran : '', ...errors].filter(Boolean).join('; '));
+      else console.log('  ok   module ' + m.name + ', example ' + ex.name);
+    }
+  }
+}
 await browser.close();
 
-console.log('5. size');
+console.log((AFTER.length ? '6' : '5') + '. size');
 let tok = null;
 try { const { encode } = await import('gpt-tokenizer/encoding/cl100k_base'); tok = s => encode(s).length; } catch (e) { /* optional */ }
 const count = s => tok ? tok(s) + ' tokens' : '~' + Math.round(s.length / 2.6) + ' tokens (estimate; npm i gpt-tokenizer for exact cl100k counts)';

@@ -29,17 +29,13 @@
 //                with the report's line; boot: false takes a splash away; E.diagnose()
 // Usage: node tools/standard-test.mjs [--node]   (exit code 1 on a failure; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
+import { load as loadEngine, engineSource } from './engine-lib.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EDITIONS = [['full', 'engine/my-3d2dge.js'], ['agent', 'engine/my-3d2dge-agent.js']];
 const failures = [];
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; else { failures.push(name + (detail ? ': ' + detail : '')); console.log('  FAIL ' + name + (detail ? ': ' + detail : '')); } };
-const load = file => { const ctx = { console: { log() {}, warn() {}, error: console.error } }; vm.createContext(ctx); vm.runInContext(readFileSync(join(root, file), 'utf8'), ctx, { filename: file }); return ctx.My3D2dge; };
+const load = file => loadEngine(EDITIONS.find(e => e[1] === file)[0], { console: { log() {}, warn() {}, error: console.error } });   // (with its modules)
 const scenes = () => ({ title: { update() {}, draw() {} }, play: { pausable: true, update() {}, draw() {} } });
 
 // ---- in Node: what needs no screen
@@ -114,7 +110,7 @@ if (!process.argv.includes('--node')) {
   for (const [ed, file] of EDITIONS) {
     console.log(`\n${ed} edition (Chromium)`);
     const splash = load(file).bootSplash('HARBOUR');
-    const engine = readFileSync(join(root, file), 'utf8').replace(/<\/script/gi, '<\\/script');
+    const engine = engineSource(ed).replace(/<\/script/gi, '<\\/script');
     // a page on an origin of its own (localStorage works there), the engine, and a small game with a title and a pausable play scene
     const PAGE = (opts = '{}') => `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#000"><canvas id="screen" style="width:100vw;height:100vh;display:block"></canvas><script>${engine}</script><script>
       const E = My3D2dge, game = new E.Game(Object.assign({ canvas: 'screen', res: 'snes', loop: false }, ${opts}));

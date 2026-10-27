@@ -16,6 +16,7 @@
 //                  menu's Settings, Controls and Full screen), the game's input moves the focus and is held back while a
 //                  screen is open, a button's act reaches the game, settings apply, toasts time out, dispose() takes it
 //                  away; headless it keeps its screens' names (the standard features in depth: tools/standard-test.mjs)
+//   modules        every module's manual (engine/modules/): its fenced examples run on each edition it loads after
 //   the asset card docs/ASSETS.md's examples: on the full engine the shapes draw, the solid is placed, the sprite made, the
 //                  surfaces take their materials and every worked entry draws; on the agent edition they run, the
 //                  registries keep what a game adds and the calls warn (the suite in depth: tools/assets-test.mjs)
@@ -27,19 +28,22 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
+import { load as loadEngine, engineSource, modules, forEdition, examplesOf } from './engine-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EDITIONS = [['full', 'engine/my-3d2dge.js'], ['agent', 'engine/my-3d2dge-agent.js']];
 const failures = [];
 let passed = 0;
 const check = (name, ok, detail = '') => { if (ok) passed++; else { failures.push(name + (detail ? ': ' + detail : '')); console.log('  FAIL ' + name + (detail ? ': ' + detail : '')); } };
-/** the engine loaded in Node, as a game's script would load it (a context of its own per call) */
-const load = file => { const ctx = { console }; vm.createContext(ctx); vm.runInContext(readFileSync(join(root, file), 'utf8'), ctx, { filename: file }); return ctx.My3D2dge; };
+/** the engine loaded in Node with its modules, as a game's scripts would load it (a context of its own per call) */
+const load = file => loadEngine(EDITIONS.find(e => e[1] === file)[0]);
 
-// the fenced examples of the cards and the index (```js name ... ```)
-const FENCED = file => [...readFileSync(join(root, file), 'utf8').matchAll(/```js( \w+)?\n([\s\S]*?)\n```/g)].map((m, i) => ({ file, name: (m[1] || '').trim() || '#' + (i + 1), code: m[2] }));
-const EXAMPLES = [...FENCED('API.md'), ...FENCED('API-INDEX.md')];
+// the fenced examples of the cards and the index (```js name ... ```), and of each module's manual on the editions it loads
+// after (x.editions)
+const FENCED = file => examplesOf(readFileSync(join(root, file), 'utf8')).map(x => Object.assign(x, { file }));
+const MODS = modules();
+const EXAMPLES = [...FENCED('API.md'), ...FENCED('API-INDEX.md'),
+  ...[...MODS.values()].flatMap(m => examplesOf(m.manual).map(x => Object.assign(x, { file: m.file, editions: EDITIONS.map(e => e[0]).filter(ed => forEdition(ed, [m.name], MODS).some(f => f.name === m.name)) })))];
 
 // ---- in Node: what needs no screen
 for (const [ed, file] of EDITIONS) {
@@ -68,12 +72,13 @@ for (const [ed, file] of EDITIONS) {
 // every fenced example in API.md and API-INDEX.md runs: a snippet in Node, in a headless game when it uses one it
 // doesn't make; a complete game ((() => { ... })()) in Chromium, below
 function examples(E, ed) {
-  for (const x of EXAMPLES.filter(x => !/^\(\(\) => \{/.test(x.code.trim()))) {
+  for (const x of EXAMPLES.filter(x => !/^\(\(\) => \{/.test(x.code.trim()) && (!x.editions || x.editions.includes(ed)))) {
     const own = /\b(?:const|let|var)\s[^;]*\bgame\s*=/.test(x.code), game = own ? null : new E.Game({ headless: true });
     try {
       new Function('My3D2dge', ...(own ? [] : ['game']), x.code)(E, ...(own ? [] : [game]));
       if (game && game.scene) { game.input.tap('start'); game.advance(.5); }
       check(`${ed}: ${x.file} example ${x.name} runs`, true);
+      if (x.editions) console.log(`  ok   ${ed}: ${x.file} example ${x.name} runs`);   // (a module's: said, so its suite sees it ran)
     } catch (e) { check(`${ed}: ${x.file} example ${x.name} runs`, false, e.message); }
   }
 }
@@ -531,7 +536,7 @@ const CARD = ([use, surf, entry, worked]) => {
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [ed, file] of EDITIONS) {
   console.log(`\n${ed} edition (Chromium, virtual clock)`);
-  const html = '<!doctype html><html><body style="margin:0"><canvas id="screen"></canvas><script>(' + CLOCK + ')()</script><script>' + readFileSync(join(root, file), 'utf8').replace(/<\/script/gi, '<\\/script') + '</script></body></html>';
+  const html = '<!doctype html><html><body style="margin:0"><canvas id="screen"></canvas><script>(' + CLOCK + ')()</script><script>' + engineSource(ed).replace(/<\/script/gi, '<\\/script') + '</script></body></html>';
   const run = async (fn, arg) => {
     const page = await browser.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -593,7 +598,7 @@ for (const [ed, file] of EDITIONS) {
     check(`${ed}: docs/ASSETS.md's examples draw without a warning: the shape, the solid, the sprite, the stool and every worked entry`, !K.warns.length && !K.still && K.withUse > 120 && K.solids >= 1 && K.icon && K.drawn.length === K.cards.length + 1, K.warns.join(' | ') + ' ' + JSON.stringify(K));
   } else check(`${ed}: docs/ASSETS.md's examples draw nothing and say so (r.shape, map.solid, E.shapeSprite are the full engine's)`, !K.still && !K.withUse && !K.solids && !K.icon && ['r.shape', 'map.solid', 'E.shapeSprite'].every(n => K.warns.some(w => w.includes(n))), K.warns.join(' | ') + ' ' + JSON.stringify(K));
   // the complete games among the examples (API.md's quick start): they start, take a start press and play, without errors
-  for (const x of EXAMPLES.filter(x => /^\(\(\) => \{/.test(x.code.trim()))) {
+  for (const x of EXAMPLES.filter(x => /^\(\(\) => \{/.test(x.code.trim()) && (!x.editions || x.editions.includes(ed)))) {
     const page = await browser.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     const at = html.lastIndexOf('</body>');   // (the agent edition's header has a </body> of its own)

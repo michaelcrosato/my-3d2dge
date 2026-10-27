@@ -8,12 +8,12 @@
 // 1. assets (principle 4): no binary file in the repository outside the approved list: fonts anywhere, and the pictures
 //    our own tools draw for the docs (docs/assets/, written by tools/ed-codex-showcase.mjs). A binary is a file with a zero
 //    byte in its first 8 KB, or a picture, sound, model or archive by its extension.
-// 2. the manuals' budgets (principle 1): the agent edition's header, the API card, the API index and the 3D engine's
-//    header (its manual), in cl100k tokens (exact with gpt-tokenizer, a dev dependency since D28; without it
+// 2. the manuals' budgets (principle 1): the agent edition's header, the API card, the API index, the 3D engine's
+//    header (its manual) and each module's (engine/modules/: 1,500, or its line in MODULE_BUDGETS), in cl100k tokens (exact with gpt-tokenizer, a dev dependency since D28; without it
 //    estimated from each manual's own characters a token, measured and rounded down so the estimate errs high: the header
 //    2.97, the API card 3.15, the index 3.29, the 3D manual's estimate at 2.9).
 // 3. the API boundary (principle 8): engine-private members (names starting with _ that engine/my-3d2dge.js defines) used
-//    outside engine/. The uses that were there when the doctrine was adopted are grandfathered by area (GRANDFATHERED);
+//    outside engine/, or by a module (engine/modules/: a module uses only the core's public API). The uses that were there when the doctrine was adopted are grandfathered by area (GRANDFATHERED);
 //    a new one in the engine tier fails. A prototype (a Temporary lab in src/labs.json) may reach past the API: its uses
 //    are listed, as the engine's to-do list, and never fail.
 // 4. the logs that are never cleaned up: docs/DECISIONS.md (DOCTRINE.md, "Deviations and escalation": every entry,
@@ -26,6 +26,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { modules as allModules } from './engine-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2), opt = k => args.includes('--' + k);
@@ -58,12 +59,15 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
   let tok = null;
   try { const { encode } = await import('gpt-tokenizer/encoding/cl100k_base'); tok = s => encode(s).length; } catch (e) { /* optional */ }
   const agent = read('engine/my-3d2dge-agent.js');
+  // a module's manual: 1,500 tokens, or its line here (the modules docs/HANDOFF-GENRES.md gives 2,500; D50)
+  const MODULE_BUDGET = 1500, MODULE_BUDGETS = { grid: 2500, fight: 2500, strategy: 2500, physics: 2500 };
   const MANUALS = [   // [name, text, budget in tokens, characters a token for the estimate]
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
-    ['the API card (API.md)', read('API.md'), 15000, 3.1],   // (D8, D20)
-    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 40000, 3.25],   // (D17, D18, D22, D28)
+    ['the API card (API.md)', read('API.md'), 18000, 3.1],   // (D8, D20, D50)
+    ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 52000, 3.25],   // (D17, D18, D22, D28, D50)
     ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 6000, 2.9],   // (D27)
-    ['the asset card (docs/ASSETS.md)', read('docs/ASSETS.md'), 4000, 3.1]   // (D30)
+    ['the asset card (docs/ASSETS.md)', read('docs/ASSETS.md'), 4000, 3.1],   // (D30)
+    ...[...allModules().values()].map(m => [`module ${m.name}'s manual`, m.manual, MODULE_BUDGETS[m.name] || MODULE_BUDGET, 2.9])
   ];
   const line = [];
   for (const [name, text, budget, ratio] of MANUALS) {
@@ -102,11 +106,12 @@ const PROTOTYPES = new Set();
   for (const p of pages) if (tempPages.has(p.page)) for (const f of sources(p.template)) if (!shared.has(f)) PROTOTYPES.add(f);
 }
 const uses = {};   // area -> name -> [files]
-for (const f of walk('src').filter(f => /\.(js|html)$/.test(f) && !f.startsWith('src/mocap/sets/') && !f.startsWith('src/assets/sets/'))) {
+const MODULE_FILES = [...allModules().values()].map(m => m.file);   // (a module is its own area: engine/modules/<name>.js)
+for (const f of [...walk('src').filter(f => /\.(js|html)$/.test(f) && !f.startsWith('src/mocap/sets/') && !f.startsWith('src/assets/sets/')), ...MODULE_FILES]) {
   const code = read(f).split('\n').map(l => /^\s*\*/.test(l) ? '' : l.replace(/(^|\s)\/\/.*$/, '')).join('\n');   // comments may name them
   for (const m of code.matchAll(/(?<!\bthis)\.(_[A-Za-z]\w*)\b/g)) {
     if (!PRIVATE.has(m[1])) continue;
-    const a = PROTOTYPES.has(f) ? f : area(f), list = ((uses[a] ??= {})[m[1]] ??= []);
+    const a = PROTOTYPES.has(f) || MODULE_FILES.includes(f) ? f : area(f), list = ((uses[a] ??= {})[m[1]] ??= []);
     if (!list.includes(f)) list.push(f);
   }
 }

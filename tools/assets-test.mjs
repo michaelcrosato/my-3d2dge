@@ -26,9 +26,10 @@ import { chromium } from 'playwright';
 import { readFileSync, mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './engine-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..'), out = join(root, 'check-output/assets-test');
-const ENGINE = readFileSync(join(root, 'engine/my-3d2dge.js'), 'utf8');
+const ENGINE = engineSource('full');   // (the core and its modules: tools/engine-lib.mjs)
 const problems = [], fail = (area, m) => problems.push(area + ': ' + m), ok = m => console.log('  ok   ' + m);
 let tok = s => Math.ceil(s.length / 3.2); try { const { encode } = await import('gpt-tokenizer/encoding/cl100k_base'); tok = s => encode(s).length; } catch (e) { /* estimated */ }
 mkdirSync(out, { recursive: true });

@@ -6,7 +6,8 @@
 //   dist/my-3d2dge-compact.html  same, with the engine minified (fewer tokens)
 //   dist/kits/my-3d2dge-<genre>.html  minified engine + API card + ONE slice: the smallest file to
 //                                hand a model that is making a game in that genre
-//   dist/my-3d2dge.js / .min.js  the engine alone, for multi-file projects
+//   dist/my-3d2dge.js / .min.js  the engine alone, for multi-file projects: the core and every module (engine/modules/) in
+//                                one file
 //   dist/my-3d2dge-3d.html       the 3D starter: the engine and the 3D engine (engine/my-3d2dge-3d.js: three.js r182 and
 //                                Rapier 0.19.3 from vendor/, through the page's import map: served, not double-clicked),
 //                                the API card and every 3D slice (src/starter3d/)
@@ -18,10 +19,14 @@
 //   dist/handoff/                the package for coding agents that need the full engine: the engines, API.md, the
 //                                index, AI_GUIDE.md, the tools that check, film and replay a game, and a template game
 //                                with a headless test (sources: src/handoff/). The only output of several files; text only
+// MODULES (engine/modules/<name>.js, engine/modules/README.md): each loads after the core, in a <script> of its own. The
+// reference editions carry every module; a kit carries the ones its slice names in its header (@modules grid gen) and
+// the ones those need; the examples pages carry none.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { modules as allModules, resolve as resolveModules, sliceModules } from './engine-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
@@ -32,15 +37,21 @@ const ALL = {
   CONTENTS: "a title menu plus six vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE, STEALTH)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
   LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg, #stealth or #animlab to the address to start a slice.'
 };
-const kit = id => ({
+// a kit's line on its modules (the scripts marked "inlined from engine/modules/...", after the engine), when it has any
+const modLine = mods => mods.length ? '\n       Its modules: ' + resolveModules(mods, MODS).map(m => m.name).join(', ') + ' (engine/modules/), each loaded after the engine.' : '';
+const kit = (id, mods = []) => ({
   EDITION: id + ' kit', GAMES: 'one working game to copy',
-  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with all six slices is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.',
+  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with all six slices is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.' + modLine(mods),
   LINKS: 'Deep link: add #' + id + ' to the address to start the slice.'
 });
 // the 3D slices: their ids and what each is (the kit's header names it)
 const SLICES3D = { action: 'ACTION (a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test)', platformer: 'PLATFORMER (a 3D course of islands, platforms and coins, Mario 64 and Spyro)', shooter: 'SHOOTER (an open world to move through and fight in, first or third person: Apex Legends without the multiplayer)' };
 const ALL3D = { EDITION: '3D edition', GAMES: 'the 3D starter games', CONTENTS: 'a title menu plus every 3D slice (' + Object.keys(SLICES3D).map(k => k.toUpperCase()).join(', ') + ').', LINKS: 'Deep links: add #' + Object.keys(SLICES3D).join(', #') + ' to the address to start a slice.' };
-const kit3d = id => ({ EDITION: '3D ' + id + ' kit', GAMES: 'one 3D game to copy', CONTENTS: 'a title menu plus the ' + SLICES3D[id] + ' slice.\n       This is a 3D genre kit. The file with every 3D slice is dist/my-3d2dge-3d.html at github.com/michaelcrosato/my-3d2dge.', LINKS: 'Deep link: add #' + id + ' to the address to start the slice.' });
+const kit3d = (id, mods = []) => ({ EDITION: '3D ' + id + ' kit', GAMES: 'one 3D game to copy', CONTENTS: 'a title menu plus the ' + SLICES3D[id] + ' slice.\n       This is a 3D genre kit. The file with every 3D slice is dist/my-3d2dge-3d.html at github.com/michaelcrosato/my-3d2dge.' + modLine(mods), LINKS: 'Deep link: add #' + id + ' to the address to start the slice.' });
+// the modules a slice names (@modules in its header), and those of a folder of slices together
+const sliceMods = file => sliceModules(readFileSync(join(root, file), 'utf8'));
+const dirMods = dir => [...new Set(readdirSync(join(root, dir)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).flatMap(f => sliceMods(join(dir, f))))];
+const MODS = allModules();
 const builds = [
   // one arena page for every view: iso by default, arena.html#threequarter (or keys 1-4, V) for the others
   { template: 'src/arena.template.html', out: 'examples/arena.html', vars: { VIEW: 'iso', TITLE: 'Emberwell · my-3D2dge' } },
@@ -55,23 +66,41 @@ const builds = [
   // the signature game: src/emberdeep/*.js (one script, joined in name order)
   { template: 'src/emberdeep.template.html', out: 'examples/emberdeep.html', vars: {} },
   // the files to share with AI models: API card + engine + starter slices
-  { template: 'src/starter.template.html', out: 'dist/my-3d2dge.html', vars: Object.assign({ EDITION: 'single-file edition' }, ALL) },
-  { template: 'src/starter.template.html', out: 'dist/my-3d2dge-compact.html', vars: Object.assign({ EDITION: 'compact edition (engine minified)' }, ALL), compact: true },
+  { template: 'src/starter.template.html', out: 'dist/my-3d2dge.html', vars: Object.assign({ EDITION: 'single-file edition' }, ALL), modules: 'all' },
+  { template: 'src/starter.template.html', out: 'dist/my-3d2dge-compact.html', vars: Object.assign({ EDITION: 'compact edition (engine minified)' }, ALL), compact: true, modules: 'all' },
   // genre kits: the shell, one slice and the start code
   ...readdirSync(join(root, STARTER)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
-    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id), compact: true, parts: p => /^(0|9)/.test(p) || p === f };
+    if (!SLICES[id]) throw new Error(STARTER + '/' + f + ': name the slice in SLICES (tools/build.mjs)');
+    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id, sliceMods(join(STARTER, f))), compact: true, parts: p => /^(0|9)/.test(p) || p === f, modules: sliceMods(join(STARTER, f)) };
   }),
   // the 3D starter (src/starter3d/: the shell, every 3D slice, the start) and a 3D genre kit for each slice
-  { template: 'src/starter3d.template.html', out: 'dist/my-3d2dge-3d.html', vars: ALL3D, compact: true },
+  { template: 'src/starter3d.template.html', out: 'dist/my-3d2dge-3d.html', vars: ALL3D, compact: true, modules: dirMods(STARTER3D) },
   ...readdirSync(join(root, STARTER3D)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
     if (!SLICES3D[id]) throw new Error(STARTER3D + '/' + f + ': name the slice in SLICES3D (tools/build.mjs)');
-    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id), compact: true, parts: p => /^(0|9)/.test(p) || p === f };
+    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id, sliceMods(join(STARTER3D, f))), compact: true, parts: p => /^(0|9)/.test(p) || p === f, modules: sliceMods(join(STARTER3D, f)) };
   })
 ];
 
 let minified = null, minified3d = null;
+const minMods = new Map();
+/** a module minified, its manual (the /*! header) kept; false without terser */
+async function moduleMin(m) {
+  if (minMods.has(m.name)) return minMods.get(m.name);
+  let code = false;
+  try { const { minify } = await import('terser'); code = (await minify(m.src, { compress: true, mangle: true, format: { comments: /^!/ } })).code; } catch (e) { /* no terser */ }
+  minMods.set(m.name, code); return code;
+}
+/** the <script> of each module a build carries, after the engine's (minified in a compact build) */
+async function moduleScripts(b) {
+  const out = [];
+  for (const m of resolveModules(b.modules || [], MODS)) {
+    const min = b.compact ? await moduleMin(m) : null, src = (min || m.src).replaceAll('</script', '<\\/script');
+    out.push(`<script>\n/* ---- inlined from ${m.file}${min ? ' (minified; the readable module is in the repo)' : ''} ---- */\n${src}\n</script>`);
+  }
+  return out.join('\n');
+}
 async function engineMin() {
   if (minified !== null) return minified;
   try {
@@ -130,22 +159,25 @@ for (const b of builds) {
     if (at.length < 2) throw new Error(file + ': @inline-head needs a second /* ==== section banner');
     return `/* ---- inlined from ${file} (its first section) ---- */\n` + src.slice(0, at[1]);
   });
+  const mods = await moduleScripts(b);
   html = html.replace(/<!-- @inline (\S+) -->/g, (_, file) => {
     const src = file === ENGINE && min ? min.replaceAll('</script', '<\\/script') : read(file);
-    return `<script>\n/* ---- inlined from ${file}${file === ENGINE && min ? ' (minified; the readable engine is in the repo)' : ''} ---- */\n${src}\n</script>`;
+    return `<script>\n/* ---- inlined from ${file}${file === ENGINE && min ? ' (minified; the readable engine is in the repo)' : ''} ---- */\n${src}\n</script>` + (file === ENGINE && mods ? '\n' + mods : '');
   });
   mkdirSync(dirname(join(root, b.out)), { recursive: true });
   writeFileSync(join(root, b.out), html);
   console.log('built', b.out, (html.length / 1024).toFixed(1) + ' KB');
 }
-writeFileSync(join(root, 'dist/my-3d2dge.js'), readFileSync(join(root, ENGINE), 'utf8'));
-console.log('built dist/my-3d2dge.js');
+// the engine alone: the core, then every module (each starts with its manual)
+const EVERY = resolveModules('all', MODS);
+writeFileSync(join(root, 'dist/my-3d2dge.js'), [readFileSync(join(root, ENGINE), 'utf8'), ...EVERY.map(m => m.src)].join('\n'));
+console.log('built dist/my-3d2dge.js' + (EVERY.length ? ' (the core and ' + EVERY.length + ' module' + (EVERY.length > 1 ? 's' : '') + ')' : ''));
 writeFileSync(join(root, 'dist/my-3d2dge-agent.js'), readFileSync(join(root, 'engine/my-3d2dge-agent.js'), 'utf8'));
 console.log('built dist/my-3d2dge-agent.js');
 writeFileSync(join(root, 'dist/my-3d2dge-3d.js'), readFileSync(join(root, ENGINE3D), 'utf8'));
 console.log('built dist/my-3d2dge-3d.js');
 const min = await engineMin();
-if (min) { writeFileSync(join(root, 'dist/my-3d2dge.min.js'), min); console.log('built dist/my-3d2dge.min.js'); }
+if (min) { const mm = []; for (const m of EVERY) mm.push(await moduleMin(m)); writeFileSync(join(root, 'dist/my-3d2dge.min.js'), [min, ...mm].join('\n')); console.log('built dist/my-3d2dge.min.js'); }
 
 // the API index, from the engine itself
 const { build: indexOf, render: renderIndex } = await import('./api-index.mjs');
@@ -155,7 +187,9 @@ console.log('built API-INDEX.md');
 // the handoff package: [its path, the source] (the README, package.json and index page take {{VERSION}} and {{BUILD}})
 const H = 'dist/handoff', HANDOFF = [
   ['README.md', 'src/handoff/README.md'], ['package.json', 'src/handoff/package.json'],
-  ['my-3d2dge.js', ENGINE], ['my-3d2dge-agent.js', 'engine/my-3d2dge-agent.js'],
+  ['my-3d2dge.js', 'dist/my-3d2dge.js'], ['my-3d2dge-agent.js', 'engine/my-3d2dge-agent.js'],
+  // each module on its own too, to load after the agent edition (or the full engine) with a <script> of its own
+  ...EVERY.map(m => ['modules/' + m.name + '.js', m.file]),
   ['API.md', 'API.md'], ['API-INDEX.md', 'API-INDEX.md'], ['AI_GUIDE.md', 'AI_GUIDE.md'],
   ['tools/check.mjs', 'tools/check.mjs'], ['tools/filmstrip.mjs', 'tools/filmstrip.mjs'], ['tools/replay.mjs', 'tools/replay.mjs'],
   // the asset card, its tools and the store, at the repository's own paths so the card's commands work as written
@@ -165,13 +199,14 @@ const H = 'dist/handoff', HANDOFF = [
   ...readdirSync(join(root, 'src/handoff/game')).sort().map(f => ['game/' + f, 'src/handoff/game/' + f])
 ];
 const SAY = { 'README.md': 'start here: what the package holds, which page to read, how to run and test a game', 'package.json': 'pins Playwright for the tools',
-  'my-3d2dge.js': 'the full engine, readable', 'my-3d2dge-agent.js': 'the agent edition: the essential engine, its header a short manual',
+  'my-3d2dge.js': 'the full engine, readable: the core and every module', 'my-3d2dge-agent.js': 'the agent edition: the essential engine, its header a short manual',
   'API.md': 'the API card: read it whole', 'API-INDEX.md': 'every public name, one line each: search it', 'AI_GUIDE.md': 'the guide: recipes, the look, heights, sessions',
   'tools/check.mjs': 'plays a game headless and reports errors, screenshots and its snapshot', 'tools/filmstrip.mjs': 'records frames into one picture',
   'tools/replay.mjs': 'replays a recorded play session exactly', 'game/index.html': 'the template game: play it', 'game/game.js': 'the template game: copy it',
   'game/test.mjs': 'its headless test: node game/test.mjs', 'docs/ASSETS.md': 'the asset card: objects and materials as data (r.shape), the core library, writing one',
   'tools/asset-find.mjs': 'searches the core library and the store: node tools/asset-find.mjs "tavern table"', 'tools/asset-sheet.mjs': 'draws an object in every view and says what reads badly',
   'tools/asset-set.mjs': 'cuts the few entries a game uses from the store\'s sets', 'tools/asset-lib.mjs': 'shared by the asset tools' };
+for (const m of EVERY) SAY['modules/' + m.name + '.js'] = 'a module, loaded after the engine: ' + m.about;
 if (existsSync(join(root, H))) rmSync(join(root, H), { recursive: true });
 const fill = s => boot(s.replaceAll('{{VERSION}}', GLOBAL.VERSION).replaceAll('{{BUILD}}', GLOBAL.BUILD));
 for (const [to, from] of HANDOFF) {

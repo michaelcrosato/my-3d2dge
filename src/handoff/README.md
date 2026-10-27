@@ -25,7 +25,8 @@ files. You don't need the engine's repository, and you don't need to read the en
 
 | File | What it is |
 | --- | --- |
-| `my-3d2dge.js` | the full engine, readable (one file, no dependencies) |
+| `my-3d2dge.js` | the full engine, readable (one file, no dependencies): the core, then every module |
+| `modules/` | each engine module on its own, when there are any (one general system; its header is its manual), to load after the agent edition |
 | `my-3d2dge-agent.js` | the agent edition: the essential engine, whose header is a shorter manual (a game written for it runs on the full engine) |
 | `API.md`, `API-INDEX.md`, `AI_GUIDE.md` | the card, the index, the guide |
 | `game/` | the template game: `index.html`, `game.js`, `test.mjs` |

@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.59.4.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.60.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -335,7 +335,13 @@ if (game.debug.snapshot().hero[2] !== 32) throw new Error('the hero should have 
 ```
 
 ### The handoff package
-`dist/handoff/` (on the site: `/handoff/`; `node tools/handoff.mjs --zip <file>` zips it for a chat) holds what a coding agent needs to build on the full engine without the repository: both editions, `API.md`, `API-INDEX.md`, this guide, `tools/check.mjs`, `filmstrip.mjs` and `replay.mjs`, a `package.json` pinning Playwright, and `game/`, a template game with a headless test. `tools/build.mjs` writes it; its sources are `src/handoff/`.
+`dist/handoff/` (on the site: `/handoff/`; `node tools/handoff.mjs --zip <file>` zips it for a chat) holds what a coding agent needs to build on the full engine without the repository: both editions, each module on its own (`modules/`), `API.md`, `API-INDEX.md`, this guide, `tools/check.mjs`, `filmstrip.mjs` and `replay.mjs`, a `package.json` pinning Playwright, and `game/`, a template game with a headless test. `tools/build.mjs` writes it; its sources are `src/handoff/`.
+
+### Modules (general systems in files of their own)
+A module (`engine/modules/<name>.js`) holds one general system that several genres share, outside the core, so that only the games that use it carry it. It loads after the engine, in a `<script>` of its own, and attaches its names to `My3D2dge`; its header is its manual (what it holds, its API, a complete example, its rules), and the index has a section for it. Its manual's third line says whether it also loads after the agent edition, and which modules it needs first.
+- **In a single file:** the reference editions (`dist/my-3d2dge.html`, the compact one) carry every module; a kit carries the modules its slice names in its header (`@modules grid gen`). To use one a kit hasn't got, paste the module's file in a `<script>` after the engine's.
+- **With files:** `dist/my-3d2dge.js` is the core and every module in one file; the handoff package also has each module on its own (`modules/<name>.js`), to load after the agent edition.
+- **Writing one:** `engine/modules/README.md` (the header's form, the rules, its budget of 1,500 tokens; `tools/modules-test.mjs` proves the path with a fixture). The genre plan (`docs/HANDOFF-GENRES.md`) says which systems become modules.
 
 ### Recorded sessions (a bug from a phone, replayed exactly)
 - `E.session.record(true)` turns recording on for every later page load (`?record=1` does it for one load). It starts before the game's code and keeps everything a game's next frame depends on:
