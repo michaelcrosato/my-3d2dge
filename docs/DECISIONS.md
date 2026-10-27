@@ -884,3 +884,20 @@ An entry:
   climbing needs what this doesn't give (overhangs, ropes), taken up when a source asks.
 - **Answered:** yes: the owner's goal (2026-10-19); made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.58.0 (climbing), v0.59.0 (gliding and stamina)
+
+## D49 · 2026-10-27 · A preview loads the CMU library from the live site; pushes that change nothing served don't deploy
+
+- **Principle:** no network (a preview's Mocap Lab fetches the CMU library from another origin, the live site)
+- **Call:** a preview deployment leaves out `examples/cmu-lib` (`tools/stamp.mjs`), and `vercel.json` redirects a
+  non-production host's `/cmu-lib/` requests to `https://my-3d2dge.vercel.app/cmu-lib/`; production serves its own copy
+  as before. `vercel.json`'s `ignoreCommand` skips a deployment when the commits since the branch's last one touch only
+  `src/` and `tools/` (other than `tools/stamp.mjs`), which the deploy leaves out anyway.
+- **Why:** Vercel bills every deployment it keeps by its size ("Deployment Storage": $0.35 a day on 2026-10-04, $1.24 by
+  2026-10-25 with nothing deployed since the 21st, more than the plan itself), and the CMU library is about 68 MB of each
+  ~100 MB deploy while it hasn't changed since v0.26. The games themselves still make no request off their page's own
+  site: only a preview's library is fetched across, from the same project's live copy. What would change it: a change to
+  the CMU library, which a preview would not show until it is merged (keep it in the preview then: drop the line in
+  `tools/stamp.mjs`), or Vercel storing identical files once across deployments.
+- **Answered:** yes: the owner's goal (2026-10-27, keep the Vercel cost down without losing quality or function); made
+  at once as a reversible call, flagged in the pull request
+- **Landed in:** v0.59.3
