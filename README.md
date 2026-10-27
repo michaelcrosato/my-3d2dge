@@ -85,7 +85,7 @@ first or third person: sprint, slide, vault, climb, ziplines, a rifle and a shot
 | `examples/scarfrunner-side.html` | The standalone side-scrolling prototype that came before the engine |
 | **`examples/labs.html`** | **Labs**: every page above, one tap away, at [my-3d2dge.vercel.app/labs](https://my-3d2dge.vercel.app/labs) (also the **All labs** button in Emberdeep's Settings, under Tools and Keys & help, and the **All labs** link on each lab). A bar at the top jumps to each section. A card opens its page from anywhere on it, and its chips are other places to start (the CMU clips, the Proving Grounds, a view). Built from the list in `src/labs.json`, in its order: **The road to Emberdeep** (Scarfrunner, Emberwell, the Perspective Lab, the stress test and Emberdeep, numbered in the order they were made), **Starter kits** (a tile for each kit) and **Tools** are kept; **Temporary** holds the prototypes in the order they were made: one-off comparisons, each led by the question it answers, with its date, the page it led to and any way it departs from the doctrine, deleted or graduated once settled. It is empty now: the last three (the 3D Proof, the 3D Prototype and Vesper's interface) were answered and deleted in v0.51.4 (D44). `tools/labs-test.mjs` opens every link. Held upright on a phone, every lab's picture fills the screen. |
 
-Each branch also gets a Vercel preview at its own address (for example `my-3d2dge-git-<branch>-…vercel.app`); its Labs page says **preview of work not merged yet**, so work can be tried on a phone before it is merged.
+Each branch also gets a Vercel preview at its own address (for example `my-3d2dge-git-<branch>-…vercel.app`); its Labs page says **preview of work not merged yet**, so work can be tried on a phone before it is merged. To keep what Vercel stores (and bills) small, a preview leaves out the CMU library and loads the live site's copy (`tools/stamp.mjs`), and a push that changes only `src/` or `tools/` (which the deploy leaves out) deploys nothing (`vercel.json`'s `ignoreCommand`).
 
 ## Emberdeep, the signature game
 
@@ -337,7 +337,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.59.2**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.59.3**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

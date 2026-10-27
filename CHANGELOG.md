@@ -5,6 +5,14 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.59.3 (2026-10-27)
+
+The site costs less to keep on Vercel, and plays the same: Vercel bills every deployment it keeps by its size (about $1.24 a day by late October, nearly all of the bill past the plan), so previews are a third the size and a push that changes nothing the site serves deploys nothing.
+
+- **Tools**: `tools/stamp.mjs` leaves the CMU library (`examples/cmu-lib`, about 68 MB of a deploy's 100, unchanged since v0.26) out of a preview (`VERCEL_ENV`, or `--preview`); `vercel.json` sends a preview's `/cmu-lib/` requests to the live site's copy, so the Mocap Lab's library plays there as before (D49).
+- **Tools**: `vercel.json`'s `ignoreCommand` skips a deployment when nothing it serves changed since the branch's last one (only `src/` and `tools/`, which the deploy leaves out, other than `tools/stamp.mjs`); a branch's first deployment, or a commit it can't compare, still builds.
+- **Docs**: `README.md` says what a preview leaves out and which pushes deploy nothing; `docs/DECISIONS.md` logs D49.
+
 ## 0.59.2 (2026-10-21)
 
 The docs brought up to date with v0.59.1: the 3D labs are gone, the 3D shooter kit is listed, the sizes are measured again.
