@@ -8,6 +8,9 @@
 //     the tile map), unless it is in a part the kit uses: then the name stays (the third-person kit keeps the Body);
 //   - a name that kept code calls stays too (the platform map keeps parseLevel from the tile map's section), unless it
 //     is called only from a method the table names (game.enableGPU and GPU lighting): that call meets a stub;
+//   - the table's entries count when the kit reads one as a field (game.weather), and its names when the kit writes one as
+//     a string or an option's name (game.go(..., { fade: 'iris' }) keeps the transitions, r.sprite(..., { rot }) the
+//     sprite turns);
 //   - what is left out still answers: E.X becomes a stub that warns once (a class: throws on new), naming the section
 //     and the file that has it, as the agent edition does with what it leaves out.
 // It fails, naming the section, when a kit uses an engine name it would leave out, or a name kept code needs as it
@@ -16,23 +19,26 @@ import * as acorn from 'acorn';
 
 const ALIASES = new Set(['E', 'My3D2dge']);   // what a game, a module and the 3D engine call the engine
 
-/** what a kit's code uses: { E: engine names (E.X, const { X } = E), props: every method or field it reads (.x) };
- *  codes: [{ text, module }] */
+/** what a kit's code uses: { E: engine names (E.X, const { X } = E), props: every method or field it reads (.x),
+ *  strings: every string and option name it writes ('iris', { rot }: names a part's entries may be) }; codes: [{ text,
+ *  module }] */
 export function uses(codes) {
-  const E = new Set(), props = new Set();
+  const E = new Set(), props = new Set(), strings = new Set();
   const walk = (n, parent) => {
     if (!n || typeof n.type !== 'string') return;
     if (n.type === 'MemberExpression' && !n.computed && n.property.type === 'Identifier') {
       props.add(n.property.name);
       if (n.object.type === 'Identifier' && ALIASES.has(n.object.name)) E.add(n.property.name);
     }
+    if (n.type === 'Literal' && typeof n.value === 'string' && n.value.length < 40) strings.add(n.value);
+    if (n.type === 'Property' && !n.computed && n.key.type === 'Identifier') strings.add(n.key.name);   // (an option it writes: { rot: a })
     if (n.type === 'MemberExpression' && n.computed && n.object.type === 'Identifier' && ALIASES.has(n.object.name)) throw new Error('the kit reads the engine by a computed name (E[...]): the diet cannot tell what it uses');
     if (n.type === 'VariableDeclarator' && n.id.type === 'ObjectPattern' && n.init && n.init.type === 'Identifier' && ALIASES.has(n.init.name))
       for (const p of n.id.properties) if (p.key && p.key.type === 'Identifier') E.add(p.key.name);
     for (const k of Object.keys(n)) { const v = n[k]; if (Array.isArray(v)) v.forEach(c => walk(c, n)); else if (v && typeof v.type === 'string') walk(v, n); }
   };
   for (const c of codes) walk(acorn.parse(c.text, { ecmaVersion: 'latest', sourceType: c.module ? 'module' : 'script', allowReturnOutsideFunction: true }), null);
-  return { E, props };
+  return { E, props, strings };
 }
 
 /** the names a top-level statement declares (const, let, function, class) */
@@ -108,8 +114,9 @@ export function diet(src, parts, used, kinds) {
   const owner = new Map();
   for (const s of S) { for (const n of s.decl) owner.set(n, s); for (const n of s.E) if (!owner.has('E.' + n)) owner.set('E.' + n, s); }
   const label = sec => sec.id + '. ' + sec.title;
-  // the parts the kit calls: one of their E names, or a method they add or the table names as their way in
-  const calls = p => S.some(s => s.part === p && (s.E.some(n => used.E.has(n)) || s.proto.some(([, m]) => used.props.has(m)))) || (p.entries || []).some(m => used.props.has(m));
+  // the parts the kit calls: one of their E names, or a method they add or the table names as their way in (entries:
+  // fields it reads; names: strings and option names it writes, game.go's 'iris')
+  const calls = p => S.some(s => s.part === p && (s.E.some(n => used.E.has(n)) || s.proto.some(([, m]) => used.props.has(m)))) || (p.entries || []).some(m => used.props.has(m)) || (p.names || []).some(m => used.strings && used.strings.has(m));
   const left = parts.filter(p => !calls(p));
   for (const s of S) if (s.part && left.includes(s.part)) s.out = true;
   // settle what stays and what goes, until nothing changes
