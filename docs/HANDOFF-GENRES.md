@@ -64,7 +64,7 @@ modules' manuals and `docs/DECISIONS.md`, and this file is deleted, as v0.59.1 d
   | core | `engine/my-3d2dge.js`, the engine as it is today |
   | module | a small engine file of its own, `engine/modules/<name>.js`, holding one general system, loaded after the core (section 3.2) |
   | manual | a module's header: what it holds, its API, a complete example and its rules, under a token budget (as the 3D engine's header is) |
-  | kit | `dist/kits/my-3d2dge-<id>.html`: the engine, the API card and one slice: the file a chat model is handed |
+  | kit | `dist/kits/my-3d2dge-<id>.html`: the engine (on the diet since v0.61.0), the API card and one slice: the file a chat model is handed |
   | slice | the one game a kit holds, `src/starter/NN-<id>.js` (`src/starter3d/` in 3D) |
   | the diet | a kit built without the core's sections its slice never calls (section 3.3) |
   | proof | a scripted run of a slice from a seed that returns a hash, the same every time (`<SLICE>.run(n)`, as the 3D slices have) |
@@ -203,16 +203,18 @@ in the core.
   fenced examples run in `contract-test`.
 - **It uses only the core's public API**, and `doctrine-check`'s boundary check covers it. It attaches to `My3D2dge`
   (`E.Grid = ...`) and loads after the core. Where every name it uses is in the agent edition too, it loads after the
-  agent edition as well, and `agent-test` proves it; otherwise its manual says "full engine only".
+  agent edition as well, and `agent-test` proves it; otherwise its manual says so ("Loads after: the full engine
+  only.").
 - **The builds:** `dist/my-3d2dge.js` and `.min.js` are the core and every module in one file, as now; the full
   reference edition carries every module; a kit carries the modules its slice names in its header (`@modules grid gen`),
   a 3D kit as a 2D one does (they load after the core there too); `dist/handoff/` carries them all.
-- **The tools** that load the engine (the build, `contract-test`, `standard-test`, `api-index`, `agent-test`,
-  `assets-test`, `doctrine-check`, `modules-test`, `kits-test`) load the modules through one shared helper,
-  `tools/engine-lib.mjs` (`replay` only reads the engine's version: its page carries the modules). A module's manual
+- **The tools** that load the engine or list its modules (the build, `contract-test`, `standard-test`, `api-index`,
+  `agent-test`, `assets-test`, `doctrine-check`, `test-run`, `modules-test`) take them from one shared helper,
+  `tools/engine-lib.mjs` (`replay` only reads the engine's version and `kits-test` opens the built kits: their pages
+  carry the modules). A module's manual
   says on its third line which editions it loads after and which modules it needs (`engine/modules/README.md`).
 - **The index** gets a section per module. **The API card** gets one line per module: its name, what it is for, the kits
-  that carry it.
+  that carry it (until the first module, M2's, one line on modules in general: v0.60.0).
 - **Tests:** a change to a module runs `contract`, `agent`, `modules`, `kits` and the phone test of the kits that
   carry it (`kit3d` for a 3D kit), not every suite, as `tools/test-run.mjs` does since v0.60.0 (before it, any change
   under `engine/` ran everything).
@@ -236,8 +238,9 @@ in the core.
   genres (the full reference edition, or the compact one).
 - The diet changes no pixel: each existing kit's filmstrips before and after are the same (`tools/filmstrip.mjs
   --compare`).
-- It supersedes part of D32 (the kits carry the shape renderer and the core library): a kit that never draws a shape
-  leaves them out.
+- It supersedes part of D32 (the kits carry the shape renderer and the core library): as built, every kit keeps them
+  (every slice draws from its own cut of the store, and they are not in `DIET`); a kit whose slice drew none could add
+  them to it.
 
 ### 3.4 What every new kit has
 
@@ -253,7 +256,7 @@ in the core.
   gathers the best into the songbook).
 - **For agents:** a deep link (`#<id>`, and `#<id>/<part>` to jump in), `window.__game`, `game.debug.snapshot()`, and a
   proof (`<SLICE>.run(n)`) that `tools/kits-test.mjs` (M0) checks: the same hash twice, no errors, and a bot or a
-  scripted route that plays to the end.
+  scripted route that plays to the end (`kits-test` gains that check with the first new kit, M2's).
 - **Original:** the kit's names, characters, levels and songs are its own. The docs may name the games it is in the
   style of; the game never uses their names, characters, logos or music.
 - **Registered where kits are:** the shell's `SLICES`, `tools/build.mjs`, `src/labs.json` (Starter kits), README's
@@ -299,7 +302,7 @@ them.
 - **0b, the kits:**
   - The diet (3.3): every 2D kit under 200,000 tokens, pixel for pixel as before.
   - `tools/kits-test.mjs`: every kit's proof, run twice, the same hash, no errors. The existing 2D slices get proofs
-    (`ADV.run(n)` and the others); the 3D slices' are reused.
+    (`ADV.run(n)` and the others: `__game.scenes.adventure.run(600)` from the page); the 3D slices' are reused.
   - The title menu for many slices: grouped by family under headings, two columns on a wide screen, a list that
     scrolls on a phone; the lineup of heroes stays as the title's art; a kit's menu still lists its one slice. The 3D
     starter's menu does the same. (As built: `05-families.js` in each starter, a part only the reference editions
@@ -895,7 +898,7 @@ M16 (effort: medium)
 | Milestone | State | Version and commit | Notes |
 | --- | --- | --- | --- |
 | this plan | written | v0.59.4 | a review of v0.59.3: the genres (1.2), the measures (1.3) |
-| M0 room to grow | done (two pull requests) | 0a v0.60.0 `00fbfe1`; 0b v0.61.0 | 0a: modules (`engine/modules/`, `tools/engine-lib.mjs` for every tool, the `modules` suite's fixture in a copy of the repository), the budgets (D50: card 18,000, index 52,000, a module 1,500), the test runner. 0b: the kit diet (`DIET`, `tools/diet.mjs`; the Platformer a section of its own, 16b), `kits-test` (every slice's proof twice; `--compare` films; the reference menus), the family title menus (`05-families.js`), the kits' budgets (D51). Measured at v0.61.0, cl100k: adventure 195,281, shooter 191,532, RPG 189,874, brawler 187,859, animation lab 180,685, platformer 180,085, stealth 179,909; 3D action 215,277, platformer 210,084, shooter 285,061; the compact edition 332,477 (it splits or goes past 500,000: a later milestone's decision), the reference 437,609; card 15,032, index 35,597, agent header 9,876. Every 2D kit's title and play filmed beside the build without the diet: the same pixels. Left: nothing; the adventure kit has the least room (4.7k), so M1's additions go on the diet (3.5) |
+| M0 room to grow | done (two pull requests) | 0a v0.60.0 `00fbfe1` (#153); 0b v0.61.0 `2ad644f` (#154); the plan's facts v0.61.1 | 0a: modules (`engine/modules/`, `tools/engine-lib.mjs` for every tool, the `modules` suite's fixture in a copy of the repository), the budgets (D50: card 18,000, index 52,000, a module 1,500), the test runner. 0b: the kit diet (`DIET`, `tools/diet.mjs`; the Platformer a section of its own, 16b), `kits-test` (every slice's proof twice; `--compare` films; the reference menus), the family title menus (`05-families.js`), the kits' budgets (D51). Measured at v0.61.0, cl100k: adventure 195,281, shooter 191,532, RPG 189,874, brawler 187,859, animation lab 180,685, platformer 180,085, stealth 179,909; 3D action 215,277, platformer 210,084, shooter 285,061; the compact edition 332,477 (it splits or goes past 500,000: a later milestone's decision), the reference 437,609; card 15,032, index 35,597, agent header 9,876. Every 2D kit's title and play filmed beside the build without the diet: the same pixels. Left: nothing; the adventure kit has the least room (4.7k), so M1's additions go on the diet (3.5). Checked after the merge (rule 2): every statement of 3.2, 3.3 and M0 against the code at v0.61.0; six were put right in v0.61.1 (which tools take the loader, the manual's words for "full engine only", the API card's line until the first module, D32's shapes kept in every kit, `kits-test`'s play-to-the-end check arriving in M2, a kit's engine in the words table). The full `npm test` on `main` at `2ad644f`: NPMTEST |
 | M1 motion and presentation | not started | | |
 | M2 grids, turns, generated maps | not started | | |
 | M3 the arcade | not started | | |

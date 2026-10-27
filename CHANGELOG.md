@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.61.1 (2026-10-27)
+
+The genre plan's Milestone 0, closed: its facts checked against the code as merged, and its progress row complete.
+
+- **Docs**: `docs/HANDOFF-GENRES.md`: every statement of 3.2, 3.3 and M0 checked against v0.61.0, and six put right (the tools that take the engine's loader, which include `test-run` and not `kits-test`; a module's words for loading after the full engine only; the API card's one line on modules until the first module; every kit keeping the shapes and the core library; `kits-test`'s play-to-the-end check arriving with M2's first new kit; a kit's engine on the diet in the words table); section 9's M0 row with 0b's commit (`2ad644f`) and the full `npm test` on `main`.
+
 ## 0.61.0 (2026-10-27)
 
 The kit diet: every 2D kit under 200,000 tokens, pixel for pixel as before, each slice with a proof; the starters' title menus by family. The second half of the genre plan's Milestone 0 (`docs/HANDOFF-GENRES.md`).
