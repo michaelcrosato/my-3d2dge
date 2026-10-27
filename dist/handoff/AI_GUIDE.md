@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.60.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.61.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -342,6 +342,12 @@ A module (`engine/modules/<name>.js`) holds one general system that several genr
 - **In a single file:** the reference editions (`dist/my-3d2dge.html`, the compact one) carry every module; a kit carries the modules its slice names in its header (`@modules grid gen`). To use one a kit hasn't got, paste the module's file in a `<script>` after the engine's.
 - **With files:** `dist/my-3d2dge.js` is the core and every module in one file; the handoff package also has each module on its own (`modules/<name>.js`), to load after the agent edition.
 - **Writing one:** `engine/modules/README.md` (the header's form, the rules, its budget of 1,500 tokens; `tools/modules-test.mjs` proves the path with a fixture). The genre plan (`docs/HANDOFF-GENRES.md`) says which systems become modules.
+
+### Kits and the diet (which file for which game)
+A genre kit (`dist/kits/my-3d2dge-<genre>.html`) is the engine, the API card and one slice, sized for a chat model's context: every 2D kit is at most 200,000 tokens (`doctrine-check` counts them). Its engine is on the **kit diet**: the core less the sections its game never calls (the tile map in the platformer's kit, the third-person kit and GPU lighting in most), as the kit's header lists. Calling a left-out name warns once in the console, naming its section (a constructor throws). So:
+- **A game in the kit's genre:** start from the kit; anything its slice uses is there.
+- **A game of several genres** (a platformer with a top-down overworld, an RPG with a shoot-'em-up stage), or one that needs a section a kit left out: start from `dist/my-3d2dge.html` (every slice and section, readable) or `dist/my-3d2dge-compact.html` (the same, minified), or `dist/my-3d2dge.js` with your own page.
+- **Its proof:** each slice has `run(n)` (`__game.scenes.<id>.run(600)`): n fixed steps of scripted play from a seed, returning a hash that is the same every time; `node tools/kits-test.mjs` runs each kit's twice. A game copied from a slice can keep one: the shell's `proof()` is how.
 
 ### Recorded sessions (a bug from a phone, replayed exactly)
 - `E.session.record(true)` turns recording on for every later page load (`?record=1` does it for one load). It starts before the game's code and keeps everything a game's next frame depends on:

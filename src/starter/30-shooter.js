@@ -569,6 +569,9 @@ const SHOOT = (() => {
       game.input.touchSet('fire', null, false); game.input.steer = 'drag';   // a touch screen fires by itself (no button for it), a thumb anywhere steers
     },
     exit() { game.cam.smooth = .18; game.input.steer = 'stick'; }, update, draw,
-    state: () => ({ ship, span: span(), score }) };   // for tests (span: the playfield's left and right ends)
+    state: () => ({ ship, span: span(), score }),   // for tests (span: the playfield's left and right ends)
+    /** the proof: firing all the way over the farmland, weaving, one bomb; a hash of the run */
+    run: (n = 600) => proof('shooter', n, (i, k) => { if (!i) k.hold('fire'); walk(i, k, ['left', 'up', 'right', 'down'], 75); if (i === 300) k.tap('bomb'); },
+      () => [ship.x, ship.y, lives, bombs, score, power, wave, foes.map(f => [f.x, f.y, f.hp])]) };
 })();
 scenes.shooter = SHOOT;

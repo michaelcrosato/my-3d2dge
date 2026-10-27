@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.60.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.61.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.60.0)
+# my-3D2dge API card (v0.61.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -277,7 +277,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.60.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.61.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -305,7 +305,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.60.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.61.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -384,7 +384,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.60.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.61.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -5754,6 +5754,10 @@ for (const k of ['brick', 'stone', 'wood', 'metal', 'ground', 'pipe', 'block', '
 Object.assign(MATERIALS.wood, { color: '#8a5a36', pattern: 'planks', dir: 'v' }); Object.assign(MATERIALS.metal, { color: '#6a6e7a', pattern: 'metal' }); Object.assign(MATERIALS.ground, { color: '#7a5838', pattern: 'speck' });
 Object.assign(MATERIALS.pipe, { color: '#3a9a4a', pattern: 'metal' }); Object.assign(MATERIALS.block, { color: '#8a7a9a', pattern: 'noise' }); Object.assign(MATERIALS.bonus, { color: '#d8a838', pattern: 'noise' });
 
+/* =============================================================================
+ * 16b. PLATFORMER  the side views' character body, as E.Mover is the ground views': run, jump (coyote time, a jump
+ *    buffer, a variable height), double jump, wall jump, dash, ladders and knockback, in a PlatformMap.
+ * ============================================================================= */
 /**
  * Platformer: a side-scroller character body with modern, forgiving controls (coyote time,
  * jump buffering, variable jump height, optional double jump, wall jump, dash, ladders, knockback).
@@ -9249,7 +9253,7 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 10-adventure.js, 20-platformer.js, 30-shooter.js, 40-rpg.js, 50-brawler.js, 60-animlab.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 30-shooter.js, 40-rpg.js, 50-brawler.js, 60-animlab.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu, six vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
@@ -9285,14 +9289,15 @@ const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
 const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
 const SLICES = [
-  { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE' },
-  { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER' },
-  { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP' },
-  { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP' },
-  { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE' },
-  { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR' },
-  { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW' }
+  { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
+  { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER', family: 'PLATFORM' },
+  { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
+  { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
+  { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE', family: 'RPG' },
+  { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
+  { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
 ];
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
@@ -9326,9 +9331,32 @@ HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
 const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+/* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
+ * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
+ * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
+ * say how the run went. fresh(), when given, runs first (seeded): it puts back what the slice keeps between visits. A
+ * slice's run(n) is one (__game.scenes.adventure.run(600)): the same number every time ---- */
+const proof = (id, n, script, state, fresh) => {
+  const was = Math.random, I = game.input, held = new Set();
+  const key = { hold: a => { held.add(a); I.hold(a); }, up: a => { held.delete(a); I.hold(a, false); }, tap: a => I.tap(a) };
+  Math.random = E.rng(7);
+  try {
+    if (fresh) fresh();
+    game.time = 0; game.timeScale = 1; game.go(id, null, { fade: 0 }); game.advance(1 / 120);
+    for (let i = 0; i < n; i++) { script(i, key); game.advance(1 / 120); }
+    const s = JSON.stringify(state()); let h = 2166136261;
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    return h >>> 0;
+  } finally { for (const a of held) I.hold(a, false); Math.random = was; }
+};
+// a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
+const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
 // START picks too (the touch START, a pad's Start), as Enter does
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
-const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
+/** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
+ *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
+const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
+let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
   view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },
@@ -9375,6 +9403,81 @@ scenes.over = {
     overBg.draw(r); r.overlay(g => E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 4, colors: ['#ffe0e0', '#ff7a6a', '#c8202a'], depthColor: '#3a0810' })); overMenu.draw(r);
   }
 };
+
+/* ---- (the starter's shell, continued; only in the files of several slices, not in a genre kit) ---- */
+/* ---- THE TITLE MENU of a file of several families: each family's heading over its slices, two columns on a wide screen,
+ * one column that scrolls where the list won't fit (up, down, left, right or the mouse move the cursor; a click or tap
+ * picks; a finger dragging the list scrolls it). o: y (its top), room (the pixels it leaves below it), onPick(i). A file of
+ * one family (a genre kit) has a plain E.Menu: menuOf(). Its twin is src/starter3d/05-families.js ---- */
+class FamilyMenu {
+  constructor(slices, o) { Object.assign(this, { y: 76, room: 100, onPick: null }, o); this.slices = slices; this.i = 0; this.top = 0; this.dy = 0; this.lay = null; this.mt = null; }
+  /** the entries' labels (as E.Menu's items) */
+  get items() { return this.slices.map(s => s.label); }
+  /** the layout on a screen W x H: columns of rows ({ head } or { k }, slice k), the row height, the rows in view */
+  layout(W, H) {
+    const rowH = E.font.lineHeight() + 2, fams = [];
+    this.slices.forEach((s, k) => { let f = fams.find(f => f.name === s.family); if (!f) fams.push(f = { name: s.family, ks: [] }); f.ks.push(k); });
+    const colW = Math.max(...this.slices.map(s => E.font.width(s.label)), ...fams.map(f => E.font.width(f.name, { font: 'tiny' }))) + 24;
+    const total = fams.reduce((n, f) => n + f.ks.length + 1, 0), two = W >= 400, cols = [[]];
+    for (const f of fams) { if (two && cols.length === 1 && cols[0].length >= total / 2) cols.push([]); cols[cols.length - 1].push({ head: f.name }, ...f.ks.map(k => ({ k }))); }
+    const rows = Math.max(...cols.map(c => c.length)), view = Math.min(rows, Math.max(5, Math.floor((H - this.y - this.room) / rowH))), w = cols.length * colW + (cols.length - 1) * 8;
+    return { cols, rowH, colW, rows, view, w, x: Math.round((W - w) / 2), order: cols.flat().filter(e => e.k !== undefined).map(e => e.k) };
+  }
+  /** slice k's column and row */
+  place(L, k) { for (let c = 0; c < L.cols.length; c++) { const r = L.cols[c].findIndex(e => e.k === k); if (r >= 0) return [c, r]; } return [0, 0]; }
+  /** where slice k's entry is on the screen (its middle, in game pixels), or null while it is scrolled out of view (for tests) */
+  spot(k) { const L = this.lay || this.layout(game.W, game.H), [c, r] = this.place(L, k); return r < this.top || r >= this.top + L.view ? null : [L.x + c * (L.colW + 8) + L.colW / 2, this.y + 5 + (r - this.top) * L.rowH + L.rowH / 2 - 2]; }
+  /** the slice under a screen point, or -1 */
+  at(L, p) {
+    if (!p) return -1;
+    const c = Math.floor((p[0] - L.x) / (L.colW + 8)), r = this.top + Math.floor((p[1] - this.y - 3) / L.rowH), e = c >= 0 && c < L.cols.length && r >= this.top && r < this.top + L.view && L.cols[c][r];
+    return e && e.k !== undefined && p[0] - L.x - c * (L.colW + 8) < L.colW ? e.k : -1;
+  }
+  /** move the cursor, scroll, pick: true when it picked (as E.Menu's update) */
+  update() {
+    const inp = game.input, L = this.lay || (this.lay = this.layout(game.W, game.H)), old = this.i, d = inp.drag(), o = L.order, n = o.length;
+    if (d) { this.dy += d[1]; const s = Math.trunc(this.dy / L.rowH); this.dy -= s * L.rowH; this.top -= s; }   // a finger drags the list
+    else {
+      this.dy = 0;
+      if (inp.repeat('up')) this.i = o[(o.indexOf(this.i) + n - 1) % n];
+      if (inp.repeat('down')) this.i = o[(o.indexOf(this.i) + 1) % n];
+      if (L.cols.length > 1 && (inp.repeat('left') || inp.repeat('right'))) {   // across: the nearest entry in the other column
+        const [c, r] = this.place(L, this.i), other = L.cols[1 - c].map((e, rr) => [e.k, rr]).filter(e => e[0] !== undefined);
+        this.i = other.reduce((a, b) => Math.abs(b[1] - r) < Math.abs(a[1] - r) ? b : a)[0];
+      }
+    }
+    if (inp.mouse.t !== this.mt) { this.mt = inp.mouse.t; const k = this.at(L, inp.pointer()); if (k >= 0) this.i = k; }
+    const tap = this.at(L, inp.clicked()); if (tap >= 0) this.i = tap;
+    if (this.i !== old) {
+      A.sfx('select');
+      const r = this.place(L, this.i)[1]; if (r - 1 < this.top) this.top = r - 1; if (r >= this.top + L.view) this.top = r - L.view + 1;   // in view, its heading too
+    }
+    this.top = clamp(this.top, 0, L.rows - L.view);
+    if (inp.pressed('confirm') || tap >= 0) { A.sfx('confirm'); inp.consumeAll(); this.onPick(this.i, this.items[this.i]); return true; }
+    return false;
+  }
+  draw(r) {
+    const L = this.lay = this.layout(r.W, r.H), y0 = this.y, bg = '#141a3a'; this.top = clamp(this.top, 0, L.rows - L.view);
+    r.overlay(g => {
+      E.ui.box(g, L.x, y0, L.w, L.view * L.rowH + 8, { bg, border: '#e8e4ff' });
+      const blink = Math.floor(game.real * 3) % 2 === 0;
+      L.cols.forEach((col, c) => {
+        const x = L.x + c * (L.colW + 8);
+        for (let k = this.top; k < Math.min(col.length, this.top + L.view); k++) {
+          const e = col[k], y = y0 + 5 + (k - this.top) * L.rowH, sel = e.k === this.i;
+          if (e.head) { E.font.text(g, e.head, x + 6, y + 1, '#c8a868', { font: 'tiny', outline: false, shadow: '#05040a' }); continue; }
+          if (sel) px.rect(g, x + 3, y - 2, L.colW - 6, L.rowH, E.shade(bg, .22));
+          E.font.text(g, this.slices[e.k].label, x + 14, y, sel ? '#ffd36a' : '#ffffff', { outline: false, shadow: '#05040a' });
+          if (sel && blink) E.font.text(g, '▸', x + 6, y, '#ffd36a', false);
+        }
+      });
+      // more above, more below: a small arrow on the box's right edge
+      const arrow = (y, up) => { for (let k = 0; k < 3; k++) px.rect(g, L.x + L.w - 9 + k, up ? y + 2 - k : y + k, 5 - 2 * k, 1, '#ffd36a'); };
+      if (this.top > 0) arrow(y0 + 2, true);
+      if (this.top + L.view < L.rows) arrow(y0 + L.view * L.rowH + 3, false);
+    });
+  }
+}
 
 /* =====================================================================================
  * SLICE 1  ADVENTURE  (Secret of Mana, Zelda: ALttP). Three rooms: village, ruins, shrine. Talk, clear the ruins for
@@ -9930,6 +10033,9 @@ const ADV = (() => {
     // at all held upright (its forest is sized for 1x there). A TileMap scene rotates cleanly
     camera: { zoom: g => [g.upright ? 1 : .85, 2], rotate: true },
     state: () => ({ hero, foes, things, items, map, npcs, pets, talk }),   // for tests
+    /** the proof: a walk round the village and into the ruins, the sword swinging and every word read; a hash of the run */
+    run: (n = 600) => proof('adventure', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 90); if (i % 40 === 20) k.tap('attack'); if (i % 120 === 60) k.tap('confirm'); },
+      () => [hero.x, hero.y, hero.hp, gems, keys, area, won, foes.map(f => [f.x, f.y, f.hp])]),
     exit() { game.cam.room = null; game.cam.smooth = .18; if (gpu) gpu.enabled = false; L.enabled = false; } };
 })();
 scenes.adventure = ADV;
@@ -10492,7 +10598,11 @@ const PLAT = (() => {
   return { view: 'side', views: ['side', 'brawler'], input: 'PLATFORMER', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2], tall: 1.5 },   // props at the hero's scale; the player zooms .75x to 2x (no turning), a phone held upright starts at 1.5x: the level fills more of it
     enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => { const b = level.bounds(v); return Object.assign({}, b, { y1: b.y1 + soilFor(b, game.H) }); }; A.music('adventure'); L.enabled = false; rimWas = game.r.rimAlpha; game.r.rimAlpha = .5;   // a stronger, zone-colored rim light
       P.ground = (x, y, z) => level.groundBelow(x, z + 1); },              // sparks and debris land and bounce on the platform under them
-    exit() { game.r.rimAlpha = rimWas; P.ground = null; }, update, draw };
+    exit() { game.r.rimAlpha = rimWas; P.ground = null; }, update, draw,
+    /** the proof: a run to the right through the graveyard, jumping, cutting and dashing; a hash of the run (with a new rig:
+     *  the hero keeps his between visits, and his pose decides where the blade lands) */
+    run: (n = 600) => proof('platformer', n, (i, k) => { if (!i) k.hold('right'); if (i % 70 === 10) k.tap('jump'); if (i % 45 === 30) k.tap('attack'); if (i % 240 === 200) k.tap('dash'); if (i % 150 === 100) k.tap('confirm'); },
+      () => [hero.x, hero.z, hp, lives, score, gold, clear, foes.map(f => [f.x, f.z, f.hp])], () => { rig = null; }) };
 })();
 scenes.platformer = PLAT;
 
@@ -11067,7 +11177,10 @@ const SHOOT = (() => {
       game.input.touchSet('fire', null, false); game.input.steer = 'drag';   // a touch screen fires by itself (no button for it), a thumb anywhere steers
     },
     exit() { game.cam.smooth = .18; game.input.steer = 'stick'; }, update, draw,
-    state: () => ({ ship, span: span(), score }) };   // for tests (span: the playfield's left and right ends)
+    state: () => ({ ship, span: span(), score }),   // for tests (span: the playfield's left and right ends)
+    /** the proof: firing all the way over the farmland, weaving, one bomb; a hash of the run */
+    run: (n = 600) => proof('shooter', n, (i, k) => { if (!i) k.hold('fire'); walk(i, k, ['left', 'up', 'right', 'down'], 75); if (i === 300) k.tap('bomb'); },
+      () => [ship.x, ship.y, lives, bombs, score, power, wave, foes.map(f => [f.x, f.y, f.hp])]) };
 })();
 scenes.shooter = SHOOT;
 
@@ -11642,7 +11755,9 @@ const RPG = (() => {
       const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [rest().x, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
       game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
-    state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }) };   // for automated tests
+    state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }),   // for automated tests
+    /** the proof: the party on AUTO (each hero picks for himself) for n steps; a hash of the battle */
+    run(n = 600) { const was = auto; try { return proof('rpg', n, i => { if (!i) auto = true; }, () => [mode, actor && actor.name, potions, all.map(c => [c.hp, c.x, c.y])]); } finally { auto = was; } } };
 })();
 scenes.rpg = RPG;
 
@@ -12209,7 +12324,10 @@ const BRAWL = (() => {
   return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: ['attack', 'kick', 'sweep', 'jump'], propSize: 2.4, camera: { zoom: [.75, 1.5], tall: 1.5 },   // props match 100 px fighters
     input: Object.assign({}, E.Input.DEFAULT, { kick: ['KeyK', 'Mouse2', 'Pad2'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad3'] }),
     enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw,
-    state: () => ({ hero, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }) };   // for tests (end: the walkable street's right end)
+    state: () => ({ hero, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }),   // for tests (end: the walkable street's right end)
+    /** the proof: up the street, jabbing, kicking and jumping into the first wave; a hash of the fight */
+    run: (n = 600) => proof('brawler', n, (i, k) => { walk(i, k, ['right', 'right', 'up', 'right', 'down'], 60); if (i % 30 === 15) k.tap('attack'); if (i % 77 === 40) k.tap('kick'); if (i % 200 === 150) k.tap('jump'); },
+      () => [hero.x, hero.y, hero.z, hero.hp, hero.lives, score, wave, won, foes.map(f => [f.x, f.y, f.hp])]) };
 })();
 scenes.brawler = BRAWL;
 
@@ -12641,7 +12759,15 @@ const ANIMLAB = (() => {
     select(name, skinName) {
       const key = s => s.toUpperCase().replace(/[^A-Z]/g, ''), i = ANIMS.findIndex(a => key(a.group + a.name) === key(name) || key(a.name) === key(name)); if (i >= 0) play(i);
       if (skinName) pick(Math.max(0, actors.findIndex(a => a.s.name === skinName.toUpperCase())));
-    } };
+    },
+    /** the proof: on rigs built afresh, from the first animation on the first skin (the lab keeps the player's, and its
+     *  rigs, between visits), down the list, dressing each in the next skin and playing it again; a hash of the joints */
+    run: (n = 600) => proof('animlab', n, (i, k) => { if (i % 100 === 50) k.tap('down'); if (i % 160 === 80) k.tap('right'); if (i % 100 === 90) k.tap('replay'); },
+      () => [ai, skin, actors.map(a => a.rig ? [a.rig.J.head, a.rig.J.handR, a.rig.J.footL] : [a.x, a.y])],
+      () => {
+        for (const a of actors) Object.assign(a, { x: CX, y: CY, z: 0, dx: 0, turn: 0, ang: 0, flash: 0, rig: a.s.rig && new E.Humanoid(Object.assign({ size: 1.3 }, a.s.rig)), blob: a.s.blob && new E.Blob(a.s.blob) });
+        Object.assign(dum, { lean: 0, v: 0 }); ai = skin = face = 0;
+      }) };
 })();
 scenes.animlab = ANIMLAB;
 
@@ -12876,6 +13002,9 @@ const STEALTH = (() => {
   return { view: 'iso', views: ['iso', 'threequarter'], input: 'THIRDPERSON', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'block', 'crouch'],
     camera: { zoom: [.75, 2], rotate: true }, enter: start, update, draw,
     state: () => ({ hero, guards, map, ledger, won, hp }),   // for tests
+    /** the proof: over the rooftops, jumping, swinging and crouching, the guards on their rounds; a hash of the run */
+    run: (n = 600) => proof('stealth', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 100); if (i % 130 === 60) k.tap('jump'); if (i % 90 === 45) k.tap('attack'); if (i === 400) k.tap('crouch'); },
+      () => [hero.x, hero.y, hero.z, hp, ledger, won, guards.map(g => [g.x, g.y, g.z, g.hp, g.dead])]),
     exit() { game.cam.offset = null; L.enabled = false; if (ui) ui.hud({}); } };
 })();
 scenes.stealth = STEALTH;
@@ -12883,7 +13012,7 @@ scenes.stealth = STEALTH;
 /* ---- START: the title menu, or a slice named in the address (#platformer) ---- */
 // a genre kit file holds one slice: the menu lists only the slices in this file
 for (let i = SLICES.length - 1; i >= 0; i--) if (!scenes[SLICES[i].id]) SLICES.splice(i, 1);
-titleMenu.items = SLICES.map(s => s.label);
+titleMenu = menuOf(SLICES, { y: 76, onPick: i => game.go(SLICES[i].id) });
 const first = (location.hash || '').slice(1);
 game.start({ scenes, scene: scenes[first] ? first : 'title' });
 window.__game = { game, scenes, titleMenu };   // for tests

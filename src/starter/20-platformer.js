@@ -556,6 +556,10 @@ const PLAT = (() => {
   return { view: 'side', views: ['side', 'brawler'], input: 'PLATFORMER', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'dash'], propSize: 1.5, camera: { zoom: [.75, 2], tall: 1.5 },   // props at the hero's scale; the player zooms .75x to 2x (no turning), a phone held upright starts at 1.5x: the level fills more of it
     enter() { reset(true); age = 0; hint = 8; talk.close(); game.cam.bounds = v => { const b = level.bounds(v); return Object.assign({}, b, { y1: b.y1 + soilFor(b, game.H) }); }; A.music('adventure'); L.enabled = false; rimWas = game.r.rimAlpha; game.r.rimAlpha = .5;   // a stronger, zone-colored rim light
       P.ground = (x, y, z) => level.groundBelow(x, z + 1); },              // sparks and debris land and bounce on the platform under them
-    exit() { game.r.rimAlpha = rimWas; P.ground = null; }, update, draw };
+    exit() { game.r.rimAlpha = rimWas; P.ground = null; }, update, draw,
+    /** the proof: a run to the right through the graveyard, jumping, cutting and dashing; a hash of the run (with a new rig:
+     *  the hero keeps his between visits, and his pose decides where the blade lands) */
+    run: (n = 600) => proof('platformer', n, (i, k) => { if (!i) k.hold('right'); if (i % 70 === 10) k.tap('jump'); if (i % 45 === 30) k.tap('attack'); if (i % 240 === 200) k.tap('dash'); if (i % 150 === 100) k.tap('confirm'); },
+      () => [hero.x, hero.z, hp, lives, score, gold, clear, foes.map(f => [f.x, f.z, f.hp])], () => { rig = null; }) };
 })();
 scenes.platformer = PLAT;

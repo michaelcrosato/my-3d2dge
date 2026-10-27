@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module FIXTURE v0.60.0: proves the path every module takes (a test's own; never shipped)
+my-3D2dge module FIXTURE v0.61.0: proves the path every module takes (a test's own; never shipped)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

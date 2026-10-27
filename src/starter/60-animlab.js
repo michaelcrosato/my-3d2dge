@@ -426,6 +426,14 @@ const ANIMLAB = (() => {
     select(name, skinName) {
       const key = s => s.toUpperCase().replace(/[^A-Z]/g, ''), i = ANIMS.findIndex(a => key(a.group + a.name) === key(name) || key(a.name) === key(name)); if (i >= 0) play(i);
       if (skinName) pick(Math.max(0, actors.findIndex(a => a.s.name === skinName.toUpperCase())));
-    } };
+    },
+    /** the proof: on rigs built afresh, from the first animation on the first skin (the lab keeps the player's, and its
+     *  rigs, between visits), down the list, dressing each in the next skin and playing it again; a hash of the joints */
+    run: (n = 600) => proof('animlab', n, (i, k) => { if (i % 100 === 50) k.tap('down'); if (i % 160 === 80) k.tap('right'); if (i % 100 === 90) k.tap('replay'); },
+      () => [ai, skin, actors.map(a => a.rig ? [a.rig.J.head, a.rig.J.handR, a.rig.J.footL] : [a.x, a.y])],
+      () => {
+        for (const a of actors) Object.assign(a, { x: CX, y: CY, z: 0, dx: 0, turn: 0, ang: 0, flash: 0, rig: a.s.rig && new E.Humanoid(Object.assign({ size: 1.3 }, a.s.rig)), blob: a.s.blob && new E.Blob(a.s.blob) });
+        Object.assign(dum, { lean: 0, v: 0 }); ai = skin = face = 0;
+      }) };
 })();
 scenes.animlab = ANIMLAB;

@@ -561,6 +561,9 @@ const BRAWL = (() => {
   return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: ['attack', 'kick', 'sweep', 'jump'], propSize: 2.4, camera: { zoom: [.75, 1.5], tall: 1.5 },   // props match 100 px fighters
     input: Object.assign({}, E.Input.DEFAULT, { kick: ['KeyK', 'Mouse2', 'Pad2'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad3'] }),
     enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw,
-    state: () => ({ hero, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }) };   // for tests (end: the walkable street's right end)
+    state: () => ({ hero, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }),   // for tests (end: the walkable street's right end)
+    /** the proof: up the street, jabbing, kicking and jumping into the first wave; a hash of the fight */
+    run: (n = 600) => proof('brawler', n, (i, k) => { walk(i, k, ['right', 'right', 'up', 'right', 'down'], 60); if (i % 30 === 15) k.tap('attack'); if (i % 77 === 40) k.tap('kick'); if (i % 200 === 150) k.tap('jump'); },
+      () => [hero.x, hero.y, hero.z, hero.hp, hero.lives, score, wave, won, foes.map(f => [f.x, f.y, f.hp])]) };
 })();
 scenes.brawler = BRAWL;

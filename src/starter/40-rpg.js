@@ -569,6 +569,8 @@ const RPG = (() => {
       const goal = f ? [(f[0].x + f[1].x) / 2, (f[0].y + f[1].y) / 2, 22] : [rest().x, 72, 0]; cam = cam.map((v, i) => lerp(v, goal[i], k)); game.focus(cam[0], cam[1], cam[2]);
       game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
-    state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }) };   // for automated tests
+    state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }),   // for automated tests
+    /** the proof: the party on AUTO (each hero picks for himself) for n steps; a hash of the battle */
+    run(n = 600) { const was = auto; try { return proof('rpg', n, i => { if (!i) auto = true; }, () => [mode, actor && actor.name, potions, all.map(c => [c.hp, c.x, c.y])]); } finally { auto = was; } } };
 })();
 scenes.rpg = RPG;
