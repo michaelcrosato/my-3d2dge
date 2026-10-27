@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.59.4 (2026-10-27)
+
+The plan for every genre of the era, from the early 80s to the late PS1: what the engine and its kits have, what each family of genres lacks, and the milestones that add it, each with a kit to copy.
+
+- **Docs**: `docs/HANDOFF-GENRES.md`: a review of v0.59.3 against the era's genres (what converts well, what backs each family today, what it lacks, measured: the kits' tokens, the manuals' budgets, one player, a floor baked whole, the music on the audio clock), the design rules (general systems in small module files that only the kits using them carry; a kit diet that leaves out the core's sections a slice never calls, so every 2D kit fits 200,000 tokens), and seventeen milestones (M0 to M16) from room to grow to the 3D era, each with what it adds, when it is done, its effort level and its `/goal` line.
+- **Docs**: `README.md`'s genre coverage points to the plan.
+
 ## 0.59.3 (2026-10-27)
 
 The site costs less to keep on Vercel, and plays the same: Vercel bills every deployment it keeps by its size (about $1.24 a day by late October, nearly all of the bill past the plan), so previews are a third the size and a push that changes nothing the site serves deploys nothing.
