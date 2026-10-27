@@ -901,3 +901,24 @@ An entry:
 - **Answered:** yes: the owner's goal (2026-10-27, keep the Vercel cost down without losing quality or function); made
   at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.59.3
+
+## D50 · 2026-10-27 · Engine modules, and the manuals' budgets for the genre plan
+
+- **Principle:** 1 (agent-readable: small files, each with a header saying what it holds; every manual under a budget)
+- **Call:** a general system that several genres share and the core doesn't need is a module: `engine/modules/<name>.js`,
+  loaded after the core (and after the agent edition where its manual says so), using only the public API, its header
+  its manual. `dist/my-3d2dge.js` and the reference editions carry every module, a kit only those its slice names
+  (`@modules`), the examples pages none. The budgets for the plan's additions: the API card from 15,000 to 18,000 cl100k
+  tokens, the API index from 40,000 to 52,000, a module's manual 1,500 (2,500 for `grid`, `fight`, `strategy` and
+  `physics`, as the plan gives them); the agent edition's header stays at 10,000 and gains a line on modules. A fixture
+  module proves the path in the `modules` suite and is never shipped (`tools/fixtures/`).
+- **Why:** the card was at 14,960 of 15,000 and every kit embeds the whole engine, so each of the plan's sixteen
+  milestones would otherwise grow every kit and find no room in the card. Modules keep a genre's framework out of the
+  games that don't use it, and their manuals are read only by a model whose game uses them. The card's 3,000 more are
+  for the core's additions across the plan (each milestone reports its share and moves detail to the index first); the
+  index's 12,000 more are for the modules' sections (it is searched, not read whole: D41). At the raise: the card
+  15,032, the index 35,583, the agent header 9,876. What would change it: an agent seen reading the index whole (D41), a
+  milestone that can't fit the card after moving detail to the index (a decision of its own), the owner wanting the
+  modules inlined into the core instead.
+- **Answered:** yes: the owner's goal (2026-10-27), Milestone 0 of `docs/HANDOFF-GENRES.md`, which sets these budgets
+- **Landed in:** v0.60.0

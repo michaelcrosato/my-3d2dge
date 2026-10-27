@@ -5,6 +5,17 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.60.0 (2026-10-27)
+
+Engine modules: a general system in a small file of its own that loads after the core, so a game carries only the systems it uses. The first half of the genre plan's Milestone 0 (`docs/HANDOFF-GENRES.md`); no game changes.
+
+- **Engine**: `engine/modules/<name>.js`: one general system each, loaded after the core (or the agent edition, where its manual says so) and attached to `My3D2dge`; its header is its manual, with what it holds, its API, a complete example and its rules (`engine/modules/README.md`). `dist/my-3d2dge.js` and `.min.js` are the core and every module in one file; the reference editions carry every module; a kit carries the modules its slice names in its header (`@modules grid gen`), each in a `<script>` of its own after the engine, and says so in its header; the examples pages carry none.
+- **Tools**: `tools/engine-lib.mjs`: the engine as every tool loads it, the core or the agent edition and then its modules in order (the build, `contract-test`, `standard-test`, `agent-test`, `api-index`, `assets-test`, `doctrine-check`). `contract-test` runs each module's examples on the editions it loads after, `agent-test` runs them after the agent edition (`--only modules`), the API index gives each module a section after the core's, and `doctrine-check` counts each module's manual (1,500 tokens; 2,500 for the four the plan names) and holds modules to the public API.
+- **Tools**: `tools/modules-test.mjs` (the `modules` suite): a fixture module and a slice that names it (`tools/fixtures/`, never shipped) go into a copy of the repository, and the repository's own tools prove the whole path there: built into its kit and left out of the others, its manual counted, its example run on both editions, its names indexed, its kit played.
+- **Tools**: `npm run test:changed`: a change to a module runs `contract`, `agent`, `modules` and the phone test of the kits that carry it (`kit3d` for a 3D kit), not every suite; the engine's loader runs everything, as the engine does. `tools/version.mjs` keeps the modules' manuals in step.
+- **Tools**: the handoff package's `my-3d2dge.js` is the core and every module, and `modules/` holds each on its own, to load after the agent edition.
+- **Docs**: the budgets for the genre plan (D50): the API card 18,000 tokens (was 15,000), the API index 52,000 (was 40,000), a module's manual 1,500 (2,500 for `grid`, `fight`, `strategy` and `physics`); the agent edition's header stays at 10,000 and has a line on modules. The API card, `AI_GUIDE.md` (Modules), `README.md`, `CLAUDE.md`, `DOCTRINE.md` and the handoff README say how modules load and where they go.
+
 ## 0.59.4 (2026-10-27)
 
 The plan for every genre of the era, from the early 80s to the late PS1: what the engine and its kits have, what each family of genres lacks, and the milestones that add it, each with a kit to copy.

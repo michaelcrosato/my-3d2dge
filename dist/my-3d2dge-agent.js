@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.59.4: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.60.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -17,6 +17,8 @@ handoff package, grep API-INDEX.md for a name first: one line each (a † marks 
 #screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
 <body><canvas id="screen"></canvas><script src="my-3d2dge-agent.js"></script><script src="game.js"></script></body></html>
 For a single-file game, paste both scripts inline. Start every game with: const E = My3D2dge;
+Modules (engine/modules/<name>.js; the handoff's modules/): one system each, a <script> after this file when its manual
+(its header) says it loads after the agent edition.
 
 ## Mental model
 - The world is 3D: x east, y south, z up; one tile = 16 units. Game logic uses world units and dt, never pixels.
@@ -374,7 +376,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.59.4', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.60.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };

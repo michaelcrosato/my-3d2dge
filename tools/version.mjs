@@ -8,7 +8,7 @@
 // Every change merged to main bumps it and adds its lines to CHANGELOG.md, except one confined to a prototype (a Temporary
 // lab; CLAUDE.md, DOCTRINE.md). The build (which commit)
 // is not written here: tools/stamp.mjs adds it to the deployed pages (My3D2dge.build, My3D2dge.versionLabel()).
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,7 +24,9 @@ const PLACES = [
   ['engine/my-3d2dge-3d.js', /(my-3D2dge 3D v)(\d+\.\d+\.\d+)()/],
   ['API.md', /(# my-3D2dge API card \(v)([^)]+)(\))/],
   ['AI_GUIDE.md', /(`engine\/my-3d2dge\.js` v)(\d+\.\d+\.\d+)()/],
-  ['README.md', /(`My3D2dge\.version`, now \*\*)(\d+\.\d+\.\d+)(\*\*)/]
+  ['README.md', /(`My3D2dge\.version`, now \*\*)(\d+\.\d+\.\d+)(\*\*)/],
+  // every module's manual (engine/modules/), and the modules suite's fixture
+  ...['engine/modules', 'tools/fixtures/modules'].flatMap(d => existsSync(join(root, d)) ? readdirSync(join(root, d)).filter(f => f.endsWith('.js')).sort().map(f => [d + '/' + f, /(my-3D2dge module \w+ v)(\d+\.\d+\.\d+)()/]) : [])
 ];
 // copies tools/build.mjs makes: they must carry the same number (a bump without a rebuild leaves them behind)
 const BUILT = [

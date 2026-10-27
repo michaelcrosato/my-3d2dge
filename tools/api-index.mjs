@@ -20,12 +20,13 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
+import { load as loadEngine, modules as allModules, resolve as resolveModules } from './engine-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FULL = 'engine/my-3d2dge.js', AGENT = 'engine/my-3d2dge-agent.js', OUT = 'API-INDEX.md';
 const args = process.argv.slice(2), has = k => args.includes('--' + k);
-const load = file => { const ctx = { console: { log() {}, warn() {}, error() {} } }; vm.createContext(ctx); vm.runInContext(readFileSync(join(root, file), 'utf8'), ctx, { filename: file }); return ctx.My3D2dge; };
+// each edition with its modules (engine/modules/: a module's names are in the agent edition's when it loads after it)
+const load = file => loadEngine(file === AGENT ? 'agent' : 'full', { console: { log() {}, warn() {}, error() {} } });
 // the name an instance of each class goes by in games (game.input, r.queue, map.ray, ...)
 // (a class only the game makes, not on E, is listed by its instance's name alone: game.screen, r, game.lights, ...)
 const INST = { Game: 'game', Input: 'input', Screen: 'game.screen', Renderer: 'r', View: 'view', Lighting: 'game.lights', Particles: 'game.particles',
@@ -167,7 +168,16 @@ function initial(line, name) {
 
 /* ---- the index ---- */
 export function build() {
-  const F = scan(readFileSync(join(root, FULL), 'utf8')), A = scan(readFileSync(join(root, AGENT), 'utf8'));
+  const CORE_S = scan(readFileSync(join(root, FULL), 'utf8')), AGENT_S = scan(readFileSync(join(root, AGENT), 'utf8'));
+  // each module's source (engine/modules/): a section of its own, after the core's, named for the module
+  const NONE = scan(''), MODS = resolveModules('all', allModules()).map((m, k) => {
+    const S = scan(m.src); S.sections.length = 0; S.sections.push({ at: 0, n: 'module ' + m.name, title: m.about, module: m, order: CORE_S.sections.length + k });
+    return { m, S, A: m.editions.includes('agent') ? S : NONE };
+  });
+  // F and A: the full and agent scans of the source that defines the name at hand (the core's, or its module's), set for
+  // each of E's names in the loop below; what reads them (instance, docOf) takes them from here
+  let F = CORE_S, A = AGENT_S;
+  const sourceOf = k => { const m = MODS.find(x => x.S.top.has('E.' + k) || x.S.top.has(k) || x.S.classes.has(k)); return m && !(CORE_S.top.has('E.' + k) || CORE_S.top.has(k)) ? [m.S, m.A] : [CORE_S, AGENT_S]; };
   const E = load(FULL), EA = load(AGENT), entries = [], missing = [], insts = [];
   const isClass = v => typeof v === 'function' && /^class\b/.test(Function.prototype.toString.call(v));
   const add = (sec, sig, doc, agent, key, line) => { entries.push({ sec, sig, doc, agent, key, line }); if (!doc) missing.push({ sec: sec ? sec.n + '. ' + sec.title : '?', key, line }); };
@@ -207,6 +217,7 @@ export function build() {
   };
   for (const k of Object.keys(E).sort()) {
     if (k.startsWith('_')) continue;
+    [F, A] = sourceOf(k);
     const v = E[k], d = defOf(F, k), sec = d ? F.section(d[0]) : null, inAgent = k in EA;
     if (isClass(v)) {
       const cname = d ? d[1] : k, inst = INST[k] || k.toLowerCase(), mem = F.members(cname), amem = A.members(cname), ctor = mem && [...F.L.slice(F.classes.get(cname).at, F.classes.get(cname).end)].findIndex(l => /^ {2}constructor\s*\(/.test(l));
@@ -253,6 +264,7 @@ export function build() {
   }
   // the classes only the game makes, not on E (game.screen, r, game.lights, game.audio, ...): their instances' lines, with no
   // constructor's (INST names the instance; a static is the class's own)
+  F = CORE_S; A = AGENT_S;
   for (const [cname, c] of F.classes) {
     if (exported.has(cname) || !INST[cname]) continue;
     const mem = F.members(cname), amem = A.members(cname), sec = F.section(c.at);
@@ -270,7 +282,7 @@ export function build() {
 export function render({ E, F, entries, insts }) {
   const H = E.HEIGHTS, out = [];
   out.push(`# my-3D2dge API index (v${E.version})`, '',
-    `Every public name in \`engine/my-3d2dge.js\`, one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: \`new E.Game({ expand })\`). Written by \`node tools/api-index.mjs\` from the engine itself; \`doctrine-check\` fails when a public name has no description here. Search it for a name; \`API.md\` and the agent edition's header are the overviews. † marks a name the agent edition (\`my-3d2dge-agent.js\`) doesn't have.`, '',
+    `Every public name in \`engine/my-3d2dge.js\` and its modules (\`engine/modules/\`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: \`new E.Game({ expand })\`). Written by \`node tools/api-index.mjs\` from the engine itself; \`doctrine-check\` fails when a public name has no description here. Search it for a name; \`API.md\` and the agent edition's header are the overviews. † marks a name the agent edition (\`my-3d2dge-agent.js\`) doesn't have.`, '',
     '## Units and the height rules', '',
     '| Quantity | Unit |', '| --- | --- |',
     '| Distances, positions, sizes in the world | world units: one floor tile is 16; x east, y south, z up |',
@@ -302,10 +314,11 @@ export function render({ E, F, entries, insts }) {
     'if (!up || up.z !== 40) throw new Error(\'a ledge to climb onto the roof\');', '```', '');
   const bySec = new Map();
   for (const e of entries) { const k = e.sec ? e.sec.n : '?'; if (!bySec.has(k)) bySec.set(k, { sec: e.sec, list: [] }); bySec.get(k).list.push(e); }
-  const order = [...bySec.values()].sort((a, b) => (a.sec ? F.sections.indexOf(a.sec) : -1) - (b.sec ? F.sections.indexOf(b.sec) : -1));
+  const place = sec => !sec ? -1 : sec.module ? sec.order : F.sections.indexOf(sec);   // (a module's section after the core's)
+  const order = [...bySec.values()].sort((a, b) => place(a.sec) - place(b.sec));
   const body = [], at = [];
   for (const { sec, list } of order) {
-    const title = sec ? sec.n + '. ' + sec.title.charAt(0) + sec.title.slice(1).toLowerCase() : 'The engine object (E = My3D2dge)';
+    const title = !sec ? 'The engine object (E = My3D2dge)' : sec.module ? `Module ${sec.module.name}: ${sec.title} (${sec.module.file})` : sec.n + '. ' + sec.title.charAt(0) + sec.title.slice(1).toLowerCase();
     at.push({ sec, title: sec ? title.replace(/^\d+b?\. /, '') : title, line: body.length }); body.push(`## ${title}`, '');
     // one object's lines that say the same thing are one line: `body.x = 0`, `body.y = 0`, `body.z = 0`: its position
     const of = e => !e.opt && e.doc && /^(?:E\.\w+|[^.#\s]+)[.#]/.test(e.key) && !/^E\.\w+$/.test(e.key) ? e.key.replace(/[.#][^.#]*$/, '') + '\n' + e.doc : null, groups = new Map();

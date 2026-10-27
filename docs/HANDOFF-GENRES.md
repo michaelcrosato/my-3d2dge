@@ -207,12 +207,15 @@ in the core.
 - **The builds:** `dist/my-3d2dge.js` and `.min.js` are the core and every module in one file, as now; the full
   reference edition carries every module; a kit carries the modules its slice names in its header (`@modules grid gen`),
   a 3D kit as a 2D one does (they load after the core there too); `dist/handoff/` carries them all.
-- **The tools** that load the engine (`contract-test`, `standard-test`, `api-index`, `agent-test`, `replay`,
-  `assets-test`, `doctrine-check`) load the modules through one shared helper.
+- **The tools** that load the engine (the build, `contract-test`, `standard-test`, `api-index`, `agent-test`,
+  `assets-test`, `doctrine-check`, `modules-test`, `kits-test`) load the modules through one shared helper,
+  `tools/engine-lib.mjs` (`replay` only reads the engine's version: its page carries the modules). A module's manual
+  says on its third line which editions it loads after and which modules it needs (`engine/modules/README.md`).
 - **The index** gets a section per module. **The API card** gets one line per module: its name, what it is for, the kits
   that carry it.
-- **Tests:** a change to a module runs `contract`, `agent`, `kits` and the phone test of the kits that carry it, not
-  every suite (`tools/test-run.mjs` runs everything for a change under `engine/` today).
+- **Tests:** a change to a module runs `contract`, `agent`, `modules`, `kits` and the phone test of the kits that
+  carry it (`kit3d` for a 3D kit), not every suite, as `tools/test-run.mjs` does since v0.60.0 (before it, any change
+  under `engine/` ran everything).
 
 ### 3.3 The kit diet
 
@@ -277,7 +280,7 @@ them.
 - **0a, modules:**
   - `engine/modules/`, the builds and the tools as in 3.2, proven end to end by a fixture module that lives in the tests
     and is never shipped: its manual counted, its example run, its names indexed, carried by a fixture kit and left out
-    of the others.
+    of the others (`tools/modules-test.mjs`: `tools/fixtures/`, in a copy of the repository).
   - The budgets, as decisions:
     - the API card: 18,000, for the core's additions across this plan; each milestone reports its share, and moves
       detail to the index before it asks for more;
