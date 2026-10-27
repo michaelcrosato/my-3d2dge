@@ -121,26 +121,26 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.ctx2d(c)`: a canvas's 2D context with smoothing off (crisp pixels)
 - `E.dist(a, b)`: distance between two objects with x, y (and optional z)
 - `E.ease`: easing curves for u 0..1: linear, outQuad, inQuad, inOut (inOutQuad), outCubic, outBack (it overshoots a little more than Penner's: 1.9), and the rest of Penner's set (sine, quad, cubic, back, elastic and bounce, each in, out and inOut: inSine, outSine, inOutSine, ...), the names every tween library uses (section 1b)
-- `E.ease.inBack()` †
-- `E.ease.inBounce()` †
-- `E.ease.inCubic()` †
-- `E.ease.inElastic()` †
+- `E.ease.inBack(u)` †: pulls back before it goes
+- `E.ease.inBounce(u)` †: bounces, then leaps away
+- `E.ease.inCubic(u)` †: slower start than inQuad
+- `E.ease.inElastic(u)` †: wobbles, then springs away
 - `E.ease.inOut(u)`: slow start and end
-- `E.ease.inOutBack()` †
-- `E.ease.inOutBounce()` †
-- `E.ease.inOutCubic()` †
-- `E.ease.inOutElastic()` †
-- `E.ease.inOutQuad()` †
-- `E.ease.inOutSine()` †
+- `E.ease.inOutBack(u)` †: pulls back, then overshoots
+- `E.ease.inOutBounce(u)` †: bounces at both ends
+- `E.ease.inOutCubic(u)` †: slow start and end, quicker between
+- `E.ease.inOutElastic(u)` †: wobbles at both ends
+- `E.ease.inOutQuad()` †: slow start and end: inOut's other name
+- `E.ease.inOutSine(u)` †: slow start and end (the gentlest)
 - `E.ease.inQuad(u)`: slow start, fast end
-- `E.ease.inSine()` †
+- `E.ease.inSine(u)` †: slow start (the gentlest)
 - `E.ease.linear(u)` †: even speed
 - `E.ease.outBack(u)`: overshoots past 1, then settles: pop-ups, landings
-- `E.ease.outBounce()` †
+- `E.ease.outBounce(u)` †: drops and bounces to rest
 - `E.ease.outCubic(u)`: fast start, smooth stop
-- `E.ease.outElastic()` †
+- `E.ease.outElastic(u)` †: springs past and wobbles to rest
 - `E.ease.outQuad(u)`: fast start, smooth stop (gentler than outCubic)
-- `E.ease.outSine()` †
+- `E.ease.outSine(u)` †: smooth stop (the gentlest)
 - `E.hash2(x, y)`: a fixed random number 0..1 for whole-number grid coordinates (texture specks, scatter that never flickers)
 - `E.hex(h)`: '#rrggbb' or '#rgb' (or an [r, g, b] array) -> [r, g, b]
 - `E.hsl(hh, s, l)`: '#rrggbb' from hue (degrees), saturation and lightness (0..1)
@@ -265,7 +265,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack)
 - `input.down(a)`: is the action held right now?
 - `input.drag()` †: how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction
-- `input.history()` †
+- `input.history` †: the last second of input, oldest first: [{ t (input.clock), dir (numpad 1-9 for a fighter facing right: 5 neutral), pressed: the actions pressed then, directions aside }], one entry each time the direction changes or a button is pressed: an input display draws it; sequence() and motion() read it (section 10h: a kit without it has none)
 - `input.hold(a, on = true)`: hold an action down (on) or let it go (false), as its key would
 - `input.label(a, device = this.lastDevice)`: the key or button to show in a prompt for action a, on the device the player used last (or the one named: 'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕'
 - `input.motion(digits, button, o = {})` †: a fighter's move in numpad notation, mirrored by facing: input.motion('236', 'attack', { facing: hero.facing, window }) is a quarter circle forward and punch (down, down-forward, forward, attack: a fireball); '623' a dragon punch, '41236' a half circle. facing: 1 (right, the default) or -1. button: an action, 'attack+kick', or none (the motion alone)
@@ -448,7 +448,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.focus(x, y, z = 0)`: camera follows this world point. Side-scrollers: game.focus(x, 0, z)
 - `game.follow(target, o = {})`: keep the camera on an object automatically (instead of calling focus every update). opts: { z: extra height to look at (default 16), lead: look ahead in the facing / moving direction }. follow(null) stops.
 - `game.freeze(s)`: hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks
-- `game.go(name, data, o = {})`: switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless o.fade is 0 (a cut) or another number of seconds; o.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or 'dissolve', each way taking o.seconds (.4), round o.at (iris and swirl: a world point { x, y, z }, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
+- `game.go(name, data, o = {})`: switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 (a cut) or another number of seconds; opts.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or 'dissolve', each way taking opts.seconds (.4), round opts.at (iris and swirl: a world point { x, y, z }, which each scene's camera places, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
 - `game.hitFx(x, y, z, o = {})`: everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound, a damage number and a rumble on a gamepad. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit', rumble: true })
 - `game.menu(name)`: open the menu (the corner's menu button and the touch START do it): a pausable scene (or a game started without scenes) pauses on its pause screen; any other scene, a title, waits under the settings. menu('settings') or menu('controls') opens that screen. Without a menu (menu: false, or the agent edition) it pauses a scene in play. Returns true when a menu opened
 - `game.mouseGround()`: mouse position on the ground (world units), or null
@@ -548,12 +548,12 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `new E.Script(game, fn, o = {}) → script` †: a script, made by game.script: done (it returned, or was cancelled), value (what it returned), cancel(); another script can yield it
 - `script.cancel()` †: stop it, and the scripts it is waiting on (its finally blocks run)
-- `script.done = false` †
+- `script.done = false` †: it returned, or was cancelled
 - `script.keep` †: it outlives the scene
-- `script.value` †
+- `script.value` †: what it returned
 - `new E.Tween(game, target, to, seconds, o = {}) → tween` †: a tween, made by game.tween: done (it ended, or was cancelled), cancel(); a script can yield it
 - `tween.cancel()` †: stop it where it is (no onDone)
-- `tween.done = false` †
+- `tween.done = false` †: it ended, or was cancelled
 - `tween.keep` †: it outlives the scene
 - `tween.target` †: what it moves
 - `tween.to` †: the values it moves them to

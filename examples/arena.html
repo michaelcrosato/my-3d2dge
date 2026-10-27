@@ -410,15 +410,20 @@ const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null }, FADES = {
  *    with none of them leaves it out
  * ============================================================================= */
 Object.assign(ease, {
-  inSine: u => 1 - Math.cos(u * Math.PI / 2), outSine: u => Math.sin(u * Math.PI / 2), inOutSine: u => (1 - Math.cos(Math.PI * u)) / 2,   // the gentlest
-  inCubic: u => u * u * u, inOutCubic: u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2, inOutQuad: ease.inOut,
+  inSine: u => 1 - Math.cos(u * Math.PI / 2),   // slow start (the gentlest)
+  outSine: u => Math.sin(u * Math.PI / 2),   // smooth stop (the gentlest)
+  inOutSine: u => (1 - Math.cos(Math.PI * u)) / 2,   // slow start and end (the gentlest)
+  inOutQuad: ease.inOut,   // slow start and end: inOut's other name
+  inCubic: u => u * u * u,   // slower start than inQuad
+  inOutCubic: u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2,   // slow start and end, quicker between
   inBack: u => 2.70158 * u * u * u - 1.70158 * u * u,   // pulls back before it goes
-  inOutBack: u => { const c = 2.5949095; return u < .5 ? (2 * u) ** 2 * ((c + 1) * 2 * u - c) / 2 : ((2 * u - 2) ** 2 * ((c + 1) * (u * 2 - 2) + c) + 2) / 2; },
-  outElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : Math.pow(2, -10 * u) * Math.sin((u * 10 - .75) * TAU / 3) + 1,   // springs past and wobbles
-  inElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : -Math.pow(2, 10 * u - 10) * Math.sin((u * 10 - 10.75) * TAU / 3),
-  inOutElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : u < .5 ? -Math.pow(2, 20 * u - 10) * Math.sin((20 * u - 11.125) * TAU / 4.5) / 2 : Math.pow(2, -20 * u + 10) * Math.sin((20 * u - 11.125) * TAU / 4.5) / 2 + 1,
+  inOutBack: u => { const c = 2.5949095; return u < .5 ? (2 * u) ** 2 * ((c + 1) * 2 * u - c) / 2 : ((2 * u - 2) ** 2 * ((c + 1) * (u * 2 - 2) + c) + 2) / 2; },   // pulls back, then overshoots
+  outElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : Math.pow(2, -10 * u) * Math.sin((u * 10 - .75) * TAU / 3) + 1,   // springs past and wobbles to rest
+  inElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : -Math.pow(2, 10 * u - 10) * Math.sin((u * 10 - 10.75) * TAU / 3),   // wobbles, then springs away
+  inOutElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : u < .5 ? -Math.pow(2, 20 * u - 10) * Math.sin((20 * u - 11.125) * TAU / 4.5) / 2 : Math.pow(2, -20 * u + 10) * Math.sin((20 * u - 11.125) * TAU / 4.5) / 2 + 1,   // wobbles at both ends
   outBounce: u => { const n = 7.5625, d = 2.75; return u < 1 / d ? n * u * u : u < 2 / d ? n * (u -= 1.5 / d) * u + .75 : u < 2.5 / d ? n * (u -= 2.25 / d) * u + .9375 : n * (u -= 2.625 / d) * u + .984375; },   // drops and bounces to rest
-  inBounce: u => 1 - ease.outBounce(1 - u), inOutBounce: u => u < .5 ? (1 - ease.outBounce(1 - 2 * u)) / 2 : (1 + ease.outBounce(2 * u - 1)) / 2
+  inBounce: u => 1 - ease.outBounce(1 - u),   // bounces, then leaps away
+  inOutBounce: u => u < .5 ? (1 - ease.outBounce(1 - 2 * u)) / 2 : (1 + ease.outBounce(2 * u - 1)) / 2   // bounces at both ends
 });
 
 /* =============================================================================
@@ -1114,6 +1119,10 @@ class Input {
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
   }
+  /** the last second of input, oldest first: [{ t (input.clock), dir (numpad 1-9 for a fighter facing right: 5 neutral),
+   *  pressed: the actions pressed then, directions aside }], one entry each time the direction changes or a button is
+   *  pressed: an input display draws it; sequence() and motion() read it (section 10h: a kit without it has none) */
+  get history() { return this._hist || []; }
   /** any action pressed this step (title screens: "press any button") */
   anyPressed() { return this._now.size > 0; }
   /** movement intent in screen directions: x right, y down, length <= 1 */
@@ -2799,10 +2808,10 @@ class Game {
     return n;
   }
   /**
-   * switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless o.fade is 0 (a cut) or another
-   * number of seconds; o.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or
-   * 'dissolve', each way taking o.seconds (.4), round o.at (iris and swirl: a world point { x, y, z }, or [x, y] on the
-   * screen; its centre by default). With reduce motion each is a plain fade
+   * switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 (a cut) or another
+   * number of seconds; opts.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or
+   * 'dissolve', each way taking opts.seconds (.4), round opts.at (iris and swirl: a world point { x, y, z }, which each
+   * scene's camera places, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
    */
   go(name, data, o = {}) {
     if (!this.scenes) { warn('go:noscenes', 'game.go() needs game.start({ scenes: {...}, scene }) first'); return; }
@@ -3267,7 +3276,8 @@ HOOKS.enter.push(g => { const J = g._jobs; if (J) for (const j of J.slice()) if 
 class Tween {
   /** a tween, made by game.tween: done (it ended, or was cancelled), cancel(); a script can yield it */
   constructor(game, target, to, seconds, o = {}) {
-    /** target: what it moves; to: the values it moves them to; keep: it outlives the scene */
+    /** target: what it moves; to: the values it moves them to; keep: it outlives the scene; done: it ended, or was
+     *  cancelled */
     this.target = target; this.to = to; this.keep = !!o.keep; this.done = false;
     this._g = game; this._dur = Math.max(0, +seconds || 0); this._t = -(+o.delay || 0); this._from = null; this._k = 0; this._yoyo = !!o.yoyo; this._onDone = o.onDone || null;
     this._left = o.repeat === undefined ? 0 : o.repeat < 0 ? Infinity : o.repeat;
@@ -3315,7 +3325,7 @@ class Script {
   /** a script, made by game.script: done (it returned, or was cancelled), value (what it returned), cancel(); another
    *  script can yield it */
   constructor(game, fn, o = {}) {
-    /** keep: it outlives the scene */
+    /** keep: it outlives the scene; done: it returned, or was cancelled; value: what it returned */
     this.keep = !!o.keep; this.done = false; this.value = undefined; this._g = game; this._kids = []; this._w = null;
     this._it = typeof fn === 'function' ? fn(game) : fn;
     if (!this._it || typeof this._it.next !== 'function') { warn('script', 'game.script needs a generator: game.script(function* () { yield .5; ... })'); this.done = true; return; }
@@ -3373,12 +3383,12 @@ class Path {
     S.push(this.closed ? P[0] : P[n - 1] || [0, 0, 0]);
     const D = [0]; for (let i = 1; i < S.length; i++) D.push(D[i - 1] + Math.hypot(S[i][0] - S[i - 1][0], S[i][1] - S[i - 1][1], S[i][2] - S[i - 1][2]));
     /** length: world units from end to end (round, when closed) */
-    this.length = D[D.length - 1]; this._s = S; this._d = D;
+    this.length = D[D.length - 1]; this._pts = S; this._cum = D;
   }
   /** the point d along it: { x, y, z, angle (its heading on the ground, radians: 0 east), d } (closed: d wraps round;
    *  open: held at the ends) */
   at(d) {
-    const L = this.length, S = this._s, D = this._d; d = this.closed && L > 0 ? wrap(d, 0, L) : clamp(d, 0, L);
+    const L = this.length, S = this._pts, D = this._cum; d = this.closed && L > 0 ? wrap(d, 0, L) : clamp(d, 0, L);
     let lo = 0, hi = S.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (D[m] <= d) lo = m; else hi = m; }
     const a = S[lo], b = S[hi] || a, u = D[hi] > D[lo] ? (d - D[lo]) / (D[hi] - D[lo]) : 0;
     return { x: lerp(a[0], b[0], u), y: lerp(a[1], b[1], u), z: lerp(a[2], b[2], u), angle: Math.atan2(b[1] - a[1], b[0] - a[0]), d };
@@ -3386,7 +3396,7 @@ class Path {
   /** the distance along it of its point nearest (x, y) on the ground (and z, when given): a racer's progress round a
    *  track, a rail's grab point */
   nearest(x, y, z) {
-    const S = this._s, D = this._d, h = z !== undefined; let best = Infinity, out = 0;
+    const S = this._pts, D = this._cum, h = z !== undefined; let best = Infinity, out = 0;
     for (let i = 0; i + 1 < S.length; i++) {
       const a = S[i], b = S[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], dz = h ? b[2] - a[2] : 0, l2 = dx * dx + dy * dy + dz * dz;
       const t = l2 > 0 ? clamp(((x - a[0]) * dx + (y - a[1]) * dy + (h ? (z - a[2]) * dz : 0)) / l2, 0, 1) : 0;
@@ -3397,7 +3407,7 @@ class Path {
   }
   /** draw it over the scene to see it (debugging): a line, and a dot at each of its points */
   draw(r, color = '#ffe070') {
-    r.overlay(g => { const S = this._s; for (let i = 0; i + 1 < S.length; i++) px.line(g, ...r.w(...S[i]), ...r.w(...S[i + 1]), color); for (const p of this.points) px.rect(g, r.w(...p)[0] - 1, r.w(...p)[1] - 1, 3, 3, '#ffffff'); });
+    r.overlay(g => { const S = this._pts; for (let i = 0; i + 1 < S.length; i++) px.line(g, ...r.w(...S[i]), ...r.w(...S[i + 1]), color); for (const p of this.points) px.rect(g, r.w(...p)[0] - 1, r.w(...p)[1] - 1, 3, 3, '#ffffff'); });
   }
 }
 E.Path = Path;
@@ -3548,10 +3558,6 @@ HOOKS.input.push(g => {
   if (!last || last._b !== b || pressed.length) H.push({ t: I.clock, dir: _PAD[b] || 5, pressed, _b: b });
   while (H.length > 2 && H[1].t < I.clock - 1) H.shift();
 });
-/** the last second of input, oldest first: [{ t (input.clock), dir (numpad 1-9 for a fighter facing right: 5 neutral),
- *  pressed: the actions pressed then, directions aside }], one entry each time the direction changes or a button is
- *  pressed: an input display draws it; input.sequence and input.motion read it */
-Object.defineProperty(Input.prototype, 'history', { get() { return this._hist || []; }, configurable: true });
 // one step of a sequence, 'down+right' or 'attack' or 'down+attack': the directions it holds (bits) and the buttons pressed
 const _seqStep = s => { let b = 0, dirs = false; const btn = []; for (const p of String(s).split('+')) { const i = _DIRS.indexOf(p); if (i >= 0) { b |= 1 << i; dirs = true; } else if (p === 'neutral') dirs = true; else if (p) btn.push(p); } return { b, dirs, btn }; };
 /**

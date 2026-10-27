@@ -31,6 +31,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['kits', 'node tools/kits-test.mjs', ['src/starter/', 'src/starter3d', 'src/starter.template.html', 'src/starter3d.template.html', 'src/assets/sets/', 'tools/kits-test.mjs', 'tools/diet.mjs', 'tools/filmstrip.mjs']],
   ['contract', 'node tools/contract-test.mjs', ['API.md', 'AI_GUIDE.md', 'API-INDEX.md', 'src/handoff/', 'engine/modules/', 'tools/contract-test.mjs', 'tools/api-index.mjs', 'tools/check.mjs', 'tools/replay.mjs', 'tools/filmstrip.mjs']],
   ['agent', 'node tools/agent-test.mjs', ['API.md', 'AI_GUIDE.md', 'src/mocap/', 'src/starter/', 'engine/modules/', 'tools/agent-test.mjs', 'tools/anim-set.mjs', 'tools/cmu.mjs', 'tools/mocap-lib.mjs']],
+  ['motion', 'node tools/motion-test.mjs', ['tools/motion-test.mjs', 'tools/fixtures/motion.html', 'tools/filmstrip.mjs']],
   ['modules', 'node tools/modules-test.mjs', ['engine/modules/', 'tools/fixtures/', 'tools/modules-test.mjs', 'tools/api-index.mjs', 'tools/doctrine-check.mjs', 'tools/contract-test.mjs', 'tools/agent-test.mjs', 'tools/version.mjs']],
   ['mocap', 'node tools/mocap-test.mjs', ['src/mocap/', 'src/mocap.template.html', 'src/mocap.game.js', 'tools/mocap-test.mjs', 'tools/mocap-lib.mjs', 'tools/anim-']],
   ['ed-clips', 'node tools/ed-clips-test.mjs', ['src/emberdeep/', 'src/mocap/', 'tools/ed-clips-test.mjs']],

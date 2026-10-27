@@ -24,6 +24,7 @@
     "test:phone": "node tools/phone-test.mjs",
     "test:kits": "node tools/kits-test.mjs",
     "test:modules": "node tools/modules-test.mjs",
+    "test:motion": "node tools/motion-test.mjs",
     "bench": "node tools/agent-bench.mjs",
     "test:labs": "node tools/labs-test.mjs",
     "test:assets": "node tools/assets-test.mjs",

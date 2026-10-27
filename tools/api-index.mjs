@@ -53,6 +53,12 @@ function scan(src) {
       for (; j < L.length && !/^\};?\s*(\/\/.*)?$/.test(L[j]); j++) { const k = /^ {2}(\w+)\s*(?:\(|:)/.exec(L[j]); if (k && !mem.has(k[1])) mem.set(k[1], j); }
       spaces.set(name, mem);
     }
+    // more members put on it later in a section of its own: Object.assign(ease, {\n ... \n})
+    if ((d = /^Object\.assign\((\w+), \{\s*$/.exec(L[i])) && d[1] !== 'E') {
+      const mem = spaces.get(d[1]) || new Map(); let j = i + 1;
+      for (; j < L.length && !/^\}\);?\s*(\/\/.*)?$/.test(L[j]); j++) { const k = /^ {2}(\w+)\s*(?:\(|:)/.exec(L[j]); if (k && !mem.has(k[1])) mem.set(k[1], j); }
+      spaces.set(d[1], mem);
+    }
   }
   const section = i => { let s = null; for (const x of sections) if (x.at <= i) s = x; return s; };
   // a class's members: methods at two spaces' indent, fields assigned to this anywhere in its body
