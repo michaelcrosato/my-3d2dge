@@ -3,9 +3,12 @@
 // the Labs page, the Mocap Lab), and this replaces it with '<commit> <date>', so the live site and every branch
 // preview show exactly which commit they run. The repo's own copies keep the placeholder, so a rebuild still matches
 // them byte for byte.
-// Usage: node tools/stamp.mjs [--commit a1b2c3d] [--date 2026-10-07] [--dry]
+// A preview (Vercel's VERCEL_ENV, or --preview) also leaves out the CMU library (examples/cmu-lib, about 68 MB of
+// the deploy's 100): it hasn't changed since v0.26, Vercel bills every deployment it keeps by its size, and
+// vercel.json sends a preview's /cmu-lib/ requests to the live site's copy, so the Mocap Lab plays it all the same.
+// Usage: node tools/stamp.mjs [--commit a1b2c3d] [--date 2026-10-07] [--preview] [--dry]
 //   the commit comes from --commit, else Vercel's VERCEL_GIT_COMMIT_SHA, else git; the date is today (UTC)
-import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -30,5 +33,9 @@ for (const f of files) {
   n += k;
   if (!dry) writeFileSync(join(root, f), s.replaceAll('dev-build', stamp));
   console.log(`${dry ? 'would stamp' : 'stamped'} ${f} (${k})`);
+}
+if (process.argv.includes('--preview') || process.env.VERCEL_ENV === 'preview') {
+  if (!dry) rmSync(join(root, 'examples/cmu-lib'), { recursive: true, force: true });
+  console.log(`${dry ? 'would leave' : 'left'} out examples/cmu-lib: a preview loads the live site's (vercel.json)`);
 }
 console.log(`build ${stamp}: ${n} placeholder${n === 1 ? '' : 's'} in ${files.length} files${dry ? ' (dry run)' : ''}`);

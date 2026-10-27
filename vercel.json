@@ -3,11 +3,13 @@
   "framework": null,
   "installCommand": "",
   "buildCommand": "node tools/stamp.mjs",
+  "ignoreCommand": "P=$VERCEL_GIT_PREVIOUS_SHA; [ -n \"$P\" ] || exit 1; F=$(git diff --name-only \"$P\" HEAD) || exit 1; echo \"$F\" | grep -qvE '^(src|tools)/' && exit 1; echo \"$F\" | grep -qx tools/stamp.mjs && exit 1; exit 0",
   "outputDirectory": ".",
   "redirects": [
     { "source": "/:page(stress-3d|stress-world|lab-3d)", "destination": "/3d", "permanent": true },
     { "source": "/vesper-ui", "destination": "/labs", "permanent": true },
     { "source": "/handoff", "destination": "/handoff/", "permanent": false },
+    { "source": "/cmu-lib/:file", "missing": [{ "type": "host", "value": "my-3d2dge.vercel.app" }], "destination": "https://my-3d2dge.vercel.app/cmu-lib/:file", "permanent": false },
     { "source": "/:page(shapes-compare|free-camera|asset-probe)", "destination": "/asset-lab", "permanent": true }
   ],
   "rewrites": [
