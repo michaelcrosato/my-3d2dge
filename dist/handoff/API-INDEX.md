@@ -573,7 +573,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 10g. Weather
 
-- `E.WEATHER: rain, snow, ash, leaves, sand` †: the kinds of weather: n drops at amount 1, fall speed (world units a second), colors, streak (seconds of motion a drop's line shows), sway, rest (seconds it lies where it lands), splash, wind (how hard the wind pushes it). Add your own: E.WEATHER.embers = { ... }
+- `E.WEATHER: rain, snow, ash, leaves, sand` †: the kinds of weather: n drops at amount 1, fall speed (world units a second), colors, streak (seconds of motion a drop's line shows), sway, rest (seconds it lies where it lands), splash, wind (how hard the wind pushes it), size, big (the share a pixel bigger). Add your own: E.WEATHER.embers = { ... }
 
 ## 11. Humanoid rig
 

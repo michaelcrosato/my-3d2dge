@@ -66,6 +66,7 @@ for (const [ed, file] of EDITIONS) {
   lifecycle(E, ed);
   seesAndMaps(E, ed);
   if (ed === 'full') thirdPerson(E, ed);   // (the rest of the kit is the full engine's)
+  if (ed === 'full') motion(E, ed);   // (M1's sections are the full engine's)
   shellHeadless(E, ed);
 }
 
@@ -348,6 +349,77 @@ function seesAndMaps(E, ed) {
   built.fill(1, 1, 2, 2, 0); check(`${ed}: fill() with 0 clears`, built.cell(1, 1) === 0 && built.cell(2, 2) === 0);
 }
 
+// motion and presentation (docs/HANDOFF-GENRES.md, M1): tweens, scripts, paths, frames, turns, swaps, wrap-around, input
+// sequences, the camera's window and framing, the weather and the transitions' names, headless
+function motion(E, ed) {
+  const scenes = { a: { update() {}, draw() {} }, b: { update() {}, draw() {} } };
+  const game = new E.Game({ headless: true }), o = { x: 0 }; game.start({ scenes, scene: 'a' }); game.advance(1 / 120);
+  const tw = game.tween(o, { x: 10 }, 1, { ease: 'linear' }); game.advance(.5); const half = o.x;
+  game.paused = true; game.advance(.5); const paused = o.x; game.paused = false;
+  game.timeScale = .5; game.advance(.5); const slow = o.x; game.timeScale = 1;
+  game.go('b', null, { fade: 0 }); game.advance(.5);
+  check(`${ed}: game.tween runs on game time: halfway at half time, still while paused, half speed in slow motion, ended by a scene change`, Math.abs(half - 5) < 1e-9 && paused === half && Math.abs(slow - 7.5) < 1e-9 && o.x === slow && tw.done, [half, paused, slow, o.x, tw.done].join(' '));
+  const k = { x: 0 }, kept = game.tween(k, { x: 1 }, 1, { keep: true }); game.go('a', null, { fade: 0 }); game.advance(1.01);
+  check(`${ed}: a kept tween outlives the scene and ends exactly on its values`, kept.done && k.x === 1, k.x);
+  const y = { v: 0 }; let ended = 0; game.tween(y, { v: 4 }, .25, { repeat: 1, yoyo: true, onDone: () => ended++ }); game.advance(.25); const top = y.v; game.advance(.26);
+  check(`${ed}: repeat and yoyo play it there and back; onDone once`, Math.abs(top - 4) < .1 && y.v === 0 && ended === 1, [top, y.v, ended].join(' '));
+  const ev = [], t0 = game.time, door = { open: false }, at = () => +(game.time - t0).toFixed(4);
+  const sc = game.script(function* () { ev.push(at()); yield .5; ev.push(at()); yield E.until(() => door.open); ev.push(at()); yield game.tween(o, { x: 0 }, .25); ev.push(at()); yield E.all([.1, function* () { yield .2; }]); ev.push(at()); yield E.any([10, () => true]); yield; ev.push(at()); return 'done'; });
+  game.advance(.75); door.open = true; game.advance(1);
+  check(`${ed}: game.script waits at each yield: seconds, E.until, a tween, E.all of a wait and a generator, E.any, a step`, ev.join() === '0,0.5,0.7583,1.0083,1.2083,1.2167' && sc.done && sc.value === 'done', ev.join());
+  const late = game.script(function* () { yield 5; ev.push('late'); }); game.go('b', null, { fade: 0 }); game.advance(6);
+  check(`${ed}: a script ends with the scene unless kept`, late.done && !ev.includes('late'));
+  // paths
+  const sq = new E.Path([[0, 0], [10, 0], [10, 10], [0, 10]], { closed: true }), p15 = sq.at(15), p45 = sq.at(45);
+  check(`${ed}: E.Path: a closed square's length, its points by distance (wrapping round), headings, nearest`, sq.length === 40 && p15.x === 10 && p15.y === 5 && Math.abs(p15.angle - Math.PI / 2) < 1e-9 && p45.x === 5 && p45.y === 0 && sq.nearest(10, 4) === 14 && sq.nearest(3, -2) === 3, JSON.stringify([p15, p45]));
+  const cm = new E.Path([[0, 0], [10, 0], [10, 10]], { smooth: 'catmull' }), e0 = cm.at(0), e1 = cm.at(cm.length), mid = cm.at(cm.nearest(10, 0));
+  check(`${ed}: E.Path smooth: 'catmull' passes through its points, a little longer than the corner`, e0.x === 0 && e1.x === 10 && e1.y === 10 && Math.hypot(mid.x - 10, mid.y) < .5 && cm.length > 20 && cm.length < 22, cm.length);
+  // frames, turns, swaps
+  const c = { a: '#ff0000', b: '#00ff00' }, f1 = E.sprite(['ab'], c), f2 = E.sprite(['ba'], c), f3 = E.sprite(['aa'], c);
+  const A = E.anim([f1, f2, f3], 10), P = E.anim([f1, f2, f3], 10, { pingpong: true }), O = E.anim([f1, f2, f3], 10, { loop: false });
+  check(`${ed}: E.anim: frames by time, looping, ping-pong and once`, [0, .1, .2, .3].map(A.index).join() === '0,1,2,0' && [0, .1, .2, .3, .4].map(P.index).join() === '0,1,2,1,0' && O.index(5) === 2 && A.frame(.15) === f2 && A.duration === .3);
+  const sheet = E.anim(E.sprite(['aabbab'], c), 8, { frames: 3 });
+  check(`${ed}: E.anim cuts a sheet of frames side by side`, sheet.frames.length === 3 && sheet.frames[0].w === 2 && sheet.frames[2]._src[0][0].length === 2);
+  const arrow = E.sprite(['ab.', '...', '...'], c), q = E.rotSprite(arrow, Math.PI / 2), q32 = E.rotSprite(arrow, Math.PI / 2 + .1, 32), px = (s, x, y) => { const S = s._src, ch = S[0][y][x]; return ch === '.' ? null : S[1][ch]; };
+  check(`${ed}: E.rotSprite turns a sprite's pixels about its centre (a quarter turn: the top row down the right side), cached`, q.w === 3 && q.h === 3 && px(q, 2, 0) === '#ff0000' && px(q, 2, 1) === '#00ff00' && px(q, 0, 0) === null && E.rotSprite(arrow, Math.PI / 2) === q && E.rotSprite(arrow, 0) === arrow && q32 !== q, q._src[0].join('/'));
+  const sw = E.recolor(f1, { '#ff0000': '#123456', b: '#abcdef' });
+  check(`${ed}: E.recolor swaps colors by color or by character`, px(sw, 0, 0) === '#123456' && px(sw, 1, 0) === '#abcdef' && px(f1, 0, 0) === '#ff0000');
+  check(`${ed}: E.wrap and E.wrapDiff: across the seam`, E.wrap(-1, 0, 10) === 9 && E.wrap(330, 0, 320) === 10 && E.wrap(5, 0, 10) === 5 && E.wrapDiff(9, 1, 10) === 2 && E.wrapDiff(1, 9, 10) === -2);
+  check(`${ed}: E.ease has Penner's set, each from 0 to 1`, ['linear', 'inSine', 'outSine', 'inOutSine', 'inQuad', 'outQuad', 'inOutQuad', 'inCubic', 'outCubic', 'inOutCubic', 'inBack', 'outBack', 'inOutBack', 'inElastic', 'outElastic', 'inOutElastic', 'inBounce', 'outBounce', 'inOutBounce'].every(n => E.ease[n] && Math.abs(E.ease[n](0)) < 1e-9 && Math.abs(E.ease[n](1) - 1) < 1e-9));
+  // input sequences: a quarter circle forward, mirrored by facing
+  const g2 = new E.Game({ headless: true }), I = g2.input; g2.start({ update() {}, draw() {} }); g2.advance(1 / 120);
+  let hits = [];
+  const step = n => { for (let i = 0; i < n; i++) { g2.advance(1 / 120); hits.push([I.motion('236', 'attack'), I.motion('236', 'attack', { facing: -1 }), I.sequence(['up', 'up', 'down', 'attack'], { window: 2 })]); } };
+  const press = (dirs, btn) => { for (const d of ['up', 'down', 'left', 'right']) I.hold(d, dirs.includes(d)); if (btn) I.tap(btn); step(3); };
+  press(['down']); press(['down', 'right']); press(['right']); press(['right'], 'attack');
+  const right = hits.map(h => h[0]).filter(Boolean).length, mirror = hits.some(h => h[1]); hits = []; press([]); step(80);
+  press(['down']); press(['down', 'left']); press(['left']); press(['left'], 'attack');
+  const left = hits.some(h => h[1]), notRight = !hits.some(h => h[0]); hits = []; press([]); step(80);
+  press(['down']); press(['down', 'right']); press(['right'], 'attack');
+  const same = hits.some(h => h[0]); hits = []; press([]); step(80);
+  press(['down']); step(80); press(['down', 'right']); press(['right'], 'attack');
+  const slowMove = hits.some(h => h[0]); hits = []; press([]);
+  press(['up']); press([]); press(['up']); press([]); press(['down']); press(['down'], 'attack');
+  check(`${ed}: input.motion('236', 'attack'): true on one step for a fighter facing right, mirrored for one facing left, the button allowed on the motion's last step, not when too slow`, right === 1 && !mirror && left && notRight && same && !slowMove, JSON.stringify({ right, mirror, left, notRight, same, slowMove }));
+  check(`${ed}: input.sequence: a code of repeated directions; input.history in numpad notation`, hits.some(h => h[2]) && I.history.slice(-2).map(h => h.dir + ':' + h.pressed).join() === '2:,2:attack', I.history.slice(-3).map(h => h.dir + ':' + h.pressed).join());
+  // the camera: a window, a height followed on landing, framing two things
+  const g3 = new E.Game({ headless: true, view: 'side' }), hero = { x: 100, y: 0, z: 0, onGround: true }; g3.start({ update() {}, draw() {} });
+  g3.follow(hero, { z: 0 }); g3.cam.smooth = 0; g3.cam.window = [60, 0]; g3.advance(2 / 120);
+  const ax = g3.view.ax, x0 = g3.cam.x; hero.x += 10; g3.advance(2 / 120); const x1 = g3.cam.x; hero.x += 30; g3.advance(2 / 120); const x2 = g3.cam.x;   // (ax: screen pixels a world unit)
+  g3.cam.window = null; g3.cam.snapY = true; g3.advance(1 / 120); const y0 = g3.cam.y; hero.onGround = false; hero.z = 30; g3.advance(1 / 120); const y1 = g3.cam.y; hero.onGround = true; g3.advance(1 / 120); const y2 = g3.cam.y;
+  check(`${ed}: cam.window holds the camera while the focus moves inside it, then follows from its edge`, x1 === x0 && Math.abs(x2 - x0 - (40 * ax - 30)) < 1e-6, [x0, x1, x2, ax].join(' '));
+  check(`${ed}: cam.snapY follows a jump's height only once it lands`, y1 === y0 && y2 < y0, [y0, y1, y2].join(' '));
+  const g4 = new E.Game({ headless: true, view: 'side' }), a = { x: 0, y: 0, z: 0 }, b = { x: 200, y: 0, z: 0 }; g4.start({ update() {}, draw() {} });
+  g4.cam.smooth = 0; g4.cam.frame([a, b]); g4.advance(2 / 120); const mid4 = g4.cam.x + g4.W / 2, want = g4.view.p(100, 0, 0)[0], z1 = g4.zoom; b.x = 1200; g4.advance(.1);
+  check(`${ed}: cam.frame keeps two things in view: centred between them, zoomed out (no further than its least) as they part`, mid4 === want && z1 === 1 && g4.zoom === .5, [mid4, z1, g4.zoom].join(' '));
+  // the weather headless: its own stream, the same twice; lightning flashes
+  const wx = seed => { const g = new E.Game({ headless: true, view: 'iso' }); g.start({ update() {}, draw() {} }); let fl = 0; const f = g.flash.bind(g); g.flash = (...x) => { fl++; f(...x); }; g.weather = { kind: 'rain', amount: .6, lightning: 1 }; const r = Math.random; let n = 0; Math.random = () => { n++; return r(); }; g.advance(12); Math.random = r; return { calls: n, fl, drops: g._wx.drops.length, at: g._wx.drops.slice(0, 5).map(d => [d.x, d.y, d.z].map(v => v.toFixed(3)).join()).join('|') }; };
+  const W1 = wx(), W2 = wx();
+  check(`${ed}: game.weather: pooled drops from its own stream (never Math.random), the same twice; lightning flashes`, W1.calls === 0 && W1.at === W2.at && W1.drops === Math.round(.6 * E.WEATHER.rain.n) && W1.fl >= 2, JSON.stringify(W1));
+  const g5 = new E.Game({ headless: true }); g5.start({ scenes, scene: 'a' }); g5.weather = { kind: 'snow' }; g5.go('b', null, { fade: 'iris', seconds: .2 }); g5.advance(.5);
+  check(`${ed}: game.go with a transition's name goes there in its seconds; the weather ends with the scene`, g5.sceneName === 'b' && g5.weather === null, g5.sceneName + ' ' + JSON.stringify(g5.weather));
+}
+
 // E.Shell in a headless game: no DOM, but its screens' names, the pause it follows and back() still work; the agent
 // edition's stand-in does nothing and doesn't throw
 function shellHeadless(E, ed) {
@@ -392,6 +464,15 @@ const PLAY = hz => {
   return { state, peak, time: game.time, steps: steps.slice(0, 12), total: steps.reduce((a, b) => a + b, 0), dts: [...dts].sort(), alpha: game.alpha };
 };
 // the rest of the clock's contract, at 60 Hz
+// a script's timeline and a tween at a refresh rate (M1): the same at every rate, as the steps are
+const TIMELINE = hz => {
+  const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: 'snes' }), frame = 1000 / hz, log = [], o = { x: 0 };
+  let frames = 0;
+  game.start({ update() {}, draw() {} });
+  game.script(function* () { for (let i = 0; i < 6; i++) { yield .13; log.push(game.time.toFixed(6)); } const t = game.tween(o, { x: 100 }, .37, { ease: 'outBounce' }); yield t; log.push(game.time.toFixed(6) + ':' + o.x); });
+  while (frames * frame < 2000) window.__frame(++frames * frame);
+  return log.join(' ');
+};
 const RULES = () => {
   const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: 'snes' }), I = game.input, out = {};
   let f = 0, dts = [], pressedAtZero = false, unpaused = false;
@@ -550,6 +631,10 @@ for (const [ed, file] of EDITIONS) {
   for (const hz of [60, 90, 120, 144]) rates[hz] = await run(PLAY, hz);
   for (const hz of [60, 90, 120, 144]) console.log(`  ${String(hz).padStart(3)} Hz: steps per frame ${rates[hz].steps.join(',')}..., ${rates[hz].total} in 2.5 s, jump peak ${rates[hz].peak.toFixed(4)}, state ${rates[hz].state}`);
   for (const hz of [90, 120, 144]) check(`${ed}: the same state at ${hz} Hz as at 60 Hz`, rates[hz].state === rates[60].state, rates[hz].state + ' vs ' + rates[60].state);
+  if (ed === 'full') {
+    const T = {}; for (const hz of [60, 90, 120, 144]) T[hz] = await run(TIMELINE, hz);
+    check(`${ed}: a script's waits and a tween give the same timeline at 60, 90, 120 and 144 Hz`, T[60].split(' ').length === 7 && [90, 120, 144].every(hz => T[hz] === T[60]), JSON.stringify(T));
+  }
   check(`${ed}: 60 Hz runs two steps a frame`, rates[60].steps.every(s => s === 2), rates[60].steps.join(','));
   check(`${ed}: 120 Hz runs one step a frame`, rates[120].steps.every(s => s === 1), rates[120].steps.join(','));
   check(`${ed}: every step is 1/120 s of real time, slow motion half that`, rates[60].dts.length === 2 && rates[60].dts.includes(1 / 120) && rates[60].dts.includes(1 / 240), rates[60].dts.join(', '));

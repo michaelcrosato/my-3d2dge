@@ -3384,13 +3384,14 @@ const _fadeAt = (r, F) => { const a = F.at; return Array.isArray(a) ? a : a ? r.
  *    set it in the scene's enter.
  * ============================================================================= */
 /** the kinds of weather: n drops at amount 1, fall speed (world units a second), colors, streak (seconds of motion a
- *  drop's line shows), sway, rest (seconds it lies where it lands), splash, wind (how hard the wind pushes it). Add your
+ *  drop's line shows), sway, rest (seconds it lies where it lands), splash, wind (how hard the wind pushes it), size, big
+ *  (the share a pixel bigger). Add your
  *  own: E.WEATHER.embers = { ... } */
 const WEATHER = {
   rain: { n: 260, fall: 300, colors: ['#9fb6dc', '#c8d8f0'], streak: .03, splash: true, wind: 1 },
-  snow: { n: 200, fall: 30, colors: ['#ffffff', '#dfe8f4'], sway: 10, rest: .6, wind: 1 },
-  ash: { n: 150, fall: 20, colors: ['#8a8488', '#b0a8a8', '#ff8a40'], sway: 6, wind: .8 },
-  leaves: { n: 40, fall: 28, colors: ['#c8642a', '#e0a040', '#8a5a2a', '#a8b040'], sway: 24, rest: 1, size: 2, wind: 1.2 },
+  snow: { n: 280, fall: 30, colors: ['#ffffff', '#e8f0fa'], sway: 10, rest: .6, wind: 1, big: .55 },
+  ash: { n: 200, fall: 20, colors: ['#d0c8c8', '#a09898', '#ff8a40'], sway: 6, wind: .8, big: .35 },
+  leaves: { n: 56, fall: 28, colors: ['#c8642a', '#e0a040', '#8a5a2a', '#a8b040'], sway: 24, rest: 1, size: 2, wind: 1.2 },
   sand: { n: 220, fall: 12, colors: ['#d8b878', '#c8a060'], streak: .05, wind: 3 }
 };
 E.WEATHER = WEATHER;
@@ -3402,22 +3403,24 @@ HOOKS.step.push((g, dt) => {
   _wxStep(g, g._wx || (g._wx = { R: rng(0x5eed), drops: [], t: 0, bolt: 0, flick: 0, thunder: 0 }), w, K, dt);
 });
 HOOKS.draw.push((g, r, ctx) => { const w = g.weather, S = g._wx; if (w && w.kind && S && WEATHER[w.kind]) _wxDraw(g, r, ctx, S, w, WEATHER[w.kind]); });
-// the world box the screen shows (ground views: under the screen and the drops' height above it), [x0, y0, x1, y1]
+// the world box the screen shows: side views [x0, 0, x1, 0, z0, z1]; ground views the ground under the screen [x0, y0,
+// x1, y1]
 const _wxBox = g => {
   const v = g.view, c = g.cam, W = g.W, H = g.H;
   if (v.isSide) return [(c.x - 20) / v.ax, 0, (c.x + W + 20) / v.ax, 0, (c.y + H) / v.bz, (c.y - 20) / v.bz];
-  const pts = [[0, 0], [W, 0], [0, H - WX_TOP * v.bz], [W, H - WX_TOP * v.bz]].map(([sx, sy]) => v.toGround(c.x + sx, c.y + sy) || [0, 0]);
-  return [Math.min(...pts.map(p => p[0])) - 24, Math.min(...pts.map(p => p[1])) - 24, Math.max(...pts.map(p => p[0])) + 24, Math.max(...pts.map(p => p[1])) + 24];
+  const pts = [[0, 0], [W, 0], [0, H], [W, H]].map(([sx, sy]) => v.toGround(c.x + sx, c.y + sy) || [0, 0]);
+  return [Math.min(...pts.map(p => p[0])) - 16, Math.min(...pts.map(p => p[1])) - 16, Math.max(...pts.map(p => p[0])) + 16, Math.max(...pts.map(p => p[1])) + 16];
 };
 function _wxStep(g, S, w, K, dt) {
-  const R = S.R, v = g.view, mode = v.isTop ? 'flat' : v.isSide ? 'side' : 'world', n = Math.round(clamp(w.amount === undefined ? .5 : w.amount, 0, 1) * K.n), D = S.drops;
+  const R = S.R, v = g.view, mode = v.pitchDeg >= 70 ? 'flat' : v.isSide ? 'side' : 'world', n = Math.round(clamp(w.amount === undefined ? .5 : w.amount, 0, 1) * K.n), D = S.drops;
   const box = _wxBox(g), wind = (w.wind || 0) * 60 * (K.wind || 1), ground = g.particles.ground, W = g.W, H = g.H;
   const dcx = S.cx === undefined ? 0 : g.cam.x - S.cx; S.cx = g.cam.x; S.t += dt;
   // a drop starting from the top, in the screen's box (or anywhere in its height: the first ones fill the sky at once)
   const spawn = (d, any) => {
-    d.layer = mode === 'world' ? 1 : (R() * 3) | 0; d.c = K.colors[(R() * K.colors.length) | 0]; d.k = .8 + R() * .4; d.ph = R() * TAU; d.rest = 0;
+    d.layer = mode === 'world' ? 1 : (R() * 3) | 0; d.c = K.colors[(R() * K.colors.length) | 0]; d.k = .8 + R() * .4; d.ph = R() * TAU; d.rest = 0; d.s = (K.size || 1) + (K.big && R() < K.big ? 1 : 0);
+    if (mode === 'world') { const q = v.toGround(g.cam.x + R() * W, g.cam.y + R() * H) || [0, 0]; d.x = q[0]; d.y = q[1]; }   // (it lands on a point of the screen)
     if (mode === 'world' || (mode === 'side' && d.layer === 1)) {
-      d.x = lerp(box[0], box[2], R()); d.y = mode === 'side' ? 0 : lerp(box[1], box[3], R());
+      if (mode === 'side') { d.x = lerp(box[0], box[2], R()); d.y = 0; }
       d.fl = ground ? ground(d.x, d.y, mode === 'side' ? box[5] : WX_TOP) || 0 : 0;
       const top = mode === 'side' ? box[5] : d.fl + WX_TOP; d.z = any ? lerp(d.fl, top, R()) : top;
     } else { d.x = R() * W; d.y = any ? R() * H : -4; d.z = d.fl = undefined; }
@@ -3448,13 +3451,12 @@ function _wxStep(g, S, w, K, dt) {
   }
 }
 function _wxDraw(g, r, ctx, S, w, K) {
-  const v = g.view, world = !v.isTop;
   const draw = () => {
     for (const d of S.drops) {
-      const L = WX_LAYERS[d.layer], sz = (K.size || 1) * (d.z !== undefined && world ? 1 : L[2]);
+      const L = WX_LAYERS[d.layer], sz = (d.s || 1) * (d.z !== undefined ? 1 : L[2]), wx = (w.wind || 0) * 60 * (K.wind || 1);
       let x, y, x2, y2;
-      if (d.z !== undefined && world) { [x, y] = r.w(d.x, d.y, d.z); if (K.streak && !d.rest) [x2, y2] = r.w(d.x - (w.wind || 0) * 60 * K.streak, d.y, d.z + K.fall * K.streak); }
-      else { x = d.x; y = d.y; if (K.streak) { x2 = x - (w.wind || 0) * 60 * K.streak * L[1]; y2 = y - K.fall * K.streak * L[1]; } }
+      if (d.z !== undefined) { [x, y] = r.w(d.x, d.y, d.z); if (K.streak && !d.rest) [x2, y2] = r.w(d.x - wx * K.streak, d.y, d.z + K.fall * K.streak); }
+      else { x = d.x; y = d.y; if (K.streak) { x2 = x - wx * K.streak * L[1]; y2 = y - K.fall * K.streak * L[1]; } }
       if (x < -12 || y < -40 || x > r.bw + 12 || y > r.bh + 12) continue;
       if (d.rest > 0) { if (K.splash) { px.dot(ctx, x - 2, y - 1, d.c); px.dot(ctx, x + 2, y - 1, d.c); px.dot(ctx, x, y - 2, d.c); } else px.rect(ctx, x, y, sz, 1, d.c); continue; }
       if (x2 !== undefined) px.line(ctx, x, y, x2, y2, d.c, sz > 1 ? 2 : 1);
