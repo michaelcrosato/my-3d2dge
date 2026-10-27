@@ -803,7 +803,7 @@ M0 (effort: xhigh)
 
 M1 (effort: high)
 ```
-/goal Milestone 1 of docs/HANDOFF-GENRES.md (motion and presentation: tweens, scripts, paths, sprite frames and rotation, wrap-around, transitions, weather, input sequences, the camera's window and framing, a screen filter) is done by the plan's section 7 rules: its facts checked against the code, built, every "Done when" check and npm run test:changed passing, merged to main as the next minor version, its row in section 9 filled in, and the version, commit and Milestone 2's effort level and /goal line reported.
+/goal Milestone 1 of docs/HANDOFF-GENRES.md (motion and presentation: tweens, scripts, paths, sprite frames and rotation, wrap-around, transitions, weather, input sequences, the camera's window and framing, a screen filter) is done by the plan's section 7 rules: its facts checked against the code, built, every "Done when" check and npm run test:changed passing, merged to main as the next minor version, its row in section 9 filled in, and the version, commit, kit sizes and Milestone 2's effort level and /goal line reported.
 ```
 
 M2 (effort: high)
