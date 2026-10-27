@@ -5,7 +5,8 @@
 //   dist/my-3d2dge.html          readable engine + API card + all six starter slices (the reference)
 //   dist/my-3d2dge-compact.html  same, with the engine minified (fewer tokens)
 //   dist/kits/my-3d2dge-<genre>.html  minified engine + API card + ONE slice: the smallest file to
-//                                hand a model that is making a game in that genre
+//                                hand a model that is making a game in that genre. Its engine is on the kit diet: the
+//                                core less the sections its game never calls (DIET below, tools/diet.mjs)
 //   dist/my-3d2dge.js / .min.js  the engine alone, for multi-file projects: the core and every module (engine/modules/) in
 //                                one file
 //   dist/my-3d2dge-3d.html       the 3D starter: the engine and the 3D engine (engine/my-3d2dge-3d.js: three.js r182 and
@@ -37,6 +38,23 @@ const ALL = {
   CONTENTS: "a title menu plus six vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE, STEALTH)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
   LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg, #stealth or #animlab to the address to start a slice.'
 };
+// THE KIT DIET (docs/HANDOFF-GENRES.md, 3.3): a kit's engine leaves out the core's sections its game never calls. This
+// table names the parts that may go (one or more of the core's sections, by number) and, where a part is reached only
+// through a method of what stays, that method; tools/diet.mjs works out the rest from the code: what the kit calls (its
+// shell, slice, sets, modules and, in 3D, the 3D engine), and what each of the core's statements needs. A part the kit
+// calls stays, and so does anything it needs; a kit that would call what went fails the build.
+const DIET = [
+  { part: 'blob', sections: ['12'] },                         // E.Blob
+  { part: 'tilemap', sections: ['13'] },                      // E.TileMap, and what extends it (wall faces, shapes as solids)
+  { part: 'flow', sections: ['14'] },                         // E.FlowField
+  { part: 'tex', sections: ['15'] },                          // E.tex
+  { part: 'platformer', sections: ['16b'] },                  // E.Platformer
+  { part: 'body', sections: ['17'] },                         // E.Body
+  { part: 'thirdperson', sections: ['17b', '17c', '17d'] },   // E.ACTIONS, E.Action, E.Mover, E.sees, E.hears, E.Suspicion
+  { part: 'bullets', sections: ['18'] },                      // E.Bullets, E.pattern
+  { part: 'hash', sections: ['19'] },                         // E.SpatialHash
+  { part: 'gpu', sections: ['22'], entries: ['enableGPU'] }   // GPU lighting: only through game.enableGPU
+];
 // a kit's line on its modules (the scripts marked "inlined from engine/modules/...", after the engine), when it has any
 const modLine = mods => mods.length ? '\n       Its modules: ' + resolveModules(mods, MODS).map(m => m.name).join(', ') + ' (engine/modules/), each loaded after the engine.' : '';
 const kit = (id, mods = []) => ({
@@ -68,22 +86,52 @@ const builds = [
   // the files to share with AI models: API card + engine + starter slices
   { template: 'src/starter.template.html', out: 'dist/my-3d2dge.html', vars: Object.assign({ EDITION: 'single-file edition' }, ALL), modules: 'all' },
   { template: 'src/starter.template.html', out: 'dist/my-3d2dge-compact.html', vars: Object.assign({ EDITION: 'compact edition (engine minified)' }, ALL), compact: true, modules: 'all' },
-  // genre kits: the shell, one slice and the start code
+  // genre kits: the shell (00-shell.js, not 05-families.js: one slice needs no families), one slice and the start code
   ...readdirSync(join(root, STARTER)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
     if (!SLICES[id]) throw new Error(STARTER + '/' + f + ': name the slice in SLICES (tools/build.mjs)');
-    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id, sliceMods(join(STARTER, f))), compact: true, parts: p => /^(0|9)/.test(p) || p === f, modules: sliceMods(join(STARTER, f)) };
+    return { template: 'src/starter.template.html', out: 'dist/kits/my-3d2dge-' + id + '.html', vars: kit(id, sliceMods(join(STARTER, f))), compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER, f)) };
   }),
   // the 3D starter (src/starter3d/: the shell, every 3D slice, the start) and a 3D genre kit for each slice
   { template: 'src/starter3d.template.html', out: 'dist/my-3d2dge-3d.html', vars: ALL3D, compact: true, modules: dirMods(STARTER3D) },
   ...readdirSync(join(root, STARTER3D)).filter(f => /^[1-8]\d-.+\.js$/.test(f)).map(f => {
     const id = f.replace(/^\d+-|\.js$/g, '');
     if (!SLICES3D[id]) throw new Error(STARTER3D + '/' + f + ': name the slice in SLICES3D (tools/build.mjs)');
-    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id, sliceMods(join(STARTER3D, f))), compact: true, parts: p => /^(0|9)/.test(p) || p === f, modules: sliceMods(join(STARTER3D, f)) };
+    return { template: 'src/starter3d.template.html', out: 'dist/kits/my-3d2dge-3d-' + id + '.html', vars: kit3d(id, sliceMods(join(STARTER3D, f))), compact: true, kit: true, parts: p => /^(00|9)/.test(p) || p === f, modules: sliceMods(join(STARTER3D, f)) };
   })
 ];
 
 let minified = null, minified3d = null;
+const dieted = new Map();
+/** a kit's code, everything that may call the engine: what its template inlines for its parts (the shell, the slice, the
+ *  start, its sets; in 3D the 3D engine), and its modules */
+function kitCodes(b) {
+  const tpl = readFileSync(join(root, b.template), 'utf8'), raw = f => readFileSync(join(root, f), 'utf8'), codes = [];
+  const dirParts = dir => readdirSync(join(root, dir)).filter(f => f.endsWith('.js') && (!b.parts || b.parts(f))).sort().map(f => raw(join(dir, f))).join('\n');
+  for (const m of tpl.matchAll(/<!-- @inline-with (\S+) (\S+) -->/g)) if (!b.parts || b.parts(m[1])) codes.push({ text: raw(m[2]) });
+  for (const m of tpl.matchAll(/<!-- @inline-(parts|module) (\S+) -->/g)) codes.push({ text: dirParts(m[2]), module: m[1] === 'module' });
+  for (const m of tpl.matchAll(/<!-- @inline-esm (\S+) -->/g)) codes.push({ text: raw(m[1]), module: true });
+  for (const m of tpl.matchAll(/<!-- @inline (\S+) -->/g)) if (m[1] !== ENGINE) codes.push({ text: raw(m[1]) });
+  for (const m of resolveModules(b.modules || [], MODS)) codes.push({ text: m.src });
+  return codes;
+}
+/** what each of E's names is in the full engine (a class, a function or an object), for the stubs of what a kit leaves out */
+const KINDS = (() => { const ctx = { console: { log() {}, warn() {}, error() {} } }; vm.createContext(ctx); vm.runInContext(readFileSync(join(root, ENGINE), 'utf8'), ctx); const E = ctx.My3D2dge, out = {};
+  for (const k of Object.keys(E)) { const v = E[k]; out[k] = typeof v === 'function' ? (/^class\b/.test(Function.prototype.toString.call(v)) ? 'class' : 'function') : 'object'; } return out; })();
+/** a kit's engine on the diet, minified (its manual kept): { diet, min }; null without acorn or terser (npm install) */
+async function kitEngine(b) {
+  let D; try { D = await import('./diet.mjs'); } catch (e) { console.warn('acorn is not installed (npm install); skipping the kits'); return null; }
+  const d = D.diet(readFileSync(join(root, ENGINE), 'utf8'), DIET, D.uses(kitCodes(b)), KINDS);
+  if (!dieted.has(d.src)) { let code = false; try { const { minify } = await import('terser'); code = (await minify(d.src, { compress: true, mangle: true, format: { comments: /^!/ } })).code; } catch (e) { /* no terser */ } dieted.set(d.src, code); }
+  return { diet: d, min: dieted.get(d.src) };
+}
+/** a kit's header line on what its engine leaves out */
+const dietLine = d => {
+  if (!d.left.length) return '';
+  const items = d.left.flatMap(l => l.sections.map(([id, t]) => id + ' ' + t)), lines = ['Its engine leaves out what its game never calls (the kit diet):'];
+  items.forEach((w, i) => { w += i < items.length - 1 ? ',' : '.'; if ((lines[lines.length - 1] + ' ' + w).length > 104) lines.push(w); else lines[lines.length - 1] += ' ' + w; });
+  return '\n       ' + lines.join('\n       ') + '\n       Calling one of them warns, naming its section. A game of several genres starts from the full engine:\n       dist/my-3d2dge.html (every slice and section, readable) or dist/my-3d2dge-compact.html.';
+};
 const minMods = new Map();
 /** a module minified, its manual (the /*! header) kept; false without terser */
 async function moduleMin(m) {
@@ -129,10 +177,11 @@ const GLOBAL = { VERSION: JSON.parse(readFileSync(join(root, 'package.json'), 'u
 const bootSplash = (() => { const ctx = { console }; vm.createContext(ctx); vm.runInContext(read(ENGINE), ctx); return ctx.My3D2dge.bootSplash; })();
 const boot = html => html.replace(/<!-- @boot ?(.*?) -->/g, (_, t) => bootSplash(t.trim()));
 for (const b of builds) {
-  const min = b.compact ? await engineMin() : null;
+  const ke = b.kit ? await kitEngine(b) : null, min = b.compact ? (ke ? ke.min : b.kit ? null : await engineMin()) : null;
   if (b.compact && !min) continue;
   let html = readFileSync(join(root, b.template), 'utf8');
-  for (const [k, v] of Object.entries(Object.assign({}, GLOBAL, b.vars))) html = html.replaceAll(`{{${k}}}`, v);
+  const vars = Object.assign({}, GLOBAL, b.vars); if (ke) vars.CONTENTS += dietLine(ke.diet);
+  for (const [k, v] of Object.entries(vars)) html = html.replaceAll(`{{${k}}}`, v);
   html = boot(html);
   // a file one part needs, only where that part is (a kit of one slice leaves out the others' sets)
   html = html.replace(/<!-- @inline-with (\S+) (\S+) -->/g, (_, part, file) => !b.parts || b.parts(part) ? `<!-- @inline ${file} -->` : '');
@@ -162,11 +211,12 @@ for (const b of builds) {
   const mods = await moduleScripts(b);
   html = html.replace(/<!-- @inline (\S+) -->/g, (_, file) => {
     const src = file === ENGINE && min ? min.replaceAll('</script', '<\\/script') : read(file);
-    return `<script>\n/* ---- inlined from ${file}${file === ENGINE && min ? ' (minified; the readable engine is in the repo)' : ''} ---- */\n${src}\n</script>` + (file === ENGINE && mods ? '\n' + mods : '');
+    const how = file !== ENGINE || !min ? '' : ke && ke.diet.left.length ? ' (minified, less the sections its game never calls: the header above lists them; the readable engine is in the repo)' : ' (minified; the readable engine is in the repo)';
+    return `<script>\n/* ---- inlined from ${file}${how} ---- */\n${src}\n</script>` + (file === ENGINE && mods ? '\n' + mods : '');
   });
   mkdirSync(dirname(join(root, b.out)), { recursive: true });
   writeFileSync(join(root, b.out), html);
-  console.log('built', b.out, (html.length / 1024).toFixed(1) + ' KB');
+  console.log('built', b.out, (html.length / 1024).toFixed(1) + ' KB' + (ke && ke.diet.left.length ? ', leaving out ' + ke.diet.left.map(l => l.part).join(', ') : ''));
 }
 // the engine alone: the core, then every module (each starts with its manual)
 const EVERY = resolveModules('all', MODS);

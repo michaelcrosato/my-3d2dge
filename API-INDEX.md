@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.60.0)
+# my-3D2dge API index (v0.61.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,40 +48,41 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 86 The engine object (E = My3D2dge)
-- 97 Math
-- 154 Pixel primitives
-- 173 Views (projections); E.View: view
-- 200 Screen; game.screen
-- 221 Input; E.Input: input
-- 293 Pixel font
-- 304 Lighting; game.lights
-- 323 Particles; E.Particles: game.particles
-- 343 Renderer; r
-- 389 Game; E.Game: game
-- 499 Standard features; settings, fullscreen
-- 516 10c. Boot
-- 521 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 594 Blob rig; E.Blob: blob
-- 614 Tile map; E.TileMap: map
-- 673 Materials
-- 694 Flow field; E.FlowField: flow
-- 712 Texture helpers for floortex functions
-- 723 Platform map; E.PlatformMap: level, E.Platformer: hero
-- 785 Body; E.Body: body
-- 805 Actions; E.Action: action
-- 827 17c. Mover; E.Mover: mover
-- 866 17d. Perception; E.Suspicion: suspicion
-- 883 Bullets; E.Bullets: shots
-- 903 Spatial hash; E.SpatialHash: grid
-- 913 Audio; game.audio
-- 935 Backdrops; E.Backdrop: backdrop
-- 943 21c. Props
-- 948 21e. Shapes
-- 960 Ui; E.Dialog: talk, E.Menu: menu
-- 1014 21d. Shell; E.Shell: shell
-- 1043 Gpu lighting (webgpu); game.gpu
-- 1064 Sessions
+- 87 The engine object (E = My3D2dge)
+- 98 Math
+- 155 Pixel primitives
+- 174 Views (projections); E.View: view
+- 201 Screen; game.screen
+- 222 Input; E.Input: input
+- 294 Pixel font
+- 305 Lighting; game.lights
+- 324 Particles; E.Particles: game.particles
+- 344 Renderer; r
+- 390 Game; E.Game: game
+- 500 Standard features; settings, fullscreen
+- 517 10c. Boot
+- 522 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 595 Blob rig; E.Blob: blob
+- 615 Tile map; E.TileMap: map
+- 674 Materials
+- 695 Flow field; E.FlowField: flow
+- 713 Texture helpers for floortex functions
+- 724 Platform map; E.PlatformMap: level
+- 754 Platformer; E.Platformer: hero
+- 789 Body; E.Body: body
+- 809 Actions; E.Action: action
+- 831 17c. Mover; E.Mover: mover
+- 870 17d. Perception; E.Suspicion: suspicion
+- 887 Bullets; E.Bullets: shots
+- 907 Spatial hash; E.SpatialHash: grid
+- 917 Audio; game.audio
+- 939 Backdrops; E.Backdrop: backdrop
+- 947 21c. Props
+- 952 21e. Shapes
+- 964 Ui; E.Dialog: talk, E.Menu: menu
+- 1018 21d. Shell; E.Shell: shell
+- 1047 Gpu lighting (webgpu); game.gpu
+- 1068 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -90,7 +91,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.60.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.61.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -749,6 +750,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `level.spawns`: spawn points: { tag, ch, cx, cz, x, y: 0, z } with x = cell center and z = bottom of the cell (feet)
 - `level.types`: the tile types by id, with their defaults filled in ({ kind, style, side, top, ... })
 - `level.version = 0`: counts every change to the cells (set)
+
+## 16b. Platformer
+
 - `new E.Platformer(o = {}) → hero`: a side-scroller character body with modern, forgiving controls (coyote time, jump buffering, variable jump height, optional double jump, wall jump, dash, ladders, knockback). const hero = new E.Platformer({ x, z, w: 8, h: 22 }); update: hero.update(dt, level, game.input) (or an intent object for enemies: { x: -1..1, jump, jumpPressed, up, down, dash }) then read hero.onGround, hero.jumped, hero.landed, hero.facing (1 or -1), hero.climbing, hero.air draw a Humanoid with rig.update(dt, hero.rigState()) Units: world units per second. One tile = 16. A 285 jump with gravity 800 clears about 3 tiles.
 - `hero.knock(dir, speed = 130, up = 170, stun = .3)`: push the body (getting hit): dir = -1 / 1
 - `hero.rigState(extra)`: state for Humanoid.update: rig.update(dt, hero.rigState({ attack }))

@@ -546,6 +546,8 @@ An entry:
   API card trimmed, or kits built per genre without the parts their slice never calls.
 - **Answered:** no; made at once as a reversible call, flagged in the pull request
 - **Landed in:** v0.35.0
+- **Superseded in part by D51** (v0.61.0): a kit leaves out the sections its game never calls; every kit still carries
+  the shape renderer and the core library, since every slice draws from its own cut of the store.
 
 ## D33 · 2026-10-15 · The asset store: CC0 libraries converted to text, with provenance, binaries never committed
 
@@ -922,3 +924,31 @@ An entry:
   modules inlined into the core instead.
 - **Answered:** yes: the owner's goal (2026-10-27), Milestone 0 of `docs/HANDOFF-GENRES.md`, which sets these budgets
 - **Landed in:** v0.60.0
+
+## D51 · 2026-10-27 · The kit diet: a kit's engine leaves out what its game never calls; the kits' budgets
+
+- **Principle:** 1 (agent-readable: a genre kit is the usual choice for chat models, and fits a 200k context)
+- **Call:** a genre kit's engine is the core less the sections its game never calls. `DIET` in `tools/build.mjs` names
+  the parts that may go (the Blob, the tile map, flow fields, the floor textures, the Platformer, the Body, the
+  third-person kit, bullets, the spatial hash, GPU lighting), and `tools/diet.mjs` works out the rest from the code with
+  acorn (now a declared dev dependency; it came with terser before): what the kit's code calls, what each top-level
+  statement needs, what extends a class that goes. What goes answers with a stub that warns once, or a constructor that
+  throws, naming its section and the full engine. The kit's header lists what it left out and names the file for a game
+  of several genres (`dist/my-3d2dge.html`, or the compact edition). `doctrine-check` holds the budgets: every 2D kit at
+  most 200,000 cl100k tokens, a 3D kit no larger than at v0.59.3 (241,039, 235,846, 310,823). The Platformer became a
+  section of its own (16b, a comment in the core) so the kits that don't use it leave it out. The starters' title menus
+  group the slices by family in a part only the reference editions carry (`05-families.js`), so a kit's title is
+  unchanged. This supersedes part of D32: every kit still carries the shapes and the core library, since every slice
+  draws from its own cut of the store.
+- **Why:** five of the seven 2D kits were past 200,000 (203k to 208k), and every later milestone of the plan adds to
+  the core. The parts a slice never calls were about a tenth of its kit. At v0.61.0: adventure 195k, shooter 192k, RPG
+  190k, brawler 188k, animation lab 181k, platformer 180k, stealth 180k; the 3D kits 215k, 210k and 285k, a 3D kit 25k
+  smaller. Each kit's title and play, filmed beside the same kit without the diet, match pixel for pixel, and each
+  slice's proof repeats (`kits-test`). The adventure kit has the least room (it calls GPU lighting, the tile map, the
+  Blob, the Body and bullets): the plan's card growth fits, and new core features go in sections of their own on the
+  diet (the plan's 3.5). What would change it: a kit over its budget after its slice grows (leave out more, move the card's
+  detail to the index, or raise the budget with a decision), a stub found on a real game's path (keep that part: a test
+  should have caught it), the owner preferring whole engines in the kits.
+- **Answered:** yes: the owner's goal (2026-10-27), Milestone 0 of `docs/HANDOFF-GENRES.md` (0b), which asks for the diet
+  and these budgets
+- **Landed in:** v0.61.0

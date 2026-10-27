@@ -552,6 +552,9 @@ const ADV = (() => {
     // at all held upright (its forest is sized for 1x there). A TileMap scene rotates cleanly
     camera: { zoom: g => [g.upright ? 1 : .85, 2], rotate: true },
     state: () => ({ hero, foes, things, items, map, npcs, pets, talk }),   // for tests
+    /** the proof: a walk round the village and into the ruins, the sword swinging and every word read; a hash of the run */
+    run: (n = 600) => proof('adventure', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 90); if (i % 40 === 20) k.tap('attack'); if (i % 120 === 60) k.tap('confirm'); },
+      () => [hero.x, hero.y, hero.hp, gems, keys, area, won, foes.map(f => [f.x, f.y, f.hp])]),
     exit() { game.cam.room = null; game.cam.smooth = .18; if (gpu) gpu.enabled = false; L.enabled = false; } };
 })();
 scenes.adventure = ADV;

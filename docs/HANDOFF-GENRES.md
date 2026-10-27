@@ -223,8 +223,13 @@ in the core.
   constructor, throws an error that names the section and the file that has it, as the agent edition does with what it
   leaves out.
 - The build works out what a slice calls (its `E.` names, and the sections those need), so no list goes stale, and it
-  fails when a slice uses a name from a section it left out. A section is left out only when nothing kept uses it: the
-  dependencies between sections are a table in `tools/build.mjs`, proven by building and playing each kit.
+  fails when a slice uses a name from a section it left out. As built in v0.61.0: `DIET` in `tools/build.mjs` names the
+  parts that may go (sections by number) and, where a part is reached only through a method of what stays, that method
+  (`game.enableGPU` for GPU lighting); `tools/diet.mjs` reads the core's top-level statements with acorn and works out
+  the rest: what the kit's code calls (its shell, slice, sets, modules and, in 3D, the 3D engine), a statement that
+  extends a left-out class goes with it, and a name kept code needs stays (the platform map keeps `parseLevel` from the
+  tile map's section). Proven by `kits-test` (each slice's proof, no stub ever called) and filmstrips of each kit beside
+  the build before (`kits-test --compare <dir>`).
 - **The budget:** every 2D kit at most 200,000 cl100k tokens; a 3D kit no larger than at v0.59.3. `doctrine-check`
   counts them.
 - A kit's header lists the modules it carries and the sections it leaves out, and names the file for a mash-up of
@@ -269,6 +274,9 @@ in the core.
   the size of a deployment (each kit adds a few hundred KB; D49 keeps the bill down).
 - **Decisions** (a budget raised, a deviation) go in `docs/DECISIONS.md`, in a commit of their own, flagged in the pull
   request.
+- **On the diet.** A core addition that not every game calls goes in a section of its own (a `/* ====` banner, as
+  `16b. PLATFORMER` became in M0) with a line in `DIET` (`tools/build.mjs`), so the kits that never call it leave it out;
+  a method of a class that stays is its way in (`entries`). Each kit's tokens are in the pull request.
 
 ## 4. The milestones
 
@@ -294,7 +302,8 @@ them.
     (`ADV.run(n)` and the others); the 3D slices' are reused.
   - The title menu for many slices: grouped by family under headings, two columns on a wide screen, a list that
     scrolls on a phone; the lineup of heroes stays as the title's art; a kit's menu still lists its one slice. The 3D
-    starter's menu does the same.
+    starter's menu does the same. (As built: `05-families.js` in each starter, a part only the reference editions
+    carry; each slice names its `family` in the shell's `SLICES`; a kit keeps the plain `E.Menu`, its title unchanged.)
   - The compact edition: the milestone whose slices would take it past 500,000 tokens splits it into collections by
     family, or drops it, as a decision (the kits and the full reference cover its uses).
 - **Docs:** `AI_GUIDE.md` (modules, the diet, the file for a mash-up), the API card's line on modules, README's kits
@@ -334,6 +343,8 @@ Needs M0. Almost every later kit uses these, and each is small.
 - **A screen filter** (a standard setting, under Display): clean, scanlines or CRT, drawn when the picture is
   presented, never on the game's buffer, off under the test harness.
 - **No new kit.** The existing kits are unchanged.
+- **On the diet (3.5):** the tweens and scripts, paths, transitions, weather and input sequences each in a section of
+  their own, in `DIET`, so a kit whose slice calls none of them stays the size it was.
 - **Docs:** the API card (about 700 tokens of its 18,000), the index, `AI_GUIDE.md` (a paragraph each, and the game
   code each replaces: a wave timeline, a cutscene).
 - **Done when:** contract tests for each (a tween across a pause, slow motion and a scene change; scripts at 60, 90,
@@ -792,7 +803,7 @@ M0 (effort: xhigh)
 
 M1 (effort: high)
 ```
-/goal Milestone 1 of docs/HANDOFF-GENRES.md (motion and presentation: tweens, scripts, paths, sprite frames and rotation, wrap-around, transitions, weather, input sequences, the camera's window and framing, a screen filter) is done by the plan's section 7 rules: its facts checked against the code, built, every "Done when" check and npm run test:changed passing, merged to main as the next minor version, its row in section 9 filled in, and the version, commit and Milestone 2's effort level and /goal line reported.
+/goal Milestone 1 of docs/HANDOFF-GENRES.md (motion and presentation: tweens, scripts, paths, sprite frames and rotation, wrap-around, transitions, weather, input sequences, the camera's window and framing, a screen filter) is done by the plan's section 7 rules: its facts checked against the code, built, every "Done when" check and npm run test:changed passing, merged to main as the next minor version, its row in section 9 filled in, and the version, commit, kit sizes and Milestone 2's effort level and /goal line reported.
 ```
 
 M2 (effort: high)
@@ -884,7 +895,7 @@ M16 (effort: medium)
 | Milestone | State | Version and commit | Notes |
 | --- | --- | --- | --- |
 | this plan | written | v0.59.4 | a review of v0.59.3: the genres (1.2), the measures (1.3) |
-| M0 room to grow | not started | | |
+| M0 room to grow | done (two pull requests) | 0a v0.60.0 `00fbfe1`; 0b v0.61.0 | 0a: modules (`engine/modules/`, `tools/engine-lib.mjs` for every tool, the `modules` suite's fixture in a copy of the repository), the budgets (D50: card 18,000, index 52,000, a module 1,500), the test runner. 0b: the kit diet (`DIET`, `tools/diet.mjs`; the Platformer a section of its own, 16b), `kits-test` (every slice's proof twice; `--compare` films; the reference menus), the family title menus (`05-families.js`), the kits' budgets (D51). Measured at v0.61.0, cl100k: adventure 195,281, shooter 191,532, RPG 189,874, brawler 187,859, animation lab 180,685, platformer 180,085, stealth 179,909; 3D action 215,277, platformer 210,084, shooter 285,061; the compact edition 332,477 (it splits or goes past 500,000: a later milestone's decision), the reference 437,609; card 15,032, index 35,597, agent header 9,876. Every 2D kit's title and play filmed beside the build without the diet: the same pixels. Left: nothing; the adventure kit has the least room (4.7k), so M1's additions go on the diet (3.5) |
 | M1 motion and presentation | not started | | |
 | M2 grids, turns, generated maps | not started | | |
 | M3 the arcade | not started | | |

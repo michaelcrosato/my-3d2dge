@@ -229,6 +229,9 @@ const STEALTH = (() => {
   return { view: 'iso', views: ['iso', 'threequarter'], input: 'THIRDPERSON', res: 'ps1', pausable: true, touch: ['jump', 'attack', 'block', 'crouch'],
     camera: { zoom: [.75, 2], rotate: true }, enter: start, update, draw,
     state: () => ({ hero, guards, map, ledger, won, hp }),   // for tests
+    /** the proof: over the rooftops, jumping, swinging and crouching, the guards on their rounds; a hash of the run */
+    run: (n = 600) => proof('stealth', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 100); if (i % 130 === 60) k.tap('jump'); if (i % 90 === 45) k.tap('attack'); if (i === 400) k.tap('crouch'); },
+      () => [hero.x, hero.y, hero.z, hp, ledger, won, guards.map(g => [g.x, g.y, g.z, g.hp, g.dead])]),
     exit() { game.cam.offset = null; L.enabled = false; if (ui) ui.hud({}); } };
 })();
 scenes.stealth = STEALTH;

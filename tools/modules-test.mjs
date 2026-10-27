@@ -9,7 +9,7 @@
 //   index     API-INDEX.md has the module's section with its names
 //   contract  contract-test (Node) runs the manual's example on both editions
 //   agent     agent-test runs the example in a page, after the agent edition
-//   runner    a change to the module runs contract, agent, modules and the phone test of its kit, not every suite
+//   runner    a change to the module runs contract, agent, modules and the kits and phone tests of its kit, not every suite
 //   play      the fixture's kit plays in Chromium: the module is there, its slice's proof gives the same number twice; a
 //             kit that doesn't name it hasn't got it
 // Usage: node tools/modules-test.mjs [--keep]   (--keep leaves the copy for a look; exit code 1 on a failure)
@@ -75,7 +75,7 @@ check('agent-test runs its example after the agent edition', a.ok && /ok {3}modu
 
 console.log('the test runner');
 const l = node(['tools/test-run.mjs', '--list', '--files', 'engine/modules/fixture.js']);
-check('a change to the module runs contract, agent, modules and its kit\'s phone test, not every suite', l.ok && ['contract', 'agent', 'modules'].every(s => new RegExp('^ {2}' + s + ' ', 'm').test(l.out)) && /^ {2}phone .*fixture/m.test(l.out) && /skipped: .*standard/.test(l.out), l.out.trim());
+check('a change to the module runs contract, agent, modules and its kit\'s kits and phone tests, not every suite', l.ok && ['contract', 'agent', 'modules'].every(s => new RegExp('^ {2}' + s + ' ', 'm').test(l.out)) && /^ {2}phone .*fixture/m.test(l.out) && /^ {2}kits .*fixture/m.test(l.out) && /skipped: .*standard/.test(l.out), l.out.trim());
 
 console.log('play');
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

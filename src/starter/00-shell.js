@@ -33,14 +33,15 @@ const best = (k, v) => { const old = E.store.get('best:' + k, 0); if (v > old) E
 // a prompt in the player's own controls, after rebinding: 'J Sword' on a keyboard, 'X Sword' on a pad, 'ATTACK Sword' (the
 // button's name) on a touch screen, where the buttons sit over the bottom corner: touch() says so, to move a prompt off it
 const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game.input.lastDevice === 'touch';
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
 const SLICES = [
-  { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE' },
-  { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER' },
-  { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP' },
-  { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP' },
-  { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE' },
-  { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR' },
-  { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW' }
+  { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
+  { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER', family: 'PLATFORM' },
+  { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
+  { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
+  { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE', family: 'RPG' },
+  { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
+  { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
 ];
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
    engine zooms it with the mouse wheel, - and =, a pinch on a phone and Settings, Camera zoom (the player's own, kept, on
@@ -74,9 +75,32 @@ HEROES.forEach((h, i) => { h.x = MID + (i - 2.5) * 35; });
 const corner = () => { const S = game.screen, k = S.dpr / S.S; return [170 * k, 60 * k]; };
 // where a HUD's top-right corner ends: left of the corner's menu button while it stays there (a touch screen), else the edge
 const cornerX = () => { const ca = touch() && game.cornerArea(); return ca && ca.y0 < 40 ? Math.floor(ca.x0) - 4 : game.W; };
+/* ---- THE PROOF (tools/kits-test.mjs runs each slice's twice and compares): proof(id, n, script, state, fresh) enters the
+ * slice afresh on a game clock at 0, with Math.random seeded, runs n fixed steps of 1/120 s with script(i, key) pressing
+ * keys (key.hold('right'), key.up('right'), key.tap('attack')), and gives a hash of what state() returns: the numbers that
+ * say how the run went. fresh(), when given, runs first (seeded): it puts back what the slice keeps between visits. A
+ * slice's run(n) is one (__game.scenes.adventure.run(600)): the same number every time ---- */
+const proof = (id, n, script, state, fresh) => {
+  const was = Math.random, I = game.input, held = new Set();
+  const key = { hold: a => { held.add(a); I.hold(a); }, up: a => { held.delete(a); I.hold(a, false); }, tap: a => I.tap(a) };
+  Math.random = E.rng(7);
+  try {
+    if (fresh) fresh();
+    game.time = 0; game.timeScale = 1; game.go(id, null, { fade: 0 }); game.advance(1 / 120);
+    for (let i = 0; i < n; i++) { script(i, key); game.advance(1 / 120); }
+    const s = JSON.stringify(state()); let h = 2166136261;
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    return h >>> 0;
+  } finally { for (const a of held) I.hold(a, false); Math.random = was; }
+};
+// a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
+const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
 // START picks too (the touch START, a pad's Start), as Enter does
 const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
-const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 76, onPick: i => game.go(SLICES[i].id) });
+/** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
+ *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
+const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
+let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
   view: 'side', views: ['side', 'brawler'], input: 'DEFAULT', res: 'ps1',
   enter() { A.music('title'); game.resetCamera(); game.follow(null); game.cam.room = null; game.cam.bounds = null; if (gpu) gpu.enabled = false; L.enabled = false; },

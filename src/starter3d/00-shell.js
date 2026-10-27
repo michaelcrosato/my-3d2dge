@@ -28,10 +28,11 @@ const E = My3D2dge, W3 = E.World3D, { clamp, lerp, approach, TAU } = E;
 const game = new E.Game({ canvas: 'screen', res: 'ps1', expand: true, bg: null, input: W3.INPUT, menu: { settings: W3.SETTINGS } });
 const P = game.particles, A = game.audio;
 const scenes = {}, BOOT = [];    // BOOT: the slices' heavy setup, [label, fn] steps run behind the boot screen
+// each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
 const SLICES = [
-  { id: 'action', label: 'ACTION', about: 'A 3D ARENA: COMBOS, DASHES AND WAVES' },
-  { id: 'platformer', label: 'PLATFORMER', about: 'A 3D COURSE: ISLANDS, PLATFORMS AND COINS' },
-  { id: 'shooter', label: 'SHOOTER', about: 'AN OPEN WORLD: MOVE, CLIMB AND FIGHT, FIRST OR THIRD PERSON' }
+  { id: 'action', label: 'ACTION', about: 'A 3D ARENA: COMBOS, DASHES AND WAVES', family: 'ACTION ADVENTURE' },
+  { id: 'platformer', label: 'PLATFORMER', about: 'A 3D COURSE: ISLANDS, PLATFORMS AND COINS', family: 'PLATFORM' },
+  { id: 'shooter', label: 'SHOOTER', about: 'AN OPEN WORLD: MOVE, CLIMB AND FIGHT, FIRST OR THIRD PERSON', family: 'SHOOTER' }
 ];
 // a prompt in the player's own controls ('J Sword', 'X Sword', 'ATTACK Sword' on a touch screen)
 // (a phone or tablet before its first touch counts too: a coarse pointer and nothing else used yet)
@@ -91,7 +92,10 @@ BOOT.push(['The title stage', () => {
   w.camera.set('fixed');
   title = { world: w, cx, cy, heroes, slime, wisp, t: 0 };
 }]);
-const titleMenu = new E.Menu(game, SLICES.map(s => s.label), { y: 'center', onPick: i => game.go(SLICES[i].id) });
+/** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
+ *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
+const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);
+let titleMenu = null;   // (made at the start, once the file's slices are known)
 scenes.title = {
   view: 'iso', input: W3.INPUT,
   enter() { A.music('title'); active = null; game.resetCamera(); },
