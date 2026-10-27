@@ -280,6 +280,8 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | 3D-era remakes (Mario 64, Ocarina, Crash) | iso, three-quarter, brawler | TileMap blocks with heights plus Body jumping (z is real height) |
 | Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps |
 
+What the era's genres still need, from the early 80s to the late PS1, and the milestones that add it with a kit for each family: `docs/HANDOFF-GENRES.md`.
+
 ## Build and check
 
 The source of truth is `engine/my-3d2dge.js` plus the game scripts and templates in `src/`. To regenerate `examples/` and `dist/`, run:
@@ -337,7 +339,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.59.3**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.59.4**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
