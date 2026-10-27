@@ -113,7 +113,7 @@ game.start({ scene: 'title', scenes: {
 ## Motion and timing: tweens, scripts, paths, weather
 - Tweens (Phaser's): `game.tween(door, { y: 40 }, .5, { ease: 'outBack', delay, repeat, yoyo, onDone, keep })` eases numbers on game time: paused with the game, slowed by `timeScale`, ended by a scene change unless `keep`. Returns `{ done, cancel() }`. `E.ease` has Penner's set: `linear`, `inSine` `outSine` `inOutSine`, `inQuad` `outQuad` `inOutQuad`, the same for `Cubic`, `Back`, `Elastic`, `Bounce`.
 - Scripts (Unity's coroutines) for cutscenes, boss patterns, wave timelines, tutorials:
-```js
+```js full-script
 game.script(function* () {
   yield 1;                                   // seconds of game time
   yield E.until(() => door.open);            // a condition

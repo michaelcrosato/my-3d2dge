@@ -38,9 +38,9 @@ const check = (name, ok, detail = '') => { if (ok) passed++; else { failures.pus
 /** the engine loaded in Node with its modules, as a game's scripts would load it (a context of its own per call) */
 const load = file => loadEngine(EDITIONS.find(e => e[1] === file)[0]);
 
-// the fenced examples of the cards and the index (```js name ... ```), and of each module's manual on the editions it loads
-// after (x.editions)
-const FENCED = file => examplesOf(readFileSync(join(root, file), 'utf8')).map(x => Object.assign(x, { file }));
+// the fenced examples of the cards and the index (```js name ... ```; a name starting full- is the full engine's only), and
+// of each module's manual on the editions it loads after (x.editions)
+const FENCED = file => examplesOf(readFileSync(join(root, file), 'utf8')).map(x => Object.assign(x, { file }, /^full-/.test(x.name) ? { editions: ['full'], card: true } : null));
 const MODS = modules();
 const EXAMPLES = [...FENCED('API.md'), ...FENCED('API-INDEX.md'),
   ...[...MODS.values()].flatMap(m => examplesOf(m.manual).map(x => Object.assign(x, { file: m.file, editions: EDITIONS.map(e => e[0]).filter(ed => forEdition(ed, [m.name], MODS).some(f => f.name === m.name)) })))];
@@ -79,7 +79,7 @@ function examples(E, ed) {
       new Function('My3D2dge', ...(own ? [] : ['game']), x.code)(E, ...(own ? [] : [game]));
       if (game && game.scene) { game.input.tap('start'); game.advance(.5); }
       check(`${ed}: ${x.file} example ${x.name} runs`, true);
-      if (x.editions) console.log(`  ok   ${ed}: ${x.file} example ${x.name} runs`);   // (a module's: said, so its suite sees it ran)
+      if (x.editions && !x.card) console.log(`  ok   ${ed}: ${x.file} example ${x.name} runs`);   // (a module's: said, so its suite sees it ran)
     } catch (e) { check(`${ed}: ${x.file} example ${x.name} runs`, false, e.message); }
   }
 }
