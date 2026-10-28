@@ -114,6 +114,29 @@ const RPG = (() => {
     // a broken column from the asset store, cut into the page's 'rpg' set (src/assets/sets/rpg.js; none without it)
     ...(E.addAssets((window.ASSETS || {}).rpg || { set: 'rpg' }).shapes.length ? [['rpg:statue-column-damaged', 190, 8, { scale: 1.15, facing: 1.3, mats: { a: '#9a9282 speck' } }]] : [])];
 
+  /* ---- THE CAVE (the journey's battles under the mountain): darkness and hanging stone for a sky, a lit rock wall with
+   * crystals in it, a floor of wet stone, the party's torches and the crystals' glow lighting it ---- */
+  function paintCave(W, H, fy, Z) {
+    const c = E.mkCanvas(W, H), g = E.ctx2d(c), gy = Math.round(fy - 72 * E.VIEWS.brawler.by * Z) + 2;   // the floor's far edge
+    for (let y = 0; y < H; y++) px.rect(g, 0, y, W, 1, E.mix('#040308', '#2a2238', clamp(y / Math.max(1, gy), 0, 1) ** 1.6));   // dark above, the wall lit near the floor
+    for (let x = 0; x < W; x++) { const h = gy - 10 - 26 * E.noise2(x * .02, 7) - 6 * E.noise2(x * .11, 2); px.rect(g, x, h, 1, gy - h + 2, E.mix('#241c30', '#43384f', E.noise2(x * .3, 4) * .5)); px.dot(g, x, h, '#5a4c66'); }   // ledges of rock
+    for (let x = -2; x < W; x += 5) { const h = 10 + 34 * E.noise2(x * .04, 1) + 10 * E.hash2(x, 3); px.poly(g, [[x, 0], [x + 5, 0], [x + 2.5, h]], '#0c0a14'); px.line(g, x + 3, h * .4, x + 2.5, h - 1, '#2a2438'); }   // stalactites
+    for (let k = 0; k < Math.ceil(W / 40); k++) {   // crystals grown into the wall, catching the torchlight
+      const x = Math.round(E.hash2(k, 5) * W), y = Math.round(gy - 16 - E.hash2(k, 6) * 26);
+      px.poly(g, [[x, y - 10], [x + 3, y - 1], [x, y + 2], [x - 3, y - 1]], '#3a9ad8'); px.poly(g, [[x, y - 10], [x + 3, y - 1], [x, y - 2]], '#8ae0ff'); px.rect(g, x - 1, y - 7, 1, 4, '#e8fbff');
+    }
+    return c;
+  }
+  const caveTex = (x, y) => {   // wet stone: cobbles with dark joints, puddles that catch the light, moss in the cracks
+    const [gap, id, lit] = cobble(x * .8, y * .8), wet = E.noise2(x * .05, y * .07), k = 1.1 - clamp(y - 60, 0, 110) / 300;
+    const c = gap < 1.4 ? (wet > .72 ? [40, 70, 52] : [22, 18, 30]) : wet > .78 ? [52, 70, 96] : [60 + id * 22, 52 + id * 18, 72 + id * 20].map(v => v * (1 + lit * .2));
+    return c.map(v => v * k);
+  };
+  const cavern = new E.TileMap({ rows: ['21............', ...Array(11).fill('..............')], legend: { 1: 1, 2: 2 }, types: { 1: { top: '#5a4c66', side: '#3a3048', line: '#1a1424', face: 'rock', roof: 'plain', h: 14 }, 2: { top: '#5a4c66', side: '#3a3048', line: '#1a1424', face: 'rock', roof: 'plain', h: 26 } }, floorTex: caveTex });
+  const CAVE_PROPS = [['mushroom', 18, 60, 0, { size: .8, color: '#6ad8a0' }], ['mushroom', 206, 42, 0, { size: .6, color: '#c8a0e8' }], ['skull', 34, 150, 0], ['bones', 128, 150, 0], ['bones', 190, 20, 0]];
+  const CAVE_SHAPES = [['rock', 10, 140, { facing: 1, params: { r: 10, seed: 4 } }], ['rock', 212, 16, { params: { r: 12, seed: 7 } }], ['crystal', 212, 58, { params: { h: 18 } }], ['crystal', 8, 30, { params: { h: 14, seed: 3 } }],
+    ['crystal', 150, 4, { params: { h: 11, seed: 2 } }], ['rock', 160, 150, { params: { r: 6, seed: 9 } }]];
+
   /* ---- MONSTERS: extras painted inside the same r.actor get the engine's outline, rim light and hit flash.
    * (x, y) = the feet on screen, v = the view ---- */
   // a shaded volume: dark body, lit core, highlight, spec
@@ -194,6 +217,14 @@ const RPG = (() => {
     { name: 'Bomb', hp: 34, atk: 9, spd: .42, moves: ['tackle', 'blaze'], x: 38, y: 132, z: 8, h: 26, pounce: [12, 3], debris: ['#e0502a', '#ffb040', '#fff2b0'], back: bombBack, front: bombFront,
       blob: { R: 8.5, face: 'front', colors: { dk: '#8a1a14', base: '#e8582a', lt: '#ffb048', spec: '#fff6c0', eye: '#ffffff', pupil: '#1a0a0a' } } }];
 
+  // the journey's monsters (below): its troops name these, each standing in the next of SLOTS (a flier keeps its height);
+  // their hp, atk, def and spd come from the journey's rules
+  const KIN = { knight: TROOP[0], gargoyle: TROOP[1], bomb: TROOP[2],
+    slime: { name: 'Slime', moves: ['tackle'], h: 20, pounce: [10, 2], debris: ['#2a8a3a', '#6ad86a', '#e8ffd8'], blob: { R: 7, face: 'front', colors: { dk: '#1a5a2a', base: '#4ac85a', lt: '#9af090', spec: '#f0fff0', eye: '#ffffff', pupil: '#0a1a0a' } } },
+    goblin: { name: 'Goblin', moves: ['rend', 'bash'], stance: 'ready', debris: ['#4a6a2a', '#8ab84a', '#c8d0d8'], smear: ['#ffffff', '#e8ffd0', '#b0e070', '#70a040'],
+      rig: { build: 'bulky', size: 1.35, bladeLen: 9, outfit: 'tunic', hair: 'bald', eyeGlow: '#ffd84a', colors: { skin: '#7ab048', cloth: '#6a4a2a', pants: '#4a3a2a', boot: '#3a2a1a', metal: '#a0a8b0', glove: '#5a7a30' } } } };
+  const SLOTS = [[72, 70], [38, 128], [40, 26], [100, 110], [104, 34]];
+
   /* ---- MOVES: power (x atk) or heal, MP, how the user gets there (go: dash, leap, swoop, hop, step, flee), charge (seconds
    * in the cast pose), the swing: anim = a move from E.MOVES or an E.Attack with overrides (a list chains as an E.Combo,
    * one blow per hit) or, for painted monsters and plain commands, time = a timing-only spec whose phases drive the paint.
@@ -220,18 +251,28 @@ const RPG = (() => {
   const PAUSE = { wind: .2, active: .05, recover: .35 }, GO = .35, BACK = .4, FLY = .3, DIE = .9, WAVE = 400;   // seconds: out, back, a bolt's flight, a monster's death; a wave's speed
   const COMMANDS = h => [h.attack, h.skill, 'defend', 'potion', 'run'];
   let party, foes, all, menu, log, act, fx, mode, actor, list, cursor, pending, potions, note, t, dim, cam, yaw, band, frame = 0, auto = false;   // band: the HUD on screen (taps); auto: the party fights by itself
+  // D: the journey's battle ({ troop: [ids], party: its E.RPG party, stats: its monsters, cave, boss, done(result) }), or
+  // null: the battle as it always was (#rpg/battle); won: its spoils; drank: the potions used
   const alive = l => l.filter(c => !c.dead), isHero = c => party.includes(c), size = c => c.rig ? c.rig.o.size : 1.2;
   const unit = (d, hero) => {
     const body = d.rig ? new E.Humanoid(d.rig) : d.blob && new E.Blob(d.blob);   // both kick() and draw()
     return Object.assign({}, d, { body, rig: d.rig && body, max: d.hp, mp: d.mp || 0, home: [d.x, d.y], hx: d.x, hy: d.y, hz: d.z || 0, z: d.z || 0, px: d.x, py: d.y, atb: d.atb || (hero ? E.rand(.3, .7) : E.rand(0, .3)),
       face: hero ? Math.PI - d.turn : .75, flash: 0, glow: 0, shake: 0, grow: 0, coil: 0, flee: 0, tilt: 0, flapT: 0, bob: 0, die: 0, fade: hero ? 1 : 0, dead: false, guard: false, h: d.h || (d.rig.build === 'bulky' ? 29 : 31) * d.rig.size });
   };
-  function start() {
-    party = PARTY.map(d => unit(d, true)); foes = TROOP.map(d => unit(d, false)); all = [...party, ...foes]; place();
+  let D = null, won = null, drank = 0;
+  // a member of the journey's party as a fighter: its look from PARTY, its numbers from its stats (spd scaled by haste and slow)
+  const fighter = m => {
+    const d = PARTY.find(p => p.name === m.name) || PARTY[0], u = unit(Object.assign({}, d, { hp: m.max('hp'), mp: m.max('mp'), atk: m.stat('atk'), def: m.stat('def'), spd: d.spd * m.stat('spd') / m.base.spd }), true);
+    u.hp = Math.max(0, m.hp); u.mp = m.mp; u.member = m; if (m.dead) Object.assign(u, { dead: true, die: DIE, atb: 0 }); return u;
+  };
+  const monster = (id, i) => { const k = KIN[id] || KIN.slime, st = D.stats[id] || {}, at = SLOTS[i % SLOTS.length]; return unit(Object.assign({}, k, { hp: st.hp || k.hp, atk: st.atk || k.atk, def: st.def || 0, spd: st.spd || k.spd || .4, x: at[0], y: at[1] }), false); };
+  function start(data) {
+    D = data && data.troop ? data : null; won = null; drank = 0;
+    party = D ? D.party.members.map(fighter) : PARTY.map(d => unit(d, true)); foes = D ? D.troop.map(monster) : TROOP.map(d => unit(d, false)); all = [...party, ...foes]; place();
     for (const c of all) { c.x = c.px = c.hx + (isHero(c) ? 70 : 0); c.y = c.py = c.hy; }   // intro: the party runs in, the monsters fade in
     log = new E.Dialog(game, { place: 'top', lines: 2, speed: 70, bg: WIN }); menu = new E.Menu(game, [], { onPick: pick });   // E.Menu reads the keys; hud() draws it
-    act = null; fx = []; potions = 3; note = ''; t = 0; dim = 0; cam = [rest().x, 72, 0]; mode = 'intro'; game.cam.bounds = null; L.enabled = false;
-    A.music('boss'); game.flash('#ffffff', .25); game.after(.9, () => { mode = 'wait'; });
+    act = null; fx = []; potions = D ? D.party.inv.count('potion') : 3; note = ''; t = 0; dim = 0; cam = [rest().x, 72, 0]; mode = 'intro'; game.cam.bounds = null; L.enabled = false;
+    A.music(D && !D.boss ? D.music || 'boss' : 'boss'); game.flash('#ffffff', .25); game.after(.9, () => { mode = 'wait'; });
   }
 
   // each fighter's place for this screen's shape (the standing walk there when it turns: animate)
@@ -262,17 +303,27 @@ const RPG = (() => {
     pending = key; list = alive(m.ally ? party : foes); mode = 'target'; cursor = m.ally ? list.indexOf(list.slice().sort((a, b) => a.hp / a.max - b.hp / b.max)[0]) : 0;   // heals start on the weakest ally
   }
   function order(key, target) {
-    const m = MOVES[key]; if (m.mp) actor.mp -= m.mp; if (key === 'potion') potions--;
+    const m = MOVES[key]; if (m.mp) actor.mp -= m.mp; if (key === 'potion') { potions--; drank++; }
     act = { who: actor, key, target, t: 0, hits: 0, due: [] }; mode = 'act'; menu.active = false; note = m.label || '';   // named moves show a banner
   }
   function finish() {   // after every action: win, lose, or back to the gauges
     act = null; actor = null; note = '';
     if (!alive(foes).length) {   // the last death plays out, then victory and a line with a live portrait
       mode = 'won'; game.after(DIE, () => { mode = 'win'; A.music('victory'); game.flash('#fff4d0', .3, .6); });
-      game.after(DIE + 1.6, () => log.say(['The monsters are defeated!', 'Rowan, Lyra and Sera grow stronger.'], { name: party[0].name, portrait: party[0].rig, portraitSize: 32, onDone: () => game.go('title') }));
-    } else if (!alive(party).length) { mode = 'lose'; note = 'The party has fallen...'; game.after(2, () => game.go('over', { from: 'rpg' })); }
+      if (D) { keep(); won = D.party.reward(D.troop); }   // the journey's: the spoils, shared exp and its level-ups
+      const lead = D && party.find(h => !h.dead) || party[0], lines = D ? spoken() : ['The monsters are defeated!', 'Rowan, Lyra and Sera grow stronger.'];
+      game.after(DIE + 1.6, () => log.say(lines, { name: lead.name, portrait: lead.rig, portraitSize: 32, onDone: () => D ? end({ won: true, spoils: won }) : game.go('title') }));
+    } else if (!alive(party).length) { mode = 'lose'; note = 'The party has fallen...'; game.after(2, () => D ? (keep(), end({ won: false })) : game.go('over', { from: 'rpg' })); }
     else mode = 'wait';
   }
+  // the journey's battle over: hp and mp back on its members, the potions drunk taken from the bag, then back to the field
+  const keep = () => { for (const u of party) { u.member.hp = Math.max(0, u.hp); u.member.mp = u.mp; } D.party.inv.remove('potion', drank); drank = 0; };
+  const end = r => { const d = D; D = null; d.done(r); };
+  // what the victory says: the spoils, then each level reached and what it brought
+  const spoken = () => [['The monsters are defeated!', won.exp + ' EXP, ' + won.gold + ' gold' + (won.items.length ? ', and ' + won.items.map(i => D.party.rpg.item(i).name).join(', ') : '') + '.'].join(' '),
+    ...won.levels.map(([m, ls]) => { const up = ls[ls.length - 1].up; return '{c=#ffe08a}' + m.name + ' reached level ' + ls[ls.length - 1].level + '!{/c} ' + Object.keys(up).map(k => k.toUpperCase() + ' +' + up[k]).join(', '); })];
+  // the spoils' window rows: the journey's, or the demo's
+  const spoils = () => won ? [['EXP', '+' + won.exp], ['Gold', '+' + won.gold], ['Item', won.items.length ? D && D.party.rpg.item(won.items[0]).name || won.items[0] : '-']] : [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']];
 
   /* ---- ACTIONS: go out (GO s), charge in the cast pose, swing an E.Combo of the move (each blow settles before the
    * next starts), wait for everything in flight to land (a.due), come back (BACK s) ---- */
@@ -326,7 +377,10 @@ const RPG = (() => {
   // a blow reaches its impact frame: it lands now, a bolt or the Doom Blade's cut after FLY s, a wave as it passes each foe
   function strike(a, m, tg, side) {
     const u = a.who, due = (c, s) => a.due.push({ c, at: a.t + s, i: a.hits - 1 });
-    if (a.key === 'run') { note = "Can't escape!"; A.sfx('cancel'); return; }
+    if (a.key === 'run') {
+      if (D && !D.boss && E.chance(.6)) { note = 'Escaped!'; mode = 'fled'; A.sfx('warp'); game.after(.9, () => { keep(); end({ fled: true }); }); return; }   // the journey's: away, but not from a boss
+      note = "Can't escape!"; A.sfx('cancel'); return;
+    }
     if (m.guard) { u.guard = true; P.ring(u.x, u.y, 3, 16, '#8ad0ff', .4); P.glints(u.x, u.y, u.z + 24, 4, '#c8ecff', 16); A.sfx('select'); return; }   // Defend: guard until the next turn
     if (u.blob) u.body.sq = .35;   // the Bomb squashes on the hit frame (a kick waits out the hit-stop)
     if (m.item) { const [x, y, z] = u.rig.hand('L'); P.glints(x, y, z, 8, '#b0ffd0', 6); P.add({ kind: 'bit', x, y, z: z + 6, vx: 25, vz: 110, g: 380, max: .5, size: 2, color: '#c08040' }); A.sfx('pickup'); }   // the cork pops
@@ -346,7 +400,7 @@ const RPG = (() => {
       const h = m.heal + E.randInt(0, 6); c.hp = Math.min(c.max, c.hp + h); c.glow = .8; A.sfx('heal');
       P.glints(c.x, c.y, c.z + c.h, 12, '#9affc8', 14); P.ring(c.x, c.y, 3, 18, '#8affc0', .5); P.text(c.x, c.y, zc + 12, h, '#8affc0', { scale: 2, bounce: true }); return true;
     }
-    const crit = E.chance(.12), d = Math.round((u.atk * m.power / a.atk.moves.length + E.randInt(0, 4)) * (crit ? 1.8 : 1) * (c.guard ? .5 : 1)), col = crit ? '#ffd040' : '#ffffff', side = isHero(u) ? -1 : 1;
+    const crit = E.chance(.12), d = Math.max(1, Math.round((u.atk * m.power / a.atk.moves.length + E.randInt(0, 4) - (c.def || 0) / 2) * (crit ? 1.8 : 1) * (c.guard ? .5 : 1))), col = crit ? '#ffd040' : '#ffffff', side = isHero(u) ? -1 : 1;   // (the journey's foes and heroes wear armor: def)
     c.hp = Math.max(0, c.hp - d); c.flash = .12; c.shake = .35; c.grow = .25; c.x += side * 4; if (c.body) c.body.kick(c.rig ? 2 : -3);   // flinch: flash, shake, knocked back a step
     if (m.fx === 'flame') { addFx('flame', c, .8, '#ff7030'); P.explosion(c.x, c.y, c.z + 12, .8, { debris: false }); }
     else game.hitFx(c.x, c.y, zc, { power: crit ? 2 : 1.3, angle: side > 0 ? 0 : Math.PI, color: c.guard ? '#8ad0ff' : m.bolt, sound: c.guard ? 'bump' : u.rig ? 'hit' : 'punch' });   // hit-stop, shake, sparks
@@ -402,9 +456,13 @@ const RPG = (() => {
     E.prune(fx, f => f.t > f.dur);
     const m = act && MOVES[act.key]; dim = approach(dim, m && (m.charge || m.fx === 'doom') && act.back === undefined ? 1 : 0, dt * 3);   // spells and Doom Blade dim the scene
     // ambience: drifting petals, brazier embers
-    if (E.chance(dt * 5)) P.add({ kind: 'bit', x: E.rand(0, 200), y: E.rand(10, 140), z: E.rand(50, 90), vx: E.rand(10, 22), vz: -4, g: 5, drag: .2, max: 6, size: E.chance(.4) ? 2 : 1, color: E.pick(['#ffc0d0', '#ffe0e8', '#ffd890']) });
-    if (E.chance(dt * 6)) P.add({ kind: 'ember', x: E.pick([100, 132]) + E.rand(-3, 3), y: 8, z: 20, vz: E.rand(18, 30), vx: E.rand(-4, 4), max: 1, color: '#ff8a2a' });
+    if (D && D.cave) { if (E.chance(dt * 3)) P.add({ kind: 'bit', x: E.rand(0, 220), y: E.rand(10, 150), z: 90, vz: -60, g: 300, max: 1, size: 1, color: '#8ac8ff' }); }   // drips from the roof
+    else {
+      if (E.chance(dt * 5)) P.add({ kind: 'bit', x: E.rand(0, 200), y: E.rand(10, 140), z: E.rand(50, 90), vx: E.rand(10, 22), vz: -4, g: 5, drag: .2, max: 6, size: E.chance(.4) ? 2 : 1, color: E.pick(['#ffc0d0', '#ffe0e8', '#ffd890']) });
+      if (E.chance(dt * 6)) P.add({ kind: 'ember', x: E.pick([100, 132]) + E.rand(-3, 3), y: 8, z: 20, vz: E.rand(18, 30), vx: E.rand(-4, 4), max: 1, color: '#ff8a2a' });
+    }
     if (tapped()) return;
+    const ap = game.input.pressed('skill') && padsNow().find(p => p && p.label === 'AUTO'); if (ap) ap.go();   // the keys' AUTO (L, E, a pad's X): the party fights by itself, or not
     if (mode === 'wait') tick(dt);
     else if (mode === 'act') play(act, dt);
     else if (mode === 'command') menu.update();
@@ -437,7 +495,7 @@ const RPG = (() => {
     const fill = (a, n) => { while (a.length < n) a.push(null); return a.slice(0, n); };
     if (mode === 'command') return [...menu.items.map((it, k) => ({ label: it.label || it, note: it.note, off: it.disabled, go: () => { menu.i = k; A.sfx('confirm'); pick(k); } })), autoPad];
     if (mode === 'target') return [...fill(list.map((c, k) => ({ label: c.name, hp: c.hp / c.max, ally: isHero(c), on: k === cursor, go: () => { cursor = k; A.sfx('confirm'); order(pending, c); } })), 5), { label: 'BACK', go: () => { A.sfx('cancel'); mode = 'command'; } }];
-    if (mode === 'win' || mode === 'won') return fill([['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].map(([label, note]) => ({ label, note })), 6);
+    if (mode === 'win' || mode === 'won') return fill(spoils().map(([label, note]) => ({ label, note })), 6);
     return [...fill(alive(foes).map(f => ({ label: f.name, hp: f.hp / f.max })), 5), autoPad];
   }
 
@@ -492,18 +550,21 @@ const RPG = (() => {
     }, { emissive: true });
   }
   function draw(r) {
-    const { fy } = layout(r.W, r.H), cx = rest().x, key = [r.W, r.H, fy, cx, game.zoom].join(); if (!backdrop || backdrop.key !== key) { backdrop = paintBackdrop(r.W, r.H, fy, cx, game.zoom); backdrop.key = key; }
+    const cave = !!(D && D.cave), { fy } = layout(r.W, r.H), cx = rest().x, key = [r.W, r.H, fy, cx, game.zoom, cave].join();
+    if (!backdrop || backdrop.key !== key) { backdrop = cave ? paintCave(r.W, r.H, fy, game.zoom) : paintBackdrop(r.W, r.H, fy, cx, game.zoom); backdrop.key = key; }
     r.ctx.drawImage(backdrop, 0, 0);
-    plaza.drawFloor(r); plaza.queueWalls(r); for (const [name, x, y, z, o] of PROPS) r.prop(name, x, y, z, o);
-    for (const [id, x, y, o] of SHAPES) r.shape(id, x, y, 0, o);
+    const floor = cave ? cavern : plaza; floor.drawFloor(r); floor.queueWalls(r); for (const [name, x, y, z, o] of cave ? CAVE_PROPS : PROPS) r.prop(name, x, y, z, o);
+    for (const [id, x, y, o] of cave ? CAVE_SHAPES : SHAPES) r.shape(id, x, y, 0, o);
     for (const c of all) drawUnit(r, c); for (const f of fx) drawFx(r, f);
     const orb = act && act.orb, m = act && MOVES[act.key];
     if (orb) r.queue(orb[0], orb[1], orb[2], g => {   // the bolt: additive halo, ball, hot core
       const [sx, sy] = r.w(orb[0], orb[1], orb[2]), R = orb[4]; r.glowDisc(g, sx, sy, R * 2.7, orb[3], .5); px.disc(g, sx, sy, R, orb[3]); px.disc(g, sx - 1, sy - 1, R / 2, '#fff0b0'); px.dot(g, sx - 1, sy - 1, '#ffffff');
     }, { bias: .3 });
-    L.enabled = dim > .02;
+    L.enabled = dim > .02 || cave;
     if (L.enabled) {   // spells dim the scene; colored lights (PS1-style)
-      L.ambient = 1 - .55 * dim; for (const x of [100, 132]) L.add(x, 8, 10, 24, .7, { color: '#ffa040' });
+      L.ambient = (cave ? .5 : 1) - .55 * dim * (cave ? .5 : 1);
+      if (cave) { for (const [x, y] of [[212, 58], [8, 30], [150, 4]]) L.add(x, y, 10, 40, .8, { color: '#6ad0ff' }); for (const h of party) if (!h.dead) L.add(h.x, h.y, 20, 60, .9, { color: '#ffc070' }); }   // the crystals, the party's torches
+      else for (const x of [100, 132]) L.add(x, 8, 10, 24, .7, { color: '#ffa040' });
       if (act) L.add(act.who.x, act.who.y, 0, 34, m && m.charge ? .7 : .3, { color: m && m.charge ? '#c8c0ff' : '#ff5060' });   // a caster glows; the Knight keeps dark
       for (const f of fx) if (f.color) L.add(f.x, f.y, 0, 34, .8, { color: f.color });
     }
@@ -540,7 +601,7 @@ const RPG = (() => {
         menu.items.forEach((it, k) => { const y = Y + 5 + k * 10; txt(g, it.label || it, X + 20, y, it.disabled ? '#7c7aa8' : '#ffffff'); if (it.note) txt(g, it.note, X + 89, y, '#9ad0ff', 'right'); });
         px.sprite(g, HAND, X + 6 + (mode === 'command' ? bob : 0), Y + 4 + menu.i * 10);
         E.font.text(g, game.input.label('confirm') + ' OK  ' + game.input.label('cancel') + ' BACK', X + 50, Y + 57, '#a8b8ff', { font: 'tiny', outline: false, align: 'center' });   // the player's own keys
-      } else if (mode === 'win') [['EXP', '+180'], ['Gil', '+96'], ['Item', 'Ether']].forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
+      } else if (mode === 'win') spoils().forEach(([a, b], k) => { txt(g, a, X + 11, Y + 10 + k * 17, '#9ad0ff'); txt(g, b, X + 88, Y + 10 + k * 17, '#ffe08a', 'right'); });
       else alive(foes).forEach((f, k) => { txt(g, f.name, X + 11, Y + 7 + k * 19, '#ffffff'); gauge(g, X + 11, Y + 16 + k * 19, 78, f.hp / f.max, '#e0463c'); });
     }
     // a card per hero (FF IX): portrait, name, MP, HP, ATB
@@ -560,7 +621,7 @@ const RPG = (() => {
   // camera: - / = zoom, [ ] turn the plaza under the painted sky; zoomed in past rest(), it eases to the fight (or the hero on turn) at chest height
   return { view: 'brawler', views: ['brawler'], input: 'DEFAULT', res: 'ps1', pausable: true, touch: [], propSize: 1.3, camera: { zoom: [.75, 2], tall: TALL.zoom, rotate: true },   // touch: taps, no buttons
     back() { if (mode !== 'target') return false; mode = 'command'; A.sfx('cancel'); return true; },   // a phone's back: aiming goes back to the commands
-    enter() { start(); game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
+    enter(data) { start(data); game.r.rimAlpha = .75; game.focus(...cam); game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2]; yaw = game.yaw; },
     exit() { game.r.rimAlpha = .28; L.enabled = false; game.cam.offset = null; },
     update(dt) {
       if (game.yaw !== yaw) game.note((yaw = game.yaw) || game.zoom !== 1 ? 'TURN ' + yaw : 'CAMERA RESET');   // the kit's notice has a degree sign the pixel font lacks
@@ -571,6 +632,6 @@ const RPG = (() => {
     }, draw,
     state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }),   // for automated tests
     /** the proof: the party on AUTO (each hero picks for himself) for n steps; a hash of the battle */
-    run(n = 600) { const was = auto; try { return proof('rpg', n, i => { if (!i) auto = true; }, () => [mode, actor && actor.name, potions, all.map(c => [c.hp, c.x, c.y])]); } finally { auto = was; } } };
+    run(n = 600) { const was = auto; try { return proof('rpg-battle', n, i => { if (!i) auto = true; }, () => [mode, actor && actor.name, potions, all.map(c => [c.hp, c.x, c.y])]); } finally { auto = was; } } };
 })();
-scenes.rpg = RPG;
+scenes['rpg-battle'] = RPG;
