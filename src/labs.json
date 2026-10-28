@@ -119,6 +119,14 @@
           "what": "Grow Sunny Bay Park from its carousel and burger stand. PATH (Q) then click a tile or drag a line; build the WHEEL, CUPS and SWING rides and FOOD and DRINK stands beside a path (a ride's plan shows green where it fits). Watch guests come in at 9:00, queue, ride, eat and go home at 21:00. Click a ride to set its price (+ and -) or knock it down; click a guest to read their thoughts and needs; hover for a tooltip. Space pauses, 1 2 3 run at 1x, 2x and 4x. Money comes from the gate, tickets and food, less each ride's upkeep at midnight. Added with v0.74.0 (Milestone 9).",
           "look": "Do the rides read as rides (the carousel and the cups turning, the wheel's cars, the swings flying out as they speed up)? Do the guests feel alive: going for what they need, queuing, complaining about prices and long lines, leaving happy or not? Is the money too easy or too hard? Does night look right, and do 2x and 4x feel smooth? On your phone: a tap places or inspects, a long press and a drag lays a line of path, a drag pans, PLACE and CANCEL, the time buttons.",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-pointclick.html",
+          "at": "#pointclick",
+          "title": "POINT-AND-CLICK: does it feel like Monkey Island and Broken Sword?",
+          "what": "Relight the lighthouse on Gull Rock. Click a verb at the bottom (PICK UP, USE, TALK TO...), then a thing; a plain click walks, a double click runs, a right click looks. To use an item, click it in the inventory, then what to use it on (another item too). Talk to Finn on the pier, Bruno and Morwen in the tavern (the choices are clickable); win Morwen's riddle contest. Try Settings, Point and click, Interface: Icons (a right click turns the cursor), Verb coin, Two buttons. About ten minutes. Added with v0.75.0 (Milestone 10).",
+          "look": "Do the rooms read as painted backgrounds with depth (Pip smaller far away, walking behind the bar, the table and the great lamp)? Does he walk round things sensibly and stop where you clicked? Are the puzzles fair: can you work out the grapple, the riddles and the lamp from what people say and what you see? Is the writing funny enough, and does any line feel off? Which interface do you prefer? On your phone: a tap walks, a tap on a thing shows its verbs, a long press looks, the inventory and the talk's choices by taps; on your side and upright.",
+          "links": []
         }
       ]
     },
@@ -176,6 +184,12 @@
           "page": "dist/kits/my-3d2dge-adventure.html",
           "title": "Adventure",
           "what": "Top-down action adventure (Secret of Mana, Zelda): a village, ruins and a shrine.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-pointclick.html",
+          "title": "Point-and-click",
+          "what": "A point-and-click adventure (Monkey Island, Day of the Tentacle, Broken Sword): a harbour at dusk, a tavern and a lighthouse's lamp room; four puzzles (items combined, a riddle contest to win); the nine verbs, Sierra's icons, a verb coin or two buttons; an inventory, people who talk with close-ups, an opening and an ending.",
           "links": []
         },
         {

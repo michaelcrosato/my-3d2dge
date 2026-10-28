@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.74.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.75.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.74.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.75.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -8722,6 +8722,10 @@ class Dialog {
      *  typed so far on it; choice: the choice under the cursor */
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
+  /** where choice i is on the screen while the choices show: [x, y] (its middle, for a test's tap), else null */
+  choiceAt(i) { if (!this.open || !this.choices || this.typing || this.i < this.pages.length - 1 || !this.choices[i]) return null; const d = this._dims(), b = this._cbox(d); return [Math.round(b.x + b.w / 2), Math.round(b.y + 3 + (i + .5) * d.lh)]; }
+  // the choices' box, over the box's right end
+  _cbox(d) { const w = Math.max(...this.choices.map(c => E.font.width(c))) + 20, h = this.choices.length * d.lh + 7; return { x: d.x + d.w - w - 2, y: d.y - h - 2, w, h }; }
   _dims() {
     const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
     const pl = this._place || this.place; let x = Math.round((W - w) / 2), y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
@@ -8737,8 +8741,8 @@ class Dialog {
    *         portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself,
    *         modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha,
    *         vars: the values {$name} reads }
-   * choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked. update(dt) returns true while a
-   * modal box is open: return from your update then, and play waits
+   * choices: ['YES', 'NO'], shown on the last page (picked by the keys, or a tap or click on one); onChoice(i) gets the
+   * one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
    */
   say(text, o = {}) {
     /** portrait: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size
@@ -8795,12 +8799,18 @@ class Dialog {
       return this.modal && this.open;
     }
     if (!this.modal) return false;
+    const c = inp.clicked(), d = (c || asking) && this._dims(), tapped = !!c && c[0] >= d.x && c[0] < d.x + d.w && c[1] >= d.y && c[1] < d.y + d.h;   // a tap on the box, as confirm
+    let chose = false;
     if (asking) {
       if (inp.repeat('up') || inp.repeat('left')) { this.choice = (this.choice + this.choices.length - 1) % this.choices.length; this.game.audio.sfx('select'); }
       if (inp.repeat('down') || inp.repeat('right')) { this.choice = (this.choice + 1) % this.choices.length; this.game.audio.sfx('select'); }
+      // a tap or click on a choice picks it; the mouse moved over one moves the cursor there
+      const b = this._cbox(d), row = q => q && q[0] >= b.x && q[0] < b.x + b.w && q[1] >= b.y && q[1] < b.y + b.h ? clamp(Math.floor((q[1] - b.y - 3) / d.lh), 0, this.choices.length - 1) : -1;
+      const p = inp.lastDevice === 'mouse' && inp.pointer(), hv = p && (!this._hp || p[0] !== this._hp[0] || p[1] !== this._hp[1]) ? row(p) : -1; this._hp = p ? p.slice() : null;
+      if (hv >= 0 && hv !== this.choice) { this.choice = hv; this.game.audio.sfx('select'); }
+      const tc = row(c); if (tc >= 0) { this.choice = tc; chose = true; }
     }
-    const c = inp.clicked(), d = c && this._dims(), tapped = !!d && c[0] >= d.x && c[0] < d.x + d.w && c[1] >= d.y && c[1] < d.y + d.h;   // a tap on the box, as confirm
-    if (inp.pressed('confirm') || tapped) {
+    if (inp.pressed('confirm') || tapped || chose) {
       if (this.typing) { this.shown = len; this._hold = 0; }
       else if (!last) { this.i++; this.shown = 0; this._held = -1; }
       else { this.close(); this.game.audio.sfx('confirm'); if (this.choices && this.onChoice) this.onChoice(this.choice, this.choices[this.choice]); if (this.onDone) this.onDone(); }
@@ -8839,7 +8849,7 @@ class Dialog {
       const blink = Math.floor(this.game.real * 3) % 2 === 0, last = this.i >= this.pages.length - 1;
       if (!this.typing && !(last && this.choices) && blink) px.poly(g, [[d.x + d.w - 10, d.y + d.h - 6], [d.x + d.w - 5, d.y + d.h - 6], [d.x + d.w - 7.5, d.y + d.h - 3]], this.color);
       if (last && this.choices && !this.typing) {
-        const cw = Math.max(...this.choices.map(c => E.font.width(c))) + 20, ch = this.choices.length * d.lh + 7, cx = d.x + d.w - cw - 2, cy = d.y - ch - 2;
+        const { x: cx, y: cy, w: cw, h: ch } = this._cbox(d);
         ui.box(g, cx, cy, cw, ch, { bg: this.bg, border: this.border });
         this.choices.forEach((c, k) => { E.font.text(g, c, cx + 13, cy + 4 + k * d.lh, k === this.choice ? this.nameColor : this.color, { outline: false, shadow: '#05040a' }); if (k === this.choice && blink) E.font.text(g, '▸', cx + 5, cy + 4 + k * d.lh, this.nameColor, false); });
       }

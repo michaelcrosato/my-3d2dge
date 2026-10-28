@@ -14,6 +14,11 @@
 //                  every ground view (a box, a click, a double click, a right click's move in formation and attack,
 //                  control groups), gathering, training, building, an AI's build order and wave, fog; a rally point; an
 //                  AI that makes its losses again and mines nearest home; the day clock and needs
+//   clicks         the click module (full engine): paths round a walk area's holes from random points, the shortest (a
+//                  fine grid's Dijkstra never beats them) and inside; a walk the same at 60, 90, 120 and 144 Hz; a click
+//                  walks, a click on a hotspot does its verb (two buttons), a right click looks, Sierra's cursor turns;
+//                  rules (an item on an item either way round, an item used on someone given), exits after the fade,
+//                  state and restore; the story's log, auto and skip; a tap on a dialog's choice picks it
 //   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
 //                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map
 //   audio          audio.duck(on) is public
@@ -95,6 +100,7 @@ for (const [ed, file] of EDITIONS) {
   drive(E, ed);   // (and the drive module: its races on the full engine, which has E.Path)
   dialogs(E, ed);
   if (ed === 'full') strategies(E, ed);   // (the gestures, the free camera and the strategy module are the full engine's)
+  if (ed === 'full') clicks(E, ed);   // (and the click module)
   stories(E, ed);   // (the story and rpg modules load after either edition)
   rpgs(E, ed);
   shellHeadless(E, ed);
@@ -776,6 +782,62 @@ function tactics(E, ed) {
   check(`${ed}: E.Grid.face and side: a unit turns to its target; a blow from behind, the side, a diagonal and the front`, q.face([0, 0], [3, 1]).join() === '1,0' && q.face([0, 0], [1, -3]).join() === '0,-1' && q.side([4, 4], [1, 0], [3, 4]) === 'back' && q.side([4, 4], [1, 0], [4, 6]) === 'side' && q.side([4, 4], [1, 0], [5, 5]) === 'side' && q.side([4, 4], [1, 0], [6, 4]) === 'front');
   const t = q.threat([{ cx: 0, cy: 0, move: 2, range: 1 }, { cx: 8, cy: 8, move: 1, range: [2, 3] }], { blocked: (x, y) => x === 1 && y === 0 });
   check(`${ed}: E.Grid.threat: each unit's move then its range (a bow's least range kept), blocked cells walked round, who threatens a cell`, t.count([0, 3]) === 1 && t.count([2, 1]) === 1 && t.count([4, 0]) === 0 && t.count([8, 8]) === 0 && t.count([6, 8]) === 1 && t.by([5, 8])[0].cx === 8, [t.count([0, 3]), t.count([2, 1]), t.count([4, 0]), t.count([8, 8]), t.count([6, 8])].join());
+}
+
+// M10: the click module: walk areas with holes (paths round them, the shortest), walking at any rate, the pointer's
+// interfaces, rules, exits, saves; the story's backlog, auto and skip; a dialog's choice by a tap
+function clicks(E, ed) {
+  // paths round holes: random points, every path inside and crossing no edge, never longer than a fine grid's way
+  const wb = new E.Walkbox([[0, 100], [320, 100], [340, 160], [300, 200], [0, 200]], [[[60, 110], [100, 110], [100, 170], [60, 170]], [[150, 130], [200, 120], [210, 190], [160, 180]], [[240, 104], [270, 104], [270, 150], [240, 150]]]);
+  const G2 = 2, gw = 172, gh = 102, ok = new Uint8Array(gw * gh); for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) ok[j * gw + i] = wb.inside(i * G2, 98 + j * G2) ? 1 : 0;
+  const gridD = (a, b) => {   // Dijkstra on a 2-pixel grid, eight ways (a little longer than the true way, never shorter)
+    const cell = p => Math.round(p[0] / G2) + Math.round((p[1] - 98) / G2) * gw, d = new Float64Array(gw * gh).fill(Infinity), s = cell(a), t = cell(b), open = [[0, s]]; d[s] = 0;
+    while (open.length) { open.sort((x, y) => y[0] - x[0]); const [dc, c] = open.pop(); if (c === t) return dc; if (dc > d[c]) continue; const cx = c % gw, cy = (c / gw) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) { const x = cx + dx, y = cy + dy, n = y * gw + x; if (x < 0 || y < 0 || x >= gw || y >= gh || !ok[n] || (dx && dy && (!ok[cy * gw + x] || !ok[y * gw + cx]))) continue; const nd = dc + Math.hypot(dx, dy) * G2; if (nd < d[n]) { d[n] = nd; open.push([nd, n]); } } }
+    return Infinity; };
+  const rnd = E.rng(10), pts = []; while (pts.length < 60) { const p = [Math.round(rnd() * 330), Math.round(100 + rnd() * 100)]; if (wb.inside(...p) && ok[Math.round(p[0] / G2) + Math.round((p[1] - 98) / G2) * gw]) pts.push(p); }
+  let outside = 0, longer = 0, worst = 0, turns = 0;
+  for (let i = 0; i < 30; i++) {
+    const a = pts[i * 2], b = pts[i * 2 + 1], P = wb.path(a, b), L = P.slice(1).reduce((s, q, k) => s + Math.hypot(q[0] - P[k][0], q[1] - P[k][1]), 0), gd = gridD(a, b);
+    for (let k = 1; k < P.length; k++) for (let u = .05; u < 1; u += .1) if (!wb.inside(P[k - 1][0] + (P[k][0] - P[k - 1][0]) * u, P[k - 1][1] + (P[k][1] - P[k - 1][1]) * u)) outside++;
+    if (L > gd + 3) longer++; worst = Math.max(worst, L - gd); turns += P.length - 2;
+  }
+  check(`${ed}: E.Walkbox's paths go round its holes (30 random pairs): inside all the way, never longer than a fine grid's way`, !outside && !longer && turns > 10, `${outside} points outside, ${longer} longer than the grid's (worst ${worst.toFixed(1)} px), ${turns} turns`);
+  check(`${ed}: E.Walkbox: nearest() puts a point outside on the edge; inside() is false in a hole`, !wb.inside(80, 140) && wb.inside(...wb.nearest(80, 140)) && wb.inside(...wb.nearest(150, 40)) && Math.abs(wb.nearest(150, 40)[1] - 100) <= 3);
+  // a game of one room: a key, a box, a door to a second room; the hero walks the same at every refresh rate
+  const make = (o = {}) => {
+    const g = new E.Game({ headless: true, input: { ...E.Input.DEFAULT, look: ['Mouse2'] } });
+    const story = new E.Story(g, { nodes: { hi: [{ say: 'Hello.' }, { say: 'And again.' }] } });
+    const pc = new E.Click(g, Object.assign({ story, rooms: {
+      yard: { w: 340, h: 200, walk: wb, depth: [100, .8, 200, 1.2], hotspots: [{ id: 'key', name: 'KEY', rect: [300, 140, 10, 10], at: [290, 150], if: '!gotKey', pickup: { give: 'key', set: 'gotKey', say: 'Got it.' } },
+        { id: 'box', name: 'BOX', rect: [20, 120, 20, 20], at: [30, 145], look: 'A box.', open: { give: 'gem' } }, { id: 'door', name: 'DOOR', rect: [0, 100, 10, 60], at: [12, 130], exit: 'hall', enter: [50, 50] }] },
+      hall: { w: 100, h: 100, walk: [[[0, 0], [100, 0], [100, 100], [0, 100]]] } },
+      items: { key: { name: 'KEY' }, gem: { name: 'GEM' }, rope: { name: 'ROPE' }, hook: { name: 'HOOK' }, grapple: { name: 'GRAPPLE' } }, room: 'yard', at: [20, 150],
+      rules: [{ item: 'rope', on: 'hook', take: ['rope', 'hook'], give: 'grapple' }, { verb: 'give', item: 'gem', on: 'key', say: 'Thanks!' }] }, o));
+    g.start({ update(dt) { pc.update(dt); }, draw(r) { pc.draw(r); } });
+    return { g, pc, story };
+  };
+  const at = []; for (const hz of [60, 90, 120, 144]) { const { g, pc } = make(); pc.walkTo(330, 150); for (let t = 0; t < 2.5 - 1e-9; t += 1 / hz) g.advance(1 / hz); at.push(pc.hero.x.toFixed(3) + ',' + pc.hero.y.toFixed(3)); g.dispose(); }
+  check(`${ed}: E.Click: a walk round the holes is the same at 60, 90, 120 and 144 Hz`, new Set(at).size === 1, at.join(' / '));
+  { const { g, pc } = make({ ui: 'two' }), I = g.input, click = (q, o) => { I.feed('down', ...q, o); g.advance(1 / 60); I.feed('up', ...q, o); g.advance(1 / 60); }, idle = () => { for (let i = 0; i < 1200 && pc.busy; i++) { if (pc.line) I.tap('confirm'); g.advance(1 / 60); } };
+    click(pc.screen(150, 115)); idle(); const walked = Math.hypot(pc.hero.x - 150, pc.hero.y - 115) < 1;
+    click(pc.where('key')); idle(); const took = pc.has('key') && !pc.where('key');
+    I.feed('move', ...pc.where('box')); I.press('Mouse2'); g.advance(1 / 60); I.release('Mouse2'); for (let i = 0; i < 600 && pc.busy && !pc.line; i++) g.advance(1 / 60); const looked = pc.line && pc.line.lines[0] === 'A box.'; idle();   // (he walks to it, then looks)
+    check(`${ed}: E.Click (two buttons): a click walks there; a click on a hotspot does its verb (the key picked up, then hidden by its if); a right click looks`, walked && took && looked, `walked ${walked}, took ${took}, looked ${looked}`);
+    pc.give('rope'); pc.give('hook'); pc.act('use', 'rope', 'hook'); const combined = pc.has('grapple') && !pc.has('rope'); pc.give('gem'); pc.act('use', 'key', 'gem'); idle();
+    check(`${ed}: E.Click rules: an item on an item either way round (hook on rope makes the grapple); an item used on a hotspot falls back to a give rule`, combined, `inventory ${pc.inv}`);
+    pc.act('walk', 'door'); idle(); const s = pc.state(); pc.restore({ room: 'yard', x: 40, y: 150, inv: ['gem'] });
+    check(`${ed}: E.Click: an exit takes the hero to its room after the fade; state() and restore() keep the room, the place and the inventory`, s.room === 'hall' && s.x === 50 && s.y === 50 && pc.room === 'yard' && pc.hero.x === 40 && pc.inv.join() === 'gem', JSON.stringify(s));
+    g.dispose(); }
+  { const { g, pc } = make({ ui: 'icons' }), I = g.input; I.feed('move', ...pc.screen(150, 115)); const seen = []; for (let i = 0; i < 4; i++) { I.press('Mouse2'); g.advance(1 / 60); I.release('Mouse2'); g.advance(1 / 60); seen.push(pc.verb); }
+    check(`${ed}: E.Click (Sierra's icons): a right click turns the cursor: walk, look, hand, talk`, seen.join() === 'look,hand,talk,walk', seen.join()); g.dispose(); }
+  // the story's backlog, auto and skip; a dialog's choice by a tap on it
+  { const { g, story } = make(); story.auto = .5; story.run('hi'); for (let i = 0; i < 200 && story.running; i++) g.advance(1 / 60); const autoT = g.time;
+    story.skip = true; story.run('hi'); for (let i = 0; i < 200 && story.running; i++) g.advance(1 / 60); const skipT = g.time - autoT;
+    check(`${ed}: E.Story's log keeps what was said; auto turns the pages by itself; skip turns them at once`, story.log.length === 4 && story.log[3].text === 'And again.' && autoT > 1 && autoT < 3 && skipT < .5, `log ${story.log.length}, auto ${autoT.toFixed(2)} s, skip ${skipT.toFixed(2)} s`);
+    const D = new E.Dialog(g); let picked = -1; D.say('Which?', { choices: ['ONE', 'TWO', 'THREE'], onChoice: i => { picked = i; } }); g.start({ update(dt) { D.update(dt); }, draw() {} });
+    for (let i = 0; i < 60 && D.typing; i++) g.advance(1 / 60); const q = D.choiceAt(2); g.input.feed('down', ...q, { touch: true }); g.advance(1 / 60); g.input.feed('up', ...q, { touch: true }); g.advance(1 / 60);
+    check(`${ed}: E.Dialog: a tap on a choice picks it (choiceAt gives where)`, picked === 2 && !D.open, `picked ${picked} at ${q}`); g.dispose(); }
 }
 
 // M9a: the pointer's gestures, the free camera, the strategy module (selection and orders by scripted pointer input in
