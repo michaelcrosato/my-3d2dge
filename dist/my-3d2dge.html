@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.63.1 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.64.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and eight working games and an animation lab.
+  AI MODELS: this one file is the whole engine, its documentation and nine working games and an animation lab.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below. It is short.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". Do not change it
        unless you are asked to extend the engine itself.
-    3. The games live between GAME START and GAME END: a title menu plus eight vertical slices
-       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, PUZZLE, RPG BATTLE, ROGUELIKE, STEALTH)
+    3. The games live between GAME START and GAME END: a title menu plus nine vertical slices
+       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, ARCADE, PUZZLE, RPG BATTLE, ROGUELIKE, STEALTH)
        and an ANIMATION LAB that plays every move, pose and skin in every view.
        To make a new game, copy the slice closest to your genre, then replace everything between
        GAME START and GAME END with only your game. Keep everything else in this file as it is.
   HUMANS: open this file in a browser and play. Press ? for the API card.
-  Deep links: add #adventure, #platformer, #brawler, #shooter, #puzzle, #rpg, #roguelike, #stealth or #animlab to the address to start a slice.
+  Deep links: add #adventure, #platformer, #brawler, #shooter, #arcade, #puzzle, #rpg, #roguelike, #stealth or #animlab to the address to
+       start a slice; #arcade/maze, #arcade/formation, #arcade/rocks and #shooter/horizontal jump into a part.
 -->
 <html lang="en">
 <head>
@@ -21,7 +22,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.63.1)
+# my-3D2dge API card (v0.64.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -247,7 +248,8 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Action RPG / dungeon (Diablo, Landstalker) | `iso` | TileMap, FlowField, Body (jump onto blocks), GPU lighting | ADVENTURE |
 | Beat-'em-up (Final Fight, Streets of Rage, TMNT) | `brawler` | TileMap street strip, Body, Humanoid (`weapon: null`) + `E.Combo` punches and `kick: true` kicks, `E.knockback`, waves that lock the screen | BRAWLER |
 | Fighting (Street Fighter II) | `side` | PlatformMap floor, two Platformers, Humanoid + `E.Attack` moves, `overlapBox` hitboxes | BRAWLER + PLATFORMER |
-| Shoot-'em-up (1942, Gradius, R-Type) | `overhead` (vertical) or `side` (horizontal) | sprites, Bullets, `E.pattern`, `r.starfield`, a timeline of waves | SHOOTER |
+| Shoot-'em-up (1942, Gradius, R-Type) | `overhead` (vertical, and horizontal: world x scrolls) | sprites, Bullets, `E.pattern`, a timeline of waves; horizontal: rock edges as functions of x, a power bar, options on the ship's past path, `E.Path` loops; `E.Arcade` for the continue and the table | SHOOTER (both stages) |
+| Golden-age arcade (Pac-Man, Galaga, Asteroids) | `overhead` (one fixed screen, cabinet art on the sides) | `E.Arcade` (score, lives, extra lives, turns, initials, tables, attract mode); a maze of `E.GridMover`s; moths on `E.Path`s turned by `rot`; `E.wrap` and `wrap: [w, h]` | ARCADE |
 | Twin-stick / run-and-gun (Smash TV, Contra) | `topdown` / `side` | Body or Platformer, Bullets, `weapon: 'gun'`, `point: true` | SHOOTER + ADVENTURE |
 | JRPG (Dragon Quest, Final Fantasy, EarthBound) | `threequarter` town, `brawler` battles | TileMap towns, Dialog, Menu, scenes, `E.store` saves | RPG BATTLE + ADVENTURE |
 | Puzzle (Tetris, Dr. Mario, Puyo, Columns) | `side` (a field in screen pixels) | a cell array, a bag from `E.rng`, `input.repeat` (auto-shift), `grid.groups` (chains), `input.drag()` and `clicked()` for touch | PUZZLE |
@@ -267,7 +269,8 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
 - **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 28 monster, boss and dummy bodies, 3 heroes (one a living book, one a scythed beast) and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
 - **Modules** (`engine/modules/<name>.js`, `engine/modules/README.md`): general systems in files of their own, each a `<script>` after the engine, its header its manual (read it there, or its section of the index). A kit carries the modules its slice names (`@modules` in its header); `dist/my-3d2dge.js` carries them all.
   - `grid`: square and hex grids: A* paths, move ranges, lines, fields of view (symmetric shadowcasting), `E.Fog`, groups, `E.GridMover`, `E.Turns` (speed, charge time, phases, ATB). ROGUELIKE, PUZZLE.
-  - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE.
+  - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE, ARCADE.
+  - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
 ## Before you hand the game back
@@ -297,7 +300,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.63.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.64.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -325,7 +328,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.63.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.64.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -404,7 +407,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.63.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.64.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -9641,9 +9644,227 @@ root.My3D2dge = E;
 
 </script>
 <script>
+/* ---- inlined from engine/modules/arcade.js ---- */
+/*!
+my-3D2dge module ARCADE v0.64.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+What every coin-op had around its game: for arcade games, shooters, puzzles, pinball and brawlers.
+- const cab = new E.Arcade(game, { id: 'maze', lives: 3, extra: [10000] (or every: 20000), credits: null (free play;
+  a number: coins a game, cab.coin() adds one), hud: true }); cab.start(players, { demo }) begins a game (one or two
+  taking turns; false without the credits); cab.p is the player up ({ n, score, lives, save }), cab.players all.
+- cab.add(points, at): the score (at: a world point { x, y, z }: the points float up there), an extra life at each
+  threshold. cab.die() takes a life: 'again', 'next' (the other player's turn: "PLAYER 2, READY!"; keep each one's
+  stage in p.save) or 'over'; then cab.continue(10, done) counts down (done(true): lives back, the score kept).
+- Tables, saved per game and mode: cab.table(mode) (the top ten { name, score }), cab.qualifies(score, mode),
+  cab.enter(score, mode, done): initials on a letter wheel (up and down turn it, left and right move, confirm takes a
+  letter; taps on its arrows and OK do each); cab.entry is it while open. cab.drawTable(r, mode, y, title).
+- cab.card('STAGE 2', 2) shows a card (cab.carding while one is up), cab.say('READY!') a word under it.
+- The attract mode, on the title: cab.attract(dt) -> 'title', then 'demo' once o.idle seconds (20) pass without input
+  (play the game's own bot, start(1, { demo: true }): DEMO shows, no table), 'scores' for o.scores seconds (6) once
+  cab.endDemo() is called or o.demo seconds (30) pass, then 'title'; any input goes back to 'title'.
+- cab.update(dt) every step (cards, the entry, the continue); cab.draw(r, [x, y, w, h]) after your drawing: the HUD
+  (in the playfield's box: the screen when none), cards, DEMO, the continue and the entry.
+
+```js arcade
+const E = My3D2dge, game = new E.Game({ headless: true }), cab = new E.Arcade(game, { id: 'doc', lives: 2, extra: [500] });
+cab.start(1); cab.add(300); cab.add(300);
+if (cab.p.score !== 600 || cab.p.lives !== 3) throw new Error('extra life');
+if (cab.die() !== 'again' || cab.die() !== 'again' || cab.die() !== 'over') throw new Error('lives');
+cab.start(2); if (cab.die() !== 'next' || cab.p.n !== 2) throw new Error('turns');
+```
+Rules: tables live in E.store ('arcade:' + id + ':' + mode; kept for the visit where storage is blocked); a demo is the game's own bot (or a recorded input log)
+playing the real rules; the entry and the continue read the game's keys, so hold play while either is open.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module ARCADE: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * ARCADE  scores, tables, initials, lives, credits, turns, cards and the attract mode
+ * ========================================================================== */
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-! ', COLS = ['#ff4a4a', '#ffffff', '#ffe070'];
+const clicked = I => I.clicked ? I.clicked() : null;   // (a tap: the full engine's; the agent edition has none)
+const KEPT = {};   // the tables this visit, beside E.store (they still show where storage is blocked)
+class Arcade {
+  /** new E.Arcade(game, { id, lives: 3, extra: [] (the scores that give a life) or every (a life each that many points),
+   *  credits: null (free play) or the coins a game takes, idle: 20, demo: 30, scores: 6 (the attract mode's seconds),
+   *  hud: true, colors: [label, number, highlight] }) */
+  constructor(game, o = {}) {
+    /** game: the game it serves; id: the game's name (its tables'); o: the options */
+    this.game = game; this.id = o.id || 'game'; this.o = Object.assign({ lives: 3, extra: [], credits: null, idle: 20, demo: 30, scores: 6, hud: true, colors: COLS }, o);
+    /** players: [{ n, score, lives, save (the game's own: a stage kept while the other plays), next (the score of the
+     *  next extra life) }]; p: the player up; credits: coins in (null: free play); entry: the initials being entered
+     *  ({ score, mode, name, i }), or null */
+    this.players = []; this.p = null; this.credits = this.o.credits === null ? null : 0; this.entry = null;
+    /** mode: 'title' | 'play' | 'over'; demo: a demo is playing (no table); phase: the attract mode's, 'title' | 'demo' |
+     *  'scores' */
+    this.mode = 'title'; this.demo = false; this.phase = 'title';
+    /** hi: the high score shown; wheel: where the letter wheel was last drawn (taps answer to it): { x, y, cw, up, down,
+     *  ok } in screen pixels: three columns cw wide from x, the up and down bands [y0, y1], the OK button [x, y, w, h] */
+    this._cards = []; this._idle = 0; this._t = 0; this._cont = null; this.wheel = null; this.hi = 0;
+  }
+  /** begin a game for 1 or 2 players (taking turns), o: { demo: true } for the attract mode's; spends the credits a
+   *  game takes unless it is free play or a demo. Returns false without them */
+  start(players = 1, o = {}) {
+    if (this.credits !== null && !o.demo) { if (this.credits < this.o.credits) return false; this.credits -= this.o.credits; }
+    this.players = Array.from({ length: Math.max(1, Math.min(2, players)) }, (_, i) => ({ n: i + 1, score: 0, lives: this.o.lives, save: null, next: this.o.every || (this.o.extra[0] === undefined ? Infinity : this.o.extra[0]) }));
+    this.p = this.players[0]; this.mode = 'play'; this.demo = !!o.demo; this.entry = null; this._cont = null; this._cards.length = 0;
+    this.hi = Math.max(this.hi, (this.table()[0] || { score: 0 }).score);
+    if (this.players.length > 1) this.card('PLAYER 1', 1.6);
+    return true;
+  }
+  /** add points to the player up (at: a world point { x, y, z } where they float up); an extra life at each threshold */
+  add(points, at) {
+    const p = this.p; if (!p || !points) return;
+    p.score += points; this.hi = Math.max(this.hi, p.score);
+    while (p.score >= p.next) {
+      p.lives++; const every = this.o.every, more = this.o.extra.find(s => s > p.next); p.next = every ? p.next + every : more === undefined ? Infinity : more;
+      this.say('EXTRA LIFE!', 1.2); this.game.audio.sfx('oneup');
+    }
+    if (at) this.game.particles.text(at.x || 0, at.y || 0, (at.z || 0) + 6, points, this.o.colors[2]);
+  }
+  /** a life lost: 'again' (lives left), 'next' (the other player's turn) or 'over' (none left for anyone) */
+  die() {
+    const p = this.p; if (!p) return 'over';
+    p.lives = Math.max(0, p.lives - 1);
+    const i = this.players.indexOf(p), n = this.players.length;
+    for (let k = 1; k <= n; k++) {
+      const q = this.players[(i + k) % n]; if (q.lives <= 0) continue;
+      if (q === p) return 'again';
+      this.p = q; this.card('PLAYER ' + q.n + ', READY!', 2); return 'next';
+    }
+    this.mode = 'over'; return 'over';
+  }
+  /** add a coin (credits on); returns the credits */
+  coin() { if (this.credits === null) return null; this.credits++; this.game.audio.sfx('coin'); return this.credits; }
+  /** a continue: CONTINUE? counts down seconds; start, confirm or a tap continues (with the credits it takes): every
+   *  player's lives back, the scores kept, done(true); at zero, done(false) */
+  continue(seconds = 10, done) { this._cont = { t: seconds, done }; this.game.input.consumeAll(); }
+  /** is the continue counting down? */
+  get continuing() { return !!this._cont; }
+  /** the top ten of a mode: [{ name, score }] */
+  table(mode = '') { const k = 'arcade:' + this.id + ':' + mode, t = KEPT[k] || E.store.get(k, null); return Array.isArray(t) ? t.slice() : []; }
+  /** would score make the top ten (never in a demo)? */
+  qualifies(score, mode = '') { const t = this.table(mode); return !this.demo && score > 0 && (t.length < 10 || score > t[t.length - 1].score); }
+  /** open the initials entry for score; done(name) once it is taken and saved */
+  enter(score, mode = '', done) { this.entry = { score, mode, name: [0, 0, 0], i: 0, done, t: 0 }; this.game.input.consumeAll(); }
+  /** a card in the middle of the screen for seconds ('STAGE 2', 'PLAYER 2, READY!') */
+  card(text, seconds = 2) { this._cards.push({ text, t: seconds, big: true }); }
+  /** a short word under the cards for seconds ('READY!', 'EXTRA LIFE!') */
+  say(text, seconds = 1.2) { this._cards.push({ text, t: seconds, big: false }); }
+  /** take every card and word down */
+  clear() { this._cards.length = 0; }
+  /** is a card up? (hold play while it is) */
+  get carding() { return this._cards.some(c => c.big); }
+  /** the attract mode, each step on the title: 'title', 'demo' (o.idle seconds without input; it lasts o.demo seconds or
+   *  until endDemo()), 'scores' (o.scores seconds), then 'title' again; any input goes back to 'title' */
+  attract(dt) {
+    const I = this.game.input, o = this.o;
+    if (I.anyPressed() || clicked(I)) { this._idle = 0; this.phase = 'title'; return 'title'; }
+    this._idle += dt;
+    const next = this.phase === 'title' ? (this._idle >= o.idle ? 'demo' : null) : this.phase === 'demo' ? (this._idle >= o.demo ? 'scores' : null) : this._idle >= o.scores ? 'title' : null;
+    if (next) { this.phase = next; this._idle = 0; }
+    return this.phase;
+  }
+  /** the attract mode back to the title, its idle clock at zero (as any input does) */
+  wake() { this.phase = 'title'; this._idle = 0; }
+  /** the demo is over (a demo in a scene of its own: call it on the way back): the attract mode shows the scores */
+  endDemo() { this.phase = 'scores'; this._idle = 0; }
+  /** a step: the cards count down, the entry and the continue read the keys */
+  update(dt) {
+    this._t += dt;
+    for (const c of this._cards) c.t -= dt;
+    this._cards = this._cards.filter(c => c.t > 0);
+    const I = this.game.input, e = this.entry, tap = clicked(I);
+    if (e) {
+      e.t += dt;
+      const turn = d => { e.name[e.i] = (e.name[e.i] + d + LETTERS.length) % LETTERS.length; this.game.audio.sfx('blip'); };
+      if (I.repeat('up', .3, .09)) turn(1);
+      if (I.repeat('down', .3, .09)) turn(-1);
+      if (I.pressed('left') && e.i > 0) e.i--;
+      let ok = I.pressed('confirm') || I.pressed('right') || I.pressed('start');
+      const b = this.wheel, in4 = (q, r) => q[0] >= r[0] && q[0] < r[0] + r[2] && q[1] >= r[1] && q[1] < r[1] + r[3];
+      if (tap && b) {   // a tap: OK takes the letter; in a letter's column, above it turns it up, below down, on it picks it
+        const col = Math.floor((tap[0] - b.x) / b.cw), y = tap[1];
+        if (in4(tap, b.ok)) ok = true;
+        else if (col >= 0 && col < 3 && y >= b.up[0] && y < b.down[1]) { e.i = col; if (y < b.up[1]) turn(1); else if (y >= b.down[0]) turn(-1); }
+      }
+      if (ok) {
+        this.game.audio.sfx('confirm');
+        if (e.i < 2) e.i++;
+        else {
+          const name = e.name.map(k => LETTERS[k]).join('').trim() || '---', t = this.table(e.mode);
+          t.push({ name, score: e.score }); t.sort((a, b2) => b2.score - a.score); const k = 'arcade:' + this.id + ':' + e.mode; KEPT[k] = t.slice(0, 10); E.store.set(k, KEPT[k]);
+          this.entry = null; I.consumeAll(); if (e.done) e.done(name);
+        }
+      }
+    }
+    const c = this._cont;
+    if (c && !e) {
+      c.t -= dt;
+      const yes = I.pressed('start') || I.pressed('confirm') || !!tap, paid = this.credits === null || this.credits >= this.o.credits;
+      if (yes && paid) {
+        if (this.credits !== null) this.credits -= this.o.credits;
+        this._cont = null; for (const p of this.players) p.lives = this.o.lives;
+        this.mode = 'play'; I.consumeAll(); this.game.audio.sfx('confirm'); if (c.done) c.done(true);
+      } else if (c.t <= 0) { this._cont = null; if (c.done) c.done(false); }
+    }
+  }
+  /** the frame over the game, after its drawing: the HUD (o.hud: 1UP, HI, 2UP in a row) along the top of box [x, y, w, h] (the playfield; the
+   *  screen when none), the lives along its foot, the cards, DEMO, the continue and the entry */
+  draw(r, box) {
+    r.overlay(g => {
+      const [X, Y, W, H] = box || [0, 0, r.W, r.H], cx = X + W / 2, F = E.font, col = this.o.colors, tx = (s, x, y, c, o) => F.text(g, s, x, y, c, Object.assign({ outline: false, shadow: '#000' }, o));
+      if (this.o.hud && this.p) {
+        const up = n => this.p.n === n && this.mode === 'play' && this.players.length > 1 && Math.floor(this._t * 3) % 2;   // the player up's label blinks
+        tx(up(1) ? '' : '1UP', X + 4, Y + 3, col[0], { font: 'tiny' }); tx(String(this.players[0].score), X + 20, Y + 2, col[1]);
+        tx('HI', cx - 2, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.hi), cx + 2, Y + 2, col[1]);
+        if (this.players[1]) { tx(up(2) ? '' : '2UP', X + W - 4, Y + 3, col[0], { align: 'right', font: 'tiny' }); tx(String(this.players[1].score), X + W - 20, Y + 2, col[1], { align: 'right' }); }
+        for (let i = 0; i < Math.min(6, this.p.lives - 1); i++) { E.px.disc(g, X + 9 + i * 9, Y + H - 7, 3, col[2]); E.px.dot(g, X + 8 + i * 9, Y + H - 8, '#ffffff'); }
+      }
+      let y = Math.round(Y + H / 2) - 14;
+      for (const c of this._cards) { if (c.big) { tx(c.text, cx, y, col[2], { align: 'center', scale: 2 }); y += 20; } else { tx(c.text, cx, y, col[1], { align: 'center' }); y += 11; } }
+      if (this.demo && Math.floor(this._t * 2) % 2 === 0) tx('DEMO', cx, Y + H - 30, col[2], { align: 'center', scale: 2 });
+      if (this._cont && !this.entry) { tx('CONTINUE?', cx, Y + H / 2 - 24, col[1], { align: 'center', scale: 2 }); tx(String(Math.max(0, Math.ceil(this._cont.t))), cx, Y + H / 2, col[2], { align: 'center', scale: 3 }); }
+      const e = this.entry;
+      if (e) {
+        g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
+        // three letters (scale 3) in columns, bands above and below them and an OK button, each a thumb's size: 46 CSS
+        // pixels on this screen, at least 34 game pixels
+        const S = this.game.screen, u = Math.max(34, Math.ceil(46 * (S && S.S ? S.dpr / S.S : 0))), cw = u, x0 = Math.round(cx - cw * 1.5), y0 = Math.round(Y + H / 2 - u / 2 - 4);
+        const ok = [Math.round(cx - u), y0 + 26 + u + 4, u * 2, u];
+        this.wheel = { x: x0, y: y0, cw, up: [y0 - u, y0], down: [y0 + 26, y0 + 26 + u], ok };
+        tx('NEW HIGH SCORE!', cx, y0 - u - 30, col[2], { align: 'center', scale: 2 }); tx(String(e.score), cx, y0 - u - 12, col[1], { align: 'center' });
+        for (let i = 0; i < 3; i++) {
+          const x = x0 + i * cw + cw / 2, on = i === e.i;
+          tx(LETTERS[e.name[i]], x, y0 + 4, on && Math.floor(e.t * 4) % 2 ? col[1] : on ? col[2] : col[1], { align: 'center', scale: 3 });
+          E.px.poly(g, [[x - 5, y0 - 8], [x + 5, y0 - 8], [x, y0 - 14]], on ? col[0] : '#5a4a6a'); E.px.poly(g, [[x - 5, y0 + 32], [x + 5, y0 + 32], [x, y0 + 38]], on ? col[0] : '#5a4a6a');
+        }
+        E.px.rect(g, ok[0], ok[1], ok[2], ok[3], '#2a1a3e'); E.px.rect(g, ok[0], ok[1], ok[2], 1, col[2]); tx('OK', cx, ok[1] + ok[3] / 2 - 3, col[2], { align: 'center' });
+        tx('ENTER YOUR INITIALS', cx, ok[1] + ok[3] + 4, '#c8c0e0', { align: 'center', font: 'tiny' });
+      }
+    });
+  }
+  /** a table as a screen (the attract mode's, or after a game), its title at y: rank, name, score */
+  drawTable(r, mode = '', y = 40, title = 'HIGH SCORES') {
+    const t = this.table(mode);
+    r.overlay(g => {
+      const cx = r.W / 2, col = this.o.colors, tx = (s, x, yy, c, o) => E.font.text(g, s, x, yy, c, Object.assign({ outline: false, shadow: '#000' }, o));
+      tx(title, cx, y, col[2], { align: 'center', scale: 2 });
+      for (let i = 0; i < 10; i++) { const e = t[i], yy = y + 26 + i * 11, c = i ? col[1] : col[2]; tx((i + 1) + '.', cx - 52, yy, c, { align: 'right' }); tx(e ? e.name : '---', cx - 42, yy, c); tx(String(e ? e.score : 0), cx + 60, yy, c, { align: 'right' }); }
+    });
+  }
+}
+E.Arcade = Arcade;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+</script>
+<script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.63.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.64.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -9829,7 +10050,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.63.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.64.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10331,9 +10552,9 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 30-shooter.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 50-brawler.js, 60-animlab.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 30-shooter.js, 32-arcade.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 50-brawler.js, 60-animlab.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
- * MY-3D2DGE STARTER: a title menu, eight vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
+ * MY-3D2DGE STARTER: a title menu, nine vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
  *   SLICE 1  ADVENTURE   top-down action adventure (Zelda, Secret of Mana): rooms, sword,
  *                        key and locked door, NPC dialog, hearts, rupees, torch lighting
@@ -10350,12 +10571,14 @@ sprites: {
  *                        view and fog, turns by speed (E.Turns), bump to attack, potions, scrolls, stairs
  *   SLICE 9  PUZZLE      falling blocks (Tetris: a bag of seven, hold, kicks, lock delay) and falling pairs
  *                        that chain (Puyo Puyo: E.Grid's groups), a mascot that reacts
+ *   SLICE 10 ARCADE      a cabinet of three (Pac-Man, Galaga, Asteroids): E.Arcade's scores, tables, initials,
+ *                        continues, turns and attract mode; a maze of E.GridMovers, moths on E.Paths, wrapping rocks
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -10377,6 +10600,7 @@ const SLICES = [
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER', family: 'PLATFORM' },
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
+  { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
@@ -11691,7 +11915,7 @@ const PLAT = (() => {
 scenes.platformer = PLAT;
 
 /* =====================================================================================
- * SLICE 3  SHOOTER  (vertical shoot-'em-up: Raiden, 1943, Strikers 1945)
+ * SLICE 3  SHOOTER  (vertical shoot-'em-up: Raiden, 1943, Strikers 1945; then a horizontal one: Gradius, R-Type). @modules arcade
  * A tall "tate" screen (240 x 320) scrolls up over farmland, a river town and an air base where a flying fortress waits.
  * 'overhead' maps world x/y to screen pixels; the 272 px world pans a little with the ship. z only orders the drawing:
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
@@ -11702,6 +11926,10 @@ scenes.platformer = PLAT;
  * ANY SCREEN: res [240, 320] with expand. The map is WW wide; a wider screen (landscape, a desktop) shows the valley going
  * on beyond it (2b) and the playfield is the whole screen (span()): the ship flies edge to edge and the waves spread to
  * match (air() maps their x). W x H are the screen's, read each step. game.go('shooter', { at: 30 }) starts at the boss.
+ * STAGE 2 (11; #shooter/horizontal, and after the fortress): a horizontal stage (Gradius, R-Type) at [320, 240]: rock
+ * above and below, capsules that light a power bar (the bomb key takes the lit power), options that follow the ship's
+ * past path, a mid-boss looping an E.Path, the core battleship. THE ARCADE FRAME (10; the arcade module): the last ship
+ * lost brings a continue; a score that makes the table brings initials on a letter wheel; then the table.
  * ===================================================================================== */
 const SHOOT = (() => {
   const WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // world width (the playfield), stage length, scroll px/s, building perspective, stage card seconds
@@ -12027,7 +12255,7 @@ const SHOOT = (() => {
     foes = []; items = []; craters = []; fx = []; shots = shots || new E.Bullets(game, { plane: 'ground', max: 1200 }); shots.clear();
     for (const [kind, x, y, a] of GROUND) unit(kind, x, y, { a: a ?? D, aim: a ?? D });
     clouds = [0, 1, 2, 3, 4, 5, 6].map(i => ({ x: cloudX(), y: i * 70 - 80, art: CLOUDS[i % 3], high: i > 3 }));
-    lives = 2; bombs = 3; score = 0; power = 1; boss = null; won = 0; fireT = 0; warnT = 0; radio(PILOT, 'EAGLE 1', 'Fortress sighted over the valley. Weapons free!', { point: true, aim: .9, expr: 'smile' });
+    lives = 2; bombs = 3; score = 0; power = 1; boss = null; won = 0; fireT = 0; warnT = 0; cab.start(1); ending = null; radio(PILOT, 'EAGLE 1', 'Fortress sighted over the valley. Weapons free!', { point: true, aim: .9, expr: 'smile' });
   }
   const cloudX = () => { const m = Math.max(0, (W - WW) / 2); return E.rand(-30 - m, WW - 60 + m); };   // across the whole screen
   const shoot = (x, y, vels, art = 'orb') => shots.burst({ x, y, z: 20, r: art === 'big' ? 3 : 2, life: 7, team: 'foe', art }, vels);
@@ -12067,7 +12295,7 @@ const SHOOT = (() => {
       if ((f.dying -= dt) > 0) return;
       f.gone = true; boss = null; won = t; best('shooter', score); A.music('victory'); game.after(2.8, () => {   // a dip (anticipation), then the fists pump; zoomed out so they show
         const mood = { pose: 'crouch', expr: 'smile' }; radio(PILOT, 'EAGLE 1', 'Target down. Heading home!', mood, { zoom: 2.3, headY: .62 }); game.after(.2, () => mood.pose = 'cheer');
-      }); game.after(7, () => game.go('title'));   // the crash
+      }); game.after(7, () => game.go('shooter-horizontal', { score, lives }, { fade: 'white' }));   // the crash; on to stage 2
       boom(f.x, f.y, 4); for (let i = 0; i < 8; i++) game.after(i * .06, () => boom(f.x + E.rand(-45, 45), f.y + E.rand(-40, 40), 2, { sound: false, shake: 0, freeze: false }));
       add({ k: 'ring', x: f.x, y: f.y, r: 170, life: 1 }); game.flash('#fff4e0', 1.1, 1); game.shake(8); craters.push(crater0(f.x, f.y, 24, 14), crater0(f.x - 34, f.y + 18, 10, 8)); return;
     }
@@ -12087,6 +12315,7 @@ const SHOOT = (() => {
   /* ---- 7. UPDATE ---- */
   function update(dt) {
     W = game.W; H = game.H;
+    if (frameStep(dt)) return;   // (the arcade frame: the continue, the initials, the table)
     const over = Math.max(0, scroll + H - MAP_H);   // a window grown taller mid-stage: keep the map's foot on the screen's bottom
     if (over) { scroll -= over; for (const o of [ship, ...items, ...shots.list, ...foes.filter(f => f.air)]) o.y -= over; }
     const inp = game.input, move = Math.min(scroll, SCROLL * dt);
@@ -12102,7 +12331,7 @@ const SHOOT = (() => {
       boss = { kind: 'boss', x: WW / 2, y: scroll - 90, t: 0, flash: -1, fire: 2, n: 0, aim: D, kick: 0, trail: 1, air: true, scale: 1, spin: 0, dying: 0, parts: [-1, 1, 0].map(s => ({ s, hp: s ? 90 : 380, r: s ? 15 : 30, aim: D, kick: 0, pts: s ? 5000 : 50000 })) };
       boss.parts.forEach(p => Object.assign(p, { boss, x: boss.x, y: boss.y, max: p.hp })); foes.push(boss); A.music('boss');
     }
-    if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { best('shooter', score); game.go('over', { from: 'shooter' }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
+    if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { ship.respawn = 1.5; lost(score, () => { lives = 2; bombs = 3; Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
     else {
       const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
       const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] * DRAG : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] * DRAG : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
@@ -12211,6 +12440,7 @@ const SHOOT = (() => {
     }
     r.queue(0, scroll, 20, g => bullets(g, r, 'ship'));
     r.overlay(hud); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));   // never hidden by a panel
+    frameDraw(r);
   }
 
   /* ---- 9. HUD: see-through windows (E.ui.box alpha) on top, led by the pilot's live portrait. Radio chatter (Star Fox 64):
@@ -12254,19 +12484,896 @@ const SHOOT = (() => {
     }
     if (won && t - won > 2.2) { win(Math.round(mid) - 108, 64, 216, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(score), mid, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
   }
+  /* ---- 10. THE ARCADE FRAME (the arcade module): a continue when the last ship is lost, initials on a letter wheel for a
+   * score that makes the table, the table, then the title. Both stages share it; the HUD stays the slice's own ---- */
+  const cab = new E.Arcade(game, { id: 'shooter', hud: false });
+  let ending = null, endT = 0;   // null in play; 'cont', 'entry' or 'table' at the end
+  const endGame = s => { if (cab.qualifies(s)) { ending = 'entry'; cab.enter(s, '', () => { ending = 'table'; endT = 0; }); } else { ending = 'table'; endT = 0; } A.music(null); };
+  const lost = (s, revive) => { best('shooter', s); ending = 'cont'; cab.continue(9, yes => { if (yes) { ending = null; revive(); } else endGame(s); }); };
+  // a step of the frame: true while it holds play (the continue, the wheel, the table: a press or 8 s go to the title)
+  function frameStep(dt) {
+    cab.update(dt); if (!ending) return false;
+    if (ending === 'table') { const I = game.input; endT += dt; if (endT > 8 || (endT > 1 && (I.pressed('confirm') || I.pressed('start') || I.clicked()))) game.go('title'); }
+    return !!ending && !(ending === 'cont' && !cab.continuing && !cab.entry);
+  }
+  function frameDraw(r) {
+    if (ending === 'table') { r.overlay(g => { px.blend(g, .8, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#05060c')); }); cab.drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), 'SHOOTER HIGH SCORES'); }
+    else cab.draw(r);
+  }
+
+  /* ---- 11. THE HORIZONTAL STAGE (Gradius, R-Type; #shooter/horizontal, and after the fortress): a band 240 high scrolls
+   * right over a crystal cavern, rock above and below (a taller screen shows more rock). Capsules light the power bar's
+   * slots in turn (SPEED, MISSILE, DOUBLE, LASER, OPTION, SHIELD); the bomb key (POWER on a touch screen) takes the lit
+   * one. Options follow the ship's past path and fire as it does. A mid-boss loops on an E.Path while the scroll waits;
+   * the core battleship waits at the end behind three walls ---- */
+  const HS = (() => {
+    // stage 2's own tune (the step sequencer's format): E minor, driving, arpeggios under a saw lead
+    const CAVERN = { bpm: 152, steps: 4, tracks: [
+      { wave: 'saw', vol: .08, notes: 'E5 . E5 . G5 . E5 . A5 - G5 . E5 . D5 . | E5 . E5 . G5 . B5 . A5 - - . G5 . F#5 . | C5 . C5 . E5 . C5 . D5 - E5 . F#5 . G5 . | F#5 - - . E5 . D5 . E5 - - - - . . .' },
+      { wave: 'square', vol: .06, notes: 'E4 G4 B4 G4 E4 G4 B4 G4 E4 G4 B4 G4 E4 G4 B4 G4 | E4 G4 B4 G4 E4 G4 B4 G4 D4 F#4 A4 F#4 D4 F#4 A4 F#4 | C4 E4 G4 E4 C4 E4 G4 E4 D4 F#4 A4 F#4 D4 F#4 A4 F#4 | B3 D#4 F#4 D#4 B3 D#4 F#4 D#4 E4 G4 B4 G4 E4 G4 B4 G4' },
+      { wave: 'triangle', vol: .3, notes: 'E2 E3 E2 E3 E2 E3 E2 E3 E2 E3 E2 E3 E2 E3 E2 E3 | E2 E3 E2 E3 E2 E3 E2 E3 D2 D3 D2 D3 D2 D3 D2 D3 | C2 C3 C2 C3 C2 C3 C2 C3 D2 D3 D2 D3 D2 D3 D2 D3 | B1 B2 B1 B2 B1 B2 B1 B2 E2 E3 E2 E3 E2 E3 E2 E3' },
+      { wave: 'drums', vol: .14, notes: 'k . h . s . h k k . h . s . h h' }] };
+    const BAND = 240, RATE = 34, BOSS_X = 3820, BAR = ['SPEED', 'MISSILE', 'DOUBLE', 'LASER', 'OPTION', 'SHIELD'], TRAIL = 12;
+    let s, foes, caps, mis, trail, w = 320, h = 240, Y0 = 0;
+    const sm = (a, b, x) => clamp((x - a) / (b - a), 0, 1), on = (x, a, b) => sm(a, a + 160, x) * (1 - sm(b - 160, b, x));
+    // the rock's edges in the band: open space, volcanic peaks below (500 to 1800), the open plain where the mid-boss waits,
+    // the cavern (2300 to 3750: rock above and below, never closer than 70 apart), open space for the core
+    const lowY = x => BAND + 30 - on(x, 500, 1800) * (50 + 50 * E.noise2(x * .006, 3) + 14 * E.noise2(x * .03, 7)) - on(x, 2300, 3750) * (54 + 36 * E.noise2(x * .009, 11) + 8 * E.noise2(x * .04, 2));
+    const highY = x => -30 + on(x, 2300, 3750) * (56 + 38 * E.noise2(x * .008, 5) + 8 * E.noise2(x * .05, 9)) + on(x, 900, 1500) * 30 * E.noise2(x * .02, 13);
+    const rock = (x, y, r = 3) => y - r < highY(x) || y + r > lowY(x);
+    const speed = () => 85 + s.speed * 28;
+    const foe = (kind, x, y, o) => foes.push(Object.assign({ kind, x, y, vx: 0, vy: 0, a: Math.PI, bank: 0, t: 0, hp: 1, r: 6, pts: 100, flash: 0, fire: 1 + Math.random(), air: true }, o));
+    // the waves, by how far the camera has come: spinners in sixes (a capsule for the whole six), jets in a V, carriers
+    // that drop a capsule, guns on the rock; the mid-boss; the core
+    const fans = (n, y, loop) => { const g = { left: n }; for (let i = 0; i < n; i++) foe('fan', s.x + w + 12 + i * 18, y, { group: g, y0: y, d: -i * 18, path: loop ? new E.Path([[w + 20, y], [w * .45, y], [w * .25, y + (y < 120 ? 50 : -50)], [w * .45, y + (y < 120 ? 90 : -90)], [w * .7, y + (y < 120 ? 50 : -50)], [-30, y + (y < 120 ? 30 : -30)]], { smooth: 'catmull' }) : null, pts: 100 }); };
+    const rush = (n, y) => { for (let i = 0; i < n; i++) foe('jet', s.x + w + 20 + Math.abs(i - (n - 1) / 2) * 22, y + (i - (n - 1) / 2) * 16, { vx: -150, hp: 2, r: 7, pts: 150, art: [JET, 'jet', .9] }); };
+    const carrier = y => foe('carrier', s.x + w + 40, y, { vx: -30, hp: 12, r: 16, pts: 1000, cap: true, art: [BOMBER, 'bomber', .9], fire: 1.5 });
+    const guns = xs => { for (const [x, up] of xs) { const y = up ? highY(x) + 6 : lowY(x) - 6; if (y > -10 && y < BAND + 10) foe('gun', x, y, { air: false, hp: 3, r: 7, pts: 300, up, aim: up ? Math.PI / 2 : -Math.PI / 2, fire: 2 }); } };
+    const WAVES = [[20, () => fans(6, 70)], [240, () => fans(6, 170)], [420, () => rush(5, 120)], [560, () => { fans(6, 80, true); guns([[820, 0], [990, 0]]); }],
+      [760, () => carrier(90)], [950, () => { fans(6, 60); guns([[1180, 0], [1300, 1], [1420, 0]]); }], [1150, () => rush(5, 100)], [1330, () => fans(6, 110, true)], [1500, () => { carrier(70); guns([[1700, 0]]); }],
+      [1650, () => fans(6, 150)], [1900, () => mid()], [2300, () => fans(6, 120)], [2420, () => guns([[2620, 0], [2700, 1], [2860, 0], [2980, 1], [3120, 0], [3260, 1], [3420, 0], [3560, 1]])],
+      [2600, () => rush(4, 120)], [2850, () => carrier(120)], [3100, () => fans(6, 120, true)], [3350, () => rush(5, 120)], [3550, () => fans(6, 110)], [BOSS_X - 20, () => core()]];
+    // the mid-boss: a cruiser looping a figure eight (a closed Catmull path on the screen) while the scroll waits
+    function mid() {
+      s.lock = true; A.music('boss');
+      foe('mid', s.x + w + 60, 120, { hp: 70, max: 70, r: 22, pts: 10000, art: [BOMBER, 'bomber', 2], path: new E.Path([[.78, .3], [.62, .5], [.78, .72], [.9, .5]].map(([u, v]) => [u * w, v * BAND]), { closed: true, smooth: 'catmull' }), d: 0, enter: 1.6, fire: 1.4, n: 0, leave: 28 });
+      radio(PILOT, 'EAGLE 1', 'A cruiser! Hit it while it turns!', { point: true, expr: 'angry' });
+    }
+    // the core: a battleship at the screen's right edge, its core behind three walls (each shot away), guns above and below
+    function core() {
+      s.lock = true; A.music(null); s.warn = 3;
+      game.after(3, () => { A.music('boss'); foe('core', s.x + w + 80, 120, { hp: 40, max: 40, r: 12, pts: 50000, walls: [8, 8, 8], enter: 2.5, fire: 2, n: 0, trail: 1 }); });
+    }
+    function begin(d) {
+      s = { x: 0, t: 0, lock: false, wave: 0, score: (d && d.score) || 0, lives: d && d.lives !== undefined ? d.lives : 2, warn: 0, won: 0, ship: { x: 60, y: 120, inv: 2, dead: 0, bank: 0, gun: 0, cool: 0 }, speed: 0, missile: false, weapon: 'shot', options: 0, shield: 0, cursor: -1, mcool: 0, boss: null };
+      foes = []; caps = []; mis = []; trail = Array.from({ length: TRAIL * 4 + 1 }, () => [60, 120]); fx = []; shots = shots || new E.Bullets(game, { plane: 'ground', max: 1200 }); shots.clear();
+      cab.start(1); ending = null; game.after(.5, () => radio(PILOT, 'EAGLE 1', 'Into the caverns! Grab the capsules and power up!', { point: true, aim: .9, expr: 'smile' }));
+    }
+    const powerOff = () => Object.assign(s, { speed: 0, missile: false, weapon: 'shot', options: 0, shield: 0, cursor: -1 });
+    function hit() {   // the ship lost: every power with it (Gradius), back in from the left a moment later
+      const p = s.ship; if (p.dead > 0 || p.inv > 0) return;
+      if (s.shield > 0) { s.shield--; p.inv = .25; A.sfx('bump'); P.sparks(p.x + 10, p.y, 14, 6); return; }
+      p.dead = 1.6; s.lives--; boom(p.x, p.y, 1.6, { air: true }); powerOff(); shots.clear('foe');
+    }
+    function take() {   // the bomb key: the lit slot's power
+      const k = BAR[s.cursor]; if (!k) return;
+      if (k === 'SPEED' && s.speed < 4) s.speed++; else if (k === 'MISSILE' && !s.missile) s.missile = true; else if (k === 'DOUBLE') s.weapon = 'double'; else if (k === 'LASER') s.weapon = 'laser';
+      else if (k === 'OPTION' && s.options < 4) s.options++; else if (k === 'SHIELD') s.shield = 4; else return;
+      s.cursor = -1; A.sfx('powerup'); P.glints(s.ship.x, s.ship.y, 14, 10);
+    }
+    const optAt = i => trail[Math.min(trail.length - 1, (i + 1) * TRAIL)];
+    function fire(x, y) {   // one volley from the ship or an option
+      if (s.weapon === 'laser') shots.fire({ x: x + 10, y, z: 20, vx: 560, vy: 0, r: 4, life: .8, team: 'laser', pierce: true, dmg: 1 });
+      else shots.fire({ x: x + 10, y, z: 20, vx: 400, vy: 0, r: 3, life: .9, team: 'ship' });
+      if (s.weapon === 'double') shots.fire({ x: x + 6, y: y - 3, z: 20, vx: 290, vy: -290, r: 3, life: .8, team: 'ship' });
+    }
+    function update(dt) {
+      w = game.W; h = game.H; Y0 = Math.round((h - BAND) / 2);
+      if (frameStep(dt)) return;
+      const I = game.input, p = s.ship, move = s.lock ? 0 : RATE * dt;
+      s.t += dt; s.x += move; talk.update(dt);
+      for (const o of [p, ...foes.filter(f => f.air), ...caps, ...mis.filter(m => !m.slide), ...shots.list]) o.x += move;   // flyers keep up with the camera
+      for (const q of trail) q[0] += move;
+      for (const f of fx) { f.t += dt; if (f.air) f.x += move; if (f.t < f.delay) continue; const k = Math.exp(-3 * dt); f.vx *= k; f.vy *= k; f.x += f.vx * dt; f.y += f.vy * dt; }
+      E.prune(fx, f => f.t > f.delay + f.life);
+      while (s.wave < WAVES.length && s.x >= WAVES[s.wave][0]) WAVES[s.wave++][1]();
+      if (s.warn > 0) s.warn -= dt;
+      // the ship: eight ways at its speed, inside the band and clear of the rock; fire held (or by itself on a touch screen)
+      if (p.dead > 0) { if ((p.dead -= dt) <= 0) { if (s.lives < 0) { lost(s.score, () => { s.lives = 2; p.dead = 0; Object.assign(p, { x: s.x + 60, y: 120, inv: 2.5 }); }); p.dead = 1e9; } else Object.assign(p, { x: s.x + 60, y: (highY(s.x + 60) + lowY(s.x + 60)) / 2, inv: 2.5 }); } }
+      else if (s.won === 0) {
+        const bot = s.bot && botMove(), d = bot ? null : I.drag(), mv = bot || (d ? [clamp(d[0] / (speed() * dt), -1, 1), clamp(d[1] / (speed() * dt), -1, 1)] : I.move()), sp = speed();
+        p.inv -= dt; p.gun -= dt; p.bank = approach(p.bank, mv[1], 5 * dt);
+        p.x = clamp(p.x + (d ? d[0] * DRAG : mv[0] * sp * dt), s.x + 12, s.x + w - 24); p.y = clamp(p.y + (d ? d[1] * DRAG : mv[1] * sp * dt), 8, BAND - 8);
+        if (Math.hypot(mv[0], mv[1]) > .1 || move) trail.unshift([p.x, p.y]), trail.pop();   // the options follow where the ship has been
+        if ((p.cool -= dt) <= 0 && (s.bot || I.down('fire') || touch())) { p.cool = s.weapon === 'laser' ? .16 : .1; p.gun = .035; A.sfx('shoot', { vol: .18 }); fire(p.x, p.y); for (let i = 0; i < s.options; i++) fire(...optAt(i)); }
+        if (s.missile && (s.mcool -= dt) <= 0) { s.mcool = .7; for (const [x, y] of [[p.x, p.y], ...Array.from({ length: s.options }, (_, i) => optAt(i))]) mis.push({ x, y: y + 4, vx: 110, vy: 110 }); }
+        if (s.bot ? botTake() : I.pressed('bomb')) take();
+        if (rock(p.x, p.y) || rock(p.x + 8, p.y, 2)) hit();
+      }
+      for (const m of mis) { m.x += m.vx * dt; m.y += m.vy * dt; const fl = lowY(m.x); if (m.y > fl - 3) { if (fl - 3 < m.y - 6) m.gone = true; else { m.y = fl - 3; m.vy = 0; m.vx = 130; m.slide = true; } } else if (m.slide) m.y = fl - 3; if (m.x > s.x + w + 10 || rock(m.x, m.y - 4, 1)) m.gone = true; }
+      // the foes
+      for (const f of foes) {
+        f.t += dt; f.flash -= dt; f.fire -= dt;
+        const aim = Math.atan2(p.y - f.y, p.x - f.x), seen = f.x < s.x + w + 8 && f.x > s.x - 30;
+        if (f.kind === 'fan') { if (f.path) { f.d += 120 * dt; if (f.d >= 0) { const q = f.path.at(f.d); f.x = s.x + q.x; f.y = q.y; } if (f.d > f.path.length) f.gone = true; } else { f.x -= 95 * dt; f.y = f.y0 + Math.sin(f.t * 3.2 + f.d * .05) * 34; } }
+        else if (f.kind === 'jet') { f.x += f.vx * dt; if (f.fire <= 0 && seen && f.x > p.x + 40) { f.fire = 9; shoot(f.x, f.y, [E.pattern.dir(aim, 140)], 'needle'); } }
+        else if (f.kind === 'carrier') { f.x += f.vx * dt; f.y += Math.sin(f.t) * 14 * dt; if (f.fire <= 0 && seen) { f.fire = 1.6; shoot(f.x - 10, f.y, E.pattern.spread(aim, 5, .8, 95), 'big'); } }
+        else if (f.kind === 'gun') { f.aim = E.approachAng(f.aim, aim, 2 * dt); if (f.fire <= 0 && seen && p.dead <= 0) { f.fire = 1.8; f.kick = 1; shoot(f.x, f.y, E.pattern.spread(f.aim, 2, .2, 100)); } f.kick = Math.max(0, (f.kick || 0) - dt * 4); }
+        else if (f.kind === 'mid') {   // in, then round its figure eight, firing aimed fans and needle bursts; it leaves after a while
+          if (f.enter > 0) { f.enter -= dt; f.x = approach(f.x, s.x + w * .78, 120 * dt); f.y = approach(f.y, BAND * .3, 60 * dt); }
+          else { f.d += 70 * dt; const q = f.path.at(f.d); f.x = s.x + q.x; f.y = q.y; f.a = Math.PI + Math.sin(f.t * 2) * .15; if ((f.leave -= dt) <= 0) { f.gone = true; s.lock = false; A.music(CAVERN); } }
+          if (f.fire <= 0 && f.enter <= 0 && p.dead <= 0) { f.n++; f.fire = 1.1; if (f.n % 3) shoot(f.x - 30, f.y, E.pattern.spread(aim, 7, 1, 100)); else for (let i = 0; i < 4; i++) game.after(i * .1, () => f.gone || shoot(f.x - 30, f.y, [E.pattern.dir(aim, 160)], 'needle')); }
+        }
+        else if (f.kind === 'core') {   // in from the right; then up and down after the ship; its guns fire lines of needles, the core rings once its walls are down
+          if (f.enter > 0) { f.enter -= dt; f.x = approach(f.x, s.x + w - 70, 70 * dt); }
+          else { f.x = s.x + w - 70; f.y = approach(f.y, clamp(p.y, 50, BAND - 50), 30 * dt); }
+          f.trail = approach(f.trail, f.hp / f.max, dt * .3);
+          if (f.fire <= 0 && f.enter <= 0 && p.dead <= 0) {
+            f.n++; f.fire = f.walls.some(v => v > 0) ? 1.3 : .9; f.kick = 1;
+            for (const dy of [-34, 34]) for (let i = 0; i < 3; i++) game.after(i * .08, () => f.gone || shoot(f.x - 40, f.y + dy, [[-200, 0]], 'needle'));
+            if (!f.walls.some(v => v > 0) || f.n % 3 === 0) shoot(f.x - 10, f.y, E.pattern.ring(14, 70, f.t), 'big');
+          }
+          f.kick = Math.max(0, (f.kick || 0) - dt * 3);
+        }
+        if (f.kind !== 'core' && f.kind !== 'mid' && (f.x < s.x - 40 || f.y < -40 || f.y > BAND + 40)) f.gone = true;
+        if (f.air && p.dead <= 0 && Math.hypot(f.x - p.x, f.y - p.y) < f.r + 3) { hit(); if (f.kind === 'fan' || f.kind === 'jet') f.hp = 0; }
+      }
+      shots.update(dt);
+      for (const b of shots.list) if (rock(b.x, b.y, 0)) b.dead = true;   // the rock stops every shot
+      const targets = foes.filter(f => f.hp > 0 && f.x < s.x + w + 4 && (f.kind !== 'core' || f.enter <= 0));
+      const hurt = (b, f) => {   // the core takes hits on its walls first, front to back
+        if (f.kind === 'core') { const i = f.walls.findIndex(v => v > 0); if (i >= 0) { f.walls[i] -= b.dmg || 1; P.sparks(b.x, b.y, 14, 4, Math.PI); if (f.walls[i] <= 0) { boom(f.x - 30 + i * 6, f.y, 1, { air: true }); s.score += 500; } return; } }
+        f.hp -= b.dmg || 1; f.flash = .05; P.sparks(b.x, b.y, 14, 2, Math.PI);
+      };
+      shots.hit(targets.map(f => f.kind === 'core' ? Object.assign(f, { r: f.walls.some(v => v > 0) ? 26 : 12 }) : f), hurt, 'ship');
+      shots.hit(targets, hurt, 'laser');
+      for (const m of mis) for (const f of targets) if (!m.gone && Math.hypot(m.x - f.x, m.y - f.y) < f.r + 3) { m.gone = true; hurt({ x: m.x, y: m.y, dmg: 2 }, f); boom(m.x, m.y, .5, { sound: false, shake: 0, freeze: false }); }
+      for (const f of foes) if (f.hp <= 0 && !f.gone) {
+        f.gone = true; s.score += f.pts; P.add({ kind: 'text', x: f.x, y: f.y - 10, vx: RATE, vy: -24, max: .6, text: '' + f.pts, color: f.pts >= 1000 ? '#ffd040' : '#fff', scale: f.pts >= 1000 ? 2 : 1 });
+        boom(f.x, f.y, f.kind === 'core' ? 4 : f.kind === 'mid' ? 3 : f.kind === 'carrier' ? 2 : .9, { air: f.air });
+        if (f.cap || (f.group && --f.group.left === 0)) caps.push({ x: f.x, y: f.y, t: 0 });
+        if (f.kind === 'mid') { s.lock = false; A.music(CAVERN); caps.push({ x: f.x - 10, y: f.y - 10, t: 0 }, { x: f.x + 10, y: f.y + 10, t: 0 }); }
+        if (f.kind === 'core') { s.won = s.t; shots.clear('foe'); A.music('victory'); for (let i = 0; i < 8; i++) game.after(i * .12, () => boom(f.x + E.rand(-50, 50), f.y + E.rand(-40, 40), 2, { air: true, sound: i % 3 === 0, shake: 0, freeze: false })); game.flash('#fff4e0', 1, 1); game.after(2.5, () => radio(PILOT, 'EAGLE 1', 'Core destroyed. Mission complete!', { pose: 'cheer', expr: 'smile' })); game.after(6, () => endGame(s.score)); }
+      }
+      for (const f of foes) if (f.group && f.gone && f.hp > 0 && f.group.left > 0) f.group.left = -1;   // one got away: no capsule for that six
+      if (p.dead <= 0) shots.hit([p], hit, 'foe');
+      for (const c of caps) { c.t += dt; c.x -= 20 * dt; if (p.dead <= 0 && Math.hypot(c.x - p.x, c.y - p.y) < 12) { c.gone = true; s.cursor = (s.cursor + 1) % BAR.length; A.sfx('pickup'); s.score += 500; } if (c.x < s.x - 20) c.gone = true; }
+      E.prune(foes, f => f.gone); E.prune(caps, c => c.gone); E.prune(mis, m => m.gone);
+      PILOT.update(dt, { x: 0, y: 0, hurt: p.dead > 0, ...(talk.open && PILOT.mood) });
+      game.focus(Math.round(s.x + w / 2), BAND / 2, 0);
+    }
+    // the demo's pilot (tools/kits-test.mjs plays the stage to its boss with it): of nine ways (and staying), the one with
+    // least danger over the next half second (the rock, foe bullets and foes where they will be), drawn to a third of the
+    // way across at the height of the nearest foe ahead
+    function botMove() {
+      const p = s.ship, sp = speed(), ahead = foes.filter(f => f.x > p.x + 20 && f.x < s.x + w).sort((a, b) => Math.abs(a.y - p.y) - Math.abs(b.y - p.y))[0];
+      const gx = p.x + 40, mid0 = (highY(gx) + lowY(gx)) / 2, ty = clamp(ahead ? ahead.y : mid0, highY(gx) + 14, lowY(gx) - 14);
+      let best = [0, 0], bs = Infinity;
+      for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [.7, .7], [.7, -.7], [-.7, .7], [-.7, -.7]]) {
+        let danger = 0;
+        for (const k of [.08, .16, .25, .35, .5]) {
+          const x = p.x + (dx * sp + RATE) * k, y = clamp(p.y + dy * sp * k, 8, BAND - 8);
+          if (rock(x, y, 8) || rock(x + 10, y, 6)) danger += 80 / k;
+          for (const b of shots.list) if (b.team === 'foe') { const d = Math.hypot(b.x + (b.vx + RATE) * k - x, b.y + b.vy * k - y); if (d < 12) danger += (12 - d) * 8 / k; }
+          for (const f of foes) if (f.air) { const d = Math.hypot(f.x + (f.kind === 'jet' ? f.vx : 0) * k - x, f.y - y) - f.r; if (d < 10) danger += (10 - d) * 6 / k; }
+        }
+        const x = p.x + dx * sp * .3, y = p.y + dy * sp * .3, sc = danger + Math.abs(x - (s.x + w * .3)) * .03 + Math.abs(y - ty) * .05;
+        if (sc < bs) { bs = sc; best = [dx, dy]; }
+      }
+      return best;
+    }
+    const botTake = () => { const k = BAR[s.cursor]; return (k === 'SPEED' && s.speed < 2) || (k === 'MISSILE' && !s.missile) || (k === 'DOUBLE' && s.weapon === 'shot') || (k === 'OPTION' && s.options < 4) || (k === 'SHIELD' && !s.shield); };
+    function draw(r) {
+      w = r.W; h = r.H; Y0 = Math.round((h - BAND) / 2);
+      const p = s.ship, x0 = s.x, top = -Y0 - 2, bot = BAND + Y0 + 2;
+      r.sky(['#05040e', '#0c0a24', '#1a1238', '#2a1840']);
+      r.decal(g => {   // far stars (two speeds), a nebula band, then the rock: strata, crystal glints, lava on the peaks
+        const [ox, oy] = r.w(x0, 0);
+        for (let i = 0; i < 90; i++) { const k = i % 3 ? .15 : .35, sx = ((i * 97 - x0 * k) % w + w) % w, sy = (i * 61) % (h + 20) - 10; px.dot(g, sx, sy, i % 7 ? '#6a6aa0' : '#ffffff'); }
+        for (let i = 0; i < 6; i++) glow(g, ((i * 140 - x0 * .08) % (w + 200) + w + 200) % (w + 200) - 100, oy + 60 + (i % 3) * 50, 50 + (i % 2) * 20, i % 2 ? '#6a3aa0' : '#2a4a9a', .2);
+        for (let sx = 0; sx < w; sx += 2) {
+          const x = x0 + sx, hi = highY(x), lo = lowY(x), cave = on(x, 2300, 3750);
+          if (hi > top) { const y1 = Math.round(oy + hi); px.rect(g, sx, 0, 2, y1, cave ? '#2a2440' : '#3a2a2a'); px.rect(g, sx, y1 - 10, 2, 7, cave ? '#3a3260' : '#4a3430'); px.rect(g, sx, y1 - 3, 2, 3, cave ? '#7a6ab0' : '#8a6a5a'); if (cave && E.hash2(Math.floor(x / 6), 1) < .12) { px.rect(g, sx, y1 - 1, 2, 4, '#8af0ff'); px.dot(g, sx, y1 + 3, '#ffffff'); } }
+          if (lo < bot) {
+            const y0 = Math.round(oy + lo), lava = !cave && E.noise2(x * .006, 3) > .62;
+            px.rect(g, sx, y0, 2, h - y0, cave ? '#2a2440' : '#3a2a2a'); px.rect(g, sx, y0 + 3, 2, 8, cave ? '#3a3260' : '#4a3430'); px.rect(g, sx, y0, 2, 3, lava ? '#ff8a3a' : cave ? '#7a6ab0' : '#8a6a5a');
+            if (lava) px.blend(g, .4, 'add', () => px.rect(g, sx, y0 - 3, 2, 4, '#ff6a20'));
+            for (let k = 0; k < 3; k++) { const yy = y0 + 14 + k * 16 + (E.hash2(Math.floor(x / 8), k) * 6 | 0); if (yy < h) px.rect(g, sx, yy, 2, 1, cave ? '#1e1a32' : '#2a1e1e'); }
+            if (cave && E.hash2(Math.floor(x / 6), 2) < .12) { px.rect(g, sx, y0 - 3, 2, 4, '#8af0ff'); px.dot(g, sx, y0 - 4, '#ffffff'); }
+          }
+        }
+      });
+      for (const f of foes) {   // craft by r.actor (outline, rim, hit flash); guns on the rock
+        if (f.kind === 'fan') r.actor(f.x, f.y, 10, (g, x, y) => { const a = f.t * 8; for (let i = 0; i < 3; i++) { const b = a + i * TAU / 3; px.poly(g, [[x, y], [x + Math.cos(b) * 7, y + Math.sin(b) * 7], [x + Math.cos(b + .7) * 5, y + Math.sin(b + .7) * 5]], i ? '#4a8aff' : '#8ab8ff'); } px.disc(g, x, y, 2.5, '#ffe040'); px.dot(g, x - 1, y - 1, '#ffffff'); }, { flash: f.flash > 0 && '#ffffff' });
+        else if (f.kind === 'gun') r.actor(f.x, f.y, 2, (g, x, y) => { px.rect(g, x - 8, f.up ? y - 6 : y + 2, 16, 4, '#4a4a5a'); turret(g, x, y, f.aim, f.kick, '#8e5a4a'); }, { flash: f.flash > 0 && '#ffffff' });
+        else if (f.kind === 'core') r.actor(f.x, f.y, 9, (g, x, y) => {   // the battleship, nose to the left; its walls; the core, pulsing
+          plane(g, x + 8, y, Math.PI, 0, BOSS, PAL.boss, .95, f.flash > 0 ? 1 : 0);
+          f.walls.forEach((v, i) => { if (v > 0) { px.rect(g, x - 34 + i * 7, y - 12, 4, 24, ['#5a6a9a', '#7a8ab8', '#9aaad8'][i]); px.rect(g, x - 34 + i * 7, y - 12, 1, 24, '#d8e0ff'); } });
+          const q = 5 + Math.sin(game.real * (f.walls.some(v => v > 0) ? 6 : 14)) * 1.5; px.disc(g, x - 10, y, q + 2, '#2a0a10'); px.disc(g, x - 10, y, q, '#40a0ff'); px.disc(g, x - 11, y - 1, q * .5, '#e0f4ff');
+        }, { flash: f.flash > 0 && '#ffffff' });
+        else craft(r, f, 10, { flash: f.flash > 0 && '#ffffff' });
+      }
+      for (const c of caps) r.queue(c.x, c.y, 18, g => { const [x, y] = r.w(c.x, c.y), k = Math.abs(Math.cos(c.t * 5)) * 6 + 1; glow(g, x, y, 12, '#ff8a6a', .6); px.ell(g, x, y, k + 1, 7, '#1a0a10'); px.ell(g, x, y, k, 6, '#e8482e'); px.ell(g, x - k * .3, y - 2, k * .5, 3, '#ffb8a0'); });
+      for (const m of mis) r.queue(m.x, m.y, 18, g => { const [x, y] = r.w(m.x, m.y); px.line(g, x - 4, y - (m.slide ? 0 : 4), x, y, '#c8c8d0', 2); glow(g, x - 5, y - (m.slide ? 0 : 5), 4, '#ff8a30', .7); });
+      if (p.dead <= 0) {   // the ship nose right, banking as it climbs and dives; its options; the shield's glow in front
+        for (let i = s.options - 1; i >= 0; i--) { const [ox, oy] = optAt(i); r.queue(ox, oy, 11, g => { const [x, y] = r.w(ox, oy), q = 4 + Math.sin(game.real * 12 + i) * .8; glow(g, x, y, 10, '#ff6a20', .7); px.disc(g, x, y, q, '#ff8a30'); px.disc(g, x - 1, y - 1, q * .5, '#fff0c0'); }); }
+        r.actor(p.x, p.y, 12, (g, x, y) => plane(g, x, y, 0, -p.bank * .8, PLAYER, PAL.player, .85), { flash: p.inv > 0 && game.real * 16 % 2 < 1 && '#9ac8ff' });
+        r.queue(p.x, p.y, 12.5, g => { const [x, y] = r.w(p.x, p.y); if (p.gun > 0) { glow(g, x + 15, y, 7, '#ffc050'); } if (s.shield > 0) px.blend(g, .35 + s.shield * .1, 'add', () => ring(g, x + 6, y, 14, 2, '#58b8ff')); });
+      }
+      [2.9, 3, 14].forEach((z, i) => r.queue(0, 0, z, g => drawFx(g, r, i)));
+      r.queue(0, 0, 20, g => {   // the ship's tracers and laser beams
+        bullets(g, r, 'ship');
+        for (const b of shots.list) if (b.team === 'laser') { const [x, y] = r.w(b.x, b.y); glow(g, x - 8, y, 6, '#40e0ff', .5); px.line(g, x - 22, y, x + 2, y, '#40c8ff', 3); px.line(g, x - 20, y, x + 2, y, '#e8ffff'); }
+      });
+      r.overlay(g => hudH(g, r)); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));
+      frameDraw(r);
+    }
+    function hudH(g, r) {   // the vertical stage's windows (pilot, score and lives; HI), the power bar along the foot, the boss's health
+      const W2 = r.W, H2 = r.H, mid0 = W2 / 2, win = (x, y, ww, hh, bg) => E.ui.box(g, x, y, ww, hh, { bg, border: GOLD, alpha: .8 });
+      PILOT.drawPortrait(g, 4, 4, 21, { zoom: 2.2, turn: .4, upright: false, bg: s.ship.dead > 0 ? RED : BLUE, border: GOLD });
+      win(27, 2, 74, 25, BLUE); txt(g, '1P', 31, 5, '#ffd36a'); txt(g, pad(s.score), 46, 5, '#fff', { gradient: ['#ffffff', '#9ac0ff'] });
+      for (let i = 0; i < s.lives; i++) px.sprite(g, LIFE, 31 + i * 10, 16);
+      const R = Math.min(W2, cornerX()); win(R - 76, 2, 74, 25, RED); txt(g, 'HI', R - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(s.score, cab.hi, E.store.get('best:shooter', 0))), R - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
+      txt(g, 'SPD ' + (s.speed + 1) + (s.options ? '  OPT ' + s.options : ''), R - 72, 17, '#ffd36a', { font: 'tiny' });
+      const bw = Math.min(50, Math.floor((W2 - 16) / 6)), bx = Math.round(mid0 - bw * 3), by = H2 - 16 - (touch() ? 70 : 0);
+      BAR.forEach((k, i) => {   // the lit slot blinks; a power you hold is drawn dim
+        const lit = i === s.cursor, had = (k === 'SPEED' && s.speed >= 4) || (k === 'MISSILE' && s.missile) || (k === 'DOUBLE' && s.weapon === 'double') || (k === 'LASER' && s.weapon === 'laser') || (k === 'OPTION' && s.options >= 4) || (k === 'SHIELD' && s.shield > 0);
+        E.ui.box(g, bx + i * bw, by, bw - 2, 12, { bg: lit ? (game.real * 6 % 2 < 1 ? ['#ff8a30', '#a03a10'] : ['#ffd040', '#c86a10']) : BLUE, border: GOLD, alpha: lit ? 1 : .8 });
+        txt(g, k, bx + i * bw + bw / 2 - 1, by + 4, lit ? '#1a0a00' : had ? '#7a84b0' : '#ffffff', { align: 'center', font: 'tiny', shadow: lit ? false : '#05060c' });
+      });
+      const f = foes.find(o => o.kind === 'core' || o.kind === 'mid');
+      if (f) { const o = Math.round(mid0) - 120, k = f.hp / f.max; win(o + 44, 30, 152, 13, RED); txt(g, f.kind === 'mid' ? 'CRUISER' : 'CORE', o + 48, 33, '#ff9a8a'); E.ui.bar(g, o + 96, 34, 96, 6, k, '#e8404a', { border: '#140b12', bg: '#2a0a12' }); }
+      if (s.t < INTRO) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 50, W2, 62, '#080a1c')); E.font.title(g, 'STAGE 2', mid0, 56, { align: 'center', scale: 3 }); txt(g, 'CRYSTAL CAVERNS', mid0, 84, '#fff', { align: 'center', gradient: ['#ffffff', '#b8e8ff'] }); txt(g, (touch() ? 'DRAG to fly, POWER takes the lit slot' : prompt('fire', 'shot') + '   ' + prompt('bomb', 'power up')), mid0, 97, '#c8d0f0', { align: 'center' }); }
+      if (s.warn > 0) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 70, W2, 50, '#2a0406')); E.font.title(g, 'WARNING', mid0, 80, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(s.warn * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); }
+      if (s.won && s.t - s.won > 2 && !ending) { win(Math.round(mid0) - 108, 64, 216, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid0, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(s.score), mid0, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
+    }
+    const scene = { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [320, 240], expand: true, pausable: true, touch: ['fire', 'bomb'], propSize: 1, camera: { zoom: false },
+      enter(d) { begin(d); w = game.W; h = game.H; game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music(CAVERN); L.enabled = false; if (gpu) gpu.enabled = false; game.input.touchSet('fire', null, false); game.input.touchSet('bomb', 'POWER'); game.input.steer = 'drag'; },
+      exit() { game.cam.smooth = .18; game.input.steer = 'stick'; game.input.touchSet('bomb', null); }, update, draw,
+      state: () => ({ x: Math.round(s.x), ship: [Math.round(s.ship.x - s.x), Math.round(s.ship.y)], score: s.score, lives: s.lives, power: [s.speed, s.missile, s.weapon, s.options, s.shield, s.cursor], boss: !!foes.find(f => f.kind === 'core'), won: !!s.won, ending, table: cab.table() }),
+      end(score) { s.score = score; s.lives = -1; s.ship.dead = 1e9; ending = 'cont'; endGame(score); },   // for tests: the end, now
+      wheel: () => cab.entry && cab.wheel,   // for tests: where the letter wheel is (its taps)
+      /** the proof: the stage's first 600 steps flown by a weave and held fire; a hash of the run */
+      run: (n = 600) => proof('shooter-horizontal', n, (i, k) => { if (!i) k.hold('fire'); walk(i, k, ['up', 'right', 'down', 'left'], 80); if (i % 200 === 150) k.tap('bomb'); }, () => [s.x, s.ship.x, s.ship.y, s.score, s.lives, s.cursor, foes.map(f => [Math.round(f.x), Math.round(f.y), f.hp])]),
+      /** the bot (kits-test, by way of the shooter's): the stage flown by the demo pilot to its boss, and on until the core
+       *  falls, the lives run out or until seconds pass; how far it came */
+      bot(until = 400) {
+        const was = Math.random; Math.random = E.rng(5);
+        try {
+          game.time = 0; game.go('shooter-horizontal', null, { fade: 0 }); game.advance(1 / 120); s.bot = true;
+          let boss = false, t = 0; for (; t < until && !s.won && s.lives >= 0 && !ending; t += 1 / 120) { game.advance(1 / 120); boss = boss || !!foes.find(f => f.kind === 'core'); }
+          return { x: Math.round(s.x), boss, won: !!s.won, lives: s.lives, score: s.score, seconds: Math.round(t), power: [s.speed, s.missile, s.weapon, s.options] };
+        } finally { Math.random = was; s.bot = false; }
+      } };
+    return scene;
+  })();
+  scenes['shooter-horizontal'] = HS;
+
   return { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [240, 320], pausable: true, touch: ['fire', 'bomb'], propSize: 1,
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
+      if (d && d.part === 'horizontal') { game.go('shooter-horizontal', null, { fade: 0 }); return; }   // #shooter/horizontal
       W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
       game.input.touchSet('fire', null, false); game.input.steer = 'drag';   // a touch screen fires by itself (no button for it), a thumb anywhere steers
     },
     exit() { game.cam.smooth = .18; game.input.steer = 'stick'; }, update, draw,
     state: () => ({ ship, span: span(), score }),   // for tests (span: the playfield's left and right ends)
-    /** the proof: firing all the way over the farmland, weaving, one bomb; a hash of the run */
+    /** the proof: firing all the way over the farmland, weaving, one bomb; then the horizontal stage's; a hash of each run */
     run: (n = 600) => proof('shooter', n, (i, k) => { if (!i) k.hold('fire'); walk(i, k, ['left', 'up', 'right', 'down'], 75); if (i === 300) k.tap('bomb'); },
-      () => [ship.x, ship.y, lives, bombs, score, power, wave, foes.map(f => [f.x, f.y, f.hp])]) };
+      () => [ship.x, ship.y, lives, bombs, score, power, wave, foes.map(f => [f.x, f.y, f.hp])]) + '-' + HS.run(n),
+    /** the bot (tools/kits-test.mjs): the horizontal stage flown by its demo pilot to its boss (HS.bot) */
+    bot: () => HS.bot(),
+    /** for tests: the end of the vertical stage, now, with score (the continue when cont, else the initials) */
+    end(sc, cont) { score = sc; lives = -1; ship.respawn = 1.5; if (cont) lost(sc, () => { lives = 2; Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); }); else { ending = 'cont'; endGame(sc); } } };
 })();
 scenes.shooter = SHOOT;
+
+/* =====================================================================================
+ * SLICE 10  ARCADE  (a cabinet of three golden-age classics: Pac-Man, Galaga, Asteroids). @modules arcade grid gen
+ * Three short games, each a remaster (lit, with HD rigs, glowing lines and particles) with the classic look one key away
+ * (C, a pad's Y, or Settings: Arcade, Look), each with its own high-score table, initials on a letter wheel, a continue,
+ * two players taking turns, and a demo in the attract mode.
+ *   MAZE (#arcade/maze): eat every glow-seed in a hedge maze while four wisps hunt you, each its own way (one chases, one
+ *     heads you off, one flanks with the first, one is shy up close), in waves of scatter and chase; a lantern seed turns
+ *     them blue and edible for a while; the side tunnel wraps round. Each maze is new (E.gen's braided maze, mirrored);
+ *     an intermission after the first.
+ *   FORMATION (#arcade/formation): moths fly in on curved paths (E.Path), form up and sway, then dive at you along paths
+ *     of their own, turning as they fly (r.sprite's rot); two shots on screen at a time; a stage card between waves.
+ *   ROCKS (#arcade/rocks): turn, thrust and drift through a field of rocks that split when shot; the screen's edges meet
+ *     (E.wrap); a saucer hunts you; hyperspace when cornered. Glowing vector lines.
+ * The cabinet (#arcade) is the title: left and right pick a game, up and down one or two players. Left alone it plays a
+ * demo of each game in turn (its own bot), then shows that game's table. The sides of a wide screen show cabinet art
+ * drawn by code. Keys: arrows / WASD, Space / Z / J fire (rocks: up thrusts, X / K hyperspace), Enter start, C classic.
+ * TOUCH: the stick, FIRE (rocks: THRUST and WARP too); a tap picks a cabinet, and the letter wheel takes taps.
+ * HOW IT WORKS: E.Arcade (the arcade module) keeps the scores, lives, turns, tables, initials, cards, the continue and the
+ * attract mode; the maze is an E.Grid with E.GridMovers (a turn asked early is kept), each game a { begin, step, draw }.
+ * ===================================================================================== */
+const ARCADE = (() => {
+  const KEYS = Object.assign({}, E.Input.SHMUP, { thrust: ['Pad2', 'Pad5'], warp: ['KeyX', 'KeyK', 'ShiftLeft', 'Mouse2', 'Pad1', 'Pad6'], classic: ['KeyC', 'Pad3'] });
+  delete KEYS.bomb;
+  game.settings.define({ key: 'arcadeLook', group: 'Arcade', label: 'Look', options: [['remaster', 'Remaster'], ['classic', 'Classic']], value: 'remaster', help: 'Remaster: lit, with HD rigs and glowing lines. Classic: as the cabinets first looked. C switches it in play' });
+  const classic = () => game.settings.arcadeLook === 'classic';
+  // the cabinet's own tune (the step sequencer's format): A minor, a bouncing bass
+  const SONG = { bpm: 132, steps: 4, tracks: [
+    { wave: 'square', vol: .12, notes: 'A4 . C5 . E5 . A5 - G5 . E5 . C5 . D5 . | E5 - - . D5 . C5 . B4 . G4 . A4 - - . | F4 . A4 . C5 . F5 - E5 . C5 . A4 . B4 . | C5 . B4 . A4 . G#4 . A4 - - - - . . .' },
+    { wave: 'triangle', vol: .3, notes: 'A2 . A3 . A2 . A3 . A2 . A3 . A2 . A3 . | C3 . C4 . C3 . C4 . G2 . G3 . G2 . G3 . | F2 . F3 . F2 . F3 . F2 . F3 . F2 . F3 . | E2 . E3 . E2 . E3 . A2 . A3 . A2 . A3 .' },
+    { wave: 'drums', vol: .12, notes: 'k . h . s . h . k k h . s . h h' }] };
+  // the remaster's deep space (the classic look keeps plain black): a planet, nebulae drifting, many stars
+  const SPACE = [['#020208', '#0a0a24', '#1a0c30', '#2a1038'], ['#02040a', '#06142a', '#0c1c3a', '#1a1a3a']].map((sky, i) => new E.Backdrop({ sky, moon: { x: i ? .16 : .82, y: i ? .7 : .22, r: i ? 22 : 15, color: i ? '#8ab0d8' : '#b89ae8' }, stars: 140,
+    layers: [{ kind: 'clouds', color: i ? '#1a4a6a' : '#6a3aa8', y: .3, height: .45, parallax: .03, drift: 1, nebula: true, seed: 2 + i }, { kind: 'clouds', color: i ? '#3a2a5a' : '#2a5ab0', y: .72, height: .4, parallax: .05, drift: 2, nebula: true, seed: 5 + i }] }));
+  // cabinet art round a playfield of one fixed screen: on a wide screen's sides (left of x0, right of x1) a lit bezel edge,
+  // a marquee stripe and drifting sparks; on a tall one (above y0, below y1) the marquee with the game's name and the
+  // control panel
+  function cabinet(r, x0, x1, hue, y0 = 0, y1 = r.H, label = '') {
+    r.overlay(g => {
+      const H = r.H, t = game.time;
+      if (y0 > 40) {
+        px.rect(g, 0, 0, r.W, y0 - 4, '#0a0614'); px.rect(g, 8, y0 - 46, r.W - 16, 34, hue[0]); px.blend(g, .25, 'add', () => px.rect(g, 8, y0 - 46, r.W - 16, 12, '#ffffff'));
+        E.font.title(g, label, r.W / 2, y0 - 42, { align: 'center', scale: 2, colors: ['#ffffff', '#1a1030'], depth: 1 });
+      }
+      if (H - y1 > 40) {
+        const y = y1 + 6; px.rect(g, 0, y, r.W, H - y, '#140c22'); px.rect(g, 0, y, r.W, 2, hue[0]);
+        const cy = y + Math.min(40, (H - y) / 2); px.disc(g, r.W / 2 - 50, cy, 8, '#2a1a3e'); px.rect(g, r.W / 2 - 51, cy - 16, 3, 16, '#c8c8d0'); px.disc(g, r.W / 2 - 50, cy - 17, 5, '#ff4a4a');
+        for (let i = 0; i < 3; i++) px.disc(g, r.W / 2 + 10 + i * 18, cy, 6, hue[i]);
+      }
+      for (const [a, b, right] of [[0, x0, false], [x1, r.W, true]]) {
+        if (b - a < 3) continue;
+        // the side's art: a dark panel tinted toward the game's colour, lit stripes slanting across it
+        for (let i = 0; i < 8; i++) px.rect(g, a, Math.floor(H * i / 8), b - a, Math.ceil(H / 8) + 1, E.mix('#0a0614', hue[0], .03 + i * .018));
+        g.save(); g.beginPath(); g.rect(a, 0, b - a, H); g.clip();
+        for (let x = a - H; x < b + 40; x += 46) { const k = right ? 1 : -1, x1 = right ? x : b - (x - a); px.blend(g, .1, 'add', () => px.poly(g, [[x1, 0], [x1 + 18 * k, 0], [x1 + 18 * k + H * .5 * k, H], [x1 + H * .5 * k, H]], hue[1])); }
+        const sw = (y0, y1, c) => px.poly(g, right ? [[a, H * y0], [b, H * (y0 - .3)], [b, H * (y1 - .3)], [a, H * y1]] : [[b, H * y0], [a, H * (y0 - .3)], [a, H * (y1 - .3)], [b, H * y1]], c);
+        sw(.5, .74, E.mix('#0a0614', hue[0], .7)); sw(.5, .52, '#ffffff'); sw(.76, .8, E.mix('#0a0614', hue[1], .8));   // a swoosh in the game's colours
+        g.restore(); px.reset(g);
+        if (label && b - a >= 44) { const n = label.length, k = Math.min(4, Math.floor((H - 20) / n / 9)), y0 = Math.round(H / 2 - n * k * 4.5); for (let i = 0; i < n; i++) E.font.title(g, label[i], (a + b) / 2, y0 + i * k * 9, { align: 'center', scale: k, colors: ['#ffffff', E.shade(hue[0], .3), hue[0]], depth: 2 }); }   // the game's name down the side
+        for (let y = -24; y < H; y += 24) { const yy = Math.round(y + (t * 20) % 24); px.rect(g, right ? a + 6 : b - 10, yy, 4, 12, hue[1]); px.rect(g, right ? a + 14 : b - 18, yy + 12, 2, 6, hue[2]); }
+        for (let i = 0; i < 8; i++) { const y = (i * 61 + t * (12 + i * 3)) % (H + 20) - 10, x = right ? a + 10 + (i * 13) % Math.max(8, b - a - 14) : b - 10 - (i * 13) % Math.max(8, b - a - 14); px.blend(g, .45, 'add', () => px.disc(g, x, y, 1 + i % 3, hue[i % 3])); }
+        px.rect(g, right ? a : b - 3, 0, 3, H, hue[0]); px.rect(g, right ? a + 3 : b - 4, 0, 1, H, '#ffffff');
+      }
+    });
+  }
+
+  /* =================================== 1. MAZE =================================== */
+  const MAZE = (() => {
+    const C8 = 8, MW = 29, MH = 31, TUN = 17, HX = 10, HY = 11, DOOR = [14, 10], WCOL = ['#ff4a4a', '#ff9ad8', '#4ae8ff', '#ffb84a'];
+    const CORNER = [[MW - 2, -3], [1, -3], [MW - 1, MH], [0, MH]], PHASES = [7, 20, 7, 20, 5, 20, 5, 1e9], WAYS = [[0, -1], [-1, 0], [0, 1], [1, 0]];   // (up, left, down, right: the original's order for ties)
+    let cells, grid, wgrid, start, seeds, power, hero = null, wisps = null, mode, modeT, phase, fright, eaten, level, cab, demo, over, deathT, readyT, inter, berry, ate, X0 = 0, Y0 = 12;
+    const key = (x, y) => x + ',' + y, cellOf = k => k.split(',').map(Number);
+    const nearest = (x, y, ok) => { let best = [x, y], bd = 1e9; for (let b = 0; b < MH; b++) for (let a = 0; a < MW; a++) if (ok(a, b)) { const d = Math.abs(a - x) + Math.abs(b - y); if (d < bd) { bd = d; best = [a, b]; } } return best; };
+    const ring = (x, y) => y >= HY - 1 && y <= HY + 5 && x >= HX - 1 && x <= HX + 9;
+    // a new maze: the left half from E.gen's braided maze, mirrored; doors in the middle wall; the wisps' house in a ring
+    // of hall; the tunnel's ends opened. The same level gives the same maze
+    function build() {
+      const half = E.gen.maze(15, MH, { seed: 7 + level * 13, braid: 1 }).rows;
+      cells = half.map(r => (r + r.slice(0, 14).split('').reverse().join('')).split(''));
+      for (let y = 1; y < MH - 1; y += 4) if (cells[y][13] === '.') cells[y][14] = '.';
+      for (let y = HY - 1; y <= HY + 5; y++) for (let x = HX - 1; x <= HX + 9; x++) cells[y][x] = '.';
+      for (let y = HY; y <= HY + 4; y++) for (let x = HX; x <= HX + 8; x++) cells[y][x] = y === HY || y === HY + 4 || x === HX || x === HX + 8 ? '#' : 'H';
+      cells[HY][14] = '-'; cells[TUN][0] = cells[TUN][MW - 1] = '.';
+      grid = new E.Grid(MW, MH, { walkable: (x, y) => cells[y][x] === '.' });       // yours
+      wgrid = new E.Grid(MW, MH, { walkable: (x, y) => cells[y][x] !== '#' });      // the wisps' (the house too: openFor says when)
+      start = nearest(14, 23, (x, y) => cells[y][x] === '.' && !ring(x, y));
+      seeds = new Set(); power = new Set(); ate = 0; berry = null;
+      for (let y = 0; y < MH; y++) for (let x = 1; x < MW - 1; x++) if (cells[y][x] === '.' && !ring(x, y) && !(x === start[0] && y === start[1])) seeds.add(key(x, y));
+      for (const [x, y] of [[1, 3], [MW - 2, 3], [1, MH - 4], [MW - 2, MH - 4]]) { const k = key(...nearest(x, y, (a, b) => seeds.has(key(a, b)))); seeds.delete(k); power.add(k); }
+    }
+    // everyone to their places: you below the house, the first wisp at its door, the others inside waiting their turn
+    function reset() {
+      hero = { m: new E.GridMover({ cx: start[0], cy: start[1], speed: 7.5 }), dir: [-1, 0], chomp: 0, dying: 0 };
+      hero.m.dir = [-1, 0];
+      const was = wisps;
+      wisps = WCOL.map((c, i) => ({ i, c, m: new E.GridMover({ cx: i ? 10 + i * 2 : DOOR[0], cy: i ? HY + 2 : DOOR[1], speed: 6.8 }), home: i > 0, wait: i * 2.5, eyes: false, leaving: false, blue: false,
+        rig: was ? was[i].rig : new E.Blob({ R: 3.6, face: 'front', colors: { dk: E.shade(c, -.35), base: c, lt: E.shade(c, .35) } }) }));
+      for (const w of wisps) w.m.dir = [w.i % 2 ? 1 : -1, 0];
+      mode = 'scatter'; modeT = 0; phase = 0; fright = 0; eaten = 0; readyT = 1.8; deathT = 0;
+    }
+    // where each aims while chasing: at you; four cells ahead of you; past a point two ahead, as far again as the first wisp
+    // is behind it (they pincer); at you from afar, its corner up close. Scattering: its corner. Eyes and leavers: the door
+    function target(w) {
+      if (w.eyes || w.leaving) return DOOR;
+      if (mode === 'scatter') return CORNER[w.i];
+      const h = hero.m, [dx, dy] = hero.dir;
+      if (w.i === 0) return [h.cx, h.cy];
+      if (w.i === 1) return [h.cx + dx * 4, h.cy + dy * 4];
+      if (w.i === 2) { const a = wisps[0].m; return [(h.cx + dx * 2) * 2 - a.cx, (h.cy + dy * 2) * 2 - a.cy]; }
+      return Math.hypot(w.m.cx - h.cx, w.m.cy - h.cy) > 8 ? [h.cx, h.cy] : CORNER[3];
+    }
+    const openFor = (w, x, y) => { if (x < 0 || x >= MW) return y === TUN; const c = cells[y] && cells[y][x]; return c === '.' || ((c === 'H' || c === '-') && (w.eyes || w.leaving)); };
+    // at each cell a wisp takes the open way (never straight back) nearest its target; blue, a random one; eyes, the
+    // grid's path home
+    function choose(w) {
+      const m = w.m;
+      if (w.eyes) { const p = grid.path([m.cx, m.cy], DOOR); if (p.length > 1) return [p[1][0] - m.cx, p[1][1] - m.cy]; }
+      const ways = WAYS.filter(([a, b]) => !(a === -m.dir[0] && b === -m.dir[1]) && openFor(w, m.cx + a, m.cy + b));
+      if (!ways.length) return [-m.dir[0], -m.dir[1]];
+      if (w.blue) return ways[Math.floor(Math.random() * ways.length)];
+      const t = target(w), d = c => (m.cx + c[0] - t[0]) ** 2 + (m.cy + c[1] - t[1]) ** 2;
+      return ways.reduce((p, q) => d(q) < d(p) ? q : p);
+    }
+    // the tunnel: off one end, on at the other, going the same way
+    function wrapTunnel(m) { if (m.cy !== TUN || m.moving) return; if (m.cx === 0 && m.dir[0] < 0) { m.place(MW - 1, TUN); m.dir = [-1, 0]; } else if (m.cx === MW - 1 && m.dir[0] > 0) { m.place(0, TUN); m.dir = [1, 0]; } }
+    const dirOf = v => Math.hypot(v[0], v[1]) < .4 ? null : Math.abs(v[0]) > Math.abs(v[1]) ? [Math.sign(v[0]), 0] : [0, Math.sign(v[1])];
+    const pos = m => ({ x: X0 + (m.x + .5) * C8, y: Y0 + (m.y + .5) * C8 });
+    function step(dt, I) {
+      if (inter) return;   // (the intermission is a script: it moves its own actors)
+      if (readyT > 0) { readyT -= dt; return; }
+      const h = hero.m;
+      if (deathT > 0) { hero.dying = deathT; if ((deathT -= dt) <= 0) lost(); return; }
+      if (fright > 0) { if ((fright -= dt) <= 0) for (const w of wisps) w.blue = false; }
+      else if ((modeT += dt) > PHASES[phase]) { modeT = 0; phase = Math.min(PHASES.length - 1, phase + 1); mode = phase % 2 ? 'chase' : 'scatter'; }
+      // you: the stick's way, kept until it can be taken (a turn asked early), going on until a wall
+      h.update(dt, grid, demo ? botDir() : dirOf(I.move()), { keep: true });
+      if (h.moving) hero.dir = h.dir;
+      wrapTunnel(h); hero.chomp = Math.max(0, hero.chomp - dt);
+      const k = key(h.cx, h.cy);
+      if (seeds.delete(k)) { cab.add(10); ate++; hero.chomp = .25; A.sfx('blip', { vol: .25, pitch: ate % 2 ? 1 : 1.2 }); if (ate === 70 || ate === 170) berry = { t: 9 }; }
+      if (power.delete(k)) { cab.add(50); fright = Math.max(1.5, 7 - level); eaten = 0; for (const w of wisps) w.blue = !w.eyes; A.sfx('powerup'); P.ring(pos(h).x, pos(h).y, 2, 30, '#ffd060', .4); }
+      if (berry && (berry.t -= dt) <= 0) berry = null;
+      if (berry && h.cx === 14 && h.cy === TUN) { cab.add(100 * level, pos(h)); berry = null; A.sfx('pickup'); P.glints(pos(h).x, pos(h).y, 4, 6, '#ff8a8a'); }
+      for (const w of wisps) {
+        const m = w.m;
+        if (w.home) { if ((w.wait -= dt) > 0) { m.y = HY + 2 + Math.sin(game.time * 6 + w.i) * .3; continue; } w.home = false; w.leaving = true; m.y = m.cy; }
+        m.speed = w.eyes ? 15 : w.blue ? 4.2 : m.cy === TUN && (m.cx < 5 || m.cx > MW - 6) ? 4 : 6.6 + level * .25;
+        m.update(dt, wgrid, m.moving ? null : choose(w), { blocked: (x, y) => !openFor(w, x, y) });
+        wrapTunnel(m);
+        if (!m.moving && m.cx === DOOR[0] && m.cy === DOOR[1]) { w.leaving = false; if (w.eyes) { w.eyes = false; w.blue = false; } }
+        if (!w.eyes && Math.abs(m.x - h.x) + Math.abs(m.y - h.y) < .8) {
+          if (w.blue) { w.eyes = true; w.blue = false; eaten++; cab.add(200 * 2 ** (eaten - 1), pos(m)); A.sfx('kick'); game.freeze(.3); P.sparks(pos(m).x, pos(m).y, 2, 8); }
+          else { deathT = 1.5; A.sfx('die'); return; }
+        }
+      }
+      if (!seeds.size && !power.size) { level++; cab.card('MAZE ' + level, 2); A.sfx('oneup'); if (level === 2 && !demo) intermission(); build(); reset(); readyT = 2.2; }
+    }
+    // after the death's turn: a life gone; the other player's maze (two players, each keeps theirs), or the end
+    function lost() {
+      const was = cab.p, r = cab.die();
+      if (r === 'over') { over = true; return; }
+      if (r === 'next') { was.save = { level, seeds, power, ate }; const s = cab.p.save; level = s ? s.level : 1; build(); if (s) ({ seeds, power, ate } = s); }
+      reset();
+    }
+    // the intermission (a script): a wisp chases you across, then you come back big and chase it
+    function intermission() {
+      const a = { x: -30, big: false }; inter = a;
+      game.script(function* () { yield game.tween(a, { x: MW * C8 + 40 }, 2.6, { ease: 'linear' }); a.big = true; yield .4; yield game.tween(a, { x: -60 }, 2.2, { ease: 'linear' }); yield .3; inter = null; });
+    }
+    // the demo's player (the attract mode, and tools/kits-test.mjs): it counts the steps to every cell, its own and the
+    // wisps' (breadth first, through the tunnel); a cell is safe when it gets there two steps before any of them. It goes
+    // the safe way to the nearest seed (a lantern when they close in, a blue wisp while there is time), else to the
+    // neighbour they reach last
+    function steps(from, ok) {
+      const D = new Map(), up = new Map(); let q = [];
+      for (const [c, d] of from) { const k = key(...c); if (!D.has(k) || D.get(k) > d) { D.set(k, d); q.push(c); } }
+      while (q.length) {
+        const n = [];
+        for (const c of q) { const d = D.get(key(...c)); for (const [a, b] of WAYS) { let x = c[0] + a; const y = c[1] + b; if (y === TUN) x = (x + MW) % MW; const k = key(x, y); if (!grid.walk([x, y]) || D.has(k) || (ok && !ok(x, y, d + 1))) continue; D.set(k, d + 1); up.set(k, c); n.push([x, y]); } }
+        q = n;
+      }
+      return { D, up };
+    }
+    function botDir() {
+      const h = hero.m; if (h.moving) return null;
+      const src = [];
+      for (const w of wisps) {
+        if (w.eyes || w.blue) continue;
+        if (w.home || w.leaving) { if (!w.home || w.wait < 2) src.push([DOOR, w.home ? 3 : 1]); continue; }
+        src.push([[w.m.cx, w.m.cy], 0]); const n = [w.m.cx + w.m.dir[0], w.m.cy + w.m.dir[1]]; if (grid.walk(n)) src.push([n, 0]);
+      }
+      const W = steps(src).D, wd = (x, y) => W.has(key(x, y)) ? W.get(key(x, y)) : 99, safe = (x, y, d) => d + 2 < wd(x, y);
+      const S = steps([[[h.cx, h.cy], 0]], safe), near = wd(h.cx, h.cy) < 7;
+      const goals = fright > 2.5 && wisps.some(w => w.blue) ? wisps.filter(w => w.blue).map(w => key(w.m.cx, w.m.cy)) : near && [...power].some(k => S.D.has(k)) ? [...power] : [...seeds, ...power];
+      let best = null, bd = 1e9; for (const k of goals) { const d = S.D.get(k); if (d > 0 && d < bd) { bd = d; best = k; } }
+      if (best) { let c = cellOf(best), p; while ((p = S.up.get(key(...c))) && !(p[0] === h.cx && p[1] === h.cy)) c = p; return [Math.sign(E.wrapDiff(h.cx, c[0], MW)), c[1] - h.cy]; }
+      let far = null, fd = -1;
+      for (const [a, b] of WAYS) { let x = h.cx + a; if (h.cy === TUN) x = (x + MW) % MW; if (grid.walk([x, h.cy + b]) && wd(x, h.cy + b) > fd) { fd = wd(x, h.cy + b); far = [a, b]; } }
+      return far;
+    }
+    function layout() { X0 = Math.round((game.W - MW * C8) / 2); Y0 = Math.max(12, Math.round((game.H - MH * C8) / 2)); }
+    function draw(r) {
+      layout(); const cl = classic(), t = game.time, [ox, oy] = r.w(0, 0), bx = ox + X0, by = oy + Y0;
+      r.sky(cl ? ['#000000', '#000000'] : ['#04030c', '#0a0820', '#120a28']);
+      // the maze on the floor (lit in the remaster: hedges with a sunlit top edge and a shadow at the foot; the classic's
+      // thin blue lines facing the halls)
+      r.decal(g => {
+        const wall = (x, y) => !!cells[y] && cells[y][x] === '#';
+        for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+          const c = cells[y][x], X = bx + x * C8, Y = by + y * C8;
+          if (c === '#') {
+            if (cl) { px.col(g, '#2121de'); if (!wall(x, y - 1)) g.fillRect(X, Y + 2, C8, 1); if (!wall(x, y + 1)) g.fillRect(X, Y + C8 - 3, C8, 1); if (!wall(x - 1, y)) g.fillRect(X + 2, Y, 1, C8); if (!wall(x + 1, y)) g.fillRect(X + C8 - 3, Y, 1, C8); }
+            else { px.rect(g, X, Y, C8, C8, '#1c4a22'); if (!wall(x, y - 1)) px.rect(g, X, Y, C8, 2, '#5aa84a'); if (!wall(x, y + 1)) px.rect(g, X, Y + C8 - 2, C8, 2, '#0c2410'); if (E.hash2(x, y) < .3) px.dot(g, X + 2 + (x * 3) % 4, Y + 3 + (y * 5) % 3, '#7ac860'); }
+          } else if (c === '-') px.rect(g, X, Y + 3, C8, 2, cl ? '#ffb8ff' : '#e0a0ff');
+          else if (!cl) px.rect(g, X, Y, C8, C8, (x + y) % 2 ? '#141026' : '#171230');
+        }
+      });
+      // the seeds, lanterns and the berry: glowing (they stay bright under the light)
+      r.queue(0, -1e4, 0, g => {
+        for (const k of seeds) { const [x, y] = cellOf(k), X = bx + x * C8 + 3, Y = by + y * C8 + 3; px.rect(g, X, Y, 2, 2, cl ? '#ffb897' : '#ffe9a0'); if (!cl) px.dot(g, X, Y, '#ffffff'); }
+        if (Math.floor(t * 4) % 2 || readyT > 0) for (const k of power) { const [x, y] = cellOf(k), X = bx + x * C8 + 4, Y = by + y * C8 + 4; if (cl) px.disc(g, X, Y, 3, '#ffb897'); else { px.blend(g, .45, 'add', () => px.disc(g, X, Y, 6, '#ffb030')); px.disc(g, X, Y, 3, '#fff4c0'); } }
+        if (berry) { const X = bx + 14 * C8 + 4, Y = by + TUN * C8 + 4; px.disc(g, X - 2, Y + 1, 2, '#e02a3a'); px.disc(g, X + 2, Y + 1, 2, '#e02a3a'); px.dot(g, X - 2, Y, '#ffb0b0'); px.rect(g, X - 1, Y - 3, 3, 1, '#4ad84a'); }
+      }, { emissive: true, bias: -1e6 });
+      if (!cl) { L.add(pos(hero.m).x, pos(hero.m).y, 8, 60, 1.2, { color: '#ffe890' }); for (const k of power) { const [x, y] = cellOf(k); L.add(X0 + x * C8 + 4, Y0 + y * C8 + 4, 6, 26, .7, { color: '#ffb040' }); } }
+      if (inter) { drawInter(r); return; }
+      // you: a lit sphere with a chomping mouth (classic: the flat yellow disc); dying, the mouth opens until you are gone
+      const hp = pos(hero.m), ang = Math.atan2(hero.dir[1], hero.dir[0]), open = hero.dying > 0 ? Math.PI * (1 - hero.dying / 1.5) : (hero.m.moving || hero.chomp > 0 ? Math.abs(Math.sin(t * 16)) : .3) * .9;
+      if (hero.dying <= 0 || open < Math.PI * .98) r.actor(hp.x, hp.y, 0, (g, x, y) => {
+        y -= 0; const R = 4;
+        if (cl) px.disc(g, x, y, R, '#ffe000'); else { px.disc(g, x, y, R, '#d8a010'); px.disc(g, x - .5, y - .5, R - 1, '#ffe040'); px.disc(g, x - 1.5, y - 1.5, 1.5, '#fff8c0'); }
+        if (open > .05) px.poly(g, [[x, y], [x + Math.cos(ang - open) * 7, y + Math.sin(ang - open) * 7], [x + Math.cos(ang) * 8, y + Math.sin(ang) * 8], [x + Math.cos(ang + open) * 7, y + Math.sin(ang + open) * 7]], cl ? '#000000' : '#141026');
+      }, { outline: !cl, rim: false, wrap: [MW * C8, 0] });
+      if (deathT > 0) return;
+      for (const w of wisps) {
+        const p = pos(w.m), blink = w.blue && fright < 2 && Math.floor(t * 6) % 2, body = w.blue ? (blink ? '#f0f0ff' : '#2a3aff') : w.c;
+        if (w.eyes || cl) r.actor(p.x, p.y, 0, (g, x, y) => {
+          if (!w.eyes) { px.disc(g, x, y - 1, 4, body); px.rect(g, x - 4, y - 1, 9, 4, body); for (let i = 0; i < 3; i++) px.dot(g, x - 3 + i * 3 + (Math.floor(t * 8) % 2), y + 3, '#000000'); }
+          if (w.blue && !w.eyes) { px.rect(g, x - 2, y - 2, 1, 2, '#ffd0c0'); px.rect(g, x + 2, y - 2, 1, 2, '#ffd0c0'); return; }
+          const [dx, dy] = w.m.dir; px.rect(g, x - 3, y - 3, 3, 3, '#ffffff'); px.rect(g, x + 1, y - 3, 3, 3, '#ffffff'); px.dot(g, x - 2 + dx, y - 2 + dy, '#2a2aff'); px.dot(g, x + 2 + dx, y - 2 + dy, '#2a2aff');
+        }, { outline: false, rim: false, wrap: [MW * C8, 0] });
+        else {   // a Blob rig, its colour its own (blue while you can eat it), its eyes on the way it goes
+          const rig = w.rig; rig.C.base = body; rig.C.dk = E.shade(body, -.35); rig.C.lt = E.shade(body, .35);
+          rig.update(1 / 60, { look: w.m.dir, walk: 1, squash: Math.sin(t * 10 + w.i) * .08 });
+          r.actor(p.x, p.y + 3, 0, (g, x, y) => rig.draw(g, x, y, E.VIEWS.threequarter), { outline: true, rim: true, wrap: [MW * C8, 0] });
+          if (w.blue) L.add(p.x, p.y, 6, 22, .5, { color: '#6a7aff' });
+        }
+      }
+      if (readyT > 0) r.overlay(g => E.font.text(g, 'READY!', X0 + MW * C8 / 2, Y0 + (HY + 6) * C8 + 1, '#ffe040', { align: 'center', outline: false, shadow: '#000' }));
+    }
+    function drawInter(r) {
+      r.overlay(g => {
+        const a = inter, y = Y0 + TUN * C8 + 4, x = X0 + a.x;
+        E.font.text(g, 'INTERMISSION', X0 + MW * C8 / 2, Y0 + 8 * C8, '#ffe070', { align: 'center', outline: false, shadow: '#000' });
+        if (!a.big) { px.disc(g, x, y, 4, '#ffe040'); px.disc(g, x - 20, y - 1, 4, '#ff4a4a'); px.rect(g, x - 24, y - 1, 9, 4, '#ff4a4a'); }
+        else { px.disc(g, x + 30, y - 1, 4, '#2a3aff'); px.rect(g, x + 26, y - 1, 9, 4, '#2a3aff'); px.disc(g, x, y, 11, '#ffe040'); px.poly(g, [[x, y], [x - 12, y - 6], [x - 12, y + 6]], '#000000'); }
+      });
+    }
+    return {
+      id: 'maze', label: 'MAZE', res: [232, 270], about: 'EAT EVERY SEED, DODGE FOUR WISPS', hue: ['#ffe040', '#4ae8ff', '#ff4a8a'], touch: [], extra: [10000], light: .5,
+      begin(c, isDemo) { cab = c; demo = !!isDemo; over = false; level = 1; inter = null; wisps = wisps || null; build(); reset(); },
+      revive() { over = false; reset(); },   // after a continue: the same maze, everyone back in place
+      force() { over = true; },
+      step, draw, box: () => [X0, Y0 - 12, MW * C8, MH * C8 + 22], edges: () => [X0 - 4, X0 + MW * C8 + 4],
+      get over() { return over; }, get level() { return level; },
+      state: () => ({ hero: [hero.m.cx, hero.m.cy], wisps: wisps.map(w => [w.m.cx, w.m.cy, w.eyes, w.blue]), seeds: seeds.size + power.size, level, fright: +fright.toFixed(3) })
+    };
+  })();
+
+  /* =================================== 2. FORMATION =================================== */
+  const FORM = (() => {
+    const FW = 224, FLY = 130;   // the field's width (its height is the screen's: FH), a moth's speed along its path (px/s)
+    let FH = 270;
+    const MOTH = {
+      a: E.sprite(['..y..y..', '.yYyyYy.', 'ybbBBbby', 'bbBwwBbb', '.bBBBBb.', '..b..b..'], { y: '#ffe040', Y: '#fff8a0', b: '#4a8aff', B: '#8ab8ff', w: '#ffffff' }),
+      b: E.sprite(['r......r', '.rRRRRr.', 'rRwRRwRr', '.rRRRRr.', 'r.r..r.r'], { r: '#e03a4a', R: '#ff8a8a', w: '#ffffff' }),
+      boss: E.sprite(['..gGGg..', '.gGwwGg.', 'gGGGGGGg', 'gpGppGpg', '.p.pp.p.', 'p......p'], { g: '#3ad860', G: '#9af0a0', w: '#ffffff', p: '#c050f0' }),
+      hurt: E.sprite(['..pPPp..', '.pPwwPp.', 'pPPPPPPp', 'pgPggPgp', '.g.gg.g.', 'g......g'], { p: '#a050e0', P: '#d8a0ff', w: '#ffffff', g: '#3ad860' })
+    };
+    const SHIP = E.sprite(['...w...', '...w...', '..wrw..', '.wwrww.', 'wwbwbww', 'w.bbb.w', 'r..r..r'], { w: '#f0f0f8', r: '#ff4a4a', b: '#4a8aff' });
+    const ROWS = [['boss', 4], ['b', 8], ['b', 8], ['a', 10], ['a', 10]];
+    const SLOTS = ROWS.flatMap(([kind, n], row) => Array.from({ length: n }, (_, i) => ({ kind, x: FW / 2 + (i - (n - 1) / 2) * 18, y: 36 + row * 16 })));
+    let cab, demo, foes, shots, bombs, ship, wave, sway, dead, over, readyT, stars = [], X0 = 0, Y0 = 0;
+    // a wave: five groups of eight fly in from alternate sides, a loop on the way, each to its own place (Catmull paths)
+    function newWave() {
+      foes = []; wave++; cab.card('STAGE ' + wave, 1.8); readyT = Math.max(readyT, .6);
+      SLOTS.forEach((s, i) => {
+        const group = Math.floor(i / 8), side = group % 2 ? 1 : -1, k = i % 8;
+        const path = new E.Path([[FW / 2 + side * 150, -20], [FW / 2 + side * 70, 80], [FW / 2 - side * 20, 170], [FW / 2 - side * 70, 120], [FW / 2 - side * 30, 70], [s.x, s.y]], { smooth: 'catmull' });
+        foes.push({ kind: s.kind, hp: s.kind === 'boss' ? 2 : 1, slot: s, path, d: -(group * 1.6 + k * .14) * FLY, state: 'in', x: path.at(0).x, y: -20, a: Math.PI / 2 });
+      });
+    }
+    function begin(c, isDemo) { cab = c; demo = !!isDemo; wave = 0; over = false; shots = []; bombs = []; sway = 0; dead = 0; readyT = 1.4; ship = { x: FW / 2, y: FH - 28, cool: 0 }; stars = Array.from({ length: 90 }, (_, i) => ({ x: (i * 97) % FW, y: (i * 53) % 600, s: 20 + (i % 3) * 25 })); layout(); newWave(); }
+    // a dive: from its place a swoop out, at the ship (where it is now) and off the bottom; it comes back from the top
+    function dive(f) {
+      const sx = ship.x, out = f.x < FW / 2 ? -1 : 1;
+      f.path = new E.Path([[f.x, f.y], [f.x + out * 30, f.y - 16], [f.x + out * 46, f.y + 20], [sx + (Math.random() - .5) * 50, FH * .62], [sx + out * 40, FH + 24]], { smooth: 'catmull' }); f.d = 0; f.state = 'dive';
+    }
+    const kill = f => { f.hp = 0; cab.add(f.kind === 'boss' ? (f.state === 'dive' ? 400 : 150) : f.kind === 'b' ? (f.state === 'dive' ? 160 : 80) : (f.state === 'dive' ? 100 : 50), { x: X0 + f.x, y: Y0 + f.y }); P.sparks(X0 + f.x, Y0 + f.y, 4, 10); P.bits(X0 + f.x, Y0 + f.y, 4, 6, ['#ffe040', '#4a8aff', '#ff4a4a']); A.sfx('explode', { vol: .45 }); };
+    function step(dt, I) {
+      layout(); sway += dt; ship.y = FH - 28;
+      for (const s of stars) s.y = (s.y + s.s * dt) % 600;
+      if (readyT > 0) readyT -= dt;
+      if (dead > 0 && (dead -= dt) <= 0) { const was = cab.p, r = cab.die(); if (r === 'over') { over = true; return; } if (r === 'next') { was.save = { wave, foes }; const s = cab.p.save; if (s) { wave = s.wave; foes = s.foes; for (const f of foes) if (f.state !== 'form') { f.state = 'back'; f.y = -20; } } else { wave = 0; newWave(); } } ship.x = FW / 2; bombs.length = 0; readyT = 1.4; }
+      const live = dead <= 0 && readyT <= 0;
+      if (live) {   // the ship: left and right; two shots on screen at most
+        const mv = demo ? botMove() : I.move()[0]; ship.x = clamp(ship.x + mv * 115 * dt, 10, FW - 10); ship.cool -= dt;
+        if ((demo ? botFire() : I.down('fire')) && ship.cool <= 0 && shots.length < 2) { shots.push({ x: ship.x, y: ship.y - 8 }); ship.cool = .2; A.sfx('shoot', { vol: .35 }); }
+      }
+      for (const s of shots) s.y -= 270 * dt; shots = shots.filter(s => s.y > -10);
+      const sx = Math.sin(sway * 1.2) * 12;
+      let formed = 0;
+      for (const f of foes) {
+        if (f.state === 'in' || f.state === 'dive') {
+          f.d += FLY * (1 + wave * .04) * dt; if (f.d < 0) continue;
+          const p = f.path.at(f.d), u = f.state === 'in' ? Math.min(1, f.d / f.path.length) : 0; f.x = p.x + sx * u * u; f.y = p.y; f.a = p.angle;
+          if (f.d >= f.path.length) { if (f.state === 'dive') { f.state = 'back'; f.y = -20; f.x = f.slot.x + sx; } else f.state = 'form'; }
+          if (f.state === 'dive' && f.y < ship.y - 50 && Math.random() < dt * (.7 + wave * .1)) bombs.push({ x: f.x, y: f.y, vx: (ship.x - f.x) * .35, vy: 125 });
+        } else if (f.state === 'back') { f.y += 90 * dt; f.x += (f.slot.x + sx - f.x) * Math.min(1, dt * 4); f.a = Math.PI / 2; if (f.y >= f.slot.y) f.state = 'form'; }
+        else { f.x = f.slot.x + sx; f.y = f.slot.y + Math.sin(sway * 3 + f.slot.x * .1) * 1.5; f.a = Math.PI / 2; formed++; }
+      }
+      if (live && formed > 3 && Math.random() < dt * (.45 + wave * .15)) { const c = foes.filter(f => f.state === 'form' && f.hp > 0); if (c.length) { const f = c[Math.floor(Math.random() * c.length)]; dive(f); if (f.kind === 'boss') for (const e of c.filter(e => e !== f && e.kind === 'b' && Math.abs(e.slot.x - f.slot.x) < 20).slice(0, 2)) dive(e); A.sfx('whoosh', { vol: .3 }); } }
+      for (const b of bombs) { b.x += b.vx * dt; b.y += b.vy * dt; } bombs = bombs.filter(b => b.y < FH + 10);
+      for (const s of shots) for (const f of foes) if (!s.hit && f.hp > 0 && f.d >= 0 && Math.abs(s.x - f.x) < 7 && Math.abs(s.y - f.y) < 6) { s.hit = true; if (--f.hp > 0) { A.sfx('bump'); P.sparks(X0 + f.x, Y0 + f.y, 4, 4); } else kill(f); }
+      shots = shots.filter(s => !s.hit); foes = foes.filter(f => f.hp > 0);
+      if (live) for (const o of [...bombs, ...foes]) if (Math.abs(o.x - ship.x) < 6 && Math.abs(o.y - ship.y) < 6) { dead = 1.8; P.explosion(X0 + ship.x, Y0 + ship.y, 4, .9, { sound: true, flash: false, shake: 2, freeze: false }); if (o.hp) kill(o); break; }
+      if (!foes.length && dead <= 0) newWave();
+    }
+    // the demo's pilot: of a step left, none and a step right, the first where no bomb or diving moth will be in the next
+    // half second (a bomb's way read ahead to the ship's row), preferring the way to the moth nearest above; firing when
+    // under one
+    const hitAt = (x, t) => bombs.some(b => { const k = (ship.y - b.y) / b.vy; return k > -.05 && k < t && Math.abs(b.x + b.vx * k - x) < 9; }) || foes.some(f => f.state === 'dive' && f.d >= 0 && Math.abs(f.y - ship.y) < 40 && Math.abs(f.x - x) < 12);
+    const botMove = () => {
+      const t = foes.find(f => f.state === 'dive' && f.y < ship.y - 50) || foes.filter(f => f.d >= 0).reduce((p, f) => !p || Math.abs(f.x - ship.x) < Math.abs(p.x - ship.x) ? f : p, null);
+      const want = t ? clamp((t.x - ship.x) / 10, -1, 1) : 0, ways = [want, 0, -1, 1].map(m => Math.round(m)), q = m => clamp(ship.x + m * 115 * .3, 10, FW - 10);
+      for (const m of ways) if (!hitAt(q(m), .8) && !hitAt((ship.x + q(m)) / 2, .4)) return m === Math.round(want) ? want : m;
+      return ship.x < FW / 2 ? 1 : -1;
+    };
+    const botFire = () => foes.some(f => f.d >= 0 && Math.abs(f.x - ship.x) < 8);
+    function layout() { FH = Math.max(270, game.H - 4); X0 = Math.round((game.W - FW) / 2); Y0 = Math.round((game.H - FH) / 2); }
+    function draw(r) {
+      layout(); const cl = classic(), x0 = X0, y0 = Y0;
+      if (cl) r.sky(['#000000', '#000000']); else {
+        SPACE[0].draw(r);
+        r.decal(g => {   // a ringed gas giant low in the field, lit from the upper right: the ring's far half, the planet's banded
+          // shading (discs stepped toward the light), the ring's near half
+          const [ox, oy] = r.w(0, 0), cx = Math.round(ox + x0 + FW * .24), cy = Math.round(oy + y0 + FH - 40), R = 40;
+          const ring = near => { for (let a = 0; a < TAU; a += .012) { if ((Math.sin(a) > 0) !== near) continue; for (const [k, c] of [[1.55, '#8a6aa8'], [1.7, '#c8a8e0'], [1.85, '#6a4a88']]) px.dot(g, cx + Math.cos(a) * R * k, cy + Math.sin(a) * R * k * .22, c); } };
+          ring(false);
+          ['#1a1030', '#2a1a46', '#3e2860', '#563a7a', '#704e94', '#8c66ac', '#a882c2'].forEach((c, k) => px.disc(g, cx + k * 1.4, cy - k * 1.4, R - k * 4.5, c));
+          for (let b = -2; b <= 2; b++) { const y = b * 12 + 3, hw = Math.sqrt(Math.max(0, (R - 2) ** 2 - y * y)) - 3; px.blend(g, .16, 'normal', () => px.rect(g, cx - hw + 1, cy + y, hw * 2, 2, b % 2 ? '#2a1640' : '#e8c8a0')); }
+          ring(true);
+        });
+      }
+      r.overlay(g => {
+        for (const s of stars) if (s.y < FH) px.dot(g, x0 + s.x, y0 + s.y, s.s > 50 ? '#ffffff' : s.s > 30 ? '#8a8ab0' : '#4a4a6a');
+        for (const s of shots) { if (!cl) px.blend(g, .5, 'add', () => px.rect(g, x0 + s.x - 1, y0 + s.y - 1, 3, 7, '#8ad8ff')); px.rect(g, x0 + s.x, y0 + s.y, 1, 5, '#ffffff'); }
+        for (const b of bombs) { if (!cl) px.blend(g, .4, 'add', () => px.disc(g, x0 + b.x, y0 + b.y, 3, '#ff8a4a')); px.rect(g, x0 + b.x - 1, y0 + b.y - 1, 2, 4, '#ff6a4a'); }
+      });
+      // each moth turned to the way it flies (r.sprite's rot; in its place, facing down); the classic turns in 16 steps
+      for (const f of foes) if (f.d >= 0 || f.state !== 'in') r.sprite(x0 + f.x, y0 + f.y, 0, f.kind === 'boss' && f.hp === 1 ? MOTH.hurt : MOTH[f.kind], { rot: f.a + Math.PI / 2, anchor: 'center', steps: cl ? 16 : 32, glow: cl ? 0 : .3 });
+      if (dead <= 0 && !over && (readyT <= 0 || Math.floor(readyT * 8) % 2)) r.sprite(x0 + ship.x, y0 + ship.y, 0, SHIP, { anchor: 'center', glow: cl ? 0 : .4 });
+    }
+    return {
+      id: 'formation', label: 'FORMATION', res: [232, 270], about: 'MOTHS FLY IN, FORM UP AND DIVE', hue: ['#4a8aff', '#ff4a4a', '#ffe040'], touch: ['fire'], extra: [20000, 70000], light: 0, fills: true,
+      begin, revive() { over = false; ship.x = FW / 2; bombs.length = 0; readyT = 1.4; }, force() { over = true; }, step, draw,
+      box: () => [X0, Y0, FW, FH], edges: () => [X0 - 2, X0 + FW + 2],
+      get over() { return over; }, get level() { return wave; },
+      state: () => ({ ship: +ship.x.toFixed(2), foes: foes.length, wave, shots: shots.length, bombs: bombs.length })
+    };
+  })();
+
+  /* =================================== 3. ROCKS =================================== */
+  const ROCKS = (() => {
+    let RW = 320, RH = 240;   // the field: the whole screen (at least 320 x 240), its edges meeting
+    let cab, demo, ship, rocks, shots, saucer, over, wave, deadT, readyT, sparks, X0 = 0, Y0 = 0;
+    // a rock: a ring of lumpy points; size 3 big, 2, 1 small; the smaller, the faster
+    const rock = (x, y, size) => { const n = 8 + size * 2, R = [0, 5, 10, 18][size], a = Math.random() * TAU, sp = (52 - size * 11) * (.6 + Math.random() * .6); return { x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, size, R, rot: 0, spin: (Math.random() - .5) * 2, pts: Array.from({ length: n }, (_, i) => { const t = i / n * TAU, k = .75 + Math.random() * .35; return [Math.cos(t) * R * k, Math.sin(t) * R * k]; }) }; };
+    function newWave() { wave++; rocks = []; for (let i = 0; i < 3 + wave; i++) { const edge = Math.random() < .5; rocks.push(rock(edge ? 0 : Math.random() * RW, edge ? Math.random() * RH : 0, 3)); } if (wave > 1) cab.card('WAVE ' + wave, 1.4); }
+    const home = () => Object.assign(ship, { x: RW / 2, y: RH / 2, vx: 0, vy: 0, a: -Math.PI / 2 });
+    function begin(c, isDemo) { cab = c; demo = !!isDemo; wave = 0; over = false; shots = []; saucer = null; sparks = []; deadT = 0; readyT = 1.2; ship = { cool: 0, thrust: false }; layout(); home(); newWave(); }
+    const wd = (a, b, s) => E.wrapDiff(a, b, s), far = (a, b) => Math.hypot(wd(a.x, b.x, RW), wd(a.y, b.y, RH));
+    const burst = (x, y, n, sp, life, c) => { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = sp * (.4 + Math.random() * .6); sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: life * (.5 + Math.random() * .5), c }); } };
+    function kill() { deadT = 1.8; A.sfx('boom'); burst(ship.x, ship.y, 24, 80, .9, '#ffe0a0'); game.shake(3); }
+    function step(dt, I) {
+      layout(); if (readyT > 0 && (readyT > .3 || !rocks.some(k => far(k, { x: RW / 2, y: RH / 2 }) < k.R + 40))) readyT -= dt;   // (it comes back once the middle is clear)
+      if (deadT > 0 && (deadT -= dt) <= 0) { const was = cab.p, r = cab.die(); if (r === 'over') { over = true; return; } if (r === 'next') { was.save = { wave, rocks }; const s = cab.p.save; if (s) ({ wave, rocks } = s); else { wave = 0; newWave(); } } home(); readyT = 1.4; shots = shots.filter(s => !s.foe); }
+      const live = deadT <= 0 && readyT <= 0;
+      if (live) {   // turn, thrust (and drift: a little drag), fire, hyperspace (a one-in-ten chance it goes wrong)
+        const turn = demo ? botTurn() : I.move()[0], thr = demo ? botThrust() : I.down('up') || I.down('thrust') || I.move()[1] < -.6;
+        ship.a += turn * 4.4 * dt; ship.thrust = thr;
+        if (thr) { ship.vx += Math.cos(ship.a) * 170 * dt; ship.vy += Math.sin(ship.a) * 170 * dt; if (Math.random() < .6) sparks.push({ x: ship.x - Math.cos(ship.a) * 6, y: ship.y - Math.sin(ship.a) * 6, vx: -Math.cos(ship.a) * 50 + (Math.random() - .5) * 24, vy: -Math.sin(ship.a) * 50 + (Math.random() - .5) * 24, t: .3, c: '#ffb84a' }); }
+        const sp = Math.hypot(ship.vx, ship.vy); if (sp > 220) { ship.vx *= 220 / sp; ship.vy *= 220 / sp; }
+        ship.vx *= Math.exp(-.4 * dt); ship.vy *= Math.exp(-.4 * dt); ship.cool -= dt;
+        if ((demo ? botFire() : I.pressed('fire')) && ship.cool <= 0 && shots.filter(s => !s.foe).length < 5) { shots.push({ x: ship.x + Math.cos(ship.a) * 7, y: ship.y + Math.sin(ship.a) * 7, vx: Math.cos(ship.a) * 290 + ship.vx, vy: Math.sin(ship.a) * 290 + ship.vy, t: .85 }); ship.cool = .12; A.sfx('laser', { vol: .3 }); }
+        if (demo ? botWarp() : I.pressed('warp')) { burst(ship.x, ship.y, 10, 40, .4, '#8ab8ff'); ship.x = Math.random() * RW; ship.y = Math.random() * RH; ship.vx = ship.vy = 0; A.sfx('warp'); if (Math.random() < .1) kill(); }
+      }
+      if (deadT <= 0) { ship.x = E.wrap(ship.x + ship.vx * dt, 0, RW); ship.y = E.wrap(ship.y + ship.vy * dt, 0, RH); }
+      for (const s of shots) { s.x = E.wrap(s.x + s.vx * dt, 0, RW); s.y = E.wrap(s.y + s.vy * dt, 0, RH); s.t -= dt; }
+      for (const k of rocks) { k.x = E.wrap(k.x + k.vx * dt, 0, RW); k.y = E.wrap(k.y + k.vy * dt, 0, RH); k.rot += k.spin * dt; }
+      for (const p of sparks) { p.x += p.vx * dt; p.y += p.vy * dt; p.t -= dt; } sparks = sparks.filter(p => p.t > 0);
+      // the saucer: now and then, across the screen, shooting at you (across the edges: the nearer way)
+      if (!saucer && live && Math.random() < dt * .05 * wave) saucer = { x: 0, y: 30 + Math.random() * (RH - 60), vx: Math.random() < .5 ? 60 : -60, vy: 0, t: 0, cool: 1.2 };
+      if (saucer) {
+        saucer.x = E.wrap(saucer.x + saucer.vx * dt, 0, RW); saucer.t += dt; saucer.vy = Math.sin(saucer.t * 2) * 22; saucer.y = E.wrap(saucer.y + saucer.vy * dt, 0, RH); saucer.cool -= dt;
+        if (saucer.cool <= 0 && live) { const a = Math.atan2(wd(saucer.y, ship.y, RH), wd(saucer.x, ship.x, RW)) + (Math.random() - .5) * .5; shots.push({ x: saucer.x, y: saucer.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, t: 1.4, foe: true }); saucer.cool = 1.4; A.sfx('shoot', { vol: .2, pitch: .6 }); }
+        if (saucer.t > RW / 60) saucer = null;
+      }
+      // hits: your shots split rocks (big 20, middle 50, small 100) and down the saucer (500); rocks, its shots and it on you
+      for (const s of shots) {
+        if (s.t <= 0 || s.foe) continue;
+        for (const k of rocks) if (!k.dead && far(s, k) < k.R) { k.dead = true; s.t = 0; cab.add([0, 100, 50, 20][k.size], { x: X0 + k.x, y: Y0 + k.y }); A.sfx(k.size > 2 ? 'boom' : 'explode', { vol: .4 }); burst(k.x, k.y, 6 + k.size * 3, 60, .6, '#c8d8ff'); if (k.size > 1) for (let i = 0; i < 2; i++) rocks.push(rock(k.x, k.y, k.size - 1)); break; }
+        if (s.t > 0 && saucer && far(s, saucer) < 8) { cab.add(500, { x: X0 + saucer.x, y: Y0 + saucer.y }); s.t = 0; burst(saucer.x, saucer.y, 16, 70, .7, '#ff8aa8'); saucer = null; A.sfx('boom'); }
+      }
+      rocks = rocks.filter(k => !k.dead); shots = shots.filter(s => s.t > 0);
+      if (live && (rocks.some(k => far(ship, k) < k.R + 4) || shots.some(s => s.foe && far(s, ship) < 5) || (saucer && far(saucer, ship) < 10))) kill();
+      if (!rocks.length) newWave();
+    }
+    // the demo's pilot: a rock, the saucer or its shot that will pass within reach in the next second and a half is a
+    // threat: turn across its way and thrust out of it (hyperspace when it is a quarter second off); else brake when
+    // drifting, and turn to where the nearest rock will be when a shot gets there (across the edges), firing when facing
+    // it; the saucer first when it is about
+    function threat() {
+      let worst = null, wt = 1.5;
+      const all = [...rocks, ...(saucer ? [Object.assign({ R: 9 }, saucer)] : []), ...shots.filter(s => s.foe).map(s => Object.assign({ R: 3 }, s))];
+      for (const k of all) {
+        const rx = wd(ship.x, k.x, RW), ry = wd(ship.y, k.y, RH), vx = k.vx - ship.vx, vy = k.vy - ship.vy, v2 = vx * vx + vy * vy || 1, t = -(rx * vx + ry * vy) / v2;
+        if (Math.hypot(rx, ry) < k.R + 12) return { k, t: 0, a: Math.atan2(-ry, -rx) };
+        if (t > 0 && t < wt && Math.hypot(rx + vx * t, ry + vy * t) < k.R + 9) { wt = t; worst = { k, t, a: Math.atan2(vy, vx) + (vx * ry - vy * rx > 0 ? -1 : 1) * Math.PI / 2 }; }
+      }
+      return worst;
+    }
+    const brake = () => Math.hypot(ship.vx, ship.vy) > 45 ? Math.atan2(-ship.vy, -ship.vx) : null;
+    function aim() {
+      let b = null, bd = 1e9; for (const k of saucer ? [saucer] : rocks) { const d = far(ship, k); if (d < bd) { bd = d; b = k; } }
+      if (!b) return null; const t = bd / 290; return Math.atan2(wd(ship.y, b.y + b.vy * t, RH), wd(ship.x, b.x + b.vx * t, RW));
+    }
+    const botTurn = () => { const th = threat(), b = brake(), a = th ? th.a : b !== null ? b : aim(); return a === null ? 0 : clamp(E.angDiff(ship.a, a) * 4, -1, 1); };
+    const botFire = () => { const a = aim(); return a !== null && Math.abs(E.angDiff(ship.a, a)) < .15; };
+    const botThrust = () => { const th = threat(), b = brake(), a = th ? th.a : b; return a !== null && Math.abs(E.angDiff(ship.a, a)) < .6; };
+    const botWarp = () => { const th = threat(); return !!th && th.t < .25 && th.k.R > 3 && Math.abs(E.angDiff(ship.a, th.a)) > 1; };
+    function layout() { RW = Math.max(320, game.W); RH = Math.max(240, game.H); X0 = Math.round((game.W - RW) / 2); Y0 = Math.round((game.H - RH) / 2); }
+    function draw(r) {
+      layout(); const cl = classic(), x0 = X0, y0 = Y0;
+      if (cl) r.sky(['#000000', '#000000']); else SPACE[1].draw(r);
+      r.overlay(g => {
+        g.save(); g.beginPath(); g.rect(x0, y0, RW, RH); g.clip();
+        // glowing vector lines: each shape bright over a soft wide glow (classic: plain white lines), at every edge it crosses
+        const vec = (pts, x, y, a, color, closed = true) => {
+          for (const ox of [-RW, 0, RW]) for (const oy of [-RH, 0, RH]) {
+            const Q = pts.map(([u, v]) => [x0 + x + ox + u * Math.cos(a) - v * Math.sin(a), y0 + y + oy + u * Math.sin(a) + v * Math.cos(a)]);
+            if (Q.every(q => q[0] < x0 - 2 || q[0] > x0 + RW + 2) || Q.every(q => q[1] < y0 - 2 || q[1] > y0 + RH + 2)) continue;
+            const n = closed ? Q.length : Q.length - 1;
+            if (!cl) px.blend(g, .3, 'add', () => { for (let i = 0; i < n; i++) px.line(g, ...Q[i], ...Q[(i + 1) % Q.length], color, 3); });
+            for (let i = 0; i < n; i++) px.line(g, ...Q[i], ...Q[(i + 1) % Q.length], cl ? '#ffffff' : E.shade(color, .45));
+          }
+        };
+        for (const k of rocks) vec(k.pts, k.x, k.y, k.rot, '#8ab8ff');
+        if (deadT <= 0 && (readyT <= 0 || Math.floor(readyT * 8) % 2)) { vec([[8, 0], [-6, -5], [-3, 0], [-6, 5]], ship.x, ship.y, ship.a, '#ffffff'); if (ship.thrust && Math.floor(game.time * 30) % 2) vec([[-4, -2], [-9, 0], [-4, 2]], ship.x, ship.y, ship.a, '#ffb84a', false); }
+        if (saucer) vec([[-9, 0], [-4, -3], [4, -3], [9, 0], [4, 3], [-4, 3], [-9, 0], [9, 0], [4, -3], [2, -6], [-2, -6], [-4, -3]], saucer.x, saucer.y, 0, '#ff6a8a', false);
+        for (const s of shots) { if (!cl) px.blend(g, .5, 'add', () => px.disc(g, x0 + s.x, y0 + s.y, 2, s.foe ? '#ff6a8a' : '#c8e0ff')); px.rect(g, x0 + s.x, y0 + s.y, 1, 1, '#ffffff'); }
+        for (const p of sparks) px.dot(g, x0 + p.x, y0 + p.y, cl ? '#ffffff' : p.c);
+        g.restore(); px.reset(g);
+      });
+    }
+    return {
+      id: 'rocks', label: 'ROCKS', res: [320, 240], about: 'TURN, THRUST, SPLIT THE ROCKS', hue: ['#c8d8ff', '#8ab8ff', '#ff8a4a'], touch: ['fire', 'thrust', 'warp'], every: 10000, light: 0, fills: true,
+      begin, revive() { over = false; home(); readyT = 1.4; }, force() { over = true; }, step, draw,
+      box: () => [X0, Y0, RW, RH], edges: () => [X0 - 2, X0 + RW + 2],
+      get over() { return over; }, get level() { return wave; },
+      state: () => ({ ship: [+ship.x.toFixed(2), +ship.y.toFixed(2)], rocks: rocks.length, wave, shots: shots.length })
+    };
+  })();
+
+  /* =================================== 4. THE CABINET: a scene per game, the title, the attract mode =================================== */
+  const GAMES = [MAZE, FORM, ROCKS];
+  const cabs = {}; for (const G of GAMES) cabs[G.id] = new E.Arcade(game, { id: G.id, lives: 3, extra: G.extra || [], every: G.every });
+  const front = new E.Arcade(game, { id: 'arcade', idle: 20, demo: 1e9, scores: 6 });   // the title's attract clock (a demo ends itself: endDemo)
+  let pick = 0, players = 1, demoNext = 0, cabsAt = [];
+  function playScene(G) {
+    const cab = cabs[G.id];
+    let demo = false, demoT = 0, stage = 'play', tableT = 0;
+    // the end: each player's initials in turn (the best first) where they make the table, then the table
+    const ending = (order = cab.players.slice().sort((a, b) => b.score - a.score)) => {
+      const p = order.shift(); if (!p) { stage = 'table'; tableT = 0; A.music(null); return; }
+      if (cab.qualifies(p.score)) { stage = 'entry'; if (cab.players.length > 1) cab.say('PLAYER ' + p.n, 30); cab.enter(p.score, '', () => { cab.clear(); ending(order); }); } else ending(order);
+    };
+    const scene = {
+      view: 'overhead', views: ['overhead'], input: KEYS, res: G.res, expand: true, pausable: true, touch: G.touch, camera: { zoom: false },
+      enter(d) {
+        demo = !!(d && d.demo); demoT = 0; stage = 'play'; tableT = 0;
+        game.follow(null); game.cam.bounds = null; game.focus(game.W / 2, game.H / 2, 0); game.cam.snap = true;
+        L.enabled = !classic() && G.light > 0; L.ambient = G.light; L.dark = [4, 2, 14]; L.refresh();
+        if (G.id === 'rocks') { game.input.touchSet('thrust', 'THRUST'); game.input.touchSet('warp', 'WARP'); }
+        cab.start(demo ? 1 : players, { demo }); G.begin(cab, demo); A.music(null);
+      },
+      exit() { L.enabled = false; },
+      back() { game.go('arcade'); return true; },
+      update(dt) {
+        const I = game.input; game.focus(game.W / 2, game.H / 2, 0);
+        if (I.pressed('classic')) { game.settings.set('arcadeLook', classic() ? 'remaster' : 'classic'); L.enabled = !classic() && G.light > 0; game.note(classic() ? 'CLASSIC LOOK' : 'REMASTER'); }
+        cab.update(dt);
+        if (demo) { demoT += dt; if (I.anyPressed() || I.clicked() || demoT > 30 || G.over) { front.endDemo(); game.go('arcade', { scores: G.id }, { fade: 'black' }); return; } G.step(dt, I); return; }
+        if (cab.entry || cab.continuing) return;
+        if (stage === 'table') { tableT += dt; if (tableT > 8 || (tableT > 1 && (I.pressed('confirm') || I.pressed('start') || I.clicked()))) game.go('arcade', null, { fade: 'black' }); return; }
+        if (G.over && stage === 'play') { stage = 'cont'; cab.continue(9, yes => { if (yes) { stage = 'play'; G.revive(); } else ending(); }); return; }
+        G.step(dt, I);
+      },
+      draw(r) {
+        G.draw(r); const [e0, e1] = G.edges(), b = G.box(); cabinet(r, e0, e1, G.hue, G.fills ? 0 : b[1], G.fills ? r.H : b[1] + b[3], G.label);
+        if (stage === 'table') { r.overlay(g => { g.fillStyle = 'rgba(0,0,0,.78)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cab.drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), G.label + ' HIGH SCORES'); }
+        else cab.draw(r, G.box());
+      },
+      /** the end of a game, now, with score (tools/phone-test.mjs: the way to the table): lives to none; the continue when
+       *  cont, else straight to the initials */
+      end(score, cont) { cab.p.score = score; cab.hi = Math.max(cab.hi, score); for (const p of cab.players) p.lives = 0; G.force(); if (!cont) { stage = 'cont'; ending(); } },
+      /** the proof: a scripted game, a hash of where things are and the scores */
+      run: (n = 600) => proof('arcade-' + G.id, n, (i, k) => { walk(i, k, ['left', 'up', 'right', 'down'], 70); if (i % 30 === 5) k.tap('fire'); if (G.id === 'rocks') { if (i % 140 < 40) k.hold('thrust'); else k.up('thrust'); } }, () => [G.state(), cab.players.map(p => [p.score, p.lives])]),
+      state: () => ({ game: G.state(), stage, demo, entry: cab.entry && { name: cab.entry.name.slice(), i: cab.entry.i, score: cab.entry.score }, wheel: cab.entry && cab.wheel, continuing: cab.continuing, scores: cab.players.map(p => p.score), table: cab.table() })
+    };
+    return scene;
+  }
+  for (const G of GAMES) scenes['arcade-' + G.id] = playScene(G);
+  let showTable = null;
+  const go = i => { pick = i; A.sfx('confirm'); game.go('arcade-' + GAMES[i].id, null, { fade: 'black' }); };
+  const title = {
+    view: 'side', views: ['side'], input: KEYS, res: 'ps1', expand: true, pausable: false, touch: [], camera: { zoom: false },
+    enter(d) {
+      game.follow(null); game.cam.bounds = null; game.focus(0, 0, 0); game.cam.snap = true; A.music(SONG); L.enabled = false; game.input.consumeAll();
+      showTable = d && d.scores || null;
+      if (d && d.part && scenes['arcade-' + d.part]) game.go('arcade-' + d.part, null, { fade: 0 });   // #arcade/maze
+    },
+    update(dt) {
+      const I = game.input, ph = front.attract(dt);
+      if (ph === 'demo') { const G = GAMES[demoNext++ % GAMES.length]; game.go('arcade-' + G.id, { demo: true }, { fade: 'black' }); return; }
+      if (ph !== 'scores') showTable = null; else if (!showTable) showTable = GAMES[(demoNext + GAMES.length - 1) % GAMES.length].id;
+      if (I.pressed('left')) { pick = (pick + GAMES.length - 1) % GAMES.length; A.sfx('select'); }
+      if (I.pressed('right')) { pick = (pick + 1) % GAMES.length; A.sfx('select'); }
+      if (I.pressed('up') || I.pressed('down')) { players = 3 - players; A.sfx('select'); }
+      if (I.pressed('confirm') || I.pressed('start') || I.pressed('fire')) { go(pick); return; }
+      const tap = I.clicked();
+      if (tap) { const i = cabsAt.findIndex(([x, y, w, h]) => tap[0] >= x && tap[0] < x + w && tap[1] >= y && tap[1] < y + h); if (i >= 0 && i < GAMES.length) go(i); else if (i === GAMES.length) { players = 3 - players; A.sfx('select'); } }
+    },
+    draw(r) {
+      r.sky(['#0a0418', '#2a0a3a', '#4a1050']);
+      const t = game.time, [cw, ch] = corner(), top = touch() && r.W / 2 + 120 > r.W - cw ? Math.round(ch) : 0;
+      r.overlay(g => {
+        for (let i = 0; i < 50; i++) { const x = (i * 71 + t * 6 * (1 + i % 3)) % r.W, y = (i * 37) % (r.H * .7); px.dot(g, x, y, i % 5 ? '#6a5a9a' : '#ffffff'); }
+        px.rect(g, 0, r.H - 30, r.W, 30, '#1a0a26'); for (let x = 0; x < r.W; x += 16) px.rect(g, x + ((x / 16) % 2) * 8, r.H - 30, 8, 1, '#3a1a4a');
+        // the cabinets in a row, as tall as they can stand (to 1.9 times their width), centred on a tall screen
+        const n = GAMES.length, w = Math.min(84, Math.floor((r.W - 24) / n) - 8), gap = 8, x0 = Math.round(r.W / 2 - (n * w + (n - 1) * gap) / 2), hgt = Math.min(Math.round(w * 1.9), r.H - 50 - top - 70), y = Math.max(50 + top, Math.round((r.H - hgt) / 2 - 10));
+        E.font.title(g, 'ARCADE', r.W / 2, y - 40, { align: 'center', scale: 4, colors: ['#ffffff', '#ffe040', '#ff8a40', '#ff4a8a'], depth: 3 });
+        cabsAt = [];
+        GAMES.forEach((G, i) => {   // a cabinet: a lit marquee, a screen showing the game's own picture, the control panel
+          const x = x0 + i * (w + gap), on = i === pick, sh = Math.round(hgt * .5);
+          cabsAt.push([x, y, w, hgt]);
+          px.rect(g, x, y, w, hgt, on ? '#3a2a5a' : '#221636'); px.rect(g, x + 1, y + 1, w - 2, 1, on ? '#8a6ac0' : '#3a2a50');
+          px.rect(g, x + 2, y + 2, w - 4, 13, G.hue[0]); px.blend(g, .3, 'add', () => px.rect(g, x + 2, y + 2, w - 4, 6, '#ffffff'));
+          E.font.text(g, G.label, x + w / 2, y + 6, '#0a0614', { align: 'center', outline: false, font: 'tiny' });
+          const sx = x + 5, sy = y + 19, sw = w - 10; px.rect(g, sx, sy, sw, sh, '#000000');
+          g.save(); g.beginPath(); g.rect(sx, sy, sw, sh); g.clip();
+          if (i === 0) { for (let k = 0; k < 6; k++) px.rect(g, sx + 8 + k * 9, sy + sh / 2, 2, 2, '#ffe9a0'); const hx = sx + 6 + (t * 14) % (sw - 12); px.disc(g, hx, sy + sh / 2 + 1, 4, '#ffe040'); px.disc(g, hx - 14, sy + sh / 2, 4, '#ff4a4a'); px.rect(g, sx, sy + 4, sw, 2, '#2a6a32'); px.rect(g, sx, sy + sh - 6, sw, 2, '#2a6a32'); }
+          if (i === 1) { for (let k = 0; k < 8; k++) px.rect(g, sx + 6 + (k % 4) * 14 + Math.sin(t * 1.5) * 4, sy + 8 + Math.floor(k / 4) * 10, 6, 4, k < 4 ? '#3ad860' : '#4a8aff'); px.rect(g, sx + sw / 2 - 2 + Math.sin(t) * 18, sy + sh - 9, 5, 5, '#f0f0f8'); px.rect(g, sx + sw / 2 + Math.sin(t) * 18, sy + sh - 18 - (t * 60) % 30, 1, 4, '#ffffff'); }
+          if (i === 2) { for (let k = 0; k < 4; k++) { const cx = sx + 10 + ((k * 23 + t * 9) % (sw - 10)), cy = sy + 10 + ((k * 17 + t * 5) % (sh - 14)), R = 3 + k % 3 * 2; for (let q = 0; q < 6; q++) px.line(g, cx + Math.cos(q) * R, cy + Math.sin(q) * R, cx + Math.cos(q + 1) * R, cy + Math.sin(q + 1) * R, '#c8d8ff'); } const a = t * 1.3, cx = sx + sw / 2, cy = sy + sh / 2; px.line(g, cx + Math.cos(a) * 5, cy + Math.sin(a) * 5, cx + Math.cos(a + 2.5) * 4, cy + Math.sin(a + 2.5) * 4, '#ffffff'); px.line(g, cx + Math.cos(a) * 5, cy + Math.sin(a) * 5, cx + Math.cos(a - 2.5) * 4, cy + Math.sin(a - 2.5) * 4, '#ffffff'); }
+          g.restore(); px.reset(g);
+          px.blend(g, .12, 'add', () => px.rect(g, sx, sy, sw, 3, '#ffffff'));
+          const py = sy + sh + 5; px.rect(g, x + 3, py, w - 6, Math.max(10, hgt - (py - y) - 14), '#140c22');
+          px.disc(g, x + 14, py + 8, 4, '#ff4a4a'); px.rect(g, x + 13, py + 1, 2, 7, '#c8c8d0'); px.disc(g, x + w - 22, py + 8, 3, '#ffe040'); px.disc(g, x + w - 12, py + 8, 3, '#4ae8ff');
+          const hi = cabs[G.id].table()[0]; E.font.text(g, 'HI ' + (hi ? hi.score : 0), x + w / 2, y + hgt - 10, '#c8b8f0', { align: 'center', outline: false, font: 'tiny' });
+          if (on) { const k = Math.floor(t * 3) % 2 ? '#ffffff' : '#ffe040'; px.rect(g, x - 2, y - 2, w + 4, 2, k); px.rect(g, x - 2, y + hgt, w + 4, 2, k); px.rect(g, x - 2, y, 2, hgt, k); px.rect(g, x + w, y, 2, hgt, k); }
+        });
+        // one or two players (up and down, or a tap on it)
+        const by = y + hgt + 6, bw = 96, bh = touch() ? 34 : 16; cabsAt.push([Math.round(r.W / 2 - bw / 2), by, bw, bh]);   // (a thumb's size on a touch screen)
+        px.rect(g, r.W / 2 - bw / 2, by, bw, bh, '#2a1a3e'); E.font.text(g, players === 1 ? '< 1 PLAYER >' : '< 2 PLAYERS >', r.W / 2, by + bh / 2 - 3, '#ffe7a8', { align: 'center', outline: false });
+        E.font.text(g, GAMES[pick].about, r.W / 2, r.H - 22, '#ffe7a8', { align: 'center', shadow: '#000', outline: false });
+        E.font.text(g, touch() ? 'TAP A CABINET TO PLAY' : game.input.lastDevice === 'gamepad' ? 'D-PAD + ' + game.input.label('confirm') + '   Y CLASSIC LOOK' : 'ARROWS + ENTER   C CLASSIC LOOK', r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+      });
+      if (showTable) { r.overlay(g => { g.fillStyle = 'rgba(4,2,12,.88)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cabs[showTable].drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), GAMES.find(G => G.id === showTable).label + ' HIGH SCORES'); }
+    },
+    back() { game.go('title'); return true; },
+    /** the bot (tools/kits-test.mjs): each game played by its own demo pilot, from a seed, until it clears two stages (or
+     *  five minutes of game time, or its lives run out); then the attract mode left alone: the demo it starts, the table, the title again. What they reached */
+    bot() {
+      const was = Math.random, out = {}, A0 = game.audio.muted; Math.random = E.rng(9);
+      try {
+        for (const G of GAMES) {
+          game.time = 0; game.go('arcade-' + G.id, { demo: true }, { fade: 0 }); game.advance(1 / 120);
+          const cab = cabs[G.id]; let t = 0, cleared = 0;
+          while (t < 300 && !G.over && G.level < 3) { cab.update(1 / 120); G.step(1 / 120, game.input); t += 1 / 120; if (G.level > 1 && !cleared) cleared = Math.round(t); }
+          out[G.id] = { score: cab.players[0].score, level: G.level, cleared, lives: cab.players[0].lives, over: !!G.over, seconds: Math.round(t) };
+        }
+        game.go('arcade', null, { fade: 0 }); game.advance(1 / 120); front.wake();
+        game.advance(front.o.idle + .5); const demoAt = game.sceneName;
+        for (let i = 0; i < 40 && game.sceneName !== 'arcade'; i++) game.advance(1);
+        const back = game.sceneName, table = front.phase === 'scores'; game.advance(front.o.scores + .5);
+        out.attract = demoAt.startsWith('arcade-') && back === 'arcade' && table && front.phase === 'title';
+        out.errors = game.errors.length; return out;
+      } finally { Math.random = was; }
+    },
+    /** what the title shows: the game picked, one or two players, where each cabinet is (and the players button, last) on
+     *  screen, the attract mode's phase */
+    state: () => ({ pick, players, cabs: cabsAt, phase: front.phase, table: showTable }),
+    /** the proof: each game's proof, one after the other */
+    run: (n = 600) => GAMES.map(G => scenes['arcade-' + G.id].run(n)).join('-')
+  };
+  return title;
+})();
+scenes.arcade = ARCADE;
 
 /* =====================================================================================
  * SLICE 9  PUZZLE  (Tetris, Puyo Puyo, Columns). @modules grid
@@ -12283,6 +13390,11 @@ scenes.shooter = SHOOT;
  * bot(n) places n pieces by itself (a placement search: holes, height, bumps, lines), as tools/kits-test.mjs checks.
  * ===================================================================================== */
 const PUZZLE = (() => {
+  // the puzzle's own tune (the step sequencer's format): C major, bright and quick
+  const STACK = { bpm: 144, steps: 4, tracks: [
+    { wave: 'square', vol: .11, notes: 'E5 . G5 . C6 - B5 . A5 . G5 . E5 - D5 . | C5 . D5 . E5 - G5 . F5 - E5 . D5 - - . | A4 . C5 . F5 - E5 . D5 . C5 . A4 - G4 . | B4 . D5 . G5 - F5 . E5 . D5 . C5 - - .' },
+    { wave: 'triangle', vol: .3, notes: 'C3 . G3 . C3 . G3 . A2 . E3 . A2 . E3 . | F2 . C3 . F2 . C3 . G2 . D3 . G2 . D3 . | F2 . C3 . F2 . C3 . C3 . G3 . C3 . G3 . | G2 . D3 . G2 . D3 . C3 . G3 . C3 . . .' },
+    { wave: 'drums', vol: .12, notes: 'k . h . s . h . k . h k s . h h' }] };
   const D = E.Input.DEFAULT, KEYS = { up: D.up, down: D.down, left: D.left, right: D.right, start: D.start, pause: D.pause, confirm: D.confirm, cancel: D.cancel,
     rotate: ['KeyX', 'KeyK', 'Pad1'], ccw: ['KeyZ', 'KeyJ', 'Pad0'], drop: ['Space', 'Pad3'], hold: ['KeyC', 'ShiftLeft', 'ShiftRight', 'Pad4', 'Pad5'] };
   /* ---- 1. THE PIECES: SRS shapes in their spawn state, colours, and the wall kicks (y down) ---- */
@@ -12373,7 +13485,7 @@ const PUZZLE = (() => {
     mode = kind; W = kind === 'blocks' ? 10 : PW; H = kind === 'blocks' ? 22 : PH + 1; field = new Array(W * H).fill(0);
     queue = []; bag = []; hold = null; held = false; score = 0; lines = 0; level = 1; chain = 0; clearing = popping = over = null; time = 0; popped = 0; mood = 0; R = E.rng(1 + Math.floor(Math.random() * 1e6));
     if (kind === 'blocks') spawn(); else pairSpawn();
-    A.music('adventure'); game.input.consumeAll();
+    A.music(STACK); game.input.consumeAll();
   }
   function end() { if (over) return; over = { kind: mode, score, lines, level, best: best('puzzle-' + mode, score), t: 0 }; mode = 'over'; cur = null; mood = -1; moodT = 99; A.music(null); A.sfx('die'); after.i = 0; }
   function cheer(k) { mood = k; moodT = 1.2; }
@@ -13149,6 +14261,11 @@ scenes.rpg = RPG;
  * ===================================================================================== */
 const ROGUE = (() => {
   const T = 16, FW = 46, FH = 30, LAST = 10, SIGHT = 7, STEP = .13;   // a cell; a floor's size; the Amulet's floor; how far the torch shows; a step's seconds
+  // the crypt's own tune (the step sequencer's format): D minor, slow, a lonely lead over a dead march
+  const CRYPT = { bpm: 84, steps: 4, tracks: [
+    { wave: 'pulse12', vol: .12, notes: 'D5 - - - F5 - E5 - D5 - C5 - A4 - - - | Bb4 - - - A4 - G4 - A4 - - - - - . . | D5 - - - F5 - G5 - A5 - G5 - F5 - E5 - | F5 - E5 - D5 - C#5 - D5 - - - - - . .' },
+    { wave: 'triangle', vol: .3, notes: 'D2 - . . D2 . . . A2 - . . D2 . . . | G2 - . . G2 . . . D2 - . . D2 . . . | Bb1 - . . Bb1 . . . F2 - . . F2 . . . | A1 - . . A1 . . . D2 - . . D2 . . .' },
+    { wave: 'drums', vol: .08, notes: 'k . . . h . . . k . . . h . h .' }] };
   const KINDS = {   // monsters: hit points, attack, defence, speed (100: yours), experience, first floor, and their rigs
     rat: { name: 'RAT', hp: 4, atk: 2, def: 0, speed: 100, xp: 2, from: 1, blob: { R: 4, ears: 'cat', tail: true, feet: true, colors: { dk: '#3a2e2a', base: '#7a6658', lt: '#a8927e' } } },
     bat: { name: 'BAT', hp: 3, atk: 2, def: 0, speed: 200, xp: 3, from: 1, fly: 14, blob: { R: 3.5, wings: true, ears: 'cat', colors: { dk: '#2a1e34', base: '#5a4270', lt: '#8a70a8' } } },
@@ -13294,7 +14411,7 @@ const ROGUE = (() => {
     stats = { kills: 0, gold: 0, turns: 0, killer: null };
     hero = { cx: 0, cy: 0, x: 0, y: 0, hp: 20, max: 20, atk: 3, def: 1, speed: 100, lv: 1, xp: 0, next: 10, potions: 1, scrolls: 0, blade: BLADES[0], face: Math.PI / 2, hit: 0,
       rig: new E.Humanoid({ size: 1, outfit: 'tunic', hair: 'short', weapon: 'sword', cape: { len: 5, width: 5, seg: 2.4 }, colors: { cloth: '#2a5ab0', cape: '#8a2a2a', hair: '#c8a050', trim: '#e0c060' } }), swing: new E.Attack('slash') };
-    A.music('dungeon'); game.input.touchSet('attack', 'WAIT'); game.input.touchSet('skill', 'POTION'); game.input.touchSet('dash', 'SCROLL');
+    A.music(CRYPT); game.input.touchSet('attack', 'WAIT'); game.input.touchSet('skill', 'POTION'); game.input.touchSet('dash', 'SCROLL');
     build();
   }
   // the step the keys or the stick ask for: [dx, dy] on the grid (in iso, turned from the screen), or null
@@ -14683,8 +15800,9 @@ scenes.stealth = STEALTH;
 // a genre kit file holds one slice: the menu lists only the slices in this file
 for (let i = SLICES.length - 1; i >= 0; i--) if (!scenes[SLICES[i].id]) SLICES.splice(i, 1);
 titleMenu = menuOf(SLICES, { y: 76, onPick: i => game.go(SLICES[i].id) });
-const first = (location.hash || '').slice(1);
-game.start({ scenes, scene: scenes[first] ? first : 'title' });
+// #<slice>/<part> jumps in (#arcade/maze, #shooter/horizontal): the slice's enter(data) gets { part }
+const [first, part] = (location.hash || '').slice(1).split('/');
+game.start({ scenes, scene: scenes[first] ? first : 'title', data: scenes[first] && part ? { part } : undefined });
 window.__game = { game, scenes, titleMenu };   // for tests
 })();
 /* =============================== GAME END =============================== */

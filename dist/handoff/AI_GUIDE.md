@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.63.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.64.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -352,7 +352,7 @@ if (game.debug.snapshot().hero[2] !== 32) throw new Error('the hero should have 
 A module (`engine/modules/<name>.js`) holds one general system that several genres share, outside the core, so that only the games that use it carry it. It loads after the engine, in a `<script>` of its own, and attaches its names to `My3D2dge`; its header is its manual (what it holds, its API, a complete example, its rules), and the index has a section for it. Its manual's third line says whether it also loads after the agent edition, and which modules it needs first.
 - **In a single file:** the reference editions (`dist/my-3d2dge.html`, the compact one) carry every module; a kit carries the modules its slice names in its header (`@modules grid gen`). To use one a kit hasn't got, paste the module's file in a `<script>` after the engine's.
 - **With files:** `dist/my-3d2dge.js` is the core and every module in one file; the handoff package also has each module on its own (`modules/<name>.js`), to load after the agent edition.
-- **The modules:** `grid` (square and hex grids: A* paths, move ranges with climb and drop, lines, symmetric fields of view, `E.Fog`, flood fills and groups, `E.GridMover` for Pac-Man's and Sokoban's moves, `E.Turns` by speed, charge time, phase or ATB) and `gen` (floors from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a `TileMap` reads, with `E.gen.mark` for spawns). Both load after the agent edition too.
+- **The modules:** `grid` (square and hex grids: A* paths, move ranges with climb and drop, lines, symmetric fields of view, `E.Fog`, flood fills and groups, `E.GridMover` for Pac-Man's and Sokoban's moves, `E.Turns` by speed, charge time, phase or ATB) and `gen` (floors from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a `TileMap` reads, with `E.gen.mark` for spawns) and `arcade` (the coin-op's frame: a score that floats up where it was won, extra lives at thresholds, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode). All three load after the agent edition too.
 - **Writing one:** `engine/modules/README.md` (the header's form, the rules, its budget of 1,500 tokens; `tools/modules-test.mjs` proves the path with a fixture). The genre plan (`docs/HANDOFF-GENRES.md`) says which systems become modules.
 
 ### Kits and the diet (which file for which game)
@@ -421,11 +421,18 @@ const s = level.find('hero'), hero = new E.Platformer({ x: s.x, z: s.z }), rig =
 - Use the `side` view with a one-screen `PlatformMap` floor. Two `Platformer`s; the CPU fighter passes an intent object.
 - Hurtboxes and hitboxes are `overlapBox` boxes placed from `rig.hand()` during `'active'`. Add health bars (`E.ui.bar`), a round timer (`game.every(1, ...)`) and `game.freeze` on hits.
 
-**Shoot-'em-up (1942, Gradius).**
-- Use `view: 'overhead'` and `res: [224, 256]`, so world x/y equal screen pixels.
-- Ships are sprites, and the backdrop is `r.starfield({ dir: 'down' })` (or `'left'` for horizontal shooters).
-- A timeline array spawns waves; enemies move on formulas (sine lines, dives aimed with `E.pattern.aim`).
-- Bosses fire `E.pattern.ring` and `spread`. A bomb clears `shots.clear('foe')`.
+**Shoot-'em-up (1942, Gradius).** Start from the SHOOTER slice: its first stage is vertical, its second horizontal.
+- Use `view: 'overhead'` so world x/y equal screen pixels; `res: [240, 320]` for a vertical stage, `[320, 240]` for a horizontal one, with `expand`.
+- Ships are sprites or vector parts drawn by code; a timeline array spawns waves by time or by how far the camera has come; enemies move on formulas (sine lines, dives aimed with `E.pattern.aim`) or along `E.Path`s.
+- Flyers keep up with the camera: each step add the scroll to their position (and to the bullets'), while the ground and the rock stay put.
+- Horizontal stages (Gradius, R-Type): the rock above and below is two functions of x (`highY(x)`, `lowY(x)`) drawn in columns and tested for crashes; a power bar is a cursor that capsules move along, a button taking the lit slot; options follow the ship's past path (a ring of its positions, an option every 12 behind); a mid-boss loops a closed `E.Path` while the scroll waits.
+- Bosses fire `E.pattern.ring` and `spread`, each attack telegraphed. A bomb clears `shots.clear('foe')`. The end: `E.Arcade`'s continue, then initials and the table (the arcade module).
+
+**Golden-age arcade (Pac-Man, Galaga, Asteroids).** Start from the ARCADE slice: a cabinet of three.
+- One fixed screen (`res: [232, 270]` or `[320, 240]` with `expand`): centre the playfield and fill the rest with cabinet art drawn by code, or let the field be the whole screen (the rocks wrap at its edges).
+- `new E.Arcade(game, { id, lives: 3, extra: [10000] })` keeps the score, lives, two players' turns (each one's stage in `p.save`), the continue, the tables with initials and the attract mode; `cab.update(dt)` each step and `cab.draw(r, box)` after the game.
+- A maze is an `E.Grid` with `E.GridMover`s: the player's turn asked early is kept (`{ keep: true }`); a chaser picks, at each cell, the open way nearest its own target (never straight back). Moths fly in on `E.Path`s and turn with `r.sprite`'s `rot`; rocks drift with `E.wrap` and draw at every edge they cross.
+- Each game's demo is its own bot, playing the real rules; a remaster (light, rigs, glow) with the classic look one key and one setting away.
 
 **JRPG (Dragon Quest, Final Fantasy).**
 - Towns and dungeons are `TileMap` rooms with `Dialog` NPCs; shops use `say(text, { choices })`.

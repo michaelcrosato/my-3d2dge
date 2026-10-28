@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.63.1)
+# my-3D2dge API index (v0.64.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,47 +48,48 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 93 The engine object (E = My3D2dge)
-- 104 Math
-- 178 Pixel primitives
-- 197 Sprite frames, turns and swaps
-- 203 Views (projections); E.View: view
-- 230 Screen; game.screen
-- 252 Input; E.Input: input
-- 327 Pixel font
-- 338 Lighting; game.lights
-- 357 Particles; E.Particles: game.particles
-- 377 Renderer; r
-- 424 Game; E.Game: game
-- 527 Standard features; settings, fullscreen
-- 544 10c. Boot
-- 549 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 566 10e. Paths; E.Path: path
-- 576 10g. Weather
-- 580 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 653 Blob rig; E.Blob: blob
-- 673 Tile map; E.TileMap: map
-- 732 Materials
-- 753 Flow field; E.FlowField: flow
-- 771 Texture helpers for floortex functions
-- 782 Platform map; E.PlatformMap: level
-- 812 Platformer; E.Platformer: hero
-- 847 Body; E.Body: body
-- 867 Actions; E.Action: action
-- 889 17c. Mover; E.Mover: mover
-- 928 17d. Perception; E.Suspicion: suspicion
-- 945 Bullets; E.Bullets: shots
-- 965 Spatial hash; E.SpatialHash: grid
-- 975 Audio; game.audio
-- 997 Backdrops; E.Backdrop: backdrop
-- 1005 21c. Props
-- 1010 21e. Shapes
-- 1022 Ui; E.Dialog: talk, E.Menu: menu
-- 1076 21d. Shell; E.Shell: shell
-- 1105 Gpu lighting (webgpu); game.gpu
-- 1126 Sessions
-- 1135 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1146 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 94 The engine object (E = My3D2dge)
+- 105 Math
+- 179 Pixel primitives
+- 198 Sprite frames, turns and swaps
+- 204 Views (projections); E.View: view
+- 231 Screen; game.screen
+- 253 Input; E.Input: input
+- 328 Pixel font
+- 339 Lighting; game.lights
+- 358 Particles; E.Particles: game.particles
+- 378 Renderer; r
+- 425 Game; E.Game: game
+- 528 Standard features; settings, fullscreen
+- 545 10c. Boot
+- 550 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 567 10e. Paths; E.Path: path
+- 577 10g. Weather
+- 581 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 654 Blob rig; E.Blob: blob
+- 674 Tile map; E.TileMap: map
+- 733 Materials
+- 754 Flow field; E.FlowField: flow
+- 772 Texture helpers for floortex functions
+- 783 Platform map; E.PlatformMap: level
+- 813 Platformer; E.Platformer: hero
+- 848 Body; E.Body: body
+- 868 Actions; E.Action: action
+- 890 17c. Mover; E.Mover: mover
+- 929 17d. Perception; E.Suspicion: suspicion
+- 946 Bullets; E.Bullets: shots
+- 966 Spatial hash; E.SpatialHash: grid
+- 976 Audio; game.audio
+- 998 Backdrops; E.Backdrop: backdrop
+- 1006 21c. Props
+- 1011 21e. Shapes
+- 1023 Ui; E.Dialog: talk, E.Menu: menu
+- 1077 21d. Shell; E.Shell: shell
+- 1106 Gpu lighting (webgpu); game.gpu
+- 1127 Sessions
+- 1136 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1171 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1182 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
 
 ## The engine object (E = My3D2dge)
 
@@ -97,7 +98,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.63.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.64.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1131,6 +1132,41 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.session.recording` †: true while this page load is recorded
 - `E.session.replaying` †: true while it is a replay
 - `E.session.wanted()` †: true when recording is on for page loads (record(true))
+
+## Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js)
+
+- `new E.Arcade(game, o = {}) → arcade`: new E.Arcade(game, { id, lives: 3, extra: [] (the scores that give a life) or every (a life each that many points), credits: null (free play) or the coins a game takes, idle: 20, demo: 30, scores: 6 (the attract mode's seconds), hud: true, colors: [label, number, highlight] })
+- `arcade.add(points, at)`: add points to the player up (at: a world point { x, y, z } where they float up); an extra life at each threshold
+- `arcade.attract(dt)`: the attract mode, each step on the title: 'title', 'demo' (o.idle seconds without input; it lasts o.demo seconds or until endDemo()), 'scores' (o.scores seconds), then 'title' again; any input goes back to 'title'
+- `arcade.card(text, seconds = 2)`: a card in the middle of the screen for seconds ('STAGE 2', 'PLAYER 2, READY!')
+- `arcade.carding`: is a card up? (hold play while it is)
+- `arcade.clear()`: take every card and word down
+- `arcade.coin()`: add a coin (credits on); returns the credits
+- `arcade.continue(seconds = 10, done)`: a continue: CONTINUE? counts down seconds; start, confirm or a tap continues (with the credits it takes): every player's lives back, the scores kept, done(true); at zero, done(false)
+- `arcade.continuing`: is the continue counting down?
+- `arcade.die()`: a life lost: 'again' (lives left), 'next' (the other player's turn) or 'over' (none left for anyone)
+- `arcade.draw(r, box)`: the frame over the game, after its drawing: the HUD (o.hud: 1UP, HI, 2UP in a row) along the top of box [x, y, w, h] (the playfield; the screen when none), the lives along its foot, the cards, DEMO, the continue and the entry
+- `arcade.drawTable(r, mode = '', y = 40, title = 'HIGH SCORES')`: a table as a screen (the attract mode's, or after a game), its title at y: rank, name, score
+- `arcade.endDemo()`: the demo is over (a demo in a scene of its own: call it on the way back): the attract mode shows the scores
+- `arcade.enter(score, mode = '', done)`: open the initials entry for score; done(name) once it is taken and saved
+- `arcade.qualifies(score, mode = '')`: would score make the top ten (never in a demo)?
+- `arcade.say(text, seconds = 1.2)`: a short word under the cards for seconds ('READY!', 'EXTRA LIFE!')
+- `arcade.start(players = 1, o = {})`: begin a game for 1 or 2 players (taking turns), o: { demo: true } for the attract mode's; spends the credits a game takes unless it is free play or a demo. Returns false without them
+- `arcade.table(mode = '')`: the top ten of a mode: [{ name, score }]
+- `arcade.update(dt)`: a step: the cards count down, the entry and the continue read the keys
+- `arcade.wake()`: the attract mode back to the title, its idle clock at zero (as any input does)
+- `arcade.credits`: coins in (null: free play)
+- `arcade.demo = false`: a demo is playing (no table)
+- `arcade.entry = null`: the initials being entered ({ score, mode, name, i }), or null
+- `arcade.game`: the game it serves
+- `arcade.hi = 0`: the high score shown
+- `arcade.id`: the game's name (its tables')
+- `arcade.mode = 'title'`: 'title' | 'play' | 'over'
+- `arcade.o`: the options
+- `arcade.p = null`: the player up
+- `arcade.phase = 'title'`: the attract mode's, 'title' | 'demo' | 'scores'
+- `arcade.players = []`: [{ n, score, lives, save (the game's own: a stage kept while the other plays), next (the score of the next extra life) }]
+- `arcade.wheel = null`: where the letter wheel was last drawn (taps answer to it): { x, y, cw, up, down, ok } in screen pixels: three columns cw wide from x, the up and down bands [y0, y1], the OK button [x, y, w, h]
 
 ## Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
 

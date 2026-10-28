@@ -114,6 +114,22 @@ const LABS = {
           "what": "Play BLOCKS for a few minutes with the keys (arrows, Space drop, C hold), then on your phone (drag, tap, flick down, flick up); then a round of PAIRS. Added with v0.63.0 (Milestone 2).",
           "look": "Does it handle like a modern Tetris: the auto-shift when you hold a side, the turn by a wall (kicks), time to slide a piece once it lands? On the phone, does a flick drop or hold every time, and never by mistake? In PAIRS, does a chain feel worth it?",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-arcade.html",
+          "at": "#arcade",
+          "title": "Arcade: do the three classics feel right?",
+          "what": "Play each cabinet for a few minutes, on the keys or a pad (arrows, Space fires; in ROCKS up thrusts, X warps), then once on your phone. Press C (a pad's Y) in a game to switch to the classic look and back. Lose all your lives once to see the continue, the letter wheel and the table; leave the cabinet alone for 20 seconds to see the demo. Added with v0.64.0 (Milestone 3).",
+          "look": "MAZE: does a turn pressed early happen at the next corner, and do the four wisps feel different (one chases, one cuts you off, one flanks, one is shy)? FORMATION: do the dives look like Galaga's swoops, and is it fair? ROCKS: do thrust and drift feel weighty, and do the glowing lines read well? Is the remaster or the classic look better, and are the cabinet's sides too busy?",
+          "links": [["Maze", "#arcade/maze"], ["Formation", "#arcade/formation"], ["Rocks", "#arcade/rocks"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-shooter.html",
+          "at": "#shooter/horizontal",
+          "title": "Shooter: the horizontal stage",
+          "what": "Play stage 2 to its end: pick up the red capsules and press X (or POWER on a phone) to take the lit power on the bar at the bottom; get a couple of OPTIONs and watch them trail you; beat the cruiser and the core behind its walls. Then play the vertical stage from the start to see it lead into stage 2. Added with v0.64.0 (Milestone 3).",
+          "look": "Does it feel like Gradius: the power bar's choices, the options following your path, the rock you must not touch? Is it too hard or too easy (the core, the cavern's guns)? Is the cavern readable on your phone, with the bar above the touch area?",
+          "links": [["From the start", "#shooter"]]
         }
       ]
     },
@@ -188,8 +204,14 @@ const LABS = {
         {
           "page": "dist/kits/my-3d2dge-shooter.html",
           "title": "Shooter",
-          "what": "Vertical shoot-'em-up (Raiden, 1943): farmland, a river town and an air base.",
-          "links": []
+          "what": "Vertical shoot-'em-up (Raiden, 1943): farmland, a river town and an air base; then a horizontal stage (Gradius, R-Type): a crystal cavern, a power bar, options, a cruiser and a core battleship. A continue, initials and a table.",
+          "links": [["Stage 2", "#shooter/horizontal"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-arcade.html",
+          "title": "Arcade",
+          "what": "A cabinet of three (Pac-Man, Galaga, Asteroids): a maze with four chasers, moths that fly in and dive, rocks that split and wrap; high-score tables with initials, two players taking turns, a demo when left alone; each a remaster with its classic look one key away.",
+          "links": [["Maze", "#arcade/maze"], ["Formation", "#arcade/formation"], ["Rocks", "#arcade/rocks"]]
         },
         {
           "page": "dist/kits/my-3d2dge-rpg.html",
@@ -331,7 +353,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.63.1 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.64.0 · dev-build', foot);
 </script>
 </body>
 </html>
