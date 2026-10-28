@@ -380,7 +380,8 @@ Needs M1 (tweens for steps between turns).
     reach within a budget (`reach`: move ranges, with climb and drop limits from the heights); lines (Bresenham, hex);
     sight on the grid and fields of view (symmetric shadowcasting);
   - `E.Fog(grid)`: unseen, seen and visible, updated from viewers with radii, and drawn over a map's floor
-    (`r.cells(cells, color, alpha)`: tints on the cells' tops at their heights);
+    (`r.cells(cells, color, alpha)`: tints on the cells' tops at their heights; as built, a module adds no renderer
+    method: `fog.draw(r, T, { height })` covers walls' faces too, and `E.tint(r, cells, color, alpha, T, height)` tints);
   - flood fill and connected groups (matches, chains, regions);
   - `E.GridMover`: one cell at a time at a speed, its next turn buffered and taken at the first opening (Pac-Man),
     pushing (Sokoban), and a smooth position for drawing;
@@ -391,14 +392,19 @@ Needs M1 (tweens for steps between turns).
 - **Kit ROGUELIKE** (Rogue, Mystery Dungeon, Shiren): `#roguelike`. Generated floors; fields of view and fog; turns by
   speed (bats move twice); bump to attack; potions, scrolls and a better weapon; stairs down; a tombstone and the
   results. Three-quarter or iso, with HD rigs that walk the step between turns, by torchlight. Touch: tap a cell to walk
-  there, swipe to step, a button to wait.
+  there, swipe to step, a button to wait. (As built: `src/starter/45-roguelike.js`, the RPG family; ten floors to the
+  Amulet; the stick held is the swipe; WAIT, POTION and SCROLL buttons; `bot()` plays the run.)
 - **Kit PUZZLE** (Tetris, Puyo Puyo, Columns): `#puzzle`. Falling blocks by today's rules (delayed auto-shift from
   `input.repeat`, lock delay, hold, the next queue, a bag of seven from `E.rng`, wall kicks), line clears that light up
   the field; a second mode of falling pairs that chain (connected groups); levels that speed up; a mascot rig that
-  reacts. Versus comes in M4. Touch: swipes and taps.
+  reacts. Versus comes in M4. Touch: swipes and taps. (As built: `src/starter/35-puzzle.js`, the PUZZLE family, in the
+  side view with the field in screen pixels; the mascot stands where the screen has room beside the field, so a phone
+  held upright plays without it; `bot()` places pieces by a placement search.)
 - **Done when:** the grid's paths, reaches and fields of view match known answers (fixtures, square and hex); `gen`
   gives the same rows for the same seed; the roguelike's bot plays ten floors with no errors; the puzzle's bot clears
-  lines; both proofs repeat; both pass the phone test.
+  lines; both proofs repeat; both pass the phone test. (As built: the fixtures in `tools/contract-test.mjs` (both
+  editions: the modules load after the agent edition too); the bots in `kits-test`'s `BOTS`, 3.4's play-to-the-end
+  check; tap-to-walk and drag-and-tap cases in `tools/phone-test.mjs`.)
 
 ### M3: the arcade (module `arcade`; kit ARCADE; the SHOOTER grows)
 

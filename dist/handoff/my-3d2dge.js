@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.62.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.63.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -78,7 +78,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.62.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.63.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -9312,3 +9312,550 @@ E.session = SESSION;
 
 root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
+
+/*!
+my-3D2dge module GEN v0.63.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+Every generator takes a size in cells and { seed } and gives { rows, rooms, start, end, marks }: ASCII rows ('#' wall,
+'.' floor) a TileMap reads (put your own characters in with E.gen.mark), the rooms it made ({ x, y, w, h }), a start and
+an end cell far apart (stairs), and the cells it marked. The same seed gives the same rows, always (E.rng).
+- E.gen.rooms(w, h, { seed, rooms: 9, min: 4, max: 9 }): rooms placed apart, joined in order by bent corridors (Rogue).
+- E.gen.bsp(w, h, { seed, min: 7 }): space split in two and two again, a room in each part, sisters joined (dungeons
+  with no wasted space).
+- E.gen.cave(w, h, { seed, fill: .45, steps: 4 }): cellular automata, then only the biggest open region kept, so all of
+  it is connected (caves, islands: '#' is rock or water).
+- E.gen.maze(w, h, { seed, algo: 'backtrack' | 'prim', braid: 0 }): a perfect maze on odd cells (backtrack: long winding
+  halls; prim: short branches); braid 0..1 knocks out dead ends into loops (Pac-Man's).
+- E.gen.scatter(w, h, { seed, r: 3, k: 30, ok(x, y) }): Poisson disc points [x, y] at least r apart (trees, loot,
+  enemies), where ok says they may go.
+- E.gen.mark(level, ch, n, { seed, near, far }): put character ch on n floor cells (spawns: 'g' goblins, '!' potions),
+  away from the start; E.gen.open(rows): every floor cell as [x, y].
+
+```js gen
+const E = My3D2dge, a = E.gen.rooms(40, 24, { seed: 7 }), b = E.gen.rooms(40, 24, { seed: 7 });
+if (a.rows.join() !== b.rows.join() || a.rows.length !== 24 || a.rooms.length < 4) throw new Error('rooms');
+const c = E.gen.cave(30, 20, { seed: 3 }); E.gen.mark(c, 'g', 5, { seed: 1 });
+const map = new E.TileMap({ rows: c.rows, legend: { '#': 1, g: 'goblin' }, types: { 1: { h: 24 } } });
+if (map.findAll('goblin').length !== 5) throw new Error('marks');
+```
+Rules: rows are w characters by h rows, walled all round; start and end are floor cells; generators never call
+Math.random.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module GEN: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * GEN  rooms, BSP, caves, mazes and scatter: ASCII rows and marks from a seed
+ * ========================================================================== */
+const D4 = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+// a level: a grid of characters, all wall
+const blank = (w, h, ch = '#') => Array.from({ length: h }, () => Array(w).fill(ch));
+// distances from a cell over the floor (BFS), -1 where it can't reach
+const bfs = (G, sx, sy) => {
+  const h = G.length, w = G[0].length, d = Array.from({ length: h }, () => Array(w).fill(-1)), q = [[sx, sy]]; d[sy][sx] = 0;
+  for (let i = 0; i < q.length; i++) { const [x, y] = q[i]; for (const [dx, dy] of D4) { const a = x + dx, b = y + dy; if (b >= 0 && b < h && a >= 0 && a < w && G[b][a] !== '#' && d[b][a] < 0) { d[b][a] = d[y][x] + 1; q.push([a, b]); } } }
+  return d;
+};
+// the finished level: rows, and a start and an end as far apart as the floor allows (from the first room's centre, or the
+// first floor cell)
+const finish = (G, rooms, from) => {
+  const h = G.length, w = G[0].length;
+  for (let x = 0; x < w; x++) { G[0][x] = G[h - 1][x] = '#'; } for (let y = 0; y < h; y++) { G[y][0] = G[y][w - 1] = '#'; }
+  let s = from;
+  if (!s || G[s[1]][s[0]] === '#') { s = null; for (let y = 0; y < h && !s; y++) for (let x = 0; x < w && !s; x++) if (G[y][x] !== '#') s = [x, y]; }
+  let end = s;
+  if (s) { const d = bfs(G, s[0], s[1]); let best = -1; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[y][x] > best) { best = d[y][x]; end = [x, y]; } }
+  return { rows: G.map(r => r.join('')), rooms, start: s || [1, 1], end: end || [1, 1], marks: [] };
+};
+const dig = (G, x, y) => { if (y > 0 && y < G.length - 1 && x > 0 && x < G[0].length - 1) G[y][x] = '.'; };
+// an L-shaped corridor from a to b, its bend chosen by R
+const corridor = (G, a, b, R) => {
+  const [x0, y0] = a, [x1, y1] = b, hFirst = R() < .5;
+  const run = (xa, ya, xb, yb) => { for (let x = Math.min(xa, xb); x <= Math.max(xa, xb); x++) dig(G, x, ya); for (let y = Math.min(ya, yb); y <= Math.max(ya, yb); y++) dig(G, xb, y); };
+  if (hFirst) run(x0, y0, x1, y1); else { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) dig(G, x0, y); for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) dig(G, x, y1); }
+};
+const centre = r => [Math.floor(r.x + r.w / 2), Math.floor(r.y + r.h / 2)];
+const carve = (G, r) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) dig(G, x, y); };
+
+/** the map generators (each from a seed: the same rows every time) */
+const gen = {
+  /** rooms placed apart and joined in order by bent corridors: { rows, rooms, start, end, marks }. o: { seed, rooms: 9,
+   *  min: 4, max: 9 (a room's side, cells) } */
+  rooms(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), G = blank(w, h), rooms = [], want = o.rooms || 9, mn = o.min || 4, mx = o.max || 9;
+    for (let tries = 0; tries < want * 30 && rooms.length < want; tries++) {
+      const rw = mn + Math.floor(R() * (mx - mn + 1)), rh = mn + Math.floor(R() * (mx - mn + 1)) - 1, x = 1 + Math.floor(R() * Math.max(1, w - rw - 2)), y = 1 + Math.floor(R() * Math.max(1, h - rh - 2));
+      const r = { x, y, w: Math.min(rw, w - 2 - x), h: Math.min(rh, h - 2 - y) };
+      if (r.w < 2 || r.h < 2 || rooms.some(q => r.x <= q.x + q.w && q.x <= r.x + r.w && r.y <= q.y + q.h && q.y <= r.y + r.h)) continue;
+      rooms.push(r);
+    }
+    rooms.sort((a, b) => a.x - b.x || a.y - b.y);
+    for (const r of rooms) carve(G, r);
+    for (let i = 1; i < rooms.length; i++) corridor(G, centre(rooms[i - 1]), centre(rooms[i]), R);
+    if (rooms.length > 3) corridor(G, centre(rooms[0]), centre(rooms[Math.floor(rooms.length / 2)]), R);   // a loop
+    return finish(G, rooms, rooms.length ? centre(rooms[0]) : null);
+  },
+  /** binary space partition: halves split again down to o.min (7) cells, a room in each leaf, sisters joined */
+  bsp(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), G = blank(w, h), mn = o.min || 7, rooms = [];
+    const split = (x, y, sw, sh) => {
+      const canH = sh >= mn * 2, canV = sw >= mn * 2;
+      if (!canH && !canV) {
+        const rw = Math.max(3, Math.floor(sw * (.55 + R() * .35))) - 1, rh = Math.max(3, Math.floor(sh * (.55 + R() * .35))) - 1;
+        const r = { x: x + 1 + Math.floor(R() * Math.max(1, sw - rw - 1)), y: y + 1 + Math.floor(R() * Math.max(1, sh - rh - 1)), w: rw, h: rh };
+        carve(G, r); rooms.push(r); return r;
+      }
+      const vert = canV && (!canH || (sw > sh ? R() < .8 : R() < .2));
+      const at = Math.floor((vert ? sw : sh) * (.4 + R() * .2));
+      const a = vert ? split(x, y, at, sh) : split(x, y, sw, at), b = vert ? split(x + at, y, sw - at, sh) : split(x, y + at, sw, sh - at);
+      corridor(G, centre(a), centre(b), R);
+      return R() < .5 ? a : b;
+    };
+    split(0, 0, w, h);
+    return finish(G, rooms, rooms.length ? centre(rooms[0]) : null);
+  },
+  /** caves by cellular automata: o.fill (.45) of the cells rock, o.steps (4) rounds of the 4-5 rule, then the biggest
+   *  open region alone */
+  cave(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), fill = o.fill === undefined ? .45 : o.fill;
+    let G = Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => x === 0 || y === 0 || x === w - 1 || y === h - 1 || R() < fill ? '#' : '.'));
+    for (let s = 0; s < (o.steps === undefined ? 4 : o.steps); s++) {
+      G = G.map((row, y) => row.map((c, x) => { let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const r = G[y + dy]; if (!r || r[x + dx] === undefined || r[x + dx] === '#') n++; } return n >= 5 ? '#' : '.'; }));
+    }
+    // keep the biggest region
+    const seen = Array.from({ length: h }, () => Array(w).fill(false)); let best = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (G[y][x] === '#' || seen[y][x]) continue;
+      const reg = [[x, y]]; seen[y][x] = true;
+      for (let i = 0; i < reg.length; i++) for (const [dx, dy] of D4) { const a = reg[i][0] + dx, b = reg[i][1] + dy; if (G[b] && G[b][a] === '.' && !seen[b][a]) { seen[b][a] = true; reg.push([a, b]); } }
+      if (reg.length > best.length) best = reg;
+    }
+    const keep = new Set(best.map(([x, y]) => y * w + x));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!keep.has(y * w + x)) G[y][x] = '#';
+    return finish(G, [], best[0] || null);
+  },
+  /** a maze on the odd cells: o.algo 'backtrack' (long halls) or 'prim' (short branches); o.braid 0..1 opens that share of
+   *  dead ends into loops */
+  maze(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), G = blank(w, h), cells = (x, y) => x > 0 && y > 0 && x < w - 1 && y < h - 1 && x % 2 && y % 2;
+    const D = [[2, 0], [0, 2], [-2, 0], [0, -2]], shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    G[1][1] = '.';
+    if (o.algo === 'prim') {
+      const front = []; const add = (x, y) => { for (const [dx, dy] of D) if (cells(x + dx, y + dy) && G[y + dy][x + dx] === '#') front.push([x + dx, y + dy, x, y]); };
+      add(1, 1);
+      while (front.length) { const [x, y, fx, fy] = front.splice(Math.floor(R() * front.length), 1)[0]; if (G[y][x] !== '#') continue; G[y][x] = '.'; G[(y + fy) / 2][(x + fx) / 2] = '.'; add(x, y); }
+    } else {
+      const stack = [[1, 1]];
+      while (stack.length) {
+        const [x, y] = stack[stack.length - 1], next = shuffle(D.slice()).find(([dx, dy]) => cells(x + dx, y + dy) && G[y + dy][x + dx] === '#');
+        if (!next) { stack.pop(); continue; }
+        G[y + next[1] / 2][x + next[0] / 2] = '.'; G[y + next[1]][x + next[0]] = '.'; stack.push([x + next[0], y + next[1]]);
+      }
+    }
+    if (o.braid) for (let y = 1; y < h - 1; y += 2) for (let x = 1; x < w - 1; x += 2) {
+      if (G[y][x] === '#') continue; const open = D4.filter(([dx, dy]) => G[y + dy][x + dx] !== '#');
+      if (open.length !== 1 || R() >= o.braid) continue;
+      const walls = shuffle(D4.filter(([dx, dy]) => G[y + dy][x + dx] === '#' && cells(x + dx * 2, y + dy * 2))); if (walls[0]) G[y + walls[0][1]][x + walls[0][0]] = '.';
+    }
+    return finish(G, [], [1, 1]);
+  },
+  /** Poisson disc points at least o.r (3) apart within w x h, o.k (30) tries each, where o.ok(x, y) allows (Bridson's):
+   *  [[x, y], ...] in cells, not whole numbers */
+  scatter(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), r = o.r || 3, k = o.k || 30, cs = r / Math.SQRT2, gw = Math.ceil(w / cs), gh = Math.ceil(h / cs), grid = new Array(gw * gh).fill(-1), pts = [], active = [];
+    const ok = (x, y) => x >= 0 && y >= 0 && x < w && y < h && (!o.ok || o.ok(x, y));
+    const far = (x, y) => { const gx = Math.floor(x / cs), gy = Math.floor(y / cs); for (let j = Math.max(0, gy - 2); j <= Math.min(gh - 1, gy + 2); j++) for (let i = Math.max(0, gx - 2); i <= Math.min(gw - 1, gx + 2); i++) { const p = pts[grid[j * gw + i]]; if (p && (p[0] - x) ** 2 + (p[1] - y) ** 2 < r * r) return false; } return true; };
+    const put = (x, y) => { pts.push([x, y]); active.push(pts.length - 1); grid[Math.floor(y / cs) * gw + Math.floor(x / cs)] = pts.length - 1; };
+    for (let t = 0; t < 50 && !pts.length; t++) { const x = R() * w, y = R() * h; if (ok(x, y)) put(x, y); }
+    while (active.length) {
+      const i = Math.floor(R() * active.length), [px, py] = pts[active[i]]; let found = false;
+      for (let t = 0; t < k; t++) { const a = R() * Math.PI * 2, d = r * (1 + R()), x = px + Math.cos(a) * d, y = py + Math.sin(a) * d; if (ok(x, y) && far(x, y)) { put(x, y); found = true; break; } }
+      if (!found) active.splice(i, 1);
+    }
+    return pts;
+  },
+  /** put character ch on n floor cells of a level (from a generator), at least o.far (4) steps from its start and o.near
+   *  steps from each other (0), from o.seed; returns the cells and adds them to level.marks */
+  mark(level, ch, n, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), G = level.rows.map(r => r.split('')), d = bfs(G, level.start[0], level.start[1]), far = o.far === undefined ? 4 : o.far, near = o.near || 0;
+    const free = []; for (let y = 0; y < G.length; y++) for (let x = 0; x < G[0].length; x++) if (G[y][x] === '.' && d[y][x] >= far && !(x === level.end[0] && y === level.end[1])) free.push([x, y]);
+    const out = [];
+    while (out.length < n && free.length) {
+      const [x, y] = free.splice(Math.floor(R() * free.length), 1)[0];
+      if (near && out.some(([a, b]) => Math.abs(a - x) + Math.abs(b - y) < near)) continue;
+      G[y][x] = ch; out.push([x, y]); level.marks.push({ ch, x, y });
+    }
+    level.rows = G.map(r => r.join('')); return out;
+  },
+  /** every floor cell ('.') of rows, as [x, y] */
+  open(rows) { const out = []; rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (r[x] === '.') out.push([x, y]); }); return out; }
+};
+E.gen = gen;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+/*!
+my-3D2dge module GRID v0.63.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+For roguelikes, tactics, puzzles, mazes, board games and strategy's fog (what Godot calls AStarGrid2D). A cell is
+[cx, cy]; a grid knows its size, which cells can be walked and what entering one costs, and nothing else: the game
+keeps its units.
+- new E.Grid(w, h, { hex: false | 'pointy' | 'flat', walkable(cx, cy), cost(cx, cy) (1), height(cx, cy) (0),
+  opaque(cx, cy) (not walkable), diagonal: false }); E.Grid.from(map, { tops }) reads a TileMap (its walkable cells;
+  tops: true stands on its walls' tops at their heights, for tactics). Hex grids are offset rows ('pointy') or columns
+  ('flat'), odd ones shifted.
+- grid.inside(c), grid.walk(c), grid.neighbours(c) (4, 8 with diagonal, or 6), grid.dist(a, b) (Manhattan; Chebyshev
+  with diagonal; hex steps); grid.center(c, T) and grid.toCell(x, y, T): world points (hex: T across).
+- grid.path(a, b, { blocked(cx, cy), climb, drop, ends }) -> [a, ..., b] or [] (A*, ties broken the same way every
+  time; ends: true reaches b even when b can't be walked: an attack's target). grid.reach(a, budget, { blocked, climb,
+  drop }) -> { cells: [[cx, cy, cost]], has(c), cost(c), path(c) } (Dijkstra: a move range; climb and drop limit the
+  height a step may rise and fall).
+- grid.line(a, b) (Bresenham, hex: steps), grid.sees(a, b) (no opaque cell between), grid.fov(c, radius) -> a Set of
+  'cx,cy' (symmetric shadowcasting: what a sees sees it; hex: lines). grid.flood(c, same(cx, cy)) and grid.groups(key(cx,
+  cy) -> a value or null) -> [[cells]] (equal neighbours: matches, chains, regions).
+- E.Fog(grid): fog.update([{ cx, cy, r }]) (each viewer's field of view: visible now; seen stays), fog.visible(c),
+  fog.seen(c), fog.draw(r, T, o) (unseen black, seen dimmed: over the walls too, before your HUD); E.tint(r, cells, color,
+  alpha, T, height): tints on cells' tops (ranges, paths).
+- E.GridMover({ cx, cy, speed }) moves a cell at a time: mover.update(dt, grid, [dx, dy], { blocked, push(cx, cy, dx, dy)
+  }): a turn asked early is kept and taken at the first opening (Pac-Man), push moves what is in the way (Sokoban);
+  x, y: its smooth position in cells; moving, dir, arrived (true the step it reaches a cell).
+- E.Turns(actors, { mode }) says who acts: 'speed' (energy: each actor's speed, 100 a turn; a bat of 200 acts twice:
+  roguelikes), 'ct' (charge time, the order ahead: Final Fantasy Tactics), 'phase' (every one of a side, then the next
+  side: Fire Emblem; actor.side), 'atb' (gauges filled on game time: Final Fantasy). turns.next() -> the actor to act
+  (speed, ct, phase); turns.order(n): who acts next, n of them; turns.update(dt) and turns.ready() (atb: those full),
+  turns.done(actor, cost) (after it acted: ct and atb); add(a), remove(a).
+
+```js grid
+const E = My3D2dge, g = new E.Grid(8, 6, { walkable: (x, y) => !(x === 3 && y < 4) });
+const p = g.path([0, 0], [7, 0]); if (p.length !== 16 || p[0].join() !== '0,0') throw new Error('path ' + p.length);
+const r = g.reach([0, 0], 3); if (!r.has([0, 3]) || r.has([3, 4]) || r.cost([2, 1]) !== 3) throw new Error('reach');
+const fov = g.fov([1, 1], 6); if (fov.has('6,1') || !fov.has('3,1')) throw new Error('fov');
+const t = new E.Turns([{ id: 'hero', speed: 100 }, { id: 'bat', speed: 200 }], { mode: 'speed' });
+if ([1, 2, 3].map(() => t.next().id).join() !== 'bat,hero,bat') throw new Error('turns');
+```
+Rules: cells are whole numbers; paths and reaches never cross a cell blocked(cx, cy) says is taken (other units); the
+same inputs give the same paths, fields and turns. Draw the fog after the world and before your HUD.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module GRID: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * GRID  square and hex grids: neighbours, distances, A*, Dijkstra's reach, lines, sight and fields of view, groups
+ * ========================================================================== */
+const SQ4 = [[1, 0], [0, 1], [-1, 0], [0, -1]], SQ8 = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]];
+// a binary heap of [priority, tie, seq, value]: the lowest first, ties the same way every time
+class Heap {
+  constructor() { this.a = []; this.n = 0; }
+  _lt(i, j) { const p = this.a[i], q = this.a[j]; return p[0] !== q[0] ? p[0] < q[0] : p[1] !== q[1] ? p[1] < q[1] : p[2] < q[2]; }
+  push(pri, tie, v) { const a = this.a; a.push([pri, tie, this.n++, v]); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (!this._lt(i, p)) break; [a[i], a[p]] = [a[p], a[i]]; i = p; } }
+  pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < a.length && this._lt(l, m)) m = l; if (r < a.length && this._lt(r, m)) m = r; if (m === i) break; [a[i], a[m]] = [a[m], a[i]]; i = m; } } return top[3]; }
+  get size() { return this.a.length; }
+}
+class Grid {
+  /**
+   * new E.Grid(w, h, { hex: false | 'pointy' | 'flat', walkable(cx, cy), cost(cx, cy), height(cx, cy), opaque(cx, cy),
+   * diagonal }): w x h cells, every one walkable at cost 1 and height 0 unless the functions say otherwise
+   */
+  constructor(w, h, o = {}) {
+    /** w, h: its size in cells; hex: false, 'pointy' (offset rows) or 'flat' (offset columns); diagonal: square moves
+     *  of 8 directions */
+    this.w = w; this.h = h; this.hex = o.hex || false; this.diagonal = !!o.diagonal && !this.hex;
+    this._walk = o.walkable || null; this._cost = o.cost || null; this._height = o.height || null; this._opaque = o.opaque || null;
+  }
+  /** a grid from a TileMap: its walkable cells (o.tops: true stands on the walls' tops at their heights, for tactics) */
+  static from(map, o = {}) {
+    return new Grid(map.w, map.h, Object.assign({
+      walkable: o.tops ? (x, y) => !map.blocked[y * map.w + x] : (x, y) => map.walkable(x, y),
+      height: o.tops ? (x, y) => map.height(x, y) : null, opaque: (x, y) => map.solidCell(x, y) && !o.tops
+    }, o));
+  }
+  /** is [cx, cy] on the grid? */
+  inside(c) { return c[0] >= 0 && c[1] >= 0 && c[0] < this.w && c[1] < this.h; }
+  /** can [cx, cy] be walked (on the grid, and walkable)? */
+  walk(c) { return this.inside(c) && (!this._walk || !!this._walk(c[0], c[1])); }
+  /** what entering [cx, cy] costs (1 by default) */
+  cost(c) { return this._cost ? this._cost(c[0], c[1]) : 1; }
+  /** a cell's height (0 by default; E.Grid.from(map, { tops: true }): the wall's top) */
+  height(c) { return this._height ? this._height(c[0], c[1]) || 0 : 0; }
+  /** does [cx, cy] block sight? (not walkable, by default) */
+  opaque(c) { return !this.inside(c) || (this._opaque ? !!this._opaque(c[0], c[1]) : !this.walk(c)); }
+  /** the cells next to c on the grid: 4, 8 (diagonal) or 6 (hex), walkable or not */
+  neighbours(c) {
+    const [x, y] = c, out = [];
+    let D = this.diagonal ? SQ8 : SQ4;
+    if (this.hex === 'pointy') D = y & 1 ? [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]] : [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]];
+    else if (this.hex) D = x & 1 ? [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [0, -1]] : [[1, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [0, -1]];
+    for (const [dx, dy] of D) { const n = [x + dx, y + dy]; if (this.inside(n)) out.push(n); }
+    return out;
+  }
+  // offset cell -> cube coordinates (hex)
+  _cube(c) { const [x, y] = c; if (this.hex === 'pointy') { const q = x - (y - (y & 1)) / 2; return [q, y, -q - y]; } const z = y - (x - (x & 1)) / 2; return [x, z, -x - z]; }
+  _off(q, r) { return this.hex === 'pointy' ? [q + (r - (r & 1)) / 2, r] : [q, r + (q - (q & 1)) / 2]; }
+  /** steps from a to b: Manhattan, Chebyshev (diagonal) or hex steps */
+  dist(a, b) {
+    if (this.hex) { const p = this._cube(a), q = this._cube(b); return Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]), Math.abs(p[2] - q[2])); }
+    const dx = Math.abs(a[0] - b[0]), dy = Math.abs(a[1] - b[1]); return this.diagonal ? Math.max(dx, dy) : dx + dy;
+  }
+  /** a cell's centre in world units, T a cell across (square: T wide; hex: T across its flats) */
+  center(c, T = 16) {
+    const [x, y] = c;
+    if (this.hex === 'pointy') return [(x + .5 + (y & 1) * .5) * T, (y * .866 + .577) * T];
+    if (this.hex) return [(x * .866 + .577) * T, (y + .5 + (x & 1) * .5) * T];
+    return [(x + .5) * T, (y + .5) * T];
+  }
+  /** the cell under world point (x, y), T a cell across (center's inverse) */
+  toCell(x, y, T = 16) {
+    if (!this.hex) return [Math.floor(x / T), Math.floor(y / T)];
+    let best = null, bd = Infinity; const guess = this.hex === 'pointy' ? [Math.floor(x / T), Math.floor(y / (.866 * T))] : [Math.floor(x / (.866 * T)), Math.floor(y / T)];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const c = [guess[0] + dx, guess[1] + dy], [px, py] = this.center(c, T), d = (px - x) ** 2 + (py - y) ** 2; if (d < bd) { bd = d; best = c; } }
+    return best;
+  }
+  // may a step go from a to b? (walkable, not taken, within climb and drop)
+  _step(a, b, o, end) {
+    if (end && o.ends) return this.inside(b);
+    if (!this.walk(b) || (o.blocked && o.blocked(b[0], b[1]))) return false;
+    if (o.climb !== undefined || o.drop !== undefined) { const d = this.height(b) - this.height(a); if (d > (o.climb === undefined ? Infinity : o.climb) || -d > (o.drop === undefined ? Infinity : o.drop)) return false; }
+    if (this.diagonal && a[0] !== b[0] && a[1] !== b[1] && (!this.walk([a[0], b[1]]) || !this.walk([b[0], a[1]]))) return false;   // (no cutting a wall's corner)
+    return true;
+  }
+  /** the cheapest way from a to b, [a, ..., b], or [] (A*; ties broken the same way every time). o: { blocked(cx, cy):
+   *  cells taken (other units), climb, drop (the most a step rises and falls), ends: b may be unwalkable (a target),
+   *  max: give up past this cost } */
+  path(a, b, o = {}) {
+    if (!this.inside(a) || !this.inside(b)) return [];
+    const W = this.w, key = c => c[1] * W + c[0], goal = key(b), g = new Map([[key(a), 0]]), from = new Map(), open = new Heap();
+    open.push(this.dist(a, b), this.dist(a, b), a);
+    while (open.size) {
+      const c = open.pop(), k = key(c), gc = g.get(k);
+      if (k === goal) { const out = [c]; let at = k; while (from.has(at)) { at = from.get(at); out.push([at % W, Math.floor(at / W)]); } return out.reverse(); }
+      for (const n of this.neighbours(c)) {
+        if (!this._step(c, n, o, key(n) === goal)) continue;
+        const nk = key(n), ng = gc + this.cost(n);
+        if (o.max !== undefined && ng > o.max) continue;
+        if (g.has(nk) && g.get(nk) <= ng) continue;
+        g.set(nk, ng); from.set(nk, k); const h = this.dist(n, b); open.push(ng + h, h, n);
+      }
+    }
+    return [];
+  }
+  /** every cell within budget of a: { cells: [[cx, cy, cost]], has(c), cost(c) (or Infinity), path(c) } (Dijkstra: move
+   *  ranges). o: { blocked, climb, drop } as path's */
+  reach(a, budget, o = {}) {
+    const W = this.w, key = c => c[1] * W + c[0], cost = new Map([[key(a), 0]]), from = new Map(), open = new Heap();
+    open.push(0, 0, a);
+    while (open.size) {
+      const c = open.pop(), k = key(c), gc = cost.get(k);
+      for (const n of this.neighbours(c)) {
+        if (!this._step(c, n, o)) continue;
+        const nk = key(n), ng = gc + this.cost(n);
+        if (ng > budget || (cost.has(nk) && cost.get(nk) <= ng)) continue;
+        cost.set(nk, ng); from.set(nk, k); open.push(ng, 0, n);
+      }
+    }
+    const cells = [...cost].map(([k, v]) => [k % W, Math.floor(k / W), v]).sort((p, q) => p[2] - q[2] || p[1] - q[1] || p[0] - q[0]);
+    return { cells, has: c => cost.has(key(c)), cost: c => cost.has(key(c)) ? cost.get(key(c)) : Infinity,
+      path: c => { if (!cost.has(key(c))) return []; const out = [c]; let at = key(c); while (from.has(at)) { at = from.get(at); out.push([at % W, Math.floor(at / W)]); } return out.reverse(); } };
+  }
+  /** the cells on a line from a to b, both ends included (Bresenham; hex: one step at a time) */
+  line(a, b) {
+    if (this.hex) { const n = this.dist(a, b), p = this._cube(a), q = this._cube(b), out = []; for (let i = 0; i <= n; i++) { const t = n ? i / n : 0, f = [0, 1, 2].map(j => p[j] + (q[j] - p[j]) * t + 1e-6 * (j + 1)); let r = f.map(Math.round); const d = r.map((v, j) => Math.abs(v - f[j])); if (d[0] > d[1] && d[0] > d[2]) r[0] = -r[1] - r[2]; else if (d[1] > d[2]) r[1] = -r[0] - r[2]; out.push(this._off(r[0], r[1])); } return out; }
+    let [x0, y0] = a; const [x1, y1] = b, dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, out = [];
+    let e = dx + dy;
+    for (;;) { out.push([x0, y0]); if (x0 === x1 && y0 === y1) return out; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
+  }
+  /** can a see b: no opaque cell on the line between them (the ends themselves may be) */
+  sees(a, b) { const L = this.line(a, b); for (let i = 1; i < L.length - 1; i++) if (this.opaque(L[i])) return false; return true; }
+  /** what c sees within radius: a Set of 'cx,cy' (symmetric shadowcasting, Albert Ford's: a sees b exactly when b sees a;
+   *  walls at the edge of what it sees are in it; hex grids: a line to each cell) */
+  fov(c, radius = 8) {
+    const out = new Set([c[0] + ',' + c[1]]), R2 = (radius + .5) ** 2;
+    const mark = (x, y) => { if ((x - c[0]) ** 2 + (y - c[1]) ** 2 <= R2 && this.inside([x, y])) out.add(x + ',' + y); };
+    if (this.hex) { for (let y = c[1] - radius; y <= c[1] + radius; y++) for (let x = c[0] - radius; x <= c[0] + radius; x++) if (this.inside([x, y]) && this.dist(c, [x, y]) <= radius && this.sees(c, [x, y])) out.add(x + ',' + y); return out; }
+    for (let q = 0; q < 4; q++) {
+      const tr = (row, col) => q === 0 ? [c[0] + col, c[1] - row] : q === 1 ? [c[0] + row, c[1] + col] : q === 2 ? [c[0] + col, c[1] + row] : [c[0] - row, c[1] + col];
+      const wall = (row, col) => { const [x, y] = tr(row, col); return this.opaque([x, y]); };
+      const scan = (depth, start, end) => {
+        if (depth > radius) return;
+        let prev = null; const lo = Math.floor(depth * start + .5), hi = Math.ceil(depth * end - .5);
+        for (let col = lo; col <= hi; col++) {
+          const w = wall(depth, col);
+          if (w || (col >= depth * start - 1e-9 && col <= depth * end + 1e-9)) mark(...tr(depth, col));
+          if (prev === true && !w) start = (2 * col - 1) / (2 * depth);
+          if (prev === false && w) scan(depth + 1, start, (2 * col - 1) / (2 * depth));
+          prev = w;
+        }
+        if (prev === false) scan(depth + 1, start, end);
+      };
+      scan(1, -1, 1);
+    }
+    return out;
+  }
+  /** the cells joined to c through neighbours for which same(cx, cy) is true (c's too): a flood fill */
+  flood(c, same) {
+    const W = this.w, seen = new Set([c[1] * W + c[0]]), out = [c], stack = [c];
+    if (!same(c[0], c[1])) return [];
+    while (stack.length) for (const n of this.neighbours(stack.pop())) { const k = n[1] * W + n[0]; if (seen.has(k) || !same(n[0], n[1])) continue; seen.add(k); out.push(n); stack.push(n); }
+    return out;
+  }
+  /** the groups of neighbouring cells with the same key(cx, cy) (null or undefined: none): matches, Puyo chains,
+   *  regions. [[cells]], biggest first */
+  groups(key) {
+    const done = new Uint8Array(this.w * this.h), out = [];
+    for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
+      if (done[y * this.w + x]) continue; const v = key(x, y); if (v === null || v === undefined) continue;
+      const g = this.flood([x, y], (a, b) => key(a, b) === v); for (const [a, b] of g) done[b * this.w + a] = 1; out.push(g);
+    }
+    return out.sort((p, q) => q.length - p.length);
+  }
+}
+E.Grid = Grid;
+
+/* =============================================================================
+ * FOG  what has been seen and what is in sight, from viewers' fields of view; drawn over the map
+ * ========================================================================== */
+// a cell's outline on the screen: its top at its height and, below a raised top, the faces down to the floor
+const hull = (r, cx, cy, T, z) => {
+  const P = [[cx, cy], [cx + 1, cy], [cx + 1, cy + 1], [cx, cy + 1]].flatMap(([x, y]) => z > 0 ? [r.w(x * T, y * T, z), r.w(x * T, y * T, 0)] : [r.w(x * T, y * T, 0)]);
+  P.sort((a, b) => a[0] - b[0] || a[1] - b[1]); const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+  for (const p of P) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+};
+class Fog {
+  /** new E.Fog(grid): every cell unseen; update() with the viewers each turn */
+  constructor(grid) {
+    /** grid: what it covers; state: per cell 0 unseen, 1 seen before, 2 visible now (row by row) */
+    this.grid = grid; this.state = new Uint8Array(grid.w * grid.h);
+  }
+  /** what the viewers see now ([{ cx, cy, r }]: each one's field of view) becomes visible; what was visible stays seen */
+  update(viewers) {
+    const S = this.state, W = this.grid.w;
+    for (let i = 0; i < S.length; i++) if (S[i] === 2) S[i] = 1;
+    for (const v of viewers) for (const k of this.grid.fov([v.cx, v.cy], v.r === undefined ? 8 : v.r)) { const [x, y] = k.split(',').map(Number); S[y * W + x] = 2; }
+  }
+  /** is [cx, cy] in sight now? */
+  visible(c) { return this.grid.inside(c) && this.state[c[1] * this.grid.w + c[0]] === 2; }
+  /** has [cx, cy] been seen (now or before)? */
+  seen(c) { return this.grid.inside(c) && this.state[c[1] * this.grid.w + c[0]] > 0; }
+  /** draw it over the world: unseen cells black, seen ones dimmed (o.dim: .55, o.color), walls' faces covered too; call
+   *  after the world and before the HUD. T: world units a cell; o.height(cx, cy): a cell's top (a TileMap's height) */
+  draw(r, T = 16, o = {}) {
+    const G = this.grid, S = this.state, col = o.color || '#05040a', dim = o.dim === undefined ? .55 : o.dim, H = o.height || ((x, y) => G.height([x, y]));
+    r.overlay(g => {
+      const m = this._m || (this._m = [E.mkCanvas(8, 8), E.mkCanvas(8, 8)]);
+      for (const c of m) { if (c.width !== r.bw || c.height !== r.bh) { c.width = r.bw; c.height = r.bh; } const cg = c.getContext('2d'); cg.clearRect(0, 0, c.width, c.height); }
+      const [dark, half] = m.map(c => c.getContext('2d'));
+      for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) {
+        const s = S[y * G.w + x]; if (s === 2) continue;
+        const z = Math.min(H(x, y) || 0, 200), pts = hull(r, x, y, T, z); if (!r.visible(x * T + T / 2, y * T + T / 2, 0, 40, 60 + z, 60)) continue;
+        E.px.poly(s ? half : dark, pts, col);
+      }
+      g.save(); g.globalAlpha = dim; g.drawImage(m[1], 0, 0); g.globalAlpha = 1; g.drawImage(m[0], 0, 0); g.restore(); E.px.reset(g);
+    });
+  }
+}
+E.Fog = Fog;
+/** tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range,
+ *  a path, an attack's reach, drawn on the floor (decals) where height is 0, over the world otherwise */
+E.tint = (r, cells, color, alpha = .4, T = 16, height = null) => {
+  const flat = !height, draw = g => { for (const [x, y] of cells) { const z = height ? height(x, y) || 0 : 0; E.px.polyDither(g, [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([a, b]) => r.w(a * T, b * T, z)), color, alpha, r.ix, r.iy); } };
+  if (flat) r.decal(draw); else r.overlay(draw);
+};
+
+/* =============================================================================
+ * GRIDMOVER  one cell at a time at a speed: a buffered turn (Pac-Man), pushing (Sokoban), a smooth position
+ * ========================================================================== */
+class GridMover {
+  /** new E.GridMover({ cx, cy, speed: 6 (cells a second) }) */
+  constructor(o = {}) {
+    /** cx, cy: the cell it is in (or leaving); x, y: its smooth position in cells (draw it there); speed: cells a second;
+     *  dir: [dx, dy] it is moving (or last moved); moving: between cells; arrived: true the step it reaches a cell */
+    this.cx = o.cx || 0; this.cy = o.cy || 0; this.x = this.cx; this.y = this.cy; this.speed = o.speed || 6; this.dir = [0, 0]; this.moving = false; this.arrived = false;
+    this._want = null; this._to = null; this._u = 0;
+  }
+  /** a step of dt: want ([dx, dy] or null) is kept until it can be taken. o: { blocked(cx, cy): true where it can't go,
+   *  push(cx, cy, dx, dy): true when what is in the way moved (a crate), keep: true goes on in the same direction (a
+   *  maze) }. Returns true when it reached a cell this step */
+  update(dt, grid, want, o = {}) {
+    if (want && (want[0] || want[1])) this._want = want;
+    this.arrived = false; let t = dt * this.speed;
+    for (let guard = 0; guard < 8 && t > 0; guard++) {
+      if (!this.moving) {
+        const tryDir = d => { if (!d) return false; const n = [this.cx + d[0], this.cy + d[1]]; if (!grid.walk(n)) return false; if (o.blocked && o.blocked(n[0], n[1]) && !(o.push && o.push(n[0], n[1], d[0], d[1]))) return false; this._to = n; this.dir = d; this.moving = true; this._u = 0; return true; };
+        if (tryDir(this._want)) this._want = o.keep ? this._want : null; else if (!(o.keep && tryDir(this.dir))) break;
+      }
+      const left = 1 - this._u, step = Math.min(left, t); this._u += step; t -= step;
+      this.x = this.cx + (this._to[0] - this.cx) * this._u; this.y = this.cy + (this._to[1] - this.cy) * this._u;
+      if (this._u >= 1 - 1e-9) { [this.cx, this.cy] = this._to; this.x = this.cx; this.y = this.cy; this.moving = false; this.arrived = true; if (!o.keep && !this._want) break; }
+    }
+    return this.arrived;
+  }
+  /** put it on a cell at once, still */
+  place(cx, cy) { this.cx = this.x = cx; this.cy = this.y = cy; this.moving = false; this._want = null; }
+}
+E.GridMover = GridMover;
+
+/* =============================================================================
+ * TURNS  who acts next: by speed (energy), by charge time, by phase, or by ATB gauges on game time
+ * ========================================================================== */
+class Turns {
+  /** new E.Turns(actors, { mode: 'speed' | 'ct' | 'phase' | 'atb', sides: ['hero', 'foe'] (phase), fill: 1 (atb: gauge
+   *  per second at speed 100) }). An actor is any object with speed (100: normal) and, in phase mode, side */
+  constructor(actors = [], o = {}) {
+    /** actors: in the order they were added (ties go to the earlier); mode: 'speed', 'ct', 'phase' or 'atb'; sides: the
+     *  sides in their order (phase; null: as the actors have them); fill: an atb gauge's fill a second at speed 100;
+     *  phase: the side acting now (phase mode) */
+    this.actors = actors.slice(); this.mode = o.mode || 'speed'; this.sides = o.sides || null; this.fill = o.fill || 1; this.phase = null; this._left = [];
+    for (const a of this.actors) this._init(a);
+  }
+  _init(a) { if (a._turn === undefined) a._turn = 0; }
+  /** add an actor (it starts with an empty gauge) */
+  add(a) { this._init(a); this.actors.push(a); }
+  /** take an actor out (it died, it left) */
+  remove(a) { const i = this.actors.indexOf(a); if (i >= 0) this.actors.splice(i, 1); this._left = this._left.filter(x => x !== a); }
+  // the speed and ct modes: fill every gauge until one is full; returns it
+  _tick(A, take) {
+    if (!A.length) return null;
+    for (let guard = 0; guard < 1e5; guard++) {
+      let best = null; for (const a of A) if (a._turn >= 100 && (!best || a._turn > best._turn)) best = a;
+      if (best) { if (take) best._turn -= 100; return best; }
+      for (const a of A) a._turn += Math.max(1, a.speed === undefined ? 100 : a.speed) / 10;
+    }
+    return null;
+  }
+  /** the actor whose turn it is (speed: its energy spent; ct: call done(actor, cost) after it acts; phase: each of the
+   *  side once, then the next side's) */
+  next() {
+    if (this.mode === 'phase') {
+      if (!this._left.length) {
+        const sides = this.sides || [...new Set(this.actors.map(a => a.side))]; if (!sides.length) return null;
+        let i = this.phase === null ? 0 : (sides.indexOf(this.phase) + 1) % sides.length;
+        for (let k = 0; k < sides.length && !this._left.length; k++, i = (i + 1) % sides.length) { this.phase = sides[i]; this._left = this.actors.filter(a => a.side === this.phase); }
+      }
+      return this._left.shift() || null;
+    }
+    return this._tick(this.actors, this.mode === 'speed');
+  }
+  /** who acts next, n of them, without changing anything (speed and ct: the order ahead; phase: the rest of this side) */
+  order(n = 5) {
+    if (this.mode === 'phase') return this._left.slice(0, n);
+    const copy = this.actors.map(a => ({ a, speed: a.speed, _turn: a._turn })), out = [];
+    for (let i = 0; i < n; i++) { const b = this._tick(copy, true); if (!b) break; out.push(b.a); }
+    return out;
+  }
+  /** after an actor acted (ct: cost 100 for a move and an action, 80 or 60 for less; atb: its gauge empties) */
+  done(a, cost = 100) { if (this.mode === 'ct') a._turn -= cost; else if (this.mode === 'atb') a._turn = 0; }
+  /** atb: fill the gauges on game time (dt seconds) */
+  update(dt) { if (this.mode === 'atb') for (const a of this.actors) a._turn = Math.min(100, a._turn + (a.speed === undefined ? 100 : a.speed) * this.fill * dt); }
+  /** atb: the actors whose gauges are full, in the order they were added */
+  ready() { return this.actors.filter(a => a._turn >= 100); }
+  /** an actor's gauge 0..1 (atb and ct: how full; speed: its energy) */
+  gauge(a) { return Math.max(0, Math.min(1, (a._turn || 0) / 100)); }
+}
+E.Turns = Turns;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);

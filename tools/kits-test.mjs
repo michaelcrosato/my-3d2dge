@@ -3,8 +3,10 @@
 //   2. its proof: the slice's run(600) twice gives the same hash (a 2D slice's runs through the shell's proof(): a seeded
 //      Math.random, the game clock from 0, scripted keys; a 3D slice's is its own world.hash()), with no errors and no
 //      call to what the kit diet left out (its stubs warn "left out of this kit")
-//   3. its size in cl100k tokens, beside its budget (doctrine-check holds them: every 2D kit at most 200,000)
-//   4. the reference editions' title (dist/my-3d2dge.html, and dist/my-3d2dge-3d.html served): every slice under its
+//   3. its bot, where its slice has one (bot(): it plays to the end through the game's own rules, as a player would, from
+//      a seed): the end it must reach (BOTS below: the roguelike's ten floors, the puzzle's lines), with no errors
+//   4. its size in cl100k tokens, beside its budget (doctrine-check holds them: every 2D kit at most 200,000)
+//   5. the reference editions' title (dist/my-3d2dge.html, and dist/my-3d2dge-3d.html served): every slice under its
 //      family's heading, two columns on a wide screen, each reached by the keys and picked by a tap; on a short screen
 //      one column that scrolls to the last
 // The 2D kits open from their files; the 3D kits are served (they load vendor/), on WebGL 2 (kit3d-test runs WebGPU too).
@@ -26,6 +28,11 @@ const problems = [], t0 = Date.now();
 const check = (name, ok, detail = '') => { console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ': ' + detail : ''}`); if (!ok) problems.push(name + (detail ? ': ' + detail : '')); };
 let tok = s => Math.ceil(s.length / 3.1); try { const { encode } = await import('gpt-tokenizer/encoding/cl100k_base'); tok = s => encode(s).length; } catch (e) { /* estimated */ }
 
+// what each slice's bot() must reach (docs/HANDOFF-GENRES.md 3.4: a bot or a scripted route that plays to the end)
+const BOTS = {
+  roguelike: { say: 'plays ten floors and wins', ok: r => r.floors >= 10 && r.mode === 'won' },
+  puzzle: { say: 'clears lines (60 pieces, at least 10 lines)', ok: r => r.pieces >= 60 && r.lines >= 10 }
+};
 // the kits: my-3d2dge-<id>.html (2D) and my-3d2dge-3d-<id>.html (3D), the slice's id from the name
 const kits = readdirSync(K).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort().map(f => { const is3d = f.startsWith('my-3d2dge-3d-'); return { file: f, is3d, id: f.replace(/^my-3d2dge-(3d-)?|\.html$/g, '') }; })
   .filter(k => !only.length || only.includes(k.id) || only.includes(k.file.replace(/^my-3d2dge-|\.html$/g, '')));
@@ -61,6 +68,11 @@ for (const k of kits) {
   const proof = await page.evaluate(id => { const s = __game.scenes[id]; if (!s || typeof s.run !== 'function') return null; const g = __game.game, e0 = g.errors.length; const r = [s.run(600), s.run(600)]; return { r, errors: g.errors.slice(e0).map(e => e.where + ': ' + e.message) }; }, k.id).catch(e => ({ thrown: e.message }));
   check(`${k.file}: ${k.id}.run(600) twice, the same hash, no errors`, !!proof && !proof.thrown && proof.r[0] === proof.r[1] && proof.r[0] !== undefined && !proof.errors.length && !errors.length,
     !proof ? 'the slice has no run(n)' : proof.thrown || (proof.r.join(', then ') + (proof.errors.length ? ' ' + proof.errors.join(' | ') : '') + (errors.length ? ' ' + errors.slice(0, 2).join(' | ') : '')));
+  const B = BOTS[k.id], hasBot = await page.evaluate(id => typeof __game.scenes[id].bot === 'function', k.id);
+  if (B || hasBot) {
+    const r = await page.evaluate(id => { try { return __game.scenes[id].bot(); } catch (e) { return { thrown: e.message }; } }, k.id);
+    check(`${k.file}: its bot ${B ? B.say : 'plays'}, with no errors`, !!B && !r.thrown && !r.errors && B.ok(r) && !errors.length, (B ? '' : 'no expectation in BOTS (tools/kits-test.mjs) ') + JSON.stringify(r) + ' ' + errors.slice(0, 2).join(' | '));
+  }
   check(`${k.file}: nothing the kit diet left out was called`, !left.length, left.slice(0, 3).join(' | '));
   if (budget) check(`${k.file}: within its budget`, n <= budget, n + ' tokens');
   await page.close();

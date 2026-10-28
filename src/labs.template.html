@@ -111,13 +111,14 @@ for (const S of LABS.sections) {
   const grid = el('div', kits ? 'grid tiles' : 'grid', '', sec);
   S.entries.forEach((L, i) => {
     const card = el('article', 'card', '', grid), a = el('a', '', L.title, el('h3', '', '', card));
-    a.href = target(L.page, ''); el('i', '', ' →', a);
+    a.href = target(L.page, L.at || ''); el('i', '', ' →', a);
     if (S.line) { const m = el('div', 'meta', '', card); el('span', 'step', String(i + 1), m); m.append(L.made ? 'Made ' + L.made : ''); }   // one line, in the order it was made
     if (L.added) el('div', 'meta', 'Added ' + L.added + ' · ' + age(L.added), card);
     if (L.question) el('p', 'q', L.question, card);
     if (L.deviates) { const d = el('p', 'dev', '', card); el('b', '', 'Deviates: ', d); d.append(L.deviates); }   // a prototype's departure from DOCTRINE.md, in a line
     if (temp && L.question) { const det = el('details', '', '', card); el('summary', '', 'What it is', det); el('p', '', L.what, det); }
     else el('p', '', L.what, card);
+    if (L.look) { const d = el('p', 'q', '', card); el('b', '', 'Look for: ', d); d.append(L.look); }   // a check's question (the To check section)
     if (L.next) { const d = el('p', 'dev', '', card); el('b', '', 'Led to: ', d); d.append(titleOf(L.next)); }
     if (L.links.length) { const row = el('div', 'links', '', card); for (const [label, add] of L.links) el('a', '', label, row).href = target(L.page, add); }
   });

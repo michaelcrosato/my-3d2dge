@@ -5,6 +5,19 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.63.0 (2026-10-28)
+
+Grids, turns and generated maps: the genre plan's Milestone 2 (`docs/HANDOFF-GENRES.md`): the first modules and two kits.
+
+- **Engine**: the `grid` module (`engine/modules/grid.js`): `E.Grid` (square, or hex with offset rows or columns; `E.Grid.from(map)`), neighbours and distances, A* paths with ties broken one way, Dijkstra's reach with climb and drop limits, lines, symmetric shadowcasting fields of view, flood fills and groups; `E.Fog` (unseen, seen, visible, drawn over the walls too) and `E.tint`; `E.GridMover` (Pac-Man's buffered turn, Sokoban's push); `E.Turns` by speed, charge time, phase or ATB. It loads after the agent edition too.
+- **Engine**: the `gen` module (`engine/modules/gen.js`): rooms and corridors, BSP, caves (kept connected), mazes (backtracker, Prim, braided) and Poisson scatter, from a seed, as ASCII rows a TileMap reads; `E.gen.mark` puts spawns on the floor.
+- **Engine**: the ROGUELIKE kit (`#roguelike`, `src/starter/45-roguelike.js`): ten generated floors of a torch-lit crypt to the Amulet, fields of view and fog, turns by speed (bats twice, slimes half), bump to attack, potions, scrolls of mapping and better blades, stairs through an iris, a tombstone and the results; rigs that walk each step in a tween; tap a cell to walk, the stick to step, WAIT, POTION and SCROLL.
+- **Engine**: the PUZZLE kit (`#puzzle`, `src/starter/35-puzzle.js`): falling blocks by today's rules (a bag of seven, the next five, hold, a ghost, SRS kicks, lock delay with 15 resets, the guideline's speeds) and falling pairs that pop in groups of four and chain; a mascot that cheers and winces; drag, tap and flicks on a phone.
+- **Tools**: `kits-test` runs each slice's `bot()` to its end (`BOTS`: the roguelike wins its ten floors, the puzzle clears lines); the phone test taps the new titles, walks the roguelike by a tap, and drags and taps the puzzle; the contract tests hold the grid's paths, reaches, fields of view (symmetric), hex, turns and movers, and `gen`'s same rows for a seed, every floor joined.
+- **Tools**: the Labs page's **To check** section: what only a person can judge (feel, sound, a real phone), each card with what to do, what to look for and a button to the place (`src/labs.json` `check`: `at`, `look`); the first two are the new kits.
+- **Docs**: the API card (the playbook's puzzle and roguelike rows, a line per module), `AI_GUIDE.md` (the modules, the puzzle and roguelike recipes), README (the slices, the kits, genre coverage), `docs/HANDOFF-GENRES.md` (M2 as built: `fog.draw` and `E.tint` for `r.cells`, the kits' files and families, the bots in `kits-test`).
+- **Docs**: sizes at v0.63.0, cl100k: adventure 198,265, shooter 195,173, RPG 192,775, brawler 191,796, roguelike 188,087, animation lab 183,647, platformer 183,519, stealth 182,830, puzzle 170,154; 3D 218,263, 213,070, 288,047; the compact edition 368,720, the reference 485,534; the API card 16,227, the index 40,614, the grid manual 1,216 of 2,500, gen's 691 of 1,500.
+
 ## 0.62.1 (2026-10-28)
 
 The genre plan's Milestone 1, closed: its progress row complete.
