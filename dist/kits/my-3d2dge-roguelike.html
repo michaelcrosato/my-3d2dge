@@ -532,7 +532,7 @@ Math.random.
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -557,6 +557,8 @@ const SLICES = [
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
+  { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
+  { id: 'road', label: 'ROAD', about: 'A COAST ROAD AGAINST THE CLOCK', family: 'RACING' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },

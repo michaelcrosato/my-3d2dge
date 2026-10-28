@@ -3,19 +3,20 @@
   my-3D2dge (My "3D" 2D Game Engine), compact edition (engine minified) v0.68.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and eleven working games and an animation lab.
+  AI MODELS: this one file is the whole engine, its documentation and thirteen working games and an animation lab.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below. It is short.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". Do not change it
        unless you are asked to extend the engine itself.
-    3. The games live between GAME START and GAME END: a title menu plus eleven vertical slices
-       (ADVENTURE top-down, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, PUZZLE, RPG BATTLE,
-       ROGUELIKE, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.
+    3. The games live between GAME START and GAME END: a title menu plus thirteen vertical slices
+       (ADVENTURE top-down, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, KART, ROAD, PUZZLE,
+       RPG BATTLE, ROGUELIKE, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.
        To make a new game, copy the slice closest to your genre, then replace everything between
        GAME START and GAME END with only your game. Keep everything else in this file as it is.
   HUMANS: open this file in a browser and play. Press ? for the API card.
-  Deep links: add #adventure, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #puzzle, #rpg, #roguelike, #stealth or
-       #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal, #fighting/versus,
-       #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss and #metroidvania/map jump into a part.
+  Deep links: add #adventure, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #kart, #road, #puzzle, #rpg, #roguelike,
+       #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,
+       #fighting/versus, #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map, #kart/race,
+       #kart/vs and #road/drive jump into a part.
 -->
 <html lang="en">
 <head>
@@ -446,6 +447,43 @@ playing the real rules; the entry and the continue read the game's keys, so hold
 !function(t){"use strict";if(!t)throw new Error("my-3D2dge module ARCADE: load engine/my-3d2dge.js (or the agent edition) first");const e="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-! ",s=["#ff4a4a","#ffffff","#ffe070"],i=t=>t.clicked?t.clicked():null,n={};t.Arcade=class{constructor(t,e={}){this.game=t,this.id=e.id||"game",this.o=Object.assign({lives:3,extra:[],credits:null,idle:20,demo:30,scores:6,hud:!0,colors:s},e),this.players=[],this.p=null,this.credits=null===this.o.credits?null:0,this.entry=null,this.mode="title",this.demo=!1,this.phase="title",this._cards=[],this._idle=0,this._t=0,this._cont=null,this.wheel=null,this.hi=0}start(t=1,e={}){if(null!==this.credits&&!e.demo){if(this.credits<this.o.credits)return!1;this.credits-=this.o.credits}return this.players=Array.from({length:Math.max(1,Math.min(2,t))},(t,e)=>({n:e+1,score:0,lives:this.o.lives,save:null,next:this.o.every||(void 0===this.o.extra[0]?1/0:this.o.extra[0])})),this.p=this.players[0],this.mode="play",this.demo=!!e.demo,this.entry=null,this._cont=null,this._cards.length=0,this.hi=Math.max(this.hi,(this.table()[0]||{score:0}).score),this.players.length>1&&this.card("PLAYER 1",1.6),!0}add(t,e){const s=this.p;if(s&&t){for(s.score+=t,this.hi=Math.max(this.hi,s.score);s.score>=s.next;){s.lives++;const t=this.o.every,e=this.o.extra.find(t=>t>s.next);s.next=t?s.next+t:void 0===e?1/0:e,this.say("EXTRA LIFE!",1.2),this.game.audio.sfx("oneup")}e&&this.game.particles.text(e.x||0,e.y||0,(e.z||0)+6,t,this.o.colors[2])}}die(){const t=this.p;if(!t)return"over";t.lives=Math.max(0,t.lives-1);const e=this.players.indexOf(t),s=this.players.length;for(let i=1;i<=s;i++){const n=this.players[(e+i)%s];if(!(n.lives<=0))return n===t?"again":(this.p=n,this.card("PLAYER "+n.n+", READY!",2),"next")}return this.mode="over","over"}coin(){return null===this.credits?null:(this.credits++,this.game.audio.sfx("coin"),this.credits)}continue(t=10,e){this._cont={t:t,done:e},this.game.input.consumeAll()}get continuing(){return!!this._cont}table(e=""){const s="arcade:"+this.id+":"+e,i=n[s]||t.store.get(s,null);return Array.isArray(i)?i.slice():[]}qualifies(t,e=""){const s=this.table(e);return!this.demo&&t>0&&(s.length<10||t>s[s.length-1].score)}enter(t,e="",s){this.entry={score:t,mode:e,name:[0,0,0],i:0,done:s,t:0},this.game.input.consumeAll()}card(t,e=2){this._cards.push({text:t,t:e,big:!0})}say(t,e=1.2){this._cards.push({text:t,t:e,big:!1})}clear(){this._cards.length=0}get carding(){return this._cards.some(t=>t.big)}attract(t){const e=this.game.input,s=this.o;if(e.anyPressed()||i(e))return this._idle=0,this.phase="title","title";this._idle+=t;const n="title"===this.phase?this._idle>=s.idle?"demo":null:"demo"===this.phase?this._idle>=s.demo?"scores":null:this._idle>=s.scores?"title":null;return n&&(this.phase=n,this._idle=0),this.phase}wake(){this.phase="title",this._idle=0}endDemo(){this.phase="scores",this._idle=0}update(s){this._t+=s;for(const t of this._cards)t.t-=s;this._cards=this._cards.filter(t=>t.t>0);const r=this.game.input,h=this.entry,o=i(r);if(h){h.t+=s;const i=t=>{h.name[h.i]=(h.name[h.i]+t+40)%40,this.game.audio.sfx("blip")};r.repeat("up",.3,.09)&&i(1),r.repeat("down",.3,.09)&&i(-1),r.pressed("left")&&h.i>0&&h.i--;let l=r.pressed("confirm")||r.pressed("right")||r.pressed("start");const a=this.wheel,c=(t,e)=>t[0]>=e[0]&&t[0]<e[0]+e[2]&&t[1]>=e[1]&&t[1]<e[1]+e[3];if(o&&a){const t=Math.floor((o[0]-a.x)/a.cw),e=o[1];c(o,a.ok)?l=!0:t>=0&&t<3&&e>=a.up[0]&&e<a.down[1]&&(h.i=t,e<a.up[1]?i(1):e>=a.down[0]&&i(-1))}if(l)if(this.game.audio.sfx("confirm"),h.i<2)h.i++;else{const s=h.name.map(t=>e[t]).join("").trim()||"---",i=this.table(h.mode);i.push({name:s,score:h.score}),i.sort((t,e)=>e.score-t.score);const o="arcade:"+this.id+":"+h.mode;n[o]=i.slice(0,10),t.store.set(o,n[o]),this.entry=null,r.consumeAll(),h.done&&h.done(s)}}const l=this._cont;if(l&&!h){l.t-=s;const t=r.pressed("start")||r.pressed("confirm")||!!o,e=null===this.credits||this.credits>=this.o.credits;if(t&&e){null!==this.credits&&(this.credits-=this.o.credits),this._cont=null;for(const t of this.players)t.lives=this.o.lives;this.mode="play",r.consumeAll(),this.game.audio.sfx("confirm"),l.done&&l.done(!0)}else l.t<=0&&(this._cont=null,l.done&&l.done(!1))}}draw(s,i){s.overlay(n=>{const[r,h,o,l]=i||[0,0,s.W,s.H],a=r+o/2,c=t.font,d=this.o.colors,f=(t,e,s,i,r)=>c.text(n,t,e,s,i,Object.assign({outline:!1,shadow:"#000"},r));if(this.o.hud&&this.p){const e=t=>this.p.n===t&&"play"===this.mode&&this.players.length>1&&Math.floor(3*this._t)%2;f(e(1)?"":"1UP",r+4,h+3,d[0],{font:"tiny"}),f(String(this.players[0].score),r+20,h+2,d[1]),f("HI",a-2,h+3,d[0],{align:"right",font:"tiny"}),f(String(this.hi),a+2,h+2,d[1]),this.players[1]&&(f(e(2)?"":"2UP",r+o-4,h+3,d[0],{align:"right",font:"tiny"}),f(String(this.players[1].score),r+o-20,h+2,d[1],{align:"right"}));for(let e=0;e<Math.min(6,this.p.lives-1);e++)t.px.disc(n,r+9+9*e,h+l-7,3,d[2]),t.px.dot(n,r+8+9*e,h+l-8,"#ffffff")}let u=Math.round(h+l/2)-14;for(const t of this._cards)t.big?(f(t.text,a,u,d[2],{align:"center",scale:2}),u+=20):(f(t.text,a,u,d[1],{align:"center"}),u+=11);this.demo&&Math.floor(2*this._t)%2==0&&f("DEMO",a,h+l-30,d[2],{align:"center",scale:2}),this._cont&&!this.entry&&(f("CONTINUE?",a,h+l/2-24,d[1],{align:"center",scale:2}),f(String(Math.max(0,Math.ceil(this._cont.t))),a,h+l/2,d[2],{align:"center",scale:3}));const g=this.entry;if(g){n.fillStyle="rgba(0,0,0,.6)",n.fillRect(0,0,s.bw,s.bh),t.px.reset(n);const i=this.game.screen,r=Math.max(34,Math.ceil(46*(i&&i.S?i.dpr/i.S:0))),o=r,c=Math.round(a-1.5*o),u=Math.round(h+l/2-r/2-4),p=[Math.round(a-r),u+26+r+4,2*r,r];this.wheel={x:c,y:u,cw:o,up:[u-r,u],down:[u+26,u+26+r],ok:p},f("NEW HIGH SCORE!",a,u-r-30,d[2],{align:"center",scale:2}),f(String(g.score),a,u-r-12,d[1],{align:"center"});for(let s=0;s<3;s++){const i=c+s*o+o/2,r=s===g.i;f(e[g.name[s]],i,u+4,r&&Math.floor(4*g.t)%2?d[1]:r?d[2]:d[1],{align:"center",scale:3}),t.px.poly(n,[[i-5,u-8],[i+5,u-8],[i,u-14]],r?d[0]:"#5a4a6a"),t.px.poly(n,[[i-5,u+32],[i+5,u+32],[i,u+38]],r?d[0]:"#5a4a6a")}t.px.rect(n,p[0],p[1],p[2],p[3],"#2a1a3e"),t.px.rect(n,p[0],p[1],p[2],1,d[2]),f("OK",a,p[1]+p[3]/2-3,d[2],{align:"center"}),f("ENTER YOUR INITIALS",a,p[1]+p[3]+4,"#c8c0e0",{align:"center",font:"tiny"})}})}drawTable(e,s="",i=40,n="HIGH SCORES"){const r=this.table(s);e.overlay(s=>{const h=e.W/2,o=this.o.colors,l=(e,i,n,r,h)=>t.font.text(s,e,i,n,r,Object.assign({outline:!1,shadow:"#000"},h));l(n,h,i,o[2],{align:"center",scale:2});for(let t=0;t<10;t++){const e=r[t],s=i+26+11*t,n=t?o[1]:o[2];l(t+1+".",h-52,s,n,{align:"right"}),l(e?e.name:"---",h-42,s,n),l(String(e?e.score:0),h+60,s,n,{align:"right"})}})}}}("undefined"!=typeof My3D2dge?My3D2dge:void 0);
 </script>
 <script>
+/* ---- inlined from engine/modules/drive.js (minified; the readable module is in the repo) ---- */
+/*!
+my-3D2dge module DRIVE v0.69.0: cars on the ground plane, a race round a track, the drivers who race it
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+Super Mario Kart's, F-Zero's, Micro Machines' and GTA's cars: speed along the heading, a slide sideways that grip
+takes away, the floor's tag under it slowing it, walls and other cars it bounces off; a race round a line of points.
+- const car = new E.Car({ x, y, angle, top: 240 (units a second), accel: 200, brake: 380, turn: 2.4 (radians a second
+  at speed), grip: 10, drift: 2.4 (the grip drifting), kart: true (a hop into a drift; held, it charges a boost),
+  surfaces: { grass: { top: .5, grip: .9 }, sand, dirt, ice, boost: { boost: .8 } (seconds), ... }, ground: (x, y) =>
+  tag (else map.floorAt) }): an E.Body. Each step car.update(dt, map, game.input (steer left/right; gas, brake, drift:
+  actions; o.auto: gas by itself) or an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor) }).
+- car.speed (along it), car.slide (sideways), car.angle, car.drifting (-1, 0, 1), car.charge (a drift's: 1 blue, 2
+  orange), car.boostT, car.surface, car.offroad, car.spinT; car.boost(seconds, power), car.spinOut(seconds);
+  E.Car.collide(cars) bumps them apart.
+- const race = new E.Race({ path: a closed E.Path (the racing line), laps: 3, checkpoints: 8, countdown: 3, width: 40
+  (the track's half: the drivers' lanes), items: ['boost', 'shot', 'hazard'] }); race.grid(n) -> the start places
+  [{ x, y, angle }]; race.add(car, { name, input (a player's) | ai: { skill: .95, rubber: .2 } }) -> a racer { car,
+  name, lap, place, prog (distance raced), times, best, finished, time, wrong, item }.
+- Each step race.update(dt, map): the countdown (race.go once it says GO), every car driven (players by their input,
+  the rest by race.drive(racer): look ahead along the line, brake for bends, overtake, unstick, rubber band), bumps,
+  laps through the checkpoints in order (a shortcut counts nothing), wrong way, places, the finish (race.results, then
+  race.over); race.box(x, y) an item box; race.use(racer) fires a racer's item; race.shots, race.hazards to draw.
+- race.hud(r, racer): the place, the lap, the time, the item, the countdown, WRONG WAY and FINISH (in its viewport).
+
+```js drive
+const E = My3D2dge, map = new E.TileMap({ w: 30, h: 30 }), car = new E.Car({ x: 40, y: 40, angle: 0 });
+for (let i = 0; i < 240; i++) car.update(1 / 120, map, { gas: 1 });
+if (!(car.speed > 150 && car.x > 150 && Math.abs(car.y - 40) < .01)) throw new Error('a car accelerates along its heading');
+```
+Rules: the angle is a heading (0 east, PI / 2 south) and a mode7 camera's; update cars at the fixed step; a player's
+car takes game.input or its player's input; race.update moves every racer's car, so don't update them yourself.
+*/
+!function(t){"use strict";if(!t)throw new Error("my-3D2dge module DRIVE: load engine/my-3d2dge.js (or the agent edition) first");const{clamp:s,angDiff:i}=t,h=(Math.PI,{grass:{top:.5,grip:.9},sand:{top:.4,grip:.6},dirt:{top:.7,grip:.8},ice:{grip:.15},boost:{boost:.8}});class o extends t.Body{constructor(t={}){super({x:t.x||0,y:t.y||0,z:t.z||0,r:t.r||7,h:t.h||14,bounce:void 0===t.bounce?.3:t.bounce}),this.o=Object.assign({top:240,accel:200,brake:380,reverse:70,turn:2.4,grip:10,drift:2.4,drag:.5,hop:110,kart:!1,auto:!1},t),this.o.surfaces=Object.assign({},h,t.surfaces),this.angle=t.angle||0,this.speed=0,this.slide=0,this.drifting=0,this.charge=0,this.boostT=0,this.spinT=0,this.surface=null,this.offroad=!1,this.bumped=!1,this.airT=0,this._boostK=0,this._hopDir=0,this._stall=0}boost(t=.8,s=.4){return this.boostT=Math.max(this.boostT,t),this._boostK=Math.max(this.boostT>t?this._boostK:0,s),this}spinOut(t=1){return this.spinT>0||(this.spinT=t,this.vx*=.3,this.vy*=.3,this.drifting=0,this.charge=0),this}update(t,i,h={}){const o=this.o,e="function"==typeof h.move;let a=e?h.move()[0]:h.steer||0,r=e?h.down("gas")||o.auto?1:0:h.gas||0,n=e?h.down("brake")?1:0:h.brake||0;const c=e?h.down("drift"):!!h.drift,l=e?h.pressed("drift"):c&&!this._held;this._held=c;const p=o.ground?o.ground(this.x,this.y):i&&i.floorAt?i.floorAt(this.x,this.y):null,g=p&&o.surfaces[p]||{};this.surface=p,this.offroad=(g.top||1)<1,g.boost&&this.onGround&&this.boost(g.boost),this.spinT>0&&(this.spinT-=t,this.angle+=11*t,a=0,r=0,n=.5),this.boostT>0&&(this.boostT-=t,r=1);const d=!this.onGround;o.kart?(l&&!d&&this.spinT<=0&&(this.vz=o.hop,this.onGround=!1,this._hopDir=Math.sign(a)),!d&&!this.drifting&&c&&this._hopDir&&this.speed>.4*o.top&&(this.drifting=this._hopDir),this.drifting&&(!c||this.speed<.3*o.top?(this.charge>=1&&this.boost(this.charge>=2?1:.55,.35),this.drifting=0,this.charge=0,this._hopDir=0):this.charge+=t*(a*this.drifting>0?1.5:.8)),c||(this._hopDir=0)):this.drifting=c&&Math.abs(this.speed)>.3*o.top?Math.sign(a)||this.drifting:0;const f=s(Math.abs(this.speed)/(.25*o.top),0,1)*Math.sign(this.speed||1),u=this.drifting?.7*this.drifting+.5*a:a;this.angle+=u*o.turn*f*t*(d?.5:1);const x=Math.cos(this.angle),b=Math.sin(this.angle);let y=this.vx*x+this.vy*b,M=this.vy*x-this.vx*b;const m=o.top*(g.top||1)*(h.top||1)*(this.boostT>0?1+this._boostK:1);if(r>0&&y<m?y=Math.min(m,y+o.accel*r*(this.boostT>0?2.5:1)*t):y>m&&(y=Math.max(m,y-1.6*o.accel*t)),n>0&&(y=y>1?Math.max(0,y-o.brake*n*t):Math.max(-o.reverse,y-.6*o.accel*n*t)),r||n||(y*=Math.exp(-o.drag*t)),d||(M*=Math.exp(-(this.drifting?o.drift:o.grip)*(g.grip||1)*t)),this.vx=x*y-b*M,this.vy=b*y+x*M,super.update(t,i),this.hitWall){const t=Math.cos(this.angle),s=Math.sin(this.angle);this.vx-=t*Math.max(0,this.vx*t+this.vy*s)*.4,this.vy-=s*Math.max(0,this.vx*t+this.vy*s)*.4}return this.speed=this.vx*x+this.vy*b,this.slide=this.vy*x-this.vx*b,this.bumped=this.hitWall,this.airT=d?this.airT+t:0,this}static collide(t){for(let s=0;s<t.length;s++)for(let i=s+1;i<t.length;i++){const h=t[s],o=t[i],e=o.x-h.x,a=o.y-h.y,r=Math.hypot(e,a),n=h.r+o.r;if(r>=n||r<1e-6||Math.abs(h.z-o.z)>10)continue;const c=e/r,l=a/r,p=(n-r)/2,g=(o.vx-h.vx)*c+(o.vy-h.vy)*l;if(h.x-=c*p,h.y-=l*p,o.x+=c*p,o.y+=l*p,g<0){const t=.65*-g;h.vx-=c*t,h.vy-=l*t,o.vx+=c*t,o.vy+=l*t}h.bumped=o.bumped=!0}}}Object.assign(t,{Car:o,Race:class{constructor(t={}){if(!t.path)throw new Error("E.Race needs { path }: a closed E.Path along the track (the racing line)");this.o=Object.assign({laps:3,checkpoints:8,countdown:3,width:40,items:["boost","shot","hazard"]},t),this.path=t.path,this.racers=[],this.t=-this.o.countdown,this.go=!1,this.over=!1,this.results=[],this.boxes=[],this.shots=[],this.hazards=[]}grid(t){const s=[],i=.45*this.o.width;for(let h=0;h<t;h++){const t=this.path.at(-14-22*h),o=t.angle,e=h%2?1:-1;s.push({x:t.x-Math.sin(o)*i*e,y:t.y+Math.cos(o)*i*e,angle:o})}return s}add(t,s={}){const i=this.path.nearest(t.x,t.y),h=this.path.length,o={car:t,name:s.name||"CAR "+(this.racers.length+1),input:s.input||null,ai:s.input?null:Object.assign({skill:.95,rubber:.2,lane:.37*this.racers.length%1*2-1},s.ai),lap:0,cp:Math.floor(i/h*this.o.checkpoints)%this.o.checkpoints,place:this.racers.length+1,prog:i>h/2?i-h:i,_d:i,times:[],best:null,lapT:0,finished:!1,time:0,wrong:!1,_wrongT:0,item:null,_stuck:0,_back:0};return this.racers.push(o),o}box(t,s){return this.boxes.push({x:t,y:s,t:0}),this}drive(t,h){const o=t.car,e=this.path,a=t.ai,r=30+.4*Math.max(40,o.speed),n=e.length;for(const s of this.racers)if(s!==t){const i=s.prog-t.prog;if(i>0&&i<70&&Math.abs(this._lane(s)-a.lane)<.5){a.lane=a.lane>0?-.6:.6;break}}const c=e.at(t._d+r),l=a.lane*this.o.width*.55,p=c.x-Math.sin(c.angle)*l,g=c.y+Math.cos(c.angle)*l,d=i(o.angle,Math.atan2(g-o.y,p-o.x)),f=Math.abs(i(c.angle,e.at(t._d+2.5*r).angle)),u=(this.racers.reduce((t,s)=>s.prog>t.prog?s:t).prog-t.prog)/n,x={steer:s(2.4*d,-1,1),gas:1,brake:f>.9&&o.speed>.7*o.o.top?.6:0,top:a.skill*(1+s(8*u,-.5,1)*a.rubber)};return o.o.kart&&f>.55&&o.speed>.6*o.o.top&&(x.drift=!0,x.steer=s(x.steer+.4*Math.sign(d),-1,1)),o.speed<12&&this.go?t._stuck+=h:t._stuck=0,t._stuck>1.2&&(t._back=.8,t._stuck=0),t._back>0?(t._back-=h,{steer:-Math.sign(d||1),brake:1}):(t.item&&("boost"===t.item?f<.3:"shot"===t.item?this.racers.some(s=>s!==t&&s.prog-t.prog>20&&s.prog-t.prog<160):this.racers.some(s=>s!==t&&t.prog-s.prog>10&&t.prog-s.prog<60))&&this.use(t),x)}_lane(t){const s=this.path.at(t._d);return((t.car.x-s.x)*-Math.sin(s.angle)+(t.car.y-s.y)*Math.cos(s.angle))/(.55*this.o.width)}use(t){const s=t.car,i=t.item;i&&(t.item=null,"boost"===i?s.boost(1,.45):"shot"===i?this.shots.push({x:s.x+12*Math.cos(s.angle),y:s.y+12*Math.sin(s.angle),vx:Math.cos(s.angle)*(1.6*s.o.top),vy:Math.sin(s.angle)*(1.6*s.o.top),t:0,by:t}):this.hazards.push({x:s.x-14*Math.cos(s.angle),y:s.y-14*Math.sin(s.angle),t:0}))}update(t,s){const h=this.path.length,e=this.o.checkpoints,a=this.racers.map(t=>t.car);this.t+=t,this.go=this.t>=0;for(const i of this.racers){const h=this.go?i.finished?{gas:.4,steer:i.ai?this.drive(i,t).steer:0}:i.ai?this.drive(i,t):i.input:{gas:0,brake:1};i.car.update(t,s,h)}o.collide(a);for(const s of this.boxes)if(s.t-=t,!(s.t>0))for(const t of this.racers)if(!t.item&&Math.hypot(t.car.x-s.x,t.car.y-s.y)<t.car.r+8){const i=this.o.items;t.item=i[Math.floor(Math.random()*i.length)],s.t=2;break}for(const i of this.shots){if(i.t+=t,i.x+=i.vx*t,i.y+=i.vy*t,s&&s.collide){const t={x:i.x,y:i.y,r:3};if(s.collide(t)){i.t=9;continue}}for(const t of this.racers)t!==i.by&&Math.hypot(t.car.x-i.x,t.car.y-i.y)<t.car.r+4&&(t.car.spinOut(1),i.t=9)}this.shots=this.shots.filter(t=>t.t<3);for(const t of this.hazards)for(const s of this.racers)t.t<9&&Math.hypot(s.car.x-t.x,s.car.y-t.y)<s.car.r+4&&s.car.onGround&&(s.car.spinOut(.9),t.t=9);this.hazards=this.hazards.filter(t=>t.t<9);for(const s of this.racers){const o=this.path.nearest(s.car.x,s.car.y);let a=o-s._d;if(a>h/2&&(a-=h),a<-h/2&&(a+=h),s.prog+=a,s._d=o,s.finished)continue;this.go&&(s.time+=t,s.lapT+=t);const r=Math.floor((s.prog%h+h)%h/h*e);r===(s.cp+1)%e&&s.prog>s.lap*h&&(s.cp=r,0===r&&s.prog>=(s.lap+1)*h-h/e&&(s.lap++,s.times.push(s.lapT),s.best=Math.min(s.best||1e9,s.lapT),s.lapT=0,s.lap>=this.o.laps&&(s.finished=!0,this.results.push(s))));const n=this.path.at(o).angle,c=Math.cos(i(s.car.angle,n))<-.3&&Math.abs(s.car.speed)>20;s._wrongT=c?s._wrongT+t:0,s.wrong=s._wrongT>.8}return this.racers.slice().sort((t,s)=>s.finished-t.finished||(t.finished?this.results.indexOf(t)-this.results.indexOf(s):s.prog-t.prog)).forEach((t,s)=>{t.place=s+1}),!this.over&&this.racers.every(t=>t.finished)&&(this.over=!0),this}hud(s,i,h={}){const o=s.viewport||{x:0,y:0,w:s.W,h:s.H},e=t.font;s.overlay(s=>{const a=o.x+6,r=o.y+6,n=["ST","ND","RD"][i.place-1]||"TH",c=h.color||"#ffffff";var l;e.text(s,i.place+n,a,r,1===i.place?"#ffe04a":c,{scale:2,shadow:"#000",outline:!1}),e.text(s,"LAP "+Math.min(this.o.laps,i.lap+1)+"/"+this.o.laps,o.x+o.w-6,r,c,{align:"right",shadow:"#000",outline:!1}),e.text(s,(l=i.time,Math.floor(l/60)+"'"+String(Math.floor(l%60)).padStart(2,"0")+'"'+String(Math.floor(100*l%100)).padStart(2,"0")),o.x+o.w-6,r+10,c,{align:"right",shadow:"#000",outline:!1,font:"tiny"}),t.ui.box(s,a,r+20,22,22,{bg:"#101830",border:"#e8e4ff"}),i.item&&e.text(s,"boost"===i.item?">>":"shot"===i.item?"(*)":"%",a+11,r+27,"boost"===i.item?"#ff9a3a":"shot"===i.item?"#4ae04a":"#ffe04a",{align:"center",outline:!1});const p=o.x+o.w/2,g=o.y+.35*o.h;this.t<1&&e.text(s,this.t<0?String(Math.ceil(-this.t)):"GO!",p,g,this.t<0?"#ffffff":"#4ae04a",{align:"center",scale:3,shadow:"#000",outline:!1}),i.wrong&&!i.finished&&e.text(s,"WRONG WAY",p,g,"#ff4a3a",{align:"center",scale:2,shadow:"#000",outline:!1}),i.finished&&e.text(s,"FINISH",p,g,"#ffe04a",{align:"center",scale:3,shadow:"#000",outline:!1})})}}})}("undefined"!=typeof My3D2dge?My3D2dge:void 0);
+</script>
+<script>
 /* ---- inlined from engine/modules/fight.js (minified; the readable module is in the repo) ---- */
 /*!
 my-3D2dge module FIGHT v0.68.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
@@ -834,7 +872,7 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu, nine vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
@@ -860,7 +898,7 @@ sprites: {
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -885,6 +923,8 @@ const SLICES = [
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
+  { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
+  { id: 'road', label: 'ROAD', about: 'A COAST ROAD AGAINST THE CLOCK', family: 'RACING' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
@@ -7057,6 +7097,428 @@ const ANIMLAB = (() => {
       }) };
 })();
 scenes.animlab = ANIMLAB;
+
+/* =====================================================================================
+ * SLICE 13  KART  (Super Mario Kart, F-Zero, Mario Kart 64). @modules mode7 drive
+ * A circuit in a meadow seen the SNES way, Mode 7: the floor drawn a row at a time under a sky that turns with you,
+ * six karts on it, three laps. Kerbs, grass that slows you, sand inside the tight bends, boost pads on the straights,
+ * walls round the edge, item boxes in rows across the track: a BOOST, a SHELL that flies ahead and spins out whoever it
+ * hits, or a PEEL dropped behind. Hop into a bend and hold the drift: sparks blue, then orange; let go for a boost.
+ * MODES: RACE (you against five), VS (two players in a split screen, against four: player 2 joins with 2 on the
+ * keyboard or Start on a pad). Then the results. Deep links: #kart/race, #kart/vs.
+ * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift hop and drift, E / J the item. A pad: the
+ * stick, A gas, X brake, R hop and drift, L the item. TOUCH: the stick steers (pulled down it brakes), DRIFT and ITEM;
+ * it accelerates by itself.
+ * HOW IT WORKS: E.Mode7 (the mode7 module) draws the floor, the sky and the karts far to near; E.Car and E.Race (the
+ * drive module) the karts, the laps, the drivers and the items; this file the track, the look of the karts (HD rigs in
+ * karts drawn from whatever side the camera sees), the HUD's map and the menus.
+ * ===================================================================================== */
+const KART = (() => {
+  const A = game.audio, T = 16, N = 64, SIZE = N * T, HALF = 44;   // the floor: 64 x 64 cells of 16 units; the road's half width
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2'], drift: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5', 'Pad7'], item: ['KeyE', 'KeyJ', 'Pad4', 'Pad6'] });
+  for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
+  /* ---- THE TRACK: its line (the racing line, the start at its first point, heading north), then every cell from its
+   * distance to the line: road, kerb, grass, sand, wall ---- */
+  const LINE = new E.Path([[160, 600], [160, 380], [175, 220], [230, 140], [360, 120], [520, 125], [680, 140], [760, 240], [720, 370], [580, 420], [480, 510], [530, 630], [680, 690], [820, 650], [890, 770], [830, 880], [640, 890], [420, 890], [240, 880], [165, 800]], { closed: true, smooth: 'catmull' });
+  const LEN = LINE.length, SANDS = [[620, 320, 90], [770, 790, 70], [300, 230, 60]], BOOSTS = [LEN * .3, LEN * .82], BOXES = [LEN * .2, LEN * .55];
+  const cells = [], floor = [];
+  for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) {
+    const x = (cx + .5) * T, y = (cy + .5) * T, d = LINE.nearest(x, y), p = LINE.at(d), e = Math.hypot(p.x - x, p.y - y);
+    const wall = e > HALF + 46 || cx === 0 || cy === 0 || cx === N - 1 || cy === N - 1;
+    let tag = e < HALF ? (BOOSTS.some(b => Math.abs(d - b) < 14) && e < HALF * .55 ? 'boost' : (d < 9 || d > LEN - 9) ? 'start' : null) : e < HALF + 8 ? 'kerb' : 'grass';
+    if (tag === 'grass' && SANDS.some(([sx, sy, r]) => Math.hypot(x - sx, y - sy) < r)) tag = 'sand';
+    cells.push(wall ? 1 : 0); floor.push(wall ? null : tag);
+  }
+  const map = new E.TileMap({ w: N, h: N, cells, floor, types: { 1: { h: 30, side: '#8a8478', top: '#b8b2a4' } } });
+  // the wall: the out-of-bounds cells beside the track (a low stone wall on the floor); past it a wood, trees standing in it
+  const wallAt = (cx, cy) => map.cell(cx, cy) !== 0, edge = new Uint8Array(N * N), TREES = [];
+  for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) if (wallAt(cx, cy)) {
+    if (!wallAt(cx + 1, cy) || !wallAt(cx - 1, cy) || !wallAt(cx, cy + 1) || !wallAt(cx, cy - 1)) edge[cy * N + cx] = 1;
+    else if ((cx * 7 + cy * 13) % 9 === 0 && !edge[cy * N + cx - 1] && !edge[cy * N + cx + 1]) TREES.push([(cx + .5) * T + (cx * 31 % 7) - 3, (cy + .5) * T + (cy * 17 % 7) - 3]);
+  }
+  // the floor's colors, a texel a unit: asphalt, kerbs, grass in stripes, sand, boost chevrons, the chequered line, walls
+  const hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
+  const look = (x, y) => {
+    const cx = x >> 4, cy = y >> 4, n = hash(x, y) % 9;
+    if (map.cell(cx, cy) > 0) {
+      if (!edge[cy * N + cx]) return n > 5 ? [44, 92, 40] : [52, 104, 46];   // (the wood's floor)
+      const b = ((y >> 2) & 1 ? x + 4 : x) >> 3; return ((x & 7) === 0 || (y & 3) === 0) ? [110, 100, 88] : (b + (y >> 2)) % 3 ? [196, 188, 170] : [172, 164, 146];
+    }
+    const tag = map.floorAt(x, y);
+    if (tag === 'kerb') return (cx + cy) & 1 ? [236, 236, 236] : [220, 48, 48];
+    if (tag === 'grass') return ((x + y) >> 5) & 1 ? [84 + n, 168, 72] : [72 + n, 150, 62];
+    if (tag === 'sand') return n > 6 ? [196, 160, 100] : [228, 196, 132];
+    if (tag === 'start') return ((x >> 2) + (y >> 2)) & 1 ? [240, 240, 240] : [30, 30, 36];
+    if (tag === 'boost') return ((y + (x & 7)) >> 3) & 1 ? [255, 210, 40] : [255, 120, 30];
+    return [104 + n, 102 + n, 112 + n];
+  };
+  const TREE = E.prop('tree', { color: '#3a8a40' }).frames[0];
+  const m7 = new E.Mode7({ floor: look, size: [SIZE, SIZE], outside: '#3c7a34', sky: new E.Backdrop('day'), far: 1400 });
+  // the map in the HUD's corner: a pixel a cell
+  let mini = null;
+  const miniMap = () => mini || (mini = (() => { const c = E.mkCanvas(N, N), g = c.getContext('2d'); for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) { const t = map.floorTags[cy * N + cx], w = map.cell(cx, cy) > 0; g.fillStyle = w ? 'rgba(0,0,0,0)' : t === 'grass' || t === 'sand' ? 'rgba(40,90,40,.6)' : '#d8d8e0'; g.fillRect(cx, cy, 1, 1); } return c; })());
+
+  /* ---- THE DRIVERS: six HD rigs, each in a kart of its own colors ---- */
+  const CAST = [
+    { name: 'NOVA', kart: '#e83030', rig: { hair: 'short', hat: 'cap', colors: { cloth: '#e83030', pants: '#2f5fd0', hair: '#5a3018', hat: '#e83030' } } },
+    { name: 'LUMA', kart: '#3aa850', rig: { hair: 'ponytail', colors: { cloth: '#3aa850', pants: '#f0e8d0', hair: '#e8c060' } } },
+    { name: 'BRAKK', kart: '#e8a020', rig: { build: 'bulky', hair: 'spiky', colors: { cloth: '#e8a020', pants: '#5a3a2a', hair: '#2a1a10' } } },
+    { name: 'IRIS', kart: '#c050e0', rig: { hair: 'long', colors: { cloth: '#c050e0', pants: '#3a2a5a', hair: '#f0f0f8' } } },
+    { name: 'TOK', kart: '#30b8e0', rig: { hat: { style: 'band', color: '#ffffff' }, colors: { cloth: '#30b8e0', pants: '#1a3a5a', hair: '#1a1a1a' } } },
+    { name: 'ROOK', kart: '#5a5a6a', rig: { hood: true, colors: { cloth: '#3a3a48', pants: '#22222c', hair: '#1a1a1a' } } }
+  ].map(c => Object.assign(c, { rig: new E.Humanoid(Object.assign({ size: .85, weapon: null }, c.rig)) }));
+  const SONG = { bpm: 148, steps: 4, tracks: [
+    { wave: 'square', vol: .06, notes: 'C5 . E5 G5 . E5 C5 . | D5 . F5 A5 . F5 D5 . | E5 . G5 C6 . G5 E5 . | D5 . B4 G4 . A4 B4 .' },
+    { wave: 'triangle', vol: .26, notes: 'C3 C3 G2 G2 C3 C3 G2 G2 | D3 D3 A2 A2 D3 D3 A2 A2 | E3 E3 B2 B2 C3 C3 G2 G2 | G2 G2 D3 D3 G2 G2 B2 B2' },
+    { wave: 'drums', vol: .07, notes: 'k . h k s . h . k . h k s . h h' }] };
+
+  let mode = 'menu', vs = false, race = null, players = [], cams = [], over = 0, t = 0;
+  const menu = new E.Menu(game, ['RACE', 'VS (2 PLAYERS)', 'BACK'], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
+  const after = new E.Menu(game, ['RACE AGAIN', 'MENU'], { onPick: i => i === 0 ? start(vs) : toMenu() });
+  function toMenu() { mode = 'menu'; race = null; game.splitScreen(0); A.music('title'); }
+  function versus() { if (game.players.length >= 2) start(true); else { mode = 'join'; A.sfx('select'); } }
+  /** a race: six karts on the grid (the players' at the back, as Super Mario Kart starts you), items in rows */
+  function start(two) {
+    vs = two; mode = 'race'; over = 0; t = 0;
+    race = new E.Race({ path: LINE, laps: 3, width: HALF, checkpoints: 10 });
+    const grid = race.grid(6), order = two ? [2, 3, 4, 5, 0, 1] : [1, 2, 3, 4, 5, 0];
+    players = [];
+    order.forEach((ci, k) => {
+      const c = CAST[ci], g = grid[k], car = new E.Car(Object.assign({ kart: true, top: 205, accel: 150, turn: 2.3, grip: 9, drift: 2, r: 9 }, g));
+      const human = ci === 0 || (two && ci === 1), R = race.add(car, human ? { name: c.name, input: game.players[ci] || game.input } : { name: c.name, ai: { skill: .9 + ci * .012, rubber: .25 } });
+      R.cast = c; if (human) players[ci] = R;
+    });
+    for (const d of BOXES) { const p = LINE.at(d); for (const u of [-.6, -.2, .2, .6]) race.box(p.x - Math.sin(p.angle) * u * HALF, p.y + Math.cos(p.angle) * u * HALF); }
+    cams = players.map(R => ({ x: R.car.x, y: R.car.y, h: 24, angle: R.car.angle, pitch: 9, fov: 62 }));
+    game.splitScreen(two ? 2 : 0, { layout: 'rows' }); A.music(SONG); game.input.consumeAll();
+  }
+
+  /* ---- each step ---- */
+  function update(dt) {
+    const I = game.input;
+    for (const k of ['drift', 'item']) I.touchSet(k, null, mode === 'race');
+    if (mode === 'menu' || mode === 'join') t += dt;   // (the title's camera rides the line)
+    if (mode === 'menu') { menu.update(dt); return; }
+    if (mode === 'join') { if (game.players.length >= 2) start(true); else if (I.pressed('cancel')) mode = 'menu'; return; }
+    t += dt;
+    const was = race.t; for (const R of players) R.car.o.auto = R.input.lastDevice === 'touch';
+    race.update(dt, map);
+    if (was < 0 && Math.floor(was) !== Math.floor(race.t)) A.sfx(race.t >= 0 ? 'confirm' : 'select');
+    for (const R of players) {
+      if (R.input.pressed('item') && race.go) { const had = R.item; race.use(R); if (had) A.sfx(had === 'shot' ? 'shoot' : had === 'boost' ? 'powerup' : 'whoosh'); }
+      if (R.car.bumped) A.sfx('bump', { vol: .4 });
+      if (R.lap !== R._lap) { if (R._lap !== undefined && !R.finished) A.sfx('oneup'); if (R.finished && !R._fin) { A.sfx('secret'); R._fin = true; } R._lap = R.lap; }
+    }
+    // each camera behind its kart, turning after it (a drift swings the kart, not the view)
+    players.forEach((R, i) => { const c = cams[i], k = 1 - Math.exp(-dt * 5); c.angle += E.angDiff(c.angle, R.car.angle) * k; m7.cam = c; m7.chase({ x: R.car.x, y: R.car.y, angle: c.angle }, { back: 42, h: 24 + R.car.z * .5 }); });
+    // the riders: seated, leaning into the turn
+    for (const R of race.racers) R.cast.rig.update(dt, { x: R.car.x, y: R.car.y, z: 0, vx: 0, vy: 0, facing: R.car.angle, down: .4, hurt: R.car.spinT > 0 });
+    if (players.length && players.every(R => R && R.finished)) { over += dt; if (over > 2.5 && mode === 'race') { mode = 'results'; after.i = 0; } }
+    if (mode === 'results') after.update(dt);
+  }
+
+  /* ---- the look ---- */
+  // a box of the kart (center l, half sizes h, local: forward x, right y, up z) seen through view v, its foot at (X, Y)
+  function box(g, v, X, Y, a, l, h, col) {
+    const c = Math.cos(a), s = Math.sin(a), P = (lx, ly, lz) => { const wx = lx * c - ly * s, wy = lx * s + ly * c; return [X + v.ax * wx + v.ay * wy, Y + v.bx * wx + v.by * wy + v.bz * lz]; };
+    const [x0, y0, z0] = [l[0] - h[0], l[1] - h[1], l[2] - h[2]], [x1, y1, z1] = [l[0] + h[0], l[1] + h[1], l[2] + h[2]], dk = E.shade(col, -.25), dk2 = E.shade(col, -.4);
+    for (const [nx, ny, q, k] of [[1, 0, [[x1, y0], [x1, y1]], dk], [-1, 0, [[x0, y1], [x0, y0]], dk], [0, 1, [[x1, y1], [x0, y1]], dk2], [0, -1, [[x0, y0], [x1, y0]], dk2]]) {
+      if ((nx * c - ny * s) * v.dx + (nx * s + ny * c) * v.dy <= 0) continue;   // (a side turned away)
+      E.px.poly(g, [P(q[0][0], q[0][1], z0), P(q[1][0], q[1][1], z0), P(q[1][0], q[1][1], z1), P(q[0][0], q[0][1], z1)], k);
+    }
+    E.px.poly(g, [P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], col);
+  }
+  const PARTS = [   // [center, half sizes, color: 'k' the kart's, else its own] (forward x, right y, up z)
+    [[7.5, 8.2, 2.4], [2.7, 1.8, 2.4], '#1a1a20'], [[7.5, -8.2, 2.4], [2.7, 1.8, 2.4], '#1a1a20'], [[-7.5, 8.7, 2.7], [3, 2.1, 2.7], '#1a1a20'], [[-7.5, -8.7, 2.7], [3, 2.1, 2.7], '#1a1a20'],
+    [[0, 0, 2.4], [10.5, 6, 1.2], 'k'], [[8, 0, 4], [3.6, 5.2, 2.2], 'k'], [[-9.6, 0, 4.5], [2.1, 4.5, 2.4], '#4a4a54'], [[-5, 0, 5.6], [1, 4, 3], 'k']];
+  function drawKart(g, sx, sy, k, R) {
+    const v = m7.view(k), car = R.car, a = car.angle + (car.spinT > 0 ? 0 : car.drifting * .35), ground = m7.project(car.x, car.y, 0), dx = v.dx, dy = v.dy;
+    if (ground) { const al = g.globalAlpha; g.globalAlpha = al * .4; E.px.ell(g, ground[0], ground[1], 13 * k, 4 * k, '#102010'); g.globalAlpha = al; }
+    const c = Math.cos(a), s = Math.sin(a), depth = l => (l[0] * c - l[1] * s) * dx + (l[0] * s + l[1] * c) * dy, items = PARTS.map(p => [depth(p[0]), () => box(g, v, sx, sy, a, p[0], p[1], p[2] === 'k' ? R.cast.kart : p[2])]);
+    const seat = [-2.4, 0, 3.4], wx = seat[0] * c, wy = seat[0] * s;
+    items.push([depth(seat), () => R.cast.rig.draw(g, Math.round(sx + v.ax * wx + v.ay * wy), Math.round(sy + v.bx * wx + v.by * wy + v.bz * seat[2]), v)]);
+    items.sort((p, q) => p[0] - q[0]); for (const [, f] of items) f();
+    if (car.drifting && car.charge > .4) for (const side of [-1, 1]) { const lx = -9, ly = side * 8.7, X = sx + v.ax * (lx * c - ly * s) + v.ay * (lx * s + ly * c), Y = sy + v.bx * (lx * c - ly * s) + v.by * (lx * s + ly * c); E.px.disc(g, X, Y - k, Math.max(1, 1.6 * k), car.charge >= 2 ? (t * 20 % 2 < 1 ? '#ff9a2a' : '#ffe060') : (t * 20 % 2 < 1 ? '#58b8ff' : '#d8f0ff')); }
+    if (car.boostT > 0) { const lx = -12, X = sx + v.ax * lx * c + v.ay * lx * s, Y = sy + v.bx * lx * c + v.by * lx * s + v.bz * 3; E.px.disc(g, X, Y, Math.max(1, (2 + Math.sin(t * 40)) * k), '#ffb040'); }
+  }
+  // the wood's trees within sight of a camera (ahead of it, not too far)
+  function trees(c) { const fx = Math.cos(c.angle), fy = Math.sin(c.angle); for (const [x, y] of TREES) { const d = (x - c.x) * fx + (y - c.y) * fy; if (d > 40 && d < 900) m7.sprite(TREE, x, y, 0, { scale: 1.6 }); } }
+  function draw(r) {
+    const W = r.W, H = r.H;
+    if (mode === 'menu' || mode === 'join') {
+      const p = LINE.at(t * 40); m7.cam = { x: p.x, y: p.y, h: 60, angle: p.angle, pitch: 14, fov: 70 }; trees(m7.cam);
+      m7.draw(r);
+      r.overlay(g => {
+        E.font.title(g, 'KART', W / 2, 30, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
+        if (mode === 'join') E.font.text(g, 'PLAYER 2: PRESS 2 OR START ON A PAD', W / 2, H / 2, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+      });
+      if (mode === 'menu') { menu.y = Math.round(H / 2) - 6; menu.draw(r); }
+      return;
+    }
+    const i = r.viewport ? r.viewport.i : 0, me = players[vs ? i : 0], cam = cams[vs ? i : 0];
+    trees(cam);
+    for (const R of race.racers) m7.add(R.car.x, R.car.y, R.car.z, (g, sx, sy, k) => drawKart(g, sx, sy, k, R));
+    for (const b of race.boxes) if (b.t <= 0) m7.add(b.x, b.y, 6 + Math.sin(t * 4) * 1.5, (g, sx, sy, k) => { const s = 7 * k, hue = (t * 120 + b.x) % 360; E.px.rect(g, sx - s, sy - s * 2, s * 2, s * 2, E.hsl(hue, .8, .55)); E.px.rect(g, sx - s + 1, sy - s * 2 + 1, s * 2 - 2, s * 2 - 2, E.hsl(hue, .7, .7)); if (s > 4) E.font.text(g, '?', Math.round(sx), Math.round(sy - s * 1.6), '#ffffff', { align: 'center', outline: false, shadow: '#000', scale: s > 12 ? 2 : 1 }); });
+    for (const s of race.shots) m7.add(s.x, s.y, 2, (g, sx, sy, k) => { E.px.disc(g, sx, sy - 3 * k, 4 * k, '#2a9a2a'); E.px.disc(g, sx - k, sy - 4 * k, 2 * k, '#8af08a'); });
+    for (const h of race.hazards) m7.add(h.x, h.y, 0, (g, sx, sy, k) => { E.px.poly(g, [[sx - 5 * k, sy], [sx, sy - 6 * k], [sx + 5 * k, sy], [sx, sy - 2 * k]], '#f0d030'); });
+    m7.draw(r, cam);
+    if (me) race.hud(r, me, { color: vs ? (i ? '#ffd080' : '#a0d8ff') : '#ffffff' });
+    if (!vs && me) r.overlay(g => {   // the map: the track, every kart a dot (yours blinking)
+      const S = Math.max(40, Math.min(64, Math.round(H / 4))), X = 4, Y = H - S - 4, ta = game.input.touchArea && game.input.touchArea();
+      if (ta) return;   // (a phone: the buttons sit there)
+      g.globalAlpha = .85; g.drawImage(miniMap(), X, Y, S, S); g.globalAlpha = 1;
+      for (const R of race.racers) { if (R === me && Math.floor(t * 4) % 2) continue; E.px.rect(g, X + R.car.x / SIZE * S - 1, Y + R.car.y / SIZE * S - 1, 3, 3, R.cast.kart); }
+    });
+    if (!vs) board(r);
+  }
+  // the results: every kart's place and time, and what next (over the whole screen, a split screen's too: hud)
+  function board(r) {
+    if (mode !== 'results') return;
+    const W = r.W, H = r.H;
+    r.overlay(g => {
+      const w = 170, h = 16 + race.racers.length * 11, x = Math.round((W - w) / 2), y = Math.round(H / 2 - h / 2 - 20);
+      E.ui.box(g, x, y, w, h, { bg: '#141a3a', border: '#e8e4ff' });
+      race.racers.slice().sort((a, b) => a.place - b.place).forEach((R, k) => { const yy = y + 8 + k * 11, fin = R.finished ? Math.floor(R.time / 60) + "'" + (R.time % 60).toFixed(2).padStart(5, '0') : '--'; E.font.text(g, R.place + '. ' + R.name, x + 8, yy, players.includes(R) ? '#ffe04a' : '#ffffff', { outline: false }); E.font.text(g, fin, x + w - 8, yy, '#c8c8e0', { align: 'right', outline: false }); });
+    });
+    after.y = Math.round(H / 2) + 52; after.draw(r);
+  }
+
+  /** the bot (tools/kits-test.mjs): a race with every kart driven by its driver (yours too) to the end; then a race for
+   *  two in a split screen, both players holding the gas a while */
+  function bot(s = 1) {
+    const was = Math.random; Math.random = E.rng(s);
+    try {
+      game.go('kart', null, { fade: 0 }); game.advance(1 / 120); start(false);
+      players[0].ai = { skill: .9, rubber: .25, lane: 0 }; players[0].input = null;
+      let n = 0, stuck = 0; for (; n < 240 && !race.over; n++) { game.advance(1); for (const R of race.racers) stuck = Math.max(stuck, R._stuck); }
+      const one = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, best: Math.min(...race.racers.map(R => R.best || 99)).toFixed(1) };
+      if (game.players.length < 2) game.addPlayer({ keys: 'right' });
+      start(true); const P = game.players; P[0].hold('gas'); P[1].hold('gas'); game.advance(9); P[0].hold('gas', false); P[1].hold('gas', false);
+      const two = { viewports: game.viewports.length, prog: players.map(R => Math.round(R.prog)), names: players.map(R => R.name) };
+      toMenu(); game.removePlayer(2);
+      return Object.assign(one, { split: two, stuck: +stuck.toFixed(2), errors: game.errors.length });
+    } finally { Math.random = was; }
+  }
+
+  return { view: 'topdown', views: ['topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['drift', 'item'], camera: { zoom: false },
+    enter(d) {
+      mode = 'menu'; race = null; menu.i = 0; game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false;
+      game.allowJoin({ max: 2 }); A.music('title');
+      if (d && d.part) d.part === 'vs' ? versus() : start(false);
+    },
+    exit() { game.splitScreen(0); game.allowJoin(false); },
+    back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
+    update, draw, bot, hud: board,
+    state: () => race && { mode, t: +race.t.toFixed(2), racers: race.racers.map(R => ({ name: R.name, lap: R.lap, place: R.place, x: Math.round(R.car.x), y: Math.round(R.car.y), speed: Math.round(R.car.speed), item: R.item })) },   // for tests
+    race: () => race,   // (for tests)
+    /** the proof: a race, the gas held, a hop and a drift into the first bend, the item fired; a hash of every kart */
+    run: (n = 600) => proof('kart', n, (i, k) => {
+      if (i === 2) start(false);
+      if (i === 380) k.hold('gas');
+      if (i === 520) { k.hold('right'); k.tap('drift'); k.hold('drift'); }
+      if (i === 580) { k.up('right'); k.up('drift'); k.tap('item'); }
+    }, () => race ? race.racers.map(R => [R.car.x, R.car.y, R.car.angle, R.prog]) : null) };
+})();
+scenes.kart = KART;
+
+/* =====================================================================================
+ * SLICE 14  ROAD  (OutRun, Pole Position, Hang-On, Road Rash). @modules road
+ * A convertible on a coast road: the beach, the hills, a tunnel through the cliffs, the desert at dusk, the city at
+ * night. Curves throw you outward, the shoulder slows you, palms and rocks and signs stop you dead, traffic weaves in
+ * its lanes. A clock counts down; each checkpoint's arch gives time back; reach the goal before it runs out. Pick a
+ * song on the radio first. Low gear pulls away hard but tops out early; high gear runs to 290.
+ * KEYS: left / right (A / D) steer, up / Z gas, down / X brake, Space / Shift the gear (low, high), left and right on
+ * the radio. A pad: the stick, A gas, X brake, R the gear. TOUCH: the stick steers, BRAKE and GEAR; it accelerates by
+ * itself. Deep link: #road/drive (the radio skipped).
+ * HOW IT WORKS: E.Road (the road module) draws the road, its hills, its tunnel, the scenery and the traffic far to near
+ * and says how hard it bends; this file the stage, the car (drawn by code from behind), the traffic, the clock and
+ * the radio.
+ * ===================================================================================== */
+const ROAD = (() => {
+  const A = game.audio, SEG = 200, KEYS = Object.assign({}, E.Input.DEFAULT, { gas: ['ArrowUp', 'KeyW', 'KeyZ', 'Pad0'], brake: ['ArrowDown', 'KeyS', 'KeyX', 'Pad2'], gear: ['Space', 'ShiftLeft', 'ShiftRight', 'KeyC', 'Pad5', 'Pad7'] });
+  for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
+  /* ---- THE STAGE: five stretches, each its colors and sky; checkpoints between them; the goal at the end ---- */
+  const AREAS = [
+    { name: 'COCONUT BEACH', sky: 'ocean', colors: { grass: ['#e8d8a0', '#dccb90'], rumble: ['#f0f0f0', '#d83030'] } },
+    { name: 'GREEN HILLS', sky: 'day', colors: { grass: ['#4aa848', '#3e9a3e'], rumble: ['#f0f0f0', '#3050c0'] } },
+    { name: 'CLIFF TUNNEL', sky: 'day', colors: { grass: ['#6a5a48', '#5e5040'], rumble: ['#f0f0f0', '#d83030'] } },
+    { name: 'DESERT AT DUSK', sky: 'dusk', colors: { grass: ['#d8a060', '#c89050'], rumble: ['#f0e0c0', '#b04820'], road: ['#6a6070', '#625868'] } },
+    { name: 'CITY NIGHTS', sky: 'city-night', colors: { grass: ['#2a2a3a', '#24243a'], rumble: ['#e0e0f0', '#e0b030'], road: ['#4a4a58', '#444452'], lane: '#e0d060' } }];
+  const road = new E.Road({ segment: SEG, lanes: 3, draw: 200, fog: null });
+  const AT = [];   // where each area starts (a segment)
+  const stretch = (ai, parts) => { AT.push(road.segs.length); for (const [n, o] of parts) road.add(n, Object.assign({ colors: AREAS[ai].colors }, o)); };
+  stretch(0, [[40, {}], [60, { curve: 3 }], [40, { hill: 2000 }], [60, { curve: -4, hill: -2000 }], [50, {}], [70, { curve: 5 }], [40, {}]]);
+  stretch(1, [[50, { hill: 4000 }], [60, { curve: -3, hill: -3000 }], [40, { hill: 3000 }], [70, { curve: 4, hill: -4000 }], [50, { curve: -5 }], [40, { hill: 2000 }], [40, { hill: -2000 }]]);
+  stretch(2, [[30, {}], [80, { tunnel: true, curve: 2, colors: Object.assign({}, AREAS[2].colors, { grass: ['#3a3430', '#34302c'] }) }], [30, {}], [60, { curve: -4 }], [40, { curve: 3, hill: 1500 }]]);
+  stretch(3, [[60, { curve: -2 }], [50, { hill: 3000 }], [60, { curve: 5, hill: -3000 }], [80, {}], [60, { curve: -5 }], [50, { curve: 2 }]]);
+  stretch(4, [[60, {}], [60, { curve: 4 }], [50, { curve: -4 }], [80, { hill: 1000 }], [60, {}], [40, {}]]);
+  const GOAL = (road.segs.length - 30) * SEG, CHECKS = AT.slice(1).map(s => s * SEG);
+  // the scenery: each area's own, both sides, a checkpoint arch at each area's start, the goal's
+  const PALM = E.prop('palm').frames[0], ROCK = E.prop('rock', { size: 2 }).frames[0], CACTUS = E.prop('cactus').frames[0], TREE = E.prop('tree').frames[0];
+  const bldg = (w, h, col, lit) => ({ w, draw(g, x, y, s) { const W = w * s, H = h * s; if (W < 1) return; E.px.rect(g, x - W / 2, y - H, W, H, col); if (W > 6) for (let yy = 4 * s; yy < H - 4 * s; yy += 10 * s * 4) for (let xx = -W / 2 + 4 * s * 4; xx < W / 2 - 4 * s * 4; xx += 12 * s * 4) E.px.rect(g, x + xx, y - H + yy, Math.max(1, 5 * s * 4), Math.max(1, 5 * s * 4), lit); } });
+  const sign = text => ({ w: 600, draw(g, x, y, s) { const W = 600 * s, H = 300 * s; if (W < 2) return; E.px.rect(g, x - W * .04, y - H * 2, W * .08, H * 2, '#606068'); E.px.rect(g, x - W / 2, y - H * 2.4, W, H, '#f0e0a0'); if (W > 40) E.font.text(g, text, Math.round(x), Math.round(y - H * 2.1), '#c03020', { align: 'center', outline: false }); } });
+  const arch = (text, col) => ({ w: 0, draw(g, x, y, s) { const W = 2600 * s, H = 1500 * s; if (W < 3) return; for (const sx of [-1, 1]) E.px.rect(g, x + sx * W - 40 * s, y - H, 80 * s, H, '#e0e0e8'); E.px.rect(g, x - W, y - H, W * 2, H * .2, col); if (W > 60) E.font.text(g, text, Math.round(x), Math.round(y - H * .93), '#ffffff', { align: 'center', outline: false, scale: W > 400 ? 2 : 1 }); } });
+  for (let z = 0; z < road.length; z += SEG * 4) {
+    const a = AREAS.findIndex((_, i) => i === AREAS.length - 1 || z < AT[i + 1] * SEG), side = (z / SEG / 4) % 2 ? 1 : -1, r = (z * 7919) % 100;
+    if (road.seg(z).tunnel) continue;
+    if (a === 0) road.place(z, side * (1.5 + r / 200), PALM, 50);
+    else if (a === 1) road.place(z, side * (1.6 + r / 150), r < 50 ? TREE : ROCK, 60);
+    else if (a === 2) road.place(z, side * 1.7, ROCK, 70);
+    else if (a === 3) road.place(z, side * (1.5 + r / 120), r < 70 ? CACTUS : ROCK, 60);
+    else road.place(z, side * (2 + r / 200), bldg(900 + r * 8, 1600 + r * 30, ['#2a2a4a', '#3a2a4a', '#2a3a4a'][r % 3], '#ffd870'), 1);
+    if (r < 12) road.place(z + SEG * 2, -side * 1.4, sign(['SLOW', 'GOAL', 'TURN'][r % 3]), 1);
+  }
+  CHECKS.forEach((z, i) => road.place(z, 0, arch('CHECKPOINT', '#2a8a3a'), 1));
+  road.place(GOAL, 0, arch('GOAL', '#d02a2a'), 1);
+  const SONGS = [
+    { name: 'SEA BREEZE', bpm: 132, steps: 4, tracks: [
+      { wave: 'square', vol: .06, notes: 'E5 . G5 A5 . G5 E5 D5 | C5 . D5 E5 . . . . | E5 . G5 A5 . B5 A5 G5 | A5 . G5 E5 . . D5 .' },
+      { wave: 'triangle', vol: .26, notes: 'A2 . A3 . A2 . A3 . | F2 . F3 . F2 . F3 . | C3 . C4 . C3 . C4 . | G2 . G3 . G2 . G3 .' },
+      { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s . h h' }] },
+    { name: 'SUNSET DRIVE', bpm: 112, steps: 4, tracks: [
+      { wave: 'pulse12', vol: .06, notes: 'D5 - - F5 E5 - D5 - | C5 - - - A4 - - - | D5 - - F5 A5 - G5 - | F5 - E5 - D5 - - -' },
+      { wave: 'triangle', vol: .26, notes: 'D3 . . D3 . . A2 . | F2 . . F2 . . C3 . | G2 . . G2 . . D3 . | A2 . . A2 . . C3 .' },
+      { wave: 'drums', vol: .06, notes: 'k . . h s . . h k . k h s . . h' }] },
+    { name: 'NEON HIGHWAY', bpm: 150, steps: 4, tracks: [
+      { wave: 'square', vol: .05, notes: 'A4 A5 E5 A4 G5 E5 C5 G4 | F4 F5 C5 F4 E5 C5 A4 E4 | G4 G5 D5 G4 F5 D5 B4 F4 | E4 E5 B4 E4 G#5 E5 B4 G#4' },
+      { wave: 'triangle', vol: .26, notes: 'A1 A2 A1 A2 A1 A2 A1 A2 | F1 F2 F1 F2 F1 F2 F1 F2 | G1 G2 G1 G2 G1 G2 G1 G2 | E1 E2 E1 E2 E1 E2 E1 E2' },
+      { wave: 'drums', vol: .07, notes: 'k h s h k h s h k h s h k k s h' }] }];
+  const SKIES = {}; const skyOf = n => SKIES[n] || (SKIES[n] = new E.Backdrop(n));
+
+  /* ---- THE DRIVE ---- */
+  const MAX = [190, 293], ACC = [130, 75], H = 1000;   // km/h by gear (low, high); the camera over the road
+  let mode = 'radio', song = 0, z = 0, x = 0, speed = 0, gear = 0, clock = 60, turn = 0, crash = 0, bump = 0, banner = null, score = 0, reached = 0, traffic = [], t = 0, endT = 0, area = 0;
+  const ahead = road.ahead(H), kmh = () => Math.round(speed);
+  function begin() {
+    mode = 'drive'; z = 0; x = 0; speed = 0; gear = 0; clock = 60; turn = 0; crash = 0; bump = 0; score = 0; reached = 0; t = 0; endT = 0; area = 0; banner = { text: AREAS[0].name, t: 0 };
+    traffic = []; for (let i = 0; i < 26; i++) traffic.push({ z: 3000 + i * 4200 + (i * 977) % 1800, x: [-.66, 0, .66][i % 3], v: 80 + (i * 37) % 70, col: ['#3060d0', '#e0e0e0', '#30a050', '#e0b020', '#a03070'][i % 5], w: 380, draw: carBack });
+    A.music(SONGS[song]); game.input.consumeAll();
+  }
+  // a car from behind: its body, rear window, tail lights and tyres, scale pixels a unit
+  function carBack(g, sx, sy, s) {
+    const W = this.w * s, Hh = W * .45; if (W < 2) return;
+    E.px.rect(g, sx - W / 2, sy - Hh, W, Hh * .7, this.col); E.px.rect(g, sx - W * .35, sy - Hh * 1.25, W * .7, Hh * .55, E.shade(this.col, -.3));
+    E.px.rect(g, sx - W * .3, sy - Hh * 1.15, W * .6, Hh * .35, '#a0c8e0'); E.px.rect(g, sx - W / 2, sy - Hh * .3, W * .18, Hh * .3, '#1a1a1a'); E.px.rect(g, sx + W * .32, sy - Hh * .3, W * .18, Hh * .3, '#1a1a1a');
+    if (W > 8) { E.px.rect(g, sx - W * .45, sy - Hh * .6, W * .12, Hh * .12, '#ff3020'); E.px.rect(g, sx + W * .33, sy - Hh * .6, W * .12, Hh * .12, '#ff3020'); }
+  }
+  function update(dt) {
+    const I = game.input; t += dt;
+    for (const k of ['brake', 'gear']) I.touchSet(k, k === 'gear' ? (gear ? 'HIGH' : 'LOW') : null, mode === 'drive');
+    if (mode === 'radio') {
+      if (I.pressed('left') || I.pressed('right')) { song = (song + (I.pressed('left') ? 2 : 1)) % 3; A.music(SONGS[song]); A.sfx('select'); }
+      const tap = I.clicked && I.clicked(); if (tap) { const k = Math.floor(tap[0] / (game.W / 3)); if (k === song) begin(); else { song = clamp(k, 0, 2); A.music(SONGS[song]); A.sfx('select'); } }
+      if (I.pressed('confirm') || I.pressed('gas')) { A.sfx('confirm'); begin(); }
+      return;
+    }
+    if (mode === 'over' || mode === 'goal') { endT += dt; if (endT > 1.5 && (I.pressed('confirm') || I.pressed('gas') || (I.clicked && I.clicked()))) { mode = 'radio'; A.sfx('confirm'); } speed = Math.max(0, speed - 120 * dt); z += speed * dt * 12; return; }
+    if (banner) { banner.t += dt; if (banner.t > 2.5) banner = null; }
+    // the clock: each checkpoint passed gives time; none left, the game is over
+    clock -= dt; if (clock <= 0) { clock = 0; mode = 'over'; endT = 0; A.music(null); A.sfx('die'); }
+    if (reached < CHECKS.length && z + ahead >= CHECKS[reached]) { reached++; clock += 40; area = reached; banner = { text: AREAS[area].name, t: 0, check: true }; A.sfx('oneup'); score += 5000; }
+    if (z + ahead >= GOAL) { mode = 'goal'; endT = 0; score += Math.round(clock) * 1000; A.music(null); A.sfx('secret'); }
+    if (I.pressed('gear')) { gear = 1 - gear; A.sfx('select', { vol: .5 }); }
+    const auto = I.lastDevice === 'touch', gas = I.down('gas') || auto, brake = I.down('brake') || I.move()[1] > .7, off = Math.abs(x) > 1.05, steer = I.move()[0];
+    // speed: the gear's pull and top, the shoulder's drag, a crash's stop
+    if (crash > 0) { crash -= dt; speed = Math.max(0, speed - 400 * dt); x += (Math.sign(x) * .5 - x) * Math.min(1, dt * 3); }   // (a crash: it spins to a stop and is put back on the road)
+    else {
+      const top = MAX[gear] * (off ? .45 : 1);
+      if (gas && speed < top) speed = Math.min(top, speed + ACC[gear] * (gear && speed < 100 ? .5 : 1) * dt);
+      else if (speed > top) speed = Math.max(top, speed - 150 * dt);
+      if (brake) speed = Math.max(0, speed - 220 * dt);
+      if (!gas && !brake) speed = Math.max(0, speed - 30 * dt);
+    }
+    const pct = speed / MAX[1], dz = speed * 12 * dt;   // (km/h to road units: 290 km/h about 3,500 a second)
+    x += steer * dt * 2.4 * (pct > .02 ? Math.min(1, pct * 2) : 0);
+    x -= road.curveAt(z + ahead) * pct * pct * dt * .7;   // a bend throws it outward (the hardest faster than it steers: slow for them)
+    x = clamp(x, -2.4, 2.4); z += dz; turn += road.curveAt(z) * dz * .004;
+    score += Math.round(dz * .02);
+    // the scenery stops it; the traffic bumps it
+    if (crash <= 0 && Math.abs(x) > 1.2 && road.hits(z + ahead, x, .25).length && speed > 10) { crash = 1.2; speed *= .2; A.sfx('explode', { vol: .6 }); game.shake(.4); }
+    for (const c of traffic) {
+      c.z += c.v * 12 * dt; if (c.z > road.length) c.z -= road.length;
+      if (bump <= 0 && Math.abs(c.z - (z + ahead)) < 260 && Math.abs(c.x - x) < .38) { bump = .6; speed = Math.min(speed, c.v * .6); x += x < c.x ? -.3 : .3; A.sfx('bump'); game.shake(.2); }
+    }
+    bump -= dt;
+  }
+  // the car, drawn by code from behind at the screen's bottom: leaning into a steer, bouncing on rough ground
+  function drawCar(g, sx, sy, s, steer, rough) {
+    const W = 64 * s, Hh = 26 * s, lean = steer * 3 * s, b = rough ? Math.round(Math.sin(t * 40)) * s : 0, y = sy + b;
+    E.px.ell(g, sx, y - 1, W * .55, 5 * s, 'rgba(0,0,0,.35)');
+    E.px.poly(g, [[sx - W / 2, y - Hh * .2], [sx - W / 2 + 4 * s + lean, y - Hh], [sx + W / 2 - 4 * s + lean, y - Hh], [sx + W / 2, y - Hh * .2]], '#d82020');
+    E.px.rect(g, sx - W / 2, y - Hh * .45, W, Hh * .3, '#a81818'); E.px.rect(g, sx - W * .42, y - Hh * .38, W * .14, 4 * s, '#ff4030'); E.px.rect(g, sx + W * .28, y - Hh * .38, W * .14, 4 * s, '#ff4030');
+    E.px.rect(g, sx - W * .1, y - Hh * .38, W * .2, 4 * s, '#e8e8e8');
+    for (const k of [-1, 1]) E.px.rect(g, sx + k * W * .36 - 6 * s, y - Hh * .15, 12 * s, Hh * .25, '#141414');
+    for (const [k, hair] of [[-.18, '#3a2010'], [.18, '#e8c050']]) { E.px.disc(g, sx + W * k + lean, y - Hh - 6 * s, 5 * s, '#e8b088'); E.px.disc(g, sx + W * k + lean, y - Hh - 8 * s, 5 * s, hair); }
+    E.px.rect(g, sx - W * .3 + lean, y - Hh * 1.05, W * .6, 2 * s, '#c8d8e8');   // the windscreen's top
+  }
+  function draw(r) {
+    const W = r.W, Hs = r.H, I = game.input;
+    road.o.sky = skyOf(AREAS[mode === 'radio' ? 0 : area].sky);
+    const cz = mode === 'radio' ? (t * 1600) % road.length : z;
+    road.draw(r, { z: cz, x: mode === 'radio' ? 0 : x, h: H, turn, cars: traffic });
+    r.overlay(g => {
+      if (mode === 'radio') {
+        E.font.title(g, 'ROAD', W / 2, 26, { scale: 4, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8402a'] });
+        E.font.text(g, 'PICK A SONG', W / 2, Hs / 2 - 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        SONGS.forEach((s, k) => { const xx = Math.round(W * (k + .5) / 3); E.ui.box(g, xx - 46, Hs / 2 - 14, 92, 26, { bg: k === song ? '#3a2a6a' : '#141a3a', border: k === song ? '#ffe04a' : '#8888aa' }); E.font.text(g, s.name, xx, Hs / 2 - 4, k === song ? '#ffe04a' : '#c8c8e0', { align: 'center', outline: false, font: 'tiny' }); });
+        E.font.text(g, (touch() ? 'TAP A SONG, TAP IT AGAIN TO DRIVE' : 'LEFT / RIGHT, THEN ' + I.label('confirm')), W / 2, Hs / 2 + 24, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+        return;
+      }
+      const p = road.project(z + ahead, x, 0), cs = Math.max(.6, Hs / 200);
+      if (p) { drawCar(g, p[0], p[1], cs, crash > 0 ? Math.sin(crash * 18) * 1.5 : I.move()[0], Math.abs(x) > 1.05 && speed > 20); if (crash > 0) for (let k = 0; k < 4; k++) E.px.disc(g, p[0] + Math.sin(t * 7 + k * 2) * 20 * cs, p[1] - (14 + k * 7 + (t * 30 % 7)) * cs, (5 + k * 2) * cs, k % 2 ? '#c8c8c8' : '#a0a0a8'); }
+      // the HUD: the clock, the speed and gear, the score, the stage's progress
+      E.font.text(g, 'TIME', W / 2, 4, '#ffe04a', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+      E.font.text(g, String(Math.ceil(clock)), W / 2, 12, clock < 10 && Math.floor(t * 4) % 2 ? '#ff4030' : '#ffffff', { align: 'center', scale: 3, shadow: '#000', outline: false });
+      E.font.text(g, 'SCORE ' + score, 6, 6, '#ffffff', { shadow: '#000', outline: false, font: 'tiny' });
+      const bx = Math.min(cornerX(), W) - 6; E.font.text(g, kmh() + ' KM/H', bx, Hs - 26, '#ffffff', { align: 'right', scale: 2, shadow: '#000', outline: false });
+      E.font.text(g, gear ? 'HIGH' : 'LOW', bx, Hs - 10, gear ? '#ff9a3a' : '#5ae05a', { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
+      const pw = Math.min(120, W / 3), px0 = 6, py = 16; E.px.rect(g, px0, py, pw, 3, '#203050'); E.px.rect(g, px0, py, pw * Math.min(1, (z + ahead) / GOAL), 3, '#ffe04a');
+      for (const c of CHECKS) E.px.rect(g, px0 + pw * c / GOAL, py - 1, 1, 5, '#5ae05a');
+      if (banner) E.font.text(g, (banner.check ? 'EXTENDED PLAY! ' : '') + banner.text, W / 2, Hs * .3, banner.check ? '#5ae05a' : '#ffffff', { align: 'center', scale: 2, shadow: '#000', outline: false });
+      if (mode === 'over' || mode === 'goal') {
+        E.font.title(g, mode === 'goal' ? 'GOAL!' : 'GAME OVER', W / 2, Hs * .3, { scale: 3, align: 'center', colors: mode === 'goal' ? ['#fff6d0', '#ffd060', '#e8782a'] : ['#ffffff', '#ff8a6a', '#c0302a'] });
+        E.font.text(g, 'SCORE ' + score + '   DISTANCE ' + Math.round((z + ahead) / GOAL * 100) + '%', W / 2, Hs * .3 + 30, '#ffffff', { align: 'center', shadow: '#000', outline: false });
+        if (endT > 1.5) E.font.text(g, prompt('confirm', 'TO DRIVE AGAIN'), W / 2, Hs * .3 + 44, '#ffd080', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+      }
+    });
+  }
+
+  /** the bot (tools/kits-test.mjs): drives the stage by the keys, steering for the road's middle ahead and round the
+   *  traffic, in high gear once moving, to the goal */
+  function bot(s = 1) {
+    const was = Math.random; Math.random = E.rng(s); const I = game.input, held = new Set(), hold = (a, on) => { if (on && !held.has(a)) { held.add(a); I.hold(a); } else if (!on && held.has(a)) { held.delete(a); I.hold(a, false); } };
+    try {
+      game.go('road', null, { fade: 0 }); game.advance(1 / 120); song = 0; begin(); hold('gas', true);
+      let n = 0, crashes = 0, was2 = 0;
+      for (; n < 120 * 400 && mode === 'drive'; n++) {
+        if (speed > 120 && !gear) { I.tap('gear'); }
+        const bend = road.curveAt(z + ahead + 1500); let want = bend * .1;   // (a little inside a bend: it throws you outward)
+        for (const c of traffic) { const dz = c.z - (z + ahead); if (dz > -200 && dz < 2400 && Math.abs(c.x - want) < .45) want = c.x > 0 ? c.x - .7 : c.x + .7; }
+        hold('right', x < want - .05); hold('left', x > want + .05); hold('brake', Math.abs(bend) > 3.6 && speed > 230);
+        game.advance(1 / 120); if (crash > 0 && !was2) crashes++; was2 = crash > 0;
+      }
+      return { mode, goal: mode === 'goal', checkpoints: reached, clock: Math.round(clock), score, crashes, seconds: Math.round(n / 120), errors: game.errors.length };
+    } finally { for (const a of [...held]) hold(a, false); Math.random = was; }
+  }
+
+  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: ['brake', 'gear'], camera: { zoom: false },
+    enter(d) {
+      game.follow(null); game.cam.bounds = null; L.enabled = false; if (gpu) gpu.enabled = false; t = 0;
+      if (d && d.part) begin(); else { mode = 'radio'; A.music(SONGS[song]); }
+    },
+    back() { if (mode === 'drive') return false; if (mode !== 'radio') { mode = 'radio'; return true; } game.go('title'); return true; },
+    update, draw, bot,
+    state: () => ({ mode, z: Math.round(z), x: +x.toFixed(3), speed: Math.round(speed), gear, clock: +clock.toFixed(2), reached, score }),   // for tests
+    /** the proof: the drive, the gas held, high gear, steering through the first bends; a hash of the run */
+    run: (n = 600) => proof('road', n, (i, k) => {
+      if (i === 2) begin();
+      if (i === 4) k.hold('gas');
+      if (i === 200) k.tap('gear');
+      if (i === 300) k.hold('left'); if (i === 340) k.up('left');
+      if (i === 450) k.hold('right'); if (i === 520) k.up('right');
+    }, () => [z, x, speed, gear, clock, traffic.map(c => c.z)]) };
+})();
+scenes.road = ROAD;
 
 /* =====================================================================================
  * SLICE 7  STEALTH  (Assassin's Creed, Metal Gear, Tenchu). A rooftop district at dusk: steal the ledger from the brick
