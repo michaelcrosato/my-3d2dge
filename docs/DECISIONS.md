@@ -985,3 +985,21 @@ An entry:
   preferring the plan's shorter names (rename, and teach the diet an exception list).
 - **Answered:** no one asked: a reversible call (a rename), made at once
 - **Landed in:** v0.65.0
+
+
+## D54 · 2026-10-28 · The API card's budget raised to 19,000 until the owner's review pass
+
+- **Principle:** 1 (agent-readable: the card a model reads first stays small) and the genre plan's 3.3 and M0a (the API
+  card at 18,000 cl100k tokens for the core's additions across the plan, D50; "each milestone reports its share, and
+  moves detail to the index before it asks for more")
+- **Call:** the card's budget is 19,000 tokens until the owner's review pass. M7a's lines (dialog markup, chunked
+  floors, the save slots, the JRPG playbook row) bring it to 18,001; M7b adds the story and rpg modules' lines and the
+  RPG kit's, and the plan's milestones after it more. Detail moves to the index in the trimming pass, not milestone by
+  milestone.
+- **Why:** the owner's words with the goal of Milestones 2 to 16 (2026-10-28): "Concerning token budget, just implement
+  things as they are needed, we will make a second pass after I review all the work, then we can think about trimming
+  down afterwards" (as D52 did for the 2D kits). Moving a line to the index now would be the trimming done piecemeal,
+  before the whole plan's needs are known. What would change it: the owner's review (the budget back to 18,000 with
+  detail moved to the index, or a new one), or the card passing 19,000 (raised again here, with its cause).
+- **Answered:** yes: the owner, in the goal of 2026-10-28
+- **Landed in:** v0.70.0

@@ -361,7 +361,7 @@ One version number covers the engine, its agent edition, the docs and the games:
 
 - `DOCTRINE.md`: what the engine optimizes (good ideas found per unit of time and tokens) and its ten principles for an engine built for AI coding agents, then how each applies here, what was grandfathered when it was adopted, and which check holds it. `docs/DECISIONS.md` logs every deviation, exception and call made without an answer, and is never cleaned up.
 - `docs/FEEDBACK-LOG.md`: the points from builders' feedback that we did not act on, counted by theme so patterns show. What we act on goes into a plan (`docs/HANDOFF-*.md`), then the changelog.
-- `API.md`: the API card, under its budget of 18,000 tokens (D50). It is embedded in every single-file edition.
+- `API.md`: the API card, under its budget of 19,000 tokens (D50, D54). It is embedded in every single-file edition.
 - `engine/modules/README.md`: engine modules, general systems in files of their own that load after the core (a kit carries the ones its slice names): how one is written, its manual and its budget, and how it is tested.
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 9,000 tokens, with three complete example games.
 - `API-INDEX.md`: every public name in the engine, one line each (signature, units, defaults, what it does), with the height rules at the top. Written by `tools/api-index.mjs` from the engine; search it.
