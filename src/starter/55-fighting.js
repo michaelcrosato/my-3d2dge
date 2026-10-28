@@ -136,6 +136,7 @@ const FIGHT = (() => {
     if (kind === 'training' && game.input.pressed('dummy')) { dummy = (dummy + 1) % DUMMY.length; match.o.training.dummy = DUMMY[dummy]; A.sfx('select'); }
     if (result) {
       result.t += dt; if (result.t < 1.2) return;
+      match.call = null;   // (the menu's own title instead)
       if (kind === 'arcade') { if (result.w === 0) { if (result.next) { picks = [picks[0], ladder[step]]; fight(picks); } else if (result.t > 5 || game.input.pressed('start')) game.go('title'); } else if (!cont.update(dt)) pickOnStart(cont); }
       else if (!after.update(dt)) pickOnStart(after);
     }
@@ -161,6 +162,7 @@ const FIGHT = (() => {
       if (result && result.t > 1.2) {
         if (kind === 'arcade' && result.w === 0 && !result.next) { E.font.title(g, 'CHAMPION!', W / 2, H / 2 - 34, { scale: 3, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] }); }
         else if (kind === 'arcade' && result.w === 1) { E.font.title(g, 'CONTINUE?', W / 2, H / 2 - 40, { scale: 2, align: 'center', colors: ['#ffffff', '#ff8a6a', '#c0302a'] }); }
+        else if (kind !== 'arcade') E.font.title(g, match.f[result.w].name + ' WINS', W / 2, H / 2 - 44, { scale: 3, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
       }
     });
     if (mode === 'menu') { menu.y = Math.round(r.H / 2) - 10; menu.draw(r); }
