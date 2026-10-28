@@ -7,6 +7,9 @@
 //   flow fields    a FlowField follows map.block() and map.set() at its next update
 //   heights        E.HEIGHTS, map.ray/sight/standable/ledge/landing/drop/arcClear, E.inArc's dz, E.sameLevel, E.targets
 //                  and FlowField over heights, on small maps (a roof edge, a kerb, a gap, a planter, a guard above)
+//   tactics        the grid module's reach over heights past allies, shapes of effect, facing and blows from behind, threat maps
+//   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
+//                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map
 //   audio          audio.duck(on) is public
 //   third person   E.sees, E.hears, maps built in code (fill, setFloor) and r.marker's edge arrow on both editions; on the
 //                  full one E.Mover climbs, vaults, leaps a gap, hops down, rolls, takes fall damage and jumps once a press,
@@ -72,6 +75,7 @@ for (const [ed, file] of EDITIONS) {
   map.set(4, 1, 1); check(`${ed}: flow field follows set() closing a door`, at() === 10, 'distance ' + d(7, 1));
   map.set(4, 1, 0); check(`${ed}: flow field follows set() opening a door`, at() === 6, 'distance ' + d(7, 1));
   heights(E, ed);
+  picks(E, ed);
   examples(E, ed);
   lifecycle(E, ed);
   seesAndMaps(E, ed);
@@ -119,6 +123,55 @@ function lifecycle(E, ed) {
   check(`${ed}: dispose() ends it`, game.disposed && E.current !== game);
   let threw = ''; try { new E.Game({ headless: true }).advance(1); } catch (e) { threw = e.message; }
   check(`${ed}: advance() before start() says what to do`, /start/.test(threw), threw);
+}
+
+// map.pick: the cell under a screen point, checked against a test of its own (the line of sight against every cell's box,
+// the hit nearest the camera kept) at random points over the map, in every view, turned four ways, at two zooms
+function picks(E, ed) {
+  const R = E.rng(7), H = [0, 0, 8, 16, 24, 40], W = 9, D = 7, cells = [], types = { 1: { h: 8 }, 2: { h: 16 }, 3: { h: 24 }, 4: { h: 40 } };
+  for (let i = 0; i < W * D; i++) { const h = H[Math.floor(R() * H.length)]; cells.push(h ? [0, 8, 16, 24, 40].indexOf(h) : 0); }
+  const map = new E.TileMap({ w: W, h: D, cells, types }), T = map.T;
+  // the slab test: where the line through screen point (px, py) first meets a cell's box, from the camera's side
+  const truth = (v, px, py) => {
+    const N = [v.ay * v.bz, -v.ax * v.bz, v.ax * v.by - v.ay * v.bx], M = [[v.ax, v.ay, 0], [v.bx, v.by, v.bz]];
+    const a = M[0].reduce((s, x) => s + x * x, 0), b = M[0].reduce((s, x, i) => s + x * M[1][i], 0), c = M[1].reduce((s, x) => s + x * x, 0), dt = a * c - b * b;
+    const u = (c * px - b * py) / dt, w = (a * py - b * px) / dt, P = [0, 1, 2].map(i => M[0][i] * u + M[1][i] * w);
+    let best = null;
+    for (let cy = 0; cy < D; cy++) for (let cx = 0; cx < W; cx++) {
+      const h = map.height(cx, cy), lo = [cx * T, cy * T, 0], hi = [cx * T + T, cy * T + T, h];
+      let t0 = -Infinity, t1 = Infinity, ax = -1, ok = true;   // t: along N, toward the camera; the entry is the largest t
+      for (let i = 0; i < 3 && ok; i++) {
+        if (Math.abs(N[i]) < 1e-12) { if (P[i] < lo[i] - 1e-9 || P[i] > hi[i] + 1e-9) ok = false; continue; }
+        const p = (lo[i] - P[i]) / N[i], q = (hi[i] - P[i]) / N[i], e = Math.max(p, q), x = Math.min(p, q);
+        if (e < t1) { t1 = e; ax = i; } t0 = Math.max(t0, x);
+      }
+      if (!ok || t0 > t1 + 1e-9) continue;
+      if (!best || t1 > best.t) best = { t: t1, cx, cy, face: ax === 2 ? 'top' : 'side' };
+    }
+    return best;
+  };
+  let n = 0, bad = [], tops = 0, sides = 0;
+  for (const id of Object.keys(E.VIEWS)) for (const turn of [0, 90, 180, 270]) for (const zoom of [1, 2]) {
+    const b = E.VIEWS[id], v = new E.View(id, b.label, b.yawDeg + turn, b.pitchDeg, b.scale * zoom, b.zBoost), pts = [];
+    for (const x of [0, W * T]) for (const y of [0, D * T]) for (const z of [0, 40]) pts.push(v.p(x, y, z));
+    const x0 = Math.min(...pts.map(p => p[0])) - 6, x1 = Math.max(...pts.map(p => p[0])) + 6, y0 = Math.min(...pts.map(p => p[1])) - 6, y1 = Math.max(...pts.map(p => p[1])) + 6;
+    for (let k = 0; k < 120; k++) {
+      const px = x0 + R() * (x1 - x0), py = y0 + R() * (y1 - y0), want = truth(v, px, py), ix = Math.floor(R() * 200 - 100), iy = Math.floor(R() * 200 - 100);
+      const got = map.pick(px - ix, py - iy, { view: v, ix, iy });
+      n++;
+      const same = want ? got && got.cx === want.cx && got.cy === want.cy && got.face === want.face : !got;
+      if (!same) bad.push(`${id}+${turn}x${zoom} (${px.toFixed(1)}, ${py.toFixed(1)}): want ${want ? want.cx + ',' + want.cy + ' ' + want.face : 'null'}, got ${got ? got.cx + ',' + got.cy + ' ' + got.face : 'null'}`);
+      else if (want) want.face === 'top' ? tops++ : sides++;
+    }
+  }
+  check(`${ed}: map.pick finds the cell and face the line of sight meets first, in ${Object.keys(E.VIEWS).length} views x 4 turns x 2 zooms (${n} points: ${tops} tops, ${sides} faces)`, !bad.length && tops > n / 4 && sides > n / 20, bad.length + ' wrong: ' + bad.slice(0, 4).join('; '));
+  // a cell's top seen from the camera, its middle picked: that cell, its height
+  const v = E.VIEWS.iso, h = map.height(4, 3), [qx, qy] = v.p(4.5 * T, 3.5 * T, h), hit = map.pick(qx, qy, { view: v, ix: 0, iy: 0 }), see = truth(v, qx, qy);
+  check(`${ed}: map.pick on a top's middle gives that top at its height (or what stands in front of it)`, hit && hit.cx === see.cx && hit.cy === see.cy && (see.cx !== 4 || see.cy !== 3 || Math.abs(hit.z - h) < 1e-6), JSON.stringify(hit));
+  // a headless game's camera at the start: a point off the map is null
+  const game = new E.Game({ headless: true, view: 'iso' });
+  check(`${ed}: map.pick reads a game's view and camera; off the map, null`, map.pick(-5000, -5000, game) === null && map.pick(...v.p(W * T / 2, D * T / 2, 0).map((c, i) => c - (i ? game.screen.iy : game.screen.ix)), game) !== null);
+  game.dispose();
 }
 
 // the height rules (E.HEIGHTS): collision, standing, sight, reach and navigation read heights the same way
@@ -703,6 +756,21 @@ function traversal(E, ed) {
     check(`${ed}: traversal: the rig crawls prone, swims level and hangs at a swing's angle`, crawl.head[2] < stand.head[2] * .45 && Math.abs(swim.head[2] - swim.hip[2]) < 6 && swim.head[0] > 6 && swing.hand[2] > swing.head[2] && Math.abs(swing.foot[0] - swing.hand[0]) > 6, [crawl.head[2].toFixed(1), stand.head[2].toFixed(1), (swim.head[2] - swim.hip[2]).toFixed(1), swim.head[0].toFixed(1), (swing.foot[0] - swing.hand[0]).toFixed(1)].join()); }
 }
 
+// the grid's tactics helpers (M8): reach over heights (climb, drop) past allies (pass), shapes of effect, facing and where a
+// blow lands, a side's threat map
+function tactics(E, ed) {
+  const H = { '2,0': 8, '3,0': 24, '2,1': 8 }, g = new E.Grid(6, 4, { height: (x, y) => H[x + ',' + y] || 0 });
+  const climb = g.reach([0, 0], 4, { climb: 8, drop: 16 }), low = g.reach([0, 0], 4, { climb: 0, drop: 0 });
+  check(`${ed}: E.Grid.reach over heights: a step of 8 climbed, 24 not; with no climb, every raised cell left out`, climb.has([2, 0]) && !climb.has([3, 0]) && climb.has([3, 1]) && !low.has([2, 0]) && !low.has([2, 1]) && low.has([1, 2]), climb.cells.length + ' ' + low.cells.length);
+  const pass = g.reach([0, 3], 3, { pass: (x, y) => x === 1 && y === 3, climb: 8 }), wall = g.reach([0, 3], 3, { blocked: (x, y) => x === 1 && y === 3, climb: 8 });
+  check(`${ed}: E.Grid.reach pass: an ally's cell crossed (the cells past it reached, its path through it) but not stopped on`, !pass.has([1, 3]) && pass.has([3, 3]) && pass.path([2, 3]).length === 3 && !wall.has([3, 3]));
+  const q = new E.Grid(9, 9), shp = (k, n, d) => q.shape([4, 4], k, n, d).map(c => c.join()).sort().join(' ');
+  check(`${ed}: E.Grid.shape: a cross, a diamond, a square, a ring, a line and a cone, kept on the grid`, q.shape([4, 4], 'cross', 2).length === 9 && q.shape([4, 4], 'diamond', 2).length === 13 && q.shape([4, 4], 'square', 1).length === 9 && q.shape([4, 4], 'ring', 2).length === 8 && shp('line', 3, [0, -1]) === '4,1 4,2 4,3' && shp('cone', 2, [1, 0]) === '5,4 6,3 6,4 6,5' && q.shape([0, 0], 'diamond', 1).length === 3, shp('cone', 2, [1, 0]));
+  check(`${ed}: E.Grid.face and side: a unit turns to its target; a blow from behind, the side, a diagonal and the front`, q.face([0, 0], [3, 1]).join() === '1,0' && q.face([0, 0], [1, -3]).join() === '0,-1' && q.side([4, 4], [1, 0], [3, 4]) === 'back' && q.side([4, 4], [1, 0], [4, 6]) === 'side' && q.side([4, 4], [1, 0], [5, 5]) === 'side' && q.side([4, 4], [1, 0], [6, 4]) === 'front');
+  const t = q.threat([{ cx: 0, cy: 0, move: 2, range: 1 }, { cx: 8, cy: 8, move: 1, range: [2, 3] }], { blocked: (x, y) => x === 1 && y === 0 });
+  check(`${ed}: E.Grid.threat: each unit's move then its range (a bow's least range kept), blocked cells walked round, who threatens a cell`, t.count([0, 3]) === 1 && t.count([2, 1]) === 1 && t.count([4, 0]) === 0 && t.count([8, 8]) === 0 && t.count([6, 8]) === 1 && t.by([5, 8])[0].cx === 8, [t.count([0, 3]), t.count([2, 1]), t.count([4, 0]), t.count([8, 8]), t.count([6, 8])].join());
+}
+
 function arcades(E, ed) {
   const game = new E.Game({ headless: true }), I = game.input, step = (n = 1) => { for (let i = 0; i < n; i++) game.advance(1 / 60); };
   const a = new E.Arcade(game, { id: 'ct-every-' + ed, lives: 2, every: 1000 }); a.start(1); a.add(2500);
@@ -725,6 +793,7 @@ function arcades(E, ed) {
 function grids(E, ed) {
   const g = new E.Grid(8, 6, { walkable: (x, y) => !(x === 3 && y < 4) }), p = g.path([0, 0], [7, 0]), r = g.reach([0, 0], 3);
   check(`${ed}: E.Grid: A* round a wall (16 cells, ends included), Dijkstra's reach (9 cells within 3, the wall's left out)`, p.length === 16 && p[15].join() === '7,0' && r.cells.length === 9 && !r.has([3, 0]) && r.cost([1, 2]) === 3 && r.path([2, 1]).length === 4, p.length + ' ' + r.cells.length);
+  tactics(E, ed);
   const same = g.path([0, 5], [7, 5]).map(c => c.join()).join(' ') === g.path([0, 5], [7, 5]).map(c => c.join()).join(' ');
   check(`${ed}: E.Grid.path: the same answer every time (its ties broken one way)`, same && g.path([0, 0], [3, 0]).length === 0 && g.path([0, 0], [3, 0], { ends: true }).length > 0);
   const d8 = new E.Grid(6, 6, { diagonal: true });

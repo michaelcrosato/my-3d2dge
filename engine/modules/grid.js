@@ -14,11 +14,17 @@ keeps its units.
   with diagonal; hex steps); grid.center(c, T) and grid.toCell(x, y, T): world points (hex: T across).
 - grid.path(a, b, { blocked(cx, cy), climb, drop, ends }) -> [a, ..., b] or [] (A*, ties broken the same way every
   time; ends: true reaches b even when b can't be walked: an attack's target). grid.reach(a, budget, { blocked, climb,
-  drop }) -> { cells: [[cx, cy, cost]], has(c), cost(c), path(c) } (Dijkstra: a move range; climb and drop limit the
-  height a step may rise and fall).
+  drop, pass }) -> { cells: [[cx, cy, cost]], has(c), cost(c), path(c) } (Dijkstra: a move range; climb and drop limit
+  the height a step may rise and fall: a unit's jump, E.HEIGHTS.level (8) a level; pass(cx, cy): cells crossed but not
+  stopped on, its allies).
 - grid.line(a, b) (Bresenham, hex: steps), grid.sees(a, b) (no opaque cell between), grid.fov(c, radius) -> a Set of
   'cx,cy' (symmetric shadowcasting: what a sees sees it; hex: lines). grid.flood(c, same(cx, cy)) and grid.groups(key(cx,
   cy) -> a value or null) -> [[cells]] (equal neighbours: matches, chains, regions).
+- Tactics: grid.shape(c, kind, n, dir) -> cells ('cross', 'diamond', 'square', 'ring', 'line', 'cone': areas of
+  effect); grid.face(a, b) (the four-way facing from a toward b); grid.side(at, facing, from) -> 'front' | 'side' |
+  'back' (a blow from behind); grid.threat(units, { blocked }) -> { cells: [[cx, cy, n]], count(c), by(c) } (what units
+  { cx, cy, move, range: [min, max], climb, drop } can strike next turn: an AI's safe cells). Over a TileMap's tops:
+  map.pick(sx, sy) the cell under the pointer, map.arcClear(from, to, apex) a bow's arc.
 - E.Fog(grid): fog.update([{ cx, cy, r }]) (each viewer's field of view: visible now; seen stays), fog.visible(c),
   fog.seen(c), fog.draw(r, T, o) (unseen black, seen dimmed: over the walls too, before your HUD); E.tint(r, cells, color,
   alpha, T, height): tints on cells' tops (ranges, paths).
@@ -38,6 +44,7 @@ const r = g.reach([0, 0], 3); if (!r.has([0, 3]) || r.has([3, 4]) || r.cost([2, 
 const fov = g.fov([1, 1], 6); if (fov.has('6,1') || !fov.has('3,1')) throw new Error('fov');
 const t = new E.Turns([{ id: 'hero', speed: 100 }, { id: 'bat', speed: 200 }], { mode: 'speed' });
 if ([1, 2, 3].map(() => t.next().id).join() !== 'bat,hero,bat') throw new Error('turns');
+if (g.shape([5, 2], 'cross', 1).length !== 5 || g.side([5, 2], [1, 0], [4, 2]) !== 'back') throw new Error('tactics');
 ```
 Rules: cells are whole numbers; paths and reaches never cross a cell blocked(cx, cy) says is taken (other units); the
 same inputs give the same paths, fields and turns. Draw the fog after the world and before your HUD.
@@ -146,7 +153,7 @@ class Grid {
     return [];
   }
   /** every cell within budget of a: { cells: [[cx, cy, cost]], has(c), cost(c) (or Infinity), path(c) } (Dijkstra: move
-   *  ranges). o: { blocked, climb, drop } as path's */
+   *  ranges). o: { blocked, climb, drop } as path's, and pass(cx, cy): cells it may cross but not stop on (allies) */
   reach(a, budget, o = {}) {
     const W = this.w, key = c => c[1] * W + c[0], cost = new Map([[key(a), 0]]), from = new Map(), open = new Heap();
     open.push(0, 0, a);
@@ -159,6 +166,7 @@ class Grid {
         cost.set(nk, ng); from.set(nk, k); open.push(ng, 0, n);
       }
     }
+    if (o.pass) for (const k of [...cost.keys()]) if (k !== key(a) && o.pass(k % W, Math.floor(k / W))) cost.delete(k);   // (crossed, so their paths stay)
     const cells = [...cost].map(([k, v]) => [k % W, Math.floor(k / W), v]).sort((p, q) => p[2] - q[2] || p[1] - q[1] || p[0] - q[0]);
     return { cells, has: c => cost.has(key(c)), cost: c => cost.has(key(c)) ? cost.get(key(c)) : Infinity,
       path: c => { if (!cost.has(key(c))) return []; const out = [c]; let at = key(c); while (from.has(at)) { at = from.get(at); out.push([at % W, Math.floor(at / W)]); } return out.reverse(); } };
@@ -213,6 +221,41 @@ class Grid {
       const g = this.flood([x, y], (a, b) => key(a, b) === v); for (const [a, b] of g) done[b * this.w + a] = 1; out.push(g);
     }
     return out.sort((p, q) => q.length - p.length);
+  }
+  /** the cells a shape of effect covers round c (square grids; on the grid only): 'cross' (n each way), 'diamond' (n steps:
+   *  dist), 'square' (n each way, corners too), 'ring' (exactly n steps), 'line' (n cells from c along dir [dx, dy], not
+   *  c), 'cone' (n rows along dir, each a cell wider each side) */
+  shape(c, kind = 'diamond', n = 1, dir = [1, 0]) {
+    const [x, y] = c, [dx, dy] = dir, out = [], add = (a, b) => { if (this.inside([a, b])) out.push([a, b]); };
+    if (kind === 'line') for (let i = 1; i <= n; i++) add(x + dx * i, y + dy * i);
+    else if (kind === 'cone') for (let i = 1; i <= n; i++) for (let j = -(i - 1); j <= i - 1; j++) add(x + dx * i - dy * j, y + dy * i + dx * j);
+    else for (let b = y - n; b <= y + n; b++) for (let a = x - n; a <= x + n; a++) {
+      const d = this.dist(c, [a, b]);
+      if (kind === 'square' || (kind === 'cross' && (a === x || b === y)) || (kind === 'diamond' && d <= n) || (kind === 'ring' && d === n)) add(a, b);
+    }
+    return out;
+  }
+  /** the way from a looks to b, one of four [dx, dy] (the longer axis; x when they tie): a unit turning to its target */
+  face(a, b) { const dx = b[0] - a[0], dy = b[1] - a[1]; return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) || 1, 0] : [0, Math.sign(dy)]; }
+  /** where a blow from cell from lands on a unit at cell at facing [dx, dy]: 'front', 'side' or 'back' (within 45
+   *  degrees of its facing, of behind it, or between: a diagonal is a side) */
+  side(at, facing, from) {
+    const dx = from[0] - at[0], dy = from[1] - at[1], l = Math.hypot(dx, dy) * Math.hypot(facing[0], facing[1]); if (!l) return 'front';
+    const c = (dx * facing[0] + dy * facing[1]) / l; return c > .7072 ? 'front' : c < -.7072 ? 'back' : 'side';
+  }
+  /** what a side can strike on its next turn: units ([{ cx, cy, move, range: [min, max] or n (1), climb, drop }]) each
+   *  moving within its reach (o.blocked: cells it can't enter) and striking within range of where it stops. { cells:
+   *  [[cx, cy, n]], count(c), by(c) -> [units] }: a threat map, for an AI's safe cells and a player's warning tint */
+  threat(units, o = {}) {
+    const W = this.w, by = new Map();
+    for (const u of units) {
+      const [lo, hi] = Array.isArray(u.range) ? u.range : [1, u.range || 1], hit = new Set();
+      for (const [x, y] of this.reach([u.cx, u.cy], u.move || 0, { blocked: o.blocked, climb: u.climb, drop: u.drop }).cells)
+        for (let b = y - hi; b <= y + hi; b++) for (let a = x - hi; a <= x + hi; a++) { const d = this.dist([x, y], [a, b]); if (d >= lo && d <= hi && this.inside([a, b])) hit.add(b * W + a); }
+      for (const k of hit) { if (!by.has(k)) by.set(k, []); by.get(k).push(u); }
+    }
+    const cells = [...by].map(([k, v]) => [k % W, Math.floor(k / W), v.length]).sort((p, q) => p[1] - q[1] || p[0] - q[0]);
+    return { cells, count: c => (by.get(c[1] * W + c[0]) || []).length, by: c => by.get(c[1] * W + c[0]) || [] };
   }
 }
 E.Grid = Grid;
