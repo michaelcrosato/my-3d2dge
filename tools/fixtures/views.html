@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>views fixture</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
+<body><canvas id="screen"></canvas>
+<script src="../../dist/my-3d2dge.js"></script>
+<script>
+// the views suite's page (tools/views-test.mjs): ?view= one of the mode7 and road modules' views, driven by a script (a
+// fixed path for the camera each step, so a filmstrip repeats exactly): mode7 (a camera due north: the fast floor),
+// turn (circling a track: any heading, a Backdrop turning, rigs from every side), split (two cameras in a split screen),
+// road (curves, hills, a tunnel, scenery and cars). window.__fx: { game, m7, road, cams }
+(() => {
+const E = My3D2dge, Q = new URLSearchParams(location.search), view = Q.get('view') || 'mode7';
+const game = new E.Game({ canvas: 'screen', res: [320, 180], view: 'topdown', menu: false, fullscreen: false, corner: false });
+// a track on a floor of 1024 x 1024: grass in checks, a ring of road with a kerb, sand inside, boost pads on the straight
+const C = 512, track = (x, y) => {
+  const d = Math.hypot(x - C, y - C);
+  if (d > 300 && d < 400) { if (y > C - 20 && y < C + 20 && x > C + 330 && x < C + 370) return (Math.floor(y / 6) & 1) ? [255, 200, 40] : [255, 120, 30]; return d < 306 || d > 394 ? ((Math.floor(Math.atan2(y - C, x - C) * 40) & 1) ? [230, 230, 230] : [210, 40, 40]) : [92 + (x * 7 + y * 13) % 7, 92, 100]; }
+  if (d <= 300) return d > 250 ? [220, 190, 120] : [80, 150, 70];
+  return ((x >> 5) + (y >> 5)) & 1 ? [70, 150, 60] : [60, 136, 52];
+};
+const m7 = new E.Mode7({ floor: track, size: [1024, 1024], outside: '#3c7a34', sky: view === 'mode7' ? ['#3060c0', '#a0c8f0'] : new E.Backdrop('day'), fog: view === 'turn' ? { color: '#a0c8f0', near: 300, far: 1400 } : null });
+const TREE = E.sprite(['..gg..', '.gGGg.', 'gGGGGg', 'gGGGGg', '.gGGg.', '..tt..', '..tt..'], { g: '#2a7a3a', G: '#4aa04a', t: '#6a4a2a' });
+const riders = [0, 1, 2, 3].map(i => ({ a: i * Math.PI / 2, rig: new E.Humanoid({ size: 1.2, colors: { cloth: E.PLAYER_COLORS[i] } }) }));
+const cams = [{ x: C, y: C + 700, h: 40, angle: -Math.PI / 2, pitch: 12, fov: 70 }, { x: C, y: C + 350, h: 30, angle: -Math.PI / 2, pitch: 10, fov: 70 }];
+// the road: a straight, a right bend uphill, a left bend down, a tunnel, a long left; trees and posts beside it, cars on it
+const road = new E.Road({ sky: new E.Backdrop('day') });
+road.add(30).add(60, { curve: 4, hill: 4000 }).add(50, { curve: -5, hill: -4000 }).add(20).add(40, { tunnel: true, colors: { grass: ['#3a3a3a', '#343434'] } }).add(80, { curve: -2, hill: 2000 }).add(40);
+for (let z = 0; z < road.length; z += 1600) { road.place(z, -1.6, TREE, 60); road.place(z + 800, 1.5, TREE, 60); }
+const CAR = { w: 300, draw(g, x, y, s) { const w = 300 * s, h = 120 * s; if (w < 1) return; E.px.rect(g, x - w / 2, y - h, w, h * .6, '#d03030'); E.px.rect(g, x - w / 3, y - h * 1.4, w * .66, h * .5, '#a02020'); E.px.rect(g, x - w / 2, y - h * .4, w * .2, h * .4, '#202020'); E.px.rect(g, x + w * .3, y - h * .4, w * .2, h * .4, '#202020'); } };
+const cars = [{ z: 3000, x: -.4, ...CAR }, { z: 9000, x: .5, ...CAR }, { z: 20000, x: 0, ...CAR }];
+let i = 0, z = 0, turn = 0;
+if (view === 'split') game.splitScreen(2);
+game.start({ update(dt) {
+  i++;
+  if (view === 'mode7') { cams[0].y = C + 700 - i * .8; cams[0].x = C + Math.sin(i / 90) * 60; }
+  else if (view === 'turn' || view === 'split') {   // around the ring, the camera behind a point running on it
+    const a = i / 240 - .45, b = { x: C + Math.cos(a) * 350, y: C + Math.sin(a) * 350, angle: a + Math.PI / 2 };
+    m7.cam = cams[0]; m7.chase(b, { back: 60, h: 36 }); cams[0].pitch = 12; cams[0].fov = 70;
+    if (view === 'split') { const a2 = a * 1.3 + 1, b2 = { x: C + Math.cos(a2) * 350, y: C + Math.sin(a2) * 350, angle: a2 + Math.PI / 2 }; m7.cam = cams[1]; m7.chase(b2, { back: 50, h: 30 }); }
+  } else { const sp = 1600 * dt; z += sp; turn += road.curveAt(z) * sp * .02; for (const c of cars) c.z = (c.z + 900 * dt) % road.length; }
+  riders.forEach((p, k) => { p.a += dt * .4; p.rig.update(dt, { x: 0, y: 0, z: 0, vx: 0, vy: 0, facing: p.a + Math.PI / 2 }); });
+}, draw(r) {
+  if (view === 'road') { road.draw(r, { z, x: Math.sin(i / 150) * .5, turn, cars }); return; }
+  for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2; m7.sprite(TREE, C + Math.cos(a) * 450, C + Math.sin(a) * 450, 0, { scale: 4 }); m7.sprite(TREE, C + Math.cos(a) * 200, C + Math.sin(a) * 200, 0, { scale: 3 }); }
+  riders.forEach((p, k) => { const a = k * Math.PI / 2 + i / 300; m7.rig(p.rig, C + Math.cos(a) * 340, C + Math.sin(a) * 340); });
+  for (let k = 0; k < 6; k++) m7.shape(k % 2 ? 'barrel' : 'crate', C + 330 + k * 8, C - 60 + k * 20, 0, { facing: k });
+  m7.add(C + 350, C, 0, (g, x, y, k) => { E.px.rect(g, x - 2 * k, y - 30 * k, 4 * k, 30 * k, '#e0e0e0'); E.px.rect(g, x - 12 * k, y - 36 * k, 24 * k, 8 * k, '#202020'); });
+  m7.draw(r, view === 'split' ? cams[r.viewport ? r.viewport.i : 0] : cams[0]);
+} });
+window.__fx = { game, m7, road, cams, view };
+})();
+</script></body></html>

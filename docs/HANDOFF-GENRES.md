@@ -591,6 +591,19 @@ Needs M1 (paths, scaled and animated sprites) and M4 (split screen).
 - **Done when:** both views draw a frame within the phone test's budget; the stress test's depth view matches its
   filmstrip; the car's grip, drift and off-road have contract tests; the AI karts finish three laps without sticking; a
   split-screen race plays for two; the proofs repeat.
+- **As built, 6a (v0.68.0):** `engine/modules/mode7.js` (after either edition): `E.Mode7` with a camera `{ x, y, h, angle,
+  pitch, fov }` (the angle as `E.angleTo` gives it), the floor from a TileMap's `floorTex`, a color function or a canvas
+  (baked once; due north each row is a strip of it stretched across, as the stress test drew it; at any other heading
+  each pixel is sampled), a sky of two colors or a Backdrop turned with the heading, billboards gathered each frame
+  (`rig`, `sprite` with an `E.anim`'s frames, `shape`, `add`) and drawn far to near, fog, `chase`, `project`, `toFloor`,
+  a split screen's viewports, and `begin`, `rowDepth`, `drawFloor`, `view` for a pass of your own (the stress test's:
+  its walls, light pools and fog stay its own); `fullRes(game, on)` is the stress test's screen resolution.
+  `engine/modules/road.js` (after either edition): `E.Road` with `add(n, { curve, hill, tunnel, colors })`, `place`
+  (sprites, anims, drawings), cars between segments' ends, a crest hiding what lies past it (visibility near to far,
+  drawing far to near), tunnels with a face round the mouth, `turn` for the Backdrop on curves, `curveAt`, `yAt`,
+  `hits`, `ahead`, `project`. The `views` suite (`tools/views-test.mjs`, its fixture `tools/fixtures/views.html`)
+  films both views twice and times a frame of each on an emulated phone; the contract test's views group holds the
+  projections in numbers; the stress test's depth view films the same pixels as before.
 
 ### M7: stories, RPG systems and big maps (core dialog markup, save slots and big ground maps; modules `story`, `rpg`; the RPG kit grows) in two pull requests
 

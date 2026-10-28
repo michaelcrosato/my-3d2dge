@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.67.1)
+# my-3D2dge API card (v0.68.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -250,6 +250,8 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE, ARCADE.
   - `fight`: one-on-one fighting: `E.Fighter` (a Platformer and a Humanoid; frame data; hurt boxes from the rig's joints; high, low and overhead guards; chip; throws; cancels; juggles; knockdowns; specials by motion or charge; a super meter; projectiles), `E.Match` (rounds, timer, KO, the HUD, training), `E.FightAI`, `E.FightSelect`. FIGHTING.
   - `rooms`: a world of rooms on a grid of screens (`E.World`): walking between them at open edges (a slide or a fade, the camera's bounds), the explored map (`drawMap`, or `shellMap()` for `E.Shell`), gates that abilities or keys open, saves in `E.store`. METROIDVANIA.
+  - `mode7`: the SNES's Mode 7 (`E.Mode7`): a camera at a height over a flat floor (a TileMap's, a color function's or a canvas), drawn a row at a time, a sky that turns with the heading (a Backdrop), billboards far to near (rigs at the size their distance gives, sprites, your drawing), fog, `project` and `toFloor`, a split screen's cameras. The stress test's depth view.
+  - `road`: the pseudo-3D road (`E.Road`): segments with curves and hills, lanes, rumble strips, tunnels, scenery and cars scaled by distance and hidden past a crest, the sky's parallax on curves (OutRun, Pole Position).
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 

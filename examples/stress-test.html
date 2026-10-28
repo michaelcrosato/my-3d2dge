@@ -249,7 +249,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.67.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.68.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -329,7 +329,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.67.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.68.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -10026,6 +10026,214 @@ root.My3D2dge = E;
 
 </script>
 <script>
+/* ---- inlined from engine/modules/mode7.js ---- */
+/*!
+my-3D2dge module MODE7 v0.68.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+Super Mario Kart's, F-Zero's and Pilotwings' view (the SNES's Mode 7): a camera at a height over a flat floor, looking
+along a heading, pitched down; the floor drawn a screen row at a time, the sky above the horizon, and on the floor
+billboards (rigs drawn at the size their distance gives, sprites, your own drawing) far to near.
+- const m7 = new E.Mode7({ floor: a TileMap (its floorTex) | (x, y) => [r, g, b] | a canvas (a texel a unit), size:
+  [w, h] (the floor in world units, for a function), outside: '#24402a' (beyond the floor) | wrap: true (it repeats),
+  sky: a Backdrop | ['#top', '#bottom'], fog: { color, near, far } (far: nothing past it), far: 2400 }).
+- m7.cam = { x, y, h: 40 (height), angle: 0 (the heading, as E.angleTo gives it: 0 east, PI / 2 south; keep it
+  unwrapped, the sky turns with it), pitch: 12 (degrees down), fov: 70 (degrees across the height) };
+  m7.chase(body, { back: 56, h: 34, angle }) puts it behind a body (body.angle, or angle) each step.
+- In draw: m7.rig(rig, x, y, z), m7.sprite(spr or E.anim, x, y, z, { scale, flip, t }), m7.shape(id, x, y, z, { facing,
+  size }), m7.add(x, y, z, (g, sx, sy, k) => ...) gather billboards (k: screen pixels per world unit there); m7.draw(r, cam) draws sky, floor, fog and them,
+  far to near, as an overlay (in a split screen, in r.viewport: give each player's cam).
+- m7.project(x, y, z) -> [sx, sy, k] on the screen, or null behind the camera; m7.toFloor(sx, sy) -> [x, y], or null
+  above the horizon (both for the camera last drawn: HUD markers, a tap on the track). m7.horizon: its screen row.
+- Your own pass: m7.begin({ W, H, x, y, cx, cy, focal }, cam), then project, rowDepth(sy), drawFloor(g, rect),
+  view(k) (the engine view a rig is drawn with at k).
+- Resolution: the game's own pixels by default, as the SNES drew; m7.fullRes(game, true) each step draws at the
+  screen's own (sharper, slower; it returns the pixel size the game had), false gives the game's pixels back.
+
+```js mode7
+const E = My3D2dge, m7 = new E.Mode7({ floor: (x, y) => ((x >> 4) + (y >> 4)) & 1 ? [80, 160, 80] : [60, 130, 60], size: [512, 512] });
+m7.cam = { x: 256, y: 400, h: 40, angle: -Math.PI / 2, pitch: 12, fov: 70 };
+m7.begin({ W: 320, H: 240 });
+const p = m7.project(256, 300, 0), q = m7.toFloor(p[0], p[1]);
+if (Math.abs(q[0] - 256) > .01 || Math.abs(q[1] - 300) > .01 || p[1] <= m7.horizon) throw new Error('a floor point and back');
+```
+Rules: m7.draw covers its viewport (draw nothing under it you need to see); move the camera in update, not draw; a
+body's angle and the camera's heading are the same angle; billboards are gathered again every frame.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module MODE7: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * MODE 7  a perspective floor a row at a time, its sky, billboards scaled by distance
+ * ========================================================================== */
+const { clamp } = E;
+// cos and sin, exact at the quarter turns (a camera looking due north projects as the stress test always did)
+const trig = a => { let c = Math.cos(a), s = Math.sin(a); if (Math.abs(c) < 1e-12) c = 0; if (Math.abs(s) < 1e-12) s = 0; return [c, s]; };
+class Mode7 {
+  /** new E.Mode7({ floor, size, outside, wrap, sky, fog, far }): a Mode 7 view (the manual above) */
+  constructor(o = {}) {
+    /** o: its options */
+    this.o = Object.assign({ outside: '#24402a', far: 2400, sky: ['#1a3060', '#7aa8e0'] }, o);
+    /** cam: the camera ({ x, y, h, angle, pitch, fov }); horizon: the screen row of the horizon in the last drawing;
+     *  items: the billboards gathered for the next draw */
+    this.cam = { x: 0, y: 0, h: 40, angle: 0, pitch: 12, fov: 70 }; this.horizon = 0; this.items = [];
+    this._P = { x: 0, y: 0, h: 40, fx: 0, fy: -1, rx: 1, ry: 0, cp: 1, sp: 0, f: 1, cx: 0, cy: 0, W: 0, H: 0, vx: 0, vy: 0 };
+    this._views = new Map(); this._shapes = new Map(); this._tex = null; this._buf = null; this._a = 0; this._pd = 12; this._t = 0;
+  }
+  /** the camera behind a body each step: back units behind it, h high, looking along its angle (o.angle to set one) */
+  chase(b, o = {}) {
+    const a = o.angle !== undefined ? o.angle : b.angle || 0, back = o.back === undefined ? 56 : o.back, [c, s] = trig(a);
+    Object.assign(this.cam, { x: b.x - c * back, y: b.y - s * back, h: o.h === undefined ? 34 : o.h, angle: a });
+    return this.cam;
+  }
+  /** set up the projection for a camera (default this.cam) and a rectangle of the screen ({ W, H, x, y, cx, cy }: its
+   *  size, its top left and its centre; focal: screen pixels per unit at a distance of one, instead of the fov) */
+  begin(rect = {}, cam = this.cam) {
+    const P = this._P, W = rect.W, H = rect.H, pd = cam.pitch === undefined ? 12 : cam.pitch, pitch = pd * Math.PI / 180, [fx, fy] = trig(cam.angle || 0);
+    Object.assign(P, { x: cam.x, y: cam.y, h: cam.h, fx, fy, rx: -fy, ry: fx, cp: Math.cos(pitch), sp: Math.sin(pitch), W, H, vx: rect.x || 0, vy: rect.y || 0 });
+    P.f = rect.focal || H / 2 / Math.tan((cam.fov || 70) * Math.PI / 360);
+    P.cx = rect.cx === undefined ? P.vx + W / 2 : rect.cx; P.cy = rect.cy === undefined ? P.vy + H / 2 : rect.cy;
+    this.horizon = P.cy - P.f * P.sp / P.cp; this._a = cam.angle || 0; this._pd = pd;
+    return this;
+  }
+  /** a world point -> [screen x, screen y, screen pixels per unit there], or null at or behind the camera */
+  project(x, y, z = 0) {
+    const P = this._P, dx = x - P.x, dy = y - P.y, D = dx * P.fx + dy * P.fy, L = dx * P.rx + dy * P.ry, dz = z - P.h, zc = D * P.cp - dz * P.sp;
+    if (zc < 6) return null;
+    const k = P.f / zc; return [P.cx + L * k, P.cy - (D * P.sp + dz * P.cp) * k, k];
+  }
+  /** a screen row's floor distance ahead of the camera, or 0 at or above the horizon */
+  rowDepth(sy) {
+    const P = this._P, k = (P.cy - sy) / P.f, den = P.sp - k * P.cp; if (den <= 1e-4) return 0;
+    return P.h * (P.cp + k * P.sp) / den;
+  }
+  /** a screen point -> the floor point under it [x, y], or null above the horizon */
+  toFloor(sx, sy) {
+    const P = this._P, D = this.rowDepth(sy); if (!D) return null;
+    const L = (sx - P.cx) * (D * P.cp + P.h * P.sp) / P.f; return [P.x + P.fx * D + P.rx * L, P.y + P.fy * D + P.ry * L];
+  }
+  /** gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit */
+  add(x, y, z, fn) { this.items.push({ x, y, z: z || 0, fn }); return this; }
+  /** gather a rig, drawn by the engine at the size its distance gives, from the camera's side (it faces rig.facing) */
+  rig(rig, x, y, z = 0) { return this.add(x, y, z, (g, sx, sy, k) => rig.draw(g, Math.round(sx), Math.round(sy), this.view(k))); }
+  /** gather a sprite (E.sprite, or E.anim's frames at o.t, the game's time by default), its foot at the point: o.scale
+   *  (world units a sprite pixel, 1), o.flip */
+  sprite(spr, x, y, z = 0, o = {}) {
+    return this.add(x, y, z, (g, sx, sy, k) => {
+      const sp = spr.isAnim ? spr.frame(o.t === undefined ? this._t : o.t) : spr, s = k * (o.scale || 1), w = sp.w * s, h = sp.h * s; if (w < .5) return;
+      g.drawImage(o.flip ? sp.fl : sp.cv, Math.round(sx - w / 2), Math.round(sy - h), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+    });
+  }
+  /** gather one of the engine's shapes (r.shape's: 'barrel', 'tree', ...; the full engine), seen from the camera's side at
+   *  its distance's size: o.facing (radians), o.size (1) */
+  shape(id, x, y, z = 0, o = {}) {
+    return this.add(x, y, z, (g, sx, sy, k) => {
+      const v = this.view(k), f = Math.round((o.facing === undefined ? Math.PI / 2 : o.facing) / Math.PI * 8) / 8 * Math.PI, key = id + ':' + v.scale + ':' + v.yawDeg + ':' + v.pitchDeg + ':' + f + ':' + (o.size || 1);
+      let sp = this._shapes.get(key); if (sp === undefined) { if (this._shapes.size > 300) this._shapes.clear(); sp = E.shapeSprite ? E.shapeSprite(id, { view: v, facing: f, size: o.size || 1 }) : null; this._shapes.set(key, sp); }
+      if (sp) g.drawImage(sp.cv, Math.round(sx - sp.foot[0]), Math.round(sy - sp.foot[1]));
+    });
+  }
+  /** the engine view a rig is drawn with at k pixels per unit, seen from the camera's heading (sixteenths, reused) */
+  view(k) {
+    const q = Math.max(1 / 8, Math.round(k * 16) / 16), yaw = (Math.round((-this._a * 180 / Math.PI - 90) * 2) / 2) || 0, key = q + ':' + yaw + ':' + this._pd;
+    let v = this._views.get(key); if (!v) { if (this._views.size > 400) this._views.clear(); v = new E.View('mode7', 'Mode 7', yaw, this._pd, q, 1); this._views.set(key, v); }
+    return v;
+  }
+  /** draw the view as an overlay over r's frame (in a split screen, r.viewport's part): sky, floor, fog, then the
+   *  billboards far to near (gathered with add, rig, sprite; they are used up) */
+  draw(r, cam = this.cam) {
+    const vp = r.viewport || { x: 0, y: 0, w: r.bw, h: r.bh }, items = this.items.splice(0), sc = r.game.screen, whole = !r.viewport;
+    r.overlay(g => {
+      this.begin({ W: whole ? r.W : vp.w, H: whole ? r.H : vp.h, x: vp.x, y: vp.y, cx: whole ? r.W / 2 + sc.fx : vp.x + vp.w / 2, cy: whole ? r.H / 2 + sc.fy : vp.y + vp.h / 2 }, cam);
+      this._t = r.game.time;
+      // drawn on a canvas of the viewport's size (moved so screen points land on it), then onto the frame
+      const c = this._out && this._out.width === vp.w && this._out.height === vp.h ? this._out : (this._out = E.mkCanvas(vp.w, vp.h)), cg = E.ctx2d(c);
+      cg.setTransform(1, 0, 0, 1, -vp.x, -vp.y);
+      this.drawSky(cg, r, vp); this.drawFloor(cg, vp);
+      const P = this._P, fog = this.o.fog, far = fog && fog.far || this.o.far, list = [];
+      for (const it of items) { const p = this.project(it.x, it.y, it.z); if (!p || p[0] < vp.x - 200 || p[0] > vp.x + vp.w + 200) continue; const d = (it.x - P.x) * P.fx + (it.y - P.y) * P.fy; if (d <= far) list.push([d, it, p]); }
+      list.sort((a, b) => b[0] - a[0]);
+      for (const [d, it, p] of list) { cg.globalAlpha = fog ? clamp(1 - (d - (fog.near || 0)) / (far - (fog.near || 0)) * .8, .2, 1) : 1; E.px.reset(cg); it.fn(cg, p[0], p[1], p[2]); }   // (the color cache forgotten: the floor and the sky set colors directly)
+      cg.globalAlpha = 1; cg.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(c, vp.x, vp.y);
+    });
+    return this;
+  }
+  /** the sky above the horizon: a Backdrop turned with the heading, or a gradient of two colors */
+  drawSky(g, r, vp) {
+    const H0 = Math.round(clamp(this.horizon, vp.y, vp.y + vp.h)) - vp.y, sky = this.o.sky; if (H0 <= 0) return;
+    if (Array.isArray(sky)) { const gr = g.createLinearGradient(0, vp.y, 0, vp.y + H0); gr.addColorStop(0, sky[0]); gr.addColorStop(1, sky[1] || sky[0]); g.fillStyle = gr; g.fillRect(vp.x, vp.y, vp.w, H0); return; }
+    const c = this._sky || (this._sky = E.mkCanvas(vp.w, H0)); if (c.width !== vp.w || c.height !== H0) { c.width = vp.w; c.height = H0; }
+    // the Backdrop drawn on its own canvas through a stand-in for r: a turn of a radian moves a layer of parallax .1
+    // by the focal length, as far scenery moves
+    const turn = this._a * this._P.f * 10, val = value => ({ value });
+    sky.draw(Object.create(r, { ctx: val(E.ctx2d(c)), bw: val(vp.w), bh: val(H0), W: val(vp.w), H: val(H0), ix: val(turn), iy: val(0) }));
+    g.drawImage(c, vp.x, vp.y);
+  }
+  // the floor's texture: a canvas, or one baked from a TileMap's floor or a color function (a texel a unit)
+  _texture() {
+    if (this._tex) return this._tex;
+    const f = this.o.floor; if (f && f.getContext) return (this._tex = f);
+    const map = f && f.w && f.T ? f : null, W = map ? map.w * map.T : (this.o.size || [256, 256])[0], H = map ? map.h * map.T : (this.o.size || [256, 256])[1];
+    const cv = E.mkCanvas(W, H), g = cv.getContext('2d'), img = g.createImageData(W, H), d = img.data;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const c = map ? (map.cell(Math.floor(x / map.T), Math.floor(y / map.T)) === 0 ? map.floorTex(x + .5, y + .5, map.floorAt(x + .5, y + .5)) : null) : f(x + .5, y + .5);
+      if (!c) continue; const i = (y * W + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0); return (this._tex = cv);
+  }
+  /** forget the floor's baked texture (after changing the map or the function: it bakes again) */
+  refresh() { this._tex = null; this._px = null; return this; }
+  /** draw the floor below the horizon in the rectangle ({ x, y, w, h }), a row at a time, and the fog over it */
+  drawFloor(g, vp) {
+    const P = this._P, F = this._texture(), TW = F.width, TH = F.height, o = this.o, fog = o.fog, far = fog && fog.far || o.far;
+    const top = Math.max(vp.y, Math.ceil(P.cy - P.f * P.sp / P.cp)), bot = vp.y + vp.h; if (bot <= top) return;
+    g.fillStyle = o.outside; g.fillRect(vp.x, top, vp.w, bot - top);
+    if (P.fx === 0 && P.fy === -1 && !o.wrap) {   // due north: each row a strip of the texture stretched across (the fast path)
+      for (let by = top; by < bot; by++) {
+        const D = this.rowDepth(by + .5); if (!D || D > far) continue;
+        const y = P.y - D; if (y < 0 || y >= TH) continue;
+        const u = (D * P.cp + P.h * P.sp) / P.f; g.drawImage(F, P.x - (P.cx - vp.x) * u, Math.floor(y), vp.w * u, 1, vp.x, by, vp.w, 1);
+      }
+    } else {   // any heading: each row's pixels sampled along the floor's line under it
+      if (!this._px) this._px = new Uint32Array(F.getContext('2d').getImageData(0, 0, TW, TH).data.buffer);
+      const T = this._px, w = vp.w, h = bot - top;
+      const B = this._buf && this._buf.width === w && this._buf.height === h ? this._buf : (this._buf = E.mkCanvas(w, h)), bg = B.getContext('2d'), img = bg.createImageData(w, h), out = new Uint32Array(img.data.buffer);
+      const oh = E.hex(o.outside), oc = ((255 << 24) | (oh[2] << 16) | (oh[1] << 8) | oh[0]) >>> 0;
+      for (let row = 0; row < h; row++) {
+        const D = this.rowDepth(top + row + .5); if (!D || D > far) continue;
+        const s = (D * P.cp + P.h * P.sp) / P.f, l0 = (vp.x + .5 - P.cx) * s, ux = P.rx * s, uy = P.ry * s, base = row * w;
+        let wx = P.x + P.fx * D + P.rx * l0, wy = P.y + P.fy * D + P.ry * l0;
+        for (let i = 0; i < w; i++, wx += ux, wy += uy) {
+          let tx = Math.floor(wx), ty = Math.floor(wy);
+          if (o.wrap) { tx = ((tx % TW) + TW) % TW; ty = ((ty % TH) + TH) % TH; } else if (tx < 0 || ty < 0 || tx >= TW || ty >= TH) { out[base + i] = oc; continue; }
+          const c = T[ty * TW + tx]; out[base + i] = c >>> 24 ? c : oc;
+        }
+      }
+      bg.putImageData(img, 0, 0); g.drawImage(B, vp.x, top);
+    }
+    if (fog) {   // the fog: each row mixed toward its color with its distance
+      const fc = E.hex(fog.color || '#a8c0e0'), n = fog.near || 0;
+      for (let by = top; by < bot; by++) { const D = this.rowDepth(by + .5), a = D ? clamp((D - n) / (far - n), 0, 1) : 1; if (a > .01) { g.fillStyle = `rgba(${fc[0]},${fc[1]},${fc[2]},${a.toFixed(3)})`; g.fillRect(vp.x, by, vp.w, 1); } }
+    }
+  }
+  /** draw at the screen's own pixels (on, called each step: sharper, slower) or the game's again (off); returns the
+   *  pixel size the game had (1 when it had no other) */
+  fullRes(game, on) {
+    const sc = game.screen, O = game.o;   // (the game's sizing options: setOptions changes them)
+    if (on && sc.S !== 1) {
+      if (!this._res) this._res = { minW: O.minW, minH: O.minH, maxW: O.maxW, maxH: O.maxH, portrait: O.portrait, S: sc.S };
+      sc.setOptions({ minW: 1e6, minH: 1e6, maxW: 1e6, maxH: 1e6, portrait: { maxH: 1e6 } }); game.cam.snap = true;
+    } else if (!on && this._res) { const R = this._res; this._res = null; sc.setOptions({ minW: R.minW, minH: R.minH, maxW: R.maxW, maxH: R.maxH, portrait: R.portrait }); game.cam.snap = true; }
+    return this._res ? this._res.S : 1;
+  }
+}
+E.Mode7 = Mode7;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+</script>
+<script>
 /* ---- inlined from src/stress.game.js ---- */
 /* =============================================================================
  * MY-3D2DGE STRESS TEST
@@ -10651,9 +10859,13 @@ function draw(r) {
  * braziers, shadows, telegraphs, trails, shots, particles and every character, back to front, each at the size its
  * distance gives. The characters are the engine's own: a rig draws by code at any scale, so a near one is crisp, not a
  * blown-up sprite. The torches light warm pools on the floor (the engine's lighting works in its own views only), and
- * the far end fades into the dark. Zoom narrows the field of view. ?view=side&depth=1 opens it.
+ * the far end fades into the dark. Zoom narrows the field of view. ?view=side&depth=1 opens it. The camera, the floor's
+ * rows, the characters' views and the screen's resolution are the engine's mode7 module (E.Mode7); the hall's walls,
+ * light and fog are this page's.
  * ============================================================================= */
 const DEPTH = { on: qs.get('depth') === '1', x: 0, y: 0, h: 70, pitch: 14, fov: 50, near: 110, far: 260, ready: false, text: 1, note: null };   // (units: near keeps his feet on screen)
+// the Mode 7 view: the floor baked from the map's own floorTex the first time it is drawn, the dark of the hall beyond it
+const m7 = new E.Mode7({ floor: map, outside: '#06050b' });
 /* the depth view draws at the screen's own resolution, one buffer pixel per screen pixel: the characters are drawn by
  * the engine at the size their distance gives there, so near or far, zoomed in or out, they stay sharp (in the engine's
  * own views the pixel size is the look; here the framing comes from the field of view, so more pixels only sharpen).
@@ -10661,10 +10873,8 @@ const DEPTH = { on: qs.get('depth') === '1', x: 0, y: 0, h: 70, pitch: 14, fov: 
  * back with depth off. */
 let depthRes = false;
 function depthResolution(on) {
-  if (on && game.screen.S !== 1) {
-    if (!depthRes) DEPTH.text = game.screen.S;
-    depthRes = true; game.screen.setOptions({ minW: 1e6, minH: 1e6, maxW: 1e6, maxH: 1e6, portrait: { maxH: 1e6 } }); game.cam.snap = true;
-  } else if (!on && depthRes) { depthRes = false; setDistance(S.distance); }
+  if (on && game.screen.S !== 1) { DEPTH.text = m7.fullRes(game, true); depthRes = true; }
+  else if (!on && depthRes) { depthRes = false; m7.fullRes(game, false); setDistance(S.distance); }
 }
 // (the depth view covers the frame and draws the particles itself: no lighting pass or engine particles under it)
 { const render = game.lights.render.bind(game.lights); game.lights.render = r => { if (!depthActive()) render(r); }; }
@@ -10687,32 +10897,10 @@ function setDepth(on) {
   if (on && game.baseView.id !== 'side') game.setView('side');
   game.note(on ? 'SIDE SCROLLING WITH DEPTH' : 'FLAT SIDE VIEW'); syncUI();
 }
-/* the projection: a pinhole camera at (x, y, h) looking north, pitched down; f is the focal length in buffer pixels */
-const PJ = { x: 0, y: 0, h: 70, cp: 1, sp: 0, f: 1, cx: 0, cy: 0 };
-/** engine (x, y, z) -> [buffer x, buffer y, buffer pixels per unit there], or null at or behind the camera */
-function proj(x, y, z) {
-  const D = PJ.y - y, dz = z - PJ.h, zc = D * PJ.cp - dz * PJ.sp; if (zc < 6) return null;
-  const k = PJ.f / zc; return [PJ.cx + (x - PJ.x) * k, PJ.cy - (D * PJ.sp + dz * PJ.cp) * k, k];
-}
-/** a buffer row's floor distance (the inverse of proj on the floor), or 0 above the horizon */
-function rowDepth(by) {
-  const k = (PJ.cy - by) / PJ.f, den = PJ.sp - k * PJ.cp; if (den <= 1e-4) return 0;
-  return PJ.h * (PJ.cp + k * PJ.sp) / den;
-}
-// the floor texture, one texel per unit, baked from the map's own floorTex the first time it is needed
-let FLOOR7 = null;
-function floor7() {
-  if (FLOOR7) return FLOOR7;
-  const w = MW * T, h = MH * T, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-  const g = cv.getContext('2d'), img = g.createImageData(w, h), d = img.data;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (map.cell(Math.floor(x / T), Math.floor(y / T)) !== 0) continue;
-    const c = map.floorTex(x + .5, y + .5), i = (y * w + x) * 4; if (!c) continue;
-    d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  return (FLOOR7 = cv);
-}
+/* the projection: m7's pinhole camera at (x, y, h) looking north, pitched down; PJ keeps what the walls' sides, the
+ * shadows and the pools read of it */
+const PJ = { x: 0, h: 70, sp: 0, W: 0 };
+const proj = (x, y, z) => m7.project(x, y, z);
 // wall faces: courses of bricks in the type's colors, one canvas per type and height (16 pixels across a tile)
 const FACE7 = new Map();
 function face7(t, h) {
@@ -10725,13 +10913,6 @@ function face7(t, h) {
     g.fillStyle = tn.lt; g.fillRect(0, Math.max(0, y + 1), 16, 1);
   }
   FACE7.set(key, cv); return cv;
-}
-const views7 = new Map();
-/** the engine view a character is drawn with at k pixels per unit (whole 1/16ths, so views are reused) */
-function view7(k) {
-  const q = Math.max(1 / 8, Math.round(k * 16) / 16); let v = views7.get(q);
-  if (!v) { if (views7.size > 400) views7.clear(); v = new E.View('side-depth', 'Side, depth', 0, DEPTH.pitch, q, 1); views7.set(q, v); }
-  return v;
 }
 /** a pool of light on the floor at (x, y), radius R units: a radial gradient squashed as the floor squashes it there */
 function pool7(g, x, y, R, rgb, a) {
@@ -10749,13 +10930,13 @@ function floorPoly7(g, pts, color, a) {
 }
 function drawDepth(r) {
   const sc = game.screen, W = r.W, H = r.H, t = game.time;
-  const pitch = DEPTH.pitch * Math.PI / 180;
-  Object.assign(PJ, { x: DEPTH.x, y: DEPTH.y, h: DEPTH.h, cp: Math.cos(pitch), sp: Math.sin(pitch), f: H / 2 / Math.tan(depthFov() / 2), cx: W / 2 + sc.fx, cy: H / 2 + sc.fy, W });
+  m7.begin({ W, H, cx: W / 2 + sc.fx, cy: H / 2 + sc.fy, focal: H / 2 / Math.tan(depthFov() / 2) }, { x: DEPTH.x, y: DEPTH.y, h: DEPTH.h, angle: -Math.PI / 2, pitch: DEPTH.pitch });
+  Object.assign(PJ, { x: DEPTH.x, h: DEPTH.h, sp: Math.sin(DEPTH.pitch * Math.PI / 180), W });
   // everything standing, gathered now (the panel counts it) and drawn back to front (the far end of the hall first)
   const items = [];
   for (let cy = 0; cy < MH; cy++) for (let cx = 0; cx < MW; cx++) {
     const id = map.cell(cx, cy); if (id <= 0) continue;
-    const y1 = (cy + 1) * T; if (PJ.y - y1 < 6 && PJ.y - cy * T < 6) continue;
+    const y1 = (cy + 1) * T; if (DEPTH.y - y1 < 6 && DEPTH.y - cy * T < 6) continue;
     items.push([y1, g => wall7(g, cx, cy, map.types[id])]);
   }
   for (let i = 0; i < S.lights; i++) { const b = TORCHES[i]; items.push([b.y, g => brazier7(g, b)]); }
@@ -10774,13 +10955,8 @@ function drawDepth(r) {
     g.save(); g.imageSmoothingEnabled = false;
     g.fillStyle = '#06050b'; g.fillRect(0, 0, r.bw, r.bh);
     // the floor, a row at a time (Mode 7), then the dark of the hall, fading with distance, and the light pools
-    const F = floor7(), top = Math.max(0, Math.ceil(PJ.cy - PJ.f * PJ.sp / PJ.cp));
-    for (let by = top; by < r.bh; by++) {
-      const D = rowDepth(by + .5); if (!D || D > 2400) continue;
-      const y = PJ.y - D; if (y < 0 || y >= MH * T) continue;
-      const zc = D * PJ.cp + PJ.h * PJ.sp, u = zc / PJ.f;
-      g.drawImage(F, PJ.x - PJ.cx * u, Math.floor(y), r.bw * u, 1, 0, by, r.bw, 1);
-    }
+    const top = Math.max(0, Math.ceil(m7.horizon));
+    m7.drawFloor(g, { x: 0, y: 0, w: r.bw, h: r.bh });
     const fog = g.createLinearGradient(0, top, 0, r.bh); fog.addColorStop(0, 'rgba(6,5,11,.92)'); fog.addColorStop(.45, 'rgba(6,5,11,.62)'); fog.addColorStop(1, 'rgba(6,5,11,.45)');
     g.fillStyle = fog; g.fillRect(0, top, r.bw, r.bh - top);
     g.globalCompositeOperation = 'lighter';
@@ -10834,7 +11010,7 @@ function brazier7(g, b) {
 }
 /** a character: its shadow, a telegraph or trail if it has one, and the engine's own drawing at its distance's size */
 function actor7(g, e, p) {
-  const k = p[2], v = view7(k), isHero = e === hero;
+  const k = p[2], v = m7.view(k), isHero = e === hero;
   const alpha = isHero ? (e.dead ? clamp(4 - e.deadT * 2, 0, 1) : 1) : !e.alive ? clamp(e.type === 'wisp' ? 1 - e.deadT / POP_T : (DEAD_T - e.deadT) * 2, 0, 1) : e.spawnT > 0 ? clamp(1 - e.spawnT / .6, .05, 1) : 1;
   if (e.type === 'wisp') {   // a glowing orb, its halo and motes
     const kk = !e.alive ? 1 + e.deadT / POP_T * 1.8 : e.charge > 0 ? 1 + (1 - e.charge / .6) * .8 : 1;
@@ -10867,8 +11043,7 @@ function trail7(g, tr, rgb) {
   game.mouseGround = () => {
     if (!depthActive()) return base();
     const m = game.input.mouseScreen(); if (!m) return null;
-    const bx = m[0] - game.screen.ix, by = m[1] - game.screen.iy, D = rowDepth(by); if (!D) return null;
-    const zc = D * PJ.cp + PJ.h * PJ.sp; return [PJ.x + (bx - PJ.cx) * zc / PJ.f, PJ.y - D];
+    return m7.toFloor(m[0] - game.screen.ix, m[1] - game.screen.iy);
   };
 }
 

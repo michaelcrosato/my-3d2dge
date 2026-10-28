@@ -35,6 +35,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['fight', 'node tools/fight-test.mjs', ['engine/modules/fight.js', 'src/starter/55-fighting.js', 'tools/fight-test.mjs']],
   ['players', 'node tools/players-test.mjs', ['tools/players-test.mjs', 'tools/fixtures/players.html', 'tools/filmstrip.mjs']],
   ['traversal', 'node tools/traversal-test.mjs', ['tools/traversal-test.mjs', 'tools/fixtures/traversal.html', 'tools/filmstrip.mjs']],
+  ['views', 'node tools/views-test.mjs', ['engine/modules/mode7.js', 'engine/modules/road.js', 'tools/views-test.mjs', 'tools/fixtures/views.html', 'tools/filmstrip.mjs']],
   ['modules', 'node tools/modules-test.mjs', ['engine/modules/', 'tools/fixtures/', 'tools/modules-test.mjs', 'tools/api-index.mjs', 'tools/doctrine-check.mjs', 'tools/contract-test.mjs', 'tools/agent-test.mjs', 'tools/version.mjs']],
   ['mocap', 'node tools/mocap-test.mjs', ['src/mocap/', 'src/mocap.template.html', 'src/mocap.game.js', 'tools/mocap-test.mjs', 'tools/mocap-lib.mjs', 'tools/anim-']],
   ['ed-clips', 'node tools/ed-clips-test.mjs', ['src/emberdeep/', 'src/mocap/', 'tools/ed-clips-test.mjs']],
@@ -42,7 +43,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['replay', 'node tools/replay-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/starter/', 'src/starter.template.html', 'tools/replay.mjs', 'tools/replay-test.mjs']],
   ['assets', 'node tools/assets-test.mjs', ['docs/ASSETS.md', 'docs/ASSET-IMPORT.md', 'tools/assets-test.mjs', 'tools/asset-', 'src/assets/']],
   ['labs', 'node tools/labs-test.mjs', ['src/', 'vercel.json', 'tools/labs-test.mjs']],
-  ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'vercel.json', 'tools/stress-test.mjs']],
+  ['stress', 'node tools/stress-test.mjs', ['src/stress.', 'engine/modules/mode7.js', 'vercel.json', 'tools/stress-test.mjs']],
   ['kit3d', 'node tools/kit3d-test.mjs', ['engine/my-3d2dge-3d.js', 'src/starter3d', 'vendor/', 'vercel.json', 'API.md', 'tools/kit3d-test.mjs', 'tools/vendor-3d.mjs', 'tools/diet.mjs']]
 ];
 // changes that run everything: the engine (every page and suite uses it), the build, the engine's loader (every tool's),
