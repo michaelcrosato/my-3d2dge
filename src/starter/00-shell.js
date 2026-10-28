@@ -23,7 +23,7 @@
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -43,6 +43,7 @@ const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER', family: 'PLATFORM' },
+  { id: 'metroidvania', label: 'METROIDVANIA', about: 'A WORLD OF ROOMS, ITS MAP, ITS GATES', family: 'PLATFORM' },
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },

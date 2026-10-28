@@ -1,6 +1,6 @@
 {
   "name": "my-3d2dge",
-  "version": "0.66.1",
+  "version": "0.67.0",
   "description": "my-3D2dge (My \"3D\" 2D Game Engine): a general-purpose retro-modern 2D game engine built for AI models. Port, remaster, reimagine and remix 8-bit to 64-bit era games in every classic view, from one self-contained HTML file.",
   "type": "module",
   "license": "MIT",
@@ -27,6 +27,7 @@
     "test:motion": "node tools/motion-test.mjs",
     "test:players": "node tools/players-test.mjs",
     "test:fight": "node tools/fight-test.mjs",
+    "test:traversal": "node tools/traversal-test.mjs",
     "bench": "node tools/agent-bench.mjs",
     "test:labs": "node tools/labs-test.mjs",
     "test:assets": "node tools/assets-test.mjs",

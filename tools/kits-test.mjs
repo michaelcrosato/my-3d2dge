@@ -36,6 +36,7 @@ const BOTS = {
   shooter: { say: 'flies the horizontal stage to its core battleship', ok: r => r.boss },
   brawler: { say: 'two heroes (player 2 on the keyboard\'s right half) clear the first wave, each landing blows', ok: r => r.players === 2 && r.heroes === 2 && r.wave >= 1 && r.hits.every(n => n > 0) },
   fighting: { say: 'two CPUs fight a match to its end, twice, the same (their randomness is their own)', ok: r => r.over && r.repeat && r.wins[r.winner] >= 2 },
+  metroidvania: { say: 'takes its route through the rooms (the boots under the water, the tower, the beetle\'s dash, the laboratory) to the boss and beats it; the map fills in as rooms are seen; its save loads back', ok: r => r.won && r.path.includes('reactor') && r.seen >= 18 && r.seenAt.reactor > r.seenAt.caverns && r.saved && r.loaded.room === 'save' && r.loaded.got.includes('dash') && !r.errors },
   puzzle: { say: 'clears lines (60 pieces, at least 10 lines); two CPUs play versus to a loss, sending rows across', ok: r => r.pieces >= 60 && r.lines >= 10 && !!r.vs && r.vs.loser !== undefined && r.vs.sent.some(n => n > 0) }
 };
 // the kits: my-3d2dge-<id>.html (2D) and my-3d2dge-3d-<id>.html (3D), the slice's id from the name

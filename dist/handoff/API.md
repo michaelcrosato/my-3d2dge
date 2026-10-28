@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.66.1)
+# my-3D2dge API card (v0.67.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -182,6 +182,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - Each update: `hero.update(dt, level, game.input, movingPlatforms)`. For enemies pass `{ x: -1..1, jump, jumpPressed, up, down, dash }` instead of the input.
 - Read: `onGround`, `jumped`, `landed`, `facing` (1 or -1), `air`, `climbing`, `hitWall`, `hitCeiling`, `bumped` (`{ cx, cz, id }` of a block hit from below). Methods: `knock(dir)`, `rigState(extra)` (feed it to `rig.update`).
 - Built in: coyote time, jump buffering, variable jump height (let go early for a short hop), slopes and small steps (sticks to the ground going down), ladders (up / down), drop through one-way tiles (down + jump), optional double jump, wall jump and dash.
+- Further moves, each on request: `crouch` (down: half as tall, it crawls), `ledge` (catches a ledge falling past it; up climbs), `wallCling`, `momentum` (slopes, a roll, a charged dash); tile kinds `'water'` (it swims), `'rope'` (up grabs it), `'bars'` (it hangs and travels), grip `friction` (ice .15), `carry` (a conveyor), `bounce` (a spring), `crumble` and `respawn` (`level.update(dt)` each step); `hero.swingFrom(x, z)` (a grapple: a pendulum, jump lets go); draw `level.drawWater(r)` after the actors. State: `crouching`, `hanging`, `clinging`, `swimming`, `onRope`, `onBars`, `swinging`, `rolling`; `rigState()` poses them.
 - Moving platforms: `{ x, z, w, h, vx, vz }` boxes you move yourself and pass as `solids`; riders are carried.
 
 **Body** (top-down / isometric / brawler): `new E.Body({ x, y, r: 5, friction: 0, bounce: 0, gravity: 700 })`. Set `vx`, `vy`, then `body.update(dt, map)`. Also `push(ix, iy, iz)` (knockback), `jump(v)`, and `onGround`, `z`, `groundZ`, `hitWall`, `landed`, `bounced` (hit the ground and bounced: dust, a thud). Walls lower than your feet are walkable, so bodies can jump onto blocks.
@@ -220,7 +221,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Genre (examples) | View | Build it with | Copy slice |
 |---|---|---|---|
 | Platformer (Mario, Mega Man, Sonic, Castlevania) | `side` (+ `brawler` for 2.5D) | PlatformMap, Platformer, Humanoid, sprites, Bullets `'side'` | PLATFORMER |
-| Metroidvania (Metroid, Symphony of the Night) | `side` | PlatformMap per room, `cam.room`, Platformer with `dash`, `wallJump` | PLATFORMER |
+| Metroidvania (Metroid, Symphony of the Night) | `side` | an `E.World` of PlatformMaps (the rooms module: doors at open edges, a slide, the explored map, gates opened by abilities, saves), a Platformer given `airJumps` and `dash` as they are found, its further moves, an arm cannon aimed eight ways (`point`, `aim`, `rig.tip()`, Bullets) | METROIDVANIA |
 | Action adventure (Zelda, Secret of Mana) | `threequarter` or `topdown` | TileMap rows, `cam.room`, Body, Humanoid + `E.Attack` sword, Dialog, `E.ui.hearts` | ADVENTURE |
 | Action RPG / dungeon (Diablo, Landstalker) | `iso` | TileMap, FlowField, Body (jump onto blocks), GPU lighting | ADVENTURE |
 | Beat-'em-up (Final Fight, Streets of Rage, TMNT) | `brawler` | TileMap street strip, Body, Humanoid (`weapon: null`) + `E.Combo` punches and `kick: true` kicks, `E.knockback`, waves that lock the screen; a second player drops in (`game.allowJoin`, `cam.frame` on both) | BRAWLER |
@@ -248,6 +249,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `grid`: square and hex grids: A* paths, move ranges, lines, fields of view (symmetric shadowcasting), `E.Fog`, groups, `E.GridMover`, `E.Turns` (speed, charge time, phases, ATB). ROGUELIKE, PUZZLE.
   - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE, ARCADE.
   - `fight`: one-on-one fighting: `E.Fighter` (a Platformer and a Humanoid; frame data; hurt boxes from the rig's joints; high, low and overhead guards; chip; throws; cancels; juggles; knockdowns; specials by motion or charge; a super meter; projectiles), `E.Match` (rounds, timer, KO, the HUD, training), `E.FightAI`, `E.FightSelect`. FIGHTING.
+  - `rooms`: a world of rooms on a grid of screens (`E.World`): walking between them at open edges (a slide or a fade, the camera's bounds), the explored map (`drawMap`, or `shellMap()` for `E.Shell`), gates that abilities or keys open, saves in `E.store`. METROIDVANIA.
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 

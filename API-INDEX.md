@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.66.1)
+# my-3D2dge API index (v0.67.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,49 +48,50 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 95 The engine object (E = My3D2dge)
-- 106 Math
-- 180 Pixel primitives
-- 199 Sprite frames, turns and swaps
-- 205 Views (projections); E.View: view
-- 232 Screen; game.screen
-- 254 Input; E.Input: input
-- 332 Pixel font
-- 343 Lighting; game.lights
-- 362 Particles; E.Particles: game.particles
-- 382 Renderer; r
-- 429 Game; E.Game: game
-- 539 Standard features; settings, fullscreen
-- 556 10c. Boot
-- 561 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 578 10e. Paths; E.Path: path
-- 588 10g. Weather
-- 592 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 665 Blob rig; E.Blob: blob
-- 685 Tile map; E.TileMap: map
-- 744 Materials
-- 765 Flow field; E.FlowField: flow
-- 783 Texture helpers for floortex functions
-- 794 Platform map; E.PlatformMap: level
-- 824 Platformer; E.Platformer: hero
-- 859 Body; E.Body: body
-- 879 Actions; E.Action: action
-- 901 17c. Mover; E.Mover: mover
-- 940 17d. Perception; E.Suspicion: suspicion
-- 957 Bullets; E.Bullets: shots
-- 977 Spatial hash; E.SpatialHash: grid
-- 987 Audio; game.audio
-- 1009 Backdrops; E.Backdrop: backdrop
-- 1017 21c. Props
-- 1022 21e. Shapes
-- 1034 Ui; E.Dialog: talk, E.Menu: menu
-- 1089 21d. Shell; E.Shell: shell
-- 1118 Gpu lighting (webgpu); game.gpu
-- 1139 Sessions
-- 1148 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1183 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1264 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1275 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 96 The engine object (E = My3D2dge)
+- 107 Math
+- 181 Pixel primitives
+- 200 Sprite frames, turns and swaps
+- 206 Views (projections); E.View: view
+- 233 Screen; game.screen
+- 255 Input; E.Input: input
+- 333 Pixel font
+- 344 Lighting; game.lights
+- 363 Particles; E.Particles: game.particles
+- 383 Renderer; r
+- 430 Game; E.Game: game
+- 540 Standard features; settings, fullscreen
+- 557 10c. Boot
+- 562 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 579 10e. Paths; E.Path: path
+- 589 10g. Weather
+- 593 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 666 Blob rig; E.Blob: blob
+- 686 Tile map; E.TileMap: map
+- 745 Materials
+- 766 Flow field; E.FlowField: flow
+- 784 Texture helpers for floortex functions
+- 795 Platform map; E.PlatformMap: level
+- 829 Platformer; E.Platformer: hero
+- 870 Body; E.Body: body
+- 890 Actions; E.Action: action
+- 912 17c. Mover; E.Mover: mover
+- 951 17d. Perception; E.Suspicion: suspicion
+- 968 Bullets; E.Bullets: shots
+- 988 Spatial hash; E.SpatialHash: grid
+- 998 Audio; game.audio
+- 1020 Backdrops; E.Backdrop: backdrop
+- 1028 21c. Props
+- 1033 21e. Shapes
+- 1045 Ui; E.Dialog: talk, E.Menu: menu
+- 1100 21d. Shell; E.Shell: shell
+- 1129 Gpu lighting (webgpu); game.gpu
+- 1150 Sessions
+- 1159 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1194 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1275 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1286 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1341 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
 
 ## The engine object (E = My3D2dge)
 
@@ -99,7 +100,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.66.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.67.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -798,7 +799,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `level.cell(cx, cz)`: tile id at column cx, row cz (cz = 0 is the bottom). Left and right of the level are solid walls unless edges: 'open'
 - `level.cellsTouching(b, what)`: tiles overlapped by a body box { x, z, w, h }: [{ cx, cz, id, kind }] (optionally only one kind or id)
 - `level.center(cx, cz)`: a cell's center -> [x, z]
+- `level.crumble(cx, cz, holds = .5, respawn = 3)` †: start a crumbling block at a cell going, once (it falls away after holds seconds and comes back after respawn more; 0: never; update(dt) runs them, each step); returns its record
 - `level.draw(r)`: draw the level as the background layer: call right after r.sky() and before anything else
+- `level.drawWater(r, alpha = .45)` †: draw the water tiles see-through over what is in them (call it after the actors are queued: an overlay)
 - `level.find(tag)`: the first spawn with this tag ({ x, y: 0, z, cx, cz }), or null
 - `level.findAll(tag)`: every spawn with this tag
 - `level.groundBelow(x, z)`: top of the highest solid or one-way tile at or below height z in this column, or null over a pit
@@ -811,9 +814,11 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `level.solidAt(x, z)`: true where a world point is inside a solid tile
 - `level.toCell(x, z)`: a world point -> [cx, cz]
 - `level.touching(b, what)`: does the body box overlap a tile of this kind ('hazard', 'ladder', ...) or id?
+- `level.update(dt)` †: run the crumbling blocks one step: a block falls away when its time is up, and comes back after its respawn
 - `level.width`: width and height of the level in world units
 - `level.T`: the tile size (16)
 - `level.cells`: stored bottom row first: cz = 0 is the lowest row and z grows upward
+- `level.crumbling` †: the blocks going ({ cx, cz, id, t: seconds before it falls, back })
 - `level.depth`: how deep tiles are drawn in tilted views, world units (the tile size)
 - `level.edges`: 'solid' (the default) makes the level's left and right edges walls, 'open' lets bodies walk off them
 - `level.h`, `level.w`: the level's size in cells
@@ -825,7 +830,9 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `new E.Platformer(o = {}) → hero`: a side-scroller character body with modern, forgiving controls (coyote time, jump buffering, variable jump height, optional double jump, wall jump, dash, ladders, knockback). const hero = new E.Platformer({ x, z, w: 8, h: 22 }); update: hero.update(dt, level, game.input) (or an intent object for enemies: { x: -1..1, jump, jumpPressed, up, down, dash }) then read hero.onGround, hero.jumped, hero.landed, hero.facing (1 or -1), hero.climbing, hero.air draw a Humanoid with rig.update(dt, hero.rigState()) Units: world units per second. One tile = 16. A 285 jump with gravity 800 clears about 3 tiles.
 - `hero.knock(dir, speed = 130, up = 170, stun = .3)`: push the body (getting hit): dir = -1 / 1
+- `hero.release(up = 0)` †: let go of a swing, keeping its speed (up: an extra upward speed)
 - `hero.rigState(extra)`: state for Humanoid.update: rig.update(dt, hero.rigState({ attack }))
+- `hero.swingFrom(x, z, len)` †: hang from a point (a grapple's hook, a whip's ring): a pendulum from (x, z) to its hands, len long (the distance now by default); left and right pump it, jump lets go with its speed (release() does too)
 - `hero.update(dt, level, ctl = {}, solids)`: move it one step: ctl is game.input or an intent { x: -1..1, jump, jumpPressed, up, down, dash } (enemies, bots); solids: moving platforms [{ x, z, w, h, vx, vz }] to stand on
 - `hero.accel = 900`, `hero.airAccel = 650`, `hero.decel = 1100`: how fast it speeds up and slows down on the ground and in the air
 - `hero.air = false`: in the air, not climbing
@@ -843,13 +850,17 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `hero.fallGravity = 1150`: while falling (snappier landings)
 - `hero.gravity = 800`: while rising
 - `hero.h = 22`, `hero.w = 8`: its box (x is its center, z its feet)
+- `hero.hanging` †: the ledge it hangs from ({ dir, top, cx }), or null
 - `hero.hitWall`: keep wall contact while holding toward it
 - `hero.jump = 285`: the jump's starting speed
 - `hero.jumped = false`, `hero.landed = false`: it jumped or landed this step
 - `hero.maxFall = 330`: the fastest fall
+- `hero.onBars` †: the bars it hangs from ({ z }), or null
 - `hero.onGround = false`: standing on something
+- `hero.onRope = null` †: true while on a rope (section 16c sets them)
 - `hero.run = 95`: top running speed
 - `hero.stun = 0`: seconds of knockback left (no control)
+- `hero.swinging` †: the point it swings from ({ x, z, L: the length, a: the angle, w: the angular speed }), or null
 - `hero.vx = 0`, `hero.vz = 0`: its speed
 - `hero.wallJump = false`: jumps off walls
 - `hero.wallSlide = 70`: the slowest fall against a wall
@@ -1326,3 +1337,32 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `turns.phase = null`: the side acting now (phase mode)
 - `turns.sides`: the sides in their order (phase; null: as the actors have them)
 - `E.tint(r, cells, color, alpha = .4, T = 16, height = null)`: tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range, a path, an attack's reach, drawn on the floor (decals) where height is 0, over the world otherwise
+
+## Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js)
+
+- `new E.World(game, o = {}) → world`: new E.World(game, { id, screen: [20, 12], view: 'side' | 'top', legend, types, rooms, start, transition: 'slide', make }): a world of rooms (the manual above)
+- `world.cells()`: every cell of the world grid that a room holds: [{ gx, gy, room, seen }]
+- `world.clear()`: forget the save
+- `world.draw(r)`: draw the room's map (the kit draws its actors after)
+- `world.drawMap(g, x, y, cell = 6, o = {})`: draw the explored map with its top-left cell at x, y, each cell a square of cell pixels: the seen cells (o.all: every room's), walls where rooms end with gaps at their doors, save rooms S and the boss's B, the hero's cell blinking; o: { all, color, wall, save, boss }
+- `world.drawOver(r)`: draw the transition over everything (last): the old screen sliding away, or a fade through black
+- `world.enter(id)`: go to a room by id (the camera's bounds become its map's); returns the room
+- `world.give(name)`: an ability or a key got ('dash', 'key:red'): its gates open in every room
+- `world.has(name)`: true once it has an ability or a key
+- `world.load()`: go back to the save (its room entered, what was got and seen restored): { room, x, z, got, seen, extra }, or null
+- `world.map`: the room's map
+- `world.roomAt(gx, gy)`: the room that holds world cell (gx, gy), or null
+- `world.save(b, extra)`: keep a save: the room, the hero's place, what was got and seen, and extra (anything JSON)
+- `world.shellMap()`: the explored map for E.Shell's minimap: game.shell.hud({ minimap: world.shellMap() }) (a cell a square, the save and boss rooms marked, the hero's cell)
+- `world.update(dt, b)`: each step, after the hero moves: the cell it is in marked seen; off an edge into the next room, the room changes ('enter' that step), off one with no room past it, it stops as at a wall; the transition plays on
+- `world.defs`: the rooms' definitions by id
+- `world.game`: its game
+- `world.got`: the abilities and keys it has
+- `world.grid`: the world grid's extent in cells { x0, y0, w, h }
+- `world.here = null`: its cell [gx, gy]
+- `world.id`: its name (its saves')
+- `world.moving = false`: a transition is playing
+- `world.o`: its options
+- `world.room = null`: the room it is in
+- `world.rooms`: every room by id: { id, def, map, at, w, h } (its size in screens)
+- `world.seen`: the world grid's cells the hero has been in ('gx,gy')

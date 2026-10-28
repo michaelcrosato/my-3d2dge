@@ -19,6 +19,8 @@
 //      a computer; left alone, the cabinet plays a demo and comes back to its table, then its title
 //  11. fighting: a tap on a portrait picks a fighter; four thumb-sized buttons; the stick walks it; a quarter circle on
 //      the stick and a tap on LP throw a fireball
+//  12. metroidvania: three thumb-sized buttons (JUMP, FIRE, MAP; DASH once found); the stick walks the hero and aims
+//      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -70,7 +72,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'platformer', 'shooter', 'arcade', 'puzzle', 'rpg', 'roguelike', 'brawler', 'fighting', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'platformer', 'metroidvania', 'shooter', 'arcade', 'puzzle', 'rpg', 'roguelike', 'brawler', 'fighting', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -433,6 +435,37 @@ if (want('fighting')) {
     const fired = await ev(page, () => window.__fired);
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `fighting-${label.replace(/ /g, '-')}.png`) });
     check(`fighting ${label}: the stick walks RYO in; a quarter circle on it and a tap on LP throw the fireball`, x1 > x0 + 15 && /^fire/.test(fired || '') && !errors.length, `x ${Math.round(x0)} -> ${Math.round(x1)}, move ${fired}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 12. metroidvania: its buttons, the stick (walking and aiming), the map */
+if (want('metroidvania')) {
+  console.log('metroidvania: three thumb-sized buttons; the stick walks and aims; JUMP jumps; MAP opens and closes the map');
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, cdp, errors } = await open('metroidvania', vp); await wait(900);
+    const st = () => ev(page, () => window.__game.scenes.metroidvania.state());
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+    const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h))), at = a => btns.find(b => b.act === a);
+    check(`metroidvania ${label}: JUMP, FIRE and MAP (DASH not yet found), each a thumb's size`, acts === 'fire,jump,map' && small >= 44, `buttons ${acts}, smallest ${Math.round(small)} CSS px`);
+    // the stick: a thumb on the left dragged right walks the hero; a tap on JUMP hops (a short press, a short jump)
+    const s0 = await st(), sx = vp.width * .2, sy = vp.height * .75;
+    await drag(cdp, line([sx, sy], [sx + 60, sy], 30), 25);
+    const s1 = await st(); let top = s1.z;
+    await page.touchscreen.tap(at('jump').x, at('jump').y); for (let i = 0; i < 6; i++) { await wait(60); top = Math.max(top, (await st()).z); }
+    // held up on the stick, FIRE sends a shot upward
+    const R = await ev(page, () => window.__game.game.input.stickRadius || 50), T = (type, p) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: p });
+    await wait(500); await T('touchStart', [{ x: sx, y: sy, id: 1 }]); await wait(40); await T('touchMove', [{ x: sx, y: sy - R, id: 1 }]); await wait(120);
+    const f = at('fire'); await T('touchStart', [{ x: sx, y: sy - R, id: 1 }, { x: f.x, y: f.y, id: 2 }]); await wait(60);
+    const up = await ev(page, () => window.__game.scenes.metroidvania.state().shot);
+    await T('touchEnd', [{ x: sx, y: sy - R, id: 1 }]); await wait(30); await T('touchEnd', []); await wait(200);
+    check(`metroidvania ${label}: the stick walks the hero; JUMP jumps; held up, FIRE shoots up`, s1.x > s0.x + 15 && top > s1.z + 8 && !!up && up.vz > 200 && Math.abs(up.vx) < 40, `x ${Math.round(s0.x)} -> ${Math.round(s1.x)}, jump to ${Math.round(top - s1.z)} above, shot ${JSON.stringify(up)}`);
+    // MAP opens the map; again, it closes
+    await page.touchscreen.tap(at('map').x, at('map').y); await wait(250); const m1 = (await st()).mapOpen;
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `metroidvania-map-${label.replace(/ /g, '-')}.png`) });
+    await page.touchscreen.tap(at('map').x, at('map').y); await wait(250); const m2 = (await st()).mapOpen;
+    await page.screenshot({ path: resolve('check-output/phone', `metroidvania-${label.replace(/ /g, '-')}.png`) });
+    check(`metroidvania ${label}: MAP opens the map, and closes it`, m1 === true && m2 === false && !errors.length, `open ${m1}, then ${m2}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }
