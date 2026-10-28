@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.65.0)
+# my-3D2dge API index (v0.66.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,48 +48,49 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 94 The engine object (E = My3D2dge)
-- 105 Math
-- 179 Pixel primitives
-- 198 Sprite frames, turns and swaps
-- 204 Views (projections); E.View: view
-- 231 Screen; game.screen
-- 253 Input; E.Input: input
-- 331 Pixel font
-- 342 Lighting; game.lights
-- 361 Particles; E.Particles: game.particles
-- 381 Renderer; r
-- 428 Game; E.Game: game
-- 538 Standard features; settings, fullscreen
-- 555 10c. Boot
-- 560 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 577 10e. Paths; E.Path: path
-- 587 10g. Weather
-- 591 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 664 Blob rig; E.Blob: blob
-- 684 Tile map; E.TileMap: map
-- 743 Materials
-- 764 Flow field; E.FlowField: flow
-- 782 Texture helpers for floortex functions
-- 793 Platform map; E.PlatformMap: level
-- 823 Platformer; E.Platformer: hero
-- 858 Body; E.Body: body
-- 878 Actions; E.Action: action
-- 900 17c. Mover; E.Mover: mover
-- 939 17d. Perception; E.Suspicion: suspicion
-- 956 Bullets; E.Bullets: shots
-- 976 Spatial hash; E.SpatialHash: grid
-- 986 Audio; game.audio
-- 1008 Backdrops; E.Backdrop: backdrop
-- 1016 21c. Props
-- 1021 21e. Shapes
-- 1033 Ui; E.Dialog: talk, E.Menu: menu
-- 1088 21d. Shell; E.Shell: shell
-- 1117 Gpu lighting (webgpu); game.gpu
-- 1138 Sessions
-- 1147 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1182 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1193 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 95 The engine object (E = My3D2dge)
+- 106 Math
+- 180 Pixel primitives
+- 199 Sprite frames, turns and swaps
+- 205 Views (projections); E.View: view
+- 232 Screen; game.screen
+- 254 Input; E.Input: input
+- 332 Pixel font
+- 343 Lighting; game.lights
+- 362 Particles; E.Particles: game.particles
+- 382 Renderer; r
+- 429 Game; E.Game: game
+- 539 Standard features; settings, fullscreen
+- 556 10c. Boot
+- 561 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 578 10e. Paths; E.Path: path
+- 588 10g. Weather
+- 592 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 665 Blob rig; E.Blob: blob
+- 685 Tile map; E.TileMap: map
+- 744 Materials
+- 765 Flow field; E.FlowField: flow
+- 783 Texture helpers for floortex functions
+- 794 Platform map; E.PlatformMap: level
+- 824 Platformer; E.Platformer: hero
+- 859 Body; E.Body: body
+- 879 Actions; E.Action: action
+- 901 17c. Mover; E.Mover: mover
+- 940 17d. Perception; E.Suspicion: suspicion
+- 957 Bullets; E.Bullets: shots
+- 977 Spatial hash; E.SpatialHash: grid
+- 987 Audio; game.audio
+- 1009 Backdrops; E.Backdrop: backdrop
+- 1017 21c. Props
+- 1022 21e. Shapes
+- 1034 Ui; E.Dialog: talk, E.Menu: menu
+- 1089 21d. Shell; E.Shell: shell
+- 1118 Gpu lighting (webgpu); game.gpu
+- 1139 Sessions
+- 1148 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1183 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1264 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1275 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
 
 ## The engine object (E = My3D2dge)
 
@@ -98,7 +99,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.65.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.66.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1178,6 +1179,87 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `arcade.phase = 'title'`: the attract mode's, 'title' | 'demo' | 'scores'
 - `arcade.players = []`: [{ n, score, lives, save (the game's own: a stage kept while the other plays), next (the score of the next extra life) }]
 - `arcade.wheel = null`: where the letter wheel was last drawn (taps answer to it): { x, y, cw, up, down, ok } in screen pixels: three columns cw wide from x, the up and down bands [y0, y1], the OK button [x, y, w, h]
+
+## Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js)
+
+- `E.FIGHT_KEYS: up, down, left, right, lp, hp, lk, hk, start, pause, confirm, cancel` †: the fighting preset (a scene's input): the moves and menu keys of E.Input.DEFAULT, light and heavy punch (U, I; a pad's X, Y), light and heavy kick (J, K; A, B)
+- `new E.FightAI(o = {}) → fightai` †: new E.FightAI({ level: 1..8 (4), seed }): a CPU for a fighter
+- `fightai.intent(f, foe, dt)` †: what it does this step: an intent for fighter f.update(dt, intent) ({ x, y: -1..1 on screen, press, do })
+- `fightai.level` †: how well it fights (1 to 8)
+- `fightai.react` †: seconds before it sees what its foe does
+- `fightai.rng` †: its own randomness (the seed's: the same match each time)
+- `new E.FightSelect(game, o = {}) → fightselect` †: new E.FightSelect(game, { roster: [{ id, name, rig, about }], inputs: [p1, p2 or null], cpu: [false, true], seed, onDone: ids => {} }): a character select
+- `fightselect.draw(r)` †: draw the roster, the cursors and each side's fighter large
+- `fightselect.update(dt)` †: move the cursors, take the picks; onDone(ids) once both have one
+- `fightselect.at` †: each side's cursor
+- `fightselect.cpu` †: which sides the CPU picks for
+- `fightselect.game` †: the game it runs in
+- `fightselect.inputs` †: each side's E.Input
+- `fightselect.o` †: its options
+- `fightselect.picks = [null, null]` †: each side's id once chosen
+- `fightselect.rects = null` †: where each portrait was drawn ([x, y, w, h] in screen pixels: a tap there picks it)
+- `fightselect.rigs` †: each fighter's portrait rig
+- `fightselect.roster` †: the fighters to pick from
+- `new E.FightStage(x0 = 0, x1 = 520) → fightstage` †: new E.FightStage(x0, x1): a flat floor at z 0
+- `fightstage.cellsTouching()` †: no cells either
+- `fightstage.move(b, dt)` †: move a body one step: the floor and the walls stop it
+- `fightstage.touching()` †: no ladders on a stage
+- `fightstage.x0` †: its left wall
+- `fightstage.x1` †: its right wall
+- `new E.Fighter(game, o = {}) → fighter` †: new E.Fighter(game, { name, x, side: 1 (faces right), rig: Humanoid options (or a Humanoid), life: 1000, walk: 75, back: 60, jump: 390, jumpX: 90, moves, throwBtn: 'hp', throwRange, throwDmg: 120, input })
+- `E.Fighter.exchange(a, b)` †: settle one step between two fighters (E.Match calls it after both update): hits (both may land: a trade), shots against each other and against the fighters, push boxes apart
+- `fighter.draw(r)` †: draw it (and its shots) in the scene: r.actor with its rig
+- `fighter.drawBoxes(r)` †: the boxes drawn (training): hurt green, hit red, push blue
+- `fighter.free` †: true while it can act: on the ground, not stunned, down, thrown or out
+- `fighter.reset(x, side = this.facing)` †: back to the start of a round: at x, facing side (1 right), full life (the meter stays)
+- `fighter.update(dt, ctl = this.input)` †: move one step (once a step, 120 times a second): ctl is its E.Input (this.input by default) or a CPU's intent
+- `fighter.x` †: x and z: the body's feet
+- `fighter.z` †: its feet's height
+- `fighter.act = null` †: the move playing ({ m, hit: it connected, blocked }), or null
+- `fighter.air = false` †: flying from a hit
+- `fighter.blocking = false` †: guarding (holding back as an attack comes, or in block-stun)
+- `fighter.body` †: its E.Platformer (x, z: its feet; w, h: its push box)
+- `fighter.boxes` †: this step's boxes ({ hurt: [head, body, legs], hit: the striking fist or foot's, or null, push }: each { x, z, w, h }, x its left, z its bottom)
+- `fighter.combo = 0` †: the hits it has taken in a row
+- `fighter.crouch = false` †: crouching
+- `fighter.down = 0` †: seconds lying down
+- `fighter.facing` †: 1 right, -1 left
+- `fighter.foe = null` †: the other fighter (E.Match sets it)
+- `fighter.game` †: the game it fights in
+- `fighter.input` †: its E.Input, or null (a CPU passes its intent to update)
+- `fighter.inv = 0` †: seconds invulnerable
+- `fighter.juggle = 0` †: hits taken in the air
+- `fighter.kind = null` †: 'hit' | 'block' (which stun)
+- `fighter.ko = false` †: knocked out
+- `fighter.last = null` †: the frame data of its last move to connect ({ id, startup, active, recovery, adv, on: 'hit' | 'block' })
+- `fighter.life` †: what it has left (o.life at the start)
+- `fighter.meter` †: 0 to 100 a bar (bars: o.bars, 1), kept between rounds
+- `fighter.moves` †: { id: spec }, each spec with its E.Attack (atk) and its frame data (frames: [startup, active, recovery])
+- `fighter.name` †: its name on the HUD
+- `fighter.o` †: its options, with the defaults filled in
+- `fighter.rig` †: its E.Humanoid (drawn and posed from its state every step)
+- `fighter.rise = 0` †: seconds getting up
+- `fighter.shots` †: its projectiles (E.Bullets, the side plane)
+- `fighter.stun = 0` †: seconds of hit- or block-stun left
+- `fighter.thrown = null` †: a throw holding it ({ by, t, dur, dir, dmg }), or null
+- `fighter.win = false` †: in its win pose
+- `new E.Match(game, o = {}) → match` †: new E.Match(game, { fighters: [a, b], ai: [null, null] (E.FightAI each, or null for its input), inputs: [game. input, null], rounds: 2 (wins needed), time: 99, x0: 0, x1: 520, span: 250 (how far apart they may be), camera: true (the game's camera follows them), training: false | { dummy }, onEnd: winner => {} })
+- `match.draw(r)` †: draw the fighters, their shots and the HUD; in training the boxes, the frame data and player 1's inputs
+- `match.startRound()` †: the next round: both back at the middle, full life
+- `match.update(dt)` †: one step: the fighters, their exchange, the clock, the calls and the rounds
+- `match.x` †: the stage's middle
+- `match.ai` †: each one's CPU (E.FightAI), or null
+- `match.call` †: the words on the screen (ROUND 1, FIGHT!, K.O., TIME, PERFECT), or null
+- `match.clock` †: the round's seconds left
+- `match.f` †: the two fighters
+- `match.game` †: the game it runs in
+- `match.inputs` †: each one's E.Input when no CPU plays it
+- `match.o` †: its options, with the defaults filled in
+- `match.phase` †: 'intro' | 'fight' | 'ko' | 'win' | 'over'
+- `match.round = 0` †: the round's number
+- `match.stage` †: the floor and walls they stand in (E.FightStage)
+- `match.winner = null` †: 0 or 1 once known (a round's, then the match's), or null
+- `match.wins = [0, 0]` †: the rounds each has won
 
 ## Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
 

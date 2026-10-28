@@ -55,6 +55,14 @@
           "what": "With a friend: press 2 so the friend joins (or Start on a gamepad), then pick VERSUS (W and S move the cursor, F picks). Player 1 plays on WASD with F to turn, H to drop and R to hold; player 2 on the arrows with . to turn, , to drop and L to hold. Clear two rows or more at once to send rows to the other field. Added with v0.65.0 (Milestone 4).",
           "look": "Do the rows you send feel like an attack (the red bar beside the other field, then grey rows rising at its next piece)? Is it clear who won? Are the two fields big enough on a laptop screen?",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-fighting.html",
+          "at": "#fighting/training",
+          "title": "Fighting: does it feel like Street Fighter?",
+          "what": "In training (the button opens it), pick RYO and try his specials on the dummy: down, down-forward, forward and a punch (U) for a fireball; forward, down, down-forward and HP (I) for the uppercut; down, down-back, back and HK (K) for the spinning kick. Tab changes the dummy (stand, crouch, jump, guard). Then play ARCADE through its three fights, and VERSUS with a friend or a pad. Added with v0.66.0 (Milestone 4).",
+          "look": "Do the motions come out when you mean them, and never when you don't? Does a hit feel solid (the stop, the spark, the crowd) and a block feel safe? Are the three fighters different enough (RYO balanced, GORM slow and strong, VEX quick)? Is the CPU fair at each stage? On your phone, do the stick and the four buttons work, quarter circles included?",
+          "links": [["Arcade", "#fighting/arcade"], ["Versus", "#fighting/versus"]]
         }
       ]
     },
@@ -123,8 +131,14 @@
         {
           "page": "dist/kits/my-3d2dge-brawler.html",
           "title": "Brawler",
-          "what": "Beat-'em-up (Final Fight, Streets of Rage 2): a city block at dusk, wave after wave.",
+          "what": "Beat-'em-up (Final Fight, Streets of Rage 2): a city block at dusk, wave after wave; a second player drops in with 2 or Start on a pad.",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-fighting.html",
+          "title": "Fighting",
+          "what": "One on one (Street Fighter II, Darkstalkers): three fighters with move lists of their own (fireballs, a spinning slam, a teleport), versus for two, an arcade ladder against the CPU and training with the boxes and frame data shown.",
+          "links": [["Versus", "#fighting/versus"], ["Arcade", "#fighting/arcade"], ["Training", "#fighting/training"]]
         },
         {
           "page": "dist/kits/my-3d2dge-shooter.html",
