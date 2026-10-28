@@ -3022,7 +3022,8 @@ class Game {
   }
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); for (const f of HOOKS.input) f(this, dt);
+    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(dt);   // (the other players: section 10j)
+    for (const f of HOOKS.input) f(this, dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
@@ -3709,14 +3710,14 @@ function _wxDraw(g, r, ctx, S, w, K) {
  *    down-forward, 4 back, 5 neutral, 6 forward, 7 up-back, 8 up, 9 up-forward; facing left mirrors them.
  * ============================================================================= */
 const _DIRS = ['up', 'down', 'left', 'right'], _PAD = { 0: 5, 1: 8, 2: 2, 4: 4, 8: 6, 5: 7, 9: 9, 6: 1, 10: 3 };   // direction bits (up 1, down 2, left 4, right 8) -> numpad, facing right
-HOOKS.input.push(g => {
-  const I = g.input, H = I._hist || (I._hist = []); let b = 0;
+HOOKS.input.push(g => { for (const I of g._players || [g.input]) {   // (each player's own history: game.players)
+  const H = I._hist || (I._hist = []); let b = 0;
   for (let i = 0; i < 4; i++) if (I.map[_DIRS[i]] && I.down(_DIRS[i])) b |= 1 << i;
   if (b & 3) b = (b & 3) === 3 ? b & ~3 : b; if ((b & 12) === 12) b &= ~12;   // (both ways at once: neither)
   const last = H[H.length - 1], pressed = [...I._now].filter(a => !_DIRS.includes(a));
   if (!last || last._b !== b || pressed.length) H.push({ t: I.clock, dir: _PAD[b] || 5, pressed, _b: b });
   while (H.length > 2 && H[1].t < I.clock - 1) H.shift();
-});
+} });
 // one step of a sequence, 'down+right' or 'attack' or 'down+attack': the directions it holds (bits) and the buttons pressed
 const _seqStep = s => { let b = 0, dirs = false; const btn = []; for (const p of String(s).split('+')) { const i = _DIRS.indexOf(p); if (i >= 0) { b |= 1 << i; dirs = true; } else if (p === 'neutral') dirs = true; else if (p) btn.push(p); } return { b, dirs, btn }; };
 /**
@@ -3877,7 +3878,6 @@ function _vpCam(game, v, dt) {   // (game.cam's rules in the viewport's size: ce
 // each step: the other players' inputs, a pause by any of them, a lost controller, and joining
 HOOKS.input.push((game, dt) => {
   const P = game._players; if (!P || (P.length < 2 && !game._join)) return;
-  for (const q of P.slice(1)) q.tick(dt);
   for (const q of P.slice(1)) {
     if (q.padLost) { game._autoPause('controller'); game.note(q.name + ': CONTROLLER DISCONNECTED', 2.5); }
     if (game.scene && game.scene.pausable && q.pressed('pause')) { game.paused = !game.paused; game.pauseReason = game.paused ? 'player' : null; game.pausedBy = q.player; game.audio.sfx('pause'); q.consumeAll(); }

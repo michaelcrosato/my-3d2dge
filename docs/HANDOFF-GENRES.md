@@ -489,7 +489,8 @@ Needs M1 (input sequences, `cam.frame`).
   `game.removePlayer(p)`, `game.viewports` and `Input.halfKeys(preset, side)`; `game.players` and `E.PLAYER_COLORS` are
   the core's. Each other player is an `Input` with no listeners of its own: player 1's keydowns go on to the players
   sharing the keyboard (`keysTo`), and player 1 reads no pad another holds; the Start that joins a pad is neither player
-  1's pause nor the new player's first press. `E.Menu` and the starter's `pickOnStart` read every player. A split screen
+  1's pause nor the new player's first press. The core ticks every player's input before the hooks, so each has its own
+  history (`input.motion`). `E.Menu` and the starter's `pickOnStart` read every player. A split screen
   draws the scene once per viewport, clipped from the pass's start (its floor too), each with its own eased camera, then
   `scene.hud(r)`, the dividers and the frame's notes over the whole screen; the players suite films it. The brawler's
   second player (Jack, in blue) drops in with `cam.frame` on both, foes going for the nearer hero, the round card showing
