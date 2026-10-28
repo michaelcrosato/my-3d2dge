@@ -952,3 +952,21 @@ An entry:
 - **Answered:** yes: the owner's goal (2026-10-27), Milestone 0 of `docs/HANDOFF-GENRES.md` (0b), which asks for the diet
   and these budgets
 - **Landed in:** v0.61.0
+
+## D52 · 2026-10-28 · The 2D kits' budget suspended until the owner's review pass
+
+- **Principle:** 1 (agent-readable: a genre kit fits a chat model's context) and the plan's 3.3 (every 2D kit at most
+  200,000 cl100k tokens, D51)
+- **Call:** the 200,000-token budget of a 2D kit is suspended until the owner has reviewed the genre plan's work: a kit
+  over it is reported (`doctrine-check` notes it with how far over; `kits-test` prints it), not failed. The 3D kits keep
+  their budgets. The trimming comes in one pass after the review, with every kit's needs known: what the diet can leave
+  out besides, what of the API card can move to the index, or a new budget.
+- **Why:** the owner's words with the goal of Milestones 2 to 16 (2026-10-28): "Concerning token budget, just implement
+  things as they are needed, we will make a second pass after I review all the work, then we can think about trimming
+  down afterwards." The first kit past it is the shooter at v0.64.0 (212,213: its horizontal stage and the arcade frame,
+  about 17,000 tokens); the adventure kit has under 2,000 left. What would change it: the owner's review (the budget back,
+  raised, or replaced), or a kit so large it no longer fits a chat model's 200k context with room for an answer (then
+  split its stages into kits of their own).
+- **Answered:** yes: the owner, in the goal of 2026-10-28
+- **Landed in:** v0.64.0
+
