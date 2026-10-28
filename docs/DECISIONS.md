@@ -1086,3 +1086,17 @@ An entry:
   the card passing 21,000 (raised again here, with its cause).
 - **Answered:** yes: the owner, in the goal of 2026-10-28
 - **Landed in:** v0.78.0
+
+## D60 · 2026-10-28 · The 3D engine's manual raised to 8,000 tokens for Milestones 13 and 14
+
+- **Principle:** 1 (agent-readable: the 3D side's whole manual stays small) and the genre plan's M13 ("its manual's
+  budget rises to 8,000, a decision"); the manual's budget was 6,000 cl100k tokens (D27)
+- **Call:** the 3D engine's header (its manual) has a budget of 8,000 tokens. M13's lines (camera zones, lock-on, tank
+  steering, doors between rooms, `world.reach`, `world.unlock`, the flashlight, the item box and the typewriter) bring
+  it to about 6,100; M14's vehicles, tracks, split screen and flight take the rest.
+- **Why:** the plan named this raise when it was written (2026-10-27), for the two milestones that grow the 3D engine,
+  and the owner's goal for Milestones 2 to 16 (2026-10-28) says to build what is needed and trim after the review.
+  What would change it: the owner's review (a smaller budget with detail moved to `docs/ENGINE-3D.md`), or M14 running
+  past 8,000 (raised again with its cause).
+- **Answered:** yes: the owner, in the plan's M13 and the goal of 2026-10-28
+- **Landed in:** v0.79.0
