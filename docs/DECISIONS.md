@@ -1056,3 +1056,18 @@ An entry:
   60,000 (raised again here, with its cause).
 - **Answered:** yes: the owner, in the goal of 2026-10-28
 - **Landed in:** v0.73.0
+
+## D58 · 2026-10-28 · The API card's budget raised to 20,000 until the owner's review pass
+
+- **Principle:** 1 (agent-readable: the card a model reads first stays small) and the genre plan's 3.3 and M0a (the API
+  card at 18,000 cl100k tokens, D50; 19,000 until the owner's review pass, D54)
+- **Call:** the card's budget is 20,000 tokens until the owner's review pass. M10's lines (the click module's line, the
+  playbook's point-and-click and visual novel rows, the story module's backlog, a dialog's choices by a tap) bring it
+  to 19,165, past D54's 19,000; M11 to M14 add their modules' lines and playbook rows, a few hundred tokens each.
+- **Why:** D54's, which named this case ("the card passing 19,000: raised again here, with its cause"): the owner's
+  words with the goal of Milestones 2 to 16 (2026-10-28), "Concerning token budget, just implement things as they are
+  needed, we will make a second pass after I review all the work, then we can think about trimming down afterwards".
+  What would change it: the owner's review (the budget back to 18,000 with detail moved to the index, or a new one), or
+  the card passing 20,000 (raised again here, with its cause).
+- **Answered:** yes: the owner, in the goal of 2026-10-28
+- **Landed in:** v0.75.0
