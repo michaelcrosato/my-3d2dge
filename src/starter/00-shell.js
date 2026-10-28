@@ -19,12 +19,14 @@
  *                        that chain (Puyo Puyo: E.Grid's groups), a mascot that reacts
  *   SLICE 10 ARCADE      a cabinet of three (Pac-Man, Galaga, Asteroids): E.Arcade's scores, tables, initials,
  *                        continues, turns and attract mode; a maze of E.GridMovers, moths on E.Paths, wrapping rocks
+ *   SLICE 15 TACTICS     an isometric battle on a map of heights (Final Fantasy Tactics, Fire Emblem): map.pick under
+ *                        the cursor, E.Grid's reach, shapes, facing and threat maps, E.Turns' charge time, E.Story
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs, #rpg/battle).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs, #rpg/battle, #tactics/battle).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -54,6 +56,7 @@ const SLICES = [
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
+  { id: 'tactics', label: 'TACTICS', about: 'TAKE THE HILL FORT, TURN BY TURN', family: 'STRATEGY' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
 ];

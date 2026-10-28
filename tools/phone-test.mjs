@@ -25,6 +25,8 @@
 //  14. road: BRAKE and GEAR, thumb-sized; it accelerates by itself; the stick steers; GEAR changes gear
 //  15. rpg's journey: its windows' rows a thumb's height; a tap on New game starts it; the stick walks the party; MENU
 //      opens the menu, a tap on a row opens it, BACK closes it
+//  16. tactics: the command list's rows a thumb's height; a tap on a unit selects it (its card); MOVE, then a tap on a
+//      blue cell walks the hero there; ATTACK, then a tap on a foe in range strikes it; TURN turns the view a quarter
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
@@ -77,7 +79,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'platformer', 'metroidvania', 'shooter', 'arcade', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'brawler', 'fighting', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'platformer', 'metroidvania', 'shooter', 'arcade', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'tactics', 'brawler', 'fighting', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -603,6 +605,55 @@ if (want('rpg')) {
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `rpg-journey-${label.replace(/ /g, '-')}.png`) });
     check(`rpg ${label}: MENU (a thumb's size) opens the menu, a tap on Status opens it, BACK closes it`, !!menu && menu.label === 'MENU' && Math.min(menu.w, menu.h) >= 44 && s3.wins[0] === 'MENU' && s4.wins[1] === 'STATUS' && !!back && s5.wins.length === 1 && !errors.length,
       `${menu ? menu.label + ' ' + Math.round(Math.min(menu.w, menu.h)) + ' px' : 'no MENU'}; windows ${s3.wins.join('/')} → ${s4.wins.join('/')} → ${s5.wins.join('/')}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 16. tactics: thumb-sized rows; a tap selects, a tap on a blue cell moves, a tap on a foe in range strikes; TURN */
+if (want('tactics')) {
+  console.log('tactics: a battle by taps');
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, errors } = await open('tactics', vp, 'tactics/battle');
+    await page.touchscreen.tap(vp.width * .5, vp.height * .5); await wait(200);   // the device is touch now: the rows grow, TURN shows
+    const st = () => ev(page, () => { const s = window.__game.scenes.tactics.state(), S = window.__game.game.screen; return { mode: s.mode, active: s.active && s.active.name, side: s.active && s.active.side, sel: s.sel && s.sel.name, cells: s.cells, rows: s.ui.rows, turn: s.ui.turn, yaw: window.__game.game.yaw || 0, W: S.W, H: S.H,
+      units: s.units.map(u => { const at = s.at(u.cx, u.cy), h = s.map.pick(at[0], at[1] - 1, window.__game.game); return { name: u.name, side: u.side, cx: u.cx, cy: u.cy, hp: u.hp, dead: u.dead, at, seen: !!h && h.cx === u.cx && h.cy === u.cy }; }), labels: s.rows.map(r => r.label) }; });
+    const k = await ev(page, () => { const S = window.__game.game.screen; return S.S / S.dpr; });
+    const tapGame = async (x, y) => { const [cx, cy] = await toCss(page, x, y); await page.touchscreen.tap(cx, cy); await wait(250); };
+    const tapCell = async (cx, cy) => { const p = await ev(page, ([x, y]) => window.__game.scenes.tactics.state().at(x, y), [cx, cy]); await tapGame(p[0], p[1] - 1); };
+    const tapRow = async name => { const s = await st(), i = s.labels.indexOf(name), b = s.rows[i]; if (!b) return false; await tapGame(b.x + b.w / 2, b.y + b.h / 2); return true; };
+    const ready = () => page.waitForFunction(() => { const s = window.__game.scenes.tactics.state(); return s.mode === 'command' && s.active && s.active.side === 'hero' && s.ui.rows.length; }, null, { timeout: 40000 });
+    await ready(); await wait(1200); const s0 = await st(), hero = s0.units.find(u => u.name === s0.active),   // (the camera settled on the hero)
+      small = Math.min(...s0.rows.map(r => r.h * k));
+    // a tap on a foe on screen selects it: its card shows
+    const inView = (p, s) => p[0] > s.W * .12 && p[0] < s.W * .7 && p[1] > s.H * .18 && p[1] < s.H * .72;
+    const foe = s0.units.find(u => u.side === 'foe' && !u.dead && u.seen && inView(u.at, s0)) || s0.units.find(u => u.side === 'foe' && !u.dead && u.seen);   // (one whose cell's top shows: not behind the gate's posts)
+    await tapCell(foe.cx, foe.cy); const s1 = await st();
+    check(`tactics ${label}: the command rows are a thumb's height; a tap on a unit selects it`, small >= 44 && s1.sel === foe.name, `rows ${Math.round(small)} CSS px; tapped ${foe.name}, selected ${s1.sel}`);
+    // MOVE, then a tap on a blue cell two or more steps off, on screen
+    await tapRow('MOVE'); const s2 = await st();
+    const spots = await ev(page, () => { const s = window.__game.scenes.tactics.state(); return (s.cells || []).map(c => ({ c, p: s.at(c[0], c[1]) })); });
+    const to = spots.filter(o => Math.abs(o.c[0] - hero.cx) + Math.abs(o.c[1] - hero.cy) >= 2 && inView(o.p, s2))[0];
+    if (to) await tapCell(to.c[0], to.c[1]);
+    await ready(); const s3 = await st(), moved = s3.units.find(u => u.name === hero.name);
+    check(`tactics ${label}: MOVE, then a tap on a blue cell walks ${hero.name} there`, s2.mode === 'move' && !!to && moved.cx === to.c[0] && moved.cy === to.c[1], `mode ${s2.mode}; to ${to && to.c}, now at ${moved.cx},${moved.cy}`);
+    // a foe beside the hero (placed for the test), ATTACK, a tap on it strikes
+    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [moved.cx + dx, moved.cy + dy]);
+    const spot = await ev(page, ([nb, name]) => { const s = window.__game.scenes.tactics.state(), h = s.units.find(u => u.name === name), f = s.units.find(u => u.side === 'foe' && !u.dead && !u.lead) || s.units.find(u => u.side === 'foe' && !u.dead);
+      const c = nb.find(c => s.grid.walk(c) && !s.units.some(u => !u.dead && u.cx === c[0] && u.cy === c[1]) && Math.abs(s.map.height(c[0], c[1]) - s.map.height(h.cx, h.cy)) <= 16); if (!c) return null; s.place(f, c[0], c[1]); return { name: f.name, c, hp: f.hp }; }, [nb, hero.name]);
+    await wait(200); const isBow = (await st()).labels[1] === 'ATTACK' && hero.name === 'WREN';
+    let s4 = null, s5 = null;
+    if (spot && !isBow) { await tapRow('ATTACK'); s4 = await st(); await tapCell(spot.c[0], spot.c[1]); await wait(1500); s5 = await st(); }
+    else if (spot) {   // a bow can't strike a cell beside it: its foe goes two cells off
+      await ev(page, ([name, hx, hy]) => { const s = window.__game.scenes.tactics.state(), f = s.units.find(u => u.name === name); for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [0, -2], [2, 1], [1, 2]]) { const c = [hx + dx, hy + dy]; if (s.grid.walk(c) && !s.units.some(u => !u.dead && u !== f && u.cx === c[0] && u.cy === c[1])) { s.place(f, c[0], c[1]); return; } } }, [spot.name, moved.cx, moved.cy]);
+      const f = (await st()).units.find(u => u.name === spot.name); spot.c = [f.cx, f.cy];
+      await tapRow('ATTACK'); s4 = await st(); await tapCell(spot.c[0], spot.c[1]); await wait(2000); s5 = await st();
+    }
+    const after = s5 && s5.units.find(u => u.name === spot.name);
+    check(`tactics ${label}: ATTACK, then a tap on a foe in range strikes it`, !!spot && s4.mode === 'target' && after.hp < spot.hp, spot ? `${hero.name} on ${spot.name}: mode ${s4 && s4.mode}, HP ${spot.hp} -> ${after && after.hp}` : 'no cell beside the hero');
+    // TURN (a thumb's size) turns the view a quarter
+    const s6 = await st(); if (s6.turn) await tapGame(s6.turn.x + s6.turn.w / 2, s6.turn.y + s6.turn.h / 2); await wait(300); const s7 = await st();
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `tactics-${label.replace(/ /g, '-')}.png`) });
+    check(`tactics ${label}: TURN turns the view a quarter`, !!s6.turn && Math.min(s6.turn.w, s6.turn.h) * k >= 44 && (s7.yaw - s6.yaw + 360) % 360 === 90 && !errors.length, `${s6.turn ? Math.round(Math.min(s6.turn.w, s6.turn.h) * k) + ' px' : 'no TURN'}; yaw ${s6.yaw} -> ${s7.yaw}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }

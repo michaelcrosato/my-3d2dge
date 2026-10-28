@@ -95,6 +95,14 @@
           "what": "Start a New game and play the journey: talk to the people of Brightwater (Enter or Z talks and reads on, L or E opens the MENU), take the elder's quest, shop, try Equip in the MENU, open the chest, save at the crystal. Leave by the south gate and walk the road north across the island: fights come at random (in a fight, L turns on AUTO). Train a little, enter the cave in the peaks, find its crystal, and face the Dread Knight. Then pick Continue or Load on the title. Added with v0.71.0 (Milestone 7).",
           "look": "Does the town feel alive: the elder's '!', the child's song, the guard stepping aside, the markup in the lines (color, pauses, a shaking voice)? Is the walking pleasant, and are encounters too often or too rare? Does a level-up feel earned, and is the knight a fair fight at level 2 or 3? Do the menus read well (Items, Equip with its + and -, Status, Quests, the save slots)? On your phone: the stick walks, TALK and MENU, taps in every window.",
           "links": [["The battle alone", "#rpg/battle"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-tactics.html",
+          "at": "#tactics",
+          "title": "TACTICS: does it feel like Final Fantasy Tactics and Fire Emblem?",
+          "what": "Watch the scene at the fort (Enter reads on, X skips), pick how the turns run (by speed, or by phases), and take Thornwatch. On a turn: MOVE (a blue cell), ATTACK or the skill (a red cell; gold shows what it hits), then WAIT and face a way; X undoes a move before you act. Q and E turn the view, the wheel zooms; the mouse moves the cursor. Strike from behind and from above; keep out of the river; mind the archer on the wall and the mage's fire. Added with v0.72.0 (Milestone 8).",
+          "look": "Can you always tell which cell the cursor is on, even on the walls and the tower, and after turning the view? Do the ranges read at a glance, and do the blows from behind and from above feel worth the trouble? Is the Legion's AI a fair fight (does it gang up, heal, flank, hold the high ground)? Is a battle too long or too short? On your phone: a tap selects, a tap moves, a tap strikes; a drag pans; TURN; are the rows easy to hit?",
+          "links": [["The battle (no scene)", "#tactics/battle"], ["By phases", "#tactics/phases"]]
         }
       ]
     },
@@ -207,6 +215,12 @@
           "title": "RPG",
           "what": "A JRPG's journey (Dragon Quest, Final Fantasy, Chrono Trigger): a town of people to talk to, a shop, an inn and a save crystal; a world map of 256 x 256 cells; a cave and its boss; random encounters swirling into the side-view ATB battle; levels, gear, the menus and three save slots.",
           "links": [["The battle alone", "#rpg/battle"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-tactics.html",
+          "title": "Tactics",
+          "what": "Isometric battle on a map of heights (Final Fantasy Tactics, Tactics Ogre, Fire Emblem): four heroes take a hill fort from five; charge time or phases, jump heights, blows from behind, bows' arcs, a mage's fire, a scoring AI, the cursor under the pointer in any turn of the view.",
+          "links": [["The battle (no scene)", "#tactics/battle"], ["By phases", "#tactics/phases"]]
         },
         {
           "page": "dist/kits/my-3d2dge-roguelike.html",
