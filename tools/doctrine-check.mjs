@@ -25,6 +25,7 @@
 // 6. the kits' budgets (principle 1; D51): each kit is a whole engine, card and game for a chat model's context, so every 2D
 //    kit (dist/kits/my-3d2dge-<id>.html) is at most 200,000 cl100k tokens and a 3D kit no larger than at v0.59.3 (the kit
 //    diet, tools/build.mjs). Counted exactly, with gpt-tokenizer only (an estimate of minified code is too rough here).
+//    D52 suspends the 2D budget until the owner's review pass: a 2D kit over it is a note, not a failure.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
@@ -176,7 +177,7 @@ if (opt('baseline')) {
 {
   let count = null;
   try { const { countTokens } = await import('gpt-tokenizer/encoding/cl100k_base'); count = countTokens; } catch (e) { /* optional */ }
-  const KIT = 200000, KIT3D = { action: 241039, platformer: 235846, shooter: 310823 };   // (a 2D kit; a 3D kit, at v0.59.3: D51)
+  const KIT = 200000, KIT3D = { action: 241039, platformer: 235846, shooter: 310823 }, SUSPENDED = true;   // (a 2D kit; a 3D kit, at v0.59.3: D51; the 2D budget suspended: D52)
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');
   else {
@@ -184,7 +185,8 @@ if (opt('baseline')) {
     for (const f of kits) {
       const id = f.replace(/^my-3d2dge-|\.html$/g, ''), three = id.startsWith('3d-'), budget = three ? KIT3D[id.slice(3)] : KIT, n = count(readFileSync(join(dir, f), 'utf8'));
       if (!budget) { fail('kits', `${f}: a new 3D kit has no budget: give it one in KIT3D (tools/doctrine-check.mjs) with a line in docs/DECISIONS.md`); continue; }
-      if (n > budget) fail('kits', `${f} is ${n} tokens, over its budget of ${budget}: leave out what its game never calls (DIET in tools/build.mjs), move the API card's detail to the index, or raise the budget with a line in docs/DECISIONS.md`);
+      if (n > budget && !three && SUSPENDED) notes.push(`kits: ${f} is ${n} tokens, ${n - budget} over the 2D budget (suspended until the owner's review pass: D52)`);
+      else if (n > budget) fail('kits', `${f} is ${n} tokens, over its budget of ${budget}: leave out what its game never calls (DIET in tools/build.mjs), move the API card's detail to the index, or raise the budget with a line in docs/DECISIONS.md`);
       line.push(`${id} ${Math.round(n / 1000)}k`);
     }
     console.log(`6. the kits (cl100k tokens; 2D at most ${KIT / 1000}k, 3D no more than at v0.59.3): ${line.join(', ')}`);

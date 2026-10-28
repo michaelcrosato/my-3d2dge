@@ -430,6 +430,22 @@ Needs M1 (paths, rotated sprites, wrap-around, scripts) and M2 (`GridMover`).
 - **Done when:** each of the three plays from the title to its high-score table on keys, pad and touch (the phone
   test); the attract mode plays and returns; the proofs repeat; the horizontal stage plays to its boss; the vertical
   stage's filmstrips match.
+- **As built (v0.64.0):** `engine/modules/arcade.js` (809 of 1,500 tokens; it loads after the agent edition too):
+  `cab.draw(r, box)` draws the HUD in the playfield's box; `cab.wheel` says where the letter wheel is (each of its taps
+  a thumb's size on that screen), `clear()` and `wake()` take the cards down and wake the attract mode; the tables are
+  kept for the visit where storage is blocked. The kit is `src/starter/32-arcade.js` (family ARCADE): the cabinet is
+  the title (left and right pick, up and down one or two players), each game a scene of its own (`arcade-maze`, ...);
+  `#<slice>/<part>` deep links (the start code passes `{ part }` to the slice's `enter`) open `#arcade/maze` and
+  `#shooter/horizontal`. The classic look is C (a pad's Y) and Settings, Arcade, Look (the adventure slice's C is its
+  own scene's). The maze is E.gen's braided maze mirrored (29 cells wide, a berry bonus, an intermission script); the
+  formation and the rocks take the whole height (the rocks the whole screen) on a tall one, the maze a marquee and a
+  control panel. The horizontal stage is a scene of its own (`shooter-horizontal`, `[320, 240]`, the `overhead` view
+  with world x scrolling), after the fortress and at its deep link: rock above and below as functions of x, a power bar
+  of six (SPEED, MISSILE, DOUBLE, LASER, OPTION, SHIELD), up to four options on the ship's past path, a cruiser looping a
+  closed Catmull path while the scroll waits, a core battleship behind three walls. Bots (`kits-test`): the cabinet's
+  clears a maze, two waves of moths and two of rocks and checks the attract mode; the shooter's flies the horizontal
+  stage to its core (and downs it). Each new kit and stage has a song of its own (the roguelike's and the puzzle's came
+  with it). The shooter kit is 212,213 tokens: D52 suspends the 2D budget until the owner's review.
 
 ### M4: two to four players, and fighting (core players and split screen; module `fight`; kit FIGHTING; the BRAWLER's second player) in two pull requests
 

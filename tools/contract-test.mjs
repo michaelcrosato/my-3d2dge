@@ -68,6 +68,7 @@ for (const [ed, file] of EDITIONS) {
   if (ed === 'full') thirdPerson(E, ed);   // (the rest of the kit is the full engine's)
   if (ed === 'full') motion(E, ed);   // (M1's sections are the full engine's)
   grids(E, ed);   // (the grid and gen modules load after either edition)
+  arcades(E, ed);   // (and the arcade module)
   shellHeadless(E, ed);
 }
 
@@ -423,6 +424,26 @@ function motion(E, ed) {
 
 // the grid and gen modules (M2): paths, reaches and fields of view against known answers, square and hex; turns; a mover's
 // buffered turn; the same rows from the same seed, every floor joined
+// the arcade module: extra lives, two players taking turns, the continue, initials into a table, the attract mode's phases
+function arcades(E, ed) {
+  const game = new E.Game({ headless: true }), I = game.input, step = (n = 1) => { for (let i = 0; i < n; i++) game.advance(1 / 60); };
+  const a = new E.Arcade(game, { id: 'ct-every-' + ed, lives: 2, every: 1000 }); a.start(1); a.add(2500);
+  const b = new E.Arcade(game, { id: 'ct-extra-' + ed, lives: 2, extra: [500, 2000] }); b.start(1); b.add(600); const one = b.p.lives; b.add(1500);
+  check(`${ed}: E.Arcade: a life every 1,000 (two by 2,500), and one at each listed score (500, then 2,000)`, a.p.lives === 4 && a.p.next === 3000 && one === 3 && b.p.lives === 4 && b.p.next === Infinity, [a.p.lives, a.p.next, one, b.p.lives, b.p.next].join());
+  const t = new E.Arcade(game, { id: 'ct-turns-' + ed, lives: 1 }); t.start(2);
+  const r1 = t.die(), n1 = t.p.n, carded = t.carding, r2 = t.die();
+  check(`${ed}: E.Arcade: two players take turns ("PLAYER 2, READY!"), and it is over when neither has a life`, r1 === 'next' && n1 === 2 && carded && r2 === 'over' && t.mode === 'over', [r1, n1, carded, r2].join());
+  let got = null, cont = null, late = null;
+  const c = new E.Arcade(game, { id: 'ct-table-' + ed, lives: 1 }); game.start({ update(dt) { c.update(dt); }, draw() {} });
+  c.start(1); c.die(); c.continue(5, yes => { cont = yes; }); I.tap('start'); step();
+  const back = c.p.lives; c.die(); c.continue(1, yes => { late = yes; }); step(70);
+  c.enter(1234, '', name => { got = name; }); I.tap('up'); step(); for (let i = 0; i < 3; i++) { I.tap('confirm'); step(); }
+  const tb = c.table();
+  check(`${ed}: E.Arcade: a continue taken (lives back) or let run out; initials on the wheel (up turns A to B) into the table`, cont === true && back === 1 && late === false && got === 'BAA' && tb.length === 1 && tb[0].score === 1234 && c.qualifies(1) && !c.qualifies(0), JSON.stringify({ cont, back, late, got, tb }));
+  const f = new E.Arcade(game, { id: 'ct-attract-' + ed, idle: 1, demo: 2, scores: 1 }), ph = [f.attract(.6), f.attract(.6), f.attract(2.1), f.attract(1.1)];
+  f.attract(1.2); f.endDemo(); const ended = f.phase; f.wake();
+  check(`${ed}: E.Arcade.attract: the title, a demo after the idle time, the scores, the title again; endDemo shows the scores`, ph.join() === 'title,demo,scores,title' && ended === 'scores' && f.phase === 'title', ph.join() + ' ' + ended);
+}
 function grids(E, ed) {
   const g = new E.Grid(8, 6, { walkable: (x, y) => !(x === 3 && y < 4) }), p = g.path([0, 0], [7, 0]), r = g.reach([0, 0], 3);
   check(`${ed}: E.Grid: A* round a wall (16 cells, ends included), Dijkstra's reach (9 cells within 3, the wall's left out)`, p.length === 16 && p[15].join() === '7,0' && r.cells.length === 9 && !r.has([3, 0]) && r.cost([1, 2]) === 3 && r.path([2, 1]).length === 4, p.length + ' ' + r.cells.length);

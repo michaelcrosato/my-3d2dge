@@ -16,6 +16,11 @@
  * ===================================================================================== */
 const ROGUE = (() => {
   const T = 16, FW = 46, FH = 30, LAST = 10, SIGHT = 7, STEP = .13;   // a cell; a floor's size; the Amulet's floor; how far the torch shows; a step's seconds
+  // the crypt's own tune (the step sequencer's format): D minor, slow, a lonely lead over a dead march
+  const CRYPT = { bpm: 84, steps: 4, tracks: [
+    { wave: 'pulse12', vol: .12, notes: 'D5 - - - F5 - E5 - D5 - C5 - A4 - - - | Bb4 - - - A4 - G4 - A4 - - - - - . . | D5 - - - F5 - G5 - A5 - G5 - F5 - E5 - | F5 - E5 - D5 - C#5 - D5 - - - - - . .' },
+    { wave: 'triangle', vol: .3, notes: 'D2 - . . D2 . . . A2 - . . D2 . . . | G2 - . . G2 . . . D2 - . . D2 . . . | Bb1 - . . Bb1 . . . F2 - . . F2 . . . | A1 - . . A1 . . . D2 - . . D2 . . .' },
+    { wave: 'drums', vol: .08, notes: 'k . . . h . . . k . . . h . h .' }] };
   const KINDS = {   // monsters: hit points, attack, defence, speed (100: yours), experience, first floor, and their rigs
     rat: { name: 'RAT', hp: 4, atk: 2, def: 0, speed: 100, xp: 2, from: 1, blob: { R: 4, ears: 'cat', tail: true, feet: true, colors: { dk: '#3a2e2a', base: '#7a6658', lt: '#a8927e' } } },
     bat: { name: 'BAT', hp: 3, atk: 2, def: 0, speed: 200, xp: 3, from: 1, fly: 14, blob: { R: 3.5, wings: true, ears: 'cat', colors: { dk: '#2a1e34', base: '#5a4270', lt: '#8a70a8' } } },
@@ -161,7 +166,7 @@ const ROGUE = (() => {
     stats = { kills: 0, gold: 0, turns: 0, killer: null };
     hero = { cx: 0, cy: 0, x: 0, y: 0, hp: 20, max: 20, atk: 3, def: 1, speed: 100, lv: 1, xp: 0, next: 10, potions: 1, scrolls: 0, blade: BLADES[0], face: Math.PI / 2, hit: 0,
       rig: new E.Humanoid({ size: 1, outfit: 'tunic', hair: 'short', weapon: 'sword', cape: { len: 5, width: 5, seg: 2.4 }, colors: { cloth: '#2a5ab0', cape: '#8a2a2a', hair: '#c8a050', trim: '#e0c060' } }), swing: new E.Attack('slash') };
-    A.music('dungeon'); game.input.touchSet('attack', 'WAIT'); game.input.touchSet('skill', 'POTION'); game.input.touchSet('dash', 'SCROLL');
+    A.music(CRYPT); game.input.touchSet('attack', 'WAIT'); game.input.touchSet('skill', 'POTION'); game.input.touchSet('dash', 'SCROLL');
     build();
   }
   // the step the keys or the stick ask for: [dx, dy] on the grid (in iso, turned from the screen), or null
