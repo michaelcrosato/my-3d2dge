@@ -71,6 +71,22 @@
           "what": "Play from the landing site (the button opens it): right through the caverns (crouch with down to crawl under the rock), down the flooded shaft into the shrine for the SPRING BOOTS, back up the vine to the save room, through the green hatch and up the tower to the beetle; its dash opens the blue hatch to the laboratory, the lift and the reactor's boss. Arrows move and aim, Space jumps (twice, with the boots), X fires (hold it to charge), E lashes, Shift dashes, Q held stands still to aim, Tab shows the map. The other buttons go straight to the two boss fights (with the abilities given) and to the map. Added with v0.67.0 (Milestone 5).",
           "look": "Do the moves feel right: the jump's height, the ledge you catch, crawling, swimming, the vine, the monkey bars, the walls you cling to? Does aiming eight ways and the charged shot feel like Metroid? Does a room's door slide you into the next cleanly, and does the map fill in as you go? Are the bosses fair (the beetle jumped as it charges, then shot from behind; the eye shot while it is open)? Does a save bring you back where you saved? On your phone: the stick (it aims too), JUMP, FIRE (it lashes beside a foe) and MAP.",
           "links": [["Mini-boss", "#metroidvania/miniboss"], ["Boss", "#metroidvania/boss"], ["Map", "#metroidvania/map"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-kart.html",
+          "at": "#kart/race",
+          "title": "Kart: does it feel like Super Mario Kart?",
+          "what": "Race three laps against five (the button starts it): up or Z is the gas, down or X brakes, left and right steer; tap Space as you turn into a bend and hold it to drift (sparks blue, then orange: let go for a boost); drive through a ? box for an item and fire it with E (a boost, a shell that flies ahead, a peel dropped behind). Then VS with a friend: press 2 (or Start on a pad), and the screen splits. Added with v0.69.0 (Milestone 6).",
+          "look": "Does the Mode 7 track feel right: the floor turning under you, the sky turning with it, the karts and trees growing as you near them? Does the kart grip in a bend, slide in a drift, and does the drift boost feel earned? Do the other drivers race you (braking for bends, passing, spinning out on a shell) without getting stuck? Is the race close? On your phone: it drives itself forward; the stick steers; DRIFT and ITEM.",
+          "links": [["VS (two players)", "#kart/vs"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-road.html",
+          "at": "#road",
+          "title": "Road: does it feel like OutRun?",
+          "what": "Pick a song on the radio (left and right, then Enter), then drive to the goal before the clock runs out (the button opens the radio): up or Z is the gas, down or X brakes, Space changes gear (LOW pulls away hard, HIGH runs to 290), left and right steer. Each CHECKPOINT arch gives time back. The beach, the hills, a tunnel through the cliffs, the desert at dusk, the city at night. Added with v0.69.0 (Milestone 6).",
+          "look": "Does the road feel fast and smooth: the curves throwing you outward, the hills hiding what is past them, the tunnel? Do you have to slow (or drop to low gear) for the hardest bends? Are the palms, rocks and signs fair to dodge, and the traffic? Is the clock tight but fair? On your phone: it drives itself forward; the stick steers; BRAKE and GEAR.",
+          "links": [["Drive (no radio)", "#road/drive"]]
         }
       ]
     },
@@ -165,6 +181,18 @@
           "title": "Arcade",
           "what": "A cabinet of three (Pac-Man, Galaga, Asteroids): a maze with four chasers, moths that fly in and dive, rocks that split and wrap; high-score tables with initials, two players taking turns, a demo when left alone; each a remaster with its classic look one key away.",
           "links": [["Maze", "#arcade/maze"], ["Formation", "#arcade/formation"], ["Rocks", "#arcade/rocks"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-kart.html",
+          "title": "Kart",
+          "what": "Mode 7 karts (Super Mario Kart, F-Zero): a circuit in a meadow, six karts with HD drivers, three laps, kerbs, sand, boost pads, item boxes (a boost, a shell, a peel), a drift that charges a boost; VS for two in a split screen.",
+          "links": [["Race", "#kart/race"], ["VS", "#kart/vs"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-road.html",
+          "title": "Road",
+          "what": "A pseudo-3D road against the clock (OutRun, Pole Position): a convertible on a coast road through five stretches, curves and hills, a tunnel, traffic, checkpoints that give time, a radio of three songs, two gears.",
+          "links": [["Drive", "#road/drive"]]
         },
         {
           "page": "dist/kits/my-3d2dge-rpg.html",

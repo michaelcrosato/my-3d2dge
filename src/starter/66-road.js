@@ -142,7 +142,7 @@ const ROAD = (() => {
         return;
       }
       const p = road.project(z + ahead, x, 0), cs = Math.max(.6, Hs / 200);
-      if (p) { drawCar(g, p[0], p[1], cs, crash > 0 ? Math.sin(crash * 18) * 1.5 : I.move()[0], Math.abs(x) > 1.05 && speed > 20); if (crash > 0) for (let k = 0; k < 4; k++) E.px.disc(g, p[0] + Math.sin(t * 7 + k * 2) * 20 * cs, p[1] - (14 + k * 7 + (t * 30 % 7)) * cs, (5 + k * 2) * cs, k % 2 ? '#c8c8c8' : '#a0a0a8'); }
+      if (p) { drawCar(g, p[0], p[1], cs, crash > 0 ? Math.sin(crash * 18) * 1.5 : I.move()[0], Math.abs(x) > 1.05 && speed > 20); if (crash > 0) { const al = g.globalAlpha; g.globalAlpha = .7; for (let k = 0; k < 4; k++) E.px.disc(g, p[0] + Math.sin(t * 7 + k * 2) * 16 * cs, p[1] - (12 + k * 6 + (t * 30 % 6)) * cs, (3 + k * 1.5) * cs, k % 2 ? '#d8d8d8' : '#a8a8b0'); g.globalAlpha = al; } }
       // the HUD: the clock, the speed and gear, the score, the stage's progress
       E.font.text(g, 'TIME', W / 2, 4, '#ffe04a', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
       E.font.text(g, String(Math.ceil(clock)), W / 2, 12, clock < 10 && Math.floor(t * 4) % 2 ? '#ff4030' : '#ffffff', { align: 'center', scale: 3, shadow: '#000', outline: false });
@@ -193,6 +193,6 @@ const ROAD = (() => {
       if (i === 200) k.tap('gear');
       if (i === 300) k.hold('left'); if (i === 340) k.up('left');
       if (i === 450) k.hold('right'); if (i === 520) k.up('right');
-    }, () => [z, x, speed, gear, clock, traffic.map(c => c.z)]) };
+    }, () => [z, x, speed, gear, clock, traffic.map(c => c.z)], () => { game.input.lastDevice = 'keyboard'; }) };   // (fresh: the gas by itself follows the device, which the proof's holds turn to touch)
 })();
 scenes.road = ROAD;

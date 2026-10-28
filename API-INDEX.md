@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.68.0)
+# my-3D2dge API index (v0.69.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -89,12 +89,12 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 1153 Sessions
 - 1162 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
 - 1197 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1239 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1320 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1331 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1386 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1409 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1426 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1235 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1316 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1327 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1382 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1405 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1422 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
 
 ## The engine object (E = My3D2dge)
 
@@ -103,7 +103,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.68.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.69.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1201,40 +1201,36 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `car.boost(sec = .8, power = .4)`: a boost: seconds of it, power (.4: top speed up by that share)
 - `car.spinOut(sec = 1)`: spin out (a shot, a hazard): seconds without control, most of its speed lost
 - `car.update(dt, map, c = {})`: one step: steering, engine, grip, drift, the surface, then E.Body's walls and hop. c: an input or an intent
-- `car.airT = 0`
-- `car.angle`
-- `car.boostT = 0`
-- `car.bumped = false`
-- `car.charge = 0`
-- `car.drifting = 0`
-- `car.o`: its options; angle: its heading; speed: along it (units a second, - backing up); slide: sideways; drifting: -1 left, 1 right, 0 not; charge: a kart's drift boost building (1 blue, 2 orange); boostT: a boost's seconds left; spinT: a spin-out's; surface: the floor tag under it; offroad: on a surface that slows it; bumped: it hit a wall or a car this step; airT: a hop's seconds in the air
-- `car.offroad = false`
-- `car.onGround = false`
-- `car.slide = 0`
-- `car.speed = 0`
-- `car.spinT = 0`
-- `car.surface = null`
-- `car.vx`
-- `car.vy`
-- `car.vz`
+- `car.airT = 0`: a hop's seconds in the air
+- `car.angle`: its heading
+- `car.boostT = 0`: a boost's seconds left
+- `car.bumped = false`: it hit a wall or a car this step
+- `car.charge = 0`: a kart's drift boost building (1 blue, 2 orange)
+- `car.drifting = 0`: -1 left, 1 right, 0 not
+- `car.o`: its options
+- `car.offroad = false`: on a surface that slows it
+- `car.onGround = false`, `car.vz`: E.Body's (a hop leaves the ground)
+- `car.slide = 0`: sideways
+- `car.speed = 0`: along it (units a second, - backing up)
+- `car.spinT = 0`: a spin-out's
+- `car.surface = null`: the floor tag under it
+- `car.vx`, `car.vy`: its speed on the ground (E.Body's): along its heading and the slide
 - `new E.Race(o = {}) → race`: new E.Race({ path, laps, checkpoints, countdown, width, items }): a race round a closed path (the manual)
 - `race.add(car, o = {})`: a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it
 - `race.box(x, y)`: an item box at (x, y): a racer that drives through it gets an item (when it holds none)
 - `race.drive(R, dt)`: a racer's way round: the intent race.update gives an AI racer's car (look ahead along the line, bends, overtakes, unsticking, the rubber band)
 - `race.grid(n)`: the start: n places behind the line, two by two, facing along it: [{ x, y, angle }]
-- `race.hud(r, R, o = {})`: the standard HUD for a racer, in its viewport: place, lap, time, item, the countdown, WRONG WAY, FINISH
+- `race.hud(r, R, o = {})`: the standard HUD for a racer, in its viewport: place, lap, time, item, the countdown, WRONG WAY, FINISH (o.color; o.right: the x its right-hand text ends before, clear of a corner button)
 - `race.update(dt, map)`: one step: the countdown, every car, bumps, items, progress, laps, wrong way, places, the finish
 - `race.use(R)`: fire a racer's item: boost (now), shot (ahead along its heading), hazard (behind it)
-- `race.boxes = []`
-- `race.go = false`
-- `race.hazards = []`
-- `race.o`: its options; path: the racing line; racers: every racer, in the order added; t: seconds since GO (- before it); go: racing (the countdown over); over: every racer finished (or every player and the time is up); results: the racers as they finished; boxes, shots, hazards: the items on the track
-- `race.over = false`
-- `race.path`
-- `race.racers = []`
-- `race.results = []`
-- `race.shots = []`
-- `race.t`
+- `race.boxes = []`, `race.hazards = []`, `race.shots = []`: the items on the track
+- `race.go = false`: racing (the countdown over)
+- `race.o`: its options
+- `race.over = false`: every racer finished
+- `race.path`: the racing line
+- `race.racers = []`: every racer, in the order added
+- `race.results = []`: the racers as they finished
+- `race.t`: seconds since GO (- before it)
 
 ## Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js)
 

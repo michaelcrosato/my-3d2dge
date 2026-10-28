@@ -66,7 +66,8 @@ const KART = (() => {
     { name: 'IRIS', kart: '#c050e0', rig: { hair: 'long', colors: { cloth: '#c050e0', pants: '#3a2a5a', hair: '#f0f0f8' } } },
     { name: 'TOK', kart: '#30b8e0', rig: { hat: { style: 'band', color: '#ffffff' }, colors: { cloth: '#30b8e0', pants: '#1a3a5a', hair: '#1a1a1a' } } },
     { name: 'ROOK', kart: '#5a5a6a', rig: { hood: true, colors: { cloth: '#3a3a48', pants: '#22222c', hair: '#1a1a1a' } } }
-  ].map(c => Object.assign(c, { rig: new E.Humanoid(Object.assign({ size: .85, weapon: null }, c.rig)) }));
+  ];
+  const rigOf = c => new E.Humanoid(Object.assign({ size: .85, weapon: null }, c.rig));   // (made afresh each race: a rig's blinks draw on Math.random, so a race replays exactly)
   const SONG = { bpm: 148, steps: 4, tracks: [
     { wave: 'square', vol: .06, notes: 'C5 . E5 G5 . E5 C5 . | D5 . F5 A5 . F5 D5 . | E5 . G5 C6 . G5 E5 . | D5 . B4 G4 . A4 B4 .' },
     { wave: 'triangle', vol: .26, notes: 'C3 C3 G2 G2 C3 C3 G2 G2 | D3 D3 A2 A2 D3 D3 A2 A2 | E3 E3 B2 B2 C3 C3 G2 G2 | G2 G2 D3 D3 G2 G2 B2 B2' },
@@ -86,7 +87,7 @@ const KART = (() => {
     order.forEach((ci, k) => {
       const c = CAST[ci], g = grid[k], car = new E.Car(Object.assign({ kart: true, top: 205, accel: 150, turn: 2.3, grip: 9, drift: 2, r: 9 }, g));
       const human = ci === 0 || (two && ci === 1), R = race.add(car, human ? { name: c.name, input: game.players[ci] || game.input } : { name: c.name, ai: { skill: .9 + ci * .012, rubber: .25 } });
-      R.cast = c; if (human) players[ci] = R;
+      R.cast = c; R.rig = rigOf(c); if (human) players[ci] = R;
     });
     for (const d of BOXES) { const p = LINE.at(d); for (const u of [-.6, -.2, .2, .6]) race.box(p.x - Math.sin(p.angle) * u * HALF, p.y + Math.cos(p.angle) * u * HALF); }
     cams = players.map(R => ({ x: R.car.x, y: R.car.y, h: 24, angle: R.car.angle, pitch: 9, fov: 62 }));
@@ -101,18 +102,19 @@ const KART = (() => {
     if (mode === 'menu') { menu.update(dt); return; }
     if (mode === 'join') { if (game.players.length >= 2) start(true); else if (I.pressed('cancel')) mode = 'menu'; return; }
     t += dt;
-    const was = race.t; for (const R of players) R.car.o.auto = R.input.lastDevice === 'touch';
+    const was = race.t; for (const R of players) if (R.input) R.car.o.auto = R.input.lastDevice === 'touch';   // (a phone: the gas by itself)
     race.update(dt, map);
     if (was < 0 && Math.floor(was) !== Math.floor(race.t)) A.sfx(race.t >= 0 ? 'confirm' : 'select');
     for (const R of players) {
-      if (R.input.pressed('item') && race.go) { const had = R.item; race.use(R); if (had) A.sfx(had === 'shot' ? 'shoot' : had === 'boost' ? 'powerup' : 'whoosh'); }
+      if (R.input && R.input.pressed('item') && race.go) { const had = R.item; race.use(R); if (had) A.sfx(had === 'shot' ? 'shoot' : had === 'boost' ? 'powerup' : 'whoosh'); }
       if (R.car.bumped) A.sfx('bump', { vol: .4 });
       if (R.lap !== R._lap) { if (R._lap !== undefined && !R.finished) A.sfx('oneup'); if (R.finished && !R._fin) { A.sfx('secret'); R._fin = true; } R._lap = R.lap; }
     }
     // each camera behind its kart, turning after it (a drift swings the kart, not the view)
-    players.forEach((R, i) => { const c = cams[i], k = 1 - Math.exp(-dt * 5); c.angle += E.angDiff(c.angle, R.car.angle) * k; m7.cam = c; m7.chase({ x: R.car.x, y: R.car.y, angle: c.angle }, { back: 42, h: 24 + R.car.z * .5 }); });
+    const tall = game.H > game.W * (vs ? .5 : 1);   // (a phone held upright: further back, wider, so the track shows past the kart)
+    players.forEach((R, i) => { const c = cams[i], k = 1 - Math.exp(-dt * 5); c.angle += E.angDiff(c.angle, R.car.angle) * k; m7.cam = c; m7.chase({ x: R.car.x, y: R.car.y, angle: c.angle }, { back: tall ? 74 : 42, h: (tall ? 38 : 24) + R.car.z * .5 }); c.pitch = tall ? 13 : 9; c.fov = tall ? 84 : 62; });
     // the riders: seated, leaning into the turn
-    for (const R of race.racers) R.cast.rig.update(dt, { x: R.car.x, y: R.car.y, z: 0, vx: 0, vy: 0, facing: R.car.angle, down: .4, hurt: R.car.spinT > 0 });
+    for (const R of race.racers) R.rig.update(dt, { x: R.car.x, y: R.car.y, z: 0, vx: 0, vy: 0, facing: R.car.angle, down: .4, hurt: R.car.spinT > 0 });
     if (players.length && players.every(R => R && R.finished)) { over += dt; if (over > 2.5 && mode === 'race') { mode = 'results'; after.i = 0; } }
     if (mode === 'results') after.update(dt);
   }
@@ -136,7 +138,7 @@ const KART = (() => {
     if (ground) { const al = g.globalAlpha; g.globalAlpha = al * .4; E.px.ell(g, ground[0], ground[1], 13 * k, 4 * k, '#102010'); g.globalAlpha = al; }
     const c = Math.cos(a), s = Math.sin(a), depth = l => (l[0] * c - l[1] * s) * dx + (l[0] * s + l[1] * c) * dy, items = PARTS.map(p => [depth(p[0]), () => box(g, v, sx, sy, a, p[0], p[1], p[2] === 'k' ? R.cast.kart : p[2])]);
     const seat = [-2.4, 0, 3.4], wx = seat[0] * c, wy = seat[0] * s;
-    items.push([depth(seat), () => R.cast.rig.draw(g, Math.round(sx + v.ax * wx + v.ay * wy), Math.round(sy + v.bx * wx + v.by * wy + v.bz * seat[2]), v)]);
+    items.push([depth(seat), () => R.rig.draw(g, Math.round(sx + v.ax * wx + v.ay * wy), Math.round(sy + v.bx * wx + v.by * wy + v.bz * seat[2]), v)]);
     items.sort((p, q) => p[0] - q[0]); for (const [, f] of items) f();
     if (car.drifting && car.charge > .4) for (const side of [-1, 1]) { const lx = -9, ly = side * 8.7, X = sx + v.ax * (lx * c - ly * s) + v.ay * (lx * s + ly * c), Y = sy + v.bx * (lx * c - ly * s) + v.by * (lx * s + ly * c); E.px.disc(g, X, Y - k, Math.max(1, 1.6 * k), car.charge >= 2 ? (t * 20 % 2 < 1 ? '#ff9a2a' : '#ffe060') : (t * 20 % 2 < 1 ? '#58b8ff' : '#d8f0ff')); }
     if (car.boostT > 0) { const lx = -12, X = sx + v.ax * lx * c + v.ay * lx * s, Y = sy + v.bx * lx * c + v.by * lx * s + v.bz * 3; E.px.disc(g, X, Y, Math.max(1, (2 + Math.sin(t * 40)) * k), '#ffb040'); }
@@ -162,7 +164,7 @@ const KART = (() => {
     for (const s of race.shots) m7.add(s.x, s.y, 2, (g, sx, sy, k) => { E.px.disc(g, sx, sy - 3 * k, 4 * k, '#2a9a2a'); E.px.disc(g, sx - k, sy - 4 * k, 2 * k, '#8af08a'); });
     for (const h of race.hazards) m7.add(h.x, h.y, 0, (g, sx, sy, k) => { E.px.poly(g, [[sx - 5 * k, sy], [sx, sy - 6 * k], [sx + 5 * k, sy], [sx, sy - 2 * k]], '#f0d030'); });
     m7.draw(r, cam);
-    if (me) race.hud(r, me, { color: vs ? (i ? '#ffd080' : '#a0d8ff') : '#ffffff' });
+    if (me) race.hud(r, me, { color: vs ? (i ? '#ffd080' : '#a0d8ff') : '#ffffff', right: r.viewport && r.viewport.y > 0 ? null : cornerX() });
     if (!vs && me) r.overlay(g => {   // the map: the track, every kart a dot (yours blinking)
       const S = Math.max(40, Math.min(64, Math.round(H / 4))), X = 4, Y = H - S - 4, ta = game.input.touchArea && game.input.touchArea();
       if (ta) return;   // (a phone: the buttons sit there)
@@ -189,7 +191,7 @@ const KART = (() => {
     const was = Math.random; Math.random = E.rng(s);
     try {
       game.go('kart', null, { fade: 0 }); game.advance(1 / 120); start(false);
-      players[0].ai = { skill: .9, rubber: .25, lane: 0 }; players[0].input = null;
+      players[0].ai = { skill: .9, rubber: .25, grip: 520, lane: 0 }; players[0].input = null;
       let n = 0, stuck = 0; for (; n < 240 && !race.over; n++) { game.advance(1); for (const R of race.racers) stuck = Math.max(stuck, R._stuck); }
       const one = { finished: race.results.length, laps: race.racers.map(R => R.lap), seconds: n, best: Math.min(...race.racers.map(R => R.best || 99)).toFixed(1) };
       if (game.players.length < 2) game.addPlayer({ keys: 'right' });
@@ -209,7 +211,7 @@ const KART = (() => {
     exit() { game.splitScreen(0); game.allowJoin(false); },
     back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'results') { toMenu(); return true; } return false; },
     update, draw, bot, hud: board,
-    state: () => race && { mode, t: +race.t.toFixed(2), racers: race.racers.map(R => ({ name: R.name, lap: R.lap, place: R.place, x: Math.round(R.car.x), y: Math.round(R.car.y), speed: Math.round(R.car.speed), item: R.item })) },   // for tests
+    state: () => race && { mode, t: +race.t.toFixed(2), you: players[0] && { x: players[0].car.x, y: players[0].car.y, angle: players[0].car.angle, speed: players[0].car.speed, auto: players[0].car.o.auto }, racers: race.racers.map(R => ({ name: R.name, lap: R.lap, place: R.place, x: Math.round(R.car.x), y: Math.round(R.car.y), speed: Math.round(R.car.speed), item: R.item })) },   // for tests
     race: () => race,   // (for tests)
     /** the proof: a race, the gas held, a hop and a drift into the first bend, the item fired; a hash of every kart */
     run: (n = 600) => proof('kart', n, (i, k) => {
@@ -217,6 +219,6 @@ const KART = (() => {
       if (i === 380) k.hold('gas');
       if (i === 520) { k.hold('right'); k.tap('drift'); k.hold('drift'); }
       if (i === 580) { k.up('right'); k.up('drift'); k.tap('item'); }
-    }, () => race ? race.racers.map(R => [R.car.x, R.car.y, R.car.angle, R.prog]) : null) };
+    }, () => race ? race.racers.map(R => [R.car.x, R.car.y, R.car.angle, R.prog]) : null, () => { game.input.lastDevice = 'keyboard'; }) };   // (fresh: the gas by itself follows the device, which the proof's holds turn to touch)
 })();
 scenes.kart = KART;

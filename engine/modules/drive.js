@@ -6,14 +6,14 @@ Loads after: the full engine or the agent edition. Needs: no other module.
 Super Mario Kart's, F-Zero's, Micro Machines' and GTA's cars: speed along the heading, a slide sideways that grip
 takes away, the floor's tag under it slowing it, walls and other cars it bounces off; a race round a line of points.
 - const car = new E.Car({ x, y, angle, top: 240 (units a second), accel: 200, brake: 380, turn: 2.4 (radians a second
-  at speed), grip: 10, drift: 2.4 (the grip drifting), kart: true (a hop into a drift; held, it charges a boost),
+  at speed), grip: 10, drift: 4.5 (the grip drifting), kart: true (a hop into a drift; held, it charges a boost),
   surfaces: { grass: { top: .5, grip: .9 }, sand, dirt, ice, boost: { boost: .8 } (seconds), ... }, ground: (x, y) =>
   tag (else map.floorAt) }): an E.Body. Each step car.update(dt, map, game.input (steer left/right; gas, brake, drift:
   actions; o.auto: gas by itself) or an intent { steer: -1..1, gas, brake (0..1), drift (held), top (a factor) }).
 - car.speed (along it), car.slide (sideways), car.angle, car.drifting (-1, 0, 1), car.charge (a drift's: 1 blue, 2
   orange), car.boostT, car.surface, car.offroad, car.spinT; car.boost(seconds, power), car.spinOut(seconds);
   E.Car.collide(cars) bumps them apart.
-- const race = new E.Race({ path: a closed E.Path (the racing line), laps: 3, checkpoints: 8, countdown: 3, width: 40
+- const race = new E.Race({ path: a closed E.Path (the racing line; the full engine's), laps: 3, checkpoints: 8, countdown: 3, width: 40
   (the track's half: the drivers' lanes), items: ['boost', 'shot', 'hazard'] }); race.grid(n) -> the start places
   [{ x, y, angle }]; race.add(car, { name, input (a player's) | ai: { skill: .95, rubber: .2 } }) -> a racer { car,
   name, lap, place, prog (distance raced), times, best, finished, time, wrong, item }.
@@ -21,7 +21,8 @@ takes away, the floor's tag under it slowing it, walls and other cars it bounces
   the rest by race.drive(racer): look ahead along the line, brake for bends, overtake, unstick, rubber band), bumps,
   laps through the checkpoints in order (a shortcut counts nothing), wrong way, places, the finish (race.results, then
   race.over); race.box(x, y) an item box; race.use(racer) fires a racer's item; race.shots, race.hazards to draw.
-- race.hud(r, racer): the place, the lap, the time, the item, the countdown, WRONG WAY and FINISH (in its viewport).
+- race.hud(r, racer, { color, right }): the place, the lap, the time, the item, the countdown, WRONG WAY and FINISH (in its
+  viewport; right: the x its right-hand text ends before).
 
 ```js drive
 const E = My3D2dge, map = new E.TileMap({ w: 30, h: 30 }), car = new E.Car({ x: 40, y: 40, angle: 0 });
@@ -44,12 +45,13 @@ class Car extends E.Body {
   /** new E.Car({ x, y, angle, top, accel, brake, turn, grip, drift, kart, auto, surfaces, ground }): a car (the manual) */
   constructor(o = {}) {
     super({ x: o.x || 0, y: o.y || 0, z: o.z || 0, r: o.r || 7, h: o.h || 14, bounce: o.bounce === undefined ? .3 : o.bounce });
-    /** o: its options; angle: its heading; speed: along it (units a second, - backing up); slide: sideways; drifting:
-     *  -1 left, 1 right, 0 not; charge: a kart's drift boost building (1 blue, 2 orange); boostT: a boost's seconds
-     *  left; spinT: a spin-out's; surface: the floor tag under it; offroad: on a surface that slows it; bumped: it hit a
-     *  wall or a car this step; airT: a hop's seconds in the air */
-    this.o = Object.assign({ top: 240, accel: 200, brake: 380, reverse: 70, turn: 2.4, grip: 10, drift: 2.4, drag: .5, hop: 110, kart: false, auto: false }, o);
+    /** o: its options */
+    this.o = Object.assign({ top: 240, accel: 200, brake: 380, reverse: 70, turn: 2.4, grip: 10, drift: 4.5, drag: .5, hop: 110, kart: false, auto: false }, o);
     this.o.surfaces = Object.assign({}, SURFACES, o.surfaces);
+    /** angle: its heading; speed: along it (units a second, - backing up); slide: sideways; drifting: -1 left, 1 right,
+     *  0 not; charge: a kart's drift boost building (1 blue, 2 orange); boostT: a boost's seconds left; spinT: a
+     *  spin-out's; surface: the floor tag under it; offroad: on a surface that slows it; bumped: it hit a wall or a car
+     *  this step; airT: a hop's seconds in the air */
     this.angle = o.angle || 0; this.speed = 0; this.slide = 0; this.drifting = 0; this.charge = 0; this.boostT = 0; this.spinT = 0; this.surface = null; this.offroad = false; this.bumped = false; this.airT = 0;
     this._boostK = 0; this._hopDir = 0; this._stall = 0;
   }
@@ -71,16 +73,17 @@ class Car extends E.Body {
     const air = !this.onGround;
     // a kart hops on the drift button; landing still steering, it drifts that way while held, charging a boost
     if (o.kart) {
+      /** vz, onGround: E.Body's (a hop leaves the ground) */
       if (hop && !air && this.spinT <= 0) { this.vz = o.hop; this.onGround = false; this._hopDir = Math.sign(steer); }
       if (!air && !this.drifting && drift && this._hopDir && this.speed > o.top * .4) this.drifting = this._hopDir;
       if (this.drifting) {
-        if (!drift || this.speed < o.top * .3) { if (this.charge >= 1) this.boost(this.charge >= 2 ? 1 : .55, .35); this.drifting = 0; this.charge = 0; this._hopDir = 0; }
+        if (!drift || this.speed < o.top * .2) { if (this.charge >= 1) this.boost(this.charge >= 2 ? 1 : .55, .35); this.drifting = 0; this.charge = 0; this._hopDir = 0; }
         else this.charge += dt * (steer * this.drifting > 0 ? 1.5 : .8);
       }
       if (!drift) this._hopDir = 0;
     } else this.drifting = drift && Math.abs(this.speed) > o.top * .3 ? Math.sign(steer) || this.drifting : 0;   // a car's handbrake
     // it turns with its speed (none standing, reversed backing up), harder into a drift, less in the air
-    const k = clamp(Math.abs(this.speed) / (o.top * .25), 0, 1) * Math.sign(this.speed || 1), turn = this.drifting ? this.drifting * .7 + steer * .5 : steer;
+    const k = clamp(Math.abs(this.speed) / (o.top * .25), 0, 1) * Math.sign(this.speed || 1), turn = this.drifting ? this.drifting * .6 + steer * .4 : steer;
     this.angle += turn * o.turn * k * dt * (air ? .5 : 1);
     // its speed along the new heading and across it, from the world's
     const fx = Math.cos(this.angle), fy = Math.sin(this.angle);
@@ -91,6 +94,7 @@ class Car extends E.Body {
     if (brake > 0) v = v > 1 ? Math.max(0, v - o.brake * brake * dt) : Math.max(-o.reverse, v - o.accel * .6 * brake * dt);
     if (!gas && !brake) v *= Math.exp(-o.drag * dt);
     if (!air) s *= Math.exp(-(this.drifting ? o.drift : o.grip) * (S.grip || 1) * dt);   // grip takes the slide away
+    /** vx, vy: its speed on the ground (E.Body's): along its heading and the slide */
     this.vx = fx * v - fy * s; this.vy = fy * v + fx * s;
     super.update(dt, map);
     if (this.hitWall) { const f = Math.cos(this.angle), g = Math.sin(this.angle); this.vx -= f * Math.max(0, this.vx * f + this.vy * g) * .4; this.vy -= g * Math.max(0, this.vx * f + this.vy * g) * .4; }
@@ -113,10 +117,11 @@ class Race {
   /** new E.Race({ path, laps, checkpoints, countdown, width, items }): a race round a closed path (the manual) */
   constructor(o = {}) {
     if (!o.path) throw new Error('E.Race needs { path }: a closed E.Path along the track (the racing line)');
-    /** o: its options; path: the racing line; racers: every racer, in the order added; t: seconds since GO (- before
-     *  it); go: racing (the countdown over); over: every racer finished (or every player and the time is up); results:
-     *  the racers as they finished; boxes, shots, hazards: the items on the track */
+    /** o: its options */
     this.o = Object.assign({ laps: 3, checkpoints: 8, countdown: 3, width: 40, items: ['boost', 'shot', 'hazard'] }, o);
+    /** path: the racing line; racers: every racer, in the order added; t: seconds since GO (- before it); go: racing (the
+     *  countdown over); over: every racer finished; results: the racers as they finished; boxes, shots, hazards: the
+     *  items on the track */
     this.path = o.path; this.racers = []; this.t = -this.o.countdown; this.go = false; this.over = false; this.results = []; this.boxes = []; this.shots = []; this.hazards = [];
   }
   /** the start: n places behind the line, two by two, facing along it: [{ x, y, angle }] */
@@ -128,7 +133,7 @@ class Race {
   /** a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it */
   add(car, o = {}) {
     const d = this.path.nearest(car.x, car.y), L = this.path.length;
-    const R = { car, name: o.name || 'CAR ' + (this.racers.length + 1), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
+    const R = { car, name: o.name || 'CAR ' + (this.racers.length + 1), input: o.input || null, ai: o.input ? null : Object.assign({ skill: .95, rubber: .2, grip: 520, lane: ((this.racers.length * .37) % 1) * 2 - 1 }, o.ai), lap: 0, cp: Math.floor(d / L * this.o.checkpoints) % this.o.checkpoints, place: this.racers.length + 1, prog: d > L / 2 ? d - L : d, _d: d, times: [], best: null, lapT: 0, finished: false, time: 0, wrong: false, _wrongT: 0, item: null, _stuck: 0, _back: 0 };
     this.racers.push(R); return R;
   }
   /** an item box at (x, y): a racer that drives through it gets an item (when it holds none) */
@@ -140,15 +145,17 @@ class Race {
     // overtaking: a car just ahead in its lane moves it to the other side
     for (const Q of this.racers) if (Q !== R) { const dd = Q.prog - R.prog; if (dd > 0 && dd < 70 && Math.abs(this._lane(Q) - ai.lane) < .5) { ai.lane = ai.lane > 0 ? -.6 : .6; break; } }
     const p = P.at(R._d + look), off = ai.lane * this.o.width * .55, tx = p.x - Math.sin(p.angle) * off, ty = p.y + Math.cos(p.angle) * off;
-    const diff = angDiff(car.angle, Math.atan2(ty - car.y, tx - car.x)), bend = Math.abs(angDiff(p.angle, P.at(R._d + look * 2.5).angle));
-    const leader = this.racers.reduce((a, b) => b.prog > a.prog ? b : a), gap = (leader.prog - R.prog) / L;
-    const it = { steer: clamp(diff * 2.4, -1, 1), gas: 1, brake: bend > .9 && car.speed > car.o.top * .7 ? .6 : 0, top: ai.skill * (1 + clamp(gap * 8, -.5, 1) * ai.rubber) };
-    if (car.o.kart && bend > .55 && car.speed > car.o.top * .6) { it.drift = true; it.steer = clamp(it.steer + Math.sign(diff) * .4, -1, 1); }
+    const diff = angDiff(car.angle, Math.atan2(ty - car.y, tx - car.x));
+    // the sharpest bend ahead (its turn a unit along the line) and the speed it allows; faster than that, it brakes
+    let k = 0; for (let a = 0; a < 4; a++) { const q0 = P.at(R._d + 20 + a * 35), q1 = P.at(R._d + 55 + a * 35); k = Math.max(k, Math.abs(angDiff(q0.angle, q1.angle)) / 35); }
+    const vmax = Math.sqrt(ai.grip / Math.max(k, 1e-4)), leader = this.racers.reduce((a, b) => b.prog > a.prog ? b : a), gap = (leader.prog - R.prog) / L;
+    const it = { steer: clamp(diff * 2.4, -1, 1), gas: car.speed < vmax ? 1 : 0, brake: car.speed > vmax + 15 ? clamp((car.speed - vmax) / 50, .3, 1) : 0, top: ai.skill * (1 + clamp(gap * 8, -.5, 1) * ai.rubber) };
+    if (car.o.kart && vmax < car.o.top * .85 && car.speed > car.o.top * .55 && Math.abs(diff) > .15) { it.drift = true; it.steer = clamp(it.steer + Math.sign(diff) * .3, -1, 1); }
     // stuck against a wall: back away, turned
     if (car.speed < 12 && this.go) R._stuck += dt; else R._stuck = 0;
     if (R._stuck > 1.2) { R._back = .8; R._stuck = 0; }
     if (R._back > 0) { R._back -= dt; return { steer: -Math.sign(diff || 1), brake: 1 }; }
-    if (R.item && (R.item === 'boost' ? bend < .3 : R.item === 'shot' ? this.racers.some(Q => Q !== R && Q.prog - R.prog > 20 && Q.prog - R.prog < 160) : this.racers.some(Q => Q !== R && R.prog - Q.prog > 10 && R.prog - Q.prog < 60))) this.use(R);
+    if (R.item && (R.item === 'boost' ? k < .004 : R.item === 'shot' ? this.racers.some(Q => Q !== R && Q.prog - R.prog > 20 && Q.prog - R.prog < 160) : this.racers.some(Q => Q !== R && R.prog - Q.prog > 10 && R.prog - Q.prog < 60))) this.use(R);
     return it;
   }
   // where a racer is across the track: -1 left edge .. 1 right
@@ -194,14 +201,16 @@ class Race {
     if (!this.over && this.racers.every(R => R.finished)) this.over = true;
     return this;
   }
-  /** the standard HUD for a racer, in its viewport: place, lap, time, item, the countdown, WRONG WAY, FINISH */
+  /** the standard HUD for a racer, in its viewport: place, lap, time, item, the countdown, WRONG WAY, FINISH (o.color;
+   *  o.right: the x its right-hand text ends before, clear of a corner button) */
   hud(r, R, o = {}) {
     const vp = r.viewport || { x: 0, y: 0, w: r.W, h: r.H }, F = E.font, fmt = t => Math.floor(t / 60) + "'" + String(Math.floor(t % 60)).padStart(2, '0') + '"' + String(Math.floor(t * 100 % 100)).padStart(2, '0');
     r.overlay(g => {
       const x = vp.x + 6, y = vp.y + 6, sfx = ['ST', 'ND', 'RD'][R.place - 1] || 'TH', col = o.color || '#ffffff';
       F.text(g, R.place + sfx, x, y, R.place === 1 ? '#ffe04a' : col, { scale: 2, shadow: '#000', outline: false });
-      F.text(g, 'LAP ' + Math.min(this.o.laps, R.lap + 1) + '/' + this.o.laps, vp.x + vp.w - 6, y, col, { align: 'right', shadow: '#000', outline: false });
-      F.text(g, fmt(R.time), vp.x + vp.w - 6, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
+      const rx = Math.min(vp.x + vp.w, o.right || 1e9) - 6;
+      F.text(g, 'LAP ' + Math.min(this.o.laps, R.lap + 1) + '/' + this.o.laps, rx, y, col, { align: 'right', shadow: '#000', outline: false });
+      F.text(g, fmt(R.time), rx, y + 10, col, { align: 'right', shadow: '#000', outline: false, font: 'tiny' });
       E.ui.box(g, x, y + 20, 22, 22, { bg: '#101830', border: '#e8e4ff' });
       if (R.item) F.text(g, R.item === 'boost' ? '>>' : R.item === 'shot' ? '(*)' : '%', x + 11, y + 27, R.item === 'boost' ? '#ff9a3a' : R.item === 'shot' ? '#4ae04a' : '#ffe04a', { align: 'center', outline: false });
       const cx = vp.x + vp.w / 2, cy = vp.y + vp.h * .35;
