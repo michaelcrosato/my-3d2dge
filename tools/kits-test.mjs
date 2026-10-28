@@ -71,7 +71,7 @@ for (const k of kits) {
   const proof = await page.evaluate(id => { const s = __game.scenes[id]; if (!s || typeof s.run !== 'function') return null; const g = __game.game, e0 = g.errors.length; const r = [s.run(600), s.run(600)]; return { r, errors: g.errors.slice(e0).map(e => e.where + ': ' + e.message) }; }, k.id).catch(e => ({ thrown: e.message }));
   check(`${k.file}: ${k.id}.run(600) twice, the same hash, no errors`, !!proof && !proof.thrown && proof.r[0] === proof.r[1] && proof.r[0] !== undefined && !proof.errors.length && !errors.length,
     !proof ? 'the slice has no run(n)' : proof.thrown || (proof.r.join(', then ') + (proof.errors.length ? ' ' + proof.errors.join(' | ') : '') + (errors.length ? ' ' + errors.slice(0, 2).join(' | ') : '')));
-  const B = BOTS[k.id], hasBot = await page.evaluate(id => typeof __game.scenes[id].bot === 'function', k.id);
+  const B = k.is3d ? null : BOTS[k.id], hasBot = await page.evaluate(id => typeof __game.scenes[id].bot === 'function', k.id);   // (BOTS: the 2D slices'; a 3D slice of the same name has its own)
   if (B || hasBot) {
     const r = await page.evaluate(id => { try { return __game.scenes[id].bot(); } catch (e) { return { thrown: e.message }; } }, k.id);
     check(`${k.file}: its bot ${B ? B.say : 'plays'}, with no errors`, !!B && !r.thrown && !r.errors && B.ok(r) && !errors.length, (B ? '' : 'no expectation in BOTS (tools/kits-test.mjs) ') + JSON.stringify(r) + ' ' + errors.slice(0, 2).join(' | '));

@@ -39,8 +39,9 @@ const check = (name, ok, detail) => { console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${n
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 /** a kit on a phone: its page, a CDP session (raw touches) and the page's errors */
-async function open(kit, vp, hash = kit) {
+async function open(kit, vp, hash = kit, init) {
   const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage(), errors = [];
   page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(pathToFileURL(resolve(`dist/kits/my-3d2dge-${kit}.html`)).href + (hash ? '#' + hash : ''));
@@ -372,14 +373,16 @@ if (want('zoom')) {
 /* 7. roguelike: tap to walk */
 if (want('roguelike')) {
   console.log('roguelike: tap a cell to walk there');
-  const { page, ctx, errors } = await open('roguelike', UP); await wait(900);
+  // (Math.random seeded: the same floor every run; a monster coming into view stops a walk, as it should)
+  const { page, ctx, errors } = await open('roguelike', UP, 'roguelike', () => { let a = 20261028; Math.random = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }); await wait(900);
   // the farthest seen, walkable cell within a few steps, on screen
   const goal = await ev(page, () => { const s = window.__game.scenes.roguelike.state(), h = s.hero, g = window.__game.game, r = g.r; let best = null;
     for (const c of s.grid.reach([h.cx, h.cy], 5).cells) { if (!s.fog.visible([c[0], c[1]])) continue; const [x, y] = r.w((c[0] + .5) * 16, (c[1] + .5) * 16, 0), sx = x, sy = y; if (sx < 20 || sy < 60 || sx > g.W - 20 || sy > g.H - 120) continue; if (!best || c[2] > best.d) best = { c: [c[0], c[1]], d: c[2], sx, sy }; }
     return best && Object.assign(best, { from: [h.cx, h.cy] }); });
   if (!goal) check('roguelike: a seen cell to tap', false, 'none on screen');
   else {
-    const [x, y] = await toCss(page, goal.sx, goal.sy); await page.touchscreen.tap(x, y); await wait(2200);
+    const [x, y] = await toCss(page, goal.sx, goal.sy); await page.touchscreen.tap(x, y);
+    await page.waitForFunction(c => { const h = window.__game.scenes.roguelike.state().hero; return h.cx === c[0] && h.cy === c[1]; }, goal.c, { timeout: 8000 }).catch(() => {});   // (a cell a turn: on a slow machine the game's clock runs behind the page's)
     const at = await ev(page, () => { const h = window.__game.scenes.roguelike.state().hero; return [h.cx, h.cy]; });
     check(`roguelike: a tap ${goal.d} steps away walks the hero there`, at.join() === goal.c.join() && !errors.length, `from ${goal.from} to ${at}, wanted ${goal.c}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
   }
