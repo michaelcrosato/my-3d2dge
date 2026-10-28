@@ -1,5 +1,5 @@
 /* ============================== GAME START ==============================
- * MY-3D2DGE STARTER: a title menu, eight vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
+ * MY-3D2DGE STARTER: a title menu, nine vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
  *   SLICE 1  ADVENTURE   top-down action adventure (Zelda, Secret of Mana): rooms, sword,
  *                        key and locked door, NPC dialog, hearts, rupees, torch lighting
@@ -16,12 +16,14 @@
  *                        view and fog, turns by speed (E.Turns), bump to attack, potions, scrolls, stairs
  *   SLICE 9  PUZZLE      falling blocks (Tetris: a bag of seven, hold, kicks, lock delay) and falling pairs
  *                        that chain (Puyo Puyo: E.Grid's groups), a mascot that reacts
+ *   SLICE 10 ARCADE      a cabinet of three (Pac-Man, Galaga, Asteroids): E.Arcade's scores, tables, initials,
+ *                        continues, turns and attract mode; a maze of E.GridMovers, moths on E.Paths, wrapping rocks
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -43,6 +45,7 @@ const SLICES = [
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER', family: 'PLATFORM' },
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
+  { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },

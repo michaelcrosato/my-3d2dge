@@ -32,11 +32,11 @@ import { modules as allModules, resolve as resolveModules, sliceModules } from '
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
 const STARTER = 'src/starter', STARTER3D = 'src/starter3d', ENGINE3D = 'engine/my-3d2dge-3d.js';
-const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', puzzle: 'PUZZLE (falling blocks and falling pairs)', rpg: 'RPG BATTLE (turn-based battle)', roguelike: 'ROGUELIKE (a turn-based crypt of generated floors)', stealth: 'STEALTH (third-person stealth and parkour)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
+const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', arcade: 'ARCADE (a cabinet of three: maze, formation, rocks)', puzzle: 'PUZZLE (falling blocks and falling pairs)', rpg: 'RPG BATTLE (turn-based battle)', roguelike: 'ROGUELIKE (a turn-based crypt of generated floors)', stealth: 'STEALTH (third-person stealth and parkour)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
 const ALL = {
-  GAMES: 'eight working games and an animation lab',
-  CONTENTS: "a title menu plus eight vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, PUZZLE, RPG BATTLE, ROGUELIKE, STEALTH)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
-  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #puzzle, #rpg, #roguelike, #stealth or #animlab to the address to start a slice.'
+  GAMES: 'nine working games and an animation lab',
+  CONTENTS: "a title menu plus nine vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, ARCADE, PUZZLE, RPG BATTLE, ROGUELIKE, STEALTH)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
+  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #arcade, #puzzle, #rpg, #roguelike, #stealth or #animlab to the address to\n       start a slice; #arcade/maze, #arcade/formation, #arcade/rocks and #shooter/horizontal jump into a part.'
 };
 // THE KIT DIET (docs/HANDOFF-GENRES.md, 3.3): a kit's engine leaves out the core's sections its game never calls. This
 // table names the parts that may go (one or more of the core's sections, by number) and, where a part is reached only
@@ -65,12 +65,14 @@ const DIET = [
   { part: 'sequences', sections: ['10h'], entries: ['history'] },   // input.sequence, input.motion, input.history
   { part: 'camera', sections: ['10i'], entries: ['window', 'snapY', 'frame'] }   // game.cam.window, cam.snapY, cam.frame
 ];
+// the parts a slice's deep link can jump into (#arcade/maze), named in its kit's header
+const PARTS = { arcade: ['maze', 'formation', 'rocks'], shooter: ['horizontal'] };
 // a kit's line on its modules (the scripts marked "inlined from engine/modules/...", after the engine), when it has any
 const modLine = mods => mods.length ? '\n       Its modules: ' + resolveModules(mods, MODS).map(m => m.name).join(', ') + ' (engine/modules/), each loaded after the engine.' : '';
 const kit = (id, mods = []) => ({
   EDITION: id + ' kit', GAMES: 'one working game to copy',
-  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with all six slices is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.' + modLine(mods),
-  LINKS: 'Deep link: add #' + id + ' to the address to start the slice.'
+  CONTENTS: 'a title menu plus the ' + SLICES[id] + ' slice.\n       This is a genre kit. The complete file with every slice is dist/my-3d2dge.html\n       at github.com/michaelcrosato/my-3d2dge.' + modLine(mods),
+  LINKS: 'Deep link: add #' + id + ' to the address to start the slice' + (PARTS[id] ? '; ' + PARTS[id].map(p => '#' + id + '/' + p).join(', ') + ' jump into a part.' : '.')
 });
 // the 3D slices: their ids and what each is (the kit's header names it)
 const SLICES3D = { action: 'ACTION (a 3D arena: combos, dashes and waves, Zelda 64 and Diablo by way of the stress test)', platformer: 'PLATFORMER (a 3D course of islands, platforms and coins, Mario 64 and Spyro)', shooter: 'SHOOTER (an open world to move through and fight in, first or third person: Apex Legends without the multiplayer)' };

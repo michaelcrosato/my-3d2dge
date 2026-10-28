@@ -14,6 +14,9 @@
 //   5. rpg: a whole turn is played by taps, and every tap target (commands, foes) is at least 44 CSS pixels (a thumb)
 //   7. roguelike: a tap on a floor cell it has seen walks the hero there, a cell a turn (the grid's path)
 //   8. puzzle: a tap on BLOCKS starts it; a drag sideways moves the piece a cell a step of the thumb, a tap turns it
+//   9. arcade: each of its three games from the cabinet to its high-score table: by taps on a phone (a cabinet, then the
+//      letter wheel's arrows and OK, every target at least 44 CSS pixels), by keys (the continue too) and by a gamepad on
+//      a computer; left alone, the cabinet plays a demo and comes back to its table, then its title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
 //      pinch it (not the stick: a thumb steering beside a resting finger doesn't), kept; none where a slice has it off
 //      (the shooter); a phone held upright starts at the slice's tall zoom; Settings, Camera zoom; the wheel and - = on a
@@ -62,7 +65,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'platformer', 'shooter', 'puzzle', 'rpg', 'roguelike', 'brawler', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'platformer', 'shooter', 'arcade', 'puzzle', 'rpg', 'roguelike', 'brawler', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -395,6 +398,59 @@ if (want('puzzle')) {
   check('puzzle: a drag to the right moves the piece right, a cell a step', !!s0 && !!s1 && s1.x > s0.x, JSON.stringify([s0, s1]));
   check('puzzle: a tap turns it', !!s1 && !!s2 && (s2.r !== s1.r || s1.k === 'O') && !errors.length, JSON.stringify([s1, s2]) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
   await ctx.close();
+}
+
+/* 9. arcade: the three games to their tables by touch, keys and pad; the attract mode */
+if (want('arcade')) {
+  console.log('arcade: each game from the cabinet to its table, by taps, keys and a pad; the attract mode');
+  const GAMES = ['maze', 'formation', 'rocks'], css = async (p, n) => ev(p, n => { const S = window.__game.game.screen; return n * S.S / S.dpr; }, n);
+  const tapAt = async (p, x, y) => { const [cx, cy] = await toCss(p, x, y); await p.touchscreen.tap(cx, cy); await wait(160); };
+  const st = (p, id) => ev(p, id => window.__game.scenes['arcade-' + id].state(), id);
+  // by taps on a phone held upright
+  {
+    const { page, ctx, errors } = await open('arcade', UP); await wait(700);
+    for (let i = 0; i < 3; i++) {
+      const id = GAMES[i], t = await ev(page, () => window.__game.scenes.arcade.state()), c = t.cabs[i];
+      await tapAt(page, c[0] + c[2] / 2, c[1] + c[3] / 2); await wait(900);
+      const scene = await ev(page, () => window.__game.game.sceneName);
+      await ev(page, ([id, s]) => window.__game.scenes['arcade-' + id].end(s), [id, 3000 + i * 100]); await wait(300);
+      const w = (await st(page, id)).wheel, small = w ? Math.min(await css(page, w.cw), await css(page, w.up[1] - w.up[0]), await css(page, w.ok[3])) : 0;
+      if (w) { await tapAt(page, w.x + w.cw / 2, (w.up[0] + w.up[1]) / 2); for (let k = 0; k < 3; k++) await tapAt(page, w.ok[0] + w.ok[2] / 2, w.ok[1] + w.ok[3] / 2); }
+      await wait(200); const s = await st(page, id); await wait(1100); await tapAt(page, 100, 100); await wait(900);
+      const back = await ev(page, () => window.__game.game.sceneName), top = s.table[0] || {};
+      check(`arcade (touch): ${id}: a tap on its cabinet plays it, the wheel's arrows and OK take initials (targets ${Math.round(small)} CSS px), the table has them, a tap goes back`,
+        scene === 'arcade-' + id && small >= 44 && s.stage === 'table' && top.name === 'BAA' && top.score === 3000 + i * 100 && back === 'arcade' && !errors.length, JSON.stringify({ scene, stage: s.stage, top, back }) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
+    }
+    // left alone: the demo, then its table, then the title (the game's clock run on: advance)
+    const a0 = await ev(page, () => { const g = window.__game.game, A = window.__game.scenes.arcade; g.advance(20.5); const demo = g.sceneName, d = g.scenes[demo] && g.scenes[demo].state && g.scenes[demo].state().demo; g.advance(31); const back = g.sceneName, phase = A.state().phase, table = A.state().table; g.advance(6.5); return { demo, d, back, phase, table, after: A.state().phase }; });
+    check('arcade: left alone, the cabinet plays a demo, comes back to its table, then its title', a0.demo.startsWith('arcade-') && a0.d && a0.back === 'arcade' && a0.phase === 'scores' && !!a0.table && a0.after === 'title' && !errors.length, JSON.stringify(a0));
+    await ctx.close();
+  }
+  // by keys and by a pad, on a computer
+  {
+    const ctx = await browser.newContext({ viewport: { width: 960, height: 540 } }); await ctx.addInitScript(() => { window.testPads = []; Object.defineProperty(navigator, 'getGamepads', { value: () => window.testPads }); });
+    const page = await ctx.newPage(), errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.goto(pathToFileURL(resolve('dist/kits/my-3d2dge-arcade.html')).href + '#arcade'); await page.waitForFunction(() => window.__game && window.__game.game.sceneName === 'arcade'); await wait(500);
+    const key = async (code, n = 1) => { for (let k = 0; k < n; k++) { await page.keyboard.down(code); await wait(70); await page.keyboard.up(code); await wait(70); } };
+    // the continue (keys): Enter continues with the lives back
+    await key('ArrowRight'); await key('Enter'); await wait(900);
+    await ev(page, () => window.__game.scenes['arcade-formation'].end(4200, true)); await wait(200);
+    const c0 = await st(page, 'formation'); await key('Enter'); await wait(200); const c1 = await st(page, 'formation');
+    check('arcade (keys): the continue counts down, Enter continues', c0.continuing && !c1.continuing && c1.stage === 'play' && !errors.length, JSON.stringify([c0.stage, c0.continuing, c1.stage, c1.continuing]));
+    await ev(page, () => window.__game.scenes['arcade-formation'].end(4200)); await wait(200);
+    await key('ArrowUp', 2); await key('Enter', 3); await wait(200); const k = await st(page, 'formation'); await wait(1100); await key('Enter'); await wait(900);
+    const kb = await ev(page, () => window.__game.game.sceneName);
+    check('arcade (keys): formation from the cabinet to its table: up turns the letter, Enter takes it', k.stage === 'table' && (k.table[0] || {}).name === 'CAA' && kb === 'arcade' && !errors.length, JSON.stringify({ stage: k.stage, top: k.table[0], back: kb }));
+    // a pad: the d-pad and A (button 0)
+    const pad = async (b, n = 1) => { for (let q = 0; q < n; q++) { await ev(page, b => { const buttons = Array.from({ length: 17 }, (_, i) => ({ pressed: i === b, value: i === b ? 1 : 0 })); window.testPads = [{ index: 0, id: 'test pad', connected: true, mapping: 'standard', axes: [0, 0, 0, 0], buttons, timestamp: performance.now() }]; }, b); await wait(90); await ev(page, () => { window.testPads[0].buttons.forEach(x => { x.pressed = false; x.value = 0; }); window.testPads[0].timestamp = performance.now(); }); await wait(90); } };
+    await pad(15); await wait(100); const pk = await ev(page, () => window.__game.scenes.arcade.state().pick); await pad(0); await wait(900);
+    const ps = await ev(page, () => window.__game.game.sceneName);
+    await ev(page, () => window.__game.scenes['arcade-rocks'].end(2600)); await wait(200);
+    await pad(12, 3); await pad(0, 3); await wait(200); const pr = await st(page, 'rocks'); await wait(1100); await pad(0); await wait(900);
+    const pb = await ev(page, () => window.__game.game.sceneName);
+    check('arcade (pad): the d-pad picks rocks, A plays it, the d-pad and A take initials, A goes back', pk === 2 && ps === 'arcade-rocks' && pr.stage === 'table' && (pr.table[0] || {}).name === 'DAA' && pb === 'arcade' && !errors.length, JSON.stringify({ pick: pk, scene: ps, stage: pr.stage, top: pr.table[0], back: pb }) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
+    await ctx.close();
+  }
 }
 
 await browser.close();
