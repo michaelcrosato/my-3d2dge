@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.72.1 (2026-10-28)
+
+The genre plan's Milestone 8, closed: its progress row complete.
+
+- **Docs**: `docs/HANDOFF-GENRES.md`: section 9's M8 row with its commit (`c30e191`, #173), what it brought, its sizes, the bot, the decision (D56), `test:changed`, the full `npm test` on `main` after the merge, and what is left (the owner's TACTICS check on the Labs page).
+
 ## 0.72.0 (2026-10-28)
 
 Tactics: the genre plan's Milestone 8: picking under the cursor in the core, the grid module's tactics helpers, the TACTICS kit. Every other kit plays as before (filmed beside v0.71.1: the same pixels).
