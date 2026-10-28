@@ -14,10 +14,19 @@
  * ambient and the lights added each draw (street lamps, the ledger's glow, the gate), on a computer: its pass costs a
  * few milliseconds a frame, so a phone keeps its frame rate and an unlit street (as the ADVENTURE slice's Auto does).
  * The interface is HTML, E.Shell's: the objective with its distance, health, status, the takedown prompt, toasts and
- * the results; the guards' marks stay in the world.
+ * the results; the guards' marks stay in the world. The music is one song in layers (game.audio.layer): it sneaks on
+ * three tracks, and a guard's alert brings in the chase's drums and its saw over them, taken out again when they lose
+ * you: no cut to another song.
  * ===================================================================================== */
 const STEALTH = (() => {
   const T = 16, HP = 3;
+  // SHADOWS ON THE ROOFS: the sneaking bass, ticks and lead; 'chase' and 'alarm' start silent (on: false)
+  const SONG = { bpm: 108, steps: 4, tracks: [
+    { name: 'bass', wave: 'triangle', vol: .28, notes: 'A2 . . A2 . . A2 . | A2 . . A2 . C3 . . | F2 . . F2 . . F2 . | G2 . . G2 . E2 . .' },
+    { name: 'tick', wave: 'drums', vol: .06, notes: 'h . . h . . h . h . . h . . h .' },
+    { name: 'lead', wave: 'pulse12', vol: .07, notes: 'E5 - . . . . D5 . | C5 - . . B4 . A4 . | . . . . F5 - E5 . | D5 - . . E5 - . . | E5 - . . . . G5 . | F5 - . . E5 . D5 . | C5 - . . D5 - . . | B4 - - - . . . .' },
+    { name: 'chase', wave: 'drums', vol: .13, on: false, notes: 'k . h k s . h . k k h . s . h s' },
+    { name: 'alarm', wave: 'saw', vol: .06, on: false, notes: 'A3 A3 A4 A3 E4 A3 G4 A3 | A3 A3 A4 A3 C5 A3 B4 A3 | F3 F3 F4 F3 C4 F3 E4 F3 | G3 G3 G4 G3 D4 G3 B3 G3' }] };
   const PAVE = { stones: ['#7a6a60', '#726258', '#806e64'].map(E.hex), mortar: E.hex('#3e3236'), hi: E.hex('#8e7e72'), lo: E.hex('#56484a'), speck: E.hex('#66564e') };   // warm cobbles against the cool stone walls
   /* ---- THE DISTRICT: roofs 24-56 high a jump apart (3-4 cells), a belfry, tall grass (,) and a planter (p) ---- */
   const map = new E.TileMap({ rows: [
@@ -116,7 +125,7 @@ const STEALTH = (() => {
     attack = new E.Attack('slash', { reach: 9 }); guards = ROUTES.map(makeGuard);
     ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: it takes over from the engine's own, keeping the pause menu)
     checkpoint = null; ledger = false; won = false; over = false; hp = HP; hurtT = 0; alertT = 0; say('Steal the ledger', 'It lies on the brick roof');
-    game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = !!(window.matchMedia && matchMedia('(pointer: fine)').matches); L.ambient = .6; A.music('dungeon');
+    game.follow(hero, { z: 18 }); game.cam.bounds = v => map.bounds(v); game.cam.offset = [0, -10]; L.enabled = !!(window.matchMedia && matchMedia('(pointer: fine)').matches); L.ambient = .6; A.music(SONG); A.layer('chase', 0, .02); A.layer('alarm', 0, .02);
   }
   function respawnAt(cp) {
     Object.assign(hero, { x: cp.x, y: cp.y, z: cp.z, vx: 0, vy: 0, vz: 0, onGround: true, action: null }); hp = HP;
@@ -189,7 +198,7 @@ const STEALTH = (() => {
     heroUpdate(dt);
     for (const g of guards) guardUpdate(g, dt);
     const alert = guards.some(g => !g.dead && g.mind.state === 'alert');
-    if (alert !== alertT > 0) { alertT = alert ? 1 : 0; A.music(alert ? 'boss' : 'dungeon'); }
+    if (alert !== alertT > 0) { alertT = alert ? 1 : 0; A.layer('chase', alert ? 1 : 0, alert ? .4 : 2.5); A.layer('alarm', alert ? 1 : 0, alert ? .8 : 2.5); }   // (the chase comes in by layers, and fades out)
     rig.update(dt, hero.rigState({ attack: attack.state, pose: game.input.down('block') && !hero.action ? 'block' : null, hurt: hurtT > 0 }));
     for (const g of guards) {
       if (g.dead) { g.rig.update(dt, g.action && g.action.other === g ? g.action.otherState() : { x: g.x, y: g.y, z: g.z, facing: g.facing, down: 1 }); continue; }

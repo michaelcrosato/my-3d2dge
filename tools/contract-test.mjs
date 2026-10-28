@@ -1117,6 +1117,20 @@ const PLAY = hz => {
   const state = [game.time, hero.x, hero.y, hero.z, hero.vz, fired, jumps, I.clock].join(' ');
   return { state, peak, time: game.time, steps: steps.slice(0, 12), total: steps.reduce((a, b) => a + b, 0), dts: [...dts].sort(), alpha: game.alpha };
 };
+// the music clock (M12) at a refresh rate, or headless (advance by the same frames): its beats, an at(), a pause of a
+// synced song, a tempo change and a layer; the same log in Node and in the browser, at every rate
+const BEATS = (hz, headless) => {
+  const E = My3D2dge, game = new E.Game(headless ? { headless: true } : { canvas: 'screen', res: 'snes' }), A = game.audio, log = [], frame = 1000 / hz;
+  let frames = 0;
+  game.start({ update() {}, draw() {} });
+  A.onBeat(b => log.push('b' + b + '@' + game.time.toFixed(5)));
+  A.music({ bpm: 150, steps: 4, tracks: [{ name: 'a', notes: 'C5 . E5 . G5 . E5 .' }, { name: 'b', on: false, wave: 'drums', notes: 'k . h . s . h .' }] }, { sync: true });
+  A.at(10, k => log.push('at' + k + '@' + game.time.toFixed(5)));
+  const to = t => { while (frames * frame < t * 1000 - 1e-6) { frames++; if (headless) game.advance(frame / 1000); else window.__frame(frames * frame); } };
+  to(1); game.paused = true; to(1.5); game.paused = false; to(2); A.tempo(200); A.layer('b', 1); to(3);
+  log.push('pos ' + A.pos.step.toFixed(4) + ' ' + A.pos.layers.join(','));
+  return log.join(' ');
+};
 // the rest of the clock's contract, at 60 Hz
 // a script's timeline and a tween at a refresh rate (M1): the same at every rate, as the steps are
 const TIMELINE = hz => {
@@ -1298,6 +1312,8 @@ for (const [ed, file] of EDITIONS) {
   if (ed === 'full') {
     const T = {}; for (const hz of [60, 90, 120, 144]) T[hz] = await run(TIMELINE, hz);
     check(`${ed}: a script's waits and a tween give the same timeline at 60, 90, 120 and 144 Hz`, T[60].split(' ').length === 7 && [90, 120, 144].every(hz => T[hz] === T[60]), JSON.stringify(T));
+    const B = {}, node = new Function('My3D2dge', 'return (' + BEATS + ')')(load('engine/my-3d2dge.js'))(60, true); for (const hz of [60, 90, 120, 144]) B[hz] = await run(BEATS, hz);
+    check(`${ed}: the music clock: its beats, an at(), a synced song's pause, a tempo change and a layer on the same steps headless (Node) and in the browser at 60, 90, 120 and 144 Hz`, node.split(' ').length > 8 && [60, 90, 120, 144].every(hz => B[hz] === node), 'Node: ' + node + (B[60] !== node ? ' | 60 Hz: ' + B[60] : ''));
   }
   check(`${ed}: 60 Hz runs two steps a frame`, rates[60].steps.every(s => s === 2), rates[60].steps.join(','));
   check(`${ed}: 120 Hz runs one step a frame`, rates[120].steps.every(s => s === 1), rates[120].steps.join(','));

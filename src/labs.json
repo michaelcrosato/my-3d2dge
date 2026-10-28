@@ -143,6 +143,22 @@
           "what": "Pick ONE PLAYER and beat the Blue Grubs on Blast Island. On your turn (30 seconds): the left and right arrows walk, Enter jumps, up and down aim, hold Space and let go to fire (the longer, the harder); Q or E (or 1, 2, 3) changes the weapon: the ROCKET (the wind blows it: watch the WIND bar), the GRENADE (it bounces and blows after three seconds; walk away while it ticks), the CLUSTER (bursts into five; two a team). With the mouse: drag back from anywhere and let go, like a slingshot; a click walks there; the minimap at the top shows the whole island (click it to look). Falls hurt, the sea drowns, and from turn 16 the sea rises. Try TWO PLAYERS too, and TWO CPUS to watch. Added with v0.77.0 (Milestone 11).",
           "look": "Do the blasts feel big enough, and does the island break up in a satisfying way (craters, caves, grubs thrown and tumbling)? Can you judge a shot: the aim, the power, the wind, the grenade's bounce? Is the CPU fair: does it hit too often, or too rarely? Is a match too long? Can you always find your grub and your target (the camera, the minimap)? On your phone: a drag back and let go fires, a tap walks, JUMP and the weapon button; on your side and upright.",
           "links": [["Two CPUs", "#artillery/cpu"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-rhythm.html",
+          "at": "#rhythm",
+          "title": "RHYTHM: does it feel like Dance Dance Revolution and PaRappa?",
+          "what": "First pick CALIBRATE: press a lane key (D F J K, or tap the screen on a phone) on each click you hear; after a dozen taps it keeps your audio offset (Settings, Sound has the same, with a Calibrate button). Then play STEP UP: D F J K or the arrows as each arrow meets its ring at the bottom (hold the long ones), and RAP SCHOOL: Master Beat raps a line (his arrows over his head), you answer it the next bar. Each ends with a grade. Added with v0.78.0 (Milestone 12).",
+          "look": "Does a note you hit right on the beat say PERFECT (if it is always late or early, calibrate again and tell me the number it found)? Are the songs fun to play, the charts fair, the holds clear? Does the dancer feel in time with the music, and the crowd? Is RAP SCHOOL's call and answer easy to follow? On your phone: each quarter of the screen is a lane, under its arrows; both ways up.",
+          "links": [["STEP UP", "#rhythm/stepup"], ["RAP SCHOOL", "#rhythm/rapschool"], ["Calibrate", "#rhythm/calibrate"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-stealth.html",
+          "at": "#stealth",
+          "title": "STEALTH's music: does the chase come in by layers, smoothly?",
+          "what": "Sneak along the roofs: the music is quiet (a bass, ticks and a lead). Let a guard see you until he shouts (!): the chase's drums and a saw come in over the same song, without a cut; get away (or take him down) and they fade out again over a couple of seconds. Added with v0.78.0 (Milestone 12).",
+          "look": "Is the switch to the chase exciting, and the return to sneaking gentle? Does anything sound off (too loud, out of time, a click)? Compare with how it was: the music used to cut to another song.",
+          "links": []
         }
       ]
     },
@@ -303,6 +319,12 @@
           "title": "Puzzle",
           "what": "Falling blocks by today's rules (Tetris) and falling pairs that chain (Puyo Puyo), with a mascot.",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-rhythm.html",
+          "title": "Rhythm",
+          "what": "A rhythm game (Dance Dance Revolution, PaRappa the Rapper, Beatmania): STEP UP!, two songs on four lanes (notes, jumps, holds; a rapping teacher to answer), judged on the music clock, a combo, a life gauge and a grade, a dancer and a crowd on the beat, the audio offset's calibration.",
+          "links": [["STEP UP", "#rhythm/stepup"], ["RAP SCHOOL", "#rhythm/rapschool"]]
         },
         {
           "page": "dist/kits/my-3d2dge-stealth.html",

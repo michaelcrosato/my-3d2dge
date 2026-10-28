@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.77.1)
+# my-3D2dge API index (v0.78.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,60 +48,62 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 106 The engine object (E = My3D2dge)
-- 117 Math
-- 191 Pixel primitives
-- 210 Sprite frames, turns and swaps
-- 216 Views (projections); E.View: view
-- 243 Screen; game.screen
-- 265 Input; E.Input: input
-- 350 Pixel font
-- 361 Lighting; game.lights
-- 380 Particles; E.Particles: game.particles
-- 400 Renderer; r
-- 448 Game; E.Game: game
-- 559 Standard features; settings, fullscreen
-- 576 10c. Boot
-- 581 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 598 10e. Paths; E.Path: path
-- 608 10g. Weather
-- 612 10k. Save slots; E.Saves: saves
-- 635 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 708 Blob rig; E.Blob: blob
-- 728 Tile map; E.TileMap: map
-- 791 Materials
-- 812 Flow field; E.FlowField: flow
-- 830 Texture helpers for floortex functions
-- 841 Platform map; E.PlatformMap: level
-- 875 Platformer; E.Platformer: hero
-- 916 Body; E.Body: body
-- 936 Actions; E.Action: action
-- 958 17c. Mover; E.Mover: mover
-- 997 17d. Perception; E.Suspicion: suspicion
-- 1014 Bullets; E.Bullets: shots
-- 1034 Spatial hash; E.SpatialHash: grid
-- 1044 Audio; game.audio
-- 1066 Backdrops; E.Backdrop: backdrop
-- 1074 21c. Props
-- 1079 21e. Shapes
-- 1091 Ui; E.Dialog: talk, E.Menu: menu
-- 1148 21d. Shell; E.Shell: shell
-- 1177 Gpu lighting (webgpu); game.gpu
-- 1198 Sessions
-- 1207 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1242 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1287 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1325 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1406 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1417 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1476 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1499 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
-- 1528 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1545 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1574 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1593 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1622 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
-- 1668 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
+- 108 The engine object (E = My3D2dge)
+- 119 Math
+- 193 Pixel primitives
+- 212 Sprite frames, turns and swaps
+- 218 Views (projections); E.View: view
+- 245 Screen; game.screen
+- 267 Input; E.Input: input
+- 352 Pixel font
+- 363 Lighting; game.lights
+- 382 Particles; E.Particles: game.particles
+- 402 Renderer; r
+- 450 Game; E.Game: game
+- 561 Standard features; settings, fullscreen
+- 578 10c. Boot
+- 583 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 600 10e. Paths; E.Path: path
+- 610 10g. Weather
+- 614 10k. Save slots; E.Saves: saves
+- 637 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 710 Blob rig; E.Blob: blob
+- 730 Tile map; E.TileMap: map
+- 793 Materials
+- 814 Flow field; E.FlowField: flow
+- 832 Texture helpers for floortex functions
+- 843 Platform map; E.PlatformMap: level
+- 877 Platformer; E.Platformer: hero
+- 918 Body; E.Body: body
+- 938 Actions; E.Action: action
+- 960 17c. Mover; E.Mover: mover
+- 999 17d. Perception; E.Suspicion: suspicion
+- 1016 Bullets; E.Bullets: shots
+- 1036 Spatial hash; E.SpatialHash: grid
+- 1046 Audio; game.audio
+- 1078 Backdrops; E.Backdrop: backdrop
+- 1086 21c. Props
+- 1091 21e. Shapes
+- 1103 Ui; E.Dialog: talk, E.Menu: menu
+- 1160 21d. Shell; E.Shell: shell
+- 1189 Gpu lighting (webgpu); game.gpu
+- 1210 Sessions
+- 1219 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1254 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1299 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1337 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1418 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1429 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1488 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1511 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1540 Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js); E.Rhythm: rhythm
+- 1572 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1589 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1618 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1637 Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+- 1645 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1674 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1720 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -110,7 +112,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.77.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.78.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1046,19 +1048,29 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.note(n)`: note name -> frequency: E.note('A4') = 440, E.note('C#5'), E.note('Bb2'). Numbers pass through
 - `E.songs: title, adventure, dungeon, boss, victory`: ready-made chiptune loops (original compositions). game.audio.music('adventure')
 - `game.audio.applyVolume()`: apply volume, musicVolume, sfxVolume and mute after setting them directly (setVolume and mute call it)
+- `game.audio.at(step, fn)` †: call fn(step) on the update step the music reaches step (counted from its start, on as it loops); the song's change cancels it. Returns { cancel() }
+- `game.audio.calibrate()` †: the audio offset's calibration: a click on each beat (100 bpm, the first of a bar higher) as the music; tap(time) on each one heard (an event's timeStamp, or nothing: this update step). After 8 taps, result is the offset to set (ms: settings.audioOffset) and done is true; taps go on refining it. stop() puts the music back
 - `game.audio.define(name, voice)`: add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 })
 - `game.audio.duck(on = true)`: quiet the music (to 35%) while on: under a game's own pause, map or dialog screen. The engine also ducks it while game.paused
-- `game.audio.music(song, o = {})`: Loop a song (or play once with { loop: false }). song = { bpm: 120, steps: 4, tracks: [ { wave: 'square', vol: .2, notes: 'C5 - E5 - G5 - . . | ...' }, one token per step { wave: 'triangle', notes: 'C3 . C3 . G2 . G2 .' }, { wave: 'drums', notes: 'k . h . s . h . k k h . s . h .' } ] } tokens: C4 F#3 Bb2 = note, '-' holds the previous note, '.' = rest, '|' is ignored (bar lines). steps = steps per beat (4 = sixteenth notes). Each track loops on its own length. E.songs has ready-made loops: title, adventure, dungeon, boss, victory.
+- `game.audio.layer(track, vol = 1, fade = .5)` †: a track's volume as the song plays, 0..1, faded over fade seconds: layers of one song (the chase's drums in when the guards see you, out when they lose you). track: its index in song.tracks, or its name
+- `game.audio.music(song, o = {})`: Loop a song (or play once with { loop: false }). song = { bpm: 120, steps: 4, tracks: [ { wave: 'square', vol: .2, notes: 'C5 - E5 - G5 - . . | ...' }, one token per step { wave: 'triangle', notes: 'C3 . C3 . G2 . G2 .' }, { wave: 'drums', notes: 'k . h . s . h . k k h . s . h .' } ] } tokens: C4 F#3 Bb2 = note, '-' holds the previous note, '.' = rest, '|' is ignored (bar lines). steps = steps per beat (4 = sixteenth notes). Each track loops on its own length within the song's (len: steps, else its longest track's); a track may have a name, and on: false starts it silent (a layer that audio.layer brings in). THE MUSIC CLOCK: a song starts at the game's time and where it is is game time (audio.pos, headless too: the same steps hear the same beats); the sound follows that clock. o: { loop, sync: true (it pauses with the game, on game.time; else it plays on through a pause, on game.real), fade: seconds (a crossfade from the song playing), restart: true (again from its start, though it is the one playing) }. E.songs has ready-made loops: title, adventure, dungeon, boss, victory.
 - `game.audio.mute(on = !this.muted)`: toggle (or set) mute; returns the new state
+- `game.audio.onBeat(fn)` †: call fn(beat, pos) on the update step of each beat of whatever music plays (a dancer's step, a light's pulse). Returns { cancel() }
+- `game.audio.pos` †: where the music is, on the game's clock (headless too): { t: seconds since it started, step (from 0, counting on as it loops), beat, bar (four beats), at (the step in its loop), loop (times round), bpm, layers (each track's volume), playing }
 - `game.audio.ready`: true once the browser lets the game make sound
 - `game.audio.setVolume(v)`: set the master volume, 0..1
-- `game.audio.sfx(what, o = {})`: Play a sound effect: a preset name ('jump', 'coin', 'hit', 'explode', ...), a voice object, or a list of voices. opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03) }
-- `game.audio.stopMusic()`: stop the music (it fades out over 60 ms)
+- `game.audio.sfx(what, o = {})`: Play a sound effect: a preset name ('jump', 'coin', 'hit', 'explode', ...), a voice object, or a list of voices. opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03), step: a step of the music playing (it sounds on that step of the music clock, scheduled with the music: a rhythm game's calls and claps) }
+- `game.audio.sting(song, o = {})` †: play a short song once over the music (a goal's jingle): o.at 'now', 'beat' or 'bar' (on the music's next beat or bar), o.duck (the music's volume under it, .4)
+- `game.audio.stopMusic(fade)`: stop the music (it fades out over fade seconds, .06 by default)
+- `game.audio.tempo(bpm)` †: change the music's tempo as it plays (hurry up!): where it is stays, the steps after come at the new bpm
+- `game.audio.anchors = 0` †: how many times the sound was moved to meet the clock
 - `game.audio.ctx = null`: the Web Audio context, made at the first sound (null before, or where there is none)
+- `game.audio.drift = 0` †: what is heard against the game's clock at the last frame (seconds: the sound follows the clock, so it stays near 0)
 - `game.audio.ducked = false`: true while duck(true) holds the music down
 - `game.audio.failed = null`: why there is no sound (a message), or null
 - `game.audio.musicVolume = .5`, `game.audio.sfxVolume = 1`: 0..1 for effects and music
 - `game.audio.muted = false`: true while mute() is on
+- `game.audio.offset = 0` †: seconds the music sounds early, for speakers and headphones that lag (settings.audioOffset)
 - `game.audio.presets`: the named sound effects, sfx(name) plays one and define(name, voice) adds one
 - `game.audio.song = null`: the music playing (null for none)
 - `game.audio.volume = .7`: master volume 0..1
@@ -1525,6 +1537,38 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `physics.sleep`: bodies at rest sleep
 - `physics.substeps`: steps per step(dt)
 
+## Module rhythm: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway (engine/modules/rhythm.js)
+
+- `new E.Rhythm(game, o = {}) → rhythm` †: new E.Rhythm(game, { song, chart, lanes, windows, life, lead, voice, on }): see the manual
+- `rhythm.accuracy` †: how well so far, 0..1: a perfect counts whole, a great .7, a good .4
+- `rhythm.ahead(call = false)` †: the notes to show now: [{ note, dt, dtEnd }] (seconds to the note's time and to its end; a little past the line for the missed, the held while held); call: the calls instead
+- `rhythm.draw(r, o = {})` †: draw the highway on the overlay (see the manual)
+- `rhythm.grade` †: the grade of the accuracy: 'S' (95%), 'A' (85), 'B' (70), 'C' (50), 'D'
+- `rhythm.hit(lane)` †: a press in a lane: judged against the nearest note there within the good window (a hold starts held)
+- `rhythm.release(lane)` †: a lane let go: a hold let go before its end (less the good window) drops
+- `rhythm.reset()` †: back to the start: no judgments, a full combo of nothing, life as given
+- `rhythm.start()` †: play the song from its start (synced: it pauses with the game) and judge from here
+- `rhythm.total` †: the notes to play (not the calls)
+- `rhythm.update()` †: each step, after the input: the lanes' actions pressed and let go, calls sounded, notes missed, holds kept, the end
+- `rhythm.combo = 0` †: the notes hit in a row
+- `rhythm.counts` †: { perfect, great, good, miss }
+- `rhythm.done = false` †: the song is over, or failed
+- `rhythm.down` †: each lane held now
+- `rhythm.failed = false` †: the life ran out
+- `rhythm.game` †: its game
+- `rhythm.lanes` †: the actions, one a lane
+- `rhythm.last = null` †: the last judgment { j, lane, ms, t }
+- `rhythm.lead` †: seconds of notes shown ahead
+- `rhythm.life` †: the gauge 0..1
+- `rhythm.maxCombo = 0` †: the longest combo
+- `rhythm.notes` †: every note of the chart in time order ({ lane, step, end, call, j: its judgment or null, ms })
+- `rhythm.on` †: { judge, fail, done }
+- `rhythm.score = 0` †: the points
+- `rhythm.song` †: the song charted
+- `rhythm.started = false` †: start() was called
+- `rhythm.voice` †: the calls' sound
+- `rhythm.windows` †: { perfect, great, good } in ms either side of a note
+
 ## Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js)
 
 - `new E.Road(o = {}) → road`: new E.Road({ segment, width, lanes, rumble, draw, fov, height, colors, fog, sky }): a road (the manual above)
@@ -1589,6 +1633,14 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `rpg.items`: the items by id
 - `rpg.monsters`: the monsters by id
 - `rpg.status`: the status effects by name (the defaults and yours)
+
+## Module songs: the songbook: the kits' best songs and more, and jingles, tagged by mood (engine/modules/songs.js)
+
+- `E.Songbook`: the songbook: songs by id, their moods, get(id), find(mood) (see the manual)
+- `E.Songbook.find(mood)`: the ids of the songs of a mood, in the order listed
+- `E.Songbook.get(id)`: a song by id (playable: game.audio.music(E.Songbook.get('town'))), or undefined
+- `E.Songbook.moods`: every mood a song has, in the order of the manual
+- `E.Songbook.songs`: every song by id ({ title, mood: [...], bpm, steps, tracks, loop }; the core's own songs are E.songs')
 
 ## Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js)
 
