@@ -16,6 +16,9 @@
 //                  menu's Settings, Controls and Full screen), the game's input moves the focus and is held back while a
 //                  screen is open, a button's act reaches the game, settings apply, toasts time out, dispose() takes it
 //                  away; headless it keeps its screens' names (the standard features in depth: tools/standard-test.mjs)
+//   dialogs        E.Dialog's markup on both editions: the letters alone are wrapped and typed, a run's speed and a pause
+//                  take their time, a value comes from say's vars over the box's, braces that aren't markup stay, confirm
+//                  finishes the page past its pauses; a map of more than 128 x 128 cells bakes its floor in chunks
 //   modules        every module's manual (engine/modules/): its fenced examples run on each edition it loads after
 //   the asset card docs/ASSETS.md's examples: on the full engine the shapes draw, the solid is placed, the sprite made, the
 //                  surfaces take their materials and every worked entry draws; on the agent edition they run, the
@@ -73,6 +76,7 @@ for (const [ed, file] of EDITIONS) {
   rooms(E, ed);   // (and the rooms module)
   views(E, ed);   // (and the mode7 and road modules)
   drive(E, ed);   // (and the drive module: its races on the full engine, which has E.Path)
+  dialogs(E, ed);
   shellHeadless(E, ed);
 }
 
@@ -491,6 +495,27 @@ function views(E, ed) {
   const L = 200, jumps = []; for (let k = 1; k < road.segs.length; k++) jumps.push(Math.abs(road.yAt(k * L - 1e-6) - road.yAt(k * L)));
   check(`${ed}: views: road: its lap; distance wraps; a curve eases in to its strength and out; a hill climbs smoothly to its height`, road.length === 120 * L && road.seg(-1) === road.segs[119] && road.seg(road.length + 5) === road.segs[0] && road.curveAt(30 * L) === 0 && road.curveAt(60 * L) === 4 && road.curveAt(89 * L) < 1 && Math.abs(road.segs[89].y1 - 3000) < 1e-9 && Math.max(...jumps) < 1e-3, [road.curveAt(30 * L), road.curveAt(60 * L), road.curveAt(89 * L).toFixed(2), Math.max(...jumps).toFixed(5)].join());
   check(`${ed}: views: road: a body touches the scenery beside it, not across the road; nothing is projected before a draw`, road.hits(1100, -1.4, .1).length === 1 && road.hits(1100, 0, .1).length === 0 && road.hits(3000, -1.4, .1).length === 0 && road.project(1000, 0) === null && road.ahead(1000) === 1000 * road.depth && road.segs[95].tunnel);
+}
+
+// E.Dialog's markup (M7a): what types, how long it takes, the values it reads; and which maps bake their floor in chunks
+function dialogs(E, ed) {
+  const game = new E.Game({ headless: true }), talk = new E.Dialog(game, { voice: null, vars: { name: 'ROWAN', town: 'Brightwater' } });
+  const time = () => { let t = 0; while (talk.typing && t < 30) { talk.update(1 / 120); t += 1 / 120; } return t; };
+  talk.say('Plain words, {as} they were.'); const plain = talk.pages[0][0], tp = time();
+  check(`${ed}: dialogs: text without markup types as before (braces that aren't markup stay)`, plain === 'Plain words, {as} they were.' && Math.abs(tp - talk.pageLen / 50) < .02, plain + ' ' + tp.toFixed(3));
+  talk.say('Take the {c=#ffd36a}gold{/c}, {$name}.'); const p1 = talk.pages[0][0], t1 = time();
+  check(`${ed}: dialogs: markup and values come out of the letters typed; a color takes no time`, p1 === 'Take the gold, ROWAN.' && talk.pageLen === 21 && Math.abs(t1 - 21 / 50) < .02, p1 + ' ' + t1.toFixed(3));
+  talk.say('{s=10}Slowly{/s} now.{w=.5} Then on.'); const t2 = time();
+  check(`${ed}: dialogs: a run's speed and a pause take their time`, Math.abs(t2 - (6 / 10 + 13 / 50 + .5)) < .03, t2.toFixed(3));
+  talk.say('Welcome to {$town}, {$name}.', { vars: { name: 'LYRA' } });
+  check(`${ed}: dialogs: say's vars over the box's`, talk.pages[0][0] === 'Welcome to Brightwater, LYRA.', talk.pages[0][0]);
+  game.start({ update(dt) { talk.update(dt); }, draw() {} });
+  talk.say('{shake}Run!{/shake}{w=2} {wave}Now{/wave}.'); game.advance(.05); game.input.tap('confirm'); game.advance(1 / 120);
+  check(`${ed}: dialogs: confirm finishes the page past its pauses; shake and wave take no letters`, !talk.typing && talk.pages[0][0] === 'Run! Now.', talk.pages[0][0] + ' ' + talk.shown);
+  talk.say('A {c=#f00}long red sentence that wraps{/c} onto a second line of the box and a third one, then on to a page more of it here.');
+  const all = talk.pages.map(p => p.join(' ')).join(' ');
+  check(`${ed}: dialogs: marked text wraps by its letters alone`, !/[{}]/.test(all) && all.includes('long red sentence that wraps onto'), all);
+  check(`${ed}: dialogs: a map of more than 128 x 128 cells bakes its floor in chunks, a smaller one whole, either on request`, ed !== 'full' || (new E.TileMap({ w: 129, h: 128 }).chunks && !new E.TileMap({ w: 128, h: 128 }).chunks && new E.TileMap({ w: 8, h: 8, chunks: true }).chunks && typeof new E.TileMap({ w: 8, h: 8 }).floorBytes === 'function'));
 }
 
 // the drive module (M6b): a car's speed, grip and slide, a kart's drift and its boost, the ground that slows it, walls and
