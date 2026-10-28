@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>players fixture</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
+<body><canvas id="screen"></canvas>
+<script src="../../dist/my-3d2dge.js"></script>
+<script>
+// the players suite's page (tools/players-test.mjs): an arena and a hero for each player, each moved by its own input
+// (game.players). The query: ?join=1 (game.allowJoin({ max: 4 })), &split=2|3|4 (game.splitScreen, each viewport on a
+// hero), &layout=columns|rows|grid, &two=1 (a second player on the keyboard's right half from the start), &record=1
+(() => {
+const E = My3D2dge, Q = new URLSearchParams(location.search);
+const game = new E.Game({ canvas: 'screen', res: 'ps1', view: 'threequarter', menu: false, fullscreen: false, corner: false });
+const rows = Array.from({ length: 28 }, (_, y) => Array.from({ length: 32 }, (_, x) => x % 31 === 0 || y % 27 === 0 || (x % 8 === 4 && y % 6 === 3) ? '#' : (y === 12 || y === 16) && (x === 10 || x === 20) ? '@' : '.').join(''));   // (big enough for each camera to follow)
+const map = new E.TileMap({ rows, legend: { '#': 1, '@': 'start' }, types: { 1: { h: 22, top: '#8a80a0', side: '#4a4560' } }, floorTex: (x, y) => E.tex.flagstone(x, y, { stones: [[90, 84, 110], [80, 74, 100], [100, 94, 120]], mortar: [40, 36, 54], hi: [120, 114, 140], lo: [60, 56, 76], speck: [70, 66, 90] }, 16) });
+const starts = map.findAll('start');
+const heroes = starts.map((s, i) => ({ x: s.x, y: s.y, z: 0, vx: 0, vy: 0, facing: 0, presses: 0, rig: new E.Humanoid({ size: 1.2, colors: { cloth: E.PLAYER_COLORS[i] } }) }));
+const scene = {
+  input: 'DEFAULT', pausable: true,
+  enter() {
+    game.cam.bounds = v => map.bounds(v); game.focus(map.w * 8, map.h * 8, 16); game.cam.snap = true;
+    if (Q.get('two')) game.addPlayer({ keys: 'right' });
+    if (Q.get('join')) game.allowJoin({ max: 4 });
+    const n = +(Q.get('split') || 0); if (n) game.splitScreen(n, { follow: heroes.slice(0, n), layout: Q.get('layout') || 'auto' });
+  },
+  update(dt) {
+    game.players.forEach((I, i) => {   // each player moves its own hero
+      const h = heroes[i], m = I.move(); h.vx = m[0] * 80; h.vy = m[1] * 80; h.x += h.vx * dt; h.y += h.vy * dt; if (Math.hypot(m[0], m[1]) > .2) h.facing = Math.atan2(m[1], m[0]);
+      if (I.pressed('attack')) h.presses++;
+    });
+    heroes.forEach(h => h.rig.update(dt, h));
+  },
+  draw(r) {
+    map.drawFloor(r); map.queueWalls(r);
+    heroes.forEach((h, i) => { if (i < Math.max(2, game.players.length)) r.actor(h.x, h.y, 0, (g, x, y) => h.rig.draw(g, x, y, r.view)); });
+    const v = r.viewport; r.overlay(g => { if (v) E.font.text(g, 'VIEW ' + (v.i + 1), v.x + 4, v.y + 4, E.PLAYER_COLORS[v.i], { shadow: '#000', outline: false }); });
+  },
+  hud(r) { r.overlay(g => E.font.text(g, game.players.length + ' PLAYERS', r.W / 2, r.H - 10, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
+};
+game.start({ scenes: { arena: scene }, scene: 'arena' });
+window.__fx = { game, heroes };
+})();
+</script></body></html>

@@ -192,6 +192,8 @@ const BRAWL = (() => {
   const BASE = { weapon: null, speedRef: 40, footSpread: 4 };
   const HERO = { size: 2.3, build: 'bulky', hair: 'short', sleeves: 'none', hunch: .12, hat: { style: 'band', color: '#e0302a' },
     colors: { skin: '#e8b088', hair: '#5a3220', cloth: '#f2eee4', pants: '#3a64c8', boot: '#6a3a22', belt: '#3a2a20', glove: '#c83a2a' } };
+  // player 2 (JACK): the same fighter in a black gi and blue gloves
+  const HERO2 = Object.assign({}, HERO, { hat: { style: 'band', color: '#3a8ae0' }, colors: Object.assign({}, HERO.colors, { hair: '#e0c060', cloth: '#2a2a34', pants: '#c83a3a', glove: '#3a6ac8' }) });
   // each foe type fights its own way: strings of E.MOVES it picks from. The first blow of a string winds up slowly (wind:
   // the telegraph that lets the player read it and step out or strike first); follow-ups come faster
   const FOES = {   // swap: a second copy's palette and name (a palette-swap enemy)
@@ -233,7 +235,7 @@ const BRAWL = (() => {
   const pose = (a, k = .25) => a + (Math.cos(a) > 0 ? k : -k);    // turn a bit toward the camera
   const talk = new E.Dialog(game, { bg: ['#4a1436', '#12040c'], border: '#f0b0c8', nameColor: '#f0c850' });
   const puffs = [], sparks = [];
-  let map, SPR, hero, foes, npcs, boxes, foods, wave, lockX, go, intro, score, won, target, tgtT, lag, chain, chainT;
+  let map, SPR, hero, foes, npcs, boxes, foods, wave, lockX, go, intro, score, won, target, tgtT, lag, chain, chainT, hero2 = null, heroes = [];
   // the walkable street's right end: the wave's lock, never short of the screen's right edge where the street starts (a wide
   // screen shows more of it); the camera stops there too, so the hero can reach every bit of street on the screen
   const lockEnd = v => Math.min(LEN - 10, Math.max(lockX, (map.bounds(v).x0 + 8 + game.W) / v.ax - 10));
@@ -311,16 +313,25 @@ const BRAWL = (() => {
     // also follows the hero up the street. It stops at the wave's lock (lockEnd), so the screen's edge is the wall (Final Fight)
     game.cam.bounds = v => { const b = map.bounds(v), y1 = b.y1 - 9 + wall(game.H); return { x0: b.x0 + 8, x1: Math.min(b.x1 - 8, v.ax * (lockEnd(v) + 10)), y0: y1 - game.H * Math.max(1, game.zoom), y1 }; };
     // the hero's move set (E.MOVES, some tuned): a 4-hit punch string, a clinch (grab, knees, elbow), a kick string, a flying kick, a sweep
-    hero = body(54, 58, 7, { hp: 60, max: 60, lives: 3, grip: 0, rig: fighterRig(HERO), moves: {
-      punch: new E.Combo(['jab', 'cross', move('hook'), 'uppercut'], { window: .35 }), clinch: new E.Combo([GRAB, 'knee', 'knee', 'elbow'], { window: .35 }),
-      kick: new E.Combo([move('kick'), move('roundhouse')], { window: .35 }), fly: new E.Attack('flyingkick'), sweep: move('sweep') } });
+    hero = body(54, 58, 7, { hp: 60, max: 60, lives: 3, grip: 0, rig: fighterRig(HERO), moves: heroMoves() });
     game.follow(hero, { z: 34, lead: 24 });   // aimed at the chest: framing when zoomed in
+    hero2 = null; heroes = [hero]; game.allowJoin({ max: 2, onJoin: dropIn });   // player 2 drops in: Start on a pad, or 2 on the keyboard
     npcs = NPCS.map(n => body(n.x, n.y, 5, { n, facing: n.face, rig: fighterRig(n.rig) }));
     boxes = BOXES.map(([cx, y, kind]) => ({ x: cx * T, y, kind, hp: 2, flash: 0, box: true }));
     foes = []; foods = []; wave = 0; lockX = WAVES[0].x * T; go = 0; intro = INTRO; score = 0; won = 0; target = null; tgtT = 0; lag = 1; chain = chainT = 0;
     puffs.length = sparks.length = 0; talk.open = false;
     game.timeScale = 1; A.music('boss'); L.enabled = false;   // no game.lights: pools are baked, fighters rim-lit
   }
+  const heroMoves = () => ({ punch: new E.Combo(['jab', 'cross', move('hook'), 'uppercut'], { window: .35 }), clinch: new E.Combo([GRAB, 'knee', 'knee', 'elbow'], { window: .35 }),
+    kick: new E.Combo([move('kick'), move('roundhouse')], { window: .35 }), fly: new E.Attack('flyingkick'), sweep: move('sweep') });
+  // player 2 drops in beside player 1, its own input (a pad, or the keyboard's right half: player 1 keeps the left); the
+  // camera then frames both (cam.frame), still stopping at a wave's lock
+  function dropIn(I) {
+    hero2 = body(clamp(hero.x - 26, 10, lockEnd(game.view)), clamp(hero.y + 16, Y0, Y1), 7, { hp: 60, max: 60, lives: 3, grip: 0, rig: fighterRig(HERO2), moves: heroMoves(), input: I, lag: 1, inv: 2 });
+    heroes = [hero, hero2]; game.follow(null); game.cam.frame(heroes, { margin: 90 }); dust(hero2.x, hero2.y, 8); A.sfx('powerup');
+  }
+  // the hero a foe goes for: the nearer of the two still standing
+  const aimAt = f => heroes.length < 2 ? hero : heroes.filter(c => c.hp > 0).sort((a, b) => Math.hypot(a.x - f.x, a.y - f.y) - Math.hypot(b.x - f.x, b.y - f.y))[0] || hero;
   function spawnWave(w) {                        // foes close in from both sides; the boss talks
     w.foes.forEach((kind, i) => {
       const k = FOES[kind], side = wave && i % 2 ? -1 : 1, swap = k.swap && w.foes.indexOf(kind) !== i;
@@ -341,8 +352,8 @@ const BRAWL = (() => {
   const contact = (c, { spec: s, u }) => s.kick ? c.z + lerp(s.z0, s.z1, 1 - (1 - u) ** 3) * c.rig.o.hipZ * c.rig.o.size : c.rig.hand(s.hand)[2];
   // the hero lands his attack state a: game.hitFx (stop, shake, sound, number; power under 2: no whole-screen flash, only
   // the target flashes) at the fist or foot, our spark
-  function strike(t, a) {
-    const s = a.spec, b = BLOW[s.name], heavy = b[0] > 3 || b[2] > 0, dir = Math.sign(t.x - hero.x) || 1, x = t.x - dir * 6, z = t.box ? 12 : contact(hero, a);
+  function strike(t, a, by = hero) {
+    const s = a.spec, b = BLOW[s.name], heavy = b[0] > 3 || b[2] > 0, dir = Math.sign(t.x - by.x) || 1, x = t.x - dir * 6, z = t.box ? 12 : contact(by, a);
     if (!t.box) { chain = chainT > 0 ? chain + 1 : 1; chainT = 1.4; }   // hits under 1.4 s apart chain up
     // the damage number: over the head, a slot higher for each hit of a string, so faces, fists and numbers stay clear
     game.hitFx(x, t.y + 1, z, { power: heavy ? 1.9 : 1.3, angle: dir > 0 ? 0 : Math.PI, color: '#ffd23a', sound: s.kick ? 'kick' : 'punch', damage: t.box ? undefined : b[0],
@@ -350,8 +361,8 @@ const BRAWL = (() => {
     spark(x, t.y + 1, z, heavy); t.flash = game.real + .05;
     if (t.box) return smash(t);
     P.bits(t.x, t.y, z + 6, heavy ? 7 : 3, ['#ffffff', '#c8e8ff', '#8ac8f0']);   // sweat
-    target = t; tgtT = 3; score += b[0] * 10;
-    knock(t, hero, b);
+    target = t; tgtT = 3; score += b[0] * 10; by.hits = (by.hits || 0) + 1;
+    knock(t, by, b);
     if (t.hp <= 0) ko(t);
   }
   // a blow lands on a fighter: a flinch (hurt) and a slide; with a lift, or out of life, it is knocked off its feet
@@ -380,43 +391,18 @@ const BRAWL = (() => {
   }
   // foe f lands attack state a. Until a string's last blow the hero is only rocked (no launch, no mercy blink), so the rest
   // of the string connects. Out of life: knocked down, then up again (a life lost) or game over
-  function hurtHero(f, a) {
-    const h = hero, more = f.act.step < f.act.moves.length - 1, b = BLOW[a.spec.name], z = contact(f, a), x = h.x + Math.sign(f.x - h.x) * 6;
+  function hurtHero(f, a, h = hero) {
+    const more = f.act.step < f.act.moves.length - 1, b = BLOW[a.spec.name], z = contact(f, a), x = h.x + Math.sign(f.x - h.x) * 6;
     game.hitFx(x, h.y + 1, z, { power: b[2] ? 1.9 : 1.3, color: '#ff6a4a', sound: 'hurt', damage: b[0], textZ: h.rig.head()[2] + 12 - z + f.act.step * 12, textScale: 2, textColor: '#ff8a7a' });
     spark(x, h.y + 1, z, b[2] > 0); knock(h, f, more ? [b[0], 8, 0] : b); h.flash = game.real + .05; h.inv = more ? 0 : .6; chainT = 0;
     if (h.hp > 0) return;
     h.hp = 0; h.lives--;
-    if (h.lives > 0) game.after(1.6, () => { Object.assign(h, { hp: h.max, inv: 2.5 }); lag = 1; dust(h.x, h.y, 6); A.sfx('powerup'); });
-    else game.after(1.8, () => game.go('over', { from: 'brawler' }));
+    if (h.lives > 0) game.after(1.6, () => { Object.assign(h, { hp: h.max, inv: 2.5 }); if (h === hero) lag = 1; else h.lag = 1; dust(h.x, h.y, 6); A.sfx('powerup'); });
+    else if (!heroes.some(c => c.lives > 0)) game.after(1.8, () => game.go('over', { from: 'brawler' }));   // (two players: when both are out)
   }
-  function update(dt) {
-    const inp = game.input, h = hero, truce = talk.update(dt);   // truce: nobody punches while the boss talks
-    // a fighter's body from its state: the guard stance while it can fight, hurt while flinching or flying, tipping back
-    // (down: 0..1) from the first airborne frame to flat at the landing, 'down' on the floor, 'kneel' then 'crouch' getting
-    // up, and its move (a sweep stays in a 'crouch' through its hold, then rises). Velocity / size: no skating
-    const drive = (c, o) => {
-      const sz = c.rig.o.size, st = c.act && c.act.state, ok = !c.knocked && c.stun <= 0, low = st && st.spec.name === 'sweep' && !(st.phase === 'recover' && st.u > .6);
-      const fly = c.knocked && !c.down && !(c.rise > 0);
-      // for detail(): gritted teeth and the striking glove drawn in front, once the blow is out (a cocked fist stays behind the head)
-      c.rig.atk = st && (st.phase === 'recover' || st.phase === 'active' && st.u > .3) && (st.spec.kick ? 'K' : st.spec.hand || 'R');
-      c.rig.update(dt, Object.assign({ x: c.x, y: c.y, z: c.z, vx: c.vx / sz, vy: c.vy / sz, facing: pose(c.facing), air: !c.onGround && !c.knocked, stance: ok ? 'guard' : null,
-        hurt: !ok && !c.down && !(c.rise > 0), down: fly ? clamp(.6 - c.vz / 480, 0, 1) : undefined,
-        pose: c.down ? 'down' : c.rise > .22 ? 'kneel' : c.rise > 0 || low ? 'crouch' : null, attack: st }, o));
-    };
-    h.inv -= dt; h.stun -= dt; go -= dt; intro -= dt; tgtT -= dt; chainT -= dt; if (won) won += dt;
-    for (const p of puffs) { p.t += dt; p.x += p.vx * dt; p.vx *= 1 - dt * 5; } E.prune(puffs, p => p.t > .5); E.prune(sparks, s => game.real - s.t > .24);
-    if (Math.random() < dt * 8) { const [mx, my] = E.pick(HOLES); puffs.push({ x: mx + E.rand(-4, 4), y: my, vx: E.rand(-8, 8), t: 0, s: 3 }); }   // manhole steam: wisps, like the dust
-    for (const [, x, y] of DRUMS) if (Math.random() < dt * 9) P.add({ kind: 'ember', x: x + E.rand(-6, 6), y, z: 40, vx: E.rand(-12, 12), vz: E.rand(25, 50), g: -10, drag: 1, max: E.rand(.6, 1.3), color: '#ff7a2a' });   // embers
-    for (const n of npcs) n.rig.update(dt, { x: n.x, y: n.y, facing: pose(n.facing), pose: n.n.pose });
-    lag = Math.max(h.hp / h.max, lag - dt * .35);   // the bar's pale part drains slowly
-    // waves: reaching one spawns it and locks the screen until it is cleared
-    const w = WAVES[wave];
-    if (w && !w.spawned && h.x > w.x * T - 60) { w.spawned = true; spawnWave(w); lockX = Math.max((w.x + 6) * T, (game.cam.x + game.W) / game.view.ax - 10); }   // never inside the screen
-    if (w && w.spawned && !foes.some(f => !f.dead)) {
-      wave++; go = 2.5; lockX = WAVES[wave] ? (WAVES[wave].x + 6) * T : LEN;
-      if (!WAVES[wave]) { won = 1e-3; go = 0; A.music('victory'); game.follow(null); game.after(7, () => game.go('title')); } else A.sfx('confirm');
-    }
-    // the hero walks the lanes and jumps. J punches (a knee clinch on a foe in his face), K kicks, L sweeps; J or K in the air: a flying kick
+  // a player's fighter: it walks the lanes and jumps. J punches (a knee clinch on a foe in its face), K kicks, L sweeps; J or K in
+  // the air: a flying kick (inp: that player's input)
+  function control(h, inp, dt, truce) {
     const air = !h.onGround, busy = !!(h.act && h.act.busy), free = h.hp > 0 && !h.knocked && h.stun <= 0 && !won && !truce;
     const mv = free ? inp.move() : [0, 0], md = game.view.screenDirToGround(mv[0], mv[1]);
     if (!h.knocked && h.stun <= 0) { const stop = busy && !air; h.vx = approach(h.vx, stop ? 0 : md[0] * 82, 900 * dt); h.vy = approach(h.vy, stop ? 0 : md[1] * 52, 900 * dt); }
@@ -434,19 +420,48 @@ const BRAWL = (() => {
     if (h.act && h.act.update(dt) === 'active') A.sfx('whoosh', { pitch: h.act.state.spec.kick ? .8 : 1 });   // the swing sound on the strike
     const wide = h.act === h.moves.sweep, inReach = t => !t.knocked && Math.abs(t.y - h.y) < (wide ? 18 : 12) && E.inArc(h, h.facing, t, 32, wide ? 1.9 : 1.1);
     const grab = t => { if (t.box) return; if (t.act) t.act.cancel(); Object.assign(t, { act: null, stun: .9, vx: 0, vy: 0, y: h.y, x: h.x + (t.x > h.x ? 20 : -20) }); };   // the collar grab: held close
-    if (h.act) h.act.hits(foes.concat(boxes), inReach, t => h.act.state.spec.name === 'grab' ? grab(t) : strike(t, h.act.state));   // moves connect late in the strike (hitAt)
+    if (h.act) h.act.hits(foes.concat(boxes), inReach, t => h.act.state.spec.name === 'grab' ? grab(t) : strike(t, h.act.state, h));   // moves connect late in the strike (hitAt)
     h.update(dt, map); fall(h, dt);
     h.x = clamp(h.x, 10, lockEnd(game.view)); h.y = clamp(h.y, Y0, Y1);
     for (const b of boxes) if (!b.dead) solid(h, b.x, b.y, 13);
     for (const m of foods) if (!m.got && h.hp > 0 && Math.hypot(m.x - h.x, m.y - h.y) < 12) { m.got = true; h.hp = Math.min(h.max, h.hp + 20); A.sfx('heal'); }
     E.prune(foods, m => m.got);
+  }
+  function update(dt) {
+    const inp = game.input, h = hero, truce = talk.update(dt);   // truce: nobody punches while the boss talks
+    // a fighter's body from its state: the guard stance while it can fight, hurt while flinching or flying, tipping back
+    // (down: 0..1) from the first airborne frame to flat at the landing, 'down' on the floor, 'kneel' then 'crouch' getting
+    // up, and its move (a sweep stays in a 'crouch' through its hold, then rises). Velocity / size: no skating
+    const drive = (c, o) => {
+      const sz = c.rig.o.size, st = c.act && c.act.state, ok = !c.knocked && c.stun <= 0, low = st && st.spec.name === 'sweep' && !(st.phase === 'recover' && st.u > .6);
+      const fly = c.knocked && !c.down && !(c.rise > 0);
+      // for detail(): gritted teeth and the striking glove drawn in front, once the blow is out (a cocked fist stays behind the head)
+      c.rig.atk = st && (st.phase === 'recover' || st.phase === 'active' && st.u > .3) && (st.spec.kick ? 'K' : st.spec.hand || 'R');
+      c.rig.update(dt, Object.assign({ x: c.x, y: c.y, z: c.z, vx: c.vx / sz, vy: c.vy / sz, facing: pose(c.facing), air: !c.onGround && !c.knocked, stance: ok ? 'guard' : null,
+        hurt: !ok && !c.down && !(c.rise > 0), down: fly ? clamp(.6 - c.vz / 480, 0, 1) : undefined,
+        pose: c.down ? 'down' : c.rise > .22 ? 'kneel' : c.rise > 0 || low ? 'crouch' : null, attack: st }, o));
+    };
+    for (const c of heroes) { c.inv -= dt; c.stun -= dt; } go -= dt; intro -= dt; tgtT -= dt; chainT -= dt; if (won) won += dt;
+    for (const p of puffs) { p.t += dt; p.x += p.vx * dt; p.vx *= 1 - dt * 5; } E.prune(puffs, p => p.t > .5); E.prune(sparks, s => game.real - s.t > .24);
+    if (Math.random() < dt * 8) { const [mx, my] = E.pick(HOLES); puffs.push({ x: mx + E.rand(-4, 4), y: my, vx: E.rand(-8, 8), t: 0, s: 3 }); }   // manhole steam: wisps, like the dust
+    for (const [, x, y] of DRUMS) if (Math.random() < dt * 9) P.add({ kind: 'ember', x: x + E.rand(-6, 6), y, z: 40, vx: E.rand(-12, 12), vz: E.rand(25, 50), g: -10, drag: 1, max: E.rand(.6, 1.3), color: '#ff7a2a' });   // embers
+    for (const n of npcs) n.rig.update(dt, { x: n.x, y: n.y, facing: pose(n.facing), pose: n.n.pose });
+    lag = Math.max(h.hp / h.max, lag - dt * .35); if (hero2) hero2.lag = Math.max(hero2.hp / hero2.max, hero2.lag - dt * .35);   // the bar's pale part drains slowly
+    // waves: reaching one spawns it and locks the screen until it is cleared
+    const w = WAVES[wave];
+    if (w && !w.spawned && Math.max(...heroes.map(c => c.x)) > w.x * T - 60) { w.spawned = true; spawnWave(w); lockX = Math.max((w.x + 6) * T, (game.cam.x + game.W) / game.view.ax - 10); }   // never inside the screen
+    if (w && w.spawned && !foes.some(f => !f.dead)) {
+      wave++; go = 2.5; lockX = WAVES[wave] ? (WAVES[wave].x + 6) * T : LEN;
+      if (!WAVES[wave]) { won = 1e-3; go = 0; A.music('victory'); game.follow(null); game.after(7, () => game.go('title')); } else A.sfx('confirm');
+    }
+    control(hero, inp, dt, truce); if (hero2) control(hero2, hero2.input, dt, truce);
     // foes walk to the hero's lane and open one of their strings; when a blow has settled, the next one follows
     for (const f of foes) {
       f.stun -= dt; if (f.dead) f.dead -= dt;
-      const dx = h.x - f.x, dy = h.y - f.y, sz = f.k.rig.size, gap = 12 + 5.5 * sz;
+      const h = aimAt(f), dx = h.x - f.x, dy = h.y - f.y, sz = f.k.rig.size, gap = 12 + 5.5 * sz;
       if (f.act) {
         if (f.act.update(dt) === 'active') A.sfx('whoosh', { pitch: .7 });
-        f.act.hits([h], t => t.inv <= 0 && !t.knocked && Math.abs(t.y - f.y) < 12 && E.inArc(f, f.facing, t, 16 + 6 * sz, 1), () => hurtHero(f, f.act.state));
+        f.act.hits(heroes, t => t.inv <= 0 && !t.knocked && Math.abs(t.y - f.y) < 12 && E.inArc(f, f.facing, t, 16 + 6 * sz, 1), t => hurtHero(f, f.act.state, t));
         if (!f.act.busy) { if (f.act.step < f.act.moves.length - 1 && f.act.press()) f.vx = Math.sign(dx) * Math.max(0, Math.abs(dx) - gap) * 5; else f.act = null; }   // the next blow steps back into range; or the string is over
       } else if (!f.knocked && f.stun <= 0 && h.hp > 0) {
         const tx = h.x + (dx > 0 ? -gap : gap) - f.x; f.facing = dx > 0 ? 0 : Math.PI;
@@ -456,13 +471,13 @@ const BRAWL = (() => {
       f.update(dt, map); f.y = clamp(f.y, Y0, Y1); fall(f, dt);
       drive(f);
     }
-    for (const c of [h, ...foes]) for (const [, x, y] of CARS) for (let q = -32; q <= 32; q += 16) solid(c, x + q, y - 10, 14);   // a car: a row of circles
+    for (const c of [...heroes, ...foes]) for (const [, x, y] of CARS) for (let q = -32; q <= 32; q += 16) solid(c, x + q, y - 10, 14);   // a car: a row of circles
     for (const a of foes) for (const b of foes) if (a !== b && !a.dead && !b.dead) solid(b, a.x, a.y, a.r + b.r + 10);   // no stacking
     E.prune(foes, f => { const gone = f.dead !== undefined && f.dead <= 0; if (gone) dust(f.x, f.y, 6); return gone; });
     // stage clear: the camera pans to put the hero on the right (the results go left); he turns three-quarters to us over
     // half a second (never full front: the headband tails would cross his face), cheers, then puts his hands on his hips
     if (won) game.focus(h.x - 60 / game.zoom, h.y, 34);
-    drive(h, won > 1 ? { facing: pose(h.facing, lerp(.25, .7, Math.min(1, (won - 1) * 2))), pose: won > 4 ? 'hips' : 'cheer', stance: null } : {});
+    for (const c of heroes) drive(c, won > 1 ? { facing: pose(c.facing, lerp(.25, .7, Math.min(1, (won - 1) * 2))), pose: won > 4 ? 'hips' : 'cheer', stance: null } : {});
   }
   function star(g, x, y, s) {                    // a 3-frame hand-drawn hit spark (Street Fighter): flash, burst, shards
     const u = (game.real - s.t) / .24, R = (s.big ? 21 : 15) * game.zoom, n = u < .3 ? 6 : 8, pt = (i, d) => [x + Math.cos(i * Math.PI / n + s.rot) * d, y + Math.sin(i * Math.PI / n + s.rot) * d * .8];
@@ -477,7 +492,7 @@ const BRAWL = (() => {
     const at = (x, y, z, f, o) => r.queue(x, y, z, g => { const [sx, sy] = r.w(x, y, z); f(g, Math.round(sx), Math.round(sy)); }, o);
     bg.draw(r); skyDetail(r.ctx, r);
     map.drawFloor(r);
-    for (const c of [hero, ...foes, ...npcs]) r.shadow(c.x, c.y, lerp(4.8 * c.rig.o.size * Math.max(.4, 1 - c.z / 60), 24, c.rig.downW || 0), .45);   // grows as it lies down
+    for (const c of [...heroes, ...foes, ...npcs]) r.shadow(c.x, c.y, lerp(4.8 * c.rig.o.size * Math.max(.4, 1 - c.z / 60), 24, c.rig.downW || 0), .45);   // grows as it lies down
     map.queueWalls(r);
     for (const b of blocks) { const [sx, sy] = r.w(b.x0, T, b.h); if (sx < r.W && sx + b.w * r.view.ax > 0) r.queue(b.x0 + b.w / 2, T, 0, g => g.drawImage(front(b), Math.round(sx), Math.round(sy) - TOP)); }
     for (const [i, u, z, c] of AWNINGS) r.prop('awning', blocks[i].x0 + u, T + 2, z, { size: .75, color: c });
@@ -492,8 +507,8 @@ const BRAWL = (() => {
     for (const m of foods) r.sprite(m.x, m.y, 0, MEAT);
     for (const n of npcs) fighter(r, n);
     for (const f of foes) fighter(r, f, { flash: f.flash > game.real, alpha: blink(f.dead) });   // flashes: 3 frames, on the fighter only; the hero's mercy blink only once he is up
-    fighter(r, hero, { alpha: hero.inv > 0 && hero.hp > 0 && hero.stun <= 0 && (!hero.knocked || hero.rise > 0) && Math.floor(game.real * 16) % 2 ? .45 : 1, flash: hero.flash > game.real && '#ffb0a0' });
-    for (const c of [hero, ...foes]) { const a = c.rig.atk;   // a streak along the real fist or foot path; a fist swung on the far side
+    for (const c of heroes) fighter(r, c, { alpha: c.inv > 0 && c.hp > 0 && c.stun <= 0 && (!c.knocked || c.rise > 0) && Math.floor(game.real * 16) % 2 ? .45 : 1, flash: c.flash > game.real && '#ffb0a0' });
+    for (const c of [...heroes, ...foes]) { const a = c.rig.atk;   // a streak along the real fist or foot path; a fist swung on the far side
       if (a === 'K' || a === 'both' || (a === 'L') === Math.cos(c.facing) < 0) c.rig.drawSmear(r, SMEAR); }   // leaves none: it would cross the face
     for (const p of puffs) at(p.x, p.y, p.t * 16, (g, x, y) => {   // puffs: flat translucent dust clouds (never balls); swell, then thin out
       const u = p.t / .5, R = p.s * 1.6 * (u < .25 ? .5 + u * 2 : 1.25 - u) * Z;
@@ -530,22 +545,23 @@ const BRAWL = (() => {
   function hud(g, r) {
     const W = r.W, H = r.H;
     if (talk.open) { for (const y of [0, H - 22]) px.rect(g, 0, y, W, 22, '#06040a'); return; }   // letterbox while the boss talks
-    panel(g, 4, hero, 'MAX', hero.hp / hero.max, lag, '#ffd23a');
+    panel(g, 4, hero, 'MAX', hero.hp / hero.max, lag, '#ffd23a'); if (hero2) panel(g, 4, hero2, 'JACK', hero2.hp / hero2.max, hero2.lag, '#4ac0ff', false, 48);
     // enemy panel: the last one hit (KO'd: briefly), else the nearest, else the boss
     const foe = tgtT > 0 && target && (!target.dead || tgtT > 2.4) ? target : foes.find(f => !f.dead && Math.abs(f.x - hero.x) < 56 && Math.abs(f.y - hero.y) < 16) || foes.find(f => f.k === FOES.boss && !f.dead);
     const fx = Math.min(W, cornerX()) - 158;   // clear of the corner's menu button: beside it, or under it on a narrow screen
     if (foe && !won) panel(g, fx < 162 ? W - 158 : fx, foe, foe.name, foe.hp / foe.k.hp, 0, '#e8463c', true, fx < 162 ? 48 : 4);
     if (chain > 1 && chainT > 0) {               // the HITS counter on a gradient plate
       const s = String(chain), w = E.font.width(s, 3);
-      E.ui.box(g, 6, 50, w + 44, 28, { bg: ['#d8402a', '#4a0a1a'], border: '#ffd070' });
-      E.font.title(g, s, 12, 53, { scale: 3, colors: ['#ffffff', '#ffe070', '#ff9a2a'] }); E.font.title(g, 'HITS', 18 + w, 63, { scale: 1, colors: ['#fff6d0', '#ffc860'] });
+      const hy = hero2 ? 94 : 50; E.ui.box(g, 6, hy, w + 44, 28, { bg: ['#d8402a', '#4a0a1a'], border: '#ffd070' });
+      E.font.title(g, s, 12, hy + 3, { scale: 3, colors: ['#ffffff', '#ffe070', '#ff9a2a'] }); E.font.title(g, 'HITS', 18 + w, hy + 13, { scale: 1, colors: ['#fff6d0', '#ffc860'] });
     }
     if (intro > 0) {                             // round card slides in and out
-      const keys = [prompt('attack', 'punch'), prompt('kick', 'kick'), prompt('sweep', 'sweep'), prompt('jump', 'jump')].join(' '), cw = Math.max(180, E.font.width(keys) + 16);   // the player's own keys
-      const k = Math.min(1, (INTRO - intro) * 5, intro * 5), x = Math.round(W / 2 - cw / 2 + (1 - k) * (intro < 1 ? W : -W)), m = x + cw / 2;
-      E.ui.box(g, x, 52, cw, 56, WIN);
-      E.font.title(g, 'ROUND 1', m, 57, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
-      E.font.text(g, 'DOWNTOWN AT DUSK', m, 79, '#ffe8c8', TXC); E.font.text(g, keys, m, 92, '#b8b0e0', TXC);
+      const say = I => [['attack', 'punch'], ['kick', 'kick'], ['sweep', 'sweep'], ['jump', 'jump']].map(([a, w]) => I.label(a) + ' ' + w).join(' ');   // a player's own keys
+      const keys = (hero2 ? 'P1 ' : '') + say(game.input), keys2 = hero2 && hero2.input.half ? 'P2 ' + say(hero2.input) : '', cw = Math.max(180, E.font.width(keys) + 16, E.font.width(keys2) + 16);
+      const k = Math.min(1, (INTRO - intro) * 5, intro * 5), x = Math.round(W / 2 - cw / 2 + (1 - k) * (intro < 1 ? W : -W)), m = x + cw / 2, y = hero2 ? 92 : 52;   // (two players: under the second panel)
+      E.ui.box(g, x, y, cw, keys2 ? 68 : 56, WIN);
+      E.font.title(g, 'ROUND 1', m, y + 5, { scale: 2, align: 'center', colors: ['#fff6d0', '#ffd060', '#e8782a'] });
+      E.font.text(g, 'DOWNTOWN AT DUSK', m, y + 27, '#ffe8c8', TXC); E.font.text(g, keys, m, y + 40, '#b8b0e0', TXC); if (keys2) E.font.text(g, keys2, m, y + 52, '#9ad0ff', TXC);
     }
     if (go > 0 && Math.floor(game.real * 3) % 2 === 0) E.font.title(g, 'GO →', W - 14, 96, { scale: 3, align: 'right', colors: ['#fff6c0', '#ffc040', '#e06a20'] });
     if (won > 1.5) {                             // results on the left, clear of the cheering hero
@@ -555,13 +571,37 @@ const BRAWL = (() => {
       [['SCORE', score], ['BEST', best('brawler', score)]].forEach(([k, v], i) => { E.font.text(g, k, X - 46, 76 + i * 16, '#b8b0d8', TXT); E.font.text(g, String(v), X + 92, 76 + i * 16, '#ffe070', TXR); });
     }
   }
+  /** two heroes clear the first waves (the bot's: tools/kits-test.mjs): player 2 drops in on the keyboard's right half,
+   *  then each, through its own input, walks to the nearer side of the nearest foe on its lane and strikes. What it
+   *  reached: the players, the waves cleared, each hero's life and lives */
+  function bot(waves = 1) {
+    const was = Math.random; Math.random = E.rng(5); let I2 = null, n = 0;
+    const steer = (h, I) => {
+      const f = foes.filter(f => !f.dead && f.hp > 0).sort((a, b) => Math.abs(a.x - h.x) + Math.abs(a.y - h.y) - Math.abs(b.x - h.x) - Math.abs(b.y - h.y))[0];
+      const side = f && h.x < f.x ? -1 : 1, dx = f ? f.x + side * 24 - h.x : 60, dy = f ? f.y - h.y : 0, near = f && Math.abs(f.x - h.x) < 36 && Math.abs(dy) < 8;
+      const faced = f && (side < 0 ? h.facing === 0 : h.facing === Math.PI);
+      I.hold('right', near ? !faced && side < 0 : dx > 4); I.hold('left', near ? !faced && side > 0 : dx < -4); I.hold('down', dy > 3); I.hold('up', dy < -3);
+      if (near && faced && n % 9 === 0) I.tap(n % 36 ? 'attack' : 'kick');
+    };
+    try {
+      game.time = 0; game.timeScale = 1; game.go('brawler', null, { fade: 0 }); game.advance(1 / 120);
+      I2 = game.addPlayer({ keys: 'right' }); game.advance(1 / 120);
+      let t = 0;
+      for (; t < 150 && wave < waves && heroes.some(c => c.lives > 0); t += 1 / 60, n++) { steer(hero, game.input); if (hero2) steer(hero2, hero2.input); game.advance(1 / 60); }
+      return { players: game.players.length, heroes: heroes.length, wave, seconds: Math.round(t), hp: heroes.map(h => h.hp), lives: heroes.map(h => h.lives), hits: heroes.map(h => h.hits || 0), score, errors: game.errors.length };
+    } finally {
+      for (const I of game.players) for (const a of ['left', 'right', 'up', 'down']) I.hold(a, false);
+      if (I2) game.removePlayer(I2); Math.random = was;
+    }
+  }
   // camera: the player zooms .75x to 1.5x (at 2x a 100 px fighter no longer fits under the HUD); a phone held upright
   // starts at 1.5x, so the street fills more of it. Turning stays off: tried, a turned street loses its fronts (painted for
   // this side only) and its screen-space bounds
   return { view: 'brawler', views: ['brawler'], res: 'ps1', pausable: true, touch: ['attack', 'kick', 'sweep', 'jump'], propSize: 2.4, camera: { zoom: [.75, 1.5], tall: 1.5 },   // props match 100 px fighters
-    input: Object.assign({}, E.Input.DEFAULT, { kick: ['KeyK', 'Mouse2', 'Pad2'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad3'] }),
-    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw,
-    state: () => ({ hero, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }),   // for tests (end: the walkable street's right end)
+    // its actions in this order (no dash or skill), so half a keyboard each reads punch, kick, sweep, jump (Input.halfKeys)
+    input: (({ dash, skill, jump, ...keep }) => Object.assign(keep, { kick: ['KeyK', 'Mouse2', 'Pad2'], sweep: ['KeyL', 'Pad1'], jump: ['KeyZ', 'Space', 'Pad3'] }))(E.Input.DEFAULT),
+    enter() { WAVES.forEach(w => { w.spawned = false; }); start(); }, update, draw, bot,
+    state: () => ({ hero, hero2, foes, wave, lockX, end: lockEnd(game.view), Y0, Y1 }),   // for tests (end: the walkable street's right end; hero2: player 2, once joined)
     /** the proof: up the street, jabbing, kicking and jumping into the first wave; a hash of the fight */
     run: (n = 600) => proof('brawler', n, (i, k) => { walk(i, k, ['right', 'right', 'up', 'right', 'down'], 60); if (i % 30 === 15) k.tap('attack'); if (i % 77 === 40) k.tap('kick'); if (i % 200 === 150) k.tap('jump'); },
       () => [hero.x, hero.y, hero.z, hero.hp, hero.lives, score, wave, won, foes.map(f => [f.x, f.y, f.hp])]) };

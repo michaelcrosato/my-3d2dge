@@ -8,6 +8,7 @@
 //   5. a session recorded in a browser whose own Math differs from Chromium's in the last bit (as an iPhone's Safari
 //      may: every native sin, cos, pow... is nudged by one unit in the last place before the page loads) replays in
 //      Chromium to the same state: while recording and replaying, the engine's portable math is used, not the browser's
+//   6. two players on one keyboard (the brawler: player 2 drops in on the right half with 2): both heroes, replayed
 // Usage: node tools/replay-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 // Sessions and pictures in check-output/replay-test/.
 import { chromium } from 'playwright';
@@ -21,6 +22,7 @@ const failures = [], fail = m => { failures.push(m); console.log('  FAIL ' + m);
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const ED_PROBE = '[__ed.ED.hero.x, __ed.ED.hero.y, __ed.ED.hero.hp, __ed.ED.foes.length, __ed.ED.depth, My3D2dge.session.frame]';
 const GAME_PROBE = '[My3D2dge.current.time, My3D2dge.current.cam.x, My3D2dge.current.cam.y, My3D2dge.current.sceneName, My3D2dge.session.frame]';
+const TWO_PROBE = '(s => [My3D2dge.current.time, My3D2dge.current.players.length, s.hero.x, s.hero.y, s.hero2 && s.hero2.x, s.hero2 && s.hero2.y, s.foes.map(f => f.hp), My3D2dge.session.frame])(__game.scenes.brawler.state())';
 
 /** open a page with recording on, play it, then save the session and the state at that moment (between two frames) */
 async function record(name, page, ctxOpts, play, probe, initScript) {
@@ -91,6 +93,17 @@ const brawl = await record('brawler', 'dist/my-3d2dge.html?record=1#brawler', { 
   await p.keyboard.press('KeyK'); await p.waitForTimeout(1200);
 }, GAME_PROBE);
 check('brawler', brawl, GAME_PROBE);
+
+console.log('6. two players on one keyboard (the brawler)');
+const two = await record('brawler-2p', 'dist/my-3d2dge.html?record=1#brawler', { viewport: { width: 800, height: 600 } }, async p => {
+  await p.waitForTimeout(1500); await p.keyboard.press('Enter'); await p.waitForTimeout(700);
+  await p.keyboard.press('Digit2'); await p.waitForTimeout(400);   // player 2 drops in on the keyboard's right half
+  await p.keyboard.down('KeyD'); await p.keyboard.down('ArrowRight'); await p.waitForTimeout(900); await p.keyboard.up('KeyD'); await p.keyboard.up('ArrowRight');
+  for (let i = 0; i < 3; i++) { await p.keyboard.press('KeyF'); await p.waitForTimeout(160); await p.keyboard.press('Period'); await p.waitForTimeout(160); }
+  await p.keyboard.press('KeyG'); await p.waitForTimeout(1000);   // (G: player 1's kick)
+}, TWO_PROBE);
+if (!/^\[[^,]+,2,/.test(two.state)) fail('brawler-2p: player 2 did not join (' + two.state + ')');
+check('brawler-2p', two, TWO_PROBE);
 
 console.log('4. a session with one input taken out must diverge');
 {

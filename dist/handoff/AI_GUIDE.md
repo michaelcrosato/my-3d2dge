@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.64.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.65.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -159,6 +159,12 @@ A scene is `{ enter(data), exit(), update(dt), draw(r), pausable, view, views, i
 - The player's zoom: a scene's `camera: { zoom: [.75, 2], start: 1, tall: 1.5 }` sets how close the camera starts (`start`; `tall` on a phone held upright) and how far the player may take it (`zoom`): the mouse wheel, `-` and `=`, a two-finger pinch (both fingers moving, so a thumb on the stick isn't one) and Settings, Camera zoom. Their zoom is kept, a factor on top of the scene's, so it carries across scenes and screen shapes; each change shows `ZOOM 1.65x` at the top, the number to make `start` when tuning by feel. `zoom` may be a function of the game, a range per screen shape (the adventure's: out to .85x on a wide screen, none upright, where its forest is sized for 1x); `zoom: false` where zooming would break the game (the shooter's playfield is the screen), `wheel: false` where the wheel is the game's.
 - **The window and framing:** `cam.window = [48, 24]` is a dead zone (Super Mario World's): the camera stays still while the focus moves inside it and follows from its edge, so small steps don't jiggle the screen. `cam.snapY = true` follows a followed body's height only when it lands (its `onGround`) or nears the screen's edge, so a jump doesn't drag the camera up and down. `cam.frame([p1, p2], { margin: 24, zoom: [.5, 1] })` keeps several things in view, centred between them, zooming out (to at least `zoom[0]`) as they part and back in as they meet: two players, a boss and the hero, a race's leaders. `zoom: false` only centres.
 - Screen shake respects the player's reduced-motion setting.
+
+### Players (two to four on one machine)
+- `game.players` is `[game.input, ...the ones who joined]`. `game.input` stays player 1, so a game of one is written as before. Each other player is an input of its own with the same API (`move()`, `pressed()`, `label()`), plus `player` (2 to 4), `name` (`'P2'`), `color` (`E.PLAYER_COLORS`: blue, red, green, yellow) and `device`.
+- `game.allowJoin({ max: 2, onJoin: (input, n) => dropIn(input) })` in a scene's `enter` lets them in: Start on a gamepad no one holds, or 2 on the keyboard. Two on one keyboard each get half: player 1 WASD with F G H R T Y (`Input.halfKeys(preset, 'left')`), player 2 the arrows with `.` `/` `,` L `;` `'` and the numpad (`'right'`), each half taking the preset's actions in turn. `game.addPlayer({ pad: 1 })` or `({ keys: 'right' })` adds one directly (tests, a versus menu); `game.removePlayer(p)`.
+- The standard features follow: each player's prompts name its own keys (`input.label`), a pause says who paused (P2 PAUSED), a lost controller names its player, the Controls screen has a page each. Recorded sessions replay every pad and both halves of the keyboard.
+- One shared screen: `cam.frame(heroes, { margin: 90 })` keeps everyone in view. A split screen: `game.splitScreen(2, { follow: [hero, hero2] })`, `layout: 'auto'` (side by side on a wide screen, stacked on a tall one, a grid for 3 or 4), `'columns'`, `'rows'` or `'grid'`. The scene's `draw(r)` runs once per viewport, its camera its own (`game.viewports[i].follow(t)`, `.focus(x, y)`), with `r.viewport` saying which (`{ i, x, y, w, h }`: draw that player's HUD there); `scene.hud(r)` then runs once over the whole screen. GPU lighting is off while split; a scene's start ends the split.
 
 ### Motion and timing (tweens, scripts, paths)
 The code every game writes by hand, in the engine and on game time: each pauses with the game, stands still in hit-stop, slows with `timeScale` and ends with the scene (unless `keep: true`), and runs the same at every refresh rate.
@@ -416,6 +422,7 @@ const s = level.find('hero'), hero = new E.Platformer({ x: s.x, z: s.z }), rig =
 - Use the `brawler` view with a long `TileMap` floor strip (walls along the top edge only) and `cam.bounds` that scroll right.
 - Heroes and thugs are `Body` + `Humanoid` with `weapon: null`. Punches are attack specs with `blade: 0`; kicks use `kick: true, z0: 6, z1: 9`.
 - Hits need `E.inArc` plus a small y difference (same lane). Knock down with `body.push(dx, dy, 120)` and let gravity drop them.
+- A second player drops in (`game.allowJoin({ max: 2, onJoin })`): a hero of its own driven by its input, foes going for the nearer hero, `cam.frame(heroes)` instead of `follow`, game over when both are out.
 
 **Fighting game (Street Fighter II).**
 - Use the `side` view with a one-screen `PlatformMap` floor. Two `Platformer`s; the CPU fighter passes an intent object.
@@ -442,6 +449,7 @@ const s = level.find('hero'), hero = new E.Platformer({ x: s.x, z: s.z }), rig =
 **Puzzle (Tetris, Dr. Mario, Puyo Puyo).** Start from the PUZZLE slice.
 - The field is an array of cells drawn in screen pixels (`r.overlay`) over a painted stage; every rule is a small function: spawn, fits, kicks (SRS), lock (half a second, reset by a move up to 15 times), clear, gravity (the guideline's curve by level). A bag of seven from `E.rng`, a next queue, hold, a ghost.
 - `input.repeat('left', .17, .05)` gives the delayed auto-shift. Touch: `input.steer = 'drag'` and `input.drag()` move a cell a step of the thumb, `input.clicked()` (a tap) turns, a quick flick drops or holds.
+- Versus: one field's state swapped in and out (save and load its variables) to step and draw two side by side from one seed, each read through its own player's input; two lines or more cleared send rows to the other, rising at its next piece.
 - Matching games (Puyo, Columns, match-3): `new E.Grid(w, h).groups((x, y) => field[y * w + x] || null)` gives the groups of one colour; pop those of four or more, let what is above fall, and count each round that pops as a chain.
 
 **Roguelike (Rogue, Mystery Dungeon, Shiren).** Start from the ROGUELIKE slice.

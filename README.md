@@ -36,12 +36,12 @@ Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-li
 3. **A starter game** with nine vertical slices to copy from (a genre kit holds one):
    - ADVENTURE (Zelda-style top-down)
    - PLATFORMER (Mario / Mega Man side-scroller with a 2.5D view)
-   - BRAWLER (Final Fight / Streets of Rage beat-'em-up)
+   - BRAWLER (Final Fight / Streets of Rage beat-'em-up; a second player drops in)
    - SHOOTER (a 1942-style vertical stage, then a Gradius-style horizontal one: rock above and below, a power bar, options; a continue, initials and a table)
    - ARCADE (a cabinet of three: a maze with four chasers, a formation of diving moths, wrapping rocks; tables, initials, two players and an attract mode: the arcade module)
    - RPG BATTLE (Dragon Quest / Final Fantasy turn-based)
    - ROGUELIKE (Rogue / Mystery Dungeon: ten generated floors, fields of view and fog, turns by speed, the grid and gen modules)
-   - PUZZLE (Tetris by today's rules and Puyo Puyo's chaining pairs, with a mascot)
+   - PUZZLE (Tetris by today's rules and Puyo Puyo's chaining pairs, with a mascot; versus for two)
    - STEALTH (Assassin's Creed / Metal Gear third-person: roofs to climb and leap, guards that see and search, takedowns)
    - ANIMATION LAB: every move, pose and reaction on every skin, in every view, with zoom, rotation, slow motion and frame stepping
 
@@ -243,6 +243,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 - Keyboard, mouse, gamepad and touch (a floating stick with a dead zone, plus on-screen buttons the player can move, size and hide).
 - Presets for action, platformer, shooter and third-person games.
 - `pressed`, `repeat` and buffered presses.
+- Two to four players on one machine (`game.players`): each joins with Start on a free gamepad, or two share the keyboard a half each; prompts, the pause, a lost controller and the Controls screen are per player. One screen framed to everyone (`cam.frame`), or a split screen of two to four viewports (`game.splitScreen`).
 
 **Text and UI**
 - A 5x7 proportional pixel font (plus the old 3x5 as `font: 'tiny'`) with scale, alignment, word wrap, shadows and gradients.
@@ -348,7 +349,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.64.1**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.65.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

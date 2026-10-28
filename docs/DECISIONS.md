@@ -970,3 +970,18 @@ An entry:
 - **Answered:** yes: the owner, in the goal of 2026-10-28
 - **Landed in:** v0.64.0
 
+
+## D53 · 2026-10-28 · The plan's `game.join` and `game.split` named `allowJoin` and `splitScreen`
+
+- **Principle:** the genre plan's names (`docs/HANDOFF-GENRES.md`, M4a: `game.join({ max, onJoin })`, `game.split(n, {
+  layout })`) and the kit diet (D51: a section stays in a kit whose code reads one of its names)
+- **Call:** the players section (10j) names them `game.allowJoin({ max, onJoin })` and `game.splitScreen(n, { layout,
+  follow })`, with `game.addPlayer`, `game.removePlayer`, `game.viewports` and `Input.halfKeys`; `game.players` is a
+  getter in the core, not the section.
+- **Why:** the diet matches property reads against a kit's code, and `split`, `join` and `players` are read everywhere
+  (String's and Array's methods; the arcade module's own `players`), so the plan's names kept the section in every kit:
+  about 2,000 tokens each for nothing. With these names it stays only where it is called (the brawler and the puzzle).
+  A model reading the card finds the new names there, in `AI_GUIDE.md` and the index. What would change it: the owner
+  preferring the plan's shorter names (rename, and teach the diet an exception list).
+- **Answered:** no one asked: a reversible call (a rename), made at once
+- **Landed in:** v0.65.0
