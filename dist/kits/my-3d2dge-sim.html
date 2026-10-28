@@ -953,7 +953,7 @@ const SIM = (() => {
     }
     s.spin += s.v * dt * 2.2;
   }
-  function serve(g, s) { g.money -= s.price; g.spent += s.price; earn(s.price); s.today.riders++; s.today.take += s.price; s.total += s.price; if (s.price > s.K.worth) { g.happy -= .08; g.thought = 'THE ' + s.K.name + ' COSTS TOO MUCH'; } }
+  function serve(g, s) { g.money -= s.price; g.spent += s.price; earn(s.price); s.today.riders++; s.today.take += s.price; s.total += s.price; if (s.price > s.K.worth) { g.happy -= .08; g.thought = 'I PAID TOO MUCH FOR THE ' + s.K.name; } }
 
   /* ---- 4. EACH STEP: the HUD's buttons, then the tool (a path, a ride, the eraser) or a look at what is under the
    * pointer; the clock (the night runs fast once the park is empty), the guests, the rides, midnight's books ---- */
