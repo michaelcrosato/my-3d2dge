@@ -832,6 +832,22 @@ Needs M2 (`E.Turns`) and M3 (the high-score table).
 - **Done when:** a ball at twice its top speed never tunnels (contract); the same table run at 60, 90, 120 and 144 Hz
   gives the same hash; carving and collision have contract tests; the pinball's bot plays a ball and the artillery's
   CPUs finish a match; both pass the phone test.
+- **As built, 11a (v0.76.0):** the physics module (`engine/modules/physics.js`, after either edition; its manual 1,349
+  of 2,500 tokens): `E.Physics`, every shape a core (a point, a segment or a convex polygon) with a radius round it, so
+  a segment with `r` is a capsule; dynamic, kinematic (`moveTo`, its speed given to what it hits) and static bodies;
+  contacts found within a pixel and solved by sequential impulses in a fixed order (the movers in the order added, each
+  with the statics of a grid near it), bounce, friction, sensors with enter and exit, layers and masks, sleep, gravity
+  as a vector; a fast ball (`bullet`) is swept each substep and stops where it would touch what it is not already
+  touching, keeping its speed for the bounce; `world.flipper`, `bumper` (a kick: what it hits leaves at that speed at
+  least), `slingshot`, `kicker` (catches, holds, fires); a field shape for anything that answers a circle's test (the
+  terrain); `ray`, `query`, `hash`, a debug `draw`. The terrain module (`engine/modules/terrain.js`, after either
+  edition; 914 of 1,500): `E.Terrain`, a mask of material cells, one a world unit, its y up (the side view's z);
+  `carve` (hard materials stay; bits of what it took as particles, scattered by a hash, not the game's randomness),
+  `add`, `carvePoly`, `addPoly`, `ground`, `normal`, `hit`, `ray`, `walk` (a step up of `climb`, walls, falls and
+  the landing's speed), `collider()` for physics, and `draw(r)` as decals in chunks painted again only where a change
+  touched (`drawn`). One fact made precise: "the ball never passes through a flipper" is held by the sweep against
+  static and kinematic bodies at their poses each substep (four a step: 1/480 s), the flipper's tip moving under a
+  ball's radius in that time.
 
 ### M12: music, rhythm and the songbook (core audio; modules `songs`, `rhythm`; kit RHYTHM; the STEALTH slice's music)
 
