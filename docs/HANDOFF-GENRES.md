@@ -542,6 +542,22 @@ Needs M1 (the camera's window, transitions).
 - **Done when:** every new move has a contract test and a filmstrip; every existing side-view page matches its
   filmstrips; the kit's bot takes its route to the boss; the map fills in as rooms are seen, and a save loads back; the
   phone test passes.
+- **As built (v0.67.0):** the core's section 16c (on the diet with the Platformer: the `platformer` part is sections
+  16b and 16c): `crouch`, `ledge`, `wallCling` and `momentum` as Platformer options; tile kinds `water`, `rope` and
+  `bars` and grip on any tile type (`friction`, `carry`, `bounce`, `crumble` with `respawn`: `level.update(dt)`, and
+  `level.drawWater(r)` after the actors); `swingFrom(x, z)` and `release()`; the Humanoid's poses for crawling,
+  swimming and swinging (hang and climb were there). Today's defaults are unchanged: every existing side-view kit films
+  the same pixels. The traversal suite (`tools/traversal-test.mjs`, its fixture `tools/fixtures/traversal.html`) films
+  each move twice from one seed; the contract test holds each in numbers. `engine/modules/rooms.js` (after either
+  edition): `E.World` (rooms on a grid of screens, each a PlatformMap or, `view: 'top'`, a TileMap; an open edge is a
+  door, an edge with no room past it a wall; a slide or a fade; the camera's bounds; `world.seen`, `drawMap`,
+  `shellMap()` for `E.Shell`'s minimap; gates as tile types with `gate`; `save`, `load`, `clear` in `E.store`). The
+  METROIDVANIA kit (`src/starter/25-metroidvania.js`, family PLATFORM): twelve rooms in four areas (caverns, water, a
+  tower, a station), the SPRING BOOTS (a second jump; the green hatch) and the PHASE DASH (the blue hatch), an arm cannon
+  aimed eight ways with a charged shot and a lash (it cuts, knocks shots away and catches rings to swing from), the map
+  screen and a corner map, a save room and a recharge station, the CARAPACE (armored in front, dazed by a wall) and the
+  WARDEN (an eye behind plates, a fan of orbs, a floor beam); deep links `#metroidvania/miniboss`, `/boss`, `/map`.
+  Its `bot()` plays the route by the keys, from the landing site to the WARDEN, and beats it.
 
 ### M6: Mode 7, the road and racing (modules `mode7`, `road`, `drive`; kits KART, ROAD) in two pull requests
 

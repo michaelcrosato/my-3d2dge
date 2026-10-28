@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.66.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.67.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -32,7 +32,8 @@
  *    game.timeScale = slow motion, game.paused = pause, game.after(s, fn) = timer.
  * 7. LEVELS. Top-down / isometric / brawler floors: E.TileMap (walls on the ground
  *    plane). Side-scrollers: E.PlatformMap + E.Platformer (tiles on the x/z plane,
- *    solid, one-way, ladders, hazards, moving platforms). Both read ASCII rows. Third person (Assassin's Creed):
+ *    solid, one-way, ladders, hazards, moving platforms; crouching, ledges, clinging, water, ropes, bars, swinging and
+ *    momentum on request: 16c). Both read ASCII rows. Third person (Assassin's Creed):
  *    E.Mover on a TileMap of roofs climbs, vaults and leaps; E.ACTIONS, and E.sees / E.Suspicion for guards (17b-17d).
  * 8. SOUND, TEXT, MENUS. game.audio.sfx('jump'), game.audio.music(song);
  *    E.font.text(...) (5x7 proportional font), E.font.title(...), E.ui.box/bar/hearts,
@@ -78,7 +79,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.66.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.67.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -295,8 +296,9 @@ Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng
    nothing to call. input(game, dt) after the input's step, step(game, dt) after the timers (game time: paused, frozen
    and slowed with the game), enter(game, old) as a scene starts (before its enter), draw(game, r, g) over the lit
    world, under the overlays; rot(spr, a, steps): a sprite turned (section 2b); frame(game, shx, shy): a split screen's
-   viewports drawn (section 10j); FADES: the transitions by name (game.go's fade) */
-const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null, frame: null }, FADES = {};
+   viewports drawn (section 10j); pose(dt, s): the traversal moves' poses, on the rig (this; section 16c); FADES: the transitions by
+   name (game.go's fade) */
+const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null, frame: null, pose: null }, FADES = {};
 
 /* =============================================================================
  * 1b. EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
@@ -3874,6 +3876,7 @@ class Humanoid {
     this.solvePose();
     if (o.cape) this._cape(dt);
     if (o.hair.style === 'long' || o.hair.style === 'ponytail') this._hair(dt);
+    if (HOOKS.pose) HOOKS.pose.call(this, dt, s);   // (crawling, swimming, swinging: section 16c)
     if (s.flip > 0 && s.flip < 1) this._roll(s.flip);
     // weapon trail: remember where the blade (or fist, or foot) really went, so the smear works in every view
     const T = this.trail;
@@ -5741,13 +5744,16 @@ MATERIALS.grass.floor = (x, y) => E.tex.grass(x, y); MATERIALS.plain.floor = (x,
  *             | 'slope' (dir: 1 rises to the right, -1 to the left; or from/to heights 0..1 for gentle slopes)
  *             | 'hazard' (spikes, lava: not solid, test with level.touching(body, 'hazard'))
  *             | 'deco' (drawn in the play plane, not solid) | 'back' (background wall, not solid)
+ *             | 'water', 'rope', 'bars' (with the Platformer's further moves: section 16c)
+ *      grip:  friction (ice: .15), carry (a conveyor's speed), bounce (a spring's jump speed), crumble (seconds a block
+ *             holds once stood on; respawn: seconds until it is back): the Platformer reads them underfoot (16c)
  *      style: 'stone' | 'brick' | 'block' | 'ground' | 'wood' | 'metal' | 'plank' | 'spikes' | 'ladder' | 'pipe' | 'bonus' | 'liquid' | 'plain'
  *      mat:   a material (E.MATERIALS id or '#hex pattern') for a solid square tile's face in place of its style's look
  *             (plank, spikes, ladder, liquid and slopes keep their own)
  *      extra: moss: '#4a7a3a' (stone), flower: '#ffe070' (ground), glyph (bonus)
  * ============================================================================= */
 const PT_DEFAULT = { kind: 'solid', style: 'block', side: '#8a7a9a' };
-const PT_STYLE_FOR_KIND = { oneway: 'plank', ladder: 'ladder', hazard: 'spikes', slope: 'ground' };
+const PT_STYLE_FOR_KIND = { oneway: 'plank', ladder: 'ladder', hazard: 'spikes', slope: 'ground', water: 'liquid', rope: 'rope', bars: 'bars' };
 class PlatformMap {
   /** { rows: [...ASCII, top row first...], legend: { '#': 1, '@': 'hero' }, types: { 1: {...} }, tile: 16, depth: 16 }.
    *  Tile kinds: 'solid' (default) | 'oneway' | 'ladder' | 'slope' | 'hazard' | 'deco' | 'back' */
@@ -5924,6 +5930,37 @@ class PlatformMap {
     for (const x of [0, W]) for (const y of [-d, d]) for (const z of [0, H]) { const s = view.p(x, y, z); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
     return { x0, y0: y0 - 4, x1, y1: y1 + 4 };
   }
+  /** start a crumbling block at a cell going, once (it falls away after holds seconds and comes back after respawn more;
+   *  0: never; update(dt) runs them, each step); returns its record */
+  crumble(cx, cz, holds = .5, respawn = 3) {
+    /** crumbling: the blocks going ({ cx, cz, id, t: seconds before it falls, back }) */
+    const C = this.crumbling || (this.crumbling = []), id = this.cell(cx, cz); let k = C.find(q => q.cx === cx && q.cz === cz);
+    if (!k && id > 0) C.push(k = { cx, cz, id, t: holds, back: respawn, gone: false });
+    return k || null;
+  }
+  /** run the crumbling blocks one step: a block falls away when its time is up, and comes back after its respawn */
+  update(dt) {
+    const C = this.crumbling; if (!C || !C.length) return;
+    for (const k of C) {
+      k.t -= dt;
+      if (!k.gone && k.t <= 0) { this.set(k.cx, k.cz, 0); k.gone = true; k.t = k.back || 1e9; }
+      else if (k.gone && k.t <= 0) { this.set(k.cx, k.cz, k.id); k.done = true; }
+    }
+    prune(C, k => k.done);
+  }
+  /** draw the water tiles see-through over what is in them (call it after the actors are queued: an overlay) */
+  drawWater(r, alpha = .45) {
+    const T = this.T, cells = []; for (let cz = 0; cz < this.h; cz++) for (let cx = 0; cx < this.w; cx++) { const id = this.cell(cx, cz); if (id > 0 && this.types[id].kind === 'water') cells.push([cx, cz, this.types[id]]); }
+    if (!cells.length) return;
+    r.overlay(g => {
+      for (const [cx, cz, t] of cells) {
+        const [x0, y0] = r.w(cx * T, 0, (cz + 1) * T), [x1, y1] = r.w((cx + 1) * T, 0, cz * T), X = Math.round(x0), Y = Math.round(y0), W = Math.round(x1) - X, H = Math.round(y1) - Y; if (X > r.W || X + W < 0) continue;
+        const col = t.side || '#3a7ad8', top = this.cell(cx, cz + 1), open = !(top > 0 && this.types[top].kind === 'water');
+        px.blend(g, alpha, 'normal', () => px.rect(g, X, Y, W, H, col));
+        if (open) { px.rect(g, X, Y, W, 1, shade(col, .55)); for (let x = X; x < X + W; x++) if (((x + cz * 3) & 7) === 0) px.dot(g, x, Y + 1, shade(col, .4)); }
+      }
+    });
+  }
   /** draw the level as the background layer: call right after r.sky() and before anything else */
   draw(r) {
     const view = r.view, g = r.ctx;
@@ -5948,7 +5985,7 @@ class PlatformMap {
       if (ax) { const wa = cx0 / ax, wb = (cx0 + CW) / ax; a = Math.max(0, Math.floor(Math.min(wa, wb) / T) - 2); bnd = Math.min(this.w - 1, Math.ceil(Math.max(wa, wb) / T) + 2); }
       for (const pass of [0, 1]) for (let cz = 0; cz < this.h; cz++) for (let cx = a; cx <= bnd; cx++) {
         const id = this.cell(cx, cz); if (id <= 0) continue; const t = this.types[id];
-        if ((t.kind === 'back') !== (pass === 0)) continue;
+        if ((t.kind === 'back') !== (pass === 0) || t.kind === 'water') continue;   // (water: level.drawWater(r), in front of what swims in it)
         this._tile(g, r, view, cx, cz, t);
       }
     } finally { r.ix = sx; r.iy = sy; }
@@ -5956,7 +5993,7 @@ class PlatformMap {
   }
   _tile(g, r, view, cx, cz, t) {
     const T = this.T, d = this.depth / 2, x0 = cx * T, x1 = x0 + T, z0 = cz * T, z1 = z0 + T, st = t.style, side = t.side;
-    const back = t.kind === 'back', flat = back || t.kind === 'ladder' || t.kind === 'deco' || st === 'spikes';
+    const back = t.kind === 'back', flat = back || t.kind === 'ladder' || t.kind === 'rope' || t.kind === 'bars' || t.kind === 'deco' || st === 'spikes';
     const yf = back ? -d : flat ? 0 : d, P = (x, y, z) => r.w(x, y, z);
     const above = this.cell(cx, cz + 1), aboveT = above > 0 ? this.types[above] : null, openTop = !aboveT || (aboveT.kind !== 'solid' && aboveT.kind !== 'back' && aboveT.kind !== 'slope');
     const col = back ? shade(side, -.38) : side, hi = shade(col, .28), lo = shade(col, -.32), line = t.line || shade(col, -.3);
@@ -5988,6 +6025,15 @@ class PlatformMap {
       case 'ladder': {
         const rw = Math.max(1, Math.round(W * .1)); px.rect(g, X0 + Math.round(W * .15), Y0, rw, H, col); px.rect(g, X1 - Math.round(W * .15) - rw, Y0, rw, H, col);
         for (let k = 0; k < 4; k++) px.rect(g, X0 + Math.round(W * .15), Y0 + Math.round((k + .5) * H / 4), W - 2 * Math.round(W * .15), 1, hi);
+        return;
+      }
+      case 'rope': {   // a rope or a vine hanging down the cell's middle (t.side: its color)
+        const m = Math.round(X0 + W / 2); px.rect(g, m - 1, Y0, 2, H, col); for (let y = Y0 + ((cz * 3) & 3); y < Y1; y += 4) px.dot(g, m - 1, y, hi);
+        if (t.leaves) for (let y = Y0 + 2; y < Y1; y += 6) px.rect(g, m + (y & 4 ? 1 : -4), y, 3, 2, t.leaves);
+        return;
+      }
+      case 'bars': {   // monkey bars: a rail along the cell's bottom on posts
+        px.rect(g, X0, Y1 - 3, W, 2, col); px.rect(g, X0, Y1 - 3, W, 1, hi); if (!(cx & 1)) px.rect(g, X0 + 1, Y0, 1, H - 3, lo);
         return;
       }
       case 'liquid': {
@@ -6146,8 +6192,26 @@ class Platformer {
   }
   /** push the body (getting hit): dir = -1 / 1 */
   knock(dir, speed = 130, up = 170, stun = .3) { this.vx = dir * speed; this.vz = up; this.stun = stun; this.climbing = false; this.dashing = 0; }
+  /** hang from a point (a grapple's hook, a whip's ring): a pendulum from (x, z) to its hands, len long (the distance
+   *  now by default); left and right pump it, jump lets go with its speed (release() does too) */
+  swingFrom(x, z, len) {
+    const hx = this.x, hz = this.z + this.h, L = len || Math.max(8, Math.hypot(hx - x, hz - z)), a = Math.atan2(hx - x, z - hz);
+    /** swinging: the point it swings from ({ x, z, L: the length, a: the angle, w: the angular speed }), or null */
+    this.swinging = { x, z, L, a, w: (this.vx * Math.cos(a) + this.vz * Math.sin(a)) / L };
+    /** hanging: the ledge it hangs from ({ dir, top, cx }), or null; onBars: the bars it hangs from ({ z }), or null;
+     *  onRope: true while on a rope (section 16c sets them) */
+    this.hanging = this.onBars = this.onRope = null; this.climbing = false; this.dashing = 0;
+    return this;
+  }
+  /** let go of a swing, keeping its speed (up: an extra upward speed) */
+  release(up = 0) {
+    const S = this.swinging; if (!S) return this;
+    this.vx = S.L * S.w * Math.cos(S.a); this.vz = S.L * S.w * Math.sin(S.a) + up; this.swinging = null; this._fling = true;   // (its speed kept until it lands)
+    if (Math.abs(this.vx) > 1) this.facing = this.vx > 0 ? 1 : -1;
+    return this;
+  }
   /** state for Humanoid.update: rig.update(dt, hero.rigState({ attack })) */
-  rigState(extra) { return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: 0, vz: this.vz, facing: this.facing > 0 ? 0 : Math.PI, air: this.air && !this.climbing, climb: !!this.climbing, hurt: this.stun > 0, dash: this.dashing > 0 }, extra); }
+  rigState(extra) { return Object.assign({ x: this.x, y: this.y, z: this.z, vx: this.vx, vy: 0, vz: this.vz, facing: this.facing > 0 ? 0 : Math.PI, air: this.air && !this.climbing, climb: !!this.climbing, hurt: this.stun > 0, dash: this.dashing > 0 }, this._travRig && this._travRig(), extra); }   // (the further moves' poses: section 16c)
   /** move it one step: ctl is game.input or an intent { x: -1..1, jump, jumpPressed, up, down, dash } (enemies,
    *  bots); solids: moving platforms [{ x, z, w, h, vx, vz }] to stand on */
   update(dt, level, ctl = {}, solids) {
@@ -6160,6 +6224,8 @@ class Platformer {
     const wasGround = this.onGround; this.jumped = false; this.landed = false;
     this.stun -= dt; this.drop -= dt; this._dashCD -= dt;
     const ok = this.stun <= 0;
+    // the further moves (section 16c: crouch, ledges, clinging, water, ropes, bars, swinging, momentum) may take the step
+    if (this._trav && this._trav(dt, level, { ix, jumpHeld, jumpPressed, up, down, dashPressed, consume }, solids, ok)) { if (this.onGround && !wasGround) this.landed = true; this.air = !this.onGround && !this.climbing; return this; }
     // ladders: grab with up (or down at the top of one), leave with jump or by climbing off the end
     const feet = { x: this.x, z: this.z - 3, w: 2, h: 3 }, body = { x: this.x, z: this.z, w: 2, h: this.h * .8 };
     const ladHere = level.touching(body, 'ladder'), ladBelow = level.touching(feet, 'ladder');
@@ -6176,9 +6242,9 @@ class Platformer {
       // dash (Mega Man X style)
       if (dashPressed && ok && this._dashCD <= 0) { consume('dash'); this.dashing = this.dashTime; this._dashCD = this.dashTime + .15; this.vz = Math.max(0, this.vz); }
       if (this.dashing > 0) { this.dashing -= dt; this.vx = this.facing * this.dash; if (!this.onGround) this.vz = Math.max(this.vz, 0); }
-      else {
-        const target = ok ? ix * this.run : this.vx, turning = ix && this.vx && Math.sign(ix) !== Math.sign(this.vx);
-        const a = this.onGround ? (ix ? (turning ? this.decel * 1.3 : this.accel) : this.decel) : this.airAccel;
+      else if (!this._hx) {   // (_hx: momentum moved it, _spd: a crouch's crawl, _fr: the ground's grip: section 16c)
+        const target = ok ? ix * this.run * (this._spd || 1) : this.vx, turning = ix && this.vx && Math.sign(ix) !== Math.sign(this.vx);
+        const a = (this.onGround ? (ix ? (turning ? this.decel * 1.3 : this.accel) : this.decel) : this.airAccel) * (this._fr || 1);
         this.vx = ok ? approach(this.vx, target, a * dt) : approach(this.vx, 0, 300 * dt);
       }
       if (ix && ok && this.dashing <= 0) this.facing = ix > 0 ? 1 : -1;
@@ -6193,16 +6259,246 @@ class Platformer {
         else if (wall) { consume('jump'); this.vz = this.jump * .95; this.vx = -this.hitWall * this.run * 1.1; this.facing = -this.hitWall; this.stun = .12; this.jumped = true; this._cut = false; }
         else if (this._airJ > 0) { consume('jump'); this._airJ--; this.vz = this.jump * .9; this.jumped = true; this._cut = false; }
       }
-      const pushing = this.hitWall;
-      level.move(this, dt, solids);
+      const pushing = this.hitWall, cv = this._carry || 0; if (cv) this.vx += cv;   // (a conveyor's carry: section 16c)
+      level.move(this, dt, solids); if (cv && this.vx) this.vx -= cv;
       if (!this.hitWall && pushing && ix === pushing && !this.onGround) this.hitWall = pushing;   // keep wall contact while holding toward it
     }
+    if (this._travAfter) this._travAfter(dt, level);   // (springs and crumbling blocks underfoot: section 16c)
     if (this.onGround && !wasGround) this.landed = true;
     this.air = !this.onGround && !this.climbing;
     return this;
   }
 }
 E.Platformer = Platformer;
+
+/* =============================================================================
+ * 16c. TRAVERSAL  the Platformer's further moves, each opt-in (today's defaults are unchanged), and the rig's poses for
+ *    them. Options: crouch (down crouches into a box half as tall: crawl under a gap), ledge (catch a ledge falling past
+ *    it: hang, climb up with up or jump, drop with down), wallCling (hold onto a wall pressed in the air; jump leaps off),
+ *    momentum (slopes speed it up downhill and slow it uphill, past its run speed up to top; down while running rolls;
+ *    down while still and jump charges a dash, let go of down to go). Tiles: 'water' (it swims: less gravity, drag, a
+ *    stroke on each jump, a leap out at the surface), 'rope' (up grabs it: climb hand over hand, jump off sideways),
+ *    'bars' (rising into them it hangs and travels under them; down or jump lets go), and on any tile type friction (ice:
+ *    .15), carry (a conveyor's speed), bounce (a spring's jump speed), crumble (seconds it holds once stood on, then falls
+ *    away until respawn seconds pass: level.update(dt) each step). swingFrom(x, z) hangs it from a point (a grapple, a
+ *    whip): a pendulum it pumps with left and right, let go of with jump at its speed. State for the rig and the game:
+ *    crouching, hanging, climbUp, clinging, swimming, onRope, onBars, swinging, rolling, charge, sprung, splash.
+ * ============================================================================= */
+// the tile underfoot ({ cx, cz, t }: its type), or null
+function _underfoot(b, level) {
+  const T = level.T, cz = Math.floor((b.z - .5) / T);
+  for (const x of [b.x, b.x - b.w / 2 + 1, b.x + b.w / 2 - 1]) { const cx = Math.floor(x / T), id = level.cell(cx, cz); if (id > 0) return { cx, cz, t: level.types[id] }; }
+  return null;
+}
+// is any cell a box overlaps solid (the level's edges count)?
+function _solidIn(level, b) {
+  const T = level.T;
+  for (let cz = Math.floor((b.z + .01) / T); cz <= Math.floor((b.z + b.h - .01) / T); cz++) for (let cx = Math.floor((b.x - b.w / 2 + .01) / T); cx <= Math.floor((b.x + b.w / 2 - .01) / T); cx++) if (level.kind(cx, cz) === 'solid') return true;
+  return false;
+}
+// the ground's slope under the body's center: rise over run (+ rises to the right), 0 when flat
+function _slopeUnder(level, b) {
+  const T = level.T, sc = Math.floor(b.x / T);
+  for (const cz of [Math.floor((b.z - .5) / T), Math.floor((b.z + .5) / T)]) if (level.kind(sc, cz) === 'slope') {
+    const t = level.types[level.cell(sc, cz)] || {}, a = t.from !== undefined ? t.from : (t.dir < 0 ? 1 : 0), c = t.to !== undefined ? t.to : (t.dir < 0 ? 0 : 1);
+    return c - a;
+  }
+  return 0;
+}
+Object.assign(Platformer.prototype, {
+  // the step's further moves: true when one of them took the whole step (c: the read input)
+  _trav(dt, level, c, solids, ok) {
+    this._spd = 1; this._fr = 1; this._carry = 0; this._hx = false; this.sprung = false; this.splash = 0;
+    if (!level.cell || !level.types) return false;   // (a level that is not a PlatformMap)
+    const T = level.T, h0 = this._h0 === undefined ? (this._h0 = this.h) : this._h0, consume = c.consume;
+    this._ledgeCD = (this._ledgeCD || 0) - dt; this._clingCD = (this._clingCD || 0) - dt; this._holdCD = (this._holdCD || 0) - dt;
+    const step = () => { level.move(this, dt, solids); return true; };
+    // a swing: the pendulum's angle and speed, pumped by left and right
+    if (this.swinging) {
+      const S = this.swinging;
+      S.w += (-this.gravity / S.L * Math.sin(S.a) + c.ix * (this.pump || 4) * Math.cos(S.a) * 32 / S.L) * dt; S.w *= 1 - .2 * dt; S.a = clamp(S.a + S.w * dt, -2.4, 2.4);
+      const tx = S.x + S.L * Math.sin(S.a), tz = S.z - S.L * Math.cos(S.a) - this.h;
+      this.vx = (tx - this.x) / dt; this.vz = (tz - this.z) / dt; step();
+      if (this.hitWall || this.hitCeiling || this.onGround) S.w *= -.3;
+      if (c.ix) this.facing = c.ix > 0 ? 1 : -1;
+      if (c.jumpPressed) { consume('jump'); this.release(140); this.jumped = true; this._cut = false; }
+      else { this.vx = S.L * S.w * Math.cos(S.a); this.vz = S.L * S.w * Math.sin(S.a); }
+      return true;
+    }
+    // climbing up onto a ledge: hands pull the body up, then a step onto the top
+    if (this.climbUp) {
+      const C = this.climbUp, u = clamp((C.t += dt) / C.dur, 0, 1), k = clamp(u / .6, 0, 1);
+      this.z = lerp(C.z0, C.z1, k * k * (3 - 2 * k)); this.x = lerp(C.x0, C.x1, clamp((u - .6) / .4, 0, 1)); this.vx = this.vz = 0;
+      if (u >= 1) { this.climbUp = null; this.onGround = true; this.z = C.z1; }
+      return true;
+    }
+    // hanging from a ledge
+    if (this.hanging) {
+      const H = this.hanging; this.vx = this.vz = 0; this.facing = H.dir;
+      if (c.jumpPressed && c.ix === -H.dir) { consume('jump'); this.hanging = null; this._ledgeCD = .3; this.vz = this.jump * .85; this.vx = -H.dir * this.run; this.facing = -H.dir; this.jumped = true; this._cut = false; return step(); }
+      if (c.up || c.jumpPressed) { if (c.jumpPressed) consume('jump'); this.hanging = null; this.climbUp = { t: 0, dur: .4, x0: this.x, z0: this.z, x1: H.dir > 0 ? H.cx * T + this.w / 2 + 2 : (H.cx + 1) * T - this.w / 2 - 2, z1: H.top }; return true; }
+      if (c.down) { this.hanging = null; this._ledgeCD = .35; this.vz = -40; }
+      return true;
+    }
+    // water: it swims while its middle is in a water tile
+    if (level.kindAt(this.x, this.z + this.h * (this.swimming ? .3 : .5)) === 'water') {
+      if (!this.swimming) { this.splash = Math.min(1, Math.abs(this.vz) / 300 + .3); this.vz *= .3; this.vx *= .6; }
+      this.swimming = true; this.climbing = false; this.dashing = 0; this.crouching = false; this.h = h0; this.onRope = this.onBars = null;
+      const sw = this.swimSpeed || this.run * .7, head = level.kindAt(this.x, this.z + this.h + 1) === 'water';
+      this.vx = approach(this.vx, c.ix * sw, 420 * dt);
+      const surf = level.kindAt(this.x, this.z + this.h * .62) !== 'water';   // (its head and shoulders out: floating)
+      this.vz = approach(this.vz, c.down ? -sw * .8 : surf ? (c.up ? 0 : -6) : c.up ? sw * .8 : -18, 320 * dt);   // it sinks slowly; at the surface it floats
+      if (c.jumpPressed) { consume('jump'); if (surf || !head) { this.vz = this.jump * .9; this.jumped = true; this._cut = false; this.splash = .6; } else { this.vz = Math.max(this.vz, 110); this.stroke = .45; } }
+      this.stroke = Math.max(0, (this.stroke || 0) - dt);
+      if (c.ix) this.facing = c.ix > 0 ? 1 : -1;
+      return step();
+    }
+    if (this.swimming) { this.swimming = false; this.splash = .5; }
+    // a rope: up grabs it; climb hand over hand; jump leaves it sideways
+    const ropeBox = { x: this.x, z: this.z, w: 2, h: this.h }, onRope = level.touching(ropeBox, 'rope');
+    if (!onRope) this.onRope = false;
+    if (!this.onRope && onRope && c.up && ok && this._holdCD <= 0) { const rc = level.cellsTouching(ropeBox, 'rope')[0]; this.onRope = true; this.x = (rc.cx + .5) * T; this.dashing = 0; }
+    if (this.onRope) {
+      const top = level.kindAt(this.x, this.z + this.h * .9 + 1) === 'rope';
+      this.vz = (c.up && top ? 1 : c.down ? -1 : 0) * this.climb * .85; this.vx = 0; this.climbing = true;
+      if (c.ix) this.facing = c.ix > 0 ? 1 : -1;
+      if (c.jumpPressed) { consume('jump'); this.onRope = false; this.climbing = false; this._holdCD = .25; this.vz = this.jump * .7; this.vx = (c.ix || this.facing) * this.run; this.jumped = true; this._cut = false; return step(); }
+      step(); if (this.onGround && c.down) { this.onRope = false; this.climbing = false; }
+      return true;
+    }
+    // monkey bars: rising (or falling) into them, the hands catch them; it travels under them
+    const handZ = this.z + this.h + 2;
+    if (!this.onBars && !this.onGround && this._holdCD <= 0 && ok && level.kindAt(this.x, handZ) === 'bars') this.onBars = { z: Math.floor(handZ / T) * T };
+    if (this.onBars) {
+      const bz = this.onBars.z; this.z = bz - this.h; this.vz = 0; this.vx = c.ix * this.run * .55; this.dashing = 0;
+      if (c.ix) this.facing = c.ix > 0 ? 1 : -1;
+      step(); this.z = bz - this.h; this.vz = 0; this.onGround = false;
+      if (c.down || c.jumpPressed || level.kindAt(this.x, bz + 1) !== 'bars') { if (c.jumpPressed) consume('jump'); this.onBars = null; this._holdCD = .3; this.vz = -20; }
+      return true;
+    }
+    // a wall it is pressed against in the air: it clings (no sliding) until it jumps off, lets go or presses down
+    if (this.wallCling && !this.onGround && this.hitWall && c.ix === this.hitWall && this._clingCD <= 0 && ok && this.vz <= 60) this.clinging = this.hitWall;
+    if (this.clinging) {
+      const d = this.clinging; this.vx = this.vz = 0; this.facing = -d;
+      if (c.jumpPressed) { consume('jump'); this.clinging = 0; this._clingCD = .2; this.vz = this.jump * .95; this.vx = -d * this.run * 1.1; this.jumped = true; this._cut = false; this.stun = .12; return step(); }
+      if (c.down || c.ix === -d || !_solidIn(level, { x: this.x + d * (this.w / 2 + 1.5), z: this.z + 2, w: 1, h: this.h - 4 })) { this.clinging = 0; this._clingCD = .25; return false; }
+      step(); this.hitWall = d; return true;
+    }
+    // a ledge falling past it: the hands catch its top
+    if (this.ledge && !this.onGround && this.vz <= 0 && this._ledgeCD <= 0 && ok && !this.climbing) {
+      const d = c.ix || this.facing, cx = Math.floor((this.x + d * (this.w / 2 + 2)) / T), hz = this.z + this.h, cz = Math.floor((hz - 1) / T), top = (cz + 1) * T;
+      if (level.kind(cx, cz) === 'solid' && level.kind(cx, cz + 1) !== 'solid' && level.kind(cx, cz + 2) !== 'solid' && hz >= top - 7 && hz <= top + 3 && !_solidIn(level, { x: this.x, z: top, w: this.w - 1, h: 4 })) {
+        this.hanging = { dir: d, top, cx }; this.x = d > 0 ? cx * T - this.w / 2 - .01 : (cx + 1) * T + this.w / 2 + .01; this.z = top - this.h; this.vx = this.vz = 0; this.facing = d; this.dashing = 0;
+        return true;
+      }
+    }
+    // crouching (and a charged dash with momentum): down on the ground; standing again needs the room
+    const ducks = this.crouch || this.momentum;
+    if (ducks && this.onGround && !this.climbing && ok && !this.rolling && c.down && !this.crouching && !(this.momentum && Math.abs(this.vx) > this.run * .5)) { this.crouching = true; this.h = h0 * .5; }
+    if (this.crouching && (!c.down || !this.onGround) && !_solidIn(level, { x: this.x, z: this.z + h0 * .5, w: this.w - 1, h: h0 * .5 })) {
+      this.crouching = false; this.h = h0;
+      if (this.charge > 0) { this.rolling = true; this.h = h0 * .5; this.vx = this.facing * (this.run * 1.4 + this.charge * this.run * 1.6); this.charge = 0; this.dashed = true; }
+    }
+    if (this.crouching) {
+      if (this.momentum && c.jumpPressed && !(c.down && this.onOneWay)) { consume('jump'); this.charge = Math.min(1, (this.charge || 0) + .3); }
+      else if (c.jumpPressed && this.onOneWay) { consume('jump'); this.drop = .25; this.onGround = false; this.crouching = false; this.h = h0; }
+      if (this.charge > 0) this.charge = Math.max(0, this.charge - dt * .4);
+      this.vx = this.momentum && this.charge > 0 ? 0 : approach(this.vx, c.ix * this.run * (this.crawlSpeed || .45), this.accel * dt);
+      if (c.ix) this.facing = c.ix > 0 ? 1 : -1;
+      this.vz = Math.max(-this.maxFall, this.vz - this.fallGravity * dt);
+      return step();
+    }
+    // the ground's grip underfoot (ice, conveyors)
+    const u = this.onGround ? _underfoot(this, level) : null;
+    if (u) { this._fr = u.t.friction || 1; this._carry = u.t.carry || 0; }
+    // momentum: slopes push it, it keeps speed past its run, a roll keeps going
+    if (this.momentum && ok && !this.climbing) {
+      const top = this.top || this.run * 2.2;
+      if (this.onGround) {
+        const s = _slopeUnder(level, this);
+        let vx = this.vx - s / Math.sqrt(1 + s * s) * this.gravity * (this.rolling ? .9 : .5) * dt;
+        if (this.rolling) vx = approach(vx, 0, 50 * dt);
+        else if (c.ix) vx = vx && Math.sign(c.ix) !== Math.sign(vx) ? approach(vx, 0, this.decel * 1.3 * this._fr * dt) : Math.abs(vx) < this.run ? approach(vx, c.ix * this.run, this.accel * this._fr * dt) : vx;
+        else vx = approach(vx, 0, this.decel * .45 * this._fr * dt);
+        this.vx = clamp(vx, -top, top); this._hx = true;
+        if (c.down && Math.abs(this.vx) > this.run * .5 && !this.rolling) { this.rolling = true; this.h = h0 * .5; }
+        if (this.rolling && Math.abs(this.vx) < 20 && !_solidIn(level, { x: this.x, z: this.z + h0 * .5, w: this.w - 1, h: h0 * .5 })) { this.rolling = false; this.h = h0; }
+        if (this.rolling && Math.abs(this.vx) > 1) this.facing = this.vx > 0 ? 1 : -1;
+      } else if (Math.abs(this.vx) > this.run && Math.sign(c.ix) === Math.sign(this.vx)) this._hx = true;   // its speed carries through the air
+    }
+    if (this._fling) { if (this.onGround || (c.ix && Math.sign(c.ix) !== Math.sign(this.vx))) this._fling = false; else this._hx = true; }   // a swing let go of flies on
+    if (this.rolling) this._rollT = (this._rollT || 0) + dt * Math.abs(this.vx) / 40;
+    return false;
+  },
+  // after the step: a spring underfoot throws it up; a crumbling block starts to go
+  _travAfter(dt, level) {
+    if (!level.cell || !level.types || !this.onGround) return;
+    const u = _underfoot(this, level); if (!u) return;
+    if (u.t.bounce && this.vz <= 0) { this.vz = u.t.bounce; this.onGround = false; this.jumped = true; this.sprung = true; this._cut = true; }
+    if (u.t.crumble) level.crumble(u.cx, u.cz, u.t.crumble, u.t.respawn);
+  },
+  // the rig's state for the moves (merged into rigState)
+  _travRig() {
+    if (this.swinging) return { swing: this.swinging.a * this.facing, air: false, climb: false };
+    if (this.hanging) return { hang: true, hangZ: this.hanging.top - this.z, air: false };
+    if (this.climbUp) { const C = this.climbUp; return C.t / C.dur < .6 ? { hang: true, hangZ: C.z1 - this.z, air: false } : { pose: 'crouch', air: false }; }
+    if (this.clinging) return { climb: true, vz: 0, vx: 0, air: false, facing: this.clinging > 0 ? 0 : Math.PI };
+    if (this.onBars) return { swing: 0, swingMove: Math.abs(this.vx) > 1, air: false };
+    if (this.swimming) return { swim: true, stroke: this.stroke || 0, air: false };
+    if (this.crouching) return Math.abs(this.vx) > 4 ? { crawl: true, air: false } : { pose: 'crouch' };
+    if (this.rolling) return { flip: (this._rollT || 0) % 1, air: false };
+    return null;
+  }
+});
+// the rig's poses for the moves (Humanoid.update calls it after the pose is solved): crawl (prone, elbows and knees
+// working), swim (level in the water, arms stroking, legs fluttering), swing (hands up on the rope or bar, the body
+// hanging along it at angle swing: radians, + toward its front; swingMove: hand over hand along bars)
+HOOKS.pose = function (dt, s) {
+  const crawl = !!s.crawl, swim = !!s.swim, swing = s.swing !== undefined && s.swing !== null;
+  this._crawlW = approach(this._crawlW || 0, crawl ? 1 : 0, dt * 8); this._swimW = approach(this._swimW || 0, swim ? 1 : 0, dt * 6); this._swingW = approach(this._swingW || 0, swing ? 1 : 0, dt * 14);
+  const cw = this._crawlW, sw = this._swimW, gw = this._swingW; if (!(cw > 0 || sw > 0 || gw > 0)) return;
+  const o = this.o, J = this.J, armL = o.armUpper + o.armLower, legL = o.legUpper + o.legLower, sp = Math.min(1, Math.hypot(s.vx || 0, s.vy || 0) / (o.speedRef || 50));
+  this._travPh = (this._travPh || 0) + dt * (swim ? 3.2 + (s.stroke || 0) * 6 : crawl ? 2 + sp * 5 : 4);
+  const ph = this._travPh, mix = (k, p, w) => { J[k] = V3.lerp(J[k], p, w); }, turns = [];   // (turns: what moved the joints, done to the hair and cape too)
+  const turn = (a, pz, up = 0) => { const c = Math.cos(a), sn = Math.sin(a); turns.push(q => { const z = q[2] - pz; return [q[0] * c - z * sn, q[1], q[0] * sn + z * c + pz + up]; }); for (const k in J) { const q = J[k]; if (q && k !== 'bladeDir') J[k] = turns[turns.length - 1](q); } };
+  // prone (crawl) and level (swim): limbs set in the standing frame, then the body turned forward about the hips
+  for (const [w, tilt, lift, kind] of [[cw, 1.48, .5, 'crawl'], [sw, 1.32, 0, 'swim']]) {
+    if (!(w > 0)) continue;
+    const hz = J.hipC ? J.hipC[2] : o.hipZ, top = J.shC ? J.shC[2] : hz + o.torso;
+    for (const side of [-1, 1]) {
+      const S = side > 0 ? 'R' : 'L', p = ph + (side > 0 ? Math.PI : 0), sh = J['sh' + S] || [0, side * o.shoulderHalf, top];
+      const reach = kind === 'swim' ? [Math.sin(p) * armL * .35, side * (o.shoulderHalf + .6), top + Math.cos(p) * armL * .85] : [Math.sin(p) * armL * .25 - armL * .1, side * (o.shoulderHalf + 1), top + armL * (.55 + .3 * Math.cos(p))];
+      mix('hand' + S, reach, w); mix('elbow' + S, V3.lerp(sh, reach, .5).map((v, i) => i === 1 ? v + side * 1.2 : i === 0 ? v - 1 : v), w);
+      const hip = J['hip' + S] || [0, side * o.hipHalf, hz], kick = kind === 'swim' ? Math.sin(p * 1.6) * 2 : Math.max(0, Math.sin(p)) * legL * .35;
+      const foot = [kind === 'swim' ? kick : kick * .4, side * (o.hipHalf + .4), hz - legL * (kind === 'swim' ? .95 : .9) + (kind === 'swim' ? 0 : kick)];
+      mix('foot' + S, foot, w); mix('knee' + S, V3.lerp(hip, foot, .5).map((v, i) => i === 0 ? v + (kind === 'swim' ? 1 : 2.5 + kick * .5) : v), w);
+    }
+    // turn every joint forward about the hips by tilt (weighted), then lift a prone body onto its knees and elbows
+    const a = -tilt * w, c = Math.cos(a), sn = Math.sin(a), pz = hz;
+    let low = 1e9; for (const k in J) { const q = J[k]; if (q && k !== 'bladeDir') low = Math.min(low, q[0] * sn + (q[2] - pz) * c + pz); }
+    turn(a, pz, kind === 'crawl' ? (lift - low) * w : (o.hipZ * .35 - (pz - low) * .15) * w);
+  }
+  // a swing: hands up together over the head, the body hanging below them, turned about them by the swing's angle
+  if (gw > 0) {
+    const top = (J.head ? J.head[2] : o.hipZ + o.torso) + o.headR + armL * .55, move = !!s.swingMove;
+    for (const side of [-1, 1]) {
+      const S = side > 0 ? 'R' : 'L', hand = [move ? Math.sin(ph + (side > 0 ? 0 : Math.PI)) * 2.5 : 0, side * 1.4, top];
+      mix('hand' + S, hand, gw); mix('elbow' + S, [hand[0] * .5, side * (o.shoulderHalf + .8), top - armL * .45], gw);
+      const f = J['foot' + S]; if (f) mix('foot' + S, [f[0] * .3 + (move ? Math.sin(ph) * 1.5 : 0), side * (o.hipHalf + .2), Math.max(f[2], .5)], gw);
+    }
+    turn((s.swing || 0) * gw, top);
+  }
+  // the hair and cape for this step's drawing (the next update puts them back before they simulate, as a roll does)
+  if (turns.length) {
+    const an = this.facing + this.spin + this._cheat, ca = Math.cos(an), sa = Math.sin(an), k = (1 - this.sq * .4) * o.size, kz = (1 + this.sq) * o.size, keep = this._unroll = [];
+    for (const ch of [this.capeL, this.capeR, this._hairPts]) if (ch) for (const n of ch) {
+      keep.push(n, n.x, n.y, n.z);
+      const dx = n.x - this.x, dy = n.y - this.y; let q = [(dx * ca + dy * sa) / k, (-dx * sa + dy * ca) / k, (n.z - this.z) / kz];
+      for (const f of turns) q = f(q);
+      n.x = this.x + (q[0] * ca - q[1] * sa) * k; n.y = this.y + (q[0] * sa + q[1] * ca) * k; n.z = this.z + q[2] * kz;
+    }
+  }
+};
 
 /* =============================================================================
  * 17. BODY  ground-plane physics for top-down, isometric and brawler games:
@@ -9479,7 +9775,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.66.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.67.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -9694,7 +9990,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.66.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.67.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -10245,7 +10541,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.66.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.67.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10428,7 +10724,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.66.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.67.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10789,4 +11085,185 @@ class Turns {
   gauge(a) { return Math.max(0, Math.min(1, (a._turn || 0) / 100)); }
 }
 E.Turns = Turns;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+/*!
+my-3D2dge module ROOMS v0.67.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+Metroid's, Symphony of the Night's and Zelda's worlds: rooms on a grid of screens, walked between at open edges.
+- const world = new E.World(game, { id: 'castle' (its saves' name), screen: [20, 12] (one screen, in tiles), view:
+  'side' (PlatformMaps: x, z up) | 'top' (TileMaps: x, y down), legend, types (every room's), rooms: { id: { rows, at:
+  [gx, gy] (its top-left screen on the world grid), kind: 'save' | 'boss' | null, name, legend, types } }, start: 'id',
+  transition: 'slide' | 'fade' | 'none', make: def => map (to build a room's map yourself) }). A room is as many
+  screens wide and tall as its rows; rooms meet where they touch on the grid, and an open edge is a door between them.
+- world.rooms: every room by id ({ id, def, map, at, w, h: its size in screens }), each map built once and kept (its
+  crumbled blocks, its opened gates); world.room: the one the hero is in; world.map: its map.
+- Each step, after the hero moves: world.update(dt, hero) returns 'enter' the step the hero crosses an edge into the
+  next room (the hero placed just inside, keeping its height or column and its speed): the camera's bounds follow it
+  and the transition plays (world.moving is true meanwhile: hold the game still). An edge with no room past it is a
+  wall. world.enter(id) goes to a room (the kit places the hero: map.find('start')).
+- Explored: world.seen (the cells 'gx,gy' the hero has been in), world.here (its cell). world.drawMap(g, x, y, cell,
+  { all }): the pixel map of what was seen (all: every room), the rooms' walls with gaps at their doors, the save (S)
+  and boss (B) rooms, the hero blinking; small in a corner, large on a map screen. world.grid: { x0, y0, w, h } (the
+  grid's cells); world.cells(): every cell { gx, gy, room, seen }; game.shell.hud({ minimap: world.shellMap() }).
+- Gates: a tile type with gate: 'dash' (an ability) or 'key:red' stays solid until world.give(name), which opens its
+  tiles in every room. world.has(name); world.got (the set).
+- Saves: world.save(hero, extra) keeps the room, the hero's place, what was got and seen, and extra (any JSON) in
+  E.store ('rooms:' + id); world.load() goes back (the room entered, got and seen restored) and returns { room, x, z,
+  got, seen, extra } (put the hero at x, z: y in a top view), or null; world.clear().
+- world.draw(r): the room's map; world.drawOver(r): the transition, after everything else.
+
+```js rooms
+const E = My3D2dge, game = new E.Game({ headless: true });
+const rows = n => ['#'.repeat(n), ...Array(4).fill('.'.repeat(n)), '#'.repeat(n)];
+const world = new E.World(game, { screen: [8, 6], legend: { '#': 1 }, types: { 1: {} }, start: 'a', transition: 'none',
+  rooms: { a: { rows: rows(8), at: [0, 0] }, b: { rows: rows(16), at: [1, 0], kind: 'save' } } });
+const hero = new E.Platformer({ x: 100, z: 16, w: 8, h: 20 });
+let entered = 0; for (let i = 0; i < 480; i++) { hero.update(1 / 120, world.map, { x: 1 }); if (world.update(1 / 120, hero) === 'enter') entered++; }
+if (entered !== 1 || world.room.id !== 'b' || !world.seen.has('2,0') || hero.x > 16 * 16 - 4) throw new Error('a to b, then its far wall');
+```
+Rules: the hero's own update moves it (world.update only changes rooms); keep enemies and pickups per room (by
+world.room.id); a room's walls are its rows: leave an edge open only where a room continues.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module ROOMS: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * ROOMS  a world of rooms on a grid of screens: walking between them, the explored map, gates, saves
+ * ========================================================================== */
+const { clamp, px } = E;
+class World {
+  /** new E.World(game, { id, screen: [20, 12], view: 'side' | 'top', legend, types, rooms, start, transition: 'slide',
+   *  make }): a world of rooms (the manual above) */
+  constructor(game, o = {}) {
+    /** game: its game; o: its options; id: its name (its saves'); defs: the rooms' definitions by id */
+    this.game = game; this.o = Object.assign({ screen: [20, 12], view: 'side', transition: 'slide', legend: {}, types: {} }, o); this.id = o.id || 'world'; this.defs = o.rooms || {};
+    /** seen: the world grid's cells the hero has been in ('gx,gy'); here: its cell [gx, gy]; got: the abilities and
+     *  keys it has; room: the room it is in; moving: a transition is playing */
+    this.seen = new Set(); this.here = null; this.got = new Set(); this.room = null; this.moving = false; this._tr = null; this._sm = null;
+    /** rooms: every room by id: { id, def, map, at, w, h } (its size in screens) */
+    this.rooms = {};
+    const [sw, sh] = this.o.screen, top = this.o.view === 'top';
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const id in this.defs) {
+      const def = this.defs[id], legend = Object.assign({}, this.o.legend, def.legend), types = Object.assign({}, this.o.types, def.types);
+      const map = this.o.make ? this.o.make(Object.assign({ id, legend, types }, def)) : top ? new E.TileMap({ rows: def.rows, legend, types }) : new E.PlatformMap({ rows: def.rows, legend, types });
+      if (!top) map.edges = 'open';   // (the room's own rows are its walls; update makes an edge with no room past it one)
+      const R = this.rooms[id] = { id, def, map, at: def.at || [0, 0], w: Math.max(1, Math.round(map.w / sw)), h: Math.max(1, Math.round(map.h / sh)) };
+      x0 = Math.min(x0, R.at[0]); y0 = Math.min(y0, R.at[1]); x1 = Math.max(x1, R.at[0] + R.w); y1 = Math.max(y1, R.at[1] + R.h);
+    }
+    /** grid: the world grid's extent in cells { x0, y0, w, h } */
+    this.grid = { x0, y0, w: x1 - x0, h: y1 - y0 };
+    this.enter(o.start || Object.keys(this.defs)[0]);
+  }
+  /** the room's map */
+  get map() { return this.room && this.room.map; }
+  /** go to a room by id (the camera's bounds become its map's); returns the room */
+  enter(id) {
+    const R = this.rooms[id]; if (!R) throw new Error('E.World: no room "' + id + '"');
+    const g = this.game; this.room = R; g.cam.bounds = v => R.map.bounds(v); g.cam.snap = true;
+    return R;
+  }
+  /** the room that holds world cell (gx, gy), or null */
+  roomAt(gx, gy) { for (const id in this.rooms) { const R = this.rooms[id]; if (gx >= R.at[0] && gx < R.at[0] + R.w && gy >= R.at[1] && gy < R.at[1] + R.h) return R; } return null; }
+  // the world cell at a place in a room: x across, d down from the room's top
+  _cell(R, x, d) { const T = R.map.T, [sw, sh] = this.o.screen; return [R.at[0] + clamp(Math.floor(x / (sw * T)), 0, R.w - 1), R.at[1] + clamp(Math.floor(d / (sh * T)), 0, R.h - 1)]; }
+  /** each step, after the hero moves: the cell it is in marked seen; off an edge into the next room, the room changes
+   *  ('enter' that step), off one with no room past it, it stops as at a wall; the transition plays on */
+  update(dt, b) {
+    const tr = this._tr; if (tr && (tr.t += dt) >= tr.dur) { this._tr = null; this.moving = false; }
+    const R = this.room, m = R.map, T = m.T, W = m.w * T, H = m.h * T, top = this.o.view === 'top', r = b.r || (b.w || 8) / 2, hh = top ? 0 : (b.h || 0) / 2;
+    let down = top ? b.y : H - b.z - hh;   // (the body's middle, down from the room's top)
+    this.here = this._cell(R, b.x, down); this.seen.add(this.here.join());
+    // a side view's edges are open: where no room continues, the edge is a wall
+    if (!top) for (const s of [-1, 1]) if ((s < 0 ? b.x < r : b.x > W - r) && !this.roomAt(this.here[0] + s, this.here[1])) { b.x = s < 0 ? r : W - r; if (b.vx * s > 0) b.vx = 0; }
+    // past an edge (a top view's hero stops against it: touching it is enough)
+    const e = top ? r + 1 : 0, dx = b.x < e ? -1 : b.x > W - e ? 1 : 0, dy = dx ? 0 : down < e ? -1 : down > H - e ? 1 : 0;
+    const N = (dx || dy) && this.roomAt(this.here[0] + dx, this.here[1] + dy);
+    if (!N || N === R) return null;
+    // the same place along the shared edge, a step inside the new room
+    const [sw, sh] = this.o.screen, nm = N.map, NW = nm.w * nm.T, NH = nm.h * nm.T, kx = top ? r + 6 : r + 1, ky = top ? r + 6 : hh + 1, img = this._snap();
+    let x = b.x + (R.at[0] - N.at[0]) * sw * T; down += (R.at[1] - N.at[1]) * sh * T;
+    if (dx) x = dx > 0 ? kx : NW - kx; else down = dy > 0 ? ky : NH - ky;
+    b.x = clamp(x, kx, NW - kx); down = clamp(down, ky, NH - ky);
+    if (top) b.y = down; else b.z = NH - down - hh;
+    this.enter(N.id); this.here = this._cell(N, b.x, down); this.seen.add(this.here.join());
+    const kind = this.o.transition; if (kind !== 'none') { this._tr = { kind, t: 0, dur: kind === 'fade' ? .4 : .35, dx, dy, img }; this.moving = true; }
+    return 'enter';
+  }
+  // a copy of the last frame (the slide moves it away)
+  _snap() { const s = this.game.screen; if (this.o.transition !== 'slide' || !s || !s.buf) return null; const c = E.mkCanvas(s.buf.width, s.buf.height); c.getContext('2d').drawImage(s.buf, 0, 0); return c; }
+  /** draw the room's map (the kit draws its actors after) */
+  draw(r) { this.room.map.draw(r); }
+  /** draw the transition over everything (last): the old screen sliding away, or a fade through black */
+  drawOver(r) {
+    const tr = this._tr; if (!tr) return;
+    const u = clamp(tr.t / tr.dur, 0, 1);
+    r.overlay(g => {
+      if (tr.kind === 'slide' && tr.img) { const e = u * u * (3 - 2 * u); g.drawImage(tr.img, Math.round(-tr.dx * e * g.canvas.width), Math.round(-tr.dy * e * g.canvas.height)); }
+      else px.blend(g, 1 - Math.abs(u * 2 - 1), 'normal', () => px.rect(g, 0, 0, g.canvas.width, g.canvas.height, '#000000'));
+    });
+  }
+  // open a map's gates for what is got
+  _open(map) { const T = map.types; for (let i = 0; i < map.cells.length; i++) { const t = T[map.cells[i]]; if (t && t.gate && this.got.has(t.gate)) map.set(i % map.w, Math.floor(i / map.w), 0); } }
+  /** an ability or a key got ('dash', 'key:red'): its gates open in every room */
+  give(name) { this.got.add(name); for (const id in this.rooms) this._open(this.rooms[id].map); return this; }
+  /** true once it has an ability or a key */
+  has(name) { return this.got.has(name); }
+  /** every cell of the world grid that a room holds: [{ gx, gy, room, seen }] */
+  cells() {
+    const out = [];
+    for (const id in this.rooms) { const R = this.rooms[id]; for (let a = 0; a < R.w; a++) for (let b = 0; b < R.h; b++) { const gx = R.at[0] + a, gy = R.at[1] + b; out.push({ gx, gy, room: R, seen: this.seen.has(gx + ',' + gy) }); } }
+    return out;
+  }
+  // is this cell's edge toward (dx, dy) open somewhere: a door?
+  _door(c, dx, dy) {
+    const R = c.room, m = R.map, [sw, sh] = this.o.screen, a = c.gx - R.at[0], b = c.gy - R.at[1], top = this.o.view === 'top';
+    const open = (cx, ry) => { const v = m.cell(cx, top ? ry : m.h - 1 - ry); return v === 0 || (v > 0 && m.types[v] && (m.types[v].gate || (m.types[v].kind && m.types[v].kind !== 'solid'))); };
+    if (dx) { const cx = dx > 0 ? Math.min(m.w, (a + 1) * sw) - 1 : a * sw; for (let ry = b * sh; ry < Math.min(m.h, (b + 1) * sh); ry++) if (open(cx, ry)) return true; }
+    else { const ry = dy > 0 ? Math.min(m.h, (b + 1) * sh) - 1 : b * sh; for (let cx = a * sw; cx < Math.min(m.w, (a + 1) * sw); cx++) if (open(cx, ry)) return true; }
+    return false;
+  }
+  /** draw the explored map with its top-left cell at x, y, each cell a square of cell pixels: the seen cells (o.all:
+   *  every room's), walls where rooms end with gaps at their doors, save rooms S and the boss's B, the hero's cell
+   *  blinking; o: { all, color, wall, save, boss } */
+  drawMap(g, x, y, cell = 6, o = {}) {
+    const col = o.color || '#3a5ad0', wall = o.wall || '#d8e4ff', at = (gx, gy) => [x + (gx - this.grid.x0) * cell, y + (gy - this.grid.y0) * cell];
+    for (const c of this.cells()) {
+      if (!c.seen && !o.all) continue;
+      const [X, Y] = at(c.gx, c.gy), k = c.room.def.kind;
+      px.rect(g, X, Y, cell, cell, k === 'save' ? o.save || '#c8408a' : k === 'boss' ? o.boss || '#b03a3a' : c.seen ? col : '#2a3048');
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const n = this.roomAt(c.gx + dx, c.gy + dy); if (n === c.room) continue;
+        const door = n && this._door(c, dx, dy), h = Math.max(1, Math.floor(cell / 3));
+        if (dx) { const X2 = dx > 0 ? X + cell - 1 : X; px.rect(g, X2, Y, 1, cell, wall); if (door) px.rect(g, X2, Y + ((cell - h) >> 1), 1, h, col); }
+        else { const Y2 = dy > 0 ? Y + cell - 1 : Y; px.rect(g, X, Y2, cell, 1, wall); if (door) px.rect(g, X + ((cell - h) >> 1), Y2, h, 1, col); }
+      }
+      if (k && cell >= 8) E.font.text(g, k === 'save' ? 'S' : 'B', X + cell / 2, Y + (cell >> 1) - 2, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+    }
+    if (this.here && Math.floor(this.game.real * 3) % 2 === 0) { const [X, Y] = at(this.here[0], this.here[1]), d = Math.max(2, cell >> 2); px.rect(g, X + ((cell - d) >> 1), Y + ((cell - d) >> 1), d, d, '#ffffff'); }
+  }
+  /** the explored map for E.Shell's minimap: game.shell.hud({ minimap: world.shellMap() }) (a cell a square, the save
+   *  and boss rooms marked, the hero's cell) */
+  shellMap() {
+    const G = this.grid, w = this, m = this._sm || (this._sm = { T: 16, w: G.w, h: G.h, version: 0, cell: (cx, cy) => w.seen.has((cx + G.x0) + ',' + (cy + G.y0)) ? 0 : 1, height: () => 0, floorAt: (x, y) => w.seen.has((Math.floor(x / 16) + G.x0) + ',' + (Math.floor(y / 16) + G.y0)) ? 'water' : null });
+    m.version = this.seen.size;
+    const markers = this.cells().filter(c => c.seen && c.room.def.kind).map(c => ({ x: (c.gx - G.x0 + .5) * 16, y: (c.gy - G.y0 + .5) * 16, kind: c.room.def.kind === 'save' ? 'diamond' : 'cross', color: c.room.def.kind === 'save' ? '#e070b0' : '#e05050' }));
+    return { map: m, at: this.here ? { x: (this.here[0] - G.x0 + .5) * 16, y: (this.here[1] - G.y0 + .5) * 16, facing: 0 } : null, markers };
+  }
+  /** keep a save: the room, the hero's place, what was got and seen, and extra (anything JSON) */
+  save(b, extra) { const d = { room: this.room.id, x: b.x, z: this.o.view === 'top' ? b.y : b.z, got: [...this.got], seen: [...this.seen], extra: extra === undefined ? null : extra }; E.store.set('rooms:' + this.id, d); return d; }
+  /** go back to the save (its room entered, what was got and seen restored): { room, x, z, got, seen, extra }, or null */
+  load() {
+    const d = E.store.get('rooms:' + this.id); if (!d || !this.rooms[d.room]) return null;
+    this.got = new Set(d.got || []); this.seen = new Set(d.seen || []); for (const id in this.rooms) this._open(this.rooms[id].map);
+    this._tr = null; this.moving = false; this.enter(d.room); return d;
+  }
+  /** forget the save */
+  clear() { E.store.remove('rooms:' + this.id); }
+}
+E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);

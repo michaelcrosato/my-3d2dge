@@ -67,8 +67,10 @@ for (const [ed, file] of EDITIONS) {
   seesAndMaps(E, ed);
   if (ed === 'full') thirdPerson(E, ed);   // (the rest of the kit is the full engine's)
   if (ed === 'full') motion(E, ed);   // (M1's sections are the full engine's)
+  if (ed === 'full') traversal(E, ed);   // (and M5's moves)
   grids(E, ed);   // (the grid and gen modules load after either edition)
   arcades(E, ed);   // (and the arcade module)
+  rooms(E, ed);   // (and the rooms module)
   shellHeadless(E, ed);
 }
 
@@ -425,6 +427,111 @@ function motion(E, ed) {
 // the grid and gen modules (M2): paths, reaches and fields of view against known answers, square and hex; turns; a mover's
 // buffered turn; the same rows from the same seed, every floor joined
 // the arcade module: extra lives, two players taking turns, the continue, initials into a table, the attract mode's phases
+// the rooms module (M5): from room to room on the grid (sideways keeping speed, down a hole, up into the room above), an
+// edge with no room past it a wall, a gate shut until given, the explored cells, a save that loads back, the map's cells
+function rooms(E, ed) {
+  if (!E.World) return check(`${ed}: rooms: E.World is there`, false, 'missing');
+  const was = Object.assign({}, E.store), mem = new Map();   // (Node has no storage: E.store held in memory for the test)
+  Object.assign(E.store, { get: (k, f = null) => mem.has(k) ? JSON.parse(mem.get(k)) : f, set: (k, v) => (mem.set(k, JSON.stringify(v)), true), remove: k => { mem.delete(k); } });
+  try {
+    const g = new E.Game({ headless: true }), T = 16;
+    const R = { a: { at: [0, 0], rows: ['########', '#.......', '#.......', '#.......', '#.......', '########'] },
+      b: { at: [1, 0], rows: ['########', '.......G', '.......G', '.......G', '.......G', '########', '#......#', '#......#', '#......#', '#......#', '#......#', '###..###'] },
+      c: { at: [1, 2], rows: ['###..###', '.......#', '.......#', '.......#', '.......#', '########'] },
+      d: { at: [2, 0], kind: 'save', rows: ['########', '.......#', '.......#', '.......#', '.......#', '########'] } };
+    const mk = () => new E.World(g, { id: 'contract-rooms', screen: [8, 6], legend: { '#': 1, G: 2 }, types: { 1: {}, 2: { gate: 'key' } }, rooms: R, start: 'a', transition: 'none' });
+    const w = mk(), h = new E.Platformer({ x: 3 * T, z: T, w: 10, h: 28 });
+    const go = (secs, c) => { let n = 0; for (let i = 0; i < secs * 120; i++) { h.update(1 / 120, w.map, typeof c === 'function' ? c(i) : c); if (w.update(1 / 120, h) === 'enter') n++; } return n; };
+    let n = 0, at = null; for (let i = 0; i < 240 && !n; i++) { h.update(1 / 120, w.map, { x: 1 }); if (w.update(1 / 120, h) === 'enter') { n++; at = [w.room.id, h.x, h.vx]; } }
+    check(`${ed}: rooms: walking off an open edge enters the room past it, the hero just inside and still running`, n === 1 && at[0] === 'b' && at[1] < T && at[2] > 50 && !!g.cam.bounds, JSON.stringify(at));
+    go(1.5, { x: 1 });
+    check(`${ed}: rooms: a gate's tiles are a wall until it is given`, w.room.id === 'b' && h.x < 8 * T - 4 && w.map.kind(7, 9) === 'solid', [w.room.id, Math.round(h.x)].join());
+    w.give('key'); n = go(1, { x: 1 });
+    check(`${ed}: rooms: given, its tiles go (in every room) and the hero walks on into the next`, w.has('key') && n === 1 && w.room.id === 'd' && w.room.def.kind === 'save', [n, w.room.id].join());
+    w.save(h, { n: 7 });
+    w.enter('b'); h.x = 3.5 * T; h.z = 3 * T; h.vx = h.vz = 0; at = null;   // (b's lower half: down its hole)
+    for (let i = 0; i < 240 && !at; i++) { h.update(1 / 120, w.map, {}); if (w.update(1 / 120, h) === 'enter') at = [w.room.id, h.z, h.vz]; }
+    check(`${ed}: rooms: falling through a hole in the floor enters the room below, near its top, still falling`, at && at[0] === 'c' && at[1] > 3 * T && at[2] < -50, JSON.stringify(at));
+    go(1, {}); h.vz = 420; n = go(.5, {});
+    check(`${ed}: rooms: rising through a hole in the ceiling enters the room above at its bottom`, w.room.id === 'b' && n === 1, [w.room.id, n, Math.round(h.z)].join());
+    h.x = 3.5 * T; go(2, {}); go(2, { x: -1 });
+    check(`${ed}: rooms: an open edge with no room past it is a wall`, w.room.id === 'c' && h.x >= h.w / 2 - .01 && h.x < T, [w.room.id, Math.round(h.x)].join());
+    const seen = ['0,0', '1,0', '1,1', '1,2', '2,0'].every(k => w.seen.has(k));
+    check(`${ed}: rooms: the cells walked through are seen; cells() lists the grid's five, the map draws and the shell's map marks the save room`, seen && w.cells().length === 5 && w.grid.w === 3 && w.grid.h === 3 && w.shellMap().markers.length === 1 && (w.drawMap(E.ctx2d(E.mkCanvas(64, 64)), 0, 0, 6), true), [[...w.seen].join(' '), w.cells().length, JSON.stringify(w.grid)].join(' | '));
+    const w2 = mk(), d = w2.load();
+    check(`${ed}: rooms: a save loads back: the room, the hero's place, what was got (its gates open) and seen, the extra`, d && d.room === 'd' && w2.room.id === 'd' && w2.has('key') && w2.rooms.b.map.kind(7, 9) !== 'solid' && w2.seen.has('1,0') && d.extra.n === 7 && d.x > 0, JSON.stringify(d && { room: d.room, got: d.got, extra: d.extra }));
+    w2.clear(); check(`${ed}: rooms: clear() forgets it`, mk().load() === null);
+  } finally { Object.assign(E.store, was); }
+}
+
+// the Platformer's further moves (section 16c), each on a small map of its own, driven by intents step by step
+function traversal(E, ed) {
+  const T = 16, map = (rows, types = {}) => new E.PlatformMap({ rows, legend: { '#': 1, w: 2, r: 3, b: 4, i: 5, c: 6, s: 7, x: 8, '/': 9 }, types: Object.assign({ 1: {}, 2: { kind: 'water' }, 3: { kind: 'rope' }, 4: { kind: 'bars' }, 5: { friction: .15 }, 6: { carry: 40 }, 7: { bounce: 520 }, 8: { crumble: .3, respawn: 1 }, 9: { kind: 'slope', dir: -1 } }, types) });
+  const hero = (lv, cx, cz, o) => { const h = new E.Platformer(Object.assign({ x: (cx + .5) * T, z: cz * T, w: 10, h: 28 }, o)); for (let i = 0; i < 20; i++) h.update(1 / 120, lv, {}); return h; };
+  const run = (lv, h, secs, fn) => { for (let i = 0; i < Math.round(secs * 120); i++) { h.update(1 / 120, lv, fn ? fn(i) : {}); if (lv.update) lv.update(1 / 120); } return h; };
+  const floor = n => '#'.repeat(n);
+  // defaults: none of it happens without its option
+  { const lv = map(['#..........#', '#..........#', '#..........#', '#....#.....#', floor(12)]), h = hero(lv, 3, 1);
+    run(lv, h, .5, () => ({ down: true, x: 1 }));
+    check(`${ed}: traversal: without its options a hero neither crouches nor clings nor hangs`, !h.crouching && !h.clinging && !h.hanging && h.h === 28, [h.crouching, h.h].join()); }
+  // crouch: half as tall, it crawls under a one-tile gap a standing hero can't enter
+  { const rows = ['#..............#', '#..............#', '#..............#', '#.....######...#', '#..............#', floor(16)];
+    const a = hero(map(rows), 2, 1, { crouch: true }), b = hero(map(rows), 2, 1);
+    run(map(rows), a, 2.5, () => ({ down: true, x: 1 })); const la = map(rows); const a2 = hero(la, 2, 1, { crouch: true }); run(la, a2, 2.5, () => ({ down: true, x: 1 }));
+    const lb = map(rows); const b2 = hero(lb, 2, 1); run(lb, b2, 2.5, () => ({ x: 1 }));
+    check(`${ed}: traversal: crouch halves the box and crawls under a one-tile gap; standing it can't get in`, a2.crouching && a2.h === 14 && a2.x > 8 * T && b2.x < 6 * T, [a2.h, Math.round(a2.x), Math.round(b2.x)].join()); }
+  // ledge: falling past a ledge it catches it, up climbs onto it
+  { const lv = map(['#.........#', '#.........#', '#.........#', '#.....####.', '#.....####.', '#.....####.', floor(11)]), h = hero(lv, 1, 1, { ledge: true });
+    h.x = 6 * T - 6; h.z = 4 * T - 18; h.vz = 0; h.onGround = false; let hung = false;
+    run(lv, h, .8, () => { hung = hung || !!h.hanging; return { x: 1 }; });
+    const hang = !!h.hanging; run(lv, h, .7, () => ({ up: true }));
+    check(`${ed}: traversal: a ledge caught falling past it, then up climbs onto it`, hung && hang && !h.hanging && h.onGround && Math.abs(h.z - 4 * T) < .5 && h.x > 6 * T, [hung, hang, Math.round(h.z), Math.round(h.x)].join()); }
+  // wallCling: pressed against a wall in the air it holds; jump leaps off it
+  { const lv = map(['#........#', '#........#', '#........#', '#........#', '#........#', '#........#', floor(10)]), h = hero(lv, 7, 1, { wallCling: true });
+    run(lv, h, .05, () => ({ x: 1, jump: true, jumpPressed: true })); run(lv, h, .3, () => ({ x: 1, jump: true }));
+    const z0 = h.z, held = h.clinging; run(lv, h, .5, () => ({ x: 1 })); const z1 = h.z;
+    run(lv, h, .1, i => ({ x: 1, jump: true, jumpPressed: i === 0 }));
+    check(`${ed}: traversal: wallCling holds on a wall without sliding; jump leaps away`, held === 1 && Math.abs(z1 - z0) < .01 && !h.clinging && h.vx < 0, [held, Math.round(z0), Math.round(z1), Math.round(h.vx)].join()); }
+  // water: it swims (slow sinking), a jump at the surface leaps out
+  { const lv = map(['#........#', '#........#', '#........#', '#wwwwwwww#', '#wwwwwwww#', '#wwwwwwww#', floor(10)]), h = hero(lv, 4, 6);
+    run(lv, h, 1); const swim = h.swimming, sinkV = h.vz; run(lv, h, 1.5, () => ({ up: true })); const atTop = h.z;
+    let peak = 0; run(lv, h, .8, i => { peak = Math.max(peak, h.z); return { jump: true, jumpPressed: i === 0 }; });
+    check(`${ed}: traversal: in water it swims (sinking slowly), rises, and a jump at the surface leaps out`, swim && sinkV > -40 && peak > 4 * T + 8, [swim, Math.round(sinkV), Math.round(atTop), Math.round(peak)].join()); }
+  // the ground's grip: ice slides farther, a conveyor carries, a spring throws it up, a crumbling block falls away and returns
+  { const slide = row => { const lv = map(['#..................#', '#..................#', row]), h = hero(lv, 2, 1); run(lv, h, .6, () => ({ x: 1 })); const x0 = h.x; run(lv, h, 1.5); return h.x - x0; };
+    const ice = slide('#iiiiiiiiiiiiiiiiii#'), rock = slide(floor(20));
+    const lc = map(['#........#', '#........#', '#cccccccc#']), hc = hero(lc, 2, 1), x0 = hc.x; run(lc, hc, 1);
+    const ls = map(['#........#', '#........#', '#........#', '#........#', '#ssssssss#']), hs = hero(ls, 4, 3); let peak = 0, sprung = false; run(ls, hs, 1.2, () => { peak = Math.max(peak, hs.z); sprung = sprung || hs.sprung; return {}; });
+    const lx = map(['#........#', '#........#', '#...x....#', '#........#', floor(10)]), hx = hero(lx, 4, 3); run(lx, hx, .5); const fell = lx.cell(4, 2) === 0 && hx.z < 2 * T; run(lx, hx, 1.2); const back = lx.cell(4, 2) === 8;
+    check(`${ed}: traversal: ice slides farther, a conveyor carries, a spring throws it high, a crumbling block falls away and comes back`, ice > rock * 3 && Math.abs(hc.x - x0 - 40) < 6 && sprung && peak > T * 4 + 100 && fell && back, [Math.round(ice), Math.round(rock), Math.round(hc.x - x0), sprung, Math.round(peak), fell, back].join()); }
+  // a rope: up grabs and climbs it; jump leaves it
+  { const lv = map(['#....r....#', '#....r....#', '#....r....#', '#....r....#', '#....r....#', floor(11)]), h = hero(lv, 5, 1);
+    run(lv, h, .8, () => ({ up: true })); const on = h.onRope, z = h.z; run(lv, h, .1, i => ({ x: 1, jump: true, jumpPressed: i === 0 }));
+    check(`${ed}: traversal: up grabs a rope and climbs it hand over hand; jump leaves it sideways`, on && z > T * 2 && !h.onRope && h.vx > 0, [on, Math.round(z), Math.round(h.vx)].join()); }
+  // bars: rising into them it hangs and travels under them; down lets go
+  { const lv = map(['##########', '#bbbbbbbb#', '#........#', '#........#', '#........#', floor(10)]), h = hero(lv, 2, 1);
+    run(lv, h, .5, i => ({ jump: true, jumpPressed: i === 0 })); const on = !!h.onBars, z0 = h.z, x0 = h.x; run(lv, h, .6, () => ({ x: 1, jump: true }));
+    const moved = h.x - x0, z1 = h.z; run(lv, h, .3, () => ({ down: true }));
+    check(`${ed}: traversal: a jump into bars hangs from them, travels along them at one height, down lets go`, on && moved > 15 && Math.abs(z1 - z0) < .01 && !h.onBars, [on, Math.round(moved), Math.round(z0), Math.round(z1)].join()); }
+  // swingFrom: a pendulum that pumping grows; jump lets go at its speed
+  { const lv = map(['#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '#..................#', floor(20)]), h = hero(lv, 8, 1);
+    h.z = 3 * T; h.onGround = false; h.swingFrom(10 * T, 7 * T); let lo = 1e9, hi = -1e9;
+    run(lv, h, 3, i => { lo = Math.min(lo, h.x); hi = Math.max(hi, h.x); return { x: Math.cos(i / 120 * 3.6) > 0 ? 1 : -1 }; });
+    const span = hi - lo; for (let i = 0; i < 240 && Math.abs(h.x - 10 * T) > 3; i++) run(lv, h, 1 / 120);   // let go passing under the point
+    let fly = 0; run(lv, h, .1, i => { if (i === 2) fly = h.vx; return { jump: true, jumpPressed: i === 0 }; });
+    check(`${ed}: traversal: swingFrom swings across under its point, pumping widens it, jump lets go with its speed`, lo < 10 * T && hi > 10 * T && span > 40 && !h.swinging && Math.abs(fly) > 20 && Math.abs(h.vx - fly) < 1, [Math.round(lo), Math.round(hi), Math.round(fly), Math.round(h.vx)].join()); }
+  // momentum: downhill it gains past its run speed; down while still and jump charge a dash
+  { const rows = ['#.....................#', '#.....................#', '#/....................#', '##/...................#', '###/..................#', '####/.................#', '#####/................#', floor(23)];
+    const lv = map(rows), h = hero(lv, 1, 6, { momentum: true }); let top = 0; run(lv, h, 1.4, () => { top = Math.max(top, Math.abs(h.vx)); return { x: 1 }; });
+    const lf = map(['#..................#', floor(20)]), f = hero(lf, 2, 1, { momentum: true }); let ftop = 0; run(lf, f, 1.4, () => { ftop = Math.max(ftop, Math.abs(f.vx)); return { x: 1 }; });
+    const ld = map(['#..................#', floor(20)]), d = hero(ld, 2, 1, { momentum: true }); run(ld, d, .4, i => ({ down: true, jump: true, jumpPressed: i % 12 === 0 })); const charged = d.charge; run(ld, d, .05);
+    check(`${ed}: traversal: with momentum a slope downhill takes it past its run speed; a charged dash goes faster still`, top > h.run * 1.15 && ftop <= f.run + .5 && charged > .5 && d.rolling && Math.abs(d.vx) > d.run * 1.4, [Math.round(top), Math.round(ftop), charged.toFixed(2), Math.round(d.vx)].join()); }
+  // the rig's poses: prone, level, and hung at an angle
+  { const r = new E.Humanoid({ size: 1, build: 'heroic' }), at = st => { for (let i = 0; i < 60; i++) r.update(1 / 60, Object.assign({ x: 0, y: 0, z: 0 }, st)); return { head: r.J.head.slice(), hip: r.J.hipC.slice(), hand: r.J.handR.slice(), foot: r.J.footR.slice() }; };
+    const stand = at({}), crawl = at({ crawl: true, vx: 20, vy: 0 }), swim = at({ swim: true }), swing = at({ swing: .8 });
+    check(`${ed}: traversal: the rig crawls prone, swims level and hangs at a swing's angle`, crawl.head[2] < stand.head[2] * .45 && Math.abs(swim.head[2] - swim.hip[2]) < 6 && swim.head[0] > 6 && swing.hand[2] > swing.head[2] && Math.abs(swing.foot[0] - swing.hand[0]) > 6, [crawl.head[2].toFixed(1), stand.head[2].toFixed(1), (swim.head[2] - swim.hip[2]).toFixed(1), swim.head[0].toFixed(1), (swing.foot[0] - swing.hand[0]).toFixed(1)].join()); }
+}
+
 function arcades(E, ed) {
   const game = new E.Game({ headless: true }), I = game.input, step = (n = 1) => { for (let i = 0; i < n; i++) game.advance(1 / 60); };
   const a = new E.Arcade(game, { id: 'ct-every-' + ed, lives: 2, every: 1000 }); a.start(1); a.add(2500);

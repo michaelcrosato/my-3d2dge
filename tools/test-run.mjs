@@ -34,6 +34,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['motion', 'node tools/motion-test.mjs', ['tools/motion-test.mjs', 'tools/fixtures/motion.html', 'tools/filmstrip.mjs']],
   ['fight', 'node tools/fight-test.mjs', ['engine/modules/fight.js', 'src/starter/55-fighting.js', 'tools/fight-test.mjs']],
   ['players', 'node tools/players-test.mjs', ['tools/players-test.mjs', 'tools/fixtures/players.html', 'tools/filmstrip.mjs']],
+  ['traversal', 'node tools/traversal-test.mjs', ['tools/traversal-test.mjs', 'tools/fixtures/traversal.html', 'tools/filmstrip.mjs']],
   ['modules', 'node tools/modules-test.mjs', ['engine/modules/', 'tools/fixtures/', 'tools/modules-test.mjs', 'tools/api-index.mjs', 'tools/doctrine-check.mjs', 'tools/contract-test.mjs', 'tools/agent-test.mjs', 'tools/version.mjs']],
   ['mocap', 'node tools/mocap-test.mjs', ['src/mocap/', 'src/mocap.template.html', 'src/mocap.game.js', 'tools/mocap-test.mjs', 'tools/mocap-lib.mjs', 'tools/anim-']],
   ['ed-clips', 'node tools/ed-clips-test.mjs', ['src/emberdeep/', 'src/mocap/', 'tools/ed-clips-test.mjs']],

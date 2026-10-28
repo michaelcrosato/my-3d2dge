@@ -1,0 +1,57 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>traversal fixture</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
+<body><canvas id="screen"></canvas>
+<script src="../../dist/my-3d2dge.js"></script>
+<script>
+// the traversal suite's page (tools/traversal-test.mjs): ?move=<name> plays one of the Platformer's further moves on a
+// small map of its own, driven step by step by a script (an intent each fixed step, so a filmstrip repeats exactly):
+// crouch, ledge, cling, swim, ice, conveyor, spring, crumble, rope, bars, swing, momentum. window.__fx: { game, hero, seen }
+(() => {
+const E = My3D2dge, Q = new URLSearchParams(location.search), move = Q.get('move') || 'crouch';
+const game = new E.Game({ canvas: 'screen', res: [320, 180], view: 'side', menu: false, fullscreen: false, corner: false });
+const T = 16, floor = n => '#'.repeat(n);
+const TYPES = { 1: { style: 'stone', side: '#6a6488' }, 2: { kind: 'water', side: '#3a7ad8' }, 3: { kind: 'rope', side: '#c8a060', leaves: '#4aa040' }, 4: { kind: 'bars', side: '#a8a8c0' },
+  5: { friction: .15, style: 'block', side: '#a8e0ff' }, 6: { carry: 50, style: 'metal', side: '#8a8a9a' }, 7: { bounce: 470, style: 'bonus', side: '#e05a5a' }, 8: { crumble: .35, respawn: 1.6, style: 'brick', side: '#b07a4a' },
+  9: { kind: 'slope', dir: -1, style: 'ground', side: '#7a5a3a' }, 10: { kind: 'oneway' } };
+const LEGEND = { '#': 1, w: 2, r: 3, b: 4, i: 5, c: 6, s: 7, x: 8, '/': 9, '-': 10, '@': 'hero', o: 'hook' };
+// each move: its map, the hero's options and a script: an intent for step i (120 a second)
+const M = {
+  crouch: { rows: ['#..................#', '#..................#', '#..................#', '#.......######.....#', '#.@................#', floor(20)], o: { crouch: true }, go: i => i < 60 ? {} : i < 140 ? { x: 1 } : i < 420 ? { x: 1, down: true } : { x: 1 } },
+  ledge: { rows: ['#..................#', '#..................#', '#..................#', '#..........#########', '#..........#########', '#..........#########', '#.@........#########', floor(20)], o: { ledge: true }, go: i => i < 30 ? {} : i < 170 ? { x: 1 } : i < 185 ? { x: 1, jump: true, jumpPressed: i === 170 } : i < 260 ? { x: 1 } : i < 300 ? { up: true } : { x: 1 } },
+  cling: { rows: ['#.................##', '#.................##', '#.................##', '#.................##', '#.................##', '#...............@.##', floor(20)], o: { wallCling: true }, go: i => i < 30 ? {} : i < 40 ? { x: 1, jump: true, jumpPressed: i === 30 } : i < 80 ? { x: 1, jump: true } : i < 220 ? { x: 1 } : i < 230 ? { x: 1, jump: true, jumpPressed: i === 220 } : i < 260 ? { jump: true } : {} },
+  swim: { rows: ['#..................#', '#.@................#', '#####..............#', '#wwwwwwwwwwwwwwwwww#', '#wwwwwwwwwwwwwwwwww#', '#wwwwwwwwwwwwwwwwww#', '#wwwwwwwwwwwwwwwwww#', floor(20)], o: {}, go: i => i < 30 ? {} : i < 90 ? { x: 1 } : i < 300 ? { x: 1, jump: i % 40 < 6, jumpPressed: i % 40 === 0 } : i < 420 ? { x: 1, up: true } : { x: 1, jump: true, jumpPressed: i === 420 } },
+  ice: { rows: ['#..................#', '#..................#', '#.@................#', '#iiiiiiiiiiiiiiiiii#'], o: {}, go: i => i < 30 ? {} : i < 150 ? { x: 1 } : {}, judge: m => [m.x[440] - m.x[150] > 25, 'slid ' + Math.round(m.x[440] - m.x[150]) + ' after letting go'] },
+  conveyor: { rows: ['#..................#', '#..................#', '#.@................#', '#cccccccccccccccccc#'], o: {}, go: i => ({}), judge: m => [m.x[330] - m.x[30] > 100, 'carried ' + Math.round(m.x[330] - m.x[30]) + ' standing still'] },
+  spring: { rows: ['#..................#', '#..................#', '#..................#', '#..................#', '#..................#', '#.@................#', '###sss###sss###sss##'], o: {}, go: i => i < 30 ? {} : { x: .5 } },
+  crumble: { rows: ['#..................#', '#..................#', '#.@................#', '###xxxxxxxxxx######', '#..................#', floor(20)], o: {}, go: i => i < 30 ? {} : { x: .3 }, judge: m => [m.lowZ < 40, 'fell to ' + Math.round(m.lowZ)] },
+  rope: { rows: ['#..................#', '#.......r..........#', '#.......r..........#', '#.......r..........#', '#.......r..........#', '#.@.....r..........#', floor(20)], o: {}, go: i => i < 30 ? {} : i < 150 ? { x: 1 } : i < 270 ? { up: true } : i < 282 ? { x: 1, jump: true, jumpPressed: i === 270 } : {} },
+  bars: { rows: ['####################', '#.bbbbbbbbbbbbbbbbb#', '#..................#', '#..................#', '#.@................#', floor(20)], o: {}, go: i => i < 30 ? {} : i < 60 ? { jump: true, jumpPressed: i === 30 } : i < 380 ? { x: 1, jump: true } : { down: true } },
+  swing: { rows: ['#............o.........#', '#......................#', '#......................#', '#......................#', '#......................#', '#......................#', '#.........@............#', floor(24)], o: {}, go: i => i < 30 ? {} : i < 60 ? { x: 1, jump: true, jumpPressed: i === 30 } : i < 420 ? { x: Math.cos((i - 60) / 120 * 3.4) > 0 ? 1 : -1 } : { x: 1, jump: true, jumpPressed: i === 420 } },
+  momentum: { rows: ['#..........................#', '#@.........................#', '##/........................#', '###/.......................#', '####/......................#', '#####/.....................#', '######/....................#', floor(28)], o: { momentum: true }, go: i => i < 30 ? {} : i < 240 ? { x: 1 } : i < 300 ? { x: 1, down: true } : {} }
+};
+const D = M[move], map = new E.PlatformMap({ rows: D.rows, legend: LEGEND, types: TYPES }), at = map.find('hero'), hook = map.find('hook');
+const hero = new E.Platformer(Object.assign({ x: at.x, z: at.z, w: 9, h: 28, run: 95, jump: 300 }, D.o));
+const rig = new E.Humanoid({ size: 1, build: 'heroic', weapon: null, hair: 'ponytail', colors: { cloth: '#3a8ad8', pants: '#2a3a5a', hair: '#e0a040' } });
+const seen = {}, marks = { x: [], lowZ: 1e9 }; let i = 0;
+game.start({ update(dt) {
+  let c = D.go(i++) || {};
+  if (move === 'swing' && i === 50 && hook) hero.swingFrom(hook.x, hook.z + 8);   // (the grapple fires at the hook)
+  hero.update(dt, map, c); map.update(dt);
+  marks.x[i] = hero.x; marks.lowZ = Math.min(marks.lowZ, hero.z);
+  for (const k of ['crouching', 'hanging', 'climbUp', 'clinging', 'swimming', 'onRope', 'onBars', 'swinging', 'rolling', 'sprung']) if (hero[k]) seen[k] = (seen[k] || 0) + 1;
+  rig.update(dt, hero.rigState());
+  game.focus(hero.x, 0, hero.z + 24);
+}, draw(r) {
+  map.draw(r);
+  if (hook) r.queue(hook.x, 0, hook.z + 8, g => { const [x, y] = r.w(hook.x, 0, hook.z + 8); E.px.disc(g, x, y, 3, '#e8e8f0'); E.px.disc(g, x, y, 1.5, '#5a5a70'); });
+  if (hero.swinging) { const S = hero.swinging; r.overlay(g => { const a = r.w(S.x, 0, S.z), b = r.w(hero.x, 0, hero.z + hero.h); E.px.line(g, a[0], a[1], b[0], b[1], '#e8d8a0'); }); }
+  r.actor(hero.x, 0, hero.z, (g, ox, oy) => rig.draw(g, ox, oy, r.view));
+  map.drawWater(r);
+  r.overlay(g => E.font.text(g, move.toUpperCase(), 4, 4, '#ffffff', { shadow: '#000', outline: false }));
+} });
+game.cam.bounds = v => map.bounds(v); game.cam.snap = true;
+// judge(): did the move happen (D.judge for the moves the hero's state doesn't show: ice, conveyors, crumbling)
+window.__fx = { game, hero, seen, map, judge: () => D.judge ? D.judge(marks) : [true, ''] };
+})();
+</script></body></html>
