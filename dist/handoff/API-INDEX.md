@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.68.0)
+# my-3D2dge API index (v0.69.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,52 +48,53 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 98 The engine object (E = My3D2dge)
-- 109 Math
-- 183 Pixel primitives
-- 202 Sprite frames, turns and swaps
-- 208 Views (projections); E.View: view
-- 235 Screen; game.screen
-- 257 Input; E.Input: input
-- 335 Pixel font
-- 346 Lighting; game.lights
-- 365 Particles; E.Particles: game.particles
-- 385 Renderer; r
-- 432 Game; E.Game: game
-- 542 Standard features; settings, fullscreen
-- 559 10c. Boot
-- 564 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 581 10e. Paths; E.Path: path
-- 591 10g. Weather
-- 595 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 668 Blob rig; E.Blob: blob
-- 688 Tile map; E.TileMap: map
-- 747 Materials
-- 768 Flow field; E.FlowField: flow
-- 786 Texture helpers for floortex functions
-- 797 Platform map; E.PlatformMap: level
-- 831 Platformer; E.Platformer: hero
-- 872 Body; E.Body: body
-- 892 Actions; E.Action: action
-- 914 17c. Mover; E.Mover: mover
-- 953 17d. Perception; E.Suspicion: suspicion
-- 970 Bullets; E.Bullets: shots
-- 990 Spatial hash; E.SpatialHash: grid
-- 1000 Audio; game.audio
-- 1022 Backdrops; E.Backdrop: backdrop
-- 1030 21c. Props
-- 1035 21e. Shapes
-- 1047 Ui; E.Dialog: talk, E.Menu: menu
-- 1102 21d. Shell; E.Shell: shell
-- 1131 Gpu lighting (webgpu); game.gpu
-- 1152 Sessions
-- 1161 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1196 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1277 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1288 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1343 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1366 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1383 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 99 The engine object (E = My3D2dge)
+- 110 Math
+- 184 Pixel primitives
+- 203 Sprite frames, turns and swaps
+- 209 Views (projections); E.View: view
+- 236 Screen; game.screen
+- 258 Input; E.Input: input
+- 336 Pixel font
+- 347 Lighting; game.lights
+- 366 Particles; E.Particles: game.particles
+- 386 Renderer; r
+- 433 Game; E.Game: game
+- 543 Standard features; settings, fullscreen
+- 560 10c. Boot
+- 565 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 582 10e. Paths; E.Path: path
+- 592 10g. Weather
+- 596 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 669 Blob rig; E.Blob: blob
+- 689 Tile map; E.TileMap: map
+- 748 Materials
+- 769 Flow field; E.FlowField: flow
+- 787 Texture helpers for floortex functions
+- 798 Platform map; E.PlatformMap: level
+- 832 Platformer; E.Platformer: hero
+- 873 Body; E.Body: body
+- 893 Actions; E.Action: action
+- 915 17c. Mover; E.Mover: mover
+- 954 17d. Perception; E.Suspicion: suspicion
+- 971 Bullets; E.Bullets: shots
+- 991 Spatial hash; E.SpatialHash: grid
+- 1001 Audio; game.audio
+- 1023 Backdrops; E.Backdrop: backdrop
+- 1031 21c. Props
+- 1036 21e. Shapes
+- 1048 Ui; E.Dialog: talk, E.Menu: menu
+- 1103 21d. Shell; E.Shell: shell
+- 1132 Gpu lighting (webgpu); game.gpu
+- 1153 Sessions
+- 1162 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1197 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1235 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1316 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1327 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1382 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1405 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1422 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
 
 ## The engine object (E = My3D2dge)
 
@@ -102,7 +103,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.68.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.69.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1192,6 +1193,44 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `arcade.phase = 'title'`: the attract mode's, 'title' | 'demo' | 'scores'
 - `arcade.players = []`: [{ n, score, lives, save (the game's own: a stage kept while the other plays), next (the score of the next extra life) }]
 - `arcade.wheel = null`: where the letter wheel was last drawn (taps answer to it): { x, y, cw, up, down, ok } in screen pixels: three columns cw wide from x, the up and down bands [y0, y1], the OK button [x, y, w, h]
+
+## Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js)
+
+- `new E.Car(o = {}) → car`: new E.Car({ x, y, angle, top, accel, brake, turn, grip, drift, kart, auto, surfaces, ground }): a car (the manual)
+- `E.Car.collide(cars)`: bump every pair of cars that touch apart (equal weights, a little bounce)
+- `car.boost(sec = .8, power = .4)`: a boost: seconds of it, power (.4: top speed up by that share)
+- `car.spinOut(sec = 1)`: spin out (a shot, a hazard): seconds without control, most of its speed lost
+- `car.update(dt, map, c = {})`: one step: steering, engine, grip, drift, the surface, then E.Body's walls and hop. c: an input or an intent
+- `car.airT = 0`: a hop's seconds in the air
+- `car.angle`: its heading
+- `car.boostT = 0`: a boost's seconds left
+- `car.bumped = false`: it hit a wall or a car this step
+- `car.charge = 0`: a kart's drift boost building (1 blue, 2 orange)
+- `car.drifting = 0`: -1 left, 1 right, 0 not
+- `car.o`: its options
+- `car.offroad = false`: on a surface that slows it
+- `car.onGround = false`, `car.vz`: E.Body's (a hop leaves the ground)
+- `car.slide = 0`: sideways
+- `car.speed = 0`: along it (units a second, - backing up)
+- `car.spinT = 0`: a spin-out's
+- `car.surface = null`: the floor tag under it
+- `car.vx`, `car.vy`: its speed on the ground (E.Body's): along its heading and the slide
+- `new E.Race(o = {}) → race`: new E.Race({ path, laps, checkpoints, countdown, width, items }): a race round a closed path (the manual)
+- `race.add(car, o = {})`: a racer: its car, o.name, o.input (a player's controls) or o.ai ({ skill, rubber, lane }); returns it
+- `race.box(x, y)`: an item box at (x, y): a racer that drives through it gets an item (when it holds none)
+- `race.drive(R, dt)`: a racer's way round: the intent race.update gives an AI racer's car (look ahead along the line, bends, overtakes, unsticking, the rubber band)
+- `race.grid(n)`: the start: n places behind the line, two by two, facing along it: [{ x, y, angle }]
+- `race.hud(r, R, o = {})`: the standard HUD for a racer, in its viewport: place, lap, time, item, the countdown, WRONG WAY, FINISH (o.color; o.right: the x its right-hand text ends before, clear of a corner button)
+- `race.update(dt, map)`: one step: the countdown, every car, bumps, items, progress, laps, wrong way, places, the finish
+- `race.use(R)`: fire a racer's item: boost (now), shot (ahead along its heading), hazard (behind it)
+- `race.boxes = []`, `race.hazards = []`, `race.shots = []`: the items on the track
+- `race.go = false`: racing (the countdown over)
+- `race.o`: its options
+- `race.over = false`: every racer finished
+- `race.path`: the racing line
+- `race.racers = []`: every racer, in the order added
+- `race.results = []`: the racers as they finished
+- `race.t`: seconds since GO (- before it)
 
 ## Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js)
 

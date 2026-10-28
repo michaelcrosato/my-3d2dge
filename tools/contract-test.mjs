@@ -72,6 +72,7 @@ for (const [ed, file] of EDITIONS) {
   arcades(E, ed);   // (and the arcade module)
   rooms(E, ed);   // (and the rooms module)
   views(E, ed);   // (and the mode7 and road modules)
+  drive(E, ed);   // (and the drive module: its races on the full engine, which has E.Path)
   shellHeadless(E, ed);
 }
 
@@ -490,6 +491,52 @@ function views(E, ed) {
   const L = 200, jumps = []; for (let k = 1; k < road.segs.length; k++) jumps.push(Math.abs(road.yAt(k * L - 1e-6) - road.yAt(k * L)));
   check(`${ed}: views: road: its lap; distance wraps; a curve eases in to its strength and out; a hill climbs smoothly to its height`, road.length === 120 * L && road.seg(-1) === road.segs[119] && road.seg(road.length + 5) === road.segs[0] && road.curveAt(30 * L) === 0 && road.curveAt(60 * L) === 4 && road.curveAt(89 * L) < 1 && Math.abs(road.segs[89].y1 - 3000) < 1e-9 && Math.max(...jumps) < 1e-3, [road.curveAt(30 * L), road.curveAt(60 * L), road.curveAt(89 * L).toFixed(2), Math.max(...jumps).toFixed(5)].join());
   check(`${ed}: views: road: a body touches the scenery beside it, not across the road; nothing is projected before a draw`, road.hits(1100, -1.4, .1).length === 1 && road.hits(1100, 0, .1).length === 0 && road.hits(3000, -1.4, .1).length === 0 && road.project(1000, 0) === null && road.ahead(1000) === 1000 * road.depth && road.segs[95].tunnel);
+}
+
+// the drive module (M6b): a car's speed, grip and slide, a kart's drift and its boost, the ground that slows it, walls and
+// cars it bounces off; a race's laps through its checkpoints (a shortcut counts nothing), the wrong way, the places, and
+// drivers that finish three laps round an oval without sticking
+function drive(E, ed) {
+  if (!E.Car || !E.Race) return check(`${ed}: drive: E.Car and E.Race are there`, false, 'missing');
+  const run = (car, map, secs, it) => { for (let i = 0; i < secs * 120; i++) car.update(1 / 120, map, typeof it === 'function' ? it(i) : it); return car; };
+  const open = new E.TileMap({ w: 120, h: 120 }), top = 200;
+  const a = run(new E.Car({ x: 100, y: 1000, angle: 0, top }), open, 4, { gas: 1 });
+  check(`${ed}: drive: a car reaches its top speed along its heading, no slide`, Math.abs(a.speed - top) < 2 && Math.abs(a.y - 1000) < .01 && Math.abs(a.slide) < .01, [a.speed.toFixed(1), a.y.toFixed(2)].join());
+  let worst = 0; run(a, open, 2, i => (worst = Math.max(worst, Math.abs(a.slide) / Math.max(1, a.speed)), { gas: 1, steer: 1 }));
+  const turned = a.angle;
+  check(`${ed}: drive: steering at speed it turns, grip keeping its slide small`, turned > 2 && worst < .25, [turned.toFixed(2), worst.toFixed(3)].join());
+  const k = run(new E.Car({ x: 100, y: 1000, angle: 0, top, kart: true }), open, 3, { gas: 1 }); let drifted = 0, slide = 0;
+  run(k, open, 1.2, i => { if (k.drifting) drifted++; slide = Math.max(slide, Math.abs(k.slide)); return { gas: 1, steer: 1, drift: true }; });
+  const charge = k.charge, held = k.drifting, kv = k.speed; run(k, open, 1 / 60, { gas: 1, steer: 1 });
+  check(`${ed}: drive: a kart hops into a drift, slides wide keeping its speed, and letting go of a charged drift boosts it`, drifted > 100 && held === 1 && slide > 25 && kv > top * .5 && charge >= 1 && k.boostT > 0 && !k.drifting, [drifted, slide.toFixed(1), kv.toFixed(1), charge.toFixed(2), k.boostT.toFixed(2)].join());
+  const grass = new E.TileMap({ w: 120, h: 120, floor: new Array(120 * 120).fill('grass') }), g = run(new E.Car({ x: 100, y: 1000, angle: 0, top }), grass, 4, { gas: 1 });
+  check(`${ed}: drive: grass holds it to half its top speed (off-road)`, g.offroad && g.surface === 'grass' && Math.abs(g.speed - top * .5) < 2, [g.surface, g.speed.toFixed(1)].join());
+  const walled = new E.TileMap({ rows: ['##########', '#........#', '#........#', '##########'], legend: { '#': 1 }, types: { 1: { h: 30 } } }), w = run(new E.Car({ x: 40, y: 32, angle: 0, top }), walled, 3, { gas: 1 });
+  check(`${ed}: drive: a wall stops it (bumped, kept out)`, w.x < 9 * 16 - w.r + .5 && Math.abs(w.speed) < 40, [w.x.toFixed(1), w.speed.toFixed(1)].join());
+  const c1 = new E.Car({ x: 100, y: 100 }), c2 = new E.Car({ x: 108, y: 100 }); c1.vx = 50; E.Car.collide([c1, c2]);
+  check(`${ed}: drive: two cars that touch are bumped apart, the speed shared`, c2.x - c1.x >= c1.r + c2.r - .01 && c2.vx > 0 && c1.vx < 50 && c1.bumped && c2.bumped, [c1.x.toFixed(1), c2.x.toFixed(1), c1.vx.toFixed(1), c2.vx.toFixed(1)].join());
+  if (!E.Path) return;   // (the races: the full engine, which has E.Path)
+  const pts = []; for (let i = 0; i < 16; i++) { const t = i / 16 * Math.PI * 2; pts.push([480 + Math.cos(t) * 360, 480 + Math.sin(t) * 240]); }
+  const path = new E.Path(pts, { closed: true, smooth: 'catmull' }), N = 60, T = 16, cells = [];
+  for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) { const x = (cx + .5) * T, y = (cy + .5) * T, p = path.at(path.nearest(x, y)); cells.push(Math.hypot(p.x - x, p.y - y) > 80 ? 1 : 0); }
+  const oval = new E.TileMap({ w: N, h: N, cells, types: { 1: { h: 30 } } }), L = path.length;
+  // a lap by hand: placed round the line in order counts; jumped across from a quarter to the end counts nothing
+  const lapRace = new E.Race({ path, laps: 2, countdown: 0 }), hand = lapRace.add(new E.Car(lapRace.grid(1)[0]), { input: { move: () => [0, 0], down: () => false, pressed: () => false } });
+  const put = d => { const p = path.at(d); Object.assign(hand.car, { x: p.x, y: p.y, angle: p.angle, vx: 0, vy: 0 }); lapRace.update(1 / 120, oval); };
+  for (let d = 0; d <= L + 30; d += 20) put(d);
+  const one = hand.lap; put(L + L * .25); put(L * 2 - 10); put(L * 2 + 5);
+  check(`${ed}: drive: race: a lap round the line through every checkpoint counts; a shortcut across counts nothing`, one === 1 && hand.lap === 1 && hand.times.length === 1, [one, hand.lap].join());
+  const back = lapRace.add(new E.Car({ x: path.at(L / 2).x, y: path.at(L / 2).y, angle: path.at(L / 2).angle + Math.PI }), { input: { move: () => [0, 0], down: a2 => a2 === 'gas', pressed: () => false } });
+  for (let i = 0; i < 160; i++) lapRace.update(1 / 120, oval);
+  check(`${ed}: drive: race: driving against the line says WRONG WAY`, back.wrong && !hand.wrong);
+  // six drivers, three laps
+  const race = new E.Race({ path, laps: 3 }), was = Math.random; Math.random = E.rng(3);
+  try {
+    race.grid(6).forEach((p, i) => race.add(new E.Car(Object.assign({ kart: true, top: 200 + i * 4, r: 8 }, p)), { name: 'K' + i }));
+    let t = 0, stuck = 0; while (!race.over && t < 200) { race.update(1 / 120, oval); t += 1 / 120; for (const R of race.racers) stuck = Math.max(stuck, R._stuck); }
+    const places = race.racers.map(R => R.place).sort().join();
+    check(`${ed}: drive: race: six drivers finish three laps round an oval, none stuck, every place given once`, race.over && race.results.length === 6 && race.racers.every(R => R.lap === 3 && R.times.length === 3) && stuck < 1.2 && places === '1,2,3,4,5,6' && race.results[0].place === 1, [t.toFixed(1), stuck.toFixed(2), places].join(' | '));
+  } finally { Math.random = was; }
 }
 
 // the Platformer's further moves (section 16c), each on a small map of its own, driven by intents step by step

@@ -604,6 +604,22 @@ Needs M1 (paths, scaled and animated sprites) and M4 (split screen).
   `hits`, `ahead`, `project`. The `views` suite (`tools/views-test.mjs`, its fixture `tools/fixtures/views.html`)
   films both views twice and times a frame of each on an emulated phone; the contract test's views group holds the
   projections in numbers; the stress test's depth view films the same pixels as before.
+- **As built, 6b (v0.69.0):** `engine/modules/drive.js` (after either edition; `E.Race` takes an `E.Path`, the full
+  engine's): `E.Car`, an `E.Body` with a heading, speed along it and a slide across it that grip takes away; `top`,
+  `accel`, `brake`, `turn`, `grip`, `drift`; a kart's hop into a drift that charges a boost (blue, then orange); a car's
+  handbrake; the floor's tag under it from `surfaces` (`grass` half speed, `sand`, `dirt`, `ice`, `boost` pads); walls
+  through the TileMap and `E.Car.collide` between cars; `boost`, `spinOut`; driven by an input or an intent.
+  `E.Race`: a closed path as the racing line, `grid(n)`, laps through checkpoints in order, the wrong way, places, the
+  results; drivers that look ahead, slow for the sharpest bend ahead to the speed it allows, drift, pass, back out of a
+  wall and rubber-band; item boxes (a boost, a shot, a hazard) and `use`; `hud(r, racer)`. The KART kit
+  (`src/starter/65-kart.js`, family RACING, `#kart/race`, `#kart/vs`): a circuit of a TileMap's cells drawn by
+  `E.Mode7` (road, kerbs, grass, sand, boost pads, the start line, a low wall, a wood with trees), six karts drawn as
+  boxes round an HD rig seated in each, sorted from the camera's side; item boxes; the map in the corner; VS in a split
+  screen for two; the results. The ROAD kit (`src/starter/66-road.js`, `#road/drive`): five stretches on `E.Road`
+  (the beach, hills, a tunnel, the desert, the city) with their skies, scenery and traffic, two gears, a clock and four
+  checkpoints that add time, the goal, a radio of three songs. `kits-test`'s bots: six karts finish three laps and two
+  players race in a split screen; the road's bot reaches the goal. The contract test's drive group; phone cases 13
+  and 14.
 
 ### M7: stories, RPG systems and big maps (core dialog markup, save slots and big ground maps; modules `story`, `rpg`; the RPG kit grows) in two pull requests
 

@@ -32,11 +32,11 @@ import { modules as allModules, resolve as resolveModules, sliceModules } from '
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
 const STARTER = 'src/starter', STARTER3D = 'src/starter3d', ENGINE3D = 'engine/my-3d2dge-3d.js';
-const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', metroidvania: 'METROIDVANIA (a world of rooms: its map, two abilities that open its gates, a save room, two bosses)', brawler: "BRAWLER (beat-'em-up)", fighting: 'FIGHTING (one on one: three fighters, versus, arcade, training)', shooter: 'SHOOTER (vertical shoot-em-up)', arcade: 'ARCADE (a cabinet of three: maze, formation, rocks)', puzzle: 'PUZZLE (falling blocks and falling pairs)', rpg: 'RPG BATTLE (turn-based battle)', roguelike: 'ROGUELIKE (a turn-based crypt of generated floors)', stealth: 'STEALTH (third-person stealth and parkour)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
+const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', metroidvania: 'METROIDVANIA (a world of rooms: its map, two abilities that open its gates, a save room, two bosses)', brawler: "BRAWLER (beat-'em-up)", fighting: 'FIGHTING (one on one: three fighters, versus, arcade, training)', shooter: 'SHOOTER (vertical shoot-em-up)', arcade: 'ARCADE (a cabinet of three: maze, formation, rocks)', kart: 'KART (Mode 7 karts: six on a circuit, three laps, items, two players in a split screen)', road: 'ROAD (a pseudo-3D coast road against the clock: curves, hills, a tunnel, traffic, checkpoints, a radio)', puzzle: 'PUZZLE (falling blocks and falling pairs)', rpg: 'RPG BATTLE (turn-based battle)', roguelike: 'ROGUELIKE (a turn-based crypt of generated floors)', stealth: 'STEALTH (third-person stealth and parkour)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
 const ALL = {
-  GAMES: 'eleven working games and an animation lab',
-  CONTENTS: "a title menu plus eleven vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, PUZZLE, RPG BATTLE,\n       ROGUELIKE, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.",
-  LINKS: 'Deep links: add #adventure, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #puzzle, #rpg, #roguelike, #stealth or\n       #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal, #fighting/versus,\n       #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss and #metroidvania/map jump into a part.'
+  GAMES: 'thirteen working games and an animation lab',
+  CONTENTS: "a title menu plus thirteen vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, KART, ROAD, PUZZLE,\n       RPG BATTLE, ROGUELIKE, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.",
+  LINKS: 'Deep links: add #adventure, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #kart, #road, #puzzle, #rpg, #roguelike,\n       #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,\n       #fighting/versus, #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map, #kart/race,\n       #kart/vs and #road/drive jump into a part.'
 };
 // THE KIT DIET (docs/HANDOFF-GENRES.md, 3.3): a kit's engine leaves out the core's sections its game never calls. This
 // table names the parts that may go (one or more of the core's sections, by number) and, where a part is reached only
@@ -67,7 +67,7 @@ const DIET = [
   { part: 'players', sections: ['10j'], entries: ['allowJoin', 'addPlayer', 'removePlayer', 'splitScreen', 'viewport', 'halfKeys'] }   // game.allowJoin, game.splitScreen, Input.halfKeys (game.players and game.viewports are the core's)
 ];
 // the parts a slice's deep link can jump into (#arcade/maze), named in its kit's header
-const PARTS = { arcade: ['maze', 'formation', 'rocks'], shooter: ['horizontal'], fighting: ['versus', 'arcade', 'training'], metroidvania: ['miniboss', 'boss', 'map'] };
+const PARTS = { arcade: ['maze', 'formation', 'rocks'], shooter: ['horizontal'], fighting: ['versus', 'arcade', 'training'], metroidvania: ['miniboss', 'boss', 'map'], kart: ['race', 'vs'], road: ['drive'] };
 // a kit's line on its modules (the scripts marked "inlined from engine/modules/...", after the engine), when it has any
 const modLine = mods => mods.length ? '\n       Its modules: ' + resolveModules(mods, MODS).map(m => m.name).join(', ') + ' (engine/modules/), each loaded after the engine.' : '';
 const kit = (id, mods = []) => ({
