@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.77.1 (2026-10-28)
+
+The genre plan's Milestone 11, closed: its progress row complete.
+
+- **Docs**: `docs/HANDOFF-GENRES.md`: section 9's M11 row with its two commits (`760eeff`, #180; `d1c1ee9`, #181), what each brought, the sizes at v0.77.0, the bots, `test:changed` for both, the full `npm test` on `main` after each merge, and what is left (the owner's PINBALL and ARTILLERY checks on the Labs page).
+
 ## 0.77.0 (2026-10-28)
 
 Physics toys, the kits: the genre plan's Milestone 11, its second half (11b): the PINBALL and ARTILLERY kits, and touch zones in the core. Every other kit plays as before (filmed beside v0.76.0: the same pixels).
