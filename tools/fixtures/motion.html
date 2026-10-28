@@ -6,7 +6,8 @@
 <script>
 // the motion suite's page (tools/motion-test.mjs): two scenes to go between, and the weather over them. The query picks
 // what it shows: ?view=threequarter|iso|topdown|side, &fade=<a transition> (window.__go() goes from a to b with it),
-// &seconds=.4, &reduce=1 (reduce motion), &weather=<kind>&amount=.8&wind=.3&lightning=0, &filter=scanlines|crt
+// &seconds=.4, &reduce=1 (reduce motion), &weather=<kind>&amount=.8&wind=.3&lightning=0, &filter=scanlines|crt, &hero=0
+// (no hero: nothing on the page draws on Math.random, as a rig's blink does)
 (() => {
 const E = My3D2dge, Q = new URLSearchParams(location.search), view = Q.get('view') || 'threequarter';
 const game = new E.Game({ canvas: 'screen', res: 'ps1', view, menu: false, fullscreen: false, corner: false });
@@ -30,11 +31,11 @@ const level = new E.PlatformMap({ rows: ['....................', '..............
 const weather = () => Q.get('weather') ? { kind: Q.get('weather'), amount: +(Q.get('amount') || .8), wind: +(Q.get('wind') || .3), lightning: +(Q.get('lightning') || 0) } : null;
 const a = {
   enter() { game.cam.bounds = v => map.bounds(v); game.focus(hero.x, hero.y, 16); game.cam.snap = true; game.weather = weather(); if (view === 'side') game.particles.ground = () => 32; },
-  update(dt) { rig.update(dt, { x: hero.x, y: hero.y, z: 0, vx: 0, vy: 0, facing: Math.PI / 2 }); },
+  update(dt) { if (Q.get('hero') !== '0') rig.update(dt, { x: hero.x, y: hero.y, z: 0, vx: 0, vy: 0, facing: Math.PI / 2 }); },
   draw(r) {
     r.sky(['#101848', '#5a3a80']);
     if (view === 'side') level.draw(r); else { map.drawFloor(r); map.queueWalls(r); }
-    r.actor(hero.x, hero.y, 0, (g, x, y) => rig.draw(g, x, y, r.view));
+    if (Q.get('hero') !== '0') r.actor(hero.x, hero.y, 0, (g, x, y) => rig.draw(g, x, y, r.view));
     r.text('SCENE A', 6, 6, '#ffffff', { shadow: '#000' });
   }
 };

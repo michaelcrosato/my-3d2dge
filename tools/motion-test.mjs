@@ -67,7 +67,7 @@ const still = page => page.evaluate(() => { const g = My3D2dge.current; g.stop()
 }
 {
   for (const kind of ['rain', 'snow', 'leaves', 'ash', 'sand']) {
-    const clear = await open('view=threequarter'), wet = await open(`weather=${kind}&view=threequarter`);
+    const clear = await open('view=threequarter&hero=0'), wet = await open(`weather=${kind}&view=threequarter&hero=0`);   // (no rig: its blink draws on Math.random)
     const calls = await wet.page.evaluate(() => { const g = My3D2dge.current, r = Math.random; let n = 0; Math.random = () => { n++; return r(); }; g.stop(); g.advance(2, { draw: true }); Math.random = r; return n; });
     const [a, b] = [await still(clear.page), await still(wet.page)];
     check(`${kind}: its drops show (the picture differs from clear skies), and it never calls Math.random`, a !== b && calls === 0 && !wet.errors.length, `calls ${calls} ${wet.errors.join(' | ')}`);
