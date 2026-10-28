@@ -35,6 +35,9 @@
 //      footman and a tap on open ground orders him there; a drag pans the camera
 //  19. sim: the tools and the time controls a thumb's size; 4X, then pause; PATH then a tap lays a tile; DRINK, a tap
 //      and PLACE build a lemonade stand; a tap on the carousel shows its price, + raises it; 1X; a drag pans the camera
+//  20. pointclick: a tap walks the hero; a tap on a hotspot shows its verbs (the coin), each a thumb's size; TAKE picks
+//      the rope up; its inventory slot a thumb's size, a tap puts it on the cursor and a tap takes it off; a long press
+//      looks (at the tavern's door); a tap on a person, TALK, and a tap on a choice picks it
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
@@ -87,7 +90,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'platformer', 'metroidvania', 'shooter', 'arcade', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'tactics', 'rts', 'sim', 'brawler', 'fighting', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'tactics', 'rts', 'sim', 'brawler', 'fighting', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -821,6 +824,50 @@ if (want('sim')) {
     const c1 = await ev(page, () => [window.__game.game.cam.x, window.__game.game.cam.y]);
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `sim-${label.replace(/ /g, '-')}.png`) });
     check(`sim ${label}: a drag pans the camera`, Math.hypot(c1[0] - c0[0], c1[1] - c0[1]) > 20 && !errors.length, `moved ${Math.hypot(c1[0] - c0[0], c1[1] - c0[1]).toFixed(0)} px${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 20. pointclick: walking, the verb coin, the inventory, a long press, a talk's choice, by taps */
+if (want('pointclick')) {
+  console.log('pointclick: an adventure played by taps');
+  for (const [label, vp] of [['on its side', SIDE], ['upright', UP]]) {
+    const { page, ctx, cdp, errors } = await open('pointclick', vp);
+    await wait(600);
+    const st = () => ev(page, () => { const s = window.__game.scenes.pointclick.state(), S = window.__game.game.screen, D = s.story.talk; return { mode: s.mode, room: s.pc.room, hero: [s.pc.hero.x, s.pc.hero.y], inv: s.inv, item: s.pc.item, line: s.pc.line && s.pc.line.lines[s.pc.line.i], talking: s.story.running, asking: !!(D.open && D.choices && !D.typing && D.i >= D.pages.length - 1), boxes: s.pc.boxes, k: S.S / S.dpr }; });
+    const tapGame = async (x, y) => { const [cx, cy] = await toCss(page, x, y); await page.touchscreen.tap(cx, cy); await wait(250); };
+    const tapBox = async b => { if (b) await tapGame(b.x + b.w / 2, b.y + b.h / 2); return !!b; };
+    const room = (x, y) => ev(page, ([x, y]) => window.__game.scenes.pointclick.state().pc.screen(x, y), [x, y]), spot = id => ev(page, id => window.__game.scenes.pointclick.state().pc.where(id), id);
+    const idle = async () => { for (let i = 0; i < 60; i++) { if (!await ev(page, () => window.__game.scenes.pointclick.state().pc.busy)) return; await wait(200); } };
+    // the opening card, then Finn's talk tapped through (a tap on the box turns its page)
+    await ev(page, () => window.__game.game.W).then(W => tapGame(W / 2, 40)); await wait(300);
+    for (let i = 0; i < 30 && (await st()).talking; i++) await tapGame(...await ev(page, () => { const G = window.__game.game; return [G.W / 2, G.H - 24]; }));
+    await idle();
+    // a tap on open ground walks the hero there
+    const h0 = (await st()).hero; await tapGame(...await room(150, 158)); await idle(); const h1 = (await st()).hero;
+    check(`pointclick ${label}: a tap on the ground walks the hero there`, Math.hypot(h1[0] - 150, h1[1] - 158) < 3, `from ${h0.map(Math.round)} to ${h1.map(Math.round)} (asked 150,158)`);
+    // a tap on the rope: its verbs, a thumb's size; TAKE
+    await tapGame(...await spot('rope')); const s2 = await st(), coin = s2.boxes.filter(b => b.id.startsWith('coin:')), small = Math.min(...coin.map(b => Math.min(b.w, b.h))) * s2.k;
+    await tapBox(coin.find(b => b.id === 'coin:pickup')); await idle(); for (let i = 0; i < 10 && (await st()).line; i++) await tapGame(...await room(60, 150)); const s3 = await st();
+    check(`pointclick ${label}: a tap on a hotspot shows its verbs, each a thumb's size; TAKE picks it up`, coin.length >= 3 && small >= 44 && s3.inv.includes('rope'), `verbs ${coin.map(b => b.id.slice(5))}, smallest ${Math.round(small)} CSS px; inventory ${s3.inv}`);
+    // the inventory: the rope's slot a thumb's size; a tap puts it on the cursor, a tap takes it off
+    const slot = s3.boxes.find(b => b.id === 'item:rope'); await tapBox(slot); const s4 = await st(); await tapBox(slot); const s5 = await st();
+    check(`pointclick ${label}: the inventory's slot is a thumb's size; a tap holds the item, a tap lets it go`, !!slot && Math.min(slot.w, slot.h) * s3.k >= 44 && s4.item === 'rope' && s5.item === null, `slot ${slot && Math.round(Math.min(slot.w, slot.h) * s3.k)} CSS px; held ${s4.item}, then ${s5.item}`);
+    // a long press on the tavern's door looks at it
+    const lh = await spot('door'), [lx, ly] = await toCss(page, lh[0], lh[1]);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: lx, y: ly, id: 1 }] }); await wait(700); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    for (let i = 0; i < 40 && !(await st()).line; i++) await wait(150);   // (he walks to it, then says what he sees)
+    const s6 = await st();
+    check(`pointclick ${label}: a long press looks`, /Salty Gull/.test(s6.line || ''), `the line: "${s6.line}"`);
+    for (let i = 0; i < 10 && (await st()).line; i++) await tapGame(...await room(60, 150));
+    // a tap on Finn, TALK, his question tapped to, the last choice (goodbye) by a tap on it
+    await tapGame(...await spot('finn')); const s7 = await st(); await tapBox(s7.boxes.find(b => b.id === 'coin:talk'));
+    for (let i = 0; i < 40 && !(await st()).asking; i++) await wait(150);
+    const asked = (await st()).asking, last = await ev(page, () => { const D = window.__game.scenes.pointclick.state().story.talk; return D.choiceAt(D.choices.length - 1); });
+    if (last) await tapGame(...last); await wait(300); const said = await ev(page, () => window.__game.scenes.pointclick.state().story.log.slice(-2).map(e => e.text));
+    for (let i = 0; i < 10 && (await st()).talking; i++) await tapGame(...await ev(page, () => { const G = window.__game.game; return [G.W / 2, G.H - 24]; }));
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `pointclick-${label.replace(/ /g, '-')}.png`) });
+    check(`pointclick ${label}: a tap on Finn, TALK, and a tap on a choice picks it`, asked && said.includes('I\'D BETTER GO') && !errors.length, `choices shown ${asked}; said: ${said.join(' / ')}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }

@@ -22,19 +22,20 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 |---|---|---|
 | **`dist/handoff/`** ([on the site](https://my-3d2dge.vercel.app/handoff/); `node tools/handoff.mjs --zip <file>` for a chat) | **Coding agents that need the full engine** (props, lighting, x-ray, sessions: what the agent edition leaves out). The readable engine and the agent edition, `API.md`, `API-INDEX.md` (every public name), `AI_GUIDE.md`, the tools that check, film and replay a game, and a template game with a headless test. Its `README.md` says where to start. | text only, ~1.3 MB; read `API.md`, search the rest |
 | **`dist/my-3d2dge-agent.js`** | **AI coding agents** (Claude Code, Codex, Cursor and the like). The [agent edition](#the-agent-edition-for-ai-coding-agents): the essential engine in one readable file whose header is the whole manual, with three complete example games. An agent reads the header and nothing else. | header ~10k tokens, whole file ~105k |
-| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `metroidvania`, `brawler`, `fighting`, `shooter`, `arcade`, `kart`, `road`, `puzzle`, `rpg`, `roguelike`, `tactics`, `rts`, `sim`, `stealth`), or `animlab` to explore the animation system. Each was sized for a 200k context (D51; D52 suspends that budget until the owner's review, and nine kits are past it): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~176k-238k tokens (the RPG's journey is the largest) |
+| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `pointclick`, `platformer`, `metroidvania`, `brawler`, `fighting`, `shooter`, `arcade`, `kart`, `road`, `puzzle`, `rpg`, `roguelike`, `tactics`, `rts`, `sim`, `stealth`), or `animlab` to explore the animation system. Each was sized for a 200k context (D51; D52 suspends that budget until the owner's review, and nine kits are past it): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~177k-239k tokens (the RPG's journey is the largest) |
 | **`dist/kits/my-3d2dge-3d-<genre>.html`** | A [3D kit](#real-3d-the-3d-engine): the same, with the 3D engine and its manual and one 3D slice (`action`, `platformer`, `shooter`). Served, not opened from a disk: it loads three.js and Rapier from `vendor/`. | ~220k-295k tokens (the shooter's open world is the largest) |
-| **`dist/my-3d2dge-compact.html`** | Every slice and the animation lab, engine minified (every section and module): for a game of several genres. | ~589k tokens (past the plan's 500,000 line: kept whole until the owner's review, D55) |
-| **`dist/my-3d2dge.html`** | The complete reference: readable engine, every slice and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~739k tokens |
+| **`dist/my-3d2dge-compact.html`** | Every slice and the animation lab, engine minified (every section and module): for a game of several genres. | ~619k tokens (past the plan's 500,000 line: kept whole until the owner's review, D55) |
+| **`dist/my-3d2dge.html`** | The complete reference: readable engine, every slice and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~772k tokens |
 
-Token counts are cl100k, measured at v0.74.0 (`gpt-tokenizer`); other tokenizers differ.
+Token counts are cl100k, measured at v0.75.0 (`gpt-tokenizer`); other tokenizers differ.
 
 Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-like with three dungeons", "a spiritual successor to Gradius"). Each file contains:
 
 1. **The API card**: a quick-start game, a table of coordinates per view, rules, common mistakes, the full API and a genre playbook.
 2. **The engine** (no dependencies, no network).
-3. **A starter game** with seventeen vertical slices to copy from (a genre kit holds one):
+3. **A starter game** with eighteen vertical slices to copy from (a genre kit holds one):
    - ADVENTURE (Zelda-style top-down)
+   - POINT-AND-CLICK (Monkey Island / Broken Sword: a harbour, a tavern and a lighthouse, four puzzles, a riddle contest to win, the nine verbs or a verb coin, an inventory, walk areas with holes and depth: the click and story modules)
    - PLATFORMER (Mario / Mega Man side-scroller with a 2.5D view)
    - METROIDVANIA (Super Metroid: twelve rooms joined at their doors, the map of what was seen, a second jump and a dash that open the gates, an arm cannon aimed eight ways, a save room, a mini-boss and a boss: the rooms module)
    - BRAWLER (Final Fight / Streets of Rage beat-'em-up; a second player drops in)
@@ -284,6 +285,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 |---|---|---|
 | Platformers, Metroidvanias, run-and-guns (Mario, Mega Man, Metroid, Contra) | side, or brawler for 2.5D | PlatformMap, Platformer (crouching, ledges, clinging, water, ropes, bars, swinging, momentum), Bullets; the rooms module: a world of rooms, the map, gates, saves (METROIDVANIA kit) |
 | Action adventures and action RPGs (Zelda, Secret of Mana, Diablo, Landstalker) | three-quarter, top-down, iso | TileMap, Body, Humanoid, Dialog |
+| Point-and-click adventures and visual novels (Monkey Island, Day of the Tentacle, Broken Sword, Phoenix Wright) | rooms painted in screen pixels | the click module: walk areas with holes (the shortest way round), depth scale, hotspots, SCUMM's nine verbs, Sierra's icons, a verb coin, an inventory, puzzles as rules; the story module's talk, backlog, auto and skip (POINT-AND-CLICK kit) |
 | Beat-'em-ups and fighting (Final Fight, Streets of Rage, Street Fighter II) | brawler, side | Humanoid attack and kick specs (BRAWLER kit); the fight module: frame data, guards, throws, specials by motion, rounds, a CPU, training (FIGHTING kit) |
 | Shoot-'em-ups (1942, Xevious, Gradius, R-Type) | overhead | Bullets, patterns, a vertical and a horizontal stage, the arcade frame (SHOOTER kit) |
 | JRPGs (Dragon Quest, Final Fantasy, EarthBound) | three-quarter towns and world maps, brawler battles | the story and rpg modules (dialogue as data, quests, items, gear, levels, shops, encounters), Dialog markup, save slots, chunked big maps (the RPG kit) |
@@ -360,13 +362,13 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.74.1**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.75.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
 - `DOCTRINE.md`: what the engine optimizes (good ideas found per unit of time and tokens) and its ten principles for an engine built for AI coding agents, then how each applies here, what was grandfathered when it was adopted, and which check holds it. `docs/DECISIONS.md` logs every deviation, exception and call made without an answer, and is never cleaned up.
 - `docs/FEEDBACK-LOG.md`: the points from builders' feedback that we did not act on, counted by theme so patterns show. What we act on goes into a plan (`docs/HANDOFF-*.md`), then the changelog.
-- `API.md`: the API card, under its budget of 19,000 tokens (D50, D54). It is embedded in every single-file edition.
+- `API.md`: the API card, under its budget of 20,000 tokens (D50, D54, D58). It is embedded in every single-file edition.
 - `engine/modules/README.md`: engine modules, general systems in files of their own that load after the core (a kit carries the ones its slice names): how one is written, its manual and its budget, and how it is tested.
 - The header of `dist/my-3d2dge-agent.js`: the agent edition's manual, about 9,000 tokens, with three complete example games.
 - `API-INDEX.md`: every public name in the engine, one line each (signature, units, defaults, what it does), with the height rules at the top. Written by `tools/api-index.mjs` from the engine; search it.

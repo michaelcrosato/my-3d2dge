@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.74.1 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.75.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and sixteen working games and an animation lab.
+  AI MODELS: this one file is the whole engine, its documentation and seventeen working games and an animation lab.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below. It is short.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". Do not change it
        unless you are asked to extend the engine itself.
-    3. The games live between GAME START and GAME END: a title menu plus sixteen vertical slices
-       (ADVENTURE top-down, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, KART, ROAD, PUZZLE,
-       RPG, ROGUELIKE, TACTICS, RTS, SIM, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.
+    3. The games live between GAME START and GAME END: a title menu plus seventeen vertical slices
+       (ADVENTURE top-down, POINT-AND-CLICK, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, KART,
+       ROAD, PUZZLE, RPG, ROGUELIKE, TACTICS, RTS, SIM, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.
        To make a new game, copy the slice closest to your genre, then replace everything between
        GAME START and GAME END with only your game. Keep everything else in this file as it is.
   HUMANS: open this file in a browser and play. Press ? for the API card.
-  Deep links: add #adventure, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #kart, #road, #puzzle, #rpg, #roguelike,
-       #tactics, #rts, #sim, #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,
+  Deep links: add #adventure, #pointclick, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #kart, #road, #puzzle, #rpg,
+       #roguelike, #tactics, #rts, #sim, #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,
        #fighting/versus, #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map, #kart/race,
        #kart/vs, #road/drive, #rpg/battle, #tactics/battle and #tactics/phases jump into a part.
 -->
@@ -24,7 +24,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.74.1)
+# my-3D2dge API card (v0.75.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -183,7 +183,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - Sprites from strings (for coins, bullets, ships, icons, NES-style enemies): `const COIN = E.sprite(['.yy.', 'yYYy', '.yy.'], { y: '#f0b020', Y: '#fff0a0' }, scale)`. `.` and space are transparent. Frames: `const walk = E.anim([f1, f2, f3], 8, { pingpong })` (or one sheet: `E.anim(sheet, 8, { frames: 4 })`), drawn with `r.sprite(x, y, z, walk, { t })`. `r.sprite(..., { rot: angle, scale })` turns and scales in whole pixels (cached in 16 steps a turn; `steps: 32`); `E.recolor(spr, { '#3a8a4a': '#8a3a4a' })` swaps a palette.
 - Font (5x7 proportional with lower case; `font: 'tiny'` for 3x5): `E.font.text(g, str, x, y, color, { outline, shadow, gradient, scale, align, wrap, font })`, `E.font.title(g, str, x, y, { scale, colors, outline, depth, depthColor, align })`, `E.font.width(str, opts)`, `E.font.lineHeight(opts)`, `E.font.wrap(str, maxW, opts)`. Glyphs: ASCII plus `♥ ★ ← → ↑ ↓ • × ♪ ▸ ©`.
 - UI (inside `r.overlay(g => ...)`): `E.ui.box(g, x, y, w, h, { bg, border, gradient, alpha })` (a gradient window like Final Fantasy; `bg` can be `[top, bottom]`, `gradient: false` for flat, `alpha: .6` for a see-through HUD panel), `E.ui.bar(g, x, y, w, h, 0..1, color)`, `E.ui.hearts(g, x, y, hp, max)` (half hearts allowed), `rig.drawPortrait(g, x, y, size, { zoom: 3, turn: .6, bg, frame, cape: false, weapon: false, tint: '#808080' })` (character close-up; it stays upright while the rig kneels or lies down; `tint` greys out a KO'd hero).
-- Dialog: `const talk = new E.Dialog(game)`; `talk.say(['Line one.', 'Page two.'], { name: 'ELDER', portrait: elderRig, onDone, choices: ['YES', 'NO'], onChoice(i) })` (choices show on the last page); in update `if (talk.update(dt)) return;` (true while a modal box is open: play waits); in draw `talk.draw(r)`. `portrait` takes a Humanoid (live close-up; `portraitSize: 40`, `portraitOpts: { zoom, turn }`) or a function `(g, x, y, size) => {...}`. Radio chatter during play: `talk.say('Enemy fighters ahead!', { name, portrait, auto: 2.5, modal: false })` turns its pages and closes by itself while the game keeps running. Per line: `place: 'top' | 'middle' | 'bottom'`, `y` (pixels) and `alpha` (see-through box). A portrait's mouth moves while its text types. `new E.Dialog(game, { speed, lines, color, nameColor, voice, bg, border, vars })`; `talk.close()`, `talk.open`. Markup in the text: `{c=#ffd36a}gold{/c}` a color, `{w=.5}` a pause, `{s=12}slowly{/s}` letters a second, `{shake}..{/shake}`, `{wave}..{/wave}`, `{$name}` a value from `say(text, { vars })` or `talk.vars`; text without markup is as it was.
+- Dialog: `const talk = new E.Dialog(game)`; `talk.say(['Line one.', 'Page two.'], { name: 'ELDER', portrait: elderRig, onDone, choices: ['YES', 'NO'], onChoice(i) })` (choices show on the last page: the keys, or a tap or click on one, pick); in update `if (talk.update(dt)) return;` (true while a modal box is open: play waits); in draw `talk.draw(r)`. `portrait` takes a Humanoid (live close-up; `portraitSize: 40`, `portraitOpts: { zoom, turn }`) or a function `(g, x, y, size) => {...}`. Radio chatter during play: `talk.say('Enemy fighters ahead!', { name, portrait, auto: 2.5, modal: false })` turns its pages and closes by itself while the game keeps running. Per line: `place: 'top' | 'middle' | 'bottom'`, `y` (pixels) and `alpha` (see-through box). A portrait's mouth moves while its text types. `new E.Dialog(game, { speed, lines, color, nameColor, voice, bg, border, vars })`; `talk.close()`, `talk.open`. Markup in the text: `{c=#ffd36a}gold{/c}` a color, `{w=.5}` a pause, `{s=12}slowly{/s}` letters a second, `{shake}..{/shake}`, `{wave}..{/wave}`, `{$name}` a value from `say(text, { vars })` or `talk.vars`; text without markup is as it was.
 - Menu: `const menu = new E.Menu(game, ['START', { label: 'LOAD', disabled: true }], { x: 'center', y: 100, title, onPick(i, item), onCancel })`; `menu.update(dt)`; `menu.draw(r)`. Keys, d-pad and sticks move it; a click or tap on an entry picks it (so a phone can leave a title), and the mouse over one moves the cursor. A tap on a dialog box turns its page as confirm does.
 - HTML screens and HUD: `const ui = new E.Shell(game, { theme, settings, screens: { pause, help } })`; `ui.show('title' | 'results' | 'map' | ..., spec)`; each step `ui.hud({ objective, status, bars, prompt, minimap })` (`minimap: { map, fog, camera: true, markers, onClick(x, y) }`); `ui.toast(title, text)`.
 
@@ -250,6 +250,8 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Platformer (Mario, Mega Man, Sonic, Castlevania) | `side` (+ `brawler` for 2.5D) | PlatformMap, Platformer, Humanoid, sprites, Bullets `'side'` | PLATFORMER |
 | Metroidvania (Metroid, Symphony of the Night) | `side` | an `E.World` of PlatformMaps (the rooms module: doors at open edges, a slide, the explored map, gates opened by abilities, saves), a Platformer given `airJumps` and `dash` as they are found, its further moves, an arm cannon aimed eight ways (`point`, `aim`, `rig.tip()`, Bullets) | METROIDVANIA |
 | Action adventure (Zelda, Secret of Mana) | `threequarter` or `topdown` | TileMap rows, `cam.room`, Body, Humanoid + `E.Attack` sword, Dialog, `E.ui.hearts` | ADVENTURE |
+| Point-and-click adventure (Monkey Island, Day of the Tentacle, Broken Sword) | none: rooms painted in screen pixels (`r.overlay`) | `E.Click` (the click module): rooms with walk areas and holes (`E.Walkbox`), depth scale, hotspots, the nine verbs, Sierra's icons or a verb coin, an inventory, puzzles as rules; talk through `E.Story` | POINT-AND-CLICK |
+| Visual novel (Phoenix Wright, Snatcher, Clannad) | none | `E.Story` nodes and choices over a painted backdrop, `rig.drawPortrait` at size, `story.log` (the backlog), `story.auto`, `story.skip`; `game.saves` | POINT-AND-CLICK |
 | Action RPG / dungeon (Diablo, Landstalker) | `iso` | TileMap, FlowField, Body (jump onto blocks), GPU lighting | ADVENTURE |
 | Beat-'em-up (Final Fight, Streets of Rage, TMNT) | `brawler` | TileMap street strip, Body, Humanoid (`weapon: null`) + `E.Combo` punches and `kick: true` kicks, `E.knockback`, waves that lock the screen; a second player drops in (`game.allowJoin`, `cam.frame` on both) | BRAWLER |
 | Fighting (Street Fighter II, Darkstalkers) | `side` | two `E.Fighter`s in an `E.Match` (the fight module): moves with frame data, guards, throws, specials by motion (`'236'`) or charge, a meter, projectiles; `E.FightAI`, `E.FightSelect`, training | FIGHTING |
@@ -285,9 +287,10 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `mode7`: the SNES's Mode 7 (`E.Mode7`): a camera at a height over a flat floor (a TileMap's, a color function's or a canvas), drawn a row at a time, a sky that turns with the heading (a Backdrop), billboards far to near (rigs at the size their distance gives, sprites, your drawing), fog, `project` and `toFloor`, a split screen's cameras. The stress test's depth view, KART.
   - `road`: the pseudo-3D road (`E.Road`): segments with curves and hills, lanes, rumble strips, tunnels, scenery and cars scaled by distance and hidden past a crest, the sky's parallax on curves (OutRun, Pole Position). ROAD.
   - `drive`: cars on the ground plane (`E.Car`: speed, grip and slide, a kart's hop and drift boost, the floor's tag slowing it, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, wrong way, places, drivers that brake for bends, pass and rubber-band, items, the HUD). KART.
-  - `story`: dialogue as data (`E.Story`): nodes of lines with speakers and portraits, choices with conditions, flags and values (`{$name}` in lines), gotos, the game's events (one may hold the talk), a quest log, emote balloons over heads; its state for a save. RPG.
+  - `story`: dialogue as data (`E.Story`): nodes of lines with speakers and portraits, choices with conditions, flags and values (`{$name}` in lines), gotos, the game's events (one may hold the talk), a quest log, emote balloons over heads, a backlog, auto and skip; its state for a save. RPG, POINT-AND-CLICK.
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG.
   - `strategy` (the full engine only; needs `grid`): real-time strategy and sims (`E.Strategy`): selection (a click, a box, a double tap, groups), orders (move, attack, attack-move, gather, build, patrol; queued), formations on shared flow fields kept apart, production, resources, placement with a ghost, fog, the minimap, an enemy's build order and waves; `E.Clock` (days, night, the light), needs that pick an action (`E.needs`, `E.choose`), `E.overlay`, `E.tooltip`. RTS, SIM.
+  - `click` (the full engine only): point-and-click adventures (`E.Click`): rooms painted once, walk areas with holes (`E.Walkbox`: the shortest way round), depth scale, hotspots (rectangles, polygons, actors) with verbs, a place to stand and a way to face, SCUMM's nine verbs, Sierra's icons, a verb coin or two buttons, an inventory (an item on a hotspot or another item), rules as data, exits with fades, `story`'s flags and talk; taps on a phone. POINT-AND-CLICK.
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
@@ -318,7 +321,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.74.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.75.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -346,7 +349,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.74.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.75.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -427,7 +430,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.74.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.75.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -9069,6 +9072,10 @@ class Dialog {
      *  typed so far on it; choice: the choice under the cursor */
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
+  /** where choice i is on the screen while the choices show: [x, y] (its middle, for a test's tap), else null */
+  choiceAt(i) { if (!this.open || !this.choices || this.typing || this.i < this.pages.length - 1 || !this.choices[i]) return null; const d = this._dims(), b = this._cbox(d); return [Math.round(b.x + b.w / 2), Math.round(b.y + 3 + (i + .5) * d.lh)]; }
+  // the choices' box, over the box's right end
+  _cbox(d) { const w = Math.max(...this.choices.map(c => E.font.width(c))) + 20, h = this.choices.length * d.lh + 7; return { x: d.x + d.w - w - 2, y: d.y - h - 2, w, h }; }
   _dims() {
     const W = this.game.W, H = this.game.H, lh = E.font.lineHeight(), w = Math.min(W - 12, 320), P = this.portrait ? this._pSize : 0, h = Math.max(this.lines * lh + 9, P ? P + 8 : 0), tx = P ? P + 12 : 7;
     const pl = this._place || this.place; let x = Math.round((W - w) / 2), y = this._y !== undefined ? this._y : pl === 'top' ? 12 : pl === 'middle' ? Math.round((H - h) / 2) : H - h - 6;
@@ -9084,8 +9091,8 @@ class Dialog {
    *         portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself,
    *         modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha,
    *         vars: the values {$name} reads }
-   * choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked. update(dt) returns true while a
-   * modal box is open: return from your update then, and play waits
+   * choices: ['YES', 'NO'], shown on the last page (picked by the keys, or a tap or click on one); onChoice(i) gets the
+   * one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
    */
   say(text, o = {}) {
     /** portrait: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size
@@ -9142,12 +9149,18 @@ class Dialog {
       return this.modal && this.open;
     }
     if (!this.modal) return false;
+    const c = inp.clicked(), d = (c || asking) && this._dims(), tapped = !!c && c[0] >= d.x && c[0] < d.x + d.w && c[1] >= d.y && c[1] < d.y + d.h;   // a tap on the box, as confirm
+    let chose = false;
     if (asking) {
       if (inp.repeat('up') || inp.repeat('left')) { this.choice = (this.choice + this.choices.length - 1) % this.choices.length; this.game.audio.sfx('select'); }
       if (inp.repeat('down') || inp.repeat('right')) { this.choice = (this.choice + 1) % this.choices.length; this.game.audio.sfx('select'); }
+      // a tap or click on a choice picks it; the mouse moved over one moves the cursor there
+      const b = this._cbox(d), row = q => q && q[0] >= b.x && q[0] < b.x + b.w && q[1] >= b.y && q[1] < b.y + b.h ? clamp(Math.floor((q[1] - b.y - 3) / d.lh), 0, this.choices.length - 1) : -1;
+      const p = inp.lastDevice === 'mouse' && inp.pointer(), hv = p && (!this._hp || p[0] !== this._hp[0] || p[1] !== this._hp[1]) ? row(p) : -1; this._hp = p ? p.slice() : null;
+      if (hv >= 0 && hv !== this.choice) { this.choice = hv; this.game.audio.sfx('select'); }
+      const tc = row(c); if (tc >= 0) { this.choice = tc; chose = true; }
     }
-    const c = inp.clicked(), d = c && this._dims(), tapped = !!d && c[0] >= d.x && c[0] < d.x + d.w && c[1] >= d.y && c[1] < d.y + d.h;   // a tap on the box, as confirm
-    if (inp.pressed('confirm') || tapped) {
+    if (inp.pressed('confirm') || tapped || chose) {
       if (this.typing) { this.shown = len; this._hold = 0; }
       else if (!last) { this.i++; this.shown = 0; this._held = -1; }
       else { this.close(); this.game.audio.sfx('confirm'); if (this.choices && this.onChoice) this.onChoice(this.choice, this.choices[this.choice]); if (this.onDone) this.onDone(); }
@@ -9186,7 +9199,7 @@ class Dialog {
       const blink = Math.floor(this.game.real * 3) % 2 === 0, last = this.i >= this.pages.length - 1;
       if (!this.typing && !(last && this.choices) && blink) px.poly(g, [[d.x + d.w - 10, d.y + d.h - 6], [d.x + d.w - 5, d.y + d.h - 6], [d.x + d.w - 7.5, d.y + d.h - 3]], this.color);
       if (last && this.choices && !this.typing) {
-        const cw = Math.max(...this.choices.map(c => E.font.width(c))) + 20, ch = this.choices.length * d.lh + 7, cx = d.x + d.w - cw - 2, cy = d.y - ch - 2;
+        const { x: cx, y: cy, w: cw, h: ch } = this._cbox(d);
         ui.box(g, cx, cy, cw, ch, { bg: this.bg, border: this.border });
         this.choices.forEach((c, k) => { E.font.text(g, c, cx + 13, cy + 4 + k * d.lh, k === this.choice ? this.nameColor : this.color, { outline: false, shadow: '#05040a' }); if (k === this.choice && blink) E.font.text(g, '▸', cx + 5, cy + 4 + k * d.lh, this.nameColor, false); });
       }
@@ -10510,7 +10523,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.74.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.75.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10726,9 +10739,372 @@ E.Arcade = Arcade;
 
 </script>
 <script>
+/* ---- inlined from engine/modules/click.js ---- */
+/*!
+my-3D2dge module CLICK v0.75.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine only. Needs: no other module.
+
+Monkey Island's, Day of the Tentacle's and Broken Sword's rooms: a picture the hero walks about by clicks and taps (talk
+through story's E.Story when one is given).
+- new E.Walkbox(outline, holes = []) (polygons of [x, y], room pixels): wb.inside(x, y), wb.nearest(x, y) (the closest
+  point you can stand on), wb.path(a, b) -> [a, ..., b] (the shortest way round the holes: A* over the corners, then
+  straight where nothing is in the way).
+- const pc = new E.Click(game, { rooms, items, rules, hero: { rig, speed: 60 }, ui: 'verbs' | 'icons' | 'coin' | 'two',
+  story, room: 'dock', at: [x, y], on: { enter(pc, room), done(pc, verb, item, target) } }).
+  rooms[id]: { w, h (room pixels; wider than the screen scrolls), paint(g) (the backdrop, painted once), pad: pixels
+  painted past each side, or [x, y] (past the sides, above and below: a bigger screen shows them; a tall one zooms the
+  room), walk: [outline, ...holes] or a Walkbox, depth: [yFar, kFar, yNear, kNear] (a body's scale by its feet's y),
+  hotspots: [...], things: [{ y, draw(g, x, y) }] (drawn by depth, not clicked), front(g, x, y) (over it all) }.
+  A hotspot: { id, name, rect: [x, y, w, h] | poly | actor (anything with x, y, rig: drawn by depth), at: [x, y]
+  (where the hero stands), face: 'left' | 'right' | 'up' | 'down', y (its baseline: drawn over the hero behind it),
+  draw(g, x, y) (a thing in the room: its picture at its place), exit: 'room' (and enter: [x, y] there), if (shown
+  while it holds), look / talk / use / pickup / open / close / push / pull / give: a line the hero says, a function
+  (pc, item), or a rule's actions, default: the verb a plain click does (two buttons: talk for people, pick up what can
+  be, else use) }.
+  items[id]: { name, look, icon: a sprite or (g, x, y, size) }. rules: [{ verb, item, on (a hotspot or an item), if,
+  say: 'line' | [lines], give, take, set (story vars), talk (a story node), go: [room, x, y], do(pc) }]: the first that
+  matches runs; else the hotspot's own verb; else a line ("I can't pick that up.").
+- pc.update(dt) each step; pc.draw(r) after the scene (the room, bodies and things by depth, the hero's line over him,
+  the sentence line, the verbs or the coin, the inventory). pc.busy: true while a fade, a line, a talk or a walk is
+  under way. pc.room, pc.hero ({ x, y, k, face, path }), pc.inv (item ids), pc.give(id), pc.take(id), pc.has(id),
+  pc.say(lines, who), pc.go(room, [x, y]), pc.walkTo(x, y, then), pc.act(verb, target, item) (what a click does),
+  pc.panel = false (the verbs hidden: a cutscene), pc.state() / pc.restore(s), pc.end() (on leaving: the cursor back).
+  For tests and bots: pc.where(id) and pc.screen(x, y) (screen points), pc.boxes (the buttons drawn last frame).
+- The interfaces: 'verbs' (SCUMM's nine: a verb, then what; USE and GIVE take an item first), 'icons' (Sierra's: WALK,
+  LOOK, HAND, TALK; a right click turns the cursor), 'coin' (a click, or a long press, on a hotspot opens its verbs over
+  the pointer), 'two' (a click does the default, a right click looks). The right click is the input's look action:
+  bind look: ['Mouse2']. The cursor is a hand over a hotspot, its name beside it. An item in the inventory goes on the
+  cursor: "Use rope with hook" (an item on an item works either way round; on someone, a give rule). A double click
+  runs. Touch: a tap walks; a tap on a hotspot opens its verbs; the inventory by taps, a thumb's size; a long press
+  looks.
+
+```js click
+const E = My3D2dge, game = new E.Game({ headless: true });
+const wb = new E.Walkbox([[0, 100], [300, 100], [300, 200], [0, 200]], [[[120, 110], [180, 110], [180, 190], [120, 190]]]);
+const p = wb.path([20, 150], [280, 150]);
+if (p.length < 3 || p.some(q => !wb.inside(q[0], q[1]) && q !== p[0])) throw new Error('round the hole');
+const pc = new E.Click(game, { rooms: { yard: { w: 320, h: 200, walk: wb, hotspots: [{ id: 'key', name: 'KEY', rect: [250, 140, 10, 10], at: [240, 150], pickup: { give: 'key', say: 'Got it.' } }] } },
+  items: { key: { name: 'KEY' } }, room: 'yard', at: [20, 150] });
+game.start({ update(dt) { pc.update(dt); }, draw(r) { pc.draw(r); } });
+pc.act('pickup', 'key'); game.advance(8);
+if (!pc.has('key')) throw new Error('picked up');
+```
+Rules: a room's picture is the game's (paint it in room pixels); keep puzzles as rules (data); talk goes through story
+(its nodes, choices and flags: rules test them with if).
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module CLICK: load engine/my-3d2dge.js (the full engine) first');
+const { clamp } = E, hyp = Math.hypot, px = E.px;
+
+/* =============================================================================
+ * WALKBOX  a polygon you walk in, with holes: inside, the nearest point, the shortest path round the holes
+ * ========================================================================== */
+// does segment a-b cross segment c-d (properly: touching at an end doesn't count)
+const cross = (a, b, c, d) => { const o = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]), d1 = o(c, d, a), d2 = o(c, d, b), d3 = o(a, b, c), d4 = o(a, b, d); return ((d1 > 1e-9 && d2 < -1e-9) || (d1 < -1e-9 && d2 > 1e-9)) && ((d3 > 1e-9 && d4 < -1e-9) || (d3 < -1e-9 && d4 > 1e-9)); };
+const inPoly = (P, x, y) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > y) !== (P[j][1] > y) && x < (P[j][0] - P[i][0]) * (y - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) c = !c; return c; };
+class Walkbox {
+  /** new E.Walkbox(outline, holes): polygons of [x, y] (room pixels); holes are places inside it no one stands */
+  constructor(outline, holes = []) {
+    /** outline: the area's edge; holes: its holes; edges: every side of both, as [a, b]; nodes: the corners a path may
+     *  turn at */
+    this.outline = outline; this.holes = holes; this.edges = [];
+    for (const P of [outline, ...holes]) for (let i = 0; i < P.length; i++) this.edges.push([P[i], P[(i + 1) % P.length]]);
+    // the corners a shortest path turns at: the outline's inward-pointing ones and every hole's outward one, set a pixel off
+    this.nodes = [];
+    const add = (P, hole) => P.forEach((p, i) => {
+      const a = P[(i + P.length - 1) % P.length], b = P[(i + 1) % P.length], ux = p[0] - a[0], uy = p[1] - a[1], vx = b[0] - p[0], vy = b[1] - p[1];
+      const nx = (a[0] - p[0]) / (hyp(ux, uy) || 1) + (b[0] - p[0]) / (hyp(vx, vy) || 1), ny = (a[1] - p[1]) / (hyp(ux, uy) || 1) + (b[1] - p[1]) / (hyp(vx, vy) || 1), l = hyp(nx, ny) || 1;
+      for (const s of [-1.5, 1.5]) { const q = [p[0] + nx / l * s, p[1] + ny / l * s]; if (this.inside(q[0], q[1])) { this.nodes.push(q); break; } }
+    });
+    add(outline, false); for (const h of holes) add(h, true);
+    this._links = null;
+  }
+  /** is (x, y) in the area and in none of its holes? */
+  inside(x, y) { return inPoly(this.outline, x, y) && !this.holes.some(h => inPoly(h, x, y)); }
+  /** the point you can stand on nearest (x, y): itself when inside, else the nearest on an edge (a pixel in) */
+  nearest(x, y) {
+    if (this.inside(x, y)) return [x, y];
+    let best = null, bd = Infinity;
+    for (const [a, b] of this.edges) {
+      const dx = b[0] - a[0], dy = b[1] - a[1], t = clamp(((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1), 0, 1), q = [a[0] + dx * t, a[1] + dy * t], d = hyp(q[0] - x, q[1] - y);
+      if (d < bd) { bd = d; best = q; }
+    }
+    for (const r of [1, 2, 3]) for (const [ox, oy] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r, r], [-r, -r], [r, -r], [-r, r]]) if (this.inside(best[0] + ox, best[1] + oy)) return [best[0] + ox, best[1] + oy];
+    return best;
+  }
+  /** can one walk straight from a to b? (it crosses no edge, and its middle is inside) */
+  sees(a, b) { if (this.edges.some(([c, d]) => cross(a, b, c, d))) return false; return this.inside((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); }
+  /** the shortest way from a to b (b moved to the nearest point inside): [a, ..., b], round the holes */
+  path(a, b) {
+    a = this.nearest(...a); b = this.nearest(...b);
+    if (this.sees(a, b)) return [a, b];
+    const N = this.nodes; if (!this._links) this._links = N.map((p, i) => N.map((q, j) => j !== i && this.sees(p, q) ? hyp(p[0] - q[0], p[1] - q[1]) : -1));
+    const all = [...N, a, b], A = N.length, B = N.length + 1, link = (i, j) => i < A && j < A ? this._links[i][j] : this.sees(all[i], all[j]) ? hyp(all[i][0] - all[j][0], all[i][1] - all[j][1]) : -1;
+    const g = new Array(all.length).fill(Infinity), from = new Array(all.length).fill(-1), open = new Set([A]); g[A] = 0;
+    const h = i => hyp(all[i][0] - b[0], all[i][1] - b[1]);
+    while (open.size) {
+      let cur = -1, cf = Infinity; for (const i of open) { const f = g[i] + h(i); if (f < cf) { cf = f; cur = i; } }
+      if (cur === B) break; open.delete(cur);
+      for (let j = 0; j < all.length; j++) { if (j === A || j === cur) continue; const w = link(cur, j); if (w < 0) continue; if (g[cur] + w < g[j] - 1e-9) { g[j] = g[cur] + w; from[j] = cur; open.add(j); } }
+    }
+    if (from[B] < 0) return [a];   // no way there
+    const out = []; for (let i = B; i >= 0; i = from[i]) out.unshift(all[i]);
+    return out;
+  }
+}
+E.Walkbox = Walkbox;
+
+/* =============================================================================
+ * CLICK  rooms, the hero, hotspots, verbs, the inventory, rules; drawn over the screen in room pixels
+ * ========================================================================== */
+const VERBS = [['give', 'GIVE'], ['pickup', 'PICK UP'], ['use', 'USE'], ['open', 'OPEN'], ['look', 'LOOK AT'], ['push', 'PUSH'], ['close', 'CLOSE'], ['talk', 'TALK TO'], ['pull', 'PULL']];
+const ICONS = [['walk', 'WALK'], ['look', 'LOOK'], ['hand', 'HAND'], ['talk', 'TALK']], ICON = Object.fromEntries(ICONS);   // (Sierra's cursor: a right click turns it)
+const VERB = Object.fromEntries(VERBS), COIN = [['look', 'LOOK'], ['talk', 'TALK'], ['use', 'USE']];
+// Sierra's icons, drawn: feet, an eye, a hand, a mouth
+const PICS = { walk: ['..KK...', '.KSSK..', '.KSSK..', '..KK.KK', '....KSSK', '....KSSK', '.....KK'], look: ['..KKKKK..', '.KWWWWWK.', 'KWWBBBWWK', 'KWWBKBWWK', '.KWWWWWK.', '..KKKKK..'],
+  hand: ['..K.K.K..', '.KSKSKSK.', '.KSKSKSKK', '.KSSSSSKS', 'KKSSSSSSK', 'KSSSSSSK.', '.KSSSSK..', '..KKKK...'], talk: ['.KKKKKK.', 'KRRRRRRK', 'KRWWWWRK', 'KRKKKKRK', 'KRRRRRRK', '.KKKKKK.'] };
+const PAINTED = new WeakMap();   // each room's picture, painted once (a room kept between games keeps it)
+const PAL = { K: '#1a1420', S: '#f0c8a0', W: '#ffffff', B: '#3a6ad8', R: '#c83a4a' };
+const NO = { look: n => 'It\'s ' + n.toLowerCase() + '.', pickup: () => 'I can\'t pick that up.', use: () => 'I can\'t use that.', talk: () => 'It doesn\'t say much.', give: () => 'I\'d rather keep it.', open: () => 'It doesn\'t open.', close: () => 'It doesn\'t close.', push: () => 'It won\'t budge.', pull: () => 'It won\'t budge.', with: () => 'That doesn\'t work.' };
+class Click {
+  /** new E.Click(game, { rooms, items, rules, hero, ui, story, room, at, on }): see the manual */
+  constructor(game, o = {}) {
+    /** game: the game; rooms: the rooms by id; items: the items by id; rules: the rules (data); on: its events */
+    this.game = game; this.rooms = o.rooms || {}; this.items = o.items || {}; this.rules = o.rules || []; this.on = o.on || {};
+    /** ui: 'verbs' | 'coin' | 'two'; story: the E.Story that talks (or null) */
+    this.ui = o.ui || 'verbs'; this.story = o.story || null;
+    /** the hero: { x, y, rig, speed, face (radians: 0 right), k (its scale), path, room } */
+    this.hero = Object.assign({ x: 0, y: 0, speed: 60, face: Math.PI / 2, k: 1, path: null }, o.hero || {});
+    /** inv: the items held, by id; verb: the verb chosen ('walk' when none); item: the item on the cursor (or null);
+     *  line: the line being said ({ lines, i, who }, or null); room: the room's id; boxes: the panel's and the coin's
+     *  buttons in the last frame ({ id: 'verb:look' | 'icon:hand' | 'item:rope' | 'coin:use' | 'inv:<', x, y, w, h }:
+     *  screen pixels, for tests and bots); panel: false hides the verbs and the inventory, keeping their place (a cutscene) */
+    this.inv = []; this.verb = 'walk'; this.item = null; this.line = null; this.room = null; this.boxes = []; this.panel = true;
+    this._then = null; this._fade = 0; this._views = new Map(); this._coin = null; this._hover = null; this._scroll = 0; this._invAt = 0;
+    for (const id in this.rooms) { const R = this.rooms[id]; if (R.walk && !(R.walk instanceof Walkbox)) R.walk = new Walkbox(R.walk[0], R.walk.slice(1)); }
+    if (o.room) this.go(o.room, o.at, true);
+  }
+  /* ---- the inventory ---- */
+  /** add an item */
+  give(id) { if (!this.inv.includes(id)) this.inv.push(id); }
+  /** take an item away */
+  take(id) { this.inv = this.inv.filter(i => i !== id); if (this.item === id) this.item = null; }
+  /** is the item held? */
+  has(id) { return this.inv.includes(id); }
+  /* ---- rooms and walking ---- */
+  /** to room id, the hero at at (or the room's start), with a fade (now: none) */
+  go(id, at, now) {
+    const R = this.rooms[id]; if (!R) throw new Error('E.Click: no room "' + id + '"');
+    const swap = () => { this.room = id; const p = at || R.start || [R.w / 2, R.h * .8]; [this.hero.x, this.hero.y] = R.walk ? R.walk.nearest(p[0], p[1]) : p; this.hero.path = null; this._then = null; this._scroll = null; if (this.on.enter) this.on.enter(this, id); if (R.enter) R.enter(this); };
+    if (now) swap(); else { this._fade = .0001; this._swap = swap; }
+  }
+  /** walk to (x, y) (the nearest point you can stand on), then(pc) when there; run: twice the speed */
+  walkTo(x, y, then, run) { const R = this.rooms[this.room]; this.hero.path = R.walk ? R.walk.path([this.hero.x, this.hero.y], [x, y]).slice(1) : [[x, y]]; this.hero.run = !!run; this._then = then || null; }
+  /** a body's scale where its feet are (the room's depth: [yFar, kFar, yNear, kNear]) */
+  scaleAt(y) { const d = this.rooms[this.room].depth; if (!d) return 1; return clamp(d[1] + (d[3] - d[1]) * (y - d[0]) / (d[2] - d[0] || 1), Math.min(d[1], d[3]), Math.max(d[1], d[3])); }
+  /** the hero says lines (over his head; a line's time by its length); who: anything with x, y and k to speak instead */
+  say(lines, who) { const L = Array.isArray(lines) ? lines : [lines]; this.line = { lines: L, i: 0, t: 0, who: who || this.hero }; }
+  /* ---- what a click does ---- */
+  _spot(id) { const R = this.rooms[this.room]; return (R.hotspots || []).find(h => h.id === id && (!h.if || this._test(h.if))); }
+  _test(c) { return typeof c === 'function' ? c(this) : this.story ? this.story.test(c) : true; }
+  /** do verb on target (a hotspot's id, or an item's: in the inventory), with item (held) or not: the hero walks there
+   *  first (a hotspot), then the first rule that matches, else the hotspot's own, else a line. Tests and bots call it */
+  act(verb, target, item = null) {
+    const spot = this._spot(target), inInv = !spot && this.has(target);
+    if (!spot && !inInv) return false;
+    const run = () => {
+      if (spot && spot.face) this.hero.face = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 }[spot.face];
+      if (verb === 'walk' && spot && spot.exit) { this.go(spot.exit, spot.enter); return; }
+      const fits = (v, it, on) => r => (r.verb || 'use') === v && (r.item || null) === (it || null) && r.on === on && (!r.if || this._test(r.if));
+      // (an item on an item: either way round; an item used on someone: given)
+      const rule = this.rules.find(fits(verb, item, target)) || (item && inInv && this.rules.find(fits(verb, target, item))) || (item && verb === 'use' && this.rules.find(fits('give', item, target)));
+      const own = !item && spot && spot[verb];
+      if (rule) this._do(rule); else if (typeof own === 'function') own(this, item); else if (typeof own === 'string' || Array.isArray(own)) this.say(own);
+      else if (own) this._do(own);
+      else if (verb === 'look' && inInv) this.say(this.items[target].look || NO.look('a ' + this.items[target].name));
+      else this.say(item ? NO.with() : (NO[verb] || NO.use)(spot ? spot.name : ''));
+      if (this.on.done) this.on.done(this, verb, item, target);
+    };
+    this.item = null; this.verb = 'walk';
+    if (spot && spot.at && !inInv) this.walkTo(spot.at[0], spot.at[1], run); else run();
+    return true;
+  }
+  // what a plain click does to a hotspot (two-button), and the hand (Sierra's icons)
+  _def(h) { return h.default || (h.exit ? 'walk' : h.actor || h.talk ? 'talk' : this._hand(h)); }
+  _hand(h) { return h.pickup || this.rules.some(r => r.verb === 'pickup' && r.on === h.id) ? 'pickup' : 'use'; }
+  // a rule's or a hotspot's actions
+  _do(a) {
+    if (a.take) for (const t of [].concat(a.take)) this.take(t);
+    if (a.give) for (const t of [].concat(a.give)) this.give(t);
+    if (a.set && this.story) { if (typeof a.set === 'string') this.story.set(a.set); else for (const k in a.set) this.story.set(k, a.set[k]); }
+    if (a.say) this.say(a.say);
+    if (a.talk && this.story) this.story.run(a.talk);
+    if (a.go) this.go(a.go[0], [a.go[1], a.go[2]]);
+    if (a.do) a.do(this);
+  }
+  /** a room point on the screen: [x, y] in screen pixels (the room scrolled or centred above the panel) */
+  screen(x, y) { const L = this._layout(); return [Math.round(x * L.z + L.ox), Math.round(y * L.z + L.oy)]; }
+  /** where a hotspot is on the screen: [x, y] (its middle; an actor's chest), or null (not in this room, or hidden) */
+  where(id) {
+    const h = this._spot(id); if (!h) return null;
+    const k = h.actor && this.scaleAt(h.actor.y), p = h.rect ? [h.rect[0] + h.rect[2] / 2, h.rect[1] + h.rect[3] / 2] : h.poly ? h.poly.reduce((a, q) => [a[0] + q[0] / h.poly.length, a[1] + q[1] / h.poly.length], [0, 0]) : [h.actor.x, h.actor.y - 20 * k];
+    return this.screen(p[0], p[1]);
+  }
+  /** what is under a room point: an inventory item never; a hotspot (the nearest-drawn), or null */
+  at(x, y) {
+    const R = this.rooms[this.room]; let best = null;
+    for (const h of R.hotspots || []) {
+      if (h.if && !this._test(h.if)) continue;
+      const hit = h.rect ? x >= h.rect[0] && x < h.rect[0] + h.rect[2] && y >= h.rect[1] && y < h.rect[1] + h.rect[3] : h.poly ? inPoly(h.poly, x, y) : h.actor ? (k => Math.abs(x - h.actor.x) < 10 * k && y < h.actor.y + 3 && y > h.actor.y - (h.actor.h || 48) * k)(this.scaleAt(h.actor.y)) : false;
+      if (hit && (!best || (h.y || 0) >= (best.y || 0))) best = h;
+    }
+    return best;
+  }
+  /* ---- each step ---- */
+  /** read the pointer and keys, walk the hero, run the talk and the hero's line; true while play should wait */
+  update(dt) {
+    const G = this.game, I = G.input, R = this.rooms[this.room], H = this.hero;
+    if (this._fade) { this._fade += dt * 4; if (this._fade >= 1 && this._swap) { this._swap(); this._swap = null; } if (this._fade >= 2) this._fade = 0; return true; }
+    if (this.line) { const L = this.line; L.t += dt; if (L.t > 1 + L.lines[L.i].length * .05 || (L.t > .3 && (I.clicked() || I.pressed('confirm')))) { L.i++; L.t = 0; if (L.i >= L.lines.length) this.line = null; } }
+    const talking = this.story && this.story.running && this.story.update(dt);
+    // the hero's walk
+    H.k = this.scaleAt(H.y); H.moving = false;
+    if (H.path && H.path.length) {
+      const [tx, ty] = H.path[0], dx = tx - H.x, dy = ty - H.y, d = hyp(dx, dy), sp = H.speed * H.k * (H.run ? 2 : 1) * dt;
+      if (Math.abs(dx) > .5 || Math.abs(dy) > .5) H.face = Math.abs(dx) > Math.abs(dy) * .6 ? (dx > 0 ? 0 : Math.PI) : (dy > 0 ? Math.PI / 2 : -Math.PI / 2);
+      if (d <= sp) { H.x = tx; H.y = ty; H.path.shift(); } else { H.x += dx / d * sp; H.y += dy / d * sp; }
+      H.moving = true;
+      if (!H.path.length) { H.path = null; if (this._then) { const t = this._then; this._then = null; t(this); } }
+    }
+    this._scroll = this._scroll === null ? this._want() : this._scroll + (this._want() - this._scroll) * (1 - Math.pow(.88, dt * 60));   // (the view follows him, eased)
+    if (H.rig) H.rig.update(dt, { x: H.x, y: H.y * 2, vx: H.moving ? Math.cos(H.face) * 40 * (H.run ? 2 : 1) : 0, vy: H.moving ? Math.sin(H.face) * 40 * (H.run ? 2 : 1) : 0, facing: H.face });
+    for (const h of R.hotspots || []) if (h.actor && h.actor.rig) h.actor.rig.update(dt, { x: h.actor.x, y: h.actor.y * 2, facing: h.actor.face !== undefined ? h.actor.face : Math.PI / 2, pose: h.actor.pose, expr: h.actor.expr });
+    if (talking || this.line) return true;
+    if (this.panel) this._input(I);
+    return !!this._then;
+  }
+  // how far a wide room scrolls to keep the hero in the middle
+  _want() { const R = this.rooms[this.room], W = this.game.W / this._zoom(); return clamp(this.hero.x - W / 2, 0, Math.max(0, R.w - W)); }
+  // a tall screen (a phone held upright) shows the room at a whole zoom, keeping at least 180 room pixels across
+  _zoom() { const G = this.game; return Math.max(1, Math.min(Math.floor((G.H - this._panelH()) / this.rooms[this.room].h), Math.floor(G.W / 180))); }
+  _panelH() { return this.game.input.lastDevice === 'touch' ? this._thumb() + 14 : this.ui === 'verbs' ? 56 : 30; }
+  // the screen's layout: the panel along the bottom, the room over it (scrolled to the hero, or centred)
+  _layout() {
+    const G = this.game, W = G.W, Hs = G.H, R = this.rooms[this.room], panel = this._panelH(), py = Hs - panel, z = this._zoom(), rh = Math.min(R.h * z, py), oy = Math.max(0, Math.floor((py - rh) / 2 / z)) * z;
+    if (this._scroll === null) this._scroll = this._want();
+    const ox = R.w * z > W ? -Math.round(this._scroll) * z : Math.floor((W - R.w * z) / 2 / z) * z;
+    return { W, H: Hs, ox, oy, z, rw: R.w, rh, py, panel };
+  }
+  // the pointer: hover labels; clicks on the room, the verbs, the inventory, the coin
+  _input(I) {
+    const L = this._layout(), touch = I.lastDevice === 'touch', p = I.pointer(), c = I.clicked(), right = !!(I.map.look && I.pressed('look')), drop = I.pressed('cancel'), lp = I.longPress(), d2 = I.doubleTap();
+    const toRoom = q => q && q[1] >= L.oy && q[1] < L.py ? [(q[0] - L.ox) / L.z, (q[1] - L.oy) / L.z] : null;
+    const hp = toRoom(p); this._hover = hp && !touch ? this.at(...hp) : null;
+    const cv = this.game.screen.canvas; if (cv && cv.style) cv.style.cursor = touch ? '' : this._hover ? 'pointer' : 'crosshair';
+    // a long press's own release is no tap (it looked already); a drag ends it too
+    if (lp) this._lp = lp; else if (I.box() || I.pan()) this._lp = null;
+    if (c && this._lp) { const was = this._lp; this._lp = null; if (hyp(c[0] - was[0], c[1] - was[1]) < 12) return; }
+    // a click on a box (a verb, an inventory slot, a coin's verb, a scroll arrow)
+    if (c) { const b = this.boxes.find(b => c[0] >= b.x && c[0] < b.x + b.w && c[1] >= b.y && c[1] < b.y + b.h); if (b) { this._coin = null; b.fn(); return; } }
+    if (this._coin && c) { this._coin = null; return; }   // (a click away closes the coin)
+    if ((right || drop) && this.item) { this.item = null; return; }
+    if (right && this.ui === 'icons') { const i = ICONS.findIndex(v => v[0] === this.verb); this.verb = ICONS[(i + 1) % ICONS.length][0]; return; }   // (Sierra's: a right click turns the cursor)
+    const rc = toRoom(c) || toRoom(lp), lookAt = toRoom(right ? p : null);
+    if (lookAt) { const h = this.at(...lookAt); if (h) this.act('look', h.id); return; }
+    if (lp && rc) { const h = this.at(...rc); if (h) { this.act('look', h.id); return; } }
+    if (!rc) return;
+    const h = this.at(...rc), run = !!d2;
+    if (!h) { if (!this.item) { this.verb = 'walk'; this.walkTo(rc[0], rc[1], null, run); } return; }
+    if (this.item) { this.act(this.verb === 'give' ? 'give' : 'use', h.id, this.item); return; }
+    if (h.exit && (this.verb === 'walk' || run)) { if (run) this.go(h.exit, h.enter); else this.act('walk', h.id); return; }
+    if ((this.ui === 'verbs' || this.ui === 'icons') && !touch) { if (this.verb === 'walk') this.walkTo(...(h.at || rc), null, run); else this.act(this.verb === 'hand' ? this._hand(h) : this.verb, h.id); return; }
+    if (this.ui === 'two' && !touch) { this.act(this._def(h), h.id); return; }
+    this._coin = { h, x: c ? c[0] : lp[0], y: c ? c[1] : lp[1] };   // the coin: its verbs round the pointer
+  }
+  /* ---- drawing ---- */
+  _view(k) { const q = Math.round(k * 16) / 16; let v = this._views.get(q); if (!v) { v = new E.View('click', 'Click', 0, 20, q * 1.5, 1); this._views.set(q, v); } return v; }
+  /** the room over the whole screen: its backdrop, bodies and things by depth, the lines, the panel (call after the scene) */
+  draw(r) {
+    const R = this.rooms[this.room], L = this._layout(), G = this.game, touch = G.input.lastDevice === 'touch', z = L.z, pad = [].concat(R.pad || 0), px0 = pad[0], py0 = pad[1] || 0;
+    let cv = PAINTED.get(R); if (!cv && R.paint) { cv = E.mkCanvas(R.w + px0 * 2, R.h + py0 * 2); const g = E.ctx2d(cv); g.translate(px0, py0); R.paint(g); PAINTED.set(R, cv); }   // (painted once, with its margins)
+    this.boxes = [];
+    r.overlay(g => {
+      g.save(); g.fillStyle = '#05040a'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g); g.imageSmoothingEnabled = false;
+      const x0 = L.ox - px0 * z, top = L.oy - py0 * z, bot = L.oy + (R.h + py0) * z;
+      if (cv) {   // past its painted margins, the room's top and bottom rows stretched: its sky above, its floor down to the panel
+        if (top > 0) g.drawImage(cv, 0, 0, cv.width, 1, x0, 0, cv.width * z, top);
+        if (L.py > bot) g.drawImage(cv, 0, cv.height - 1, cv.width, 1, x0, bot, cv.width * z, L.py - bot);
+      }
+      g.beginPath(); g.rect(0, 0, L.W, L.py); g.clip();
+      if (cv) g.drawImage(cv, x0, top, cv.width * z, cv.height * z);
+      g.scale(z, z); const ox = L.ox / z, oy = L.oy / z;   // (room pixels from here, zoomed)
+      // things and bodies by their baselines, far to near
+      const list = [];
+      for (const t of R.things || []) list.push([t.y, () => t.draw(g, ox, oy)]);
+      for (const h of R.hotspots || []) { if (h.if && !this._test(h.if)) continue; if (h.draw) list.push([h.y !== undefined ? h.y : (h.rect ? h.rect[1] + h.rect[3] : 0), () => h.draw(g, ox, oy)]); if (h.actor && h.actor.rig) list.push([h.actor.y, () => h.actor.rig.draw(g, Math.round(h.actor.x + ox), Math.round(h.actor.y + oy), this._view(this.scaleAt(h.actor.y)))]); }
+      const H = this.hero; if (H.rig) list.push([H.y, () => H.rig.draw(g, Math.round(H.x + ox), Math.round(H.y + oy), this._view(H.k))]);
+      list.sort((a, b) => a[0] - b[0]); for (const [, f] of list) f();
+      if (R.front) R.front(g, ox, oy);
+      g.restore(); E.px.reset(g);
+      // the hero's line over his head, wrapped, kept on the screen
+      if (this.line) { const w = this.line.who, s = this.line.lines[this.line.i], k = w.k || this.scaleAt(w.y), lines = E.font.wrap(s, Math.min(200, L.W - 16)), x = clamp(w.x * z + L.ox, 70, L.W - 70); lines.forEach((t, i) => E.font.text(g, t, x, Math.max(2, (w.y - 46 * k) * z + L.oy - (lines.length - i) * 9), w.color || '#fff4b0', { align: 'center', shadow: '#000', outline: true })); }
+      // the pointer's label: the name of what is under it, beside it
+      const p = G.input.pointer(), h = this._hover;
+      if (h && p && !touch && !this._coin && !this.line && this.panel) E.font.text(g, (this.ui === 'icons' && this.verb !== 'walk' ? ICON[this.verb] + ' ' : '') + h.name, clamp(p[0], 30, L.W - 30), Math.max(2, p[1] - 14), '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
+      if (this._fade) { g.fillStyle = 'rgba(5,4,10,' + Math.min(1, this._fade < 1 ? this._fade : 2 - this._fade).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); }
+      if (this.panel) this._panel(g, L, touch);
+    });
+    if (this.story) this.story.draw(r);
+  }
+  // a thumb's size in game pixels (44 CSS pixels)
+  _thumb() { const S = this.game.screen; return Math.max(16, Math.ceil(44 * S.dpr / S.S)); }
+  // the sentence line; the verbs (SCUMM's nine) or the icons (Sierra's), not on a touch screen; the inventory; the coin
+  _panel(g, L, touch) {
+    const y0 = L.py + 1, h = this._hover, it = this.item && this.items[this.item], verbs = this.ui === 'verbs' && !touch, icons = this.ui === 'icons' && !touch, th = this._thumb();
+    const vb = this.verb !== 'walk' && (verbs || icons) && (verbs ? VERB : ICON)[this.verb], name = h ? h.name.toLowerCase() : '';
+    const words = it ? (this.verb === 'give' ? 'Give ' : 'Use ') + it.name.toLowerCase() + (this.verb === 'give' ? ' to ' : ' with ') + name : touch ? '' : (vb ? vb[0] + vb.slice(1).toLowerCase() + ' ' : h ? '' : 'Walk to ') + name;
+    E.font.text(g, words, L.W / 2, y0 + 1, '#c8e8ff', { align: 'center', outline: false });
+    const box = (id, x, y, w, hh, label, on, fn, small) => { this.boxes.push({ id, x, y, w, h: hh, fn }); E.ui.box(g, x, y, w, hh, { alpha: .9, bg: on ? '#3a4a9a' : '#141428' }); if (label) E.font.text(g, label, x + w / 2, y + hh / 2 - 3, on ? '#ffffff' : '#9ab0ff', { align: 'center', outline: false, font: small ? 'tiny' : undefined }); };
+    let ix = 4;
+    if (verbs) { const bw = 52, bh = 14; VERBS.forEach(([v, s], i) => box('verb:' + v, 4 + (i % 3) * (bw + 2), y0 + 11 + Math.floor(i / 3) * (bh + 1), bw, bh, s, this.verb === v, () => { this.verb = v; this.item = null; }, true)); ix = 4 + 3 * (bw + 2) + 6; }
+    if (icons) { ICONS.forEach(([v, s], i) => { const x = 4 + i * 30; box('icon:' + v, x, y0 + 4, 28, 24, '', this.verb === v && !it, () => { this.verb = v; this.item = null; }); const P = this._pic || (this._pic = {}), sp = P[v] || (P[v] = E.sprite(PICS[v], PAL)); px.sprite(g, sp, Math.round(x + 14 - sp.w / 2), y0 + 7); E.font.text(g, s, x + 14, y0 + 19, '#9ab0ff', { align: 'center', outline: false, font: 'tiny' }); }); ix = 4 + 4 * 30 + 6; }
+    // the inventory: icons in a row (two in the verbs' panel; a thumb's size on a touch screen), arrows when it is longer
+    const S = touch ? th : verbs ? 20 : 24, rows = verbs ? 2 : 1, aw = touch ? th : 14, cols = Math.max(1, Math.floor((L.W - ix - aw - 8) / (S + 2))), per = cols * rows, iy = verbs ? y0 + 11 : touch ? y0 + 10 : y0 + 4;
+    this._invAt = clamp(this._invAt, 0, Math.max(0, Math.ceil(this.inv.length / cols) - rows) * cols);
+    this.inv.slice(this._invAt, this._invAt + per).forEach((id, i) => {
+      const x = ix + (i % cols) * (S + 2), y = iy + Math.floor(i / cols) * (S + 2), I = this.items[id];
+      box('item:' + id, x, y, S, S, '', this.item === id, () => { if ((verbs && this.verb !== 'walk' && this.verb !== 'use' && this.verb !== 'give') || (icons && (this.verb === 'look' || this.verb === 'talk'))) { this.act(this.verb, id); return; } if (this.item && this.item !== id) { this.act('use', id, this.item); return; } this.item = this.item === id ? null : id; if (verbs && this.verb === 'walk') this.verb = 'use'; });
+      if (I && typeof I.icon === 'function') I.icon(g, x + 2, y + 2, S - 4); else if (I && I.icon) px.sprite(g, I.icon, Math.round(x + S / 2 - I.icon.w / 2), Math.round(y + S / 2 - I.icon.h / 2));
+      else if (I) E.font.text(g, I.name.slice(0, 3), x + S / 2, y + S / 2 - 3, '#ffe8b0', { align: 'center', outline: false, font: 'tiny' });
+    });
+    if (this.inv.length > per) { const hh = rows > 1 ? S : S / 2 - 1; box('inv:<', L.W - aw - 4, iy, aw, hh, '<', false, () => { this._invAt -= cols; }); box('inv:>', L.W - aw - 4, iy + hh + 2, aw, hh, '>', false, () => { this._invAt += cols; }); }
+    // the coin: the hotspot's verbs round where it was clicked (a thumb's size on a touch screen)
+    if (this._coin) {
+      const C = this._coin, sz = touch ? th : 18, vs = COIN.filter(([v]) => v !== 'talk' || C.h.actor || C.h.talk).concat(C.h.pickup ? [['pickup', 'TAKE']] : [], C.h.exit ? [['walk', 'GO']] : []);
+      const bw = sz + 14, all = vs.length * (bw + 3) - 3, x0 = clamp(C.x - all / 2, 2, L.W - all - 2), up = C.y - sz - 12 >= 2, y = up ? C.y - sz - 12 : Math.min(C.y + 12, L.py - sz - 2);   // (a row over the point, or under it near the top)
+      vs.forEach(([v, s], i) => box('coin:' + v, x0 + i * (bw + 3), y, bw, sz, s, false, () => this.act(v, C.h.id), true));
+      E.font.text(g, C.h.name, clamp(C.x, 40, L.W - 40), up ? Math.max(2, y - 10) : y + sz + 3, '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
+    }
+  }
+  /** the step's pointer stops changing the canvas's cursor (call on leaving the scene) */
+  end() { const cv = this.game.screen.canvas; if (cv && cv.style) cv.style.cursor = ''; }
+  /** true while play waits on it: a fade, a line, a talk, a walk */
+  get busy() { return !!(this._fade || this.line || (this.story && this.story.running) || this.hero.path); }
+  /** what a save keeps: the room, the hero's place, the inventory */
+  state() { return { room: this.room, x: Math.round(this.hero.x), y: Math.round(this.hero.y), inv: this.inv.slice() }; }
+  /** put back what state() gave */
+  restore(s) { this.inv = (s.inv || []).slice(); this.go(s.room, [s.x, s.y], true); }
+}
+E.Click = Click;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+</script>
+<script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.74.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.75.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10956,7 +11332,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.74.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.75.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11510,7 +11886,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.74.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.75.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11696,7 +12072,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.74.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.75.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12108,7 +12484,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.74.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.75.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12316,7 +12692,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.74.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.75.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12479,7 +12855,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.74.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.75.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12663,7 +13039,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.74.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.75.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12994,7 +13370,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.74.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.75.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13019,6 +13395,8 @@ E.Dialog (its markup and portraits), remembering what was said and done.
   path), test(condition).
 - Quests: story.quest(id, title, text), story.done(id); story.quests: [{ id, title, text, done }] in the order taken.
 - story.emote(target, kind, seconds = 1.5): a balloon over anything with x, y, z (h: its height).
+- A visual novel: story.log (what was said and chosen: { who, name, text }, for a backlog), story.auto (seconds a page
+  stays before it turns), story.skip (pages type and turn at once; choices wait).
 - story.state() and story.restore(state): its vars and quests as JSON, for a save (in game.saves' data).
 
 ```js story
@@ -13060,6 +13438,11 @@ class Story {
     this.talk = o.dialog || new E.Dialog(game); this.talk.vars = this.vars;
     /** quests: the quest log, in the order taken ({ id, title, text, done }) */
     this.quests = [];
+    /** log: what was said and chosen, oldest first ({ who, name, text }, the last 200: a visual novel's backlog) */
+    this.log = [];
+    /** auto: seconds a page shows before it turns by itself (0: it waits for the player); skip: pages type at once and
+     *  turn at once (choices still wait) */
+    this.auto = 0; this.skip = false;
     /** running: a node runs; node: its id */
     this.running = false; this.node = null;
     this._steps = null; this._i = 0; this._wait = 0; this._held = false; this._then = null; this._pick = null; this._done = null; this._balloons = [];
@@ -13091,7 +13474,11 @@ class Story {
   _say(s) {
     const p = this.people[s.who] || {}, ch = s.choices && s.choices.filter(c => c.if === undefined || this.test(c.if));
     this._act(s); if (!this.running) return;
-    this.talk.say(s.say, { name: s.name || p.name, portrait: p.portrait, choices: ch && ch.length ? ch.map(c => c.text) : null, onChoice: i => { this._pick = ch[i]; }, onDone: () => this._after(s) });
+    const name = s.name || p.name || '', note = e => { this.log.push(e); if (this.log.length > 200) this.log.shift(); };
+    for (const t of [].concat(s.say)) note({ who: s.who || null, name, text: t });
+    if (this._speed === undefined) this._speed = this.talk.speed;
+    this.talk.speed = this.skip ? 1e6 : this._speed;
+    this.talk.say(s.say, { name, portrait: p.portrait, auto: this.skip ? .08 : this.auto || undefined, choices: ch && ch.length ? ch.map(c => c.text) : null, onChoice: i => { this._pick = ch[i]; note({ who: 'choice', name: '', text: ch[i].text }); }, onDone: () => this._after(s) });
   }
   _after(s) {
     const c = this._pick; this._pick = null;
@@ -13194,7 +13581,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.74.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.75.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -13773,7 +14160,7 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu, nine vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
@@ -13801,6 +14188,8 @@ sprites: {
  *                        training, fog and an AI's waves; a free camera, r.pick, buildings as E.SHAPES, E.Shell's minimap
  *   SLICE 17 SIM         a theme park (Theme Park, RollerCoaster Tycoon): paths, rides whose shapes turn, guests with
  *                        needs (E.needs, E.choose), money, prices, a rating, E.Clock's days, time controls, an overlay
+ *   SLICE 18 POINT-AND-CLICK  an adventure (Monkey Island, Broken Sword): E.Click's rooms, walk areas with holes, depth,
+ *                        hotspots, the nine verbs or a coin, an inventory, puzzles as rules; E.Story's talk and riddles
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
@@ -13825,6 +14214,7 @@ const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game
 // each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
+  { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER', family: 'PLATFORM' },
   { id: 'metroidvania', label: 'METROIDVANIA', about: 'A WORLD OF ROOMS, ITS MAP, ITS GATES', family: 'PLATFORM' },
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
@@ -14582,6 +14972,451 @@ const ADV = (() => {
     exit() { game.cam.room = null; game.cam.smooth = .18; if (gpu) gpu.enabled = false; L.enabled = false; } };
 })();
 scenes.adventure = ADV;
+
+/* =====================================================================================
+ * SLICE 18  POINT-AND-CLICK  (Monkey Island, Day of the Tentacle, Broken Sword). @modules click story
+ * THE LIGHT ON GULL ROCK: dusk on a fishing harbour, and the lighthouse out on Gull Rock has gone dark with the fleet out
+ * in the fog. PIP, a deckhand, relights it. Three painted rooms (the dock, the Salty Gull tavern, the lighthouse's lamp
+ * room), eight hotspots or fewer in each, and a chain of four puzzles: a ROPE and a HOOK make a GRAPPLE that fishes
+ * Finn's OAR out of the water (items combined); Morwen's riddle contest wins the KEY to the rowboat's chain (a
+ * conversation to win); a BOTTLE on the whale-oil barrel gives OIL; the OIL and then the MATCHES on the great lamp end
+ * it. The people talk through E.Story (choices, flags), with live close-ups. The interface is a setting (Point and
+ * click, Interface): SCUMM's nine verbs, Sierra's icons, a verb coin or two buttons. An opening, an ending and THE END.
+ * The mouse: a click walks, or does the verb on what it points at; an item, then a hotspot (or another item), uses it;
+ * a right click looks; a double click runs. TOUCH: a tap walks; a tap on a hotspot shows its verbs; the inventory by
+ * taps; a long press looks. HOW IT WORKS: E.Click (the click module) keeps the rooms, the walk areas (E.Walkbox: the
+ * lamp, the table, Finn and the hatch are holes), the depth scale, the hotspots, the inventory and the rules (data);
+ * the rooms are painted once by code. bot() clicks through the whole chain with input.feed, a wrong riddle first
+ * (tools/kits-test.mjs). Deep link: #pointclick.
+ * ===================================================================================== */
+const POINTCLICK = (() => {
+  const px = E.px, hash = E.hash2, TAU = Math.PI * 2;
+  // a shanty in D minor (three steps a beat: 6/8), and the ending's hymn in D major
+  const SONG = { bpm: 92, steps: 3, tracks: [
+    { wave: 'pulse25', vol: .1, notes: 'D5 - A4 | D5 E5 F5 | E5 - C5 | A4 - - | D5 - A4 | F5 E5 D5 | C5 - E5 | D5 - - | F5 - G5 | A5 - F5 | G5 F5 E5 | C5 - - | D5 - F5 | E5 C5 A4 | D5 C5 E5 | D5 - -' },
+    { wave: 'triangle', vol: .28, notes: 'D3 A3 A3 | D3 A3 A3 | C3 G3 G3 | A2 E3 E3 | D3 A3 A3 | Bb2 F3 F3 | C3 G3 G3 | D3 A3 A3 | F3 C4 C4 | F3 C4 C4 | C3 G3 G3 | A2 E3 E3 | Bb2 F3 F3 | A2 E3 E3 | A2 E3 C#3 | D3 A3 D3' },
+    { wave: 'drums', vol: .05, notes: 'k . h | s . h' }] };
+  const HYMN = { bpm: 76, steps: 3, tracks: [
+    { wave: 'pulse25', vol: .1, notes: 'D5 - F#5 | A5 - - | G5 F#5 E5 | F#5 - - | D5 - E5 | F#5 - A5 | B5 A5 F#5 | A5 - - | D6 - - | . . .' },
+    { wave: 'triangle', vol: .28, notes: 'D3 A3 F#3 | D3 A3 F#3 | A2 E3 C#3 | D3 A3 F#3 | G2 D3 B2 | D3 A3 F#3 | G2 D3 B2 | A2 E3 C#3 | D3 A3 D4 | . . .' }] };
+
+  /* ---- 1. PAINTING: smooth bands (a PS1 sky or wall), planks, cobbles, ellipses; each room painted
+   * once into its own canvas (E.Click keeps it), with margins a bigger screen shows: 120 pixels past each side, 160
+   * above (the night sky, a roof, the rafters) and below (the quay, the sea, the floor) ---- */
+  const at = (stops, t) => { let i = 0; while (i < stops.length - 2 && t > stops[i + 1][0]) i++; const [t0, a] = stops[i], [t1, b] = stops[i + 1]; return E.mix(a, b, E.clamp((t - t0) / (t1 - t0 || 1), 0, 1)); };
+  function grad(g, x, y, w, h, stops, n = 32) {   // (a smooth sky or wall: a row at a time, n bands or more, a band 3 rows at most)
+    n = Math.max(n, Math.ceil(h / 3));
+    for (let j = 0; j < h; j++) px.rect(g, x, y + j, w, 1, at(stops, Math.round(j / Math.max(1, h - 1) * (n - 1)) / (n - 1)));
+  }
+  const ell = (cx, cy, rx, ry, n = 18) => Array.from({ length: n }, (_, i) => [cx + Math.cos(i / n * TAU) * rx, cy + Math.sin(i / n * TAU) * ry]);
+  // boards: rows (each rowH tall, or rowH(i)), each board its own shade, the seams and grain dark; vertical: up and down
+  function planks(g, x, y, w, h, c, rowH, seed = 1, vertical = false) {
+    const T = E.tones(c);
+    for (let r = 0, o = 0; o < (vertical ? w : h); r++) {
+      const rh = typeof rowH === 'function' ? rowH(r) : rowH, len = vertical ? h : w;
+      for (let s = 0, k = 0; s < len; k++) {
+        const L = 22 + Math.floor(hash(r + seed * 31, k) * 40), u = hash(k + seed, r * 7), col = u < .3 ? T.sh : u > .8 ? T.lt : c;
+        if (vertical) { px.rect(g, x + o, y + s, rh - 1, Math.min(L, len - s), col); px.rect(g, x + o + rh - 1, y + s, 1, Math.min(L, len - s), T.deep); px.rect(g, x + o, y + s + L - 1, rh - 1, 1, T.deep); }
+        else { px.rect(g, x + s, y + o, Math.min(L, len - s), rh - 1, col); px.rect(g, x + s, y + o + rh - 1, Math.min(L, len - s), 1, T.deep); px.rect(g, x + s + L - 1, y + o, 1, rh - 1, T.deep); }
+        for (let q = 0; q < L / 9; q++) { const a = s + hash(q, r + k * 13 + seed) * L, b = o + 1 + hash(q + 5, r + k) * (rh - 3); if (a < len) px.rect(g, vertical ? x + b : x + a, vertical ? y + a : y + b, vertical ? 1 : 3, vertical ? 3 : 1, T.sh); }
+        s += L;
+      }
+      o += rh;
+    }
+  }
+  // cobbles: rows of rounded stones, each its own shade, dark mortar between, lit from above
+  function cobbles(g, x, y, w, h, c) {
+    const T = E.tones(c); px.rect(g, x, y, w, h, T.deep);
+    for (let r = 0, o = 0; o < h; r++) {
+      const rh = Math.min(9, 4 + Math.floor(r * .6));   // (rows deepen toward us, then keep their size)
+      for (let s = (r % 2) * -5; s < w; ) { const L = 7 + Math.floor(hash(r, s) * 6) + Math.min(6, r >> 2), u = hash(s, r + 9), col = u < .35 ? T.sh : u > .85 ? T.lt : c, sw = Math.min(L, w - s); if (sw > 2) { px.rect(g, x + Math.max(0, s) + 1, y + o + 1, sw - 2 + Math.min(0, s), rh - 1, col); px.rect(g, x + Math.max(0, s) + 2, y + o + 1, Math.max(0, sw - 4 + Math.min(0, s)), 1, T.lt); } s += L; }   // (cut at its edges)
+      o += rh;
+    }
+  }
+  const glow = (g, x, y, r, c, a = .5) => { for (let k = 1; k <= 4; k++) px.ddisc(g, x, y, r * k / 4, c, a / 4); };
+
+  // the DOCK: dusk over the bay, the sun on the sea, Gull Rock dark on the horizon, the tavern's front on the quay, the pier
+  function paintDock(g) {
+    const X0 = -120, WD = 720;
+    grad(g, X0, -160, WD, 160, [[0, '#06050e'], [1, '#191632']], 8);
+    for (let i = 0; i < 120; i++) px.dot(g, X0 + Math.floor(hash(i, 4) * WD), -160 + Math.floor(hash(i, 5) * 160), hash(i, 6) < .3 ? '#ffffff' : '#8a80b8');
+    grad(g, X0, 0, WD, 78, [[0, '#191632'], [.35, '#3e2652'], [.62, '#8a3a62'], [.86, '#d8606a'], [1, '#f39a62']], 12);
+    for (let i = 0; i < 46; i++) px.dot(g, X0 + Math.floor(hash(i, 1) * WD), Math.floor(hash(i, 2) * 28), hash(i, 3) < .3 ? '#e8e0ff' : '#7a70a8');
+    for (const [cx, cy, w] of [[40, 30, 120], [250, 22, 160], [470, 42, 110], [150, 52, 90], [-60, 44, 100], [560, 26, 90]]) { px.polyDither(g, ell(cx, cy, w / 2, 3), '#b8587a', .7); px.polyDither(g, ell(cx + 6, cy + 2, w / 2 - 10, 1.6), '#f0a080', .8); px.polyDither(g, ell(cx - 4, cy - 2, w / 2 - 16, 1.3), '#5a2c58', .6); }
+    glow(g, 330, 78, 34, '#ffb070', .5); px.disc(g, 330, 78, 10, '#fff0c0');
+    // Gull Rock: the rock and the tower, its lamp dark
+    px.poly(g, [[358, 78], [368, 70], [382, 68], [392, 63], [404, 65], [418, 71], [432, 78]], '#2a1e34');
+    px.poly(g, [[392, 65], [404, 65], [402, 40], [394, 40]], '#e0d4cc'); px.poly(g, [[399, 65], [404, 65], [402, 40], [399, 40]], '#a89ca8');
+    for (const yy of [57, 48]) px.rect(g, 393, yy, 11, 3, '#a83a3a');
+    px.rect(g, 391, 38, 14, 2, '#3a3040'); px.rect(g, 394, 32, 8, 6, '#24243a'); px.poly(g, [[393, 32], [403, 32], [398, 27]], '#5a2a2a');
+    // the sea: the sky's colours, darker toward us; the sun's path; ripples
+    grad(g, X0, 78, WD, 90, [[0, '#d0646a'], [.12, '#7a3a62'], [.5, '#3a2a54'], [1, '#141834']], 10); grad(g, X0, 168, WD, 160, [[0, '#141834'], [1, '#07081a']], 6);
+    for (let y = 79; y < 150; y += 2) for (let i = 0; i < 3; i++) { const sp = 5 + (y - 79) * .55, x = 330 + (hash(y, i * 7) - .5) * sp * 2; if (hash(y, i + 11) < 1 - (y - 79) / 80) px.rect(g, x, y, 2 + hash(y, i + 3) * 7, 1, y < 100 ? '#ffe0a0' : '#e09070'); }
+    for (let i = 0; i < 460; i++) { const x = X0 + hash(i, 21) * WD, y = 81 + Math.pow(hash(i, 22), .8) * 240, w = 2 + Math.min(14, (y - 78) / 12) * hash(i, 23); px.rect(g, x, y, w, 1, y < 112 ? '#a85878' : y < 200 ? '#3c3866' : '#262650'); }
+    // the far pilings behind the pier, and the pier's posts with a sagging rope rail
+    for (const x of [200, 270, 340]) { px.rect(g, x, 104, 3, 12, '#2a2030'); }
+    // the quay: cobbles to the water, its stone edge
+    cobbles(g, X0, 108, 294, 220, '#6c6474'); px.rect(g, 170, 108, 4, 220, '#3e3846'); px.rect(g, 170, 108, 4, 1, '#8a8294');
+    // the pier: boards across it, its front face, pilings into the water with rings
+    planks(g, 174, 116, 248, 34, '#8a6a48', 6, 3, true); px.rect(g, 174, 116, 248, 1, '#b08a60');
+    px.rect(g, 174, 150, 248, 5, '#4a3424'); px.rect(g, 174, 150, 248, 1, '#6a4c34');
+    for (let x = 178; x < 420; x += 40) { px.rect(g, x, 155, 5, 13, '#3a2a20'); px.rect(g, x, 155, 1, 13, '#5a4430'); px.rect(g, x - 3, 166, 11, 1, '#6a6090'); }
+    for (const x of [182, 262, 342, 414]) { px.rect(g, x, 92, 6, 24, '#4a3424'); px.rect(g, x, 92, 2, 24, '#6a4c34'); px.rect(g, x - 1, 91, 8, 2, '#5a4030'); }
+    for (const [a, b] of [[188, 262], [268, 342], [348, 414]]) for (let x = a; x < b; x++) { const u = (x - a) / (b - a); px.dot(g, x, Math.round(96 + Math.sin(u * Math.PI) * 5), '#c8a070'); }
+    // the rowboat at the pier's end, its seat and the far oarlock
+    px.poly(g, [[424, 134], [478, 134], [470, 150], [432, 150]], '#7a4a2a'); px.poly(g, [[428, 134], [474, 134], [470, 140], [432, 140]], '#4a2a18');
+    px.rect(g, 446, 134, 10, 2, '#9a6a3a'); px.rect(g, 424, 133, 54, 1, '#a87040'); px.rect(g, 432, 150, 38, 1, '#2a1a10');
+    for (let x = 426; x < 476; x += 3) px.dot(g, x, 152, '#8a7ab0');
+    // the tavern's front: its plank wall on a stone footing, the timber frame, the roof and its eaves
+    planks(g, X0, 14, 268, 88, '#6a4430', 7, 5, true);
+    px.rect(g, X0, 100, 268, 8, '#5a5262'); for (let x = X0; x < 148; x += 9) px.rect(g, x, 100, 1, 8, '#3e3846');
+    // (its gable roof rises into the margin above, a chimney smoking)
+    px.rect(g, 18, -112, 16, 52, '#6a3a30'); for (let y = -110; y < -60; y += 5) px.rect(g, 18, y, 16, 1, '#4a2620'); px.rect(g, 16, -116, 20, 5, '#4a2a24');
+    for (let i = 0; i < 6; i++) px.polyDither(g, ell(26 + i * 7 + Math.sin(i) * 4, -124 - i * 9, 6 + i * 2, 4 + i), '#6a6080', .45 - i * .06);
+    px.poly(g, [[X0 - 4, -84], [48, -84], [156, 16], [X0 - 4, 16]], '#4a2e3e'); for (let y = -80; y < 16; y += 4) px.line(g, X0, y, Math.min(152, 52 + (y + 84) * 1.08), y, '#3a2232');
+    px.line(g, X0 - 4, -84, 48, -84, '#6a4458'); px.line(g, 48, -84, 156, 16, '#6a4458');
+    px.rect(g, -50, -50, 22, 18, '#2a1a24'); px.rect(g, -48, -48, 18, 14, '#ffd070'); px.rect(g, -40, -48, 2, 14, '#2a1a24'); px.poly(g, [[-54, -50], [-24, -50], [-39, -62]], '#3a2232');
+    px.rect(g, X0 - 4, 16, 164, 5, '#2a1a24'); px.rect(g, X0 - 4, 21, 164, 1, '#1a1018');
+    for (const x of [-60, 0, 50, 92, 144]) { px.rect(g, x, 22, 4, 78, '#3a2418'); px.rect(g, x, 22, 1, 78, '#5a3a28'); }
+    px.rect(g, X0, 58, 268, 3, '#3a2418');
+    // its windows, lit, and the light they throw on the quay
+    for (const x of [8, 100, -96, -44]) { px.rect(g, x - 2, 64, 34, 28, '#3a2418'); grad(g, x, 66, 30, 24, [[0, '#ffe8a0'], [1, '#e89040']], 5); px.rect(g, x + 14, 66, 2, 24, '#3a2418'); px.rect(g, x, 77, 30, 2, '#3a2418'); px.polyDither(g, [[x - 4, 108], [x + 34, 108], [x + 44, 126], [x - 14, 126]], '#ffc070', .22); }
+    // the door (ajar: a warm crack), the lantern by it, the sign
+    px.rect(g, 56, 60, 32, 48, '#2a1a12'); planks(g, 58, 62, 27, 46, '#4a2c1c', 7, 9, true); px.rect(g, 84, 62, 2, 46, '#ffc060'); px.rect(g, 60, 66, 22, 10, '#ffd080'); px.rect(g, 70, 66, 2, 10, '#4a2c1c'); px.dot(g, 80, 86, '#e8c060');
+    px.rect(g, 93, 44, 1, 8, '#2a1a12'); px.rect(g, 90, 52, 7, 9, '#2a2a30'); px.rect(g, 91, 53, 5, 7, '#ffd070'); glow(g, 93, 56, 18, '#ffc060', .5);
+    px.rect(g, 104, 34, 46, 2, '#2a1a12'); px.rect(g, 108, 36, 1, 4, '#2a1a12'); px.rect(g, 144, 36, 1, 4, '#2a1a12');
+    E.ui.box(g, 104, 40, 46, 16, { bg: '#3a2418', border: '#c8a060', gradient: false });
+    E.font.text(g, 'SALTY', 127, 42, '#ffd880', { align: 'center', outline: false, font: 'tiny' }); E.font.text(g, 'GULL', 127, 49, '#ffd880', { align: 'center', outline: false, font: 'tiny' });
+    // a bollard on the quay, crates by the wall
+    px.rect(g, 150, 128, 8, 12, '#2a2a34'); px.rect(g, 149, 127, 10, 3, '#3e3e4a'); px.rect(g, 151, 129, 2, 10, '#4a4a58');
+    for (const [x, y] of [[-40, 98], [-28, 92]]) { px.rect(g, x, y, 14, 12, '#7a5a3a'); px.rect(g, x, y, 14, 1, '#a07a50'); px.line(g, x, y, x + 13, y + 11, '#5a4028'); }
+  }
+  // the SALTY GULL: a plank back wall under a beam, shelves behind the bar, the oil barrel, the fireplace, a board floor
+  function paintTavern(g) {
+    const X0 = -120, WD = 640;
+    // the rafters in the margin above: dark boards, beams across, the lamps' chains going up
+    planks(g, X0, -160, WD, 160, '#2e1e14', 9, 7, true);
+    for (const y of [-150, -96, -40]) { px.rect(g, X0, y, WD, 9, '#1a100a'); px.rect(g, X0, y, WD, 1, '#3a2418'); }
+    for (const x of [-60, 60, 180, 300, 420]) { px.poly(g, [[x, -150], [x + 8, -150], [x + 68, -40], [x + 60, -40]], '#22160e'); }
+    planks(g, X0, 0, WD, 100, '#5a3a28', 8, 2, true);
+    px.rect(g, X0, 0, WD, 8, '#24160e'); px.rect(g, X0, 18, WD, 4, '#3a2418'); px.rect(g, X0, 18, WD, 1, '#5a3a28'); px.rect(g, X0, 94, WD, 6, '#2e1c12');
+    for (const x of [-70, 8, 112, 258, 304, 396, 470]) { px.rect(g, x, 8, 5, 86, '#3a2418'); px.rect(g, x, 8, 1, 86, '#5a3a28'); }
+    // the floor: boards in rows that widen toward us, lighter where the fire reaches
+    planks(g, X0, 100, WD, 228, '#7a5034', r => 3 + Math.floor(r * 1.2), 4);
+    px.polyDither(g, ell(350, 118, 90, 22), '#ffb060', .2); px.polyDither(g, ell(186, 104, 70, 10), '#ffc070', .14);
+    // the door back to the dock (its little window shows the dusk)
+    px.rect(g, 12, 36, 34, 64, '#24160e'); planks(g, 14, 38, 30, 62, '#4a2c1c', 7, 11, true); grad(g, 22, 44, 14, 12, [[0, '#8a3a62'], [1, '#f09060']], 4); px.rect(g, 28, 44, 2, 12, '#24160e'); px.dot(g, 40, 70, '#e8c060');
+    // the notice board, the hanging lamps and their light
+    px.rect(g, 52, 26, 34, 26, '#3a2418'); px.rect(g, 54, 28, 30, 22, '#a07a4a'); for (const [x, y, c] of [[56, 30, '#e8e0c8'], [68, 32, '#f0e8d8'], [60, 40, '#e0d4b8'], [74, 41, '#e8e0c8']]) { px.rect(g, x, y, 9, 8, c); px.rect(g, x + 1, y + 2, 6, 1, '#7a7060'); px.rect(g, x + 1, y + 4, 5, 1, '#7a7060'); px.dot(g, x + 4, y, '#c83a3a'); }
+    for (const x of [150, 238]) { px.rect(g, x, -160, 1, 180, '#1a1010'); px.rect(g, x - 3, 20, 7, 8, '#2a2a30'); px.rect(g, x - 2, 21, 5, 6, '#ffe090'); glow(g, x, 24, 30, '#ffc060', .45); }
+    // shelves of bottles and mugs behind the bar
+    for (const y of [40, 60]) { px.rect(g, 124, y, 128, 3, '#3a2418'); px.rect(g, 124, y, 128, 1, '#6a4a30');
+      for (let x = 128; x < 248; x += 7) { const u = hash(x, y), c = u < .3 ? '#3a7a4a' : u < .55 ? '#7a4a2a' : u < .75 ? '#b8c8c8' : '#6a2a3a', h = 8 + Math.floor(u * 6); px.rect(g, x, y - h, 4, h, c); px.rect(g, x + 1, y - h - 2, 2, 2, c); px.rect(g, x, y - h + 2, 1, h - 3, '#ffffff40'); } }
+    // the whale-oil barrel on its stand, its tap
+    px.rect(g, 262, 92, 4, 8, '#2a1a10'); px.rect(g, 292, 92, 4, 8, '#2a1a10');
+    px.rect(g, 264, 70, 30, 24, '#7a4a2a'); for (const x of [268, 276, 284]) px.rect(g, x, 70, 1, 24, '#5a3418'); px.rect(g, 264, 74, 30, 2, '#4a4a54'); px.rect(g, 264, 88, 30, 2, '#4a4a54');
+    px.ell(g, 264, 82, 4, 12, '#8a5a32'); px.ell(g, 264, 82, 2, 9, '#6a4024'); px.rect(g, 258, 80, 5, 3, '#c8a040'); px.rect(g, 258, 83, 2, 3, '#c8a040');
+    E.font.text(g, 'OIL', 280, 78, '#e8d8a0', { align: 'center', outline: false, font: 'tiny' });
+    // the fireplace: its stones, its black mouth (the fire burns in it, drawn each frame), the mantel, the hearth
+    for (let y = 26; y < 100; y += 6) for (let x = 316 + ((y / 6) % 2) * 5; x < 388; x += 10) { const u = hash(x, y); px.rect(g, x, y, 9, 5, u < .4 ? '#6a6470' : u < .8 ? '#7a7482' : '#5a5462'); px.rect(g, x, y, 9, 1, '#8a8494'); }
+    px.rect(g, 330, 58, 44, 42, '#120a08'); px.rect(g, 334, 62, 36, 38, '#1e100a');
+    px.rect(g, 310, 48, 82, 6, '#5a3a24'); px.rect(g, 310, 48, 82, 1, '#8a6040'); px.rect(g, 310, 53, 82, 1, '#2a1a10');
+    px.rect(g, 360, 40, 6, 8, '#d8d0c0'); px.rect(g, 362, 37, 2, 3, '#ffe080');
+    px.rect(g, 314, 100, 78, 12, '#5a5462'); for (let x = 314; x < 392; x += 13) px.rect(g, x, 100, 1, 12, '#3e3846'); px.rect(g, 314, 100, 78, 1, '#8a8494');
+  }
+  // the LAMP ROOM: the gallery's glass round the back (the night sea, the fog, the fleet's lanterns), its iron frames,
+  // the parapet, the iron grating floor and the hatch to the stairs
+  function paintLamp(g) {
+    const X0 = -120, WD = 640;
+    grad(g, X0, -160, WD, 232, [[0, '#03030a'], [.7, '#070818'], [.88, '#121a38'], [1, '#26365a']], 10);
+    for (let i = 0; i < 200; i++) px.dot(g, X0 + Math.floor(hash(i, 41) * WD), -110 + Math.floor(hash(i, 42) * 166), hash(i, 43) < .25 ? '#e8e8ff' : '#6a70a0');
+    // (the lantern's roof in the margin above: copper plates and ribs closing in toward its middle)
+    px.poly(g, [[X0, -160], [X0 + WD, -160], [X0 + WD, -112], [X0, -112]], '#2a3a36'); for (let x = X0; x < X0 + WD; x += 24) px.line(g, x, -112, 200 + (x - 200) * .6, -160, '#3e544e');
+    px.rect(g, X0, -114, WD, 4, '#1a2420'); px.rect(g, X0, -110, WD, 1, '#4a645c');
+    grad(g, X0, 72, WD, 32, [[0, '#1a2848'], [1, '#0a1020']], 6);
+    for (let i = 0; i < 160; i++) px.rect(g, X0 + hash(i, 51) * WD, 73 + hash(i, 52) * 30, 2 + hash(i, 53) * 4, 1, '#2a3a60');
+    for (const [cx, cy, w] of [[0, 66, 160], [210, 62, 200], [420, 68, 150], [-90, 60, 90]]) px.polyDither(g, ell(cx, cy, w / 2, 6), '#5a6a8a', .3);
+    for (let i = 0; i < 14; i++) { const x = X0 + 40 + hash(i, 61) * (WD - 80), y = 76 + hash(i, 62) * 20; glow(g, x, y, 5, '#ffc060', .5); px.dot(g, x, y, '#ffe8a0'); }
+    // the frames: a mullion every 48 pixels, a rail, the sill; the parapet under it, riveted
+    for (let x = X0; x < X0 + WD; x += 48) { px.rect(g, x, -110, 4, 214, '#22222c'); px.rect(g, x, -110, 1, 214, '#4a4a5a'); }
+    px.rect(g, X0, 40, WD, 2, '#22222c'); px.rect(g, X0, -40, WD, 2, '#22222c'); px.rect(g, X0, 98, WD, 6, '#3a3a46'); px.rect(g, X0, 98, WD, 1, '#6a6a7a');
+    px.rect(g, X0, 104, WD, 10, '#4a4654'); for (let x = X0 + 4; x < X0 + WD; x += 12) px.dot(g, x, 108, '#7a7686'); px.rect(g, X0, 113, WD, 1, '#2a2832');
+    // the grating: a dark floor, a grid of bars lit along their tops
+    px.rect(g, X0, 114, WD, 214, '#26242c');
+    for (let y = 116, k = 0; y < 328; k++, y += 4 + Math.floor(k / 2)) px.rect(g, X0, y, WD, 1, '#46424e');
+    for (let x = X0; x < X0 + WD; x += 6) px.rect(g, x, 114, 1, 214, '#34303a');
+    // the hatch to the stairs, the ladder's rails and rungs going down
+    px.rect(g, 28, 140, 50, 22, '#3a3640'); px.rect(g, 31, 143, 44, 16, '#08070c'); for (const x of [40, 64]) px.rect(g, x, 143, 2, 16, '#5a4a3a'); for (let y = 146; y < 159; y += 4) px.rect(g, 40, y, 26, 1, '#5a4a3a');
+    // the fog bell on its bracket, its rope
+    px.rect(g, 352, 34, 34, 3, '#22222c'); px.rect(g, 368, 37, 2, 6, '#22222c');
+    px.poly(g, [[362, 43], [376, 43], [380, 64], [358, 64]], '#a8783a'); px.poly(g, [[370, 43], [376, 43], [380, 64], [372, 64]], '#7a5428'); px.rect(g, 356, 64, 26, 3, '#c8904a'); px.rect(g, 368, 67, 2, 4, '#5a4020');
+    for (let y = 70; y < 100; y++) px.dot(g, 382 + Math.round(Math.sin(y * .3)), y, '#c8b080');
+  }
+
+  /* ---- 2. ITEMS, the people, the rooms' hotspots, the rules: data for E.Click; the talk: nodes for E.Story ---- */
+  const S = (rows, pal) => E.sprite(rows, pal);
+  const ITEMS = {
+    rope: { name: 'ROPE', look: 'A good length of rope. Salt-stiff, but strong.', icon: S(['...bbbbbb...', '.bBBbbbbBBb.', 'bBb......bBb', 'bB..bbbb..Bb', 'bB.bBBBBb.Bb', 'bB.bB..Bb.Bb', 'bB.bBBBBb.Bb', 'bB..bbbb..Bb', 'bBb......bBb', '.bBBbbbbBBb.', '...bbbbbbBB.', '.........BB.'], { b: '#8a6a3a', B: '#e0b878' }) },
+    hook: { name: 'HOOK', look: 'An iron hook, rusty and sharp.', icon: S(['.....KK..', '....KhhK.', '....KhK..', '....KhK..', '....KhK..', '.K..KhK..', 'KhK.KhK..', 'KhK.KhK..', 'KhhKhhK..', '.KhhhK...', '..KKK....'], { K: '#2a2a34', h: '#a8b0c0' }) },
+    grapple: { name: 'GRAPPLE', look: 'A hook on a rope. I could go fishing with this.', icon: S(['bBb.......KK', 'B.Bb.....KhK', 'bB.Bb....KhK', '.bB.Bbb..KhK', '..bBb.BBbKhK', '....bbb.KhK.', '...K..K.KhK.', '..KhK.KhhK..', '..KhhKhhK...', '...KhhhK....', '....KKK.....'], { b: '#8a6a3a', B: '#e0b878', K: '#2a2a34', h: '#a8b0c0' }) },
+    oar: { name: 'OAR', look: 'Finn\'s oar. Still dripping.', icon: S(['..........ww', '.........wWw', '........wWw.', '.......wWw..', '......wWw...', '.....wWw....', '..bbwWw.....', '.bBBBw......', 'bBBBb.......', 'bBBb........', '.bb.........'], { w: '#6a4a2a', W: '#c8965a', b: '#6a4a2a', B: '#d8a868' }) },
+    key: { name: 'KEY', look: 'Morwen\'s brass key. It opens Finn\'s chain.', icon: S(['.yyy........', 'yY.Yy.......', 'y...yyyyyyyy', 'yY.YyYYYYYYy', '.yyy....y.y.', '........y.y.'], { y: '#8a6a20', Y: '#f0d060' }) },
+    bottle: { name: 'BOTTLE', look: 'An empty bottle. It smells of rum.', icon: S(['..kk..', '..gg..', '..gg..', '.gGgg.', 'gGgggg', 'gGgggg', 'gGgggg', 'gGgggg', 'gGgggg', '.gggg.'], { k: '#7a5a3a', g: '#2a6a4a', G: '#8ad0a0' }) },
+    oil: { name: 'OIL', look: 'A bottle of whale oil. It smells awful.', icon: S(['..kk..', '..gg..', '..gg..', '.gGgg.', 'gGgggg', 'gGoooo', 'gGoOoo', 'gGoooo', 'gGoooo', '.gggg.'], { k: '#7a5a3a', g: '#2a6a4a', G: '#8ad0a0', o: '#c8902a', O: '#ffd070' }) },
+    matches: { name: 'MATCHES', look: 'A box of matches. Five left.', icon: S(['......rr....', '......rw....', '......w.....', '.....w......', 'bbbbbbbbbb..', 'bBBBBBBBBb..', 'bByyyyyyBb..', 'bBBBBBBBBb..', 'bbbbbbbbbb..'], { r: '#d83a2a', w: '#e8d8b0', b: '#3a2a6a', B: '#6a5ab0', y: '#f0d060' }) }
+  };
+  // where the people stand (room pixels), their rigs made at each start
+  const PEOPLE = { finn: { x: 244, y: 128, face: Math.PI, h: 50, color: '#ffe080' }, morwen: { x: 96, y: 118, face: Math.PI / 2, h: 52, color: '#b0d8ff' }, bruno: { x: 188, y: 94, face: Math.PI / 2, h: 54, color: '#ffc0a0' } };
+  const say = (s, who) => pc => pc.say(s, who && PEOPLE[who]);
+  const bob = (x, y, f = 1) => Math.round(Math.sin(game.time * 1.6 * f + x) * 1.2);
+  let ROOMS = null;
+  const rooms = () => ({
+    dock: { w: 480, h: 168, pad: [120, 160], paint: paintDock, depth: [112, .78, 165, 1.08],
+      walk: [[[8, 112], [168, 112], [174, 118], [418, 118], [418, 148], [174, 148], [168, 165], [8, 165]], [[234, 124], [254, 124], [254, 132], [234, 132]]],
+      things: [{ y: 1, draw(g, ox, oy) { g.save(); g.beginPath(); g.rect(ox + 174, oy, 800, 110); g.clip(); for (let i = 0; i < 3; i++) { const x = ((game.time * (3 + i * 2) + i * 230) % 760) - 140; px.polyDither(g, ell(ox + x, oy + 76 + i * 5, 70 + i * 20, 3), '#d8b8d8', .16); } g.restore(); px.reset(g); } }],   // (fog drifting over the sea)
+      hotspots: [
+        { id: 'door', name: 'TAVERN DOOR', rect: [56, 60, 32, 48], at: [72, 116], face: 'up', exit: 'tavern', enter: [40, 128], look: 'The Salty Gull. Warm in there, and loud.', open: pc => pc.act('walk', 'door') },
+        { id: 'rope', name: 'ROPE', rect: [116, 132, 26, 14], at: [108, 144], face: 'right', if: '!rope', y: 146,
+          draw(g, ox, oy) { for (let r = 0; r < 3; r++) px.poly(g, ell(ox + 129, oy + 141 - r * 2, 11 - r, 4 - r * .6, 14), r % 2 ? '#8a6a3a' : '#d8b070'); px.poly(g, ell(ox + 129, oy + 137, 5, 1.5, 10), '#5a4428'); },
+          look: 'A coil of rope. Nobody seems to be using it.', pickup: { give: 'rope', set: 'rope', say: 'A good length of rope. Mine now.' } },
+        { id: 'finn', name: 'FINN', actor: PEOPLE.finn, at: [222, 132], face: 'right', look: 'Finn. He\'s fished these waters for fifty years.', talk: { talk: 'finn' }, pickup: 'He\'s a bit big to carry.' },
+        { id: 'oar', name: 'OAR', rect: [280, 152, 44, 12], at: [300, 146], face: 'down', if: '!oar', y: 160,
+          draw(g, ox, oy) { const b = bob(300, 0), x = ox + 282, y = oy + 157 + b; px.rect(g, x, y, 30, 2, '#c8965a'); px.rect(g, x, y + 2, 30, 1, '#6a4a2a'); px.poly(g, [[x + 30, y - 2], [x + 42, y - 1], [x + 42, y + 4], [x + 30, y + 4]], '#d8a868'); px.rect(g, x - 3, y + 4, 50, 1, '#8a7ab8'); },
+          look: 'Finn\'s oar, bobbing just out of reach.', pickup: 'I can\'t reach it from up here.', use: 'Too far down to reach.' },
+        { id: 'boat', name: 'ROWBOAT', rect: [424, 128, 56, 24], at: [410, 136], face: 'right', look: pc => pc.say(story.get('unchained') ? 'Finn\'s rowboat, free of its chain.' : 'Finn\'s rowboat. Chained to the post.'), use: () => row(), open: () => row(), push: () => row() },
+        { id: 'chain', name: 'CHAIN', rect: [410, 112, 16, 30], at: [404, 134], face: 'right', if: '!unchained', y: 146,
+          draw(g, ox, oy) { for (let i = 0; i <= 8; i++) { const u = i / 8, x = ox + 418 + u * 18, y = oy + 124 + u * 14 + Math.sin(u * Math.PI) * 3; px.rect(g, x, y, 2, 2, i % 2 ? '#8a8a9a' : '#c8c8d8'); } px.rect(g, ox + 414, oy + 120, 8, 7, '#c8a040'); px.rect(g, ox + 415, oy + 117, 6, 3, '#8a8a9a'); px.dot(g, ox + 418, oy + 123, '#3a2a10'); },
+          look: 'A chain and a brass padlock. Morwen\'s, by the look of it.', pull: 'It\'s locked tight.', open: 'It needs a key.', use: 'It needs a key.', pickup: 'It\'s fixed to the post.' },
+        { id: 'gull', name: 'GULL', rect: [338, 80, 16, 14], at: [344, 122], face: 'up', y: 95,
+          draw(g, ox, oy) { const x = ox + 345, y = oy + 88 + (Math.floor(game.time * 1.5) % 3 === 0 ? -1 : 0); px.ell(g, x, y, 5, 3, '#e8e8f0'); px.rect(g, x - 5, y - 1, 6, 2, '#9aa0b0'); px.disc(g, x + 4, y - 3, 2, '#f0f0f8'); px.dot(g, x + 5, y - 4, '#1a1a20'); px.rect(g, x + 6, y - 3, 2, 1, '#f0b030'); px.rect(g, x - 1, y + 3, 1, 2, '#f0b030'); px.rect(g, x + 1, y + 3, 1, 2, '#f0b030'); },
+          look: 'A gull. It\'s eyeing my sandwich. I haven\'t got a sandwich.', talk: 'Squawk? ...I don\'t speak gull.', pickup: 'It would peck my eyes out.' },
+        { id: 'light', name: 'GULL ROCK', rect: [384, 24, 26, 46], look: 'Gull Rock. Its light should be lit by now, and the fleet\'s out in this fog.', use: 'It\'s miles out. I\'ll need a boat.' }
+      ] },
+    tavern: { w: 400, h: 168, pad: [120, 160], paint: paintTavern, depth: [104, .84, 165, 1.08],
+      walk: [[[8, 104], [310, 104], [314, 114], [392, 114], [392, 165], [8, 165]], [[66, 116], [126, 116], [126, 138], [66, 138]]],
+      things: [
+        { y: 100, draw(g, ox, oy) { const x = ox + 116, y = oy + 76; px.rect(g, x, y, 140, 6, '#6a4228'); px.rect(g, x, y, 140, 1, '#a07048'); px.rect(g, x, y + 6, 140, 18, '#4a2c1a'); for (let i = 0; i < 5; i++) { px.rect(g, x + 6 + i * 27, y + 9, 22, 12, '#3a2214'); px.rect(g, x + 6 + i * 27, y + 9, 22, 1, '#5a3824'); } px.rect(g, x - 2, y + 24, 144, 2, '#24160e'); } },
+        { y: 112, draw(g, ox, oy) { const x = ox + 352, y = oy + 98, t = game.time; for (let i = 0; i < 6; i++) { const h = 10 + Math.sin(t * 9 + i * 1.7) * 3 + (i % 3) * 3, xx = x - 14 + i * 5 + Math.round(Math.sin(t * 6 + i) * 1); px.poly(g, [[xx - 3, y], [xx + 3, y], [xx + Math.round(Math.sin(t * 7 + i) * 2), y - h]], i % 2 ? '#ff8a2a' : '#ffc040'); } px.rect(g, x - 16, y, 34, 2, '#3a1a0a'); glow(g, x, y - 6, 26, '#ff9a40', .35); } },
+        { y: 138, draw(g, ox, oy) { const x = ox + 96, y = oy + 124; px.rect(g, x - 24, y + 4, 3, 12, '#3a2214'); px.rect(g, x + 21, y + 4, 3, 12, '#3a2214'); px.poly(g, ell(x, y, 28, 7), '#6a4228'); px.poly(g, ell(x, y - 1, 26, 5.5), '#8a5a34'); px.rect(g, x - 16, y - 7, 3, 6, '#e8e0c8'); px.dot(g, x - 15, y - 8, '#ffd060'); glow(g, x - 15, y - 9, 10, '#ffc060', .4); } }
+      ],
+      hotspots: [
+        { id: 'out', name: 'DOOR', rect: [12, 36, 34, 64], at: [32, 110], face: 'up', exit: 'dock', enter: [74, 120], look: 'Back out to the dock.' },
+        { id: 'bruno', name: 'BRUNO', actor: PEOPLE.bruno, at: [186, 112], face: 'up', look: 'Bruno keeps the Salty Gull. He has arms like hams.', talk: { talk: 'bruno' }, pickup: 'Not without a crane.' },
+        { id: 'barrel', name: 'OIL BARREL', rect: [258, 68, 38, 32], at: [278, 110], face: 'up', look: 'A barrel of whale oil, for the town\'s lamps.', use: 'I need something to carry it in.', open: 'It has a tap. I need something to carry the oil in.', pickup: 'It weighs more than I do.' },
+        { id: 'matches', name: 'MATCHES', rect: [340, 40, 16, 9], at: [350, 120], face: 'up', if: '!matches', y: 54,
+          draw(g, ox, oy) { const x = ox + 342, y = oy + 43; px.rect(g, x, y, 12, 5, '#3a2a6a'); px.rect(g, x + 1, y + 1, 10, 3, '#6a5ab0'); px.rect(g, x + 2, y + 2, 8, 1, '#f0d060'); },
+          look: 'A box of matches on the mantel.', pickup: { give: 'matches', set: 'matches', say: 'Matches. Bruno won\'t mind.' } },
+        { id: 'hook', name: 'HOOK', rect: [92, 46, 14, 16], at: [100, 108], face: 'up', if: '!hook', y: 64,
+          draw(g, ox, oy) { const x = ox + 98, y = oy + 48; px.rect(g, x, y, 3, 3, '#3a3a44'); px.rect(g, x + 1, y + 3, 2, 7, '#a8b0c0'); px.rect(g, x - 2, y + 10, 5, 2, '#a8b0c0'); px.rect(g, x - 3, y + 7, 2, 4, '#a8b0c0'); px.rect(g, x + 3, y + 3, 1, 7, '#5a6070'); },
+          look: 'An iron hook, screwed into rotten wood.', pickup: { give: 'hook', set: 'hook', say: 'It comes away from the rotten wood. Got it.' }, pull: { give: 'hook', set: 'hook', say: 'One good pull, and it comes away. Got it.' } },
+        { id: 'notice', name: 'NOTICES', rect: [52, 26, 34, 26], at: [70, 108], face: 'up', look: ['"WANTED: A KEEPER\'S HAND FOR GULL ROCK."', '"FOUND: ONE LEFT BOOT. ASK BRUNO."', 'And a riddle, pinned up by Morwen: "UNBEATEN SINCE THE FLOOD."'], pickup: 'I\'d better leave them.' },
+        { id: 'morwen', name: 'MORWEN', actor: PEOPLE.morwen, at: [138, 130], face: 'left', look: 'Morwen, the harbour master. Every key on the dock hangs from her belt.', talk: { talk: 'morwen' }, pickup: 'I value my life.' },
+        { id: 'bottle', name: 'BOTTLE', rect: [104, 106, 10, 16], at: [134, 142], face: 'left', if: '!bottle', y: 139,
+          draw(g, ox, oy) { const x = ox + 106, y = oy + 108; px.rect(g, x + 2, y, 2, 3, '#7a5a3a'); px.rect(g, x + 1, y + 3, 4, 3, '#2a6a4a'); px.rect(g, x, y + 6, 6, 9, '#2a6a4a'); px.rect(g, x + 1, y + 6, 1, 8, '#8ad0a0'); },
+          look: 'An empty bottle. Morwen\'s, I think.', pickup: { give: 'bottle', set: 'bottle', say: 'An empty bottle. She won\'t miss it.' } }
+      ] },
+    lamp: { w: 400, h: 168, pad: [120, 160], paint: paintLamp, depth: [114, .88, 165, 1.08],
+      walk: [[[8, 116], [392, 116], [392, 165], [8, 165]], [[174, 126], [226, 126], [232, 132], [226, 140], [174, 140], [168, 132]], [[310, 120], [334, 120], [334, 130], [310, 130]], [[26, 138], [80, 138], [80, 164], [26, 164]]],
+      things: [
+        { y: 130, draw(g, ox, oy) { const x = ox + 322, y = oy + 104; px.rect(g, x - 2, y + 6, 4, 20, '#4a3424'); px.rect(g, x - 8, y + 24, 16, 2, '#3a2a1a'); px.poly(g, [[x - 11, y], [x + 11, y], [x + 9, y + 7], [x - 9, y + 7]], '#5a3a24'); px.rect(g, x - 9, y - 2, 8, 3, '#f0e8d0'); px.rect(g, x + 1, y - 2, 8, 3, '#e8e0c8'); px.rect(g, x - 7, y - 1, 5, 1, '#8a8070'); px.rect(g, x + 2, y - 1, 5, 1, '#8a8070'); } },
+        { y: 134, draw(g, ox, oy) { const x = ox + 242, y = oy + 124; px.rect(g, x - 4, y, 9, 10, '#7a7a86'); px.rect(g, x - 4, y, 2, 10, '#a8a8b4'); px.rect(g, x + 3, y - 3, 4, 2, '#7a7a86'); px.rect(g, x - 1, y - 2, 3, 2, '#5a5a66'); } },
+        { y: 136, draw: (g, ox, oy) => drawLamp(g, ox, oy) }
+      ],
+      front(g, ox, oy) { if (!story.get('lit')) return; const cx = ox + 200, cy = oy + 52, a = game.time * 1.3; for (const s of [0, Math.PI]) { const b = a + s; px.polyDither(g, [[cx, cy], [cx + Math.cos(b - .14) * 460, cy + Math.sin(b - .14) * 160], [cx + Math.cos(b + .14) * 460, cy + Math.sin(b + .14) * 160]], '#fff2b0', .22); } glow(g, cx, cy, 70, '#fff0a0', .6); },
+      hotspots: [
+        { id: 'hatch', name: 'STAIRS', rect: [28, 138, 52, 24], at: [54, 134], face: 'down', exit: 'dock', enter: [404, 136], look: 'A hundred and twelve steps back down to the boat.' },
+        { id: 'lens', name: 'LENS', rect: [170, 22, 60, 40], look: 'A great glass lens, rings inside rings. It throws the light twenty miles.', use: 'It\'s the lamp inside that needs lighting.', pickup: 'It weighs as much as a cow.' },
+        { id: 'lamp', name: 'LAMP', rect: [178, 62, 44, 72], at: [200, 146], face: 'up', look: pc => pc.say(story.get('lit') ? 'Burning bright!' : story.get('oiled') ? 'Its well is full of oil. It just needs a flame.' : 'The great lamp. Its oil well is bone dry.'), use: 'It needs oil, and then a flame.', open: 'The oil well is open. And empty.' },
+        { id: 'log', name: 'LOGBOOK', rect: [310, 98, 26, 14], at: [322, 138], face: 'up', look: ['The keeper\'s log. The last entry:', '"Oil run dry. Gone ashore for more. Back by dusk. BRAM."'], open: ['"Oil run dry. Gone ashore for more. Back by dusk. BRAM."', 'It\'s well past dusk.'], pickup: 'It belongs here.' },
+        { id: 'bell', name: 'FOG BELL', rect: [354, 40, 32, 30], at: [370, 122], face: 'up', look: 'The fog bell. For when the light isn\'t enough.', use: () => bell(), pull: () => bell(), push: () => bell() },
+        { id: 'can', name: 'OIL CAN', rect: [236, 118, 14, 18], at: [254, 144], face: 'left', look: 'The keeper\'s oil can. Empty, of course.', pickup: 'It\'s empty. No use to me.', use: 'Empty.' },
+        { id: 'window', name: 'WINDOW', rect: [60, 6, 100, 60], look: pc => pc.say(story.get('lit') ? 'The fleet\'s lanterns are turning for home!' : 'Fog to the horizon. I can see the fleet\'s lanterns bobbing out there.'), open: 'The wind would blow the flame out.' }
+      ] }
+  });
+  // the great lamp: its brass pedestal, the burner, the beehive lens of glass rings (ablaze once lit)
+  function drawLamp(g, ox, oy) {
+    const x = ox + 200, y = oy + 52, lit = story.get('lit'), t = game.time;
+    px.poly(g, ell(x, oy + 134, 26, 6), '#3a2a18'); px.poly(g, ell(x, oy + 132, 22, 5), '#a8783a');
+    px.rect(g, x - 9, oy + 86, 18, 46, '#8a5a28'); px.rect(g, x - 9, oy + 86, 4, 46, '#c8904a'); px.rect(g, x + 6, oy + 86, 3, 46, '#5a3a18');
+    for (const yy of [92, 112, 126]) px.rect(g, x - 11, oy + yy, 22, 3, '#c8904a');
+    px.rect(g, x - 26, y + 28, 52, 6, '#a8783a'); px.rect(g, x - 26, y - 30, 52, 5, '#a8783a'); px.poly(g, [[x - 20, y - 30], [x + 20, y - 30], [x, y - 40]], '#8a5a28');
+    // the lens: rings of prisms, a bullseye in the middle, the gallery's frames seen through the glass
+    for (let i = 0; i < 9; i++) {
+      const yy = y - 25 + i * 6, w = Math.round(17 + Math.sqrt(16 - (i - 4) * (i - 4)) * 2.2), c = lit ? (i % 2 ? '#fff4c0' : '#ffe080') : (i % 2 ? '#7890a8' : '#9ab0c4');
+      px.rect(g, x - w, yy, w * 2, 5, c); px.rect(g, x - w, yy + 4, w * 2, 1, lit ? '#ffd060' : '#4a6078'); px.rect(g, x - w, yy, w * 2, 1, lit ? '#ffffff' : '#c8d8e4');
+      px.rect(g, x - w + 2, yy + 1, 3, 2, lit ? '#ffffff' : '#e8f0f4'); px.rect(g, x + w - 6, yy + 1, 4, 3, lit ? '#ffe8a0' : '#5a7088');
+    }
+    if (!lit) for (const dx of [-14, 14]) px.rect(g, x + dx, y - 25, 1, 54, '#3a4a5e');
+    px.ell(g, x, y + 1, 9, 9, lit ? '#ffffff' : '#b8ccdc'); px.ell(g, x, y + 1, 6, 6, lit ? '#fff8d0' : '#8aa4bc');
+    if (lit) { glow(g, x, y, 34 + Math.sin(t * 8) * 2, '#ffffd0', .9); px.disc(g, x, y, 5, '#ffffff'); }
+    else { px.rect(g, x - 3, y - 2, 6, 8, '#3a3a44'); px.rect(g, x - 1, y - 4, 2, 2, '#1a1a20'); }
+  }
+  // the rules (data): an item on a hotspot or an item, the first that matches runs
+  const RULES = [
+    { item: 'rope', on: 'hook', take: ['rope', 'hook'], give: 'grapple', say: 'I knot the rope to the hook. A grapple!' },
+    { item: 'grapple', on: 'oar', take: 'grapple', give: 'oar', set: 'oar', say: 'Got it! I haul Finn\'s oar up onto the pier.' },
+    { item: 'rope', on: 'oar', say: 'The rope just floats beside it. It needs something on the end to catch it.' },
+    { item: 'hook', on: 'oar', say: 'My arm isn\'t that long. If the hook were on a line...' },
+    { item: 'key', on: 'chain', take: 'key', set: 'unchained', say: 'Click! The padlock springs open, and the chain drops.' },
+    { item: 'bottle', on: 'barrel', take: 'bottle', give: 'oil', say: 'I fill the bottle from the tap. Whale oil. Phew.' },
+    { item: 'oil', on: 'lamp', take: 'oil', set: 'oiled', say: 'I pour the oil into the lamp\'s well. Every drop.' },
+    { item: 'matches', on: 'lamp', if: 'oiled', take: 'matches', do: () => light() },
+    { item: 'matches', on: 'lamp', say: 'There\'s no oil in it to burn.' },
+    { item: 'oil', on: 'can', say: 'The lamp needs it more than the can does.' },
+    { verb: 'give', item: 'oar', on: 'finn', do: pc => pc.say('Hang on to it, Pip. You\'re the one rowing.', PEOPLE.finn) },
+    { verb: 'give', item: 'bottle', on: 'bruno', do: pc => pc.say('Fill it yourself, lad. The barrel\'s right there.', PEOPLE.bruno) },
+    { verb: 'give', item: 'key', on: 'morwen', do: pc => pc.say('Keep it till the boat\'s back. Then I want it.', PEOPLE.morwen) }
+  ];
+  // the talk: Finn's opening and his questions, Bruno's, Morwen's riddle contest (three right answers win the key)
+  const NODES = {
+    intro: [
+      { who: 'finn', say: ['Pip! Gull Rock\'s gone dark. Old Bram rowed ashore for oil this morning, and he\'s not back.', 'And the whole fleet\'s out in this fog. Without the light they\'ll be on the rocks by midnight.'] },
+      { who: 'pip', say: 'Then I\'ll light it myself! How do I get out there?' },
+      { who: 'finn', say: ['Take my rowboat, at the end of the pier. Only I dropped my oar in the drink...', 'And Morwen chains every boat on this dock at dusk. She\'s in the Salty Gull.'] }],
+    finn: [{ who: 'finn', say: 'Any luck, Pip?', choices: [{ text: 'WHERE\'S YOUR OAR?', goto: 'finnOar' }, { text: 'HOW DO I GET THE KEY?', goto: 'finnKey' }, { text: 'WHAT DOES THE LAMP NEED?', goto: 'finnLamp' }, { text: 'I\'D BETTER GO', goto: 'finnBye' }] }],
+    finnOar: [{ if: 'oar', who: 'finn', say: 'You fished it out! Good lad.' }, { if: '!oar', who: 'finn', say: 'Floating by the pier, just out of reach. A hook on a line would fetch it.' }, { goto: 'finn' }],
+    finnKey: [{ if: 'unchained', who: 'finn', say: 'You got her to part with it? Then go!' }, { if: '!unchained', who: 'finn', say: 'Morwen won\'t sell it. But she can\'t resist a riddle contest. Never lost one, mind.' }, { goto: 'finn' }],
+    finnLamp: [{ who: 'finn', say: 'Oil, and a flame. Bram went ashore because the oil ran out.' }, { goto: 'finn' }],
+    finnBye: [{ who: 'finn', say: 'Mind the fog, Pip.' }],
+    bruno: [{ who: 'bruno', say: 'What\'ll it be, Pip?', choices: [{ text: 'THE LIGHTHOUSE IS DARK', goto: 'brunoLight' }, { text: 'IS THAT WHALE OIL?', goto: 'brunoOil' }, { text: 'TELL ME ABOUT MORWEN', goto: 'brunoMorwen' }, { text: 'NOTHING, THANKS', goto: 'brunoBye' }] }],
+    brunoLight: [{ who: 'bruno', say: 'Bram\'s gone ashore, so the lamp\'s dry. You\'ll want oil, and a flame to put to it. There\'s matches on the mantel.' }, { goto: 'bruno' }],
+    brunoOil: [{ who: 'bruno', say: 'For the town\'s lamps, aye. Take what you need, if you\'ve something to carry it in.' }, { goto: 'bruno' }],
+    brunoMorwen: [{ who: 'bruno', say: 'Harbour master. Loves a riddle more than her own mother. Never lost a contest, she says.' }, { goto: 'bruno' }],
+    brunoBye: [{ who: 'bruno', say: 'Mind the fog.' }],
+    morwen: [{ if: 'wonKey', goto: 'morwenWon' }, { who: 'morwen', say: 'Finn\'s chain? Every chain on this dock is mine, Pip, and so is every key.' },
+      { who: 'morwen', say: 'But I\'ll give that key to anyone who beats me at riddles. Three riddles. No mistakes.', choices: [{ text: 'ASK AWAY', goto: 'riddle1' }, { text: 'NOT NOW', goto: 'morwenBye' }] }],
+    riddle1: [{ who: 'morwen', say: 'First. What has a mouth but never eats, and a bed but never sleeps?', choices: [{ text: 'A WHALE', goto: 'wrong' }, { text: 'A RIVER', goto: 'riddle2' }, { text: 'A HARBOUR', goto: 'wrong' }] }],
+    riddle2: [{ who: 'morwen', say: 'Lucky. Second. The more of them you take, the more you leave behind.', choices: [{ text: 'COINS', goto: 'wrong' }, { text: 'FISH', goto: 'wrong' }, { text: 'FOOTSTEPS', goto: 'riddle3' }] }],
+    riddle3: [{ who: 'morwen', say: 'Hmph. Last. I\'m light as a feather, yet the strongest sailor can\'t hold me for long.', choices: [{ text: 'HIS BREATH', goto: 'won' }, { text: 'A GULL', goto: 'wrong' }, { text: 'A SAIL', goto: 'wrong' }] }],
+    won: [{ who: 'morwen', say: ['Three for three! Nobody\'s done that since the flood.', 'Here. Finn\'s padlock, and mind you bring it back.'], set: 'wonKey', event: 'key' }],
+    wrong: [{ who: 'morwen', say: 'Wrong! Come back when you\'re sharper, Pip.', add: { tries: 1 } }],
+    morwenWon: [{ who: 'morwen', say: 'The key\'s yours, Pip. Off you go.' }],
+    morwenBye: [{ who: 'morwen', say: 'I\'ll be here. I always am.' }],
+    ending: [{ who: 'pip', say: 'It\'s lit! Gull Rock is shining again!' }, { who: 'pip', say: 'Steer for the light, all of you. Come home.' }]
+  };
+
+  /* ---- 3. THE GAME: the opening card and talk, play, the ending, THE END ---- */
+  let pc = null, story = null, rigs = null, mode = 'open', modeT = 0, acts = 0, played = 0, caption = null;
+  // the interface (Settings, Point and click): the nine verbs, the icons, the coin or two buttons
+  game.settings.define({ key: 'pcInterface', group: 'Point and click', label: 'Interface', options: [['verbs', 'Nine verbs'], ['icons', 'Icons'], ['coin', 'Verb coin'], ['two', 'Two buttons']], value: 'verbs',
+    help: 'Nine verbs: SCUMM\'s (Monkey Island), a verb then a thing. Icons: Sierra\'s, a right click turns the cursor. Verb coin: a click on a thing shows its verbs. Two buttons: a click uses, a right click looks. A phone taps: the coin', apply: (g, v) => { if (pc) pc.ui = v; } });
+  const endMenu = new E.Menu(game, ['PLAY AGAIN', 'TITLE'], { y: 0, onPick: i => i === 0 ? game.go('pointclick', null, { fade: 'iris' }) : game.go('title') });
+  function start() {
+    rigs = {
+      pip: new E.Humanoid({ size: 1.15, weapon: null, hair: 'short', hat: { style: 'cap', color: '#2a4a8a' }, colors: { cloth: '#e8e4dc', trim: '#2a4a8a', pants: '#3a4a6a', hair: '#c8642a', boot: '#4a3020', belt: '#6a4a2a' } }),
+      finn: new E.Humanoid({ size: 1.2, weapon: null, outfit: 'coat', sleeves: 'long', hunch: .25, hair: 'short', hat: { style: 'cap', color: '#e8c040' }, colors: { coat: '#e8c040', cloth: '#3a5a7a', pants: '#3a3a4a', hair: '#d8d8d8', boot: '#2a2a30', trim: '#b89020' } }),
+      morwen: new E.Humanoid({ size: 1.2, build: 'heroic', weapon: null, outfit: 'coat', sleeves: 'long', hair: 'long', hat: { style: 'cap', color: '#1a2a4a' }, colors: { coat: '#1a2a4a', trim: '#e8c860', cloth: '#e8e4dc', pants: '#2a2a3a', hair: '#3a2420', boot: '#1a1418', belt: '#c8a040' } }),
+      bruno: new E.Humanoid({ size: 1.3, build: 'bulky', weapon: null, hair: 'bald', colors: { cloth: '#f0ece0', pants: '#4a3a2a', belt: '#6a4a2a', skin: '#d8a880', boot: '#2a2018' } })
+    };
+    for (const k in PEOPLE) PEOPLE[k].rig = rigs[k];
+    ROOMS = ROOMS || rooms();
+    story = new E.Story(game, { people: { pip: { name: 'PIP', portrait: rigs.pip }, finn: { name: 'FINN', portrait: rigs.finn }, morwen: { name: 'MORWEN', portrait: rigs.morwen }, bruno: { name: 'BRUNO', portrait: rigs.bruno } },
+      nodes: NODES, vars: { tries: 0 }, on: { key: () => { pc.give('key'); A.sfx('key'); } } });
+    pc = new E.Click(game, { rooms: ROOMS, items: ITEMS, rules: RULES, story, hero: { rig: rigs.pip, speed: 52 }, ui: game.settings.pcInterface || 'verbs', room: 'dock', at: [40, 140],
+      on: { done: (pc, verb) => { acts++; if (verb === 'pickup' && !pc.line) A.sfx('pickup'); }, enter: (pc, id) => { A.sfx('door'); if (id === 'lamp' && !story.get('climbed')) { story.set('climbed'); pc.say('Phew. A hundred and twelve steps.'); } } } });
+    mode = 'open'; modeT = 0; acts = 0; played = 0; caption = null; pc.panel = false;
+    game.input.touchEnabled = false; L.enabled = false; game.follow(null); A.music(SONG);
+  }
+  // the rowboat: chained, then oarless, then off to Gull Rock
+  function row() {
+    if (!story.get('unchained')) { pc.say('It\'s chained to the post. Padlocked, too.'); return; }
+    if (!pc.has('oar')) { pc.say('Rowing with my hands would take all night. I need an oar.'); return; }
+    A.sfx('whoosh'); caption = { s: 'PIP ROWS OUT TO GULL ROCK...', t: 0 }; pc.go('lamp', [96, 136]);
+  }
+  function bell() { A.sfx({ wave: 'triangle', freq: 392, to: 388, dur: 1.4, vol: .35 }); pc.say('BONG! ...That woke the gulls.'); }
+  // the matches on the oiled lamp: it blazes, the beams sweep, Pip's last words, THE END
+  function light() {
+    story.set('lit'); mode = 'lit'; modeT = 0; pc.panel = false; A.sfx('powerup'); A.music(HYMN); game.flash('#fff6d0', .5);
+  }
+  function update(dt) {
+    modeT += dt; if (caption) caption.t += dt;
+    const I = game.input;
+    if (mode === 'open') { if (modeT > 3.5 || (modeT > .4 && (I.clicked() || I.pressed('confirm')))) { I.consumeAll(); mode = 'play'; pc.panel = true; story.run('intro'); } return; }
+    if (mode === 'end') { if (!endMenu.update(dt)) pickOnStart(endMenu); return; }
+    if (mode === 'play') played += dt;
+    pc.update(dt);
+    if (mode === 'lit' && modeT > 2.5 && !story.running && !story.get('said')) { story.set('said'); story.run('ending', { onDone: () => { mode = 'end'; modeT = 0; } }); }
+  }
+  function draw(r) {
+    pc.draw(r);
+    r.overlay(g => {
+      const W = r.W, H = r.H;
+      if (caption && caption.t < 3) E.font.text(g, caption.s, W / 2, 20, '#ffe8b0', { align: 'center', shadow: '#000', outline: false });
+      if (mode === 'open') {
+        const a = Math.min(1, modeT * 2) * (modeT > 3 ? Math.max(0, 1 - (modeT - 3) * 2) : 1);
+        g.fillStyle = 'rgba(5,4,10,' + (.55 * a).toFixed(2) + ')'; g.fillRect(0, H / 2 - 40, W, 70);
+        if (a > .2) { E.font.title(g, 'THE LIGHT ON', W / 2, H / 2 - 34, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'], depth: 2 }); E.font.title(g, 'GULL ROCK', W / 2, H / 2 - 12, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 }); }
+      }
+      if (mode === 'end') {
+        const a = Math.min(1, modeT); g.fillStyle = 'rgba(5,4,10,' + (.6 * a).toFixed(2) + ')'; g.fillRect(0, 0, W, H);
+        const y = Math.round(H / 2) - 70;
+        E.font.title(g, 'THE END', W / 2, y, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 3 });
+        E.font.text(g, 'THE LIGHT ON GULL ROCK', W / 2, y + 40, '#e8e0ff', { align: 'center', shadow: '#000', outline: false });
+        const m = Math.floor(played / 60), s = Math.floor(played % 60);
+        E.font.text(g, 'TIME ' + m + ':' + String(s).padStart(2, '0') + '    ACTIONS ' + acts + '    RIDDLES MISSED ' + (story.get('tries') || 0), W / 2, y + 54, '#b8b0d8', { align: 'center', shadow: '#000', outline: false, font: 'tiny' });
+        endMenu.y = y + 72;
+      }
+    });
+    if (mode === 'end') endMenu.draw(r);
+  }
+
+  /* ---- 4. THE BOT: clicks through the whole chain as a player would (input.feed on the screen's buttons and the
+   * hotspots, the nine verbs), answers a riddle wrong first, then all three; THE END (tools/kits-test.mjs) ---- */
+  function bot(o = {}) {
+    const was = Math.random, I = game.input, log = [];
+    try {
+      Math.random = E.rng(o.seed || 5);
+      game.time = 0; game.timeScale = 1; game.settings.set('pcInterface', 'verbs'); game.go('pointclick', null, { fade: 0 }); game.advance(1 / 120);
+      const step = (s = 1 / 60) => game.advance(s, { draw: true });
+      const key = () => { I.press('Space'); step(1 / 60); I.release('Space'); };   // (a key, as a player at a computer: input.tap is a touch button's)
+      let answers = [];
+      // wait while play waits: lines tapped through, choices clicked (the next answer, else the last: goodbye)
+      const wait = (max = 60) => {
+        for (let t = 0; t < max; t += 1 / 30) {
+          const D = story.talk;
+          if (mode === 'open') key();
+          else if (story.running && D.open && D.choices && !D.typing && D.i >= D.pages.length - 1) { const want = answers.length ? D.choices.indexOf(answers[0]) : D.choices.length - 1; if (want < 0) throw new Error('bot: no choice ' + answers[0] + ' in ' + D.choices); answers.shift(); const p = D.choiceAt(want); click(p[0], p[1]); continue; }
+          else if (story.running || pc.line) key();
+          else if (!pc.busy && mode !== 'open') return;
+          step(1 / 30);
+        }
+        throw new Error('bot: still busy after ' + max + ' s (' + pc.room + ')');
+      };
+      const click = (x, y) => { I.feed('move', x, y); I.feed('down', x, y); step(); I.feed('up', x, y); step(); };
+      const button = id => { step(0); const b = pc.boxes.find(b => b.id === id); if (!b) throw new Error('bot: no button ' + id); click(b.x + b.w / 2, b.y + b.h / 2); };
+      const spot = id => { const p = pc.where(id); if (!p) throw new Error('bot: no ' + id + ' in ' + pc.room); click(p[0], p[1]); };
+      const verb = (v, id) => { button('verb:' + v); spot(id); wait(); log.push(v + ' ' + id); };
+      const use = (item, id) => { button('item:' + item); if (pc.has(id)) button('item:' + id); else spot(id); wait(); log.push(item + ' on ' + id); };
+      const go = id => { spot(id); wait(); log.push('to ' + pc.room); };
+      wait();
+      verb('pickup', 'rope'); go('door');
+      verb('pull', 'hook'); use('rope', 'hook'); verb('pickup', 'bottle'); verb('pickup', 'matches'); use('bottle', 'barrel');
+      answers = ['ASK AWAY', 'A WHALE']; verb('talk', 'morwen');
+      const lost = !pc.has('key') && story.get('tries') === 1;
+      answers = ['ASK AWAY', 'A RIVER', 'FOOTSTEPS', 'HIS BREATH']; verb('talk', 'morwen');
+      go('out'); use('grapple', 'oar'); use('key', 'chain'); verb('use', 'boat');
+      use('matches', 'lamp'); const dry = !story.get('lit');
+      use('oil', 'lamp'); use('matches', 'lamp');
+      for (let t = 0; t < 30 && mode !== 'end'; t += 1 / 30) { if (story.running) key(); step(1 / 30); }
+      return { won: mode === 'end', lost, dry, log, inv: pc.inv.slice(), acts, time: Math.round(played), room: pc.room, errors: game.errors.length };
+    } finally { Math.random = was; }
+  }
+
+  return { view: 'side', views: ['side'], res: 'ps1', pausable: true, touch: [], camera: { zoom: false },
+    input: { ...E.Input.DEFAULT, look: ['Mouse2'] },
+    enter: start, update, draw, bot,
+    exit() { if (pc) pc.end(); game.input.touchEnabled = true; },
+    back() { if (mode === 'end' || mode === 'open') { game.go('title'); return true; } if (pc && pc.item) { pc.item = null; return true; } return false; },
+    /** for tests: the click module's E.Click (pc), the story, the scene's mode, the actions taken */
+    state: () => ({ pc, story, mode, acts, room: pc && pc.room, inv: pc ? pc.inv.slice() : [] }),
+    /** the proof: the opening, Finn's talk tapped through while Pip walks (the module's calls: the rope picked up, the
+     *  tavern, the hook pulled, the rope tied to it); the room, the hero's place, the inventory and the flags, hashed */
+    run: (n = 1500) => proof('pointclick', n, (i, k) => {
+      if (i % 30 === 10) k.tap('confirm');
+      if (i === 60) pc.act('pickup', 'rope'); if (i === 330) pc.act('walk', 'door'); if (i === 700) pc.act('pull', 'hook'); if (i === 1000) pc.act('use', 'hook', 'rope');
+    }, () => [pc.state(), story.state(), mode, acts, Math.round(pc.hero.x * 10), Math.round(pc.hero.y * 10)]) };
+})();
+scenes.pointclick = POINTCLICK;
 
 /* =====================================================================================
  * SLICE 2  PLATFORMER  (side-scroller in the style of Castlevania: SotN, Mega Man X and Klonoa)

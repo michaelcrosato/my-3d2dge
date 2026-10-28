@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module STORY v0.74.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.75.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -24,6 +24,8 @@ E.Dialog (its markup and portraits), remembering what was said and done.
   path), test(condition).
 - Quests: story.quest(id, title, text), story.done(id); story.quests: [{ id, title, text, done }] in the order taken.
 - story.emote(target, kind, seconds = 1.5): a balloon over anything with x, y, z (h: its height).
+- A visual novel: story.log (what was said and chosen: { who, name, text }, for a backlog), story.auto (seconds a page
+  stays before it turns), story.skip (pages type and turn at once; choices wait).
 - story.state() and story.restore(state): its vars and quests as JSON, for a save (in game.saves' data).
 
 ```js story
@@ -65,6 +67,11 @@ class Story {
     this.talk = o.dialog || new E.Dialog(game); this.talk.vars = this.vars;
     /** quests: the quest log, in the order taken ({ id, title, text, done }) */
     this.quests = [];
+    /** log: what was said and chosen, oldest first ({ who, name, text }, the last 200: a visual novel's backlog) */
+    this.log = [];
+    /** auto: seconds a page shows before it turns by itself (0: it waits for the player); skip: pages type at once and
+     *  turn at once (choices still wait) */
+    this.auto = 0; this.skip = false;
     /** running: a node runs; node: its id */
     this.running = false; this.node = null;
     this._steps = null; this._i = 0; this._wait = 0; this._held = false; this._then = null; this._pick = null; this._done = null; this._balloons = [];
@@ -96,7 +103,11 @@ class Story {
   _say(s) {
     const p = this.people[s.who] || {}, ch = s.choices && s.choices.filter(c => c.if === undefined || this.test(c.if));
     this._act(s); if (!this.running) return;
-    this.talk.say(s.say, { name: s.name || p.name, portrait: p.portrait, choices: ch && ch.length ? ch.map(c => c.text) : null, onChoice: i => { this._pick = ch[i]; }, onDone: () => this._after(s) });
+    const name = s.name || p.name || '', note = e => { this.log.push(e); if (this.log.length > 200) this.log.shift(); };
+    for (const t of [].concat(s.say)) note({ who: s.who || null, name, text: t });
+    if (this._speed === undefined) this._speed = this.talk.speed;
+    this.talk.speed = this.skip ? 1e6 : this._speed;
+    this.talk.say(s.say, { name, portrait: p.portrait, auto: this.skip ? .08 : this.auto || undefined, choices: ch && ch.length ? ch.map(c => c.text) : null, onChoice: i => { this._pick = ch[i]; note({ who: 'choice', name: '', text: ch[i].text }); }, onDone: () => this._after(s) });
   }
   _after(s) {
     const c = this._pick; this._pick = null;

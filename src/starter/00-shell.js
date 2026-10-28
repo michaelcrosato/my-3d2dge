@@ -25,6 +25,8 @@
  *                        training, fog and an AI's waves; a free camera, r.pick, buildings as E.SHAPES, E.Shell's minimap
  *   SLICE 17 SIM         a theme park (Theme Park, RollerCoaster Tycoon): paths, rides whose shapes turn, guests with
  *                        needs (E.needs, E.choose), money, prices, a rating, E.Clock's days, time controls, an overlay
+ *   SLICE 18 POINT-AND-CLICK  an adventure (Monkey Island, Broken Sword): E.Click's rooms, walk areas with holes, depth,
+ *                        hotspots, the nine verbs or a coin, an inventory, puzzles as rules; E.Story's talk and riddles
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
@@ -49,6 +51,7 @@ const prompt = (a, word) => game.input.label(a) + ' ' + word, touch = () => game
 // each slice: its scene's id, its title entry, a line about it, and its family (the title groups them under it)
 const SLICES = [
   { id: 'adventure', label: 'ADVENTURE', about: 'TOP-DOWN ACTION ADVENTURE', family: 'ACTION ADVENTURE' },
+  { id: 'pointclick', label: 'POINT-AND-CLICK', about: 'RELIGHT THE LIGHTHOUSE ON GULL ROCK', family: 'ADVENTURE' },
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER', family: 'PLATFORM' },
   { id: 'metroidvania', label: 'METROIDVANIA', about: 'A WORLD OF ROOMS, ITS MAP, ITS GATES', family: 'PLATFORM' },
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },

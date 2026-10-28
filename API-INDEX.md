@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.74.1)
+# my-3D2dge API index (v0.75.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,57 +48,58 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 103 The engine object (E = My3D2dge)
-- 114 Math
-- 188 Pixel primitives
-- 207 Sprite frames, turns and swaps
-- 213 Views (projections); E.View: view
-- 240 Screen; game.screen
-- 262 Input; E.Input: input
-- 346 Pixel font
-- 357 Lighting; game.lights
-- 376 Particles; E.Particles: game.particles
-- 396 Renderer; r
-- 444 Game; E.Game: game
-- 555 Standard features; settings, fullscreen
-- 572 10c. Boot
-- 577 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 594 10e. Paths; E.Path: path
-- 604 10g. Weather
-- 608 10k. Save slots; E.Saves: saves
-- 631 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 704 Blob rig; E.Blob: blob
-- 724 Tile map; E.TileMap: map
-- 787 Materials
-- 808 Flow field; E.FlowField: flow
-- 826 Texture helpers for floortex functions
-- 837 Platform map; E.PlatformMap: level
-- 871 Platformer; E.Platformer: hero
-- 912 Body; E.Body: body
-- 932 Actions; E.Action: action
-- 954 17c. Mover; E.Mover: mover
-- 993 17d. Perception; E.Suspicion: suspicion
-- 1010 Bullets; E.Bullets: shots
-- 1030 Spatial hash; E.SpatialHash: grid
-- 1040 Audio; game.audio
-- 1062 Backdrops; E.Backdrop: backdrop
-- 1070 21c. Props
-- 1075 21e. Shapes
-- 1087 Ui; E.Dialog: talk, E.Menu: menu
-- 1143 21d. Shell; E.Shell: shell
-- 1172 Gpu lighting (webgpu); game.gpu
-- 1193 Sessions
-- 1202 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1237 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1275 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1356 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1367 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1426 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1449 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1466 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1495 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1514 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1540 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 104 The engine object (E = My3D2dge)
+- 115 Math
+- 189 Pixel primitives
+- 208 Sprite frames, turns and swaps
+- 214 Views (projections); E.View: view
+- 241 Screen; game.screen
+- 263 Input; E.Input: input
+- 347 Pixel font
+- 358 Lighting; game.lights
+- 377 Particles; E.Particles: game.particles
+- 397 Renderer; r
+- 445 Game; E.Game: game
+- 556 Standard features; settings, fullscreen
+- 573 10c. Boot
+- 578 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 595 10e. Paths; E.Path: path
+- 605 10g. Weather
+- 609 10k. Save slots; E.Saves: saves
+- 632 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 705 Blob rig; E.Blob: blob
+- 725 Tile map; E.TileMap: map
+- 788 Materials
+- 809 Flow field; E.FlowField: flow
+- 827 Texture helpers for floortex functions
+- 838 Platform map; E.PlatformMap: level
+- 872 Platformer; E.Platformer: hero
+- 913 Body; E.Body: body
+- 933 Actions; E.Action: action
+- 955 17c. Mover; E.Mover: mover
+- 994 17d. Perception; E.Suspicion: suspicion
+- 1011 Bullets; E.Bullets: shots
+- 1031 Spatial hash; E.SpatialHash: grid
+- 1041 Audio; game.audio
+- 1063 Backdrops; E.Backdrop: backdrop
+- 1071 21c. Props
+- 1076 21e. Shapes
+- 1088 Ui; E.Dialog: talk, E.Menu: menu
+- 1145 21d. Shell; E.Shell: shell
+- 1174 Gpu lighting (webgpu); game.gpu
+- 1195 Sessions
+- 1204 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1239 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1284 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1322 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1403 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1414 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1473 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1496 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1513 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1542 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1561 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1590 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
 
 ## The engine object (E = My3D2dge)
 
@@ -107,7 +108,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.74.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.75.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1087,10 +1088,11 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 ## 21. Ui
 
 - `new E.Dialog(game, o = {}) → talk`: new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border, vars }): a dialog box that types its text; say() opens it, update(dt) and draw(r) run it
+- `talk.choiceAt(i)` †: where choice i is on the screen while the choices show: [x, y] (its middle, for a test's tap), else null
 - `talk.close()`: close it now (and forget pending presses, so the same press doesn't also attack)
 - `talk.draw(r)`: draw it (anywhere in draw: it goes to the overlay)
 - `talk.pageLen`: the letters on the page shown
-- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself, modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha, vars: the values {$name} reads } choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
+- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself, modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha, vars: the values {$name} reads } choices: ['YES', 'NO'], shown on the last page (picked by the keys, or a tap or click on one); onChoice(i) gets the one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
 - `talk.typing`: true while the page is still typing
 - `talk.update(dt)`: type and turn pages (confirm finishes the line, then turns the page); returns true while open and modal, so gameplay can wait: if (talk.update(dt)) return;
 - `talk.auto`: seconds each page stays after typing
@@ -1233,6 +1235,51 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `arcade.phase = 'title'`: the attract mode's, 'title' | 'demo' | 'scores'
 - `arcade.players = []`: [{ n, score, lives, save (the game's own: a stage kept while the other plays), next (the score of the next extra life) }]
 - `arcade.wheel = null`: where the letter wheel was last drawn (taps answer to it): { x, y, cw, up, down, ok } in screen pixels: three columns cw wide from x, the up and down bands [y0, y1], the OK button [x, y, w, h]
+
+## Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js)
+
+- `new E.Click(game, o = {}) → click` †: new E.Click(game, { rooms, items, rules, hero, ui, story, room, at, on }): see the manual
+- `click.act(verb, target, item = null)` †: do verb on target (a hotspot's id, or an item's: in the inventory), with item (held) or not: the hero walks there first (a hotspot), then the first rule that matches, else the hotspot's own, else a line. Tests and bots call it
+- `click.at(x, y)` †: what is under a room point: an inventory item never; a hotspot (the nearest-drawn), or null
+- `click.busy` †: true while play waits on it: a fade, a line, a talk, a walk
+- `click.draw(r)` †: the room over the whole screen: its backdrop, bodies and things by depth, the lines, the panel (call after the scene)
+- `click.end()` †: the step's pointer stops changing the canvas's cursor (call on leaving the scene)
+- `click.give(id)` †: add an item
+- `click.go(id, at, now)` †: to room id, the hero at at (or the room's start), with a fade (now: none)
+- `click.has(id)` †: is the item held?
+- `click.restore(s)` †: put back what state() gave
+- `click.say(lines, who)` †: the hero says lines (over his head; a line's time by its length); who: anything with x, y and k to speak instead
+- `click.scaleAt(y)` †: a body's scale where its feet are (the room's depth: [yFar, kFar, yNear, kNear])
+- `click.screen(x, y)` †: a room point on the screen: [x, y] in screen pixels (the room scrolled or centred above the panel)
+- `click.state()` †: what a save keeps: the room, the hero's place, the inventory
+- `click.take(id)` †: take an item away
+- `click.update(dt)` †: read the pointer and keys, walk the hero, run the talk and the hero's line; true while play should wait
+- `click.walkTo(x, y, then, run)` †: walk to (x, y) (the nearest point you can stand on), then(pc) when there; run: twice the speed
+- `click.where(id)` †: where a hotspot is on the screen: [x, y] (its middle; an actor's chest), or null (not in this room, or hidden)
+- `click.boxes = []` †: the panel's and the coin's buttons in the last frame ({ id: 'verb:look' | 'icon:hand' | 'item:rope' | 'coin:use' | 'inv:<', x, y, w, h }: screen pixels, for tests and bots)
+- `click.game` †: the game
+- `click.hero` †: the hero: { x, y, rig, speed, face (radians: 0 right), k (its scale), path, room }
+- `click.inv = []` †: the items held, by id
+- `click.item = null` †: the item on the cursor (or null)
+- `click.items` †: the items by id
+- `click.line = null` †: the line being said ({ lines, i, who }, or null)
+- `click.on` †: its events
+- `click.panel = true` †: false hides the verbs and the inventory, keeping their place (a cutscene)
+- `click.room = null` †: the room's id
+- `click.rooms` †: the rooms by id
+- `click.rules` †: the rules (data)
+- `click.story` †: the E.Story that talks (or null)
+- `click.ui` †: 'verbs' | 'coin' | 'two'
+- `click.verb = 'walk'` †: the verb chosen ('walk' when none)
+- `new E.Walkbox(outline, holes = []) → walkbox` †: new E.Walkbox(outline, holes): polygons of [x, y] (room pixels); holes are places inside it no one stands
+- `walkbox.inside(x, y)` †: is (x, y) in the area and in none of its holes?
+- `walkbox.nearest(x, y)` †: the point you can stand on nearest (x, y): itself when inside, else the nearest on an edge (a pixel in)
+- `walkbox.path(a, b)` †: the shortest way from a to b (b moved to the nearest point inside): [a, ..., b], round the holes
+- `walkbox.sees(a, b)` †: can one walk straight from a to b? (it crosses no edge, and its middle is inside)
+- `walkbox.edges = []` †: every side of both, as [a, b]
+- `walkbox.holes` †: its holes
+- `walkbox.nodes = []` †: the corners a shortest path turns at: the outline's inward-pointing ones and every hole's outward one, set a pixel off
+- `walkbox.outline` †: the area's edge
 
 ## Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js)
 
@@ -1527,13 +1574,16 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `story.stop()`: stop the node running (its box closes; onDone isn't called)
 - `story.test(c)`: does a condition hold? (the manual's conditions)
 - `story.update(dt)`: run the talk and the balloons; true while a node runs (play waits)
+- `story.auto = 0`: seconds a page shows before it turns by itself (0: it waits for the player)
 - `story.game`: its game
+- `story.log = []`: what was said and chosen, oldest first ({ who, name, text }, the last 200: a visual novel's backlog)
 - `story.node = null`: its id
 - `story.nodes`: the conversations by id (lists of steps)
 - `story.on`: the game's event handlers by name
 - `story.people`: who speaks, by id ({ name, portrait, at })
 - `story.quests = []`: the quest log, in the order taken ({ id, title, text, done })
 - `story.running = false`: a node runs
+- `story.skip = false`: pages type at once and turn at once (choices still wait)
 - `story.talk`: the E.Dialog it speaks through
 - `story.vars`: every flag and value (a line's {$name} reads them)
 

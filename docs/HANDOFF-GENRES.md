@@ -787,6 +787,24 @@ Needs M1 (transitions, scripts) and M7 (`story`).
   shows its verbs.
 - **Done when:** paths go round holes (contract); the bot clicks through the whole chain; the proof repeats; the phone
   test passes.
+- **As built (v0.75.0):** the click module (`engine/modules/click.js`, after the full engine only; its manual 1,420 of
+  1,500 tokens): `E.Walkbox` (a polygon with holes: `inside`, `nearest`, `path`: A* over the corners set a pixel and a
+  half off, then straight where nothing is in the way) and `E.Click` (rooms painted once with margins a bigger screen
+  shows, a whole zoom on a tall one; depth scale; hotspots by rectangle, polygon or actor with a place to stand, a way
+  to face and their verbs; `things` drawn by depth; the nine verbs, Sierra's icons, a verb coin or two buttons; a
+  cursor and a label; an inventory, an item on a hotspot or another item, either way round, and on someone a give;
+  rules as data; exits with fades; a double click runs; `story`'s flags and talk; on a phone a tap walks, a tap on a
+  hotspot opens its verbs, a long press looks, thumb-sized buttons; `panel` off for a cutscene; `where`, `screen` and
+  `boxes` for tests and bots). Three facts corrected: `story` had no backlog, auto or skip, so it gained `story.log`,
+  `story.auto` and `story.skip` (the visual novel's recipe uses them); M1's transitions are between scenes, so a room
+  change fades in the module; and a phone could not pick a dialog's choice by a tap, so `E.Dialog` takes a tap or click
+  on a choice (`choiceAt(i)` says where). The POINT-AND-CLICK kit (`src/starter/15-pointclick.js`, family ADVENTURE,
+  `#pointclick`, modules click and story): THE LIGHT ON GULL ROCK, a dock at dusk (eight hotspots), the Salty Gull
+  (eight) and the lighthouse's lamp room (seven); PIP, FINN, MORWEN and BRUNO as rigs with live close-ups in the talk;
+  the chain: the ROPE and the HOOK make a GRAPPLE that fishes the OAR out; Morwen's riddle contest (three riddles, a
+  wrong answer ends it) wins the KEY to the rowboat's chain; a BOTTLE on the whale-oil barrel gives OIL; the OIL, then
+  the MATCHES, light the lamp; an opening card and talk, the ending's beams and THE END with the time and actions;
+  Settings, Point and click, Interface; a shanty and a hymn of its own.
 
 ### M11: physics toys (modules `physics`, `terrain`; kits PINBALL, ARTILLERY) in two pull requests
 
