@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module STRATEGY v0.73.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.74.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -27,8 +27,10 @@ Park, RollerCoaster Tycoon). It keeps the rules; the game draws (units are plain
 - rts.fog (E.Fog: the player's sight; walls block it), rts.visible(u); rts.minimap() is E.Shell's hud({ minimap }) (the
   fog, the camera's view, dots; a click moves the camera there).
 - rts.ai(side, { build: [['worker', 5], ['barracks'], ['soldier', 6]], waves: { first: 90, every: 75, min: 4 }, script })
-  works the list in order as it can pay (near its depot), keeps workers gathering and sends attack-moves at the nearest
-  foe; script(rts, side): a generator game.script runs. rts.update(dt) each step; rts.state() for a proof.
+  works on the first step short of its count as it can pay (losses made again; buildings near its depot), keeps its
+  workers mining nearest home and sends attack-moves at the nearest foe building; script(rts, side): a generator
+  game.script runs. rts.update(dt) each step; rts.state() for a proof. A right click with a building that makes units
+  selected sets its rally point.
 Touch: a tap selects or orders, a drag on open ground pans (game.cam.free), a long press and a drag draws a box, a pinch
 zooms. Time controls: game.timeScale 0, 1, 2, 4 (above 1, more steps of 1/120 s a frame, not longer ones).
 Simulation:
@@ -145,9 +147,11 @@ class Strategy {
     for (const q of pts) { let bi = 0; for (let k = 1; k < free.length; k++) if (hyp(list[free[k]].x - q.x, list[free[k]].y - q.y) < hyp(list[free[bi]].x - q.x, list[free[bi]].y - q.y)) bi = k; out[free[bi]] = q; free.splice(bi, 1); }
     return out;
   }
-  /** the right click: attack a foe at the point, gather a resource, else move (o.queue as order's) */
+  /** the right click: attack a foe at the point, gather a resource, else move (o.queue as order's); a building that
+   *  makes units takes the point as its rally */
   smart(units, x, y, target, o = {}) {
     const mine = units.filter(u => u && u.side === this.player);
+    for (const b of mine) if (b.building && b.K.makes) b.rally = { x, y };
     if (target && target.resource) { const gatherers = mine.filter(u => u.K.gather); this.order(gatherers, 'gather', target, o); return this.order(mine.filter(u => !u.K.gather), 'move', { x, y }, o); }
     if (target && units.length && this._foe(units[0], target)) return this.order(mine, 'attack', target, o);
     return this.order(mine, 'move', { x, y }, o);
@@ -348,12 +352,14 @@ class Strategy {
   _aiStep(A, dt) {
     if ((A.t -= dt) > 0) return; A.t = .5;
     const S = A.side, mine = this.of(S), workers = mine.filter(u => u.K.gather && !u.building), base = mine.find(u => u.building && u.K.depot);
-    for (const w of workers) if (!w.orders.length) { const m = this.units.filter(u => u.resource).sort((a, b) => hyp(a.x - w.x, a.y - w.y) - hyp(b.x - w.x, b.y - w.y))[0]; if (m) this.order([w], 'gather', m); }
-    const step = (A.plan.build || [])[A.i];
+    const home = base || mine[0];
+    for (const w of workers) if (!w.orders.length && home) { const m = this.units.filter(u => u.resource).sort((a, b) => hyp(a.x - home.x, a.y - home.y) - hyp(b.x - home.x, b.y - home.y))[0]; if (m) this.order([w], 'gather', m); }
+    const count = kind => mine.filter(u => u.kind === kind).length + mine.reduce((a, b) => a + b.queue.filter(q => q.kind === kind).length, 0) + mine.filter(u => u.orders.some(o => o.kind === 'build' && o.what === kind)).length;
+    const step = (A.plan.build || []).find(([kind, n = 1]) => count(kind) < n);   // (the first short of its count: losses are made again)
+    A.i = step ? A.plan.build.indexOf(step) : (A.plan.build || []).length;
     if (step) {
-      const [kind, n = 1] = step, K = this.kinds[kind], have = mine.filter(u => u.kind === kind).length + mine.reduce((a, b) => a + b.queue.filter(q => q.kind === kind).length, 0) + mine.filter(u => u.orders.some(o => o.kind === 'build' && o.what === kind)).length;
-      if (have >= n) A.i++;
-      else if (!K.building) { const b = mine.find(u => u.building && u.progress >= 1 && (u.K.makes || []).includes(kind) && u.queue.length < 2); if (b) this.train(b, kind); }
+      const [kind] = step, K = this.kinds[kind];
+      if (!K.building) { const b = mine.find(u => u.building && u.progress >= 1 && (u.K.makes || []).includes(kind) && u.queue.length < 2); if (b) this.train(b, kind); }
       else if (base && this.afford(S, K.cost)) {
         const w = workers.find(u => !u.orders.some(o => o.kind === 'build'));
         const room = (cx, cy) => { for (let y = cy - 1; y <= cy + (K.h || 1); y++) for (let x = cx - 1; x <= cx + (K.w || 1); x++) if (!this.map.walkable(x, y)) return false; return this.canPlace(kind, cx, cy, w); };   // (a cell's margin all round: no walling in)
@@ -366,7 +372,7 @@ class Strategy {
     if (W && this.time >= A.wave) {
       const army = mine.filter(u => !u.building && !u.K.gather && u.K.atk && !u.orders.length);
       if (army.length >= (W.min || 3)) {
-        const foes = this.units.filter(u => u.side && u.side !== S && !u.resource), tgt = foes.filter(u => u.building)[0] || foes[0];
+        const foes = this.units.filter(u => u.side && u.side !== S && !u.resource), near = l => l.sort((a, b) => hyp(a.x - home.x, a.y - home.y) - hyp(b.x - home.x, b.y - home.y))[0], tgt = home && (near(foes.filter(u => u.building)) || near(foes));
         if (tgt) { this.order(army, 'amove', { x: tgt.x, y: tgt.y }); A.wave = this.time + (W.every || 90); if (this.on.wave) this.on.wave(S, army); }
       }
     }

@@ -78,7 +78,7 @@ Pick one to see it drawn by the engine beside the hero, turn it, edit its text a
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.73.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.74.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -159,7 +159,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.73.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.74.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -8449,7 +8449,7 @@ function shapeShadow(S, view, o, k, G) {
  * o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material },
  * flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (x-ray silhouettes show through
  * it: by default when it stands at least E.HEIGHTS.chest, 22, high), footprint, light (add its lights to game.lights), shadow (default true), charView (default
- * true: steep views draw it from the characters' lower angle), flash, alpha, xray }
+ * true: steep views draw it from the characters' lower angle), flash, alpha, xray, pick (r.pick finds it) }
  */
 Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
   const S = shapeOf(id); if (!S) return;
@@ -8466,14 +8466,15 @@ Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
   }
   const fp = o.footprint || (z > .5 ? (() => { const c = [[G.foot[0], G.foot[1]], [G.foot[2], G.foot[1]], [G.foot[2], G.foot[3]], [G.foot[0], G.foot[3]]].map(place); return [Math.min(...c.map(q => q[0])), Math.min(...c.map(q => q[1])), Math.max(...c.map(q => q[0])), Math.max(...c.map(q => q[1]))]; })() : undefined);
   const hides = o.hides !== undefined ? !!o.hides : B[5] * k >= HEIGHTS.chest, top = z + B[5] * k;   // (low things hide no x-ray: a barrel, a crate)
-  if (comp && r.w <= AS - 8 && r.oy <= AOY - 4 && r.h - r.oy <= AS - AOY - 4 && r.ox <= AOX - 4 && r.w - r.ox <= AS - AOX - 4) this.actor(x, y, z, (g, ox, oy) => g.drawImage(r.cv, ox - r.ox, oy - r.oy), { rim: false, hides, top, bias: o.bias, flash: o.flash, alpha: o.alpha, xray: o.xray, margin: r.w });
+  if (comp && r.w <= AS - 8 && r.oy <= AOY - 4 && r.h - r.oy <= AS - AOY - 4 && r.ox <= AOX - 4 && r.w - r.ox <= AS - AOX - 4) this.actor(x, y, z, (g, ox, oy) => g.drawImage(r.cv, ox - r.ox, oy - r.oy), { rim: false, hides, top, bias: o.bias, flash: o.flash, alpha: o.alpha, xray: o.xray, margin: r.w, pick: o.pick });
   else {   // (one bigger than an actor's scratch image is drawn this way too, flash or not)
     const b = comp ? shapeRaster(id, rv, Object.assign({}, o, { outline: this.outline })) : r, at = () => { const [sx, sy] = this.w(x, y, z); return [Math.round(sx) - b.ox, Math.round(sy) - b.oy]; };
     const info = gI => {   // GPU lighting's pass: its pixels in the height gradient, as r.actor's composite gives them
       gI._mat = this._infoVert(gI, x, y, z, 10, 0); gI._c = null; px.col(gI, '#000');
       const [bx, by] = at(), R = b.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
     };
-    this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.cv, bx, by); }, { bias: o.bias, hides, top, footprint: fp, solid: true, info });
+    const pb = o.pick === undefined || o.pick === null ? undefined : (q => [q[0], q[1], q[0] + b.w, q[1] + b.h])(at());   // (r.pick: its picture's box)
+    this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.cv, bx, by); }, { bias: o.bias, hides, top, footprint: fp, solid: true, info, pick: o.pick, _pb: pb });
     if (b.lit) this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.lit.cv, bx, by); }, { bias: (o.bias || 0) + .0005, footprint: fp, emissive: true, info: gI => {   // its glowing parts (a crystal, a flame): unlit
       gI._mat = this._infoCol(z, 10, 1); gI._c = null; px.col(gI, '#000'); const [bx, by] = at(), R = b.lit.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
     } });

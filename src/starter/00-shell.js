@@ -21,6 +21,10 @@
  *                        continues, turns and attract mode; a maze of E.GridMovers, moths on E.Paths, wrapping rocks
  *   SLICE 15 TACTICS     an isometric battle on a map of heights (Final Fantasy Tactics, Fire Emblem): map.pick under
  *                        the cursor, E.Grid's reach, shapes, facing and threat maps, E.Turns' charge time, E.Story
+ *   SLICE 16 RTS         real-time strategy (Warcraft II, StarCraft): E.Strategy's selection, orders, gold, building,
+ *                        training, fog and an AI's waves; a free camera, r.pick, buildings as E.SHAPES, E.Shell's minimap
+ *   SLICE 17 SIM         a theme park (Theme Park, RollerCoaster Tycoon): paths, rides whose shapes turn, guests with
+ *                        needs (E.needs, E.choose), money, prices, a rating, E.Clock's days, time controls, an overlay
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
@@ -57,6 +61,8 @@ const SLICES = [
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
   { id: 'tactics', label: 'TACTICS', about: 'TAKE THE HILL FORT, TURN BY TURN', family: 'STRATEGY' },
+  { id: 'rts', label: 'RTS', about: 'GATHER GOLD, RAISE AN ARMY, BURN THEIR CAMP', family: 'STRATEGY' },
+  { id: 'sim', label: 'SIM', about: 'BUILD A THEME PARK, KEEP THEM SMILING', family: 'SIMULATION' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
 ];

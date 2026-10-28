@@ -30,6 +30,11 @@
 //  17. army (tools/fixtures/army.html, the strategy module): 200 units under orders update and draw within the budget
 //      (30 ms, the median); r.pick gives what was drawn under a point, front to back; a tap on a unit selects it, a tap
 //      on open ground orders it there, a drag pans the camera, a long press and a drag draws a box that selects
+//  18. rts: HALL, ARMY and IDLE and the panel's commands a thumb's size; HALL selects the hall, WORKER trains one; a tap
+//      selects a worker, BARRACKS then a tap shows the plan there and PLACE sends him to build it; a tap selects a
+//      footman and a tap on open ground orders him there; a drag pans the camera
+//  19. sim: the tools and the time controls a thumb's size; 4X, then pause; PATH then a tap lays a tile; DRINK, a tap
+//      and PLACE build a lemonade stand; a tap on the carousel shows its price, + raises it; 1X; a drag pans the camera
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
@@ -82,7 +87,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'platformer', 'metroidvania', 'shooter', 'arcade', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'tactics', 'brawler', 'fighting', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'platformer', 'metroidvania', 'shooter', 'arcade', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'tactics', 'rts', 'sim', 'brawler', 'fighting', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -725,6 +730,99 @@ if (want('army')) {
   check('army: a drag on open ground pans the camera', Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]) > 20, `the camera moved ${Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]).toFixed(0)} px`);
   mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', 'army.png') });
   await ctx.close();
+}
+
+/* 18. rts: the HUD's buttons a thumb's size; train, build and order by taps; a drag pans */
+if (want('rts')) {
+  console.log('rts: a base run by taps');
+  for (const [label, vp] of [['on its side', SIDE], ['upright', UP]]) {
+    const { page, ctx, cdp, errors } = await open('rts', vp);
+    await wait(2800);   // (past the banner)
+    const st = () => ev(page, () => { const s = window.__game.scenes.rts.state(), R = s.rts; return { mode: s.mode, sel: R.selected.map(u => u.kind), gold: R.side('blue').res.gold, cmds: s.commands, boxes: s.boxes, k: window.__game.game.screen.S / window.__game.game.screen.dpr }; });
+    const tapGame = async (x, y) => { const [cx, cy] = await toCss(page, x, y); await page.touchscreen.tap(cx, cy); await wait(250); };
+    const tapBox = async b => { if (b) await tapGame(b.x + b.w / 2, b.y + b.h / 2); return !!b; };
+    // a unit of kind on the screen, clear of the HUD: where to tap it
+    const find = kind => ev(page, kind => { const s = window.__game.scenes.rts.state(), S = window.__game.game.screen, H = [...s.boxes.side, ...s.boxes.cmds];
+      for (const u of s.rts.of('blue', kind)) { const [x, y] = s.at(u), p = [x, y - 8]; if (p[0] > 50 && p[1] > 30 && p[0] < S.W - 70 && p[1] < S.H - 60 && !H.some(b => p[0] >= b.x - 4 && p[0] < b.x + b.w + 4 && p[1] >= b.y - 4 && p[1] < b.y + b.h + 4) && window.__game.game.r.pick(...p)[0] === u) return { id: u.id, p }; }
+      return null; }, kind);
+    const open_ = () => ev(page, () => { const s = window.__game.scenes.rts.state(), R = s.rts, S = window.__game.game.screen, r = window.__game.game.r;
+      for (let y = 60; y < S.H - 70; y += 10) for (let x = 60; x < S.W - 90; x += 10) if (!r.pick(x, y).length && R.units.every(u => Math.hypot(...s.at(u).map((v, i) => v - [x, y][i])) > 30)) return [x, y];
+      return null; });
+    const g0 = await open_(); if (g0) await tapGame(...g0);   // (a link opens it without the title's tap: the first tap says a finger plays)
+    const s0 = await st(), small = Math.min(...s0.boxes.side.map(b => Math.min(b.w, b.h))) * s0.k;
+    await tapBox(s0.boxes.side.find(b => b.id === 'hall')); const s1 = await st();
+    const g1 = s1.gold; await tapBox(s1.boxes.cmds[0]); const s2 = await st();
+    check(`rts ${label}: HALL, ARMY and IDLE are a thumb's size; HALL selects the hall, a tap on WORKER trains one`, small >= 44 && s1.sel.join() === 'hall' && s1.cmds[0] === 'WORKER' && s2.gold === g1 - 50 && Math.min(s2.boxes.cmds[0].w, s2.boxes.cmds[0].h) * s2.k >= 44, `buttons ${Math.round(small)} CSS px; selected ${s1.sel}; ${s1.cmds}; gold ${g1} -> ${s2.gold}`);
+    // a worker, BARRACKS, a tap where it stands, PLACE
+    const w = await find('worker'); if (w) await tapGame(...w.p); const s3 = await st();
+    const spot = await ev(page, () => { const s = window.__game.scenes.rts.state(), R = s.rts, h = R.of('blue', 'hall')[0], S = window.__game.game.screen;
+      for (let d = 4; d < 9; d++) for (let a = 0; a < 16; a++) { const cx = Math.round(h.cx + Math.cos(a / 8 * Math.PI) * d), cy = Math.round(h.cy + Math.sin(a / 8 * Math.PI) * d), [x, y] = s.at({ x: (cx + 1.5) * 16, y: (cy + 1.5) * 16 });
+        if (R.canPlace('barracks', cx, cy) && x > 60 && y > 40 && x < S.W - 80 && y < S.H - 80) return { c: [cx, cy], p: [x, y] }; }
+      return null; });
+    await tapBox(s3.boxes.cmds[0]); const s4 = await st();
+    if (spot) await tapGame(...spot.p); const s5 = await ev(page, () => window.__game.scenes.rts.state().placing);
+    await tapBox((await st()).boxes.place.find(b => b.id === 'place'));
+    const order = w && await ev(page, id => { const u = window.__game.scenes.rts.state().rts.units.find(u => u.id === id); return u && u.orders[0] && u.orders[0].kind; }, w.id);
+    check(`rts ${label}: a tap selects a worker; BARRACKS, a tap where it stands and PLACE send him to build it`, !!w && s3.sel.join() === 'worker' && s3.cmds[0] === 'BARRACKS' && s4.mode === 'place' && !!spot && s5 && s5.cx === spot.c[0] && s5.cy === spot.c[1] && order === 'build', `selected ${s3.sel}; ${s3.cmds}; mode ${s4.mode}; plan at ${s5 && [s5.cx, s5.cy]} (tapped ${spot && spot.c}); the worker's order ${order}`);
+    // a footman, then a tap on open ground
+    const f = await find('footman'); if (f) await tapGame(...f.p); const s6 = await st();
+    const ground = await open_();
+    if (ground) await tapGame(...ground);
+    const fo = f && await ev(page, id => { const u = window.__game.scenes.rts.state().rts.units.find(u => u.id === id); return u && u.orders[0] && u.orders[0].kind; }, f.id);
+    check(`rts ${label}: a tap selects a footman, a tap on open ground sends him there`, !!f && s6.sel.join() === 'footman' && !!ground && fo === 'move', `selected ${s6.sel}; tapped ${ground}; his order ${fo}`);
+    // a drag pans the camera
+    const c0 = await ev(page, () => [window.__game.game.cam.x, window.__game.game.cam.y]);
+    await drag(cdp, line([vp.width * .3, vp.height * .6], [vp.width * .6, vp.height * .35], 12)); await wait(400);
+    const c1 = await ev(page, () => [window.__game.game.cam.x, window.__game.game.cam.y]);
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `rts-${label.replace(/ /g, '-')}.png`) });
+    check(`rts ${label}: a drag pans the camera`, Math.hypot(c1[0] - c0[0], c1[1] - c0[1]) > 20 && !errors.length, `moved ${Math.hypot(c1[0] - c0[0], c1[1] - c0[1]).toFixed(0)} px${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 19. sim: thumb-sized tools; time controls; a path, a stand and a price by taps; a drag pans */
+if (want('sim')) {
+  console.log('sim: a park run by taps');
+  for (const [label, vp] of [['on its side', SIDE], ['upright', UP]]) {
+    const { page, ctx, cdp, errors } = await open('sim', vp);
+    await wait(600);
+    const st = () => ev(page, () => { const s = window.__game.scenes.sim.state(), S = window.__game.game.screen; return { money: s.money, speed: s.speed, ts: window.__game.game.timeScale, tool: s.tool, placing: s.placing, picked: s.picked && (s.picked.kind || s.picked.name), price: s.picked && s.picked.price, spots: s.spots.map(o => o.kind), boxes: s.boxes, k: S.S / S.dpr }; });
+    const tapGame = async (x, y) => { const [cx, cy] = await toCss(page, x, y); await page.touchscreen.tap(cx, cy); await wait(250); };
+    const tapBox = async b => { if (b) await tapGame(b.x + b.w / 2, b.y + b.h / 2); return !!b; };
+    const cellAt = (cx, cy) => ev(page, ([cx, cy]) => window.__game.scenes.sim.state().at((cx + .5) * 16, (cy + .5) * 16), [cx, cy]);
+    // a grass tile on screen beside the path (for a path tile), and a stand's corner beside the path (for DRINK)
+    const pick = () => ev(page, () => { const s = window.__game.scenes.sim.state(), S = window.__game.game.screen, ok = ([x, y]) => x > 40 && y > 50 && x < S.W - 40 && y < S.H - 110, out = {};
+      for (let y = 2; y < s.map.h - 2 && !out.tile; y++) for (let x = 2; x < s.map.w - 2 && !out.tile; x++) if (!s.isPath(x, y) && s.map.walkable(x, y) && s.isPath(x, y + 1) && !s.fits('lemonade', x, y - 1) && ok(s.at((x + .5) * 16, (y + .5) * 16))) out.tile = [x, y];
+      for (let y = 2; y < s.map.h - 3 && !out.stand; y++) for (let x = 2; x < s.map.w - 3 && !out.stand; x++) if (s.fits('lemonade', x, y) && ok(s.at((x + 1) * 16, (y + 1) * 16)) && !(out.tile && Math.abs(out.tile[0] - x) < 4 && Math.abs(out.tile[1] - y) < 4)) out.stand = [x, y];
+      return out; });
+    await ev(page, () => window.__game.game.W).then(W => tapGame(W / 2, 46));   // (the first tap says a finger plays)
+    const s0 = await st(), small = Math.min(...s0.boxes.tools.map(b => b.h), ...s0.boxes.time.map(b => Math.min(b.w, b.h))) * s0.k;
+    await tapBox(s0.boxes.time.find(b => b.k === 4)); const s1 = await st(); await tapBox(s1.boxes.time.find(b => b.k === 0)); const s3 = await st();   // (paused while it builds: no guest pays at the gate meanwhile)
+    check(`sim ${label}: the tools and time controls are a thumb's size; 4X, then pause`, small >= 44 && s1.ts === 4 && s3.ts === 0, `buttons ${Math.round(small)} CSS px; time ${s1.ts}, then ${s3.ts}`);
+    // PATH, a tap on a tile beside the path
+    const where = await pick(); await tapBox(s3.boxes.tools.find(b => b.t === 'path'));
+    if (where.tile) await tapGame(...await cellAt(...where.tile));
+    const laid = where.tile && await ev(page, c => window.__game.scenes.sim.state().isPath(...c), where.tile), s4 = await st();
+    check(`sim ${label}: PATH, then a tap lays a tile ($10)`, !!laid && s4.money === s3.money - 10, `tile ${where.tile}: ${laid ? 'path' : 'grass'}; money ${s3.money} -> ${s4.money}`);
+    await tapBox(s4.boxes.tools.find(b => b.t === 'path'));   // (the tool off)
+    // DRINK, a tap where the stand goes, PLACE
+    const s5 = await st(); await tapBox(s5.boxes.tools.find(b => b.t === 'lemonade'));
+    if (where.stand) { const [x, y] = await ev(page, c => window.__game.scenes.sim.state().at((c[0] + 1.5) * 16, (c[1] + 1.5) * 16), where.stand); await tapGame(x, y); }   // (the tile under the finger is the plan's middle)
+    const s6 = await st(); await tapBox(s6.boxes.place.find(b => b.id === 'place')); const s7 = await st();
+    check(`sim ${label}: DRINK, a tap and PLACE build a lemonade stand ($250)`, !!where.stand && !!s6.placing && s7.spots.filter(k => k === 'lemonade').length === 1 && s7.money === s6.money - 250, `plan ${s6.placing && [s6.placing.cx, s6.placing.cy]} (for ${where.stand}); stands ${s7.spots}; money ${s6.money} -> ${s7.money}`);
+    // a tap on the carousel: its panel; + raises its price
+    const car = await ev(page, () => { const s = window.__game.scenes.sim.state(), c = s.spots.find(o => o.kind === 'carousel'); return s.at(c.x, c.y); });
+    await tapGame(car[0], car[1] - 10); const s8 = await st(); await tapBox(s8.boxes.panel.find(b => b.id === 'up')); const s9 = await st();
+    await tapBox(s9.boxes.time.find(b => b.k === 1)); const s10 = await st();
+    check(`sim ${label}: a tap on the carousel shows it; + raises its price; 1X runs again`, s8.picked === 'carousel' && s9.price === s8.price + 1 && s10.ts === 1, `picked ${s8.picked}; price ${s8.price} -> ${s9.price}; time ${s10.ts}`);
+    // a drag pans the camera
+    const c0 = await ev(page, () => [window.__game.game.cam.x, window.__game.game.cam.y]);
+    await drag(cdp, line([vp.width * .3, vp.height * .45], [vp.width * .6, vp.height * .3], 12)); await wait(400);
+    const c1 = await ev(page, () => [window.__game.game.cam.x, window.__game.game.cam.y]);
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `sim-${label.replace(/ /g, '-')}.png`) });
+    check(`sim ${label}: a drag pans the camera`, Math.hypot(c1[0] - c0[0], c1[1] - c0[1]) > 20 && !errors.length, `moved ${Math.hypot(c1[0] - c0[0], c1[1] - c0[1]).toFixed(0)} px${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
 }
 
 await browser.close();

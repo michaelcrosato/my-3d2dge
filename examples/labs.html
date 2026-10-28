@@ -194,6 +194,22 @@ const LABS = {
           "what": "Watch the scene at the fort (Enter reads on, X skips), pick how the turns run (by speed, or by phases), and take Thornwatch. On a turn: MOVE (a blue cell), ATTACK or the skill (a red cell; gold shows what it hits), then WAIT and face a way; X undoes a move before you act. Q and E turn the view, the wheel zooms; the mouse moves the cursor. Strike from behind and from above; keep out of the river; mind the archer on the wall and the mage's fire. Added with v0.72.0 (Milestone 8).",
           "look": "Can you always tell which cell the cursor is on, even on the walls and the tower, and after turning the view? Do the ranges read at a glance, and do the blows from behind and from above feel worth the trouble? Is the Legion's AI a fair fight (does it gang up, heal, flank, hold the high ground)? Is a battle too long or too short? On your phone: a tap selects, a tap moves, a tap strikes; a drag pans; TURN; are the rows easy to hit?",
           "links": [["The battle (no scene)", "#tactics/battle"], ["By phases", "#tactics/phases"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-rts.html",
+          "at": "#rts",
+          "title": "RTS: does it feel like Warcraft II and StarCraft?",
+          "what": "Build up the Vale and burn the Ash Clan's camp across the river. Your workers mine on their own; click the hall (or H) and train more (Z). Click a worker, then BARRACKS (Z) and a place for it; later a STABLE. Train footmen, archers and knights; drag a box round them (or R for the whole army), right click to send them, F then a click to fight their way there. The clan's first wave comes at about four minutes. The minimap (bottom right) moves the camera; arrows, WASD and the screen's edge pan it; the wheel zooms. Added with v0.74.0 (Milestone 9).",
+          "look": "Does selecting and ordering feel right (a click, a box, Shift, a double click for every one of a kind, Ctrl and a digit for a group)? Do armies move as a body and find their way round the woods and over the fords, without piling up? Is the gold coming in too fast or too slow, and is the clan's first wave a fair test? Can you read a battle (who is hurt, who is yours)? On your phone: a tap selects or orders, a drag pans, a long press and a drag draws a box, two fingers zoom; HALL, ARMY and IDLE; BUILD then a tap and PLACE.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-sim.html",
+          "at": "#sim",
+          "title": "SIM: does it feel like Theme Park and RollerCoaster Tycoon?",
+          "what": "Grow Sunny Bay Park from its carousel and burger stand. PATH (Q) then click a tile or drag a line; build the WHEEL, CUPS and SWING rides and FOOD and DRINK stands beside a path (a ride's plan shows green where it fits). Watch guests come in at 9:00, queue, ride, eat and go home at 21:00. Click a ride to set its price (+ and -) or knock it down; click a guest to read their thoughts and needs; hover for a tooltip. Space pauses, 1 2 3 run at 1x, 2x and 4x. Money comes from the gate, tickets and food, less each ride's upkeep at midnight. Added with v0.74.0 (Milestone 9).",
+          "look": "Do the rides read as rides (the carousel and the cups turning, the wheel's cars, the swings flying out as they speed up)? Do the guests feel alive: going for what they need, queuing, complaining about prices and long lines, leaving happy or not? Is the money too easy or too hard? Does night look right, and do 2x and 4x feel smooth? On your phone: a tap places or inspects, a long press and a drag lays a line of path, a drag pans, PLACE and CANCEL, the time buttons.",
+          "links": []
         }
       ]
     },
@@ -312,6 +328,18 @@ const LABS = {
           "title": "Tactics",
           "what": "Isometric battle on a map of heights (Final Fantasy Tactics, Tactics Ogre, Fire Emblem): four heroes take a hill fort from five; charge time or phases, jump heights, blows from behind, bows' arcs, a mage's fire, a scoring AI, the cursor under the pointer in any turn of the view.",
           "links": [["The battle (no scene)", "#tactics/battle"], ["By phases", "#tactics/phases"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-rts.html",
+          "title": "RTS",
+          "what": "Real-time strategy (Warcraft II, StarCraft, Command & Conquer): workers who mine gold, a hall, a barracks and a stable to build, footmen, archers and knights, fog, a minimap, and an enemy camp across a river that builds and attacks in waves.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-sim.html",
+          "title": "Sim",
+          "what": "A theme park (Theme Park, RollerCoaster Tycoon): lay paths, build four rides and two stands, guests with money and needs who queue, ride, eat and leave happy or not; prices, a rating, day and night, pause and 1x to 4x, a crowds overlay.",
+          "links": []
         },
         {
           "page": "dist/kits/my-3d2dge-roguelike.html",
@@ -447,7 +475,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.73.0 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.74.0 · dev-build', foot);
 </script>
 </body>
 </html>
