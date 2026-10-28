@@ -694,6 +694,22 @@ Needs M2 and M7 (`story`, for the scene before the battle).
   its moves; a scene before the battle; Fire Emblem's phases as an option.
 - **Done when:** picking is right in every view and turn (contract); the AI's turns repeat; the bot wins the battle; on
   a phone, a tap selects, a tap moves and a tap attacks.
+- **As built (v0.72.0):** `map.pick(sx, sy, at)` in both editions: the screen point's line of sight (the projection's
+  rows crossed: exact with any `zBoost`) clipped to the map's box and walked cell by cell, front to back, to the first top
+  it comes down onto or wall face it meets (`{ cx, cy, x, y, z, face }`); the contract test checks it against a test of
+  every cell's box at 5,760 points (six views, four turns, two zooms) on each edition. The grid already had climb and
+  drop (M2): a unit's jump is those two; `reach` gains `pass` (allies crossed, not stopped on); new: `grid.shape` (cross,
+  diamond, square, ring, line, cone), `grid.face`, `grid.side` (front, side, back), `grid.threat` (what units can strike
+  next turn). Bows use the core's `map.arcClear`. `E.tint` over raised tops sorts with the map (D56). The TACTICS kit
+  (`src/starter/47-tactics.js`, family STRATEGY, `#tactics`, `#tactics/battle`, `#tactics/phases`): Thornwatch, a hill
+  fort on a floating map of block heights (its earth at the edges), four heroes (paladin, ranger, mage, cleric) against
+  Grimwald's five (knight, archer, mage, priest, thief); the scene before the battle in `E.Story`, whose last choice
+  picks charge time (`E.Turns` 'ct': a turn of less costs less) or phases (kept by the kit: the player's heroes in any
+  order, END PHASE); MOVE, ATTACK or a skill (BASH knocks back, CLEAVE a cone, VOLLEY a cross, FIRE a diamond friend and
+  foe, CURE), WAIT and a facing; x1.25 from the side, x1.5 from behind, +8% a level higher; the shallows cost two; the AI
+  scores every place and blow less `grid.threat`'s danger; the cursor by keys (turned with the view), the mouse
+  (`map.pick`) and taps; Q and E turn the view, a drag pans it on a phone; the order ahead, unit cards, a forecast; its
+  own march. x-ray only for the unit whose turn it is (the renderer's x-ray assumes one).
 
 ### M9: strategy and simulation (core free camera and picking; module `strategy`; kits RTS, SIM) in two pull requests
 

@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.71.1)
+# my-3D2dge API index (v0.72.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -69,35 +69,35 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 623 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
 - 696 Blob rig; E.Blob: blob
 - 716 Tile map; E.TileMap: map
-- 778 Materials
-- 799 Flow field; E.FlowField: flow
-- 817 Texture helpers for floortex functions
-- 828 Platform map; E.PlatformMap: level
-- 862 Platformer; E.Platformer: hero
-- 903 Body; E.Body: body
-- 923 Actions; E.Action: action
-- 945 17c. Mover; E.Mover: mover
-- 984 17d. Perception; E.Suspicion: suspicion
-- 1001 Bullets; E.Bullets: shots
-- 1021 Spatial hash; E.SpatialHash: grid
-- 1031 Audio; game.audio
-- 1053 Backdrops; E.Backdrop: backdrop
-- 1061 21c. Props
-- 1066 21e. Shapes
-- 1078 Ui; E.Dialog: talk, E.Menu: menu
-- 1134 21d. Shell; E.Shell: shell
-- 1163 Gpu lighting (webgpu); game.gpu
-- 1184 Sessions
-- 1193 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1228 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1266 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1347 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1358 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1413 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1436 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1453 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1482 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1501 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 779 Materials
+- 800 Flow field; E.FlowField: flow
+- 818 Texture helpers for floortex functions
+- 829 Platform map; E.PlatformMap: level
+- 863 Platformer; E.Platformer: hero
+- 904 Body; E.Body: body
+- 924 Actions; E.Action: action
+- 946 17c. Mover; E.Mover: mover
+- 985 17d. Perception; E.Suspicion: suspicion
+- 1002 Bullets; E.Bullets: shots
+- 1022 Spatial hash; E.SpatialHash: grid
+- 1032 Audio; game.audio
+- 1054 Backdrops; E.Backdrop: backdrop
+- 1062 21c. Props
+- 1067 21e. Shapes
+- 1079 Ui; E.Dialog: talk, E.Menu: menu
+- 1135 21d. Shell; E.Shell: shell
+- 1164 Gpu lighting (webgpu); game.gpu
+- 1185 Sessions
+- 1194 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1229 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1267 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1348 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1359 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1418 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1441 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1458 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1487 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1506 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
 
 ## The engine object (E = My3D2dge)
 
@@ -106,7 +106,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.71.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.72.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -743,6 +743,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `map.landing(from, dir, o = {})`: where a jump from `from` in direction dir lands across a gap: past the first drop ahead (a top more than step below its feet), the nearest spot min..max away that rises at most rise and falls at most drop from its feet, stands above the gap's bottom, has room to stand, and that a jump arc peaking apex above the higher end clears (arcClear). { x, y, z, d } or null (a wall before any gap, or nowhere to land). o: { min: 35, max: 83, rise: 11, drop: 18, apex: 20 }
 - `map.ledge(from, dir, o = {})`: a ledge to climb: in direction dir from `from`, the nearest top that rises min..rise above its feet within reach, with room to stand past the edge, looking straight ahead and spread radians to each side (a gap first means a jump: landing). { x, y, z (the spot to stand on top), rise, facing (the angle climbed), edge: [x, y] (where the hands grip) } or null. o: { reach: 18, min: 4, rise: 82, spread: .28 }
 - `map.los(x0, y0, x1, y1)`: line of sight across the ground (true if nothing solid in between). It ignores heights: sight() is the one that sees over a low wall and from a roof
+- `map.pick(sx, sy, at = E.current)`: the cell under a screen point on a map with heights (tactics, strategy, board games): the first top or wall face the line of sight meets, front to back, in any view, turn and zoom. sx, sy: the HUD's pixels (input.clicked(), input.pointer()); at: the game whose view and camera drew it (E.current by default) or { view, ix, iy }. Returns { cx, cy, x, y, z, face: 'top' | 'side' } (the world point it meets) or null off the map. Cells only, as height() has them (not props, actors, or walls cut away)
 - `map.queueWalls(r)`: queue every visible wall box. Call once per frame after drawFloor.
 - `map.ray(a, b, o = {})`: the first cell top that rises above the straight segment from a to b ({ x, y, z } world points; o.eye and o.target lift each end): { clear, t (0..1 along it), x, y, z } where it stops (b's point when clear). It walks every cell the segment crosses, not samples; a top level with the segment doesn't block it, and outside the map is solid
 - `map.set(cx, cy, v)`: put wall type v at a cell (0 opens it: a door, a broken wall); bumps version, so caches and flow fields rebuild
@@ -1369,6 +1370,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `grid.center(c, T = 16)`: a cell's centre in world units, T a cell across (square: T wide; hex: T across its flats)
 - `grid.cost(c)`: what entering [cx, cy] costs (1 by default)
 - `grid.dist(a, b)`: steps from a to b: Manhattan, Chebyshev (diagonal) or hex steps
+- `grid.face(a, b)`: the way from a looks to b, one of four [dx, dy] (the longer axis; x when they tie): a unit turning to its target
 - `grid.flood(c, same)`: the cells joined to c through neighbours for which same(cx, cy) is true (c's too): a flood fill
 - `grid.fov(c, radius = 8)`: what c sees within radius: a Set of 'cx,cy' (symmetric shadowcasting, Albert Ford's: a sees b exactly when b sees a; walls at the edge of what it sees are in it; hex grids: a line to each cell)
 - `grid.groups(key)`: the groups of neighbouring cells with the same key(cx, cy) (null or undefined: none): matches, Puyo chains, regions. [[cells]], biggest first
@@ -1378,8 +1380,11 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `grid.neighbours(c)`: the cells next to c on the grid: 4, 8 (diagonal) or 6 (hex), walkable or not
 - `grid.opaque(c)`: does [cx, cy] block sight? (not walkable, by default)
 - `grid.path(a, b, o = {})`: the cheapest way from a to b, [a, ..., b], or [] (A*; ties broken the same way every time). o: { blocked(cx, cy): cells taken (other units), climb, drop (the most a step rises and falls), ends: b may be unwalkable (a target), max: give up past this cost }
-- `grid.reach(a, budget, o = {})`: every cell within budget of a: { cells: [[cx, cy, cost]], has(c), cost(c) (or Infinity), path(c) } (Dijkstra: move ranges). o: { blocked, climb, drop } as path's
+- `grid.reach(a, budget, o = {})`: every cell within budget of a: { cells: [[cx, cy, cost]], has(c), cost(c) (or Infinity), path(c) } (Dijkstra: move ranges). o: { blocked, climb, drop } as path's, and pass(cx, cy): cells it may cross but not stop on (allies)
 - `grid.sees(a, b)`: can a see b: no opaque cell on the line between them (the ends themselves may be)
+- `grid.shape(c, kind = 'diamond', n = 1, dir = [1, 0])`: the cells a shape of effect covers round c (square grids; on the grid only): 'cross' (n each way), 'diamond' (n steps: dist), 'square' (n each way, corners too), 'ring' (exactly n steps), 'line' (n cells from c along dir [dx, dy], not c), 'cone' (n rows along dir, each a cell wider each side)
+- `grid.side(at, facing, from)`: where a blow from cell from lands on a unit at cell at facing [dx, dy]: 'front', 'side' or 'back' (within 45 degrees of its facing, of behind it, or between: a diagonal is a side)
+- `grid.threat(units, o = {})`: what a side can strike on its next turn: units ([{ cx, cy, move, range: [min, max] or n (1), climb, drop }]) each moving within its reach (o.blocked: cells it can't enter) and striking within range of where it stops. { cells: [[cx, cy, n]], count(c), by(c) -> [units] }: a threat map, for an AI's safe cells and a player's warning tint
 - `grid.toCell(x, y, T = 16)`: the cell under world point (x, y), T a cell across (center's inverse)
 - `grid.walk(c)`: can [cx, cy] be walked (on the grid, and walkable)?
 - `grid.diagonal`: square moves of 8 directions
@@ -1408,7 +1413,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `turns.mode`: 'speed', 'ct', 'phase' or 'atb'
 - `turns.phase = null`: the side acting now (phase mode)
 - `turns.sides`: the sides in their order (phase; null: as the actors have them)
-- `E.tint(r, cells, color, alpha = .4, T = 16, height = null)`: tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range, a path, an attack's reach, drawn on the floor (decals) where height is 0, over the world otherwise
+- `E.tint(r, cells, color, alpha = .4, T = 16, height = null)`: tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range, a path, an attack's reach, drawn on the floor (decals) where height is 0; on a raised top (a TileMap wall's) it sorts with the map: over that top, under whoever stands on it, behind what is in front
 
 ## Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js)
 

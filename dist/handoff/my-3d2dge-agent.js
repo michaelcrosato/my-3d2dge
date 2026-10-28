@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.71.1: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.72.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -190,6 +190,7 @@ TileMap (iso, threequarter, topdown and brawler levels):
   new E.FlowField(map, { climb, drop }): update(tx, ty) every step, dir(x, y, tx, ty) -> [dx, dy] around walls, over roofs
   Heights: z = feet; a cell's top = height(cx, cy); eyes at z + E.HEIGHTS.eye (30) see z + chest (22); same level |dz| <= 8.
   map.sight(a, b), ray(a, b), standable(x, y, z, r), ledge / landing / drop(from, dir), arcClear(a, b, apex);
+  map.pick(sx, sy) -> { cx, cy, z, face } the cell under a screen point (input.clicked()), in any view and turn
   E.sameLevel(a, b), E.targets(from, list, { range, arc, dz, sight: map }) nearest first, inArc(..., dz)
   E.sees(guard, hero, { map, range: 120, fov: 1.6 }) -> { seen, exposure } (hero.crouch, hero.exposure 0..1 hide it);
   E.hears(guard, { x, y, z, loud: 80 }, map) -> 1 at the noise .. 0 at loud, halved through a wall
@@ -377,7 +378,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.71.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.72.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -2556,6 +2557,34 @@ class TileMap {
     for (const s of r > 0 ? [0, -1, 1] : [0])   // (the arc is concave: over a cell its lowest point is at one end)
       if (this._walk(a.x + nx * s, a.y + ny * s, b.x + nx * s, b.y + ny * s, (cx, cy, t0, t1) => this.height(cx, cy) > Math.min(zAt(t0), zAt(t1)) + 1e-6)) return false;
     return true;
+  }
+  // the cell under a screen point (the HUD's pixels) on a map with heights: the first top or face the line of sight meets,
+  // in any view, turn and zoom; at: the game (E.current) or { view, ix, iy }. { cx, cy, x, y, z, face: 'top' | 'side' } or null
+  pick(sx, sy, at = E.current) {
+    const v = at.view, c = at.screen || at, px = sx + (c.ix || 0), py = sy + (c.iy || 0), T = this.T;
+    // the line of sight: the world points that project to (px, py); N (the projection's rows crossed) runs along it toward
+    // the camera, P is the point on it nearest the origin
+    const N = [v.ay * v.bz, -v.ax * v.bz, v.ax * v.by - v.ay * v.bx], aa = v.ax * v.ax + v.ay * v.ay, ab = v.ax * v.bx + v.ay * v.by, bb = v.bx * v.bx + v.by * v.by + v.bz * v.bz, det = aa * bb - ab * ab;
+    const u = (bb * px - ab * py) / det, w = (aa * py - ab * px) / det, P = [v.ax * u + v.bx * w, v.ay * u + v.by * w, v.bz * w];
+    let top = 0; for (const k in this.types) top = Math.max(top, this.types[k].h || 0);
+    // clip it to the map's box, from the camera's side (t grows away from the camera: Q(t) = P - N t)
+    let t0 = -Infinity, t1 = Infinity;
+    for (const [i, lo, hi] of [[0, 0, this.w * T], [1, 0, this.h * T], [2, 0, top + 1]]) {
+      const d = -N[i];
+      if (Math.abs(d) < 1e-12) { if (P[i] < lo || P[i] > hi) return null; continue; }
+      const a = (lo - P[i]) / d, b = (hi - P[i]) / d; t0 = Math.max(t0, Math.min(a, b)); t1 = Math.min(t1, Math.max(a, b));
+    }
+    if (!(t0 < t1)) return null;
+    const Q = t => [P[0] - N[0] * t, P[1] - N[1] * t, P[2] - N[2] * t], A = Q(t0), B = Q(t1), dz = B[2] - A[2], e = 1e-6;
+    // the cells under it in order; in each, the stretch's heights: a top as high as where it comes in is a face it meets, a
+    // top between where it comes in and goes out is the top it comes down onto
+    return this._walk(A[0], A[1], B[0], B[1], (cx, cy, s0, s1) => {
+      if (cx < 0 || cy < 0 || cx >= this.w || cy >= this.h) return null;
+      const h = this.height(cx, cy), za = A[2] + dz * s0, zb = A[2] + dz * s1;
+      if (h < zb - e) return null;
+      const side = h >= za - e, s = side ? s0 : s0 + (za - h) / (za - zb) * (s1 - s0);
+      return { cx, cy, x: A[0] + (B[0] - A[0]) * s, y: A[1] + (B[1] - A[1]) * s, z: side ? za : h, face: side ? 'side' : 'top' };
+    });
   }
   // every cell the segment crosses, as fn(cx, cy, t0, t1); stops at the first truthy result
   _walk(x0, y0, x1, y1, fn) {

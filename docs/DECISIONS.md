@@ -1024,3 +1024,19 @@ An entry:
   context that it no longer fits for any use.
 - **Answered:** yes: the owner, in the goal of 2026-10-28 (budgets deferred to the review pass)
 - **Landed in:** v0.70.0
+
+## D56 · 2026-10-28 · E.tint over a raised top sorts with the map instead of drawing over everything
+
+- **Principle:** the genre plan's 3.5, opt-in ("a new option on an existing class defaults to today's behavior")
+- **Call:** `E.tint(r, cells, color, alpha, T, height)` (the grid module), given heights, drew every cell's tint in the
+  overlay, over the whole picture: the units standing on a move range came out stained its color, and a range behind a
+  wall showed through it. Now a tint on a raised top (a TileMap wall's, height above 0) is queued with the map at that
+  cell, just after its block: over the top, under whoever stands on it (lifted past the block), behind what is in front.
+  A tint on the floor (no heights, or height 0) is a decal as before: the roguelike's path, the one caller before M8,
+  draws the same pixels.
+- **Why:** the old way was right for nothing a game would want (a tactics map shows its ranges under its units: Final
+  Fantasy Tactics, Fire Emblem), and no game called it with heights before the TACTICS kit, so nothing that plays
+  changes. An option keeping the old way would keep a behavior no one should choose. What would change it: a game that
+  wants a tint over its units (a warning flash), which can draw its own in the overlay.
+- **Answered:** no (reversible: a revert undoes it)
+- **Landed in:** v0.72.0

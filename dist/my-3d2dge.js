@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.71.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.72.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.71.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.72.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -5218,6 +5218,39 @@ class TileMap {
       if (this._walk(a.x + nx * s, a.y + ny * s, b.x + nx * s, b.y + ny * s, (cx, cy, t0, t1) => this.height(cx, cy) > Math.min(zAt(t0), zAt(t1)) + 1e-6)) return false;
     return true;
   }
+  /**
+   * the cell under a screen point on a map with heights (tactics, strategy, board games): the first top or wall face the
+   * line of sight meets, front to back, in any view, turn and zoom. sx, sy: the HUD's pixels (input.clicked(),
+   * input.pointer()); at: the game whose view and camera drew it (E.current by default) or { view, ix, iy }. Returns
+   * { cx, cy, x, y, z, face: 'top' | 'side' } (the world point it meets) or null off the map. Cells only, as height()
+   * has them (not props, actors, or walls cut away)
+   */
+  pick(sx, sy, at = E.current) {
+    const v = at.view, c = at.screen || at, px = sx + (c.ix || 0), py = sy + (c.iy || 0), T = this.T;
+    // the line of sight: the world points that project to (px, py); N (the projection's rows crossed) runs along it toward
+    // the camera, P is the point on it nearest the origin
+    const N = [v.ay * v.bz, -v.ax * v.bz, v.ax * v.by - v.ay * v.bx], aa = v.ax * v.ax + v.ay * v.ay, ab = v.ax * v.bx + v.ay * v.by, bb = v.bx * v.bx + v.by * v.by + v.bz * v.bz, det = aa * bb - ab * ab;
+    const u = (bb * px - ab * py) / det, w = (aa * py - ab * px) / det, P = [v.ax * u + v.bx * w, v.ay * u + v.by * w, v.bz * w];
+    let top = 0; for (const k in this.types) top = Math.max(top, this.types[k].h || 0);
+    // clip it to the map's box, from the camera's side (t grows away from the camera: Q(t) = P - N t)
+    let t0 = -Infinity, t1 = Infinity;
+    for (const [i, lo, hi] of [[0, 0, this.w * T], [1, 0, this.h * T], [2, 0, top + 1]]) {
+      const d = -N[i];
+      if (Math.abs(d) < 1e-12) { if (P[i] < lo || P[i] > hi) return null; continue; }
+      const a = (lo - P[i]) / d, b = (hi - P[i]) / d; t0 = Math.max(t0, Math.min(a, b)); t1 = Math.min(t1, Math.max(a, b));
+    }
+    if (!(t0 < t1)) return null;
+    const Q = t => [P[0] - N[0] * t, P[1] - N[1] * t, P[2] - N[2] * t], A = Q(t0), B = Q(t1), dz = B[2] - A[2], e = 1e-6;
+    // the cells under it in order; in each, the stretch's heights: a top as high as where it comes in is a face it meets, a
+    // top between where it comes in and goes out is the top it comes down onto
+    return this._walk(A[0], A[1], B[0], B[1], (cx, cy, s0, s1) => {
+      if (cx < 0 || cy < 0 || cx >= this.w || cy >= this.h) return null;
+      const h = this.height(cx, cy), za = A[2] + dz * s0, zb = A[2] + dz * s1;
+      if (h < zb - e) return null;
+      const side = h >= za - e, s = side ? s0 : s0 + (za - h) / (za - zb) * (s1 - s0);
+      return { cx, cy, x: A[0] + (B[0] - A[0]) * s, y: A[1] + (B[1] - A[1]) * s, z: side ? za : h, face: side ? 'side' : 'top' };
+    });
+  }
   /** every cell the segment (x0, y0) -> (x1, y1) crosses, in order, as fn(cx, cy, t0, t1) (its stretch in that cell, 0..1); stops
    *  at the first truthy fn and returns that. Through a corner exactly, both cells beside it count */
   _walk(x0, y0, x1, y1, fn) {
@@ -10029,7 +10062,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.71.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.72.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10244,7 +10277,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.71.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.72.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10469,7 +10502,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.71.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.72.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11020,7 +11053,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.71.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.72.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11203,7 +11236,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.71.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.72.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11218,11 +11251,17 @@ keeps its units.
   with diagonal; hex steps); grid.center(c, T) and grid.toCell(x, y, T): world points (hex: T across).
 - grid.path(a, b, { blocked(cx, cy), climb, drop, ends }) -> [a, ..., b] or [] (A*, ties broken the same way every
   time; ends: true reaches b even when b can't be walked: an attack's target). grid.reach(a, budget, { blocked, climb,
-  drop }) -> { cells: [[cx, cy, cost]], has(c), cost(c), path(c) } (Dijkstra: a move range; climb and drop limit the
-  height a step may rise and fall).
+  drop, pass }) -> { cells: [[cx, cy, cost]], has(c), cost(c), path(c) } (Dijkstra: a move range; climb and drop limit
+  the height a step may rise and fall: a unit's jump, E.HEIGHTS.level (8) a level; pass(cx, cy): cells crossed but not
+  stopped on, its allies).
 - grid.line(a, b) (Bresenham, hex: steps), grid.sees(a, b) (no opaque cell between), grid.fov(c, radius) -> a Set of
   'cx,cy' (symmetric shadowcasting: what a sees sees it; hex: lines). grid.flood(c, same(cx, cy)) and grid.groups(key(cx,
   cy) -> a value or null) -> [[cells]] (equal neighbours: matches, chains, regions).
+- Tactics: grid.shape(c, kind, n, dir) -> cells ('cross', 'diamond', 'square', 'ring', 'line', 'cone': areas of
+  effect); grid.face(a, b) (the four-way facing from a toward b); grid.side(at, facing, from) -> 'front' | 'side' |
+  'back' (a blow from behind); grid.threat(units, { blocked }) -> { cells: [[cx, cy, n]], count(c), by(c) } (what units
+  { cx, cy, move, range: [min, max], climb, drop } can strike next turn: an AI's safe cells). Over a TileMap's tops:
+  map.pick(sx, sy) the cell under the pointer, map.arcClear(from, to, apex) a bow's arc.
 - E.Fog(grid): fog.update([{ cx, cy, r }]) (each viewer's field of view: visible now; seen stays), fog.visible(c),
   fog.seen(c), fog.draw(r, T, o) (unseen black, seen dimmed: over the walls too, before your HUD); E.tint(r, cells, color,
   alpha, T, height): tints on cells' tops (ranges, paths).
@@ -11242,6 +11281,7 @@ const r = g.reach([0, 0], 3); if (!r.has([0, 3]) || r.has([3, 4]) || r.cost([2, 
 const fov = g.fov([1, 1], 6); if (fov.has('6,1') || !fov.has('3,1')) throw new Error('fov');
 const t = new E.Turns([{ id: 'hero', speed: 100 }, { id: 'bat', speed: 200 }], { mode: 'speed' });
 if ([1, 2, 3].map(() => t.next().id).join() !== 'bat,hero,bat') throw new Error('turns');
+if (g.shape([5, 2], 'cross', 1).length !== 5 || g.side([5, 2], [1, 0], [4, 2]) !== 'back') throw new Error('tactics');
 ```
 Rules: cells are whole numbers; paths and reaches never cross a cell blocked(cx, cy) says is taken (other units); the
 same inputs give the same paths, fields and turns. Draw the fog after the world and before your HUD.
@@ -11350,7 +11390,7 @@ class Grid {
     return [];
   }
   /** every cell within budget of a: { cells: [[cx, cy, cost]], has(c), cost(c) (or Infinity), path(c) } (Dijkstra: move
-   *  ranges). o: { blocked, climb, drop } as path's */
+   *  ranges). o: { blocked, climb, drop } as path's, and pass(cx, cy): cells it may cross but not stop on (allies) */
   reach(a, budget, o = {}) {
     const W = this.w, key = c => c[1] * W + c[0], cost = new Map([[key(a), 0]]), from = new Map(), open = new Heap();
     open.push(0, 0, a);
@@ -11363,6 +11403,7 @@ class Grid {
         cost.set(nk, ng); from.set(nk, k); open.push(ng, 0, n);
       }
     }
+    if (o.pass) for (const k of [...cost.keys()]) if (k !== key(a) && o.pass(k % W, Math.floor(k / W))) cost.delete(k);   // (crossed, so their paths stay)
     const cells = [...cost].map(([k, v]) => [k % W, Math.floor(k / W), v]).sort((p, q) => p[2] - q[2] || p[1] - q[1] || p[0] - q[0]);
     return { cells, has: c => cost.has(key(c)), cost: c => cost.has(key(c)) ? cost.get(key(c)) : Infinity,
       path: c => { if (!cost.has(key(c))) return []; const out = [c]; let at = key(c); while (from.has(at)) { at = from.get(at); out.push([at % W, Math.floor(at / W)]); } return out.reverse(); } };
@@ -11418,6 +11459,41 @@ class Grid {
     }
     return out.sort((p, q) => q.length - p.length);
   }
+  /** the cells a shape of effect covers round c (square grids; on the grid only): 'cross' (n each way), 'diamond' (n steps:
+   *  dist), 'square' (n each way, corners too), 'ring' (exactly n steps), 'line' (n cells from c along dir [dx, dy], not
+   *  c), 'cone' (n rows along dir, each a cell wider each side) */
+  shape(c, kind = 'diamond', n = 1, dir = [1, 0]) {
+    const [x, y] = c, [dx, dy] = dir, out = [], add = (a, b) => { if (this.inside([a, b])) out.push([a, b]); };
+    if (kind === 'line') for (let i = 1; i <= n; i++) add(x + dx * i, y + dy * i);
+    else if (kind === 'cone') for (let i = 1; i <= n; i++) for (let j = -(i - 1); j <= i - 1; j++) add(x + dx * i - dy * j, y + dy * i + dx * j);
+    else for (let b = y - n; b <= y + n; b++) for (let a = x - n; a <= x + n; a++) {
+      const d = this.dist(c, [a, b]);
+      if (kind === 'square' || (kind === 'cross' && (a === x || b === y)) || (kind === 'diamond' && d <= n) || (kind === 'ring' && d === n)) add(a, b);
+    }
+    return out;
+  }
+  /** the way from a looks to b, one of four [dx, dy] (the longer axis; x when they tie): a unit turning to its target */
+  face(a, b) { const dx = b[0] - a[0], dy = b[1] - a[1]; return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) || 1, 0] : [0, Math.sign(dy)]; }
+  /** where a blow from cell from lands on a unit at cell at facing [dx, dy]: 'front', 'side' or 'back' (within 45
+   *  degrees of its facing, of behind it, or between: a diagonal is a side) */
+  side(at, facing, from) {
+    const dx = from[0] - at[0], dy = from[1] - at[1], l = Math.hypot(dx, dy) * Math.hypot(facing[0], facing[1]); if (!l) return 'front';
+    const c = (dx * facing[0] + dy * facing[1]) / l; return c > .7072 ? 'front' : c < -.7072 ? 'back' : 'side';
+  }
+  /** what a side can strike on its next turn: units ([{ cx, cy, move, range: [min, max] or n (1), climb, drop }]) each
+   *  moving within its reach (o.blocked: cells it can't enter) and striking within range of where it stops. { cells:
+   *  [[cx, cy, n]], count(c), by(c) -> [units] }: a threat map, for an AI's safe cells and a player's warning tint */
+  threat(units, o = {}) {
+    const W = this.w, by = new Map();
+    for (const u of units) {
+      const [lo, hi] = Array.isArray(u.range) ? u.range : [1, u.range || 1], hit = new Set();
+      for (const [x, y] of this.reach([u.cx, u.cy], u.move || 0, { blocked: o.blocked, climb: u.climb, drop: u.drop }).cells)
+        for (let b = y - hi; b <= y + hi; b++) for (let a = x - hi; a <= x + hi; a++) { const d = this.dist([x, y], [a, b]); if (d >= lo && d <= hi && this.inside([a, b])) hit.add(b * W + a); }
+      for (const k of hit) { if (!by.has(k)) by.set(k, []); by.get(k).push(u); }
+    }
+    const cells = [...by].map(([k, v]) => [k % W, Math.floor(k / W), v.length]).sort((p, q) => p[1] - q[1] || p[0] - q[0]);
+    return { cells, count: c => (by.get(c[1] * W + c[0]) || []).length, by: c => by.get(c[1] * W + c[0]) || [] };
+  }
 }
 E.Grid = Grid;
 
@@ -11467,10 +11543,12 @@ class Fog {
 }
 E.Fog = Fog;
 /** tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range,
- *  a path, an attack's reach, drawn on the floor (decals) where height is 0, over the world otherwise */
+ *  a path, an attack's reach, drawn on the floor (decals) where height is 0; on a raised top (a TileMap wall's) it sorts
+ *  with the map: over that top, under whoever stands on it, behind what is in front */
 E.tint = (r, cells, color, alpha = .4, T = 16, height = null) => {
-  const flat = !height, draw = g => { for (const [x, y] of cells) { const z = height ? height(x, y) || 0 : 0; E.px.polyDither(g, [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([a, b]) => r.w(a * T, b * T, z)), color, alpha, r.ix, r.iy); } };
-  if (flat) r.decal(draw); else r.overlay(draw);
+  const quad = (g, x, y, z) => E.px.polyDither(g, [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([a, b]) => r.w(a * T, b * T, z)), color, alpha, r.ix, r.iy), flat = [];
+  for (const [x, y] of cells) { const z = height ? height(x, y) || 0 : 0; if (z > 0) r.queue((x + .5) * T, (y + .5) * T, 0, g => quad(g, x, y, z), { bias: .001 }); else flat.push([x, y]); }   // (the wall sorts at the same spot; one standing on it, lifted .002 past it)
+  if (flat.length) r.decal(g => { for (const [x, y] of flat) quad(g, x, y, 0); });
 };
 
 /* =============================================================================
@@ -11567,7 +11645,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.71.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.72.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11772,7 +11850,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.71.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.72.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11932,7 +12010,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.71.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.72.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12113,7 +12191,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.71.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.72.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12441,7 +12519,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.71.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.72.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
