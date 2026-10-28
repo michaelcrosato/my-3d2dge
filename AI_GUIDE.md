@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.62.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.63.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -352,6 +352,7 @@ if (game.debug.snapshot().hero[2] !== 32) throw new Error('the hero should have 
 A module (`engine/modules/<name>.js`) holds one general system that several genres share, outside the core, so that only the games that use it carry it. It loads after the engine, in a `<script>` of its own, and attaches its names to `My3D2dge`; its header is its manual (what it holds, its API, a complete example, its rules), and the index has a section for it. Its manual's third line says whether it also loads after the agent edition, and which modules it needs first.
 - **In a single file:** the reference editions (`dist/my-3d2dge.html`, the compact one) carry every module; a kit carries the modules its slice names in its header (`@modules grid gen`). To use one a kit hasn't got, paste the module's file in a `<script>` after the engine's.
 - **With files:** `dist/my-3d2dge.js` is the core and every module in one file; the handoff package also has each module on its own (`modules/<name>.js`), to load after the agent edition.
+- **The modules:** `grid` (square and hex grids: A* paths, move ranges with climb and drop, lines, symmetric fields of view, `E.Fog`, flood fills and groups, `E.GridMover` for Pac-Man's and Sokoban's moves, `E.Turns` by speed, charge time, phase or ATB) and `gen` (floors from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a `TileMap` reads, with `E.gen.mark` for spawns). Both load after the agent edition too.
 - **Writing one:** `engine/modules/README.md` (the header's form, the rules, its budget of 1,500 tokens; `tools/modules-test.mjs` proves the path with a fixture). The genre plan (`docs/HANDOFF-GENRES.md`) says which systems become modules.
 
 ### Kits and the diet (which file for which game)
@@ -431,10 +432,15 @@ const s = level.find('hero'), hero = new E.Platformer({ x: s.x, z: s.z }), rig =
 - Battles are a scene in the `brawler` view with rigs lined up, a `Menu` of commands and a queue of actions. Each action steps forward, swings, applies damage and steps back.
 - Keep party data in one object and save it with `E.store.set('save', party)`.
 
-**Puzzle (Tetris, Dr. Mario).**
-- Use `view: 'overhead'`, `res: 'nes'`, and a 2D array grid drawn with `px.rect`.
-- `input.repeat('left', .17, .05)` gives the classic delayed auto-shift; `game.every(speed, fall)` drives gravity.
-- Clear lines with particles and `sfx('coin')`.
+**Puzzle (Tetris, Dr. Mario, Puyo Puyo).** Start from the PUZZLE slice.
+- The field is an array of cells drawn in screen pixels (`r.overlay`) over a painted stage; every rule is a small function: spawn, fits, kicks (SRS), lock (half a second, reset by a move up to 15 times), clear, gravity (the guideline's curve by level). A bag of seven from `E.rng`, a next queue, hold, a ghost.
+- `input.repeat('left', .17, .05)` gives the delayed auto-shift. Touch: `input.steer = 'drag'` and `input.drag()` move a cell a step of the thumb, `input.clicked()` (a tap) turns, a quick flick drops or holds.
+- Matching games (Puyo, Columns, match-3): `new E.Grid(w, h).groups((x, y) => field[y * w + x] || null)` gives the groups of one colour; pop those of four or more, let what is above fall, and count each round that pops as a chain.
+
+**Roguelike (Rogue, Mystery Dungeon, Shiren).** Start from the ROGUELIKE slice.
+- A floor is `E.gen.rooms(46, 30, { seed })` (or `bsp`, `cave`), its spawns put in with `E.gen.mark(level, 'g', 5)` and read by a `TileMap` legend; `E.Grid.from(map, { diagonal: true })` gives `path`, `reach` and `fov`, and `E.Fog` covers what isn't in sight (`fog.draw(r, 16, { height })` over the walls too).
+- `E.Turns([hero, ...foes], { mode: 'speed' })`: the hero acts on a key, then `next()` runs every monster's turn until the hero's comes round again (speed 200 acts twice); a monster walks its next step of `grid.path` toward the hero, or strikes when it is next to it.
+- The game is turn-based but its pictures are not: each step is `game.tween(actor, { x, y }, .13)` and the rigs walk through it. The stairs are `game.go(scene, { depth }, { fade: 'iris', at: hero })`. A bot (`bot()` in the slice) that plays to the end is the best test: pathing, fighting and items all exercised.
 
 **3D-era remake (Mario 64, Ocarina, Crash).**
 - Use the `iso` or `threequarter` view with a `TileMap` whose wall heights are platforms (h 8, 16, 24...). The hero is a `Body` with `jump(260)`; walls lower than the hero's feet are walkable, so the level becomes a height map you platform across.

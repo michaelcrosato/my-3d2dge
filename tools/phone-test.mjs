@@ -12,6 +12,8 @@
 //              player's Frame rate (Auto, 60, Full)
 //      session: a recorded page (?record=1) saves its session from the pause menu (its frame times: the device's refreshes)
 //   5. rpg: a whole turn is played by taps, and every tap target (commands, foes) is at least 44 CSS pixels (a thumb)
+//   7. roguelike: a tap on a floor cell it has seen walks the hero there, a cell a turn (the grid's path)
+//   8. puzzle: a tap on BLOCKS starts it; a drag sideways moves the piece a cell a step of the thumb, a tap turns it
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
 //      pinch it (not the stick: a thumb steering beside a resting finger doesn't), kept; none where a slice has it off
 //      (the shooter); a phone held upright starts at the slice's tall zoom; Settings, Camera zoom; the wheel and - = on a
@@ -60,7 +62,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'platformer', 'shooter', 'rpg', 'brawler', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'platformer', 'shooter', 'puzzle', 'rpg', 'roguelike', 'brawler', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -360,6 +362,39 @@ if (want('zoom')) {
   await dp.keyboard.press('Digit0'); await wait(100); const r0 = await dz();
   check('zoom: on a computer the wheel zooms (3 notches: 1.35x), - steps out, 0 resets', w3 === 1.35 && m1 === 1.25 && r0 === 1 && !derr.length, `${w3}x, ${m1}x, ${r0}x${derr.length ? ', errors: ' + derr.join(' | ') : ''}`);
   await dctx.close();
+}
+
+/* 7. roguelike: tap to walk */
+if (want('roguelike')) {
+  console.log('roguelike: tap a cell to walk there');
+  const { page, ctx, errors } = await open('roguelike', UP); await wait(900);
+  // the farthest seen, walkable cell within a few steps, on screen
+  const goal = await ev(page, () => { const s = window.__game.scenes.roguelike.state(), h = s.hero, g = window.__game.game, r = g.r; let best = null;
+    for (const c of s.grid.reach([h.cx, h.cy], 5).cells) { if (!s.fog.visible([c[0], c[1]])) continue; const [x, y] = r.w((c[0] + .5) * 16, (c[1] + .5) * 16, 0), sx = x, sy = y; if (sx < 20 || sy < 60 || sx > g.W - 20 || sy > g.H - 120) continue; if (!best || c[2] > best.d) best = { c: [c[0], c[1]], d: c[2], sx, sy }; }
+    return best && Object.assign(best, { from: [h.cx, h.cy] }); });
+  if (!goal) check('roguelike: a seen cell to tap', false, 'none on screen');
+  else {
+    const [x, y] = await toCss(page, goal.sx, goal.sy); await page.touchscreen.tap(x, y); await wait(2200);
+    const at = await ev(page, () => { const h = window.__game.scenes.roguelike.state().hero; return [h.cx, h.cy]; });
+    check(`roguelike: a tap ${goal.d} steps away walks the hero there`, at.join() === goal.c.join() && !errors.length, `from ${goal.from} to ${at}, wanted ${goal.c}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+  }
+  await ctx.close();
+}
+/* 8. puzzle: drag and tap */
+if (want('puzzle')) {
+  console.log('puzzle: drag to move, tap to turn');
+  const { page, ctx, cdp, errors } = await open('puzzle', UP); await wait(600);
+  const entry = await ev(page, () => { const g = window.__game.game; return [g.W / 2, 92 + 6]; });   // BLOCKS, the menu's first entry
+  const [ex, ey] = await toCss(page, entry[0], entry[1]); await page.touchscreen.tap(ex, ey); await wait(500);
+  const s0 = await ev(page, () => { const s = window.__game.scenes.puzzle.state(); return s.cur && { mode: s.mode, x: s.cur.x, r: s.cur.r }; });
+  const [cx, cy] = await toCss(page, 160, 300); await drag(cdp, line([cx, cy], [cx + 90, cy], 18), 30); await wait(300);
+  const s1 = await ev(page, () => { const s = window.__game.scenes.puzzle.state(); return s.cur && { x: s.cur.x, r: s.cur.r, k: s.cur.k }; });
+  await page.touchscreen.tap(cx, cy); await wait(300);
+  const s2 = await ev(page, () => { const s = window.__game.scenes.puzzle.state(); return s.cur && { x: s.cur.x, r: s.cur.r }; });
+  check('puzzle: a tap on BLOCKS starts it', !!s0 && s0.mode === 'blocks', JSON.stringify(s0));
+  check('puzzle: a drag to the right moves the piece right, a cell a step', !!s0 && !!s1 && s1.x > s0.x, JSON.stringify([s0, s1]));
+  check('puzzle: a tap turns it', !!s1 && !!s2 && (s2.r !== s1.r || s1.k === 'O') && !errors.length, JSON.stringify([s1, s2]) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
+  await ctx.close();
 }
 
 await browser.close();

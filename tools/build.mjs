@@ -32,11 +32,11 @@ import { modules as allModules, resolve as resolveModules, sliceModules } from '
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = 'engine/my-3d2dge.js';
 const STARTER = 'src/starter', STARTER3D = 'src/starter3d', ENGINE3D = 'engine/my-3d2dge-3d.js';
-const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', rpg: 'RPG BATTLE (turn-based battle)', stealth: 'STEALTH (third-person stealth and parkour)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
+const SLICES = { adventure: 'ADVENTURE (top-down action adventure)', platformer: 'PLATFORMER (side-scroller)', brawler: "BRAWLER (beat-'em-up)", shooter: 'SHOOTER (vertical shoot-em-up)', puzzle: 'PUZZLE (falling blocks and falling pairs)', rpg: 'RPG BATTLE (turn-based battle)', roguelike: 'ROGUELIKE (a turn-based crypt of generated floors)', stealth: 'STEALTH (third-person stealth and parkour)', animlab: 'ANIMATION LAB (every move, pose, skin and view of the character rigs)' };
 const ALL = {
-  GAMES: 'six working games and an animation lab',
-  CONTENTS: "a title menu plus six vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE, STEALTH)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
-  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg, #stealth or #animlab to the address to start a slice.'
+  GAMES: 'eight working games and an animation lab',
+  CONTENTS: "a title menu plus eight vertical slices\n       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, PUZZLE, RPG BATTLE, ROGUELIKE, STEALTH)\n       and an ANIMATION LAB that plays every move, pose and skin in every view.",
+  LINKS: 'Deep links: add #adventure, #platformer, #brawler, #shooter, #puzzle, #rpg, #roguelike, #stealth or #animlab to the address to start a slice.'
 };
 // THE KIT DIET (docs/HANDOFF-GENRES.md, 3.3): a kit's engine leaves out the core's sections its game never calls. This
 // table names the parts that may go (one or more of the core's sections, by number) and, where a part is reached only

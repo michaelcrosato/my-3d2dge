@@ -2,7 +2,7 @@
 
 **My "3D" 2D Game Engine.** A general-purpose, retro-modern 2D game engine built for AI models (LLMs). Everything is drawn by code, with no image or sound files, and the whole engine fits in one self-contained HTML file you can hand to any model.
 
-**Play it live: [my-3d2dge.vercel.app](https://my-3d2dge.vercel.app)** (Emberdeep, the signature game). The other demos are [/arena](https://my-3d2dge.vercel.app/arena), [/stress-test](https://my-3d2dge.vercel.app/stress-test) and [/perspective-lab](https://my-3d2dge.vercel.app/perspective-lab), and the starter kits are at /kits/&lt;adventure|animlab|brawler|platformer|rpg|shooter|stealth&gt;; the 3D kits, a real 3D world under the game, are at [/kits/3d-action](https://my-3d2dge.vercel.app/kits/3d-action), [/kits/3d-platformer](https://my-3d2dge.vercel.app/kits/3d-platformer) and [/kits/3d-shooter](https://my-3d2dge.vercel.app/kits/3d-shooter) (an open world, first or third person), all in [/3d](https://my-3d2dge.vercel.app/3d). The engine for a script tag is [/dist/my-3d2dge.min.js](https://my-3d2dge.vercel.app/dist/my-3d2dge.min.js), and the one-file edition for AI coding agents is [/dist/my-3d2dge-agent.js](https://my-3d2dge.vercel.app/dist/my-3d2dge-agent.js). Every merge to `main` redeploys the site (see `vercel.json`).
+**Play it live: [my-3d2dge.vercel.app](https://my-3d2dge.vercel.app)** (Emberdeep, the signature game). The other demos are [/arena](https://my-3d2dge.vercel.app/arena), [/stress-test](https://my-3d2dge.vercel.app/stress-test) and [/perspective-lab](https://my-3d2dge.vercel.app/perspective-lab), and the starter kits are at /kits/&lt;adventure|animlab|brawler|platformer|puzzle|roguelike|rpg|shooter|stealth&gt;; the 3D kits, a real 3D world under the game, are at [/kits/3d-action](https://my-3d2dge.vercel.app/kits/3d-action), [/kits/3d-platformer](https://my-3d2dge.vercel.app/kits/3d-platformer) and [/kits/3d-shooter](https://my-3d2dge.vercel.app/kits/3d-shooter) (an open world, first or third person), all in [/3d](https://my-3d2dge.vercel.app/3d). The engine for a script tag is [/dist/my-3d2dge.min.js](https://my-3d2dge.vercel.app/dist/my-3d2dge.min.js), and the one-file edition for AI coding agents is [/dist/my-3d2dge-agent.js](https://my-3d2dge.vercel.app/dist/my-3d2dge-agent.js). Every merge to `main` redeploys the site (see `vercel.json`).
 
 ## North star
 
@@ -22,7 +22,7 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 |---|---|---|
 | **`dist/handoff/`** ([on the site](https://my-3d2dge.vercel.app/handoff/); `node tools/handoff.mjs --zip <file>` for a chat) | **Coding agents that need the full engine** (props, lighting, x-ray, sessions: what the agent edition leaves out). The readable engine and the agent edition, `API.md`, `API-INDEX.md` (every public name), `AI_GUIDE.md`, the tools that check, film and replay a game, and a template game with a headless test. Its `README.md` says where to start. | text only, ~1.3 MB; read `API.md`, search the rest |
 | **`dist/my-3d2dge-agent.js`** | **AI coding agents** (Claude Code, Codex, Cursor and the like). The [agent edition](#the-agent-edition-for-ai-coding-agents): the essential engine in one readable file whose header is the whole manual, with three complete example games. An agent reads the header and nothing else. | header ~10k tokens, whole file ~105k |
-| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `shooter`, `rpg`, `stealth`), or `animlab` to explore the animation system. Each fits a 200k context (D51): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~182k-198k tokens |
+| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `shooter`, `puzzle`, `rpg`, `roguelike`, `stealth`), or `animlab` to explore the animation system. Each fits a 200k context (D51): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~182k-198k tokens |
 | **`dist/kits/my-3d2dge-3d-<genre>.html`** | A [3D kit](#real-3d-the-3d-engine): the same, with the 3D engine and its manual and one 3D slice (`action`, `platformer`, `shooter`). Served, not opened from a disk: it loads three.js and Rapier from `vendor/`. | ~210k-285k tokens (the shooter's open world is the largest) |
 | **`dist/my-3d2dge-compact.html`** | All six slices and the animation lab, engine minified (every section and module): for a game of several genres. | ~341k tokens |
 | **`dist/my-3d2dge.html`** | The complete reference: readable engine, all six slices and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~453k tokens |
@@ -33,16 +33,18 @@ Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-li
 
 1. **The API card**: a quick-start game, a table of coordinates per view, rules, common mistakes, the full API and a genre playbook.
 2. **The engine** (no dependencies, no network).
-3. **A starter game** with six vertical slices to copy from (a genre kit holds one):
+3. **A starter game** with eight vertical slices to copy from (a genre kit holds one):
    - ADVENTURE (Zelda-style top-down)
    - PLATFORMER (Mario / Mega Man side-scroller with a 2.5D view)
    - BRAWLER (Final Fight / Streets of Rage beat-'em-up)
    - SHOOTER (1942-style vertical shmup)
    - RPG BATTLE (Dragon Quest / Final Fantasy turn-based)
+   - ROGUELIKE (Rogue / Mystery Dungeon: ten generated floors, fields of view and fog, turns by speed, the grid and gen modules)
+   - PUZZLE (Tetris by today's rules and Puyo Puyo's chaining pairs, with a mascot)
    - STEALTH (Assassin's Creed / Metal Gear third-person: roofs to climb and leap, guards that see and search, takedowns)
    - ANIMATION LAB: every move, pose and reaction on every skin, in every view, with zoom, rotation, slow motion and frame stepping
 
-The model copies the closest slice and replaces the code between `GAME START` and `GAME END`. Opened in a browser, the same file is playable, full screen at any shape: a desktop or ultrawide monitor, a tablet, a phone either way up, with no black bars (`res: 'ps1', expand: true`: 320x240 is the least it shows). Each slice fills the extra space with its own world, edge to edge, the HUD over the corners, and its prompts name the player's own keys. On a phone the first tap goes full screen, the menu button sits at the top right, every menu has a close button and swipes back, the back gesture pauses instead of leaving, and the controls are smart: the adventure's TALK button shows only beside someone (and its camera slides room by room, as Zelda's, or scrolls: Settings, or C), the RPG takes taps on its commands and foes, and the shooter's ship follows your thumb and fires by itself. Press `?` for the API card, and add `#adventure`, `#platformer`, `#brawler`, `#shooter`, `#rpg`, `#stealth` or `#animlab` to the address to jump straight into a slice.
+The model copies the closest slice and replaces the code between `GAME START` and `GAME END`. Opened in a browser, the same file is playable, full screen at any shape: a desktop or ultrawide monitor, a tablet, a phone either way up, with no black bars (`res: 'ps1', expand: true`: 320x240 is the least it shows). Each slice fills the extra space with its own world, edge to edge, the HUD over the corners, and its prompts name the player's own keys. On a phone the first tap goes full screen, the menu button sits at the top right, every menu has a close button and swipes back, the back gesture pauses instead of leaving, and the controls are smart: the adventure's TALK button shows only beside someone (and its camera slides room by room, as Zelda's, or scrolls: Settings, or C), the RPG takes taps on its commands and foes, and the shooter's ship follows your thumb and fires by itself. Press `?` for the API card, and add `#adventure`, `#platformer`, `#brawler`, `#shooter`, `#puzzle`, `#rpg`, `#roguelike`, `#stealth` or `#animlab` to the address to jump straight into a slice.
 
 ### The agent edition (for AI coding agents)
 
@@ -276,7 +278,9 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | Beat-'em-ups and fighting (Final Fight, Streets of Rage, Street Fighter II) | brawler, side | Humanoid attack and kick specs, hitboxes |
 | Shoot-'em-ups (1942, Xevious, Gradius) | overhead, side | sprites, Bullets, patterns, starfield |
 | JRPGs (Dragon Quest, Final Fantasy, EarthBound) | three-quarter towns, brawler battles | Menu, Dialog, scenes, store |
-| Puzzle and arcade (Tetris, Dr. Mario, Pac-Man) | overhead | fixed res, `input.repeat`, pixel primitives |
+| Puzzle (Tetris, Puyo Puyo, Columns) | screen pixels over a stage | a cell array, `input.repeat`, the grid module's groups (PUZZLE kit) |
+| Roguelikes (Rogue, Mystery Dungeon, Shiren) | three-quarter, iso | the gen and grid modules: floors, paths, fields of view, fog, turns (ROGUELIKE kit) |
+| Arcade (Pac-Man, Galaga, Breakout) | overhead | fixed res, `input.repeat`, pixel primitives |
 | 3D-era remakes (Mario 64, Ocarina, Crash) | iso, three-quarter, brawler | TileMap blocks with heights plus Body jumping (z is real height) |
 | Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps |
 
@@ -343,7 +347,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.62.1**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.63.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

@@ -67,6 +67,7 @@ for (const [ed, file] of EDITIONS) {
   seesAndMaps(E, ed);
   if (ed === 'full') thirdPerson(E, ed);   // (the rest of the kit is the full engine's)
   if (ed === 'full') motion(E, ed);   // (M1's sections are the full engine's)
+  grids(E, ed);   // (the grid and gen modules load after either edition)
   shellHeadless(E, ed);
 }
 
@@ -418,6 +419,49 @@ function motion(E, ed) {
   check(`${ed}: game.weather: pooled drops from its own stream (never Math.random), the same twice; lightning flashes`, W1.calls === 0 && W1.at === W2.at && W1.drops === Math.round(.6 * E.WEATHER.rain.n) && W1.fl >= 2, JSON.stringify(W1));
   const g5 = new E.Game({ headless: true }); g5.start({ scenes, scene: 'a' }); g5.weather = { kind: 'snow' }; g5.go('b', null, { fade: 'iris', seconds: .2 }); g5.advance(.5);
   check(`${ed}: game.go with a transition's name goes there in its seconds; the weather ends with the scene`, g5.sceneName === 'b' && g5.weather === null, g5.sceneName + ' ' + JSON.stringify(g5.weather));
+}
+
+// the grid and gen modules (M2): paths, reaches and fields of view against known answers, square and hex; turns; a mover's
+// buffered turn; the same rows from the same seed, every floor joined
+function grids(E, ed) {
+  const g = new E.Grid(8, 6, { walkable: (x, y) => !(x === 3 && y < 4) }), p = g.path([0, 0], [7, 0]), r = g.reach([0, 0], 3);
+  check(`${ed}: E.Grid: A* round a wall (16 cells, ends included), Dijkstra's reach (9 cells within 3, the wall's left out)`, p.length === 16 && p[15].join() === '7,0' && r.cells.length === 9 && !r.has([3, 0]) && r.cost([1, 2]) === 3 && r.path([2, 1]).length === 4, p.length + ' ' + r.cells.length);
+  const same = g.path([0, 5], [7, 5]).map(c => c.join()).join(' ') === g.path([0, 5], [7, 5]).map(c => c.join()).join(' ');
+  check(`${ed}: E.Grid.path: the same answer every time (its ties broken one way)`, same && g.path([0, 0], [3, 0]).length === 0 && g.path([0, 0], [3, 0], { ends: true }).length > 0);
+  const d8 = new E.Grid(6, 6, { diagonal: true });
+  check(`${ed}: E.Grid diagonal: Chebyshev, a straight diagonal path`, d8.dist([0, 0], [4, 3]) === 4 && d8.path([0, 0], [4, 4]).length === 5 && d8.neighbours([2, 2]).length === 8);
+  const hx = new E.Grid(7, 7, { hex: 'pointy' }), fl = new E.Grid(7, 7, { hex: 'flat' });
+  check(`${ed}: E.Grid hex: six neighbours (odd rows shifted), steps, paths, lines`, hx.neighbours([2, 2]).map(c => c.join()).join(' ') === '3,2 2,3 1,3 1,2 1,1 2,1' && hx.neighbours([2, 3]).length === 6 && hx.dist([0, 0], [3, 3]) === 5 && hx.path([0, 0], [3, 3]).length === 6 && hx.line([0, 0], [3, 3]).length === 6 && fl.dist([0, 0], [3, 3]) === 5 && fl.neighbours([3, 3]).length === 6, hx.neighbours([2, 2]).map(c => c.join()).join(' '));
+  check(`${ed}: E.Grid hex: centre and toCell are each other's inverse`, [[0, 0], [3, 4], [6, 5]].every(c => hx.toCell(...hx.center(c, 16), 16).join() === c.join() && fl.toCell(...fl.center(c, 16), 16).join() === c.join()));
+  const room = new E.Grid(11, 11, { walkable: (x, y) => !(x === 6 && y === 5) }), fov = room.fov([5, 5], 4);
+  check(`${ed}: E.Grid.fov: a pillar's shadow, the pillar seen, the radius kept`, fov.has('6,5') && !fov.has('8,5') && fov.has('8,7') && fov.has('5,1') && !fov.has('5,0') && !fov.has('0,0'), [...fov].length + ' cells');
+  const R = E.rng(5), walls = new Set(); for (let i = 0; i < 60; i++) walls.add(Math.floor(R() * 20) + ',' + Math.floor(R() * 20));
+  const big = new E.Grid(20, 20, { walkable: (x, y) => !walls.has(x + ',' + y) }); let asym = 0;
+  for (let i = 0; i < 120; i++) { const a = [Math.floor(R() * 20), Math.floor(R() * 20)], b = [Math.floor(R() * 20), Math.floor(R() * 20)]; if (walls.has(a.join()) || walls.has(b.join())) continue; if (big.fov(a, 30).has(b.join()) !== big.fov(b, 30).has(a.join())) asym++; }
+  check(`${ed}: E.Grid.fov is symmetric (what a sees sees a), on a scattered map`, asym === 0, asym + ' one-way pairs');
+  const hill = new E.Grid(6, 1, { height: x => x * 4 });
+  check(`${ed}: E.Grid.reach: climb and drop limit a step`, hill.reach([0, 0], 9, { climb: 4 }).cells.length === 6 && hill.reach([0, 0], 9, { climb: 3 }).cells.length === 1 && hill.reach([5, 0], 9, { drop: 3 }).cells.length === 1);
+  const groups = new E.Grid(4, 2).groups((x, y) => 'aabbaaab'[y * 4 + x]);
+  check(`${ed}: E.Grid.groups and flood: neighbours of one key, biggest first`, groups.map(x => x.length).join() === '5,3' && new E.Grid(4, 2).flood([3, 1], (x, y) => 'aabbaaab'[y * 4 + x] === 'b').length === 3);
+  const fog = new E.Fog(room); fog.update([{ cx: 5, cy: 5, r: 3 }]); const seen1 = fog.visible([5, 2]); fog.update([{ cx: 1, cy: 1, r: 1 }]);
+  check(`${ed}: E.Fog: visible from the viewers now, seen stays after`, seen1 && !fog.visible([5, 2]) && fog.seen([5, 2]) && !fog.seen([10, 10]));
+  const t = new E.Turns([{ id: 'hero', speed: 100 }, { id: 'bat', speed: 200 }, { id: 'slime', speed: 50 }], { mode: 'speed' });
+  const ct = new E.Turns([{ id: 'a', speed: 100 }, { id: 'b', speed: 150 }], { mode: 'ct' }), ahead = ct.order(4).map(a => a.id).join();
+  const ph = new E.Turns([{ id: 'a', side: 'hero' }, { id: 'b', side: 'foe' }, { id: 'c', side: 'hero' }], { mode: 'phase' });
+  const atb = new E.Turns([{ id: 'x', speed: 100 }, { id: 'y', speed: 200 }], { mode: 'atb' }); atb.update(.6);
+  check(`${ed}: E.Turns: by speed (a bat twice, a slime half), charge time's order ahead, phases, ATB gauges`, [0, 1, 2, 3, 4, 5, 6].map(() => t.next().id).join() === 'bat,hero,bat,bat,hero,bat,slime' && ahead === 'b,a,b,a' && [0, 1, 2].map(() => ph.next().id).join() === 'a,c,b' && atb.ready().map(a => a.id).join() === 'y', ahead);
+  const maze = new E.Grid(5, 3, { walkable: (x, y) => y === 1 || x === 3 }), m = new E.GridMover({ cx: 0, cy: 1, speed: 10 });
+  m.update(.05, maze, [1, 0], { keep: true }); m.update(.05, maze, [0, -1], { keep: true }); for (let i = 0; i < 6; i++) m.update(.05, maze, null, { keep: true });
+  check(`${ed}: E.GridMover: a turn asked early is taken at the first opening (Pac-Man)`, m.cx === 3 && m.cy === 0, m.cx + ',' + m.cy);
+  // gen: the same rows for a seed, floors joined, marks on floor
+  const joined = L => { const rows = L.rows, open = E.gen.open(rows), seen = new Set([L.start.join()]), q = [L.start]; while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (x + dx) + ',' + (y + dy); if (!seen.has(k) && rows[y + dy] && rows[y + dy][x + dx] !== '#') { seen.add(k); q.push([x + dx, y + dy]); } } } return open.every(c => seen.has(c.join())); };
+  const kinds = [['rooms', o => E.gen.rooms(40, 24, o)], ['bsp', o => E.gen.bsp(40, 24, o)], ['cave', o => E.gen.cave(40, 24, o)], ['maze', o => E.gen.maze(31, 21, o)], ['maze prim', o => E.gen.maze(31, 21, Object.assign({ algo: 'prim', braid: .5 }, o))]];
+  for (const [name, make] of kinds) {
+    const a = make({ seed: 7 }), b = make({ seed: 7 }), c = make({ seed: 8 });
+    check(`${ed}: E.gen.${name}: the same rows for the same seed, others for another, every floor joined, walled round`, a.rows.join() === b.rows.join() && a.rows.join() !== c.rows.join() && joined(a) && a.rows[0].replace(/#/g, '') === '' && a.rows.every(r => r[0] === '#'), name);
+  }
+  const lv = E.gen.rooms(40, 24, { seed: 2 }), got = E.gen.mark(lv, 'g', 6, { seed: 3, far: 5 }), pts = E.gen.scatter(30, 20, { seed: 4, r: 3 });
+  check(`${ed}: E.gen.mark puts n marks on floor away from the start; scatter keeps its distance`, got.length === 6 && got.every(([x, y]) => lv.rows[y][x] === 'g' && Math.abs(x - lv.start[0]) + Math.abs(y - lv.start[1]) >= 5) && pts.length > 20 && pts.every((p, i) => pts.every((q, j) => i === j || Math.hypot(p[0] - q[0], p[1] - q[1]) >= 3 - 1e-9)));
 }
 
 // E.Shell in a headless game: no DOM, but its screens' names, the pause it follows and back() still work; the agent

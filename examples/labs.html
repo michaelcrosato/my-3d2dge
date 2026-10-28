@@ -90,8 +90,33 @@ footer .ver{margin-top:6px;font-size:12px;opacity:.8}
 </main>
 <script>
 const LABS = {
-  "$about": "The Labs page (examples/labs.html, my-3d2dge.vercel.app/labs) is built from this list by tools/build.mjs, in the list's order. Each section has a title (short: a shorter name for the bar at the top, if it needs one), a line saying what it holds (about) and its entries; line: true numbers them, one line in the order it was made, each with made (when it was made). Each entry is one page: page is an examples/ page name (examples/<page>.html, served at /<page>) or a dist/ path; its title opens the page, and links are other places to start, [label, what to add to the address] (or another dist/ path). line, kits and keep (Tools) are kept. temporary holds the prototypes (DOCTRINE.md) in the order they were made, one-off comparisons and experiments, each with the date it was added and the question it answers; next: the page it led to, and deviates: one line for each way it departs from the doctrine, if any. When the question is settled, delete the page and its entry, or graduate it to another section (it is then held to the engine tier). A change to a prototype alone needs no version bump. tools/labs-test.mjs opens every link.",
+  "$about": "The Labs page (examples/labs.html, my-3d2dge.vercel.app/labs) is built from this list by tools/build.mjs, in the list's order. check (To check) holds what only the owner can judge (feel, sound, a real phone): each entry says what to do (what) and what to look for (look), its title opening the place (at: what to add to the address); it goes once checked. Each section has a title (short: a shorter name for the bar at the top, if it needs one), a line saying what it holds (about) and its entries; line: true numbers them, one line in the order it was made, each with made (when it was made). Each entry is one page: page is an examples/ page name (examples/<page>.html, served at /<page>) or a dist/ path; its title opens the page, and links are other places to start, [label, what to add to the address] (or another dist/ path). line, kits and keep (Tools) are kept. temporary holds the prototypes (DOCTRINE.md) in the order they were made, one-off comparisons and experiments, each with the date it was added and the question it answers; next: the page it led to, and deviates: one line for each way it departs from the doctrine, if any. When the question is settled, delete the page and its entry, or graduate it to another section (it is then held to the engine tier). A change to a prototype alone needs no version bump. tools/labs-test.mjs opens every link.",
   "sections": [
+    {
+      "id": "check",
+      "title": "To check",
+      "short": "Check",
+      "about": "What only a person can judge: how it feels in the hands, how it sounds, how it plays on a real phone. Each card says what to do and what to look for, and its button opens the place. Tell Claude what you find (a line is enough); a card goes once it is checked.",
+      "empty": "Nothing waits for you.",
+      "entries": [
+        {
+          "page": "dist/kits/my-3d2dge-roguelike.html",
+          "at": "#roguelike",
+          "title": "Roguelike on your phone",
+          "what": "Open it on your phone and play a floor or two: tap a cell to walk there, hold the stick to step, WAIT, POTION and SCROLL at the side. Added with v0.63.0 (Milestone 2).",
+          "look": "Does a tap walk where you meant? Are the buttons in reach of a thumb? Can you read the crypt in the dark (the torchlight, the fog over what you saw before)? Does a run feel fair: bats twice your speed, slimes half?",
+          "links": [["Iso view", "#roguelike"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-puzzle.html",
+          "at": "#puzzle",
+          "title": "Puzzle: how the blocks handle",
+          "what": "Play BLOCKS for a few minutes with the keys (arrows, Space drop, C hold), then on your phone (drag, tap, flick down, flick up); then a round of PAIRS. Added with v0.63.0 (Milestone 2).",
+          "look": "Does it handle like a modern Tetris: the auto-shift when you hold a side, the turn by a wall (kicks), time to slide a piece once it lands? On the phone, does a flick drop or hold every time, and never by mistake? In PAIRS, does a chain feel worth it?",
+          "links": []
+        }
+      ]
+    },
     {
       "id": "line",
       "title": "The road to Emberdeep",
@@ -173,6 +198,18 @@ const LABS = {
           "links": []
         },
         {
+          "page": "dist/kits/my-3d2dge-roguelike.html",
+          "title": "Roguelike",
+          "what": "Turn-based crypt (Rogue, Mystery Dungeon): ten generated floors, fog, bats that move twice, the Amulet at the bottom.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-puzzle.html",
+          "title": "Puzzle",
+          "what": "Falling blocks by today's rules (Tetris) and falling pairs that chain (Puyo Puyo), with a mascot.",
+          "links": []
+        },
+        {
           "page": "dist/kits/my-3d2dge-stealth.html",
           "title": "Stealth",
           "what": "Rooftops at dusk (Tenchu, Assassin's Creed): steal the ledger past three guards.",
@@ -187,7 +224,7 @@ const LABS = {
         {
           "page": "dist/my-3d2dge.html",
           "title": "All in one file",
-          "what": "The engine, its API card, all six games and the animation lab, with a title menu. A kit is one game of it, small enough for a chat model.",
+          "what": "The engine, its API card, all eight games and the animation lab, with a title menu. A kit is one game of it, small enough for a chat model.",
           "links": [["Compact edition", "dist/my-3d2dge-compact.html"]]
         },
         {
@@ -266,13 +303,14 @@ for (const S of LABS.sections) {
   const grid = el('div', kits ? 'grid tiles' : 'grid', '', sec);
   S.entries.forEach((L, i) => {
     const card = el('article', 'card', '', grid), a = el('a', '', L.title, el('h3', '', '', card));
-    a.href = target(L.page, ''); el('i', '', ' →', a);
+    a.href = target(L.page, L.at || ''); el('i', '', ' →', a);
     if (S.line) { const m = el('div', 'meta', '', card); el('span', 'step', String(i + 1), m); m.append(L.made ? 'Made ' + L.made : ''); }   // one line, in the order it was made
     if (L.added) el('div', 'meta', 'Added ' + L.added + ' · ' + age(L.added), card);
     if (L.question) el('p', 'q', L.question, card);
     if (L.deviates) { const d = el('p', 'dev', '', card); el('b', '', 'Deviates: ', d); d.append(L.deviates); }   // a prototype's departure from DOCTRINE.md, in a line
     if (temp && L.question) { const det = el('details', '', '', card); el('summary', '', 'What it is', det); el('p', '', L.what, det); }
     else el('p', '', L.what, card);
+    if (L.look) { const d = el('p', 'q', '', card); el('b', '', 'Look for: ', d); d.append(L.look); }   // a check's question (the To check section)
     if (L.next) { const d = el('p', 'dev', '', card); el('b', '', 'Led to: ', d); d.append(titleOf(L.next)); }
     if (L.links.length) { const row = el('div', 'links', '', card); for (const [label, add] of L.links) el('a', '', label, row).href = target(L.page, add); }
   });
@@ -293,7 +331,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.62.1 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.63.0 · dev-build', foot);
 </script>
 </body>
 </html>

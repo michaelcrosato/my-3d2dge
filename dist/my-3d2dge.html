@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.62.1 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.63.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and six working games and an animation lab.
+  AI MODELS: this one file is the whole engine, its documentation and eight working games and an animation lab.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below. It is short.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". Do not change it
        unless you are asked to extend the engine itself.
-    3. The games live between GAME START and GAME END: a title menu plus six vertical slices
-       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, RPG BATTLE, STEALTH)
+    3. The games live between GAME START and GAME END: a title menu plus eight vertical slices
+       (ADVENTURE top-down, PLATFORMER side-scroller, BRAWLER beat-'em-up, SHOOTER, PUZZLE, RPG BATTLE, ROGUELIKE, STEALTH)
        and an ANIMATION LAB that plays every move, pose and skin in every view.
        To make a new game, copy the slice closest to your genre, then replace everything between
        GAME START and GAME END with only your game. Keep everything else in this file as it is.
   HUMANS: open this file in a browser and play. Press ? for the API card.
-  Deep links: add #adventure, #platformer, #brawler, #shooter, #rpg, #stealth or #animlab to the address to start a slice.
+  Deep links: add #adventure, #platformer, #brawler, #shooter, #puzzle, #rpg, #roguelike, #stealth or #animlab to the address to start a slice.
 -->
 <html lang="en">
 <head>
@@ -21,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.62.1)
+# my-3D2dge API card (v0.63.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -250,7 +250,8 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Shoot-'em-up (1942, Gradius, R-Type) | `overhead` (vertical) or `side` (horizontal) | sprites, Bullets, `E.pattern`, `r.starfield`, a timeline of waves | SHOOTER |
 | Twin-stick / run-and-gun (Smash TV, Contra) | `topdown` / `side` | Body or Platformer, Bullets, `weapon: 'gun'`, `point: true` | SHOOTER + ADVENTURE |
 | JRPG (Dragon Quest, Final Fantasy, EarthBound) | `threequarter` town, `brawler` battles | TileMap towns, Dialog, Menu, scenes, `E.store` saves | RPG BATTLE + ADVENTURE |
-| Puzzle (Tetris, Dr. Mario, Puyo) | `overhead` | a grid array, `input.repeat`, `px.rect`, `E.font`, fixed `res` | SHOOTER (setup) |
+| Puzzle (Tetris, Dr. Mario, Puyo, Columns) | `side` (a field in screen pixels) | a cell array, a bag from `E.rng`, `input.repeat` (auto-shift), `grid.groups` (chains), `input.drag()` and `clicked()` for touch | PUZZLE |
+| Roguelike (Rogue, Mystery Dungeon, Shiren) | `threequarter` / `iso` | `E.gen` floors, a TileMap of its rows, `E.Grid.from(map)` paths and `fov`, `E.Fog`, `E.Turns` by speed, `game.tween` steps | ROGUELIKE |
 | 3D platformer or adventure remake (Mario 64, Ocarina, Crash) | `iso` / `threequarter` / `brawler` | TileMap blocks of different heights + Body `jump()` (z is real height) | ADVENTURE |
 | Third-person stealth (Assassin's Creed, Metal Gear, Tenchu) | `iso` / `threequarter` | TileMap roofs, Mover, `E.sees`, `E.Suspicion`, FlowField `jump` | STEALTH |
 | Racing (RC Pro-Am, Micro Machines) | `topdown` / `iso` | TileMap track (floorTex), Body with friction, cars drawn with `px.poly` on `r.w()` corner points | ADVENTURE |
@@ -264,7 +265,9 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
 - **Motion clips**: 325 curated and 2,548 motion-capture takes that play on any Humanoid: find one in `src/mocap/catalogs/`, cut a small set with `tools/anim-set.mjs`, then `Mocap.drive(rig, lib)` (`AI_GUIDE.md`, Where to find more; `docs/MOCAP.md`).
 - **Objects and materials** (full engine): `r.shape('barrel', x, y, 0, { facing })` draws a still object from any view and facing, `map.solid(...)` makes it solid; `E.MATERIALS` dresses floors (`floorMat`), walls (`face`, `roof`) and platform tiles (`mat`). `docs/ASSETS.md` is the card: the format, the library, writing one and checking it with `node tools/asset-sheet.mjs`.
 - **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 28 monster, boss and dummy bodies, 3 heroes (one a living book, one a scythed beast) and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
-- **Modules** (`engine/modules/<name>.js`, `engine/modules/README.md`): general systems in files of their own, each a `<script>` after the engine, its header its manual. A kit carries the modules its slice names (`@modules` in its header); `dist/my-3d2dge.js` carries them all.
+- **Modules** (`engine/modules/<name>.js`, `engine/modules/README.md`): general systems in files of their own, each a `<script>` after the engine, its header its manual (read it there, or its section of the index). A kit carries the modules its slice names (`@modules` in its header); `dist/my-3d2dge.js` carries them all.
+  - `grid`: square and hex grids: A* paths, move ranges, lines, fields of view (symmetric shadowcasting), `E.Fog`, groups, `E.GridMover`, `E.Turns` (speed, charge time, phases, ATB). ROGUELIKE, PUZZLE.
+  - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
 ## Before you hand the game back
@@ -294,7 +297,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.62.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.63.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -322,7 +325,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.62.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.63.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -401,7 +404,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.62.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.63.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -9637,6 +9640,559 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
+<script>
+/* ---- inlined from engine/modules/gen.js ---- */
+/*!
+my-3D2dge module GEN v0.63.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+Every generator takes a size in cells and { seed } and gives { rows, rooms, start, end, marks }: ASCII rows ('#' wall,
+'.' floor) a TileMap reads (put your own characters in with E.gen.mark), the rooms it made ({ x, y, w, h }), a start and
+an end cell far apart (stairs), and the cells it marked. The same seed gives the same rows, always (E.rng).
+- E.gen.rooms(w, h, { seed, rooms: 9, min: 4, max: 9 }): rooms placed apart, joined in order by bent corridors (Rogue).
+- E.gen.bsp(w, h, { seed, min: 7 }): space split in two and two again, a room in each part, sisters joined (dungeons
+  with no wasted space).
+- E.gen.cave(w, h, { seed, fill: .45, steps: 4 }): cellular automata, then only the biggest open region kept, so all of
+  it is connected (caves, islands: '#' is rock or water).
+- E.gen.maze(w, h, { seed, algo: 'backtrack' | 'prim', braid: 0 }): a perfect maze on odd cells (backtrack: long winding
+  halls; prim: short branches); braid 0..1 knocks out dead ends into loops (Pac-Man's).
+- E.gen.scatter(w, h, { seed, r: 3, k: 30, ok(x, y) }): Poisson disc points [x, y] at least r apart (trees, loot,
+  enemies), where ok says they may go.
+- E.gen.mark(level, ch, n, { seed, near, far }): put character ch on n floor cells (spawns: 'g' goblins, '!' potions),
+  away from the start; E.gen.open(rows): every floor cell as [x, y].
+
+```js gen
+const E = My3D2dge, a = E.gen.rooms(40, 24, { seed: 7 }), b = E.gen.rooms(40, 24, { seed: 7 });
+if (a.rows.join() !== b.rows.join() || a.rows.length !== 24 || a.rooms.length < 4) throw new Error('rooms');
+const c = E.gen.cave(30, 20, { seed: 3 }); E.gen.mark(c, 'g', 5, { seed: 1 });
+const map = new E.TileMap({ rows: c.rows, legend: { '#': 1, g: 'goblin' }, types: { 1: { h: 24 } } });
+if (map.findAll('goblin').length !== 5) throw new Error('marks');
+```
+Rules: rows are w characters by h rows, walled all round; start and end are floor cells; generators never call
+Math.random.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module GEN: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * GEN  rooms, BSP, caves, mazes and scatter: ASCII rows and marks from a seed
+ * ========================================================================== */
+const D4 = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+// a level: a grid of characters, all wall
+const blank = (w, h, ch = '#') => Array.from({ length: h }, () => Array(w).fill(ch));
+// distances from a cell over the floor (BFS), -1 where it can't reach
+const bfs = (G, sx, sy) => {
+  const h = G.length, w = G[0].length, d = Array.from({ length: h }, () => Array(w).fill(-1)), q = [[sx, sy]]; d[sy][sx] = 0;
+  for (let i = 0; i < q.length; i++) { const [x, y] = q[i]; for (const [dx, dy] of D4) { const a = x + dx, b = y + dy; if (b >= 0 && b < h && a >= 0 && a < w && G[b][a] !== '#' && d[b][a] < 0) { d[b][a] = d[y][x] + 1; q.push([a, b]); } } }
+  return d;
+};
+// the finished level: rows, and a start and an end as far apart as the floor allows (from the first room's centre, or the
+// first floor cell)
+const finish = (G, rooms, from) => {
+  const h = G.length, w = G[0].length;
+  for (let x = 0; x < w; x++) { G[0][x] = G[h - 1][x] = '#'; } for (let y = 0; y < h; y++) { G[y][0] = G[y][w - 1] = '#'; }
+  let s = from;
+  if (!s || G[s[1]][s[0]] === '#') { s = null; for (let y = 0; y < h && !s; y++) for (let x = 0; x < w && !s; x++) if (G[y][x] !== '#') s = [x, y]; }
+  let end = s;
+  if (s) { const d = bfs(G, s[0], s[1]); let best = -1; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[y][x] > best) { best = d[y][x]; end = [x, y]; } }
+  return { rows: G.map(r => r.join('')), rooms, start: s || [1, 1], end: end || [1, 1], marks: [] };
+};
+const dig = (G, x, y) => { if (y > 0 && y < G.length - 1 && x > 0 && x < G[0].length - 1) G[y][x] = '.'; };
+// an L-shaped corridor from a to b, its bend chosen by R
+const corridor = (G, a, b, R) => {
+  const [x0, y0] = a, [x1, y1] = b, hFirst = R() < .5;
+  const run = (xa, ya, xb, yb) => { for (let x = Math.min(xa, xb); x <= Math.max(xa, xb); x++) dig(G, x, ya); for (let y = Math.min(ya, yb); y <= Math.max(ya, yb); y++) dig(G, xb, y); };
+  if (hFirst) run(x0, y0, x1, y1); else { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) dig(G, x0, y); for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) dig(G, x, y1); }
+};
+const centre = r => [Math.floor(r.x + r.w / 2), Math.floor(r.y + r.h / 2)];
+const carve = (G, r) => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) dig(G, x, y); };
+
+/** the map generators (each from a seed: the same rows every time) */
+const gen = {
+  /** rooms placed apart and joined in order by bent corridors: { rows, rooms, start, end, marks }. o: { seed, rooms: 9,
+   *  min: 4, max: 9 (a room's side, cells) } */
+  rooms(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), G = blank(w, h), rooms = [], want = o.rooms || 9, mn = o.min || 4, mx = o.max || 9;
+    for (let tries = 0; tries < want * 30 && rooms.length < want; tries++) {
+      const rw = mn + Math.floor(R() * (mx - mn + 1)), rh = mn + Math.floor(R() * (mx - mn + 1)) - 1, x = 1 + Math.floor(R() * Math.max(1, w - rw - 2)), y = 1 + Math.floor(R() * Math.max(1, h - rh - 2));
+      const r = { x, y, w: Math.min(rw, w - 2 - x), h: Math.min(rh, h - 2 - y) };
+      if (r.w < 2 || r.h < 2 || rooms.some(q => r.x <= q.x + q.w && q.x <= r.x + r.w && r.y <= q.y + q.h && q.y <= r.y + r.h)) continue;
+      rooms.push(r);
+    }
+    rooms.sort((a, b) => a.x - b.x || a.y - b.y);
+    for (const r of rooms) carve(G, r);
+    for (let i = 1; i < rooms.length; i++) corridor(G, centre(rooms[i - 1]), centre(rooms[i]), R);
+    if (rooms.length > 3) corridor(G, centre(rooms[0]), centre(rooms[Math.floor(rooms.length / 2)]), R);   // a loop
+    return finish(G, rooms, rooms.length ? centre(rooms[0]) : null);
+  },
+  /** binary space partition: halves split again down to o.min (7) cells, a room in each leaf, sisters joined */
+  bsp(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), G = blank(w, h), mn = o.min || 7, rooms = [];
+    const split = (x, y, sw, sh) => {
+      const canH = sh >= mn * 2, canV = sw >= mn * 2;
+      if (!canH && !canV) {
+        const rw = Math.max(3, Math.floor(sw * (.55 + R() * .35))) - 1, rh = Math.max(3, Math.floor(sh * (.55 + R() * .35))) - 1;
+        const r = { x: x + 1 + Math.floor(R() * Math.max(1, sw - rw - 1)), y: y + 1 + Math.floor(R() * Math.max(1, sh - rh - 1)), w: rw, h: rh };
+        carve(G, r); rooms.push(r); return r;
+      }
+      const vert = canV && (!canH || (sw > sh ? R() < .8 : R() < .2));
+      const at = Math.floor((vert ? sw : sh) * (.4 + R() * .2));
+      const a = vert ? split(x, y, at, sh) : split(x, y, sw, at), b = vert ? split(x + at, y, sw - at, sh) : split(x, y + at, sw, sh - at);
+      corridor(G, centre(a), centre(b), R);
+      return R() < .5 ? a : b;
+    };
+    split(0, 0, w, h);
+    return finish(G, rooms, rooms.length ? centre(rooms[0]) : null);
+  },
+  /** caves by cellular automata: o.fill (.45) of the cells rock, o.steps (4) rounds of the 4-5 rule, then the biggest
+   *  open region alone */
+  cave(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), fill = o.fill === undefined ? .45 : o.fill;
+    let G = Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => x === 0 || y === 0 || x === w - 1 || y === h - 1 || R() < fill ? '#' : '.'));
+    for (let s = 0; s < (o.steps === undefined ? 4 : o.steps); s++) {
+      G = G.map((row, y) => row.map((c, x) => { let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const r = G[y + dy]; if (!r || r[x + dx] === undefined || r[x + dx] === '#') n++; } return n >= 5 ? '#' : '.'; }));
+    }
+    // keep the biggest region
+    const seen = Array.from({ length: h }, () => Array(w).fill(false)); let best = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (G[y][x] === '#' || seen[y][x]) continue;
+      const reg = [[x, y]]; seen[y][x] = true;
+      for (let i = 0; i < reg.length; i++) for (const [dx, dy] of D4) { const a = reg[i][0] + dx, b = reg[i][1] + dy; if (G[b] && G[b][a] === '.' && !seen[b][a]) { seen[b][a] = true; reg.push([a, b]); } }
+      if (reg.length > best.length) best = reg;
+    }
+    const keep = new Set(best.map(([x, y]) => y * w + x));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!keep.has(y * w + x)) G[y][x] = '#';
+    return finish(G, [], best[0] || null);
+  },
+  /** a maze on the odd cells: o.algo 'backtrack' (long halls) or 'prim' (short branches); o.braid 0..1 opens that share of
+   *  dead ends into loops */
+  maze(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), G = blank(w, h), cells = (x, y) => x > 0 && y > 0 && x < w - 1 && y < h - 1 && x % 2 && y % 2;
+    const D = [[2, 0], [0, 2], [-2, 0], [0, -2]], shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    G[1][1] = '.';
+    if (o.algo === 'prim') {
+      const front = []; const add = (x, y) => { for (const [dx, dy] of D) if (cells(x + dx, y + dy) && G[y + dy][x + dx] === '#') front.push([x + dx, y + dy, x, y]); };
+      add(1, 1);
+      while (front.length) { const [x, y, fx, fy] = front.splice(Math.floor(R() * front.length), 1)[0]; if (G[y][x] !== '#') continue; G[y][x] = '.'; G[(y + fy) / 2][(x + fx) / 2] = '.'; add(x, y); }
+    } else {
+      const stack = [[1, 1]];
+      while (stack.length) {
+        const [x, y] = stack[stack.length - 1], next = shuffle(D.slice()).find(([dx, dy]) => cells(x + dx, y + dy) && G[y + dy][x + dx] === '#');
+        if (!next) { stack.pop(); continue; }
+        G[y + next[1] / 2][x + next[0] / 2] = '.'; G[y + next[1]][x + next[0]] = '.'; stack.push([x + next[0], y + next[1]]);
+      }
+    }
+    if (o.braid) for (let y = 1; y < h - 1; y += 2) for (let x = 1; x < w - 1; x += 2) {
+      if (G[y][x] === '#') continue; const open = D4.filter(([dx, dy]) => G[y + dy][x + dx] !== '#');
+      if (open.length !== 1 || R() >= o.braid) continue;
+      const walls = shuffle(D4.filter(([dx, dy]) => G[y + dy][x + dx] === '#' && cells(x + dx * 2, y + dy * 2))); if (walls[0]) G[y + walls[0][1]][x + walls[0][0]] = '.';
+    }
+    return finish(G, [], [1, 1]);
+  },
+  /** Poisson disc points at least o.r (3) apart within w x h, o.k (30) tries each, where o.ok(x, y) allows (Bridson's):
+   *  [[x, y], ...] in cells, not whole numbers */
+  scatter(w, h, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), r = o.r || 3, k = o.k || 30, cs = r / Math.SQRT2, gw = Math.ceil(w / cs), gh = Math.ceil(h / cs), grid = new Array(gw * gh).fill(-1), pts = [], active = [];
+    const ok = (x, y) => x >= 0 && y >= 0 && x < w && y < h && (!o.ok || o.ok(x, y));
+    const far = (x, y) => { const gx = Math.floor(x / cs), gy = Math.floor(y / cs); for (let j = Math.max(0, gy - 2); j <= Math.min(gh - 1, gy + 2); j++) for (let i = Math.max(0, gx - 2); i <= Math.min(gw - 1, gx + 2); i++) { const p = pts[grid[j * gw + i]]; if (p && (p[0] - x) ** 2 + (p[1] - y) ** 2 < r * r) return false; } return true; };
+    const put = (x, y) => { pts.push([x, y]); active.push(pts.length - 1); grid[Math.floor(y / cs) * gw + Math.floor(x / cs)] = pts.length - 1; };
+    for (let t = 0; t < 50 && !pts.length; t++) { const x = R() * w, y = R() * h; if (ok(x, y)) put(x, y); }
+    while (active.length) {
+      const i = Math.floor(R() * active.length), [px, py] = pts[active[i]]; let found = false;
+      for (let t = 0; t < k; t++) { const a = R() * Math.PI * 2, d = r * (1 + R()), x = px + Math.cos(a) * d, y = py + Math.sin(a) * d; if (ok(x, y) && far(x, y)) { put(x, y); found = true; break; } }
+      if (!found) active.splice(i, 1);
+    }
+    return pts;
+  },
+  /** put character ch on n floor cells of a level (from a generator), at least o.far (4) steps from its start and o.near
+   *  steps from each other (0), from o.seed; returns the cells and adds them to level.marks */
+  mark(level, ch, n, o = {}) {
+    const R = E.rng(o.seed === undefined ? 1 : o.seed), G = level.rows.map(r => r.split('')), d = bfs(G, level.start[0], level.start[1]), far = o.far === undefined ? 4 : o.far, near = o.near || 0;
+    const free = []; for (let y = 0; y < G.length; y++) for (let x = 0; x < G[0].length; x++) if (G[y][x] === '.' && d[y][x] >= far && !(x === level.end[0] && y === level.end[1])) free.push([x, y]);
+    const out = [];
+    while (out.length < n && free.length) {
+      const [x, y] = free.splice(Math.floor(R() * free.length), 1)[0];
+      if (near && out.some(([a, b]) => Math.abs(a - x) + Math.abs(b - y) < near)) continue;
+      G[y][x] = ch; out.push([x, y]); level.marks.push({ ch, x, y });
+    }
+    level.rows = G.map(r => r.join('')); return out;
+  },
+  /** every floor cell ('.') of rows, as [x, y] */
+  open(rows) { const out = []; rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (r[x] === '.') out.push([x, y]); }); return out; }
+};
+E.gen = gen;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+</script>
+<script>
+/* ---- inlined from engine/modules/grid.js ---- */
+/*!
+my-3D2dge module GRID v0.63.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+For roguelikes, tactics, puzzles, mazes, board games and strategy's fog (what Godot calls AStarGrid2D). A cell is
+[cx, cy]; a grid knows its size, which cells can be walked and what entering one costs, and nothing else: the game
+keeps its units.
+- new E.Grid(w, h, { hex: false | 'pointy' | 'flat', walkable(cx, cy), cost(cx, cy) (1), height(cx, cy) (0),
+  opaque(cx, cy) (not walkable), diagonal: false }); E.Grid.from(map, { tops }) reads a TileMap (its walkable cells;
+  tops: true stands on its walls' tops at their heights, for tactics). Hex grids are offset rows ('pointy') or columns
+  ('flat'), odd ones shifted.
+- grid.inside(c), grid.walk(c), grid.neighbours(c) (4, 8 with diagonal, or 6), grid.dist(a, b) (Manhattan; Chebyshev
+  with diagonal; hex steps); grid.center(c, T) and grid.toCell(x, y, T): world points (hex: T across).
+- grid.path(a, b, { blocked(cx, cy), climb, drop, ends }) -> [a, ..., b] or [] (A*, ties broken the same way every
+  time; ends: true reaches b even when b can't be walked: an attack's target). grid.reach(a, budget, { blocked, climb,
+  drop }) -> { cells: [[cx, cy, cost]], has(c), cost(c), path(c) } (Dijkstra: a move range; climb and drop limit the
+  height a step may rise and fall).
+- grid.line(a, b) (Bresenham, hex: steps), grid.sees(a, b) (no opaque cell between), grid.fov(c, radius) -> a Set of
+  'cx,cy' (symmetric shadowcasting: what a sees sees it; hex: lines). grid.flood(c, same(cx, cy)) and grid.groups(key(cx,
+  cy) -> a value or null) -> [[cells]] (equal neighbours: matches, chains, regions).
+- E.Fog(grid): fog.update([{ cx, cy, r }]) (each viewer's field of view: visible now; seen stays), fog.visible(c),
+  fog.seen(c), fog.draw(r, T, o) (unseen black, seen dimmed: over the walls too, before your HUD); E.tint(r, cells, color,
+  alpha, T, height): tints on cells' tops (ranges, paths).
+- E.GridMover({ cx, cy, speed }) moves a cell at a time: mover.update(dt, grid, [dx, dy], { blocked, push(cx, cy, dx, dy)
+  }): a turn asked early is kept and taken at the first opening (Pac-Man), push moves what is in the way (Sokoban);
+  x, y: its smooth position in cells; moving, dir, arrived (true the step it reaches a cell).
+- E.Turns(actors, { mode }) says who acts: 'speed' (energy: each actor's speed, 100 a turn; a bat of 200 acts twice:
+  roguelikes), 'ct' (charge time, the order ahead: Final Fantasy Tactics), 'phase' (every one of a side, then the next
+  side: Fire Emblem; actor.side), 'atb' (gauges filled on game time: Final Fantasy). turns.next() -> the actor to act
+  (speed, ct, phase); turns.order(n): who acts next, n of them; turns.update(dt) and turns.ready() (atb: those full),
+  turns.done(actor, cost) (after it acted: ct and atb); add(a), remove(a).
+
+```js grid
+const E = My3D2dge, g = new E.Grid(8, 6, { walkable: (x, y) => !(x === 3 && y < 4) });
+const p = g.path([0, 0], [7, 0]); if (p.length !== 16 || p[0].join() !== '0,0') throw new Error('path ' + p.length);
+const r = g.reach([0, 0], 3); if (!r.has([0, 3]) || r.has([3, 4]) || r.cost([2, 1]) !== 3) throw new Error('reach');
+const fov = g.fov([1, 1], 6); if (fov.has('6,1') || !fov.has('3,1')) throw new Error('fov');
+const t = new E.Turns([{ id: 'hero', speed: 100 }, { id: 'bat', speed: 200 }], { mode: 'speed' });
+if ([1, 2, 3].map(() => t.next().id).join() !== 'bat,hero,bat') throw new Error('turns');
+```
+Rules: cells are whole numbers; paths and reaches never cross a cell blocked(cx, cy) says is taken (other units); the
+same inputs give the same paths, fields and turns. Draw the fog after the world and before your HUD.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module GRID: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * GRID  square and hex grids: neighbours, distances, A*, Dijkstra's reach, lines, sight and fields of view, groups
+ * ========================================================================== */
+const SQ4 = [[1, 0], [0, 1], [-1, 0], [0, -1]], SQ8 = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]];
+// a binary heap of [priority, tie, seq, value]: the lowest first, ties the same way every time
+class Heap {
+  constructor() { this.a = []; this.n = 0; }
+  _lt(i, j) { const p = this.a[i], q = this.a[j]; return p[0] !== q[0] ? p[0] < q[0] : p[1] !== q[1] ? p[1] < q[1] : p[2] < q[2]; }
+  push(pri, tie, v) { const a = this.a; a.push([pri, tie, this.n++, v]); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (!this._lt(i, p)) break; [a[i], a[p]] = [a[p], a[i]]; i = p; } }
+  pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < a.length && this._lt(l, m)) m = l; if (r < a.length && this._lt(r, m)) m = r; if (m === i) break; [a[i], a[m]] = [a[m], a[i]]; i = m; } } return top[3]; }
+  get size() { return this.a.length; }
+}
+class Grid {
+  /**
+   * new E.Grid(w, h, { hex: false | 'pointy' | 'flat', walkable(cx, cy), cost(cx, cy), height(cx, cy), opaque(cx, cy),
+   * diagonal }): w x h cells, every one walkable at cost 1 and height 0 unless the functions say otherwise
+   */
+  constructor(w, h, o = {}) {
+    /** w, h: its size in cells; hex: false, 'pointy' (offset rows) or 'flat' (offset columns); diagonal: square moves
+     *  of 8 directions */
+    this.w = w; this.h = h; this.hex = o.hex || false; this.diagonal = !!o.diagonal && !this.hex;
+    this._walk = o.walkable || null; this._cost = o.cost || null; this._height = o.height || null; this._opaque = o.opaque || null;
+  }
+  /** a grid from a TileMap: its walkable cells (o.tops: true stands on the walls' tops at their heights, for tactics) */
+  static from(map, o = {}) {
+    return new Grid(map.w, map.h, Object.assign({
+      walkable: o.tops ? (x, y) => !map.blocked[y * map.w + x] : (x, y) => map.walkable(x, y),
+      height: o.tops ? (x, y) => map.height(x, y) : null, opaque: (x, y) => map.solidCell(x, y) && !o.tops
+    }, o));
+  }
+  /** is [cx, cy] on the grid? */
+  inside(c) { return c[0] >= 0 && c[1] >= 0 && c[0] < this.w && c[1] < this.h; }
+  /** can [cx, cy] be walked (on the grid, and walkable)? */
+  walk(c) { return this.inside(c) && (!this._walk || !!this._walk(c[0], c[1])); }
+  /** what entering [cx, cy] costs (1 by default) */
+  cost(c) { return this._cost ? this._cost(c[0], c[1]) : 1; }
+  /** a cell's height (0 by default; E.Grid.from(map, { tops: true }): the wall's top) */
+  height(c) { return this._height ? this._height(c[0], c[1]) || 0 : 0; }
+  /** does [cx, cy] block sight? (not walkable, by default) */
+  opaque(c) { return !this.inside(c) || (this._opaque ? !!this._opaque(c[0], c[1]) : !this.walk(c)); }
+  /** the cells next to c on the grid: 4, 8 (diagonal) or 6 (hex), walkable or not */
+  neighbours(c) {
+    const [x, y] = c, out = [];
+    let D = this.diagonal ? SQ8 : SQ4;
+    if (this.hex === 'pointy') D = y & 1 ? [[1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [1, -1]] : [[1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]];
+    else if (this.hex) D = x & 1 ? [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [0, -1]] : [[1, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [0, -1]];
+    for (const [dx, dy] of D) { const n = [x + dx, y + dy]; if (this.inside(n)) out.push(n); }
+    return out;
+  }
+  // offset cell -> cube coordinates (hex)
+  _cube(c) { const [x, y] = c; if (this.hex === 'pointy') { const q = x - (y - (y & 1)) / 2; return [q, y, -q - y]; } const z = y - (x - (x & 1)) / 2; return [x, z, -x - z]; }
+  _off(q, r) { return this.hex === 'pointy' ? [q + (r - (r & 1)) / 2, r] : [q, r + (q - (q & 1)) / 2]; }
+  /** steps from a to b: Manhattan, Chebyshev (diagonal) or hex steps */
+  dist(a, b) {
+    if (this.hex) { const p = this._cube(a), q = this._cube(b); return Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]), Math.abs(p[2] - q[2])); }
+    const dx = Math.abs(a[0] - b[0]), dy = Math.abs(a[1] - b[1]); return this.diagonal ? Math.max(dx, dy) : dx + dy;
+  }
+  /** a cell's centre in world units, T a cell across (square: T wide; hex: T across its flats) */
+  center(c, T = 16) {
+    const [x, y] = c;
+    if (this.hex === 'pointy') return [(x + .5 + (y & 1) * .5) * T, (y * .866 + .577) * T];
+    if (this.hex) return [(x * .866 + .577) * T, (y + .5 + (x & 1) * .5) * T];
+    return [(x + .5) * T, (y + .5) * T];
+  }
+  /** the cell under world point (x, y), T a cell across (center's inverse) */
+  toCell(x, y, T = 16) {
+    if (!this.hex) return [Math.floor(x / T), Math.floor(y / T)];
+    let best = null, bd = Infinity; const guess = this.hex === 'pointy' ? [Math.floor(x / T), Math.floor(y / (.866 * T))] : [Math.floor(x / (.866 * T)), Math.floor(y / T)];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const c = [guess[0] + dx, guess[1] + dy], [px, py] = this.center(c, T), d = (px - x) ** 2 + (py - y) ** 2; if (d < bd) { bd = d; best = c; } }
+    return best;
+  }
+  // may a step go from a to b? (walkable, not taken, within climb and drop)
+  _step(a, b, o, end) {
+    if (end && o.ends) return this.inside(b);
+    if (!this.walk(b) || (o.blocked && o.blocked(b[0], b[1]))) return false;
+    if (o.climb !== undefined || o.drop !== undefined) { const d = this.height(b) - this.height(a); if (d > (o.climb === undefined ? Infinity : o.climb) || -d > (o.drop === undefined ? Infinity : o.drop)) return false; }
+    if (this.diagonal && a[0] !== b[0] && a[1] !== b[1] && (!this.walk([a[0], b[1]]) || !this.walk([b[0], a[1]]))) return false;   // (no cutting a wall's corner)
+    return true;
+  }
+  /** the cheapest way from a to b, [a, ..., b], or [] (A*; ties broken the same way every time). o: { blocked(cx, cy):
+   *  cells taken (other units), climb, drop (the most a step rises and falls), ends: b may be unwalkable (a target),
+   *  max: give up past this cost } */
+  path(a, b, o = {}) {
+    if (!this.inside(a) || !this.inside(b)) return [];
+    const W = this.w, key = c => c[1] * W + c[0], goal = key(b), g = new Map([[key(a), 0]]), from = new Map(), open = new Heap();
+    open.push(this.dist(a, b), this.dist(a, b), a);
+    while (open.size) {
+      const c = open.pop(), k = key(c), gc = g.get(k);
+      if (k === goal) { const out = [c]; let at = k; while (from.has(at)) { at = from.get(at); out.push([at % W, Math.floor(at / W)]); } return out.reverse(); }
+      for (const n of this.neighbours(c)) {
+        if (!this._step(c, n, o, key(n) === goal)) continue;
+        const nk = key(n), ng = gc + this.cost(n);
+        if (o.max !== undefined && ng > o.max) continue;
+        if (g.has(nk) && g.get(nk) <= ng) continue;
+        g.set(nk, ng); from.set(nk, k); const h = this.dist(n, b); open.push(ng + h, h, n);
+      }
+    }
+    return [];
+  }
+  /** every cell within budget of a: { cells: [[cx, cy, cost]], has(c), cost(c) (or Infinity), path(c) } (Dijkstra: move
+   *  ranges). o: { blocked, climb, drop } as path's */
+  reach(a, budget, o = {}) {
+    const W = this.w, key = c => c[1] * W + c[0], cost = new Map([[key(a), 0]]), from = new Map(), open = new Heap();
+    open.push(0, 0, a);
+    while (open.size) {
+      const c = open.pop(), k = key(c), gc = cost.get(k);
+      for (const n of this.neighbours(c)) {
+        if (!this._step(c, n, o)) continue;
+        const nk = key(n), ng = gc + this.cost(n);
+        if (ng > budget || (cost.has(nk) && cost.get(nk) <= ng)) continue;
+        cost.set(nk, ng); from.set(nk, k); open.push(ng, 0, n);
+      }
+    }
+    const cells = [...cost].map(([k, v]) => [k % W, Math.floor(k / W), v]).sort((p, q) => p[2] - q[2] || p[1] - q[1] || p[0] - q[0]);
+    return { cells, has: c => cost.has(key(c)), cost: c => cost.has(key(c)) ? cost.get(key(c)) : Infinity,
+      path: c => { if (!cost.has(key(c))) return []; const out = [c]; let at = key(c); while (from.has(at)) { at = from.get(at); out.push([at % W, Math.floor(at / W)]); } return out.reverse(); } };
+  }
+  /** the cells on a line from a to b, both ends included (Bresenham; hex: one step at a time) */
+  line(a, b) {
+    if (this.hex) { const n = this.dist(a, b), p = this._cube(a), q = this._cube(b), out = []; for (let i = 0; i <= n; i++) { const t = n ? i / n : 0, f = [0, 1, 2].map(j => p[j] + (q[j] - p[j]) * t + 1e-6 * (j + 1)); let r = f.map(Math.round); const d = r.map((v, j) => Math.abs(v - f[j])); if (d[0] > d[1] && d[0] > d[2]) r[0] = -r[1] - r[2]; else if (d[1] > d[2]) r[1] = -r[0] - r[2]; out.push(this._off(r[0], r[1])); } return out; }
+    let [x0, y0] = a; const [x1, y1] = b, dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, out = [];
+    let e = dx + dy;
+    for (;;) { out.push([x0, y0]); if (x0 === x1 && y0 === y1) return out; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
+  }
+  /** can a see b: no opaque cell on the line between them (the ends themselves may be) */
+  sees(a, b) { const L = this.line(a, b); for (let i = 1; i < L.length - 1; i++) if (this.opaque(L[i])) return false; return true; }
+  /** what c sees within radius: a Set of 'cx,cy' (symmetric shadowcasting, Albert Ford's: a sees b exactly when b sees a;
+   *  walls at the edge of what it sees are in it; hex grids: a line to each cell) */
+  fov(c, radius = 8) {
+    const out = new Set([c[0] + ',' + c[1]]), R2 = (radius + .5) ** 2;
+    const mark = (x, y) => { if ((x - c[0]) ** 2 + (y - c[1]) ** 2 <= R2 && this.inside([x, y])) out.add(x + ',' + y); };
+    if (this.hex) { for (let y = c[1] - radius; y <= c[1] + radius; y++) for (let x = c[0] - radius; x <= c[0] + radius; x++) if (this.inside([x, y]) && this.dist(c, [x, y]) <= radius && this.sees(c, [x, y])) out.add(x + ',' + y); return out; }
+    for (let q = 0; q < 4; q++) {
+      const tr = (row, col) => q === 0 ? [c[0] + col, c[1] - row] : q === 1 ? [c[0] + row, c[1] + col] : q === 2 ? [c[0] + col, c[1] + row] : [c[0] - row, c[1] + col];
+      const wall = (row, col) => { const [x, y] = tr(row, col); return this.opaque([x, y]); };
+      const scan = (depth, start, end) => {
+        if (depth > radius) return;
+        let prev = null; const lo = Math.floor(depth * start + .5), hi = Math.ceil(depth * end - .5);
+        for (let col = lo; col <= hi; col++) {
+          const w = wall(depth, col);
+          if (w || (col >= depth * start - 1e-9 && col <= depth * end + 1e-9)) mark(...tr(depth, col));
+          if (prev === true && !w) start = (2 * col - 1) / (2 * depth);
+          if (prev === false && w) scan(depth + 1, start, (2 * col - 1) / (2 * depth));
+          prev = w;
+        }
+        if (prev === false) scan(depth + 1, start, end);
+      };
+      scan(1, -1, 1);
+    }
+    return out;
+  }
+  /** the cells joined to c through neighbours for which same(cx, cy) is true (c's too): a flood fill */
+  flood(c, same) {
+    const W = this.w, seen = new Set([c[1] * W + c[0]]), out = [c], stack = [c];
+    if (!same(c[0], c[1])) return [];
+    while (stack.length) for (const n of this.neighbours(stack.pop())) { const k = n[1] * W + n[0]; if (seen.has(k) || !same(n[0], n[1])) continue; seen.add(k); out.push(n); stack.push(n); }
+    return out;
+  }
+  /** the groups of neighbouring cells with the same key(cx, cy) (null or undefined: none): matches, Puyo chains,
+   *  regions. [[cells]], biggest first */
+  groups(key) {
+    const done = new Uint8Array(this.w * this.h), out = [];
+    for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
+      if (done[y * this.w + x]) continue; const v = key(x, y); if (v === null || v === undefined) continue;
+      const g = this.flood([x, y], (a, b) => key(a, b) === v); for (const [a, b] of g) done[b * this.w + a] = 1; out.push(g);
+    }
+    return out.sort((p, q) => q.length - p.length);
+  }
+}
+E.Grid = Grid;
+
+/* =============================================================================
+ * FOG  what has been seen and what is in sight, from viewers' fields of view; drawn over the map
+ * ========================================================================== */
+// a cell's outline on the screen: its top at its height and, below a raised top, the faces down to the floor
+const hull = (r, cx, cy, T, z) => {
+  const P = [[cx, cy], [cx + 1, cy], [cx + 1, cy + 1], [cx, cy + 1]].flatMap(([x, y]) => z > 0 ? [r.w(x * T, y * T, z), r.w(x * T, y * T, 0)] : [r.w(x * T, y * T, 0)]);
+  P.sort((a, b) => a[0] - b[0] || a[1] - b[1]); const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+  for (const p of P) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+};
+class Fog {
+  /** new E.Fog(grid): every cell unseen; update() with the viewers each turn */
+  constructor(grid) {
+    /** grid: what it covers; state: per cell 0 unseen, 1 seen before, 2 visible now (row by row) */
+    this.grid = grid; this.state = new Uint8Array(grid.w * grid.h);
+  }
+  /** what the viewers see now ([{ cx, cy, r }]: each one's field of view) becomes visible; what was visible stays seen */
+  update(viewers) {
+    const S = this.state, W = this.grid.w;
+    for (let i = 0; i < S.length; i++) if (S[i] === 2) S[i] = 1;
+    for (const v of viewers) for (const k of this.grid.fov([v.cx, v.cy], v.r === undefined ? 8 : v.r)) { const [x, y] = k.split(',').map(Number); S[y * W + x] = 2; }
+  }
+  /** is [cx, cy] in sight now? */
+  visible(c) { return this.grid.inside(c) && this.state[c[1] * this.grid.w + c[0]] === 2; }
+  /** has [cx, cy] been seen (now or before)? */
+  seen(c) { return this.grid.inside(c) && this.state[c[1] * this.grid.w + c[0]] > 0; }
+  /** draw it over the world: unseen cells black, seen ones dimmed (o.dim: .55, o.color), walls' faces covered too; call
+   *  after the world and before the HUD. T: world units a cell; o.height(cx, cy): a cell's top (a TileMap's height) */
+  draw(r, T = 16, o = {}) {
+    const G = this.grid, S = this.state, col = o.color || '#05040a', dim = o.dim === undefined ? .55 : o.dim, H = o.height || ((x, y) => G.height([x, y]));
+    r.overlay(g => {
+      const m = this._m || (this._m = [E.mkCanvas(8, 8), E.mkCanvas(8, 8)]);
+      for (const c of m) { if (c.width !== r.bw || c.height !== r.bh) { c.width = r.bw; c.height = r.bh; } const cg = c.getContext('2d'); cg.clearRect(0, 0, c.width, c.height); }
+      const [dark, half] = m.map(c => c.getContext('2d'));
+      for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) {
+        const s = S[y * G.w + x]; if (s === 2) continue;
+        const z = Math.min(H(x, y) || 0, 200), pts = hull(r, x, y, T, z); if (!r.visible(x * T + T / 2, y * T + T / 2, 0, 40, 60 + z, 60)) continue;
+        E.px.poly(s ? half : dark, pts, col);
+      }
+      g.save(); g.globalAlpha = dim; g.drawImage(m[1], 0, 0); g.globalAlpha = 1; g.drawImage(m[0], 0, 0); g.restore(); E.px.reset(g);
+    });
+  }
+}
+E.Fog = Fog;
+/** tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range,
+ *  a path, an attack's reach, drawn on the floor (decals) where height is 0, over the world otherwise */
+E.tint = (r, cells, color, alpha = .4, T = 16, height = null) => {
+  const flat = !height, draw = g => { for (const [x, y] of cells) { const z = height ? height(x, y) || 0 : 0; E.px.polyDither(g, [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([a, b]) => r.w(a * T, b * T, z)), color, alpha, r.ix, r.iy); } };
+  if (flat) r.decal(draw); else r.overlay(draw);
+};
+
+/* =============================================================================
+ * GRIDMOVER  one cell at a time at a speed: a buffered turn (Pac-Man), pushing (Sokoban), a smooth position
+ * ========================================================================== */
+class GridMover {
+  /** new E.GridMover({ cx, cy, speed: 6 (cells a second) }) */
+  constructor(o = {}) {
+    /** cx, cy: the cell it is in (or leaving); x, y: its smooth position in cells (draw it there); speed: cells a second;
+     *  dir: [dx, dy] it is moving (or last moved); moving: between cells; arrived: true the step it reaches a cell */
+    this.cx = o.cx || 0; this.cy = o.cy || 0; this.x = this.cx; this.y = this.cy; this.speed = o.speed || 6; this.dir = [0, 0]; this.moving = false; this.arrived = false;
+    this._want = null; this._to = null; this._u = 0;
+  }
+  /** a step of dt: want ([dx, dy] or null) is kept until it can be taken. o: { blocked(cx, cy): true where it can't go,
+   *  push(cx, cy, dx, dy): true when what is in the way moved (a crate), keep: true goes on in the same direction (a
+   *  maze) }. Returns true when it reached a cell this step */
+  update(dt, grid, want, o = {}) {
+    if (want && (want[0] || want[1])) this._want = want;
+    this.arrived = false; let t = dt * this.speed;
+    for (let guard = 0; guard < 8 && t > 0; guard++) {
+      if (!this.moving) {
+        const tryDir = d => { if (!d) return false; const n = [this.cx + d[0], this.cy + d[1]]; if (!grid.walk(n)) return false; if (o.blocked && o.blocked(n[0], n[1]) && !(o.push && o.push(n[0], n[1], d[0], d[1]))) return false; this._to = n; this.dir = d; this.moving = true; this._u = 0; return true; };
+        if (tryDir(this._want)) this._want = o.keep ? this._want : null; else if (!(o.keep && tryDir(this.dir))) break;
+      }
+      const left = 1 - this._u, step = Math.min(left, t); this._u += step; t -= step;
+      this.x = this.cx + (this._to[0] - this.cx) * this._u; this.y = this.cy + (this._to[1] - this.cy) * this._u;
+      if (this._u >= 1 - 1e-9) { [this.cx, this.cy] = this._to; this.x = this.cx; this.y = this.cy; this.moving = false; this.arrived = true; if (!o.keep && !this._want) break; }
+    }
+    return this.arrived;
+  }
+  /** put it on a cell at once, still */
+  place(cx, cy) { this.cx = this.x = cx; this.cy = this.y = cy; this.moving = false; this._want = null; }
+}
+E.GridMover = GridMover;
+
+/* =============================================================================
+ * TURNS  who acts next: by speed (energy), by charge time, by phase, or by ATB gauges on game time
+ * ========================================================================== */
+class Turns {
+  /** new E.Turns(actors, { mode: 'speed' | 'ct' | 'phase' | 'atb', sides: ['hero', 'foe'] (phase), fill: 1 (atb: gauge
+   *  per second at speed 100) }). An actor is any object with speed (100: normal) and, in phase mode, side */
+  constructor(actors = [], o = {}) {
+    /** actors: in the order they were added (ties go to the earlier); mode: 'speed', 'ct', 'phase' or 'atb'; sides: the
+     *  sides in their order (phase; null: as the actors have them); fill: an atb gauge's fill a second at speed 100;
+     *  phase: the side acting now (phase mode) */
+    this.actors = actors.slice(); this.mode = o.mode || 'speed'; this.sides = o.sides || null; this.fill = o.fill || 1; this.phase = null; this._left = [];
+    for (const a of this.actors) this._init(a);
+  }
+  _init(a) { if (a._turn === undefined) a._turn = 0; }
+  /** add an actor (it starts with an empty gauge) */
+  add(a) { this._init(a); this.actors.push(a); }
+  /** take an actor out (it died, it left) */
+  remove(a) { const i = this.actors.indexOf(a); if (i >= 0) this.actors.splice(i, 1); this._left = this._left.filter(x => x !== a); }
+  // the speed and ct modes: fill every gauge until one is full; returns it
+  _tick(A, take) {
+    if (!A.length) return null;
+    for (let guard = 0; guard < 1e5; guard++) {
+      let best = null; for (const a of A) if (a._turn >= 100 && (!best || a._turn > best._turn)) best = a;
+      if (best) { if (take) best._turn -= 100; return best; }
+      for (const a of A) a._turn += Math.max(1, a.speed === undefined ? 100 : a.speed) / 10;
+    }
+    return null;
+  }
+  /** the actor whose turn it is (speed: its energy spent; ct: call done(actor, cost) after it acts; phase: each of the
+   *  side once, then the next side's) */
+  next() {
+    if (this.mode === 'phase') {
+      if (!this._left.length) {
+        const sides = this.sides || [...new Set(this.actors.map(a => a.side))]; if (!sides.length) return null;
+        let i = this.phase === null ? 0 : (sides.indexOf(this.phase) + 1) % sides.length;
+        for (let k = 0; k < sides.length && !this._left.length; k++, i = (i + 1) % sides.length) { this.phase = sides[i]; this._left = this.actors.filter(a => a.side === this.phase); }
+      }
+      return this._left.shift() || null;
+    }
+    return this._tick(this.actors, this.mode === 'speed');
+  }
+  /** who acts next, n of them, without changing anything (speed and ct: the order ahead; phase: the rest of this side) */
+  order(n = 5) {
+    if (this.mode === 'phase') return this._left.slice(0, n);
+    const copy = this.actors.map(a => ({ a, speed: a.speed, _turn: a._turn })), out = [];
+    for (let i = 0; i < n; i++) { const b = this._tick(copy, true); if (!b) break; out.push(b.a); }
+    return out;
+  }
+  /** after an actor acted (ct: cost 100 for a move and an action, 80 or 60 for less; atb: its gauge empties) */
+  done(a, cost = 100) { if (this.mode === 'ct') a._turn -= cost; else if (this.mode === 'atb') a._turn = 0; }
+  /** atb: fill the gauges on game time (dt seconds) */
+  update(dt) { if (this.mode === 'atb') for (const a of this.actors) a._turn = Math.min(100, a._turn + (a.speed === undefined ? 100 : a.speed) * this.fill * dt); }
+  /** atb: the actors whose gauges are full, in the order they were added */
+  ready() { return this.actors.filter(a => a._turn >= 100); }
+  /** an actor's gauge 0..1 (atb and ct: how full; speed: its energy) */
+  gauge(a) { return Math.max(0, Math.min(1, (a._turn || 0) / 100)); }
+}
+E.Turns = Turns;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+</script>
 <!-- the slices' objects: sets cut from the asset store (docs/ASSETS.md, "Use it"), each only with its slice -->
 <script>
 /* ---- inlined from src/assets/sets/adventure.js ---- */
@@ -9775,9 +10331,9 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 30-shooter.js, 40-rpg.js, 50-brawler.js, 60-animlab.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 30-shooter.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 50-brawler.js, 60-animlab.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
- * MY-3D2DGE STARTER: a title menu, six vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
+ * MY-3D2DGE STARTER: a title menu, eight vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
  *   SLICE 1  ADVENTURE   top-down action adventure (Zelda, Secret of Mana): rooms, sword,
  *                        key and locked door, NPC dialog, hearts, rupees, torch lighting
@@ -9790,6 +10346,10 @@ sprites: {
  *   SLICE 6  ANIM LAB    every move, pose and reaction on every skin, in every view
  *   SLICE 7  STEALTH     third-person stealth (Assassin's Creed, Metal Gear): E.Mover climbing,
  *                        vaulting and gap leaps, guards with sight and suspicion, takedowns, hiding
+ *   SLICE 8  ROGUELIKE   turn-based dungeon (Rogue, Mystery Dungeon): generated floors (E.gen), fields of
+ *                        view and fog, turns by speed (E.Turns), bump to attack, potions, scrolls, stairs
+ *   SLICE 9  PUZZLE      falling blocks (Tetris: a bag of seven, hold, kicks, lock delay) and falling pairs
+ *                        that chain (Puyo Puyo: E.Grid's groups), a mascot that reacts
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
@@ -9817,7 +10377,9 @@ const SLICES = [
   { id: 'platformer', label: 'PLATFORMER', about: 'SIDE-SCROLLING PLATFORMER', family: 'PLATFORM' },
   { id: 'brawler', label: 'BRAWLER', about: 'SIDE-SCROLLING BEAT-EM-UP', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
+  { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
   { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE', family: 'RPG' },
+  { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
 ];
@@ -11707,6 +12269,292 @@ const SHOOT = (() => {
 scenes.shooter = SHOOT;
 
 /* =====================================================================================
+ * SLICE 9  PUZZLE  (Tetris, Puyo Puyo, Columns). @modules grid
+ * Two games on one neon stage. BLOCKS: falling tetrominoes by today's rules: a bag of seven (E.rng), the next five shown,
+ * hold, a ghost, rotation with wall kicks (SRS), delayed auto-shift (input.repeat), lock delay that a move resets (up to
+ * 15 times), soft and hard drops; lines that flash and burst, a level every ten lines and a faster fall. PAIRS: falling
+ * pairs of four colours; four or more joined (E.Grid's groups) pop, what is above falls, and pops that cause pops are a
+ * chain, each worth more. A mascot beside the field cheers a clear and winces at a tall stack. Versus comes with M4.
+ * Keys: left / right move (held: auto-shift), down soft drop, Space hard drop, up or X rotate, Z rotate back, C or Shift
+ * hold. TOUCH: drag sideways to move (a cell for each step of the thumb), tap to rotate, flick down to drop, flick up to
+ * hold, hold the thumb down to soft drop.
+ * HOW IT WORKS: the field is an array of cells (0 empty, or a colour), drawn in screen pixels over a painted stage; every
+ * rule is a few lines below (spawn, fits, kicks, lock, clear, gravity), so a variant is a change to one of them.
+ * bot(n) places n pieces by itself (a placement search: holes, height, bumps, lines), as tools/kits-test.mjs checks.
+ * ===================================================================================== */
+const PUZZLE = (() => {
+  const D = E.Input.DEFAULT, KEYS = { up: D.up, down: D.down, left: D.left, right: D.right, start: D.start, pause: D.pause, confirm: D.confirm, cancel: D.cancel,
+    rotate: ['KeyX', 'KeyK', 'Pad1'], ccw: ['KeyZ', 'KeyJ', 'Pad0'], drop: ['Space', 'Pad3'], hold: ['KeyC', 'ShiftLeft', 'ShiftRight', 'Pad4', 'Pad5'] };
+  /* ---- 1. THE PIECES: SRS shapes in their spawn state, colours, and the wall kicks (y down) ---- */
+  const SHAPES = { I: [[0, 1], [1, 1], [2, 1], [3, 1]], J: [[0, 0], [0, 1], [1, 1], [2, 1]], L: [[2, 0], [0, 1], [1, 1], [2, 1]], O: [[1, 0], [2, 0], [1, 1], [2, 1]],
+    S: [[1, 0], [2, 0], [0, 1], [1, 1]], T: [[1, 0], [0, 1], [1, 1], [2, 1]], Z: [[0, 0], [1, 0], [1, 1], [2, 1]] };
+  const COLOR = { I: '#38d8f0', J: '#3a6af0', L: '#f09a2a', O: '#f0d838', S: '#4ad85a', T: '#b04ae8', Z: '#f0404a', G: '#6a6680' };
+  const KJ = { '01': [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]], '10': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]], '12': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]], '21': [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+    '23': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]], '32': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]], '30': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]], '03': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]] };
+  const KI = { '01': [[0, 0], [-2, 0], [1, 0], [-2, 1], [1, -2]], '10': [[0, 0], [2, 0], [-1, 0], [2, -1], [-1, 2]], '12': [[0, 0], [-1, 0], [2, 0], [-1, -2], [2, 1]], '21': [[0, 0], [1, 0], [-2, 0], [1, 2], [-2, -1]],
+    '23': [[0, 0], [2, 0], [-1, 0], [2, -1], [-1, 2]], '32': [[0, 0], [-2, 0], [1, 0], [-2, 1], [1, -2]], '30': [[0, 0], [1, 0], [-2, 0], [1, 2], [-2, -1]], '03': [[0, 0], [-1, 0], [2, 0], [-1, -2], [2, 1]] };
+  // a shape's cells in rotation state r (0..3): turned clockwise in its box (4 wide for I and O, 3 for the rest)
+  const cellsOf = (k, r) => { const n = k === 'I' || k === 'O' ? 4 : 3; let c = SHAPES[k]; if (k !== 'O') for (let i = 0; i < r; i++) c = c.map(([x, y]) => [n - 1 - y, x]); return c; };
+  const FALL = lv => Math.pow(Math.max(.05, .8 - (lv - 1) * .007), lv - 1);   // seconds a row, by level (the guideline's curve)
+  /* ---- 2. PAIRS: four colours of blobs ---- */
+  const PCOL = ['#f04a5a', '#4ad86a', '#4a8af0', '#f0d040'], PW = 6, PH = 12;
+  const CHAIN = [0, 8, 16, 32, 64, 96, 128, 160, 192, 224, 256];
+  let mode = 'menu', R = Math.random, field = null, W = 10, H = 22, cur = null, hold = null, held = false, queue = [], bag = [], fallT = 0, lockT = 0, resets = 0, softT = 0;
+  let score = 0, lines = 0, level = 1, chain = 0, clearing = null, popping = null, over = null, flash = 0, mood = 0, moodT = 0, time = 0, popped = 0;
+  let touchX = 0, touchY = 0, downT = 0, swept = false;
+  const G = () => new E.Grid(W, H);
+  const pick = new E.Menu(game, ['BLOCKS', 'PAIRS'], { y: 0, onPick: i => begin(i ? 'pairs' : 'blocks') });
+  const after = new E.Menu(game, ['RETRY', 'OTHER GAME', 'TITLE'], { y: 0, onPick: i => i === 0 ? begin(over.kind) : i === 1 ? begin(over.kind === 'blocks' ? 'pairs' : 'blocks') : game.go('title') });
+  const mascot = new E.Humanoid({ size: 1.3, outfit: 'robe', hair: 'ponytail', weapon: null, sleeves: 'long', colors: { cloth: '#e04a8a', hair: '#3a2a6a', trim: '#f0d060', skin: '#f0c8a0' } });
+
+  /* ---- 3. BLOCKS: spawn, fits, move, rotate (kicks), lock, clear ---- */
+  function nextFromBag() { if (!bag.length) { bag = 'IJLOSTZ'.split(''); for (let i = 6; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; } } return bag.pop(); }
+  function spawn(k) {
+    while (queue.length < 6) queue.push(nextFromBag());
+    cur = { k: k || queue.shift(), r: 0, x: 3, y: 0 }; fallT = 0; lockT = 0; resets = 0;
+    if (!fits(cur.x, cur.y, cur.r)) end();
+  }
+  const fits = (x, y, r, k = cur.k) => cellsOf(k, r).every(([a, b]) => { const cx = x + a, cy = y + b; return cx >= 0 && cx < W && cy < H && (cy < 0 || !field[cy * W + cx]); });
+  const grounded = () => !fits(cur.x, cur.y + 1, cur.r);
+  function shift(dx) { if (!fits(cur.x + dx, cur.y, cur.r)) return false; cur.x += dx; touched(); A.sfx('blip', { vol: .4 }); return true; }
+  function rotate(dir) {
+    if (cur.k === 'O') return false;
+    const to = (cur.r + dir + 4) % 4, kicks = (cur.k === 'I' ? KI : KJ)['' + cur.r + to];
+    for (const [dx, dy] of kicks) if (fits(cur.x + dx, cur.y + dy, to)) { cur.x += dx; cur.y += dy; cur.r = to; touched(); A.sfx('select', { vol: .4 }); return true; }
+    return false;
+  }
+  function touched() { if (grounded() && resets < 15) { lockT = 0; resets++; } }   // a move on the ground starts the lock again (15 times at most)
+  function hardDrop() { let n = 0; while (fits(cur.x, cur.y + 1, cur.r)) { cur.y++; n++; } score += n * 2; lock(); A.sfx('land'); game.shake(1); }
+  function holdPiece() {
+    if (held) return; held = true; A.sfx('whoosh');
+    const k = cur.k; if (hold) spawn(hold); else spawn(); hold = k;
+  }
+  function lock() {
+    for (const [a, b] of cellsOf(cur.k, cur.r)) { const cy = cur.y + b; if (cy < 0) { end(); return; } field[cy * W + cur.x + a] = cur.k; }
+    held = false;
+    const full = []; for (let y = 0; y < H; y++) { let ok = true; for (let x = 0; x < W; x++) if (!field[y * W + x]) { ok = false; break; } if (ok) full.push(y); }
+    if (full.length) { clearing = { rows: full, t: 0 }; const n = full.length; score += [0, 100, 300, 500, 800][n] * level; lines += n; A.sfx(n === 4 ? 'oneup' : 'coin'); flash = .3; cheer(n === 4 ? 2 : 1);
+      for (const y of full) for (let x = 0; x < W; x += 2) burst(x, y, COLOR[field[y * W + x]] || '#fff'); cur = null; return; }
+    spawn();
+  }
+  function clearRows() { const rows = clearing.rows; for (const y of rows) { field.copyWithin(W, 0, y * W); field.fill(0, 0, W); } clearing = null; const lv = 1 + Math.floor(lines / 10); if (lv > level) { level = lv; A.sfx('powerup'); } spawn(); }
+
+  /* ---- 4. PAIRS: a pivot and a satellite; land, settle, pop the groups of four, chain ---- */
+  function pairSpawn() {
+    while (queue.length < 3) queue.push([Math.floor(R() * 4) + 1, Math.floor(R() * 4) + 1]);
+    const [a, b] = queue.shift(); cur = { a, b, x: 2, y: 1, r: 0 }; fallT = 0; lockT = 0; resets = 0; chain = 0;
+    if (field[1 * W + 2] || field[2]) end();
+  }
+  const SAT = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // where the satellite sits round the pivot, by rotation
+  const pfits = (x, y, r) => [[x, y], [x + SAT[r][0], y + SAT[r][1]]].every(([cx, cy]) => cx >= 0 && cx < W && cy < H && (cy < 0 || !field[cy * W + cx]));
+  function pshift(dx) { if (!pfits(cur.x + dx, cur.y, cur.r)) return false; cur.x += dx; A.sfx('blip', { vol: .4 }); return true; }
+  function protate(dir) {
+    const to = (cur.r + dir + 4) % 4;
+    for (const [dx, dy] of [[0, 0], [-SAT[to][0], 0], [0, -SAT[to][1]]]) if (pfits(cur.x + dx, cur.y + dy, to)) { cur.x += dx; cur.y += dy; cur.r = to; A.sfx('select', { vol: .4 }); return true; }
+    return false;
+  }
+  function plock() {
+    const s = SAT[cur.r]; for (const [x, y, c] of [[cur.x, cur.y, cur.a], [cur.x + s[0], cur.y + s[1], cur.b]]) if (y >= 0) field[y * W + x] = c;
+    cur = null; A.sfx('land'); settle();
+  }
+  function settle() { for (let x = 0; x < W; x++) { let to = H - 1; for (let y = H - 1; y >= 0; y--) { const c = field[y * W + x]; if (c) { field[y * W + x] = 0; field[to * W + x] = c; to--; } } } resolve(); }
+  function resolve() {
+    const groups = G().groups((x, y) => field[y * W + x] || null).filter(g => g.length >= 4);
+    if (!groups.length) { pairSpawn(); return; }
+    chain++; const n = groups.reduce((s, g) => s + g.length, 0);
+    score += 10 * n * Math.max(1, CHAIN[Math.min(chain - 1, CHAIN.length - 1)] + (groups.length > 1 ? 3 * groups.length : 0)); popped += n;
+    popping = { cells: groups.flat(), t: 0 }; A.sfx(chain > 1 ? 'oneup' : 'coin', { pitch: 1 + chain * .1 }); cheer(chain > 1 ? 2 : 1);
+    for (const [x, y] of popping.cells) burst(x, y, PCOL[field[y * W + x] - 1]);
+    lines = popped; level = 1 + Math.floor(popped / 40);   // (the results show blobs popped; a level every 40)
+  }
+
+  /* ---- 5. A GAME: begin, the end, the mascot's mood, bursts ---- */
+  function begin(kind) {
+    mode = kind; W = kind === 'blocks' ? 10 : PW; H = kind === 'blocks' ? 22 : PH + 1; field = new Array(W * H).fill(0);
+    queue = []; bag = []; hold = null; held = false; score = 0; lines = 0; level = 1; chain = 0; clearing = popping = over = null; time = 0; popped = 0; mood = 0; R = E.rng(1 + Math.floor(Math.random() * 1e6));
+    if (kind === 'blocks') spawn(); else pairSpawn();
+    A.music('adventure'); game.input.consumeAll();
+  }
+  function end() { if (over) return; over = { kind: mode, score, lines, level, best: best('puzzle-' + mode, score), t: 0 }; mode = 'over'; cur = null; mood = -1; moodT = 99; A.music(null); A.sfx('die'); after.i = 0; }
+  function cheer(k) { mood = k; moodT = 1.2; }
+  function burst(cx, cy, color) { if (!game.r) return; const [x, y] = cellPx(cx + .5, cy + .5); const [wx, wz] = toWorld(x, y); P.sparks(wx, 0, wz, 3, null, { color }); }
+  /* ---- 6. INPUT: keys (auto-shift from input.repeat) and touch (drag, tap, flicks) ---- */
+  function controls(dt) {
+    const I = game.input, blocks = mode === 'blocks', mv = blocks ? shift : pshift, rot = blocks ? rotate : protate;
+    if (I.repeat('left', .17, .05)) mv(-1);
+    if (I.repeat('right', .17, .05)) mv(1);
+    if (I.pressed('up') || I.pressed('rotate')) rot(1);
+    if (I.pressed('ccw')) rot(-1);
+    if (blocks && I.pressed('hold')) { holdPiece(); return; }
+    if (I.pressed('drop')) { if (blocks) hardDrop(); else { while (pfits(cur.x, cur.y + 1, cur.r)) cur.y++; plock(); } return; }
+    let soft = I.down('down');
+    // touch: the finger's drag (input.drag(): screen pixels this step) moves a cell a step, a quick flick drops or holds
+    const d = I.drag();
+    if (d) {
+      if (!downT) { touchX = touchY = 0; swept = false; } downT += dt; touchX += d[0]; touchY += d[1];
+      const cs = cell() * .9; while (touchX > cs) { mv(1); touchX -= cs; swept = true; } while (touchX < -cs) { mv(-1); touchX += cs; swept = true; }
+      if (touchY > cs * 3 && downT < .25 && !swept) { swept = true; if (blocks) hardDrop(); else { while (pfits(cur.x, cur.y + 1, cur.r)) cur.y++; plock(); } downT = 0; return; }
+      if (touchY < -cs * 3 && downT < .3 && !swept && blocks) { swept = true; holdPiece(); downT = 0; return; }
+      if (touchY > cs * 1.2 && downT > .25) soft = true;
+    }
+    if (I.clicked() && !swept) rot(1);   // a tap (lifted where it landed: the engine's clicked()) turns it
+    if (!d) { downT = 0; swept = false; }
+    return soft;
+  }
+  function update(dt) {
+    const I = game.input; I.steer = 'drag';
+    flash = Math.max(0, flash - dt); moodT -= dt; if (moodT < 0 && mood > 0) mood = 0;
+    const tall = field && field.findIndex(v => v) < W * (H * .35);
+    mascot.update(dt, { x: 0, y: 0, z: 0, facing: 0, vx: 0, vy: 0, pose: mood > 0 ? 'cheer' : mood < 0 ? 'down' : null, expr: mood > 0 ? 'smile' : tall ? 'wince' : null, run: 0 });
+    if (mode === 'menu') { if (!pick.update(dt)) pickOnStart(pick); return; }
+    if (mode === 'over') { over.t += dt; if (over.t > 1) { if (!after.update(dt)) pickOnStart(after); } return; }
+    time += dt;
+    if (clearing) { clearing.t += dt; if (clearing.t > .35) clearRows(); return; }
+    if (popping) { popping.t += dt; if (popping.t > .4) { for (const [x, y] of popping.cells) field[y * W + x] = 0; popping = null; settle(); } return; }
+    if (!cur) return;
+    const soft = controls(dt); if (!cur || mode === 'over') return;
+    const blocks = mode === 'blocks', rate = blocks ? FALL(level) : Math.max(.08, .7 - level * .05);
+    fallT += dt * (soft ? 20 : 1);
+    if (blocks) {
+      while (fallT >= rate && cur) { fallT -= rate; if (!grounded()) { cur.y++; if (soft) score++; } }
+      if (cur && grounded()) { lockT += dt; if (lockT >= .5) lock(); }
+    } else {
+      while (fallT >= rate && cur) { fallT -= rate; if (pfits(cur.x, cur.y + 1, cur.r)) cur.y++; }
+      if (cur && !pfits(cur.x, cur.y + 1, cur.r)) { lockT += dt; if (lockT >= .35) plock(); }
+    }
+  }
+
+  /* ---- 7. DRAWING: the stage, the field in screen pixels, the panels, the mascot ---- */
+  const cell = () => mode === 'blocks' || (over && over.kind === 'blocks') ? Math.max(8, Math.floor((game.H - 24) / 20)) : Math.max(10, Math.floor((game.H - 28) / 12));
+  const fieldBox = () => { const c = cell(), vis = W === 10 ? 20 : PH, w = W * c, h = vis * c; return { c, x: Math.round(game.W / 2 - w / 2), y: Math.round(game.H / 2 - h / 2) + 2, w, h, top: H - vis }; };
+  const cellPx = (cx, cy) => { const b = fieldBox(); return [b.x + cx * b.c, b.y + (cy - b.top) * b.c]; };
+  const toWorld = (sx, sy) => { const v = game.view; return [(sx + game.r.ix) / v.ax, (sy + game.r.iy) / v.bz]; };
+  function block(g, x, y, c, color, a = 1) {   // a bevelled block: light top and left, dark bottom and right
+    if (a < 1) { px.blend(g, a, 'normal', () => block(g, x, y, c, color)); return; }
+    px.rect(g, x, y, c, c, E.shade(color, -.35)); px.rect(g, x + 1, y + 1, c - 2, c - 2, color);
+    px.rect(g, x + 1, y + 1, c - 2, 1, E.shade(color, .35)); px.rect(g, x + 1, y + 1, 1, c - 2, E.shade(color, .2)); px.rect(g, x + 2, y + c - 2, c - 3, 1, E.shade(color, -.2));
+  }
+  function blob(g, x, y, c, k, t) {   // a pair's blob: a ball with a shine and two eyes
+    const col = PCOL[k - 1], r = c / 2 - .5, cx = x + c / 2, cy = y + c / 2 + Math.sin(t) * .4;
+    px.disc(g, cx, cy, r, E.shade(col, -.3)); px.disc(g, cx - .5, cy - .5, r - 1, col); px.disc(g, cx - r * .35, cy - r * .4, Math.max(1, r * .25), E.shade(col, .5));
+    px.rect(g, cx - r * .4, cy - 1, 2, 3, '#ffffff'); px.rect(g, cx + r * .2, cy - 1, 2, 3, '#ffffff'); px.dot(g, cx - r * .4 + 1, cy, '#1a1a2a'); px.dot(g, cx + r * .2 + 1, cy, '#1a1a2a');
+  }
+  function drawCell(g, cx, cy, v, a = 1) {
+    const b = fieldBox(); if (cy < b.top) return; const [x, y] = cellPx(cx, cy);
+    if (W === 10) block(g, x, y, b.c, COLOR[v] || '#fff', a); else if (a >= 1) blob(g, x, y, b.c, v, game.time * 3 + cx + cy); else px.blend(g, a, 'normal', () => blob(g, x, y, b.c, v, 0));
+  }
+  function draw(r) {
+    r.sky(['#0a0620', '#2a1050', '#5a1a6a']);
+    const t = game.time;
+    r.overlay(g => {   // the stage: light beams and a floor grid sweeping toward the field
+      for (let i = 0; i < 7; i++) { const x = (i / 6) * r.W, a = .08 + .05 * Math.sin(t + i); px.blend(g, a, 'add', () => px.poly(g, [[x - 10, 0], [x + 10, 0], [r.W / 2 + (x - r.W / 2) * .2 + 6, r.H], [r.W / 2 + (x - r.W / 2) * .2 - 6, r.H]], i % 2 ? '#ff4ab0' : '#4ad8ff')); }
+      for (let i = 0; i < 9; i++) { const y = r.H - Math.pow((i + (t * .6) % 1) / 9, 2) * r.H * .45; px.rect(g, 0, Math.round(y), r.W, 1, '#3a1a6a'); }
+    });
+    if (mode === 'menu') { menuScreen(r); return; }
+    const kind = over ? over.kind : mode;
+    r.overlay(g => {
+      const b = fieldBox(), c = b.c;
+      E.ui.box(g, b.x - 4, b.y - 4, b.w + 8, b.h + 8, { bg: ['#120a28', '#1e1240'], alpha: .92 });
+      if (flash > 0) px.blend(g, flash * 2, 'add', () => px.rect(g, b.x, b.y, b.w, b.h, '#ffffff'));
+      for (let x = 1; x < W; x++) px.rect(g, b.x + x * c, b.y, 1, b.h, '#22163e');
+      for (let y = b.top; y < H; y++) for (let x = 0; x < W; x++) {
+        const v = field[y * W + x]; if (!v) continue;
+        const lit = clearing && clearing.rows.includes(y), pop = popping && popping.cells.some(([a, bb]) => a === x && bb === y);
+        if (lit) px.rect(g, ...cellPx(x, y), c, c, Math.floor(clearing.t * 20) % 2 ? '#ffffff' : '#fff0a0');
+        else if (pop) { if (Math.floor(popping.t * 16) % 2) drawCell(g, x, y, v); } else drawCell(g, x, y, v);
+      }
+      if (cur && kind === 'blocks') {
+        let gy = cur.y; while (fits(cur.x, gy + 1, cur.r)) gy++;
+        for (const [a, bb] of cellsOf(cur.k, cur.r)) { drawCell(g, cur.x + a, gy + bb, cur.k, .25); drawCell(g, cur.x + a, cur.y + bb, cur.k); }
+      } else if (cur) { const s = SAT[cur.r]; drawCell(g, cur.x, cur.y, cur.a); drawCell(g, cur.x + s[0], cur.y + s[1], cur.b); }
+      panels(g, b, kind);
+    });
+    // the mascot, beside the field (its world point from the screen point: the side view)
+    const b = fieldBox(), side = b.x > 90, mx = side ? b.x - 44 : b.x + b.w - 20, my = side ? b.y + b.h : b.y + b.h + 40, [wx, wz] = toWorld(mx, my);
+    if (side) r.actor(wx, 0, wz, (g, ox, oy) => mascot.draw(g, ox, oy, r.view));
+    if (over) results(r);
+  }
+  function panels(g, b, kind) {
+    const c = Math.max(6, Math.floor(b.c * .6)), rx = b.x + b.w + 10, lx = b.x - 10, mini = (k, x, y, sz) => { for (const [a, bb] of cellsOf(k, 0)) block(g, x + a * sz, y + bb * sz, sz, COLOR[k]); };
+    E.font.text(g, 'NEXT', rx, b.y, '#c8b8ff', { outline: false, font: 'tiny' });
+    if (kind === 'blocks') {
+      queue.slice(0, 5).forEach((k, i) => mini(k, rx, b.y + 9 + i * c * 2.6, i ? Math.max(4, c - 2) : c));
+      E.font.text(g, 'HOLD', lx, b.y, '#c8b8ff', { outline: false, font: 'tiny', align: 'right' });
+      if (hold) mini(hold, lx - c * 4, b.y + 9, c);
+    } else queue.slice(0, 2).forEach(([p, q], i) => { blob(g, rx, b.y + 10 + i * 30, c * 1.6, q, 0); blob(g, rx, b.y + 10 + i * 30 + c * 1.6, c * 1.6, p, 0); });
+    const sy = b.y + b.h - 50, tx = rx;
+    [['SCORE', score], [kind === 'blocks' ? 'LINES' : 'POPPED', lines], ['LEVEL', level]].forEach(([k, v], i) => {
+      E.font.text(g, k, tx, sy + i * 17, '#a898e0', { outline: false, font: 'tiny' }); E.font.text(g, String(v), tx, sy + i * 17 + 7, '#ffffff', { outline: false });
+    });
+    if (kind === 'pairs' && chain > 1 && popping) E.font.title(g, chain + ' CHAIN!', b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: ['#fff8d0', '#ffd040', '#ff7a2a'] });
+  }
+  function menuScreen(r) {
+    r.overlay(g => {
+      E.font.title(g, 'PUZZLE', r.W / 2, 34, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ad8', '#c04ae8'], depth: 3 });
+      E.font.text(g, pick.i ? 'FALLING PAIRS: FOUR OF A COLOUR POP, CHAINS SCORE MORE' : 'FALLING BLOCKS: FILL A ROW TO CLEAR IT', r.W / 2, r.H - 22, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
+      E.font.text(g, touch() ? 'DRAG MOVE   TAP ROTATE   FLICK DOWN DROP   FLICK UP HOLD' : 'ARROWS MOVE   UP / X ROTATE   SPACE DROP   C HOLD', r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+    });
+    pick.y = 92; pick.draw(r);
+  }
+  function results(r) {
+    r.overlay(g => {
+      const k = Math.min(1, over.t / .6), y = Math.round(r.H / 2) - 50;
+      g.fillStyle = 'rgba(6,2,16,' + (.7 * k).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g);
+      E.font.title(g, 'GAME OVER', r.W / 2, y, { align: 'center', scale: 3, colors: ['#ffffff', '#ff8ad8', '#c04ae8'] });
+      [['SCORE', over.score + (over.score >= over.best ? '  BEST!' : '')], [over.kind === 'blocks' ? 'LINES' : 'POPPED', over.lines], ['LEVEL', over.level], ['BEST', over.best]].forEach(([a, v], i) =>
+        E.font.text(g, a + '  ' + v, r.W / 2, y + 34 + i * 10, i ? '#e8d8ff' : '#ffe070', { align: 'center', shadow: '#000', outline: false }));
+      after.y = y + 80;
+    });
+    if (over.t > 1) after.draw(r);
+  }
+
+  /* ---- 8. THE BOT: for each piece, every rotation and column scored by the field it leaves (lines made, holes, height,
+   * bumps: the classic weights), then the piece moved and dropped through the game's own rules ---- */
+  function evaluate(f) {
+    let holes = 0, agg = 0, bump = 0, prev = -1, lns = 0;
+    for (let y = 0; y < H; y++) { let full = true; for (let x = 0; x < W; x++) if (!f[y * W + x]) full = false; if (full) lns++; }
+    for (let x = 0; x < W; x++) { let top = H; for (let y = 0; y < H; y++) if (f[y * W + x]) { top = y; break; } const h = H - top; agg += h; if (prev >= 0) bump += Math.abs(h - prev); prev = h; for (let y = top + 1; y < H; y++) if (!f[y * W + x]) holes++; }
+    return .76 * lns - .51 * agg - .36 * holes - .18 * bump;
+  }
+  function bestMove() {
+    let best = null;
+    for (let r = 0; r < 4; r++) for (let x = -2; x < W; x++) {
+      if (!fits(x, cur.y, r)) continue; let y = cur.y; while (fits(x, y + 1, r)) y++;
+      const f = field.slice(); for (const [a, b] of cellsOf(cur.k, r)) if (y + b >= 0) f[(y + b) * W + x + a] = cur.k;
+      const s = evaluate(f); if (!best || s > best.s) best = { s, r, x };
+    }
+    return best;
+  }
+  function bot(n = 60, seedNo = 3) {
+    const was = Math.random; Math.random = E.rng(seedNo);
+    try {
+      game.go('puzzle', null, { fade: 0 }); game.advance(1 / 120); begin('blocks');
+      let pieces = 0;
+      while (pieces < n && mode === 'blocks') {
+        game.advance(1 / 60); if (!cur) continue;
+        const m = bestMove(); if (!m) break;
+        for (let i = 0; i < 4 && cur.r !== m.r; i++) if (!rotate(1)) break;
+        for (let i = 0; i < 12 && cur.x !== m.x; i++) if (!shift(Math.sign(m.x - cur.x))) break;
+        hardDrop(); pieces++;
+      }
+      game.advance(1);
+      return { pieces, lines, score, level, over: mode === 'over', errors: game.errors.length };
+    } finally { Math.random = was; }
+  }
+
+  return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: [], propSize: 1, camera: { zoom: false },
+    enter() { mode = 'menu'; over = null; field = null; pick.i = 0; game.follow(null); game.cam.bounds = null; game.focus(0, 0, 0); game.cam.snap = true; A.music('title'); },
+    exit() { game.input.steer = 'stick'; },
+    back() { if (mode === 'menu' || mode === 'over') { game.go('title'); return true; } return false; },
+    update, draw, bot,
+    state: () => ({ mode, field, cur, score, lines, level }),   // for tests
+    /** the proof: a game of blocks played by keys (moves, turns, drops, a hold); a hash of the field and the score */
+    run: (n = 600) => proof('puzzle', n, (i, k) => { if (i === 2) begin('blocks'); if (i % 40 === 10) k.tap(i % 80 ? 'left' : 'right'); if (i % 50 === 20) k.tap('up'); if (i % 60 === 30) k.tap('drop'); if (i === 200) k.tap('hold'); },
+      () => [mode, field, score, lines, level, hold, queue]) };
+})();
+scenes.puzzle = PUZZLE;
+
+/* =====================================================================================
  * SLICE 4  RPG BATTLE  (side-view battle: Final Fantasy VI / IX, Chrono Trigger, Legend of Mana)
  * Three heroes (right) face a Dread Knight, a Gargoyle and a Bomb (left) on a ruined plaza at sunset. Wait-mode
  * ATB: a full gauge opens that hero's commands (Attack, skill, Defend, Potion, Run) and a glove to aim; monsters act
@@ -12282,6 +13130,306 @@ const RPG = (() => {
     run(n = 600) { const was = auto; try { return proof('rpg', n, i => { if (!i) auto = true; }, () => [mode, actor && actor.name, potions, all.map(c => [c.hp, c.x, c.y])]); } finally { auto = was; } } };
 })();
 scenes.rpg = RPG;
+
+/* =====================================================================================
+ * SLICE 8  ROGUELIKE  (Rogue, Torneko's / Mystery Dungeon, Shiren the Wanderer). @modules grid gen
+ * Ten floors of a torch-lit crypt, each generated from the run's seed (E.gen: rooms, then split halls, then caves), the
+ * Amulet of Embers at the bottom. A turn-based dungeon: every step, swing or sip is a turn, and the monsters take theirs
+ * by speed (E.Turns: a bat flits twice to your once, a slime oozes once to your twice). Walk into a monster to strike it.
+ * Potions heal, scrolls of mapping show the floor and its stairs, a better blade waits on most floors; the stairs (>)
+ * take you down. Fall and the crypt keeps a tombstone; escape with the Amulet and the results tell the tale.
+ * Keys: arrows / WASD step (two at once: diagonals, as do numpad-style corners in iso), J wait a turn, L drink a potion,
+ * K read a scroll. TOUCH: tap a cell to walk there (the hero stops when a monster comes into sight), hold the stick to
+ * step, WAIT, POTION and SCROLL buttons.
+ * HOW IT WORKS: the floor is a TileMap from E.gen's ASCII rows, the grid (E.Grid.from(map)) gives paths, fields of view
+ * (symmetric shadowcasting: you see a monster exactly when it sees you) and E.Fog (unseen black, seen dim); E.Turns
+ * orders the turns; each step between cells is a tween (game.tween) the rigs walk through, so the game is turn-based
+ * and the animation is not. A floor's stairs lead on through an iris (game.go's fade). Canvas lighting: the hero's
+ * torch and the braziers. bot(10) plays ten floors by itself (tools/kits-test.mjs).
+ * ===================================================================================== */
+const ROGUE = (() => {
+  const T = 16, FW = 46, FH = 30, LAST = 10, SIGHT = 7, STEP = .13;   // a cell; a floor's size; the Amulet's floor; how far the torch shows; a step's seconds
+  const KINDS = {   // monsters: hit points, attack, defence, speed (100: yours), experience, first floor, and their rigs
+    rat: { name: 'RAT', hp: 4, atk: 2, def: 0, speed: 100, xp: 2, from: 1, blob: { R: 4, ears: 'cat', tail: true, feet: true, colors: { dk: '#3a2e2a', base: '#7a6658', lt: '#a8927e' } } },
+    bat: { name: 'BAT', hp: 3, atk: 2, def: 0, speed: 200, xp: 3, from: 1, fly: 14, blob: { R: 3.5, wings: true, ears: 'cat', colors: { dk: '#2a1e34', base: '#5a4270', lt: '#8a70a8' } } },
+    slime: { name: 'SLIME', hp: 9, atk: 3, def: 2, speed: 50, xp: 4, from: 2, blob: { R: 6, mouth: true, colors: { dk: '#1e5a32', base: '#3aa05a', lt: '#8ae09a' } } },
+    goblin: { name: 'GOBLIN', hp: 9, atk: 4, def: 1, speed: 100, xp: 6, from: 3, rig: { size: .9, build: 'bulky', hair: 'spiky', weapon: 'sword', colors: { skin: '#7aa04a', cloth: '#6a4a2a', pants: '#4a3a2a', hair: '#2a2a1a' } } },
+    skeleton: { name: 'SKELETON', hp: 14, atk: 5, def: 2, speed: 100, xp: 10, from: 5, rig: { size: 1, outfit: 'tunic', weapon: 'sword', colors: { skin: '#e8e2d0', cloth: '#3a3440', pants: '#2a2630', hair: '#e8e2d0' } } },
+    wraith: { name: 'WRAITH', hp: 16, atk: 7, def: 3, speed: 150, xp: 16, from: 7, rig: { size: 1.1, outfit: 'robe', hood: true, weapon: 'staff', colors: { skin: '#a8b0d0', cloth: '#3a3a6a', hair: '#1a1a2a' } } }
+  };
+  const BLADES = [['DAGGER', 1], ['SWORD', 3], ['BROADSWORD', 5], ['RUNEBLADE', 8]];   // a better blade on most floors
+  const SPR = {   // the floor's things, in pixels
+    potion: E.sprite(['.cc.', '.ww.', 'wrrw', 'rRrr', 'rrrr', '.rr.'], { c: '#c8a070', w: '#e8e8f0', r: '#d02a3a', R: '#ff8a8a' }),
+    scroll: E.sprite(['bbbbbb', 'pwwwwp', 'pwkwkp', 'pwwwwp', 'bbbbbb'], { b: '#8a5a2a', p: '#c8b088', w: '#f0e4c0', k: '#5a4a3a' }),
+    blade: E.sprite(['....w', '...wl', '..wl.', 'gwl..', '.g...', 'h.g..'], { w: '#f0f0f8', l: '#a8b0c0', g: '#c8a040', h: '#6a4a2a' }),
+    gold: E.sprite(['.yy.', 'yYYy', 'yYyy', '.yy.'], { y: '#e0a020', Y: '#fff0a0' }),
+    amulet: E.sprite(['.g.g.', 'g...g', '.grg.', '.rRr.', '..r..'], { g: '#e0c050', r: '#e03a2a', R: '#ffb080' })
+  };
+  const PAVE = { stones: ['#3e3a44', '#46424c', '#423e48'].map(E.hex), mortar: E.hex('#1e1a24'), hi: E.hex('#524e58'), lo: E.hex('#2e2a34'), speck: E.hex('#4a4650') };
+  let R = Math.random, seed = 1, depth = 1, level = null, map = null, grid = null, fog = null, turns = null;
+  let hero = null, foes = [], items = [], braziers = [], log = [], travel = null, busy = 0, mode = 'play', over = null, dirWait = 0, lastDir = null, repeatT = 0, held = 0, going = false;
+  let stats = { kills: 0, gold: 0, turns: 0, killer: null };
+  const menu = new E.Menu(game, ['RETRY', 'TITLE'], { y: 0, onPick: i => i === 0 ? game.go('roguelike', null, { fade: 'iris' }) : game.go('title') });
+  const say = (s, c = '#e8e0d0') => { log.push({ s, c, t: game.real }); if (log.length > 4) log.shift(); };
+  const at = (x, y) => [x, y].join();
+  const occupied = (cx, cy) => (hero && hero.cx === cx && hero.cy === cy) || foes.some(f => !f.dead && f.cx === cx && f.cy === cy);
+  const foeAt = (cx, cy) => foes.find(f => !f.dead && f.cx === cx && f.cy === cy);
+  const center = (cx, cy) => [(cx + .5) * T, (cy + .5) * T];
+
+  /* ---- 1. A FLOOR: E.gen's rows by depth, its marks read by a TileMap; the grid, the fog and the turns over it ---- */
+  function build() {
+    const g = depth <= 3 ? E.gen.rooms(FW, FH, { seed: seed * 31 + depth, rooms: 10 }) : depth <= 6 ? E.gen.bsp(FW, FH, { seed: seed * 31 + depth, min: 8 }) : E.gen.cave(FW, FH, { seed: seed * 31 + depth, fill: .44 });
+    const sub = (ch, n, far) => E.gen.mark(g, ch, n, { seed: seed * 97 + depth * 13 + ch.charCodeAt(0), far, near: 2 });
+    const rows = g.rows.map(r => r.split('')); rows[g.end[1]][g.end[0]] = depth === LAST ? 'A' : '>'; g.rows = rows.map(r => r.join(''));
+    const pool = Object.keys(KINDS).filter(k => KINDS[k].from <= depth);
+    for (let i = 0; i < 5 + depth; i++) sub(KINDS[pool[Math.floor(R() * pool.length)]].name[0].toLowerCase(), 1, 6);
+    sub('!', 2 + (depth % 2), 3); sub('?', depth % 3 === 1 ? 1 : 0, 3); sub('$', 3, 2);
+    if (depth % 3 !== 0 && depth < LAST) sub(')', 1, 4);
+    const legend = { '#': 1, '>': 'stairs', A: 'amulet', '!': 'potion', '?': 'scroll', '$': 'gold', ')': 'blade' };
+    for (const k in KINDS) legend[KINDS[k].name[0].toLowerCase()] = k;
+    map = new E.TileMap({ rows: g.rows, legend, types: { 1: { h: 20, top: '#2e2a38', side: '#58506a', face: 'stone', roof: 'plain', cut: true, cutH: 4 } },
+      floorTex: (x, y) => E.tex.flagstone(x, y, PAVE, 16) });
+    map.outside = '#05040a';
+    level = g; grid = E.Grid.from(map, { diagonal: true }); fog = new E.Fog(grid); going = false;
+    foes = []; items = []; braziers = (g.rooms || []).filter((_, i) => i % 2 === 0).map(r => center(r.x, r.y));
+    for (const s of map.spawns) {
+      if (KINDS[s.tag]) foes.push(makeFoe(s.tag, s.cx, s.cy));
+      else if (['potion', 'scroll', 'gold', 'blade', 'amulet', 'stairs'].includes(s.tag)) items.push({ kind: s.tag, cx: s.cx, cy: s.cy });
+    }
+    const [sx, sy] = g.start; hero.cx = sx; hero.cy = sy; [hero.x, hero.y] = center(sx, sy); travel = null;
+    turns = new E.Turns([hero, ...foes], { mode: 'speed' });
+    game.follow(hero, { z: 12 }); game.cam.bounds = v => map.bounds(v); game.cam.snap = true;
+    say(depth === LAST ? 'THE AMULET IS NEAR' : 'FLOOR ' + depth, '#ffd890');
+    nextTurn();
+  }
+  function makeFoe(kind, cx, cy) {
+    const K = KINDS[kind], [x, y] = center(cx, cy), hp = K.hp + Math.floor((depth - K.from) * .8);
+    return { kind, K, cx, cy, x, y, hp, max: hp, atk: K.atk + Math.floor((depth - K.from) / 3), def: K.def, speed: K.speed, face: Math.PI / 2, awake: false, hit: 0, dead: false, die: 0,
+      rig: K.blob ? new E.Blob(K.blob) : new E.Humanoid(K.rig), swing: new E.Attack('slash') };
+  }
+
+  /* ---- 2. TURNS: the hero acts on input; then everyone faster than the next hero turn, by E.Turns ---- */
+  function nextTurn() {
+    for (let guard = 0; guard < 400; guard++) {
+      const a = turns.next(); if (!a) return;
+      if (a === hero) break;
+      if (!a.dead) foeTurn(a);
+      if (hero.hp <= 0) return;
+    }
+    fog.update([{ cx: hero.cx, cy: hero.cy, r: SIGHT }]);
+    for (const f of foes) if (!f.dead && !f.awake && fog.visible([f.cx, f.cy])) { f.awake = true; travel = null; say('A ' + f.K.name + ' SEES YOU', '#ffb070'); }
+  }
+  // a step: the cell changes now, the rig walks there in a tween
+  function stepTo(a, cx, cy) {
+    a.face = Math.atan2(cy - a.cy, cx - a.cx); a.cx = cx; a.cy = cy;
+    const [x, y] = center(cx, cy); if (a.tw) a.tw.cancel(); a.tw = game.tween(a, { x, y }, STEP, { ease: 'linear' });
+    if (a.rig && a.rig.kick) a.rig.kick(2);
+  }
+  function strike(a, d) {
+    a.face = Math.atan2(d.cy - a.cy, d.cx - a.cx); a.swing.start();
+    const dmg = Math.max(1, a.atk + Math.floor(R() * 3) - d.def);
+    d.hp -= dmg; d.hit = .25;
+    game.hitFx(d.x, d.y, 14, { damage: dmg, power: a === hero ? 1 : .6, angle: a.face, sound: 'hit', textColor: d === hero ? '#ff8a8a' : '#fff2c4' });
+    if (d.rig && d.rig.kick) d.rig.kick(-3);
+    if (d === hero) { if (hero.hp <= 0) { stats.killer = a.K.name; die(); } return; }
+    if (d.hp <= 0) {
+      d.dead = true; turns.remove(d); stats.kills++; P.dust(d.x, d.y, 4, 10); P.bits(d.x, d.y, 6, 6, d.K.blob ? [d.K.blob.colors.base, d.K.blob.colors.dk] : ['#6a6070', '#a8a0b0']);
+      hero.xp += d.K.xp; say('THE ' + d.K.name + ' DIES', '#a8e0a0');
+      if (hero.xp >= hero.next) { hero.lv++; hero.next = Math.round(hero.next * 1.7); hero.max += 5; hero.hp = hero.max; hero.atk += 1; say('LEVEL ' + hero.lv + '!', '#ffe070'); A.sfx('powerup'); }
+    }
+  }
+  function foeTurn(f) {
+    const d = grid.dist([f.cx, f.cy], [hero.cx, hero.cy]);
+    if (f.awake && d === 1 && corner(f, hero)) { strike(f, hero); return; }
+    let want = null;
+    if (f.awake && !(f.kind === 'bat' && R() < .4)) { const p = grid.path([f.cx, f.cy], [hero.cx, hero.cy], { blocked: (x, y) => !!foeAt(x, y), ends: true, max: 40 }); if (p.length > 2) want = p[1]; }
+    if (!want && (f.kind === 'bat' || R() < .25)) { const n = grid.neighbours([f.cx, f.cy]).filter(c => grid.walk(c) && !occupied(...c)); if (n.length) want = n[Math.floor(R() * n.length)]; }
+    if (want && !occupied(...want)) stepTo(f, ...want);
+  }
+  const corner = (a, b) => a.cx === b.cx || a.cy === b.cy || (grid.walk([a.cx, b.cy]) && grid.walk([b.cx, a.cy]));   // (no swinging round a wall's corner)
+  function heroAct(act) {
+    if (mode !== 'play' || hero.hp <= 0 || going) return false;
+    if (act.move) {
+      const [dx, dy] = act.move, cx = hero.cx + dx, cy = hero.cy + dy, f = foeAt(cx, cy);
+      if (f && corner(hero, f)) strike(hero, f);
+      else if (grid.walk([cx, cy]) && !f && (dx === 0 || dy === 0 || corner(hero, { cx, cy }))) { stepTo(hero, cx, cy); pickUp(); if (mode !== 'play') return true; }
+      else return false;
+    } else if (act.potion) {
+      if (!hero.potions) { say('NO POTIONS'); return false; }
+      hero.potions--; const h = Math.min(hero.max - hero.hp, Math.ceil(hero.max * .6)); hero.hp += h; say('YOU FEEL BETTER (+' + h + ')', '#ff9aa0'); A.sfx('heal'); P.glints(hero.x, hero.y, 16, 8, '#ff9ab0');
+    } else if (act.scroll) {
+      if (!hero.scrolls) { say('NO SCROLLS'); return false; }
+      hero.scrolls--; for (let i = 0; i < fog.state.length; i++) if (!fog.state[i] && map.walkable(i % map.w, Math.floor(i / map.w))) fog.state[i] = 1;
+      for (let i = 0; i < fog.state.length; i++) { const x = i % map.w, y = Math.floor(i / map.w); if (!fog.state[i] && grid.neighbours([x, y]).some(c => map.walkable(...c))) fog.state[i] = 1; }
+      say('THE FLOOR IS REVEALED', '#a8c8ff'); A.sfx('powerup');
+    } else if (!act.wait) return false;
+    stats.turns++; if (stats.turns % 9 === 0 && hero.hp < hero.max) hero.hp++;   // you heal slowly as you go
+    busy = STEP; nextTurn(); return true;
+  }
+  function pickUp() {
+    const i = items.findIndex(t => t.cx === hero.cx && t.cy === hero.cy); if (i < 0) return;
+    const t = items[i];
+    if (t.kind === 'stairs') { say('DOWN THE STAIRS', '#ffd890'); A.sfx('door'); descend(); return; }
+    items.splice(i, 1);
+    if (t.kind === 'potion') { hero.potions++; say('A POTION', '#ff9aa0'); }
+    else if (t.kind === 'scroll') { hero.scrolls++; say('A SCROLL OF MAPPING', '#a8c8ff'); }
+    else if (t.kind === 'gold') { const g = 5 + Math.floor(R() * 10 * depth); stats.gold += g; say(g + ' GOLD', '#ffe070'); A.sfx('coin'); }
+    else if (t.kind === 'blade') { const b = BLADES[Math.min(BLADES.length - 1, Math.floor(depth / 3) + 1)]; if (b[1] > hero.blade[1]) { hero.atk += b[1] - hero.blade[1]; hero.blade = b; say('A ' + b[0] + '!', '#c8e0ff'); } else say('A RUSTY BLADE (YOURS IS BETTER)'); A.sfx('powerup'); }
+    else if (t.kind === 'amulet') { stats.gold += 500; finish('won'); }
+  }
+  function descend() { depth++; going = true; game.go('roguelike', { depth, keep: true }, { fade: 'iris', seconds: .35, at: hero }); }
+  function die() { say('YOU DIE...', '#ff6a6a'); A.sfx('die'); finish('dead'); }
+  function finish(how) {
+    mode = how; travel = null; menu.i = 0;
+    const score = stats.gold + stats.kills * 10 + depth * 100 + (how === 'won' ? 1000 : 0);
+    over = { how, score, best: best('roguelike', score), t: 0 };
+    if (how === 'won') { A.music(null); A.sfx('oneup'); }
+  }
+
+  /* ---- 3. A RUN and its scenes ---- */
+  function start(data) {
+    L.enabled = true; L.ambient = .06; L.dark = [6, 4, 14]; L.refresh();
+    if (data && data.keep) { depth = data.depth; build(); return; }   // the next floor of this run
+    R = Math.random; seed = 1 + Math.floor(R() * 1e6); depth = 1; mode = 'play'; over = null; log = []; busy = 0; lastDir = null; held = 0; dirWait = repeatT = 0; travel = null; going = false;
+    stats = { kills: 0, gold: 0, turns: 0, killer: null };
+    hero = { cx: 0, cy: 0, x: 0, y: 0, hp: 20, max: 20, atk: 3, def: 1, speed: 100, lv: 1, xp: 0, next: 10, potions: 1, scrolls: 0, blade: BLADES[0], face: Math.PI / 2, hit: 0,
+      rig: new E.Humanoid({ size: 1, outfit: 'tunic', hair: 'short', weapon: 'sword', cape: { len: 5, width: 5, seg: 2.4 }, colors: { cloth: '#2a5ab0', cape: '#8a2a2a', hair: '#c8a050', trim: '#e0c060' } }), swing: new E.Attack('slash') };
+    A.music('dungeon'); game.input.touchSet('attack', 'WAIT'); game.input.touchSet('skill', 'POTION'); game.input.touchSet('dash', 'SCROLL');
+    build();
+  }
+  // the step the keys or the stick ask for: [dx, dy] on the grid (in iso, turned from the screen), or null
+  function wantDir() {
+    const I = game.input, m = I.move(); if (Math.hypot(m[0], m[1]) < .4) return null;
+    let [x, y] = game.view.pitchDeg > 70 || game.view.id === 'threequarter' ? m : game.view.screenDirToGround(m[0], m[1]);
+    const a = Math.round(Math.atan2(y, x) / (Math.PI / 4)) * Math.PI / 4; return [Math.round(Math.cos(a)), Math.round(Math.sin(a))];
+  }
+  function update(dt) {
+    const I = game.input;
+    hero.rig.update(dt, rigState(hero, dt)); hero.swing.update(dt); hero.hit = Math.max(0, hero.hit - dt);
+    for (const f of foes) { f.swing.update(dt); f.hit = Math.max(0, f.hit - dt); if (f.dead) f.die += dt; f.rig.update(dt, f.K.blob ? { look: [Math.cos(f.face), Math.sin(f.face)], walk: f.tw && !f.tw.done ? 1 : 0, flap: 1 } : rigState(f, dt)); }
+    if (mode !== 'play') { if (over) over.t += dt; if (over && over.t > 1.2) menu.update(dt); return; }
+    busy -= dt; if (busy > 0) return;
+    // touch: a tap on a cell walks there; keys and the stick: a step (two keys pressed together: a diagonal)
+    const tap = I.clicked();
+    if (tap && game.r) { const [wx, wy] = game.view.toGround(tap[0] + game.r.ix, tap[1] + game.r.iy) || [0, 0], c = map.toCell(wx, wy); if (fog.seen(c) && grid.walk(c)) { const p = grid.path([hero.cx, hero.cy], c, { blocked: (x, y) => !!foeAt(x, y) && !(x === c[0] && y === c[1]), ends: true }); travel = p.length > 1 ? p.slice(1) : null; } }
+    if (I.pressed('attack')) { travel = null; heroAct({ wait: true }); return; }
+    if (I.pressed('skill')) { travel = null; heroAct({ potion: true }); return; }
+    if (I.pressed('dash')) { travel = null; heroAct({ scroll: true }); return; }
+    const d = wantDir();
+    if (d) {
+      travel = null;
+      if (!lastDir) { dirWait = .06; held = 0; }   // a moment for a second key (a diagonal)
+      lastDir = d; dirWait -= dt; repeatT -= dt;
+      if (dirWait <= 0 && repeatT <= 0) { heroAct({ move: d }); repeatT = held++ ? 0 : .2; }   // one step a tap; held, it walks on
+      return;
+    }
+    lastDir = null; repeatT = 0;
+    if (travel && travel.length) { const [cx, cy] = travel.shift(); if (!heroAct({ move: [cx - hero.cx, cy - hero.cy] })) travel = null; }
+  }
+  function rigState(a, dt) {
+    const tw = a.tw && !a.tw.done, sp = tw ? T / STEP : 0;
+    return { x: a.x, y: a.y, z: 0, vx: tw ? Math.cos(a.face) * sp : 0, vy: tw ? Math.sin(a.face) * sp : 0, facing: a.face, hurt: a.hit > 0 ? a.hit * 4 : 0,
+      attack: a.swing.phase ? a.swing.state : null, pose: a.hp <= 0 ? 'die' : null };
+  }
+
+  /* ---- 4. DRAWING: floor, stairs, things seen, actors in sight, the fog over it all, torchlight, the HUD ---- */
+  function draw(r) {
+    map.drawFloor(r); map.queueWalls(r);
+    const fl = (Math.sin(game.time * 13) + Math.sin(game.time * 7.3)) * .05;
+    L.add(hero.x, hero.y, 26, 105, 1.25 + fl, { color: '#ffb868' });
+    for (const [x, y] of braziers) if (fog.seen(map.toCell(x, y))) { r.prop('brazier', x, y, 0, { light: true }); }
+    for (const t of items) {
+      if (!fog.seen([t.cx, t.cy])) continue;
+      const [x, y] = center(t.cx, t.cy);
+      if (t.kind === 'stairs') { r.decal(g => { for (let i = 0; i < 4; i++) E.px.polyDither(g, [[x - 7 + i, y - 7 + i * 2], [x + 7 - i, y - 7 + i * 2], [x + 7 - i, y - 4 + i * 2], [x - 7 + i, y - 4 + i * 2]].map(([a, b]) => r.w(a, b, 0)), i % 2 ? '#2a2632' : '#5a5462', 1, r.ix, r.iy); }); continue; }
+      r.sprite(x, y, 2 + Math.sin(game.time * 3 + t.cx) * 1.2, SPR[t.kind], { glow: t.kind === 'amulet' ? 1 : .3 });
+      if (t.kind === 'amulet') L.add(x, y, 10, 50, 1, { color: '#ff6040' });
+    }
+    for (const f of foes) {
+      if (!fog.visible([f.cx, f.cy]) || (f.dead && f.die > .5)) continue;
+      r.shadow(f.x, f.y, f.K.blob ? 5 : 6, .4);
+      const z = f.K.fly ? f.K.fly + Math.sin(game.time * 6 + f.cx) * 2 : 0;
+      r.actor(f.x, f.y, z, (g, ox, oy) => f.rig.draw(g, ox, oy, r.view), { flash: f.hit > .1 && '#ffffff', alpha: f.dead ? 1 - f.die * 2 : 1 });
+    }
+    r.shadow(hero.x, hero.y, 6, .45);
+    r.actor(hero.x, hero.y, 0, (g, ox, oy) => hero.rig.draw(g, ox, oy, r.view), { flash: hero.hit > .1 && '#ff6060', xray: true });
+    if (travel && travel.length) E.tint(r, travel, '#ffd890', .35, T);
+    fog.draw(r, T, { height: (x, y) => map.height(x, y) });
+    hud(r);
+  }
+  function hud(r) {
+    r.overlay(g => {
+      const W = r.W, H = r.H, x0 = 4, w = 108;
+      E.ui.box(g, x0, 4, w, 34, { alpha: .75 });
+      E.font.text(g, (depth === LAST ? 'DEEPEST FLOOR' : 'FLOOR ' + depth) + '   LV ' + hero.lv, x0 + 5, 8, '#ffe8b0', { outline: false });
+      E.ui.bar(g, x0 + 5, 19, w - 10, 5, hero.hp / hero.max, hero.hp > hero.max * .3 ? '#e04a4a' : '#ff2a6a');
+      E.font.text(g, hero.hp + '/' + hero.max + '  ' + hero.blade[0], x0 + 5, 27, '#d8d0e8', { outline: false, font: 'tiny' });
+      const cx = (touch() ? cornerX() : W) - 74;
+      E.ui.box(g, cx, 4, 70, 22, { alpha: .75 });
+      px.sprite(g, SPR.potion, cx + 5, 9); E.font.text(g, 'x' + hero.potions, cx + 12, 10, '#ffb0b0', { outline: false });
+      px.sprite(g, SPR.scroll, cx + 34, 10); E.font.text(g, 'x' + hero.scrolls, cx + 42, 10, '#c8d8ff', { outline: false });
+      const ly = H - (touch() ? 96 : 12) - log.length * 9;
+      log.forEach((m, i) => { const a = Math.min(1, 6 - (game.real - m.t)); if (a > 0) E.font.text(g, m.s, 6, ly + i * 9, m.c, { shadow: '#000', outline: false }); });
+      if (!touch() && mode === 'play') E.font.text(g, 'J WAIT  L POTION  K SCROLL', W - 4, H - 10, '#8a82a8', { align: 'right', outline: false, font: 'tiny' });
+      if (over) {
+        const k = Math.min(1, over.t / .8), cy = Math.round(H / 2);
+        g.fillStyle = 'rgba(4,2,10,' + (.75 * k).toFixed(2) + ')'; g.fillRect(0, 0, r.bw, r.bh); E.px.reset(g);
+        if (over.how === 'dead') tombstone(g, W / 2, cy - 30);
+        else E.font.title(g, 'YOU ESCAPED!', W / 2, cy - 76, { align: 'center', scale: 3, colors: ['#fff8d0', '#ffd060', '#e07a2a'] });
+        const lines = over.how === 'dead' ? ['KILLED BY A ' + (stats.killer || 'TRAP'), 'ON FLOOR ' + depth] : ['WITH THE AMULET OF EMBERS', 'FROM FLOOR ' + LAST];
+        lines.push('KILLS ' + stats.kills + '   GOLD ' + stats.gold + '   TURNS ' + stats.turns, 'SCORE ' + over.score + (over.score >= over.best ? '  BEST!' : '   BEST ' + over.best));
+        lines.forEach((s, i) => E.font.text(g, s, W / 2, cy + 16 + i * 10, i === lines.length - 1 ? '#ffe070' : '#e8e0f0', { align: 'center', shadow: '#000', outline: false }));
+        if (over.t > 1.2) { menu.y = cy + 62; }
+      }
+    });
+    if (over && over.t > 1.2) menu.draw(r);
+  }
+  function tombstone(g, x, y) {   // a grey headstone with its words, on a mound
+    x = Math.round(x); px.ell(g, x, y + 30, 40, 7, '#2a2a1e'); px.ell(g, x, y + 29, 34, 5, '#3e4a2a');
+    px.rect(g, x - 26, y - 18, 52, 46, '#5a5a66'); px.disc(g, x, y - 18, 26, '#5a5a66'); px.rect(g, x - 22, y - 16, 44, 42, '#6e6e7a'); px.disc(g, x, y - 18, 22, '#6e6e7a');
+    px.rect(g, x - 26, y + 24, 52, 4, '#46464e');
+    E.font.text(g, 'R.I.P.', x, y - 26, '#2a2a34', { align: 'center', outline: false, scale: 1 });
+    E.font.text(g, 'HERE LIES', x, y - 10, '#34343e', { align: 'center', outline: false, font: 'tiny' });
+    E.font.text(g, 'A WANDERER', x, y - 2, '#34343e', { align: 'center', outline: false, font: 'tiny' });
+    E.font.text(g, 'LV ' + hero.lv, x, y + 8, '#34343e', { align: 'center', outline: false, font: 'tiny' });
+  }
+
+  /* ---- 5. THE BOT: plays the run by itself (tools/kits-test.mjs): potions when hurt, fights what is next to it, walks
+   * to the stairs; ten floors of it, every step through the same turns and tweens a player's go through ---- */
+  function bot(floors = LAST, seedNo = 1) {
+    const was = Math.random; Math.random = E.rng(seedNo);
+    try {
+      game.time = 0; game.timeScale = 1; game.go('roguelike', null, { fade: 0 }); game.advance(1 / 120);
+      let reached = 1;
+      for (let i = 0; i < 6000 && mode === 'play'; i++) {
+        game.advance(STEP + 1 / 60);
+        if (going) continue;
+        reached = Math.max(reached, depth); if (reached > floors || (mode !== 'play')) break;
+        const adj = foes.find(f => !f.dead && grid.dist([f.cx, f.cy], [hero.cx, hero.cy]) === 1 && corner(hero, f));
+        if (hero.hp < hero.max * .45 && hero.potions) heroAct({ potion: true });
+        else if (adj) heroAct({ move: [adj.cx - hero.cx, adj.cy - hero.cy] });
+        else {
+          const loot = items.filter(t => t.kind !== 'stairs' && t.kind !== 'gold').map(t => grid.path([hero.cx, hero.cy], [t.cx, t.cy], { max: 14 })).filter(q => q.length > 1).sort((a, b) => a.length - b.length)[0];
+          const goal = loot ? loot[loot.length - 1] : level.end, p = grid.path([hero.cx, hero.cy], goal, { blocked: (x, y) => !!foeAt(x, y) });
+          const q = p.length > 1 ? p : grid.path([hero.cx, hero.cy], goal, { ends: true });
+          if (q.length > 1 && !heroAct({ move: [q[1][0] - hero.cx, q[1][1] - hero.cy] })) heroAct({ wait: true });
+          else if (q.length <= 1) heroAct({ wait: true });
+        }
+      }
+      game.advance(.5);
+      return { floors: Math.min(reached, floors), depth, mode, kills: stats.kills, turns: stats.turns, level: hero.lv, errors: game.errors.length };
+    } finally { Math.random = was; }
+  }
+
+  return { view: 'threequarter', views: ['threequarter', 'iso'], input: 'DEFAULT', res: 'ps1', pausable: true, propSize: 1.1, touch: ['attack', 'skill', 'dash'],
+    camera: { zoom: [.75, 2], start: 1, tall: 1.25 }, enter: start, update, draw, bot,
+    exit() { L.enabled = false; game.cam.bounds = null; },
+    state: () => ({ depth, hero, foes, items, mode, turns, grid, fog }),   // for tests
+    /** the proof: steps about the first floor, a wait, a potion; the monsters on their turns; a hash of the run */
+    run: (n = 600) => proof('roguelike', n, (i, k) => { walk(i, k, ['right', 'down', 'left', 'up'], 45); if (i % 70 === 30) k.tap('attack'); if (i === 300) k.tap('skill'); },
+      () => [depth, hero.cx, hero.cy, hero.hp, hero.potions, stats.turns, foes.map(f => [f.cx, f.cy, f.hp, f.dead])]) };
+})();
+scenes.roguelike = ROGUE;
 
 /* =====================================================================================
  * SLICE 5  BRAWLER  (Final Fight, Streets of Rage 2). A city block at dusk. Every attack is a named E.MOVES move:

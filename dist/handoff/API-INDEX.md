@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.62.1)
+# my-3D2dge API index (v0.63.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,45 +48,47 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 91 The engine object (E = My3D2dge)
-- 102 Math
-- 176 Pixel primitives
-- 195 Sprite frames, turns and swaps
-- 201 Views (projections); E.View: view
-- 228 Screen; game.screen
-- 250 Input; E.Input: input
-- 325 Pixel font
-- 336 Lighting; game.lights
-- 355 Particles; E.Particles: game.particles
-- 375 Renderer; r
-- 422 Game; E.Game: game
-- 525 Standard features; settings, fullscreen
-- 542 10c. Boot
-- 547 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 564 10e. Paths; E.Path: path
-- 574 10g. Weather
-- 578 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 651 Blob rig; E.Blob: blob
-- 671 Tile map; E.TileMap: map
-- 730 Materials
-- 751 Flow field; E.FlowField: flow
-- 769 Texture helpers for floortex functions
-- 780 Platform map; E.PlatformMap: level
-- 810 Platformer; E.Platformer: hero
-- 845 Body; E.Body: body
-- 865 Actions; E.Action: action
-- 887 17c. Mover; E.Mover: mover
-- 926 17d. Perception; E.Suspicion: suspicion
-- 943 Bullets; E.Bullets: shots
-- 963 Spatial hash; E.SpatialHash: grid
-- 973 Audio; game.audio
-- 995 Backdrops; E.Backdrop: backdrop
-- 1003 21c. Props
-- 1008 21e. Shapes
-- 1020 Ui; E.Dialog: talk, E.Menu: menu
-- 1074 21d. Shell; E.Shell: shell
-- 1103 Gpu lighting (webgpu); game.gpu
-- 1124 Sessions
+- 93 The engine object (E = My3D2dge)
+- 104 Math
+- 178 Pixel primitives
+- 197 Sprite frames, turns and swaps
+- 203 Views (projections); E.View: view
+- 230 Screen; game.screen
+- 252 Input; E.Input: input
+- 327 Pixel font
+- 338 Lighting; game.lights
+- 357 Particles; E.Particles: game.particles
+- 377 Renderer; r
+- 424 Game; E.Game: game
+- 527 Standard features; settings, fullscreen
+- 544 10c. Boot
+- 549 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 566 10e. Paths; E.Path: path
+- 576 10g. Weather
+- 580 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 653 Blob rig; E.Blob: blob
+- 673 Tile map; E.TileMap: map
+- 732 Materials
+- 753 Flow field; E.FlowField: flow
+- 771 Texture helpers for floortex functions
+- 782 Platform map; E.PlatformMap: level
+- 812 Platformer; E.Platformer: hero
+- 847 Body; E.Body: body
+- 867 Actions; E.Action: action
+- 889 17c. Mover; E.Mover: mover
+- 928 17d. Perception; E.Suspicion: suspicion
+- 945 Bullets; E.Bullets: shots
+- 965 Spatial hash; E.SpatialHash: grid
+- 975 Audio; game.audio
+- 997 Backdrops; E.Backdrop: backdrop
+- 1005 21c. Props
+- 1010 21e. Shapes
+- 1022 Ui; E.Dialog: talk, E.Menu: menu
+- 1076 21d. Shell; E.Shell: shell
+- 1105 Gpu lighting (webgpu); game.gpu
+- 1126 Sessions
+- 1135 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1146 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
 
 ## The engine object (E = My3D2dge)
 
@@ -95,7 +97,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.62.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.63.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1129,3 +1131,69 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.session.recording` †: true while this page load is recorded
 - `E.session.replaying` †: true while it is a replay
 - `E.session.wanted()` †: true when recording is on for page loads (record(true))
+
+## Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+
+- `E.gen`: the map generators (each from a seed: the same rows every time)
+- `E.gen.bsp(w, h, o = {})`: binary space partition: halves split again down to o.min (7) cells, a room in each leaf, sisters joined
+- `E.gen.cave(w, h, o = {})`: caves by cellular automata: o.fill (.45) of the cells rock, o.steps (4) rounds of the 4-5 rule, then the biggest open region alone
+- `E.gen.mark(level, ch, n, o = {})`: put character ch on n floor cells of a level (from a generator), at least o.far (4) steps from its start and o.near steps from each other (0), from o.seed; returns the cells and adds them to level.marks
+- `E.gen.maze(w, h, o = {})`: a maze on the odd cells: o.algo 'backtrack' (long halls) or 'prim' (short branches); o.braid 0..1 opens that share of dead ends into loops
+- `E.gen.open(rows)`: every floor cell ('.') of rows, as [x, y]
+- `E.gen.rooms(w, h, o = {})`: rooms placed apart and joined in order by bent corridors: { rows, rooms, start, end, marks }. o: { seed, rooms: 9, min: 4, max: 9 (a room's side, cells) }
+- `E.gen.scatter(w, h, o = {})`: Poisson disc points at least o.r (3) apart within w x h, o.k (30) tries each, where o.ok(x, y) allows (Bridson's): [[x, y], ...] in cells, not whole numbers
+
+## Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js)
+
+- `new E.Fog(grid) → fog`: new E.Fog(grid): every cell unseen; update() with the viewers each turn
+- `fog.draw(r, T = 16, o = {})`: draw it over the world: unseen cells black, seen ones dimmed (o.dim: .55, o.color), walls' faces covered too; call after the world and before the HUD. T: world units a cell; o.height(cx, cy): a cell's top (a TileMap's height)
+- `fog.seen(c)`: has [cx, cy] been seen (now or before)?
+- `fog.update(viewers)`: what the viewers see now ([{ cx, cy, r }]: each one's field of view) becomes visible; what was visible stays seen
+- `fog.visible(c)`: is [cx, cy] in sight now?
+- `fog.grid`: what it covers
+- `fog.state`: per cell 0 unseen, 1 seen before, 2 visible now (row by row)
+- `new E.Grid(w, h, o = {}) → grid`: new E.Grid(w, h, { hex: false | 'pointy' | 'flat', walkable(cx, cy), cost(cx, cy), height(cx, cy), opaque(cx, cy), diagonal }): w x h cells, every one walkable at cost 1 and height 0 unless the functions say otherwise
+- `E.Grid.from(map, o = {})`: a grid from a TileMap: its walkable cells (o.tops: true stands on the walls' tops at their heights, for tactics)
+- `grid.center(c, T = 16)`: a cell's centre in world units, T a cell across (square: T wide; hex: T across its flats)
+- `grid.cost(c)`: what entering [cx, cy] costs (1 by default)
+- `grid.dist(a, b)`: steps from a to b: Manhattan, Chebyshev (diagonal) or hex steps
+- `grid.flood(c, same)`: the cells joined to c through neighbours for which same(cx, cy) is true (c's too): a flood fill
+- `grid.fov(c, radius = 8)`: what c sees within radius: a Set of 'cx,cy' (symmetric shadowcasting, Albert Ford's: a sees b exactly when b sees a; walls at the edge of what it sees are in it; hex grids: a line to each cell)
+- `grid.groups(key)`: the groups of neighbouring cells with the same key(cx, cy) (null or undefined: none): matches, Puyo chains, regions. [[cells]], biggest first
+- `grid.height(c)`: a cell's height (0 by default; E.Grid.from(map, { tops: true }): the wall's top)
+- `grid.inside(c)`: is [cx, cy] on the grid?
+- `grid.line(a, b)`: the cells on a line from a to b, both ends included (Bresenham; hex: one step at a time)
+- `grid.neighbours(c)`: the cells next to c on the grid: 4, 8 (diagonal) or 6 (hex), walkable or not
+- `grid.opaque(c)`: does [cx, cy] block sight? (not walkable, by default)
+- `grid.path(a, b, o = {})`: the cheapest way from a to b, [a, ..., b], or [] (A*; ties broken the same way every time). o: { blocked(cx, cy): cells taken (other units), climb, drop (the most a step rises and falls), ends: b may be unwalkable (a target), max: give up past this cost }
+- `grid.reach(a, budget, o = {})`: every cell within budget of a: { cells: [[cx, cy, cost]], has(c), cost(c) (or Infinity), path(c) } (Dijkstra: move ranges). o: { blocked, climb, drop } as path's
+- `grid.sees(a, b)`: can a see b: no opaque cell on the line between them (the ends themselves may be)
+- `grid.toCell(x, y, T = 16)`: the cell under world point (x, y), T a cell across (center's inverse)
+- `grid.walk(c)`: can [cx, cy] be walked (on the grid, and walkable)?
+- `grid.diagonal`: square moves of 8 directions
+- `grid.h`, `grid.w`: its size in cells
+- `grid.hex`: false, 'pointy' (offset rows) or 'flat' (offset columns)
+- `new E.GridMover(o = {}) → gridmover`: new E.GridMover({ cx, cy, speed: 6 (cells a second) })
+- `gridmover.place(cx, cy)`: put it on a cell at once, still
+- `gridmover.update(dt, grid, want, o = {})`: a step of dt: want ([dx, dy] or null) is kept until it can be taken. o: { blocked(cx, cy): true where it can't go, push(cx, cy, dx, dy): true when what is in the way moved (a crate), keep: true goes on in the same direction (a maze) }. Returns true when it reached a cell this step
+- `gridmover.arrived = false`: true the step it reaches a cell
+- `gridmover.cx`, `gridmover.cy`: the cell it is in (or leaving)
+- `gridmover.dir = [0, 0]`: [dx, dy] it is moving (or last moved)
+- `gridmover.moving = false`: between cells
+- `gridmover.speed`: cells a second
+- `gridmover.x`, `gridmover.y`: its smooth position in cells (draw it there)
+- `new E.Turns(actors = [], o = {}) → turns`: new E.Turns(actors, { mode: 'speed' | 'ct' | 'phase' | 'atb', sides: ['hero', 'foe'] (phase), fill: 1 (atb: gauge per second at speed 100) }). An actor is any object with speed (100: normal) and, in phase mode, side
+- `turns.add(a)`: add an actor (it starts with an empty gauge)
+- `turns.done(a, cost = 100)`: after an actor acted (ct: cost 100 for a move and an action, 80 or 60 for less; atb: its gauge empties)
+- `turns.gauge(a)`: an actor's gauge 0..1 (atb and ct: how full; speed: its energy)
+- `turns.next()`: the actor whose turn it is (speed: its energy spent; ct: call done(actor, cost) after it acts; phase: each of the side once, then the next side's)
+- `turns.order(n = 5)`: who acts next, n of them, without changing anything (speed and ct: the order ahead; phase: the rest of this side)
+- `turns.ready()`: atb: the actors whose gauges are full, in the order they were added
+- `turns.remove(a)`: take an actor out (it died, it left)
+- `turns.update(dt)`: atb: fill the gauges on game time (dt seconds)
+- `turns.actors`: in the order they were added (ties go to the earlier)
+- `turns.fill`: an atb gauge's fill a second at speed 100
+- `turns.mode`: 'speed', 'ct', 'phase' or 'atb'
+- `turns.phase = null`: the side acting now (phase mode)
+- `turns.sides`: the sides in their order (phase; null: as the actors have them)
+- `E.tint(r, cells, color, alpha = .4, T = 16, height = null)`: tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range, a path, an attack's reach, drawn on the floor (decals) where height is 0, over the world otherwise
