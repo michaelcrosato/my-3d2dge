@@ -5,6 +5,13 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.78.1 (2026-10-28)
+
+The genre plan's Milestone 12, closed, and the plan made ready for the next session to pick up.
+
+- **Docs**: `docs/HANDOFF-GENRES.md`: section 9's M12 row (`364647b`, #183): what it brought, the sizes at v0.78.0, the bots, the audio suite's three minutes, `test:changed`, the full `npm test` on `main` after the merge, and what is left (the owner's RHYTHM and STEALTH music checks on the Labs page).
+- **Docs**: `docs/HANDOFF-GENRES.md`: the status line (M0 to M12 done, M13 next), and "Picking it up" after section 9's table: where the work stands, the loop every milestone has run, the budgets suspended until the owner's review (D52, D55, D57, D59), the room left, the owner's checks, the calls to escalate.
+
 ## 0.78.0 (2026-10-28)
 
 Music and rhythm: the genre plan's Milestone 12, the music clock, the songs and rhythm modules, the RHYTHM kit and the STEALTH slice's music in layers. Every other kit plays as before (filmed beside v0.77.1: the same pixels).
