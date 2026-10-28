@@ -899,9 +899,12 @@ Needs M1. Any time after M1: it moves up if the kits' music needs it sooner.
   The rhythm module (the full engine only; 1,073 of 1,500): `E.Rhythm`. The RHYTHM kit (`37-rhythm.js`, family MUSIC):
   STEP UP! (STEP UP: 181 notes, jumps and holds; RAP SCHOOL: Master Beat's calls and the player's answers), a dancer
   and a crowd on `onBeat`, a lane a quarter of a phone's screen (`input.zones`), its own calibration screen. STEALTH:
-  one song in layers (`shadows`'s), the chase's drums and saw faded in on an alert and out after. One fact made
+  one song in layers (`shadows`'s), the chase's drums and saw faded in on an alert and out after. Two facts made
   precise: "the sound follows the game's clock" is measured on what is heard (the output's timestamp), so the output's
-  latency is in it, and the player's offset is on top for what the browser cannot see (wireless headphones).
+  latency is in it, and the player's offset is on top for what the browser cannot see (wireless headphones); and the
+  sound device itself slips now and then (what it outputs moving 10 to 23 ms against the page's clock between two
+  frames: two to five times in three minutes in a container's virtual device), which no engine can foresee, so "within
+  10 ms over three minutes" holds outside the 5 frames after each slip, and each slip is met again within them.
 
 ### M13: 3D action and survival horror (the 3D engine; kit 3D HORROR; 3D ACTION gains lock-on)
 
