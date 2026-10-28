@@ -13,6 +13,11 @@
  * bot(n) places n pieces by itself (a placement search: holes, height, bumps, lines), as tools/kits-test.mjs checks.
  * ===================================================================================== */
 const PUZZLE = (() => {
+  // the puzzle's own tune (the step sequencer's format): C major, bright and quick
+  const STACK = { bpm: 144, steps: 4, tracks: [
+    { wave: 'square', vol: .11, notes: 'E5 . G5 . C6 - B5 . A5 . G5 . E5 - D5 . | C5 . D5 . E5 - G5 . F5 - E5 . D5 - - . | A4 . C5 . F5 - E5 . D5 . C5 . A4 - G4 . | B4 . D5 . G5 - F5 . E5 . D5 . C5 - - .' },
+    { wave: 'triangle', vol: .3, notes: 'C3 . G3 . C3 . G3 . A2 . E3 . A2 . E3 . | F2 . C3 . F2 . C3 . G2 . D3 . G2 . D3 . | F2 . C3 . F2 . C3 . C3 . G3 . C3 . G3 . | G2 . D3 . G2 . D3 . C3 . G3 . C3 . . .' },
+    { wave: 'drums', vol: .12, notes: 'k . h . s . h . k . h k s . h h' }] };
   const D = E.Input.DEFAULT, KEYS = { up: D.up, down: D.down, left: D.left, right: D.right, start: D.start, pause: D.pause, confirm: D.confirm, cancel: D.cancel,
     rotate: ['KeyX', 'KeyK', 'Pad1'], ccw: ['KeyZ', 'KeyJ', 'Pad0'], drop: ['Space', 'Pad3'], hold: ['KeyC', 'ShiftLeft', 'ShiftRight', 'Pad4', 'Pad5'] };
   /* ---- 1. THE PIECES: SRS shapes in their spawn state, colours, and the wall kicks (y down) ---- */
@@ -103,7 +108,7 @@ const PUZZLE = (() => {
     mode = kind; W = kind === 'blocks' ? 10 : PW; H = kind === 'blocks' ? 22 : PH + 1; field = new Array(W * H).fill(0);
     queue = []; bag = []; hold = null; held = false; score = 0; lines = 0; level = 1; chain = 0; clearing = popping = over = null; time = 0; popped = 0; mood = 0; R = E.rng(1 + Math.floor(Math.random() * 1e6));
     if (kind === 'blocks') spawn(); else pairSpawn();
-    A.music('adventure'); game.input.consumeAll();
+    A.music(STACK); game.input.consumeAll();
   }
   function end() { if (over) return; over = { kind: mode, score, lines, level, best: best('puzzle-' + mode, score), t: 0 }; mode = 'over'; cur = null; mood = -1; moodT = 99; A.music(null); A.sfx('die'); after.i = 0; }
   function cheer(k) { mood = k; moodT = 1.2; }

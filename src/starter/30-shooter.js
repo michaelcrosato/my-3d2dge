@@ -1,5 +1,5 @@
 /* =====================================================================================
- * SLICE 3  SHOOTER  (vertical shoot-'em-up: Raiden, 1943, Strikers 1945)
+ * SLICE 3  SHOOTER  (vertical shoot-'em-up: Raiden, 1943, Strikers 1945; then a horizontal one: Gradius, R-Type). @modules arcade
  * A tall "tate" screen (240 x 320) scrolls up over farmland, a river town and an air base where a flying fortress waits.
  * 'overhead' maps world x/y to screen pixels; the 272 px world pans a little with the ship. z only orders the drawing:
  * ground 0-3, air shadows 4, clouds 5-6, aircraft 8-12, air blasts 14, ship bullets 20; foe bullets over every panel.
@@ -10,6 +10,10 @@
  * ANY SCREEN: res [240, 320] with expand. The map is WW wide; a wider screen (landscape, a desktop) shows the valley going
  * on beyond it (2b) and the playfield is the whole screen (span()): the ship flies edge to edge and the waves spread to
  * match (air() maps their x). W x H are the screen's, read each step. game.go('shooter', { at: 30 }) starts at the boss.
+ * STAGE 2 (11; #shooter/horizontal, and after the fortress): a horizontal stage (Gradius, R-Type) at [320, 240]: rock
+ * above and below, capsules that light a power bar (the bomb key takes the lit power), options that follow the ship's
+ * past path, a mid-boss looping an E.Path, the core battleship. THE ARCADE FRAME (10; the arcade module): the last ship
+ * lost brings a continue; a score that makes the table brings initials on a letter wheel; then the table.
  * ===================================================================================== */
 const SHOOT = (() => {
   const WW = 272, MAP_H = 84 * 16, SCROLL = 32, PERSP = .0042, D = Math.PI / 2, INTRO = 3.2;   // world width (the playfield), stage length, scroll px/s, building perspective, stage card seconds
@@ -335,7 +339,7 @@ const SHOOT = (() => {
     foes = []; items = []; craters = []; fx = []; shots = shots || new E.Bullets(game, { plane: 'ground', max: 1200 }); shots.clear();
     for (const [kind, x, y, a] of GROUND) unit(kind, x, y, { a: a ?? D, aim: a ?? D });
     clouds = [0, 1, 2, 3, 4, 5, 6].map(i => ({ x: cloudX(), y: i * 70 - 80, art: CLOUDS[i % 3], high: i > 3 }));
-    lives = 2; bombs = 3; score = 0; power = 1; boss = null; won = 0; fireT = 0; warnT = 0; radio(PILOT, 'EAGLE 1', 'Fortress sighted over the valley. Weapons free!', { point: true, aim: .9, expr: 'smile' });
+    lives = 2; bombs = 3; score = 0; power = 1; boss = null; won = 0; fireT = 0; warnT = 0; cab.start(1); ending = null; radio(PILOT, 'EAGLE 1', 'Fortress sighted over the valley. Weapons free!', { point: true, aim: .9, expr: 'smile' });
   }
   const cloudX = () => { const m = Math.max(0, (W - WW) / 2); return E.rand(-30 - m, WW - 60 + m); };   // across the whole screen
   const shoot = (x, y, vels, art = 'orb') => shots.burst({ x, y, z: 20, r: art === 'big' ? 3 : 2, life: 7, team: 'foe', art }, vels);
@@ -375,7 +379,7 @@ const SHOOT = (() => {
       if ((f.dying -= dt) > 0) return;
       f.gone = true; boss = null; won = t; best('shooter', score); A.music('victory'); game.after(2.8, () => {   // a dip (anticipation), then the fists pump; zoomed out so they show
         const mood = { pose: 'crouch', expr: 'smile' }; radio(PILOT, 'EAGLE 1', 'Target down. Heading home!', mood, { zoom: 2.3, headY: .62 }); game.after(.2, () => mood.pose = 'cheer');
-      }); game.after(7, () => game.go('title'));   // the crash
+      }); game.after(7, () => game.go('shooter-horizontal', { score, lives }, { fade: 'white' }));   // the crash; on to stage 2
       boom(f.x, f.y, 4); for (let i = 0; i < 8; i++) game.after(i * .06, () => boom(f.x + E.rand(-45, 45), f.y + E.rand(-40, 40), 2, { sound: false, shake: 0, freeze: false }));
       add({ k: 'ring', x: f.x, y: f.y, r: 170, life: 1 }); game.flash('#fff4e0', 1.1, 1); game.shake(8); craters.push(crater0(f.x, f.y, 24, 14), crater0(f.x - 34, f.y + 18, 10, 8)); return;
     }
@@ -395,6 +399,7 @@ const SHOOT = (() => {
   /* ---- 7. UPDATE ---- */
   function update(dt) {
     W = game.W; H = game.H;
+    if (frameStep(dt)) return;   // (the arcade frame: the continue, the initials, the table)
     const over = Math.max(0, scroll + H - MAP_H);   // a window grown taller mid-stage: keep the map's foot on the screen's bottom
     if (over) { scroll -= over; for (const o of [ship, ...items, ...shots.list, ...foes.filter(f => f.air)]) o.y -= over; }
     const inp = game.input, move = Math.min(scroll, SCROLL * dt);
@@ -410,7 +415,7 @@ const SHOOT = (() => {
       boss = { kind: 'boss', x: WW / 2, y: scroll - 90, t: 0, flash: -1, fire: 2, n: 0, aim: D, kick: 0, trail: 1, air: true, scale: 1, spin: 0, dying: 0, parts: [-1, 1, 0].map(s => ({ s, hp: s ? 90 : 380, r: s ? 15 : 30, aim: D, kick: 0, pts: s ? 5000 : 50000 })) };
       boss.parts.forEach(p => Object.assign(p, { boss, x: boss.x, y: boss.y, max: p.hp })); foes.push(boss); A.music('boss');
     }
-    if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { best('shooter', score); game.go('over', { from: 'shooter' }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
+    if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { ship.respawn = 1e9; lost(score, () => { lives = 2; bombs = 3; Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
     else {
       const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
       const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] * DRAG : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] * DRAG : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
@@ -519,6 +524,7 @@ const SHOOT = (() => {
     }
     r.queue(0, scroll, 20, g => bullets(g, r, 'ship'));
     r.overlay(hud); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));   // never hidden by a panel
+    frameDraw(r);
   }
 
   /* ---- 9. HUD: see-through windows (E.ui.box alpha) on top, led by the pilot's live portrait. Radio chatter (Star Fox 64):
@@ -562,16 +568,285 @@ const SHOOT = (() => {
     }
     if (won && t - won > 2.2) { win(Math.round(mid) - 108, 64, 216, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(score), mid, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
   }
+  /* ---- 10. THE ARCADE FRAME (the arcade module): a continue when the last ship is lost, initials on a letter wheel for a
+   * score that makes the table, the table, then the title. Both stages share it; the HUD stays the slice's own ---- */
+  const cab = new E.Arcade(game, { id: 'shooter', hud: false });
+  let ending = null, endT = 0;   // null in play; 'cont', 'entry' or 'table' at the end
+  const endGame = s => { if (cab.qualifies(s)) { ending = 'entry'; cab.enter(s, '', () => { ending = 'table'; endT = 0; }); } else { ending = 'table'; endT = 0; } A.music(null); };
+  const lost = (s, revive) => { best('shooter', s); ending = 'cont'; cab.continue(9, yes => { if (yes) { ending = null; revive(); } else endGame(s); }); };
+  // a step of the frame: true while it holds play (the continue, the wheel, the table: a press or 8 s go to the title)
+  function frameStep(dt) {
+    cab.update(dt); if (!ending) return false;
+    if (ending === 'table') { const I = game.input; endT += dt; if (endT > 8 || (endT > 1 && (I.pressed('confirm') || I.pressed('start') || I.clicked()))) game.go('title'); }
+    return !!ending && !(ending === 'cont' && !cab.continuing && !cab.entry);
+  }
+  function frameDraw(r) {
+    if (ending === 'table') { r.overlay(g => { px.blend(g, .8, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#05060c')); }); cab.drawTable(r, '', Math.max(16, Math.round(r.H / 2 - 82)), 'SHOOTER HIGH SCORES'); }
+    else cab.draw(r);
+  }
+
+  /* ---- 11. THE HORIZONTAL STAGE (Gradius, R-Type; #shooter/horizontal, and after the fortress): a band 240 high scrolls
+   * right over a crystal cavern, rock above and below (a taller screen shows more rock). Capsules light the power bar's
+   * slots in turn (SPEED, MISSILE, DOUBLE, LASER, OPTION, SHIELD); the bomb key (POWER on a touch screen) takes the lit
+   * one. Options follow the ship's past path and fire as it does. A mid-boss loops on an E.Path while the scroll waits;
+   * the core battleship waits at the end behind three walls ---- */
+  const HS = (() => {
+    // stage 2's own tune (the step sequencer's format): E minor, driving, arpeggios under a saw lead
+    const CAVERN = { bpm: 152, steps: 4, tracks: [
+      { wave: 'saw', vol: .08, notes: 'E5 . E5 . G5 . E5 . A5 - G5 . E5 . D5 . | E5 . E5 . G5 . B5 . A5 - - . G5 . F#5 . | C5 . C5 . E5 . C5 . D5 - E5 . F#5 . G5 . | F#5 - - . E5 . D5 . E5 - - - - . . .' },
+      { wave: 'square', vol: .06, notes: 'E4 G4 B4 G4 E4 G4 B4 G4 E4 G4 B4 G4 E4 G4 B4 G4 | E4 G4 B4 G4 E4 G4 B4 G4 D4 F#4 A4 F#4 D4 F#4 A4 F#4 | C4 E4 G4 E4 C4 E4 G4 E4 D4 F#4 A4 F#4 D4 F#4 A4 F#4 | B3 D#4 F#4 D#4 B3 D#4 F#4 D#4 E4 G4 B4 G4 E4 G4 B4 G4' },
+      { wave: 'triangle', vol: .3, notes: 'E2 E3 E2 E3 E2 E3 E2 E3 E2 E3 E2 E3 E2 E3 E2 E3 | E2 E3 E2 E3 E2 E3 E2 E3 D2 D3 D2 D3 D2 D3 D2 D3 | C2 C3 C2 C3 C2 C3 C2 C3 D2 D3 D2 D3 D2 D3 D2 D3 | B1 B2 B1 B2 B1 B2 B1 B2 E2 E3 E2 E3 E2 E3 E2 E3' },
+      { wave: 'drums', vol: .14, notes: 'k . h . s . h k k . h . s . h h' }] };
+    const BAND = 240, RATE = 34, BOSS_X = 3820, BAR = ['SPEED', 'MISSILE', 'DOUBLE', 'LASER', 'OPTION', 'SHIELD'], TRAIL = 12;
+    let s, foes, caps, mis, trail, w = 320, h = 240, Y0 = 0;
+    const sm = (a, b, x) => clamp((x - a) / (b - a), 0, 1), on = (x, a, b) => sm(a, a + 160, x) * (1 - sm(b - 160, b, x));
+    // the rock's edges in the band: open space, volcanic peaks below (500 to 1800), the open plain where the mid-boss waits,
+    // the cavern (2300 to 3750: rock above and below, never closer than 70 apart), open space for the core
+    const lowY = x => BAND + 30 - on(x, 500, 1800) * (50 + 50 * E.noise2(x * .006, 3) + 14 * E.noise2(x * .03, 7)) - on(x, 2300, 3750) * (54 + 36 * E.noise2(x * .009, 11) + 8 * E.noise2(x * .04, 2));
+    const highY = x => -30 + on(x, 2300, 3750) * (56 + 38 * E.noise2(x * .008, 5) + 8 * E.noise2(x * .05, 9)) + on(x, 900, 1500) * 30 * E.noise2(x * .02, 13);
+    const rock = (x, y, r = 3) => y - r < highY(x) || y + r > lowY(x);
+    const speed = () => 85 + s.speed * 28;
+    const foe = (kind, x, y, o) => foes.push(Object.assign({ kind, x, y, vx: 0, vy: 0, a: Math.PI, bank: 0, t: 0, hp: 1, r: 6, pts: 100, flash: 0, fire: 1 + Math.random(), air: true }, o));
+    // the waves, by how far the camera has come: spinners in sixes (a capsule for the whole six), jets in a V, carriers
+    // that drop a capsule, guns on the rock; the mid-boss; the core
+    const fans = (n, y, loop) => { const g = { left: n }; for (let i = 0; i < n; i++) foe('fan', s.x + w + 12 + i * 18, y, { group: g, y0: y, d: -i * 18, path: loop ? new E.Path([[w + 20, y], [w * .45, y], [w * .25, y + (y < 120 ? 50 : -50)], [w * .45, y + (y < 120 ? 90 : -90)], [w * .7, y + (y < 120 ? 50 : -50)], [-30, y + (y < 120 ? 30 : -30)]], { smooth: 'catmull' }) : null, pts: 100 }); };
+    const rush = (n, y) => { for (let i = 0; i < n; i++) foe('jet', s.x + w + 20 + Math.abs(i - (n - 1) / 2) * 22, y + (i - (n - 1) / 2) * 16, { vx: -150, hp: 2, r: 7, pts: 150, art: [JET, 'jet', .9] }); };
+    const carrier = y => foe('carrier', s.x + w + 40, y, { vx: -30, hp: 12, r: 16, pts: 1000, cap: true, art: [BOMBER, 'bomber', .9], fire: 1.5 });
+    const guns = xs => { for (const [x, up] of xs) { const y = up ? highY(x) + 6 : lowY(x) - 6; if (y > -10 && y < BAND + 10) foe('gun', x, y, { air: false, hp: 3, r: 7, pts: 300, up, aim: up ? Math.PI / 2 : -Math.PI / 2, fire: 2 }); } };
+    const WAVES = [[20, () => fans(6, 70)], [240, () => fans(6, 170)], [420, () => rush(5, 120)], [560, () => { fans(6, 80, true); guns([[820, 0], [990, 0]]); }],
+      [760, () => carrier(90)], [950, () => { fans(6, 60); guns([[1180, 0], [1300, 1], [1420, 0]]); }], [1150, () => rush(5, 100)], [1330, () => fans(6, 110, true)], [1500, () => { carrier(70); guns([[1700, 0]]); }],
+      [1650, () => fans(6, 150)], [1900, () => mid()], [2300, () => fans(6, 120)], [2420, () => guns([[2620, 0], [2700, 1], [2860, 0], [2980, 1], [3120, 0], [3260, 1], [3420, 0], [3560, 1]])],
+      [2600, () => rush(4, 120)], [2850, () => carrier(120)], [3100, () => fans(6, 120, true)], [3350, () => rush(5, 120)], [3550, () => fans(6, 110)], [BOSS_X - 20, () => core()]];
+    // the mid-boss: a cruiser looping a figure eight (a closed Catmull path on the screen) while the scroll waits
+    function mid() {
+      s.lock = true; A.music('boss');
+      foe('mid', s.x + w + 60, 120, { hp: 70, max: 70, r: 22, pts: 10000, art: [BOMBER, 'bomber', 2], path: new E.Path([[.78, .3], [.62, .5], [.78, .72], [.9, .5]].map(([u, v]) => [u * w, v * BAND]), { closed: true, smooth: 'catmull' }), d: 0, enter: 1.6, fire: 1.4, n: 0, leave: 28 });
+      radio(PILOT, 'EAGLE 1', 'A cruiser! Hit it while it turns!', { point: true, expr: 'angry' });
+    }
+    // the core: a battleship at the screen's right edge, its core behind three walls (each shot away), guns above and below
+    function core() {
+      s.lock = true; A.music(null); s.warn = 3;
+      game.after(3, () => { A.music('boss'); foe('core', s.x + w + 80, 120, { hp: 40, max: 40, r: 12, pts: 50000, walls: [8, 8, 8], enter: 2.5, fire: 2, n: 0, trail: 1 }); });
+    }
+    function begin(d) {
+      s = { x: 0, t: 0, lock: false, wave: 0, score: (d && d.score) || 0, lives: d && d.lives !== undefined ? d.lives : 2, warn: 0, won: 0, ship: { x: 60, y: 120, inv: 2, dead: 0, bank: 0, gun: 0, cool: 0 }, speed: 0, missile: false, weapon: 'shot', options: 0, shield: 0, cursor: -1, mcool: 0, boss: null };
+      foes = []; caps = []; mis = []; trail = Array.from({ length: TRAIL * 4 + 1 }, () => [60, 120]); fx = []; shots = shots || new E.Bullets(game, { plane: 'ground', max: 1200 }); shots.clear();
+      cab.start(1); ending = null; game.after(.5, () => radio(PILOT, 'EAGLE 1', 'Into the caverns! Grab the capsules and power up!', { point: true, aim: .9, expr: 'smile' }));
+    }
+    const powerOff = () => Object.assign(s, { speed: 0, missile: false, weapon: 'shot', options: 0, shield: 0, cursor: -1 });
+    function hit() {   // the ship lost: every power with it (Gradius), back in from the left a moment later
+      const p = s.ship; if (p.dead > 0 || p.inv > 0) return;
+      if (s.shield > 0) { s.shield--; p.inv = .25; A.sfx('bump'); P.sparks(p.x + 10, p.y, 14, 6); return; }
+      p.dead = 1.6; s.lives--; boom(p.x, p.y, 1.6, { air: true }); powerOff(); shots.clear('foe');
+    }
+    function take() {   // the bomb key: the lit slot's power
+      const k = BAR[s.cursor]; if (!k) return;
+      if (k === 'SPEED' && s.speed < 4) s.speed++; else if (k === 'MISSILE' && !s.missile) s.missile = true; else if (k === 'DOUBLE') s.weapon = 'double'; else if (k === 'LASER') s.weapon = 'laser';
+      else if (k === 'OPTION' && s.options < 4) s.options++; else if (k === 'SHIELD') s.shield = 4; else return;
+      s.cursor = -1; A.sfx('powerup'); P.glints(s.ship.x, s.ship.y, 14, 10);
+    }
+    const optAt = i => trail[Math.min(trail.length - 1, (i + 1) * TRAIL)];
+    function fire(x, y) {   // one volley from the ship or an option
+      if (s.weapon === 'laser') shots.fire({ x: x + 10, y, z: 20, vx: 560, vy: 0, r: 4, life: .8, team: 'laser', pierce: true, dmg: 1 });
+      else shots.fire({ x: x + 10, y, z: 20, vx: 400, vy: 0, r: 3, life: .9, team: 'ship' });
+      if (s.weapon === 'double') shots.fire({ x: x + 6, y: y - 3, z: 20, vx: 290, vy: -290, r: 3, life: .8, team: 'ship' });
+    }
+    function update(dt) {
+      w = game.W; h = game.H; Y0 = Math.round((h - BAND) / 2);
+      if (frameStep(dt)) return;
+      const I = game.input, p = s.ship, move = s.lock ? 0 : RATE * dt;
+      s.t += dt; s.x += move; talk.update(dt);
+      for (const o of [p, ...foes.filter(f => f.air), ...caps, ...mis.filter(m => !m.slide), ...shots.list]) o.x += move;   // flyers keep up with the camera
+      for (const q of trail) q[0] += move;
+      for (const f of fx) { f.t += dt; if (f.air) f.x += move; if (f.t < f.delay) continue; const k = Math.exp(-3 * dt); f.vx *= k; f.vy *= k; f.x += f.vx * dt; f.y += f.vy * dt; }
+      E.prune(fx, f => f.t > f.delay + f.life);
+      while (s.wave < WAVES.length && s.x >= WAVES[s.wave][0]) WAVES[s.wave++][1]();
+      if (s.warn > 0) s.warn -= dt;
+      // the ship: eight ways at its speed, inside the band and clear of the rock; fire held (or by itself on a touch screen)
+      if (p.dead > 0) { if ((p.dead -= dt) <= 0) { if (s.lives < 0) { lost(s.score, () => { s.lives = 2; p.dead = 0; Object.assign(p, { x: s.x + 60, y: 120, inv: 2.5 }); }); p.dead = 1e9; } else Object.assign(p, { x: s.x + 60, y: (highY(s.x + 60) + lowY(s.x + 60)) / 2, inv: 2.5 }); } }
+      else if (s.won === 0) {
+        const bot = s.bot && botMove(), d = bot ? null : I.drag(), mv = bot || (d ? [clamp(d[0] / (speed() * dt), -1, 1), clamp(d[1] / (speed() * dt), -1, 1)] : I.move()), sp = speed();
+        p.inv -= dt; p.gun -= dt; p.bank = approach(p.bank, mv[1], 5 * dt);
+        p.x = clamp(p.x + (d ? d[0] * DRAG : mv[0] * sp * dt), s.x + 12, s.x + w - 24); p.y = clamp(p.y + (d ? d[1] * DRAG : mv[1] * sp * dt), 8, BAND - 8);
+        if (Math.hypot(mv[0], mv[1]) > .1 || move) trail.unshift([p.x, p.y]), trail.pop();   // the options follow where the ship has been
+        if ((p.cool -= dt) <= 0 && (s.bot || I.down('fire') || touch())) { p.cool = s.weapon === 'laser' ? .16 : .1; p.gun = .035; A.sfx('shoot', { vol: .18 }); fire(p.x, p.y); for (let i = 0; i < s.options; i++) fire(...optAt(i)); }
+        if (s.missile && (s.mcool -= dt) <= 0) { s.mcool = .7; for (const [x, y] of [[p.x, p.y], ...Array.from({ length: s.options }, (_, i) => optAt(i))]) mis.push({ x, y: y + 4, vx: 110, vy: 110 }); }
+        if (s.bot ? botTake() : I.pressed('bomb')) take();
+        if (rock(p.x, p.y) || rock(p.x + 8, p.y, 2)) hit();
+      }
+      for (const m of mis) { m.x += m.vx * dt; m.y += m.vy * dt; const fl = lowY(m.x); if (m.y > fl - 3) { if (fl - 3 < m.y - 6) m.gone = true; else { m.y = fl - 3; m.vy = 0; m.vx = 130; m.slide = true; } } else if (m.slide) m.y = fl - 3; if (m.x > s.x + w + 10 || rock(m.x, m.y - 4, 1)) m.gone = true; }
+      // the foes
+      for (const f of foes) {
+        f.t += dt; f.flash -= dt; f.fire -= dt;
+        const aim = Math.atan2(p.y - f.y, p.x - f.x), seen = f.x < s.x + w + 8 && f.x > s.x - 30;
+        if (f.kind === 'fan') { if (f.path) { f.d += 120 * dt; if (f.d >= 0) { const q = f.path.at(f.d); f.x = s.x + q.x; f.y = q.y; } if (f.d > f.path.length) f.gone = true; } else { f.x -= 95 * dt; f.y = f.y0 + Math.sin(f.t * 3.2 + f.d * .05) * 34; } }
+        else if (f.kind === 'jet') { f.x += f.vx * dt; if (f.fire <= 0 && seen && f.x > p.x + 40) { f.fire = 9; shoot(f.x, f.y, [E.pattern.dir(aim, 140)], 'needle'); } }
+        else if (f.kind === 'carrier') { f.x += f.vx * dt; f.y += Math.sin(f.t) * 14 * dt; if (f.fire <= 0 && seen) { f.fire = 1.6; shoot(f.x - 10, f.y, E.pattern.spread(aim, 5, .8, 95), 'big'); } }
+        else if (f.kind === 'gun') { f.aim = E.approachAng(f.aim, aim, 2 * dt); if (f.fire <= 0 && seen && p.dead <= 0) { f.fire = 1.8; f.kick = 1; shoot(f.x, f.y, E.pattern.spread(f.aim, 2, .2, 100)); } f.kick = Math.max(0, (f.kick || 0) - dt * 4); }
+        else if (f.kind === 'mid') {   // in, then round its figure eight, firing aimed fans and needle bursts; it leaves after a while
+          if (f.enter > 0) { f.enter -= dt; f.x = approach(f.x, s.x + w * .78, 120 * dt); f.y = approach(f.y, BAND * .3, 60 * dt); }
+          else { f.d += 70 * dt; const q = f.path.at(f.d); f.x = s.x + q.x; f.y = q.y; f.a = Math.PI + Math.sin(f.t * 2) * .15; if ((f.leave -= dt) <= 0) { f.gone = true; s.lock = false; A.music(CAVERN); } }
+          if (f.fire <= 0 && f.enter <= 0 && p.dead <= 0) { f.n++; f.fire = 1.1; if (f.n % 3) shoot(f.x - 30, f.y, E.pattern.spread(aim, 7, 1, 100)); else for (let i = 0; i < 4; i++) game.after(i * .1, () => f.gone || shoot(f.x - 30, f.y, [E.pattern.dir(aim, 160)], 'needle')); }
+        }
+        else if (f.kind === 'core') {   // in from the right; then up and down after the ship; its guns fire lines of needles, the core rings once its walls are down
+          if (f.enter > 0) { f.enter -= dt; f.x = approach(f.x, s.x + w - 70, 70 * dt); }
+          else { f.x = s.x + w - 70; f.y = approach(f.y, clamp(p.y, 50, BAND - 50), 30 * dt); }
+          f.trail = approach(f.trail, f.hp / f.max, dt * .3);
+          if (f.fire <= 0 && f.enter <= 0 && p.dead <= 0) {
+            f.n++; f.fire = f.walls.some(v => v > 0) ? 1.3 : .9; f.kick = 1;
+            for (const dy of [-34, 34]) for (let i = 0; i < 3; i++) game.after(i * .08, () => f.gone || shoot(f.x - 40, f.y + dy, [[-200, 0]], 'needle'));
+            if (!f.walls.some(v => v > 0) || f.n % 3 === 0) shoot(f.x - 10, f.y, E.pattern.ring(14, 70, f.t), 'big');
+          }
+          f.kick = Math.max(0, (f.kick || 0) - dt * 3);
+        }
+        if (f.kind !== 'core' && f.kind !== 'mid' && (f.x < s.x - 40 || f.y < -40 || f.y > BAND + 40)) f.gone = true;
+        if (f.air && p.dead <= 0 && Math.hypot(f.x - p.x, f.y - p.y) < f.r + 3) { hit(); if (f.kind === 'fan' || f.kind === 'jet') f.hp = 0; }
+      }
+      shots.update(dt);
+      for (const b of shots.list) if (rock(b.x, b.y, 0)) b.dead = true;   // the rock stops every shot
+      const targets = foes.filter(f => f.hp > 0 && f.x < s.x + w + 4 && (f.kind !== 'core' || f.enter <= 0));
+      const hurt = (b, f) => {   // the core takes hits on its walls first, front to back
+        if (f.kind === 'core') { const i = f.walls.findIndex(v => v > 0); if (i >= 0) { f.walls[i] -= b.dmg || 1; P.sparks(b.x, b.y, 14, 4, Math.PI); if (f.walls[i] <= 0) { boom(f.x - 30 + i * 6, f.y, 1, { air: true }); s.score += 500; } return; } }
+        f.hp -= b.dmg || 1; f.flash = .05; P.sparks(b.x, b.y, 14, 2, Math.PI);
+      };
+      shots.hit(targets.map(f => f.kind === 'core' ? Object.assign(f, { r: f.walls.some(v => v > 0) ? 26 : 12 }) : f), hurt, 'ship');
+      shots.hit(targets, hurt, 'laser');
+      for (const m of mis) for (const f of targets) if (!m.gone && Math.hypot(m.x - f.x, m.y - f.y) < f.r + 3) { m.gone = true; hurt({ x: m.x, y: m.y, dmg: 2 }, f); boom(m.x, m.y, .5, { sound: false, shake: 0, freeze: false }); }
+      for (const f of foes) if (f.hp <= 0 && !f.gone) {
+        f.gone = true; s.score += f.pts; P.add({ kind: 'text', x: f.x, y: f.y - 10, vx: RATE, vy: -24, max: .6, text: '' + f.pts, color: f.pts >= 1000 ? '#ffd040' : '#fff', scale: f.pts >= 1000 ? 2 : 1 });
+        boom(f.x, f.y, f.kind === 'core' ? 4 : f.kind === 'mid' ? 3 : f.kind === 'carrier' ? 2 : .9, { air: f.air });
+        if (f.cap || (f.group && --f.group.left === 0)) caps.push({ x: f.x, y: f.y, t: 0 });
+        if (f.kind === 'mid') { s.lock = false; A.music(CAVERN); caps.push({ x: f.x - 10, y: f.y - 10, t: 0 }, { x: f.x + 10, y: f.y + 10, t: 0 }); }
+        if (f.kind === 'core') { s.won = s.t; shots.clear('foe'); A.music('victory'); for (let i = 0; i < 8; i++) game.after(i * .12, () => boom(f.x + E.rand(-50, 50), f.y + E.rand(-40, 40), 2, { air: true, sound: i % 3 === 0, shake: 0, freeze: false })); game.flash('#fff4e0', 1, 1); game.after(2.5, () => radio(PILOT, 'EAGLE 1', 'Core destroyed. Mission complete!', { pose: 'cheer', expr: 'smile' })); game.after(6, () => endGame(s.score)); }
+      }
+      for (const f of foes) if (f.group && f.gone && f.hp > 0 && f.group.left > 0) f.group.left = -1;   // one got away: no capsule for that six
+      if (p.dead <= 0) shots.hit([p], hit, 'foe');
+      for (const c of caps) { c.t += dt; c.x -= 20 * dt; if (p.dead <= 0 && Math.hypot(c.x - p.x, c.y - p.y) < 12) { c.gone = true; s.cursor = (s.cursor + 1) % BAR.length; A.sfx('pickup'); s.score += 500; } if (c.x < s.x - 20) c.gone = true; }
+      E.prune(foes, f => f.gone); E.prune(caps, c => c.gone); E.prune(mis, m => m.gone);
+      PILOT.update(dt, { x: 0, y: 0, hurt: p.dead > 0, ...(talk.open && PILOT.mood) });
+      game.focus(Math.round(s.x + w / 2), BAND / 2, 0);
+    }
+    // the demo's pilot (tools/kits-test.mjs plays the stage to its boss with it): of nine ways (and staying), the one with
+    // least danger over the next half second (the rock, foe bullets and foes where they will be), drawn to a third of the
+    // way across at the height of the nearest foe ahead
+    function botMove() {
+      const p = s.ship, sp = speed(), ahead = foes.filter(f => f.x > p.x + 20 && f.x < s.x + w).sort((a, b) => Math.abs(a.y - p.y) - Math.abs(b.y - p.y))[0];
+      const gx = p.x + 40, mid0 = (highY(gx) + lowY(gx)) / 2, ty = clamp(ahead ? ahead.y : mid0, highY(gx) + 14, lowY(gx) - 14);
+      let best = [0, 0], bs = Infinity;
+      for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [.7, .7], [.7, -.7], [-.7, .7], [-.7, -.7]]) {
+        let danger = 0;
+        for (const k of [.08, .16, .25, .35, .5]) {
+          const x = p.x + (dx * sp + RATE) * k, y = clamp(p.y + dy * sp * k, 8, BAND - 8);
+          if (rock(x, y, 8) || rock(x + 10, y, 6)) danger += 80 / k;
+          for (const b of shots.list) if (b.team === 'foe') { const d = Math.hypot(b.x + (b.vx + RATE) * k - x, b.y + b.vy * k - y); if (d < 12) danger += (12 - d) * 8 / k; }
+          for (const f of foes) if (f.air) { const d = Math.hypot(f.x + (f.kind === 'jet' ? f.vx : 0) * k - x, f.y - y) - f.r; if (d < 10) danger += (10 - d) * 6 / k; }
+        }
+        const x = p.x + dx * sp * .3, y = p.y + dy * sp * .3, sc = danger + Math.abs(x - (s.x + w * .3)) * .03 + Math.abs(y - ty) * .05;
+        if (sc < bs) { bs = sc; best = [dx, dy]; }
+      }
+      return best;
+    }
+    const botTake = () => { const k = BAR[s.cursor]; return (k === 'SPEED' && s.speed < 2) || (k === 'MISSILE' && !s.missile) || (k === 'DOUBLE' && s.weapon === 'shot') || (k === 'OPTION' && s.options < 4) || (k === 'SHIELD' && !s.shield); };
+    function draw(r) {
+      w = r.W; h = r.H; Y0 = Math.round((h - BAND) / 2);
+      const p = s.ship, x0 = s.x, top = -Y0 - 2, bot = BAND + Y0 + 2;
+      r.sky(['#05040e', '#0c0a24', '#1a1238', '#2a1840']);
+      r.decal(g => {   // far stars (two speeds), a nebula band, then the rock: strata, crystal glints, lava on the peaks
+        const [ox, oy] = r.w(x0, 0);
+        for (let i = 0; i < 90; i++) { const k = i % 3 ? .15 : .35, sx = ((i * 97 - x0 * k) % w + w) % w, sy = (i * 61) % (h + 20) - 10; px.dot(g, sx, sy, i % 7 ? '#6a6aa0' : '#ffffff'); }
+        for (let i = 0; i < 6; i++) glow(g, ((i * 140 - x0 * .08) % (w + 200) + w + 200) % (w + 200) - 100, oy + 60 + (i % 3) * 50, 50 + (i % 2) * 20, i % 2 ? '#6a3aa0' : '#2a4a9a', .2);
+        for (let sx = 0; sx < w; sx += 2) {
+          const x = x0 + sx, hi = highY(x), lo = lowY(x), cave = on(x, 2300, 3750);
+          if (hi > top) { const y1 = Math.round(oy + hi); px.rect(g, sx, 0, 2, y1, cave ? '#2a2440' : '#3a2a2a'); px.rect(g, sx, y1 - 10, 2, 7, cave ? '#3a3260' : '#4a3430'); px.rect(g, sx, y1 - 3, 2, 3, cave ? '#7a6ab0' : '#8a6a5a'); if (cave && E.hash2(Math.floor(x / 6), 1) < .12) { px.rect(g, sx, y1 - 1, 2, 4, '#8af0ff'); px.dot(g, sx, y1 + 3, '#ffffff'); } }
+          if (lo < bot) {
+            const y0 = Math.round(oy + lo), lava = !cave && E.noise2(x * .006, 3) > .62;
+            px.rect(g, sx, y0, 2, h - y0, cave ? '#2a2440' : '#3a2a2a'); px.rect(g, sx, y0 + 3, 2, 8, cave ? '#3a3260' : '#4a3430'); px.rect(g, sx, y0, 2, 3, lava ? '#ff8a3a' : cave ? '#7a6ab0' : '#8a6a5a');
+            if (lava) px.blend(g, .4, 'add', () => px.rect(g, sx, y0 - 3, 2, 4, '#ff6a20'));
+            for (let k = 0; k < 3; k++) { const yy = y0 + 14 + k * 16 + (E.hash2(Math.floor(x / 8), k) * 6 | 0); if (yy < h) px.rect(g, sx, yy, 2, 1, cave ? '#1e1a32' : '#2a1e1e'); }
+            if (cave && E.hash2(Math.floor(x / 6), 2) < .12) { px.rect(g, sx, y0 - 3, 2, 4, '#8af0ff'); px.dot(g, sx, y0 - 4, '#ffffff'); }
+          }
+        }
+      });
+      for (const f of foes) {   // craft by r.actor (outline, rim, hit flash); guns on the rock
+        if (f.kind === 'fan') r.actor(f.x, f.y, 10, (g, x, y) => { const a = f.t * 8; for (let i = 0; i < 3; i++) { const b = a + i * TAU / 3; px.poly(g, [[x, y], [x + Math.cos(b) * 7, y + Math.sin(b) * 7], [x + Math.cos(b + .7) * 5, y + Math.sin(b + .7) * 5]], i ? '#4a8aff' : '#8ab8ff'); } px.disc(g, x, y, 2.5, '#ffe040'); px.dot(g, x - 1, y - 1, '#ffffff'); }, { flash: f.flash > 0 && '#ffffff' });
+        else if (f.kind === 'gun') r.actor(f.x, f.y, 2, (g, x, y) => { px.rect(g, x - 8, f.up ? y - 6 : y + 2, 16, 4, '#4a4a5a'); turret(g, x, y, f.aim, f.kick, '#8e5a4a'); }, { flash: f.flash > 0 && '#ffffff' });
+        else if (f.kind === 'core') r.actor(f.x, f.y, 9, (g, x, y) => {   // the battleship, nose to the left; its walls; the core, pulsing
+          plane(g, x + 8, y, Math.PI, 0, BOSS, PAL.boss, .95, f.flash > 0 ? 1 : 0);
+          f.walls.forEach((v, i) => { if (v > 0) { px.rect(g, x - 34 + i * 7, y - 12, 4, 24, ['#5a6a9a', '#7a8ab8', '#9aaad8'][i]); px.rect(g, x - 34 + i * 7, y - 12, 1, 24, '#d8e0ff'); } });
+          const q = 5 + Math.sin(game.real * (f.walls.some(v => v > 0) ? 6 : 14)) * 1.5; px.disc(g, x - 10, y, q + 2, '#2a0a10'); px.disc(g, x - 10, y, q, '#40a0ff'); px.disc(g, x - 11, y - 1, q * .5, '#e0f4ff');
+        }, { flash: f.flash > 0 && '#ffffff' });
+        else craft(r, f, 10, { flash: f.flash > 0 && '#ffffff' });
+      }
+      for (const c of caps) r.queue(c.x, c.y, 18, g => { const [x, y] = r.w(c.x, c.y), k = Math.abs(Math.cos(c.t * 5)) * 6 + 1; glow(g, x, y, 12, '#ff8a6a', .6); px.ell(g, x, y, k + 1, 7, '#1a0a10'); px.ell(g, x, y, k, 6, '#e8482e'); px.ell(g, x - k * .3, y - 2, k * .5, 3, '#ffb8a0'); });
+      for (const m of mis) r.queue(m.x, m.y, 18, g => { const [x, y] = r.w(m.x, m.y); px.line(g, x - 4, y - (m.slide ? 0 : 4), x, y, '#c8c8d0', 2); glow(g, x - 5, y - (m.slide ? 0 : 5), 4, '#ff8a30', .7); });
+      if (p.dead <= 0) {   // the ship nose right, banking as it climbs and dives; its options; the shield's glow in front
+        for (let i = s.options - 1; i >= 0; i--) { const [ox, oy] = optAt(i); r.queue(ox, oy, 11, g => { const [x, y] = r.w(ox, oy), q = 4 + Math.sin(game.real * 12 + i) * .8; glow(g, x, y, 10, '#ff6a20', .7); px.disc(g, x, y, q, '#ff8a30'); px.disc(g, x - 1, y - 1, q * .5, '#fff0c0'); }); }
+        r.actor(p.x, p.y, 12, (g, x, y) => plane(g, x, y, 0, -p.bank * .8, PLAYER, PAL.player, .85), { flash: p.inv > 0 && game.real * 16 % 2 < 1 && '#9ac8ff' });
+        r.queue(p.x, p.y, 12.5, g => { const [x, y] = r.w(p.x, p.y); if (p.gun > 0) { glow(g, x + 15, y, 7, '#ffc050'); } if (s.shield > 0) px.blend(g, .35 + s.shield * .1, 'add', () => ring(g, x + 6, y, 14, 2, '#58b8ff')); });
+      }
+      [2.9, 3, 14].forEach((z, i) => r.queue(0, 0, z, g => drawFx(g, r, i)));
+      r.queue(0, 0, 20, g => {   // the ship's tracers and laser beams
+        bullets(g, r, 'ship');
+        for (const b of shots.list) if (b.team === 'laser') { const [x, y] = r.w(b.x, b.y); glow(g, x - 8, y, 6, '#40e0ff', .5); px.line(g, x - 22, y, x + 2, y, '#40c8ff', 3); px.line(g, x - 20, y, x + 2, y, '#e8ffff'); }
+      });
+      r.overlay(g => hudH(g, r)); talk.draw(r); r.overlay(g => bullets(g, r, 'foe'));
+      frameDraw(r);
+    }
+    function hudH(g, r) {   // the vertical stage's windows (pilot, score and lives; HI), the power bar along the foot, the boss's health
+      const W2 = r.W, H2 = r.H, mid0 = W2 / 2, win = (x, y, ww, hh, bg) => E.ui.box(g, x, y, ww, hh, { bg, border: GOLD, alpha: .8 });
+      PILOT.drawPortrait(g, 4, 4, 21, { zoom: 2.2, turn: .4, upright: false, bg: s.ship.dead > 0 ? RED : BLUE, border: GOLD });
+      win(27, 2, 74, 25, BLUE); txt(g, '1P', 31, 5, '#ffd36a'); txt(g, pad(s.score), 46, 5, '#fff', { gradient: ['#ffffff', '#9ac0ff'] });
+      for (let i = 0; i < s.lives; i++) px.sprite(g, LIFE, 31 + i * 10, 16);
+      const R = Math.min(W2, cornerX()); win(R - 76, 2, 74, 25, RED); txt(g, 'HI', R - 72, 5, '#ff9a7a'); txt(g, pad(Math.max(s.score, cab.hi, E.store.get('best:shooter', 0))), R - 55, 5, '#fff', { gradient: ['#ffffff', '#ffc8a0'] });
+      txt(g, 'SPD ' + (s.speed + 1) + (s.options ? '  OPT ' + s.options : ''), R - 72, 17, '#ffd36a', { font: 'tiny' });
+      const bw = Math.min(50, Math.floor((W2 - 16) / 6)), bx = Math.round(mid0 - bw * 3), by = H2 - 16 - (touch() ? 70 : 0);
+      BAR.forEach((k, i) => {   // the lit slot blinks; a power you hold is drawn dim
+        const lit = i === s.cursor, had = (k === 'SPEED' && s.speed >= 4) || (k === 'MISSILE' && s.missile) || (k === 'DOUBLE' && s.weapon === 'double') || (k === 'LASER' && s.weapon === 'laser') || (k === 'OPTION' && s.options >= 4) || (k === 'SHIELD' && s.shield > 0);
+        E.ui.box(g, bx + i * bw, by, bw - 2, 12, { bg: lit ? (game.real * 6 % 2 < 1 ? ['#ff8a30', '#a03a10'] : ['#ffd040', '#c86a10']) : BLUE, border: GOLD, alpha: lit ? 1 : .8 });
+        txt(g, k, bx + i * bw + bw / 2 - 1, by + 4, lit ? '#1a0a00' : had ? '#7a84b0' : '#ffffff', { align: 'center', font: 'tiny', shadow: lit ? false : '#05060c' });
+      });
+      const f = foes.find(o => o.kind === 'core' || o.kind === 'mid');
+      if (f) { const o = Math.round(mid0) - 120, k = f.hp / f.max; win(o + 44, 30, 152, 13, RED); txt(g, f.kind === 'mid' ? 'CRUISER' : 'CORE', o + 48, 33, '#ff9a8a'); E.ui.bar(g, o + 96, 34, 96, 6, k, '#e8404a', { border: '#140b12', bg: '#2a0a12' }); }
+      if (s.t < INTRO) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 50, W2, 62, '#080a1c')); E.font.title(g, 'STAGE 2', mid0, 56, { align: 'center', scale: 3 }); txt(g, 'CRYSTAL CAVERNS', mid0, 84, '#fff', { align: 'center', gradient: ['#ffffff', '#b8e8ff'] }); txt(g, (touch() ? 'DRAG to fly, POWER takes the lit slot' : prompt('fire', 'shot') + '   ' + prompt('bomb', 'power up')), mid0, 97, '#c8d0f0', { align: 'center' }); }
+      if (s.warn > 0) { px.blend(g, .6, 'normal', () => px.rect(g, 0, 70, W2, 50, '#2a0406')); E.font.title(g, 'WARNING', mid0, 80, { align: 'center', scale: 3, colors: ['#ffffff', Math.floor(s.warn * 5) % 2 ? '#ff8a7a' : '#ffe0d0', '#e0202a'], depthColor: '#3a0808' }); }
+      if (s.won && s.t - s.won > 2 && !ending) { win(Math.round(mid0) - 108, 64, 216, 52, BLUE); E.font.title(g, 'STAGE CLEAR', mid0, 70, { align: 'center', scale: 3 }); txt(g, 'SCORE  ' + pad(s.score), mid0, 98, '#fff', { align: 'center', gradient: ['#ffffff', '#ffe08a'] }); }
+    }
+    const scene = { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [320, 240], expand: true, pausable: true, touch: ['fire', 'bomb'], propSize: 1, camera: { zoom: false },
+      enter(d) { begin(d); w = game.W; h = game.H; game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music(CAVERN); L.enabled = false; if (gpu) gpu.enabled = false; game.input.touchSet('fire', null, false); game.input.touchSet('bomb', 'POWER'); game.input.steer = 'drag'; },
+      exit() { game.cam.smooth = .18; game.input.steer = 'stick'; game.input.touchSet('bomb', null); }, update, draw,
+      state: () => ({ x: Math.round(s.x), ship: [Math.round(s.ship.x - s.x), Math.round(s.ship.y)], score: s.score, lives: s.lives, power: [s.speed, s.missile, s.weapon, s.options, s.shield, s.cursor], boss: !!foes.find(f => f.kind === 'core'), won: !!s.won, ending, table: cab.table() }),
+      end(score) { s.score = score; s.lives = -1; s.ship.dead = 1e9; ending = 'cont'; endGame(score); },   // for tests: the end, now
+      /** the proof: the stage's first 600 steps flown by a weave and held fire; a hash of the run */
+      run: (n = 600) => proof('shooter-horizontal', n, (i, k) => { if (!i) k.hold('fire'); walk(i, k, ['up', 'right', 'down', 'left'], 80); if (i % 200 === 150) k.tap('bomb'); }, () => [s.x, s.ship.x, s.ship.y, s.score, s.lives, s.cursor, foes.map(f => [Math.round(f.x), Math.round(f.y), f.hp])]),
+      /** the bot (kits-test, by way of the shooter's): the stage flown by the demo pilot to its boss, and on until the core
+       *  falls, the lives run out or until seconds pass; how far it came */
+      bot(until = 400) {
+        const was = Math.random; Math.random = E.rng(5);
+        try {
+          game.time = 0; game.go('shooter-horizontal', null, { fade: 0 }); game.advance(1 / 120); s.bot = true;
+          let boss = false, t = 0; for (; t < until && !s.won && s.lives >= 0 && !ending; t += 1 / 120) { game.advance(1 / 120); boss = boss || !!foes.find(f => f.kind === 'core'); }
+          return { x: Math.round(s.x), boss, won: !!s.won, lives: s.lives, score: s.score, seconds: Math.round(t), power: [s.speed, s.missile, s.weapon, s.options] };
+        } finally { Math.random = was; s.bot = false; }
+      } };
+    return scene;
+  })();
+  scenes['shooter-horizontal'] = HS;
+
   return { view: 'overhead', views: ['overhead'], input: 'SHMUP', res: [240, 320], pausable: true, touch: ['fire', 'bomb'], propSize: 1,
     camera: { zoom: false },   // the playfield is the whole screen: zooming in would hide bullets and push the ship off the bottom
     enter(d) {   // the camera is shared: set it here, restore on exit
+      if (d && d.part === 'horizontal') { game.go('shooter-horizontal', null, { fade: 0 }); return; }   // #shooter/horizontal
       W = game.W; H = game.H; reset((d && d.at) || 0); game.resetCamera(); Object.assign(game.cam, { bounds: null, room: null, smooth: 0 }); A.music('adventure'); L.enabled = false; if (gpu) gpu.enabled = false;
       game.input.touchSet('fire', null, false); game.input.steer = 'drag';   // a touch screen fires by itself (no button for it), a thumb anywhere steers
     },
     exit() { game.cam.smooth = .18; game.input.steer = 'stick'; }, update, draw,
     state: () => ({ ship, span: span(), score }),   // for tests (span: the playfield's left and right ends)
-    /** the proof: firing all the way over the farmland, weaving, one bomb; a hash of the run */
+    /** the proof: firing all the way over the farmland, weaving, one bomb; then the horizontal stage's; a hash of each run */
     run: (n = 600) => proof('shooter', n, (i, k) => { if (!i) k.hold('fire'); walk(i, k, ['left', 'up', 'right', 'down'], 75); if (i === 300) k.tap('bomb'); },
-      () => [ship.x, ship.y, lives, bombs, score, power, wave, foes.map(f => [f.x, f.y, f.hp])]) };
+      () => [ship.x, ship.y, lives, bombs, score, power, wave, foes.map(f => [f.x, f.y, f.hp])]) + '-' + HS.run(n),
+    /** the bot (tools/kits-test.mjs): the horizontal stage flown by its demo pilot to its boss (HS.bot) */
+    bot: () => HS.bot(),
+    /** for tests: the end of the vertical stage, now, with score (the continue when cont, else the initials) */
+    end(sc, cont) { score = sc; lives = -1; ship.respawn = 1e9; if (cont) lost(sc, () => { lives = 2; Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); }); else { ending = 'cont'; endGame(sc); } } };
 })();
 scenes.shooter = SHOOT;

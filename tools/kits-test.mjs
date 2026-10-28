@@ -32,6 +32,7 @@ let tok = s => Math.ceil(s.length / 3.1); try { const { encode } = await import(
 const BOTS = {
   roguelike: { say: 'plays ten floors and wins', ok: r => r.floors >= 10 && r.mode === 'won' },
   arcade: { say: 'clears a maze, two waves of moths and two of rocks; the attract mode plays a demo, shows the table and returns', ok: r => r.maze.level >= 2 && r.formation.level >= 3 && r.rocks.level >= 3 && r.attract },
+  shooter: { say: 'flies the horizontal stage to its core battleship', ok: r => r.boss },
   puzzle: { say: 'clears lines (60 pieces, at least 10 lines)', ok: r => r.pieces >= 60 && r.lines >= 10 }
 };
 // the kits: my-3d2dge-<id>.html (2D) and my-3d2dge-3d-<id>.html (3D), the slice's id from the name
