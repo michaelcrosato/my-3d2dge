@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.76.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.77.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and seventeen working games and an animation lab.
+  AI MODELS: this one file is the whole engine, its documentation and nineteen working games and an animation lab.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below. It is short.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". Do not change it
        unless you are asked to extend the engine itself.
-    3. The games live between GAME START and GAME END: a title menu plus seventeen vertical slices
-       (ADVENTURE top-down, POINT-AND-CLICK, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, KART,
-       ROAD, PUZZLE, RPG, ROGUELIKE, TACTICS, RTS, SIM, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.
+    3. The games live between GAME START and GAME END: a title menu plus nineteen vertical slices
+       (ADVENTURE top-down, POINT-AND-CLICK, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, PINBALL,
+       KART, ROAD, PUZZLE, RPG, ROGUELIKE, TACTICS, RTS, ARTILLERY, SIM, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.
        To make a new game, copy the slice closest to your genre, then replace everything between
        GAME START and GAME END with only your game. Keep everything else in this file as it is.
   HUMANS: open this file in a browser and play. Press ? for the API card.
-  Deep links: add #adventure, #pointclick, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #kart, #road, #puzzle, #rpg,
-       #roguelike, #tactics, #rts, #sim, #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,
+  Deep links: add #adventure, #pointclick, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #pinball, #kart, #road, #puzzle,
+       #rpg, #roguelike, #tactics, #rts, #artillery, #sim, #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,
        #fighting/versus, #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map, #kart/race,
-       #kart/vs, #road/drive, #rpg/battle, #tactics/battle and #tactics/phases jump into a part.
+       #kart/vs, #road/drive, #rpg/battle, #tactics/battle, #tactics/phases and #artillery/cpu jump into a part.
 -->
 <html lang="en">
 <head>
@@ -24,7 +24,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.76.0)
+# my-3D2dge API card (v0.77.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -167,7 +167,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - Players (two to four on one machine): `game.players` is `[game.input, ...]`, each an input with this API, its `player` number, `name` (`'P2'`), `color` (`E.PLAYER_COLORS`) and device. `game.allowJoin({ max: 2, onJoin: (input, n) => {} })` lets them in: Start on a free gamepad, or 2 on the keyboard (player 2 takes its right half: arrows, `.` `/` `,` and the numpad; player 1 keeps WASD with F G H); `game.addPlayer({ pad: 0 })` or `({ keys: 'right' })`, `game.removePlayer(p)`. Prompts, the pause (P2 PAUSED), a lost controller and the Controls screen are per player. One screen: `cam.frame(heroes)`. Split: `game.splitScreen(2, { follow: [h1, h2], layout: 'auto' })` (`'columns'`, `'rows'`, `'grid'`; up to 4) draws the scene once per viewport (`r.viewport` is `{ i, x, y, w, h }`), then `scene.hud(r)` once over the whole screen; `game.viewports[i].follow(t)` or `.focus(x, y)`.
 - `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
 - Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`, `lastDevice` (the index has the rest). The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same.
-- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one; `steer = 'drag'`: a finger anywhere steers, no stick drawn. Gestures (a mouse or one finger, screen pixels): `box()` → `{ x0, y0, x1, y1, done }` (a left drag; on touch a long press, then a drag), `longPress()`, `doubleTap()`, `pan()` → `[dx, dy]` (a finger's drag on open ground, a middle or right drag), `zoomPoint()`; `feed('down' | 'move' | 'up', x, y, { touch, button })` plays a pointer in a test. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one; `steer = 'drag'`: a finger anywhere steers, no stick drawn (`stickOn`: a finger is on it). `zones = [{ x0, y0, x1, y1, act }]` (fractions of the canvas): a finger in one holds its act until it lifts, no stick (a pinball's halves, a rhythm game's lanes). Gestures (a mouse or one finger, screen pixels): `box()` → `{ x0, y0, x1, y1, done }` (a left drag; on touch a long press, then a drag), `longPress()`, `doubleTap()`, `pan()` → `[dx, dy]` (a finger's drag on open ground, a middle or right drag), `zoomPoint()`; `feed('down' | 'move' | 'up', x, y, { touch, button, id })` plays a pointer in a test. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
@@ -256,6 +256,8 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Beat-'em-up (Final Fight, Streets of Rage, TMNT) | `brawler` | TileMap street strip, Body, Humanoid (`weapon: null`) + `E.Combo` punches and `kick: true` kicks, `E.knockback`, waves that lock the screen; a second player drops in (`game.allowJoin`, `cam.frame` on both) | BRAWLER |
 | Fighting (Street Fighter II, Darkstalkers) | `side` | two `E.Fighter`s in an `E.Match` (the fight module): moves with frame data, guards, throws, specials by motion (`'236'`) or charge, a meter, projectiles; `E.FightAI`, `E.FightSelect`, training | FIGHTING |
 | Shoot-'em-up (1942, Gradius, R-Type) | `overhead` (vertical, and horizontal: world x scrolls) | sprites, Bullets, `E.pattern`, a timeline of waves; horizontal: rock edges as functions of x, a power bar, options on the ship's past path, `E.Path` loops; `E.Arcade` for the continue and the table | SHOOTER (both stages) |
+| Pinball (Pinball Fantasies, Space Cadet, Devil's Crush) | a steep table view of its own (`new E.View('pinball', 'Table', 0, 62, 1, 1)`) | `E.Physics`: chains for the walls, `flipper`, `bumper`, `slingshot`, `kicker`, a ramp on a layer of its own, the ball a `bullet`; `input.zones` flip on a phone; `E.Arcade` for the score and table. Breakout and Asteroids with real collisions are its recipes | PINBALL |
+| Artillery (Worms, Scorched Earth) | `side` at a whole scale (`new E.View(id, label, 0, 0, 1, 1)`) | `E.Terrain` (`carve` the blasts, `walk` the soldiers, `ray` the shots), grenades as `E.Physics` bodies on `land.collider()`, `E.Turns`; a drag aims (`steer = 'drag'`, `drag()`, `stickOn`); a CPU tries its shots in simulation | ARTILLERY |
 | Golden-age arcade (Pac-Man, Galaga, Asteroids) | `overhead` (one fixed screen, cabinet art on the sides) | `E.Arcade` (score, lives, extra lives, turns, initials, tables, attract mode); a maze of `E.GridMover`s; moths on `E.Path`s turned by `rot`; `E.wrap` and `wrap: [w, h]` | ARCADE |
 | Twin-stick / run-and-gun (Smash TV, Contra) | `topdown` / `side` | Body or Platformer, Bullets, `weapon: 'gun'`, `point: true` | SHOOTER + ADVENTURE |
 | JRPG (Dragon Quest, Final Fantasy, EarthBound) | `threequarter` town, `brawler` battles | TileMap towns and a big world map, the story and rpg modules, Dialog with markup, `game.saves` slots | RPG |
@@ -291,8 +293,8 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG.
   - `strategy` (the full engine only; needs `grid`): real-time strategy and sims (`E.Strategy`): selection (a click, a box, a double tap, groups), orders (move, attack, attack-move, gather, build, patrol; queued), formations on shared flow fields kept apart, production, resources, placement with a ghost, fog, the minimap, an enemy's build order and waves; `E.Clock` (days, night, the light), needs that pick an action (`E.needs`, `E.choose`), `E.overlay`, `E.tooltip`. RTS, SIM.
   - `click` (the full engine only): point-and-click adventures (`E.Click`): rooms painted once, walk areas with holes (`E.Walkbox`: the shortest way round), depth scale, hotspots (rectangles, polygons, actors) with verbs, a place to stand and a way to face, SCUMM's nine verbs, Sierra's icons, a verb coin or two buttons, an inventory (an item on a hotspot or another item), rules as data, exits with fades, `story`'s flags and talk; taps on a phone. POINT-AND-CLICK.
-  - `physics`: 2D rigid bodies (`E.Physics`): circles, boxes, convex polygons, static segments, chains and arcs; dynamic, kinematic and static bodies; bounce, friction, sensors, layers, sleep, gravity as a vector; fast balls swept so they never pass through; stepped in a fixed order (the same world at any refresh rate); flippers, bumpers, slingshots, kickers. Pinball, Breakout, Asteroids, grenades.
-  - `terrain`: destructible ground in the side plane (`E.Terrain`): a mask of materials carved and added by circles and polygons, the ground below a point and its normal, hits and rays for shots, walkers on slopes (Worms, Lemmings), a collider for `physics`, drawn in chunks redrawn only where it changed.
+  - `physics`: 2D rigid bodies (`E.Physics`): circles, boxes, convex polygons, static segments, chains and arcs; dynamic, kinematic and static bodies; bounce, friction, sensors, layers, sleep, gravity as a vector; fast balls swept so they never pass through; stepped in a fixed order (the same world at any refresh rate); flippers, bumpers, slingshots, kickers. PINBALL, ARTILLERY (its grenades).
+  - `terrain`: destructible ground in the side plane (`E.Terrain`): a mask of materials carved and added by circles and polygons, the ground below a point and its normal, hits and rays for shots, walkers on slopes (Worms, Lemmings), a collider for `physics`, drawn in chunks redrawn only where it changed. ARTILLERY.
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
@@ -323,7 +325,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.76.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.77.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -351,7 +353,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.76.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.77.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -432,7 +434,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.76.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.77.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1113,6 +1115,10 @@ class Input {
      *  anywhere on the screen but the buttons steers by drag(), with no stick drawn: a shooter's ship that follows the
      *  thumb); padAxes: the gamepad's raw axes */
     this.touchEnabled = true; this.stickSide = 'left'; this.steer = 'stick'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
+    /** zones: areas of the screen a finger holds an action down in, [{ x0, y0, x1, y1, act }] (fractions of the canvas,
+     *  0..1; the first that holds the finger wins), or null: a pinball's two halves, a rhythm game's lanes. A finger
+     *  landing in one presses act until it lifts (several fingers, several zones), and starts no stick */
+    this.zones = null; this._zoneOf = new Map();
     /** pinching: two fingers on the canvas are pinching the camera's zoom (they moved apart or together: not the stick,
      *  not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no
      *  action uses) and a pinch ask for it, read by zoom() */
@@ -1164,7 +1170,8 @@ class Input {
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
         this._fingers.set(e.pointerId, { x: e.clientX, y: e.clientY }); this._pinchArm();
-        if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
+        const rc = this.zones && el.getBoundingClientRect(), z = rc && this._zone((e.clientX - rc.left) / rc.width, (e.clientY - rc.top) / rc.height);
+        if (z) this._zoneDown(e.pointerId, z); else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
       if (e.pointerType === 'mouse' || this._fingers.size === 1) this._gesture('down', ...this.screenPoint(e.clientX, e.clientY), { touch: e.pointerType !== 'mouse', button: e.button, id: e.pointerId }); else this._g = this._gBox = null;   // (a second finger: a pinch, no gesture)
     });
@@ -1173,9 +1180,9 @@ class Input {
       // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
       if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
       if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
-      if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); }
+      if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); }
     });
-    on(window, 'pointercancel', e => { this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); });
+    on(window, 'pointercancel', e => { this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); });
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
@@ -1374,7 +1381,7 @@ class Input {
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
-    this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._pinching = false; this._zoomAcc = 1;
+    this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._zoneOf.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
   }
@@ -1421,11 +1428,15 @@ class Input {
    *  the keys zoomed (about the screen's middle) */
   zoomPoint() { return this._zoomPt; }
   /** a pointer event in screen pixels, as the browser's would give: feed('down' | 'move' | 'up', x, y, { touch: false,
-   *  button: 0 }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses, double taps and pans follow), or
+   *  button: 0, id: 0 (which finger, for zones) }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses,
+   *  double taps and pans follow; a finger in one of the zones holds its act), or
    *  feed('zoom', x, y, { k: 1.1 }): a wheel's notch or a pinch about that point */
   feed(type, x, y, o = {}) {
     if (type === 'zoom') { this._zoomAcc *= o.k || 1.1; this._zoomPt = [x, y]; return; }
     if (!o.touch) this._fedAt = [x, y];
+    const S = this.screen, z = o.touch && type === 'down' && this.zones && this._zone(x / S.W, y / S.H);
+    if (z) { this._zoneDown('fed' + (o.id || 0), z); return; }   // (a finger in a zone: its act, no gesture)
+    if (o.touch && type === 'up' && this._zoneOf.has('fed' + (o.id || 0))) { this._zoneUp('fed' + (o.id || 0)); return; }
     if (type === 'down') { this._fed = [x, y]; if (!o.touch) this.press('Mouse' + (o.button || 0)); this._gesture('down', x, y, { touch: !!o.touch, button: o.button || 0, id: 'fed' }); }
     else if (type === 'move') this._gesture('move', x, y);
     else if (type === 'up') {
@@ -1513,6 +1524,11 @@ class Input {
       b.addEventListener('pointerup', off, { signal }); b.addEventListener('lostpointercapture', off, { signal }); b.addEventListener('pointercancel', off, { signal });
     });
   }
+  // the zone over a point (fractions of the canvas), a finger's press of its act, and its lift (the act let go when no
+  // other finger holds it)
+  _zone(fx, fy) { return (this.zones || []).find(z => fx >= z.x0 && fx < z.x1 && fy >= z.y0 && fy < z.y1) || null; }
+  _zoneDown(id, z) { this._zoneOf.set(id, z.act); this.press('Act:' + z.act); }
+  _zoneUp(id) { const a = this._zoneOf.get(id); if (a === undefined) return; this._zoneOf.delete(id); if (![...this._zoneOf.values()].includes(a)) this.release('Act:' + a); }
   // two fingers on the canvas: where each was as the second landed (a pinch is measured from there)
   _pinchArm() { this._pinching = false; if (this._fingers.size === 2) for (const f of this._fingers.values()) { f.x0 = f.x; f.y0 = f.y; } }
   _fingerUp(e) { if (this._fingers.delete(e.pointerId)) { if (this._fingers.size < 2) this._pinching = false; else this._pinchArm(); } }
@@ -10525,7 +10541,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.76.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.77.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10743,7 +10759,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/click.js ---- */
 /*!
-my-3D2dge module CLICK v0.76.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.77.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11106,7 +11122,7 @@ E.Click = Click;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.76.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.77.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11334,7 +11350,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.76.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.77.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11888,7 +11904,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.76.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.77.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12074,7 +12090,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.76.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.77.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12486,7 +12502,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.76.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.77.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12694,7 +12710,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!
-my-3D2dge module PHYSICS v0.76.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.77.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13063,7 +13079,7 @@ E.Physics = Physics;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.76.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.77.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13226,7 +13242,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.76.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.77.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13410,7 +13426,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.76.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.77.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13741,7 +13757,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.76.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.77.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13952,7 +13968,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.76.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.77.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14396,7 +14412,7 @@ E.tooltip = (r, x, y, lines) => {
 <script>
 /* ---- inlined from engine/modules/terrain.js ---- */
 /*!
-my-3D2dge module TERRAIN v0.76.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.77.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14701,7 +14717,7 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 33-pinball.js, 34-artillery.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu, nine vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
@@ -14731,6 +14747,10 @@ sprites: {
  *                        needs (E.needs, E.choose), money, prices, a rating, E.Clock's days, time controls, an overlay
  *   SLICE 18 POINT-AND-CLICK  an adventure (Monkey Island, Broken Sword): E.Click's rooms, walk areas with holes, depth,
  *                        hotspots, the nine verbs or a coin, an inventory, puzzles as rules; E.Story's talk and riddles
+ *   SLICE 19 PINBALL     a table (Pinball Fantasies, Space Cadet): E.Physics' flippers, bumpers, a ramp on its own layer,
+ *                        a swept ball; a mission, multiball, tilt, a dot-matrix display drawn by code; E.Arcade's table
+ *   SLICE 20 ARTILLERY   two teams of three (Worms, Scorched Earth): E.Terrain's island carved by every blast, E.Physics'
+ *                        bouncing grenades, E.Turns; wind, falls and the sea; a CPU that tries its shots in simulation
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
@@ -14762,6 +14782,7 @@ const SLICES = [
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
+  { id: 'pinball', label: 'PINBALL', about: 'ONE TABLE: RAMP, MULTIBALL, JACKPOT', family: 'ARCADE' },
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
   { id: 'road', label: 'ROAD', about: 'A COAST ROAD AGAINST THE CLOCK', family: 'RACING' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
@@ -14769,6 +14790,7 @@ const SLICES = [
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
   { id: 'tactics', label: 'TACTICS', about: 'TAKE THE HILL FORT, TURN BY TURN', family: 'STRATEGY' },
   { id: 'rts', label: 'RTS', about: 'GATHER GOLD, RAISE AN ARMY, BURN THEIR CAMP', family: 'STRATEGY' },
+  { id: 'artillery', label: 'ARTILLERY', about: 'TWO TEAMS OF THREE ON AN ISLAND THAT BLOWS APART', family: 'STRATEGY' },
   { id: 'sim', label: 'SIM', about: 'BUILD A THEME PARK, KEEP THEM SMILING', family: 'SIMULATION' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
@@ -18880,6 +18902,783 @@ const ARCADE = (() => {
   return title;
 })();
 scenes.arcade = ARCADE;
+
+/* =====================================================================================
+ * SLICE 19  PINBALL  (Pinball Fantasies, Devil's Crush, Space Cadet). @modules physics arcade
+ * NEBULA RUN: one table in a steep view that scrolls as the ball climbs (a phone held upright shows it whole). Two
+ * flippers, three bumpers, two slingshots, a ramp that rises over the table, a bank of three drop targets, a spinner in
+ * the left orbit, three top lanes, a kickback in the left outlane, a saucer, a plunger lane with its one-way gate.
+ * The mission: knock down the targets (the ramp lights), shoot the ramp three times (the jackpot lights), sink the
+ * saucer: JACKPOT, and STAR STORM multiball. A ball saver after each launch, nudging and TILT, a dot-matrix display
+ * drawn by code, the bonus counted at each drain, three balls, the arcade module's high-score table and initials.
+ * Keys: Left Shift / Z / left arrow the left flipper, Right Shift / M / right arrow the right; hold Space or down to
+ * pull the plunger, let go to fire; N or up nudges; Enter starts. TOUCH: each half of the screen flips its side; a
+ * swipe up (or a hold) fires the plunger. HOW IT WORKS: E.Physics (the physics module) is the table: chains for the
+ * walls, flippers, bumpers, slingshots and kickers its helpers, the ramp a layer of its own the ball switches to at its
+ * mouth; the ball a swept bullet, so it never passes through. E.Arcade keeps the score, the balls and the table. bot()
+ * plays a ball by the flipper keys (tools/kits-test.mjs). Deep link: #pinball.
+ * ===================================================================================== */
+const PINBALL = (() => {
+  const TW = 240, TL = 520, BR = 5, TAU = Math.PI * 2, px = E.px, mx = x => 222 - x;   // (the playfield is 8..214 wide: mx mirrors it)
+  E.VIEWS.pinball = E.VIEWS.pinball || new E.View('pinball', 'Table', 0, 62, 1, 1);
+  const V = E.VIEWS.pinball, BY = V.by, BZ = V.bz;   // (a table point (x, y, z) is r.w(x, y, z) on the screen)
+  // a driving tune in E minor (the step sequencer's format)
+  const SONG = { bpm: 138, steps: 4, tracks: [
+    { wave: 'square', vol: .1, notes: 'E5 . G5 . B5 . E6 - D6 . B5 . G5 . A5 . | B5 - - . A5 . G5 . F#5 . D5 . E5 - - . | C5 . E5 . G5 . C6 - B5 . G5 . E5 . F#5 . | G5 . F#5 . E5 . D#5 . E5 - - - - . . .' },
+    { wave: 'triangle', vol: .3, notes: 'E2 E3 E2 E3 E2 E3 E2 E3 | G2 G3 G2 G3 D2 D3 D2 D3 | C2 C3 C2 C3 C2 C3 C2 C3 | B1 B2 B1 B2 E2 E3 E2 E3' },
+    { wave: 'drums', vol: .11, notes: 'k . h . s . h k k . h . s . h h' }] };
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { flipL: ['ShiftLeft', 'KeyZ', 'ArrowLeft', 'KeyA', 'Pad4', 'Pad6', 'Pad14'], flipR: ['ShiftRight', 'KeyM', 'Slash', 'ArrowRight', 'KeyD', 'Pad5', 'Pad7', 'Pad15'],
+    plunge: ['Space', 'ArrowDown', 'KeyS', 'Pad0', 'Pad13'], nudge: ['KeyN', 'KeyX', 'ArrowUp', 'KeyW', 'Pad3', 'Pad12'] });
+
+  /* ---- 1. THE TABLE: its bodies in the physics world, in table units (x across, y down the table toward the flippers) ---- */
+  const RAMP = [[176, 300], [178, 190], [162, 122], [111, 94], [60, 122], [44, 190], [40, 300]];   // the ramp's middle line
+  const rampZ = s => 26 * Math.sin(Math.PI * Math.min(1, Math.max(0, s)));   // its height along its length (0..1)
+  const WALLS = [], RAILS = [];   // (the painted rails: [points, closed])
+  let world, F = {}, balls, drops, lanes, lights;
+  function table() {
+    world = new E.Physics({ gravity: [0, 450], substeps: 4, iterations: 8, sleep: false, on: { hit, enter, exit, catch: caught } });
+    const chain = (P, o = {}) => { WALLS.push(...world.chain(P, Object.assign({ r: 1.5, bounce: .3, friction: .2 }, o))); RAILS.push(P); };
+    WALLS.length = RAILS.length = 0;
+    // the cabinet: the left wall, the arch over the top, the right wall; the plunger lane's inner wall; the floor below
+    const arch = []; for (let i = 0; i <= 24; i++) { const a = Math.PI + i / 24 * Math.PI; arch.push([120 + Math.cos(a) * 112, 130 + Math.sin(a) * 112]); }
+    chain([[8, 505], ...arch, [232, 505]]);
+    chain([[214, 505], [214, 152]]);
+    world.segment([0, 560], [240, 560]);
+    F.stop = world.segment([215, 494], [231, 494], { r: 1 });   // (the plunger's tip: the ball rests on it)
+    F.gate = world.segment([214, 152], [228, 134], { r: 1.5 }); F.gate.off = true;   // (one way: closed once the ball is out)
+    // the lower table: inlane guides, slingshots (their long faces kick), the flippers, the kickback in the left outlane
+    chain([[22, 330], [22, 418], [63, 442]]); chain([[mx(22), 330], [mx(22), 418], [mx(63), 442]]);
+    chain([[34, 360], [34, 402], [58, 418]]); chain([[mx(34), 360], [mx(34), 402], [mx(58), 418]]);
+    F.slingL = world.slingshot([34, 360], [58, 418], { kick: 230 }); F.slingR = world.slingshot([mx(34), 360], [mx(58), 418], { kick: 230 });
+    F.L = world.flipper(70, 448, { side: 'left', len: 36, r0: 6, r1: 3.5, speed: 32 }); F.R = world.flipper(mx(70), 448, { side: 'right', len: 36, r0: 6, r1: 3.5, speed: 32 });
+    F.kick = world.kicker(15, 472, { r: 6, hold: .35, dir: [0, -1], power: 820 });
+    // the upper table: the left orbit's inner wall, three bumpers, the top lanes' posts, the saucer, the drop targets
+    chain([[26, 300], [26, 158]]);
+    F.bumpers = [[78, 150], [144, 150], [111, 192]].map(([x, y]) => Object.assign(world.bumper(x, y, 11, { kick: 300 }), { lit: 0 }));
+    for (const x of [70, 98, 126, 154]) world.circle(x, 62, 3, { type: 'static', bounce: .4 });
+    lanes = [84, 112, 140].map(x => ({ s: world.circle(x, 68, 5, { type: 'static', sensor: true }), on: false }));
+    F.saucer = world.kicker(111, 102, { r: 6, hold: .9, dir: [.35, .94], power: 330 });
+    drops = [224, 243, 262].map(y => ({ b: world.box(192, y, 5, 14, { type: 'static', bounce: .2 }), down: false }));
+    F.spinner = world.box(17, 236, 16, 3, { type: 'static', sensor: true }); F.spin = 0; F.spinA = 0;
+    F.laneTop = world.circle(170, 34, 10, { type: 'static', sensor: true });
+    // the ramp: two rails on a layer of their own (2), a sensor at its mouth and its end on both layers
+    const side = k => RAMP.map(([x, y], i) => { const a = RAMP[Math.max(0, i - 1)], b = RAMP[Math.min(RAMP.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy); return [x - dy / l * 8 * k, y + dx / l * 8 * k]; });
+    for (const k of [1, -1]) world.chain(side(k), { layer: 2, r: 1, bounce: .2, friction: .1 });
+    F.rampIn = world.circle(176, 296, 6, { type: 'static', sensor: true, layer: 3 }); F.rampOut = world.circle(40, 304, 7, { type: 'static', sensor: true, layer: 3 });
+  }
+
+  /* ---- 2. THE RULES: scoring, the mission, the ball saver, multiball, tilt, the end of each ball ---- */
+  let cab, mode = 'title', modeT = 0, st, dmd = { msg: null }, bot = null, demo = false, plungeT = 0, swipe = 0, camY = 0;
+  const fresh = () => ({ ball: 1, rampLit: false, ramps: 0, jackLit: false, jackpots: 0, mult: 1, kickLit: true, saveT: 0, tilt: 0, tilted: false, spins: 0, hits: 0, targets: 0, laneHits: 0, bonus: 0, flips: 0, inLane: true, gameT: 0, multi: false });
+  const add = (n, b) => { if (!st.tilted && cab) cab.add(n, b ? { x: b.x, y: b.y, z: 14 } : null); };
+  const say = (s, t = 2, big) => { dmd.msg = { s, t, big }; };
+  function newBall(lane = true) {
+    const b = world.circle(223, 488, BR, { bullet: true, bounce: .35, friction: .25, maxSpeed: 1600 }); b.z = 0; b.onRamp = false; balls.push(b);
+    if (lane) { st.inLane = true; F.gate.off = true; }
+    return b;
+  }
+  function hit(a, b, info) {
+    const o = a.shape === 'circle' && a.type === 'dynamic' ? b : a;
+    if (F.bumpers.includes(o)) { o.lit = .15; add(100, o); st.hits++; A.sfx('kick', { vol: .5, pitch: 1 + (F.bumpers.indexOf(o)) * .12 }); P.sparks(o.x, o.y, 10, 6); return; }
+    if (o === F.slingL || o === F.slingR) { o.lit = .12; add(10); A.sfx('punch', { vol: .35 }); return; }
+    if (o === F.L || o === F.R) return;
+    const d = drops.find(t => t.b === o); if (d && !d.down) { d.down = true; d.b.off = true; add(500, d.b); st.targets++; A.sfx('bump'); if (drops.every(t => t.down)) { st.rampLit = true; add(5000); say('RAMP LIT', 2); A.sfx('powerup'); modeT = 0; dropsUp = 2.5; } return; }
+    if (info && info.speed > 160) A.sfx('land', { vol: Math.min(.4, info.speed / 1500) });
+  }
+  let dropsUp = 0;
+  function enter(s, b) {
+    if (s === F.rampIn && !b.onRamp && b.vy < -120) { b.onRamp = true; b.layer = 2; b.mask = 2; A.sfx('whoosh', { vol: .3 }); return; }
+    if (s === F.rampOut && b.onRamp) { b.onRamp = false; b.layer = 1; b.mask = 0xffff; ramp(b); return; }
+    const l = lanes.find(q => q.s === s); if (l) { if (!l.on) { l.on = true; add(1000, b); A.sfx('blip'); st.laneHits++; } if (lanes.every(q => q.on)) { lanes.forEach(q => { q.on = false; }); st.mult = Math.min(5, st.mult + 1); st.kickLit = true; F.kick.catch.armed = true; say('BONUS ' + st.mult + 'X', 2); A.sfx('oneup'); } return; }
+    if (s === F.laneTop && st.inLane) { st.inLane = false; F.gate.off = false; st.saveT = 8; return; }
+    if (s === F.spinner) { const n = Math.min(12, Math.floor(Math.abs(b.vy) / 60)); F.spin += n; st.spins += n; add(50 * n); if (n) A.sfx('blip', { vol: .2, pitch: 1.6 }); return; }
+  }
+  function exit(s, b) { if (s === F.rampIn && b.onRamp && b.vy > 0) { b.onRamp = false; b.layer = 1; b.mask = 0xffff; } }   // (it fell back down the ramp)
+  function ramp(b) {
+    add(st.rampLit ? 10000 : 5000, b); A.sfx('powerup'); P.glints(b.x, b.y, 10, 10, '#a8f0ff', 14);
+    if (st.rampLit) { st.ramps++; if (st.ramps >= 3) { st.jackLit = true; st.rampLit = false; st.ramps = 0; say('JACKPOT LIT', 2.5); } else say('WARP ' + st.ramps, 1.5); } else say('RAMP', 1);
+  }
+  function caught(k, b) {
+    if (k === F.kick) { st.kickLit = false; k.catch.armed = false; say('KICKBACK', 1.5); A.sfx('whoosh'); return; }
+    if (k === F.saucer) {
+      add(2500, b); A.sfx('secret');
+      if (st.jackLit) { st.jackLit = false; st.jackpots++; add(50000, b); say('JACKPOT', 3, true); A.sfx('oneup'); game.flash('#ffffff', .25); P.glints(k.x, k.y, 30, 30, '#ffe080', 20);
+        if (!st.multi) { st.multi = true; say('STAR STORM', 3, true); for (let i = 0; i < 2; i++) { const nb = newBall(false); nb.x = 111 + (i ? 10 : -10); nb.y = 140; nb.vy = 200; nb.vx = i ? 120 : -120; } st.saveT = 10; } }
+    }
+  }
+  function drain(b) {
+    world.remove(b); balls.splice(balls.indexOf(b), 1);
+    if (balls.length) { if (balls.length === 1) st.multi = false; return; }
+    if (st.saveT > 0 && !st.tilted) { say('BALL SAVED', 2); A.sfx('heal'); newBall(); return; }
+    A.sfx('die'); st.multi = false;
+    const bonus = (st.spins * 20 + st.hits * 50 + st.targets * 300 + st.laneHits * 400) * st.mult;
+    mode = 'bonus'; modeT = 0; st.bonus = st.tilted ? 0 : bonus;
+  }
+  function nextBall() {
+    if (st.bonus) add(st.bonus); st.bonus = 0; st.spins = st.hits = st.targets = st.laneHits = 0; st.mult = 1; st.tilted = false; st.tilt = 0;
+    const r = cab.die();
+    if (r === 'over') { over(); return; }
+    st.ball++; mode = 'play'; modeT = 0; say('BALL ' + st.ball, 1.5); newBall();
+  }
+  function over() {
+    mode = 'over'; modeT = 0; A.music(null); say('GAME OVER', 4, true);
+    const s = cab.p.score; if (!demo && cab.qualifies(s)) { mode = 'entry'; cab.enter(s, '', () => { mode = 'table'; modeT = 0; }); }
+  }
+
+  /* ---- 3. THE SCENE: the title (the table lit, the display's attract loop, a demo by the bot), play, the bonus, the
+   * initials and the table ---- */
+  function start() {
+    table(); balls = []; st = fresh(); demo = false; bot = null; mode = 'title'; modeT = 0; camY = TL / 2;
+    cab = cab || new E.Arcade(game, { id: 'pinball', lives: 3, extra: [500000], hud: false, colors: ['#ff9a40', '#ffe0a0', '#ffd040'] });
+    cab.mode = 'title'; cab.phase = 'title';
+    game.input.touchEnabled = false; game.input.zones = null; L.enabled = false; game.follow(null); A.music(null);
+  }
+  function begin(asDemo) {
+    table(); balls = []; st = fresh(); demo = !!asDemo; cab.start(1, { demo }); mode = 'play'; modeT = 0; newBall(); say('BALL 1', 1.5); if (!demo) A.music(SONG);
+  }
+  function update(dt) {
+    const I = game.input; modeT += dt; if (dmd.msg && (dmd.msg.t -= dt) <= 0) dmd.msg = null;
+    cab.update(dt);
+    if (mode === 'title') {
+      game.input.zones = null;
+      const ph = cab.attract(dt);
+      if (I.pressed('start') || I.pressed('plunge') || I.clicked()) { I.consumeAll(); begin(false); return; }
+      if (ph === 'demo' && !demo) { begin(true); bot = { t: 0 }; }
+      world.step(dt); return;
+    }
+    if (mode === 'entry') return;
+    if (mode === 'table' || mode === 'over') { if (modeT > (mode === 'table' ? 6 : 3) || (modeT > 1 && (I.pressed('start') || I.clicked()))) { mode = 'title'; modeT = 0; cab.mode = 'title'; cab.phase = 'title'; demo = false; } world.step(dt); return; }
+    if (mode === 'bonus') { if (modeT > 2.4) nextBall(); return; }
+    if (demo && (I.pressed('start') || I.clicked())) { I.consumeAll(); begin(false); return; }
+    st.gameT += dt; if (st.saveT > 0 && !st.inLane) st.saveT -= dt; st.tilt = Math.max(0, st.tilt - dt * .6);
+    // the controls: the flipper keys (or the screen's halves), the plunger, the nudge
+    const ctl = bot ? botControls(dt) : { l: I.down('flipL'), r: I.down('flipR'), p: I.down('plunge'), pDone: I.released ? I.released('plunge') : false, n: I.pressed('nudge') };
+    if (!st.tilted) { if (ctl.l !== F.L._on) { F.L.flip(ctl.l); F.L._on = ctl.l; if (ctl.l) { st.flips++; A.sfx('swing', { vol: .3 }); } } if (ctl.r !== F.R._on) { F.R.flip(ctl.r); F.R._on = ctl.r; if (ctl.r) { st.flips++; A.sfx('swing', { vol: .3, pitch: 1.1 }); } } }
+    else { F.L.flip(false); F.R.flip(false); F.L._on = F.R._on = false; }
+    game.input.zones = !bot && game.input.lastDevice === 'touch' ? (lanePlunge() ? [{ x0: 0, y0: 0, x1: 1, y1: 1, act: 'plunge' }] : [{ x0: 0, y0: 0, x1: .5, y1: 1, act: 'flipL' }, { x0: .5, y0: 0, x1: 1, y1: 1, act: 'flipR' }]) : null;
+    if (lanePlunge()) {
+      const pan = I.pan(); if (pan && ctl.p) swipe = Math.max(swipe, swipe - pan[1]);
+      if (ctl.p) plungeT = Math.min(1, plungeT + dt * 1.2);
+      else if (plungeT > 0 || swipe > 0) { const k = Math.max(plungeT, Math.min(1, swipe / 70)), b = lanePlunge(); b.vy = -(380 + 560 * k); plungeT = 0; swipe = 0; A.sfx('whoosh'); }
+    } else { plungeT = 0; swipe = 0; }
+    if (ctl.n && balls.length) { for (const b of balls) { b.vx += (b.x < 111 ? 1 : -1) * 40; b.vy -= 60; } st.tilt += 1.2; game.shake(.15, 3); A.sfx('bump', { vol: .4 }); if (st.tilt > 3.5 && !st.tilted) { st.tilted = true; say('TILT', 4, true); A.sfx('cancel'); } else if (st.tilt > 2.2) say('DANGER', 1); }
+    // the world, then what left it
+    world.step(dt);
+    for (const b of balls.slice()) { if (b.y > 515) drain(b); }
+    if (dropsUp > 0 && (dropsUp -= dt) <= 0) { if (balls.every(b => b.x < 180 || b.y < 210 || b.y > 280)) for (const d of drops) { d.down = false; d.b.off = false; } else dropsUp = .5; }
+    for (const o of F.bumpers) o.lit = Math.max(0, o.lit - dt); for (const o of [F.slingL, F.slingR]) o.lit = Math.max(0, (o.lit || 0) - dt);
+    F.spinA += F.spin * dt * 30; F.spin = Math.max(0, F.spin - dt * 6);
+    for (const b of balls) b.z = b.onRamp ? rampZ(rampAt(b)) : 0;
+    if (demo && (balls.length === 0 || modeT > 40)) { cab.endDemo && cab.endDemo(); }
+  }
+  // the ball resting in the plunger lane, ready (or null)
+  const lanePlunge = () => st.inLane && balls.find(b => b.x > 214 && b.y > 470 && Math.abs(b.vy) < 30) || null;
+  // how far along the ramp a ball is (0..1): the nearest point of its middle line
+  function rampAt(b) { let best = 1e9, s = 0, run = 0, total = 0; for (let i = 1; i < RAMP.length; i++) total += Math.hypot(RAMP[i][0] - RAMP[i - 1][0], RAMP[i][1] - RAMP[i - 1][1]);
+    for (let i = 1; i < RAMP.length; i++) { const a = RAMP[i - 1], c = RAMP[i], dx = c[0] - a[0], dy = c[1] - a[1], l = Math.hypot(dx, dy), t = Math.max(0, Math.min(1, ((b.x - a[0]) * dx + (b.y - a[1]) * dy) / (l * l))), d = Math.hypot(a[0] + dx * t - b.x, a[1] + dy * t - b.y); if (d < best) { best = d; s = (run + t * l) / total; } run += l; }
+    return s; }
+  // the bot's hands: launch at full pull, flip when a ball comes down onto a flipper's middle, hold a moment
+  function botControls(dt) {
+    const c = bot; c.t += dt; const out = { l: false, r: false, p: false, n: false };
+    if (lanePlunge()) { out.p = c.t % 1.6 < 1.2; return out; }
+    for (const [k, f] of [['l', F.L], ['r', F.R]]) {
+      c[k] = Math.max(0, (c[k] || 0) - dt); c[k + 'cool'] = Math.max(0, (c[k + 'cool'] || 0) - dt);
+      const near = balls.some(b => { const dx = (b.x - f.x) * (k === 'l' ? 1 : -1), dy = b.y - f.y; return dx > 8 && dx < 40 && dy > -26 && dy < 10 && b.vy > -40; });
+      if (near && !c[k + 'cool'] && !c[k]) c[k] = .14;
+      out[k] = c[k] > 0; if (c[k] > 0 && c[k] <= dt) c[k + 'cool'] = .22;
+    }
+    return out;
+  }
+
+  /* ---- 4. DRAWING: the playfield painted once (deep space, nebulae, lane lines, the inserts, the logo) and drawn
+   * foreshortened; the rails, posts and slingshots in it with their height; the lights, bumpers, targets, flippers,
+   * the ramp and the balls each frame, in depth order; the dot-matrix display; cabinet art down a wide screen's sides ---- */
+  let floorCv = null, dmdCv = null, dmdKey = '';
+  const PJ = (x, y, z = 0) => [x, y * BY + z * BZ + 16];   // (a table point on the painted canvas: 16 pixels of room above for heights)
+  function paint() {
+    const A0 = E.mkCanvas(TW, TL), g = E.ctx2d(A0), h = E.hash2;
+    // deep space, nebulae, stars
+    for (let y = 0; y < TL; y++) px.rect(g, 0, y, TW, 1, E.mix('#22145a', '#0c0a30', y / TL));
+    for (const [x, y, r, c] of [[60, 120, 80, '#8a3aaa'], [170, 300, 100, '#2a7a9a'], [90, 400, 70, '#aa3a6a'], [150, 60, 60, '#3a5aba'], [40, 250, 50, '#5a2a9a']]) for (let k = 3; k >= 1; k--) px.ddisc(g, x, y, r * k / 3, c, .2);
+    // a ringed planet and a moon, painted
+    px.disc(g, 160, 390, 15, '#c87a4a'); px.disc(g, 156, 386, 11, '#e8a060'); px.disc(g, 153, 383, 4, '#ffd8a0'); for (let a = 0; a < TAU; a += .02) { const x = 160 + Math.cos(a) * 26, y = 390 + Math.sin(a) * 6; if (Math.sin(a) > 0 || Math.hypot(x - 160, y - 390) > 15) px.dot(g, x, y, '#ffe0b0'); }
+    px.disc(g, 52, 336, 7, '#2a7a5a'); px.disc(g, 50, 334, 5, '#4aaa6a'); px.disc(g, 54, 338, 2, '#2a6a4a'); px.dot(g, 48, 332, '#9af0b0');   // (a green moon: nothing a ball could be taken for)
+    for (let i = 0; i < 260; i++) { const x = h(i, 1) * TW, y = h(i, 2) * TL, c = h(i, 3) < .2 ? '#ffffff' : h(i, 3) < .6 ? '#a8b0ff' : '#5a5aa0'; px.dot(g, x, y, c); }
+    // the logo across the middle, the lane lines, the apron
+    E.font.title(g, 'NEBULA', 111, 262, { align: 'center', scale: 2, colors: ['#ffe0ff', '#ff8ae8', '#a03ac8'], depth: 2 });
+    E.font.title(g, 'RUN', 111, 280, { align: 'center', scale: 2, colors: ['#e0ffff', '#6ae0ff', '#2a7ac8'], depth: 2 });
+    // neon lane lines: the inlanes, the orbit, the ramp's way in; arrows to the shots
+    for (const [a, b, c] of [[[28, 334], [28, 414], '#5a6aff'], [[mx(28), 334], [mx(28), 414], '#5a6aff'], [[17, 160], [17, 300], '#ff5ac8'], [[170, 330], [176, 306], '#4ae0ff'], [[182, 330], [176, 306], '#4ae0ff']]) { px.line(g, a[0], a[1], b[0], b[1], E.shade(c, -.3), 3); px.line(g, a[0], a[1], b[0], b[1], c); }
+    for (const [x, y, c] of [[176, 345, '#4ae0ff'], [22, 318, '#ff5ac8'], [111, 140, '#ffd040']]) px.poly(g, [[x, y - 9], [x - 6, y + 2], [x + 6, y + 2]], E.shade(c, -.55));
+    px.poly(g, [[8, 470], [64, 470], [74, 520], [8, 520]], '#1a1630'); px.poly(g, [[214, 470], [158, 470], [148, 520], [214, 520]], '#1a1630');
+    E.font.text(g, 'SHOOT AGAIN', 111, 498, '#5a4a7a', { align: 'center', outline: false, font: 'tiny' });
+    // the inserts: unlit glass (lit each frame where they shine)
+    for (const L of INSERTS) { px.disc(g, L.x, L.y, L.r, E.shade(L.c, -.62)); px.disc(g, L.x - 1, L.y - 1, Math.max(1, L.r - 2), E.shade(L.c, -.45)); }
+    // the plunger lane's floor
+    px.rect(g, 215, 150, 17, 360, '#0e0a22');
+    // foreshortened, with room above for heights; then the rails and posts drawn with their height
+    const C = E.mkCanvas(TW, Math.ceil(TL * BY) + 18), c = E.ctx2d(C); c.imageSmoothingEnabled = true; c.drawImage(A0, 0, 16, TW, TL * BY); c.imageSmoothingEnabled = false; E.px.reset(c);
+    const rail = (pts, top, side) => { for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], q = [PJ(a[0], a[1]), PJ(b[0], b[1]), PJ(b[0], b[1], 9), PJ(a[0], a[1], 9)]; px.poly(c, q, side); } for (let i = 1; i < pts.length; i++) { const a = PJ(pts[i - 1][0], pts[i - 1][1], 9), b = PJ(pts[i][0], pts[i][1], 9); px.line(c, a[0], a[1], b[0], b[1], top, 2); } };
+    for (const pts of RAILS) rail(pts, '#c8d0f0', '#4a4a6a');
+    for (const x of [70, 98, 126, 154]) { const [sx, sy] = PJ(x, 62), [tx, ty] = PJ(x, 62, 10); px.rect(c, sx - 3, ty, 6, sy - ty, '#6a6a8a'); px.ell(c, tx, ty, 3, 2, '#e0e0ff'); }
+    return C;
+  }
+  const INSERTS = [
+    { id: 'ramp', x: 176, y: 318, r: 5, c: '#40e0ff' }, { id: 'ramp', x: 176, y: 332, r: 4, c: '#40e0ff' },
+    { id: 'jack', x: 111, y: 124, r: 6, c: '#ffd040' }, { id: 'kick', x: 15, y: 456, r: 4, c: '#ff5050' },
+    { id: 'save', x: 111, y: 488, r: 5, c: '#ff8040' }, { id: 'w1', x: 150, y: 330, r: 3, c: '#a0ff60' }, { id: 'w2', x: 158, y: 340, r: 3, c: '#a0ff60' }, { id: 'w3', x: 166, y: 350, r: 3, c: '#a0ff60' },
+    ...[2, 3, 4, 5].map((m, i) => ({ id: 'm' + m, x: 84 + i * 18, y: 438, r: 4, c: '#ff60c0' })),
+    ...[84, 112, 140].map((x, i) => ({ id: 'l' + i, x, y: 82, r: 4, c: '#60a0ff' }))
+  ];
+  function lit(id) {
+    const t = game.time, blink = Math.floor(t * 6) % 2 === 0;
+    if (id === 'ramp') return st.rampLit && blink; if (id === 'jack') return st.jackLit && blink; if (id === 'kick') return st.kickLit; if (id === 'save') return st.saveT > 0 && blink;
+    if (id[0] === 'w') return st.ramps >= +id[1]; if (id[0] === 'm') return st.mult >= +id[1]; if (id[0] === 'l') return lanes[+id[1]].on;
+    return false;
+  }
+  function draw(r) {
+    const W = r.W, H = r.H, dmdH = dmdBox(W, H).h;
+    // the camera: the table whole where it fits under the display, else following the lowest ball
+    const viewH = (H - dmdH) / BY, fits = viewH >= TL + 30, low = balls.length ? Math.max(...balls.map(b => b.y)) : TL;
+    const want = fits ? TL / 2 - 8 : Math.max(viewH / 2 + 10, Math.min(TL - viewH / 2 + 20, low - viewH * .1));   // (the arch's top just under the display at the top; the apron at the bottom)
+    camY += (want - camY) * Math.min(1, game.dt * 6 || 1); game.cam.offset = [0, Math.round(dmdH / 2)]; game.focus(TW / 2, camY, 0); game.cam.snap = true;
+    r.sky(['#05040e', '#0a0618']);
+    if (!floorCv) floorCv = paint();
+    const [ox, oy] = r.w(0, 0, 0);
+    cabinet(r, ox, W, H);
+    backglass(r, ox, Math.round(oy), Math.round(r.w(0, TL, 0)[1]), W, H, dmdH);
+    r.decal(g => { g.drawImage(floorCv, Math.round(ox), Math.round(oy) - 16); });
+    r.decal(g => { for (const L of INSERTS) if (lit(L.id)) { const [x, y] = r.w(L.x, L.y, 0); px.ddisc(g, x, y, L.r * 2.2, L.c, .35); px.ell(g, x, y, L.r, L.r * BY, E.shade(L.c, .3)); px.ell(g, x - 1, y - 1, Math.max(1, L.r - 2), Math.max(1, (L.r - 2) * BY), '#ffffff'); } });
+    // bumpers, slingshot rubbers, drop targets, the saucer, the spinner, the flippers, the ramp, the plunger, the balls
+    for (const o of F.bumpers) r.queue(o.x, o.y, 0, g => cylinder(g, r, o.x, o.y, 11, 10, o.lit > 0 ? '#ffffff' : '#ff60c0', o.lit > 0 ? '#ffe0ff' : '#8a2a7a'), { bias: 2 });
+    for (const s of [F.slingL, F.slingR]) r.queue(s.x, s.y, 0, g => { const [a, b] = s.wv, p = r.w(a[0], a[1], 6), q = r.w(b[0], b[1], 6); px.line(g, p[0], p[1], q[0], q[1], s.lit > 0 ? '#ffffff' : '#ff4040', 3); });
+    for (const d of drops) r.queue(d.b.x, d.b.y, 0, g => { const z = d.down ? 1 : 12; box3(g, r, d.b.wv, z, d.down ? '#3a3050' : '#ffd040', d.down ? '#2a2040' : '#a07820'); });
+    r.queue(F.saucer.x, F.saucer.y, 0, g => { const [x, y] = r.w(F.saucer.x, F.saucer.y, 0); px.ell(g, x, y, 8, 8 * BY, '#05030a'); px.ell(g, x, y, 6, 6 * BY, st.jackLit ? '#ffd040' : '#2a1a40'); });
+    r.queue(17, 236, 0, g => { const w = Math.abs(Math.cos(F.spinA)) * 8, a = r.w(17 - w, 236, 14), b = r.w(17 + w, 236, 14), p = r.w(9, 236, 14), q = r.w(25, 236, 14); px.line(g, p[0], p[1], q[0], q[1], '#8a8aa8'); px.rect(g, Math.min(a[0], b[0]), a[1] - 1, Math.max(1, Math.abs(b[0] - a[0])), 4, '#e0e0ff'); }, { bias: 4 });
+    for (const f of [F.L, F.R]) r.queue(f.x, f.y + 6, 0, g => flipper(g, r, f), { bias: 3 });
+    r.queue(111, 94, 0, g => drawRamp(g, r), { bias: 30 });
+    r.queue(223, 500, 0, g => { const k = plungeT, [x, y] = r.w(223, 500 + k * 10, 4); px.rect(g, x - 4, y - 2, 8, 5, '#c8c8d8'); px.rect(g, x - 1, y + 3, 2, 10, '#8a8aa0'); });
+    for (const b of balls) r.queue(b.x, b.y, b.z, g => ball(g, r, b), { bias: b.onRamp ? 40 : 1 });
+    hud(r);
+  }
+  // a cylinder standing on the table: its foot, its side, its lit cap
+  function cylinder(g, r, x, y, rad, h, cap, side) {
+    const [bx, by] = r.w(x, y, 0), [tx, ty] = r.w(x, y, h);
+    px.ell(g, bx, by + 1, rad + 1, (rad + 1) * BY, '#0a0618'); px.rect(g, bx - rad, ty, rad * 2 + 1, by - ty, side); px.ell(g, bx, by, rad, rad * BY, side);
+    px.ell(g, tx, ty, rad, rad * BY, cap); px.ell(g, tx - 2, ty - 1, rad * .45, rad * .45 * BY, '#ffffff');
+  }
+  // a block (a drop target) of world points raised to z
+  function box3(g, r, wv, z, top, side) { const B = wv.map(v => r.w(v[0], v[1], 0)), T = wv.map(v => r.w(v[0], v[1], z)); for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; px.poly(g, [B[i], B[j], T[j], T[i]], side); } px.poly(g, T, top); }
+  function flipper(g, r, f) {
+    const B = f.wv.map(v => r.w(v[0], v[1], 0)), T = f.wv.map(v => r.w(v[0], v[1], 6));
+    for (let i = 0; i < B.length; i++) { const j = (i + 1) % B.length; px.poly(g, [B[i], B[j], T[j], T[i]], '#a01a2a'); }
+    px.poly(g, T, '#f0f0f8'); const [cx, cy] = r.w(f.x, f.y, 6); px.ell(g, cx, cy, 2, 1.5, '#8a8aa0');
+  }
+  function ball(g, r, b) {
+    const [sx, sy] = r.w(b.x, b.y, 0), [x, y] = r.w(b.x, b.y, b.z + BR);
+    if (!b.onRamp) px.ell(g, sx + 1, sy + 1, BR, BR * BY * .8, 'rgba(0,0,0,.45)');
+    px.disc(g, x, y, BR, '#9aa0b8'); px.disc(g, x - .5, y - .5, BR - 1, '#d8dcec'); px.disc(g, x - 1.5, y - 1.5, 1.6, '#ffffff'); px.dot(g, x + 2, y + 2, '#6a7088');
+  }
+  // the ramp: its two rails high over the table on posts, a see-through floor, its mouth's arch
+  function drawRamp(g, r) {
+    const pts = [], n = 40; let total = 0; const segL = []; for (let i = 1; i < RAMP.length; i++) { const l = Math.hypot(RAMP[i][0] - RAMP[i - 1][0], RAMP[i][1] - RAMP[i - 1][1]); segL.push(l); total += l; }
+    for (let k = 0; k <= n; k++) { let d = k / n * total, i = 0; while (i < segL.length - 1 && d > segL[i]) { d -= segL[i]; i++; } const a = RAMP[i], b = RAMP[i + 1], t = d / segL[i], x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, dx = (b[0] - a[0]) / segL[i], dy = (b[1] - a[1]) / segL[i]; pts.push({ x, y, z: rampZ(k / n), nx: -dy, ny: dx }); }
+    px.blend(g, .3, 'normal', () => { for (let k = 1; k <= n; k++) { const a = pts[k - 1], b = pts[k], q = [r.w(a.x + a.nx * 8 + 3, a.y + a.ny * 8 + 4, 0), r.w(b.x + b.nx * 8 + 3, b.y + b.ny * 8 + 4, 0), r.w(b.x - b.nx * 8 + 3, b.y - b.ny * 8 + 4, 0), r.w(a.x - a.nx * 8 + 3, a.y - a.ny * 8 + 4, 0)]; px.poly(g, q, '#000000'); } });   // (its shadow on the table)
+    for (let k = 4; k < n; k += 8) { const p = pts[k], [x, y] = r.w(p.x, p.y, 0), [, ty] = r.w(p.x, p.y, p.z); px.rect(g, x - 1, ty, 2, y - ty, '#5a5a7a'); }
+    px.blend(g, .35, 'normal', () => { for (let k = 1; k <= n; k++) { const a = pts[k - 1], b = pts[k], q = [r.w(a.x + a.nx * 8, a.y + a.ny * 8, a.z), r.w(b.x + b.nx * 8, b.y + b.ny * 8, b.z), r.w(b.x - b.nx * 8, b.y - b.ny * 8, b.z), r.w(a.x - a.nx * 8, a.y - a.ny * 8, a.z)]; px.poly(g, q, '#2a8ab0'); } });
+    for (const k of [1, -1]) for (let i = 1; i <= n; i++) { const a = pts[i - 1], b = pts[i], p = r.w(a.x + a.nx * 8 * k, a.y + a.ny * 8 * k, a.z + 4), q = r.w(b.x + b.nx * 8 * k, b.y + b.ny * 8 * k, b.z + 4); px.line(g, p[0], p[1], q[0], q[1], st.rampLit ? '#a8f8ff' : '#c8d0e8'); }
+  }
+  // a tall screen's room above the table: the backglass (the title over deep space); below it: the lockdown bar and the
+  // coin door (each painted once for its size)
+  let glass = null;
+  function backglass(r, ox, top, bottom, W, H, dmdH) {
+    const up = top - dmdH, down = H - bottom; if (up < 12 && down < 12) return;
+    const key = up + ',' + down; if (!glass || glass.key !== key) {
+      const a = up >= 12 ? E.mkCanvas(TW, up) : null, b = down >= 12 ? E.mkCanvas(TW, down) : null, h = E.hash2;
+      if (a) { const g = E.ctx2d(a); for (let y = 0; y < up; y++) px.rect(g, 0, y, TW, 1, E.mix('#0c0a2a', '#2a1050', y / up)); for (let i = 0; i < 90; i++) px.dot(g, h(i, 7) * TW, h(i, 8) * up, h(i, 9) < .3 ? '#ffffff' : '#8a80c0');
+        for (let k = 3; k >= 1; k--) px.ddisc(g, TW * .7, up * .55, Math.min(up, 90) * k / 3, '#8a3aaa', .2);
+        if (up > 70) { px.disc(g, 40, up * .7, 12, '#4aaa6a'); px.disc(g, 37, up * .7 - 3, 7, '#8ae0a0'); E.font.title(g, 'NEBULA', TW / 2, up / 2 - 26, { align: 'center', scale: 3, colors: ['#ffe0ff', '#ff8ae8', '#a03ac8'], depth: 3 }); E.font.title(g, 'RUN', TW / 2, up / 2 + 2, { align: 'center', scale: 3, colors: ['#e0ffff', '#6ae0ff', '#2a7ac8'], depth: 3 }); }
+        px.rect(g, 0, up - 3, TW, 3, '#4a3a6a'); px.rect(g, 0, up - 3, TW, 1, '#8a7aaa'); }
+      if (b) { const g = E.ctx2d(b); for (let y = 0; y < down; y++) px.rect(g, 0, y, TW, 1, E.mix('#3a3a4a', '#14121c', Math.min(1, y / 40))); px.rect(g, 0, 0, TW, 6, '#c8c8d8'); px.rect(g, 0, 6, TW, 2, '#6a6a7a');
+        if (down > 60) { px.rect(g, TW / 2 - 40, 24, 80, Math.min(70, down - 30), '#2a2830'); for (const x of [TW / 2 - 22, TW / 2 + 14]) { px.rect(g, x, 34, 10, 16, '#8a8a9a'); px.rect(g, x + 4, 37, 2, 10, '#1a1820'); px.rect(g, x - 1, 54, 12, 5, '#c84040'); } E.font.text(g, 'INSERT COIN', TW / 2, 64, '#c8c8d8', { align: 'center', outline: false, font: 'tiny' }); } }
+      glass = { key, a, b };
+    }
+    r.decal(g => { if (glass.a) g.drawImage(glass.a, Math.round(ox), dmdH); if (glass.b) g.drawImage(glass.b, Math.round(ox), bottom); });
+  }
+  // cabinet art down a wide screen's sides: the side rails, chasing lights
+  function cabinet(r, ox, W, H) {
+    if (ox < 6) return;
+    r.decal(g => {
+      for (const [x0, x1] of [[0, ox - 2], [ox + TW + 2, W]]) {
+        if (x1 - x0 < 4) continue; for (let y = 0; y < H; y++) px.rect(g, x0, y, x1 - x0, 1, E.mix('#1a0a2a', '#2a0a3a', (y / H)));
+        const cx = x0 < 10 ? x1 - 6 : x0 + 6; px.rect(g, cx - 2, 0, 4, H, '#4a3a6a');
+        for (let y = 8, i = 0; y < H; y += 14, i++) px.disc(g, cx, y, 2, (Math.floor(game.time * 8) + i) % 4 === 0 ? '#ffd040' : '#5a3a20');
+      }
+    });
+  }
+
+  /* ---- 5. THE DISPLAY: a 128 x 32 dot matrix drawn by code (the score, the ball, the mission's words, the attract
+   * loop), its dots orange on black; above the table, or down a wide screen's side ---- */
+  function dmdBox(W, H) { const k = W >= 300 && H >= 420 ? 2 : 1, w = 128 * k + 6, h = 32 * k + 6, side = (W - TW) / 2 >= w + 8; return { k, w, h: side ? 0 : h, x: side ? 6 : Math.round((W - w) / 2), y: side ? Math.round(H / 2 - h / 2) : 2, ww: w, hh: h }; }
+  function dmdText() {
+    const s = cab && cab.p ? cab.p.score : 0, sc = s.toLocaleString('en-US');
+    if (mode === 'title') { const ph = Math.floor(modeT / 3) % 3; return ph === 0 ? ['NEBULA RUN', 'PRESS START'] : ph === 1 ? ['HIGH SCORE', (cab.table('')[0] || { score: 0 }).score.toLocaleString('en-US')] : ['3 BALLS', 'LAST ' + (cab.p ? cab.p.score.toLocaleString('en-US') : '0')]; }
+    if (mode === 'bonus') return ['BONUS ' + st.mult + 'X', st.bonus.toLocaleString('en-US')];
+    if (mode === 'over' || mode === 'entry' || mode === 'table') return ['GAME OVER', sc];
+    if (dmd.msg) return dmd.msg.big ? [dmd.msg.s, sc, 1] : [dmd.msg.s, sc];
+    return [sc, (demo ? 'DEMO  ' : '') + 'BALL ' + st.ball + (st.multi ? '  STORM' : '') + (st.tilted ? '  TILT' : '')];
+  }
+  function hud(r) {
+    const W = r.W, H = r.H, B = dmdBox(W, H), lines = dmdText(), key = lines.join('|') + (lines[2] ? Math.floor(game.time * 4) % 2 : '');
+    if (!dmdCv || key !== dmdKey) {   // the words drawn small, then each pixel a dot: lit or dim
+      dmdKey = key; const T = E.mkCanvas(128, 32), t = E.ctx2d(T);
+      if (lines[2]) E.font.title(t, lines[0], 64, 4, { align: 'center', scale: 2, colors: ['#ffffff', '#ffffff'], depth: 0 }); else { E.font.text(t, lines[0], 64, 5, '#ffffff', { align: 'center', outline: false }); E.font.text(t, lines[1], 64, 19, '#ffffff', { align: 'center', outline: false }); }
+      const d = t.getImageData ? t.getImageData(0, 0, 128, 32).data : null, k = B.k; dmdCv = E.mkCanvas(128 * k, 32 * k); const c = E.ctx2d(dmdCv);
+      c.fillStyle = '#100604'; c.fillRect(0, 0, 128 * k, 32 * k);
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 128; x++) { const on = d && d[(y * 128 + x) * 4 + 3] > 80; c.fillStyle = on ? '#ff9a30' : '#2a1206'; c.fillRect(x * k, y * k, k > 1 ? k - (on ? 0 : 1) : 1, k > 1 ? k - (on ? 0 : 1) : 1); }
+    }
+    r.overlay(g => {
+      E.ui.box(g, B.x, B.y, B.ww, B.hh, { bg: '#080404', border: '#5a3a2a', gradient: false }); g.drawImage(dmdCv, B.x + 3, B.y + 3);
+      if (mode === 'play' && lanePlunge() && !bot) { const tc = game.input.lastDevice === 'touch'; E.font.text(g, tc ? 'SWIPE UP TO LAUNCH' : 'HOLD SPACE, LET GO TO LAUNCH', W / 2, H - 14, '#ffd8a0', { align: 'center', shadow: '#000', outline: false }); if (plungeT) E.ui.bar(g, W / 2 - 30, H - 22, 60, 4, plungeT, '#ff9a30'); }
+      if (mode === 'title' && !demo) E.font.text(g, game.input.lastDevice === 'touch' ? 'TAP TO PLAY' : 'ENTER TO PLAY', W / 2, H - 14, '#ffd8a0', { align: 'center', shadow: '#000', outline: false });
+    });
+    if (mode === 'table') { r.overlay(g => { g.fillStyle = 'rgba(0,0,0,.78)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g); }); cab.drawTable(r, '', Math.max(B.h + 8, Math.round(H / 2 - 82)), 'NEBULA RUN HIGH SCORES'); }
+    else cab.draw(r);
+  }
+
+  /* ---- 6. THE BOT: plays a ball (or more) by the flipper keys and the plunger, as a player would, twice; its score,
+   * flips and shots, and whether the two were the same (tools/kits-test.mjs) ---- */
+  function botRun(o = {}) { const a = botBall(o), b = botBall(o); a.repeat = a.hash === b.hash && a.score === b.score; return a; }
+  function botBall(o) {
+    const was = Math.random;
+    try {
+      Math.random = E.rng(o.seed || 5);
+      game.time = 0; game.timeScale = 1; game.go('pinball', null, { fade: 0 }); game.advance(1 / 120);
+      begin(true); demo = false; bot = { t: 0 };
+      let t = 0; const firstBall = st.ball; let drained = false;
+      while (t < (o.seconds || 90)) { game.advance(1 / 60); t += 1 / 60; if (mode === 'bonus' || st.ball > firstBall || mode === 'over') { drained = true; break; } }
+      const out = { score: cab.p.score, flips: st.flips, bumpers: st.hits, spins: st.spins, targets: st.targets, lanes: st.laneHits, ramps: st.ramps, drained, time: Math.round(t), hash: world.hash(), errors: game.errors.length };
+      bot = null; return out;
+    } finally { Math.random = was; }
+  }
+
+  return { view: 'pinball', views: ['pinball'], res: 'ps1', pausable: true, touch: [], camera: { zoom: false }, input: KEYS,
+    enter: start, update, draw, bot: botRun,
+    exit() { game.input.touchEnabled = true; game.input.zones = null; game.cam.offset = [0, 0]; A.music(null); },
+    back() { if (mode === 'play' && !demo) return false; game.go('title'); return true; },
+    /** for tests: the table's world, its parts, the balls, the state of play, the arcade frame, where a table point is */
+    state: () => ({ world, F, balls, drops, lanes, st, mode, cab, demo, at: (x, y, z = 0) => { const q = game.view.p(x, y, z); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; }, plunge: lanePlunge }),
+    /** the proof: a game started, the ball fired, the flippers on a fixed beat; the world's hash, the score, the ball */
+    run: (n = 1200) => proof('pinball', n, (i, k) => {
+      if (i === 2) begin(false);
+      if (i === 10) k.hold('plunge'); if (i === 130) k.up('plunge');
+      if (i > 200 && i % 50 === 0) k.hold(i % 100 ? 'flipL' : 'flipR'); if (i > 200 && i % 50 === 20) { k.up('flipL'); k.up('flipR'); }
+    }, () => [world.hash(), cab.p ? cab.p.score : 0, st.ball, mode, balls.length]) };
+})();
+scenes.pinball = PINBALL;
+
+/* =====================================================================================
+ * SLICE 20  ARTILLERY  (Worms, Scorched Earth). @modules physics terrain grid
+ * BLAST ISLAND: two teams of three grubs on an island of earth, rock and sand that every blast carves. The teams take
+ * turns (E.Turns, the grid module's), each sending its next grub; in its thirty seconds a grub walks, jumps, aims and
+ * fires. Three weapons: a ROCKET the wind blows, a GRENADE that bounces (a physics body on the terrain's collider) and
+ * blows on its fuse, a CLUSTER bomb that bursts into five (two a team). A blast throws grubs; a long fall hurts; the sea
+ * drowns; from turn 16 the sea rises (sudden death). One player against the CPU, two players on one screen in turn, or
+ * two CPUs. The CPU tries its shots in simulation (each weapon at every angle and power, with the wind and the fuse as
+ * they are), takes the one that hurts its foes most and its own least, and fires it with a hand a little unsteady.
+ * Keys: left and right (A, D) walk, up and down (W, S) aim, hold Space to charge and let go to fire, Enter jumps, Q or E
+ * (or 1, 2, 3) picks the weapon. MOUSE: drag back from anywhere and let go to fire (the pull is the power); a click
+ * walks there. TOUCH: the same: a drag back fires, a tap walks; the JUMP and WEAPON buttons. HOW IT WORKS: E.Terrain is
+ * the island (carve, ground, walk, ray); E.Physics bounces the grenades on land.collider(); E.Turns alternates the
+ * teams. bot() lets two CPUs play a match to its end, twice (tools/kits-test.mjs). Deep links: #artillery (the choice
+ * of players), #artillery/cpu (two CPUs at once).
+ * ===================================================================================== */
+const ARTILLERY = (() => {
+  const WW = 800, WH = 320, SKY = 560, DT = 1 / 120, px = E.px, clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  E.VIEWS.artillery = E.VIEWS.artillery || new E.View('artillery', 'Island', 0, 0, 1, 1);   // a side view of whole pixels: the terrain stays crisp
+  const SOIL = { color: '#7a4a2a', top: '#52a83a', edge: '#3a2210', depth: 3 }, ROCK = { color: '#6a6878', top: '#9a98a8', edge: '#34323e', depth: 2 }, SAND = { color: '#c8a868', top: '#e8d098', edge: '#8a6a3a', depth: 2 };
+  const TEAMS = [
+    { name: 'RED GRUBS', short: 'RED', color: '#ff5a4a', dark: '#8a1a1a', grubs: ['SPUD', 'NIBBS', 'BOFF'] },
+    { name: 'BLUE GRUBS', short: 'BLUE', color: '#4ab4ff', dark: '#1a4a8a', grubs: ['WIGGLE', 'DOT', 'MUNCH'] }];
+  // speed: at full power, pixels a second; r and dmg: the blast's reach and its damage at the middle
+  const WEAPONS = [
+    { id: 'rocket', name: 'ROCKET', speed: 520, wind: true, r: 28, dmg: 45 },
+    { id: 'grenade', name: 'GRENADE', speed: 400, fuse: 3, r: 30, dmg: 45 },
+    { id: 'cluster', name: 'CLUSTER', speed: 440, r: 16, dmg: 20, ammo: 2, bits: 5 }];
+  const BIT = { id: 'bit', r: 14, dmg: 16 }, G_SHOT = 300, G_GRUB = 420, HP = 80, TURN_T = 30, SUDDEN = 16, PULL = 70;
+  const PHYS = { gravity: [0, -G_SHOT], substeps: 2, iterations: 4, sleep: false }, GREN = { bounce: .45, friction: .5, damping: .1 }, FUSE_N = Math.round(3 / DT);
+  const SONG = { bpm: 112, steps: 4, tracks: [
+    { wave: 'square', vol: .08, notes: 'G4 . B4 . D5 - B4 . C5 . A4 . F#4 . D4 . | G4 . B4 . D5 . G5 - F#5 . E5 . D5 . C5 . | B4 . G4 . A4 . F#4 . G4 - - . . . D4 .' },
+    { wave: 'triangle', vol: .28, notes: 'G2 . D3 . G2 . D3 . D2 . A2 . D2 . A2 . | G2 . D3 . G2 . D3 . C2 . G2 . D2 . A2 . | G2 . D3 . D2 . A2 . G2 . . . G2 . . .' },
+    { wave: 'drums', vol: .09, notes: 'k . h . s . h . k k h . s . h h' }] };
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { walkL: ['ArrowLeft', 'KeyA', 'Pad14'], walkR: ['ArrowRight', 'KeyD', 'Pad15'], aimUp: ['ArrowUp', 'KeyW', 'Pad12'], aimDown: ['ArrowDown', 'KeyS', 'Pad13'],
+    fire: ['Space', 'Pad0', 'Pad7'], jump: ['Enter', 'NumpadEnter', 'KeyJ', 'Pad2'], weapon: ['KeyQ', 'KeyE', 'Pad3', 'Pad5'], w1: ['Digit1'], w2: ['Digit2'], w3: ['Digit3'] });
+
+  /* ---- 1. THE ISLAND: hills of earth over rock, beaches of sand, a few caves; the grubs spread along it, the teams mixed ---- */
+  let land, back, profile, grubs = [], teams, turns, water = 34;
+  function island(seed) {
+    const rnd = E.rng(seed), p = [0, 1, 2, 3].map(() => rnd() * Math.PI * 2), mid = 118 + rnd() * 40;
+    const top = x => { const e = clamp(Math.min(x - 24, WW - 24 - x) / 130, 0, 1), s = e * e * (3 - 2 * e); return 6 + (mid + 44 * Math.sin(x / 110 + p[0]) + 24 * Math.sin(x / 47 + p[1]) + 8 * Math.sin(x / 17 + p[2])) * s; };
+    const H = []; for (let x = 0; x < WW; x++) H[x] = top(x + .5);
+    land = new E.Terrain({ w: WW, h: WH, materials: [SOIL, ROCK, SAND], chunk: 64 });
+    back = E.mkCanvas(WW, WH); const bg = E.ctx2d(back), img = bg.createImageData(WW, WH), D = img.data;   // (the earth behind: what a cave or a deep crater shows)
+    for (let x = 0; x < WW; x++) for (let y = 0; y < H[x] - 7; y++) { const o = ((WH - 1 - y) * WW + x) * 4, n = (E.hash2(x >> 1, y >> 1) - .5) * 10, rock = y < H[x] - 30; D[o] = (rock ? 40 : 52) + n; D[o + 1] = (rock ? 36 : 32) + n; D[o + 2] = (rock ? 44 : 26) + n; D[o + 3] = 255; }
+    bg.putImageData(img, 0, 0); profile = null;
+    land.fill((x, y) => { const h = H[Math.floor(x)]; return y >= h ? 0 : h < water + 18 ? 3 : y < h - 28 - 12 * Math.sin(x / 31 + p[3]) ? 2 : 1; });
+    for (let i = 0; i < 4; i++) { const x = 150 + rnd() * (WW - 300), h = H[Math.floor(x)]; if (h > water + 70) land.carve(x, water + 26 + rnd() * (h - water - 64), 11 + rnd() * 9); }   // (caves inside the hills)
+    // six places along the land, the teams in turn, each nudged a little
+    grubs = [];
+    for (let i = 0; i < 6; i++) {
+      let x = 100 + (i + .5) * (WW - 200) / 6 + (rnd() - .5) * 40; for (let k = 0; k < 40 && !((land.ground(x, WH) || 0) > water + 10); k++) x += x < WW / 2 ? 6 : -6;
+      grubs.push(grub(i % 2, TEAMS[i % 2].grubs[i >> 1], x));
+    }
+  }
+  const grub = (team, name, x) => ({ team, name, x, y: land.ground(x, WH) || water + 20, vx: 0, vy: 0, ground: true, hp: HP, shown: HP, face: x < WW / 2 ? 1 : -1, aim: .5, dead: false, drowned: false, sunk: 0, fly: false, jump: false, hurt: 0, walkT: 0, goto: null, still: 0 });
+
+  /* ---- 2. THE RULES: a turn each, the shots and their blasts, damage, falls and the sea, the end ---- */
+  let look = { x: 0, y: 0, t: 0 }, mode = 'menu', modeT = 0, play = 'cpu', cur = null, phase = 'aim', phT = 0, turnT = 0, turnNo = 0, wind = 0, shots = [], power = 0, charging = false, cpu = null, stats, banner = null, winner = -1, pull = null, menuI = 0, matchSeed = 1;
+  function begin(how, seed) {
+    play = how; matchSeed = seed || 1 + Math.floor(Math.random() * 1e6); water = 34; island(matchSeed); shots = []; winner = -1; turnNo = 0; mode = 'play'; modeT = 0;
+    teams = TEAMS.map((T, i) => ({ i, speed: 100, next: 0, human: how === 'two' || (how === 'cpu' && i === 0), ammo: WEAPONS.map(w => w.ammo === undefined ? Infinity : w.ammo), weapon: 0 }));
+    turns = new E.Turns(teams, { mode: 'speed' });   // (two actors of one speed: they alternate)
+    stats = { shots: 0, used: {}, kills: 0, drowned: 0, falls: 0, carved: 0, damage: 0 };
+    game.input.consumeAll(); A.music(how === 'demo' ? null : SONG); startTurn();
+  }
+  // the next team's next grub still standing
+  function nextGrub() {
+    for (let k = 0; k < 2; k++) { const t = turns.next(), mine = grubs.filter(g => g.team === t.i); for (let j = 0; j < mine.length; j++) { const g = mine[(t.next + j) % mine.length]; if (!g.dead) { t.next = (mine.indexOf(g) + 1) % mine.length; return g; } } }
+    return null;
+  }
+  function startTurn() {
+    turnNo++; cur = nextGrub(); look.t = 0; phase = 'aim'; phT = 0; turnT = TURN_T; power = 0; charging = false; pull = null;
+    wind = Math.round((Math.random() * 2 - 1) * 10) / 10;
+    if (turnNo > SUDDEN) { water += 8; banner = { s: 'THE SEA RISES', sub: 'SUDDEN DEATH', t: 1.6, team: -1 }; }
+    else banner = { s: cur.name, sub: TEAMS[cur.team].name + (play === 'two' ? '  PLAYER ' + (cur.team + 1) : teams[cur.team].human ? '  YOU' : '  CPU'), t: 1.4, team: cur.team };
+    cpu = teams[cur.team].human ? null : { phase: 'think', t: 0, i: 0, cands: null, best: null };
+    A.sfx('select');
+  }
+  const weapon = () => WEAPONS[teams[cur.team].weapon];
+  function pickWeapon(i) { const t = teams[cur.team]; for (let k = 0; k < 3; k++, i = (i + 1) % 3) if (t.ammo[i] > 0) { if (t.weapon !== i) A.sfx('blip'); t.weapon = i; return; } }
+  // the shot's start: from the grub's middle, a little out along the aim (ang: radians, 0 right, up positive)
+  const muzzle = (g, ang, pw, W) => { const sp = Math.max(.15, pw) * W.speed; return [g.x + Math.cos(ang) * 8, g.y + 6 + Math.sin(ang) * 8, Math.cos(ang) * sp, Math.sin(ang) * sp]; };
+  function fire(g, ang, pw) {
+    const t = teams[g.team], W = weapon(), [x, y, vx, vy] = muzzle(g, ang, pw, W);
+    if (W.id === 'grenade') { const w = new E.Physics(PHYS); w.add(land.collider()); const b = w.circle(x, y, 2.5, GREN); b.vx = vx; b.vy = vy; shots.push({ w: W, body: b, world: w, n: 0, x, y }); }
+    else shots.push({ w: W, x, y, vx, vy, t: 0, owner: g });
+    t.ammo[t.weapon]--; if (t.ammo[t.weapon] <= 0) pickWeapon(0);
+    stats.shots++; stats.used[W.id] = (stats.used[W.id] || 0) + 1; phase = 'fly'; phT = 0; charging = false; power = 0; pull = null; cur.goto = null;
+    A.sfx(W.id === 'rocket' ? 'shoot' : 'swing'); P.smoke(x, 0, y, 3, { size: 3 });
+  }
+  // one step of a rocket's, a cluster's or a bomblet's flight: gravity, the wind (a rocket's), the ground and the grubs in
+  // its way; 'hit' (at its x, y), 'sea', 'gone', or null (still flying). The CPU's simulation runs this same step
+  function fly(s, dt, owner) {
+    s.vy -= G_SHOT * dt; if (s.w.wind) s.vx += wind * 90 * dt; s.t += dt;
+    const nx = s.x + s.vx * dt, ny = s.y + s.vy * dt, hit = land.ray(s.x, s.y, nx, ny);
+    if (hit) { s.x = hit[0]; s.y = hit[1]; return 'hit'; }
+    s.x = nx; s.y = ny;
+    for (const g of grubs) if (!g.dead && (g !== owner || s.t > .25) && Math.hypot(g.x - s.x, g.y + 5 - s.y) < 6) return 'hit';
+    return s.y < water ? 'sea' : s.x < -60 || s.x > WW + 60 || s.t > 12 ? 'gone' : null;
+  }
+  // a cluster's five, thrown up in a fan from where it burst
+  const bits = (x, y) => [0, 1, 2, 3, 4].map(k => ({ w: BIT, x, y: y + 3, vx: (k - 2) * 55, vy: 160 + (2 - Math.abs(k - 2)) * 25, t: 0, owner: null }));
+  function stepShots(dt) {
+    if (!dt) return;   // (a hit-stop: nothing moves, and a fuse waits)
+    for (const s of shots.slice()) {
+      if (s.body) {   // a grenade: its own physics world, the island its collider
+        s.world.step(dt); s.x = s.body.x; s.y = s.body.y;
+        if (s.y < water) { shots.splice(shots.indexOf(s), 1); splash(s.x); }
+        else if (++s.n >= FUSE_N) { shots.splice(shots.indexOf(s), 1); blast(s.x, s.y, s.w.r, s.w.dmg); }
+        continue;
+      }
+      const e = fly(s, dt, s.owner);
+      if (!e) { if (s.w.wind && Math.floor(s.t * 30) !== Math.floor((s.t - dt) * 30)) P.smoke(s.x, 0, s.y, 1, { size: 2 }); continue; }
+      shots.splice(shots.indexOf(s), 1);
+      if (e === 'hit') { blast(s.x, s.y, s.w.r, s.w.dmg); if (s.w.bits) shots.push(...bits(s.x, s.y)); }
+      else if (e === 'sea') splash(s.x);
+    }
+  }
+  function splash(x) { for (let i = 0; i < 10; i++) P.add({ kind: 'bit', x: x + (i - 5) * .8, y: 0, z: water + 1, vx: (i - 5) * 14, vz: 80 + (i % 3) * 30, g: 300, max: .7, color: '#cfe8ff', size: 1 }); A.sfx('land', { vol: .4 }); }
+  // a blast: a crater in the island, damage by distance, grubs thrown away from it
+  function blast(x, y, r, dmg) {
+    const took = land.carve(x, y, r, { particles: P, debris: 14 }); for (const k in took) stats.carved += took[k]; profile = null;
+    for (const g of grubs) {
+      if (g.dead) continue; const dx = g.x - x, dy = g.y + 5 - y, d = Math.hypot(dx, dy); if (d >= r + 6) continue;
+      const k = 1 - d / (r + 6), n = d || 1; hurt(g, Math.round(dmg * k)); g.vx = dx / n * 260 * k; g.vy = Math.max(70, dy / n * 260 * k + 120 * k); g.ground = false; g.fly = true; g.goto = null;
+    }
+    P.explosion(x, 0, y, r / 22, { debris: false, shake: r / 8 });
+  }
+  function hurt(g, d) { if (d <= 0) return; g.hp = Math.max(0, g.hp - d); g.hurt = .5; stats.damage += d; P.text(g.x, 0, g.y + 18, '-' + d, TEAMS[g.team].color, { bounce: true }); A.sfx('hurt', { vol: .5 }); }
+  function drown(g) { g.dead = g.drowned = true; g.hp = 0; g.sunk = .001; stats.drowned++; splash(g.x); A.sfx('die', { vol: .5 }); }
+  function stepGrubs(dt) {
+    for (const g of grubs) {
+      if (g.dead && (g.drowned || !g.grave)) { if (g.sunk) g.sunk += dt; continue; }
+      const was = g.x, landed = land.walk(g, dt, { gravity: G_GRUB, climb: 4, h: 9 });
+      if (landed) { if (g.fly || g.jump) { g.vx = 0; g.fly = g.jump = false; } if (landed > 230 && !g.dead) { stats.falls++; hurt(g, Math.round((landed - 230) / 4)); A.sfx('land'); } }
+      if (!g.dead && g.y < water - 2) drown(g);
+      g.still = g.vx && Math.abs(g.x - was) < 1e-3 ? g.still + dt : 0;
+      g.shown += (g.hp - g.shown) * Math.min(1, dt * 5); g.hurt = Math.max(0, g.hurt - dt);
+    }
+  }
+  // the end of a turn: everyone at rest; the beaten blow up one by one (what they throw settles first); a team left wins
+  function settle() {
+    if (phT < .7 || !grubs.every(g => g.dead || g.ground)) return;
+    const dying = grubs.find(g => !g.dead && g.hp <= 0);
+    if (dying) { dying.dead = dying.grave = true; stats.kills++; blast(dying.x, dying.y + 4, 12, 8); phT = .2; return; }
+    const alive = [0, 1].map(i => grubs.some(g => g.team === i && !g.dead));
+    if (!alive[0] || !alive[1] || turnNo >= 60) { over(alive[0] && !alive[1] ? 0 : alive[1] && !alive[0] ? 1 : -1); return; }
+    startTurn();
+  }
+  function over(w) { winner = w; mode = 'over'; modeT = 0; menuI = 0; cur = null; A.music(null); A.sfx(w >= 0 ? 'oneup' : 'cancel'); }
+
+  /* ---- 3. A TURN: the player's hands (keys, a mouse's pull, a finger's), or the CPU's: it tries every shot in simulation,
+   * a few each step, then turns, aims and charges to the one it chose ---- */
+  function turn(dt, I) {
+    const g = cur; phT += dt; if (banner && (banner.t -= dt) <= 0) banner = null;
+    if (phase === 'settle') { settle(); return; }
+    if (!g || g.dead) { phase = 'settle'; phT = 0; return; }   // (it walked into the sea)
+    if (phase === 'aim') { turnT -= dt; if (turnT <= 0) { phase = 'settle'; phT = 0; charging = false; power = 0; pull = null; A.sfx('cancel'); return; } if (turnT < 5 && Math.ceil(turnT) !== Math.ceil(turnT + dt)) A.sfx('blip', { pitch: 1.5 }); }
+    const c = cpu ? cpuHands(dt) : hands(I);
+    if (phase === 'fly' && !shots.length) { phase = 'settle'; phT = 0; }
+    if (g.ground && !g.fly && !g.jump) { g.vx = c.walk * 32; if (c.walk) { g.face = c.walk; g.walkT += dt; } else g.walkT = 0; }
+    if (c.jump && g.ground) { g.vy = 150; g.vx = g.face * 70; g.ground = false; g.jump = true; g.goto = null; A.sfx('jump'); }
+    if (phase !== 'aim') return;   // (after a shot: the grub may only walk away, a grenade's retreat)
+    if (c.aim) g.aim = clamp(g.aim + c.aim * 1.4 * dt, -AIM, AIM);
+    if (c.pick >= 0) pickWeapon(c.pick); else if (c.weapon) pickWeapon((teams[g.team].weapon + 1) % 3);
+    if (c.shot) { fire(g, c.shot[0], c.shot[1]); return; }
+    if (c.charge) { if (!charging) A.sfx('charge', { vol: .3 }); charging = true; power = Math.min(1, power + dt / 1.4); }
+    if (charging && (!c.charge || power >= 1)) fire(g, aimAngle(g), power);
+  }
+  const aimAngle = g => g.face > 0 ? g.aim : Math.PI - g.aim;
+  // a world point under a screen point (the view is whole pixels: x across, y up)
+  const toWorld = p => [p[0] + game.screen.ix, -(p[1] + game.screen.iy)];
+  function hands(I) {
+    const g = cur, c = { walk: (I.down('walkR') ? 1 : 0) - (I.down('walkL') ? 1 : 0), aim: (I.down('aimUp') ? 1 : 0) - (I.down('aimDown') ? 1 : 0), jump: I.pressed('jump'), weapon: I.pressed('weapon'), pick: ['w1', 'w2', 'w3'].findIndex(a => I.pressed(a)), charge: I.down('fire'), shot: null };
+    // a pull: a mouse's left drag (input.box) or a finger anywhere (the touch stick in drag mode, input.drag()); the shot
+    // goes the other way, its power the pull's length
+    const B = I.box(), d = I.drag();
+    if (B) pull = { dx: B.from[0] - B.to[0], dy: B.from[1] - B.to[1], done: B.done };
+    else if (I.stickOn) { pull = pull && !pull.done ? pull : { dx: 0, dy: 0 }; if (d) { pull.dx -= d[0]; pull.dy -= d[1]; } }
+    else if (pull && !pull.done) pull.done = true;
+    if (pull) {
+      const l = Math.hypot(pull.dx, pull.dy);
+      if (l > 12) { const ang = Math.atan2(-pull.dy, pull.dx); g.face = Math.cos(ang) >= 0 ? 1 : -1; g.aim = clamp(g.face > 0 ? ang : Math.atan2(-pull.dy, -pull.dx), -AIM, AIM); power = Math.min(1, l / PULL); }
+      if (pull.done) { if (l > 12 && phase === 'aim') c.shot = [aimAngle(g), Math.min(1, l / PULL)]; pull = null; if (!c.shot) power = 0; }
+    }
+    // a click or a tap on the island walks there (the keys take over)
+    const ck = I.clicked(); if (ck && !pull) { const w = toWorld(ck); g.goto = w[0]; }
+    if (c.walk) g.goto = null;
+    else if (g.goto !== null) { const dx = g.goto - g.x; if (Math.abs(dx) < 1.5 || g.still > .3) g.goto = null; else c.walk = Math.sign(dx); }
+    return c;
+  }
+  const POWERS = [.3, .4, .5, .6, .7, .8, .9, 1], AIM = 1.45;   // (the aim: up to 1.45 radians above level, or below)
+  function cpuHands(dt) {
+    const g = cur, c = { walk: 0, aim: 0, jump: false, weapon: 0, pick: -1, charge: false, shot: null }, k = cpu; k.t += dt;
+    if (phase !== 'aim') return c;
+    if (k.phase === 'think') {
+      if (!k.cands) { k.cands = []; const t = teams[g.team]; for (let w = 0; w < 3; w++) if (t.ammo[w] > 0) for (const f of [1, -1]) for (let a = -.2; a <= AIM + 1e-6; a += .075) for (const p of POWERS) k.cands.push([w, f, Math.min(a, AIM), p]); }
+      for (let n = 0; n < 6 && k.i < k.cands.length; n++, k.i++) { const [w, f, a, pw] = k.cands[k.i], s = score(sim(w, g, f > 0 ? a : Math.PI - a, pw), g); if (!k.best || s > k.best.s) k.best = { w, f, a, pw, s }; }
+      if (k.i >= k.cands.length && k.t > .8) {   // chosen: an unsteady hand, then turn to it
+        const b = k.best; k.face = b.f; k.aim = clamp(b.a + (Math.random() - .5) * .05, -AIM, AIM); b.pw = clamp(b.pw * (1 + (Math.random() - .5) * .05), .15, 1); k.phase = 'aim'; c.pick = b.w;
+      }
+      return c;
+    }
+    g.face = k.face; const da = k.aim - g.aim;
+    if (k.phase === 'aim') { if (Math.abs(da) <= 1.4 * dt) { g.aim = k.aim; k.phase = 'charge'; } else c.aim = Math.sign(da); return c; }
+    if (power + dt / 1.4 < k.best.pw) c.charge = true; else c.shot = [aimAngle(g), k.best.pw];
+    return c;
+  }
+  // a shot as it would go, on the island as it is: the blasts it would make ([[x, y, r, dmg]]), or null (the sea, away)
+  function sim(w, g, ang, pw) {
+    const W = WEAPONS[w], [x, y, vx, vy] = muzzle(g, ang, pw, W); if (land.solid(x, y)) return null;
+    if (W.id === 'grenade') { const pw2 = new E.Physics(PHYS); pw2.add(land.collider()); const b = pw2.circle(x, y, 2.5, GREN); b.vx = vx; b.vy = vy; for (let i = 0; i < FUSE_N; i++) { pw2.step(DT); if (b.y < water) return null; } return [[b.x, b.y, W.r, W.dmg]]; }
+    const s = { w: W, x, y, vx, vy, t: 0 }; let e; while (!(e = fly(s, DT, g))) { /* flying */ } if (e !== 'hit') return null;
+    const out = [[s.x, s.y, W.r, W.dmg]];
+    if (W.bits) for (const b of bits(s.x, s.y)) { let f; while (!(f = fly(b, DT, null))) { /* flying */ } if (f === 'hit') out.push([b.x, b.y, BIT.r, BIT.dmg]); }
+    return out;
+  }
+  // what a shot is worth: the foes' hurt (a kill more), less its own side's (its own grub's most), and, hitting none, nearer
+  function score(pts, me) {
+    if (!pts) return -1e4;
+    let s = 0, near = 1e9;
+    for (const [x, y, r, dmg] of pts) for (const g of grubs) {
+      if (g.dead) continue; const d = Math.hypot(g.x - x, g.y + 5 - y), foe = g.team !== me.team; if (foe) near = Math.min(near, d); if (d >= r + 6) continue;
+      const hit = dmg * (1 - d / (r + 6)), kill = hit >= g.hp; s += foe ? hit + (kill ? 40 : 0) + (g.y - y < 30 && g.y - water < 30 ? 8 : 0) : -(hit * (g === me ? 2 : 1.5) + (kill ? 80 : 0));
+    }
+    return s - near * .05;
+  }
+
+  /* ---- 4. THE SCENE: the choice of players over the island, the match, its end ---- */
+  const CHOICES = [['ONE PLAYER', 'AGAINST THE CPU', 'cpu'], ['TWO PLAYERS', 'ON ONE SCREEN, IN TURN', 'two'], ['TWO CPUS', 'WATCH THEM PLAY', 'demo']];
+  const AFTER = [['PLAY AGAIN', 'A NEW ISLAND'], ['PLAYERS', 'CHOOSE AGAIN'], ['TITLE', '']];
+  function start(data) {
+    shots = []; cur = null; banner = null; winner = -1; menuI = 0; water = 34; island(7); mode = 'menu'; modeT = 0;
+    game.input.touchEnabled = true; game.input.steer = 'drag'; game.input.zones = null; L.enabled = false; game.follow(null); A.music(null);
+    game.cam.bounds = () => ({ x0: -40, y0: -SKY, x1: WW + 40, y1: 12 }); game.cam.align = 'bottom'; game.focus(WW / 2, 0, 160); game.cam.snap = true;
+    if (data && data.part === 'cpu') begin('demo');
+  }
+  // the buttons of a menu: a thumb's height on a touch screen
+  function buttons(list, W, H) {
+    const k = game.screen.dpr / game.screen.S, h = Math.max(24, Math.ceil(46 * k)), w = Math.min(W - 24, 200), gap = 6, y0 = Math.round(Math.max(H * .42, H - (h + gap) * list.length - 34));
+    return list.map((b, i) => ({ x: Math.round((W - w) / 2), y: y0 + i * (h + gap), w, h, label: b[0], sub: b[1], i }));
+  }
+  function menu(I, list, pick) {
+    const B = buttons(list, game.W, game.H), ck = I.clicked(), hit = ck && B.find(b => ck[0] >= b.x && ck[0] < b.x + b.w && ck[1] >= b.y && ck[1] < b.y + b.h);
+    if (I.pressed('up')) { menuI = (menuI + list.length - 1) % list.length; A.sfx('select'); }
+    if (I.pressed('down')) { menuI = (menuI + 1) % list.length; A.sfx('select'); }
+    if (hit || I.pressed('confirm') || I.pressed('start')) { if (hit) menuI = hit.i; A.sfx('confirm'); I.consumeAll(); pick(menuI); }
+  }
+  function update(dt) {
+    const I = game.input, human = mode === 'play' && cur && !cpu && (phase === 'aim' || phase === 'fly'); modeT += dt;
+    I.touchSet('jump', null, human); I.touchSet('weapon', human ? weapon().name : null, human && phase === 'aim');   // (the buttons only on a player's turn)
+    stepGrubs(dt); stepShots(dt);
+    if (mode === 'menu') { menu(I, CHOICES, i => begin(CHOICES[i][2])); game.focus(WW / 2 + Math.sin(modeT * .1) * 160, 0, 160); return; }
+    if (mode === 'over') { if (modeT > 1.2) menu(I, AFTER, i => i === 0 ? begin(play) : i === 1 ? start() : game.go('title')); return; }
+    if (play === 'demo' && modeT > .5 && (I.anyPressed() || I.clicked())) { I.consumeAll(); start(); return; }
+    // a look away: a click or a tap on the minimap, or the mouse's right button dragged, moves the camera for a while
+    const ck = I.clicked(), mb = miniBox(game.W), pn = I.pan();
+    if (ck && ck[0] >= mb.x && ck[0] < mb.x + mb.w && ck[1] >= mb.y && ck[1] < mb.y + mb.h + 6) { const f0 = cur || { x: WW / 2, y: 100 }; look = { x: -40 + (ck[0] - mb.x) / mb.w * (WW + 80) - f0.x, y: 0, t: 3 }; I.consumeAll(); }
+    else if (pn && !I.stickOn) { look.x -= pn[0]; look.y += pn[1]; look.t = 3; }
+    if ((look.t -= dt) <= 0) { look.x *= 1 - Math.min(1, dt * 4); look.y *= 1 - Math.min(1, dt * 4); }
+    turn(dt, I);
+    // the camera: on a shot, else on whoever falls, else the grub whose turn it is, led along its aim as it charges
+    const s = shots[0], m = !s && phase === 'settle' && grubs.find(g => !g.dead && !g.ground), f = s || m || cur, lead = cur && f === cur && phase === 'aim' ? power * 110 : 0;
+    if (f) game.focus(f.x + look.x + (lead && Math.cos(aimAngle(cur)) * lead), 0, f.y + 24 + look.y + (lead && Math.sin(aimAngle(cur)) * lead));
+  }
+
+  /* ---- 5. DRAWING: the sky, far hills and clouds blown by the wind, the island (the terrain's own chunks), the grubs, the
+   * shots, the sea; the turn, its clock, the wind, the teams' health, the weapon ---- */
+  function draw(r) {
+    const W = r.W, H = r.H, S = game.screen, t = game.time, h = E.hash2;
+    r.sky(['#3a7ac8', '#8ac8f0', '#d8f0ff']);
+    r.decal(g => {   // the sun, two ranges of far hills moving slower than the island, clouds drifting with the wind
+      const wy = y => -y - S.iy;
+      px.ddisc(g, W * .78, wy(380) * .5 + H * .2, 46, '#fff4c0', .5); px.disc(g, W * .78, wy(380) * .5 + H * .2, 16, '#fff8e0');
+      for (const [k, c, base, amp] of [[.25, '#8ab0d0', 70, 60], [.5, '#6a96b8', 52, 44]]) { const ox = S.ix * k, sy = wy(0) + base * (1 - k); for (let x = 0; x < W; x += 2) { const X = x + ox, top = sy - base - amp * (.5 + .3 * Math.sin(X / 90 + k * 9) + .2 * Math.sin(X / 37 + k * 3)); px.rect(g, x, top, 2, H - top, c); } }
+      for (let i = 0; i < 7; i++) { const cx = ((h(i, 3) * 1400 + t * (6 + wind * 24) - S.ix * .6) % 1400 + 1400) % 1400 - 200, cy = wy(260 + h(i, 4) * 220) * .7 + H * .1; for (let j = 0; j < 4; j++) px.ell(g, cx + j * 12 - 18, cy + (j % 2) * 3, 16 - Math.abs(j - 1.5) * 3, 6, '#f4faff'); }
+    });
+    r.decal(g => { const [x, y] = r.w(0, 0, WH); g.drawImage(back, Math.round(x), Math.round(y)); });
+    land.draw(r);
+    r.decal(g => {
+      for (const o of grubs) if (o.grave && !o.drowned) grave(g, r, o);
+      for (const o of grubs) if (!o.dead || (o.drowned && o.sunk < 1.2)) grubArt(g, r, o);
+      if (cur && !cur.dead && mode === 'play' && phase === 'aim') aimArt(g, r, cur);
+      for (const s of shots) shotArt(g, r, s);
+      // the sea: over all that sinks in it, its waves moving
+      const [, sy] = r.w(0, 0, water); px.blend(g, .78, 'normal', () => px.rect(g, 0, sy, W, H - sy, '#1a5aa0'));
+      for (let x = 0; x < W; x += 2) { const X = x + S.ix, y = sy + Math.round(Math.sin(X / 9 + t * 2.4) * 1.2 + Math.sin(X / 23 - t * 1.3)); px.rect(g, x, y - 1, 2, 2, '#9ad0ff'); if (h(X >> 1, Math.floor(t * 3)) < .04) px.dot(g, x, y + 3, '#ffffff'); }
+    });
+    hud(r);
+  }
+  function grubArt(g, r, o) {
+    const T = TEAMS[o.team], f = o.face, [sx, sy0] = r.w(o.x, 0, o.y - (o.sunk ? o.sunk * 8 : 0)), sy = Math.round(sy0), bob = o.ground ? Math.round(Math.sin(game.time * 3 + o.x)) * .5 : 0, sq = o.walkT ? Math.sin(o.walkT * 16) * .7 : 0;
+    const tint = o.hurt > 0 && Math.floor(o.hurt * 20) % 2 ? '#ffffff' : null;
+    // an outline, then the tail, the body and the head, the team's headband, the eyes looking where it faces
+    px.ell(g, sx - f * 4, sy - 2, 4.5, 3.5, '#3a1420'); px.ell(g, sx, sy - 4, 5.5 + sq, 5, '#3a1420'); px.disc(g, sx + f, sy - 9 + bob, 5, '#3a1420');
+    px.ell(g, sx - f * 4, sy - 2, 3.5, 2.5, tint || '#cc6a7a'); px.ell(g, sx, sy - 4, 4.5 + sq, 4, tint || '#e88a98'); px.disc(g, sx + f, sy - 9 + bob, 4, tint || '#f6a6b2');
+    px.rect(g, sx + f - 4, sy - 12 + bob, 9, 2, T.color); px.dot(g, sx - f * 4, sy - 11 + bob, T.color); px.dot(g, sx - f * 5, sy - 10 + bob, T.dark);
+    px.dot(g, sx + f * 2, sy - 9 + bob, '#ffffff'); px.dot(g, sx + f * 3, sy - 9 + bob, '#ffffff'); px.dot(g, sx + f * 3, sy - 9 + bob + (o.fly ? -1 : 0), '#101018');
+    px.dot(g, sx + f * 3, sy - 6 + bob, '#8a2a3a');
+    if (o.dead) return;
+    // its name and health above it, in its team's color
+    E.font.text(g, o.name, sx, sy - 32, T.color, { align: 'center', shadow: '#000', outline: false });
+    E.font.text(g, String(Math.round(o.shown)), sx, sy - 22, '#ffffff', { align: 'center', font: 'tiny', shadow: T.dark, outline: false });
+    if (o === cur && mode === 'play' && phase === 'aim' && Math.floor(game.time * 3) % 2) px.poly(g, [[sx - 3, sy - 38], [sx + 3, sy - 38], [sx, sy - 34]], '#ffffff');
+    if (o === cur && cpu && cpu.phase === 'think') E.font.text(g, '?'.repeat(1 + Math.floor(game.time * 3) % 3), sx + 8, sy - 20, '#ffffff', { font: 'tiny', shadow: '#000', outline: false });
+  }
+  function grave(g, r, o) { const [sx, sy] = r.w(o.x, 0, o.y).map(Math.round); px.rect(g, sx - 4, sy - 10, 8, 10, '#3a3a44'); px.rect(g, sx - 3, sy - 9, 6, 9, '#9a9aa8'); px.rect(g, sx - 1, sy - 8, 2, 6, '#5a5a68'); px.rect(g, sx - 3, sy - 6, 6, 2, '#5a5a68'); }
+  // the weapon in its hands along the aim, the crosshair, the power (dots from yellow to red)
+  function aimArt(g, r, o) {
+    const a = aimAngle(o), c = Math.cos(a), s = -Math.sin(a), [sx, sy] = r.w(o.x, 0, o.y + 6), W = weapon();
+    if (W.id === 'rocket') { px.line(g, sx - c * 3, sy - s * 3, sx + c * 7, sy + s * 7, '#2a4a2a', 3); px.line(g, sx - c * 3, sy - s * 3, sx + c * 7, sy + s * 7, '#5a8a4a', 1); }
+    else px.disc(g, sx + c * 5, sy + s * 5, 2.5, W.id === 'grenade' ? '#3a6a2a' : '#c03a2a');
+    const cx = sx + c * 26, cy = sy + s * 26; px.line(g, cx - 3, cy, cx + 3, cy, '#ff3a3a'); px.line(g, cx, cy - 3, cx, cy + 3, '#ff3a3a'); px.dot(g, cx, cy, '#ffffff');
+    for (let i = 0; i < 12 && i < power * 12; i++) { const d = 9 + i * 2.2; px.disc(g, sx + c * d, sy + s * d, 1 + i * .12, E.mix('#ffe040', '#ff2a1a', i / 11)); }
+  }
+  function shotArt(g, r, s) {
+    const [x, y] = r.w(s.x, 0, s.y);
+    if (s.body) { px.disc(g, x, y, 3, '#1a2a14'); px.disc(g, x, y, 2, '#4a7a3a'); px.dot(g, x - 1, y - 1, '#9ad08a'); E.font.text(g, String(Math.ceil((FUSE_N - s.n) * DT)), x, y - 12, '#ffffff', { align: 'center', font: 'tiny', shadow: '#000', outline: false }); return; }
+    if (s.w === BIT) { px.disc(g, x, y, 1.5, '#2a1a1a'); return; }
+    const l = Math.hypot(s.vx, s.vy) || 1, c = s.vx / l, d = -s.vy / l;
+    if (s.w.id === 'cluster') { px.disc(g, x, y, 3, '#3a1010'); px.disc(g, x, y, 2, '#d04a2a'); return; }
+    px.line(g, x - c * 5, y - d * 5, x + c * 3, y + d * 3, '#3a3a3a', 3); px.line(g, x - c * 4, y - d * 4, x + c * 3, y + d * 3, '#c8c8c8'); px.dot(g, x + c * 3, y + d * 3, '#ff3a2a'); px.dot(g, x - c * 6, y - d * 6, '#ffd040');
+  }
+  function hud(r) {
+    r.overlay(g => {
+      const W = r.W, H = r.H, touch = game.input.lastDevice === 'touch', ta = touch && game.input.touchArea(), right = Math.min(W, cornerX());
+      if (mode === 'menu' || mode === 'over') {
+        g.fillStyle = 'rgba(8,12,30,.35)'; g.fillRect(0, 0, r.bw, r.bh); px.reset(g);
+        if (mode === 'menu') { E.font.title(g, 'BLAST', W / 2, 14, { align: 'center', scale: 3, colors: ['#fff0c0', '#ffb040', '#c04a1a'], depth: 3 }); E.font.title(g, 'ISLAND', W / 2, 44, { align: 'center', scale: 3, colors: ['#e0f8ff', '#6ac0ff', '#2a5ac0'], depth: 3 }); E.font.text(g, 'TWO TEAMS OF THREE, TURN BY TURN', W / 2, 76, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }
+        else { const T = TEAMS[winner]; E.font.title(g, winner < 0 ? 'A DRAW' : T.short + ' WINS', W / 2, 20, { align: 'center', scale: 3, colors: winner < 0 ? ['#ffffff', '#c8c8d8', '#6a6a7a'] : ['#ffffff', T.color, T.dark], depth: 3 }); E.font.text(g, turnNo + ' TURNS, ' + stats.shots + ' SHOTS, ' + stats.kills + ' DOWN, ' + stats.drowned + ' DROWNED', W / 2, 54, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }
+        if (mode === 'menu' || modeT > 1.2) for (const b of buttons(mode === 'menu' ? CHOICES : AFTER, W, H)) {
+          const on = b.i === menuI; E.ui.box(g, b.x, b.y, b.w, b.h, { bg: on ? '#3a2a6a' : '#141a3a', border: on ? '#ffd36a' : '#8a8ab0' });
+          E.font.text(g, b.label, b.x + b.w / 2, b.y + b.h / 2 - (b.sub ? 9 : 4), on ? '#ffd36a' : '#ffffff', { align: 'center', outline: false, shadow: '#000' });
+          if (b.sub) E.font.text(g, b.sub, b.x + b.w / 2, b.y + b.h / 2 + 1, '#a8b0d8', { align: 'center', outline: false });
+        }
+        return;
+      }
+      // the turn: whose, its clock; the wind
+      if (cur) { const T = TEAMS[cur.team], s = Math.max(0, Math.ceil(turnT)); E.ui.box(g, 4, 4, 74, 24, { bg: '#101428', border: T.color, gradient: false }); E.font.text(g, cur.name, 9, 8, T.color, { outline: false }); E.font.text(g, play === 'two' ? 'PLAYER ' + (cur.team + 1) : teams[cur.team].human ? 'YOU' : 'CPU', 9, 18, '#a8b0d8', { font: 'tiny', outline: false }); E.font.text(g, phase === 'aim' ? String(s) : '-', 72, 9, s <= 5 && phase === 'aim' ? '#ff5a4a' : '#ffffff', { align: 'right', scale: 2, outline: false }); }
+      E.ui.box(g, 82, 4, 86, 14, { bg: '#101428', border: '#8a8ab0', gradient: false }); E.font.text(g, 'WIND', 86, 8, '#ffffff', { outline: false });
+      const wl = Math.round(Math.abs(wind) * 20); px.rect(g, 142, 7, 1, 8, '#ffffff'); if (wl) px.rect(g, wind > 0 ? 143 : 142 - wl, 9, wl, 4, Math.abs(wind) > .6 ? '#ff7a4a' : '#7ad0ff');
+      minimap(g, W);
+      // the teams' health
+      const bx = 6, bw = Math.min(96, (ta ? ta.x0 : W) - 50), by = H - 22;
+      TEAMS.forEach((T, i) => { const hp = grubs.filter(o => o.team === i).reduce((a, o) => a + Math.max(0, o.shown), 0), y = by + i * 9; E.font.text(g, T.short, bx, y, T.color, { font: 'tiny', shadow: '#000', outline: false }); px.rect(g, bx + 22, y, bw, 6, '#101428'); px.rect(g, bx + 23, y + 1, Math.round((bw - 2) * hp / (HP * 3)), 4, T.color); });
+      // the weapon, and what to press
+      if (cur && mode === 'play' && !cpu) {
+        const Wp = weapon(), t = teams[cur.team], n = t.ammo[t.weapon], wy = by - 14; E.font.text(g, Wp.name + (n !== Infinity ? ' x' + n : ''), bx, wy, '#ffe7a8', { shadow: '#000', outline: false });
+        if (phase === 'aim' && turnNo <= 2) E.font.text(g, touch ? 'DRAG BACK TO FIRE, TAP TO WALK' : 'ARROWS WALK, AIM  SPACE FIRES  Q WEAPON', bx, wy - 11, '#d8e0ff', { shadow: '#000', outline: false });
+      }
+      if (banner) { const T = TEAMS[banner.team], a = Math.min(1, banner.t * 3); px.blend(g, a, 'normal', () => { E.font.title(g, banner.s, W / 2, H * .3, { align: 'center', scale: 2, colors: T ? ['#ffffff', T.color, T.dark] : ['#ffffff', '#6ac0ff', '#1a4a8a'], depth: 2 }); E.font.text(g, banner.sub, W / 2, H * .3 + 22, '#ffffff', { align: 'center', shadow: '#000', outline: false }); }); }
+    });
+  }
+
+  // the minimap: the island's line, the sea, the grubs, the shots and the screen's part of it (on a narrow screen, under
+  // the turn's box)
+  const miniBox = W => { const wide = Math.min(W, cornerX()) - 176 >= 150; return wide ? { x: 176, y: 4, w: Math.min(220, Math.min(W, cornerX()) - 184), h: 22 } : { x: 4, y: 32, w: Math.min(220, W - 8), h: 22 }; };
+  function minimap(g, W) {
+    const B = miniBox(W), sx = x => B.x + (x + 40) / (WW + 80) * B.w, sy = y => B.y + B.h - Math.min(B.h, y / 240 * B.h);
+    if (!profile || profile.length !== B.w) { profile = []; for (let i = 0; i < B.w; i++) profile.push(land.ground(-40 + (i + .5) / B.w * (WW + 80), WH) || 0); }
+    px.rect(g, B.x - 1, B.y - 1, B.w + 2, B.h + 2, '#8a8ab0'); px.rect(g, B.x, B.y, B.w, B.h, '#2a5a90');
+    for (let i = 0; i < B.w; i++) if (profile[i] > 0) { const y = Math.round(sy(profile[i])); px.rect(g, B.x + i, y, 1, B.y + B.h - y, '#8a6a3a'); px.dot(g, B.x + i, y, '#6ad04a'); }
+    const wy = Math.round(sy(water)); px.blend(g, .7, 'normal', () => px.rect(g, B.x, wy, B.w, B.y + B.h - wy, '#1a4a90'));
+    for (const o of grubs) if (!o.dead && (o !== cur || Math.floor(game.time * 4) % 2)) px.rect(g, Math.round(sx(o.x)) - 1, Math.round(sy(o.y + 4)) - 1, 3, 3, TEAMS[o.team].color);
+    for (const s of shots) px.dot(g, Math.round(sx(s.x)), Math.round(sy(s.y)), '#ffffff');
+    const S = game.screen, v0 = Math.max(B.x, sx(S.ix)), v1 = Math.min(B.x + B.w, sx(S.ix + W)); px.rect(g, v0, B.y, v1 - v0, 1, '#ffffff'); px.rect(g, v0, B.y + B.h - 1, v1 - v0, 1, '#ffffff'); px.rect(g, v0, B.y, 1, B.h, '#ffffff'); px.rect(g, v1 - 1, B.y, 1, B.h, '#ffffff');
+  }
+
+  /* ---- 6. THE BOT: two CPUs play a match to its end, twice; how it went (tools/kits-test.mjs) ---- */
+  const hashLand = () => { let h = 0; const C = land.cells; for (let i = 0; i < C.length; i += 5) h = (Math.imul(h, 31) + C[i]) | 0; return h; };
+  function botRun(o = {}) { const a = botMatch(o), b = botMatch(o); a.repeat = a.hash === b.hash && a.turns === b.turns && a.winner === b.winner; return a; }
+  function botMatch(o) {
+    const was = Math.random;
+    try {
+      Math.random = E.rng(o.seed || 11);
+      game.time = 0; game.timeScale = 1; game.go('artillery', null, { fade: 0 }); game.advance(1 / 120);
+      begin('demo', o.seed || 11); let t = 0;
+      while (mode !== 'over' && t < (o.seconds || 1200)) { game.advance(1 / 60); t += 1 / 60; }
+      return { over: mode === 'over', winner, turns: turnNo, shots: stats.shots, used: stats.used, kills: stats.kills, drowned: stats.drowned, falls: stats.falls, carved: stats.carved, damage: stats.damage, time: Math.round(t), hash: hashLand() ^ grubs.reduce((h, g) => Math.imul(h, 31) + Math.round(g.x * 10) + g.hp | 0, 0), errors: game.errors.length };
+    } finally { Math.random = was; }
+  }
+
+  return { view: 'artillery', views: ['artillery'], res: 'ps1', pausable: true, touch: ['jump', 'weapon'], camera: { zoom: false }, input: KEYS,
+    enter: start, update, draw, bot: botRun,
+    exit() { game.input.steer = 'stick'; game.cam.bounds = null; game.cam.align = null; A.music(null); },
+    back() { if (mode === 'menu') return false; start(); return true; },
+    /** for tests: the island, the grubs, the turn, the shots, where a world point is on the screen; begin(how, seed) starts a match */
+    state: () => ({ land, grubs, cur, phase, mode, turnNo, wind, water, shots, power, teams, stats, winner, weapon: cur ? weapon().id : null, at: (x, y) => { const q = game.view.p(x, 0, y); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; }, buttons: () => buttons(mode === 'menu' ? CHOICES : AFTER, game.W, game.H) }),
+    /** begin(how, seed): a match ('cpu': one player against the CPU, 'two': two players, 'demo': two CPUs) on the island of
+     *  that seed (else a new one) */
+    begin,
+    /** the proof: a match against the CPU on a seeded island; the player aims up and fires, then the CPU's turn; the
+     *  island's cells, the grubs, the turn */
+    run: (n = 1200) => proof('artillery', n, (i, k) => {
+      if (i === 2) begin('cpu', 3);
+      if (i === 200) k.hold('aimUp'); if (i === 240) k.up('aimUp');
+      if (i === 300) k.hold('fire'); if (i === 400) k.up('fire');
+    }, () => [hashLand(), grubs.map(g => [Math.round(g.x * 10), Math.round(g.y * 10), g.hp, g.dead]), turnNo, phase, wind, water, stats.shots]) };
+})();
+scenes.artillery = ARTILLERY;
 
 /* =====================================================================================
  * SLICE 9  PUZZLE  (Tetris, Puyo Puyo, Columns). @modules grid

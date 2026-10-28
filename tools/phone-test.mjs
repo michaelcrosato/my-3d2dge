@@ -38,6 +38,11 @@
 //  20. pointclick: a tap walks the hero; a tap on a hotspot shows its verbs (the coin), each a thumb's size; TAKE picks
 //      the rope up; its inventory slot a thumb's size, a tap puts it on the cursor and a tap takes it off; a long press
 //      looks (at the tavern's door); a tap on a person, TALK, and a tap on a choice picks it
+//  21. pinball: a tap starts a game; a swipe up fires the plunger (the ball leaves the lane); a finger on the left half
+//      raises the left flipper and lifting it lowers it, the right half the right, two fingers both
+//  22. artillery: ONE PLAYER a thumb's height, a tap on it starts a match; on the player's turn a tap beside the grub
+//      walks it there; WEAPON, named for the weapon, changes it; JUMP jumps; a drag back, let go, fires the other way
+//      (the shot flies, and the turn passes to the CPU)
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
@@ -90,7 +95,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'tactics', 'rts', 'sim', 'brawler', 'fighting', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -868,6 +873,56 @@ if (want('pointclick')) {
     for (let i = 0; i < 10 && (await st()).talking; i++) await tapGame(...await ev(page, () => { const G = window.__game.game; return [G.W / 2, G.H - 24]; }));
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `pointclick-${label.replace(/ /g, '-')}.png`) });
     check(`pointclick ${label}: a tap on Finn, TALK, and a tap on a choice picks it`, asked && said.includes('I\'D BETTER GO') && !errors.length, `choices shown ${asked}; said: ${said.join(' / ')}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 21. pinball: the screen's halves flip, a swipe up plunges */
+if (want('pinball')) {
+  console.log('pinball: flippers and the plunger by touch');
+  for (const [label, vp] of [['on its side', SIDE], ['upright', UP]]) {
+    const { page, ctx, cdp, errors } = await open('pinball', vp);
+    await wait(500);
+    const st = () => ev(page, () => { const s = window.__game.scenes.pinball.state(); return { mode: s.mode, inLane: s.st.inLane, ball: s.balls[0] && [s.balls[0].x, s.balls[0].y], L: s.F.L.angle, R: s.F.R.angle, Lup: s.F.L.up, Rup: s.F.R.up, Lrest: s.F.L.rest, Rrest: s.F.R.rest }; });
+    const touches = async (pts, ms) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pts.map((p, i) => ({ x: p[0], y: p[1], id: i + 1 })) }); await wait(ms); const s = await st(); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(250); return s; };
+    await page.touchscreen.tap(vp.width / 2, vp.height / 2); await wait(400);
+    const s0 = await st();
+    await drag(cdp, line([vp.width / 2, vp.height * .7], [vp.width / 2, vp.height * .3], 10), 30); await wait(900);
+    const s1 = await st();
+    check(`pinball ${label}: a tap starts a game; a swipe up fires the plunger`, s0.mode === 'play' && s0.inLane && s1.ball && s1.ball[1] < 470, `mode ${s0.mode}, in the lane ${s0.inLane}; the ball at ${s1.ball && s1.ball.map(Math.round)}`);
+    for (let i = 0; i < 20 && (await st()).inLane; i++) await wait(150);
+    const l = await touches([[vp.width * .2, vp.height * .6]], 250), r = await touches([[vp.width * .8, vp.height * .6]], 250), both = await touches([[vp.width * .2, vp.height * .6], [vp.width * .8, vp.height * .6]], 250), after = await st();
+    const near = (a, b) => Math.abs(a - b) < .05;
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `pinball-${label.replace(/ /g, '-')}.png`) });
+    check(`pinball ${label}: the left half raises the left flipper, the right half the right, two fingers both; lifted, they fall`, near(l.L, l.Lup) && near(l.R, l.Rrest) && near(r.R, r.Rup) && near(r.L, r.Lrest) && near(both.L, both.Lup) && near(both.R, both.Rup) && near(after.L, after.Lrest) && near(after.R, after.Rrest) && !errors.length,
+      `left ${l.L.toFixed(2)}/${l.R.toFixed(2)}, right ${r.L.toFixed(2)}/${r.R.toFixed(2)}, both ${both.L.toFixed(2)}/${both.R.toFixed(2)}, after ${after.L.toFixed(2)}/${after.R.toFixed(2)}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 22. artillery: a turn by touch */
+if (want('artillery')) {
+  console.log('artillery: a turn by touch');
+  for (const [label, vp] of [['on its side', SIDE], ['upright', UP]]) {
+    const { page, ctx, cdp, errors } = await open('artillery', vp);
+    await wait(500);
+    const st = () => ev(page, () => { const s = window.__game.scenes.artillery.state(), g = s.cur; return { mode: s.mode, phase: s.phase, turn: s.turnNo, human: !!g && s.teams[g.team].human, x: g && g.x, y: g && g.y, ground: g && g.ground, weapon: s.weapon, shots: s.stats ? s.stats.shots : 0, btn: s.buttons()[0], at: g && s.at(g.x, g.y) }; });
+    const b = (await st()).btn, [bx, by] = await toCss(page, b.x + b.w / 2, b.y + b.h / 2), [, r0] = await toCss(page, 0, b.y), [, r1] = await toCss(page, 0, b.y + b.h);
+    await page.touchscreen.tap(bx, by); await wait(1800);   // (the turn's banner)
+    const s0 = await st();
+    check(`artillery ${label}: ONE PLAYER is a thumb's height; a tap on it starts a match, the player's grub first`, r1 - r0 >= 44 && s0.mode === 'play' && s0.human && s0.phase === 'aim', `the button ${(r1 - r0).toFixed(0)} CSS px, mode ${s0.mode}, the player's turn ${s0.human}`);
+    const side = s0.x < 400 ? 1 : -1, [tx, ty] = await toCss(page, s0.at[0] + side * 30, s0.at[1] - 4);
+    await page.touchscreen.tap(tx, ty); await wait(1600);
+    const s1 = await st(), wb = page.locator('[data-act="weapon"]'), w0 = await wb.textContent(); await wb.tap(); await wait(300);
+    const w1 = await wb.textContent(), s2 = await st();
+    check(`artillery ${label}: a tap beside the grub walks it there; WEAPON, named for the weapon, changes it`, Math.sign(s1.x - s0.x) === side && Math.abs(s1.x - s0.x) > 8 && w0 === 'ROCKET' && w1 === 'GRENADE' && s2.weapon === 'grenade', `walked ${(s1.x - s0.x).toFixed(1)} (toward ${side}); the button ${w0}, then ${w1}`);
+    await page.locator('[data-act="jump"]').tap(); let up = 0; for (let i = 0; i < 6; i++) { await wait(60); const q = await st(); up = Math.max(up, q.y - s2.y); }
+    await wait(1200); const s3 = await st(), [cx, cy] = [vp.width / 2, vp.height / 2];
+    await drag(cdp, line([cx, cy], [cx - side * 55, cy + 55], 10), 30); await wait(300);
+    const s4 = await st(); for (let i = 0; i < 60 && (await st()).turn < 2; i++) await wait(200);
+    const s5 = await st();
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `artillery-${label.replace(/ /g, '-')}.png`) });
+    check(`artillery ${label}: JUMP jumps; a drag back, let go, fires the other way; the turn passes to the CPU`, up > 4 && s3.ground && s4.shots === 1 && s5.turn >= 2 && !s5.human && !errors.length, `rose ${up.toFixed(1)}; shots ${s4.shots} (${s4.phase}); then turn ${s5.turn}, the CPU's ${!s5.human}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }

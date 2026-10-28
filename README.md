@@ -22,18 +22,18 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 |---|---|---|
 | **`dist/handoff/`** ([on the site](https://my-3d2dge.vercel.app/handoff/); `node tools/handoff.mjs --zip <file>` for a chat) | **Coding agents that need the full engine** (props, lighting, x-ray, sessions: what the agent edition leaves out). The readable engine and the agent edition, `API.md`, `API-INDEX.md` (every public name), `AI_GUIDE.md`, the tools that check, film and replay a game, and a template game with a headless test. Its `README.md` says where to start. | text only, ~1.3 MB; read `API.md`, search the rest |
 | **`dist/my-3d2dge-agent.js`** | **AI coding agents** (Claude Code, Codex, Cursor and the like). The [agent edition](#the-agent-edition-for-ai-coding-agents): the essential engine in one readable file whose header is the whole manual, with three complete example games. An agent reads the header and nothing else. | header ~10k tokens, whole file ~105k |
-| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `pointclick`, `platformer`, `metroidvania`, `brawler`, `fighting`, `shooter`, `arcade`, `kart`, `road`, `puzzle`, `rpg`, `roguelike`, `tactics`, `rts`, `sim`, `stealth`), or `animlab` to explore the animation system. Each was sized for a 200k context (D51; D52 suspends that budget until the owner's review, and nine kits are past it): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~177k-239k tokens (the RPG's journey is the largest) |
-| **`dist/kits/my-3d2dge-3d-<genre>.html`** | A [3D kit](#real-3d-the-3d-engine): the same, with the 3D engine and its manual and one 3D slice (`action`, `platformer`, `shooter`). Served, not opened from a disk: it loads three.js and Rapier from `vendor/`. | ~220k-295k tokens (the shooter's open world is the largest) |
-| **`dist/my-3d2dge-compact.html`** | Every slice and the animation lab, engine minified (every section and module): for a game of several genres. | ~619k tokens (past the plan's 500,000 line: kept whole until the owner's review, D55) |
-| **`dist/my-3d2dge.html`** | The complete reference: readable engine, every slice and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~772k tokens |
+| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `pointclick`, `platformer`, `metroidvania`, `brawler`, `fighting`, `shooter`, `arcade`, `pinball`, `kart`, `road`, `puzzle`, `rpg`, `roguelike`, `tactics`, `rts`, `artillery`, `sim`, `stealth`), or `animlab` to explore the animation system. Each was sized for a 200k context (D51; D52 suspends that budget until the owner's review, and ten kits are past it): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~178k-240k tokens (the RPG's journey is the largest) |
+| **`dist/kits/my-3d2dge-3d-<genre>.html`** | A [3D kit](#real-3d-the-3d-engine): the same, with the 3D engine and its manual and one 3D slice (`action`, `platformer`, `shooter`). Served, not opened from a disk: it loads three.js and Rapier from `vendor/`. | ~222k-297k tokens (the shooter's open world is the largest) |
+| **`dist/my-3d2dge-compact.html`** | Every slice and the animation lab, engine minified (every section and module): for a game of several genres. | ~660k tokens (past the plan's 500,000 line: kept whole until the owner's review, D55) |
+| **`dist/my-3d2dge.html`** | The complete reference: readable engine, every slice and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~820k tokens |
 
-Token counts are cl100k, measured at v0.75.0 (`gpt-tokenizer`); other tokenizers differ.
+Token counts are cl100k, measured at v0.77.0 (`gpt-tokenizer`); other tokenizers differ.
 
 Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-like with three dungeons", "a spiritual successor to Gradius"). Each file contains:
 
 1. **The API card**: a quick-start game, a table of coordinates per view, rules, common mistakes, the full API and a genre playbook.
 2. **The engine** (no dependencies, no network).
-3. **A starter game** with eighteen vertical slices to copy from (a genre kit holds one):
+3. **A starter game** with twenty vertical slices to copy from (a genre kit holds one):
    - ADVENTURE (Zelda-style top-down)
    - POINT-AND-CLICK (Monkey Island / Broken Sword: a harbour, a tavern and a lighthouse, four puzzles, a riddle contest to win, the nine verbs or a verb coin, an inventory, walk areas with holes and depth: the click and story modules)
    - PLATFORMER (Mario / Mega Man side-scroller with a 2.5D view)
@@ -42,12 +42,14 @@ Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-li
    - FIGHTING (Street Fighter II one on one: three fighters, versus for two, an arcade ladder against the CPU, training: the fight module)
    - SHOOTER (a 1942-style vertical stage, then a Gradius-style horizontal one: rock above and below, a power bar, options; a continue, initials and a table)
    - ARCADE (a cabinet of three: a maze with four chasers, a formation of diving moths, wrapping rocks; tables, initials, two players and an attract mode: the arcade module)
+   - PINBALL (Pinball Fantasies / Space Cadet: one table seen down its slant, flippers, bumpers, slingshots, a ramp over the table, drop targets, a spinner, a kickback, a jackpot and a multiball, nudging and tilt, a dot-matrix display, high scores and an attract mode: the physics and arcade modules)
    - KART (Super Mario Kart in Mode 7: six karts with HD drivers, three laps, drifts that charge a boost, item boxes, VS for two in a split screen: the mode7 and drive modules)
    - ROAD (OutRun: a coast road against the clock, curves and hills, a tunnel, traffic, checkpoints, a radio of three songs: the road module)
    - RPG (Dragon Quest / Final Fantasy: a town to talk your way through, a world map of 256 x 256 cells, a cave and its boss, random encounters swirling into the ATB battle, levels, gear, menus and save slots: the story and rpg modules)
    - ROGUELIKE (Rogue / Mystery Dungeon: ten generated floors, fields of view and fog, turns by speed, the grid and gen modules)
    - TACTICS (Final Fantasy Tactics / Fire Emblem: an isometric hill fort of heights, four heroes against five, charge time or phases, jump heights, blows from behind, bows' arcs, areas, a scoring AI, the cell under the cursor in any turn of the view: the grid and story modules)
    - RTS (Warcraft II / StarCraft: workers mining gold, a hall, a barracks and a stable to build, footmen, archers and knights, fog, a minimap, an enemy camp across a river that builds and attacks in waves: the grid and strategy modules)
+   - ARTILLERY (Worms / Scorched Earth: two teams of three on an island every blast carves, turns, aim and power, wind, a rocket, a bouncing grenade and a cluster bomb, falls and the sea, a CPU that tries its shots in simulation, two players in turn: the physics, terrain and grid modules)
    - SIM (Theme Park / RollerCoaster Tycoon: lay paths, build four rides that turn and two stands, guests with money and needs who queue, ride, eat and leave happy or not, prices, a rating, day and night, 1x to 4x: the grid and strategy modules)
    - PUZZLE (Tetris by today's rules and Puyo Puyo's chaining pairs, with a mascot; versus for two)
    - STEALTH (Assassin's Creed / Metal Gear third-person: roofs to climb and leap, guards that see and search, takedowns)
@@ -294,6 +296,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 | Tactics (Final Fantasy Tactics, Tactics Ogre, Shining Force, Fire Emblem) | iso, turned in quarters | `map.pick` (the cell under the cursor on a map of heights), the grid module's reach over heights, shapes of effect, facing, threat maps, `E.Turns` by charge time or phases (TACTICS kit) |
 | Real-time strategy and sims (Dune II, Warcraft II, StarCraft, SimCity, Theme Park) | iso, top-down, three-quarter | the strategy module: selection by click, box and group, orders and formations on shared flow fields, production, resources, placement, fog, the minimap, an enemy's build order and waves; a free camera and `r.pick` in the core; the day clock, needs, overlays (RTS and SIM kits) |
 | Arcade (Pac-Man, Galaga, Asteroids, Breakout) | overhead | the arcade module (tables, initials, turns, attract mode), GridMover mazes, Path dives, wrap-around (ARCADE kit) |
+| Physics toys (Pinball Fantasies, Space Cadet, Worms, Scorched Earth, Breakout, Lemmings) | a steep table view, side at a whole scale, overhead | the physics module: rigid bodies, fast balls that never pass through, flippers, bumpers, kickers, layers; the terrain module: ground carved by blasts, walkers on slopes, a collider for grenades; touch zones (PINBALL and ARTILLERY kits) |
 | Racing (Super Mario Kart, F-Zero, OutRun, Pole Position, Micro Machines) | Mode 7, the pseudo-3D road, top-down | the mode7, road and drive modules: a floor a row at a time, the road's segments, cars with grip and drift, races with laps and drivers (KART and ROAD kits) |
 | 3D-era remakes (Mario 64, Ocarina, Crash) | iso, three-quarter, brawler | TileMap blocks with heights plus Body jumping (z is real height) |
 | Third-person action and stealth, adapted (Assassin's Creed, Metal Gear, Tenchu) | iso, three-quarter | TileMap roofs, Mover, E.ACTIONS, E.sees + E.Suspicion, FlowField with jumps |
@@ -362,7 +365,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.76.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.77.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 

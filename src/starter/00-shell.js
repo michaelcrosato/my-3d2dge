@@ -27,6 +27,10 @@
  *                        needs (E.needs, E.choose), money, prices, a rating, E.Clock's days, time controls, an overlay
  *   SLICE 18 POINT-AND-CLICK  an adventure (Monkey Island, Broken Sword): E.Click's rooms, walk areas with holes, depth,
  *                        hotspots, the nine verbs or a coin, an inventory, puzzles as rules; E.Story's talk and riddles
+ *   SLICE 19 PINBALL     a table (Pinball Fantasies, Space Cadet): E.Physics' flippers, bumpers, a ramp on its own layer,
+ *                        a swept ball; a mission, multiball, tilt, a dot-matrix display drawn by code; E.Arcade's table
+ *   SLICE 20 ARTILLERY   two teams of three (Worms, Scorched Earth): E.Terrain's island carved by every blast, E.Physics'
+ *                        bouncing grenades, E.Turns; wind, falls and the sea; a CPU that tries its shots in simulation
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
@@ -58,6 +62,7 @@ const SLICES = [
   { id: 'fighting', label: 'FIGHTING', about: 'ONE ON ONE, BEST OF THREE', family: 'FIGHTING' },
   { id: 'shooter', label: 'SHOOTER', about: 'VERTICAL SHOOT-EM-UP', family: 'ARCADE' },
   { id: 'arcade', label: 'ARCADE', about: 'A CABINET OF THREE CLASSICS', family: 'ARCADE' },
+  { id: 'pinball', label: 'PINBALL', about: 'ONE TABLE: RAMP, MULTIBALL, JACKPOT', family: 'ARCADE' },
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
   { id: 'road', label: 'ROAD', about: 'A COAST ROAD AGAINST THE CLOCK', family: 'RACING' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
@@ -65,6 +70,7 @@ const SLICES = [
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
   { id: 'tactics', label: 'TACTICS', about: 'TAKE THE HILL FORT, TURN BY TURN', family: 'STRATEGY' },
   { id: 'rts', label: 'RTS', about: 'GATHER GOLD, RAISE AN ARMY, BURN THEIR CAMP', family: 'STRATEGY' },
+  { id: 'artillery', label: 'ARTILLERY', about: 'TWO TEAMS OF THREE ON AN ISLAND THAT BLOWS APART', family: 'STRATEGY' },
   { id: 'sim', label: 'SIM', about: 'BUILD A THEME PARK, KEEP THEM SMILING', family: 'SIMULATION' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
