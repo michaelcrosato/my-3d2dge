@@ -27,6 +27,11 @@
 //                drawn; a failing step, or a script error before play, turns it into a report (what failed, the error,
 //                a code, the engine, the canvas) whose Continue takes it away; after play an error goes to the red box
 //                with the report's line; boot: false takes a splash away; E.diagnose()
+//   saves (full) game.saves: three slots and an autosave with their place, level and time played (counted in the game's
+//                scenes, not its titles); save, load, copy, erase; kept in storage per game, read back after a reload; a
+//                damaged save and one from a newer version refused without an error, an older one migrated; blocked
+//                storage keeping them for the visit; the pause menu's Save (while canSave) and Load (menu: { saves }),
+//                the save screen's slots, Save here, and Erase asking first
 // Usage: node tools/standard-test.mjs [--node]   (exit code 1 on a failure; CHROMIUM_PATH picks a browser)
 import { chromium } from 'playwright';
 import { load as loadEngine, engineSource } from './engine-lib.mjs';
@@ -101,6 +106,17 @@ for (const [ed, file] of EDITIONS) {
     const go = new E.Game({ headless: true, menu: { settings: [{ key: 'zoom', label: 'Map zoom', options: ['near', 'far'], value: 'near' }] } });
     go.start({ scenes: zs, scene: 'a' }); go.advance(1 / 60); go.zoomBy(1.2); go.advance(.4);
     check(`${ed}: a game's own setting called zoom stays its own (no camera zoom from it)`, go.settings.zoom === 'near' && go.zoom === 1 && !go._zoomStd(), `${go.settings.zoom}, ${go.zoom}x`);
+    // save slots, headless: kept in memory, the time played counted in play and not on the title
+    const gs = new E.Game({ headless: true, menu: { saves: true } }), SV = gs.saves; let st = { gold: 5 };
+    SV.write = () => ({ data: { gold: st.gold }, place: 'Brightwater', level: 3 }); SV.read = s => { st = s.data; };
+    gs.start({ scenes: scenes(), scene: 'title' }); gs.advance(1); const onTitle = SV.played; gs.go('play', null, { fade: 0 }); gs.advance(2);
+    check(`${ed}: saves: time played counts in play, not on a title`, onTitle === 0 && Math.abs(SV.played - 2) < .05, `${onTitle} then ${SV.played}`);
+    const empty = SV.list().every(r => r.empty) && SV.list().map(r => r.slot).join() === 'auto,0,1,2';
+    st.gold = 50; const ok = SV.save(0); st.gold = 0; gs.advance(1); const back = SV.load(0);
+    check(`${ed}: saves: a slot saved and loaded (read() given its data; the time played set back)`, empty && ok && back && st.gold === 50 && back.place === 'Brightwater' && back.level === 3 && Math.abs(SV.played - 2) < .05, JSON.stringify([empty, ok, st, back && back.time]));
+    SV.copy(0, 2); SV.erase(0);
+    check(`${ed}: saves: copy and erase`, SV.get(0) === null && SV.get(2).data.gold === 50 && SV.autosave() && SV.get('auto').data.gold === 50 && SV.latest().slot !== 0 && SV.any);
+    check(`${ed}: saves: no slot 7, nothing to save without data`, SV.save(7) === false && new E.Game({ headless: true }).saves.save(0) === false && SV.load(1) === null);
   }
 }
 
@@ -346,6 +362,41 @@ if (!process.argv.includes('--node')) {
       check(`${ed}: a tap on a dialog box finishes the line, then turns the page`, await ev(q, () => window.dd.i === 1 && window.dd.open), await ev(q, () => JSON.stringify([window.dd.i, window.dd.shown, window.dd.open])));
       if (q.errors.length) check(`${ed}: no errors (touch)`, false, q.errors.join(' | '));
       await tc.close();
+    }
+    if (ed === 'full') {   // save slots: kept per game, read back after a reload, damaged and newer ones refused, blocked storage, the screen
+      const sv = await browser.newContext(), SOPT = "{ menu: { saves: { slots: 3, version: 2, migrate(d, from) { d.migrated = from; return d; } } } }";
+      const setup = q => ev(q, () => { window.st = { gold: 0 }; game.saves.write = () => ({ data: { gold: st.gold }, place: 'Brightwater', level: 3 }); game.saves.read = s => { window.st = s.data; }; game.go('play', null, { fade: 0 }); step(120); });
+      let q = await open(SOPT, sv); await setup(q);
+      const saved = await ev(q, () => { st.gold = 50; const ok = game.saves.save(0); const raw = JSON.parse(localStorage.getItem('my3d2dge:save:/game.html:0')); return { ok, raw }; });
+      check(`${ed}: saves: a save is kept in storage with its version, place, level and time played`, saved.ok && saved.raw.v === 1 && saved.raw.version === 2 && saved.raw.place === 'Brightwater' && saved.raw.level === 3 && Math.abs(saved.raw.time - 2) < .2 && saved.raw.data.gold === 50, JSON.stringify(saved));
+      await q.close(); q = await open(SOPT, sv); await setup(q);
+      const reload = await ev(q, () => { const L = game.saves.list(), r = game.saves.load(0); return { L: L.map(x => [x.slot, x.empty, x.place, x.level]), gold: st.gold, played: game.saves.played, r: !!r }; });
+      check(`${ed}: saves: read back after a reload (the list, then a load)`, JSON.stringify(reload.L) === '[["auto",true,null,null],[0,false,"Brightwater",3],[1,true,null,null],[2,true,null,null]]' && reload.gold === 50 && Math.abs(reload.played - 2) < .2, JSON.stringify(reload));
+      const odd = await ev(q, () => {
+        const k = s => 'my3d2dge:save:/game.html:' + s, S = game.saves;
+        localStorage.setItem(k(1), '{oops'); localStorage.setItem(k(2), JSON.stringify({ v: 1, version: 3, data: {}, place: 'Later' })); localStorage.setItem(k('auto'), JSON.stringify({ v: 1, version: 1, data: { gold: 7 }, place: 'Old', time: 5 }));
+        const dmg = S.get(1), nw = S.get(2), r1 = S.load(1), r2 = S.load(2), old = S.load('auto');
+        return { dmg: !!dmg.damaged, nw: !!nw.newer, r1, r2, old: st, rows: S.list().map(x => x.damaged ? 'D' : x.newer ? 'N' : x.empty ? '-' : 'S').join('') };
+      });
+      check(`${ed}: saves: a damaged save and one from a newer version are refused without an error; an older one is migrated`, odd.dmg && odd.nw && odd.r1 === null && odd.r2 === null && odd.old.gold === 7 && odd.old.migrated === 1 && odd.rows === 'SSDN' && !q.errors.length, JSON.stringify(odd) + q.errors.join(' | '));
+      const cp = await ev(q, () => { const S = game.saves; S.copy(0, 2); const c = S.get(2).data.gold; S.erase(2); return [c, S.get(2), localStorage.getItem('my3d2dge:save:/game.html:2')]; });
+      check(`${ed}: saves: copy over another slot, and erase it from storage`, cp[0] === 50 && cp[1] === null && cp[2] === null, JSON.stringify(cp));
+      const blocked = await ev(q, () => { Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); }; st.gold = 9; const ok = game.saves.save(1); step(10); return [ok, game.saves.blocked, game.saves.get(1).data.gold, game.scene === game.scenes.play && window.played > 0]; });
+      check(`${ed}: saves: blocked storage keeps the save for the visit and play goes on`, blocked.join() === 'true,true,9,true' && !q.errors.length, JSON.stringify(blocked) + q.errors.join(' | '));
+      await q.close(); q = await open(SOPT, sv); await setup(q);
+      const btns = () => ev(q, () => [...document.querySelectorAll('.esh-sh button')].map(b => b.textContent));
+      await q.keyboard.press('Escape'); await ev(q, () => step(2)); const pause = await btns();
+      await q.click('.esh-sh button:has-text("Save")'); await ev(q, () => step(1)); const page = await btns();
+      await q.click('.esh-sh button:has-text("Slot 3")'); await q.click('.esh-sh button:has-text("Save here")'); await ev(q, () => step(1));
+      const after = await ev(q, () => [game.shell.screen, game.saves.get(2) && game.saves.get(2).place]);
+      check(`${ed}: saves: the pause menu's Save and Load; the save screen's slots (no autosave); Save here into an empty one`, pause.slice(0, 3).join() === 'Resume,Save,Load' && page.length === 4 && /^Slot 1 — Brightwater · Level 3 · 0:00/.test(page[0]) && /^Slot 2 — Damaged/.test(page[1]) && /^Slot 3 — Empty/.test(page[2]) && page[3] === 'Back' && after.join() === 'saves,Brightwater', JSON.stringify({ pause, page, after }));
+      await q.click('.esh-sh button:has-text("Slot 1")'); await q.click('.esh-sh button:has-text("Erase")'); const ask = await ev(q, () => [game.shell.screen, document.querySelector('.esh-sh h2').textContent]);
+      await q.click('.esh-sh button:has-text("Erase it")'); const gone = await ev(q, () => [game.shell.screen, game.saves.get(0)]);
+      check(`${ed}: saves: Erase asks first, then the slot is empty`, ask.join() === 'confirm,Erase Slot 1?' && gone[0] === 'saves' && gone[1] === null, JSON.stringify([ask, gone]));
+      await ev(q, () => { game.shell.hide(); step(2); game.saves.canSave = false; }); await q.keyboard.press('Escape'); await ev(q, () => step(2));
+      const noSave = await btns();
+      check(`${ed}: saves: away from a save point (canSave false) the pause menu offers Load alone`, noSave.slice(0, 2).join() === 'Resume,Load' && !q.errors.length, noSave.join() + q.errors.join(' | '));
+      await q.close(); await sv.close();
     }
     // the boot screen, in a page with the splash and a live loop
     const BOOTPAGE = (body, boot) => `<!doctype html><html><head><meta charset="utf-8"><title>Harbour</title></head><body style="margin:0;background:#000">${splash}<canvas id="screen" style="width:100vw;height:100vh;display:block"></canvas><script>${engine}</script><script>

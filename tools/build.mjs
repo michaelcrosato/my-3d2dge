@@ -64,7 +64,8 @@ const DIET = [
   { part: 'weather', sections: ['10g'], entries: ['weather'] },   // game.weather = { ... }
   { part: 'sequences', sections: ['10h'], entries: ['history'] },   // input.sequence, input.motion, input.history
   { part: 'camera', sections: ['10i'], entries: ['window', 'snapY', 'frame'] },   // game.cam.window, cam.snapY, cam.frame
-  { part: 'players', sections: ['10j'], entries: ['allowJoin', 'addPlayer', 'removePlayer', 'splitScreen', 'viewport', 'halfKeys'] }   // game.allowJoin, game.splitScreen, Input.halfKeys (game.players and game.viewports are the core's)
+  { part: 'players', sections: ['10j'], entries: ['allowJoin', 'addPlayer', 'removePlayer', 'splitScreen', 'viewport', 'halfKeys'] },   // game.allowJoin, game.splitScreen, Input.halfKeys (game.players and game.viewports are the core's)
+  { part: 'saves', sections: ['10k'], entries: ['saves'], names: ['saves'] }   // game.saves, and menu: { saves }
 ];
 // the parts a slice's deep link can jump into (#arcade/maze), named in its kit's header
 const PARTS = { arcade: ['maze', 'formation', 'rocks'], shooter: ['horizontal'], fighting: ['versus', 'arcade', 'training'], metroidvania: ['miniboss', 'boss', 'map'], kart: ['race', 'vs'], road: ['drive'] };

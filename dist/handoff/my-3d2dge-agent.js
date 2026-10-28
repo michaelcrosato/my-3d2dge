@@ -1,5 +1,5 @@
 /*!
-my-3D2dge AGENT EDITION v0.69.1: the essential engine in one file, for AI coding agents
+my-3D2dge AGENT EDITION v0.70.0: the essential engine in one file, for AI coding agents
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 Retro-modern 2D games drawn entirely by code: no image or sound files, no dependencies, no network.
@@ -168,6 +168,7 @@ UI (draw inside r.overlay): E.ui.box(g, x, y, w, h, { bg, border, alpha }), E.ui
   const talk = new E.Dialog(game); talk.say(['Page one.', 'Page two.'], { name: 'ELDER', choices: ['YES', 'NO'],
     onChoice(i), onDone, place: 'top' | 'bottom', auto: 2.5, modal: false (chatter that plays on) });
     in update: if (talk.update(dt)) return;   in draw: talk.draw(r)
+    markup: {c=#ffd36a}gold{/c}, {w=.5} a pause, {s=12}slowly{/s}, {shake}..{/shake}, {wave}..{/wave}, {$name} (vars)
   const menu = new E.Menu(game, ['START', { label: 'LOAD', disabled: true }], { title, x, y, onPick(i, item), onCancel });
     menu.update(); menu.draw(r)
 Sound (game.audio; it starts after the first key press): sfx(name, { vol, pitch }) with presets jump jump2 land step coin
@@ -376,7 +377,7 @@ only what the game needs; never read one whole. All of it runs at https://my-3d2
 (function (root) {
 'use strict';
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
-const E = { version: '0.69.1', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
+const E = { version: '0.70.0', build: 'dev-build', edition: 'agent', name: 'my-3D2dge', TAU, DEG, current: null };   // build: the commit, stamped at deploy
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();   // one console warning per distinct problem, prefixed 'my-3D2dge:'
 const warn = (key, msg) => { if (_warned.has(key)) return; _warned.add(key); console.warn('my-3D2dge: ' + msg); };
@@ -3463,10 +3464,31 @@ E.ui = {
   },
   counter(g, x, y, label, value, color = '#ffffff', o = {}) { return E.font.text(g, label + ' ' + value, x, y, color, o); }
 };
+// dialog markup: {c=#hex}..{/c} {w=.5} {s=12}..{/s} {shake}..{/shake} {wave}..{/wave} {$name}; null for text with none
+const MARKUP = /\{(\/?)(c|s|w|shake|wave)(?:=([^}]*))?\}/g;
+function markup(s, vars) {
+  if (s.indexOf('{') < 0) return null;
+  let had = false;
+  s = s.replace(/\{\$([\w.]+)\}/g, (m, k) => { had = true; let v = vars; for (const p of k.split('.')) v = v == null ? undefined : v[p]; if (v === undefined) { warn('dialog:' + k, 'Dialog: no value for {$' + k + '}'); return ''; } return String(v); });
+  let text = '', st = { c: null, s: 0, shake: 0, wave: 0 }, last = 0, m;
+  const fx = [], wait = {}, cs = [], ss = [], lit = t => { for (let i = 0; i < t.length; i++) fx.push(st); text += t; };
+  MARKUP.lastIndex = 0;
+  while ((m = MARKUP.exec(s))) {
+    lit(s.slice(last, m.index)); last = MARKUP.lastIndex; had = true;
+    const [, close, k, v] = m;
+    if (k === 'w') { if (!close) wait[text.length] = (wait[text.length] || 0) + (parseFloat(v) || 0); continue; }
+    st = Object.assign({}, st);
+    if (k === 'c') { if (close) st.c = cs.pop() || null; else { cs.push(st.c); st.c = v || null; } }
+    else if (k === 's') { if (close) st.s = ss.pop() || 0; else { ss.push(st.s); st.s = parseFloat(v) || 0; } }
+    else st[k] = Math.max(0, st[k] + (close ? -1 : 1));
+  }
+  lit(s.slice(last));
+  return had ? { text, fx, wait } : null;
+}
 class Dialog {
   constructor(game, o = {}) {
     this.game = game;
-    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', bg: '#141a3a', border: '#e8e4ff' }, o);
+    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', bg: '#141a3a', border: '#e8e4ff', vars: null }, o);
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
   }
   _dims() {
@@ -3477,9 +3499,14 @@ class Dialog {
   say(text, o = {}) {
     this.portrait = typeof o.portrait === 'function' ? o.portrait : null; this._pSize = o.portraitSize || 40;
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;
-    const d = this._dims(), pages = [];
-    for (const t of Array.isArray(text) ? text : [text]) { const L = E.font.wrap(String(t), d.w - d.tx - 5); for (let k = 0; k < L.length; k += this.lines) pages.push(L.slice(k, k + this.lines)); }
+    const d = this._dims(), pages = [], fxs = [];
+    for (const t of Array.isArray(text) ? text : [text]) {
+      const mk = markup(String(t), o.vars ? Object.assign({}, this.vars, o.vars) : this.vars), L = E.font.wrap(mk ? mk.text : String(t), d.w - d.tx - 5);
+      let at = 0; const pos = mk && L.map(line => Array.from(line, ch => { let w = 0; while (at < mk.text.length && mk.text[at] !== ch) w += mk.wait[at++] || 0; const q = at++; return { f: mk.fx[q], w: w + (mk.wait[q] || 0) }; }));
+      for (let k = 0; k < L.length; k += this.lines) { pages.push(L.slice(k, k + this.lines)); const ps = pos && [].concat(...pos.slice(k, k + this.lines)); fxs.push(ps && { fx: ps.map(e => e.f), wait: ps.map(e => e.w) }); }
+    }
     this.pages = pages.length ? pages : [['']]; this.i = 0; this.shown = 0; this.open = true; this.choice = 0;
+    this._fx = fxs.some(Boolean) ? fxs : null; this._hold = 0; this._held = -1;
     this.name = o.name || null; this.onDone = o.onDone || null; this.choices = o.choices || null; this.onChoice = o.onChoice || null; this._blip = 0;
     this.auto = o.auto || 0; this.modal = o.modal !== false; this._wait = 0;
     return this;
@@ -3490,13 +3517,20 @@ class Dialog {
   get typing() { return this.shown < this.pageLen; }
   update(dt) {
     if (!this.open) return false;
-    const inp = this.game.input, len = this.pageLen, prev = Math.floor(this.shown);
-    this.shown = Math.min(len, this.shown + this.speed * dt);
+    const inp = this.game.input, len = this.pageLen, prev = Math.floor(this.shown), mk = this._fx && this._fx[this.i];
+    if (!mk) this.shown = Math.min(len, this.shown + this.speed * dt);
+    else for (let t = dt; t > 1e-9 && this.shown < len;) {
+      const n = Math.floor(this.shown);
+      if (this._hold > 0) { const u = Math.min(t, this._hold); this._hold -= u; t -= u; continue; }
+      if (mk.wait[n] && this._held < n) { this._held = n; this._hold = mk.wait[n]; continue; }
+      const sp = (mk.fx[n] && mk.fx[n].s) || this.speed, u = Math.min(t, (n + 1 - this.shown) / sp);
+      this.shown = Math.min(len, this.shown + u * sp); t -= u; if (n + 1 - this.shown < 1e-6) this.shown = n + 1;
+    }
     if (this.voice && Math.floor(this.shown) > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(this.voice);
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {
       this._wait = 0;
-      if (last) { this.open = false; if (this.onDone) this.onDone(); } else { this.i++; this.shown = 0; }
+      if (last) { this.open = false; if (this.onDone) this.onDone(); } else { this.i++; this.shown = 0; this._held = -1; }
       return this.modal && this.open;
     }
     if (!this.modal) return false;
@@ -3505,8 +3539,8 @@ class Dialog {
       if (inp.repeat('down') || inp.repeat('right')) { this.choice = (this.choice + 1) % this.choices.length; this.game.audio.sfx('select'); }
     }
     if (inp.pressed('confirm')) {
-      if (this.typing) this.shown = len;
-      else if (!last) { this.i++; this.shown = 0; }
+      if (this.typing) { this.shown = len; this._hold = 0; }
+      else if (!last) { this.i++; this.shown = 0; this._held = -1; }
       else { this.close(); this.game.audio.sfx('confirm'); if (this.choices && this.onChoice) this.onChoice(this.choice, this.choices[this.choice]); if (this.onDone) this.onDone(); }
     } else if (asking && inp.pressed('cancel')) { this.choice = this.choices.length - 1; }
     return true;
@@ -3519,7 +3553,22 @@ class Dialog {
       if (this.portrait) this.portrait(g, d.x + 5, d.y + Math.round((d.h - d.P) / 2), d.P);
       if (this.name) { const nw = E.font.width(this.name) + 12, nx = d.x + (this.portrait ? d.tx - 6 : 4); ui.box(g, nx, d.y - 12, nw, 14, { bg: this.bg, border: this.border }); E.font.text(g, this.name, nx + 6, d.y - 9, this.nameColor, { outline: false, shadow: '#05040a' }); }
       let left = Math.floor(this.shown);
-      this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, { outline: false, shadow: '#05040a' }); });
+      const mk = this._fx && this._fx[this.i], o = { outline: false, shadow: '#05040a' };
+      if (!mk) this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, o); });
+      else {
+        let n0 = 0; const t = this.game.real;
+        this._page.forEach((line, k) => {
+          const shown = Math.min(line.length, Math.max(0, left)), y = d.y + 5 + k * d.lh; left -= line.length;
+          for (let j = 0; j < shown;) {
+            const f = mk.fx[n0 + j] || {}, one = f.shake || f.wave; let e = j + 1;
+            if (!one) while (e < shown && mk.fx[n0 + e] === f) e++;
+            const n = n0 + j, x = d.x + d.tx + (j ? E.font.width(line.slice(0, j)) + 1 : 0);
+            const ox = f.shake ? Math.round(hash2(n, Math.floor(t * 24)) * 2 - 1) : 0, oy = (f.shake ? Math.round(hash2(n + 50, Math.floor(t * 24)) * 2 - 1) : 0) + (f.wave ? Math.round(Math.sin(t * 8 - n * .7) * 1.5) : 0);
+            E.font.text(g, line.slice(j, e), x + ox, y + oy, f.c || this.color, o); j = e;
+          }
+          n0 += line.length;
+        });
+      }
       const blink = Math.floor(this.game.real * 3) % 2 === 0, last = this.i >= this.pages.length - 1;
       if (!this.typing && !(last && this.choices) && blink) px.poly(g, [[d.x + d.w - 10, d.y + d.h - 6], [d.x + d.w - 5, d.y + d.h - 6], [d.x + d.w - 7.5, d.y + d.h - 3]], this.color);
       if (last && this.choices && !this.typing) {

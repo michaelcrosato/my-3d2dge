@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.69.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.70.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -114,7 +114,7 @@ What stays your game's job, because only the game knows it:
 - Every gameplay scene `pausable: true`, so the menu and the pausing reach it; titles and game overs not.
 - Prompts from `game.input.label(action)` (or `ui.hud({ prompt: { act: 'interact' } })`), never hard-coded keys; touch buttons (`touch: [...]`) for every action a level needs (the stick moves).
 - The assists your mechanics call for, as settings: difficulty, aim assist, auto-fire, hold or toggle for a sustained action, hints after repeated failure.
-- Saves: `E.store` with a version in what you save, written at checkpoints (not on page close); ask before overwriting or deleting progress.
+- Saves: `game.saves` (three slots and an autosave with their place, level and time played; versioned; `menu: { saves: true }` for the pause menu's Save and Load and the standard screen, which asks before a save is lost), written at checkpoints and save points (not on page close).
 - Information never in color alone; flashes short (`game.flash` already follows the settings).
 
 ## Frame order
@@ -303,7 +303,7 @@ if (prey && input.pressed('attack')) takedown(prey.target);
 ### Text and UI
 - `E.font` is a 5x7 proportional pixel font with lower case (the old 3x5 font is `font: 'tiny'`), with `scale`, `align`, `wrap`, outline, drop `shadow` and `gradient`; `E.font.title` draws extruded gradient logos.
 - `E.ui.box/bar/hearts` draw classic windows and meters inside `r.overlay`.
-- `Dialog` does typewriter text with blips, pages, speaker names and choices; `update` returns true while it is open, so the world waits.
+- `Dialog` does typewriter text with blips, pages, speaker names and choices; `update` returns true while it is open, so the world waits. Its markup gives a word its color (`{c=#ffd36a}gold{/c}`), a beat before the next line (`{w=.5}`), a slow dread (`{s=12}...{/s}`), a scream that shakes (`{shake}`) or a song that bobs (`{wave}`), and the hero's name (`{$name}` from `vars`).
 - `Menu` handles up and down with key repeat, confirm, cancel and disabled items.
 
 ### Shell (an HTML interface: screens and HUD)

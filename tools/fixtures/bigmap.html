@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>big map fixture</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
+<body><canvas id="screen"></canvas>
+<script src="../../dist/my-3d2dge.js"></script>
+<script>
+// the views suite's big map (tools/views-test.mjs, M7a): a world map of 256 x 256 cells (4,096 units a side) whose floor
+// bakes in chunks near the camera: meadows, sand, lakes and roads by cell tags, woods and hills as wall cells, the
+// camera crossing it on a fixed path each step (a filmstrip repeats exactly). ?view= iso | threequarter | topdown.
+// window.__fx: { game, map, small(chunks), drawn, still } (small: a 40 x 30 map of the same kinds, chunked or not, its
+// water still since the sparkle moves with real time, for the pixel check; drawn: the map drawn; still: the camera left
+// where it is)
+(() => {
+const E = My3D2dge, Q = new URLSearchParams(location.search), N = 256, T = 16;
+const game = new E.Game({ canvas: 'screen', res: [320, 180], view: Q.get('view') || 'threequarter', menu: false, fullscreen: false, corner: false });
+const SAND = { base: '#d8c890', dark: '#c0ac70', light: '#ece0b0' }, TYPES = { 1: { h: 18, top: '#2e6a32', side: '#24502a', face: 'hedge', roof: 'leaves' }, 2: { h: 26, top: '#8a7a5a', side: '#6a5a40', face: 'rock', roof: 'grass' } };
+// the land from noise: water below, sand on its shore, meadow, woods (1) and hills (2) high up, roads every 32 cells
+const make = (w, h, o = {}) => {
+  const cells = new Array(w * h).fill(0), floor = new Array(w * h).fill(null);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const n = E.noise2(x * .06, y * .06) * .7 + E.noise2(x * .2 + 9, y * .2 - 4) * .3, i = y * w + x, road = (x % 32 === 16 || y % 32 === 16);
+    if (road) floor[i] = 'dirt';
+    else if (n < .24) floor[i] = 'water';
+    else if (n < .29) floor[i] = 'sand';
+    else if (n > .64) cells[i] = 2;
+    else if (n > .5 && E.hash2(x, y) < .5) cells[i] = 1;
+  }
+  return new E.TileMap(Object.assign({ w, h, cells, floor, types: TYPES, block: ['water'], floorTex: (x, y, tag) => tag === 'water' ? E.tex.water(x, y) : tag === 'sand' ? E.tex.dirt(x, y, SAND) : tag === 'dirt' ? E.tex.dirt(x, y) : E.tex.grass(x, y) }, o));
+};
+const map = make(N, N), small = chunks => make(40, 30, { chunks, shimmer: false }), fx = { game, map, small, drawn: map, still: false };
+let i = 0;
+game.start({ update(dt) {
+  if (fx.still) return;
+  i++;   // across the map and back on a slow curve: a new chunk now and then, as walking would bring them
+  const t = i / 120, x = N * T * (.5 + .38 * Math.sin(t * .05)), y = N * T * (.5 + .38 * Math.sin(t * .031 + 1));
+  game.focus(x + Math.sin(t * .7) * 200, y + t * 40 % 600);
+}, draw(r) { r.sky('#101418'); fx.drawn.drawFloor(r); fx.drawn.queueWalls(r); } });
+window.__fx = fx;
+})();
+</script></body></html>

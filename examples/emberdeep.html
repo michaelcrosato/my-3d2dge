@@ -33,14 +33,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.69.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.70.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.69.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.70.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -78,13 +78,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
  *    E.Mover on a TileMap of roofs climbs, vaults and leaps; E.ACTIONS, and E.sees / E.Suspicion for guards (17b-17d).
  * 8. SOUND, TEXT, MENUS. game.audio.sfx('jump'), game.audio.music(song);
  *    E.font.text(...) (5x7 proportional font), E.font.title(...), E.ui.box/bar/hearts,
- *    new E.Dialog(game), new E.Menu(game, items). An HTML interface (title, pause, settings, help, results, map
- *    screens and a HUD with a minimap) from data: new E.Shell(game, {...}) (21d).
+ *    new E.Dialog(game) (markup: {c=#hex}, {w=.5}, {s=12}, {shake}, {wave}, {$name}), new E.Menu(game, items). An HTML
+ *    interface (title, pause, settings, help, results, map screens and a HUD with a minimap) from data: new E.Shell(game,
+ *    {...}) (21d). Save slots: game.saves (10k).
  * 8a. STANDARD FEATURES come with every game (10b): a pause menu with settings and controls the player rebinds, saved
  *    per game (game.settings), full screen (game.fullscreen; a phone's first tap), pausing when the page is hidden, and
  *    input.label(action) for prompts, and a boot (10c): heavy setup in game.start({ boot: { steps } }) runs behind a
  *    boot screen, and an error before play shows a report to screenshot. Don't build your own: adjust them with
- *    new E.Game({ menu: { items, settings, controls, quit } }), or leave them out (menu: false, fullscreen: false,
+ *    new E.Game({ menu: { items, settings, controls, quit, saves } }), or leave them out (menu: false, fullscreen: false,
  *    corner: false, autoPause: false).
  * 8b. LOOK. Aim for PS1 / N64 era 2D, not NES: HD rigs (size, outfit, hair, armor),
  *    new E.Backdrop('castle-night') behind levels, textured tiles (stone, brick, wood,
@@ -120,7 +121,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.69.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.70.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -337,9 +338,9 @@ Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng
    nothing to call. input(game, dt) after the input's step, step(game, dt) after the timers (game time: paused, frozen
    and slowed with the game), enter(game, old) as a scene starts (before its enter), draw(game, r, g) over the lit
    world, under the overlays; rot(spr, a, steps): a sprite turned (section 2b); frame(game, shx, shy): a split screen's
-   viewports drawn (section 10j); pose(dt, s): the traversal moves' poses, on the rig (this; section 16c); FADES: the transitions by
-   name (game.go's fade) */
-const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null, frame: null, pose: null }, FADES = {};
+   viewports drawn (section 10j); pose(dt, s): the traversal moves' poses, on the rig (this; section 16c); pause(shell, acts):
+   the pause menu's Save and Load (section 10k); FADES: the transitions by name (game.go's fade) */
+const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null, frame: null, pose: null, pause: null }, FADES = {};
 
 /* =============================================================================
  * 1b. EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
@@ -3710,6 +3711,130 @@ HOOKS.frame = (game, shx, shy) => {
 };
 
 /* =============================================================================
+ * 10k. SAVE SLOTS  game.saves: three slots and an autosave, each holding the game's own data with its place, time
+ *    played and level, as Dragon Quest's adventure log and Final Fantasy's save screen do. A save is versioned (the
+ *    game's version of its data, migrate for older ones); nothing here throws, and when storage is blocked play goes
+ *    on with the saves kept for the visit (a headless game keeps them in memory only).
+ *      game.saves.write = () => ({ data: { hero, flags }, place: 'Brightwater', level: hero.lv });   // what a save holds
+ *      game.saves.read = save => { hero = save.data.hero; ... };                                    // what a load does
+ *      game.saves.save(0); game.saves.load(0); game.saves.copy(0, 1); game.saves.erase(1); game.saves.autosave();
+ *      game.saves.list()   // the slots, autosave first: [{ slot: 'auto' | 0 | 1 | 2, empty, place, level, time, at, damaged, newer }]
+ *    new E.Game({ menu: { saves: true } }) puts Save (while saves.canSave: a JRPG sets it at a save point) and Load in
+ *    the pause menu, each opening the standard screen (the slots with their place, level and time; save, load, copy and
+ *    erase, asking before a save is lost); game.saves.show('save' | 'load') opens it from a game's own menu or title.
+ *    menu: { saves: { slots: 3, version: 2, migrate(data, from) { ...; return data; } } } sets them.
+ * ============================================================================= */
+const SAVE_FORMAT = 1;   // the record's own shape: { v, version, data, place, level, time, at }
+class Saves {
+  /** game.saves (made when first read): o is menu.saves ({ slots, version, migrate, write, read }) */
+  constructor(game, o) {
+    o = o && typeof o === 'object' ? o : {};
+    /** game: its game; slots: how many slots besides the autosave (3); version: the game's version of its data (1),
+     *  saved with each save; migrate(data, from): an older version's data brought up to this one (or null: kept as it
+     *  is); write(): what a save holds ({ data, place, level }); read(save): what a load does with { data, place,
+     *  level, time, slot } */
+    this.game = game; this.slots = o.slots || 3; this.version = o.version || 1; this.migrate = o.migrate || null; this.write = o.write || null; this.read = o.read || null;
+    /** canSave: the pause menu offers Save (a JRPG turns it off away from save points); played: seconds played in the
+     *  game's scenes (paused time and titles left out), saved with each save and set by a load; blocked: storage
+     *  refused a save (they last for the visit) */
+    this.canSave = true; this.played = 0; this.blocked = false;
+    this._mem = {};   // each slot's record as text, this visit's (what storage refused stays here)
+  }
+  _key(slot) { return 'save:' + (this.game.o.id || (typeof location !== 'undefined' && location.pathname) || 'game') + ':' + slot; }
+  _ok(slot) { return slot === 'auto' || (Number.isInteger(slot) && slot >= 0 && slot < this.slots); }
+  _raw(slot) {
+    if (slot in this._mem) return this._mem[slot];
+    if (this.game.headless) return null;
+    try { return localStorage.getItem('my3d2dge:' + this._key(slot)); } catch (e) { return null; }
+  }
+  _put(slot, text) {
+    this._mem[slot] = text; if (this.game.headless) return true;
+    try { if (text === null) localStorage.removeItem('my3d2dge:' + this._key(slot)); else localStorage.setItem('my3d2dge:' + this._key(slot), text); return true; }
+    catch (e) { if (!this.blocked) warn('saves:blocked', 'game.saves: storage is blocked or full: the saves last for this visit'); this.blocked = true; return false; }
+  }
+  /** a slot's save as it is stored, checked: null when empty; { slot, damaged: true } when it can't be read; { newer:
+   *  true } from a newer version of the game; else { slot, data, place, level, time, at (the date saved), version } */
+  get(slot) {
+    if (!this._ok(slot)) return null;
+    const t = this._raw(slot); if (t === null || t === undefined) return null;
+    let s; try { s = JSON.parse(t); } catch (e) { s = null; }
+    if (!s || typeof s !== 'object' || s.v !== SAVE_FORMAT || !('data' in s)) return { slot, damaged: true };
+    const out = { slot, data: s.data, place: typeof s.place === 'string' ? s.place : '', level: s.level === undefined ? null : s.level, time: +s.time || 0, at: +s.at || 0, version: +s.version || 1 };
+    if (out.version > this.version) out.newer = true;
+    return out;
+  }
+  /** every slot, the autosave first: [{ slot, empty, place, level, time, at, damaged, newer }] (a menu's rows) */
+  list() { return ['auto'].concat(Array.from({ length: this.slots }, (_, i) => i)).map(slot => Object.assign({ slot, empty: false }, this.get(slot) || { empty: true })); }
+  /** save to a slot (0.., or 'auto'): o ({ data, place, level }) or what write() gives. Returns true when it is kept
+   *  (in storage, or for the visit when storage is blocked: blocked tells), false when there was nothing to save */
+  save(slot, o) {
+    if (!this._ok(slot)) { warn('saves:slot:' + slot, 'game.saves: no slot ' + slot + ' (0 to ' + (this.slots - 1) + ', or "auto")'); return false; }
+    if (!o && this.write) try { o = this.write(slot); } catch (e) { this.game.fail('saves.write', e); return false; }
+    if (!o || !('data' in o)) { warn('saves:write', 'game.saves: nothing to save: give save(slot, { data, place, level }) or set saves.write'); return false; }
+    let text; try { text = JSON.stringify({ v: SAVE_FORMAT, version: this.version, data: o.data, place: o.place || '', level: o.level === undefined ? null : o.level, time: Math.round(this.played * 10) / 10, at: Date.now() }); }
+    catch (e) { this.game.fail('saves.save', e); return false; }
+    this._put(slot, text); return true;
+  }
+  /** save to the autosave (what write() gives) */
+  autosave(o) { return this.save('auto', o); }
+  /** load a slot: its data brought up to this version (migrate), played set from it, read(save) called. Returns the save
+   *  ({ data, place, level, time, slot }), or null when the slot is empty, damaged or from a newer version */
+  load(slot) {
+    const s = this.get(slot); if (!s || s.damaged || s.newer) return null;
+    if (s.version < this.version && this.migrate) try { s.data = this.migrate(s.data, s.version); } catch (e) { this.game.fail('saves.migrate', e); return null; }
+    this.played = s.time;
+    if (this.read) try { this.read(s); } catch (e) { this.game.fail('saves.read', e); return null; }
+    return s;
+  }
+  /** copy a slot's save onto another (over what is there); false when the first is empty */
+  copy(from, to) { if (!this._ok(from) || !this._ok(to)) return false; const t = this._raw(from); if (t === null || t === undefined) return false; this._put(to, t); return true; }
+  /** erase a slot */
+  erase(slot) { if (this._ok(slot)) this._put(slot, null); }
+  /** is there any save to load (a title's Continue)? */
+  get any() { return this.list().some(s => !s.empty && !s.damaged && !s.newer); }
+  /** the most recent save that loads, or null (a title's Continue loads it) */
+  latest() { return this.list().filter(s => !s.empty && !s.damaged && !s.newer).sort((a, b) => b.at - a.at)[0] || null; }
+  /** open the standard save screen over the game (E.Shell's): 'save' (to a slot) or 'load'; done(save) after a load or
+   *  a save. False without a menu (a headless game, menu: false) */
+  show(mode = 'load', done) {
+    const sh = this.game.shell; if (!sh || !sh._menu()) return false;
+    const T = s => { const m = Math.floor(s.time / 60); return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); };
+    const name = slot => slot === 'auto' ? 'Autosave' : 'Slot ' + (slot + 1);
+    const about = s => s.empty ? 'Empty' : s.damaged ? 'Damaged: it cannot be read' : s.newer ? 'From a newer version of the game' : [s.place, s.level !== null ? 'Level ' + s.level : '', T(s), s.at ? new Date(s.at).toLocaleDateString() : ''].filter(Boolean).join(' · ');
+    const page = () => sh.show('saves', { kicker: mode === 'save' ? 'Save' : 'Load', title: mode === 'save' ? 'Save your game' : 'Load a game', text: this.blocked ? 'Saving is blocked here: these saves last for this visit.' : '',
+      actions: this.list().filter(s => mode === 'load' || s.slot !== 'auto').map(s => ({ label: name(s.slot) + ' — ' + about(s), fn: () => slot(s) })).concat([['Back', () => sh.back()]]) });
+    const ask = (title, text, label, fn) => sh.show('confirm', { kicker: 'Save', title, text, actions: [{ label: 'Keep it', fn: () => sh.back() }, { label, fn: () => { sh.back(); fn(); } }] });
+    const saved = () => { sh.toast('Saved', name(this._last)); if (done) done(this.get(this._last)); };
+    const slot = s => {
+      const acts = [];
+      if (mode === 'save' && s.slot !== 'auto') acts.push({ label: 'Save here', primary: true, fn: () => {
+        const go = () => { this._last = s.slot; this.save(s.slot); page(); saved(); };
+        if (s.empty) { sh.back(); go(); } else ask('Save over ' + name(s.slot) + '?', about(s) + ' is lost.', 'Save over it', () => { sh.back(); go(); });
+      } });
+      if (mode === 'load' && !s.empty) acts.push({ label: 'Load', primary: true, disabled: s.damaged || s.newer, fn: () => { const r = this.load(s.slot); sh.hide(); if (r) { sh.toast('Loaded', name(s.slot)); if (done) done(r); } } });
+      if (!s.empty) acts.push({ label: 'Copy to…', fn: () => sh.show('saves-copy', { kicker: 'Copy', title: 'Copy ' + name(s.slot) + ' to', actions: this.list().filter(t => t.slot !== 'auto' && t.slot !== s.slot).map(t => ({ label: name(t.slot) + ' — ' + about(t), fn: () => {
+        const go = () => { this.copy(s.slot, t.slot); sh.back(); sh.back(); page(); };
+        if (t.empty) go(); else ask('Copy over ' + name(t.slot) + '?', about(t) + ' is lost.', 'Copy over it', go);
+      } })).concat([['Back', () => sh.back()]]) }) });
+      if (!s.empty) acts.push({ label: 'Erase', fn: () => ask('Erase ' + name(s.slot) + '?', about(s) + ' is lost.', 'Erase it', () => { this.erase(s.slot); sh.back(); page(); }) });
+      acts.push(['Back', () => sh.back()]);
+      sh.show('saves-slot', { kicker: mode === 'save' ? 'Save' : 'Load', title: name(s.slot), text: about(s), actions: acts });
+    };
+    if (this.game.pause('menu')) sh._ownPause = true;
+    page(); return true;
+  }
+}
+/** game.saves: the save slots (section 10k), made when first read */
+Object.defineProperty(Game.prototype, 'saves', { configurable: true, get() { return this._saves || (this._saves = new Saves(this, this.o.menu && this.o.menu.saves)); } });
+E.Saves = Saves;
+HOOKS.step.push((game, dt) => { const s = game._saves, sc = game.scene; if (s && sc && (sc.pausable || game.sceneName === 'main')) s.played += dt; });   // time played: the game's scenes, not its titles
+HOOKS.pause = (sh, acts) => {   // the pause menu's Save and Load, with menu: { saves }
+  const g = sh._game; if (!(g.o.menu && g.o.menu.saves)) return;
+  if (g.saves.canSave) acts.push(['Save', () => g.saves.show('save')]);
+  acts.push(['Load', () => g.saves.show('load')]);
+};
+
+/* =============================================================================
  * 11. HUMANOID RIG
  *    Local frame: f = forward, r = right, z = up. The rig poses itself every step
  *    from movement, attacks and state, then projects through any view.
@@ -4826,12 +4951,13 @@ function facade(f, t) {
 }
 /** a direction as a unit ground vector: an angle (radians) or [dx, dy] */
 const groundDir = d => { if (typeof d === 'number') return [Math.cos(d), Math.sin(d)]; const l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; };
-/** the screen around a baked floor f ({ cv, x0, y0 }): up to four rectangles, rect(x, y, w, h) in buffer pixels */
+/** the screen around a baked floor f ({ x0, y0, w, h }): up to four rectangles, rect(x, y, w, h) in buffer pixels */
 function outsideRects(r, f, rect) {
-  const x0 = Math.round(f.x0 - r.ix), y0 = Math.round(f.y0 - r.iy), x1 = x0 + f.cv.width, y1 = y0 + f.cv.height, W = r.bw, H = r.bh;
+  const x0 = Math.round(f.x0 - r.ix), y0 = Math.round(f.y0 - r.iy), x1 = x0 + f.w, y1 = y0 + f.h, W = r.bw, H = r.bh;
   if (y0 > 0) rect(0, 0, W, Math.min(H, y0)); if (y1 < H) rect(0, Math.max(0, y1), W, H - Math.max(0, y1));
   const a = Math.max(0, y0), b = Math.min(H, y1); if (b > a) { if (x0 > 0) rect(0, a, Math.min(W, x0), b - a); if (x1 < W) rect(Math.max(0, x1), a, W - Math.max(0, x1), b - a); }
 }
+const FLOOR_CHUNK = 128, FLOOR_CHUNKED = 128 * 128;   // a floor chunk's side in screen pixels; maps of more cells bake in chunks
 class TileMap {
   /**
    * Walls standing on a floor (top-down, isometric, brawler). Either
@@ -4846,6 +4972,7 @@ class TileMap {
    * - floorTex: floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow]
    * - floorMat, floorMats: a material for the floor, floorMats: { tag: material } for tagged cells (in place of floorTex)
    * - block: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry)
+   * - chunks: bake the floor in squares near the camera (true, false; by default a map of more than 128 x 128 cells)
    */
   constructor(o = {}) {
     /** T: the tile size in world units (16) */
@@ -4884,6 +5011,10 @@ class TileMap {
      *  outside: the ground beyond the map (ground views): undefined continues the map's floor past its edge, darkening
      *  into one color that fills the rest of the screen, a color ('#2a2630') fades into that, false leaves it empty */
     this.light = o.light || null; this.version = 0; this.outside = o.outside;
+    /** chunks: the floor baked in squares of 128 screen pixels as the camera comes to them (its colors and the GPU
+     *  lighting's canvas both), the far ones let go, so a 256 x 256-cell map costs what the screen shows; a change to
+     *  cells re-bakes only the squares over them. True, false, or by default when the map has more than 128 x 128 cells */
+    this.chunks = o.chunks === undefined ? this.w * this.h > FLOOR_CHUNKED : !!o.chunks;
   }
   /** first spawn with this tag ({ x, y, z, cx, cy }), or null */
   find(tag) { return this.spawns.find(s => s.tag === tag) || null; }
@@ -4892,7 +5023,7 @@ class TileMap {
   /** the wall type id at a cell (0 = floor, -1 outside the map) */
   cell(cx, cy) { return cx < 0 || cy < 0 || cx >= this.w || cy >= this.h ? -1 : this.cells[cy * this.w + cx]; }
   /** put wall type v at a cell (0 opens it: a door, a broken wall); bumps version, so caches and flow fields rebuild */
-  set(cx, cy, v) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) { if (v > 0 && !this.types[v]) this.types[v] = DEFAULT_WALL; this.cells[cy * this.w + cx] = v; this.floors = {}; this.version++; } }
+  set(cx, cy, v) { if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h) { if (v > 0 && !this.types[v]) this.types[v] = DEFAULT_WALL; this.cells[cy * this.w + cx] = v; this._changed(cx, cy, cx, cy); this.version++; } }
   /** world point -> [cx, cy] cell (center(cx, cy) goes back) */
   toCell(x, y) { return [Math.floor(x / this.T), Math.floor(y / this.T)]; }
   /** the world point at a cell's center */
@@ -4905,14 +5036,27 @@ class TileMap {
   fill(cx, cy, w, h, id) {
     if (id > 0 && !this.types[id]) this.types[id] = DEFAULT_WALL;
     for (let y = Math.max(0, cy); y < Math.min(this.h, cy + h); y++) for (let x = Math.max(0, cx); x < Math.min(this.w, cx + w); x++) this.cells[y * this.w + x] = id;
-    this.floors = {}; this.version++;
+    this._changed(cx, cy, cx + w - 1, cy + h - 1); this.version++;
   }
   /** give a cell a floor tag ('water', 'grass', what floorTex and floorAt read), and block it (deep water, lava) or not */
   setFloor(cx, cy, tag, block) {
     if (cx < 0 || cy < 0 || cx >= this.w || cy >= this.h) return;
     if (!this.floorTags) this.floorTags = new Array(this.w * this.h).fill(null);
     const i = cy * this.w + cx; this.floorTags[i] = tag; if (block !== undefined) this.blocked[i] = block ? 1 : 0;
-    this.floors = {}; this.version++;
+    this._changed(cx, cy, cx, cy); this.version++;
+  }
+  /* cells x0..x1, y0..y1 changed: the floor bakes again (a chunked one: only the squares over them and a cell around,
+     where the contact shadow reaches) */
+  _changed(x0, y0, x1, y1) {
+    if (!this.chunks) { this.floors = {}; return; }
+    const T = this.T;
+    for (const k in this.floors) {
+      const f = this.floors[k], v = f.view; if (!f.chunks) { delete this.floors[k]; continue; }
+      let a = 1e9, b = 1e9, c = -1e9, d = -1e9;
+      for (const [x, y] of [[x0 - 1, y0 - 1], [x1 + 2, y0 - 1], [x0 - 1, y1 + 2], [x1 + 2, y1 + 2]]) { const q = v.p(x * T, y * T, 0); a = Math.min(a, q[0]); c = Math.max(c, q[0]); b = Math.min(b, q[1]); d = Math.max(d, q[1]); }
+      a -= f.x0 + 1; c -= f.x0 - 1; b -= f.y0 + 1; d -= f.y0 - 1;
+      for (const [key, ch] of f.chunks) if (ch.x < c && ch.x + ch.w > a && ch.y < d && ch.y + ch.h > b) f.chunks.delete(key);
+    }
   }
   /** mark a cell blocked or free at runtime (a bridge appears, lava cools) */
   block(cx, cy, on = true) { const i = cy * this.w + cx, v = on ? 1 : 0; if (cx >= 0 && cy >= 0 && cx < this.w && cy < this.h && this.blocked[i] !== v) { this.blocked[i] = v; this.version++; } }
@@ -5151,24 +5295,31 @@ class TileMap {
     const key = view.id + ':' + view.yawDeg + ':' + view.pitchDeg + ':' + view.scale;
     if (this.floors[key]) return this.floors[key];
     if (Object.keys(this.floors).length > 6) this.floors = {};
-    const T = this.T, W = this.w * T, H = this.h * T, out = !!view.inv && this.outside !== false, M = out ? 96 : 0, oc = out && this._outsideCol(view);   // (M: the ground baked past the edge, in pixels)
+    const T = this.T, W = this.w * T, H = this.h * T, M = view.inv && this.outside !== false ? 96 : 0;   // (M: the ground baked past the edge, in pixels)
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) { const s = view.p(x, y, 0); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); }
     x0 = Math.floor(x0) - M; y0 = Math.floor(y0) - M;
     let cw = Math.ceil(x1) + M - x0 + 1, ch = Math.ceil(y1) + M - y0 + 1;
     if (!view.inv) ch = 24;
-    const cv = mkCanvas(cw, ch), g = cv.getContext('2d'), img = g.createImageData(cw, ch), d = img.data;
-    const icv = view.inv ? mkCanvas(cw, ch) : null, ig = icv && icv.getContext('2d'), iimg = ig && ig.createImageData(cw, ch), id = iimg && iimg.data;
-    for (let py = 0; py < ch; py++) for (let pxx = 0; pxx < cw; pxx++) {
+    const f = { x0, y0, w: cw, h: ch, view };   // (x0, y0: its top left on the screen; w, h: its size)
+    if (this.chunks && view.inv) f.chunks = new Map(); else Object.assign(f, this._bake(view, f, 0, 0, cw, ch, !!view.inv));
+    return (this.floors[key] = f);
+  }
+  /* the floor f's pixels bx..bx + bw, by..by + bh baked: { cv, info } (info: the GPU lighting's canvas, when asked for) */
+  _bake(view, f, bx, by, bw, bh, info) {
+    const T = this.T, W = this.w * T, H = this.h * T, out = !!view.inv && this.outside !== false, oc = out && this._outsideCol(view), x0 = f.x0 + bx, y0 = f.y0 + by;
+    const cv = mkCanvas(bw, bh), g = cv.getContext('2d'), img = g.createImageData(bw, bh), d = img.data;
+    const icv = info ? mkCanvas(bw, bh) : null, ig = icv && icv.getContext('2d'), iimg = ig && ig.createImageData(bw, bh), id = iimg && iimg.data;
+    for (let py = 0; py < bh; py++) for (let pxx = 0; pxx < bw; pxx++) {
       let gx, gy;
       if (view.inv) { const q = view.toGround(pxx + x0 + .5, py + y0 + .5); gx = q[0]; gy = q[1]; }
-      else { gx = (pxx + x0 + .5) / view.ax; gy = H * .5 + py * 2; }
+      else { gx = (pxx + x0 + .5) / view.ax; gy = H * .5 + (py + by) * 2; }
       if (gx < 0 || gy < 0 || gx >= W || gy >= H) {
         if (!out) continue;
         // past the edge: the floor mirrored back over it, darkening over 48 units into the outside color
         const mx = clamp(gx < 0 ? -gx : gx >= W ? 2 * W - gx : gx, 0, W - .01), my = clamp(gy < 0 ? -gy : gy >= H ? 2 * H - gy : gy, 0, H - .01);
-        const f = Math.min(1, Math.hypot(Math.max(0, -gx, gx - W), Math.max(0, -gy, gy - H)) / 48), s = this._ground(mx, my, view) || oc, k = (py * cw + pxx) * 4;
-        for (let i = 0; i < 3; i++) d[k + i] = lerp(s[i] * .7, oc[i], f); d[k + 3] = 255;
+        const fk = Math.min(1, Math.hypot(Math.max(0, -gx, gx - W), Math.max(0, -gy, gy - H)) / 48), s = this._ground(mx, my, view) || oc, k = (py * bw + pxx) * 4;
+        for (let i = 0; i < 3; i++) d[k + i] = lerp(s[i] * .7, oc[i], fk); d[k + 3] = 255;
         if (id) { id[k] = 0; id[k + 1] = 40; id[k + 2] = 0; id[k + 3] = 255; }
         continue;
       }
@@ -5185,13 +5336,50 @@ class TileMap {
         if (wall(-1, 1)) ao = Math.max(ao, 1 - Math.hypot(lx, T - ly) / R); if (wall(1, 1)) ao = Math.max(ao, 1 - Math.hypot(T - lx, T - ly) / R);
         if (ao > 0) { const k = 1 - .4 * Math.round(ao * 5) / 5; c = [c[0] * k, c[1] * k * .98, c[2] * k * 1.02, c[3]]; }
       }
-      if (!view.inv) c = c.map(v => v * (py < 2 ? 1.1 : .55 - py * .01));
-      const k = (py * cw + pxx) * 4; d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
+      if (!view.inv) { const row = py + by; c = c.map(v => v * (row < 2 ? 1.1 : .55 - row * .01)); }
+      const k = (py * bw + pxx) * 4; d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = 255;
       if (id) { id[k] = 0; id[k + 1] = 40; id[k + 2] = Math.round(clamp(c[3] || 0, 0, 1) * 255); id[k + 3] = 255; }
     }
     g.putImageData(img, 0, 0);
     if (ig) ig.putImageData(iimg, 0, 0);
-    return (this.floors[key] = { cv, info: icv, x0, y0 });
+    return { cv, info: icv };
+  }
+  /* a chunked floor drawn: the squares over the screen (baked as they first show), one more of the ring around them
+     baked each frame ahead of the camera, and the least recently drawn let go past twice what the screen needs */
+  _drawChunks(r, f) {
+    const C = FLOOR_CHUNK, nx = Math.ceil(f.w / C), ny = Math.ceil(f.h / C), gpu = !!r.gpu, t = f.t = (f.t || 0) + 1;
+    const i0 = Math.max(0, Math.floor((r.ix - f.x0) / C)), i1 = Math.min(nx - 1, Math.floor((r.ix + r.bw - 1 - f.x0) / C));
+    const j0 = Math.max(0, Math.floor((r.iy - f.y0) / C)), j1 = Math.min(ny - 1, Math.floor((r.iy + r.bh - 1 - f.y0) / C));
+    const get = (i, j) => {
+      const k = j * nx + i; let ch = f.chunks.get(k);
+      if (!ch || (gpu && !ch.info)) {   // (lighting turned on since it was baked: its canvas too)
+        const bw = Math.min(C, f.w - i * C), bh = Math.min(C, f.h - j * C);
+        f.chunks.set(k, ch = Object.assign(this._bake(f.view, f, i * C, j * C, bw, bh, gpu), { x: i * C, y: j * C, w: bw, h: bh }));
+      }
+      ch.t = t; return ch;
+    };
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const ch = get(i, j), X = f.x0 + ch.x - r.ix, Y = f.y0 + ch.y - r.iy;
+      r.ctx.drawImage(ch.cv, X, Y); if (gpu && ch.info) r._iG.drawImage(ch.info, X, Y);
+    }
+    ring: for (let j = Math.max(0, j0 - 1); j <= Math.min(ny - 1, j1 + 1); j++) for (let i = Math.max(0, i0 - 1); i <= Math.min(nx - 1, i1 + 1); i++) if (!f.chunks.has(j * nx + i)) { get(i, j); break ring; }
+    const keep = 2 * (i1 - i0 + 3) * (j1 - j0 + 3);
+    if (f.chunks.size > keep) { const old = [...f.chunks].sort((a, b) => a[1].t - b[1].t); for (let n = f.chunks.size - keep, k = 0; k < n; k++) f.chunks.delete(old[k][0]); }
+  }
+  /** the bytes the baked floors hold now (each view's, chunks and the lighting's canvases counted): what a big map's
+   *  floor costs in memory */
+  floorBytes() {
+    let n = 0; const add = c => { if (c) n += c.width * c.height * 4; };
+    for (const k in this.floors) { const f = this.floors[k]; if (f.chunks) for (const ch of f.chunks.values()) { add(ch.cv); add(ch.info); } else { add(f.cv); add(f.info); } }
+    return n;
+  }
+  /* the cells whose middles land within the screen widened by pad pixels (down more: walls stand up into it), as
+     [cx0, cy0, cx1, cy1]; every cell in a side view */
+  _seen(r, pad, down) {
+    const v = r.view; if (!v.inv) return [0, 0, this.w - 1, this.h - 1];
+    const W = Math.max(r.W, r.bw), H = Math.max(r.H, r.bh); let a = 1e9, b = 1e9, c = -1e9, d = -1e9;
+    for (const [sx, sy] of [[-pad, -pad], [W + pad, -pad], [-pad, H + down], [W + pad, H + down]]) { const q = v.toGround(sx + r.ix, sy + r.iy); a = Math.min(a, q[0]); c = Math.max(c, q[0]); b = Math.min(b, q[1]); d = Math.max(d, q[1]); }
+    const T = this.T; return [Math.max(0, Math.floor(a / T) - 1), Math.max(0, Math.floor(b / T) - 1), Math.min(this.w - 1, Math.floor(c / T) + 1), Math.min(this.h - 1, Math.floor(d / T) + 1)];
   }
   /** draw the baked floor (first thing in draw, after r.sky); walls come from queueWalls(r) */
   drawFloor(r) {
@@ -5200,10 +5388,11 @@ class TileMap {
       const c = this._outsideCol(r.view), fill = (g, col) => { g.fillStyle = col; g._c = null; outsideRects(r, f, (x, y, w, h) => g.fillRect(x, y, w, h)); };
       fill(r.ctx, 'rgb(' + c.map(Math.round).join(',') + ')'); if (r.gpu) fill(r._iG, 'rgb(0,40,0)');   // (inside it, what a game drew first shows through the map's holes: a chasm's abyss)
     }
-    r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); if (r.gpu && f.info) r._iG.drawImage(f.info, f.x0 - r.ix, f.y0 - r.iy);
+    if (f.chunks) this._drawChunks(r, f);
+    else { r.ctx.drawImage(f.cv, f.x0 - r.ix, f.y0 - r.iy); if (r.gpu && f.info) r._iG.drawImage(f.info, f.x0 - r.ix, f.y0 - r.iy); }
     if (this.shimmer && this.floorTags && r.view.inv) {
-      const T = this.T, t = r.game.real, g = r.ctx;
-      for (let cy = 0; cy < this.h; cy++) for (let cx = 0; cx < this.w; cx++) {
+      const T = this.T, t = r.game.real, g = r.ctx, [a, b, c, d] = this._seen(r, 40, 90);
+      for (let cy = b; cy <= d; cy++) for (let cx = a; cx <= c; cx++) {
         const tag = this.floorTags[cy * this.w + cx]; if (tag !== 'water' && tag !== 'lava') continue;
         for (let k = 0; k < 2; k++) {
           const ph = hash2(cx * 7 + k, cy * 13), u = ((t * (tag === 'lava' ? .12 : .25) + ph) % 1), wx = cx * T + u * T, wy = cy * T + ((ph * 7.3 + k * .5) % 1) * T, [sx, sy] = r.w(wx, wy, 0);
@@ -5225,8 +5414,8 @@ class TileMap {
   }
   /** queue every visible wall box. Call once per frame after drawFloor. */
   queueWalls(r) {
-    const view = r.view, T = this.T; r._map = this;
-    for (let cy = 0; cy < this.h; cy++) for (let cx = 0; cx < this.w; cx++) {
+    const view = r.view, T = this.T, [a, b, c, d] = this._seen(r, 40, 90); r._map = this;
+    for (let cy = b; cy <= d; cy++) for (let cx = a; cx <= c; cx++) {
       const id = this.cell(cx, cy); if (id <= 0) continue;
       const t = this.types[id], h = this.isFront(cx, cy, view) ? (t.cutH || 6) : t.h;
       const [sx, sy] = r.w(cx * T + T / 2, cy * T + T / 2, 0);
@@ -8407,17 +8596,46 @@ E.ui = {
  *   update: if (talk.update(dt)) return;   // true while it is open, so gameplay waits
  *   draw:   talk.draw(r);                  // anywhere in draw (it goes to the overlay)
  * confirm (Enter, Space, J, Z, pad A), or a click or tap on the box, finishes the line, then turns the page.
+ * Markup in the text: {c=#ffd36a}gold{/c} a color, {w=.5} a pause of half a second, {s=12}slowly{/s} letters a
+ * second, {shake}..{/shake} and {wave}..{/wave} letters that tremble or bob, {$name} a value from say's vars or the
+ * box's (talk.vars = { name: 'ROWAN' }). Text without markup types and draws as it always has.
  */
+const MARKUP = /\{(\/?)(c|s|w|shake|wave)(?:=([^}]*))?\}/g;
+/* the markup in a dialog's text read: { text (the letters alone), fx: each letter's look ({ c, s, shake, wave }, shared
+   along a run), wait: { letter's index: seconds before it } }, or null for text with none */
+function markup(s, vars) {
+  if (s.indexOf('{') < 0) return null;
+  let had = false;
+  s = s.replace(/\{\$([\w.]+)\}/g, (m, k) => {   // values first: their text is plain
+    had = true; let v = vars; for (const p of k.split('.')) v = v == null ? undefined : v[p];
+    if (v === undefined) { warn('dialog:' + k, 'Dialog: no value for {$' + k + '} (say\'s vars or the box\'s vars)'); return ''; }
+    return String(v);
+  });
+  let text = '', st = { c: null, s: 0, shake: 0, wave: 0 }, last = 0, m;
+  const fx = [], wait = {}, cs = [], ss = [], lit = t => { for (let i = 0; i < t.length; i++) fx.push(st); text += t; };
+  MARKUP.lastIndex = 0;
+  while ((m = MARKUP.exec(s))) {
+    lit(s.slice(last, m.index)); last = MARKUP.lastIndex; had = true;
+    const [, close, k, v] = m;
+    if (k === 'w') { if (!close) wait[text.length] = (wait[text.length] || 0) + (parseFloat(v) || 0); continue; }
+    st = Object.assign({}, st);
+    if (k === 'c') { if (close) st.c = cs.pop() || null; else { cs.push(st.c); st.c = v || null; } }
+    else if (k === 's') { if (close) st.s = ss.pop() || 0; else { ss.push(st.s); st.s = parseFloat(v) || 0; } }
+    else st[k] = Math.max(0, st[k] + (close ? -1 : 1));
+  }
+  lit(s.slice(last));
+  return had ? { text, fx, wait } : null;
+}
 class Dialog {
-  /** new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border }): a dialog box that types its
-   *  text; say() opens it, update(dt) and draw(r) run it */
+  /** new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border, vars }): a dialog box that types
+   *  its text; say() opens it, update(dt) and draw(r) run it */
   constructor(game, o = {}) {
     /** game: its game */
     this.game = game;
     /** speed: letters typed per second; lines: text lines per page; place: 'bottom' | 'top' | 'middle'; color: the
      *  text's color; nameColor: the speaker's name's color; voice: the sound effect each letter blips ('text'; null
-     *  for silence); bg, border: the box's colors */
-    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', bg: '#141a3a', border: '#e8e4ff' }, o);
+     *  for silence); bg, border: the box's colors; vars: the values {$name} in the text reads (say's vars first) */
+    Object.assign(this, { speed: 50, lines: 3, place: 'bottom', color: '#ffffff', nameColor: '#ffd36a', voice: 'text', bg: '#141a3a', border: '#e8e4ff', vars: null }, o);
     /** open: true while it shows; pages: the text wrapped into pages of lines; i: the page shown; shown: letters
      *  typed so far on it; choice: the choice under the cursor */
     this.open = false; this.pages = []; this.i = 0; this.shown = 0; this.choice = 0;
@@ -8435,7 +8653,8 @@ class Dialog {
    * open with one string or a list of strings (each starts a new page).
    * opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size),
    *         portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself,
-   *         modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha }
+   *         modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha,
+   *         vars: the values {$name} reads }
    * choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked. update(dt) returns true while a
    * modal box is open: return from your update then, and play waits
    */
@@ -8444,9 +8663,21 @@ class Dialog {
      *  in pixels; pOpts: its options ({ zoom, turn, bg }) */
     this.portrait = o.portrait || null; this._pSize = o.portraitSize || 40; this._pOpts = o.portraitOpts || {};
     this._place = o.place; this._y = o.y; this._alpha = o.alpha;   // per line: place 'top' | 'middle' | 'bottom', or a pixel y, and a see-through box
-    const d = this._dims(), pages = [];
-    for (const t of Array.isArray(text) ? text : [text]) { const L = E.font.wrap(String(t), d.w - d.tx - 5); for (let k = 0; k < L.length; k += this.lines) pages.push(L.slice(k, k + this.lines)); }
+    const d = this._dims(), pages = [], fxs = [];
+    for (const t of Array.isArray(text) ? text : [text]) {
+      const mk = markup(String(t), o.vars ? Object.assign({}, this.vars, o.vars) : this.vars), L = E.font.wrap(mk ? mk.text : String(t), d.w - d.tx - 5);
+      let at = 0; const pos = mk && L.map(line => Array.from(line, ch => {   // each letter's place in the text (wrapping drops the spaces it breaks at: their pauses go to the next letter)
+        let w = 0; while (at < mk.text.length && mk.text[at] !== ch) w += mk.wait[at++] || 0;
+        const q = at++; return { f: mk.fx[q], w: w + (mk.wait[q] || 0) };
+      }));
+      for (let k = 0; k < L.length; k += this.lines) {
+        pages.push(L.slice(k, k + this.lines));
+        const ps = pos && [].concat(...pos.slice(k, k + this.lines));
+        fxs.push(ps && { fx: ps.map(e => e.f), wait: ps.map(e => e.w) });
+      }
+    }
     this.pages = pages.length ? pages : [['']]; this.i = 0; this.shown = 0; this.open = true; this.choice = 0;
+    this._fx = fxs.some(Boolean) ? fxs : null; this._hold = 0; this._held = -1;   // (the markup's looks and pauses per page letter; the pause running)
     /** name: the speaker's name shown on the box; onDone: called when the last page closes; choices: the answers
      *  offered on the last page, or null; onChoice: called with the index picked */
     this.name = o.name || null; this.onDone = o.onDone || null; this.choices = o.choices || null; this.onChoice = o.onChoice || null; this._blip = 0;
@@ -8465,13 +8696,20 @@ class Dialog {
    *  gameplay can wait: if (talk.update(dt)) return; */
   update(dt) {
     if (!this.open) return false;
-    const inp = this.game.input, len = this.pageLen, prev = Math.floor(this.shown);
-    this.shown = Math.min(len, this.shown + this.speed * dt);
+    const inp = this.game.input, len = this.pageLen, prev = Math.floor(this.shown), mk = this._fx && this._fx[this.i];
+    if (!mk) this.shown = Math.min(len, this.shown + this.speed * dt);
+    else for (let t = dt; t > 1e-9 && this.shown < len;) {   // markup: each letter at its speed, its pause before it
+      const n = Math.floor(this.shown);
+      if (this._hold > 0) { const u = Math.min(t, this._hold); this._hold -= u; t -= u; continue; }
+      if (mk.wait[n] && this._held < n) { this._held = n; this._hold = mk.wait[n]; continue; }
+      const sp = (mk.fx[n] && mk.fx[n].s) || this.speed, u = Math.min(t, (n + 1 - this.shown) / sp);
+      this.shown = Math.min(len, this.shown + u * sp); t -= u; if (n + 1 - this.shown < 1e-6) this.shown = n + 1;
+    }
     if (this.voice && Math.floor(this.shown) > prev && (this._blip++ % 2 === 0)) this.game.audio.sfx(this.voice);
     const last = this.i >= this.pages.length - 1, asking = last && this.choices && !this.typing;
     if (this.auto && !this.choices && !this.typing && (this._wait += dt) >= this.auto) {   // pages turn and the box closes by itself
       this._wait = 0;
-      if (last) { this.open = false; if (this.onDone) this.onDone(); } else { this.i++; this.shown = 0; }
+      if (last) { this.open = false; if (this.onDone) this.onDone(); } else { this.i++; this.shown = 0; this._held = -1; }
       return this.modal && this.open;
     }
     if (!this.modal) return false;
@@ -8481,8 +8719,8 @@ class Dialog {
     }
     const c = inp.clicked(), d = c && this._dims(), tapped = !!d && c[0] >= d.x && c[0] < d.x + d.w && c[1] >= d.y && c[1] < d.y + d.h;   // a tap on the box, as confirm
     if (inp.pressed('confirm') || tapped) {
-      if (this.typing) this.shown = len;
-      else if (!last) { this.i++; this.shown = 0; }
+      if (this.typing) { this.shown = len; this._hold = 0; }
+      else if (!last) { this.i++; this.shown = 0; this._held = -1; }
       else { this.close(); this.game.audio.sfx('confirm'); if (this.choices && this.onChoice) this.onChoice(this.choice, this.choices[this.choice]); if (this.onDone) this.onDone(); }
     } else if (asking && inp.pressed('cancel')) { this.choice = this.choices.length - 1; }
     return true;
@@ -8500,7 +8738,22 @@ class Dialog {
       }
       if (this.name) { const nw = E.font.width(this.name) + 12, nx = d.x + (this.portrait ? d.tx - 6 : 4); ui.box(g, nx, d.y - 12, nw, 14, { bg: this.bg, border: this.border }); E.font.text(g, this.name, nx + 6, d.y - 9, this.nameColor, { outline: false, shadow: '#05040a' }); }
       let left = Math.floor(this.shown);
-      this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, { outline: false, shadow: '#05040a' }); });
+      const mk = this._fx && this._fx[this.i], o = { outline: false, shadow: '#05040a' };
+      if (!mk) this._page.forEach((line, k) => { const s = line.slice(0, Math.max(0, left)); left -= line.length; if (s) E.font.text(g, s, d.x + d.tx, d.y + 5 + k * d.lh, this.color, o); });
+      else {   // markup: runs of one look drawn together, trembling and bobbing letters one by one
+        let n0 = 0; const t = this.game.real;
+        this._page.forEach((line, k) => {
+          const shown = Math.min(line.length, Math.max(0, left)), y = d.y + 5 + k * d.lh; left -= line.length;
+          for (let j = 0; j < shown;) {
+            const f = mk.fx[n0 + j] || {}, one = f.shake || f.wave; let e = j + 1;
+            if (!one) while (e < shown && mk.fx[n0 + e] === f) e++;
+            const n = n0 + j, x = d.x + d.tx + (j ? E.font.width(line.slice(0, j)) + 1 : 0);
+            const ox = f.shake ? Math.round(hash2(n, Math.floor(t * 24)) * 2 - 1) : 0, oy = (f.shake ? Math.round(hash2(n + 50, Math.floor(t * 24)) * 2 - 1) : 0) + (f.wave ? Math.round(Math.sin(t * 8 - n * .7) * 1.5) : 0);
+            E.font.text(g, line.slice(j, e), x + ox, y + oy, f.c || this.color, o); j = e;
+          }
+          n0 += line.length;
+        });
+      }
       const blink = Math.floor(this.game.real * 3) % 2 === 0, last = this.i >= this.pages.length - 1;
       if (!this.typing && !(last && this.choices) && blink) px.poly(g, [[d.x + d.w - 10, d.y + d.h - 6], [d.x + d.w - 5, d.y + d.h - 6], [d.x + d.w - 7.5, d.y + d.h - 3]], this.color);
       if (last && this.choices && !this.typing) {
@@ -8968,6 +9221,7 @@ class Shell {
    *  session (while the page is recorded: E.session), Quit */
   _pauseActs(acts) {
     const g = this._game, fs = g.fullscreen, M = g.o.menu || {}, quit = M.quit === false ? null : M.quit || 'title', help = this._o.screens && this._o.screens.help;
+    if (this._std && HOOKS.pause) HOOKS.pause(this, acts);
     if (this._std || this._items().length) acts.push(['Settings', () => this.show('settings')]);
     if (!this._std) { if (help) acts.push(['Help', () => this.show('help')]); return; }
     acts.push(['Controls', () => this.show('controls')]);

@@ -985,3 +985,42 @@ An entry:
   preferring the plan's shorter names (rename, and teach the diet an exception list).
 - **Answered:** no one asked: a reversible call (a rename), made at once
 - **Landed in:** v0.65.0
+
+
+## D54 · 2026-10-28 · The API card's budget raised to 19,000 until the owner's review pass
+
+- **Principle:** 1 (agent-readable: the card a model reads first stays small) and the genre plan's 3.3 and M0a (the API
+  card at 18,000 cl100k tokens for the core's additions across the plan, D50; "each milestone reports its share, and
+  moves detail to the index before it asks for more")
+- **Call:** the card's budget is 19,000 tokens until the owner's review pass. M7a's lines (dialog markup, chunked
+  floors, the save slots, the JRPG playbook row) bring it to 18,001; M7b adds the story and rpg modules' lines and the
+  RPG kit's, and the plan's milestones after it more. Detail moves to the index in the trimming pass, not milestone by
+  milestone.
+- **Why:** the owner's words with the goal of Milestones 2 to 16 (2026-10-28): "Concerning token budget, just implement
+  things as they are needed, we will make a second pass after I review all the work, then we can think about trimming
+  down afterwards" (as D52 did for the 2D kits). Moving a line to the index now would be the trimming done piecemeal,
+  before the whole plan's needs are known. What would change it: the owner's review (the budget back to 18,000 with
+  detail moved to the index, or a new one), or the card passing 19,000 (raised again here, with its cause).
+- **Answered:** yes: the owner, in the goal of 2026-10-28
+- **Landed in:** v0.70.0
+
+
+## D55 · 2026-10-28 · The compact edition kept whole past 500,000 tokens until the owner's review pass
+
+- **Principle:** 1 (agent-readable: a file sized for the context that reads it) and the genre plan's M0b ("the milestone
+  whose slices would take it past 500,000 tokens splits it into collections by family, or drops it, as a decision (the
+  kits and the full reference cover its uses)")
+- **Call:** `dist/my-3d2dge-compact.html` stays one file, every slice and module, minified, at 500,913 cl100k tokens
+  with M7a (496,774 at v0.69.0: the dialog markup, the chunked floor and the API card's lines took it over). Neither
+  split nor dropped until the owner's review pass, which decides between the two (or a new line) with every
+  milestone's slices known.
+- **Why:** dropping it deletes a file the site serves, which links outside the repository may rely on: a call that is
+  hard to undo, and one the owner's review is about to look at anyway. Splitting it by family now builds collections
+  whose grouping the plan's remaining milestones (nine more slices) would change. And the owner's words with the goal
+  of Milestones 2 to 16 (2026-10-28): "Concerning token budget, just implement things as they are needed, we will make a
+  second pass after I review all the work, then we can think about trimming down afterwards" (as D52 for the 2D kits,
+  D54 for the API card). Its uses are covered meanwhile: a chat model takes a genre's kit, a game of several genres the
+  readable reference in a 1M context. What would change it: the owner's review (split, drop, or keep), or a model's
+  context that it no longer fits for any use.
+- **Answered:** yes: the owner, in the goal of 2026-10-28 (budgets deferred to the review pass)
+- **Landed in:** v0.70.0
