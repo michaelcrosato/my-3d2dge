@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.75.1)
+# my-3D2dge API card (v0.76.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -265,6 +265,8 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG.
   - `strategy` (the full engine only; needs `grid`): real-time strategy and sims (`E.Strategy`): selection (a click, a box, a double tap, groups), orders (move, attack, attack-move, gather, build, patrol; queued), formations on shared flow fields kept apart, production, resources, placement with a ghost, fog, the minimap, an enemy's build order and waves; `E.Clock` (days, night, the light), needs that pick an action (`E.needs`, `E.choose`), `E.overlay`, `E.tooltip`. RTS, SIM.
   - `click` (the full engine only): point-and-click adventures (`E.Click`): rooms painted once, walk areas with holes (`E.Walkbox`: the shortest way round), depth scale, hotspots (rectangles, polygons, actors) with verbs, a place to stand and a way to face, SCUMM's nine verbs, Sierra's icons, a verb coin or two buttons, an inventory (an item on a hotspot or another item), rules as data, exits with fades, `story`'s flags and talk; taps on a phone. POINT-AND-CLICK.
+  - `physics`: 2D rigid bodies (`E.Physics`): circles, boxes, convex polygons, static segments, chains and arcs; dynamic, kinematic and static bodies; bounce, friction, sensors, layers, sleep, gravity as a vector; fast balls swept so they never pass through; stepped in a fixed order (the same world at any refresh rate); flippers, bumpers, slingshots, kickers. Pinball, Breakout, Asteroids, grenades.
+  - `terrain`: destructible ground in the side plane (`E.Terrain`): a mask of materials carved and added by circles and polygons, the ground below a point and its normal, hits and rays for shots, walkers on slopes (Worms, Lemmings), a collider for `physics`, drawn in chunks redrawn only where it changed.
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 

@@ -19,6 +19,13 @@
 //                  walks, a click on a hotspot does its verb (two buttons), a right click looks, Sierra's cursor turns;
 //                  rules (an item on an item either way round, an item used on someone given), exits after the fade,
 //                  state and restore; the story's log, auto and skip; a tap on a dialog's choice picks it
+//   physics toys   the physics module on both editions: a ball at twice its top speed never passes through a wall, a
+//                  thin segment or a flipper (from every direction, flippers swinging); a table's world the same at 60,
+//                  90, 120 and 144 Hz; bounces, friction, a stack that sleeps upright, layers, sensors, a kicker, a
+//                  bumper's kick, a kinematic paddle, ray and query. The terrain module: carving (hard ground stays),
+//                  adding, polygons, the ground below, normals, a circle's hit, a ray, a walker on slopes, steps and
+//                  walls, falling and landing, a physics ball resting on it; in Chromium only the chunks a change
+//                  touched are drawn again
 //   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
 //                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map
 //   audio          audio.duck(on) is public
@@ -102,6 +109,7 @@ for (const [ed, file] of EDITIONS) {
   if (ed === 'full') strategies(E, ed);   // (the gestures, the free camera and the strategy module are the full engine's)
   if (ed === 'full') clicks(E, ed);   // (and the click module)
   stories(E, ed);   // (the story and rpg modules load after either edition)
+  physicsToys(E, ed);   // (and the physics and terrain modules)
   rpgs(E, ed);
   shellHeadless(E, ed);
 }
@@ -784,6 +792,68 @@ function tactics(E, ed) {
   check(`${ed}: E.Grid.threat: each unit's move then its range (a bow's least range kept), blocked cells walked round, who threatens a cell`, t.count([0, 3]) === 1 && t.count([2, 1]) === 1 && t.count([4, 0]) === 0 && t.count([8, 8]) === 0 && t.count([6, 8]) === 1 && t.by([5, 8])[0].cx === 8, [t.count([0, 3]), t.count([2, 1]), t.count([4, 0]), t.count([8, 8]), t.count([6, 8])].join());
 }
 
+// M11a: the physics module (no tunnelling at twice a ball's top speed, the same world at any rate, its parts) and the
+// terrain module (carving, the ground, walkers)
+function physicsToys(E, ed) {
+  // a box split by a wall down its middle; flippers swinging in the left half, bumpers; balls fired from the left half at
+  // twice the table's top speed (1,600 px/s) in 48 directions: none ever leaves the left half
+  const TOP = 1600; let escaped = 0, shots = 0;
+  for (let k = 0; k < 48; k++) {
+    const w = new E.Physics({ gravity: [0, 300] }); w.chain([[0, 0], [200, 0], [200, 200], [0, 200]], { closed: true }); w.segment([100, 0], [100, 200]);
+    const L = w.flipper(20, 150, { side: 'left', len: 30 }), R = w.flipper(80, 150, { side: 'right', len: 30 }); w.bumper(50, 60, 8);
+    const a = k / 48 * Math.PI * 2, b = w.circle(50, 110, 4, { bullet: true, bounce: .6, vx: Math.cos(a) * TOP * 2, vy: Math.sin(a) * TOP * 2 });
+    for (let i = 0; i < 120; i++) { if (i % 10 === 0) { L.flip(i % 20 === 0); R.flip(i % 20 !== 0); } w.step(1 / 120); shots++; if (b.x < -1 || b.x > 101 || b.y < -1 || b.y > 201) { escaped++; break; } }
+  }
+  check(`${ed}: physics: a ball at twice its top speed (3,200 px/s) never passes through a wall, a thin segment or a swinging flipper (48 directions, a second each)`, !escaped, `${escaped} of 48 escaped`);
+  { let through = 0; for (let k = 0; k < 24; k++) { const w = new E.Physics(), F = w.flipper(40, 100, { side: 'left', len: 40, rest: 0, up: 0 }), x = 44 + k % 6 * 6, a = (k / 24 - .5) * 1.2, b = w.circle(x - Math.sin(a) * 80, 20, 4, { bullet: true, vx: Math.sin(a) * TOP * 2, vy: Math.cos(a) * TOP * 2 }); for (let i = 0; i < 24; i++) w.step(1 / 120); if (b.y > 100) through++; }
+    check(`${ed}: physics: a ball at twice its top speed thrown at a flipper's face from 24 angles bounces off it, never through`, !through, `${through} went through`); }
+  // a table's world at 60, 90, 120 and 144 Hz: flippers on the game clock, bumpers, a kicker, three balls
+  const table = hz => {
+    const g = new E.Game({ headless: true }), w = new E.Physics({ gravity: [0, 500] });
+    w.chain([[0, 0], [160, 0], [160, 240], [0, 240]], { closed: true, r: 1 }); w.arc(80, 60, 70, Math.PI, Math.PI * 2);
+    const L = w.flipper(45, 210, { side: 'left' }), R = w.flipper(115, 210, { side: 'right' }); w.bumper(60, 90, 9); w.bumper(100, 90, 9); w.kicker(140, 150, { dir: [-.4, -1], power: 600 });
+    const balls = [30, 80, 130].map(x => w.circle(x, 40, 5, { bullet: true, bounce: .4 }));
+    g.start({ update(dt) { const t = g.time; L.flip(t % 1 < .25); R.flip((t + .5) % 1 < .25); w.step(dt); }, draw() {} });
+    for (let t = 0; t < 3 - 1e-9; t += 1 / hz) g.advance(1 / hz);
+    return w.hash() + ' ' + balls.map(b => Math.round(b.x) + ',' + Math.round(b.y)).join(' ');
+  };
+  const H = [60, 90, 120, 144].map(table);
+  check(`${ed}: physics: the same table (flippers, bumpers, a kicker, three balls) gives the same world at 60, 90, 120 and 144 Hz`, new Set(H).size === 1, H.join(' / '));
+  // bounces, friction, a stack, layers, sensors, a kicker, a bumper's kick, a kinematic paddle, ray and query
+  { const w = new E.Physics({ gravity: [0, 600] }); w.segment([0, 300], [400, 300]); const b = w.circle(100, 100, 5, { bounce: 1, bullet: true }); let hit = false, top = 1e9; for (let i = 0; i < 400; i++) { w.step(1 / 120); if (b.vy < 0) hit = true; if (hit) top = Math.min(top, b.y); }
+    const f = new E.Physics({ gravity: [0, 600] }); f.segment([0, 300], [900, 300]); const s1 = f.box(50, 290, 20, 20, { vx: 300, friction: .5 }), s0 = f.box(50, 250, 20, 20, { vx: 300, friction: 0 }); f.segment([0, 260], [900, 260], { layer: 2 }); s0.mask = 0xffff; for (let i = 0; i < 240; i++) f.step(1 / 120);
+    check(`${ed}: physics: a bounce of 1 rebounds to its height; friction stops a sliding box, none lets one slide on`, top < 103 && s1.vx < 1 && s0.vx > 250, `rebound to ${top.toFixed(1)} of 100; boxes ${s1.vx.toFixed(1)}, ${s0.vx.toFixed(1)} px/s`); }
+  { const w = new E.Physics({ gravity: [0, 500] }); w.segment([0, 300], [400, 300]); const bs = [0, 1, 2].map(i => w.box(200 + i * 2, 280 - i * 22, 30, 20)); for (let i = 0; i < 600; i++) w.step(1 / 120);
+    check(`${ed}: physics: a stack of three boxes settles upright and sleeps`, bs.every(b => b.sleeping && Math.abs(b.angle) < .05) && Math.abs(bs[2].y - 250) < 2, bs.map(b => [b.y.toFixed(1), b.angle.toFixed(3), b.sleeping]).join(' ')); }
+  { const w = new E.Physics({ gravity: [0, 400] }), ev = []; w.on = { enter: (s, b) => ev.push('in'), exit: (s, b) => ev.push('out') }; w.segment([0, 100], [200, 100], { layer: 2 }); w.segment([0, 300], [200, 300]); w.circle(100, 200, 20, { type: 'static', sensor: true });
+    const a = w.circle(60, 50, 5, { mask: 1 }), b = w.circle(140, 50, 5); for (let i = 0; i < 240; i++) w.step(1 / 120);
+    check(`${ed}: physics: layers (a ball whose mask leaves out layer 2 falls through its floor, another stands on it); a sensor reports in and out`, a.y > 290 && b.y < 100 && ev.length === 0, `${a.y.toFixed(0)}, ${b.y.toFixed(0)}; ${ev}`);
+    const c = w.circle(100, 150, 5, { vx: 0 }); for (let i = 0; i < 240; i++) w.step(1 / 120);
+    check(`${ed}: physics: a ball falling through a sensor sets off enter, then exit`, ev.join() === 'in,out', ev.join()); }
+  { const w = new E.Physics({ gravity: [0, 400] }), caught = []; w.on = { catch: (k, b) => caught.push(b.id) }; const k = w.kicker(100, 150, { hold: .5, dir: [0, -1], power: 500 }); const b = w.circle(100, 100, 4); let held = 0, up = 0;
+    for (let i = 0; i < 120; i++) { w.step(1 / 120); if (b.held) held++; if (b.vy < -400) up++; }
+    const w2 = new E.Physics(), bm = w2.bumper(100, 100, 10, { kick: 300 }), ball = w2.circle(100, 40, 4, { vy: 200, bounce: .5 }); for (let i = 0; i < 60; i++) w2.step(1 / 120);
+    check(`${ed}: physics: a kicker catches a ball, holds it half a second and fires it; a bumper sends a ball (at 200 px/s) off at its kick (300)`, caught.length === 1 && held >= 58 && held <= 62 && up > 0 && Math.abs(-ball.vy - 300) < 2, `held ${held} steps, fired ${up > 0}; bumper ${ball.vy.toFixed(0)} px/s`); }
+  { const w = new E.Physics(), p = w.box(100, 200, 40, 8, { type: 'kinematic' }), b = w.circle(160, 200, 5, { friction: 0 }); p.moveTo(180, 200, 0, 200); for (let i = 0; i < 120; i++) w.step(1 / 120);
+    const hit = w.ray([0, 200], [400, 200]), q = w.query(p.x, p.y);
+    check(`${ed}: physics: a kinematic paddle reaches its goal and pushes a ball ahead of it; ray finds the nearest, query what is there`, Math.abs(p.x - 180) < .01 && b.x > 190 && hit && hit.body === p && q[0] === p, `paddle ${p.x.toFixed(2)}, ball ${b.x.toFixed(1)}, ray ${hit && hit.body.id}, query ${q.map(o => o.id)}`); }
+  // the terrain: carving, adding, polygons, the ground, normals, hits, a ray, walkers, a physics ball on it
+  const land = new E.Terrain({ w: 300, h: 120, materials: [{ color: '#8a5a34' }, { color: '#606070', hard: true }] });
+  land.fill((x, y) => y < 50 ? (y < 10 ? 2 : 1) : 0);
+  const before = land.cells.reduce((a, c) => a + (c ? 1 : 0), 0), took = land.carve(150, 50, 20), after = land.cells.reduce((a, c) => a + (c ? 1 : 0), 0);
+  check(`${ed}: terrain: a carve takes the cells within its radius and no others`, before - after === took[1] && took[1] > 600 && took[1] < 640 && !land.solid(150, 40) && land.solid(150, 25) && land.solid(125, 45), `${before - after} cells (half a disc of 20: ~628)`);
+  land.carve(150, 10, 15); land.add(40, 70, 6, 1); land.addPoly([[200, 50], [240, 50], [240, 80]], 1); land.carvePoly([[260, 0], [280, 0], [280, 50], [260, 50]]);
+  check(`${ed}: terrain: hard ground stays when carved; add and addPoly fill, carvePoly empties`, land.solid(150, 5) && land.solid(40, 70) && land.solid(235, 70) && !land.solid(205, 70) && !land.solid(270, 30) && land.solid(270, 5), '');
+  const n0 = land.normal(80, 50), slope = new E.Terrain({ w: 100, h: 100 }); slope.fill((x, y) => y < x ? 1 : 0); const n1 = slope.normal(50, 50, 6), g0 = land.ground(80, 90), h0 = land.hit(80, 52, 4), r0 = land.ray(80, 100, 80, 0);
+  check(`${ed}: terrain: the ground below a point, the normal on flat ground and on a slope, a circle's hit, a ray's first solid`, g0 === 50 && Math.abs(n0[1] - 1) < .01 && Math.abs(n1[0] + .707) < .08 && Math.abs(n1[1] - .707) < .08 && h0 && h0[1] > .9 && h0[2] >= 1 && h0[2] <= 3 && r0 && Math.round(r0[1]) === 50, JSON.stringify({ g0, n0, n1, h0, r0 }));
+  { const t = new E.Terrain({ w: 200, h: 100 }); t.fill((x, y) => y < 20 || (x > 60 && x < 70 && y < 24) || (x > 120 && x < 125 && y < 40) ? 1 : 0); t.carve(160, 20, 12);
+    const wk = { x: 10, y: 20, vx: 40, vy: 0, ground: true }; let up = 0; for (let i = 0; i < 480; i++) { t.walk(wk, 1 / 120); up = Math.max(up, wk.y); } const stoppedAt = wk.x;
+    const wf = { x: 150, y: 20, vx: 40, vy: 0, ground: true }; let fell = 0, at = 0; for (let i = 0; i < 120 && !fell; i++) { fell = t.walk(wf, 1 / 120); at = wf.y; }
+    check(`${ed}: terrain: a walker steps up a 4-unit step and down again, stops at a 20-unit wall, falls into a crater and lands (its landing speed for damage)`, up === 24 && stoppedAt > 115 && stoppedAt < 121 && wk.ground && Math.abs(wk.y - 20) < .01 && fell > 50 && at < 15, `up to ${up}; stopped at ${stoppedAt.toFixed(1)}; landed at ${fell.toFixed(0)} px/s, at ${at}`); }
+  { const w = new E.Physics({ gravity: [0, -400] }); w.add(land.collider()); const b = w.circle(60, 90, 3, { bounce: .4, bullet: true }); let bounced = false; for (let i = 0; i < 600; i++) { w.step(1 / 120); if (b.vy > 20) bounced = true; }
+    check(`${ed}: terrain: a physics ball bounces on it (land.collider()) and comes to rest on the ground`, bounced && b.sleeping && Math.abs(b.y - 53) < 1.5, `y ${b.y.toFixed(2)}, bounced ${bounced}, asleep ${b.sleeping}`); }
+}
+
 // M10: the click module: walk areas with holes (paths round them, the shortest), walking at any rate, the pointer's
 // interfaces, rules, exits, saves; the story's backlog, auto and skip; a dialog's choice by a tap
 function clicks(E, ed) {
@@ -1170,6 +1240,16 @@ const SHELL = () => {
 };
 // docs/ASSETS.md's examples in a game: the surfaces (on a small map), the stool, the worked entries (as card-<id>), and
 // the use block in draw (its shape, its solid and its sprite); what is drawn with and without it, and every warning
+// the terrain drawn in the side view: chunks painted once, then only where a carve touched; its pixels on screen
+const TERRAIN_DRAW = () => {
+  const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: 'snes', view: 'side', loop: false }), land = new E.Terrain({ w: 400, h: 200, chunk: 32, materials: [{ color: '#8a5a34', top: '#5aa040' }] }), out = {};
+  land.fill((x, y) => y < 60 ? 1 : 0); game.view.scale = 1;
+  game.start({ update() {}, draw(r) { r.sky(['#000', '#000']); land.draw(r); } }); game.focus(128, 0, 60);
+  game.advance(1 / 60, { draw: true }); out.first = land.drawn; game.advance(1 / 60, { draw: true }); out.again = land.drawn;
+  land.carve(130, 60, 10); game.advance(1 / 60, { draw: true }); out.carved = land.drawn;
+  const d = game.screen.buf.getContext('2d').getImageData(0, 0, game.screen.W, game.screen.H).data; let lit = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 120 && d[i] < 140) lit++; out.lit = lit;
+  return out;
+};
 const CARD = ([use, surf, entry, worked]) => {
   const E = My3D2dge, out = { warns: [] }, warn = console.warn; console.warn = (...a) => { out.warns.push(a.join(' ')); warn(...a); };
   const rows = ['#####', '#.~..', '#....', '#....'], legend = { '#': 1, '~': { floor: 'water' } };
@@ -1249,6 +1329,8 @@ for (const [ed, file] of EDITIONS) {
     check(`${ed}: x-ray: a tall wall or a tall prop in front shows the hero through it; a cut-down wall or low grass doesn't`, X.tall > 20 && X.pillar > 20 && X.low === 0 && X.grass === 0, JSON.stringify(X));
     check(`${ed}: x-ray: hides: true makes a low prop hide; the outline is on by default, outline: false leaves it out`, X.grassHides > 0 && X.outline > 10 && X.noOutline === 0, JSON.stringify(X));
   }
+  const TD = await run(TERRAIN_DRAW);
+  check(`${ed}: terrain: the first draw paints the chunks on screen, the next none, a carve only the chunks it touched; it shows on screen`, TD.first > 4 && TD.again === 0 && TD.carved >= 1 && TD.carved <= 4 && TD.lit > 100, JSON.stringify(TD));
   const CODE = FENCED('docs/ASSETS.md').map(x => x.code), K = await run(CARD, CODE);
   console.log('  the asset card:', JSON.stringify(Object.assign({}, K, { warns: K.warns.length })));
   check(`${ed}: docs/ASSETS.md has its four examples (use, surfaces, an entry, worked entries)`, CODE.length === 4 && K.cards.length >= 6, CODE.length + ' blocks, ' + K.cards.length + ' worked entries');

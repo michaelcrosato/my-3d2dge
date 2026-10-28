@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.75.1)
+# my-3D2dge API index (v0.76.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,58 +48,60 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 104 The engine object (E = My3D2dge)
-- 115 Math
-- 189 Pixel primitives
-- 208 Sprite frames, turns and swaps
-- 214 Views (projections); E.View: view
-- 241 Screen; game.screen
-- 263 Input; E.Input: input
-- 347 Pixel font
-- 358 Lighting; game.lights
-- 377 Particles; E.Particles: game.particles
-- 397 Renderer; r
-- 445 Game; E.Game: game
-- 556 Standard features; settings, fullscreen
-- 573 10c. Boot
-- 578 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 595 10e. Paths; E.Path: path
-- 605 10g. Weather
-- 609 10k. Save slots; E.Saves: saves
-- 632 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 705 Blob rig; E.Blob: blob
-- 725 Tile map; E.TileMap: map
-- 788 Materials
-- 809 Flow field; E.FlowField: flow
-- 827 Texture helpers for floortex functions
-- 838 Platform map; E.PlatformMap: level
-- 872 Platformer; E.Platformer: hero
-- 913 Body; E.Body: body
-- 933 Actions; E.Action: action
-- 955 17c. Mover; E.Mover: mover
-- 994 17d. Perception; E.Suspicion: suspicion
-- 1011 Bullets; E.Bullets: shots
-- 1031 Spatial hash; E.SpatialHash: grid
-- 1041 Audio; game.audio
-- 1063 Backdrops; E.Backdrop: backdrop
-- 1071 21c. Props
-- 1076 21e. Shapes
-- 1088 Ui; E.Dialog: talk, E.Menu: menu
-- 1145 21d. Shell; E.Shell: shell
-- 1174 Gpu lighting (webgpu); game.gpu
-- 1195 Sessions
-- 1204 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1239 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
-- 1284 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1322 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1403 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1414 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1473 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1496 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1513 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1542 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1561 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
-- 1590 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 106 The engine object (E = My3D2dge)
+- 117 Math
+- 191 Pixel primitives
+- 210 Sprite frames, turns and swaps
+- 216 Views (projections); E.View: view
+- 243 Screen; game.screen
+- 265 Input; E.Input: input
+- 349 Pixel font
+- 360 Lighting; game.lights
+- 379 Particles; E.Particles: game.particles
+- 399 Renderer; r
+- 447 Game; E.Game: game
+- 558 Standard features; settings, fullscreen
+- 575 10c. Boot
+- 580 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 597 10e. Paths; E.Path: path
+- 607 10g. Weather
+- 611 10k. Save slots; E.Saves: saves
+- 634 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 707 Blob rig; E.Blob: blob
+- 727 Tile map; E.TileMap: map
+- 790 Materials
+- 811 Flow field; E.FlowField: flow
+- 829 Texture helpers for floortex functions
+- 840 Platform map; E.PlatformMap: level
+- 874 Platformer; E.Platformer: hero
+- 915 Body; E.Body: body
+- 935 Actions; E.Action: action
+- 957 17c. Mover; E.Mover: mover
+- 996 17d. Perception; E.Suspicion: suspicion
+- 1013 Bullets; E.Bullets: shots
+- 1033 Spatial hash; E.SpatialHash: grid
+- 1043 Audio; game.audio
+- 1065 Backdrops; E.Backdrop: backdrop
+- 1073 21c. Props
+- 1078 21e. Shapes
+- 1090 Ui; E.Dialog: talk, E.Menu: menu
+- 1147 21d. Shell; E.Shell: shell
+- 1176 Gpu lighting (webgpu); game.gpu
+- 1197 Sessions
+- 1206 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1241 Module click: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory (engine/modules/click.js); E.Click: click, E.Walkbox: walkbox
+- 1286 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1324 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1405 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1416 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1475 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1498 Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js); E.Physics: physics
+- 1527 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1544 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1573 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1592 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1621 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
+- 1667 Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js); E.Terrain: terrain
 
 ## The engine object (E = My3D2dge)
 
@@ -108,7 +110,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.75.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.76.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1493,6 +1495,35 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `mode7.items = []`: the billboards gathered for the next draw
 - `mode7.o`: its options
 
+## Module physics: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through (engine/modules/physics.js)
+
+- `new E.Physics(o = {}) → physics`: new E.Physics({ gravity, substeps, iterations, sleep, on, cell }): a world of bodies (see the manual)
+- `physics.add(d)`: a body from its definition (see the manual)
+- `physics.arc(x, y, r, a0, a1, o = {})`: a curved rail: a chain round (x, y) at radius r from angle a0 to a1 (radians; o.n segments)
+- `physics.box(x, y, w, h, o)`: a box w x h about its middle (dynamic unless o.type says)
+- `physics.bumper(x, y, r, o = {})`: a bumper: a static round post that kicks a ball away (kick: pixels a second)
+- `physics.chain(points, o = {})`: static segments through the points (o.closed: back to the first); returns them
+- `physics.circle(x, y, r, o)`: a circle (dynamic unless o.type says)
+- `physics.draw(g, to = (x, y) => [x, y], color = '#7cf2a0')`: outline every body into g (to(x, y) -> [sx, sy]: the plane on the screen; its identity by default)
+- `physics.flipper(x, y, o = {})`: a flipper: a kinematic tapered bar from its pivot (x, y); flip(on) swings it up or back (see the manual)
+- `physics.hash()`: a number for the world now: every body's place, angle and speed (a proof's hash)
+- `physics.kicker(x, y, o = {})`: a kicker: a sensor that catches a ball, holds it, then fires it (a saucer, a kickback); k.catch.armed
+- `physics.poly(x, y, points, o)`: a convex polygon, its points round x, y (dynamic unless o.type says)
+- `physics.query(x, y)`: the bodies over a point
+- `physics.ray(a, b, mask = 0xffff)`: the nearest body along the line from a to b (sensors aside; mask: the layers it sees): { body, x, y, t } or null
+- `physics.remove(b)`: take a body out
+- `physics.segment(a, b, o)`: a static segment from a to b (o.r: its thickness's half)
+- `physics.slingshot(a, b, o = {})`: a slingshot: a static segment that kicks a ball off it
+- `physics.step(dt)`: advance by dt seconds (from the game's fixed step), in substeps
+- `physics.wake()`: wake every body (after a change to gravity, say)
+- `physics.bodies = []`: every body in the order added
+- `physics.contacts = []`: the last substep's ({ a, b, nx, ny, pts, fresh })
+- `physics.gravity`: [gx, gy], pixels a second a second
+- `physics.iterations`: the solver's passes
+- `physics.on`: its events
+- `physics.sleep`: bodies at rest sleep
+- `physics.substeps`: steps per step(dt)
+
 ## Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js)
 
 - `new E.Road(o = {}) → road`: new E.Road({ segment, width, lanes, rumble, draw, fov, height, colors, fog, sky }): a road (the manual above)
@@ -1632,3 +1663,28 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.needs(agent, rates, dt)` †: raise an agent's needs (agent.needs: { hunger: .2, fun: .5 }, each 0..1) by rates ({ hunger: .01 }) a second
 - `E.overlay(r, map, value, colors = ['#2050c0', '#e0e040', '#e02020'], alpha = .45)` †: tint each cell by value(cx, cy) (0..1, or null for none) along colors (cold to hot): land value, crowding, mood
 - `E.tooltip(r, x, y, lines)` †: a box of lines (text, or [text, color]) beside a screen point (the pointer), kept on the screen
+
+## Module terrain: destructible ground in the side plane: carved and added, walked on, drawn in chunks (engine/modules/terrain.js)
+
+- `new E.Terrain(o = {}) → terrain`: new E.Terrain({ w, h, x, y, materials, chunk }): see the manual
+- `terrain.add(x, y, r, id)`: fill a circle with a material
+- `terrain.addPoly(points, id)`: a material inside a polygon of world points
+- `terrain.carve(x, y, r, o = {})`: a crater: air within r of (x, y) but for hard materials; o.particles: bits of what it took fly out; returns { id: cells taken }
+- `terrain.carvePoly(points)`: air inside a polygon of world points (hard materials stay)
+- `terrain.collider()`: a field for the physics module: world.add(land.collider())
+- `terrain.draw(r)`: draw it as decals under the bodies, in the side view (its y is the engine's z); only changed chunks are redrawn
+- `terrain.fill(fn)`: set every cell from fn(x, y) (the world point at the cell's middle) -> a material id or 0
+- `terrain.get(x, y)`: the material at a world point (0: air, and outside)
+- `terrain.ground(x, y)`: the top of the first solid ground at or below (x, y) (a world y), or null when there is none
+- `terrain.hit(x, y, r)`: a circle in the ground: [nx, ny, depth] (out along the normal by depth clears it), or null
+- `terrain.normal(x, y, r = 4)`: the ground's normal near (x, y): [nx, ny], pointing away from the solid within r
+- `terrain.ray(x0, y0, x1, y1)`: the first solid cell on the line from (x0, y0) to (x1, y1): [x, y] (the last air before it), or null
+- `terrain.set(x, y, id)`: set the cell at a world point
+- `terrain.solid(x, y)`: is the point in the ground?
+- `terrain.walk(b, dt, o = {})`: a walker's step: up and down slopes of up to climb, stopped by walls, falling and landing (see the manual)
+- `terrain.cells`: the mask, row by row from the top (0: air)
+- `terrain.chunk`: the drawn squares' size
+- `terrain.drawn = 0`: how many chunks the last draw painted again
+- `terrain.h`, `terrain.w`: its size in cells (world units)
+- `terrain.materials`: their looks (a material's id is its index + 1)
+- `terrain.x`, `terrain.y`: its bottom left corner

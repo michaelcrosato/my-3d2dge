@@ -5,6 +5,20 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.76.0 (2026-10-28)
+
+Physics toys, the modules: the genre plan's Milestone 11, its first half (11a): the physics and terrain modules. The PINBALL and ARTILLERY kits follow in 11b. Every kit plays as before (no kit carries the new modules yet).
+
+- **Engine**: the physics module (`engine/modules/physics.js`, after either edition): `E.Physics`, 2D rigid bodies. Circles, boxes, convex polygons, static segments, chains and arcs (a segment or polygon with `r` is rounded: a capsule); dynamic, kinematic (`moveTo`: paddles and flippers that give their speed to what they hit) and static bodies; bounce, friction, damping, sensors (`on.enter`, `on.exit`), layers and masks (a ball on a ramp ignores the table's walls), sleep, gravity as a vector (a table's tilt). A fast ball (`bullet: true`) is swept each substep and never passes through a wall, a thin segment or a swinging flipper. Contacts are solved in a fixed order, so the same steps give the same world. A pinball's parts: `world.flipper`, `bumper`, `slingshot`, `kicker`. Also `ray`, `query`, `hash` and a debug `draw`.
+- **Engine**: the terrain module (`engine/modules/terrain.js`, after either edition): `E.Terrain`, destructible ground in the side plane (its y is the side view's z). A mask of material cells, carved and added by circles and polygons (hard materials stay, with flying bits of what was taken); the ground below a point, its normal, a circle's hit, a ray for a shot; walkers that step up slopes, stop at walls, fall and land (their landing speed for fall damage); a collider for the physics module (grenades that bounce on the ground); drawn as decals in chunks painted again only where a change touched.
+- **Tools**: the contract test's physics toys group on both editions:
+  - a ball at twice its top speed (3,200 px/s) never passes through a wall, a thin segment or a swinging flipper, from 48 directions and 24 angles;
+  - a table (flippers, bumpers, a kicker, three balls) gives the same world at 60, 90, 120 and 144 Hz;
+  - bounces, friction, a stack that settles and sleeps upright, layers, sensors, a kicker, a bumper's kick, a kinematic paddle, `ray` and `query`;
+  - the terrain's carving, adding, polygons, ground, normals, hits, rays and walkers, and a physics ball resting on it;
+  - in Chromium, its chunks drawn again only where a carve touched.
+- **Docs**: the API card (the physics and terrain modules' lines), `AI_GUIDE.md` (the physics toys recipes: Breakout, Asteroids with real collisions, Lemmings), the plan's 11a as built.
+
 ## 0.75.1 (2026-10-28)
 
 The genre plan's Milestone 10, closed: its progress row complete.

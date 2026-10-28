@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.75.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.76.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -527,6 +527,12 @@ guard.mind = new E.Suspicion(); guard.flow = new E.FlowField(map, { climb: 56, d
 - Takedowns: from behind (same level, close, outside the guard's view, not alert) or from a roof above (`aerial: true`); mark the guard down, and feed its rig `act.otherState()` while the action plays.
 - Telegraph guards' swings (`new E.Attack('overhead', { wind: .38 })`) and let a block in the wind-up's last moments parry and stun them.
 - A checkpoint where the objective is taken: respawn there, and reset the guards.
+
+**Physics toys (Breakout, Asteroids with real collisions, Lemmings).** The physics and terrain modules; each step `world.step(dt)` from the game's fixed step (never the frame's time), so a run is the same at any refresh rate.
+- Breakout: a closed `world.chain` for the walls (its floor a sensor that loses the ball), the bricks static boxes taken out on `on.hit` (`world.remove`), the paddle a kinematic box moved by `moveTo` (it gives the ball its speed), the ball a `bullet` circle with `bounce: 1, friction: 0` and a `maxSpeed`; nudge its angle away from flat on each paddle hit.
+- Asteroids with real collisions: rocks as dynamic convex `world.poly`s with a little `spin`, the ship a poly with `gravity: 0` and `damping`, wrap-around by moving bodies across the edges yourself (`E.wrap`); a rock that splits is removed and two smaller polys added at its place with its speed.
+- Lemmings: an `E.Terrain` level (a picture's cells as materials), each lemming a walker (`land.walk`: a step up of 5, a fall that kills past a landing speed), diggers and bashers carving a small circle or a polygon each step, builders adding a short bar (`addPoly`); hundreds of walkers are cheap (no physics bodies).
+- What touches the terrain fast (a shot) uses `land.ray` for its line; what bounces on it (a grenade) is a physics circle with `world.add(land.collider())`.
 
 **Mash-ups.** The kits don't depend on each other. Some examples:
 - a platformer with Zelda rooms: `cam.room` in the side view;
