@@ -37,14 +37,21 @@ const PUZZLE = (() => {
   let mode = 'menu', R = Math.random, field = null, W = 10, H = 22, cur = null, hold = null, held = false, queue = [], bag = [], fallT = 0, lockT = 0, resets = 0, softT = 0;
   let score = 0, lines = 0, level = 1, chain = 0, clearing = null, popping = null, over = null, flash = 0, mood = 0, moodT = 0, time = 0, popped = 0;
   let touchX = 0, touchY = 0, downT = 0, swept = false;
+  // VERSUS (two players: game.players): each field's state is the variables above, swapped in to step or draw it (save,
+  // load); IN: the input the controls read (player 1's when null), CX: the field's centre (the screen's when null)
+  let VS = null, IN = null, CX = null;
+  const save = () => ({ mode, R, field, W, H, cur, hold, held, queue, bag, fallT, lockT, resets, softT, score, lines, level, chain, clearing, popping, over, flash, time, popped, touchX, touchY, downT, swept });
+  const load = b => { ({ mode, R, field, W, H, cur, hold, held, queue, bag, fallT, lockT, resets, softT, score, lines, level, chain, clearing, popping, over, flash, time, popped, touchX, touchY, downT, swept } = b); };
   const G = () => new E.Grid(W, H);
-  const pick = new E.Menu(game, ['BLOCKS', 'PAIRS'], { y: 0, onPick: i => begin(i ? 'pairs' : 'blocks') });
+  const pick = new E.Menu(game, ['BLOCKS', 'PAIRS'], { y: 0, onPick: i => i === 2 ? versus() : begin(i ? 'pairs' : 'blocks') });   // (VERSUS joins the list once a second player is in)
   const after = new E.Menu(game, ['RETRY', 'OTHER GAME', 'TITLE'], { y: 0, onPick: i => i === 0 ? begin(over.kind) : i === 1 ? begin(over.kind === 'blocks' ? 'pairs' : 'blocks') : game.go('title') });
+  const rematch = new E.Menu(game, ['REMATCH', 'TITLE'], { y: 0, onPick: i => i ? game.go('title') : versus(VS.cpu) });
   const mascot = new E.Humanoid({ size: 1.3, outfit: 'robe', hair: 'ponytail', weapon: null, sleeves: 'long', colors: { cloth: '#e04a8a', hair: '#3a2a6a', trim: '#f0d060', skin: '#f0c8a0' } });
 
   /* ---- 3. BLOCKS: spawn, fits, move, rotate (kicks), lock, clear ---- */
   function nextFromBag() { if (!bag.length) { bag = 'IJLOSTZ'.split(''); for (let i = 6; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; } } return bag.pop(); }
   function spawn(k) {
+    if (VS && VS.pend[VS.at] > 0) { garbage(VS.pend[VS.at]); VS.pend[VS.at] = 0; }   // (versus: the rows sent here rise first)
     while (queue.length < 6) queue.push(nextFromBag());
     cur = { k: k || queue.shift(), r: 0, x: 3, y: 0 }; fallT = 0; lockT = 0; resets = 0;
     if (!fits(cur.x, cur.y, cur.r)) end();
@@ -68,7 +75,7 @@ const PUZZLE = (() => {
     for (const [a, b] of cellsOf(cur.k, cur.r)) { const cy = cur.y + b; if (cy < 0) { end(); return; } field[cy * W + cur.x + a] = cur.k; }
     held = false;
     const full = []; for (let y = 0; y < H; y++) { let ok = true; for (let x = 0; x < W; x++) if (!field[y * W + x]) { ok = false; break; } if (ok) full.push(y); }
-    if (full.length) { clearing = { rows: full, t: 0 }; const n = full.length; score += [0, 100, 300, 500, 800][n] * level; lines += n; A.sfx(n === 4 ? 'oneup' : 'coin'); flash = .3; cheer(n === 4 ? 2 : 1);
+    if (full.length) { clearing = { rows: full, t: 0 }; const n = full.length; score += [0, 100, 300, 500, 800][n] * level; lines += n; if (VS) VS.out += [0, 0, 1, 2, 4][n]; A.sfx(n === 4 ? 'oneup' : 'coin'); flash = .3; cheer(n === 4 ? 2 : 1);
       for (const y of full) for (let x = 0; x < W; x += 2) burst(x, y, COLOR[field[y * W + x]] || '#fff'); cur = null; return; }
     spawn();
   }
@@ -104,18 +111,60 @@ const PUZZLE = (() => {
   }
 
   /* ---- 5. A GAME: begin, the end, the mascot's mood, bursts ---- */
-  function begin(kind) {
+  function begin(kind, seed) {
     mode = kind; W = kind === 'blocks' ? 10 : PW; H = kind === 'blocks' ? 22 : PH + 1; field = new Array(W * H).fill(0);
-    queue = []; bag = []; hold = null; held = false; score = 0; lines = 0; level = 1; chain = 0; clearing = popping = over = null; time = 0; popped = 0; mood = 0; R = E.rng(1 + Math.floor(Math.random() * 1e6));
+    queue = []; bag = []; hold = null; held = false; score = 0; lines = 0; level = 1; chain = 0; clearing = popping = over = null; time = 0; popped = 0; mood = 0; R = E.rng(seed || 1 + Math.floor(Math.random() * 1e6));
     if (kind === 'blocks') spawn(); else pairSpawn();
     A.music(STACK); game.input.consumeAll();
   }
-  function end() { if (over) return; over = { kind: mode, score, lines, level, best: best('puzzle-' + mode, score), t: 0 }; mode = 'over'; cur = null; mood = -1; moodT = 99; A.music(null); A.sfx('die'); after.i = 0; }
+  function end() { if (VS) { if (mode !== 'lost') { mode = 'lost'; cur = null; VS.loser = VS.at; VS.t = 0; A.music(null); A.sfx('die'); rematch.i = 0; } return; }
+    if (over) return; over = { kind: mode, score, lines, level, best: best('puzzle-' + mode, score), t: 0 }; mode = 'over'; cur = null; mood = -1; moodT = 99; A.music(null); A.sfx('die'); after.i = 0; }
   function cheer(k) { mood = k; moodT = 1.2; }
+  /* ---- 5b. VERSUS: two fields side by side from one seed (the same pieces), each player's own input (a CPU in tests);
+   * two lines or more cleared send rows to the other field (2: 1, 3: 2, 4: 4), rising at its next piece; the first to
+   * top out loses ---- */
+  const vsX = i => Math.round(game.W * (i ? .75 : .25)), vsJoin = () => { if (game.players.length > 1 && !pick.items.includes('VERSUS')) pick.items.push('VERSUS'); };
+  function versus(cpu = [false, false]) {
+    const seed = 1 + Math.floor(Math.random() * 1e6);
+    VS = { b: [], in: [game.players[0], game.players[1] || null], cpu, pend: [0, 0], sent: [0, 0], out: 0, at: 0, cpuT: [0, 0], rate: .7, err: .08 };
+    for (let i = 0; i < 2; i++) { VS.at = i; begin('blocks', seed); VS.b[i] = save(); }
+    load(VS.b[0]);
+  }
+  function garbage(n) {   // n grey rows rise from the bottom, one hole through them
+    const hole = Math.floor(Math.random() * W);
+    field.copyWithin(0, n * W); for (let y = H - n; y < H; y++) for (let x = 0; x < W; x++) field[y * W + x] = x === hole ? 0 : 'G';
+    A.sfx('bump'); flash = .15;
+  }
+  function vsUpdate(dt) {
+    if (VS.loser !== undefined) { VS.t += dt; if (VS.t > 1 && !rematch.update(dt)) pickOnStart(rematch); return; }
+    for (let i = 0; i < 2 && VS.loser === undefined; i++) {
+      load(VS.b[i]); VS.at = i; IN = VS.in[i]; CX = vsX(i); VS.out = 0;
+      if (VS.cpu[i] && cur && !clearing && (VS.cpuT[i] += dt) >= VS.rate) {   // a CPU: the bot's best place (now and then a worse one), dropped
+        VS.cpuT[i] = 0; const m = Math.random() < VS.err ? { r: Math.floor(Math.random() * 4), x: Math.floor(Math.random() * W) } : bestMove();
+        if (m) { for (let k = 0; k < 4 && cur.r !== m.r; k++) if (!rotate(1)) break; for (let k = 0; k < 12 && cur.x !== m.x; k++) if (!shift(Math.sign(m.x - cur.x))) break; hardDrop(); }
+      }
+      if (mode === 'blocks') stepField(dt);
+      VS.b[i] = save(); if (VS.out) { VS.pend[1 - i] += VS.out; VS.sent[i] += VS.out; }
+    }
+    IN = CX = null; load(VS.b[0]);
+  }
+  function vsDraw(r) {
+    for (let i = 0; i < 2; i++) {
+      load(VS.b[i]); CX = vsX(i); drawField(r);
+      const b = fieldBox(), pend = VS.pend[i], lost = VS.loser;
+      r.overlay(g => {
+        E.font.text(g, VS.cpu[i] ? 'CPU' : 'P' + (i + 1), b.x + b.w / 2, b.y - 13, E.PLAYER_COLORS[i], { align: 'center', shadow: '#000', outline: false });
+        if (pend) px.rect(g, b.x - 4, b.y + b.h - Math.min(b.h, pend * b.c), 3, Math.min(b.h, pend * b.c), '#ff4a4a');   // the rows on their way
+        if (lost !== undefined) E.font.title(g, lost === i ? 'LOSE' : 'WIN!', b.x + b.w / 2, b.y + b.h / 3, { align: 'center', scale: 2, colors: lost === i ? ['#d8d8e8', '#6a6a80'] : ['#fff8d0', '#ffd040', '#ff7a2a'] });
+      });
+    }
+    CX = null; load(VS.b[0]);
+    if (VS.loser !== undefined && VS.t > 1) { rematch.y = Math.round(r.H / 2) + 24; rematch.draw(r); }
+  }
   function burst(cx, cy, color) { if (!game.r) return; const [x, y] = cellPx(cx + .5, cy + .5); const [wx, wz] = toWorld(x, y); P.sparks(wx, 0, wz, 3, null, { color }); }
   /* ---- 6. INPUT: keys (auto-shift from input.repeat) and touch (drag, tap, flicks) ---- */
   function controls(dt) {
-    const I = game.input, blocks = mode === 'blocks', mv = blocks ? shift : pshift, rot = blocks ? rotate : protate;
+    const I = IN || game.input, blocks = mode === 'blocks', mv = blocks ? shift : pshift, rot = blocks ? rotate : protate;
     if (I.repeat('left', .17, .05)) mv(-1);
     if (I.repeat('right', .17, .05)) mv(1);
     if (I.pressed('up') || I.pressed('rotate')) rot(1);
@@ -143,6 +192,11 @@ const PUZZLE = (() => {
     mascot.update(dt, { x: 0, y: 0, z: 0, facing: 0, vx: 0, vy: 0, pose: mood > 0 ? 'cheer' : mood < 0 ? 'down' : null, expr: mood > 0 ? 'smile' : tall ? 'wince' : null, run: 0 });
     if (mode === 'menu') { if (!pick.update(dt)) pickOnStart(pick); return; }
     if (mode === 'over') { over.t += dt; if (over.t > 1) { if (!after.update(dt)) pickOnStart(after); } return; }
+    if (VS) { vsUpdate(dt); return; }
+    stepField(dt);
+  }
+  // one field's step: a clear or a pop playing out, the controls, the fall and the lock
+  function stepField(dt) {
     time += dt;
     if (clearing) { clearing.t += dt; if (clearing.t > .35) clearRows(); return; }
     if (popping) { popping.t += dt; if (popping.t > .4) { for (const [x, y] of popping.cells) field[y * W + x] = 0; popping = null; settle(); } return; }
@@ -160,8 +214,8 @@ const PUZZLE = (() => {
   }
 
   /* ---- 7. DRAWING: the stage, the field in screen pixels, the panels, the mascot ---- */
-  const cell = () => mode === 'blocks' || (over && over.kind === 'blocks') ? Math.max(8, Math.floor((game.H - 24) / 20)) : Math.max(10, Math.floor((game.H - 28) / 12));
-  const fieldBox = () => { const c = cell(), vis = W === 10 ? 20 : PH, w = W * c, h = vis * c; return { c, x: Math.round(game.W / 2 - w / 2), y: Math.round(game.H / 2 - h / 2) + 2, w, h, top: H - vis }; };
+  const cell = () => VS ? Math.max(6, Math.min(Math.floor((game.H - 34) / 20), Math.floor(game.W / 2 / 18))) : mode === 'blocks' || (over && over.kind === 'blocks') ? Math.max(8, Math.floor((game.H - 24) / 20)) : Math.max(10, Math.floor((game.H - 28) / 12));
+  const fieldBox = () => { const c = cell(), vis = W === 10 ? 20 : PH, w = W * c, h = vis * c; return { c, x: Math.round((CX === null ? game.W / 2 : CX) - w / 2), y: Math.round(game.H / 2 - h / 2) + 2, w, h, top: H - vis }; };
   const cellPx = (cx, cy) => { const b = fieldBox(); return [b.x + cx * b.c, b.y + (cy - b.top) * b.c]; };
   const toWorld = (sx, sy) => { const v = game.view; return [(sx + game.r.ix) / v.ax, (sy + game.r.iy) / v.bz]; };
   function block(g, x, y, c, color, a = 1) {   // a bevelled block: light top and left, dark bottom and right
@@ -186,8 +240,18 @@ const PUZZLE = (() => {
       for (let i = 0; i < 9; i++) { const y = r.H - Math.pow((i + (t * .6) % 1) / 9, 2) * r.H * .45; px.rect(g, 0, Math.round(y), r.W, 1, '#3a1a6a'); }
     });
     if (mode === 'menu') { menuScreen(r); return; }
-    const kind = over ? over.kind : mode;
+    if (VS) { vsDraw(r); return; }
+    drawField(r);
+    // the mascot, beside the field (its world point from the screen point: the side view)
+    const b = fieldBox(), side = b.x > 90, mx = side ? b.x - 44 : b.x + b.w - 20, my = side ? b.y + b.h : b.y + b.h + 40, [wx, wz] = toWorld(mx, my);
+    if (side) r.actor(wx, 0, wz, (g, ox, oy) => mascot.draw(g, ox, oy, r.view));
+    if (over) results(r);
+  }
+  // a field, its piece and its panels (the field swapped in: one, or each of the two in versus)
+  function drawField(r) {
+    const kind = over ? over.kind : mode === 'lost' ? 'blocks' : mode, st = VS && save(), cx = CX;   // (versus: this field, swapped back in when its overlay runs)
     r.overlay(g => {
+      const back = st && save(), bcx = CX; if (st) { load(st); CX = cx; }
       const b = fieldBox(), c = b.c;
       E.ui.box(g, b.x - 4, b.y - 4, b.w + 8, b.h + 8, { bg: ['#120a28', '#1e1240'], alpha: .92 });
       if (flash > 0) px.blend(g, flash * 2, 'add', () => px.rect(g, b.x, b.y, b.w, b.h, '#ffffff'));
@@ -203,11 +267,8 @@ const PUZZLE = (() => {
         for (const [a, bb] of cellsOf(cur.k, cur.r)) { drawCell(g, cur.x + a, gy + bb, cur.k, .25); drawCell(g, cur.x + a, cur.y + bb, cur.k); }
       } else if (cur) { const s = SAT[cur.r]; drawCell(g, cur.x, cur.y, cur.a); drawCell(g, cur.x + s[0], cur.y + s[1], cur.b); }
       panels(g, b, kind);
+      if (st) { load(back); CX = bcx; }
     });
-    // the mascot, beside the field (its world point from the screen point: the side view)
-    const b = fieldBox(), side = b.x > 90, mx = side ? b.x - 44 : b.x + b.w - 20, my = side ? b.y + b.h : b.y + b.h + 40, [wx, wz] = toWorld(mx, my);
-    if (side) r.actor(wx, 0, wz, (g, ox, oy) => mascot.draw(g, ox, oy, r.view));
-    if (over) results(r);
   }
   function panels(g, b, kind) {
     const c = Math.max(6, Math.floor(b.c * .6)), rx = b.x + b.w + 10, lx = b.x - 10, mini = (k, x, y, sz) => { for (const [a, bb] of cellsOf(k, 0)) block(g, x + a * sz, y + bb * sz, sz, COLOR[k]); };
@@ -226,8 +287,9 @@ const PUZZLE = (() => {
   function menuScreen(r) {
     r.overlay(g => {
       E.font.title(g, 'PUZZLE', r.W / 2, 34, { align: 'center', scale: 4, colors: ['#ffffff', '#ff8ad8', '#c04ae8'], depth: 3 });
-      E.font.text(g, pick.i ? 'FALLING PAIRS: FOUR OF A COLOUR POP, CHAINS SCORE MORE' : 'FALLING BLOCKS: FILL A ROW TO CLEAR IT', r.W / 2, r.H - 22, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
-      E.font.text(g, touch() ? 'DRAG MOVE   TAP ROTATE   FLICK DOWN DROP   FLICK UP HOLD' : 'ARROWS MOVE   UP / X ROTATE   SPACE DROP   C HOLD', r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
+      E.font.text(g, pick.i === 2 ? 'VERSUS: CLEAR TWO ROWS OR MORE TO SEND THEM ACROSS' : pick.i ? 'FALLING PAIRS: FOUR OF A COLOUR POP, CHAINS SCORE MORE' : 'FALLING BLOCKS: FILL A ROW TO CLEAR IT', r.W / 2, r.H - 22, '#e8d8ff', { align: 'center', shadow: '#000', outline: false });
+      const two = game.players.length > 1, keysOf = I => I.name + ' ' + (I.half === 'right' ? 'ARROWS' : I.half ? 'WASD' : 'STICK') + '  ' + [['rotate', 'TURN'], ['drop', 'DROP'], ['hold', 'HOLD']].map(([a, w]) => I.label(a) + ' ' + w).join('  ');   // (two: each player's own keys)
+      E.font.text(g, two ? game.players.map(keysOf).join('     ') : touch() ? 'DRAG MOVE   TAP ROTATE   FLICK DOWN DROP   FLICK UP HOLD' : 'ARROWS MOVE   UP / X ROTATE   SPACE DROP   C HOLD', r.W / 2, r.H - 11, '#9a8ac8', { align: 'center', outline: false, font: 'tiny' });
     });
     pick.y = 92; pick.draw(r);
   }
@@ -273,16 +335,24 @@ const PUZZLE = (() => {
         hardDrop(); pieces++;
       }
       game.advance(1);
-      return { pieces, lines, score, level, over: mode === 'over', errors: game.errors.length };
+      const one = { pieces, lines, score, level, over: mode === 'over' };
+      return Object.assign(one, { vs: vsBot(), errors: game.errors.length });
     } finally { Math.random = was; }
+  }
+  /** versus played by two CPUs to a loss (the bot's: tools/kits-test.mjs): who lost, the rows each sent */
+  function vsBot() {
+    game.go('puzzle', null, { fade: 0 }); game.advance(1 / 120); versus([true, true]); VS.rate = .1;
+    let t = 0; while (VS.loser === undefined && t < 900) { game.advance(1 / 60); t += 1 / 60; }
+    return { loser: VS.loser, seconds: Math.round(t), sent: VS.sent.slice(), lines: VS.b.map(b => b.lines) };
   }
 
   return { view: 'side', views: ['side'], input: KEYS, res: 'ps1', pausable: true, touch: [], propSize: 1, camera: { zoom: false },
-    enter() { mode = 'menu'; over = null; field = null; pick.i = 0; game.follow(null); game.cam.bounds = null; game.focus(0, 0, 0); game.cam.snap = true; A.music('title'); },
+    enter() { mode = 'menu'; over = null; field = null; VS = null; pick.i = 0; game.allowJoin({ max: 2, onJoin: vsJoin }); vsJoin(); game.follow(null); game.cam.bounds = null; game.focus(0, 0, 0); game.cam.snap = true; A.music('title'); },
     exit() { game.input.steer = 'stick'; },
-    back() { if (mode === 'menu' || mode === 'over') { game.go('title'); return true; } return false; },
+    back() { if (mode === 'menu' || mode === 'over' || (VS && VS.loser !== undefined)) { game.go('title'); return true; } return false; },
     update, draw, bot,
-    state: () => ({ mode, field, cur, score, lines, level }),   // for tests
+    state: () => ({ mode, field, cur, score, lines, level, versus: VS && { loser: VS.loser, pend: VS.pend.slice(), sent: VS.sent.slice() } }),   // for tests
+    versus,
     /** the proof: a game of blocks played by keys (moves, turns, drops, a hold); a hash of the field and the score */
     run: (n = 600) => proof('puzzle', n, (i, k) => { if (i === 2) begin('blocks'); if (i % 40 === 10) k.tap(i % 80 ? 'left' : 'right'); if (i % 50 === 20) k.tap('up'); if (i % 60 === 30) k.tap('drop'); if (i === 200) k.tap('hold'); },
       () => [mode, field, score, lines, level, hold, queue]) };

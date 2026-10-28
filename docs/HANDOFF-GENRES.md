@@ -483,6 +483,20 @@ Needs M1 (input sequences, `cam.frame`).
   two cameras (a filmstrip); the brawler's two heroes clear a wave; a versus puzzle plays to a loss; one-player play is
   unchanged everywhere.
 
+- **As built, 4a (v0.65.0):** the engine's section 10j (on the diet: only the brawler and the puzzle carry it). The names
+  are `game.allowJoin({ max, onJoin })` and `game.splitScreen(n, { layout, follow })` (D53: the plan's `join` and `split`,
+  String's and Array's names, kept the section in every kit), with `game.addPlayer({ pad } | { keys: 'right' })`,
+  `game.removePlayer(p)`, `game.viewports` and `Input.halfKeys(preset, side)`; `game.players` and `E.PLAYER_COLORS` are
+  the core's. Each other player is an `Input` with no listeners of its own: player 1's keydowns go on to the players
+  sharing the keyboard (`keysTo`), and player 1 reads no pad another holds; the Start that joins a pad is neither player
+  1's pause nor the new player's first press. `E.Menu` and the starter's `pickOnStart` read every player. A split screen
+  draws the scene once per viewport, clipped from the pass's start (its floor too), each with its own eased camera, then
+  `scene.hud(r)`, the dividers and the frame's notes over the whole screen; the players suite films it. The brawler's
+  second player (Jack, in blue) drops in with `cam.frame` on both, foes going for the nearer hero, the round card showing
+  each player's keys (its preset trimmed to punch, kick, sweep and jump so each half reads in that order), game over
+  when both are out; its `bot()` brings in player 2 and both heroes clear the first wave. The puzzle's VERSUS appears
+  once a second player is in: two fields from one seed, swapped in and out to step and draw, rows sent across.
+
 ### M5: side-view traversal and the Metroidvania (the core's Platformer; module `rooms`; kit METROIDVANIA)
 
 Needs M1 (the camera's window, transitions).

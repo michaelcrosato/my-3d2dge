@@ -104,8 +104,8 @@ const proof = (id, n, script, state, fresh) => {
 };
 // a proof's walk: every `every` steps it lets go of the directions and holds the next of `dirs`
 const walk = (i, key, dirs, every) => { if (i % every) return; for (const d of dirs) key.up(d); key.hold(dirs[(i / every) % dirs.length]); };
-// START picks too (the touch START, a pad's Start), as Enter does
-const pickOnStart = m => { if (game.input.pressed('start')) { game.input.consumeAll(); m.onPick(m.i, m.items[m.i]); } };
+// START picks too (the touch START, a pad's Start), as Enter does: any player's
+const pickOnStart = m => { const P = game.players; if (P.some(I => I.pressed('start'))) { P.forEach(I => I.consumeAll()); m.onPick(m.i, m.items[m.i]); } };
 /** the title's menu for the slices in this file: grouped by family when there are several (FamilyMenu, in 05-families.js:
  *  the reference editions carry it, a genre kit of one slice doesn't), else a plain E.Menu */
 const menuOf = (slices, o) => new Set(slices.map(s => s.family)).size > 1 ? new FamilyMenu(slices, o) : new E.Menu(game, slices.map(s => s.label), o);

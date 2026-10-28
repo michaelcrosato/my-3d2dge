@@ -34,7 +34,8 @@ const BOTS = {
   roguelike: { say: 'plays ten floors and wins', ok: r => r.floors >= 10 && r.mode === 'won' },
   arcade: { say: 'clears a maze, two waves of moths and two of rocks; the attract mode plays a demo, shows the table and returns', ok: r => r.maze.level >= 2 && r.formation.level >= 3 && r.rocks.level >= 3 && r.attract },
   shooter: { say: 'flies the horizontal stage to its core battleship', ok: r => r.boss },
-  puzzle: { say: 'clears lines (60 pieces, at least 10 lines)', ok: r => r.pieces >= 60 && r.lines >= 10 }
+  brawler: { say: 'two heroes (player 2 on the keyboard\'s right half) clear the first wave, each landing blows', ok: r => r.players === 2 && r.heroes === 2 && r.wave >= 1 && r.hits.every(n => n > 0) },
+  puzzle: { say: 'clears lines (60 pieces, at least 10 lines); two CPUs play versus to a loss, sending rows across', ok: r => r.pieces >= 60 && r.lines >= 10 && !!r.vs && r.vs.loser !== undefined && r.vs.sent.some(n => n > 0) }
 };
 // the kits: my-3d2dge-<id>.html (2D) and my-3d2dge-3d-<id>.html (3D), the slice's id from the name
 const kits = readdirSync(K).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort().map(f => { const is3d = f.startsWith('my-3d2dge-3d-'); return { file: f, is3d, id: f.replace(/^my-3d2dge-(3d-)?|\.html$/g, '') }; })

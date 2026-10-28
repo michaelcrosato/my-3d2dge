@@ -15,7 +15,10 @@ const CASES = [   // [name, page, steps (' | ' between them), seed]
     ed('e.useSlot(h, 0);'), 'wait:700', ed('e.useSlot(h, 0);'), 'wait:700', ed('e.useSlot(h, 1);'), 'wait:900', 'press:Space', 'wait:600', ed('e.useSlot(h, 0);'), 'wait:2000'], 7],
   // a starter game, what models copy: the brawler slice's thugs walk in and trade blows with the hero
   ['brawler', 'dist/my-3d2dge.html#brawler', ['wait:1500', 'press:Enter', 'wait:800', 'rec:16:6', 'down:ArrowRight', 'wait:900', 'up:ArrowRight',
-    'press:KeyJ', 'wait:200', 'press:KeyJ', 'wait:200', 'press:KeyJ', 'wait:900', 'press:KeyK', 'wait:1200'], 3]
+    'press:KeyJ', 'wait:200', 'press:KeyJ', 'wait:200', 'press:KeyJ', 'wait:900', 'press:KeyK', 'wait:1200'], 3],
+  // two players on one keyboard: player 2 drops in on the right half (2) and both fight the first wave
+  ['brawler-2p', 'dist/my-3d2dge.html#brawler', ['wait:1500', 'press:Enter', 'wait:800', 'press:Digit2', 'wait:300', 'rec:16:6', 'down:KeyD', 'down:ArrowRight', 'wait:900', 'up:KeyD', 'up:ArrowRight',
+    'press:KeyF', 'wait:200', 'press:Period', 'wait:200', 'press:KeyF', 'wait:900', 'press:KeyG', 'wait:1200'], 3]
 ];
 
 mkdirSync('check-output/determinism', { recursive: true });

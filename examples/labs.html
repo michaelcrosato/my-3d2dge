@@ -130,6 +130,22 @@ const LABS = {
           "what": "Play stage 2 to its end: pick up the red capsules and press X (or POWER on a phone) to take the lit power on the bar at the bottom; get a couple of OPTIONs and watch them trail you; beat the cruiser and the core behind its walls. Then play the vertical stage from the start to see it lead into stage 2. Added with v0.64.0 (Milestone 3).",
           "look": "Does it feel like Gradius: the power bar's choices, the options following your path, the rock you must not touch? Is it too hard or too easy (the core, the cavern's guns)? Is the cavern readable on your phone, with the bar above the touch area?",
           "links": [["From the start", "#shooter"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-brawler.html",
+          "at": "#brawler",
+          "title": "Brawler with a friend",
+          "what": "Start the fight, then a friend presses 2 to drop in on the keyboard's right half (arrows move, . punches, / kicks, , sweeps, L jumps); you move to the left half (WASD, F punch, G kick, H sweep, R jump). Or plug in a gamepad and press its Start to drop in on it. Play the first two waves together, and press Backspace (player 2's pause) once. Added with v0.65.0 (Milestone 4).",
+          "look": "Is sharing the keyboard comfortable, or do your hands collide? Does the camera keep both of you in view without jumping? Can you tell your hero from your friend's (Max in white and red, Jack in blue) in a crowd? Does the round card show each player's keys, and does the pause say P2 PAUSED?",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-puzzle.html",
+          "at": "#puzzle",
+          "title": "Puzzle versus",
+          "what": "With a friend: press 2 so the friend joins (or Start on a gamepad), then pick VERSUS (W and S move the cursor, F picks). Player 1 plays on WASD with F to turn, H to drop and R to hold; player 2 on the arrows with . to turn, , to drop and L to hold. Clear two rows or more at once to send rows to the other field. Added with v0.65.0 (Milestone 4).",
+          "look": "Do the rows you send feel like an attack (the red bar beside the other field, then grey rows rising at its next piece)? Is it clear who won? Are the two fields big enough on a laptop screen?",
+          "links": []
         }
       ]
     },
@@ -353,7 +369,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.64.1 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.65.0 · dev-build', foot);
 </script>
 </body>
 </html>

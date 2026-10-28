@@ -249,7 +249,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.64.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.65.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -328,7 +328,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.64.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.65.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -544,9 +544,9 @@ Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng
    weather, input sequences, the camera's window): each puts its functions here as it loads, so a kit without it has
    nothing to call. input(game, dt) after the input's step, step(game, dt) after the timers (game time: paused, frozen
    and slowed with the game), enter(game, old) as a scene starts (before its enter), draw(game, r, g) over the lit
-   world, under the overlays; rot(spr, a, steps): a sprite turned (section 2b); FADES: the transitions by name (game.go's
-   fade) */
-const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null }, FADES = {};
+   world, under the overlays; rot(spr, a, steps): a sprite turned (section 2b); frame(game, shx, shy): a split screen's
+   viewports drawn (section 10j); FADES: the transitions by name (game.go's fade) */
+const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null, frame: null }, FADES = {};
 
 /* =============================================================================
  * 1b. EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
@@ -927,11 +927,11 @@ class Screen {
    *  so a picture under the canvas shows through the game's (a 3D world drawn by engine/my-3d2dge-3d.js) */
   get clear() { return this._o.bg == null || this._o.bg === 'transparent'; }
   /** start a frame: clear the buffer to bg with the camera at (cx, cy) projected pixels (the renderer calls it) */
-  _begin(cx, cy, bg) {
-    this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = cx - this.ix; this.fy = cy - this.iy;
-    const g = this.ctx; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
-    if (bg == null || bg === 'transparent') g.clearRect(0, 0, this.buf.width, this.buf.height);
-    else { g.fillStyle = bg; g.fillRect(0, 0, this.buf.width, this.buf.height); }
+  _begin(cx, cy, bg, vp) {
+    this.ix = Math.floor(cx); this.iy = Math.floor(cy); this.fx = vp ? 0 : cx - this.ix; this.fy = vp ? 0 : cy - this.iy;   // (a split screen's viewports: whole pixels)
+    const g = this.ctx, [x, y, w, h] = vp ? [vp.x, vp.y, vp.w, vp.h] : [0, 0, this.buf.width, this.buf.height]; g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g._c = null;
+    if (bg == null || bg === 'transparent') g.clearRect(x, y, w, h);
+    else { g.fillStyle = bg; g.fillRect(x, y, w, h); }
   }
   /** copy the buffer to the canvas, scaled up with whole pixels and the camera's sub-pixel offset (the renderer
    *  calls it) */
@@ -998,6 +998,10 @@ class Input {
      *  and '' without one); lastDevice: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the
      *  right button prompts) */
     this.deadzone = .18; this.padIndex = null; this.padId = ''; this.lastDevice = 'keyboard';
+    /** pad: the gamepad this input reads: 'any' (the first connected one another player hasn't: player 1's), an index (a
+     *  joined player's own), or null (none); keysTo: the other players' inputs the keyboard's codes go to as well (players
+     *  sharing it, each with half its keys: game.players) */
+    this.pad = 'any'; this.keysTo = null; this._claimed = null;
     /** touchEnabled: false turns the touch stick off; stickSide: 'left' or 'right', the half of the screen the stick
      *  lives on; stickRadius: how far (CSS pixels) a finger drags for full tilt; stickDeadzone: the part of that radius a
      *  thumb moves before the stick counts (0..0.5); steer: 'stick' (a stick drawn under the thumb) or 'drag' (a finger
@@ -1028,7 +1032,8 @@ class Input {
     };
     on(window, 'keydown', e => {
       if (typing(e)) return;
-      if (this._codes[e.code]) { e.preventDefault(); if (!e.repeat) this.press(e.code); }
+      const share = this.keysTo && this.keysTo.filter(q => q._codes[e.code]);   // (players sharing the keyboard: each answers to its half)
+      if (this._codes[e.code] || (share && share.length)) { e.preventDefault(); if (!e.repeat) { if (this._codes[e.code]) this.press(e.code); if (share) for (const q of share) q.press(e.code); } }
       else if (this._zoomOn && ZOOM_KEYS[e.code] && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); if (!e.repeat) this._zoomAcc *= ZOOM_KEYS[e.code]; }   // - and =, where no action uses them
     });
     // the wheel zooms where the game lets it (a mouse's notch 10%; a trackpad's pinch comes as the wheel with ctrlKey);
@@ -1038,9 +1043,10 @@ class Input {
       const d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 100 : 1);
       this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25);
     }, { signal, passive: false });
-    on(window, 'keyup', e => this.release(e.code));
-    on(window, 'blur', () => this.clear());
-    on(document, 'visibilitychange', () => { if (document.hidden) this.clear(); });
+    const all = f => { f(this); if (this.keysTo) for (const q of this.keysTo) f(q); };
+    on(window, 'keyup', e => all(q => q.release(e.code)));
+    on(window, 'blur', () => all(q => q.clear()));
+    on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
     on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else { this._pinchMove(e); this._stickMove(e); } });
     on(el, 'pointerdown', e => {
@@ -1302,8 +1308,8 @@ class Input {
     this.clock += dt;
     let pads = [];
     try { pads = navigator.getGamepads ? navigator.getGamepads() : []; } catch (e) { /* gamepads blocked */ }
-    const p = Array.from(pads || []).find(p => p && p.connected !== false && p.index === this.padIndex)
-      || Array.from(pads || []).find(p => p && p.connected !== false);
+    const C = this._claimed, ok = p => p && p.connected !== false && (this.pad === 'any' ? !(C && C.has(p.index)) : p.index === this.pad);   // (its own pad, or any another player hasn't)
+    const p = this.pad === null ? null : Array.from(pads || []).find(p => ok(p) && p.index === this.padIndex) || Array.from(pads || []).find(ok);
     this.padLost = false;
     if (!p || p.index !== this.padIndex || p.id !== this.padId) {
       if (!p && this.padIndex !== null) { this.padLost = this.lastDevice === 'gamepad'; this.stopRumble(); }   // unplugged while in use
@@ -1884,16 +1890,17 @@ class Renderer {
   /** the buffer's height (H + 2) */
   get bh() { return this.game.screen.buf.height; }
   /** start a frame with the camera at (cx, cy) projected pixels (the game calls it before your draw) */
-  _begin(cx, cy) {
+  _begin(cx, cy, vp) {
     const sc = this.game.screen; this._frameNo = (this._frameNo || 0) + 1;   // (kept actor images count frames drawn)
-    sc._begin(cx, cy, this.game.o.bg);
+    sc._begin(cx, cy, this.game.o.bg, vp); this._vp = vp || null;
+    if (vp) { const g = this.ctx; g.save(); g.beginPath(); g.rect(vp.x, vp.y, vp.w, vp.h); g.clip(); }   // (a viewport: the scene drawn inside it, the floor too)
     /** ix, iy: the camera's whole-pixel offset this frame (a world point is at r.w(x, y, z) on the buffer) */
     this.ix = sc.ix; this.iy = sc.iy; this._items.length = 0; this._decals.length = 0; this._overlays.length = 0; this._map = null; (this._emis || (this._emis = [])).length = 0;
     const st = this.game.stats; st.actors = 0; st.culled = 0;
     if (this._xCv.width !== this.bw || this._xCv.height !== this.bh) { this._xCv.width = this._xoCv.width = this._oCv.width = this._eCv.width = this._sCv.width = this.bw; this._xCv.height = this._xoCv.height = this._oCv.height = this._eCv.height = this._sCv.height = this.bh; }
     this._xrayUsed = false; this._xrayOl = false; this._emOn = false;
     const gpu = this.game.gpu;
-    this.gpu = !!(gpu && gpu.active(this.view));
+    this.gpu = !!(gpu && gpu.active(this.view)) && !this.game._split;   // (no GPU lighting on a split screen)
     if (gpu) gpu._show(this.gpu);
     if (this.gpu) {
       if (this._iCv.width !== this.bw || this._iCv.height !== this.bh) { this._iCv.width = this._vCv.width = this.bw; this._iCv.height = this._vCv.height = this.bh; }
@@ -2353,7 +2360,8 @@ class Renderer {
   /** end the frame: particles, decals, the queue, lighting, overlays, then present (the game calls it after your
    *  draw) */
   _finish() {
-    const game = this.game, g = this.ctx, gpu = this.gpu, iG = this._iG;
+    const game = this.game, g = this.ctx, gpu = this.gpu, iG = this._iG, vp = this._vp;
+    if (this._only) { this._only = false; for (const f of this._overlays) f(g); game.screen._present(); return; }   // (a split screen's last pass: the frame's own overlays over every viewport)
     game.particles.draw(this); this._drawGhosts();
     for (const d of this._decals) {
       this._tg = null; d.fn(g);
@@ -2375,9 +2383,10 @@ class Renderer {
           if (this._emOn) g.drawImage(this._sCv, 0, 0);   // walls and bodies in front of a glow keep their lit pixels
         }
       }
-      if (game._zoomTo) this._zoomPreview(game._zoomTo / game.zoom);
+      if (game._zoomTo && !vp) this._zoomPreview(game._zoomTo / game.zoom);
       for (const f of HOOKS.draw) f(game, this, g);
       for (const f of this._overlays) f(g);
+      if (vp) { g.restore(); g._c = null; this._vp = null; return; }
       game.screen._present();
     }
   }
@@ -2411,6 +2420,8 @@ if (typeof window !== 'undefined' && window.addEventListener) {
   window.addEventListener('unhandledrejection', ev => E.showError('unhandled promise rejection', ev.reason));
 }
 
+/** the players' colors: player 1 blue, 2 red, 3 green, 4 yellow (game.players) */
+E.PLAYER_COLORS = ['#4a8aff', '#ff4a4a', '#4ad860', '#ffd040'];
 class Game {
   /**
    * new E.Game({ canvas, view, views, res, expand, input, bg, step: 1 / 120, loop: true, headless: false, menu,
@@ -2586,6 +2597,12 @@ class Game {
    *  expand: true (a fixed res keeps its own shape on any phone, so it is never upright there). A scene's camera.tall zoom
    *  applies then: it zooms a tall picture in to fill it */
   get upright() { return this.H > this.W * 1.3; }
+  /** the players: [game.input (player 1), ...the ones who joined (game.allowJoin, game.addPlayer: section 10j)]; each an
+   *  input with player (1..4), name ('P1'), color (E.PLAYER_COLORS) and device. A game of one: [game.input] */
+  get players() { if (!this._players) { const I = this.input; Object.assign(I, { player: 1, name: 'P1', color: E.PLAYER_COLORS[0] }); this._players = [I]; } return this._players; }
+  /** a split screen's viewports ({ i, x, y, w, h, cam, focus(x, y, z), follow(target, { z }): game.splitScreen), or []
+   *  on one screen */
+  get viewports() { return this._split ? this._split.vps : []; }
   _camera() { const s = this.scene; return (s && s.camera) || this.o.camera || null; }
   _zoomStart() { const c = this._camera(); if (!c) return 1; return clamp(+(this.upright && c.tall !== undefined ? c.tall : c.start) || 1, .5, 3); }
   // the camera's zoom: the game's (_zoomBase), times the player's where the scene allows it, snapped to twentieths (each
@@ -3041,17 +3058,16 @@ class Game {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
     const c = this.cam, s = this._shakeAmt;
     const shx = s > .05 ? (Math.sin(this.real * 83) + Math.sin(this.real * 57.3)) * .5 * s : 0, shy = s > .05 ? (Math.sin(this.real * 71) + Math.sin(this.real * 49.7)) * .5 * s : 0;
-    this.lights._clear();
-    this.r._begin(c.x + shx, c.y + shy);
     const sc = this.scene;
-    if (sc && sc.draw) sc.draw(this.r);
+    if (this._split && HOOKS.frame) HOOKS.frame(this, shx, shy);   // a split screen: the scene drawn in each viewport (section 10j)
+    else { this.lights._clear(); this.r._begin(c.x + shx, c.y + shy); if (sc && sc.draw) sc.draw(this.r); }
     if (this.shownNote && this.real < this.shownNote.end) { const n = this.shownNote; this.r.overlay(g => E.font.text(g, n.text, this.r.W / 2, 3, '#ffffff', { align: 'center', shadow: '#000', outline: false, font: 'tiny' })); }
     if (this.settings.showFps) { const st = this.stats, t = this.fps + ' FPS  ' + this.hz + ' HZ' + (this.drawEvery > 1 ? ' (EVERY ' + this.drawEvery + ')' : '') + '  ' + (st.updateMs + st.renderMs).toFixed(1) + ' MS';   // Settings, Display
       this.r.overlay(g => { const w = E.font.width(t, { font: 'tiny' }) + 6; g.fillStyle = '#000000b0'; g.fillRect(Math.round(this.r.W / 2 - w / 2), 0, w, 9); g._c = null; E.font.text(g, t, this.r.W / 2, 2, '#9cff9c', { align: 'center', outline: false, font: 'tiny' }); }); }
     this._cornerSync();
     if (this.paused && this.pauseOverlay && !(this.shell && this.shell._sys && this.shell.screen)) this.r.overlay(g => {
       const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r._checker, 'repeat'); else { g.fillStyle = '#05030c'; g.globalAlpha = .55; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null;
-      E.font.text(g, 'PAUSED', r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });
+      E.font.text(g, this._players && this._players.length > 1 && this.pausedBy ? 'P' + this.pausedBy + ' PAUSED' : 'PAUSED', r.W / 2, r.H / 2 - 8, '#ffffff', { align: 'center', scale: 2 });   // (several players: who)
       E.font.text(g, 'PRESS ESC OR START', r.W / 2, r.H / 2 + 8, '#c9c0e0', { align: 'center' });
     });
     const fx = this._flash;
@@ -3757,6 +3773,147 @@ Game.prototype._camAim = function (tx, ty) {
   if (c.snapY) { const t = f && f.target, lim = H * .3; if (c.snap || c._ly === undefined || !t || t.onGround !== false) c._ly = ty; else c._ly = clamp(c._ly, ty - lim, ty + lim); ty = c._ly; }
   if (c.window) { const [ww, wh] = c.window; if (c.snap || c._wx === undefined) { c._wx = tx; c._wy = ty; } c._wx = clamp(c._wx, tx - ww / 2, tx + ww / 2); c._wy = clamp(c._wy, ty - (wh || 0) / 2, ty + (wh || 0) / 2); tx = c._wx; ty = c._wy; }
   return [tx, ty];
+};
+
+/* =============================================================================
+ * 10j. PLAYERS AND SPLIT SCREEN  two to four on one machine. game.players: game.input is player 1 (a game of one is
+ *    unchanged), each other an input of its own, with game.input's API, its device and its bindings: a gamepad each, or
+ *    half a keyboard each for two (Input.halfKeys: WASD with F G H R T Y on the left, the arrows with . / , L ; ' and the
+ *    numpad on the right), touch for player 1. game.allowJoin({ max, onJoin }) lets them in: Start on a free pad, or 2 (the
+ *    right half's start) on the keyboard, player 1 then playing on its left half; game.removePlayer(p). Each has player (its
+ *    number), name ('P2') and color. A pause says who paused, a lost controller names its player, the Controls screen
+ *    has a page each. game.splitScreen(n, { layout, follow }): two to four viewports, each its own camera (viewport.follow,
+ *    viewport.focus), the scene drawn once in each (r.viewport says which: { i, x, y, w, h }) and scene.hud(r) once over
+ *    the whole screen; GPU lighting off while split. A scene's start ends a split.
+ * ============================================================================= */
+const KEY_HALVES = {   // each half's moves, its buttons in order (the preset's other actions take them in turn) and its menu keys
+  left: { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], buttons: [['KeyF'], ['KeyG'], ['KeyH'], ['KeyR'], ['KeyT'], ['KeyY'], ['KeyV'], ['KeyB']], start: ['Digit1'], pause: ['Escape', 'Digit1'], confirm: ['KeyF'], cancel: ['KeyG'] },
+  right: { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], buttons: [['Period', 'Numpad1'], ['Slash', 'Numpad2'], ['Comma', 'Numpad3'], ['KeyL', 'Numpad4'], ['Semicolon', 'Numpad5'], ['Quote', 'Numpad6'], ['KeyK', 'Numpad7'], ['KeyM', 'Numpad8']],
+    start: ['Digit2', 'Enter', 'NumpadEnter'], pause: ['Digit2', 'Backspace'], confirm: ['Period', 'Enter', 'NumpadEnter'], cancel: ['Slash', 'Backspace'] }
+};
+/** a preset for half a keyboard ('left' or 'right'): its moves and menu keys, the preset's other actions on its buttons
+ *  in order, and the preset's gamepad codes (Input.halfKeys(Input.SHMUP, 'right') -> fire on . and Numpad 1, bomb on /) */
+Input.halfKeys = (preset, side) => {
+  const P = typeof preset === 'string' ? Input[preset.toUpperCase()] || Input.DEFAULT : preset || Input.DEFAULT, H = KEY_HALVES[side] || KEY_HALVES.left, out = {};
+  let k = 0;
+  for (const a in P) out[a] = (H[a] || H.buttons[k++] || []).concat(P[a].filter(c => padCode(c)));
+  return out;
+};
+const _pStub = game => Object.create(game.screen, { canvas: { value: null } });   // (another player's input: the screen's sizes, no listeners of its own)
+const _pPreset = (game, q) => q.half ? Input.halfKeys(game.input._full || game.input.preset, q.half) : (game.input._full || game.input.preset);
+function _pClaim(game) {   // player 1 reads no pad another player holds; the keyboard's codes go to the players sharing it
+  const P = game.players, I = P[0];
+  I._claimed = new Set(P.slice(1).filter(q => typeof q.pad === 'number').map(q => q.pad));
+  I.keysTo = P.slice(1).filter(q => q.half).concat(game._lobby ? [game._lobby] : []);
+  if (!I.keysTo.length) I.keysTo = null;
+}
+/** let players join, up to max (2..4): Start on a gamepad no one holds, or 2 on the keyboard (o.keys: false not); onJoin
+ *  (input, number) as each does. allowJoin(false) closes it (the names split and join are String's and Array's) */
+Game.prototype.allowJoin = function (o = {}) {
+  if (o === false) { this._join = null; this._lobby = null; _pClaim(this); return this; }
+  this._join = { max: clamp(o.max || 2, 2, 4), onJoin: o.onJoin || null, keys: o.keys !== false };
+  this._lobby = this._join.keys && this.screen.canvas ? new Input(_pStub(this), { join: ['Digit2'] }) : null;   // (listens for 2 while player 1 has the whole keyboard)
+  _pClaim(this); return this;
+};
+/** a player in now: { pad: index } (a gamepad) or { keys: 'right' } (the keyboard's right half; player 1 takes the
+ *  left). Returns its input (null when four play already) */
+Game.prototype.addPlayer = function (o = {}) {
+  const P = this.players; if (P.length >= 4) return null;
+  const q = new Input(_pStub(this), Input.DEFAULT), n = P.length + 1;
+  Object.assign(q, { player: n, name: 'P' + n, color: E.PLAYER_COLORS[n - 1], pad: typeof o.pad === 'number' ? o.pad : null, half: o.keys ? 'right' : null, device: o.keys ? 'keyboard' : 'gamepad' });
+  q.lastDevice = q.device; if (q.pad !== null) { q.tick(0); q.consumeAll(); }   // (the buttons held as it joins, its Start among them, are no presses)
+  const I = P[0]; if (q.half && !I.half) { I._full = I.preset; I.half = 'left'; I.use(Input.halfKeys(I._full, 'left')); }   // player 1 moves to the left half
+  q.use(_pPreset(this, q));
+  if (!this.settings.spec('playerBindings')) this.settings.define({ key: 'playerBindings', group: 'Controls', type: 'bindings', value: () => ({}), apply: (g, v) => { for (const p of g.players.slice(1)) p.bindings = (v || {})[p.player] || {}; } });
+  q.bindings = (this.settings.playerBindings || {})[n] || {};
+  q._onBindings = b => this.settings.set('playerBindings', Object.assign({}, this.settings.playerBindings, { [n]: b }));
+  P.push(q); _pClaim(this);
+  if (this._join && this._join.onJoin) try { this._join.onJoin(q, n); } catch (e) { this.fail('allowJoin onJoin', e); }
+  this.note(q.name + ' JOINED', 1.5); this.audio.sfx('confirm');
+  return q;
+};
+/** a player leaves (its input, or its number, 2 to 4); player 1 has the whole keyboard back when no one shares it */
+Game.prototype.removePlayer = function (p) {
+  const P = this.players, i = typeof p === 'number' ? p - 1 : P.indexOf(p); if (i < 1 || i >= P.length) return;
+  P.splice(i, 1); P.forEach((q, k) => { q.player = k + 1; q.name = 'P' + (k + 1); q.color = E.PLAYER_COLORS[k]; });
+  const I = P[0]; if (I.half && !P.some(q => q !== I && q.half)) { I.half = null; I.use(I._full || I.preset); I._full = null; }
+  _pClaim(this);
+};
+/** split the screen into n viewports (2 to 4; 0 or 1: one screen again), o: { layout: 'auto' (side by side on a wide
+ *  screen, stacked on a tall one; a grid for 3 or 4) | 'columns' | 'rows' | 'grid', follow: [targets], z: 16, gap: 1 } */
+Game.prototype.splitScreen = function (n, o = {}) {
+  if (!(n >= 2)) { this._split = null; return this; }
+  const prev = this._split, vps = Array.from({ length: Math.min(4, n) }, (_, i) => (prev && prev.vps[i]) || _vp(i));
+  this._split = { layout: o.layout || 'auto', gap: o.gap === undefined ? 1 : o.gap, vps };
+  if (o.follow) o.follow.forEach((t, i) => vps[i] && vps[i].follow(t, o));
+  _vpLayout(this); return this;
+};
+// a viewport: where it is on the screen, and its camera (as game.cam: a focus it eases to, the bounds of game.cam)
+function _vp(i) {
+  const v = { i, x: 0, y: 0, w: 0, h: 0, target: null, z: 16, cam: { tx: 0, ty: 0, tz: 0, x: undefined, y: 0, vx: 0, vy: 0, smooth: .12, snap: true, bounds: null } };
+  /** look at a world point */
+  v.focus = (x, y, z = 0) => { v.target = null; Object.assign(v.cam, { tx: x, ty: y, tz: z }); };
+  /** keep the camera on an object ({ x, y, z }); o.z: the height looked at (16) */
+  v.follow = (t, o = {}) => { v.target = t || null; if (o.z !== undefined) v.z = o.z; v.cam.snap = true; };
+  return v;
+}
+function _vpLayout(game) {
+  const S = game._split, n = S.vps.length, W = game.screen.W, H = game.screen.H, g = S.gap;
+  const mode = S.layout === 'auto' ? (n > 2 ? 'grid' : W >= H ? 'columns' : 'rows') : S.layout;
+  S.vps.forEach((v, i) => {
+    const [c, r, cols, rows] = mode === 'grid' ? [i % 2, Math.floor(i / 2), 2, 2] : mode === 'rows' ? [0, i, 1, n] : [i, 0, n, 1];
+    const x0 = Math.round(c * W / cols), x1 = Math.round((c + 1) * W / cols), y0 = Math.round(r * H / rows), y1 = Math.round((r + 1) * H / rows);
+    Object.assign(v, { x: x0 + (c ? g : 0), y: y0 + (r ? g : 0), w: x1 - x0 - (c ? g : 0), h: y1 - y0 - (r ? g : 0) });
+  });
+}
+function _vpCam(game, v, dt) {   // (game.cam's rules in the viewport's size: centred on its focus, inside the bounds, eased)
+  const c = v.cam, t = v.target; if (t) { c.tx = t.x; c.ty = t.y || 0; c.tz = (t.z || 0) + v.z; }
+  const [sx, sy] = game.view.p(c.tx, c.ty, c.tz), bf = c.bounds || game.cam.bounds, b = bf && bf(game.view);
+  let tx = sx - v.w / 2, ty = sy - v.h / 2;
+  if (b) { tx = b.x1 - b.x0 < v.w ? (b.x0 + b.x1 - v.w) / 2 : clamp(tx, b.x0, b.x1 - v.w); ty = b.y1 - b.y0 < v.h ? (b.y0 + b.y1 - v.h) / 2 : clamp(ty, b.y0, b.y1 - v.h); }
+  if (c.snap || c.x === undefined || !(c.smooth > 0)) { c.x = tx; c.y = ty; c.vx = c.vy = 0; c.snap = false; return; }
+  [c.x, c.vx] = smoothDamp(c.x, tx, c.vx, c.smooth, dt); [c.y, c.vy] = smoothDamp(c.y, ty, c.vy, c.smooth, dt);
+}
+// each step: the other players' inputs, a pause by any of them, a lost controller, and joining
+HOOKS.input.push((game, dt) => {
+  const P = game._players; if (!P || (P.length < 2 && !game._join)) return;
+  for (const q of P.slice(1)) q.tick(dt);
+  for (const q of P.slice(1)) {
+    if (q.padLost) { game._autoPause('controller'); game.note(q.name + ': CONTROLLER DISCONNECTED', 2.5); }
+    if (game.scene && game.scene.pausable && q.pressed('pause')) { game.paused = !game.paused; game.pauseReason = game.paused ? 'player' : null; game.pausedBy = q.player; game.audio.sfx('pause'); q.consumeAll(); }
+  }
+  const I = P[0], was = game._p1 || [I.lastDevice, I.padIndex, I.aimSource]; game._p1 = [I.lastDevice, I.padIndex, I.aimSource];
+  if (I.pressed('pause')) game.pausedBy = 1;
+  const J = game._join; if (!J || P.length >= J.max || game.paused) return;
+  if (game._lobby) { game._lobby.tick(dt); if (game._lobby.pressed('join') && !P.some(q => q.half === 'right') && I.lastDevice !== 'gamepad') game.addPlayer({ keys: 'right' }); }
+  let pads = []; try { pads = navigator.getGamepads ? Array.from(navigator.getGamepads() || []) : []; } catch (e) { /* gamepads blocked */ }
+  for (const p of pads) {   // Start on a pad no one holds: player 1's own once it plays on it (the press that just woke it joins)
+    if (!p || p.connected === false || P.some(q => q.pad === p.index) || (was[0] === 'gamepad' && was[1] === p.index)) continue;
+    const on = !!(p.buttons[9] && p.buttons[9].pressed), prev = (game._joinPrev || (game._joinPrev = {}))[p.index]; game._joinPrev[p.index] = on;
+    if (!on || prev || P.length >= J.max) continue;
+    if (I.padIndex === p.index) { I.consumeAll(); [I.lastDevice, , I.aimSource] = was; game._p1 = was; }   // (that Start was the joiner's: player 1 neither pauses nor turns to the pad)
+    game.addPlayer({ pad: p.index });
+  }
+});
+HOOKS.enter.push(game => {   // a scene's start: the others take its keys too (a half each where they share the keyboard); a split ends
+  game._split = null; const P = game._players; if (!P || P.length < 2) return;
+  const I = P[0]; if (I.half && game.scene && game.scene.input) { I._full = I.preset; I.use(Input.halfKeys(I._full, 'left')); }
+  for (const q of P.slice(1)) q.use(_pPreset(game, q));
+});
+HOOKS.step.push((game, dt) => { if (game._split) for (const v of game._split.vps) _vpCam(game, v, dt); });
+// a split screen's frame: the scene drawn in each viewport (its own camera, lights and overlays, clipped to it), then
+// the dividers, the scene's hud(r) over the whole screen and the frame's own overlays (notes, pause, fades)
+HOOKS.frame = (game, shx, shy) => {
+  const r = game.r, sc = game.scene, S = game._split; _vpLayout(game);
+  for (const v of S.vps) {
+    if (v.cam.x === undefined) _vpCam(game, v, 0);
+    game.lights._clear(); r._begin(v.cam.x + shx - v.x, v.cam.y + shy - v.y, v); r.viewport = v;
+    if (sc && sc.draw) sc.draw(r);
+    r._finish();
+  }
+  r.viewport = null; r._items.length = 0; r._decals.length = 0; r._overlays.length = 0; r._only = true;
+  r.overlay(g => { for (const v of S.vps) { if (v.x > 0) px.rect(g, v.x - S.gap, v.y, S.gap, v.h, '#05040a'); if (v.y > 0) px.rect(g, v.x, v.y - S.gap, v.w, S.gap, '#05040a'); } });
+  if (sc && sc.hud) sc.hud(r);
 };
 
 /* =============================================================================
@@ -8283,8 +8440,9 @@ class Menu {
     /** x, y: where it sits, 'center' or pixels; title: a heading, or null; box: draw a window round it; color: the
      *  entries' color; pick: the color of the one under the cursor; dim: disabled entries' color; bg, border: the
      *  window's colors; onPick: called (i, item) on confirm; onCancel: called on cancel; onMove: called (i, item)
-     *  when the cursor moves; sound: false silences it */
-    Object.assign(this, { x: 'center', y: 'center', title: null, box: true, color: '#ffffff', pick: '#ffd36a', dim: '#6a6488', bg: '#141a3a', border: '#e8e4ff', onPick: null, onCancel: null, onMove: null, sound: true }, o);
+     *  when the cursor moves; sound: false silences it; input: the one input it reads (default: every player's, so
+     *  any player moves and picks; the mouse and taps are player 1's) */
+    Object.assign(this, { x: 'center', y: 'center', title: null, box: true, color: '#ffffff', pick: '#ffd36a', dim: '#6a6488', bg: '#141a3a', border: '#e8e4ff', onPick: null, onCancel: null, onMove: null, sound: true, input: null }, o);
     this._skip(1);
   }
   _label(it) { return typeof it === 'string' ? it : it.label; }
@@ -8296,16 +8454,16 @@ class Menu {
    *  entry) or cancel; returns true when it picked or cancelled */
   update() {
     if (!this.active || !this.items.length) return false;
-    const inp = this.game.input, n = this.items.length, old = this.i, b = this._box;
+    const P = this.input ? [this.input] : this.game._players || [this.game.input], inp = P[0], any = f => P.some(f), n = this.items.length, old = this.i, b = this._box;
     const row = p => { if (!b || !p || p[0] < b.x || p[0] >= b.x + b.w) return -1; const k = Math.floor((p[1] - b.y) / b.rowH); return k >= 0 && k < n && !this._off(this.items[k]) ? k : -1; };
-    if (inp.repeat('up')) { this.i = (this.i + n - 1) % n; this._skip(-1); }
-    if (inp.repeat('down')) { this.i = (this.i + 1) % n; this._skip(1); }
+    if (any(I => I.repeat('up'))) { this.i = (this.i + n - 1) % n; this._skip(-1); }
+    if (any(I => I.repeat('down'))) { this.i = (this.i + 1) % n; this._skip(1); }
     if (inp.mouse.t !== this._mt) { this._mt = inp.mouse.t; const k = row(inp.pointer()); if (k >= 0) this.i = k; }   // the mouse moved over an entry
     const tap = row(inp.clicked());   // a click or tap on an entry picks it
     if (tap >= 0) this.i = tap;
     if (this.i !== old) { if (this.sound) this.game.audio.sfx('select'); if (this.onMove) this.onMove(this.i, this.items[this.i]); }
-    if ((inp.pressed('confirm') || tap >= 0) && !this._off(this.items[this.i])) { if (this.sound) this.game.audio.sfx('confirm'); inp.consumeAll(); if (this.onPick) this.onPick(this.i, this.items[this.i]); return true; }
-    if (inp.pressed('cancel') && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); inp.consumeAll(); this.onCancel(); return true; }
+    if ((any(I => I.pressed('confirm')) || tap >= 0) && !this._off(this.items[this.i])) { if (this.sound) this.game.audio.sfx('confirm'); P.forEach(I => I.consumeAll()); if (this.onPick) this.onPick(this.i, this.items[this.i]); return true; }
+    if (any(I => I.pressed('cancel')) && this.onCancel) { if (this.sound) this.game.audio.sfx('cancel'); P.forEach(I => I.consumeAll()); this.onCancel(); return true; }
     return false;
   }
   /** draw it to the overlay */
@@ -8626,8 +8784,15 @@ class Shell {
   }
   /** the controls screen: each action's keys and buttons (press a new one to rebind), the controller's and the touch
    *  buttons' settings */
+  /** the input the Controls screen edits: player 1's, or another player's page (several players: game.players) */
+  _ctlI() { const P = this._game._players; return (P && P[this._pl || 0]) || this._game.input; }
   _controls(add) {
-    const I = this._game.input, names = I.names || {}, st = this._el('div', 'esh-status', this._status || ''); st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite');
+    const I = this._ctlI(), names = I.names || {}, st = this._el('div', 'esh-status', this._status || ''); st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite');
+    const P = this._game._players; if (P && P.length > 1) {   // a page per player
+      const row = this._el('div', 'esh-btns');
+      P.forEach((q, k) => { const b = this._el('button', k === (this._pl || 0) ? 'pri' : '', 'Player ' + (k + 1) + (q.device === 'gamepad' ? ' (controller)' : q.half ? ' (' + q.half + ' keys)' : '')); b.onclick = () => { this._pl = k; this._capEnd(''); this._render(); }; row.appendChild(b); });
+      add(row);
+    }
     add(this._el('p', 'esh-m', 'Choose a key or button, then press the new one. The arrow keys, the d-pad, Enter and Escape always work in menus.'), st);
     const S = this._game.settings, coarse = window.matchMedia && matchMedia('(any-pointer: coarse)').matches, touch = I._touchArgs && (coarse || I._touched || S.touch === 'on');
     const touchRows = () => { add(this._el('div', 'esh-k esh-sec', 'Touch')); for (const k of S.keys('Touch')) add(this._row(k)); }, first = touch && I.lastDevice === 'touch';
@@ -8649,19 +8814,19 @@ class Shell {
     if (touch && !first) touchRows();
   }
   _capStart(a, device, name) {
-    this._cap = { a, device, name, prev: this._game.input.padPrev.slice() };
+    this._cap = { a, device, name, prev: this._ctlI().padPrev.slice() };
     this._status = device === 'pad' ? 'Press a controller button for ' + name + ' (Start cancels).' : 'Press a key or mouse button for ' + name + ' (Escape cancels).';
     this._render();
   }
   _capBind(code) {
     const c = this._cap; if (!c) return;
-    const I = this._game.input, r = I.rebind(c.a, c.device, code), names = I.names || {}, nm = a => typeof names[a] === 'string' ? names[a] : actionName(a);
+    const I = this._ctlI(), r = I.rebind(c.a, c.device, code), names = I.names || {}, nm = a => typeof names[a] === 'string' ? names[a] : actionName(a);
     if (r === 'reserved') { this._status = I.codeLabel(code) + ' is kept for the menus. Choose another, or press Escape.'; this._render(); return; }
     if (r) { this._status = I.codeLabel(code) + ' is already ' + nm(r) + '. Rebind ' + nm(r) + ' first, or choose another.'; this._render(); return; }
     this._capEnd(nm(c.a) + ': ' + I.codeLabel(code) + '. Saved.');
   }
   /** stop listening for a new binding (msg: what the status line says) */
-  _capEnd(msg) { if (!this._cap) { if (msg !== undefined) this._status = msg; return; } this._cap = null; this._status = msg || ''; this._game.input.clear(); this._render(); }
+  _capEnd(msg) { if (!this._cap) { if (msg !== undefined) this._status = msg; return; } this._cap = null; this._status = msg || ''; this._ctlI().clear(); this._render(); }
   /** a button: [label, fn] or { label, fn, act, primary, disabled } */
   _btn(a, i, pri = true) {
     const b = Array.isArray(a) ? { label: a[0], fn: a[1] } : a, e = this._el('button', b.primary || (b.primary === undefined && i === 0 && pri) ? 'pri' : '', b.label);
@@ -8681,7 +8846,7 @@ class Shell {
     const add = (...c) => box.append(...c.filter(Boolean));
     add(s.emblem && this._el('div', 'esh-emb', s.emblem), s.kicker && this._el('div', 'esh-k', v(s.kicker)));
     if (title) add(this._el('h1', '', v(s.name || s.title)), s.subtitle && this._el('div', 'esh-sub', v(s.subtitle)));
-    else add(this._el('h2', '', v(s.title) || { pause: 'Paused', settings: 'Settings', controls: 'Controls', help: 'Help', map: 'Map' }[name] || ''));
+    else add(this._el('h2', '', v(s.title) || { pause: this._game._players && this._game._players.length > 1 && this._game.pausedBy ? 'Paused by P' + this._game.pausedBy : 'Paused', settings: 'Settings', controls: 'Controls', help: 'Help', map: 'Map' }[name] || ''));   // (several players: who paused)
     add(v(s.text) && this._el('p', title ? '' : 'esh-m', v(s.text)));
     if (name === 'settings') this._settingsRows(add);
     if (name === 'controls') this._controls(add);
@@ -8696,7 +8861,7 @@ class Shell {
     const acts = (name === 'pause' ? [['Resume', () => this.hide()]] : []).concat(v(s.actions) || [], name === 'pause' && this._std && v(this._game.o.menu && this._game.o.menu.items) || []).filter(Boolean);
     if (name === 'pause') this._pauseActs(acts);
     if (name === 'settings' && this._std) acts.push(['Controls', () => this.show('controls')], ['Restore defaults', () => { for (const g of SHELL_GROUPS.concat('Game')) this._game.settings.reset(g); this.show('settings'); }]);
-    if (name === 'controls') acts.push(['Restore defaults', () => { this._game.input.resetBindings(); this._game.settings.reset('Controller'); this._game.settings.reset('Touch'); this._status = 'Every control is back to its default.'; this.show('controls'); }]);
+    if (name === 'controls') acts.push(['Restore defaults', () => { this._ctlI().resetBindings(); this._game.settings.reset('Controller'); this._game.settings.reset('Touch'); this._status = 'Every control is back to its default.'; this.show('controls'); }]);
     if (!acts.length && !title || name === 'settings' || name === 'controls') acts.push(['Back', () => this.back()]);
     const btns = this._el('div', 'esh-btns'), lists = name === 'settings' || name === 'controls'; acts.forEach((a, i) => btns.appendChild(this._btn(a, i, !lists))); add(btns);
     if (s.meta) { const g = this._el('div', 'esh-tags'); for (const t of v(s.meta)) g.appendChild(this._el('span', '', t)); add(g); }
@@ -8788,7 +8953,7 @@ class Shell {
   }
   /** binding a controller button: the first one pressed since binding began (Start cancels) */
   _capPad() {
-    const c = this._cap, I = this._game.input; if (!c || c.device !== 'pad') return;
+    const c = this._cap, I = this._ctlI(); if (!c || c.device !== 'pad') return;
     const i = I.padPrev.findIndex((on, k) => on && !c.prev[k]); c.prev = I.padPrev.slice();
     if (i === 9) this._capEnd('Not changed.'); else if (i >= 0) this._capBind('Pad' + i);
   }

@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.64.1)
+# my-3D2dge API index (v0.65.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -55,41 +55,41 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - 204 Views (projections); E.View: view
 - 231 Screen; game.screen
 - 253 Input; E.Input: input
-- 328 Pixel font
-- 339 Lighting; game.lights
-- 358 Particles; E.Particles: game.particles
-- 378 Renderer; r
-- 425 Game; E.Game: game
-- 528 Standard features; settings, fullscreen
-- 545 10c. Boot
-- 550 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 567 10e. Paths; E.Path: path
-- 577 10g. Weather
-- 581 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 654 Blob rig; E.Blob: blob
-- 674 Tile map; E.TileMap: map
-- 733 Materials
-- 754 Flow field; E.FlowField: flow
-- 772 Texture helpers for floortex functions
-- 783 Platform map; E.PlatformMap: level
-- 813 Platformer; E.Platformer: hero
-- 848 Body; E.Body: body
-- 868 Actions; E.Action: action
-- 890 17c. Mover; E.Mover: mover
-- 929 17d. Perception; E.Suspicion: suspicion
-- 946 Bullets; E.Bullets: shots
-- 966 Spatial hash; E.SpatialHash: grid
-- 976 Audio; game.audio
-- 998 Backdrops; E.Backdrop: backdrop
-- 1006 21c. Props
-- 1011 21e. Shapes
-- 1023 Ui; E.Dialog: talk, E.Menu: menu
-- 1077 21d. Shell; E.Shell: shell
-- 1106 Gpu lighting (webgpu); game.gpu
-- 1127 Sessions
-- 1136 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1171 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1182 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 331 Pixel font
+- 342 Lighting; game.lights
+- 361 Particles; E.Particles: game.particles
+- 381 Renderer; r
+- 428 Game; E.Game: game
+- 538 Standard features; settings, fullscreen
+- 555 10c. Boot
+- 560 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 577 10e. Paths; E.Path: path
+- 587 10g. Weather
+- 591 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 664 Blob rig; E.Blob: blob
+- 684 Tile map; E.TileMap: map
+- 743 Materials
+- 764 Flow field; E.FlowField: flow
+- 782 Texture helpers for floortex functions
+- 793 Platform map; E.PlatformMap: level
+- 823 Platformer; E.Platformer: hero
+- 858 Body; E.Body: body
+- 878 Actions; E.Action: action
+- 900 17c. Mover; E.Mover: mover
+- 939 17d. Perception; E.Suspicion: suspicion
+- 956 Bullets; E.Bullets: shots
+- 976 Spatial hash; E.SpatialHash: grid
+- 986 Audio; game.audio
+- 1008 Backdrops; E.Backdrop: backdrop
+- 1016 21c. Props
+- 1021 21e. Shapes
+- 1033 Ui; E.Dialog: talk, E.Menu: menu
+- 1088 21d. Shell; E.Shell: shell
+- 1117 Gpu lighting (webgpu); game.gpu
+- 1138 Sessions
+- 1147 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1182 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1193 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
 
 ## The engine object (E = My3D2dge)
 
@@ -98,7 +98,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.64.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.65.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -257,6 +257,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.Input.PLATFORMER { jump, attack, dash, skill }`: side-scrollers (Mario, Mega Man): Space / Z / K jump, X / J attack or shoot, Shift / C dash
 - `E.Input.SHMUP { fire, bomb }`: shoot-'em-ups (1942, Gradius): Space / Z / J fire (hold for autofire), X / K bomb
 - `E.Input.THIRDPERSON { sprint, jump, crouch, interact, attack, block, dodge, use, map }` †: third-person action and stealth (Assassin's Creed, Metal Gear): WASD / stick move, Shift sprint, Space jump and parkour, C crouch (a toggle), E interact, J attack, K block, L dodge, Q use, M map. Pad: A jump, B crouch, X attack, Y interact, LB block, RB dodge, LT use, RT or L3 sprint, Back map
+- `E.Input.halfKeys(preset, side)` †: a preset for half a keyboard ('left' or 'right'): its moves and menu keys, the preset's other actions on its buttons in order, and the preset's gamepad codes (Input.halfKeys(Input.SHMUP, 'right') -> fire on . and Numpad 1, bomb on /)
 - `input.anyPressed()`: any action pressed this step (title screens: "press any button")
 - `input.bindButtons(root)` †: wire every element with data-act="<action>" inside root to the action
 - `input.bindings` †: the player's bindings over the preset: { action: { keys: [codes], pad: [codes] } } (game.settings.bindings keeps them)
@@ -303,10 +304,12 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.deadzone = .18`: how far a gamepad stick moves before it counts (0..0.8)
 - `input.glyphs = 'auto'`: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' | 'nintendo' | 'generic' (positions)
 - `input.held`: the key and button codes down right now ('KeyD', 'Mouse0', 'Pad0', 'Act:jump')
+- `input.keysTo = null` †: the other players' inputs the keyboard's codes go to as well (players sharing it, each with half its keys: game.players)
 - `input.lastDevice = 'keyboard'`: 'keyboard' | 'mouse' | 'gamepad' | 'touch', the last one used (show the right button prompts)
 - `input.map`: each action's codes ({ jump: ['Space', 'Pad0', 'Act:jump'] }); every action also answers to 'Act:<name>' (DOM buttons with data-act, tap, hold)
 - `input.mouse`: { cx, cy } its page position, active once it has moved over the canvas, t the input clock when it last moved
 - `input.names = null` †: the actions' names on the Controls screen ({ attack: 'Sword' }; false hides one from rebinding: the game's menu.controls); onBindings(b): called with the player's new bindings (the game saves and applies them)
+- `input.pad = 'any'` †: the gamepad this input reads: 'any' (the first connected one another player hasn't: player 1's), an index (a joined player's own), or null (none)
 - `input.padAim = null` †: its right stick, or null when centered
 - `input.padAxes = []` †: the gamepad's raw axes
 - `input.padId = ''`, `input.padIndex = null`: the gamepad in use (null and '' without one)
@@ -439,8 +442,10 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.Game({ camera })`: the camera of every scene without its own (a scene's camera option: the player's zoom, start)
 - `game.H`: the screen's height in game pixels (W is its width)
 - `game.W`: internal buffer size in pixels (HUD layout)
+- `game.addPlayer(o = {})` †: a player in now: { pad: index } (a gamepad) or { keys: 'right' } (the keyboard's right half; player 1 takes the left). Returns its input (null when four play already)
 - `game.advance(seconds = this.o.step, o = {})`: run the game for `seconds` of real time in exact fixed steps, at once, without requestAnimationFrame: tests, tools and headless runs (advance(1) is 120 updates). o.draw: then draw one frame (not in a headless game). Returns the updates run
 - `game.after(seconds, fn)`: run fn once after `seconds` of game time. Cleared on scene change. Returns { cancel() }
+- `game.allowJoin(o = {})` †: let players join, up to max (2..4): Start on a gamepad no one holds, or 2 on the keyboard (o.keys: false not); onJoin (input, number) as each does. allowJoin(false) closes it (the names split and join are String's and Array's)
 - `game.back()`: a step back, as a phone's back gesture asks for (the engine calls it for one; a back button of the game's own can): the open menu screen goes back one; else the scene's own back() takes it (it returns true when it did); else a scene in play pauses into the menu, and a paused one goes on. Returns false where there is nowhere to go (a title)
 - `game.cornerArea()` †: where the corner's buttons (menu and full screen, top right; the touch START) cover the screen, in screen pixels { x0, y0, x1, y1 } (r.W and r.H's space), or null while none show: keep a HUD clear of it
 - `game.dispose()`: end the game for good: stop the loop and remove everything the engine added to the page (its listeners on the window, the document, the canvas and the buttons, the touch controls, the GPU lighting's canvas) and close the sound. Tests and tools that make many games call it; the canvas stays
@@ -459,6 +464,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.note(text, seconds = 1.2)`, `game.shownNote`: a short notice at the top of the screen (zoom level, saved, ...): game.note('ZOOM 1.5x', 1). game.shownNote is the one showing, { text, end } (end in game.real seconds), or null: a game that draws it its own way takes it and sets shownNote to null
 - `game.onView(f)` †: call f(view) whenever the view changes (re-bake caches, move HUD)
 - `game.pause(reason = 'player')`: pause the game, saying why ('player' | 'focus' | 'controller' | 'menu': pauseReason); returns true if it paused. The player resumes (Escape, Start, Resume); resume() does it from code
+- `game.players` †: the players: [game.input (player 1), ...the ones who joined (game.allowJoin, game.addPlayer: section 10j)]; each an input with player (1..4), name ('P1'), color (E.PLAYER_COLORS) and device. A game of one: [game.input]
+- `game.removePlayer(p)` †: a player leaves (its input, or its number, 2 to 4); player 1 has the whole keyboard back when no one shares it
 - `game.resetCamera()` †: undo setZoom and rotateView: the scene's own zoom again (camera.start, or camera.tall on a screen held upright; 1 without), no turn. The player's zoom stays (settings.zoom)
 - `game.resume()`: take the game out of pause (and close the pause screen)
 - `game.rotateView(deg)` †: turn the camera around the vertical axis in ground views: game.rotateView(45) (degrees). Side views never turn
@@ -467,6 +474,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3), the game's own; where the scene lets the player zoom (camera.zoom), theirs multiplies it (game.zoom is the two together). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
 - `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
 - `game.shaking` †: how hard the screen shakes now (0 still, up to 10): shake() adds to it and it dies away. A camera of the game's own (a 3D world's) shakes by it
+- `game.splitScreen(n, o = {})` †: split the screen into n viewports (2 to 4; 0 or 1: one screen again), o: { layout: 'auto' (side by side on a wide screen, stacked on a tall one; a grid for 3 or 4) | 'columns' | 'rows' | 'grid', follow: [targets], z: 16, gap: 1 }
 - `game.start(hooks)`: Start the loop. Either one scene: game.start({ update(dt), draw(r) }) or several: game.start({ scenes: { title: {...}, play: {...} }, scene: 'title' }) A scene is { enter(data), exit(), update(dt), draw(r), back(), pausable, view, views, input, res, expand, touch, camera } (all optional). start() with nothing resumes a stopped loop. A headless game, or one made with loop: false, runs only by advance().
 - `game.start({ view, views, input, res, expand, touch })`: a scene's, applied when it starts: input ('PLATFORMER'), res ('snes'), expand (true), touch (['jump', 'attack']); res and expand stay until another scene sets them
 - `game.start({ back })`: a scene's back() takes a phone's back gesture (game.back()) first: return true when it went back somewhere (a sub-menu closed)
@@ -475,6 +483,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
 - `game.tween(target, to, seconds, o)` †: ease target's numbers to new values over seconds of game time: game.tween(door, { y: 40 }, .5, { ease: 'outBack', delay, repeat (more plays; -1 forever), yoyo (every other play runs back), onDone(target), keep (outlive the scene) }). ease: a name in E.ease ('outQuad' by default) or a function of u 0..1. It starts from the values the target has once its delay is over. Returns the Tween: tween.done, tween.cancel()
 - `game.upright`: true while the game's screen (r.W x r.H) is upright, taller than 1.3 times its width: a phone held upright, with expand: true (a fixed res keeps its own shape on any phone, so it is never upright there). A scene's camera.tall zoom applies then: it zooms a tall picture in to fill it
+- `game.viewports` †: a split screen's viewports ({ i, x, y, w, h, cam, focus(x, y, z), follow(target, { z }): game.splitScreen), or [] on one screen
 - `game.zoomBy(k)` †: the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does nothing where the scene doesn't let the player zoom. Returns the zoom
 - `game.zoomRange()` †: the zooms the player may take the camera to here, [min, max] (the scene's camera.zoom, or the game's; a function of the game gives one per screen shape or level), or null where they can't (camera.zoom false or none)
 - `game.alpha = .5`: the fraction of a fixed step (0..1) of real time not yet run: interpolate drawing with it if motion must be smooth at any refresh rate. The accumulator starts half a step in, so frame times that wobble keep a steady step count
@@ -523,6 +532,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.views`: views this game is designed for (view cycling and the checker use it). null = every view
 - `game.yaw = 0` †: its turn in degrees on top of the view (rotateView)
 - `game.zoom = 1` †: the camera's zoom now (1 = as the view is): the game's (setZoom, a scene's camera.start) times the player's (settings.zoom: the wheel, a pinch), within the scene's camera.zoom range
+- `E.PLAYER_COLORS: #4a8aff, #ff4a4a, #4ad860, #ffd040` †: the players' colors: player 1 blue, 2 red, 3 green, 4 yellow (game.players)
 - `E.showError(title, e)`: show an error in the red box at the top of the page (the engine does it for errors in update and draw); a click hides it. Before play has started it shows on the boot screen instead, as a report a player can screenshot
 
 ## 10b. Standard features
@@ -1060,6 +1070,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `menu.dim = '#6a6488'`: disabled entries' color
 - `menu.game`: its game
 - `menu.i = 0`: the one under the cursor
+- `menu.input = null` †: the one input it reads (default: every player's, so any player moves and picks; the mouse and taps are player 1's)
 - `menu.items`: the entries (strings, or { label, disabled })
 - `menu.onCancel = null`: called on cancel
 - `menu.onMove = null`: called (i, item) when the cursor moves
