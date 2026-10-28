@@ -17,6 +17,8 @@
 //   9. arcade: each of its three games from the cabinet to its high-score table: by taps on a phone (a cabinet, then the
 //      letter wheel's arrows and OK, every target at least 44 CSS pixels), by keys (the continue too) and by a gamepad on
 //      a computer; left alone, the cabinet plays a demo and comes back to its table, then its title
+//  11. fighting: a tap on a portrait picks a fighter; four thumb-sized buttons; the stick walks it; a quarter circle on
+//      the stick and a tap on LP throw a fireball
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
@@ -68,7 +70,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'platformer', 'shooter', 'arcade', 'puzzle', 'rpg', 'roguelike', 'brawler', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'platformer', 'shooter', 'arcade', 'puzzle', 'rpg', 'roguelike', 'brawler', 'fighting', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -403,6 +405,36 @@ if (want('puzzle')) {
   check('puzzle: a drag to the right moves the piece right, a cell a step', !!s0 && !!s1 && s1.x > s0.x, JSON.stringify([s0, s1]));
   check('puzzle: a tap turns it', !!s1 && !!s2 && (s2.r !== s1.r || s1.k === 'O') && !errors.length, JSON.stringify([s1, s2]) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
   await ctx.close();
+}
+
+/* 11. fighting: a fighter picked by a tap, the stick and four buttons, a motion on the stick */
+if (want('fighting')) {
+  console.log('fighting: a tap picks a fighter; the stick walks, four buttons strike, a quarter circle on the stick throws a fireball');
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, cdp, errors } = await open('fighting', vp, 'fighting/training'); await wait(700);
+    const r0 = await ev(page, () => window.__game.scenes.fighting.select().rects[0]), [px0, py0] = await toCss(page, r0[0] + r0[2] / 2, r0[1] + r0[3] / 2);
+    await page.touchscreen.tap(px0, py0); await wait(1600);
+    const s0 = await ev(page, () => window.__game.scenes.fighting.state());
+    const btns = await ev(page, () => [...document.querySelectorAll('[data-sys=touch] button')].filter(b => b.style.display !== 'none' && b.dataset.act !== 'menu').map(b => { const q = b.getBoundingClientRect(); return { act: b.dataset.act, w: q.width, h: q.height, x: q.x + q.width / 2, y: q.y + q.height / 2 }; }));
+    const acts = btns.map(b => b.act).sort().join(), small = Math.min(...btns.map(b => Math.min(b.w, b.h)));
+    check(`fighting ${label}: a tap on RYO's portrait picks him; four buttons (LP HP LK HK), each a thumb's size`, s0.mode === 'fight' && s0.picks[0] === 'ryo' && acts === 'hk,hp,lk,lp' && small >= 44, `picks ${s0.picks}, buttons ${acts}, smallest ${Math.round(small)} CSS px`);
+    // the stick: a thumb on the left of the screen dragged right walks RYO in
+    const x0 = (await ev(page, () => window.__game.scenes.fighting.state())).x[0], sx = vp.width * .2, sy = vp.height * .78;
+    await drag(cdp, line([sx, sy], [sx + 60, sy], 30), 25);
+    const x1 = (await ev(page, () => window.__game.scenes.fighting.state())).x[0];
+    // a quarter circle forward on the stick (down, down-forward, forward) while a second finger taps LP: the fireball
+    await ev(page, () => { const m = window.__game.scenes.fighting.match(), f = m.f[0]; f.reset(f.x, 1); window.__fired = null; const tick = () => { if (f.act && !window.__fired) window.__fired = f.act.m.id; requestAnimationFrame(tick); }; tick(); });
+    const R = await ev(page, () => window.__game.game.input.stickRadius || 50), lp = btns.find(b => b.act === 'lp');
+    const T = (pts) => cdp.send('Input.dispatchTouchEvent', { type: pts.type, touchPoints: pts.p });
+    await T({ type: 'touchStart', p: [{ x: sx, y: sy, id: 1 }] }); await wait(40);
+    for (const [dx, dy] of [[0, .9], [.7, .7], [.9, 0]]) { await T({ type: 'touchMove', p: [{ x: sx + dx * R, y: sy + dy * R, id: 1 }] }); await wait(40); }
+    await T({ type: 'touchStart', p: [{ x: sx + .9 * R, y: sy, id: 1 }, { x: lp.x, y: lp.y, id: 2 }] }); await wait(50);
+    await T({ type: 'touchEnd', p: [{ x: sx + .9 * R, y: sy, id: 1 }] }); await wait(30); await T({ type: 'touchEnd', p: [] }); await wait(400);
+    const fired = await ev(page, () => window.__fired);
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `fighting-${label.replace(/ /g, '-')}.png`) });
+    check(`fighting ${label}: the stick walks RYO in; a quarter circle on it and a tap on LP throw the fireball`, x1 > x0 + 15 && /^fire/.test(fired || '') && !errors.length, `x ${Math.round(x0)} -> ${Math.round(x1)}, move ${fired}${errors.length ? ', errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
 }
 
 /* 9. arcade: the three games to their tables by touch, keys and pad; the attract mode */

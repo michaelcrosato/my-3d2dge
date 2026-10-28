@@ -498,6 +498,25 @@ Needs M1 (input sequences, `cam.frame`).
   when both are out; its `bot()` brings in player 2 and both heroes clear the first wave. The puzzle's VERSUS appears
   once a second player is in: two fields from one seed, swapped in and out to step and draw, rows sent across.
 
+- **As built, 4b (v0.66.0):** `engine/modules/fight.js` (after the full engine only: it needs the Platformer and
+  `input.motion`). `E.Fighter` is a Platformer on an `E.FightStage` (a floor and two walls) with a Humanoid; its moves are
+  specs on `E.MOVES` names with frame data in frames at 60 (`f`), each with its E.Attack; hurt boxes (head, body, legs)
+  come from the rig's joints each step, a hit box from the striking fist or foot in the active frames; guards `mid`,
+  `low`, `overhead`, `throw`; chip on specials; throws (forward or back with HP, close) and command grabs (`throw`);
+  cancels into specials once a move connects; juggles (three at most); knockdowns and an invulnerable rise; specials by
+  motion (read with `input.motion`, mirrored by facing, a longer window for six-direction supers) or charge (`'46'`,
+  `'28'`); a meter (a super's cost, a flash and a freeze); one projectile at a time on `E.Bullets`; teleports; `f.last`,
+  the frame data and advantage of its last move. `E.Match` adds rounds, the clock, KO (a slow-motion call), time over,
+  perfect, the win poses, the HUD (below a phone's corner button) and training (the dummy, the boxes, the frame data,
+  the inputs in numpad digits). `E.FightAI({ level, seed })` sees its foe after a reaction time, guards, anti-airs,
+  throws, confirms hits into specials and keeps its range, all from its own `E.rng`; `E.FightSelect` picks by keys, pads
+  or a tap. The preset is `E.FIGHT_KEYS` (U, I punch; J, K kick; a pad's X, Y, A, B), so two on one keyboard take F G H R
+  and . / , L. The kit is `src/starter/55-fighting.js` (family FIGHTING): RYO, GORM and VEX, the courtyard and its crowd,
+  VERSUS, ARCADE (the other two, then a shadow) and TRAINING (`#fighting/versus`, `/arcade`, `/training`); a mirror
+  match gives player 2 the second palette; upright on a phone the camera starts at 1.8x. The `fight` suite: motions at
+  120 Hz and mirrored, the guards, a KO on one keyboard and on two pads, the CPU's matches repeating, training's frame
+  data; phone case 11; `kits-test`'s bot plays a CPU match twice and compares.
+
 ### M5: side-view traversal and the Metroidvania (the core's Platformer; module `rooms`; kit METROIDVANIA)
 
 Needs M1 (the camera's window, transitions).

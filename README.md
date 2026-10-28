@@ -22,7 +22,7 @@ To get there, the engine ships enough perspectives, genre frameworks, vertical-s
 |---|---|---|
 | **`dist/handoff/`** ([on the site](https://my-3d2dge.vercel.app/handoff/); `node tools/handoff.mjs --zip <file>` for a chat) | **Coding agents that need the full engine** (props, lighting, x-ray, sessions: what the agent edition leaves out). The readable engine and the agent edition, `API.md`, `API-INDEX.md` (every public name), `AI_GUIDE.md`, the tools that check, film and replay a game, and a template game with a headless test. Its `README.md` says where to start. | text only, ~1.3 MB; read `API.md`, search the rest |
 | **`dist/my-3d2dge-agent.js`** | **AI coding agents** (Claude Code, Codex, Cursor and the like). The [agent edition](#the-agent-edition-for-ai-coding-agents): the essential engine in one readable file whose header is the whole manual, with three complete example games. An agent reads the header and nothing else. | header ~10k tokens, whole file ~105k |
-| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `shooter`, `arcade`, `puzzle`, `rpg`, `roguelike`, `stealth`), or `animlab` to explore the animation system. Each was sized for a 200k context (D51; D52 suspends that budget until the owner's review, and the shooter is past it): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~171k-212k tokens |
+| **`dist/kits/my-3d2dge-<genre>.html`** | The usual choice for chat models. Minified engine, the API card and the one slice for your genre (`adventure`, `platformer`, `brawler`, `fighting`, `shooter`, `arcade`, `puzzle`, `rpg`, `roguelike`, `stealth`), or `animlab` to explore the animation system. Each was sized for a 200k context (D51; D52 suspends that budget until the owner's review, and the shooter is past it): its engine leaves out the sections its game never calls (the kit diet: its header lists them; a game of several genres takes `dist/my-3d2dge.html`), and each carries a small cut of the asset store of its own (`src/assets/sets/<genre>.js`, 600 to 1,400 tokens). | ~171k-212k tokens |
 | **`dist/kits/my-3d2dge-3d-<genre>.html`** | A [3D kit](#real-3d-the-3d-engine): the same, with the 3D engine and its manual and one 3D slice (`action`, `platformer`, `shooter`). Served, not opened from a disk: it loads three.js and Rapier from `vendor/`. | ~210k-285k tokens (the shooter's open world is the largest) |
 | **`dist/my-3d2dge-compact.html`** | All six slices and the animation lab, engine minified (every section and module): for a game of several genres. | ~341k tokens |
 | **`dist/my-3d2dge.html`** | The complete reference: readable engine, all six slices and the animation lab. For 1M-token contexts, or for a model that reads the file in parts. | ~453k tokens |
@@ -33,10 +33,11 @@ Attach a file and ask for a game ("remake Mega Man 2's first stage", "a Zelda-li
 
 1. **The API card**: a quick-start game, a table of coordinates per view, rules, common mistakes, the full API and a genre playbook.
 2. **The engine** (no dependencies, no network).
-3. **A starter game** with nine vertical slices to copy from (a genre kit holds one):
+3. **A starter game** with eleven vertical slices to copy from (a genre kit holds one):
    - ADVENTURE (Zelda-style top-down)
    - PLATFORMER (Mario / Mega Man side-scroller with a 2.5D view)
    - BRAWLER (Final Fight / Streets of Rage beat-'em-up; a second player drops in)
+   - FIGHTING (Street Fighter II one on one: three fighters, versus for two, an arcade ladder against the CPU, training: the fight module)
    - SHOOTER (a 1942-style vertical stage, then a Gradius-style horizontal one: rock above and below, a power bar, options; a continue, initials and a table)
    - ARCADE (a cabinet of three: a maze with four chasers, a formation of diving moths, wrapping rocks; tables, initials, two players and an attract mode: the arcade module)
    - RPG BATTLE (Dragon Quest / Final Fantasy turn-based)
@@ -277,7 +278,7 @@ The source is `src/emberdeep/*.js`, joined into one script. `src/emberdeep/DESIG
 |---|---|---|
 | Platformers, Metroidvanias, run-and-guns (Mario, Mega Man, Metroid, Contra) | side, or brawler for 2.5D | PlatformMap, Platformer, Bullets |
 | Action adventures and action RPGs (Zelda, Secret of Mana, Diablo, Landstalker) | three-quarter, top-down, iso | TileMap, Body, Humanoid, Dialog |
-| Beat-'em-ups and fighting (Final Fight, Streets of Rage, Street Fighter II) | brawler, side | Humanoid attack and kick specs, hitboxes |
+| Beat-'em-ups and fighting (Final Fight, Streets of Rage, Street Fighter II) | brawler, side | Humanoid attack and kick specs (BRAWLER kit); the fight module: frame data, guards, throws, specials by motion, rounds, a CPU, training (FIGHTING kit) |
 | Shoot-'em-ups (1942, Xevious, Gradius, R-Type) | overhead | Bullets, patterns, a vertical and a horizontal stage, the arcade frame (SHOOTER kit) |
 | JRPGs (Dragon Quest, Final Fantasy, EarthBound) | three-quarter towns, brawler battles | Menu, Dialog, scenes, store |
 | Puzzle (Tetris, Puyo Puyo, Columns) | screen pixels over a stage | a cell array, `input.repeat`, the grid module's groups (PUZZLE kit) |
@@ -349,7 +350,7 @@ The checker presses start and plays the game (move, jump, attack, fire), then cy
 
 ## Versions
 
-One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.65.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
+One version number covers the engine, its agent edition, the docs and the games: `My3D2dge.version`, now **0.66.0**. Every change merged to `main` bumps it, except one confined to a prototype (a Temporary lab, `DOCTRINE.md`) (`node tools/version.mjs 0.8.0` writes it everywhere) and adds its lines to `CHANGELOG.md`; `npm test` fails while any place disagrees. The deployed site stamps each page with the commit it was built from (`tools/stamp.mjs`, run by Vercel), so the Emberdeep title, its Settings (Keys & help), the Labs page and the Mocap Lab say exactly which build they are (`v0.7.0 · a1b2c3d 2026-10-07`).
 
 ## Docs
 
