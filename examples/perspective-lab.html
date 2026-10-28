@@ -96,7 +96,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.72.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.73.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -177,7 +177,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.72.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.73.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -862,6 +862,9 @@ class Input {
      *  not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no
      *  action uses) and a pinch ask for it, read by zoom() */
     this._pinching = false; this._zoomAcc = 1; this._zoomNow = 1; this._zoomOn = false; this._wheelOn = false; this._fingers = new Map();
+    // the pointer's gestures (box, longPress, doubleTap, pan): the press followed (_g), what this step reads, what the next will
+    this._g = null; this._gBox = null; this._gLong = null; this._gTap2 = null; this._gPan = null; this._lastTap = null; this._zoomPt = null; this._fedAt = null;
+    this._boxAt = null; this._longAt = null; this._tap2At = null; this._panAt = null;
     /** glyphs: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' |
      *  'nintendo' | 'generic' (positions); rumbleScale: vibration strength 0..1 (0 = off; game.settings.rumble sets it);
      *  padLost: true for the step after the gamepad in use was unplugged (a pausable scene pauses) */
@@ -891,14 +894,14 @@ class Input {
     el.addEventListener('wheel', e => {
       if (!this._wheelOn) return; e.preventDefault();
       const d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 100 : 1);
-      this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25);
+      this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25); this._zoomPt = this.screenPoint(e.clientX, e.clientY);
     }, { signal, passive: false });
     const all = f => { f(this); if (this.keysTo) for (const q of this.keysTo) f(q); };
     on(window, 'keyup', e => all(q => q.release(e.code)));
     on(window, 'blur', () => all(q => q.clear()));
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
-    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else { this._pinchMove(e); this._stickMove(e); } });
+    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
     on(el, 'pointerdown', e => {
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
       if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
@@ -908,14 +911,16 @@ class Input {
         this._fingers.set(e.pointerId, { x: e.clientX, y: e.clientY }); this._pinchArm();
         if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
+      if (e.pointerType === 'mouse' || this._fingers.size === 1) this._gesture('down', ...this.screenPoint(e.clientX, e.clientY), { touch: e.pointerType !== 'mouse', button: e.button, id: e.pointerId }); else this._g = this._gBox = null;   // (a second finger: a pinch, no gesture)
     });
     on(window, 'pointerup', e => {
       const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none): clicked() for a step,
       // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
       if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
+      if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
       if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); }
     });
-    on(window, 'pointercancel', e => { this._down = null; this._fingerUp(e); this._stickEnd(e); });
+    on(window, 'pointercancel', e => { this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); });
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
@@ -1145,7 +1150,55 @@ class Input {
    *  wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy) */
   zoom() { return this._zoomNow; }
   /** the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas */
-  pointer() { return this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null; }
+  pointer() { return this._fedAt || (this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null); }
+  /** the pointer's gestures, read each step in screen pixels (the HUD's space), from a mouse or one finger:
+   *  box() -> { x0, y0, x1, y1, from, to, done } while a box is drawn (a mouse's left button dragged; on a touch screen a long
+   *  press, then a drag), done the step it is let go; else null */
+  box() { return this._boxAt; }
+  /** [x, y] the step a press held still has been held .45 s (a long press), else null */
+  longPress() { return this._longAt; }
+  /** [x, y] the step a second tap or click lands within .35 s and 8 pixels of the first (a double tap), else null */
+  doubleTap() { return this._tap2At; }
+  /** [dx, dy] how far a drag moved this step: one finger on open ground (not a box), or a mouse's middle or right button;
+   *  else null. A free camera pans by it (game.cam.free) */
+  pan() { return this._panAt; }
+  /** [x, y] where the last zoom was asked for: the mouse pointer for the wheel, between the fingers for a pinch; null when
+   *  the keys zoomed (about the screen's middle) */
+  zoomPoint() { return this._zoomPt; }
+  /** a pointer event in screen pixels, as the browser's would give: feed('down' | 'move' | 'up', x, y, { touch: false,
+   *  button: 0 }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses, double taps and pans follow), or
+   *  feed('zoom', x, y, { k: 1.1 }): a wheel's notch or a pinch about that point */
+  feed(type, x, y, o = {}) {
+    if (type === 'zoom') { this._zoomAcc *= o.k || 1.1; this._zoomPt = [x, y]; return; }
+    if (!o.touch) this._fedAt = [x, y];
+    if (type === 'down') { this._fed = [x, y]; if (!o.touch) this.press('Mouse' + (o.button || 0)); this._gesture('down', x, y, { touch: !!o.touch, button: o.button || 0, id: 'fed' }); }
+    else if (type === 'move') this._gesture('move', x, y);
+    else if (type === 'up') {
+      if (this._fed && Math.hypot(x - this._fed[0], y - this._fed[1]) < 4 && !(o.button > 0)) this._click = [x, y];
+      if (!o.touch) this.release('Mouse' + (o.button || 0)); this._fed = null; this._gesture('up', x, y);
+    }
+  }
+  // a press followed from down to up: past 4 pixels it is a box (a left button, or a finger after a long press) or a pan
+  // (a finger, a middle or right button); lifted unmoved it is a tap, and a second within .35 s a double tap
+  _gesture(type, x, y, o = {}) {
+    const g = this._g;
+    if (type === 'down') { this._g = { id: o.id, x0: x, y0: y, x, y, t: this.clock, touch: !!o.touch, button: o.button || 0, mode: null, long: false, moved: false }; return; }
+    if (!g) return;
+    if (type === 'move') {
+      const px = g.x, py = g.y; g.x = x; g.y = y;
+      if (!g.moved && Math.hypot(x - g.x0, y - g.y0) > 4) { g.moved = true; g.mode = (!g.touch && g.button === 0) || (g.touch && g.long) ? 'box' : g.touch || g.button > 0 ? 'pan' : null; }
+      if (g.mode === 'box') this._gBox = { x0: Math.min(g.x0, x), y0: Math.min(g.y0, y), x1: Math.max(g.x0, x), y1: Math.max(g.y0, y), from: [g.x0, g.y0], to: [x, y], done: false };
+      else if (g.mode === 'pan') { const p = this._gPan || (this._gPan = [0, 0]); p[0] += x - (g.moved && g.panned ? px : g.x0); p[1] += y - (g.moved && g.panned ? py : g.y0); g.panned = true; }
+      return;
+    }
+    this._g = null;   // up
+    if (g.mode === 'box' && this._gBox) this._gBox.done = true;
+    else if (!g.moved) {
+      const L = this._lastTap;
+      if (L && this.clock - L.t < .35 && Math.hypot(x - L.x, y - L.y) < 8) { this._gTap2 = [x, y]; this._lastTap = null; }
+      else this._lastTap = { x, y, t: this.clock };
+    }
+  }
   /** browser client coords -> screen pixels [x, y] (the HUD's space, with no camera), or null without a canvas */
   screenPoint(cx, cy) {
     const S = this.screen; if (!S.canvas) return null;
@@ -1187,6 +1240,9 @@ class Input {
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
+    const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
+    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._gLong = this._gTap2 = this._gPan = null;
+    this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
   /** wire every element with data-act="<action>" inside root to the action */
@@ -1214,11 +1270,11 @@ class Input {
     if (!this._pinching) {
       const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, pa = (a.x - a.x0) * ux + (a.y - a.y0) * uy, pb = (b.x - b.x0) * ux + (b.y - b.y0) * uy;
       if (Math.abs(pa) < 4 || Math.abs(pb) < 4 || pa * pb >= 0 || Math.abs(d - Math.hypot(b.x0 - a.x0, b.y0 - a.y0)) < 16) return;
-      this._pinching = true; this._pinchD = d; this._down = null;
+      this._pinching = true; this._pinchD = d; this._down = null; this._g = this._gBox = null;
       if (this.stickOn && this._fingers.has(this.stickId)) this._stickEnd({ pointerId: this.stickId });
       return;
     }
-    this._zoomAcc *= d / this._pinchD; this._pinchD = d;
+    this._zoomAcc *= d / this._pinchD; this._pinchD = d; this._zoomPt = this.screenPoint((a.x + b.x) / 2, (a.y + b.y) / 2);
   }
   _stickStart(e) {
     if (!this.touchEnabled || this.stickOn) return;
@@ -1773,7 +1829,7 @@ class Renderer {
       else k = M._liftOrder(this.game.view, x, y, z, k);
       if (M.solids && M.solids.length) k = M._liftSolids(this.game.view, x, y, z, k);
     }
-    const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, top: o && o.top, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
+    const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, top: o && o.top, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)), pick: o ? o.pick : undefined, pb: o && o._pb };
     this._items.push(it);
     if (it.em) this._emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
   }
@@ -1781,6 +1837,10 @@ class Renderer {
   decal(fn, o) { this._decals.push({ fn, e: o && o.emissive || 0 }); }
   /** draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus) */
   overlay(fn) { this._overlays.push(fn); }
+  /** what was drawn under a screen point (the HUD's pixels: input.clicked(), input.pointer()) in the last frame, front to
+   *  back: the pick values of the actors, sprites, props and queued draws given one (r.actor(x, y, z, fn, { pick: unit })),
+   *  each where its pixels went (an actor's drawn bounds; others' box, or a body's size round its point). [] for none */
+  pick(sx, sy) { const P = this._picked || [], out = []; for (let i = P.length - 1; i >= 0; i--) { const [v, b] = P[i]; if (sx >= b[0] && sx < b[2] && sy >= b[1] && sy < b[3] && !out.includes(v)) out.push(v); } return out; }
   // ground helpers (all dithered, correct in every view)
   /** n screen points round a circle of radius rad on the ground at (x, y), height z: the outline of a ring or a fan */
   groundPts(x, y, rad, n = 18, z = 0) { const pts = []; for (let i = 0; i < n; i++) { const a = i / n * TAU; pts.push(this.w(x + Math.cos(a) * rad, y + Math.sin(a) * rad, z)); } return pts; }
@@ -1875,7 +1935,8 @@ class Renderer {
       return;
     }
     if (!this.visible(x, y, z, spr.w + 8, spr.h + 8, spr.h + 8)) return;
-    this.queue(x, y, z, g => { if (gl) px.glow(g, gl); const [sx, sy] = this.w(x, y, z); px.sprite(g, spr, Math.round(sx) - ax, Math.round(sy) - ay, flip); }, { bias: o.bias, emissive: gl > .4, hides: o.hides, footprint: o.footprint });
+    const pb = o.pick === undefined || o.pick === null ? undefined : (q => [Math.round(q[0]) - ax, Math.round(q[1]) - ay, Math.round(q[0]) - ax + spr.w, Math.round(q[1]) - ay + spr.h])(this.w(x, y, z));   // (r.pick: its pixels' box)
+    this.queue(x, y, z, g => { if (gl) px.glow(g, gl); const [sx, sy] = this.w(x, y, z); px.sprite(g, spr, Math.round(sx) - ax, Math.round(sy) - ay, flip); }, { bias: o.bias, emissive: gl > .4, hides: o.hides, footprint: o.footprint, pick: o.pick, _pb: pb });
   }
   /**
    * set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint })
@@ -1891,7 +1952,7 @@ class Renderer {
     const at = () => { const [sx, sy] = this.w(x, y, z); return [Math.round(sx) - ax, Math.round(sy) - ay]; };
     const [bX, bY] = at();
     const hw = spr.h / Math.max(.1, (this.view.scale || 1) * zm);   // its height in world units
-    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, hides: o.hides !== undefined ? !!o.hides : hw >= HEIGHTS.chest, top: z + hw, box: [bX, bY, bX + spr.w, bY + spr.h], footprint: o.footprint });
+    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, hides: o.hides !== undefined ? !!o.hides : hw >= HEIGHTS.chest, top: z + hw, box: [bX, bY, bX + spr.w, bY + spr.h], footprint: o.footprint, pick: o.pick });
     if (p.glowAt && o.halo !== false) this.queue(x, y, z, g => {   // lamps, lanterns and crystals glow even with lighting off; cone: true adds a light cone below
       if (g._info) return;
       const [X, Y] = at(), gx = X + spr.w * p.glowAt[0], gy = Y + spr.h * p.glowAt[1], R = o.haloR || Math.max(6, spr.w * .9), c = o.haloColor || p.glowAt[2];
@@ -2025,10 +2086,10 @@ class Renderer {
     // fast path: nothing needs the offscreen composite, so draw straight into the frame
     if (o.outline === false && !o.flash && !o.ghost && !o.xray && (o.rim === false || this.gpu) && (o.alpha === undefined || o.alpha >= 1)) {
       const info = o.emissive ? gI => { gI._mat = this._infoCol(z, 10, o.emissive); gI._c = null; const [a, b] = this.w(x, y, z); drawFn(gI, Math.round(a), Math.round(b)); } : undefined;
-      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info, solid: true, actor: true, hides: o.hides });
+      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info, solid: true, actor: true, hides: o.hides, pick: o.pick });
       return;
     }
-    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5, actor: !o.xray, hides: o.hides, top: o.top });
+    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5, actor: !o.xray, hides: o.hides, top: o.top, pick: o.pick });
   }
   /** draw an actor at once, over what is drawn so far, not sorted by depth (a pass of the game's own: a body falling into
    *  a void painted over the level), with r.actor's options (outline, flash, alpha, ...) */
@@ -2044,7 +2105,7 @@ class Renderer {
     let K = keep && keep.get(o.key);
     if (K && this._frameNo - K.n < o.every) {   // its kept image, where it stands now
       const [sx, sy] = this.w(x, y, z); g.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
-      g.drawImage(K.cv, 0, 0, K.w, K.h, Math.round(sx) - AOX + K.x0, Math.round(sy) - AOY + K.y0, K.w, K.h); g.globalAlpha = 1; this._comp = null; return;
+      const X = Math.round(sx) - AOX + K.x0, Y = Math.round(sy) - AOY + K.y0; g.drawImage(K.cv, 0, 0, K.w, K.h, X, Y, K.w, K.h); g.globalAlpha = 1; this._comp = null; if (g === this.ctx) this._pk = [X, Y, X + K.w, Y + K.h]; return;
     }
     const aG = this._aG, bb = this._bb, P = this._R;
     aG.clearRect(P[0], P[1], P[2], P[3]); aG._c = null;
@@ -2054,7 +2115,7 @@ class Renderer {
     if (x1 <= x0 || y1 <= y0) { this._R = [0, 0, 0, 0]; return; }
     const R = this._R = [x0, y0, x1 - x0, y1 - y0], w = R[2], h = R[3];
     const [sx, sy] = this.w(x, y, z), bx = Math.round(sx) - AOX, by = Math.round(sy) - AOY, al = o.alpha === undefined ? 1 : o.alpha;
-    if (g === this.ctx) this._comp = { x0, y0, w, h, bx, by, ol: o.outline !== false };
+    if (g === this.ctx) { this._comp = { x0, y0, w, h, bx, by, ol: o.outline !== false }; this._pk = [bx + x0, by + y0, bx + x0 + w, by + y0 + h]; }
     let T = g, tx = bx, ty = by, ta = al;   // where the layers go: the frame, or the kept image (a pixel of margin for the outline), drawn into it after
     if (keep) {
       if (!K) keep.set(o.key, K = { cv: mkCanvas(8, 8) });
@@ -2150,9 +2211,11 @@ class Renderer {
       for (let y = c; y <= d; y++) for (let x = a; x <= b; x++) { if (mark) eg[y * gw + x] = 1; else if (eg[y * gw + x]) return true; }
       return false;
     };
+    const picks = this._picking || (this._picking = []); picks.length = 0;
     for (const it of items) {
-      this._comp = null;
+      this._comp = null; this._pk = null;
       it.fn(g);
+      if (it.pick !== undefined && it.pick !== null) { picks.push([it.pick, this._pk || it.pb || it.box || (q => { const s = this.view.zoom || 1; return [q[0] - 8 * s, q[1] - 26 * s, q[0] + 8 * s, q[1] + 3 * s]; })(this.w(it.x, it.y, it.z))]); }   // (r.pick: where it went)
       if (em) {
         if (it.em) {
           eOn = true; const [sx, sy] = this.w(it.x, it.y, it.z); cell(sx - 56 | 0, sy - 96 | 0, sx + 56 | 0, sy + 40 | 0, true);
@@ -2178,6 +2241,7 @@ class Renderer {
       }
     }
     this._emOn = kOn;
+    const was = this._picked; this._picked = picks; this._picking = was || [];   // (r.pick reads the frame last drawn)
     if (this._xrayUsed && this._xrB) {   // every x-ray pass works inside the silhouettes' box only (full-frame composites cost more than the rest of it)
       const B = this._xrB, x0 = Math.max(0, Math.floor(B[0])), y0 = Math.max(0, Math.floor(B[1])), x1 = Math.min(this.bw, Math.ceil(B[2])), y1 = Math.min(this.bh, Math.ceil(B[3])), w = x1 - x0, h = y1 - y0;
       if (w > 0 && h > 0) {
@@ -2339,8 +2403,12 @@ class Game {
      *  World's; [48, 0] for sideways only); snapY: true follows a followed body's height only when it lands (onGround)
      *  or nears the screen's edge (side-scrollers); frame(targets, { margin: 24, zoom: [min, max] or false }) keeps
      *  every one of them (anything with x, y, z) in view, centered between them and zoomed out (no further than min)
-     *  when they spread apart, until frame(null) */
-    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null, window: null, snapY: false,
+     *  when they spread apart, until frame(null); free: a free camera (strategy, sims, board games): true or { keys: true,
+     *  edge: 10, drag: true, speed: 300, bounds: [x0, y0, x1, y1] }: the keys or a stick pan it (input.move(), speed screen
+     *  pixels a second), the mouse at the screen's edge (within edge pixels), a drag (input.pan(): a finger on open
+     *  ground, a mouse's middle or right button) one to one; a zoom (wheel, pinch) zooms toward the pointer or the pinch;
+     *  its focus keeps to bounds (world x, y); focus() still moves it; in every view and turn; null (as it starts): off */
+    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null, window: null, snapY: false, free: null,
       frame: (list, o = {}) => { this._framed = list && list.length ? { list, margin: o.margin === undefined ? 24 : o.margin, zoom: o.zoom === undefined ? [.5, 1] : o.zoom } : null; this.cam.snap = true; } };
     /** particles: dust, sparks, debris and text in the world; lights: canvas lighting (lights.enabled, lights.add in
      *  draw); r: the renderer handed to draw(r) (null when headless) */
@@ -2903,7 +2971,28 @@ class Game {
       this.focus(t.x + dir[0] * f.lead, (t.y || 0) + dir[1] * f.lead, (t.z || 0) + f.z);
     }
     this.particles.update(dt);
+    if (this.cam.free) this._freeCam(dt);
     this._camStep(dt);
+  }
+  // a screen-pixel move [dx, dy] as the ground's (world x, y) at the zoom the player sees (during a zoom's preview, the goal)
+  _screenToGround(dx, dy) {
+    const v = this.view, k = this.zoom / (this._zoomTo || this.zoom);
+    return v.inv ? [(v.inv[0] * dx + v.inv[1] * dy) * k, (v.inv[2] * dx + v.inv[3] * dy) * k] : [dx / (v.ax || 1) * k, 0];
+  }
+  // cam.free: the keys and a stick, the screen's edges, a drag, a zoom toward its point; the focus kept to bounds
+  _freeCam(dt) {
+    const c = this.cam, F = c.free === true ? {} : c.free, I = this.input, S = this.screen, z = this._zoomTo || this.zoom;
+    let dx = 0, dy = 0, moved = false;
+    if (F.keys !== false && !(this.shell && this.shell.screen)) { const m = I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }
+    const p = I.pointer(), e = F.edge === undefined ? 10 : F.edge;
+    if (e > 0 && p && I.lastDevice !== 'touch' && I.mouse.active && !I._fedAt) { const sp = (F.speed || 300) * dt; if (p[0] < e) dx -= sp; else if (p[0] > S.W - e) dx += sp; if (p[1] < e) dy -= sp; else if (p[1] > S.H - e) dy += sp; }
+    const pan = F.drag !== false && I.pan(); if (pan) { dx -= pan[0]; dy -= pan[1]; moved = true; }
+    if (dx || dy) { const [gx, gy] = this._screenToGround(dx, dy); c.tx += gx; c.ty += gy; moved = true; }
+    // a zoom keeps the world point under its pointer (or pinch) where it was: the focus moves toward it by (1 - 1/k) of the way
+    const was = c._freeZ || z; c._freeZ = z;
+    if (z !== was && F.zoomAt !== false) { const q = I.zoomPoint(); if (q) { const k = z / was, [gx, gy] = this._screenToGround((q[0] - S.W / 2) * (1 - 1 / k) * k, (q[1] - S.H / 2) * (1 - 1 / k) * k); c.tx += gx; c.ty += gy; moved = true; } }
+    const b = F.bounds; if (b) { c.tx = clamp(c.tx, b[0], b[2]); c.ty = clamp(c.ty, b[1], b[3]); }
+    if (moved) c.snap = true;
   }
   _frame() {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
@@ -9033,7 +9122,8 @@ class Shell {
     this._els = { hb: E2('esh-hb', col), obj: E2('esh-obj esh-pan'), vit: E2('esh-vit esh-pan', col), place: E2('esh-place', col), tip: E2('esh-tip esh-pan'), pr: E2('esh-pr esh-pan'), keys: E2('esh-keys'),
       tut: E2('esh-tut esh-pan'), mini: E2('esh-mini', r, 'canvas'), toast: E2('esh-toast esh-pan'), scr: this._el('div', '') };
     r.appendChild(this._els.scr); this._els.toast.hidden = false;
-    const mini = this._els.mini; mini.width = 176; mini.height = 158; mini.onclick = () => { const m = this._miniLast; if (m && m.onClick) m.onClick(); };
+    const mini = this._els.mini; mini.width = 176; mini.height = 158;
+    mini.onclick = e => { const m = this._miniLast, X = mini._xf; if (!m || !m.onClick) return; const rc = mini.getBoundingClientRect(), u = (e.clientX - rc.left) * mini.width / (rc.width || 1), v = (e.clientY - rc.top) * mini.height / (rc.height || 1); m.onClick(X ? (u - X.ox) / X.k : 0, X ? (v - X.oy) / X.k : 0); };   // (the world point clicked: a strategy game's camera goes there)
   }
   /** the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays */
   get screen() { const t = this._stack[this._stack.length - 1]; return t ? t.name : null; }
@@ -9115,7 +9205,8 @@ class Shell {
    * - prompt: { key: 'E' (or act: 'interact': its key on the player's device), label, hint, progress: 0..1 }
    * - keys, buttons: keys: [['WASD', 'Move'], ...] (hidden on touch screens); buttons: [[label, fn or action]] (top right:
    *   pause and map where there is no Escape key)
-   * - minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick }
+   * - minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick(x, y)
+   *   (the world point clicked), fog (an E.Fog: unseen cells black, seen ones dim), camera: true (the ground the screen shows) }
    */
   hud(st = {}) {
     if (!this.root) return this;
@@ -9347,6 +9438,12 @@ class Shell {
       else if (q.kind === 'ring') { g.arc(x, y, r, 0, TAU); g.stroke(); }
       else { g.arc(x, y, r * .7, 0, TAU); g.fill(); }
       if (large && q.label) { g.fillStyle = '#ebd3a0'; g.fillText(q.label, x, y + r + 13); }
+    }
+    const F = s.fog;   // fog of war: what was never seen is black, what isn't in sight now dimmed
+    if (F) for (let cy = 0; cy < m.h; cy++) for (let cx = 0; cx < m.w; cx++) { const c = [cx, cy]; if (F.visible(c)) continue; g.fillStyle = F.seen(c) ? 'rgba(6,8,10,.5)' : '#06080a'; g.fillRect(Math.floor(ox + cx * T * k), Math.floor(oy + cy * T * k), Math.ceil(T * k), Math.ceil(T * k)); }
+    if (s.camera) {   // the screen's corners on the ground: what the camera shows
+      const G = this._game, v = G.view, c = G.cam, S = G.screen, q = [[0, 0], [S.W, 0], [S.W, S.H], [0, S.H]].map(([a, b]) => v.toGround(c.x + a, c.y + b));
+      if (q.every(Boolean)) { g.strokeStyle = '#f8efd0'; g.lineWidth = 1; g.beginPath(); q.forEach(([a, b], i) => i ? g.lineTo(...P(a, b)) : g.moveTo(...P(a, b))); g.closePath(); g.stroke(); }
     }
     if (s.at) {
       const [x, y] = P(s.at.x, s.at.y), a = s.at.facing || 0, r = large ? 9 : 5; g.fillStyle = '#f8efd0'; g.strokeStyle = '#10181a'; g.lineWidth = 1.5; g.beginPath();

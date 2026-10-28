@@ -27,6 +27,9 @@
 //      opens the menu, a tap on a row opens it, BACK closes it
 //  16. tactics: the command list's rows a thumb's height; a tap on a unit selects it (its card); MOVE, then a tap on a
 //      blue cell walks the hero there; ATTACK, then a tap on a foe in range strikes it; TURN turns the view a quarter
+//  17. army (tools/fixtures/army.html, the strategy module): 200 units under orders update and draw within the budget
+//      (30 ms, the median); r.pick gives what was drawn under a point, front to back; a tap on a unit selects it, a tap
+//      on open ground orders it there, a drag pans the camera, a long press and a drag draws a box that selects
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
@@ -656,6 +659,71 @@ if (want('tactics')) {
     check(`tactics ${label}: TURN turns the view a quarter`, !!s6.turn && Math.min(s6.turn.w, s6.turn.h) * k >= 44 && (s7.yaw - s6.yaw + 360) % 360 === 90 && !errors.length, `${s6.turn ? Math.round(Math.min(s6.turn.w, s6.turn.h) * k) + ' px' : 'no TURN'}; yaw ${s6.yaw} -> ${s7.yaw}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
+}
+
+/* 17. army: 200 units in budget; r.pick; a tap selects and orders, a drag pans, a long press and a drag boxes */
+if (want('army')) {
+  console.log('army: 200 units under orders on a phone');
+  const ctx = await browser.newContext({ viewport: SIDE, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage(), errors = [], cdp = await ctx.newCDPSession(page);
+  page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); });
+  await page.goto(pathToFileURL(resolve('tools/fixtures/army.html')).href);
+  await page.waitForFunction(() => window.__fx && window.__fx.game.time > 2);
+  const r = await ev(page, () => new Promise(res => {   // 180 frames as the armies march and meet
+    const g = window.__fx.game, d = []; let n = 0;
+    const tick = () => { d.push(g.stats.renderMs + g.stats.updateMs); if (++n < 180) requestAnimationFrame(tick); else { d.sort((a, b) => a - b); res({ med: d[90], p95: d[171], units: window.__fx.rts.units.filter(u => !u.building).length, drawn: g.stats.actors }); } };
+    requestAnimationFrame(tick);
+  }));
+  check('army: 200 units under orders update and draw within 30 ms a frame (the median)', r.med < 30 && r.units >= 150, `${r.med.toFixed(1)} ms (95% within ${r.p95.toFixed(1)}), ${r.units} units standing, ${r.drawn} drawn`);
+  // r.pick: a point on each body drawn picks it; where several overlap, the nearest comes first; open ground picks none
+  const p = await ev(page, () => {
+    const { game, rts } = window.__fx, R = game.r, S = game.screen, out = { tried: 0, found: 0, stacks: 0, sorted: 0, empty: null };
+    for (const u of rts.units.filter(u => !u.building && rts.visible(u))) {   // (the fog hides foes out of sight: not drawn)
+      const [sx, sy] = R.w(u.x, u.y, 0); if (sx < 8 || sy < 16 || sx > S.W - 8 || sy > S.H - 4) continue;
+      const hit = R.pick(sx, sy - 6); out.tried++; if (hit.includes(u)) out.found++;
+      if (hit.length > 1) { out.stacks++; if (hit.every((v, i) => !i || game.view.order(hit[i - 1].x, hit[i - 1].y, 0) >= game.view.order(v.x, v.y, 0))) out.sorted++; }
+    }
+    for (let y = 10; y < S.H && !out.empty; y += 12) for (let x = 10; x < S.W && !out.empty; x += 12)
+      if (rts.units.every(u => Math.hypot(...R.w(u.x, u.y, 0).map((v, i) => v - [x, y][i])) > 40)) out.empty = [x, y, R.pick(x, y).length];
+    return out;
+  });
+  check('army: r.pick gives what was drawn under a point, front to back', p.tried > 50 && p.found === p.tried && p.stacks > 10 && p.sorted === p.stacks && p.empty && p.empty[2] === 0, `${p.found} of ${p.tried} bodies picked; ${p.sorted} of ${p.stacks} overlaps nearest first; open ground ${p.empty ? p.empty[2] + ' picked' : 'not found'}`);
+  // a tap on a blue unit selects it (the front one under the finger); a tap on open ground orders it there
+  const css = (x, y) => ev(page, ([x, y]) => { const S = window.__fx.game.screen, rc = S.canvas.getBoundingClientRect(); return [rc.left + (x * S.S + S.OX) / S.dpr, rc.top + (y * S.S + S.OY) / S.dpr]; }, [x, y]);
+  const one = await ev(page, () => { const { game, rts } = window.__fx, R = game.r, S = game.screen;
+    for (const u of rts.of('blue').filter(u => !u.building)) { const [sx, sy] = R.w(u.x, u.y, 0); if (sx > 20 && sy > 30 && sx < S.W - 20 && sy < S.H - 10 && R.pick(sx, sy - 6)[0] === u) return { id: u.id, at: [sx, sy - 6] }; }
+    return null; });
+  let sel = null, ord = null;
+  if (one) {
+    const [x, y] = await css(...one.at); await page.touchscreen.tap(x, y); await wait(200);
+    sel = await ev(page, () => window.__fx.rts.selected.map(u => u.id));
+    const [gx, gy] = await css(p.empty[0], p.empty[1]); await page.touchscreen.tap(gx, gy); await wait(200);
+    ord = await ev(page, id => { const u = window.__fx.rts.units.find(u => u.id === id); return u && u.orders[0] ? u.orders[0].kind : null; }, one.id);
+  }
+  check('army: a tap on a unit selects it, a tap on open ground orders it there', !!one && !!p.empty && sel.length === 1 && sel[0] === one.id && ord === 'move', one ? `selected ${JSON.stringify(sel)} (tapped ${one.id}), then its order: ${ord}` : 'no unit in front on screen');
+  // a drag on open ground pans the camera; a long press and a drag draws a box that selects the units inside
+  const cam0 = await ev(page, () => [window.__fx.game.cam.x, window.__fx.game.cam.y]);
+  await drag(cdp, line([SIDE.width * .5, SIDE.height * .8], [SIDE.width * .3, SIDE.height * .55], 12)); await wait(300);
+  const cam1 = await ev(page, () => [window.__fx.game.cam.x, window.__fx.game.cam.y]);
+  check('army: a drag on open ground pans the camera', Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]) > 20, `the camera moved ${Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]).toFixed(0)} px`);
+  const box = await ev(page, () => { const { game, rts } = window.__fx, R = game.r, S = game.screen, blue = rts.of('blue').filter(u => !u.building);   // (they hold still for it)
+    for (const u of blue) { u.K = Object.assign({}, u.K, { sight: 0 }); } rts.order(blue, 'stop');
+    const pts = blue.map(u => R.w(u.x, u.y, 0)).filter(q => q[0] > 12 && q[1] > 12 && q[0] < S.W - 12 && q[1] < S.H - 12);
+    if (pts.length < 3) return null; const xs = pts.map(q => q[0]).sort((a, b) => a - b), ys = pts.map(q => q[1]).sort((a, b) => a - b);
+    return [xs[0] - 6, ys[0] - 6, xs[xs.length - 1] + 6, ys[ys.length - 1] + 6, pts.length]; });
+  let boxed = 0, inside = 0;
+  if (box) {
+    const [ax, ay] = await css(box[0], box[1]), [bx, by] = await css(box[2], box[3]);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: ax, y: ay }] }); await wait(600);   // a long press (.45 s), then the drag
+    for (const q of line([ax, ay], [bx, by], 10)) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: q[0], y: q[1] }] }); await wait(25); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(250);
+    [boxed, inside] = await ev(page, b => { const { game, rts } = window.__fx, R = game.r, S = rts.selected;   // (those inside still standing: a foe may strike one down meanwhile)
+      const all = rts.of('blue').filter(u => !u.building && (q => q[0] >= b[0] && q[0] <= b[2] && q[1] >= b[1] && q[1] <= b[3])(R.w(u.x, u.y, 0)));
+      return [S.length, S.length === all.length && all.every(u => S.includes(u)) ? all.length : -all.length]; }, box);
+  }
+  mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', 'army.png') });
+  check('army: a long press and a drag draws a box that selects the units inside', !!box && inside >= 3 && boxed === inside && !errors.length, `${boxed} selected, ${Math.abs(inside)} standing inside (${box ? box[4] : 0} at the start)${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+  await ctx.close();
 }
 
 await browser.close();

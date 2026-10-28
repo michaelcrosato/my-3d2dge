@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.72.1)
+# my-3D2dge API index (v0.73.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,56 +48,57 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 102 The engine object (E = My3D2dge)
-- 113 Math
-- 187 Pixel primitives
-- 206 Sprite frames, turns and swaps
-- 212 Views (projections); E.View: view
-- 239 Screen; game.screen
-- 261 Input; E.Input: input
-- 339 Pixel font
-- 350 Lighting; game.lights
-- 369 Particles; E.Particles: game.particles
-- 389 Renderer; r
-- 436 Game; E.Game: game
-- 547 Standard features; settings, fullscreen
-- 564 10c. Boot
-- 569 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 586 10e. Paths; E.Path: path
-- 596 10g. Weather
-- 600 10k. Save slots; E.Saves: saves
-- 623 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 696 Blob rig; E.Blob: blob
-- 716 Tile map; E.TileMap: map
-- 779 Materials
-- 800 Flow field; E.FlowField: flow
-- 818 Texture helpers for floortex functions
-- 829 Platform map; E.PlatformMap: level
-- 863 Platformer; E.Platformer: hero
-- 904 Body; E.Body: body
-- 924 Actions; E.Action: action
-- 946 17c. Mover; E.Mover: mover
-- 985 17d. Perception; E.Suspicion: suspicion
-- 1002 Bullets; E.Bullets: shots
-- 1022 Spatial hash; E.SpatialHash: grid
-- 1032 Audio; game.audio
-- 1054 Backdrops; E.Backdrop: backdrop
-- 1062 21c. Props
-- 1067 21e. Shapes
-- 1079 Ui; E.Dialog: talk, E.Menu: menu
-- 1135 21d. Shell; E.Shell: shell
-- 1164 Gpu lighting (webgpu); game.gpu
-- 1185 Sessions
-- 1194 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1229 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1267 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1348 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1359 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1418 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1441 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1458 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
-- 1487 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
-- 1506 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 103 The engine object (E = My3D2dge)
+- 114 Math
+- 188 Pixel primitives
+- 207 Sprite frames, turns and swaps
+- 213 Views (projections); E.View: view
+- 240 Screen; game.screen
+- 262 Input; E.Input: input
+- 346 Pixel font
+- 357 Lighting; game.lights
+- 376 Particles; E.Particles: game.particles
+- 396 Renderer; r
+- 444 Game; E.Game: game
+- 555 Standard features; settings, fullscreen
+- 572 10c. Boot
+- 577 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 594 10e. Paths; E.Path: path
+- 604 10g. Weather
+- 608 10k. Save slots; E.Saves: saves
+- 631 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 704 Blob rig; E.Blob: blob
+- 724 Tile map; E.TileMap: map
+- 787 Materials
+- 808 Flow field; E.FlowField: flow
+- 826 Texture helpers for floortex functions
+- 837 Platform map; E.PlatformMap: level
+- 871 Platformer; E.Platformer: hero
+- 912 Body; E.Body: body
+- 932 Actions; E.Action: action
+- 954 17c. Mover; E.Mover: mover
+- 993 17d. Perception; E.Suspicion: suspicion
+- 1010 Bullets; E.Bullets: shots
+- 1030 Spatial hash; E.SpatialHash: grid
+- 1040 Audio; game.audio
+- 1062 Backdrops; E.Backdrop: backdrop
+- 1070 21c. Props
+- 1075 21e. Shapes
+- 1087 Ui; E.Dialog: talk, E.Menu: menu
+- 1143 21d. Shell; E.Shell: shell
+- 1172 Gpu lighting (webgpu); game.gpu
+- 1193 Sessions
+- 1202 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1237 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1275 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1356 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1367 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1426 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1449 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1466 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1495 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1514 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
+- 1540 Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js); E.Clock: clock, E.Strategy: strategy
 
 ## The engine object (E = My3D2dge)
 
@@ -106,7 +107,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.72.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.73.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -269,21 +270,26 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.anyPressed()`: any action pressed this step (title screens: "press any button")
 - `input.bindButtons(root)` †: wire every element with data-act="<action>" inside root to the action
 - `input.bindings` †: the player's bindings over the preset: { action: { keys: [codes], pad: [codes] } } (game.settings.bindings keeps them)
+- `input.box()` †: the pointer's gestures, read each step in screen pixels (the HUD's space), from a mouse or one finger: box() -> { x0, y0, x1, y1, from, to, done } while a box is drawn (a mouse's left button dragged; on a touch screen a long press, then a drag), done the step it is let go; else null
 - `input.buffered(a, win = .15)`: was it pressed within the last `win` seconds and not yet consumed? (input buffering)
 - `input.clear()`: Release all devices and discard buffered input on focus loss or a modal transition.
 - `input.clicked()` †: where a click or tap on the canvas landed, in screen pixels [x, y] (the HUD's space: r.W, r.H), during the step after it lifted (a press that drags away, like the touch stick's, is none); else null. Menus and dialogs answer to it; a HUD button of your own can: if (hit(input.clicked())) ...
 - `input.codeLabel(code)`: a code as a person reads it: 'W' (or the keyboard's own letter there), 'Space', '↑', 'Left click', and a gamepad button by its symbol on the controller in use ('A', '✕', 'B'...; glyphs picks the family)
 - `input.consume(a)`: mark a buffered press of action a as used, so buffered(a) is false until the next press
 - `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack)
+- `input.doubleTap()` †: [x, y] the step a second tap or click lands within .35 s and 8 pixels of the first (a double tap), else null
 - `input.down(a)`: is the action held right now?
 - `input.drag()` †: how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction
+- `input.feed(type, x, y, o = {})` †: a pointer event in screen pixels, as the browser's would give: feed('down' | 'move' | 'up', x, y, { touch: false, button: 0 }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses, double taps and pans follow), or feed('zoom', x, y, { k: 1.1 }): a wheel's notch or a pinch about that point
 - `input.history` †: the last second of input, oldest first: [{ t (input.clock), dir (numpad 1-9 for a fighter facing right: 5 neutral), pressed: the actions pressed then, directions aside }], one entry each time the direction changes or a button is pressed: an input display draws it; sequence() and motion() read it (section 10h: a kit without it has none)
 - `input.hold(a, on = true)`: hold an action down (on) or let it go (false), as its key would
 - `input.label(a, device = this.lastDevice)`: the key or button to show in a prompt for action a, on the device the player used last (or the one named: 'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕'
+- `input.longPress()` †: [x, y] the step a press held still has been held .45 s (a long press), else null
 - `input.motion(digits, button, o = {})` †: a fighter's move in numpad notation, mirrored by facing: input.motion('236', 'attack', { facing: hero.facing, window }) is a quarter circle forward and punch (down, down-forward, forward, attack: a fireball); '623' a dragon punch, '41236' a half circle. facing: 1 (right, the default) or -1. button: an action, 'attack+kick', or none (the motion alone)
 - `input.mouseScreen()`: mouse position in projected screen pixels, or null
 - `input.move()`: movement intent in screen directions: x right, y down, length <= 1
 - `input.padStyle()`: the controller family whose symbols label() shows: glyphs, or with glyphs 'auto' the one its name says
+- `input.pan()` †: [dx, dy] how far a drag moved this step: one finger on open ground (not a box), or a mouse's middle or right button; else null. A free camera pans by it (game.cam.free)
 - `input.pointer()` †: the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas
 - `input.press(code)`: press a key or button code ('KeyJ', 'Mouse0', 'Pad0', 'Act:attack') as if the person did: scripted input, tests, bots
 - `input.pressed(a)`: true only during the first update step after the press (menus, jumps, one-shot actions)
@@ -307,6 +313,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.unbind(a, device)` †: take away action a's codes for one device ('keys' or 'pad'); the arrow keys and d-pad stay on the moves
 - `input.use(map)`: switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings (bindings, set by rebind() and the Controls screen) are laid over it. Every preset (E.Input.DEFAULT, PLATFORMER, THIRDPERSON, SHMUP) has the moves (up, down, left, right) and the menu's actions (start, pause, confirm, cancel)
 - `input.zoom()` †: the camera zoom the player asked for since the last step, as a factor (1.1: 10% closer, .9: farther; 1: none): the wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy)
+- `input.zoomPoint()` †: [x, y] where the last zoom was asked for: the mouse pointer for the wheel, between the fingers for a pinch; null when the keys zoomed (about the screen's middle)
 - `input.aimSource = 'move'` †: what aims right now: 'move' | 'mouse' | 'pad'
 - `input.clock = 0`: seconds of input time (the steps' dt added up)
 - `input.deadzone = .18`: how far a gamepad stick moves before it counts (0..0.8)
@@ -409,6 +416,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.groundRing(x, y, rad, color, alpha = 1, z = 0)`: a ring lying on the ground (radius in world units)
 - `r.marker(x, y, z = 0, o = {})`: an objective marker over a world point: a bobbing diamond (and its label) while it is on screen, an arrow at the screen's edge pointing to it while it is off (offscreen: false hides it then). o: { label, color: '#ffd040', offscreen: 'arrow' }
 - `r.overlay(fn)`: draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus)
+- `r.pick(sx, sy)` †: what was drawn under a screen point (the HUD's pixels: input.clicked(), input.pointer()) in the last frame, front to back: the pick values of the actors, sprites, props and queued draws given one (r.actor(x, y, z, fn, { pick: unit })), each where its pixels went (an actor's drawn bounds; others' box, or a body's size round its point). [] for none
 - `r.prop(name, x, y, z, o = {})` †: set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint }) feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights. A prop at least chest high (E.HEIGHTS.chest, 22: a pillar, a statue, a lamp) drawn in front of an x-ray actor shows the actor's silhouette through it; a lower one (grass, a crate, a barrel) doesn't; hides: true or false says so.
 - `r.queue(x, y, z, fn, o)`: queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show through it (props, sprites, bodies), nothing else changes
 - `r.shadow(x, y, rad, alpha = .5, color = '#0c0818', z = 0)`: soft contact shadow under a character: a cached dithered ellipse, correct for the current view. z = height of the surface it falls on (0 = floor; the top of a block or platform otherwise)
@@ -500,7 +508,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.baseView` †: the chosen view without zoom and turn
 - `game.bootError = null`: the error a boot step failed with (the game did not start), or null
 - `game.booted`: a promise of the game once its boot (start's boot option, section 10c) has run and it has started: await it in a test whose boot steps return promises
-- `game.cam`: camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen rooms; moving = sliding between rooms; offset = [dx, dy] screen pixels from the screen's centre to where the focus sits (above a phone's touch buttons: [0, -40]); x, y: the camera's position in projected pixels (its top-left corner); vx, vy: how fast it is moving there; tx, ty, tz: the world point it is following (focus sets it); snap: true makes it jump there at the next step instead of gliding (a new level, a teleport); window: [w, h] screen pixels, a dead zone round the focus it moves in before the camera follows (Super Mario World's; [48, 0] for sideways only); snapY: true follows a followed body's height only when it lands (onGround) or nears the screen's edge (side-scrollers); frame(targets, { margin: 24, zoom: [min, max] or false }) keeps every one of them (anything with x, y, z) in view, centered between them and zoomed out (no further than min) when they spread apart, until frame(null)
+- `game.cam`: camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen rooms; moving = sliding between rooms; offset = [dx, dy] screen pixels from the screen's centre to where the focus sits (above a phone's touch buttons: [0, -40]); x, y: the camera's position in projected pixels (its top-left corner); vx, vy: how fast it is moving there; tx, ty, tz: the world point it is following (focus sets it); snap: true makes it jump there at the next step instead of gliding (a new level, a teleport); window: [w, h] screen pixels, a dead zone round the focus it moves in before the camera follows (Super Mario World's; [48, 0] for sideways only); snapY: true follows a followed body's height only when it lands (onGround) or nears the screen's edge (side-scrollers); frame(targets, { margin: 24, zoom: [min, max] or false }) keeps every one of them (anything with x, y, z) in view, centered between them and zoomed out (no further than min) when they spread apart, until frame(null); free: a free camera (strategy, sims, board games): true or { keys: true, edge: 10, drag: true, speed: 300, bounds: [x0, y0, x1, y1] }: the keys or a stick pan it (input.move(), speed screen pixels a second), the mouse at the screen's edge (within edge pixels), a drag (input.pan(): a finger on open ground, a mouse's middle or right button) one to one; a zoom (wheel, pinch) zooms toward the pointer or the pinch; its focus keeps to bounds (world x, y); focus() still moves it; in every view and turn; null (as it starts): off
 - `game.debug = null`: a game's own handle for tools and tests: game.debug = { snapshot() { return {...} }, teleport(x, y, z) {...} }. tools/check.mjs prints snapshot() and tools/replay.mjs logs it at the end
 - `game.disposed = true`: true after dispose()
 - `game.drawEvery = 1`: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw (a frame's cost, or refreshes missed: its GPU behind): every other refresh is drawn, evenly, instead of random ones missed (the updates still run every refresh). The player's Frame rate setting (game.settings.frameRate: 'auto', '60', 'full') can fix it at 2 or 1
@@ -1149,7 +1157,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `shell.hud({ bars, counts })` †: bars: [{ label, value, max, kind: 'bar' | 'pips', color }] (health, stamina, a meter); counts: [[label, value]]
 - `shell.hud({ prompt })` †: { key: 'E' (or act: 'interact': its key on the player's device), label, hint, progress: 0..1 }
 - `shell.hud({ keys, buttons })` †: keys: [['WASD', 'Move'], ...] (hidden on touch screens); buttons: [[label, fn or action]] (top right: pause and map where there is no Escape key)
-- `shell.hud({ minimap })` †: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick }
+- `shell.hud({ minimap })` †: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick(x, y) (the world point clicked), fog (an E.Fog: unseen cells black, seen ones dim), camera: true (the ground the screen shows) }
 - `shell.screen` †: the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays
 - `shell.settings` †: the player's settings: game.settings (the standard ones and the game's own, by key)
 - `shell.show(name, spec = {})` †: open a screen: 'title' | 'pause' | 'settings' | 'help' | 'results' | 'map' or a name of your own, from spec over o.screens[name]. A spec: { kicker, title, text (strings or functions), actions: [[label, fn] or { label, fn, act, primary, disabled }], back (fn for cancel) }. From another screen it stacks (back() returns); shown again, it updates (the new spec over the old). 'settings' takes its items
@@ -1528,3 +1536,49 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `story.running = false`: a node runs
 - `story.talk`: the E.Dialog it speaks through
 - `story.vars`: every flag and value (a line's {$name} reads them)
+
+## Module strategy: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays (engine/modules/strategy.js)
+
+- `new E.Clock(o = {}) → clock` †: new E.Clock({ day: 240 (real seconds of game time a day), hour: 8 (to start at) })
+- `clock.hour` †: the hour (0..23)
+- `clock.label()` †: 'DAY 2 14:30'
+- `clock.light()` †: the light by the hour: { ambient (.12 at night .. 1 at noon), color (the sky's tint: blue night, warm dawn and dusk) }
+- `clock.minute` †: the minute (0..59)
+- `clock.night` †: true from 20:00 to 6:00
+- `clock.update(dt)` †: run it by dt seconds of game time
+- `clock.day = 1` †: the day (1, 2, ...)
+- `clock.length` †: seconds a day
+- `clock.t` †: hours since the first midnight
+- `new E.Strategy(game, o = {}) → strategy` †: new E.Strategy(game, { map, kinds, sides, player, fog, on }): see the manual above
+- `strategy.afford(side, cost)` †: can side pay cost ({ gold: 50 })?
+- `strategy.ai(side, plan)` †: run side by plan ({ build: [[kind, n]], waves: { first, every, min }, script }): see the manual
+- `strategy.canPlace(kind, cx, cy, by = null)` †: can a building of kind stand on cells cx, cy (its corner)? On the map, walkable, no unit there (but by, its builder), seen by the player (when it is theirs)
+- `strategy.cancel(b)` †: take back the last in building's queue (refunded)
+- `strategy.draw(r)` †: after the world: a ring under each selected unit, health bars over the selected and the hurt, the box being drawn
+- `strategy.ghost(r, kind, cx, cy)` †: the placement ghost: kind's cells at cx, cy, green where it fits, red where it doesn't
+- `strategy.input(o = {})` †: the player's pointer and keys, each step (see the manual): selection, groups, orders. o.order: the action that orders (Mouse2 by default where it is bound); o.at(sx, sy) -> the world point under a screen point (map.pick's, by default)
+- `strategy.minimap(colors = {})` †: E.Shell's minimap spec: the map, the fog, the camera's view, the units seen as dots by side, a click moving the camera
+- `strategy.of(side, kind)` †: the side's standing units of a kind (or all of them, without kind)
+- `strategy.order(units, kind, target, o = {})` †: give units an order: kind 'move' | 'attack' | 'amove' | 'gather' | 'build' | 'patrol' | 'stop', target ({ x, y }, a unit, or { kind, cx, cy } to build), o.queue: after the orders they have
+- `strategy.remove(u)` †: take u off the map (it died, a mine ran out)
+- `strategy.side(id)` †: a side by id: { id, res: { gold: 300 }, ... }
+- `strategy.smart(units, x, y, target, o = {})` †: the right click: attack a foe at the point, gather a resource, else move (o.queue as order's)
+- `strategy.spawn(kind, side, x, y, o = {})` †: make a unit, building or resource of kind for side at world x, y (o.built: false leaves a building to be built)
+- `strategy.state()` †: what a proof hashes: every unit's kind, side, cell and HP, each side's resources
+- `strategy.train(b, kind)` †: queue kind at building (paid now): it comes out after its time, toward building.rally. False when it can't
+- `strategy.update(dt)` †: run the orders, production, fights, the fog and the AIs by dt seconds
+- `strategy.visible(u)` †: can the player see u? (the fog: any of its cells in sight; theirs always)
+- `strategy.fog` †: an E.Fog of the player's sight (walls block it, buildings don't), or null with fog: false
+- `strategy.game` †: the game it runs in
+- `strategy.groups` †: control groups: groups[1..9], kept with Ctrl and a digit
+- `strategy.kinds` †: the kinds by id (units, buildings, resources: see the manual)
+- `strategy.map` †: the TileMap it stands on (a building blocks its cells)
+- `strategy.on` †: its events: { attack, death, made, built, gathered, ordered }
+- `strategy.player` †: the side the player commands (its fog, selection, input)
+- `strategy.selected = []` †: the player's selection
+- `strategy.time = 0` †: seconds run (rts.update's dt summed)
+- `strategy.units = []` †: everything spawned (units, buildings, resources) that still stands
+- `E.choose(agent, options)` †: the option that best meets an agent's needs ({ gives: { hunger: -.6 }, x, y, cost }): each need it lowers, weighted by that need squared (the urgent first), less the walk (a cell's worth per 400 units) and cost against agent.money; null when none helps
+- `E.needs(agent, rates, dt)` †: raise an agent's needs (agent.needs: { hunger: .2, fun: .5 }, each 0..1) by rates ({ hunger: .01 }) a second
+- `E.overlay(r, map, value, colors = ['#2050c0', '#e0e040', '#e02020'], alpha = .45)` †: tint each cell by value(cx, cy) (0..1, or null for none) along colors (cold to hot): land value, crowding, mood
+- `E.tooltip(r, x, y, lines)` †: a box of lines (text, or [text, color]) beside a screen point (the pointer), kept on the screen
