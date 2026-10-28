@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.64.1 (2026-10-28)
+
+The genre plan's Milestone 3, closed: its progress row complete.
+
+- **Docs**: `docs/HANDOFF-GENRES.md`: section 9's M3 row with its commit (`9841a03`, #160), its sizes, `test:changed` (the two suites fixed in #160), the full `npm test` on `main`, and what is left (nothing).
+
 ## 0.64.0 (2026-10-28)
 
 The arcade: the genre plan's Milestone 3 (`docs/HANDOFF-GENRES.md`): the arcade module, a cabinet of three classics, and the shooter's arcade frame and horizontal stage. Every other kit, and the shooter's vertical stage, play as before (filmed beside v0.63.1: the same pixels).
