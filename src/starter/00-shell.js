@@ -31,6 +31,8 @@
  *                        a swept ball; a mission, multiball, tilt, a dot-matrix display drawn by code; E.Arcade's table
  *   SLICE 20 ARTILLERY   two teams of three (Worms, Scorched Earth): E.Terrain's island carved by every blast, E.Physics'
  *                        bouncing grenades, E.Turns; wind, falls and the sea; a CPU that tries its shots in simulation
+ *   SLICE 21 RHYTHM      four lanes on the music clock (Dance Dance Revolution, PaRappa): E.Rhythm's charts, judgments,
+ *                        holds and calls, the songbook's songs; a dancer and a crowd on the beat; the audio offset
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
@@ -66,6 +68,7 @@ const SLICES = [
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
   { id: 'road', label: 'ROAD', about: 'A COAST ROAD AGAINST THE CLOCK', family: 'RACING' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
+  { id: 'rhythm', label: 'RHYTHM', about: 'STEP UP! FOUR LANES, TWO SONGS', family: 'MUSIC' },
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
   { id: 'tactics', label: 'TACTICS', about: 'TAKE THE HILL FORT, TURN BY TURN', family: 'STRATEGY' },

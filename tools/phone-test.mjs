@@ -43,6 +43,9 @@
 //  22. artillery: ONE PLAYER a thumb's height, a tap on it starts a match; on the player's turn a tap beside the grub
 //      walks it there; WEAPON, named for the weapon, changes it; JUMP jumps; a drag back, let go, fires the other way
 //      (the shot flies, and the turn passes to the CPU)
+//  23. rhythm: STEP UP a thumb's height, a tap on it starts the song; a thumb on each of the four columns plays its lane:
+//      notes touched as they meet their targets are judged (not missed), each in the lane touched; CALIBRATE: taps
+//      anywhere count
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
@@ -95,7 +98,7 @@ const line = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => [a[0] + (b[0] 
 
 /* 1. a tap on the title's entry starts the kit */
 console.log('title: the first tap starts the game');
-for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'puzzle', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'animlab']) {
+for (const kit of ['adventure', 'pointclick', 'platformer', 'metroidvania', 'shooter', 'arcade', 'pinball', 'kart', 'road', 'puzzle', 'rhythm', 'rpg', 'roguelike', 'tactics', 'rts', 'artillery', 'sim', 'brawler', 'fighting', 'stealth', 'animlab']) {
   if (!want(kit)) continue;
   const { page, ctx, errors } = await open(kit, UP, '');
   await wait(400);
@@ -923,6 +926,42 @@ if (want('artillery')) {
     const s5 = await st();
     mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `artillery-${label.replace(/ /g, '-')}.png`) });
     check(`artillery ${label}: JUMP jumps; a drag back, let go, fires the other way; the turn passes to the CPU`, up > 4 && s3.ground && s4.shots === 1 && s5.turn >= 2 && !s5.human && !errors.length, `rose ${up.toFixed(1)}; shots ${s4.shots} (${s4.phase}); then turn ${s5.turn}, the CPU's ${!s5.human}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
+}
+
+/* 23. rhythm: the four columns are the lanes */
+if (want('rhythm')) {
+  console.log('rhythm: the lanes by thumb');
+  for (const [label, vp] of [['on its side', SIDE], ['upright', UP]]) {
+    const { page, ctx, cdp, errors } = await open('rhythm', vp, 'rhythm', () => { window.addEventListener('load', () => {}); });
+    await wait(600);
+    const btn = await ev(page, () => window.__game.scenes.rhythm.state().buttons()[0]), [bx, by] = await toCss(page, btn.x + btn.w / 2, btn.y + btn.h / 2), [, r0] = await toCss(page, 0, btn.y), [, r1] = await toCss(page, 0, btn.y + btn.h);
+    await page.touchscreen.tap(bx, by); await wait(400);
+    const st0 = await ev(page, () => { const s = window.__game.scenes.rhythm.state(); return { mode: s.mode, song: s.song }; });
+    check(`rhythm ${label}: STEP UP is a thumb's height; a tap on it starts the song`, r1 - r0 >= 44 && st0.mode === 'play' && st0.song === 'stepup', `the button ${(r1 - r0).toFixed(0)} CSS px, mode ${st0.mode}, ${st0.song}`);
+    // touch each of the next notes' columns as it meets its target (the column's middle, low on the screen)
+    const touched = [];
+    for (const until = Date.now() + 20000; Date.now() < until && touched.length < 6;) {
+      const nx = await ev(page, () => { const s = window.__game.scenes.rhythm.state(), a = s.rh.ahead().find(x => !x.note.j && !x.note.call && x.dt < .05 && x.dt > -.08); return a && { lane: a.note.lane, step: a.note.step }; });
+      if (nx && !touched.some(t => t.step === nx.step && t.lane === nx.lane)) {
+        const x = vp.width * (nx.lane + .5) / 4, y = vp.height * .85;
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] }); await wait(40); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        touched.push(nx);
+      } else await wait(8);
+    }
+    await wait(300);
+    const res = await ev(page, (T) => { const s = window.__game.scenes.rhythm.state(); return T.map(t => { const n = s.rh.notes.find(n => n.step === t.step && n.lane === t.lane); return n ? n.j : 'none'; }); }, touched);
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `rhythm-${label.replace(/ /g, '-')}.png`) });
+    const good = res.filter(j => j && j !== 'miss' && j !== 'none').length;
+    check(`rhythm ${label}: a thumb on a lane's column as its note meets its target is judged in that lane`, touched.length >= 6 && good >= 5, `${touched.map((t, i) => 'lane ' + t.lane + ': ' + res[i]).join(', ')}`);
+    // the calibration: back to the menu, CALIBRATE, taps anywhere below the top count
+    await ev(page, () => window.__game.game.back()); await wait(300);
+    const cb = await ev(page, () => window.__game.scenes.rhythm.state().buttons()[2]), [cx, cy] = await toCss(page, cb.x + cb.w / 2, cb.y + cb.h / 2);
+    await page.touchscreen.tap(cx, cy); await wait(900);
+    for (let i = 0; i < 4; i++) { await page.touchscreen.tap(vp.width / 2, vp.height * .7); await wait(600); }
+    const cal = await ev(page, () => { const s = window.__game.scenes.rhythm.state(); return { mode: s.mode, taps: s.cal ? s.cal.taps : -1 }; });
+    check(`rhythm ${label}: CALIBRATE, then taps anywhere count`, cal.mode === 'calibrate' && cal.taps >= 2 && !errors.length, `mode ${cal.mode}, ${cal.taps} taps counted${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
     await ctx.close();
   }
 }

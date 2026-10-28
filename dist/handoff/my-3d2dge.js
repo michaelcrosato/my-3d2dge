@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.77.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.78.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.77.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.78.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -2690,6 +2690,7 @@ class Game {
       }
       fresh = false;
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
+      this.audio._frame(now);   // (the music clock between steps, and the sound held to it)
       if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
         n++;
         try { this._frame(); } catch (e) { this.fail('draw', e); try { this.screen._present(); } catch (e2) { /* nothing to show */ } }
@@ -2858,6 +2859,7 @@ class Game {
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
     this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(dt);   // (the other players: section 10j)
+    this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
@@ -2875,6 +2877,7 @@ class Game {
     this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk);
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     this.time += dt;
+    this.audio._tick(true);   // (a synced song: on game.time, it waits with the game)
     const T = this._timers;
     if (T.length) {
       for (let i = 0; i < T.length; i++) { const t = T[i]; if (t.dead || this.time < t.at) continue; if (t.every) t.at += t.every; else t.dead = true; t.fn(); }
@@ -2972,6 +2975,7 @@ const STANDARD_SETTINGS = {
   music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio.applyVolume(); } },
   effects: { group: 'Sound', label: 'Effects', type: 'slider', value: 1, apply: (g, v) => { g.audio.sfxVolume = v; g.audio.applyVolume(); } },
   background: { group: 'Sound', label: 'Sound in the background', type: 'toggle', value: false, help: 'Keep playing sound while the page is hidden' },
+  audioOffset: { group: 'Sound', label: 'Audio offset', type: 'slider', value: 0, min: -100, max: 300, step: 5, unit: ' ms', calibrate: true, help: 'The music this much earlier, for speakers or headphones that lag (wireless ones: 150 to 250). Calibrate: tap on the clicks you hear', apply: (g, v) => { g.audio.offset = v / 1000; } },
   motion: { group: 'Comfort', label: 'Reduce motion', type: 'toggle', value: g => !!g.reduceMotion, help: 'No screen shake, shorter flashes, still menus', apply: (g, v) => { g.reduceMotion = !!v; } },
   shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
   flashes: { group: 'Comfort', label: 'Screen flashes', type: 'slider', value: 1 },
@@ -7521,6 +7525,10 @@ class ChipAudio {
      *  playing (null for none); failed: why there is no sound (a message), or null; ducked: true while duck(true)
      *  holds the music down */
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
+    /** offset: seconds the music sounds early, for speakers and headphones that lag (settings.audioOffset); drift: what
+     *  is heard against the game's clock at the last frame (seconds: the sound follows the clock, so it stays near 0);
+     *  anchors: how many times the sound was moved to meet the clock */
+    this.offset = 0; this.drift = 0; this.anchors = 0; this._ats = []; this._beats = []; this._fading = []; this._stings = []; this._fr = null; this._timer = null;
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
     this._rnd = rng(0x51A7E);
@@ -7586,7 +7594,8 @@ class ChipAudio {
   }
   /**
    * Play a sound effect: a preset name ('jump', 'coin', 'hit', 'explode', ...), a voice object, or a list of voices.
-   * opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03) }
+   * opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03), step: a step of the music playing (it
+   * sounds on that step of the music clock, scheduled with the music: a rhythm game's calls and claps) }
    */
   sfx(what, o = {}) {
     if (!this._init() || this.muted) return;
@@ -7596,7 +7605,8 @@ class ChipAudio {
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
     const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this._rnd() * 2 - 1));
-    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, now + .005, mul); }
+    const C = this.song, at = o.step !== undefined && C && C.anchor ? Math.max(now + .005, C.anchor.ctx + (this._timeOf(C, o.step) - C.anchor.clk) - this.offset) : now + .005;
+    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, at, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
   /** add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 }) */
@@ -7607,37 +7617,153 @@ class ChipAudio {
    *   { wave: 'triangle', notes: 'C3 . C3 . G2 . G2 .' },
    *   { wave: 'drums', notes: 'k . h . s . h . k k h . s . h .' } ] }
    * tokens: C4 F#3 Bb2 = note, '-' holds the previous note, '.' = rest, '|' is ignored (bar lines).
-   * steps = steps per beat (4 = sixteenth notes). Each track loops on its own length.
+   * steps = steps per beat (4 = sixteenth notes). Each track loops on its own length within the song's (len: steps, else
+   * its longest track's); a track may have a name, and on: false starts it silent (a layer that audio.layer brings in).
+   * THE MUSIC CLOCK: a song starts at the game's time and where it is is game time (audio.pos, headless too: the same
+   * steps hear the same beats); the sound follows that clock. o: { loop, sync: true (it pauses with the game, on
+   * game.time; else it plays on through a pause, on game.real), fade: seconds (a crossfade from the song playing),
+   * restart: true (again from its start, though it is the one playing) }.
    * E.songs has ready-made loops: title, adventure, dungeon, boss, victory.
    */
   music(song, o = {}) {
     if (typeof song === 'string') { const s = E.songs[song]; if (!s) { warn('song:' + song, 'unknown song "' + song + '". Built in: ' + Object.keys(E.songs).join(', ')); return; } song = s; }
-    if (!song) { this.stopMusic(); return; }
-    if (!this._init()) return;
-    if (this.song && this.song.src === song) return;
-    this.stopMusic();
-    const tracks = (song.tracks || []).map(t => Object.assign({}, t, { tokens: String(t.notes || '').replace(/\|/g, ' ').trim().split(/\s+/).filter(Boolean) })).filter(t => t.tokens.length);
-    if (!tracks.length) { warn('music:empty', 'music(song) needs song.tracks with notes'); return; }
-    const bus = this.ctx.createGain(); bus.connect(this._musBus);
-    this.song = { src: song, tracks, spb: 60 / (song.bpm || 120) / (song.steps || 4), step: 0, next: 0, len: Math.max(...tracks.map(t => t.tokens.length)), loop: o.loop !== undefined ? o.loop : song.loop !== false, bus };
-    this._timer = setInterval(() => { try { this._schedule(); } catch (e) { warn('music-fail', 'music stopped: ' + e.message); this.stopMusic(); } }, 25);
+    if (!song) { this.stopMusic(o.fade); return; }
+    const old = this.song; if (old && old.src === song && !old.ended && !o.restart) return;
+    const C = this._clock(song, !!(o.sync !== undefined ? o.sync : song.sync), o.loop !== undefined ? o.loop : song.loop !== false, this._now(!!(o.sync !== undefined ? o.sync : song.sync)));
+    if (!C) { warn('music:empty', 'music(song) needs song.tracks with notes'); return; }
+    this.song = C; this._ats = [];
+    this._stopSound(old, o.fade); this._sound(C, o.fade);
   }
-  /** stop the music (it fades out over 60 ms) */
-  stopMusic() {
-    if (this._timer) clearInterval(this._timer); this._timer = null;
-    const S = this.song; this.song = null;
-    if (S && this.ctx) { const t = this.ctx.currentTime; S.bus.gain.setValueAtTime(S.bus.gain.value, t); S.bus.gain.linearRampToValueAtTime(0, t + .06); setTimeout(() => { try { S.bus.disconnect(); } catch (e) { /* gone */ } }, 300); }
+  /** stop the music (it fades out over fade seconds, .06 by default) */
+  stopMusic(fade) { const S = this.song; this.song = null; this._ats = []; this._stopSound(S, fade); }
+  // a song's clock: its tracks' tokens, its steps' length, where it started (t0, at step s0: a tempo change moves them)
+  _clock(song, sync, loop, t) {
+    const tracks = (song.tracks || []).map((tr, k) => Object.assign({}, tr, { k, tokens: String(tr.notes || '').replace(/\|/g, ' ').trim().split(/\s+/).filter(Boolean) })).filter(tr => tr.tokens.length);
+    if (!tracks.length) return null;
+    tracks.forEach((tr, i) => { tr.i = i; });
+    const steps = song.steps || 4, bpm = song.bpm || 120;
+    return { src: song, tracks, steps, bpm, spb: 60 / bpm / steps, len: song.len || Math.max(...tracks.map(tr => tr.tokens.length)), loop, sync, start: t, t0: t, s0: 0, done: -1, next: 0, ended: false, vols: tracks.map(tr => tr.on === false ? 0 : 1), bus: null, anchor: null, drift: 0 };
+  }
+  // the clock a song runs on: game.time when synced (it pauses with the game), else game.real
+  _now(sync) { const g = this._game; return g ? (sync ? g.time : g.real) : 0; }
+  _stepAt(C, t) { return C.s0 + (t - C.t0) / C.spb; }
+  _timeOf(C, k) { return C.t0 + (k - C.s0) * C.spb; }
+  // the clock now between the game's steps: what it read at the last frame and the real time since (to schedule the
+  // sound and to place a tap's event time)
+  _clockNow(C, perf) {
+    const g = this._game, base = this._now(C.sync), F = this._fr;
+    if (!F || !g || typeof performance === 'undefined') return base;
+    const rate = C.sync && (g.paused || g.hitstop > 0) ? 0 : g.timeScale;
+    return base + (F.acc + Math.min(.1, ((perf === undefined ? performance.now() : perf) - F.perf) / 1000)) * rate;
+  }
+  /** where the music is, on the game's clock (headless too): { t: seconds since it started, step (from 0, counting on
+   *  as it loops), beat, bar (four beats), at (the step in its loop), loop (times round), bpm, layers (each track's
+   *  volume), playing } */
+  get pos() {
+    const C = this.song; if (!C) return { t: 0, step: 0, beat: 0, bar: 0, at: 0, loop: 0, bpm: 0, layers: [], playing: false };
+    const now = this._now(C.sync), s0 = Math.max(0, this._stepAt(C, now)), s = !C.loop ? Math.min(s0, C.len) : s0;
+    return { t: now - C.start, step: s, beat: s / C.steps, bar: s / C.steps / 4, at: s % C.len, loop: Math.floor(s / C.len), bpm: C.bpm, layers: C.vols.slice(), playing: !C.ended && (C.loop || s0 < C.len) };
+  }
+  /** call fn(step) on the update step the music reaches step (counted from its start, on as it loops); the song's
+   *  change cancels it. Returns { cancel() } */
+  at(step, fn) { const a = { step: Math.round(step), fn, dead: false }; this._ats.push(a); return { cancel() { a.dead = true; } }; }
+  /** call fn(beat, pos) on the update step of each beat of whatever music plays (a dancer's step, a light's pulse).
+   *  Returns { cancel() } */
+  onBeat(fn) { const b = { fn }; this._beats.push(b); return { cancel: () => { this._beats = this._beats.filter(x => x !== b); } }; }
+  /** change the music's tempo as it plays (hurry up!): where it is stays, the steps after come at the new bpm */
+  tempo(bpm) { const C = this.song; if (!C || !(bpm > 0)) return; const now = this._now(C.sync); C.s0 = this._stepAt(C, now); C.t0 = now; C.bpm = bpm; C.spb = 60 / bpm / C.steps; }
+  /** a track's volume as the song plays, 0..1, faded over fade seconds: layers of one song (the chase's drums in when
+   *  the guards see you, out when they lose you). track: its index in song.tracks, or its name */
+  layer(track, vol = 1, fade = .5) {
+    const C = this.song; if (!C) return this;
+    const t = C.tracks.find(x => x.k === track || (x.name !== undefined && x.name === track)); if (!t) { warn('layer:' + track, 'audio.layer: the song playing has no track "' + track + '" (an index in its tracks, or a track\'s name)'); return this; }
+    C.vols[t.i] = clamp(+vol || 0, 0, 1);
+    if (t.gain && this.ctx) { const g = t.gain.gain, n = this.ctx.currentTime; g.cancelScheduledValues(n); g.setValueAtTime(g.value, n); g.linearRampToValueAtTime(C.vols[t.i], n + Math.max(.01, fade)); }
+    return this;
+  }
+  /** play a short song once over the music (a goal's jingle): o.at 'now', 'beat' or 'bar' (on the music's next beat or
+   *  bar), o.duck (the music's volume under it, .4) */
+  sting(song, o = {}) {
+    if (typeof song === 'string') song = E.songs[song];
+    const C = this.song, sync = C ? C.sync : false, now = this._now(sync); let t = now;
+    if (C && o.at && o.at !== 'now') { const per = o.at === 'bar' ? C.steps * 4 : C.steps; t = this._timeOf(C, Math.ceil(this._stepAt(C, now) / per - 1e-9) * per); }
+    const S = song && this._clock(song, sync, false, t); if (!S) return;
+    S.anchor = C && C.anchor; S.end = t + S.len * S.spb; this._stings.push(S); this._sound(S);
+    if (C && C.bus && this.ctx && C.anchor) { const g = C.bus.gain, a = Math.max(this.ctx.currentTime, C.anchor.ctx + (t - C.anchor.clk)), b = a + S.len * S.spb; g.setValueAtTime(g.value, a); g.linearRampToValueAtTime(o.duck === undefined ? .4 : o.duck, a + .05); g.setValueAtTime(o.duck === undefined ? .4 : o.duck, b); g.linearRampToValueAtTime(1, b + .2); }
+  }
+  /** the audio offset's calibration: a click on each beat (100 bpm, the first of a bar higher) as the music; tap(time)
+   *  on each one heard (an event's timeStamp, or nothing: this update step). After 8 taps, result is the offset to set
+   *  (ms: settings.audioOffset) and done is true; taps go on refining it. stop() puts the music back */
+  calibrate() {
+    const prev = this.song && this.song.src, A = this, devs = [];
+    this.music({ bpm: 100, steps: 1, tracks: [{ wave: 'square', vol: .24, notes: 'C6 G5 G5 G5' }] }, { restart: true });
+    const C = this.song, K = { taps: 0, result: null, done: false, devs,
+      tap(perf) {
+        if (!C) return; const t = perf === undefined ? A._now(C.sync) : A._clockNow(C, perf), k = Math.round(A._stepAt(C, t)); if (k < 1) return;
+        devs.push((t - A._timeOf(C, k)) * 1000); K.taps = devs.length;
+        if (devs.length >= 8) { const d = devs.slice(-8).sort((a, b) => a - b); K.result = Math.round(A.offset * 1000 + (d[3] + d[4]) / 2); K.done = true; }
+      },
+      stop() { if (A.song === C) A.music(prev || null); } };
+    return K;
+  }
+  // the music clock's step (the game calls it each update): the events between the last step and this one
+  _tick(sync) {
+    const C = this.song; if (!C || C.sync !== sync || C.ended) return;
+    const k1 = Math.floor(this._stepAt(C, this._now(sync)) + 1e-9);
+    for (let k = C.done + 1; k <= k1; k++) {
+      if (!C.loop && k >= C.len) { C.ended = true; break; }
+      C.done = k;
+      for (const a of this._ats) if (a.step === k && !a.dead) { a.dead = true; a.fn(k); }
+      if (k % C.steps === 0) for (const b of this._beats.slice()) b.fn(k / C.steps, this.pos);
+      if (this.song !== C) return;   // (an event changed the song)
+    }
+    if (this._ats.length) this._ats = this._ats.filter(a => !a.dead);
+  }
+  // the sound of a song: a bus with a gain for each track (its layer); its notes scheduled ahead on the music clock
+  _sound(C, fade) {
+    if (!C || !this._init()) return;
+    const c = this.ctx, bus = c.createGain(); bus.connect(this._musBus); C.bus = bus;
+    if (fade > 0) { bus.gain.setValueAtTime(0, c.currentTime); bus.gain.linearRampToValueAtTime(1, c.currentTime + fade); }
+    for (const t of C.tracks) { t.gain = c.createGain(); t.gain.gain.value = C.vols[t.i]; t.gain.connect(bus); }
+    if (!this._timer) this._timer = setInterval(() => { try { this._schedule(); } catch (e) { warn('music-fail', 'music stopped: ' + e.message); this.stopMusic(); } }, 25);
+    this._schedule();
+  }
+  _stopSound(S, fade) {
+    if (!S || !S.bus || !this.ctx) return;
+    const c = this.ctx, n = c.currentTime, f = Math.max(.02, fade || .06), bus = S.bus, g = bus.gain;
+    g.cancelScheduledValues(n); g.setValueAtTime(g.value, n); g.linearRampToValueAtTime(0, n + f);
+    if (fade > .06) this._fading.push(S);   // (a crossfade: it plays on as it fades)
+    setTimeout(() => { try { bus.disconnect(); } catch (e) { /* gone */ } this._fading = this._fading.filter(x => x !== S); }, f * 1000 + 300);
   }
   _schedule() {
-    const S = this.song, c = this.ctx; if (!S || !c) return;
-    if (c.state !== 'running') { S.next = 0; return; }
-    if (!S.next || S.next < c.currentTime - .2) S.next = c.currentTime + .05;
-    while (S.next < c.currentTime + .12) {
-      if (S.step >= S.len && !S.loop) { const end = S.next; setTimeout(() => { if (this.song === S) this.stopMusic(); }, Math.max(0, (end - c.currentTime) * 1000 + 400)); S.next = 1e9; return; }
-      const pos = S.step % S.len;
-      for (const t of S.tracks) this._note(t, pos % t.tokens.length, S.next, S.spb, S.bus);
-      S.step++; S.next += S.spb;
+    const c = this.ctx; if (!c || c.state !== 'running') return;
+    for (const C of [this.song, ...this._fading, ...this._stings]) if (C && C.bus) this._ahead(C);
+    if (this._stings.length) this._stings = this._stings.filter(S => { const live = this._clockNow(S) < S.end + .5; if (!live) try { S.bus.disconnect(); } catch (e) { /* gone */ } return live; });
+    if (!this.song && !this._fading.length && !this._stings.length) { clearInterval(this._timer); this._timer = null; }
+  }
+  // a song's notes for the next 150 ms of its clock, each at the sound's time its anchor maps it to (less the offset)
+  _ahead(C) {
+    const c = this.ctx, now = this._clockNow(C);
+    if (!C.anchor) { C.anchor = { ctx: c.currentTime + .05, clk: now }; C.next = Math.max(C.next, Math.floor(this._stepAt(C, now) + .5)); }
+    for (let n = 0; n < 64; n++) {
+      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 || (!C.loop && k >= C.len)) break;
+      const at = C.anchor.ctx + (t - C.anchor.clk) - this.offset, p = k % C.len;
+      if (at > c.currentTime - .03) for (const tr of C.tracks) this._note(tr, p % tr.tokens.length, Math.max(at, c.currentTime), C.spb, tr.gain);
+      C.next++;
     }
+  }
+  // each frame (the game's loop calls it): the clock read for the time between steps, and the sound held to it: what
+  // is heard now, against the game's clock now (drift); past 4 ms (smoothed) the sound's notes move to meet it
+  _frame(perf) {
+    const g = this._game; this._fr = { perf, acc: g._acc };
+    const C = this.song, c = this.ctx; if (!C || !C.anchor || !c || c.state !== 'running' || (C.sync && (g.paused || g.hitstop > 0))) return;
+    const ts = c.getOutputTimestamp && c.getOutputTimestamp(), ok = ts && ts.performanceTime > 0 && ts.contextTime > 0;
+    const heard = ok ? ts.contextTime : c.currentTime - (c.outputLatency || c.baseLatency || 0), p = ok ? ts.performanceTime : performance.now();
+    const err = heard - (C.anchor.ctx + (this._clockNow(C, p) - C.anchor.clk));
+    this.drift = err;
+    if (Math.abs(err) > .1) { C.anchor.ctx += err; C.drift = 0; this.anchors++; return; }   // (a stall, a pause: anchored again)
+    C.drift += (err - C.drift) * .2;
+    if (Math.abs(C.drift) > .004) { C.anchor.ctx += C.drift; C.drift = 0; this.anchors++; }
   }
   _note(t, i, time, spb, bus) {
     const tok = t.tokens[i]; if (tok === '.' || tok === '-' || tok === '_') return;
@@ -9206,7 +9332,9 @@ class Shell {
       const fmt = v => hi <= 1 && lo >= 0 ? Math.round(v * 100) + '%' : Math.round(v * 100) / 100 + (sp.unit || '');
       Object.assign(r, { type: 'range', min: lo, max: hi, step: sp.step || (hi - lo) / 20, value: S[key] }); r.setAttribute('aria-label', sp.label || key); out.textContent = fmt(S[key]);
       r.oninput = () => { out.textContent = fmt(this._set(key, +r.value)); };
-      box.append(r, out); row.appendChild(box); return row;
+      box.append(r, out);
+      if (sp.calibrate) { const b = this._el('button', 'esh-sel', 'Calibrate'); b.onclick = () => this._calibrate(key); box.appendChild(b); }
+      row.appendChild(box); return row;
     }
     if (sp.type === 'select') {
       const opts = (sp.options || []).map(o => Array.isArray(o) ? o : [o, String(o)]), b = this._el('button', 'esh-sel');
@@ -9279,8 +9407,19 @@ class Shell {
   _btn(a, i, pri = true) {
     const b = Array.isArray(a) ? { label: a[0], fn: a[1] } : a, e = this._el('button', b.primary || (b.primary === undefined && i === 0 && pri) ? 'pri' : '', b.label);
     e.disabled = !!b.disabled;
-    e.onclick = () => { if (b.fn) b.fn(); else if (b.act) { this._game.input.tap(b.act); this._held.add(b.act); } };
+    if (b.down) {   // (a press, timed: the event's own time, not the click's after the finger lifts)
+      e.onpointerdown = ev => { ev.preventDefault(); b.down(ev.timeStamp); };
+      e.onkeydown = ev => { if ((ev.key === ' ' || ev.key === 'Enter') && !ev.repeat) { ev.preventDefault(); b.down(ev.timeStamp); } };
+    } else e.onclick = () => { if (b.fn) b.fn(); else if (b.act) { this._game.input.tap(b.act); this._held.add(b.act); } };
     return e;
+  }
+  /** the audio offset's calibration screen: clicks on the beat, a Tap button (or Space) on each one heard; after eight
+   *  the offset found, kept with Keep it */
+  _calibrate(key) {
+    const K = this._game.audio.calibrate(), close = () => { K.stop(); this.back(); };
+    this.show('calibrate', { kicker: 'Sound', title: 'Audio offset', back: close,
+      text: () => K.done ? 'Your sound comes ' + K.result + ' ms after the beat. Keep it, or tap on to measure again.' : 'Tap on each click you hear, in time with it, not before (' + K.taps + ' of 8). The higher click starts each bar.',
+      actions: () => [{ label: 'Tap', primary: true, down: t => { K.tap(t); this.show('calibrate', {}); } }, { label: 'Keep it', disabled: !K.done, fn: () => { this._game.settings.set(key, K.result); close(); } }, ['Cancel', close]] });
   }
   /** build the open screen */
   _render() {
@@ -10184,7 +10323,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.77.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.78.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10399,7 +10538,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.77.1: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.78.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -10759,7 +10898,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.77.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.78.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10984,7 +11123,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.77.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.78.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11535,7 +11674,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.77.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.78.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11718,7 +11857,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.77.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.78.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12127,7 +12266,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.77.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.78.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12332,7 +12471,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.77.1: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.78.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12698,7 +12837,214 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.77.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module RHYTHM v0.78.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine only. Needs: no other module.
+
+PaRappa's, Beatmania's, Dance Dance Revolution's and Space Channel 5's play: notes on a song's steps, hit in time.
+- const rh = new E.Rhythm(game, { song, chart, lanes: ['left', 'down', 'up', 'right'] (the actions, one a lane),
+  windows: { perfect: 40, great: 80, good: 120 } (ms either side), life: .5, lead: 1.6 (seconds of notes shown
+  ahead), voice: { wave: 'square', vol: .2, dur: .09 } (the call notes' sound), on: { judge(j, note), fail(rh),
+  done(rh) } }).
+- chart: a string a lane, a character a step of the song: 'x' a note, 'h' a held note's head and '=' while it is
+  held, 'c' a call (PaRappa's teacher: it sounds and shows, the player answers after), '.' none; '|' and spaces are
+  ignored. Or { parts: { A: [lanes], B: [lanes] }, order: 'A A B A' } (the parts one after another), or { track: 1,
+  lanes: 4 } (that track's notes, a lane by pitch, a note held three steps or more a hold).
+- rh.start() plays the song from its start, synced (it pauses with the game); rh.update() each step after the input:
+  a lane's press is judged by its distance in ms from its nearest note's time on the music clock (game.audio.pos:
+  game time, never the sound's own), a hold let go before its end drops, a note past the good window is missed, a
+  call sounds on its step (game.audio.sfx(voice, { step })).
+- rh.hit(lane), rh.release(lane): play a lane without its action (a bot, a lane of your own on a touch screen).
+- State: score, combo, maxCombo, counts { perfect, great, good, miss }, life (0..1, at 0 failed), accuracy (0..1),
+  grade ('S' 'A' 'B' 'C' 'D'), done, failed, last ({ j, lane, ms, t }: the last judgment, for its flash), notes
+  (each { lane, step, end, call, j, ms }), total (the notes to play).
+- rh.ahead() -> the notes to show: [{ note, dt (seconds to its time, < 0 past it), dtEnd }]; rh.draw(r, { x, y (the
+  target line's middle), dir: 'down' | 'up' | 'left' | 'right' (the way notes travel), len: 150 (pixels for lead
+  seconds), gap: 24 (between lanes), size: 8, colors, arrows: false (four lanes' notes as arrows: left, down, up,
+  right), call: false (draw the call notes instead) }) draws a highway on the overlay: the lanes, their targets, notes
+  and holds, each lane's flash.
+
+```js rhythm
+const E = My3D2dge, game = new E.Game({ headless: true }); game.start({ update() {}, draw() {} });
+const song = { bpm: 120, steps: 4, loop: false, len: 32, tracks: [{ wave: 'drums', notes: 'k . h . s . h .' }] };
+const rh = new E.Rhythm(game, { song, chart: ['x...x...', '..x.....', '......h===', '.'] });
+rh.start(); const hits = [[0, 0], [2, 1], [4, 0], [6, 2]];
+for (let i = 0; i < 400 && !rh.done; i++) {
+  game.advance(1 / 120); const s = game.audio.pos.step;
+  for (const h of hits) if (!h.done && s >= h[0]) { rh.hit(h[1]); h.done = true; }
+  if (s >= 9) rh.release(2); rh.update();
+}
+if (rh.counts.perfect !== 4 || rh.combo !== 4 || rh.grade !== 'S') throw new Error(JSON.stringify(rh.counts));
+```
+Rules: judge on the music clock (rh does), never on the sound's; give the player the audio offset (Settings, Sound:
+its calibration) and keep the windows generous on a phone; draw notes from rh.ahead() each frame.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module RHYTHM: load engine/my-3d2dge.js (the full engine) first');
+
+/* =============================================================================
+ * RHYTHM  charts (lane strings, parts or a track's notes), judgments in ms of the music clock, combos, life, grades,
+ * holds, calls (call and response), a note highway in any direction
+ * ========================================================================== */
+const SCORE = { perfect: 300, great: 200, good: 100 }, LIFE = { perfect: .03, great: .02, good: .005, miss: -.1 }, CALL = ['C5', 'E5', 'G5', 'C6', 'E6', 'G6'];
+const clean = s => String(s).replace(/[|\s]/g, '');
+// a part's lane strings laid at a step: notes { lane, step, end, call }
+function lanesOf(lanes, at, out) {
+  lanes.forEach((s, lane) => {
+    const c = clean(s);
+    for (let i = 0; i < c.length; i++) {
+      const ch = c[i];
+      if (ch === 'x' || ch === 'c') out.push({ lane, step: at + i, end: at + i, call: ch === 'c' });
+      else if (ch === 'h') { let j = i; while (c[j + 1] === '=') j++; out.push({ lane, step: at + i, end: at + j, call: false }); i = j; }
+    }
+  });
+  return out;
+}
+// a chart's notes: lane strings, parts in an order, or a track's notes (a lane by pitch)
+function notesOf(chart, song) {
+  if (Array.isArray(chart)) return lanesOf(chart, 0, []);
+  if (chart && chart.parts) {
+    const out = []; let at = 0;
+    for (const k of String(chart.order).trim().split(/\s+/)) { const p = chart.parts[k]; if (!p) throw new Error('rhythm: the chart\'s order names a part "' + k + '" it does not have'); lanesOf(p, at, out); at += Math.max(...p.map(s => clean(s).length)); }
+    return out;
+  }
+  if (chart && chart.track !== undefined) {
+    const tr = song.tracks[chart.track], toks = String(tr.notes).replace(/\|/g, ' ').trim().split(/\s+/), n = chart.lanes || 4, out = [];
+    const len = song.len || Math.max(...song.tracks.map(t => String(t.notes).replace(/\|/g, ' ').trim().split(/\s+/).length));
+    const pitches = [...new Set(toks.filter(t => E.note(t) > 0))].sort((a, b) => E.note(a) - E.note(b));
+    for (let base = 0; base < len; base += toks.length) toks.forEach((t, i) => {
+      if (!(E.note(t) > 0) || base + i >= len) return; let j = i; while (toks[j + 1] === '-') j++;
+      out.push({ lane: Math.floor(pitches.indexOf(t) * n / pitches.length), step: base + i, end: j - i >= 2 ? base + j : base + i, call: false });
+    });
+    return out;
+  }
+  throw new Error('rhythm: a chart is lane strings, { parts, order } or { track, lanes }');
+}
+class Rhythm {
+  /** new E.Rhythm(game, { song, chart, lanes, windows, life, lead, voice, on }): see the manual */
+  constructor(game, o = {}) {
+    /** game: its game; song: the song charted; lanes: the actions, one a lane; windows: { perfect, great, good } in ms
+     *  either side of a note; lead: seconds of notes shown ahead; voice: the calls' sound; on: { judge, fail, done } */
+    this.game = game; this.song = o.song; this.lanes = o.lanes || ['left', 'down', 'up', 'right']; this.windows = Object.assign({ perfect: 40, great: 80, good: 120 }, o.windows); this.lead = o.lead || 1.6; this.voice = Object.assign({ wave: 'square', vol: .2, dur: .09 }, o.voice); this.on = o.on || {};
+    this._life = o.life === undefined ? .5 : o.life;
+    /** notes: every note of the chart in time order ({ lane, step, end, call, j: its judgment or null, ms }) */
+    this.notes = notesOf(o.chart, this.song).sort((a, b) => a.step - b.step || a.lane - b.lane);
+    this.reset();
+  }
+  /** back to the start: no judgments, a full combo of nothing, life as given */
+  reset() {
+    /** score: the points; combo: the notes hit in a row; maxCombo: the longest combo; counts: { perfect, great, good,
+     *  miss }; life: the gauge 0..1; done: the song is over, or failed; failed: the life ran out; started: start() was
+     *  called; last: the last judgment { j, lane, ms, t }; down: each lane held now */
+    this.score = 0; this.combo = 0; this.maxCombo = 0; this.counts = { perfect: 0, great: 0, good: 0, miss: 0 }; this.life = this._life; this.done = false; this.failed = false; this.started = false; this.last = null; this.down = this.lanes.map(() => false);
+    this._flash = this.lanes.map(() => -9);
+    for (const n of this.notes) { n.j = null; n.ms = 0; n.holding = false; n.played = false; }
+  }
+  /** the notes to play (not the calls) */
+  get total() { return this.notes.filter(n => !n.call).length; }
+  /** how well so far, 0..1: a perfect counts whole, a great .7, a good .4 */
+  get accuracy() { const c = this.counts, n = c.perfect + c.great + c.good + c.miss; return n ? (c.perfect + c.great * .7 + c.good * .4) / n : 1; }
+  /** the grade of the accuracy: 'S' (95%), 'A' (85), 'B' (70), 'C' (50), 'D' */
+  get grade() { const a = this.accuracy; return a >= .95 ? 'S' : a >= .85 ? 'A' : a >= .7 ? 'B' : a >= .5 ? 'C' : 'D'; }
+  /** play the song from its start (synced: it pauses with the game) and judge from here */
+  start() { this.reset(); this.game.audio.music(this.song, { sync: true, restart: true, loop: false }); this.started = true; }
+  // seconds a step lasts now, and the music's step now (the music clock: game time)
+  _spb() { const p = this.game.audio.pos; return 60 / (p.bpm || this.song.bpm || 120) / (this.song.steps || 4); }
+  /** a press in a lane: judged against the nearest note there within the good window (a hold starts held) */
+  hit(lane) {
+    if (!this.started || this.done) return null;
+    this.down[lane] = true;
+    const s = this.game.audio.pos.step, spb = this._spb(); let best = null, bd = 1e9;
+    for (const n of this.notes) { if (n.lane !== lane || n.call || n.j) continue; const d = Math.abs(s - n.step) * spb * 1000; if (d <= this.windows.good && d < bd) { best = n; bd = d; } if (n.step > s + 4 * this.song.steps) break; }
+    if (!best) return null;
+    const ms = Math.round((s - best.step) * spb * 1000), w = this.windows, a = Math.abs(ms);
+    this._judge(best, a <= w.perfect ? 'perfect' : a <= w.great ? 'great' : 'good', ms);
+    if (best.end > best.step) best.holding = true;
+    return best;
+  }
+  /** a lane let go: a hold let go before its end (less the good window) drops */
+  release(lane) {
+    this.down[lane] = false;
+    const s = this.game.audio.pos.step, spb = this._spb();
+    for (const n of this.notes) if (n.holding && n.lane === lane) {
+      n.holding = false;
+      if ((n.end - s) * spb * 1000 > this.windows.good) { n.dropped = true; this.combo = 0; this.counts.miss++; this._gauge(LIFE.miss / 2); this.last = { j: 'miss', lane, ms: 0, t: this.game.time }; if (this.on.judge) this.on.judge('miss', n); }
+      else this.score += 100;
+    }
+  }
+  _gauge(d) { this.life = Math.max(0, Math.min(1, this.life + d)); if (this.life <= 0 && !this.failed) { this.failed = this.done = true; if (this.on.fail) this.on.fail(this); } }
+  _judge(n, j, ms) {
+    n.j = j; n.ms = ms; this.counts[j]++;
+    if (j === 'miss') this.combo = 0; else { this.combo++; this.maxCombo = Math.max(this.maxCombo, this.combo); this.score += Math.round(SCORE[j] * (1 + Math.min(this.combo, 50) / 100)); }
+    this.last = { j, lane: n.lane, ms, t: this.game.time }; if (j !== 'miss') this._flash[n.lane] = this.game.time;
+    this._gauge(LIFE[j]);
+    if (this.on.judge) this.on.judge(j, n);
+  }
+  /** each step, after the input: the lanes' actions pressed and let go, calls sounded, notes missed, holds kept, the end */
+  update() {
+    if (!this.started || this.done) return;
+    const I = this.game.input, A = this.game.audio, s = A.pos.step, spb = this._spb();
+    this.lanes.forEach((a, i) => { if (I.pressed(a)) this.hit(i); else if (this.down[i] && I.released(a)) this.release(i); });
+    for (const n of this.notes) {
+      if (n.step > s + 8 * this.song.steps) break;
+      if (n.call) { if (!n.played && (n.step - s) * spb < .1) { n.played = true; A.sfx(Object.assign({ freq: CALL[n.lane % CALL.length] }, this.voice), { step: n.step }); } if (!n.j && s >= n.step) { n.j = 'call'; this._flash[n.lane] = this.game.time; } continue; }
+      if (!n.j && (s - n.step) * spb * 1000 > this.windows.good) this._judge(n, 'miss', 0);
+      if (n.holding && s >= n.end) { n.holding = false; this.score += 100; }
+      if (this.done) return;
+    }
+    const p = A.pos; if (!p.playing && p.t > 0) { this.done = true; if (this.on.done) this.on.done(this); }
+  }
+  /** the notes to show now: [{ note, dt, dtEnd }] (seconds to the note's time and to its end; a little past the line
+   *  for the missed, the held while held); call: the calls instead */
+  ahead(call = false) {
+    const s = this.game.audio.pos.step, spb = this._spb(), out = [];
+    for (const n of this.notes) {
+      if (!!n.call !== call) continue;
+      const dt = (n.step - s) * spb, dtEnd = (n.end - s) * spb; if (dt > this.lead) break;
+      if (dtEnd < -.3 || (n.j && n.j !== 'miss' && !n.holding && n.end === n.step && !call) || (call && dt < -.15)) continue;
+      out.push({ note: n, dt, dtEnd });
+    }
+    return out;
+  }
+  /** draw the highway on the overlay (see the manual) */
+  draw(r, o = {}) {
+    const px = E.px, n = this.lanes.length, dir = o.dir || 'down', len = o.len || 150, gap = o.gap || 24, size = o.size || 8, call = !!o.call;
+    const cols = o.colors || ['#ff5a8a', '#5ac8ff', '#7aff6a', '#ffd040', '#c08aff', '#ff9a40'];
+    const D = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] }[dir] || [0, 1], P = [Math.abs(D[1]), Math.abs(D[0])];
+    const x0 = o.x === undefined ? r.W / 2 : o.x, y0 = o.y === undefined ? r.H - 36 : o.y, t = this.game.time;
+    const at = (lane, dt) => { const off = (lane - (n - 1) / 2) * gap, k = dt / this.lead * len; return [x0 + P[0] * off - D[0] * k, y0 + P[1] * off - D[1] * k]; };
+    // a strip between two points along the highway, w across it (one fill: translucent as a whole)
+    const strip = (a, b, w, c) => px.rect(g0, Math.min(a[0], b[0]) - P[0] * w / 2, Math.min(a[1], b[1]) - P[1] * w / 2, Math.abs(b[0] - a[0]) + P[0] * w, Math.abs(b[1] - a[1]) + P[1] * w, c);
+    // a note: an arrow pointing its lane's way (left, down, up, right) or a disc
+    const ANG = [Math.PI, Math.PI / 2, -Math.PI / 2, 0], ARROW = [[1, 0], [0, -1], [0, -.45], [-1, -.45], [-1, .45], [0, .45], [0, 1]];
+    const mark = (g, lane, x, y, sz, c) => {
+      if (!(o.arrows && n === 4)) { px.disc(g, x, y, sz, '#000000'); px.disc(g, x, y, sz - 1, c); px.disc(g, x - 2, y - 2, Math.max(1, sz / 3), '#ffffff'); return; }
+      const a = ANG[lane], ca = Math.cos(a), sa = Math.sin(a), pts = k => ARROW.map(([u, v]) => [x + (u * ca - v * sa) * k, y + (u * sa + v * ca) * k]);
+      px.poly(g, pts(sz + 1.5), '#000000'); px.poly(g, pts(sz), c); px.poly(g, pts(sz * .45), E.mix(c, '#ffffff', .55));
+    };
+    let g0 = null;
+    r.overlay(g => {
+      g0 = g;
+      for (let i = 0; i < n; i++) {   // the lanes, their targets (lit a moment when hit), the press held
+        px.blend(g, .25, 'normal', () => strip(at(i, -.15), at(i, this.lead), gap - 6, call ? '#8a8ab0' : cols[i % cols.length]));
+        const [x, y] = at(i, 0), lit = t - this._flash[i] < .12;
+        if (o.arrows && n === 4 && !call) { mark(g, i, x, y, size + 1, lit ? '#ffffff' : this.down[i] ? cols[i % cols.length] : '#3a3a5a'); px.poly(g, [[x - 1, y - 1], [x + 1, y - 1], [x + 1, y + 1], [x - 1, y + 1]], '#101020'); }
+        else { px.disc(g, x, y, size + 2, '#000000'); px.disc(g, x, y, size + 1, lit ? '#ffffff' : this.down[i] && !call ? cols[i % cols.length] : '#3a3a5a'); px.disc(g, x, y, size - 2, '#101020'); }
+      }
+      for (const { note: m, dt, dtEnd } of this.ahead(call)) {
+        const c = m.j === 'miss' || m.dropped ? '#5a5a6a' : call ? '#e0e0ff' : cols[m.lane % cols.length];
+        if (m.end > m.step) strip(at(m.lane, m.holding ? 0 : Math.max(dt, 0)), at(m.lane, dtEnd), Math.max(4, size), E.mix(c, '#000000', .25));
+        if (!m.holding) { const [x, y] = at(m.lane, dt); mark(g, m.lane, x, y, size, c); }
+      }
+    });
+  }
+}
+E.Rhythm = Rhythm;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+/*!
+my-3D2dge module ROAD v0.78.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12858,7 +13204,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.77.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.78.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13039,7 +13385,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.77.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.78.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13367,7 +13713,161 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.77.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module SONGS v0.78.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+Original chiptunes in the step sequencer's format (game.audio.music's: { bpm, steps, tracks }), each with a title and
+its moods, ready to play or to copy and change.
+- E.Songbook.songs: every song by id; E.Songbook.get(id) -> the song; E.Songbook.find(mood) -> the ids of the songs of
+  that mood (in the order they are listed); E.Songbook.moods: every mood there is.
+- Moods: title, field, town, shop, calm, dungeon, battle, boss, race, puzzle, space, horror, stealth, chase, dance,
+  and the jingles (loop: false): stage clear, game over, one-up, level up, fanfare.
+- A song's tracks may have a name and on: false (a layer, silent until game.audio.layer(name, 1) brings it in, on the
+  full engine): 'shadows' sneaks on three tracks and brings in 'chase' and 'alarm' when the guards see you.
+- A song's len (steps) can run longer than its tracks (they loop on their own lengths within it): the dance songs.
+
+```js songs
+const E = My3D2dge, battle = E.Songbook.find('battle');
+if (!battle.length || !E.Songbook.get(battle[0]).tracks.length) throw new Error('a battle song');
+if (E.Songbook.get('clear').loop !== false || !E.Songbook.moods.includes('stealth')) throw new Error('jingles and moods');
+for (const id in E.Songbook.songs) for (const t of E.Songbook.songs[id].tracks) if (!t.notes.trim()) throw new Error(id);
+```
+Rules: play one with game.audio.music(E.Songbook.get(id)) (a jingle: audio.sting, over the music); copy a song into
+your game to change it; a kit carries this module only when it plays its songs.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module SONGS: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * SONGS  the songbook: songs by id, each with a title and moods; find(mood), get(id)
+ * ========================================================================== */
+const S = {
+  // gathered from the kits (and the core's own, by name)
+  title: { core: 'title', title: 'Title', mood: ['title'] },
+  adventure: { core: 'adventure', title: 'Adventure', mood: ['field'] },
+  dungeon: { core: 'dungeon', title: 'Dungeon', mood: ['dungeon'] },
+  boss: { core: 'boss', title: 'Boss', mood: ['boss', 'battle'] },
+  victory: { core: 'victory', title: 'Victory', mood: ['stage clear', 'fanfare'] },
+  road: { title: 'The Road North', mood: ['field'], bpm: 126, steps: 4, tracks: [
+    { wave: 'square', vol: .1, notes: 'G4 - B4 - D5 - - G5 | F#5 - D5 - E5 - D5 - | C5 - E5 - G5 - - E5 | D5 - B4 - A4 - - - | G4 - B4 - D5 - - G5 | A5 - G5 - F#5 - E5 - | D5 - C5 - B4 - A4 - | G4 - - - - - . .' },
+    { wave: 'triangle', vol: .3, notes: 'G2 . D3 . G2 . D3 . | D2 . A2 . D2 . A2 . | C3 . G3 . C3 . G3 . | D3 . A2 . D3 . A2 . | G2 . D3 . G2 . D3 . | F2 . C3 . D3 . A2 . | C3 . G2 . D3 . A2 . | G2 . D3 . G2 . . .' },
+    { wave: 'drums', vol: .1, notes: 'k . h . s . h . k k h . s . h h' }] },
+  town: { title: 'Market Day', mood: ['town'], bpm: 104, steps: 4, tracks: [
+    { wave: 'triangle', vol: .3, notes: 'F3 . C4 . A3 . C4 . | C3 . G3 . E3 . G3 . | D3 . A3 . F3 . A3 . | Bb2 . F3 . C3 . E3 .' },
+    { wave: 'pulse', vol: .11, notes: 'A4 - C5 - F5 - E5 D5 | C5 - - - G4 - - - | D5 - F5 - A5 - G5 F5 | E5 - C5 - D5 - - -' },
+    { wave: 'drums', vol: .06, notes: 'k . h . . . h . k . h . . . h h' }] },
+  shanty: { title: 'The Salty Gull', mood: ['town'], bpm: 92, steps: 3, tracks: [
+    { wave: 'square', vol: .1, notes: 'D5 - A4 | D5 E5 F5 | E5 - C5 | A4 - - | D5 - A4 | F5 E5 D5 | C5 - E5 | D5 - - | F5 - G5 | A5 - F5 | G5 F5 E5 | C5 - - | D5 - F5 | E5 C5 A4 | D5 C5 E5 | D5 - -' },
+    { wave: 'triangle', vol: .28, notes: 'D3 A3 A3 | D3 A3 A3 | C3 G3 G3 | A2 E3 E3 | D3 A3 A3 | Bb2 F3 F3 | C3 G3 G3 | D3 A3 A3 | F3 C4 C4 | F3 C4 C4 | C3 G3 G3 | A2 E3 E3 | Bb2 F3 F3 | A2 E3 E3 | A2 E3 C#3 | D3 A3 D3' },
+    { wave: 'drums', vol: .05, notes: 'k . h | s . h' }] },
+  hymn: { title: 'The Lamp Is Lit', mood: ['calm'], bpm: 76, steps: 3, tracks: [
+    { wave: 'square', vol: .1, notes: 'D5 - F#5 | A5 - - | G5 F#5 E5 | F#5 - - | D5 - E5 | F#5 - A5 | B5 A5 F#5 | A5 - - | D6 - - | . . .' },
+    { wave: 'triangle', vol: .28, notes: 'D3 A3 F#3 | D3 A3 F#3 | A2 E3 C#3 | D3 A3 F#3 | G2 D3 B2 | D3 A3 F#3 | G2 D3 B2 | A2 E3 C#3 | D3 A3 D4 | . . .' }] },
+  battle: { title: 'Encounter', mood: ['battle'], bpm: 152, steps: 4, tracks: [
+    { wave: 'saw', vol: .07, notes: 'A4 A4 C5 A4 E5 - D5 C5 | B4 B4 D5 B4 E5 - D5 B4 | C5 C5 E5 C5 A5 - G5 E5 | F5 - E5 - D5 - B4 -' },
+    { wave: 'square', vol: .07, notes: 'A3 . A3 . A3 . A3 . | G#3 . G#3 . G#3 . G#3 . | A3 . A3 . C4 . C4 . | D4 . D4 . E4 . E4 .' },
+    { wave: 'triangle', vol: .3, notes: 'A2 A3 A2 A3 A2 A3 A2 A3 | E2 E3 E2 E3 E2 E3 E2 E3 | F2 F3 F2 F3 C3 C4 C3 C4 | D3 D4 D3 D4 E3 E4 E3 E4' },
+    { wave: 'drums', vol: .12, notes: 'k h s h k k s h' }] },
+  versus: { title: 'Round One', mood: ['battle'], bpm: 150, steps: 4, tracks: [
+    { wave: 'pulse12', vol: .1, notes: 'A4 - C5 D5 E5 - D5 C5 | D5 - G4 - C5 B4 A4 G4 | F4 - A4 C5 D5 - E5 - | G5 F5 E5 D5 E5 - - -' },
+    { wave: 'triangle', vol: .3, notes: 'A2 . A2 A3 A2 . A2 G2 | G2 . G2 G3 G2 . G2 E2 | F2 . F2 F3 F2 . F2 G2 | G2 . G2 B2 D3 . E3 .' },
+    { wave: 'drums', vol: .1, notes: 'k . h . s . h k k . h . s . h h' }] },
+  kart: { title: 'Grand Prix', mood: ['race'], bpm: 148, steps: 4, tracks: [
+    { wave: 'square', vol: .06, notes: 'C5 . E5 G5 . E5 C5 . | D5 . F5 A5 . F5 D5 . | E5 . G5 C6 . G5 E5 . | D5 . B4 G4 . A4 B4 .' },
+    { wave: 'triangle', vol: .26, notes: 'C3 C3 G2 G2 C3 C3 G2 G2 | D3 D3 A2 A2 D3 D3 A2 A2 | E3 E3 B2 B2 C3 C3 G2 G2 | G2 G2 D3 D3 G2 G2 B2 B2' },
+    { wave: 'drums', vol: .07, notes: 'k . h k s . h . k . h k s . h h' }] },
+  breeze: { title: 'Sea Breeze', mood: ['race'], bpm: 132, steps: 4, tracks: [
+    { wave: 'square', vol: .06, notes: 'E5 . G5 A5 . G5 E5 D5 | C5 . D5 E5 . . . . | E5 . G5 A5 . B5 A5 G5 | A5 . G5 E5 . . D5 .' },
+    { wave: 'triangle', vol: .26, notes: 'A2 . A3 . A2 . A3 . | F2 . F3 . F2 . F3 . | C3 . C4 . C3 . C4 . | G2 . G3 . G2 . G3 .' },
+    { wave: 'drums', vol: .07, notes: 'k . h . s . h k k . h . s . h h' }] },
+  neon: { title: 'Neon Highway', mood: ['race', 'chase'], bpm: 150, steps: 4, tracks: [
+    { wave: 'square', vol: .05, notes: 'A4 A5 E5 A4 G5 E5 C5 G4 | F4 F5 C5 F4 E5 C5 A4 E4 | G4 G5 D5 G4 F5 D5 B4 F4 | E4 E5 B4 E4 G#5 E5 B4 G#4' },
+    { wave: 'triangle', vol: .26, notes: 'A1 A2 A1 A2 A1 A2 A1 A2 | F1 F2 F1 F2 F1 F2 F1 F2 | G1 G2 G1 G2 G1 G2 G1 G2 | E1 E2 E1 E2 E1 E2 E1 E2' },
+    { wave: 'drums', vol: .07, notes: 'k h s h k h s h k h s h k k s h' }] },
+  stack: { title: 'Stack Attack', mood: ['puzzle'], bpm: 144, steps: 4, tracks: [
+    { wave: 'square', vol: .11, notes: 'E5 . G5 . C6 - B5 . A5 . G5 . E5 - D5 . | C5 . D5 . E5 - G5 . F5 - E5 . D5 - - . | A4 . C5 . F5 - E5 . D5 . C5 . A4 - G4 . | B4 . D5 . G5 - F5 . E5 . D5 . C5 - - .' },
+    { wave: 'triangle', vol: .3, notes: 'C3 . G3 . C3 . G3 . A2 . E3 . A2 . E3 . | F2 . C3 . F2 . C3 . G2 . D3 . G2 . D3 . | F2 . C3 . F2 . C3 . C3 . G3 . C3 . G3 . | G2 . D3 . G2 . D3 . C3 . G3 . C3 . . .' },
+    { wave: 'drums', vol: .12, notes: 'k . h . s . h . k . h k s . h h' }] },
+  crypt: { title: 'The Crypt', mood: ['dungeon', 'horror'], bpm: 84, steps: 4, tracks: [
+    { wave: 'pulse12', vol: .12, notes: 'D5 - - - F5 - E5 - D5 - C5 - A4 - - - | Bb4 - - - A4 - G4 - A4 - - - - - . . | D5 - - - F5 - G5 - A5 - G5 - F5 - E5 - | F5 - E5 - D5 - C#5 - D5 - - - - - . .' },
+    { wave: 'triangle', vol: .3, notes: 'D2 - . . D2 . . . A2 - . . D2 . . . | G2 - . . G2 . . . D2 - . . D2 . . . | Bb1 - . . Bb1 . . . F2 - . . F2 . . . | A1 - . . A1 . . . D2 - . . D2 . . .' },
+    { wave: 'drums', vol: .08, notes: 'k . . . h . . . k . . . h . h .' }] },
+  station: { title: 'Orbital Station', mood: ['space'], bpm: 120, steps: 4, tracks: [
+    { wave: 'square', vol: .06, notes: 'E4 . E5 . B4 . G4 . | E4 . E5 . C5 . A4 . | D4 . D5 . A4 . F4 . | E4 . B4 . G4 . D4 .' },
+    { wave: 'triangle', vol: .26, notes: 'E2 E2 . E2 E3 . E2 . | C2 C2 . C2 C3 . C2 . | D2 D2 . D2 D3 . D2 . | B1 B1 . B1 B2 . D2 .' },
+    { wave: 'drums', vol: .07, notes: 'k . h . s . h . k k h . s . h h' }] },
+  nebula: { title: 'Nebula Run', mood: ['space'], bpm: 138, steps: 4, tracks: [
+    { wave: 'square', vol: .1, notes: 'E5 . G5 . B5 . E6 - D6 . B5 . G5 . A5 . | B5 - - . A5 . G5 . F#5 . D5 . E5 - - . | C5 . E5 . G5 . C6 - B5 . G5 . E5 . F#5 . | G5 . F#5 . E5 . D#5 . E5 - - - - . . .' },
+    { wave: 'triangle', vol: .3, notes: 'E2 E3 E2 E3 E2 E3 E2 E3 | G2 G3 G2 G3 D2 D3 D2 D3 | C2 C3 C2 C3 C2 C3 C2 C3 | B1 B2 B1 B2 E2 E3 E2 E3' },
+    { wave: 'drums', vol: .11, notes: 'k . h . s . h k k . h . s . h h' }] },
+  // new
+  shop: { title: 'Open All Night', mood: ['shop'], bpm: 116, steps: 4, tracks: [
+    { wave: 'pulse', vol: .1, notes: 'C5 . E5 . G5 . E5 . A5 - G5 . E5 . . . | D5 . F5 . A5 . F5 . G5 - - . . . . . | E5 . G5 . C6 . G5 . A5 - F5 . D5 . . . | G4 . B4 . D5 . F5 . E5 - C5 - - . . .' },
+    { wave: 'triangle', vol: .28, notes: 'C3 . G2 . C3 . E3 . | F2 . C3 . F2 . A2 . | D3 . A2 . D3 . F3 . | G2 . D3 . G2 . B2 . | C3 . G2 . C3 . E3 . | F2 . C3 . F2 . A2 . | G2 . D3 . G2 . B2 . | C3 . G2 . C3 . . .' },
+    { wave: 'drums', vol: .06, notes: 'k . h h . h k . k . h h s . h .' }] },
+  gloom: { title: 'Something Below', mood: ['horror'], bpm: 70, steps: 4, tracks: [
+    { wave: 'triangle', vol: .3, notes: 'C2 - - - - - - - - - - - . . . . | C#2 - - - - - - - - - - - . . . . | C2 - - - - - - - - - - - . . . . | B1 - - - - - - - G1 - - - - - . .' },
+    { wave: 'pulse12', vol: .07, notes: '. . . . G4 - F#4 - . . . . . . . . | . . . . G4 - G#4 - A4 - . . . . . . | . . . . Eb5 - D5 - . . . . . . . . | . . C5 - B4 - . . . . . . . . . .' },
+    { wave: 'sine', vol: .06, notes: 'C6 . . . . . . . . . . . . . . . | . . . . . . . . . . . . F#6 . . . | . . . . . . . . . . . . . . . . | . . . . . . . . B5 . . . . . . .' },
+    { wave: 'drums', vol: .07, notes: 'k . . . . . . . . . k . . . . . | k . . . . . . . . . . . t . . .' }] },
+  shadows: { title: 'Shadows on the Roofs', mood: ['stealth', 'chase'], bpm: 108, steps: 4, tracks: [
+    { name: 'bass', wave: 'triangle', vol: .28, notes: 'A2 . . A2 . . A2 . | A2 . . A2 . C3 . . | F2 . . F2 . . F2 . | G2 . . G2 . E2 . .' },
+    { name: 'tick', wave: 'drums', vol: .06, notes: 'h . . h . . h . h . . h . . h .' },
+    { name: 'lead', wave: 'pulse12', vol: .07, notes: 'E5 - . . . . D5 . | C5 - . . B4 . A4 . | . . . . F5 - E5 . | D5 - . . E5 - . . | E5 - . . . . G5 . | F5 - . . E5 . D5 . | C5 - . . D5 - . . | B4 - - - . . . .' },
+    { name: 'chase', wave: 'drums', vol: .13, on: false, notes: 'k . h k s . h . k k h . s . h s' },
+    { name: 'alarm', wave: 'saw', vol: .06, on: false, notes: 'A3 A3 A4 A3 E4 A3 G4 A3 | A3 A3 A4 A3 C5 A3 B4 A3 | F3 F3 F4 F3 C4 F3 E4 F3 | G3 G3 G4 G3 D4 G3 B3 G3' }] },
+  pursuit: { title: 'Over the Wall', mood: ['chase'], bpm: 168, steps: 4, tracks: [
+    { wave: 'saw', vol: .07, notes: 'D5 D5 . D5 F5 . E5 D5 | C5 C5 . C5 E5 . D5 C5 | Bb4 Bb4 . Bb4 D5 . C5 Bb4 | A4 - C#5 - E5 - G5 -' },
+    { wave: 'triangle', vol: .3, notes: 'D2 D3 D2 D3 D2 D3 D2 D3 | C2 C3 C2 C3 C2 C3 C2 C3 | Bb1 Bb2 Bb1 Bb2 Bb1 Bb2 Bb1 Bb2 | A1 A2 A1 A2 A1 A2 C#2 C#3' },
+    { wave: 'drums', vol: .13, notes: 'k h s h k k s h k h s h k s s s' }] },
+  stepup: { title: 'Step Up', mood: ['dance'], bpm: 120, steps: 4, len: 512, tracks: [
+    { name: 'drums', wave: 'drums', vol: .12, notes: 'k . h . s . h . k . h k s . h h' },
+    { name: 'bass', wave: 'triangle', vol: .3, notes: 'E2 . E3 E2 . E2 E3 . | G2 . G3 G2 . G2 G3 . | A2 . A3 A2 . A2 A3 . | B2 . B3 B2 . A2 G2 . ' },
+    { name: 'chords', wave: 'square', vol: .05, notes: '. . B4 . . . B4 . | . . D5 . . . D5 . | . . E5 . . . E5 . | . . F#5 . . . F#5 .' },
+    { name: 'lead', wave: 'pulse', vol: .09, notes: '. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . | E5 . G5 . A5 - G5 . E5 . D5 . E5 - - . G5 . A5 . B5 - A5 . G5 . E5 . D5 - - . | E5 . G5 . A5 - G5 . E5 . D5 . E5 - G5 . A5 - B5 . D6 - B5 . A5 - G5 . E5 - - . | B5 . . B5 . . A5 . G5 . . G5 . . E5 . D5 . . D5 . . E5 . G5 - - - . . . .' }] },
+  rapschool: { title: 'Rap School', mood: ['dance'], bpm: 100, steps: 4, len: 384, tracks: [
+    { name: 'drums', wave: 'drums', vol: .13, notes: 'k . . h s . . k k . h . s . h .' },
+    { name: 'bass', wave: 'triangle', vol: .32, notes: 'C3 . . C3 . . Bb2 . | . . Bb2 . G2 . Bb2 . | F2 . . F2 . . G2 . | . . G2 . Bb2 . B2 .' },
+    { name: 'keys', wave: 'square', vol: .05, notes: '. . E5 . . . G5 . | . . F5 . . . D5 . | . . A4 . . . C5 . | . . B4 . . . D5 .' }] },
+  // jingles (once)
+  clear: { title: 'Stage Clear', mood: ['stage clear'], bpm: 160, steps: 4, loop: false, tracks: [
+    { wave: 'square', vol: .16, notes: 'C5 . E5 . G5 . C6 - - - A5 . B5 . C6 - - - - - . .' },
+    { wave: 'triangle', vol: .3, notes: 'C3 . . . E3 . G3 - - - F3 . G3 . C3 - - - - - . .' },
+    { wave: 'drums', vol: .12, notes: 'k . h . k . h . s . . . k . k . c . . . . . . .' }] },
+  gameover: { title: 'Game Over', mood: ['game over'], bpm: 90, steps: 4, loop: false, tracks: [
+    { wave: 'pulse', vol: .14, notes: 'A4 - - . G4 - - . F4 - - . E4 - - - D4 - - - - - - - . .' },
+    { wave: 'triangle', vol: .3, notes: 'D3 - - - - - - - Bb2 - - - - - - - A2 - - - - - - - . .' }] },
+  oneup: { title: 'One Up', mood: ['one-up'], bpm: 200, steps: 4, loop: false, tracks: [
+    { wave: 'square', vol: .16, notes: 'E5 G5 E6 C6 D6 G6 . .' }] },
+  levelup: { title: 'Level Up', mood: ['level up'], bpm: 180, steps: 4, loop: false, tracks: [
+    { wave: 'square', vol: .15, notes: 'C5 E5 G5 C6 . G5 C6 - E6 - - - . .' },
+    { wave: 'triangle', vol: .28, notes: 'C3 . . . . G2 . . C3 - - - . .' }] },
+  fanfare: { title: 'Royal Fanfare', mood: ['fanfare'], bpm: 132, steps: 4, loop: false, tracks: [
+    { wave: 'square', vol: .15, notes: 'G4 . G4 G4 C5 - - - E5 . E5 E5 G5 - - - | C6 - - - G5 . E5 . F5 . A5 . G5 - - - | E5 . F5 . G5 . A5 . C6 - - - - - . .' },
+    { wave: 'pulse', vol: .08, notes: 'E4 . E4 E4 G4 - - - C5 . C5 C5 E5 - - - | E5 - - - E5 . C5 . C5 . F5 . E5 - - - | C5 . D5 . E5 . F5 . E5 - - - - - . .' },
+    { wave: 'triangle', vol: .3, notes: 'C3 . C3 C3 C3 - - - C3 . C3 C3 C3 - - - | A2 - - - C3 . C3 . F2 . F2 . C3 - - - | C3 . . . F2 . . . C3 - - - - - . .' },
+    { wave: 'drums', vol: .12, notes: 's s s s k . . . s s s s k . . . | c . . . s . s . s . s . k . . . | s . s . s . s . c . . . . . . .' }] }
+};
+const MOODS = ['title', 'field', 'town', 'shop', 'calm', 'dungeon', 'battle', 'boss', 'race', 'puzzle', 'space', 'horror', 'stealth', 'chase', 'dance', 'stage clear', 'game over', 'one-up', 'level up', 'fanfare'];
+/** the songbook: songs by id, their moods, get(id), find(mood) (see the manual) */
+const Songbook = {
+  /** every song by id ({ title, mood: [...], bpm, steps, tracks, loop }; the core's own songs are E.songs') */
+  songs: {},
+  /** every mood a song has, in the order of the manual */
+  moods: MOODS,
+  /** a song by id (playable: game.audio.music(E.Songbook.get('town'))), or undefined */
+  get(id) { return this.songs[id]; },
+  /** the ids of the songs of a mood, in the order listed */
+  find(mood) { return Object.keys(this.songs).filter(id => this.songs[id].mood.includes(mood)); }
+};
+for (const id in S) { const s = S[id]; Songbook.songs[id] = s.core ? Object.assign({ title: s.title, mood: s.mood }, E.songs[s.core]) : s; }
+E.Songbook = Songbook;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+/*!
+my-3D2dge module STORY v0.78.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13575,7 +14075,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.77.1: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.78.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14016,7 +14516,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.77.1: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.78.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

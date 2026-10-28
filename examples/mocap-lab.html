@@ -94,7 +94,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
   <canvas id="screen" role="img" aria-label="Mocap lab: imported animation clips played on a pixel-art mannequin and on the engine's hero"></canvas>
   <div class="hud top">
     <div class="brand panel">
-      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a> <span class="ver" title="Release and build">v0.77.1 · dev-build</span></h1>
+      <h1>Mocap Lab <a class="to-labs" href="labs.html" title="Every lab and test page">All labs</a> <span class="ver" title="Release and build">v0.78.0 · dev-build</span></h1>
       <p id="note"></p>
       <select id="pick" aria-label="Animation clip"></select>
     </div>
@@ -171,7 +171,7 @@ a.to-labs{font-size:13px;font-weight:400;margin-left:8px;color:var(--accent);tex
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.77.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.78.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -252,7 +252,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.77.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.78.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -2862,6 +2862,7 @@ class Game {
       }
       fresh = false;
       const t0 = performance.now(), steps = this._run(raw), t1 = performance.now();
+      this.audio._frame(now);   // (the music clock between steps, and the sound held to it)
       if (since >= (this.drawEvery - .5) * per) {   // drawn once drawEvery refreshes have passed (else a refresh left as it was: its updates have run)
         n++;
         try { this._frame(); } catch (e) { this.fail('draw', e); try { this.screen._present(); } catch (e2) { /* nothing to show */ } }
@@ -3030,6 +3031,7 @@ class Game {
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
     this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); if (this._players) for (let i = 1; i < this._players.length; i++) this._players[i].tick(dt);   // (the other players: section 10j)
+    this.audio._tick(false);   // (the music clock: a song on game.real plays on through a pause)
     for (const f of HOOKS.input) f(this, dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
@@ -3047,6 +3049,7 @@ class Game {
     this._zoomFit(); const zk = I.zoom(); if (zk !== 1) this.zoomBy(zk);
     if (this.hitstop > 0) { this.hitstop -= dt; return; }
     this.time += dt;
+    this.audio._tick(true);   // (a synced song: on game.time, it waits with the game)
     const T = this._timers;
     if (T.length) {
       for (let i = 0; i < T.length; i++) { const t = T[i]; if (t.dead || this.time < t.at) continue; if (t.every) t.at += t.every; else t.dead = true; t.fn(); }
@@ -3144,6 +3147,7 @@ const STANDARD_SETTINGS = {
   music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio.applyVolume(); } },
   effects: { group: 'Sound', label: 'Effects', type: 'slider', value: 1, apply: (g, v) => { g.audio.sfxVolume = v; g.audio.applyVolume(); } },
   background: { group: 'Sound', label: 'Sound in the background', type: 'toggle', value: false, help: 'Keep playing sound while the page is hidden' },
+  audioOffset: { group: 'Sound', label: 'Audio offset', type: 'slider', value: 0, min: -100, max: 300, step: 5, unit: ' ms', calibrate: true, help: 'The music this much earlier, for speakers or headphones that lag (wireless ones: 150 to 250). Calibrate: tap on the clicks you hear', apply: (g, v) => { g.audio.offset = v / 1000; } },
   motion: { group: 'Comfort', label: 'Reduce motion', type: 'toggle', value: g => !!g.reduceMotion, help: 'No screen shake, shorter flashes, still menus', apply: (g, v) => { g.reduceMotion = !!v; } },
   shake: { group: 'Comfort', label: 'Screen shake', type: 'slider', value: 1 },
   flashes: { group: 'Comfort', label: 'Screen flashes', type: 'slider', value: 1 },
@@ -7693,6 +7697,10 @@ class ChipAudio {
      *  playing (null for none); failed: why there is no sound (a message), or null; ducked: true while duck(true)
      *  holds the music down */
     this.presets = Object.assign({}, SFX); this._last = {}; this.song = null; this.failed = null; this._ducked = false; this.ducked = false; this._waves = {};
+    /** offset: seconds the music sounds early, for speakers and headphones that lag (settings.audioOffset); drift: what
+     *  is heard against the game's clock at the last frame (seconds: the sound follows the clock, so it stays near 0);
+     *  anchors: how many times the sound was moved to meet the clock */
+    this.offset = 0; this.drift = 0; this.anchors = 0; this._ats = []; this._beats = []; this._fading = []; this._stings = []; this._fr = null; this._timer = null;
     // sound draws its own random numbers (noise, pitch variation): whether sound is on, muted or not yet unlocked by a tap
     // never shifts the game's Math.random, so the same seed and inputs play the same game with or without it
     this._rnd = rng(0x51A7E);
@@ -7758,7 +7766,8 @@ class ChipAudio {
   }
   /**
    * Play a sound effect: a preset name ('jump', 'coin', 'hit', 'explode', ...), a voice object, or a list of voices.
-   * opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03) }
+   * opts: { vol: 0..1, pitch: multiplier, vary: random pitch spread (default 0.03), step: a step of the music playing (it
+   * sounds on that step of the music clock, scheduled with the music: a rhythm game's calls and claps) }
    */
   sfx(what, o = {}) {
     if (!this._init() || this.muted) return;
@@ -7768,7 +7777,8 @@ class ChipAudio {
     const now = this.ctx.currentTime;
     if (typeof what === 'string') { if (now - (this._last[what] === undefined ? -1 : this._last[what]) < .035) return; this._last[what] = now; }
     const mul = (o.pitch || 1) * (1 + (o.vary === undefined ? .03 : o.vary) * (this._rnd() * 2 - 1));
-    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, now + .005, mul); }
+    const C = this.song, at = o.step !== undefined && C && C.anchor ? Math.max(now + .005, C.anchor.ctx + (this._timeOf(C, o.step) - C.anchor.clk) - this.offset) : now + .005;
+    try { for (const v of Array.isArray(p) ? p : [p]) this._voice(o.vol === undefined ? v : Object.assign({}, v, { vol: (v.vol === undefined ? .3 : v.vol) * o.vol }), this._sfxBus, at, mul); }
     catch (e) { warn('sfx-fail:' + what, 'could not play sound "' + what + '": ' + e.message); }
   }
   /** add or replace a named sound: audio.define('zap', { wave: 'saw', freq: 1200, to: 200, dur: .2 }) */
@@ -7779,37 +7789,153 @@ class ChipAudio {
    *   { wave: 'triangle', notes: 'C3 . C3 . G2 . G2 .' },
    *   { wave: 'drums', notes: 'k . h . s . h . k k h . s . h .' } ] }
    * tokens: C4 F#3 Bb2 = note, '-' holds the previous note, '.' = rest, '|' is ignored (bar lines).
-   * steps = steps per beat (4 = sixteenth notes). Each track loops on its own length.
+   * steps = steps per beat (4 = sixteenth notes). Each track loops on its own length within the song's (len: steps, else
+   * its longest track's); a track may have a name, and on: false starts it silent (a layer that audio.layer brings in).
+   * THE MUSIC CLOCK: a song starts at the game's time and where it is is game time (audio.pos, headless too: the same
+   * steps hear the same beats); the sound follows that clock. o: { loop, sync: true (it pauses with the game, on
+   * game.time; else it plays on through a pause, on game.real), fade: seconds (a crossfade from the song playing),
+   * restart: true (again from its start, though it is the one playing) }.
    * E.songs has ready-made loops: title, adventure, dungeon, boss, victory.
    */
   music(song, o = {}) {
     if (typeof song === 'string') { const s = E.songs[song]; if (!s) { warn('song:' + song, 'unknown song "' + song + '". Built in: ' + Object.keys(E.songs).join(', ')); return; } song = s; }
-    if (!song) { this.stopMusic(); return; }
-    if (!this._init()) return;
-    if (this.song && this.song.src === song) return;
-    this.stopMusic();
-    const tracks = (song.tracks || []).map(t => Object.assign({}, t, { tokens: String(t.notes || '').replace(/\|/g, ' ').trim().split(/\s+/).filter(Boolean) })).filter(t => t.tokens.length);
-    if (!tracks.length) { warn('music:empty', 'music(song) needs song.tracks with notes'); return; }
-    const bus = this.ctx.createGain(); bus.connect(this._musBus);
-    this.song = { src: song, tracks, spb: 60 / (song.bpm || 120) / (song.steps || 4), step: 0, next: 0, len: Math.max(...tracks.map(t => t.tokens.length)), loop: o.loop !== undefined ? o.loop : song.loop !== false, bus };
-    this._timer = setInterval(() => { try { this._schedule(); } catch (e) { warn('music-fail', 'music stopped: ' + e.message); this.stopMusic(); } }, 25);
+    if (!song) { this.stopMusic(o.fade); return; }
+    const old = this.song; if (old && old.src === song && !old.ended && !o.restart) return;
+    const C = this._clock(song, !!(o.sync !== undefined ? o.sync : song.sync), o.loop !== undefined ? o.loop : song.loop !== false, this._now(!!(o.sync !== undefined ? o.sync : song.sync)));
+    if (!C) { warn('music:empty', 'music(song) needs song.tracks with notes'); return; }
+    this.song = C; this._ats = [];
+    this._stopSound(old, o.fade); this._sound(C, o.fade);
   }
-  /** stop the music (it fades out over 60 ms) */
-  stopMusic() {
-    if (this._timer) clearInterval(this._timer); this._timer = null;
-    const S = this.song; this.song = null;
-    if (S && this.ctx) { const t = this.ctx.currentTime; S.bus.gain.setValueAtTime(S.bus.gain.value, t); S.bus.gain.linearRampToValueAtTime(0, t + .06); setTimeout(() => { try { S.bus.disconnect(); } catch (e) { /* gone */ } }, 300); }
+  /** stop the music (it fades out over fade seconds, .06 by default) */
+  stopMusic(fade) { const S = this.song; this.song = null; this._ats = []; this._stopSound(S, fade); }
+  // a song's clock: its tracks' tokens, its steps' length, where it started (t0, at step s0: a tempo change moves them)
+  _clock(song, sync, loop, t) {
+    const tracks = (song.tracks || []).map((tr, k) => Object.assign({}, tr, { k, tokens: String(tr.notes || '').replace(/\|/g, ' ').trim().split(/\s+/).filter(Boolean) })).filter(tr => tr.tokens.length);
+    if (!tracks.length) return null;
+    tracks.forEach((tr, i) => { tr.i = i; });
+    const steps = song.steps || 4, bpm = song.bpm || 120;
+    return { src: song, tracks, steps, bpm, spb: 60 / bpm / steps, len: song.len || Math.max(...tracks.map(tr => tr.tokens.length)), loop, sync, start: t, t0: t, s0: 0, done: -1, next: 0, ended: false, vols: tracks.map(tr => tr.on === false ? 0 : 1), bus: null, anchor: null, drift: 0 };
+  }
+  // the clock a song runs on: game.time when synced (it pauses with the game), else game.real
+  _now(sync) { const g = this._game; return g ? (sync ? g.time : g.real) : 0; }
+  _stepAt(C, t) { return C.s0 + (t - C.t0) / C.spb; }
+  _timeOf(C, k) { return C.t0 + (k - C.s0) * C.spb; }
+  // the clock now between the game's steps: what it read at the last frame and the real time since (to schedule the
+  // sound and to place a tap's event time)
+  _clockNow(C, perf) {
+    const g = this._game, base = this._now(C.sync), F = this._fr;
+    if (!F || !g || typeof performance === 'undefined') return base;
+    const rate = C.sync && (g.paused || g.hitstop > 0) ? 0 : g.timeScale;
+    return base + (F.acc + Math.min(.1, ((perf === undefined ? performance.now() : perf) - F.perf) / 1000)) * rate;
+  }
+  /** where the music is, on the game's clock (headless too): { t: seconds since it started, step (from 0, counting on
+   *  as it loops), beat, bar (four beats), at (the step in its loop), loop (times round), bpm, layers (each track's
+   *  volume), playing } */
+  get pos() {
+    const C = this.song; if (!C) return { t: 0, step: 0, beat: 0, bar: 0, at: 0, loop: 0, bpm: 0, layers: [], playing: false };
+    const now = this._now(C.sync), s0 = Math.max(0, this._stepAt(C, now)), s = !C.loop ? Math.min(s0, C.len) : s0;
+    return { t: now - C.start, step: s, beat: s / C.steps, bar: s / C.steps / 4, at: s % C.len, loop: Math.floor(s / C.len), bpm: C.bpm, layers: C.vols.slice(), playing: !C.ended && (C.loop || s0 < C.len) };
+  }
+  /** call fn(step) on the update step the music reaches step (counted from its start, on as it loops); the song's
+   *  change cancels it. Returns { cancel() } */
+  at(step, fn) { const a = { step: Math.round(step), fn, dead: false }; this._ats.push(a); return { cancel() { a.dead = true; } }; }
+  /** call fn(beat, pos) on the update step of each beat of whatever music plays (a dancer's step, a light's pulse).
+   *  Returns { cancel() } */
+  onBeat(fn) { const b = { fn }; this._beats.push(b); return { cancel: () => { this._beats = this._beats.filter(x => x !== b); } }; }
+  /** change the music's tempo as it plays (hurry up!): where it is stays, the steps after come at the new bpm */
+  tempo(bpm) { const C = this.song; if (!C || !(bpm > 0)) return; const now = this._now(C.sync); C.s0 = this._stepAt(C, now); C.t0 = now; C.bpm = bpm; C.spb = 60 / bpm / C.steps; }
+  /** a track's volume as the song plays, 0..1, faded over fade seconds: layers of one song (the chase's drums in when
+   *  the guards see you, out when they lose you). track: its index in song.tracks, or its name */
+  layer(track, vol = 1, fade = .5) {
+    const C = this.song; if (!C) return this;
+    const t = C.tracks.find(x => x.k === track || (x.name !== undefined && x.name === track)); if (!t) { warn('layer:' + track, 'audio.layer: the song playing has no track "' + track + '" (an index in its tracks, or a track\'s name)'); return this; }
+    C.vols[t.i] = clamp(+vol || 0, 0, 1);
+    if (t.gain && this.ctx) { const g = t.gain.gain, n = this.ctx.currentTime; g.cancelScheduledValues(n); g.setValueAtTime(g.value, n); g.linearRampToValueAtTime(C.vols[t.i], n + Math.max(.01, fade)); }
+    return this;
+  }
+  /** play a short song once over the music (a goal's jingle): o.at 'now', 'beat' or 'bar' (on the music's next beat or
+   *  bar), o.duck (the music's volume under it, .4) */
+  sting(song, o = {}) {
+    if (typeof song === 'string') song = E.songs[song];
+    const C = this.song, sync = C ? C.sync : false, now = this._now(sync); let t = now;
+    if (C && o.at && o.at !== 'now') { const per = o.at === 'bar' ? C.steps * 4 : C.steps; t = this._timeOf(C, Math.ceil(this._stepAt(C, now) / per - 1e-9) * per); }
+    const S = song && this._clock(song, sync, false, t); if (!S) return;
+    S.anchor = C && C.anchor; S.end = t + S.len * S.spb; this._stings.push(S); this._sound(S);
+    if (C && C.bus && this.ctx && C.anchor) { const g = C.bus.gain, a = Math.max(this.ctx.currentTime, C.anchor.ctx + (t - C.anchor.clk)), b = a + S.len * S.spb; g.setValueAtTime(g.value, a); g.linearRampToValueAtTime(o.duck === undefined ? .4 : o.duck, a + .05); g.setValueAtTime(o.duck === undefined ? .4 : o.duck, b); g.linearRampToValueAtTime(1, b + .2); }
+  }
+  /** the audio offset's calibration: a click on each beat (100 bpm, the first of a bar higher) as the music; tap(time)
+   *  on each one heard (an event's timeStamp, or nothing: this update step). After 8 taps, result is the offset to set
+   *  (ms: settings.audioOffset) and done is true; taps go on refining it. stop() puts the music back */
+  calibrate() {
+    const prev = this.song && this.song.src, A = this, devs = [];
+    this.music({ bpm: 100, steps: 1, tracks: [{ wave: 'square', vol: .24, notes: 'C6 G5 G5 G5' }] }, { restart: true });
+    const C = this.song, K = { taps: 0, result: null, done: false, devs,
+      tap(perf) {
+        if (!C) return; const t = perf === undefined ? A._now(C.sync) : A._clockNow(C, perf), k = Math.round(A._stepAt(C, t)); if (k < 1) return;
+        devs.push((t - A._timeOf(C, k)) * 1000); K.taps = devs.length;
+        if (devs.length >= 8) { const d = devs.slice(-8).sort((a, b) => a - b); K.result = Math.round(A.offset * 1000 + (d[3] + d[4]) / 2); K.done = true; }
+      },
+      stop() { if (A.song === C) A.music(prev || null); } };
+    return K;
+  }
+  // the music clock's step (the game calls it each update): the events between the last step and this one
+  _tick(sync) {
+    const C = this.song; if (!C || C.sync !== sync || C.ended) return;
+    const k1 = Math.floor(this._stepAt(C, this._now(sync)) + 1e-9);
+    for (let k = C.done + 1; k <= k1; k++) {
+      if (!C.loop && k >= C.len) { C.ended = true; break; }
+      C.done = k;
+      for (const a of this._ats) if (a.step === k && !a.dead) { a.dead = true; a.fn(k); }
+      if (k % C.steps === 0) for (const b of this._beats.slice()) b.fn(k / C.steps, this.pos);
+      if (this.song !== C) return;   // (an event changed the song)
+    }
+    if (this._ats.length) this._ats = this._ats.filter(a => !a.dead);
+  }
+  // the sound of a song: a bus with a gain for each track (its layer); its notes scheduled ahead on the music clock
+  _sound(C, fade) {
+    if (!C || !this._init()) return;
+    const c = this.ctx, bus = c.createGain(); bus.connect(this._musBus); C.bus = bus;
+    if (fade > 0) { bus.gain.setValueAtTime(0, c.currentTime); bus.gain.linearRampToValueAtTime(1, c.currentTime + fade); }
+    for (const t of C.tracks) { t.gain = c.createGain(); t.gain.gain.value = C.vols[t.i]; t.gain.connect(bus); }
+    if (!this._timer) this._timer = setInterval(() => { try { this._schedule(); } catch (e) { warn('music-fail', 'music stopped: ' + e.message); this.stopMusic(); } }, 25);
+    this._schedule();
+  }
+  _stopSound(S, fade) {
+    if (!S || !S.bus || !this.ctx) return;
+    const c = this.ctx, n = c.currentTime, f = Math.max(.02, fade || .06), bus = S.bus, g = bus.gain;
+    g.cancelScheduledValues(n); g.setValueAtTime(g.value, n); g.linearRampToValueAtTime(0, n + f);
+    if (fade > .06) this._fading.push(S);   // (a crossfade: it plays on as it fades)
+    setTimeout(() => { try { bus.disconnect(); } catch (e) { /* gone */ } this._fading = this._fading.filter(x => x !== S); }, f * 1000 + 300);
   }
   _schedule() {
-    const S = this.song, c = this.ctx; if (!S || !c) return;
-    if (c.state !== 'running') { S.next = 0; return; }
-    if (!S.next || S.next < c.currentTime - .2) S.next = c.currentTime + .05;
-    while (S.next < c.currentTime + .12) {
-      if (S.step >= S.len && !S.loop) { const end = S.next; setTimeout(() => { if (this.song === S) this.stopMusic(); }, Math.max(0, (end - c.currentTime) * 1000 + 400)); S.next = 1e9; return; }
-      const pos = S.step % S.len;
-      for (const t of S.tracks) this._note(t, pos % t.tokens.length, S.next, S.spb, S.bus);
-      S.step++; S.next += S.spb;
+    const c = this.ctx; if (!c || c.state !== 'running') return;
+    for (const C of [this.song, ...this._fading, ...this._stings]) if (C && C.bus) this._ahead(C);
+    if (this._stings.length) this._stings = this._stings.filter(S => { const live = this._clockNow(S) < S.end + .5; if (!live) try { S.bus.disconnect(); } catch (e) { /* gone */ } return live; });
+    if (!this.song && !this._fading.length && !this._stings.length) { clearInterval(this._timer); this._timer = null; }
+  }
+  // a song's notes for the next 150 ms of its clock, each at the sound's time its anchor maps it to (less the offset)
+  _ahead(C) {
+    const c = this.ctx, now = this._clockNow(C);
+    if (!C.anchor) { C.anchor = { ctx: c.currentTime + .05, clk: now }; C.next = Math.max(C.next, Math.floor(this._stepAt(C, now) + .5)); }
+    for (let n = 0; n < 64; n++) {
+      const k = C.next, t = this._timeOf(C, k); if (t > now + .15 || (!C.loop && k >= C.len)) break;
+      const at = C.anchor.ctx + (t - C.anchor.clk) - this.offset, p = k % C.len;
+      if (at > c.currentTime - .03) for (const tr of C.tracks) this._note(tr, p % tr.tokens.length, Math.max(at, c.currentTime), C.spb, tr.gain);
+      C.next++;
     }
+  }
+  // each frame (the game's loop calls it): the clock read for the time between steps, and the sound held to it: what
+  // is heard now, against the game's clock now (drift); past 4 ms (smoothed) the sound's notes move to meet it
+  _frame(perf) {
+    const g = this._game; this._fr = { perf, acc: g._acc };
+    const C = this.song, c = this.ctx; if (!C || !C.anchor || !c || c.state !== 'running' || (C.sync && (g.paused || g.hitstop > 0))) return;
+    const ts = c.getOutputTimestamp && c.getOutputTimestamp(), ok = ts && ts.performanceTime > 0 && ts.contextTime > 0;
+    const heard = ok ? ts.contextTime : c.currentTime - (c.outputLatency || c.baseLatency || 0), p = ok ? ts.performanceTime : performance.now();
+    const err = heard - (C.anchor.ctx + (this._clockNow(C, p) - C.anchor.clk));
+    this.drift = err;
+    if (Math.abs(err) > .1) { C.anchor.ctx += err; C.drift = 0; this.anchors++; return; }   // (a stall, a pause: anchored again)
+    C.drift += (err - C.drift) * .2;
+    if (Math.abs(C.drift) > .004) { C.anchor.ctx += C.drift; C.drift = 0; this.anchors++; }
   }
   _note(t, i, time, spb, bus) {
     const tok = t.tokens[i]; if (tok === '.' || tok === '-' || tok === '_') return;
@@ -9378,7 +9504,9 @@ class Shell {
       const fmt = v => hi <= 1 && lo >= 0 ? Math.round(v * 100) + '%' : Math.round(v * 100) / 100 + (sp.unit || '');
       Object.assign(r, { type: 'range', min: lo, max: hi, step: sp.step || (hi - lo) / 20, value: S[key] }); r.setAttribute('aria-label', sp.label || key); out.textContent = fmt(S[key]);
       r.oninput = () => { out.textContent = fmt(this._set(key, +r.value)); };
-      box.append(r, out); row.appendChild(box); return row;
+      box.append(r, out);
+      if (sp.calibrate) { const b = this._el('button', 'esh-sel', 'Calibrate'); b.onclick = () => this._calibrate(key); box.appendChild(b); }
+      row.appendChild(box); return row;
     }
     if (sp.type === 'select') {
       const opts = (sp.options || []).map(o => Array.isArray(o) ? o : [o, String(o)]), b = this._el('button', 'esh-sel');
@@ -9451,8 +9579,19 @@ class Shell {
   _btn(a, i, pri = true) {
     const b = Array.isArray(a) ? { label: a[0], fn: a[1] } : a, e = this._el('button', b.primary || (b.primary === undefined && i === 0 && pri) ? 'pri' : '', b.label);
     e.disabled = !!b.disabled;
-    e.onclick = () => { if (b.fn) b.fn(); else if (b.act) { this._game.input.tap(b.act); this._held.add(b.act); } };
+    if (b.down) {   // (a press, timed: the event's own time, not the click's after the finger lifts)
+      e.onpointerdown = ev => { ev.preventDefault(); b.down(ev.timeStamp); };
+      e.onkeydown = ev => { if ((ev.key === ' ' || ev.key === 'Enter') && !ev.repeat) { ev.preventDefault(); b.down(ev.timeStamp); } };
+    } else e.onclick = () => { if (b.fn) b.fn(); else if (b.act) { this._game.input.tap(b.act); this._held.add(b.act); } };
     return e;
+  }
+  /** the audio offset's calibration screen: clicks on the beat, a Tap button (or Space) on each one heard; after eight
+   *  the offset found, kept with Keep it */
+  _calibrate(key) {
+    const K = this._game.audio.calibrate(), close = () => { K.stop(); this.back(); };
+    this.show('calibrate', { kicker: 'Sound', title: 'Audio offset', back: close,
+      text: () => K.done ? 'Your sound comes ' + K.result + ' ms after the beat. Keep it, or tap on to measure again.' : 'Tap on each click you hear, in time with it, not before (' + K.taps + ' of 8). The higher click starts each bar.',
+      actions: () => [{ label: 'Tap', primary: true, down: t => { K.tap(t); this.show('calibrate', {}); } }, { label: 'Keep it', disabled: !K.done, fn: () => { this._game.settings.set(key, K.result); close(); } }, ['Cancel', close]] });
   }
   /** build the open screen */
   _render() {

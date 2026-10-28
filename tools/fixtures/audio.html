@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>audio fixture</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
+<body><canvas id="screen"></canvas>
+<script src="../../dist/my-3d2dge.js"></script>
+<script>
+// the audio suite's page (tools/audio-test.mjs): a game that plays the songbook's songs on the music clock and keeps,
+// every frame, what is heard against the game's clock (game.audio.drift) and the output's timestamp (to find the sound
+// device's own slips), for the test to read
+(() => {
+const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: 'ps1', menu: false, fullscreen: false, corner: false });
+const fx = window.__fx = { game, frames: [] };
+game.start({ update(dt) { if (fx.update) fx.update(dt); }, draw(r) { r.sky(['#05061a', '#141a44']); const p = game.audio.pos; r.overlay(g => E.font.text(g, 'BEAT ' + Math.floor(p.beat) + '  DRIFT ' + (game.audio.drift * 1000).toFixed(1) + ' MS', 8, 8, '#ffffff')); } });
+const tick = () => { const A = game.audio, ts = A.ctx && A.ctx.getOutputTimestamp ? A.ctx.getOutputTimestamp() : {}; fx.frames.push([performance.now(), A.drift, A.anchors, A.ctx ? A.ctx.state : 'none', A.pos.step, ts.contextTime || 0, ts.performanceTime || 0]); requestAnimationFrame(tick); };
+requestAnimationFrame(tick);
+})();
+</script>
+</body></html>

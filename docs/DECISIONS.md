@@ -1071,3 +1071,18 @@ An entry:
   the card passing 20,000 (raised again here, with its cause).
 - **Answered:** yes: the owner, in the goal of 2026-10-28
 - **Landed in:** v0.75.0
+
+## D59 · 2026-10-28 · The API card's budget raised to 21,000 until the owner's review pass
+
+- **Principle:** 1 (agent-readable: the card a model reads first stays small) and the genre plan's 3.3 and M0a (the API
+  card at 18,000 cl100k tokens, D50; 19,000, D54; 20,000 until the owner's review pass, D58)
+- **Call:** the card's budget is 21,000 tokens until the owner's review pass. M12's lines (the music clock, its layers,
+  stingers, crossfades and the audio offset; the songs and rhythm modules; the playbook's rhythm row) bring it to
+  20,158, past D58's 20,000; M13, M14 and M16 add their lines, a few hundred tokens each.
+- **Why:** D58's, which named this case ("the card passing 20,000: raised again here, with its cause"): the owner's
+  words with the goal of Milestones 2 to 16 (2026-10-28), "Concerning token budget, just implement things as they are
+  needed, we will make a second pass after I review all the work, then we can think about trimming down afterwards".
+  What would change it: the owner's review (the budget back to 18,000 with detail moved to the index, or a new one), or
+  the card passing 21,000 (raised again here, with its cause).
+- **Answered:** yes: the owner, in the goal of 2026-10-28
+- **Landed in:** v0.78.0
