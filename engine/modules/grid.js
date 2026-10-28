@@ -306,10 +306,12 @@ class Fog {
 }
 E.Fog = Fog;
 /** tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range,
- *  a path, an attack's reach, drawn on the floor (decals) where height is 0, over the world otherwise */
+ *  a path, an attack's reach, drawn on the floor (decals) where height is 0; on a raised top (a TileMap wall's) it sorts
+ *  with the map: over that top, under whoever stands on it, behind what is in front */
 E.tint = (r, cells, color, alpha = .4, T = 16, height = null) => {
-  const flat = !height, draw = g => { for (const [x, y] of cells) { const z = height ? height(x, y) || 0 : 0; E.px.polyDither(g, [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([a, b]) => r.w(a * T, b * T, z)), color, alpha, r.ix, r.iy); } };
-  if (flat) r.decal(draw); else r.overlay(draw);
+  const quad = (g, x, y, z) => E.px.polyDither(g, [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([a, b]) => r.w(a * T, b * T, z)), color, alpha, r.ix, r.iy), flat = [];
+  for (const [x, y] of cells) { const z = height ? height(x, y) || 0 : 0; if (z > 0) r.queue((x + .5) * T, (y + .5) * T, 0, g => quad(g, x, y, z), { bias: .001 }); else flat.push([x, y]); }   // (the wall sorts at the same spot; one standing on it, lifted .002 past it)
+  if (flat.length) r.decal(g => { for (const [x, y] of flat) quad(g, x, y, 0); });
 };
 
 /* =============================================================================
