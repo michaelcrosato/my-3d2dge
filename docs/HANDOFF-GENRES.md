@@ -753,6 +753,21 @@ Needs M1 (scripts) and M2 (`E.Fog`).
   the time controls are `timeScale` 0, 1, 2 and 4 and needed nothing new. A crowd's frame: 200 rigs drawn every frame
   take 84 ms on the phone test's emulated phone; with `every: 3, key` (each body's image kept two frames of three) they
   take 10 to 17 ms (phone case 17, `tools/fixtures/army.html`), the way the kits will draw them.
+- **As built, 9b (v0.74.0):** the RTS kit (`src/starter/48-rts.js`, family STRATEGY, `#rts`, modules grid and strategy):
+  the Vale War, a map of 56 x 44 cells with a river and three fords; the Vale's hall south-west, the Ash Clan's camp
+  north-east; workers who mine gold (two mines by each base, four between), three kinds to fight (footmen, archers whose
+  arrows fly, knights), two buildings to build (a barracks, a stable); buildings and mines as `E.SHAPES` in each side's
+  colors (a site going up first); fog; E.Shell's minimap; the clan's AI from a build order that keeps its counts and
+  waves from four minutes, bigger each time; the HUD's panel of commands (Z X C), HALL, ARMY and IDLE on a phone,
+  BUILD then a tap and PLACE; alerts when the Vale is struck; the end and its numbers. The SIM kit
+  (`src/starter/49-sim.js`, family SIMULATION, `#sim`, modules grid and strategy): Sunny Bay Park, paths as floor tags
+  laid a tile or a line at a time, four rides (carousel, Ferris wheel, teacups, swing tower) and two stands (burgers,
+  lemonade) as shapes whose moving parts are generators stepped through angles (16, 24 or 32 pictures, kept), guests
+  as rigs with money and needs choosing by `E.choose`, queues, prices against what a ride is worth to them, thoughts,
+  a rating from how happy they leave, the gate's fee, upkeep at midnight, `E.Clock`'s days and night lights, PAUSE and
+  1X to 4X, a crowds overlay, tooltips, inspecting a ride (its price, knock it down) or a guest. The core: `r.shape`
+  takes `pick`. The module: a building's rally point by a right click; its AI makes its losses again, mines nearest its
+  depot and attacks the nearest foe building.
 
 ### M10: point-and-click and visual novels (module `click`; kit POINT-AND-CLICK)
 

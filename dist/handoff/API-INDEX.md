@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.73.0)
+# my-3D2dge API index (v0.74.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -107,7 +107,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.73.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.74.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -420,7 +420,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.prop(name, x, y, z, o = {})` †: set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint }) feet on the world point; flames animate and glow. light: true also adds a warm light to game.lights. A prop at least chest high (E.HEIGHTS.chest, 22: a pillar, a statue, a lamp) drawn in front of an x-ray actor shows the actor's silhouette through it; a lower one (grass, a crate, a barrel) doesn't; hides: true or false says so.
 - `r.queue(x, y, z, fn, o)`: queue a depth-sorted draw. fn(g) draws into g. opts: {bias, occluder, hides, xray, emissive, solid (hides a glow behind it), footprint} occluder: a wall (x-ray silhouettes show through it, it sorts as a block). hides: only lets x-ray silhouettes show through it (props, sprites, bodies), nothing else changes
 - `r.shadow(x, y, rad, alpha = .5, color = '#0c0818', z = 0)`: soft contact shadow under a character: a cached dithered ellipse, correct for the current view. z = height of the surface it falls on (0 = floor; the top of a block or platform otherwise)
-- `r.shape(id, x, y, z = 0, o = {})` †: Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o). o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material }, flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (x-ray silhouettes show through it: by default when it stands at least E.HEIGHTS.chest, 22, high), footprint, light (add its lights to game.lights), shadow (default true), charView (default true: steep views draw it from the characters' lower angle), flash, alpha, xray }
+- `r.shape(id, x, y, z = 0, o = {})` †: Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o). o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material }, flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (x-ray silhouettes show through it: by default when it stands at least E.HEIGHTS.chest, 22, high), footprint, light (add its lights to game.lights), shadow (default true), charView (default true: steep views draw it from the characters' lower angle), flash, alpha, xray, pick (r.pick finds it) }
 - `r.sightCone(obs, o = {})` †: an observer's view on the ground: a dithered fan fov wide (radians) about its facing, out to range, cut short where the map hides a body's chest (map.ray, the height rules), draped over the ground below. o: { range: 120, fov: 1.6, facing, map, eye, color: '#ffe080', alpha: .3, rays }. Call it in draw (it is a decal: under walls and bodies)
 - `r.sky(colors, o = {})`: background of dithered color bands, top to bottom: r.sky(['#0b1030', '#3b2d6b', '#e0806a']). Call first in draw.
 - `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost (the last five use the actor path), t (an E.anim's clock: spr may be one), rot (radians, about its center: anchor 'center' unless given), steps (16), scale, wrap: [w, h] (a world that wraps round: a copy across each edge it crosses; w alone wraps x) }
@@ -1562,7 +1562,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `strategy.order(units, kind, target, o = {})` †: give units an order: kind 'move' | 'attack' | 'amove' | 'gather' | 'build' | 'patrol' | 'stop', target ({ x, y }, a unit, or { kind, cx, cy } to build), o.queue: after the orders they have
 - `strategy.remove(u)` †: take u off the map (it died, a mine ran out)
 - `strategy.side(id)` †: a side by id: { id, res: { gold: 300 }, ... }
-- `strategy.smart(units, x, y, target, o = {})` †: the right click: attack a foe at the point, gather a resource, else move (o.queue as order's)
+- `strategy.smart(units, x, y, target, o = {})` †: the right click: attack a foe at the point, gather a resource, else move (o.queue as order's); a building that makes units takes the point as its rally
 - `strategy.spawn(kind, side, x, y, o = {})` †: make a unit, building or resource of kind for side at world x, y (o.built: false leaves a building to be built)
 - `strategy.state()` †: what a proof hashes: every unit's kind, side, cell and HP, each side's resources
 - `strategy.train(b, kind)` †: queue kind at building (paid now): it comes out after its time, toward building.rally. False when it can't

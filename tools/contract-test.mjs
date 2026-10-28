@@ -12,7 +12,8 @@
 //                  camera in every ground view and turn (a drag keeps the world under the finger, a zoom keeps it under
 //                  the pointer, bounds, keys); the strategy module's selection and orders by scripted pointer input in
 //                  every ground view (a box, a click, a double click, a right click's move in formation and attack,
-//                  control groups), gathering, training, building, an AI's build order and wave, fog; the day clock and needs
+//                  control groups), gathering, training, building, an AI's build order and wave, fog; a rally point; an
+//                  AI that makes its losses again and mines nearest home; the day clock and needs
 //   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
 //                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map
 //   audio          audio.duck(on) is public
@@ -851,6 +852,17 @@ function strategies(E, ed) {
     check(`${ed}: E.Strategy's economy: trips to the depot pay, training costs and makes a unit, a worker builds a barracks; red's AI builds its order and sends a wave`, paid === before - 50 && gold > paid - 100 && ev.made >= 1 && placed && barracks && barracks.progress === 1 && rb && rb.progress === 1 && rs >= 3 && ev.waves >= 1 && !!rhall,
       `gold ${before} -> ${paid} -> ${gold}, made ${ev.made}, barracks ${barracks ? barracks.progress : 'none'}, red's ${rb ? rb.progress : 'none'} and ${rs} soldiers, waves ${ev.waves}`);
     check(`${ed}: E.Strategy's fog: the player sees round its units and remembers buildings seen; a foe far off is hidden`, rts.fog.visible([7, 9]) && !rts.visible(rts.of('red', 'worker')[0] || rhall), JSON.stringify(rts.fog.visible([7, 9])));
+    g.dispose(); }
+  // a building's rally point (a right click with it selected); an AI that makes its losses again and mines nearest home
+  { const g = new E.Game({ headless: true, view: 'topdown' }), map = new E.TileMap({ w: 48, h: 36 });
+    const rts = new E.Strategy(g, { map, kinds, sides: { blue: { res: { gold: 900 } }, red: { res: { gold: 900 } } }, player: 'blue' });
+    g.start({ update(dt) { rts.update(dt); }, draw() {} });
+    const hall = rts.spawn('hall', 'blue', 96, 96); rts.smart([hall], 300, 120); rts.train(hall, 'worker'); g.advance(3); const made = rts.of('blue', 'worker')[0], walks = made && made.orders[0] && made.orders[0].kind === 'move' && made.orders[0].x === 300;
+    const rh = rts.spawn('hall', 'red', 600, 450), far = rts.spawn('mine', null, 120, 300), near = rts.spawn('mine', null, 660, 520); for (let i = 0; i < 2; i++) rts.spawn('worker', 'red', 560 + i * 14, 430);
+    rts.ai('red', { build: [['worker', 2], ['soldier', 2]] }); g.advance(1); const mining = rts.of('red', 'worker').every(w => w.orders[0] && w.orders[0].target === near);
+    g.advance(20); const before = rts.of('red', 'soldier').length; rts.remove(rts.of('red', 'soldier')[0]); g.advance(20); const after = rts.of('red', 'soldier').length;
+    check(`${ed}: E.Strategy: a right click with a building selected sets its rally point (what it makes walks there); the AI makes its losses again and mines nearest its depot, not nearest each worker`,
+      hall.rally && hall.rally.x === 300 && walks && mining && before === 2 && after === 2 && !!rh && !!far, `rally ${JSON.stringify(hall.rally)}, made and walking there ${walks}; mining near ${mining}; soldiers ${before} -> one lost -> ${after}`);
     g.dispose(); }
   // the day clock and needs
   const c = new E.Clock({ day: 240, hour: 8 }); const noon = (c.update(40), c.light().ambient); c.update(80); const night = c.night, label = c.label(), dark = c.light().ambient;

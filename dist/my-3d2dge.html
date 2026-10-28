@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.73.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.74.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
-  AI MODELS: this one file is the whole engine, its documentation and fourteen working games and an animation lab.
+  AI MODELS: this one file is the whole engine, its documentation and sixteen working games and an animation lab.
     1. Read the API card in <script type="text/markdown" id="my3d2dge-api"> below. It is short.
     2. The engine is the script marked "inlined from engine/my-3d2dge.js". Do not change it
        unless you are asked to extend the engine itself.
-    3. The games live between GAME START and GAME END: a title menu plus fourteen vertical slices
+    3. The games live between GAME START and GAME END: a title menu plus sixteen vertical slices
        (ADVENTURE top-down, PLATFORMER side-scroller, METROIDVANIA, BRAWLER beat-'em-up, FIGHTING, SHOOTER, ARCADE, KART, ROAD, PUZZLE,
-       RPG, ROGUELIKE, TACTICS, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.
+       RPG, ROGUELIKE, TACTICS, RTS, SIM, STEALTH) and an ANIMATION LAB that plays every move, pose and skin in every view.
        To make a new game, copy the slice closest to your genre, then replace everything between
        GAME START and GAME END with only your game. Keep everything else in this file as it is.
   HUMANS: open this file in a browser and play. Press ? for the API card.
   Deep links: add #adventure, #platformer, #metroidvania, #brawler, #fighting, #shooter, #arcade, #kart, #road, #puzzle, #rpg, #roguelike,
-       #tactics, #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,
+       #tactics, #rts, #sim, #stealth or #animlab to the address to start a slice; #arcade/maze, #arcade/formation, #arcade/rocks, #shooter/horizontal,
        #fighting/versus, #fighting/arcade, #fighting/training, #metroidvania/miniboss, #metroidvania/boss, #metroidvania/map, #kart/race,
        #kart/vs, #road/drive, #rpg/battle, #tactics/battle and #tactics/phases jump into a part.
 -->
@@ -24,7 +24,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.73.0)
+# my-3D2dge API card (v0.74.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -171,7 +171,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
-- Depth sorted: `r.actor(x, y, z, (g, ox, oy) => rig.draw(g, ox, oy, r.view), { flash: '#ffffff', flashMix: .75, alpha, xray, outline, ghost, emissive, every, key })` (the flash tints over the sprite so shading shows; `flashMix: 1` is solid; `every: 2, key: npc` redraws a background character every other frame; actors up to about 250 px tall), `r.sprite(x, y, z, sprite, { flip, anchor: 'bottom' | 'center', glow, flash })`, `r.queue(x, y, z, g => {...}, { bias })`, `r.actorNow(...)` (as `r.actor`, drawn at once over what is drawn so far), `r.box(g, x0, y0, z0, x1, y1, z1, top, side)` (inside a queue function). `{ pick: unit }` on any of them, then `r.pick(sx, sy)` → what the last frame drew under a screen point, front to back.
+- Depth sorted: `r.actor(x, y, z, (g, ox, oy) => rig.draw(g, ox, oy, r.view), { flash: '#ffffff', flashMix: .75, alpha, xray, outline, ghost, emissive, every, key })` (the flash tints over the sprite so shading shows; `flashMix: 1` is solid; `every: 2, key: npc` redraws a background character every other frame; actors up to about 250 px tall), `r.sprite(x, y, z, sprite, { flip, anchor: 'bottom' | 'center', glow, flash })`, `r.queue(x, y, z, g => {...}, { bias })`, `r.actorNow(...)` (as `r.actor`, drawn at once over what is drawn so far), `r.box(g, x0, y0, z0, x1, y1, z1, top, side)` (inside a queue function). `{ pick: unit }` on any of them (and `r.shape`), then `r.pick(sx, sy)` → what the last frame drew under a screen point, front to back.
 - Floor marks: `r.shadow(x, y, radius, alpha, color, surfaceZ)`, `r.decal(g => r.groundArc(...))`, `r.groundDisc`, `r.groundRing`, `r.groundPts(x, y, rad, n, z)`.
 - On top, unlit, screen pixels: `r.text(str, x, y, color, { align, scale, outline })`, `r.textAt(x, y, z, str, color)`, `r.overlay(g => {...})`.
 - `r.w(x, y, z)` = buffer pixel of a world point. `r.W`, `r.H`, `r.ix`, `r.iy` (pass to dither functions), `r.view`, `r.visible(x, y, z)`.
@@ -260,6 +260,8 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Puzzle (Tetris, Dr. Mario, Puyo, Columns) | `side` (a field in screen pixels) | a cell array, a bag from `E.rng`, `input.repeat` (auto-shift), `grid.groups` (chains), `input.drag()` and `clicked()` for touch; versus: two fields, rows sent across (`game.players`) | PUZZLE |
 | Roguelike (Rogue, Mystery Dungeon, Shiren) | `threequarter` / `iso` | `E.gen` floors, a TileMap of its rows, `E.Grid.from(map)` paths and `fov`, `E.Fog`, `E.Turns` by speed, `game.tween` steps | ROGUELIKE |
 | Tactics (Final Fantasy Tactics, Tactics Ogre, Fire Emblem) | `iso`, turned a quarter | TileMap of block heights, `map.pick` under the cursor, `E.Grid.from(map, { tops: true })` reach over heights, `grid.shape`, `grid.side`, `grid.threat`, `E.Turns` charge time, `E.Story` | TACTICS |
+| Real-time strategy (Warcraft II, StarCraft, Dune II) | `iso` | `E.Strategy` (the strategy module): kinds as data, selection by click, box and group, orders, gold, building, training, fog, an AI's build order and waves; `cam.free`, `{ pick: unit }` and `r.pick`, buildings as `E.SHAPES`, E.Shell's minimap; bodies drawn `every: 3` | RTS |
+| Theme park or city sim (Theme Park, RollerCoaster Tycoon, SimCity) | `iso` | paths as floor tags walked on an `E.Grid`, agents with `E.needs` picking by `E.choose`, `E.Clock` days and light, `game.timeScale` 0 to 4, `E.overlay`, `E.tooltip`; rides as shapes stepped through angles (`params`, `facing`) | SIM |
 | 3D platformer or adventure remake (Mario 64, Ocarina, Crash) | `iso` / `threequarter` / `brawler` | TileMap blocks of different heights + Body `jump()` (z is real height) | ADVENTURE |
 | Third-person stealth (Assassin's Creed, Metal Gear, Tenchu) | `iso` / `threequarter` | TileMap roofs, Mover, `E.sees`, `E.Suspicion`, FlowField `jump` | STEALTH |
 | Kart racing (Super Mario Kart, F-Zero) | Mode 7 (the mode7 module, over any view) | `E.Mode7` over a TileMap track (floor tags: grass, sand, boost), `E.Car` karts (`kart: true`: hop, drift, boost) in an `E.Race` round an `E.Path` (laps, checkpoints, drivers, items), rigs in karts as billboards, `game.splitScreen(2)` for two | KART |
@@ -285,7 +287,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `drive`: cars on the ground plane (`E.Car`: speed, grip and slide, a kart's hop and drift boost, the floor's tag slowing it, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, wrong way, places, drivers that brake for bends, pass and rubber-band, items, the HUD). KART.
   - `story`: dialogue as data (`E.Story`): nodes of lines with speakers and portraits, choices with conditions, flags and values (`{$name}` in lines), gotos, the game's events (one may hold the talk), a quest log, emote balloons over heads; its state for a save. RPG.
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG.
-  - `strategy` (the full engine only; needs `grid`): real-time strategy and sims (`E.Strategy`): selection (a click, a box, a double tap, groups), orders (move, attack, attack-move, gather, build, patrol; queued), formations on shared flow fields kept apart, production, resources, placement with a ghost, fog, the minimap, an enemy's build order and waves; `E.Clock` (days, night, the light), needs that pick an action (`E.needs`, `E.choose`), `E.overlay`, `E.tooltip`.
+  - `strategy` (the full engine only; needs `grid`): real-time strategy and sims (`E.Strategy`): selection (a click, a box, a double tap, groups), orders (move, attack, attack-move, gather, build, patrol; queued), formations on shared flow fields kept apart, production, resources, placement with a ghost, fog, the minimap, an enemy's build order and waves; `E.Clock` (days, night, the light), needs that pick an action (`E.needs`, `E.choose`), `E.overlay`, `E.tooltip`. RTS, SIM.
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
@@ -316,7 +318,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.73.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.74.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -344,7 +346,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.73.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.74.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -425,7 +427,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.73.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.74.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -8715,7 +8717,7 @@ function shapeShadow(S, view, o, k, G) {
  * o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material },
  * flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (x-ray silhouettes show through
  * it: by default when it stands at least E.HEIGHTS.chest, 22, high), footprint, light (add its lights to game.lights), shadow (default true), charView (default
- * true: steep views draw it from the characters' lower angle), flash, alpha, xray }
+ * true: steep views draw it from the characters' lower angle), flash, alpha, xray, pick (r.pick finds it) }
  */
 Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
   const S = shapeOf(id); if (!S) return;
@@ -8732,14 +8734,15 @@ Renderer.prototype.shape = function (id, x, y, z = 0, o = {}) {
   }
   const fp = o.footprint || (z > .5 ? (() => { const c = [[G.foot[0], G.foot[1]], [G.foot[2], G.foot[1]], [G.foot[2], G.foot[3]], [G.foot[0], G.foot[3]]].map(place); return [Math.min(...c.map(q => q[0])), Math.min(...c.map(q => q[1])), Math.max(...c.map(q => q[0])), Math.max(...c.map(q => q[1]))]; })() : undefined);
   const hides = o.hides !== undefined ? !!o.hides : B[5] * k >= HEIGHTS.chest, top = z + B[5] * k;   // (low things hide no x-ray: a barrel, a crate)
-  if (comp && r.w <= AS - 8 && r.oy <= AOY - 4 && r.h - r.oy <= AS - AOY - 4 && r.ox <= AOX - 4 && r.w - r.ox <= AS - AOX - 4) this.actor(x, y, z, (g, ox, oy) => g.drawImage(r.cv, ox - r.ox, oy - r.oy), { rim: false, hides, top, bias: o.bias, flash: o.flash, alpha: o.alpha, xray: o.xray, margin: r.w });
+  if (comp && r.w <= AS - 8 && r.oy <= AOY - 4 && r.h - r.oy <= AS - AOY - 4 && r.ox <= AOX - 4 && r.w - r.ox <= AS - AOX - 4) this.actor(x, y, z, (g, ox, oy) => g.drawImage(r.cv, ox - r.ox, oy - r.oy), { rim: false, hides, top, bias: o.bias, flash: o.flash, alpha: o.alpha, xray: o.xray, margin: r.w, pick: o.pick });
   else {   // (one bigger than an actor's scratch image is drawn this way too, flash or not)
     const b = comp ? shapeRaster(id, rv, Object.assign({}, o, { outline: this.outline })) : r, at = () => { const [sx, sy] = this.w(x, y, z); return [Math.round(sx) - b.ox, Math.round(sy) - b.oy]; };
     const info = gI => {   // GPU lighting's pass: its pixels in the height gradient, as r.actor's composite gives them
       gI._mat = this._infoVert(gI, x, y, z, 10, 0); gI._c = null; px.col(gI, '#000');
       const [bx, by] = at(), R = b.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
     };
-    this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.cv, bx, by); }, { bias: o.bias, hides, top, footprint: fp, solid: true, info });
+    const pb = o.pick === undefined || o.pick === null ? undefined : (q => [q[0], q[1], q[0] + b.w, q[1] + b.h])(at());   // (r.pick: its picture's box)
+    this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.cv, bx, by); }, { bias: o.bias, hides, top, footprint: fp, solid: true, info, pick: o.pick, _pb: pb });
     if (b.lit) this.queue(x, y, z, g => { const [bx, by] = at(); g.drawImage(b.lit.cv, bx, by); }, { bias: (o.bias || 0) + .0005, footprint: fp, emissive: true, info: gI => {   // its glowing parts (a crystal, a flame): unlit
       gI._mat = this._infoCol(z, 10, 1); gI._c = null; px.col(gI, '#000'); const [bx, by] = at(), R = b.lit.runs; for (let i = 0; i < R.length; i += 3) gI.fillRect(bx + R[i], by + R[i + 1], R[i + 2], 1);
     } });
@@ -10507,7 +10510,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.73.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.74.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10725,7 +10728,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.73.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.74.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10953,7 +10956,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.73.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.74.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11507,7 +11510,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.73.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.74.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11693,7 +11696,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.73.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.74.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12105,7 +12108,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.73.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.74.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12313,7 +12316,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.73.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.74.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12476,7 +12479,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.73.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.74.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12660,7 +12663,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.73.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.74.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12991,7 +12994,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.73.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.74.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13191,7 +13194,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.73.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.74.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -13219,8 +13222,10 @@ Park, RollerCoaster Tycoon). It keeps the rules; the game draws (units are plain
 - rts.fog (E.Fog: the player's sight; walls block it), rts.visible(u); rts.minimap() is E.Shell's hud({ minimap }) (the
   fog, the camera's view, dots; a click moves the camera there).
 - rts.ai(side, { build: [['worker', 5], ['barracks'], ['soldier', 6]], waves: { first: 90, every: 75, min: 4 }, script })
-  works the list in order as it can pay (near its depot), keeps workers gathering and sends attack-moves at the nearest
-  foe; script(rts, side): a generator game.script runs. rts.update(dt) each step; rts.state() for a proof.
+  works on the first step short of its count as it can pay (losses made again; buildings near its depot), keeps its
+  workers mining nearest home and sends attack-moves at the nearest foe building; script(rts, side): a generator
+  game.script runs. rts.update(dt) each step; rts.state() for a proof. A right click with a building that makes units
+  selected sets its rally point.
 Touch: a tap selects or orders, a drag on open ground pans (game.cam.free), a long press and a drag draws a box, a pinch
 zooms. Time controls: game.timeScale 0, 1, 2, 4 (above 1, more steps of 1/120 s a frame, not longer ones).
 Simulation:
@@ -13337,9 +13342,11 @@ class Strategy {
     for (const q of pts) { let bi = 0; for (let k = 1; k < free.length; k++) if (hyp(list[free[k]].x - q.x, list[free[k]].y - q.y) < hyp(list[free[bi]].x - q.x, list[free[bi]].y - q.y)) bi = k; out[free[bi]] = q; free.splice(bi, 1); }
     return out;
   }
-  /** the right click: attack a foe at the point, gather a resource, else move (o.queue as order's) */
+  /** the right click: attack a foe at the point, gather a resource, else move (o.queue as order's); a building that
+   *  makes units takes the point as its rally */
   smart(units, x, y, target, o = {}) {
     const mine = units.filter(u => u && u.side === this.player);
+    for (const b of mine) if (b.building && b.K.makes) b.rally = { x, y };
     if (target && target.resource) { const gatherers = mine.filter(u => u.K.gather); this.order(gatherers, 'gather', target, o); return this.order(mine.filter(u => !u.K.gather), 'move', { x, y }, o); }
     if (target && units.length && this._foe(units[0], target)) return this.order(mine, 'attack', target, o);
     return this.order(mine, 'move', { x, y }, o);
@@ -13540,12 +13547,14 @@ class Strategy {
   _aiStep(A, dt) {
     if ((A.t -= dt) > 0) return; A.t = .5;
     const S = A.side, mine = this.of(S), workers = mine.filter(u => u.K.gather && !u.building), base = mine.find(u => u.building && u.K.depot);
-    for (const w of workers) if (!w.orders.length) { const m = this.units.filter(u => u.resource).sort((a, b) => hyp(a.x - w.x, a.y - w.y) - hyp(b.x - w.x, b.y - w.y))[0]; if (m) this.order([w], 'gather', m); }
-    const step = (A.plan.build || [])[A.i];
+    const home = base || mine[0];
+    for (const w of workers) if (!w.orders.length && home) { const m = this.units.filter(u => u.resource).sort((a, b) => hyp(a.x - home.x, a.y - home.y) - hyp(b.x - home.x, b.y - home.y))[0]; if (m) this.order([w], 'gather', m); }
+    const count = kind => mine.filter(u => u.kind === kind).length + mine.reduce((a, b) => a + b.queue.filter(q => q.kind === kind).length, 0) + mine.filter(u => u.orders.some(o => o.kind === 'build' && o.what === kind)).length;
+    const step = (A.plan.build || []).find(([kind, n = 1]) => count(kind) < n);   // (the first short of its count: losses are made again)
+    A.i = step ? A.plan.build.indexOf(step) : (A.plan.build || []).length;
     if (step) {
-      const [kind, n = 1] = step, K = this.kinds[kind], have = mine.filter(u => u.kind === kind).length + mine.reduce((a, b) => a + b.queue.filter(q => q.kind === kind).length, 0) + mine.filter(u => u.orders.some(o => o.kind === 'build' && o.what === kind)).length;
-      if (have >= n) A.i++;
-      else if (!K.building) { const b = mine.find(u => u.building && u.progress >= 1 && (u.K.makes || []).includes(kind) && u.queue.length < 2); if (b) this.train(b, kind); }
+      const [kind] = step, K = this.kinds[kind];
+      if (!K.building) { const b = mine.find(u => u.building && u.progress >= 1 && (u.K.makes || []).includes(kind) && u.queue.length < 2); if (b) this.train(b, kind); }
       else if (base && this.afford(S, K.cost)) {
         const w = workers.find(u => !u.orders.some(o => o.kind === 'build'));
         const room = (cx, cy) => { for (let y = cy - 1; y <= cy + (K.h || 1); y++) for (let x = cx - 1; x <= cx + (K.w || 1); x++) if (!this.map.walkable(x, y)) return false; return this.canPlace(kind, cx, cy, w); };   // (a cell's margin all round: no walling in)
@@ -13558,7 +13567,7 @@ class Strategy {
     if (W && this.time >= A.wave) {
       const army = mine.filter(u => !u.building && !u.K.gather && u.K.atk && !u.orders.length);
       if (army.length >= (W.min || 3)) {
-        const foes = this.units.filter(u => u.side && u.side !== S && !u.resource), tgt = foes.filter(u => u.building)[0] || foes[0];
+        const foes = this.units.filter(u => u.side && u.side !== S && !u.resource), near = l => l.sort((a, b) => hyp(a.x - home.x, a.y - home.y) - hyp(b.x - home.x, b.y - home.y))[0], tgt = home && (near(foes.filter(u => u.building)) || near(foes));
         if (tgt) { this.order(army, 'amove', { x: tgt.x, y: tgt.y }); A.wave = this.time + (W.every || 90); if (this.on.wave) this.on.wave(S, army); }
       }
     }
@@ -13764,7 +13773,7 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 35-puzzle.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu, nine vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
@@ -13788,6 +13797,10 @@ sprites: {
  *                        continues, turns and attract mode; a maze of E.GridMovers, moths on E.Paths, wrapping rocks
  *   SLICE 15 TACTICS     an isometric battle on a map of heights (Final Fantasy Tactics, Fire Emblem): map.pick under
  *                        the cursor, E.Grid's reach, shapes, facing and threat maps, E.Turns' charge time, E.Story
+ *   SLICE 16 RTS         real-time strategy (Warcraft II, StarCraft): E.Strategy's selection, orders, gold, building,
+ *                        training, fog and an AI's waves; a free camera, r.pick, buildings as E.SHAPES, E.Shell's minimap
+ *   SLICE 17 SIM         a theme park (Theme Park, RollerCoaster Tycoon): paths, rides whose shapes turn, guests with
+ *                        needs (E.needs, E.choose), money, prices, a rating, E.Clock's days, time controls, an overlay
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
@@ -13824,6 +13837,8 @@ const SLICES = [
   { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
   { id: 'tactics', label: 'TACTICS', about: 'TAKE THE HILL FORT, TURN BY TURN', family: 'STRATEGY' },
+  { id: 'rts', label: 'RTS', about: 'GATHER GOLD, RAISE AN ARMY, BURN THEIR CAMP', family: 'STRATEGY' },
+  { id: 'sim', label: 'SIM', about: 'BUILD A THEME PARK, KEEP THEM SMILING', family: 'SIMULATION' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
 ];
@@ -19895,6 +19910,790 @@ const TACTICS = (() => {
       () => [mode, stats.turns, units.map(u => [u.cx, u.cy, u.hp, u.mp, u.dead])]) };
 })();
 scenes.tactics = TACTICS;
+
+/* =====================================================================================
+ * SLICE 16  RTS  (Dune II, Warcraft II, Command & Conquer, StarCraft). @modules grid strategy
+ * THE VALE WAR: the Vale's hall stands south-west of a river; the Ash Clan's camp across it, north-east, behind two of
+ * its three fords. Workers mine gold and carry it to the hall; the hall makes workers, a BARRACKS footmen and archers, a
+ * STABLE knights (workers build both). The clan builds its own and sends its army across in waves, bigger each time.
+ * Win: every clan building falls. Lose: every one of yours does. Fog hides what your people don't see; walls of rock
+ * block sight, a building once seen stays on the map.
+ * The mouse: a click selects, a drag draws a box, Shift adds, a double click takes every one of that kind on screen, a
+ * right click orders (move, attack, mine; a building's rally point), the wheel zooms toward the pointer, the screen's
+ * edge pans. Keys: arrows / WASD pan, Z X C the panel's commands, H the hall, R the army, Space the last alert, Ctrl+1..9
+ * keeps a group and 1..9 calls it back, F then a click attack-moves. TOUCH: a tap selects, a tap on ground or a foe
+ * orders, a drag pans, a long press then a drag draws a box, two fingers zoom; the panel's buttons are a thumb's size,
+ * HALL and ARMY on the left; BUILD shows the plan where you tap, PLACE puts it there.
+ * HOW IT WORKS: the strategy module keeps the rules (E.Strategy: kinds as data, orders, flow fields, fog, the clan's AI
+ * from its build order and waves); this slice draws (rigs, buildings as E.SHAPES, the fog), runs the HUD and its
+ * commands, and the minimap (E.Shell). bot() gives the Vale an AI of its own that plays the match to its end, twice the
+ * same (tools/kits-test.mjs). Deep link: #rts.
+ * ===================================================================================== */
+const RTS = (() => {
+  const T = 16, POP = 40, BLUE = '#3a6ad0', RED = '#c03a3a';
+  // the war drums: D minor, a march under a horn
+  const SONG = { bpm: 96, steps: 4, tracks: [
+    { wave: 'pulse25', vol: .1, notes: 'D4 - - - F4 - A4 - G4 - F4 - E4 - - - | D4 - - - F4 - A4 - C5 - A4 - G4 - - - | Bb4 - A4 - G4 - F4 - E4 - F4 - G4 - - - | A4 - - - G4 - E4 - D4 - - - . . . .' },
+    { wave: 'triangle', vol: .3, notes: 'D2 . D2 . A2 . D2 . | D2 . D2 . A2 . D2 . | G2 . G2 . D3 . G2 . | A2 . A2 . E2 . A2 .' },
+    { wave: 'drums', vol: .1, notes: 'k . . k s . . . k . k . s . h h' }] };
+  // the Vale (B, its hall's corner: south-west) and the Ash Clan (R: north-east) across the river (~) and its fords (=);
+  // gold ($, a mine's corner), rock (^: blocks sight), woods (T)
+  const ROWS = [
+    'TTTTTTTTT.TTTTT.TTTTT~~TTTTT.TT..TTTTTTTTTTT.TTTTTTTTTTT',
+    'TT..TT...T.T...TTT..T~~.T.....TT.TT.TT..TT...TT.T....TTT',
+    '.T...........TT.......~~...$...........................T',
+    '............TTTTT......~~..............................T',
+    'TT..........T..TT......~~................$.............T',
+    'T...TTT,,,,.TTT.T.......~~............................T.',
+    'TT...T,T,,,..T....,.....~~.............................T',
+    'T..TTTT.T,.,....,,,,,....~~.....^^.........:::::.......T',
+    'TTTTTTTTT.,.....,,,,,....~~....^...........:R:::......T.',
+    'T.TTTTTTT,,....,,,,,,,...==.........::::::::::::......TT',
+    '.T.TTTTT,.......,,,,,....==................:::::......TT',
+    'T...TTT.........,,,,,....~~................:::::.......T',
+    'TT.......................~~T.........TT...........$....T',
+    'TT..........^...$.......T~~TT.......TT,...............TT',
+    '.T........^^............T~~TT.......TTT...............TT',
+    'T.......................T~~TT.......TT,...............TT',
+    'T...,.^..................~~T.......,,TT...............TT',
+    'TT,,,,^..................~~.........,,,,.,,,...........,',
+    'T..,,,,..................~~..........,.,,,,,.,TT.....,TT',
+    '.,,,,,,...............,.~~...........,,,,,.,TTT.T.....,,',
+    '..,,..,.TTT.......^.,,,,~~.............,,,,,TTT.T....,TT',
+    'T.,,,,,TTTTT.......^,,,,==...............,,,TTTT...,,,,T',
+    'T...,..TTTTT.......,^.,,.==..............,,,,TT....,,,TT',
+    '........TT.T......,,,,,,,==................,.......,,,,T',
+    '........TTT........,,,,,,~~.........^^...............,TT',
+    'T..................,,,,,,~~..........^.............,,,,T',
+    'T...................,..,,.~~........................,,,T',
+    'T.....................,...~~..........................T.',
+    'TT................T........~~TTT...............TTT..,,,T',
+    'T...$............TTT........~~TTT.............TTTTT,,,T,',
+    '.................TTT........~~TTT......$......TTTTT,,,T,',
+    'T................TT..........~~TT.........^.....TTT,,,,T',
+    'TT.....:::::.....TT...........~~...........^^..TTT.,,,TT',
+    '.T.....:B:::..................~~.....................,TT',
+    '.......:::::::::::::...........==....................,TT',
+    '.T.....:::::....................==.....TTT............TT',
+    '.T.....:::::............^......,~~,...TTTT..............',
+    'T................,......^.....,,,~~..TT.TTTT..........TT',
+    '.............$...,.....^.....,,.,~~,.TTTTTT......TTT...T',
+    '.................,,...........,,,,~~...TT.TT....TTT.T.TT',
+    '.................,..............,,~~..TTTTT.......TTT..T',
+    'T.........,,,.,.,,...........$..,.~~...TTT......T.TTT.T.',
+    'T....TTT....,TT,TT....T..T.T....T.~~T.TT....TT....TT..TT',
+    '.TT.TTTT.TTTTT.TTTTTTTTTTTTT....TT~~TTT..TT.TTTTTTTTTTTT'];
+  const LEGEND = { '.': { floor: 'grass' }, ',': { floor: 'meadow' }, ':': { floor: 'dirt' }, '~': { floor: 'water', block: true }, '=': { floor: 'ford' }, '^': 1,
+    T: { floor: 'grass', block: true, spawn: 'tree' }, '$': { floor: 'dirt', spawn: 'mine' }, B: { floor: 'dirt', spawn: 'blue' }, R: { floor: 'dirt', spawn: 'red' } };
+  const FLOORS = { grass: 'grass', meadow: '#78a04a noise', dirt: '#8a7048 noise', water: '#3a6aa8 glaze', ford: '#a89868 speck' };
+  const TYPES = { 1: { h: 18, top: '#8a8676', side: '#5e584c', face: 'rock', roof: 'rock' } };
+
+  /* ---- 1. THE KINDS (the strategy module's data): three to fight and one to work; the hall, two to build, the mines.
+   * look: the rig (its cloth the side's color); melee: a sword's swing; bow: an arrow flies ---- */
+  const KINDS = {
+    worker:   { name: 'WORKER', many: 'WORKERS', hp: 30, tall: 19, speed: 38, atk: 3, range: 8, rate: 1.2, sight: 5, cost: { gold: 50 }, time: 7, gather: 8, look: { size: .58, hat: 'cap', weapon: null, outfit: 'shirt', sleeves: 'short' }, team: 'hat' },
+    footman:  { name: 'FOOTMAN', many: 'FOOTMEN', hp: 60, tall: 20, speed: 33, atk: 7, range: 9, rate: 1, sight: 6, cost: { gold: 70 }, time: 9, melee: true, look: { size: .64, hat: { style: 'helmet', color: '#a8a8b4' }, armor: true, weapon: 'sword' } },
+    archer:   { name: 'ARCHER', many: 'ARCHERS', hp: 40, tall: 20, speed: 33, atk: 5, range: 52, rate: 1.4, sight: 7, cost: { gold: 80 }, time: 10, bow: true, look: { size: .62, hood: true, weapon: null, sleeves: 'long' } },
+    knight:   { name: 'KNIGHT', many: 'KNIGHTS', hp: 120, tall: 23, speed: 46, atk: 11, range: 10, rate: 1.1, sight: 7, cost: { gold: 150 }, time: 13, melee: true, r: 6, look: { size: .72, build: 'heroic', hat: { style: 'helmet', color: '#d8d8e0' }, armor: true, weapon: 'sword', cape: { len: 5, width: 4, seg: 2.2 } } },
+    hall:     { name: 'HALL', building: true, w: 3, h: 3, hp: 1800, depot: true, makes: ['worker'], sight: 7, shape: 'rts-hall' },
+    barracks: { name: 'BARRACKS', building: true, w: 3, h: 3, hp: 700, makes: ['footman', 'archer'], cost: { gold: 150 }, time: 24, sight: 5, shape: 'rts-barracks' },
+    stable:   { name: 'STABLE', building: true, w: 3, h: 3, hp: 600, makes: ['knight'], cost: { gold: 200 }, time: 28, sight: 5, shape: 'rts-stable' },
+    mine:     { name: 'GOLD MINE', resource: 'gold', amount: 4000, w: 2, h: 2, shape: 'rts-mine' }
+  };
+  // the buildings, as E.SHAPES (team: the side's banners and trim)
+  Object.assign(E.SHAPES, {
+    'rts-hall': { about: 'a town hall: a stone footing, timber walls, a shingled gable, a banner over the door', mats: { team: BLUE + ' cloth' },
+      parts: [['box','stone',[0,0,0],[44,40,5]], ['box','timber',[0,0,5],[40,36,14]], ['prism','shingle',[0,0,19],[[-20,0],[20,0],[0,15]],42,{axis:'x'}],
+        ['box','walnut',[0,18.5,5],[8,1,10]], ['box','team',[0,18.6,12],[6,1,10]], ['box','stone',[13,-8,19],[5,5,18]], ['mirror','x',['box','team',[16,18.6,8],[3,1,9]]]] },
+    'rts-barracks': { about: 'a barracks: a long stone hall, a flat roof with a parapet, banners, a rack of spears', mats: { team: BLUE + ' cloth' },
+      parts: [['box','stone',[0,0,0],[44,34,16]], ['box','slate',[0,0,16],[46,36,2]], ['row',5,[9,0,0],['box','stone',[0,17,18],[4,2,3]]],
+        ['box','walnut',[0,17.5,0],[9,1,11]], ['mirror','x',['box','team',[13,17.6,5],[5,1,10]]], ['row',3,[2.5,0,0],['cyl','oak',[-18,20,0],.6,16]]] },
+    'rts-stable': { about: 'a stable: a plank barn, a shingled roof, a fenced pen, hay', mats: { team: BLUE + ' cloth' },
+      parts: [['box','plank',[0,-4,0],[40,28,14]], ['prism','shingle',[0,-4,14],[[-16,0],[16,0],[0,11]],42,{axis:'x'}], ['box','walnut',[0,10.5,0],[10,1,11]],
+        ['box','team',[0,10.6,11],[12,1,3]], ['row',5,[9,0,0],['box','oak',[0,19,0],[2,2,8]]], ['box','oak',[0,19,5],[38,1,1.5]], ['ball','straw',[14,14,3],4,{sz:.7}]] },
+    'rts-mine': { about: 'a gold mine: a rocky mound, a timbered mouth, nuggets', mats: {},
+      parts: [['rock','rock',[0,-2,0],15,{sz:.75,seed:4}], ['box','#1a140e none',[0,11,0],[9,3,9]], ['box','oak',[-5,12,0],[1.5,2,10]], ['box','oak',[5,12,0],[1.5,2,10]],
+        ['box','oak',[0,12,9],[12,2,1.5]], ['ball','gold',[-9,10,1.5],2.2], ['ball','gold',[8,9,1.5],1.8], ['ball','gold',[-5,6,6],1.6]] },
+    'rts-site': { about: 'a building going up: a plank floor, posts, a beam', mats: {},
+      parts: [['box','plank',[0,0,0],[40,36,2]], ['mirror','xy',['box','oak',[18,16,2],[2,2,14]]], ['box','oak',[0,16,15],[38,2,1.5]], ['box','oak',[0,-16,15],[38,2,1.5]]] }
+  });
+  const HOTKEYS = ['cmd1', 'cmd2', 'cmd3'];
+  // the Ash Clan's plan (the module's AI): workers, a barracks, footmen and archers; a stable, knights; more of each; the
+  // waves: the first after four minutes, then every two and a half
+  const CLAN = { build: [['worker', 6], ['barracks'], ['footman', 3], ['archer', 2], ['worker', 8], ['stable'], ['footman', 5], ['knight', 2], ['archer', 4], ['footman', 8], ['knight', 4]],
+    waves: { first: 240, every: 150, min: 4 } };
+  // the bot's plan for the Vale (tools/kits-test.mjs): the same build, sooner and bigger, and waves once it can win them
+  const VALE = { build: [['worker', 8], ['barracks'], ['footman', 4], ['worker', 11], ['barracks', 2], ['archer', 4], ['stable'], ['footman', 10], ['knight', 4], ['archer', 7], ['knight', 6], ['footman', 14]],
+    waves: { first: 300, every: 60, min: 12 } };
+
+  let map = null, rts = null, ui = null, mode = 'play', placing = null, amoving = false, over = null, msg = null, banner = null, alert = null, auto = false;
+  let stats = null, arrows = [], dying = [], ruins = [], wave = 0, idle = 0, hits = 0;
+  const say = (s, c = '#fff2c4') => { msg = { s, c, t: 0 }; };
+  const blueOf = kind => rts.of('blue', kind), mine = u => u && u.side === 'blue';
+  const buildings = side => rts.units.filter(u => u.side === side && u.building);
+
+  /* ---- 2. THE MATCH: a fresh map (buildings block its cells), the strategy module over it, the sides, the clan's AI ---- */
+  function start(data) {
+    auto = !!(data && data.auto);
+    map = new E.TileMap({ rows: ROWS, legend: LEGEND, types: TYPES, floorMat: 'grass', floorMats: FLOORS, ao: 0, outside: false });
+    rts = new E.Strategy(game, { map, kinds: KINDS, sides: { blue: { res: { gold: 400 } }, red: { res: { gold: 400 } } }, player: 'blue', on: {
+      attack(u, t) {
+        if (u.K.bow) arrows.push({ x: u.x, y: u.y, tx: t.x, ty: t.y, t: 0, d: Math.hypot(t.x - u.x, t.y - u.y) / 160 });
+        if (u.K.melee || u.K.gather) u.swing = .45;
+        if (rts.visible(t) && onScreen(t)) { if (++hits % 3 === 0) A.sfx(u.K.bow ? 'shoot' : 'hit'); }
+        if (t.side === 'blue' && (!alert || game.time - alert.t > 8) && !auto) { alert = { x: t.x, y: t.y, t: game.time }; if (!onScreen(t)) { say(t.building ? 'YOUR ' + t.K.name + ' IS UNDER ATTACK' : 'YOUR PEOPLE ARE UNDER ATTACK', '#ff9a7a'); A.sfx('warp'); } }
+      },
+      death(u) {
+        if (u.resource) { say('A GOLD MINE RUNS DRY', '#ffd860'); return; }
+        stats[u.side === 'blue' ? 'lost' : 'killed']++;
+        if (u.building) { ruins.push({ x: u.x, y: u.y, r: u.r }); if (rts.visible(u)) { game.particles.explosion(u.x, u.y, 12, 1.4); A.sfx('explode'); } }
+        else if (u.rig) dying.push({ x: u.x, y: u.y, rig: u.rig, t: 0, side: u.side });
+      },
+      made(u, b) {
+        u.rig = rigOf(u);
+        if (u.K.gather && !b.rally) { const m = rts.units.filter(o => o.resource).sort((a, c) => Math.hypot(a.x - b.x, a.y - b.y) - Math.hypot(c.x - b.x, c.y - b.y))[0]; if (m) rts.order([u], 'gather', m); }   // (a new worker goes to the nearest mine)
+        if (u.side === 'blue') { stats.made++; if (!auto) A.sfx('blip'); }
+      },
+      built(b) { if (b.side === 'blue' && !auto) { say(b.K.name + ' IS BUILT', '#a8ffb0'); A.sfx('powerup'); } },
+      gathered(u, n) { if (u.side === 'blue') stats.gold += n; },
+      ordered() { A.sfx('select'); }
+    } });
+    rts.ai('red', CLAN);
+    if (auto) rts.ai('blue', VALE);
+    stats = { made: 0, lost: 0, killed: 0, gold: 0, t: 0 }; arrows = []; dying = []; ruins = []; wave = 0; over = null; msg = null; alert = null; placing = null; amoving = false; mode = 'play';
+    for (const s of map.spawns) {
+      if (s.tag === 'mine') rts.spawn('mine', null, (s.cx + 1) * T, (s.cy + 1) * T);
+      if (s.tag === 'blue' || s.tag === 'red') {
+        const hall = rts.spawn('hall', s.tag, (s.cx + 1.5) * T, (s.cy + 1.5) * T), dir = s.tag === 'blue' ? 1 : -1;
+        for (let i = 0; i < 4; i++) rts.spawn('worker', s.tag, hall.x + (i - 1.5) * 12, hall.y + dir * 34);
+        for (let i = 0; i < 2; i++) rts.spawn('footman', s.tag, hall.x + dir * 36, hall.y + (i - .5) * 14);
+      }
+    }
+    for (const u of rts.units) if (!u.building && !u.resource) u.rig = rigOf(u);
+    for (const side of ['blue', 'red']) { const h = buildings(side)[0], m = rts.units.filter(u => u.resource).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0]; rts.order(rts.of(side, 'worker'), 'gather', m); }   // (to work at once)
+    const hall = buildings('blue')[0];
+    game.cam.free = { bounds: [0, 0, map.w * T, map.h * T] }; game.focus(hall.x + 40, hall.y - 30); game.cam.snap = true;
+    game.input.touchEnabled = false; L.enabled = false; A.music(SONG);
+    ui = ui || new E.Shell(game, { theme: { accent: '#e8c070' } });   // (made once: the minimap; it keeps the pause menu)
+    banner = { s: 'THE VALE WAR', t: 0, c: '#ffe070' }; say('BURN THE ASH CLAN\'S CAMP, ACROSS THE RIVER', '#ffe8b0');
+  }
+  const rigOf = u => new E.Humanoid(Object.assign({}, u.K.look, u.K.team === 'hat' ? { hat: { style: u.K.look.hat, color: u.side === 'blue' ? '#3a5ab0' : '#a02a2a' } } : {}, { colors: Object.assign({ cloth: u.side === 'blue' ? BLUE : RED, hair: u.side === 'blue' ? '#5a3a1a' : '#2a2020', cape: u.side === 'blue' ? '#2a4aa0' : '#8a2020', capeIn: '#3a2a2a', pants: '#4a4038' }, u.K.look.colors) }));
+  // on the screen now (the camera's whole-pixel offset), with a margin: the rigs that move, the sounds that play
+  const onScreen = (u, m = 40) => { const q = game.view.p(u.x, u.y, 0), x = q[0] - game.cam.x, y = q[1] - game.cam.y; return x > -m && y > -m && x < game.W + m && y < game.H + m * 1.5; };
+
+  /* ---- 3. THE PANEL'S COMMANDS: what the selection can do (a key, a click or a tap each) ---- */
+  function commands() {
+    const sel = rts.selected.filter(u => !u.dead), out = [];
+    if (!sel.length) return out;
+    const b = sel.length === 1 && sel[0].building ? sel[0] : null;
+    if (b) {
+      if (b.progress < 1) return out;
+      for (const k of b.K.makes || []) out.push({ id: 'train', kind: k, label: KINDS[k].name, cost: KINDS[k].cost.gold, off: !rts.afford('blue', KINDS[k].cost) || b.queue.length >= 5 || rts.of('blue').filter(u => !u.building).length >= POP });
+      if (b.queue.length) out.push({ id: 'cancel', label: 'CANCEL' });
+      return out;
+    }
+    if (sel.every(u => u.K.gather)) for (const k of ['barracks', 'stable']) out.push({ id: 'build', kind: k, label: KINDS[k].name, cost: KINDS[k].cost.gold, off: !rts.afford('blue', KINDS[k].cost) });
+    else out.push({ id: 'amove', label: 'A-MOVE' });
+    out.push({ id: 'stop', label: 'STOP' });
+    return out.slice(0, 3);
+  }
+  function command(c) {
+    if (!c || c.off) { A.sfx('bump'); if (c && c.cost && !rts.afford('blue', { gold: c.cost })) say('NOT ENOUGH GOLD', '#ffb070'); return; }
+    const sel = rts.selected.filter(u => !u.dead);
+    if (c.id === 'train') { rts.train(sel[0], c.kind); A.sfx('confirm'); }
+    else if (c.id === 'cancel') { rts.cancel(sel[0]); A.sfx('cancel'); }
+    else if (c.id === 'stop') { rts.order(sel, 'stop'); A.sfx('cancel'); }
+    else if (c.id === 'amove') { amoving = true; A.sfx('blip'); say(touch() ? 'TAP WHERE THEY FIGHT THEIR WAY TO' : 'CLICK WHERE THEY FIGHT THEIR WAY TO', '#ffd0a0'); }
+    else if (c.id === 'build') { mode = 'place'; const at = groundAt([game.W / 2, game.H / 2]) || [sel[0].x, sel[0].y]; placing = { kind: c.kind, cx: Math.floor(at[0] / T) - 1, cy: Math.floor(at[1] / T) - 1, by: sel[0] }; A.sfx('blip'); }
+  }
+  // the world point under a screen point (the ground's cell: map.pick, or the ground plane)
+  const groundAt = p => { const h = map.pick(p[0], p[1]); return h ? [h.x, h.y] : game.view.toGround(p[0] + Math.floor(game.cam.x), p[1] + Math.floor(game.cam.y)); };
+  function place() {
+    const p = placing; if (!rts.canPlace(p.kind, p.cx, p.cy)) { A.sfx('bump'); say('IT CANNOT STAND THERE', '#ffb070'); return; }
+    const by = p.by && !p.by.dead ? p.by : rts.selected.find(u => !u.dead && u.K.gather) || blueOf('worker')[0];
+    if (by && rts.order([by], 'build', { kind: p.kind, cx: p.cx, cy: p.cy })) { A.sfx('confirm'); say(KINDS[p.kind].name + ': A WORKER IS ON HIS WAY', '#a8ffb0'); }
+    mode = 'play'; placing = null;
+  }
+
+  /* ---- 4. EACH STEP: the HUD's buttons first (a tap on one is not an order), then the module's selection and orders,
+   * placing a building, the rules, the rigs, the end ---- */
+  let boxes = { cmds: [], side: [], place: [] };
+  const hitBox = (b, p) => b && p && p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
+  function update(dt) {
+    const I = game.input, tap = I.clicked();
+    if (msg) msg.t += dt; if (banner) banner.t += dt;
+    if (over) { over.t += dt; if (over.t > 1.6) endMenu.update(dt); stepWorld(dt); return; }
+    stats.t += dt;
+    if (!auto) {
+      let used = false;
+      boxes.cmds.forEach((b, i) => { if (hitBox(b, tap)) { command(b.c); used = true; } });
+      if (!used) for (const b of boxes.side) if (hitBox(b, tap)) { sideButton(b.id); used = true; }
+      if (!used) for (const b of boxes.place) if (hitBox(b, tap)) { if (b.id === 'place') place(); else { mode = 'play'; placing = null; A.sfx('cancel'); } used = true; }
+      HOTKEYS.forEach((k, i) => { if (I.pressed(k) && mode === 'play') command(commands()[i]); });
+      if (I.pressed('base')) sideButton('hall'); if (I.pressed('army')) sideButton('army');
+      if (I.pressed('alert') && alert) { game.focus(alert.x, alert.y); game.cam.snap = true; }
+      if (I.pressed('amove') && rts.selected.some(u => !u.building)) command({ id: 'amove' });
+      if (mode === 'place') {
+        const p = I.pointer(), at = !used && (tap || (!touch() && p)) ? groundAt(tap || p) : null;
+        if (at) { placing.cx = Math.floor(at[0] / T) - 1; placing.cy = Math.floor(at[1] / T) - 1; }
+        if (!used && tap && !touch()) place();
+        else if (I.pressed('confirm')) place();
+        else if (I.pressed('order') || I.pressed('cancel')) { mode = 'play'; placing = null; A.sfx('cancel'); }
+      } else if (amoving && !used && (tap || I.pressed('order'))) {
+        const at = groundAt(tap || I.pointer()); amoving = false;
+        if (at && I.pressed('order')) A.sfx('cancel'); else if (at) { rts.order(rts.selected, 'amove', { x: at[0], y: at[1] }); A.sfx('confirm'); }
+      } else if (!used) rts.input();
+    }
+    stepWorld(dt);
+    if (!buildings('red').length) end(true); else if (!buildings('blue').length) end(false);
+  }
+  function sideButton(id) {
+    if (id === 'hall') { const h = blueOf('hall')[0] || buildings('blue')[0]; if (h) { rts.selected = [h]; game.focus(h.x, h.y); game.cam.snap = true; A.sfx('select'); } }
+    else if (id === 'army') { rts.selected = rts.of('blue').filter(u => !u.building && !u.K.gather); A.sfx(rts.selected.length ? 'select' : 'bump'); }
+    else if (id === 'idle') { const w = blueOf('worker').find(u => !u.orders.length); if (w) { rts.selected = [w]; game.focus(w.x, w.y); game.cam.snap = true; A.sfx('select'); } else A.sfx('bump'); }
+  }
+  function stepWorld(dt) {
+    rts.update(dt);
+    for (const u of rts.units) {
+      if (!u.rig) continue;
+      if (u.swing > 0) u.swing -= dt;
+      if (!onScreen(u, 80)) continue;   // (off screen a rig waits: a match's hundred bodies cost what the screen shows)
+      const sp = u.moving ? u.K.speed : 0, s = u.swing > 0 ? 1 - u.swing / .45 : 0;
+      u.rig.update(dt, { x: u.x, y: u.y, vx: Math.cos(u.face) * sp, vy: Math.sin(u.face) * sp, facing: u.face, point: u.K.bow && u.cool > u.K.rate - .4,
+        attack: s > 0 ? { spec: { a0: 1.4, a1: -1.6, z0: 12, z1: 8, reach: 7.5 }, phase: s < .35 ? 'wind' : 'active', u: s < .35 ? s / .35 : (s - .35) / .65 } : null });
+    }
+    for (const a of arrows) a.t += dt / Math.max(.05, a.d); arrows = arrows.filter(a => a.t < 1);
+    for (const d of dying) d.t += dt; dying = dying.filter(d => d.t < 1.6);
+    if (rts.time >= CLAN.waves.first - 20 && wave === 0 && !auto) { wave = 1; say('THE ASH CLAN IS ARMING: THEY WILL CROSS SOON', '#ffb070'); }
+  }
+  function end(won) { over = { won, t: 0 }; rts.selected = []; mode = 'play'; placing = null; if (!auto) A.sfx(won ? 'powerup' : 'die'); }
+  const endMenu = new E.Menu(game, ['PLAY AGAIN', 'TITLE'], { y: 0, onPick: i => i === 0 ? game.go('rts', null, { fade: 'iris' }) : game.go('title') });
+
+  /* ---- 5. DRAWING: the floor, the woods, the buildings (shapes, their side's colors; a site going up), the bodies, the
+   * arrows, the fog over it all, then the rings and bars, the plan of a building being placed, the HUD ---- */
+  function draw(r) {
+    map.drawFloor(r); map.queueWalls(r);
+    for (const s of map.spawns) if (s.tag === 'tree') r.prop(E.hash2(s.cx, s.cy) < .55 ? 'pine' : 'tree', s.x, s.y, 0);
+    for (const q of ruins) r.shadow(q.x, q.y, q.r * .9, .55, '#2a2420');   // (a fallen building's scorched ground)
+    for (const u of rts.units) {
+      if (!rts.visible(u) && !(u.building && rts.fog && rts.fog.seen([Math.floor(u.x / T), Math.floor(u.y / T)]))) continue;
+      if (u.resource) { r.shape('rts-mine', u.x, u.y, 0, { pick: u }); continue; }
+      if (u.building) {
+        const team = { team: (u.side === 'blue' ? BLUE : RED) + ' cloth' };
+        if (u.progress < 1) r.shape('rts-site', u.x, u.y, 0, { pick: u });
+        if (u.progress >= .35) r.shape(u.K.shape, u.x, u.y, 0, { pick: u, mats: team, alpha: u.progress < 1 ? .35 + u.progress * .5 : undefined });
+        continue;
+      }
+      r.shadow(u.x, u.y, u.r + 1, .35);
+      r.actor(u.x, u.y, 0, (g, ox, oy) => { u.rig.draw(g, ox, oy, r.view); if (u.K.bow) bow(g, ox, oy, u); if (u.carry) px.rect(g, ox - 2, oy - 13, 4, 3, '#ffd040'); }, { pick: u, every: 3, key: u });
+    }
+    for (const d of dying) r.actor(d.x, d.y, 0, (g, ox, oy) => d.rig.draw(g, ox, oy, r.view), { alpha: Math.max(0, 1 - d.t / 1.6), key: d });
+    for (const a of arrows) {
+      const x = a.x + (a.tx - a.x) * a.t, y = a.y + (a.ty - a.y) * a.t, z = 12 + Math.sin(a.t * Math.PI) * 10, dz = Math.cos(a.t * Math.PI) * 10;
+      r.queue(x, y, z, g => { const [sx, sy] = r.w(x, y, z), [ex, ey] = r.w(x + (a.tx - a.x) * .04, y + (a.ty - a.y) * .04, z + dz * .2); px.line(g, sx, sy, ex, ey, '#e8dcc0'); });
+    }
+    if (rts.fog) rts.fog.draw(r, T, {});
+    rts.draw(r);
+    if (mode === 'place' && placing) rts.ghost(r, placing.kind, placing.cx, placing.cy);
+    if (alert && game.time - alert.t < 3) { const k = (game.time - alert.t) * 30; r.decal(() => r.groundRing(alert.x, alert.y, 6 + k % 24, '#ff5040', .8)); }
+    hud(r);
+  }
+  // an archer's bow in its hand (a curve and its string)
+  function bow(g, ox, oy, u) {
+    const f = Math.cos(u.face) >= 0 ? 1 : -1, x = ox + 4 * f, y = oy - 11;
+    for (let i = -4; i <= 4; i++) px.dot(g, x + Math.round(1.8 * Math.cos(i / 4 * 1.2)) * f, y + i, i % 2 ? '#8a5a2a' : '#5a3a1a');
+    px.line(g, x - f, y - 4, x - f, y + 4, '#e8e0d0');
+  }
+  function hud(r) {
+    const W = r.W, H = r.H, tc = touch(), th = Math.max(16, Math.ceil(44 * game.screen.dpr / game.screen.S)), sel = rts.selected.filter(u => !u.dead);
+    ui.hud(over ? {} : { minimap: rts.minimap({ blue: '#70b0ff', red: '#ff5a4a' }) });
+    boxes = { cmds: [], side: [], place: [] };
+    r.overlay(g => {
+      if (over) { overDraw(g, W, H); return; }
+      // gold, the army, the clock
+      E.ui.box(g, 3, 3, 112, 14, { alpha: .78 });
+      px.rect(g, 8, 7, 5, 5, '#ffd040'); px.rect(g, 9, 8, 2, 2, '#fff2a0');
+      E.font.text(g, String(rts.side('blue').res.gold || 0), 16, 6, '#ffe8a0', { outline: false });
+      const army = rts.of('blue').filter(u => !u.building).length, mm = Math.floor(stats.t / 60), ss = Math.floor(stats.t % 60);
+      E.font.text(g, 'PEOPLE ' + army + '/' + POP, 46, 7, '#c8d8ff', { outline: false, font: 'tiny' });
+      E.font.text(g, mm + ':' + String(ss).padStart(2, '0'), 111, 7, '#a8a0c0', { align: 'right', outline: false, font: 'tiny' });
+      // the selection: its name, its health, what it is making; its commands
+      const cmds = mode === 'place' ? [] : commands(), bw = 62, bh = tc ? th : 16, py = H - bh - 22;
+      if (sel.length) {
+        const u = sel[0], one = sel.length === 1, label = one ? u.K.name : sel.length + ' ' + (sel.every(s => s.kind === u.kind) ? u.K.many || u.K.name : 'SELECTED');
+        E.ui.box(g, 3, py - 2, Math.max(150, cmds.length * (bw + 2) + 8), bh + 23, { alpha: .82 });
+        E.font.text(g, label, 8, py + 1, '#ffe8b0', { outline: false });
+        if (one) { E.ui.bar(g, 8, py + 11, 60, 3, u.hp / u.max, u.hp > u.max * .35 ? '#5ad86a' : '#ff4a4a'); E.font.text(g, Math.ceil(u.hp) + '/' + u.max, 72, py + 10, '#c8c0d8', { outline: false, font: 'tiny' }); }
+        if (one && u.queue && u.queue.length) { const q = u.queue[0], k = q.t / (KINDS[q.kind].time || 1); E.font.text(g, 'MAKING ' + KINDS[q.kind].name + (u.queue.length > 1 ? ' +' + (u.queue.length - 1) : ''), 100, py + 2, '#a8ffb0', { outline: false, font: 'tiny' }); E.ui.bar(g, 100, py + 11, 44, 3, k, '#ffd060'); }
+        if (one && u.progress < 1) E.font.text(g, 'GOING UP ' + Math.floor(u.progress * 100) + '%', 100, py + 2, '#ffd060', { outline: false, font: 'tiny' });
+        cmds.forEach((c, i) => {
+          const b = { x: 7 + i * (bw + 2), y: py + 17, w: bw, h: bh, c }; boxes.cmds.push(b);
+          E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: c.off ? '#1a1828' : '#2a3a7a' });
+          E.font.text(g, c.label, b.x + 4, b.y + b.h / 2 - 3, c.off ? '#6a6680' : '#ffffff', { outline: false, font: 'tiny' });
+          if (c.cost) E.font.text(g, String(c.cost), b.x + b.w - 3, b.y + b.h / 2 - 3, c.off ? '#6a6680' : '#ffd860', { align: 'right', outline: false, font: 'tiny' });
+          if (!tc) E.font.text(g, ['Z', 'X', 'C'][i], b.x + b.w - 3, b.y - 6, '#8a86a0', { align: 'right', outline: false, font: 'tiny' });
+        });
+      }
+      // a building's plan: PLACE and CANCEL on a touch screen (a tap moves it), else the hint
+      if (mode === 'place') {
+        const ok = rts.canPlace(placing.kind, placing.cx, placing.cy);
+        if (tc) [['place', 'PLACE', ok], ['cancel', 'CANCEL', true]].forEach(([id, s, on], i) => { const b = { id, x: 7 + i * 66, y: H - th - 6, w: 62, h: th }; boxes.place.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: on ? '#2a5a3a' : '#3a1a1a' }); E.font.text(g, s, b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false }); });
+        E.font.text(g, KINDS[placing.kind].name + (tc ? ': TAP WHERE IT STANDS' : ': CLICK WHERE IT STANDS, RIGHT CLICK CANCELS'), W / 2, 22, ok ? '#a8ffb0' : '#ffb0a0', { align: 'center', shadow: '#000', outline: false });
+      }
+      // HALL, ARMY and IDLE on the left of a touch screen (keys H and R)
+      if (tc) ['hall', 'army', 'idle'].forEach((id, i) => { const b = { id, x: 3, y: 22 + i * (th + 3), w: 40, h: th }; boxes.side.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .82 }); E.font.text(g, id.toUpperCase(), b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
+      // the banner, the message
+      if (banner && banner.t < 2.4) { const a = banner.t < .3 ? banner.t / .3 : banner.t > 1.9 ? (2.4 - banner.t) / .5 : 1; px.blend(g, a * .7, 'normal', () => px.rect(g, 0, H / 2 - 26, W, 30, '#0a0816')); E.font.title(g, banner.s, W / 2, H / 2 - 22, { align: 'center', scale: 2, colors: ['#ffffff', banner.c, E.mix(banner.c, '#000000', .5)] }); }
+      if (msg && msg.t < 3) E.font.text(g, msg.s, W / 2, mode === 'place' ? 34 : 22, msg.c, { align: 'center', shadow: '#000', outline: false });
+      if (!tc && !sel.length && stats.t < 40) E.font.text(g, 'CLICK OR DRAG TO SELECT  RIGHT CLICK ORDERS  H HALL  R ARMY', W / 2, H - 9, '#a8a0c0', { align: 'center', outline: false, font: 'tiny' });
+    });
+    if (over && over.t > 1.6) endMenu.draw(r);
+  }
+  function overDraw(g, W, H) {
+    const k = Math.min(1, over.t / .8), cy = Math.round(H / 2);
+    g.fillStyle = 'rgba(4,2,10,' + (.6 * k).toFixed(2) + ')'; g.fillRect(0, 0, game.r.bw, game.r.bh); E.px.reset(g);
+    E.font.title(g, over.won ? 'VICTORY' : 'DEFEAT', W / 2, cy - 64, { align: 'center', scale: 3, colors: over.won ? ['#fff8d0', '#ffd060', '#e07a2a'] : ['#ffd0d0', '#ff5a5a', '#8a1a2a'] });
+    const t = stats.t, lines = [over.won ? 'THE ASH CLAN\'S CAMP IS BURNED' : 'THE VALE HAS FALLEN', 'TIME ' + Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') + '   GOLD MINED ' + stats.gold,
+      'MADE ' + stats.made + '   LOST ' + stats.lost + '   FOES FELLED ' + stats.killed];
+    lines.forEach((s, i) => E.font.text(g, s, W / 2, cy - 20 + i * 11, i ? '#e8e0f0' : '#ffe070', { align: 'center', shadow: '#000', outline: false }));
+    endMenu.y = cy + 22;
+  }
+
+  /* ---- 6. THE BOT: the Vale's own AI (the same module's, its plan above) against the clan's, through the same rules a
+   * player's orders give; a match to its end, twice, the same (tools/kits-test.mjs) ---- */
+  function bot(o = {}) {
+    const was = Math.random, one = () => {
+      Math.random = E.rng(o.seed || 1);
+      game.time = 0; game.timeScale = 1; game.go('rts', { auto: true }, { fade: 0 }); game.advance(1 / 120);
+      for (let i = 0; i < 30 * 60 * 20 && !over; i++) game.advance(1 / 30);
+      const s = JSON.stringify(rts.state()); let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+      return { won: !!(over && over.won), over: !!over, time: Math.round(stats.t), made: stats.made, lost: stats.lost, killed: stats.killed, gold: stats.gold, hash: h >>> 0 };
+    };
+    try { const a = one(), b = one(); return Object.assign(a, { repeat: JSON.stringify(a) === JSON.stringify(b), errors: game.errors.length }); }
+    finally { Math.random = was; }
+  }
+
+  return { view: 'iso', views: ['iso'], res: 'ps1', pausable: true, propSize: 1, touch: [], camera: { zoom: [.6, 1.6], start: 1, tall: 1.25 },
+    input: { ...E.Input.DEFAULT, order: ['Mouse2'], cmd1: ['KeyZ'], cmd2: ['KeyX'], cmd3: ['KeyC'], base: ['KeyH'], army: ['KeyR'], alert: ['Space'], amove: ['KeyF'] },
+    enter: start, update, draw, bot,
+    exit() { game.cam.free = null; game.input.touchEnabled = true; game.resetCamera(); if (ui) ui.hud({}); },
+    back() { if (mode === 'place') { mode = 'play'; placing = null; return true; } if (rts.selected.length) { rts.selected = []; return true; } return false; },   // a phone's back: the plan, then the selection
+    /** for tests: the state, the strategy module, a unit's place on the screen, the HUD's boxes */
+    state: () => ({ mode, over, stats, rts, map, placing, boxes, wave, commands: commands().map(c => c.label),
+      at: u => { const q = game.view.p(u.x, u.y, u.z || 0); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; } }),
+    /** the proof: the hall selected (H), a worker made (Z), the camera panned about, the army called (R) and sent across
+     *  with F and a click; the clan's AI between; a hash of every unit's kind, side, place and HP, and each side's gold */
+    run: (n = 1200) => proof('rts', n, (i, k) => { if (i === 30) k.tap('base'); if (i === 40 || i === 50) k.tap('cmd1'); if (i % 400 === 100) k.tap('army'); walk(i, k, ['up', 'right', 'down', 'left'], 150); },
+      () => [mode, rts.state()]) };
+})();
+scenes.rts = RTS;
+
+/* =====================================================================================
+ * SLICE 17  SIM  (Theme Park, RollerCoaster Tycoon, SimCity). @modules grid strategy
+ * SUNNY BAY PARK: a field by the bay, a gate on the road, a path, a carousel and a burger stand to start, and $5,000.
+ * Lay paths (a tap a tile, a drag a line), build rides (CAROUSEL, FERRIS WHEEL, TEACUPS, SWINGS) and shops (BURGERS,
+ * LEMONADE) beside them. Guests come through the gate while the park is open (9:00 to 21:00), more when its rating is
+ * high; each has money and needs (fun, hunger, thirst, tired) that rise as they walk, and goes for what serves them best
+ * for the walk and the price (E.choose). They queue, ride, eat and drink, think aloud, and leave happy or not: the
+ * rating is how happy they leave. Money: the gate's fee, tickets and sales, less building and each ride's upkeep at
+ * midnight. Tap a ride to set its price or knock it down; tap a guest to read their mind. Day and night (E.Clock), time
+ * controls (PAUSE, 1x, 2x, 4x: more fixed steps a frame), the CROWDS overlay (E.overlay), tooltips (E.tooltip).
+ * Keys: arrows / WASD pan, the wheel zooms; Space pauses, 1 2 3 the speeds; Q path, E erase; Escape ends a tool. The
+ * mouse: a click places or inspects, a drag lays a line of path, hovering shows a tooltip. TOUCH: a tap places or
+ * inspects, a long press and a drag lays a line of path, a drag pans, two fingers zoom.
+ * HOW IT WORKS: paths are the TileMap's floor tags; guests walk an E.Grid of them (grid.path); E.needs and E.choose
+ * pick their next stop; E.Clock runs the days and the light. bot() lays out a park through the same calls the HUD makes
+ * and runs ten days at 4x headless, its money each midnight (tools/kits-test.mjs). Deep link: #sim.
+ * ===================================================================================== */
+const SIM = (() => {
+  const T = 16, DAY = 180, CAP = 140, TAU = Math.PI * 2;   // a day: 180 seconds at 1x (the park open half of it); at most 140 guests at once
+  // the calliope: a waltz in C
+  const SONG = { bpm: 150, steps: 3, tracks: [
+    { wave: 'pulse25', vol: .09, notes: 'E5 - G5 | C6 - - | B5 - G5 | E5 - - | F5 - A5 | D6 - - | C6 - B5 | G5 - - | E5 - G5 | C6 - E6 | D6 - C6 | A5 - - | B5 - D6 | G5 - B5 | C6 - - | . . .' },
+    { wave: 'triangle', vol: .26, notes: 'C3 G3 G3 | C3 G3 G3 | G2 G3 G3 | C3 G3 G3 | F2 A3 A3 | D3 A3 A3 | G2 G3 G3 | C3 G3 G3' }] };
+  // the field: woods (T) round it, the bay (~) east, the gate (G) on the road south, the first path (P)
+  const ROWS = [
+    'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
+    'T.T....T.....TT......T.......T....~~~~~~~~~T',
+    'T.........................,,.....~~~~~~~~~~T',
+    'TT.....,,,.....................~~~~~~~~~~~~T',
+    'T......,,..........................~~~~~~~~T',
+    'T...................................~~~~~~~T',
+    'T............................,,......~~~~~~T',
+    'TT...................................~~~~~~T',
+    'T.....................................~~~~~T',
+    'T.....,,..............................~~~~~T',
+    'T.....,,,..............................~~~~T',
+    'T.......................................~~~T',
+    'TT...........................,,........~~~~T',
+    'T............................,,,.......~~~~T',
+    'T.......................................~~~T',
+    'T........................................~~T',
+    'T........................................~~T',
+    'TT......................................~~~T',
+    'T.......................................~~~T',
+    'T..,,,..................................~~~T',
+    'T...,,...................................~~T',
+    'T........................................~~T',
+    'T.........................,,............~~~T',
+    'TT.......................................~~T',
+    'T........................................~~T',
+    'T........................................~~T',
+    'T.........................................~T',
+    'T.........................................~T',
+    'TT................PPPPPPPPPP..............~T',
+    'T.................P........P..............TT',
+    'T.................P........P.............TTT',
+    'T.................PPPPPPPPPP............TT.T',
+    'T.....................P...................TT',
+    'T.....................P...................TT',
+    'T.....................P....................T',
+    'TTTTTTTTTTTTTTTTTTTTTGGGTTTTTTTTTTTTTTTTTTTT'];
+  const LEGEND = { '.': { floor: 'grass' }, ',': { floor: 'flowers' }, '~': { floor: 'water', block: true }, T: { floor: 'grass', block: true, spawn: 'tree' }, P: { floor: 'path' }, G: { floor: 'path', spawn: 'gate' } };
+  const FLOORS = { grass: 'grass', flowers: '#86b04a speck', water: '#3a78b8 glaze', path: '#c8a878 tiles' };
+
+  /* ---- 1. THE ATTRACTIONS: rides (seats, a ride's seconds, the fun it gives) and shops (what they give), each with a
+   * price guests weigh against what it is worth to them, an upkeep each midnight, a shape (its moving part a generator
+   * stepped through angles: a still picture per step) ---- */
+  const KINDS = {
+    carousel: { name: 'CAROUSEL', short: 'MERRY', w: 3, h: 3, cost: 600, price: 2, seats: 8, time: 9, fun: .45, upkeep: 25, worth: 3 },
+    wheel: { name: 'FERRIS WHEEL', short: 'WHEEL', w: 3, h: 3, cost: 1100, price: 3, seats: 12, time: 14, fun: .55, upkeep: 45, worth: 4 },
+    cups: { name: 'TEACUPS', short: 'CUPS', w: 3, h: 3, cost: 800, price: 2, seats: 8, time: 8, fun: .5, upkeep: 30, worth: 3, sick: .25 },
+    swings: { name: 'SWING TOWER', short: 'SWING', w: 3, h: 3, cost: 1000, price: 3, seats: 10, time: 11, fun: .6, upkeep: 40, worth: 4, sick: .15 },
+    burger: { name: 'BURGERS', short: 'FOOD', shop: true, w: 2, h: 2, cost: 300, price: 4, gives: { hunger: -.8 }, unit: 1.5, upkeep: 10, worth: 5 },
+    lemonade: { name: 'LEMONADE', short: 'DRINK', shop: true, w: 2, h: 2, cost: 250, price: 2, gives: { thirst: -.8 }, unit: .5, upkeep: 8, worth: 3 }
+  };
+  const TOOLS = ['path', 'erase', 'carousel', 'wheel', 'cups', 'swings', 'burger', 'lemonade'];
+  const rad = d => d / 180 * Math.PI, ring = (n, f) => Array.from({ length: n }, (_, i) => f(i, i / n * TAU));
+  Object.assign(E.SHAPES, {
+    'sim-gate': { about: 'the park gate: two brick pillars, a red beam, the sign', mats: {},
+      parts: [['mirror','x',['box','brick',[19,0,0],[6,6,30]]], ['mirror','x',['cyl','#f0d050 glaze',[19,0,30],3.5,3,{r2:0}]], ['box','#d04040 glaze',[0,0,25],[44,5,5]], ['box','#fff2a0 none',[0,3,18],[22,1,7]]] },
+    'sim-carousel': { about: 'a carousel\'s round platform, its pole', mats: {}, parts: [['cyl','#d8c8a8 tiles',[0,0,0],22,3,{seg:16}], ['cyl','#e8c860 metal',[0,0,3],2.5,22]] },
+    'sim-carousel-top': { about: 'a carousel\'s turning part: a striped canopy, gilt poles, horses', mats: {},
+      parts: [['cyl','#e04848 cloth',[0,0,24],23,9,{r2:2,seg:16}], ['ring',8,22,['box','#f8f0e0 none',[0,0,23],[3,3,2]]], ['ring',6,15,['cyl','#e8c860 metal',[0,0,3],.7,21]],
+        ['ring',6,15,['group',[0,0,8],0,[['box','#f8f4ec none',[0,0,0],[2.5,7,3.5]], ['box','#f8f4ec none',[0,3.5,2.5],[2,2,3.5]], ['box','#8a5a3a none',[0,-3.5,1],[1,1.5,2]]]]]] },
+    'sim-wheel': { about: 'a Ferris wheel: two A-frame legs, the rim and spokes at angle a, cars that hang level', mats: {}, params: { a: 0 },
+      make: p => { const a = p.a / 24 * TAU, R = 21, H = 36, parts = [['mirror','y',['group',[0,7,0],0,[['box','#c8c8d4 metal',[-13,0,0],[2,2,38],{rot:[0,21,0]}], ['box','#c8c8d4 metal',[13,0,0],[2,2,38],{rot:[0,-21,0]}], ['box','#c8c8d4 metal',[0,0,14],[20,1.5,1.5]]]]], ['box','#b0b0bc metal',[0,0,H - 1],[2,16,2]]];
+        for (let i = 0; i < 4; i++) parts.push(['box','#e0e0ea metal',[0,0,H],[2 * R,1,1],{rot:[0,(a / TAU * 360 + i * 45),0]}]);
+        ring(16, (i, t) => parts.push(['box','#f0d050 metal',[Math.cos(a + t) * R,0,H + Math.sin(a + t) * R - .5],[2.5,2,1.5]]));
+        ring(8, (i, t) => parts.push(['box',['#e04848 glaze','#4878e0 glaze','#48b060 glaze','#f0a030 glaze'][i % 4],[Math.cos(a + t) * R,0,H + Math.sin(a + t) * R - 6],[5,6,5]]));
+        return parts; } },
+    'sim-cups': { about: 'the teacups: a round floor, a teapot, four cups turning round it at angle a', mats: {}, params: { a: 0 },
+      make: p => { const a = p.a / 16 * TAU, parts = [['cyl','#f0e0b8 tiles',[0,0,0],22,2,{seg:16}], ['lathe','#e06060 glaze',[0,0,2],[[0,0],[5,0],[6,5],[4,9],[1,12],[0,12]]]];
+        ring(4, (i, t) => parts.push(['lathe',['#f088b0 glaze','#70b8f0 glaze','#f0d060 glaze','#90e090 glaze'][i],[Math.cos(a + t) * 13,Math.sin(a + t) * 13,2],[[0,0],[3,0],[5,2],[5.5,6],[0,6]]]));
+        return parts; } },
+    'sim-swings': { about: 'a swing tower: a pole, a turning top, chairs flying out as it speeds up (s)', mats: {}, params: { a: 0, s: 0 },
+      make: p => { const a = p.a / 16 * TAU, R = 7 + p.s * 4, z = 22 + p.s * 3, parts = [['cyl','#d8d0e0 metal',[0,0,0],4,2], ['cyl','#d8d0e0 metal',[0,0,2],2,40], ['cyl','#5070e0 cloth',[0,0,38],14,6,{r2:3,seg:12}]];
+        ring(8, (i, t) => parts.push(['box',i % 2 ? '#f0d050 glaze' : '#e04848 glaze',[Math.cos(a + t) * R,Math.sin(a + t) * R,z],[3,3,1.5]], ['cyl','#c8c8d0 none',[Math.cos(a + t) * R,Math.sin(a + t) * R,z + 1.5],.3,38 - z]));
+        return parts; } },
+    'sim-burger': { about: 'a burger stand: a plank booth, a striped awning, a burger on the roof', mats: {},
+      parts: [['box','#e8d8b8 planks',[0,0,0],[26,20,13]], ['box','#c0402a glaze',[0,10.5,6],[26,2,1.5]], ['wedge','#e85040 cloth',[0,13,13],[28,8,4]],
+        ['cyl','#d89040 none',[0,0,13],5,1.5], ['cyl','#5a3020 none',[0,0,14.5],5,1.5], ['ball','#d89040 none',[0,0,16],5,{sz:.5}]] },
+    'sim-lemonade': { about: 'a lemonade stand: a booth, a yellow umbrella, a lemon', mats: {},
+      parts: [['box','#f4ecd8 planks',[0,0,0],[20,14,10]], ['box','#e8c838 glaze',[0,7.5,5],[20,1,1.5]], ['cyl','#c8c8d0 none',[0,0,10],.6,10], ['cyl','#f0d040 cloth',[0,0,19],13,4,{r2:0,seg:8}], ['ball','#f0e040 glaze',[-6,4,11],2,{sz:.8}]] }
+  });
+  const GUESTS = [['#e04848', '#3a3a5a'], ['#4878e0', '#c8b890'], ['#48b060', '#3a3a5a'], ['#f0a030', '#5a4a3a'], ['#c060c0', '#3a3a5a'], ['#f0f0f0', '#4878e0'], ['#3ab0b0', '#5a4a3a'], ['#f088b0', '#3a3a5a']];
+  const NAMES = ['ANNA', 'BEN', 'CLARA', 'DEV', 'ELLA', 'FINN', 'GUS', 'HANA', 'IVO', 'JUNE', 'KAI', 'LUZ', 'MILO', 'NOOR', 'OTTO', 'PIA', 'RAFE', 'SAGE', 'TEO', 'UMA', 'VERA', 'WES', 'YUKI', 'ZED'];
+
+  let map = null, grid = null, clock = null, guests = [], spots = [], money = 0, rating = 50, fee = 5, tool = null, placing = null, picked = null, overlay = false, auto = false;
+  let day = null, ledger = null, msg = null, gate = null, arrive = 0, served = 0, left = [], speed = 1, open = true, boxes = { tools: [], time: [], panel: [], place: [] };
+  const say = (s, c = '#fff2c4') => { msg = { s, c, at: game.real }; };   // (a message's time is the player's: it fades at any speed, paused too)
+  const isPath = (x, y) => map.floorTags[y * map.w + x] === 'path';
+  const cellOf = (x, y) => [Math.floor(x / T), Math.floor(y / T)];
+  const spend = (n, why) => { money -= n; ledger.out += n; if (why) ledger[why] = (ledger[why] || 0) + n; };
+  const earn = n => { money += n; ledger.in += n; };
+
+  /* ---- 2. THE PARK: the field, the first path, a carousel and a burger stand; the clock at 8:00 on day 1 ---- */
+  function start(data) {
+    auto = !!(data && data.auto);
+    map = new E.TileMap({ rows: ROWS, legend: LEGEND, floorMat: 'grass', floorMats: FLOORS, ao: 0, outside: false });
+    grid = new E.Grid(map.w, map.h, { walkable: (x, y) => isPath(x, y) });
+    clock = new E.Clock({ day: DAY, hour: 8 }); guests = []; spots = []; money = 5000; rating = 50; fee = 5; tool = null; placing = null; picked = null; overlay = false;
+    ledger = { in: 0, out: 0 }; day = { n: 1, log: [] }; msg = null; arrive = 0; served = 0; left = []; speed = 1; open = false;
+    const g = map.spawns.filter(s => s.tag === 'gate'); gate = { cx: g[1].cx, cy: g[1].cy, x: g[1].x, y: g[1].y };
+    build('carousel', 19, 25, true); build('burger', 24, 29, true);
+    game.cam.free = { bounds: [0, 0, map.w * T, map.h * T] }; game.focus(gate.x, gate.y - 90); game.cam.snap = true; game.timeScale = 1;
+    game.input.touchEnabled = false; L.enabled = false; A.music(SONG);
+    if (!auto) say('SUNNY BAY PARK OPENS AT 9:00', '#ffe8b0');
+  }
+  // a ride or a shop at corner (cx, cy): on open grass, beside a path (its entrance: the path cell beside it nearest its
+  // front); free: the park's first (no cost)
+  function fits(kind, cx, cy) {
+    const K = KINDS[kind];
+    for (let j = 0; j < K.h; j++) for (let i = 0; i < K.w; i++) { const x = cx + i, y = cy + j; if (x < 1 || y < 1 || x >= map.w - 1 || y >= map.h - 1 || !map.walkable(x, y) || isPath(x, y) || spotAt(x, y)) return null; }
+    const side = []; for (let i = 0; i < K.w; i++) side.push([cx + i, cy + K.h], [cx + i, cy - 1]); for (let j = 0; j < K.h; j++) side.push([cx + K.w, cy + j], [cx - 1, cy + j]);
+    const mid = [cx + K.w / 2 - .5, cy + K.h], door = side.filter(c => isPath(...c)).sort((a, b) => Math.hypot(a[0] - mid[0], a[1] - mid[1]) - Math.hypot(b[0] - mid[0], b[1] - mid[1]))[0];
+    return door || null;
+  }
+  function build(kind, cx, cy, free) {
+    const K = KINDS[kind], door = fits(kind, cx, cy);
+    if (!door) { if (!auto && !free) { A.sfx('bump'); say(K.shop ? 'A SHOP NEEDS A PATH BESIDE IT, ON OPEN GRASS' : 'A RIDE NEEDS A PATH BESIDE IT, ON OPEN GRASS', '#ffb070'); } return null; }
+    if (!free && money < K.cost) { if (!auto) { A.sfx('bump'); say('NOT ENOUGH MONEY', '#ffb070'); } return null; }
+    if (!free) spend(K.cost, 'build');
+    const s = { kind, K, cx, cy, door, x: (cx + K.w / 2) * T, y: (cy + K.h / 2) * T, price: K.price, queue: [], riders: [], state: 'load', t: 0, spin: 0, v: 0, today: { riders: 0, take: 0 }, total: 0 };
+    spots.push(s); if (!auto && !free) { A.sfx('powerup'); say(K.name + ' BUILT', '#a8ffb0'); }
+    return s;
+  }
+  const spotAt = (x, y) => spots.find(s => x >= s.cx && x < s.cx + s.K.w && y >= s.cy && y < s.cy + s.K.h);
+  function demolish(s) {
+    spots.splice(spots.indexOf(s), 1); money += Math.round(s.K.cost / 2); ledger.in += Math.round(s.K.cost / 2);
+    for (const g of [...s.queue, ...s.riders]) { g.at = null; g.state = 'decide'; g.ride = null; g.happy -= .1; g.thought = 'THEY KNOCKED IT DOWN!'; }
+    for (const g of guests) if (g.goal === s) { g.goal = null; g.state = 'decide'; }
+    if (picked === s) picked = null; A.sfx('explode'); game.particles.dust(s.x, s.y, 4, 12);
+  }
+  // a path from cell a to cell b, along x then y (a drag's line); each new tile costs 10
+  function layPath(a, b) {
+    let n = 0; const cells = [];
+    for (let x = Math.min(a[0], b[0]); x <= Math.max(a[0], b[0]); x++) cells.push([x, a[1]]);
+    for (let y = Math.min(a[1], b[1]); y <= Math.max(a[1], b[1]); y++) cells.push([b[0], y]);
+    for (const [x, y] of cells) { if (x < 1 || y < 1 || x >= map.w - 1 || y >= map.h - 1 || !map.walkable(x, y) || isPath(x, y) || spotAt(x, y)) continue; if (money < 10) break; map.setFloor(x, y, 'path'); spend(10, 'build'); n++; }
+    if (n && !auto) A.sfx('step'); return n;
+  }
+  function erase(c) {
+    const s = spotAt(...c); if (s) { demolish(s); return; }
+    if (!isPath(...c) || (c[0] === gate.cx && c[1] >= gate.cy - 1)) { A.sfx('bump'); return; }
+    map.setFloor(c[0], c[1], 'grass'); money += 5; ledger.in += 5; A.sfx('cancel');
+    for (const g of guests) g.route = null;   // (every route is walked afresh)
+  }
+
+  /* ---- 3. THE GUESTS: in at the gate while it is open (more when the park rates high, fewer when the fee is steep);
+   * needs rising (E.needs), the best stop for the walk and the price (E.choose), a queue, a ride, a meal; home when
+   * tired, broke or at closing ---- */
+  function spawnGuest() {
+    const [shirt, pants] = GUESTS[Math.floor(Math.random() * GUESTS.length)], name = NAMES[Math.floor(Math.random() * NAMES.length)];
+    const g = { id: ++served, name, x: gate.x + (Math.random() - .5) * 8, y: gate.y, cx: gate.cx, cy: gate.cy, money: 20 + Math.floor(Math.random() * 40), needs: { fun: .5 + Math.random() * .3, hunger: Math.random() * .4, thirst: Math.random() * .4, tired: 0 },
+      happy: .65, state: 'decide', goal: null, route: null, wait: 0, face: -Math.PI / 2, thought: 'WHAT A NICE PARK', spent: 0, moving: false,
+      rig: new E.Humanoid({ size: .5, hat: Math.random() < .3 ? 'cap' : null, hair: ['short', 'long', 'ponytail', 'spiky'][Math.floor(Math.random() * 4)], weapon: null, outfit: 'shirt', sleeves: 'short',
+        colors: { cloth: shirt, pants, hair: ['#2a1a10', '#6a4020', '#d8b060', '#1a1a1a', '#a03020'][Math.floor(Math.random() * 5)], skin: ['#f0c8a0', '#c8946a', '#8a5a3a', '#f4d4b4'][Math.floor(Math.random() * 4)] } }) };
+    g.money -= fee; earn(fee); guests.push(g); return g;
+  }
+  const options = g => spots.filter(s => (s.K.shop || s.queue.length < s.K.seats * 2) && s.price <= g.money).map(s => ({ id: s, x: s.door[0] * T + 8, y: s.door[1] * T + 8, cost: s.price * (s.price > s.K.worth ? 3 : 1),
+    gives: s.K.shop ? s.K.gives : { fun: -s.K.fun } }));
+  function decide(g) {
+    if (!open || g.money < 1 || g.needs.tired > .9) { g.state = 'leave'; g.goal = null; g.route = null; g.thought = !open ? 'TIME TO GO HOME' : g.money < 1 ? 'I\'M OUT OF MONEY' : 'I\'M TIRED'; return; }
+    const o = E.choose(g, options(g));
+    if (o) { g.goal = o.id; g.route = null; g.state = 'walk'; g.thought = o.id.K.shop ? (o.id.kind === 'burger' ? 'I\'M HUNGRY' : 'I\'M THIRSTY') : 'I WANT TO RIDE THE ' + o.id.K.name; }
+    else { g.state = 'wander'; g.goal = null; g.route = null; g.wait = 1 + Math.random() * 3; g.stroll = strollFrom(g); const pricey = spots.some(s => s.price > s.K.worth); g.thought = pricey && Math.random() < .5 ? 'EVERYTHING HERE COSTS TOO MUCH' : 'THERE\'S NOTHING I WANT TO DO'; if (pricey) g.happy -= .05; }
+  }
+  // a path tile a few steps from a guest (a stroll while nothing appeals)
+  function strollFrom(g) { const c = cellOf(g.x, g.y), near = []; for (let y = c[1] - 5; y <= c[1] + 5; y++) for (let x = c[0] - 5; x <= c[0] + 5; x++) if (x > 0 && y > 0 && x < map.w && y < map.h && isPath(x, y) && (x !== c[0] || y !== c[1])) near.push([x, y]); return near.length ? near[Math.floor(Math.random() * near.length)] : null; }
+  // a guest's walk: the route of path cells to the goal's door (or the gate), a cell at a time
+  function walkTo(g, c, dt) {
+    if (!g.route) { const from = cellOf(g.x, g.y); g.route = grid.path(isPath(...from) ? from : [g.cx, g.cy], c); g.ri = 1; if (!g.route.length) { g.route = null; return 'lost'; } }
+    const n = g.route[g.ri]; if (!n) return 'there';
+    if (!isPath(...n)) { g.route = null; return 'walking'; }
+    const tx = n[0] * T + 8 + ((g.id * 37) % 7 - 3), ty = n[1] * T + 8 + ((g.id * 53) % 7 - 3), dx = tx - g.x, dy = ty - g.y, d = Math.hypot(dx, dy), sp = 22 * dt;
+    if (d <= sp) { g.x = tx; g.y = ty; g.cx = n[0]; g.cy = n[1]; g.ri++; } else { g.x += dx / d * sp; g.y += dy / d * sp; g.face = Math.atan2(dy, dx); }
+    g.moving = true; return 'walking';
+  }
+  function guestStep(g, dt) {
+    g.moving = false;
+    if (g.state !== 'ride') E.needs(g, { fun: .012, hunger: .007, thirst: .01, tired: .006 }, dt);
+    if (g.needs.hunger > .9 || g.needs.thirst > .9) g.happy = Math.max(0, g.happy - .02 * dt);
+    if (g.state === 'decide') decide(g);
+    else if (g.state === 'wander') { if (g.stroll && walkTo(g, g.stroll, dt) === 'walking') return; g.stroll = null; if ((g.wait -= dt) <= 0) decide(g); }   // (a stroll to a tile nearby, a look round)
+    else if (g.state === 'walk') {
+      const s = g.goal; if (!s || !spots.includes(s)) { g.state = 'decide'; return; }
+      const r = walkTo(g, s.door, dt); if (r === 'lost') { g.state = 'wander'; g.wait = 3; g.thought = 'I CAN\'T FIND THE WAY'; g.happy -= .05; }
+      else if (r === 'there') { g.state = 'queue'; s.queue.push(g); g.wait = 0; }
+    } else if (g.state === 'queue') {
+      g.wait += dt; if (g.wait > 25 && !g.goal.K.shop) { g.goal.queue.splice(g.goal.queue.indexOf(g), 1); g.state = 'decide'; g.happy -= .1; g.thought = 'THIS LINE IS TOO LONG'; g.needs.fun = Math.min(1, g.needs.fun + .1); }
+    } else if (g.state === 'leave') {
+      if (walkTo(g, [gate.cx, gate.cy], dt) !== 'walking') { g.gone = true; left.push(g.happy); rating = rating * .97 + g.happy * 100 * .03; }
+    }
+  }
+  // a ride: load (up to its seats, or a few seconds), run (its time), let them off; a shop: serve one a second
+  function spotStep(s, dt) {
+    s.t += dt;
+    if (s.K.shop) { if (s.queue.length && s.t > 1) { s.t = 0; const g = s.queue.shift(); serve(g, s); for (const k in s.K.gives) g.needs[k] = Math.max(0, g.needs[k] + s.K.gives[k]); g.happy = Math.min(1, g.happy + .08); g.thought = s.kind === 'burger' ? 'THAT BURGER WAS GREAT' : 'SO REFRESHING'; spend(s.K.unit); g.state = 'decide'; } return; }
+    if (s.state === 'load') {
+      while (s.queue.length && s.riders.length < s.K.seats) { const g = s.queue.shift(); s.riders.push(g); g.state = 'ride'; serve(g, s); }
+      if (s.riders.length && (s.riders.length >= s.K.seats || s.t > 4)) { s.state = 'run'; s.t = 0; }
+      s.v = Math.max(0, s.v - dt * .8);
+    } else {
+      s.v = s.t < s.K.time - 2 ? Math.min(1, s.v + dt * .6) : Math.max(0, s.v - dt * .6);
+      if (s.t >= s.K.time) {
+        for (const g of s.riders) { g.needs.fun = Math.max(0, g.needs.fun - s.K.fun); g.needs.tired = Math.min(1, g.needs.tired + .05); g.happy = Math.min(1, g.happy + s.K.fun * .35); g.state = 'decide'; g.thought = s.K.sick && Math.random() < s.K.sick ? 'I FEEL A LITTLE SICK' : 'THAT WAS FUN!'; if (g.thought[0] === 'I') g.happy -= .1; g.x = s.door[0] * T + 8; g.y = s.door[1] * T + 8; }
+        s.riders = []; s.state = 'load'; s.t = 0;
+      }
+    }
+    s.spin += s.v * dt * 2.2;
+  }
+  function serve(g, s) { g.money -= s.price; g.spent += s.price; earn(s.price); s.today.riders++; s.today.take += s.price; s.total += s.price; if (s.price > s.K.worth) { g.happy -= .08; g.thought = 'THE ' + s.K.name + ' COSTS TOO MUCH'; } }
+
+  /* ---- 4. EACH STEP: the HUD's buttons, then the tool (a path, a ride, the eraser) or a look at what is under the
+   * pointer; the clock (the night runs fast once the park is empty), the guests, the rides, midnight's books ---- */
+  const hitBox = (b, p) => b && p && p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
+  const groundAt = p => { const h = map.pick(p[0], p[1]); return h ? [h.cx, h.cy] : cellOf(...game.view.toGround(p[0] + game.screen.ix, p[1] + game.screen.iy)); };
+  function setSpeed(k) { speed = k; game.timeScale = k; A.sfx(k ? 'select' : 'cancel'); }
+  function useTool(t) { tool = tool === t ? null : t; placing = null; picked = null; A.sfx(tool ? 'blip' : 'cancel'); if (tool && KINDS[tool]) say(KINDS[tool].name + ' $' + KINDS[tool].cost + (touch() ? ': TAP WHERE IT GOES, THEN PLACE' : ': CLICK WHERE IT GOES (BESIDE A PATH)'), '#ffe8b0'); else if (tool === 'path') say(touch() ? 'PATH $10: TAP A TILE, OR A LONG PRESS AND A DRAG' : 'PATH $10 A TILE: CLICK, OR DRAG A LINE', '#ffe8b0'); }
+  function update(dt) {
+    const I = game.input, tap = I.clicked(), p = I.pointer();
+    if (!auto) {
+      let used = false;
+      for (const b of boxes.time) if (hitBox(b, tap)) { setSpeed(b.k); used = true; }
+      for (const b of boxes.tools) if (hitBox(b, tap)) { useTool(b.t); used = true; }
+      for (const b of boxes.panel) if (hitBox(b, tap)) { panelButton(b.id); used = true; }
+      for (const b of boxes.place) if (hitBox(b, tap)) { if (b.id === 'place' && placing) { if (build(tool, placing.cx, placing.cy)) { placing = null; tool = null; } } else { placing = null; tool = null; A.sfx('cancel'); } used = true; }
+      if (I.pressed('pause')) setSpeed(speed ? 0 : 1); if (I.pressed('x1')) setSpeed(1); if (I.pressed('x2')) setSpeed(2); if (I.pressed('x4')) setSpeed(4);
+      if (I.pressed('toolPath')) useTool('path'); if (I.pressed('toolErase')) useTool('erase'); if (I.pressed('cancel') && tool) useTool(tool);
+      const b = I.box();
+      if (!used && tool === 'path' && b && b.done) layPath(groundAt(b.from), groundAt(b.to));
+      else if (!used && tap && tool === 'path') layPath(groundAt(tap), groundAt(tap));
+      else if (!used && tap && tool === 'erase') erase(groundAt(tap));
+      else if (tool && KINDS[tool]) {
+        const at = !used && (tap || (!touch() && p)) ? groundAt(tap || p) : null, K = KINDS[tool];
+        if (at) placing = { cx: at[0] - Math.floor(K.w / 2), cy: at[1] - Math.floor(K.h / 2) };
+        if (!used && tap && !touch() && placing && build(tool, placing.cx, placing.cy)) { placing = null; tool = null; }
+      } else if (!used && tap) {   // a look: the guest or the attraction under the tap
+        const hit = game.r ? game.r.pick(...tap) : []; picked = hit[0] || (spotAt(...groundAt(tap)) || null); if (picked) A.sfx('select');
+      }
+    }
+    simStep(dt);
+  }
+  function simStep(dt) {
+    const was = clock.hour, empty = !guests.length;
+    clock.update(dt * (!open && empty ? 6 : 1));   // (the night passes quickly once the park is empty)
+    const h = clock.hour; open = h >= 9 && h < 21;
+    if (open && h < 20 && guests.length < CAP && spots.length) {   // arrivals: by the rating and the fee
+      arrive += dt * (.5 + rating / 100) * Math.min(1.6, .4 + spots.filter(s => !s.K.shop).length * .3) * (fee > 8 ? .6 : 1) * 1.1;
+      while (arrive >= 1) { arrive -= 1; spawnGuest(); }
+    }
+    for (const g of guests) guestStep(g, dt);
+    if (guests.some(g => g.gone)) guests = guests.filter(g => !g.gone);
+    for (const s of spots) spotStep(s, dt);
+    for (const g of guests) { if (!g.rig || !onScreen(g)) continue; g.rig.update(dt, { x: g.x, y: g.y, vx: g.moving ? Math.cos(g.face) * 22 : 0, vy: g.moving ? Math.sin(g.face) * 22 : 0, facing: g.face }); }
+    if (was === 23 && h === 0) midnight();
+    if (!auto && was !== h && h === 9) { say('THE PARK IS OPEN', '#a8ffb0'); A.sfx('secret'); }
+    if (!auto && was !== h && h === 21) say('CLOSING TIME', '#ffd0a0');
+  }
+  // midnight: each ride's upkeep; the day's books into the log
+  function midnight() {
+    for (const s of spots) { spend(s.K.upkeep, 'upkeep'); s.today = { riders: 0, take: 0 }; }
+    day.log.push({ day: day.n, money: Math.round(money), in: Math.round(ledger.in), out: Math.round(ledger.out), rating: Math.round(rating), guests: served });
+    if (!auto) say('DAY ' + day.n + ': TOOK $' + Math.round(ledger.in) + ', SPENT $' + Math.round(ledger.out), ledger.in >= ledger.out ? '#a8ffb0' : '#ffb0a0');
+    day.n++; ledger = { in: 0, out: 0 };
+  }
+  const onScreen = (u, m = 40) => { const q = game.view.p(u.x, u.y, 0), x = q[0] - game.screen.ix, y = q[1] - game.screen.iy; return x > -m && y > -m && x < game.W + m && y < game.H + m * 1.5; };
+  function panelButton(id) {
+    const s = picked; if (!s || !s.K) return;
+    if (id === 'up') s.price = Math.min(20, s.price + 1); else if (id === 'down') s.price = Math.max(0, s.price - 1); else if (id === 'demolish') demolish(s); else if (id === 'close') picked = null;
+    A.sfx('select');
+  }
+
+  /* ---- 5. DRAWING: the field and paths, the woods, the gate, the rides (their moving parts at this step's angle), the
+   * guests (a crowd: each kept two frames of three), the plan of what is being placed, the overlay, night's lights ---- */
+  function draw(r) {
+    const lt = clock.light(), night = lt.ambient < .6;
+    L.enabled = night; if (night) L.ambient = Math.max(.25, lt.ambient);
+    map.drawFloor(r); map.queueWalls(r);
+    for (const s of map.spawns) if (s.tag === 'tree') r.prop(E.hash2(s.cx, s.cy) < .5 ? 'tree' : 'pine', s.x, s.y, 0);
+    r.shape('sim-gate', gate.x, gate.y + 2, 0, { facing: Math.PI / 2 });
+    for (const s of spots) {
+      const o = { pick: s };
+      if (s.kind === 'carousel') { r.shape('sim-carousel', s.x, s.y, 0, o); r.shape('sim-carousel-top', s.x, s.y, 0, { pick: s, facing: s.spin }); }
+      else if (s.kind === 'wheel') r.shape('sim-wheel', s.x, s.y, 0, { pick: s, params: { a: Math.floor(s.spin * 24 / TAU / 2) % 24 } });
+      else if (s.kind === 'cups') r.shape('sim-cups', s.x, s.y, 0, { pick: s, params: { a: Math.floor(s.spin * 16 / TAU) % 16 } });
+      else if (s.kind === 'swings') r.shape('sim-swings', s.x, s.y, 0, { pick: s, params: { a: Math.floor(s.spin * 16 / TAU) % 16, s: Math.round(s.v * 3) } });
+      else r.shape('sim-' + s.kind, s.x, s.y, 0, o);
+      if (night) game.lights.add(s.x, s.y, 30, 70, .9, { color: s.K.shop ? '#ffd080' : '#ffb0e0' });
+      if (picked === s) r.decal(() => r.groundRing(s.x, s.y, s.K.w * 9, '#ffe070', .9));
+    }
+    if (night) game.lights.add(gate.x, gate.y, 34, 80, 1, { color: '#ffe0a0' });
+    for (const g of guests) {
+      if (g.state === 'ride') continue;
+      r.shadow(g.x, g.y, 3, .3);
+      r.actor(g.x, g.y, 0, (gr, ox, oy) => g.rig.draw(gr, ox, oy, r.view), { pick: g, every: 3, key: g });
+      if (picked === g) r.decal(() => r.groundRing(g.x, g.y, 6, '#ffe070', .9));
+    }
+    if (tool && KINDS[tool] && placing) {
+      const K = KINDS[tool], ok = !!fits(tool, placing.cx, placing.cy), cells = [];
+      for (let j = 0; j < K.h; j++) for (let i = 0; i < K.w; i++) cells.push([placing.cx + i, placing.cy + j]);
+      E.tint(r, cells, ok ? '#40e070' : '#ff4040', .45, T);
+    }
+    if (tool === 'path' || tool === 'erase') { const p = game.input.pointer(); if (p && !touch()) E.tint(r, [groundAt(p)], tool === 'path' ? '#ffe0a0' : '#ff6040', .5, T); }
+    if (overlay) { const n = new Map(); for (const g of guests) { const k = Math.floor(g.x / T) + ',' + Math.floor(g.y / T); n.set(k, (n.get(k) || 0) + 1); } E.overlay(r, map, (x, y) => isPath(x, y) ? Math.min(1, (n.get(x + ',' + y) || 0) / 4) : null); }
+    hud(r);
+  }
+  function hud(r) {
+    const W = r.W, H = r.H, tc = touch(), th = Math.max(16, Math.ceil(44 * game.screen.dpr / game.screen.S));
+    boxes = { tools: [], time: [], panel: [], place: [] };
+    r.overlay(g => {
+      // money, guests, the rating, the day and hour; the time controls
+      E.ui.box(g, 3, 3, 150, 14, { alpha: .8 });
+      E.font.text(g, '$' + Math.round(money), 8, 6, money >= 0 ? '#a8ffb0' : '#ff8a7a', { outline: false });
+      E.font.text(g, 'GUESTS ' + guests.length, 56, 7, '#c8d8ff', { outline: false, font: 'tiny' });
+      E.font.text(g, 'RATING ' + Math.round(rating), 104, 7, rating >= 60 ? '#a8ffb0' : rating >= 35 ? '#ffe070' : '#ff8a7a', { outline: false, font: 'tiny' });
+      E.ui.box(g, 156, 3, 64, 14, { alpha: .8 }); E.font.text(g, clock.label(), 188, 7, '#ffe8b0', { align: 'center', outline: false, font: 'tiny' });
+      const bw = tc ? th : 20, bh = tc ? th : 14, wide = 223 + 4 * (bw + 2) <= (tc ? cornerX() : W), x0 = wide ? 223 : 3, y0 = wide ? 3 : 20;   // (beside the clock, or under it: the corner's buttons keep the top right)
+      [[0, 'II'], [1, '1X'], [2, '2X'], [4, '4X']].forEach(([k, s], i) => { const b = { k, x: x0 + i * (bw + 2), y: y0, w: bw, h: bh }; boxes.time.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .85, bg: speed === k ? '#3a5aa0' : '#1a1a30' }); E.font.text(g, s, b.x + bw / 2, b.y + bh / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
+      // the tools: a row along the bottom (two on a narrow screen)
+      const cols = W >= 8 * 44 ? 8 : 4, tw = Math.floor((Math.min(W, 8 * 56) - 8) / cols) - 2, tth = tc ? th : 18, rows = 8 / cols, ty0 = H - rows * (tth + 2) - 3;
+      TOOLS.forEach((t, i) => {
+        const b = { t, x: 4 + (i % cols) * (tw + 2), y: ty0 + Math.floor(i / cols) * (tth + 2), w: tw, h: tth }, K = KINDS[t], on = tool === t, poor = K && money < K.cost;
+        boxes.tools.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .88, bg: on ? '#3a6a3a' : poor ? '#1a1828' : '#22284a' });
+        E.font.text(g, K ? K.short : t.toUpperCase(), b.x + tw / 2, b.y + tth / 2 - (K ? 6 : 3), poor ? '#6a6680' : '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+        if (K) E.font.text(g, '$' + K.cost, b.x + tw / 2, b.y + tth / 2 + 1, poor ? '#6a6680' : '#ffd860', { align: 'center', outline: false, font: 'tiny' });
+      });
+      // PLACE and CANCEL (touch, a ride's plan shown)
+      if (tc && tool && KINDS[tool] && placing) [['place', 'PLACE'], ['cancel', 'CANCEL']].forEach(([id, s], i) => { const b = { id, x: W / 2 - 64 + i * 66, y: ty0 - th - 4, w: 62, h: th }; boxes.place.push(b); E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: i ? '#3a1a1a' : '#2a5a3a' }); E.font.text(g, s, b.x + 31, b.y + th / 2 - 3, '#ffffff', { align: 'center', outline: false }); });
+      // what is picked: a ride's price, riders and takings (PRICE - +, DEMOLISH), or a guest's mind
+      if (picked) panel(g, picked, W, ty0, tc, th);
+      if (msg && game.real - msg.at < 3.5) E.font.text(g, msg.s, W / 2, 22, msg.c, { align: 'center', shadow: '#000', outline: false });
+    });
+    // a tooltip under the mouse (a ride or a guest)
+    const p = game.input.pointer();
+    if (p && !tc && !tool) { const o = r.pick(...p)[0]; if (o) E.tooltip(r, p[0], p[1], o.K ? [o.K.name, '$' + o.price + '  ' + (o.K.shop ? 'SERVED ' : 'RIDERS ') + o.today.riders] : [o.name, o.thought]); }
+  }
+  function panel(g, o, W, ty0, tc, th) {
+    const x = 4, w = 168, bh = tc ? Math.min(th, 22) : 12, h = o.K ? 42 + bh : 50, y = ty0 - h - 4;
+    E.ui.box(g, x, y, w, h, { alpha: .9 });
+    if (o.K) {
+      E.font.text(g, o.K.name, x + 5, y + 4, '#ffe8b0', { outline: false });
+      E.font.text(g, (o.K.shop ? 'SERVED ' : 'RIDERS ') + o.today.riders + ' TODAY   $' + o.today.take + '   (' + (o.queue.length) + ' WAITING)', x + 5, y + 15, '#c8c0d8', { outline: false, font: 'tiny' });
+      E.font.text(g, 'PRICE $' + o.price + (o.price > o.K.worth ? '  TOO DEAR' : ''), x + 5, y + 26, o.price > o.K.worth ? '#ffb070' : '#a8ffb0', { outline: false });
+      [['down', '-'], ['up', '+'], ['demolish', 'KNOCK DOWN'], ['close', 'X']].forEach(([id, s], i) => {
+        const b = { id, x: x + 5 + [0, 26, 52, 136][i], y: y + h - bh - 4, w: [22, 22, 80, 24][i], h: bh }; boxes.panel.push(b);
+        E.ui.box(g, b.x, b.y, b.w, b.h, { alpha: .9, bg: id === 'demolish' ? '#5a2020' : '#2a3a7a' }); E.font.text(g, s, b.x + b.w / 2, b.y + b.h / 2 - 3, '#ffffff', { align: 'center', outline: false, font: 'tiny' }); });
+    } else {
+      E.font.text(g, o.name + '   $' + o.money, x + 5, y + 4, '#ffe8b0', { outline: false });
+      E.font.text(g, '"' + o.thought + '"', x + 5, y + 15, '#ffffff', { outline: false, font: 'tiny' });
+      [['FUN', 1 - o.needs.fun], ['FOOD', 1 - o.needs.hunger], ['DRINK', 1 - o.needs.thirst], ['HAPPY', o.happy]].forEach(([s, v], i) => { const bx = x + 5 + (i % 2) * 80, by = y + 26 + Math.floor(i / 2) * 9; E.font.text(g, s, bx, by, '#a8a0c0', { outline: false, font: 'tiny' }); E.ui.bar(g, bx + 30, by + 1, 40, 3, Math.max(0, v), v > .5 ? '#5ad86a' : v > .25 ? '#ffd060' : '#ff4a4a'); });
+      const b = { id: 'close', x: x + w - 18, y: y + 3, w: 14, h: tc ? Math.min(th, 16) : 10 }; boxes.panel.push(b); E.font.text(g, 'X', b.x + 7, b.y + 1, '#ffffff', { align: 'center', outline: false, font: 'tiny' });
+    }
+  }
+
+  /* ---- 6. THE BOT: lays out a park through the calls the HUD makes (paths, four rides and two shops), then runs ten
+   * days at 4x: its money each midnight, the guests served, the rating (tools/kits-test.mjs) ---- */
+  function bot(o = {}) {
+    const was = Math.random;
+    try {
+      Math.random = E.rng(o.seed || 3);
+      game.time = 0; game.timeScale = 1; game.go('sim', { auto: true }, { fade: 0 }); game.advance(1 / 120);
+      layPath([22, 27], [22, 20]); layPath([12, 20], [32, 20]); layPath([12, 20], [12, 28]); layPath([32, 20], [32, 28]); layPath([12, 28], [18, 28]); layPath([27, 28], [32, 28]);
+      [build('wheel', 13, 17), build('cups', 24, 17), build('swings', 28, 21), build('lemonade', 14, 21), build('lemonade', 29, 29), build('burger', 10, 24)];
+      game.timeScale = 4;
+      for (let i = 0; i < 30 * DAY * 11 && day.n <= 10; i++) game.advance(1 / 30);
+      game.timeScale = 1;
+      const m = day.log.map(d => d.money);
+      return { days: day.log.length, built: spots.length, money: m, low: Math.min(...m), high: Math.max(...m), served, rating: Math.round(rating), left: left.length, happy: left.length ? Math.round(left.reduce((a, b) => a + b, 0) / left.length * 100) : 0, errors: game.errors.length };
+    } finally { Math.random = was; }
+  }
+
+  return { view: 'iso', views: ['iso'], res: 'ps1', pausable: true, propSize: 1, touch: [], camera: { zoom: [.6, 1.8], start: 1, tall: 1.2 },
+    input: { ...E.Input.DEFAULT, pause: ['Space'], x1: ['Digit1'], x2: ['Digit2'], x4: ['Digit3'], toolPath: ['KeyQ'], toolErase: ['KeyE'], cancel: ['Escape', 'Mouse2'] },
+    enter: start, update, draw, bot,
+    exit() { game.cam.free = null; game.input.touchEnabled = true; game.timeScale = 1; L.enabled = false; game.resetCamera(); },
+    back() { if (tool || picked) { tool = null; placing = null; picked = null; return true; } return false; },
+    /** for tests: the park's state, a cell's or a thing's place on the screen, the HUD's boxes, the calls the HUD makes */
+    state: () => ({ money, rating, guests, spots, tool, placing, picked, boxes, clock, day, speed, open, overlay, map,
+      at: (x, y) => { const q = game.view.p(x, y, 0); return [q[0] - game.screen.ix, q[1] - game.screen.iy]; }, isPath, fits, build, layPath, setOverlay: v => { overlay = v; } }),
+    /** the proof: the park's first hours at 4x (key 3), a pause and on again; the guests' places, money and needs, the
+     *  rides' states, hashed */
+    run: (n = 1800) => proof('sim', n, (i, k) => { if (i === 20) k.tap('x4'); if (i === 1400) k.tap('pause'); if (i === 1500) k.tap('x2'); },
+      () => [Math.round(money), Math.round(rating), clock.label(), guests.map(g => [g.id, Math.round(g.x), Math.round(g.y), g.state, Math.round(g.happy * 100)]), spots.map(s => [s.kind, s.state, s.today.riders])]) };
+})();
+scenes.sim = SIM;
 
 /* =====================================================================================
  * SLICE 5  BRAWLER  (Final Fight, Streets of Rage 2). A city block at dusk. Every attack is a named E.MOVES move:
