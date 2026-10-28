@@ -927,6 +927,21 @@ Needs M7 (`rpg`'s inventory, save slots).
 - **3D ACTION:** lock-on, on the waves and the knight.
 - **Done when:** zone cuts and lock-on give the same `world.hash()` on WebGL 2 and WebGPU; lock-on has a contract test;
   the horror kit's bot plays from the first room to the boss; `kit3d-test` passes for every 3D kit.
+- **As built (v0.79.0):** the 3D engine's manual at about 6,100 of its new 8,000 tokens (D60). Camera zones are boxes in
+  units (`camera.zones`, mode `'zones'`): fixed (`at`, `look`), turning (`follow`), on a rail (`rail`, level with the
+  target's place along it); the cut's hysteresis is `camera.margin` (8 units), and `camera.ground` holds the old way
+  across a cut while the stick stays within 45 degrees of where it was. Lock-on takes a target or a list
+  (`camera.lock(hero, mobs)`: the one in sight nearest the hero's facing), with `cycle`, `unlock` and a reticle; "in
+  sight" reads only the world (a clear line, in range), never the camera, so the proof's hash holds on both backends.
+  Tank controls are `camera.steer` by the player's `E.World3D.CONTROLS` setting. The doors: a door thing swings
+  (`swing: true`) and takes a key (`locked`, `world.unlock(door, inv)` with the rpg module's inventory); the door
+  opening is `world.through(door, hero)` (the world holds still meanwhile: `world.passing`); `world.reach` finds what is
+  in front; the item box and the save point are things (`trunk`, `typewriter`), the save itself the 2D engine's
+  `game.saves`. The flashlight is `world.flashlight` on spot lights made with the world (`spots`), its flicker cosmetic.
+  The kit: seven rooms (the plan's six to eight), two dogs, five zombies, an autosave at each door, its own three
+  songs; touch adds ITEMS to the stick, AIM, ACT (FIRE while aiming) and RUN. Two fixes the kit found: the 3D flow field
+  lost every tile whose distance a float32 rounded down (whole rooms read as unreachable), and `world.reset()` now
+  starts the camera afresh (a proof run twice from a reset gave two hashes).
 
 ### M14: 3D vehicles and flight (the 3D engine; kits 3D RACING, 3D FLIGHT) in two pull requests
 

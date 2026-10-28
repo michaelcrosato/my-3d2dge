@@ -2,12 +2,14 @@
  * SLICE 1  ACTION  (Zelda 64's dungeons, Diablo; the stress test's hall in real 3D). A torch-lit hall of stone, pillars
  * and low walls, a raised dais in the middle with stairs up both sides. J or a click: a three-hit combo (slash,
  * backslash, spin; the spin hits all round); Shift dashes (through attacks: a moment untouchable), J while dashing
- * thrusts; Space jumps (onto the dais, over low walls); E throws an ember bolt where the mouse points. Five waves:
+ * thrusts; Space jumps (onto the dais, over low walls); E throws an ember bolt where the mouse points; Q locks on (Zelda's
+ * targeting: the nearest in sight, Q again the next, none left lets go; the chase camera strafes round it). Five waves:
  * husks, skeletons, slimes that hop and pounce, wisps that orbit and shoot; at most three of them attack at once, each
  * telegraphing its swing with a red arc on the floor; then a knight. Big hits throw bodies; crates and barrels break.
  * THE 3D: every monster is a Rapier body (the crowd pushes and piles up by itself, knockback is momentum); the hero is a
  * character controller; the monsters find their way up the stairs on the level's flow field. The camera: the 2D views
- * as 3D cameras (V), the chase camera and first person (C). ACTION.run(n): a scripted fight's hash (the proof)
+ * as 3D cameras (V), the chase camera and first person (C); lock-on (world.camera.lock, cycle). ACTION.run(n): a scripted
+ * fight's hash (the proof)
  * ===================================================================================== */
 const ACTION = (() => {
   const T = 16;
@@ -126,8 +128,11 @@ const ACTION = (() => {
     const h = hero, S = H;
     S.inv -= dt; S.hurtT -= dt; S.dashCD -= dt; S.boltCD -= dt; S.castT -= dt; hero.flash -= dt;
     if (S.dead) { S.deadT += dt; h.vx = h.vy = 0; h.anim = { pose: 'die' }; return; }
-    const free = S.cheer <= 0, md = free ? ctl.move : [0, 0], ml = Math.hypot(md[0], md[1]);
-    let aim = free ? ctl.aim : null; if ((aim === null || aim === undefined) && ml > .1) aim = Math.atan2(md[1], md[0]); if (aim !== null && aim !== undefined) S.aim = aim;
+    const free = S.cheer <= 0, md = free ? ctl.move : [0, 0], ml = Math.hypot(md[0], md[1]), cam = world.camera;
+    // lock-on: the nearest in sight; again, the next one round the hero; none other in sight lets go
+    if (free && ctl.pressed('lock', .12)) { ctl.use('lock'); if (!cam.lockOn) { if (cam.lock(h, enemies)) A.sfx('select'); } else if (!cam.cycle(enemies, 1)) cam.unlock(); else A.sfx('select'); }
+    const L = cam.lockOn;
+    let aim = free ? (L ? Math.atan2(L.y - h.y, L.x - h.x) : ctl.aim) : null; if ((aim === null || aim === undefined) && ml > .1) aim = Math.atan2(md[1], md[0]); if (aim !== null && aim !== undefined) S.aim = aim;
     if (free && ctl.pressed('dash', .12) && S.dashCD <= 0 && S.dashT <= 0) {
       ctl.use('dash'); const a = ml > .1 ? Math.atan2(md[1], md[0]) : h.facing;
       Object.assign(S, { dashDir: a, dashT: .2, dashCD: .45 }); h.facing = a; S.inv = Math.max(S.inv, .24); S.combo.cancel(); S.thrust.cancel();
@@ -312,7 +317,7 @@ const ACTION = (() => {
     E.ui.bar(g, x + 14, y + top, 72, 7, H.hp / H.max, H.hp > 30 ? '#e0463c' : '#ff7a3a');
     E.font.text(g, 'WAVE ' + wave + '/' + WAVES.length + '   SCORE ' + score, x, y + top + 11, '#f0e6ff', { outline: '#0b0814' });
     if (boss && boss.alive) { const w = Math.min(180, r.W - 40); E.font.text(g, 'THE KNIGHT', r.W / 2, r.H - 26, '#ffd36a', { align: 'center', outline: '#0b0814' }); E.ui.bar(g, r.W / 2 - w / 2, r.H - 16, w, 8, boss.hp / boss.max, '#c8452f'); }
-    if (hint > 0 && !touch()) E.font.text(g, prompt('attack', 'combo') + '   ' + prompt('dash', 'dash') + '   ' + prompt('jump', 'jump') + '   ' + prompt('skill', 'bolt') + '   C camera', r.W / 2, r.H - 40, '#e8e0ff', { align: 'center', outline: '#0b0814', font: 'tiny' });
+    if (hint > 0 && !touch()) E.font.text(g, prompt('attack', 'combo') + '   ' + prompt('dash', 'dash') + '   ' + prompt('jump', 'jump') + '   ' + prompt('skill', 'bolt') + '   ' + prompt('lock', 'lock') + '   C camera', r.W / 2, r.H - 40, '#e8e0ff', { align: 'center', outline: '#0b0814', font: 'tiny' });
   }
 
   /* ---- the controls this step, from the camera ---- */
@@ -322,18 +327,19 @@ const ACTION = (() => {
     const a = world.camera.heading; ctl.cam[0] = -Math.cos(a); ctl.cam[1] = -Math.sin(a); ctl.cam[2] = Math.cos((world.camera.pose || { pitch: -.6 }).pitch);
     return ctl;
   }
-  /** the proof: a fixed fight (twelve mixed monsters), the hero walking a square, swinging, dashing, jumping and throwing
-   *  on a timetable; n steps of 1/120 s. Returns the world's hash (the same on WebGPU, WebGL 2 and run again) */
+  /** the proof: a fixed fight (twelve mixed monsters), the hero walking a square, swinging, dashing, jumping, throwing and
+   *  locking on (and on to the next) on a timetable; n steps of 1/120 s. Returns the world's hash with the lock's target
+   *  (the same on WebGPU, WebGL 2 and run again) */
   function run(n = 600) {
     reset(7); for (const t of ['husk', 'husk', 'skeleton', 'skeleton', 'slime', 'slime', 'slime', 'wisp', 'wisp', 'husk', 'skeleton', 'slime']) spawn(t).spawnT = 0;
     const s = world.marks.hero[0], PATH = [[s.x + 90, s.y - 30], [s.x + 90, s.y - 140], [s.x - 110, s.y - 140], [s.x - 110, s.y - 30]];
-    let i = 0; const c = { move: [0, 0], aim: null, cam: [0, 1, .5], use() {}, pressed: a => (a === 'attack' && i % 48 === 24) || (a === 'dash' && i % 300 === 150) || (a === 'jump' && i % 400 === 260) || (a === 'skill' && i % 180 === 80) };
+    let i = 0; const c = { move: [0, 0], aim: null, cam: [0, 1, .5], use() {}, pressed: a => (a === 'attack' && i % 48 === 24) || (a === 'dash' && i % 300 === 150) || (a === 'jump' && i % 400 === 260) || (a === 'skill' && i % 180 === 80) || (a === 'lock' && i % 200 === 40) };
     for (i = 0; i < n; i++) { const [tx, ty] = PATH[Math.floor(i / 240) % 4], dx = tx - hero.x, dy = ty - hero.y, d = Math.hypot(dx, dy); c.move = d > 6 ? [dx / d, dy / d] : [0, 0]; step(1 / 120, c); }
-    return world.hash([H.hp, kills, wave]);
+    const L = world.camera.lockOn; return world.hash([H.hp, kills, wave, L ? enemies.indexOf(L) : -1]);
   }
 
   return {
-    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: W3.INPUT, pausable: true, touch: ['attack', 'dash', 'jump', 'skill'], camera: { zoom: [.6, 2], tall: 1.6 },
+    view: 'iso', views: ['iso', 'threequarter', 'topdown', 'brawler'], input: W3.INPUT, pausable: true, touch: ['attack', 'dash', 'jump', 'skill', 'lock'], camera: { zoom: [.6, 2], tall: 1.6 },
     enter() { reset(1); active = world; A.music('dungeon'); world.camera.set('view'); },
     update(dt) { cameraKey(world); hint -= dt; step(dt, controls()); },
     draw(r) {

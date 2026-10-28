@@ -9,9 +9,9 @@ the code below them.
 | What | Where |
 | --- | --- |
 | The 3D engine (an ES module) | `engine/my-3d2dge-3d.js`; built copy `dist/my-3d2dge-3d.js` |
-| Its manual | its header (the `/*! ... */` comment), with a complete quick-start game; a budget of 6,000 tokens (D27) |
+| Its manual | its header (the `/*! ... */` comment), with a complete quick-start game; a budget of 8,000 tokens (D27, D60) |
 | The 3D starter: a title stage and every 3D slice | `src/starter3d/` and `src/starter3d.template.html`, built into `dist/my-3d2dge-3d.html` ([/3d](https://my-3d2dge.vercel.app/3d)) |
-| The 3D kits, one slice each | `dist/kits/my-3d2dge-3d-action.html` ([/kits/3d-action](https://my-3d2dge.vercel.app/kits/3d-action)), `dist/kits/my-3d2dge-3d-platformer.html` ([/kits/3d-platformer](https://my-3d2dge.vercel.app/kits/3d-platformer)), `dist/kits/my-3d2dge-3d-shooter.html` ([/kits/3d-shooter](https://my-3d2dge.vercel.app/kits/3d-shooter)) |
+| The 3D kits, one slice each | `dist/kits/my-3d2dge-3d-action.html` ([/kits/3d-action](https://my-3d2dge.vercel.app/kits/3d-action)), `dist/kits/my-3d2dge-3d-platformer.html` ([/kits/3d-platformer](https://my-3d2dge.vercel.app/kits/3d-platformer)), `dist/kits/my-3d2dge-3d-shooter.html` ([/kits/3d-shooter](https://my-3d2dge.vercel.app/kits/3d-shooter)), `dist/kits/my-3d2dge-3d-horror.html` ([/kits/3d-horror](https://my-3d2dge.vercel.app/kits/3d-horror)) |
 | The check | `node tools/kit3d-test.mjs` (in `npm test`) |
 | The libraries | `vendor/three-0.182.0/`, `vendor/rapier3d-simd-compat-0.19.3/` (pinned, with checksums: `node tools/vendor-3d.mjs --check`) |
 
@@ -44,7 +44,22 @@ screen, sound. The 3D engine adds `E.World3D` (and `E.THREE`, `E.TSL`, `E.RAPIER
   pinch and Settings work as in 2D), a chase camera that swings round behind the hero, first person, fly and fixed (in those a click captures the mouse to
   turn the camera; not while a session is recorded, whose record has no pointer lock). Its
   pose is worked out in the fixed steps, so the controls that read it replay the same.
-- **The picture**: torches that light the nearest action (one casting shadows), a sun with shadows, a sky, fog,
+- **Camera zones, lock-on, tank controls** (v0.79.0): `camera.zones` and the `'zones'` mode give each region of a level
+  its own camera (fixed, one that turns after the target, one that slides on a rail), Resident Evil's: the cut waits
+  until the target is `margin` units into the next region, so a border never flicks back and forth, and across a cut
+  `camera.ground` keeps the old camera's way while the stick is held the same way. `camera.lock(hero, mobs)` locks on
+  (Zelda's targeting): the one in sight (a clear line, in range) nearest where the hero faces; `cycle` goes round to the
+  next; the chase and first cameras swing behind the hero to frame both and `ground()` strafes round the target; a
+  reticle marks it; it lets go of a target that dies, leaves or gets too far. Whom it picks reads only the world, never
+  the camera, so it replays the same. `camera.steer` is camera-relative or tank controls, by the player's setting
+  (`E.World3D.CONTROLS`).
+- **Doors between rooms** (v0.79.0): a door thing swings on hinges (`swing: true`) or rises, takes a key
+  (`locked: 'iron'`, `world.unlock(door, inv)`), and `world.through(door, hero)` plays Resident Evil's door opening:
+  the camera cuts to the door, it swings open as the camera goes through, the hero comes out beyond it, while the rest
+  of the world holds still (`world.passing`). `world.reach(hero)` is the thing in front within reach: what a check
+  button acts on. `trunk` (an item box) and `typewriter` (a save point, with the 2D engine's `game.saves`) are things.
+- **The picture**: torches that light the nearest action (one casting shadows), a sun with shadows, a flashlight that
+  follows an actor's facing and flickers like a failing bulb (`world.flashlight`, a spot light made with the world), a sky, fog,
   the game's particles in 3D, ground arcs (telegraphs), glows, weapon trails, and the 3D Prototype's filters (Comic cel,
   Pixel, bloom, FXAA); the player picks cards or puppets, the resolution, shadows and the filter in the pause menu
   (`E.World3D.SETTINGS`). Every shader is built in a warm-up frame behind the boot screen, so none stalls the game.
@@ -71,7 +86,7 @@ Each 3D slice is a complete small game in the style of the 2D slices (dense, com
 `window.__game.scenes.<slice>.run(n)` for its proof:
 
 - **Action** (`src/starter3d/10-action.js`): the stress test's game cut down to a kit. A torch-lit hall with pillars,
-  low walls and a raised dais; a three-hit combo, a dash and the thrust out of it, a jump, an ember bolt; husks,
+  low walls and a raised dais; a three-hit combo, a dash and the thrust out of it, a jump, an ember bolt, lock-on (Q); husks,
   skeletons, slimes and wisps in five waves that take turns to attack (at most three at once) and telegraph their swings,
   then a knight; big hits throw bodies; crates and barrels break and drop hearts. Bookcases, benches, sacks and an anvil
   (shapes, in the level's legend) stand along its walls.
@@ -94,6 +109,16 @@ Each 3D slice is a complete small game in the style of the 2D slices (dense, com
   the gun by IK; slides, vaults, climbs, a death that folds and falls); first person draws its arms and guns with the
   overlay's pen in layers (stance, sway, bob, kick, reloads, punches, kicks, hands on ledges and rungs).
 
+- **Horror** (`src/starter3d/40-horror.js`): Resident Evil and Alone in the Dark. A mansion's two wings and their
+  rooms (a foyer with a typewriter and an item box, two halls, a kitchen, a dining room, a library, a gallery) under
+  fixed cameras by room (`camera.zones`: fixed, turning, on a rail), lit by braziers and a flashlight with a failing bulb,
+  in fog. A pistol held to aim: it locks on the nearest thing in front (`camera.lock`), aims high (a head) and low (a
+  dog), cycles to the next; a knife; few bullets. Zombies that shamble and grab (tap to shake free), dogs drawn with the
+  pen that run and leap, and a hulking thing in the gallery that swings and charges. Doors between rooms
+  (`world.through`), two keys for two locks, a crank for the grille over the second, herbs that mix (the rpg module's
+  six-slot inventory), an item box, saves at the typewriter (`game.saves`) and an autosave at each door. Tank or modern
+  controls (Settings). `HORROR.bot()` plays it from the foyer through every room to the boss and out.
+
 A kit is the minified 2D engine, the API card, the minified 3D engine with its manual, the shell and one slice: about
 200,000 cl100k tokens (a 2D kit is about 180,000 on the same count), so a 200k-token chat holds it with little room; a
 coding agent reads the 3D engine's header and the API card and builds from those. Unlike a 2D kit, a 3D kit is not one
@@ -105,9 +130,10 @@ self-contained file: it loads the two vendored libraries through its import map,
 materials only, no compute or storage buffers, nothing read back from the GPU, vendored imports); the manual's quick start
 run as the manual hosts it; every 3D page on WebGL 2 and WebGPU (SwiftShader, through the stand-in canvas the 3D labs'
 tests use): the title draws, each slice starts, its proof gives the same hash twice and on both backends, a few seconds
-of scripted play move the hero and build no GPU pipeline mid-game; every core shape built and drawn on both backends,
-solid where it stands (a hero stops at a crate, lands on a table), and a sheet of each beside its 2D picture; an upright phone (the 3D picture lies exactly under
-the game's, the touch buttons are there). Pictures in `check-output/kit3d/`. `tools/doctrine-check.mjs` holds the manual
+of scripted play move the hero and build no GPU pipeline mid-game; the camera's contracts (lock-on, zones and their
+cuts, the stick across a cut, tank steering, the door between rooms) at four refresh rates' steps; every core shape built and drawn on both backends,
+solid where it stands (a hero stops at a crate, lands on a table), and a sheet of each beside its 2D picture; every kit on an upright phone (the 3D picture lies exactly under
+the game's, the touch buttons are there). `tools/kits-test.mjs` plays each 3D slice's bot (the horror wing to its end). Pictures in `check-output/kit3d/`. `tools/doctrine-check.mjs` holds the manual
 to its budget; `tools/version.mjs` keeps its version line with the rest.
 
 ## Things to know
