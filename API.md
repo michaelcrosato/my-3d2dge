@@ -1,4 +1,4 @@
-# my-3D2dge API card (v0.63.1)
+# my-3D2dge API card (v0.64.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -224,7 +224,8 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Action RPG / dungeon (Diablo, Landstalker) | `iso` | TileMap, FlowField, Body (jump onto blocks), GPU lighting | ADVENTURE |
 | Beat-'em-up (Final Fight, Streets of Rage, TMNT) | `brawler` | TileMap street strip, Body, Humanoid (`weapon: null`) + `E.Combo` punches and `kick: true` kicks, `E.knockback`, waves that lock the screen | BRAWLER |
 | Fighting (Street Fighter II) | `side` | PlatformMap floor, two Platformers, Humanoid + `E.Attack` moves, `overlapBox` hitboxes | BRAWLER + PLATFORMER |
-| Shoot-'em-up (1942, Gradius, R-Type) | `overhead` (vertical) or `side` (horizontal) | sprites, Bullets, `E.pattern`, `r.starfield`, a timeline of waves | SHOOTER |
+| Shoot-'em-up (1942, Gradius, R-Type) | `overhead` (vertical, and horizontal: world x scrolls) | sprites, Bullets, `E.pattern`, a timeline of waves; horizontal: rock edges as functions of x, a power bar, options on the ship's past path, `E.Path` loops; `E.Arcade` for the continue and the table | SHOOTER (both stages) |
+| Golden-age arcade (Pac-Man, Galaga, Asteroids) | `overhead` (one fixed screen, cabinet art on the sides) | `E.Arcade` (score, lives, extra lives, turns, initials, tables, attract mode); a maze of `E.GridMover`s; moths on `E.Path`s turned by `rot`; `E.wrap` and `wrap: [w, h]` | ARCADE |
 | Twin-stick / run-and-gun (Smash TV, Contra) | `topdown` / `side` | Body or Platformer, Bullets, `weapon: 'gun'`, `point: true` | SHOOTER + ADVENTURE |
 | JRPG (Dragon Quest, Final Fantasy, EarthBound) | `threequarter` town, `brawler` battles | TileMap towns, Dialog, Menu, scenes, `E.store` saves | RPG BATTLE + ADVENTURE |
 | Puzzle (Tetris, Dr. Mario, Puyo, Columns) | `side` (a field in screen pixels) | a cell array, a bag from `E.rng`, `input.repeat` (auto-shift), `grid.groups` (chains), `input.drag()` and `clicked()` for touch | PUZZLE |
@@ -244,7 +245,8 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
 - **Worked examples**: Emberdeep (`src/emberdeep/`), a whole game on this engine: 28 monster, boss and dummy bodies, 3 heroes (one a living book, one a scythed beast) and 30 skills, registered with `def('archetypes', ...)`, `def('characters', ...)` and `def('skills', ...)`, so one search lists them. Adapt them; they lean on the game's own helpers. `docs/CHARACTERS.md` is the recipe for a new body.
 - **Modules** (`engine/modules/<name>.js`, `engine/modules/README.md`): general systems in files of their own, each a `<script>` after the engine, its header its manual (read it there, or its section of the index). A kit carries the modules its slice names (`@modules` in its header); `dist/my-3d2dge.js` carries them all.
   - `grid`: square and hex grids: A* paths, move ranges, lines, fields of view (symmetric shadowcasting), `E.Fog`, groups, `E.GridMover`, `E.Turns` (speed, charge time, phases, ATB). ROGUELIKE, PUZZLE.
-  - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE.
+  - `gen`: generated maps from a seed: rooms and corridors, BSP, caves, mazes, Poisson scatter, as ASCII rows a TileMap reads. ROGUELIKE, ARCADE.
+  - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
 ## Before you hand the game back

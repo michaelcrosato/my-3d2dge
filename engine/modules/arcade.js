@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module ARCADE v0.63.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.64.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -27,7 +27,7 @@ if (cab.p.score !== 600 || cab.p.lives !== 3) throw new Error('extra life');
 if (cab.die() !== 'again' || cab.die() !== 'again' || cab.die() !== 'over') throw new Error('lives');
 cab.start(2); if (cab.die() !== 'next' || cab.p.n !== 2) throw new Error('turns');
 ```
-Rules: tables live in E.store ('arcade:' + id + ':' + mode); a demo is the game's own bot (or a recorded input log)
+Rules: tables live in E.store ('arcade:' + id + ':' + mode; kept for the visit where storage is blocked); a demo is the game's own bot (or a recorded input log)
 playing the real rules; the entry and the continue read the game's keys, so hold play while either is open.
 */
 (function (E) {
@@ -38,6 +38,8 @@ if (!E) throw new Error('my-3D2dge module ARCADE: load engine/my-3d2dge.js (or t
  * ARCADE  scores, tables, initials, lives, credits, turns, cards and the attract mode
  * ========================================================================== */
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-! ', COLS = ['#ff4a4a', '#ffffff', '#ffe070'];
+const clicked = I => I.clicked ? I.clicked() : null;   // (a tap: the full engine's; the agent edition has none)
+const KEPT = {};   // the tables this visit, beside E.store (they still show where storage is blocked)
 class Arcade {
   /** new E.Arcade(game, { id, lives: 3, extra: [] (the scores that give a life) or every (a life each that many points),
    *  credits: null (free play) or the coins a game takes, idle: 20, demo: 30, scores: 6 (the attract mode's seconds),
@@ -96,7 +98,7 @@ class Arcade {
   /** is the continue counting down? */
   get continuing() { return !!this._cont; }
   /** the top ten of a mode: [{ name, score }] */
-  table(mode = '') { const t = E.store.get('arcade:' + this.id + ':' + mode, null); return Array.isArray(t) ? t : []; }
+  table(mode = '') { const k = 'arcade:' + this.id + ':' + mode, t = KEPT[k] || E.store.get(k, null); return Array.isArray(t) ? t.slice() : []; }
   /** would score make the top ten (never in a demo)? */
   qualifies(score, mode = '') { const t = this.table(mode); return !this.demo && score > 0 && (t.length < 10 || score > t[t.length - 1].score); }
   /** open the initials entry for score; done(name) once it is taken and saved */
@@ -113,7 +115,7 @@ class Arcade {
    *  until endDemo()), 'scores' (o.scores seconds), then 'title' again; any input goes back to 'title' */
   attract(dt) {
     const I = this.game.input, o = this.o;
-    if (I.anyPressed() || I.clicked()) { this._idle = 0; this.phase = 'title'; return 'title'; }
+    if (I.anyPressed() || clicked(I)) { this._idle = 0; this.phase = 'title'; return 'title'; }
     this._idle += dt;
     const next = this.phase === 'title' ? (this._idle >= o.idle ? 'demo' : null) : this.phase === 'demo' ? (this._idle >= o.demo ? 'scores' : null) : this._idle >= o.scores ? 'title' : null;
     if (next) { this.phase = next; this._idle = 0; }
@@ -128,7 +130,7 @@ class Arcade {
     this._t += dt;
     for (const c of this._cards) c.t -= dt;
     this._cards = this._cards.filter(c => c.t > 0);
-    const I = this.game.input, e = this.entry, tap = I.clicked();
+    const I = this.game.input, e = this.entry, tap = clicked(I);
     if (e) {
       e.t += dt;
       const turn = d => { e.name[e.i] = (e.name[e.i] + d + LETTERS.length) % LETTERS.length; this.game.audio.sfx('blip'); };
@@ -147,7 +149,7 @@ class Arcade {
         if (e.i < 2) e.i++;
         else {
           const name = e.name.map(k => LETTERS[k]).join('').trim() || '---', t = this.table(e.mode);
-          t.push({ name, score: e.score }); t.sort((a, b2) => b2.score - a.score); E.store.set('arcade:' + this.id + ':' + e.mode, t.slice(0, 10));
+          t.push({ name, score: e.score }); t.sort((a, b2) => b2.score - a.score); const k = 'arcade:' + this.id + ':' + e.mode; KEPT[k] = t.slice(0, 10); E.store.set(k, KEPT[k]);
           this.entry = null; I.consumeAll(); if (e.done) e.done(name);
         }
       }

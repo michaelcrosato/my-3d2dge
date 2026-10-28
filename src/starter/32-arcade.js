@@ -28,6 +28,9 @@ const ARCADE = (() => {
     { wave: 'square', vol: .12, notes: 'A4 . C5 . E5 . A5 - G5 . E5 . C5 . D5 . | E5 - - . D5 . C5 . B4 . G4 . A4 - - . | F4 . A4 . C5 . F5 - E5 . C5 . A4 . B4 . | C5 . B4 . A4 . G#4 . A4 - - - - . . .' },
     { wave: 'triangle', vol: .3, notes: 'A2 . A3 . A2 . A3 . A2 . A3 . A2 . A3 . | C3 . C4 . C3 . C4 . G2 . G3 . G2 . G3 . | F2 . F3 . F2 . F3 . F2 . F3 . F2 . F3 . | E2 . E3 . E2 . E3 . A2 . A3 . A2 . A3 .' },
     { wave: 'drums', vol: .12, notes: 'k . h . s . h . k k h . s . h h' }] };
+  // the remaster's deep space (the classic look keeps plain black): a planet, nebulae drifting, many stars
+  const SPACE = [['#020208', '#0a0a24', '#1a0c30', '#2a1038'], ['#02040a', '#06142a', '#0c1c3a', '#1a1a3a']].map((sky, i) => new E.Backdrop({ sky, moon: { x: i ? .16 : .82, y: i ? .7 : .22, r: i ? 22 : 15, color: i ? '#8ab0d8' : '#b89ae8' }, stars: 140,
+    layers: [{ kind: 'clouds', color: i ? '#1a4a6a' : '#6a3aa8', y: .3, height: .45, parallax: .03, drift: 1, nebula: true, seed: 2 + i }, { kind: 'clouds', color: i ? '#3a2a5a' : '#2a5ab0', y: .72, height: .4, parallax: .05, drift: 2, nebula: true, seed: 5 + i }] }));
   // cabinet art round a playfield of one fixed screen: on a wide screen's sides (left of x0, right of x1) a lit bezel edge,
   // a marquee stripe and drifting sparks; on a tall one (above y0, below y1) the marquee with the game's name and the
   // control panel
@@ -45,7 +48,14 @@ const ARCADE = (() => {
       }
       for (const [a, b, right] of [[0, x0, false], [x1, r.W, true]]) {
         if (b - a < 3) continue;
-        px.rect(g, a, 0, b - a, H, '#0a0614');
+        // the side's art: a dark panel tinted toward the game's colour, lit stripes slanting across it
+        for (let i = 0; i < 8; i++) px.rect(g, a, Math.floor(H * i / 8), b - a, Math.ceil(H / 8) + 1, E.mix('#0a0614', hue[0], .03 + i * .018));
+        g.save(); g.beginPath(); g.rect(a, 0, b - a, H); g.clip();
+        for (let x = a - H; x < b + 40; x += 46) { const k = right ? 1 : -1, x1 = right ? x : b - (x - a); px.blend(g, .1, 'add', () => px.poly(g, [[x1, 0], [x1 + 18 * k, 0], [x1 + 18 * k + H * .5 * k, H], [x1 + H * .5 * k, H]], hue[1])); }
+        const sw = (y0, y1, c) => px.poly(g, right ? [[a, H * y0], [b, H * (y0 - .3)], [b, H * (y1 - .3)], [a, H * y1]] : [[b, H * y0], [a, H * (y0 - .3)], [a, H * (y1 - .3)], [b, H * y1]], c);
+        sw(.5, .74, E.mix('#0a0614', hue[0], .7)); sw(.5, .52, '#ffffff'); sw(.76, .8, E.mix('#0a0614', hue[1], .8));   // a swoosh in the game's colours
+        g.restore(); px.reset(g);
+        if (label && b - a >= 44) { const n = label.length, k = Math.min(4, Math.floor((H - 20) / n / 9)), y0 = Math.round(H / 2 - n * k * 4.5); for (let i = 0; i < n; i++) E.font.title(g, label[i], (a + b) / 2, y0 + i * k * 9, { align: 'center', scale: k, colors: ['#ffffff', E.shade(hue[0], .3), hue[0]], depth: 2 }); }   // the game's name down the side
         for (let y = -24; y < H; y += 24) { const yy = Math.round(y + (t * 20) % 24); px.rect(g, right ? a + 6 : b - 10, yy, 4, 12, hue[1]); px.rect(g, right ? a + 14 : b - 18, yy + 12, 2, 6, hue[2]); }
         for (let i = 0; i < 8; i++) { const y = (i * 61 + t * (12 + i * 3)) % (H + 20) - 10, x = right ? a + 10 + (i * 13) % Math.max(8, b - a - 14) : b - 10 - (i * 13) % Math.max(8, b - a - 14); px.blend(g, .45, 'add', () => px.disc(g, x, y, 1 + i % 3, hue[i % 3])); }
         px.rect(g, right ? a : b - 3, 0, 3, H, hue[0]); px.rect(g, right ? a + 3 : b - 4, 0, 1, H, '#ffffff');
@@ -328,7 +338,18 @@ const ARCADE = (() => {
     function layout() { FH = Math.max(270, game.H - 4); X0 = Math.round((game.W - FW) / 2); Y0 = Math.round((game.H - FH) / 2); }
     function draw(r) {
       layout(); const cl = classic(), x0 = X0, y0 = Y0;
-      r.sky(['#000000', cl ? '#000000' : '#0a0624']);
+      if (cl) r.sky(['#000000', '#000000']); else {
+        SPACE[0].draw(r);
+        r.decal(g => {   // a ringed gas giant low in the field, lit from the upper right: the ring's far half, the planet's banded
+          // shading (discs stepped toward the light), the ring's near half
+          const [ox, oy] = r.w(0, 0), cx = Math.round(ox + x0 + FW * .24), cy = Math.round(oy + y0 + FH - 40), R = 40;
+          const ring = near => { for (let a = 0; a < TAU; a += .012) { if ((Math.sin(a) > 0) !== near) continue; for (const [k, c] of [[1.55, '#8a6aa8'], [1.7, '#c8a8e0'], [1.85, '#6a4a88']]) px.dot(g, cx + Math.cos(a) * R * k, cy + Math.sin(a) * R * k * .22, c); } };
+          ring(false);
+          ['#1a1030', '#2a1a46', '#3e2860', '#563a7a', '#704e94', '#8c66ac', '#a882c2'].forEach((c, k) => px.disc(g, cx + k * 1.4, cy - k * 1.4, R - k * 4.5, c));
+          for (let b = -2; b <= 2; b++) { const y = b * 12 + 3, hw = Math.sqrt(Math.max(0, (R - 2) ** 2 - y * y)) - 3; px.blend(g, .16, 'normal', () => px.rect(g, cx - hw + 1, cy + y, hw * 2, 2, b % 2 ? '#2a1640' : '#e8c8a0')); }
+          ring(true);
+        });
+      }
       r.overlay(g => {
         for (const s of stars) if (s.y < FH) px.dot(g, x0 + s.x, y0 + s.y, s.s > 50 ? '#ffffff' : s.s > 30 ? '#8a8ab0' : '#4a4a6a');
         for (const s of shots) { if (!cl) px.blend(g, .5, 'add', () => px.rect(g, x0 + s.x - 1, y0 + s.y - 1, 3, 7, '#8ad8ff')); px.rect(g, x0 + s.x, y0 + s.y, 1, 5, '#ffffff'); }
@@ -336,11 +357,10 @@ const ARCADE = (() => {
       });
       // each moth turned to the way it flies (r.sprite's rot; in its place, facing down); the classic turns in 16 steps
       for (const f of foes) if (f.d >= 0 || f.state !== 'in') r.sprite(x0 + f.x, y0 + f.y, 0, f.kind === 'boss' && f.hp === 1 ? MOTH.hurt : MOTH[f.kind], { rot: f.a + Math.PI / 2, anchor: 'center', steps: cl ? 16 : 32, glow: cl ? 0 : .3 });
-      if (dead <= 0 && !over && (readyT <= 0 || Math.floor(readyT * 8) % 2)) { r.sprite(x0 + ship.x, y0 + ship.y, 0, SHIP, { anchor: 'center', glow: cl ? 0 : .4 }); if (!cl) L.add(x0 + ship.x, y0 + ship.y, 4, 46, .9, { color: '#8ab8ff' }); }
-      if (!cl) for (const s of shots) L.add(x0 + s.x, y0 + s.y, 4, 18, .6, { color: '#8ad8ff' });
+      if (dead <= 0 && !over && (readyT <= 0 || Math.floor(readyT * 8) % 2)) r.sprite(x0 + ship.x, y0 + ship.y, 0, SHIP, { anchor: 'center', glow: cl ? 0 : .4 });
     }
     return {
-      id: 'formation', label: 'FORMATION', res: [232, 270], about: 'MOTHS FLY IN, FORM UP AND DIVE', hue: ['#4a8aff', '#ff4a4a', '#ffe040'], touch: ['fire'], extra: [20000, 70000], light: .8, fills: true,
+      id: 'formation', label: 'FORMATION', res: [232, 270], about: 'MOTHS FLY IN, FORM UP AND DIVE', hue: ['#4a8aff', '#ff4a4a', '#ffe040'], touch: ['fire'], extra: [20000, 70000], light: 0, fills: true,
       begin, revive() { over = false; ship.x = FW / 2; bombs.length = 0; readyT = 1.4; }, force() { over = true; }, step, draw,
       box: () => [X0, Y0, FW, FH], edges: () => [X0 - 2, X0 + FW + 2],
       get over() { return over; }, get level() { return wave; },
@@ -420,7 +440,7 @@ const ARCADE = (() => {
     function layout() { RW = Math.max(320, game.W); RH = Math.max(240, game.H); X0 = Math.round((game.W - RW) / 2); Y0 = Math.round((game.H - RH) / 2); }
     function draw(r) {
       layout(); const cl = classic(), x0 = X0, y0 = Y0;
-      r.sky(['#000000', cl ? '#000000' : '#04061a']);
+      if (cl) r.sky(['#000000', '#000000']); else SPACE[1].draw(r);
       r.overlay(g => {
         g.save(); g.beginPath(); g.rect(x0, y0, RW, RH); g.clip();
         // glowing vector lines: each shape bright over a soft wide glow (classic: plain white lines), at every edge it crosses

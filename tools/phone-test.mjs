@@ -17,6 +17,8 @@
 //   9. arcade: each of its three games from the cabinet to its high-score table: by taps on a phone (a cabinet, then the
 //      letter wheel's arrows and OK, every target at least 44 CSS pixels), by keys (the continue too) and by a gamepad on
 //      a computer; left alone, the cabinet plays a demo and comes back to its table, then its title
+//  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
+//      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
 //   6. zoom: the player's own camera zoom on top of the slice's (camera: { zoom: [min, max], start, tall }): two fingers
 //      pinch it (not the stick: a thumb steering beside a resting finger doesn't), kept; none where a slice has it off
 //      (the shooter); a phone held upright starts at the slice's tall zoom; Settings, Camera zoom; the wheel and - = on a
@@ -451,6 +453,26 @@ if (want('arcade')) {
     check('arcade (pad): the d-pad picks rocks, A plays it, the d-pad and A take initials, A goes back', pk === 2 && ps === 'arcade-rocks' && pr.stage === 'table' && (pr.table[0] || {}).name === 'DAA' && pb === 'arcade' && !errors.length, JSON.stringify({ pick: pk, scene: ps, stage: pr.stage, top: pr.table[0], back: pb }) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
     await ctx.close();
   }
+}
+
+/* 10. the shooter's arcade frame */
+if (want('shooter')) {
+  console.log('shooter: the continue, the horizontal stage, initials by taps, the table');
+  const { page, ctx, errors } = await open('shooter', UP); await wait(800);
+  const tapAt = async (x, y) => { const [cx, cy] = await toCss(page, x, y); await page.touchscreen.tap(cx, cy); await wait(160); };
+  await ev(page, () => window.__game.scenes.shooter.end(3000, true)); await wait(300); await tapAt(120, 200); await wait(300);
+  const v = await ev(page, () => { const s = window.__game.scenes.shooter.state(); return { respawn: s.ship.respawn, scene: window.__game.game.sceneName }; });
+  check('shooter (touch): the last ship lost brings a continue; a tap takes it and the ship is back', v.scene === 'shooter' && v.respawn === 0 && !errors.length, JSON.stringify(v));
+  await page.goto(page.url().replace(/#.*$/, '') + '#shooter/horizontal'); await page.reload(); await page.waitForFunction(() => window.__game && window.__game.game.sceneName === 'shooter-horizontal'); await wait(1500);
+  const h0 = await ev(page, () => window.__game.scenes['shooter-horizontal'].state());
+  await ev(page, () => window.__game.scenes['shooter-horizontal'].end(4100)); await wait(300);
+  const w = await ev(page, () => { const c = window.__game.scenes['shooter-horizontal']; return c.state().ending; });
+  const wheel = await ev(page, () => window.__game.scenes['shooter-horizontal'].wheel());
+  if (wheel) { await tapAt(wheel.x + wheel.cw / 2, (wheel.up[0] + wheel.up[1]) / 2); for (let k = 0; k < 3; k++) await tapAt(wheel.ok[0] + wheel.ok[2] / 2, wheel.ok[1] + wheel.ok[3] / 2); }
+  await wait(200); const h1 = await ev(page, () => window.__game.scenes['shooter-horizontal'].state()); await wait(1100); await tapAt(120, 200); await wait(900);
+  const back = await ev(page, () => window.__game.game.sceneName);
+  check('shooter (touch): #shooter/horizontal plays; its end brings initials by taps, the table, then the title', h0.x > 0 && w === 'entry' && !!wheel && h1.ending === 'table' && (h1.table[0] || {}).name === 'BAA' && back === 'title' && !errors.length, JSON.stringify({ x: h0.x, w, top: h1.table[0], back }) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
+  await ctx.close();
 }
 
 await browser.close();

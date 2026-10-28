@@ -415,7 +415,7 @@ const SHOOT = (() => {
       boss = { kind: 'boss', x: WW / 2, y: scroll - 90, t: 0, flash: -1, fire: 2, n: 0, aim: D, kick: 0, trail: 1, air: true, scale: 1, spin: 0, dying: 0, parts: [-1, 1, 0].map(s => ({ s, hp: s ? 90 : 380, r: s ? 15 : 30, aim: D, kick: 0, pts: s ? 5000 : 50000 })) };
       boss.parts.forEach(p => Object.assign(p, { boss, x: boss.x, y: boss.y, max: p.hp })); foes.push(boss); A.music('boss');
     }
-    if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { ship.respawn = 1e9; lost(score, () => { lives = 2; bombs = 3; Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
+    if (ship.respawn > 0) { if (ship.respawn > 1.6) P.fire(ship.x, ship.y, 12, 1, { size: 3 }); if ((ship.respawn -= dt) <= 0) { if (lives < 0) { ship.respawn = 1.5; lost(score, () => { lives = 2; bombs = 3; Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); }); return; } Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); } }
     else {
       const d = inp.drag(), mv = d ? [clamp(d[0] / (125 * dt), -1, 1), clamp(d[1] / (125 * dt), -1, 1)] : inp.move(); ship.inv -= dt; ship.gun -= dt; ship.bank = approach(ship.bank, mv[0], 5 * dt);   // a thumb steers one to one
       const [fa, fb] = span(); ship.x = clamp(ship.x + (d ? d[0] * DRAG : mv[0] * 125 * dt), fa + 10, fb - 10); ship.y = clamp(ship.y + (d ? d[1] * DRAG : mv[1] * 125 * dt), scroll + 30, scroll + H - 20);
@@ -816,6 +816,7 @@ const SHOOT = (() => {
       exit() { game.cam.smooth = .18; game.input.steer = 'stick'; game.input.touchSet('bomb', null); }, update, draw,
       state: () => ({ x: Math.round(s.x), ship: [Math.round(s.ship.x - s.x), Math.round(s.ship.y)], score: s.score, lives: s.lives, power: [s.speed, s.missile, s.weapon, s.options, s.shield, s.cursor], boss: !!foes.find(f => f.kind === 'core'), won: !!s.won, ending, table: cab.table() }),
       end(score) { s.score = score; s.lives = -1; s.ship.dead = 1e9; ending = 'cont'; endGame(score); },   // for tests: the end, now
+      wheel: () => cab.entry && cab.wheel,   // for tests: where the letter wheel is (its taps)
       /** the proof: the stage's first 600 steps flown by a weave and held fire; a hash of the run */
       run: (n = 600) => proof('shooter-horizontal', n, (i, k) => { if (!i) k.hold('fire'); walk(i, k, ['up', 'right', 'down', 'left'], 80); if (i % 200 === 150) k.tap('bomb'); }, () => [s.x, s.ship.x, s.ship.y, s.score, s.lives, s.cursor, foes.map(f => [Math.round(f.x), Math.round(f.y), f.hp])]),
       /** the bot (kits-test, by way of the shooter's): the stage flown by the demo pilot to its boss, and on until the core
@@ -847,6 +848,6 @@ const SHOOT = (() => {
     /** the bot (tools/kits-test.mjs): the horizontal stage flown by its demo pilot to its boss (HS.bot) */
     bot: () => HS.bot(),
     /** for tests: the end of the vertical stage, now, with score (the continue when cont, else the initials) */
-    end(sc, cont) { score = sc; lives = -1; ship.respawn = 1e9; if (cont) lost(sc, () => { lives = 2; Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); }); else { ending = 'cont'; endGame(sc); } } };
+    end(sc, cont) { score = sc; lives = -1; ship.respawn = 1.5; if (cont) lost(sc, () => { lives = 2; Object.assign(ship, { x: WW / 2, y: scroll + H - 86, inv: 2.5, respawn: 0 }); }); else { ending = 'cont'; endGame(sc); } } };
 })();
 scenes.shooter = SHOOT;
