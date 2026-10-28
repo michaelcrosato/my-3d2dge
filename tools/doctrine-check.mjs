@@ -177,7 +177,7 @@ if (opt('baseline')) {
 {
   let count = null;
   try { const { countTokens } = await import('gpt-tokenizer/encoding/cl100k_base'); count = countTokens; } catch (e) { /* optional */ }
-  const KIT = 200000, KIT3D = { action: 241039, platformer: 235846, shooter: 310823 }, SUSPENDED = true;   // (a 2D kit; a 3D kit, at v0.59.3: D51; the 2D budget suspended: D52)
+  const KIT = 200000, KIT3D = { action: 241039, platformer: 235846, shooter: 310823, horror: 256000 }, SUSPENDED = true;   // (a 2D kit; a 3D kit, at v0.59.3: D51, the horror kit's D61; the 2D budget suspended: D52)
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');
   else {

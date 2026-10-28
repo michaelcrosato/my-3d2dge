@@ -1100,3 +1100,17 @@ An entry:
   past 8,000 (raised again with its cause).
 - **Answered:** yes: the owner, in the plan's M13 and the goal of 2026-10-28
 - **Landed in:** v0.79.0
+
+## D61 · 2026-10-28 · The 3D horror kit's budget: 256,000 tokens
+
+- **Principle:** 1 (agent-readable: a kit fits a chat model's context) and the genre plan's 3.3 (a 3D kit no larger than
+  at v0.59.3; a new 3D kit has none until it is given one, `doctrine-check`)
+- **Call:** `dist/kits/my-3d2dge-3d-horror.html` has a budget of 256,000 cl100k tokens. It is 249,866 at v0.79.0: the
+  minified 2D engine on its diet, the API card, the 3D engine with its manual, the rpg module, the shell and the horror
+  slice (about 30,000 of game code: the wing, its cameras, the cast, the items screen and the item box, the dogs drawn
+  with the pen, the proof and the bot). The rest is room for M14's lines in the 3D engine, which every 3D kit carries.
+- **Why:** like the other 3D kits (241,039, 235,846 and 310,823, D51), a 3D kit is the 2D kit's size plus the 3D
+  engine; the owner's goal for Milestones 2 to 16 (2026-10-28) says to build what is needed and trim after the review.
+  What would change it: the owner's review, or the kit passing 256,000 (raised again here, with its cause).
+- **Answered:** yes: the owner, in the goal of 2026-10-28
+- **Landed in:** v0.79.0
