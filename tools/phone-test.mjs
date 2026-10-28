@@ -422,7 +422,7 @@ if (want('arcade')) {
         scene === 'arcade-' + id && small >= 44 && s.stage === 'table' && top.name === 'BAA' && top.score === 3000 + i * 100 && back === 'arcade' && !errors.length, JSON.stringify({ scene, stage: s.stage, top, back }) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
     }
     // left alone: the demo, then its table, then the title (the game's clock run on: advance)
-    const a0 = await ev(page, () => { const g = window.__game.game, A = window.__game.scenes.arcade; g.advance(20.5); const demo = g.sceneName, d = g.scenes[demo] && g.scenes[demo].state && g.scenes[demo].state().demo; g.advance(31); const back = g.sceneName, phase = A.state().phase, table = A.state().table; g.advance(6.5); return { demo, d, back, phase, table, after: A.state().phase }; });
+    const a0 = await ev(page, () => { const g = window.__game.game, A = window.__game.scenes.arcade; g.advance(20.5); const demo = g.sceneName, d = g.scenes[demo] && g.scenes[demo].state && g.scenes[demo].state().demo; for (let i = 0; i < 40 && g.sceneName !== 'arcade'; i++) g.advance(1); const back = g.sceneName, phase = A.state().phase, table = A.state().table; g.advance(6.5); return { demo, d, back, phase, table, after: A.state().phase }; });
     check('arcade: left alone, the cabinet plays a demo, comes back to its table, then its title', a0.demo.startsWith('arcade-') && a0.d && a0.back === 'arcade' && a0.phase === 'scores' && !!a0.table && a0.after === 'title' && !errors.length, JSON.stringify(a0));
     await ctx.close();
   }

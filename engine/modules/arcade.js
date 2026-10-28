@@ -43,11 +43,15 @@ class Arcade {
    *  credits: null (free play) or the coins a game takes, idle: 20, demo: 30, scores: 6 (the attract mode's seconds),
    *  hud: true, colors: [label, number, highlight] }) */
   constructor(game, o = {}) {
-    /** game; id: the game's name (its tables'); o: the options; players: [{ n, score, lives, save }]; p: the one up;
-     *  credits: coins in (null: free play); entry: the initials being entered, or null; mode: 'title' | 'play' |
-     *  'over'; demo: a demo is playing; phase: the attract mode's ('title' | 'demo' | 'scores'); hi: the high score */
+    /** game: the game it serves; id: the game's name (its tables'); o: the options */
     this.game = game; this.id = o.id || 'game'; this.o = Object.assign({ lives: 3, extra: [], credits: null, idle: 20, demo: 30, scores: 6, hud: true, colors: COLS }, o);
-    this.players = []; this.p = null; this.credits = this.o.credits === null ? null : 0; this.entry = null; this.mode = 'title'; this.demo = false; this.phase = 'title';
+    /** players: [{ n, score, lives, save (the game's own: a stage kept while the other plays), next (the score of the
+     *  next extra life) }]; p: the player up; credits: coins in (null: free play); entry: the initials being entered
+     *  ({ score, mode, name, i }), or null */
+    this.players = []; this.p = null; this.credits = this.o.credits === null ? null : 0; this.entry = null;
+    /** mode: 'title' | 'play' | 'over'; demo: a demo is playing (no table); phase: the attract mode's, 'title' | 'demo' |
+     *  'scores' */
+    this.mode = 'title'; this.demo = false; this.phase = 'title';
     /** hi: the high score shown; wheel: where the letter wheel was last drawn (taps answer to it): { x, y, cw, up, down,
      *  ok } in screen pixels: three columns cw wide from x, the up and down bands [y0, y1], the OK button [x, y, w, h] */
     this._cards = []; this._idle = 0; this._t = 0; this._cont = null; this.wheel = null; this.hi = 0;
@@ -56,7 +60,7 @@ class Arcade {
    *  game takes unless it is free play or a demo. Returns false without them */
   start(players = 1, o = {}) {
     if (this.credits !== null && !o.demo) { if (this.credits < this.o.credits) return false; this.credits -= this.o.credits; }
-    this.players = Array.from({ length: Math.max(1, Math.min(2, players)) }, (_, i) => ({ n: i + 1, score: 0, lives: this.o.lives, save: null, _next: 0 }));
+    this.players = Array.from({ length: Math.max(1, Math.min(2, players)) }, (_, i) => ({ n: i + 1, score: 0, lives: this.o.lives, save: null, next: this.o.every || (this.o.extra[0] === undefined ? Infinity : this.o.extra[0]) }));
     this.p = this.players[0]; this.mode = 'play'; this.demo = !!o.demo; this.entry = null; this._cont = null; this._cards.length = 0;
     this.hi = Math.max(this.hi, (this.table()[0] || { score: 0 }).score);
     if (this.players.length > 1) this.card('PLAYER 1', 1.6);
@@ -66,9 +70,8 @@ class Arcade {
   add(points, at) {
     const p = this.p; if (!p || !points) return;
     p.score += points; this.hi = Math.max(this.hi, p.score);
-    const ex = this.o.extra, every = this.o.every;
-    while (every ? p.score >= (p._next || every) : p._next < ex.length && p.score >= ex[p._next]) {
-      p.lives++; p._next = every ? (p._next || every) + every : p._next + 1;
+    while (p.score >= p.next) {
+      p.lives++; const every = this.o.every, more = this.o.extra.find(s => s > p.next); p.next = every ? p.next + every : more === undefined ? Infinity : more;
       this.say('EXTRA LIFE!', 1.2); this.game.audio.sfx('oneup');
     }
     if (at) this.game.particles.text(at.x || 0, at.y || 0, (at.z || 0) + 6, points, this.o.colors[2]);

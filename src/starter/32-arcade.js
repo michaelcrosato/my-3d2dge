@@ -314,8 +314,16 @@ const ARCADE = (() => {
       if (live) for (const o of [...bombs, ...foes]) if (Math.abs(o.x - ship.x) < 6 && Math.abs(o.y - ship.y) < 6) { dead = 1.8; P.explosion(X0 + ship.x, Y0 + ship.y, 4, .9, { sound: true, flash: false, shake: 2, freeze: false }); if (o.hp) kill(o); break; }
       if (!foes.length && dead <= 0) newWave();
     }
-    // the demo's pilot: under the nearest diver (else the nearest moth), out from under a falling bomb, firing when under one
-    const botMove = () => { const b = bombs.find(b => Math.abs(b.x - ship.x) < 12 && b.y > ship.y - 70); if (b) return b.x > ship.x ? -1 : 1; const t = foes.find(f => f.state === 'dive') || foes.reduce((p, f) => !p || Math.abs(f.x - ship.x) < Math.abs(p.x - ship.x) ? f : p, null); return t ? clamp((t.x - ship.x) / 14, -1, 1) : 0; };
+    // the demo's pilot: of a step left, none and a step right, the first where no bomb or diving moth will be in the next
+    // half second (a bomb's way read ahead to the ship's row), preferring the way to the moth nearest above; firing when
+    // under one
+    const hitAt = (x, t) => bombs.some(b => { const k = (ship.y - b.y) / b.vy; return k > -.05 && k < t && Math.abs(b.x + b.vx * k - x) < 9; }) || foes.some(f => f.state === 'dive' && f.d >= 0 && Math.abs(f.y - ship.y) < 40 && Math.abs(f.x - x) < 12);
+    const botMove = () => {
+      const t = foes.find(f => f.state === 'dive' && f.y < ship.y - 50) || foes.filter(f => f.d >= 0).reduce((p, f) => !p || Math.abs(f.x - ship.x) < Math.abs(p.x - ship.x) ? f : p, null);
+      const want = t ? clamp((t.x - ship.x) / 10, -1, 1) : 0, ways = [want, 0, -1, 1].map(m => Math.round(m)), q = m => clamp(ship.x + m * 115 * .3, 10, FW - 10);
+      for (const m of ways) if (!hitAt(q(m), .8) && !hitAt((ship.x + q(m)) / 2, .4)) return m === Math.round(want) ? want : m;
+      return ship.x < FW / 2 ? 1 : -1;
+    };
     const botFire = () => foes.some(f => f.d >= 0 && Math.abs(f.x - ship.x) < 8);
     function layout() { FH = Math.max(270, game.H - 4); X0 = Math.round((game.W - FW) / 2); Y0 = Math.round((game.H - FH) / 2); }
     function draw(r) {
@@ -353,7 +361,7 @@ const ARCADE = (() => {
     const burst = (x, y, n, sp, life, c) => { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = sp * (.4 + Math.random() * .6); sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: life * (.5 + Math.random() * .5), c }); } };
     function kill() { deadT = 1.8; A.sfx('boom'); burst(ship.x, ship.y, 24, 80, .9, '#ffe0a0'); game.shake(3); }
     function step(dt, I) {
-      layout(); if (readyT > 0) readyT -= dt;
+      layout(); if (readyT > 0 && (readyT > .3 || !rocks.some(k => far(k, { x: RW / 2, y: RH / 2 }) < k.R + 40))) readyT -= dt;   // (it comes back once the middle is clear)
       if (deadT > 0 && (deadT -= dt) <= 0) { const was = cab.p, r = cab.die(); if (r === 'over') { over = true; return; } if (r === 'next') { was.save = { wave, rocks }; const s = cab.p.save; if (s) ({ wave, rocks } = s); else { wave = 0; newWave(); } } home(); readyT = 1.4; shots = shots.filter(s => !s.foe); }
       const live = deadT <= 0 && readyT <= 0;
       if (live) {   // turn, thrust (and drift: a little drag), fire, hyperspace (a one-in-ten chance it goes wrong)
@@ -363,16 +371,16 @@ const ARCADE = (() => {
         const sp = Math.hypot(ship.vx, ship.vy); if (sp > 220) { ship.vx *= 220 / sp; ship.vy *= 220 / sp; }
         ship.vx *= Math.exp(-.4 * dt); ship.vy *= Math.exp(-.4 * dt); ship.cool -= dt;
         if ((demo ? botFire() : I.pressed('fire')) && ship.cool <= 0 && shots.filter(s => !s.foe).length < 5) { shots.push({ x: ship.x + Math.cos(ship.a) * 7, y: ship.y + Math.sin(ship.a) * 7, vx: Math.cos(ship.a) * 290 + ship.vx, vy: Math.sin(ship.a) * 290 + ship.vy, t: .85 }); ship.cool = .12; A.sfx('laser', { vol: .3 }); }
-        if (!demo && I.pressed('warp')) { burst(ship.x, ship.y, 10, 40, .4, '#8ab8ff'); ship.x = Math.random() * RW; ship.y = Math.random() * RH; ship.vx = ship.vy = 0; A.sfx('warp'); if (Math.random() < .1) kill(); }
+        if (demo ? botWarp() : I.pressed('warp')) { burst(ship.x, ship.y, 10, 40, .4, '#8ab8ff'); ship.x = Math.random() * RW; ship.y = Math.random() * RH; ship.vx = ship.vy = 0; A.sfx('warp'); if (Math.random() < .1) kill(); }
       }
       if (deadT <= 0) { ship.x = E.wrap(ship.x + ship.vx * dt, 0, RW); ship.y = E.wrap(ship.y + ship.vy * dt, 0, RH); }
       for (const s of shots) { s.x = E.wrap(s.x + s.vx * dt, 0, RW); s.y = E.wrap(s.y + s.vy * dt, 0, RH); s.t -= dt; }
       for (const k of rocks) { k.x = E.wrap(k.x + k.vx * dt, 0, RW); k.y = E.wrap(k.y + k.vy * dt, 0, RH); k.rot += k.spin * dt; }
       for (const p of sparks) { p.x += p.vx * dt; p.y += p.vy * dt; p.t -= dt; } sparks = sparks.filter(p => p.t > 0);
       // the saucer: now and then, across the screen, shooting at you (across the edges: the nearer way)
-      if (!saucer && live && Math.random() < dt * .05 * wave) saucer = { x: 0, y: 30 + Math.random() * (RH - 60), vx: Math.random() < .5 ? 60 : -60, t: 0, cool: 1.2 };
+      if (!saucer && live && Math.random() < dt * .05 * wave) saucer = { x: 0, y: 30 + Math.random() * (RH - 60), vx: Math.random() < .5 ? 60 : -60, vy: 0, t: 0, cool: 1.2 };
       if (saucer) {
-        saucer.x = E.wrap(saucer.x + saucer.vx * dt, 0, RW); saucer.t += dt; saucer.y += Math.sin(saucer.t * 2) * 22 * dt; saucer.cool -= dt;
+        saucer.x = E.wrap(saucer.x + saucer.vx * dt, 0, RW); saucer.t += dt; saucer.vy = Math.sin(saucer.t * 2) * 22; saucer.y = E.wrap(saucer.y + saucer.vy * dt, 0, RH); saucer.cool -= dt;
         if (saucer.cool <= 0 && live) { const a = Math.atan2(wd(saucer.y, ship.y, RH), wd(saucer.x, ship.x, RW)) + (Math.random() - .5) * .5; shots.push({ x: saucer.x, y: saucer.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, t: 1.4, foe: true }); saucer.cool = 1.4; A.sfx('shoot', { vol: .2, pitch: .6 }); }
         if (saucer.t > RW / 60) saucer = null;
       }
@@ -386,25 +394,29 @@ const ARCADE = (() => {
       if (live && (rocks.some(k => far(ship, k) < k.R + 4) || shots.some(s => s.foe && far(s, ship) < 5) || (saucer && far(saucer, ship) < 10))) kill();
       if (!rocks.length) newWave();
     }
-    // the demo's pilot: a rock that will pass within reach in the next second and a half is a threat: turn across its way
-    // and thrust out of it; else turn to where the nearest rock will be when a shot gets there (across the edges) and fire
-    // when facing it; the saucer first when it is about
+    // the demo's pilot: a rock, the saucer or its shot that will pass within reach in the next second and a half is a
+    // threat: turn across its way and thrust out of it (hyperspace when it is a quarter second off); else brake when
+    // drifting, and turn to where the nearest rock will be when a shot gets there (across the edges), firing when facing
+    // it; the saucer first when it is about
     function threat() {
       let worst = null, wt = 1.5;
-      for (const k of [...rocks, ...(saucer ? [Object.assign({ R: 9, vy: 0 }, saucer)] : [])]) {
+      const all = [...rocks, ...(saucer ? [Object.assign({ R: 9 }, saucer)] : []), ...shots.filter(s => s.foe).map(s => Object.assign({ R: 3 }, s))];
+      for (const k of all) {
         const rx = wd(ship.x, k.x, RW), ry = wd(ship.y, k.y, RH), vx = k.vx - ship.vx, vy = k.vy - ship.vy, v2 = vx * vx + vy * vy || 1, t = -(rx * vx + ry * vy) / v2;
-        if (Math.hypot(rx, ry) < k.R + 12) return { k, a: Math.atan2(-ry, -rx) };
-        if (t > 0 && t < wt && Math.hypot(rx + vx * t, ry + vy * t) < k.R + 9) { wt = t; worst = { k, a: Math.atan2(vy, vx) + (vx * ry - vy * rx > 0 ? -1 : 1) * Math.PI / 2 }; }
+        if (Math.hypot(rx, ry) < k.R + 12) return { k, t: 0, a: Math.atan2(-ry, -rx) };
+        if (t > 0 && t < wt && Math.hypot(rx + vx * t, ry + vy * t) < k.R + 9) { wt = t; worst = { k, t, a: Math.atan2(vy, vx) + (vx * ry - vy * rx > 0 ? -1 : 1) * Math.PI / 2 }; }
       }
       return worst;
     }
+    const brake = () => Math.hypot(ship.vx, ship.vy) > 45 ? Math.atan2(-ship.vy, -ship.vx) : null;
     function aim() {
       let b = null, bd = 1e9; for (const k of saucer ? [saucer] : rocks) { const d = far(ship, k); if (d < bd) { bd = d; b = k; } }
       if (!b) return null; const t = bd / 290; return Math.atan2(wd(ship.y, b.y + b.vy * t, RH), wd(ship.x, b.x + b.vx * t, RW));
     }
-    const botTurn = () => { const th = threat(), a = th ? th.a : aim(); return a === null ? 0 : clamp(E.angDiff(ship.a, a) * 4, -1, 1); };
+    const botTurn = () => { const th = threat(), b = brake(), a = th ? th.a : b !== null ? b : aim(); return a === null ? 0 : clamp(E.angDiff(ship.a, a) * 4, -1, 1); };
     const botFire = () => { const a = aim(); return a !== null && Math.abs(E.angDiff(ship.a, a)) < .15; };
-    const botThrust = () => { const th = threat(); return !!th && Math.abs(E.angDiff(ship.a, th.a)) < .6; };
+    const botThrust = () => { const th = threat(), b = brake(), a = th ? th.a : b; return a !== null && Math.abs(E.angDiff(ship.a, a)) < .6; };
+    const botWarp = () => { const th = threat(); return !!th && th.t < .25 && th.k.R > 3 && Math.abs(E.angDiff(ship.a, th.a)) > 1; };
     function layout() { RW = Math.max(320, game.W); RH = Math.max(240, game.H); X0 = Math.round((game.W - RW) / 2); Y0 = Math.round((game.H - RH) / 2); }
     function draw(r) {
       layout(); const cl = classic(), x0 = X0, y0 = Y0;
@@ -556,7 +568,9 @@ const ARCADE = (() => {
           out[G.id] = { score: cab.players[0].score, level: G.level, cleared, lives: cab.players[0].lives, over: !!G.over, seconds: Math.round(t) };
         }
         game.go('arcade', null, { fade: 0 }); game.advance(1 / 120); front.wake();
-        game.advance(front.o.idle + .5); const demoAt = game.sceneName; game.advance(31); const back = game.sceneName, table = front.phase === 'scores'; game.advance(front.o.scores + .5);
+        game.advance(front.o.idle + .5); const demoAt = game.sceneName;
+        for (let i = 0; i < 40 && game.sceneName !== 'arcade'; i++) game.advance(1);
+        const back = game.sceneName, table = front.phase === 'scores'; game.advance(front.o.scores + .5);
         out.attract = demoAt.startsWith('arcade-') && back === 'arcade' && table && front.phase === 'title';
         out.errors = game.errors.length; return out;
       } finally { Math.random = was; }
