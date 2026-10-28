@@ -19,6 +19,13 @@
 //   dialogs        E.Dialog's markup on both editions: the letters alone are wrapped and typed, a run's speed and a pause
 //                  take their time, a value comes from say's vars over the box's, braces that aren't markup stay, confirm
 //                  finishes the page past its pauses; a map of more than 128 x 128 cells bakes its floor in chunks
+//   stories        the story module's dialogue graphs on both editions: conditions (flags, comparisons, quests, lists,
+//                  functions), choices filtered by theirs and picked with the keys, gotos, set and add, quests taken and
+//                  done, events after the line and a choice's event holding the story till resume(), balloons, state and
+//                  restore, a missing node refused
+//   rpgs           the rpg module on both editions: stacks and slots (nothing added when it won't fit), a grid's places,
+//                  levels and their gains, gear worn and compared, status effects, items used, rewards shared by the
+//                  living, shops, damage's bounds, encounters by zone, a party saved and restored
 //   modules        every module's manual (engine/modules/): its fenced examples run on each edition it loads after
 //   the asset card docs/ASSETS.md's examples: on the full engine the shapes draw, the solid is placed, the sprite made, the
 //                  surfaces take their materials and every worked entry draws; on the agent edition they run, the
@@ -77,6 +84,8 @@ for (const [ed, file] of EDITIONS) {
   views(E, ed);   // (and the mode7 and road modules)
   drive(E, ed);   // (and the drive module: its races on the full engine, which has E.Path)
   dialogs(E, ed);
+  stories(E, ed);   // (the story and rpg modules load after either edition)
+  rpgs(E, ed);
   shellHeadless(E, ed);
 }
 
@@ -516,6 +525,68 @@ function dialogs(E, ed) {
   const all = talk.pages.map(p => p.join(' ')).join(' ');
   check(`${ed}: dialogs: marked text wraps by its letters alone`, !/[{}]/.test(all) && all.includes('long red sentence that wraps onto'), all);
   check(`${ed}: dialogs: a map of more than 128 x 128 cells bakes its floor in chunks, a smaller one whole, either on request`, ed !== 'full' || (new E.TileMap({ w: 129, h: 128 }).chunks && !new E.TileMap({ w: 128, h: 128 }).chunks && new E.TileMap({ w: 8, h: 8, chunks: true }).chunks && typeof new E.TileMap({ w: 8, h: 8 }).floorBytes === 'function'));
+}
+
+// the story module (M7b): a conversation as data, walked by confirm presses in a headless game
+function stories(E, ed) {
+  if (!E.Story) return check(`${ed}: stories: E.Story is there`, false, 'missing');
+  const game = new E.Game({ headless: true }), seen = [];
+  const story = new E.Story(game, { vars: { gold: 40 }, people: { elder: { name: 'ELDER', at: { x: 10, y: 10, z: 0 } } }, on: { gift: (st, step) => seen.push('gift'), shop: () => seen.push('shop') }, nodes: {
+    start: [{ if: 'met', goto: 'again' }, { set: 'met', add: { gold: 10 } }, { who: 'elder', emote: '!', say: 'Gold: {$gold}.', choices: [{ text: 'Rich', if: 'gold >= 100', goto: 'rich' }, { text: 'Help', quest: ['q', 'A task', 'Do it'], event: 'shop', wait: true, goto: 'after' }, { text: 'Bye', goto: 'bye' }] }],
+    after: [{ say: 'Thanks.', event: 'gift' }, { if: ['quest:q', '!done:q', s => s.get('gold') === 50], done: 'q' }, { end: true }, { set: 'never' }],
+    again: [{ say: 'Again?' }], rich: [{ say: 'Rich!' }], bye: [{ say: 'Bye.' }] } });
+  game.start({ update(dt) { story.update(dt); }, draw() {} });
+  const press = (n, a = 'confirm') => { for (let i = 0; i < n; i++) { game.input.tap(a); game.advance(.3); } };
+  story.run('start'); press(1);
+  check(`${ed}: stories: set and add run before the line; a choice whose condition fails is left out; the balloon floats`, story.get('met') === true && story.talk.pages[0][0] === 'Gold: 50.' && story.talk.choices.join() === 'Help,Bye' && story._balloons.length === 1, JSON.stringify([story.talk.pages, story.talk.choices]));
+  press(1);   // the first choice (Help): its quest, then its event holds the story
+  check(`${ed}: stories: a picked choice takes its quest and calls its event, which holds the story till resume()`, story.running && seen.join() === 'shop' && story.quests[0].id === 'q' && !story.talk.open, JSON.stringify([story.running, seen, story.quests]));
+  story.resume(); press(3);
+  check(`${ed}: stories: resume() goes on to the choice's goto; a line's event runs after it; a list of conditions; end stops the node`, !story.running && seen.join() === 'shop,gift' && story.quests[0].done && story.get('never') === undefined && story.test('done:q'), JSON.stringify([story.running, seen, story.quests]));
+  story.run('start'); press(2);
+  check(`${ed}: stories: a flag set the first time sends the next talk elsewhere`, story.talk.pages[0][0] === 'Again?' || !story.running, story.talk.pages[0][0]);
+  story.set('met', false); story.run('start'); press(1); press(1, 'down'); press(1);
+  check(`${ed}: stories: the keys move the choice (down: Bye)`, story.node === 'bye' || seen.length === 2 && !story.quests[1], story.node);
+  press(2);
+  const saved = story.state(), other = new E.Story(game, { nodes: {} }); other.restore(JSON.parse(JSON.stringify(saved)));
+  check(`${ed}: stories: state() and restore() keep the vars and the quests`, other.get('gold') === 60 && other.get('met') === true && other.test('done:q') && other.talk.vars === other.vars, JSON.stringify(other.state()));
+  check(`${ed}: stories: conditions: comparisons, not, quests, words`, story.test('gold > 59') && story.test('gold != 3') && !story.test('gold < 10') && story.test('!never') && story.test('quest:q') && !story.test('quest:x') && (story.set('town', 'Brightwater'), story.test('town == Brightwater')));
+  const n0 = story.running; story.run('nowhere');
+  check(`${ed}: stories: a node that isn't there is refused (a warning), nothing runs`, !story.running && !n0);
+}
+
+// the rpg module (M7b): items, bags, members, parties, shops, damage, encounters
+function rpgs(E, ed) {
+  if (!E.RPG) return check(`${ed}: rpgs: E.RPG is there`, false, 'missing');
+  const R = new E.RPG({ items: { potion: { name: 'Potion', kind: 'use', heal: 30, price: 10 }, ether: { name: 'Ether', kind: 'use', mp: 10, price: 30 }, anti: { name: 'Antidote', kind: 'use', cure: ['poison'] }, down: { name: 'Down', kind: 'use', revive: .5 },
+    sword: { name: 'Sword', kind: 'weapon', stats: { atk: 5 }, price: 50 }, axe: { name: 'Axe', kind: 'weapon', stats: { atk: 8, spd: -1 }, price: 90 }, key: { name: 'Key', kind: 'key', price: 99 }, box: { name: 'Box', kind: 'use', size: [2, 2], stack: 1 }, gem: { name: 'Gem', kind: 'use', stack: 1 } },
+    monsters: { rat: { name: 'Rat', hp: 8, atk: 4, def: 0, exp: 30, gold: 5, drops: [[1, 'potion'], [0, 'ether']] } } });
+  const inv = R.inventory({ slots: 2 });
+  check(`${ed}: rpgs: stacks of 99, then a new stack; a full bag adds nothing (false)`, inv.add('potion', 150) && inv.list().map(e => e.n).join() === '99,51' && !inv.add('ether') && inv.count('ether') === 0 && inv.add('potion', 48) && inv.count('potion') === 198, JSON.stringify(inv.list().map(e => [e.id, e.n])));
+  check(`${ed}: rpgs: remove takes from the last stacks; more than there is is refused`, inv.remove('potion', 100) && inv.count('potion') === 98 && inv.list().length === 1 && !inv.remove('potion', 99) && inv.count('potion') === 98);
+  const grid = R.inventory({ grid: [3, 2] });
+  check(`${ed}: rpgs: a grid places by size, refuses overlaps, finds what covers a cell`, grid.add('box') && grid.fits('gem', 2, 0) && !grid.fits('gem', 1, 1) && grid.place('gem', 2, 1) && grid.at(1, 1).id === 'box' && !grid.add('box') && grid.add('gem') && grid.at(2, 0).id === 'gem' && !grid.add('gem'), JSON.stringify(grid.list().map(e => [e.id, e.x, e.y])));
+  const hero = R.member({ name: 'Ann', stats: { hp: 40, mp: 10, atk: 10, def: 4, spd: 8 }, growth: { hp: 10, atk: 2 } }), party = R.party([hero, R.member({ name: 'Bo', stats: { hp: 30 } })], { gold: 200 });
+  const ups = hero.gain(R.curve(4));
+  check(`${ed}: rpgs: experience past several levels gives each level and its gains; hp grows with them`, hero.level === 4 && ups.length === 3 && ups[0].up.hp === 10 && hero.max('hp') === 70 && hero.hp === 70 && hero.next === R.curve(5) - R.curve(4), JSON.stringify(ups));
+  const shop = R.shop(['sword', 'axe']); shop.buy(party, 'sword'); shop.buy(party, 'axe', 1);
+  check(`${ed}: rpgs: a shop sells while the gold lasts; gear compared, worn (the old piece back in the bag) and taken off`, party.gold === 60 && !shop.buy(party, 'axe') && hero.compare('sword').atk === 5 && hero.equip('sword', party.inv) && hero.stat('atk') === 21 && JSON.stringify(hero.compare('axe')) === '{"atk":3,"spd":-1}' && hero.equip('axe', party.inv) && party.inv.has('sword') && hero.unequip('weapon', party.inv) && party.inv.has('axe') && hero.stat('atk') === 16, JSON.stringify([party.gold, hero.equipped, party.inv.list().map(e => e.id)]));
+  hero.afflict('poison'); hero.afflict('haste', 2); const t1 = hero.tick(), t2 = hero.tick();
+  check(`${ed}: rpgs: poison hurts each tick till cured; haste lifts spd and runs out`, t1.some(([k, d]) => k === 'poison' && d === -Math.round(70 / 16)) && hero.has('poison') && !hero.has('haste') && t2.some(([k, d]) => k === 'haste' && d === 'ends'), JSON.stringify([t1, t2]));
+  hero.afflict('sleep'); const asleep = !hero.acts(); party.inv.add('anti'); party.inv.add('potion', 2); party.inv.add('down');
+  check(`${ed}: rpgs: sleep keeps a member from acting; items heal, cure and revive (used up), and do nothing (kept) when there's nothing to do`, asleep && party.use('anti', hero) && !hero.has('poison') && party.use('potion', hero) && hero.hp === Math.min(70, 70 - 2 * Math.round(70 / 16) + 30) && !party.use('down', hero) && party.inv.has('down') && (party.members[1].hp = 0, party.use('down', party.members[1])) && party.members[1].hp === 15, JSON.stringify([hero.hp, party.members[1].hp]));
+  party.members[1].hp = 0; const lv = party.members[1].level, won = party.reward(['rat', 'rat']);
+  check(`${ed}: rpgs: a reward: the troop's exp to the living alone, its gold, the drops that came (chance 1, not 0)`, won.exp === 60 && won.gold === 10 && won.items.join() === 'potion,potion' && party.members[1].level === lv && hero.exp >= R.curve(4) + 60, JSON.stringify(won));
+  party.rest(); check(`${ed}: rpgs: rest brings every member back, effects gone`, party.members.every(m => m.hp === m.max('hp') && m.mp === m.max('mp') && !Object.keys(m.effects).length));
+  const g0 = party.gold; check(`${ed}: rpgs: a key item doesn't sell; others sell for half`, party.inv.add('key') && !shop.sell(party, 'key') && shop.worth('axe') === 45 && shop.sell(party, 'axe') && party.gold === g0 + 45);
+  let lo = 1e9, hi = 0, crit = 0; for (let i = 0; i < 400; i++) { const d = R.damage({ atk: 20 }, { def: 10 }, { crit: .2 }); if (d.crit) crit++; else { lo = Math.min(lo, d.hp); hi = Math.max(hi, d.hp); } }
+  const g = R.damage({ atk: 20 }, { def: 10 }, { crit: 0, guard: true }).hp, m = R.damage({ mag: 30, atk: 1 }, { mag: 10, def: 99 }, { kind: 'mag' }).hp;
+  check(`${ed}: rpgs: damage: attack less half the defense, a tenth either way; crits; guard halves; magic against magic`, lo >= 13 && hi <= 17 && crit > 40 && crit < 130 && g >= 6 && g <= 9 && m >= 22 && m <= 28, JSON.stringify({ lo, hi, crit, g, m }));
+  const enc = R.encounters({ field: { every: [10, 20], troops: [[1, ['rat']], [1, ['rat', 'rat']]] }, town: null }); let n = 0, kinds = new Set();
+  for (let i = 0; i < 2000 * 16; i++) { const t = enc.walk('field', 1); if (t) { n++; kinds.add(t.length); } }
+  check(`${ed}: rpgs: encounters: one every 10 to 20 cells walked, from the zone's troops; none where there is no zone`, n >= 99 && n <= 201 && kinds.size === 2 && enc.walk('town', 1e6) === null && enc.walk('nowhere', 1e6) === null, n + ' in 2000 cells');
+  const back = R.restore(JSON.parse(JSON.stringify(party.state())));
+  check(`${ed}: rpgs: a party saved and restored: members, levels, gear, the bag, the gold`, back.members[0].level === hero.level && back.members[0].stat('atk') === hero.stat('atk') && back.inv.count('potion') === party.inv.count('potion') && back.gold === party.gold && back.members[1].name === 'Bo', JSON.stringify(back.state()).slice(0, 200));
 }
 
 // the drive module (M6b): a car's speed, grip and slide, a kart's drift and its boost, the ground that slows it, walls and

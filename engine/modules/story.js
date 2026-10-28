@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module STORY v0.70.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.71.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13,9 +13,9 @@ E.Dialog (its markup and portraits), remembering what was said and done.
   - { who, say: 'text' | [pages], choices: [{ text, if, goto, ...actions }] }: a line in the box (markup, {$name}
     from vars); a choice's actions run when it is picked, then its goto, else the next step.
   - { goto: 'id' } jumps; { end: true } stops; { wait: seconds } pauses.
-  - actions, on any step: set: 'flag' | { key: value }; add: { gold: -50 }; quest: [id, title, text]; done: id;
-    emote: '!' | '?' | 'heart' | 'dots' | 'note' (over who's at); event: 'name' (calls on[name](story, step); with
-    wait: true the story holds until story.resume(): a scene of the game's own plays meanwhile).
+  - actions, on any step or choice: set: 'flag' | { key: value }; add: { gold: -50 }; quest: [id, title, text]; done:
+    id; emote: '!' | '?' | 'heart' | 'dots' | 'note' (over who's at); event: 'name' (calls on[name](story, step), after
+    the line on a step that speaks; with wait: true the story holds until story.resume(): the game's scene, a shop).
   - conditions: 'flag' (set and truthy), '!flag', 'gold >= 50' (== != < <= > >=, a number or a word), 'quest:id'
     (taken), 'done:id' (finished), an array (all of them), or a function (story) => true or false.
 - story.run(id, { onDone }) starts a node (stopping any other). In update: if (story.update(dt)) return; (true while it
@@ -67,29 +67,29 @@ class Story {
     this.quests = [];
     /** running: a node runs; node: its id */
     this.running = false; this.node = null;
-    this._steps = null; this._i = 0; this._wait = 0; this._held = false; this._pick = null; this._done = null; this._balloons = [];
+    this._steps = null; this._i = 0; this._wait = 0; this._held = false; this._then = null; this._pick = null; this._done = null; this._balloons = [];
   }
   /** start node id (stopping any other); o.onDone(story) when it ends */
   run(id, o = {}) {
     if (!this.nodes[id]) { E.warn('story:' + id, 'E.Story: no node "' + id + '"'); return this; }
     if (this.talk.open) this.talk.close();
-    this.running = true; this.node = id; this._steps = this.nodes[id]; this._i = 0; this._wait = 0; this._held = false; this._pick = null; this._done = o.onDone || null;
+    this.running = true; this.node = id; this._steps = this.nodes[id]; this._i = 0; this._wait = 0; this._held = false; this._then = null; this._pick = null; this._done = o.onDone || null;
     this._next(); return this;
   }
   /** stop the node running (its box closes; onDone isn't called) */
   stop() { this.running = false; this.node = null; this._done = null; if (this.talk.open) this.talk.close(); }
-  /** after an event with wait: true, go on with the next step */
-  resume() { if (this._held) { this._held = false; this._next(); } }
+  /** after an event with wait: true, go on (to the choice's goto, or the next step) */
+  resume() { if (!this._held) return; this._held = false; const g = this._then; this._then = null; if (g && !this._jump(g)) return; this._next(); }
   // the steps until one waits (a line, a pause, a held event) or the node ends
   _next() {
     while (this.running) {
       const s = this._steps[this._i++];
       if (!s) return this._end();
       if (s.if !== undefined && !this.test(s.if)) continue;
-      if (s.say !== undefined) return this._say(s);   // (its goto and a choice's run when the box closes)
+      if (s.say !== undefined) return this._say(s);   // (its event, goto and a choice's run when the box closes)
       this._act(s); if (!this.running) return;
+      if (this._fire(s, s.goto)) return;
       if (s.goto && !this._jump(s.goto)) return;
-      if (s.event && s.wait) { this._held = true; return; }
       if (!s.event && s.wait > 0) { this._wait = s.wait; return; }
     }
   }
@@ -100,26 +100,32 @@ class Story {
   }
   _after(s) {
     const c = this._pick; this._pick = null;
-    if (c) { this._act(c); if (!this.running) return; if (c.goto) { if (this._jump(c.goto)) this._next(); return; } }
+    if (c) { this._act(c); if (!this.running || this._fire(c, c.goto)) return; if (c.goto) { if (this._jump(c.goto)) this._next(); return; } }
+    if (this._fire(s, s.goto)) return;
     if (s.goto && !this._jump(s.goto)) return;
     this._next();
+  }
+  // a step's or a choice's event: true when the story stops here (it ended, or holds till resume(), then goes to then)
+  _fire(s, then) {
+    if (!s.event) return false;
+    const f = this.on[s.event];
+    if (f) try { f(this, s); } catch (e) { this.game.fail('story event "' + s.event + '"', e); }
+    else E.warn('story:on:' + s.event, 'E.Story: no handler for event "' + s.event + '" (on: { ' + s.event + '(story, step) {...} })');
+    if (!this.running) return true;
+    if (s.wait) { this._held = true; this._then = then || null; return true; }
+    return false;
   }
   _jump(id) {
     if (!this.nodes[id]) { E.warn('story:' + id, 'E.Story: no node "' + id + '" (a goto)'); this._end(); return false; }
     this.node = id; this._steps = this.nodes[id]; this._i = 0; return true;
   }
-  // a step's or a choice's actions: set, add, quest, done, emote, event, end
+  // a step's or a choice's actions: set, add, quest, done, emote, end (its event: _fire)
   _act(s) {
     if (s.set !== undefined) { if (typeof s.set === 'string') this.vars[s.set] = true; else Object.assign(this.vars, s.set); }
     if (s.add) for (const k in s.add) this.vars[k] = (+this.vars[k] || 0) + s.add[k];
     if (s.quest) this.quest(...s.quest);
     if (s.done) this.done(s.done);
     if (s.emote) { const at = (this.people[s.who] || {}).at; if (at) this.emote(at, s.emote); }
-    if (s.event) {
-      const f = this.on[s.event];
-      if (f) try { f(this, s); } catch (e) { this.game.fail('story event "' + s.event + '"', e); }
-      else E.warn('story:on:' + s.event, 'E.Story: no handler for event "' + s.event + '" (on: { ' + s.event + '(story, step) {...} })');
-    }
     if (s.end) this._end();
   }
   _end() { const f = this._done; this.running = false; this.node = null; this._done = null; if (f) f(this); }

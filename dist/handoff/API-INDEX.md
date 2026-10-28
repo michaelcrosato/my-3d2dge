@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.70.0)
+# my-3D2dge API index (v0.71.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,54 +48,56 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 100 The engine object (E = My3D2dge)
-- 111 Math
-- 185 Pixel primitives
-- 204 Sprite frames, turns and swaps
-- 210 Views (projections); E.View: view
-- 237 Screen; game.screen
-- 259 Input; E.Input: input
-- 337 Pixel font
-- 348 Lighting; game.lights
-- 367 Particles; E.Particles: game.particles
-- 387 Renderer; r
-- 434 Game; E.Game: game
-- 545 Standard features; settings, fullscreen
-- 562 10c. Boot
-- 567 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 584 10e. Paths; E.Path: path
-- 594 10g. Weather
-- 598 10k. Save slots; E.Saves: saves
-- 621 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 694 Blob rig; E.Blob: blob
-- 714 Tile map; E.TileMap: map
-- 776 Materials
-- 797 Flow field; E.FlowField: flow
-- 815 Texture helpers for floortex functions
-- 826 Platform map; E.PlatformMap: level
-- 860 Platformer; E.Platformer: hero
-- 901 Body; E.Body: body
-- 921 Actions; E.Action: action
-- 943 17c. Mover; E.Mover: mover
-- 982 17d. Perception; E.Suspicion: suspicion
-- 999 Bullets; E.Bullets: shots
-- 1019 Spatial hash; E.SpatialHash: grid
-- 1029 Audio; game.audio
-- 1051 Backdrops; E.Backdrop: backdrop
-- 1059 21c. Props
-- 1064 21e. Shapes
-- 1076 Ui; E.Dialog: talk, E.Menu: menu
-- 1132 21d. Shell; E.Shell: shell
-- 1161 Gpu lighting (webgpu); game.gpu
-- 1182 Sessions
-- 1191 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1226 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1264 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1345 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1356 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1411 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1434 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1451 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 102 The engine object (E = My3D2dge)
+- 113 Math
+- 187 Pixel primitives
+- 206 Sprite frames, turns and swaps
+- 212 Views (projections); E.View: view
+- 239 Screen; game.screen
+- 261 Input; E.Input: input
+- 339 Pixel font
+- 350 Lighting; game.lights
+- 369 Particles; E.Particles: game.particles
+- 389 Renderer; r
+- 436 Game; E.Game: game
+- 547 Standard features; settings, fullscreen
+- 564 10c. Boot
+- 569 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 586 10e. Paths; E.Path: path
+- 596 10g. Weather
+- 600 10k. Save slots; E.Saves: saves
+- 623 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 696 Blob rig; E.Blob: blob
+- 716 Tile map; E.TileMap: map
+- 778 Materials
+- 799 Flow field; E.FlowField: flow
+- 817 Texture helpers for floortex functions
+- 828 Platform map; E.PlatformMap: level
+- 862 Platformer; E.Platformer: hero
+- 903 Body; E.Body: body
+- 923 Actions; E.Action: action
+- 945 17c. Mover; E.Mover: mover
+- 984 17d. Perception; E.Suspicion: suspicion
+- 1001 Bullets; E.Bullets: shots
+- 1021 Spatial hash; E.SpatialHash: grid
+- 1031 Audio; game.audio
+- 1053 Backdrops; E.Backdrop: backdrop
+- 1061 21c. Props
+- 1066 21e. Shapes
+- 1078 Ui; E.Dialog: talk, E.Menu: menu
+- 1134 21d. Shell; E.Shell: shell
+- 1163 Gpu lighting (webgpu); game.gpu
+- 1184 Sessions
+- 1193 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1228 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1266 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1347 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1358 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1413 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1436 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1453 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 1482 Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js); E.RPG: rpg
+- 1501 Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js); E.Story: story
 
 ## The engine object (E = My3D2dge)
 
@@ -104,7 +106,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.70.0"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.71.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -1476,3 +1478,48 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `world.room = null`: the room it is in
 - `world.rooms`: every room by id: { id, def, map, at, w, h } (its size in screens)
 - `world.seen`: the world grid's cells the hero has been in ('gx,gy')
+
+## Module rpg: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters (engine/modules/rpg.js)
+
+- `new E.RPG(o = {}) → rpg`: new E.RPG({ items, monsters, status, curve }): the rules of a role-playing game (the manual above)
+- `rpg.card(g, x, y, m, o = {})`: a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; → { w, h }
+- `rpg.damage(a, b, o = {})`: a hit: { hp, crit } (a's attack, or its magic with kind 'mag', less half b's defense or magic; a tenth either way; a critical hit, physical only, ignores armor; guard halves it)
+- `rpg.encounters(zones, o)`: random encounters by zone: { zone: { every: [min, max], troops: [[weight, ids]] } }
+- `rpg.icon(id)`: item id's icon: its own sprite, or one for its kind (a flask red for HP, blue for MP)
+- `rpg.inventory(o)`: a bag: { slots: 32 } or { grid: [8, 5] }
+- `rpg.item(id)`: item id's definition, or null
+- `rpg.list(g, x, y, w, rows, o = {})`: a window of rows ({ label, note, icon, off }) with a cursor; o: { cursor, title, top (the first row shown), show (rows shown: 8), bg, rowH }. → { x, y, w, h, row(px, py) }: the row index at a screen point, or -1
+- `rpg.member(o)`: a party member: { name, level, stats, growth, equip, data }
+- `rpg.party(members, o)`: a party: its members and { gold, inv }
+- `rpg.restore(s)`: the party a save held (party.state())
+- `rpg.shop(ids, o)`: a shop selling these item ids ({ sell: .5 }: what it pays back)
+- `rpg.curve`: curve(lv): the experience level lv needs in all (15 x (lv - 1) ^ 2.4 by default)
+- `rpg.items`: the items by id
+- `rpg.monsters`: the monsters by id
+- `rpg.status`: the status effects by name (the defaults and yours)
+
+## Module story: dialogue as data, flags and values, a quest log and emote balloons (engine/modules/story.js)
+
+- `new E.Story(game, o = {}) → story`: new E.Story(game, { people, nodes, vars, on, dialog }): the talk of a game (the manual above)
+- `story.done(id)`: finish a quest (taken now if it wasn't)
+- `story.draw(r)`: draw the balloons over their targets and the box (anywhere in draw: both go to the overlay)
+- `story.emote(target, kind = '!', seconds = 1.5)`: a balloon over target (x, y, z; h: its height) for seconds: '!', '?', 'heart', 'dots', 'note'
+- `story.get(key)`: a flag or value (key may be a dotted path into vars)
+- `story.quest(id, title = id, text = '')`: take a quest (or change its title and text): it joins the log
+- `story.restore(s)`: put back what state() gave (a load)
+- `story.resume()`: after an event with wait: true, go on (to the choice's goto, or the next step)
+- `story.run(id, o = {})`: start node id (stopping any other); o.onDone(story) when it ends
+- `story.set(key, value = true)`: set a flag (value true) or a value
+- `story.state()`: its vars and quests, as JSON (for a save)
+- `story.stop()`: stop the node running (its box closes; onDone isn't called)
+- `story.test(c)`: does a condition hold? (the manual's conditions)
+- `story.update(dt)`: run the talk and the balloons; true while a node runs (play waits)
+- `story.game`: its game
+- `story.node = null`: its id
+- `story.nodes`: the conversations by id (lists of steps)
+- `story.on`: the game's event handlers by name
+- `story.people`: who speaks, by id ({ name, portrait, at })
+- `story.quests = []`: the quest log, in the order taken ({ id, title, text, done })
+- `story.running = false`: a node runs
+- `story.talk`: the E.Dialog it speaks through
+- `story.vars`: every flag and value (a line's {$name} reads them)

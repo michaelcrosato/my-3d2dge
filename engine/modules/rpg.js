@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module RPG v0.70.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.71.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -29,8 +29,9 @@ The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the 
 - const enc = rpg.encounters({ field: { every: [12, 28] (cells walked), troops: [[3, ['slime', 'slime']], [1, ['bat']]] } }):
   enc.walk(zone, units) each step → a troop when the count runs out (it starts again), else null.
 - party.state() → JSON for a save; rpg.restore(state) → that party.
-- Windows (in r.overlay): rpg.list(g, x, y, w, rows, { cursor, title, top, show, bg }) (rows: [{ label, note, icon,
-  off }]; → { x, y, w, h, row(px, py) }: the row under a tap), rpg.card(g, x, y, member, { portrait }), rpg.icon(id).
+- Windows (in r.overlay): rpg.list(g, x, y, w, rows, { cursor, title, top, show, rowH, bg }) (rows: [{ label, note,
+  icon, off }]; → { x, y, w, h, row(px, py): the row under a tap, at(i) }), rpg.card(g, x, y, member, { portrait }),
+  rpg.icon(id).
 
 ```js rpg
 const E = My3D2dge, rpg = new E.RPG({ items: { potion: { name: 'Potion', kind: 'use', heal: 30, price: 10 }, sword: { name: 'Sword', kind: 'weapon', stats: { atk: 5 }, price: 60 } },
@@ -253,9 +254,9 @@ const ICONS = {
 class RPG {
   /** new E.RPG({ items, monsters, status, curve }): the rules of a role-playing game (the manual above) */
   constructor(o = {}) {
-    /** items: the items by id; monsters: the monsters by id; status: the status effects by name (the defaults and
-     *  yours); curve(lv): the experience level lv needs in all */
+    /** items: the items by id; monsters: the monsters by id; status: the status effects by name (the defaults and yours) */
     this.items = o.items || {}; this.monsters = o.monsters || {}; this.status = Object.assign({}, STATUS, o.status);
+    /** curve(lv): the experience level lv needs in all (15 x (lv - 1) ^ 2.4 by default) */
     this.curve = o.curve || (lv => Math.round(15 * Math.pow(Math.max(0, lv - 1), 2.4)));
     this._icons = {};
   }
@@ -297,8 +298,8 @@ class RPG {
     const rh = o.rowH || 11, show = Math.min(rows.length, o.show || 8), top = Math.max(0, Math.min(o.top || 0, rows.length - show)), ty = o.title ? 13 : 0, h = Math.max(1, show) * rh + 8 + ty;
     E.ui.box(g, x, y, w, h, { bg: o.bg || ['#6c8cff', '#0a0a48'] });
     if (o.title) { E.font.text(g, o.title, x + 7, y + 5, '#ffe08a', { outline: false, shadow: '#0a0820' }); px.rect(g, x + 4, y + 14, w - 8, 1, '#a8b8ff'); }
-    for (let k = 0; k < show; k++) {
-      const i = top + k, r = rows[i], ry = y + 5 + ty + k * rh, col = r.off ? '#7c7aa8' : '#ffffff';
+    for (let k = 0; k < show; k++) {   // (rows taller than the text, a thumb's on a phone: the text in their middle)
+      const i = top + k, r = rows[i], ry = y + 5 + ty + k * rh + Math.max(0, Math.floor((rh - 11) / 2)), col = r.off ? '#7c7aa8' : '#ffffff';
       if (r.icon) px.sprite(g, r.icon, x + 12, ry);
       E.font.text(g, r.label, x + (r.icon ? 23 : 13), ry, col, { outline: false, shadow: '#0a0820' });
       if (r.note !== undefined && r.note !== null) E.font.text(g, String(r.note), x + w - 7, ry, r.off ? '#7c7aa8' : '#9ad0ff', { outline: false, shadow: '#0a0820', align: 'right' });
@@ -306,7 +307,8 @@ class RPG {
     }
     if (top > 0) px.poly(g, [[x + w / 2 - 3, y + ty + 4], [x + w / 2 + 3, y + ty + 4], [x + w / 2, y + ty + 1]], '#ffe060');
     if (top + show < rows.length) px.poly(g, [[x + w / 2 - 3, y + h - 4], [x + w / 2 + 3, y + h - 4], [x + w / 2, y + h - 1]], '#ffe060');
-    return { x, y, w, h, row: (qx, qy) => { const k = Math.floor((qy - y - 5 - ty + 2) / rh); return qx >= x && qx < x + w && k >= 0 && k < show ? top + k : -1; } };
+    return { x, y, w, h, rowH: rh, top, show, row: (qx, qy) => { const k = Math.floor((qy - y - 5 - ty + (rh > 11 ? 0 : 2)) / rh); return qx >= x && qx < x + w && k >= 0 && k < show ? top + k : -1; },
+      at: k => [x + w / 2, y + 5 + ty + (k - top + .5) * rh] };   // (a row's middle on screen: a tap's target)
   }
   /** a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; → { w, h } */
   card(g, x, y, m, o = {}) {

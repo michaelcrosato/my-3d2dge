@@ -660,6 +660,24 @@ Needs M1 (scripts, the swirl).
   it), its screen built from `E.Shell`'s specs (the pause menu's Save and Load through a hook). Measured on the views
   suite's 256 x 256 map (`tools/fixtures/bigmap.html`): its floor holds 2.9 MB where one bake would take 253 to 302 MB;
   scrolling it on an emulated phone, 0.4 ms a frame (median), under 6 ms at the 95th percentile.
+- **As built, 7b (v0.71.0):** `engine/modules/story.js` (after either edition): `E.Story` with people (a name, a
+  portrait, a thing a balloon floats over), nodes of steps (a line or pages with choices, conditions on any step and
+  choice: a flag, `!flag`, a comparison, `quest:id`, `done:id`, a list, a function; `set`, `add`, `quest`, `done`,
+  `emote`, `goto`, `end`, `wait`, and `event` with `wait: true` holding the talk until `story.resume()`: the game's
+  shop, inn and fight); `vars` that a line's `{$name}` reads; the quest log; balloons (!, ?, heart, dots, note);
+  `state()` and `restore()`. `engine/modules/rpg.js` (after either edition): `E.RPG` with items (icons: an item's own
+  sprite, else one drawn for its kind: a flask, a blade, a breastplate, a helm, a ring, a key), bags of slots or a
+  grid of sizes, members (stats, growth per level, an experience curve, gear and `compare`, status effects that tick),
+  a party (items used, an inn's rest, rewards shared by the living, drops), shops, `damage`, encounters by zone, a
+  party's `state()` and `rpg.restore`, and windows in `E.ui` (`list`, rows a thumb's height on a phone; `card`). The
+  RPG kit (`src/starter/40-rpg.js`): the battle as it was (`#rpg/battle`, a scene of its own, filmed beside v0.70.0:
+  the same pixels), taking the journey's troops, members and the cave as its place; THE JOURNEY: a title (New game,
+  Continue, Load, the battle alone), Brightwater (an elder with the quest and its key, an inn that autosaves, a shop,
+  a chest, a guard who stands aside, a child and a gossip, a save crystal), an island of 256 x 256 cells (meadows,
+  woods and peaks painted into its chunked floor, beaches, the road north), encounters by zone into the battle by a
+  swirl, the cave (a chest, a crystal that heals and saves, the Dread Knight's scene and fight), the way home and THE
+  END; the menu: Items, Equip (gear compared), Status, Quests, Save at a crystal. A slice's `parts` names a part that
+  is a scene of its own (90-start.js). Its bot plays it all by the keys and loads the save; phone case 15.
 
 ### M8: tactics (core picking; `grid` grows; kit TACTICS)
 

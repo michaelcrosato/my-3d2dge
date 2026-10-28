@@ -6,7 +6,8 @@
  *   SLICE 2  PLATFORMER  side-scroller (Mario, Mega Man): E.PlatformMap + E.Platformer,
  *                        stomp and shoot, ? blocks, ladder, moving platform, 2.5D view (V)
  *   SLICE 3  SHOOTER     vertical shoot-'em-up (1942, Xevious): E.Bullets, waves, boss
- *   SLICE 4  RPG BATTLE  turn-based battle (Dragon Quest, Final Fantasy): E.Menu, turns
+ *   SLICE 4  RPG         a JRPG's journey (Dragon Quest, Final Fantasy): a town, a world map, a cave, the
+ *                        ATB battle (E.Menu), E.Story's talk and quests, E.RPG's items, gear, menus, save slots
  *   SLICE 5  BRAWLER     beat-'em-up (Final Fight, Streets of Rage): E.Combo punches, kicks,
  *                        knockback, depth lanes, waves that lock the screen, a boss
  *   SLICE 6  ANIM LAB    every move, pose and reaction on every skin, in every view
@@ -23,7 +24,7 @@
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs, #rpg/battle).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -51,7 +52,7 @@ const SLICES = [
   { id: 'kart', label: 'KART', about: 'MODE 7 KARTS, THREE LAPS', family: 'RACING' },
   { id: 'road', label: 'ROAD', about: 'A COAST ROAD AGAINST THE CLOCK', family: 'RACING' },
   { id: 'puzzle', label: 'PUZZLE', about: 'FALLING BLOCKS AND FALLING PAIRS', family: 'PUZZLE' },
-  { id: 'rpg', label: 'RPG BATTLE', about: 'TURN-BASED BATTLE', family: 'RPG' },
+  { id: 'rpg', label: 'RPG', about: 'A JOURNEY: TOWN, WORLD, CAVE, BATTLES', family: 'RPG' },
   { id: 'roguelike', label: 'ROGUELIKE', about: 'A CRYPT OF TEN GENERATED FLOORS', family: 'RPG' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }

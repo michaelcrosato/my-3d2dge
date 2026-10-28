@@ -1,5 +1,8 @@
 /* =====================================================================================
- * SLICE 4  RPG BATTLE  (side-view battle: Final Fantasy VI / IX, Chrono Trigger, Legend of Mana)
+ * SLICE 4  RPG  (Dragon Quest, Final Fantasy VI / IX, Chrono Trigger: a JRPG's journey and its battles). @modules story rpg
+ * Two parts in this file: the BATTLE (side-view ATB, below), as it always was at #rpg/battle and the journey's every
+ * fight; then THE JOURNEY round it (a town, a world map, a cave, the boss, the menus and the saves: its own header).
+ * THE BATTLE (side-view: Final Fantasy VI / IX, Chrono Trigger, Legend of Mana)
  * Three heroes (right) face a Dread Knight, a Gargoyle and a Bomb (left) on a ruined plaza at sunset. Wait-mode
  * ATB: a full gauge opens that hero's commands (Attack, skill, Defend, Potion, Run) and a glove to aim; monsters act
  * when theirs fill. Win: defeat every monster. Lose: every hero falls (Run never works here).
@@ -631,7 +634,573 @@ const RPG = (() => {
       game.cam.offset = [0, layout(game.W, game.H).fy - game.H / 2];   // the battle sits above the HUD band, wherever the band is
     }, draw,
     state: () => ({ mode, actor: actor && actor.name, act: act && act.key, t: act && act.t, hp: all.map(c => c.hp), auto, pads: band && band.pads && band.pads.map(p => p && p.w && { label: p.label, x: p.x, y: p.y, w: p.w, h: p.h }) }),   // for automated tests
+    looks: PARTY, kin: KIN,   // the heroes' and monsters' looks, for the journey's field
     /** the proof: the party on AUTO (each hero picks for himself) for n steps; a hash of the battle */
     run(n = 600) { const was = auto; try { return proof('rpg-battle', n, i => { if (!i) auto = true; }, () => [mode, actor && actor.name, potions, all.map(c => [c.hp, c.x, c.y])]); } finally { auto = was; } } };
 })();
 scenes['rpg-battle'] = RPG;
+
+/* =====================================================================================
+ * THE JOURNEY  (Dragon Quest, Final Fantasy, Chrono Trigger: the JRPG's whole loop round the battle above)
+ * Brightwater's wells run dry since the Dread Knight took the cave in the northern mountains. THE TOWN: people to talk
+ * to (E.Story: lines, choices, flags, a quest, emote balloons), an inn, a shop, a chest, a crystal that saves. THE WORLD:
+ * an island of 256 x 256 cells (its floor bakes in squares near the camera), meadows, woods, mountains and the road north.
+ * Random encounters by zone (E.RPG's) swirl into the ATB battle above, in the cave under its rock. THE CAVE: tunnels, a
+ * chest, a crystal that heals and saves, the Dread Knight with a scene before the fight. The party (E.RPG members) gains
+ * levels, gold and spoils from every victory. THE MENU (MENU: L or E, a pad's X, the touch button): Items, Equip,
+ * Status, Quests and, at a crystal, Save: three slots and the autosave (game.saves; the inn autosaves). The title's
+ * CONTINUE and LOAD bring a journey back; BATTLE is the battle alone (#rpg/battle). TOUCH: the stick walks, TALK and
+ * MENU; a tap picks in every window, as the battle's pads do.
+ * ===================================================================================== */
+const JOURNEY = (() => {
+  const T = 16, inp = game.input, WIN = ['#6c8cff', '#0a0a48'], HOT = ['#90aaff', '#1c2a90'], GOLD = '#ffe08a';
+  const txt = (g, s, x, y, c = '#ffffff', align) => E.font.text(g, String(s), x, y, c, { shadow: '#0a0820', outline: false, align });
+
+  /* ---- THE RULES (E.RPG): what items do and cost, the monsters' numbers and spoils, where they wait ---- */
+  const ITEMS = {
+    potion: { name: 'Potion', kind: 'use', heal: 40, price: 12, info: 'Restores 40 HP' }, hipotion: { name: 'Hi-Potion', kind: 'use', heal: 120, price: 50, info: 'Restores 120 HP' },
+    ether: { name: 'Ether', kind: 'use', mp: 20, price: 60, info: 'Restores 20 MP' }, antidote: { name: 'Antidote', kind: 'use', cure: ['poison'], price: 8, info: 'Cures poison' },
+    phoenix: { name: 'Phoenix Down', kind: 'use', revive: .3, price: 120, info: 'Revives a fallen ally' },
+    bronze: { name: 'Bronze Sword', kind: 'weapon', stats: { atk: 5 }, price: 70, for: 'Rowan', info: 'A sword for Rowan' }, iron: { name: 'Iron Sword', kind: 'weapon', stats: { atk: 10 }, price: 260, for: 'Rowan', info: 'A heavier blade' },
+    oak: { name: 'Oak Staff', kind: 'weapon', stats: { atk: 2, mag: 4 }, price: 70, for: 'Lyra Sera', info: 'A staff for the mages' },
+    leather: { name: 'Leather Vest', kind: 'armor', stats: { def: 3 }, price: 40, info: 'Light armor for anyone' }, chain: { name: 'Chain Mail', kind: 'armor', stats: { def: 7 }, price: 220, for: 'Rowan', info: 'Heavy armor for Rowan' },
+    robe: { name: 'Silk Robe', kind: 'armor', stats: { def: 2, mag: 3 }, price: 90, for: 'Lyra Sera', info: 'A mage\'s robe' }, cap: { name: 'Leather Cap', kind: 'helm', stats: { def: 2 }, price: 30, info: 'A cap for anyone' },
+    ring: { name: 'Swift Ring', kind: 'accessory', stats: { spd: 2 }, price: 300, info: 'Its wearer acts sooner' },
+    key: { name: 'Cave Key', kind: 'key', info: 'Opens the cave in the northern mountains' }
+  };
+  const MONSTERS = {
+    slime: { name: 'Slime', hp: 26, atk: 8, def: 1, spd: .34, exp: 7, gold: 5, drops: [[.25, 'potion']] }, goblin: { name: 'Goblin', hp: 40, atk: 11, def: 3, spd: .4, exp: 12, gold: 9, drops: [[.15, 'antidote']] },
+    bomb: { name: 'Bomb', hp: 38, atk: 10, def: 2, spd: .42, exp: 15, gold: 12, drops: [[.15, 'ether']] }, gargoyle: { name: 'Gargoyle', hp: 50, atk: 12, def: 4, spd: .5, exp: 20, gold: 16, drops: [[.2, 'hipotion']] },
+    knight: { name: 'Dread Knight', hp: 420, atk: 25, def: 6, spd: .32, exp: 150, gold: 300 }
+  };
+  const R = new E.RPG({ items: ITEMS, monsters: MONSTERS });
+  const ENC = R.encounters({ plains: { every: [16, 32], troops: [[3, ['slime', 'slime']], [2, ['goblin']], [2, ['slime', 'goblin']]] },
+    forest: { every: [10, 22], troops: [[2, ['goblin', 'goblin']], [2, ['bomb']], [1, ['goblin', 'bomb']]] },
+    cave: { every: [12, 24], troops: [[2, ['gargoyle']], [2, ['bomb', 'goblin']], [2, ['gargoyle', 'slime']], [1, ['goblin', 'goblin', 'bomb']]] } });
+  const SHOP = R.shop(['potion', 'hipotion', 'ether', 'antidote', 'phoenix', 'bronze', 'oak', 'leather', 'robe', 'cap', 'iron', 'chain', 'ring']);
+  // the heroes as members at level 1 (their looks are the battle's: RPG.looks)
+  const HEROES = () => [
+    R.member({ name: 'Rowan', stats: { hp: 96, mp: 16, atk: 14, def: 6, mag: 3, spd: 10 }, growth: { hp: 12, mp: 2, atk: 3, def: 2, mag: 1, spd: .3 } }),
+    R.member({ name: 'Lyra', stats: { hp: 62, mp: 30, atk: 8, def: 3, mag: 12, spd: 9 }, growth: { hp: 7, mp: 5, atk: 2, def: 1, mag: 3, spd: .3 } }),
+    R.member({ name: 'Sera', stats: { hp: 74, mp: 26, atk: 9, def: 4, mag: 9, spd: 9.5 }, growth: { hp: 9, mp: 4, atk: 2, def: 1, mag: 2, spd: .3 } })];
+
+  /* ---- SONGS: the town's lilt, the road's march, the battle's drive; the cave plays the dungeon's ---- */
+  const TOWN_SONG = { bpm: 104, steps: 4, tracks: [
+    { wave: 'triangle', vol: .3, notes: 'F3 . C4 . A3 . C4 . | C3 . G3 . E3 . G3 . | D3 . A3 . F3 . A3 . | Bb2 . F3 . C3 . E3 .' },
+    { wave: 'pulse', vol: .11, notes: 'A4 - C5 - F5 - E5 D5 | C5 - - - G4 - - - | D5 - F5 - A5 - G5 F5 | E5 - C5 - D5 - - -' },
+    { wave: 'drums', vol: .06, notes: 'k . h . . . h . k . h . . . h h' }] };
+  const ROAD_SONG = { bpm: 126, steps: 4, tracks: [
+    { wave: 'square', vol: .1, notes: 'G4 - B4 - D5 - - G5 | F#5 - D5 - E5 - D5 - | C5 - E5 - G5 - - E5 | D5 - B4 - A4 - - - | G4 - B4 - D5 - - G5 | A5 - G5 - F#5 - E5 - | D5 - C5 - B4 - A4 - | G4 - - - - - . .' },
+    { wave: 'triangle', vol: .3, notes: 'G2 . D3 . G2 . D3 . | D2 . A2 . D2 . A2 . | C3 . G3 . C3 . G3 . | D3 . A2 . D3 . A2 . | G2 . D3 . G2 . D3 . | F2 . C3 . D3 . A2 . | C3 . G2 . D3 . A2 . | G2 . D3 . G2 . . .' },
+    { wave: 'drums', vol: .1, notes: 'k . h . s . h . k k h . s . h h' }] };
+  const BATTLE_SONG = { bpm: 152, steps: 4, tracks: [
+    { wave: 'saw', vol: .07, notes: 'A4 A4 C5 A4 E5 - D5 C5 | B4 B4 D5 B4 E5 - D5 B4 | C5 C5 E5 C5 A5 - G5 E5 | F5 - E5 - D5 - B4 - ' },
+    { wave: 'square', vol: .07, notes: 'A3 . A3 . A3 . A3 . | G#3 . G#3 . G#3 . G#3 . | A3 . A3 . C4 . C4 . | D4 . D4 . E4 . E4 .' },
+    { wave: 'triangle', vol: .3, notes: 'A2 A3 A2 A3 A2 A3 A2 A3 | E2 E3 E2 E3 E2 E3 E2 E3 | F2 F3 F2 F3 C3 C4 C3 C4 | D3 D4 D3 D4 E3 E4 E3 E4' },
+    { wave: 'drums', vol: .12, notes: 'k h s h k k s h' }] };
+
+  /* ---- THE MAPS. A map: its TileMap, view, song, zone (encounters by floor tag), its people and things from the rows'
+   * spawns; links: a floor tag that leads to another map's spawn ---- */
+  const pad = rows => { const w = Math.max(...rows.map(r => r.length)); return rows.map(r => r.padEnd(w, 'T')); };
+  const HOUSE = (top, side) => ({ h: 30, top, side, face: 'plaster', roof: 'tiles', windows: true, door: { chance: .5 }, shutters: true });
+  // BRIGHTWATER: a walled town round a square and its fountain; houses for the elder, the inn and the shop
+  const TOWN = pad([
+    'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
+    'T##############################T',
+    'T#tt..........................#T',
+    'T#.EEEEEE..........IIIIIII..t.#T',
+    'T#.EEEEEE..........IIIIIII....#T',
+    'T#.EEEEEE...t......IIIIIII.l..#T',
+    'T#....e,,,,,,,,,,,,,,,,i......#T',
+    'T#..n..,......,...............#T',
+    'T#.....,..~~~.,.......SSSSSS..#T',
+    'T#..t..,..~F~.,.......SSSSSS..#T',
+    'T#.....,..~~~.,,,,,,,.SSSSSS..#T',
+    'T#.....,,,,,,,,..c...,.v......#T',
+    'T#..........,........,........#T',
+    'T#..k...w...,........,...C....#T',
+    'T#..........,....b...,........#T',
+    'T#...Y......,,,,,,,,,,......t.#T',
+    'T#..........,.................#T',
+    'T#..t.......,@........t.......#T',
+    'T#tt........,...............tt#T',
+    'T###########g##################T',
+    'TTTTTTTTTTTTxTTTTTTTTTTTTTTTTTTT']);
+  const TOWN_LEGEND = { 'T': { tile: 3, spawn: 'tree' }, '#': 1, 'E': 4, 'I': 2, 'S': 5, '~': { floor: 'water', block: true }, 'F': { tile: 6, spawn: 'fountain' }, ',': { floor: 'path' },
+    t: { floor: null, block: true, spawn: 'tree' }, l: { block: true, spawn: 'lamp' }, n: { block: true, spawn: 'sign' }, k: { block: true, spawn: 'barrels' }, b: { block: true, spawn: 'bench' },
+    e: 'elder', i: 'inn', v: 'shop', c: 'child', w: 'woman', g: { floor: 'path', spawn: 'guard' }, C: { block: true, spawn: 'chest' }, Y: { block: true, spawn: 'crystal' }, '@': { floor: 'path', spawn: 'start' }, x: { floor: 'exit', spawn: 'exit' } };
+  const TOWN_TYPES = { 1: { h: 16, top: '#9a9488', side: '#7a7266', face: 'stone', roof: 'slab' }, 2: HOUSE('#c8503a', '#e8dcc0'), 3: { h: 2, top: '#3a6a34', side: '#2e5a2a', face: 'none', roof: 'grass' },
+    4: HOUSE('#4a6ab8', '#e8dcc0'), 5: HOUSE('#4a9a5a', '#e0d4b8'), 6: { h: 6, top: '#a8b0c0', side: '#8a92a4', face: 'stone', roof: 'slab' } };
+  const townTex = (x, y, tag) => tag === 'water' ? E.tex.water(x, y, { base: '#3a7ac8', dark: '#2a5aa8', light: '#9ad0ff' }) : tag === 'path' || tag === 'exit' ? E.tex.flagstone(x, y, PAVE, 12) : E.tex.grass(x, y, MEADOW);
+  const PAVE = { stones: [[176, 164, 140], [164, 150, 128], [188, 176, 150]], mortar: [110, 98, 82], hi: [210, 200, 176], lo: [130, 118, 98], speck: [150, 138, 116] };
+  const MEADOW = { base: '#5e9a44', dark: '#4a8238', light: '#78b252', flower: '#ffe8a0' };
+  // THE CAVE: tunnels from the mouth (x) past a chest (C) and a crystal (Y) to the knight's hall (K)
+  const CAVE = pad([
+    'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+    'RRRRR..........RRRRRRRR.......K......RRR',
+    'RRRR............RRRRRR...............RRR',
+    'RRR.....C........RRRRR...............RRR',
+    'RRR..............RRRRR......,,,......RRR',
+    'RRRR.....RRR.....RRRRRR.....,Y,....RRRRR',
+    'RRRRR...RRRR.....RRRRRRR....,,,...RRRRRR',
+    'RRRRRR..RRRR......RRRRRR.....,....RRRRRR',
+    'RRRRRR..RRRRR......RRRRR.....,....RRRRRR',
+    'RRRRR...RRRRRR......RRRR.....,....RRRRRR',
+    'RRRR....RRRRRRR......RRR.....,....RRRRRR',
+    'RRRR...RRRRRRRRR......RR.....,....RRRRRR',
+    'RRRR...RRRRRRRRRR................RRRRRRR',
+    'RRRR...RRRRRRRRRRR...............RRRRRRR',
+    'RRRR....RRRRRRRRRRR.........RRRRRRRRRRRR',
+    'RRRRR....RRRRRRRRRR........RRRRRRRRRRRRR',
+    'RRRRRR....RRRRRRRRR.......RRRRRRRRRRRRRR',
+    'RRRRRRR....RRRRRRR.......RRRRRRRRRRRRRRR',
+    'RRRRRRRR....RRRRR.......RRRRRRRRRRRRRRRR',
+    'RRRRRRRRR.........@....RRRRRRRRRRRRRRRRR',
+    'RRRRRRRRRR..........RRRRRRRRRRRRRRRRRRRR',
+    'RRRRRRRRRRR..xxx...RRRRRRRRRRRRRRRRRRRRR',
+    'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR']);
+  const CAVE_LEGEND = { R: 1, ',': { floor: 'moss' }, C: { block: true, spawn: 'chest' }, Y: { block: true, spawn: 'crystal' }, K: 'knight', '@': 'start', x: { floor: 'exit', spawn: 'exit' } };
+  const CAVE_TYPES = { 1: { h: 30, top: '#4a4058', side: '#3a3248', line: '#1a1424', face: 'rock', roof: 'plain', cut: true, cutH: 5 } };
+  const caveTex = (x, y, tag) => {   // rough rock: mottled, cracked, cold puddles; moss by the crystal
+    const n = E.noise2(x * .09, y * .09), k = E.noise2(x * .03 + 7, y * .03), crack = Math.abs(E.noise2(x * .06 + 3, y * .06 - 5) - .5) < .018, w = E.noise2(x * .05, y * .06);
+    let c = [58 + n * 26 + k * 12, 52 + n * 22 + k * 10, 70 + n * 24 + k * 14];
+    if (crack) c = c.map(v => v * .5); else if (E.hash2(x | 0, y | 0) > .97) c = c.map(v => v * 1.25);
+    return tag === 'moss' ? c.map((v, i) => v * [.7, 1.3, .8][i]) : w > .74 ? c.map((v, i) => v * [.8, .95, 1.35][i]) : c;
+  };
+  // THE WORLD: an island of 256 x 256 cells, made once from noise: the sea round it, beaches, meadows (plains), woods
+  // (forest), mountains (walls of three heights), the road from the town (south) to the cave (north, ringed by peaks)
+  const N = 256, TOWN_AT = [128, 176], CAVE_AT = [128, 64], ROAD = [CAVE_AT[1], TOWN_AT[1] - 3];
+  const roadX = y => { const u = (y - ROAD[0]) / (ROAD[1] - ROAD[0]) * TAU; return 128 + Math.round(12 * Math.sin(u) + 4 * Math.sin(u * 3)); };   // the road's middle at row y: an S that starts and ends at x 128
+  function makeWorld() {
+    const cells = new Array(N * N).fill(0), floor = new Array(N * N).fill(null), block = new Array(N * N).fill(0), I = (x, y) => y * N + x;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const dx = (x - 128) / 118, dy = (y - 124) / 118, d = dx * dx + dy * dy, n = E.noise2(x * .028, y * .028) * .65 + E.noise2(x * .09 + 5, y * .09) * .35, i = I(x, y);
+      const road = y >= ROAD[0] && y <= ROAD[1] && Math.abs(x - roadX(y)) <= 1, nearRoad = y >= ROAD[0] - 2 && y <= TOWN_AT[1] + 3 && Math.abs(x - roadX(Math.min(y, ROAD[1]))) <= 4;
+      if (n - d * .75 < .05 && !nearRoad) { floor[i] = 'sea'; block[i] = 1; continue; }
+      if (road) { floor[i] = 'road'; continue; }
+      const m = E.noise2(x * .05 + 20, y * .05), f = E.noise2(x * .045 + 40, y * .045 + 11), ring = Math.hypot(x - CAVE_AT[0], y - CAVE_AT[1]);
+      if (!nearRoad && (m > .66 || (ring > 3 && ring < 9))) { floor[i] = 'peak'; block[i] = 1; }   // the peaks, and the ring round the cave
+      else if (f > .58) floor[i] = 'forest';
+    }
+    for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { const i = I(x, y); if (floor[i] === null && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => floor[I(x + a, y + b)] === 'sea')) floor[i] = 'sand'; }   // the beaches
+    for (let y = -1; y <= 2; y++) for (let x = -2; x <= 2; x++) { const i = I(TOWN_AT[0] + x, TOWN_AT[1] + y); floor[i] = 'brightwater'; block[i] = 1; }   // Brightwater, small, its gate north to the road
+    const gate = I(TOWN_AT[0], TOWN_AT[1] - 2); floor[gate] = 'town'; block[gate] = 0;
+    for (let y = -4; y <= 0; y++) for (let x = -1; x <= 1; x++) { const i = I(CAVE_AT[0] + x, CAVE_AT[1] + y); floor[i] = 'peak'; block[i] = 1; }   // the mouth in the peaks
+    const mouth = I(CAVE_AT[0], CAVE_AT[1]); floor[mouth] = 'cave'; block[mouth] = 0;
+    for (let y = 1; y < 4; y++) for (let x = -1; x <= 1; x++) { const i = I(CAVE_AT[0] + x, CAVE_AT[1] + y); if (floor[i] === 'sea' || floor[i] === 'peak') floor[i] = null; block[i] = 0; }
+    const map = new E.TileMap({ w: N, h: N, cells, floor, blocked: block, types: WORLD_TYPES, floorTex: worldTex, outside: '#2a5aa8', shimmer: true });
+    map.spawns.push({ tag: 'start', x: (TOWN_AT[0] + .5) * T, y: (TOWN_AT[1] - 2.5) * T, z: 0 }, { tag: 'mouth', x: (CAVE_AT[0] + .5) * T, y: (CAVE_AT[1] + 1.5) * T, z: 0 });
+    return map;
+  }
+  const WORLD_TYPES = {};
+  const SAND = { base: '#e0d090', dark: '#c8b474', light: '#f0e4b0' };
+  const worldTex = (x, y, tag) => {
+    if (tag === 'sea') return E.tex.water(x, y, { base: '#2f68b8', dark: '#24549a', light: '#7ab0e8' });
+    if (tag === 'sand') return E.tex.dirt(x, y, SAND);
+    if (tag === 'road' || tag === 'town') return E.tex.dirt(x, y, { base: '#b89a6a', dark: '#9a7e54', light: '#d0b484' });
+    if (tag === 'peak') return peakTex(x, y);
+    if (tag === 'brightwater') return townIcon(x, y);
+    if (tag === 'cave') { const u = x / T % 1 - .5, v = y / T % 1 - .3; return u * u * 2.2 + v * v * 1.2 < .14 ? [12, 8, 18] : peakTex(x, y); }   // a dark arch in the rock
+    const g = E.tex.grass(x, y, MEADOW); if (tag !== 'forest') return g;
+    // a wood seen from above: round crowns on a jittered grid, lit from the upper left (baked once, nothing to draw per frame)
+    let best = 99, lx = 0, ly = 0; const gx = Math.floor(x / 9), gy = Math.floor(y / 9);
+    for (let j = -1; j < 2; j++) for (let i = -1; i < 2; i++) { const cx = (gx + i + E.hash2(gx + i, gy + j) * .8) * 9, cy = (gy + j + E.hash2(gy + j, gx + i + 3) * .8) * 9, d = Math.hypot(x - cx, y - cy); if (d < best) { best = d; lx = x - cx; ly = y - cy; } }
+    if (best > 6.2) return g.map(v => v * .55);   // the shade between the trees
+    const k = 1 - best / 9, lit = -(lx + ly) / 8.5;
+    return [34 + 40 * k + 26 * lit, 82 + 50 * k + 30 * lit, 40 + 22 * k + 14 * lit];
+  };
+
+  // a cell of mountains seen from above: a peak (its top jittered), its faces lit from the upper left, a ridge line where
+  // they meet, snow on the highest; the ground between the peaks dark rock (baked once, like the woods)
+  function peakTex(x, y) {
+    const cx = Math.floor(x / T), cy = Math.floor(y / T), px0 = (cx + .5 + (E.hash2(cx, cy) - .5) * .35) * T, py0 = (cy + .45 + (E.hash2(cy, cx + 9) - .5) * .3) * T, dx = x - px0, dy = y - py0;
+    const d = Math.max(Math.abs(dx), Math.abs(dy) * 1.15) / (T * .62), high = E.noise2(cx * .05 + 20, cy * .05) > .76 || Math.hypot(cx - CAVE_AT[0], cy - CAVE_AT[1]) < 6;
+    if (d > 1) return [88 + E.hash2(x | 0, y | 0) * 10, 80, 64];   // the ground between
+    const left = Math.abs(dx) > Math.abs(dy) * 1.15 ? dx < 0 : dy < 0, ridge = Math.abs(Math.abs(dx) - Math.abs(dy) * 1.15) < .7, h = 1 - d, snow = high && h > .45;
+    const c = snow ? (left ? [240, 244, 248] : [176, 188, 204]) : left ? [176, 160, 132] : [110, 98, 82];
+    return ridge && !left ? c.map(v => v * .78) : c.map(v => v * (.86 + h * .22));
+  }
+  // Brightwater on the map: a stone wall round four red roofs, its gate north (baked)
+  function townIcon(x, y) {
+    const bx = x - (TOWN_AT[0] - 2) * T, by = y - (TOWN_AT[1] - 1) * T, W = 5 * T, H = 4 * T;
+    if (bx < 3 || by < 3 || bx > W - 3 || by > H - 3) return (Math.floor(bx / 4) + Math.floor(by / 4)) % 2 ? [168, 160, 146] : [140, 132, 120];   // the wall's stones
+    for (const [u, v] of [[.22, .3], [.62, .26], [.3, .68], [.74, .66]]) {
+      const hx = bx - u * W, hy = by - v * H;
+      if (Math.abs(hx) < 9 && hy > -7 && hy < 8) return hy < 0 ? [216, 96, 74] : hy < 4 ? [160, 58, 42] : [232, 220, 192];   // the roof's lit and shaded halves, the front wall
+    }
+    return E.tex.flagstone(x, y, PAVE, 8);
+  }
+
+  /* ---- THE PEOPLE: their looks (E.Humanoid options), where they stand, what they say (story nodes), how they idle ---- */
+  const LOOKS = {
+    elder: { size: 1.15, weapon: 'staff', outfit: 'robe', hair: 'short', sleeves: 'long', hunch: .45, hat: { style: 'pointed', color: '#3e3278' }, face: { eyes: 'big', bangs: .3 }, colors: { cloth: '#5a4a9a', pants: '#4a3a7a', hair: '#e8e8e8', staff: '#8a6a3a', orb: '#ffd060', trim: '#e8c860' } },
+    inn: { size: 1.2, build: 'bulky', weapon: null, outfit: 'tunic', hair: 'short', face: { eyes: 'big' }, colors: { cloth: '#c8783a', pants: '#5a4030', hair: '#5a3a1a', trim: '#f0e0b0' } },
+    shop: { size: 1.1, weapon: null, outfit: 'robe', hair: 'ponytail', sleeves: 'long', face: { eyes: 'big', bangs: .8 }, colors: { cloth: '#3a8a5a', pants: '#2a6a4a', hair: '#c83a2a', trim: '#f0e0a0' } },
+    guard: { size: 1.25, build: 'heroic', armor: true, sleeves: 'long', hat: { style: 'helmet', color: '#9aa4c0' }, bladeLen: 12, colors: { cloth: '#3a5ab0', pants: '#2a3a6a', metal: '#b8c0d8', trim: '#e8c860' } },
+    child: { size: .85, weapon: null, hair: 'spiky', face: { eyes: 'big', bangs: .9 }, colors: { cloth: '#e8b040', pants: '#4a6ab0', hair: '#7a4a2a' } },
+    woman: { size: 1.1, weapon: null, outfit: 'robe', hair: 'long', sleeves: 'long', face: { eyes: 'big', bangs: .5 }, colors: { cloth: '#c84a7a', pants: '#9a3a6a', hair: '#2a1a1a', trim: '#f0d0e0' } }
+  };
+  const NAMES = { elder: 'ELDER', inn: 'INNKEEPER', shop: 'MERCHANT', guard: 'GUARD', child: 'PIP', woman: 'MARTA', knight: 'DREAD KNIGHT', rowan: 'ROWAN', lyra: 'LYRA', sera: 'SERA' };
+  // what everyone says: E.Story's nodes (markup in the lines; gold and the hero's name from story.vars)
+  const NODES = {
+    elder: [{ if: 'done:cave', goto: 'elderThanks' }, { if: 'quest:cave', goto: 'elderAgain' },
+      { who: 'elder', emote: '!', say: 'Ah, travelers! Welcome to {c=#ffe08a}Brightwater{/c}.' },
+      { who: 'elder', say: ['Since the {c=#ff8a8a}Dread Knight{/c} took the cave in the northern mountains,{w=.4} our wells have run dry.', 'Will you clear the cave for us?'], choices: [
+        { text: 'We will', quest: ['cave', 'The Dread Knight', 'Clear the cave in the northern mountains, up the road from Brightwater. The elder gave you its key.'], event: 'key' },
+        { text: 'Not yet', goto: 'elderLater' }] },
+      { who: 'elder', say: 'Take its key, and {c=#ffe08a}100 gold{/c} for the road.{w=.3} The inn and the shop are on the square.' }],
+    elderLater: [{ who: 'elder', emote: 'dots', say: 'I understand.{w=.3} Come back when you are ready.' }],
+    elderAgain: [{ who: 'elder', say: 'The cave lies north, past the woods.{w=.3} Follow the road, {$hero}.' }],
+    elderThanks: [{ who: 'elder', emote: 'heart', say: 'The water flows again!{w=.4} Brightwater will sing of you, {$hero}.' }],
+    inn: [{ who: 'inn', say: 'Welcome to the {c=#ffe08a}Sleeping Dragon{/c}! A night is 10 gold.', choices: [{ text: 'Stay (10 G)', if: 'gold >= 10', set: 'slept', event: 'inn', wait: true }, { text: 'No thanks' }] },
+      { if: 'slept', who: 'inn', say: 'Good morning! You look ready for anything.', set: { slept: false } }],
+    shop: [{ who: 'shop', say: 'Potions, blades and good armor!{w=.2} Have a look.', event: 'shop', wait: true }, { who: 'shop', say: 'Come again!' }],
+    guard: [{ if: '!quest:cave', who: 'guard', say: 'The road north is dangerous.{w=.3} Speak to the elder before you go.' }, { if: 'quest:cave', who: 'guard', say: 'Good luck, {$hero}. Monsters prowl the woods: walk the road.' }],
+    child: [{ who: 'child', emote: 'note', say: 'La la la!{w=.3} Do you like my song?', choices: [{ text: 'It\'s lovely', set: 'song' }, { text: 'Hmm...' }] },
+      { if: 'song', who: 'child', emote: 'heart', say: 'Yay! I\'ll sing it when the water comes back!' }, { if: '!song', who: 'child', emote: '?', say: 'Hmph. You sound like my brother.' }],
+    woman: [{ if: 'done:cave', who: 'woman', say: 'My well is full again!{w=.3} Thank you!' }, { if: '!done:cave', who: 'woman', say: 'They say the knight was a hero once.{w=.4} {s=14}Before the cave changed him...{/s}' }],
+    sign: [{ say: '{c=#ffe08a}BRIGHTWATER{/c}{w=.2}  North gate: closed.  South gate: the road.' }],
+    sealed: [{ who: 'rowan', say: 'A door of stone, sealed tight.{w=.3} The elder must have its key.' }],
+    found: [{ say: 'Found {c=#9ad0ff}{$found}{/c}!' }],
+    crystal: [{ say: 'A crystal hums with soft light.{w=.3} {c=#8affc0}Your wounds close.{/c}', event: 'heal' }, { say: 'Record your journey?', choices: [{ text: 'Save', event: 'save', wait: true }, { text: 'Not now' }] }],
+    knight: [{ who: 'knight', emote: '!', say: '{shake}Who dares walk my halls?{/shake}' }, { who: 'rowan', say: 'Brightwater wants its water back, knight!' },
+      { who: 'knight', say: 'Then you will {c=#ff6a6a}{wave}join the stones{/wave}{/c}.{w=.5} Come!' }, { event: 'fight' }],
+    victory: [{ who: 'rowan', say: 'It\'s over.{w=.3} Listen: water, running under the rock.' }, { who: 'sera', say: 'The spring is free. Let\'s go home.' }, { done: 'cave', set: 'knightDown' }, { event: 'home', wait: true },
+      { who: 'elder', emote: 'heart', say: 'You did it!{w=.4} The wells are full, and Brightwater owes you everything.' }, { event: 'theend' }]
+  };
+
+  /* ---- STATE ---- */
+  let party, story, at, map, maps = {}, hero, crew, people, things, trail = [], mode = 'title', t = 0, wins = [], banner = null, dark = 0, onDark = null, end = 0, saveNote = '', noteT = 0, boxes = [], fought = [], boss = false;
+  const looks = () => RPG.looks;   // the battle's heroes: their rigs, names and moves
+  const rigOf = name => new E.Humanoid((looks().find(p => p.name === name) || looks()[0]).rig);
+  const lead = () => party.members[0];
+  const place = id => ({ town: 'Brightwater', world: 'The Island', cave: 'The Northern Cave' })[id];
+  function build(id) {   // a map, made once: its TileMap and what stands on it
+    if (maps[id]) return maps[id];
+    const m = id === 'town' ? new E.TileMap({ rows: TOWN, legend: TOWN_LEGEND, types: TOWN_TYPES, floorTex: townTex, ao: 6 }) : id === 'cave' ? new E.TileMap({ rows: CAVE, legend: CAVE_LEGEND, types: CAVE_TYPES, floorTex: caveTex, ao: 7, outside: '#06040a' }) : makeWorld();
+    return (maps[id] = { id, map: m, zone: id === 'world' ? tag => tag === 'forest' ? 'forest' : tag === 'town' ? null : 'plains' : id === 'cave' ? () => 'cave' : () => null,
+      song: id === 'town' ? TOWN_SONG : id === 'cave' ? 'dungeon' : ROAD_SONG });
+  }
+  // a new journey: the party at level 1 with 50 gold and two potions, the story at its start, in the town's square
+  function fresh() {
+    party = R.party(HEROES(), { gold: 50 }); party.inv.add('potion', 2);
+    story = new E.Story(game, { nodes: NODES, vars: { hero: 'Rowan' }, on: EVENTS, dialog: new E.Dialog(game, { bg: WIN, lines: 3 }) });
+    for (const n of ['rowan', 'lyra', 'sera']) story.people[n] = { name: NAMES[n], portrait: rigOf(n[0].toUpperCase() + n.slice(1)) };
+    go('town', 'start');
+  }
+  // enter a map at one of its spawns (a tag) or a point: the people and things of its rows, the camera, the song, the light
+  function go(id, spot) {
+    const M = build(id); at = id; map = M.map;
+    const s = typeof spot === 'string' ? map.find(spot) : spot;
+    hero = Object.assign(new E.Body({ x: s.x, y: s.y, r: 4.5, friction: 10 }), { facing: -Math.PI / 2, rig: hero ? hero.rig : rigOf('Rowan') });
+    crew = (crew || ['Lyra', 'Sera'].map(n => ({ name: n, rig: rigOf(n) }))).map(c => Object.assign(c, { x: s.x, y: s.y + 4, facing: hero.facing }));
+    trail = []; people = []; things = [];
+    for (const sp of map.spawns) {
+      if (LOOKS[sp.tag]) people.push({ id: sp.tag, x: sp.x, y: sp.y, home: [sp.x, sp.y], face: Math.PI / 2, dir: Math.PI / 2, rig: new E.Humanoid(LOOKS[sp.tag]), t: E.hash2(sp.cx, sp.cy) * 3 });
+      else if (sp.tag === 'knight') { if (!story.get('knightDown')) people.push({ id: 'knight', x: sp.x, y: sp.y, home: [sp.x, sp.y], face: Math.PI / 2, dir: Math.PI / 2, rig: new E.Humanoid(RPG.kin.knight.rig), boss: true, t: 0 }); }
+      else if (['chest', 'crystal', 'tree', 'fountain', 'lamp', 'sign', 'barrels', 'bench'].includes(sp.tag)) things.push({ kind: sp.tag, x: sp.x, y: sp.y, key: id + ':' + sp.cx + ',' + sp.cy });
+    }
+    const guard = people.find(p => p.id === 'guard'); if (guard && story.test('quest:cave')) { guard.x += T; guard.y -= T; }   // the gate opened: he stands aside
+    for (const p of people) story.people[p.id] = { name: NAMES[p.id], portrait: p.rig, at: p };
+    story.people.rowan.at = hero;
+    game.follow(hero, { z: 14 }); game.cam.bounds = v => map.bounds(v); game.cam.snap = true;
+    A.music(M.song); L.enabled = id === 'cave'; if (L.enabled) { L.ambient = .32; L.dark = [6, 4, 14]; L.refresh && L.refresh(); }
+    banner = { text: place(id), t: 2.4 }; ENC.left = null;
+  }
+  const near = (a, d) => Math.hypot(a.x - hero.x, a.y - hero.y) < d;
+  const talkable = () => people.find(p => near(p, p.boss ? 30 : 21)) || things.find(o => (o.kind === 'chest' && !story.get(o.key)) || o.kind === 'crystal' || o.kind === 'sign' ? near(o, 21) : false);
+
+  /* ---- EVENTS: the story's calls into the game ---- */
+  const EVENTS = {
+    key() { party.inv.add('key'); party.gold += 100; A.sfx('key'); const g = people.find(p => p.id === 'guard'); if (g) { g.x = g.home[0] + T; g.y = g.home[1] - T; } },
+    inn() { party.gold -= 10; A.sfx('pause'); night(() => { party.rest(); game.saves.autosave(); story.resume(); }); },
+    shop() { open(shopWin(() => story.resume())); },
+    heal() { party.rest(); A.sfx('heal'); P.glints(hero.x, hero.y, 20, 14, '#8affc0', 18); },
+    save() { open(saveWin('save', () => story.resume())); },
+    fight() { battle(['knight', 'gargoyle', 'gargoyle'], { boss: true }); },
+    home() { night(() => { go('town', 'start'); story.resume(); }); },
+    theend() { end = 1; A.music('victory'); }
+  };
+  const night = f => { dark = 1.6; onDark = f; };   // the screen goes dark, f runs at the darkest, it comes back
+  // a random encounter (or the boss): the swirl into the battle scene, the party and its bag with it; back here after
+  function battle(troop, o = {}) {
+    mode = 'battle'; boss = !!o.boss; fought.push([at, troop.join('+'), Math.round(game.time)]); A.sfx('warp');
+    game.go('rpg-battle', { troop, party, stats: MONSTERS, cave: at === 'cave', boss: !!o.boss, music: BATTLE_SONG, done: r => game.go('rpg', { back: r }, { fade: .3 }) },
+      { fade: 'swirl', seconds: .5, at: { x: hero.x, y: hero.y, z: 12 } });
+  }
+  function back(r) {   // home from a battle: won (the boss: the scene after), fled, or fallen (the game over)
+    mode = 'walk'; game.follow(hero, { z: 14 }); game.cam.bounds = v => map.bounds(v); game.cam.snap = true; A.music(build(at).song); L.enabled = at === 'cave';
+    if (!r.won && !r.fled) return void game.after(.01, () => game.go('over', { from: 'rpg' }));
+    if (r.won && boss) { people = people.filter(p => !p.boss); story.set('knightDown'); story.vars.gold = party.gold; story.run('victory'); }
+  }
+
+  /* ---- WINDOWS: a stack of lists (rpg.list) the keys, the pad and taps move through; each { title, rows(), pick(i, row),
+   * back(), x, y, w, show, i, top, foot() (a line under it), side(g, box) (a window beside it) } ---- */
+  const open = w => { w.i = w.i || 0; w.top = 0; wins.push(w); inp.consumeAll(); A.sfx('select'); return w; };
+  const close = () => { const w = wins.pop(); inp.consumeAll(); A.sfx('cancel'); if (w && w.done) w.done(); };
+  const say = s => { saveNote = s; noteT = 2.2; };
+  const fit = (r, w) => Math.min(w, r.W - 16);
+  function menuWin() {   // the field's menu, FF style: its commands; the party's cards and the gold beside them
+    return { title: 'MENU', w: 92, rows: () => [{ label: 'Items' }, { label: 'Equip' }, { label: 'Status' }, { label: 'Quests' }, { label: 'Save', off: !atCrystal(), note: atCrystal() ? '' : '-' }],
+      pick: i => [() => open(itemsWin()), () => open(whoWin('Equip', m => open(slotsWin(m)))), () => open(statusWin()), () => open(questsWin()), () => open(saveWin('save'))][i](), side: true };
+  }
+  const atCrystal = () => things.some(o => o.kind === 'crystal' && near(o, 30));
+  function itemsWin() {
+    const list = () => party.inv.list();
+    return { title: 'ITEMS', w: 170, rows: () => list().length ? list().map(e => ({ label: e.item.name, note: '×' + e.n, icon: R.icon(e.id), off: e.item.kind !== 'use' })) : [{ label: '(nothing)', off: true }],
+      foot: w => { const e = list()[w.i]; return e ? e.item.info || '' : ''; },
+      pick: i => { const e = list()[i]; if (!e || e.item.kind !== 'use') return; open(whoWin('Use ' + e.item.name, m => { if (party.use(e.id, m)) { A.sfx('heal'); say(m.name + ': ' + e.item.info.toLowerCase() + '.'); } else { A.sfx('bump'); say('It has no effect.'); } close(); if (!party.inv.has(e.id)) wins[wins.length - 1].i = 0; })); } };
+  }
+  function whoWin(title, then) { return { title: title.toUpperCase(), w: 110, rows: () => party.members.map(m => ({ label: m.name, note: m.hp + '/' + m.max('hp') })), pick: i => then(party.members[i]), side: true }; }
+  const SLOT_NAMES = { weapon: 'Weapon', armor: 'Armor', helm: 'Helm', accessory: 'Accessory' }, fits = (id, m) => { const it = R.item(id); return !it.for || it.for.split(' ').includes(m.name); };
+  function slotsWin(m) {
+    const ks = Object.keys(SLOT_NAMES);
+    return { title: m.name.toUpperCase() + ' · EQUIP', w: 190, rows: () => ks.map(k => ({ label: SLOT_NAMES[k], note: m.equipped[k] ? R.item(m.equipped[k]).name : '-' })), member: m,
+      pick: i => open(gearWin(m, ks[i])) };
+  }
+  function gearWin(m, slot) {
+    const list = () => party.inv.list().filter(e => e.item.kind === slot && fits(e.id, m)), delta = id => Object.entries(m.compare(id)).map(([k, d]) => (d > 0 ? '+' : '') + d + ' ' + k.toUpperCase()).join(' ');
+    return { title: SLOT_NAMES[slot].toUpperCase(), w: 200, member: m,
+      rows: () => [...list().map(e => ({ label: e.item.name, note: delta(e.id) || '=', icon: R.icon(e.id) })), { label: '(remove)', off: !m.equipped[slot] }],
+      pick: i => { const e = list()[i]; if (e) { m.equip(e.id, party.inv); A.sfx('powerup'); say(m.name + ' equips the ' + e.item.name + '.'); } else if (m.equipped[slot]) { m.unequip(slot, party.inv); say('Removed.'); } close(); } };
+  }
+  function statusWin() { return { title: 'STATUS', w: 120, rows: () => party.members.map(m => ({ label: m.name, note: 'Lv ' + m.level })), pick: () => {}, side: true, status: true, foot: w => { const m = party.members[w.i]; return m.exp + ' EXP · ' + m.next + ' to the next level'; } }; }
+  function questsWin() {
+    const q = () => story.quests;
+    return { title: 'QUESTS', w: 200, rows: () => q().length ? q().map(x => ({ label: x.title, note: x.done ? 'Done' : '...' })) : [{ label: '(none yet)', off: true }], pick: () => {}, foot: w => (q()[w.i] || {}).text || '' };
+  }
+  const slotName = s => s === 'auto' ? 'Autosave' : 'Slot ' + (s + 1);
+  const about = s => s.empty ? 'Empty' : s.damaged ? 'Damaged' : s.newer ? 'Newer version' : (s.place || '') + ' · Lv ' + s.level + ' · ' + Math.floor(s.time / 3600) + ':' + String(Math.floor(s.time / 60) % 60).padStart(2, '0');
+  function saveWin(kind, done) {   // the slots (game.saves): save to one (not the autosave), or load one
+    const list = () => game.saves.list().filter(s => kind === 'load' || s.slot !== 'auto');
+    return { title: kind === 'save' ? 'SAVE' : 'LOAD', w: 230, done, rows: () => list().map(s => ({ label: slotName(s.slot), note: about(s), off: kind === 'load' && (s.empty || s.damaged || s.newer) })),
+      pick: i => { const s = list()[i]; if (kind === 'save') { game.saves.save(s.slot); A.sfx('confirm'); say('Saved to ' + slotName(s.slot) + '.'); } else if (load(s.slot)) { wins = []; say('Loaded ' + slotName(s.slot) + '.'); } } };
+  }
+  function shopWin(done) {   // the merchant: buy (the gold you have, what you carry) or sell
+    const stock = () => SHOP.items.filter(id => id !== 'iron' && id !== 'chain' && id !== 'ring' || story.test('quest:cave'));
+    return { title: 'SHOP', w: 120, done, rows: () => [{ label: 'Buy' }, { label: 'Sell' }, { label: 'Leave' }],
+      pick: i => i === 2 ? close() : open(i === 0 ? { title: 'BUY', w: 210, rows: () => stock().map(id => ({ label: R.item(id).name, note: SHOP.price(id) + ' G', icon: R.icon(id), off: party.gold < SHOP.price(id) })), foot: w => { const id = stock()[w.i]; return id ? R.item(id).info + ' · you have ' + party.inv.count(id) : ''; },
+        pick: k => { const id = stock()[k]; if (SHOP.buy(party, id)) { A.sfx('coin'); say('Bought a' + (/^[AEIOU]/.test(R.item(id).name) ? 'n ' : ' ') + R.item(id).name + '.'); } else { A.sfx('bump'); say('Not enough gold.'); } } }
+        : { title: 'SELL', w: 210, rows: () => party.inv.list().map(e => ({ label: e.item.name, note: e.item.kind === 'key' ? '-' : SHOP.worth(e.id) + ' G', icon: R.icon(e.id), off: e.item.kind === 'key' })), pick: k => { const e = party.inv.list()[k]; if (e && SHOP.sell(party, e.id)) { A.sfx('coin'); say('Sold.'); } } }), side: 'gold' };
+  }
+  function titleWin() {   // the journey's title: a new one, the last one, any saved one, or the battle alone
+    const latest = game.saves.latest();
+    return { title: null, w: 150, rows: () => [{ label: 'New game' }, { label: 'Continue', note: latest ? latest.place : '-', off: !latest }, { label: 'Load', off: !game.saves.any }, { label: 'Battle' }],
+      pick: i => { if (i === 0) { wins = []; fresh(); mode = 'walk'; } else if (i === 1 && latest) { if (load(latest.slot)) wins = []; } else if (i === 2) open(saveWin('load')); else game.go('rpg-battle'); }, title0: true };
+  }
+  function menuUpdate() {
+    const w = wins[wins.length - 1], rows = w.rows(), n = rows.length;
+    const d = inp.repeat('up') ? -1 : inp.repeat('down') ? 1 : 0;
+    if (d && n) { w.i = (w.i + n + d) % n; A.sfx('select'); }
+    const c = inp.clicked(), b = c && boxes.find(x => x.w === w), k = b ? b.box.row(c[0], c[1]) : -1;
+    if (k >= 0) { w.i = k; inp.consumeAll(); }
+    if ((inp.pressed('confirm') || k >= 0) && n && !rows[w.i].off) { inp.consumeAll(); A.sfx('confirm'); w.pick(w.i, rows[w.i]); }
+    else if (inp.pressed('cancel') && !w.title0) close();
+    w.top = clamp(w.top, Math.max(0, w.i - (w.show || 8) + 1), w.i);
+  }
+  // saving and loading the journey (game.saves): where the party stands, the party, the story
+  game.saves.write = () => ({ data: { at, x: Math.round(hero.x), y: Math.round(hero.y), party: party.state(), story: story.state() }, place: place(at), level: lead().level });
+  function load(slot) {
+    let ok = false; const was = game.saves.read;
+    game.saves.read = s => { ok = true; fresh(); party = R.restore(s.data.party); story.restore(s.data.story); crew = null; go(s.data.at, { x: s.data.x, y: s.data.y }); mode = 'walk'; };
+    game.saves.load(slot); game.saves.read = was; return ok;
+  }
+
+  /* ---- UPDATE ---- */
+  function walkUpdate(dt) {
+    const h = hero, ui = wins.length > 0, near0 = !ui && !story.running && talkable();
+    inp.touchSet('confirm', story.running ? 'NEXT' : ui ? 'OK' : near0 ? (near0.kind ? 'LOOK' : 'TALK') : null, story.running || ui || !!near0);
+    inp.touchSet('skill', 'MENU', !ui && !story.running && mode === 'walk'); inp.touchSet('cancel', 'BACK', ui && !(wins[wins.length - 1] || {}).title0);
+    if (dark > 0) { const was = dark; dark -= dt; if (was > .8 && dark <= .8 && onDark) { const f = onDark; onDark = null; f(); } return; }
+    if (ui) return menuUpdate();
+    story.vars.gold = party.gold;
+    if (story.update(dt)) return;
+    if (end) { if (inp.pressed('confirm') && end > 1.5) { end = 0; mode = 'walk'; A.music(build(at).song); } return; }
+    if (inp.pressed('skill')) return void open(menuWin());
+    if (near0 && inp.pressed('confirm')) return void interact(near0);
+    // walking: the stick or keys to a ground direction (the camera's turn applied), a little run-up and slow-down
+    const mv = inp.move(), md = game.view.screenDirToGround(mv[0], mv[1]), sp = 76, ox = h.x, oy = h.y;
+    if (Math.hypot(md[0], md[1]) > .1) h.facing = Math.atan2(md[1], md[0]);
+    h.vx = approach(h.vx, md[0] * sp, 700 * dt); h.vy = approach(h.vy, md[1] * sp, 700 * dt);
+    h.update(dt, map); for (const p of people) { const dx = h.x - p.x, dy = h.y - p.y, d = Math.hypot(dx, dy), r = p.boss ? 14 : 8; if (d < r && d > 0) { h.x = p.x + dx / d * r; h.y = p.y + dy / d * r; } }   // townsfolk stand their ground
+    const moved = Math.hypot(h.x - ox, h.y - oy), tag = map.floorAt(h.x, h.y);
+    if (moved > .01) { trail.unshift([h.x, h.y]); if (trail.length > 60) trail.length = 60; }
+    // where the floor leads: out of town, into town, the cave (its key), out of the cave
+    if (tag === 'exit') return void (at === 'town' ? go('world', 'start') : go('world', 'mouth'));
+    if (tag === 'town') return void go('town', 'start');
+    if (tag === 'cave') { if (party.inv.has('key')) return void go('cave', 'start'); h.y += 10; story.run('sealed'); return; }
+    if (people.some(p => p.boss && near(p, 56))) return void story.run('knight');   // the knight's scene, then the fight
+    const zone = build(at).zone(tag), troop = moved > .01 && zone && ENC.walk(zone, moved);
+    if (troop) battle(troop);
+  }
+  function interact(o) {
+    if (o.id) { o.face = E.angleTo(o, hero); return void story.run(o.id); }
+    if (o.kind === 'sign') return void story.run('sign');
+    if (o.kind === 'crystal') return void story.run('crystal');
+    if (o.kind === 'chest') {   // a chest opens once (its key in the story's vars, so a save keeps it)
+      const item = at === 'cave' ? 'ether' : 'hipotion'; story.set(o.key); party.inv.add(item); story.vars.found = R.item(item).name; A.sfx('secret'); P.glints(o.x, o.y, 14, 10); story.run('found');
+    }
+  }
+  function people_(dt) {   // the townsfolk idle, glance about, face whoever speaks to them; the crew follows the leader's steps
+    const cam = Math.atan2(game.view.fy, game.view.fx);
+    for (const p of people) {
+      const says = story.running && story.talk.open && story.talk.name === NAMES[p.id];
+      if ((p.t -= dt) <= 0) { p.t = E.rand(2, 4); p.look = p.face + E.rand(-.8, .8); }
+      const goal = says ? E.angleTo(p, hero) + E.angDiff(E.angleTo(p, hero), cam) * .5 : near(p, 30) ? E.angleTo(p, hero) : p.look ?? p.face;
+      p.dir = E.approachAng(p.dir, goal, dt * 6);
+      p.rig.update(dt, { x: p.x, y: p.y, z: 0, facing: p.dir, expr: says ? 'smile' : undefined, stance: p.boss ? 'ready' : undefined, pose: p.id === 'child' && !says ? (Math.floor(t * .7) % 3 === 0 ? 'wave' : undefined) : undefined });
+    }
+    crew.forEach((c, k) => {   // each a step further back along the leader's trail
+      const q = trail[Math.min(trail.length - 1, (k + 1) * 9)] || [hero.x, hero.y], vx = (q[0] - c.x) / Math.max(dt, 1e-6), vy = (q[1] - c.y) / Math.max(dt, 1e-6);
+      if (Math.hypot(q[0] - c.x, q[1] - c.y) > .05) c.facing = Math.atan2(q[1] - c.y, q[0] - c.x);
+      c.x = q[0]; c.y = q[1]; c.rig.update(dt, { x: c.x, y: c.y, z: 0, facing: c.facing, vx: clamp(vx, -90, 90), vy: clamp(vy, -90, 90) });
+    });
+    hero.rig.update(dt, { x: hero.x, y: hero.y, z: 0, facing: hero.facing, vx: story.running || wins.length ? 0 : hero.vx, vy: story.running || wins.length ? 0 : hero.vy, pose: end ? 'cheer' : undefined });
+  }
+  function update(dt) {
+    t += dt; noteT -= dt; if (banner) banner.t -= dt; if (end) end += dt;
+    if (mode === 'battle') return;   // (the swirl into a battle: the field holds still)
+    if (mode === 'title') { inp.touchSet('confirm', 'OK', true); inp.touchSet('skill', null, false); inp.touchSet('cancel', 'BACK', wins.length > 1); if (!wins.length) open(titleWin()); menuUpdate(); people_(dt); return; }
+    people_(dt); walkUpdate(dt);
+  }
+
+  /* ---- DRAW ---- */
+  const TREE = { params: { h: 34 }, mats: { l: '#3e7a3a foliage size=3' } };
+  function drawThing(r, o) {
+    const sx = r.w(o.x, o.y)[0], sy = r.w(o.x, o.y)[1]; if (sx < -40 || sx > r.W + 40 || sy < -60 || sy > r.H + 40) return;   // (only what's on screen)
+    if (o.kind === 'tree') r.shape(E.hash2(o.x, o.y) < .5 ? 'tree' : 'pine', o.x, o.y, 0, { params: { h: 30 + E.hash2(o.y, o.x) * 12, seed: (o.x * 7 + o.y) % 9 }, mats: { l: E.hash2(o.x, 3) < .5 ? '#3e7a3a foliage size=3' : '#2e6a44 foliage size=3' } });
+    else if (o.kind === 'chest') r.prop('chest', o.x, o.y, 0, { open: !!story.get(o.key) });
+    else if (o.kind === 'crystal') { r.shape('crystal', o.x, o.y, 0, { params: { h: 20, seed: 4 }, }); if (L.enabled) L.add(o.x, o.y, 14, 70, 1, { color: '#6ad0ff' }); r.queue(o.x, o.y, 0, g => { const [x, y] = r.w(o.x, o.y, 12 + Math.sin(t * 2) * 2); r.glowDisc(g, x, y, 10, '#8ae8ff', .35); }, { emissive: true, bias: 1 }); }
+    else if (o.kind === 'fountain') { r.shape('well', o.x, o.y, 0); }
+    else if (o.kind === 'lamp') r.shape('lamppost', o.x, o.y, 0);
+    else if (o.kind === 'sign') r.shape('sign', o.x, o.y, 0, { facing: Math.PI / 2 });
+    else if (o.kind === 'barrels') { r.shape('barrel', o.x - 3, o.y, 0); r.shape('crate', o.x + 4, o.y + 2, 0, { facing: .3 }); }
+    else if (o.kind === 'bench') r.shape('bench', o.x, o.y, 0, { facing: Math.PI / 2 });
+  }
+  function draw(r) {
+    r.sky(at === 'cave' ? '#06040a' : at === 'world' ? '#2a5aa8' : '#2e5a2a');
+    map.drawFloor(r); map.queueWalls(r);
+    for (const o of things) drawThing(r, o);
+    if (at === 'world') r.shape('crystal', (CAVE_AT[0] + .5) * T, (CAVE_AT[1] - .2) * T, 0, { params: { h: 9, seed: 2 } });   // a gleam over the cave's mouth
+    const shadow = b => r.shadow(b.x, b.y, 5, .35, '#1a1030');
+    for (const p of people) { shadow(p); r.actor(p.x, p.y, 0, (g, ox, oy) => p.rig.draw(g, ox, oy, r.view), { every: 2, key: p }); }
+    for (const c of crew) { shadow(c); r.actor(c.x, c.y, 0, (g, ox, oy) => c.rig.draw(g, ox, oy, r.view)); }
+    shadow(hero); r.actor(hero.x, hero.y, 0, (g, ox, oy) => hero.rig.draw(g, ox, oy, r.view));
+    if (L.enabled) { L.add(hero.x, hero.y, 22, 110, 1.15 + Math.sin(t * 9) * .05, { color: '#ffb868' }); }   // the party's torch
+    story.draw(r);
+    r.overlay(g => hud(g, r));
+  }
+  function hud(g, r) {
+    if (mode === 'title') {   // the journey's title over its town
+      px.blend(g, .55, 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#0a0820'));
+      E.font.title(g, 'BRIGHTWATER', r.W / 2, Math.round(r.H * .2), { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#c8602a'], depth: 2 });
+      txt(g, 'AND THE DREAD KNIGHT', r.W / 2, Math.round(r.H * .2) + 30, '#c8d0ff', 'center');
+    }
+    if (banner && banner.t > 0 && mode !== 'title') { const w = E.font.width(banner.text) + 26; px.blend(g, Math.min(1, banner.t), 'normal', () => { E.ui.box(g, r.W / 2 - w / 2, 10, w, 18, { bg: WIN }); txt(g, banner.text, r.W / 2, 15, '#ffffff', 'center'); }); }
+    if (mode === 'walk' && !wins.length && !story.running) { const s = party.gold + ' G'; txt(g, s, r.W - 8, r.H - 14, GOLD, 'right'); }
+    // the windows, each a little right of and below the one under it; cards or the gold beside the top one
+    // on a touch screen a row is a thumb's height (46 CSS px), and a window shows what fits, scrolling the rest
+    const S = game.screen, rh = inp.lastDevice === 'touch' ? Math.max(11, Math.ceil(46 / (S.S / S.dpr))) : 11;
+    boxes = []; let x = 8, y = 8;
+    wins.forEach((w, k) => {
+      const ww = fit(r, w.w), wx = w.title0 ? Math.round(r.W / 2 - ww / 2) : Math.min(x, r.W - ww - 8), wy = w.title0 ? Math.round(r.H * .2) + 48 : Math.min(y, r.H - 60);
+      w.show = Math.max(3, Math.min(8, Math.floor((r.H - wy - 40) / rh)));
+      const box = R.list(g, wx, wy, ww, w.rows(), { cursor: k === wins.length - 1 ? w.i : -1, title: w.title, top: w.top, show: w.show, rowH: rh, bg: k === wins.length - 1 ? WIN : ['#4a5ab8', '#0a0a38'] });
+      boxes.push({ w, box }); x = wx + 14; y = wy + 14;
+      if (k === wins.length - 1) {
+        const foot = w.foot && w.foot(w); if (foot) { const fw = Math.min(r.W - 16, 300); E.ui.box(g, Math.round(r.W / 2 - fw / 2), r.H - 34, fw, 26, { bg: WIN }); E.font.text(g, foot, Math.round(r.W / 2 - fw / 2) + 7, r.H - 29, '#e8ecff', { outline: false, shadow: '#0a0820', wrap: fw - 14 }); }
+        if (w.side === true || w.status) {   // the party's cards beside it (a phone held upright: under it)
+          const cx = wx + ww + 6 + 150 <= r.W - 4 ? wx + ww + 6 : 8, cy = cx === 8 ? wy + box.h + 4 : wy;
+          party.members.forEach((m, j) => R.card(g, cx, cy + j * 64, m, { portrait: looksRig(m), w: Math.min(150, r.W - cx - 6), bg: w.status && j === w.i ? HOT : WIN }));
+        }
+        if (w.side) { const beside = w.side === 'gold' && wx + ww + 98 <= r.W, gx = beside ? wx + ww + 6 : wx, gy = beside ? wy : wy + box.h + 4 + (w.side === true && wx + ww + 156 > r.W ? 3 * 64 : 0); E.ui.box(g, gx, gy, 92, 18, { bg: WIN }); txt(g, party.gold + ' G', gx + 85, gy + 5, GOLD, 'right'); }   // the gold: beside the shop, under the menu (and the cards, upright)
+      }
+    });
+    if (noteT > 0 && saveNote) { const w = E.font.width(saveNote) + 20; E.ui.box(g, r.W / 2 - w / 2, r.H / 2 - 9, w, 18, { bg: HOT }); txt(g, saveNote, r.W / 2, r.H / 2 - 4, '#ffffff', 'center'); }
+    if (dark > 0) px.blend(g, clamp(1 - Math.abs(dark - .8) / .8, 0, 1), 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#000000'));
+    if (end) { px.blend(g, Math.min(.7, end * .5), 'normal', () => px.rect(g, 0, 0, r.W, r.H, '#0a0820')); E.font.title(g, 'THE END', r.W / 2, r.H / 2 - 20, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 }); if (end > 1.5) txt(g, inp.label('confirm') + ': WALK ON', r.W / 2, r.H / 2 + 24, '#c8d0ff', 'center'); }
+  }
+  const rigs = {}, looksRig = m => rigs[m.name] || (rigs[m.name] = rigOf(m.name));
+
+  /* ---- THE BOT: it plays the journey by the keys, as a player would: the elder, the shop, a sword and a vest worn, the
+   * chest, a save at the crystal, the road north through its encounters (each battle on AUTO), the cave's chest and
+   * crystal, the knight's scene and fight, the way home; then it loads the save and checks what came back ---- */
+  function bot() {
+    const I = inp, rep = { errors0: game.errors.length }, dirs = ['up', 'down', 'left', 'right'];
+    const step = () => game.advance(1 / 120), wait = n => { for (let i = 0; i < n; i++) step(); };
+    const hold = d => { for (const k of dirs) I.hold(k, false); if (d) { if (d[0] > .38) I.hold('right'); if (d[0] < -.38) I.hold('left'); if (d[1] > .38) I.hold('down'); if (d[1] < -.38) I.hold('up'); } };
+    const tap = (a, n = 1) => { for (let i = 0; i < n; i++) { I.tap(a); wait(14); } };
+    // what plays by itself: a battle (AUTO on, its lines read), a scene change, the dark of a night, a line (read, the
+    // first choice taken), the end card. The windows are the bot's to drive
+    const busy = () => {
+      if (game.sceneName === 'rpg-battle') { const s = scenes['rpg-battle'].state(); if (!s.auto && s.mode !== 'intro') tap('skill'); else tap('confirm'); return true; }
+      if (game.sceneName !== 'rpg') { step(); return true; }
+      if (wins.length) return false;
+      if (mode === 'battle' || dark > 0) { step(); return true; }
+      if (story.running) { tap('confirm'); return true; }
+      if (end) { if (end > 1.6) tap('confirm'); else step(); return true; }
+      return false;
+    };
+    const settle = (n = 120 * 120) => { hold(null); for (let i = 0; i < n && busy(); i++); };
+    const walkTo = (tx, ty, r = 16, limit = 120 * 300) => {   // a flow field toward the point, round the walls; what plays by itself on the way
+      const f = new E.FlowField(map), m0 = map; f.update(tx, ty);
+      for (let i = 0; i < limit; i++) {
+        if (busy()) { hold(null); continue; }
+        if (map !== m0) { hold(null); return false; }
+        if (Math.hypot(hero.x - tx, hero.y - ty) < r) { hold(null); return true; }
+        hold(f.dir(hero.x, hero.y, tx, ty)); step();
+      }
+      hold(null); return false;
+    };
+    const visit = o => { walkTo(o.x, o.y + 13, 6); hero.facing = -Math.PI / 2; tap('confirm'); };
+    const pick = (label, w = wins[wins.length - 1]) => { w.i = Math.max(0, w.rows().findIndex(row => row.label === label)); tap('confirm'); };
+    const person = id => people.find(p => p.id === id), thing = k => things.find(o => o.kind === k);
+    game.go('rpg', null, { fade: 0 }); wait(10); pick('New game'); fought = [];
+    visit(person('elder')); settle(); rep.quest = story.test('quest:cave'); rep.key = party.inv.has('key');
+    visit(person('shop')); settle();
+    if (wins.length) { pick('Buy'); for (const id of ['bronze', 'leather', 'potion', 'potion', 'potion']) pick(R.item(id).name); tap('cancel', 2); settle(); }
+    rep.bought = party.inv.has('bronze') && party.inv.has('leather') && party.inv.has('potion', 5);
+    tap('skill'); pick('Equip'); pick('Rowan'); pick('Weapon'); pick('Bronze Sword'); tap('cancel', 3);   // the menu: a sword on Rowan, the vest on Sera
+    tap('skill'); pick('Equip'); pick('Sera'); pick('Armor'); pick('Leather Vest'); tap('cancel', 3);
+    rep.equipped = lead().equipped.weapon === 'bronze' && party.members[2].equipped.armor === 'leather';
+    visit(thing('chest')); settle(); rep.chest = party.inv.has('hipotion');
+    visit(thing('crystal')); for (let i = 0; i < 200 && !wins.length; i++) if (!busy()) step();
+    if (wins.length) { pick('Slot 1'); tap('cancel'); } settle();
+    const saved = game.saves.get(0); rep.saved = !!saved && saved.place === 'Brightwater'; rep.savedGold = party.gold;
+    walkTo(map.find('exit').x, map.find('exit').y, 4); settle(); rep.world = at === 'world';
+    const mouth = map.find('mouth');   // the road north (battles on the way); short of the cave it trains to level 3 on the road, as a player would; then in
+    for (let k = 0; k < 30 && lead().level < 3 && at === 'world'; k++) { const y = k % 2 ? 84 : 104; walkTo((roadX(y) + .5) * T, (y + .5) * T, 10, 120 * 60); }
+    for (let k = 0; k < 8 && at === 'world'; k++) { walkTo(mouth.x, mouth.y, 6); for (let i = 0; i < 120 * 2 && at === 'world'; i++) { if (busy()) continue; hold([0, -1]); step(); } hold(null); }
+    rep.cave = at === 'cave'; rep.levelAtCave = lead().level;
+    if (thing('chest')) { visit(thing('chest')); settle(); }
+    if (thing('crystal')) { visit(thing('crystal')); for (let i = 0; i < 200 && !wins.length; i++) if (!busy()) step(); if (wins.length) { pick('Slot 2'); tap('cancel'); } settle(); }
+    const kn = people.find(p => p.boss); if (kn) walkTo(kn.x, kn.y + 40, 18);
+    for (let i = 0; i < 120 * 600 && (people.some(p => p.boss) || busy()); i++) if (!busy()) { hold([0, -1]); step(); hold(null); }
+    settle(); rep.boss = story.get('knightDown') === true && story.test('done:cave'); rep.after = party.members.map(m => m.hp + '/' + m.max('hp')).join(' ') + ' potions ' + party.inv.count('potion'); rep.home = at === 'town'; rep.levels = party.members.map(m => m.level); rep.battles = fought.length; rep.fights = fought.slice(); rep.time = Math.round(game.time);
+    game.go('rpg', null, { fade: 0 }); wait(20); pick('Load'); pick('Slot 1'); wait(20);   // the save from the town's crystal: the journey as it was then
+    rep.loaded = { at, quest: story.test('quest:cave'), done: story.test('done:cave'), gold: party.gold, key: party.inv.has('key'), bronze: lead().equipped.weapon === 'bronze' };
+    rep.errors = game.errors.length - rep.errors0; delete rep.errors0; hold(null);
+    return rep;
+  }
+
+  return { view: 'threequarter', views: ['threequarter', 'topdown'], input: 'DEFAULT', res: 'ps1', pausable: true, propSize: 1.2, touch: ['confirm', 'cancel', 'skill'], camera: { zoom: [.75, 2] },
+    parts: { battle: 'rpg-battle' },   // #rpg/battle: the battle alone, as it always was
+    enter(data) {
+      game.r.rimAlpha = .28; game.cam.offset = null;
+      if (data && data.back && party) return back(data.back);   // home from a battle
+      maps = {}; crew = null; hero = null; fresh(); mode = 'title'; wins = []; end = 0; dark = 0;
+      game.follow(null); game.focus(15 * T, 10 * T, 0); game.cam.snap = true;
+    },
+    exit() { L.enabled = false; inp.touchSet('confirm', null); inp.touchSet('skill', null); inp.touchSet('cancel', null); },
+    back() { if (wins.length && !wins[wins.length - 1].title0) { close(); return true; } return false; },   // a phone's back: a window closes
+    update, draw, bot,
+    state: () => ({ mode, at, x: hero && Math.round(hero.x), y: hero && Math.round(hero.y), wins: wins.map(w => w.title), gold: party && party.gold, levels: party && party.members.map(m => m.level), quests: story && story.quests.map(q => q.id + (q.done ? '+' : '')), node: story && story.node, near: hero && (talkable() || {}).id || (talkable() || {}).kind || null,
+      rows: boxes.length ? (b => b.w.rows().slice(b.box.top, b.box.top + b.box.show).map((row, k) => ({ label: row.label, at: b.box.at(b.box.top + k), h: b.box.rowH })))(boxes[boxes.length - 1]) : [] }),   // the top window's rows on screen (taps, in tests)
+    /** the proof: a new journey, a walk round the square by the keys and a word with the elder; then the battle's own proof */
+    run(n = 600) {
+      const a = proof('rpg', n, (i, key) => { if (i === 10) key.tap('confirm'); if (i > 30) walk(i, key, ['up', 'left', 'down', 'right'], 90); if (i % 60 === 59) key.tap('confirm'); },
+        () => [mode, at, Math.round(hero.x), Math.round(hero.y), party.gold, story.quests.length, Object.keys(story.vars).length], () => { maps = {}; crew = null; hero = null; });
+      return (a ^ RPG.run(n)) >>> 0;
+    } };
+})();
+scenes.rpg = JOURNEY;
