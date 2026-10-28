@@ -701,11 +701,7 @@ if (want('army')) {
     ord = await ev(page, id => { const u = window.__fx.rts.units.find(u => u.id === id); return u && u.orders[0] ? u.orders[0].kind : null; }, one.id);
   }
   check('army: a tap on a unit selects it, a tap on open ground orders it there', !!one && !!p.empty && sel.length === 1 && sel[0] === one.id && ord === 'move', one ? `selected ${JSON.stringify(sel)} (tapped ${one.id}), then its order: ${ord}` : 'no unit in front on screen');
-  // a drag on open ground pans the camera; a long press and a drag draws a box that selects the units inside
-  const cam0 = await ev(page, () => [window.__fx.game.cam.x, window.__fx.game.cam.y]);
-  await drag(cdp, line([SIDE.width * .5, SIDE.height * .8], [SIDE.width * .3, SIDE.height * .55], 12)); await wait(300);
-  const cam1 = await ev(page, () => [window.__fx.game.cam.x, window.__fx.game.cam.y]);
-  check('army: a drag on open ground pans the camera', Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]) > 20, `the camera moved ${Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]).toFixed(0)} px`);
+  // a long press and a drag draws a box that selects the units inside (before any drag has moved the camera: it eases)
   const box = await ev(page, () => { const { game, rts } = window.__fx, R = game.r, S = game.screen, blue = rts.of('blue').filter(u => !u.building);   // (they hold still for it)
     for (const u of blue) { u.K = Object.assign({}, u.K, { sight: 0 }); } rts.order(blue, 'stop');
     const pts = blue.map(u => R.w(u.x, u.y, 0)).filter(q => q[0] > 12 && q[1] > 12 && q[0] < S.W - 12 && q[1] < S.H - 12);
@@ -721,8 +717,13 @@ if (want('army')) {
       const all = rts.of('blue').filter(u => !u.building && (q => q[0] >= b[0] && q[0] <= b[2] && q[1] >= b[1] && q[1] <= b[3])(R.w(u.x, u.y, 0)));
       return [S.length, S.length === all.length && all.every(u => S.includes(u)) ? all.length : -all.length]; }, box);
   }
-  mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', 'army.png') });
   check('army: a long press and a drag draws a box that selects the units inside', !!box && inside >= 3 && boxed === inside && !errors.length, `${boxed} selected, ${Math.abs(inside)} standing inside (${box ? box[4] : 0} at the start)${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+  // a drag on open ground pans the camera
+  const cam0 = await ev(page, () => [window.__fx.game.cam.x, window.__fx.game.cam.y]);
+  await drag(cdp, line([SIDE.width * .5, SIDE.height * .8], [SIDE.width * .3, SIDE.height * .55], 12)); await wait(300);
+  const cam1 = await ev(page, () => [window.__fx.game.cam.x, window.__fx.game.cam.y]);
+  check('army: a drag on open ground pans the camera', Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]) > 20, `the camera moved ${Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]).toFixed(0)} px`);
+  mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', 'army.png') });
   await ctx.close();
 }
 

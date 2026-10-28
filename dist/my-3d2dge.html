@@ -123,7 +123,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - The player's zoom: a scene's `camera: { zoom: [.75, 2], start: 1, tall: 1.5 }` lets the player zoom within `zoom` from `start` (wheel, `-` `=`, pinch, Settings; `false`: none; `AI_GUIDE.md`, Camera).
 - Tests and tools: `new E.Game({ headless: true })` (the default in Node: no screen, sound or DOM; `draw` is skipped) or `{ loop: false }` runs only by `game.advance(seconds, { draw })` (exact fixed steps at once); `input.tap(action)` presses for one step, `input.hold(action, on)`; `game.debug = { snapshot() {...} }` is your game's handle (`tools/check.mjs` prints it); `game.stop()`, `start()` (resumes), `dispose()`.
 - Sessions: `?record=1`, then the pause menu's Save session; `node tools/replay.mjs session.json` replays it exactly, headless (`AI_GUIDE.md`, Sessions).
-- Camera: `cam.offset = [dx, dy]` sits the focus that many screen pixels from the centre (above a phone's touch buttons: `[0, -60]`); `cam.bounds = v => map.bounds(v)` keeps it inside the level (in side views a level shorter than the screen sits on the bottom edge; `cam.align = 'center'` to change); `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds (0 = locked to the target, no lag); `cam.window = [48, 24]` a dead zone the focus moves in before the camera follows; `cam.snapY = true` follows a followed body's height only when it lands (side-scrollers); `cam.frame([p1, p2], { margin, zoom: [.5, 1] })` keeps them all in view, zooming out as they part (`frame(null)` stops); `cam.free = { keys, edge: 10, drag, speed: 300, bounds: [x0, y0, x1, y1] }` a free camera (strategy, sims): keys or a stick, the screen's edge, a drag pan it, a zoom goes toward the pointer or the pinch, in every view and turn.
+- Camera: `cam.offset = [dx, dy]` sits the focus that many screen pixels from the centre (above a phone's touch buttons: `[0, -60]`); `cam.bounds = v => map.bounds(v)` keeps it inside the level (in side views a level shorter than the screen sits on the bottom edge; `cam.align = 'center'` to change); `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds (0 = locked to the target, no lag); `cam.window = [48, 24]` a dead zone the focus moves in before the camera follows; `cam.snapY = true` follows a followed body's height only when it lands (side-scrollers); `cam.frame([p1, p2], { margin, zoom: [.5, 1] })` keeps them all in view, zooming out as they part (`frame(null)` stops); `cam.free = { keys, edge: 10, drag, speed: 300, bounds: [x0, y0, x1, y1] }` a free camera (strategy, sims): keys or a pad's stick, the screen's edge, a drag pan it (a finger pans by its drag, never as the touch stick), a zoom goes toward the pointer or the pinch, in every view and turn.
 
 ## Scenes (title, play, game over)
 ```js
@@ -2652,7 +2652,7 @@ class Game {
      *  or nears the screen's edge (side-scrollers); frame(targets, { margin: 24, zoom: [min, max] or false }) keeps
      *  every one of them (anything with x, y, z) in view, centered between them and zoomed out (no further than min)
      *  when they spread apart, until frame(null); free: a free camera (strategy, sims, board games): true or { keys: true,
-     *  edge: 10, drag: true, speed: 300, bounds: [x0, y0, x1, y1] }: the keys or a stick pan it (input.move(), speed screen
+     *  edge: 10, drag: true, speed: 300, bounds: [x0, y0, x1, y1] }: the keys or a pad's stick pan it (input.move(), speed screen
      *  pixels a second), the mouse at the screen's edge (within edge pixels), a drag (input.pan(): a finger on open
      *  ground, a mouse's middle or right button) one to one; a zoom (wheel, pinch) zooms toward the pointer or the pinch;
      *  its focus keeps to bounds (world x, y); focus() still moves it; in every view and turn; null (as it starts): off */
@@ -3231,7 +3231,7 @@ class Game {
   _freeCam(dt) {
     const c = this.cam, F = c.free === true ? {} : c.free, I = this.input, S = this.screen, z = this._zoomTo || this.zoom;
     let dx = 0, dy = 0, moved = false;
-    if (F.keys !== false && !(this.shell && this.shell.screen)) { const m = I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }
+    if (F.keys !== false && !(this.shell && this.shell.screen) && !I.stickOn) { const m = I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }   // (a finger pans by its drag, not as a stick)
     const p = I.pointer(), e = F.edge === undefined ? 10 : F.edge;
     if (e > 0 && p && I.lastDevice !== 'touch' && I.mouse.active && !I._fedAt) { const sp = (F.speed || 300) * dt; if (p[0] < e) dx -= sp; else if (p[0] > S.W - e) dx += sp; if (p[1] < e) dy -= sp; else if (p[1] > S.H - e) dy += sp; }
     const pan = F.drag !== false && I.pan(); if (pan) { dx -= pan[0]; dy -= pan[1]; moved = true; }

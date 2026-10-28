@@ -2386,7 +2386,7 @@ class Game {
      *  or nears the screen's edge (side-scrollers); frame(targets, { margin: 24, zoom: [min, max] or false }) keeps
      *  every one of them (anything with x, y, z) in view, centered between them and zoomed out (no further than min)
      *  when they spread apart, until frame(null); free: a free camera (strategy, sims, board games): true or { keys: true,
-     *  edge: 10, drag: true, speed: 300, bounds: [x0, y0, x1, y1] }: the keys or a stick pan it (input.move(), speed screen
+     *  edge: 10, drag: true, speed: 300, bounds: [x0, y0, x1, y1] }: the keys or a pad's stick pan it (input.move(), speed screen
      *  pixels a second), the mouse at the screen's edge (within edge pixels), a drag (input.pan(): a finger on open
      *  ground, a mouse's middle or right button) one to one; a zoom (wheel, pinch) zooms toward the pointer or the pinch;
      *  its focus keeps to bounds (world x, y); focus() still moves it; in every view and turn; null (as it starts): off */
@@ -2965,7 +2965,7 @@ class Game {
   _freeCam(dt) {
     const c = this.cam, F = c.free === true ? {} : c.free, I = this.input, S = this.screen, z = this._zoomTo || this.zoom;
     let dx = 0, dy = 0, moved = false;
-    if (F.keys !== false && !(this.shell && this.shell.screen)) { const m = I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }
+    if (F.keys !== false && !(this.shell && this.shell.screen) && !I.stickOn) { const m = I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }   // (a finger pans by its drag, not as a stick)
     const p = I.pointer(), e = F.edge === undefined ? 10 : F.edge;
     if (e > 0 && p && I.lastDevice !== 'touch' && I.mouse.active && !I._fedAt) { const sp = (F.speed || 300) * dt; if (p[0] < e) dx -= sp; else if (p[0] > S.W - e) dx += sp; if (p[1] < e) dy -= sp; else if (p[1] > S.H - e) dy += sp; }
     const pan = F.drag !== false && I.pan(); if (pan) { dx -= pan[0]; dy -= pan[1]; moved = true; }
