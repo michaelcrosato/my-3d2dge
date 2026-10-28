@@ -5,6 +5,12 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.69.1 (2026-10-28)
+
+The genre plan's Milestone 6, closed: its progress row complete.
+
+- **Docs**: `docs/HANDOFF-GENRES.md`: section 9's M6 row with its two commits (`ec5bea4`, #167; `f2c076d`, #168), what each brought, its sizes, the bots, `test:changed` for each, the full `npm test` on `main` after each merge, and what is left (the owner's kart and road checks on the Labs page).
+
 ## 0.69.0 (2026-10-28)
 
 Racing: the genre plan's Milestone 6, its second half (6b): the drive module, the KART and ROAD kits. Every other kit plays as before (filmed beside v0.68.0: the same pixels).
