@@ -40,9 +40,11 @@ const ALL = {
 };
 // THE KIT DIET (docs/HANDOFF-GENRES.md, 3.3): a kit's engine leaves out the core's sections its game never calls. This
 // table names the parts that may go (one or more of the core's sections, by number) and, where a part is reached only
-// through a method of what stays, that method; tools/diet.mjs works out the rest from the code: what the kit calls (its
+// through a method or field of what stays, those (entries), or through a string or option name the kit writes (names:
+// game.go's 'iris'); tools/diet.mjs works out the rest from the code: what the kit calls (its
 // shell, slice, sets, modules and, in 3D, the 3D engine), and what each of the core's statements needs. A part the kit
 // calls stays, and so does anything it needs; a kit that would call what went fails the build.
+const EASES = ['inSine', 'outSine', 'inOutSine', 'inCubic', 'inOutCubic', 'inOutQuad', 'inBack', 'inOutBack', 'outElastic', 'inElastic', 'inOutElastic', 'outBounce', 'inBounce', 'inOutBounce'];
 const DIET = [
   { part: 'blob', sections: ['12'] },                         // E.Blob
   { part: 'tilemap', sections: ['13'] },                      // E.TileMap, and what extends it (wall faces, shapes as solids)
@@ -53,7 +55,15 @@ const DIET = [
   { part: 'thirdperson', sections: ['17b', '17c', '17d'] },   // E.ACTIONS, E.Action, E.Mover, E.sees, E.hears, E.Suspicion
   { part: 'bullets', sections: ['18'] },                      // E.Bullets, E.pattern
   { part: 'hash', sections: ['19'] },                         // E.SpatialHash
-  { part: 'gpu', sections: ['22'], entries: ['enableGPU'] }   // GPU lighting: only through game.enableGPU
+  { part: 'gpu', sections: ['22'], entries: ['enableGPU'] },  // GPU lighting: only through game.enableGPU
+  { part: 'easings', sections: ['1b'], entries: EASES, names: EASES },   // E.ease's names beyond the core's (read, or named in a string)
+  { part: 'sprites', sections: ['2b'], names: ['rot'] },      // E.anim, E.rotSprite, E.recolor, and r.sprite's { rot }
+  { part: 'tweens', sections: ['10d'] },                      // game.tween, game.script, E.until, E.all, E.any
+  { part: 'paths', sections: ['10e'] },                       // E.Path
+  { part: 'transitions', sections: ['10f'], names: ['wipe', 'iris', 'mosaic', 'swirl', 'dissolve'] },   // game.go's { fade: 'iris' }
+  { part: 'weather', sections: ['10g'], entries: ['weather'] },   // game.weather = { ... }
+  { part: 'sequences', sections: ['10h'], entries: ['history'] },   // input.sequence, input.motion, input.history
+  { part: 'camera', sections: ['10i'], entries: ['window', 'snapY', 'frame'] }   // game.cam.window, cam.snapY, cam.frame
 ];
 // a kit's line on its modules (the scripts marked "inlined from engine/modules/...", after the engine), when it has any
 const modLine = mods => mods.length ? '\n       Its modules: ' + resolveModules(mods, MODS).map(m => m.name).join(', ') + ' (engine/modules/), each loaded after the engine.' : '';

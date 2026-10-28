@@ -5,6 +5,24 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.62.0 (2026-10-27)
+
+Motion, timing and presentation in the core: the genre plan's Milestone 1 (`docs/HANDOFF-GENRES.md`). Every existing kit, Emberdeep and the reference editions play exactly as before (filmed beside v0.61.1: the same pixels).
+
+- **Engine**: tweens (`game.tween(target, { x: 10 }, seconds, { ease, delay, repeat, yoyo, onDone, keep })`) and scripts (`game.script(function* () { yield .5; yield E.until(fn); yield tween; yield E.all([...]); })`) on game time: paused with the game, still in hit-stop, slowed by `timeScale`, ended with the scene unless kept, the same timeline at 60, 90, 120 and 144 Hz.
+- **Engine**: `E.ease` has Penner's set (sine, quad, cubic, back, elastic and bounce, each in, out and inOut; `linear`).
+- **Engine**: `E.Path(points, { closed, smooth: 'catmull' })`: `length`, `at(d)` (a point and its heading by distance along), `nearest(x, y)` (a racer's progress), `draw(r)`.
+- **Rendering**: sprite frames (`E.anim(frames, fps, { loop, pingpong })`, or a sheet cut into frames, drawn by `r.sprite(x, y, z, anim, { t })`), turns and scale (`rot`, `steps`, `scale` on `r.sprite` and `px.sprite`: whole pixels, cached in 16 or 32 steps; `E.rotSprite`) and palette swaps (`E.recolor`).
+- **Engine**: wrap-around: `E.wrap(v, lo, hi)`, `E.wrapDiff(a, b, size)`, and `wrap: [w, h]` on `r.sprite` and `r.actor`.
+- **Rendering**: transitions: `game.go(name, data, { fade: 'wipe' | 'iris' | 'mosaic' | 'swirl' | 'dissolve' | 'white' | 'black', seconds, at })`; reduce motion makes each a plain fade; a number of seconds still works as before.
+- **Rendering**: weather: `game.weather = { kind: 'rain' | 'snow' | 'ash' | 'leaves' | 'sand', amount, wind, lightning }` falls through the world's height in ground views and in parallax layers in side and overhead views, splashes or settles on the floor, flashes and thunders; its own seeded stream (never `Math.random`), pooled, ended with the scene. `E.WEATHER` holds the kinds.
+- **Engine**: input sequences: `input.motion('236', 'attack', { facing })` in numpad notation, mirrored by facing; `input.sequence([...], { window })`; `input.history`, the last second of directions and presses.
+- **Engine**: the camera: `cam.window` (a dead zone), `cam.snapY` (height followed on landing), `cam.frame(targets, { margin, zoom })` (several things kept in view, zooming out as they part).
+- **Rendering**: a screen filter, a standard setting under Display: clean, scanlines or CRT, drawn as the picture reaches the canvas, never on the game's buffer, and off under a test harness.
+- **Tools**: each of these is a section of the core on the kit diet (1b, 2b, 10d to 10i), reached from the core through `HOOKS` and `FADES`; `DIET`'s new `names` match the strings and option names a kit writes (`{ fade: 'iris' }`, `{ rot }`). Every kit grows by about 2,500 tokens (1,600 of engine, 1,000 of card): adventure 197,866 (2,134 left), shooter 194,774, RPG 192,376, brawler 191,397, animation lab 183,248, platformer 183,120, stealth 182,431; 3D 218,048, 212,855 and 287,832; the compact edition 341,273, the reference 453,334.
+- **Tools**: `tools/motion-test.mjs` (the `motion` suite, `npm run test:motion`) films every transition beside the plain fade (and the plain fade under reduce motion), every weather twice from one seed, and the screen filter on the canvas; the contract tests hold the tweens, scripts (at four refresh rates), paths, frames, turns, swaps, wrap-around, sequences, camera and weather. `api-index` reads members put on a namespace with `Object.assign(ease, { ... })`. A card's example named `full-...` (```` ```js full-script ````) runs in `contract-test` on the full engine only.
+- **Docs**: the API card (Motion and timing; 16,012 of 18,000 tokens), `AI_GUIDE.md` (motion and timing, the camera's window and framing, special moves, transitions, the screen filter), the agent edition's header (what the full engine adds), `docs/HANDOFF-GENRES.md` (M1's facts as built).
+
 ## 0.61.1 (2026-10-27)
 
 The genre plan's Milestone 0, closed: its facts checked against the code as merged, and its progress row complete.

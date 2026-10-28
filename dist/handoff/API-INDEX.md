@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.61.1)
+# my-3D2dge API index (v0.62.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,41 +48,45 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 87 The engine object (E = My3D2dge)
-- 98 Math
-- 155 Pixel primitives
-- 174 Views (projections); E.View: view
-- 201 Screen; game.screen
-- 222 Input; E.Input: input
-- 294 Pixel font
-- 305 Lighting; game.lights
-- 324 Particles; E.Particles: game.particles
-- 344 Renderer; r
-- 390 Game; E.Game: game
-- 500 Standard features; settings, fullscreen
-- 517 10c. Boot
-- 522 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 595 Blob rig; E.Blob: blob
-- 615 Tile map; E.TileMap: map
-- 674 Materials
-- 695 Flow field; E.FlowField: flow
-- 713 Texture helpers for floortex functions
-- 724 Platform map; E.PlatformMap: level
-- 754 Platformer; E.Platformer: hero
-- 789 Body; E.Body: body
-- 809 Actions; E.Action: action
-- 831 17c. Mover; E.Mover: mover
-- 870 17d. Perception; E.Suspicion: suspicion
-- 887 Bullets; E.Bullets: shots
-- 907 Spatial hash; E.SpatialHash: grid
-- 917 Audio; game.audio
-- 939 Backdrops; E.Backdrop: backdrop
-- 947 21c. Props
-- 952 21e. Shapes
-- 964 Ui; E.Dialog: talk, E.Menu: menu
-- 1018 21d. Shell; E.Shell: shell
-- 1047 Gpu lighting (webgpu); game.gpu
-- 1068 Sessions
+- 91 The engine object (E = My3D2dge)
+- 102 Math
+- 176 Pixel primitives
+- 195 Sprite frames, turns and swaps
+- 201 Views (projections); E.View: view
+- 228 Screen; game.screen
+- 250 Input; E.Input: input
+- 325 Pixel font
+- 336 Lighting; game.lights
+- 355 Particles; E.Particles: game.particles
+- 375 Renderer; r
+- 422 Game; E.Game: game
+- 525 Standard features; settings, fullscreen
+- 542 10c. Boot
+- 547 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 564 10e. Paths; E.Path: path
+- 574 10g. Weather
+- 578 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 651 Blob rig; E.Blob: blob
+- 671 Tile map; E.TileMap: map
+- 730 Materials
+- 751 Flow field; E.FlowField: flow
+- 769 Texture helpers for floortex functions
+- 780 Platform map; E.PlatformMap: level
+- 810 Platformer; E.Platformer: hero
+- 845 Body; E.Body: body
+- 865 Actions; E.Action: action
+- 887 17c. Mover; E.Mover: mover
+- 926 17d. Perception; E.Suspicion: suspicion
+- 943 Bullets; E.Bullets: shots
+- 963 Spatial hash; E.SpatialHash: grid
+- 973 Audio; game.audio
+- 995 Backdrops; E.Backdrop: backdrop
+- 1003 21c. Props
+- 1008 21e. Shapes
+- 1020 Ui; E.Dialog: talk, E.Menu: menu
+- 1074 21d. Shell; E.Shell: shell
+- 1103 Gpu lighting (webgpu); game.gpu
+- 1124 Sessions
 
 ## The engine object (E = My3D2dge)
 
@@ -91,7 +95,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.61.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.62.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -116,12 +120,27 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.clamp(v, a, b)`: v kept between a and b
 - `E.ctx2d(c)`: a canvas's 2D context with smoothing off (crisp pixels)
 - `E.dist(a, b)`: distance between two objects with x, y (and optional z)
-- `E.ease`: easing curves for u 0..1
+- `E.ease`: easing curves for u 0..1: linear, outQuad, inQuad, inOut (inOutQuad), outCubic, outBack (it overshoots a little more than Penner's: 1.9), and the rest of Penner's set (sine, quad, cubic, back, elastic and bounce, each in, out and inOut: inSine, outSine, inOutSine, ...), the names every tween library uses (section 1b)
+- `E.ease.inBack(u)` †: pulls back before it goes
+- `E.ease.inBounce(u)` †: bounces, then leaps away
+- `E.ease.inCubic(u)` †: slower start than inQuad
+- `E.ease.inElastic(u)` †: wobbles, then springs away
 - `E.ease.inOut(u)`: slow start and end
+- `E.ease.inOutBack(u)` †: pulls back, then overshoots
+- `E.ease.inOutBounce(u)` †: bounces at both ends
+- `E.ease.inOutCubic(u)` †: slow start and end, quicker between
+- `E.ease.inOutElastic(u)` †: wobbles at both ends
+- `E.ease.inOutQuad()` †: slow start and end: inOut's other name
+- `E.ease.inOutSine(u)` †: slow start and end (the gentlest)
 - `E.ease.inQuad(u)`: slow start, fast end
+- `E.ease.inSine(u)` †: slow start (the gentlest)
+- `E.ease.linear(u)` †: even speed
 - `E.ease.outBack(u)`: overshoots past 1, then settles: pop-ups, landings
+- `E.ease.outBounce(u)` †: drops and bounces to rest
 - `E.ease.outCubic(u)`: fast start, smooth stop
+- `E.ease.outElastic(u)` †: springs past and wobbles to rest
 - `E.ease.outQuad(u)`: fast start, smooth stop (gentler than outCubic)
+- `E.ease.outSine(u)` †: smooth stop (the gentlest)
 - `E.hash2(x, y)`: a fixed random number 0..1 for whole-number grid coordinates (texture specks, scatter that never flickers)
 - `E.hex(h)`: '#rrggbb' or '#rgb' (or an [r, g, b] array) -> [r, g, b]
 - `E.hsl(hh, s, l)`: '#rrggbb' from hue (degrees), saturation and lightness (0..1)
@@ -151,6 +170,8 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.toHex(c)`: [r, g, b] -> '#rrggbb'
 - `E.toHsl(h)`: a color's hue (degrees), saturation and lightness (0..1): toHsl('#e05a3a') -> [h, s, l]
 - `E.tones(c, strength = 1)`: five shades of a color for painted-looking pixel art: { deep, sh, base, lt, hi }. Shadows drift toward blue-violet, highlights toward warm yellow (strength 0..2, default 1).
+- `E.wrap(v, lo, hi)` †: v wrapped into lo..hi (hi left out): wrap(-1, 0, 10) is 9, wrap(330, 0, 320) is 10. A world whose edges meet (Asteroids, a looping stage): x = E.wrap(x, 0, W)
+- `E.wrapDiff(a, b, size)` †: the shortest signed difference from a to b on a span of size that wraps round: wrapDiff(9, 1, 10) is 2 (across the seam, not -8). Aim and chase across the edge
 
 ## 2. Pixel primitives
 
@@ -167,9 +188,15 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `px.polyDither(g, pts, c, a, wx = 0, wy = 0)`: translucent polygon: a = 0..1 opacity (stepped alpha, or a dither pattern in 'dither' style). wx/wy = world pixel offset for the pattern
 - `px.rect(g, x, y, w, h, c)`: a filled rectangle, snapped to whole pixels
 - `px.reset(g)`: forget the color cache (after drawing on g with the canvas API directly)
-- `px.sprite(g, spr, x, y, flip = false)`: draw a sprite with its top-left corner at buffer pixel (x, y). flip mirrors it left-right.
+- `px.sprite(g, spr, x, y, flip = false)`: draw a sprite with its top-left corner at buffer pixel (x, y). flip mirrors it left-right; or o: { flip, rot (radians, turned about its center: E.rotSprite), steps, scale (nearest-neighbour) }
 - `E.sprite(rows, colors = {}, scale = 1)`: Pixel sprite written as strings. Each character is one pixel; colors maps a character to a hex color; '.' and ' ' are transparent. scale (whole number) enlarges each pixel. const COIN = E.sprite(['.yy.', 'yYYy', 'yYYy', '.yy.'], { y: '#f0b020', Y: '#fff0a0' }); Draw it with r.sprite(x, y, z, COIN) (depth sorted) or px.sprite(g, COIN, sx, sy).
 - `E.style: trans`: Translucency style. 'alpha' (default, PS1 / N64 / SNES color math): real transparency in 1/8 steps, plus blend modes. 'dither' (NES, Game Boy, Genesis look): ordered-dither patterns. Set E.style.trans = 'dither' for the older look.
+
+## 2b. Sprite frames, turns and swaps
+
+- `E.anim(frames, fps = 8, o = {})` †: frames to play: anim([spr1, spr2, spr3], fps = 8, { loop: true, pingpong: false }), or anim(sheet, 8, { frames: 4 }) for several frames side by side in one sprite's rows. Draw it with r.sprite(x, y, z, a, { t }) (t: its clock, seconds; the game's time by default); a.frame(t) is the sprite at time t, a.index(t) its number, a.duration one play (seconds)
+- `E.recolor(spr, map)` †: a copy of a sprite with its colors swapped (palette swaps: the second player, a hurt flash, a stronger enemy): recolor(spr, { '#3a8a4a': '#8a3a4a', h: '#e0b040' }), each key a color or one of the sprite's own characters
+- `E.rotSprite(spr, a, steps = 16)` †: the sprite turned by angle a (radians; the way the world's angles turn, so a ship drawn facing east turns to its facing): nearest-neighbour, whole pixels, about its center, in `steps` steps a turn (16; 32 for a smoother one) and cached, as games of the era pre-rotated theirs. r.sprite's and px.sprite's rot option use it
 
 ## 3. Views (projections)
 
@@ -213,6 +240,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.screen.canvas`: the page's canvas (null in a headless game); o: the sizing options (the game's o)
 - `game.screen.ctx`: its 2D context (r.ctx is the same)
 - `game.screen.dpr = 1`: the device pixel ratio used (at most 3)
+- `game.screen.filter = 'clean'` †: 'clean' | 'scanlines' | 'crt', drawn over the picture as it is presented, never on the buffer, and not under a test harness (navigator.webdriver). game.settings.filter sets it
 - `game.screen.fx = 0`, `game.screen.fy = 0`: its sub-pixel part (0..1, applied when presenting)
 - `game.screen.ix = 0`, `game.screen.iy = 0`: the camera's whole-pixel offset this frame
 - `game.screen.listeners = []` †: functions called after every resize
@@ -237,8 +265,10 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.consumeAll()`: forget every pending press (after closing a menu or dialog, so the same press does not also attack)
 - `input.down(a)`: is the action held right now?
 - `input.drag()` †: how far the touch stick's finger moved since the last step, in screen pixels [dx, dy] (the HUD's space), or null while no finger holds it: to steer one to one (a shooter's ship follows the thumb) instead of by the stick's direction
+- `input.history` †: the last second of input, oldest first: [{ t (input.clock), dir (numpad 1-9 for a fighter facing right: 5 neutral), pressed: the actions pressed then, directions aside }], one entry each time the direction changes or a button is pressed: an input display draws it; sequence() and motion() read it (section 10h: a kit without it has none)
 - `input.hold(a, on = true)`: hold an action down (on) or let it go (false), as its key would
 - `input.label(a, device = this.lastDevice)`: the key or button to show in a prompt for action a, on the device the player used last (or the one named: 'keyboard' | 'mouse' | 'gamepad' | 'touch'), with their bindings: input.label('jump') -> 'Space', 'A' or '✕'
+- `input.motion(digits, button, o = {})` †: a fighter's move in numpad notation, mirrored by facing: input.motion('236', 'attack', { facing: hero.facing, window }) is a quarter circle forward and punch (down, down-forward, forward, attack: a fireball); '623' a dragon punch, '41236' a half circle. facing: 1 (right, the default) or -1. button: an action, 'attack+kick', or none (the motion alone)
 - `input.mouseScreen()`: mouse position in projected screen pixels, or null
 - `input.move()`: movement intent in screen directions: x right, y down, length <= 1
 - `input.padStyle()`: the controller family whose symbols label() shows: glyphs, or with glyphs 'auto' the one its name says
@@ -253,6 +283,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `input.resetBindings()` †: forget the player's bindings: every action back to its preset's codes
 - `input.rumble(strength = .5, seconds = .15)` †: shake the gamepad: strength 0..1 for seconds (scaled by rumbleScale; nothing where the controller can't). Returns true when it rumbled
 - `input.screenPoint(cx, cy)` †: browser client coords -> screen pixels [x, y] (the HUD's space, with no camera), or null without a canvas
+- `input.sequence(steps, o = {})` †: true on the step a sequence of inputs ends, each one after the last within window seconds (.5) of the first: input.sequence(['down', 'down+right', 'right', 'attack']). A step names actions joined by +: its directions are held exactly as it says (up, down, left, right; 'neutral' for none) as they change to that, its buttons pressed. A cheat code: input.sequence(['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'kick', 'attack'], { window: 3 })
 - `input.stopRumble()` †: stop a rumble now (pause, focus lost, unplugged)
 - `input.suppress(a)` †: Suppress a held action until the next tick (a HUD widget owns the pointer this step).
 - `input.suppressCode(code)` †: A widget owns this button; other devices bound to the same action still work.
@@ -350,6 +381,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.actor({ hides })`: true: this actor counts as an x-ray occluder even when no x-ray actor asked for actors
 - `r.actor({ ghost })`: ghost.owner (any {x, y, z}, usually the actor itself) keeps its afterimages sorted behind the live body
 - `r.actor({ every, key })`: every: n, key (any object, the character's own): its finished image is drawn again for n - 1 frames before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a ghost, x-ray or GPU lighting
+- `r.actor({ wrap })`: [w, h], as r.sprite's: a world that wraps round shows the actor across each edge it crosses
 - `r.actorNow(x, y, z, drawFn, o = {})`: draw an actor at once, over what is drawn so far, not sorted by depth (a pass of the game's own: a body falling into a void painted over the level), with r.actor's options (outline, flash, alpha, ...)
 - `r.bh`: the buffer's height (H + 2)
 - `r.box(g, x0, y0, z0, x1, y1, z1, top, side)`: extruded box prop (crate, pedestal, table). Call inside a queue fn with its g.
@@ -369,7 +401,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `r.shape(id, x, y, z = 0, o = {})` †: Queue a shape standing at (x, y, z), feet on the point, depth sorted like an actor: r.shape(id | entry, x, y, z, o). o: { facing (radians, where its front points; default PI/2, south, as written), scale, mats: { slot: material }, flip (mirror it x to -x before facing), params (a generator's: { h: 30 }), bias, hides (x-ray silhouettes show through it: by default when it stands at least E.HEIGHTS.chest, 22, high), footprint, light (add its lights to game.lights), shadow (default true), charView (default true: steep views draw it from the characters' lower angle), flash, alpha, xray }
 - `r.sightCone(obs, o = {})` †: an observer's view on the ground: a dithered fan fov wide (radians) about its facing, out to range, cut short where the map hides a body's chest (map.ray, the height rules), draped over the ground below. o: { range: 120, fov: 1.6, facing, map, eye, color: '#ffe080', alpha: .3, rays }. Call it in draw (it is a decal: under walls and bodies)
 - `r.sky(colors, o = {})`: background of dithered color bands, top to bottom: r.sky(['#0b1030', '#3b2d6b', '#e0806a']). Call first in draw.
-- `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost } (the last five use the actor path)
+- `r.sprite(x, y, z, spr, o = {})`: Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor. opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1, bias, flash, outline, alpha, xray, ghost (the last five use the actor path), t (an E.anim's clock: spr may be one), rot (radians, about its center: anchor 'center' unless given), steps (16), scale, wrap: [w, h] (a world that wraps round: a copy across each edge it crosses; w alone wraps x) }
 - `r.starfield(o = {})`: scrolling star dots for space and night skies. opts: { count: 70, speed: 30 px/s, dir: 'down' | 'up' | 'left' | 'right', colors, layers: 3, seed }
 - `r.text(str, x, y, color = '#ffffff', o)`: HUD text in screen pixels, drawn on top and never lit: r.text('SCORE 120', 4, 4, '#fff', { align, scale, outline })
 - `r.textAt(x, y, z, str, color = '#ffffff', o = {})`: text floating at a world point (names, prompts): r.textAt(x, y, z, 'OPEN', '#ffe08a')
@@ -416,7 +448,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.focus(x, y, z = 0)`: camera follows this world point. Side-scrollers: game.focus(x, 0, z)
 - `game.follow(target, o = {})`: keep the camera on an object automatically (instead of calling focus every update). opts: { z: extra height to look at (default 16), lead: look ahead in the facing / moving direction }. follow(null) stops.
 - `game.freeze(s)`: hit-stop: the game stands still for s seconds (.04-.08 for a hit); input still ticks
-- `game.go(name, data, o = {})`: switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0
+- `game.go(name, data, o = {})`: switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 (a cut) or another number of seconds; opts.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or 'dissolve', each way taking opts.seconds (.4), round opts.at (iris and swirl: a world point { x, y, z }, which each scene's camera places, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
 - `game.hitFx(x, y, z, o = {})`: everything a good hit needs in one call: hit-stop, shake, an impact star, sparks along the hit direction, a sound, a damage number and a rumble on a gamepad. hitFx(x, y, z, { power: 1, angle, damage, color, sound: 'hit', rumble: true })
 - `game.menu(name)`: open the menu (the corner's menu button and the touch START do it): a pausable scene (or a game started without scenes) pauses on its pause screen; any other scene, a title, waits under the settings. menu('settings') or menu('controls') opens that screen. Without a menu (menu: false, or the agent edition) it pauses a scene in play. Returns true when a menu opened
 - `game.mouseGround()`: mouse position on the ground (world units), or null
@@ -427,6 +459,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.resetCamera()` †: undo setZoom and rotateView: the scene's own zoom again (camera.start, or camera.tall on a screen held upright; 1 without), no turn. The player's zoom stays (settings.zoom)
 - `game.resume()`: take the game out of pause (and close the pause screen)
 - `game.rotateView(deg)` †: turn the camera around the vertical axis in ground views: game.rotateView(45) (degrees). Side views never turn
+- `game.script(fn, o)` †: run a coroutine on game time, in the update step: game.script(function* (game) { yield .5; yield E.until(() => door.open); yield game.tween(cam, { y: 0 }, 1); yield E.all([a, b]); ... }, { keep }). Each yield waits: a number (seconds), nothing (one step), a condition (a function, or E.until(fn)), a tween or script (until it is done), a generator (run as a script of its own, and waited for), E.all([...]) or E.any([...]) (each of these). It runs at once to its first yield. Cutscenes, boss patterns, wave timelines, tutorials, attract modes. Returns the Script
 - `game.setView(v)`: switch the view: an id from E.VIEWS ('iso', 'side', ...) or a View; keeps zoom and turn
 - `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3), the game's own; where the scene lets the player zoom (camera.zoom), theirs multiplies it (game.zoom is the two together). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
 - `game.shake(a)`: shake the screen by a (pixels, decaying; at most 10 in all); none when reduceMotion, scaled by the player's settings.shake
@@ -437,6 +470,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.start({ camera })`: a scene's { zoom: [.75, 2], start: 1, tall: 1.5, wheel: true }: the player zooms the camera within zoom (the wheel, - and =, a pinch, Settings, Camera zoom: theirs, kept, on top of the game's; false or none: they can't; a function of the game: a range per screen shape, g => [g.upright ? 1 : .85, 2]), from start, the zoom it starts at (tall: on a screen held upright, game.upright; 1 without); wheel: false leaves the mouse wheel to the game
 - `game.start({ boot })`: { title, version, steps: [[label, fn]], messages, min, checks, accent } runs the boot first (section 10c): the steps one a frame behind the boot screen (all at once when headless or loop: false); boot: false hides a splash
 - `game.stop()`: stop the loop; the game keeps its state, and start() resumes it
+- `game.tween(target, to, seconds, o)` †: ease target's numbers to new values over seconds of game time: game.tween(door, { y: 40 }, .5, { ease: 'outBack', delay, repeat (more plays; -1 forever), yoyo (every other play runs back), onDone(target), keep (outlive the scene) }). ease: a name in E.ease ('outQuad' by default) or a function of u 0..1. It starts from the values the target has once its delay is over. Returns the Tween: tween.done, tween.cancel()
 - `game.upright`: true while the game's screen (r.W x r.H) is upright, taller than 1.3 times its width: a phone held upright, with expand: true (a fixed res keeps its own shape on any phone, so it is never upright there). A scene's camera.tall zoom applies then: it zooms a tall picture in to fill it
 - `game.zoomBy(k)` †: the player zooms the camera by a factor (1.1: 10% closer, .9: farther), as the wheel, - and = and a pinch do (a zoom button of the game's own can): within the scene's camera.zoom range, kept as their setting (settings.zoom, on top of the game's zoom), and noted at the top of the screen ('ZOOM 1.65x': the number a scene's camera.start takes). Does nothing where the scene doesn't let the player zoom. Returns the zoom
 - `game.zoomRange()` †: the zooms the player may take the camera to here, [min, max] (the scene's camera.zoom, or the game's; a function of the game gives one per screen shape or level), or null where they can't (camera.zoom false or none)
@@ -445,16 +479,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.baseView` †: the chosen view without zoom and turn
 - `game.bootError = null`: the error a boot step failed with (the game did not start), or null
 - `game.booted`: a promise of the game once its boot (start's boot option, section 10c) has run and it has started: await it in a test whose boot steps return promises
-- `game.cam`: camera
-- `game.cam.x`, `game.cam.y`: the camera's position in projected pixels (its top-left corner)
-- `game.cam.vx`, `game.cam.vy`: how fast it is moving there
-- `game.cam.tx`, `game.cam.ty`, `game.cam.tz`: the world point it is following (focus sets it)
-- `game.cam.smooth`: seconds of lag
-- `game.cam.bounds`: clamp rect
-- `game.cam.snap`: true makes it jump there at the next step instead of gliding (a new level, a teleport)
-- `game.cam.room`: [w, h] world units for screen-by-screen rooms
-- `game.cam.moving`: sliding between rooms
-- `game.cam.offset`: [dx, dy] screen pixels from the screen's centre to where the focus sits (above a phone's touch buttons: [0, -40])
+- `game.cam`: camera. smooth = seconds of lag; bounds(view) = clamp rect; room = [w, h] world units for screen-by-screen rooms; moving = sliding between rooms; offset = [dx, dy] screen pixels from the screen's centre to where the focus sits (above a phone's touch buttons: [0, -40]); x, y: the camera's position in projected pixels (its top-left corner); vx, vy: how fast it is moving there; tx, ty, tz: the world point it is following (focus sets it); snap: true makes it jump there at the next step instead of gliding (a new level, a teleport); window: [w, h] screen pixels, a dead zone round the focus it moves in before the camera follows (Super Mario World's; [48, 0] for sideways only); snapY: true follows a followed body's height only when it lands (onGround) or nears the screen's edge (side-scrollers); frame(targets, { margin: 24, zoom: [min, max] or false }) keeps every one of them (anything with x, y, z) in view, centered between them and zoomed out (no further than min) when they spread apart, until frame(null)
 - `game.debug = null`: a game's own handle for tools and tests: game.debug = { snapshot() { return {...} }, teleport(x, y, z) {...} }. tools/check.mjs prints snapshot() and tools/replay.mjs logs it at the end
 - `game.disposed = true`: true after dispose()
 - `game.drawEvery = 1`: 1, or 2 while a fast display (a 120 Hz phone) refreshes quicker than the game can draw (a frame's cost, or refreshes missed: its GPU behind): every other refresh is drawn, evenly, instead of random ones missed (the updates still run every refresh). The player's Frame rate setting (game.settings.frameRate: 'auto', '60', 'full') can fix it at 2 or 1
@@ -518,6 +543,37 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `E.bootSplash(title = '')`: the boot screen's markup, for the very start of a page's <body>: it shows from the first paint, its bar moving while the page's scripts load (a pure CSS animation), and says so if the game's script never runs. The engine takes it over
 - `E.diagnose(game = E.current)`: the report a bug needs, at any time (and on the boot screen when a game can't start): { engine, game, time, page, browser, device, screen, canvas, gpu, sound, storage, input, scene, errors, text (all of it, one line each, for a screenshot or a bug report), short (one line) }. game: the game to report on (E.current)
+
+## 10d. Tweens and scripts
+
+- `new E.Script(game, fn, o = {}) → script` †: a script, made by game.script: done (it returned, or was cancelled), value (what it returned), cancel(); another script can yield it
+- `script.cancel()` †: stop it, and the scripts it is waiting on (its finally blocks run)
+- `script.done = false` †: it returned, or was cancelled
+- `script.keep` †: it outlives the scene
+- `script.value` †: what it returned
+- `new E.Tween(game, target, to, seconds, o = {}) → tween` †: a tween, made by game.tween: done (it ended, or was cancelled), cancel(); a script can yield it
+- `tween.cancel()` †: stop it where it is (no onDone)
+- `tween.done = false` †: it ended, or was cancelled
+- `tween.keep` †: it outlives the scene
+- `tween.target` †: what it moves
+- `tween.to` †: the values it moves them to
+- `E.all(list)` †: a script's wait for every one of its waits (seconds, conditions, tweens, scripts): yield E.all([a, b])
+- `E.any(list)` †: a script's wait for the first of its waits to be over: yield E.any([boss.script, 30])
+- `E.until(fn)` †: a script's wait until fn() is true: yield E.until(() => door.open)
+
+## 10e. Paths
+
+- `new E.Path(points, o = {}) → path` †: new E.Path(points, { closed: false, smooth: null }): points [x, y, z] (z optional) or { x, y, z } (a side view's height is z); closed runs back to the first; smooth: 'catmull' curves through every point (Catmull-Rom); at(d), nearest(x, y, z), draw(r) below
+- `path.at(d)` †: the point d along it: { x, y, z, angle (its heading on the ground, radians: 0 east), d } (closed: d wraps round; open: held at the ends)
+- `path.draw(r, color = '#ffe070')` †: draw it over the scene to see it (debugging): a line, and a dot at each of its points
+- `path.nearest(x, y, z)` †: the distance along it of its point nearest (x, y) on the ground (and z, when given): a racer's progress round a track, a rail's grab point
+- `path.closed` †: it runs back to the first
+- `path.length` †: world units from end to end (round, when closed)
+- `path.points` †: the points it was made from, [x, y, z] each
+
+## 10g. Weather
+
+- `E.WEATHER: rain, snow, ash, leaves, sand` †: the kinds of weather: n drops at amount 1, fall speed (world units a second), colors, streak (seconds of motion a drop's line shows), sway, rest (seconds it lies where it lands), splash, wind (how hard the wind pushes it), size, big (the share a pixel bigger). Add your own: E.WEATHER.embers = { ... }
 
 ## 11. Humanoid rig
 

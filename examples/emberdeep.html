@@ -33,14 +33,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.61.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><b style="color:#f4f0ff;font-size:16px;letter-spacing:.08em">EMBERDEEP</b><span>Starting · my-3D2dge v0.62.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="Emberdeep: a hack-and-slash that descends forever"></canvas>
 </div>
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.61.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.62.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -119,7 +119,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.61.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.62.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -136,14 +136,23 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
 /** a moved toward b by at most s, never past it: approach(speed, top, accel * dt) */
 const approach = (a, b, s) => a < b ? Math.min(b, a + s) : Math.max(b, a - s);
-/** easing curves for u 0..1 */
+/** easing curves for u 0..1: linear, outQuad, inQuad, inOut (inOutQuad), outCubic, outBack (it overshoots a little more
+ *  than Penner's: 1.9), and the rest of Penner's set (sine, quad, cubic, back, elastic and bounce, each in, out and
+ *  inOut: inSine, outSine, inOutSine, ...), the names every tween library uses (section 1b) */
 const ease = {
+  linear: u => u,   // even speed
   outCubic: u => 1 - Math.pow(1 - u, 3),   // fast start, smooth stop
   outQuad: u => 1 - (1 - u) * (1 - u),   // fast start, smooth stop (gentler than outCubic)
   inQuad: u => u * u,   // slow start, fast end
   inOut: u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2,   // slow start and end
   outBack: u => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); }   // overshoots past 1, then settles: pop-ups, landings
 };
+/** v wrapped into lo..hi (hi left out): wrap(-1, 0, 10) is 9, wrap(330, 0, 320) is 10. A world whose edges meet
+ *  (Asteroids, a looping stage): x = E.wrap(x, 0, W) */
+const wrap = (v, lo, hi) => { const s = hi - lo; return s > 0 ? lo + ((v - lo) % s + s) % s : lo; };
+/** the shortest signed difference from a to b on a span of size that wraps round: wrapDiff(9, 1, 10) is 2 (across the
+ *  seam, not -8). Aim and chase across the edge */
+const wrapDiff = (a, b, size) => wrap(b - a + size / 2, 0, size) - size / 2;
 /** the shortest signed turn from angle a to angle b, -π..π (radians) */
 const angDiff = (a, b) => ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 /** an angle t of the way from a to b by the shorter way round */
@@ -319,8 +328,37 @@ const store = {
   set(key, value) { try { localStorage.setItem('my3d2dge:' + key, JSON.stringify(value)); return true; } catch (e) { return false; } },   // save value (any JSON) under key; false when storage is blocked
   remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }   // forget key
 };
-Object.assign(E, { clamp, lerp, approach, ease, angDiff, lerpAng, approachAng, rng, hash2, noise2, bayer, smoothDamp, hex, toHex, shade, mix, mkCanvas, ctx2d, V3, ik3,
+Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng, approachAng, rng, hash2, noise2, bayer, smoothDamp, hex, toHex, shade, mix, mkCanvas, ctx2d, V3, ik3,
   rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
+
+/* the ways in for the core's sections a kit may leave out (the kit diet: sprite turns, tweens, scripts, transitions,
+   weather, input sequences, the camera's window): each puts its functions here as it loads, so a kit without it has
+   nothing to call. input(game, dt) after the input's step, step(game, dt) after the timers (game time: paused, frozen
+   and slowed with the game), enter(game, old) as a scene starts (before its enter), draw(game, r, g) over the lit
+   world, under the overlays; rot(spr, a, steps): a sprite turned (section 2b); FADES: the transitions by name (game.go's
+   fade) */
+const HOOKS = { input: [], step: [], enter: [], draw: [], rot: null }, FADES = {};
+
+/* =============================================================================
+ * 1b. EASINGS  the rest of Penner's set, beside the core's (E.ease): in a section of its own, so a kit whose game eases
+ *    with none of them leaves it out
+ * ============================================================================= */
+Object.assign(ease, {
+  inSine: u => 1 - Math.cos(u * Math.PI / 2),   // slow start (the gentlest)
+  outSine: u => Math.sin(u * Math.PI / 2),   // smooth stop (the gentlest)
+  inOutSine: u => (1 - Math.cos(Math.PI * u)) / 2,   // slow start and end (the gentlest)
+  inOutQuad: ease.inOut,   // slow start and end: inOut's other name
+  inCubic: u => u * u * u,   // slower start than inQuad
+  inOutCubic: u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2,   // slow start and end, quicker between
+  inBack: u => 2.70158 * u * u * u - 1.70158 * u * u,   // pulls back before it goes
+  inOutBack: u => { const c = 2.5949095; return u < .5 ? (2 * u) ** 2 * ((c + 1) * 2 * u - c) / 2 : ((2 * u - 2) ** 2 * ((c + 1) * (u * 2 - 2) + c) + 2) / 2; },   // pulls back, then overshoots
+  outElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : Math.pow(2, -10 * u) * Math.sin((u * 10 - .75) * TAU / 3) + 1,   // springs past and wobbles to rest
+  inElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : -Math.pow(2, 10 * u - 10) * Math.sin((u * 10 - 10.75) * TAU / 3),   // wobbles, then springs away
+  inOutElastic: u => u <= 0 ? 0 : u >= 1 ? 1 : u < .5 ? -Math.pow(2, 20 * u - 10) * Math.sin((20 * u - 11.125) * TAU / 4.5) / 2 : Math.pow(2, -20 * u + 10) * Math.sin((20 * u - 11.125) * TAU / 4.5) / 2 + 1,   // wobbles at both ends
+  outBounce: u => { const n = 7.5625, d = 2.75; return u < 1 / d ? n * u * u : u < 2 / d ? n * (u -= 1.5 / d) * u + .75 : u < 2.5 / d ? n * (u -= 2.25 / d) * u + .9375 : n * (u -= 2.625 / d) * u + .984375; },   // drops and bounces to rest
+  inBounce: u => 1 - ease.outBounce(1 - u),   // bounces, then leaps away
+  inOutBounce: u => u < .5 ? (1 - ease.outBounce(1 - 2 * u)) / 2 : (1 + ease.outBounce(2 * u - 1)) / 2   // bounces at both ends
+});
 
 /* =============================================================================
  * 2. PIXEL PRIMITIVES  (all snap to whole pixels, never anti-aliased)
@@ -445,26 +483,83 @@ function sprite(rows, colors = {}, scale = 1) {
       x += n;
     }
   });
-  return { w, h, cv, fl, runs, isSprite: true };
+  return { w, h, cv, fl, runs, isSprite: true, _src: [rows, colors, s] };
 }
 E.sprite = sprite;
-/** draw a sprite with its top-left corner at buffer pixel (x, y). flip mirrors it left-right. */
+/** draw a sprite with its top-left corner at buffer pixel (x, y). flip mirrors it left-right; or o: { flip, rot (radians,
+ *  turned about its center: E.rotSprite), steps, scale (nearest-neighbour) } */
 px.sprite = (g, spr, x, y, flip = false) => {
+  if (flip && typeof flip === 'object') { const o = flip; flip = !!o.flip; const w = spr.w, h = spr.h; if (o.scale && o.scale !== 1) spr = scaleSprite(spr, o.scale); if (o.rot) spr = _turn(spr, o); x += Math.floor((w - spr.w) / 2); y += Math.floor((h - spr.h) / 2); }
   x = Math.round(x); y = Math.round(y);
   if (g._info) { px.col(g, '#000'); for (const [rx, ry, rw, rh] of spr.runs) g.fillRect(flip ? x + spr.w - rx - rw : x + rx, y + ry, rw, rh); return; }
   g.drawImage(flip ? spr.fl : spr.cv, x, y);
 };
 E.px = px;
+// a sprite turned by o.rot (section 2b, which a kit may leave out: then a warning, and the sprite as it is)
+const _turn = (spr, o) => HOOKS.rot ? HOOKS.rot(spr, o.rot, o.steps) : (warn('rot', 'sprite turns (rot) are left out of this kit (section 2b): the full engine has them'), spr);
 /** a nearest-neighbour scaled copy of a sprite (cached per factor), used by the camera zoom */
 function scaleSprite(spr, z) {
   const c = spr._zc || (spr._zc = {}); if (c[z]) return c[z];
   const w = Math.max(1, Math.round(spr.w * z)), h = Math.max(1, Math.round(spr.h * z)), cv = mkCanvas(w, h), fl = mkCanvas(w, h);
   ctx2d(cv).drawImage(spr.cv, 0, 0, w, h); ctx2d(fl).drawImage(spr.fl || spr.cv, 0, 0, w, h);
   const runs = spr.runs.map(([rx, ry, rw, rh]) => [Math.round(rx * z), Math.round(ry * z), Math.max(1, Math.round(rw * z)), Math.max(1, Math.round(rh * z))]);
-  return (c[z] = Object.assign({}, spr, { w, h, cv, fl, runs, _zc: null, mx: (spr.mx || 0) * z, my: (spr.my || 0) * z }, spr.foot ? { foot: [Math.round(spr.foot[0] * z), Math.round(spr.foot[1] * z)] } : null));
+  return (c[z] = Object.assign({}, spr, { w, h, cv, fl, runs, _zc: null, _rc: null, _src: spr._src && Number.isInteger(z) ? [spr._src[0], spr._src[1], spr._src[2] * z] : null, mx: (spr.mx || 0) * z, my: (spr.my || 0) * z }, spr.foot ? { foot: [Math.round(spr.foot[0] * z), Math.round(spr.foot[1] * z)] } : null));
 }
 /** GPU surface class for a vertical face normal: 5 +x, 6 -x, 7 +y, 8 -y */
 const faceClass = (nx, ny) => nx > 0 ? 5 : nx < 0 ? 6 : ny > 0 ? 7 : 8;
+
+/* =============================================================================
+ * 2b. SPRITE FRAMES, TURNS AND SWAPS  E.anim (frames to play), E.rotSprite (r.sprite's and px.sprite's rot: turned in
+ *    whole pixels, cached in 16 or 32 steps a turn as games of the era pre-rotated theirs), E.recolor (palette swaps)
+ * ============================================================================= */
+// a sprite's pixels, x, y -> '#rrggbb' or null: from its rows (any sprite E.sprite made, in Node too), else read back from
+// its image (a shape's or a prop's sprite, in a page)
+const _sprPx = spr => {
+  const S = spr._src;
+  if (S) return (x, y) => { const row = S[0][Math.floor(y / S[2])], ch = row && row[Math.floor(x / S[2])]; return ch && ch !== '.' && ch !== ' ' ? S[1][ch] || '#ff00ff' : null; };
+  const d = spr.cv.getContext('2d').getImageData(0, 0, spr.w, spr.h).data;
+  return (x, y) => { const k = (y * spr.w + x) * 4; return d[k + 3] > 127 ? toHex([d[k], d[k + 1], d[k + 2]]) : null; };
+};
+// a sprite of w x h pixels from at(x, y) -> a color or null, by way of rows (so its pixels can be read back anywhere)
+const _sprOf = (w, h, at, keep) => {
+  const chars = new Map(), colors = {}, rows = [];
+  for (let y = 0; y < h; y++) { let row = ''; for (let x = 0; x < w; x++) { const c = at(x, y); if (!c) { row += '.'; continue; } let ch = chars.get(c); if (!ch) { ch = String.fromCharCode(0x4e00 + chars.size); chars.set(c, ch); colors[ch] = c; } row += ch; } rows.push(row.padEnd(w, '.')); }
+  return Object.assign(sprite(rows.length ? rows : ['.'], colors), keep || null);
+};
+const _kept = spr => { const o = {}; for (const k of ['foot', 'ox', 'oy', 'mx', 'my']) if (spr[k] !== undefined) o[k] = spr[k]; return o; };
+/** the sprite turned by angle a (radians; the way the world's angles turn, so a ship drawn facing east turns to its
+ *  facing): nearest-neighbour, whole pixels, about its center, in `steps` steps a turn (16; 32 for a smoother one) and
+ *  cached, as games of the era pre-rotated theirs. r.sprite's and px.sprite's rot option use it */
+function rotSprite(spr, a, steps = 16) {
+  const k = ((Math.round(a / TAU * steps) % steps) + steps) % steps; if (!k) return spr;
+  const c = spr._rc || (spr._rc = {}), key = steps + ':' + k; if (c[key]) return c[key];
+  const t = k / steps * TAU, cs = Math.cos(t), sn = Math.sin(t), w = spr.w, h = spr.h, at = _sprPx(spr);
+  const W = Math.ceil(Math.abs(w * cs) + Math.abs(h * sn) - 1e-6), H = Math.ceil(Math.abs(w * sn) + Math.abs(h * cs) - 1e-6);
+  return (c[key] = _sprOf(W, H, (x, y) => {
+    const dx = x + .5 - W / 2, dy = y + .5 - H / 2, sx = Math.floor(dx * cs + dy * sn + w / 2 + 1e-6), sy = Math.floor(-dx * sn + dy * cs + h / 2 + 1e-6);
+    return sx >= 0 && sy >= 0 && sx < w && sy < h ? at(sx, sy) : null;
+  }));
+}
+/** a copy of a sprite with its colors swapped (palette swaps: the second player, a hurt flash, a stronger enemy):
+ *  recolor(spr, { '#3a8a4a': '#8a3a4a', h: '#e0b040' }), each key a color or one of the sprite's own characters */
+function recolor(spr, map) {
+  const at = _sprPx(spr), m = {}, S = spr._src;
+  for (const k in map) m[k[0] === '#' ? toHex(hex(k)) : S && S[1][k] ? toHex(hex(S[1][k])) : k] = map[k];
+  return _sprOf(spr.w, spr.h, (x, y) => { const c = at(x, y); return c && (m[toHex(hex(c))] || c); }, _kept(spr));
+}
+/**
+ * frames to play: anim([spr1, spr2, spr3], fps = 8, { loop: true, pingpong: false }), or anim(sheet, 8, { frames: 4 })
+ * for several frames side by side in one sprite's rows. Draw it with r.sprite(x, y, z, a, { t }) (t: its clock, seconds;
+ * the game's time by default); a.frame(t) is the sprite at time t, a.index(t) its number, a.duration one play (seconds)
+ */
+function anim(frames, fps = 8, o = {}) {
+  if (frames && frames.isSprite) { const n = Math.max(1, o.frames | 0), w = Math.floor(frames.w / n), at = _sprPx(frames); frames = Array.from({ length: n }, (_, i) => _sprOf(w, frames.h, (x, y) => at(i * w + x, y))); }
+  const n = frames.length, loop = o.loop !== false, pp = !!o.pingpong && n > 1, period = pp ? 2 * n - 2 : n;
+  const index = t => { let k = Math.floor(Math.max(0, t) * fps + 1e-6); if (!loop) k = Math.min(k, period - (pp ? 0 : 1)); k %= period; return pp && k >= n ? period - k : k; };
+  return { frames, fps, loop, pingpong: pp, isAnim: true, duration: period / fps, index, frame: t => frames[index(t)] };
+}
+HOOKS.rot = rotSprite;
+Object.assign(E, { rotSprite, recolor, anim });
 
 /* =============================================================================
  * 3. VIEWS (projections)
@@ -575,8 +670,9 @@ class Screen {
     /** scale: how a fixed resolution fills the screen: 'sharp' (whole-number scale, every pixel the same size, black
      *  bars unless o.expand grows the picture into them), 'fill' (the largest fit, pixels a device pixel apart in size)
      *  or 'auto' (fill on high-density screens, phones and tablets, where that difference can't be seen; sharp
-     *  elsewhere). game.settings.scale sets it */
-    this.scale = 'auto';
+     *  elsewhere). game.settings.scale sets it; filter: 'clean' | 'scanlines' | 'crt', drawn over the picture as it is
+     *  presented, never on the buffer, and not under a test harness (navigator.webdriver). game.settings.filter sets it */
+    this.scale = 'auto'; this.filter = 'clean';
     this.resize();
     if (canvas) addEventListener('resize', () => this.resize(), { signal });
   }
@@ -637,7 +733,23 @@ class Screen {
     else { s.fillStyle = '#000'; s.fillRect(0, 0, this.canvas.width, this.canvas.height); }
     s.save(); s.beginPath(); s.rect(this.OX, this.OY, this.W * S, this.H * S); s.clip();
     s.drawImage(this.buf, 0, 0, this.W + 1, this.H + 1, this.OX - Math.round(this.fx * S), this.OY - Math.round(this.fy * S), (this.W + 1) * S, (this.H + 1) * S);
+    if (this.filter !== 'clean' && S >= 2 && !(typeof navigator !== 'undefined' && navigator.webdriver)) this._filter(s, S);
     s.restore();
+  }
+  // the screen filter over the canvas: a dark line under each of the game's rows (a third of it), and for 'crt' each
+  // column's red, green and blue stripes and the corners' falloff, from images made once per size
+  _filter(s, S) {
+    const crt = this.filter === 'crt', w = this.W * S, h = this.H * S, key = S + ':' + w + ':' + h + ':' + crt;
+    if (this._fk !== key) {
+      this._fk = key; const c = this._fc || (this._fc = mkCanvas(1, 1)); c.width = Math.ceil(w); c.height = Math.ceil(h); const g = c.getContext('2d');
+      g.clearRect(0, 0, c.width, c.height); g.fillStyle = crt ? 'rgba(0,0,0,.38)' : 'rgba(0,0,0,.3)'; const lh = Math.max(1, Math.round(S / 3));
+      for (let i = 0; i < this.H + 1; i++) g.fillRect(0, Math.round((i + 1) * S) - lh, c.width, lh);
+      if (crt) {
+        if (S >= 3) for (let x = 0; x < c.width; x++) { g.fillStyle = ['rgba(255,40,40,.06)', 'rgba(40,255,40,.05)', 'rgba(60,60,255,.07)'][x % 3]; g.fillRect(x, 0, 1, c.height); }
+        const v = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .35, w / 2, h / 2, Math.hypot(w, h) / 2); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = v; g.fillRect(0, 0, c.width, c.height);
+      }
+    }
+    s.drawImage(this._fc, this.OX, this.OY - Math.round(this.fy * S));
   }
   /** browser client coords -> projected screen pixels (same space as view.p) */
   clientToScreen(cx, cy) {
@@ -941,6 +1053,10 @@ class Input {
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
   }
+  /** the last second of input, oldest first: [{ t (input.clock), dir (numpad 1-9 for a fighter facing right: 5 neutral),
+   *  pressed: the actions pressed then, directions aside }], one entry each time the direction changes or a button is
+   *  pressed: an input display draws it; sequence() and motion() read it (section 10h: a kit without it has none) */
+  get history() { return this._hist || []; }
   /** any action pressed this step (title screens: "press any button") */
   anyPressed() { return this._now.size > 0; }
   /** movement intent in screen directions: x right, y down, length <= 1 */
@@ -1675,11 +1791,17 @@ class Renderer {
   /**
    * Queue a pixel sprite (from E.sprite) standing at world point (x, y, z). Depth sorted like an actor.
    * opts: { flip, anchor: 'bottom' (feet on the point, default; E.shapeSprite's: its own feet) | 'center' | 'top', glow: 0..1,
-   *         bias, flash, outline, alpha, xray, ghost }  (the last five use the actor path)
+   *         bias, flash, outline, alpha, xray, ghost (the last five use the actor path), t (an E.anim's clock: spr may be
+   *         one), rot (radians, about its center: anchor 'center' unless given), steps (16), scale, wrap: [w, h] (a world
+   *         that wraps round: a copy across each edge it crosses; w alone wraps x) }
    */
   sprite(x, y, z, spr, o = {}) {
+    if (o.wrap) { const [ww, wh] = Array.isArray(o.wrap) ? o.wrap : [o.wrap, 0], q = Object.assign({}, o, { wrap: null }); for (const i of [-1, 0, 1]) for (const j of wh ? [-1, 0, 1] : [0]) this.sprite(x + i * ww, y + j * wh, z, spr, q); return; }
+    if (spr && spr.isAnim) spr = spr.frame(o.t === undefined ? this.game.time : o.t);
     if (!spr || !spr.isSprite) { warn('r.sprite', 'r.sprite(x, y, z, spr) needs a sprite made with E.sprite(rows, colors)'); return; }
-    if (this.view.zoom && this.view.zoom !== 1) spr = scaleSprite(spr, this.view.zoom);   // camera zoom: whole-pixel nearest-neighbour copy
+    const zs = (this.view.zoom || 1) * (o.scale || 1);
+    if (zs !== 1) spr = scaleSprite(spr, zs);   // camera zoom (and scale): whole-pixel nearest-neighbour copy
+    if (o.rot) { spr = _turn(spr, o); if (o.anchor === undefined) o = Object.assign({}, o, { anchor: 'center' }); }
     const flip = !!o.flip, gl = o.glow || 0, ft = o.anchor === undefined && spr.foot;   // (a shape's sprite stands on its feet)
     const ax = ft ? (flip ? spr.w - ft[0] : ft[0]) : Math.floor(spr.w / 2), ay = ft ? ft[1] : o.anchor === 'center' ? Math.floor(spr.h / 2) : o.anchor === 'top' ? 0 : spr.h;
     if (o.flash || o.outline || o.xray || o.ghost || (o.alpha !== undefined && o.alpha < 1)) {
@@ -1754,10 +1876,10 @@ class Renderer {
   text(str, x, y, color = '#ffffff', o) { this.overlay(g => E.font.text(g, str, x, y, color, o)); }
   /** text floating at a world point (names, prompts): r.textAt(x, y, z, 'OPEN', '#ffe08a') */
   textAt(x, y, z, str, color = '#ffffff', o = {}) { this.overlay(g => { const [sx, sy] = this.w(x, y, z); E.font.text(g, str, sx, sy, color, Object.assign({ align: 'center' }, o)); }); }
-  /** 4x4 dithered black pattern covering `level` (0..1) of the pixels, for fades */
-  _fadePattern(level) {
+  /** 4x4 dithered pattern (black, or color) covering `level` (0..1) of the pixels, for fades */
+  _fadePattern(level, color = '#000') {
     const q = Math.round(clamp(level, 0, 1) * 16);
-    return this._stamp('fade' + q, () => { const c = mkCanvas(4, 4), g = c.getContext('2d'); g.fillStyle = '#000'; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if (bayer(x, y) < q / 16) g.fillRect(x, y, 1, 1); return c; });
+    return this._stamp('fade' + q + color, () => { const c = mkCanvas(4, 4), g = c.getContext('2d'); g.fillStyle = color; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if (bayer(x, y) < q / 16) g.fillRect(x, y, 1, 1); return c; });
   }
   /** glow halo from a cache: additive light rings (alpha style) or a dithered disc (dither style). a = 0..1 strength */
   glowDisc(g, cx, cy, rad, color, a) {
@@ -1827,8 +1949,10 @@ class Renderer {
    *     before drawFn runs again, at the place it is now (a background character animating at a lower rate, as classic
    *     games' townsfolk do: a phone's frame keeps the time for the ones that matter); not while it flashes, with a
    *     ghost, x-ray or GPU lighting
+   * - wrap: [w, h], as r.sprite's: a world that wraps round shows the actor across each edge it crosses
    */
   actor(x, y, z, drawFn, o = {}) {
+    if (o.wrap) { const [ww, wh] = Array.isArray(o.wrap) ? o.wrap : [o.wrap, 0], q = Object.assign({}, o, { wrap: null }); for (const i of [-1, 0, 1]) for (const j of wh ? [-1, 0, 1] : [0]) this.actor(x + i * ww, y + j * wh, z, drawFn, q); return; }
     const st = this.game.stats;
     if (!this.visible(x, y, z, o.margin || 60)) { st.culled++; return; }
     st.actors++;
@@ -2030,7 +2154,7 @@ class Renderer {
     this._flush();
     if (gpu) {
       if (game._zoomTo) this._zoomPreview(game._zoomTo / game.zoom);   // (the lights stay where they were until it is drawn at the new size)
-      this._tg = this._vG; for (const f of this._overlays) f(this._vG); this._tg = null;
+      this._tg = this._vG; for (const f of HOOKS.draw) f(game, this, this._vG); for (const f of this._overlays) f(this._vG); this._tg = null;
       try { game.gpu._render(this); } catch (e) { game.gpu._fail(e); game.screen._present(); }
     } else {
       if (game.lights.on) {
@@ -2043,6 +2167,7 @@ class Renderer {
         }
       }
       if (game._zoomTo) this._zoomPreview(game._zoomTo / game.zoom);
+      for (const f of HOOKS.draw) f(game, this, g);
       for (const f of this._overlays) f(g);
       game.screen._present();
     }
@@ -2139,8 +2264,14 @@ class Game {
      *  rooms; moving = sliding between rooms; offset = [dx, dy] screen pixels from the screen's centre to where the
      *  focus sits (above a phone's touch buttons: [0, -40]); x, y: the camera's position in projected pixels (its
      *  top-left corner); vx, vy: how fast it is moving there; tx, ty, tz: the world point it is following (focus
-     *  sets it); snap: true makes it jump there at the next step instead of gliding (a new level, a teleport) */
-    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null };
+     *  sets it); snap: true makes it jump there at the next step instead of gliding (a new level, a teleport);
+     *  window: [w, h] screen pixels, a dead zone round the focus it moves in before the camera follows (Super Mario
+     *  World's; [48, 0] for sideways only); snapY: true follows a followed body's height only when it lands (onGround)
+     *  or nears the screen's edge (side-scrollers); frame(targets, { margin: 24, zoom: [min, max] or false }) keeps
+     *  every one of them (anything with x, y, z) in view, centered between them and zoomed out (no further than min)
+     *  when they spread apart, until frame(null) */
+    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null, window: null, snapY: false,
+      frame: (list, o = {}) => { this._framed = list && list.length ? { list, margin: o.margin === undefined ? 24 : o.margin, zoom: o.zoom === undefined ? [.5, 1] : o.zoom } : null; this.cam.snap = true; } };
     /** particles: dust, sparks, debris and text in the world; lights: canvas lighting (lights.enabled, lights.add in
      *  draw); r: the renderer handed to draw(r) (null when headless) */
     this.particles = new Particles(this); this.lights = new Lighting(this); this.r = this.headless ? null : new Renderer(this);
@@ -2434,6 +2565,7 @@ class Game {
     }
     const [sx, sy] = this.view.p(fx, fy, fz), off = c.offset;
     let tx = sx - this.screen.W / 2 - (off ? off[0] : 0), ty = sy - this.screen.H / 2 - (off ? off[1] : 0);
+    if (this._framed || c.window || c.snapY) { const a = this._camAim(tx, ty); if (a) [tx, ty] = a; }   // (section 10i)
     const b = c.bounds && c.bounds(this.view);
     if (b) {
       const W = this.screen.W, H = this.screen.H, bottom = (c.align || (this.view.pitchDeg < 40 ? 'bottom' : 'center')) === 'bottom';
@@ -2609,12 +2741,21 @@ class Game {
     this.alpha = this._acc / step;
     return n;
   }
-  /** switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 */
+  /**
+   * switch scene: game.go('play', { level: 2 }). It fades through black (dithered) unless opts.fade is 0 (a cut) or another
+   * number of seconds; opts.fade can name a transition instead: 'black', 'white', 'wipe', 'iris', 'mosaic', 'swirl' or
+   * 'dissolve', each way taking opts.seconds (.4), round opts.at (iris and swirl: a world point { x, y, z }, which each
+   * scene's camera places, or [x, y] on the screen; its centre by default). With reduce motion each is a plain fade
+   */
   go(name, data, o = {}) {
     if (!this.scenes) { warn('go:noscenes', 'game.go() needs game.start({ scenes: {...}, scene }) first'); return; }
     if (!this.scenes[name]) { warn('go:' + name, 'game.go("' + name + '"): no such scene. Scenes: ' + Object.keys(this.scenes).join(', ')); return; }
-    const fade = o.fade === undefined ? this.fadeTime : o.fade;
-    if (fade > 0 && this.scene) this._fade = { t: 0, dur: fade, name, data, out: true };
+    let fade = o.fade === undefined ? this.fadeTime : o.fade, kind = null;
+    if (typeof fade === 'string') {
+      kind = fade; fade = o.seconds === undefined ? .4 : +o.seconds || 0;
+      if (kind !== 'black' && kind !== 'white' && !FADES[kind]) warn('fade:' + kind, 'game.go: no transition "' + kind + '" here (black, white, wipe, iris, mosaic, swirl, dissolve; a kit may leave them out: the full engine has them): a fade through black');
+    }
+    if (fade > 0 && this.scene) this._fade = { t: 0, dur: fade, name, data, out: true, kind, at: o.at };
     else { this._fade = null; this._next = { name, data }; }
   }
   _fadeStep(dt) {
@@ -2630,7 +2771,7 @@ class Game {
     if (old && old.exit) old.exit();
     if (old && old._propWas !== undefined) { E.style.propSize = old._propWas; old._propWas = undefined; }
     this.scene = s; this.sceneName = name; this.paused = false; this._timers.length = 0; this.hitstop = 0;
-    this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = null;
+    this.particles.list.length = 0; this.cam.snap = true; this.audio._duck(false); this._follow = this._framed = null;
     if (s.view) this.setView(s.view);
     if (s.views) this.views = s.views;
     if (s.input) this.input.use(s.input);
@@ -2639,6 +2780,7 @@ class Game {
     if (s.propSize !== undefined) { s._propWas = E.style.propSize; E.style.propSize = s.propSize; }   // scene option: prop scale while this scene runs
     this._zoomFit(true);   // its camera: its zoom to start at, and whether the player's applies
     if (s.pausable || name === 'main') this._fsAuto = this._autoFull();   // a game starting from a tap goes full screen again
+    for (const f of HOOKS.enter) f(this, old);
     if (s.enter) s.enter(data);
   }
   /** report an error in game code without stopping the game: logged once per place and message, kept in game.errors
@@ -2654,7 +2796,7 @@ class Game {
   }
   _step(dt) {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
-    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt);
+    this.real += dt; this._shakeAmt *= Math.exp(-dt * 9); this.input.tick(dt); for (const f of HOOKS.input) f(this, dt);
     if (this.input.padLost) { this._autoPause('controller'); if (this.shell) this.shell.toast('Controller disconnected', 'Press a button on a controller to use it, or play on.'); else this.note('CONTROLLER DISCONNECTED', 2.5); }
     if (this.shell) this.shell._step();   // its screens move the focus with this step's input, and hold it back from the game
     if (this._flash) this._flash.t += dt / Math.max(.05, this.timeScale);   // real time: slow motion does not stretch a flash
@@ -2676,6 +2818,7 @@ class Game {
       for (let i = 0; i < T.length; i++) { const t = T[i]; if (t.dead || this.time < t.at) continue; if (t.every) t.at += t.every; else t.dead = true; t.fn(); }
       prune(T, t => t.dead);
     }
+    for (const f of HOOKS.step) f(this, dt);
     if (s && s.update) s.update(dt);
     const f = this._follow;
     if (f && f.target) {
@@ -2704,8 +2847,9 @@ class Game {
     });
     const fx = this._flash;
     if (fx) { const a = (1 - fx.t / fx.dur) * (fx.k === undefined ? 1 : fx.k); if (a <= 0) this._flash = null; else this.r.overlay(g => { const r = this.r; g.save(); if (E.style.trans === 'dither') { const pat = r._fadePattern(a * .85), c = mkCanvas(4, 4), cg = c.getContext('2d'); cg.drawImage(pat, 0, 0); cg.globalCompositeOperation = 'source-in'; cg.fillStyle = fx.color; cg.fillRect(0, 0, 4, 4); g.fillStyle = g.createPattern(c, 'repeat'); } else { g.fillStyle = fx.color; g.globalAlpha = qa(a * .75); g.globalCompositeOperation = 'lighter'; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; }); }
-    const fl = this._fadeLevel();
-    if (fl > 0) this.r.overlay(g => { const r = this.r; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r._fadePattern(fl), 'repeat'); else { g.fillStyle = '#000000'; g.globalAlpha = Math.round(fl * 16) / 16; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; });
+    const fl = this._fadeLevel(), F = this._fade, T = fl > 0 && F.kind && !this.reduceMotion && !this.r.gpu && FADES[F.kind];
+    if (T) this.r.overlay(g => { T(g, fl, this.r, F); g._c = null; });
+    else if (fl > 0) this.r.overlay(g => { const r = this.r, c = F.kind === 'white' ? '#ffffff' : '#000000'; g.save(); if (E.style.trans === 'dither') g.fillStyle = g.createPattern(r._fadePattern(fl, c), 'repeat'); else { g.fillStyle = c; g.globalAlpha = Math.round(fl * 16) / 16; } g.fillRect(0, 0, r.bw, r.bh); g.restore(); g._c = null; });
     this.r._finish();
     if (!BOOT.played && !this._booting && (this._drawn = (this._drawn || 0) + 1) >= 2) BOOT._finish();   // play has begun (two frames drawn under the boot screen: the caches are warm)
   }
@@ -2740,6 +2884,7 @@ const STANDARD_SETTINGS = {
   frameRate: { group: 'Display', label: 'Frame rate', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['60', '60'], ['full', 'Full']], help: 'Auto: every refresh while the game keeps up, every other one, evenly, when it can\'t. 60: every other refresh on a 120 Hz screen. Full: every refresh' },
   showFps: { group: 'Display', label: 'Show frame rate', type: 'toggle', value: false, help: 'At the top of the screen: frames drawn a second, the screen\'s refresh and a frame\'s cost' },
   scale: { group: 'Display', label: 'Pixel scaling', type: 'select', value: 'auto', options: [['auto', 'Auto'], ['sharp', 'Sharp'], ['fill', 'Fill']], help: 'Sharp: every pixel the same size. Fill: the whole screen', apply: (g, v) => g.screen.setScale(v) },
+  filter: { group: 'Display', label: 'Screen filter', type: 'select', value: 'clean', options: [['clean', 'Clean'], ['scanlines', 'Scanlines'], ['crt', 'CRT']], help: 'Scanlines: the dark lines between a TV\'s rows. CRT: those, its colored stripes and its darker corners', apply: (g, v) => { g.screen.filter = v; } },
   sound: { group: 'Sound', label: 'Sound', type: 'toggle', value: true, apply: (g, v) => g.audio.mute(!v) },
   volume: { group: 'Sound', label: 'Volume', type: 'slider', value: .7, apply: (g, v) => g.audio.setVolume(v) },
   music: { group: 'Sound', label: 'Music', type: 'slider', value: .5, apply: (g, v) => { g.audio.musicVolume = v; g.audio.applyVolume(); } },
@@ -3044,6 +3189,366 @@ Object.assign(BOOT, {
 const hashStr = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h; };
 // a page whose splash is there when the engine runs: take it over at once (its title, the engine's version)
 if (typeof document !== 'undefined' && document.getElementById && document.getElementById('e3-boot')) BOOT._open(null, null);
+
+/* =============================================================================
+ * 10d. TWEENS AND SCRIPTS  motion and timing on game time (what Phaser calls tweens and timelines, Unity coroutines):
+ *    game.tween(target, { x: 10 }, seconds, o) eases a target's numbers to new values; game.script(function* () { ... })
+ *    runs a coroutine in the update step that waits at each yield (seconds, a condition, a tween, other scripts). Both
+ *    pause with the game, stand still in hit-stop, slow with timeScale and end with the scene unless kept (o.keep): the
+ *    same at every refresh rate, as the steps are.
+ * ============================================================================= */
+const _jobs = g => g._jobs || (g._jobs = []);
+// each step: every tween and script made before it, then any script whose wait ended in it (a tween or a script it waits
+// on finished after it in the list) goes on in the same step
+HOOKS.step.push((g, dt) => {
+  const J = g._jobs; g._jobN = (g._jobN || 0) + 1; if (!J || !J.length) return;
+  const n = J.length; for (let i = 0; i < n; i++) if (!J[i].done) J[i]._step(dt);
+  for (let k = 0, more = true; more && k < 8; k++) { more = false; for (const j of J) if (!j.done && j._w && j._w(0)) { j._go(); more = true; } }
+  prune(J, j => j.done);
+});
+HOOKS.enter.push(g => { const J = g._jobs; if (J) for (const j of J.slice()) if (!j.keep) j.cancel(); });
+class Tween {
+  /** a tween, made by game.tween: done (it ended, or was cancelled), cancel(); a script can yield it */
+  constructor(game, target, to, seconds, o = {}) {
+    /** target: what it moves; to: the values it moves them to; keep: it outlives the scene; done: it ended, or was
+     *  cancelled */
+    this.target = target; this.to = to; this.keep = !!o.keep; this.done = false;
+    this._g = game; this._dur = Math.max(0, +seconds || 0); this._t = -(+o.delay || 0); this._from = null; this._k = 0; this._yoyo = !!o.yoyo; this._onDone = o.onDone || null;
+    this._left = o.repeat === undefined ? 0 : o.repeat < 0 ? Infinity : o.repeat;
+    const e = o.ease === undefined ? 'outQuad' : o.ease;
+    this._ease = typeof e === 'function' ? e : ease[e] || (warn('ease:' + e, 'unknown ease "' + e + '": E.ease has ' + Object.keys(ease).join(', ')), ease.outQuad);
+  }
+  _step(dt) {
+    if ((this._t += dt) < 0) return;
+    const D = this._dur, T = this.target;
+    if (!this._from) { this._from = {}; for (const k in this.to) this._from[k] = +T[k] || 0; }
+    const end = this._t >= D - 1e-9;   // (the steps' rounding: 30 of 1/120 s are a quarter second)
+    if (end && this._left > 0) { this._left--; this._k++; this._t = D > 0 ? Math.max(0, this._t - D) : 0; }
+    else if (end) {   // the end: exactly its values (or where it started, a yoyo's odd play)
+      const back = this._yoyo && this._k % 2; for (const k in this.to) T[k] = back ? this._from[k] : this.to[k];
+      this.done = true; if (this._onDone) try { this._onDone(T); } catch (e) { this._g.fail('tween onDone', e); }
+      return;
+    }
+    const u = D > 0 ? Math.min(1, this._t / D) : 1, v = this._ease(this._yoyo && this._k % 2 ? 1 - u : u);
+    for (const k in this.to) T[k] = this._from[k] + (this.to[k] - this._from[k]) * v;
+  }
+  /** stop it where it is (no onDone) */
+  cancel() { this.done = true; }
+}
+/**
+ * ease target's numbers to new values over seconds of game time: game.tween(door, { y: 40 }, .5, { ease: 'outBack',
+ * delay, repeat (more plays; -1 forever), yoyo (every other play runs back), onDone(target), keep (outlive the scene) }).
+ * ease: a name in E.ease ('outQuad' by default) or a function of u 0..1. It starts from the values the target has once
+ * its delay is over. Returns the Tween: tween.done, tween.cancel()
+ */
+Game.prototype.tween = function (target, to, seconds, o) { const t = new Tween(this, target, to, seconds, o); _jobs(this).push(t); return t; };
+// what a script's yield waits for, as a function of the step's dt that is true once it is over (called with 0 at once)
+const _waitFor = (sc, w) => {
+  if (w == null) { const g = sc._g, s = g._jobN || 0; return () => (g._jobN || 0) > s; }   // yield; : the next step
+  if (typeof w === 'number') { let left = w; return dt => (left -= dt) <= 1e-9; }
+  if (w instanceof Tween || w instanceof Script) return () => w.done;
+  if (typeof w === 'function' && !/Generator/.test(w.constructor && w.constructor.name)) return () => !!w();
+  if (typeof w === 'function' || typeof w.next === 'function') { const k = new Script(sc._g, w, { keep: sc.keep }); _jobs(sc._g).push(k); sc._kids.push(k); return () => k.done; }
+  if (typeof w.until === 'function') return () => !!w.until();
+  const L = Array.isArray(w) ? w : w.all || w.any;
+  if (L) { const f = L.map(x => _waitFor(sc, x)), got = f.map(() => false), any = !!w.any; return dt => { f.forEach((x, i) => { if (!got[i]) got[i] = x(dt); }); return any ? got.some(Boolean) : got.every(Boolean); }; }
+  warn('script:yield', 'a script yielded something it cannot wait for (seconds, a condition, a tween, a script, a generator, E.until, E.all, E.any): it waits one step');
+  return _waitFor(sc, null);
+};
+class Script {
+  /** a script, made by game.script: done (it returned, or was cancelled), value (what it returned), cancel(); another
+   *  script can yield it */
+  constructor(game, fn, o = {}) {
+    /** keep: it outlives the scene; done: it returned, or was cancelled; value: what it returned */
+    this.keep = !!o.keep; this.done = false; this.value = undefined; this._g = game; this._kids = []; this._w = null;
+    this._it = typeof fn === 'function' ? fn(game) : fn;
+    if (!this._it || typeof this._it.next !== 'function') { warn('script', 'game.script needs a generator: game.script(function* () { yield .5; ... })'); this.done = true; return; }
+    this._go();
+  }
+  _step(dt) { if (!this._w || this._w(dt)) this._go(); }
+  // run it to its next yield that has to wait (each one already over runs on at once)
+  _go() {
+    for (let n = 0; n < 1e4 && !this.done; n++) {
+      let r; try { r = this._it.next(); } catch (e) { this.done = true; this._g.fail('script', e); return; }
+      if (r.done) { this.done = true; this.value = r.value; return; }
+      this._w = _waitFor(this, r.value); if (!this._w(0)) return;
+    }
+  }
+  /** stop it, and the scripts it is waiting on (its finally blocks run) */
+  cancel() { if (this.done) return; this.done = true; for (const k of this._kids) k.cancel(); try { this._it.return(); } catch (e) { /* it was running, or its finally threw */ } }
+}
+/**
+ * run a coroutine on game time, in the update step: game.script(function* (game) { yield .5; yield E.until(() =>
+ * door.open); yield game.tween(cam, { y: 0 }, 1); yield E.all([a, b]); ... }, { keep }). Each yield waits: a number
+ * (seconds), nothing (one step), a condition (a function, or E.until(fn)), a tween or script (until it is done), a
+ * generator (run as a script of its own, and waited for), E.all([...]) or E.any([...]) (each of these). It runs at once
+ * to its first yield. Cutscenes, boss patterns, wave timelines, tutorials, attract modes. Returns the Script
+ */
+Game.prototype.script = function (fn, o) { const s = new Script(this, fn, o); _jobs(this).push(s); return s; };
+/** a script's wait until fn() is true: yield E.until(() => door.open) */
+E.until = fn => ({ until: fn });
+/** a script's wait for every one of its waits (seconds, conditions, tweens, scripts): yield E.all([a, b]) */
+E.all = list => ({ all: list });
+/** a script's wait for the first of its waits to be over: yield E.any([boss.script, 30]) */
+E.any = list => ({ any: list });
+Object.assign(E, { Tween, Script });
+
+/* =============================================================================
+ * 10e. PATHS  a line through points, measured by distance along it: moving platforms, enemy dives and waves, a race's
+ *    racing line and its racers' progress, rails, camera tracks.
+ * ============================================================================= */
+class Path {
+  /**
+   * new E.Path(points, { closed: false, smooth: null }): points [x, y, z] (z optional) or { x, y, z } (a side view's
+   * height is z); closed runs back to the first; smooth: 'catmull' curves through every point (Catmull-Rom).
+   * length: its length in world units; at(d), nearest(x, y, z), draw(r) below
+   */
+  constructor(points, o = {}) {
+    const P = points.map(p => Array.isArray(p) ? [+p[0] || 0, +p[1] || 0, +p[2] || 0] : [+p.x || 0, +p.y || 0, +p.z || 0]), n = P.length;
+    /** points: the points it was made from, [x, y, z] each; closed: it runs back to the first */
+    this.points = P; this.closed = !!o.closed && n > 2;
+    const at = i => P[this.closed ? ((i % n) + n) % n : clamp(i, 0, n - 1)], S = [];
+    for (let i = 0; i < (this.closed ? n : n - 1); i++) {
+      const a = at(i), b = at(i + 1);
+      if (o.smooth !== 'catmull') { S.push(a); continue; }
+      const p0 = at(i - 1), p3 = at(i + 2), m = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / 4));
+      for (let k = 0; k < m; k++) { const t = k / m, t2 = t * t, t3 = t2 * t; S.push([0, 1, 2].map(j => .5 * (2 * a[j] + (b[j] - p0[j]) * t + (2 * p0[j] - 5 * a[j] + 4 * b[j] - p3[j]) * t2 + (3 * a[j] - p0[j] - 3 * b[j] + p3[j]) * t3))); }
+    }
+    S.push(this.closed ? P[0] : P[n - 1] || [0, 0, 0]);
+    const D = [0]; for (let i = 1; i < S.length; i++) D.push(D[i - 1] + Math.hypot(S[i][0] - S[i - 1][0], S[i][1] - S[i - 1][1], S[i][2] - S[i - 1][2]));
+    /** length: world units from end to end (round, when closed) */
+    this.length = D[D.length - 1]; this._pts = S; this._cum = D;
+  }
+  /** the point d along it: { x, y, z, angle (its heading on the ground, radians: 0 east), d } (closed: d wraps round;
+   *  open: held at the ends) */
+  at(d) {
+    const L = this.length, S = this._pts, D = this._cum; d = this.closed && L > 0 ? wrap(d, 0, L) : clamp(d, 0, L);
+    let lo = 0, hi = S.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (D[m] <= d) lo = m; else hi = m; }
+    const a = S[lo], b = S[hi] || a, u = D[hi] > D[lo] ? (d - D[lo]) / (D[hi] - D[lo]) : 0;
+    return { x: lerp(a[0], b[0], u), y: lerp(a[1], b[1], u), z: lerp(a[2], b[2], u), angle: Math.atan2(b[1] - a[1], b[0] - a[0]), d };
+  }
+  /** the distance along it of its point nearest (x, y) on the ground (and z, when given): a racer's progress round a
+   *  track, a rail's grab point */
+  nearest(x, y, z) {
+    const S = this._pts, D = this._cum, h = z !== undefined; let best = Infinity, out = 0;
+    for (let i = 0; i + 1 < S.length; i++) {
+      const a = S[i], b = S[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], dz = h ? b[2] - a[2] : 0, l2 = dx * dx + dy * dy + dz * dz;
+      const t = l2 > 0 ? clamp(((x - a[0]) * dx + (y - a[1]) * dy + (h ? (z - a[2]) * dz : 0)) / l2, 0, 1) : 0;
+      const e = (a[0] + dx * t - x) ** 2 + (a[1] + dy * t - y) ** 2 + (h ? (a[2] + dz * t - z) ** 2 : 0);
+      if (e < best) { best = e; out = D[i] + (D[i + 1] - D[i]) * t; }
+    }
+    return out;
+  }
+  /** draw it over the scene to see it (debugging): a line, and a dot at each of its points */
+  draw(r, color = '#ffe070') {
+    r.overlay(g => { const S = this._pts; for (let i = 0; i + 1 < S.length; i++) px.line(g, ...r.w(...S[i]), ...r.w(...S[i + 1]), color); for (const p of this.points) px.rect(g, r.w(...p)[0] - 1, r.w(...p)[1] - 1, 3, 3, '#ffffff'); });
+  }
+}
+E.Path = Path;
+
+/* =============================================================================
+ * 10f. TRANSITIONS  the ways from one scene to the next besides a fade: game.go(name, data, { fade: 'wipe' | 'iris' |
+ *    'mosaic' | 'swirl' | 'dissolve', seconds, at }). Each is drawn over the finished picture, out of the old scene and
+ *    into the new one (k: 0 clear .. 1 covered); reduce motion makes each a plain fade.
+ * ============================================================================= */
+Object.assign(FADES, {
+  wipe(g, k, r, F) {   // a band sweeping left to right, its edge dithered
+    const W = r.bw, H = r.bh, e = 8, x = Math.round(F.out ? k * (W + e) - e : (1 - k) * (W + e));
+    if (F.out) px.rect(g, 0, 0, Math.max(0, x), H, '#000000'); else px.rect(g, x, 0, Math.max(0, W - x), H, '#000000');
+    g.save(); g.fillStyle = g.createPattern(r._fadePattern(.5), 'repeat'); g.fillRect(F.out ? x : x - e, 0, e, H); g.restore();
+  },
+  iris(g, k, r, F) {   // a circle closing on a point (and opening from it)
+    const [cx, cy] = _fadeAt(r, F), W = r.bw, H = r.bh, R = (1 - k) * Math.hypot(Math.max(cx, W - cx), Math.max(cy, H - cy));
+    px.col(g, '#000000');
+    for (let y = 0; y < H; y++) { const dy = y + .5 - cy, hw = R > Math.abs(dy) ? Math.sqrt(R * R - dy * dy) : -1, a = Math.round(cx - hw), b = Math.round(cx + hw); if (hw < 0) g.fillRect(0, y, W, 1); else { if (a > 0) g.fillRect(0, y, a, 1); if (b < W) g.fillRect(b, y, W - b, 1); } }
+  },
+  mosaic(g, k, r) {   // blocks growing to 16 pixels, darkening as they go
+    const W = r.bw, H = r.bh, b = 1 + Math.round(k * 15), tw = Math.ceil(W / b), th = Math.ceil(H / b);
+    const t = r._mosaic || (r._mosaic = mkCanvas(8, 8)); if (t.width < tw || t.height < th) { t.width = Math.max(t.width, tw); t.height = Math.max(t.height, th); }
+    const tg = ctx2d(t); tg.clearRect(0, 0, t.width, t.height); tg.drawImage(g.canvas, 0, 0, W, H, 0, 0, tw, th);
+    g.save(); g.imageSmoothingEnabled = false; g.drawImage(t, 0, 0, tw, th, 0, 0, tw * b, th * b); g.fillStyle = '#000000'; g.globalAlpha = qa(k * k); g.fillRect(0, 0, W, H); g.restore();
+  },
+  swirl(g, k, r, F) {   // the picture twisting round a point as it darkens
+    const W = r.bw, H = r.bh, [cx, cy] = _fadeAt(r, F), R = Math.hypot(W, H) / 2, img = g.getImageData(0, 0, W, H), src = img.data.slice(), d = img.data, tw = k * 5, fade = 1 - k * k;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const dx = x - cx, dy = y - cy, l = Math.hypot(dx, dy), a = tw * Math.max(0, 1 - l / R) ** 2, c = Math.cos(a), s = Math.sin(a);
+      const sx = Math.round(cx + dx * c - dy * s), sy = Math.round(cy + dx * s + dy * c), o = (y * W + x) * 4, i = (clamp(sy, 0, H - 1) * W + clamp(sx, 0, W - 1)) * 4;
+      d[o] = src[i] * fade; d[o + 1] = src[i + 1] * fade; d[o + 2] = src[i + 2] * fade; d[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  },
+  dissolve(g, k, r) {   // pixel by pixel, in a fixed scattered order
+    const q = Math.round(k * 32), pat = r._stamp('dissolve' + q, () => { const c = mkCanvas(32, 32), cg = c.getContext('2d'); cg.fillStyle = '#000'; for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (hash2(x, y) < q / 32) cg.fillRect(x, y, 1, 1); return c; });
+    g.save(); g.fillStyle = g.createPattern(pat, 'repeat'); g.fillRect(0, 0, r.bw, r.bh); g.restore();
+  }
+});
+// where iris and swirl centre: go's at (a world point, or [x, y] on the screen), or the screen's centre
+const _fadeAt = (r, F) => { const a = F.at; return Array.isArray(a) ? a : a ? r.w(a.x || 0, a.y || 0, a.z || 0) : [r.W / 2, r.H / 2]; };
+
+/* =============================================================================
+ * 10g. WEATHER  game.weather = { kind: 'rain' | 'snow' | 'ash' | 'leaves' | 'sand', amount: 0..1 (.5), wind: -1..1,
+ *    lightning: 0..1 } (null: clear skies). It falls through the world's height in ground views and in three layers in
+ *    side and flat views, lands on the floor (particles.ground: a side view's platforms) and splashes or settles; with
+ *    lightning, flashes (the player's Screen flashes) and thunder. Cosmetic: its own seeded stream (never Math.random,
+ *    so replays and the game's randomness are untouched), its drops pooled, stepped on game time. It ends with the scene:
+ *    set it in the scene's enter.
+ * ============================================================================= */
+/** the kinds of weather: n drops at amount 1, fall speed (world units a second), colors, streak (seconds of motion a
+ *  drop's line shows), sway, rest (seconds it lies where it lands), splash, wind (how hard the wind pushes it), size, big
+ *  (the share a pixel bigger). Add your
+ *  own: E.WEATHER.embers = { ... } */
+const WEATHER = {
+  rain: { n: 260, fall: 300, colors: ['#9fb6dc', '#c8d8f0'], streak: .03, splash: true, wind: 1 },
+  snow: { n: 280, fall: 30, colors: ['#ffffff', '#e8f0fa'], sway: 10, rest: .6, wind: 1, big: .55 },
+  ash: { n: 200, fall: 20, colors: ['#d0c8c8', '#a09898', '#ff8a40'], sway: 6, wind: .8, big: .35 },
+  leaves: { n: 56, fall: 28, colors: ['#c8642a', '#e0a040', '#8a5a2a', '#a8b040'], sway: 24, rest: 1, size: 2, wind: 1.2 },
+  sand: { n: 220, fall: 12, colors: ['#d8b878', '#c8a060'], streak: .05, wind: 3 }
+};
+E.WEATHER = WEATHER;
+const WX_TOP = 150, WX_LAYERS = [[.45, .6, 1], [1, 1, 1], [1.7, 1.5, 2]];   // the drops' height in ground views; side and flat views' layers: [parallax, speed, size]
+HOOKS.enter.push((g, old) => { if (old) g.weather = null; });
+HOOKS.step.push((g, dt) => {
+  const w = g.weather, S = g._wx; if (!w || !w.kind) { if (S) S.drops.length = 0; return; }
+  const K = WEATHER[w.kind]; if (!K) { warn('weather:' + w.kind, 'unknown weather "' + w.kind + '": ' + Object.keys(WEATHER).join(', ')); return; }
+  _wxStep(g, g._wx || (g._wx = { R: rng(0x5eed), drops: [], t: 0, bolt: 0, flick: 0, thunder: 0 }), w, K, dt);
+});
+HOOKS.draw.push((g, r, ctx) => { const w = g.weather, S = g._wx; if (w && w.kind && S && WEATHER[w.kind]) _wxDraw(g, r, ctx, S, w, WEATHER[w.kind]); });
+// the world box the screen shows: side views [x0, 0, x1, 0, z0, z1]; ground views the ground under the screen [x0, y0,
+// x1, y1]
+const _wxBox = g => {
+  const v = g.view, c = g.cam, W = g.W, H = g.H;
+  if (v.isSide) return [(c.x - 20) / v.ax, 0, (c.x + W + 20) / v.ax, 0, (c.y + H) / v.bz, (c.y - 20) / v.bz];
+  const pts = [[0, 0], [W, 0], [0, H], [W, H]].map(([sx, sy]) => v.toGround(c.x + sx, c.y + sy) || [0, 0]);
+  return [Math.min(...pts.map(p => p[0])) - 16, Math.min(...pts.map(p => p[1])) - 16, Math.max(...pts.map(p => p[0])) + 16, Math.max(...pts.map(p => p[1])) + 16];
+};
+function _wxStep(g, S, w, K, dt) {
+  const R = S.R, v = g.view, mode = v.pitchDeg >= 70 ? 'flat' : v.isSide ? 'side' : 'world', n = Math.round(clamp(w.amount === undefined ? .5 : w.amount, 0, 1) * K.n), D = S.drops;
+  const box = _wxBox(g), wind = (w.wind || 0) * 60 * (K.wind || 1), ground = g.particles.ground, W = g.W, H = g.H;
+  const dcx = S.cx === undefined ? 0 : g.cam.x - S.cx; S.cx = g.cam.x; S.t += dt;
+  // a drop starting from the top, in the screen's box (or anywhere in its height: the first ones fill the sky at once)
+  const spawn = (d, any) => {
+    d.layer = mode === 'world' ? 1 : (R() * 3) | 0; d.c = K.colors[(R() * K.colors.length) | 0]; d.k = .8 + R() * .4; d.ph = R() * TAU; d.rest = 0; d.s = (K.size || 1) + (K.big && R() < K.big ? 1 : 0);
+    if (mode === 'world') { const q = v.toGround(g.cam.x + R() * W, g.cam.y + R() * H) || [0, 0]; d.x = q[0]; d.y = q[1]; }   // (it lands on a point of the screen)
+    if (mode === 'world' || (mode === 'side' && d.layer === 1)) {
+      if (mode === 'side') { d.x = lerp(box[0], box[2], R()); d.y = 0; }
+      d.fl = ground ? ground(d.x, d.y, mode === 'side' ? box[5] : WX_TOP) || 0 : 0;
+      const top = mode === 'side' ? box[5] : d.fl + WX_TOP; d.z = any ? lerp(d.fl, top, R()) : top;
+    } else { d.x = R() * W; d.y = any ? R() * H : -4; d.z = d.fl = undefined; }
+  };
+  while (D.length < n) { const d = {}; spawn(d, true); D.push(d); }
+  D.length = n;
+  for (const d of D) {
+    if (d.rest > 0) { if ((d.rest -= dt) <= 0) spawn(d, false); continue; }
+    const sway = K.sway ? Math.sin(S.t * 2 + d.ph) * K.sway : 0;
+    if (d.z !== undefined) {
+      d.x += (wind + sway) * dt; d.z -= K.fall * d.k * dt;
+      if (d.x < box[0] || d.x > box[2] || (mode === 'world' && (d.y < box[1] || d.y > box[3]))) { d.x = wrap(d.x, box[0], box[2]); if (mode === 'world') d.y = wrap(d.y, box[1], box[3]); d.fl = ground ? ground(d.x, d.y, d.z) || 0 : 0; }
+      if (mode === 'side' && d.z < box[4] - 16) spawn(d, false);   // (fell past the bottom of the screen: a pit)
+      else if (d.z <= d.fl) { d.z = d.fl; d.rest = K.splash ? .12 : K.rest || 0; if (!d.rest) spawn(d, false); }
+    } else {
+      const L = WX_LAYERS[d.layer];
+      d.x = wrap(d.x + ((wind + sway) * L[1] * dt) - dcx * L[0], -8, W + 8); d.y += K.fall * d.k * L[1] * dt;
+      if (d.y > H + 4) spawn(d, false);
+    }
+  }
+  // lightning: a flash, a second flicker, then thunder after the light
+  const L = w.lightning || 0;
+  if (L > 0) {
+    if (S.bolt <= 0) S.bolt = (3 + R() * 9) / L;
+    if ((S.bolt -= dt) <= 0) { g.flash('#e4ecff', .14, .9); S.flick = .12; S.thunder = .3 + R() * .9; S.bolt = (3 + R() * 9) / L; }
+    if (S.flick > 0 && (S.flick -= dt) <= 0) g.flash('#e4ecff', .1, .6);
+    if (S.thunder > 0 && (S.thunder -= dt) <= 0) g.audio.sfx('boom', { pitch: .45 + R() * .2, vol: .8 });
+  }
+}
+function _wxDraw(g, r, ctx, S, w, K) {
+  const draw = () => {
+    for (const d of S.drops) {
+      const L = WX_LAYERS[d.layer], sz = (d.s || 1) * (d.z !== undefined ? 1 : L[2]), wx = (w.wind || 0) * 60 * (K.wind || 1);
+      let x, y, x2, y2;
+      if (d.z !== undefined) { [x, y] = r.w(d.x, d.y, d.z); if (K.streak && !d.rest) [x2, y2] = r.w(d.x - wx * K.streak, d.y, d.z + K.fall * K.streak); }
+      else { x = d.x; y = d.y; if (K.streak) { x2 = x - wx * K.streak * L[1]; y2 = y - K.fall * K.streak * L[1]; } }
+      if (x < -12 || y < -40 || x > r.bw + 12 || y > r.bh + 12) continue;
+      if (d.rest > 0) { if (K.splash) { px.dot(ctx, x - 2, y - 1, d.c); px.dot(ctx, x + 2, y - 1, d.c); px.dot(ctx, x, y - 2, d.c); } else px.rect(ctx, x, y, sz, 1, d.c); continue; }
+      if (x2 !== undefined) px.line(ctx, x, y, x2, y2, d.c, sz > 1 ? 2 : 1);
+      else if (K.sway && sz > 1) { const f = Math.sin(S.t * 6 + d.ph) > 0; px.rect(ctx, x, y, f ? 2 : 1, f ? 1 : 2, d.c); }
+      else px.rect(ctx, x, y, sz, sz, d.c);
+    }
+  };
+  if (useAlpha(ctx) && K.streak) px.blend(ctx, .75, 'normal', draw); else draw();
+}
+
+/* =============================================================================
+ * 10h. INPUT SEQUENCES  moves made of several inputs in a row (a fighter's special moves, a cheat code, a rhythm
+ *    pattern), read from input.history: the last second of directions and presses, which an input display can draw too.
+ *    Numpad notation names directions as the keys of a number pad, for a fighter facing right: 1 down-back, 2 down, 3
+ *    down-forward, 4 back, 5 neutral, 6 forward, 7 up-back, 8 up, 9 up-forward; facing left mirrors them.
+ * ============================================================================= */
+const _DIRS = ['up', 'down', 'left', 'right'], _PAD = { 0: 5, 1: 8, 2: 2, 4: 4, 8: 6, 5: 7, 9: 9, 6: 1, 10: 3 };   // direction bits (up 1, down 2, left 4, right 8) -> numpad, facing right
+HOOKS.input.push(g => {
+  const I = g.input, H = I._hist || (I._hist = []); let b = 0;
+  for (let i = 0; i < 4; i++) if (I.map[_DIRS[i]] && I.down(_DIRS[i])) b |= 1 << i;
+  if (b & 3) b = (b & 3) === 3 ? b & ~3 : b; if ((b & 12) === 12) b &= ~12;   // (both ways at once: neither)
+  const last = H[H.length - 1], pressed = [...I._now].filter(a => !_DIRS.includes(a));
+  if (!last || last._b !== b || pressed.length) H.push({ t: I.clock, dir: _PAD[b] || 5, pressed, _b: b });
+  while (H.length > 2 && H[1].t < I.clock - 1) H.shift();
+});
+// one step of a sequence, 'down+right' or 'attack' or 'down+attack': the directions it holds (bits) and the buttons pressed
+const _seqStep = s => { let b = 0, dirs = false; const btn = []; for (const p of String(s).split('+')) { const i = _DIRS.indexOf(p); if (i >= 0) { b |= 1 << i; dirs = true; } else if (p === 'neutral') dirs = true; else if (p) btn.push(p); } return { b, dirs, btn }; };
+/**
+ * true on the step a sequence of inputs ends, each one after the last within window seconds (.5) of the first:
+ * input.sequence(['down', 'down+right', 'right', 'attack']). A step names actions joined by +: its directions are held
+ * exactly as it says (up, down, left, right; 'neutral' for none) as they change to that, its buttons pressed. A cheat
+ * code: input.sequence(['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'kick', 'attack'], { window: 3 })
+ */
+Input.prototype.sequence = function (steps, o = {}) {
+  const H = this._hist, n = steps.length; if (!H || !H.length || !n) return false;
+  const win = o.window === undefined ? .5 : o.window, last = H[H.length - 1], now = this.clock;
+  if (last.t !== now) return false;
+  const ok = (st, k) => { const h = H[k]; if (st.dirs && h._b !== st.b) return false; if (st.btn.length) return st.btn.every(a => h.pressed.includes(a)); return k === 0 || H[k - 1]._b !== h._b; };
+  const S = steps.map(_seqStep); let i = n - 1, k = H.length - 1; if (!ok(S[i], k)) return false;
+  if (S[i].dirs || !S[i - 1] || S[i - 1].btn.length) k--;   // (a button may land on the step its motion ends)
+  for (i--; i >= 0 && k >= 0; k--) { if (now - H[k].t > win) return false; if (ok(S[i], k)) i--; }
+  return i < 0;
+};
+/**
+ * a fighter's move in numpad notation, mirrored by facing: input.motion('236', 'attack', { facing: hero.facing, window })
+ * is a quarter circle forward and punch (down, down-forward, forward, attack: a fireball); '623' a dragon punch, '41236'
+ * a half circle. facing: 1 (right, the default) or -1. button: an action, 'attack+kick', or none (the motion alone)
+ */
+Input.prototype.motion = function (digits, button, o = {}) {
+  const fw = (o.facing || 1) < 0 ? 'left' : 'right', bk = fw === 'left' ? 'right' : 'left';
+  const D = { 1: 'down+' + bk, 2: 'down', 3: 'down+' + fw, 4: bk, 5: 'neutral', 6: fw, 7: 'up+' + bk, 8: 'up', 9: 'up+' + fw };
+  const steps = String(digits).split('').map(c => D[c]).filter(Boolean);
+  if (button) steps.push(button);
+  return this.sequence(steps, Object.assign({ window: .45 }, o));
+};
+
+/* =============================================================================
+ * 10i. CAMERA WINDOW AND FRAMING  game.cam.window (a dead zone), cam.snapY (height on landing), cam.frame(targets)
+ *    (several things kept in view): where the camera aims, from where it would aim (tx, ty: its top-left corner, in
+ *    projected pixels). Game's _camStep asks it while one of them is set
+ * ============================================================================= */
+// where the camera aims: framed between its targets (zooming to fit), its height held until a landing, kept still while
+// the focus stays in the window
+Game.prototype._camAim = function (tx, ty) {
+  const c = this.cam, W = this.screen.W, H = this.screen.H, fr = this._framed;
+  if (fr) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const t of fr.list) { if (!t) continue; const [px2, py2] = this.view.p(t.x || 0, t.y || 0, t.z || 0); x0 = Math.min(x0, px2); x1 = Math.max(x1, px2); y0 = Math.min(y0, py2 - 16); y1 = Math.max(y1, py2); }
+    if (x1 >= x0) {
+      tx = (x0 + x1 - W) / 2; ty = (y0 + y1 - H) / 2;
+      const Z = fr.zoom; if (Z) {   // out at once when they don't fit, back in once they would fit well
+        const k = Math.min((W - 2 * fr.margin) / Math.max(1, x1 - x0), (H - 2 * fr.margin) / Math.max(1, y1 - y0)), z = this._zoomBase;
+        const want = clamp(Math.floor(z * Math.min(k, 1.25) * 20) / 20, Z[0], Z[1]);
+        if (want < z - 1e-9 || (k > 1.2 && want > z + 1e-9)) this.setZoom(want);
+      }
+    }
+  }
+  const f = this._follow;
+  if (c.snapY) { const t = f && f.target, lim = H * .3; if (c.snap || c._ly === undefined || !t || t.onGround !== false) c._ly = ty; else c._ly = clamp(c._ly, ty - lim, ty + lim); ty = c._ly; }
+  if (c.window) { const [ww, wh] = c.window; if (c.snap || c._wx === undefined) { c._wx = tx; c._wy = ty; } c._wx = clamp(c._wx, tx - ww / 2, tx + ww / 2); c._wy = clamp(c._wy, ty - (wh || 0) / 2, ty + (wh || 0) / 2); tx = c._wx; ty = c._wy; }
+  return [tx, ty];
+};
 
 /* =============================================================================
  * 11. HUMANOID RIG

@@ -328,32 +328,46 @@ Needs M0. Almost every later kit uses these, and each is small.
 - **Paths:** `new E.Path(points, { closed, smooth: 'catmull' })`: `length`, `at(d)` (a point, its heading and height,
   by distance along), `nearest(x, y)` (the distance along it: a race's progress), and `draw(r)` to debug.
 - **Sprites:** frames (`E.anim([spr, ...], fps, { loop, pingpong })`, or several frames in one block of rows) drawn by
-  `r.sprite(..., { anim, t })`; rotation and scale (`rot`, `scale` on `px.sprite` and `r.sprite`: nearest-neighbour,
+  `r.sprite(x, y, z, anim, { t })` (as built: the anim is passed as the sprite); rotation and scale (`rot`, `scale` on `px.sprite` and `r.sprite`: nearest-neighbour,
   whole pixels, the rotations cached in 16 or 32 steps as hardware-era games pre-rotated theirs); `E.recolor(sprite,
   map)` for palette swaps.
-- **Wrap-around:** `E.wrap(v, lo, hi)`, the shortest difference across a seam, and a `wrap` option on drawing, so a
-  thing crossing the edge shows on both sides.
+- **Wrap-around:** `E.wrap(v, lo, hi)`, the shortest difference across a seam (as built: `E.wrapDiff(a, b, size)`), and
+  a `wrap` option on drawing (`r.sprite`, `r.actor`), so a thing crossing the edge shows on both sides.
 - **Transitions:** `game.go(name, data, { fade, at, seconds })` with `fade` one of `'black'`, `'white'`, `'wipe'`,
-  `'iris'`, `'mosaic'`, `'swirl'` or `'dissolve'`; with reduce motion each is a plain fade.
+  `'iris'`, `'mosaic'`, `'swirl'` or `'dissolve'`; with reduce motion each is a plain fade. (`fade` stays a number of
+  seconds too, as before: `{ fade: 0 }` cuts. GPU lighting draws its picture after the overlays, so under it a
+  transition is a plain fade.)
 - **Weather:** `game.weather = { kind, amount, wind, lightning }` with `kind` one of rain, snow, ash, leaves or sand:
   falling through the world's height in ground views and in layers in the side view, splashing on the ground
-  (`particles.ground`), with lightning flashes and thunder; cosmetic randomness only; pooled.
+  (`particles.ground`), with lightning flashes and thunder; cosmetic randomness only; pooled. (The engine had no
+  screen's own stream: the particles draw on `Math.random`. The weather has its own seeded `E.rng`; flat views, pitch 70
+  degrees and up, fall in screen layers as the side view's do. It ends with the scene, like the timers.)
 - **Input sequences:** `input.sequence(['down', 'down+right', 'right', 'attack'], { window })`, and numpad notation
   (`input.motion('236', 'attack', { facing })`, mirrored by facing), over `input.history` (the last second of
   directions and presses: an input display reads it too).
 - **The camera:** `cam.window` (a dead zone the target moves in before the camera follows, as Super Mario World's does),
-  `cam.snapY` (height followed only on landing), `cam.frame(targets, { margin, zoom })` (several things kept in view).
+  `cam.snapY` (height followed only on landing: a followed body's `onGround`), `cam.frame(targets, { margin, zoom })`
+  (several things kept in view; `zoom: [min, max]`).
 - **A screen filter** (a standard setting, under Display): clean, scanlines or CRT, drawn when the picture is
-  presented, never on the game's buffer, off under the test harness.
+  presented, never on the game's buffer, off under the test harness (`navigator.webdriver`, which every tool's browser
+  sets).
+- **The agent edition** gets none of it (as built): its header has 115 tokens left of its 10,000, and a game that needs
+  these uses the full engine or a kit.
 - **No new kit.** The existing kits are unchanged.
 - **On the diet (3.5):** the tweens and scripts, paths, transitions, weather and input sequences each in a section of
-  their own, in `DIET`, so a kit whose slice calls none of them stays the size it was.
-- **Docs:** the API card (about 700 tokens of its 18,000), the index, `AI_GUIDE.md` (a paragraph each, and the game
-  code each replaces: a wave timeline, a cutscene).
+  their own, in `DIET`, so a kit whose slice calls none of them stays the size it was. (As built: also Penner's easings
+  beyond the core's (1b), sprite frames, turns and swaps (2b) and the camera's window and framing (10i), reached from the
+  core through `HOOKS` and `FADES`, which each section fills as it loads. `DIET`'s new `names` match strings and option
+  names a kit writes (`{ fade: 'iris' }`, `{ rot }`), its `entries` fields it reads (`game.weather`). Every kit still
+  grows by about 2,500 tokens: 1,600 in its engine (the screen filter, a standard setting, and those ways in) and 1,000
+  in its card.)
+- **Docs:** the API card (about 700 tokens of its 18,000; as built, 980), the index, `AI_GUIDE.md` (a paragraph each,
+  and the game code each replaces: a wave timeline, a cutscene).
 - **Done when:** contract tests for each (a tween across a pause, slow motion and a scene change; scripts at 60, 90,
   120 and 144 Hz; a path's length and points; frames; a rotated sprite's pixels; wrap-around; sequences mirrored; the
   camera's window and framing); a filmstrip of each transition and weather; every existing kit as before, pixel for
-  pixel.
+  pixel. (As built: the contract tests in `tools/contract-test.mjs`, the filmstrips in the `motion` suite,
+  `tools/motion-test.mjs`, on `tools/fixtures/motion.html`.)
 
 ### M2: grids, turns and generated maps (modules `grid`, `gen`; kits ROGUELIKE, PUZZLE)
 
@@ -899,7 +913,7 @@ M16 (effort: medium)
 | --- | --- | --- | --- |
 | this plan | written | v0.59.4 | a review of v0.59.3: the genres (1.2), the measures (1.3) |
 | M0 room to grow | done (two pull requests) | 0a v0.60.0 `00fbfe1` (#153); 0b v0.61.0 `2ad644f` (#154); the plan's facts v0.61.1 | 0a: modules (`engine/modules/`, `tools/engine-lib.mjs` for every tool, the `modules` suite's fixture in a copy of the repository), the budgets (D50: card 18,000, index 52,000, a module 1,500), the test runner. 0b: the kit diet (`DIET`, `tools/diet.mjs`; the Platformer a section of its own, 16b), `kits-test` (every slice's proof twice; `--compare` films; the reference menus), the family title menus (`05-families.js`), the kits' budgets (D51). Measured at v0.61.0, cl100k: adventure 195,281, shooter 191,532, RPG 189,874, brawler 187,859, animation lab 180,685, platformer 180,085, stealth 179,909; 3D action 215,277, platformer 210,084, shooter 285,061; the compact edition 332,477 (it splits or goes past 500,000: a later milestone's decision), the reference 437,609; card 15,032, index 35,597, agent header 9,876. Every 2D kit's title and play filmed beside the build without the diet: the same pixels. Left: nothing; the adventure kit has the least room (4.7k), so M1's additions go on the diet (3.5). Checked after the merge (rule 2): every statement of 3.2, 3.3 and M0 against the code at v0.61.0; six were put right in v0.61.1 (which tools take the loader, the manual's words for "full engine only", the API card's line until the first module, D32's shapes kept in every kit, `kits-test`'s play-to-the-end check arriving in M2, a kit's engine in the words table). The full `npm test` on `main` at `2ad644f`: every suite passed (24, with the version, syntax and doctrine checks; 21 min 14 s). |
-| M1 motion and presentation | not started | | |
+| M1 motion and presentation | built, in review | v0.62.0 | Tweens and scripts (10d), paths (10e), transitions (10f), weather (10g), input sequences (10h), the camera's window and framing (10i), Penner's easings (1b) and sprite frames, turns and swaps (2b), each a part of the diet; wrap-around and the screen filter in the core. Measured at v0.62.0, cl100k: adventure 197,866 (2,134 left), shooter 194,774, RPG 192,376, brawler 191,397, animation lab 183,248, platformer 183,120, stealth 182,431; 3D 218,048, 212,855, 287,832; compact 341,273, reference 453,334; card 16,012, index 38,261, agent header 9,885; the kits 5.21 MB (5.13). Every 2D kit's title and play, Emberdeep, the arena and the reference edition's adventure and platformer filmed beside v0.61.1: the same pixels. Left: the commit and the full `npm test` after the merge. |
 | M2 grids, turns, generated maps | not started | | |
 | M3 the arcade | not started | | |
 | M4 players and fighting | not started | | |
