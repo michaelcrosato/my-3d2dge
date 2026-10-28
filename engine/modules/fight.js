@@ -4,9 +4,10 @@ https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
 Street Fighter II's rules, in the side view: for fighting games, and a boss duel in any side-scroller.
-- const f = new E.Fighter(game, { name, x, rig: { size: 2.6, build: 'heroic', colors }, life: 1000, walk: 75, back: 60,
-  moves }); f.input = game.players[1] (an E.Input) or a CPU; f.foe is the other (E.Match sets both). It faces its foe,
-  walks, crouches on down, jumps on up (straight, forward or back), and holds back to block.
+- const f = new E.Fighter(game, { name, x, rig: { size: 2.4, build: 'heroic', colors }, life: 1000, walk: 75, back: 60,
+  moves }); E.Match gives each its foe and its control: an E.Input (the scene's input: E.FIGHT_KEYS; player 2's is
+  game.players[1]) or a CPU. It faces its foe, walks, crouches on down, jumps on up (straight, forward or back), and
+  holds back to block.
 - moves: { id: spec }. A spec: move (an E.MOVES name the rig plays: 'jab', 'uppercut', 'roundhouse'; or its own
   fields), btn ('lp' | 'hp' | 'lk' | 'hk': the preset E.FIGHT_KEYS), when ('stand' | 'crouch' | 'air' | 'close'), or
   motion ('236', '623', '214', '41236': numpad notation, mirrored by facing) or charge ('46': back held .7 s, then
