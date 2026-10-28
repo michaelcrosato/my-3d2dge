@@ -127,6 +127,22 @@
           "what": "Relight the lighthouse on Gull Rock. Click a verb at the bottom (PICK UP, USE, TALK TO...), then a thing; a plain click walks, a double click runs, a right click looks. To use an item, click it in the inventory, then what to use it on (another item too). Talk to Finn on the pier, Bruno and Morwen in the tavern (the choices are clickable); win Morwen's riddle contest. Try Settings, Point and click, Interface: Icons (a right click turns the cursor), Verb coin, Two buttons. About ten minutes. Added with v0.75.0 (Milestone 10).",
           "look": "Do the rooms read as painted backgrounds with depth (Pip smaller far away, walking behind the bar, the table and the great lamp)? Does he walk round things sensibly and stop where you clicked? Are the puzzles fair: can you work out the grapple, the riddles and the lamp from what people say and what you see? Is the writing funny enough, and does any line feel off? Which interface do you prefer? On your phone: a tap walks, a tap on a thing shows its verbs, a long press looks, the inventory and the talk's choices by taps; on your side and upright.",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-pinball.html",
+          "at": "#pinball",
+          "title": "PINBALL: does it feel like Pinball Fantasies and Space Cadet?",
+          "what": "Play Nebula Run. Hold Space and let go to launch the ball (the longer, the harder); Left Shift or Z flips the left flipper, Right Shift or / the right; the up arrow (or X) nudges the table, but too many nudges TILT it. Hit the three drop targets to light the RAMP, make the ramp three times to light the JACKPOT, then shoot the saucer at the top for the jackpot and a STAR STORM multiball. The top lanes raise the bonus multiplier and relight the kickback. Leave it on the title for the demo game. Added with v0.77.0 (Milestone 11).",
+          "look": "Does the ball feel heavy and fast, and does it roll off the flippers the way you expect (can you catch it, and aim a shot)? Do the bumpers and slingshots feel lively without being chaotic? Does the table read in its slant (the ramp above the playfield, its shadow, the drop targets standing up)? Is the dot-matrix display easy to read, and do the rules make you want one more ball? On your phone: a tap starts, a swipe up launches (longer, harder), the left and right halves of the screen are the flippers; on your side and upright (the upright view shows the whole table).",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-artillery.html",
+          "at": "#artillery",
+          "title": "ARTILLERY: does it feel like Worms and Scorched Earth?",
+          "what": "Pick ONE PLAYER and beat the Blue Grubs on Blast Island. On your turn (30 seconds): the left and right arrows walk, Enter jumps, up and down aim, hold Space and let go to fire (the longer, the harder); Q or E (or 1, 2, 3) changes the weapon: the ROCKET (the wind blows it: watch the WIND bar), the GRENADE (it bounces and blows after three seconds; walk away while it ticks), the CLUSTER (bursts into five; two a team). With the mouse: drag back from anywhere and let go, like a slingshot; a click walks there; the minimap at the top shows the whole island (click it to look). Falls hurt, the sea drowns, and from turn 16 the sea rises. Try TWO PLAYERS too, and TWO CPUS to watch. Added with v0.77.0 (Milestone 11).",
+          "look": "Do the blasts feel big enough, and does the island break up in a satisfying way (craters, caves, grubs thrown and tumbling)? Can you judge a shot: the aim, the power, the wind, the grenade's bounce? Is the CPU fair: does it hit too often, or too rarely? Is a match too long? Can you always find your grub and your target (the camera, the minimap)? On your phone: a drag back and let go fires, a tap walks, JUMP and the weapon button; on your side and upright.",
+          "links": [["Two CPUs", "#artillery/cpu"]]
         }
       ]
     },
@@ -229,6 +245,12 @@
           "links": [["Maze", "#arcade/maze"], ["Formation", "#arcade/formation"], ["Rocks", "#arcade/rocks"]]
         },
         {
+          "page": "dist/kits/my-3d2dge-pinball.html",
+          "title": "Pinball",
+          "what": "A pinball table (Pinball Fantasies, Space Cadet): Nebula Run, seen down its slant; flippers, bumpers, slingshots, drop targets, a ramp, a saucer, a spinner, a kickback; the jackpot and a multiball; a dot-matrix display, nudges and tilt, high scores.",
+          "links": []
+        },
+        {
           "page": "dist/kits/my-3d2dge-kart.html",
           "title": "Kart",
           "what": "Mode 7 karts (Super Mario Kart, F-Zero): a circuit in a meadow, six karts with HD drivers, three laps, kerbs, sand, boost pads, item boxes (a boost, a shell, a peel), a drift that charges a boost; VS for two in a split screen.",
@@ -257,6 +279,12 @@
           "title": "RTS",
           "what": "Real-time strategy (Warcraft II, StarCraft, Command & Conquer): workers who mine gold, a hall, a barracks and a stable to build, footmen, archers and knights, fog, a minimap, and an enemy camp across a river that builds and attacks in waves.",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-artillery.html",
+          "title": "Artillery",
+          "what": "Turn-based artillery (Worms, Scorched Earth): two teams of three grubs on an island every blast carves; aim and power (a drag back on a phone), wind, a rocket, a bouncing grenade and a cluster bomb; falls, the sea, sudden death; one player against a CPU that tries its shots in simulation, two players in turn, or two CPUs.",
+          "links": [["Two CPUs", "#artillery/cpu"]]
         },
         {
           "page": "dist/kits/my-3d2dge-sim.html",

@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.76.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.77.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.76.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.77.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -761,6 +761,10 @@ class Input {
      *  anywhere on the screen but the buttons steers by drag(), with no stick drawn: a shooter's ship that follows the
      *  thumb); padAxes: the gamepad's raw axes */
     this.touchEnabled = true; this.stickSide = 'left'; this.steer = 'stick'; this.stickRadius = 44; this.stickDeadzone = .12; this.padAxes = []; this._taps = new Set(); this._tapsDue = new Set();
+    /** zones: areas of the screen a finger holds an action down in, [{ x0, y0, x1, y1, act }] (fractions of the canvas,
+     *  0..1; the first that holds the finger wins), or null: a pinball's two halves, a rhythm game's lanes. A finger
+     *  landing in one presses act until it lifts (several fingers, several zones), and starts no stick */
+    this.zones = null; this._zoneOf = new Map();
     /** pinching: two fingers on the canvas are pinching the camera's zoom (they moved apart or together: not the stick,
      *  not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no
      *  action uses) and a pinch ask for it, read by zoom() */
@@ -812,7 +816,8 @@ class Input {
       else {
         if (e.pointerType === 'touch' && !this._touched) { this._touched = true; if (this._touchArgs && !this._touchEl) this._touchSync(); }
         this._fingers.set(e.pointerId, { x: e.clientX, y: e.clientY }); this._pinchArm();
-        if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
+        const rc = this.zones && el.getBoundingClientRect(), z = rc && this._zone((e.clientX - rc.left) / rc.width, (e.clientY - rc.top) / rc.height);
+        if (z) this._zoneDown(e.pointerId, z); else if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
       if (e.pointerType === 'mouse' || this._fingers.size === 1) this._gesture('down', ...this.screenPoint(e.clientX, e.clientY), { touch: e.pointerType !== 'mouse', button: e.button, id: e.pointerId }); else this._g = this._gBox = null;   // (a second finger: a pinch, no gesture)
     });
@@ -821,9 +826,9 @@ class Input {
       // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
       if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
       if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
-      if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); }
+      if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); }
     });
-    on(window, 'pointercancel', e => { this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); });
+    on(window, 'pointercancel', e => { this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); this._zoneUp(e.pointerId); });
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
@@ -1022,7 +1027,7 @@ class Input {
   /** Release all devices and discard buffered input on focus loss or a modal transition. */
   clear() {
     this.held.clear(); this.consumeAll(); this._nowUp.clear(); this._freshUp.clear(); this._pt = {}; this._rk = {}; this._down = null;
-    this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._pinching = false; this._zoomAcc = 1;
+    this.padMove = [0, 0]; this.padAim = null; this._fingers.clear(); this._zoneOf.clear(); this._pinching = false; this._zoomAcc = 1;
     this._stickEnd({ pointerId: this.stickId });
     for (const b of this._boundButtons || []) { b.classList.remove('on'); b._inputPointers.clear(); }
   }
@@ -1069,11 +1074,15 @@ class Input {
    *  the keys zoomed (about the screen's middle) */
   zoomPoint() { return this._zoomPt; }
   /** a pointer event in screen pixels, as the browser's would give: feed('down' | 'move' | 'up', x, y, { touch: false,
-   *  button: 0 }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses, double taps and pans follow), or
+   *  button: 0, id: 0 (which finger, for zones) }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses,
+   *  double taps and pans follow; a finger in one of the zones holds its act), or
    *  feed('zoom', x, y, { k: 1.1 }): a wheel's notch or a pinch about that point */
   feed(type, x, y, o = {}) {
     if (type === 'zoom') { this._zoomAcc *= o.k || 1.1; this._zoomPt = [x, y]; return; }
     if (!o.touch) this._fedAt = [x, y];
+    const S = this.screen, z = o.touch && type === 'down' && this.zones && this._zone(x / S.W, y / S.H);
+    if (z) { this._zoneDown('fed' + (o.id || 0), z); return; }   // (a finger in a zone: its act, no gesture)
+    if (o.touch && type === 'up' && this._zoneOf.has('fed' + (o.id || 0))) { this._zoneUp('fed' + (o.id || 0)); return; }
     if (type === 'down') { this._fed = [x, y]; if (!o.touch) this.press('Mouse' + (o.button || 0)); this._gesture('down', x, y, { touch: !!o.touch, button: o.button || 0, id: 'fed' }); }
     else if (type === 'move') this._gesture('move', x, y);
     else if (type === 'up') {
@@ -1161,6 +1170,11 @@ class Input {
       b.addEventListener('pointerup', off, { signal }); b.addEventListener('lostpointercapture', off, { signal }); b.addEventListener('pointercancel', off, { signal });
     });
   }
+  // the zone over a point (fractions of the canvas), a finger's press of its act, and its lift (the act let go when no
+  // other finger holds it)
+  _zone(fx, fy) { return (this.zones || []).find(z => fx >= z.x0 && fx < z.x1 && fy >= z.y0 && fy < z.y1) || null; }
+  _zoneDown(id, z) { this._zoneOf.set(id, z.act); this.press('Act:' + z.act); }
+  _zoneUp(id) { const a = this._zoneOf.get(id); if (a === undefined) return; this._zoneOf.delete(id); if (![...this._zoneOf.values()].includes(a)) this.release('Act:' + a); }
   // two fingers on the canvas: where each was as the second landed (a pinch is measured from there)
   _pinchArm() { this._pinching = false; if (this._fingers.size === 2) for (const f of this._fingers.values()) { f.x0 = f.x; f.y0 = f.y; } }
   _fingerUp(e) { if (this._fingers.delete(e.pointerId)) { if (this._fingers.size < 2) this._pinching = false; else this._pinchArm(); } }
@@ -10170,7 +10184,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.76.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.77.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10385,7 +10399,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module CLICK v0.76.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.77.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -10745,7 +10759,7 @@ E.Click = Click;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.76.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.77.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10970,7 +10984,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.76.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.77.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11521,7 +11535,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.76.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.77.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11704,7 +11718,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.76.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.77.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12113,7 +12127,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.76.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.77.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12318,7 +12332,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module PHYSICS v0.76.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.77.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12684,7 +12698,7 @@ E.Physics = Physics;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.76.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.77.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12844,7 +12858,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.76.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.77.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13025,7 +13039,7 @@ E.World = World;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module RPG v0.76.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.77.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13353,7 +13367,7 @@ E.RPG = RPG;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STORY v0.76.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.77.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13561,7 +13575,7 @@ E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module STRATEGY v0.76.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.77.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14002,7 +14016,7 @@ E.tooltip = (r, x, y, lines) => {
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module TERRAIN v0.76.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.77.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

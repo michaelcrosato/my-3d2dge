@@ -848,6 +848,20 @@ Needs M2 (`E.Turns`) and M3 (the high-score table).
   touched (`drawn`). One fact made precise: "the ball never passes through a flipper" is held by the sweep against
   static and kinematic bodies at their poses each substep (four a step: 1/480 s), the flipper's tip moving under a
   ball's radius in that time.
+- **As built, 11b (v0.77.0):** PINBALL (`#pinball`, `src/starter/33-pinball.js`, family ARCADE; 190,924 tokens):
+  NEBULA RUN in a view of its own (`new E.View('pinball', 'Table', 0, 62, 1, 1)`), every part of the plan's list, the
+  mission a chain of counters (targets, ramp, jackpot, the saucer's multiball), a dot-matrix display drawn by code, the
+  arcade module's table and attract mode (a demo by the bot); a phone held upright shows the table whole, with a
+  backglass above and a coin door below. ARTILLERY (`#artillery`, `#artillery/cpu`, `src/starter/34-artillery.js`,
+  family STRATEGY; 197,566 tokens): BLAST ISLAND, a generated island (`E.Terrain`, a side view at a whole scale), grubs
+  as `land.walk` walkers, the rocket and cluster stepping their own flight on `land.ray`, each grenade a body in a
+  physics world of its own on `land.collider()`, the CPU's tries run through the same steps (a few each step), a
+  minimap, sudden death from turn 16. Two facts made precise: the core had no way for a finger to hold an action where
+  it lands, so it gained touch zones (`input.zones`: the pinball's halves, a finger each; no stick); and `E.Turns` has
+  no mode that alternates teams, so the two teams are its actors (in speed mode, equal speeds alternate) and each sends
+  its next grub still standing. Proved: each kit's bot (`kits-test`), a ball played and a CPU match to its end, each
+  twice the same; phone cases 21 and 22; the contract test's touch zones; the other kits filmed beside v0.76.0, the
+  same pixels.
 
 ### M12: music, rhythm and the songbook (core audio; modules `songs`, `rhythm`; kit RHYTHM; the STEALTH slice's music)
 

@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.76.0.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.77.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -533,6 +533,20 @@ guard.mind = new E.Suspicion(); guard.flow = new E.FlowField(map, { climb: 56, d
 - Asteroids with real collisions: rocks as dynamic convex `world.poly`s with a little `spin`, the ship a poly with `gravity: 0` and `damping`, wrap-around by moving bodies across the edges yourself (`E.wrap`); a rock that splits is removed and two smaller polys added at its place with its speed.
 - Lemmings: an `E.Terrain` level (a picture's cells as materials), each lemming a walker (`land.walk`: a step up of 5, a fall that kills past a landing speed), diggers and bashers carving a small circle or a polygon each step, builders adding a short bar (`addPoly`); hundreds of walkers are cheap (no physics bodies).
 - What touches the terrain fast (a shot) uses `land.ray` for its line; what bounces on it (a grenade) is a physics circle with `world.add(land.collider())`.
+
+**Pinball (Pinball Fantasies, Space Cadet).** The PINBALL kit. A view of its own looking steeply down the table (`new E.View('pinball', 'Table', 0, 62, 1, 1)`), the physics world in table units with `gravity: [0, 450]` down its slope.
+- The walls `world.chain`s with `r: 1.5`; the flippers `world.flipper` (flip on the keys' down and up: `flip(input.down('flipL'))`), bumpers and slingshots with a `kick`, a saucer and a kickback as `world.kicker`s, drop targets static boxes set `off` when hit, lanes and the spinner sensors (`on.enter`); the ball a `bullet` with a `maxSpeed`.
+- A ramp: rails on a layer of their own; a sensor at its mouth switches a climbing ball to that layer (`ball.layer = ball.mask = 2`), one at its end switches it back; draw the ball at the ramp's height there.
+- The rules are counters over the events: targets light the ramp, ramps light the jackpot, the saucer pays it and starts a multiball (more balls in the world); a ball saver's seconds after a launch; a nudge pushes every ball and fills a tilt meter that, full, kills the flippers for the ball.
+- A dot-matrix display: draw the words small on a 128 x 32 canvas, then each of its pixels as a dot (lit or dim). Paint the playfield once to a canvas and draw it each frame.
+- On a phone: `input.zones = [{ x0: 0, y0: 0, x1: .5, y1: 1, act: 'flipL' }, { x0: .5, y0: 0, x1: 1, y1: 1, act: 'flipR' }]` (each half holds its flipper, two thumbs at once); while the ball waits in the lane, the whole screen one zone for the plunger, a swipe up (`input.pan()`) its pull.
+
+**Artillery (Worms, Scorched Earth).** The ARTILLERY kit. A side view at a whole scale, so the terrain's cells stay square: `new E.View('artillery', 'Island', 0, 0, 1, 1)`; the island an `E.Terrain` (y up: draw it with `land.draw(r)`, its points at `r.w(x, 0, y)`).
+- Soldiers are walkers (`land.walk`): its landing speed past a limit is fall damage; under the water line they drown. A blast `land.carve`s, hurts each one by its distance and throws it (`vx`, `vy`, `ground = false`).
+- Turns: `new E.Turns(teams, { mode: 'speed' })` with the two teams as its actors (equal speeds alternate them); each team sends its next one still standing.
+- Shots: a rocket steps its own flight (gravity, the wind, `land.ray` for the line); a grenade is a physics circle in a world of its own with `land.collider()` (bounce, a fuse in steps); a cluster bursts into a fan of small ones.
+- The CPU tries its shots in simulation: for each weapon, angle and power it runs the same step the real shot will (a grenade in a fresh world), scores the blasts it would make (the foes' hurt, its own side's against it), takes the best and fires it with a little error (`Math.random`, seeded in tests). Spread the tries over steps (a few each) so the frame stays smooth.
+- On a phone: `input.steer = 'drag'`; while `input.stickOn`, add up `input.drag()`: the shot goes the other way, its power the pull's length; let go fires. A tap (`clicked()`) walks there. A minimap at the top shows the whole island.
 
 **Mash-ups.** The kits don't depend on each other. Some examples:
 - a platformer with Zelda rooms: `cam.room` in the side view;

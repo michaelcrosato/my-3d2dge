@@ -852,6 +852,16 @@ function physicsToys(E, ed) {
     check(`${ed}: terrain: a walker steps up a 4-unit step and down again, stops at a 20-unit wall, falls into a crater and lands (its landing speed for damage)`, up === 24 && stoppedAt > 115 && stoppedAt < 121 && wk.ground && Math.abs(wk.y - 20) < .01 && fell > 50 && at < 15, `up to ${up}; stopped at ${stoppedAt.toFixed(1)}; landed at ${fell.toFixed(0)} px/s, at ${at}`); }
   { const w = new E.Physics({ gravity: [0, -400] }); w.add(land.collider()); const b = w.circle(60, 90, 3, { bounce: .4, bullet: true }); let bounced = false; for (let i = 0; i < 600; i++) { w.step(1 / 120); if (b.vy > 20) bounced = true; }
     check(`${ed}: terrain: a physics ball bounces on it (land.collider()) and comes to rest on the ground`, bounced && b.sleeping && Math.abs(b.y - 53) < 1.5, `y ${b.y.toFixed(2)}, bounced ${bounced}, asleep ${b.sleeping}`); }
+  // touch zones (M11b, the full engine's touch): a finger in a zone holds its act until it lifts, two fingers two zones,
+  // two in one zone hold it until both lift; no stick, no tap; with no zones a finger is a gesture again
+  if (ed === 'full') { const g = new E.Game({ headless: true, view: 'overhead', input: Object.assign({}, E.Input.DEFAULT, { flipL: ['KeyZ'], flipR: ['KeyM'] }) }), I = g.input, W = g.screen.W, H = g.screen.H, seen = [];
+    g.start({ update() { seen.push((I.down('flipL') ? 'L' : '-') + (I.down('flipR') ? 'R' : '-') + (I.clicked() ? 'c' : '')); }, draw() {} });
+    const step = () => g.advance(1 / 120), f = (t, x, id) => { I.feed(t, x, H / 2, { touch: true, id }); step(); };
+    I.zones = [{ x0: 0, y0: 0, x1: .5, y1: 1, act: 'flipL' }, { x0: .5, y0: 0, x1: 1, y1: 1, act: 'flipR' }];
+    f('down', W * .25, 1); f('down', W * .75, 2); f('up', W * .25, 1); f('up', W * .75, 2); f('down', W * .1, 3); f('down', W * .3, 4); f('up', W * .1, 3); f('up', W * .3, 4);
+    I.zones = null; f('down', W * .25, 5); f('up', W * .25, 5); step();
+    check(`${ed}: input zones: a finger holds its zone's act until it lifts, two fingers two zones, two in one zone until both lift; none: a tap`, seen.join(' ') === 'L- LR -R -- L- L- L- -- -- --c --', seen.join(' '));
+    g.dispose(); }
 }
 
 // M10: the click module: walk areas with holes (paths round them, the shortest), walking at any rate, the pointer's
