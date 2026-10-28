@@ -1,4 +1,4 @@
-# my-3D2dge API index (v0.69.1)
+# my-3D2dge API index (v0.70.0)
 
 Every public name in `engine/my-3d2dge.js` and its modules (`engine/modules/`: a section each, after the core's), one line each: its signature (and default, for a field) and what its doc comment says (a long one's options on lines of their own: `new E.Game({ expand })`). Written by `node tools/api-index.mjs` from the engine itself; `doctrine-check` fails when a public name has no description here. Search it for a name; `API.md` and the agent edition's header are the overviews. † marks a name the agent edition (`my-3d2dge-agent.js`) doesn't have.
 
@@ -48,53 +48,54 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 99 The engine object (E = My3D2dge)
-- 110 Math
-- 184 Pixel primitives
-- 203 Sprite frames, turns and swaps
-- 209 Views (projections); E.View: view
-- 236 Screen; game.screen
-- 258 Input; E.Input: input
-- 336 Pixel font
-- 347 Lighting; game.lights
-- 366 Particles; E.Particles: game.particles
-- 386 Renderer; r
-- 433 Game; E.Game: game
-- 543 Standard features; settings, fullscreen
-- 560 10c. Boot
-- 565 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 582 10e. Paths; E.Path: path
-- 592 10g. Weather
-- 596 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 669 Blob rig; E.Blob: blob
-- 689 Tile map; E.TileMap: map
-- 748 Materials
-- 769 Flow field; E.FlowField: flow
-- 787 Texture helpers for floortex functions
-- 798 Platform map; E.PlatformMap: level
-- 832 Platformer; E.Platformer: hero
-- 873 Body; E.Body: body
-- 893 Actions; E.Action: action
-- 915 17c. Mover; E.Mover: mover
-- 954 17d. Perception; E.Suspicion: suspicion
-- 971 Bullets; E.Bullets: shots
-- 991 Spatial hash; E.SpatialHash: grid
-- 1001 Audio; game.audio
-- 1023 Backdrops; E.Backdrop: backdrop
-- 1031 21c. Props
-- 1036 21e. Shapes
-- 1048 Ui; E.Dialog: talk, E.Menu: menu
-- 1103 21d. Shell; E.Shell: shell
-- 1132 Gpu lighting (webgpu); game.gpu
-- 1153 Sessions
-- 1162 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1197 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
-- 1235 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1316 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1327 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1382 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
-- 1405 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
-- 1422 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 100 The engine object (E = My3D2dge)
+- 111 Math
+- 185 Pixel primitives
+- 204 Sprite frames, turns and swaps
+- 210 Views (projections); E.View: view
+- 237 Screen; game.screen
+- 259 Input; E.Input: input
+- 337 Pixel font
+- 348 Lighting; game.lights
+- 367 Particles; E.Particles: game.particles
+- 387 Renderer; r
+- 434 Game; E.Game: game
+- 545 Standard features; settings, fullscreen
+- 562 10c. Boot
+- 567 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 584 10e. Paths; E.Path: path
+- 594 10g. Weather
+- 598 10k. Save slots; E.Saves: saves
+- 621 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 694 Blob rig; E.Blob: blob
+- 714 Tile map; E.TileMap: map
+- 776 Materials
+- 797 Flow field; E.FlowField: flow
+- 815 Texture helpers for floortex functions
+- 826 Platform map; E.PlatformMap: level
+- 860 Platformer; E.Platformer: hero
+- 901 Body; E.Body: body
+- 921 Actions; E.Action: action
+- 943 17c. Mover; E.Mover: mover
+- 982 17d. Perception; E.Suspicion: suspicion
+- 999 Bullets; E.Bullets: shots
+- 1019 Spatial hash; E.SpatialHash: grid
+- 1029 Audio; game.audio
+- 1051 Backdrops; E.Backdrop: backdrop
+- 1059 21c. Props
+- 1064 21e. Shapes
+- 1076 Ui; E.Dialog: talk, E.Menu: menu
+- 1132 21d. Shell; E.Shell: shell
+- 1161 Gpu lighting (webgpu); game.gpu
+- 1182 Sessions
+- 1191 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1226 Module drive: cars on the ground plane, a race round a track, the drivers who race it (engine/modules/drive.js); E.Car: car, E.Race: race
+- 1264 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1345 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1356 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1411 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1434 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1451 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
 
 ## The engine object (E = My3D2dge)
 
@@ -103,7 +104,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `E.build: "dev-build"`: the commit this copy was built from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07')
 - `E.current: null`: the latest game made (My3D2dge.current, for tools and tests)
 - `E.name: "my-3D2dge"`: the engine's name, 'my-3D2dge'
-- `E.version: "0.69.1"`: the release (package.json, written everywhere by node tools/version.mjs)
+- `E.version: "0.70.0"`: the release (package.json, written everywhere by node tools/version.mjs)
 - `E.versionLabel()`: 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports
 - `E.warn(key, msg)`: one console warning per distinct problem, prefixed so tools (and people) can spot engine advice: warn(key, message)
 
@@ -474,6 +475,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `game.resetCamera()` †: undo setZoom and rotateView: the scene's own zoom again (camera.start, or camera.tall on a screen held upright; 1 without), no turn. The player's zoom stays (settings.zoom)
 - `game.resume()`: take the game out of pause (and close the pause screen)
 - `game.rotateView(deg)` †: turn the camera around the vertical axis in ground views: game.rotateView(45) (degrees). Side views never turn
+- `game.saves()` †: game.saves: the save slots (section 10k), made when first read
 - `game.script(fn, o)` †: run a coroutine on game time, in the update step: game.script(function* (game) { yield .5; yield E.until(() => door.open); yield game.tween(cam, { y: 0 }, 1); yield E.all([a, b]); ... }, { keep }). Each yield waits: a number (seconds), nothing (one step), a condition (a function, or E.until(fn)), a tween or script (until it is done), a generator (run as a script of its own, and waited for), E.all([...]) or E.any([...]) (each of these). It runs at once to its first yield. Cutscenes, boss patterns, wave timelines, tutorials, attract modes. Returns the Script
 - `game.setView(v)`: switch the view: an id from E.VIEWS ('iso', 'side', ...) or a View; keeps zoom and turn
 - `game.setZoom(z)` †: camera zoom on top of the view: game.setZoom(1.5) (.5 .. 3), the game's own; where the scene lets the player zoom (camera.zoom), theirs multiplies it (game.zoom is the two together). Characters, maps, props, particles and lights are drawn by code, so they re-rasterize crisply at the new size; HUD text and overlays stay the same.
@@ -593,6 +595,29 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 - `E.WEATHER: rain, snow, ash, leaves, sand` †: the kinds of weather: n drops at amount 1, fall speed (world units a second), colors, streak (seconds of motion a drop's line shows), sway, rest (seconds it lies where it lands), splash, wind (how hard the wind pushes it), size, big (the share a pixel bigger). Add your own: E.WEATHER.embers = { ... }
 
+## 10k. Save slots
+
+- `new E.Saves(game, o) → saves` †: game.saves (made when first read): o is menu.saves ({ slots, version, migrate, write, read })
+- `saves.any` †: is there any save to load (a title's Continue)?
+- `saves.autosave(o)` †: save to the autosave (what write() gives)
+- `saves.copy(from, to)` †: copy a slot's save onto another (over what is there); false when the first is empty
+- `saves.erase(slot)` †: erase a slot
+- `saves.get(slot)` †: a slot's save as it is stored, checked: null when empty; { slot, damaged: true } when it can't be read; { newer: true } from a newer version of the game; else { slot, data, place, level, time, at (the date saved), version }
+- `saves.latest()` †: the most recent save that loads, or null (a title's Continue loads it)
+- `saves.list()` †: every slot, the autosave first: [{ slot, empty, place, level, time, at, damaged, newer }] (a menu's rows)
+- `saves.load(slot)` †: load a slot: its data brought up to this version (migrate), played set from it, read(save) called. Returns the save ({ data, place, level, time, slot }), or null when the slot is empty, damaged or from a newer version
+- `saves.save(slot, o)` †: save to a slot (0.., or 'auto'): o ({ data, place, level }) or what write() gives. Returns true when it is kept (in storage, or for the visit when storage is blocked: blocked tells), false when there was nothing to save
+- `saves.show(mode = 'load', done)` †: open the standard save screen over the game (E.Shell's): 'save' (to a slot) or 'load'; done(save) after a load or a save. False without a menu (a headless game, menu: false)
+- `saves.blocked = false` †: storage refused a save (they last for the visit)
+- `saves.canSave = true` †: the pause menu offers Save (a JRPG turns it off away from save points)
+- `saves.game` †: its game
+- `saves.migrate` †: an older version's data brought up to this one (or null: kept as it is)
+- `saves.played = 0` †: seconds played in the game's scenes (paused time and titles left out), saved with each save and set by a load
+- `saves.read` †: what a load does with { data, place, level, time, slot }
+- `saves.slots` †: how many slots besides the autosave (3)
+- `saves.version` †: the game's version of its data (1), saved with each save
+- `saves.write` †: what a save holds ({ data, place, level })
+
 ## 11. Humanoid rig
 
 - `new E.Attack(spec = {}, over) → slash`: new E.Attack(spec) or new E.Attack('slash', { reach: 9 }): a name from E.MOVES plus overrides
@@ -695,6 +720,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `new E.TileMap({ floorTex })`: floorTex(x, y, floorTag, view) -> [r, g, b] or [r, g, b, glow]
 - `new E.TileMap({ floorMat, floorMats })`: a material for the floor, floorMats: { tag: material } for tagged cells (in place of floorTex)
 - `new E.TileMap({ block })`: ['water', 'lava'] floor tags nobody can walk on (or put block: true in a legend entry)
+- `new E.TileMap({ chunks })`: bake the floor in squares near the camera (true, false; by default a map of more than 128 x 128 cells)
 - `map.arcClear(a, b, apex = 20, r = 0)`: does a jump arc from a to b (feet, { x, y, z }) clear every top on the way? The arc is a parabola peaking apex above the higher end; r > 0 also checks a track on each side of it. Jumps, throws, aerial takedowns
 - `map.block(cx, cy, on = true)`: mark a cell blocked or free at runtime (a bridge appears, lava cools)
 - `map.bounds(view)`: projected pixel bounds of the whole map for this view, { x0, y0, x1, y1 } with an 8-pixel margin (camera clamping: game.cam.bounds = v => map.bounds(v))
@@ -707,6 +733,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `map.find(tag)`: first spawn with this tag ({ x, y, z, cx, cy }), or null
 - `map.findAll(tag)`: every spawn with this tag
 - `map.floorAt(x, y)`: floor tag from the legend ({ floor: 'water' }) at a world point, or null
+- `map.floorBytes()` †: the bytes the baked floors hold now (each view's, chunks and the lighting's canvases counted): what a big map's floor costs in memory
 - `map.groundAt(x, y, r = 0, z = 1e9, step = 2)`: highest surface under a circle footprint that a body at height z can stand on (floor = 0)
 - `map.height(cx, cy)`: a cell's top: its wall's h, 0 on the floor, 1e9 outside the map (the height rules: E.HEIGHTS)
 - `map.heightAt(x, y)`: wall height at a world point (0 on the floor)
@@ -730,6 +757,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `map.ao`: contact shadow width (world units) along the foot of walls; 0 turns it off
 - `map.blocked`: cells nobody can walk on (deep water, lava, pits): legend { floor: 'water', block: true } or TileMap { block: ['water'] }
 - `map.cells`: the wall type id of every cell, row by row (index cy * w + cx; change one with set)
+- `map.chunks` †: the floor baked in squares of 128 screen pixels as the camera comes to them (its colors and the GPU lighting's canvas both), the far ones let go, so a 256 x 256-cell map costs what the screen shows; a change to cells re-bakes only the squares over them. True, false, or by default when the map has more than 128 x 128 cells
 - `map.cutaway`: walls between the camera and the floor drop low (types with cut: true; false turns it off)
 - `map.floorMat` †: a material (E.MATERIALS id or '#hex pattern') for every floor cell
 - `map.floorMats` †: { tag: material } for the cells with that floor tag, over floorMat (untagged cells have the tag null). Either stands in for floorTex
@@ -1047,11 +1075,11 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 
 ## 21. Ui
 
-- `new E.Dialog(game, o = {}) → talk`: new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border }): a dialog box that types its text; say() opens it, update(dt) and draw(r) run it
+- `new E.Dialog(game, o = {}) → talk`: new E.Dialog(game, { speed, lines, place, color, nameColor, voice, bg, border, vars }): a dialog box that types its text; say() opens it, update(dt) and draw(r) run it
 - `talk.close()`: close it now (and forget pending presses, so the same press doesn't also attack)
 - `talk.draw(r)`: draw it (anywhere in draw: it goes to the overlay)
 - `talk.pageLen`: the letters on the page shown
-- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself, modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha } choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
+- `talk.say(text, o = {})`: open with one string or a list of strings (each starts a new page). opts: { name, onDone, choices, onChoice, portrait: rig (a live close-up of that Humanoid beside the text) or a function (g, x, y, size), portraitSize: 40, portraitOpts: { zoom, turn, bg }, auto: seconds a page shows before it turns by itself, modal: false (play goes on while it shows: radio chatter), place: 'top' | 'middle' | 'bottom', y, alpha, vars: the values {$name} reads } choices: ['YES', 'NO'], shown on the last page; onChoice(i) gets the one picked. update(dt) returns true while a modal box is open: return from your update then, and play waits
 - `talk.typing`: true while the page is still typing
 - `talk.update(dt)`: type and turn pages (confirm finishes the line, then turns the page); returns true while open and modal, so gameplay can wait: if (talk.update(dt)) return;
 - `talk.auto`: seconds each page stays after typing
@@ -1073,6 +1101,7 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `talk.portrait`: the portrait beside the text (a Humanoid, or a function (g, x, y, size)), or null; pSize: its size in pixels; pOpts: its options ({ zoom, turn, bg })
 - `talk.shown = 0`: letters typed so far on it
 - `talk.speed = 50`: letters typed per second
+- `talk.vars = null`: the values {$name} in the text reads (say's vars first)
 - `talk.voice = 'text'`: the sound effect each letter blips ('text'; null for silence)
 - `new E.Menu(game, items, o = {}) → menu`: Menu with a cursor (title screens, pause menus, shops, battle commands). const menu = new E.Menu(game, ['START', 'OPTIONS', { label: 'CONTINUE', disabled: !save }], { onPick(i, item) {...}, onCancel() {...} }); update: menu.update(dt) draw: menu.draw(r) opts: { x: 'center' | px, y: 'center' | px, title, box: true, color, pick: '#ffd36a', columns: 1 }
 - `menu.draw(r)`: draw it to the overlay

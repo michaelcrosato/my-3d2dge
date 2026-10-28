@@ -5,6 +5,10 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.70.0 (2026-10-28)
+
+- **Area**: what changed, in a line a player or a model can use.
+
 ## 0.69.1 (2026-10-28)
 
 The genre plan's Milestone 6, closed: its progress row complete.

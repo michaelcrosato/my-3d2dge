@@ -648,6 +648,18 @@ Needs M1 (scripts, the swirl).
 - **Done when:** a 256 x 256-cell map scrolls within budget on the phone, its floor's memory measured; small maps match
   their filmstrips; dialogue graphs and flags have contract tests; save slots are in `standard-test`; the RPG's bot
   plays the town, the cave, the boss, a save and a load; the battle plays as before.
+- **As built, 7a (v0.70.0):** a `TileMap` of more than 128 x 128 cells (or `chunks: true`) bakes its floor in squares
+  of 128 screen pixels as the camera comes to them, the colors and the GPU lighting's canvas both (the lighting's only
+  while it is on), one more of the ring round the screen each frame ahead of the camera, the least recently drawn let
+  go past twice what the screen needs; `set`, `fill` and `setFloor` re-bake only the squares over the cells changed;
+  `map.floorBytes()` says what the floors hold; walls and the water's sparkle are queued from the cells on screen alone.
+  A smaller map bakes as before (Emberdeep's web repaint reads that bake; every existing map is smaller), and the views
+  suite draws a small map both ways from fifteen cameras: the same pixels. The agent edition keeps its one bake (its
+  maps are small). Dialog markup is in both editions' `E.Dialog` (modules built on it load after either); `game.saves`
+  is the full engine's section 10k, on the diet (`saves`: a kit reading `game.saves` or writing `menu: { saves }` keeps
+  it), its screen built from `E.Shell`'s specs (the pause menu's Save and Load through a hook). Measured on the views
+  suite's 256 x 256 map (`tools/fixtures/bigmap.html`): its floor holds 2.9 MB where one bake would take 253 to 302 MB;
+  scrolling it on an emulated phone, 0.4 ms a frame (median), under 6 ms at the 95th percentile.
 
 ### M8: tactics (core picking; `grid` grows; kit TACTICS)
 

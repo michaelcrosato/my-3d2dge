@@ -78,6 +78,8 @@ function scan(src) {
     }
     // methods added after the class: TileMap.prototype.solid = function (...) (an engine section that extends a class)
     for (let i = 0; i < L.length; i++) { const m = /^(\w+)\.prototype\.(\w+) = function\s*\(/.exec(L[i]); if (m && m[1] === name && !methods.has(m[2])) methods.set(m[2], i); }
+    // and getters: Object.defineProperty(Game.prototype, 'saves', { get() {...} }) (a section's field made when first read)
+    for (let i = 0; i < L.length; i++) { const m = /^Object\.defineProperty\((\w+)\.prototype, '(\w+)'/.exec(L[i]); if (m && m[1] === name && !methods.has(m[2])) methods.set(m[2], i); }
     // a subclass lists only what it adds: the fields its parent sets are the parent's
     if (c.parent) { const P = members(c.parent); if (P) for (const f of P.fields.keys()) if (!/Object\.assign/.test(L[fields.get(f)] || '')) fields.delete(f); else if (P.fields.has(f)) fields.delete(f); }
     return { methods, fields, defaults };
