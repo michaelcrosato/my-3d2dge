@@ -11,7 +11,8 @@
 //              a minute of play in seconds): the hold's backoff, a display changing its refresh rate while paced, the
 //              player's Frame rate (Auto, 60, Full)
 //      session: a recorded page (?record=1) saves its session from the pause menu (its frame times: the device's refreshes)
-//   5. rpg: a whole turn is played by taps, and every tap target (commands, foes) is at least 44 CSS pixels (a thumb)
+//   5. rpg: the battle (#rpg/battle): a whole turn is played by taps, and every tap target (commands, foes) is at least
+//      44 CSS pixels (a thumb)
 //   7. roguelike: a tap on a floor cell it has seen walks the hero there, a cell a turn (the grid's path)
 //   8. puzzle: a tap on BLOCKS starts it; a drag sideways moves the piece a cell a step of the thumb, a tap turns it
 //   9. arcade: each of its three games from the cabinet to its high-score table: by taps on a phone (a cabinet, then the
@@ -22,6 +23,8 @@
 //  12. metroidvania: three thumb-sized buttons (JUMP, FIRE, MAP; DASH once found); the stick walks the hero and aims
 //  13. kart: DRIFT and ITEM, thumb-sized; it accelerates by itself; the stick steers
 //  14. road: BRAKE and GEAR, thumb-sized; it accelerates by itself; the stick steers; GEAR changes gear
+//  15. rpg's journey: its windows' rows a thumb's height; a tap on New game starts it; the stick walks the party; MENU
+//      opens the menu, a tap on a row opens it, BACK closes it
 //      the cannon (held up, a shot goes up); JUMP jumps; MAP opens the map and closes it
 //  10. shooter's arcade frame: the vertical stage's last ship lost brings a continue a tap takes; the horizontal stage
 //      (#shooter/horizontal) plays; its end brings initials by taps, the table, and a tap goes to the title
@@ -299,7 +302,7 @@ if (want('session')) {
 if (want('rpg')) {
   console.log('rpg: a battle played by thumb');
   for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
-    const { page, ctx, errors } = await open('rpg', vp);
+    const { page, ctx, errors } = await open('rpg', vp, 'rpg/battle');
     await page.touchscreen.tap(vp.width * .5, vp.height * .12);   // the device is touch now
     await page.waitForFunction(() => window.__game.game.scene.state().mode === 'command', null, { timeout: 8000 });
     const st = () => ev(page, () => window.__game.game.scene.state());
@@ -578,6 +581,30 @@ if (want('shooter')) {
   const back = await ev(page, () => window.__game.game.sceneName);
   check('shooter (touch): #shooter/horizontal plays; its end brings initials by taps, the table, then the title', h0.x > 0 && w === 'entry' && !!wheel && h1.ending === 'table' && (h1.table[0] || {}).name === 'BAA' && back === 'title' && !errors.length, JSON.stringify({ x: h0.x, w, top: h1.table[0], back }) + (errors.length ? ' errors: ' + errors.join(' | ') : ''));
   await ctx.close();
+}
+
+/* 15. rpg's journey: thumb-sized rows, New game by a tap, the stick, MENU, a row, BACK */
+if (want('rpg')) {
+  console.log("rpg: the journey by thumb");
+  for (const [label, vp] of [['upright', UP], ['on its side', SIDE]]) {
+    const { page, ctx, cdp, errors } = await open('rpg', vp);
+    await page.touchscreen.tap(vp.width * .5, vp.height * .08); await wait(300);   // the device is touch now: the windows' rows grow
+    const st = () => ev(page, () => window.__game.scenes.rpg.state()), k = await ev(page, () => { const S = window.__game.game.screen; return S.S / S.dpr; });
+    const tapRow = async label => { const row = (await st()).rows.find(r => r.label === label); if (!row) return false; const [x, y] = await toCss(page, row.at[0], row.at[1]); await page.touchscreen.tap(x, y); await wait(300); return true; };
+    const btn = act => ev(page, a => { const b = [...document.querySelectorAll('[data-sys=touch] button')].find(b => b.dataset.act === a && b.style.display !== 'none'); if (!b) return null; const q = b.getBoundingClientRect(); return { x: q.left + q.width / 2, y: q.top + q.height / 2, w: q.width, h: q.height, label: b.textContent }; }, act);
+    const s0 = await st(), small = Math.min(...s0.rows.map(r => r.h * k));
+    await tapRow('New game'); const s1 = await st();
+    check(`rpg ${label}: the title's rows are a thumb's height; a tap on New game starts the journey`, small >= 44 && s1.mode === 'walk', `rows ${Math.round(small)} CSS px, mode ${s1.mode}`);
+    const sx = vp.width * .2, sy = vp.height * .75; await drag(cdp, line([sx, sy], [sx, sy - 50], 30), 30); const s2 = await st();
+    check(`rpg ${label}: the stick walks the party`, s2.y < s1.y - 8, `from ${s1.x}, ${s1.y} to ${s2.x}, ${s2.y}`);
+    const menu = await btn('skill'); if (menu) { await page.touchscreen.tap(menu.x, menu.y); await wait(300); }
+    const s3 = await st(); await tapRow('Status'); const s4 = await st();
+    const back = await btn('cancel'); if (back) { await page.touchscreen.tap(back.x, back.y); await wait(300); } const s5 = await st();
+    mkdirSync(resolve('check-output/phone'), { recursive: true }); await page.screenshot({ path: resolve('check-output/phone', `rpg-journey-${label.replace(/ /g, '-')}.png`) });
+    check(`rpg ${label}: MENU (a thumb's size) opens the menu, a tap on Status opens it, BACK closes it`, !!menu && menu.label === 'MENU' && Math.min(menu.w, menu.h) >= 44 && s3.wins[0] === 'MENU' && s4.wins[1] === 'STATUS' && !!back && s5.wins.length === 1 && !errors.length,
+      `${menu ? menu.label + ' ' + Math.round(Math.min(menu.w, menu.h)) + ' px' : 'no MENU'}; windows ${s3.wins.join('/')} → ${s4.wins.join('/')} → ${s5.wins.join('/')}${errors.length ? '; errors: ' + errors.join(' | ') : ''}`);
+    await ctx.close();
+  }
 }
 
 await browser.close();

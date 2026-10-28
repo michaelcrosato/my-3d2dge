@@ -1,5 +1,5 @@
 /*!
- * my-3D2dge v0.70.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.71.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -80,7 +80,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.70.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.71.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -10029,7 +10029,7 @@ root.My3D2dge = E;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /*!
-my-3D2dge module ARCADE v0.70.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.71.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10244,7 +10244,7 @@ E.Arcade = Arcade;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module DRIVE v0.70.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.71.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10469,7 +10469,7 @@ Object.assign(E, { Car, Race });
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module FIGHT v0.70.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.71.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11020,7 +11020,7 @@ E.FightSelect = FightSelect;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GEN v0.70.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.71.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11203,7 +11203,7 @@ E.gen = gen;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module GRID v0.70.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.71.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11567,7 +11567,7 @@ E.Turns = Turns;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module MODE7 v0.70.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.71.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11772,7 +11772,7 @@ E.Mode7 = Mode7;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROAD v0.70.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.71.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11932,7 +11932,7 @@ E.Road = Road;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 /*!
-my-3D2dge module ROOMS v0.70.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.71.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12110,4 +12110,529 @@ class World {
   clear() { E.store.remove('rooms:' + this.id); }
 }
 E.World = World;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+/*!
+my-3D2dge module RPG v0.71.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+The systems under a JRPG (Dragon Quest, Final Fantasy, Chrono Trigger), and the inventory grid of a Resident Evil.
+- const rpg = new E.RPG({ items, monsters, status, curve }). items: { id: { name, kind: 'use' | 'weapon' | 'armor' |
+  'helm' | 'accessory' | 'key', price, stack (99), heal, mp, cure: ['poison'], revive (a share of HP), stats: { atk: 4 }
+  (worn: slot = its kind), size: [w, h] (grid cells), icon (a sprite; else one for its kind), info } }. monsters: { id:
+  { name, hp, atk, def, mag, spd, exp, gold, drops: [[chance, item]] } }. status: over the defaults (poison: a
+  sixteenth of HP each tick; regen heals that; sleep and stop skip turns; silence bars skills; haste and slow change
+  spd), each { turns (0: till cured), hurt, heal, skip, mute, spd }. curve(lv): the experience a level needs in all.
+- const hero = rpg.member({ name, level, stats: { hp, mp, atk, def, mag, spd }, growth: { hp: 10, atk: 2 } (a level),
+  equip: { weapon: 'sword' }, data }): hero.stat(k) (base, growth, gear, status), hero.max('hp'), hero.hp, mp, level,
+  exp, next (to the next level), dead, data (the game's own); gain(exp) → the levels reached [{ level, up: { hp: 11 } }];
+  equip(id, inv) (the old piece back into inv), unequip(slot, inv), compare(id) → { atk: 3, def: -1 } (what equipping
+  it changes); afflict(k, turns), cure(k) (k left out: all), has(k), acts() (no skip), tick() (a turn: hurt, heal,
+  effects run out; → [[k, hp change or 'ends']]).
+- const party = rpg.party([hero], { gold, inv }): members, alive, gold, inv (rpg.inventory() by default); use(id, m)
+  (heal, mp, cure, revive; → true when it did something, and the item is gone); rest() (an inn); reward(troop) (monster
+  ids, or { exp, gold, items }) → { exp, gold, items, levels: [[member, levels]] } (exp shared by the living).
+- const inv = rpg.inventory({ slots: 32 } | { grid: [8, 5] }): add(id, n) (false, and nothing added, when it won't
+  fit), remove(id, n), count(id), has(id, n), list() → [{ id, n, item, x, y }]; a grid's: fits(id, x, y), place(id, x,
+  y), at(x, y).
+- const shop = rpg.shop(['potion', 'sword']): price(id), worth(id) (selling: half), buy(party, id, n), sell(party, id,
+  n) (→ true when done; key items don't sell).
+- rpg.damage(a, b, { power: 1, kind: 'phys' | 'mag', crit: .08, guard }) → { hp, crit }: attack less half the defense
+  (members' stats, or a monster's fields), a tenth either way; a critical hit ignores armor.
+- const enc = rpg.encounters({ field: { every: [12, 28] (cells walked), troops: [[3, ['slime', 'slime']], [1, ['bat']]] } }):
+  enc.walk(zone, units) each step → a troop when the count runs out (it starts again), else null.
+- party.state() → JSON for a save; rpg.restore(state) → that party.
+- Windows (in r.overlay): rpg.list(g, x, y, w, rows, { cursor, title, top, show, rowH, bg }) (rows: [{ label, note,
+  icon, off }]; → { x, y, w, h, row(px, py): the row under a tap, at(i) }), rpg.card(g, x, y, member, { portrait }),
+  rpg.icon(id).
+
+```js rpg
+const E = My3D2dge, rpg = new E.RPG({ items: { potion: { name: 'Potion', kind: 'use', heal: 30, price: 10 }, sword: { name: 'Sword', kind: 'weapon', stats: { atk: 5 }, price: 60 } },
+  monsters: { slime: { name: 'Slime', hp: 10, atk: 4, def: 1, exp: 9, gold: 6 } } });
+const hero = rpg.member({ name: 'Rowan', stats: { hp: 40, mp: 4, atk: 10, def: 4 }, growth: { hp: 8, atk: 2 } });
+const party = rpg.party([hero], { gold: 100 }), shop = rpg.shop(['potion', 'sword']);
+if (!shop.buy(party, 'sword') || hero.compare('sword').atk !== 5 || !hero.equip('sword', party.inv) || hero.stat('atk') !== 15) throw new Error('a sword bought and worn');
+const won = party.reward(['slime', 'slime', 'slime', 'slime']);
+if (won.exp !== 36 || party.gold !== 64 || hero.level < 2 || hero.max('hp') !== 40 + 8 * (hero.level - 1)) throw new Error('the reward, a level');
+hero.hp = 5; shop.buy(party, 'potion'); if (!party.use('potion', hero) || hero.hp !== 35 || party.inv.has('potion')) throw new Error('a potion drunk');
+if (rpg.restore(JSON.parse(JSON.stringify(party.state()))).members[0].stat('atk') !== hero.stat('atk')) throw new Error('saved and back');
+```
+Rules: ids in the save, never objects; a battle reads members' stat() and writes their hp and mp back; draw windows
+in r.overlay; randomness is Math.random's (a proof seeds it).
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module RPG: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * RPG  items, inventories, equipment, shops, members and their party, status, damage, encounters, windows
+ * ========================================================================== */
+const { px } = E, STATS = ['hp', 'mp', 'atk', 'def', 'mag', 'spd'], SLOTS = ['weapon', 'armor', 'helm', 'accessory'];
+const STATUS = {   // the default effects: hurt and heal (a share of max HP a tick), skip (no turns), mute (no skills), spd (its speed)
+  poison: { hurt: 1 / 16, turns: 0, color: '#b060e0' }, regen: { heal: 1 / 16, turns: 5, color: '#58d068' }, sleep: { skip: true, turns: 3, color: '#8ab0ff' },
+  stop: { skip: true, turns: 2, color: '#c0c0c0' }, silence: { mute: true, turns: 4, color: '#e0e0a0' }, haste: { spd: 1.5, turns: 5, color: '#ffd060' }, slow: { spd: .5, turns: 5, color: '#6a8ac0' }
+};
+const copy = v => JSON.parse(JSON.stringify(v));
+class Member {
+  /** a party member (rpg.member(o): the manual above) */
+  constructor(rpg, o = {}) {
+    /** rpg: its rules; name; level; base: its stats at level 1; growth: what each level adds; equipped: its gear by
+     *  slot; effects: its status effects (turns left, 0 till cured); data: the game's own (a rig's look, skills) */
+    this.rpg = rpg; this.name = o.name || 'Hero'; this.level = o.level || 1; this.base = Object.assign({ hp: 30, mp: 0, atk: 5, def: 5, mag: 5, spd: 5 }, o.stats);
+    this.growth = Object.assign({}, o.growth); this.equipped = Object.assign({}, o.equip); this.effects = Object.assign({}, o.effects); this.data = o.data || {};
+    /** exp: experience gained in all; hp, mp: what it has now */
+    this.exp = o.exp !== undefined ? o.exp : rpg.curve(this.level); this.hp = o.hp !== undefined ? o.hp : this.max('hp'); this.mp = o.mp !== undefined ? o.mp : this.max('mp');
+  }
+  _raw(k) { let v = (this.base[k] || 0) + (this.growth[k] || 0) * (this.level - 1); for (const s in this.equipped) { const it = this.rpg.item(this.equipped[s]); if (it && it.stats) v += it.stats[k] || 0; } return v; }
+  /** a stat now: base, growth, gear, and status (haste and slow on spd) */
+  stat(k) { let v = this._raw(k); if (k === 'spd') for (const e in this.effects) { const s = this.rpg.status[e]; if (s && s.spd) v *= s.spd; } return Math.round(v * 100) / 100; }
+  /** the most HP (or MP) it can have */
+  max(k) { return Math.round(this._raw(k)); }
+  /** experience to the next level */
+  get next() { return Math.max(0, this.rpg.curve(this.level + 1) - this.exp); }
+  /** no HP left */
+  get dead() { return this.hp <= 0; }
+  /** gain experience: the levels reached, [{ level, up: { hp, mp, atk, ... } }] (hp and mp grow with them) */
+  gain(n) {
+    this.exp += Math.max(0, Math.round(n)); const out = [];
+    while (this.level < 99 && this.exp >= this.rpg.curve(this.level + 1)) {
+      const was = {}; for (const k of STATS) was[k] = this.max(k);
+      this.level++; const up = {}; for (const k of STATS) { const d = this.max(k) - was[k]; if (d) up[k] = d; }
+      if (!this.dead) { this.hp += up.hp || 0; this.mp += up.mp || 0; }
+      out.push({ level: this.level, up });
+    }
+    return out;
+  }
+  _fit() { this.hp = Math.min(this.hp, this.max('hp')); this.mp = Math.min(this.mp, this.max('mp')); }
+  /** wear item id (from inv, when given: the old piece goes back into it); false when it can't be worn or isn't there */
+  equip(id, inv) {
+    const it = this.rpg.item(id), slot = it && (it.slot || (SLOTS.includes(it.kind) ? it.kind : null)); if (!slot || (inv && !inv.has(id))) return false;
+    const old = this.equipped[slot]; if (inv) { inv.remove(id, 1); if (old && !inv.add(old, 1)) { inv.add(id, 1); return false; } }
+    this.equipped[slot] = id; this._fit(); return true;
+  }
+  /** take off what is in slot (into inv, when given: false if it won't fit) */
+  unequip(slot, inv) { const id = this.equipped[slot]; if (!id || (inv && !inv.add(id, 1))) return false; delete this.equipped[slot]; this._fit(); return true; }
+  /** what wearing item id would change: { atk: 3, def: -1 } (the stats that differ) */
+  compare(id) {
+    const it = this.rpg.item(id), slot = it && (it.slot || it.kind), cur = this.rpg.item(this.equipped[slot]), out = {};
+    for (const k of STATS) { const d = ((it && it.stats && it.stats[k]) || 0) - ((cur && cur.stats && cur.stats[k]) || 0); if (d) out[k] = d; }
+    return out;
+  }
+  /** a status effect for turns (its own by default; 0: till cured) */
+  afflict(k, turns) { const s = this.rpg.status[k]; if (!s || this.dead) return false; this.effects[k] = turns !== undefined ? turns : s.turns || 0; return true; }
+  /** cure an effect (every one when k is left out) */
+  cure(k) { if (k === undefined) this.effects = {}; else delete this.effects[k]; }
+  /** has it this effect? */
+  has(k) { return k in this.effects; }
+  /** can it take its turn (no sleep, no stop)? */
+  acts() { return !this.dead && !Object.keys(this.effects).some(e => (this.rpg.status[e] || {}).skip); }
+  /** a turn passes: poison hurts, regen heals, effects run out; → [[effect, hp change or 'ends']] */
+  tick() {
+    const out = [];
+    for (const k of Object.keys(this.effects)) {
+      const s = this.rpg.status[k] || {}, m = this.max('hp');
+      if (s.hurt && !this.dead) { const d = Math.min(this.hp, Math.max(1, Math.round(m * s.hurt))); this.hp -= d; out.push([k, -d]); }
+      if (s.heal && !this.dead) { const d = Math.min(m - this.hp, Math.max(1, Math.round(m * s.heal))); this.hp += d; out.push([k, d]); }
+      if (this.effects[k] > 0 && --this.effects[k] === 0) { delete this.effects[k]; out.push([k, 'ends']); }
+    }
+    return out;
+  }
+  /** what it is now, as JSON (party.state() holds it) */
+  state() { return copy({ name: this.name, level: this.level, exp: this.exp, hp: this.hp, mp: this.mp, stats: this.base, growth: this.growth, equip: this.equipped, effects: this.effects, data: this.data }); }
+}
+class Inventory {
+  /** a bag of items (rpg.inventory(o): the manual above) */
+  constructor(rpg, o = {}) {
+    /** rpg: its rules; slots: how many stacks a list holds; grid: [w, h] cells, or null; entries: its stacks ({ id, n, x, y }) */
+    this.rpg = rpg; this.slots = o.slots || 32; this.grid = o.grid || null; this.entries = copy(o.entries || []);
+  }
+  _stack(id) { const it = this.rpg.item(id); return (it && it.stack) || 99; }
+  _size(id) { const it = this.rpg.item(id); return (it && it.size) || [1, 1]; }
+  /** how many of item id it holds */
+  count(id) { return this.entries.reduce((a, e) => a + (e.id === id ? e.n : 0), 0); }
+  /** does it hold n of item id? */
+  has(id, n = 1) { return this.count(id) >= n; }
+  /** its stacks: [{ id, n, item, x, y }] */
+  list() { return this.entries.map(e => ({ id: e.id, n: e.n, item: this.rpg.item(e.id), x: e.x, y: e.y })); }
+  /** add n of item id: false, adding nothing, when they won't fit */
+  add(id, n = 1) {
+    if (!this.rpg.item(id)) { E.warn('rpg:item:' + id, 'E.RPG: no item "' + id + '"'); return false; }
+    const st = this._stack(id), plan = []; let left = n;
+    for (const e of this.entries) if (left > 0 && e.id === id && e.n < st) { const k = Math.min(st - e.n, left); plan.push([e, k]); left -= k; }
+    const fresh = [];
+    while (left > 0) {
+      const k = Math.min(st, left), at = this.grid ? this._free(id, fresh) : this.entries.length + fresh.length < this.slots ? [] : null;
+      if (!at) return false;
+      fresh.push({ id, n: k, x: at[0], y: at[1] }); left -= k;
+    }
+    for (const [e, k] of plan) e.n += k;
+    for (const e of fresh) { if (!this.grid) { delete e.x; delete e.y; } this.entries.push(e); }
+    return true;
+  }
+  /** take away n of item id (the last stacks first); false when it holds fewer */
+  remove(id, n = 1) {
+    if (this.count(id) < n) return false;
+    for (let i = this.entries.length - 1; i >= 0 && n > 0; i--) { const e = this.entries[i]; if (e.id !== id) continue; const k = Math.min(e.n, n); e.n -= k; n -= k; if (!e.n) this.entries.splice(i, 1); }
+    return true;
+  }
+  /** a grid's stack covering cell x, y, or null */
+  at(x, y) { return this.entries.find(e => { const [w, h] = this._size(e.id); return x >= e.x && x < e.x + w && y >= e.y && y < e.y + h; }) || null; }
+  /** would item id fit with its top left at cell x, y (a grid's)? */
+  fits(id, x, y, more = []) {
+    const [w, h] = this._size(id), [W, H] = this.grid || [0, 0]; if (x < 0 || y < 0 || x + w > W || y + h > H) return false;
+    return ![...this.entries, ...more].some(e => { const [ew, eh] = this._size(e.id); return x < e.x + ew && e.x < x + w && y < e.y + eh && e.y < y + h; });
+  }
+  /** put one item id at cell x, y of a grid; false when it doesn't fit there */
+  place(id, x, y) { if (!this.grid || !this.fits(id, x, y)) return false; this.entries.push({ id, n: 1, x, y }); return true; }
+  _free(id, more) { const [W, H] = this.grid; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (this.fits(id, x, y, more)) return [x, y]; return null; }
+  /** its stacks as JSON */
+  state() { return { slots: this.slots, grid: this.grid, entries: copy(this.entries) }; }
+}
+class Party {
+  /** the party (rpg.party(members, o): the manual above) */
+  constructor(rpg, members, o = {}) {
+    /** rpg: its rules; members: who is in it, in order; gold: its money; inv: its items */
+    this.rpg = rpg; this.members = members || []; this.gold = o.gold || 0; this.inv = o.inv || rpg.inventory();
+  }
+  /** the members still standing */
+  get alive() { return this.members.filter(m => !m.dead); }
+  /** use item id on member m (heal, mp, cure, revive): true when it did something (then it is used up) */
+  use(id, m) {
+    const it = this.rpg.item(id); if (!it || it.kind !== 'use' || !this.inv.has(id) || !m) return false;
+    let did = false;
+    if (m.dead) { if (it.revive) { m.hp = Math.max(1, Math.round(m.max('hp') * it.revive)); did = true; } }
+    else {
+      if (it.heal && m.hp < m.max('hp')) { m.hp = Math.min(m.max('hp'), m.hp + it.heal); did = true; }
+      if (it.mp && m.mp < m.max('mp')) { m.mp = Math.min(m.max('mp'), m.mp + it.mp); did = true; }
+      for (const k of [].concat(it.cure || [])) if (m.has(k)) { m.cure(k); did = true; }
+    }
+    if (did) this.inv.remove(id, 1); return did;
+  }
+  /** an inn: every member's HP and MP back, every effect gone */
+  rest() { for (const m of this.members) { m.hp = m.max('hp'); m.mp = m.max('mp'); m.cure(); } }
+  /** a battle won: troop (monster ids) or { exp, gold, items }; the gold and items kept, the exp shared by the living;
+   *  → { exp, gold, items, levels: [[member, levels]] } */
+  reward(troop) {
+    let r = troop;
+    if (Array.isArray(troop)) {
+      r = { exp: 0, gold: 0, items: [] };
+      for (const id of troop) { const mo = this.rpg.monsters[id] || {}; r.exp += mo.exp || 0; r.gold += mo.gold || 0; for (const [p, it] of mo.drops || []) if (Math.random() < p) r.items.push(it); }
+    }
+    const items = [].concat(r.items || []).filter(it => this.inv.add(it, 1)), alive = this.alive, share = alive.length ? Math.ceil((r.exp || 0) / alive.length) : 0;
+    this.gold += r.gold || 0;
+    return { exp: r.exp || 0, gold: r.gold || 0, items, levels: alive.map(m => [m, m.gain(share)]).filter(x => x[1].length) };
+  }
+  /** the party as JSON (a save: rpg.restore(state) brings it back) */
+  state() { return { gold: this.gold, members: this.members.map(m => m.state()), inv: this.inv.state() }; }
+}
+class Shop {
+  /** a shop's stock (rpg.shop(ids, o): the manual above) */
+  constructor(rpg, ids, o = {}) {
+    /** rpg: its rules; items: the ids it sells; rate: what it pays for an item, a share of its price (.5) */
+    this.rpg = rpg; this.items = ids || []; this.rate = o.sell !== undefined ? o.sell : .5;
+  }
+  /** what item id costs */
+  price(id) { const it = this.rpg.item(id); return (it && it.price) || 0; }
+  /** what selling item id brings (nothing for a key item) */
+  worth(id) { const it = this.rpg.item(id); return it && it.kind !== 'key' ? Math.floor(this.price(id) * this.rate) : 0; }
+  /** buy n of item id: false when the party can't pay or carry them */
+  buy(party, id, n = 1) { const c = this.price(id) * n; if (party.gold < c || !party.inv.add(id, n)) return false; party.gold -= c; return true; }
+  /** sell n of item id: false for a key item, or when the party hasn't them */
+  sell(party, id, n = 1) { const it = this.rpg.item(id); if (!it || it.kind === 'key' || !party.inv.remove(id, n)) return false; party.gold += this.worth(id) * n; return true; }
+}
+class Encounters {
+  /** random encounters by zone (rpg.encounters(zones, o): the manual above) */
+  constructor(rpg, zones, o = {}) {
+    /** rpg: its rules; zones: { zone: { every: [min, max] cells, troops: [[weight, [ids]]] } }; T: a cell's units (16);
+     *  left: cells till the next one */
+    this.rpg = rpg; this.zones = zones || {}; this.T = o.tile || 16; this.left = null; this._zone = null;
+  }
+  /** units walked in zone this step: a troop (a copy of its ids) when the count runs out, else null */
+  walk(zone, units) {
+    const z = this.zones[zone]; if (!z || !(units > 0)) return null;
+    if (this.left === null || this._zone !== zone) { this._zone = zone; this.left = E.rand(z.every[0], z.every[1]); }
+    this.left -= units / this.T; if (this.left > 0) return null;
+    this.left = E.rand(z.every[0], z.every[1]);
+    let w = Math.random() * z.troops.reduce((a, t) => a + t[0], 0);
+    for (const [k, ids] of z.troops) if ((w -= k) < 0) return ids.slice();
+    return z.troops[z.troops.length - 1][1].slice();
+  }
+}
+// the icons for an item's kind (8 x 8): a flask (red: HP, blue: MP), a blade, a breastplate, a helm, a ring, a key
+const ICONS = {
+  use: ['..kk....', '..kk....', '.kffk...', 'kffwfk..', 'kfffwk..', 'kffffk..', '.kkkk...', '........'], weapon: ['......kw', '.....kwk', '....kwk.', '...kwk..', 'k.kwk...', '.kgk....', 'kgk.k...', 'kk......'],
+  armor: ['.kk..kk.', 'kaakkaak', 'kaaaaaak', '.kaaaak.', '.kaaaak.', '.kaaaak.', '..kkkk..', '........'], helm: ['..kkkk..', '.kaaaak.', 'kaaaaaak', 'kakkkkak', 'kk....kk', 'k......k', '........', '........'],
+  accessory: ['..kgk...', '.k...k..', 'k.....k.', 'k.....k.', '.k...k..', '..kkk...', '........', '........'], key: ['.kkk....', 'kg.gk...', 'kg.gk...', '.kgkkkkk', '....k.kk', '........', '........', '........']
+};
+class RPG {
+  /** new E.RPG({ items, monsters, status, curve }): the rules of a role-playing game (the manual above) */
+  constructor(o = {}) {
+    /** items: the items by id; monsters: the monsters by id; status: the status effects by name (the defaults and yours) */
+    this.items = o.items || {}; this.monsters = o.monsters || {}; this.status = Object.assign({}, STATUS, o.status);
+    /** curve(lv): the experience level lv needs in all (15 x (lv - 1) ^ 2.4 by default) */
+    this.curve = o.curve || (lv => Math.round(15 * Math.pow(Math.max(0, lv - 1), 2.4)));
+    this._icons = {};
+  }
+  /** item id's definition, or null */
+  item(id) { return (id && this.items[id]) || null; }
+  /** a party member: { name, level, stats, growth, equip, data } */
+  member(o) { return new Member(this, o); }
+  /** a party: its members and { gold, inv } */
+  party(members, o) { return new Party(this, members, o); }
+  /** a bag: { slots: 32 } or { grid: [8, 5] } */
+  inventory(o) { return new Inventory(this, o); }
+  /** a shop selling these item ids ({ sell: .5 }: what it pays back) */
+  shop(ids, o) { return new Shop(this, ids, o); }
+  /** random encounters by zone: { zone: { every: [min, max], troops: [[weight, ids]] } } */
+  encounters(zones, o) { return new Encounters(this, zones, o); }
+  /** the party a save held (party.state()) */
+  restore(s) {
+    const members = (s.members || []).map(m => new Member(this, m));
+    return new Party(this, members, { gold: s.gold, inv: new Inventory(this, s.inv || {}) });
+  }
+  /** a hit: { hp, crit } (a's attack, or its magic with kind 'mag', less half b's defense or magic; a tenth either way;
+   *  a critical hit, physical only, ignores armor; guard halves it) */
+  damage(a, b, o = {}) {
+    const mag = o.kind === 'mag', st = (u, k) => typeof u.stat === 'function' ? u.stat(k) : u[k] || 0;
+    const at = st(a, mag ? 'mag' : 'atk'), df = st(b, mag ? 'mag' : 'def'), crit = !mag && Math.random() < (o.crit === undefined ? .08 : o.crit);
+    let hp = (crit ? at * 1.5 : at - df / 2) * (o.power || 1) * (.9 + Math.random() * .2);
+    if (o.guard) hp /= 2;
+    return { hp: Math.max(1, Math.round(hp)), crit };
+  }
+  /** item id's icon: its own sprite, or one for its kind (a flask red for HP, blue for MP) */
+  icon(id) {
+    const it = this.item(id); if (!it) return null; if (it.icon) return it.icon;
+    const k = ICONS[it.kind] ? it.kind : 'use', key = k + (it.mp && !it.heal ? ':mp' : '');
+    return this._icons[key] || (this._icons[key] = E.sprite(ICONS[k], { k: '#1a1030', f: it.mp && !it.heal ? '#5aa0ff' : '#e8384a', w: '#ffffff', g: '#e8c860', a: '#b8c4d8' }));
+  }
+  /** a window of rows ({ label, note, icon, off }) with a cursor; o: { cursor, title, top (the first row shown), show
+   *  (rows shown: 8), bg, rowH }. → { x, y, w, h, row(px, py) }: the row index at a screen point, or -1 */
+  list(g, x, y, w, rows, o = {}) {
+    const rh = o.rowH || 11, show = Math.min(rows.length, o.show || 8), top = Math.max(0, Math.min(o.top || 0, rows.length - show)), ty = o.title ? 13 : 0, h = Math.max(1, show) * rh + 8 + ty;
+    E.ui.box(g, x, y, w, h, { bg: o.bg || ['#6c8cff', '#0a0a48'] });
+    if (o.title) { E.font.text(g, o.title, x + 7, y + 5, '#ffe08a', { outline: false, shadow: '#0a0820' }); px.rect(g, x + 4, y + 14, w - 8, 1, '#a8b8ff'); }
+    for (let k = 0; k < show; k++) {   // (rows taller than the text, a thumb's on a phone: the text in their middle)
+      const i = top + k, r = rows[i], ry = y + 5 + ty + k * rh + Math.max(0, Math.floor((rh - 11) / 2)), col = r.off ? '#7c7aa8' : '#ffffff';
+      if (r.icon) px.sprite(g, r.icon, x + 12, ry);
+      E.font.text(g, r.label, x + (r.icon ? 23 : 13), ry, col, { outline: false, shadow: '#0a0820' });
+      if (r.note !== undefined && r.note !== null) E.font.text(g, String(r.note), x + w - 7, ry, r.off ? '#7c7aa8' : '#9ad0ff', { outline: false, shadow: '#0a0820', align: 'right' });
+      if (i === o.cursor) px.poly(g, [[x + 4, ry], [x + 9, ry + 3], [x + 4, ry + 6]], '#ffe060');
+    }
+    if (top > 0) px.poly(g, [[x + w / 2 - 3, y + ty + 4], [x + w / 2 + 3, y + ty + 4], [x + w / 2, y + ty + 1]], '#ffe060');
+    if (top + show < rows.length) px.poly(g, [[x + w / 2 - 3, y + h - 4], [x + w / 2 + 3, y + h - 4], [x + w / 2, y + h - 1]], '#ffe060');
+    return { x, y, w, h, rowH: rh, top, show, row: (qx, qy) => { const k = Math.floor((qy - y - 5 - ty + (rh > 11 ? 0 : 2)) / rh); return qx >= x && qx < x + w && k >= 0 && k < show ? top + k : -1; },
+      at: k => [x + w / 2, y + 5 + ty + (k - top + .5) * rh] };   // (a row's middle on screen: a tap's target)
+  }
+  /** a member's card: o.portrait (a Humanoid) beside its name, level, HP and MP bars, its stats and effects; → { w, h } */
+  card(g, x, y, m, o = {}) {
+    const w = o.w || 150, h = 62, P = o.portrait, tx = x + (P ? 34 : 7), t = (s, a, b, c, al) => E.font.text(g, String(s), a, b, c, { outline: false, shadow: '#0a0820', align: al });
+    E.ui.box(g, x, y, w, h, { bg: o.bg || ['#6c8cff', '#0a0a48'] });
+    if (P) P.drawPortrait(g, x + 4, y + 4, 26, { zoom: 2.1, turn: .7, bg: ['#3a4aa8', '#10143a'], tint: m.dead ? '#808080' : undefined });
+    t(m.name, tx, y + 5, m.dead ? '#a08aa8' : '#ffffff'); t('Lv ' + m.level, x + w - 7, y + 5, '#ffe08a', 'right');
+    const bar = (lab, v, mx, by, c) => { E.font.text(g, lab, tx, by, '#9ad0ff', { font: 'tiny', outline: false }); t(v + '/' + mx, x + w - 7, by - 2, '#ffffff', 'right'); E.ui.bar(g, tx + 12, by + 7, x + w - tx - 19, 3, mx ? v / mx : 0, c, { bg: '#2a2650' }); };
+    bar('HP', m.hp, m.max('hp'), y + 17, m.hp < m.max('hp') / 4 ? '#e8a030' : '#58d068'); bar('MP', m.mp, m.max('mp'), y + 30, '#5aa0ff');
+    ['atk', 'def', 'mag', 'spd'].forEach((k, i) => E.font.text(g, k.toUpperCase() + ' ' + Math.round(m.stat(k)), x + 7 + i * ((w - 14) / 4), y + 46, '#c8d0ff', { font: 'tiny', outline: false }));
+    const fx = Object.keys(m.effects); if (fx.length) E.font.text(g, fx.join(' ').toUpperCase(), x + 7, y + 54, (this.status[fx[0]] || {}).color || '#ffffff', { font: 'tiny', outline: false });
+    return { w, h };
+  }
+}
+E.RPG = RPG;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+/*!
+my-3D2dge module STORY v0.71.0: dialogue as data, flags and values, a quest log and emote balloons
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine or the agent edition. Needs: no other module.
+
+A JRPG's or an adventure's talk (Dragon Quest, Chrono Trigger, Zelda): conversations written as data and run through an
+E.Dialog (its markup and portraits), remembering what was said and done.
+- const story = new E.Story(game, { people: { elder: { name: 'ELDER', portrait: rig, at: npc } }, nodes, vars, on:
+  { gift(story, step) {...} }, dialog }). people: who speaks (portrait: a Humanoid or a function (g, x, y, size); at:
+  anything with x, y, z, and h its height, a balloon floats over); dialog: the E.Dialog it talks through (else its own:
+  story.talk); on: the game's handlers for events.
+- nodes: { id: [step, ...] }: the steps run in order, and a step with if runs only when its condition holds.
+  - { who, say: 'text' | [pages], choices: [{ text, if, goto, ...actions }] }: a line in the box (markup, {$name}
+    from vars); a choice's actions run when it is picked, then its goto, else the next step.
+  - { goto: 'id' } jumps; { end: true } stops; { wait: seconds } pauses.
+  - actions, on any step or choice: set: 'flag' | { key: value }; add: { gold: -50 }; quest: [id, title, text]; done:
+    id; emote: '!' | '?' | 'heart' | 'dots' | 'note' (over who's at); event: 'name' (calls on[name](story, step), after
+    the line on a step that speaks; with wait: true the story holds until story.resume(): the game's scene, a shop).
+  - conditions: 'flag' (set and truthy), '!flag', 'gold >= 50' (== != < <= > >=, a number or a word), 'quest:id'
+    (taken), 'done:id' (finished), an array (all of them), or a function (story) => true or false.
+- story.run(id, { onDone }) starts a node (stopping any other). In update: if (story.update(dt)) return; (true while it
+  runs: play waits); in draw: story.draw(r) (the box and the balloons). story.running; story.node: the node's id.
+- story.vars: every flag and value ({$name} in a line reads them); story.set(key, value = true), get(key) (a dotted
+  path), test(condition).
+- Quests: story.quest(id, title, text), story.done(id); story.quests: [{ id, title, text, done }] in the order taken.
+- story.emote(target, kind, seconds = 1.5): a balloon over anything with x, y, z (h: its height).
+- story.state() and story.restore(state): its vars and quests as JSON, for a save (in game.saves' data).
+
+```js story
+const E = My3D2dge, game = new E.Game({ headless: true });
+const story = new E.Story(game, { vars: { gold: 30, hero: 'ROWAN' }, nodes: {
+  elder: [{ if: 'helping', goto: 'thanks' }, { who: 'elder', say: 'Will you help us, {$hero}?', choices: [
+    { text: 'Yes', set: 'helping', quest: ['cave', 'The cave', 'Clear the cave north of town'] }, { text: 'No', goto: 'bye' }] },
+    { add: { gold: 20 } }],
+  thanks: [{ say: 'Thank you!' }, { if: 'gold >= 50', done: 'cave' }],
+  bye: [{ say: 'Farewell.' }] } });
+game.start({ update(dt) { story.update(dt); }, draw(r) { story.draw(r); } });
+const press = n => { for (let i = 0; i < n; i++) { game.input.tap('confirm'); game.advance(.5); } };
+story.run('elder'); press(2);   // the line types out, then the first choice: Yes
+if (!story.get('helping') || story.get('gold') !== 50 || story.quests[0].id !== 'cave' || story.running) throw new Error('the quest taken');
+story.run('elder'); press(2);
+if (!story.quests[0].done || !story.test('done:cave')) throw new Error('the quest done');
+```
+Rules: keep the nodes as data (a game's script is an event); put story.state() in the game's save and restore it on a
+load; one story per game, its talk the only box on screen.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module STORY: load engine/my-3d2dge.js (or the agent edition) first');
+
+/* =============================================================================
+ * STORY  conversations as data run through a Dialog, flags and values, quests, emote balloons
+ * ========================================================================== */
+const { px } = E;
+const HEART = E.sprite(['.R.R.', 'RRRRR', 'RRRRR', '.RRR.', '..R..'], { R: '#e8384a' });
+class Story {
+  /** new E.Story(game, { people, nodes, vars, on, dialog }): the talk of a game (the manual above) */
+  constructor(game, o = {}) {
+    /** game: its game; people: who speaks, by id ({ name, portrait, at }); nodes: the conversations by id (lists of
+     *  steps); on: the game's event handlers by name */
+    this.game = game; this.people = o.people || {}; this.nodes = o.nodes || {}; this.on = Object.assign({}, o.on);
+    /** vars: every flag and value (a line's {$name} reads them) */
+    this.vars = Object.assign({}, o.vars);
+    /** talk: the E.Dialog it speaks through */
+    this.talk = o.dialog || new E.Dialog(game); this.talk.vars = this.vars;
+    /** quests: the quest log, in the order taken ({ id, title, text, done }) */
+    this.quests = [];
+    /** running: a node runs; node: its id */
+    this.running = false; this.node = null;
+    this._steps = null; this._i = 0; this._wait = 0; this._held = false; this._then = null; this._pick = null; this._done = null; this._balloons = [];
+  }
+  /** start node id (stopping any other); o.onDone(story) when it ends */
+  run(id, o = {}) {
+    if (!this.nodes[id]) { E.warn('story:' + id, 'E.Story: no node "' + id + '"'); return this; }
+    if (this.talk.open) this.talk.close();
+    this.running = true; this.node = id; this._steps = this.nodes[id]; this._i = 0; this._wait = 0; this._held = false; this._then = null; this._pick = null; this._done = o.onDone || null;
+    this._next(); return this;
+  }
+  /** stop the node running (its box closes; onDone isn't called) */
+  stop() { this.running = false; this.node = null; this._done = null; if (this.talk.open) this.talk.close(); }
+  /** after an event with wait: true, go on (to the choice's goto, or the next step) */
+  resume() { if (!this._held) return; this._held = false; const g = this._then; this._then = null; if (g && !this._jump(g)) return; this._next(); }
+  // the steps until one waits (a line, a pause, a held event) or the node ends
+  _next() {
+    while (this.running) {
+      const s = this._steps[this._i++];
+      if (!s) return this._end();
+      if (s.if !== undefined && !this.test(s.if)) continue;
+      if (s.say !== undefined) return this._say(s);   // (its event, goto and a choice's run when the box closes)
+      this._act(s); if (!this.running) return;
+      if (this._fire(s, s.goto)) return;
+      if (s.goto && !this._jump(s.goto)) return;
+      if (!s.event && s.wait > 0) { this._wait = s.wait; return; }
+    }
+  }
+  _say(s) {
+    const p = this.people[s.who] || {}, ch = s.choices && s.choices.filter(c => c.if === undefined || this.test(c.if));
+    this._act(s); if (!this.running) return;
+    this.talk.say(s.say, { name: s.name || p.name, portrait: p.portrait, choices: ch && ch.length ? ch.map(c => c.text) : null, onChoice: i => { this._pick = ch[i]; }, onDone: () => this._after(s) });
+  }
+  _after(s) {
+    const c = this._pick; this._pick = null;
+    if (c) { this._act(c); if (!this.running || this._fire(c, c.goto)) return; if (c.goto) { if (this._jump(c.goto)) this._next(); return; } }
+    if (this._fire(s, s.goto)) return;
+    if (s.goto && !this._jump(s.goto)) return;
+    this._next();
+  }
+  // a step's or a choice's event: true when the story stops here (it ended, or holds till resume(), then goes to then)
+  _fire(s, then) {
+    if (!s.event) return false;
+    const f = this.on[s.event];
+    if (f) try { f(this, s); } catch (e) { this.game.fail('story event "' + s.event + '"', e); }
+    else E.warn('story:on:' + s.event, 'E.Story: no handler for event "' + s.event + '" (on: { ' + s.event + '(story, step) {...} })');
+    if (!this.running) return true;
+    if (s.wait) { this._held = true; this._then = then || null; return true; }
+    return false;
+  }
+  _jump(id) {
+    if (!this.nodes[id]) { E.warn('story:' + id, 'E.Story: no node "' + id + '" (a goto)'); this._end(); return false; }
+    this.node = id; this._steps = this.nodes[id]; this._i = 0; return true;
+  }
+  // a step's or a choice's actions: set, add, quest, done, emote, end (its event: _fire)
+  _act(s) {
+    if (s.set !== undefined) { if (typeof s.set === 'string') this.vars[s.set] = true; else Object.assign(this.vars, s.set); }
+    if (s.add) for (const k in s.add) this.vars[k] = (+this.vars[k] || 0) + s.add[k];
+    if (s.quest) this.quest(...s.quest);
+    if (s.done) this.done(s.done);
+    if (s.emote) { const at = (this.people[s.who] || {}).at; if (at) this.emote(at, s.emote); }
+    if (s.end) this._end();
+  }
+  _end() { const f = this._done; this.running = false; this.node = null; this._done = null; if (f) f(this); }
+  /** run the talk and the balloons; true while a node runs (play waits) */
+  update(dt) {
+    for (const b of this._balloons) b.t += dt;
+    E.prune(this._balloons, b => b.t >= b.dur);
+    if (!this.running) return false;
+    if (this._wait > 0) { this._wait -= dt; if (this._wait <= 0) { this._wait = 0; this._next(); } return this.running; }
+    if (!this._held) this.talk.update(dt);
+    return this.running;
+  }
+  /** a flag or value (key may be a dotted path into vars) */
+  get(key) { let v = this.vars; for (const k of String(key).split('.')) v = v == null ? undefined : v[k]; return v; }
+  /** set a flag (value true) or a value */
+  set(key, value = true) { this.vars[key] = value; return value; }
+  /** does a condition hold? (the manual's conditions) */
+  test(c) {
+    if (c === undefined || c === null) return true;
+    if (typeof c === 'function') return !!c(this);
+    if (Array.isArray(c)) return c.every(x => this.test(x));
+    c = String(c).trim();
+    if (c[0] === '!') return !this.test(c.slice(1));
+    let m = /^(quest|done):(.+)$/.exec(c);
+    if (m) { const q = this.quests.find(q => q.id === m[2]); return !!q && (m[1] === 'quest' || q.done); }
+    m = /^([\w.$]+)\s*(==|!=|>=|<=|>|<)\s*(.+)$/.exec(c);
+    if (m) {
+      const a = this.get(m[1]), w = m[3].trim(), b = w !== '' && !isNaN(+w) ? +w : w.replace(/^['"]|['"]$/g, '');
+      return m[2] === '==' ? a == b : m[2] === '!=' ? a != b : m[2] === '>=' ? a >= b : m[2] === '<=' ? a <= b : m[2] === '>' ? a > b : a < b;   // (a word compares as text)
+    }
+    return !!this.get(c);
+  }
+  /** take a quest (or change its title and text): it joins the log */
+  quest(id, title = id, text = '') {
+    const q = this.quests.find(q => q.id === id);
+    if (q) Object.assign(q, { title, text }); else this.quests.push({ id, title, text, done: false });
+    return this;
+  }
+  /** finish a quest (taken now if it wasn't) */
+  done(id) { if (!this.quests.some(q => q.id === id)) this.quest(id); this.quests.find(q => q.id === id).done = true; return this; }
+  /** a balloon over target (x, y, z; h: its height) for seconds: '!', '?', 'heart', 'dots', 'note' */
+  emote(target, kind = '!', seconds = 1.5) { this._balloons.push({ at: target, kind, t: 0, dur: seconds }); return this; }
+  /** draw the balloons over their targets and the box (anywhere in draw: both go to the overlay) */
+  draw(r) {
+    if (this._balloons.length) r.overlay(g => {
+      for (const b of this._balloons) {
+        const a = b.at, [sx, sy] = r.w(a.x, a.y, (a.z || 0) + (a.h || 28) + 4), x = Math.round(sx) - 6, y = Math.round(sy) - 14 - Math.round(Math.min(1, b.t * 8) * 3);
+        px.rect(g, x, y + 1, 13, 9, '#1a1030'); px.rect(g, x + 1, y, 11, 11, '#1a1030'); px.rect(g, x + 1, y + 1, 11, 9, '#ffffff');   // a round-cornered white box,
+        px.rect(g, x + 4, y + 10, 4, 1, '#ffffff'); px.rect(g, x + 5, y + 11, 2, 1, '#ffffff'); px.dot(g, x + 3, y + 10, '#1a1030'); px.dot(g, x + 8, y + 10, '#1a1030'); px.dot(g, x + 4, y + 11, '#1a1030'); px.dot(g, x + 7, y + 11, '#1a1030'); px.dot(g, x + 5, y + 12, '#1a1030'); px.dot(g, x + 6, y + 12, '#1a1030');   // its tail
+        if (b.kind === '!') { px.rect(g, x + 6, y + 2, 2, 5, '#e8384a'); px.rect(g, x + 6, y + 8, 2, 1, '#e8384a'); }
+        else if (b.kind === 'heart') px.sprite(g, HEART, x + 4, y + 3);
+        else if (b.kind === 'dots') for (let k = 0; k < Math.min(3, Math.floor(b.t * 3) + 1); k++) px.rect(g, x + 3 + k * 3, y + 6, 2, 2, '#1a1030');   // one, two, three
+        else E.font.text(g, b.kind === 'note' ? '♪' : b.kind, x + 7, y + 2, '#1a1030', { outline: false, align: 'center' });
+      }
+    });
+    this.talk.draw(r);
+  }
+  /** its vars and quests, as JSON (for a save) */
+  state() { return JSON.parse(JSON.stringify({ vars: this.vars, quests: this.quests })); }
+  /** put back what state() gave (a load) */
+  restore(s) {
+    if (!s) return this;
+    for (const k in this.vars) delete this.vars[k];   // (the same object: the box reads it)
+    Object.assign(this.vars, JSON.parse(JSON.stringify(s.vars || {}))); this.quests = JSON.parse(JSON.stringify(s.quests || [])); return this;
+  }
+}
+E.Story = Story;
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
