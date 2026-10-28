@@ -71,6 +71,7 @@ for (const [ed, file] of EDITIONS) {
   grids(E, ed);   // (the grid and gen modules load after either edition)
   arcades(E, ed);   // (and the arcade module)
   rooms(E, ed);   // (and the rooms module)
+  views(E, ed);   // (and the mode7 and road modules)
   shellHeadless(E, ed);
 }
 
@@ -462,6 +463,33 @@ function rooms(E, ed) {
     check(`${ed}: rooms: a save loads back: the room, the hero's place, what was got (its gates open) and seen, the extra`, d && d.room === 'd' && w2.room.id === 'd' && w2.has('key') && w2.rooms.b.map.kind(7, 9) !== 'solid' && w2.seen.has('1,0') && d.extra.n === 7 && d.x > 0, JSON.stringify(d && { room: d.room, got: d.got, extra: d.extra }));
     w2.clear(); check(`${ed}: rooms: clear() forgets it`, mk().load() === null);
   } finally { Object.assign(E.store, was); }
+}
+
+// the mode7 and road modules (M6a): a floor point projected and back at any heading and pitch, nearer is lower and
+// larger, the horizon, the chase camera, a rig's view from the camera's side; the road's lap, wrap, eased curves and
+// hills, what it hits, the player's place ahead
+function views(E, ed) {
+  if (!E.Mode7 || !E.Road) return check(`${ed}: views: E.Mode7 and E.Road are there`, false, 'missing');
+  const m7 = new E.Mode7({ floor: () => [0, 0, 0], size: [64, 64] }); let worst = 0;
+  for (const angle of [0, .7, Math.PI / 2, 2.5, -Math.PI / 2, -2]) for (const pitch of [6, 12, 30]) {
+    m7.cam = { x: 100, y: 200, h: 40, angle, pitch, fov: 70 }; m7.begin({ W: 320, H: 180 });
+    for (const [d, l] of [[30, 0], [80, -20], [300, 60]]) { const c = Math.cos(angle), s = Math.sin(angle), x = 100 + c * d - s * l, y = 200 + s * d + c * l, p = m7.project(x, y), q = p && m7.toFloor(p[0], p[1]); worst = Math.max(worst, q ? Math.hypot(q[0] - x, q[1] - y) : 1e9); }
+  }
+  check(`${ed}: views: mode7: a floor point projected and back, at six headings and three pitches`, worst < 1e-6, 'worst ' + worst);
+  m7.cam = { x: 0, y: 0, h: 40, angle: 0, pitch: 12, fov: 70 }; m7.begin({ W: 320, H: 180 });
+  const near = m7.project(50, 0), far = m7.project(400, 0), right = m7.project(100, 30), up = m7.project(100, 0, 20), low = m7.project(100, 0);
+  check(`${ed}: views: mode7: ahead is the middle; nearer lower and larger; the camera's right is right; up is up`, Math.abs(near[0] - 160) < 1e-9 && near[1] > far[1] && near[2] > far[2] && right[0] > 160 && up[1] < low[1] && far[1] > m7.horizon, JSON.stringify([near, far].map(p => p.map(v => +v.toFixed(2)))));
+  check(`${ed}: views: mode7: nothing above the horizon is floor, below it is; behind the camera is not on screen`, m7.toFloor(160, m7.horizon - 1) === null && m7.rowDepth(m7.horizon + 1) > 400 && m7.project(-50, 0) === null);
+  const b = { x: 10, y: 20, angle: Math.PI / 2 }, cam = m7.chase(b, { back: 50, h: 30 });
+  check(`${ed}: views: mode7: chase puts the camera back units behind the body, along its angle, h high`, Math.abs(cam.x - 10) < 1e-9 && Math.abs(cam.y + 30) < 1e-9 && cam.h === 30 && cam.angle === b.angle, JSON.stringify(cam));
+  const yaw = a => { m7.cam = { x: 0, y: 0, h: 40, angle: a, pitch: 12 }; m7.begin({ W: 320, H: 180 }); return m7.view(.5); };
+  check(`${ed}: views: mode7: a rig is seen from the camera's side (heading north: yaw 0, east: -90), at its distance's scale`, yaw(-Math.PI / 2).yawDeg === 0 && yaw(0).yawDeg === -90 && yaw(0).scale === .5 && yaw(0).pitchDeg === 12, [yaw(-Math.PI / 2).yawDeg, yaw(0).yawDeg].join());
+  // the road
+  const road = new E.Road({ segment: 200 }); road.add(30).add(60, { curve: 4, hill: 3000 }).add(30, { tunnel: true });
+  road.place(1000, -1.5, { w: 400, draw() {} }); road.place(1000, 1.5, { w: 400, draw() {} });
+  const L = 200, jumps = []; for (let k = 1; k < road.segs.length; k++) jumps.push(Math.abs(road.yAt(k * L - 1e-6) - road.yAt(k * L)));
+  check(`${ed}: views: road: its lap; distance wraps; a curve eases in to its strength and out; a hill climbs smoothly to its height`, road.length === 120 * L && road.seg(-1) === road.segs[119] && road.seg(road.length + 5) === road.segs[0] && road.curveAt(30 * L) === 0 && road.curveAt(60 * L) === 4 && road.curveAt(89 * L) < 1 && Math.abs(road.segs[89].y1 - 3000) < 1e-9 && Math.max(...jumps) < 1e-3, [road.curveAt(30 * L), road.curveAt(60 * L), road.curveAt(89 * L).toFixed(2), Math.max(...jumps).toFixed(5)].join());
+  check(`${ed}: views: road: a body touches the scenery beside it, not across the road; nothing is projected before a draw`, road.hits(1100, -1.4, .1).length === 1 && road.hits(1100, 0, .1).length === 0 && road.hits(3000, -1.4, .1).length === 0 && road.project(1000, 0) === null && road.ahead(1000) === 1000 * road.depth && road.segs[95].tunnel);
 }
 
 // the Platformer's further moves (section 16c), each on a small map of its own, driven by intents step by step

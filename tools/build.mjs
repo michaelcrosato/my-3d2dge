@@ -87,7 +87,7 @@ const builds = [
   // one arena page for every view: iso by default, arena.html#threequarter (or keys 1-4, V) for the others
   { template: 'src/arena.template.html', out: 'examples/arena.html', vars: { VIEW: 'iso', TITLE: 'Emberwell · my-3D2dge' } },
   { template: 'src/lab.template.html', out: 'examples/perspective-lab.html', vars: {} },
-  { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {} },
+  { template: 'src/stress.template.html', out: 'examples/stress-test.html', vars: {}, modules: ['mode7'] },
   // imported animation clips (tools/anim-import.mjs) on a look-alike mannequin and on the hero
   { template: 'src/mocap.template.html', out: 'examples/mocap-lab.html', vars: {} },
   // every entry of the asset store (src/assets/sets/, inlined) and the core library, to browse, search and copy

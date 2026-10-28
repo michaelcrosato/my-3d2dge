@@ -28,6 +28,7 @@
     "test:players": "node tools/players-test.mjs",
     "test:fight": "node tools/fight-test.mjs",
     "test:traversal": "node tools/traversal-test.mjs",
+    "test:views": "node tools/views-test.mjs",
     "bench": "node tools/agent-bench.mjs",
     "test:labs": "node tools/labs-test.mjs",
     "test:assets": "node tools/assets-test.mjs",

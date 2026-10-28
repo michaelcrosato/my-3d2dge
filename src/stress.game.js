@@ -622,9 +622,13 @@ function draw(r) {
  * braziers, shadows, telegraphs, trails, shots, particles and every character, back to front, each at the size its
  * distance gives. The characters are the engine's own: a rig draws by code at any scale, so a near one is crisp, not a
  * blown-up sprite. The torches light warm pools on the floor (the engine's lighting works in its own views only), and
- * the far end fades into the dark. Zoom narrows the field of view. ?view=side&depth=1 opens it.
+ * the far end fades into the dark. Zoom narrows the field of view. ?view=side&depth=1 opens it. The camera, the floor's
+ * rows, the characters' views and the screen's resolution are the engine's mode7 module (E.Mode7); the hall's walls,
+ * light and fog are this page's.
  * ============================================================================= */
 const DEPTH = { on: qs.get('depth') === '1', x: 0, y: 0, h: 70, pitch: 14, fov: 50, near: 110, far: 260, ready: false, text: 1, note: null };   // (units: near keeps his feet on screen)
+// the Mode 7 view: the floor baked from the map's own floorTex the first time it is drawn, the dark of the hall beyond it
+const m7 = new E.Mode7({ floor: map, outside: '#06050b' });
 /* the depth view draws at the screen's own resolution, one buffer pixel per screen pixel: the characters are drawn by
  * the engine at the size their distance gives there, so near or far, zoomed in or out, they stay sharp (in the engine's
  * own views the pixel size is the look; here the framing comes from the field of view, so more pixels only sharpen).
@@ -632,10 +636,8 @@ const DEPTH = { on: qs.get('depth') === '1', x: 0, y: 0, h: 70, pitch: 14, fov: 
  * back with depth off. */
 let depthRes = false;
 function depthResolution(on) {
-  if (on && game.screen.S !== 1) {
-    if (!depthRes) DEPTH.text = game.screen.S;
-    depthRes = true; game.screen.setOptions({ minW: 1e6, minH: 1e6, maxW: 1e6, maxH: 1e6, portrait: { maxH: 1e6 } }); game.cam.snap = true;
-  } else if (!on && depthRes) { depthRes = false; setDistance(S.distance); }
+  if (on && game.screen.S !== 1) { DEPTH.text = m7.fullRes(game, true); depthRes = true; }
+  else if (!on && depthRes) { depthRes = false; m7.fullRes(game, false); setDistance(S.distance); }
 }
 // (the depth view covers the frame and draws the particles itself: no lighting pass or engine particles under it)
 { const render = game.lights.render.bind(game.lights); game.lights.render = r => { if (!depthActive()) render(r); }; }
@@ -658,32 +660,10 @@ function setDepth(on) {
   if (on && game.baseView.id !== 'side') game.setView('side');
   game.note(on ? 'SIDE SCROLLING WITH DEPTH' : 'FLAT SIDE VIEW'); syncUI();
 }
-/* the projection: a pinhole camera at (x, y, h) looking north, pitched down; f is the focal length in buffer pixels */
-const PJ = { x: 0, y: 0, h: 70, cp: 1, sp: 0, f: 1, cx: 0, cy: 0 };
-/** engine (x, y, z) -> [buffer x, buffer y, buffer pixels per unit there], or null at or behind the camera */
-function proj(x, y, z) {
-  const D = PJ.y - y, dz = z - PJ.h, zc = D * PJ.cp - dz * PJ.sp; if (zc < 6) return null;
-  const k = PJ.f / zc; return [PJ.cx + (x - PJ.x) * k, PJ.cy - (D * PJ.sp + dz * PJ.cp) * k, k];
-}
-/** a buffer row's floor distance (the inverse of proj on the floor), or 0 above the horizon */
-function rowDepth(by) {
-  const k = (PJ.cy - by) / PJ.f, den = PJ.sp - k * PJ.cp; if (den <= 1e-4) return 0;
-  return PJ.h * (PJ.cp + k * PJ.sp) / den;
-}
-// the floor texture, one texel per unit, baked from the map's own floorTex the first time it is needed
-let FLOOR7 = null;
-function floor7() {
-  if (FLOOR7) return FLOOR7;
-  const w = MW * T, h = MH * T, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-  const g = cv.getContext('2d'), img = g.createImageData(w, h), d = img.data;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (map.cell(Math.floor(x / T), Math.floor(y / T)) !== 0) continue;
-    const c = map.floorTex(x + .5, y + .5), i = (y * w + x) * 4; if (!c) continue;
-    d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  return (FLOOR7 = cv);
-}
+/* the projection: m7's pinhole camera at (x, y, h) looking north, pitched down; PJ keeps what the walls' sides, the
+ * shadows and the pools read of it */
+const PJ = { x: 0, h: 70, sp: 0, W: 0 };
+const proj = (x, y, z) => m7.project(x, y, z);
 // wall faces: courses of bricks in the type's colors, one canvas per type and height (16 pixels across a tile)
 const FACE7 = new Map();
 function face7(t, h) {
@@ -696,13 +676,6 @@ function face7(t, h) {
     g.fillStyle = tn.lt; g.fillRect(0, Math.max(0, y + 1), 16, 1);
   }
   FACE7.set(key, cv); return cv;
-}
-const views7 = new Map();
-/** the engine view a character is drawn with at k pixels per unit (whole 1/16ths, so views are reused) */
-function view7(k) {
-  const q = Math.max(1 / 8, Math.round(k * 16) / 16); let v = views7.get(q);
-  if (!v) { if (views7.size > 400) views7.clear(); v = new E.View('side-depth', 'Side, depth', 0, DEPTH.pitch, q, 1); views7.set(q, v); }
-  return v;
 }
 /** a pool of light on the floor at (x, y), radius R units: a radial gradient squashed as the floor squashes it there */
 function pool7(g, x, y, R, rgb, a) {
@@ -720,13 +693,13 @@ function floorPoly7(g, pts, color, a) {
 }
 function drawDepth(r) {
   const sc = game.screen, W = r.W, H = r.H, t = game.time;
-  const pitch = DEPTH.pitch * Math.PI / 180;
-  Object.assign(PJ, { x: DEPTH.x, y: DEPTH.y, h: DEPTH.h, cp: Math.cos(pitch), sp: Math.sin(pitch), f: H / 2 / Math.tan(depthFov() / 2), cx: W / 2 + sc.fx, cy: H / 2 + sc.fy, W });
+  m7.begin({ W, H, cx: W / 2 + sc.fx, cy: H / 2 + sc.fy, focal: H / 2 / Math.tan(depthFov() / 2) }, { x: DEPTH.x, y: DEPTH.y, h: DEPTH.h, angle: -Math.PI / 2, pitch: DEPTH.pitch });
+  Object.assign(PJ, { x: DEPTH.x, h: DEPTH.h, sp: Math.sin(DEPTH.pitch * Math.PI / 180), W });
   // everything standing, gathered now (the panel counts it) and drawn back to front (the far end of the hall first)
   const items = [];
   for (let cy = 0; cy < MH; cy++) for (let cx = 0; cx < MW; cx++) {
     const id = map.cell(cx, cy); if (id <= 0) continue;
-    const y1 = (cy + 1) * T; if (PJ.y - y1 < 6 && PJ.y - cy * T < 6) continue;
+    const y1 = (cy + 1) * T; if (DEPTH.y - y1 < 6 && DEPTH.y - cy * T < 6) continue;
     items.push([y1, g => wall7(g, cx, cy, map.types[id])]);
   }
   for (let i = 0; i < S.lights; i++) { const b = TORCHES[i]; items.push([b.y, g => brazier7(g, b)]); }
@@ -745,13 +718,8 @@ function drawDepth(r) {
     g.save(); g.imageSmoothingEnabled = false;
     g.fillStyle = '#06050b'; g.fillRect(0, 0, r.bw, r.bh);
     // the floor, a row at a time (Mode 7), then the dark of the hall, fading with distance, and the light pools
-    const F = floor7(), top = Math.max(0, Math.ceil(PJ.cy - PJ.f * PJ.sp / PJ.cp));
-    for (let by = top; by < r.bh; by++) {
-      const D = rowDepth(by + .5); if (!D || D > 2400) continue;
-      const y = PJ.y - D; if (y < 0 || y >= MH * T) continue;
-      const zc = D * PJ.cp + PJ.h * PJ.sp, u = zc / PJ.f;
-      g.drawImage(F, PJ.x - PJ.cx * u, Math.floor(y), r.bw * u, 1, 0, by, r.bw, 1);
-    }
+    const top = Math.max(0, Math.ceil(m7.horizon));
+    m7.drawFloor(g, { x: 0, y: 0, w: r.bw, h: r.bh });
     const fog = g.createLinearGradient(0, top, 0, r.bh); fog.addColorStop(0, 'rgba(6,5,11,.92)'); fog.addColorStop(.45, 'rgba(6,5,11,.62)'); fog.addColorStop(1, 'rgba(6,5,11,.45)');
     g.fillStyle = fog; g.fillRect(0, top, r.bw, r.bh - top);
     g.globalCompositeOperation = 'lighter';
@@ -805,7 +773,7 @@ function brazier7(g, b) {
 }
 /** a character: its shadow, a telegraph or trail if it has one, and the engine's own drawing at its distance's size */
 function actor7(g, e, p) {
-  const k = p[2], v = view7(k), isHero = e === hero;
+  const k = p[2], v = m7.view(k), isHero = e === hero;
   const alpha = isHero ? (e.dead ? clamp(4 - e.deadT * 2, 0, 1) : 1) : !e.alive ? clamp(e.type === 'wisp' ? 1 - e.deadT / POP_T : (DEAD_T - e.deadT) * 2, 0, 1) : e.spawnT > 0 ? clamp(1 - e.spawnT / .6, .05, 1) : 1;
   if (e.type === 'wisp') {   // a glowing orb, its halo and motes
     const kk = !e.alive ? 1 + e.deadT / POP_T * 1.8 : e.charge > 0 ? 1 + (1 - e.charge / .6) * .8 : 1;
@@ -838,8 +806,7 @@ function trail7(g, tr, rgb) {
   game.mouseGround = () => {
     if (!depthActive()) return base();
     const m = game.input.mouseScreen(); if (!m) return null;
-    const bx = m[0] - game.screen.ix, by = m[1] - game.screen.iy, D = rowDepth(by); if (!D) return null;
-    const zc = D * PJ.cp + PJ.h * PJ.sp; return [PJ.x + (bx - PJ.cx) * zc / PJ.f, PJ.y - D];
+    return m7.toFloor(m[0] - game.screen.ix, m[1] - game.screen.iy);
   };
 }
 

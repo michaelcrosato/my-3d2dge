@@ -327,6 +327,7 @@ npm run test:kits                 # every kit: its title, its slice's proof twic
 npm run test:kits -- --compare <dir>   # also film every 2D kit beside the same kit in <dir> (another build): the same pixels, or it fails
 npm run test:motion               # game.go's transitions and the weather, filmed (check-output/motion/); the screen filter on the canvas only
 npm run test:modules              # the path every engine module takes, proven with a fixture module in a copy of the repository
+npm run test:views                # the mode7 and road modules' views, filmed twice (the same pixels), and a frame of each within a phone's budget
 node tools/replay.mjs session.json --shots 600   # replay a recorded session (a bug report) headless, with pictures
 npm run bench -- --brief assassins-creed --dry-run   # the North Star's measures: a fresh agent, a brief, the handoff package (a real run spends money: ask first)
 npm run character:check -- codex   # one playable character: the character test and its character sheet (check-output/sheet-codex.png)

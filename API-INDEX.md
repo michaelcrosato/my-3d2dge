@@ -48,50 +48,52 @@ if (!up || up.z !== 40) throw new Error('a ledge to climb onto the roof');
 
 The line each section starts on, and the name its classes' instances go by: `E.Attack: slash` lists its members as `slash.start`.
 
-- 96 The engine object (E = My3D2dge)
-- 107 Math
-- 181 Pixel primitives
-- 200 Sprite frames, turns and swaps
-- 206 Views (projections); E.View: view
-- 233 Screen; game.screen
-- 255 Input; E.Input: input
-- 333 Pixel font
-- 344 Lighting; game.lights
-- 363 Particles; E.Particles: game.particles
-- 383 Renderer; r
-- 430 Game; E.Game: game
-- 540 Standard features; settings, fullscreen
-- 557 10c. Boot
-- 562 10d. Tweens and scripts; E.Script: script, E.Tween: tween
-- 579 10e. Paths; E.Path: path
-- 589 10g. Weather
-- 593 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
-- 666 Blob rig; E.Blob: blob
-- 686 Tile map; E.TileMap: map
-- 745 Materials
-- 766 Flow field; E.FlowField: flow
-- 784 Texture helpers for floortex functions
-- 795 Platform map; E.PlatformMap: level
-- 829 Platformer; E.Platformer: hero
-- 870 Body; E.Body: body
-- 890 Actions; E.Action: action
-- 912 17c. Mover; E.Mover: mover
-- 951 17d. Perception; E.Suspicion: suspicion
-- 968 Bullets; E.Bullets: shots
-- 988 Spatial hash; E.SpatialHash: grid
-- 998 Audio; game.audio
-- 1020 Backdrops; E.Backdrop: backdrop
-- 1028 21c. Props
-- 1033 21e. Shapes
-- 1045 Ui; E.Dialog: talk, E.Menu: menu
-- 1100 21d. Shell; E.Shell: shell
-- 1129 Gpu lighting (webgpu); game.gpu
-- 1150 Sessions
-- 1159 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
-- 1194 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
-- 1275 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
-- 1286 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
-- 1341 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
+- 98 The engine object (E = My3D2dge)
+- 109 Math
+- 183 Pixel primitives
+- 202 Sprite frames, turns and swaps
+- 208 Views (projections); E.View: view
+- 235 Screen; game.screen
+- 257 Input; E.Input: input
+- 335 Pixel font
+- 346 Lighting; game.lights
+- 365 Particles; E.Particles: game.particles
+- 385 Renderer; r
+- 432 Game; E.Game: game
+- 542 Standard features; settings, fullscreen
+- 559 10c. Boot
+- 564 10d. Tweens and scripts; E.Script: script, E.Tween: tween
+- 581 10e. Paths; E.Path: path
+- 591 10g. Weather
+- 595 Humanoid rig; E.Attack: slash, E.Combo: combo, E.Humanoid: rig
+- 668 Blob rig; E.Blob: blob
+- 688 Tile map; E.TileMap: map
+- 747 Materials
+- 768 Flow field; E.FlowField: flow
+- 786 Texture helpers for floortex functions
+- 797 Platform map; E.PlatformMap: level
+- 831 Platformer; E.Platformer: hero
+- 872 Body; E.Body: body
+- 892 Actions; E.Action: action
+- 914 17c. Mover; E.Mover: mover
+- 953 17d. Perception; E.Suspicion: suspicion
+- 970 Bullets; E.Bullets: shots
+- 990 Spatial hash; E.SpatialHash: grid
+- 1000 Audio; game.audio
+- 1022 Backdrops; E.Backdrop: backdrop
+- 1030 21c. Props
+- 1035 21e. Shapes
+- 1047 Ui; E.Dialog: talk, E.Menu: menu
+- 1102 21d. Shell; E.Shell: shell
+- 1131 Gpu lighting (webgpu); game.gpu
+- 1152 Sessions
+- 1161 Module arcade: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode (engine/modules/arcade.js); E.Arcade: arcade
+- 1196 Module fight: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training (engine/modules/fight.js); E.FightAI: fightai, E.FightSelect: fightselect, E.FightStage: fightstage, E.Fighter: fighter, E.Match: match
+- 1277 Module gen: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed (engine/modules/gen.js)
+- 1288 Module grid: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns (engine/modules/grid.js); E.Fog: fog, E.Grid: grid, E.GridMover: gridmover, E.Turns: turns
+- 1343 Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js); E.Mode7: mode7
+- 1366 Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js); E.Road: road
+- 1383 Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js); E.World: world
 
 ## The engine object (E = My3D2dge)
 
@@ -1337,6 +1339,46 @@ The line each section starts on, and the name its classes' instances go by: `E.A
 - `turns.phase = null`: the side acting now (phase mode)
 - `turns.sides`: the sides in their order (phase; null: as the actors have them)
 - `E.tint(r, cells, color, alpha = .4, T = 16, height = null)`: tints on cells' tops: E.tint(r, cells ([[cx, cy], ...]), color, alpha = .4, T = 16, height(cx, cy) = 0): a move range, a path, an attack's reach, drawn on the floor (decals) where height is 0, over the world otherwise
+
+## Module mode7: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance (engine/modules/mode7.js)
+
+- `new E.Mode7(o = {}) → mode7`: new E.Mode7({ floor, size, outside, wrap, sky, fog, far }): a Mode 7 view (the manual above)
+- `mode7.add(x, y, z, fn)`: gather a billboard: fn(g, sx, sy, k) draws it with its foot at (sx, sy), k screen pixels per unit
+- `mode7.begin(rect = {}, cam = this.cam)`: set up the projection for a camera (default this.cam) and a rectangle of the screen ({ W, H, x, y, cx, cy }: its size, its top left and its centre; focal: screen pixels per unit at a distance of one, instead of the fov)
+- `mode7.chase(b, o = {})`: the camera behind a body each step: back units behind it, h high, looking along its angle (o.angle to set one)
+- `mode7.draw(r, cam = this.cam)`: draw the view as an overlay over r's frame (in a split screen, r.viewport's part): sky, floor, fog, then the billboards far to near (gathered with add, rig, sprite; they are used up)
+- `mode7.drawFloor(g, vp)`: draw the floor below the horizon in the rectangle ({ x, y, w, h }), a row at a time, and the fog over it
+- `mode7.drawSky(g, r, vp)`: the sky above the horizon: a Backdrop turned with the heading, or a gradient of two colors
+- `mode7.fullRes(game, on)`: draw at the screen's own pixels (on, called each step: sharper, slower) or the game's again (off); returns the pixel size the game had (1 when it had no other)
+- `mode7.project(x, y, z = 0)`: a world point -> [screen x, screen y, screen pixels per unit there], or null at or behind the camera
+- `mode7.refresh()`: forget the floor's baked texture (after changing the map or the function: it bakes again)
+- `mode7.rig(rig, x, y, z = 0)`: gather a rig, drawn by the engine at the size its distance gives, from the camera's side (it faces rig.facing)
+- `mode7.rowDepth(sy)`: a screen row's floor distance ahead of the camera, or 0 at or above the horizon
+- `mode7.shape(id, x, y, z = 0, o = {})`: gather one of the engine's shapes (r.shape's: 'barrel', 'tree', ...; the full engine), seen from the camera's side at its distance's size: o.facing (radians), o.size (1)
+- `mode7.sprite(spr, x, y, z = 0, o = {})`: gather a sprite (E.sprite, or E.anim's frames at o.t, the game's time by default), its foot at the point: o.scale (world units a sprite pixel, 1), o.flip
+- `mode7.toFloor(sx, sy)`: a screen point -> the floor point under it [x, y], or null above the horizon
+- `mode7.view(k)`: the engine view a rig is drawn with at k pixels per unit, seen from the camera's heading (sixteenths, reused)
+- `mode7.cam`: the camera ({ x, y, h, angle, pitch, fov })
+- `mode7.horizon = 0`: the screen row of the horizon in the last drawing
+- `mode7.items = []`: the billboards gathered for the next draw
+- `mode7.o`: its options
+
+## Module road: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels (engine/modules/road.js)
+
+- `new E.Road(o = {}) → road`: new E.Road({ segment, width, lanes, rumble, draw, fov, height, colors, fog, sky }): a road (the manual above)
+- `road.add(n, o = {})`: n segments more, bending (curve) and climbing (hill: units up, - down), eased in and out; o.tunnel, o.colors
+- `road.ahead(h = this.o.height)`: how far past the camera the player's car stands when drawn at the screen's bottom, for a camera h over the road
+- `road.curveAt(z)`: how hard the road bends at a distance
+- `road.draw(r, v = {})`: draw the road over r's frame (an overlay; r.viewport's part in a split screen): { z, x, h, turn, cars }
+- `road.hits(z, x, w)`: the scenery a body w half roads wide at (z, x) touches
+- `road.place(z, offset, what, scale = 8)`: scenery at distance z, offset across: what = an E.sprite or E.anim (scale: world units a pixel, 8) or { draw(g, sx, sy, scale), w }
+- `road.project(z, x, y = 0)`: a point (distance z, across x in half roads, height y over the road) -> [sx, sy, scale] for the camera last drawn, or null behind it
+- `road.seg(z)`: the segment at a distance (it wraps)
+- `road.yAt(z)`: the road's height at a distance
+- `road.depth`: the camera's depth (1 / tan(fov / 2): a unit that far away fills half the screen's width)
+- `road.length = 0`: the lap in world units
+- `road.o`: its options (colors over the defaults)
+- `road.segs = []`: its segments ({ i, z, y0, y1, curve, tunnel, colors, things })
 
 ## Module rooms: a world of rooms joined at their edges, the map of what was explored, gates and saves (engine/modules/rooms.js)
 

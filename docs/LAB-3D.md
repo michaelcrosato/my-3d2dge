@@ -182,7 +182,8 @@ Side scrolling with depth stays on the 2D stress test (M, or `?view=side&depth=1
 follows the hero sideways and keeps him 110 to 260 units away, so he shrinks walking into the hall and grows coming
 back. The page draws it the SNES way, Mode 7: the floor one screen row at a time, then walls, braziers, telegraphs and
 every character back to front, each drawn by the engine at the size its distance gives, at the screen's own resolution
-so near and far stay sharp. `node tools/stress-test.mjs` checks the 2D page's cameras: a `?cam=` link, a fixed camera
+so near and far stay sharp. Its camera, floor rows, characters' views and resolution are the engine's `mode7` module
+(`E.Mode7`, since v0.68.0). `node tools/stress-test.mjs` checks the 2D page's cameras: a `?cam=` link, a fixed camera
 staying put, side scrolling, and the depth view (the hero shrinks and grows).
 
 ## The 3D Prototype: the stress test as a 3D world (v0.13.0)
