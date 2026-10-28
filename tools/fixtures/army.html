@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>army fixture</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#screen{width:100%;height:100%;display:block;image-rendering:pixelated}</style></head>
+<body><canvas id="screen"></canvas>
+<script src="../../dist/my-3d2dge.js"></script>
+<script src="../../engine/modules/grid.js"></script>
+<script src="../../engine/modules/strategy.js"></script>
+<script>
+// the phone test's army (tools/phone-test.mjs, case 17; docs/HANDOFF-GENRES.md, M9): 200 units under orders on the
+// strategy module, two armies of 100 that attack-move across a field into each other, drawn as rigs with { pick } (so
+// r.pick and a tap select them), the fog, rings and health bars, the free camera. ?view= iso (the default) |
+// threequarter | topdown; ?n= units a side (100); ?every= frames a body's image is kept (3; 1: drawn every frame).
+// window.__fx: { game, rts, map }
+(() => {
+const E = My3D2dge, Q = new URLSearchParams(location.search), N = +Q.get('n') || 100;
+const game = new E.Game({ canvas: 'screen', res: [320, 180], view: Q.get('view') || 'iso', menu: false, fullscreen: false, corner: false });
+const map = new E.TileMap({ w: 56, h: 40, types: { 1: { h: 20, top: '#8a8a78', side: '#5e584c', face: 'rock' } }, floorTex: (x, y) => { const c = x >> 4, d = y >> 4; return (c * 7 + d * 13) % 11 < 2 ? [74, 122, 58] : (c + d) & 1 ? [90, 138, 68] : [84, 132, 64]; } });
+for (const [x, y] of [[20, 12], [21, 12], [34, 26], [35, 26], [27, 6], [28, 33]]) map.set(x, y, 1);   // a few rocks to go round
+const kinds = { soldier: { hp: 30, tall: 20, speed: 34, atk: 4, range: 9, rate: .8, sight: 6 }, archer: { hp: 22, tall: 20, speed: 32, atk: 3, range: 40, rate: 1.1, sight: 7 },
+  hall: { building: true, w: 3, h: 3, hp: 600, depot: true } };
+const rts = new E.Strategy(game, { map, kinds, sides: { blue: {}, red: {} }, player: 'blue' });
+rts.spawn('hall', 'blue', 4 * 16, 20 * 16); rts.spawn('hall', 'red', 52 * 16, 20 * 16);
+const rig = side => new E.Humanoid({ size: .62, colors: { cloth: side === 'blue' ? '#3a6ad0' : '#c03a3a' } }), EV = +Q.get('every') || 3;
+for (const [side, x0, dir] of [['blue', 8, 1], ['red', 48, -1]]) {
+  const army = [];
+  for (let i = 0; i < N; i++) { const u = rts.spawn(i % 4 === 3 ? 'archer' : 'soldier', side, (x0 + dir * (i % 10) * .7) * 16, (13.5 + Math.floor(i / 10) * 1.3) * 16); u.rig = rig(side); army.push(u); }
+  rts.order(army, 'amove', { x: (x0 + dir * 30) * 16, y: 20 * 16 });
+}
+game.cam.free = { bounds: [0, 0, 56 * 16, 40 * 16] };
+game.start({
+  update(dt) {
+    rts.input(); rts.update(dt);
+    for (const u of rts.units) if (u.rig) u.rig.update(dt, { x: u.x, y: u.y, vx: u.moving ? Math.cos(u.face) * u.K.speed : 0, vy: u.moving ? Math.sin(u.face) * u.K.speed : 0, facing: u.face });
+  },
+  draw(r) {
+    map.drawFloor(r); map.queueWalls(r);
+    for (const u of rts.units) {
+      if (!rts.visible(u)) continue;
+      if (u.rig) r.actor(u.x, u.y, 0, (g, ox, oy) => u.rig.draw(g, ox, oy, r.view), EV > 1 ? { pick: u, every: EV, key: u } : { pick: u, outline: false });   // (a crowd: each body redrawn every third frame)
+      else r.queue(u.x, u.y, 0, g => r.box(g, u.x - u.r, u.y - u.r, 0, u.x + u.r, u.y + u.r, 22, '#c8b088', '#8a7050'), { pick: u, occluder: true });
+    }
+    rts.draw(r);
+  },
+});
+game.focus(28 * 16, 20 * 16); game.cam.snap = true;
+window.__fx = { game, rts, map };
+})();
+</script>
+</body></html>

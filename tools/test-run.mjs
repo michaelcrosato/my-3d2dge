@@ -27,7 +27,7 @@ const SUITES = [   // [name, command, paths it covers (a prefix, or a whole path
   ['ed-scenes', 'node tools/ed-scenes-test.mjs', ['src/emberdeep/', 'src/emberdeep.template.html', 'src/assets/sets/emberdeep.js', 'tools/ed-scenes-test.mjs']],
   ['bench', 'node tools/agent-bench.mjs --selftest', ['tools/agent-bench']],
   ['standard', 'node tools/standard-test.mjs', ['tools/standard-test.mjs', 'src/starter/', 'src/starter.template.html', 'src/handoff/']],
-  ['phone', 'node tools/phone-test.mjs', ['src/starter/', 'tools/phone-test.mjs', 'tools/build.mjs', 'tools/diet.mjs']],
+  ['phone', 'node tools/phone-test.mjs', ['src/starter/', 'tools/phone-test.mjs', 'tools/build.mjs', 'tools/diet.mjs', 'engine/modules/strategy.js', 'tools/fixtures/army.html']],
   ['kits', 'node tools/kits-test.mjs', ['src/starter/', 'src/starter3d', 'src/starter.template.html', 'src/starter3d.template.html', 'src/assets/sets/', 'tools/kits-test.mjs', 'tools/diet.mjs', 'tools/filmstrip.mjs']],
   ['contract', 'node tools/contract-test.mjs', ['API.md', 'AI_GUIDE.md', 'API-INDEX.md', 'src/handoff/', 'engine/modules/', 'tools/contract-test.mjs', 'tools/api-index.mjs', 'tools/check.mjs', 'tools/replay.mjs', 'tools/filmstrip.mjs']],
   ['agent', 'node tools/agent-test.mjs', ['API.md', 'AI_GUIDE.md', 'src/mocap/', 'src/starter/', 'engine/modules/', 'tools/agent-test.mjs', 'tools/anim-set.mjs', 'tools/cmu.mjs', 'tools/mocap-lib.mjs']],

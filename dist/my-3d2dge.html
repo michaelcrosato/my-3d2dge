@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.72.1 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.73.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and fourteen working games and an animation lab.
@@ -24,7 +24,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.72.1)
+# my-3D2dge API card (v0.73.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -123,7 +123,7 @@ World units: one tile = 16. **z is always up.** Game logic never stores screen p
 - The player's zoom: a scene's `camera: { zoom: [.75, 2], start: 1, tall: 1.5 }` lets the player zoom within `zoom` from `start` (wheel, `-` `=`, pinch, Settings; `false`: none; `AI_GUIDE.md`, Camera).
 - Tests and tools: `new E.Game({ headless: true })` (the default in Node: no screen, sound or DOM; `draw` is skipped) or `{ loop: false }` runs only by `game.advance(seconds, { draw })` (exact fixed steps at once); `input.tap(action)` presses for one step, `input.hold(action, on)`; `game.debug = { snapshot() {...} }` is your game's handle (`tools/check.mjs` prints it); `game.stop()`, `start()` (resumes), `dispose()`.
 - Sessions: `?record=1`, then the pause menu's Save session; `node tools/replay.mjs session.json` replays it exactly, headless (`AI_GUIDE.md`, Sessions).
-- Camera: `cam.offset = [dx, dy]` sits the focus that many screen pixels from the centre (above a phone's touch buttons: `[0, -60]`); `cam.bounds = v => map.bounds(v)` keeps it inside the level (in side views a level shorter than the screen sits on the bottom edge; `cam.align = 'center'` to change); `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds (0 = locked to the target, no lag); `cam.window = [48, 24]` a dead zone the focus moves in before the camera follows; `cam.snapY = true` follows a followed body's height only when it lands (side-scrollers); `cam.frame([p1, p2], { margin, zoom: [.5, 1] })` keeps them all in view, zooming out as they part (`frame(null)` stops).
+- Camera: `cam.offset = [dx, dy]` sits the focus that many screen pixels from the centre (above a phone's touch buttons: `[0, -60]`); `cam.bounds = v => map.bounds(v)` keeps it inside the level (in side views a level shorter than the screen sits on the bottom edge; `cam.align = 'center'` to change); `cam.room = [160, 128]` moves screen by screen (Zelda, Metroid) and `cam.moving` is true while it slides; `cam.smooth` = lag in seconds (0 = locked to the target, no lag); `cam.window = [48, 24]` a dead zone the focus moves in before the camera follows; `cam.snapY = true` follows a followed body's height only when it lands (side-scrollers); `cam.frame([p1, p2], { margin, zoom: [.5, 1] })` keeps them all in view, zooming out as they part (`frame(null)` stops); `cam.free = { keys, edge: 10, drag, speed: 300, bounds: [x0, y0, x1, y1] }` a free camera (strategy, sims): keys or a pad's stick, the screen's edge, a drag pan it (a finger pans by its drag, never as the touch stick), a zoom goes toward the pointer or the pinch, in every view and turn.
 
 ## Scenes (title, play, game over)
 ```js
@@ -167,11 +167,11 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - Players (two to four on one machine): `game.players` is `[game.input, ...]`, each an input with this API, its `player` number, `name` (`'P2'`), `color` (`E.PLAYER_COLORS`) and device. `game.allowJoin({ max: 2, onJoin: (input, n) => {} })` lets them in: Start on a free gamepad, or 2 on the keyboard (player 2 takes its right half: arrows, `.` `/` `,` and the numpad; player 1 keeps WASD with F G H); `game.addPlayer({ pad: 0 })` or `({ keys: 'right' })`, `game.removePlayer(p)`. Prompts, the pause (P2 PAUSED), a lost controller and the Controls screen are per player. One screen: `cam.frame(heroes)`. Split: `game.splitScreen(2, { follow: [h1, h2], layout: 'auto' })` (`'columns'`, `'rows'`, `'grid'`; up to 4) draws the scene once per viewport (`r.viewport` is `{ i, x, y, w, h }`), then `scene.hud(r)` once over the whole screen; `game.viewports[i].follow(t)` or `.focus(x, y)`.
 - `clear()` releases held inputs, pending presses, virtual sticks and touch buttons; focus loss does this automatically. `suppress(a)` blocks an action for the current tick; `suppressCode('Mouse0')` lets a HUD widget consume that mouse button while other devices bound to the action still work.
 - Controller settings: `deadzone` (default `.18`, radial and rescaled), `invertAimY`, `lastDevice` (the index has the rest). The left stick and the touch stick, pushed past halfway, press `up` / `down` / `left` / `right` as the d-pad does (menus, dialog choices, ladders); bind `PadAxisUp/Down/Left/Right` to your own menu actions for the same.
-- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one; `steer = 'drag'`: a finger anywhere steers, no stick drawn. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
+- Touch settings: `touchEnabled`, `stickSide` (`'left'` or `'right'`), `stickRadius` (CSS pixels), `touchFilter(event)` (return false to reserve a canvas tap for UI). `touchArea()`: where the touch buttons cover the screen (`{ x0, y0, x1, y1 }` in screen pixels, or null): keep a prompt clear of it, as a bottom `E.Dialog` does by itself. `clicked()`: where a click or tap on the canvas landed (`[x, y]` in screen pixels) for the step after it, else null, for HUD buttons of your own; `pointer()`: the mouse in screen pixels; `drag()`: how far the stick's finger moved this step (`[dx, dy]`, or null), to steer one to one; `steer = 'drag'`: a finger anywhere steers, no stick drawn. Gestures (a mouse or one finger, screen pixels): `box()` → `{ x0, y0, x1, y1, done }` (a left drag; on touch a long press, then a drag), `longPress()`, `doubleTap()`, `pan()` → `[dx, dy]` (a finger's drag on open ground, a middle or right drag), `zoomPoint()`; `feed('down' | 'move' | 'up', x, y, { touch, button })` plays a pointer in a test. `bindButtons(root)` wires `[data-act]` elements with independent pointer tracking and cancellation cleanup.
 
 ## Drawing: `r` in `draw(r)`
 - Background: `r.sky(['#top', '#mid', '#bottom'])`, `r.starfield({ count, speed, dir: 'down' | 'left' })`.
-- Depth sorted: `r.actor(x, y, z, (g, ox, oy) => rig.draw(g, ox, oy, r.view), { flash: '#ffffff', flashMix: .75, alpha, xray, outline, ghost, emissive, every, key })` (the flash tints over the sprite so shading shows; `flashMix: 1` is solid; `every: 2, key: npc` redraws a background character every other frame; actors up to about 250 px tall), `r.sprite(x, y, z, sprite, { flip, anchor: 'bottom' | 'center', glow, flash })`, `r.queue(x, y, z, g => {...}, { bias })`, `r.actorNow(...)` (as `r.actor`, drawn at once over what is drawn so far), `r.box(g, x0, y0, z0, x1, y1, z1, top, side)` (inside a queue function).
+- Depth sorted: `r.actor(x, y, z, (g, ox, oy) => rig.draw(g, ox, oy, r.view), { flash: '#ffffff', flashMix: .75, alpha, xray, outline, ghost, emissive, every, key })` (the flash tints over the sprite so shading shows; `flashMix: 1` is solid; `every: 2, key: npc` redraws a background character every other frame; actors up to about 250 px tall), `r.sprite(x, y, z, sprite, { flip, anchor: 'bottom' | 'center', glow, flash })`, `r.queue(x, y, z, g => {...}, { bias })`, `r.actorNow(...)` (as `r.actor`, drawn at once over what is drawn so far), `r.box(g, x0, y0, z0, x1, y1, z1, top, side)` (inside a queue function). `{ pick: unit }` on any of them, then `r.pick(sx, sy)` → what the last frame drew under a screen point, front to back.
 - Floor marks: `r.shadow(x, y, radius, alpha, color, surfaceZ)`, `r.decal(g => r.groundArc(...))`, `r.groundDisc`, `r.groundRing`, `r.groundPts(x, y, rad, n, z)`.
 - On top, unlit, screen pixels: `r.text(str, x, y, color, { align, scale, outline })`, `r.textAt(x, y, z, str, color)`, `r.overlay(g => {...})`.
 - `r.w(x, y, z)` = buffer pixel of a world point. `r.W`, `r.H`, `r.ix`, `r.iy` (pass to dither functions), `r.view`, `r.visible(x, y, z)`.
@@ -185,7 +185,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 - UI (inside `r.overlay(g => ...)`): `E.ui.box(g, x, y, w, h, { bg, border, gradient, alpha })` (a gradient window like Final Fantasy; `bg` can be `[top, bottom]`, `gradient: false` for flat, `alpha: .6` for a see-through HUD panel), `E.ui.bar(g, x, y, w, h, 0..1, color)`, `E.ui.hearts(g, x, y, hp, max)` (half hearts allowed), `rig.drawPortrait(g, x, y, size, { zoom: 3, turn: .6, bg, frame, cape: false, weapon: false, tint: '#808080' })` (character close-up; it stays upright while the rig kneels or lies down; `tint` greys out a KO'd hero).
 - Dialog: `const talk = new E.Dialog(game)`; `talk.say(['Line one.', 'Page two.'], { name: 'ELDER', portrait: elderRig, onDone, choices: ['YES', 'NO'], onChoice(i) })` (choices show on the last page); in update `if (talk.update(dt)) return;` (true while a modal box is open: play waits); in draw `talk.draw(r)`. `portrait` takes a Humanoid (live close-up; `portraitSize: 40`, `portraitOpts: { zoom, turn }`) or a function `(g, x, y, size) => {...}`. Radio chatter during play: `talk.say('Enemy fighters ahead!', { name, portrait, auto: 2.5, modal: false })` turns its pages and closes by itself while the game keeps running. Per line: `place: 'top' | 'middle' | 'bottom'`, `y` (pixels) and `alpha` (see-through box). A portrait's mouth moves while its text types. `new E.Dialog(game, { speed, lines, color, nameColor, voice, bg, border, vars })`; `talk.close()`, `talk.open`. Markup in the text: `{c=#ffd36a}gold{/c}` a color, `{w=.5}` a pause, `{s=12}slowly{/s}` letters a second, `{shake}..{/shake}`, `{wave}..{/wave}`, `{$name}` a value from `say(text, { vars })` or `talk.vars`; text without markup is as it was.
 - Menu: `const menu = new E.Menu(game, ['START', { label: 'LOAD', disabled: true }], { x: 'center', y: 100, title, onPick(i, item), onCancel })`; `menu.update(dt)`; `menu.draw(r)`. Keys, d-pad and sticks move it; a click or tap on an entry picks it (so a phone can leave a title), and the mouse over one moves the cursor. A tap on a dialog box turns its page as confirm does.
-- HTML screens and HUD: `const ui = new E.Shell(game, { theme, settings, screens: { pause, help } })`; `ui.show('title' | 'results' | 'map' | ..., spec)`; each step `ui.hud({ objective, status, bars, prompt, minimap })`; `ui.toast(title, text)`.
+- HTML screens and HUD: `const ui = new E.Shell(game, { theme, settings, screens: { pause, help } })`; `ui.show('title' | 'results' | 'map' | ..., spec)`; each step `ui.hud({ objective, status, bars, prompt, minimap })` (`minimap: { map, fog, camera: true, markers, onClick(x, y) }`); `ui.toast(title, text)`.
 
 ## Sound: `game.audio` (chip synth, no files, starts after the first key press)
 - `sfx(name, { vol, pitch })`. Presets: `jump jump2 land step coin pickup key powerup oneup heal hit hurt stomp bump swing whoosh punch kick shoot laser charge explode boom door secret warp die select confirm cancel pause text blip`.
@@ -285,6 +285,7 @@ The repo (github.com/michaelcrosato/my-3d2dge; any file at `https://raw.githubus
   - `drive`: cars on the ground plane (`E.Car`: speed, grip and slide, a kart's hop and drift boost, the floor's tag slowing it, walls and cars it bounces off) and races (`E.Race`: checkpoints along an `E.Path`, laps, wrong way, places, drivers that brake for bends, pass and rubber-band, items, the HUD). KART.
   - `story`: dialogue as data (`E.Story`): nodes of lines with speakers and portraits, choices with conditions, flags and values (`{$name}` in lines), gotos, the game's events (one may hold the talk), a quest log, emote balloons over heads; its state for a save. RPG.
   - `rpg`: a role-playing game's rules (`E.RPG`): items, bags (slots or a grid of sizes), members with stats, levels and gear, status effects, a party (items used, rewards shared), shops, damage, random encounters by zone, list and card windows. RPG.
+  - `strategy` (the full engine only; needs `grid`): real-time strategy and sims (`E.Strategy`): selection (a click, a box, a double tap, groups), orders (move, attack, attack-move, gather, build, patrol; queued), formations on shared flow fields kept apart, production, resources, placement with a ghost, fog, the minimap, an enemy's build order and waves; `E.Clock` (days, night, the light), needs that pick an action (`E.needs`, `E.choose`), `E.overlay`, `E.tooltip`.
   - `arcade`: the coin-op's frame: scores that float up, extra lives, two players taking turns, credits and a continue, high-score tables with initials on a letter wheel, stage cards, the attract mode (a demo, the table, the title). ARCADE, SHOOTER.
 - **Everything running**: https://my-3d2dge.vercel.app/labs
 
@@ -315,7 +316,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.72.1</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.73.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -343,7 +344,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.72.1  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.73.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -424,7 +425,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.72.1', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.73.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -1109,6 +1110,9 @@ class Input {
      *  not a tap). The game lets the player zoom only where its scene does (camera.zoom): then the wheel, - and = (keys no
      *  action uses) and a pinch ask for it, read by zoom() */
     this._pinching = false; this._zoomAcc = 1; this._zoomNow = 1; this._zoomOn = false; this._wheelOn = false; this._fingers = new Map();
+    // the pointer's gestures (box, longPress, doubleTap, pan): the press followed (_g), what this step reads, what the next will
+    this._g = null; this._gBox = null; this._gLong = null; this._gTap2 = null; this._gPan = null; this._lastTap = null; this._zoomPt = null; this._fedAt = null;
+    this._boxAt = null; this._longAt = null; this._tap2At = null; this._panAt = null;
     /** glyphs: the gamepad's button symbols for label(): 'auto' (from the controller's name) | 'xbox' | 'playstation' |
      *  'nintendo' | 'generic' (positions); rumbleScale: vibration strength 0..1 (0 = off; game.settings.rumble sets it);
      *  padLost: true for the step after the gamepad in use was unplugged (a pausable scene pauses) */
@@ -1138,14 +1142,14 @@ class Input {
     el.addEventListener('wheel', e => {
       if (!this._wheelOn) return; e.preventDefault();
       const d = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 100 : 1);
-      this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25);
+      this._zoomAcc *= clamp(Math.exp(-d * (e.ctrlKey ? .01 : .001)), .8, 1.25); this._zoomPt = this.screenPoint(e.clientX, e.clientY);
     }, { signal, passive: false });
     const all = f => { f(this); if (this.keysTo) for (const q of this.keysTo) f(q); };
     on(window, 'keyup', e => all(q => q.release(e.code)));
     on(window, 'blur', () => all(q => q.clear()));
     on(document, 'visibilitychange', () => { if (document.hidden) all(q => q.clear()); });
     on(el, 'contextmenu', e => e.preventDefault());
-    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; } else { this._pinchMove(e); this._stickMove(e); } });
+    on(el, 'pointermove', e => { if (e.pointerType === 'mouse') { this.mouse.cx = e.clientX; this.mouse.cy = e.clientY; this.mouse.active = true; this.mouse.t = this.clock; this.aimSource = 'mouse'; this._fedAt = null; } else { this._pinchMove(e); this._stickMove(e); } if (this._g && this._g.id === e.pointerId) this._gesture('move', ...this.screenPoint(e.clientX, e.clientY)); });
     on(el, 'pointerdown', e => {
       if (e.pointerType !== 'mouse') this.lastDevice = 'touch';   // any touch, on the stick's half or not: prompts follow it
       if (e.pointerType !== 'mouse' || e.button === 0) this._down = { id: e.pointerId, x: e.clientX, y: e.clientY };   // a click or tap once it lifts near here (pointerup)
@@ -1155,14 +1159,16 @@ class Input {
         this._fingers.set(e.pointerId, { x: e.clientX, y: e.clientY }); this._pinchArm();
         if (!this.touchFilter || this.touchFilter(e)) this._stickStart(e);
       }
+      if (e.pointerType === 'mouse' || this._fingers.size === 1) this._gesture('down', ...this.screenPoint(e.clientX, e.clientY), { touch: e.pointerType !== 'mouse', button: e.button, id: e.pointerId }); else this._g = this._gBox = null;   // (a second finger: a pinch, no gesture)
     });
     on(window, 'pointerup', e => {
       const d = this._down; this._down = null;   // a click or tap: lifted within a few pixels of where it landed (a drag, the stick's, is none): clicked() for a step,
       // in screen pixels now: where it touched what was drawn, before a phone's first tap goes full screen and moves the canvas
       if (d && d.id === e.pointerId && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) this._click = this.screenPoint(e.clientX, e.clientY);
+      if (this._g && this._g.id === e.pointerId) this._gesture('up', ...this.screenPoint(e.clientX, e.clientY));
       if (e.pointerType === 'mouse') this.release('Mouse' + e.button); else { this._fingerUp(e); this._stickEnd(e); }
     });
-    on(window, 'pointercancel', e => { this._down = null; this._fingerUp(e); this._stickEnd(e); });
+    on(window, 'pointercancel', e => { this._down = null; this._g = this._gBox = null; this._fingerUp(e); this._stickEnd(e); });
     on(el, 'lostpointercapture', e => this._stickEnd(e));
   }
   /** switch key layout at runtime: input.use(E.Input.PLATFORMER) or input.use('SHMUP'). The player's own bindings
@@ -1392,7 +1398,55 @@ class Input {
    *  wheel, - and = and a pinch, where the scene lets them zoom. The game applies it (game.zoomBy) */
   zoom() { return this._zoomNow; }
   /** the mouse pointer in screen pixels [x, y] (the HUD's space), or null before it has moved over the canvas */
-  pointer() { return this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null; }
+  pointer() { return this._fedAt || (this.mouse.active ? this.screenPoint(this.mouse.cx, this.mouse.cy) : null); }
+  /** the pointer's gestures, read each step in screen pixels (the HUD's space), from a mouse or one finger:
+   *  box() -> { x0, y0, x1, y1, from, to, done } while a box is drawn (a mouse's left button dragged; on a touch screen a long
+   *  press, then a drag), done the step it is let go; else null */
+  box() { return this._boxAt; }
+  /** [x, y] the step a press held still has been held .45 s (a long press), else null */
+  longPress() { return this._longAt; }
+  /** [x, y] the step a second tap or click lands within .35 s and 8 pixels of the first (a double tap), else null */
+  doubleTap() { return this._tap2At; }
+  /** [dx, dy] how far a drag moved this step: one finger on open ground (not a box), or a mouse's middle or right button;
+   *  else null. A free camera pans by it (game.cam.free) */
+  pan() { return this._panAt; }
+  /** [x, y] where the last zoom was asked for: the mouse pointer for the wheel, between the fingers for a pinch; null when
+   *  the keys zoomed (about the screen's middle) */
+  zoomPoint() { return this._zoomPt; }
+  /** a pointer event in screen pixels, as the browser's would give: feed('down' | 'move' | 'up', x, y, { touch: false,
+   *  button: 0 }) (a test's or a bot's mouse and fingers: clicks, boxes, long presses, double taps and pans follow), or
+   *  feed('zoom', x, y, { k: 1.1 }): a wheel's notch or a pinch about that point */
+  feed(type, x, y, o = {}) {
+    if (type === 'zoom') { this._zoomAcc *= o.k || 1.1; this._zoomPt = [x, y]; return; }
+    if (!o.touch) this._fedAt = [x, y];
+    if (type === 'down') { this._fed = [x, y]; if (!o.touch) this.press('Mouse' + (o.button || 0)); this._gesture('down', x, y, { touch: !!o.touch, button: o.button || 0, id: 'fed' }); }
+    else if (type === 'move') this._gesture('move', x, y);
+    else if (type === 'up') {
+      if (this._fed && Math.hypot(x - this._fed[0], y - this._fed[1]) < 4 && !(o.button > 0)) this._click = [x, y];
+      if (!o.touch) this.release('Mouse' + (o.button || 0)); this._fed = null; this._gesture('up', x, y);
+    }
+  }
+  // a press followed from down to up: past 4 pixels it is a box (a left button, or a finger after a long press) or a pan
+  // (a finger, a middle or right button); lifted unmoved it is a tap, and a second within .35 s a double tap
+  _gesture(type, x, y, o = {}) {
+    const g = this._g;
+    if (type === 'down') { this._g = { id: o.id, x0: x, y0: y, x, y, t: this.clock, touch: !!o.touch, button: o.button || 0, mode: null, long: false, moved: false }; return; }
+    if (!g) return;
+    if (type === 'move') {
+      const px = g.x, py = g.y; g.x = x; g.y = y;
+      if (!g.moved && Math.hypot(x - g.x0, y - g.y0) > 4) { g.moved = true; g.mode = (!g.touch && g.button === 0) || (g.touch && g.long) ? 'box' : g.touch || g.button > 0 ? 'pan' : null; }
+      if (g.mode === 'box') this._gBox = { x0: Math.min(g.x0, x), y0: Math.min(g.y0, y), x1: Math.max(g.x0, x), y1: Math.max(g.y0, y), from: [g.x0, g.y0], to: [x, y], done: false };
+      else if (g.mode === 'pan') { const p = this._gPan || (this._gPan = [0, 0]); p[0] += x - (g.moved && g.panned ? px : g.x0); p[1] += y - (g.moved && g.panned ? py : g.y0); g.panned = true; }
+      return;
+    }
+    this._g = null;   // up
+    if (g.mode === 'box' && this._gBox) this._gBox.done = true;
+    else if (!g.moved) {
+      const L = this._lastTap;
+      if (L && this.clock - L.t < .35 && Math.hypot(x - L.x, y - L.y) < 8) { this._gTap2 = [x, y]; this._lastTap = null; }
+      else this._lastTap = { x, y, t: this.clock };
+    }
+  }
   /** browser client coords -> screen pixels [x, y] (the HUD's space, with no camera), or null without a canvas */
   screenPoint(cx, cy) {
     const S = this.screen; if (!S.canvas) return null;
@@ -1434,6 +1488,9 @@ class Input {
     const n = this._now; n.clear(); this._now = this._fresh; this._fresh = n;
     const u = this._nowUp; u.clear(); this._nowUp = this._freshUp; this._freshUp = u;
     this._clickAt = this._click; this._click = null; this._zoomNow = this._zoomAcc; this._zoomAcc = 1;
+    const G = this._g; if (G && !G.moved && !G.long && this.clock - G.t >= .45) { G.long = true; this._gLong = [G.x, G.y]; }   // a press held still
+    this._longAt = this._gLong; this._tap2At = this._gTap2; this._panAt = this._gPan; this._gLong = this._gTap2 = this._gPan = null;
+    this._boxAt = this._gBox && Object.assign({}, this._gBox); if (this._gBox && this._gBox.done) this._gBox = null;
     const da = this._dragAcc || (this._dragAcc = [0, 0]), k = this.screen.dpr / this.screen.S; this._drag = this.stickOn ? [da[0] * k, da[1] * k] : null; da[0] = da[1] = 0;
   }
   /** wire every element with data-act="<action>" inside root to the action */
@@ -1461,11 +1518,11 @@ class Input {
     if (!this._pinching) {
       const ux = (b.x - a.x) / d, uy = (b.y - a.y) / d, pa = (a.x - a.x0) * ux + (a.y - a.y0) * uy, pb = (b.x - b.x0) * ux + (b.y - b.y0) * uy;
       if (Math.abs(pa) < 4 || Math.abs(pb) < 4 || pa * pb >= 0 || Math.abs(d - Math.hypot(b.x0 - a.x0, b.y0 - a.y0)) < 16) return;
-      this._pinching = true; this._pinchD = d; this._down = null;
+      this._pinching = true; this._pinchD = d; this._down = null; this._g = this._gBox = null;
       if (this.stickOn && this._fingers.has(this.stickId)) this._stickEnd({ pointerId: this.stickId });
       return;
     }
-    this._zoomAcc *= d / this._pinchD; this._pinchD = d;
+    this._zoomAcc *= d / this._pinchD; this._pinchD = d; this._zoomPt = this.screenPoint((a.x + b.x) / 2, (a.y + b.y) / 2);
   }
   _stickStart(e) {
     if (!this.touchEnabled || this.stickOn) return;
@@ -2020,7 +2077,7 @@ class Renderer {
       else k = M._liftOrder(this.game.view, x, y, z, k);
       if (M.solids && M.solids.length) k = M._liftSolids(this.game.view, x, y, z, k);
     }
-    const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, top: o && o.top, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)) };
+    const it = { k, fn, occ: o && o.occluder, hides: o && o.hides, top: o && o.top, box: o && o.box, actor: o && o.actor, xray: o && o.xray, x, y, z, info: o && o.info, noInfo: o && o.noInfo, em: !!(o && o.emissive), solid: !!(o && (o.solid || o.occluder)), pick: o ? o.pick : undefined, pb: o && o._pb };
     this._items.push(it);
     if (it.em) this._emis.push(it);   // glowing things: canvas lighting leaves them out of the darkness (see flush)
   }
@@ -2028,6 +2085,10 @@ class Renderer {
   decal(fn, o) { this._decals.push({ fn, e: o && o.emissive || 0 }); }
   /** draw fn(g) on top of everything, in screen pixels (HUD, dialog, menus) */
   overlay(fn) { this._overlays.push(fn); }
+  /** what was drawn under a screen point (the HUD's pixels: input.clicked(), input.pointer()) in the last frame, front to
+   *  back: the pick values of the actors, sprites, props and queued draws given one (r.actor(x, y, z, fn, { pick: unit })),
+   *  each where its pixels went (an actor's drawn bounds; others' box, or a body's size round its point). [] for none */
+  pick(sx, sy) { const P = this._picked || [], out = []; for (let i = P.length - 1; i >= 0; i--) { const [v, b] = P[i]; if (sx >= b[0] && sx < b[2] && sy >= b[1] && sy < b[3] && !out.includes(v)) out.push(v); } return out; }
   // ground helpers (all dithered, correct in every view)
   /** n screen points round a circle of radius rad on the ground at (x, y), height z: the outline of a ring or a fan */
   groundPts(x, y, rad, n = 18, z = 0) { const pts = []; for (let i = 0; i < n; i++) { const a = i / n * TAU; pts.push(this.w(x + Math.cos(a) * rad, y + Math.sin(a) * rad, z)); } return pts; }
@@ -2122,7 +2183,8 @@ class Renderer {
       return;
     }
     if (!this.visible(x, y, z, spr.w + 8, spr.h + 8, spr.h + 8)) return;
-    this.queue(x, y, z, g => { if (gl) px.glow(g, gl); const [sx, sy] = this.w(x, y, z); px.sprite(g, spr, Math.round(sx) - ax, Math.round(sy) - ay, flip); }, { bias: o.bias, emissive: gl > .4, hides: o.hides, footprint: o.footprint });
+    const pb = o.pick === undefined || o.pick === null ? undefined : (q => [Math.round(q[0]) - ax, Math.round(q[1]) - ay, Math.round(q[0]) - ax + spr.w, Math.round(q[1]) - ay + spr.h])(this.w(x, y, z));   // (r.pick: its pixels' box)
+    this.queue(x, y, z, g => { if (gl) px.glow(g, gl); const [sx, sy] = this.w(x, y, z); px.sprite(g, spr, Math.round(sx) - ax, Math.round(sy) - ay, flip); }, { bias: o.bias, emissive: gl > .4, hides: o.hides, footprint: o.footprint, pick: o.pick, _pb: pb });
   }
   /**
    * set dressing from E.prop: r.prop('torch', x, y, z, { size, color, flip, light: true, halo: true, bias, hides, footprint })
@@ -2138,7 +2200,7 @@ class Renderer {
     const at = () => { const [sx, sy] = this.w(x, y, z); return [Math.round(sx) - ax, Math.round(sy) - ay]; };
     const [bX, bY] = at();
     const hw = spr.h / Math.max(.1, (this.view.scale || 1) * zm);   // its height in world units
-    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, hides: o.hides !== undefined ? !!o.hides : hw >= HEIGHTS.chest, top: z + hw, box: [bX, bY, bX + spr.w, bY + spr.h], footprint: o.footprint });
+    this.queue(x, y, z, g => { const [X, Y] = at(); if (p.emissive) px.glow(g, .8); px.sprite(g, spr, X, Y, flip); }, { bias: o.bias, hides: o.hides !== undefined ? !!o.hides : hw >= HEIGHTS.chest, top: z + hw, box: [bX, bY, bX + spr.w, bY + spr.h], footprint: o.footprint, pick: o.pick });
     if (p.glowAt && o.halo !== false) this.queue(x, y, z, g => {   // lamps, lanterns and crystals glow even with lighting off; cone: true adds a light cone below
       if (g._info) return;
       const [X, Y] = at(), gx = X + spr.w * p.glowAt[0], gy = Y + spr.h * p.glowAt[1], R = o.haloR || Math.max(6, spr.w * .9), c = o.haloColor || p.glowAt[2];
@@ -2272,10 +2334,10 @@ class Renderer {
     // fast path: nothing needs the offscreen composite, so draw straight into the frame
     if (o.outline === false && !o.flash && !o.ghost && !o.xray && (o.rim === false || this.gpu) && (o.alpha === undefined || o.alpha >= 1)) {
       const info = o.emissive ? gI => { gI._mat = this._infoCol(z, 10, o.emissive); gI._c = null; const [a, b] = this.w(x, y, z); drawFn(gI, Math.round(a), Math.round(b)); } : undefined;
-      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info, solid: true, actor: true, hides: o.hides });
+      this.queue(x, y, z, g => { const [a, b] = this.w(x, y, z); drawFn(g, Math.round(a), Math.round(b)); }, { bias: o.bias, info, solid: true, actor: true, hides: o.hides, pick: o.pick });
       return;
     }
-    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5, actor: !o.xray, hides: o.hides, top: o.top });
+    this.queue(x, y, z, g => this._composite(g, x, y, z, drawFn, o), { bias: o.bias, xray: o.xray, info: gI => this._actorInfo(gI, x, y, z, o), solid: o.alpha === undefined || o.alpha > .5, actor: !o.xray, hides: o.hides, top: o.top, pick: o.pick });
   }
   /** draw an actor at once, over what is drawn so far, not sorted by depth (a pass of the game's own: a body falling into
    *  a void painted over the level), with r.actor's options (outline, flash, alpha, ...) */
@@ -2291,7 +2353,7 @@ class Renderer {
     let K = keep && keep.get(o.key);
     if (K && this._frameNo - K.n < o.every) {   // its kept image, where it stands now
       const [sx, sy] = this.w(x, y, z); g.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
-      g.drawImage(K.cv, 0, 0, K.w, K.h, Math.round(sx) - AOX + K.x0, Math.round(sy) - AOY + K.y0, K.w, K.h); g.globalAlpha = 1; this._comp = null; return;
+      const X = Math.round(sx) - AOX + K.x0, Y = Math.round(sy) - AOY + K.y0; g.drawImage(K.cv, 0, 0, K.w, K.h, X, Y, K.w, K.h); g.globalAlpha = 1; this._comp = null; if (g === this.ctx) this._pk = [X, Y, X + K.w, Y + K.h]; return;
     }
     const aG = this._aG, bb = this._bb, P = this._R;
     aG.clearRect(P[0], P[1], P[2], P[3]); aG._c = null;
@@ -2301,7 +2363,7 @@ class Renderer {
     if (x1 <= x0 || y1 <= y0) { this._R = [0, 0, 0, 0]; return; }
     const R = this._R = [x0, y0, x1 - x0, y1 - y0], w = R[2], h = R[3];
     const [sx, sy] = this.w(x, y, z), bx = Math.round(sx) - AOX, by = Math.round(sy) - AOY, al = o.alpha === undefined ? 1 : o.alpha;
-    if (g === this.ctx) this._comp = { x0, y0, w, h, bx, by, ol: o.outline !== false };
+    if (g === this.ctx) { this._comp = { x0, y0, w, h, bx, by, ol: o.outline !== false }; this._pk = [bx + x0, by + y0, bx + x0 + w, by + y0 + h]; }
     let T = g, tx = bx, ty = by, ta = al;   // where the layers go: the frame, or the kept image (a pixel of margin for the outline), drawn into it after
     if (keep) {
       if (!K) keep.set(o.key, K = { cv: mkCanvas(8, 8) });
@@ -2397,9 +2459,11 @@ class Renderer {
       for (let y = c; y <= d; y++) for (let x = a; x <= b; x++) { if (mark) eg[y * gw + x] = 1; else if (eg[y * gw + x]) return true; }
       return false;
     };
+    const picks = this._picking || (this._picking = []); picks.length = 0;
     for (const it of items) {
-      this._comp = null;
+      this._comp = null; this._pk = null;
       it.fn(g);
+      if (it.pick !== undefined && it.pick !== null) { picks.push([it.pick, this._pk || it.pb || it.box || (q => { const s = this.view.zoom || 1; return [q[0] - 8 * s, q[1] - 26 * s, q[0] + 8 * s, q[1] + 3 * s]; })(this.w(it.x, it.y, it.z))]); }   // (r.pick: where it went)
       if (em) {
         if (it.em) {
           eOn = true; const [sx, sy] = this.w(it.x, it.y, it.z); cell(sx - 56 | 0, sy - 96 | 0, sx + 56 | 0, sy + 40 | 0, true);
@@ -2425,6 +2489,7 @@ class Renderer {
       }
     }
     this._emOn = kOn;
+    const was = this._picked; this._picked = picks; this._picking = was || [];   // (r.pick reads the frame last drawn)
     if (this._xrayUsed && this._xrB) {   // every x-ray pass works inside the silhouettes' box only (full-frame composites cost more than the rest of it)
       const B = this._xrB, x0 = Math.max(0, Math.floor(B[0])), y0 = Math.max(0, Math.floor(B[1])), x1 = Math.min(this.bw, Math.ceil(B[2])), y1 = Math.min(this.bh, Math.ceil(B[3])), w = x1 - x0, h = y1 - y0;
       if (w > 0 && h > 0) {
@@ -2586,8 +2651,12 @@ class Game {
      *  World's; [48, 0] for sideways only); snapY: true follows a followed body's height only when it lands (onGround)
      *  or nears the screen's edge (side-scrollers); frame(targets, { margin: 24, zoom: [min, max] or false }) keeps
      *  every one of them (anything with x, y, z) in view, centered between them and zoomed out (no further than min)
-     *  when they spread apart, until frame(null) */
-    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null, window: null, snapY: false,
+     *  when they spread apart, until frame(null); free: a free camera (strategy, sims, board games): true or { keys: true,
+     *  edge: 10, drag: true, speed: 300, bounds: [x0, y0, x1, y1] }: the keys or a pad's stick pan it (input.move(), speed screen
+     *  pixels a second), the mouse at the screen's edge (within edge pixels), a drag (input.pan(): a finger on open
+     *  ground, a mouse's middle or right button) one to one; a zoom (wheel, pinch) zooms toward the pointer or the pinch;
+     *  its focus keeps to bounds (world x, y); focus() still moves it; in every view and turn; null (as it starts): off */
+    this.cam = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tz: 0, smooth: .18, bounds: null, snap: true, room: null, moving: false, offset: null, window: null, snapY: false, free: null,
       frame: (list, o = {}) => { this._framed = list && list.length ? { list, margin: o.margin === undefined ? 24 : o.margin, zoom: o.zoom === undefined ? [.5, 1] : o.zoom } : null; this.cam.snap = true; } };
     /** particles: dust, sparks, debris and text in the world; lights: canvas lighting (lights.enabled, lights.add in
      *  draw); r: the renderer handed to draw(r) (null when headless) */
@@ -3150,7 +3219,28 @@ class Game {
       this.focus(t.x + dir[0] * f.lead, (t.y || 0) + dir[1] * f.lead, (t.z || 0) + f.z);
     }
     this.particles.update(dt);
+    if (this.cam.free) this._freeCam(dt);
     this._camStep(dt);
+  }
+  // a screen-pixel move [dx, dy] as the ground's (world x, y) at the zoom the player sees (during a zoom's preview, the goal)
+  _screenToGround(dx, dy) {
+    const v = this.view, k = this.zoom / (this._zoomTo || this.zoom);
+    return v.inv ? [(v.inv[0] * dx + v.inv[1] * dy) * k, (v.inv[2] * dx + v.inv[3] * dy) * k] : [dx / (v.ax || 1) * k, 0];
+  }
+  // cam.free: the keys and a stick, the screen's edges, a drag, a zoom toward its point; the focus kept to bounds
+  _freeCam(dt) {
+    const c = this.cam, F = c.free === true ? {} : c.free, I = this.input, S = this.screen, z = this._zoomTo || this.zoom;
+    let dx = 0, dy = 0, moved = false;
+    if (F.keys !== false && !(this.shell && this.shell.screen) && !I.stickOn) { const m = I.move(), sp = (F.speed || 300) * dt; dx += m[0] * sp; dy += m[1] * sp; }   // (a finger pans by its drag, not as a stick)
+    const p = I.pointer(), e = F.edge === undefined ? 10 : F.edge;
+    if (e > 0 && p && I.lastDevice !== 'touch' && I.mouse.active && !I._fedAt) { const sp = (F.speed || 300) * dt; if (p[0] < e) dx -= sp; else if (p[0] > S.W - e) dx += sp; if (p[1] < e) dy -= sp; else if (p[1] > S.H - e) dy += sp; }
+    const pan = F.drag !== false && I.pan(); if (pan) { dx -= pan[0]; dy -= pan[1]; moved = true; }
+    if (dx || dy) { const [gx, gy] = this._screenToGround(dx, dy); c.tx += gx; c.ty += gy; moved = true; }
+    // a zoom keeps the world point under its pointer (or pinch) where it was: the focus moves toward it by (1 - 1/k) of the way
+    const was = c._freeZ || z; c._freeZ = z;
+    if (z !== was && F.zoomAt !== false) { const q = I.zoomPoint(); if (q) { const k = z / was, [gx, gy] = this._screenToGround((q[0] - S.W / 2) * (1 - 1 / k) * k, (q[1] - S.H / 2) * (1 - 1 / k) * k); c.tx += gx; c.ty += gy; moved = true; } }
+    const b = F.bounds; if (b) { c.tx = clamp(c.tx, b[0], b[2]); c.ty = clamp(c.ty, b[1], b[3]); }
+    if (moved) c.snap = true;
   }
   _frame() {
     if (this._next) { const nx = this._next; this._next = null; this._enter(nx.name, nx.data); }
@@ -9280,7 +9370,8 @@ class Shell {
     this._els = { hb: E2('esh-hb', col), obj: E2('esh-obj esh-pan'), vit: E2('esh-vit esh-pan', col), place: E2('esh-place', col), tip: E2('esh-tip esh-pan'), pr: E2('esh-pr esh-pan'), keys: E2('esh-keys'),
       tut: E2('esh-tut esh-pan'), mini: E2('esh-mini', r, 'canvas'), toast: E2('esh-toast esh-pan'), scr: this._el('div', '') };
     r.appendChild(this._els.scr); this._els.toast.hidden = false;
-    const mini = this._els.mini; mini.width = 176; mini.height = 158; mini.onclick = () => { const m = this._miniLast; if (m && m.onClick) m.onClick(); };
+    const mini = this._els.mini; mini.width = 176; mini.height = 158;
+    mini.onclick = e => { const m = this._miniLast, X = mini._xf; if (!m || !m.onClick) return; const rc = mini.getBoundingClientRect(), u = (e.clientX - rc.left) * mini.width / (rc.width || 1), v = (e.clientY - rc.top) * mini.height / (rc.height || 1); m.onClick(X ? (u - X.ox) / X.k : 0, X ? (v - X.oy) / X.k : 0); };   // (the world point clicked: a strategy game's camera goes there)
   }
   /** the name of the open screen ('pause', 'settings', 'controls', ...), or null while the game plays */
   get screen() { const t = this._stack[this._stack.length - 1]; return t ? t.name : null; }
@@ -9362,7 +9453,8 @@ class Shell {
    * - prompt: { key: 'E' (or act: 'interact': its key on the player's device), label, hint, progress: 0..1 }
    * - keys, buttons: keys: [['WASD', 'Move'], ...] (hidden on touch screens); buttons: [[label, fn or action]] (top right:
    *   pause and map where there is no Escape key)
-   * - minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick }
+   * - minimap: { map, at (with facing), markers: [{ x, y, kind: 'dot' | 'diamond' | 'ring' | 'cross', color }], onClick(x, y)
+   *   (the world point clicked), fog (an E.Fog: unseen cells black, seen ones dim), camera: true (the ground the screen shows) }
    */
   hud(st = {}) {
     if (!this.root) return this;
@@ -9594,6 +9686,12 @@ class Shell {
       else if (q.kind === 'ring') { g.arc(x, y, r, 0, TAU); g.stroke(); }
       else { g.arc(x, y, r * .7, 0, TAU); g.fill(); }
       if (large && q.label) { g.fillStyle = '#ebd3a0'; g.fillText(q.label, x, y + r + 13); }
+    }
+    const F = s.fog;   // fog of war: what was never seen is black, what isn't in sight now dimmed
+    if (F) for (let cy = 0; cy < m.h; cy++) for (let cx = 0; cx < m.w; cx++) { const c = [cx, cy]; if (F.visible(c)) continue; g.fillStyle = F.seen(c) ? 'rgba(6,8,10,.5)' : '#06080a'; g.fillRect(Math.floor(ox + cx * T * k), Math.floor(oy + cy * T * k), Math.ceil(T * k), Math.ceil(T * k)); }
+    if (s.camera) {   // the screen's corners on the ground: what the camera shows
+      const G = this._game, v = G.view, c = G.cam, S = G.screen, q = [[0, 0], [S.W, 0], [S.W, S.H], [0, S.H]].map(([a, b]) => v.toGround(c.x + a, c.y + b));
+      if (q.every(Boolean)) { g.strokeStyle = '#f8efd0'; g.lineWidth = 1; g.beginPath(); q.forEach(([a, b], i) => i ? g.lineTo(...P(a, b)) : g.moveTo(...P(a, b))); g.closePath(); g.stroke(); }
     }
     if (s.at) {
       const [x, y] = P(s.at.x, s.at.y), a = s.at.facing || 0, r = large ? 9 : 5; g.fillStyle = '#f8efd0'; g.strokeStyle = '#10181a'; g.lineWidth = 1.5; g.beginPath();
@@ -10409,7 +10507,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.72.1: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.73.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10627,7 +10725,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.72.1: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.73.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10855,7 +10953,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.72.1: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.73.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11409,7 +11507,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.72.1: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.73.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11595,7 +11693,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.72.1: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.73.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12007,7 +12105,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.72.1: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.73.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12215,7 +12313,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.72.1: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.73.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12378,7 +12476,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.72.1: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.73.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12562,7 +12660,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.72.1: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.73.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12893,7 +12991,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.72.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.73.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13087,6 +13185,444 @@ class Story {
   }
 }
 E.Story = Story;
+})(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
+
+</script>
+<script>
+/* ---- inlined from engine/modules/strategy.js ---- */
+/*!
+my-3D2dge module STRATEGY v0.73.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+https://github.com/michaelcrosato/my-3d2dge (MIT License)
+Loads after: the full engine only. Needs: grid.
+
+For real-time strategy (Dune II, Warcraft II, Command & Conquer, StarCraft), builders and simulations (SimCity, Theme
+Park, RollerCoaster Tycoon). It keeps the rules; the game draws (units are plain objects at x, y on a TileMap).
+- const rts = new E.Strategy(game, { map, kinds, sides: { blue: { res: { gold: 300 } }, red: { res: { gold: 300 } } },
+  player: 'blue', fog: true, on: { attack(u, t), death(u), made(u), built(b), gathered(u, n), ordered(at, u) } }).
+  kinds[id]: a unit { hp, speed, r (5), tall (24: its bar's height), atk, range, rate (seconds a blow), sight (cells),
+  cost: { gold: 50 }, time (to make), gather (a load) }, a building { building: true, w, h, hp, makes: ['worker'],
+  depot: true, atk, range, cost, time } or a resource { resource: 'gold', amount, w, h }.
+- rts.spawn(kind, side, x, y, { built: false }) -> { id, kind, side, K, x, y, r, hp, max, orders, face, moving, working,
+  carry, progress, queue, rally } (a building's or resource's x, y: its middle, snapped to cells it blocks);
+  rts.of(side, kind), rts.units, rts.remove(u), rts.side(id).res.
+- rts.order(units, kind, target, { queue }): 'move' ({ x, y }), 'attack' (a unit), 'amove' ({ x, y }: fighting what it
+  meets), 'gather' (a resource: trips to the nearest depot), 'build' ({ kind, cx, cy }: paid now), 'patrol' ({ x, y }),
+  'stop'; queue: after the orders it has (Shift). A group moves in formation, slots round the point facing the way, on
+  one flow field to it, kept apart; idle units fight what comes into sight. rts.smart(units, x, y, target): attack a foe,
+  gather a resource, else move (a right click).
+- rts.train(building, kind) (paid now, made after its time, sent to building.rally), rts.cancel(building),
+  rts.afford(side, cost); rts.canPlace(kind, cx, cy) (free, walkable, seen); rts.ghost(r, kind, cx, cy) draws it.
+- Selection, rts.input({ order: 'order' }) each step: a click or tap picks the player's unit under it (r.pick: draw them
+  with { pick: u }) or none; input.box() selects the units inside; Shift adds; a double tap selects that kind on screen;
+  Ctrl+1..9 keeps a group, 1..9 calls it; the order action (Mouse2) or a tap with a selection on ground, a foe or a
+  resource gives rts.smart. rts.selected; rts.draw(r) after the world: rings, health bars, the box.
+- rts.fog (E.Fog: the player's sight; walls block it), rts.visible(u); rts.minimap() is E.Shell's hud({ minimap }) (the
+  fog, the camera's view, dots; a click moves the camera there).
+- rts.ai(side, { build: [['worker', 5], ['barracks'], ['soldier', 6]], waves: { first: 90, every: 75, min: 4 }, script })
+  works the list in order as it can pay (near its depot), keeps workers gathering and sends attack-moves at the nearest
+  foe; script(rts, side): a generator game.script runs. rts.update(dt) each step; rts.state() for a proof.
+Touch: a tap selects or orders, a drag on open ground pans (game.cam.free), a long press and a drag draws a box, a pinch
+zooms. Time controls: game.timeScale 0, 1, 2, 4 (above 1, more steps of 1/120 s a frame, not longer ones).
+Simulation:
+- const clock = new E.Clock({ day: 240 (seconds), hour: 8 }); clock.update(dt); day, hour, minute, night, label()
+  ('DAY 2  14:30'), light() -> { ambient: .1..1, color } (dark at night, warm at dawn and dusk).
+- E.needs(agent, rates, dt) raises agent.needs ({ hunger: .2 }, 0..1) by rates a second; E.choose(agent, options) -> the
+  option ({ gives: { hunger: -.6 }, x, y, cost }) that best meets its needs for the walk, or null.
+- E.overlay(r, map, value(cx, cy) -> 0..1 or null, colors) tints cells by a value; E.tooltip(r, x, y, lines) a box.
+
+```js strategy
+const E = My3D2dge, game = new E.Game({ headless: true, view: 'topdown' }), map = new E.TileMap({ w: 20, h: 14 });
+const kinds = { hall: { building: true, w: 2, h: 2, hp: 300, depot: true, makes: ['worker'] }, mine: { resource: 'gold', amount: 500 },
+  worker: { hp: 20, speed: 40, atk: 2, range: 10, rate: 1, sight: 5, cost: { gold: 50 }, time: 2, gather: 10 } };
+const rts = new E.Strategy(game, { map, kinds, sides: { blue: { res: { gold: 100 } } }, player: 'blue' });
+const hall = rts.spawn('hall', 'blue', 48, 48), mine = rts.spawn('mine', null, 216, 56), w = rts.spawn('worker', 'blue', 80, 60);
+game.start({ update(dt) { rts.update(dt); }, draw() {} });
+rts.order([w], 'gather', mine); rts.train(hall, 'worker'); game.advance(20);
+if (rts.side('blue').res.gold <= 50 || rts.of('blue', 'worker').length !== 2) throw new Error('gather, train');
+```
+Rules: units are the module's; read them, draw them, give them orders; a building blocks its cells (map.block), so
+flow fields go round it. The same orders give the same game.
+*/
+(function (E) {
+'use strict';
+if (!E) throw new Error('my-3D2dge module STRATEGY: load engine/my-3d2dge.js (the full engine) first');
+if (!E.Grid) throw new Error('my-3D2dge module STRATEGY: load engine/modules/grid.js first');
+const { clamp, px } = E, hyp = Math.hypot;
+
+/* =============================================================================
+ * STRATEGY  units, buildings and resources on a TileMap; their orders, production, fog, selection and an AI
+ * ========================================================================== */
+class Strategy {
+  /** new E.Strategy(game, { map, kinds, sides, player, fog, on }): see the manual above */
+  constructor(game, o = {}) {
+    /** the game it runs in */
+    this.game = game;
+    /** the TileMap it stands on (a building blocks its cells) */
+    this.map = o.map;
+    /** the kinds by id (units, buildings, resources: see the manual) */
+    this.kinds = o.kinds || {};
+    /** the side the player commands (its fog, selection, input) */
+    this.player = o.player || Object.keys(o.sides || {})[0] || null;
+    /** everything spawned (units, buildings, resources) that still stands */
+    this.units = [];
+    /** the player's selection */
+    this.selected = [];
+    /** control groups: groups[1..9], kept with Ctrl and a digit */
+    this.groups = {};
+    /** its events: { attack, death, made, built, gathered, ordered } */
+    this.on = o.on || {};
+    /** seconds run (rts.update's dt summed) */
+    this.time = 0;
+    this._sides = {}; for (const k in o.sides || {}) this._sides[k] = Object.assign({ res: {} }, o.sides[k], { id: k });
+    this._id = 0; this._fields = new Map(); this._hash = new E.SpatialHash(32); this._ais = []; this._held = new Set(); this._fogT = 0;
+    /** fog: an E.Fog of the player's sight (walls block it, buildings don't), or null with fog: false */
+    this.fog = o.fog === false ? null : new E.Fog(E.Grid.from(this.map, { opaque: (x, y) => this.map.cell(x, y) > 0 }));
+  }
+  /** a side by id: { id, res: { gold: 300 }, ... } */
+  side(id) { return this._sides[id] || (this._sides[id] = { id, res: {} }); }
+  /** the side's standing units of a kind (or all of them, without kind) */
+  of(side, kind) { return this.units.filter(u => u.side === side && (!kind || u.kind === kind)); }
+  /** can side pay cost ({ gold: 50 })? */
+  afford(side, cost) { const R = this.side(side).res; for (const k in cost || {}) if ((R[k] || 0) < cost[k]) return false; return true; }
+  _pay(side, cost, k = 1) { const R = this.side(side).res; for (const c in cost || {}) R[c] = (R[c] || 0) - cost[c] * k; }
+  /** make a unit, building or resource of kind for side at world x, y (o.built: false leaves a building to be built) */
+  spawn(kind, side, x, y, o = {}) {
+    const K = this.kinds[kind]; if (!K) throw new Error('E.Strategy: no kind "' + kind + '"');
+    const T = this.map.T, u = { id: ++this._id, kind, side, K, x, y, z: 0, r: K.r || 5, hp: K.hp || 1, max: K.hp || 1, orders: [], cool: 0, carry: 0, face: 0, dead: false,
+      building: !!K.building, resource: K.resource || null, amount: K.amount || 0, progress: o.built === false ? 0 : 1, queue: [], rally: null };
+    if (u.building || u.resource) {
+      const w = K.w || 1, h = K.h || 1; u.cx = Math.round(x / T - w / 2); u.cy = Math.round(y / T - h / 2); u.x = (u.cx + w / 2) * T; u.y = (u.cy + h / 2) * T; u.r = Math.max(w, h) * T / 2;
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.map.block(u.cx + i, u.cy + j, true);
+      if (o.built === false) u.hp = Math.max(1, Math.round(u.max * .1));
+    }
+    this.units.push(u); return u;
+  }
+  /** take u off the map (it died, a mine ran out) */
+  remove(u) {
+    if (u.dead) return; u.dead = true; this.units.splice(this.units.indexOf(u), 1); this.selected = this.selected.filter(s => s !== u);
+    for (const g in this.groups) this.groups[g] = this.groups[g].filter(s => s !== u);
+    if (u.building || u.resource) for (let j = 0; j < (u.K.h || 1); j++) for (let i = 0; i < (u.K.w || 1); i++) this.map.block(u.cx + i, u.cy + j, false);
+    if (this.on.death) this.on.death(u);
+  }
+  // how far a is from b's edge (a building's footprint, a unit's circle)
+  _gap(a, b) {
+    if (b.building || b.resource) { const T = this.map.T, x0 = b.cx * T, y0 = b.cy * T, x1 = x0 + (b.K.w || 1) * T, y1 = y0 + (b.K.h || 1) * T; return hyp(a.x - clamp(a.x, x0, x1), a.y - clamp(a.y, y0, y1)) - a.r; }
+    return hyp(a.x - b.x, a.y - b.y) - a.r - b.r;
+  }
+  _foe(a, b) { return b.side && a.side && b.side !== a.side && !b.resource; }
+
+  /* ---- orders ---- */
+  /** give units an order: kind 'move' | 'attack' | 'amove' | 'gather' | 'build' | 'patrol' | 'stop', target ({ x, y }, a
+   *  unit, or { kind, cx, cy } to build), o.queue: after the orders they have */
+  order(units, kind, target, o = {}) {
+    const list = units.filter(u => u && !u.dead && !u.building && !u.resource);
+    if (kind === 'build') { const K = this.kinds[target.kind], b = list[0]; if (!b || !this.afford(b.side, K.cost)) return false; this._pay(b.side, K.cost); list.length = 1; }
+    let slots = null;
+    if ((kind === 'move' || kind === 'amove') && list.length > 1) slots = this._formation(list, target);
+    list.forEach((u, i) => {
+      const s = slots ? slots[i] : target, ord = kind === 'stop' ? null : { kind, x: s && s.x, y: s && s.y, gx: target && target.x, gy: target && target.y, target: target && target.id ? target : null };
+      if (kind === 'build') Object.assign(ord, { what: target.kind, cx: target.cx, cy: target.cy, x: (target.cx + (this.kinds[target.kind].w || 1) / 2) * this.map.T, y: (target.cy + (this.kinds[target.kind].h || 1) / 2) * this.map.T, target: null });
+      if (kind === 'patrol') Object.assign(ord, { ax: u.x, ay: u.y });
+      if (!o.queue || kind === 'stop') u.orders = []; if (ord) u.orders.push(ord); u.stuck = 0;
+    });
+    return true;
+  }
+  // slots for a group: rows across the way from the group's middle to the point, as wide as the group is square, the
+  // nearest unit to each slot in turn (the same units, the same slots)
+  _formation(list, p) {
+    const n = list.length, cols = Math.ceil(Math.sqrt(n)), gap = Math.max(...list.map(u => u.r)) * 2 + 5;
+    const mx = list.reduce((a, u) => a + u.x, 0) / n, my = list.reduce((a, u) => a + u.y, 0) / n, a = Math.atan2(p.y - my, p.x - mx), fx = Math.cos(a), fy = Math.sin(a);
+    const pts = []; for (let i = 0; i < n; i++) { const c = i % cols - (cols - 1) / 2, r = -Math.floor(i / cols); pts.push({ x: p.x + (-fy * c + fx * r) * gap, y: p.y + (fx * c + fy * r) * gap }); }
+    const out = new Array(n), free = list.map((u, i) => i);
+    for (const q of pts) { let bi = 0; for (let k = 1; k < free.length; k++) if (hyp(list[free[k]].x - q.x, list[free[k]].y - q.y) < hyp(list[free[bi]].x - q.x, list[free[bi]].y - q.y)) bi = k; out[free[bi]] = q; free.splice(bi, 1); }
+    return out;
+  }
+  /** the right click: attack a foe at the point, gather a resource, else move (o.queue as order's) */
+  smart(units, x, y, target, o = {}) {
+    const mine = units.filter(u => u && u.side === this.player);
+    if (target && target.resource) { const gatherers = mine.filter(u => u.K.gather); this.order(gatherers, 'gather', target, o); return this.order(mine.filter(u => !u.K.gather), 'move', { x, y }, o); }
+    if (target && units.length && this._foe(units[0], target)) return this.order(mine, 'attack', target, o);
+    return this.order(mine, 'move', { x, y }, o);
+  }
+  /** queue kind at building (paid now): it comes out after its time, toward building.rally. False when it can't */
+  train(b, kind) {
+    const K = this.kinds[kind]; if (!b || b.dead || b.progress < 1 || !(b.K.makes || []).includes(kind) || b.queue.length >= 5 || !this.afford(b.side, K.cost)) return false;
+    this._pay(b.side, K.cost); b.queue.push({ kind, t: 0 }); return true;
+  }
+  /** take back the last in building's queue (refunded) */
+  cancel(b) { const q = b.queue.pop(); if (q) this._pay(b.side, this.kinds[q.kind].cost, -1); return !!q; }
+  /** can a building of kind stand on cells cx, cy (its corner)? On the map, walkable, no unit there (but by, its builder),
+   *  seen by the player (when it is theirs) */
+  canPlace(kind, cx, cy, by = null) {
+    const K = this.kinds[kind], T = this.map.T, fog = (by ? by.side : this.player) === this.player ? this.fog : null;
+    for (let j = 0; j < (K.h || 1); j++) for (let i = 0; i < (K.w || 1); i++) {
+      const x = cx + i, y = cy + j; if (!this.map.walkable(x, y) || (fog && !fog.seen([x, y]))) return false;
+      if (this.units.some(u => u !== by && !u.building && !u.resource && Math.floor(u.x / T) === x && Math.floor(u.y / T) === y)) return false;
+    }
+    return true;
+  }
+  /** the placement ghost: kind's cells at cx, cy, green where it fits, red where it doesn't */
+  ghost(r, kind, cx, cy) { const K = this.kinds[kind], cells = []; for (let j = 0; j < (K.h || 1); j++) for (let i = 0; i < (K.w || 1); i++) cells.push([cx + i, cy + j]); E.tint(r, cells, this.canPlace(kind, cx, cy) ? '#40e070' : '#ff4040', .5, this.map.T); }
+
+  /* ---- each step ---- */
+  /** run the orders, production, fights, the fog and the AIs by dt seconds */
+  update(dt) {
+    this.time += dt; this._hash.build(this.units.filter(u => !u.building && !u.resource));
+    for (const A of this._ais) this._aiStep(A, dt);
+    for (const u of this.units.slice()) { if (u.dead || u.resource) continue; u.cool = Math.max(0, u.cool - dt); u.moving = false; if (!u.building) this._act(u, dt); else { this._make(u, dt); if (u.K.atk && u.progress >= 1) this._act(u, dt); } }
+    if (this.fog && (this._fogT -= dt) <= 0) { this._fogT = .25; const T = this.map.T; this.fog.update(this.of(this.player).filter(u => u.progress >= 1 || !u.building).map(u => ({ cx: Math.floor(u.x / T), cy: Math.floor(u.y / T), r: u.K.sight || 6 }))); }
+  }
+  // a building's queue: the first one made when its time is up, beside it, sent to the rally point
+  _make(b, dt) {
+    const q = b.queue[0]; if (!q || b.progress < 1) return;
+    if ((q.t += dt) < (this.kinds[q.kind].time || 1)) return;
+    const at = this._spot(b); if (!at) return;
+    b.queue.shift(); const u = this.spawn(q.kind, b.side, at[0], at[1]); if (b.rally) this.order([u], 'move', b.rally);
+    if (this.on.made) this.on.made(u, b);
+  }
+  // a free cell round a building's footprint: the rings outward, each from its south side
+  _spot(b) {
+    const T = this.map.T, x0 = b.cx, y0 = b.cy, x1 = x0 + (b.K.w || 1) - 1, y1 = y0 + (b.K.h || 1) - 1;
+    for (let k = 1; k < 6; k++) {
+      const ring = []; for (let y = y0 - k; y <= y1 + k; y++) for (let x = x0 - k; x <= x1 + k; x++) if (x === x0 - k || x === x1 + k || y === y0 - k || y === y1 + k) ring.push([x, y]);
+      ring.sort((p, q) => q[1] - p[1] || p[0] - q[0]);
+      for (const [cx, cy] of ring) if (this.map.walkable(cx, cy) && !this.units.some(o => !o.building && !o.resource && Math.floor(o.x / T) === cx && Math.floor(o.y / T) === cy)) return [(cx + .5) * T, (cy + .5) * T];
+    }
+    return null;
+  }
+  // a unit's orders (or, idle, a fight with what it sees)
+  _act(u, dt) {
+    const o = u.orders[0];
+    if (!o) { if (u.K.atk && (u._look = (u._look || 0) - dt) <= 0) { u._look = .25; const f = this._near(u, (u.K.sight || 6) * this.map.T); if (f && !u.building) u.orders.push({ kind: 'attack', target: f, idle: true }); else if (f && u.building) { u._foe = f; } } if (u.building && u._foe && !u._foe.dead) this._strike(u, u._foe); return; }
+    if (o.kind === 'attack') { if (this._fight(u, o.target, dt)) u.orders.shift(); return; }
+    if ((o.kind === 'amove' || o.kind === 'patrol') && u.K.atk && (u._look = (u._look || 0) - dt) <= 0) {   // fighting what it meets on the way
+      u._look = .25; const f = this._near(u, (u.K.sight || 6) * this.map.T); if (f) { u.orders.unshift({ kind: 'attack', target: f, idle: true }); return; }
+    }
+    if (o.kind === 'gather') { this._gather(u, o, dt); return; }
+    if (o.kind === 'build') { this._build(u, o, dt); return; }
+    if (this._go(u, o.x, o.y, o.gx, o.gy, dt)) {
+      if (o.kind === 'patrol') { const ax = o.ax, ay = o.ay; Object.assign(o, { ax: o.x, ay: o.y, x: ax, y: ay, gx: ax, gy: ay }); } else u.orders.shift();
+    }
+  }
+  // the nearest foe within d of u (seen by u's side: the AI's units see through no fog of theirs)
+  _near(u, d) {
+    let best = null, bd = d;
+    this._hash.near(u.x, u.y, d, o => { if (!o.dead && this._foe(u, o)) { const g = hyp(o.x - u.x, o.y - u.y); if (g < bd) { bd = g; best = o; } } });
+    if (!best) for (const b of this.units) if (b.building && this._foe(u, b)) { const g = this._gap(u, b); if (g < bd) { bd = g; best = b; } }
+    return best;
+  }
+  _fight(u, t, dt) {
+    if (!t || t.dead || !u.K.atk) return true;
+    if (this._gap(u, t) > (u.K.range || 8)) { this._go(u, t.x, t.y, t.x, t.y, dt, true); return false; }
+    u.face = Math.atan2(t.y - u.y, t.x - u.x); this._strike(u, t); return false;
+  }
+  _strike(u, t) {
+    if (u.cool > 0 || this._gap(u, t) > (u.K.range || 8)) return;
+    u.cool = u.K.rate || 1; if (this.on.attack) this.on.attack(u, t);
+    t.hp -= u.K.atk; if (t.hp <= 0) this.remove(t);
+  }
+  // a worker's trips: to the resource, a load, back to the nearest depot of its side; then again, till it runs out
+  _gather(u, o, dt) {
+    const res = o.target;
+    if (!u.carry && (!res || res.dead)) {   // run out: the nearest of the same left, or stop
+      const next = res && this.units.filter(m => m.resource === res.resource).sort((a, b) => hyp(a.x - u.x, a.y - u.y) - hyp(b.x - u.x, b.y - u.y))[0];
+      if (next) o.target = next; else u.orders.shift(); return;
+    }
+    if (u.carry >= (u.K.gather || 10) || (u.carry && (!res || res.dead))) {
+      const d = this.of(u.side).filter(b => b.building && b.K.depot && b.progress >= 1).sort((a, b) => this._gap(u, a) - this._gap(u, b))[0];
+      if (!d) return;
+      if (this._gap(u, d) > 4) { this._go(u, d.x, d.y, d.x, d.y, dt, true); return; }
+      const k = (res && res.resource) || o.res || 'gold'; this.side(u.side).res[k] = (this.side(u.side).res[k] || 0) + u.carry; if (this.on.gathered) this.on.gathered(u, u.carry, k); o.res = k; u.carry = 0; return;
+    }
+    if (this._gap(u, res) > 4) { this._go(u, res.x, res.y, res.x, res.y, dt, true); return; }
+    u.mining = (u.mining || 0) + dt; o.res = res.resource;
+    if (u.mining >= 1) { u.mining = 0; const n = Math.min(Math.ceil((u.K.gather || 10) / 2), res.amount, (u.K.gather || 10) - u.carry); u.carry += n; res.amount -= n; if (res.amount <= 0) this.remove(res); }
+  }
+  // a worker builds: to the site, the foundation laid (when the cells are free), then up over the kind's time
+  _build(u, o, dt) {
+    const K = this.kinds[o.what], T = this.map.T;
+    if (!o.site) {
+      if (hyp(u.x - o.x, u.y - o.y) > Math.max(K.w || 1, K.h || 1) * T * .5 + u.r + 6) { this._go(u, o.x, o.y, o.x, o.y, dt, true); return; }
+      if (!this.canPlace(o.what, o.cx, o.cy, u)) { if ((u.stuck = (u.stuck || 0) + dt) > 4) { this._pay(u.side, K.cost, -1); u.orders.shift(); } return; }
+      o.site = this.spawn(o.what, u.side, o.x, o.y, { built: false });
+    }
+    const b = o.site; if (b.dead) { u.orders.shift(); return; }
+    if (this._gap(u, b) > 6) { this._go(u, b.x, b.y, b.x, b.y, dt, true); return; }
+    u.face = Math.atan2(b.y - u.y, b.x - u.x); u.working = true;
+    b.progress = Math.min(1, b.progress + dt / (K.time || 5)); b.hp = Math.min(b.max, b.hp + b.max * dt / (K.time || 5));
+    if (b.progress >= 1) { u.orders.shift(); u.working = false; if (this.on.built) this.on.built(b, u); }
+  }
+  // steer u toward (x, y): straight when near, else along the flow field to (gx, gy); kept apart from the others and out
+  // of walls and buildings. True once it is there (or has been stuck a while near it)
+  _go(u, x, y, gx, gy, dt, chase) {
+    const d = hyp(x - u.x, y - u.y), T = this.map.T; if (d < (chase ? 1 : 3)) return true;
+    let dx, dy;
+    if (d < T * 2.5) { dx = (x - u.x) / d; dy = (y - u.y) / d; }
+    else { const f = this._field(gx, gy); [dx, dy] = f.dir(u.x, u.y, x, y); }
+    let sx = 0, sy = 0;
+    this._hash.near(u.x, u.y, u.r * 3, o => { if (o === u || o.dead) return; const ex = u.x - o.x, ey = u.y - o.y, e = hyp(ex, ey), m = u.r + o.r + 1; if (e < m && e > .01) { sx += ex / e * (m - e) / m; sy += ey / e * (m - e) / m; } });
+    const sp = (u.K.speed || 30) * dt, was = d; u.x += (dx + sx * 1.6) * sp; u.y += (dy + sy * 1.6) * sp; u.face = Math.atan2(dy, dx); u.moving = true;
+    this.map.collide(u);
+    const now = hyp(x - u.x, y - u.y); u.stuck = now > was - sp * .25 ? (u.stuck || 0) + dt : 0;
+    return !chase && (now < 3 || (u.stuck > .6 && now < T * 1.5) || u.stuck > 3);
+  }
+  // one flow field per destination cell, shared by every unit going there (the last 16 kept); a target in a building or a
+  // wall aims at the nearest open cell to it
+  _field(x, y) {
+    const T = this.map.T, M = this.map; let cx = Math.floor(x / T), cy = Math.floor(y / T);
+    if (!M.walkable(cx, cy)) { let best = null, bd = 1e9; for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) if (M.walkable(cx + i, cy + j) && i * i + j * j < bd) { bd = i * i + j * j; best = [cx + i, cy + j]; } if (best) { [cx, cy] = best; x = (cx + .5) * T; y = (cy + .5) * T; } }
+    const k = cx + ',' + cy; let f = this._fields.get(k);
+    if (!f) { f = new E.FlowField(this.map); this._fields.set(k, f); if (this._fields.size > 16) this._fields.delete(this._fields.keys().next().value); }
+    else { this._fields.delete(k); this._fields.set(k, f); }
+    f.update(x, y); return f;
+  }
+
+  /* ---- what the player sees and does ---- */
+  /** can the player see u? (the fog: any of its cells in sight; theirs always) */
+  visible(u) {
+    if (!this.fog || u.side === this.player) return true;
+    const T = this.map.T; if (!u.building && !u.resource) return this.fog.visible([Math.floor(u.x / T), Math.floor(u.y / T)]);
+    for (let j = 0; j < (u.K.h || 1); j++) for (let i = 0; i < (u.K.w || 1); i++) if (this.fog.seen([u.cx + i, u.cy + j])) return true;   // (buildings stay once seen)
+    return false;
+  }
+  /** E.Shell's minimap spec: the map, the fog, the camera's view, the units seen as dots by side, a click moving the camera */
+  minimap(colors = {}) {
+    return { map: this.map, fog: this.fog, camera: true, onClick: (x, y) => { this.game.focus(x, y); this.game.cam.snap = true; },
+      markers: () => this.units.filter(u => this.visible(u)).map(u => ({ x: u.x, y: u.y, kind: u.building ? 'diamond' : 'dot', size: u.building ? 3 : 1.6, color: u.resource ? '#ffd860' : colors[u.side] || (u.side === this.player ? '#60c0ff' : '#ff5a4a') })) };
+  }
+  /** the player's pointer and keys, each step (see the manual): selection, groups, orders. o.order: the action that orders
+   *  (Mouse2 by default where it is bound); o.at(sx, sy) -> the world point under a screen point (map.pick's, by default) */
+  input(o = {}) {
+    const G = this.game, I = G.input, r = G.r, sh = I.held.has('ShiftLeft') || I.held.has('ShiftRight'), ctrl = I.held.has('ControlLeft') || I.held.has('ControlRight') || I.held.has('MetaLeft');
+    const cam = { view: G.view, ix: Math.floor(G.cam.x), iy: Math.floor(G.cam.y) }, at = o.at || ((sx, sy) => { const h = this.map.pick(sx, sy, cam); return h ? [h.x, h.y] : G.view.toGround(sx + cam.ix, sy + cam.iy); });   // (the camera as drawn: headless too)
+    const mine = u => u.side === this.player && !u.resource, onScreen = u => { const q = this._screen(u); return q[0] >= 0 && q[1] >= 0 && q[0] < G.screen.W && q[1] < G.screen.H; };
+    const under = p => { const hit = r ? r.pick(p[0], p[1]).filter(u => u && u.K && !u.dead && this.visible(u)) : []; return hit[0] || this.units.filter(u => !u.dead && this.visible(u)).map(u => [u, hyp(...this._screen(u).map((v, i) => v - p[i]))]).filter(e => e[1] < 10).sort((a, b) => a[1] - b[1]).map(e => e[0])[0] || null; };
+    const b = I.box();
+    if (b && b.done) { const inside = this.units.filter(u => mine(u) && !u.building && (q => q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.y0 && q[1] <= b.y1)(this._screen(u))); this.selected = sh ? [...new Set([...this.selected, ...inside])] : inside; }
+    this._box = b && !b.done ? b : null;
+    const d2 = I.doubleTap(), c = I.clicked(), ord = o.order === undefined ? 'order' : o.order;
+    if (d2) { const u = under(d2); if (u && mine(u)) this.selected = this.units.filter(v => mine(v) && v.kind === u.kind && onScreen(v)); }
+    else if (c && !(b && b.done)) {
+      const u = under(c);
+      if (u && mine(u)) this.selected = sh ? (this.selected.includes(u) ? this.selected.filter(s => s !== u) : [...this.selected, u]) : [u];
+      else if (this.selected.length && I.lastDevice === 'touch') { const p = at(...c); if (p) { this.smart(this.selected, p[0], p[1], u, { queue: sh }); if (this.on.ordered) this.on.ordered(p, u); } }
+      else if (!sh) this.selected = [];
+    }
+    if (ord && I.map[ord] && I.pressed(ord) && this.selected.length) { const p = I.pointer(), w = p && at(...p); if (w) { const u = under(p); this.smart(this.selected, w[0], w[1], u, { queue: sh }); if (this.on.ordered) this.on.ordered(w, u); } }
+    for (let n = 1; n <= 9; n++) {   // control groups: Ctrl+n keeps the selection, n calls it back
+      const k = 'Digit' + n, down = I.held.has(k), was = this._held.has(k); if (down) this._held.add(k); else this._held.delete(k);
+      if (down && !was) { if (ctrl) this.groups[n] = this.selected.slice(); else if (this.groups[n] && this.groups[n].length) this.selected = this.groups[n].filter(u => !u.dead); }
+    }
+  }
+  // a unit's foot on the screen (the HUD's pixels)
+  _screen(u) { const G = this.game, q = G.view.p(u.x, u.y, u.z || 0); return [q[0] - Math.floor(G.cam.x), q[1] - Math.floor(G.cam.y)]; }
+  /** after the world: a ring under each selected unit, health bars over the selected and the hurt, the box being drawn */
+  draw(r) {
+    for (const u of this.selected) {
+      const R = (u.building ? u.r * 1.2 : u.r + 2), col = u.side === this.player ? '#60ff90' : '#ff6060', pts = [];
+      for (let i = 0; i <= 16; i++) { const a = i / 16 * Math.PI * 2; pts.push([u.x + Math.cos(a) * R, u.y + Math.sin(a) * R]); }
+      r.decal(g => { for (let i = 0; i < 16; i++) { const [a, b] = r.w(pts[i][0], pts[i][1], 0), [c, d] = r.w(pts[i + 1][0], pts[i + 1][1], 0); px.line(g, a, b, c, d, col); } });
+    }
+    r.overlay(g => {
+      for (const u of this.units) {
+        if (u.resource || !this.visible(u) || (!this.selected.includes(u) && u.hp >= u.max && u.progress >= 1)) continue;
+        const [x, y] = r.w(u.x, u.y, (u.z || 0) + (u.building ? u.r * 1.6 : u.K.tall || 24)), w = u.building ? 24 : 12;
+        px.rect(g, x - w / 2 - 1, y, w + 2, 3, '#100c18'); px.rect(g, x - w / 2, y + 1, Math.max(1, Math.round(w * u.hp / u.max)), 1, u.hp > u.max * .4 ? '#5ad86a' : '#ff5a4a');
+        if (u.progress < 1) px.rect(g, x - w / 2, y + 3, Math.round(w * u.progress), 1, '#ffd060');
+      }
+      const B = this._box; if (B) { px.line(g, B.x0, B.y0, B.x1, B.y0, '#80ff90'); px.line(g, B.x1, B.y0, B.x1, B.y1, '#80ff90'); px.line(g, B.x1, B.y1, B.x0, B.y1, '#80ff90'); px.line(g, B.x0, B.y1, B.x0, B.y0, '#80ff90'); }
+    });
+  }
+
+  /* ---- the AI: a build order as data, waves of attack-moves, a script ---- */
+  /** run side by plan ({ build: [[kind, n]], waves: { first, every, min }, script }): see the manual */
+  ai(side, plan) { const A = { side, plan, i: 0, t: 0, wave: plan.waves ? plan.waves.first || 60 : Infinity }; this._ais.push(A); if (plan.script) this.game.script(() => plan.script(this, side)); return A; }
+  _aiStep(A, dt) {
+    if ((A.t -= dt) > 0) return; A.t = .5;
+    const S = A.side, mine = this.of(S), workers = mine.filter(u => u.K.gather && !u.building), base = mine.find(u => u.building && u.K.depot);
+    for (const w of workers) if (!w.orders.length) { const m = this.units.filter(u => u.resource).sort((a, b) => hyp(a.x - w.x, a.y - w.y) - hyp(b.x - w.x, b.y - w.y))[0]; if (m) this.order([w], 'gather', m); }
+    const step = (A.plan.build || [])[A.i];
+    if (step) {
+      const [kind, n = 1] = step, K = this.kinds[kind], have = mine.filter(u => u.kind === kind).length + mine.reduce((a, b) => a + b.queue.filter(q => q.kind === kind).length, 0) + mine.filter(u => u.orders.some(o => o.kind === 'build' && o.what === kind)).length;
+      if (have >= n) A.i++;
+      else if (!K.building) { const b = mine.find(u => u.building && u.progress >= 1 && (u.K.makes || []).includes(kind) && u.queue.length < 2); if (b) this.train(b, kind); }
+      else if (base && this.afford(S, K.cost)) {
+        const w = workers.find(u => !u.orders.some(o => o.kind === 'build'));
+        const room = (cx, cy) => { for (let y = cy - 1; y <= cy + (K.h || 1); y++) for (let x = cx - 1; x <= cx + (K.w || 1); x++) if (!this.map.walkable(x, y)) return false; return this.canPlace(kind, cx, cy, w); };   // (a cell's margin all round: no walling in)
+        let spot = null;
+        for (let k = 3; k < 12 && !spot && w; k++) for (let a = 0; a < 16 && !spot; a++) { const cx = Math.round(base.cx + Math.cos(a / 16 * Math.PI * 2) * k), cy = Math.round(base.cy + Math.sin(a / 16 * Math.PI * 2) * k); if (room(cx, cy)) spot = [cx, cy]; }
+        if (w && spot) this.order([w], 'build', { kind, cx: spot[0], cy: spot[1] });
+      }
+    }
+    const W = A.plan.waves;
+    if (W && this.time >= A.wave) {
+      const army = mine.filter(u => !u.building && !u.K.gather && u.K.atk && !u.orders.length);
+      if (army.length >= (W.min || 3)) {
+        const foes = this.units.filter(u => u.side && u.side !== S && !u.resource), tgt = foes.filter(u => u.building)[0] || foes[0];
+        if (tgt) { this.order(army, 'amove', { x: tgt.x, y: tgt.y }); A.wave = this.time + (W.every || 90); if (this.on.wave) this.on.wave(S, army); }
+      }
+    }
+  }
+  /** what a proof hashes: every unit's kind, side, cell and HP, each side's resources */
+  state() { const T = this.map.T; return { units: this.units.map(u => [u.kind, u.side, Math.floor(u.x / T * 4), Math.floor(u.y / T * 4), Math.round(u.hp), u.orders.length]), res: Object.values(this._sides).map(s => [s.id, s.res]) }; }
+}
+E.Strategy = Strategy;
+
+/* =============================================================================
+ * SIMULATION  a day clock, needs, a value tinted on cells, a tooltip
+ * ========================================================================== */
+class Clock {
+  /** new E.Clock({ day: 240 (real seconds of game time a day), hour: 8 (to start at) }) */
+  constructor(o = {}) {
+    /** day: the day (1, 2, ...); t: hours since the first midnight; length: seconds a day */
+    this.length = o.day || 240; this.t = o.hour === undefined ? 8 : o.hour; this.day = 1;
+  }
+  /** run it by dt seconds of game time */
+  update(dt) { this.t += dt / this.length * 24; this.day = 1 + Math.floor(this.t / 24); }
+  /** the hour (0..23) */
+  get hour() { return Math.floor(this.t % 24); }
+  /** the minute (0..59) */
+  get minute() { return Math.floor(this.t % 1 * 60); }
+  /** true from 20:00 to 6:00 */
+  get night() { const h = this.t % 24; return h >= 20 || h < 6; }
+  /** 'DAY 2  14:30' */
+  label() { return 'DAY ' + this.day + '  ' + String(this.hour).padStart(2, '0') + ':' + String(Math.floor(this.minute / 10) * 10).padStart(2, '0'); }
+  /** the light by the hour: { ambient (.12 at night .. 1 at noon), color (the sky's tint: blue night, warm dawn and dusk) } */
+  light() {
+    const h = this.t % 24, sun = clamp(Math.sin((h - 6) / 12 * Math.PI), 0, 1), dusk = clamp(1 - Math.abs(h - 6.5) / 1.5, 0, 1) + clamp(1 - Math.abs(h - 19) / 1.5, 0, 1);
+    return { ambient: .12 + .88 * Math.sqrt(sun), color: dusk > .05 ? E.mix('#ffffff', '#ffb070', Math.min(1, dusk) * .7) : sun > 0 ? '#ffffff' : '#6070c0' };
+  }
+}
+E.Clock = Clock;
+/** raise an agent's needs (agent.needs: { hunger: .2, fun: .5 }, each 0..1) by rates ({ hunger: .01 }) a second */
+E.needs = (agent, rates, dt) => { const N = agent.needs || (agent.needs = {}); for (const k in rates) N[k] = clamp((N[k] || 0) + rates[k] * dt, 0, 1); return N; };
+/** the option that best meets an agent's needs ({ gives: { hunger: -.6 }, x, y, cost }): each need it lowers, weighted by
+ *  that need squared (the urgent first), less the walk (a cell's worth per 400 units) and cost against agent.money; null
+ *  when none helps */
+E.choose = (agent, options) => {
+  const N = agent.needs || {}; let best = null, bs = 0;
+  for (const o of options) {
+    if (o.cost && agent.money !== undefined && o.cost > agent.money) continue;
+    let s = 0; for (const k in o.gives || {}) s += -o.gives[k] * (N[k] || 0) ** 2 * 4;
+    if (o.x !== undefined) s -= hyp(o.x - (agent.x || 0), o.y - (agent.y || 0)) / 400;
+    if (o.cost) s -= o.cost / 100;
+    if (s > bs) { bs = s; best = o; }
+  }
+  return best;
+};
+/** tint each cell by value(cx, cy) (0..1, or null for none) along colors (cold to hot): land value, crowding, mood */
+E.overlay = (r, map, value, colors = ['#2050c0', '#e0e040', '#e02020'], alpha = .45) => {
+  const T = map.T, n = colors.length - 1;
+  r.decal(g => { for (let cy = 0; cy < map.h; cy++) for (let cx = 0; cx < map.w; cx++) { const v = value(cx, cy); if (v === null || v === undefined) continue; const f = clamp(v, 0, 1) * n, i = Math.min(n - 1, Math.floor(f)); E.px.polyDither(g, [[cx, cy], [cx + 1, cy], [cx + 1, cy + 1], [cx, cy + 1]].map(([a, b]) => r.w(a * T, b * T, 0)), E.mix(colors[i], colors[i + 1], f - i), alpha, r.ix, r.iy); } });
+};
+/** a box of lines (text, or [text, color]) beside a screen point (the pointer), kept on the screen */
+E.tooltip = (r, x, y, lines) => {
+  r.overlay(g => {
+    const L = lines.map(l => Array.isArray(l) ? l : [l, '#e8e0f0']), w = Math.max(...L.map(l => E.font.width(l[0], { font: 'tiny' }))) + 10, h = L.length * 8 + 6;
+    const bx = clamp(x + 8, 2, r.W - w - 2), by = clamp(y + 8, 2, r.H - h - 2);
+    E.ui.box(g, bx, by, w, h, { alpha: .9 }); L.forEach((l, i) => E.font.text(g, l[0], bx + 5, by + 4 + i * 8, l[1], { outline: false, font: 'tiny' }));
+  });
+};
 })(typeof My3D2dge !== 'undefined' ? My3D2dge : undefined);
 
 </script>

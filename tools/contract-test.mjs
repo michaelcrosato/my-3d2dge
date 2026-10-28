@@ -8,6 +8,11 @@
 //   heights        E.HEIGHTS, map.ray/sight/standable/ledge/landing/drop/arcClear, E.inArc's dz, E.sameLevel, E.targets
 //                  and FlowField over heights, on small maps (a roof edge, a kerb, a gap, a planter, a guard above)
 //   tactics        the grid module's reach over heights past allies, shapes of effect, facing and blows from behind, threat maps
+//   strategy       the pointer's gestures (a box, a long press and a box, a double tap, a pan, a zoom's point); the free
+//                  camera in every ground view and turn (a drag keeps the world under the finger, a zoom keeps it under
+//                  the pointer, bounds, keys); the strategy module's selection and orders by scripted pointer input in
+//                  every ground view (a box, a click, a double click, a right click's move in formation and attack,
+//                  control groups), gathering, training, building, an AI's build order and wave, fog; the day clock and needs
 //   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
 //                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map
 //   audio          audio.duck(on) is public
@@ -88,6 +93,7 @@ for (const [ed, file] of EDITIONS) {
   views(E, ed);   // (and the mode7 and road modules)
   drive(E, ed);   // (and the drive module: its races on the full engine, which has E.Path)
   dialogs(E, ed);
+  if (ed === 'full') strategies(E, ed);   // (the gestures, the free camera and the strategy module are the full engine's)
   stories(E, ed);   // (the story and rpg modules load after either edition)
   rpgs(E, ed);
   shellHeadless(E, ed);
@@ -769,6 +775,88 @@ function tactics(E, ed) {
   check(`${ed}: E.Grid.face and side: a unit turns to its target; a blow from behind, the side, a diagonal and the front`, q.face([0, 0], [3, 1]).join() === '1,0' && q.face([0, 0], [1, -3]).join() === '0,-1' && q.side([4, 4], [1, 0], [3, 4]) === 'back' && q.side([4, 4], [1, 0], [4, 6]) === 'side' && q.side([4, 4], [1, 0], [5, 5]) === 'side' && q.side([4, 4], [1, 0], [6, 4]) === 'front');
   const t = q.threat([{ cx: 0, cy: 0, move: 2, range: 1 }, { cx: 8, cy: 8, move: 1, range: [2, 3] }], { blocked: (x, y) => x === 1 && y === 0 });
   check(`${ed}: E.Grid.threat: each unit's move then its range (a bow's least range kept), blocked cells walked round, who threatens a cell`, t.count([0, 3]) === 1 && t.count([2, 1]) === 1 && t.count([4, 0]) === 0 && t.count([8, 8]) === 0 && t.count([6, 8]) === 1 && t.by([5, 8])[0].cx === 8, [t.count([0, 3]), t.count([2, 1]), t.count([4, 0]), t.count([8, 8]), t.count([6, 8])].join());
+}
+
+// M9a: the pointer's gestures, the free camera, the strategy module (selection and orders by scripted pointer input in
+// every ground view, its economy, an AI), the day clock and needs
+function strategies(E, ed) {
+  // gestures, fed as a browser would give them
+  { const g = new E.Game({ headless: true, view: 'topdown' }), I = g.input, seen = []; g.start({ update() { for (const [k, v] of [['box', I.box()], ['long', I.longPress()], ['tap2', I.doubleTap()], ['pan', I.pan()]]) if (v) seen.push(k + (k === 'box' ? (v.done ? '!' : '') : '')); }, draw() {} });
+    const step = () => g.advance(1 / 120);
+    I.feed('down', 10, 10); step(); I.feed('move', 40, 30); step(); I.feed('up', 40, 30); step();
+    I.feed('down', 60, 60); I.feed('up', 60, 60); g.advance(.1); I.feed('down', 61, 60); I.feed('up', 61, 60); step();
+    I.feed('down', 90, 90, { touch: true }); g.advance(.5); I.feed('move', 110, 100, { touch: true }); step(); I.feed('up', 110, 100, { touch: true }); step();
+    I.feed('down', 90, 90, { touch: true }); step(); I.feed('move', 105, 92, { touch: true }); step(); I.feed('up', 105, 92, { touch: true }); step(); I.feed('zoom', 33, 44);
+    check(`${ed}: input gestures: a mouse's drag is a box, two clicks a double tap, a long press then a drag a box, a finger's drag a pan; a zoom's point`, seen.join(' ') === 'box box! tap2 long box box! pan' && I.zoomPoint().join() === '33,44', seen.join(' '));
+    g.dispose(); }
+  // the free camera in every ground view and turn: a drag keeps the world point under the finger there, a zoom keeps the
+  // point under the pointer there (during its preview and after), bounds hold it, the keys move it
+  let bad = [];
+  for (const view of ['iso', 'threequarter', 'topdown', 'overhead']) for (const turn of [0, 90, 180]) {
+    const g = new E.Game({ headless: true, view }), I = g.input, S = g.screen, at = (sx, sy) => { const v = g.view, z = g._zoomTo || g.zoom, k = g.zoom / z; return v.toGround(g.cam.x + S.W / 2 + (sx - S.W / 2) * k, g.cam.y + S.H / 2 + (sy - S.H / 2) * k); };
+    g.start({ scenes: { s: { camera: { zoom: [.5, 3] }, update() {}, draw() {} } }, scene: 's' }); g.rotateView(turn); g.cam.free = { bounds: [-2000, -2000, 2000, 2000] }; g.focus(300, 200); g.advance(.05);
+    const P = [120, 90], w0 = at(...P); I.feed('down', ...P, { button: 1 }); g.advance(1 / 120);
+    for (let i = 1; i <= 4; i++) { I.feed('move', P[0] + 10 * i, P[1] + 6 * i, { button: 1 }); g.advance(1 / 120); }
+    I.feed('up', P[0] + 40, P[1] + 24, { button: 1 }); g.advance(1 / 120);
+    const w1 = at(P[0] + 40, P[1] + 24), drag = Math.hypot(w1[0] - w0[0], w1[1] - w0[1]);
+    const Q = [70, 150], z0 = at(...Q); I.feed('zoom', ...Q, { k: 1.3 }); g.advance(1 / 120); const z1 = at(...Q); g.advance(.4); const z2 = at(...Q);
+    const zoom = Math.max(Math.hypot(z1[0] - z0[0], z1[1] - z0[1]), Math.hypot(z2[0] - z0[0], z2[1] - z0[1]));
+    if (drag > 1 || zoom > 1.5 || !(g.zoom > 1.2)) bad.push(`${view}+${turn}: drag off by ${drag.toFixed(2)}, zoom by ${zoom.toFixed(2)} (zoom ${g.zoom})`);
+    g.dispose();
+  }
+  { const g = new E.Game({ headless: true, view: 'iso' }), I = g.input; g.start({ update() {}, draw() {} }); g.cam.free = { bounds: [0, 0, 400, 300], speed: 200 }; g.focus(200, 150); g.advance(.05);
+    const a = [g.cam.tx, g.cam.ty]; I.hold('right'); g.advance(.5); I.hold('right', false); const b = [g.cam.tx, g.cam.ty];
+    I.hold('left'); g.advance(20); I.hold('left', false);
+    check(`${ed}: the free camera: a drag keeps the world under the finger and a zoom keeps it under the pointer, in four views turned three ways; the keys pan it; bounds hold it`, !bad.length && Math.hypot(b[0] - a[0], b[1] - a[1]) > 40 && g.cam.tx >= 0 && g.cam.ty <= 300 && (g.cam.tx === 0 || g.cam.ty === 300), bad.slice(0, 3).join('; ') + ` keys moved ${Math.hypot(b[0] - a[0], b[1] - a[1]).toFixed(0)}, bounded at ${g.cam.tx.toFixed(0)}, ${g.cam.ty.toFixed(0)}`);
+    g.dispose(); }
+  // the strategy module: selection and orders by the pointer in every ground view
+  const kinds = { soldier: { hp: 30, speed: 50, atk: 6, range: 10, rate: .6, sight: 6 }, hall: { building: true, w: 2, h: 2, hp: 300, depot: true, makes: ['worker', 'soldier'] },
+    barracks: { building: true, w: 2, h: 2, hp: 200, makes: ['soldier'], cost: { gold: 100 }, time: 3 }, mine: { resource: 'gold', amount: 2000 },
+    worker: { hp: 20, speed: 45, atk: 2, range: 8, rate: 1, sight: 5, gather: 10, cost: { gold: 50 }, time: 2 } };
+  bad = [];
+  for (const view of ['iso', 'threequarter', 'topdown', 'overhead']) for (const turn of [0, 90, 180]) {
+    const g = new E.Game({ headless: true, view, input: { ...E.Input.DEFAULT, order: ['Mouse2'] } }), I = g.input, map = new E.TileMap({ w: 40, h: 30 });
+    const rts = new E.Strategy(g, { map, kinds, sides: { blue: {}, red: {} }, player: 'blue', fog: false });
+    g.start({ update(dt) { rts.input(); rts.update(dt); }, draw() {} }); g.rotateView(turn);
+    const army = [0, 1, 2, 3, 4, 5].map(i => rts.spawn('soldier', 'blue', 280 + (i % 3) * 14, 240 + Math.floor(i / 3) * 14)), foe = rts.spawn('soldier', 'red', 300, 120);
+    g.focus(290, 230); g.cam.snap = true; g.advance(.05);
+    const scr = u => rts._screen(u), P = army.map(scr), x0 = Math.min(...P.map(p => p[0])) - 8, y0 = Math.min(...P.map(p => p[1])) - 8, x1 = Math.max(...P.map(p => p[0])) + 8, y1 = Math.max(...P.map(p => p[1])) + 8;
+    I.feed('down', x0, y0); g.advance(1 / 120); I.feed('move', (x0 + x1) / 2, (y0 + y1) / 2); g.advance(1 / 120); I.feed('move', x1, y1); g.advance(1 / 120); I.feed('up', x1, y1); g.advance(1 / 120);
+    const boxed = rts.selected.length;
+    const one = scr(army[4]); I.feed('down', ...one); I.feed('up', ...one); g.advance(1 / 120); const clicked = rts.selected.length === 1 && rts.selected[0] === army[4];
+    g.advance(.1); I.feed('down', ...one); I.feed('up', ...one); g.advance(1 / 120); const doubled = rts.selected.length;
+    I.press('ControlLeft'); I.press('Digit1'); g.advance(1 / 120); I.release('Digit1'); I.release('ControlLeft'); g.advance(1 / 120);
+    const empty = [5, 5]; I.feed('down', ...empty); I.feed('up', ...empty); g.advance(.4); const cleared = rts.selected.length === 0;
+    I.press('Digit1'); g.advance(1 / 120); I.release('Digit1'); g.advance(1 / 120); const recalled = rts.selected.length;
+    // a right click on the ground: a move in formation; then on the foe: an attack
+    const dest = g.view.p(330, 330), D = [dest[0] - Math.floor(g.cam.x), dest[1] - Math.floor(g.cam.y)];
+    I.feed('down', ...D, { button: 2 }); g.advance(1 / 120); I.feed('up', ...D, { button: 2 }); g.advance(6);
+    const near = army.every(u => Math.hypot(u.x - 330, u.y - 330) < 46), apart = army.every(a => army.every(b => a === b || Math.hypot(a.x - b.x, a.y - b.y) > 6));
+    const F = rts._screen(foe); I.feed('down', ...F, { button: 2 }); g.advance(1 / 120); I.feed('up', ...F, { button: 2 }); g.advance(12);
+    if (boxed !== 6 || !clicked || doubled !== 6 || !cleared || recalled !== 6 || !near || !apart || !foe.dead) bad.push(`${view}+${turn}: box ${boxed}, click ${clicked}, double ${doubled}, cleared ${cleared}, group ${recalled}, moved ${near}, apart ${apart}, foe ${foe.dead ? 'down' : foe.hp}`);
+    g.dispose();
+  }
+  check(`${ed}: E.Strategy by the pointer in four views turned three ways: a box selects six, a click one, a double click the kind, a group kept and called, a right click moves them in formation (kept apart) and attacks`, !bad.length, bad.slice(0, 3).join('; '));
+  // the economy and an AI: gathering, training, building; red's build order and its wave; fog
+  { const g = new E.Game({ headless: true, view: 'topdown' }), map = new E.TileMap({ w: 48, h: 36 }); const ev = { made: 0, built: 0, waves: 0 };
+    const rts = new E.Strategy(g, { map, kinds, sides: { blue: { res: { gold: 200 } }, red: { res: { gold: 600 } } }, player: 'blue', on: { made: () => ev.made++, built: () => ev.built++, wave: () => ev.waves++ } });
+    g.start({ update(dt) { rts.update(dt); }, draw() {} });
+    const hall = rts.spawn('hall', 'blue', 96, 96), m1 = rts.spawn('mine', null, 248, 96), w1 = rts.spawn('worker', 'blue', 120, 140);
+    const rhall = rts.spawn('hall', 'red', 640, 480); rts.spawn('mine', null, 560, 520); for (let i = 0; i < 3; i++) rts.spawn('worker', 'red', 600 + i * 12, 440);
+    rts.order([w1], 'gather', m1); const before = rts.side('blue').res.gold; rts.train(hall, 'worker'); const paid = rts.side('blue').res.gold;
+    rts.ai('red', { build: [['barracks'], ['soldier', 4]], waves: { first: 40, every: 60, min: 3 } });
+    const w2 = rts.spawn('worker', 'blue', 130, 150), placed = rts.order([w2], 'build', { kind: 'barracks', cx: 10, cy: 3 });
+    g.advance(20); const gold = rts.side('blue').res.gold, barracks = rts.of('blue', 'barracks')[0]; // before red's wave comes for it
+    g.advance(40); const rb = rts.of('red', 'barracks')[0], rs = rts.of('red', 'soldier').length;
+    check(`${ed}: E.Strategy's economy: trips to the depot pay, training costs and makes a unit, a worker builds a barracks; red's AI builds its order and sends a wave`, paid === before - 50 && gold > paid - 100 && ev.made >= 1 && placed && barracks && barracks.progress === 1 && rb && rb.progress === 1 && rs >= 3 && ev.waves >= 1 && !!rhall,
+      `gold ${before} -> ${paid} -> ${gold}, made ${ev.made}, barracks ${barracks ? barracks.progress : 'none'}, red's ${rb ? rb.progress : 'none'} and ${rs} soldiers, waves ${ev.waves}`);
+    check(`${ed}: E.Strategy's fog: the player sees round its units and remembers buildings seen; a foe far off is hidden`, rts.fog.visible([7, 9]) && !rts.visible(rts.of('red', 'worker')[0] || rhall), JSON.stringify(rts.fog.visible([7, 9])));
+    g.dispose(); }
+  // the day clock and needs
+  const c = new E.Clock({ day: 240, hour: 8 }); const noon = (c.update(40), c.light().ambient); c.update(80); const night = c.night, label = c.label(), dark = c.light().ambient;
+  const agent = { x: 0, y: 0, money: 10, needs: {} }; E.needs(agent, { hunger: .02, fun: .005 }, 30);
+  const pick = E.choose(agent, [{ id: 'ride', gives: { fun: -.8 }, x: 10, y: 0, cost: 5 }, { id: 'food', gives: { hunger: -.7 }, x: 60, y: 0, cost: 3 }, { id: 'gift', gives: { fun: -.5 }, cost: 50 }]);
+  check(`${ed}: E.Clock (hours, night, the label, the light) and needs (the urgent need wins, a price too high is skipped)`, noon > .9 && night && label === 'DAY 1  20:00' && dark < .3 && pick && pick.id === 'food' && Math.abs(agent.needs.hunger - .6) < 1e-9, `${noon.toFixed(2)} ${night} ${label} ${dark.toFixed(2)} ${pick && pick.id}`);
 }
 
 function arcades(E, ed) {

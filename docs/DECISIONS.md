@@ -1040,3 +1040,19 @@ An entry:
   wants a tint over its units (a warning flash), which can draw its own in the overlay.
 - **Answered:** no (reversible: a revert undoes it)
 - **Landed in:** v0.72.0
+
+## D57 · 2026-10-28 · The API index's budget raised to 60,000 until the owner's review pass
+
+- **Principle:** 1 (agent-readable) and the genre plan's 3.3 and M0a (the API index at 52,000 cl100k tokens for the
+  modules' sections across the plan, D50)
+- **Call:** the index's budget is 60,000 tokens until the owner's review pass. M9a's names (the pointer's gestures, the
+  free camera, `r.pick`, the strategy module's class, its clock and needs) bring it to 52,835; M10 to M16 add the click,
+  physics and other modules' names, about a thousand tokens each.
+- **Why:** the index is searched, not read whole (D41): a lookup reads one line, so its size costs a model nothing until
+  it is loaded entire, which no tool does. And the owner's words with the goal of Milestones 2 to 16 (2026-10-28):
+  "Concerning token budget, just implement things as they are needed, we will make a second pass after I review all the
+  work, then we can think about trimming down afterwards" (as D52 for the 2D kits, D54 for the API card). What would
+  change it: the owner's review (the budget back to 52,000 with lines shortened, or a new one), or the index passing
+  60,000 (raised again here, with its cause).
+- **Answered:** yes: the owner, in the goal of 2026-10-28
+- **Landed in:** v0.73.0

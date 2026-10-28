@@ -739,6 +739,20 @@ Needs M1 (scripts) and M2 (`E.Fog`).
 - **Done when:** 200 units under orders hold the phone test's frame budget; selection and orders have contract tests,
   with scripted pointer input in every view; an RTS match plays to its end, the same every time (the proof); the sim
   runs ten game days headless with its money in a sane range; both kits pass the phone test.
+- **As built, 9a (v0.73.0):** the core (on no kit's diet): the pointer's gestures in `E.Input` (`box()`, `longPress()`,
+  `doubleTap()`, `pan()`, `zoomPoint()`; `feed(type, x, y, { touch, button })` plays a pointer in a test), `cam.free`
+  (keys or a stick, the screen's edge, a drag one to one, a zoom toward the pointer or the pinch, bounds; in every view
+  and turn), `r.pick(sx, sy)` (the `pick` values given to `r.actor`, `r.sprite`, `r.prop` and `r.queue`, front to back,
+  each where its pixels went: an actor's drawn bounds, a kept image's, a sprite's), and E.Shell's minimap with the fog,
+  the camera's view and a click's world point. `engine/modules/strategy.js` (after the full engine only, needs `grid`;
+  its manual 1,560 of 2,500): `E.Strategy` (selection, orders and their queue, formations on shared flow fields (the 16
+  last kept) kept apart by a `SpatialHash`, production queues and rally points, gathering trips, workers that lay and
+  raise buildings, placement and its ghost, the player's fog (`E.Fog`, walls block sight), the minimap's spec, an
+  enemy's build order and waves as data, a script), `E.Clock`, `E.needs`, `E.choose`, `E.overlay`, `E.tooltip`. One
+  fact corrected: `timeScale` above 1 already runs more fixed steps a frame, none longer than 1/120 s (M0's loop), so
+  the time controls are `timeScale` 0, 1, 2 and 4 and needed nothing new. A crowd's frame: 200 rigs drawn every frame
+  take 84 ms on the phone test's emulated phone; with `every: 3, key` (each body's image kept two frames of three) they
+  take 10 to 17 ms (phone case 17, `tools/fixtures/army.html`), the way the kits will draw them.
 
 ### M10: point-and-click and visual novels (module `click`; kit POINT-AND-CLICK)
 

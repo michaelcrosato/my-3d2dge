@@ -1,6 +1,6 @@
 # my-3D2dge guide for AI models
 
-This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.72.1.
+This guide is for an AI (or a person) asked to build, port, remaster or remix a game with my-3D2dge. `API.md` is the compact reference; it is embedded at the top of both single files (`dist/my-3d2dge.html` and `dist/my-3d2dge-compact.html`). This guide explains the ideas, the workflow for remaking a classic, recipes for each genre, and the checks to run before handing a game back. Everything here matches `engine/my-3d2dge.js` v0.73.0.
 
 For an AI coding agent that reads files instead of a pasted page, hand over `dist/my-3d2dge-agent.js`, the agent edition. It is the essential engine in one readable file, and its header (about 8k tokens) is a complete manual with three example games. Games written for it run unchanged on the full engine, which adds the lighting, props, backdrops, touch controls and camera tools this guide also covers.
 
@@ -485,6 +485,12 @@ const s = level.find('hero'), hero = new E.Platformer({ x: s.x, z: s.z }), rig =
 - Blows: `grid.side(target, facing, from)` gives front, side or back (x1, x1.25, x1.5), the height between them a bonus; areas are `grid.shape(cell, 'diamond' | 'cross' | 'cone' | 'line', n, dir)`; a bow's arc is `map.arcClear(from, to, apex)`, reaching further from higher up.
 - Turns: `E.Turns(units, { mode: 'ct' })` (next(), then done(unit, 100 for a move and an act, 80 one, 60 neither); `order(n)` is the queue to show), or phases (each side in turn, the player's units in any order).
 - The AI scores every cell it can reach and every blow from there (damage, kills, heals, friendly fire against it) less the danger of the place (`grid.threat(foes)`), and takes the best; the same state gives the same turn, so a bot that plays the battle with it is the test.
+
+**Real-time strategy (Dune II, Warcraft II, Command & Conquer, StarCraft).** The strategy module (the full engine, after the grid module) keeps the rules; the game draws.
+- `const rts = new E.Strategy(game, { map, kinds, sides, player })`: kinds are data (a unit's hp, speed, attack, range, sight, cost and time; a building's size, what it makes, a depot; a resource's amount). `rts.spawn` places them (a building blocks its cells, so flow fields go round it); `rts.update(dt)` and `rts.input()` each step.
+- The camera is free (`game.cam.free = { bounds }`): keys, the screen's edge, a drag on open ground, a zoom toward the pointer. Draw each unit with `{ pick: u }` (`r.actor`, `r.sprite`) so a click finds what is drawn under it (`r.pick`), and a crowd with `every: 3, key: u` (each body redrawn every third frame: 200 hold a phone's frame), then `rts.draw(r)` for the rings, the bars and the box; `ui.hud({ minimap: rts.minimap() })`.
+- On a phone: a tap selects or orders, a drag pans, a long press and a drag draws a box, a pinch zooms. The enemy is data too: `rts.ai('red', { build: [['worker', 5], ['barracks'], ['soldier', 6]], waves: { first, every, min } })`, the same game for the same orders (a match is its own proof).
+- Sims (SimCity, Theme Park): time runs at `game.timeScale` 0, 1, 2 or 4 (more fixed steps a frame, not longer ones); `E.Clock` gives the day, the hour and its light; agents carry `needs` and `E.choose` picks what serves them best for the walk; `E.overlay` shows a value per cell, `E.tooltip` a box of lines.
 
 **3D-era remake (Mario 64, Ocarina, Crash).**
 - Use the `iso` or `threequarter` view with a `TileMap` whose wall heights are platforms (h 8, 16, 24...). The hero is a `Body` with `jump(260)`; walls lower than the hero's feet are walkable, so the level becomes a height map you platform across.
