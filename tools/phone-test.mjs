@@ -705,10 +705,16 @@ if (want('army')) {
   });
   check('army: r.pick gives what was drawn under a point, front to back', p.tried > 50 && p.found === p.tried && p.stacks > 10 && p.sorted === p.stacks && p.empty && p.empty[2] === 0, `${p.found} of ${p.tried} bodies picked; ${p.sorted} of ${p.stacks} overlaps nearest first; open ground ${p.empty ? p.empty[2] + ' picked' : 'not found'}`);
   // a tap on a blue unit selects it; a tap on open ground orders it there. A unit alone under the finger, with 2 pixels
-  // to spare all round (a body drawn from its kept image picks 1 pixel wider each side than on the frames it is redrawn,
-  // so a neighbour's edge on the very point comes and goes), and the battle holding still meanwhile (timeScale 0: the
-  // steps still read input), so none marches under the finger while the tap travels
-  await ev(page, () => { window.__fx.game.timeScale = 0; }); await wait(300);   // (and every body redrawn as it now stands: an image kept from before, mid-swing, can be wider)
+  // to spare all round, and the battle holding still meanwhile (timeScale 0: the steps still read input), so none marches
+  // under the finger while the tap travels; the open ground found once it holds still (found before, a march can cross it
+  // before the tap), and every body redrawn as it now stands first (an image kept from before, mid-swing, can be wider):
+  // frames drawn, not time, since a slow machine draws fewer in a while
+  await ev(page, () => { window.__fx.game.timeScale = 0; window.__fx.held = window.__fx.drawn; });
+  await page.waitForFunction(() => window.__fx.drawn - window.__fx.held >= 6, null, { timeout: 10000 });
+  p.empty = await ev(page, () => { const { game, rts } = window.__fx, R = game.r, S = game.screen;
+    for (let y = 10; y < S.H; y += 12) for (let x = 10; x < S.W; x += 12)
+      if (rts.units.every(u => Math.hypot(...R.w(u.x, u.y, 0).map((v, i) => v - [x, y][i])) > 40)) return [x, y, R.pick(x, y).length];
+    return null; });
   const css = (x, y) => ev(page, ([x, y]) => { const S = window.__fx.game.screen, rc = S.canvas.getBoundingClientRect(); return [rc.left + (x * S.S + S.OX) / S.dpr, rc.top + (y * S.S + S.OY) / S.dpr]; }, [x, y]);
   const one = await ev(page, () => { const { game, rts } = window.__fx, R = game.r, S = game.screen;
     const solo = (u, x, y) => [[0, 0], [-2, 0], [2, 0], [0, -2], [0, 2]].every(([dx, dy]) => { const h = R.pick(x + dx, y + dy); return h.length === 1 && h[0] === u; });

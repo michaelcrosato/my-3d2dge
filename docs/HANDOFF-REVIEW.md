@@ -9,8 +9,9 @@ owner. The plan built what each milestone needed and deferred the trimming to a 
 kits (the owner's word, 2026-10-28). It is temporary: when a part lands, its line goes; when none is left, this file
 goes.
 
-**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Parts 2 to 5 are
-work an agent can do once the owner says go: part 3 spends money, and part 4 adds two kits.
+**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Parts 2 to 4 are
+work an agent can do once the owner says go: part 3 spends money, and part 4 adds two kits. (Part 5, a fix to `r.pick`,
+landed in v0.81.7.)
 
 ## 1. Play the kits (only the owner)
 
@@ -63,13 +64,6 @@ engine's doors and levers.
   `Body` with bounce and curl, passes with aim assist, shots on a meter, teammates by formation, the rules and a match
   clock, commentary on `Dialog`'s radio; a ball's arc solved in the core's math.
 - **Done when:** as for any kit (`docs/KITS.md`, What every new kit has).
-
-## 5. A small fix to the engine, proposed
-
-A body drawn from its kept image (`r.actor(..., { every: n })`) picks 1 pixel wider on each side than on the frames it
-is redrawn, so where two bodies' boxes meet, `r.pick` can answer differently from one frame to the next (the phone
-test's army tap failed on it now and then until v0.79.1 made the test tap a unit with room to spare). The fix:
-`_composite`'s kept-image pick box 1 pixel in on each side, matching the redrawn one.
 
 ## 6. Calls made without the owner, to read (each reversible: a revert undoes it)
 
