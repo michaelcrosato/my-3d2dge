@@ -1114,3 +1114,26 @@ An entry:
   What would change it: the owner's review, or the kit passing 256,000 (raised again here, with its cause).
 - **Answered:** yes: the owner, in the goal of 2026-10-28
 - **Landed in:** v0.79.0
+
+## D62 · 2026-10-28 · The 3D engine's vehicles: a rolling body steered by arcade handling, not Rapier's ray-cast vehicle
+
+- **Principle:** 3 (general systems, proven by kits: one handling for 2D and 3D) and 5 (determinism: the same steps give
+  the same race on both backends); the genre plan's M14a ("Rapier's ray-cast vehicle controller, or a rolling body
+  steered arcade-style: decide by feel in a Temporary lab first")
+- **Call:** `world.vehicle` is a ball Rapier rolls (its rotation locked: walls, bumps, ramps, jumps and falls come from
+  the physics) steered by the drive module's handling (E.Car's: speed along the heading, a slide that grip takes away, a
+  kart's hop into a drift that charges a boost, the ground's surface), drawn on the ground's slope under it. Rapier's
+  ray-cast vehicle controller (a chassis on four sprung wheels) stays in the Vehicle Lab (Temporary) as the other way,
+  for the owner to drive.
+- **Why:** measured in the Vehicle Lab, both karts on the same track driven by the same simple driver for 90 seconds
+  (WebGL 2): the rolling body ran 10.5 laps, never off the road, never stuck, never tipped past 0.4 radians; the
+  ray-cast vehicle took the hump at 330 units a second, landed on its roof and stayed there (0.36 laps). A sprung chassis
+  needs tuning per vehicle (suspension, friction slip, the centre of mass, anti-roll, a way back onto its wheels) to
+  feel like Mario Kart 64; the rolling body gives the arcade handling the 2D kart kit already tuned (E.Race's drivers
+  race it unchanged), cannot roll over, and leaves the look (pitch, roll, the steering wheels) to drawing. A model reads
+  one handling for 2D and 3D. What would change it: the owner driving both in the Vehicle Lab and preferring A's
+  weight on its springs (then a `springs` option on the same handling, not a second vehicle API), or a game that needs
+  real tipping (a monster truck), which can reach for the physics itself.
+- **Answered:** no: a reversible call, flagged in the pull request; the Vehicle Lab is on the Labs page to judge it
+- **Landed in:** v0.80.0
+
