@@ -69,14 +69,25 @@ slice names (`@modules grid gen` in its header). The index gets a section per mo
   naming the section and the file that has it). `DIET` in `tools/build.mjs` names the parts that may go and the methods
   that lead into them; `tools/diet.mjs` works out the rest from the code (what the kit's shell, slice, sets, modules and,
   in 3D, the 3D engine call). The build fails when a slice uses a name it would leave out.
+- A part's options: `entries` (methods or fields that lead into it), `names` (strings or option names that do: game.go's
+  `'iris'`), `via` (the names its methods count on: the shapes' `r`, so the grid module's `grid.shape` is not `r.shape`),
+  `proto: false` (its methods wrap a class's own, so only its entries reach it: the solids' `collide`; when it goes, the
+  class keeps its own) and `with` (a part that extends another goes with it: the solids with the tile map). What the core
+  adds to a part as it loads goes with it: the core library's shapes go with the shapes, and its materials stay (a tile's
+  `roof: 'cobble'`).
+- **The 3D diet:** `DIET3D` does the same for the 3D engine (read as the ES module it is): a 3D kit that never calls
+  `world.vehicle`, `world.track` or `world.flyer` leaves out its section 8b (D70).
+- **The card in a kit:** a kit's API card keeps its genre playbook's rows for the kit's own slice and its list of modules
+  for the kit's own; `API.md`, the reference editions and the handoff package carry the whole card (D71).
 - The diet changes no pixel: `kits-test` runs each slice's proof (no stub ever called), and `kits-test --compare <dir>`
   films each kit beside a build from before.
-- A core addition that not every game calls goes in a section of its own (a `/* ====` banner) with a line in `DIET`.
-- The 3D engine is not on a diet: every 3D kit carries it whole (D63). A 3D diet (its section 8b, vehicles and flight,
-  left out of a kit that never calls it) would take about 10,000 tokens off each such kit.
-- **Budgets** (`doctrine-check` counts them): a 2D kit 200,000 cl100k tokens, suspended until the owner's review pass
-  (D52; thirteen are past it); each 3D kit its own (D51, D61, D63, D64); the API card 21,000 (D59), the index 60,000
-  (D57), the 3D engine's manual 8,000 (D60), a module's manual 1,500 (or its line), the agent header 10,000.
+- A core addition that not every game calls goes in a section of its own (a `/* ====` banner) with a line in `DIET`; a
+  part that only some kits reach goes in one too, even inside another (21g, the solid shapes, out of 21e's shapes).
+- **Budgets** (`doctrine-check` counts them): a 2D kit 200,000 cl100k tokens, six of their own (`KIT2D`: RPG, SHOOTER,
+  ADVENTURE, SIM, RTS and BRAWLER, D69); each 3D kit its own (D51, D61, D64, D70); the API card 21,000 (D59), the index
+  60,000 (D57), the 3D engine's manual 8,000 (D60), a module's manual 1,500 (or its line), the agent header 10,000.
+- **What every 2D kit carries for its title:** the shell's title draws six HD heroes on a platform map's ledge before a
+  backdrop, so every 2D kit keeps the Humanoid, the platform map and the backdrops whatever its slice calls.
 
 ## What every new kit has
 

@@ -1,7 +1,7 @@
 # Handoff: the owner's review pass after the genre plan
 
-> **Status: waiting on the owner (2026-10-29, at v0.81.5).** Nothing here is to be built until the owner says which parts
-> to take up. Each part is independent.
+> **Status (2026-10-29, at v0.82.0):** the owner said go on parts 2 to 5, an agent's, in the order 5, 2, 4, 3; parts 1
+> and 6 are the owner's. Each part is independent.
 
 What the genre plan (`docs/HANDOFF-GENRES.md`, folded in at v0.81.2 and, after a last version with M16's row, at
 v0.81.5; its rules now in `docs/KITS.md`, its full text in `git show 24aee29:docs/HANDOFF-GENRES.md`) left for the
@@ -9,9 +9,9 @@ owner. The plan built what each milestone needed and deferred the trimming to a 
 kits (the owner's word, 2026-10-28). It is temporary: when a part lands, its line goes; when none is left, this file
 goes.
 
-**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Parts 2 to 4 are
-work an agent can do once the owner says go: part 3 spends money, and part 4 adds two kits. (Part 5, a fix to `r.pick`,
-landed in v0.81.7.)
+**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Parts 3 and 4 are
+an agent's, on the owner's go of 2026-10-29: part 4 adds two kits, and part 3 spends money (approved). (Part 5, a fix
+to `r.pick`, landed in v0.81.7; part 2, the budgets, in v0.82.0: D69 to D71.)
 
 ## 1. Play the kits (only the owner)
 
@@ -27,23 +27,6 @@ a second player. A card goes once checked; what the owner wants changed becomes 
 - **The Vehicle Lab** (Labs, Temporary, `/vehicle-lab`): drive both karts (Tab switches) to settle D62. B is what
   `world.vehicle` does (a rolling body, arcade handling); A is Rapier's ray-cast vehicle on springs. If B, the lab goes;
   if A's weight is worth having, that becomes a plan.
-
-## 2. Trim to the budgets
-
-The budgets suspended or raised along the way, each a decision in `docs/DECISIONS.md`:
-
-| Budget | Where it stands at v0.81.5 (cl100k) | Decision |
-| --- | --- | --- |
-| a 2D kit, 200,000 | thirteen past it: rpg 243,455, shooter 226,406, metroidvania 216,564, adventure 212,558, sim 212,033, rts 210,349, brawler 209,766, arcade 208,320, tactics 207,341, roguelike 203,522, pointclick 201,219, artillery 200,715, platformer 200,528 | D52 (suspended) |
-| the compact edition kept whole past 500,000 | 681,410 | D55 |
-| the API index, 60,000 | 57,512 | D57 |
-| the API card, 21,000 | 20,506 | D59 |
-| the 3D kits | 239,894 (platformer) to 314,871 (shooter) | D51, D61, D63, D64 |
-
-The ways in, cheapest first: move the API card's detail to the index; put more of the core on the kit diet (a section
-of its own and a line in `DIET`); a **3D diet**, the 3D engine's section 8b (vehicles and flight) left out of the 3D kits
-that never call it, about 10,000 tokens each off ACTION, PLATFORMER, SHOOTER and HORROR (D63); then the kits' own code.
-The diet must change no pixel (`kits-test --compare`), and each budget brought back is a decision.
 
 ## 3. The benchmark's era briefs (spends money)
 
@@ -67,12 +50,15 @@ engine's doors and levers.
 
 ## 6. Calls made without the owner, to read (each reversible: a revert undoes it)
 
-Logged in `docs/DECISIONS.md` and flagged in their pull requests while the plan's last milestones ran (v0.79.0 to
-v0.81.5):
+Logged in `docs/DECISIONS.md` and flagged in their pull requests (v0.79.0 to v0.82.0):
 - **D60:** the 3D engine's manual allowed 8,000 tokens (it is at 6,807). **D61:** the 3D horror kit's budget, 256,000.
 - **D62:** the 3D engine's vehicles are a rolling body with arcade handling, not Rapier's ray-cast vehicle. Settle it in
   the Vehicle Lab (part 1).
-- **D63, D64:** the 3D kits' budgets raised, because every 3D kit carries the whole 3D engine (part 2).
+- **D63, D64:** the 3D kits' budgets raised, because every 3D kit carries the whole 3D engine; D70 put the four that
+  never drive or fly back under their old budgets.
+- **D69 to D71 (v0.82.0, the budgets):** the 2D kits' 200,000 back, with six (RPG, SHOOTER, ADVENTURE, SIM, RTS,
+  BRAWLER) keeping budgets of their own; the 3D kits' budgets back from D63 by a 3D diet; a kit's card keeping its own
+  genre's playbook rows and modules.
 - **D65, D68:** the genre plan folded into `docs/KITS.md` and this file, and back for one version to carry its M16 row.
 - **D66:** the era briefs' runs skipped, with no answer in fifteen minutes (part 3).
 - **D67 (v0.81.3, #191):** the music clock now meets the sound at once when it is more than 10 ms off for two frames
