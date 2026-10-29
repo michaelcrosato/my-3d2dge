@@ -1170,3 +1170,24 @@ An entry:
   what it leaves out (these two call it).
 - **Answered:** yes: the owner, in the goal of 2026-10-28 (budgets may be raised with a logged decision)
 - **Landed in:** v0.81.0
+
+## D65 · 2026-10-29 · The genre plan folded in: its rules in docs/KITS.md, what is left in docs/HANDOFF-REVIEW.md
+
+- **Principle:** 1 (agent-readable: one place for each rule, no finished plan left to mislead) and the plan's own M16
+  ("what lasts goes into the docs and `docs/DECISIONS.md`; what is left goes to `docs/FEEDBACK-LOG.md` or a new plan;
+  this file is deleted"), as v0.38.1, v0.43.3 and v0.59.1 did with their plans
+- **Call:** `docs/HANDOFF-GENRES.md` (2026-10-27 to 2026-10-29: Milestones 0 to 14 and 16, from v0.60.0 to v0.81.2) is
+  deleted. Its design rules (what converts well and what is out of scope, the systems by genre, modules, the kit diet and
+  the budgets, what every new kit has, the rules of every addition, the traps) are `docs/KITS.md`; the genres' map is
+  README's Genre coverage (a kit or a recipe on every row), the API card's playbook and `AI_GUIDE.md`'s recipes (one for
+  each genre with no kit: twin-stick shooters, Bomberman, Gauntlet, Frogger, Sokoban, Sonic without the loops, the
+  cinematic platformer, light guns, the corridor shooter on the 3D engine; and the 3D kits'); what it left for the owner
+  (the To check cards, the suspended budgets and a 3D diet, the benchmark's era briefs, the optional M15, a proposed
+  fix to `r.pick`) is `docs/HANDOFF-REVIEW.md`. Its milestones' as-built notes and progress rows stay in git
+  (`git show b56505d:docs/HANDOFF-GENRES.md`) and in the changelog. The tools' comments that cited its sections cite
+  `docs/KITS.md` or the milestone and its version.
+- **Why:** a finished plan read as current misleads the next agent; the rules that outlive it need a permanent home, and
+  what it did not finish needs an owner's answer, not a plan's prose. M15 (a first-person dungeon and sports) was never
+  started: it waits on the owner's word in `docs/HANDOFF-REVIEW.md`.
+- **Answered:** yes: the owner, in the plan's M16 and the goal of 2026-10-28
+- **Landed in:** v0.81.2
