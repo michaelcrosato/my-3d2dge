@@ -69,7 +69,7 @@ const APPROVED = [f => FONTS.includes(extname(f).toLowerCase()), f => f.startsWi
     ['the agent edition\'s header', agent.slice(0, agent.indexOf('*/') + 2), 10000, 2.95],
     ['the API card (API.md)', read('API.md'), 21000, 3.1],   // (D8, D20, D50, D54, D58, D59: until the owner's review pass)
     ['the API index (API-INDEX.md)', existsSync(join(root, 'API-INDEX.md')) ? read('API-INDEX.md') : '', 60000, 3.25],   // (D17, D18, D22, D28, D50, D57: until the owner's review pass)
-    ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 6000, 2.9],   // (D27)
+    ['the 3D engine\'s manual', (s => s.slice(0, s.indexOf('*/') + 2))(read('engine/my-3d2dge-3d.js')), 8000, 2.9],   // (D27; 8,000 for the genre plan's M13 and M14: D60)
     ['the asset card (docs/ASSETS.md)', read('docs/ASSETS.md'), 4000, 3.1],   // (D30)
     ...[...allModules().values()].map(m => [`module ${m.name}'s manual`, m.manual, MODULE_BUDGETS[m.name] || MODULE_BUDGET, 2.9])
   ];
@@ -177,7 +177,7 @@ if (opt('baseline')) {
 {
   let count = null;
   try { const { countTokens } = await import('gpt-tokenizer/encoding/cl100k_base'); count = countTokens; } catch (e) { /* optional */ }
-  const KIT = 200000, KIT3D = { action: 241039, platformer: 235846, shooter: 310823 }, SUSPENDED = true;   // (a 2D kit; a 3D kit, at v0.59.3: D51; the 2D budget suspended: D52)
+  const KIT = 200000, KIT3D = { action: 241039, platformer: 235846, shooter: 310823, horror: 256000 }, SUSPENDED = true;   // (a 2D kit; a 3D kit, at v0.59.3: D51, the horror kit's D61; the 2D budget suspended: D52)
   const dir = join(root, 'dist/kits'), kits = existsSync(dir) ? readdirSync(dir).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort() : [];
   if (!count) notes.push('kits: not counted (npm install for gpt-tokenizer: an estimate of minified code is too rough for these budgets)');
   else {

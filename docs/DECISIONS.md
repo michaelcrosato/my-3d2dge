@@ -1086,3 +1086,31 @@ An entry:
   the card passing 21,000 (raised again here, with its cause).
 - **Answered:** yes: the owner, in the goal of 2026-10-28
 - **Landed in:** v0.78.0
+
+## D60 · 2026-10-28 · The 3D engine's manual raised to 8,000 tokens for Milestones 13 and 14
+
+- **Principle:** 1 (agent-readable: the 3D side's whole manual stays small) and the genre plan's M13 ("its manual's
+  budget rises to 8,000, a decision"); the manual's budget was 6,000 cl100k tokens (D27)
+- **Call:** the 3D engine's header (its manual) has a budget of 8,000 tokens. M13's lines (camera zones, lock-on, tank
+  steering, doors between rooms, `world.reach`, `world.unlock`, the flashlight, the item box and the typewriter) bring
+  it to about 6,100; M14's vehicles, tracks, split screen and flight take the rest.
+- **Why:** the plan named this raise when it was written (2026-10-27), for the two milestones that grow the 3D engine,
+  and the owner's goal for Milestones 2 to 16 (2026-10-28) says to build what is needed and trim after the review.
+  What would change it: the owner's review (a smaller budget with detail moved to `docs/ENGINE-3D.md`), or M14 running
+  past 8,000 (raised again with its cause).
+- **Answered:** yes: the owner, in the plan's M13 and the goal of 2026-10-28
+- **Landed in:** v0.79.0
+
+## D61 · 2026-10-28 · The 3D horror kit's budget: 256,000 tokens
+
+- **Principle:** 1 (agent-readable: a kit fits a chat model's context) and the genre plan's 3.3 (a 3D kit no larger than
+  at v0.59.3; a new 3D kit has none until it is given one, `doctrine-check`)
+- **Call:** `dist/kits/my-3d2dge-3d-horror.html` has a budget of 256,000 cl100k tokens. It is 249,866 at v0.79.0: the
+  minified 2D engine on its diet, the API card, the 3D engine with its manual, the rpg module, the shell and the horror
+  slice (about 30,000 of game code: the wing, its cameras, the cast, the items screen and the item box, the dogs drawn
+  with the pen, the proof and the bot). The rest is room for M14's lines in the 3D engine, which every 3D kit carries.
+- **Why:** like the other 3D kits (241,039, 235,846 and 310,823, D51), a 3D kit is the 2D kit's size plus the 3D
+  engine; the owner's goal for Milestones 2 to 16 (2026-10-28) says to build what is needed and trim after the review.
+  What would change it: the owner's review, or the kit passing 256,000 (raised again here, with its cause).
+- **Answered:** yes: the owner, in the goal of 2026-10-28
+- **Landed in:** v0.79.0

@@ -159,6 +159,22 @@
           "what": "Sneak along the roofs: the music is quiet (a bass, ticks and a lead). Let a guard see you until he shouts (!): the chase's drums and a saw come in over the same song, without a cut; get away (or take him down) and they fade out again over a couple of seconds. Added with v0.78.0 (Milestone 12).",
           "look": "Is the switch to the chase exciting, and the return to sneaking gentle? Does anything sound off (too loud, out of time, a click)? Compare with how it was: the music used to cut to another song.",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-3d-horror.html",
+          "at": "#horror",
+          "title": "HORROR: does it feel like Resident Evil and Alone in the Dark?",
+          "what": "Find a way out of the mansion's wings. Each room has its own fixed camera, cutting as you walk on; hold the stick and you keep walking the same way across a cut. J checks what is in front of you (doors open between rooms; take herbs, bullets, keys), K held aims the pistol (it locks on the nearest; up and down aim high and low, a dog is low; left and right pick another), J fires; Q swaps to the knife, Shift runs, I opens your six slots (USE a herb, MIX green with green or red). The typewriter in the foyer saves, the trunk keeps what you can't carry. Two keys and a crank lead to the gallery. Settings, Game: Tank controls. Added with v0.79.0 (Milestone 13).",
+          "look": "Is it tense: the dark, the fog, the flashlight's flicker, the dead that grab, the dogs that come running? Are the cuts readable, and do you ever walk back out of a doorway by mistake? Does aiming feel right (the lock, high and low)? Are there too many or too few bullets and herbs? Try tank controls and the modern ones. On your phone: the stick, AIM, ACT (FIRE while aiming), RUN, ITEMS; upright and on its side.",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-3d-action.html",
+          "at": "#action",
+          "title": "3D ACTION: does the lock-on feel like Zelda's?",
+          "what": "Press Q (or Tab, or a pad's left bumper; LOCK on a phone) in the hall: it locks on the nearest monster in sight, a mark over it; Q again picks the next, and when no other is in sight it lets go. Swing at it and dash round it. Press C for the chase camera: it swings behind you to keep you both in view, and A and D circle round the target. Added with v0.79.0 (Milestone 13).",
+          "look": "Does the lock pick the one you meant? Is circling round a target in the chase camera smooth, and does the camera keep both in view? Is the mark easy to see? Does the knight feel better to fight locked on?",
+          "links": []
         }
       ]
     },
@@ -363,9 +379,15 @@
           "links": []
         },
         {
+          "page": "dist/kits/my-3d2dge-3d-horror.html",
+          "title": "3D horror",
+          "what": "A mansion's wings by flashlight under fixed cameras (Resident Evil, Alone in the Dark): a pistol that locks on, a knife, zombies that grab and dogs that run, two keys and a crank, herbs to mix, an item box, a typewriter that saves, and something in the gallery.",
+          "links": []
+        },
+        {
           "page": "dist/my-3d2dge-3d.html",
           "title": "3D in one file",
-          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and all three 3D games. Served, not opened from a disk.",
+          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and all four 3D games. Served, not opened from a disk.",
           "links": []
         }
       ]

@@ -4,7 +4,8 @@
 //      Math.random, the game clock from 0, scripted keys; a 3D slice's is its own world.hash()), with no errors and no
 //      call to what the kit diet left out (its stubs warn "left out of this kit")
 //   3. its bot, where its slice has one (bot(): it plays to the end through the game's own rules, as a player would, from
-//      a seed): the end it must reach (BOTS below: the roguelike's ten floors, the puzzle's lines), with no errors
+//      a seed): the end it must reach (BOTS below: the roguelike's ten floors, the puzzle's lines; BOTS3D: the horror
+//      wing to its boss), with no errors
 //   4. its size in cl100k tokens, beside its budget (doctrine-check holds them: every 2D kit at most 200,000; D52 suspends
 //      that until the owner's review pass, so a 2D kit over it is reported, not failed)
 //   5. the reference editions' title (dist/my-3d2dge.html, and dist/my-3d2dge-3d.html served): every slice under its
@@ -50,6 +51,10 @@ const BOTS = {
   rpg: { say: 'plays the journey by the keys: the elder\'s quest and key, the shop, a sword and a vest worn from the menu, the chest, a save at the crystal; the road north (each battle on AUTO, training to level 3), the cave, the knight\'s scene and fight, home; then loads the save: the town, the quest taken and not done, its gold and gear',
     ok: r => r.quest && r.key && r.bought && r.equipped && r.chest && r.saved && r.world && r.cave && r.boss && r.home && r.battles >= 3 && r.loaded.at === 'town' && r.loaded.quest && !r.loaded.done && r.loaded.gold === r.savedGold && r.loaded.key && r.loaded.bronze && !r.errors }
 };
+// what each 3D slice's bot() must reach
+const BOTS3D = {
+  horror: { say: 'plays the wing from the foyer through every room (the doors between rooms, the dead and the dogs, the crank, both keys) to the gallery, beats what waits there and escapes; a save made on the way loads back', ok: r => r.reached && r.boss && r.won && r.rooms.length === 7 && r.opened.length === 2 && !r.dead && !r.errors && r.loaded && r.loaded.crank && r.loaded.brass && r.loaded.room === 'library' }
+};
 // the kits: my-3d2dge-<id>.html (2D) and my-3d2dge-3d-<id>.html (3D), the slice's id from the name
 const kits = readdirSync(K).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort().map(f => { const is3d = f.startsWith('my-3d2dge-3d-'); return { file: f, is3d, id: f.replace(/^my-3d2dge-(3d-)?|\.html$/g, '') }; })
   .filter(k => !only.length || only.includes(k.id) || only.includes(k.file.replace(/^my-3d2dge-|\.html$/g, '')));
@@ -85,10 +90,10 @@ for (const k of kits) {
   const proof = await page.evaluate(id => { const s = __game.scenes[id]; if (!s || typeof s.run !== 'function') return null; const g = __game.game, e0 = g.errors.length; const r = [s.run(600), s.run(600)]; return { r, errors: g.errors.slice(e0).map(e => e.where + ': ' + e.message) }; }, k.id).catch(e => ({ thrown: e.message }));
   check(`${k.file}: ${k.id}.run(600) twice, the same hash, no errors`, !!proof && !proof.thrown && proof.r[0] === proof.r[1] && proof.r[0] !== undefined && !proof.errors.length && !errors.length,
     !proof ? 'the slice has no run(n)' : proof.thrown || (proof.r.join(', then ') + (proof.errors.length ? ' ' + proof.errors.join(' | ') : '') + (errors.length ? ' ' + errors.slice(0, 2).join(' | ') : '')));
-  const B = k.is3d ? null : BOTS[k.id], hasBot = await page.evaluate(id => typeof __game.scenes[id].bot === 'function', k.id);   // (BOTS: the 2D slices'; a 3D slice of the same name has its own)
+  const B = (k.is3d ? BOTS3D : BOTS)[k.id], hasBot = await page.evaluate(id => typeof __game.scenes[id].bot === 'function', k.id);   // (BOTS: the 2D slices', BOTS3D the 3D ones')
   if (B || hasBot) {
     const r = await page.evaluate(id => { try { return __game.scenes[id].bot(); } catch (e) { return { thrown: e.message }; } }, k.id);
-    check(`${k.file}: its bot ${B ? B.say : 'plays'}, with no errors`, !!B && !r.thrown && !r.errors && B.ok(r) && !errors.length, (B ? '' : 'no expectation in BOTS (tools/kits-test.mjs) ') + JSON.stringify(r) + ' ' + errors.slice(0, 2).join(' | '));
+    check(`${k.file}: its bot ${B ? B.say : 'plays'}, with no errors`, !!B && !r.thrown && !r.errors && B.ok(r) && !errors.length, (B ? '' : 'no expectation in BOTS or BOTS3D (tools/kits-test.mjs) ') + JSON.stringify(r) + ' ' + errors.slice(0, 2).join(' | '));
   }
   check(`${k.file}: nothing the kit diet left out was called`, !left.length, left.slice(0, 3).join(' | '));
   if (budget) check(`${k.file}: within its budget${n > budget ? ' (suspended: D52)' : ''}`, true, n + ' tokens' + (n > budget ? `, ${n - budget} over it` : ''));

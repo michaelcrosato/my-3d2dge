@@ -14,7 +14,14 @@
 //   3b. shapes (world.shape: the 2D engine's entries in 3D): every core shape builds and draws on WebGL 2 and on WebGPU (its
 //      pixels change where it stands), a hero walking into a solid one stops and one dropped on a table lands on it; a
 //      sheet of every core shape in 3D beside its 2D picture (check-output/kit3d/shapes-<backend>.png: read it)
-//   4. on an emulated phone held upright (390 x 844 at 3x, touch): a kit starts, the 3D picture lies exactly under the
+//   3c. the camera's contracts (lock-on, camera zones, tank steering) and the door between rooms, on a page of their own:
+//      lock picks the one in sight nearest where the hero faces (never one behind a wall), cycle goes round to the next
+//      and keeps the lock when none other is in sight, the chase camera frames both and ground() strafes round the
+//      target, the lock lets go of a target that dies, leaves or goes out of range; a zone's cut waits until the target
+//      is margin units in (and not back on the border), the stick held across a cut keeps its way until it is let go;
+//      tank steering turns and walks along the facing; world.reach finds the door in front, world.unlock takes the key,
+//      world.through puts the actor beyond the door while nothing else moves; the same at 60, 90, 120 and 144 frames
+//   4. on an emulated phone held upright (390 x 844 at 3x, touch): every kit starts, the 3D picture lies exactly under the
 //      game's, the touch buttons are there
 // Usage: node tools/kit3d-test.mjs   (run node tools/build.mjs first; CHROMIUM_PATH picks a browser). Exit code 1 on failure.
 import { chromium } from 'playwright';
@@ -79,11 +86,58 @@ game.start({ scenes: { sheet }, scene: 'sheet', boot: { steps: [['3D', () => E.W
   ambient: ['#ffffff', '#8a8aa0', 2.2], sun: { color: '#fff1d6', intensity: 2.4, dir: [-.5, .6, -.8], area: 400 }, torchLights: 0, camera: { mode: 'view', proj: 'ortho', dist: .45, lag: 0 } }); world.prepare(); }]] } });
 window.__sheet = { game, IDS, at, FACING, get world() { return world; }, look(i) { const [x, y] = at(i); Object.assign(focus, { x, y, z: 12 }); }, lookAt(x, y) { Object.assign(focus, { x, y, z: 6 }); } };
 </script></body></html>`;
+// the camera's contracts: a hall with a wall across it, three mobs, two camera zones, a door (window.__cam runs the checks)
+const CAMERA_PAGE = QUICK.split('<script type="module">')[0] + `<script type="module">
+const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: [320, 240], bg: null, menu: false });
+const LEVEL = { rows: ['################', '#..............#', '#..............#', '#.....###......#', '#..............#', '#..............#', '#..............#', '########..######', '#..............#', '#..............#', '################'], legend: {} };
+let world;
+game.start({ scenes: { s: { update(dt) { world.step(dt); }, draw(r) { world.draw(r); } } }, scene: 's', boot: { steps: [['3D', () => E.World3D.init(game)], ['level', () => {
+  world = new E.World3D(game, { level: LEVEL, fog: false, camera: { mode: 'chase', zones: [{ box: [0, 0, 256, 120], at: [20, 20, 60], look: [128, 80, 0] }, { box: [0, 120, 256, 176], at: [236, 170, 60], look: [128, 140, 0] }], margin: 8 } }); world.prepare(); }]] } });
+window.__cam = { game, get world() { return world; }, run(hz) {
+  const w = world, cam = w.camera, out = {}, steps = s => { for (let k = 0; k < Math.round(s * hz); k++) w.step(1 / hz); };
+  w.reset(); cam.set('chase');
+  const hero = w.hero({ x: 128, y: 92, facing: -Math.PI / 2, rig: new E.Humanoid() }), mk = (x, y) => w.mob({ x, y, rig: new E.Humanoid() });
+  const ahead = mk(190, 28), right = mk(200, 92), hidden = mk(112, 40), list = [hidden, ahead, right];   // (hidden: behind the wall at row 3, x 6..8)
+  cam.follow(hero); steps(.1);
+  out.blocked = !w.clear(hero.x, hero.y, 16, hidden.x, hidden.y, 12);
+  out.pick = list.indexOf(cam.lock(hero, list));                  // ahead: in sight, where the hero faces (hidden is nearer the facing, but walled off)
+  out.next = list.indexOf(cam.cycle(list, 1));                    // round the hero, clockwise from above: right
+  out.back = list.indexOf(cam.cycle(list, 1));                    // and round again: ahead (hidden never)
+  steps(1.2); out.yaw = Math.abs(E.angDiff(cam.pose.yaw, Math.atan2(ahead.y - hero.y, ahead.x - hero.x)));   // the chase camera behind, facing it
+  const g = cam.ground([1, 0], [0, 0]), line = [ahead.x - hero.x, ahead.y - hero.y], l = Math.hypot(...line);
+  out.strafe = Math.abs((g[0] * line[0] + g[1] * line[1]) / l);  // right strafes: square to the line to the target
+  ahead.alive = false; steps(.05); out.dead = cam.lockOn === null; ahead.alive = true;
+  cam.lock(hero, right); w.remove(right); steps(.05); out.gone = cam.lockOn === null;
+  const far = mk(150, 92); cam.lock(hero, far, { range: 40 }); far.place(240, 20); steps(.05); out.far = cam.lockOn === null; cam.lockRange = 160;
+  // zones: the hero walks south across the border at y 120; the cut waits 8 units; the stick held keeps its way
+  for (const m of [ahead, hidden, far]) w.remove(m);
+  cam.set('zones'); hero.place(144, 100); steps(.05); out.zone0 = cam.zones.indexOf(cam.zone); const h0 = cam.heading;
+  hero.place(144, 124); steps(.05); out.held = cam.zones.indexOf(cam.zone);   // 4 units in: no cut yet
+  hero.place(144, 130); cam.ground([0, 1], [0, 0]); steps(.05); out.cut = cam.zones.indexOf(cam.zone); out.cuts = cam.cuts;
+  const kept = cam.ground([0, 1], [0, 0]), now = cam.ground([0, 1], [0, 0]); out.keep = Math.abs(E.angDiff(Math.atan2(kept[1], kept[0]), h0 + Math.PI));   // (still the old camera's way: down walks back toward it)
+  cam.ground([0, 0], [0, 0]); const fresh = cam.ground([0, 1], [0, 0]); out.fresh = Math.abs(E.angDiff(Math.atan2(fresh[1], fresh[0]), cam.heading + Math.PI));
+  hero.place(144, 116); steps(.05); out.backIn = cam.zones.indexOf(cam.zone); out.cuts2 = cam.cuts;   // back 4 units over the border: no cut
+  // tank steering: left turns it, up walks along its facing, down backs off slowly
+  hero.facing = 0; const t1 = cam.steer(hero, [0, -1], 1 / hz, [0, 0], { tank: true }); out.tankUp = t1[0] > .99;
+  cam.steer(hero, [-1, 0], .5, [0, 0], { tank: true }); out.tankTurn = hero.facing < -1;
+  const t2 = cam.steer(hero, [0, 1], 1 / hz, [0, 0], { tank: true }); out.tankBack = Math.hypot(...t2) < .51;
+  // the door between rooms: reached in front, unlocked with the key, passed through while nothing else moves
+  cam.set('chase'); const door = w.thing('door', 144, 120, 0, { w: 30, swing: true, solid: true, locked: 'key' }), mob = mk(40, 40);
+  hero.place(144, 104); hero.facing = Math.PI / 2; steps(.05);
+  out.reach = w.reach(hero, 16) === door; const inv = { k: 1, has(id) { return this.k > 0; }, remove() { this.k--; } };
+  out.locked = w.unlock(door, { has: () => false }); out.unlocked = w.unlock(door, inv); out.open = w.unlock(door, inv);
+  let done = 0; const mx = mob.x, my = mob.y; mob.vx = 50; w.through(door, hero, { then: () => done++ });
+  const during = !!w.passing; let n = 0; while (w.passing && n++ < 1000) w.step(1 / hz);
+  out.through = { during, done, side: hero.y > 124, still: Math.hypot(mob.x - mx, mob.y - my) < .01, open: door.open, steps: n };
+  return out;
+} };
+</script></body></html>`;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json' };
 const server = createServer((req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (path === '/check/quickstart.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(QUICK); return; }
   if (path === '/check/shapes.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(SHAPES_PAGE); return; }
+  if (path === '/check/camera.html') { res.writeHead(200, { 'content-type': TYPES['.html'] }); res.end(CAMERA_PAGE); return; }
   for (const r of rules) { const m = path.match(r.re); if (m) { path = r.to.replace(/:(\w+)/g, (_, k) => m.groups[k]); break; } }
   const file = join(root, path);
   if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end('not found'); return; }
@@ -186,7 +240,7 @@ for (const want of ['webgl', 'webgpu']) for (const [name, path] of pages) {
       const h0 = S.hero, x0 = h0.x, y0 = h0.y, p0 = pipes(), f0 = S.world.stats.frames;
       // (the shooter walks at Apex's pace, slower than the other heroes: it sprints, as a player would, and leaves the ground
       // only once it is moving: a jump from a standstill keeps it slow in the air)
-      const keys = id === 'action' ? ['attack', 'dash', 'jump', 'skill'] : id === 'shooter' ? ['swap', 'swap', 'jump', 'swap', 'fire', 'melee'] : ['jump', 'dash'], run = id === 'shooter' ? 'sprint' : null;
+      const keys = id === 'action' ? ['attack', 'dash', 'jump', 'skill', 'lock'] : id === 'shooter' ? ['swap', 'swap', 'jump', 'swap', 'fire', 'melee'] : id === 'horror' ? ['act', 'swap'] : ['jump', 'dash'], run = id === 'shooter' ? 'sprint' : id === 'horror' ? 'run' : null;
       g.input.hold('up', true); if (run) g.input.hold(run, true);
       // (the farthest it got: the course's edge is a second's run north, and a fall puts the hero back at the start)
       // (each step waits for a frame too: a software renderer drawing slowly, or a busy machine, gives the game fewer frames in
@@ -308,23 +362,51 @@ for (const [s, h] of Object.entries(hashes)) if (h.webgl && h.webgpu && h.webgl 
   }
 }
 
-/* 4. an upright phone */
+/* 3c. the camera's contracts (lock-on, zones, tank steering) and the door between rooms, at four refresh rates' steps */
 {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), errors = watch(page);
-  await page.goto(SITE + '/kits/3d-' + SLICES[0] + '?backend=webgl#' + SLICES[0]);
+  const page = await browser.newPage({ viewport: { width: 640, height: 480 } }), errors = watch(page);
+  await page.goto(SITE + '/check/camera.html?backend=webgl');
   try {
-    await page.waitForFunction(id => window.__game && __game.game.sceneName === id && __game.scenes[id].world.stats.frames > 2, SLICES[0], { timeout: 120000 });
+    await page.waitForFunction(() => window.__cam && __cam.world && __cam.world.stats.frames > 2, null, { timeout: 90000 });
+    const runs = await page.evaluate(() => { __cam.game.stop(); return [60, 90, 120, 144].map(hz => [hz, __cam.run(hz)]); });
+    for (const [hz, r] of runs) {
+      const bad = [];
+      if (!r.blocked || r.pick !== 1) bad.push(`lock picked ${r.pick} (1: the one ahead in sight; the nearer one behind the wall is ${r.blocked ? '' : 'not '}walled off)`);
+      if (r.next !== 2 || r.back !== 1) bad.push(`cycle went to ${r.next}, then ${r.back} (2 then 1: round the hero, never the hidden one)`);
+      if (!(r.yaw < .25)) bad.push(`the chase camera faces ${r.yaw.toFixed(2)} radians off the line to the target`);
+      if (!(r.strafe < .05)) bad.push(`a strafe along the line to the target: ${r.strafe.toFixed(2)} (0: square to it)`);
+      if (!r.dead || !r.gone || !r.far) bad.push(`the lock held a target that died (${!r.dead}), left (${!r.gone}) or went out of range (${!r.far})`);
+      if (r.zone0 !== 0 || r.held !== 0 || r.cut !== 1 || r.cuts !== 1) bad.push(`zones: ${r.zone0}, ${r.held} four units in (0: no cut yet), ${r.cut} ten units in (1), ${r.cuts} cuts`);
+      if (!(r.keep < .05) || !(r.fresh < .05)) bad.push(`the stick across a cut: ${r.keep.toFixed(2)} off the old camera's way while held, ${r.fresh.toFixed(2)} off the new one's once let go`);
+      if (r.backIn !== 1 || r.cuts2 !== 1) bad.push(`back four units over the border: zone ${r.backIn}, ${r.cuts2} cuts (1, 1: no cut)`);
+      if (!r.tankUp || !r.tankTurn || !r.tankBack) bad.push(`tank steering: up ${r.tankUp}, a turn ${r.tankTurn}, back at half ${r.tankBack}`);
+      if (!r.reach || r.locked !== 'locked' || r.unlocked !== 'unlocked' || r.open !== 'open') bad.push(`the door: reached ${r.reach}, ${r.locked}, ${r.unlocked}, ${r.open}`);
+      const T = r.through; if (!T.during || T.done !== 1 || !T.side || !T.still || T.open !== 0) bad.push(`through the door: ${JSON.stringify(T)}`);
+      for (const b of bad) fail(`the camera's contracts at ${hz} Hz: ${b}`);
+    }
+    if (JSON.stringify(runs[0][1]) !== JSON.stringify(runs[2][1])) notes.push('the camera contracts differ between 60 and 120 Hz steps (allowed: the steps differ); each holds on its own');
+  } catch (e) { fail('the camera\'s contracts: ' + e.message.split('\n')[0]); }
+  for (const e of errors) fail('the camera\'s contracts: ' + e);
+  await page.close();
+}
+
+/* 4. an upright phone */
+for (const id of SLICES) {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }), errors = watch(page);
+  await page.goto(SITE + '/kits/3d-' + id + '?backend=webgl#' + id);
+  try {
+    await page.waitForFunction(id => window.__game && __game.game.sceneName === id && __game.scenes[id].world.stats.frames > 2, id, { timeout: 120000 });
     await page.waitForTimeout(600);
     const r = await page.evaluate(() => {
       const v = document.getElementById('view').getBoundingClientRect(), sc = __game.game.screen, s = document.getElementById('screen').getBoundingClientRect();
       const under = Math.abs(v.width - sc.W * sc.S / sc.dpr) < 1.5 && Math.abs(v.height - sc.H * sc.S / sc.dpr) < 1.5 && v.width >= s.width - 2 && v.height >= s.height - 2;
       return { under, buttons: document.querySelectorAll('[data-act]').length, w: v.width, h: v.height, sw: s.width, sh: s.height };
     });
-    if (!r.under) fail(`phone: the 3D picture (${r.w} x ${r.h}) is not laid exactly under the game's (${r.sw} x ${r.sh})`);
-    if (r.buttons < 2) fail(`phone: ${r.buttons} touch buttons`);
-    await page.screenshot({ path: join(OUT, 'phone.png') }); pictures++;
-  } catch (e) { fail('phone: ' + e.message.split('\n')[0]); }
-  for (const e of errors) fail('phone: ' + e);
+    if (!r.under) fail(`phone ${id}: the 3D picture (${r.w} x ${r.h}) is not laid exactly under the game's (${r.sw} x ${r.sh})`);
+    if (r.buttons < 2) fail(`phone ${id}: ${r.buttons} touch buttons`);
+    await page.screenshot({ path: join(OUT, 'phone-' + id + '.png') }); pictures++;
+  } catch (e) { fail(`phone ${id}: ` + e.message.split('\n')[0]); }
+  for (const e of errors) fail(`phone ${id}: ` + e);
   await page.close();
 }
 
@@ -332,4 +414,4 @@ await browser.close();
 server.close();
 for (const n of [...new Set(notes)]) console.log('note: ' + n);
 if (problems.length) { console.error('3D kits check FAILED:\n  ' + problems.join('\n  ')); process.exit(1); }
-console.log(`3D kits check passed: the rules hold in ${SOURCES.length} sources; the manual's quick start runs; ${pages.length} pages on WebGL 2 and WebGPU, ${SLICES.length} slices (${Object.entries(hashes).map(([s, h]) => s + ' ' + (h.webgl || h.webgpu)).join(', ')}: the same hash on both backends and run again, no pipeline built mid-game); the phone; ${pictures} pictures in check-output/kit3d/`);
+console.log(`3D kits check passed: the rules hold in ${SOURCES.length} sources; the manual's quick start runs; ${pages.length} pages on WebGL 2 and WebGPU, ${SLICES.length} slices (${Object.entries(hashes).map(([s, h]) => s + ' ' + (h.webgl || h.webgpu)).join(', ')}: the same hash on both backends and run again, no pipeline built mid-game); the camera's contracts at 60, 90, 120 and 144 Hz; every kit on a phone; ${pictures} pictures in check-output/kit3d/`);

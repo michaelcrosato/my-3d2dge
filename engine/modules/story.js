@@ -1,5 +1,5 @@
 /*!
-my-3D2dge module STORY v0.78.1: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.79.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 

@@ -1,5 +1,5 @@
 /*!
-my-3D2dge 3D v0.78.1: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
+my-3D2dge 3D v0.79.0: real 3D worlds under my-3D2dge games (three.js r182 and Rapier 0.19.3)
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
 A 3D world, its physics and its camera under a my-3D2dge game. The 2D engine (engine/my-3d2dge.js) still runs the game:
@@ -107,7 +107,7 @@ The level's own ground and side are every tile's default. Add looks: E.World3D.G
 o: { level, look: 'card' | 'puppet', res: 'pixels' | 'balanced' | 'full', gravity: 480, sky: '#06050b' or [top,
 horizon], fog: { color, near, far } (units past the target) or false, ambient: [sky, ground, intensity], sun: { color,
 intensity, dir: [x, y, z] (it shines along it), area, shadow }, torchLights: 6, torchShadows: 1, torchPower: 30,
-lights: 2 (your own), glowLights: 4, shadows, outlines, filter, camera: { mode, proj, fov, chase, ... }, terrain (an open
+lights: 2 (your own), spots: 0 (flashlights), glowLights: 4, shadows, outlines, filter, camera: { mode, proj, fov, chase, ... }, terrain (an open
 world instead of the level: below), overlay: { fov } (first person: below), onDraw: (world, r) => {} (your own 3D drawing
 each frame, whichever scene draws the world) }
   world.step(dt) / world.draw(r) / world.reset() / world.hash([your numbers]) / world.prepare() (build the shaders now)
@@ -151,9 +151,15 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   world.platform({ w, d, h, path: [[x, y, z], ...] (its top's points), speed, wait, loop, side, color }): a platform that
   moves (there and back, or round with loop); heroes on it ride it, bodies on it are carried
   world.thing(kind, x, y, z, o): drawn by code: coin gem heart key star potion chest door flag sign lever pad spring
-  tree bush rock mushroom fence crystal; o: { yaw, spin (turns a second), bob, size, color, open (0..1), on, solid:
-  true | [w, d, h] (a block where it stands: world.setSolid(t, false) opens it), data }. Add a kind:
+  tree bush rock mushroom fence crystal trunk (an item box) typewriter (a save point); o: { yaw, spin (turns a second),
+  bob, size, color, open (0..1), on, solid: true | [w, d, h] (a block where it stands: world.setSolid(t, false) opens
+  it), data }. Add a kind:
   E.World3D.THINGS.lamp = (pen, t, time) => { pen.tube(0, 0, 0, 0, 0, 20, 1, '#555').glow(0, 0, 21, 2, '#ffd36a'); }
+  A door: { w (32, across its local x), h (40), swing: true (leaves on hinges; else a gate that rises), locked: 'iron' (a
+  key's id) }. world.reach(hero, 14, kinds) -> the thing in front of it within reach (what a check button acts on);
+  world.unlock(door, inv) -> 'open' | 'unlocked' (the key taken from an E.RPG inventory) | 'locked';
+  world.through(door, hero, { then }): the door opening between rooms (Resident Evil's): the camera goes through as it
+  swings open, the hero comes out beyond it; while world.passing the world holds still: skip your rules
 
 ## Drawing for one frame (in draw, before world.draw(r))
   world.arc(x, y, z, r0, r1, a0, a1, color, alpha): a flat arc on the ground (a telegraph)
@@ -161,7 +167,9 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   world.pen.at(x, y, z, yaw, size).box(x, y, z, w, d, h, color).ball(x, y, z, rx, ry, rz, color).tube(x0, y0, z0, x1,
       y1, z1, r, color).cone(...base to tip).bar(x0, y0, z0, x1, y1, z1, w, t, color).glow(x, y, z, r, color)
       .slab(x0, y0, z0, x1, y1, z1, ax, ay, az, w, t, color) (a box from one point to the other, w wide along a: any lean)
-  world.light({ color, reach, power }) (made once, with the world): a light; set its x, y, z and on each frame
+  world.light({ color, reach, power, flicker }) (made once, with the world): a light; set its x, y, z and on each frame
+  world.flashlight(hero, { color, reach, angle, power, flicker: 0..1 (a failing bulb) }) (a world made with { spots: 1 }):
+  a spot from its hand along its facing, every frame, casting shadows; .on
   game.particles (sparks, dust, bits, rings, glints, fire, text): drawn in 3D; they land on the level; text goes on the HUD
   game.shake(n), game.flash(color), game.freeze(s), game.note(text): as in 2D
 
@@ -169,12 +177,24 @@ a.vy, a.vz, a.grounded, a.landed (this step), a.fell (dropped below the level), 
   modes: 'view' (the 2D engine's views as real 3D cameras following camera.target: game.view (V: game.nextView()),
   game.yaw ([ ]: game.rotateView(45)), game.zoom (the wheel, a pinch, Settings); proj 'persp' | 'ortho'; dist; walls in
   front cut low), 'chase' (behind the target; it swings round behind as the target moves; a click captures the mouse to
-  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own)
+  turn it), 'first' (the target's eyes), 'fly', 'fixed' (camera.fixed = { x, y, z, yaw, pitch, roll, fov }: your own),
+  'zones' (Resident Evil's: camera.zones = [{ box: [x0, y0, x1, y1], at: [x, y, z], look: [x, y, z] (fixed) | follow:
+  true (turning after the target) | rail: [[x, y, z], [x, y, z]] (sliding level with it), fov (framed for 4:3: a taller
+  screen widens it) }]: the target's zone is the camera, cut once it is camera.margin (8) units in (camera.zone,
+  camera.cuts); across a cut ground() keeps the old way while the stick is held)
   camera: { capture: true (a click captures the mouse in any mode; camera.takeMouse(out) -> its [dx, dy] since the last
   call: turn your own camera), near, far (units) }; camera.target also sizes the outlines and centres the sun's shadow
   camera.set(mode), camera.follow(actor), camera.ground(move, out) -> the stick turned to the ground,
   camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it, or null; camera.heading,
   camera.pose, camera.chase = { pitch, dist, fov, height, auto }, camera.first = { pitch, fov }
+  camera.steer(hero, move, dt, out) -> the way to go by the player's setting (game.settings.define(E.World3D.CONTROLS)):
+  ground(), or tank controls (up forward along hero.facing, down back, left and right turn it: set facing yourself only
+  when !camera.tank)
+  Lock-on (Zelda's targeting): camera.lock(hero, mobs, { range: 160 }) -> the one in sight (alive, in range, a clear
+  line) nearest where hero faces, or null; camera.cycle(mobs, 1 | -1) the next round the hero; camera.unlock();
+  camera.lockOn. The chase and first cameras swing behind the hero to frame both, the view frames both, ground() strafes
+  round it, a reticle marks it (camera.reticle: a color, false); it lets go when the target dies (alive = false), leaves
+  or goes past 1.25 times the range. Turn the hero to it yourself
 
 ## Open worlds: new E.World3D(game, { terrain: { height: (x, y) => z, ... } })
 terrain: { size (32768: two kilometres), height, color: (x, y, z, nz, out) => [r, g, b] (0..255), cell (32), chunk (32
@@ -195,7 +215,7 @@ ahead, y right, z up): draw the arms and gun in onDraw; world.pen there draws bo
   world.filter = { look: 'clean' | 'cel' (Comic cel: flat bands of light, ink) | 'pixel' (big dithered pixels), apply:
   'all' | 'objects' | 'env', bloom, fxaa, bands, ink, inkW, punch, px, levels, dither }
   E.World3D.SETTINGS in the game's menu lets the player pick the look, the picture, shadows and the filter.
-  E.World3D.INPUT: WASD or arrows move, Space jumps, J or a click attacks, Shift dashes, E skill, C camera.
+  E.World3D.INPUT: WASD or arrows move, Space jumps, J or a click attacks, Shift dashes, E skill, Q lock, C camera.
 
 ## Your own three.js
 E.THREE (three/webgpu), E.TSL, E.RAPIER; world.scene, world.pw (Rapier's world), E.World3D.toThree(x, y, z) (engine
@@ -600,7 +620,7 @@ class Flow {
       DIRS8.forEach(([dx, dy], k) => {   // walk backwards: a neighbour reaches i if its own step toward i is passable
         const nx = cx - dx, ny = cy - dy; if (nx < 0 || ny < 0 || nx >= mw || ny >= mh) return;
         const j = ny * mw + nx; if (!(L.pass[j] & (1 << k))) return;
-        const w = v + (dx && dy ? 1.414 : 1); if (w < d[j]) { d[j] = w; push(j, w); }
+        const w = v + (dx && dy ? 1.414 : 1); if (w < d[j]) { d[j] = w; push(j, d[j]); }   // (the distance as stored: a float32, so the pop's check above never takes it for a stale one)
       });
     }
     return this;
@@ -1193,10 +1213,36 @@ const THINGS = {
     if (o < .2) p.box(0, -d / 2 - .3, hb - .6, 2, .8, 2.4, trim);
     if (o > .3) p.glow(0, 0, hb + 2, 2.4 * o, '#fff2a8').halo(0, 0, hb + 3, 7 * o, [.5, .4, .1]);
   },
-  door(p, t) {   // a frame and a gate that slides up as it opens; t.w wide (32), t.h tall (40)
-    const w = t.w || 32, h = t.h || 40, o = clamp(t.open || 0, 0, 1), c = t.color || '#6a4a2e', stone = '#5a5470';
+  door(p, t) {   // a frame and a gate that slides up as it opens, or (swing) one leaf or two (28 wide or more) on hinges, opening toward t.swingTo (1: +y); t.w wide (32), t.h tall (40)
+    const w = t.w || 32, h = t.h || 40, o = clamp(t.open || 0, 0, 1), c = t.color || '#6a4a2e', stone = t.frame || '#5a5470';
     p.box(-w / 2 - 2, 0, h / 2, 4, 8, h, stone).box(w / 2 + 2, 0, h / 2, 4, 8, h, stone).box(0, 0, h + 2, w + 8, 8, 4, stone);
+    if (t.swing) {
+      const n = w >= 28 ? 2 : 1, lw = w / n, dk = E.shade(c, -.25);
+      for (let i = 0; i < n; i++) {
+        const b = o * 1.7 * (t.swingTo || 1) * (i ? -1 : 1), u = i ? -1 : 1, dx = Math.cos(b) * u, dy = Math.sin(b) * u, hx = -u * w / 2, at = q => [hx + dx * q, dy * q];
+        const [cx, cy] = at(lw / 2); p.box(cx, cy, h / 2, lw - .6, 2.6, h - 1, c, b);
+        for (const z of [h * .27, h * .7]) { const [px, py] = at(lw / 2); p.box(px - dy * 1.4, py + dx * 1.4, z, lw - 5, .6, h * .32, dk, b).box(px + dy * 1.4, py - dx * 1.4, z, lw - 5, .6, h * .32, dk, b); }
+        const [kx, ky] = at(lw - 3); p.ball(kx - dy * 2, ky + dx * 2, h * .46, 1, 1, 1, '#d8b04a').ball(kx + dy * 2, ky - dx * 2, h * .46, 1, 1, 1, '#d8b04a');
+        if (t.locked && o < .05 && i === n - 1) p.box(kx - dy * 2.2, ky + dx * 2.2, h * .4, 2.4, 1, 3.4, '#ffd34a', b);
+      }
+      return;
+    }
     if (o < 1) { const z0 = o * (h - 2); p.box(0, 0, z0 + (h - z0) / 2, w, 3, h - z0, c); for (let x = -w / 2 + 4; x < w / 2; x += 6) p.box(x, -1.8, z0 + (h - z0) / 2, 1, .6, h - z0, E.shade(c, -.3)); if (t.locked) p.ball(0, -2.4, z0 + h * .45 * (1 - o), 2.2, 1, 2.6, '#ffd34a'); }
+  },
+  trunk(p, t) {   // an item box: a long iron-bound trunk whose lid turns up as it opens
+    const o = clamp(t.open || 0, 0, 1), a = o * 1.8, w = 24, d = 12, hb = 9, wood = t.color || '#5a3a24', iron = '#3a3640';
+    p.box(0, 0, hb / 2, w, d, hb, wood);
+    for (const x of [-w / 2 + 2, w / 2 - 2, 0]) p.box(x, 0, hb / 2, 1.6, d + .5, hb + .3, iron);
+    p.bar(0, d / 2, hb + 1.5, 0, d / 2 - d * Math.cos(a), hb + 1.5 + d * Math.sin(a), w, 3, E.shade(wood, .12));
+    if (o < .2) p.box(0, -d / 2 - .3, hb - 1, 3, .8, 3, '#c8a050');
+  },
+  typewriter(p, t) {   // a save point: a writing desk with a typewriter and a sheet in it, a lamp's glow on the paper
+    const wood = t.color || '#4a3222';
+    p.box(0, 0, 12, 22, 13, 2, wood);
+    for (const [x, y] of [[-9.5, -5], [9.5, -5], [-9.5, 5], [9.5, 5]]) p.box(x, y, 6, 1.6, 1.6, 12, E.shade(wood, -.2));
+    p.box(0, 1, 14.4, 11, 8, 3, '#2a2a30').box(0, -2.4, 13.6, 10, 3, 1, '#3a3a42').tube(-6, 3.6, 16.2, 6, 3.6, 16.2, 1.3, '#18181c');
+    p.slab(0, 4, 16.4, 0, 5.4, 22, 1, 0, 0, 8, .3, '#efe8d6');
+    p.glow(5.5, 3, 15.2, .7, t.on === false ? '#5a4a3a' : '#ffd08a').halo(5.5, 3, 15.6, 3.2, [.3, .22, .1]);
   },
   flag(p, t) { const c = t.color || '#ff4a3a', w = Math.sin((t.t || 0) * 5) * 1.5; p.tube(0, 0, 0, 0, 0, 44, .8, '#d8d8e0').ball(0, 0, 44.5, 1.4, 1.4, 1.4, '#ffd34a'); p.bar(0, 0, 38, 12, w, 37, 8, 1, c); },
   sign(p, t) { p.box(0, 0, 6, 1.6, 1.6, 12, '#6a4a2e').box(0, 0, 13, 14, 1.4, 8, t.color || '#9d6a3f').box(0, -.8, 13, 10, .3, 1, '#3a2614').box(0, -.8, 11.4, 8, .3, 1, '#3a2614'); },
@@ -1211,7 +1257,7 @@ const THINGS = {
   crystal(p, t) { const c = t.color || '#9a6aff'; for (const [x, y, hh, r] of [[0, 0, 16, 3.4], [3.4, 1.6, 10, 2.4], [-3, -1, 8, 2]]) p.cone(x, y, 0, x * 1.2, y * 1.2, hh, r, c); p.halo(0, 0, 8, 8, lin(c).map(v => v * .25)); }
 };
 /** a thing's size from its kind: where its base sits and how wide it is (for pickups' reach: world.touching) */
-const THING_R = { coin: 5, gem: 5, heart: 5, key: 5, star: 7, potion: 5, chest: 9, door: 18, flag: 4, sign: 7, lever: 5, pad: 8, spring: 7 };
+const THING_R = { coin: 5, gem: 5, heart: 5, key: 5, star: 7, potion: 5, chest: 9, door: 18, flag: 4, sign: 7, lever: 5, pad: 8, spring: 7, trunk: 12, typewriter: 11 };
 
 /* =============================================================================
  * 5b. SHAPES  the 2D engine's shapes (docs/ASSETS.md: E.SHAPES ids, a store set's 'SET:id', or an entry) in 3D, from the
@@ -1525,7 +1571,14 @@ function makeAtlas(world) {
  *      'first'  the target's eyes (its body isn't drawn), 'fly' a free camera the move stick flies (jump up, dash
  *               down), 'fixed' stays where camera.fixed says ({ x, y, z, yaw, pitch, roll, fov }): a game that runs its
  *               own camera (a shooter's eyes, its over-the-shoulder view) sets it every step
- *    camera.ground(move) -> the move stick turned to the ground ([x, y], W walks away from the camera);
+ *      'zones'  Resident Evil's: the region the target is in gives the camera (camera.zones: a fixed one, one that turns
+ *               to follow, one that slides on a rail), a cut when it moves on, held back until it is `margin` units
+ *               into the next region (hysteresis: no flicking back and forth on a border)
+ *    camera.ground(move) -> the move stick turned to the ground ([x, y], W walks away from the camera); across a cut it
+ *    keeps the old camera's way while the stick is held the same way (no walking back out of a doorway);
+ *    camera.steer(actor, move, dt) -> the same, or tank controls (the player's setting: World3D.CONTROLS);
+ *    camera.lock(from, target | list) -> lock-on (Zelda's targeting): the chase and first cameras turn to frame both,
+ *    ground() strafes round the target, a reticle marks it; cycle(list) the next in sight, unlock();
  *    camera.aim(actor) -> the angle the mouse (on the floor) or right stick points from it, or null;
  *    camera.heading: the ground angle it looks along; camera.pose: { x, y, z, yaw, pitch, fov, ortho } now
  * ============================================================================= */
@@ -1551,6 +1604,15 @@ class Camera3D {
      *  captures the mouse in any mode and its moves collect in camera.mouse ([dx, dy] pixels) for the game to take
      *  (camera.takeMouse()) instead of turning the camera: a shooter turns its own (fixed) camera */
     this.far = o.far || 9600; this.near = o.near || null; this.capture = !!o.capture; this.mouse = [0, 0];
+    /** zones (mode 'zones'): [{ box: [x0, y0, x1, y1] (units), at: [x, y, z] (the camera), look: [x, y, z] (where a
+     *  fixed one looks), follow: true (it turns to follow the target), rail: [[x, y, z], [x, y, z]] (it slides along the
+     *  rail, level with the target), height (20: where on the target it looks), fov (50) }], the first holding the target
+     *  counts; zone: the one now; cuts: how many cuts so far; margin: how deep into the next zone the target goes first */
+    this.zones = o.zones || []; this.zone = null; this.cuts = 0; this.margin = o.margin ?? 8;
+    /** lockOn: what the camera is locked on (camera.lock), lockFrom: who locks on, lockRange: how far it holds (it lets go
+     *  past 1.25 times that); reticle: the lock's mark (a color; false: none) */
+    this.lockOn = null; this.lockFrom = null; this.lockRange = o.lockRange || 160; this.reticle = o.reticle ?? '#ffd34a';
+    this._hold = null; this._mv = [0, 0]; this._cutting = false;
     this.focus = null; this.smooth = null; this.eyeZ = 24; this.pose = null; this._gyaw = null; this._held = 0;
     this.persp = new THREE.PerspectiveCamera(40, 1, .1, 600); this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 2000); this.cam = this.persp;
     /** the cards' view of the world: the camera's axes in three.js space, the cards' pixels per metre, its turn and tilt */
@@ -1559,7 +1621,8 @@ class Camera3D {
   }
   /** switch mode, keeping the way it looks where it can ('view' -> 'chase' looks the same way) */
   set(mode) {
-    if (!['view', 'chase', 'first', 'fly', 'fixed'].includes(mode) || mode === this.mode) return this;
+    if (!['view', 'chase', 'first', 'fly', 'fixed', 'zones'].includes(mode) || mode === this.mode) return this;
+    if (mode === 'zones') this.zone = null;
     const p = this.pose, was = this.mode;
     if (p && mode !== 'view') this.yaw = p.yaw;
     if (mode === 'fly' && p) Object.assign(this.fly, was === 'first' ? { x: p.x - Math.cos(p.yaw) * 56, y: p.y - Math.sin(p.yaw) * 56, z: p.z + 26, yaw: p.yaw, pitch: Math.min(p.pitch, -.3), fov: 70 } : { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, fov: p.fov || 70 });
@@ -1576,20 +1639,58 @@ class Camera3D {
   /** the view mode's angles [yaw, pitch] in degrees (the 2D engine's: yaw 0 has the camera to the south) */
   viewAngles() { const g = this.world.game, v = g.baseView || g.view; return [v.yawDeg + (v.pitchDeg < 5 ? 0 : g.yaw || 0), v.pitchDeg]; }
   /** the ground angle the camera looks along now */
-  get heading() { return this.pose ? this.pose.yaw : this.mode === 'view' ? headingOf(this.viewAngles()[0]) : this.yaw; }
+  get heading() { return this.pose ? this.pose.yaw : this.mode === 'view' ? headingOf(this.viewAngles()[0]) : this.mode === 'zones' ? this.update(0).yaw : this.yaw; }
   /** a step of the game: where every camera is (fixed steps: the controls read it) */
   update(dt) {
     const g = this.world.game, t = this._target();
     // [ and ] (game.rotateView) turn the chase, first and fly cameras too
     const gy = g.yaw || 0; if (this._gyaw !== null && gy !== this._gyaw) { const d = ((gy - this._gyaw + 540) % 360) - 180; this.yaw += d * DEG; this.fly.yaw += d * DEG; this._held = 1.5; } this._gyaw = gy;
     this._held = Math.max(0, this._held - dt);
-    this.pose = this.mode === 'view' ? this._viewPose(dt, t) : this.mode === 'chase' ? this._chasePose(dt, t) : this.mode === 'first' ? this._firstPose(dt, t) : this.mode === 'fly' ? this._flyPose(dt) : Object.assign({ ortho: false }, this.fixed || this._viewPose(dt, t));
+    // the lock lets go of a target that died, left the world or got too far away
+    const L = this.lockOn, F = this.lockFrom; if (L && (L.alive === false || !this.world.actors.includes(L) || !F || Math.hypot(L.x - F.x, L.y - F.y) > this.lockRange * 1.25)) this.unlock();
+    const m = this.mode, P = this.world.passing;
+    this.pose = P ? this._passPose(P) : m === 'view' ? this._viewPose(dt, t) : m === 'chase' ? this._chasePose(dt, t) : m === 'first' ? this._firstPose(dt, t) : m === 'fly' ? this._flyPose(dt) : m === 'zones' ? this._zonePose(dt, t) : Object.assign({ ortho: false }, this.fixed || this._viewPose(dt, t));
+    if (this._cutting) { this._cutting = false; this._was = null; }   // (a cut: the frames after it don't slide in from the old pose)
     return this.pose;
   }
+  /** a cut: the next frames start at the new pose; a stick held now keeps its way on the ground until it lets go */
+  _cutNow() {
+    this._cutting = true;
+    if (this.pose && Math.hypot(this._mv[0], this._mv[1]) > .3) this._hold = { yaw: this.pose.yaw, mv: [this._mv[0], this._mv[1]] };
+  }
+  /** the zone at (x, y): the one it is in while within margin of its box, else the first whose box holds the point */
+  _zoneAt(x, y) {
+    const inBox = (z, e) => { const b = z.box; return !!b && x >= b[0] - e && x <= b[2] + e && y >= b[1] - e && y <= b[3] + e; };
+    if (this.zone && this.zones.includes(this.zone) && inBox(this.zone, this.margin)) return this.zone;
+    return this.zones.find(z => inBox(z, 0)) || this.zone;
+  }
+  _zonePose(dt, t) {
+    const Z = this._zoneAt(t.x, t.y);
+    if (Z !== this.zone) { if (this.zone) { this.cuts++; this._cutNow(); } this.zone = Z; this.smooth = null; }
+    if (!Z) return this._viewPose(dt, t);
+    const k = dt > 0 ? 1 - Math.exp(-dt * 5) : 1, lz = (t.z || 0) + (Z.height ?? 20);
+    let at = Z.at, look = !Z.follow && !Z.rail && Z.look ? Z.look : [t.x, t.y, lz];
+    if (Z.rail) {   // level with the target along the rail's line on the ground
+      const [a, b] = Z.rail, dx = b[0] - a[0], dy = b[1] - a[1], u = clamp(((t.x - a[0]) * dx + (t.y - a[1]) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+      at = [a[0] + dx * u, a[1] + dy * u, a[2] + (b[2] - a[2]) * u];
+    }
+    if (Z.follow || Z.rail) {   // (eased: it turns and slides after the target, never snaps)
+      const s = this.smooth || (this.smooth = [...at, ...look]);
+      for (let i = 0; i < 3; i++) { s[i] += (at[i] - s[i]) * k; s[i + 3] += (look[i] - s[i + 3]) * k; }
+      at = s.slice(0, 3); look = s.slice(3);
+    }
+    const dx = look[0] - at[0], dy = look[1] - at[1];
+    return { x: at[0], y: at[1], z: at[2], yaw: Math.atan2(dy, dx), pitch: Math.atan2(look[2] - at[2], Math.hypot(dx, dy)), fov: Z.fov || 50, ortho: false, wide: true };   // (wide: framed for 4:3, a taller screen sees as much across)
+  }
+  /** the door opening between rooms (world.through): from the actor's side to the far one, through the doorway */
+  _passPose(P) {
+    const d = P.door, v = clamp((P.t / P.time - .2) / .8, 0, 1), s = lerp(34, -16, v * v * (3 - 2 * v)) * P.side;
+    return { x: d.x + P.nx * s, y: d.y + P.ny * s, z: d.z + 22, yaw: Math.atan2(-P.ny * P.side, -P.nx * P.side), pitch: -.06, fov: 55, ortho: false };
+  }
   _viewPose(dt, t) {
-    const g = this.world.game, k = dt > 0 ? 1 - Math.exp(-dt / Math.max(.001, this.lag)) : 1;
-    const a = t.aim ?? t.facing, ld = typeof a === 'number' ? this.lead : 0;
-    const tx = t.x + (ld ? Math.cos(a) * ld : 0), ty = t.y + (ld ? Math.sin(a) * ld : 0), tz = (t.z || 0) + 8;
+    const g = this.world.game, k = dt > 0 ? 1 - Math.exp(-dt / Math.max(.001, this.lag)) : 1, L = this.lockOn && this.lockFrom === t ? this.lockOn : null;
+    const a = t.aim ?? t.facing, ld = typeof a === 'number' && !L ? this.lead : 0;
+    const tx = L ? lerp(t.x, L.x, .5) : t.x + (ld ? Math.cos(a) * ld : 0), ty = L ? lerp(t.y, L.y, .5) : t.y + (ld ? Math.sin(a) * ld : 0), tz = (t.z || 0) + 8;   // (locked: both framed)
     const f = this.focus || (this.focus = [tx, ty, tz]);
     f[0] += (tx - f[0]) * k; f[1] += (ty - f[1]) * k; f[2] += (tz - f[2]) * k;
     // the picture's height at the focus: the 2D game's (its height in pixels at the view's scale and zoom)
@@ -1600,13 +1701,14 @@ class Camera3D {
   _chasePose(dt, t) {
     const C = this.chase, g = this.world.game, k = dt > 0 ? 1 - Math.exp(-dt * 12) : 1;
     const s = this.smooth || (this.smooth = [t.x, t.y, t.z || 0]); s[0] += (t.x - s[0]) * k; s[1] += (t.y - s[1]) * k; s[2] += ((t.z || 0) - s[2]) * k;
-    const sp = Math.hypot(t.vx || 0, t.vy || 0);
-    if (C.auto && !this.locked && !this._held && sp > 20 && dt > 0) {   // swing round behind it as it moves (more the faster)
+    const sp = Math.hypot(t.vx || 0, t.vy || 0), L = this.lockOn && this.lockFrom === t ? this.lockOn : null;
+    if (L) { if (dt > 0) this.yaw = E.approachAng(this.yaw, Math.atan2(L.y - s[1], L.x - s[0]), dt * 5); }   // locked: behind it, facing the target
+    else if (C.auto && !this.locked && !this._held && sp > 20 && dt > 0) {   // swing round behind it as it moves (more the faster)
       const want = Math.atan2(t.vy, t.vx), off = Math.abs(((want - this.yaw + Math.PI * 3) % TAU) - Math.PI);
       if (off < 2.6) this.yaw = E.approachAng(this.yaw, want, dt * 1.6 * Math.min(1, sp / 80) * (off > 1.6 ? .4 : 1));
     }
-    const tx = s[0], ty = s[1], tz = s[2] + C.height, cp = Math.cos(C.pitch), fx = Math.cos(this.yaw) * cp, fy = Math.sin(this.yaw) * cp, fz = Math.sin(C.pitch);
-    const want = C.dist / clamp(g.zoom || 1, .5, 3); let d = want;
+    const sep = L ? Math.hypot(L.x - s[0], L.y - s[1]) : 0, tx = L ? lerp(s[0], L.x, .3) : s[0], ty = L ? lerp(s[1], L.y, .3) : s[1], tz = s[2] + C.height, cp = Math.cos(C.pitch), fx = Math.cos(this.yaw) * cp, fy = Math.sin(this.yaw) * cp, fz = Math.sin(C.pitch);
+    const want = Math.max(C.dist / clamp(g.zoom || 1, .5, 3), sep * .5 + 30); let d = want;
     for (let r = 6; r <= want; r += 3) { const x = tx - fx * r, y = ty - fy * r, z = tz - fz * r; if (z < this.world.topH(x, y) + 4) { d = Math.max(6, r - 5); break; } }   // in front of a wall
     return { x: tx - fx * d, y: ty - fy * d, z: tz - fz * d, yaw: this.yaw, pitch: C.pitch, fov: C.fov, ortho: false };
   }
@@ -1614,6 +1716,7 @@ class Camera3D {
     let ez = (t.z || 0) + 24;
     if (t.rig && t.rig.J) { frame(t.rig); _sink = 0; wp(t.rig.J.head, P3[22]); ez = P3[22][1] * U + 1; }   // its head (it bobs with its steps)
     this.eyeZ += (ez - this.eyeZ) * (dt > 0 ? 1 - Math.exp(-dt * 16) : 1);
+    const L = this.lockOn; if (L && this.lockFrom === t && dt > 0) this.yaw = E.approachAng(this.yaw, Math.atan2(L.y - t.y, L.x - t.x), dt * 6);
     return { x: t.x + Math.cos(this.yaw) * 2.5, y: t.y + Math.sin(this.yaw) * 2.5, z: this.eyeZ, yaw: this.yaw, pitch: this.first.pitch, fov: this.first.fov, ortho: false };
   }
   _flyPose(dt) {
@@ -1624,11 +1727,59 @@ class Camera3D {
     return Object.assign({}, F, { ortho: false });
   }
   /** the move stick ([x, y]: x right, y down, as game.input.move() gives it) turned to the ground: W walks away from the
-   *  camera, D to its right. Returns [x, y] in out */
+   *  camera, D to its right. Across a cut it keeps the old camera's way while the stick is held the same way (within 45
+   *  degrees); locked on in the chase or first camera, W walks at the target and A and D strafe round it. Returns [x, y]
+   *  in out */
   ground(mv, out = [0, 0]) {
-    const a = this.heading, fx = Math.cos(a), fy = Math.sin(a);
+    let a = this.heading; const h = this._hold, m = Math.hypot(mv[0], mv[1]), L = this.lockOn, F = this.lockFrom;
+    this._mv[0] = mv[0]; this._mv[1] = mv[1];
+    if (h) { if (m > .3 && (mv[0] * h.mv[0] + mv[1] * h.mv[1]) > .7 * m * Math.hypot(h.mv[0], h.mv[1])) a = h.yaw; else this._hold = null; }
+    if (L && F && (this.mode === 'chase' || this.mode === 'first')) a = Math.atan2(L.y - F.y, L.x - F.x);
+    const fx = Math.cos(a), fy = Math.sin(a);
     out[0] = -fy * mv[0] + fx * -mv[1]; out[1] = fx * mv[0] + fy * -mv[1];
     return out;
+  }
+  /** the player's Controls setting (World3D.CONTROLS, game.settings.tank3d): tank controls when true */
+  get tank() { const s = this.world.game.settings; return !!(s && s.tank3d); }
+  /** the way an actor goes this step by the player's controls ([x, y] into out, length up to 1): camera-relative
+   *  (ground), or tank controls (o.tank, else the setting): up walks forward along a.facing, down back (o.back: .5 of the
+   *  speed), left and right turn it (o.turn: 3.4 radians a second; it sets a.facing: set it yourself only when
+   *  !camera.tank) */
+  steer(a, mv, dt, out = [0, 0], o = {}) {
+    if (!(o.tank ?? this.tank)) return this.ground(mv, out);
+    a.facing += mv[0] * (o.turn ?? 3.4) * dt; const f = -mv[1] * (mv[1] > 0 ? o.back ?? .5 : 1);
+    out[0] = Math.cos(a.facing) * f; out[1] = Math.sin(a.facing) * f; return out;
+  }
+  /** lock on (Zelda's targeting): the chase and first cameras swing behind `from` to frame it and the target, the view
+   *  camera frames both, ground() strafes round it, a reticle marks it. target: an actor, or a list to pick from: the one
+   *  in sight (alive, within range, a clear line between them) nearest the way `from` faces. o: { range (160) }. Returns
+   *  the target, or null (nothing in sight: no lock). It lets go when the target dies (alive false), leaves the world or
+   *  goes past 1.25 times the range */
+  lock(from, target, o = {}) {
+    if (o.range) this.lockRange = o.range;
+    const t = Array.isArray(target) ? this.pick(from, target) : this.sight(from, target) ? target : null;
+    this.lockFrom = t ? from : null; this.lockOn = t; return t;
+  }
+  /** let go of the lock */
+  unlock() { this.lockOn = this.lockFrom = null; return this; }
+  /** may `from` see `a`: alive, within range (the lock's), a clear line from its chest to the other's */
+  sight(from, a, range = this.lockRange) {
+    if (!from || !a || a === from || a.alive === false || !this.world.actors.includes(a) || Math.hypot(a.x - from.x, a.y - from.y) > range) return false;
+    return this.world.clear(from.x, from.y, (from.z || 0) + 16, a.x, a.y, (a.z || 0) + 12);
+  }
+  /** the one of a list in sight of `from` nearest the way it faces (a near one beats a far one a little to the side) */
+  pick(from, list) {
+    let best = null, bs = 1e9;
+    for (const a of list) { if (!this.sight(from, a)) continue; const s = Math.abs(E.angDiff(from.facing || 0, Math.atan2(a.y - from.y, a.x - from.x))) * 60 + Math.hypot(a.x - from.x, a.y - from.y); if (s < bs) { bs = s; best = a; } }
+    return best;
+  }
+  /** locked on: the next of a list in sight, round `from` (dir 1: clockwise from above, -1 the other way); null (and the
+   *  lock kept) when no other is in sight */
+  cycle(list, dir = 1) {
+    const F = this.lockFrom, C = this.lockOn; if (!F || !C) return null;
+    const base = Math.atan2(C.y - F.y, C.x - F.x); let best = null, bd = 1e9;
+    for (const a of list) { if (a === C || !this.sight(F, a)) continue; const d = ((((Math.atan2(a.y - F.y, a.x - F.x) - base) * dir) % TAU) + TAU) % TAU || TAU; if (d < bd) { bd = d; best = a; } }
+    if (best) this.lockOn = best; return best;
   }
   /** the angle an actor aims at: straight ahead with the mouse captured (chase, first), the right stick (turned to the
    *  ground), the mouse's point on the floor at the actor's height; null when nothing aims */
@@ -1644,7 +1795,7 @@ class Camera3D {
     const p = this.pose || this.update(0), g = this.world.game, cam = p.ortho ? this.ortho : this.persp, aspect = w / h, sh = g.shaking || 0, t = g.real || 0;
     const shx = sh > .05 ? (Math.sin(t * 83) + Math.sin(t * 57.3)) * .5 * sh : 0, shy = sh > .05 ? (Math.sin(t * 71) + Math.sin(t * 49.7)) * .5 * sh : 0;
     if (p.ortho) { const hh = p.Hf / U / 2; Object.assign(this.ortho, { left: -hh * aspect, right: hh * aspect, top: hh, bottom: -hh, near: .1, far: 3000 }); }
-    else Object.assign(this.persp, { fov: p.fov, aspect, near: this.near ? this.near / U : this.mode === 'first' ? .3 : .1, far: this.far / U });
+    else Object.assign(this.persp, { fov: p.wide && aspect < 4 / 3 ? 2 * Math.atan(Math.tan(p.fov * DEG / 2) * 4 / 3 / aspect) / DEG : p.fov, aspect, near: this.near ? this.near / U : this.mode === 'first' ? .3 : .1, far: this.far / U });
     const cp = Math.cos(p.pitch), fx = Math.cos(p.yaw) * cp, fz = Math.sin(p.yaw) * cp, fy = Math.sin(p.pitch), rx = -Math.sin(p.yaw), rz = Math.cos(p.yaw), k = .05 / U * 4;
     cam.position.set(p.x / U + rx * shx * k, p.z / U - shy * k, p.y / U + rz * shx * k);
     cam.up.set(0, 1, 0); if (Math.abs(fy) > .999) cam.up.set(Math.cos(p.yaw), 0, Math.sin(p.yaw));   // (straight down: up on the screen is where it heads)
@@ -1658,7 +1809,7 @@ class Camera3D {
     // fifth: a new size remakes the atlas)
     const tg = this._target(); let ppu;
     if (p.ortho) ppu = h / p.Hf;
-    else { const hv = _v0.set(tg.x / U, ((tg.z || 0) + 14) / U, tg.y / U).sub(cam.position), dz = Math.max(.5, -hv.dot(CV.back)) * U; ppu = h / 2 / (Math.tan(p.fov * DEG / 2) * dz); }
+    else { const hv = _v0.set(tg.x / U, ((tg.z || 0) + 14) / U, tg.y / U).sub(cam.position), dz = Math.max(.5, -hv.dot(CV.back)) * U; ppu = h / 2 / (Math.tan(this.persp.fov * DEG / 2) * dz); }
     const want = clamp(Math.round(ppu * 8) / 8, .5, 4);
     if (Math.abs(want - CV.scale) / CV.scale > .2) CV.scale = want;
     CV.ppm = CV.scale * U; CV.thick = Math.max(1, Math.round(CV.scale / 1.5));
@@ -1807,7 +1958,7 @@ class World3D {
     this.level.colliders(pw);
     // the level's own shapes (a legend's { shape }) stand again; a game's are gone with the rest
     this.shapes.length = 0; this._shapeKit.clear(); for (const [id, x, y, z, sp] of this.level.shapes) this.shape(id, x, y, z, sp);
-    this.time = 0; this.n = 0; this.camera && (this.camera.focus = null, this.camera.smooth = null);
+    this.time = 0; this.n = 0; this.passing = null; if (this.camera) Object.assign(this.camera.unlock(), { focus: null, smooth: null, pose: null, zone: null, cuts: 0, _hold: null, _mv: [0, 0] });   // (the camera starts afresh where the hero is)
     return this;
   }
 
@@ -1999,6 +2150,47 @@ class World3D {
     for (const t of this.things) if (t.visible && (!kind || t.kind === kind) && Math.hypot(t.x - a.x, t.y - a.y) < a.r + t.r && t.z + t.bob + 2 > a.z - 6 && t.z < a.z + 2 * a.foot + 4) out.push(t);
     return out;
   }
+  /** the nearest thing an actor can reach in front of it (a door, a chest, a trunk, a lever, a key: what a check or use
+   *  button acts on): within range of its edge (a door's whole width counts), in front (60 degrees either way) and 20
+   *  units up or down; kinds: a list of kinds, or any. Returns the thing or null */
+  reach(a, range = 14, kinds = null) {
+    let best = null, bd = 1e9; const fx = Math.cos(a.facing), fy = Math.sin(a.facing);
+    for (const t of this.things) {
+      if (!t.visible || (kinds && !kinds.includes(t.kind)) || Math.abs(t.z - a.z) > 20) continue;
+      // the nearest point of it: along a door's width, else its centre less its radius
+      const c = Math.cos(t.yaw), s = Math.sin(t.yaw), dx = t.x - a.x, dy = t.y - a.y, hw = t.kind === 'door' ? (t.w || 32) / 2 : 0, lx = clamp(-(dx * c + dy * s), -hw, hw);
+      const px = dx + lx * c, py = dy + lx * s, d = Math.hypot(px, py) - (hw ? 4 : t.r * .6) - a.r;
+      if (d > range || (Math.hypot(px, py) > 3 && (px * fx + py * fy) < .5 * Math.hypot(px, py))) continue;
+      if (d < bd) { bd = d; best = t; }
+    }
+    return best;
+  }
+  /** a locked door (door.locked: the id of the key it takes) and an inventory (E.RPG's, or anything with has and remove):
+   *  'open' (not locked), 'unlocked' (the key used up, or kept with o.keep: door.locked is null now) or 'locked' (no key) */
+  unlock(door, inv, o = {}) {
+    const k = door.locked; if (!k) return 'open'; if (!inv || !inv.has(k)) return 'locked';
+    if (!o.keep) inv.remove(k, 1); door.locked = null; return 'unlocked';
+  }
+  /** the door opening between rooms (Resident Evil's): the camera cuts to the door from the actor's side, the door swings
+   *  open away from it as the camera goes through, then the actor stands on the far side (o.to: [x, y], else o.dist: 22
+   *  units past the door), facing in, the door shut behind it, and the camera cuts back to its mode. Takes o.time (1.6)
+   *  seconds of world.step, in which nothing else moves: world.passing is set (skip your rules), o.then(door) runs at the
+   *  end. False while another passing plays */
+  through(door, a, o = {}) {
+    if (this.passing) return false;
+    const nx = -Math.sin(door.yaw), ny = Math.cos(door.yaw), side = (a.x - door.x) * nx + (a.y - door.y) * ny >= 0 ? 1 : -1, d = o.dist ?? 22;
+    this.passing = { door, a, t: 0, time: o.time ?? 1.6, side, nx, ny, to: o.to || [door.x - nx * side * d, door.y - ny * side * d], then: o.then || null, vis: a.visible };
+    door.swingTo = -side; a.vx = a.vy = 0; a.visible = false; a.facing = Math.atan2(-ny * side, -nx * side); this.camera._cutNow(); this.camera._hold = null;
+    return true;
+  }
+  _pass(dt) {
+    const P = this.passing, u = (P.t += dt) / P.time, D = P.door;
+    D.open = clamp(u < .5 ? u * 2 : (1 - u) / .15, 0, 1);
+    if (u < 1) return;
+    this.passing = null; D.open = 0; P.a.visible = P.vis; P.a.place(P.to[0], P.to[1]);
+    this.camera._cutNow(); this.camera.zone = null;   // (the camera picks its zone afresh where the actor stands)
+    if (P.then) P.then(D);
+  }
 
   /* ---- shapes (section 5b) ---- */
   /** a shape (an E.SHAPES id, a store set's 'SET:id' after E.addAssets, or an entry) standing at (x, y), on the floor
@@ -2026,6 +2218,7 @@ class World3D {
     for (const a of this.actors) (a._ip || (a._ip = [0, 0, 0, 0])).splice(0, 4, a.x, a.y, a.z || 0, a.rig ? a.rig.facing : a.facing || 0);   // (where each was, and its facing, before the step: a frame between steps draws them part way)
     for (const q of this.platforms) (q._ip || (q._ip = [0, 0, 0])).splice(0, 3, q.x, q.y, q.z);
     this.camera._was = this.camera.pose; this._stepAt = this.game.real;
+    if (this.passing) { this._pass(dt); this.camera.update(dt); this.camera._stepPose = this.camera.pose; return; }   // (a door between rooms: the rest holds still)
     if (this.level.stream) this.level.stream(this);   // (a terrain: the heightfields near the actors)
     // where the platforms go this step (worked out first, given to Rapier after the heroes' controllers have looked:
     // a controller that saw a platform's next place would carry its rider some steps and not others)
@@ -2198,6 +2391,8 @@ const _pq = new THREE.Quaternion(), _pv = new THREE.Vector3(), _ps = new THREE.V
 /** a body's rotation (Rapier's, about the engine's axes, z up) as three's (y up): swap y and z and flip the handedness */
 const quatToThree = (q, out) => out.set(-q[0], -q[2], -q[1], q[3]);
 const FLICKER = t => .9 + Math.sin(t * 13) * .05 + Math.sin(t * 29) * .04 + Math.sin(t * 7.3) * .04;   // the 2D hall's torch flicker
+/** a light's own flicker (h.flicker 0..1): a failing bulb's stutter now and then, a faint shimmer between (cosmetic) */
+const flick = (h, t) => { const f = h.flicker; if (!f) return 1; const s = Math.sin(t * 2.3 + Math.sin(t * .7) * 4) * Math.sin(t * 5.9); return 1 - f * (s > .55 ? .9 * (.5 + .5 * Math.sin(t * 47)) : .08 * (.5 + .5 * Math.sin(t * 13))); };
 const TRAIL = { hero: lin('#d8f2ff'), claw: lin('#ff7a5a') };
 
 Object.assign(World3D.prototype, {
@@ -2213,6 +2408,9 @@ Object.assign(World3D.prototype, {
     /** lights you place: world.light() hands out one of o.lights (made with the world, 2 unless said) */
     this._userLights = Array.from({ length: o.lights ?? 2 }, () => point('#ffffff', 120));
     this._userNext = 0; this._handles = []; this.torchPower = o.torchPower ?? 30;
+    /** spot lights for world.flashlight (o.spots: 0 unless said), each casting a shadow while shadows are on */
+    this._spots = Array.from({ length: o.spots ?? 0 }, () => { const l = new THREE.SpotLight('#ffffff', 0, 10, .5, .5, 1); l.shadow.mapSize.set(512, 512); l.shadow.camera.near = .2; l.shadow.bias = -.002; sc.add(l); sc.add(l.target); return l; });
+    this._spotNext = 0; this._beams = [];
     if (o.sun) {
       const s = o.sun, L = this._sun = new THREE.DirectionalLight(s.color || '#fff4e0', s.intensity ?? 2.4);
       L.castShadow = s.shadow !== false; const area = (s.area || 220) / U;
@@ -2227,7 +2425,16 @@ Object.assign(World3D.prototype, {
   light(o = {}) {
     const L = this._userLights[this._userNext++];
     if (!L) { E.warn('3d:lights', 'world.light(): every light made with the world is in use; make the world with { lights: n }'); return { x: 0, y: 0, z: 0, on: false }; }
-    const h = Object.assign({ x: 0, y: 0, z: 0, color: '#ffffff', reach: 120, power: 12, on: true }, o); h._L = L; this._handles.push(h); return h;
+    const h = Object.assign({ x: 0, y: 0, z: 0, color: '#ffffff', reach: 120, power: 12, on: true, flicker: 0 }, o); h._L = L; this._handles.push(h); return h;
+  },
+  /** a flashlight (the world made with { spots: n }): a spot light at an actor's hand that follows its facing every frame
+   *  (part way between steps, as the actor is drawn). o: { color, reach (260), angle (.42: its cone's half, radians), soft
+   *  (.5: the edge's blur), power (40), pitch (-.12: down a little), height (18), flicker (0..1: a failing bulb's
+   *  stutter), shadow (true) }; the handle's fields change it, on: false puts it out */
+  flashlight(a, o = {}) {
+    const L = this._spots[this._spotNext++];
+    if (!L) { E.warn('3d:spots', 'world.flashlight(): no spot light left; make the world with { spots: n }'); return { on: false }; }
+    const h = Object.assign({ actor: a, color: '#fff2d6', reach: 260, angle: .42, soft: .5, power: 40, pitch: -.12, height: 18, flicker: 0, shadow: true, on: true }, o); h._L = L; this._beams.push(h); return h;
   },
   _sky(o) {
     const sky = o.sky || '#06050b';
@@ -2283,7 +2490,16 @@ Object.assign(World3D.prototype, {
     this._shadowLights.forEach((L, k) => { const i = sh[k], on = i !== undefined; L.castShadow = on; L.intensity = on ? P * FLICKER(t + T0[i].t) : 0; if (on) L.position.set(T0[i].x / U, (T0[i].z + 16) / U, T0[i].y / U); });
     const rest = near.slice(sh.length);
     this._torchLights.forEach((L, k) => { const i = rest[k], on = i !== undefined; L.intensity = on ? P * FLICKER(t + T0[i].t) : 0; if (on) L.position.set(T0[i].x / U, (T0[i].z + 16) / U, T0[i].y / U); });
-    for (const h of this._handles) { const L = h._L; L.intensity = h.on ? h.power : 0; if (h.on) { L.position.set(h.x / U, h.z / U, h.y / U); L.color.set(h.color); L.distance = h.reach / U; } }
+    for (const h of this._handles) { const L = h._L; L.intensity = h.on ? h.power * flick(h, t) : 0; if (h.on) { L.position.set(h.x / U, h.z / U, h.y / U); L.color.set(h.color); L.distance = h.reach / U; } }
+    const k = 1 - (this._al ?? 1);
+    for (const h of this._beams) {   // a flashlight: from the actor's hand, along its facing (drawn part way between steps, as it is)
+      const L = h._L, a = h.actor, w = a._ip, m = w && k && Math.abs(w[0] - a.x) + Math.abs(w[1] - a.y) < 40 ? k : 0, f = a.facing + (m ? E.angDiff(a.facing, w[3]) * m : 0);
+      const on = h.on && (a.visible !== false || (this.passing && this.passing.a === a)); L.intensity = on ? h.power * flick(h, t) : 0; L.castShadow = this.shadows && h.shadow;   // (kept as it is while out: no shader built mid-game)
+      if (!on) continue;
+      const x = a.x + (m ? (w[0] - a.x) * m : 0) + Math.cos(f) * 5, y = a.y + (m ? (w[1] - a.y) * m : 0) + Math.sin(f) * 5, z = (a.z || 0) + (m ? (w[2] - (a.z || 0)) * m : 0) + h.height, cp = Math.cos(h.pitch);
+      L.position.set(x / U, z / U, y / U); L.target.position.set((x + Math.cos(f) * cp * 60) / U, (z + Math.sin(h.pitch) * 60) / U, (y + Math.sin(f) * cp * 60) / U); L.target.updateMatrixWorld();
+      L.color.set(h.color); L.distance = h.reach / U; L.angle = h.angle; L.penumbra = h.soft; L.shadow.camera.far = h.reach / U;
+    }
     if (this._sun) {
       // the shadow's square follows the focus a whole texel at a time (in the light's own frame), so its edges never crawl
       const s = this._sun, d = this._sunDir, tp = s.target.position.set(fx / U, fz / U, fy / U), tx = this._sunTexel;
@@ -2359,7 +2575,7 @@ Object.assign(World3D.prototype, {
     const look = this.look;
     if (look === 'card' || this.actors.some(a => a.look === 'card')) this.atlas.begin(view);
     const drawn = this._drawActors(view, first ? tg : null);
-    this._drawThings();
+    this._drawThings(); this._reticle();
     this._drawProps();
     this._effects(cam.cv);
     this.atlas.end(this.outlines, cam.cv.thick);
@@ -2459,6 +2675,16 @@ Object.assign(World3D.prototype, {
     }
     pen.at(); pen.flash = false;
   },
+  /** the lock-on's mark (camera.lock): three arrows turning over the target's head and three arcs round its feet */
+  _reticle() {
+    const L = this.camera.lockOn, c = this.camera.reticle; if (!L || !c) return;
+    const k = 1 - (this._al ?? 1), w = L._ip, m = w && k && Math.abs(w[0] - L.x) + Math.abs(w[1] - L.y) < 40 ? k : 0, x = L.x + (m ? (w[0] - L.x) * m : 0), y = L.y + (m ? (w[1] - L.y) * m : 0), z = (L.z || 0) + (m ? (w[2] - (L.z || 0)) * m : 0);
+    const t = this.game.real || 0, top = z + (L.foot || 10) * 2 + 9 + Math.sin(t * 5) * 1.5, r = (L.r || 5) + 5;
+    this.pen.at(x, y, top, t * 2.5);
+    for (let i = 0; i < 3; i++) { const a = i * TAU / 3; this.pen.cone(Math.cos(a) * 5, Math.sin(a) * 5, 5, Math.cos(a) * 2, Math.sin(a) * 2, 0, 1.7, c); }
+    this.pen.at();
+    for (let i = 0; i < 3; i++) { const a = -t * 2 + i * TAU / 3; this.arc(x, y, z, r, r + 1.6, a, a + 1.1, c, .7); }
+  },
   _drawProps() {
     const M = this._propMesh, cam = this.camera; let nc = 0, nb = 0;
     for (const p of this.props) {
@@ -2528,16 +2754,16 @@ Object.assign(World3D.prototype, {
     const counts = inst.map(m => m.count), pools = [...this._arcs.list, ...this._rings.list, ...this._ribbons.list], vis = pools.map(m => m.visible);
     for (const m of inst) { m.setMatrixAt(0, Z); m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.needsUpdate = true; m.count = 1; }
     for (const m of pools) m.visible = true;
-    const sh = this._shadowLights.map(L => [L.castShadow, L.intensity]), gl = this._glowLights.map(L => L.intensity), ul = this._userLights.map(L => L.intensity);
-    for (const L of [...this._shadowLights, ...this._glowLights, ...this._userLights]) { L.intensity = Math.max(L.intensity, .001); }
-    this._shadowLights.forEach(L => { L.castShadow = true; });
+    const sh = this._shadowLights.map(L => [L.castShadow, L.intensity]), gl = this._glowLights.map(L => L.intensity), ul = this._userLights.map(L => L.intensity), sp = this._spots.map(L => [L.castShadow, L.intensity]);
+    for (const L of [...this._shadowLights, ...this._glowLights, ...this._userLights, ...this._spots]) { L.intensity = Math.max(L.intensity, .001); }
+    this._shadowLights.forEach(L => { L.castShadow = true; }); this._spots.forEach(L => { L.castShadow = this.shadows; });
     const capes = this.capes.mesh, cd = capes.geometry.drawRange.count, cv = capes.visible; capes.geometry.setDrawRange(0, 6); capes.visible = true;
     const ovHid = []; if (this.overlay) this.overlay.scene.traverse(x => { if (!x.visible) { ovHid.push(x); x.visible = true; } });
     const ovOn = this.overlay && this.overlay.on; if (this.overlay) this.overlay.on = true;
     this._render(cam);
     for (const x of ovHid) x.visible = false; if (this.overlay) this.overlay.on = ovOn;
     capes.geometry.setDrawRange(0, cd); capes.visible = cv;
-    this._shadowLights.forEach((L, i) => { L.castShadow = sh[i][0]; L.intensity = sh[i][1]; }); this._glowLights.forEach((L, i) => { L.intensity = gl[i]; }); this._userLights.forEach((L, i) => { L.intensity = ul[i]; });
+    this._shadowLights.forEach((L, i) => { L.castShadow = sh[i][0]; L.intensity = sh[i][1]; }); this._glowLights.forEach((L, i) => { L.intensity = gl[i]; }); this._userLights.forEach((L, i) => { L.intensity = ul[i]; }); this._spots.forEach((L, i) => { L.castShadow = sp[i][0]; L.intensity = sp[i][1]; });
     inst.forEach((m, i) => { m.count = counts[i]; }); pools.forEach((m, i) => { m.visible = vis[i]; });
   },
   /** build every shader now (a boot step): one warm-up frame drawn off the record (three r182's compileAsync leaves a
@@ -2676,10 +2902,11 @@ World3D.GROUND = GROUND;
 World3D.SIDE = SIDE;
 /** the controls a 3D action game starts from (new E.Game({ input: E.World3D.INPUT })): WASD or the arrows or the left
  *  stick move, Space or A jumps, J or a click or X attacks, Shift or K or B dashes, E or L or a right click or Y uses a
- *  skill, C or the right stick's click changes the camera; the menu keys of the 2D engine's presets */
+ *  skill, Q or Tab or the left bumper locks on (camera.lock), C or the right stick's click changes the camera; the menu
+ *  keys of the 2D engine's presets */
 World3D.INPUT = Object.assign({}, E.Input.DEFAULT, {
   jump: ['Space', 'Pad0'], attack: ['KeyJ', 'Mouse0', 'Pad2', 'Pad7'], dash: ['ShiftLeft', 'ShiftRight', 'KeyK', 'Pad1', 'Pad6'],
-  skill: ['KeyE', 'KeyL', 'Mouse2', 'Pad3', 'Pad5'], camera: ['KeyC', 'Pad11']
+  skill: ['KeyE', 'KeyL', 'Mouse2', 'Pad3', 'Pad5'], lock: ['KeyQ', 'Tab', 'Pad4'], camera: ['KeyC', 'Pad11']
 });
 /** the player's 3D settings for the pause menu (new E.Game({ menu: { settings: E.World3D.SETTINGS } })): Characters
  *  (cards or puppets), 3D picture (pixels, balanced, full), Shadows and Filter, read by every world as it draws */
@@ -2689,6 +2916,9 @@ World3D.SETTINGS = [
   { key: 'shadows3d', label: 'Shadows', group: 'Display', value: true, help: 'Torches and the sun cast real shadows.' },
   { key: 'filter3d', label: 'Filter', group: 'Display', value: 'clean', options: [['clean', 'None'], ['cel', 'Comic cel'], ['pixel', 'Pixel']], help: 'A look over the whole picture: comic-book ink and flat light, or big dithered pixels.' }
 ];
+/** the Controls setting of a game that offers tank controls (game.settings.define(E.World3D.CONTROLS), or in menu.settings):
+ *  camera.steer reads it */
+World3D.CONTROLS = { key: 'tank3d', label: 'Tank controls', group: 'Game', value: false, help: 'Up walks forward the way your character faces, down backs away, left and right turn it, whatever the camera does. Off: the stick moves it the way the camera looks.' };
 Object.defineProperties(World3D, {
   /** 'WebGPU' | 'WebGL 2' | 'none': what draws the 3D picture (after init) */
   backend: { get: () => PAGE.backend },
