@@ -974,6 +974,15 @@ Needs M1 (paths), M4 (split screen) and M6 (`drive`'s intent, `E.Race`).
   tag. Split screen is the 2D engine's `game.splitScreen` drawn through `world.cameras`; flight is `world.flyer`, worked
   out in the steps (not a body), on rails or free, with `f.seek` for a charged shot's lock and the camera's new
   `'behind'` mode. Every 3D kit carries the 3D engine whole, about 10,500 tokens more (D63).
+- **As built, 14b (v0.81.0):** 3D RACING (`50-racing.js`, the drive module): a circuit in a valley with banked bends, a
+  hill, a jump over a stream, boost pads and a dirt shortcut across the infield's hairpin (a track of its own through
+  the main track's `gaps`), five drivers and you, three laps, item boxes, a kart off the course a while set back on the
+  road (Lakitu: the plan didn't name it, the drivers needed it), VS for two in a split screen, the title racing the
+  drivers by themselves. 3D FLIGHT (`60-flight.js`): a terrain of sea, islands, a coast, the base's plateau and a bay;
+  the rail's waves (in V, crossing, from behind, rising from the base, one on the wingman's tail), rings, turrets and
+  masts, then the flagship in free flight (four engines, then the core); lasers, a charged shot that locks on, rolls
+  that turn shots aside, boost and brake on a meter, KESTREL on the radio. The light-gun rail shooter is a recipe
+  (M16). Budgets: D64.
 
 ### M15 (optional, on the owner's word): a first-person dungeon and sports
 

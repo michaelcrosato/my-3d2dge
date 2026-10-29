@@ -53,7 +53,9 @@ const BOTS = {
 };
 // what each 3D slice's bot() must reach
 const BOTS3D = {
-  horror: { say: 'plays the wing from the foyer through every room (the doors between rooms, the dead and the dogs, the crank, both keys) to the gallery, beats what waits there and escapes; a save made on the way loads back', ok: r => r.reached && r.boss && r.won && r.rooms.length === 7 && r.opened.length === 2 && !r.dead && !r.errors && r.loaded && r.loaded.crank && r.loaded.brass && r.loaded.room === 'library' }
+  horror: { say: 'plays the wing from the foyer through every room (the doors between rooms, the dead and the dogs, the crank, both keys) to the gallery, beats what waits there and escapes; a save made on the way loads back', ok: r => r.reached && r.boss && r.won && r.rooms.length === 7 && r.opened.length === 2 && !r.dead && !r.errors && r.loaded && r.loaded.crank && r.loaded.brass && r.loaded.room === 'library' },
+  racing: { say: 'six karts race three laps, every one driven by its driver (yours through the dirt shortcut each lap, its laps still counted): all finish (a kart off the course set back on the road, as Lakitu does); then two players race in a split screen, two viewports through two cameras', ok: r => r.finished === 6 && r.laps.every(l => l >= 3) && r.shortcut > 1 && r.air > .1 && r.split.viewports === 2 && r.split.cameras >= 2 && r.split.prog.every(p => p > 150) && !r.errors },
+  flight: { say: 'flies the stage on rails (the waves, the rings, the turrets on the base, rolls that turn shots aside, a charged shot) into the bay, then in free flight burns the flagship\'s engines and its core', ok: r => r.won && r.freed && r.boss && r.shield > 0 && r.rings >= 3 && r.hits >= 15 && r.deflected >= 1 && r.charges >= 1 && !r.errors }
 };
 // the kits: my-3d2dge-<id>.html (2D) and my-3d2dge-3d-<id>.html (3D), the slice's id from the name
 const kits = readdirSync(K).filter(f => /^my-3d2dge-.+\.html$/.test(f)).sort().map(f => { const is3d = f.startsWith('my-3d2dge-3d-'); return { file: f, is3d, id: f.replace(/^my-3d2dge-(3d-)?|\.html$/g, '') }; })

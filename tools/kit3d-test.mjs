@@ -311,11 +311,11 @@ for (const want of ['webgl', 'webgpu']) for (const [name, path] of pages) {
     // play: start the slice afresh, hold the stick and press its buttons for a while; no GPU pipeline is built mid-game
     const play = await page.evaluate(async id => {
       const g = __game.game, S = __game.scenes[id], R = My3D2dge.World3D.renderer, pipes = () => { const p = R._pipelines; return p && p.caches ? p.caches.size : null; };
-      g.go(id, null, { fade: 0 }); await new Promise(r => setTimeout(r, 400));
+      g.go(id, S.play || null, { fade: 0 }); await new Promise(r => setTimeout(r, 400));   // (S.play: where a slice with a menu of its own starts playing: the race)
       const h0 = S.hero, x0 = h0.x, y0 = h0.y, p0 = pipes(), f0 = S.world.stats.frames;
       // (the shooter walks at Apex's pace, slower than the other heroes: it sprints, as a player would, and leaves the ground
       // only once it is moving: a jump from a standstill keeps it slow in the air)
-      const keys = id === 'action' ? ['attack', 'dash', 'jump', 'skill', 'lock'] : id === 'shooter' ? ['swap', 'swap', 'jump', 'swap', 'fire', 'melee'] : id === 'horror' ? ['act', 'swap'] : ['jump', 'dash'], run = id === 'shooter' ? 'sprint' : id === 'horror' ? 'run' : null;
+      const keys = id === 'action' ? ['attack', 'dash', 'jump', 'skill', 'lock'] : id === 'shooter' ? ['swap', 'swap', 'jump', 'swap', 'fire', 'melee'] : id === 'horror' ? ['act', 'swap'] : id === 'racing' ? ['drift', 'item'] : id === 'flight' ? ['fire', 'roll', 'fire'] : ['jump', 'dash'], run = id === 'shooter' ? 'sprint' : id === 'horror' ? 'run' : id === 'racing' ? 'gas' : id === 'flight' ? 'boost' : null;
       g.input.hold('up', true); if (run) g.input.hold(run, true);
       // (the farthest it got: the course's edge is a second's run north, and a fall puts the hero back at the start)
       // (each step waits for a frame too: a software renderer drawing slowly, or a busy machine, gives the game fewer frames in

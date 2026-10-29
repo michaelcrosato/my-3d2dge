@@ -266,6 +266,22 @@ const LABS = {
           "what": "Press Q (or Tab, or a pad's left bumper; LOCK on a phone) in the hall: it locks on the nearest monster in sight, a mark over it; Q again picks the next, and when no other is in sight it lets go. Swing at it and dash round it. Press C for the chase camera: it swings behind you to keep you both in view, and A and D circle round the target. Added with v0.79.0 (Milestone 13).",
           "look": "Does the lock pick the one you meant? Is circling round a target in the chase camera smooth, and does the camera keep both in view? Is the mark easy to see? Does the knight feel better to fight locked on?",
           "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-3d-racing.html",
+          "at": "#racing/race",
+          "title": "RACING: does it feel like Mario Kart 64?",
+          "what": "Race three laps against five drivers: Z (or up) for the gas, left and right to steer, Space to hop into a bend and hold it to drift (the sparks go blue, then orange: let go for a boost), E for the item (a boost, a shell, a peel). Try the dirt shortcut across the hairpin in the infield (slow unless you boost through it), the jump over the stream, the hill. Then VS from its menu with a second player (2 on the keyboard, or Start on a pad). On a phone it accelerates by itself: the stick steers, DRIFT and ITEM. Added with v0.81.0 (Milestone 14).",
+          "look": "Does the kart feel weighty yet nimble, the drift satisfying, the boost worth it? Is the camera behind the kart steady through a drift? Are the drivers fair (close, not cheating)? Is the shortcut worth taking? Does a kart that flies off get set back on the road quickly enough? Is the split screen readable? On your phone: is steering with the stick comfortable?",
+          "links": []
+        },
+        {
+          "page": "dist/kits/my-3d2dge-3d-flight.html",
+          "at": "#flight",
+          "title": "FLIGHT: does it feel like Star Fox 64?",
+          "what": "Fly the stage: the stick moves the ship about the screen, J fires (hold it to charge: the reticle locks on what is ahead, let go to fire), K barrel-rolls (it turns shots aside), Shift boosts and X brakes. Fly through the rings, save KESTREL when a fighter gets on its tail, weave through the masts over the base, then fight the flagship in the bay, where the rails end and you fly free. Settings has Invert flight. On a phone: the stick, FIRE, ROLL, BOOST, BRAKE. Added with v0.81.0 (Milestone 14).",
+          "look": "Is it exciting on the rails: enough to shoot, readable shots, the rolls worth doing? Is the charged shot's lock clear? Does free flight round the flagship feel good (turning, keeping it in view), and is the fight the right length? Is KESTREL's radio fun, or in the way? Does the camera keep you oriented?",
+          "links": []
         }
       ]
     },
@@ -476,9 +492,21 @@ const LABS = {
           "links": []
         },
         {
+          "page": "dist/kits/my-3d2dge-3d-racing.html",
+          "title": "3D racing",
+          "what": "A kart circuit in a valley (Mario Kart 64, Crash Team Racing): banked bends, a hill, a jump over the stream, a dirt shortcut through the hairpin, boost pads and item boxes; hop into a drift for a boost; you and five drivers, three laps; two players in a split screen.",
+          "links": [["Race", "#racing/race"], ["Two players", "#racing/vs"]]
+        },
+        {
+          "page": "dist/kits/my-3d2dge-3d-flight.html",
+          "title": "3D flight",
+          "what": "A stage on rails over the sea to the enemy's base (Star Fox 64): fighters in waves, rings, turrets and masts, then a flagship to fight in free flight in a bay; twin lasers, charged shots that lock on, barrel rolls that turn shots aside, a wingman on the radio.",
+          "links": []
+        },
+        {
           "page": "dist/my-3d2dge-3d.html",
           "title": "3D in one file",
-          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and all four 3D games. Served, not opened from a disk.",
+          "what": "The 3D engine (three.js r182 and Rapier, under the 2D engine), its manual, the API card and all six 3D games. Served, not opened from a disk.",
           "links": []
         }
       ]
@@ -572,7 +600,7 @@ foot.append('The list is src/labs.json; ');
 el('a', '', 'the game', foot).href = LOCAL ? 'emberdeep.html' : '/';
 foot.append(' links here from its Settings (Keys & help, and Tools).');
 // the release and the commit it was deployed from (tools/stamp.mjs fills the build in on the site)
-el('div', 'ver', 'my-3D2dge v0.80.0 · dev-build', foot);
+el('div', 'ver', 'my-3D2dge v0.81.0 · dev-build', foot);
 </script>
 </body>
 </html>
