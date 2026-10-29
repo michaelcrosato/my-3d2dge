@@ -5,6 +5,11 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.81.7 (2026-10-29)
+
+- **Rendering**: `r.pick` gives a body drawn from its kept image (`r.actor`'s `every`) the same box as on the frames it is redrawn. It was a pixel wider on each side (the kept image's margin for the outline), so where two bodies' boxes met, a tap could pick one on one frame and the other on the next (`docs/HANDOFF-REVIEW.md`'s part 5).
+- **Tools**: the contract suite checks it in Chromium: a body's box scanned through `r.pick` on the frame it is drawn and on the two its image is kept.
+
 ## 0.81.6 (2026-10-29)
 
 - **Docs**: `docs/HANDOFF-REVIEW.md` brought to v0.81.5. What only the owner can do (play the 23 To check cards, named, and the Vehicle Lab; read the calls made without them, D60 to D68, D67 first), and what an agent can do on their word: the budgets (measured at v0.81.5), the era briefs' paid runs, the optional M15, the `r.pick` fix.

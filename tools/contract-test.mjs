@@ -27,7 +27,8 @@
 //                  walls, falling and landing, a physics ball resting on it; in Chromium only the chunks a change
 //                  touched are drawn again
 //   picking        map.pick on a map of heights in every ready-made view, turned four ways and zoomed: the cell and face
-//                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map
+//                  the line of sight meets first, against a test of every cell's box; the camera's offset; off the map;
+//                  in Chromium, r.pick on a body drawn from its kept image (r.actor's every) the box it has redrawn
 //   audio          audio.duck(on) is public
 //   third person   E.sees, E.hears, maps built in code (fill, setFloor) and r.marker's edge arrow on both editions; on the
 //                  full one E.Mover climbs, vaults, leaps a gap, hops down, rolls, takes fall damage and jumps once a press,
@@ -1274,6 +1275,23 @@ const TERRAIN_DRAW = () => {
   const d = game.screen.buf.getContext('2d').getImageData(0, 0, game.screen.W, game.screen.H).data; let lit = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 120 && d[i] < 140) lit++; out.lit = lit;
   return out;
 };
+// r.pick on a body drawn from its kept image (r.actor's every): the same box as on the frames it is redrawn, so where two
+// bodies' boxes meet the answer holds from frame to frame. Its box is scanned through r.pick on a line across its middle
+// and one down it, on the frame it is drawn and on the two its image is kept
+const PICK_KEPT = () => {
+  const E = My3D2dge, game = new E.Game({ canvas: 'screen', res: 'snes', view: 'iso', loop: false }), rig = new E.Humanoid({ size: .62 }), who = { name: 'body' };
+  game.start({ update() {}, draw(r) { r.sky(['#000', '#000']); r.actor(60, 60, 0, (g, ox, oy) => rig.draw(g, ox, oy, r.view), { pick: who, every: 3, key: who }); } });
+  game.follow({ x: 60, y: 60, z: 0 });
+  const R = game.r, out = [];
+  for (let f = 0; f < 6; f++) {
+    game.advance(1 / 60, { draw: true });
+    const [cx, cy] = R.w(60, 60, 0), xs = [], ys = [];
+    for (let x = Math.round(cx) - 30; x <= Math.round(cx) + 30; x++) if (R.pick(x, Math.round(cy) - 8).includes(who)) xs.push(x);
+    for (let y = Math.round(cy) - 40; y <= Math.round(cy) + 10; y++) if (R.pick(Math.round(cx), y).includes(who)) ys.push(y);
+    out.push([xs[0], xs[xs.length - 1], ys[0], ys[ys.length - 1]].join(','));
+  }
+  return out;
+};
 const CARD = ([use, surf, entry, worked]) => {
   const E = My3D2dge, out = { warns: [] }, warn = console.warn; console.warn = (...a) => { out.warns.push(a.join(' ')); warn(...a); };
   const rows = ['#####', '#.~..', '#....', '#....'], legend = { '#': 1, '~': { floor: 'water' } };
@@ -1354,6 +1372,10 @@ for (const [ed, file] of EDITIONS) {
     console.log('  x-ray:', JSON.stringify(X));
     check(`${ed}: x-ray: a tall wall or a tall prop in front shows the hero through it; a cut-down wall or low grass doesn't`, X.tall > 20 && X.pillar > 20 && X.low === 0 && X.grass === 0, JSON.stringify(X));
     check(`${ed}: x-ray: hides: true makes a low prop hide; the outline is on by default, outline: false leaves it out`, X.grassHides > 0 && X.outline > 10 && X.noOutline === 0, JSON.stringify(X));
+  }
+  if (ed === 'full') {
+    const PK = await run(PICK_KEPT);
+    check(`${ed}: r.pick gives a body drawn from its kept image (every: 3) the same box as on the frames it is redrawn`, PK.length === 6 && PK.every(b => b === PK[0]) && !/undefined/.test(PK[0]), PK.join(' | '));
   }
   const TD = await run(TERRAIN_DRAW);
   check(`${ed}: terrain: the first draw paints the chunks on screen, the next none, a carve only the chunks it touched; it shows on screen`, TD.first > 4 && TD.again === 0 && TD.carved >= 1 && TD.carved <= 4 && TD.lit > 100, JSON.stringify(TD));
