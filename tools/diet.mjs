@@ -20,14 +20,17 @@ import * as acorn from 'acorn';
 const ALIASES = new Set(['E', 'My3D2dge']);   // what a game, a module and the 3D engine call the engine
 
 /** what a kit's code uses: { E: engine names (E.X, const { X } = E), props: every method or field it reads (.x),
- *  strings: every string and option name it writes ('iris', { rot }: names a part's entries may be) }; codes: [{ text,
+ *  strings: every string and option name it writes ('iris', { rot }: names a part's entries may be), on: what each is
+ *  read on (prop -> the names before the dot: r for r.shape, game.r's r, '?' for anything else) }; codes: [{ text,
  *  module }] */
 export function uses(codes) {
-  const E = new Set(), props = new Set(), strings = new Set();
+  const E = new Set(), props = new Set(), strings = new Set(), on = new Map();
   const walk = (n, parent) => {
     if (!n || typeof n.type !== 'string') return;
     if (n.type === 'MemberExpression' && !n.computed && n.property.type === 'Identifier') {
       props.add(n.property.name);
+      const o = n.object, who = o.type === 'Identifier' ? o.name : o.type === 'MemberExpression' && !o.computed && o.property.type === 'Identifier' ? o.property.name : o.type === 'ThisExpression' ? 'this' : '?';
+      if (!on.has(n.property.name)) on.set(n.property.name, new Set()); on.get(n.property.name).add(who);
       if (n.object.type === 'Identifier' && ALIASES.has(n.object.name)) E.add(n.property.name);
     }
     if (n.type === 'Literal' && typeof n.value === 'string' && n.value.length < 40) strings.add(n.value);
@@ -38,7 +41,7 @@ export function uses(codes) {
     for (const k of Object.keys(n)) { const v = n[k]; if (Array.isArray(v)) v.forEach(c => walk(c, n)); else if (v && typeof v.type === 'string') walk(v, n); }
   };
   for (const c of codes) walk(acorn.parse(c.text, { ecmaVersion: 'latest', sourceType: c.module ? 'module' : 'script', allowReturnOutsideFunction: true }), null);
-  return { E, props, strings };
+  return { E, props, strings, on };
 }
 
 /** the names a top-level statement declares (const, let, function, class) */
@@ -98,15 +101,21 @@ function references(st) {
 
 /**
  * the core (src) without the parts of `parts` that `used` (uses()) never reaches. parts: [{ part, sections: ['13'], entries:
- * ['enableGPU'] }]; kinds: E name -> 'class' | 'function' | 'object' (what each is in the full engine, for its stub).
+ * ['enableGPU'], with: 'tilemap' (a part that extends another goes with it, whatever reaches it) }]; kinds: E name -> 'class' | 'function' | 'object' (what each is in the full engine, for its stub).
+ * o: { module (the 3D engine: an ES module, its statements at the top level), warn (what its stubs warn through: 'warn',
+ * or the 3D engine's 'E.warn'), full (where the whole engine is, for the stubs' message) }.
  * Returns { src, left: [{ part, sections: [[id, title]] }], kept: ['parseLevel (13. TILE MAP), for PlatformMap'],
  * stubbed: [names] }
  */
-export function diet(src, parts, used, kinds) {
-  const ast = acorn.parse(src, { ecmaVersion: 'latest' });
-  const call = ast.body.find(s => s.type === 'ExpressionStatement' && s.expression.type === 'CallExpression' && /Function/.test(s.expression.callee.type));
-  if (!call) throw new Error('the diet: the engine is no longer one function called at once ((function (root) { ... })(...))');
-  const body = call.expression.callee.body.body;
+export function diet(src, parts, used, kinds, o = {}) {
+  const ast = acorn.parse(src, { ecmaVersion: 'latest', sourceType: o.module ? 'module' : 'script' });
+  let body;
+  if (o.module) body = ast.body;
+  else {
+    const call = ast.body.find(s => s.type === 'ExpressionStatement' && s.expression.type === 'CallExpression' && /Function/.test(s.expression.callee.type));
+    if (!call) throw new Error('the diet: the engine is no longer one function called at once ((function (root) { ... })(...))');
+    body = call.expression.callee.body.body;
+  }
   const banners = [...src.matchAll(/^\/\* =+\n \* (\d+[a-z]?)\. (.+)$/gm)].map(m => ({ id: m[1], title: m[2].split(/\s{2,}/)[0].trim(), at: m.index }));
   const secOf = pos => { let s = null; for (const b of banners) if (b.at <= pos) s = b; return s; };
   const partOf = new Map(); for (const p of parts) for (const id of p.sections) { if (!banners.some(b => b.id === id)) throw new Error(`the diet: section ${id} (part ${p.part}) is not in the engine any more: fix DIET in tools/build.mjs`); partOf.set(id, p); }
@@ -116,8 +125,12 @@ export function diet(src, parts, used, kinds) {
   const label = sec => sec.id + '. ' + sec.title;
   // the parts the kit calls: one of their E names, or a method they add or the table names as their way in (entries:
   // fields it reads; names: strings and option names it writes, game.go's 'iris')
-  const calls = p => S.some(s => s.part === p && (s.E.some(n => used.E.has(n)) || s.proto.some(([, m]) => used.props.has(m)))) || (p.entries || []).some(m => used.props.has(m)) || (p.names || []).some(m => used.strings && used.strings.has(m));
+  // (a part's via: the names its methods count on, r for the renderer's, so the grid module's grid.shape is not r.shape;
+  // its proto: false, methods that wrap the class's own, which reach it only through its entries)
+  const on = (p, m) => !p.via || !used.on || [...(used.on.get(m) || [])].some(w => w === '?' || p.via.includes(w));
+  const calls = p => S.some(s => s.part === p && (s.E.some(n => used.E.has(n)) || (p.proto !== false && s.proto.some(([, m]) => used.props.has(m) && on(p, m))))) || (p.entries || []).some(m => used.props.has(m)) || (p.names || []).some(m => used.strings && used.strings.has(m));
   const left = parts.filter(p => !calls(p));
+  for (const p of parts) if (p.with && !left.includes(p) && left.some(q => q.part === p.with)) left.push(p);   // (a part that extends another goes with it)
   for (const s of S) if (s.part && left.includes(s.part)) s.out = true;
   // settle what stays and what goes, until nothing changes
   const kept = [], stubs = new Map();
@@ -147,7 +160,9 @@ export function diet(src, parts, used, kinds) {
     names.add(n); const kind = kinds[n] || 'function';
     lines.push(`E.${n} = ${kind === 'class' ? '_leftClass' : kind === 'object' ? '_leftObject' : '_leftFn'}('E.${n}', '${where(s)}');`);
   }
-  for (const s of go) for (const [K, m] of s.proto) if (S.some(k => !k.out && k.decl.includes(K))) lines.push(`${K}.prototype.${m} = _leftFn('${K}.prototype.${m}', '${where(s)}');`);
+  // (a method that wraps the class's own, map.collide, is not stubbed: what stays has the method)
+  const has = (K, m) => S.some(k => !k.out && (k.proto.some(([J, n]) => J === K && n === m) || (k.st.type === 'ClassDeclaration' && k.decl.includes(K) && k.st.body.body.some(d => d.type === 'MethodDefinition' && !d.static && d.key && d.key.name === m))));
+  for (const s of go) for (const [K, m] of s.proto) if (S.some(k => !k.out && k.decl.includes(K)) && !has(K, m)) lines.push(`${K}.prototype.${m} = _leftFn('${K}.prototype.${m}', '${where(s)}');`);
   // the source: the statements that go are cut out; the stubs go in before the engine is handed over (root.My3D2dge = E)
   let out = src;
   const lastAt = body[body.length - 1].start;
@@ -155,8 +170,8 @@ export function diet(src, parts, used, kinds) {
     '/* ---- left out of this kit by the kit diet (tools/build.mjs): the sections its game never calls. Each name answers with a',
     ' * warning (a class: an error) naming its section; the full engine has them all (dist/my-3d2dge.js, or dist/my-3d2dge.html',
     ' * for a game of several genres) ---- */',
-    "const _left = (name, sec) => name + ' is left out of this kit (' + sec + '): the full engine has it (dist/my-3d2dge.js; dist/my-3d2dge.html for a game of several genres)';",
-    "const _leftFn = (name, sec) => function () { if (new.target) throw new Error('my-3D2dge: ' + _left(name, sec)); warn('left:' + name, _left(name, sec)); };",
+    `const _left = (name, sec) => name + ' is left out of this kit (' + sec + '): the full engine has it (${o.full || 'dist/my-3d2dge.js; dist/my-3d2dge.html for a game of several genres'})';`,
+    `const _leftFn = (name, sec) => function () { if (new.target) throw new Error('my-3D2dge: ' + _left(name, sec)); ${o.warn || 'warn'}('left:' + name, _left(name, sec)); };`,
     "const _leftClass = (name, sec) => function () { throw new Error('my-3D2dge: ' + _left(name, sec)); };",
     "const _leftObject = (name, sec) => new Proxy({}, { get: (t, k) => typeof k === 'symbol' ? undefined : _leftFn(name + '.' + String(k), sec) });",
     ...lines, ''].join('\n') : '';

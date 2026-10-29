@@ -8649,6 +8649,10 @@ E.addAssets = set => {
   return out;
 };
 
+/* =============================================================================
+ * 21g. SOLID SHAPES  a shape made solid in a tile map: map.solid(id, x, y, z, o), and the map's collide, groundAt and
+ *    heightAt reading the solids. In a section of its own, so a kit that draws shapes on no tile map leaves both out
+ * ============================================================================= */
 /* ---- collision: a solid shape is a box with a bottom and a top, turned with the shape ---- */
 /** make a shape solid in this map: map.solid(id | entry, x, y, z, o) with r.shape's placement (facing, scale, flip, params)
  *  -> the solid ({ x, y (the footprint's middle), z, top, hx, hy, c, s, shape, px, py (where it was placed) }; map.solids
