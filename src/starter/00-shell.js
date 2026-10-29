@@ -33,12 +33,14 @@
  *                        bouncing grenades, E.Turns; wind, falls and the sea; a CPU that tries its shots in simulation
  *   SLICE 21 RHYTHM      four lanes on the music clock (Dance Dance Revolution, PaRappa): E.Rhythm's charts, judgments,
  *                        holds and calls, the songbook's songs; a dancer and a crowd on the beat; the audio offset
+ *   SLICE 22 SPORTS      two against two in a walled cage (Sensible Soccer, NBA Jam): a ball that bounces and curls,
+ *                        passes, lobs by E.arc, shots on a meter, formations, a match clock, up to four players
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs, #rpg/battle, #tactics/battle).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs, #rpg/battle, #tactics/battle, #sports/match, #sports/vs).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -76,6 +78,7 @@ const SLICES = [
   { id: 'artillery', label: 'ARTILLERY', about: 'TWO TEAMS OF THREE ON AN ISLAND THAT BLOWS APART', family: 'STRATEGY' },
   { id: 'sim', label: 'SIM', about: 'BUILD A THEME PARK, KEEP THEM SMILING', family: 'SIMULATION' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
+  { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
 ];
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the

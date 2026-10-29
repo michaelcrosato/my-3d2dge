@@ -9,19 +9,20 @@ owner. The plan built what each milestone needed and deferred the trimming to a 
 kits (the owner's word, 2026-10-28). It is temporary: when a part lands, its line goes; when none is left, this file
 goes.
 
-**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Parts 3 and 4
-are an agent's, on the owner's go of 2026-10-29: part 4 adds a sports kit (its crawler landed in v0.83.0), and part 3
-spends money (approved). (Part 5, a fix to `r.pick`, landed in v0.81.7; part 2, the budgets, in v0.82.0: D69 to D71.)
+**In short.** Only the owner can do parts 1 and 6: play the kits, and read the calls made without them. Part 3 is an
+agent's, on the owner's go of 2026-10-29: it spends money (approved). (Part 5, a fix to `r.pick`, landed in v0.81.7; part
+2, the budgets, in v0.82.0: D69 to D71; part 4, the CRAWLER and SPORTS kits, in v0.83.0 and v0.84.0.)
 
 ## 1. Play the kits (only the owner)
 
-The Labs page's **To check** section holds 24 cards, each saying what to do and what to look for. Most want a phone or
+The Labs page's **To check** section holds 25 cards, each saying what to do and what to look for. Most want a phone or
 a second player. A card goes once checked; what the owner wants changed becomes a plan or a fix.
 - **2D kits:** Roguelike on your phone; Puzzle (how the blocks handle, and versus); Arcade (the three classics);
   Shooter (the horizontal stage); Brawler with a friend; Fighting (Street Fighter); Metroidvania (Super Metroid); Kart
   (Super Mario Kart); Road (OutRun); RPG (Dragon Quest, Final Fantasy); Tactics (Final Fantasy Tactics, Fire Emblem);
   RTS (Warcraft II, StarCraft); Sim (Theme Park); Point-and-click (Monkey Island); Pinball (Pinball Fantasies); Artillery
-  (Worms); Rhythm (Dance Dance Revolution, PaRappa); Stealth's music (the chase's layers).
+  (Worms); Rhythm (Dance Dance Revolution, PaRappa); Stealth's music (the chase's layers); Sports (Sensible Soccer, NBA
+  Jam: with friends).
 - **3D kits:** Horror (Resident Evil, Alone in the Dark); 3D Action's lock-on (Zelda); Racing (Mario Kart 64); Flight
   (Star Fox 64); Crawler (Eye of the Beholder, Dungeon Master: real time and turns).
 - **The Vehicle Lab** (Labs, Temporary, `/vehicle-lab`): drive both karts (Tab switches) to settle D62. B is what
@@ -34,15 +35,6 @@ a second player. A card goes once checked; what the owner wants changed becomes 
 Kart, Final Fantasy Tactics and Resident Evil, each an adaptation on the engine by a fresh agent with the handoff
 package. Their runs spend money (a coding agent and a vision judge each), so they wait on the owner's yes (D66):
 `node tools/agent-bench.mjs --brief <name>` for each, and what they find goes into `docs/FEEDBACK-LOG.md` as a source.
-
-## 4. Sports (the rest of the plan's M15)
-
-The 3D CRAWLER landed in v0.83.0. Needs two to four players (the core).
-
-- **SPORTS** (NBA Jam, Sensible Soccer, Tecmo Bowl): `#sports`. Two against two, for up to four players: a ball as a
-  `Body` with bounce and curl, passes with aim assist, shots on a meter, teammates by formation, the rules and a match
-  clock, commentary on `Dialog`'s radio; a ball's arc solved in the core's math.
-- **Done when:** as for any kit (`docs/KITS.md`, What every new kit has).
 
 ## 6. Calls made without the owner, to read (each reversible: a revert undoes it)
 

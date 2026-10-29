@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.83.0 (dev-build)
+  my-3D2dge (My "3D" 2D Game Engine), single-file edition v0.84.0 (dev-build)
   https://github.com/michaelcrosato/my-3d2dge (MIT License)
 
   AI MODELS: this one file is the whole engine, its documentation and twenty working games and an animation lab.
@@ -25,7 +25,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>my-3D2dge · single-file edition</title>
 <script type="text/markdown" id="my3d2dge-api">
-# my-3D2dge API card (v0.83.0)
+# my-3D2dge API card (v0.84.0)
 
 my-3D2dge ("My 3D 2D Game Engine") is a general-purpose retro-modern 2D game engine built for AI models. Use it to port, remaster, reimagine and remix games from the 8-bit to 64-bit eras (NES, SNES, Genesis, N64, PS1), or to make spiritual successors to them. Everything is drawn by code: no image or sound files. Characters are 3D skeletons drawn as pixel art, and the camera can be any classic 2D view.
 
@@ -222,7 +222,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 
 **Bullets**: `const shots = new E.Bullets(game, { plane: 'ground' | 'side' })`; `shots.fire({ x, y, z, vx, vy, vz, r: 2, team: 'player', color, life, dmg, pierce, sprite })`; `shots.burst(base, E.pattern.spread(angle, n, arc, speed))`; `shots.update(dt, map)`; `shots.hit(targets, (b, t) => {...}, 'player')`; `shots.draw(r)`; `shots.clear(team)`. Patterns: `E.pattern.dir(angle, speed)`, `aim(a, b, speed)`, `aimSide(a, b, speed)`, `spread(angle, n, arc, speed)`, `ring(n, speed, offset)`. In side view the second number of a pattern velocity is vz.
 
-**Helpers**: `E.dist(a, b)`, `E.angleTo(a, b)`, `E.overlap(a, b)` (circles x, y, r), `E.overlapBox(a, b)` (side boxes x center, z feet, w, h), `E.inArc(a, facing, b, range, halfAngle, dz)` (melee cone; `dz` limits the height difference), `E.rand(a, b)`, `E.randInt(a, b)`, `E.pick(list)`, `E.chance(p)`, `E.prune(list, fn)`, `E.store.get(key, fallback)` / `set(key, value)` (save data; slots: `game.saves`), `new E.SpatialHash(32)` (`build(list)`, `near(x, y, r, fn)`), `new E.FlowField(map)` (`update(tx, ty)`, `dir(x, y, tx, ty)` walks around walls), math `clamp lerp approach ease.* angDiff approachAng smoothDamp rng(seed) noise2 hex shade mix`; `E.version` (the release) and `E.versionLabel()` ('v0.7.0 · a1b2c3d 2026-10-07': show it on a title or a debug screen).
+**Helpers**: `E.dist(a, b)`, `E.angleTo(a, b)`, `E.arc(a, b, gravity, { apex | time | speed })` → `{ vx, vy, vz, t }` (a throw that lands at b: a lob, a grenade), `E.overlap(a, b)` (circles x, y, r), `E.overlapBox(a, b)` (side boxes x center, z feet, w, h), `E.inArc(a, facing, b, range, halfAngle, dz)` (melee cone; `dz` limits the height difference), `E.rand(a, b)`, `E.randInt(a, b)`, `E.pick(list)`, `E.chance(p)`, `E.prune(list, fn)`, `E.store.get(key, fallback)` / `set(key, value)` (save data; slots: `game.saves`), `new E.SpatialHash(32)` (`build(list)`, `near(x, y, r, fn)`), `new E.FlowField(map)` (`update(tx, ty)`, `dir(x, y, tx, ty)` walks around walls), math `clamp lerp approach ease.* angDiff approachAng smoothDamp rng(seed) noise2 hex shade mix`; `E.version` (the release) and `E.versionLabel()` ('v0.7.0 · a1b2c3d 2026-10-07': show it on a title or a debug screen).
 
 ## Characters
 **Humanoid** (knights, heroes, soldiers, zombies): `new E.Humanoid({ size: 1.3, build: 'chibi' (default) | 'heroic' (tall, SotN) | 'bulky' (brawlers, bosses) | 'skeleton' (rib cage, skull, glowing eye sockets; tint with colors.bone), weapon: 'sword' (the default) | 'gun' | 'staff' | null (fists), outfit: 'shirt' | 'tunic' | 'robe' | 'coat', hair: 'short' | 'spiky' | 'long' | 'ponytail' | 'bald', hat: 'cap' | 'pointed' | 'helmet' | 'band' | 'crown' (or { style, color }), sleeves: 'short' | 'long' | 'none', armor, hood (in colors.hair), cape: { len: 6, width: 5, seg: 2.5 }, eyeGlow, hunch, lean, style: 'hd' (default) | 'classic' (stick figures for huge crowds), colors: { skin, hair, cloth, coat, pants, boot, belt, trim, glove, cape, capeIn, metal, plate, hilt, eye, iris } })` (`metal` colors the weapon, `plate` the armor, defaulting to `metal`).
@@ -272,6 +272,7 @@ With no code: a **pause menu** on pausable scenes (Resume, Settings, Controls, F
 | Survival horror (Resident Evil, Alone in the Dark) | the 3D engine's `'zones'` camera | `camera.zones` (fixed cameras by room), `camera.steer` (tank controls), `camera.lock` to aim, `world.through` doors, `world.flashlight`, fog; `E.RPG` inventory, `game.saves` | 3D HORROR |
 | First-person dungeon (Wizardry, Dungeon Master, Eye of the Beholder) | the 3D engine's `'fixed'` camera at the party's eyes | cells of 2 x 2 tiles stepped and turned a quarter at a time (tweened), `E.Grid` paths for the monsters, `E.Turns` `'atb'` (real time) or `'speed'` (turns), `E.Fog` for the automap, `world.thing('door')` gates and `world.unlock`, `rig.drawPortrait` for the party | 3D CRAWLER |
 | Rhythm (Dance Dance Revolution, PaRappa, Beatmania, Space Channel 5) | any (a highway on the overlay) | `E.Rhythm` (the rhythm module): a chart of lane strings in parts on a song's steps, judged in ms of the music clock, combo, life, grade, holds, calls a teacher plays and you answer, `rh.draw` (`arrows: true`); the songbook's songs (`E.Songbook`); lanes as `input.zones` on a phone; `audio.onBeat` moves the dancer | RHYTHM |
+| Sports (Sensible Soccer, NBA Jam) | `threequarter` / `topdown` | the ball an `E.Body` (`bounce`; curl: turn its velocity across its path), passes led to the teammate, `E.arc` for a lob, a shot's meter, formations by where the ball is, `game.allowJoin({ max: 4 })` | SPORTS |
 | Third-person stealth (Assassin's Creed, Metal Gear, Tenchu) | `iso` / `threequarter` | TileMap roofs, Mover, `E.sees`, `E.Suspicion`, FlowField `jump` | STEALTH |
 | Kart racing (Super Mario Kart, F-Zero) | Mode 7 (the mode7 module, over any view) | `E.Mode7` over a TileMap track (floor tags: grass, sand, boost), `E.Car` karts (`kart: true`: hop, drift, boost) in an `E.Race` round an `E.Path` (laps, checkpoints, drivers, items), rigs in karts as billboards, `game.splitScreen(2)` for two | KART |
 | 3D kart racing (Mario Kart 64, Crash Team Racing) | the 3D engine's `'behind'` camera | `world.track` (banked, walls, pads, `gaps` for a shortcut), `world.vehicle` karts raced by `E.Race`, split screen through `world.cameras` | 3D RACING |
@@ -335,7 +336,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 </style>
 </head>
 <body>
-<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.83.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
+<div id="e3-boot" role="status" style="position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:20px;background:#05040a;color:#a9a1c8;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace"><style>@keyframes e3-run{from{transform:translateX(-100%)}to{transform:translateX(340%)}}@keyframes e3-late{to{opacity:1}}</style><span>Starting · my-3D2dge v0.84.0</span><span style="display:block;height:4px;max-width:440px;overflow:hidden;background:#ffffff14"><span style="display:block;width:30%;height:100%;background:#d9b77c;animation:e3-run 1.2s ease-in-out infinite"></span></span><span style="opacity:0;animation:e3-late .3s 12s forwards">Still starting. If this stays, the game's script did not run: reload, or open the browser's console.</span></div>
 <div id="stage">
   <canvas id="screen" role="img" aria-label="my-3D2dge game screen"></canvas>
   <button type="button" id="guideBtn" title="API card (?)">? API</button>
@@ -363,7 +364,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 <script>
 /* ---- inlined from engine/my-3d2dge.js ---- */
 /*!
- * my-3D2dge v0.83.0  (My "3D" 2D Game Engine)
+ * my-3D2dge v0.84.0  (My "3D" 2D Game Engine)
  * Procedural pixel-puppet engine for every 2D perspective.
  * https://github.com/michaelcrosato/my-3d2dge  (MIT License)
  *
@@ -444,7 +445,7 @@ const TAU = Math.PI * 2, DEG = Math.PI / 180;
 /** version: the release (package.json, written everywhere by node tools/version.mjs); build: the commit this copy was built
  *  from, a placeholder in the repo that tools/stamp.mjs replaces when the site deploys (e.g. 'a1b2c3d 2026-10-07');
  *  name: the engine's name, 'my-3D2dge'; current: the latest game made (My3D2dge.current, for tools and tests) */
-const E = { version: '0.83.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
+const E = { version: '0.84.0', build: 'dev-build', name: 'my-3D2dge', TAU, DEG, current: null };
 /** 'v0.7.0 · a1b2c3d 2026-10-07': the label to show on screens and in reports */
 E.versionLabel = () => 'v' + E.version + ' · ' + E.build;
 const _warned = new Set();
@@ -645,6 +646,20 @@ const targets = (from, list, o = {}) => {
   }
   return out.sort((p, q) => p.d - q.d);
 };
+/** the throw from a to b ({ x, y, z }) under gravity g (units a second squared, pulling z down): a lob to a teammate's
+ *  feet, a grenade, a leap to a ledge. o: { apex: how far it rises over the higher end (24), or time: the seconds it
+ *  flies, or speed: a launch speed (the lower arc that reaches; null when it can't) } -> { vx, vy, vz, t } */
+const arc = (a, b, g, o = {}) => {
+  const dx = b.x - a.x, dy = b.y - a.y, dz = (b.z || 0) - (a.z || 0), d = Math.hypot(dx, dy);
+  let t;
+  if (o.time) t = o.time;
+  else if (o.speed) {
+    const v2 = o.speed * o.speed, q = v2 * v2 - g * (g * d * d + 2 * dz * v2);
+    if (q < 0 || d < 1e-6) return null;
+    const tan = (v2 - Math.sqrt(q)) / (g * d); t = d * Math.sqrt(1 + tan * tan) / o.speed;
+  } else { const vz = Math.sqrt(2 * g * (Math.max(0, dz) + (o.apex ?? 24))); t = (vz + Math.sqrt(Math.max(0, vz * vz - 2 * g * dz))) / g; }
+  return { vx: dx / t, vy: dy / t, vz: (dz + g * t * t / 2) / t, t };
+};
 /** remove items in place: prune(bullets, b => b.dead) */
 const prune = (list, fn) => { let j = 0; for (let i = 0; i < list.length; i++) if (!fn(list[i])) list[j++] = list[i]; list.length = j; return list; };
 /** saved data that survives reloads (localStorage, JSON). Never throws. */
@@ -654,7 +669,7 @@ const store = {
   remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }   // forget key
 };
 Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng, approachAng, rng, hash2, noise2, bayer, smoothDamp, hex, toHex, shade, mix, mkCanvas, ctx2d, V3, ik3,
-  rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
+  rand, randInt, pick, chance, dist, angleTo, arc, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
 
 /* the ways in for the core's sections a kit may leave out (the kit diet: sprite turns, tweens, scripts, transitions,
    weather, input sequences, the camera's window): each puts its functions here as it loads, so a kit without it has
@@ -10698,7 +10713,7 @@ root.My3D2dge = E;
 <script>
 /* ---- inlined from engine/modules/arcade.js ---- */
 /*!
-my-3D2dge module ARCADE v0.83.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
+my-3D2dge module ARCADE v0.84.0: the coin-op's frame: scores, high-score tables and initials, lives, credits, turns, cards, the attract mode
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -10916,7 +10931,7 @@ E.Arcade = Arcade;
 <script>
 /* ---- inlined from engine/modules/click.js ---- */
 /*!
-my-3D2dge module CLICK v0.83.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
+my-3D2dge module CLICK v0.84.0: point-and-click adventures: walk areas with holes, depth, hotspots, verbs, an inventory
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -11279,7 +11294,7 @@ E.Click = Click;
 <script>
 /* ---- inlined from engine/modules/drive.js ---- */
 /*!
-my-3D2dge module DRIVE v0.83.0: cars on the ground plane, a race round a track, the drivers who race it
+my-3D2dge module DRIVE v0.84.0: cars on the ground plane, a race round a track, the drivers who race it
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -11508,7 +11523,7 @@ Object.assign(E, { Car, Race });
 <script>
 /* ---- inlined from engine/modules/fight.js ---- */
 /*!
-my-3D2dge module FIGHT v0.83.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
+my-3D2dge module FIGHT v0.84.0: one-on-one fighting: fighters with frame data, guards, throws, specials, a meter; rounds; a CPU; training
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -12062,7 +12077,7 @@ E.FightSelect = FightSelect;
 <script>
 /* ---- inlined from engine/modules/gen.js ---- */
 /*!
-my-3D2dge module GEN v0.83.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
+my-3D2dge module GEN v0.84.0: generated maps: rooms and corridors, BSP, caves, mazes and scatter, from a seed
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12248,7 +12263,7 @@ E.gen = gen;
 <script>
 /* ---- inlined from engine/modules/grid.js ---- */
 /*!
-my-3D2dge module GRID v0.83.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
+my-3D2dge module GRID v0.84.0: square and hex grids: paths, ranges, lines, fields of view, fog, groups, movers and turns
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12660,7 +12675,7 @@ E.Turns = Turns;
 <script>
 /* ---- inlined from engine/modules/mode7.js ---- */
 /*!
-my-3D2dge module MODE7 v0.83.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
+my-3D2dge module MODE7 v0.84.0: a perspective floor drawn a row at a time, a sky that turns with it, everything on it scaled by its distance
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -12868,7 +12883,7 @@ E.Mode7 = Mode7;
 <script>
 /* ---- inlined from engine/modules/physics.js ---- */
 /*!
-my-3D2dge module PHYSICS v0.83.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
+my-3D2dge module PHYSICS v0.84.0: 2D rigid bodies: circles, boxes, polygons, segments; fast balls that never pass through
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13237,7 +13252,7 @@ E.Physics = Physics;
 <script>
 /* ---- inlined from engine/modules/rhythm.js ---- */
 /*!
-my-3D2dge module RHYTHM v0.83.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
+my-3D2dge module RHYTHM v0.84.0: charts on a song's steps, judged on the music clock: combos, grades, holds, a highway
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: no other module.
 
@@ -13447,7 +13462,7 @@ E.Rhythm = Rhythm;
 <script>
 /* ---- inlined from engine/modules/road.js ---- */
 /*!
-my-3D2dge module ROAD v0.83.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
+my-3D2dge module ROAD v0.84.0: the pseudo-3D road: segments with curves and hills, lanes, rumble strips, roadside scenery, tunnels
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13610,7 +13625,7 @@ E.Road = Road;
 <script>
 /* ---- inlined from engine/modules/rooms.js ---- */
 /*!
-my-3D2dge module ROOMS v0.83.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
+my-3D2dge module ROOMS v0.84.0: a world of rooms joined at their edges, the map of what was explored, gates and saves
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -13794,7 +13809,7 @@ E.World = World;
 <script>
 /* ---- inlined from engine/modules/rpg.js ---- */
 /*!
-my-3D2dge module RPG v0.83.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
+my-3D2dge module RPG v0.84.0: items, inventories, equipment, shops, a party's stats and levels, status, damage, encounters
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14125,7 +14140,7 @@ E.RPG = RPG;
 <script>
 /* ---- inlined from engine/modules/songs.js ---- */
 /*!
-my-3D2dge module SONGS v0.83.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
+my-3D2dge module SONGS v0.84.0: the songbook: the kits' best songs and more, and jingles, tagged by mood
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14282,7 +14297,7 @@ E.Songbook = Songbook;
 <script>
 /* ---- inlined from engine/modules/story.js ---- */
 /*!
-my-3D2dge module STORY v0.83.0: dialogue as data, flags and values, a quest log and emote balloons
+my-3D2dge module STORY v0.84.0: dialogue as data, flags and values, a quest log and emote balloons
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -14493,7 +14508,7 @@ E.Story = Story;
 <script>
 /* ---- inlined from engine/modules/strategy.js ---- */
 /*!
-my-3D2dge module STRATEGY v0.83.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
+my-3D2dge module STRATEGY v0.84.0: real-time strategy and simulation: selection, orders, armies, production, resources, placement, fog, AI; a day clock, needs, overlays
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine only. Needs: grid.
 
@@ -14937,7 +14952,7 @@ E.tooltip = (r, x, y, lines) => {
 <script>
 /* ---- inlined from engine/modules/terrain.js ---- */
 /*!
-my-3D2dge module TERRAIN v0.83.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
+my-3D2dge module TERRAIN v0.84.0: destructible ground in the side plane: carved and added, walked on, drawn in chunks
 https://github.com/michaelcrosato/my-3d2dge (MIT License)
 Loads after: the full engine or the agent edition. Needs: no other module.
 
@@ -15242,7 +15257,7 @@ sprites: {
 
 </script>
 <script>
-/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 33-pinball.js, 34-artillery.js, 35-puzzle.js, 37-rhythm.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 70-stealth.js, 90-start.js) ---- */
+/* ---- inlined from src/starter (00-shell.js, 05-families.js, 10-adventure.js, 15-pointclick.js, 20-platformer.js, 25-metroidvania.js, 30-shooter.js, 32-arcade.js, 33-pinball.js, 34-artillery.js, 35-puzzle.js, 37-rhythm.js, 40-rpg.js, 45-roguelike.js, 47-tactics.js, 48-rts.js, 49-sim.js, 50-brawler.js, 55-fighting.js, 60-animlab.js, 65-kart.js, 66-road.js, 68-sports.js, 70-stealth.js, 90-start.js) ---- */
 /* ============================== GAME START ==============================
  * MY-3D2DGE STARTER: a title menu, nine vertical slices and an animation lab (a genre kit file holds one). Each slice is a complete
  * small game, written to be copied and changed:
@@ -15278,12 +15293,14 @@ sprites: {
  *                        bouncing grenades, E.Turns; wind, falls and the sea; a CPU that tries its shots in simulation
  *   SLICE 21 RHYTHM      four lanes on the music clock (Dance Dance Revolution, PaRappa): E.Rhythm's charts, judgments,
  *                        holds and calls, the songbook's songs; a dancer and a crowd on the beat; the audio offset
+ *   SLICE 22 SPORTS      two against two in a walled cage (Sensible Soccer, NBA Jam): a ball that bounces and curls,
+ *                        passes, lobs by E.arc, shots on a meter, formations, a match clock, up to four players
  * FULL SCREEN, ANY SHAPE: res: 'ps1', expand: true. 320 x 240 is the least the screen shows; a wider or taller window
  * shows more world (r.W x r.H grows), so every HUD anchors to r.W and r.H, never to 320 and 240, and every level fills
  * what a wide screen or an upright phone shows. Prompts name the player's own keys: prompt('attack', 'Sword').
  * To make your own game: copy the slice closest to your genre, then replace everything
  * between GAME START and GAME END with ONLY your game: its own title, play and game-over
- * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs, #rpg/battle, #tactics/battle).
+ * scenes. Delete this menu and the slices you do not use. Deep links: #adventure (etc.), #<slice>/<part> to jump in (#arcade/maze, #shooter/horizontal, #fighting/training, #metroidvania/boss, #kart/vs, #rpg/battle, #tactics/battle, #sports/match, #sports/vs).
  * ======================================================================== */
 (() => {
 'use strict';
@@ -15321,6 +15338,7 @@ const SLICES = [
   { id: 'artillery', label: 'ARTILLERY', about: 'TWO TEAMS OF THREE ON AN ISLAND THAT BLOWS APART', family: 'STRATEGY' },
   { id: 'sim', label: 'SIM', about: 'BUILD A THEME PARK, KEEP THEM SMILING', family: 'SIMULATION' },
   { id: 'stealth', label: 'STEALTH', about: 'ROOFTOP STEALTH AND PARKOUR', family: 'ACTION ADVENTURE' },
+  { id: 'sports', label: 'SPORTS', about: 'TWO AGAINST TWO IN THE CAGE', family: 'SPORTS' },
   { id: 'animlab', label: 'ANIMATION LAB', about: 'EVERY MOVE, SKIN AND VIEW', family: 'TOOLS' }
 ];
 /* the camera: each slice's scene says how the player may zoom it, camera: { zoom: [min, max] | false, start, tall }: the
@@ -25310,6 +25328,427 @@ const ROAD = (() => {
     }, () => [z, x, speed, gear, clock, traffic.map(c => c.z)], () => { game.input.lastDevice = 'keyboard'; }) };   // (fresh: the gas by itself follows the device, which the proof's holds turn to touch)
 })();
 scenes.road = ROAD;
+
+/* =====================================================================================
+ * SLICE 22  SPORTS  (Sensible Soccer, NBA Jam, Tecmo Bowl).
+ * Two against two in a walled cage, for up to four players: the GULLS against the RUST, two halves on the clock, a
+ * golden goal if it ends level. The ball is a Body: it rolls, bounces off the ground and the boards, and curls.
+ * KEYS: the stick runs; J passes (to the teammate the stick points at, led to where it is going), L lobs one over a
+ * defender (its arc solved by E.arc to land at the teammate's feet), K held fills the shot meter and shoots on letting go
+ * (the stick across the goal aims it; pushed sideways just after, it curls: aftertouch). Without the ball: J slides in
+ * to tackle, K switches to the teammate nearer the ball. TOUCH: the stick, PASS, SHOOT (hold), LOB.
+ * PLAYERS: MATCH is you against the CPU; VERSUS lets players 2 to 4 in (2 on the keyboard, or Start on a pad): player 2
+ * takes the RUST, 3 and 4 the second of each side. The rest are run by formation: with the ball, the other one runs
+ * ahead on the far side; without it, the nearer presses and the other covers the goal. Commentary on Dialog's radio.
+ * HOW IT WORKS: a TileMap cage (boards that cut low before the camera, nets), the ball and the players as E.Body, rigs
+ * that kick and slide (E.Attack), E.arc for the lob, game.allowJoin for players; SPORTS.run(n) is the proof,
+ * SPORTS.bot() plays a match through to its whistle and then a short one with four players.
+ * ===================================================================================== */
+const SPORTS = (() => {
+  const A = game.audio, T = 16, FW = 36, FH = 22, ND = 2, GOAL = 5, BAR = 28, HALF = 60, GOLDEN = 45, PI = Math.PI;
+  /* ---- THE CAGE: a field of FW x FH tiles inside boards (cut low where they hide it), a goal in each end with its net,
+   * a stand of three tiers behind the north boards; built from rows: # boards, N net, . the field, : the net's floor,
+   * 1 2 3 the stand's tiers (back to front), , outside ---- */
+  const STAND = 3, COLS = ND + FW + 2 + ND, ROWS = STAND + FH + 2, MID = FH / 2, goalRow = r => r > MID - GOAL / 2 && r <= MID + GOAL / 2;
+  const rows = [];
+  for (let R = 0; R < ROWS; R++) {
+    let s = ''; const r = R - STAND;   // (the cage's own row)
+    for (let c = 0; c < COLS; c++) {
+      const field = c > ND && c <= ND + FW && r > 0 && r <= FH, endCol = c === ND || c === ND + FW + 1, net = (c < ND || c > ND + FW + 1);
+      if (r < 0) s += c >= ND && c <= ND + FW + 1 ? String(R + 1) : ',';
+      else if (field) s += '.';
+      else if (endCol && r > 0 && r <= FH) s += goalRow(r) ? '.' : '#';
+      else if ((r === 0 || r === FH + 1) && c >= ND && c <= ND + FW + 1) s += '#';
+      else if (net && goalRow(r)) s += c === 0 || c === COLS - 1 ? 'N' : ':';
+      else if (net && (goalRow(r + 1) || goalRow(r - 1))) s += 'N';
+      else s += ',';
+    }
+    rows.push(s);
+  }
+  const X0 = (ND + 1) * T, X1 = (ND + 1 + FW) * T, Y0 = (STAND + 1) * T, Y1 = (STAND + FH + 1) * T, CX = (X0 + X1) / 2, CY = (Y0 + Y1) / 2, GH = GOAL * T / 2;
+  // the pitch: mown stripes with the grass's own grain, painted lines a little worn (the halfway line, the centre circle,
+  // an arc before each goal), the nets' shadow on their floor, tarmac outside
+  const line = (x, y) => {
+    const d = Math.hypot(x - CX, y - CY), ex = Math.min(Math.abs(x - X0), Math.abs(x - X1)), ey = Math.min(Math.abs(y - Y0), Math.abs(y - Y1));
+    if (ex < 1.5 || ey < 1.5 || Math.abs(x - CX) < 1 || Math.abs(d - 48) < 1) return true;
+    for (const gx of [X0, X1]) if (Math.abs(Math.hypot(x - gx, y - CY) - 72) < 1 && Math.abs(x - gx) < 72) return true;
+    return false;
+  };
+  const floorTex = (x, y, tag) => {
+    const n = E.hash2(Math.floor(x), Math.floor(y)) - .5, m = E.noise2(x * .06, y * .06) * .5;
+    if (tag === 'net') { const mesh = Math.floor(x) % 4 === 0 || Math.floor(y) % 4 === 0; return mesh ? [30, 66, 36] : [44 + n * 10, 92 + n * 14, 50 + n * 10]; }
+    if (tag === 'out') return [44 + n * 18, 42 + n * 18, 50 + n * 18];
+    if (line(x, y)) { const w = 228 + n * 24 + m * 10; return [w, w + 4, w - 8]; }
+    const k = Math.floor((x - X0) / 32) % 2 ? 1 : 0, g = (k ? 140 : 106) + n * 34 + m * 24;   // (a stripe mown each way: lighter, darker)
+    return [g * .42, g, g * .46];
+  };
+  let map = null;
+  const makeMap = () => new E.TileMap({ rows, legend: { '#': 1, N: 2, 1: 5, 2: 4, 3: 3, '.': { floor: 'grass' }, ':': { floor: 'net' }, ',': { floor: 'out' } }, floorTex, outside: '#1e1c24', ao: 4,
+    types: { 1: { h: 26, cut: true, cutH: 6, face: 'plank', side: '#3a4a6a', top: '#d8dce8', line: '#2a3450' }, 2: { h: BAR + 4, face: 'none', side: '#b8bcc8', top: '#e0e4ec' },
+      3: { h: 34, face: 'stone', side: '#5a5468', top: '#6a6478' }, 4: { h: 44, face: 'stone', side: '#4e4a5e', top: '#5e586e' }, 5: { h: 54, face: 'stone', side: '#44405a', top: '#544e66' } } });
+  // the crowd: two on each tile of the stand, in their colors, bobbing; on a goal, those of the side that scored jump
+  const CROWD = [];
+  for (let R = 0; R < STAND; R++) for (let c = ND; c <= ND + FW + 1; c++) for (const dx of [4, 12]) {
+    const h = E.hash2(c * 3 + dx, R * 7 + 1), side = h < .5 ? 0 : 1;
+    CROWD.push({ x: c * T + dx, y: R * T + 9, z: [54, 44, 34][R], side, shirt: side ? ['#c8502a', '#e07040', '#a83a1a'][(h * 30 | 0) % 3] : ['#eef0f6', '#2a5ab8', '#8ab0f0'][(h * 30 | 0) % 3], skin: ['#e0b090', '#a87050', '#6a4028', '#f0c8a8'][(h * 50 | 0) % 4], ph: h * 9 });
+  }
+  /* ---- THE TEAMS: their colors, names and players; the ball ---- */
+  const TEAMS = [
+    { name: 'GULLS', colors: { cloth: '#eef0f6', pants: '#2a5ab8', boot: '#1e2030', belt: '#2a5ab8', trim: '#2a5ab8' }, chip: '#eef0f6', players: [['NOOR', '#3a2418', '#c89070'], ['BEX', '#e8c070', '#f0c8a8']] },
+    { name: 'RUST', colors: { cloth: '#c8502a', pants: '#2a2a30', boot: '#1a1a1e', belt: '#1a1a1e', trim: '#e8c070' }, chip: '#c8502a', players: [['DRAGO', '#1e1c1a', '#a87050'], ['KIT', '#6a3a22', '#e0b090']] }];
+  const SPEED = 92, AI_SPEED = 86, KICK_CD = .3;
+  const BALL = E.sprite(['.www.', 'wwkww', 'wkkkw', 'wwkww', '.www.'], { w: '#f4f4f0', k: '#2a2a30' });
+  const BALL2 = E.sprite(['.www.', 'wkwkw', 'wwwww', 'wkwkw', '.www.'], { w: '#f4f4f0', k: '#2a2a30' });
+  const SOUNDS = {
+    kick: { wave: 'noise', freq: 900, to: 200, dur: .07, vol: .3, filter: 'lowpass' }, thump: { wave: 'sine', freq: 120, to: 70, dur: .08, vol: .3 },
+    whistle: { wave: 'square', freq: 2200, vib: [30, .05], dur: .32, vol: .14 }, post: { wave: 'triangle', freq: 1400, to: 1100, dur: .3, vol: .25 },
+    crowd: { wave: 'noise', freq: 600, to: 900, dur: 1.4, vol: .18, filter: 'lowpass' }, slide: { wave: 'noise', freq: 400, to: 200, dur: .25, vol: .18 }
+  };
+  for (const [k, v] of Object.entries(SOUNDS)) A.define(k, v);
+  const SONG = { bpm: 140, steps: 4, tracks: [   // the cage: a bright chant over a bouncing bass
+    { wave: 'square', vol: .07, notes: 'E5 . E5 G5 . E5 D5 . | C5 . C5 E5 . C5 B4 . | A4 . C5 . E5 . A5 . | G5 - - . . . . .' },
+    { wave: 'triangle', vol: .3, notes: 'C3 . G2 . C3 . G2 . | A2 . E2 . A2 . E2 . | F2 . C3 . F2 . C3 . | G2 . D3 . G2 . B2 .' },
+    { wave: 'drums', vol: .1, notes: 'k . h . s . h k | k . h . s h h .' }] };
+
+  /* ---- THE STATE ---- */
+  let mode = 'menu', vs = false, team = [], all = [], ball = null, owner = null, last = null, clock = 0, half = 1, score = [0, 0], kickT = 0, t = 0, scripted = false;
+  let stats = null, curlT = 0, golden = false, restartBy = 0, over = false, kickHold = 0;   // kickHold: the kickoff's rule (the other side out of the circle) until the ball is played
+  const menu = new E.Menu(game, ['MATCH', 'VERSUS (2-4 PLAYERS)', 'BACK'], { onPick: i => i === 2 ? game.go('title') : i === 1 ? versus() : start(false) });
+  const after = new E.Menu(game, ['REMATCH', 'MENU'], { y: 150, onPick: i => i === 0 ? start(vs) : toMenu() });
+  const talk = new E.Dialog(game, { lines: 2, place: 'bottom', border: '#e8c070' });   // (at the bottom: clear of the score and of the touch buttons)
+  const VOICE = new E.Humanoid({ weapon: null, hat: 'band', colors: { cloth: '#3a3a4a', hair: '#5a3a2a', skin: '#e0b090', hat: '#2a2a30' } });
+  const say = text => { if (!scripted) talk.say(text, { name: 'CAGE RADIO', auto: 2.2, modal: false, alpha: .8, portrait: VOICE, portraitOpts: { zoom: 3, turn: .4 } }); };
+
+  function toMenu() { mode = 'menu'; game.splitScreen(0); game.allowJoin(false); A.music('title'); menu.i = 0; }
+  function versus() { vs = true; mode = 'join'; game.allowJoin({ max: 4 }); A.sfx('select'); }
+  /** a match: the four on the pitch, the ball at the centre, the clock at 0; players: who holds which (the inputs) */
+  function start(versus) {
+    vs = versus; map = map || makeMap(); score = [0, 0]; clock = 0; half = 1; golden = false; over = false; owner = null; last = null;
+    stats = { passes: 0, done: 0, shots: 0, lobs: 0, tackles: 0, goals: [], walls: 0, curled: 0 };
+    all = []; team = [[], []];
+    TEAMS.forEach((tm, s) => tm.players.forEach(([name, hair, skin], k) => {
+      const b = new E.Body({ x: CX, y: CY, r: 5, friction: 0, gravity: 700 });
+      const p = { side: s, k, name, body: b, rig: new E.Humanoid({ weapon: null, build: 'heroic', size: 1.05, hair: k ? 'spiky' : 'short', colors: Object.assign({ hair, skin }, tm.colors), speedRef: 80 }),
+        input: null, facing: s ? PI : 0, kick: null, slide: 0, stun: 0, cool: 0, meter: 0, charging: false, cheer: 0 };
+      team[s].push(p); all.push(p);
+    }));
+    // who holds whom: player 1 the GULLS' first (and, alone, whichever GULL is nearer the ball); in versus 2 the RUST, 3 and 4
+    // the second of each side
+    const P = game.players;
+    team[0][0].input = P[0];
+    if (vs) { if (P[1]) team[1][0].input = P[1]; if (P[2]) team[0][1].input = P[2]; if (P[3]) team[1][1].input = P[3]; }
+    ball = new E.Body({ x: CX, y: CY, r: 3, friction: 0, bounce: .55, gravity: 600 }); ball.spin = 0; ball.roll = 0;
+    kickoff(0); game.allowJoin(false); A.music(SONG); game.input.consumeAll();
+    game.follow(ball, { z: 8, lead: 10 }); game.cam.smooth = .18; game.cam.bounds = v => map.bounds(v);
+    say('THE GULLS AGAINST THE RUST IN THE CAGE. HERE WE GO!');
+  }
+  /** the formation's spots: kicking off (s kicks), or in play (a team's two by where the ball is and who has it) */
+  const goalX = s => s ? X0 : X1;   // where side s shoots (the GULLS attack the right end)
+  function kickoff(s) {
+    owner = null; ball.x = CX; ball.y = CY; ball.z = 0; ball.onGround = true; ball.vx = ball.vy = ball.vz = 0; ball.spin = 0;
+    for (const p of all) {
+      const dir = p.side ? 1 : -1, b = p.body;
+      b.x = p.side === s && p.k === 0 ? CX + dir * 8 : CX + dir * (p.k ? 150 : 60); b.y = p.side === s && p.k === 0 ? CY : CY + (p.k ? 40 : -40) * (p.side ? -1 : 1);
+      b.vx = b.vy = 0; b.z = 0; p.facing = p.side ? PI : 0; p.kick = null; p.slide = 0; p.stun = 0; p.meter = 0; p.charging = false;
+    }
+    mode = 'kickoff'; kickT = 1; restartBy = s;
+  }
+  /** a player's spot in the formation now: with the ball (or near it), go for it; else, attacking, ahead on the far
+   *  side; defending, between the ball and its own goal */
+  function spot(p) {
+    const s = p.side, mate = team[s][1 - p.k], dir = s ? -1 : 1, has = owner && owner.side === s;
+    if (has) return [clamp(ball.x + dir * 90, X0 + 30, X1 - 30), CY + (ball.y < CY ? 60 : -60)];
+    const own = goalX(1 - s), near = Math.hypot(p.body.x - ball.x, p.body.y - ball.y) <= Math.hypot(mate.body.x - ball.x, mate.body.y - ball.y);
+    if (near) return [ball.x, ball.y];
+    return [lerp(ball.x, own, .55), lerp(ball.y, CY, .5)];
+  }
+
+  /* ---- THE BALL: owned (at its owner's feet), or loose: a Body that rolls, bounces off the ground and the boards and
+   * curls by its spin; a goal, over the bar, out of the cage ---- */
+  function ballStep(dt) {
+    if (owner) {
+      const b = owner.body, f = owner.facing; ball.x = b.x + Math.cos(f) * 7; ball.y = b.y + Math.sin(f) * 7; ball.z = 0; ball.onGround = true;
+      ball.vx = b.vx; ball.vy = b.vy; ball.vz = 0; ball.roll += Math.hypot(b.vx, b.vy) * dt; return;
+    }
+    const vx0 = ball.vx, vy0 = ball.vy, sp = Math.hypot(ball.vx, ball.vy);
+    if (ball.spin && sp > 20) { const k = ball.spin * dt; ball.vx += -vy0 / sp * k * sp; ball.vy += vx0 / sp * k * sp; ball.spin *= Math.exp(-dt * 1.4); }   // curl: across its path
+    if (ball.z <= .5) { const f = Math.exp(-dt * 1.1); ball.vx *= f; ball.vy *= f; }   // rolling slows it
+    ball.update(dt, map);   // (the Body bounces off the boards and the ground by its bounce)
+    if (ball.hitWall) { ball.spin = 0; stats.walls++; if (Math.hypot(vx0, vy0) > 60) A.sfx('thump'); }
+    if (ball.bounced) A.sfx('thump');
+    ball.roll += Math.hypot(ball.vx, ball.vy) * dt;
+    // a goal: over the line between the posts and under the bar; over it, a goal kick; out of the cage, thrown back in
+    for (const s of [0, 1]) {
+      const gx = goalX(s), past = s ? ball.x < gx - 2 : ball.x > gx + 2;
+      if (past && Math.abs(ball.y - CY) < GH && ball.z < BAR) return goal(s);
+      if (past && (ball.z >= BAR || Math.abs(ball.y - CY) >= GH)) return restart(1 - s, s ? X0 + 24 : X1 - 24, CY, 'OVER THE BAR. A GOAL KICK');
+    }
+    if (ball.x < X0 - 40 || ball.x > X1 + 40 || ball.y < Y0 - 4 || ball.y > Y1 + 4) restart(last ? 1 - last.side : 0, clamp(ball.x, X0 + 12, X1 - 12), clamp(ball.y, Y0 + 12, Y1 - 12), 'OUT OF THE CAGE! THROWN BACK IN');
+  }
+  /** play goes on from (x, y) with the ball at the feet of side s's nearer player */
+  function restart(s, x, y, line) {
+    const p = team[s].slice().sort((a, b) => Math.hypot(a.body.x - x, a.body.y - y) - Math.hypot(b.body.x - x, b.body.y - y))[0];
+    p.body.x = x - (s ? -8 : 8); p.body.y = y; p.facing = s ? PI : 0; owner = p; ball.spin = 0; A.sfx('whistle'); if (line) say(line);
+  }
+  function goal(s) {
+    score[s]++; stats.goals.push([s, last ? last.name : '?', Math.round(clock)]); owner = null; mode = 'goal'; kickT = 2.4; restartBy = 1 - s;
+    for (const p of team[s]) p.cheer = 2.4; game.shake(3); A.sfx('crowd'); A.sfx('whistle');
+    P.sparks(ball.x, ball.y, 16, 16, null, { color: '#ffe08a' }); P.ring(ball.x, ball.y, 4, 34, '#fff6c0', .5);
+    say(golden ? 'GOLDEN GOAL! ' + (last ? last.name : '') + ' WINS IT FOR THE ' + TEAMS[s].name + '!' : 'GOAL! ' + (last ? last.name + ' SCORES FOR THE ' : 'THE ') + TEAMS[s].name + '! ' + score[0] + ' - ' + score[1]);
+    if (golden) { over = true; }
+  }
+
+  /* ---- KICKS: a pass along the ground led to the teammate, a lob over by E.arc, a shot from the meter with aftertouch ---- */
+  /** the teammate a pass goes to: the one the stick points at (within 70 degrees), else the other */
+  const mateOf = p => team[p.side][1 - p.k];
+  function pass(p) {
+    const m = mateOf(p), b = p.body, d = Math.hypot(m.body.x - b.x, m.body.y - b.y), sp = clamp(d * 1.5 + 90, 150, 270), lead = d / sp;
+    const tx = m.body.x + m.body.vx * lead * .8, ty = m.body.y + m.body.vy * lead * .8, a = Math.atan2(ty - b.y, tx - b.x);
+    release(p, Math.cos(a) * sp, Math.sin(a) * sp, 0); stats.passes++; ball.to = m;
+  }
+  function lob(p) {
+    const m = mateOf(p), lead = .55, tx = m.body.x + m.body.vx * lead, ty = m.body.y + m.body.vy * lead;
+    const v = E.arc({ x: ball.x, y: ball.y, z: 0 }, { x: tx, y: ty, z: 0 }, ball.gravity, { apex: 30 });
+    release(p, v.vx, v.vy, v.vz); stats.lobs++; stats.passes++; ball.to = m;
+  }
+  /** a shot: power from the meter (0..1), aimed across the goal mouth by the stick's up and down */
+  function shoot(p, power, aimY) {
+    const gx = goalX(p.side), gy = CY + clamp(aimY, -1, 1) * (GH - 6), b = p.body, a = Math.atan2(gy - b.y, gx - b.x), sp = 170 + power * 230;
+    release(p, Math.cos(a) * sp, Math.sin(a) * sp, 30 + power * 95); stats.shots++; curlT = .4; ball.to = null; A.sfx('kick');
+  }
+  function release(p, vx, vy, vz) {
+    owner = null; last = p; kickHold = 0; ball.vx = vx; ball.vy = vy; ball.vz = vz; ball.onGround = vz <= 0; ball.spin = 0; p.cool = KICK_CD; p.kick = new E.Attack('kick'); p.kick.start(); A.sfx('kick');
+  }
+  /** a slide tackle: a dash along its facing; whoever it meets with the ball loses it */
+  function tackle(p) { p.slide = .35; p.kick = new E.Attack('sweep'); p.kick.start(); stats.tackles++; A.sfx('slide'); const b = p.body; b.vx = Math.cos(p.facing) * 170; b.vy = Math.sin(p.facing) * 170; }
+
+  /* ---- A PLAYER'S STEP: from its input (a human's) or its brain (the formation's), then its body and its rig ---- */
+  function playerStep(p, dt) {
+    const b = p.body; p.cool = Math.max(0, p.cool - dt); p.stun = Math.max(0, p.stun - dt); p.cheer = Math.max(0, p.cheer - dt);
+    let mx = 0, my = 0;
+    if (p.slide > 0) { p.slide -= dt; const f = Math.exp(-dt * 3); b.vx *= f; b.vy *= f; }
+    else if (p.stun > 0 || mode !== 'play') { b.vx = approach(b.vx, 0, 600 * dt); b.vy = approach(b.vy, 0, 600 * dt); }
+    else {
+      const c = p.input ? human(p, dt) : brain(p, dt); mx = c.move[0]; my = c.move[1];
+      const sp = p.input ? SPEED : AI_SPEED, m = Math.hypot(mx, my);
+      b.vx = approach(b.vx, mx * sp, 900 * dt); b.vy = approach(b.vy, my * sp, 900 * dt);
+      if (m > .2) p.facing = E.approachAng(p.facing, Math.atan2(my, mx), dt * (owner === p ? 9 : 14));
+      act(p, c, dt);
+    }
+    b.update(dt, map);
+    // the loose ball: whoever reaches it first takes it (not just after kicking it, nor a ball high in the air, and a fast one only
+    // right at its feet)
+    if (!owner && mode === 'play' && p.cool <= 0 && p.stun <= 0 && ball.z < 9 && Math.hypot(ball.x - b.x, ball.y - b.y) < (Math.hypot(ball.vx, ball.vy) > 210 ? 4.5 : 9)) {   // (a hard shot is hard to trap)
+      owner = p; ball.spin = 0; if (ball.to === p && last && last.side === p.side) stats.done++; ball.to = null;
+      if (p.slide > 0) p.slide = 0;
+    }
+    // a slide that meets the ball's holder knocks it loose
+    if (p.slide > 0 && owner && owner.side !== p.side && Math.hypot(owner.body.x - b.x, owner.body.y - b.y) < 12) {
+      const o = owner; owner = null; o.stun = .5; last = p; ball.vx = Math.cos(p.facing) * 120; ball.vy = Math.sin(p.facing) * 120; ball.vz = 40; ball.onGround = false; p.cool = .2; A.sfx('thump');
+    }
+    if (p.kick) { p.kick.update(dt); if (!p.kick.busy) p.kick = null; }
+    p.rig.update(dt, { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, facing: p.facing, attack: p.kick && p.kick.state, hurt: p.stun > 0, pose: p.cheer > 0 ? 'cheer' : null, expr: p.cheer > 0 ? 'shout' : null });
+  }
+  /** what a human's input asks: the stick; pass, lob, the shot's meter (held), a tackle or a switch */
+  function human(p, dt) {
+    const I = p.input, mv = I.move(), c = { move: mv, pass: I.pressed('pass'), lob: I.pressed('lob'), shootHeld: I.down('shoot'), shootUp: I.released('shoot'), aim: mv[1] * (p.side ? -1 : 1) };
+    if (c.pass) I.consume('pass'); if (c.lob) I.consume('lob');
+    // aftertouch: just after a shot, the stick across its path curls the ball
+    if (curlT > 0 && last === p && !owner) { const sp = Math.hypot(ball.vx, ball.vy) || 1, across = (mv[0] * -ball.vy + mv[1] * ball.vx) / sp; if (Math.abs(across) > .3) { ball.spin = clamp(ball.spin + across * 3.2 * dt, -1.6, 1.6); stats.curled++; } }
+    return c;
+  }
+  /** the CPU's footballer: to its spot in the formation; with the ball, run at goal, pass when pressed, shoot in range */
+  function brain(p, dt) {
+    const b = p.body, c = { move: [0, 0], pass: false, lob: false, shootHeld: false, shootUp: false, aim: 0 }, s = p.side;
+    if (owner === p) {
+      const gx = goalX(s), dg = Math.hypot(gx - b.x, CY - b.y), foe = team[1 - s].find(o => Math.hypot(o.body.x - b.x, o.body.y - b.y) < 30 && Math.abs(E.angDiff(Math.atan2(o.body.y - b.y, o.body.x - b.x), p.facing)) < 1.2);
+      const a = Math.atan2(CY - b.y, gx - b.x); c.move = [Math.cos(a), Math.sin(a)];
+      const shot = (meter, aim) => { c.shootHeld = p.meter < meter; c.shootUp = !c.shootHeld; c.aim = b.y < CY ? aim : -aim; };   // (held until the meter is where it wants it)
+      if (dg < 95 && p.cool <= 0) shot(.4, .45);   // close in: shoot, pressed or not
+      else if (foe) { const m = mateOf(p), lane = team[1 - s].some(o => segDist(o.body, b, m.body) < 14); if (p.cool <= 0) { if (lane) c.lob = true; else c.pass = true; } else c.move = [Math.cos(a + 1.1), Math.sin(a + 1.1)]; }
+      else if (dg < 160 && p.cool <= 0) shot(.55 + p.k * .2, .55);
+      return c;
+    }
+    let [tx, ty] = spot(p);
+    if (kickHold > 0 && s !== restartBy) { const cd = Math.hypot(tx - CX, ty - CY) || 1; if (cd < 56) { tx = CX + (tx - CX) / cd * 56; ty = CY + (ty - CY) / cd * 56; } }   // (the kickoff: out of the circle)
+    const dx = tx - b.x, dy = ty - b.y, d = Math.hypot(dx, dy);
+    if (d > 6) c.move = [dx / d, dy / d];
+    // pressing the holder: slide in when close and in front of it
+    if (owner && owner.side !== s && d < 18 && p.cool <= 0 && Math.hypot(owner.body.x - b.x, owner.body.y - b.y) < 16) c.pass = true;
+    return c;
+  }
+  const segDist = (o, a, b) => { const vx = b.x - a.x, vy = b.y - a.y, l = vx * vx + vy * vy || 1, u = clamp(((o.x - a.x) * vx + (o.y - a.y) * vy) / l, 0, 1); return Math.hypot(a.x + vx * u - o.x, a.y + vy * u - o.y); };
+  /** the buttons: with the ball, pass, lob or the shot's meter; without it, a tackle (pass) or a switch (shoot) */
+  function act(p, c, dt) {
+    if (owner === p) {
+      if (c.pass && p.cool <= 0) return pass(p);
+      if (c.lob && p.cool <= 0) return lob(p);
+      if (c.shootHeld) { p.charging = true; p.meter = Math.min(1, p.meter + dt * 1.25); }
+      else if (p.charging && (c.shootUp || !c.shootHeld)) { p.charging = false; shoot(p, p.meter, c.aim); p.meter = 0; }
+      return;
+    }
+    p.charging = false; p.meter = 0;
+    if (c.pass && p.cool <= 0 && p.slide <= 0 && !(kickHold > 0 && p.side !== restartBy)) tackle(p);
+    else if (c.shootUp && p.input && !vs) swap(p);
+  }
+  /** player 1 alone holds whichever GULL is nearer the ball when the other side has it (or K switches) */
+  function swap(p) { const m = mateOf(p); if (m.input) return; m.input = p.input; p.input = null; }
+  function autoSwitch() {
+    if (vs) return;
+    const s = 0, cur = team[s].find(p => p.input), m = cur && mateOf(cur);
+    if (!cur || !m || m.input) return;
+    if (owner === m || (ball.to === m) || ((!owner || owner.side !== s) && Math.hypot(m.body.x - ball.x, m.body.y - ball.y) + 24 < Math.hypot(cur.body.x - ball.x, cur.body.y - ball.y))) swap(cur);
+  }
+
+  /* ---- A STEP OF THE MATCH: the clock, the halves, golden goal, the whistle ---- */
+  function update(dt) {
+    t += dt;
+    if (mode === 'menu') { if (!menu.update(dt)) pickOnStart(menu); return; }
+    if (mode === 'join') {
+      if (game.input.pressed('start') || game.input.pressed('confirm')) { game.input.consumeAll(); start(true); }
+      else if (game.input.pressed('cancel')) toMenu();
+      return;
+    }
+    if (mode === 'full') { after.update(dt); for (const p of all) playerStep(p, dt); return; }
+    talk.update(dt);
+    if (mode === 'kickoff' || mode === 'goal' || mode === 'half') {
+      for (const p of all) playerStep(p, dt);
+      if ((kickT -= dt) <= 0) {
+        if (mode === 'goal' && over) return fullTime();
+        if (mode === 'goal' || mode === 'half') kickoff(restartBy);
+        else { mode = 'play'; owner = team[restartBy][0]; kickHold = 2.5; A.sfx('whistle'); }
+      }
+      return;
+    }
+    clock += dt; kickHold = Math.max(0, kickHold - dt);
+    for (const p of all) playerStep(p, dt);
+    ballStep(dt); curlT = Math.max(0, curlT - dt); autoSwitch();
+    if (!golden && half === 1 && clock >= HALF) { half = 2; mode = 'half'; kickT = 2.4; restartBy = 1; owner = null; A.sfx('whistle'); say('HALF TIME: GULLS ' + score[0] + ', RUST ' + score[1] + '.'); }
+    else if (!golden && clock >= HALF * 2) {
+      if (score[0] === score[1]) { golden = true; clock = HALF * 2; A.sfx('whistle'); say('LEVEL AT FULL TIME: GOLDEN GOAL! THE NEXT ONE WINS IT.'); kickoff(0); }
+      else fullTime();
+    } else if (golden && clock >= HALF * 2 + GOLDEN) fullTime();
+  }
+  function fullTime() {
+    mode = 'full'; over = true; owner = null; A.sfx('whistle'); after.i = 0;
+    const w = score[0] > score[1] ? 0 : score[1] > score[0] ? 1 : -1; for (const p of all) p.cheer = p.side === w ? 99 : 0;
+    say(w < 0 ? 'FULL TIME: A DRAW IN THE CAGE.' : 'FULL TIME! THE ' + TEAMS[w].name + ' WIN IT, ' + Math.max(...score) + ' - ' + Math.min(...score) + '.');
+    if (!scripted) A.music(w === 0 || vs ? 'victory' : null);
+  }
+
+  /* ---- DRAWING: the cage, the posts, the players, the ball and its shadow; the score, the clock, the meter, the radar ---- */
+  function draw(r) {
+    if (mode === 'menu' || mode === 'join') return drawMenu(r);
+    const view = E.charView(r.view);
+    map.drawFloor(r); map.queueWalls(r);
+    for (const f of CROWD) {   // (cheering on the scoring side's goal, else a sway)
+      const up = mode === 'goal' && stats.goals.length && stats.goals[stats.goals.length - 1][0] === f.side ? Math.abs(Math.sin(t * 9 + f.ph)) * 5 : Math.sin(t * 2 + f.ph) * .6;
+      r.queue(f.x, f.y, f.z + up, g => { const [x, y] = r.w(f.x, f.y, f.z + up), X = Math.round(x), Y = Math.round(y); px.rect(g, X - 2, Y - 5, 4, 5, f.shirt); px.rect(g, X - 1, Y - 8, 3, 3, f.skin); });
+    }
+    for (const gx of [X0, X1]) for (const py of [CY - GH, CY + GH]) r.queue(gx, py, 0, g => { const [x, y] = r.w(gx, py, 0), [, y1] = r.w(gx, py, BAR); px.rect(g, Math.round(x) - 1, Math.round(y1), 2, Math.round(y - y1), '#f4f4f0'); });
+    for (const gx of [X0, X1]) r.queue(gx, CY + GH, BAR, g => { const [x0, y0] = r.w(gx, CY - GH, BAR), [x1, y1] = r.w(gx, CY + GH, BAR); px.line(g, Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1), '#f4f4f0', 2); }, { bias: 1 });
+    for (const p of all) {
+      const b = p.body; r.shadow(b.x, b.y, 6, .35);
+      r.actor(b.x, b.y, b.z, (g, ox, oy) => p.rig.draw(g, ox, oy, view));
+      if (p.input) r.queue(b.x, b.y, 40, g => { const [x, y] = r.w(b.x, b.y, 40), c = E.PLAYER_COLORS[p.input.player || 0] || '#ffe08a'; px.poly(g, [[x - 3, y - 4], [x + 3, y - 4], [x, y]], c); }, { emissive: true });
+      if (p.charging) r.queue(b.x, b.y, 44, g => { const [x, y] = r.w(b.x, b.y, 44); E.ui.bar(g, Math.round(x) - 10, Math.round(y) - 6, 20, 4, p.meter, p.meter > .8 ? '#ff6a3a' : '#ffd36a'); });
+    }
+    r.shadow(ball.x, ball.y, 3 - Math.min(1.5, ball.z * .05), .4);
+    r.sprite(ball.x, ball.y, ball.z + 2.5, Math.floor(ball.roll / 8) % 2 ? BALL2 : BALL, { anchor: 'center' });
+    r.overlay(g => hud(g, r));
+    talk.draw(r);
+    if (mode === 'full') { r.overlay(g => results(g, r)); after.draw(r); }
+  }
+  const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  function hud(g, r) {
+    // the score bug: the sides' chips and scores, the clock (counting down each half; golden goal says so)
+    const left = golden ? 'GOLDEN GOAL' : (half === 1 ? '1ST ' : '2ND ') + mmss(Math.max(0, HALF * half - clock));
+    E.ui.box(g, 4, 4, 132, 16, { bg: '#141826', border: '#6a7090', alpha: .85 });
+    px.rect(g, 8, 9, 6, 6, TEAMS[0].chip); px.rect(g, 70, 9, 6, 6, TEAMS[1].chip);
+    E.font.text(g, TEAMS[0].name + ' ' + score[0], 17, 8, '#f0ecdc', { font: 'tiny', outline: false });
+    E.font.text(g, score[1] + ' ' + TEAMS[1].name, 79, 8, '#f0ecdc', { font: 'tiny', outline: false });
+    E.font.text(g, left, 4, 24, golden ? '#ffd36a' : '#c8d0e8', { font: 'tiny', outline: '#000' });
+    // the radar: the cage small, the players as their colors, the ball white
+    const s = 2.4 / T, w = Math.round((X1 - X0) * s), h = Math.round((Y1 - Y0) * s), x0 = r.W - w - 6, ca = game.cornerArea(), y0 = ca && ca.x0 < x0 + w ? Math.ceil(ca.y1) + 4 : 26;   // (top right, under the corner's buttons or a kit's API button: the radio and the touch buttons have the bottom)
+    E.ui.box(g, x0 - 2, y0 - 2, w + 4, h + 4, { bg: '#183a1e', border: '#6a9070', alpha: .75 });
+    for (const p of all) px.rect(g, Math.round(x0 + (p.body.x - X0) * s) - 1, Math.round(y0 + (p.body.y - Y0) * s) - 1, 2, 2, TEAMS[p.side].chip);
+    px.rect(g, Math.round(x0 + (ball.x - X0) * s), Math.round(y0 + (ball.y - Y0) * s), 1, 1, '#ffffff');
+    if (mode === 'kickoff') E.font.text(g, 'KICK OFF', r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
+    if (mode === 'goal') E.font.title(g, 'GOAL!', r.W / 2, r.H * .28, { align: 'center', scale: 4, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
+    if (mode === 'half') E.font.text(g, 'HALF TIME', r.W / 2, r.H * .3, '#ffe7a8', { align: 'center', scale: 2, shadow: '#000', outline: false });
+  }
+  function results(g, r) {
+    const w = score[0] > score[1] ? 0 : score[1] > score[0] ? 1 : -1;
+    E.ui.box(g, r.W / 2 - 110, 52, 220, 128, { bg: '#141826', border: '#e8c070', alpha: .92 });
+    E.font.title(g, w < 0 ? 'A DRAW' : TEAMS[w].name + ' WIN', r.W / 2, 60, { align: 'center', scale: 2, colors: ['#fffbe8', '#ffe08a', '#ffb347'] });
+    E.font.text(g, 'GULLS ' + score[0] + ' - ' + score[1] + ' RUST', r.W / 2, 86, '#f0ecdc', { align: 'center', outline: false });
+    stats.goals.slice(-5).forEach(([s, name, at], i) => E.font.text(g, mmss(at) + '  ' + name + ' (' + TEAMS[s].name + ')', r.W / 2, 100 + i * 9, '#c8d0e8', { align: 'center', font: 'tiny', outline: false }));
+  }
+  function drawMenu(r) {
+    r.sky(['#0e1630', '#1e3050', '#2e5a3a']);
+    r.overlay(g => {
+      E.font.title(g, 'CAGE CUP', r.W / 2, 34, { align: 'center', scale: 3, colors: ['#fffbe8', '#ffe08a', '#ffb347', '#e0662a'], depth: 2 });
+      E.font.text(g, 'TWO AGAINST TWO, UP TO FOUR PLAYERS', r.W / 2, 70, '#c8d0e8', { align: 'center', outline: false });
+      if (mode === 'join') {
+        const P = game.players;
+        E.font.text(g, 'VERSUS: PRESS 2 ON THE KEYBOARD, OR START ON A PAD, TO JOIN', r.W / 2, 96, '#ffe7a8', { align: 'center', font: 'tiny', outline: false });
+        ['P1 GULLS', 'P2 RUST', 'P3 GULLS', 'P4 RUST'].forEach((s, i) => E.font.text(g, s + (P[i] ? '  READY' : '  ...'), r.W / 2 - 40, 112 + i * 12, P[i] ? E.PLAYER_COLORS[i] : '#6a7090', { outline: false }));
+        E.font.text(g, prompt('confirm', 'PLAY') + '   ' + prompt('cancel', 'BACK'), r.W / 2, 172, '#c8d0e8', { align: 'center', font: 'tiny', outline: false });
+      }
+    });
+    if (mode === 'menu') menu.draw(r);
+  }
+
+  /* ---- THE CONTROLS: the default preset's stick with three buttons of its own ---- */
+  const KEYS = Object.assign({}, E.Input.DEFAULT, { pass: ['KeyJ', 'KeyX', 'Pad0'], shoot: ['KeyK', 'KeyZ', 'Pad2'], lob: ['KeyL', 'KeyC', 'Pad3'] });
+  for (const k of ['attack', 'dash', 'skill', 'jump']) delete KEYS[k];
+
+  /** the proof: a match from the kickoff, player 1 running at goal, passing, lobbing, shooting; a hash of the match */
+  const run = (n = 600) => proof('sports', n, (i, k) => {
+    if (i === 1) start(false);
+    if (i === 140) k.hold('right'); if (i === 200) k.tap('pass'); if (i === 300) k.tap('lob');
+    if (i === 380) k.hold('shoot'); if (i === 440) k.up('shoot'); if (i === 520) k.up('right');
+  }, () => [Math.round(ball.x), Math.round(ball.y), Math.round(ball.z), score, all.map(p => [Math.round(p.body.x), Math.round(p.body.y)]), stats.passes, stats.shots, owner ? owner.name : null]);
+  /** the bot: player 1 plays a match by the game's own rules (the stick and the buttons, as a player gives them, from the
+   *  CPU's own judgment for its player) to the final whistle; then four players, each holding one footballer, for a
+   *  stretch. Returns { full, score, goals, passes, done, lobs, shots, curled, tackles, four, seconds, errors } */
+  function bot(s = 1) {
+    const was = Math.random; Math.random = E.rng(s); const I = game.input, held = new Set(), hold = (a, on) => { if (on && !held.has(a)) { held.add(a); I.hold(a); } else if (!on && held.has(a)) { held.delete(a); I.hold(a, false); } };
+    scripted = true;
+    try {
+      game.go('sports', null, { fade: 0 }); game.advance(1 / 120); start(false);
+      let n = 0;
+      for (; n < 120 * 400 && mode !== 'full'; n++) {
+        const me = team[0].find(p => p.input);
+        if (me && mode === 'play') {
+          const c = brain(me, 1 / 120), mv = curlT > 0 && last === me && !owner ? [0, 0] : c.move;   // what the CPU would do in its place, given as the stick and buttons (still while its shot flies: no curl)
+          hold('right', mv[0] > .35); hold('left', mv[0] < -.35); hold('down', mv[1] > .35); hold('up', mv[1] < -.35);
+          if (c.pass) I.tap('pass'); if (c.lob) I.tap('lob'); hold('shoot', c.shootHeld);
+        } else for (const a of ['right', 'left', 'up', 'down', 'shoot']) hold(a, false);
+        game.advance(1 / 120);
+      }
+      for (const a of [...held]) hold(a, false);
+      const r = { full: mode === 'full', score: score.slice(), goals: stats.goals.length, passes: stats.passes, done: stats.done, lobs: stats.lobs, shots: stats.shots, curled: stats.curled, tackles: stats.tackles, walls: stats.walls, seconds: Math.round(n / 120) };
+      // four players: three more join, each footballer held by an input; a stretch of play, each pushing its stick
+      while (game.players.length < 4) game.addPlayer(game.players.length === 1 ? { keys: 'right' } : { pad: game.players.length - 1 });
+      start(true); const moved = all.map(p => [p.body.x, p.body.y]);
+      for (let k = 0; k < 240; k++) { for (const p of all) if (p.input && p.input !== I) p.input.hold(p.side ? 'left' : 'right', k > 140); game.advance(1 / 120); }
+      r.four = { held: all.filter(p => p.input).length, moved: all.filter((p, i) => Math.hypot(p.body.x - moved[i][0], p.body.y - moved[i][1]) > 4).length };
+      for (const p of all) if (p.input && p.input !== I) p.input.hold(p.side ? 'left' : 'right', false);
+      while (game.players.length > 1) game.removePlayer(game.players[game.players.length - 1]);
+      r.errors = game.errors.length; toMenu(); return r;
+    } finally { for (const a of [...held]) hold(a, false); Math.random = was; scripted = false; }
+  }
+
+  return { view: 'threequarter', views: ['threequarter', 'topdown'], input: KEYS, res: 'ps1', pausable: true, touch: ['lob', 'shoot', 'pass'], camera: { zoom: [.7, 1.6] },
+    enter(d) { game.cam.bounds = null; t = 0; if (d && d.part === 'match') start(false); else if (d && d.part === 'vs') versus(); else toMenu(); },
+    back() { if (mode === 'menu') { game.go('title'); return true; } if (mode === 'join' || mode === 'full') { toMenu(); return true; } return false; },
+    update, draw, bot, run,
+    state: () => { const you = all.find(p => p.input === game.input);   // (for tests)
+      return { mode, clock: +clock.toFixed(2), score: score.slice(), half, golden, owner: owner && owner.name, ball: ball && [Math.round(ball.x), Math.round(ball.y), Math.round(ball.z)],
+        you: you && { name: you.name, x: Math.round(you.body.x), y: Math.round(you.body.y) }, passes: stats ? stats.passes : 0, shots: stats ? stats.shots : 0 }; } };
+})();
+scenes.sports = SPORTS;
 
 /* =====================================================================================
  * SLICE 7  STEALTH  (Assassin's Creed, Metal Gear, Tenchu). A rooftop district at dusk: steal the ledger from the brick

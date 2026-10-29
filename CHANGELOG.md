@@ -5,6 +5,15 @@ One version number covers the engine, its agent edition, the docs and the games 
 - `node tools/version.mjs 0.8.0` writes a new number everywhere it lives and opens a section here; `npm test` fails while any place disagrees or this file has no section for it.
 - Each deployed page carries its build, the commit it was deployed from: `My3D2dge.build` and `My3D2dge.versionLabel()` (`v0.7.0 · a1b2c3d 2026-10-07`), shown on the Emberdeep title, in its Settings (Keys & help), on the Labs page and in the Mocap Lab. Copies built from the repo say `dev-build`.
 
+## 0.84.0 (2026-10-29)
+
+Sports: the SPORTS kit, `docs/HANDOFF-REVIEW.md`'s part 4 (the plan's M15), its second half.
+
+- **Engine**: `E.arc(a, b, gravity, { apex | time | speed })` -> `{ vx, vy, vz, t }`: the throw that lands at b (a lob to a teammate's feet, a grenade, a leap to a ledge), in the core's math; by its height over the higher end, its time in the air, or a launch speed (the lower arc; null out of reach).
+- **Engine**: the SPORTS kit (`#sports`, `src/starter/68-sports.js`): two against two in a walled cage (Sensible Soccer, NBA Jam), for up to four players (`game.allowJoin`: player 2 takes the RUST, 3 and 4 the second of each side). The ball is an `E.Body` that rolls, bounces off the boards and the ground and curls; passes led to the teammate the stick points at, lobs by `E.arc`, shots on a meter with aftertouch, slide tackles, a switch to the nearer player; the CPU's two by formation (with the ball, the other runs ahead on the far side; without it, the nearer presses and the other covers the goal); the rules (kickoffs, the other side out of the centre circle until the ball is played; goal kicks over the bar; the ball thrown back in when it leaves the cage) and a match clock (two halves, a golden goal when level); commentary on `Dialog`'s radio; a stand of supporters who jump at their side's goals; the grass's own grain; an original song. `#sports/match`, `#sports/vs`.
+- **Tools**: `kits-test`'s bot for SPORTS (player 1 plays a match to its final whistle by the CPU's judgment given as the stick and buttons: passes, lobs, shots; then four players each holding a footballer); the phone test's sports case (PASS, SHOOT and LOB a thumb's size; the stick runs the player with the ball; PASS passes; SHOOT held and let go shoots).
+- **Docs**: README (the kits; genre coverage: sports), the API card (the playbook's sports row; `E.arc` among the helpers), `docs/KITS.md` (`E.arc`; sports among the players' genres), the Labs page (the kit and a To check card), `docs/HANDOFF-REVIEW.md` without its part 4.
+
 ## 0.83.0 (2026-10-29)
 
 A first-person dungeon: the 3D CRAWLER kit, `docs/HANDOFF-REVIEW.md`'s part 4 (the plan's M15), its first half.
