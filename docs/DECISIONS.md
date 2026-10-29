@@ -1230,3 +1230,19 @@ An entry:
 - **Answered:** no question asked: a reversible call, flagged in its pull request (the goal: the full test's failures
   fixed forward)
 - **Landed in:** v0.81.3
+
+## D68 · 2026-10-29 · The genre plan back for one version, to carry its M16 row
+
+- **Principle:** process (the plan's section 7, rule 8: every milestone's row in section 9; D65 deleted the plan)
+- **Call:** `docs/HANDOFF-GENRES.md` comes back at v0.81.4 as its last text was (`b56505d`), with M16's row filled in
+  (v0.81.2 `5076061`, #190; the full test's audio failure fixed forward in v0.81.3 `89f25cb`, #191), how the M13 and
+  M14 rows' full-test failures ended (the army tap fixed in v0.79.1, the timing checks passing again, the audio clock
+  fixed forward in v0.81.3), M15 as not started, and a closing status. v0.81.5 deletes it again, as M16 and D65 say,
+  and `docs/KITS.md` and `docs/HANDOFF-REVIEW.md` then point at v0.81.4's text, the one with every row.
+- **Why:** M16 both fills in its row and deletes the file, and the fold-in (D65) did the second without the first, so
+  the plan's last text in git lacked M16's row while `docs/KITS.md` promised every milestone's. The owner's goal asks
+  for each milestone's row. Two patches (back, then gone) keep both: the row in the plan's last text, the plan out of
+  the tree. What would change it: nothing; a reversible call, a revert undoes it.
+- **Answered:** no question asked: a reversible call, flagged in its pull request (the owner's goal: each milestone's
+  section 9 row)
+- **Landed in:** v0.81.4
