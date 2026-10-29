@@ -10,7 +10,7 @@ One version number covers the engine, its agent edition, the docs and the games 
 The full test's audio failure fixed forward: the music held to the game's clock through a slip.
 
 - **Engine**: the music clock meets the sound at once when it is past 10 ms off two frames running (a slip of the sound device, a long frame whose time past 50 ms the game's clock gave up, a pause), where it smoothed anything under 100 ms: a slip of 20 ms or more took about 9 frames to meet, past the 5 the audio suite allows. One frame alone past 10 ms is held, not met: the device's timestamp can be read out of step for a frame. In five recorded runs the sound sits closer to the clock (the median about 0.1 ms, from about 1.5) and is moved half as often or less.
-- **Tools**: the audio suite's clock check also skips the 5 frames after each stall of the page (a frame over 50 ms) and each misread of the device's timestamp (one frame's reading the next contradicts, the sound not moved between), as it skipped its slips; each kind under 1% of the frames (D67).
+- **Tools**: the audio suite's clock check measures how fast the sound is met again, whatever moved it (the device's slip, a stall of the page, the device's timestamp misread): past 10 ms only in stretches of at most 6 frames, in under 1% of the frames; it skipped only the 5 frames after the device's slips, and failed in a slow container on stalls and misreads (D67).
 
 ## 0.81.2 (2026-10-29)
 
