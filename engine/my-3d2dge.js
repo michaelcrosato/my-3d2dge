@@ -281,6 +281,20 @@ const targets = (from, list, o = {}) => {
   }
   return out.sort((p, q) => p.d - q.d);
 };
+/** the throw from a to b ({ x, y, z }) under gravity g (units a second squared, pulling z down): a lob to a teammate's
+ *  feet, a grenade, a leap to a ledge. o: { apex: how far it rises over the higher end (24), or time: the seconds it
+ *  flies, or speed: a launch speed (the lower arc that reaches; null when it can't) } -> { vx, vy, vz, t } */
+const arc = (a, b, g, o = {}) => {
+  const dx = b.x - a.x, dy = b.y - a.y, dz = (b.z || 0) - (a.z || 0), d = Math.hypot(dx, dy);
+  let t;
+  if (o.time) t = o.time;
+  else if (o.speed) {
+    const v2 = o.speed * o.speed, q = v2 * v2 - g * (g * d * d + 2 * dz * v2);
+    if (q < 0 || d < 1e-6) return null;
+    const tan = (v2 - Math.sqrt(q)) / (g * d); t = d * Math.sqrt(1 + tan * tan) / o.speed;
+  } else { const vz = Math.sqrt(2 * g * (Math.max(0, dz) + (o.apex ?? 24))); t = (vz + Math.sqrt(Math.max(0, vz * vz - 2 * g * dz))) / g; }
+  return { vx: dx / t, vy: dy / t, vz: (dz + g * t * t / 2) / t, t };
+};
 /** remove items in place: prune(bullets, b => b.dead) */
 const prune = (list, fn) => { let j = 0; for (let i = 0; i < list.length; i++) if (!fn(list[i])) list[j++] = list[i]; list.length = j; return list; };
 /** saved data that survives reloads (localStorage, JSON). Never throws. */
@@ -290,7 +304,7 @@ const store = {
   remove(key) { try { localStorage.removeItem('my3d2dge:' + key); } catch (e) { /* storage blocked */ } }   // forget key
 };
 Object.assign(E, { clamp, lerp, approach, ease, wrap, wrapDiff, angDiff, lerpAng, approachAng, rng, hash2, noise2, bayer, smoothDamp, hex, toHex, shade, mix, mkCanvas, ctx2d, V3, ik3,
-  rand, randInt, pick, chance, dist, angleTo, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
+  rand, randInt, pick, chance, dist, angleTo, arc, overlap, overlapBox, inArc, sameLevel, targets, HEIGHTS, prune, store });
 
 /* the ways in for the core's sections a kit may leave out (the kit diet: sprite turns, tweens, scripts, transitions,
    weather, input sequences, the camera's window): each puts its functions here as it loads, so a kit without it has
