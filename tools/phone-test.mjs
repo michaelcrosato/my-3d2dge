@@ -708,7 +708,7 @@ if (want('army')) {
   // to spare all round (a body drawn from its kept image picks 1 pixel wider each side than on the frames it is redrawn,
   // so a neighbour's edge on the very point comes and goes), and the battle holding still meanwhile (timeScale 0: the
   // steps still read input), so none marches under the finger while the tap travels
-  await ev(page, () => { window.__fx.game.timeScale = 0; });
+  await ev(page, () => { window.__fx.game.timeScale = 0; }); await wait(300);   // (and every body redrawn as it now stands: an image kept from before, mid-swing, can be wider)
   const css = (x, y) => ev(page, ([x, y]) => { const S = window.__fx.game.screen, rc = S.canvas.getBoundingClientRect(); return [rc.left + (x * S.S + S.OX) / S.dpr, rc.top + (y * S.S + S.OY) / S.dpr]; }, [x, y]);
   const one = await ev(page, () => { const { game, rts } = window.__fx, R = game.r, S = game.screen;
     const solo = (u, x, y) => [[0, 0], [-2, 0], [2, 0], [0, -2], [0, 2]].every(([dx, dy]) => { const h = R.pick(x + dx, y + dy); return h.length === 1 && h[0] === u; });
