@@ -3,10 +3,11 @@
 > **Status: waiting on the owner (2026-10-29).** Nothing here is to be built until the owner says which parts to take up.
 > Each part is independent.
 
-What the genre plan (`docs/HANDOFF-GENRES.md`, folded in at v0.81.2; its rules now in `docs/KITS.md`, its full text in
-`git show b56505d:docs/HANDOFF-GENRES.md`) left for the owner. The plan built what each milestone needed and deferred the
-trimming to a review after the owner had played the kits (the owner's word, 2026-10-28). It is temporary: when a part
-lands, its line goes; when none is left, this file goes.
+What the genre plan (`docs/HANDOFF-GENRES.md`, folded in at v0.81.2 and, after a last version with M16's row, at
+v0.81.5; its rules now in `docs/KITS.md`, its full text in `git show 24aee29:docs/HANDOFF-GENRES.md`) left for the
+owner. The plan built what each milestone needed and deferred the trimming to a review after the owner had played the
+kits (the owner's word, 2026-10-28). It is temporary: when a part lands, its line goes; when none is left, this file
+goes.
 
 ## 1. Play the kits (the owner's checks)
 
